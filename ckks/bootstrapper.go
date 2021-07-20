@@ -115,8 +115,46 @@ func (btp *Bootstrapper) CheckKeys() (err error) {
 	return nil
 }
 
+func (btp *Bootstrapper) genDFTMatrices() {
+
+	a := real(btp.evalModPoly.SinePoly.a)
+	b := real(btp.evalModPoly.SinePoly.b)
+	n := float64(btp.params.N())
+	qDiff := float64(btp.params.Q()[0]) / math.Exp2(math.Round(math.Log2(float64(btp.params.Q()[0]))))
+
+	// CoeffsToSlots vectors
+	// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum + evantual scaling factor for the double angle formula
+	coeffsToSlotsDiffScale := complex(math.Pow(2.0/((b-a)*n*btp.evalModPoly.ScFac*qDiff), 1.0/float64(btp.CoeffsToSlotsParameters.Depth(false))), 0)
+	btp.ctsMatrices = btp.encoder.GenHomomorphicEncodingMatrices(btp.CoeffsToSlotsParameters, coeffsToSlotsDiffScale)
+
+	// SlotsToCoeffs vectors
+	// Rescaling factor to set the final ciphertext to the desired scale
+	slotsToCoeffsDiffScale := complex(math.Pow((qDiff*btp.params.Scale())/(btp.evalModPoly.ScalingFactor/btp.MessageRatio), 1.0/float64(btp.SlotsToCoeffsParameters.Depth(false))), 0)
+	btp.stcMatrices = btp.encoder.GenHomomorphicEncodingMatrices(btp.SlotsToCoeffsParameters, slotsToCoeffsDiffScale)
+
+	// List of the rotation key values to needed for the bootstrapp
+	btp.rotKeyIndex = []int{}
+
+	//SubSum rotation needed X -> Y^slots rotations
+	for i := btp.params.LogSlots(); i < btp.params.MaxLogSlots(); i++ {
+		if !utils.IsInSliceInt(1<<i, btp.rotKeyIndex) {
+			btp.rotKeyIndex = append(btp.rotKeyIndex, 1<<i)
+		}
+	}
+
+	// Coeffs to Slots rotations
+	for _, pVec := range btp.ctsMatrices.Matrices {
+		btp.rotKeyIndex = addEncodingMatrixRotationsToList(pVec, btp.rotKeyIndex, btp.params.Slots(), false)
+	}
+
+	// Slots to Coeffs rotations
+	for i, pVec := range btp.stcMatrices.Matrices {
+		btp.rotKeyIndex = addEncodingMatrixRotationsToList(pVec, btp.rotKeyIndex, btp.params.Slots(), (i == 0) && (btp.params.LogSlots() < btp.params.MaxLogSlots()))
+	}
+}
+
 // AddMatrixRotToList adds the rotations neede to evaluate pVec to the list rotations
-func AddMatrixRotToList(pVec PtDiagMatrix, rotations []int, slots int, repack bool) []int {
+func addEncodingMatrixRotationsToList(pVec PtDiagMatrix, rotations []int, slots int, repack bool) []int {
 
 	if pVec.naive {
 		for j := range pVec.Vec {
@@ -153,42 +191,4 @@ func AddMatrixRotToList(pVec PtDiagMatrix, rotations []int, slots int, repack bo
 	}
 
 	return rotations
-}
-
-func (btp *Bootstrapper) genDFTMatrices() {
-
-	a := real(btp.evalModPoly.SinePoly.a)
-	b := real(btp.evalModPoly.SinePoly.b)
-	n := float64(btp.params.N())
-	qDiff := float64(btp.params.Q()[0]) / math.Exp2(math.Round(math.Log2(float64(btp.params.Q()[0]))))
-
-	// CoeffsToSlots vectors
-	// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum + evantual scaling factor for the double angle formula
-	coeffsToSlotsDiffScale := complex(math.Pow(2.0/((b-a)*n*btp.evalModPoly.ScFac*qDiff), 1.0/float64(btp.CoeffsToSlotsParameters.Depth(false))), 0)
-	btp.ctsMatrices = btp.encoder.GenHomomorphicEncodingMatrices(btp.CoeffsToSlotsParameters, coeffsToSlotsDiffScale)
-
-	// SlotsToCoeffs vectors
-	// Rescaling factor to set the final ciphertext to the desired scale
-	slotsToCoeffsDiffScale := complex(math.Pow((qDiff*btp.params.Scale())/(btp.evalModPoly.ScalingFactor/btp.MessageRatio), 1.0/float64(btp.SlotsToCoeffsParameters.Depth(false))), 0)
-	btp.stcMatrices = btp.encoder.GenHomomorphicEncodingMatrices(btp.SlotsToCoeffsParameters, slotsToCoeffsDiffScale)
-
-	// List of the rotation key values to needed for the bootstrapp
-	btp.rotKeyIndex = []int{}
-
-	//SubSum rotation needed X -> Y^slots rotations
-	for i := btp.params.LogSlots(); i < btp.params.MaxLogSlots(); i++ {
-		if !utils.IsInSliceInt(1<<i, btp.rotKeyIndex) {
-			btp.rotKeyIndex = append(btp.rotKeyIndex, 1<<i)
-		}
-	}
-
-	// Coeffs to Slots rotations
-	for _, pVec := range btp.ctsMatrices.Matrices {
-		btp.rotKeyIndex = AddMatrixRotToList(pVec, btp.rotKeyIndex, btp.params.Slots(), false)
-	}
-
-	// Slots to Coeffs rotations
-	for i, pVec := range btp.stcMatrices.Matrices {
-		btp.rotKeyIndex = AddMatrixRotToList(pVec, btp.rotKeyIndex, btp.params.Slots(), (i == 0) && (btp.params.LogSlots() < btp.params.MaxLogSlots()))
-	}
 }

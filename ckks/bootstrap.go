@@ -17,18 +17,18 @@ func (btp *Bootstrapper) Bootstrapp(ct *Ciphertext) *Ciphertext {
 
 	// Drops the level to 1
 	for ct.Level() > 1 {
-		btp.evaluator.DropLevel(ct, 1)
+		btp.DropLevel(ct, 1)
 	}
 
 	// Brings the ciphertext scale to Q0/MessageRatio
 	if ct.Level() == 1 {
 
 		// If one level is available, then uses it to match the scale
-		btp.evaluator.SetScale(ct, bootstrappingScale)
+		btp.SetScale(ct, bootstrappingScale)
 
 		// Then drops to level 0
 		for ct.Level() != 0 {
-			btp.evaluator.DropLevel(ct, 1)
+			btp.DropLevel(ct, 1)
 		}
 
 	} else {
@@ -38,37 +38,32 @@ func (btp *Bootstrapper) Bootstrapp(ct *Ciphertext) *Ciphertext {
 			panic("ciphetext scale > q/||m||)")
 		}
 
-		btp.evaluator.ScaleUp(ct, math.Round(bootstrappingScale/ct.Scale), ct)
+		btp.ScaleUp(ct, math.Round(bootstrappingScale/ct.Scale), ct)
 	}
 
 	// Step 1 : Extend the basis from q to Q
 	ct = btp.modUpFromQ0(ct)
 
 	//SubSum X -> (N/dslots) * Y^dslots
-	ct = btp.evaluator.Trace(ct, btp.params.LogSlots())
+	ct = btp.Trace(ct, btp.params.LogSlots())
 
 	// Step 2 : CoeffsToSlots (Homomorphic encoding)
-	ct0, ct1 = btp.evaluator.CoeffsToSlots(ct, btp.ctsMatrices)
+	ct0, ct1 = btp.CoeffsToSlots(ct, btp.ctsMatrices)
 
 	// Step 3 : EvalMod (Homomorphic modular reduction)
 	// ct0 = Ecd(real)
 	// ct1 = Ecd(imag)
 	// If n < N/2 then ct0 = Ecd(real|imag)
-	ct0 = btp.evaluator.EvalMod(ct0, btp.evalModPoly)
+	ct0 = btp.EvalMod(ct0, btp.evalModPoly)
 	ct0.Scale = btp.params.Scale()
 
 	if ct1 != nil {
-		ct1 = btp.evaluator.EvalMod(ct1, btp.evalModPoly)
+		ct1 = btp.EvalMod(ct1, btp.evalModPoly)
 		ct1.Scale = btp.params.Scale()
 	}
 
 	// Step 4 : SlotsToCoeffs (Homomorphic decoding)
-	ct0 = btp.evaluator.SlotsToCoeffs(ct0, ct1, btp.stcMatrices)
-
-	// Sets the scale to the closest power of two
-	// Deviation from closest power of two is taken into account
-	// in the scaling of the SlotsToCoeffs matrices
-	ct0.Scale = math.Exp2(math.Round(math.Log2(ct0.Scale)))
+	ct0 = btp.SlotsToCoeffs(ct0, ct1, btp.stcMatrices)
 
 	return ct0
 }

@@ -2,7 +2,6 @@ package ckks
 
 import (
 	"github.com/ldsec/lattigo/v2/ckks/bettersine"
-	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 	"math"
 	"math/cmplx"
@@ -54,8 +53,6 @@ func TestBootstrap(t *testing.T) {
 		}
 
 		for _, testSet := range []func(testContext *testParams, btpParams *BootstrappingParameters, t *testing.T){
-			testCoeffsToSlots,
-			testSlotsToCoeffs,
 			testbootstrap,
 		} {
 			testSet(testContext, btpParams, t)
@@ -77,8 +74,6 @@ func TestBootstrap(t *testing.T) {
 		}
 
 		for _, testSet := range []func(testContext *testParams, btpParams *BootstrappingParameters, t *testing.T){
-			testCoeffsToSlots,
-			testSlotsToCoeffs,
 			testbootstrap,
 		} {
 			testSet(testContext, btpParams, t)
@@ -122,7 +117,7 @@ func testEvalSine(testContext *testParams, btpParams *BootstrappingParameters, t
 			t.Error(err)
 		}
 
-		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, testContext.params.LogSlots(), 0, t)
+		verifyTestVectors(testContext.params, testContext.encoder, testContext.decryptor, values, ciphertext, testContext.params.LogSlots(), 0, t)
 
 		testContext.params.scale = DefaultScale
 		eval.(*evaluator).scale = DefaultScale
@@ -169,7 +164,7 @@ func testEvalSine(testContext *testParams, btpParams *BootstrappingParameters, t
 			cheby.coeffs[i] *= complex(sqrt2pi, 0)
 		}
 
-		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, testContext.params.LogSlots(), 0, t)
+		verifyTestVectors(testContext.params, testContext.encoder, testContext.decryptor, values, ciphertext, testContext.params.LogSlots(), 0, t)
 
 		for i := range values {
 
@@ -202,7 +197,7 @@ func testEvalSine(testContext *testParams, btpParams *BootstrappingParameters, t
 			eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
 		}
 
-		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, testContext.params.LogSlots(), 0, t)
+		verifyTestVectors(testContext.params, testContext.encoder, testContext.decryptor, values, ciphertext, testContext.params.LogSlots(), 0, t)
 
 		testContext.params.scale = DefaultScale
 		eval.(*evaluator).scale = DefaultScale
@@ -272,206 +267,11 @@ func testEvalSine(testContext *testParams, btpParams *BootstrappingParameters, t
 			eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
 		}
 
-		verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, testContext.params.LogSlots(), 0, t)
+		verifyTestVectors(testContext.params, testContext.encoder, testContext.decryptor, values, ciphertext, testContext.params.LogSlots(), 0, t)
 
 		testContext.params.scale = DefaultScale
 		eval.(*evaluator).scale = DefaultScale
 
-	})
-}
-
-func testCoeffsToSlots(testContext *testParams, btpParams *BootstrappingParameters, t *testing.T) {
-	t.Run(testString(testContext, "CoeffsToSlots/"), func(t *testing.T) {
-
-		// This test tests the homomorphic encoding
-		// It first generates a vector of complex values of size params.Slots()
-		//
-		// vReal + i*vImag
-		//
-		// Then encode coefficient-wise and encrypts the vectors :
-		//
-		// Enc(bitReverse(vReal)||bitReverse(vImg))
-		//
-		// And applies the homomorphic Encoding (will merge both vectors if there was two)
-		//
-		// Enc(iFFT(vReal+ i*vImag))
-		//
-		// And returns the result in one ciphextext if the ciphertext can store it else in two ciphertexts
-		//
-		// Enc(Ecd(vReal) || Ecd(vImag)) or Enc(Ecd(vReal)) and Enc(Ecd(vImag))
-		//
-		// Then checks that Dcd(Dec(Enc(Ecd(vReal)))) = vReal and Dcd(Dec(Enc(Ecd(vImag)))) = vImag
-
-		ctsParams := btpParams.CoeffsToSlotsParameters
-
-		params := testContext.params
-
-		n := math.Pow(1.0/float64(2*params.Slots()), 1.0/float64(ctsParams.Depth(true)))
-
-		// Generates the encoding matrices
-		CoeffsToSlotMatrices := testContext.encoder.GenHomomorphicEncodingMatrices(ctsParams, complex(n, 0))
-
-		// Gets the rotations indexes for CoeffsToSlots
-		rotations := ctsParams.Rotations(params.LogN(), params.LogSlots())
-
-		// Generates the rotation keys
-		rotKey := testContext.kgen.GenRotationKeysForRotations(rotations, true, testContext.sk)
-
-		// Generates the vector of random complex values
-		values := make([]complex128, params.Slots())
-		for i := range values {
-			values[i] = complex(utils.RandFloat64(-1, 1), utils.RandFloat64(-1, 1))
-		}
-
-		// Splits between real and imaginary
-		valuesReal := make([]complex128, params.Slots())
-		for i := range valuesReal {
-			valuesReal[i] = complex(real(values[i]), 0)
-		}
-
-		valuesImag := make([]complex128, params.Slots())
-		for i := range valuesImag {
-			valuesImag[i] = complex(imag(values[i]), 0)
-		}
-
-		// Applies bit-reverse on the original complex vector
-		SliceBitReverseInPlaceComplex128(values, params.Slots())
-
-		// Maps to a float vector
-		// Add gaps if sparse packing
-		valuesFloat := make([]float64, params.N())
-		gap := params.N() / (2 * params.Slots())
-		for i, jdx, idx := 0, params.N()>>1, 0; i < params.Slots(); i, jdx, idx = i+1, jdx+gap, idx+gap {
-			valuesFloat[idx] = real(values[i])
-			valuesFloat[jdx] = imag(values[i])
-		}
-
-		// Encodes coefficient-wise and encrypts the test vector
-		plaintext := NewPlaintext(params, params.MaxLevel(), params.Scale())
-		testContext.encoder.EncodeCoeffs(valuesFloat, plaintext)
-		ciphertext := testContext.encryptorPk.EncryptNew(plaintext)
-
-		// Creates an evaluator with the rotation keys
-		eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testContext.rlk, Rtks: rotKey})
-
-		// Applies the homomorphic DFT
-		ct0, ct1 := eval.CoeffsToSlots(ciphertext, CoeffsToSlotMatrices)
-
-		// Checks against the original coefficients
-		var coeffsReal, coeffsImag []complex128
-		if params.LogSlots() < params.LogN()-1 {
-			coeffsRealImag := testContext.encoder.DecodePublic(testContext.decryptor.DecryptNew(ct0), params.LogSlots()+1, 0)
-			coeffsReal = coeffsRealImag[:params.Slots()]
-			coeffsImag = coeffsRealImag[params.Slots():]
-		} else {
-			coeffsReal = testContext.encoder.DecodePublic(testContext.decryptor.DecryptNew(ct0), params.LogSlots(), 0)
-			coeffsImag = testContext.encoder.DecodePublic(testContext.decryptor.DecryptNew(ct1), params.LogSlots(), 0)
-		}
-
-		verifyTestVectors(testContext, nil, valuesReal, coeffsReal, params.LogSlots(), 0, t)
-		verifyTestVectors(testContext, nil, valuesImag, coeffsImag, params.LogSlots(), 0, t)
-	})
-}
-
-func testSlotsToCoeffs(testContext *testParams, btpParams *BootstrappingParameters, t *testing.T) {
-	t.Run(testString(testContext, "SlotsToCoeffs/"), func(t *testing.T) {
-
-		// This test tests the homomorphic decoding
-		// It first generates a complex vector of size 2*slots
-		// if 2*slots == N, then two vectors are generated, one for the real part, one for the imaginary part :
-		//
-		// vReal and vReal (both floating point vectors because the encoding always result in a real vector)
-		//
-		// Then encode and encrypts the vectors :
-		//
-		// Enc(Ecd(vReal)) and Enc(Ecd(vImag))
-		//
-		// And applies the homomorphic decoding (will merge both vectors if there was two)
-		//
-		// Enc(FFT(Ecd(vReal) + i*Ecd(vImag)))
-		//
-		// The result should be the decoding of the initial vectors bit-reversed
-		//
-		// Enc(FFT(Ecd(vReal) + i*Ecd(vImag))) = Enc(BitReverse(Dcd(Ecd(vReal + i*vImag))))
-		//
-		// The first N/2 slots of the plaintext will be the real part while the last N/2 the imaginary part
-		// In case of 2*slots < N, then there is a gap of N/(2*slots) between each values
-
-		stcParams := btpParams.SlotsToCoeffsParameters
-		params := testContext.params
-
-		// Generates the encoding matrices
-		SlotsToCoeffsMatrix := testContext.encoder.GenHomomorphicEncodingMatrices(stcParams, 1.0)
-
-		// Gets the rotations indexes for SlotsToCoeffs
-		rotations := stcParams.Rotations(params.LogN(), params.LogSlots())
-
-		// Generates the rotation keys
-		rotKey := testContext.kgen.GenRotationKeysForRotations(rotations, true, testContext.sk)
-
-		// Creates an evaluator with the rotation keys
-		eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testContext.rlk, Rtks: rotKey})
-
-		// Generates the n first slots of the test vector (real part to encode)
-		valuesReal := make([]complex128, params.Slots())
-		for i := range valuesReal {
-			valuesReal[i] = complex(float64(i+1)/float64(params.Slots()), 0)
-		}
-
-		// Generates the n first slots of the test vector (imaginary part to encode)
-		valuesImag := make([]complex128, params.Slots())
-		for i := range valuesImag {
-			valuesImag[i] = complex(1+float64(i+1)/float64(params.Slots()), 0)
-		}
-
-		// If sparse, there there is the space to store both vectors in one
-		if params.LogSlots() < params.LogN()-1 {
-			for i := range valuesReal {
-				valuesReal[i] += complex(0, real(valuesImag[i]))
-			}
-		}
-
-		// Encodes and encrypts the test vectors
-		logSlots := params.LogSlots()
-		if params.LogSlots() < params.LogN()-1 {
-			logSlots++
-		}
-		encoder := testContext.encoder.(*encoderComplex128)
-		plaintext := NewPlaintext(params, params.MaxLevel(), params.Scale())
-		encoder.Encode(plaintext, valuesReal, logSlots)
-		ct0 := testContext.encryptorPk.EncryptNew(plaintext)
-		var ct1 *Ciphertext
-		if params.LogSlots() == params.LogN()-1 {
-			testContext.encoder.Encode(plaintext, valuesImag, logSlots)
-			ct1 = testContext.encryptorPk.EncryptNew(plaintext)
-		}
-
-		// Applies the homomorphic DFT
-		res := eval.SlotsToCoeffs(ct0, ct1, SlotsToCoeffsMatrix)
-
-		// Decrypt and decode in the coefficient domain
-		coeffsFloat := testContext.encoder.DecodeCoeffsPublic(testContext.decryptor.DecryptNew(res), 0)
-
-		// Extracts the coefficients and construct the complex vector
-		// This is simply coefficient ordering
-		valuesTest := make([]complex128, params.Slots())
-		gap := params.N() / (2 * params.Slots())
-		for i, idx := 0, 0; i < params.Slots(); i, idx = i+1, idx+gap {
-			valuesTest[i] = complex(coeffsFloat[idx], coeffsFloat[idx+(params.N()>>1)])
-		}
-
-		// The result is always returned as a single complex vector, so if full-packing (2 initial vectors)
-		// then repacks both vectors together
-		if params.LogSlots() == params.LogN()-1 {
-			for i := range valuesReal {
-				valuesReal[i] += complex(0, real(valuesImag[i]))
-			}
-		}
-
-		// Result is bit-reversed, so applies the bit-reverse permutation on the reference vector
-		SliceBitReverseInPlaceComplex128(valuesReal, params.Slots())
-
-		verifyTestVectors(testContext, testContext.decryptor, valuesReal, valuesTest, params.LogSlots(), 0, t)
 	})
 }
 
@@ -516,7 +316,7 @@ func testbootstrap(testContext *testParams, btpParams *BootstrappingParameters, 
 
 			ciphertext = btp.Bootstrapp(ciphertext)
 			//testContext.evaluator.SetScale(ciphertext, testContext.params.scale)
-			verifyTestVectors(testContext, testContext.decryptor, values, ciphertext, testContext.params.LogSlots(), 0, t)
+			verifyTestVectors(testContext.params, testContext.encoder, testContext.decryptor, values, ciphertext, testContext.params.LogSlots(), 0, t)
 		}
 
 	})

@@ -22,10 +22,6 @@ type Bootstrapper struct {
 
 	encoder Encoder // Encoder
 
-	prescale  float64 // Q[0]/(Q[0]/|m|)
-	postscale float64 // Qi sineeval/(Q[0]/|m|)
-	sinescale float64 // Qi sineeval
-
 	evalModPoly EvalModPoly
 	stcMatrices EncodingMatrices
 	ctsMatrices EncodingMatrices
@@ -81,10 +77,6 @@ func newBootstrapper(params Parameters, btpParams BootstrappingParameters) (btp 
 		btp.dslots <<= 1
 		btp.logdslots++
 	}
-
-	btp.prescale = math.Exp2(math.Round(math.Log2(float64(params.Q()[0]) / btp.MessageRatio)))
-	btp.sinescale = math.Exp2(math.Round(math.Log2(btp.EvalModParameters.ScalingFactor)))
-	btp.postscale = btp.sinescale / btp.MessageRatio
 
 	btp.encoder = NewEncoder(params)
 	btp.evaluator = NewEvaluator(params, rlwe.EvaluationKey{}).(*evaluator) // creates an evaluator without keys for genDFTMatrices
@@ -177,7 +169,7 @@ func (btp *Bootstrapper) genDFTMatrices() {
 
 	// SlotsToCoeffs vectors
 	// Rescaling factor to set the final ciphertext to the desired scale
-	slotsToCoeffsDiffScale := complex(math.Pow((qDiff*btp.params.Scale())/btp.postscale, 1.0/float64(btp.SlotsToCoeffsParameters.Depth(false))), 0)
+	slotsToCoeffsDiffScale := complex(math.Pow((qDiff*btp.params.Scale())/(btp.evalModPoly.ScalingFactor/btp.MessageRatio), 1.0/float64(btp.SlotsToCoeffsParameters.Depth(false))), 0)
 	btp.stcMatrices = btp.encoder.GenHomomorphicEncodingMatrices(btp.SlotsToCoeffsParameters, slotsToCoeffsDiffScale)
 
 	// List of the rotation key values to needed for the bootstrapp

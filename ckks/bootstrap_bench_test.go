@@ -41,23 +41,19 @@ func BenchmarkBootstrapp(b *testing.B) {
 	b.Run(testString(testContext, "Bootstrapp/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 
+			bootstrappingScale := math.Exp2(math.Round(math.Log2(btp.params.QiFloat64(0) / btp.MessageRatio)))
+
 			b.StopTimer()
-			ct := NewCiphertextRandom(testContext.prng, testContext.params, 1, 0, testContext.params.Scale())
+			ct := NewCiphertextRandom(testContext.prng, testContext.params, 1, 0, bootstrappingScale)
 			b.StartTimer()
 
 			var t time.Time
 			var ct0, ct1 *Ciphertext
 
-			// Brings the ciphertext scale to Q0/2^{10}
-			btp.evaluator.ScaleUp(ct, math.Round(btp.prescale/ct.Scale), ct)
-
 			// ModUp ct_{Q_0} -> ct_{Q_L}
 			t = time.Now()
-			ct = btp.modUp(ct)
+			ct = btp.modUpFromQ0(ct)
 			b.Log("After ModUp  :", time.Since(t), ct.Level(), ct.Scale)
-
-			// Brings the ciphertext scale to sineQi/(Q0/scale) if its under
-			btp.evaluator.ScaleUp(ct, math.Round(btp.postscale/ct.Scale), ct)
 
 			//SubSum X -> (N/dslots) * Y^dslots
 			t = time.Now()
@@ -71,7 +67,13 @@ func BenchmarkBootstrapp(b *testing.B) {
 
 			// Part 2 : SineEval
 			t = time.Now()
-			ct0, ct1 = btp.evaluateSine(ct0, ct1)
+			ct0 = btp.evaluator.EvalMod(ct0, btp.evalModPoly)
+			ct0.Scale = btp.params.Scale()
+
+			if ct1 != nil {
+				ct1 = btp.evaluator.EvalMod(ct1, btp.evalModPoly)
+				ct1.Scale = btp.params.Scale()
+			}
 			b.Log("After Sine   :", time.Since(t), ct0.Level(), ct0.Scale)
 
 			// Part 3 : Slots to coeffs

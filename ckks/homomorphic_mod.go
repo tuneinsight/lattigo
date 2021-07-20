@@ -105,13 +105,30 @@ func (evm *EvalModParameters) Depth() int {
 	return depth
 }
 
-func (eval *evaluator) EvalMod(ct *Ciphertext, evalModPoly EvalModPoly, targetScale float64) *Ciphertext {
+// EvalMod : homomorphic modular reduction by 1 in the range -K to K
+//
+// Assumes that ct is scaled by 1/(2^r * K) * q/2^{round(log(q))}
+//
+// (1/(2^r * K)) : Chebyshev change of basis and double angle formula
+// (q/2^{round(log(q))}) : correcting factor for q not being a power of two
+//
+// Assumes that ct will be scaled by 2^{round(log(q))}/q afterward
+func (eval *evaluator) EvalMod(ct *Ciphertext, evalModPoly EvalModPoly) *Ciphertext {
+
+	// Stores default scales
+	prevScaleCt := ct.Scale
+	prevScaleEval := eval.scale
+
+	// Normalize the modular reduction to mod by 1
+	ct.Scale = evalModPoly.ScalingFactor
+	eval.scale = evalModPoly.ScalingFactor
 
 	var err error
 
 	// Compute the scales that the ciphertext should have before the double angle
 	// formula such that after it it has the scale it had before the polynomial
 	// evaluation
+	targetScale := ct.Scale
 	for i := 0; i < evalModPoly.DoubleAngle; i++ {
 		targetScale = math.Sqrt(targetScale * eval.params.QiFloat64(evalModPoly.LevelStart-evalModPoly.SinePoly.Depth()-evalModPoly.DoubleAngle+i+1))
 	}
@@ -144,6 +161,9 @@ func (eval *evaluator) EvalMod(ct *Ciphertext, evalModPoly EvalModPoly, targetSc
 			panic(err)
 		}
 	}
+
+	ct.Scale = prevScaleCt
+	eval.scale = prevScaleEval
 
 	return ct
 }

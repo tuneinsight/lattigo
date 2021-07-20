@@ -1,9 +1,8 @@
 package ckks
 
 import (
-	"math"
-
 	"github.com/ldsec/lattigo/v2/ring"
+	"math"
 )
 
 // Bootstrapp re-encrypt a ciphertext at lvl Q0 to a ciphertext at MaxLevel-k where k is the depth of the bootstrapping circuit.
@@ -12,7 +11,8 @@ import (
 // can be used to do a scale matching.
 func (btp *Bootstrapper) Bootstrapp(ct *Ciphertext) *Ciphertext {
 
-	//var t time.Time
+	bootstrappingScale := math.Exp2(math.Round(math.Log2(btp.params.QiFloat64(0) / btp.MessageRatio)))
+
 	var ct0, ct1 *Ciphertext
 
 	// Drops the level to 1
@@ -20,65 +20,60 @@ func (btp *Bootstrapper) Bootstrapp(ct *Ciphertext) *Ciphertext {
 		btp.evaluator.DropLevel(ct, 1)
 	}
 
-	// Brings the ciphertext scale to Q0/2^{10}
+	// Brings the ciphertext scale to Q0/MessageRatio
 	if ct.Level() == 1 {
 
-		// if one level is available, then uses it to match the scale
-		btp.evaluator.SetScale(ct, btp.prescale)
+		// If one level is available, then uses it to match the scale
+		btp.evaluator.SetScale(ct, bootstrappingScale)
 
-		// then drops to level 0
+		// Then drops to level 0
 		for ct.Level() != 0 {
 			btp.evaluator.DropLevel(ct, 1)
 		}
 
 	} else {
 
-		// else drop to level 0
-		for ct.Level() != 0 {
-			btp.evaluator.DropLevel(ct, 1)
+		// Does an integer constant mult by round((Q0/Delta_m)/ctscle)
+		if bootstrappingScale < ct.Scale {
+			panic("ciphetext scale > q/||m||)")
 		}
 
-		// and does an integer constant mult by round((Q0/Delta_m)/ctscle)
-
-		if btp.prescale < ct.Scale {
-			panic("ciphetext scale > Q[0]/(Q[0]/Delta_m)")
-		}
-		btp.evaluator.ScaleUp(ct, math.Round(btp.prescale/ct.Scale), ct)
+		btp.evaluator.ScaleUp(ct, math.Round(bootstrappingScale/ct.Scale), ct)
 	}
 
-	// ModUp ct_{Q_0} -> ct_{Q_L}
-	//t = time.Now()
-	ct = btp.modUp(ct)
-	//log.Println("After ModUp  :", time.Now().Sub(t), ct.Level(), ct.Scale())
-
-	// Brings the ciphertext scale to sineQi/(Q0/scale) if its under
-	btp.evaluator.ScaleUp(ct, math.Round(btp.postscale/ct.Scale), ct)
+	// Step 1 : Extend the basis from q to Q
+	ct = btp.modUpFromQ0(ct)
 
 	//SubSum X -> (N/dslots) * Y^dslots
-	//t = time.Now()
 	ct = btp.evaluator.Trace(ct, btp.params.LogSlots())
-	//log.Println("After SubSum :", time.Now().Sub(t), ct.Level(), ct.Scale())
-	// Part 1 : Coeffs to slots
 
-	//t = time.Now()
+	// Step 2 : CoeffsToSlots (Homomorphic encoding)
 	ct0, ct1 = btp.evaluator.CoeffsToSlots(ct, btp.ctsMatrices)
-	//log.Println("After CtS    :", time.Now().Sub(t), ct0.Level(), ct0.Scale())
 
-	// Part 2 : SineEval
-	//t = time.Now()
-	ct0, ct1 = btp.evaluateSine(ct0, ct1)
-	//log.Println("After Sine   :", time.Now().Sub(t), ct0.Level(), ct0.Scale())
+	// Step 3 : EvalMod (Homomorphic modular reduction)
+	// ct0 = Ecd(real)
+	// ct1 = Ecd(imag)
+	// If n < N/2 then ct0 = Ecd(real|imag)
+	ct0 = btp.evaluator.EvalMod(ct0, btp.evalModPoly)
+	ct0.Scale = btp.params.Scale()
 
-	// Part 3 : Slots to coeffs
-	//t = time.Now()
+	if ct1 != nil {
+		ct1 = btp.evaluator.EvalMod(ct1, btp.evalModPoly)
+		ct1.Scale = btp.params.Scale()
+	}
+
+	// Step 4 : SlotsToCoeffs (Homomorphic decoding)
 	ct0 = btp.evaluator.SlotsToCoeffs(ct0, ct1, btp.stcMatrices)
 
-	ct0.Scale = math.Exp2(math.Round(math.Log2(ct0.Scale))) // rounds to the nearest power of two
-	//log.Println("After StC    :", time.Now().Sub(t), ct0.Level(), ct0.Scale())
+	// Sets the scale to the closest power of two
+	// Deviation from closest power of two is taken into account
+	// in the scaling of the SlotsToCoeffs matrices
+	ct0.Scale = math.Exp2(math.Round(math.Log2(ct0.Scale)))
+
 	return ct0
 }
 
-func (btp *Bootstrapper) modUp(ct *Ciphertext) *Ciphertext {
+func (btp *Bootstrapper) modUpFromQ0(ct *Ciphertext) *Ciphertext {
 
 	ringQ := btp.evaluator.ringQ
 
@@ -123,26 +118,4 @@ func (btp *Bootstrapper) modUp(ct *Ciphertext) *Ciphertext {
 	}
 
 	return ct
-}
-
-// Sine Evaluation ct0 = Q/(2pi) * sin((2pi/Q) * ct0)
-func (btp *Bootstrapper) evaluateSine(ct0, ct1 *Ciphertext) (*Ciphertext, *Ciphertext) {
-
-	ct0.Scale *= btp.MessageRatio
-	btp.evaluator.scale = btp.sinescale // Reference scale is changed to the Qi used for the SineEval (which is also close to the new ciphetext scale)
-
-	ct0 = btp.evaluator.EvalMod(ct0, btp.evalModPoly, btp.sinescale)
-
-	ct0.Scale /= (btp.sinescale / btp.params.Scale())
-
-	if ct1 != nil {
-		ct1.Scale *= btp.MessageRatio
-		ct1 = btp.evaluator.EvalMod(ct1, btp.evalModPoly, btp.sinescale)
-		ct1.Scale /= (btp.sinescale / btp.params.Scale())
-	}
-
-	// Reference scale is changed back to the current ciphertext's scale.
-	btp.evaluator.scale = ct0.Scale
-
-	return ct0, ct1
 }

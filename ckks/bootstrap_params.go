@@ -119,6 +119,7 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 			},
 		},
 		EvalModParameters: EvalModParameters{
+			Q:             0x10000000006e0001,
 			LevelStart:    20,
 			SineType:      Cos1,
 			MessageRatio:  256.0,
@@ -196,6 +197,7 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 			},
 		},
 		EvalModParameters: EvalModParameters{
+			Q:             0x10000000006e0001,
 			LevelStart:    19,
 			SineType:      Cos1,
 			MessageRatio:  4.0,
@@ -271,6 +273,7 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 			},
 		},
 		EvalModParameters: EvalModParameters{
+			Q:             0x80000000080001,
 			LevelStart:    17,
 			SineType:      Cos1,
 			MessageRatio:  256.0,
@@ -353,6 +356,7 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 			},
 		},
 		EvalModParameters: EvalModParameters{
+			Q:             0x4000000120001,
 			LevelStart:    23,
 			SineType:      Cos2,
 			MessageRatio:  256.0,
@@ -416,6 +420,7 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 			},
 		},
 		EvalModParameters: EvalModParameters{
+			Q:             0x1fff90001,
 			LevelStart:    11,
 			SineType:      Cos1,
 			MessageRatio:  256.0,

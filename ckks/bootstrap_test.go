@@ -21,7 +21,7 @@ func TestBootstrap(t *testing.T) {
 
 	var testContext = new(testParams)
 
-	paramSet := 0
+	paramSet := 4
 
 	bootstrapParams := DefaultBootstrapParams[paramSet : paramSet+1]
 

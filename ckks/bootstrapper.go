@@ -120,7 +120,10 @@ func (btp *Bootstrapper) genDFTMatrices() {
 	a := real(btp.evalModPoly.SinePoly.a)
 	b := real(btp.evalModPoly.SinePoly.b)
 	n := float64(btp.params.N())
-	qDiff := float64(btp.params.Q()[0]) / math.Exp2(math.Round(math.Log2(float64(btp.params.Q()[0]))))
+
+	// Correcting factor for approximate division by Q
+	// The second correcting factor for approximate multiplication by Q is included in the coefficients of the EvalMod polynomials
+	qDiff := btp.params.QiFloat64(0) / math.Exp2(math.Round(math.Log2(btp.params.QiFloat64(0))))
 
 	// CoeffsToSlots vectors
 	// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum + evantual scaling factor for the double angle formula
@@ -129,7 +132,7 @@ func (btp *Bootstrapper) genDFTMatrices() {
 
 	// SlotsToCoeffs vectors
 	// Rescaling factor to set the final ciphertext to the desired scale
-	slotsToCoeffsDiffScale := complex(math.Pow((qDiff*btp.params.Scale())/(btp.evalModPoly.ScalingFactor/btp.MessageRatio), 1.0/float64(btp.SlotsToCoeffsParameters.Depth(false))), 0)
+	slotsToCoeffsDiffScale := complex(math.Pow(btp.params.Scale()/(btp.evalModPoly.ScalingFactor/btp.MessageRatio), 1.0/float64(btp.SlotsToCoeffsParameters.Depth(false))), 0)
 	btp.stcMatrices = btp.encoder.GenHomomorphicEncodingMatrices(btp.SlotsToCoeffsParameters, slotsToCoeffsDiffScale)
 
 	// List of the rotation key values to needed for the bootstrapp

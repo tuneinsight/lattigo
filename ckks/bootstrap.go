@@ -44,6 +44,11 @@ func (btp *Bootstrapper) Bootstrapp(ct *Ciphertext) *Ciphertext {
 	// Step 1 : Extend the basis from q to Q
 	ct = btp.modUpFromQ0(ct)
 
+	// Brings the ciphertext scale to sineQi/(Q0/scale) if Q0 < sineQi
+	// Does it after modUp to avoid plaintext overflow
+	// Reduces the additive error of the next steps
+	btp.ScaleUp(ct, math.Round((btp.evalModPoly.ScalingFactor/btp.MessageRatio)/ct.Scale), ct)
+
 	//SubSum X -> (N/dslots) * Y^dslots
 	ct = btp.Trace(ct, btp.params.LogSlots())
 

@@ -19,8 +19,9 @@ const (
 // EvalModParameters a struct for the paramters of the EvalMod step
 // of the bootstrapping
 type EvalModParameters struct {
-	LevelStart    int
-	ScalingFactor float64
+	Q             uint64   // Q0 to reduce by during EvalMod
+	LevelStart    int      // Starting level of EvalMod
+	ScalingFactor float64  // Scaling factor used during EvalMod
 	SineType      SineType // Chose betwenn [Sin(2*pi*x)] or [cos(2*pi*x/r) with double angle formula]
 	MessageRatio  float64  // Ratio between Q0 and m, i.e. Q[0]/|m|
 	K             int      // K parameter (interpolation in the range -K to K)
@@ -48,13 +49,15 @@ func (evm *EvalModParameters) GenPoly() EvalModPoly {
 
 	scFac := math.Exp2(float64(evm.DoubleAngle))
 
+	qDiff := float64(evm.Q) / math.Exp2(math.Round(math.Log2(float64(evm.Q))))
+
 	if evm.ArcSineDeg > 0 {
 
 		sqrt2pi = 1.0
 
 		coeffs := make([]complex128, evm.ArcSineDeg+1)
 
-		coeffs[1] = 0.15915494309189535
+		coeffs[1] = 0.15915494309189535 * complex(qDiff, 0)
 
 		for i := 3; i < evm.ArcSineDeg+1; i += 2 {
 
@@ -65,7 +68,7 @@ func (evm *EvalModParameters) GenPoly() EvalModPoly {
 		arcSinePoly = NewPoly(coeffs)
 
 	} else {
-		sqrt2pi = math.Pow(0.15915494309189535, 1.0/scFac)
+		sqrt2pi = math.Pow(0.15915494309189535*qDiff, 1.0/scFac)
 	}
 
 	if evm.SineType == Sin {
@@ -82,9 +85,7 @@ func (evm *EvalModParameters) GenPoly() EvalModPoly {
 		sinePoly.lead = true
 
 	} else if evm.SineType == Cos2 {
-
 		sinePoly = Approximate(cos2pi, -complex(float64(evm.K)/scFac, 0), complex(float64(evm.K)/scFac, 0), evm.SineDeg)
-
 	} else {
 		panic("Bootstrapper -> invalid sineType")
 	}
@@ -112,7 +113,7 @@ func (evm *EvalModParameters) Depth() int {
 // (1/(2^r * K)) : Chebyshev change of basis and double angle formula
 // (q/2^{round(log(q))}) : correcting factor for q not being a power of two
 //
-// Assumes that ct will be scaled by 2^{round(log(q))}/q afterward
+// Scaling back by 2^{round(log(q))}/q afterward is included in the polynomial
 func (eval *evaluator) EvalMod(ct *Ciphertext, evalModPoly EvalModPoly) *Ciphertext {
 
 	// Stores default scales

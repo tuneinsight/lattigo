@@ -30,51 +30,47 @@ func TestBootstrap(t *testing.T) {
 
 	paramSet := 4
 
-	bootstrapParams := DefaultParameters[paramSet : paramSet+1]
+	ckksParams := DefaultCKKSParameters[paramSet]
+	bootstrapParams := DefaultParameters[paramSet]
 
-	for paramSet := range bootstrapParams {
+	// Insecure params for fast testing only
+	if !*flagLongTest {
+		ckksParams.LogN = 14
+		ckksParams.LogSlots = 13
+	}
 
-		btpParams := bootstrapParams[paramSet]
+	// Tests homomorphic modular reduction encoding and bootstrapping on sparse slots
+	params, err := ckks.NewParametersFromLiteral(ckksParams)
+	if err != nil {
+		panic(err)
+	}
 
-		// Insecure params for fast testing only
-		if !*flagLongTest {
-			btpParams.LogN = 14
-			btpParams.LogSlots = 13
-		}
+	for _, testSet := range []func(params ckks.Parameters, btpParams Parameters, t *testing.T){
+		testbootstrap,
+	} {
+		testSet(params, bootstrapParams, t)
+		runtime.GC()
+	}
 
-		// Tests homomorphic modular reduction encoding and bootstrapping on sparse slots
-		params, err := btpParams.Params()
-		if err != nil {
-			panic(err)
-		}
+	if !*flagLongTest {
+		ckksParams.LogSlots = 12
+	}
 
-		for _, testSet := range []func(params ckks.Parameters, btpParams *Parameters, t *testing.T){
-			testbootstrap,
-		} {
-			testSet(params, btpParams, t)
-			runtime.GC()
-		}
+	// Tests homomorphic encoding and bootstrapping on full slots
+	params, err = ckks.NewParametersFromLiteral(ckksParams)
+	if err != nil {
+		panic(err)
+	}
 
-		if !*flagLongTest {
-			btpParams.LogSlots = 12
-		}
-
-		// Tests homomorphic encoding and bootstrapping on full slots
-		params, err = btpParams.Params()
-		if err != nil {
-			panic(err)
-		}
-
-		for _, testSet := range []func(params ckks.Parameters, btpParams *Parameters, t *testing.T){
-			testbootstrap,
-		} {
-			testSet(params, btpParams, t)
-			runtime.GC()
-		}
+	for _, testSet := range []func(params ckks.Parameters, btpParams Parameters, t *testing.T){
+		testbootstrap,
+	} {
+		testSet(params, bootstrapParams, t)
+		runtime.GC()
 	}
 }
 
-func testbootstrap(params ckks.Parameters, btpParams *Parameters, t *testing.T) {
+func testbootstrap(params ckks.Parameters, btpParams Parameters, t *testing.T) {
 
 	t.Run(ParamsToString(params, "Bootstrapping/FullCircuit/"), func(t *testing.T) {
 
@@ -85,10 +81,10 @@ func testbootstrap(params ckks.Parameters, btpParams *Parameters, t *testing.T) 
 		encryptor := ckks.NewEncryptor(params, sk)
 		decryptor := ckks.NewDecryptor(params, sk)
 
-		rotations := btpParams.RotationsForBootstrapping(params.LogSlots())
+		rotations := btpParams.RotationsForBootstrapping(params.LogN(), params.LogSlots())
 		rotkeys := kgen.GenRotationKeysForRotations(rotations, true, sk)
 
-		btp, err := NewBootstrapper(params, *btpParams, Key{rlk, rotkeys})
+		btp, err := NewBootstrapper(params, btpParams, Key{rlk, rotkeys})
 		if err != nil {
 			panic(err)
 		}

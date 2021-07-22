@@ -154,48 +154,6 @@ func testHomomorphicMod(params Parameters, t *testing.T) {
 
 		verifyTestVectors(params, encoder, decryptor, values, ciphertext, params.LogSlots(), 0, t)
 	})
-
-	t.Run("HomomorphicMod/CosOptimizedChebyshevWithArcSine/", func(t *testing.T) {
-
-		evm := EvalModParameters{
-			Q:             0x80000000080001,
-			LevelStart:    12,
-			SineType:      Cos1,
-			MessageRatio:  256.0,
-			K:             325,
-			SineDeg:       255,
-			DoubleAngle:   4,
-			ArcSineDeg:    7,
-			ScalingFactor: 1 << 60,
-		}
-
-		EvalModPoly := evm.GenPoly()
-
-		values, _, ciphertext := newTestVectorsEvalMod(params, encryptor, encoder, evm, t)
-
-		scale := math.Exp2(math.Round(math.Log2(float64(evm.Q) / evm.MessageRatio)))
-
-		// Scale the message to Delta = Q/MessageRatio
-		eval.ScaleUp(ciphertext, math.Round(scale/ciphertext.Scale), ciphertext)
-
-		// Scale the message up to Sine/MessageRatio
-		eval.ScaleUp(ciphertext, math.Round((EvalModPoly.ScalingFactor/evm.MessageRatio)/ciphertext.Scale), ciphertext)
-
-		// Normalization
-		eval.MultByConst(ciphertext, 1/(float64(evm.K)*evm.QDiff()), ciphertext)
-		eval.Rescale(ciphertext, params.Scale(), ciphertext)
-
-		// EvalMod
-		ciphertext = eval.EvalMod(ciphertext, EvalModPoly)
-
-		// PlaintextCircuit
-		//pi2r := 6.283185307179586/complex(math.Exp2(float64(evm.DoubleAngle)), 0)
-		for i := range values {
-			values[i] -= complex(evm.MessageRatio*evm.QDiff()*math.Round(real(values[i])/(evm.MessageRatio/evm.QDiff())), 0)
-		}
-
-		verifyTestVectors(params, encoder, decryptor, values, ciphertext, params.LogSlots(), 0, t)
-	})
 }
 
 func newTestVectorsEvalMod(params Parameters, encryptor Encryptor, encoder Encoder, evm EvalModParameters, t *testing.T) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext) {

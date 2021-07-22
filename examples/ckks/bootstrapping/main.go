@@ -29,8 +29,9 @@ func main() {
 	// LogSlots is hardcoded to 15 in the parameters, but can be changed from 1 to 15.
 	// When changing logSlots make sure that the number of levels allocated to CtS and StC is
 	// smaller or equal to logSlots.
+	ckksParams := bootstrapping.DefaultCKKSParameters[0]
 	btpParams := bootstrapping.DefaultParameters[0]
-	params, err := btpParams.Params()
+	params, err := ckks.NewParametersFromLiteral(ckksParams)
 	if err != nil {
 		panic(err)
 	}
@@ -49,11 +50,11 @@ func main() {
 
 	fmt.Println()
 	fmt.Println("Generating bootstrapping keys...")
-	rotations := btpParams.RotationsForBootstrapping(params.LogSlots())
+	rotations := btpParams.RotationsForBootstrapping(params.LogN(), params.LogSlots())
 	rotkeys := kgen.GenRotationKeysForRotations(rotations, true, sk)
 	rlk := kgen.GenRelinearizationKey(sk, 2)
 	btpKey := bootstrapping.Key{Rlk: rlk, Rtks: rotkeys}
-	if btp, err = bootstrapping.NewBootstrapper(params, *btpParams, btpKey); err != nil {
+	if btp, err = bootstrapping.NewBootstrapper(params, btpParams, btpKey); err != nil {
 		panic(err)
 	}
 	fmt.Println("Done")

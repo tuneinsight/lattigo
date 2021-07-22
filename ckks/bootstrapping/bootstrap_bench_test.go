@@ -14,9 +14,10 @@ func BenchmarkBootstrapp(b *testing.B) {
 
 	paramSet := 2
 
+	ckksParams := DefaultCKKSParameters[paramSet]
 	btpParams := DefaultParameters[paramSet]
 
-	params, err := btpParams.Params()
+	params, err := ckks.NewParametersFromLiteral(ckksParams)
 	if err != nil {
 		panic(err)
 	}
@@ -25,11 +26,11 @@ func BenchmarkBootstrapp(b *testing.B) {
 	sk := kgen.GenSecretKeySparse(btpParams.H)
 	rlk := kgen.GenRelinearizationKey(sk, 2)
 
-	rotations := btpParams.RotationsForBootstrapping(params.LogSlots())
+	rotations := btpParams.RotationsForBootstrapping(params.LogN(), params.LogSlots())
 	rotkeys := kgen.GenRotationKeysForRotations(rotations, true, sk)
 	btpKey := Key{rlk, rotkeys}
 
-	if btp, err = NewBootstrapper(params, *btpParams, btpKey); err != nil {
+	if btp, err = NewBootstrapper(params, btpParams, btpKey); err != nil {
 		panic(err)
 	}
 

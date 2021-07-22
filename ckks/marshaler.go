@@ -1,13 +1,57 @@
 package ckks
 
 import (
+	"bytes"
 	"encoding/binary"
+	"encoding/gob"
 	"errors"
 	"math"
 
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
 )
+
+// MarshalBinary encode the target EncodingMatricesParameters on a slice of bytes.
+func (mParams *EncodingMatricesParameters) MarshalBinary() (data []byte, err error) {
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	if err := enc.Encode(mParams); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// UnmarshalBinary decodes a slice of bytes on the target EncodingMatricesParameters.
+func (mParams *EncodingMatricesParameters) UnmarshalBinary(data []byte) error {
+
+	reader := bytes.NewReader(data)
+	dec := gob.NewDecoder(reader)
+	if err := dec.Decode(mParams); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// MarshalBinary encode the target EvalModParameters on a slice of bytes.
+func (evmParams *EvalModParameters) MarshalBinary() (data []byte, err error) {
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	if err := enc.Encode(evmParams); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// UnmarshalBinary decodes a slice of bytes on the target EvalModParameters.
+func (evmParams *EvalModParameters) UnmarshalBinary(data []byte) error {
+	reader := bytes.NewReader(data)
+	dec := gob.NewDecoder(reader)
+	if err := dec.Decode(evmParams); err != nil {
+		return err
+	}
+	return nil
+}
 
 // GetDataLen returns the length in bytes of the target Ciphertext.
 func (ciphertext *Ciphertext) GetDataLen(WithMetaData bool) (dataLen int) {

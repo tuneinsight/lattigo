@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/ldsec/lattigo/v2/ckks/bootstrapping"
 	"github.com/ldsec/lattigo/v2/ckks"
+	"github.com/ldsec/lattigo/v2/ckks/bootstrapping"
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
@@ -29,7 +29,7 @@ func main() {
 	// LogSlots is hardcoded to 15 in the parameters, but can be changed from 1 to 15.
 	// When changing logSlots make sure that the number of levels allocated to CtS and StC is
 	// smaller or equal to logSlots.
-	btpParams := bootstrapping.DefaultBootstrapParams[0]
+	btpParams := bootstrapping.DefaultParameters[0]
 	params, err := btpParams.Params()
 	if err != nil {
 		panic(err)
@@ -52,7 +52,7 @@ func main() {
 	rotations := btpParams.RotationsForBootstrapping(params.LogSlots())
 	rotkeys := kgen.GenRotationKeysForRotations(rotations, true, sk)
 	rlk := kgen.GenRelinearizationKey(sk, 2)
-	btpKey := bootstrapping.BootstrappingKey{Rlk: rlk, Rtks: rotkeys}
+	btpKey := bootstrapping.Key{Rlk: rlk, Rtks: rotkeys}
 	if btp, err = bootstrapping.NewBootstrapper(params, *btpParams, btpKey); err != nil {
 		panic(err)
 	}

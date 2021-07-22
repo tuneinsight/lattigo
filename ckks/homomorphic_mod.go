@@ -39,7 +39,7 @@ type EvalModParameters struct {
 	ArcSineDeg    int      // Degree of the Taylor arcsine composed with f(2*pi*x) (if zero then not used)
 }
 
-// Return Q/ClosestedPow2
+// QDiff return Q/ClosestedPow2
 // This is the error introduced by the approximate division by Q
 func (evm *EvalModParameters) QDiff() float64 {
 	return float64(evm.Q) / math.Exp2(math.Round(math.Log2(float64(evm.Q))))

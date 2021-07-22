@@ -12,8 +12,8 @@ import (
 // the polynomial approximation and the keys for the bootstrapping.
 type Bootstrapper struct {
 	ckks.Evaluator
-	BootstrappingParameters
-	*BootstrappingKey
+	Parameters
+	*Key
 	params ckks.Parameters
 
 	dslots    int // Number of plaintext slots after the re-encoding
@@ -28,12 +28,12 @@ type Bootstrapper struct {
 	rotKeyIndex []int // a list of the required rotation keys
 }
 
-// BootstrappingKey is a type for a CKKS bootstrapping key, wich regroups the necessary public relinearization
+// Key is a type for a CKKS bootstrapping key, wich regroups the necessary public relinearization
 // and rotation keys (i.e., an EvaluationKey).
-type BootstrappingKey rlwe.EvaluationKey
+type Key rlwe.EvaluationKey
 
 // NewBootstrapper creates a new Bootstrapper.
-func NewBootstrapper(params ckks.Parameters, btpParams BootstrappingParameters, btpKey BootstrappingKey) (btp *Bootstrapper, err error) {
+func NewBootstrapper(params ckks.Parameters, btpParams Parameters, btpKey Key) (btp *Bootstrapper, err error) {
 
 	if btpParams.SineType == ckks.Sin && btpParams.DoubleAngle != 0 {
 		return nil, fmt.Errorf("cannot use double angle formul for SineType = Sin -> must use SineType = Cos")
@@ -49,7 +49,7 @@ func NewBootstrapper(params ckks.Parameters, btpParams BootstrappingParameters, 
 
 	btp = newBootstrapper(params, btpParams)
 
-	btp.BootstrappingKey = &BootstrappingKey{btpKey.Rlk, btpKey.Rtks}
+	btp.Key = &Key{btpKey.Rlk, btpKey.Rtks}
 	if err = btp.CheckKeys(); err != nil {
 		return nil, fmt.Errorf("invalid bootstrapping key: %w", err)
 	}
@@ -60,11 +60,11 @@ func NewBootstrapper(params ckks.Parameters, btpParams BootstrappingParameters, 
 
 // newBootstrapper is a constructor of "dummy" bootstrapper to enable the generation of bootstrapping-related constants
 // without providing a bootstrapping key. To be replaced by a proper factorization of the bootstrapping pre-computations.
-func newBootstrapper(params ckks.Parameters, btpParams BootstrappingParameters) (btp *Bootstrapper) {
+func newBootstrapper(params ckks.Parameters, btpParams Parameters) (btp *Bootstrapper) {
 	btp = new(Bootstrapper)
 
 	btp.params = params
-	btp.BootstrappingParameters = btpParams
+	btp.Parameters = btpParams
 
 	btp.dslots = params.Slots()
 	btp.logdslots = params.LogSlots()

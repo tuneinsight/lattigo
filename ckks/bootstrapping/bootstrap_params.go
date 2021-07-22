@@ -6,8 +6,8 @@ import (
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
-// BootstrappingParameters is a struct for the default bootstrapping parameters
-type BootstrappingParameters struct {
+// Parameters is a struct for the default bootstrapping parameters
+type Parameters struct {
 	ckks.ParametersLiteral
 	SlotsToCoeffsParameters ckks.EncodingMatricesParameters
 	ckks.EvalModParameters
@@ -15,8 +15,8 @@ type BootstrappingParameters struct {
 	H                       int // Hamming weight of the secret key
 }
 
-// Params generates a new set of Parameters from the BootstrappingParameters
-func (b *BootstrappingParameters) Params() (p ckks.Parameters, err error) {
+// Params generates the ckks.Parameters from the bootstrappingParameters
+func (b *Parameters) Params() (p ckks.Parameters, err error) {
 	if p, err = ckks.NewParametersFromLiteral(b.ParametersLiteral); err != nil {
 		return ckks.Parameters{}, err
 	}
@@ -24,7 +24,7 @@ func (b *BootstrappingParameters) Params() (p ckks.Parameters, err error) {
 }
 
 // RotationsForBootstrapping returns the list of rotations performed during the Bootstrapping operation.
-func (b *BootstrappingParameters) RotationsForBootstrapping(logSlots int) (rotations []int) {
+func (b *Parameters) RotationsForBootstrapping(logSlots int) (rotations []int) {
 
 	// List of the rotation key values to needed for the bootstrapp
 	rotations = []int{}
@@ -48,8 +48,8 @@ func (b *BootstrappingParameters) RotationsForBootstrapping(logSlots int) (rotat
 	return
 }
 
-// DefaultBootstrapParams are default bootstrapping params for the bootstrapping.
-var DefaultBootstrapParams = []*BootstrappingParameters{
+// DefaultParameters are default bootstrapping params for the bootstrapping.
+var DefaultParameters = []*Parameters{
 
 	// SET I
 	// 1546

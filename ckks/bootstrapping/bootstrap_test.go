@@ -30,7 +30,7 @@ func TestBootstrap(t *testing.T) {
 
 	paramSet := 4
 
-	bootstrapParams := DefaultBootstrapParams[paramSet : paramSet+1]
+	bootstrapParams := DefaultParameters[paramSet : paramSet+1]
 
 	for paramSet := range bootstrapParams {
 
@@ -48,7 +48,7 @@ func TestBootstrap(t *testing.T) {
 			panic(err)
 		}
 
-		for _, testSet := range []func(params ckks.Parameters, btpParams *BootstrappingParameters, t *testing.T){
+		for _, testSet := range []func(params ckks.Parameters, btpParams *Parameters, t *testing.T){
 			testbootstrap,
 		} {
 			testSet(params, btpParams, t)
@@ -65,7 +65,7 @@ func TestBootstrap(t *testing.T) {
 			panic(err)
 		}
 
-		for _, testSet := range []func(params ckks.Parameters, btpParams *BootstrappingParameters, t *testing.T){
+		for _, testSet := range []func(params ckks.Parameters, btpParams *Parameters, t *testing.T){
 			testbootstrap,
 		} {
 			testSet(params, btpParams, t)
@@ -74,7 +74,7 @@ func TestBootstrap(t *testing.T) {
 	}
 }
 
-func testbootstrap(params ckks.Parameters, btpParams *BootstrappingParameters, t *testing.T) {
+func testbootstrap(params ckks.Parameters, btpParams *Parameters, t *testing.T) {
 
 	t.Run(ParamsToString(params, "Bootstrapping/FullCircuit/"), func(t *testing.T) {
 
@@ -87,9 +87,8 @@ func testbootstrap(params ckks.Parameters, btpParams *BootstrappingParameters, t
 
 		rotations := btpParams.RotationsForBootstrapping(params.LogSlots())
 		rotkeys := kgen.GenRotationKeysForRotations(rotations, true, sk)
-		btpKey := BootstrappingKey{rlk, rotkeys}
 
-		btp, err := NewBootstrapper(params, *btpParams, btpKey)
+		btp, err := NewBootstrapper(params, *btpParams, Key{rlk, rotkeys})
 		if err != nil {
 			panic(err)
 		}

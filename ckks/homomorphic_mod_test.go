@@ -69,7 +69,7 @@ func testHomomorphicMod(params Parameters, t *testing.T) {
 	encoder := NewEncoder(params)
 	encryptor := NewEncryptor(params, sk)
 	decryptor := NewDecryptor(params, sk)
-	eval := NewEvaluator(params, rlwe.EvaluationKey{rlk, nil})
+	eval := NewEvaluator(params, rlwe.EvaluationKey{Rlk: rlk, Rtks: nil})
 
 	t.Run("HomomorphicMod/SineChebyshevWithArcSine/", func(t *testing.T) {
 

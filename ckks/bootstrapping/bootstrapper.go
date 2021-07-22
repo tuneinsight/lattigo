@@ -35,7 +35,7 @@ type Key rlwe.EvaluationKey
 // NewBootstrapper creates a new Bootstrapper.
 func NewBootstrapper(params ckks.Parameters, btpParams Parameters, btpKey Key) (btp *Bootstrapper, err error) {
 
-	if btpParams.SineType == ckks.Sin && btpParams.DoubleAngle != 0 {
+	if btpParams.EvalModParameters.SineType == ckks.Sin && btpParams.EvalModParameters.DoubleAngle != 0 {
 		return nil, fmt.Errorf("cannot use double angle formul for SineType = Sin -> must use SineType = Cos")
 	}
 
@@ -125,7 +125,7 @@ func (btp *Bootstrapper) genDFTMatrices() {
 
 	// SlotsToCoeffs vectors
 	// Rescaling factor to set the final ciphertext to the desired scale
-	slotsToCoeffsDiffScale := complex(math.Pow(btp.params.Scale()/(btp.evalModPoly.ScalingFactor/btp.MessageRatio), 1.0/float64(btp.SlotsToCoeffsParameters.Depth(false))), 0)
+	slotsToCoeffsDiffScale := complex(math.Pow(btp.params.Scale()/(btp.evalModPoly.ScalingFactor/btp.evalModPoly.MessageRatio), 1.0/float64(btp.SlotsToCoeffsParameters.Depth(false))), 0)
 	btp.stcMatrices = btp.encoder.GenHomomorphicEncodingMatrices(btp.SlotsToCoeffsParameters, slotsToCoeffsDiffScale)
 
 	// List of the rotation key values to needed for the bootstrapp

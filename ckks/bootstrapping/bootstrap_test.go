@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/utils"
+	"github.com/stretchr/testify/assert"
 	"runtime"
 	"testing"
 )
@@ -20,6 +21,18 @@ func ParamsToString(params ckks.Parameters, opname string) string {
 		params.MaxLevel()+1,
 		params.PCount(),
 		params.Beta())
+}
+
+func TestBootstrapParametersMarshalling(t *testing.T) {
+	bootstrapParams := DefaultParameters[0]
+	data, err := bootstrapParams.MarshalBinary()
+	assert.Nil(t, err)
+
+	bootstrapParamsNew := new(Parameters)
+	if err := bootstrapParamsNew.UnmarshalBinary(data); err != nil {
+		assert.Nil(t, err)
+	}
+	assert.Equal(t, bootstrapParams, *bootstrapParamsNew)
 }
 
 func TestBootstrap(t *testing.T) {

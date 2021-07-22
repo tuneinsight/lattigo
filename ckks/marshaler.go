@@ -1,33 +1,56 @@
 package ckks
 
 import (
-	"bytes"
 	"encoding/binary"
-	"encoding/gob"
 	"errors"
-	"math"
-
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
+	"math"
 )
 
 // MarshalBinary encode the target EncodingMatricesParameters on a slice of bytes.
 func (mParams *EncodingMatricesParameters) MarshalBinary() (data []byte, err error) {
-	var buf bytes.Buffer
-	enc := gob.NewEncoder(&buf)
-	if err := enc.Encode(mParams); err != nil {
-		return nil, err
+	data = make([]byte, 8)
+	data[0] = uint8(mParams.LinearTransformType)
+	data[1] = uint8(mParams.LevelStart)
+	if mParams.BitReversed {
+		data[2] = uint8(1)
 	}
-	return buf.Bytes(), nil
+
+	binary.BigEndian.PutUint32(data[3:7], math.Float32bits(float32(mParams.BSGSRatio)))
+	data[7] = uint8(len(mParams.ScalingFactor))
+
+	for _, d := range mParams.ScalingFactor {
+		data = append(data, uint8(len(d)))
+		for j := range d {
+			tmp := make([]byte, 8)
+			binary.BigEndian.PutUint64(tmp, math.Float64bits(float64(d[j])))
+			data = append(data, tmp...)
+		}
+	}
+	return
 }
 
 // UnmarshalBinary decodes a slice of bytes on the target EncodingMatricesParameters.
 func (mParams *EncodingMatricesParameters) UnmarshalBinary(data []byte) error {
 
-	reader := bytes.NewReader(data)
-	dec := gob.NewDecoder(reader)
-	if err := dec.Decode(mParams); err != nil {
-		return err
+	mParams.LinearTransformType = LinearTransformType(int(data[0]))
+	mParams.LevelStart = int(data[1])
+	if data[2] == 1 {
+		mParams.BitReversed = true
+	}
+	mParams.BSGSRatio = float64(math.Float32frombits(binary.BigEndian.Uint32(data[3:7])))
+
+	mParams.ScalingFactor = make([][]float64, data[7])
+	pt := 8
+	for i := range mParams.ScalingFactor {
+		tmp := make([]float64, data[pt])
+		pt++
+		for j := range tmp {
+			tmp[j] = math.Float64frombits(binary.BigEndian.Uint64(data[pt : pt+8]))
+			pt += 8
+		}
+		mParams.ScalingFactor[i] = tmp
 	}
 
 	return nil
@@ -35,22 +58,31 @@ func (mParams *EncodingMatricesParameters) UnmarshalBinary(data []byte) error {
 
 // MarshalBinary encode the target EvalModParameters on a slice of bytes.
 func (evmParams *EvalModParameters) MarshalBinary() (data []byte, err error) {
-	var buf bytes.Buffer
-	enc := gob.NewEncoder(&buf)
-	if err := enc.Encode(evmParams); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
+	data = make([]byte, 35)
+	binary.BigEndian.PutUint64(data[:8], evmParams.Q)
+	data[8] = uint8(evmParams.LevelStart)
+	binary.BigEndian.PutUint64(data[9:17], math.Float64bits(evmParams.ScalingFactor))
+	data[17] = uint8(evmParams.SineType)
+	binary.BigEndian.PutUint64(data[18:26], math.Float64bits(evmParams.MessageRatio))
+	binary.BigEndian.PutUint32(data[26:30], uint32(evmParams.K))
+	binary.BigEndian.PutUint16(data[30:32], uint16(evmParams.SineDeg))
+	data[33] = uint8(evmParams.DoubleAngle)
+	data[34] = uint8(evmParams.ArcSineDeg)
+	return
 }
 
 // UnmarshalBinary decodes a slice of bytes on the target EvalModParameters.
-func (evmParams *EvalModParameters) UnmarshalBinary(data []byte) error {
-	reader := bytes.NewReader(data)
-	dec := gob.NewDecoder(reader)
-	if err := dec.Decode(evmParams); err != nil {
-		return err
-	}
-	return nil
+func (evmParams *EvalModParameters) UnmarshalBinary(data []byte) (err error) {
+	evmParams.Q = binary.BigEndian.Uint64(data[:8])
+	evmParams.LevelStart = int(data[8])
+	evmParams.ScalingFactor = math.Float64frombits(binary.BigEndian.Uint64(data[9:17]))
+	evmParams.SineType = SineType(int(data[17]))
+	evmParams.MessageRatio = math.Float64frombits(binary.BigEndian.Uint64(data[18:26]))
+	evmParams.K = int(binary.BigEndian.Uint32(data[26:30]))
+	evmParams.SineDeg = int(binary.BigEndian.Uint16(data[30:32]))
+	evmParams.DoubleAngle = int(data[33])
+	evmParams.ArcSineDeg = int(data[34])
+	return
 }
 
 // GetDataLen returns the length in bytes of the target Ciphertext.

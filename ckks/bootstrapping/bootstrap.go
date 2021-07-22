@@ -12,7 +12,7 @@ import (
 // can be used to do a scale matching.
 func (btp *Bootstrapper) Bootstrapp(ct *ckks.Ciphertext) *ckks.Ciphertext {
 
-	bootstrappingScale := math.Exp2(math.Round(math.Log2(btp.params.QiFloat64(0) / btp.MessageRatio)))
+	bootstrappingScale := math.Exp2(math.Round(math.Log2(btp.params.QiFloat64(0) / btp.evalModPoly.MessageRatio)))
 
 	var ct0, ct1 *ckks.Ciphertext
 
@@ -48,7 +48,7 @@ func (btp *Bootstrapper) Bootstrapp(ct *ckks.Ciphertext) *ckks.Ciphertext {
 	// Brings the ciphertext scale to sineQi/(Q0/scale) if Q0 < sineQi
 	// Does it after modUp to avoid plaintext overflow
 	// Reduces the additive error of the next steps
-	btp.ScaleUp(ct, math.Round((btp.evalModPoly.ScalingFactor/btp.MessageRatio)/ct.Scale), ct)
+	btp.ScaleUp(ct, math.Round((btp.evalModPoly.ScalingFactor/btp.evalModPoly.MessageRatio)/ct.Scale), ct)
 
 	//SubSum X -> (N/dslots) * Y^dslots
 	ct = btp.Trace(ct, btp.params.LogSlots())

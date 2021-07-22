@@ -9,13 +9,83 @@ import (
 // Parameters is a struct for the default bootstrapping parameters
 type Parameters struct {
 	SlotsToCoeffsParameters ckks.EncodingMatricesParameters
-	ckks.EvalModParameters
+	EvalModParameters       ckks.EvalModParameters
 	CoeffsToSlotsParameters ckks.EncodingMatricesParameters
 	H                       int // Hamming weight of the secret key
 }
 
+// MarshalBinary encode the target Parameters on a slice of bytes.
+func (p *Parameters) MarshalBinary() (data []byte, err error) {
+	data = []byte{}
+	tmp := []byte{}
+
+	if tmp, err = p.SlotsToCoeffsParameters.MarshalBinary(); err != nil {
+		return nil, err
+	}
+
+	data = append(data, uint8(len(tmp)))
+	data = append(data, tmp...)
+
+	if tmp, err = p.EvalModParameters.MarshalBinary(); err != nil {
+		return nil, err
+	}
+
+	data = append(data, uint8(len(tmp)))
+	data = append(data, tmp...)
+
+	if tmp, err = p.CoeffsToSlotsParameters.MarshalBinary(); err != nil {
+		return nil, err
+	}
+
+	data = append(data, uint8(len(tmp)))
+	data = append(data, tmp...)
+
+	tmp = make([]byte, 4)
+	tmp[0] = uint8(p.H >> 24)
+	tmp[1] = uint8(p.H >> 16)
+	tmp[2] = uint8(p.H >> 8)
+	tmp[3] = uint8(p.H >> 0)
+	data = append(data, tmp...)
+	return
+}
+
+// UnmarshalBinary decodes a slice of bytes on the target Parameters.
+func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
+
+	pt := 0
+	dLen := int(data[pt])
+
+	if err := p.SlotsToCoeffsParameters.UnmarshalBinary(data[pt+1 : pt+dLen+1]); err != nil {
+		return err
+	}
+
+	pt += dLen
+	pt + 1
+	dLen = int(data[pt])
+
+	if err := p.EvalModParameters.UnmarshalBinary(data[pt+1 : pt+dLen+1]); err != nil {
+		return err
+	}
+
+	pt += dLen
+	pt++
+	dLen = int(data[pt])
+
+	if err := p.CoeffsToSlotsParameters.UnmarshalBinary(data[pt+1 : pt+dLen+1]); err != nil {
+		return err
+	}
+
+	pt += dLen
+	pt++
+	dLen = int(data[pt])
+
+	p.H = int(data[pt])<<24 | int(data[pt+1])<<16 | int(data[pt+2])<<8 | int(data[pt+3])
+
+	return
+}
+
 // RotationsForBootstrapping returns the list of rotations performed during the Bootstrapping operation.
-func (b *Parameters) RotationsForBootstrapping(LogN, LogSlots int) (rotations []int) {
+func (p *Parameters) RotationsForBootstrapping(LogN, LogSlots int) (rotations []int) {
 
 	// List of the rotation key values to needed for the bootstrapp
 	rotations = []int{}
@@ -33,8 +103,8 @@ func (b *Parameters) RotationsForBootstrapping(LogN, LogSlots int) (rotations []
 		}
 	}
 
-	rotations = append(rotations, b.CoeffsToSlotsParameters.Rotations(LogN, LogSlots)...)
-	rotations = append(rotations, b.SlotsToCoeffsParameters.Rotations(LogN, LogSlots)...)
+	rotations = append(rotations, p.CoeffsToSlotsParameters.Rotations(LogN, LogSlots)...)
+	rotations = append(rotations, p.SlotsToCoeffsParameters.Rotations(LogN, LogSlots)...)
 
 	return
 }

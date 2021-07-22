@@ -55,7 +55,6 @@ func TestCKKSHomomorphicEncoding(t *testing.T) {
 		testSet(params, t)
 		runtime.GC()
 	}
-
 }
 
 func testCoeffsToSlots(params Parameters, t *testing.T) {

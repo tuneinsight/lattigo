@@ -69,8 +69,8 @@ func chebyshevinterpolation() {
 	// We approximate f(x) in the range [-8, 8] with a Chebyshev interpolant of 33 coefficients (degree 32).
 	chebyapproximation := ckks.Approximate(f, -8, 8, 33)
 
-	a := chebyapproximation.A()
-	b := chebyapproximation.B()
+	a := chebyapproximation.A
+	b := chebyapproximation.B
 
 	// Change of variable
 	evaluator.MultByConst(ciphertext, 2/(b-a), ciphertext)

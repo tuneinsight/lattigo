@@ -43,7 +43,7 @@ func main() {
 		},
 	}
 
-	SlotsToCoeffsParameters := ckks.SlotsToCoeffsParameters{
+	SlotsToCoeffsParameters := ckks.EncodingMatricesParameters{
 		LevelStart:  2,
 		BSGSRatio:   16.0,
 		BitReversed: false,
@@ -69,10 +69,10 @@ func main() {
 	encryptor := ckks.NewEncryptor(params, sk)
 	decryptor := ckks.NewDecryptor(params, sk)
 
-	SlotsToCoeffsMatrix := SlotsToCoeffsParameters.GenSlotsToCoeffsMatrix(&params, params.LogSlots(), 1.0, encoder)
+	SlotsToCoeffsMatrix := encoder.GenHomomorphicEncodingMatrices(SlotsToCoeffsParameters, 1.0)
 
 	// Gets the rotations indexes for SlotsToCoeffs
-	rotations := SlotsToCoeffsParameters.RotationsForSlotsToCoeffs(&params, params.LogSlots())
+	rotations := SlotsToCoeffsParameters.Rotations(params.LogN(), params.LogSlots())
 
 	rotKey := kgen.GenRotationKeysForRotations(rotations, true, sk)
 	rlk := kgen.GenRelinearizationKey(sk, 2)
@@ -90,7 +90,7 @@ func main() {
 	ct := encryptor.EncryptNew(plaintext)
 
 	// Homomorphic Decoding
-	ct = ckks.SlotsToCoeffs(ct, nil, SlotsToCoeffsMatrix, eval)
+	ct = eval.SlotsToCoeffs(ct, nil, SlotsToCoeffsMatrix)
 
 	// Decrypt and print coefficient domain
 	coeffsFloat := encoder.DecodeCoeffsPublic(decryptor.DecryptNew(ct), 0)
@@ -170,7 +170,7 @@ func main() {
 	}
 
 	// Diagonalize
-	ptMatDiag := make([]*ckks.PtDiagMatrix, params.N()/params.Slots())
+	ptMatDiag := make([]ckks.PtDiagMatrix, params.N()/params.Slots())
 	AMatDiag := make(map[int][]complex128)
 	for w := 0; w < params.N()/params.Slots(); w++ {
 		for i := 0; i < params.Slots(); i++ {

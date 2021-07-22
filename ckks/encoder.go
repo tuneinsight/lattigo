@@ -376,7 +376,7 @@ type PtDiagMatrix struct {
 	Level      int                   // Level is the level at which the matrix is encoded (can be circuit dependant)
 	Scale      float64               // Scale is the scale at which the matrix is encoded (can be circuit dependant)
 	Vec        map[int][2]*ring.Poly // Vec is the matrix, in diagonal form, where each entry of vec is an indexed non zero diagonal.
-	naive      bool
+	Naive      bool
 	isGaussian bool // Each diagonal of the matrix is of the form [k, ..., k] for k a gaussian integer
 }
 
@@ -482,7 +482,7 @@ func (encoder *encoderComplex128) EncodeDiagMatrixAtLvl(level int, diagMatrix ma
 		vec[idx] = encoder.encodeDiagonal(logSlots, level, scale, diagMatrix[i])
 	}
 
-	return PtDiagMatrix{LogSlots: logSlots, N1: 0, Vec: vec, Level: level, Scale: scale, naive: true}
+	return PtDiagMatrix{LogSlots: logSlots, N1: 0, Vec: vec, Level: level, Scale: scale, Naive: true}
 }
 
 func (encoder *encoderComplex128) encodeDiagonal(logSlots, level int, scale float64, m []complex128) [2]*ring.Poly {

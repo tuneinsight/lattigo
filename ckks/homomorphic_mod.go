@@ -3,11 +3,20 @@ package ckks
 import (
 	"github.com/ldsec/lattigo/v2/ckks/bettersine"
 	"math"
+	"math/cmplx"
 )
 
 // SineType is the type of function used during the bootstrapping
 // for the homomorphic modular reduction
 type SineType uint64
+
+func sin2pi2pi(x complex128) complex128 {
+	return cmplx.Sin(6.283185307179586 * x) // 6.283185307179586
+}
+
+func cos2pi(x complex128) complex128 {
+	return cmplx.Cos(6.283185307179586 * x)
+}
 
 // Sin and Cos are the two proposed functions for SineType
 const (
@@ -19,7 +28,7 @@ const (
 // EvalModParameters a struct for the paramters of the EvalMod step
 // of the bootstrapping
 type EvalModParameters struct {
-	Q             uint64   // Q0 to reduce by during EvalMod
+	Q             uint64   // Q to reduce by during EvalMod
 	LevelStart    int      // Starting level of EvalMod
 	ScalingFactor float64  // Scaling factor used during EvalMod
 	SineType      SineType // Chose betwenn [Sin(2*pi*x)] or [cos(2*pi*x/r) with double angle formula]
@@ -28,6 +37,12 @@ type EvalModParameters struct {
 	SineDeg       int      // Degree of the interpolation
 	DoubleAngle   int      // Number of rescale and double angle formula (only applies for cos)
 	ArcSineDeg    int      // Degree of the Taylor arcsine composed with f(2*pi*x) (if zero then not used)
+}
+
+// Return Q/ClosestedPow2
+// This is the error introduced by the approximate division by Q
+func (evm *EvalModParameters) QDiff() float64 {
+	return float64(evm.Q) / math.Exp2(math.Round(math.Log2(float64(evm.Q))))
 }
 
 // EvalModPoly is a struct storing the EvalModParameters with
@@ -73,21 +88,25 @@ func (evm *EvalModParameters) GenPoly() EvalModPoly {
 
 	if evm.SineType == Sin {
 
-		sinePoly = Approximate(sin2pi2pi, -complex(float64(evm.K)/scFac, 0), complex(float64(evm.K)/scFac, 0), evm.SineDeg)
+		if evm.DoubleAngle != 0 {
+			panic("cannot user double angle with SineType == Sin")
+		}
+
+		sinePoly = Approximate(sin2pi2pi, -complex(float64(evm.K), 0), complex(float64(evm.K), 0), evm.SineDeg)
 
 	} else if evm.SineType == Cos1 {
 
 		sinePoly = new(ChebyshevInterpolation)
 		sinePoly.coeffs = bettersine.Approximate(evm.K, evm.SineDeg, evm.MessageRatio, int(evm.DoubleAngle))
 		sinePoly.maxDeg = sinePoly.Degree()
-		sinePoly.a = complex(float64(-evm.K)/scFac, 0)
-		sinePoly.b = complex(float64(evm.K)/scFac, 0)
+		sinePoly.A = complex(float64(-evm.K)/scFac, 0)
+		sinePoly.B = complex(float64(evm.K)/scFac, 0)
 		sinePoly.lead = true
 
 	} else if evm.SineType == Cos2 {
 		sinePoly = Approximate(cos2pi, -complex(float64(evm.K)/scFac, 0), complex(float64(evm.K)/scFac, 0), evm.SineDeg)
 	} else {
-		panic("Bootstrapper -> invalid sineType")
+		panic("invalid SineType")
 	}
 
 	for i := range sinePoly.coeffs {
@@ -106,21 +125,27 @@ func (evm *EvalModParameters) Depth() int {
 	return depth
 }
 
-// EvalMod : homomorphic modular reduction by 1 in the range -K to K
+// EvalMod does :
 //
-// Assumes that ct is scaled by 1/(2^r * K) * q/2^{round(log(q))}
+//	1) Delta * (Q/Delta * I(X) + m(X)) (Delta = scaling factor, I(X) integer poly, m(X) message)
+//	2) Delta * (I(X) + Delta/Q * m(X)) (divide by Q/Delta)
+//	3) Delta * (Delta/Q * m(X)) (x mod 1)
+//	4) Delta * (m(X)) (multiply back by Q/Delta)
 //
-// (1/(2^r * K)) : Chebyshev change of basis and double angle formula
-// (q/2^{round(log(q))}) : correcting factor for q not being a power of two
+// Since Q is not a power of two, but Delta is, then does an approximate division by the closest
+// power of two to Q instead. Hence, it assumes that the input plaintext is already scaled by
+// the correcting factor Q/2^{round(log(Q))}. Also assumes that plaintext is pre-scaled by
+// 1/(2^r * K) for K the range of the approximation (Chebyshev change of basis) and r the number
+// of double angle formula evaluation.
 //
-// Scaling back by 2^{round(log(q))}/q afterward is included in the polynomial
+// Scaling back error correction by 2^{round(log(Q))}/Q afterward is included in the polynomial
 func (eval *evaluator) EvalMod(ct *Ciphertext, evalModPoly EvalModPoly) *Ciphertext {
 
 	// Stores default scales
 	prevScaleCt := ct.Scale
 	prevScaleEval := eval.scale
 
-	// Normalize the modular reduction to mod by 1
+	// Normalize the modular reduction to mod by 1 (division by Q)
 	ct.Scale = evalModPoly.ScalingFactor
 	eval.scale = evalModPoly.ScalingFactor
 
@@ -136,7 +161,7 @@ func (eval *evaluator) EvalMod(ct *Ciphertext, evalModPoly EvalModPoly) *Ciphert
 
 	// Division by 1/2^r and change of variable for the Chebysehev evaluation
 	if evalModPoly.SineType == Cos1 || evalModPoly.SineType == Cos2 {
-		eval.AddConst(ct, -0.5/(complex(evalModPoly.ScFac, 0)*(evalModPoly.SinePoly.b-evalModPoly.SinePoly.a)), ct)
+		eval.AddConst(ct, -0.5/(complex(evalModPoly.ScFac, 0)*(evalModPoly.SinePoly.B-evalModPoly.SinePoly.A)), ct)
 	}
 
 	// Chebyshev evaluation
@@ -163,6 +188,7 @@ func (eval *evaluator) EvalMod(ct *Ciphertext, evalModPoly EvalModPoly) *Ciphert
 		}
 	}
 
+	// Multiplies back by q
 	ct.Scale = prevScaleCt
 	eval.scale = prevScaleEval
 

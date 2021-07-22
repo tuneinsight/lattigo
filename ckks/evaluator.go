@@ -116,6 +116,9 @@ type Evaluator interface {
 	// Homomorphic Modular Reduction
 	EvalMod(ct *Ciphertext, evalModPoly EvalModPoly) *Ciphertext
 
+	// Trace
+	Trace(ctIn *Ciphertext, logSlots int) *Ciphertext
+
 	// =============================
 	// === Ciphertext Management ===
 	// =============================
@@ -1552,16 +1555,16 @@ func (eval *evaluator) ConjugateNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 // If the provided element is a Ciphertext, a key-switching operation is necessary and a rotation key for the row rotation needs to be provided.
 func (eval *evaluator) Conjugate(ct0 *Ciphertext, ctOut *Ciphertext) {
 
+	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
+		panic("input and output Ciphertext must be of degree 1")
+	}
+
 	galEl := eval.params.GaloisElementForRowRotation()
 	ctOut.Scale = ct0.Scale
 	eval.permuteNTT(ct0, galEl, ctOut)
 }
 
 func (eval *evaluator) permuteNTT(ct0 *Ciphertext, galEl uint64, ctOut *Ciphertext) {
-
-	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
-		panic("input and output Ciphertext must be of degree 1")
-	}
 
 	rtk, generated := eval.rtks.Keys[galEl]
 	if !generated {

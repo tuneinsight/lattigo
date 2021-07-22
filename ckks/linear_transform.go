@@ -8,8 +8,10 @@ import (
 // Trace maps X -> sum((-1)^i * X^{i*n+1}) for 0 <= i < N
 func (eval *evaluator) Trace(ctIn *Ciphertext, logSlots int) *Ciphertext {
 	for i := logSlots; i < eval.params.MaxLogSlots(); i++ {
-		eval.Rotate(ctIn, 1<<i, eval.ctxpool)
-		eval.Add(ctIn, eval.ctxpool, ctIn)
+		eval.permuteNTT(ctIn, eval.params.GaloisElementForColumnRotationBy(1<<i), eval.ctxpool)
+		ctPool := &Ciphertext{Ciphertext: eval.ctxpool.Ciphertext, Scale: ctIn.Scale}
+		ctPool.Value = ctPool.Value[:2]
+		eval.Add(ctIn, ctPool, ctIn)
 	}
 
 	return ctIn
@@ -59,7 +61,7 @@ func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfa
 		for i, matrix := range element {
 			ctOut[i] = NewCiphertext(eval.params, 1, minLevel, ctIn.Scale)
 
-			if matrix.naive {
+			if matrix.Naive {
 				eval.MultiplyByDiagMatrix(ctIn, matrix, eval.PoolDecompQ, eval.PoolDecompP, ctOut[i])
 			} else {
 				eval.MultiplyByDiagMatrixBSGS(ctIn, matrix, eval.PoolDecompQ, eval.PoolDecompP, ctOut[i])
@@ -73,7 +75,7 @@ func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfa
 
 		ctOut = []*Ciphertext{NewCiphertext(eval.params, 1, minLevel, ctIn.Scale)}
 
-		if element.naive {
+		if element.Naive {
 			eval.MultiplyByDiagMatrix(ctIn, element, eval.PoolDecompQ, eval.PoolDecompP, ctOut[0])
 		} else {
 			eval.MultiplyByDiagMatrixBSGS(ctIn, element, eval.PoolDecompQ, eval.PoolDecompP, ctOut[0])

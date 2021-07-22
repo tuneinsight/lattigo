@@ -1,46 +1,41 @@
-package ckks
+package bootstrapping
 
 import (
 	"fmt"
-	"math"
-	"math/cmplx"
-
+	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
+	"math"
 )
 
 // Bootstrapper is a struct to stores a memory pool the plaintext matrices
 // the polynomial approximation and the keys for the bootstrapping.
 type Bootstrapper struct {
-	*evaluator
+	ckks.Evaluator
 	BootstrappingParameters
 	*BootstrappingKey
-	params Parameters
+	params ckks.Parameters
 
 	dslots    int // Number of plaintext slots after the re-encoding
 	logdslots int
 
-	encoder Encoder // Encoder
+	encoder ckks.Encoder // Encoder
 
-	evalModPoly EvalModPoly
-	stcMatrices EncodingMatrices
-	ctsMatrices EncodingMatrices
+	evalModPoly ckks.EvalModPoly
+	stcMatrices ckks.EncodingMatrices
+	ctsMatrices ckks.EncodingMatrices
 
 	rotKeyIndex []int // a list of the required rotation keys
 }
 
-func sin2pi2pi(x complex128) complex128 {
-	return cmplx.Sin(6.283185307179586*x) / 6.283185307179586
-}
-
-func cos2pi(x complex128) complex128 {
-	return cmplx.Cos(6.283185307179586 * x)
-}
+// BootstrappingKey is a type for a CKKS bootstrapping key, wich regroups the necessary public relinearization
+// and rotation keys (i.e., an EvaluationKey).
+type BootstrappingKey rlwe.EvaluationKey
 
 // NewBootstrapper creates a new Bootstrapper.
-func NewBootstrapper(params Parameters, btpParams BootstrappingParameters, btpKey BootstrappingKey) (btp *Bootstrapper, err error) {
+func NewBootstrapper(params ckks.Parameters, btpParams BootstrappingParameters, btpKey BootstrappingKey) (btp *Bootstrapper, err error) {
 
-	if btpParams.SineType == SineType(Sin) && btpParams.DoubleAngle != 0 {
+	if btpParams.SineType == ckks.Sin && btpParams.DoubleAngle != 0 {
 		return nil, fmt.Errorf("cannot use double angle formul for SineType = Sin -> must use SineType = Cos")
 	}
 
@@ -58,14 +53,14 @@ func NewBootstrapper(params Parameters, btpParams BootstrappingParameters, btpKe
 	if err = btp.CheckKeys(); err != nil {
 		return nil, fmt.Errorf("invalid bootstrapping key: %w", err)
 	}
-	btp.evaluator = btp.evaluator.WithKey(rlwe.EvaluationKey{Rlk: btpKey.Rlk, Rtks: btpKey.Rtks}).(*evaluator)
+	btp.Evaluator = btp.Evaluator.WithKey(rlwe.EvaluationKey{Rlk: btpKey.Rlk, Rtks: btpKey.Rtks})
 
 	return btp, nil
 }
 
 // newBootstrapper is a constructor of "dummy" bootstrapper to enable the generation of bootstrapping-related constants
 // without providing a bootstrapping key. To be replaced by a proper factorization of the bootstrapping pre-computations.
-func newBootstrapper(params Parameters, btpParams BootstrappingParameters) (btp *Bootstrapper) {
+func newBootstrapper(params ckks.Parameters, btpParams BootstrappingParameters) (btp *Bootstrapper) {
 	btp = new(Bootstrapper)
 
 	btp.params = params
@@ -78,13 +73,11 @@ func newBootstrapper(params Parameters, btpParams BootstrappingParameters) (btp 
 		btp.logdslots++
 	}
 
-	btp.encoder = NewEncoder(params)
-	btp.evaluator = NewEvaluator(params, rlwe.EvaluationKey{}).(*evaluator) // creates an evaluator without keys for genDFTMatrices
+	btp.encoder = ckks.NewEncoder(params)
+	btp.Evaluator = ckks.NewEvaluator(params, rlwe.EvaluationKey{})
 
 	btp.evalModPoly = btpParams.EvalModParameters.GenPoly()
 	btp.genDFTMatrices()
-
-	btp.ctxpool = NewCiphertext(params, 1, params.MaxLevel(), 0)
 
 	return btp
 }
@@ -117,8 +110,8 @@ func (btp *Bootstrapper) CheckKeys() (err error) {
 
 func (btp *Bootstrapper) genDFTMatrices() {
 
-	a := real(btp.evalModPoly.SinePoly.a)
-	b := real(btp.evalModPoly.SinePoly.b)
+	a := real(btp.evalModPoly.SinePoly.A)
+	b := real(btp.evalModPoly.SinePoly.B)
 	n := float64(btp.params.N())
 
 	// Correcting factor for approximate division by Q
@@ -157,9 +150,9 @@ func (btp *Bootstrapper) genDFTMatrices() {
 }
 
 // AddMatrixRotToList adds the rotations neede to evaluate pVec to the list rotations
-func addEncodingMatrixRotationsToList(pVec PtDiagMatrix, rotations []int, slots int, repack bool) []int {
+func addEncodingMatrixRotationsToList(pVec ckks.PtDiagMatrix, rotations []int, slots int, repack bool) []int {
 
-	if pVec.naive {
+	if pVec.Naive {
 		for j := range pVec.Vec {
 			if !utils.IsInSliceInt(j, rotations) {
 				rotations = append(rotations, j)

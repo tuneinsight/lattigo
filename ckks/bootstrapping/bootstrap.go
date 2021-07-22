@@ -1,6 +1,7 @@
-package ckks
+package bootstrapping
 
 import (
+	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/ring"
 	"math"
 )
@@ -9,11 +10,11 @@ import (
 // If the input ciphertext level is zero, the input scale must be an exact power of two smaller or equal to round(Q0/2^{10}).
 // If the input ciphertext is at level one or more, the input scale does not need to be an exact power of two as one level
 // can be used to do a scale matching.
-func (btp *Bootstrapper) Bootstrapp(ct *Ciphertext) *Ciphertext {
+func (btp *Bootstrapper) Bootstrapp(ct *ckks.Ciphertext) *ckks.Ciphertext {
 
 	bootstrappingScale := math.Exp2(math.Round(math.Log2(btp.params.QiFloat64(0) / btp.MessageRatio)))
 
-	var ct0, ct1 *Ciphertext
+	var ct0, ct1 *ckks.Ciphertext
 
 	// Drops the level to 1
 	for ct.Level() > 1 {
@@ -73,9 +74,9 @@ func (btp *Bootstrapper) Bootstrapp(ct *Ciphertext) *Ciphertext {
 	return ct0
 }
 
-func (btp *Bootstrapper) modUpFromQ0(ct *Ciphertext) *Ciphertext {
+func (btp *Bootstrapper) modUpFromQ0(ct *ckks.Ciphertext) *ckks.Ciphertext {
 
-	ringQ := btp.evaluator.ringQ
+	ringQ := btp.params.RingQ()
 
 	for i := range ct.Value {
 		ringQ.InvNTTLvl(ct.Level(), ct.Value[i], ct.Value[i])

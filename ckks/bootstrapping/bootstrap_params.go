@@ -1,23 +1,24 @@
-package ckks
+package bootstrapping
 
 import (
+	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
 // BootstrappingParameters is a struct for the default bootstrapping parameters
 type BootstrappingParameters struct {
-	ParametersLiteral
-	SlotsToCoeffsParameters EncodingMatricesParameters
-	EvalModParameters
-	CoeffsToSlotsParameters EncodingMatricesParameters
+	ckks.ParametersLiteral
+	SlotsToCoeffsParameters ckks.EncodingMatricesParameters
+	ckks.EvalModParameters
+	CoeffsToSlotsParameters ckks.EncodingMatricesParameters
 	H                       int // Hamming weight of the secret key
 }
 
 // Params generates a new set of Parameters from the BootstrappingParameters
-func (b *BootstrappingParameters) Params() (p Parameters, err error) {
-	if p, err = NewParametersFromLiteral(b.ParametersLiteral); err != nil {
-		return Parameters{}, err
+func (b *BootstrappingParameters) Params() (p ckks.Parameters, err error) {
+	if p, err = ckks.NewParametersFromLiteral(b.ParametersLiteral); err != nil {
+		return ckks.Parameters{}, err
 	}
 	return
 }
@@ -41,21 +42,8 @@ func (b *BootstrappingParameters) RotationsForBootstrapping(logSlots int) (rotat
 		}
 	}
 
-	indexCtS := computeBootstrappingDFTIndexMap(b.LogN, logSlots, b.CoeffsToSlotsParameters.Depth(false), CoeffsToSlots, b.CoeffsToSlotsParameters.BitReversed)
-
-	// Coeffs to Slots rotations
-	for _, pVec := range indexCtS {
-		N1 := findbestbabygiantstepsplit(pVec, dslots, b.CoeffsToSlotsParameters.BSGSRatio)
-		rotations = addMatrixRotToList(pVec, rotations, N1, slots, false)
-	}
-
-	indexStC := computeBootstrappingDFTIndexMap(b.LogN, logSlots, b.SlotsToCoeffsParameters.Depth(false), SlotsToCoeffs, b.SlotsToCoeffsParameters.BitReversed)
-
-	// Slots to Coeffs rotations
-	for i, pVec := range indexStC {
-		N1 := findbestbabygiantstepsplit(pVec, dslots, b.SlotsToCoeffsParameters.BSGSRatio)
-		rotations = addMatrixRotToList(pVec, rotations, N1, slots, logSlots < b.LogN-1 && i == 0)
-	}
+	rotations = append(rotations, b.CoeffsToSlotsParameters.Rotations(b.LogN, logSlots)...)
+	rotations = append(rotations, b.SlotsToCoeffsParameters.Rotations(b.LogN, logSlots)...)
 
 	return
 }
@@ -67,7 +55,7 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 	// 1546
 	{
 		H: 192,
-		ParametersLiteral: ParametersLiteral{
+		ParametersLiteral: ckks.ParametersLiteral{
 			LogN:     16,
 			LogSlots: 15,
 			Scale:    1 << 40,
@@ -107,8 +95,8 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				0x1fffffffff420001, // Pi 61
 			},
 		},
-		SlotsToCoeffsParameters: EncodingMatricesParameters{
-			LinearTransformType: SlotsToCoeffs,
+		SlotsToCoeffsParameters: ckks.EncodingMatricesParameters{
+			LinearTransformType: ckks.SlotsToCoeffs,
 			LevelStart:          12,
 			BSGSRatio:           16.0,
 			BitReversed:         false,
@@ -118,10 +106,10 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				{0x7fffe00001},
 			},
 		},
-		EvalModParameters: EvalModParameters{
+		EvalModParameters: ckks.EvalModParameters{
 			Q:             0x10000000006e0001,
 			LevelStart:    20,
-			SineType:      Cos1,
+			SineType:      ckks.Cos1,
 			MessageRatio:  256.0,
 			K:             25,
 			SineDeg:       63,
@@ -129,8 +117,8 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 			ArcSineDeg:    0,
 			ScalingFactor: 1 << 60,
 		},
-		CoeffsToSlotsParameters: EncodingMatricesParameters{
-			LinearTransformType: CoeffsToSlots,
+		CoeffsToSlotsParameters: ckks.EncodingMatricesParameters{
+			LinearTransformType: ckks.CoeffsToSlots,
 			LevelStart:          24,
 			BSGSRatio:           16.0,
 			BitReversed:         false,
@@ -147,7 +135,7 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 	// 1547
 	{
 		H: 192,
-		ParametersLiteral: ParametersLiteral{
+		ParametersLiteral: ckks.ParametersLiteral{
 			LogN:     16,
 			LogSlots: 15,
 			Scale:    1 << 45,
@@ -185,8 +173,8 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				0x1fffffffff500001, // Pi 61
 			},
 		},
-		SlotsToCoeffsParameters: EncodingMatricesParameters{
-			LinearTransformType: SlotsToCoeffs,
+		SlotsToCoeffsParameters: ckks.EncodingMatricesParameters{
+			LinearTransformType: ckks.SlotsToCoeffs,
 			LevelStart:          8,
 			BSGSRatio:           16.0,
 			BitReversed:         false,
@@ -196,10 +184,10 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				{0x3ffffca0001},
 			},
 		},
-		EvalModParameters: EvalModParameters{
+		EvalModParameters: ckks.EvalModParameters{
 			Q:             0x10000000006e0001,
 			LevelStart:    19,
-			SineType:      Cos1,
+			SineType:      ckks.Cos1,
 			MessageRatio:  4.0,
 			K:             25,
 			SineDeg:       63,
@@ -207,8 +195,8 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 			ArcSineDeg:    7,
 			ScalingFactor: 1 << 60,
 		},
-		CoeffsToSlotsParameters: EncodingMatricesParameters{
-			LinearTransformType: CoeffsToSlots,
+		CoeffsToSlotsParameters: ckks.EncodingMatricesParameters{
+			LinearTransformType: ckks.CoeffsToSlots,
 			LevelStart:          23,
 			BSGSRatio:           16.0,
 			BitReversed:         false,
@@ -225,7 +213,7 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 	// 1553
 	{
 		H: 192,
-		ParametersLiteral: ParametersLiteral{
+		ParametersLiteral: ckks.ParametersLiteral{
 			LogN:     16,
 			LogSlots: 15,
 			Scale:    1 << 30,
@@ -262,8 +250,8 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				0x1fffffffff420001, // Pi 61
 			},
 		},
-		SlotsToCoeffsParameters: EncodingMatricesParameters{
-			LinearTransformType: SlotsToCoeffs,
+		SlotsToCoeffsParameters: ckks.EncodingMatricesParameters{
+			LinearTransformType: ckks.SlotsToCoeffs,
 			LevelStart:          9,
 			BSGSRatio:           16.0,
 			BitReversed:         false,
@@ -272,10 +260,10 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				{1073741824.0062866, 1073741824.0062866},
 			},
 		},
-		EvalModParameters: EvalModParameters{
+		EvalModParameters: ckks.EvalModParameters{
 			Q:             0x80000000080001,
 			LevelStart:    17,
-			SineType:      Cos1,
+			SineType:      ckks.Cos1,
 			MessageRatio:  256.0,
 			K:             25,
 			SineDeg:       63,
@@ -283,8 +271,8 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 			ArcSineDeg:    0,
 			ScalingFactor: 1 << 55,
 		},
-		CoeffsToSlotsParameters: EncodingMatricesParameters{
-			LinearTransformType: CoeffsToSlots,
+		CoeffsToSlotsParameters: ckks.EncodingMatricesParameters{
+			LinearTransformType: ckks.CoeffsToSlots,
 			LevelStart:          21,
 			BSGSRatio:           16.0,
 			BitReversed:         false,
@@ -301,7 +289,7 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 	// 1792
 	{
 		H: 32768,
-		ParametersLiteral: ParametersLiteral{
+		ParametersLiteral: ckks.ParametersLiteral{
 			LogN:     16,
 			LogSlots: 15,
 			Scale:    1 << 40,
@@ -345,8 +333,8 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				0x1fffffffff380001, // Pi 61
 			},
 		},
-		SlotsToCoeffsParameters: EncodingMatricesParameters{
-			LinearTransformType: SlotsToCoeffs,
+		SlotsToCoeffsParameters: ckks.EncodingMatricesParameters{
+			LinearTransformType: ckks.SlotsToCoeffs,
 			LevelStart:          11,
 			BSGSRatio:           16.0,
 			BitReversed:         false,
@@ -355,10 +343,10 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				{0xffa0001},
 			},
 		},
-		EvalModParameters: EvalModParameters{
+		EvalModParameters: ckks.EvalModParameters{
 			Q:             0x4000000120001,
 			LevelStart:    23,
-			SineType:      Cos2,
+			SineType:      ckks.Cos2,
 			MessageRatio:  256.0,
 			K:             325,
 			SineDeg:       255,
@@ -366,8 +354,8 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 			ArcSineDeg:    0,
 			ScalingFactor: 1 << 60,
 		},
-		CoeffsToSlotsParameters: EncodingMatricesParameters{
-			LinearTransformType: CoeffsToSlots,
+		CoeffsToSlotsParameters: ckks.EncodingMatricesParameters{
+			LinearTransformType: ckks.CoeffsToSlots,
 			LevelStart:          27,
 			BSGSRatio:           16.0,
 			BitReversed:         false,
@@ -384,7 +372,7 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 	// 768
 	{
 		H: 192,
-		ParametersLiteral: ParametersLiteral{
+		ParametersLiteral: ckks.ParametersLiteral{
 			LogN:     15,
 			LogSlots: 14,
 			Scale:    1 << 25,
@@ -410,8 +398,8 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				0x8000000110001, // 51
 			},
 		},
-		SlotsToCoeffsParameters: EncodingMatricesParameters{
-			LinearTransformType: SlotsToCoeffs,
+		SlotsToCoeffsParameters: ckks.EncodingMatricesParameters{
+			LinearTransformType: ckks.SlotsToCoeffs,
 			LevelStart:          3,
 			BSGSRatio:           16.0,
 			BitReversed:         false,
@@ -419,10 +407,10 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 				{1073741823.9998779, 1073741823.9998779},
 			},
 		},
-		EvalModParameters: EvalModParameters{
+		EvalModParameters: ckks.EvalModParameters{
 			Q:             0x1fff90001,
 			LevelStart:    11,
-			SineType:      Cos1,
+			SineType:      ckks.Cos1,
 			MessageRatio:  256.0,
 			K:             25,
 			SineDeg:       63,
@@ -430,8 +418,8 @@ var DefaultBootstrapParams = []*BootstrappingParameters{
 			ArcSineDeg:    0,
 			ScalingFactor: 1 << 50,
 		},
-		CoeffsToSlotsParameters: EncodingMatricesParameters{
-			LinearTransformType: CoeffsToSlots,
+		CoeffsToSlotsParameters: ckks.EncodingMatricesParameters{
+			LinearTransformType: ckks.CoeffsToSlots,
 			LevelStart:          13,
 			BSGSRatio:           16.0,
 			BitReversed:         false,

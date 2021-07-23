@@ -3,12 +3,13 @@ package ckks
 import (
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
+	"github.com/stretchr/testify/assert"
 	"math"
 	"runtime"
 	"testing"
 )
 
-func TestCKKSHomomorphicEncoding(t *testing.T) {
+func TestCKKSAdvancedHomomorphicEncoding(t *testing.T) {
 	var err error
 
 	if runtime.GOARCH == "wasm" {
@@ -32,6 +33,8 @@ func TestCKKSHomomorphicEncoding(t *testing.T) {
 			0x1fffffffffc80001, // Pi 61
 		},
 	}
+
+	testEncodingMatricesMarshalling(t)
 
 	var params Parameters
 	if params, err = NewParametersFromLiteral(ParametersLiteral); err != nil {
@@ -57,8 +60,40 @@ func TestCKKSHomomorphicEncoding(t *testing.T) {
 	}
 }
 
+func testEncodingMatricesMarshalling(t *testing.T) {
+	t.Run("Marshalling", func(t *testing.T) {
+		m := EncodingMatricesParameters{
+			LinearTransformType: CoeffsToSlots,
+			LevelStart:          12,
+			BSGSRatio:           16.0,
+			BitReversed:         false,
+			ScalingFactor: [][]float64{
+				{0x100000000060001},
+				{0xfffffffff00001},
+				{0xffffffffd80001},
+				{0x1000000002a0001},
+			},
+		}
+
+		data, err := m.MarshalBinary()
+		assert.Nil(t, err)
+
+		mNew := new(EncodingMatricesParameters)
+		if err := mNew.UnmarshalBinary(data); err != nil {
+			assert.Nil(t, err)
+		}
+		assert.Equal(t, m, *mNew)
+	})
+}
+
 func testCoeffsToSlots(params Parameters, t *testing.T) {
-	t.Run("CoeffsToSlots/FullPack", func(t *testing.T) {
+
+	packing := "FullPacking"
+	if params.LogSlots() < params.LogN()-1 {
+		packing = "SparsePacking"
+	}
+
+	t.Run("CoeffsToSlots/"+packing, func(t *testing.T) {
 
 		// This test tests the homomorphic encoding
 		// It first generates a vector of complex values of size params.Slots()
@@ -165,7 +200,13 @@ func testCoeffsToSlots(params Parameters, t *testing.T) {
 }
 
 func testSlotsToCoeffs(params Parameters, t *testing.T) {
-	t.Run("CoeffsToSlots/SparsePack", func(t *testing.T) {
+
+	packing := "FullPacking"
+	if params.LogSlots() < params.LogN()-1 {
+		packing = "SparsePacking"
+	}
+
+	t.Run("SlotsToCoeffs/"+packing, func(t *testing.T) {
 
 		// This test tests the homomorphic decoding
 		// It first generates a complex vector of size 2*slots

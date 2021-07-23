@@ -3,14 +3,13 @@ package ckks
 import (
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
+	"github.com/stretchr/testify/assert"
 	"math"
-	//"math/cmplx"
-	"fmt"
 	"runtime"
 	"testing"
 )
 
-func TestCKKSHomomorphicMod(t *testing.T) {
+func TestCKKSAdvancedHomomorphicMod(t *testing.T) {
 	var err error
 
 	if runtime.GOARCH == "wasm" {
@@ -47,13 +46,15 @@ func TestCKKSHomomorphicMod(t *testing.T) {
 		},
 	}
 
+	testEvalModMarshalling(t)
+
 	var params Parameters
 	if params, err = NewParametersFromLiteral(ParametersLiteral); err != nil {
 		panic(err)
 	}
 
 	for _, testSet := range []func(params Parameters, t *testing.T){
-		testHomomorphicMod,
+		testEvalMod,
 	} {
 		testSet(params, t)
 		runtime.GC()
@@ -61,7 +62,35 @@ func TestCKKSHomomorphicMod(t *testing.T) {
 
 }
 
-func testHomomorphicMod(params Parameters, t *testing.T) {
+func testEvalModMarshalling(t *testing.T) {
+	t.Run("Marshalling", func(t *testing.T) {
+
+		evm := EvalModParameters{
+			Q:             0x80000000080001,
+			LevelStart:    12,
+			SineType:      Sin,
+			MessageRatio:  256.0,
+			K:             14,
+			SineDeg:       127,
+			DoubleAngle:   0,
+			ArcSineDeg:    7,
+			ScalingFactor: 1 << 60,
+		}
+
+		data, err := evm.MarshalBinary()
+		assert.Nil(t, err)
+
+		evmNew := new(EvalModParameters)
+		if err := evmNew.UnmarshalBinary(data); err != nil {
+			assert.Nil(t, err)
+		}
+		assert.Equal(t, evm, *evmNew)
+
+	})
+
+}
+
+func testEvalMod(params Parameters, t *testing.T) {
 
 	kgen := NewKeyGenerator(params)
 	sk := kgen.GenSecretKey()
@@ -71,7 +100,7 @@ func testHomomorphicMod(params Parameters, t *testing.T) {
 	decryptor := NewDecryptor(params, sk)
 	eval := NewEvaluator(params, rlwe.EvaluationKey{Rlk: rlk, Rtks: nil})
 
-	t.Run("HomomorphicMod/SineChebyshevWithArcSine/", func(t *testing.T) {
+	t.Run("SineChebyshevWithArcSine", func(t *testing.T) {
 
 		evm := EvalModParameters{
 			Q:             0x80000000080001,
@@ -113,7 +142,7 @@ func testHomomorphicMod(params Parameters, t *testing.T) {
 		verifyTestVectors(params, encoder, decryptor, values, ciphertext, params.LogSlots(), 0, t)
 	})
 
-	t.Run("HomomorphicMod/CosOptimizedChebyshevWithArcSine/", func(t *testing.T) {
+	t.Run("CosOptimizedChebyshevWithArcSine", func(t *testing.T) {
 
 		evm := EvalModParameters{
 			Q:             0x80000000080001,
@@ -164,8 +193,6 @@ func newTestVectorsEvalMod(params Parameters, encryptor Encryptor, encoder Encod
 
 	K := float64(evm.K - 1)
 	Q := float64(evm.Q) / math.Exp2(math.Round(math.Log2(float64(evm.Q)))) * evm.MessageRatio
-
-	fmt.Println(Q)
 
 	for i := uint64(0); i < 1<<logSlots; i++ {
 		values[i] = complex(math.Round(utils.RandFloat64(-K, K))*Q+utils.RandFloat64(-1, 1), 0)

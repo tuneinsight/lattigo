@@ -60,7 +60,7 @@ func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 	}
 
 	pt += dLen
-	pt + 1
+	pt++
 	dLen = int(data[pt])
 
 	if err := p.EvalModParameters.UnmarshalBinary(data[pt+1 : pt+dLen+1]); err != nil {

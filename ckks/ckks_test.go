@@ -51,7 +51,7 @@ type testParams struct {
 	evaluator   Evaluator
 }
 
-func TestCKKS(t *testing.T) {
+func TestCKKSBasics(t *testing.T) {
 
 	defaultParams := DefaultParams[:4] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	if testing.Short() {

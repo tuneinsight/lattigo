@@ -149,7 +149,7 @@ func testEvalMod(params Parameters, t *testing.T) {
 			LevelStart:    12,
 			SineType:      Cos1,
 			MessageRatio:  256.0,
-			K:             21,
+			K:             25,
 			SineDeg:       63,
 			DoubleAngle:   2,
 			ArcSineDeg:    7,

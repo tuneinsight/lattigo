@@ -6,15 +6,16 @@ import (
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
+	"math"
 	"time"
 )
 
 func main() {
 	var err error
 	ParametersLiteral := ckks.ParametersLiteral{
-		LogN:     12,
-		LogSlots: 10,
-		Scale:    1 << 30,
+		LogN:     10,
+		LogSlots: 8,
+		Scale:    1 << 32,
 		Sigma:    rlwe.DefaultSigma,
 		Q: []uint64{
 			0xffff820001,       // 40 Q0
@@ -36,6 +37,7 @@ func main() {
 			0x1000000000b00001, // 60 Sine
 			0x1000000000ce0001, // 60 Sine
 			0xfffffffff2a0001,  // 60 Sine
+			0xffffffffd80001,   // 58 Change of basis
 			0x100000000060001,  // 58 Repack
 		},
 		P: []uint64{
@@ -53,12 +55,26 @@ func main() {
 		},
 	}
 
-	H := 256
+	H := 64
 
 	var params ckks.Parameters
 	if params, err = ckks.NewParametersFromLiteral(ParametersLiteral); err != nil {
 		panic(err)
 	}
+
+	EvalModParameters := ckks.EvalModParameters{
+		Q:             params.Q()[0],
+		LevelStart:    params.MaxLevel() - 2,
+		SineType:      ckks.Cos1,
+		MessageRatio:  256.0,
+		K:             16,
+		SineDeg:       63,
+		DoubleAngle:   2,
+		ArcSineDeg:    0,
+		ScalingFactor: 1 << 60,
+	}
+
+	EvalModPoly := EvalModParameters.GenPoly()
 
 	ringQ := params.RingQ()
 	Q := ringQ.Modulus[0]
@@ -206,14 +222,38 @@ func main() {
 
 	ctAs.Scale = params.Scale()
 
-	/*
-		v := encoder.DecodePublic(decryptor.DecryptNew(ctAs), params.LogSlots(), 0)
-		v2 := encoder.DecodePublic(ptLWE, params.LogSlots(), 0)
+	// Normalization
+	eval.MultByConst(ctAs, 1/(float64(EvalModPoly.K)*EvalModPoly.QDiff()), ctAs)
+	eval.Rescale(ctAs, params.Scale(), ctAs)
 
-		for i := range v{
-			fmt.Println(i, v[i], lweReal[i].b[0], lweImag[i].b[0], v2[i])
-		}
-	*/
+	ctAsConj := eval.ConjugateNew(ctAs)
+	ctAsReal := eval.AddNew(ctAs, ctAsConj)
+	ctAsImag := eval.SubNew(ctAs, ctAsConj)
+
+	ctAsReal.Scale = ctAsReal.Scale * 2
+	ctAsImag.Scale = ctAsImag.Scale * 2
+
+	scale := math.Exp2(math.Round(math.Log2(float64(EvalModPoly.Q) / EvalModPoly.MessageRatio)))
+
+	// Scale the message to Delta = Q/MessageRatio
+	eval.ScaleUp(ctAsReal, math.Round(scale/ctAsReal.Scale), ctAsReal)
+	eval.ScaleUp(ctAsImag, math.Round(scale/ctAsImag.Scale), ctAsImag)
+
+	// Scale the message up to Sine/MessageRatio
+	eval.ScaleUp(ctAsReal, math.Round((EvalModPoly.ScalingFactor/EvalModPoly.MessageRatio)/ctAsReal.Scale), ctAsReal)
+	eval.ScaleUp(ctAsImag, math.Round((EvalModPoly.ScalingFactor/EvalModPoly.MessageRatio)/ctAsImag.Scale), ctAsImag)
+
+	// EvalMod
+	ctAsReal = eval.EvalMod(ctAsReal, EvalModPoly)
+	eval.DivByi(ctAsImag, ctAsImag)
+	ctAsImag = eval.EvalMod(ctAsImag, EvalModPoly)
+	eval.MultByi(ctAsImag, ctAsImag)
+	eval.Add(ctAsReal, ctAsImag, ctAsReal)
+
+	v := encoder.DecodePublic(decryptor.DecryptNew(ctAsReal), params.LogSlots(), 0)
+
+	fmt.Println(v[0], v[params.Slots()-1])
+
 }
 
 //DecryptLWE decrypts an LWE sample

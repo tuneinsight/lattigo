@@ -134,9 +134,9 @@ func (evm *EvalModParameters) Depth() int {
 //
 // Since Q is not a power of two, but Delta is, then does an approximate division by the closest
 // power of two to Q instead. Hence, it assumes that the input plaintext is already scaled by
-// the correcting factor Q/2^{round(log(Q))}. Also assumes that plaintext is pre-scaled by
-// 1/(2^r * K) for K the range of the approximation (Chebyshev change of basis) and r the number
-// of double angle formula evaluation.
+// the correcting factor Q/2^{round(log(Q))}.
+//
+// !! Assumes that the input is normalized by 1/K for K the range of the approximation.
 //
 // Scaling back error correction by 2^{round(log(Q))}/Q afterward is included in the polynomial
 func (eval *evaluator) EvalMod(ct *Ciphertext, evalModPoly EvalModPoly) *Ciphertext {

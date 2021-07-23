@@ -907,6 +907,21 @@ func (r *Ring) MulByVectorMontgomeryAndAddNoMod(p1 *Poly, vector []uint64, p2 *P
 	}
 }
 
+// MapSmallDimensionToLargerDimensionNTT maps Y = X^{N/n} -> X directly in the NTT domain
+func MapSmallDimensionToLargerDimensionNTT(polSmall, polLarge *Poly) {
+	gap := len(polLarge.Coeffs[0]) / len(polSmall.Coeffs[0])
+	for j := range polSmall.Coeffs {
+		tmp0 := polSmall.Coeffs[j]
+		tmp1 := polLarge.Coeffs[j]
+		for i := range polSmall.Coeffs[0] {
+			coeff := tmp0[i]
+			for w := 0; w < gap; w++ {
+				tmp1[i*gap+w] = coeff
+			}
+		}
+	}
+}
+
 // BitReverse applies a bit reverse permutation on the coefficients of p1 and writes the result on p2.
 // In can safely be used for in-place permutation.
 func (r *Ring) BitReverse(p1, p2 *Poly) {

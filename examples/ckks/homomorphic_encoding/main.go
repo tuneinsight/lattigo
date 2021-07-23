@@ -15,7 +15,7 @@ func main() {
 	ParametersLiteral := ckks.ParametersLiteral{
 		LogN:     10,
 		LogSlots: 8,
-		Scale:    1 << 32,
+		Scale:    1 << 30,
 		Sigma:    rlwe.DefaultSigma,
 		Q: []uint64{
 			0xffff820001,       // 40 Q0
@@ -37,8 +37,7 @@ func main() {
 			0x1000000000b00001, // 60 Sine
 			0x1000000000ce0001, // 60 Sine
 			0xfffffffff2a0001,  // 60 Sine
-			0xffffffffd80001,   // 58 Change of basis
-			0x100000000060001,  // 58 Repack
+			0x100000000060001,  // 58 Repack & Change of basis
 		},
 		P: []uint64{
 			0x1fffffffffe00001, // Pi 61
@@ -64,7 +63,7 @@ func main() {
 
 	EvalModParameters := ckks.EvalModParameters{
 		Q:             params.Q()[0],
-		LevelStart:    params.MaxLevel() - 2,
+		LevelStart:    params.MaxLevel() - 1,
 		SineType:      ckks.Cos1,
 		MessageRatio:  256.0,
 		K:             16,
@@ -117,13 +116,19 @@ func main() {
 	}
 	ckks.SliceBitReverseInPlaceComplex128(valuesFloat, params.Slots())
 
+	scale := math.Exp2(math.Round(math.Log2(float64(EvalModPoly.Q) / EvalModPoly.MessageRatio)))
+
+	// Scale the message to Delta = Q/MessageRatio
+	eval.ScaleUp(ct, math.Round(scale/ct.Scale), ct)
+
 	// RLWE -> LWE Extraction
 	lweReal, lweImag := ExtractLWESamplesBitReversed(ct, params)
 
 	// Encode the LWE samples
 	lweEncoded := make([]complex128, params.Slots())
 	for i := 0; i < params.Slots(); i++ {
-		lweEncoded[i] = complex(float64(lweReal[i].b[0]), float64(lweImag[i].b[0]))
+		lweEncoded[i] = complex(float64(lweReal[i].b), float64(lweImag[i].b))
+		lweEncoded[i] *= complex(math.Pow(1/(float64(EvalModPoly.K)*EvalModPoly.QDiff()), 1.0), 0) // pre-scaling for Cheby
 	}
 
 	ptLWE := ckks.NewPlaintext(params, params.MaxLevel(), 1.0)
@@ -137,8 +142,8 @@ func main() {
 
 	// Visual of some values
 	fmt.Println(valuesFloat[0], valuesFloat[params.Slots()-1])
-	fmt.Println(complex(DecryptLWE(ringQ, lweReal[0], params.Scale(), skInvNTT), DecryptLWE(ringQ, lweImag[0], params.Scale(), skInvNTT)),
-		complex(DecryptLWE(ringQ, lweReal[params.Slots()-1], params.Scale(), skInvNTT), DecryptLWE(ringQ, lweImag[params.Slots()-1], params.Scale(), skInvNTT)))
+	fmt.Println(complex(DecryptLWE(ringQ, lweReal[0], scale, skInvNTT), DecryptLWE(ringQ, lweImag[0], scale, skInvNTT)),
+		complex(DecryptLWE(ringQ, lweReal[params.Slots()-1], scale, skInvNTT), DecryptLWE(ringQ, lweImag[params.Slots()-1], scale, skInvNTT)))
 
 	ringQ.InvMFormLvl(0, skInvNTT, skInvNTT)
 
@@ -151,6 +156,8 @@ func main() {
 		} else {
 			skFloat[i] = complex(float64(s), 0)
 		}
+
+		skFloat[i] *= complex(math.Pow(1.0/(float64(EvalModPoly.K)*EvalModPoly.QDiff()), 0.5), 0) // sqrt(pre-scaling for Cheby)
 	}
 
 	ringQ.InvMFormLvl(0, skInvNTT, skInvNTT)
@@ -162,7 +169,7 @@ func main() {
 		ctSk[i] = encryptor.EncryptNew(ptSk)
 	}
 
-	// Compute			   skLeft 				  skRight
+	// Compute			     skLeft 			     skRight
 	//    	   __________  	   _       __________ 	    _
 	//   	  |		     |	  | |	  |		     |	   | |
 	//   	  |		     |    | |	  |		     |     | |
@@ -170,7 +177,7 @@ func main() {
 	//   	  |		     |	  | |	  |		     |     | |
 	//   	  |__________|	  |_|	  |__________|     |_|
 	//
-	//			  N/n          1          N/n 		    1
+	//			  N/n          1           N/n 		    1
 
 	// Constructs matrix
 
@@ -179,7 +186,8 @@ func main() {
 	for i := range AVectors {
 		tmp := make([]complex128, params.N())
 		for j := 0; j < params.N(); j++ {
-			tmp[j] = complex(float64(lweReal[i].a.Coeffs[0][j]), float64(lweImag[i].a.Coeffs[0][j]))
+			tmp[j] = complex(float64(lweReal[i].a[j]), float64(lweImag[i].a[j]))
+			tmp[j] *= complex(math.Pow(1/(float64(EvalModPoly.K)*EvalModPoly.QDiff()), 0.5), 0) // sqrt(pre-scaling for Cheby)
 		}
 
 		AVectors[i] = tmp
@@ -220,11 +228,7 @@ func main() {
 	eval.Rescale(ctAs, 1.0, ctAs)
 	eval.Add(ctAs, ptLWE, ctAs)
 
-	ctAs.Scale = params.Scale()
-
-	// Normalization
-	eval.MultByConst(ctAs, 1/(float64(EvalModPoly.K)*EvalModPoly.QDiff()), ctAs)
-	eval.Rescale(ctAs, params.Scale(), ctAs)
+	ctAs.Scale = scale
 
 	ctAsConj := eval.ConjugateNew(ctAs)
 	ctAsReal := eval.AddNew(ctAs, ctAsConj)
@@ -232,12 +236,6 @@ func main() {
 
 	ctAsReal.Scale = ctAsReal.Scale * 2
 	ctAsImag.Scale = ctAsImag.Scale * 2
-
-	scale := math.Exp2(math.Round(math.Log2(float64(EvalModPoly.Q) / EvalModPoly.MessageRatio)))
-
-	// Scale the message to Delta = Q/MessageRatio
-	eval.ScaleUp(ctAsReal, math.Round(scale/ctAsReal.Scale), ctAsReal)
-	eval.ScaleUp(ctAsImag, math.Round(scale/ctAsImag.Scale), ctAsImag)
 
 	// Scale the message up to Sine/MessageRatio
 	eval.ScaleUp(ctAsReal, math.Round((EvalModPoly.ScalingFactor/EvalModPoly.MessageRatio)/ctAsReal.Scale), ctAsReal)
@@ -260,10 +258,12 @@ func main() {
 func DecryptLWE(ringQ *ring.Ring, lwe RNSLWESample, scale float64, skInvNTT *ring.Poly) float64 {
 
 	tmp := ringQ.NewPolyLvl(0)
-	ringQ.MulCoeffsMontgomeryLvl(0, lwe.a, skInvNTT, tmp)
+	pol := new(ring.Poly)
+	pol.Coeffs = [][]uint64{lwe.a}
+	ringQ.MulCoeffsMontgomeryLvl(0, pol, skInvNTT, tmp)
 	qi := ringQ.Modulus[0]
 	tmp0 := tmp.Coeffs[0]
-	tmp1 := lwe.b[0]
+	tmp1 := lwe.b
 	for j := 0; j < ringQ.N; j++ {
 		tmp1 = ring.CRed(tmp1+tmp0[j], qi)
 	}
@@ -278,8 +278,8 @@ func DecryptLWE(ringQ *ring.Ring, lwe RNSLWESample, scale float64, skInvNTT *rin
 
 // RNSLWESample is a struct for RNS LWE samples
 type RNSLWESample struct {
-	b []uint64
-	a *ring.Poly
+	b uint64
+	a []uint64
 }
 
 // ExtractLWESamplesBitReversed extracts LWE samples from a R-LWE sample
@@ -314,12 +314,9 @@ func ExtractLWESamplesBitReversed(ct *ckks.Ciphertext, params ckks.Parameters) (
 
 		iRev := utils.BitReverse64(uint64(i), uint64(params.LogSlots()))
 
-		LWEReal[iRev].b = make([]uint64, len(pol.Coeffs))
-		for j := range pol.Coeffs {
-			LWEReal[iRev].b[j] = pol.Coeffs[j][idx]
-		}
-
-		LWEReal[iRev].a = acc.CopyNew()
+		LWEReal[iRev].b = pol.Coeffs[0][idx]
+		LWEReal[iRev].a = make([]uint64, params.N())
+		copy(LWEReal[iRev].a, acc.Coeffs[0])
 
 		// Multiplies the accumulator by X^{N/(2*slots)}
 		MulBySmallMonomial(ringQ, acc, gap)
@@ -330,12 +327,9 @@ func ExtractLWESamplesBitReversed(ct *ckks.Ciphertext, params ckks.Parameters) (
 
 		iRev := utils.BitReverse64(uint64(i), uint64(params.LogSlots()))
 
-		LWEImag[iRev].b = make([]uint64, len(pol.Coeffs))
-		for j := range pol.Coeffs {
-			LWEImag[iRev].b[j] = pol.Coeffs[j][idx+(params.N()>>1)]
-		}
-
-		LWEImag[iRev].a = acc.CopyNew()
+		LWEImag[iRev].b = pol.Coeffs[0][idx+(params.N()>>1)]
+		LWEImag[iRev].a = make([]uint64, params.N())
+		copy(LWEImag[iRev].a, acc.Coeffs[0])
 
 		// Multiplies the accumulator by X^{N/(2*slots)}
 		MulBySmallMonomial(ringQ, acc, gap)

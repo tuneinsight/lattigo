@@ -42,7 +42,7 @@ func TestRLWE(t *testing.T) {
 		defaultParams = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
-	for _, defaultParam := range defaultParams {
+	for _, defaultParam := range defaultParams[:] {
 		params, err := NewParametersFromLiteral(defaultParam)
 		if err != nil {
 			panic(err)
@@ -56,6 +56,7 @@ func TestRLWE(t *testing.T) {
 			testEncryptor,
 			testDecryptor,
 			testKeySwitcher,
+			testKeySwitchDimension,
 			testMarshaller,
 		} {
 			testSet(kgen, t)
@@ -389,6 +390,97 @@ func testKeySwitcher(kgen KeyGenerator, t *testing.T) {
 		ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], skOut.Value, ciphertext.Value[0])
 		ringQ.InvNTTLvl(ciphertext.Level(), ciphertext.Value[0], ciphertext.Value[0])
 		require.GreaterOrEqual(t, 10+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, ciphertext.Value[0]))
+	})
+}
+
+func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
+
+	paramsLargeDim := kgen.(*keyGenerator).params
+	paramsSmallDim, _ := NewParametersFromLiteral(ParametersLiteral{
+		LogN:  paramsLargeDim.LogN() - 1,
+		Q:     paramsLargeDim.Q(),
+		P:     paramsLargeDim.P(),
+		Sigma: DefaultSigma,
+	})
+
+	t.Run(testString(paramsLargeDim, "KeySwitchDimension/LargeToSmall/"), func(t *testing.T) {
+
+		ringQLargeDim := paramsLargeDim.RingQ()
+		ringQSmallDim := paramsSmallDim.RingQ()
+
+		kgenLargeDim := NewKeyGenerator(paramsLargeDim)
+		skLargeDim := kgenLargeDim.GenSecretKey()
+		kgenSmallDim := NewKeyGenerator(paramsSmallDim)
+		skSmallDim := kgenSmallDim.GenSecretKey()
+
+		swk := kgenLargeDim.GenSwitchingKey(skLargeDim, skSmallDim)
+
+		plaintext := NewPlaintext(paramsLargeDim, paramsLargeDim.MaxLevel())
+		plaintext.Value.IsNTT = true
+		encryptor := NewEncryptor(paramsLargeDim, skLargeDim)
+		ctLargeDim := NewCiphertextNTT(paramsLargeDim, 1, plaintext.Level())
+		encryptor.Encrypt(plaintext, ctLargeDim)
+
+		ks := NewKeySwitcher(paramsLargeDim)
+		ks.SwitchKeysInPlace(ctLargeDim.Value[1].Level(), ctLargeDim.Value[1], swk, ks.PoolQ[1], ks.PoolQ[2])
+		ringQLargeDim.Add(ctLargeDim.Value[0], ks.PoolQ[1], ctLargeDim.Value[0])
+		ring.CopyValues(ks.PoolQ[2], ctLargeDim.Value[1])
+
+		//Extracts Coefficients
+		ctSmallDim := NewCiphertextNTT(paramsSmallDim, 1, plaintext.Level())
+		for i := range ctSmallDim.Value {
+			ringQLargeDim.InvNTT(ctLargeDim.Value[i], ctLargeDim.Value[i])
+			for j := range ctSmallDim.Value[i].Coeffs {
+				tmp0 := ctSmallDim.Value[i].Coeffs[j]
+				tmp1 := ctLargeDim.Value[i].Coeffs[j]
+				gap := paramsLargeDim.N() / paramsSmallDim.N()
+				for w := 0; w < paramsSmallDim.N(); w++ {
+					tmp0[w] = tmp1[w*gap]
+				}
+			}
+			ringQSmallDim.NTT(ctSmallDim.Value[i], ctSmallDim.Value[i])
+		}
+
+		// Decrypts with smaller dimension key
+		ringQSmallDim.MulCoeffsMontgomeryAndAddLvl(ctSmallDim.Level(), ctSmallDim.Value[1], skSmallDim.Value, ctSmallDim.Value[0])
+		ringQSmallDim.InvNTTLvl(ctSmallDim.Level(), ctSmallDim.Value[0], ctSmallDim.Value[0])
+
+		require.GreaterOrEqual(t, 10+paramsSmallDim.LogN(), log2OfInnerSum(ctSmallDim.Level(), ringQSmallDim, ctSmallDim.Value[0]))
+	})
+
+	t.Run(testString(paramsLargeDim, "KeySwitchDimension/SmallToLarge/"), func(t *testing.T) {
+
+		ringQLargeDim := paramsLargeDim.RingQ()
+
+		kgenLargeDim := NewKeyGenerator(paramsLargeDim)
+		skLargeDim := kgenLargeDim.GenSecretKey()
+		kgenSmallDim := NewKeyGenerator(paramsSmallDim)
+		skSmallDim := kgenSmallDim.GenSecretKey()
+
+		swk := kgenLargeDim.GenSwitchingKey(skSmallDim, skLargeDim)
+
+		plaintext := NewPlaintext(paramsSmallDim, paramsSmallDim.MaxLevel())
+		plaintext.Value.IsNTT = true
+		encryptor := NewEncryptor(paramsSmallDim, skSmallDim)
+		ctSmallDim := NewCiphertextNTT(paramsSmallDim, 1, plaintext.Level())
+		encryptor.Encrypt(plaintext, ctSmallDim)
+
+		//Extracts Coefficients
+		ctLargeDim := NewCiphertextNTT(paramsLargeDim, 1, plaintext.Level())
+
+		ring.MapSmallDimensionToLargerDimensionNTT(ctSmallDim.Value[0], ctLargeDim.Value[0])
+		ring.MapSmallDimensionToLargerDimensionNTT(ctSmallDim.Value[1], ctLargeDim.Value[1])
+
+		ks := NewKeySwitcher(paramsLargeDim)
+		ks.SwitchKeysInPlace(ctLargeDim.Value[1].Level(), ctLargeDim.Value[1], swk, ks.PoolQ[1], ks.PoolQ[2])
+		ringQLargeDim.Add(ctLargeDim.Value[0], ks.PoolQ[1], ctLargeDim.Value[0])
+		ring.CopyValues(ks.PoolQ[2], ctLargeDim.Value[1])
+
+		// Decrypts with smaller dimension key
+		ringQLargeDim.MulCoeffsMontgomeryAndAddLvl(ctLargeDim.Level(), ctLargeDim.Value[1], skLargeDim.Value, ctLargeDim.Value[0])
+		ringQLargeDim.InvNTTLvl(ctLargeDim.Level(), ctLargeDim.Value[0], ctLargeDim.Value[0])
+
+		require.GreaterOrEqual(t, 10+paramsSmallDim.LogN(), log2OfInnerSum(ctLargeDim.Level(), ringQLargeDim, ctLargeDim.Value[0]))
 	})
 }
 

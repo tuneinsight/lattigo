@@ -190,20 +190,6 @@ func (keygen *keyGenerator) GenRotationKeysForRotations(ks []int, includeConjuga
 	return keygen.GenRotationKeys(galEls, sk)
 }
 
-// GenSwitchingKey generates a new key-switching key, that will re-encrypt a Ciphertext encrypted under the input key into the output key.
-func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (newevakey *SwitchingKey) {
-
-	if keygen.params.PCount() == 0 {
-		panic("Cannot GenSwitchingKey: modulus P is empty")
-	}
-
-	ring.CopyValues(skInput.Value, keygen.polypool[0])
-	newevakey = NewSwitchingKey(keygen.params)
-	keygen.newSwitchingKey(keygen.polypool[0], skOutput.Value, newevakey)
-	keygen.polypool[0].Zero()
-	return
-}
-
 func (keygen *keyGenerator) GenSwitchingKeyForRowRotation(sk *SecretKey) (swk *SwitchingKey) {
 	swk = NewSwitchingKey(keygen.params)
 	keygen.genrotKey(sk.Value, keygen.params.GaloisElementForRowRotation(), swk)
@@ -235,6 +221,38 @@ func (keygen *keyGenerator) genrotKey(sk *ring.Poly, galEl uint64, swk *Switchin
 	keygen.polypool[1].Zero()
 }
 
+// GenSwitchingKey generates a new key-switching key, that will re-encrypt a Ciphertext encrypted under the input key into the output key.
+// If the degree of the output key is larger than the input key, then generates a new key-switching key, that will re-encrypt a ciphertext encrypted
+// under skIn of dimension n to a ciphertext encrypted under sKOut of dimension N > n.
+// [-a*SkOut + w*P*skIn_{Y^{N/n}} + e, a] in X^{N}
+// If the degree of the output key is smaller than the input key, then generates a new key-switching key, that will re-encrypt a ciphertext encrypted
+// under skIn of dimension N to a ciphertext encrypted under sKOut of dimension n < N.
+// [-a*skOut_{Y^{N/n}} + w*P*skIn + e_{N}, a_{N}] in X^{N}
+// The output switching keys is always given in max(N, n).
+func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *SwitchingKey) {
+
+	if keygen.params.PCount() == 0 {
+		panic("Cannot GenSwitchingKey: modulus P is empty")
+	}
+
+	swk = NewSwitchingKey(keygen.params)
+
+	// N -> N
+	if len(skInput.Value.Coeffs[0]) == len(skOutput.Value.Coeffs[0]) {
+		keygen.newSwitchingKey(skInput.Value, skOutput.Value, swk)
+		// n -> N
+	} else if len(skInput.Value.Coeffs[0]) < len(skOutput.Value.Coeffs[0]) {
+		ring.MapSmallDimensionToLargerDimensionNTT(skInput.Value, keygen.polypool[1])
+		keygen.newSwitchingKey(keygen.polypool[1], skOutput.Value, swk)
+		// N -> n
+	} else {
+		ring.MapSmallDimensionToLargerDimensionNTT(skOutput.Value, keygen.polypool[1])
+		keygen.newSwitchingKey(skInput.Value, keygen.polypool[1], swk)
+	}
+
+	return
+}
+
 func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly, swk *SwitchingKey) {
 
 	ringQP := keygen.ringQP
@@ -249,7 +267,6 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly, swk *Switchi
 	for i := 0; i < beta; i++ {
 
 		// e
-
 		keygen.gaussianSampler.Read(swk.Value[i][0])
 		ringQP.NTTLazy(swk.Value[i][0], swk.Value[i][0])
 		ringQP.MForm(swk.Value[i][0], swk.Value[i][0])
@@ -286,142 +303,3 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut *ring.Poly, swk *Switchi
 		ringQP.MulCoeffsMontgomeryAndSub(swk.Value[i][1], skOut, swk.Value[i][0])
 	}
 }
-
-/*
-// GenSwitchingKeyDimensionFrom generates a new key-switching key, that will re-encrypt a ciphertext encrypted
-// under skIn of dimension n to a ciphertext encrypted under sKOut of dimension N > n.
-// [-a*SkOut + w*P*skIn_{Y^{N/n}} + e, a] in X^{N}
-func (keygen *keyGenerator) GenSwitchingKeyDimensionFrom(paramsFrom *Parameters, skIn, skOut *ring.Poly) (swk *SwitchingKey) {
-
-	// From a small N to a larger N
-	if !(paramsFrom.N() < keygen.params.N()) {
-		panic("paramsFrom dimension must be smaller than the keygenerator parameters dimension")
-	}
-
-	if keygen.params.PCount() == 0 {
-		panic("Cannot GenSwitchingKey: modulus P is empty")
-	}
-
-	ringQP := keygen.params.ringQP
-
-	swk = NewSwitchingKey(keygen.params)
-
-	// Maps skIn Y = X^{N/n} -> X
-	keygen.polypool[0].Zero()
-	paramsFrom.RingQP().InvNTT(skOut, keygen.polypool[0])
-	gap := paramsFrom.N() / keygen.params.N()
-	for j := 0; j < len(ringQP.Modulus); j++ {
-		tmp := keygen.polypool[0].Coeffs[j]
-		for i := paramsFrom.RingQP().N - 1; i >= 0; i-- {
-			tmp[i*gap], tmp[i] = tmp[i], tmp[i*gap]
-		}
-	}
-	ringQP.NTT(keygen.polypool[0], keygen.polypool[0])
-
-	ringQP.MulScalarBigint(keygen.polypool[0], paramsFrom.RingP().ModulusBigint, keygen.polypool[0])
-
-	alpha := keygen.params.PCount()
-	beta := keygen.params.Beta()
-
-	var index int
-	for i := 0; i < beta; i++ {
-
-		keygen.gaussianSampler.Read(swk.Value[i][0])
-		ringQP.NTTLazy(swk.Value[i][0], swk.Value[i][0])
-		ringQP.MForm(swk.Value[i][0], swk.Value[i][0])
-
-		for j := 0; j < alpha; j++ {
-
-			index = i*alpha + j
-
-			qi := ringQP.Modulus[index]
-			p0tmp := keygen.polypool[0].Coeffs[index]
-			p1tmp := swk.Value[i][0].Coeffs[index]
-
-			for w := 0; w < ringQP.N; w++ {
-				p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi)
-			}
-
-			// It handles the case where nb pj does not divide nb qi
-			if index >= keygen.params.QCount() {
-				break
-			}
-		}
-
-		keygen.uniformSampler.Read(swk.Value[i][1])
-		ringQP.MulCoeffsMontgomeryAndSub(swk.Value[i][1], skOut, swk.Value[i][0])
-	}
-	return
-}
-
-// GenSwitchingKeyDimensionFrom generates a new key-switching key, that will re-encrypt a ciphertext encrypted
-// under skIn of dimension N to a ciphertext encrypted under sKOut of dimension n < N.
-// [-a*skOut_{Y^{N/n}} + w*P*skIn + e_{N}, a_{N}] in X^{N}
-// The ciphetext moduli of paramsTo must be shared by the key generator.
-func (keygen *keyGenerator) NewSwitchingKeyDimensionTo(paramsTo *Parameters, skIn, skOut *ring.Poly) (swk *SwitchingKey) {
-
-	if !(paramsTo.N() < keygen.params.N()) {
-		panic("paramsTo dimension must be smaller than the keygenerator parameters dimension")
-	}
-
-	if keygen.params.PCount() == 0 {
-		panic("Cannot GenSwitchingKey: modulus P is empty")
-	}
-
-	swk = NewSwitchingKey(keygen.params)
-
-	ringQP := paramsTo.RingQP() // uses paramsTo ringQP to ensure the output security
-
-	// Concatenates modulus Q of small params with modulus P of large params
-	skInSmallQ := new(ring.Poly)
-	skInSmallQ.Coeffs = append(skIn.Coeffs[:paramsTo.MaxLevel()+1], skIn.Coeffs[keygen.params.MaxLevel()+1:]...)
-
-	// Computes P * skIn
-	ringQP.MulScalarBigint(skIn, keygen.pBigInt, keygen.polypool[0])
-
-	// Maps skOut Y = X^{N/n} -> X
-	keygen.polypool[1].Zero()
-	ringQP.InvNTT(skOut, keygen.polypool[1])
-	gap := paramsTo.N() / keygen.params.N()
-	for j := 0; j < len(ringQP.Modulus); j++ {
-		tmp := keygen.polypool[1].Coeffs[j]
-		for i := paramsTo.RingQP().N - 1; i >= 0; i-- {
-			tmp[i*gap], tmp[i] = tmp[i], tmp[i*gap]
-		}
-	}
-	ringQP.NTT(keygen.polypool[1], keygen.polypool[1])
-
-	var index int
-	alpha := keygen.params.PCount()
-	beta := keygen.params.Beta()
-	for i := 0; i < beta; i++ {
-
-		keygen.gaussianSampler.Read(swk.Value[i][0])
-
-		ringQP.NTTLazy(swk.Value[i][0], swk.Value[i][0])
-		ringQP.MForm(swk.Value[i][0], swk.Value[i][0])
-
-		for j := 0; j < alpha; j++ {
-
-			index = i*alpha + j
-
-			qi := ringQP.Modulus[index]
-			p0tmp := keygen.polypool[0].Coeffs[index]
-			p1tmp := swk.Value[i][0].Coeffs[index]
-
-			for w := 0; w < ringQP.N; w++ {
-				p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi)
-			}
-
-			// It handles the case where nb pj does not divide nb qi
-			if index >= keygen.params.QCount() {
-				break
-			}
-		}
-
-		keygen.uniformSampler.Read(swk.Value[i][1])
-		ringQP.MulCoeffsMontgomeryAndSub(swk.Value[i][1], keygen.polypool[1], swk.Value[i][0])
-	}
-	return
-}
-*/

@@ -52,7 +52,7 @@ type skEncryptor struct {
 func NewEncryptor(params Parameters, key interface{}) Encryptor {
 	switch key := key.(type) {
 	case *PublicKey:
-		if key.Value[0].Degree() != params.N() || key.Value[1].Degree() != params.N() {
+		if key.Value[0][0].Degree() != params.N() || key.Value[1][0].Degree() != params.N() {
 			panic("cannot newEncryptor: pk ring degree does not match params ring degree")
 		}
 		encryptorBase := newEncryptorBase(params)
@@ -62,7 +62,7 @@ func NewEncryptor(params Parameters, key interface{}) Encryptor {
 		}
 		return &pkFastEncryptor{encryptorBase, key}
 	case *SecretKey:
-		if key.Value.Degree() != params.N() {
+		if key.Value[0].Degree() != params.N() {
 			panic("cannot newEncryptor: sk ring degree does not match params ring degree")
 		}
 		return &skEncryptor{newEncryptorBase(params), key}
@@ -105,17 +105,12 @@ func (encryptor *pkEncryptor) Encrypt(plaintext *Plaintext, ctOut *Ciphertext) {
 	ringQ.MFormLvl(lvl, poolQ0, poolQ0)
 	ringP.MForm(poolP0, poolP0)
 
-	pk0P := new(ring.Poly)
-	pk1P := new(ring.Poly)
-	pk0P.Coeffs = encryptor.pk.Value[0].Coeffs[len(ringQ.Modulus):]
-	pk1P.Coeffs = encryptor.pk.Value[1].Coeffs[len(ringQ.Modulus):]
-
 	// ct0 = u*pk0
 	// ct1 = u*pk1
-	ringQ.MulCoeffsMontgomeryLvl(lvl, poolQ0, encryptor.pk.Value[0], ctOut.Value[0])
-	ringQ.MulCoeffsMontgomeryLvl(lvl, poolQ0, encryptor.pk.Value[1], ctOut.Value[1])
-	ringP.MulCoeffsMontgomery(poolP0, pk1P, poolP1)
-	ringP.MulCoeffsMontgomery(poolP0, pk0P, poolP0)
+	ringQ.MulCoeffsMontgomeryLvl(lvl, poolQ0, encryptor.pk.Value[0][0], ctOut.Value[0])
+	ringQ.MulCoeffsMontgomeryLvl(lvl, poolQ0, encryptor.pk.Value[1][0], ctOut.Value[1])
+	ringP.MulCoeffsMontgomery(poolP0, encryptor.pk.Value[0][1], poolP1)
+	ringP.MulCoeffsMontgomery(poolP0, encryptor.pk.Value[1][1], poolP0)
 
 	// 2*(#Q + #P) NTT
 	ringQ.InvNTTLvl(lvl, ctOut.Value[0], ctOut.Value[0])
@@ -186,9 +181,9 @@ func (encryptor *pkFastEncryptor) Encrypt(plaintext *Plaintext, ctOut *Ciphertex
 	ringQ.MFormLvl(lvl, poolQ0, poolQ0)
 
 	// ct0 = u*pk0
-	ringQ.MulCoeffsMontgomeryLvl(lvl, poolQ0, encryptor.pk.Value[0], ctOut.Value[0])
+	ringQ.MulCoeffsMontgomeryLvl(lvl, poolQ0, encryptor.pk.Value[0][0], ctOut.Value[0])
 	// ct1 = u*pk1
-	ringQ.MulCoeffsMontgomeryLvl(lvl, poolQ0, encryptor.pk.Value[1], ctOut.Value[1])
+	ringQ.MulCoeffsMontgomeryLvl(lvl, poolQ0, encryptor.pk.Value[1][0], ctOut.Value[1])
 
 	if ciphertextNTT {
 
@@ -257,7 +252,7 @@ func (encryptor *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Cipherte
 
 	ciphertextNTT := ciphertext.Value[0].IsNTT
 
-	ringQ.MulCoeffsMontgomeryLvl(lvl, ciphertext.Value[1], encryptor.sk.Value, ciphertext.Value[0])
+	ringQ.MulCoeffsMontgomeryLvl(lvl, ciphertext.Value[1], encryptor.sk.Value[0], ciphertext.Value[0])
 	ringQ.NegLvl(lvl, ciphertext.Value[0], ciphertext.Value[0])
 
 	if ciphertextNTT {
@@ -332,23 +327,4 @@ func (encryptor *encryptorBase) EncryptFromCRP(plaintext *Plaintext, crp *ring.P
 	panic("Cannot encrypt with CRP using an encryptor created with the public-key")
 }
 
-func extendBasisSmallNormAndCenter(ringQ, ringP *ring.Ring, polQ, polP *ring.Poly) {
-	var coeff, Q, QHalf, sign uint64
-	Q = ringQ.Modulus[0]
-	QHalf = Q >> 1
 
-	for j := 0; j < ringQ.N; j++ {
-
-		coeff = polQ.Coeffs[0][j]
-
-		sign = 1
-		if coeff > QHalf {
-			coeff = Q - coeff
-			sign = 0
-		}
-
-		for i, pi := range ringP.Modulus {
-			polP.Coeffs[i][j] = (coeff * sign) | (pi-coeff)*(sign^1)
-		}
-	}
-}

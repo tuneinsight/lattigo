@@ -12,9 +12,12 @@ import (
 
 func main() {
 	var err error
-	ParametersLiteral := ckks.ParametersLiteral{
+	
+
+	var paramsRLWE ckks.Parameters
+	if paramsRLWE, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
 		LogN:     10,
-		LogSlots: 8,
+		LogSlots: 7,
 		Scale:    1 << 30,
 		Sigma:    rlwe.DefaultSigma,
 		Q: []uint64{
@@ -42,6 +45,22 @@ func main() {
 		P: []uint64{
 			0x1fffffffffe00001, // Pi 61
 		},
+	}); err != nil {
+		panic(err)
+	}
+
+	var paramsLWE ckks.Parameters
+	if paramsLWE, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
+		LogN:     paramsRLWE.LogN(),
+		LogSlots: paramsRLWE.LogSlots(),
+		Scale:    paramsRLWE.Scale(),
+		Sigma:    paramsRLWE.Sigma(),
+		Q: []uint64{
+			paramsRLWE.Q()[0],       // 40 Q0
+		},
+		P: paramsRLWE.P(),
+	}); err != nil {
+		panic(err)
 	}
 
 	SlotsToCoeffsParameters := ckks.EncodingMatricesParameters{
@@ -49,21 +68,14 @@ func main() {
 		BSGSRatio:   16.0,
 		BitReversed: false,
 		ScalingFactor: [][]float64{
-			{0x2000000a0001},
-			{0x2000000e0001},
+			{paramsRLWE.QiFloat64(1)},
+			{paramsRLWE.QiFloat64(2)},
 		},
 	}
 
-	H := 64
-
-	var params ckks.Parameters
-	if params, err = ckks.NewParametersFromLiteral(ParametersLiteral); err != nil {
-		panic(err)
-	}
-
 	EvalModParameters := ckks.EvalModParameters{
-		Q:             params.Q()[0],
-		LevelStart:    params.MaxLevel() - 1,
+		Q:             paramsRLWE.Q()[0],
+		LevelStart:    paramsRLWE.MaxLevel() - 1,
 		SineType:      ckks.Cos1,
 		MessageRatio:  256.0,
 		K:             16,
@@ -75,82 +87,104 @@ func main() {
 
 	EvalModPoly := EvalModParameters.GenPoly()
 
-	ringQ := params.RingQ()
-	Q := ringQ.Modulus[0]
+	//ringQRLWE := paramsRLWE.RingQ()
+	ringQLWE := paramsLWE.RingQ()
+	Q := paramsRLWE.Q()[0]
 
-	encoder := ckks.NewEncoder(params)
-	kgen := ckks.NewKeyGenerator(params)
-	sk := kgen.GenSecretKeySparse(H)
-	encryptor := ckks.NewEncryptor(params, sk)
-	decryptor := ckks.NewDecryptor(params, sk)
+	// RLWE Parameters
+	encoder := ckks.NewEncoder(paramsRLWE)
+	kgenRLWE := ckks.NewKeyGenerator(paramsRLWE)
+	skRLWE := kgenRLWE.GenSecretKey()
+	skRLWE2 := kgenRLWE.GenSecretKey()
+	encryptor := ckks.NewEncryptor(paramsRLWE, skRLWE)
+	decryptor := ckks.NewDecryptor(paramsRLWE, skRLWE)
+	decryptor2 := ckks.NewDecryptor(paramsRLWE, skRLWE2)
 
 	SlotsToCoeffsMatrix := encoder.GenHomomorphicEncodingMatrices(SlotsToCoeffsParameters, 1.0)
+	rotations := SlotsToCoeffsParameters.Rotations(paramsRLWE.LogN(), paramsRLWE.LogSlots())
+	rotKey := kgenRLWE.GenRotationKeysForRotations(rotations, true, skRLWE)
+	rlk := kgenRLWE.GenRelinearizationKey(skRLWE, 2)
+	eval := ckks.NewEvaluator(paramsRLWE, rlwe.EvaluationKey{Rlk: rlk, Rtks: rotKey})
 
-	// Gets the rotations indexes for SlotsToCoeffs
-	rotations := SlotsToCoeffsParameters.Rotations(params.LogN(), params.LogSlots())
+	// LWE Parameters
+	kgenLWE := ckks.NewKeyGenerator(paramsLWE)
+	skLWE := kgenLWE.GenSecretKeySparse(64)
+	decryptorLWE := ckks.NewDecryptor(paramsLWE, skLWE)
+	_= decryptorLWE
 
-	rotKey := kgen.GenRotationKeysForRotations(rotations, true, sk)
-	rlk := kgen.GenRelinearizationKey(sk, 2)
-
-	eval := ckks.NewEvaluator(params, rlwe.EvaluationKey{Rlk: rlk, Rtks: rotKey})
-
-	values := make([]complex128, params.Slots())
+	// RLWE -> LWE SWK
+	swkRLWEDimToLWEDim := kgenRLWE.GenSwitchingKey(skRLWE, skRLWE2)
+	
+	// Random complex plaintext encrypted
+	values := make([]complex128, paramsRLWE.Slots())
 	for i := range values {
-		values[i] = complex(float64(i+1)/float64(params.Slots()), 1+float64(i+1)/float64(params.Slots()))
+		values[i] = complex(float64(i+1)/float64(paramsRLWE.Slots()), 1+float64(i+1)/float64(paramsRLWE.Slots()))
 	}
 
-	plaintext := ckks.NewPlaintext(params, params.MaxLevel(), params.Scale())
+	plaintext := ckks.NewPlaintext(paramsRLWE, paramsRLWE.MaxLevel(), paramsRLWE.Scale())
 	// Must encode with 2*Slots because a real vector is returned
-	encoder.Encode(plaintext, values, utils.MinInt(params.LogSlots()+1, params.LogN()-1))
+	encoder.Encode(plaintext, values, utils.MinInt(paramsRLWE.LogSlots()+1, paramsRLWE.LogN()-1))
 	ct := encryptor.EncryptNew(plaintext)
 
-	// Homomorphic Decoding
+	// ******** STEP 1 : HOMOMORPHIC DECODING *******
 	ct = eval.SlotsToCoeffs(ct, nil, SlotsToCoeffsMatrix)
 
 	// Decrypt and print coefficient domain
 	coeffsFloat := encoder.DecodeCoeffsPublic(decryptor.DecryptNew(ct), 0)
-	valuesFloat := make([]complex128, params.Slots())
-	gap := params.N() / (2 * params.Slots())
-	for i, idx := 0, 0; i < params.Slots(); i, idx = i+1, idx+gap {
-		valuesFloat[i] = complex(coeffsFloat[idx], coeffsFloat[idx+(params.N()>>1)])
+	valuesFloat := make([]complex128, paramsRLWE.Slots())
+	gap := paramsRLWE.N() / (2 * paramsRLWE.Slots())
+	for i, idx := 0, 0; i < paramsRLWE.Slots(); i, idx = i+1, idx+gap {
+		valuesFloat[i] = complex(coeffsFloat[idx], coeffsFloat[idx+(paramsRLWE.N()>>1)])
 	}
-	ckks.SliceBitReverseInPlaceComplex128(valuesFloat, params.Slots())
+	ckks.SliceBitReverseInPlaceComplex128(valuesFloat, paramsRLWE.Slots())
 
-	scale := math.Exp2(math.Round(math.Log2(float64(EvalModPoly.Q) / EvalModPoly.MessageRatio)))
+	// ******** STEP 2 : RLWE -> LWE EXTRACTION *************
 
 	// Scale the message to Delta = Q/MessageRatio
+	scale := math.Exp2(math.Round(math.Log2(float64(EvalModPoly.Q) / EvalModPoly.MessageRatio)))
 	eval.ScaleUp(ct, math.Round(scale/ct.Scale), ct)
 
+	fmt.Println(encoder.DecodeCoeffsPublic(decryptor.DecryptNew(ct), 0)[:8])
+
+
+	//Switch to lower dimension
+	eval.SwitchKeys(ct, swkRLWEDimToLWEDim, ct)
+
+	fmt.Println(encoder.DecodeCoeffsPublic(decryptor2.DecryptNew(ct), 0)[:8])
+
+	ctLWE := new(ckks.Ciphertext)
 	// RLWE -> LWE Extraction
-	lweReal, lweImag := ExtractLWESamplesBitReversed(ct, params)
+	lweReal, lweImag := ExtractLWESamplesBitReversed(ctLWE, paramsLWE)
+
+	// Encode the secret-key
+	skLWEInvNTT := ringQLWE.NewPoly()
+	ring.CopyValues(skLWE.Value, skLWEInvNTT)
+	ringQLWE.InvNTT(skLWEInvNTT, skLWEInvNTT)
+
+	// Visual of some values
+	fmt.Println(valuesFloat[0], valuesFloat[paramsLWE.Slots()-1])
+	fmt.Println(complex(DecryptLWE(ringQLWE, lweReal[0], scale, skLWEInvNTT), DecryptLWE(ringQLWE, lweImag[0], scale, skLWEInvNTT)),
+		complex(DecryptLWE(ringQLWE, lweReal[paramsLWE.Slots()-1], scale, skLWEInvNTT), DecryptLWE(ringQLWE, lweImag[paramsLWE.Slots()-1], scale, skLWEInvNTT)))
+
+
+	// ********* STEP 3 : LWE -> RLWE REPACKING
+
+	ptLWE := ckks.NewPlaintext(paramsRLWE, paramsRLWE.MaxLevel(), 1.0)
 
 	// Encode the LWE samples
-	lweEncoded := make([]complex128, params.Slots())
-	for i := 0; i < params.Slots(); i++ {
+	lweEncoded := make([]complex128, paramsRLWE.Slots())
+	for i := 0; i < paramsRLWE.Slots(); i++ {
 		lweEncoded[i] = complex(float64(lweReal[i].b), float64(lweImag[i].b))
 		lweEncoded[i] *= complex(math.Pow(1/(float64(EvalModPoly.K)*EvalModPoly.QDiff()), 1.0), 0) // pre-scaling for Cheby
 	}
 
-	ptLWE := ckks.NewPlaintext(params, params.MaxLevel(), 1.0)
+	encoder.EncodeNTT(ptLWE, lweEncoded, paramsRLWE.LogSlots())
 
-	encoder.EncodeNTT(ptLWE, lweEncoded, params.LogSlots())
-
-	// Encode the secret-key
-	skInvNTT := ringQ.NewPolyLvl(0)
-	ring.CopyValues(sk.Value, skInvNTT)
-	ringQ.InvNTTLvl(0, skInvNTT, skInvNTT)
-
-	// Visual of some values
-	fmt.Println(valuesFloat[0], valuesFloat[params.Slots()-1])
-	fmt.Println(complex(DecryptLWE(ringQ, lweReal[0], scale, skInvNTT), DecryptLWE(ringQ, lweImag[0], scale, skInvNTT)),
-		complex(DecryptLWE(ringQ, lweReal[params.Slots()-1], scale, skInvNTT), DecryptLWE(ringQ, lweImag[params.Slots()-1], scale, skInvNTT)))
-
-	ringQ.InvMFormLvl(0, skInvNTT, skInvNTT)
-
+	// Encodes and Encrypts skLWE
+	ringQLWE.InvMFormLvl(0, skLWEInvNTT, skLWEInvNTT)
 	fmt.Println("Encrypt SK")
-	skFloat := make([]complex128, params.N())
-
-	for i, s := range skInvNTT.Coeffs[0] {
+	skFloat := make([]complex128, paramsRLWE.N())
+	for i, s := range skLWEInvNTT.Coeffs[0] {
 		if s >= Q>>1 {
 			skFloat[i] = -complex(float64(Q-s), 0)
 		} else {
@@ -160,14 +194,15 @@ func main() {
 		skFloat[i] *= complex(math.Pow(1.0/(float64(EvalModPoly.K)*EvalModPoly.QDiff()), 0.5), 0) // sqrt(pre-scaling for Cheby)
 	}
 
-	ringQ.InvMFormLvl(0, skInvNTT, skInvNTT)
+	ringQLWE.InvMFormLvl(0, skLWEInvNTT, skLWEInvNTT)
 
-	ctSk := make([]*ckks.Ciphertext, params.N()/params.Slots())
-	ptSk := ckks.NewPlaintext(params, params.MaxLevel(), float64(params.Q()[params.MaxLevel()]))
-	for i := range ctSk {
-		encoder.Encode(ptSk, skFloat[i*params.Slots():(i+1)*params.Slots()], params.LogSlots())
-		ctSk[i] = encryptor.EncryptNew(ptSk)
-	}
+
+	ptSk := ckks.NewPlaintext(paramsRLWE, paramsRLWE.MaxLevel(), float64(paramsRLWE.Q()[paramsRLWE.MaxLevel()]))
+	encoder.Encode(ptSk, skFloat, paramsRLWE.LogSlots())
+	ctSk := encryptor.EncryptNew(ptSk)
+
+
+	// Encodes A
 
 	// Compute			     skLeft 			     skRight
 	//    	   __________  	   _       __________ 	    _
@@ -182,10 +217,10 @@ func main() {
 	// Constructs matrix
 
 	fmt.Println("Encode A")
-	AVectors := make([][]complex128, params.Slots())
+	AVectors := make([][]complex128, paramsLWE.N())
 	for i := range AVectors {
-		tmp := make([]complex128, params.N())
-		for j := 0; j < params.N(); j++ {
+		tmp := make([]complex128, paramsLWE.N())
+		for j := 0; j < paramsLWE.N(); j++ {
 			tmp[j] = complex(float64(lweReal[i].a[j]), float64(lweImag[i].a[j]))
 			tmp[j] *= complex(math.Pow(1/(float64(EvalModPoly.K)*EvalModPoly.QDiff()), 0.5), 0) // sqrt(pre-scaling for Cheby)
 		}
@@ -194,35 +229,29 @@ func main() {
 	}
 
 	// Diagonalize
-	ptMatDiag := make([]ckks.PtDiagMatrix, params.N()/params.Slots())
 	AMatDiag := make(map[int][]complex128)
-	for w := 0; w < params.N()/params.Slots(); w++ {
-		for i := 0; i < params.Slots(); i++ {
-			tmp := make([]complex128, params.Slots())
-			for j := 0; j < params.Slots(); j++ {
-				tmp[j] = AVectors[j][(j+i)%params.Slots()+w*params.Slots()]
-			}
-
-			AMatDiag[i] = tmp
+	for i := 0; i < paramsLWE.N(); i++ {
+		tmp := make([]complex128, paramsLWE.N())
+		for j := 0; j < paramsLWE.N(); j++ {
+			tmp[j] = AVectors[j][(j+i)%paramsLWE.N()]
 		}
 
-		ptMatDiag[w] = encoder.EncodeDiagMatrixBSGSAtLvl(params.MaxLevel(), AMatDiag, 1.0, 16.0, params.LogSlots())
+		AMatDiag[i] = tmp
 	}
 
-	fmt.Println("GenRepackKeys")
-	rotKeyRepack := kgen.GenRotationKeysForRotations(params.RotationsForDiagMatrixMult(ptMatDiag[0]), false, sk)
+	ptMatDiag := encoder.EncodeDiagMatrixBSGSAtLvl(paramsRLWE.MaxLevel(), AMatDiag, 1.0, 16.0, paramsLWE.LogN())
 
-	evalRepack := ckks.NewEvaluator(params, rlwe.EvaluationKey{Rlk: rlk, Rtks: rotKeyRepack})
+
+	fmt.Println("GenRepackKeys")
+	rotKeyRepack := kgenRLWE.GenRotationKeysForRotations(paramsRLWE.RotationsForDiagMatrixMult(ptMatDiag), false, skRLWE)
+
+	evalRepack := ckks.NewEvaluator(paramsRLWE, rlwe.EvaluationKey{Rlk: rlk, Rtks: rotKeyRepack})
 
 	fmt.Println("Start Repacking")
 	startTotal := time.Now()
-	ctAs := evalRepack.LinearTransform(ctSk[0], ptMatDiag[0])[0]
-	for i := 1; i < params.N()/params.Slots(); i++ {
+	ctAs := evalRepack.LinearTransform(ctSk, ptMatDiag)[0]
+	fmt.Printf("Done : %s\n", time.Since(startTotal))
 
-		startFrac := time.Now()
-		evalRepack.Add(ctAs, evalRepack.LinearTransform(ctSk[i], ptMatDiag[i])[0], ctAs)
-		fmt.Printf("Matrix[%d] : %s\n", i, time.Since(startFrac))
-	}
 	fmt.Printf("Done : %s\n", time.Since(startTotal))
 
 	eval.Rescale(ctAs, 1.0, ctAs)
@@ -248,9 +277,9 @@ func main() {
 	eval.MultByi(ctAsImag, ctAsImag)
 	eval.Add(ctAsReal, ctAsImag, ctAsReal)
 
-	v := encoder.DecodePublic(decryptor.DecryptNew(ctAsReal), params.LogSlots(), 0)
+	v := encoder.DecodePublic(decryptor.DecryptNew(ctAsReal), paramsRLWE.LogSlots(), 0)
 
-	fmt.Println(v[0], v[params.Slots()-1])
+	fmt.Println(v[0], v[paramsRLWE.Slots()-1])
 
 }
 
@@ -286,9 +315,6 @@ type RNSLWESample struct {
 func ExtractLWESamplesBitReversed(ct *ckks.Ciphertext, params ckks.Parameters) (LWEReal, LWEImag []RNSLWESample) {
 
 	ringQ := params.RingQ()
-
-	ringQ.InvNTTLvl(ct.Level(), ct.Value[0], ct.Value[0])
-	ringQ.InvNTTLvl(ct.Level(), ct.Value[1], ct.Value[1])
 
 	LWEReal = make([]RNSLWESample, params.Slots())
 	LWEImag = make([]RNSLWESample, params.Slots())

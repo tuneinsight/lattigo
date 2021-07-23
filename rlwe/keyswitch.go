@@ -166,11 +166,6 @@ func (ks *KeySwitcher) SwitchKeysInPlaceNoModDown(level int, cx *ring.Poly, evak
 		ringQ.NTTLvl(level, cxInvNTT, cxNTT)
 	}
 
-	evakey0Q := new(ring.Poly)
-	evakey1Q := new(ring.Poly)
-	evakey0P := new(ring.Poly)
-	evakey1P := new(ring.Poly)
-
 	reduce = 0
 
 	alpha := len(ringP.Modulus)
@@ -184,21 +179,16 @@ func (ks *KeySwitcher) SwitchKeysInPlaceNoModDown(level int, cx *ring.Poly, evak
 
 		ks.DecomposeSingleNTT(level, i, cxNTT, cxInvNTT, c2QiQ, c2QiP)
 
-		evakey0Q.Coeffs = evakey.Value[i][0].Coeffs[:level+1]
-		evakey1Q.Coeffs = evakey.Value[i][1].Coeffs[:level+1]
-		evakey0P.Coeffs = evakey.Value[i][0].Coeffs[len(ringQ.Modulus):]
-		evakey1P.Coeffs = evakey.Value[i][1].Coeffs[len(ringQ.Modulus):]
-
 		if i == 0 {
-			ringQ.MulCoeffsMontgomeryConstantLvl(level, evakey0Q, c2QiQ, pool2Q)
-			ringQ.MulCoeffsMontgomeryConstantLvl(level, evakey1Q, c2QiQ, pool3Q)
-			ringP.MulCoeffsMontgomeryConstant(evakey0P, c2QiP, pool2P)
-			ringP.MulCoeffsMontgomeryConstant(evakey1P, c2QiP, pool3P)
+			ringQ.MulCoeffsMontgomeryConstantLvl(level, evakey.Value[i][0][0], c2QiQ, pool2Q)
+			ringQ.MulCoeffsMontgomeryConstantLvl(level, evakey.Value[i][1][0], c2QiQ, pool3Q)
+			ringP.MulCoeffsMontgomeryConstant(evakey.Value[i][0][1], c2QiP, pool2P)
+			ringP.MulCoeffsMontgomeryConstant(evakey.Value[i][1][1], c2QiP, pool3P)
 		} else {
-			ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(level, evakey0Q, c2QiQ, pool2Q)
-			ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(level, evakey1Q, c2QiQ, pool3Q)
-			ringP.MulCoeffsMontgomeryConstantAndAddNoMod(evakey0P, c2QiP, pool2P)
-			ringP.MulCoeffsMontgomeryConstantAndAddNoMod(evakey1P, c2QiP, pool3P)
+			ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(level, evakey.Value[i][0][0], c2QiQ, pool2Q)
+			ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(level, evakey.Value[i][1][0], c2QiQ, pool3Q)
+			ringP.MulCoeffsMontgomeryConstantAndAddNoMod(evakey.Value[i][0][1], c2QiP, pool2P)
+			ringP.MulCoeffsMontgomeryConstantAndAddNoMod(evakey.Value[i][1][1], c2QiP, pool3P)
 		}
 
 		if reduce%QiOverF == QiOverF-1 {
@@ -251,11 +241,6 @@ func (ks *KeySwitcher) KeyswitchHoistedNoModDown(level int, PoolDecompQ, PoolDec
 	alpha := len(ringP.Modulus)
 	beta := int(math.Ceil(float64(level+1) / float64(alpha)))
 
-	evakey0Q := new(ring.Poly)
-	evakey1Q := new(ring.Poly)
-	evakey0P := new(ring.Poly)
-	evakey1P := new(ring.Poly)
-
 	QiOverF := ks.Parameters.QiOverflowMargin(level) >> 1
 	PiOverF := ks.Parameters.PiOverflowMargin() >> 1
 
@@ -263,21 +248,16 @@ func (ks *KeySwitcher) KeyswitchHoistedNoModDown(level int, PoolDecompQ, PoolDec
 	var reduce int
 	for i := 0; i < beta; i++ {
 
-		evakey0Q.Coeffs = evakey.Value[i][0].Coeffs[:level+1]
-		evakey1Q.Coeffs = evakey.Value[i][1].Coeffs[:level+1]
-		evakey0P.Coeffs = evakey.Value[i][0].Coeffs[len(ringQ.Modulus):]
-		evakey1P.Coeffs = evakey.Value[i][1].Coeffs[len(ringQ.Modulus):]
-
 		if i == 0 {
-			ringQ.MulCoeffsMontgomeryConstantLvl(level, evakey0Q, PoolDecompQ[i], pool2Q)
-			ringQ.MulCoeffsMontgomeryConstantLvl(level, evakey1Q, PoolDecompQ[i], pool3Q)
-			ringP.MulCoeffsMontgomeryConstant(evakey0P, PoolDecompP[i], pool2P)
-			ringP.MulCoeffsMontgomeryConstant(evakey1P, PoolDecompP[i], pool3P)
+			ringQ.MulCoeffsMontgomeryConstantLvl(level, evakey.Value[i][0][0], PoolDecompQ[i], pool2Q)
+			ringQ.MulCoeffsMontgomeryConstantLvl(level, evakey.Value[i][1][0], PoolDecompQ[i], pool3Q)
+			ringP.MulCoeffsMontgomeryConstant(evakey.Value[i][0][1], PoolDecompP[i], pool2P)
+			ringP.MulCoeffsMontgomeryConstant(evakey.Value[i][1][1], PoolDecompP[i], pool3P)
 		} else {
-			ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(level, evakey0Q, PoolDecompQ[i], pool2Q)
-			ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(level, evakey1Q, PoolDecompQ[i], pool3Q)
-			ringP.MulCoeffsMontgomeryConstantAndAddNoMod(evakey0P, PoolDecompP[i], pool2P)
-			ringP.MulCoeffsMontgomeryConstantAndAddNoMod(evakey1P, PoolDecompP[i], pool3P)
+			ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(level, evakey.Value[i][0][0], PoolDecompQ[i], pool2Q)
+			ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(level, evakey.Value[i][1][0], PoolDecompQ[i], pool3Q)
+			ringP.MulCoeffsMontgomeryConstantAndAddNoMod(evakey.Value[i][0][1], PoolDecompP[i], pool2P)
+			ringP.MulCoeffsMontgomeryConstantAndAddNoMod(evakey.Value[i][1][1], PoolDecompP[i], pool3P)
 		}
 
 		if reduce%QiOverF == QiOverF-1 {

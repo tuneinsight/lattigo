@@ -52,7 +52,6 @@ type Parameters struct {
 	sigma  float64
 	ringQ  *ring.Ring
 	ringP  *ring.Ring
-	ringQP *ring.Ring
 }
 
 var (
@@ -123,10 +122,6 @@ func NewParameters(logn int, q, p []uint64, sigma float64) (Parameters, error) {
 		}
 	}
 
-	if params.ringQP, err = ring.NewRing(1<<logn, append(q, p...)); err != nil {
-		return Parameters{}, err
-	}
-
 	copy(params.qi, q)
 	copy(params.pi, p)
 	return params, nil
@@ -167,11 +162,6 @@ func (p Parameters) RingQ() *ring.Ring {
 // RingP returns a pointer to ringP
 func (p Parameters) RingP() *ring.Ring {
 	return p.ringP
-}
-
-// RingQP returns a pointer to ringQP
-func (p Parameters) RingQP() *ring.Ring {
-	return p.ringQP
 }
 
 // Sigma returns standard deviation of the noise distribution

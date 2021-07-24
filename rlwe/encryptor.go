@@ -109,8 +109,8 @@ func (encryptor *pkEncryptor) Encrypt(plaintext *Plaintext, ctOut *Ciphertext) {
 	// ct1 = u*pk1
 	ringQ.MulCoeffsMontgomeryLvl(lvl, poolQ0, encryptor.pk.Value[0][0], ctOut.Value[0])
 	ringQ.MulCoeffsMontgomeryLvl(lvl, poolQ0, encryptor.pk.Value[1][0], ctOut.Value[1])
-	ringP.MulCoeffsMontgomery(poolP0, encryptor.pk.Value[0][1], poolP1)
-	ringP.MulCoeffsMontgomery(poolP0, encryptor.pk.Value[1][1], poolP0)
+	ringP.MulCoeffsMontgomery(poolP0, encryptor.pk.Value[1][1], poolP1)
+	ringP.MulCoeffsMontgomery(poolP0, encryptor.pk.Value[0][1], poolP0)
 
 	// 2*(#Q + #P) NTT
 	ringQ.InvNTTLvl(lvl, ctOut.Value[0], ctOut.Value[0])

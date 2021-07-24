@@ -2,7 +2,6 @@ package rlwe
 
 import (
 	"math/big"
-
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/utils"
 )
@@ -82,7 +81,7 @@ func (keygen *keyGenerator) GenSecretKeyGaussian() (sk *SecretKey) {
 	ringQ.NTT(sk.Value[0], sk.Value[0])
 	ringP.NTT(sk.Value[1], sk.Value[1])
 	ringQ.MForm(sk.Value[0], sk.Value[0])
-	ringQ.MForm(sk.Value[1], sk.Value[1])
+	//ringP.MForm(sk.Value[1], sk.Value[1])
 	return sk
 }
 
@@ -96,7 +95,7 @@ func (keygen *keyGenerator) GenSecretKeyWithDistrib(p float64) (sk *SecretKey) {
 	ringQ := keygen.ringQ
 	ringP := keygen.ringP
 
-	ternarySamplerMontgomery := ring.NewTernarySampler(prng, ringQ, p, true)
+	ternarySamplerMontgomery := ring.NewTernarySampler(prng, ringQ, p, false)
 
 	sk = new(SecretKey)
 	sk.Value[0] = ternarySamplerMontgomery.ReadNew()
@@ -105,7 +104,7 @@ func (keygen *keyGenerator) GenSecretKeyWithDistrib(p float64) (sk *SecretKey) {
 	ringQ.NTT(sk.Value[0], sk.Value[0])
 	ringP.NTT(sk.Value[1], sk.Value[1])
 	ringQ.MForm(sk.Value[0], sk.Value[0])
-	ringQ.MForm(sk.Value[1], sk.Value[1])
+	ringP.MForm(sk.Value[1], sk.Value[1])
 	return sk
 }
 
@@ -119,7 +118,7 @@ func (keygen *keyGenerator) GenSecretKeySparse(hw int) (sk *SecretKey) {
 	ringQ := keygen.ringQ
 	ringP := keygen.ringP
 
-	ternarySamplerMontgomery := ring.NewTernarySamplerSparse(prng, ringQ, hw, true)
+	ternarySamplerMontgomery := ring.NewTernarySamplerSparse(prng, ringQ, hw, false)
 
 	sk = new(SecretKey)
 	sk.Value[0] = ternarySamplerMontgomery.ReadNew()
@@ -128,7 +127,7 @@ func (keygen *keyGenerator) GenSecretKeySparse(hw int) (sk *SecretKey) {
 	ringQ.NTT(sk.Value[0], sk.Value[0])
 	ringP.NTT(sk.Value[1], sk.Value[1])
 	ringQ.MForm(sk.Value[0], sk.Value[0])
-	ringQ.MForm(sk.Value[1], sk.Value[1])
+	ringP.MForm(sk.Value[1], sk.Value[1])
 	return sk
 }
 
@@ -150,7 +149,7 @@ func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 	ringQ.NTT(pk.Value[0][0], pk.Value[0][0])
 	ringP.NTT(pk.Value[0][1], pk.Value[0][1])
 
-	pk.Value[0][1] = keygen.uniformSamplerQ.ReadNew()
+	pk.Value[1][0] = keygen.uniformSamplerQ.ReadNew()
 	pk.Value[1][1] = keygen.uniformSamplerP.ReadNew()
 
 	ringQ.MulCoeffsMontgomeryAndSub(sk.Value[0], pk.Value[1][0], pk.Value[0][0])

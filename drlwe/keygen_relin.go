@@ -11,8 +11,8 @@ import (
 // RelinearizationKeyGenerator is an interface describing the local steps of a generic RLWE RKG protocol
 type RelinearizationKeyGenerator interface {
 	AllocateShares() (ephKey *rlwe.SecretKey, r1 *RKGShare, r2 *RKGShare)
-	GenShareRoundOne(sk *rlwe.SecretKey, crp []*ring.Poly, ephKeyOut *rlwe.SecretKey, shareOut *RKGShare)
-	GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGShare, crp []*ring.Poly, shareOut *RKGShare)
+	GenShareRoundOne(sk *rlwe.SecretKey, crp [][2]*ring.Poly, ephKeyOut *rlwe.SecretKey, shareOut *RKGShare)
+	GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGShare, crp [][2]*ring.Poly, shareOut *RKGShare)
 	AggregateShares(share1, share2, shareOut *RKGShare)
 	GenRelinearizationKey(round1 *RKGShare, round2 *RKGShare, relinKeyOut *rlwe.RelinearizationKey) // TODO type for generic eval key
 }

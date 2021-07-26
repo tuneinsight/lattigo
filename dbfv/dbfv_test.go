@@ -34,9 +34,9 @@ type testContext struct {
 	deltaMont []uint64
 
 	// Polynomial contexts
-	ringT  *ring.Ring
-	ringQ  *ring.Ring
-	ringQP *ring.Ring
+	ringT *ring.Ring
+	ringQ *ring.Ring
+	ringP *ring.Ring
 
 	prng utils.PRNG
 
@@ -103,7 +103,7 @@ func gentestContext(params bfv.Parameters) (testCtx *testContext, err error) {
 
 	testCtx.ringT = params.RingT()
 	testCtx.ringQ = params.RingQ()
-	testCtx.ringQP = params.RingQP()
+	testCtx.ringP = params.RingP()
 
 	testCtx.deltaMont = bfv.GenLiftParams(testCtx.ringQ, params.T())
 
@@ -119,21 +119,18 @@ func gentestContext(params bfv.Parameters) (testCtx *testContext, err error) {
 	// SecretKeys
 	testCtx.sk0Shards = make([]*rlwe.SecretKey, parties)
 	testCtx.sk1Shards = make([]*rlwe.SecretKey, parties)
-	tmp0 := testCtx.ringQP.NewPoly()
-	tmp1 := testCtx.ringQP.NewPoly()
-
-	for j := 0; j < parties; j++ {
-		testCtx.sk0Shards[j] = kgen.GenSecretKey()
-		testCtx.sk1Shards[j] = kgen.GenSecretKey()
-		testCtx.ringQP.Add(tmp0, testCtx.sk0Shards[j].Value, tmp0)
-		testCtx.ringQP.Add(tmp1, testCtx.sk1Shards[j].Value, tmp1)
-	}
 
 	testCtx.sk0 = bfv.NewSecretKey(testCtx.params)
 	testCtx.sk1 = bfv.NewSecretKey(testCtx.params)
 
-	testCtx.sk0.Value.Copy(tmp0)
-	testCtx.sk1.Value.Copy(tmp1)
+	for j := 0; j < parties; j++ {
+		testCtx.sk0Shards[j] = kgen.GenSecretKey()
+		testCtx.sk1Shards[j] = kgen.GenSecretKey()
+		testCtx.ringQ.Add(testCtx.sk0.Value[0], testCtx.sk0Shards[j].Value[0], testCtx.sk0.Value[0])
+		testCtx.ringP.Add(testCtx.sk0.Value[1], testCtx.sk0Shards[j].Value[1], testCtx.sk0.Value[1])
+		testCtx.ringQ.Add(testCtx.sk1.Value[0], testCtx.sk1Shards[j].Value[0], testCtx.sk1.Value[0])
+		testCtx.ringP.Add(testCtx.sk1.Value[1], testCtx.sk1Shards[j].Value[1], testCtx.sk1.Value[1])
+	}
 
 	// Publickeys
 	testCtx.pk0 = kgen.GenPublicKey(testCtx.sk0)
@@ -153,8 +150,10 @@ func testPublicKeyGen(testCtx *testContext, t *testing.T) {
 
 	t.Run(testString("PublicKeyGen/", parties, testCtx.params), func(t *testing.T) {
 
-		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQP)
-		crp := crpGenerator.ReadNew()
+		crpGeneratorQ := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
+		crpGeneratorP := ring.NewUniformSampler(testCtx.prng, testCtx.ringP)
+
+		crp := [2]*ring.Poly{crpGeneratorQ.ReadNew(), crpGeneratorP.ReadNew()}
 
 		type Party struct {
 			*CKGProtocol
@@ -172,7 +171,7 @@ func testPublicKeyGen(testCtx *testContext, t *testing.T) {
 		}
 		P0 := ckgParties[0]
 
-		// Checks that bfv.CKGProtocol complies to the drlwe.CollectivePublicKeyGenerator interface
+		// Checks that dbfv.CKGProtocol complies to the drlwe.CollectivePublicKeyGenerator interface
 		var _ drlwe.CollectivePublicKeyGenerator = P0.CKGProtocol
 
 		// Each party creates a new CKGProtocol instance
@@ -226,11 +225,14 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 		// checks that bfv.RKGProtocol complies to the drlwe.RelinearizationKeyGenerator interface
 		var _ drlwe.RelinearizationKeyGenerator = P0.RKGProtocol
 
-		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQP)
-		crp := make([]*ring.Poly, testCtx.params.Beta())
+		crpGeneratorQ := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
+		crpGeneratorP := ring.NewUniformSampler(testCtx.prng, testCtx.ringP)
+
+		crp := make([][2]*ring.Poly, testCtx.params.Beta())
 
 		for i := 0; i < testCtx.params.Beta(); i++ {
-			crp[i] = crpGenerator.ReadNew()
+			crp[i][0] = crpGeneratorQ.ReadNew()
+			crp[i][1] = crpGeneratorP.ReadNew()
 		}
 
 		// ROUND 1
@@ -395,11 +397,14 @@ func testRotKeyGenRotRows(testCtx *testContext, t *testing.T) {
 		// Checks that bfv.RTGProtocol complies to the drlwe.RotationKeyGenerator interface
 		var _ drlwe.RotationKeyGenerator = P0.RTGProtocol
 
-		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQP)
-		crp := make([]*ring.Poly, testCtx.params.Beta())
+		crpGeneratorQ := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
+		crpGeneratorP := ring.NewUniformSampler(testCtx.prng, testCtx.ringP)
+
+		crp := make([][2]*ring.Poly, testCtx.params.Beta())
 
 		for i := 0; i < testCtx.params.Beta(); i++ {
-			crp[i] = crpGenerator.ReadNew()
+			crp[i][0] = crpGeneratorQ.ReadNew()
+			crp[i][1] = crpGeneratorP.ReadNew()
 		}
 
 		galEl := testCtx.params.GaloisElementForRowRotation()
@@ -453,11 +458,14 @@ func testRotKeyGenRotCols(testCtx *testContext, t *testing.T) {
 		// Checks that bfv.RTGProtocol complies to the drlwe.RotationKeyGenerator interface
 		var _ drlwe.RotationKeyGenerator = P0.RTGProtocol
 
-		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQP)
-		crp := make([]*ring.Poly, testCtx.params.Beta())
+		crpGeneratorQ := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
+		crpGeneratorP := ring.NewUniformSampler(testCtx.prng, testCtx.ringP)
+
+		crp := make([][2]*ring.Poly, testCtx.params.Beta())
 
 		for i := 0; i < testCtx.params.Beta(); i++ {
-			crp[i] = crpGenerator.ReadNew()
+			crp[i][0] = crpGeneratorQ.ReadNew()
+			crp[i][1] = crpGeneratorP.ReadNew()
 		}
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, t)
@@ -740,7 +748,7 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 
 	//verify if the un.marshalling works properly
 
-	crsGen := ring.NewUniformSampler(testCtx.prng, testCtx.ringQP)
+	crsGen := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
 	crs := crsGen.ReadNew()
 	ringQ := testCtx.ringQ
 

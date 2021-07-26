@@ -11,9 +11,9 @@ import (
 // RotationKeyGenerator is an interface for the local operation in the generation of rotation keys
 type RotationKeyGenerator interface {
 	AllocateShares() (rtgShare *RTGShare)
-	GenShare(sk *rlwe.SecretKey, galEl uint64, crp []*ring.Poly, shareOut *RTGShare)
+	GenShare(sk *rlwe.SecretKey, galEl uint64, crp [][2]*ring.Poly, shareOut *RTGShare)
 	Aggregate(share1, share2, shareOut *RTGShare)
-	GenRotationKey(share *RTGShare, crp []*ring.Poly, rotKey *rlwe.SwitchingKey)
+	GenRotationKey(share *RTGShare, crp [][2]*ring.Poly, rotKey *rlwe.SwitchingKey)
 }
 
 // RTGShare is represent a Party's share in the RTG protocol

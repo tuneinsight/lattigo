@@ -45,9 +45,10 @@ func benchPublicKeyGen(testCtx *testContext, b *testing.B) {
 
 	sk0Shards := testCtx.sk0Shards
 
-	crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQP)
+	crpGeneratorQ := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
+	crpGeneratorP := ring.NewUniformSampler(testCtx.prng, testCtx.ringP)
 
-	crp := crpGenerator.ReadNew()
+	crp := [2]*ring.Poly{crpGeneratorQ.ReadNew(), crpGeneratorP.ReadNew()}
 
 	type Party struct {
 		*CKGProtocol
@@ -102,12 +103,14 @@ func benchRelinKeyGen(testCtx *testContext, b *testing.B) {
 	p.ephSk, p.share1, p.share2 = p.RKGProtocol.AllocateShares()
 	p.rlk = bfv.NewRelinearizationKey(testCtx.params, 2)
 
-	crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQP)
+	crpGeneratorQ := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
+	crpGeneratorP := ring.NewUniformSampler(testCtx.prng, testCtx.ringP)
 
-	crp := make([]*ring.Poly, testCtx.params.Beta())
+	crp := make([][2]*ring.Poly, testCtx.params.Beta())
 
 	for i := 0; i < testCtx.params.Beta(); i++ {
-		crp[i] = crpGenerator.ReadNew()
+		crp[i][0] = crpGeneratorQ.ReadNew()
+		crp[i][1] = crpGeneratorP.ReadNew()
 	}
 
 	b.Run(testString("RelinKeyGen/Round1/Gen", parties, testCtx.params), func(b *testing.B) {
@@ -239,11 +242,14 @@ func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 	p.s = sk0Shards[0]
 	p.share = p.AllocateShares()
 
-	crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQP)
-	crp := make([]*ring.Poly, testCtx.params.Beta())
+	crpGeneratorQ := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
+	crpGeneratorP := ring.NewUniformSampler(testCtx.prng, testCtx.ringP)
+
+	crp := make([][2]*ring.Poly, testCtx.params.Beta())
 
 	for i := 0; i < testCtx.params.Beta(); i++ {
-		crp[i] = crpGenerator.ReadNew()
+		crp[i][0] = crpGeneratorQ.ReadNew()
+		crp[i][1] = crpGeneratorP.ReadNew()
 	}
 
 	b.Run(testString("RotKeyGen/Round1/Gen", parties, testCtx.params), func(b *testing.B) {

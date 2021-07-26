@@ -10,9 +10,9 @@ import (
 // CollectivePublicKeyGenerator is an interface describing the local steps of a generic RLWE CKG protocol.
 type CollectivePublicKeyGenerator interface {
 	AllocateShares() *CKGShare
-	GenShare(sk *rlwe.SecretKey, crs *ring.Poly, shareOut *CKGShare)
+	GenShare(sk *rlwe.SecretKey, crs [2]*ring.Poly, shareOut *CKGShare)
 	AggregateShares(share1, share2, shareOut *CKGShare)
-	GenPublicKey(aggregatedShare *CKGShare, crs *ring.Poly, pubkey *rlwe.PublicKey)
+	GenPublicKey(aggregatedShare *CKGShare, crs [2]*ring.Poly, pubkey *rlwe.PublicKey)
 }
 
 // CKGProtocol is the structure storing the parameters and and precomputations for the collective key generation protocol.

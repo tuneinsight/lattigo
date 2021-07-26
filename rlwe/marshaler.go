@@ -1,6 +1,6 @@
 package rlwe
 
-import(
+import (
 	"encoding/binary"
 	"github.com/ldsec/lattigo/v2/ring"
 )
@@ -9,7 +9,6 @@ import(
 func (sk *SecretKey) GetDataLen(WithMetadata bool) (dataLen int) {
 	return sk.Value[0].GetDataLen(WithMetadata) + sk.Value[1].GetDataLen(WithMetadata)
 }
-
 
 // MarshalBinary encodes a secret key in a byte slice.
 func (sk *SecretKey) MarshalBinary() (data []byte, err error) {
@@ -56,7 +55,6 @@ func (pk *PublicKey) GetDataLen(WithMetadata bool) (dataLen int) {
 
 	return
 }
-
 
 // MarshalBinary encodes a PublicKey in a byte slice.
 func (pk *PublicKey) MarshalBinary() (data []byte, err error) {

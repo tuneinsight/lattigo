@@ -42,7 +42,7 @@ func TestRLWE(t *testing.T) {
 		defaultParams = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
-	for _, defaultParam := range defaultParams[:1] {
+	for _, defaultParam := range defaultParams[:] {
 		params, err := NewParametersFromLiteral(defaultParam)
 		if err != nil {
 			panic(err)
@@ -167,6 +167,7 @@ func testSwitchKeyGen(kgen KeyGenerator, t *testing.T) {
 	t.Run(testString(params, "SWKGen/"), func(t *testing.T) {
 
 		ringQ := params.RingQ()
+		ringP := params.RingP()
 		skIn := kgen.GenSecretKey()
 		skOut := kgen.GenSecretKey()
 
@@ -178,31 +179,38 @@ func testSwitchKeyGen(kgen KeyGenerator, t *testing.T) {
 		// [-asIn + w*P*sOut + e, a] + [asIn]
 		for j := range swk.Value {
 			ringQ.MulCoeffsMontgomeryAndAdd(swk.Value[j][1][0], skOut.Value[0], swk.Value[j][0][0])
+			ringP.MulCoeffsMontgomeryAndAdd(swk.Value[j][1][1], skOut.Value[1], swk.Value[j][0][1])
 		}
 
-		poly := swk.Value[0][0][0]
+		polyQ := swk.Value[0][0][0]
+		polyP := swk.Value[0][0][1]
 
 		// Sums all basis together (equivalent to multiplying with CRT decomposition of 1)
 		// sum([1]_w * [w*P*sOut + e]) = P*sOut + sum(e)
 		for j := range swk.Value {
 			if j > 0 {
-				ringQ.Add(poly, swk.Value[j][0][0], poly)
+				ringQ.Add(polyQ, swk.Value[j][0][0], polyQ)
+				ringP.Add(polyP, swk.Value[j][0][1], polyP)
 			}
 		}
 
 		// sOut * P
-		ringQ.MulScalarBigint(skIn.Value[0], kgen.(*keyGenerator).pBigInt, skIn.Value[0])
+		ringQ.MulScalarBigint(skIn.Value[0], ringP.ModulusBigint, skIn.Value[0])
 
 		// P*s^i + sum(e) - P*s^i = sum(e)
-		ringQ.Sub(poly, skIn.Value[0], poly)
+		ringQ.Sub(polyQ, skIn.Value[0], polyQ)
 
 		// Checks that the error is below the bound
 		// Worst error bound is N * floor(6*sigma) * #Keys
-		ringQ.InvNTT(poly, poly)
-		ringQ.InvMForm(poly, poly)
+		ringQ.InvNTT(polyQ, polyQ)
+		ringQ.InvMForm(polyQ, polyQ)
+		ringP.InvNTT(polyP, polyP)
+		ringP.InvMForm(polyP, polyP)
 
 		log2Bound := bits.Len64(uint64(math.Floor(DefaultSigma*6)) * uint64(params.N()*len(swk.Value)))
-		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(len(ringQ.Modulus)-1, ringQ, poly))
+		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(len(ringQ.Modulus)-1, ringQ, polyQ))
+		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(len(ringP.Modulus)-1, ringP, polyP))
+
 	})
 }
 

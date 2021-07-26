@@ -84,7 +84,7 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlwe.Cip
 
 	level := utils.MinInt(len(ringQ.Modulus)-1, el.Value[1].Level())
 
-	ringQ.SubLvl(level, skInput.Value, skOutput.Value, cks.tmpDelta)
+	ringQ.SubLvl(level, skInput.Value[0], skOutput.Value[0], cks.tmpDelta)
 
 	ct1 := el.Value[1]
 	if !el.Value[1].IsNTT {
@@ -106,7 +106,7 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlwe.Cip
 		cks.gaussianSampler.ReadLvl(level, cks.tmpQ)
 
 		// Extend e to P (assumed to have norm < qi)
-		extendBasisSmallNormAndCenter(ringQ.Modulus[0], ringP.Modulus, cks.tmpQ.Coeffs[0], cks.tmpP.Coeffs)
+		extendBasisSmallNormAndCenter(ringQ, ringP, cks.tmpQ, cks.tmpP)
 
 		// InvNTT(P * a * (skIn - skOut) + e) mod QP (mod P = e)
 		ringQ.AddNoModLvl(level, shareOut.Value, cks.tmpQ, shareOut.Value)
@@ -119,7 +119,7 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlwe.Cip
 		cks.gaussianSampler.ReadLvl(level, cks.tmpQ)
 
 		// Extend e to P (assumed to have norm < qi)
-		extendBasisSmallNormAndCenter(ringQ.Modulus[0], ringP.Modulus, cks.tmpQ.Coeffs[0], cks.tmpP.Coeffs)
+		extendBasisSmallNormAndCenter(ringQ, ringP, cks.tmpQ, cks.tmpP)
 
 		// Takes the error to the NTT domain
 		ringQ.NTTLvl(level, cks.tmpQ, cks.tmpQ)

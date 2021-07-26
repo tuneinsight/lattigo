@@ -1,9 +1,9 @@
 package rlwe
 
 import (
-	"math/big"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/utils"
+	"math/big"
 )
 
 // KeyGenerator is an interface implementing the methods of the KeyGenerator.
@@ -28,12 +28,12 @@ type KeyGenerator interface {
 // KeyGenerator is a structure that stores the elements required to create new keys,
 // as well as a small memory pool for intermediate values.
 type keyGenerator struct {
-	params          Parameters
-	ringQ          *ring.Ring
-	ringP 		   *ring.Ring
-	pBigInt         *big.Int
-	poolQ        [2]*ring.Poly
-	poolP        [2]*ring.Poly
+	params           Parameters
+	ringQ            *ring.Ring
+	ringP            *ring.Ring
+	pBigInt          *big.Int
+	poolQ            [2]*ring.Poly
+	poolP            [2]*ring.Poly
 	gaussianSamplerQ *ring.GaussianSampler
 	uniformSamplerQ  *ring.UniformSampler
 	uniformSamplerP  *ring.UniformSampler
@@ -52,12 +52,12 @@ func NewKeyGenerator(params Parameters) KeyGenerator {
 	}
 
 	return &keyGenerator{
-		params:          params,
-		ringQ:          ringQ,
-		ringP:           ringP,
-		pBigInt:         params.PBigInt(),
-		poolQ:        [2]*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly()},
-		poolP:        [2]*ring.Poly{ringP.NewPoly(), ringP.NewPoly()},
+		params:           params,
+		ringQ:            ringQ,
+		ringP:            ringP,
+		pBigInt:          params.PBigInt(),
+		poolQ:            [2]*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly()},
+		poolP:            [2]*ring.Poly{ringP.NewPoly(), ringP.NewPoly()},
 		gaussianSamplerQ: ring.NewGaussianSampler(prng, ringQ, params.Sigma(), int(6*params.Sigma())),
 		uniformSamplerQ:  ring.NewUniformSampler(prng, ringQ),
 		uniformSamplerP:  ring.NewUniformSampler(prng, ringP),
@@ -344,6 +344,6 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut [2]*ring.Poly, swk *Swit
 
 		// (skIn * P) * (q_star * q_tild) - a * skOut + e mod QP
 		ringQ.MulCoeffsMontgomeryAndSub(swk.Value[i][1][0], skOut[0], swk.Value[i][0][0])
-		ringQ.MulCoeffsMontgomeryAndSub(swk.Value[i][1][1], skOut[1], swk.Value[i][0][1])
+		ringP.MulCoeffsMontgomeryAndSub(swk.Value[i][1][1], skOut[1], swk.Value[i][0][1])
 	}
 }

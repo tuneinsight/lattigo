@@ -326,5 +326,3 @@ func newEncryptorBase(params Parameters) encryptorBase {
 func (encryptor *encryptorBase) EncryptFromCRP(plaintext *Plaintext, crp *ring.Poly, ctOut *Ciphertext) {
 	panic("Cannot encrypt with CRP using an encryptor created with the public-key")
 }
-
-

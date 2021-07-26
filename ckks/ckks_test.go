@@ -38,7 +38,6 @@ type testParams struct {
 	params      Parameters
 	ringQ       *ring.Ring
 	ringP       *ring.Ring
-	ringQP      *ring.Ring
 	prng        utils.PRNG
 	encoder     Encoder
 	kgen        rlwe.KeyGenerator
@@ -118,7 +117,6 @@ func genTestParams(defaultParam Parameters, hw int) (testContext *testParams, er
 	}
 
 	testContext.ringQ = defaultParam.RingQ()
-	testContext.ringQP = defaultParam.RingQP()
 	if testContext.params.PCount() != 0 {
 		testContext.ringP = defaultParam.RingP()
 		testContext.rlk = testContext.kgen.GenRelinearizationKey(testContext.sk, 2)

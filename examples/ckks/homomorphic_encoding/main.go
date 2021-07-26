@@ -12,7 +12,6 @@ import (
 
 func main() {
 	var err error
-	
 
 	var paramsRLWE ckks.Parameters
 	if paramsRLWE, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
@@ -56,7 +55,7 @@ func main() {
 		Scale:    paramsRLWE.Scale(),
 		Sigma:    paramsRLWE.Sigma(),
 		Q: []uint64{
-			paramsRLWE.Q()[0],       // 40 Q0
+			paramsRLWE.Q()[0], // 40 Q0
 		},
 		P: paramsRLWE.P(),
 	}); err != nil {
@@ -110,11 +109,11 @@ func main() {
 	kgenLWE := ckks.NewKeyGenerator(paramsLWE)
 	skLWE := kgenLWE.GenSecretKeySparse(64)
 	decryptorLWE := ckks.NewDecryptor(paramsLWE, skLWE)
-	_= decryptorLWE
+	_ = decryptorLWE
 
 	// RLWE -> LWE SWK
 	swkRLWEDimToLWEDim := kgenRLWE.GenSwitchingKey(skRLWE, skRLWE2)
-	
+
 	// Random complex plaintext encrypted
 	values := make([]complex128, paramsRLWE.Slots())
 	for i := range values {
@@ -146,7 +145,6 @@ func main() {
 
 	fmt.Println(encoder.DecodeCoeffsPublic(decryptor.DecryptNew(ct), 0)[:8])
 
-
 	//Switch to lower dimension
 	eval.SwitchKeys(ct, swkRLWEDimToLWEDim, ct)
 
@@ -165,7 +163,6 @@ func main() {
 	fmt.Println(valuesFloat[0], valuesFloat[paramsLWE.Slots()-1])
 	fmt.Println(complex(DecryptLWE(ringQLWE, lweReal[0], scale, skLWEInvNTT), DecryptLWE(ringQLWE, lweImag[0], scale, skLWEInvNTT)),
 		complex(DecryptLWE(ringQLWE, lweReal[paramsLWE.Slots()-1], scale, skLWEInvNTT), DecryptLWE(ringQLWE, lweImag[paramsLWE.Slots()-1], scale, skLWEInvNTT)))
-
 
 	// ********* STEP 3 : LWE -> RLWE REPACKING
 
@@ -196,11 +193,9 @@ func main() {
 
 	ringQLWE.InvMFormLvl(0, skLWEInvNTT, skLWEInvNTT)
 
-
 	ptSk := ckks.NewPlaintext(paramsRLWE, paramsRLWE.MaxLevel(), float64(paramsRLWE.Q()[paramsRLWE.MaxLevel()]))
 	encoder.Encode(ptSk, skFloat, paramsRLWE.LogSlots())
 	ctSk := encryptor.EncryptNew(ptSk)
-
 
 	// Encodes A
 
@@ -240,7 +235,6 @@ func main() {
 	}
 
 	ptMatDiag := encoder.EncodeDiagMatrixBSGSAtLvl(paramsRLWE.MaxLevel(), AMatDiag, 1.0, 16.0, paramsLWE.LogN())
-
 
 	fmt.Println("GenRepackKeys")
 	rotKeyRepack := kgenRLWE.GenRotationKeysForRotations(paramsRLWE.RotationsForDiagMatrixMult(ptMatDiag), false, skRLWE)

@@ -41,7 +41,7 @@ type EvaluationKey struct {
 
 // NewSecretKey generates a new SecretKey with zero values.
 func NewSecretKey(params Parameters) *SecretKey {
-	return &SecretKey{Value:[2]*ring.Poly{params.RingQ().NewPoly(), params.RingP().NewPoly()}}
+	return &SecretKey{Value: [2]*ring.Poly{params.RingQ().NewPoly(), params.RingP().NewPoly()}}
 }
 
 // NewPublicKey returns a new PublicKey with zero values.
@@ -57,12 +57,12 @@ func (pk *PublicKey) Equals(other *PublicKey) bool {
 		return true
 	}
 	nilVal := [2][2]*ring.Poly{}
-	return pk.Value != nilVal && 
-	other.Value != nilVal && 
-	pk.Value[0][0].Equals(other.Value[0][0]) && 
-	pk.Value[0][1].Equals(other.Value[0][1]) &&
-	pk.Value[1][0].Equals(other.Value[1][0]) && 
-	pk.Value[1][1].Equals(other.Value[1][1])
+	return pk.Value != nilVal &&
+		other.Value != nilVal &&
+		pk.Value[0][0].Equals(other.Value[0][0]) &&
+		pk.Value[0][1].Equals(other.Value[0][1]) &&
+		pk.Value[1][0].Equals(other.Value[1][0]) &&
+		pk.Value[1][1].Equals(other.Value[1][1])
 }
 
 // NewRotationKeySet returns a new RotationKeySet with pre-allocated switching keys for each distinct galoisElement value.
@@ -173,10 +173,10 @@ func (swk *SwitchingKey) Equals(other *SwitchingKey) bool {
 		return false
 	}
 	for i := range swk.Value {
-		if !(swk.Value[i][0][0].Equals(other.Value[i][0][0]) && 
-			 swk.Value[i][0][1].Equals(other.Value[i][0][1]) && 
-			 swk.Value[i][1][0].Equals(other.Value[i][1][0]) && 
-			 swk.Value[i][1][1].Equals(other.Value[i][1][1])) {
+		if !(swk.Value[i][0][0].Equals(other.Value[i][0][0]) &&
+			swk.Value[i][0][1].Equals(other.Value[i][0][1]) &&
+			swk.Value[i][1][0].Equals(other.Value[i][1][0]) &&
+			swk.Value[i][1][1].Equals(other.Value[i][1][1])) {
 			return false
 		}
 	}
@@ -221,5 +221,3 @@ func (rtks *RotationKeySet) Includes(other *RotationKeySet) bool {
 	}
 	return true
 }
-
-

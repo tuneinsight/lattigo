@@ -1,6 +1,6 @@
 package rlwe
 
-import(
+import (
 	"github.com/ldsec/lattigo/v2/ring"
 )
 

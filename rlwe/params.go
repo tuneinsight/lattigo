@@ -46,12 +46,12 @@ type ParametersLiteral struct {
 // Parameters represents a set of generic RLWE parameters. Its fields are private and
 // immutable. See ParametersLiteral for user-specified parameters.
 type Parameters struct {
-	logN   int
-	qi     []uint64
-	pi     []uint64
-	sigma  float64
-	ringQ  *ring.Ring
-	ringP  *ring.Ring
+	logN  int
+	qi    []uint64
+	pi    []uint64
+	sigma float64
+	ringQ *ring.Ring
+	ringP *ring.Ring
 }
 
 var (

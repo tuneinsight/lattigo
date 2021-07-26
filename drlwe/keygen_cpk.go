@@ -19,21 +19,47 @@ type CollectivePublicKeyGenerator interface {
 type CKGProtocol struct {
 	params rlwe.Parameters
 
-	ringQP          *ring.Ring
-	gaussianSampler *ring.GaussianSampler
+	ringQ            *ring.Ring
+	ringP            *ring.Ring
+	gaussianSamplerQ *ring.GaussianSampler
 }
 
 // CKGShare is a struct storing the CKG protocol's share.
 type CKGShare struct {
-	*ring.Poly
+	Value [2]*ring.Poly
 }
 
-// UnmarshalBinary decode a marshaled CKG share on the target CKG share.
-func (share *CKGShare) UnmarshalBinary(data []byte) error {
-	if share.Poly == nil {
-		share.Poly = new(ring.Poly)
+// MarshalBinary encodes the target element on a slice of bytes.
+func (share *CKGShare) MarshalBinary() (data []byte, err error) {
+	data = make([]byte, share.Value[0].GetDataLen(true)+share.Value[1].GetDataLen(true))
+	var inc int
+	ptr := 0
+	if inc, err = share.Value[0].WriteTo(data[ptr:]); err != nil {
+		return []byte{}, err
 	}
-	err := share.Poly.UnmarshalBinary(data)
+	ptr += inc
+
+	if _, err = share.Value[1].WriteTo(data[ptr:]); err != nil {
+		return []byte{}, err
+	}
+	return
+}
+
+// UnmarshalBinary decodes a slice of bytes on the target element.
+func (share *CKGShare) UnmarshalBinary(data []byte) (err error) {
+
+	var pt, inc int
+	share.Value[0] = new(ring.Poly)
+	if inc, err = share.Value[0].DecodePolyNew(data[pt:]); err != nil {
+		return err
+	}
+
+	pt += inc
+
+	share.Value[1] = new(ring.Poly)
+	if _, err = share.Value[1].DecodePolyNew(data[pt:]); err != nil {
+		return err
+	}
 	return err
 }
 
@@ -42,20 +68,21 @@ func NewCKGProtocol(params rlwe.Parameters) *CKGProtocol { // TODO drlwe.Params
 
 	ckg := new(CKGProtocol)
 	ckg.params = params
-	ckg.ringQP = params.RingQP()
+	ckg.ringQ = params.RingQ()
+	ckg.ringP = params.RingP()
 
 	var err error
 	prng, err := utils.NewPRNG()
 	if err != nil {
 		panic(err)
 	}
-	ckg.gaussianSampler = ring.NewGaussianSampler(prng, ckg.ringQP, params.Sigma(), int(6*params.Sigma()))
+	ckg.gaussianSamplerQ = ring.NewGaussianSampler(prng, ckg.ringQ, params.Sigma(), int(6*params.Sigma()))
 	return ckg
 }
 
 // AllocateShares allocates the share of the CKG protocol.
 func (ckg *CKGProtocol) AllocateShares() *CKGShare {
-	return &CKGShare{ckg.ringQP.NewPoly()}
+	return &CKGShare{[2]*ring.Poly{ckg.ringQ.NewPoly(), ckg.ringP.NewPoly()}}
 }
 
 // GenShare generates the party's public key share from its secret key as:
@@ -63,20 +90,27 @@ func (ckg *CKGProtocol) AllocateShares() *CKGShare {
 // crs*s_i + e_i
 //
 // for the receiver protocol. Has no effect is the share was already generated.
-func (ckg *CKGProtocol) GenShare(sk *rlwe.SecretKey, crs *ring.Poly, shareOut *CKGShare) {
-	ringQP := ckg.ringQP
-	ckg.gaussianSampler.Read(shareOut.Poly)
-	ringQP.NTT(shareOut.Poly, shareOut.Poly)
-	ringQP.MulCoeffsMontgomeryAndSub(sk.Value, crs, shareOut.Poly)
+func (ckg *CKGProtocol) GenShare(sk *rlwe.SecretKey, crs [2]*ring.Poly, shareOut *CKGShare) {
+	ringQ := ckg.ringQ
+	ringP := ckg.ringP
+	ckg.gaussianSamplerQ.Read(shareOut.Value[0])
+	extendBasisSmallNormAndCenter(ringQ, ringP, shareOut.Value[0], shareOut.Value[1])
+	ringQ.NTT(shareOut.Value[0], shareOut.Value[0])
+	ringP.NTT(shareOut.Value[1], shareOut.Value[1])
+	ringQ.MulCoeffsMontgomeryAndSub(sk.Value[0], crs[0], shareOut.Value[0])
+	ringP.MulCoeffsMontgomeryAndSub(sk.Value[1], crs[1], shareOut.Value[1])
 }
 
 // AggregateShares aggregates a new share to the aggregate key
 func (ckg *CKGProtocol) AggregateShares(share1, share2, shareOut *CKGShare) {
-	ckg.ringQP.Add(share1.Poly, share2.Poly, shareOut.Poly)
+	ckg.ringQ.Add(share1.Value[0], share2.Value[0], shareOut.Value[0])
+	ckg.ringP.Add(share1.Value[1], share2.Value[1], shareOut.Value[1])
 }
 
 // GenPublicKey return the current aggregation of the received shares as a bfv.PublicKey.
-func (ckg *CKGProtocol) GenPublicKey(roundShare *CKGShare, crs *ring.Poly, pubkey *rlwe.PublicKey) {
-	pubkey.Value[0].Copy(roundShare.Poly)
-	pubkey.Value[1].Copy(crs)
+func (ckg *CKGProtocol) GenPublicKey(roundShare *CKGShare, crs [2]*ring.Poly, pubkey *rlwe.PublicKey) {
+	pubkey.Value[0][0].Copy(roundShare.Value[0])
+	pubkey.Value[0][1].Copy(roundShare.Value[1])
+	pubkey.Value[1][0].Copy(crs[0])
+	pubkey.Value[1][1].Copy(crs[1])
 }

@@ -49,8 +49,10 @@ func benchPublicKeyGen(testCtx *testContext, b *testing.B) {
 	sk0Shards := testCtx.sk0Shards
 	params := testCtx.params
 
-	crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQP)
-	crp := crpGenerator.ReadNew()
+	crpGeneratorQ := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
+	crpGeneratorP := ring.NewUniformSampler(testCtx.prng, testCtx.ringP)
+
+	crp := [2]*ring.Poly{crpGeneratorQ.ReadNew(), crpGeneratorP.ReadNew()}
 
 	type Party struct {
 		*CKGProtocol
@@ -98,11 +100,14 @@ func benchRelinKeyGen(testCtx *testContext, b *testing.B) {
 	p.sk = sk0Shards[0]
 	p.ephSk, p.share1, p.share2 = p.RKGProtocol.AllocateShares()
 
-	crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQP)
-	crp := make([]*ring.Poly, params.Beta())
+	crpGeneratorQ := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
+	crpGeneratorP := ring.NewUniformSampler(testCtx.prng, testCtx.ringP)
 
-	for i := 0; i < params.Beta(); i++ {
-		crp[i] = crpGenerator.ReadNew()
+	crp := make([][2]*ring.Poly, testCtx.params.Beta())
+
+	for i := 0; i < testCtx.params.Beta(); i++ {
+		crp[i][0] = crpGeneratorQ.ReadNew()
+		crp[i][1] = crpGeneratorP.ReadNew()
 	}
 
 	b.Run(testString("RelinKeyGen/Round1Gen/", parties, params), func(b *testing.B) {
@@ -221,7 +226,6 @@ func benchPublicKeySwitching(testCtx *testContext, b *testing.B) {
 
 func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 
-	ringQP := testCtx.ringQP
 	sk0Shards := testCtx.sk0Shards
 	params := testCtx.params
 
@@ -236,12 +240,16 @@ func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 	p.s = sk0Shards[0]
 	p.share = p.AllocateShares()
 
-	crpGenerator := ring.NewUniformSampler(testCtx.prng, ringQP)
-	crp := make([]*ring.Poly, params.Beta())
+	crpGeneratorQ := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
+	crpGeneratorP := ring.NewUniformSampler(testCtx.prng, testCtx.ringP)
 
-	for i := 0; i < params.Beta(); i++ {
-		crp[i] = crpGenerator.ReadNew()
+	crp := make([][2]*ring.Poly, testCtx.params.Beta())
+
+	for i := 0; i < testCtx.params.Beta(); i++ {
+		crp[i][0] = crpGeneratorQ.ReadNew()
+		crp[i][1] = crpGeneratorP.ReadNew()
 	}
+
 	galEl := params.GaloisElementForRowRotation()
 	b.Run(testString("RotKeyGen/Round1/Gen/", parties, params), func(b *testing.B) {
 

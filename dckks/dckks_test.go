@@ -36,8 +36,8 @@ func testString(opname string, parties int, params ckks.Parameters) string {
 type testContext struct {
 	params ckks.Parameters
 
-	ringQ  *ring.Ring
-	ringQP *ring.Ring
+	ringQ *ring.Ring
+	ringP *ring.Ring
 
 	prng utils.PRNG
 
@@ -106,7 +106,7 @@ func genTestParams(defaultParams ckks.Parameters) (testCtx *testContext, err err
 
 	testCtx.ringQ = defaultParams.RingQ()
 
-	testCtx.ringQP = defaultParams.RingQP()
+	testCtx.ringP = defaultParams.RingP()
 
 	if testCtx.prng, err = utils.NewPRNG(); err != nil {
 		return nil, err
@@ -120,20 +120,17 @@ func genTestParams(defaultParams ckks.Parameters) (testCtx *testContext, err err
 	// SecretKeys
 	testCtx.sk0Shards = make([]*rlwe.SecretKey, parties)
 	testCtx.sk1Shards = make([]*rlwe.SecretKey, parties)
-	tmp0 := testCtx.ringQP.NewPoly()
-	tmp1 := testCtx.ringQP.NewPoly()
+	testCtx.sk0 = ckks.NewSecretKey(testCtx.params)
+	testCtx.sk1 = ckks.NewSecretKey(testCtx.params)
 
 	for j := 0; j < parties; j++ {
 		testCtx.sk0Shards[j] = kgen.GenSecretKey()
 		testCtx.sk1Shards[j] = kgen.GenSecretKey()
-		testCtx.ringQP.Add(tmp0, testCtx.sk0Shards[j].Value, tmp0)
-		testCtx.ringQP.Add(tmp1, testCtx.sk1Shards[j].Value, tmp1)
+		testCtx.ringQ.Add(testCtx.sk0.Value[0], testCtx.sk0Shards[j].Value[0], testCtx.sk0.Value[0])
+		testCtx.ringP.Add(testCtx.sk0.Value[1], testCtx.sk0Shards[j].Value[1], testCtx.sk0.Value[1])
+		testCtx.ringQ.Add(testCtx.sk1.Value[0], testCtx.sk1Shards[j].Value[0], testCtx.sk1.Value[0])
+		testCtx.ringP.Add(testCtx.sk1.Value[1], testCtx.sk1Shards[j].Value[1], testCtx.sk1.Value[1])
 	}
-
-	testCtx.sk0 = ckks.NewSecretKey(testCtx.params)
-	testCtx.sk1 = ckks.NewSecretKey(testCtx.params)
-	testCtx.sk0.Value.Copy(tmp0)
-	testCtx.sk1.Value.Copy(tmp1)
 
 	// Publickeys
 	testCtx.pk0 = kgen.GenPublicKey(testCtx.sk0)
@@ -153,8 +150,11 @@ func testPublicKeyGen(testCtx *testContext, t *testing.T) {
 	params := testCtx.params
 
 	t.Run(testString("PublicKeyGen/", parties, params), func(t *testing.T) {
-		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQP)
-		crp := crpGenerator.ReadNew()
+
+		crpGeneratorQ := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
+		crpGeneratorP := ring.NewUniformSampler(testCtx.prng, testCtx.ringP)
+
+		crp := [2]*ring.Poly{crpGeneratorQ.ReadNew(), crpGeneratorP.ReadNew()}
 
 		type Party struct {
 			*CKGProtocol
@@ -227,11 +227,14 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 		// Checks that ckks.RKGProtocol complies to the drlwe.RelinearizationKeyGenerator interface
 		var _ drlwe.RelinearizationKeyGenerator = P0.RKGProtocol
 
-		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQP)
-		crp := make([]*ring.Poly, params.Beta())
+		crpGeneratorQ := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
+		crpGeneratorP := ring.NewUniformSampler(testCtx.prng, testCtx.ringP)
 
-		for i := 0; i < params.Beta(); i++ {
-			crp[i] = crpGenerator.ReadNew()
+		crp := make([][2]*ring.Poly, testCtx.params.Beta())
+
+		for i := 0; i < testCtx.params.Beta(); i++ {
+			crp[i][0] = crpGeneratorQ.ReadNew()
+			crp[i][1] = crpGeneratorP.ReadNew()
 		}
 
 		// ROUND 1
@@ -389,7 +392,6 @@ func testPublicKeySwitching(testCtx *testContext, t *testing.T) {
 
 func testRotKeyGenConjugate(testCtx *testContext, t *testing.T) {
 
-	ringQP := testCtx.ringQP
 	encryptorPk0 := testCtx.encryptorPk0
 	decryptorSk0 := testCtx.decryptorSk0
 	sk0Shards := testCtx.sk0Shards
@@ -416,11 +418,14 @@ func testRotKeyGenConjugate(testCtx *testContext, t *testing.T) {
 		// checks that ckks.RTGProtocol complies to the drlwe.RotationKeyGenerator interface
 		var _ drlwe.RotationKeyGenerator = P0.RTGProtocol
 
-		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQP)
-		crp := make([]*ring.Poly, params.Beta())
+		crpGeneratorQ := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
+		crpGeneratorP := ring.NewUniformSampler(testCtx.prng, testCtx.ringP)
 
-		for i := 0; i < params.Beta(); i++ {
-			crp[i] = crpGenerator.ReadNew()
+		crp := make([][2]*ring.Poly, testCtx.params.Beta())
+
+		for i := 0; i < testCtx.params.Beta(); i++ {
+			crp[i][0] = crpGeneratorQ.ReadNew()
+			crp[i][1] = crpGeneratorP.ReadNew()
 		}
 
 		galEl := params.GaloisElementForRowRotation()
@@ -440,9 +445,9 @@ func testRotKeyGenConjugate(testCtx *testContext, t *testing.T) {
 		evaluator := testCtx.evaluator.WithKey(rlwe.EvaluationKey{Rlk: nil, Rtks: rotKeySet})
 		evaluator.Conjugate(ciphertext, ciphertext)
 
-		coeffsWant := make([]complex128, ringQP.N>>1)
+		coeffsWant := make([]complex128, params.Slots())
 
-		for i := 0; i < ringQP.N>>1; i++ {
+		for i := 0; i < params.Slots(); i++ {
 			coeffsWant[i] = complex(real(coeffs[i]), -imag(coeffs[i]))
 		}
 
@@ -453,7 +458,6 @@ func testRotKeyGenConjugate(testCtx *testContext, t *testing.T) {
 
 func testRotKeyGenCols(testCtx *testContext, t *testing.T) {
 
-	ringQP := testCtx.ringQP
 	encryptorPk0 := testCtx.encryptorPk0
 	decryptorSk0 := testCtx.decryptorSk0
 	sk0Shards := testCtx.sk0Shards
@@ -478,11 +482,14 @@ func testRotKeyGenCols(testCtx *testContext, t *testing.T) {
 
 		P0 := pcksParties[0]
 
-		crpGenerator := ring.NewUniformSampler(testCtx.prng, ringQP)
-		crp := make([]*ring.Poly, params.Beta())
+		crpGeneratorQ := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
+		crpGeneratorP := ring.NewUniformSampler(testCtx.prng, testCtx.ringP)
 
-		for i := 0; i < params.Beta(); i++ {
-			crp[i] = crpGenerator.ReadNew()
+		crp := make([][2]*ring.Poly, testCtx.params.Beta())
+
+		for i := 0; i < testCtx.params.Beta(); i++ {
+			crp[i][0] = crpGeneratorQ.ReadNew()
+			crp[i][1] = crpGeneratorP.ReadNew()
 		}
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, -1, 1, t)
@@ -504,7 +511,7 @@ func testRotKeyGenCols(testCtx *testContext, t *testing.T) {
 
 		evaluator := testCtx.evaluator.WithKey(rlwe.EvaluationKey{Rlk: nil, Rtks: rotKeySet})
 
-		for k := 1; k < ringQP.N>>1; k <<= 1 {
+		for k := 1; k < params.Slots(); k <<= 1 {
 			evaluator.Rotate(ciphertext, int(k), receiver)
 
 			coeffsWant := utils.RotateComplex128Slice(coeffs, int(k))
@@ -727,7 +734,7 @@ func testRefreshAndTransform(testCtx *testContext, t *testing.T) {
 }
 
 func testMarshalling(testCtx *testContext, t *testing.T) {
-	crsGen := ring.NewUniformSampler(testCtx.prng, testCtx.ringQP)
+	crsGen := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
 	params := testCtx.params
 
 	t.Run(testString("Marshalling/Refresh/", parties, params), func(t *testing.T) {

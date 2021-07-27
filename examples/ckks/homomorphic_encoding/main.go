@@ -156,7 +156,7 @@ func main() {
 
 	// Encode the secret-key
 	skLWEInvNTT := ringQLWE.NewPoly()
-	ring.CopyValues(skLWE.Value, skLWEInvNTT)
+	ring.CopyValues(skLWE.Value[0], skLWEInvNTT)
 	ringQLWE.InvNTT(skLWEInvNTT, skLWEInvNTT)
 
 	// Visual of some values

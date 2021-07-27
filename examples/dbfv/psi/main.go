@@ -103,34 +103,29 @@ func main() {
 	}
 
 	// Ring for the common reference polynomials sampling
-	ringQP, _ := ring.NewRing(1<<params.LogN(), append(params.Q(), params.P()...))
+	ringQ := params.RingQ()
+	ringP := params.RingP()
 
 	// Common reference polynomial generator that uses the PRNG
-	crsGen := ring.NewUniformSampler(lattigoPRNG, ringQP)
+	crsGenQ := ring.NewUniformSampler(lattigoPRNG, ringQ)
+	crsGenP := ring.NewUniformSampler(lattigoPRNG, ringP)
 
 	encoder := bfv.NewEncoder(params)
 
 	// Target private and public keys
 	tsk, tpk := bfv.NewKeyGenerator(params).GenKeyPair()
 
-	var prng utils.PRNG
-	if prng, err = utils.NewPRNG(); err != nil {
-		panic(err)
-	}
-
-	ternarySamplerMontgomery := ring.NewTernarySampler(prng, ringQP, 0.5, true)
-
 	// Create each party, and allocate the memory for all the shares that the protocols will need
-	P := genparties(params, N, ternarySamplerMontgomery, ringQP)
+	P := genparties(params, N)
 
 	// Inputs & expected result
 	expRes := genInputs(params, P)
 
 	// 1) Collective public key generation
-	pk := ckgphase(params, crsGen, P)
+	pk := ckgphase(params, crsGenQ, crsGenP, P)
 
 	// 2) Collective relinearization key generation
-	rlk := rkgphase(params, crsGen, P)
+	rlk := rkgphase(params, crsGenQ, crsGenP, P)
 
 	l.Printf("\tdone (cloud: %s, party: %s)\n",
 		elapsedRKGCloud, elapsedRKGParty)
@@ -266,7 +261,7 @@ func evalPhase(params bfv.Parameters, NGoRoutine int, encInputs []*bfv.Ciphertex
 	return
 }
 
-func genparties(params bfv.Parameters, N int, sampler *ring.TernarySampler, ringQP *ring.Ring) []*party {
+func genparties(params bfv.Parameters, N int) []*party {
 
 	// Create each party, and allocate the memory for all the shares that the protocols will need
 	P := make([]*party, N)
@@ -337,7 +332,7 @@ func pcksPhase(params bfv.Parameters, tpk *rlwe.PublicKey, encRes *bfv.Ciphertex
 
 }
 
-func rkgphase(params bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *rlwe.RelinearizationKey {
+func rkgphase(params bfv.Parameters, crsGenQ, crsGenP *ring.UniformSampler, P []*party) *rlwe.RelinearizationKey {
 	l := log.New(os.Stderr, "", 0)
 
 	l.Println("> RKG Phase")
@@ -348,9 +343,10 @@ func rkgphase(params bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *r
 		pi.rlkEphemSk, pi.rkgShareOne, pi.rkgShareTwo = rkg.AllocateShares()
 	}
 
-	crp := make([]*ring.Poly, params.Beta()) // for the relinearization keys
+	crp := make([][2]*ring.Poly, params.Beta()) // for the relinearization keys
 	for i := 0; i < params.Beta(); i++ {
-		crp[i] = crsGen.ReadNew()
+		crp[i][0] = crsGenQ.ReadNew()
+		crp[i][1] = crsGenP.ReadNew()
 	}
 
 	elapsedRKGParty = runTimedParty(func() {
@@ -386,14 +382,14 @@ func rkgphase(params bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *r
 	return rlk
 }
 
-func ckgphase(params bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *rlwe.PublicKey {
+func ckgphase(params bfv.Parameters, crsGenQ, crsGenP *ring.UniformSampler, P []*party) *rlwe.PublicKey {
 
 	l := log.New(os.Stderr, "", 0)
 
 	l.Println("> CKG Phase")
 
-	ckg := dbfv.NewCKGProtocol(params) // Public key generation
-	crs := crsGen.ReadNew()            // for the public-key
+	ckg := dbfv.NewCKGProtocol(params)                         // Public key generation
+	crs := [2]*ring.Poly{crsGenQ.ReadNew(), crsGenP.ReadNew()} // for the public-key
 
 	for _, pi := range P {
 		pi.ckgShare = ckg.AllocateShares()

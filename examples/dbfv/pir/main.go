@@ -115,26 +115,26 @@ func main() {
 		panic(err)
 	}
 
-	// Ring for the common reference polynomials sampling
-	ringQP := params.RingQP()
+	ringQ := params.RingQ()
+	ringP := params.RingP()
 
 	// Common reference polynomial generator that uses the PRNG
-	crsGen := ring.NewUniformSampler(lattigoPRNG, ringQP)
-	ternarySamplerMontgomery := ring.NewTernarySampler(lattigoPRNG, ringQP, 0.5, true)
+	crsGenQ := ring.NewUniformSampler(lattigoPRNG, ringQ)
+	crsGenP := ring.NewUniformSampler(lattigoPRNG, ringP)
 
 	// Instantiation of each of the protocols needed for the PIR example
 
 	// Create each party, and allocate the memory for all the shares that the protocols will need
-	P := genparties(params, N, ternarySamplerMontgomery, ringQP)
+	P := genparties(params, N)
 
 	// 1) Collective public key generation
-	pk := ckgphase(params, crsGen, P)
+	pk := ckgphase(params, crsGenQ, crsGenP, P)
 
 	// 2) Collective relinearization key generation
-	rlk := rkgphase(params, crsGen, P)
+	rlk := rkgphase(params, crsGenQ, crsGenP, P)
 
 	// 3) Collective rotation keys generation
-	rtk := rtkphase(params, crsGen, P)
+	rtk := rtkphase(params, crsGenQ, crsGenP, P)
 
 	l.Printf("\tSetup done (cloud: %s, party: %s)\n",
 		elapsedCKGCloud+elapsedRKGCloud+elapsedRTGCloud,
@@ -230,7 +230,7 @@ func cksphase(params bfv.Parameters, P []*party, result *bfv.Ciphertext) *bfv.Ci
 	return encOut
 }
 
-func genparties(params bfv.Parameters, N int, sampler *ring.TernarySampler, ringQP *ring.Ring) []*party {
+func genparties(params bfv.Parameters, N int) []*party {
 
 	P := make([]*party, N)
 
@@ -251,14 +251,14 @@ func genparties(params bfv.Parameters, N int, sampler *ring.TernarySampler, ring
 	return P
 }
 
-func ckgphase(params bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *rlwe.PublicKey {
+func ckgphase(params bfv.Parameters, crsGenQ, crsGenP *ring.UniformSampler, P []*party) *rlwe.PublicKey {
 
 	l := log.New(os.Stderr, "", 0)
 
 	l.Println("> CKG Phase")
 
-	ckg := dbfv.NewCKGProtocol(params) // Public key generation
-	crs := crsGen.ReadNew()            // for the public-key
+	ckg := dbfv.NewCKGProtocol(params)                         // Public key generation
+	crs := [2]*ring.Poly{crsGenQ.ReadNew(), crsGenP.ReadNew()} // for the public-key
 
 	for _, pi := range P {
 		pi.ckgShare = ckg.AllocateShares()
@@ -286,7 +286,7 @@ func ckgphase(params bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *r
 	return pk
 }
 
-func rkgphase(params bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *rlwe.RelinearizationKey {
+func rkgphase(params bfv.Parameters, crsGenQ, crsGenP *ring.UniformSampler, P []*party) *rlwe.RelinearizationKey {
 	l := log.New(os.Stderr, "", 0)
 
 	l.Println("> RKG Phase")
@@ -297,9 +297,10 @@ func rkgphase(params bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *r
 		pi.rlkEphemSk, pi.rkgShareOne, pi.rkgShareTwo = rkg.AllocateShares()
 	}
 
-	crp := make([]*ring.Poly, params.Beta()) // for the relinearization keys
+	crp := make([][2]*ring.Poly, params.Beta()) // for the relinearization keys
 	for i := 0; i < params.Beta(); i++ {
-		crp[i] = crsGen.ReadNew()
+		crp[i][0] = crsGenQ.ReadNew()
+		crp[i][1] = crsGenP.ReadNew()
 	}
 
 	elapsedRKGParty = runTimedParty(func() {
@@ -335,7 +336,7 @@ func rkgphase(params bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *r
 	return rlk
 }
 
-func rtkphase(params bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *rlwe.RotationKeySet {
+func rtkphase(params bfv.Parameters, crsGenQ, crsGenP *ring.UniformSampler, P []*party) *rlwe.RotationKeySet {
 
 	l := log.New(os.Stderr, "", 0)
 
@@ -347,10 +348,11 @@ func rtkphase(params bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *r
 		pi.rtgShare = rtg.AllocateShares()
 	}
 
-	crpRot := make([]*ring.Poly, params.Beta()) // for the rotation keys
+	crpRot := make([][2]*ring.Poly, params.Beta()) // for the rotation keys
 
 	for i := 0; i < params.Beta(); i++ {
-		crpRot[i] = crsGen.ReadNew()
+		crpRot[i][0] = crsGenQ.ReadNew()
+		crpRot[i][1] = crsGenP.ReadNew()
 	}
 
 	galEls := params.GaloisElementsForRowInnerSum()

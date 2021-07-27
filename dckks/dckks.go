@@ -5,40 +5,40 @@ import (
 	"github.com/ldsec/lattigo/v2/ring"
 )
 
-type dckksContext struct {
+type Context struct {
 	params *ckks.Parameters
 
 	n int
 
-	ringQ  *ring.Ring
-	ringP  *ring.Ring
-	ringQP *ring.Ring
+	RingQ  *ring.Ring
+	RingP  *ring.Ring
+	RingQP *ring.Ring
 
-	alpha int
-	beta  int
+	Alpha int
+	Beta  int
 }
 
-func newDckksContext(params *ckks.Parameters) (context *dckksContext) {
+func NewContext(params *ckks.Parameters) (context *Context) {
 
-	context = new(dckksContext)
+	context = new(Context)
 
 	context.params = params.Copy()
 
 	context.n = params.N()
 
-	context.alpha = params.Alpha()
-	context.beta = params.Beta()
+	context.Alpha = params.Alpha()
+	context.Beta = params.Beta()
 
 	var err error
-	if context.ringQ, err = ring.NewRing(params.N(), params.Qi()); err != nil {
+	if context.RingQ, err = ring.NewRing(params.N(), params.Qi()); err != nil {
 		panic(err)
 	}
 
-	if context.ringP, err = ring.NewRing(params.N(), params.Pi()); err != nil {
+	if context.RingP, err = ring.NewRing(params.N(), params.Pi()); err != nil {
 		panic(err)
 	}
 
-	if context.ringQP, err = ring.NewRing(params.N(), append(params.Qi(), params.Pi()...)); err != nil {
+	if context.RingQP, err = ring.NewRing(params.N(), append(params.Qi(), params.Pi()...)); err != nil {
 		panic(err)
 	}
 

@@ -8,7 +8,7 @@ import (
 
 // CKSProtocol is a structure storing the parameters for the collective key-switching protocol.
 type CKSProtocol struct {
-	dckksContext *dckksContext
+	dckksContext *Context
 
 	sigmaSmudging float64
 
@@ -31,18 +31,18 @@ func NewCKSProtocol(params *ckks.Parameters, sigmaSmudging float64) (cks *CKSPro
 
 	cks = new(CKSProtocol)
 
-	dckksContext := newDckksContext(params)
+	dckksContext := NewContext(params)
 
 	cks.dckksContext = dckksContext
 
-	cks.tmpQ = dckksContext.ringQ.NewPoly()
-	cks.tmpP = dckksContext.ringP.NewPoly()
-	cks.tmpDelta = dckksContext.ringQ.NewPoly()
-	cks.hP = dckksContext.ringP.NewPoly()
+	cks.tmpQ = dckksContext.RingQ.NewPoly()
+	cks.tmpP = dckksContext.RingP.NewPoly()
+	cks.tmpDelta = dckksContext.RingQ.NewPoly()
+	cks.hP = dckksContext.RingP.NewPoly()
 
 	cks.sigmaSmudging = sigmaSmudging
 
-	cks.baseconverter = ring.NewFastBasisExtender(dckksContext.ringQ, dckksContext.ringP)
+	cks.baseconverter = ring.NewFastBasisExtender(dckksContext.RingQ, dckksContext.RingP)
 	prng, err := utils.NewPRNG()
 	if err != nil {
 		panic(err)
@@ -54,7 +54,7 @@ func NewCKSProtocol(params *ckks.Parameters, sigmaSmudging float64) (cks *CKSPro
 
 // AllocateShare allocates the share of the CKS protocol.
 func (cks *CKSProtocol) AllocateShare() CKSShare {
-	return cks.dckksContext.ringQ.NewPoly()
+	return cks.dckksContext.RingQ.NewPoly()
 }
 
 // GenShare is the first and unique round of the CKSProtocol protocol. Each party holding a ciphertext ctx encrypted under a collective publick-key must
@@ -65,15 +65,15 @@ func (cks *CKSProtocol) AllocateShare() CKSShare {
 // Each party then broadcasts the result of this computation to the other j-1 parties.
 func (cks *CKSProtocol) GenShare(skInput, skOutput *ring.Poly, ct *ckks.Ciphertext, shareOut CKSShare) {
 
-	cks.dckksContext.ringQ.SubNoMod(skInput, skOutput, cks.tmpDelta)
+	cks.dckksContext.RingQ.SubNoMod(skInput, skOutput, cks.tmpDelta)
 
 	cks.genShareDelta(cks.tmpDelta, ct, shareOut)
 }
 
 func (cks *CKSProtocol) genShareDelta(skDelta *ring.Poly, ct *ckks.Ciphertext, shareOut CKSShare) {
 
-	ringQ := cks.dckksContext.ringQ
-	ringP := cks.dckksContext.ringP
+	ringQ := cks.dckksContext.RingQ
+	ringP := cks.dckksContext.RingP
 	sigma := cks.dckksContext.params.Sigma()
 
 	ringQ.MulCoeffsMontgomeryConstantLvl(ct.Level(), ct.Value()[1], skDelta, shareOut)
@@ -98,12 +98,12 @@ func (cks *CKSProtocol) genShareDelta(skDelta *ring.Poly, ct *ckks.Ciphertext, s
 //
 // [ctx[0] + sum((skInput_i - skOutput_i) * ctx[0] + e_i), ctx[1]]
 func (cks *CKSProtocol) AggregateShares(share1, share2, shareOut CKSShare) {
-	cks.dckksContext.ringQ.AddLvl(len(share1.Coeffs)-1, share1, share2, shareOut)
+	cks.dckksContext.RingQ.AddLvl(len(share1.Coeffs)-1, share1, share2, shareOut)
 }
 
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
 func (cks *CKSProtocol) KeySwitch(combined CKSShare, ct *ckks.Ciphertext, ctOut *ckks.Ciphertext) {
 	ctOut.SetScale(ct.Scale())
-	cks.dckksContext.ringQ.AddLvl(ct.Level(), ct.Value()[0], combined, ctOut.Value()[0])
-	cks.dckksContext.ringQ.CopyLvl(ct.Level(), ct.Value()[1], ctOut.Value()[1])
+	cks.dckksContext.RingQ.AddLvl(ct.Level(), ct.Value()[0], combined, ctOut.Value()[0])
+	cks.dckksContext.RingQ.CopyLvl(ct.Level(), ct.Value()[1], ctOut.Value()[1])
 }

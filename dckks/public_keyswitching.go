@@ -8,7 +8,7 @@ import (
 
 // PCKSProtocol is the structure storing the parameters for the collective public key-switching.
 type PCKSProtocol struct {
-	dckksContext *dckksContext
+	dckksContext *Context
 
 	sigmaSmudging float64
 
@@ -31,31 +31,31 @@ func NewPCKSProtocol(params *ckks.Parameters, sigmaSmudging float64) *PCKSProtoc
 
 	pcks := new(PCKSProtocol)
 
-	dckksContext := newDckksContext(params)
+	dckksContext := NewContext(params)
 
 	pcks.dckksContext = dckksContext
 
-	pcks.tmp = dckksContext.ringQP.NewPoly()
-	pcks.share0tmp = dckksContext.ringQP.NewPoly()
-	pcks.share1tmp = dckksContext.ringQP.NewPoly()
+	pcks.tmp = dckksContext.RingQP.NewPoly()
+	pcks.share0tmp = dckksContext.RingQP.NewPoly()
+	pcks.share1tmp = dckksContext.RingQP.NewPoly()
 
 	pcks.sigmaSmudging = sigmaSmudging
 
-	pcks.baseconverter = ring.NewFastBasisExtender(dckksContext.ringQ, dckksContext.ringP)
+	pcks.baseconverter = ring.NewFastBasisExtender(dckksContext.RingQ, dckksContext.RingP)
 	prng, err := utils.NewPRNG()
 	if err != nil {
 		panic(err)
 	}
 	pcks.gaussianSampler = ring.NewGaussianSampler(prng)
-	pcks.ternarySamplerMontgomery = ring.NewTernarySampler(prng, dckksContext.ringQP, 0.5, true)
+	pcks.ternarySamplerMontgomery = ring.NewTernarySampler(prng, dckksContext.RingQP, 0.5, true)
 
 	return pcks
 }
 
 // AllocateShares allocates the share of the PCKS protocol.
 func (pcks *PCKSProtocol) AllocateShares(level int) (s PCKSShare) {
-	s[0] = pcks.dckksContext.ringQ.NewPolyLvl(level)
-	s[1] = pcks.dckksContext.ringQ.NewPolyLvl(level)
+	s[0] = pcks.dckksContext.RingQ.NewPolyLvl(level)
+	s[1] = pcks.dckksContext.RingQ.NewPolyLvl(level)
 	return
 }
 
@@ -68,8 +68,8 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *ckks.PublicKey, ct *ckks.C
 
 	// Planned improvement : adapt share size to ct.Level() to improve efficiency.
 
-	ringQ := pcks.dckksContext.ringQ
-	ringQP := pcks.dckksContext.ringQP
+	ringQ := pcks.dckksContext.RingQ
+	ringQP := pcks.dckksContext.RingQP
 	sigma := pcks.dckksContext.params.Sigma()
 
 	pcks.ternarySamplerMontgomery.Read(pcks.tmp)
@@ -109,8 +109,8 @@ func (pcks *PCKSProtocol) GenShare(sk *ring.Poly, pk *ckks.PublicKey, ct *ckks.C
 func (pcks *PCKSProtocol) AggregateShares(share1, share2, shareOut PCKSShare) {
 
 	level := len(share1[0].Coeffs) - 1
-	pcks.dckksContext.ringQ.AddLvl(level, share1[0], share2[0], shareOut[0])
-	pcks.dckksContext.ringQ.AddLvl(level, share1[1], share2[1], shareOut[1])
+	pcks.dckksContext.RingQ.AddLvl(level, share1[0], share2[0], shareOut[0])
+	pcks.dckksContext.RingQ.AddLvl(level, share1[1], share2[1], shareOut[1])
 }
 
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
@@ -118,6 +118,6 @@ func (pcks *PCKSProtocol) KeySwitch(combined PCKSShare, ct, ctOut *ckks.Cipherte
 
 	ctOut.SetScale(ct.Scale())
 
-	pcks.dckksContext.ringQ.AddLvl(ct.Level(), ct.Value()[0], combined[0], ctOut.Value()[0])
-	pcks.dckksContext.ringQ.CopyLvl(ct.Level(), combined[1], ctOut.Value()[1])
+	pcks.dckksContext.RingQ.AddLvl(ct.Level(), ct.Value()[0], combined[0], ctOut.Value()[0])
+	pcks.dckksContext.RingQ.CopyLvl(ct.Level(), combined[1], ctOut.Value()[1])
 }

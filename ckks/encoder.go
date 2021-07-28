@@ -4,7 +4,6 @@ package ckks
 
 import (
 	"fmt"
-	"github.com/hhcho/frand"
 	"github.com/hhcho/mpc-core"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/utils"
@@ -44,6 +43,9 @@ type Encoder interface {
 
 	GetErrSTDTimeDom(valuesWant, valuesHave []complex128, scale float64) (std float64)
 	GetErrSTDFreqDom(valuesWant, valuesHave []complex128, scale float64) (std float64)
+
+	EncodeRVecNew(values mpc_core.RVec, slots uint64, fracBits int) (plaintext *Plaintext)
+	DecodeRVec(plaintext *Plaintext, slots uint64, fracBits int) (res mpc_core.RVec)
 }
 
 // EncoderBigComplex is an interface implenting the encoding algorithms with arbitrary precision.
@@ -59,10 +61,6 @@ type EncoderBigComplex interface {
 
 	//EncodeCoeffs(values []*big.Float, plaintext *Plaintext)
 	//DecodeCoeffs(plaintext *Plaintext) (res []*big.Float)
-
-	EncodeRVecNew(values mpc_core.RVec, slots uint64, fracBits int) (plaintext *Plaintext)
-	DecodeRVec(plaintext *Plaintext, slots uint64, fracBits int) (res mpc_core.RVec)
-	FFTTest(values []complex128, N uint64, prg *frand.RNG)
 }
 
 // encoder is a struct storing the necessary parameters to encode a slice of complex number on a Plaintext.
@@ -696,6 +694,218 @@ func (encoder *encoderComplex128) decodeCoeffsPublic(plaintext *Plaintext, sigma
 	return
 }
 
+func (encoder *encoderComplex128) EncodeRVecNew(values mpc_core.RVec, slots uint64, fracBits int) (plaintext *Plaintext) {
+	if uint64(len(values)) > uint64(encoder.params.Slots()) || uint64(len(values)) > slots {
+		panic("cannot EncodeRVecNew: too many values for the given number of slots")
+	}
+
+	if slots == 0 {
+		return NewPlaintext(encoder.params, encoder.params.MaxLevel(), encoder.params.Scale())
+	}
+
+	rtype := mpc_core.LElem128Zero
+
+	if slots&(slots-1) != 0 { // slots not a power of two
+		closestPow := uint64(math.Pow(2, math.Ceil(math.Log2(float64(slots)))))
+		newValues := mpc_core.InitRVec(rtype.Zero(), int(closestPow))
+		for i := range values {
+			newValues[i] = values[i]
+		}
+		values = newValues
+		slots = closestPow
+	}
+
+	if uint64(len(values)) != slots {
+		panic("cannot EncodeRVecNew: number of values must be equal to slots")
+	}
+
+	if values.Type().TypeID() != rtype.TypeID() {
+		panic("cannot EncodeRVecNew: only LElem128 supported")
+	}
+
+	plaintext = NewPlaintext(encoder.params, encoder.params.MaxLevel(), encoder.params.Scale())
+
+
+
+
+	slice := make([]bigComplex, len(encoder.values))
+	zeroFloat := big.NewFloat(0)
+	for i := range slice {
+		if uint64(i) < slots {
+			slice[i] = bigComplex{ToSignedBigFloat(values[i].(mpc_core.LElem128), fracBits), big.NewFloat(0)}
+		} else {
+			slice[i] = bigComplex{zeroFloat, zeroFloat}
+		}
+	}
+
+	encoder.invfftBig(slice, slots)
+
+	gap := uint64(encoder.params.Slots()) / slots
+
+	floatSlice := make([]*big.Float, len(encoder.values))
+	for i := range floatSlice {
+		floatSlice[i] = zeroFloat
+	}
+
+	for i, jdx, idx := uint64(0), encoder.params.Slots(), uint64(0); i < slots; i, jdx, idx = i+1, jdx+int(gap), idx+gap {
+		floatSlice[idx] = slice[i].real
+		floatSlice[jdx] = slice[i].imag
+	}
+
+	moduli := encoder.params.Qi()[:plaintext.Level()+1]
+	xInt := new(big.Int)
+	xFlo := new(big.Float)
+	scaleBig := big.NewFloat(plaintext.scale)
+	tmp := new(big.Int)
+	for i := range floatSlice {
+		xFlo.Mul(floatSlice[i], scaleBig)
+		xInt = arithRound(xFlo)
+
+		for j := range moduli {
+			tmp.Mod(xInt, ring.NewUint(moduli[j]))
+			plaintext.value.Coeffs[j][i] = tmp.Uint64()
+		}
+	}
+
+
+	encoder.ringQ.NTTLvl(plaintext.Level(), plaintext.value, plaintext.value)
+	return
+}
+
+
+func (encoder *encoderComplex128) DecodeRVec(plaintext *Plaintext, slots uint64, fracBits int) (res mpc_core.RVec) {
+	rtype := mpc_core.LElem128Zero
+
+	encoder.ringQ.InvNTTLvl(plaintext.Level(), plaintext.value, encoder.polypool)
+	encoder.ringQ.PolyToBigint(encoder.polypool, encoder.bigintCoeffs)
+
+	Q := encoder.bigintChain[plaintext.Level()]
+
+	maxSlots := uint64(encoder.params.Slots())
+
+	encoder.qHalf.Set(Q)
+	encoder.qHalf.Rsh(encoder.qHalf, 1)
+
+	gap := uint64(encoder.params.Slots()) / slots
+
+	values := make([]bigComplex, len(encoder.values))
+
+	var sign int
+
+	for i, idx := uint64(0), uint64(0); i < slots; i, idx = i+1, idx+gap {
+
+		// Centers the value around the current modulus
+		encoder.bigintCoeffs[idx].Mod(encoder.bigintCoeffs[idx], Q)
+		sign = encoder.bigintCoeffs[idx].Cmp(encoder.qHalf)
+		if sign == 1 || sign == 0 {
+			encoder.bigintCoeffs[idx].Sub(encoder.bigintCoeffs[idx], Q)
+		}
+
+		// Centers the value around the current modulus
+		encoder.bigintCoeffs[idx+maxSlots].Mod(encoder.bigintCoeffs[idx+maxSlots], Q)
+		sign = encoder.bigintCoeffs[idx+maxSlots].Cmp(encoder.qHalf)
+		if sign == 1 || sign == 0 {
+			encoder.bigintCoeffs[idx+maxSlots].Sub(encoder.bigintCoeffs[idx+maxSlots], Q)
+		}
+
+		values[i] = bigComplex{scaleDownBig(encoder.bigintCoeffs[idx], plaintext.scale), scaleDownBig(encoder.bigintCoeffs[idx+maxSlots], plaintext.scale)}
+	}
+
+	encoder.fftBig(values, slots)
+
+	res = mpc_core.InitRVec(rtype.Zero(), int(slots))
+
+	tmpFloat := new(big.Float)
+	scale := big.NewFloat(0)
+	scale.SetInt(new(big.Int).Lsh(big.NewInt(1), uint(fracBits)))
+	for i := uint64(0); i < slots; i++ {
+		v := values[i].real
+		if v.Sign() < 0 {
+			tmpFloat.Mul(tmpFloat.Neg(v), scale)
+			res[i] = res[i].Sub(rtype.FromBigInt(arithRound(tmpFloat)))
+		} else {
+			tmpFloat.Mul(v, scale)
+			res[i] = rtype.FromBigInt(arithRound(tmpFloat))
+		}
+	}
+
+	return res
+}
+
+func (encoder *encoderComplex128) invfftlazyBig(values []bigComplex, N uint64) {
+
+	var lenh, lenq, gap, idx uint64
+	var u, v bigComplex
+
+	for len := N; len >= 1; len >>= 1 {
+		for i := uint64(0); i < N; i += len {
+			lenh = len >> 1
+			lenq = len << 2
+			gap = uint64(encoder.m) / lenq
+			for j := uint64(0); j < lenh; j++ {
+				idx = (lenq - (uint64(encoder.rotGroup[j]) % lenq)) * gap
+				//u = values[i+j] + values[i+j+lenh]
+				u = values[i+j].copy()
+				u.add(values[i+j+lenh])
+
+				//v = values[i+j] - values[i+j+lenh]
+				v = values[i+j].copy()
+				v.sub(values[i+j+lenh])
+
+				//v *= encoder.roots[idx]
+				v.mul(encoder.rootsBig[idx])
+
+				values[i+j] = u
+				values[i+j+lenh] = v
+
+			}
+		}
+	}
+	sliceBitReverseInPlaceBigComplex(values, N)
+}
+
+func (encoder *encoderComplex128) invfftBig(values []bigComplex, N uint64) {
+	encoder.invfftlazyBig(values, N)
+
+	for i := uint64(0); i < N; i++ {
+		//values[i] /= complex(float64(N), 0)
+		values[i].real.Quo(values[i].real, big.NewFloat(float64(N)))
+		values[i].imag.Quo(values[i].imag, big.NewFloat(float64(N)))
+	}
+}
+
+func (encoder *encoderComplex128) fftBig(values []bigComplex, N uint64) {
+
+	var lenh, lenq, gap, idx uint64
+	var u, v bigComplex
+
+	sliceBitReverseInPlaceBigComplex(values, N)
+
+	for len := uint64(2); len <= N; len <<= 1 {
+		for i := uint64(0); i < N; i += len {
+			lenh = len >> 1
+			lenq = len << 2
+			gap = uint64(encoder.m) / lenq
+			for j := uint64(0); j < lenh; j++ {
+				idx = (uint64(encoder.rotGroup[j]) % lenq) * gap
+				u = values[i+j]
+				v = values[i+j+lenh].copy()
+
+				//v *= encoder.roots[idx]
+				v.mul(encoder.rootsBig[idx])
+
+				//values[i+j] = u + v
+				values[i+j] = u.copy()
+				values[i+j].add(v)
+
+				//values[i+j+lenh] = u - v
+				values[i+j+lenh] = u.copy()
+				values[i+j+lenh].sub(v)
+			}
+		}
+	}
+}
+
 type encoderBigComplex struct {
 	encoder
 	zero            *big.Float
@@ -978,18 +1188,6 @@ type bigComplex struct {
 	imag *big.Float
 }
 
-func (encoder *encoderBigComplex) FFTTest(values []complex128, slots uint64, prg *frand.RNG) {
-	fmt.Println("FFTTest")
-	//cos test
-	for i := 0.0; i < 2*3.1415; i += 0.2 {
-		f, _ := cosBig(big.NewFloat(i)).Float64()
-		fmt.Println("cos(",i,"): ", f, math.Cos(i), f-math.Cos(i))
-		f, _ = sinBig(big.NewFloat(i)).Float64()
-		fmt.Println("sin(",i,"): ", f, math.Sin(i),  f-math.Sin(i))
-	}
-	return
-}
-
 var piBase, _ = new(big.Float).SetPrec(200).SetString("3.14159265358979323846264338327950288419716939937510582097494459230781640628620899862803482534211706798214808651328230664709384460955058223172535940812848111745028410270193852110555964462294895493038196442881097566593344612847564823378678316527120190914564856692346034861045432664821339360726024914127372458700660631558817488152092096282925409171536436789259036001133053054882046652138414695194151160943305727036575959195309218611738193261179310511854807446237996274956735188575272489122793818301194912")
 var piTable = make(map[uint]*big.Float)
 
@@ -1075,231 +1273,6 @@ func ToSignedBigFloat(a mpc_core.LElem128, fracBits int) *big.Float {
 	out := new(big.Float).SetInt(ToSignedBigInt(a))
 	out.Mul(out, new(big.Float).SetMantExp(big.NewFloat(1), -fracBits))
 	return out
-}
-
-func (encoder *encoderBigComplex) EncodeRVecNew(values mpc_core.RVec, slots uint64, fracBits int) (plaintext *Plaintext) {
-	if uint64(len(values)) > uint64(encoder.params.Slots()) || uint64(len(values)) > slots {
-		panic("cannot EncodeRVecNew: too many values for the given number of slots")
-	}
-
-	if slots == 0 {
-		return NewPlaintext(encoder.params, encoder.params.MaxLevel(), encoder.params.Scale())
-	}
-
-	rtype := mpc_core.LElem128Zero
-
-	if slots&(slots-1) != 0 { // slots not a power of two
-		closestPow := uint64(math.Pow(2, math.Ceil(math.Log2(float64(slots)))))
-		newValues := mpc_core.InitRVec(rtype.Zero(), int(closestPow))
-		for i := range values {
-			newValues[i] = values[i]
-		}
-		values = newValues
-		slots = closestPow
-	}
-
-	if uint64(len(values)) != slots {
-		panic("cannot EncodeRVecNew: number of values must be equal to slots")
-	}
-
-	if values.Type().TypeID() != rtype.TypeID() {
-		panic("cannot EncodeRVecNew: only LElem128 supported")
-	}
-
-	plaintext = NewPlaintext(encoder.params, encoder.params.MaxLevel(), encoder.params.Scale())
-
-
-
-
-	slice := make([]bigComplex, len(encoder.values))
-	zeroFloat := big.NewFloat(0)
-	for i := range slice {
-		if uint64(i) < slots {
-			slice[i] = bigComplex{ToSignedBigFloat(values[i].(mpc_core.LElem128), fracBits), big.NewFloat(0)}
-		} else {
-			slice[i] = bigComplex{zeroFloat, zeroFloat}
-		}
-	}
-
-	encoder.invfftBig(slice, slots)
-
-	gap := uint64(encoder.params.Slots()) / slots
-
-	floatSlice := make([]*big.Float, len(encoder.values))
-	for i := range floatSlice {
-		floatSlice[i] = zeroFloat
-	}
-
-	for i, jdx, idx := uint64(0), encoder.params.Slots(), uint64(0); i < slots; i, jdx, idx = i+1, jdx+int(gap), idx+gap {
-		floatSlice[idx] = slice[i].real
-		floatSlice[jdx] = slice[i].imag
-	}
-
-	moduli := encoder.params.Qi()[:plaintext.Level()+1]
-	xInt := new(big.Int)
-	xFlo := new(big.Float)
-	scaleBig := big.NewFloat(plaintext.scale)
-	tmp := new(big.Int)
-	for i := range floatSlice {
-		xFlo.Mul(floatSlice[i], scaleBig)
-		xInt = arithRound(xFlo)
-
-		for j := range moduli {
-			tmp.Mod(xInt, ring.NewUint(moduli[j]))
-			plaintext.value.Coeffs[j][i] = tmp.Uint64()
-		}
-	}
-
-
-	encoder.ringQ.NTTLvl(plaintext.Level(), plaintext.value, plaintext.value)
-	return
-}
-
-
-func (encoder *encoderBigComplex) DecodeRVec(plaintext *Plaintext, slots uint64, fracBits int) (res mpc_core.RVec) {
-	rtype := mpc_core.LElem128Zero
-
-	encoder.ringQ.InvNTTLvl(plaintext.Level(), plaintext.value, encoder.polypool)
-	encoder.ringQ.PolyToBigint(encoder.polypool, encoder.bigintCoeffs)
-
-	Q := encoder.bigintChain[plaintext.Level()]
-
-	maxSlots := uint64(encoder.params.Slots())
-
-	encoder.qHalf.Set(Q)
-	encoder.qHalf.Rsh(encoder.qHalf, 1)
-
-	gap := uint64(encoder.params.Slots()) / slots
-
-	values := make([]bigComplex, len(encoder.values))
-
-	var sign int
-
-	for i, idx := uint64(0), uint64(0); i < slots; i, idx = i+1, idx+gap {
-
-		// Centers the value around the current modulus
-		encoder.bigintCoeffs[idx].Mod(encoder.bigintCoeffs[idx], Q)
-		sign = encoder.bigintCoeffs[idx].Cmp(encoder.qHalf)
-		if sign == 1 || sign == 0 {
-			encoder.bigintCoeffs[idx].Sub(encoder.bigintCoeffs[idx], Q)
-		}
-
-		// Centers the value around the current modulus
-		encoder.bigintCoeffs[idx+maxSlots].Mod(encoder.bigintCoeffs[idx+maxSlots], Q)
-		sign = encoder.bigintCoeffs[idx+maxSlots].Cmp(encoder.qHalf)
-		if sign == 1 || sign == 0 {
-			encoder.bigintCoeffs[idx+maxSlots].Sub(encoder.bigintCoeffs[idx+maxSlots], Q)
-		}
-
-		values[i] = bigComplex{scaleDownBig(encoder.bigintCoeffs[idx], plaintext.scale), scaleDownBig(encoder.bigintCoeffs[idx+maxSlots], plaintext.scale)}
-	}
-
-	encoder.fftBig(values, slots)
-
-	res = mpc_core.InitRVec(rtype.Zero(), int(slots))
-
-	tmpFloat := new(big.Float)
-	scale := big.NewFloat(0)
-	scale.SetInt(new(big.Int).Lsh(big.NewInt(1), uint(fracBits)))
-	for i := uint64(0); i < slots; i++ {
-		v := values[i].real
-		if v.Sign() < 0 {
-			tmpFloat.Mul(tmpFloat.Neg(v), scale)
-			res[i] = res[i].Sub(rtype.FromBigInt(arithRound(tmpFloat)))
-		} else {
-			tmpFloat.Mul(v, scale)
-			res[i] = rtype.FromBigInt(arithRound(tmpFloat))
-		}
-	}
-
-	return res
-}
-
-func (encoder *encoderBigComplex) invfftlazyBig(values []bigComplex, N uint64) {
-
-	var lenh, lenq, gap, idx uint64
-	var u, v bigComplex
-
-	for len := N; len >= 1; len >>= 1 {
-		for i := uint64(0); i < N; i += len {
-			lenh = len >> 1
-			lenq = len << 2
-			gap = uint64(encoder.m) / lenq
-			for j := uint64(0); j < lenh; j++ {
-				idx = (lenq - (uint64(encoder.rotGroup[j]) % lenq)) * gap
-				//u = values[i+j] + values[i+j+lenh]
-				u = values[i+j].copy()
-				u.add(values[i+j+lenh])
-
-				//v = values[i+j] - values[i+j+lenh]
-				v = values[i+j].copy()
-				v.sub(values[i+j+lenh])
-
-				//v *= encoder.roots[idx]
-				v.mul(bigComplex{
-					real: encoder.roots[idx].Real(),
-					imag: encoder.roots[idx].Imag(),
-				})
-
-				values[i+j] = u
-				values[i+j+lenh] = v
-
-			}
-		}
-	}
-
-
-
-
-
-	sliceBitReverseInPlaceBigComplex(values, N)
-}
-
-func (encoder *encoderBigComplex) invfftBig(values []bigComplex, N uint64) {
-	encoder.invfftlazyBig(values, N)
-
-	for i := uint64(0); i < N; i++ {
-		//values[i] /= complex(float64(N), 0)
-		values[i].real.Quo(values[i].real, big.NewFloat(float64(N)))
-		values[i].imag.Quo(values[i].imag, big.NewFloat(float64(N)))
-	}
-}
-
-func (encoder *encoderBigComplex) fftBig(values []bigComplex, N uint64) {
-
-	var lenh, lenq, gap, idx uint64
-	var u, v bigComplex
-
-	sliceBitReverseInPlaceBigComplex(values, N)
-
-	for len := uint64(2); len <= N; len <<= 1 {
-		for i := uint64(0); i < N; i += len {
-			lenh = len >> 1
-			lenq = len << 2
-			gap = uint64(encoder.m) / lenq
-			for j := uint64(0); j < lenh; j++ {
-				idx = (uint64(encoder.rotGroup[j]) % lenq) * gap
-				u = values[i+j]
-				v = values[i+j+lenh].copy()
-
-				//v *= encoder.roots[idx]
-				v.mul(bigComplex{
-					real: encoder.roots[idx].Real(),
-					imag: encoder.roots[idx].Imag(),
-				})
-
-				//values[i+j] = u + v
-				values[i+j] = u.copy()
-				values[i+j].add(v)
-
-				//values[i+j+lenh] = u - v
-				values[i+j+lenh] = u.copy()
-				values[i+j+lenh].sub(v)
-			}
-		}
-	}
-
-
 }
 
 func (bc bigComplex) copy() (out bigComplex) {

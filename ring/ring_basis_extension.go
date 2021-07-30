@@ -45,21 +45,17 @@ func genModDownParams(ringQ, ringP *Ring) (params [][]uint64) {
 	params = make([][]uint64, len(ringP.Modulus))
 
 	bredParams := ringQ.BredParams
-	tmp := new(big.Int)
+	mredParams := ringQ.MredParams
 
 	for j := range ringP.Modulus {
-
-		P := NewUint(ringP.Modulus[0])
-		for i := 1; i < j+1; i++ {
-			P.Mul(P, NewUint(ringP.Modulus[i]))
-		}
-
 		params[j] = make([]uint64, len(ringQ.Modulus))
-
 		for i, qi := range ringQ.Modulus {
-			params[j][i] = tmp.Mod(P, NewUint(qi)).Uint64()
-			params[j][i] = ModExp(params[j][i], int(qi-2), qi)
+			params[j][i] = ModExp(ringP.Modulus[j], int(qi-2), qi)
 			params[j][i] = MForm(params[j][i], qi, bredParams[i])
+
+			if j > 0{
+				params[j][i] = MRed(params[j][i], params[j-1][i], qi, mredParams[i])
+			}
 		}
 	}
 

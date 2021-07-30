@@ -1,7 +1,6 @@
 package rlwe
 
 import (
-	"fmt"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/utils"
 )
@@ -88,8 +87,6 @@ func (encryptor *pkEncryptor) Encrypt(plaintext *Plaintext, ctOut *Ciphertext) {
 	levelQ := utils.MinInt(plaintext.Level(), ctOut.Level())
 	levelP := utils.MinInt(levelQ, len(ringP.Modulus)-1)
 
-	fmt.Println(levelP)
-
 	poolQ0 := encryptor.poolQ[0]
 	poolP0 := encryptor.poolP[0]
 	poolP1 := encryptor.poolP[1]
@@ -101,9 +98,6 @@ func (encryptor *pkEncryptor) Encrypt(plaintext *Plaintext, ctOut *Ciphertext) {
 
 	encryptor.ternarySampler.ReadLvl(levelQ, poolQ0)
 	extendBasisSmallNormAndCenter(ringQ, ringP, levelP, poolQ0, poolP0)
-
-	fmt.Println(poolQ0.Coeffs[0][:8])
-	fmt.Println(poolP0.Coeffs[0][:8])
 
 	// (#Q + #P) NTT
 	ringQ.NTTLvl(levelQ, poolQ0, poolQ0)

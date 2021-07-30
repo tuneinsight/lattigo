@@ -312,7 +312,7 @@ func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *rlwe.Ciphertext) {
 func (eval *evaluator) modUpAndNTT(ct *rlwe.Ciphertext, cQ, cQMul []*ring.Poly) {
 	levelQ := len(eval.ringQ.Modulus) - 1
 	for i := range ct.Value {
-		eval.baseconverterQ1Q2.ModUpSplitQP(levelQ, ct.Value[i], cQMul[i])
+		eval.baseconverterQ1Q2.ModUpQtoP(levelQ, len(eval.ringQMul.Modulus)-1, ct.Value[i], cQMul[i])
 		eval.ringQ.NTTLazy(ct.Value[i], cQ[i])
 		eval.ringQMul.NTTLazy(cQMul[i], cQMul[i])
 	}
@@ -448,11 +448,11 @@ func (eval *evaluator) quantize(ctOut *rlwe.Ciphertext) {
 		eval.ringQMul.InvNTTLazy(c2Q2[i], c2Q2[i])
 
 		// Extends the basis Q of ct(x) to the basis P and Divides (ct(x)Q -> P) by Q
-		eval.baseconverterQ1Q2.ModDownSplitQP(levelQ, levelQMul, c2Q1[i], c2Q2[i], c2Q2[i])
+		eval.baseconverterQ1Q2.ModDownQPtoP(levelQ, levelQMul, c2Q1[i], c2Q2[i], c2Q2[i])
 
 		// Centers (ct(x)Q -> P)/Q by (P-1)/2 and extends ((ct(x)Q -> P)/Q) to the basis Q
 		eval.ringQMul.AddScalarBigint(c2Q2[i], eval.pHalf, c2Q2[i])
-		eval.baseconverterQ1Q2.ModUpSplitPQ(levelQMul, c2Q2[i], ctOut.Value[i])
+		eval.baseconverterQ1Q2.ModUpPtoQ(levelQMul, levelQ, c2Q2[i], ctOut.Value[i])
 		eval.ringQ.SubScalarBigint(ctOut.Value[i], eval.pHalf, ctOut.Value[i])
 
 		// Option (2) (ct(x)/Q)*T, doing so only requires that Q*P > Q*Q, faster but adds error ~|T|

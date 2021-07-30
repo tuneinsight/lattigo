@@ -101,7 +101,7 @@ func testPublicKeyGen(testCtx testContext, t *testing.T) {
 		share1 := CKGProtocol.AllocateShares()
 		share2 := CKGProtocol.AllocateShares()
 
-		crp := testCtx.crpGenerator.ReadQPNew()
+		crp := testCtx.crpGenerator.ReadForCPKNew()
 
 		CKGProtocol.GenShare(testCtx.sk0, crp, share0)
 		CKGProtocol.GenShare(testCtx.sk1, crp, share1)
@@ -223,7 +223,7 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 		ephSk1, share11, share21 := RKGProtocol.AllocateShares()
 		ephSk2, share12, share22 := RKGProtocol.AllocateShares()
 
-		crp := testCtx.crpGenerator.ReadQPVectorNew(params.Beta())
+		crp := testCtx.crpGenerator.ReadForRKGNew()
 
 		RKGProtocol.GenShareRoundOne(testCtx.sk0, crp, ephSk0, share10)
 		RKGProtocol.GenShareRoundOne(testCtx.sk1, crp, ephSk1, share11)
@@ -297,7 +297,7 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 
 	t.Run(testString(params, "RotKeyGen/"), func(t *testing.T) {
 
-		crp := testCtx.crpGenerator.ReadQPVectorNew(params.Beta())
+		crp := testCtx.crpGenerator.ReadForRTGNew()
 
 		RTGProtocol := NewRTGProtocol(params)
 
@@ -367,7 +367,7 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 
 func testMarshalling(testCtx testContext, t *testing.T) {
 
-	crs := testCtx.crpGenerator.ReadQPNew()
+	crs := testCtx.crpGenerator.ReadForCPKNew()
 	params := testCtx.params
 
 	ciphertext := &rlwe.Ciphertext{Value: []*ring.Poly{testCtx.crpGenerator.ReadQNew(), testCtx.crpGenerator.ReadQNew()}}
@@ -452,7 +452,7 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 
 		ephSk0, share10, _ := RKGProtocol.AllocateShares()
 
-		crp := testCtx.crpGenerator.ReadQPVectorNew(params.Beta())
+		crp := testCtx.crpGenerator.ReadForRKGNew()
 
 		RKGProtocol.GenShareRoundOne(testCtx.sk0, crp, ephSk0, share10)
 
@@ -482,7 +482,7 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 
 		//check RTGShare
 
-		crp := testCtx.crpGenerator.ReadQPVectorNew(params.Beta())
+		crp := testCtx.crpGenerator.ReadForRTGNew()
 
 		galEl := testCtx.params.GaloisElementForColumnRotationBy(64)
 

@@ -112,7 +112,7 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlwe.Cip
 		ringQ.AddNoModLvl(level, shareOut.Value, cks.tmpQ, shareOut.Value)
 
 		// InvNTT(P * a * (skIn - skOut) + e) * (1/P) mod QP (mod P = e)
-		cks.baseconverter.ModDownSplitPQ(level, shareOut.Value, cks.tmpP, shareOut.Value)
+		cks.baseconverter.ModDownQPtoQ(level, len(cks.ringP.Modulus)-1, shareOut.Value, cks.tmpP, shareOut.Value)
 
 	} else {
 		// Sample e in Q
@@ -122,14 +122,16 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlwe.Cip
 		extendBasisSmallNormAndCenter(ringQ, ringP, cks.tmpQ, cks.tmpP)
 
 		// Takes the error to the NTT domain
-		ringQ.NTTLvl(level, cks.tmpQ, cks.tmpQ)
-		ringP.NTT(cks.tmpP, cks.tmpP)
+
+		ringQ.InvNTTLvl(level, shareOut.Value, shareOut.Value)
 
 		// P * a * (skIn - skOut) + e mod Q (mod P = 0, so P = e)
 		ringQ.AddLvl(level, shareOut.Value, cks.tmpQ, shareOut.Value)
 
 		// (P * a * (skIn - skOut) + e) * (1/P) mod QP (mod P = e)
-		cks.baseconverter.ModDownSplitNTTPQ(level, shareOut.Value, cks.tmpP, shareOut.Value)
+		cks.baseconverter.ModDownQPtoQ(level, len(cks.ringP.Modulus)-1, shareOut.Value, cks.tmpP, shareOut.Value)
+
+		ringQ.NTTLvl(level, shareOut.Value, shareOut.Value)
 	}
 
 	shareOut.Value.Coeffs = shareOut.Value.Coeffs[:level+1]

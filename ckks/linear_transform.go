@@ -21,9 +21,9 @@ func (eval *evaluator) Trace(ctIn *Ciphertext, logSlots int) *Ciphertext {
 // rotation by one element of the list. It is much faster than sequential calls to Rotate.
 func (eval *evaluator) RotateHoisted(ctIn *Ciphertext, rotations []int) (cOut map[int]*Ciphertext) {
 
-	level := ctIn.Level()
+	levelQ := ctIn.Level()
 
-	eval.DecomposeNTT(level, ctIn.Value[1], eval.PoolDecompQ, eval.PoolDecompP)
+	eval.DecomposeNTT(levelQ, len(eval.ringP.Modulus)-1, ctIn.Value[1], eval.PoolDecompQ, eval.PoolDecompP)
 
 	cOut = make(map[int]*Ciphertext)
 	for _, i := range rotations {
@@ -31,8 +31,8 @@ func (eval *evaluator) RotateHoisted(ctIn *Ciphertext, rotations []int) (cOut ma
 		if i == 0 {
 			cOut[i] = ctIn.CopyNew()
 		} else {
-			cOut[i] = NewCiphertext(eval.params, 1, level, ctIn.Scale)
-			eval.permuteNTTHoisted(level, ctIn.Value[0], ctIn.Value[1], eval.PoolDecompQ, eval.PoolDecompP, i, cOut[i].Value[0], cOut[i].Value[1])
+			cOut[i] = NewCiphertext(eval.params, 1, levelQ, ctIn.Scale)
+			eval.permuteNTTHoisted(levelQ, ctIn.Value[0], ctIn.Value[1], eval.PoolDecompQ, eval.PoolDecompP, i, cOut[i].Value[0], cOut[i].Value[1])
 		}
 	}
 
@@ -56,7 +56,7 @@ func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfa
 
 		minLevel := utils.MinInt(maxLevel, ctIn.Level())
 
-		eval.DecomposeNTT(minLevel, ctIn.Value[1], eval.PoolDecompQ, eval.PoolDecompP)
+		eval.DecomposeNTT(minLevel, len(eval.ringP.Modulus)-1, ctIn.Value[1], eval.PoolDecompQ, eval.PoolDecompP)
 
 		for i, matrix := range element {
 			ctOut[i] = NewCiphertext(eval.params, 1, minLevel, ctIn.Scale)
@@ -71,7 +71,7 @@ func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfa
 	case PtDiagMatrix:
 
 		minLevel := utils.MinInt(element.Level, ctIn.Level())
-		eval.DecomposeNTT(minLevel, ctIn.Value[1], eval.PoolDecompQ, eval.PoolDecompP)
+		eval.DecomposeNTT(minLevel, len(eval.ringP.Modulus)-1, ctIn.Value[1], eval.PoolDecompQ, eval.PoolDecompP)
 
 		ctOut = []*Ciphertext{NewCiphertext(eval.params, 1, minLevel, ctIn.Scale)}
 
@@ -95,6 +95,7 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 	ringP := eval.ringP
 
 	levelQ := ctIn.Level()
+	levelP := len(ringP.Modulus) - 1
 
 	//QiOverF := eval.params.QiOverflowMargin(levelQ)
 	//PiOverF := eval.params.PiOverflowMargin()
@@ -137,11 +138,11 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 			// Starts by decomposing the input ciphertext
 			if i == 0 {
 				// If first iteration, then copies directly from the input ciphertext that hasn't been rotated
-				eval.DecomposeNTT(levelQ, ctIn.Value[1], eval.PoolDecompQ, eval.PoolDecompP)
+				eval.DecomposeNTT(levelQ, levelP, ctIn.Value[1], eval.PoolDecompQ, eval.PoolDecompP)
 			} else {
 				// Else copies from the rotated input ciphertext
 				tmpc1.IsNTT = true
-				eval.DecomposeNTT(levelQ, tmpc1, eval.PoolDecompQ, eval.PoolDecompP)
+				eval.DecomposeNTT(levelQ, levelP, tmpc1, eval.PoolDecompQ, eval.PoolDecompP)
 			}
 
 			// If the binary reading scans a 1
@@ -185,8 +186,8 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 
 					// if n is not a power of two
 					if n&(n-1) != 0 {
-						eval.Baseconverter.ModDownSplitNTTPQ(levelQ, ct0OutQ, ct0OutP, ct0OutQ) // Division by P
-						eval.Baseconverter.ModDownSplitNTTPQ(levelQ, ct1OutQ, ct1OutP, ct1OutQ) // Division by P
+						eval.Baseconverter.ModDownQPtoQNTT(levelQ, levelP, ct0OutQ, ct0OutP, ct0OutQ) // Division by P
+						eval.Baseconverter.ModDownQPtoQNTT(levelQ, levelP, ct1OutQ, ct1OutP, ct1OutQ) // Division by P
 
 						// ctOut += (tmpc0, tmpc1)
 						ringQ.AddLvl(levelQ, ct0OutQ, tmpc0, ctOut.Value[0])
@@ -229,9 +230,10 @@ func (eval *evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 	ringP := eval.ringP
 
 	levelQ := ctIn.Level()
+	levelP := len(eval.ringP.Modulus) - 1
 
 	QiOverF := eval.params.QiOverflowMargin(levelQ) >> 1
-	PiOverF := eval.params.PiOverflowMargin() >> 1
+	PiOverF := eval.params.PiOverflowMargin(levelP) >> 1
 
 	// If sum with only the first element, then returns the input
 	if n == 1 {
@@ -258,7 +260,7 @@ func (eval *evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 		pool3P := eval.PoolP[2] // ctOut(c0', c1') from evaluator keyswitch memory pool
 
 		// Basis decomposition
-		eval.DecomposeNTT(levelQ, ctIn.Value[1], eval.PoolDecompQ, eval.PoolDecompP)
+		eval.DecomposeNTT(levelQ, levelP, ctIn.Value[1], eval.PoolDecompQ, eval.PoolDecompP)
 
 		// Pre-rotates all [1, ..., n-1] rotations
 		// Hoisted rotation without division by P
@@ -295,13 +297,13 @@ func (eval *evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 			if i == 1 {
 				ring.CopyValuesLvl(levelQ, vecRotQ[j][0], tmpQ0)
 				ring.CopyValuesLvl(levelQ, vecRotQ[j][1], tmpQ1)
-				ring.CopyValues(vecRotP[j][0], pool2P)
-				ring.CopyValues(vecRotP[j][1], pool3P)
+				ring.CopyValuesLvl(levelP, vecRotP[j][0], pool2P)
+				ring.CopyValuesLvl(levelP, vecRotP[j][1], pool3P)
 			} else {
 				ringQ.AddNoModLvl(levelQ, tmpQ0, vecRotQ[j][0], tmpQ0)
 				ringQ.AddNoModLvl(levelQ, tmpQ1, vecRotQ[j][1], tmpQ1)
-				ringP.AddNoMod(pool2P, vecRotP[j][0], pool2P)
-				ringP.AddNoMod(pool3P, vecRotP[j][1], pool3P)
+				ringP.AddNoModLvl(levelP, pool2P, vecRotP[j][0], pool2P)
+				ringP.AddNoModLvl(levelP, pool3P, vecRotP[j][1], pool3P)
 			}
 
 			if reduce%QiOverF == QiOverF-1 {
@@ -310,8 +312,8 @@ func (eval *evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 			}
 
 			if reduce%PiOverF == PiOverF-1 {
-				ringP.Reduce(pool2P, pool2P)
-				ringP.Reduce(pool3P, pool3P)
+				ringP.ReduceLvl(levelP, pool2P, pool2P)
+				ringP.ReduceLvl(levelP, pool3P, pool3P)
 			}
 
 			reduce++
@@ -323,13 +325,13 @@ func (eval *evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 		}
 
 		if reduce%PiOverF != 0 {
-			ringP.Reduce(pool2P, pool2P)
-			ringP.Reduce(pool3P, pool3P)
+			ringP.ReduceLvl(levelP, pool2P, pool2P)
+			ringP.ReduceLvl(levelP, pool3P, pool3P)
 		}
 
 		// Division by P of sum(elements [2, ..., n-1] )
-		eval.Baseconverter.ModDownSplitNTTPQ(levelQ, tmpQ0, pool2P, tmpQ0) // sum_{i=1, n-1}(phi(d0))/P
-		eval.Baseconverter.ModDownSplitNTTPQ(levelQ, tmpQ1, pool3P, tmpQ1) // sum_{i=1, n-1}(phi(d1))/P
+		eval.Baseconverter.ModDownQPtoQNTT(levelQ, levelP, tmpQ0, pool2P, tmpQ0) // sum_{i=1, n-1}(phi(d0))/P
+		eval.Baseconverter.ModDownQPtoQNTT(levelQ, levelP, tmpQ1, pool3P, tmpQ1) // sum_{i=1, n-1}(phi(d1))/P
 
 		// Adds element[1] (which did not require rotation)
 		ringQ.AddLvl(levelQ, ctIn.Value[0], tmpQ0, ctOut.Value[0]) // sum_{i=1, n-1}(phi(d0))/P + ct0
@@ -370,10 +372,10 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix PtDiagMatri
 	ringP := eval.ringP
 
 	levelQ := utils.MinInt(ctOut.Level(), utils.MinInt(ctIn.Level(), matrix.Level))
-	levelP := eval.params.PCount() - 1
+	levelP := len(eval.ringP.Modulus) - 1
 
 	QiOverF := eval.params.QiOverflowMargin(levelQ)
-	PiOverF := eval.params.PiOverflowMargin()
+	PiOverF := eval.params.PiOverflowMargin(levelP)
 
 	ksResP0 := eval.PoolP[0]  // Key-Switch ctOut[0] mod P
 	ksResP1 := eval.PoolP[1]  // Key-Switch ctOut[1] mod P
@@ -426,14 +428,14 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix PtDiagMatri
 				// keyswitch(c1_Q) = (d0_QP, d1_QP)
 				ringQ.MulCoeffsMontgomeryLvl(levelQ, plaintextQ, tmpQ0, ctOut.Value[0]) // phi(P*c0 + d0_Q) * plaintext
 				ringQ.MulCoeffsMontgomeryLvl(levelQ, plaintextQ, tmpQ1, ctOut.Value[1]) // phi(d1_Q) * plaintext
-				ringP.MulCoeffsMontgomery(plaintextP, tmpP0, accP0)                     // phi(d0_P) * plaintext
-				ringP.MulCoeffsMontgomery(plaintextP, tmpP1, accP1)                     // phi(d1_P) * plaintext
+				ringP.MulCoeffsMontgomeryLvl(levelP, plaintextP, tmpP0, accP0)          // phi(d0_P) * plaintext
+				ringP.MulCoeffsMontgomeryLvl(levelP, plaintextP, tmpP1, accP1)          // phi(d1_P) * plaintext
 			} else {
 				// keyswitch(c1_Q) = (d0_QP, d1_QP)
 				ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plaintextQ, tmpQ0, ctOut.Value[0]) // phi(P*c0 + d0_Q) * plaintext
 				ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, plaintextQ, tmpQ1, ctOut.Value[1]) // phi(d1_Q) * plaintext
-				ringP.MulCoeffsMontgomeryAndAdd(plaintextP, tmpP0, accP0)                     // phi(d0_P) * plaintext
-				ringP.MulCoeffsMontgomeryAndAdd(plaintextP, tmpP1, accP1)                     // phi(d1_P) * plaintext
+				ringP.MulCoeffsMontgomeryAndAddLvl(levelP, plaintextP, tmpP0, accP0)          // phi(d0_P) * plaintext
+				ringP.MulCoeffsMontgomeryAndAddLvl(levelP, plaintextP, tmpP1, accP1)          // phi(d1_P) * plaintext
 			}
 
 			if cnt%QiOverF == QiOverF-1 {
@@ -442,8 +444,8 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix PtDiagMatri
 			}
 
 			if cnt%PiOverF == PiOverF-1 {
-				ringP.Reduce(accP0, accP0)
-				ringP.Reduce(accP1, accP1)
+				ringP.ReduceLvl(levelP, accP0, accP0)
+				ringP.ReduceLvl(levelP, accP1, accP1)
 			}
 
 			cnt++
@@ -456,12 +458,12 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix PtDiagMatri
 	}
 
 	if cnt%PiOverF == 0 {
-		ringP.Reduce(accP0, accP0)
-		ringP.Reduce(accP1, accP1)
+		ringP.ReduceLvl(levelP, accP0, accP0)
+		ringP.ReduceLvl(levelP, accP1, accP1)
 	}
 
-	eval.Baseconverter.ModDownSplitNTTPQ(levelQ, ctOut.Value[0], accP0, ctOut.Value[0]) // sum(phi(c0 * P + d0_QP))/P
-	eval.Baseconverter.ModDownSplitNTTPQ(levelQ, ctOut.Value[1], accP1, ctOut.Value[1]) // sum(phi(d1_QP))/P
+	eval.Baseconverter.ModDownQPtoQNTT(levelQ, levelP, ctOut.Value[0], accP0, ctOut.Value[0]) // sum(phi(c0 * P + d0_QP))/P
+	eval.Baseconverter.ModDownQPtoQNTT(levelQ, levelP, ctOut.Value[1], accP1, ctOut.Value[1]) // sum(phi(d1_QP))/P
 
 	if state { // Rotation by zero
 		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, matrix.Vec[0][0], ctIn.Value[0], ctOut.Value[0]) // ctOut += c0_Q * plaintext
@@ -485,10 +487,10 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix PtDiagM
 	ringP := eval.ringP
 
 	levelQ := utils.MinInt(ctOut.Level(), utils.MinInt(ctIn.Level(), matrix.Level))
-	levelP := eval.params.PCount() - 1
+	levelP := len(eval.ringP.Modulus) - 1
 
 	QiOverF := eval.params.QiOverflowMargin(levelQ)
-	PiOverF := eval.params.PiOverflowMargin()
+	PiOverF := eval.params.PiOverflowMargin(levelP)
 
 	// Computes the rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giang-step algorithm
 
@@ -561,10 +563,10 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix PtDiagM
 					plaintextP := matrix.Vec[N1*j+i][1]
 
 					if cnt1 == 0 {
-						ringQ.MulCoeffsMontgomeryConstantLvl(levelQ, plaintextQ, vecRotQ[i][0], tmpQ0) // phi(P*c0 + d0_Q) * plaintext
-						ringQ.MulCoeffsMontgomeryConstantLvl(levelQ, plaintextQ, vecRotQ[i][1], tmpQ1) // phi(d1_Q) * plaintext
-						ringP.MulCoeffsMontgomeryConstant(plaintextP, vecRotP[i][0], pool2P)           // phi(d0_P) * plaintext
-						ringP.MulCoeffsMontgomeryConstant(plaintextP, vecRotP[i][1], pool3P)           // phi(d1_P) * plaintext
+						ringQ.MulCoeffsMontgomeryConstantLvl(levelQ, plaintextQ, vecRotQ[i][0], tmpQ0)  // phi(P*c0 + d0_Q) * plaintext
+						ringQ.MulCoeffsMontgomeryConstantLvl(levelQ, plaintextQ, vecRotQ[i][1], tmpQ1)  // phi(d1_Q) * plaintext
+						ringP.MulCoeffsMontgomeryConstantLvl(levelP, plaintextP, vecRotP[i][0], pool2P) // phi(d0_P) * plaintext
+						ringP.MulCoeffsMontgomeryConstantLvl(levelP, plaintextP, vecRotP[i][1], pool3P) // phi(d1_P) * plaintext
 					} else {
 						ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, plaintextQ, vecRotQ[i][0], tmpQ0) // phi(d0_Q) * plaintext
 						ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, plaintextQ, vecRotQ[i][1], tmpQ1) // phi(d1_Q) * plaintext
@@ -578,8 +580,8 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix PtDiagM
 					}
 
 					if cnt1%(PiOverF>>1) == (PiOverF>>1)-1 {
-						ringP.Reduce(pool2P, pool2P)
-						ringP.Reduce(pool3P, pool3P)
+						ringP.ReduceLvl(levelP, pool2P, pool2P)
+						ringP.ReduceLvl(levelP, pool3P, pool3P)
 					}
 
 					cnt1++
@@ -592,13 +594,13 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix PtDiagM
 			}
 
 			if cnt1%(PiOverF>>1) != 0 {
-				ringP.Reduce(pool2P, pool2P)
-				ringP.Reduce(pool3P, pool3P)
+				ringP.ReduceLvl(levelP, pool2P, pool2P)
+				ringP.ReduceLvl(levelP, pool3P, pool3P)
 			}
 
 			// Hoisting of the ModDown of sum(sum(phi(d0 + P*c0) * plaintext)) and sum(sum(phi(d1) * plaintext))
-			eval.Baseconverter.ModDownSplitNTTPQ(levelQ, tmpQ0, pool2P, tmpQ0) // sum(phi(d0) * plaintext)/P
-			eval.Baseconverter.ModDownSplitNTTPQ(levelQ, tmpQ1, pool3P, tmpQ1) // sum(phi(d1) * plaintext)/P
+			eval.Baseconverter.ModDownQPtoQNTT(levelQ, levelP, tmpQ0, pool2P, tmpQ0) // sum(phi(d0) * plaintext)/P
+			eval.Baseconverter.ModDownQPtoQNTT(levelQ, levelP, tmpQ1, pool3P, tmpQ1) // sum(phi(d1) * plaintext)/P
 
 			// If i == 0
 			if state {
@@ -651,8 +653,8 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix PtDiagM
 			}
 
 			if cnt0%PiOverF == PiOverF-1 {
-				ringP.Reduce(tmpP2, tmpP2)
-				ringP.Reduce(tmpP3, tmpP3)
+				ringP.ReduceLvl(levelP, tmpP2, tmpP2)
+				ringP.ReduceLvl(levelP, tmpP3, tmpP3)
 			}
 
 			cnt0++
@@ -665,8 +667,8 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix PtDiagM
 	}
 
 	if cnt0%PiOverF != 0 {
-		ringP.Reduce(tmpP2, tmpP2)
-		ringP.Reduce(tmpP3, tmpP3)
+		ringP.ReduceLvl(levelP, tmpP2, tmpP2)
+		ringP.ReduceLvl(levelP, tmpP3, tmpP3)
 	}
 
 	// if j == 0 (N2 rotation by zero)
@@ -684,8 +686,8 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix PtDiagM
 			// keyswitch(c1_Q) = (d0_QP, d1_QP)
 			ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, plaintextQ, vecRotQ[i][0], tmpQ2) // phi(P*c0 + d0_Q) * plaintext
 			ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, plaintextQ, vecRotQ[i][1], tmpQ3) // phi(d1_Q) * plaintext
-			ringP.MulCoeffsMontgomeryAndAddNoMod(plaintextP, vecRotP[i][0], tmpP2)                    // phi(d0_P) * plaintext
-			ringP.MulCoeffsMontgomeryAndAddNoMod(plaintextP, vecRotP[i][1], tmpP3)                    // phi(d1_P) * plaintext
+			ringP.MulCoeffsMontgomeryAndAddNoModLvl(levelP, plaintextP, vecRotP[i][0], tmpP2)         // phi(d0_P) * plaintext
+			ringP.MulCoeffsMontgomeryAndAddNoModLvl(levelP, plaintextP, vecRotP[i][1], tmpP3)         // phi(d1_P) * plaintext
 
 			if cnt1%(QiOverF>>1) == (QiOverF>>1)-1 {
 				ringQ.ReduceLvl(levelQ, tmpQ2, tmpQ2)
@@ -693,8 +695,8 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix PtDiagM
 			}
 
 			if cnt1%(PiOverF>>1) == (PiOverF>>1)-1 {
-				ringP.Reduce(tmpP2, tmpP2)
-				ringP.Reduce(tmpP3, tmpP3)
+				ringP.ReduceLvl(levelP, tmpP2, tmpP2)
+				ringP.ReduceLvl(levelP, tmpP3, tmpP3)
 			}
 
 			cnt1++
@@ -707,12 +709,12 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix PtDiagM
 	}
 
 	if cnt1%(PiOverF>>1) != 0 {
-		ringP.Reduce(tmpP2, tmpP2)
-		ringP.Reduce(tmpP3, tmpP3)
+		ringP.ReduceLvl(levelP, tmpP2, tmpP2)
+		ringP.ReduceLvl(levelP, tmpP3, tmpP3)
 	}
 
-	eval.Baseconverter.ModDownSplitNTTPQ(levelQ, tmpQ2, tmpP2, tmpQ2) // sum(phi(c0 * P + d0_QP))/P
-	eval.Baseconverter.ModDownSplitNTTPQ(levelQ, tmpQ3, tmpP3, tmpQ3) // sum(phi(d1_QP))/P
+	eval.Baseconverter.ModDownQPtoQNTT(levelQ, levelP, tmpQ2, tmpP2, tmpQ2) // sum(phi(c0 * P + d0_QP))/P
+	eval.Baseconverter.ModDownQPtoQNTT(levelQ, levelP, tmpQ3, tmpP3, tmpQ3) // sum(phi(d1_QP))/P
 
 	ringQ.AddLvl(levelQ, ctOut.Value[0], tmpQ2, ctOut.Value[0]) // ctOut += sum(phi(c0 * P + d0_QP))/P
 	ringQ.AddLvl(levelQ, ctOut.Value[1], tmpQ3, ctOut.Value[1]) // ctOut += sum(phi(d1_QP))/P

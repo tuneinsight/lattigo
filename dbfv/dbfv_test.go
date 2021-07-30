@@ -55,6 +55,8 @@ type testContext struct {
 	decryptorSk0 bfv.Decryptor
 	decryptorSk1 bfv.Decryptor
 	evaluator    bfv.Evaluator
+
+	crpGenerator drlwe.UniformSampler
 }
 
 func Test_DBFV(t *testing.T) {
@@ -107,9 +109,7 @@ func gentestContext(params bfv.Parameters) (testCtx *testContext, err error) {
 
 	testCtx.deltaMont = bfv.GenLiftParams(testCtx.ringQ, params.T())
 
-	if testCtx.prng, err = utils.NewPRNG(); err != nil {
-		return nil, err
-	}
+	testCtx.crpGenerator, _ = drlwe.NewUniformSampler([]byte{}, params.Parameters)
 
 	testCtx.encoder = bfv.NewEncoder(testCtx.params)
 	testCtx.evaluator = bfv.NewEvaluator(testCtx.params, rlwe.EvaluationKey{})
@@ -150,10 +150,7 @@ func testPublicKeyGen(testCtx *testContext, t *testing.T) {
 
 	t.Run(testString("PublicKeyGen/", parties, testCtx.params), func(t *testing.T) {
 
-		crpGeneratorQ := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
-		crpGeneratorP := ring.NewUniformSampler(testCtx.prng, testCtx.ringP)
-
-		crp := [2]*ring.Poly{crpGeneratorQ.ReadNew(), crpGeneratorP.ReadNew()}
+		crp := testCtx.crpGenerator.ReadForCPKNew()
 
 		type Party struct {
 			*CKGProtocol
@@ -225,15 +222,7 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 		// checks that bfv.RKGProtocol complies to the drlwe.RelinearizationKeyGenerator interface
 		var _ drlwe.RelinearizationKeyGenerator = P0.RKGProtocol
 
-		crpGeneratorQ := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
-		crpGeneratorP := ring.NewUniformSampler(testCtx.prng, testCtx.ringP)
-
-		crp := make([][2]*ring.Poly, testCtx.params.Beta())
-
-		for i := 0; i < testCtx.params.Beta(); i++ {
-			crp[i][0] = crpGeneratorQ.ReadNew()
-			crp[i][1] = crpGeneratorP.ReadNew()
-		}
+		crp := testCtx.crpGenerator.ReadForRKGNew()
 
 		// ROUND 1
 		for i, p := range rkgParties {
@@ -397,15 +386,7 @@ func testRotKeyGenRotRows(testCtx *testContext, t *testing.T) {
 		// Checks that bfv.RTGProtocol complies to the drlwe.RotationKeyGenerator interface
 		var _ drlwe.RotationKeyGenerator = P0.RTGProtocol
 
-		crpGeneratorQ := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
-		crpGeneratorP := ring.NewUniformSampler(testCtx.prng, testCtx.ringP)
-
-		crp := make([][2]*ring.Poly, testCtx.params.Beta())
-
-		for i := 0; i < testCtx.params.Beta(); i++ {
-			crp[i][0] = crpGeneratorQ.ReadNew()
-			crp[i][1] = crpGeneratorP.ReadNew()
-		}
+		crp := testCtx.crpGenerator.ReadForRTGNew()
 
 		galEl := testCtx.params.GaloisElementForRowRotation()
 		rotKeySet := bfv.NewRotationKeySet(testCtx.params, []uint64{galEl})
@@ -458,15 +439,7 @@ func testRotKeyGenRotCols(testCtx *testContext, t *testing.T) {
 		// Checks that bfv.RTGProtocol complies to the drlwe.RotationKeyGenerator interface
 		var _ drlwe.RotationKeyGenerator = P0.RTGProtocol
 
-		crpGeneratorQ := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
-		crpGeneratorP := ring.NewUniformSampler(testCtx.prng, testCtx.ringP)
-
-		crp := make([][2]*ring.Poly, testCtx.params.Beta())
-
-		for i := 0; i < testCtx.params.Beta(); i++ {
-			crp[i][0] = crpGeneratorQ.ReadNew()
-			crp[i][1] = crpGeneratorP.ReadNew()
-		}
+		crp := testCtx.crpGenerator.ReadForRTGNew()
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, t)
 
@@ -542,8 +515,7 @@ func testEncToShares(testCtx *testContext, t *testing.T) {
 
 	})
 
-	crs := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
-	c1 := crs.ReadNew()
+	c1 := testCtx.crpGenerator.ReadForRefreshNew(ciphertext.Level())
 
 	t.Run(testString("S2EProtocol/", parties, testCtx.params), func(t *testing.T) {
 		for i, p := range P {
@@ -592,10 +564,9 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 
 		P0 := RefreshParties[0]
 
-		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
-		crp := crpGenerator.ReadNew()
-
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, t)
+
+		crp := testCtx.crpGenerator.ReadForRefreshNew(ciphertext.Level())
 
 		maxDepth := 0
 
@@ -688,15 +659,15 @@ func testRefreshAndPermutation(testCtx *testContext, t *testing.T) {
 
 		P0 := RefreshParties[0]
 
-		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
-		crp := crpGenerator.ReadNew()
-
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, t)
+
+		crp := testCtx.crpGenerator.ReadForRefreshNew(ciphertext.Level())
 
 		permutation := make([]uint64, len(coeffs))
 		N := uint64(testCtx.params.N())
+		prng, _ := utils.NewPRNG()
 		for i := range permutation {
-			permutation[i] = ring.RandUniform(testCtx.prng, N, N-1)
+			permutation[i] = ring.RandUniform(prng, N, N-1)
 		}
 
 		permute := func(ptIn, ptOut bfv.PlaintextRingT) {
@@ -731,8 +702,8 @@ func testRefreshAndPermutation(testCtx *testContext, t *testing.T) {
 
 func newTestVectors(testCtx *testContext, encryptor bfv.Encryptor, t *testing.T) (coeffs []uint64, plaintext *bfv.Plaintext, ciphertext *bfv.Ciphertext) {
 
-	uniformSampler := ring.NewUniformSampler(testCtx.prng, testCtx.ringT)
-
+	prng, _ := utils.NewPRNG()
+	uniformSampler := ring.NewUniformSampler(prng, testCtx.ringT)
 	coeffsPol := uniformSampler.ReadNew()
 	plaintext = bfv.NewPlaintext(testCtx.params)
 	testCtx.encoder.EncodeUint(coeffsPol.Coeffs[0], plaintext)
@@ -748,11 +719,10 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 
 	//verify if the un.marshalling works properly
 
-	crsGen := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
-	crs := crsGen.ReadNew()
+	crs := testCtx.crpGenerator.ReadQNew()
 	ringQ := testCtx.ringQ
 
-	ciphertext := bfv.NewCiphertextRandom(testCtx.prng, testCtx.params, 1)
+	ciphertext := &bfv.Ciphertext{Ciphertext: &rlwe.Ciphertext{Value: []*ring.Poly{testCtx.crpGenerator.ReadQNew(), testCtx.crpGenerator.ReadQNew()}}}
 
 	t.Run(fmt.Sprintf("Marshalling/Refresh/N=%d/limbQ=%d/limbsP=%d", ringQ.N, testCtx.params.QCount(), testCtx.params.PCount()), func(t *testing.T) {
 

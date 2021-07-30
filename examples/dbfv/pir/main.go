@@ -10,9 +10,7 @@ import (
 	"github.com/ldsec/lattigo/v2/bfv"
 	"github.com/ldsec/lattigo/v2/dbfv"
 	"github.com/ldsec/lattigo/v2/drlwe"
-	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
-	"github.com/ldsec/lattigo/v2/utils"
 )
 
 func check(err error) {
@@ -109,18 +107,8 @@ func main() {
 		panic(err)
 	}
 
-	// PRNG keyed with "lattigo"
-	lattigoPRNG, err := utils.NewKeyedPRNG([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'})
-	if err != nil {
-		panic(err)
-	}
-
-	ringQ := params.RingQ()
-	ringP := params.RingP()
-
 	// Common reference polynomial generator that uses the PRNG
-	crsGenQ := ring.NewUniformSampler(lattigoPRNG, ringQ)
-	crsGenP := ring.NewUniformSampler(lattigoPRNG, ringP)
+	crsGen, _ := drlwe.NewUniformSampler([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'}, params.Parameters)
 
 	// Instantiation of each of the protocols needed for the PIR example
 
@@ -128,13 +116,13 @@ func main() {
 	P := genparties(params, N)
 
 	// 1) Collective public key generation
-	pk := ckgphase(params, crsGenQ, crsGenP, P)
+	pk := ckgphase(params, crsGen, P)
 
 	// 2) Collective relinearization key generation
-	rlk := rkgphase(params, crsGenQ, crsGenP, P)
+	rlk := rkgphase(params, crsGen, P)
 
 	// 3) Collective rotation keys generation
-	rtk := rtkphase(params, crsGenQ, crsGenP, P)
+	rtk := rtkphase(params, crsGen, P)
 
 	l.Printf("\tSetup done (cloud: %s, party: %s)\n",
 		elapsedCKGCloud+elapsedRKGCloud+elapsedRTGCloud,
@@ -251,14 +239,14 @@ func genparties(params bfv.Parameters, N int) []*party {
 	return P
 }
 
-func ckgphase(params bfv.Parameters, crsGenQ, crsGenP *ring.UniformSampler, P []*party) *rlwe.PublicKey {
+func ckgphase(params bfv.Parameters, crsGen drlwe.UniformSampler, P []*party) *rlwe.PublicKey {
 
 	l := log.New(os.Stderr, "", 0)
 
-	l.Println("> CKG Phase")
+	l.Println("> CPK Phase")
 
-	ckg := dbfv.NewCKGProtocol(params)                         // Public key generation
-	crs := [2]*ring.Poly{crsGenQ.ReadNew(), crsGenP.ReadNew()} // for the public-key
+	ckg := dbfv.NewCKGProtocol(params) // Public key generation
+	crs := crsGen.ReadForCPKNew()
 
 	for _, pi := range P {
 		pi.ckgShare = ckg.AllocateShares()
@@ -286,7 +274,7 @@ func ckgphase(params bfv.Parameters, crsGenQ, crsGenP *ring.UniformSampler, P []
 	return pk
 }
 
-func rkgphase(params bfv.Parameters, crsGenQ, crsGenP *ring.UniformSampler, P []*party) *rlwe.RelinearizationKey {
+func rkgphase(params bfv.Parameters, crsGen drlwe.UniformSampler, P []*party) *rlwe.RelinearizationKey {
 	l := log.New(os.Stderr, "", 0)
 
 	l.Println("> RKG Phase")
@@ -297,11 +285,7 @@ func rkgphase(params bfv.Parameters, crsGenQ, crsGenP *ring.UniformSampler, P []
 		pi.rlkEphemSk, pi.rkgShareOne, pi.rkgShareTwo = rkg.AllocateShares()
 	}
 
-	crp := make([][2]*ring.Poly, params.Beta()) // for the relinearization keys
-	for i := 0; i < params.Beta(); i++ {
-		crp[i][0] = crsGenQ.ReadNew()
-		crp[i][1] = crsGenP.ReadNew()
-	}
+	crp := crsGen.ReadForRKGNew()
 
 	elapsedRKGParty = runTimedParty(func() {
 		for _, pi := range P {
@@ -336,7 +320,7 @@ func rkgphase(params bfv.Parameters, crsGenQ, crsGenP *ring.UniformSampler, P []
 	return rlk
 }
 
-func rtkphase(params bfv.Parameters, crsGenQ, crsGenP *ring.UniformSampler, P []*party) *rlwe.RotationKeySet {
+func rtkphase(params bfv.Parameters, crsGen drlwe.UniformSampler, P []*party) *rlwe.RotationKeySet {
 
 	l := log.New(os.Stderr, "", 0)
 
@@ -348,16 +332,11 @@ func rtkphase(params bfv.Parameters, crsGenQ, crsGenP *ring.UniformSampler, P []
 		pi.rtgShare = rtg.AllocateShares()
 	}
 
-	crpRot := make([][2]*ring.Poly, params.Beta()) // for the rotation keys
-
-	for i := 0; i < params.Beta(); i++ {
-		crpRot[i][0] = crsGenQ.ReadNew()
-		crpRot[i][1] = crsGenP.ReadNew()
-	}
-
 	galEls := params.GaloisElementsForRowInnerSum()
 	rotKeySet := bfv.NewRotationKeySet(params, galEls)
 	for _, galEl := range galEls {
+
+		crpRot := crsGen.ReadForRTGNew()
 
 		elapsedRTGParty += runTimedParty(func() {
 			for _, pi := range P {

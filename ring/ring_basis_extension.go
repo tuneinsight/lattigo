@@ -66,52 +66,6 @@ func genModDownParams(ringQ, ringP *Ring) (params [][]uint64) {
 	return
 }
 
-// ModDownSplitPQ reduces the basis of a polynomial.
-// Given a polynomial with coefficients in basis {Q0,Q1....Qlevel} and {P0,P1...Pj},
-// it reduces its basis from {Q0,Q1....Qlevel} and {P0,P1...Pj} to {Q0,Q1....Qlevel}
-// and does a rounded integer division of the result by P.
-func (basisextender *FastBasisExtender) ModDownQPtoQ(levelQ, levelP int, p1Q, p1P, p2Q *Poly) {
-
-	ringQ := basisextender.ringQ
-	modDownParams := basisextender.modDownparamsPtoQ
-	polypool := basisextender.polypoolQ
-
-	// Then we target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on polypool
-	// polypool is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
-	basisextender.ModUpPtoQ(levelP, levelQ, p1P, polypool)
-
-	// Finally, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
-	for i := 0; i < levelQ+1; i++ {
-
-		qi := ringQ.Modulus[i]
-		twoqi := qi << 1
-		p1tmp := p1Q.Coeffs[i]
-		p2tmp := p2Q.Coeffs[i]
-		p3tmp := polypool.Coeffs[i]
-		params := qi - modDownParams[levelP][i]
-		mredParams := ringQ.MredParams[i]
-
-		// Then for each coefficient we compute (P^-1) * (p1[i][j] - polypool[i][j]) mod qi
-		for j := 0; j < ringQ.N; j = j + 8 {
-
-			x := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-			y := (*[8]uint64)(unsafe.Pointer(&p3tmp[j]))
-			z := (*[8]uint64)(unsafe.Pointer(&p2tmp[j]))
-
-			z[0] = MRed(y[0]+twoqi-x[0], params, qi, mredParams)
-			z[1] = MRed(y[1]+twoqi-x[1], params, qi, mredParams)
-			z[2] = MRed(y[2]+twoqi-x[2], params, qi, mredParams)
-			z[3] = MRed(y[3]+twoqi-x[3], params, qi, mredParams)
-			z[4] = MRed(y[4]+twoqi-x[4], params, qi, mredParams)
-			z[5] = MRed(y[5]+twoqi-x[5], params, qi, mredParams)
-			z[6] = MRed(y[6]+twoqi-x[6], params, qi, mredParams)
-			z[7] = MRed(y[7]+twoqi-x[7], params, qi, mredParams)
-		}
-	}
-
-	// In total we do len(P) + len(Q) NTT, which is optimal (linear in the number of moduli of P and Q)
-}
-
 // NewFastBasisExtender creates a new FastBasisExtender, enabling RNS basis extension from Q to P and P to Q.
 func NewFastBasisExtender(ringQ, ringP *Ring) *FastBasisExtender {
 
@@ -225,21 +179,67 @@ func (basisextender *FastBasisExtender) ShallowCopy() *FastBasisExtender {
 	}
 }
 
-// ModUpSplitQP extends the RNS basis of a polynomial from Q to QP.
+// ModUpQtoP extends the RNS basis of a polynomial from Q to QP.
 // Given a polynomial with coefficients in basis {Q0,Q1....Qlevel},
 // it extends its basis from {Q0,Q1....Qlevel} to {Q0,Q1....Qlevel,P0,P1...Pj}
 func (basisextender *FastBasisExtender) ModUpQtoP(levelQ, levelP int, polQ, polP *Poly) {
 	modUpExact(polQ.Coeffs[:levelQ+1], polP.Coeffs[:levelP+1], basisextender.paramsQtoP[levelQ])
 }
 
-// ModUpSplitPQ extends the RNS basis of a polynomial from P to PQ.
+// ModUpPtoQ extends the RNS basis of a polynomial from P to PQ.
 // Given a polynomial with coefficients in basis {P0,P1....Plevel},
 // it extends its basis from {P0,P1....Plevel} to {Q0,Q1...Qj}
 func (basisextender *FastBasisExtender) ModUpPtoQ(levelP, levelQ int, polP, polQ *Poly) {
 	modUpExact(polP.Coeffs[:levelP+1], polQ.Coeffs[:levelQ+1], basisextender.paramsPtoQ[levelP])
 }
 
-// ModDownSplitNTTPQ reduces the basis of a polynomial.
+// ModDownQPtoQ reduces the basis of a polynomial.
+// Given a polynomial with coefficients in basis {Q0,Q1....Qlevel} and {P0,P1...Pj},
+// it reduces its basis from {Q0,Q1....Qlevel} and {P0,P1...Pj} to {Q0,Q1....Qlevel}
+// and does a rounded integer division of the result by P.
+func (basisextender *FastBasisExtender) ModDownQPtoQ(levelQ, levelP int, p1Q, p1P, p2Q *Poly) {
+
+	ringQ := basisextender.ringQ
+	modDownParams := basisextender.modDownparamsPtoQ
+	polypool := basisextender.polypoolQ
+
+	// Then we target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on polypool
+	// polypool is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
+	basisextender.ModUpPtoQ(levelP, levelQ, p1P, polypool)
+
+	// Finally, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
+	for i := 0; i < levelQ+1; i++ {
+
+		qi := ringQ.Modulus[i]
+		twoqi := qi << 1
+		p1tmp := p1Q.Coeffs[i]
+		p2tmp := p2Q.Coeffs[i]
+		p3tmp := polypool.Coeffs[i]
+		params := qi - modDownParams[levelP][i]
+		mredParams := ringQ.MredParams[i]
+
+		// Then for each coefficient we compute (P^-1) * (p1[i][j] - polypool[i][j]) mod qi
+		for j := 0; j < ringQ.N; j = j + 8 {
+
+			x := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
+			y := (*[8]uint64)(unsafe.Pointer(&p3tmp[j]))
+			z := (*[8]uint64)(unsafe.Pointer(&p2tmp[j]))
+
+			z[0] = MRed(y[0]+twoqi-x[0], params, qi, mredParams)
+			z[1] = MRed(y[1]+twoqi-x[1], params, qi, mredParams)
+			z[2] = MRed(y[2]+twoqi-x[2], params, qi, mredParams)
+			z[3] = MRed(y[3]+twoqi-x[3], params, qi, mredParams)
+			z[4] = MRed(y[4]+twoqi-x[4], params, qi, mredParams)
+			z[5] = MRed(y[5]+twoqi-x[5], params, qi, mredParams)
+			z[6] = MRed(y[6]+twoqi-x[6], params, qi, mredParams)
+			z[7] = MRed(y[7]+twoqi-x[7], params, qi, mredParams)
+		}
+	}
+
+	// In total we do len(P) + len(Q) NTT, which is optimal (linear in the number of moduli of P and Q)
+}
+
+// ModDownQPtoQNTT reduces the basis of a polynomial.
 // Given a polynomial with coefficients in basis {Q0,Q1....Qi} and {P0,P1...Pj},
 // it reduces its basis from {Q0,Q1....Qi} and {P0,P1...Pj} to {Q0,Q1....Qi}
 // and does a rounded integer division of the result by P.
@@ -295,7 +295,7 @@ func (basisextender *FastBasisExtender) ModDownQPtoQNTT(levelQ, levelP int, p1Q,
 	// In total we do len(P) + len(Q) NTT, which is optimal (linear in the number of moduli of P and Q)
 }
 
-// ModDownSplitQP reduces the basis of a polynomial.
+// ModDownQPtoP reduces the basis of a polynomial.
 // Given a polynomial with coefficients in basis {Q0,Q1....QlevelQ} and {P0,P1...PlevelP},
 // it reduces its basis from {Q0,Q1....QlevelQ} and {P0,P1...PlevelP} to {P0,P1...PlevelP}
 // and does a floored integer division of the result by Q.

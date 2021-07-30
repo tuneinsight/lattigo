@@ -149,7 +149,7 @@ func testPublicKeyGen(testCtx *testContext, t *testing.T) {
 
 	t.Run(testString("PublicKeyGen/", parties, params), func(t *testing.T) {
 
-		crp := testCtx.crpGenerator.ReadQPNew()
+		crp := testCtx.crpGenerator.ReadForCPKNew()
 
 		type Party struct {
 			*CKGProtocol
@@ -222,7 +222,7 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 		// Checks that ckks.RKGProtocol complies to the drlwe.RelinearizationKeyGenerator interface
 		var _ drlwe.RelinearizationKeyGenerator = P0.RKGProtocol
 
-		crp := testCtx.crpGenerator.ReadQPVectorNew(params.Beta())
+		crp := testCtx.crpGenerator.ReadForRKGNew()
 
 		// ROUND 1
 		for i, p := range rkgParties {
@@ -405,7 +405,7 @@ func testRotKeyGenConjugate(testCtx *testContext, t *testing.T) {
 		// checks that ckks.RTGProtocol complies to the drlwe.RotationKeyGenerator interface
 		var _ drlwe.RotationKeyGenerator = P0.RTGProtocol
 
-		crp := testCtx.crpGenerator.ReadQPVectorNew(params.Beta())
+		crp := testCtx.crpGenerator.ReadForRTGNew()
 
 		galEl := params.GaloisElementForRowRotation()
 		rotKeySet := ckks.NewRotationKeySet(params, []uint64{galEl})
@@ -461,7 +461,7 @@ func testRotKeyGenCols(testCtx *testContext, t *testing.T) {
 
 		P0 := pcksParties[0]
 
-		crp := testCtx.crpGenerator.ReadQPVectorNew(params.Beta())
+		crp := testCtx.crpGenerator.ReadForRTGNew()
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, -1, 1, t)
 
@@ -561,7 +561,7 @@ func testE2SProtocol(testCtx *testContext, t *testing.T) {
 
 		verifyTestVectors(testCtx, nil, coeffs, pt, t)
 
-		c1 := testCtx.crpGenerator.ReadQNew()
+		c1 := testCtx.crpGenerator.ReadForRefreshNew(params.Parameters.MaxLevel())
 
 		for i, p := range P {
 
@@ -620,7 +620,7 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 
 		P0 := RefreshParties[0]
 
-		crp := testCtx.crpGenerator.ReadQNew()
+		crp := testCtx.crpGenerator.ReadForRefreshNew(levelMax)
 
 		for i, p := range RefreshParties {
 			p.GenShares(p.s, logBound, params.LogSlots(), ciphertext, crp, p.share)
@@ -675,7 +675,7 @@ func testRefreshAndTransform(testCtx *testContext, t *testing.T) {
 
 		P0 := RefreshParties[0]
 
-		crp := testCtx.crpGenerator.ReadQNew()
+		crp := testCtx.crpGenerator.ReadForRefreshNew(levelMax)
 
 		permute := func(ptIn, ptOut []*ring.Complex) {
 			for i := range ptIn {
@@ -714,7 +714,7 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 
 		ciphertext := &ckks.Ciphertext{Ciphertext: &rlwe.Ciphertext{Value: []*ring.Poly{testCtx.crpGenerator.ReadLvlQNew(minLevel), testCtx.crpGenerator.ReadLvlQNew(minLevel)}}, Scale: params.Scale()}
 
-		crsLevel := testCtx.crpGenerator.ReadLvlQNew(minLevel)
+		crsLevel := testCtx.crpGenerator.ReadForRefreshNew(minLevel)
 
 		//testing refresh shares
 		refreshproto := NewRefreshProtocol(testCtx.params, logBound, 3.2)

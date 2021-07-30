@@ -6,22 +6,55 @@ import (
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
+// UniformSampler is a struct storing samples for the drlwe package.
 type UniformSampler struct {
 	beta            int
 	uniformSamplerQ *ring.UniformSampler
 	uniformSamplerP *ring.UniformSampler
 }
 
+// NewUniformSampler creates a new UniformSampler.
 func NewUniformSampler(key []byte, params rlwe.Parameters) (uniSampler UniformSampler, err error) {
 	var prng utils.PRNG
 	if prng, err = utils.NewKeyedPRNG(key); err != nil {
 		return UniformSampler{}, nil
 	}
 
+	uniSampler.beta = params.Beta()
 	uniSampler.uniformSamplerQ = ring.NewUniformSampler(prng, params.RingQ())
 	uniSampler.uniformSamplerP = ring.NewUniformSampler(prng, params.RingP())
 
 	return
+}
+
+// ReadForCPKNew samples new random polynomials for the CPK protocol.
+func (uniSampler *UniformSampler) ReadForCPKNew() [2]*ring.Poly {
+	return uniSampler.ReadQPNew()
+}
+
+// ReadForPCKSNew samples a new random polynmial for the PCKS protocol.
+func (uniSampler *UniformSampler) ReadForPCKSNew() *ring.Poly {
+	return uniSampler.ReadQNew()
+}
+
+// ReadForCKSNew samples a new random polynmial for the CKS protocol.
+func (uniSampler *UniformSampler) ReadForCKSNew() *ring.Poly {
+	return uniSampler.ReadQNew()
+}
+
+// ReadForRKGNew samples new random polynomials for the RKG protocol.
+func (uniSampler *UniformSampler) ReadForRKGNew() [][2]*ring.Poly {
+	return uniSampler.ReadQPVectorNew(uniSampler.beta)
+}
+
+// ReadForRTGNew samples new random polynomials for the RTG protocol.
+func (uniSampler *UniformSampler) ReadForRTGNew() [][2]*ring.Poly {
+	return uniSampler.ReadQPVectorNew(uniSampler.beta)
+}
+
+// ReadForRefreshNew samples new random polynomials for the Refresh protocol.
+func (uniSampler *UniformSampler) ReadForRefreshNew(level int) *ring.Poly {
+	return uniSampler.ReadLvlQNew(level)
 }
 
 // ReadQP samples a pair of random polynomials on crp.
@@ -31,7 +64,7 @@ func (uniSampler *UniformSampler) ReadQP(crp [2]*ring.Poly) {
 	uniSampler.uniformSamplerP.Read(crp[1])
 }
 
-// ReadNew samples a new random polynomial in modulus Q.
+// ReadQNew samples a new random polynomial in modulus Q.
 func (uniSampler *UniformSampler) ReadQNew() *ring.Poly {
 	return uniSampler.uniformSamplerQ.ReadNew()
 }

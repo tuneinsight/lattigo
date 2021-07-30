@@ -279,23 +279,24 @@ func benchExtendBasis(testContext *testParams, b *testing.B) {
 	p0 := testContext.uniformSamplerQ.ReadNew()
 	p1 := testContext.uniformSamplerP.ReadNew()
 
-	level := len(testContext.ringQ.Modulus) - 1
+	levelQ := len(testContext.ringQ.Modulus) - 1
+	levelP := len(testContext.ringP.Modulus) - 1
 
 	b.Run(fmt.Sprintf("ExtendBasis/ModUp/N=%d/limbsQ=%d/limbsP=%d", testContext.ringQ.N, len(testContext.ringQ.Modulus), len(testContext.ringP.Modulus)), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			basisExtender.ModUpSplitQP(level, p0, p1)
+			basisExtender.ModUpQtoP(levelQ, levelP, p0, p1)
 		}
 	})
 
 	b.Run(fmt.Sprintf("ExtendBasis/ModDown/N=%d/limbsQ=%d/limbsP=%d", testContext.ringQ.N, len(testContext.ringQ.Modulus), len(testContext.ringP.Modulus)), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			basisExtender.ModDownSplitPQ(level, p0, p1, p0)
+			basisExtender.ModDownQPtoQ(levelQ, levelP, p0, p1, p0)
 		}
 	})
 
 	b.Run(fmt.Sprintf("ExtendBasis/ModDownNTT/N=%d/limbsQ=%d/limbsP=%d", testContext.ringQ.N, len(testContext.ringQ.Modulus), len(testContext.ringP.Modulus)), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			basisExtender.ModDownSplitNTTPQ(level, p0, p1, p0)
+			basisExtender.ModDownQPtoQNTT(levelQ, levelP, p0, p1, p0)
 		}
 	})
 }

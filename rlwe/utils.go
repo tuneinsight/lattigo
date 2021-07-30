@@ -4,7 +4,7 @@ import (
 	"github.com/ldsec/lattigo/v2/ring"
 )
 
-func extendBasisSmallNormAndCenter(ringQ, ringP *ring.Ring, polQ, polP *ring.Poly) {
+func extendBasisSmallNormAndCenter(ringQ, ringP *ring.Ring, levelP int, polQ, polP *ring.Poly) {
 	var coeff, Q, QHalf, sign uint64
 	Q = ringQ.Modulus[0]
 	QHalf = Q >> 1
@@ -19,7 +19,7 @@ func extendBasisSmallNormAndCenter(ringQ, ringP *ring.Ring, polQ, polP *ring.Pol
 			sign = 0
 		}
 
-		for i, pi := range ringP.Modulus {
+		for i, pi := range ringP.Modulus[:levelP+1] {
 			polP.Coeffs[i][j] = (coeff * sign) | (pi-coeff)*(sign^1)
 		}
 	}

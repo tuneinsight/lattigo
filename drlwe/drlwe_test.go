@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
-	"github.com/ldsec/lattigo/v2/utils"
 	"github.com/stretchr/testify/require"
 	"math"
 	"math/big"
@@ -34,12 +33,11 @@ type testContext struct {
 	params                 rlwe.Parameters
 	kgen                   rlwe.KeyGenerator
 	sk0, sk1, sk2, skIdeal *rlwe.SecretKey
-	crpGeneratorQ          *ring.UniformSampler
-	crpGeneratorP          *ring.UniformSampler
+	crpGenerator           UniformSampler
 }
 
 func newTestContext(params rlwe.Parameters) testContext {
-	var err error
+
 	kgen := rlwe.NewKeyGenerator(params)
 	sk0 := kgen.GenSecretKey()
 	sk1 := kgen.GenSecretKey()
@@ -50,14 +48,9 @@ func newTestContext(params rlwe.Parameters) testContext {
 	params.RingQ().Add(skIdeal.Value[0], sk2.Value[0], skIdeal.Value[0])
 	params.RingP().Add(skIdeal.Value[1], sk2.Value[1], skIdeal.Value[1])
 
-	var prng utils.PRNG
-	if prng, err = utils.NewPRNG(); err != nil {
-		panic(err)
-	}
-	crpGeneratorQ := ring.NewUniformSampler(prng, params.RingQ())
-	crpGeneratorP := ring.NewUniformSampler(prng, params.RingP())
+	crpGenerator, _ := NewUniformSampler([]byte{}, params)
 
-	return testContext{params, kgen, sk0, sk1, sk2, skIdeal, crpGeneratorQ, crpGeneratorP}
+	return testContext{params, kgen, sk0, sk1, sk2, skIdeal, crpGenerator}
 }
 
 func TestDRLWE(t *testing.T) {
@@ -108,10 +101,7 @@ func testPublicKeyGen(testCtx testContext, t *testing.T) {
 		share1 := CKGProtocol.AllocateShares()
 		share2 := CKGProtocol.AllocateShares()
 
-		crpQ := testCtx.crpGeneratorQ.ReadNew()
-		crpP := testCtx.crpGeneratorP.ReadNew()
-
-		crp := [2]*ring.Poly{crpQ, crpP}
+		crp := testCtx.crpGenerator.ReadQPNew()
 
 		CKGProtocol.GenShare(testCtx.sk0, crp, share0)
 		CKGProtocol.GenShare(testCtx.sk1, crp, share1)
@@ -149,7 +139,7 @@ func testKeySwitching(testCtx testContext, t *testing.T) {
 		params.RingQ().Add(skOutIdeal, sk1Out.Value[0], skOutIdeal)
 		params.RingQ().Add(skOutIdeal, sk2Out.Value[0], skOutIdeal)
 
-		ciphertext := &rlwe.Ciphertext{Value: []*ring.Poly{ringQ.NewPoly(), testCtx.crpGeneratorQ.ReadNew()}}
+		ciphertext := &rlwe.Ciphertext{Value: []*ring.Poly{ringQ.NewPoly(), testCtx.crpGenerator.ReadQNew()}}
 		ringQ.MulCoeffsMontgomeryAndSub(ciphertext.Value[1], testCtx.skIdeal.Value[0], ciphertext.Value[0])
 		ciphertext.Value[0].IsNTT = true
 		ciphertext.Value[1].IsNTT = true
@@ -189,7 +179,7 @@ func testPublicKeySwitching(testCtx testContext, t *testing.T) {
 
 		skOut, pkOut := testCtx.kgen.GenKeyPair()
 
-		ciphertext := &rlwe.Ciphertext{Value: []*ring.Poly{ringQ.NewPoly(), testCtx.crpGeneratorQ.ReadNew()}}
+		ciphertext := &rlwe.Ciphertext{Value: []*ring.Poly{ringQ.NewPoly(), testCtx.crpGenerator.ReadQNew()}}
 		ringQ.MulCoeffsMontgomeryAndSub(ciphertext.Value[1], testCtx.skIdeal.Value[0], ciphertext.Value[0])
 		ciphertext.Value[0].IsNTT = true
 		ciphertext.Value[1].IsNTT = true
@@ -233,11 +223,7 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 		ephSk1, share11, share21 := RKGProtocol.AllocateShares()
 		ephSk2, share12, share22 := RKGProtocol.AllocateShares()
 
-		crp := make([][2]*ring.Poly, params.Beta())
-		for i := 0; i < params.Beta(); i++ {
-			crp[i][0] = testCtx.crpGeneratorQ.ReadNew()
-			crp[i][1] = testCtx.crpGeneratorP.ReadNew()
-		}
+		crp := testCtx.crpGenerator.ReadQPVectorNew(params.Beta())
 
 		RKGProtocol.GenShareRoundOne(testCtx.sk0, crp, ephSk0, share10)
 		RKGProtocol.GenShareRoundOne(testCtx.sk1, crp, ephSk1, share11)
@@ -311,11 +297,7 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 
 	t.Run(testString(params, "RotKeyGen/"), func(t *testing.T) {
 
-		crp := make([][2]*ring.Poly, params.Beta())
-		for i := 0; i < params.Beta(); i++ {
-			crp[i][0] = testCtx.crpGeneratorQ.ReadNew()
-			crp[i][1] = testCtx.crpGeneratorP.ReadNew()
-		}
+		crp := testCtx.crpGenerator.ReadQPVectorNew(params.Beta())
 
 		RTGProtocol := NewRTGProtocol(params)
 
@@ -385,10 +367,10 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 
 func testMarshalling(testCtx testContext, t *testing.T) {
 
-	crs := [2]*ring.Poly{testCtx.crpGeneratorQ.ReadNew(), testCtx.crpGeneratorP.ReadNew()}
+	crs := testCtx.crpGenerator.ReadQPNew()
 	params := testCtx.params
 
-	ciphertext := &rlwe.Ciphertext{Value: []*ring.Poly{testCtx.crpGeneratorQ.ReadNew(), testCtx.crpGeneratorQ.ReadNew()}}
+	ciphertext := &rlwe.Ciphertext{Value: []*ring.Poly{testCtx.crpGenerator.ReadQNew(), testCtx.crpGenerator.ReadQNew()}}
 
 	t.Run(testString(params, "Marshalling/CPK/"), func(t *testing.T) {
 		keygenProtocol := NewCKGProtocol(testCtx.params)
@@ -470,11 +452,7 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 
 		ephSk0, share10, _ := RKGProtocol.AllocateShares()
 
-		crp := make([][2]*ring.Poly, params.Beta())
-		for i := 0; i < params.Beta(); i++ {
-			crp[i][0] = testCtx.crpGeneratorQ.ReadNew()
-			crp[i][1] = testCtx.crpGeneratorP.ReadNew()
-		}
+		crp := testCtx.crpGenerator.ReadQPVectorNew(params.Beta())
 
 		RKGProtocol.GenShareRoundOne(testCtx.sk0, crp, ephSk0, share10)
 
@@ -504,11 +482,7 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 
 		//check RTGShare
 
-		crp := make([][2]*ring.Poly, params.Beta())
-		for i := 0; i < params.Beta(); i++ {
-			crp[i][0] = testCtx.crpGeneratorQ.ReadNew()
-			crp[i][1] = testCtx.crpGeneratorP.ReadNew()
-		}
+		crp := testCtx.crpGenerator.ReadQPVectorNew(params.Beta())
 
 		galEl := testCtx.params.GaloisElementForColumnRotationBy(64)
 

@@ -60,7 +60,7 @@ func TestRing(t *testing.T) {
 	}
 
 	testNewRing(t)
-	for _, defaultParam := range defaultParams {
+	for _, defaultParam := range defaultParams[:2] {
 
 		var testContext *testParams
 		if testContext, err = genTestParams(defaultParam); err != nil {
@@ -558,29 +558,86 @@ func testMulScalarBigint(testContext *testParams, t *testing.T) {
 
 func testExtendBasis(testContext *testParams, t *testing.T) {
 
-	t.Run(testString("ExtendBasis/", testContext.ringQ), func(t *testing.T) {
+	t.Run(testString("ModUp/", testContext.ringQ), func(t *testing.T) {
 
 		basisextender := NewFastBasisExtender(testContext.ringQ, testContext.ringP)
 
+		levelQ := len(testContext.ringQ.Modulus) - 2
+		levelP := len(testContext.ringQ.Modulus) - 2
+
+		Q := NewUint(testContext.ringQ.Modulus[0])
+		for i := 1; i < levelQ+1; i++ {
+			Q.Mul(Q, NewUint(testContext.ringQ.Modulus[i]))
+		}
+
 		coeffs := make([]*big.Int, testContext.ringQ.N)
 		for i := 0; i < testContext.ringQ.N; i++ {
-			coeffs[i] = RandInt(testContext.ringQ.ModulusBigint)
+			coeffs[i] = RandInt(Q)
 		}
 
-		Pol := testContext.ringQ.NewPoly()
-		PolTest := testContext.ringP.NewPoly()
-		PolWant := testContext.ringP.NewPoly()
+		PolQHave := testContext.ringQ.NewPolyLvl(levelQ)
+		PolPTest := testContext.ringP.NewPolyLvl(levelP)
+		PolPWant := testContext.ringP.NewPolyLvl(levelP)
 
-		testContext.ringQ.SetCoefficientsBigint(coeffs, Pol)
-		testContext.ringP.SetCoefficientsBigint(coeffs, PolWant)
+		testContext.ringQ.SetCoefficientsBigintLvl(levelQ, coeffs, PolQHave)
+		testContext.ringP.SetCoefficientsBigintLvl(levelP, coeffs, PolPWant)
 
-		basisextender.ModUpSplitQP(len(testContext.ringQ.Modulus)-1, Pol, PolTest)
+		basisextender.ModUpQtoP(levelQ, levelP, PolQHave, PolPTest)
+		testContext.ringP.Reduce(PolPTest, PolPTest)
 
-		testContext.ringP.Reduce(PolTest, PolTest)
-
-		for i := range testContext.ringP.Modulus {
-			require.Equal(t, PolTest.Coeffs[i][:testContext.ringQ.N], PolWant.Coeffs[i][:testContext.ringQ.N])
+		for i := range testContext.ringP.Modulus[:levelP+1] {
+			require.Equal(t, PolPTest.Coeffs[i][:testContext.ringQ.N], PolPWant.Coeffs[i][:testContext.ringQ.N])
 		}
+	})
+
+	t.Run(testString("ModDown/", testContext.ringQ), func(t *testing.T) {
+
+		basisextender := NewFastBasisExtender(testContext.ringQ, testContext.ringP)
+
+		levelQ := len(testContext.ringQ.Modulus) - 2
+		levelP := len(testContext.ringP.Modulus) - 2
+
+		Q := NewUint(1)
+		P := NewUint(1)
+		QP := NewUint(1)
+		for i := range testContext.ringQ.Modulus[:levelQ+1] {
+			Q.Mul(Q, NewUint(testContext.ringQ.Modulus[i]))
+		}
+
+		for i := range testContext.ringP.Modulus[:levelP+1] {
+			P.Mul(P, NewUint(testContext.ringP.Modulus[i]))
+		}
+
+		QP.Mul(QP, Q)
+		QP.Mul(QP, P)
+
+		coeffs := make([]*big.Int, testContext.ringQ.N)
+		for i := 0; i < testContext.ringQ.N; i++ {
+			coeffs[i] = RandInt(QP)
+			coeffs[i].Quo(coeffs[i], NewUint(10))
+		}
+
+		coeffsWant := make([]*big.Int, testContext.ringQ.N)
+		for i := range coeffs {
+			coeffsWant[i] = new(big.Int).Set(coeffs[i])
+			coeffsWant[i].Quo(coeffsWant[i], P)
+		}
+
+		PolQHave := testContext.ringQ.NewPolyLvl(levelQ)
+		PolPHave := testContext.ringP.NewPolyLvl(levelP)
+		PolQWant := testContext.ringP.NewPolyLvl(levelQ)
+
+		testContext.ringQ.SetCoefficientsBigintLvl(levelQ, coeffs, PolQHave)
+		testContext.ringP.SetCoefficientsBigintLvl(levelP, coeffs, PolPHave)
+		testContext.ringQ.SetCoefficientsBigintLvl(levelQ, coeffsWant, PolQWant)
+
+		basisextender.ModDownQPtoQ(levelQ, levelP, PolQHave, PolPHave, PolQHave)
+		testContext.ringQ.Reduce(PolQHave, PolQHave)
+
+		for i := 0; i < levelQ+1; i++ {
+			require.Equal(t, PolQHave.Coeffs[i][:testContext.ringQ.N], PolQWant.Coeffs[i][:testContext.ringQ.N])
+		}
+
 	})
 }
 

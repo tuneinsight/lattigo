@@ -77,7 +77,7 @@ func (keygen *keyGenerator) GenSecretKeyGaussian() (sk *SecretKey) {
 
 	sk.Value[0] = keygen.gaussianSamplerQ.ReadNew()
 	sk.Value[1] = ringP.NewPoly()
-	extendBasisSmallNormAndCenter(ringQ, ringP, sk.Value[0], sk.Value[1])
+	extendBasisSmallNormAndCenter(ringQ, ringP, len(ringP.Modulus)-1, sk.Value[0], sk.Value[1])
 	ringQ.NTT(sk.Value[0], sk.Value[0])
 	ringP.NTT(sk.Value[1], sk.Value[1])
 	ringQ.MForm(sk.Value[0], sk.Value[0])
@@ -100,7 +100,7 @@ func (keygen *keyGenerator) GenSecretKeyWithDistrib(p float64) (sk *SecretKey) {
 	sk = new(SecretKey)
 	sk.Value[0] = ternarySamplerMontgomery.ReadNew()
 	sk.Value[1] = ringP.NewPoly()
-	extendBasisSmallNormAndCenter(ringQ, ringP, sk.Value[0], sk.Value[1])
+	extendBasisSmallNormAndCenter(ringQ, ringP, len(ringP.Modulus)-1, sk.Value[0], sk.Value[1])
 	ringQ.NTT(sk.Value[0], sk.Value[0])
 	ringP.NTT(sk.Value[1], sk.Value[1])
 	ringQ.MForm(sk.Value[0], sk.Value[0])
@@ -123,7 +123,7 @@ func (keygen *keyGenerator) GenSecretKeySparse(hw int) (sk *SecretKey) {
 	sk = new(SecretKey)
 	sk.Value[0] = ternarySamplerMontgomery.ReadNew()
 	sk.Value[1] = ringP.NewPoly()
-	extendBasisSmallNormAndCenter(ringQ, ringP, sk.Value[0], sk.Value[1])
+	extendBasisSmallNormAndCenter(ringQ, ringP, len(ringP.Modulus)-1, sk.Value[0], sk.Value[1])
 	ringQ.NTT(sk.Value[0], sk.Value[0])
 	ringP.NTT(sk.Value[1], sk.Value[1])
 	ringQ.MForm(sk.Value[0], sk.Value[0])
@@ -144,7 +144,7 @@ func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 
 	pk.Value[0][0] = keygen.gaussianSamplerQ.ReadNew()
 	pk.Value[0][1] = ringP.NewPoly()
-	extendBasisSmallNormAndCenter(ringQ, ringP, pk.Value[0][0], pk.Value[0][1])
+	extendBasisSmallNormAndCenter(ringQ, ringP, len(ringP.Modulus)-1, pk.Value[0][0], pk.Value[0][1])
 
 	ringQ.NTT(pk.Value[0][0], pk.Value[0][0])
 	ringP.NTT(pk.Value[0][1], pk.Value[0][1])
@@ -307,7 +307,7 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut [2]*ring.Poly, swk *Swit
 
 		// e
 		keygen.gaussianSamplerQ.Read(swk.Value[i][0][0])
-		extendBasisSmallNormAndCenter(ringQ, ringP, swk.Value[i][0][0], swk.Value[i][0][1])
+		extendBasisSmallNormAndCenter(ringQ, ringP, len(ringP.Modulus)-1, swk.Value[i][0][0], swk.Value[i][0][1])
 		ringQ.NTTLazy(swk.Value[i][0][0], swk.Value[i][0][0])
 		ringP.NTTLazy(swk.Value[i][0][1], swk.Value[i][0][1])
 		ringQ.MForm(swk.Value[i][0][0], swk.Value[i][0][0])

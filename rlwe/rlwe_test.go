@@ -354,7 +354,7 @@ func testKeySwitcher(kgen KeyGenerator, t *testing.T) {
 
 		c2 := ciphertext.Value[1]
 
-		ks.DecomposeNTT(ciphertext.Level(), c2, ks.PoolDecompQ, ks.PoolDecompP)
+		ks.DecomposeNTT(ciphertext.Level(), len(params.RingP().Modulus)-1, c2, ks.PoolDecompQ, ks.PoolDecompP)
 
 		coeffsBigintHave := make([]*big.Int, ringQ.N)
 		coeffsBigintRef := make([]*big.Int, ringQ.N)

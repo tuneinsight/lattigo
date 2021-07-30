@@ -26,7 +26,7 @@ type RNSScaler struct {
 
 	mredParamsT uint64
 
-	paramsQP *modupParams
+	paramsQP modupParams
 }
 
 // NewRNSScaler creates a new SimpleScaler from t, the modulus under which the reconstruction is returned, the Ring in which the polynomial to reconstruct is represented.

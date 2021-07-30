@@ -39,8 +39,6 @@ type testContext struct {
 	ringQ *ring.Ring
 	ringP *ring.Ring
 
-	prng utils.PRNG
-
 	encoder   ckks.Encoder
 	evaluator ckks.Evaluator
 
@@ -56,6 +54,8 @@ type testContext struct {
 
 	sk0Shards []*rlwe.SecretKey
 	sk1Shards []*rlwe.SecretKey
+
+	crpGenerator drlwe.UniformSampler
 }
 
 func TestDCKKS(t *testing.T) {
@@ -108,9 +108,7 @@ func genTestParams(defaultParams ckks.Parameters) (testCtx *testContext, err err
 
 	testCtx.ringP = defaultParams.RingP()
 
-	if testCtx.prng, err = utils.NewPRNG(); err != nil {
-		return nil, err
-	}
+	testCtx.crpGenerator, _ = drlwe.NewUniformSampler([]byte{}, defaultParams.Parameters)
 
 	testCtx.encoder = ckks.NewEncoder(testCtx.params)
 	testCtx.evaluator = ckks.NewEvaluator(testCtx.params, rlwe.EvaluationKey{})
@@ -151,10 +149,7 @@ func testPublicKeyGen(testCtx *testContext, t *testing.T) {
 
 	t.Run(testString("PublicKeyGen/", parties, params), func(t *testing.T) {
 
-		crpGeneratorQ := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
-		crpGeneratorP := ring.NewUniformSampler(testCtx.prng, testCtx.ringP)
-
-		crp := [2]*ring.Poly{crpGeneratorQ.ReadNew(), crpGeneratorP.ReadNew()}
+		crp := testCtx.crpGenerator.ReadQPNew()
 
 		type Party struct {
 			*CKGProtocol
@@ -227,15 +222,7 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 		// Checks that ckks.RKGProtocol complies to the drlwe.RelinearizationKeyGenerator interface
 		var _ drlwe.RelinearizationKeyGenerator = P0.RKGProtocol
 
-		crpGeneratorQ := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
-		crpGeneratorP := ring.NewUniformSampler(testCtx.prng, testCtx.ringP)
-
-		crp := make([][2]*ring.Poly, testCtx.params.Beta())
-
-		for i := 0; i < testCtx.params.Beta(); i++ {
-			crp[i][0] = crpGeneratorQ.ReadNew()
-			crp[i][1] = crpGeneratorP.ReadNew()
-		}
+		crp := testCtx.crpGenerator.ReadQPVectorNew(params.Beta())
 
 		// ROUND 1
 		for i, p := range rkgParties {
@@ -418,15 +405,7 @@ func testRotKeyGenConjugate(testCtx *testContext, t *testing.T) {
 		// checks that ckks.RTGProtocol complies to the drlwe.RotationKeyGenerator interface
 		var _ drlwe.RotationKeyGenerator = P0.RTGProtocol
 
-		crpGeneratorQ := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
-		crpGeneratorP := ring.NewUniformSampler(testCtx.prng, testCtx.ringP)
-
-		crp := make([][2]*ring.Poly, testCtx.params.Beta())
-
-		for i := 0; i < testCtx.params.Beta(); i++ {
-			crp[i][0] = crpGeneratorQ.ReadNew()
-			crp[i][1] = crpGeneratorP.ReadNew()
-		}
+		crp := testCtx.crpGenerator.ReadQPVectorNew(params.Beta())
 
 		galEl := params.GaloisElementForRowRotation()
 		rotKeySet := ckks.NewRotationKeySet(params, []uint64{galEl})
@@ -482,15 +461,7 @@ func testRotKeyGenCols(testCtx *testContext, t *testing.T) {
 
 		P0 := pcksParties[0]
 
-		crpGeneratorQ := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
-		crpGeneratorP := ring.NewUniformSampler(testCtx.prng, testCtx.ringP)
-
-		crp := make([][2]*ring.Poly, testCtx.params.Beta())
-
-		for i := 0; i < testCtx.params.Beta(); i++ {
-			crp[i][0] = crpGeneratorQ.ReadNew()
-			crp[i][1] = crpGeneratorP.ReadNew()
-		}
+		crp := testCtx.crpGenerator.ReadQPVectorNew(params.Beta())
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, -1, 1, t)
 
@@ -590,8 +561,7 @@ func testE2SProtocol(testCtx *testContext, t *testing.T) {
 
 		verifyTestVectors(testCtx, nil, coeffs, pt, t)
 
-		crs := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
-		c1 := crs.ReadLvlNew(params.Parameters.MaxLevel())
+		c1 := testCtx.crpGenerator.ReadQNew()
 
 		for i, p := range P {
 
@@ -650,8 +620,7 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 
 		P0 := RefreshParties[0]
 
-		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
-		crp := crpGenerator.ReadLvlNew(levelMax)
+		crp := testCtx.crpGenerator.ReadQNew()
 
 		for i, p := range RefreshParties {
 			p.GenShares(p.s, logBound, params.LogSlots(), ciphertext, crp, p.share)
@@ -706,8 +675,7 @@ func testRefreshAndTransform(testCtx *testContext, t *testing.T) {
 
 		P0 := RefreshParties[0]
 
-		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
-		crp := crpGenerator.ReadLvlNew(levelMax)
+		crp := testCtx.crpGenerator.ReadQNew()
 
 		permute := func(ptIn, ptOut []*ring.Complex) {
 			for i := range ptIn {
@@ -734,7 +702,6 @@ func testRefreshAndTransform(testCtx *testContext, t *testing.T) {
 }
 
 func testMarshalling(testCtx *testContext, t *testing.T) {
-	crsGen := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
 	params := testCtx.params
 
 	t.Run(testString("Marshalling/Refresh/", parties, params), func(t *testing.T) {
@@ -745,9 +712,9 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 			t.Skip("Not enough levels to ensure correcness and 128 security")
 		}
 
-		ciphertext := ckks.NewCiphertextRandom(testCtx.prng, testCtx.params, 1, minLevel, testCtx.params.Scale())
+		ciphertext := &ckks.Ciphertext{Ciphertext: &rlwe.Ciphertext{Value: []*ring.Poly{testCtx.crpGenerator.ReadLvlQNew(minLevel), testCtx.crpGenerator.ReadLvlQNew(minLevel)}}, Scale: params.Scale()}
 
-		crsLevel := crsGen.ReadLvlNew(minLevel)
+		crsLevel := testCtx.crpGenerator.ReadLvlQNew(minLevel)
 
 		//testing refresh shares
 		refreshproto := NewRefreshProtocol(testCtx.params, logBound, 3.2)

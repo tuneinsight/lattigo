@@ -293,8 +293,8 @@ func (p *Parameters) QiOverflowMargin(level int) int {
 
 // PiOverflowMargin returns floor(2^64 / max(Pi)), i.e. the number of times elements of Z_max{Pi} can
 // be added together before overflowing 2^64.
-func (p *Parameters) PiOverflowMargin() int {
-	return int(math.Exp2(64) / float64(utils.MaxSliceUint64(p.pi)))
+func (p *Parameters) PiOverflowMargin(level int) int {
+	return int(math.Exp2(64) / float64(utils.MaxSliceUint64(p.pi[:level+1])))
 }
 
 // GaloisElementForColumnRotationBy returns the galois element for plaintext

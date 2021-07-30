@@ -49,10 +49,7 @@ func benchPublicKeyGen(testCtx *testContext, b *testing.B) {
 	sk0Shards := testCtx.sk0Shards
 	params := testCtx.params
 
-	crpGeneratorQ := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
-	crpGeneratorP := ring.NewUniformSampler(testCtx.prng, testCtx.ringP)
-
-	crp := [2]*ring.Poly{crpGeneratorQ.ReadNew(), crpGeneratorP.ReadNew()}
+	crp := testCtx.crpGenerator.ReadQPNew()
 
 	type Party struct {
 		*CKGProtocol
@@ -100,15 +97,7 @@ func benchRelinKeyGen(testCtx *testContext, b *testing.B) {
 	p.sk = sk0Shards[0]
 	p.ephSk, p.share1, p.share2 = p.RKGProtocol.AllocateShares()
 
-	crpGeneratorQ := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
-	crpGeneratorP := ring.NewUniformSampler(testCtx.prng, testCtx.ringP)
-
-	crp := make([][2]*ring.Poly, testCtx.params.Beta())
-
-	for i := 0; i < testCtx.params.Beta(); i++ {
-		crp[i][0] = crpGeneratorQ.ReadNew()
-		crp[i][1] = crpGeneratorP.ReadNew()
-	}
+	crp := testCtx.crpGenerator.ReadQPVectorNew(params.Beta())
 
 	b.Run(testString("RelinKeyGen/Round1Gen/", parties, params), func(b *testing.B) {
 
@@ -146,7 +135,7 @@ func benchKeySwitching(testCtx *testContext, b *testing.B) {
 	sk1Shards := testCtx.sk1Shards
 	params := testCtx.params
 
-	ciphertext := ckks.NewCiphertextRandom(testCtx.prng, params, 1, params.MaxLevel(), params.Scale())
+	ciphertext := &ckks.Ciphertext{Ciphertext: &rlwe.Ciphertext{Value: []*ring.Poly{testCtx.crpGenerator.ReadQNew(), testCtx.crpGenerator.ReadQNew()}}, Scale: params.Scale()}
 
 	type Party struct {
 		*CKSProtocol
@@ -189,7 +178,7 @@ func benchPublicKeySwitching(testCtx *testContext, b *testing.B) {
 	pk1 := testCtx.pk1
 	params := testCtx.params
 
-	ciphertext := ckks.NewCiphertextRandom(testCtx.prng, params, 1, params.MaxLevel(), params.Scale())
+	ciphertext := &ckks.Ciphertext{Ciphertext: &rlwe.Ciphertext{Value: []*ring.Poly{testCtx.crpGenerator.ReadQNew(), testCtx.crpGenerator.ReadQNew()}}, Scale: params.Scale()}
 
 	type Party struct {
 		*PCKSProtocol
@@ -240,15 +229,7 @@ func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 	p.s = sk0Shards[0]
 	p.share = p.AllocateShares()
 
-	crpGeneratorQ := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
-	crpGeneratorP := ring.NewUniformSampler(testCtx.prng, testCtx.ringP)
-
-	crp := make([][2]*ring.Poly, testCtx.params.Beta())
-
-	for i := 0; i < testCtx.params.Beta(); i++ {
-		crp[i][0] = crpGeneratorQ.ReadNew()
-		crp[i][1] = crpGeneratorP.ReadNew()
-	}
+	crp := testCtx.crpGenerator.ReadQPVectorNew(params.Beta())
 
 	galEl := params.GaloisElementForRowRotation()
 	b.Run(testString("RotKeyGen/Round1/Gen/", parties, params), func(b *testing.B) {
@@ -294,10 +275,9 @@ func benchRefresh(testCtx *testContext, b *testing.B) {
 		p.s = sk0Shards[0]
 		p.share = p.AllocateShare(minLevel, params.MaxLevel())
 
-		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
-		crp := crpGenerator.ReadNew()
+		crp := testCtx.crpGenerator.ReadQNew()
 
-		ciphertext := ckks.NewCiphertextRandom(testCtx.prng, params, 1, minLevel, params.Scale())
+		ciphertext := &ckks.Ciphertext{Ciphertext: &rlwe.Ciphertext{Value: []*ring.Poly{testCtx.crpGenerator.ReadLvlQNew(minLevel), testCtx.crpGenerator.ReadLvlQNew(minLevel)}}, Scale: params.Scale()}
 
 		b.Run(testString("Refresh/Round1/Gen", parties, params), func(b *testing.B) {
 
@@ -341,15 +321,14 @@ func benchMaskedTransform(testCtx *testContext, b *testing.B) {
 			share *MaskedTransformShare
 		}
 
-		ciphertext := ckks.NewCiphertextRandom(testCtx.prng, params, 1, minLevel, params.Scale())
+		ciphertext := &ckks.Ciphertext{Ciphertext: &rlwe.Ciphertext{Value: []*ring.Poly{testCtx.crpGenerator.ReadLvlQNew(minLevel), testCtx.crpGenerator.ReadLvlQNew(minLevel)}}, Scale: params.Scale()}
 
 		p := new(Party)
 		p.MaskedTransformProtocol = NewMaskedTransformProtocol(params, logBound, 3.2)
 		p.s = sk0Shards[0]
 		p.share = p.AllocateShare(ciphertext.Level(), params.MaxLevel())
 
-		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
-		crp := crpGenerator.ReadNew()
+		crp := testCtx.crpGenerator.ReadQNew()
 
 		permute := func(ptIn, ptOut []*ring.Complex) {
 			for i := range ptIn {

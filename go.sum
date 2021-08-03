@@ -7,6 +7,8 @@ github.com/hhcho/frand v1.3.1-0.20210217213629-f1c60c334950 h1:OGtZDKQo/R6jZMBih
 github.com/hhcho/frand v1.3.1-0.20210217213629-f1c60c334950/go.mod h1:V3aO22B2WDj5D+lVSyUoEwKfpblPEMnRjFbl+XToPh8=
 github.com/hhcho/mpc-core v0.0.0-20210501210501-834a57a35951 h1:uriZRjTpSJ9QdSQC5Wcl33kfjZhOakJ0F9xt2nDy0pw=
 github.com/hhcho/mpc-core v0.0.0-20210501210501-834a57a35951/go.mod h1:xYHXHkco7PBoOQDV4/atGuqkxopGWd7dBdX5cEoD/6k=
+github.com/hhcho/mpc-core v0.0.0-20210527211839-87c954bf6638 h1:mN7ZeurvofH2GioW3F9Y4zlutwvThp6RycXFYmywzz4=
+github.com/hhcho/mpc-core v0.0.0-20210527211839-87c954bf6638/go.mod h1:xYHXHkco7PBoOQDV4/atGuqkxopGWd7dBdX5cEoD/6k=
 github.com/kr/pretty v0.1.0 h1:L/CwN0zerZDmRFUapSPitk6f+Q3+0za1rQkzVuMiMFI=
 github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORNo=
 github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=

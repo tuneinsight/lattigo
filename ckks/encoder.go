@@ -695,7 +695,7 @@ func (encoder *encoderComplex128) decodeCoeffsPublic(plaintext *Plaintext, sigma
 }
 
 func (encoder *encoderComplex128) EncodeRVecNew(values mpc_core.RVec, slots uint64, fracBits int) (plaintext *Plaintext) {
-	if uint64(len(values)) > uint64(encoder.params.Slots()) || uint64(len(values)) > slots {
+	if len(values) > encoder.params.Slots() || uint64(len(values)) > slots {
 		panic("cannot EncodeRVecNew: too many values for the given number of slots")
 	}
 
@@ -725,14 +725,11 @@ func (encoder *encoderComplex128) EncodeRVecNew(values mpc_core.RVec, slots uint
 
 	plaintext = NewPlaintext(encoder.params, encoder.params.MaxLevel(), encoder.params.Scale())
 
-
-
-
 	slice := make([]bigComplex, len(encoder.values))
 	zeroFloat := big.NewFloat(0)
 	for i := range slice {
 		if uint64(i) < slots {
-			slice[i] = bigComplex{ToSignedBigFloat(values[i].(mpc_core.LElem128), fracBits), big.NewFloat(0)}
+			slice[i] = bigComplex{values[i].(mpc_core.LElem128).ToSignedBigFloat(fracBits), big.NewFloat(0)}
 		} else {
 			slice[i] = bigComplex{zeroFloat, zeroFloat}
 		}
@@ -742,17 +739,17 @@ func (encoder *encoderComplex128) EncodeRVecNew(values mpc_core.RVec, slots uint
 
 	gap := uint64(encoder.params.Slots()) / slots
 
-	floatSlice := make([]*big.Float, len(encoder.values))
+	floatSlice := make([]*big.Float, len(encoder.valuesfloat))
 	for i := range floatSlice {
 		floatSlice[i] = zeroFloat
 	}
 
-	for i, jdx, idx := uint64(0), encoder.params.Slots(), uint64(0); i < slots; i, jdx, idx = i+1, jdx+int(gap), idx+gap {
+	for i, jdx, idx := uint64(0), uint64(encoder.params.Slots()), uint64(0); i < slots; i, jdx, idx = i+1, jdx+gap, idx+gap {
 		floatSlice[idx] = slice[i].real
 		floatSlice[jdx] = slice[i].imag
 	}
 
-	moduli := encoder.params.Qi()[:plaintext.Level()+1]
+	moduli := encoder.ringQ.Modulus[:plaintext.Level()+1]
 	xInt := new(big.Int)
 	xFlo := new(big.Float)
 	scaleBig := big.NewFloat(plaintext.scale)
@@ -766,7 +763,6 @@ func (encoder *encoderComplex128) EncodeRVecNew(values mpc_core.RVec, slots uint
 			plaintext.value.Coeffs[j][i] = tmp.Uint64()
 		}
 	}
-
 
 	encoder.ringQ.NTTLvl(plaintext.Level(), plaintext.value, plaintext.value)
 	return
@@ -861,6 +857,7 @@ func (encoder *encoderComplex128) invfftlazyBig(values []bigComplex, N uint64) {
 			}
 		}
 	}
+
 	sliceBitReverseInPlaceBigComplex(values, N)
 }
 
@@ -1261,19 +1258,19 @@ func cosBig(x *big.Float) *big.Float {
 	return out
 }
 
-func ToSignedBigInt(a mpc_core.LElem128) *big.Int {
+/*func ToSignedBigInt(a mpc_core.LElem128) *big.Int {
 	tmp := a.ToBigInt()
 	half := new(big.Int).Rsh(mpc_core.LElem128ModBig, 1)
 	if tmp.Cmp(half) >= 0 {
 		tmp.Sub(tmp, mpc_core.LElem128ModBig)
 	}
 	return tmp
-}
-func ToSignedBigFloat(a mpc_core.LElem128, fracBits int) *big.Float {
+}*/
+/*func ToSignedBigFloat(a mpc_core.LElem128, fracBits int) *big.Float {
 	out := new(big.Float).SetInt(ToSignedBigInt(a))
 	out.Mul(out, new(big.Float).SetMantExp(big.NewFloat(1), -fracBits))
 	return out
-}
+}*/
 
 func (bc bigComplex) copy() (out bigComplex) {
 	out.imag = new(big.Float)

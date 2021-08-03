@@ -53,7 +53,7 @@ func genModDownParams(ringQ, ringP *Ring) (params [][]uint64) {
 			params[j][i] = ModExp(ringP.Modulus[j], int(qi-2), qi)
 			params[j][i] = MForm(params[j][i], qi, bredParams[i])
 
-			if j > 0{
+			if j > 0 {
 				params[j][i] = MRed(params[j][i], params[j-1][i], qi, mredParams[i])
 			}
 		}

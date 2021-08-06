@@ -141,7 +141,7 @@ func main() {
 
 	shamir_keys := make([]*drlwe.ThreshPublicKey, N)
 	for i := range shamir_keys {
-		shamir_keys[i] = &drlwe.ThreshPublicKey{crsGen.ReadNew()}
+		shamir_keys[i] = &drlwe.ThreshPublicKey{Poly: crsGen.ReadNew()}
 	}
 	//shamir_keys[1].Coeffs[0][0] = shamir_keys[0].Coeffs[0][0]
 
@@ -206,7 +206,7 @@ func thresholdGenShares(params bfv.Parameters, ringQP *ring.Ring, P []*party, cr
 	//Array of all party IDs
 	ids := make([]drlwe.PartyID, len(P))
 	for i := 0; i < len(P); i++ {
-		pid := drlwe.PartyID{fmt.Sprintf("Party %d", i)}
+		pid := drlwe.PartyID{String: fmt.Sprintf("Party %d", i)}
 		ids[i] = pid
 		P[i].id = ids[i]
 	}

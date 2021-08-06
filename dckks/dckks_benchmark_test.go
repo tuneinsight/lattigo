@@ -2,6 +2,7 @@ package dckks
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/ldsec/lattigo/v2/ckks"
@@ -22,6 +23,8 @@ func BenchmarkDCKKS(b *testing.B) {
 		defaultParams = []ckks.ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
+	parties := 3
+
 	for _, p := range defaultParams {
 
 		params, err := ckks.NewParametersFromLiteral(p)
@@ -30,17 +33,30 @@ func BenchmarkDCKKS(b *testing.B) {
 		}
 
 		var testCtx *testContext
-		if testCtx, err = genTestParams(params); err != nil {
+		if testCtx, err = genTestParams(params, parties); err != nil {
 			panic(err)
 		}
 
-		benchPublicKeyGen(testCtx, b)
-		benchRelinKeyGen(testCtx, b)
-		benchKeySwitching(testCtx, b)
-		benchPublicKeySwitching(testCtx, b)
-		benchRotKeyGen(testCtx, b)
-		benchRefresh(testCtx, b)
-		benchMaskedTransform(testCtx, b)
+		// benchPublicKeyGen(testCtx, b)
+		// benchRelinKeyGen(testCtx, b)
+		// benchKeySwitching(testCtx, b)
+		// benchPublicKeySwitching(testCtx, b)
+		// benchRotKeyGen(testCtx, b)
+		// benchRefresh(testCtx, b)
+		// benchMaskedTransform(testCtx, b)
+
+		// Varying N
+		for N := 3; N < 6; N++ {
+			t := N / 2
+			benchThreshold(testCtx.params, N, t, b)
+		}
+
+		// Varying t
+		N := 6
+		for t := 2; t < N; t++ {
+			benchThreshold(testCtx.params, N, t, b)
+
+		}
 	}
 }
 
@@ -63,7 +79,7 @@ func benchPublicKeyGen(testCtx *testContext, b *testing.B) {
 	p.s = sk0Shards[0]
 	p.s1 = p.AllocateShares()
 
-	b.Run(testString("PublicKeyGen/Gen/", parties, params), func(b *testing.B) {
+	b.Run(testString("PublicKeyGen/Gen/", testCtx.NParties, params), func(b *testing.B) {
 
 		// Each party creates a new CKGProtocol instance
 		for i := 0; i < b.N; i++ {
@@ -71,7 +87,7 @@ func benchPublicKeyGen(testCtx *testContext, b *testing.B) {
 		}
 	})
 
-	b.Run(testString("PublicKeyGen/Agg/", parties, params), func(b *testing.B) {
+	b.Run(testString("PublicKeyGen/Agg/", testCtx.NParties, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			p.AggregateShares(p.s1, p.s1, p.s1)
@@ -105,28 +121,28 @@ func benchRelinKeyGen(testCtx *testContext, b *testing.B) {
 		crp[i] = crpGenerator.ReadNew()
 	}
 
-	b.Run(testString("RelinKeyGen/Round1Gen/", parties, params), func(b *testing.B) {
+	b.Run(testString("RelinKeyGen/Round1Gen/", testCtx.NParties, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			p.GenShareRoundOne(p.sk, crp, p.ephSk, p.share1)
 		}
 	})
 
-	b.Run(testString("RelinKeyGen/Round1Agg/", parties, params), func(b *testing.B) {
+	b.Run(testString("RelinKeyGen/Round1Agg/", testCtx.NParties, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			p.AggregateShares(p.share1, p.share1, p.share1)
 		}
 	})
 
-	b.Run(testString("RelinKeyGen/Round2Gen/", parties, params), func(b *testing.B) {
+	b.Run(testString("RelinKeyGen/Round2Gen/", testCtx.NParties, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			p.GenShareRoundTwo(p.ephSk, p.sk, p.share1, crp, p.share2)
 		}
 	})
 
-	b.Run(testString("RelinKeyGen/Round2Agg/", parties, params), func(b *testing.B) {
+	b.Run(testString("RelinKeyGen/Round2Agg/", testCtx.NParties, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			p.AggregateShares(p.share2, p.share2, p.share2)
@@ -156,21 +172,21 @@ func benchKeySwitching(testCtx *testContext, b *testing.B) {
 	p.s1 = sk1Shards[0]
 	p.share = p.AllocateShare(ciphertext.Level())
 
-	b.Run(testString("KeySwitching/Gen/", parties, params), func(b *testing.B) {
+	b.Run(testString("KeySwitching/Gen/", testCtx.NParties, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			p.GenShare(p.s0, p.s1, ciphertext.Ciphertext, p.share)
 		}
 	})
 
-	b.Run(testString("KeySwitching/Agg/", parties, params), func(b *testing.B) {
+	b.Run(testString("KeySwitching/Agg/", testCtx.NParties, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			p.AggregateShares(p.share, p.share, p.share)
 		}
 	})
 
-	b.Run(testString("KeySwitching/KS/", parties, params), func(b *testing.B) {
+	b.Run(testString("KeySwitching/KS/", testCtx.NParties, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			p.KeySwitch(p.share, ciphertext.Ciphertext, ciphertext.Ciphertext)
@@ -197,21 +213,21 @@ func benchPublicKeySwitching(testCtx *testContext, b *testing.B) {
 	p.s = sk0Shards[0]
 	p.share = p.AllocateShare(ciphertext.Level())
 
-	b.Run(testString("PublicKeySwitching/Gen/", parties, params), func(b *testing.B) {
+	b.Run(testString("PublicKeySwitching/Gen/", testCtx.NParties, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			p.GenShare(p.s, pk1, ciphertext.Ciphertext, p.share)
 		}
 	})
 
-	b.Run(testString("PublicKeySwitching/Agg/", parties, params), func(b *testing.B) {
+	b.Run(testString("PublicKeySwitching/Agg/", testCtx.NParties, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			p.AggregateShares(p.share, p.share, p.share)
 		}
 	})
 
-	b.Run(testString("PublicKeySwitching/KS/", parties, params), func(b *testing.B) {
+	b.Run(testString("PublicKeySwitching/KS/", testCtx.NParties, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			p.KeySwitch(p.share, ciphertext.Ciphertext, ciphertext.Ciphertext)
@@ -243,14 +259,14 @@ func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 		crp[i] = crpGenerator.ReadNew()
 	}
 	galEl := params.GaloisElementForRowRotation()
-	b.Run(testString("RotKeyGen/Round1/Gen/", parties, params), func(b *testing.B) {
+	b.Run(testString("RotKeyGen/Round1/Gen/", testCtx.NParties, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			p.GenShare(p.s, galEl, crp, p.share)
 		}
 	})
 
-	b.Run(testString("RotKeyGen/Round1/Agg/", parties, params), func(b *testing.B) {
+	b.Run(testString("RotKeyGen/Round1/Agg/", testCtx.NParties, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			p.Aggregate(p.share, p.share, p.share)
@@ -258,7 +274,7 @@ func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 	})
 
 	rotKey := ckks.NewSwitchingKey(params)
-	b.Run(testString("RotKeyGen/Finalize/", parties, params), func(b *testing.B) {
+	b.Run(testString("RotKeyGen/Finalize/", testCtx.NParties, params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			p.GenRotationKey(p.share, crp, rotKey)
 		}
@@ -269,7 +285,7 @@ func benchRefresh(testCtx *testContext, b *testing.B) {
 
 	params := testCtx.params
 
-	minLevel, logBound, ok := GetMinimumLevelForBootstrapping(128, params.Scale(), parties, params.Q())
+	minLevel, logBound, ok := GetMinimumLevelForBootstrapping(128, params.Scale(), testCtx.NParties, params.Q())
 
 	if ok {
 
@@ -291,21 +307,21 @@ func benchRefresh(testCtx *testContext, b *testing.B) {
 
 		ciphertext := ckks.NewCiphertextRandom(testCtx.prng, params, 1, minLevel, params.Scale())
 
-		b.Run(testString("Refresh/Round1/Gen", parties, params), func(b *testing.B) {
+		b.Run(testString("Refresh/Round1/Gen", testCtx.NParties, params), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				p.GenShares(p.s, logBound, params.LogSlots(), ciphertext, crp, p.share)
 			}
 		})
 
-		b.Run(testString("Refresh/Round1/Agg", parties, params), func(b *testing.B) {
+		b.Run(testString("Refresh/Round1/Agg", testCtx.NParties, params), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				p.Aggregate(p.share, p.share, p.share)
 			}
 		})
 
-		b.Run(testString("Refresh/Finalize", parties, params), func(b *testing.B) {
+		b.Run(testString("Refresh/Finalize", testCtx.NParties, params), func(b *testing.B) {
 			ctOut := ckks.NewCiphertext(params, 1, params.MaxLevel(), params.Scale())
 			for i := 0; i < b.N; i++ {
 				p.Finalize(ciphertext, params.LogSlots(), crp, p.share, ctOut)
@@ -321,7 +337,7 @@ func benchMaskedTransform(testCtx *testContext, b *testing.B) {
 
 	params := testCtx.params
 
-	minLevel, logBound, ok := GetMinimumLevelForBootstrapping(128, params.Scale(), parties, params.Q())
+	minLevel, logBound, ok := GetMinimumLevelForBootstrapping(128, params.Scale(), testCtx.NParties, params.Q())
 
 	if ok {
 
@@ -350,21 +366,21 @@ func benchMaskedTransform(testCtx *testContext, b *testing.B) {
 			}
 		}
 
-		b.Run(testString("Refresh&Transform/Round1/Gen", parties, params), func(b *testing.B) {
+		b.Run(testString("Refresh&Transform/Round1/Gen", testCtx.NParties, params), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				p.GenShares(p.s, logBound, params.LogSlots(), ciphertext, crp, permute, p.share)
 			}
 		})
 
-		b.Run(testString("Refresh&Transform/Round1/Agg", parties, params), func(b *testing.B) {
+		b.Run(testString("Refresh&Transform/Round1/Agg", testCtx.NParties, params), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				p.Aggregate(p.share, p.share, p.share)
 			}
 		})
 
-		b.Run(testString("Refresh&Transform/Transform", parties, params), func(b *testing.B) {
+		b.Run(testString("Refresh&Transform/Transform", testCtx.NParties, params), func(b *testing.B) {
 			ctOut := ckks.NewCiphertext(params, 1, params.MaxLevel(), params.Scale())
 			for i := 0; i < b.N; i++ {
 				p.Transform(ciphertext, params.LogSlots(), permute, crp, p.share, ctOut)
@@ -374,4 +390,81 @@ func benchMaskedTransform(testCtx *testContext, b *testing.B) {
 	} else {
 		b.Log("bench skipped : not enough level to ensure correctness and 128 bit security")
 	}
+}
+
+func benchThreshold(params ckks.Parameters, NParties, t int, b *testing.B) {
+
+	type Party struct {
+		*Thresholdizer
+		*Combiner
+		*CombinerCache
+		gen *drlwe.ShareGenPoly
+		s   *rlwe.SecretKey
+		tsk *rlwe.SecretKey
+	}
+
+	p := new(Party)
+	p.s = ckks.NewSecretKey(params)
+
+	b.Run(testString("Thresholdizer/Init/", NParties, params)+fmt.Sprintf("threshold=%d", t), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			p.Thresholdizer = NewThresholdizer(params)
+			p.gen = p.Thresholdizer.AllocateShareGenPoly()
+			p.Thresholdizer.InitShareGenPoly(p.gen, p.s, t)
+			p.tsk = ckks.NewSecretKey(params)
+		}
+	})
+
+	//Array of all shamir
+	shamir_keys := make([]*drlwe.ThreshPublicKey, NParties)
+	b.Run(testString("Thresholdizer/KeyGen/", NParties, params), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for j := 0; j < NParties; j++ {
+				shamir_keys[j] = p.Thresholdizer.GenKeyFromID(drlwe.PartyID{String: fmt.Sprintf("An arbitrary ID %d", j)})
+			}
+		}
+	})
+
+	b.Run(testString("Thresholdizer/Share/", NParties, params), func(b *testing.B) {
+
+		for i := 0; i < b.N; i++ {
+			tmp_share := p.Thresholdizer.AllocateSecretShare()
+
+			for j := 0; j < NParties; j++ {
+				p.Thresholdizer.GenShareForParty(p.gen, shamir_keys[j], tmp_share)
+			}
+
+			for k := 0; k < NParties; k++ {
+				p.Thresholdizer.AggregateShares(tmp_share, tmp_share, tmp_share)
+			}
+			p.Thresholdizer.GenThreshSecretKey(tmp_share, p.tsk)
+		}
+	})
+
+	active_shamir_keys := shamir_keys[:t]
+	b.Run(testString("Combiner/Init/", NParties, params)+fmt.Sprintf("threshold=%d", t)+fmt.Sprintf("precomputation=false"), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			p.Combiner = NewCombiner(params, t)
+		}
+	})
+
+	b.Run(testString("Combiner/Init/", NParties, params)+fmt.Sprintf("threshold=%d", t)+fmt.Sprintf("precomputation=true"), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			p.CombinerCache = NewCombinerCache(p.Combiner, active_shamir_keys[0], active_shamir_keys)
+			p.CombinerCache.CacheInverses(active_shamir_keys[0], active_shamir_keys)
+		}
+	})
+	//Nothing is cached (simulates first decryption)
+	b.Run(testString("Combiner/Combine/", NParties, params)+fmt.Sprintf("threshold=%d", t), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			p.CombinerCache.ClearCache()
+			p.Combiner.GenFinalShare(active_shamir_keys, active_shamir_keys[0], p.tsk, p.tsk)
+		}
+	})
+	// Everything is cached (simulates n-th decryption)
+	b.Run(testString("Combiner/CombineCached/", NParties, params)+fmt.Sprintf("threshold=%d", t), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			p.Combiner.GenFinalShare(active_shamir_keys, active_shamir_keys[0], p.tsk, p.tsk)
+		}
+	})
 }

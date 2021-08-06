@@ -10,7 +10,7 @@ import (
 	"github.com/ldsec/lattigo/v2/rlwe"
 )
 
-var t uint64
+var t int
 
 func Benchmark_DBFV_ThresholdProtocol(b *testing.B) {
 
@@ -68,7 +68,7 @@ func benchThreshold(testCtx *testContext, b *testing.B) {
 	shamir_keys := make([]*drlwe.ThreshPublicKey, parties)
 	b.Run(testString("Thresholdizer/KeyGen/", parties, testCtx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			for j := uint64(0); j < parties; j++ {
+			for j := 0; j < parties; j++ {
 				shamir_keys[j] = p.Thresholdizer.GenKeyFromID(drlwe.PartyID{fmt.Sprintf("An arbitrary ID %d", j)})
 			}
 		}
@@ -79,11 +79,11 @@ func benchThreshold(testCtx *testContext, b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			tmp_share := p.Thresholdizer.AllocateSecretShare()
 
-			for j := uint64(0); j < parties; j++ {
+			for j := 0; j < parties; j++ {
 				p.Thresholdizer.GenShareForParty(p.gen, shamir_keys[j], tmp_share)
 			}
 
-			for k := uint64(0); k < parties; k++ {
+			for k := 0; k < parties; k++ {
 				p.Thresholdizer.AggregateShares(tmp_share, tmp_share, tmp_share)
 			}
 			p.Thresholdizer.GenThreshSecretKey(tmp_share, p.tsk)
@@ -107,7 +107,7 @@ func benchThreshold(testCtx *testContext, b *testing.B) {
 	b.Run(testString("Combiner/Combine/", parties, testCtx.params)+fmt.Sprintf("threshold=%d", t), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			p.CombinerCache.ClearCache()
-			temp_sk := testCtx.dckksContext.ringQP.NewPoly()
+			temp_sk := testCtx.ringQP.NewPoly()
 			p.Combiner.GenFinalShare(active_shamir_keys, active_shamir_keys[0], p.tsk, p.tsk)
 			p.s.Value = temp_sk.CopyNew()
 		}
@@ -115,7 +115,7 @@ func benchThreshold(testCtx *testContext, b *testing.B) {
 	// Everything is cached (simulates n-th decryption)
 	b.Run(testString("Combiner/CombineCached/", parties, testCtx.params)+fmt.Sprintf("threshold=%d", t), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			temp_sk := testCtx.dckksContext.ringQP.NewPoly()
+			temp_sk := testCtx.ringQP.NewPoly()
 			p.Combiner.GenFinalShare(active_shamir_keys, active_shamir_keys[0], p.tsk, p.tsk)
 			p.s.Value = temp_sk.CopyNew()
 		}

@@ -38,7 +38,7 @@ type ThresholdizerProtocol interface {
 	GenKeyFromID(id PartyID) *ThreshPublicKey
 
 	AllocateShareGenPoly() *ShareGenPoly
-	InitShareGenPoly(gen *ShareGenPoly, sk *rlwe.SecretKey, threshold uint64)
+	InitShareGenPoly(gen *ShareGenPoly, sk *rlwe.SecretKey, threshold int)
 
 	AllocateSecretShare() *ThreshSecretShare
 	GenShareForParty(gen *ShareGenPoly, party_key *ThreshPublicKey, share_out *ThreshSecretShare)
@@ -100,12 +100,12 @@ func (thresholdizer *Thresholdizer) AllocateShareGenPoly() *ShareGenPoly {
 
 // InitShareGenPoly initiates a ShareGenPoly by sampling a random polynomial of
 // degree threshold-1 with a constant term equal to the given secret key's value.
-func (thresholdizer *Thresholdizer) InitShareGenPoly(gen *ShareGenPoly, sk *rlwe.SecretKey, threshold uint64) {
+func (thresholdizer *Thresholdizer) InitShareGenPoly(gen *ShareGenPoly, sk *rlwe.SecretKey, threshold int) {
 	gen.coeffs = make([]*ring.Poly, int(threshold))
 
 	gen.coeffs[0] = sk.Value.CopyNew()
 
-	for i := uint64(1); i < threshold; i++ {
+	for i := 1; i < threshold; i++ {
 		gen.coeffs[i] = thresholdizer.samplerQP.ReadNew()
 	}
 	return
@@ -131,8 +131,7 @@ func (thresholdizer *Thresholdizer) AllocateSecretShare() *ThreshSecretShare {
 // GenThreshSecretKey generates a threshold secret key from an aggregate of secret
 // shares. This secret key must be stored until the combining phase is completed.
 func (thresholdizer *Thresholdizer) GenThreshSecretKey(aggregate *ThreshSecretShare, tsk *rlwe.SecretKey) {
-	thresholdizer.ringQP.Copy(aggregate.Poly, tsk.Value)
-
+	tsk.Value.Copy(aggregate.Poly)
 }
 
 // AggregateShares aggregates two secret shares(by adding them), and stores them
@@ -151,7 +150,7 @@ type Combiner struct {
 }
 
 //NewCombiner creates a new Combiner.
-func NewCombiner(params rlwe.Parameters, threshold uint64) *Combiner {
+func NewCombiner(params rlwe.Parameters, threshold int) *Combiner {
 	combiner := new(Combiner)
 	combiner.ringQP = params.RingQP()
 
@@ -169,7 +168,7 @@ func (combiner *Combiner) GenFinalShare(active_pks []*ThreshPublicKey, tpk *Thre
 
 	r := combiner.ringQP
 	keyDiff := combiner.ringQP.NewPoly()
-	r.Copy(tsk.Value, out_key.Value)
+	out_key.Value.Copy(tsk.Value)
 	for _, key := range active_pks {
 		//Lagrange Interpolation with the public threshold key of other active players
 		if !combiner.Equal(key, tpk) {
@@ -225,7 +224,7 @@ func (combiner *CombinerCache) getDiffInverse(this_key *ThreshPublicKey, that_ke
 	inv, found := combiner.inverses[that_key]
 	if found {
 		//Inverse is in the cache
-		combiner.ringQP.Copy(inv, pol_out)
+		pol_out.Copy(inv)
 	} else {
 		//Inverse not in the cache, we have to compute it
 		keyDiff := combiner.ringQP.NewPoly()
@@ -237,7 +236,7 @@ func (combiner *CombinerCache) getDiffInverse(this_key *ThreshPublicKey, that_ke
 
 		//Cache the result.
 		combiner.inverses[that_key] = combiner.ringQP.NewPoly()
-		combiner.ringQP.Copy(pol_out, combiner.inverses[that_key])
+		combiner.inverses[that_key].Copy(pol_out)
 	}
 }
 
@@ -247,7 +246,7 @@ func (combiner *CombinerCache) getDiffInverse(this_key *ThreshPublicKey, that_ke
 func (combiner *CombinerCache) GenFinalShare(tsk, out_key *rlwe.SecretKey) {
 
 	r := combiner.ringQP
-	r.Copy(tsk.Value, out_key.Value)
+	out_key.Value.Copy(tsk.Value)
 	for key, inv := range combiner.inverses {
 		//Lagrange Interpolation with the threshold public key of other active players
 		r.MulCoeffsMontgomeryConstant(out_key.Value, key.Poly, out_key.Value)

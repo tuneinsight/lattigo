@@ -34,7 +34,7 @@ func NewThresholdizer(params ckks.Parameters) *Thresholdizer {
 // NewCombiner creates a new Combiner from parameters, that will be used to
 // combine threshold secret and public keys into an additive share of the
 // distributed secret key.
-func NewCombiner(params ckks.Parameters, threshold uint64) *Combiner {
+func NewCombiner(params ckks.Parameters, threshold int) *Combiner {
 	combiner := new(Combiner)
 	combiner.Combiner = drlwe.NewCombiner(params.Parameters, threshold)
 	return combiner

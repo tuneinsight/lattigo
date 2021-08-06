@@ -42,7 +42,7 @@ type party struct {
 	rlkEphemSk    *rlwe.SecretKey
 	id            drlwe.PartyID
 	tsk           *rlwe.SecretKey
-	sk_t 					*rlwe.SecretKey
+	sk_t          *rlwe.SecretKey
 	ckgShare      *drlwe.CKGShare
 	rkgShareOne   *drlwe.RKGShare
 	rkgShareTwo   *drlwe.RKGShare
@@ -148,7 +148,7 @@ func main() {
 	// Create each party, and allocate the memory for all the shares that the protocols will need
 	P := genparties(params, N, ternarySamplerMontgomery)
 
-	genThresholdizers(params, P, shamir_keys, uint64(t))
+	genThresholdizers(params, P, shamir_keys, t)
 
 	thresholdGenShares(params, ringQP, P, crsGen)
 	// Inputs & expected result
@@ -274,7 +274,7 @@ func encPhase(params bfv.Parameters, P []*party, pk *rlwe.PublicKey, encoder bfv
 
 	// Each party encrypts its input vector
 	l.Println("> Encrypt Phase")
-	encryptor := bfv.NewEncryptorFromPk(params, pk)
+	encryptor := bfv.NewEncryptor(params, pk)
 
 	pt := bfv.NewPlaintext(params)
 	elapsedEncryptParty = runTimedParty(func() {
@@ -373,7 +373,7 @@ func genparties(params bfv.Parameters, N int, sampler *ring.TernarySampler) []*p
 	return P
 }
 
-func genThresholdizers(params bfv.Parameters, P []*party, shamir_keys []*drlwe.ThreshPublicKey, t uint64) {
+func genThresholdizers(params bfv.Parameters, P []*party, shamir_keys []*drlwe.ThreshPublicKey, t int) {
 	l.Println("> Thresholdizers Initialization")
 	elapsedThreshInitParty = runTimedParty(func() {
 		for _, pi := range P {
@@ -416,23 +416,23 @@ func pcksPhase(params bfv.Parameters, tpk *rlwe.PublicKey, encRes *bfv.Ciphertex
 	pcks := dbfv.NewPCKSProtocol(params, 3.19)
 
 	for _, pi := range P {
-		pi.pcksShare = pcks.AllocateBFVShares()
+		pi.pcksShare = pcks.AllocateShare(params.MaxLevel())
 	}
 
 	l.Println("> PCKS Phase")
 	elapsedPCKSParty = runTimedParty(func() {
 		for _, pi := range P {
-			pcks.GenShare(pi.sk_t, tpk, encRes, pi.pcksShare)
+			pcks.GenShare(pi.sk_t, tpk, encRes.Ciphertext, pi.pcksShare)
 		}
 	}, len(P))
 
-	pcksCombined := pcks.AllocateBFVShares()
+	pcksCombined := pcks.AllocateShare(params.MaxLevel())
 	encOut = bfv.NewCiphertext(params, 1)
 	elapsedPCKSCloud = runTimed(func() {
 		for _, pi := range P {
 			pcks.AggregateShares(pi.pcksShare, pcksCombined, pcksCombined)
 		}
-		pcks.KeySwitch(pcksCombined, encRes, encOut)
+		pcks.KeySwitch(pcksCombined, encRes.Ciphertext, encOut.Ciphertext)
 
 	})
 	l.Printf("\tdone (cloud: %s, party: %s)\n", elapsedPCKSCloud, elapsedPCKSParty)
@@ -452,7 +452,7 @@ func rkgphase(params bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *r
 	}
 
 	crp := make([]*ring.Poly, params.Beta()) // for the relinearization keys
-	for i := uint64(0); i < params.Beta(); i++ {
+	for i := 0; i < params.Beta(); i++ {
 		crp[i] = crsGen.ReadNew()
 	}
 

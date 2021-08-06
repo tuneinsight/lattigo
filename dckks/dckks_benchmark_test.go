@@ -42,6 +42,10 @@ func BenchmarkDCKKS(b *testing.B) {
 		benchRefresh(testCtx, b)
 		benchMaskedTransform(testCtx, b)
 	}
+}
+
+func benchPublicKeyGen(testCtx *testContext, b *testing.B) {
+
 	sk0Shards := testCtx.sk0Shards
 	params := testCtx.params
 
@@ -187,65 +191,6 @@ func benchPublicKeySwitching(testCtx *testContext, b *testing.B) {
 		s     *rlwe.SecretKey
 		share *drlwe.PCKSShare
 	}
-	galEl := testCtx.params.GaloisElementForRowRotation()
-	b.Run(testString("RotKeyGen/Round1/Gen/", parties, testCtx.params), func(b *testing.B) {
-
-		for i := 0; i < b.N; i++ {
-			p.GenShare(p.s, galEl, crp, p.share)
-		}
-	})
-
-	b.Run(testString("RotKeyGen/Round1/Agg/", parties, testCtx.params), func(b *testing.B) {
-
-		for i := 0; i < b.N; i++ {
-			p.Aggregate(p.share, p.share, p.share)
-		}
-	})
-
-	rotKey := ckks.NewSwitchingKey(testCtx.params)
-	b.Run(testString("RotKeyGen/Finalize/", parties, testCtx.params), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			p.GenCKKSRotationKey(p.share, crp, rotKey)
-		}
-	})
-}
-
-func benchRefresh(testCtx *testContext, b *testing.B) {
-
-	if testCtx.params.MaxLevel() < 3 {
-		b.Skip()
-	}
-
-	sk0Shards := testCtx.sk0Shards
-	ringQ := testCtx.dckksContext.ringQ
-
-	levelStart := uint64(3)
-
-	type Party struct {
-		*RefreshProtocol
-		s      *ring.Poly
-		share1 RefreshShareDecrypt
-		share2 RefreshShareRecrypt
-	}
-
-	p := new(Party)
-	p.RefreshProtocol = NewRefreshProtocol(testCtx.params)
-	p.s = sk0Shards[0].Value
-	p.share1, p.share2 = p.AllocateShares(levelStart)
-
-	crpGenerator := ring.NewUniformSampler(testCtx.prng, ringQ)
-	crp := crpGenerator.ReadNew()
-
-	ciphertext := ckks.NewCiphertextRandom(testCtx.prng, testCtx.params, 1, levelStart, testCtx.params.Scale())
-
-	b.Run(testString("Refresh/Gen/", parties, testCtx.params), func(b *testing.B) {
-
-		for i := 0; i < b.N; i++ {
-			p.GenShares(p.s, levelStart, parties, ciphertext, crp, p.share1, p.share2)
-		}
-	})
-
-	b.Run(testString("Refresh/Agg/", parties, testCtx.params), func(b *testing.B) {
 
 	p := new(Party)
 	p.PCKSProtocol = NewPCKSProtocol(params, 6.36)

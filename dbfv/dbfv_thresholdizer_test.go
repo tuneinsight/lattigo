@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var threshold uint64
+var threshold int
 
 func Test_DBFV_ThresholdProtocol(t *testing.T) {
 
@@ -58,7 +58,7 @@ func testThreshold(testCtx *testContext, t *testing.T) {
 			sk        *rlwe.SecretKey
 			tsk       *rlwe.SecretKey
 			pcksShare *drlwe.PCKSShare
-			sk_t			*rlwe.SecretKey
+			sk_t      *rlwe.SecretKey
 		}
 
 		pcksPhase := func(params bfv.Parameters, tpk *rlwe.PublicKey, ct *bfv.Ciphertext, P []*Party) (encOut *bfv.Ciphertext) {
@@ -69,26 +69,26 @@ func testThreshold(testCtx *testContext, t *testing.T) {
 			pcks := NewPCKSProtocol(params, 3.19)
 
 			for _, pi := range P {
-				pi.pcksShare = pcks.AllocateBFVShares()
+				pi.pcksShare = pcks.AllocateShare(params.MaxLevel())
 			}
 
 			for _, pi := range P {
-				pcks.GenShare(pi.sk_t, tpk, ct, pi.pcksShare)
+				pcks.GenShare(pi.sk_t, tpk, ct.Ciphertext, pi.pcksShare)
 			}
 
-			pcksCombined := pcks.AllocateBFVShares()
+			pcksCombined := pcks.AllocateShare(params.MaxLevel())
 			encOut = bfv.NewCiphertext(params, 1)
 			for _, pi := range P {
 				pcks.AggregateShares(pi.pcksShare, pcksCombined, pcksCombined)
 			}
-			pcks.KeySwitch(pcksCombined, ct, encOut)
+			pcks.KeySwitch(pcksCombined, ct.Ciphertext, encOut.Ciphertext)
 
 			return
 
 		}
 
 		P := make([]*Party, parties)
-		for i := uint64(0); i < parties; i++ {
+		for i := 0; i < parties; i++ {
 			p := new(Party)
 			p.sk = sk0Shards[i]
 			p.sk_t = bfv.NewSecretKey(testCtx.params)
@@ -102,7 +102,7 @@ func testThreshold(testCtx *testContext, t *testing.T) {
 
 		//Array of all party IDs
 		ids := make([]drlwe.PartyID, parties)
-		for i := uint64(0); i < parties; i++ {
+		for i := 0; i < parties; i++ {
 			pid := drlwe.PartyID{fmt.Sprintf("Party %d", i)}
 			ids[i] = pid
 			P[i].id = ids[i]
@@ -179,7 +179,7 @@ func testKeyGen(testCtx *testContext, t *testing.T) {
 		}
 		// Checks that GenKeyFromID is consistent among parties
 		P := make([]*Party, parties)
-		for i := uint64(0); i < parties; i++ {
+		for i := 0; i < parties; i++ {
 			p := new(Party)
 			p.Thresholdizer = NewThresholdizer(testCtx.params)
 			p.Combiner = NewCombiner(testCtx.params, threshold)

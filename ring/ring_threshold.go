@@ -48,12 +48,12 @@ func (r *Ring) InvMultPolyMontgomeryNTT(p1 *Poly, p2 *Poly) error {
 		for k := qi - 2; k > 0; k >>= 1 {
 
 			if k&1 == 1 {
-				for j := uint64(0); j < r.N; j++ {
+				for j := 0; j < r.N; j++ {
 					p2tmp[j] = MRedConstant(p2tmp[j], ptmp[j], qi, mredParam)
 				}
 			}
 
-			for j := uint64(0); j < r.N; j++ {
+			for j := 0; j < r.N; j++ {
 				ptmp[j] = MRedConstant(ptmp[j], ptmp[j], qi, mredParam)
 			}
 		}
@@ -63,7 +63,7 @@ func (r *Ring) InvMultPolyMontgomeryNTT(p1 *Poly, p2 *Poly) error {
 
 // EvalPol evaluate the polynomial pol at pk and writes the result in p3
 func (r *Ring) EvalPolMontgomeryNTT(pol []*Poly, pk *Poly, p3 *Poly) {
-	r.Copy(pol[len(pol)-1], p3)
+	p3.Copy(pol[len(pol)-1])
 	for i := len(pol) - 1; i > 0; i-- {
 		r.MulCoeffsMontgomeryConstant(p3, pk, p3)
 		r.AddNoMod(p3, pol[i-1], p3)

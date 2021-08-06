@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var threshold uint64
+var threshold int
 
 func Test_DCKKS_ThresholdProtocol(t *testing.T) {
 
@@ -20,7 +20,7 @@ func Test_DCKKS_ThresholdProtocol(t *testing.T) {
 		defaultParams = ckks.DefaultParams[:2] // the short test runs for ring degree N=2^12, 2^13
 	}
 	if *flagLongTest {
-		defaultParams = append(ckks.DefaultParams, ckks.DefaultBootstrapSchemeParams...) // the long test suite runs for all default parameters
+		defaultParams = ckks.DefaultParams // the long test suite runs for all default parameters
 	}
 	if *flagParamString != "" {
 		var jsonParams ckks.ParametersLiteral
@@ -62,7 +62,7 @@ func testThreshold(testCtx *testContext, t *testing.T) {
 			sk        *rlwe.SecretKey
 			tsk       *rlwe.SecretKey
 			pcksShare *drlwe.PCKSShare
-			sk_t 			*rlwe.SecretKey
+			sk_t      *rlwe.SecretKey
 		}
 
 		pcksPhase := func(params ckks.Parameters, tpk *rlwe.PublicKey, ct *ckks.Ciphertext, P []*Party) (encOut *ckks.Ciphertext) {
@@ -73,26 +73,26 @@ func testThreshold(testCtx *testContext, t *testing.T) {
 			pcks := NewPCKSProtocol(params, 3.19)
 
 			for _, pi := range P {
-				pi.pcksShare = pcks.AllocateShares(ct.Level())
+				pi.pcksShare = pcks.AllocateShare(ct.Level())
 			}
 
 			for _, pi := range P {
-				pcks.GenShare(pi.sk_t, tpk, ct, pi.pcksShare)
+				pcks.GenShare(pi.sk_t, tpk, ct.Ciphertext, pi.pcksShare)
 			}
 
-			pcksCombined := pcks.AllocateShares(ct.Level())
-			encOut = ckks.NewCiphertext(testCtx.params, 1, ct.Level(), ct.Scale())
+			pcksCombined := pcks.AllocateShare(ct.Level())
+			encOut = ckks.NewCiphertext(testCtx.params, 1, ct.Level(), ct.Scale)
 			for _, pi := range P {
 				pcks.AggregateShares(pi.pcksShare, pcksCombined, pcksCombined)
 			}
-			pcks.KeySwitch(pcksCombined, ct, encOut)
+			pcks.KeySwitch(pcksCombined, ct.Ciphertext, encOut.Ciphertext)
 
 			return
 
 		}
 
 		P := make([]*Party, parties)
-		for i := uint64(0); i < parties; i++ {
+		for i := 0; i < parties; i++ {
 			p := new(Party)
 			p.sk = sk0Shards[i]
 			p.sk_t = ckks.NewSecretKey(testCtx.params)
@@ -106,7 +106,7 @@ func testThreshold(testCtx *testContext, t *testing.T) {
 
 		//Array of all party IDs
 		ids := make([]drlwe.PartyID, parties)
-		for i := uint64(0); i < parties; i++ {
+		for i := 0; i < parties; i++ {
 			pid := drlwe.PartyID{fmt.Sprintf("Party %d", i)}
 			ids[i] = pid
 			P[i].id = ids[i]
@@ -132,7 +132,7 @@ func testThreshold(testCtx *testContext, t *testing.T) {
 		//Each party aggregates what it has received into a secret key
 		for _, pi := range P {
 			tmp_share := new(drlwe.ThreshSecretShare)
-			tmp_share.Poly = testCtx.dckksContext.ringQP.NewPoly()
+			tmp_share.Poly = testCtx.ringQP.NewPoly()
 			for j := 0; j < len(P); j++ {
 				pi.Thresholdizer.AggregateShares(tmp_share, polynomial_shares[j][pi.id], tmp_share)
 			}
@@ -157,7 +157,7 @@ func testThreshold(testCtx *testContext, t *testing.T) {
 			pi.CombinerCache.CacheInverses(pi.Thresholdizer.GenKeyFromID(pi.id), P_active_keys)
 			pi.CombinerCache.GenFinalShare(pi.tsk, pi.sk_t)
 			//the cached and non-cached combiners should yield the same results
-			require.True(t, testCtx.dckksContext.ringQP.Equal(temp_tsk_nocache, pi.sk_t.Value))
+			require.True(t, testCtx.ringQP.Equal(temp_tsk_nocache, pi.sk_t.Value))
 		}
 
 		//Clearing caches
@@ -165,7 +165,7 @@ func testThreshold(testCtx *testContext, t *testing.T) {
 			pi.CombinerCache.ClearCache()
 		}
 
-		coeffs, _, ciphertext := newTestVectors(testCtx, testCtx.encryptorPk0, 1, t)
+		coeffs, _, ciphertext := newTestVectors(testCtx, testCtx.encryptorPk0, -1, 1, t)
 
 		ciphertextSwitched := pcksPhase(testCtx.params, testCtx.pk1, ciphertext, P_active)
 
@@ -182,7 +182,7 @@ func testKeyGen(testCtx *testContext, t *testing.T) {
 		}
 		// Checks that GenKeyFromID is consistent among parties
 		P := make([]*Party, parties)
-		for i := uint64(0); i < parties; i++ {
+		for i := 0; i < parties; i++ {
 			p := new(Party)
 			p.Thresholdizer = NewThresholdizer(testCtx.params)
 			p.Combiner = NewCombiner(testCtx.params, threshold)

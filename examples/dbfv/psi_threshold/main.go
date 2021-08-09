@@ -41,8 +41,8 @@ type party struct {
 	gen           *drlwe.ShareGenPoly
 	rlkEphemSk    *rlwe.SecretKey
 	id            drlwe.PartyID
+	tsks          *rlwe.SecretKey
 	tsk           *rlwe.SecretKey
-	sk_t          *rlwe.SecretKey
 	ckgShare      *drlwe.CKGShare
 	rkgShareOne   *drlwe.RKGShare
 	rkgShareTwo   *drlwe.RKGShare
@@ -139,16 +139,16 @@ func main() {
 
 	ternarySamplerMontgomery := ring.NewTernarySampler(prng, ringQP, 0.5, true)
 
-	shamir_keys := make([]*drlwe.ThreshPublicKey, N)
-	for i := range shamir_keys {
-		shamir_keys[i] = &drlwe.ThreshPublicKey{Poly: crsGen.ReadNew()}
+	shamirPoints := make([]*drlwe.ThreshPublicKey, N)
+	for i := range shamirPoints {
+		shamirPoints[i] = &drlwe.ThreshPublicKey{Poly: crsGen.ReadNew()}
 	}
 	//shamir_keys[1].Coeffs[0][0] = shamir_keys[0].Coeffs[0][0]
 
 	// Create each party, and allocate the memory for all the shares that the protocols will need
 	P := genparties(params, N, ternarySamplerMontgomery)
 
-	genThresholdizers(params, P, shamir_keys, t)
+	genThresholdizers(params, P, shamirPoints, t)
 
 	thresholdGenShares(params, ringQP, P, crsGen)
 	// Inputs & expected result
@@ -168,11 +168,11 @@ func main() {
 
 	encRes := evalPhase(params, NGoRoutine, encInputs, rlk)
 
-	P_active := thresholdCombine(params, ringQP, P, uint64(t))
+	activeParties := thresholdCombine(params, ringQP, P, uint64(t))
 	//Active players have now a different secret key share
 
 	//Only active players take part in the key switching protocol
-	encOut := pcksPhase(params, tpk, encRes, P_active)
+	encOut := pcksPhase(params, tpk, encRes, activeParties)
 
 	// Decrypt the result with the target secret key
 	l.Println("> Result:")
@@ -211,52 +211,51 @@ func thresholdGenShares(params bfv.Parameters, ringQP *ring.Ring, P []*party, cr
 		P[i].id = ids[i]
 	}
 	// Each party generates the polynomial shares for its own Secret Key
-	polynomial_shares := make([]map[drlwe.PartyID]*drlwe.ThreshSecretShare, len(P))
+	shares := make([]map[drlwe.PartyID]*drlwe.ThreshSecretShare, len(P))
 	elapsedThreshShareParty = runTimedParty(func() {
 		for i, pi := range P {
 
-			polynomial_shares[i] = make(map[drlwe.PartyID]*drlwe.ThreshSecretShare)
+			shares[i] = make(map[drlwe.PartyID]*drlwe.ThreshSecretShare)
 
 			for _, id := range ids {
 				share := pi.thresholdizer.AllocateSecretShare()
 				pi.thresholdizer.GenShareForParty(pi.gen, pi.thresholdizer.GenKeyFromID(id), share)
-				polynomial_shares[i][id] = share
+				shares[i][id] = share
 			}
 		}
 	}, len(P))
 
 	elapsedThreshShareCloud = runTimed(func() {
 		for _, pi := range P {
-			tmp_share := new(drlwe.ThreshSecretShare)
-			tmp_share.Poly = ringQP.NewPoly()
+			tmpShare := pi.thresholdizer.AllocateSecretShare()
 			for j := 0; j < len(P); j++ {
-				pi.thresholdizer.AggregateShares(tmp_share, polynomial_shares[j][pi.id], tmp_share)
+				pi.thresholdizer.AggregateShares(tmpShare, shares[j][pi.id], tmpShare)
 			}
-			pi.tsk = bfv.NewSecretKey(params)
-			pi.thresholdizer.GenThreshSecretKey(tmp_share, pi.tsk)
+			pi.tsks = bfv.NewSecretKey(params)
+			pi.thresholdizer.GenThreshSecretKey(tmpShare, pi.tsks)
 		}
 	})
 
 	l.Printf("\tdone (cloud: %s, party: %s)\n", elapsedThreshShareCloud, elapsedThreshShareParty)
 }
-func thresholdCombine(params bfv.Parameters, ringQP *ring.Ring, P []*party, t uint64) (P_active []*party) {
+func thresholdCombine(params bfv.Parameters, ringQP *ring.Ring, P []*party, t uint64) (activeParties []*party) {
 
 	l.Println("> ThresholdCombine")
-	P_active = make([]*party, int(t))
-	P_active_keys := make([]*drlwe.ThreshPublicKey, int(t))
+	activeParties = make([]*party, int(t))
+	activePoints := make([]*drlwe.ThreshPublicKey, int(t))
 
 	//Determining which players are active and their key
 	elapsedThreshCombCloud = runTimed(func() {
-		for i := range P_active {
-			P_active[i] = P[i]
-			P_active_keys[i] = P[i].thresholdizer.GenKeyFromID(P[i].id)
+		for i := range activeParties {
+			activeParties[i] = P[i]
+			activePoints[i] = P[i].thresholdizer.GenKeyFromID(P[i].id)
 		}
 	})
 
 	//Combining
 	elapsedThreshCombParty = runTimedParty(func() {
-		for _, pi := range P_active {
-			pi.combiner.GenFinalShare(P_active_keys, pi.thresholdizer.GenKeyFromID(pi.id), pi.tsk, pi.sk_t)
+		for _, pi := range activeParties {
+			pi.combiner.GenFinalShare(activePoints, pi.thresholdizer.GenKeyFromID(pi.id), pi.tsks, pi.tsk)
 		}
 	}, len(P))
 
@@ -366,14 +365,14 @@ func genparties(params bfv.Parameters, N int, sampler *ring.TernarySampler) []*p
 	for i := range P {
 		pi := &party{}
 		pi.sk = bfv.NewKeyGenerator(params).GenSecretKey()
-		pi.sk_t = bfv.NewSecretKey(params)
+		pi.tsk = bfv.NewSecretKey(params)
 		P[i] = pi
 	}
 
 	return P
 }
 
-func genThresholdizers(params bfv.Parameters, P []*party, shamir_keys []*drlwe.ThreshPublicKey, t int) {
+func genThresholdizers(params bfv.Parameters, P []*party, shamirPoints []*drlwe.ThreshPublicKey, t int) {
 	l.Println("> Thresholdizers Initialization")
 	elapsedThreshInitParty = runTimedParty(func() {
 		for _, pi := range P {
@@ -422,7 +421,7 @@ func pcksPhase(params bfv.Parameters, tpk *rlwe.PublicKey, encRes *bfv.Ciphertex
 	l.Println("> PCKS Phase")
 	elapsedPCKSParty = runTimedParty(func() {
 		for _, pi := range P {
-			pcks.GenShare(pi.sk_t, tpk, encRes.Ciphertext, pi.pcksShare)
+			pcks.GenShare(pi.tsk, tpk, encRes.Ciphertext, pi.pcksShare)
 		}
 	}, len(P))
 

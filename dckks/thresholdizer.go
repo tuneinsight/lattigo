@@ -17,7 +17,7 @@ type Combiner struct {
 	*drlwe.Combiner
 }
 
-// Combiner is the structure holding parameters for the Combining step
+// CombinerCache is the structure holding parameters for the Combining step
 // of a Threshold MHE scheme, that caches the computed ring inverses.
 type CombinerCache struct {
 	*drlwe.CombinerCache
@@ -48,7 +48,6 @@ func NewCombiner(params ckks.Parameters, threshold int) *Combiner {
 // tpk is the party's public key.
 // pks is a slice containing the public keys, of which we want the inverses of
 // the difference with tpk precomputed.
-
 func NewCombinerCache(comb *Combiner, tpk *drlwe.ThreshPublicKey, pks []*drlwe.ThreshPublicKey) *CombinerCache {
 	combinercache := new(CombinerCache)
 	combinercache.CombinerCache = drlwe.NewCombinerCache(comb.Combiner, tpk, pks)

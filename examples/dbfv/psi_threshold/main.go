@@ -36,8 +36,8 @@ func runTimedParty(f func(), N int) time.Duration {
 
 type party struct {
 	sk            *rlwe.SecretKey
-	thresholdizer *dbfv.Thresholdizer
-	combiner      *dbfv.Combiner
+	thresholdizer *drlwe.Thresholdizer
+	combiner      *drlwe.Combiner
 	gen           *drlwe.ShareGenPoly
 	rlkEphemSk    *rlwe.SecretKey
 	id            drlwe.PartyID
@@ -376,10 +376,10 @@ func genThresholdizers(params bfv.Parameters, P []*party, shamirPoints []*drlwe.
 	l.Println("> Thresholdizers Initialization")
 	elapsedThreshInitParty = runTimedParty(func() {
 		for _, pi := range P {
-			pi.thresholdizer = dbfv.NewThresholdizer(params)
+			pi.thresholdizer = drlwe.NewThresholdizer(params.Parameters)
 			pi.gen = pi.thresholdizer.AllocateShareGenPoly()
 			pi.thresholdizer.InitShareGenPoly(pi.gen, pi.sk, t)
-			pi.combiner = dbfv.NewCombiner(params, t)
+			pi.combiner = drlwe.NewCombiner(params.Parameters, t)
 		}
 	}, len(P))
 	l.Printf("\tdone (party : %s)\n", elapsedThreshInitParty)

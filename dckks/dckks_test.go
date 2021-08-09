@@ -832,15 +832,15 @@ func testThreshold(testCtx *testContext, t *testing.T) {
 
 	t.Run(testString("ThresholdKeyGen/", testCtx.NParties, testCtx.params), func(t *testing.T) {
 		type Party struct {
-			*Thresholdizer
-			*Combiner
+			*drlwe.Thresholdizer
+			*drlwe.Combiner
 		}
 		// Checks that GenKeyFromID is consistent among testCtx.NParties
 		P := make([]*Party, testCtx.NParties)
 		for i := 0; i < testCtx.NParties; i++ {
 			p := new(Party)
-			p.Thresholdizer = NewThresholdizer(testCtx.params)
-			p.Combiner = NewCombiner(testCtx.params, threshold)
+			p.Thresholdizer = drlwe.NewThresholdizer(testCtx.params.Parameters)
+			p.Combiner = drlwe.NewCombiner(testCtx.params.Parameters, threshold)
 			P[i] = p
 		}
 		pid := drlwe.PartyID{String: "An arbitrary ID"}
@@ -858,9 +858,9 @@ func testThreshold(testCtx *testContext, t *testing.T) {
 	t.Run(testString("Threshold/", testCtx.NParties, testCtx.params)+fmt.Sprintf("/threshold=%d", threshold), func(t *testing.T) {
 
 		type Party struct {
-			*Thresholdizer
-			*Combiner
-			*CombinerCache
+			*drlwe.Thresholdizer
+			*drlwe.Combiner
+			*drlwe.CombinerCache
 			id        drlwe.PartyID
 			gen       *drlwe.ShareGenPoly
 			sk        *rlwe.SecretKey
@@ -900,11 +900,11 @@ func testThreshold(testCtx *testContext, t *testing.T) {
 			p := new(Party)
 			p.sk = sk0Shards[i]
 			p.tsk = ckks.NewSecretKey(testCtx.params)
-			p.Thresholdizer = NewThresholdizer(testCtx.params)
+			p.Thresholdizer = drlwe.NewThresholdizer(testCtx.params.Parameters)
 			p.gen = p.Thresholdizer.AllocateShareGenPoly()
 			p.Thresholdizer.InitShareGenPoly(p.gen, p.sk, threshold)
-			p.Combiner = NewCombiner(testCtx.params, threshold)
-			p.CombinerCache = NewCombinerCache(p.Combiner, nil, nil)
+			p.Combiner = drlwe.NewCombiner(testCtx.params.Parameters, threshold)
+			p.CombinerCache = drlwe.NewCombinerCache(p.Combiner, nil, nil)
 			P[i] = p
 		}
 

@@ -331,9 +331,9 @@ func benchRefresh(testCtx *testContext, b *testing.B) {
 func benchThreshold(params bfv.Parameters, NParties, t int, b *testing.B) {
 
 	type Party struct {
-		*Thresholdizer
-		*Combiner
-		*CombinerCache
+		*drlwe.Thresholdizer
+		*drlwe.Combiner
+		*drlwe.CombinerCache
 		gen *drlwe.ShareGenPoly
 		s   *rlwe.SecretKey
 		tsk *rlwe.SecretKey
@@ -345,7 +345,7 @@ func benchThreshold(params bfv.Parameters, NParties, t int, b *testing.B) {
 
 	b.Run(testString("Thresholdizer/Init/", NParties, params)+fmt.Sprintf("threshold=%d", t), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			p.Thresholdizer = NewThresholdizer(params)
+			p.Thresholdizer = drlwe.NewThresholdizer(params.Parameters)
 			p.gen = p.Thresholdizer.AllocateShareGenPoly()
 			p.Thresholdizer.InitShareGenPoly(p.gen, p.s, t)
 			p.tsk = bfv.NewSecretKey(params)
@@ -382,13 +382,13 @@ func benchThreshold(params bfv.Parameters, NParties, t int, b *testing.B) {
 	activeShamirPoints := shamirPoints[:t]
 	b.Run(testString("Combiner/Init/", NParties, params)+fmt.Sprintf("threshold=%d", t)+fmt.Sprintf("precomputation=false"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			p.Combiner = NewCombiner(params, t)
+			p.Combiner = drlwe.NewCombiner(params.Parameters, t)
 		}
 	})
 
 	b.Run(testString("Combiner/Init/", NParties, params)+fmt.Sprintf("threshold=%d", t)+fmt.Sprintf("precomputation=true"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			p.CombinerCache = NewCombinerCache(p.Combiner, activeShamirPoints[0], shamirPoints)
+			p.CombinerCache = drlwe.NewCombinerCache(p.Combiner, activeShamirPoints[0], shamirPoints)
 		}
 	})
 	//Nothing is cached (simulates first decryption)

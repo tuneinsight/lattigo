@@ -51,7 +51,7 @@ func (btp *Bootstrapper) Bootstrapp(ct *ckks.Ciphertext) *ckks.Ciphertext {
 	btp.ScaleUp(ct, math.Round((btp.evalModPoly.ScalingFactor/btp.evalModPoly.MessageRatio)/ct.Scale), ct)
 
 	//SubSum X -> (N/dslots) * Y^dslots
-	ct = btp.Trace(ct, btp.params.LogSlots())
+	ct = btp.Trace(ct, btp.params.LogSlots(), btp.params.LogN()-1)
 
 	// Step 2 : CoeffsToSlots (Homomorphic encoding)
 	ct0, ct1 = btp.CoeffsToSlots(ct, btp.ctsMatrices)

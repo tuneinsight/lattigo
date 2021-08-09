@@ -2,6 +2,7 @@ package rlwe
 
 import (
 	"github.com/ldsec/lattigo/v2/ring"
+	"math"
 )
 
 // SecretKey is a type for generic RLWE secret keys.
@@ -70,7 +71,7 @@ func NewRotationKeySet(params Parameters, galoisElement []uint64) (rotKey *Rotat
 	rotKey = new(RotationKeySet)
 	rotKey.Keys = make(map[uint64]*SwitchingKey, len(galoisElement))
 	for _, galEl := range galoisElement {
-		rotKey.Keys[galEl] = NewSwitchingKey(params)
+		rotKey.Keys[galEl] = NewSwitchingKey(params, params.QCount()-1, params.PCount()-1)
 	}
 	return
 }
@@ -83,18 +84,18 @@ func (rtks *RotationKeySet) GetRotationKey(galoisEl uint64) (*SwitchingKey, bool
 }
 
 // NewSwitchingKey returns a new public switching key with pre-allocated zero-value
-func NewSwitchingKey(params Parameters) *SwitchingKey {
+func NewSwitchingKey(params Parameters, levelQ, levelP int) *SwitchingKey {
 	ringQ := params.RingQ()
 	ringP := params.RingP()
-	decompSize := params.Beta()
+	decompSize := int(math.Ceil(float64(levelQ+1) / float64(levelP+1)))
 	swk := new(SwitchingKey)
 	swk.Value = make([][2][2]*ring.Poly, int(decompSize))
 
 	for i := 0; i < decompSize; i++ {
-		swk.Value[i][0][0] = ringQ.NewPoly()
-		swk.Value[i][0][1] = ringP.NewPoly()
-		swk.Value[i][1][0] = ringQ.NewPoly()
-		swk.Value[i][1][1] = ringP.NewPoly()
+		swk.Value[i][0][0] = ringQ.NewPolyLvl(levelQ)
+		swk.Value[i][0][1] = ringP.NewPolyLvl(levelP)
+		swk.Value[i][1][0] = ringQ.NewPolyLvl(levelQ)
+		swk.Value[i][1][1] = ringP.NewPolyLvl(levelP)
 	}
 
 	return swk
@@ -108,7 +109,7 @@ func NewRelinKey(params Parameters, maxRelinDegree int) (evakey *Relinearization
 	evakey.Keys = make([]*SwitchingKey, maxRelinDegree)
 
 	for d := 0; d < maxRelinDegree; d++ {
-		evakey.Keys[d] = NewSwitchingKey(params)
+		evakey.Keys[d] = NewSwitchingKey(params, params.QCount()-1, params.PCount()-1)
 	}
 
 	return

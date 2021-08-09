@@ -6,8 +6,9 @@ import (
 )
 
 // Trace maps X -> sum((-1)^i * X^{i*n+1}) for 0 <= i < N
-func (eval *evaluator) Trace(ctIn *Ciphertext, logSlots int) *Ciphertext {
-	for i := logSlots; i < eval.params.MaxLogSlots(); i++ {
+// For log(n) = logSlotStart and log(N/2) = logSlotsEnd
+func (eval *evaluator) Trace(ctIn *Ciphertext, logSlotsStart, logSlotsEnd int) *Ciphertext {
+	for i := logSlotsStart; i < logSlotsEnd; i++ {
 		eval.permuteNTT(ctIn, eval.params.GaloisElementForColumnRotationBy(1<<i), eval.ctxpool)
 		ctPool := &Ciphertext{Ciphertext: eval.ctxpool.Ciphertext, Scale: ctIn.Scale}
 		ctPool.Value = ctPool.Value[:2]
@@ -23,7 +24,7 @@ func (eval *evaluator) RotateHoisted(ctIn *Ciphertext, rotations []int) (cOut ma
 
 	levelQ := ctIn.Level()
 
-	eval.DecomposeNTT(levelQ, len(eval.ringP.Modulus)-1, ctIn.Value[1], eval.PoolDecompQ, eval.PoolDecompP)
+	eval.DecomposeNTT(levelQ, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], eval.PoolDecompQ, eval.PoolDecompP)
 
 	cOut = make(map[int]*Ciphertext)
 	for _, i := range rotations {
@@ -56,7 +57,7 @@ func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfa
 
 		minLevel := utils.MinInt(maxLevel, ctIn.Level())
 
-		eval.DecomposeNTT(minLevel, len(eval.ringP.Modulus)-1, ctIn.Value[1], eval.PoolDecompQ, eval.PoolDecompP)
+		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], eval.PoolDecompQ, eval.PoolDecompP)
 
 		for i, matrix := range element {
 			ctOut[i] = NewCiphertext(eval.params, 1, minLevel, ctIn.Scale)
@@ -71,7 +72,7 @@ func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfa
 	case PtDiagMatrix:
 
 		minLevel := utils.MinInt(element.Level, ctIn.Level())
-		eval.DecomposeNTT(minLevel, len(eval.ringP.Modulus)-1, ctIn.Value[1], eval.PoolDecompQ, eval.PoolDecompP)
+		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], eval.PoolDecompQ, eval.PoolDecompP)
 
 		ctOut = []*Ciphertext{NewCiphertext(eval.params, 1, minLevel, ctIn.Scale)}
 
@@ -138,11 +139,11 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 			// Starts by decomposing the input ciphertext
 			if i == 0 {
 				// If first iteration, then copies directly from the input ciphertext that hasn't been rotated
-				eval.DecomposeNTT(levelQ, levelP, ctIn.Value[1], eval.PoolDecompQ, eval.PoolDecompP)
+				eval.DecomposeNTT(levelQ, levelP, levelP+1, ctIn.Value[1], eval.PoolDecompQ, eval.PoolDecompP)
 			} else {
 				// Else copies from the rotated input ciphertext
 				tmpc1.IsNTT = true
-				eval.DecomposeNTT(levelQ, levelP, tmpc1, eval.PoolDecompQ, eval.PoolDecompP)
+				eval.DecomposeNTT(levelQ, levelP, levelP+1, tmpc1, eval.PoolDecompQ, eval.PoolDecompP)
 			}
 
 			// If the binary reading scans a 1
@@ -260,7 +261,7 @@ func (eval *evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 		pool3P := eval.PoolP[2] // ctOut(c0', c1') from evaluator keyswitch memory pool
 
 		// Basis decomposition
-		eval.DecomposeNTT(levelQ, levelP, ctIn.Value[1], eval.PoolDecompQ, eval.PoolDecompP)
+		eval.DecomposeNTT(levelQ, levelP, levelP+1, ctIn.Value[1], eval.PoolDecompQ, eval.PoolDecompP)
 
 		// Pre-rotates all [1, ..., n-1] rotations
 		// Hoisted rotation without division by P

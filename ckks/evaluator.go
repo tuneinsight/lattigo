@@ -117,7 +117,7 @@ type Evaluator interface {
 	EvalMod(ct *Ciphertext, evalModPoly EvalModPoly) *Ciphertext
 
 	// Trace
-	Trace(ctIn *Ciphertext, logSlots int) *Ciphertext
+	Trace(ctIn *Ciphertext, logSlotsStart, logSlotsEnd int) *Ciphertext
 
 	// =============================
 	// === Ciphertext Management ===

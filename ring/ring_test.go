@@ -60,7 +60,7 @@ func TestRing(t *testing.T) {
 	}
 
 	testNewRing(t)
-	for _, defaultParam := range defaultParams {
+	for _, defaultParam := range defaultParams[:] {
 
 		var testContext *testParams
 		if testContext, err = genTestParams(defaultParam); err != nil {
@@ -673,7 +673,9 @@ func testScaling(testContext *testParams, t *testing.T) {
 
 	t.Run(testString("Scaling/RNS", testContext.ringQ), func(t *testing.T) {
 
-		scaler := NewRNSScaler(T, testContext.ringQ)
+		ringT, _ := NewRing(testContext.ringQ.N, []uint64{T})
+
+		scaler := NewRNSScaler(testContext.ringQ, ringT)
 
 		coeffs := make([]*big.Int, testContext.ringQ.N)
 		for i := 0; i < testContext.ringQ.N; i++ {

@@ -51,7 +51,7 @@ func NewKeySwitcher(params Parameters) *KeySwitcher {
 	ks := new(KeySwitcher)
 	ks.Parameters = &params
 	ks.Baseconverter = ring.NewFastBasisExtender(params.RingQ(), params.RingP())
-	ks.Decomposer = ring.NewDecomposer(params.RingQ().Modulus, params.RingP().Modulus)
+	ks.Decomposer = ring.NewDecomposer(params.RingQ(), params.RingP())
 	ks.keySwitcherBuffer = newKeySwitcherBuffer(params)
 	return ks
 }
@@ -92,7 +92,7 @@ func (ks *KeySwitcher) SwitchKeysInPlace(levelQ int, cx *ring.Poly, evakey *Swit
 // Expects the IsNTT flag of c2 to correctly reflect the domain of c2.
 // PoolDecompQ and PoolDecompQ are vectors of polynomials (mod Q and mod P) that store the
 // special RNS decomposition of c2 (in the NTT domain)
-func (ks *KeySwitcher) DecomposeNTT(levelQ, levelP int, c2 *ring.Poly, PoolDecompQ, PoolDecompP []*ring.Poly) {
+func (ks *KeySwitcher) DecomposeNTT(levelQ, levelP, alpha int, c2 *ring.Poly, PoolDecompQ, PoolDecompP []*ring.Poly) {
 
 	ringQ := ks.RingQ()
 
@@ -108,26 +108,25 @@ func (ks *KeySwitcher) DecomposeNTT(levelQ, levelP int, c2 *ring.Poly, PoolDecom
 		ringQ.NTTLvl(levelQ, polyInvNTT, polyNTT)
 	}
 
-	alpha := ks.Parameters.PCount()
-	beta := int(math.Ceil(float64(levelQ+1) / float64(alpha)))
+	beta := int(math.Ceil(float64(levelQ+1) / float64(levelP+1)))
 
 	for i := 0; i < beta; i++ {
-		ks.DecomposeSingleNTT(levelQ, levelP, i, polyNTT, polyInvNTT, PoolDecompQ[i], PoolDecompP[i])
+		ks.DecomposeSingleNTT(levelQ, levelP, alpha, i, polyNTT, polyInvNTT, PoolDecompQ[i], PoolDecompP[i])
 	}
 }
 
 // DecomposeSingleNTT takes the input polynomial c2 (c2NTT and c2InvNTT, respectively in the NTT and out of the NTT domain)
 // modulo q_alpha_beta, and returns the result on c2QiQ are c2QiP the receiver polynomials
 // respectively mod Q and mod P (in the NTT domain)
-func (ks *KeySwitcher) DecomposeSingleNTT(levelQ, levelP, beta int, c2NTT, c2InvNTT, c2QiQ, c2QiP *ring.Poly) {
+func (ks *KeySwitcher) DecomposeSingleNTT(levelQ, levelP, alpha, beta int, c2NTT, c2InvNTT, c2QiQ, c2QiP *ring.Poly) {
 
 	ringQ := ks.RingQ()
 	ringP := ks.RingP()
 
-	ks.Decomposer.DecomposeAndSplit(levelQ, levelP, beta, c2InvNTT, c2QiQ, c2QiP)
+	ks.Decomposer.DecomposeAndSplit(levelQ, levelP, alpha, beta, c2InvNTT, c2QiQ, c2QiP)
 
-	p0idxst := beta * len(ringP.Modulus)
-	p0idxed := p0idxst + ks.Decomposer.Xalpha()[beta]
+	p0idxst := beta * (levelP + 1)
+	p0idxed := p0idxst + 1
 
 	// c2_qi = cx mod qi mod qi
 	for x := 0; x < levelQ+1; x++ {
@@ -170,10 +169,9 @@ func (ks *KeySwitcher) SwitchKeysInPlaceNoModDown(levelQ int, cx *ring.Poly, eva
 
 	reduce = 0
 
-	alpha := len(ringP.Modulus)
-	beta := int(math.Ceil(float64(levelQ+1) / float64(alpha)))
-
-	levelP := len(evakey.Value[0][0][1].Coeffs) - 1
+	alpha := len(evakey.Value[0][0][1].Coeffs)
+	levelP := alpha - 1
+	beta := int(math.Ceil(float64(levelQ+1) / float64(levelP+1)))
 
 	QiOverF := ks.Parameters.QiOverflowMargin(levelQ) >> 1
 	PiOverF := ks.Parameters.PiOverflowMargin(levelP) >> 1
@@ -181,7 +179,7 @@ func (ks *KeySwitcher) SwitchKeysInPlaceNoModDown(levelQ int, cx *ring.Poly, eva
 	// Key switching with CRT decomposition for the Qi
 	for i := 0; i < beta; i++ {
 
-		ks.DecomposeSingleNTT(levelQ, levelP, i, cxNTT, cxInvNTT, c2QiQ, c2QiP)
+		ks.DecomposeSingleNTT(levelQ, levelP, alpha, i, cxNTT, cxInvNTT, c2QiQ, c2QiP)
 
 		if i == 0 {
 			ringQ.MulCoeffsMontgomeryConstantLvl(levelQ, evakey.Value[i][0][0], c2QiQ, pool2Q)

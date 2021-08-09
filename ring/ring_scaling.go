@@ -15,32 +15,28 @@ type Scaler interface {
 // RNSScaler implements the Scaler interface by performing a scaling by t/Q in the RNS domain.
 // This implementation of the Scaler interface is preferred over the SimpleScaler implementation.
 type RNSScaler struct {
-	ringQ     *Ring
-	polypoolT *Poly
+	ringQ, ringT *Ring
+	polypoolT    *Poly
 
 	qHalf     *big.Int // (q-1)/2
 	qHalfModT uint64   // (q-1)/2 mod t
-
-	t    uint64
-	qInv uint64 //(q mod t)^-1 mod t
-
-	mredParamsT uint64
+	qInv      uint64   //(q mod t)^-1 mod t
 
 	paramsQP modupParams
 }
 
 // NewRNSScaler creates a new SimpleScaler from t, the modulus under which the reconstruction is returned, the Ring in which the polynomial to reconstruct is represented.
-func NewRNSScaler(t uint64, ringQ *Ring) (rnss *RNSScaler) {
+func NewRNSScaler(ringQ, ringT *Ring) (rnss *RNSScaler) {
 
 	rnss = new(RNSScaler)
 
 	rnss.ringQ = ringQ
+	rnss.ringT = ringT
 
-	rnss.mredParamsT = MRedParams(t)
+	rnss.polypoolT = ringT.NewPoly()
 
-	rnss.polypoolT = NewPoly(ringQ.N, 1)
+	t := ringT.Modulus[0]
 
-	rnss.t = t
 	rnss.qHalf = new(big.Int)
 	rnss.qInv = rnss.qHalf.Mod(ringQ.ModulusBigint, NewUint(t)).Uint64()
 	rnss.qInv = ModExp(rnss.qInv, int(t-2), t)
@@ -62,11 +58,12 @@ func NewRNSScaler(t uint64, ringQ *Ring) (rnss *RNSScaler) {
 func (rnss *RNSScaler) DivByQOverTRounded(p1Q, p2T *Poly) {
 
 	ringQ := rnss.ringQ
+	ringT := rnss.ringT
 
-	T := rnss.t
+	T := ringT.Modulus[0]
 	p2tmp := p2T.Coeffs[0]
 	p3tmp := rnss.polypoolT.Coeffs[0]
-	mredParams := rnss.mredParamsT
+	mredParams := rnss.ringT.MredParams[0]
 	qInv := T - rnss.qInv
 	qHalfModT := T - rnss.qHalfModT
 
@@ -79,7 +76,7 @@ func (rnss *RNSScaler) DivByQOverTRounded(p1Q, p2T *Poly) {
 	ringQ.AddScalarBigint(p1Q, rnss.qHalf, p1Q)
 
 	// Extend the basis of (t*P_{Q} + (Q-1)/2) to (t*P_{t} + (Q-1)/2)
-	modUpExact(p1Q.Coeffs, rnss.polypoolT.Coeffs, rnss.paramsQP)
+	modUpExact(p1Q.Coeffs, rnss.polypoolT.Coeffs, ringQ, ringT, rnss.paramsQP)
 
 	// Compute [Q^{-1} * (t*P_{t} -   (t*P_{Q} - ((Q-1)/2 mod t)))] mod t which returns round(t/Q * P_{Q}) mod t
 	for j := 0; j < ringQ.N; j = j + 8 {

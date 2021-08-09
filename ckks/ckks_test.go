@@ -844,7 +844,7 @@ func testSwitchKeys(testContext *testParams, t *testing.T) {
 	if testContext.params.PCount() != 0 {
 		sk2 = testContext.kgen.GenSecretKey()
 		decryptorSk2 = NewDecryptor(testContext.params, sk2)
-		switchingKey = testContext.kgen.GenSwitchingKey(testContext.sk, sk2)
+		switchingKey = testContext.kgen.GenSwitchingKey(testContext.params.QCount()-1, testContext.params.PCount()-1, testContext.sk, sk2)
 	}
 
 	t.Run(ParamsToString(testContext.params, "SwitchKeys/"), func(t *testing.T) {

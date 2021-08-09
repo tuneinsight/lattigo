@@ -1,6 +1,7 @@
 package ckks
 
 import (
+	"fmt"
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 	"github.com/stretchr/testify/assert"
@@ -17,8 +18,8 @@ func TestCKKSAdvancedHomomorphicEncoding(t *testing.T) {
 	}
 
 	ParametersLiteral := ParametersLiteral{
-		LogN:     14,
-		LogSlots: 13,
+		LogN:     13,
+		LogSlots: 4,
 		Scale:    1 << 45,
 		Sigma:    rlwe.DefaultSigma,
 		Q: []uint64{
@@ -49,7 +50,7 @@ func TestCKKSAdvancedHomomorphicEncoding(t *testing.T) {
 		runtime.GC()
 	}
 
-	params.logSlots = 12
+	params.logSlots = 4
 
 	for _, testSet := range []func(params Parameters, t *testing.T){
 		testCoeffsToSlots,
@@ -268,7 +269,7 @@ func testSlotsToCoeffs(params Parameters, t *testing.T) {
 		// Generates the n first slots of the test vector (imaginary part to encode)
 		valuesImag := make([]complex128, params.Slots())
 		for i := range valuesImag {
-			valuesImag[i] = complex(1+float64(i+1)/float64(params.Slots()), 0)
+			valuesImag[i] = complex(float64(i+1)/float64(params.Slots()), 0)
 		}
 
 		// If sparse, there there is the space to store both vectors in one
@@ -277,6 +278,8 @@ func testSlotsToCoeffs(params Parameters, t *testing.T) {
 				valuesReal[i] += complex(0, real(valuesImag[i]))
 			}
 		}
+
+		fmt.Println(valuesReal)
 
 		// Encodes and encrypts the test vectors
 		logSlots := params.LogSlots()

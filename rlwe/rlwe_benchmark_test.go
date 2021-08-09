@@ -46,12 +46,12 @@ func benchHoistedKeySwitch(kgen KeyGenerator, keySwitcher *KeySwitcher, b *testi
 	ciphertext := NewCiphertextNTT(params, 1, plaintext.Level())
 	encryptor.Encrypt(plaintext, ciphertext)
 
-	swk := kgen.GenSwitchingKey(skIn, skOut)
+	swk := kgen.GenSwitchingKey(params.QCount()-1, params.PCount()-1, skIn, skOut)
 
 	b.Run(testString(params, "DecomposeNTT/"), func(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			keySwitcher.DecomposeNTT(ciphertext.Level(), len(params.RingP().Modulus)-1, ciphertext.Value[1], keySwitcher.PoolDecompQ, keySwitcher.PoolDecompP)
+			keySwitcher.DecomposeNTT(ciphertext.Level(), params.PCount()-1, params.PCount(), ciphertext.Value[1], keySwitcher.PoolDecompQ, keySwitcher.PoolDecompP)
 		}
 	})
 

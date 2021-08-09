@@ -378,7 +378,9 @@ func benchDivByRNSBasis(testContext *testParams, b *testing.B) {
 			coeffs[i] = RandInt(testContext.ringQ.ModulusBigint)
 		}
 
-		scaler := NewRNSScaler(T, testContext.ringQ)
+		ringT, _ := NewRing(testContext.ringQ.N, []uint64{T})
+
+		scaler := NewRNSScaler(testContext.ringQ, ringT)
 		polyQ := testContext.ringQ.NewPoly()
 		polyT := NewPoly(testContext.ringQ.N, 1)
 		testContext.ringQ.SetCoefficientsBigint(coeffs, polyQ)

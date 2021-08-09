@@ -107,7 +107,7 @@ func NewEncoder(params Parameters) Encoder {
 		ringT:       ringT,
 		indexMatrix: indexMatrix,
 		deltaMont:   GenLiftParams(ringQ, params.T()),
-		scaler:      ring.NewRNSScaler(params.T(), ringQ),
+		scaler:      ring.NewRNSScaler(ringQ, ringT),
 		tmpPoly:     ringT.NewPoly(),
 		tmpPtRt:     NewPlaintextRingT(params),
 	}

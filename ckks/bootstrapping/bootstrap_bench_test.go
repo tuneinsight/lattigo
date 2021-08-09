@@ -12,7 +12,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 	var err error
 	var btp *Bootstrapper
 
-	paramSet := 2
+	paramSet := 0
 
 	ckksParams := DefaultCKKSParameters[paramSet]
 	btpParams := DefaultParameters[paramSet]
@@ -53,7 +53,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 
 			//SubSum X -> (N/dslots) * Y^dslots
 			t = time.Now()
-			ct = btp.Trace(ct, btp.params.LogSlots())
+			ct = btp.Trace(ct, btp.params.LogSlots(), btp.params.LogN()-1)
 			b.Log("After SubSum :", time.Since(t), ct.Level(), ct.Scale)
 
 			// Part 1 : Coeffs to slots

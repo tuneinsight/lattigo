@@ -41,7 +41,7 @@ func TestBootstrap(t *testing.T) {
 		t.Skip("skipping bootstrapping tests for GOARCH=wasm")
 	}
 
-	paramSet := 4
+	paramSet := 0
 
 	ckksParams := DefaultCKKSParameters[paramSet]
 	bootstrapParams := DefaultParameters[paramSet]

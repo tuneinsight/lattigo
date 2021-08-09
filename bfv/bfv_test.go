@@ -563,7 +563,7 @@ func testEvaluatorKeySwitch(testctx *testContext, t *testing.T) {
 
 	sk2 := testctx.kgen.GenSecretKey()
 	decryptorSk2 := NewDecryptor(testctx.params, sk2)
-	switchKey := testctx.kgen.GenSwitchingKey(testctx.sk, sk2)
+	switchKey := testctx.kgen.GenSwitchingKey(testctx.params.QCount()-1, testctx.params.PCount()-1, testctx.sk, sk2)
 
 	t.Run(testString("Evaluator/KeySwitch/InPlace/", testctx.params), func(t *testing.T) {
 		values, _, ciphertext := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)

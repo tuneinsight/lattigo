@@ -19,7 +19,7 @@ func NewPublicKey(params Parameters) (pk *rlwe.PublicKey) {
 
 // NewSwitchingKey returns an allocated CKKS public switching key with zero values.
 func NewSwitchingKey(params Parameters) *rlwe.SwitchingKey {
-	return rlwe.NewSwitchingKey(params.Parameters)
+	return rlwe.NewSwitchingKey(params.Parameters, params.QCount()-1, params.PCount()-1)
 }
 
 // NewRelinearizationKey returns an allocated CKKS public relinearization key with zero value.

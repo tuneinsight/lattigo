@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -172,7 +173,7 @@ func testSwitchKeyGen(kgen KeyGenerator, t *testing.T) {
 		skOut := kgen.GenSecretKey()
 
 		// Generates Decomp([-asIn + w*P*sOut + e, a])
-		swk := NewSwitchingKey(params)
+		swk := NewSwitchingKey(params, params.QCount()-1, params.PCount()-1)
 		kgen.(*keyGenerator).newSwitchingKey(skIn.Value, skOut.Value, swk)
 
 		// Decrypts
@@ -339,10 +340,23 @@ func testKeySwitcher(kgen KeyGenerator, t *testing.T) {
 	ks := NewKeySwitcher(params)
 
 	ringQ := params.RingQ()
+	ringP := params.RingP()
 
-	ringQP, _ := ring.NewRing(params.N(), params.QP())
+	levelQ := params.MaxLevel()
+	alpha := params.PCount()
+	levelP := alpha - 1
 
-	plaintext := NewPlaintext(params, params.MaxLevel())
+	QBig := ring.NewUint(1)
+	for i := range ringQ.Modulus[:levelQ+1] {
+		QBig.Mul(QBig, ring.NewUint(ringQ.Modulus[i]))
+	}
+
+	PBig := ring.NewUint(1)
+	for i := range ringP.Modulus[:levelP+1] {
+		PBig.Mul(PBig, ring.NewUint(ringP.Modulus[i]))
+	}
+
+	plaintext := NewPlaintext(params, levelQ)
 	plaintext.Value.IsNTT = true
 	encryptor := NewEncryptor(params, sk)
 	ciphertext := NewCiphertextNTT(params, 1, plaintext.Level())
@@ -352,52 +366,70 @@ func testKeySwitcher(kgen KeyGenerator, t *testing.T) {
 	// reconstruction mod each RNS
 	t.Run(testString(params, "DecomposeNTT/"), func(t *testing.T) {
 
-		c2 := ciphertext.Value[1]
+		c2InvNTT := ringQ.NewPolyLvl(ciphertext.Level())
+		ringQ.InvNTT(ciphertext.Value[1], c2InvNTT)
 
-		ks.DecomposeNTT(ciphertext.Level(), len(params.RingP().Modulus)-1, c2, ks.PoolDecompQ, ks.PoolDecompP)
-
-		coeffsBigintHave := make([]*big.Int, ringQ.N)
+		coeffsBigintHaveQ := make([]*big.Int, ringQ.N)
+		coeffsBigintHaveP := make([]*big.Int, ringQ.N)
 		coeffsBigintRef := make([]*big.Int, ringQ.N)
 		coeffsBigintWant := make([]*big.Int, ringQ.N)
 
 		for i := range coeffsBigintRef {
-			coeffsBigintHave[i] = new(big.Int)
+			coeffsBigintHaveQ[i] = new(big.Int)
+			coeffsBigintHaveP[i] = new(big.Int)
 			coeffsBigintRef[i] = new(big.Int)
 			coeffsBigintWant[i] = new(big.Int)
 		}
 
-		ringQ.PolyToBigintCenteredLvl(len(ringQ.Modulus)-1, c2, coeffsBigintRef)
+		ringQ.PolyToBigintCenteredLvl(ciphertext.Level(), c2InvNTT, coeffsBigintRef)
+
+		tmpQ := ringQ.NewPolyLvl(ciphertext.Level())
+		tmpP := ringP.NewPolyLvl(levelP)
 
 		for i := 0; i < len(ks.PoolDecompQ); i++ {
 
-			// Compute q_alpha_i in bigInt
-			modulus := ring.NewInt(1)
+			ks.DecomposeSingleNTT(levelQ, levelP, alpha, i, ciphertext.Value[1], c2InvNTT, ks.PoolDecompQ[i], ks.PoolDecompP[i])
 
-			for j := 0; j < params.PCount(); j++ {
-				idx := i*params.PCount() + j
-				if idx > params.QCount()-1 {
+			// Compute q_alpha_i in bigInt
+			qalphai := ring.NewInt(1)
+
+			for j := 0; j < alpha; j++ {
+				idx := i*alpha + j
+				if idx > levelQ {
 					break
 				}
-				modulus.Mul(modulus, ring.NewUint(ringQ.Modulus[idx]))
+				qalphai.Mul(qalphai, ring.NewUint(ringQ.Modulus[idx]))
 			}
 
-			// Reconstruct the decomposed polynomial
-			polyQP := new(ring.Poly)
-			polyQP.Coeffs = append(ks.PoolDecompQ[i].Coeffs, ks.PoolDecompP[i].Coeffs...)
-			ringQP.PolyToBigintCenteredLvl(len(ringQP.Modulus)-1, polyQP, coeffsBigintHave)
+			ringQ.ReduceLvl(levelQ, ks.PoolDecompQ[i], ks.PoolDecompQ[i])
+			ringP.ReduceLvl(levelP, ks.PoolDecompP[i], ks.PoolDecompP[i])
+
+			ringQ.InvNTTLvl(levelQ, ks.PoolDecompQ[i], tmpQ)
+			ringP.InvNTTLvl(levelP, ks.PoolDecompP[i], tmpP)
+
+			ringQ.PolyToBigintCenteredLvl(levelQ, tmpQ, coeffsBigintHaveQ)
+			ringP.PolyToBigintCenteredLvl(levelP, tmpP, coeffsBigintHaveP)
 
 			// Checks that Reconstruct(NTT(c2 mod Q)) mod q_alpha_i == Reconstruct(NTT(Decomp(c2 mod Q, q_alpha-i) mod QP))
-			for i := range coeffsBigintWant {
-				coeffsBigintHave[i].Mod(coeffsBigintHave[i], modulus)
-				coeffsBigintWant[i].Mod(coeffsBigintRef[i], modulus)
-				require.Equal(t, coeffsBigintHave[i].Cmp(coeffsBigintWant[i]), 0)
+			for i := range coeffsBigintWant[:1] {
+
+				coeffsBigintWant[i].Mod(coeffsBigintRef[i], qalphai)
+				coeffsBigintWant[i].Mod(coeffsBigintWant[i], QBig)
+				coeffsBigintHaveQ[i].Mod(coeffsBigintHaveQ[i], QBig)
+				require.Equal(t, coeffsBigintHaveQ[i].Cmp(coeffsBigintWant[i]), 0)
+
+				coeffsBigintWant[i].Mod(coeffsBigintRef[i], qalphai)
+				coeffsBigintWant[i].Mod(coeffsBigintWant[i], PBig)
+				coeffsBigintHaveP[i].Mod(coeffsBigintHaveP[i], PBig)
+				require.Equal(t, coeffsBigintHaveP[i].Cmp(coeffsBigintWant[i]), 0)
+
 			}
 		}
 	})
 
 	// Test that Dec(KS(Enc(ct, sk), skOut), skOut) has a small norm
-	t.Run(testString(params, "KeySwitch/"), func(t *testing.T) {
-		swk := kgen.GenSwitchingKey(sk, skOut)
+	t.Run(testString(params, "KeySwitch/Standard/"), func(t *testing.T) {
+		swk := kgen.GenSwitchingKey(params.QCount()-1, params.PCount()-1, sk, skOut)
 		ks.SwitchKeysInPlace(ciphertext.Value[1].Level(), ciphertext.Value[1], swk, ks.PoolQ[1], ks.PoolQ[2])
 		ringQ.Add(ciphertext.Value[0], ks.PoolQ[1], ciphertext.Value[0])
 		ring.CopyValues(ks.PoolQ[2], ciphertext.Value[1])
@@ -412,8 +444,8 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 	paramsLargeDim := kgen.(*keyGenerator).params
 	paramsSmallDim, _ := NewParametersFromLiteral(ParametersLiteral{
 		LogN:  paramsLargeDim.LogN() - 1,
-		Q:     paramsLargeDim.Q(),
-		P:     paramsLargeDim.P(),
+		Q:     paramsLargeDim.Q()[:utils.MaxInt(1, paramsLargeDim.QCount()-1)],
+		P:     paramsLargeDim.P()[:utils.MaxInt(1, paramsLargeDim.PCount()-1)],
 		Sigma: DefaultSigma,
 	})
 
@@ -427,7 +459,7 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 		kgenSmallDim := NewKeyGenerator(paramsSmallDim)
 		skSmallDim := kgenSmallDim.GenSecretKey()
 
-		swk := kgenLargeDim.GenSwitchingKey(skLargeDim, skSmallDim)
+		swk := kgenLargeDim.GenSwitchingKey(paramsSmallDim.QCount()-1, paramsSmallDim.PCount()-1, skLargeDim, skSmallDim)
 
 		plaintext := NewPlaintext(paramsLargeDim, paramsLargeDim.MaxLevel())
 		plaintext.Value.IsNTT = true
@@ -436,12 +468,12 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 		encryptor.Encrypt(plaintext, ctLargeDim)
 
 		ks := NewKeySwitcher(paramsLargeDim)
-		ks.SwitchKeysInPlace(ctLargeDim.Value[1].Level(), ctLargeDim.Value[1], swk, ks.PoolQ[1], ks.PoolQ[2])
-		ringQLargeDim.Add(ctLargeDim.Value[0], ks.PoolQ[1], ctLargeDim.Value[0])
+		ks.SwitchKeysInPlace(paramsSmallDim.MaxLevel(), ctLargeDim.Value[1], swk, ks.PoolQ[1], ks.PoolQ[2])
+		ringQLargeDim.AddLvl(paramsSmallDim.MaxLevel(), ctLargeDim.Value[0], ks.PoolQ[1], ctLargeDim.Value[0])
 		ring.CopyValues(ks.PoolQ[2], ctLargeDim.Value[1])
 
 		//Extracts Coefficients
-		ctSmallDim := NewCiphertextNTT(paramsSmallDim, 1, plaintext.Level())
+		ctSmallDim := NewCiphertextNTT(paramsSmallDim, 1, paramsSmallDim.MaxLevel())
 		for i := range ctSmallDim.Value {
 			ringQLargeDim.InvNTT(ctLargeDim.Value[i], ctLargeDim.Value[i])
 			for j := range ctSmallDim.Value[i].Coeffs {
@@ -452,7 +484,7 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 					tmp0[w] = tmp1[w*gap]
 				}
 			}
-			ringQSmallDim.NTT(ctSmallDim.Value[i], ctSmallDim.Value[i])
+			ringQSmallDim.NTTLvl(ctSmallDim.Level(), ctSmallDim.Value[i], ctSmallDim.Value[i])
 		}
 
 		// Decrypts with smaller dimension key
@@ -471,7 +503,7 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 		kgenSmallDim := NewKeyGenerator(paramsSmallDim)
 		skSmallDim := kgenSmallDim.GenSecretKey()
 
-		swk := kgenLargeDim.GenSwitchingKey(skSmallDim, skLargeDim)
+		swk := kgenLargeDim.GenSwitchingKey(paramsLargeDim.QCount()-1, paramsLargeDim.PCount()-1, skSmallDim, skLargeDim)
 
 		plaintext := NewPlaintext(paramsSmallDim, paramsSmallDim.MaxLevel())
 		plaintext.Value.IsNTT = true
@@ -591,7 +623,7 @@ func testMarshaller(kgen KeyGenerator, t *testing.T) {
 
 		skOut := kgen.GenSecretKey()
 
-		switchingKey := kgen.GenSwitchingKey(sk, skOut)
+		switchingKey := kgen.GenSwitchingKey(params.QCount()-1, params.PCount()-1, sk, skOut)
 		data, err := switchingKey.MarshalBinary()
 		require.NoError(t, err)
 

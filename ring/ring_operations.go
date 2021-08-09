@@ -962,7 +962,7 @@ func (r *Ring) Rotate(p1 *Poly, n int, p2 *Poly) {
 
 		root = MRed(r.PsiMont[i], r.PsiMont[i], qi, mredParams)
 
-		root = modexpMontgomery(root, n, qi, mredParams, r.BredParams[i])
+		root = ModexpMontgomery(root, n, qi, mredParams, r.BredParams[i])
 
 		gal = MForm(1, qi, r.BredParams[i])
 

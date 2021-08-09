@@ -394,7 +394,6 @@ func bsgsIndex(el interface{}, slots, N1 int) (index map[int][]int, rotations []
 			} else {
 				index[idx1] = append(index[idx1], idx2)
 			}
-
 			if !utils.IsInSliceInt(idx2, rotations) {
 				rotations = append(rotations, idx2)
 			}
@@ -427,7 +426,22 @@ func bsgsIndex(el interface{}, slots, N1 int) (index map[int][]int, rotations []
 				rotations = append(rotations, idx2)
 			}
 		}
+	case []int:
+		for key := range element {
+			key &= (slots - 1)
+			idx1 := key / N1
+			idx2 := key & (N1 - 1)
+			if index[idx1] == nil {
+				index[idx1] = []int{idx2}
+			} else {
+				index[idx1] = append(index[idx1], idx2)
+			}
+			if !utils.IsInSliceInt(idx2, rotations) {
+				rotations = append(rotations, idx2)
+			}
+		}
 	}
+
 	return
 }
 

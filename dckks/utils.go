@@ -1,9 +1,10 @@
 package dckks
 
 import (
-	"github.com/ldsec/lattigo/v2/ring"
 	"math"
 	"math/bits"
+
+	"github.com/ldsec/lattigo/v2/ring"
 )
 
 func extendBasisSmallNormAndCenter(ringQ, ringP *ring.Ring, polQ, polP *ring.Poly) {

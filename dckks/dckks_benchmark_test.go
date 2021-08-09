@@ -2,7 +2,6 @@ package dckks
 
 import (
 	"encoding/json"
-	"fmt"
 	"testing"
 
 	"github.com/ldsec/lattigo/v2/ckks"
@@ -37,26 +36,13 @@ func BenchmarkDCKKS(b *testing.B) {
 			panic(err)
 		}
 
-		// benchPublicKeyGen(testCtx, b)
-		// benchRelinKeyGen(testCtx, b)
-		// benchKeySwitching(testCtx, b)
-		// benchPublicKeySwitching(testCtx, b)
-		// benchRotKeyGen(testCtx, b)
-		// benchRefresh(testCtx, b)
-		// benchMaskedTransform(testCtx, b)
-
-		// Varying N
-		for N := 3; N < 6; N++ {
-			t := N / 2
-			benchThreshold(testCtx.params, N, t, b)
-		}
-
-		// Varying t
-		N := 6
-		for t := 2; t < N; t++ {
-			benchThreshold(testCtx.params, N, t, b)
-
-		}
+		benchPublicKeyGen(testCtx, b)
+		benchRelinKeyGen(testCtx, b)
+		benchKeySwitching(testCtx, b)
+		benchPublicKeySwitching(testCtx, b)
+		benchRotKeyGen(testCtx, b)
+		benchRefresh(testCtx, b)
+		benchMaskedTransform(testCtx, b)
 	}
 }
 
@@ -390,81 +376,4 @@ func benchMaskedTransform(testCtx *testContext, b *testing.B) {
 	} else {
 		b.Log("bench skipped : not enough level to ensure correctness and 128 bit security")
 	}
-}
-
-func benchThreshold(params ckks.Parameters, NParties, t int, b *testing.B) {
-
-	type Party struct {
-		*drlwe.Thresholdizer
-		*drlwe.Combiner
-		*drlwe.CombinerCache
-		gen *drlwe.ShareGenPoly
-		s   *rlwe.SecretKey
-		tsk *rlwe.SecretKey
-	}
-
-	p := new(Party)
-	p.s = ckks.NewSecretKey(params)
-
-	b.Run(testString("Thresholdizer/Init/", NParties, params)+fmt.Sprintf("threshold=%d", t), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			p.Thresholdizer = drlwe.NewThresholdizer(params.Parameters)
-			p.gen = p.Thresholdizer.AllocateShareGenPoly()
-			p.Thresholdizer.InitShareGenPoly(p.gen, p.s, t)
-			p.tsk = ckks.NewSecretKey(params)
-		}
-	})
-
-	//Array of all shamir
-	shamirPoint := make([]*drlwe.ThreshPublicKey, NParties)
-	b.Run(testString("Thresholdizer/KeyGen/", NParties, params), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for j := 0; j < NParties; j++ {
-				shamirPoint[j] = p.Thresholdizer.GenKeyFromID(drlwe.PartyID{String: fmt.Sprintf("An arbitrary ID %d", j)})
-			}
-		}
-	})
-
-	b.Run(testString("Thresholdizer/Share/", NParties, params), func(b *testing.B) {
-
-		for i := 0; i < b.N; i++ {
-			tmpShare := p.Thresholdizer.AllocateSecretShare()
-
-			for j := 0; j < NParties; j++ {
-				p.Thresholdizer.GenShareForParty(p.gen, shamirPoint[j], tmpShare)
-			}
-
-			for k := 0; k < NParties; k++ {
-				p.Thresholdizer.AggregateShares(tmpShare, tmpShare, tmpShare)
-			}
-			p.Thresholdizer.GenThreshSecretKey(tmpShare, p.tsk)
-		}
-	})
-
-	activePoints := shamirPoint[:t]
-	b.Run(testString("Combiner/Init/", NParties, params)+fmt.Sprintf("threshold=%d", t)+fmt.Sprintf("precomputation=false"), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			p.Combiner = drlwe.NewCombiner(params.Parameters, t)
-		}
-	})
-
-	b.Run(testString("Combiner/Init/", NParties, params)+fmt.Sprintf("threshold=%d", t)+fmt.Sprintf("precomputation=true"), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			p.CombinerCache = drlwe.NewCombinerCache(p.Combiner, activePoints[0], activePoints)
-			p.CombinerCache.CacheInverses(activePoints[0], activePoints)
-		}
-	})
-	//Nothing is cached (simulates first decryption)
-	b.Run(testString("Combiner/Combine/", NParties, params)+fmt.Sprintf("threshold=%d", t), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			p.CombinerCache.ClearCache()
-			p.Combiner.GenFinalShare(activePoints, activePoints[0], p.tsk, p.tsk)
-		}
-	})
-	// Everything is cached (simulates n-th decryption)
-	b.Run(testString("Combiner/CombineCached/", NParties, params)+fmt.Sprintf("threshold=%d", t), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			p.Combiner.GenFinalShare(activePoints, activePoints[0], p.tsk, p.tsk)
-		}
-	})
 }

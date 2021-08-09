@@ -94,12 +94,9 @@ func Test_DBFV(t *testing.T) {
 		testRefreshAndPermutation(testCtx, t)
 		testMarshalling(testCtx, t)
 
-		for _, N := range []int{2, 3, 5, 7} {
-			if parties != N {
-				testCtx, err = gentestContext(params, parties)
-				if err != nil {
-					panic(err)
-				}
+		for _, N := range []int{2, 3, 5, 7, 20} {
+			if testCtx, err = gentestContext(params, N); err != nil {
+				panic(err)
 			}
 			testThreshold(testCtx, t)
 		}
@@ -799,43 +796,18 @@ func testThreshold(testCtx *testContext, t *testing.T) {
 
 	threshold := testCtx.NParties / 2
 
-	t.Run(testString("ThresholdKeyGen/", testCtx.NParties, testCtx.params), func(t *testing.T) {
-		type Party struct {
-			*drlwe.Thresholdizer
-			*drlwe.Combiner
-		}
-		// Checks that GenKeyFromID is consistent among testCtx.NParties
-		P := make([]*Party, testCtx.NParties)
-		for i := 0; i < testCtx.NParties; i++ {
-			p := new(Party)
-			p.Thresholdizer = drlwe.NewThresholdizer(testCtx.params.Parameters)
-			p.Combiner = drlwe.NewCombiner(testCtx.params.Parameters, threshold)
-			P[i] = p
-		}
-		pid := drlwe.PartyID{String: "An arbitrary ID"}
-		pks := make([]*drlwe.ThreshPublicKey, testCtx.NParties)
-		for i, p := range P {
-			pks[i] = p.Thresholdizer.GenKeyFromID(pid)
-		}
-		for i, p := range P {
-			if i > 0 {
-				require.True(t, p.Combiner.Equal(pks[i-1], pks[i]))
-			}
-		}
-	})
-
-	t.Run(testString("Threshold", testCtx.NParties, testCtx.params)+fmt.Sprintf("/threshold=%d", threshold), func(t *testing.T) {
+	t.Run(testString("Threshold/", testCtx.NParties, testCtx.params)+fmt.Sprintf("/threshold=%d", threshold), func(t *testing.T) {
 
 		type Party struct {
 			*drlwe.Thresholdizer
 			*drlwe.Combiner
-			*drlwe.CombinerCache
-			id        drlwe.PartyID
-			gen       *drlwe.ShareGenPoly
+			*drlwe.CombinerCached
+			gen       *drlwe.ShamirPolynomial
 			sk        *rlwe.SecretKey
-			tsks      *rlwe.SecretKey
-			pcksShare *drlwe.PCKSShare
+			tsks      *drlwe.ShamirSecretShare
 			tsk       *rlwe.SecretKey
+			tpk       *drlwe.ShamirPublicKey
+			pcksShare *drlwe.PCKSShare
 		}
 
 		pcksPhase := func(params bfv.Parameters, tpk *rlwe.PublicKey, ct *bfv.Ciphertext, P []*Party) (encOut *bfv.Ciphertext) {
@@ -867,75 +839,67 @@ func testThreshold(testCtx *testContext, t *testing.T) {
 		P := make([]*Party, testCtx.NParties)
 		for i := 0; i < testCtx.NParties; i++ {
 			p := new(Party)
+			p.Thresholdizer = drlwe.NewThresholdizer(testCtx.params.Parameters)
+			p.Combiner = drlwe.NewCombiner(testCtx.params.Parameters, threshold)
+			p.CombinerCached = drlwe.NewCombinerCache(testCtx.params.Parameters, threshold)
 			p.sk = sk0Shards[i]
 			p.tsk = bfv.NewSecretKey(testCtx.params)
-			p.Thresholdizer = drlwe.NewThresholdizer(testCtx.params.Parameters)
-			p.gen = p.Thresholdizer.AllocateShareGenPoly()
-			p.Thresholdizer.InitShareGenPoly(p.gen, p.sk, threshold)
-			p.Combiner = drlwe.NewCombiner(testCtx.params.Parameters, threshold)
-			p.CombinerCache = drlwe.NewCombinerCache(p.Combiner, nil, nil)
+			p.tpk = p.Thresholdizer.GenShamirPublicKey()
+			p.tsks = p.Thresholdizer.AllocateThresholdSecretShare()
 			P[i] = p
 		}
 
-		//Array of all party IDs
-		ids := make([]drlwe.PartyID, testCtx.NParties)
-		for i := 0; i < testCtx.NParties; i++ {
-			pid := drlwe.PartyID{String: fmt.Sprintf("Party %d", i)}
-			ids[i] = pid
-			P[i].id = ids[i]
-		}
-
 		// Checks that dbfv types complies to the corresponding drlwe interfaces
-		var _ drlwe.ThresholdizerProtocol = P[0].Thresholdizer
+		//var _ drlwe.ThresholdizerProtocol = P[0].Thresholdizer
 		//var _ drlwe.CombinerProtocol = P[0].Combiner
 
-		shares := make([]map[drlwe.PartyID]*drlwe.ThreshSecretShare, testCtx.NParties)
-
+		shares := make(map[*Party]map[*Party]*drlwe.ShamirSecretShare, testCtx.NParties)
+		var err error
 		// Every party generates a share for every other party
-		for i, pi := range P {
+		for _, pi := range P {
 
-			shares[i] = make(map[drlwe.PartyID]*drlwe.ThreshSecretShare)
+			pi.gen, err = pi.Thresholdizer.GenShamirPolynomial(threshold, pi.sk)
+			if err != nil {
+				t.Error(err)
+			}
 
-			for _, id := range ids {
-				share := pi.Thresholdizer.AllocateSecretShare()
-				pi.Thresholdizer.GenShareForParty(pi.gen, pi.Thresholdizer.GenKeyFromID(id), share)
-				shares[i][id] = share
+			shares[pi] = make(map[*Party]*drlwe.ShamirSecretShare)
+			for _, pj := range P {
+				shares[pi][pj] = pi.Thresholdizer.AllocateThresholdSecretShare()
+				pi.Thresholdizer.GenShamirSecretShare(pj.tpk, pi.gen, shares[pi][pj])
 			}
 		}
 
 		//Each party aggregates what it has received into a secret key
 		for _, pi := range P {
-			tmpShare := P[0].Thresholdizer.AllocateSecretShare()
-			for j := 0; j < len(P); j++ {
-				pi.Thresholdizer.AggregateShares(tmpShare, shares[j][pi.id], tmpShare)
+			for _, pj := range P {
+				pi.Thresholdizer.AggregateShares(pi.tsks, shares[pj][pi], pi.tsks)
 			}
-			pi.tsks = bfv.NewSecretKey(testCtx.params)
-			pi.Thresholdizer.GenThreshSecretKey(tmpShare, pi.tsks)
 		}
 
 		// Determining which parties are active. In a distributed context, a party
 		// would receive the ids of active players and retrieve (or compute) the corresponding keys.
 		activeParties := P[:threshold]
-		activePoints := make([]*drlwe.ThreshPublicKey, threshold)
+		activePoints := make([]*drlwe.ShamirPublicKey, threshold)
 		for i, p := range activeParties {
-			activePoints[i] = P[0].GenKeyFromID(p.id)
+			activePoints[i] = p.tpk
 		}
 
 		// Combining
 		// Slow because each party has to generate its public key on-the-fly. In
 		// practice the public key could be precomputed from an id by parties during setup
 		for _, pi := range activeParties {
-			pi.Combiner.GenFinalShare(activePoints, pi.Thresholdizer.GenKeyFromID(pi.id), pi.tsks, pi.tsk)
-			tsk := pi.tsk.Value.CopyNew()
-			pi.CombinerCache.CacheInverses(pi.Thresholdizer.GenKeyFromID(pi.id), activePoints)
-			pi.CombinerCache.GenFinalShare(pi.tsks, pi.tsk)
+			pi.Combiner.GenAdditiveShare(activePoints, pi.tpk, pi.tsks, pi.tsk)
+			//tsk := pi.tsk.Value.CopyNew()
+			//pi.CombinerCached.Precompute(pi.tpk, activePoints)
+			//pi.CombinerCached.GenFinalShare(pi.tsks, pi.tsk)
 			//the cached and non-cached combiners should yield the same results
-			require.True(t, testCtx.ringQP.Equal(tsk, pi.tsk.Value))
+			//require.True(t, testCtx.ringQP.Equal(tsk, pi.tsk.Value))
 		}
 
 		//Clearing caches
 		for _, pi := range activeParties {
-			pi.CombinerCache.ClearCache()
+			pi.CombinerCached.ClearCache()
 		}
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, testCtx.encryptorPk0, t)

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -38,11 +37,11 @@ type party struct {
 	sk            *rlwe.SecretKey
 	thresholdizer *drlwe.Thresholdizer
 	combiner      *drlwe.Combiner
-	gen           *drlwe.ShareGenPoly
+	gen           *drlwe.ShamirPolynomial
 	rlkEphemSk    *rlwe.SecretKey
-	id            drlwe.PartyID
-	tsks          *rlwe.SecretKey
+	tsks          *drlwe.ShamirSecretShare
 	tsk           *rlwe.SecretKey
+	tpk           *drlwe.ShamirPublicKey
 	ckgShare      *drlwe.CKGShare
 	rkgShareOne   *drlwe.RKGShare
 	rkgShareTwo   *drlwe.RKGShare
@@ -139,16 +138,10 @@ func main() {
 
 	ternarySamplerMontgomery := ring.NewTernarySampler(prng, ringQP, 0.5, true)
 
-	shamirPoints := make([]*drlwe.ThreshPublicKey, N)
-	for i := range shamirPoints {
-		shamirPoints[i] = &drlwe.ThreshPublicKey{Poly: crsGen.ReadNew()}
-	}
-	//shamir_keys[1].Coeffs[0][0] = shamir_keys[0].Coeffs[0][0]
-
 	// Create each party, and allocate the memory for all the shares that the protocols will need
 	P := genparties(params, N, ternarySamplerMontgomery)
 
-	genThresholdizers(params, P, shamirPoints, t)
+	genThresholdizers(params, P, t)
 
 	thresholdGenShares(params, ringQP, P, crsGen)
 	// Inputs & expected result
@@ -203,59 +196,50 @@ func main() {
 func thresholdGenShares(params bfv.Parameters, ringQP *ring.Ring, P []*party, crsGen *ring.UniformSampler) {
 
 	l.Println("> Threshold Shares Generation")
-	//Array of all party IDs
-	ids := make([]drlwe.PartyID, len(P))
-	for i := 0; i < len(P); i++ {
-		pid := drlwe.PartyID{String: fmt.Sprintf("Party %d", i)}
-		ids[i] = pid
-		P[i].id = ids[i]
-	}
+
 	// Each party generates the polynomial shares for its own Secret Key
-	shares := make([]map[drlwe.PartyID]*drlwe.ThreshSecretShare, len(P))
+	shares := make(map[*party]map[*party]*drlwe.ShamirSecretShare, len(P))
 	elapsedThreshShareParty = runTimedParty(func() {
-		for i, pi := range P {
+		for _, pi := range P {
 
-			shares[i] = make(map[drlwe.PartyID]*drlwe.ThreshSecretShare)
+			shares[pi] = make(map[*party]*drlwe.ShamirSecretShare)
 
-			for _, id := range ids {
-				share := pi.thresholdizer.AllocateSecretShare()
-				pi.thresholdizer.GenShareForParty(pi.gen, pi.thresholdizer.GenKeyFromID(id), share)
-				shares[i][id] = share
+			for _, pj := range P {
+				shares[pi][pj] = pi.thresholdizer.AllocateThresholdSecretShare()
+				pi.thresholdizer.GenShamirSecretShare(pj.tpk, pi.gen, shares[pi][pj])
 			}
 		}
 	}, len(P))
 
 	elapsedThreshShareCloud = runTimed(func() {
 		for _, pi := range P {
-			tmpShare := pi.thresholdizer.AllocateSecretShare()
-			for j := 0; j < len(P); j++ {
-				pi.thresholdizer.AggregateShares(tmpShare, shares[j][pi.id], tmpShare)
+			for _, pj := range P {
+				pi.thresholdizer.AggregateShares(pi.tsks, shares[pj][pi], pi.tsks)
 			}
-			pi.tsks = bfv.NewSecretKey(params)
-			pi.thresholdizer.GenThreshSecretKey(tmpShare, pi.tsks)
 		}
 	})
 
 	l.Printf("\tdone (cloud: %s, party: %s)\n", elapsedThreshShareCloud, elapsedThreshShareParty)
 }
+
 func thresholdCombine(params bfv.Parameters, ringQP *ring.Ring, P []*party, t uint64) (activeParties []*party) {
 
 	l.Println("> ThresholdCombine")
 	activeParties = make([]*party, int(t))
-	activePoints := make([]*drlwe.ThreshPublicKey, int(t))
+	activePoints := make([]*drlwe.ShamirPublicKey, int(t))
 
 	//Determining which players are active and their key
 	elapsedThreshCombCloud = runTimed(func() {
-		for i := range activeParties {
+		for i := range P[:t] {
 			activeParties[i] = P[i]
-			activePoints[i] = P[i].thresholdizer.GenKeyFromID(P[i].id)
+			activePoints[i] = P[i].tpk
 		}
 	})
 
 	//Combining
 	elapsedThreshCombParty = runTimedParty(func() {
 		for _, pi := range activeParties {
-			pi.combiner.GenFinalShare(activePoints, pi.thresholdizer.GenKeyFromID(pi.id), pi.tsks, pi.tsk)
+			pi.combiner.GenAdditiveShare(activePoints, pi.tpk, pi.tsks, pi.tsk)
 		}
 	}, len(P))
 
@@ -372,14 +356,19 @@ func genparties(params bfv.Parameters, N int, sampler *ring.TernarySampler) []*p
 	return P
 }
 
-func genThresholdizers(params bfv.Parameters, P []*party, shamirPoints []*drlwe.ThreshPublicKey, t int) {
+func genThresholdizers(params bfv.Parameters, P []*party, t int) {
 	l.Println("> Thresholdizers Initialization")
 	elapsedThreshInitParty = runTimedParty(func() {
+		var err error
 		for _, pi := range P {
 			pi.thresholdizer = drlwe.NewThresholdizer(params.Parameters)
-			pi.gen = pi.thresholdizer.AllocateShareGenPoly()
-			pi.thresholdizer.InitShareGenPoly(pi.gen, pi.sk, t)
 			pi.combiner = drlwe.NewCombiner(params.Parameters, t)
+			pi.tpk = pi.thresholdizer.GenShamirPublicKey()
+			pi.gen, err = pi.thresholdizer.GenShamirPolynomial(t, pi.sk)
+			if err != nil {
+				panic(err)
+			}
+			pi.tsks = pi.thresholdizer.AllocateThresholdSecretShare()
 		}
 	}, len(P))
 	l.Printf("\tdone (party : %s)\n", elapsedThreshInitParty)

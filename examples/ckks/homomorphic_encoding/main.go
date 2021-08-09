@@ -11,6 +11,9 @@ import (
 )
 
 // This example is an implementation of the RLWE -> LWE extraction followed by an LWE -> RLWE repacking
+// (bridge between CKKS and FHEW ciphertext) based on "Pegasus: Bridging Polynomial and Non-polynomial
+// Evaluations in Homomorphic Encryption".
+// It showcases advanced tools of the CKKS schemes, like homomorphic decoding or homomorphic modular reduction.
 
 func main() {
 
@@ -163,8 +166,6 @@ func main() {
 
 	//Switch from RLWE parameters to LWE parameters
 	ctTmp := eval.SwitchKeysNew(ct, swkRLWEDimToLWEDim)
-
-	// Extracts the LWE parameters ciphertext from the RLWE parameters ciphertext
 	ctLWE := ckks.NewCiphertext(paramsLWE, 1, 0, ctTmp.Scale)
 	for i := range ctLWE.Value {
 		paramsRLWE.RingQ().InvNTTLvl(0, ctTmp.Value[i], ctTmp.Value[i])
@@ -177,7 +178,7 @@ func main() {
 		paramsLWE.RingQ().NTTLvl(0, ctLWE.Value[i], ctLWE.Value[i])
 	}
 
-	// Switch the LWE ciphertext outside of the NTT domain for the LWE extraction
+	// Switch the ciphertext outside of the NTT domain for the LWE extraction
 	paramsLWE.RingQ().InvNTTLvl(0, ctLWE.Value[0], ctLWE.Value[0])
 	paramsLWE.RingQ().InvNTTLvl(0, ctLWE.Value[1], ctLWE.Value[1])
 
@@ -195,7 +196,7 @@ func main() {
 	start = time.Now()
 	ptLWE := ckks.NewPlaintext(paramsRLWE, paramsRLWE.MaxLevel(), 1.0)
 
-	// Encode the LWE samples
+	// Encode the LWE samples as a vector
 	lweEncoded := make([]complex128, paramsRLWE.Slots())
 	for i := 0; i < paramsRLWE.Slots(); i++ {
 		lweEncoded[i] = complex(float64(lweReal[i].b), float64(lweImag[i].b))

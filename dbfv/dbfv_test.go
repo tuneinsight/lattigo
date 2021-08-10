@@ -800,8 +800,8 @@ func testThreshold(testCtx *testContext, t *testing.T) {
 
 		type Party struct {
 			*drlwe.Thresholdizer
-			*drlwe.Combiner
-			*drlwe.CombinerCached
+			drlwe.Combiner
+			*drlwe.CachedCombiner
 			gen       *drlwe.ShamirPolynomial
 			sk        *rlwe.SecretKey
 			tsks      *drlwe.ShamirSecretShare
@@ -841,7 +841,7 @@ func testThreshold(testCtx *testContext, t *testing.T) {
 			p := new(Party)
 			p.Thresholdizer = drlwe.NewThresholdizer(testCtx.params.Parameters)
 			p.Combiner = drlwe.NewCombiner(testCtx.params.Parameters, threshold)
-			p.CombinerCached = drlwe.NewCombinerCache(testCtx.params.Parameters, threshold)
+			p.CachedCombiner = drlwe.NewCachedCombiner(testCtx.params.Parameters, threshold)
 			p.sk = sk0Shards[i]
 			p.tsk = bfv.NewSecretKey(testCtx.params)
 			p.tpk = p.Thresholdizer.GenShamirPublicKey()
@@ -880,26 +880,26 @@ func testThreshold(testCtx *testContext, t *testing.T) {
 		// Determining which parties are active. In a distributed context, a party
 		// would receive the ids of active players and retrieve (or compute) the corresponding keys.
 		activeParties := P[:threshold]
-		activePoints := make([]*drlwe.ShamirPublicKey, threshold)
+		activeShamirPks := make([]*drlwe.ShamirPublicKey, threshold)
 		for i, p := range activeParties {
-			activePoints[i] = p.tpk
+			activeShamirPks[i] = p.tpk
 		}
 
 		// Combining
 		// Slow because each party has to generate its public key on-the-fly. In
 		// practice the public key could be precomputed from an id by parties during setup
 		for _, pi := range activeParties {
-			pi.Combiner.GenAdditiveShare(activePoints, pi.tpk, pi.tsks, pi.tsk)
-			//tsk := pi.tsk.Value.CopyNew()
-			//pi.CombinerCached.Precompute(pi.tpk, activePoints)
-			//pi.CombinerCached.GenFinalShare(pi.tsks, pi.tsk)
+			pi.Combiner.GenAdditiveShare(activeShamirPks, pi.tpk, pi.tsks, pi.tsk)
+			tsk := pi.tsk.Value.CopyNew()
+			pi.CachedCombiner.Precompute(activeShamirPks, pi.tpk)
+			pi.CachedCombiner.GenAdditiveShare(activeShamirPks, pi.tpk, pi.tsks, pi.tsk)
 			//the cached and non-cached combiners should yield the same results
-			//require.True(t, testCtx.ringQP.Equal(tsk, pi.tsk.Value))
+			require.True(t, testCtx.ringQP.Equal(tsk, pi.tsk.Value))
 		}
 
 		//Clearing caches
 		for _, pi := range activeParties {
-			pi.CombinerCached.ClearCache()
+			pi.CachedCombiner.ClearCache()
 		}
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, testCtx.encryptorPk0, t)

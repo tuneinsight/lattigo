@@ -36,7 +36,7 @@ func runTimedParty(f func(), N int) time.Duration {
 type party struct {
 	sk            *rlwe.SecretKey
 	thresholdizer *drlwe.Thresholdizer
-	combiner      *drlwe.Combiner
+	combiner      drlwe.Combiner
 	gen           *drlwe.ShamirPolynomial
 	rlkEphemSk    *rlwe.SecretKey
 	tsks          *drlwe.ShamirSecretShare

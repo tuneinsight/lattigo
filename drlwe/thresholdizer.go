@@ -13,6 +13,11 @@ type ShamirPublicKey struct {
 	*ring.Poly
 }
 
+//Equals compares two ThreshPublicKey for equality.
+func (tpk *ShamirPublicKey) Equals(other *ShamirPublicKey) bool {
+	return tpk.Poly == other.Poly || tpk.Poly.Equals(other.Poly)
+}
+
 // ShamirPolynomial is a type for a share-generating polynomial.
 type ShamirPolynomial struct {
 	coeffs []*ring.Poly
@@ -24,14 +29,19 @@ type ShamirSecretShare struct {
 }
 
 // ThresholdizerProtocol is an interface describing the local steps of a generic
-// DRLWE thresholdizer.
+// RLWE thresholdizer.
 type ThresholdizerProtocol interface {
 	GenShamirPublicKey() *ShamirPublicKey
 	GenShamirPolynomial(threshold int, sk *rlwe.SecretKey) (*ShamirPolynomial, error)
 
 	AllocateShamirSecretShare() *ShamirSecretShare
-	GenShamirSecretShare(pubPoint *ShamirPublicKey, secretPoly *ShamirPolynomial, shareOut *ShamirSecretShare)
+	GenShamirSecretShare(recipient *ShamirPublicKey, secretPoly *ShamirPolynomial, shareOut *ShamirSecretShare)
 	AggregateShares(share1, share2, outShare *ShamirSecretShare)
+}
+
+// Combiner is an interface for the combining phase of a RLWE threshold secret sharing protocol.
+type Combiner interface {
+	GenAdditiveShare(activePk []*ShamirPublicKey, tpk *ShamirPublicKey, tsks *ShamirSecretShare, tsk *rlwe.SecretKey)
 }
 
 //--------------------------------THRESHOLDIZING--------------------------------
@@ -92,8 +102,8 @@ func (thresholdizer *Thresholdizer) AllocateThresholdSecretShare() *ShamirSecret
 // GenShamirSecretShare generates a secret share for a given threshold public key.
 // Stores the result in share_out. This result should be sent to the given
 // threshold public key's owner.
-func (thresholdizer *Thresholdizer) GenShamirSecretShare(pubPoint *ShamirPublicKey, gen *ShamirPolynomial, shareOut *ShamirSecretShare) {
-	thresholdizer.ringQP.EvalPolMontgomeryNTT(gen.coeffs, pubPoint.Poly, shareOut.Poly)
+func (thresholdizer *Thresholdizer) GenShamirSecretShare(recipient *ShamirPublicKey, secretPoly *ShamirPolynomial, shareOut *ShamirSecretShare) {
+	thresholdizer.ringQP.EvalPolMontgomeryNTT(secretPoly.coeffs, recipient.Poly, shareOut.Poly)
 }
 
 // AggregateShares aggregates two secret shares(by adding them), and stores them
@@ -102,112 +112,112 @@ func (thresholdizer *Thresholdizer) AggregateShares(share1, share2, outShare *Sh
 	thresholdizer.ringQP.Add(share1.Poly, share2.Poly, outShare.Poly)
 }
 
-//-------------------------------COMBINING -------------------------------------
-
-// Combiner is a structure that holds the parameters for the combining phase of
+// baseCombiner is a structure that holds the parameters for the combining phase of
 // a threshold secret sharing protocol.
-type Combiner struct {
+type baseCombiner struct {
 	ringQP    *ring.Ring
-	threshold uint64
+	threshold int
 	tmp       *ring.Poly
 }
 
 //NewCombiner creates a new Combiner.
-func NewCombiner(params rlwe.Parameters, threshold int) *Combiner {
-	combiner := new(Combiner)
-	combiner.ringQP = params.RingQP()
-	combiner.tmp = combiner.ringQP.NewPoly()
-	return combiner
+func NewCombiner(params rlwe.Parameters, threshold int) Combiner {
+	cmb := new(baseCombiner)
+	cmb.ringQP = params.RingQP()
+	cmb.threshold = threshold
+	cmb.tmp = cmb.ringQP.NewPoly()
+	return cmb
 }
 
 // GenAdditiveShare generates an additive share of a cohort's secret key from a slice con-
 // taining all active player's threshold public keys and a party's public and
 // secret keys. Stores the result in out_key.
-func (combiner *Combiner) GenAdditiveShare(activePoints []*ShamirPublicKey, tpk *ShamirPublicKey, tsks *ShamirSecretShare, tsk *rlwe.SecretKey) {
+func (cmb *baseCombiner) GenAdditiveShare(actives []*ShamirPublicKey, ownPublic *ShamirPublicKey, ownSecret *ShamirSecretShare, skOut *rlwe.SecretKey) {
 
-	if uint64(len(activePoints)) < combiner.threshold {
+	if len(actives) < cmb.threshold {
 		panic("Not enough active players to combine threshold shares.")
 	}
 
-	tsk.Value.Copy(tsks.Poly)
-	for _, activePoint := range activePoints {
+	skOut.Value.Copy(ownSecret.Poly)
+	for _, active := range actives[:cmb.threshold] {
 		//Lagrange Interpolation with the public threshold key of other active players
-		if !combiner.Equal(activePoint, tpk) {
-			combiner.ringQP.MulCoeffsMontgomeryConstant(tsk.Value, activePoint.Poly, tsk.Value)
-			combiner.ringQP.SubNoMod(activePoint.Poly, tpk.Poly, combiner.tmp)
-			combiner.ringQP.InvMultPolyMontgomeryNTT(combiner.tmp, combiner.tmp)
-			combiner.ringQP.MulCoeffsMontgomeryConstant(tsk.Value, combiner.tmp, tsk.Value)
+		if !active.Equals(ownPublic) {
+			cmb.getLagrangeCoeff(ownPublic, active, cmb.tmp)
+			cmb.ringQP.MulCoeffsMontgomeryConstant(skOut.Value, cmb.tmp, skOut.Value)
 		}
 	}
 
-	combiner.ringQP.Reduce(tsk.Value, tsk.Value)
+	cmb.ringQP.Reduce(skOut.Value, skOut.Value)
 }
 
-//Equal compares two ThreshPublicKey for equality.
-func (combiner *Combiner) Equal(tpk1, tpk2 *ShamirPublicKey) bool {
-	return combiner.ringQP.Equal(tpk1.Poly, tpk2.Poly)
+// getLagrangeCoeff computes the difference between the two given keys and stores
+// its multiplicative inverse in pol_out, caching it as well.
+func (cmb *baseCombiner) getLagrangeCoeff(thisKey *ShamirPublicKey, thatKey *ShamirPublicKey, polOut *ring.Poly) {
+	//Inverse not in the cache, we have to compute it
+	cmb.ringQP.SubNoMod(thatKey.Poly, thisKey.Poly, polOut)
+	if !cmb.ringQP.IsInvertible(polOut) {
+		panic("keys yield a non-invertible difference")
+	}
+	cmb.ringQP.InvMultPolyMontgomeryNTT(polOut, polOut)
+	cmb.ringQP.MulCoeffsMontgomeryConstant(polOut, thatKey.Poly, polOut)
 }
 
-// CombinerCached is a structure that holds the parameters for the combining phase of
+// CachedCombiner is a structure that holds the parameters for the combining phase of
 // a threshold secret sharing protocol, augmented with a stateful cache.
-type CombinerCached struct {
-	*Combiner
-	inverses map[*ShamirPublicKey]*ring.Poly
+type CachedCombiner struct {
+	*baseCombiner
+	lagrangeCoeffs map[*ShamirPublicKey]*ring.Poly
 }
 
-// NewCombinerCache creates a new combiner with cache from parameters.
-func NewCombinerCache(params rlwe.Parameters, threshold int) *CombinerCached {
-	combinercache := new(CombinerCached)
-	combinercache.Combiner = NewCombiner(params, threshold)
-	combinercache.inverses = make(map[*ShamirPublicKey]*ring.Poly)
-	return combinercache
+// NewCachedCombiner creates a new combiner with cache from parameters.
+func NewCachedCombiner(params rlwe.Parameters, threshold int) *CachedCombiner {
+	ccmb := new(CachedCombiner)
+	ccmb.baseCombiner = NewCombiner(params, threshold).(*baseCombiner)
+	ccmb.lagrangeCoeffs = make(map[*ShamirPublicKey]*ring.Poly)
+	return ccmb
+}
+
+// GenAdditiveShare generates an additive share of a cohort's secret key from the values
+// in the cache and a party's secret keys. Assumes the inverse corresponding
+// to every active's party is in the cache. Stores the result in out_key.
+func (cmb *CachedCombiner) GenAdditiveShare(actives []*ShamirPublicKey, ownPublic *ShamirPublicKey, ownSecret *ShamirSecretShare, skOut *rlwe.SecretKey) {
+
+	r := cmb.ringQP
+	skOut.Value.Copy(ownSecret.Poly)
+	for _, active := range actives {
+		//Lagrange Interpolation with the public threshold key of other active players
+		if !active.Equals(ownPublic) {
+			lagrangeCoeff := cmb.getLagrangeCoeff(ownPublic, active)
+			cmb.ringQP.MulCoeffsMontgomeryConstant(skOut.Value, lagrangeCoeff, skOut.Value)
+		}
+	}
+
+	r.Reduce(skOut.Value, skOut.Value)
+}
+
+// ClearCache replaces the cache of a combiner by an empty one.
+func (cmb *CachedCombiner) ClearCache() {
+	cmb.lagrangeCoeffs = make(map[*ShamirPublicKey]*ring.Poly)
 }
 
 // Precompute caches the inverses of the differences between tpk and each of
 // pks (as needed for Lagrange interpolation)
-func (combiner *CombinerCached) Precompute(tpk *ShamirPublicKey, pks []*ShamirPublicKey) {
-	for _, key := range pks {
-		if !combiner.Equal(tpk, key) {
-			combiner.getLagrangeCoeff(tpk, key)
+func (cmb *CachedCombiner) Precompute(others []*ShamirPublicKey, own *ShamirPublicKey) {
+	for _, key := range others {
+		if !own.Equals(key) {
+			_ = cmb.getLagrangeCoeff(own, key)
 		}
 	}
 }
 
 // getLagrangeCoeff computes the difference between the two given keys and stores
 // its multiplicative inverse in pol_out, caching it as well.
-func (combiner *CombinerCached) getLagrangeCoeff(thisKey *ShamirPublicKey, thatKey *ShamirPublicKey) (polOut *ring.Poly) {
-	polOut, found := combiner.inverses[thatKey]
+func (cmb *CachedCombiner) getLagrangeCoeff(thisKey *ShamirPublicKey, thatKey *ShamirPublicKey) (polOut *ring.Poly) {
+	_, found := cmb.lagrangeCoeffs[thatKey]
 	if !found {
 		//Inverse not in the cache, we have to compute it
-		polOut = combiner.ringQP.NewPoly()
-		combiner.ringQP.SubNoMod(thatKey.Poly, thisKey.Poly, polOut)
-		if !combiner.ringQP.IsInvertible(polOut) {
-			panic("keys yield a non-invertible difference")
-		}
-		combiner.ringQP.InvMultPolyMontgomeryNTT(polOut, polOut)
-		combiner.ringQP.MulCoeffsMontgomeryConstant(polOut, thisKey.Poly, polOut)
-		//Cache the result.
-		combiner.inverses[thatKey] = polOut
+		cmb.lagrangeCoeffs[thatKey] = cmb.ringQP.NewPoly()
+		cmb.baseCombiner.getLagrangeCoeff(thisKey, thatKey, cmb.lagrangeCoeffs[thatKey])
 	}
-	return polOut
-}
-
-// GenFinalShare generates an additive share of a cohort's secret key from the values
-// in the cache and a party's secret keys. Assumes the inverse corresponding
-// to every active's party is in the cache. Stores the result in out_key.
-func (combiner *CombinerCached) GenFinalShare(tsks *ShamirSecretShare, tsk *rlwe.SecretKey) {
-
-	r := combiner.ringQP
-	tsk.Value.Copy(tsks.Poly)
-	for _, inv := range combiner.inverses {
-		//Lagrange Interpolation with the threshold public key of other active players
-		r.MulCoeffsMontgomeryConstant(tsk.Value, inv, tsk.Value)
-	}
-
-	r.Reduce(tsk.Value, tsk.Value)
-}
-
-// ClearCache replaces the cache of a combiner by an empty one.
-func (combiner *CombinerCached) ClearCache() {
-	combiner.inverses = make(map[*ShamirPublicKey]*ring.Poly)
+	return cmb.lagrangeCoeffs[thatKey]
 }

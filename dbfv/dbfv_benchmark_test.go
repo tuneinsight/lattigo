@@ -332,8 +332,8 @@ func benchThreshold(params bfv.Parameters, NParties, t int, b *testing.B) {
 
 	type Party struct {
 		*drlwe.Thresholdizer
-		*drlwe.Combiner
-		*drlwe.CombinerCached
+		drlwe.Combiner
+		*drlwe.CachedCombiner
 		gen *drlwe.ShamirPolynomial
 		s   *rlwe.SecretKey
 		tsk *drlwe.ShamirSecretShare
@@ -353,11 +353,11 @@ func benchThreshold(params bfv.Parameters, NParties, t int, b *testing.B) {
 	})
 
 	//Array of all shamir
-	shamirPoints := make([]*drlwe.ShamirPublicKey, NParties)
+	shamirPks := make([]*drlwe.ShamirPublicKey, NParties)
 	b.Run(testString("Thresholdizer/KeyGen/", NParties, params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			for j := 0; j < NParties; j++ {
-				shamirPoints[j] = p.Thresholdizer.GenShamirPublicKey()
+				shamirPks[j] = p.Thresholdizer.GenShamirPublicKey()
 			}
 		}
 	})
@@ -368,7 +368,7 @@ func benchThreshold(params bfv.Parameters, NParties, t int, b *testing.B) {
 			shamirShare := p.Thresholdizer.AllocateThresholdSecretShare()
 
 			for j := 0; j < NParties; j++ {
-				p.Thresholdizer.GenShamirSecretShare(shamirPoints[j], p.gen, shamirShare)
+				p.Thresholdizer.GenShamirSecretShare(shamirPks[j], p.gen, shamirShare)
 			}
 
 			for k := 0; k < NParties; k++ {
@@ -377,7 +377,7 @@ func benchThreshold(params bfv.Parameters, NParties, t int, b *testing.B) {
 		}
 	})
 
-	activeShamirPoints := shamirPoints[:t]
+	activeShamirPks := shamirPks[:t]
 	b.Run(testString("Combiner/Init/", NParties, params)+fmt.Sprintf("threshold=%d", t)+fmt.Sprintf("precomputation=false"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			p.Combiner = drlwe.NewCombiner(params.Parameters, t)
@@ -386,21 +386,22 @@ func benchThreshold(params bfv.Parameters, NParties, t int, b *testing.B) {
 
 	b.Run(testString("Combiner/Init/", NParties, params)+fmt.Sprintf("threshold=%d", t)+fmt.Sprintf("precomputation=true"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			p.CombinerCached = drlwe.NewCombinerCache(params.Parameters, t)
+			p.CachedCombiner = drlwe.NewCachedCombiner(params.Parameters, t)
 		}
 	})
 	//Nothing is cached (simulates first decryption)
 	b.Run(testString("Combiner/Combine/", NParties, params)+fmt.Sprintf("threshold=%d", t), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			p.Combiner.GenAdditiveShare(activeShamirPoints, activeShamirPoints[0], p.tsk, p.sk)
+			p.Combiner.GenAdditiveShare(activeShamirPks, activeShamirPks[0], p.tsk, p.sk)
 		}
 	})
-	p.CombinerCached.ClearCache()
-	p.CombinerCached.Precompute(activeShamirPoints[0], activeShamirPoints)
+
+	p.CachedCombiner.ClearCache()
+	p.CachedCombiner.Precompute(activeShamirPks, activeShamirPks[0])
 	// Everything is cached (simulates n-th decryption)
 	b.Run(testString("Combiner/CombineCached/", NParties, params)+fmt.Sprintf("threshold=%d", t), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			p.CombinerCached.GenFinalShare(p.tsk, p.sk)
+			p.CachedCombiner.GenAdditiveShare(activeShamirPks, activeShamirPks[0], p.tsk, p.sk)
 		}
 	})
 }

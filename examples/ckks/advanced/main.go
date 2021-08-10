@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/ldsec/lattigo/v2/ckks"
+	ckksAdvanced "github.com/ldsec/lattigo/v2/ckks/advanced"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
@@ -33,8 +34,8 @@ func main() {
 	fmt.Printf("LWE  Params : logN=%2d, logQP=%3d\n", paramsLWE.LogN(), paramsLWE.LogQP())
 
 	// Homomorphic decoding parameters
-	SlotsToCoeffsParameters := ckks.EncodingMatricesParameters{
-		LinearTransformType: ckks.SlotsToCoeffs,
+	SlotsToCoeffsParameters := ckksAdvanced.EncodingMatrixParameters{
+		LinearTransformType: ckksAdvanced.SlotsToCoeffs,
 		LevelStart:          2,     // starting level
 		BSGSRatio:           16.0,  // ratio between n1/n2 for n1*n2 = slots
 		BitReversed:         false, // bit-reversed input
@@ -45,10 +46,10 @@ func main() {
 	}
 
 	// Homomorphic modular reduction parameters
-	EvalModParameters := ckks.EvalModParameters{
+	EvalModParameters := ckksAdvanced.EvalModParameters{
 		Q:             paramsRLWE.Q()[0],         // Modulus
 		LevelStart:    paramsRLWE.MaxLevel() - 1, // Starting level of the procedure
-		SineType:      ckks.Cos1,                 // Type of approximation
+		SineType:      ckksAdvanced.Cos1,         // Type of approximation
 		MessageRatio:  256.0,                     // Q/|m|
 		K:             16,                        // Interval of approximation
 		SineDeg:       63,                        // Degree of approximation
@@ -73,7 +74,7 @@ func main() {
 
 	fmt.Printf("Gen SlotsToCoeffs Matrices... ")
 	start = time.Now()
-	SlotsToCoeffsMatrix := encoder.GenHomomorphicEncodingMatrices(SlotsToCoeffsParameters, 1.0)
+	SlotsToCoeffsMatrix := SlotsToCoeffsParameters.GenHomomorphicEncodingMatrix(encoder, paramsRLWE.LogN(), paramsRLWE.LogSlots(), 1.0)
 	fmt.Printf("Done (%s)\n", time.Since(start))
 
 	fmt.Printf("Gen Evaluation Keys:\n")
@@ -97,7 +98,7 @@ func main() {
 
 	fmt.Printf("Done (%s)\n", time.Since(start))
 
-	eval := ckks.NewEvaluator(paramsRLWE, rlwe.EvaluationKey{Rlk: rlk, Rtks: rotKey})
+	eval := ckksAdvanced.NewEvaluator(paramsRLWE, rlwe.EvaluationKey{Rlk: rlk, Rtks: rotKey})
 
 	// LWE Parameters
 	kgenLWE := ckks.NewKeyGenerator(paramsLWE)
@@ -274,8 +275,8 @@ func main() {
 
 	fmt.Println("Visual Comparison :")
 	v := encoder.DecodePublic(decryptor.DecryptNew(ctAsReal), paramsRLWE.LogSlots(), 0)
-	fmt.Printf("Slot %4d : Have %f Want %f\n", 0, values[0], v[0])
-	fmt.Printf("Slot %4d : Have %f Want %f\n", paramsRLWE.Slots()-1, values[paramsRLWE.Slots()-1], v[paramsRLWE.Slots()-1])
+	fmt.Printf("Slot %4d : Want %f Have %f\n", 0, values[0], v[0])
+	fmt.Printf("Slot %4d : Want %f Have %f\n", paramsRLWE.Slots()-1, values[paramsRLWE.Slots()-1], v[paramsRLWE.Slots()-1])
 
 }
 

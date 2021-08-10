@@ -9,29 +9,29 @@ import (
 // Poly is a struct storing the coeffients of a polynomial
 // that then can be evaluated on the ciphertext
 type Poly struct {
-	maxDeg int
-	coeffs []complex128
-	lead   bool
+	MaxDeg int
+	Coeffs []complex128
+	Lead   bool
 }
 
 // Depth returns the number of levels needed to evaluate the polynomial.
 func (p *Poly) Depth() int {
-	return int(math.Ceil(math.Log2(float64(len(p.coeffs)))))
+	return int(math.Ceil(math.Log2(float64(len(p.Coeffs)))))
 }
 
 // Degree returns the degree of the polynomial
 func (p *Poly) Degree() int {
-	return len(p.coeffs) - 1
+	return len(p.Coeffs) - 1
 }
 
 // NewPoly creates a new Poly from the input coefficients
 func NewPoly(coeffs []complex128) (p *Poly) {
 
 	p = new(Poly)
-	p.coeffs = make([]complex128, len(coeffs))
-	copy(p.coeffs, coeffs)
-	p.maxDeg = len(coeffs) - 1
-	p.lead = true
+	p.Coeffs = make([]complex128, len(coeffs))
+	copy(p.Coeffs, coeffs)
+	p.MaxDeg = len(coeffs) - 1
+	p.Lead = true
 
 	return
 }
@@ -72,13 +72,13 @@ func (eval *evaluator) EvaluatePoly(ct0 *Ciphertext, pol *Poly, targetScale floa
 	logSplit := (logDegree >> 1) //optimalSplit(logDegree) //
 
 	for i := 2; i < (1 << logSplit); i++ {
-		if err = computePowerBasis(i, C, eval); err != nil {
+		if err = computePowerBasis(i, C, targetScale, eval); err != nil {
 			return nil, err
 		}
 	}
 
 	for i := logSplit; i < logDegree; i++ {
-		if err = computePowerBasis(1<<i, C, eval); err != nil {
+		if err = computePowerBasis(1<<i, C, targetScale, eval); err != nil {
 			return nil, err
 		}
 	}
@@ -94,7 +94,7 @@ func (eval *evaluator) EvaluatePoly(ct0 *Ciphertext, pol *Poly, targetScale floa
 // Returns an error if something is wrong with the scale.
 // A change of basis ct' = (2/(b-a)) * (ct + (-a-b)/(b-a)) is necessary before the polynomial evaluation to ensure correctness.
 
-func (eval *evaluator) EvaluateCheby(op *Ciphertext, cheby *ChebyshevInterpolation, tartetScale float64) (opOut *Ciphertext, err error) {
+func (eval *evaluator) EvaluateCheby(op *Ciphertext, cheby *ChebyshevInterpolation, targetScale float64) (opOut *Ciphertext, err error) {
 
 	if err := checkEnoughLevels(op.Level(), &cheby.Poly, 1); err != nil {
 		return op, err
@@ -108,25 +108,25 @@ func (eval *evaluator) EvaluateCheby(op *Ciphertext, cheby *ChebyshevInterpolati
 	logSplit := (logDegree >> 1) //optimalSplit(logDegree) //
 
 	for i := 2; i < (1 << logSplit); i++ {
-		if err = computePowerBasisCheby(i, C, eval); err != nil {
+		if err = computePowerBasisCheby(i, C, targetScale, eval); err != nil {
 			return nil, err
 		}
 	}
 
 	for i := logSplit; i < logDegree; i++ {
-		if err = computePowerBasisCheby(1<<i, C, eval); err != nil {
+		if err = computePowerBasisCheby(1<<i, C, targetScale, eval); err != nil {
 			return nil, err
 		}
 	}
 
-	opOut, err = recurseCheby(tartetScale, logSplit, logDegree, &cheby.Poly, C, eval)
+	opOut, err = recurseCheby(targetScale, logSplit, logDegree, &cheby.Poly, C, eval)
 
 	C = nil
 
 	return opOut, err
 }
 
-func computePowerBasis(n int, C map[int]*Ciphertext, evaluator *evaluator) (err error) {
+func computePowerBasis(n int, C map[int]*Ciphertext, scale float64, evaluator *evaluator) (err error) {
 
 	if C[n] == nil {
 
@@ -135,17 +135,17 @@ func computePowerBasis(n int, C map[int]*Ciphertext, evaluator *evaluator) (err 
 		b := n >> 1
 
 		// Recurses on the given indexes
-		if err = computePowerBasis(a, C, evaluator); err != nil {
+		if err = computePowerBasis(a, C, scale, evaluator); err != nil {
 			return err
 		}
-		if err = computePowerBasis(b, C, evaluator); err != nil {
+		if err = computePowerBasis(b, C, scale, evaluator); err != nil {
 			return err
 		}
 
 		// Computes C[n] = C[a]*C[b]
 		C[n] = evaluator.MulRelinNew(C[a], C[b])
 
-		if err = evaluator.Rescale(C[n], evaluator.scale, C[n]); err != nil {
+		if err = evaluator.Rescale(C[n], scale, C[n]); err != nil {
 			return err
 		}
 	}
@@ -153,7 +153,7 @@ func computePowerBasis(n int, C map[int]*Ciphertext, evaluator *evaluator) (err 
 	return nil
 }
 
-func computePowerBasisCheby(n int, C map[int]*Ciphertext, evaluator *evaluator) (err error) {
+func computePowerBasisCheby(n int, C map[int]*Ciphertext, scale float64, evaluator *evaluator) (err error) {
 
 	// Given a hash table with the first three evaluations of the Chebyshev ring at x in the interval a, b:
 	// C0 = 1 (actually not stored in the hash table)
@@ -179,16 +179,16 @@ func computePowerBasisCheby(n int, C map[int]*Ciphertext, evaluator *evaluator) 
 		}
 
 		// Recurses on the given indexes
-		if err = computePowerBasisCheby(a, C, evaluator); err != nil {
+		if err = computePowerBasisCheby(a, C, scale, evaluator); err != nil {
 			return err
 		}
-		if err = computePowerBasisCheby(b, C, evaluator); err != nil {
+		if err = computePowerBasisCheby(b, C, scale, evaluator); err != nil {
 			return err
 		}
 
 		// Since C[0] is not stored (but rather seen as the constant 1), only recurses on c if c!= 0
 		if c != 0 {
-			if err = computePowerBasisCheby(c, C, evaluator); err != nil {
+			if err = computePowerBasisCheby(c, C, scale, evaluator); err != nil {
 				return err
 			}
 		}
@@ -196,7 +196,7 @@ func computePowerBasisCheby(n int, C map[int]*Ciphertext, evaluator *evaluator) 
 		// Computes C[n] = C[a]*C[b]
 		//fmt.Println("Mul", C[a].Level(), C[b].Level())
 		C[n] = evaluator.MulRelinNew(C[a], C[b])
-		if err = evaluator.Rescale(C[n], evaluator.scale, C[n]); err != nil {
+		if err = evaluator.Rescale(C[n], scale, C[n]); err != nil {
 			return err
 		}
 
@@ -220,28 +220,28 @@ func splitCoeffs(coeffs *Poly, split int) (coeffsq, coeffsr *Poly) {
 	// Splits a polynomial p such that p = q*C^degree + r.
 
 	coeffsr = new(Poly)
-	coeffsr.coeffs = make([]complex128, split)
-	if coeffs.maxDeg == coeffs.Degree() {
-		coeffsr.maxDeg = split - 1
+	coeffsr.Coeffs = make([]complex128, split)
+	if coeffs.MaxDeg == coeffs.Degree() {
+		coeffsr.MaxDeg = split - 1
 	} else {
-		coeffsr.maxDeg = coeffs.maxDeg - (coeffs.Degree() - split + 1)
+		coeffsr.MaxDeg = coeffs.MaxDeg - (coeffs.Degree() - split + 1)
 	}
 
 	for i := 0; i < split; i++ {
-		coeffsr.coeffs[i] = coeffs.coeffs[i]
+		coeffsr.Coeffs[i] = coeffs.Coeffs[i]
 	}
 
 	coeffsq = new(Poly)
-	coeffsq.coeffs = make([]complex128, coeffs.Degree()-split+1)
-	coeffsq.maxDeg = coeffs.maxDeg
+	coeffsq.Coeffs = make([]complex128, coeffs.Degree()-split+1)
+	coeffsq.MaxDeg = coeffs.MaxDeg
 
-	coeffsq.coeffs[0] = coeffs.coeffs[split]
+	coeffsq.Coeffs[0] = coeffs.Coeffs[split]
 	for i := split + 1; i < coeffs.Degree()+1; i++ {
-		coeffsq.coeffs[i-split] = coeffs.coeffs[i]
+		coeffsq.Coeffs[i-split] = coeffs.Coeffs[i]
 	}
 
-	if coeffs.lead {
-		coeffsq.lead = true
+	if coeffs.Lead {
+		coeffsq.Lead = true
 	}
 
 	return coeffsq, coeffsr
@@ -251,29 +251,29 @@ func splitCoeffsCheby(coeffs *Poly, split int) (coeffsq, coeffsr *Poly) {
 
 	// Splits a Chebyshev polynomial p such that p = q*C^degree + r, where q and r are a linear combination of a Chebyshev basis.
 	coeffsr = new(Poly)
-	coeffsr.coeffs = make([]complex128, split)
-	if coeffs.maxDeg == coeffs.Degree() {
-		coeffsr.maxDeg = split - 1
+	coeffsr.Coeffs = make([]complex128, split)
+	if coeffs.MaxDeg == coeffs.Degree() {
+		coeffsr.MaxDeg = split - 1
 	} else {
-		coeffsr.maxDeg = coeffs.maxDeg - (coeffs.Degree() - split + 1)
+		coeffsr.MaxDeg = coeffs.MaxDeg - (coeffs.Degree() - split + 1)
 	}
 
 	for i := 0; i < split; i++ {
-		coeffsr.coeffs[i] = coeffs.coeffs[i]
+		coeffsr.Coeffs[i] = coeffs.Coeffs[i]
 	}
 
 	coeffsq = new(Poly)
-	coeffsq.coeffs = make([]complex128, coeffs.Degree()-split+1)
-	coeffsq.maxDeg = coeffs.maxDeg
+	coeffsq.Coeffs = make([]complex128, coeffs.Degree()-split+1)
+	coeffsq.MaxDeg = coeffs.MaxDeg
 
-	coeffsq.coeffs[0] = coeffs.coeffs[split]
+	coeffsq.Coeffs[0] = coeffs.Coeffs[split]
 	for i, j := split+1, 1; i < coeffs.Degree()+1; i, j = i+1, j+1 {
-		coeffsq.coeffs[i-split] = 2 * coeffs.coeffs[i]
-		coeffsr.coeffs[split-j] -= coeffs.coeffs[i]
+		coeffsq.Coeffs[i-split] = 2 * coeffs.Coeffs[i]
+		coeffsr.Coeffs[split-j] -= coeffs.Coeffs[i]
 	}
 
-	if coeffs.lead {
-		coeffsq.lead = true
+	if coeffs.Lead {
+		coeffsq.Lead = true
 	}
 
 	return coeffsq, coeffsr
@@ -284,7 +284,7 @@ func recurse(targetScale float64, logSplit, logDegree int, coeffs *Poly, C map[i
 	// Recursively computes the evalution of the Chebyshev polynomial using a baby-set giant-step algorithm.
 	if coeffs.Degree() < (1 << logSplit) {
 
-		if coeffs.lead && coeffs.maxDeg > ((1<<logDegree)-(1<<(logSplit-1))) && logSplit > 1 {
+		if coeffs.Lead && coeffs.MaxDeg > ((1<<logDegree)-(1<<(logSplit-1))) && logSplit > 1 {
 
 			logDegree = int(bits.Len64(uint64(coeffs.Degree())))
 			logSplit = logDegree >> 1
@@ -304,15 +304,15 @@ func recurse(targetScale float64, logSplit, logDegree int, coeffs *Poly, C map[i
 
 	level := C[nextPower].Level() - 1
 
-	if coeffsq.maxDeg >= 1<<(logDegree-1) && coeffsq.lead {
+	if coeffsq.MaxDeg >= 1<<(logDegree-1) && coeffsq.Lead {
 		level++
 	}
 
 	currentQi := evaluator.params.QiFloat64(level)
 
-	//fmt.Printf("X^%2d: %d %d %t %d\n", nextPower, coeffsq.maxDeg, coeffsr.maxDeg, coeffsq.maxDeg >= 1<<(logDegree-1), level)
+	//fmt.Printf("X^%2d: %d %d %t %d\n", nextPower, coeffsq.MaxDeg, coeffsr.MaxDeg, coeffsq.MaxDeg >= 1<<(logDegree-1), level)
 	//fmt.Printf("X^%2d: %f %f\n", nextPower, targetScale, targetScale* currentQi / C[nextPower].Scale())
-	//fmt.Printf("X^%2d : qi %d %t %d %d\n", nextPower, level, coeffsq.lead, coeffsq.maxDeg, 1<<(logDegree-1))
+	//fmt.Printf("X^%2d : qi %d %t %d %d\n", nextPower, level, coeffsq.Lead, coeffsq.MaxDeg, 1<<(logDegree-1))
 	//fmt.Println()
 	var tmp *Ciphertext
 	if res, err = recurse(targetScale*currentQi/C[nextPower].Scale, logSplit, logDegree, coeffsq, C, evaluator); err != nil {
@@ -333,7 +333,7 @@ func recurse(targetScale float64, logSplit, logDegree int, coeffs *Poly, C map[i
 	evaluator.MulRelin(res, C[nextPower], res)
 
 	if res.Level() > tmp.Level() {
-		if err = evaluator.Rescale(res, evaluator.scale, res); err != nil {
+		if err = evaluator.Rescale(res, targetScale, res); err != nil {
 			return nil, err
 		}
 		//fmt.Printf("%f = %d) + (%d %f) = ", res.Scale(), res.Level(), tmp.Level(), tmp.Scale())
@@ -341,7 +341,7 @@ func recurse(targetScale float64, logSplit, logDegree int, coeffs *Poly, C map[i
 		//fmt.Printf("(%d %f) %f\n", res.Level(), res.Scale(), res.Scale()-tmp.Scale())
 	} else {
 		evaluator.Add(res, tmp, res)
-		if err = evaluator.Rescale(res, evaluator.scale, res); err != nil {
+		if err = evaluator.Rescale(res, targetScale, res); err != nil {
 			return nil, err
 		}
 
@@ -357,7 +357,7 @@ func recurseCheby(targetScale float64, logSplit, logDegree int, coeffs *Poly, C 
 	// Recursively computes the evalution of the Chebyshev polynomial using a baby-set giant-step algorithm.
 	if coeffs.Degree() < (1 << logSplit) {
 
-		if coeffs.lead && coeffs.maxDeg > ((1<<logDegree)-(1<<(logSplit-1))) && logSplit > 1 {
+		if coeffs.Lead && coeffs.MaxDeg > ((1<<logDegree)-(1<<(logSplit-1))) && logSplit > 1 {
 
 			logDegree = int(bits.Len64(uint64(coeffs.Degree())))
 			logSplit = logDegree >> 1
@@ -377,15 +377,15 @@ func recurseCheby(targetScale float64, logSplit, logDegree int, coeffs *Poly, C 
 
 	level := C[nextPower].Level() - 1
 
-	if coeffsq.maxDeg >= 1<<(logDegree-1) && coeffsq.lead {
+	if coeffsq.MaxDeg >= 1<<(logDegree-1) && coeffsq.Lead {
 		level++
 	}
 
 	currentQi := evaluator.params.QiFloat64(level)
 
-	//fmt.Printf("X^%2d: %d %d %t %d\n", nextPower, coeffsq.maxDeg, coeffsr.maxDeg, coeffsq.maxDeg >= 1<<(logDegree-1), level)
+	//fmt.Printf("X^%2d: %d %d %t %d\n", nextPower, coeffsq.MaxDeg, coeffsr.MaxDeg, coeffsq.MaxDeg >= 1<<(logDegree-1), level)
 	//fmt.Printf("X^%2d: %f %f\n", nextPower, targetScale, targetScale* currentQi / C[nextPower].Scale())
-	//fmt.Printf("X^%2d : qi %d %t %d %d\n", nextPower, level, coeffsq.lead, coeffsq.maxDeg, 1<<(logDegree-1))
+	//fmt.Printf("X^%2d : qi %d %t %d %d\n", nextPower, level, coeffsq.Lead, coeffsq.MaxDeg, 1<<(logDegree-1))
 	//fmt.Println()
 
 	if res, err = recurseCheby(targetScale*currentQi/C[nextPower].Scale, logSplit, logDegree, coeffsq, C, evaluator); err != nil {
@@ -407,7 +407,7 @@ func recurseCheby(targetScale float64, logSplit, logDegree int, coeffs *Poly, C 
 	evaluator.MulRelin(res, C[nextPower], res)
 
 	if res.Level() > tmp.Level() {
-		if err = evaluator.Rescale(res, evaluator.scale, res); err != nil {
+		if err = evaluator.Rescale(res, targetScale, res); err != nil {
 			return nil, err
 		}
 		//fmt.Printf("%f = %d) + (%d %f) = ", res.Scale(), res.Level(), tmp.Level(), tmp.Scale())
@@ -415,7 +415,7 @@ func recurseCheby(targetScale float64, logSplit, logDegree int, coeffs *Poly, C 
 		//fmt.Printf("(%d %f) %f\n", res.Level(), res.Scale(), res.Scale()-tmp.Scale())
 	} else {
 		evaluator.Add(res, tmp, res)
-		if err = evaluator.Rescale(res, evaluator.scale, res); err != nil {
+		if err = evaluator.Rescale(res, targetScale, res); err != nil {
 			return nil, err
 		}
 	}
@@ -432,8 +432,8 @@ func evaluatePolyFromPowerBasis(targetScale float64, coeffs *Poly, C map[int]*Ci
 
 		res = NewCiphertext(evaluator.params, 1, C[1].Level(), targetScale)
 
-		if math.Abs(real(coeffs.coeffs[0])) > 1e-14 || math.Abs(imag(coeffs.coeffs[0])) > 1e-14 {
-			evaluator.AddConst(res, coeffs.coeffs[0], res)
+		if math.Abs(real(coeffs.Coeffs[0])) > 1e-14 || math.Abs(imag(coeffs.Coeffs[0])) > 1e-14 {
+			evaluator.AddConst(res, coeffs.Coeffs[0], res)
 		}
 
 		return
@@ -443,31 +443,31 @@ func evaluatePolyFromPowerBasis(targetScale float64, coeffs *Poly, C map[int]*Ci
 
 	ctScale := targetScale * currentQi
 
-	//fmt.Printf("%d %f\n", coeffs.maxDeg, targetScale)
+	//fmt.Printf("%d %f\n", coeffs.MaxDeg, targetScale)
 	//fmt.Println("current Qi", evaluator.params.Qi[C[coeffs.Degree()].Level()])
 	//fmt.Println(coeffs.Degree(), C[coeffs.Degree()].Level())
 
 	res = NewCiphertext(evaluator.params, 1, C[coeffs.Degree()].Level(), ctScale)
 
-	if math.Abs(real(coeffs.coeffs[0])) > 1e-14 || math.Abs(imag(coeffs.coeffs[0])) > 1e-14 {
-		evaluator.AddConst(res, coeffs.coeffs[0], res)
+	if math.Abs(real(coeffs.Coeffs[0])) > 1e-14 || math.Abs(imag(coeffs.Coeffs[0])) > 1e-14 {
+		evaluator.AddConst(res, coeffs.Coeffs[0], res)
 	}
 
 	for key := coeffs.Degree(); key > 0; key-- {
 
-		if key != 0 && (math.Abs(real(coeffs.coeffs[key])) > 1e-14 || math.Abs(imag(coeffs.coeffs[key])) > 1e-14) {
+		if key != 0 && (math.Abs(real(coeffs.Coeffs[key])) > 1e-14 || math.Abs(imag(coeffs.Coeffs[key])) > 1e-14) {
 
 			// Target scale * rescale-scale / power basis scale
 			constScale := targetScale * currentQi / C[key].Scale
 
-			cReal := int64(real(coeffs.coeffs[key]) * constScale)
-			cImag := int64(imag(coeffs.coeffs[key]) * constScale)
+			cReal := int64(real(coeffs.Coeffs[key]) * constScale)
+			cImag := int64(imag(coeffs.Coeffs[key]) * constScale)
 
 			evaluator.MultByGaussianIntegerAndAdd(C[key], cReal, cImag, res)
 		}
 	}
 
-	if err = evaluator.Rescale(res, evaluator.scale, res); err != nil {
+	if err = evaluator.Rescale(res, targetScale, res); err != nil {
 		return nil, err
 	}
 

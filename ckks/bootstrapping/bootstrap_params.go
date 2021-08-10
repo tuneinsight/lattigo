@@ -2,15 +2,16 @@ package bootstrapping
 
 import (
 	"github.com/ldsec/lattigo/v2/ckks"
+	"github.com/ldsec/lattigo/v2/ckks/advanced"
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
 // Parameters is a struct for the default bootstrapping parameters
 type Parameters struct {
-	SlotsToCoeffsParameters ckks.EncodingMatricesParameters
-	EvalModParameters       ckks.EvalModParameters
-	CoeffsToSlotsParameters ckks.EncodingMatricesParameters
+	SlotsToCoeffsParameters advanced.EncodingMatrixParameters
+	EvalModParameters       advanced.EvalModParameters
+	CoeffsToSlotsParameters advanced.EncodingMatrixParameters
 	H                       int // Hamming weight of the secret key
 }
 
@@ -306,8 +307,8 @@ var DefaultParameters = []Parameters{
 	// 1546
 	{
 		H: 192,
-		SlotsToCoeffsParameters: ckks.EncodingMatricesParameters{
-			LinearTransformType: ckks.SlotsToCoeffs,
+		SlotsToCoeffsParameters: advanced.EncodingMatrixParameters{
+			LinearTransformType: advanced.SlotsToCoeffs,
 			LevelStart:          12,
 			BSGSRatio:           16.0,
 			BitReversed:         false,
@@ -317,10 +318,10 @@ var DefaultParameters = []Parameters{
 				{0x7fffe00001},
 			},
 		},
-		EvalModParameters: ckks.EvalModParameters{
+		EvalModParameters: advanced.EvalModParameters{
 			Q:             0x10000000006e0001,
 			LevelStart:    20,
-			SineType:      ckks.Cos1,
+			SineType:      advanced.Cos1,
 			MessageRatio:  256.0,
 			K:             25,
 			SineDeg:       63,
@@ -328,8 +329,8 @@ var DefaultParameters = []Parameters{
 			ArcSineDeg:    0,
 			ScalingFactor: 1 << 60,
 		},
-		CoeffsToSlotsParameters: ckks.EncodingMatricesParameters{
-			LinearTransformType: ckks.CoeffsToSlots,
+		CoeffsToSlotsParameters: advanced.EncodingMatrixParameters{
+			LinearTransformType: advanced.CoeffsToSlots,
 			LevelStart:          24,
 			BSGSRatio:           16.0,
 			BitReversed:         false,
@@ -346,8 +347,8 @@ var DefaultParameters = []Parameters{
 	// 1547
 	{
 		H: 192,
-		SlotsToCoeffsParameters: ckks.EncodingMatricesParameters{
-			LinearTransformType: ckks.SlotsToCoeffs,
+		SlotsToCoeffsParameters: advanced.EncodingMatrixParameters{
+			LinearTransformType: advanced.SlotsToCoeffs,
 			LevelStart:          8,
 			BSGSRatio:           16.0,
 			BitReversed:         false,
@@ -357,10 +358,10 @@ var DefaultParameters = []Parameters{
 				{0x3ffffca0001},
 			},
 		},
-		EvalModParameters: ckks.EvalModParameters{
+		EvalModParameters: advanced.EvalModParameters{
 			Q:             0x10000000006e0001,
 			LevelStart:    19,
-			SineType:      ckks.Cos1,
+			SineType:      advanced.Cos1,
 			MessageRatio:  4.0,
 			K:             25,
 			SineDeg:       63,
@@ -368,8 +369,8 @@ var DefaultParameters = []Parameters{
 			ArcSineDeg:    7,
 			ScalingFactor: 1 << 60,
 		},
-		CoeffsToSlotsParameters: ckks.EncodingMatricesParameters{
-			LinearTransformType: ckks.CoeffsToSlots,
+		CoeffsToSlotsParameters: advanced.EncodingMatrixParameters{
+			LinearTransformType: advanced.CoeffsToSlots,
 			LevelStart:          23,
 			BSGSRatio:           16.0,
 			BitReversed:         false,
@@ -386,8 +387,8 @@ var DefaultParameters = []Parameters{
 	// 1553
 	{
 		H: 192,
-		SlotsToCoeffsParameters: ckks.EncodingMatricesParameters{
-			LinearTransformType: ckks.SlotsToCoeffs,
+		SlotsToCoeffsParameters: advanced.EncodingMatrixParameters{
+			LinearTransformType: advanced.SlotsToCoeffs,
 			LevelStart:          9,
 			BSGSRatio:           16.0,
 			BitReversed:         false,
@@ -396,10 +397,10 @@ var DefaultParameters = []Parameters{
 				{1073741824.0062866, 1073741824.0062866},
 			},
 		},
-		EvalModParameters: ckks.EvalModParameters{
+		EvalModParameters: advanced.EvalModParameters{
 			Q:             0x80000000080001,
 			LevelStart:    17,
-			SineType:      ckks.Cos1,
+			SineType:      advanced.Cos1,
 			MessageRatio:  256.0,
 			K:             25,
 			SineDeg:       63,
@@ -407,8 +408,8 @@ var DefaultParameters = []Parameters{
 			ArcSineDeg:    0,
 			ScalingFactor: 1 << 55,
 		},
-		CoeffsToSlotsParameters: ckks.EncodingMatricesParameters{
-			LinearTransformType: ckks.CoeffsToSlots,
+		CoeffsToSlotsParameters: advanced.EncodingMatrixParameters{
+			LinearTransformType: advanced.CoeffsToSlots,
 			LevelStart:          21,
 			BSGSRatio:           16.0,
 			BitReversed:         false,
@@ -425,8 +426,8 @@ var DefaultParameters = []Parameters{
 	// 1792
 	{
 		H: 32768,
-		SlotsToCoeffsParameters: ckks.EncodingMatricesParameters{
-			LinearTransformType: ckks.SlotsToCoeffs,
+		SlotsToCoeffsParameters: advanced.EncodingMatrixParameters{
+			LinearTransformType: advanced.SlotsToCoeffs,
 			LevelStart:          11,
 			BSGSRatio:           16.0,
 			BitReversed:         false,
@@ -435,10 +436,10 @@ var DefaultParameters = []Parameters{
 				{0xffa0001},
 			},
 		},
-		EvalModParameters: ckks.EvalModParameters{
+		EvalModParameters: advanced.EvalModParameters{
 			Q:             0x4000000120001,
 			LevelStart:    23,
-			SineType:      ckks.Cos2,
+			SineType:      advanced.Cos2,
 			MessageRatio:  256.0,
 			K:             325,
 			SineDeg:       255,
@@ -446,8 +447,8 @@ var DefaultParameters = []Parameters{
 			ArcSineDeg:    0,
 			ScalingFactor: 1 << 60,
 		},
-		CoeffsToSlotsParameters: ckks.EncodingMatricesParameters{
-			LinearTransformType: ckks.CoeffsToSlots,
+		CoeffsToSlotsParameters: advanced.EncodingMatrixParameters{
+			LinearTransformType: advanced.CoeffsToSlots,
 			LevelStart:          27,
 			BSGSRatio:           16.0,
 			BitReversed:         false,
@@ -464,8 +465,8 @@ var DefaultParameters = []Parameters{
 	// 768
 	{
 		H: 192,
-		SlotsToCoeffsParameters: ckks.EncodingMatricesParameters{
-			LinearTransformType: ckks.SlotsToCoeffs,
+		SlotsToCoeffsParameters: advanced.EncodingMatrixParameters{
+			LinearTransformType: advanced.SlotsToCoeffs,
 			LevelStart:          3,
 			BSGSRatio:           16.0,
 			BitReversed:         false,
@@ -473,10 +474,10 @@ var DefaultParameters = []Parameters{
 				{1073741823.9998779, 1073741823.9998779},
 			},
 		},
-		EvalModParameters: ckks.EvalModParameters{
+		EvalModParameters: advanced.EvalModParameters{
 			Q:             0x1fff90001,
 			LevelStart:    11,
-			SineType:      ckks.Cos1,
+			SineType:      advanced.Cos1,
 			MessageRatio:  256.0,
 			K:             25,
 			SineDeg:       63,
@@ -484,8 +485,8 @@ var DefaultParameters = []Parameters{
 			ArcSineDeg:    0,
 			ScalingFactor: 1 << 50,
 		},
-		CoeffsToSlotsParameters: ckks.EncodingMatricesParameters{
-			LinearTransformType: ckks.CoeffsToSlots,
+		CoeffsToSlotsParameters: advanced.EncodingMatrixParameters{
+			LinearTransformType: advanced.CoeffsToSlots,
 			LevelStart:          13,
 			BSGSRatio:           16.0,
 			BitReversed:         false,

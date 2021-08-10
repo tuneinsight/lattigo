@@ -1,7 +1,7 @@
-package ckks
+package advanced
 
 import (
-	"github.com/ldsec/lattigo/v2/ckks/bettersine"
+	"github.com/ldsec/lattigo/v2/ckks"
 	"math"
 	"math/cmplx"
 )
@@ -51,15 +51,15 @@ type EvalModPoly struct {
 	EvalModParameters
 	ScFac       float64
 	Sqrt2Pi     float64
-	SinePoly    ChebyshevInterpolation
-	ArcSinePoly *Poly
+	SinePoly    ckks.ChebyshevInterpolation
+	ArcSinePoly *ckks.Poly
 }
 
 // GenPoly generates an EvalModPoly fromt the EvalModParameters.
 func (evm *EvalModParameters) GenPoly() EvalModPoly {
 
-	var arcSinePoly *Poly
-	var sinePoly *ChebyshevInterpolation
+	var arcSinePoly *ckks.Poly
+	var sinePoly *ckks.ChebyshevInterpolation
 	var sqrt2pi float64
 
 	scFac := math.Exp2(float64(evm.DoubleAngle))
@@ -80,7 +80,7 @@ func (evm *EvalModParameters) GenPoly() EvalModPoly {
 
 		}
 
-		arcSinePoly = NewPoly(coeffs)
+		arcSinePoly = ckks.NewPoly(coeffs)
 
 	} else {
 		sqrt2pi = math.Pow(0.15915494309189535*qDiff, 1.0/scFac)
@@ -92,25 +92,25 @@ func (evm *EvalModParameters) GenPoly() EvalModPoly {
 			panic("cannot user double angle with SineType == Sin")
 		}
 
-		sinePoly = Approximate(sin2pi2pi, -complex(float64(evm.K), 0), complex(float64(evm.K), 0), evm.SineDeg)
+		sinePoly = ckks.Approximate(sin2pi2pi, -complex(float64(evm.K), 0), complex(float64(evm.K), 0), evm.SineDeg)
 
 	} else if evm.SineType == Cos1 {
 
-		sinePoly = new(ChebyshevInterpolation)
-		sinePoly.coeffs = bettersine.Approximate(evm.K, evm.SineDeg, evm.MessageRatio, int(evm.DoubleAngle))
-		sinePoly.maxDeg = sinePoly.Degree()
+		sinePoly = new(ckks.ChebyshevInterpolation)
+		sinePoly.Coeffs = ApproximateCos(evm.K, evm.SineDeg, evm.MessageRatio, int(evm.DoubleAngle))
+		sinePoly.MaxDeg = sinePoly.Degree()
 		sinePoly.A = complex(float64(-evm.K)/scFac, 0)
 		sinePoly.B = complex(float64(evm.K)/scFac, 0)
-		sinePoly.lead = true
+		sinePoly.Lead = true
 
 	} else if evm.SineType == Cos2 {
-		sinePoly = Approximate(cos2pi, -complex(float64(evm.K)/scFac, 0), complex(float64(evm.K)/scFac, 0), evm.SineDeg)
+		sinePoly = ckks.Approximate(cos2pi, -complex(float64(evm.K)/scFac, 0), complex(float64(evm.K)/scFac, 0), evm.SineDeg)
 	} else {
 		panic("invalid SineType")
 	}
 
-	for i := range sinePoly.coeffs {
-		sinePoly.coeffs[i] *= complex(sqrt2pi, 0)
+	for i := range sinePoly.Coeffs {
+		sinePoly.Coeffs[i] *= complex(sqrt2pi, 0)
 	}
 
 	return EvalModPoly{EvalModParameters: *evm, ScFac: scFac, Sqrt2Pi: sqrt2pi, ArcSinePoly: arcSinePoly, SinePoly: *sinePoly}
@@ -139,15 +139,13 @@ func (evm *EvalModParameters) Depth() int {
 // !! Assumes that the input is normalized by 1/K for K the range of the approximation.
 //
 // Scaling back error correction by 2^{round(log(Q))}/Q afterward is included in the polynomial
-func (eval *evaluator) EvalMod(ct *Ciphertext, evalModPoly EvalModPoly) *Ciphertext {
+func (eval *evaluator) EvalMod(ct *ckks.Ciphertext, evalModPoly EvalModPoly) *ckks.Ciphertext {
 
 	// Stores default scales
 	prevScaleCt := ct.Scale
-	prevScaleEval := eval.scale
 
 	// Normalize the modular reduction to mod by 1 (division by Q)
 	ct.Scale = evalModPoly.ScalingFactor
-	eval.scale = evalModPoly.ScalingFactor
 
 	var err error
 
@@ -190,7 +188,5 @@ func (eval *evaluator) EvalMod(ct *Ciphertext, evalModPoly EvalModPoly) *Ciphert
 
 	// Multiplies back by q
 	ct.Scale = prevScaleCt
-	eval.scale = prevScaleEval
-
 	return ct
 }

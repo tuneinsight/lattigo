@@ -19,7 +19,6 @@ import (
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters + secure bootstrapping). Overrides -short and requires -timeout=0.")
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
-var testBootstrapping = flag.Bool("test-bootstrapping", false, "run the bootstrapping tests (memory intensive)")
 
 var minPrec float64 = 15.0
 
@@ -779,7 +778,7 @@ func testChebyshevInterpolator(testContext *testParams, t *testing.T) {
 
 		eval.MultByConst(ciphertext, 2/(cheby.B-cheby.A), ciphertext)
 		eval.AddConst(ciphertext, (-cheby.A-cheby.B)/(cheby.B-cheby.A), ciphertext)
-		eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
+		eval.Rescale(ciphertext, testContext.params.Scale(), ciphertext)
 
 		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, ciphertext.Scale); err != nil {
 			t.Error(err)
@@ -815,7 +814,7 @@ func testDecryptPublic(testContext *testParams, t *testing.T) {
 
 		eval.MultByConst(ciphertext, 2/(cheby.B-cheby.A), ciphertext)
 		eval.AddConst(ciphertext, (-cheby.A-cheby.B)/(cheby.B-cheby.A), ciphertext)
-		eval.Rescale(ciphertext, eval.(*evaluator).scale, ciphertext)
+		eval.Rescale(ciphertext, testContext.params.Scale(), ciphertext)
 
 		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, ciphertext.Scale); err != nil {
 			t.Error(err)

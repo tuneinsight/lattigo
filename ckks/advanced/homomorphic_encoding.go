@@ -1,6 +1,7 @@
-package ckks
+package advanced
 
 import (
+	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/utils"
 	"math"
 )
@@ -14,13 +15,13 @@ const (
 	SlotsToCoeffs = LinearTransformType(1) // Homomorphic Decoding
 )
 
-// EncodingMatrices is a struct storing the factorized DFT matrix
-type EncodingMatrices struct {
-	Matrices []PtDiagMatrix
+// EncodingMatrix is a struct storing the factorized DFT matrix
+type EncodingMatrix struct {
+	Matrices []ckks.PtDiagMatrix
 }
 
-// EncodingMatricesParameters is a struct storing the parameters to generate the factorized DFT matrix.
-type EncodingMatricesParameters struct {
+// EncodingMatrixParameters is a struct storing the parameters to generate the factorized DFT matrix.
+type EncodingMatrixParameters struct {
 	LinearTransformType LinearTransformType
 	LevelStart          int     // Encoding level
 	BitReversed         bool    // Flag for bit-reverseed input to the DFT (with bit-reversed output), by default false.
@@ -31,7 +32,7 @@ type EncodingMatricesParameters struct {
 // Depth returns the number of levels allocated.
 // If actual == true then returns the number of moduli consumed, else
 // returns the factorization depth.
-func (mParams *EncodingMatricesParameters) Depth(actual bool) (depth int) {
+func (mParams *EncodingMatrixParameters) Depth(actual bool) (depth int) {
 	if actual {
 		depth = len(mParams.ScalingFactor)
 	} else {
@@ -45,7 +46,7 @@ func (mParams *EncodingMatricesParameters) Depth(actual bool) (depth int) {
 }
 
 // Levels returns the index of the Qi used int CoeffsToSlots.
-func (mParams *EncodingMatricesParameters) Levels() (levels []int) {
+func (mParams *EncodingMatrixParameters) Levels() (levels []int) {
 	levels = []int{}
 	trueDepth := mParams.Depth(true)
 	for i := range mParams.ScalingFactor {
@@ -58,7 +59,7 @@ func (mParams *EncodingMatricesParameters) Levels() (levels []int) {
 }
 
 // Rotations returns the list of rotations performed during the CoeffsToSlot operation.
-func (mParams *EncodingMatricesParameters) Rotations(logN, logSlots int) (rotations []int) {
+func (mParams *EncodingMatrixParameters) Rotations(logN, logSlots int) (rotations []int) {
 	rotations = []int{}
 
 	slots := 1 << logSlots
@@ -74,23 +75,22 @@ func (mParams *EncodingMatricesParameters) Rotations(logN, logSlots int) (rotati
 
 	// Coeffs to Slots rotations
 	for i, pVec := range indexCtS {
-		N1 := findbestbabygiantstepsplit(pVec, dslots, mParams.BSGSRatio)
+		N1 := ckks.FindBestBSGSSplit(pVec, dslots, mParams.BSGSRatio)
 		rotations = addMatrixRotToList(pVec, rotations, N1, slots, mParams.LinearTransformType == SlotsToCoeffs && logSlots < logN-1 && i == 0)
 	}
 
 	return
 }
 
-// GenCoeffsToSlotsMatrix generates the factorized encoding matrix.
+// GenHomomorphicEncodingMatrix generates the factorized encoding matrix.
 // scaling : constant by witch the all the matrices will be multuplied by.
 // encoder : ckks.Encoder.
-func (encoder *encoderComplex128) GenHomomorphicEncodingMatrices(mParams EncodingMatricesParameters, scaling complex128) EncodingMatrices {
-	logSlots := encoder.params.LogSlots()
+func (mParams *EncodingMatrixParameters) GenHomomorphicEncodingMatrix(encoder ckks.Encoder, logN, logSlots int, scaling complex128) EncodingMatrix {
 
 	slots := 1 << logSlots
 	depth := mParams.Depth(false)
 	logdSlots := logSlots + 1
-	if logdSlots == encoder.params.LogN() {
+	if logdSlots == logN {
 		logdSlots--
 	}
 
@@ -105,7 +105,7 @@ func (encoder *encoderComplex128) GenHomomorphicEncodingMatrices(mParams Encodin
 	ctsLevels := mParams.Levels()
 
 	// CoeffsToSlots vectors
-	matrices := make([]PtDiagMatrix, len(ctsLevels))
+	matrices := make([]ckks.PtDiagMatrix, len(ctsLevels))
 	pVecDFT := computeDFTMatrices(logSlots, logdSlots, depth, roots, pow5, scaling, mParams.LinearTransformType, mParams.BitReversed)
 	cnt := 0
 	trueDepth := mParams.Depth(true)
@@ -116,65 +116,7 @@ func (encoder *encoderComplex128) GenHomomorphicEncodingMatrices(mParams Encodin
 		}
 	}
 
-	return EncodingMatrices{Matrices: matrices}
-}
-
-// CoeffsToSlots applies the homomorphic encoding.
-func (eval *evaluator) CoeffsToSlots(ctIn *Ciphertext, ctsMatrices EncodingMatrices) (ctReal, ctImag *Ciphertext) {
-
-	var zV, zVconj *Ciphertext
-
-	zV = eval.dft(ctIn, ctsMatrices.Matrices)
-
-	zVconj = eval.ConjugateNew(zV)
-
-	// The real part is stored in ct0
-	ctReal = eval.AddNew(zV, zVconj)
-
-	// The imaginary part is stored in ct1
-	ctImag = eval.SubNew(zV, zVconj)
-
-	eval.DivByi(ctImag, ctImag)
-
-	// If repacking, then ct0 and ct1 right n/2 slots are zero.
-	if eval.params.LogSlots() < eval.params.LogN()-1 {
-		eval.Rotate(ctImag, eval.params.Slots(), ctImag)
-		eval.Add(ctReal, ctImag, ctReal)
-		return ctReal, nil
-	}
-
-	zV = nil
-	zVconj = nil
-
-	return ctReal, ctImag
-}
-
-// SlotsToCoeffs applies the homomorphic decoding.
-func (eval *evaluator) SlotsToCoeffs(ctReal, ctImag *Ciphertext, stcMatrices EncodingMatrices) (ctOut *Ciphertext) {
-
-	// If full packing, the repacking can be done directly using ct0 and ct1.
-	if ctImag != nil {
-		eval.MultByi(ctImag, ctImag)
-		eval.Add(ctReal, ctImag, ctReal)
-	}
-
-	ctImag = nil
-
-	return eval.dft(ctReal, stcMatrices.Matrices)
-}
-
-func (eval *evaluator) dft(vec *Ciphertext, plainVectors []PtDiagMatrix) *Ciphertext {
-
-	// Sequentially multiplies w with the provided dft matrices.
-	for _, plainVector := range plainVectors {
-		scale := vec.Scale
-		vec = eval.LinearTransform(vec, plainVector)[0]
-		if err := eval.Rescale(vec, scale, vec); err != nil {
-			panic(err)
-		}
-	}
-
-	return vec
+	return EncodingMatrix{Matrices: matrices}
 }
 
 func computeRoots(N int) (roots []complex128) {
@@ -565,14 +507,14 @@ func genFFTDiagMatrix(logL, fftLevel int, a, b, c []complex128, ltType LinearTra
 	vectors = make(map[int][]complex128)
 
 	if bitreversed {
-		SliceBitReverseInPlaceComplex128(a, 1<<logL)
-		SliceBitReverseInPlaceComplex128(b, 1<<logL)
-		SliceBitReverseInPlaceComplex128(c, 1<<logL)
+		ckks.SliceBitReverseInPlaceComplex128(a, 1<<logL)
+		ckks.SliceBitReverseInPlaceComplex128(b, 1<<logL)
+		ckks.SliceBitReverseInPlaceComplex128(c, 1<<logL)
 
 		if len(a) > 1<<logL {
-			SliceBitReverseInPlaceComplex128(a[1<<logL:], 1<<logL)
-			SliceBitReverseInPlaceComplex128(b[1<<logL:], 1<<logL)
-			SliceBitReverseInPlaceComplex128(c[1<<logL:], 1<<logL)
+			ckks.SliceBitReverseInPlaceComplex128(a[1<<logL:], 1<<logL)
+			ckks.SliceBitReverseInPlaceComplex128(b[1<<logL:], 1<<logL)
+			ckks.SliceBitReverseInPlaceComplex128(c[1<<logL:], 1<<logL)
 		}
 	}
 
@@ -617,14 +559,14 @@ func multiplyFFTMatrixWithNextFFTLevel(vec map[int][]complex128, logL, N, nextLe
 	}
 
 	if bitreversed {
-		SliceBitReverseInPlaceComplex128(a, 1<<logL)
-		SliceBitReverseInPlaceComplex128(b, 1<<logL)
-		SliceBitReverseInPlaceComplex128(c, 1<<logL)
+		ckks.SliceBitReverseInPlaceComplex128(a, 1<<logL)
+		ckks.SliceBitReverseInPlaceComplex128(b, 1<<logL)
+		ckks.SliceBitReverseInPlaceComplex128(c, 1<<logL)
 
 		if len(a) > 1<<logL {
-			SliceBitReverseInPlaceComplex128(a[1<<logL:], 1<<logL)
-			SliceBitReverseInPlaceComplex128(b[1<<logL:], 1<<logL)
-			SliceBitReverseInPlaceComplex128(c[1<<logL:], 1<<logL)
+			ckks.SliceBitReverseInPlaceComplex128(a[1<<logL:], 1<<logL)
+			ckks.SliceBitReverseInPlaceComplex128(b[1<<logL:], 1<<logL)
+			ckks.SliceBitReverseInPlaceComplex128(c[1<<logL:], 1<<logL)
 		}
 	}
 

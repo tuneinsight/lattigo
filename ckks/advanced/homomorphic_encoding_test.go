@@ -1,25 +1,31 @@
-package ckks
+package advanced
 
 import (
-	"fmt"
+	"flag"
+	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"math"
 	"runtime"
 	"testing"
 )
 
-func TestCKKSAdvancedHomomorphicEncoding(t *testing.T) {
+var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
+
+var minPrec float64 = 15
+
+func TestHomomorphicEncoding(t *testing.T) {
 	var err error
 
 	if runtime.GOARCH == "wasm" {
 		t.Skip("skipping homomorphic encoding tests for GOARCH=wasm")
 	}
 
-	ParametersLiteral := ParametersLiteral{
+	ParametersLiteral := ckks.ParametersLiteral{
 		LogN:     13,
-		LogSlots: 4,
+		LogSlots: 12,
 		Scale:    1 << 45,
 		Sigma:    rlwe.DefaultSigma,
 		Q: []uint64{
@@ -35,14 +41,14 @@ func TestCKKSAdvancedHomomorphicEncoding(t *testing.T) {
 		},
 	}
 
-	testEncodingMatricesMarshalling(t)
+	testEncodingMatrixMarshalling(t)
 
-	var params Parameters
-	if params, err = NewParametersFromLiteral(ParametersLiteral); err != nil {
+	var params ckks.Parameters
+	if params, err = ckks.NewParametersFromLiteral(ParametersLiteral); err != nil {
 		panic(err)
 	}
 
-	for _, testSet := range []func(params Parameters, t *testing.T){
+	for _, testSet := range []func(params ckks.Parameters, t *testing.T){
 		testCoeffsToSlots,
 		testSlotsToCoeffs,
 	} {
@@ -50,9 +56,12 @@ func TestCKKSAdvancedHomomorphicEncoding(t *testing.T) {
 		runtime.GC()
 	}
 
-	params.logSlots = 4
+	ParametersLiteral.LogSlots--
+	if params, err = ckks.NewParametersFromLiteral(ParametersLiteral); err != nil {
+		panic(err)
+	}
 
-	for _, testSet := range []func(params Parameters, t *testing.T){
+	for _, testSet := range []func(params ckks.Parameters, t *testing.T){
 		testCoeffsToSlots,
 		testSlotsToCoeffs,
 	} {
@@ -61,9 +70,9 @@ func TestCKKSAdvancedHomomorphicEncoding(t *testing.T) {
 	}
 }
 
-func testEncodingMatricesMarshalling(t *testing.T) {
+func testEncodingMatrixMarshalling(t *testing.T) {
 	t.Run("Marshalling", func(t *testing.T) {
-		m := EncodingMatricesParameters{
+		m := EncodingMatrixParameters{
 			LinearTransformType: CoeffsToSlots,
 			LevelStart:          12,
 			BSGSRatio:           16.0,
@@ -79,7 +88,7 @@ func testEncodingMatricesMarshalling(t *testing.T) {
 		data, err := m.MarshalBinary()
 		assert.Nil(t, err)
 
-		mNew := new(EncodingMatricesParameters)
+		mNew := new(EncodingMatrixParameters)
 		if err := mNew.UnmarshalBinary(data); err != nil {
 			assert.Nil(t, err)
 		}
@@ -87,7 +96,7 @@ func testEncodingMatricesMarshalling(t *testing.T) {
 	})
 }
 
-func testCoeffsToSlots(params Parameters, t *testing.T) {
+func testCoeffsToSlots(params ckks.Parameters, t *testing.T) {
 
 	packing := "FullPacking"
 	if params.LogSlots() < params.LogN()-1 {
@@ -115,7 +124,7 @@ func testCoeffsToSlots(params Parameters, t *testing.T) {
 		//
 		// Then checks that Dcd(Dec(Enc(Ecd(vReal)))) = vReal and Dcd(Dec(Enc(Ecd(vImag)))) = vImag
 
-		CoeffsToSlotsParameters := EncodingMatricesParameters{
+		CoeffsToSlotsParameters := EncodingMatrixParameters{
 			LinearTransformType: CoeffsToSlots,
 			LevelStart:          params.MaxLevel(),
 			BSGSRatio:           16.0,
@@ -127,16 +136,16 @@ func testCoeffsToSlots(params Parameters, t *testing.T) {
 			},
 		}
 
-		kgen := NewKeyGenerator(params)
+		kgen := ckks.NewKeyGenerator(params)
 		sk := kgen.GenSecretKey()
-		encoder := NewEncoder(params)
-		encryptor := NewEncryptor(params, sk)
-		decryptor := NewDecryptor(params, sk)
+		encoder := ckks.NewEncoder(params)
+		encryptor := ckks.NewEncryptor(params, sk)
+		decryptor := ckks.NewDecryptor(params, sk)
 
 		n := math.Pow(1.0/float64(2*params.Slots()), 1.0/float64(CoeffsToSlotsParameters.Depth(true)))
 
 		// Generates the encoding matrices
-		CoeffsToSlotMatrices := encoder.GenHomomorphicEncodingMatrices(CoeffsToSlotsParameters, complex(n, 0))
+		CoeffsToSlotMatrices := CoeffsToSlotsParameters.GenHomomorphicEncodingMatrix(encoder, params.LogN(), params.LogSlots(), complex(n, 0))
 
 		// Gets the rotations indexes for CoeffsToSlots
 		rotations := CoeffsToSlotsParameters.Rotations(params.LogN(), params.LogSlots())
@@ -165,7 +174,7 @@ func testCoeffsToSlots(params Parameters, t *testing.T) {
 		}
 
 		// Applies bit-reverse on the original complex vector
-		SliceBitReverseInPlaceComplex128(values, params.Slots())
+		ckks.SliceBitReverseInPlaceComplex128(values, params.Slots())
 
 		// Maps to a float vector
 		// Add gaps if sparse packing
@@ -177,7 +186,7 @@ func testCoeffsToSlots(params Parameters, t *testing.T) {
 		}
 
 		// Encodes coefficient-wise and encrypts the test vector
-		plaintext := NewPlaintext(params, params.MaxLevel(), params.Scale())
+		plaintext := ckks.NewPlaintext(params, params.MaxLevel(), params.Scale())
 		encoder.EncodeCoeffs(valuesFloat, plaintext)
 		ciphertext := encryptor.EncryptNew(plaintext)
 
@@ -200,7 +209,7 @@ func testCoeffsToSlots(params Parameters, t *testing.T) {
 	})
 }
 
-func testSlotsToCoeffs(params Parameters, t *testing.T) {
+func testSlotsToCoeffs(params ckks.Parameters, t *testing.T) {
 
 	packing := "FullPacking"
 	if params.LogSlots() < params.LogN()-1 {
@@ -230,7 +239,7 @@ func testSlotsToCoeffs(params Parameters, t *testing.T) {
 		// The first N/2 slots of the plaintext will be the real part while the last N/2 the imaginary part
 		// In case of 2*slots < N, then there is a gap of N/(2*slots) between each values
 
-		SlotsToCoeffsParameters := EncodingMatricesParameters{
+		SlotsToCoeffsParameters := EncodingMatrixParameters{
 			LinearTransformType: SlotsToCoeffs,
 			LevelStart:          params.MaxLevel(),
 			BSGSRatio:           16.0,
@@ -242,14 +251,14 @@ func testSlotsToCoeffs(params Parameters, t *testing.T) {
 			},
 		}
 
-		kgen := NewKeyGenerator(params)
+		kgen := ckks.NewKeyGenerator(params)
 		sk := kgen.GenSecretKey()
-		encoder := NewEncoder(params)
-		encryptor := NewEncryptor(params, sk)
-		decryptor := NewDecryptor(params, sk)
+		encoder := ckks.NewEncoder(params)
+		encryptor := ckks.NewEncryptor(params, sk)
+		decryptor := ckks.NewDecryptor(params, sk)
 
 		// Generates the encoding matrices
-		SlotsToCoeffsMatrix := encoder.GenHomomorphicEncodingMatrices(SlotsToCoeffsParameters, 1.0)
+		SlotsToCoeffsMatrix := SlotsToCoeffsParameters.GenHomomorphicEncodingMatrix(encoder, params.LogN(), params.LogSlots(), 1.0)
 
 		// Gets the rotations indexes for SlotsToCoeffs
 		rotations := SlotsToCoeffsParameters.Rotations(params.LogN(), params.LogSlots())
@@ -279,18 +288,16 @@ func testSlotsToCoeffs(params Parameters, t *testing.T) {
 			}
 		}
 
-		fmt.Println(valuesReal)
-
 		// Encodes and encrypts the test vectors
 		logSlots := params.LogSlots()
 		if params.LogSlots() < params.LogN()-1 {
 			logSlots++
 		}
 
-		plaintext := NewPlaintext(params, params.MaxLevel(), params.Scale())
+		plaintext := ckks.NewPlaintext(params, params.MaxLevel(), params.Scale())
 		encoder.Encode(plaintext, valuesReal, logSlots)
 		ct0 := encryptor.EncryptNew(plaintext)
-		var ct1 *Ciphertext
+		var ct1 *ckks.Ciphertext
 		if params.LogSlots() == params.LogN()-1 {
 			encoder.Encode(plaintext, valuesImag, logSlots)
 			ct1 = encryptor.EncryptNew(plaintext)
@@ -319,8 +326,18 @@ func testSlotsToCoeffs(params Parameters, t *testing.T) {
 		}
 
 		// Result is bit-reversed, so applies the bit-reverse permutation on the reference vector
-		SliceBitReverseInPlaceComplex128(valuesReal, params.Slots())
+		ckks.SliceBitReverseInPlaceComplex128(valuesReal, params.Slots())
 
 		verifyTestVectors(params, encoder, decryptor, valuesReal, valuesTest, params.LogSlots(), 0, t)
 	})
+}
+
+func verifyTestVectors(params ckks.Parameters, encoder ckks.Encoder, decryptor ckks.Decryptor, valuesWant []complex128, element interface{}, logSlots int, bound float64, t *testing.T) {
+
+	precStats := ckks.GetPrecisionStats(params, encoder, decryptor, valuesWant, element, logSlots, bound)
+	if *printPrecisionStats {
+		t.Log(precStats.String())
+	}
+	require.GreaterOrEqual(t, real(precStats.MeanPrecision), minPrec)
+	require.GreaterOrEqual(t, imag(precStats.MeanPrecision), minPrec)
 }

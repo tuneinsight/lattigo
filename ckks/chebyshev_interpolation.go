@@ -18,8 +18,8 @@ func Approximate(function func(complex128) complex128, a, b complex128, degree i
 	cheby = new(ChebyshevInterpolation)
 	cheby.A = a
 	cheby.B = b
-	cheby.maxDeg = degree
-	cheby.lead = true
+	cheby.MaxDeg = degree
+	cheby.Lead = true
 
 	nodes := chebyshevNodes(degree+1, a, b)
 
@@ -28,7 +28,7 @@ func Approximate(function func(complex128) complex128, a, b complex128, degree i
 		fi[i] = function(nodes[i])
 	}
 
-	cheby.coeffs = chebyCoeffs(nodes, fi, a, b)
+	cheby.Coeffs = chebyCoeffs(nodes, fi, a, b)
 
 	return
 }

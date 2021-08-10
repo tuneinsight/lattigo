@@ -353,7 +353,7 @@ func (p Parameters) RotationsForDiaMatrixMultRaw(nonZeroDiags []int, logSlots in
 
 	var index int
 
-	N1 := findbestbabygiantstepsplit(nonZeroDiags, slots, BSGSratio)
+	N1 := FindBestBSGSSplit(nonZeroDiags, slots, BSGSratio)
 
 	if len(nonZeroDiags) < 3 {
 

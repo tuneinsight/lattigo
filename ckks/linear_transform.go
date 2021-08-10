@@ -92,8 +92,8 @@ func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfa
 // This method is faster than InnerSum when the number of rotations is large and uses log2(n) + HW(n) insteadn of 'n' keys.
 func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
 
-	ringQ := eval.ringQ
-	ringP := eval.ringP
+	ringQ := eval.params.RingQ()
+	ringP := eval.params.RingP()
 
 	levelQ := ctIn.Level()
 	levelP := len(ringP.Modulus) - 1
@@ -227,11 +227,11 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 // This method is faster than InnerSumLog when the number of rotations is small but uses 'n' keys instead of log(n) + HW(n).
 func (eval *evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
 
-	ringQ := eval.ringQ
-	ringP := eval.ringP
+	ringQ := eval.params.RingQ()
+	ringP := eval.params.RingP()
 
 	levelQ := ctIn.Level()
-	levelP := len(eval.ringP.Modulus) - 1
+	levelP := len(ringP.Modulus) - 1
 
 	QiOverF := eval.params.QiOverflowMargin(levelQ) >> 1
 	PiOverF := eval.params.PiOverflowMargin(levelP) >> 1
@@ -369,11 +369,11 @@ func (eval *evaluator) Replicate(ctIn *Ciphertext, batchSize, n int, ctOut *Ciph
 // for matrix of only a few non-zero diagonals but uses more keys.
 func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix PtDiagMatrix, PoolDecompQ, PoolDecompP []*ring.Poly, ctOut *Ciphertext) {
 
-	ringQ := eval.ringQ
-	ringP := eval.ringP
+	ringQ := eval.params.RingQ()
+	ringP := eval.params.RingP()
 
 	levelQ := utils.MinInt(ctOut.Level(), utils.MinInt(ctIn.Level(), matrix.Level))
-	levelP := len(eval.ringP.Modulus) - 1
+	levelP := len(ringP.Modulus) - 1
 
 	QiOverF := eval.params.QiOverflowMargin(levelQ)
 	PiOverF := eval.params.PiOverflowMargin(levelP)
@@ -484,11 +484,11 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix PtDiagM
 	// N1*N2 = N
 	N1 := matrix.N1
 
-	ringQ := eval.ringQ
-	ringP := eval.ringP
+	ringQ := eval.params.RingQ()
+	ringP := eval.params.RingP()
 
 	levelQ := utils.MinInt(ctOut.Level(), utils.MinInt(ctIn.Level(), matrix.Level))
-	levelP := len(eval.ringP.Modulus) - 1
+	levelP := len(ringP.Modulus) - 1
 
 	QiOverF := eval.params.QiOverflowMargin(levelQ)
 	PiOverF := eval.params.PiOverflowMargin(levelP)

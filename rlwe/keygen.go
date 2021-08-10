@@ -80,7 +80,7 @@ func (keygen *keyGenerator) GenSecretKeyGaussian() (sk *SecretKey) {
 	ringQ.NTT(sk.Value[0], sk.Value[0])
 	ringP.NTT(sk.Value[1], sk.Value[1])
 	ringQ.MForm(sk.Value[0], sk.Value[0])
-	//ringP.MForm(sk.Value[1], sk.Value[1])
+	ringP.MForm(sk.Value[1], sk.Value[1])
 	return sk
 }
 

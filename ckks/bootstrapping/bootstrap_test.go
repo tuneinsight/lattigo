@@ -11,6 +11,7 @@ import (
 )
 
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters + secure bootstrapping). Overrides -short and requires -timeout=0.")
+var testBootstrapping = flag.Bool("test-bootstrapping", false, "run the bootstrapping tests (memory intensive)")
 
 func ParamsToString(params ckks.Parameters, opname string) string {
 	return fmt.Sprintf("%slogN=%d/LogSlots=%d/logQP=%d/levels=%d/a=%d/b=%d",
@@ -39,6 +40,10 @@ func TestBootstrap(t *testing.T) {
 
 	if runtime.GOARCH == "wasm" {
 		t.Skip("skipping bootstrapping tests for GOARCH=wasm")
+	}
+
+	if !*testBootstrapping {
+		t.Skip("skipping bootstrapping tests (add -test-bootstrapping to run the bootstrapping tests)")
 	}
 
 	paramSet := 0

@@ -18,7 +18,7 @@ func (eval *evaluator) PowerOf2(op *Ciphertext, logPow2 int, opOut *Ciphertext) 
 
 		eval.MulRelin(op, op, opOut)
 
-		if err := eval.Rescale(opOut, eval.scale, opOut); err != nil {
+		if err := eval.Rescale(opOut, op.Scale, opOut); err != nil {
 			panic(err)
 		}
 
@@ -26,7 +26,7 @@ func (eval *evaluator) PowerOf2(op *Ciphertext, logPow2 int, opOut *Ciphertext) 
 
 			eval.MulRelin(opOut, opOut, opOut)
 
-			if err := eval.Rescale(opOut, eval.scale, opOut); err != nil {
+			if err := eval.Rescale(opOut, op.Scale, opOut); err != nil {
 				panic(err)
 			}
 		}
@@ -71,7 +71,7 @@ func (eval *evaluator) Power(op *Ciphertext, degree int, opOut *Ciphertext) {
 
 		eval.MulRelin(opOut, tmp, opOut)
 
-		if err := eval.Rescale(opOut, eval.scale, opOut); err != nil {
+		if err := eval.Rescale(opOut, op.Scale, opOut); err != nil {
 			panic(err)
 		}
 
@@ -94,7 +94,7 @@ func (eval *evaluator) InverseNew(op *Ciphertext, steps int) (opOut *Ciphertext)
 
 		eval.MulRelin(cbar, cbar, cbar)
 
-		if err := eval.Rescale(cbar, eval.scale, cbar); err != nil {
+		if err := eval.Rescale(cbar, op.Scale, cbar); err != nil {
 			panic(err)
 		}
 
@@ -102,7 +102,7 @@ func (eval *evaluator) InverseNew(op *Ciphertext, steps int) (opOut *Ciphertext)
 
 		eval.MulRelin(tmp, opOut, tmp)
 
-		if err := eval.Rescale(tmp, eval.scale, tmp); err != nil {
+		if err := eval.Rescale(tmp, op.Scale, tmp); err != nil {
 			panic(err)
 		}
 

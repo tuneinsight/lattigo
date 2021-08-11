@@ -7,6 +7,8 @@ import (
 
 // PolyQP is a double polynomial with modulus Q and P used to store
 // key elements.
+// PolyQP[0] : modulus Q.
+// PolyQP[1] : modulus P.
 // The modulus Q represent the ciphertext modulus and the modulus P
 // the special primes for the RNS decomposition during homomorphic
 // operations involving keys.

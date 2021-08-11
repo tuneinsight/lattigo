@@ -5,125 +5,101 @@ import (
 	"github.com/ldsec/lattigo/v2/ring"
 )
 
-// GetDataLen returns the length in bytes of the target SecretKey.
-func (sk *SecretKey) GetDataLen(WithMetadata bool) (dataLen int) {
-	return sk.Value[0].GetDataLen(WithMetadata) + sk.Value[1].GetDataLen(WithMetadata)
+// GetDataLen returns the length in byte of the target PolyQP
+func (pol *PolyQP) GetDataLen(WithMetadata bool) (dataLen int) {
+	return pol[0].GetDataLen(WithMetadata) + pol[1].GetDataLen(WithMetadata)
 }
 
-// MarshalBinary encodes a secret key in a byte slice.
-func (sk *SecretKey) MarshalBinary() (data []byte, err error) {
-
-	data = make([]byte, sk.GetDataLen(true))
-
-	var pt int
-	if pt, err = sk.Value[0].WriteTo(data[pt:]); err != nil {
-		return nil, err
+// WriteTo writes a polyQP on the inpute data.
+func (pol *PolyQP) WriteTo(data []byte) (pt int, err error) {
+	var inc int
+	if inc, err = pol[0].WriteTo(data[pt:]); err != nil {
+		return
 	}
+	pt += inc
 
-	if _, err = sk.Value[1].WriteTo(data[pt:]); err != nil {
-		return nil, err
+	if inc, err = pol[1].WriteTo(data[pt:]); err != nil {
+		return
 	}
-
-	return data, nil
-}
-
-// UnmarshalBinary decodes a previously marshaled SecretKey in the target SecretKey.
-func (sk *SecretKey) UnmarshalBinary(data []byte) (err error) {
-
-	var pt int
-
-	sk.Value[0] = new(ring.Poly)
-	if pt, err = sk.Value[0].DecodePolyNew(data[pt:]); err != nil {
-		return err
-	}
-
-	sk.Value[1] = new(ring.Poly)
-	if _, err = sk.Value[1].DecodePolyNew(data[pt:]); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// GetDataLen returns the length in bytes of the target PublicKey.
-func (pk *PublicKey) GetDataLen(WithMetadata bool) (dataLen int) {
-
-	for _, el := range pk.Value {
-		dataLen += el[0].GetDataLen(WithMetadata)
-		dataLen += el[1].GetDataLen(WithMetadata)
-	}
+	pt += inc
 
 	return
 }
 
+// DecodePolyNew decodes the input bytes on the target polyQP.
+func (pol *PolyQP) DecodePolyNew(data []byte) (pt int, err error) {
+	pol[0] = new(ring.Poly)
+	var inc int
+	if inc, err = pol[0].DecodePolyNew(data[pt:]); err != nil {
+		return
+	}
+	pt += inc
+
+	pol[1] = new(ring.Poly)
+	if inc, err = pol[1].DecodePolyNew(data[pt:]); err != nil {
+		return
+	}
+	pt += inc
+
+	return
+}
+
+// GetDataLen returns the length in bytes of the target SecretKey.
+func (sk *SecretKey) GetDataLen(WithMetadata bool) (dataLen int) {
+	return sk.Value.GetDataLen(WithMetadata)
+}
+
+// MarshalBinary encodes a secret key in a byte slice.
+func (sk *SecretKey) MarshalBinary() (data []byte, err error) {
+	data = make([]byte, sk.GetDataLen(true))
+	if _, err = sk.Value.WriteTo(data); err != nil {
+		return nil, err
+	}
+	return
+}
+
+// UnmarshalBinary decodes a previously marshaled SecretKey in the target SecretKey.
+func (sk *SecretKey) UnmarshalBinary(data []byte) (err error) {
+	_, err = sk.Value.DecodePolyNew(data)
+	return
+}
+
+// GetDataLen returns the length in bytes of the target PublicKey.
+func (pk *PublicKey) GetDataLen(WithMetadata bool) (dataLen int) {
+	return pk.Value[0].GetDataLen(WithMetadata) + pk.Value[1].GetDataLen(WithMetadata)
+}
+
 // MarshalBinary encodes a PublicKey in a byte slice.
 func (pk *PublicKey) MarshalBinary() (data []byte, err error) {
-
-	dataLen := pk.GetDataLen(true)
-
-	data = make([]byte, dataLen)
-
-	var pointer, inc int
-
-	if inc, err = pk.Value[0][0].WriteTo(data[pointer:]); err != nil {
+	data = make([]byte, pk.GetDataLen(true))
+	var inc, pt int
+	if inc, err = pk.Value[0].WriteTo(data[pt:]); err != nil {
 		return nil, err
 	}
+	pt += inc
 
-	pointer += inc
-
-	if inc, err = pk.Value[0][1].WriteTo(data[pointer:]); err != nil {
+	if inc, err = pk.Value[1].WriteTo(data[pt:]); err != nil {
 		return nil, err
 	}
+	pt += inc
 
-	pointer += inc
-
-	if inc, err = pk.Value[1][0].WriteTo(data[pointer:]); err != nil {
-		return nil, err
-	}
-
-	pointer += inc
-
-	if _, err = pk.Value[1][1].WriteTo(data[pointer:]); err != nil {
-		return nil, err
-	}
-
-	return data, err
-
+	return
 }
 
 // UnmarshalBinary decodes a previously marshaled PublicKey in the target PublicKey.
 func (pk *PublicKey) UnmarshalBinary(data []byte) (err error) {
 
-	var pointer, inc int
+	var pt, inc int
+	if inc, err = pk.Value[0].DecodePolyNew(data[pt:]); err != nil {
+		return
+	}
+	pt += inc
 
-	pk.Value[0][0] = new(ring.Poly)
-	pk.Value[0][1] = new(ring.Poly)
-	pk.Value[1][0] = new(ring.Poly)
-	pk.Value[1][1] = new(ring.Poly)
-
-	if inc, err = pk.Value[0][0].DecodePolyNew(data[pointer:]); err != nil {
-		return err
+	if _, err = pk.Value[1].DecodePolyNew(data[pt:]); err != nil {
+		return
 	}
 
-	pointer += inc
-
-	if inc, err = pk.Value[0][1].DecodePolyNew(data[pointer:]); err != nil {
-		return err
-	}
-
-	pointer += inc
-
-	if inc, err = pk.Value[1][0].DecodePolyNew(data[pointer:]); err != nil {
-		return err
-	}
-
-	pointer += inc
-
-	if _, err = pk.Value[1][1].DecodePolyNew(data[pointer:]); err != nil {
-		return err
-	}
-
-	return nil
+	return
 }
 
 // GetDataLen returns the length in bytes of the target EvaluationKey.
@@ -191,10 +167,8 @@ func (swk *SwitchingKey) GetDataLen(WithMetadata bool) (dataLen int) {
 	}
 
 	for j := uint64(0); j < uint64(len(swk.Value)); j++ {
-		dataLen += swk.Value[j][0][0].GetDataLen(WithMetadata)
-		dataLen += swk.Value[j][0][1].GetDataLen(WithMetadata)
-		dataLen += swk.Value[j][1][0].GetDataLen(WithMetadata)
-		dataLen += swk.Value[j][1][1].GetDataLen(WithMetadata)
+		dataLen += swk.Value[j][0].GetDataLen(WithMetadata)
+		dataLen += swk.Value[j][1].GetDataLen(WithMetadata)
 	}
 
 	return
@@ -233,25 +207,13 @@ func (swk *SwitchingKey) encode(pointer int, data []byte) (int, error) {
 
 	for j := 0; j < len(swk.Value); j++ {
 
-		if inc, err = swk.Value[j][0][0].WriteTo(data[pointer : pointer+swk.Value[j][0][0].GetDataLen(true)]); err != nil {
+		if inc, err = swk.Value[j][0].WriteTo(data[pointer : pointer+swk.Value[j][0].GetDataLen(true)]); err != nil {
 			return pointer, err
 		}
 
 		pointer += inc
 
-		if inc, err = swk.Value[j][0][1].WriteTo(data[pointer : pointer+swk.Value[j][0][0].GetDataLen(true)]); err != nil {
-			return pointer, err
-		}
-
-		pointer += inc
-
-		if inc, err = swk.Value[j][1][0].WriteTo(data[pointer : pointer+swk.Value[j][1][0].GetDataLen(true)]); err != nil {
-			return pointer, err
-		}
-
-		pointer += inc
-
-		if inc, err = swk.Value[j][1][1].WriteTo(data[pointer : pointer+swk.Value[j][1][1].GetDataLen(true)]); err != nil {
+		if inc, err = swk.Value[j][1].WriteTo(data[pointer : pointer+swk.Value[j][1].GetDataLen(true)]); err != nil {
 			return pointer, err
 		}
 
@@ -267,39 +229,26 @@ func (swk *SwitchingKey) decode(data []byte) (pointer int, err error) {
 
 	pointer = 1
 
-	swk.Value = make([][2][2]*ring.Poly, decomposition)
+	swk.Value = make([][2]PolyQP, decomposition)
 
 	var inc int
 
 	for j := 0; j < decomposition; j++ {
 
 		swk.Value[j][0][0] = new(ring.Poly)
-		if inc, err = swk.Value[j][0][0].DecodePolyNew(data[pointer:]); err != nil {
-			return pointer, err
-		}
-		pointer += inc
-
-		swk.Value[j][0][1] = new(ring.Poly)
-		if inc, err = swk.Value[j][0][1].DecodePolyNew(data[pointer:]); err != nil {
-			return pointer, err
-		}
-		pointer += inc
-
-		swk.Value[j][1][0] = new(ring.Poly)
-		if inc, err = swk.Value[j][1][0].DecodePolyNew(data[pointer:]); err != nil {
-			return pointer, err
+		if inc, err = swk.Value[j][0].DecodePolyNew(data[pointer:]); err != nil {
+			return
 		}
 		pointer += inc
 
 		swk.Value[j][1][1] = new(ring.Poly)
-		if inc, err = swk.Value[j][1][1].DecodePolyNew(data[pointer:]); err != nil {
-			return pointer, err
+		if inc, err = swk.Value[j][1].DecodePolyNew(data[pointer:]); err != nil {
+			return
 		}
 		pointer += inc
-
 	}
 
-	return pointer, nil
+	return
 }
 
 // GetDataLen returns the length in bytes of the target RotationKeys.

@@ -1544,7 +1544,7 @@ func (eval *evaluator) Conjugate(ct0 *Ciphertext, ctOut *Ciphertext) {
 
 func (eval *evaluator) permuteNTT(ct0 *Ciphertext, galEl uint64, ctOut *Ciphertext) {
 
-	rtk, generated := eval.rtks.Keys[galEl]
+	rtk, generated := eval.rtks.GetRotationKey(galEl)
 	if !generated {
 		panic(fmt.Sprintf("rotation key k=%d not available", eval.params.InverseGaloisElement(galEl)))
 	}

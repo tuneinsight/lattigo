@@ -79,6 +79,9 @@ func NewRotationKeySet(params Parameters, galoisElement []uint64) (rotKey *Rotat
 // GetRotationKey return the rotation key for the given galois element or nil if such key is not in the set. The
 // second argument is true  iff the first one is non-nil.
 func (rtks *RotationKeySet) GetRotationKey(galoisEl uint64) (*SwitchingKey, bool) {
+	if rtks.Keys == nil {
+		return nil, false
+	}
 	rotKey, inSet := rtks.Keys[galoisEl]
 	return rotKey, inSet
 }

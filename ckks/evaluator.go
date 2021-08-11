@@ -1305,8 +1305,18 @@ func (eval *evaluator) Rescale(ctIn *Ciphertext, minScale float64, ctOut *Cipher
 		nbRescale++
 	}
 
-	for i := range ctOut.Value {
-		ringQ.DivRoundByLastModulusManyNTT(ctIn.Value[i], ctOut.Value[i], nbRescale)
+	if nbRescale > 0 {
+		for i := range ctOut.Value {
+			if nbRescale > 1 {
+				ringQ.DivRoundByLastModulusManyNTT(ctIn.Value[i], ctOut.Value[i], nbRescale)
+			} else {
+				ringQ.DivRoundByLastModulusNTT(ctIn.Value[i], ctOut.Value[i])
+			}
+		}
+	} else {
+		if ctIn != ctOut {
+			ctOut.Copy(ctIn)
+		}
 	}
 
 	return nil

@@ -7,8 +7,8 @@ The `dbfv` and `dckks` packages import the `drlwe` and provide decorators over i
 
 The MHE-MPC protocol implemented in Lattigo is based on the constructions described in ["Multiparty Homomorphic Encryption from Ring-Learning-with-Errors"](https://eprint.iacr.org/2020/304.pdf) by Mouchet et al. (2021), which is a RLWE instantiation of the MPC protocol described in ["Multiparty computation with low communication, computation and interaction via threshold FHE"](https://eprint.iacr.org/2011/613.pdf) by Asharov et al. (2012).
 
-The protocol permits to a group of parties to compute a joint function of their private inputs under encryption and to release the result in plaintext to an arbitrary receiver.
-The protocol provides security against *passive* attackers that can be the parties themselves and can operate in various system models:
+The protocol permits to a group of N parties to compute a joint function of their private inputs under encryption and to release only the result in plaintext to an arbitrary receiver.
+The protocol provides security against *passive* attackers that can corrupt up to N-1 of the _input parties_ and can operate in various system models:
 
 **Anytrust vs Threshold Access-structure**. In the traditional MPC setting, the parties encrypt their data such that no coalition of at most N-1 parties can decrypt which preserves confidentiality of the inputs as long as at least one party is honest. However, this might be too restrictive in some setting where at least _t_ parties can be assumed honest. The protocol support _t-out-of-N_ threshold types of access-structure for the latter case.
 

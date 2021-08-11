@@ -107,7 +107,7 @@ func main() {
 	// RLWE -> LWE Switching key
 	fmt.Printf("	RLWE -> LWE Switching Key... ")
 	start = time.Now()
-	swkRLWEDimToLWEDim := kgenRLWE.GenSwitchingKey(paramsLWE.QCount()-1, paramsLWE.PCount()-1, skRLWE, skLWE)
+	swkRLWEDimToLWEDim := kgenRLWE.GenSwitchingKey(skRLWE, skLWE)
 	fmt.Printf("Done (%s)\n", time.Since(start))
 
 	// Encodes and Encrypts skLWE
@@ -256,7 +256,7 @@ func main() {
 	ctAs.Scale = scale
 	fmt.Printf("Done (%s)\n", time.Since(start))
 
-	fmt.Printf("Homomorphic Modualr Reduction : pt mod Q... ")
+	fmt.Printf("Homomorphic Modular Reduction : pt mod Q... ")
 	start = time.Now()
 	// Extract imaginary part : RLWE_real + I(X)*Q ; RLWE_imag + I(X)*Q
 	ctAsConj := eval.ConjugateNew(ctAs)

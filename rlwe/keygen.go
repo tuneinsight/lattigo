@@ -17,7 +17,7 @@ type KeyGenerator interface {
 	GenKeyPair() (sk *SecretKey, pk *PublicKey)
 	GenKeyPairSparse(hw int) (sk *SecretKey, pk *PublicKey)
 	GenRelinearizationKey(sk *SecretKey, maxDegree int) (evk *RelinearizationKey)
-	GenSwitchingKey(levelQ, levelP int, skInput, skOutput *SecretKey) (newevakey *SwitchingKey)
+	GenSwitchingKey(skInput, skOutput *SecretKey) (newevakey *SwitchingKey)
 	GenSwitchingKeyForGalois(galEl uint64, sk *SecretKey) (swk *SwitchingKey)
 	GenRotationKeys(galEls []uint64, sk *SecretKey) (rks *RotationKeySet)
 	GenSwitchingKeyForRotationBy(k int, sk *SecretKey) (swk *SwitchingKey)
@@ -185,15 +185,11 @@ func (keygen *keyGenerator) GenRelinearizationKey(sk *SecretKey, maxDegree int) 
 		evk.Keys[i] = NewSwitchingKey(keygen.params, levelQ, levelP)
 	}
 
-	ringQ := keygen.ringQ
-	ringP := keygen.ringP
-
 	keygen.poolQ[1].CopyValues(sk.Value[0])
 	keygen.poolP[1].CopyValues(sk.Value[1])
 	for i := 0; i < maxDegree; i++ {
-		ringQ.MulCoeffsMontgomery(keygen.poolQ[1], sk.Value[0], keygen.poolQ[1])
-		ringP.MulCoeffsMontgomery(keygen.poolP[1], sk.Value[1], keygen.poolP[1])
-		keygen.newSwitchingKey([2]*ring.Poly{keygen.poolQ[1], keygen.poolP[1]}, sk.Value, evk.Keys[i])
+		keygen.ringQ.MulCoeffsMontgomery(keygen.poolQ[1], sk.Value[0], keygen.poolQ[1])
+		keygen.genSwitchingKey(keygen.poolQ[1], sk.Value, evk.Keys[i])
 	}
 
 	return
@@ -256,7 +252,7 @@ func (keygen *keyGenerator) genrotKey(sk [2]*ring.Poly, galEl uint64, swk *Switc
 	ring.PermuteNTTWithIndexLvl(keygen.params.QCount()-1, skIn[0], index, skOut[0])
 	ring.PermuteNTTWithIndexLvl(keygen.params.PCount()-1, skIn[1], index, skOut[1])
 
-	keygen.newSwitchingKey(skIn, skOut, swk)
+	keygen.genSwitchingKey(skIn[0], skOut, swk)
 }
 
 // GenSwitchingKey generates a new key-switching key, that will re-encrypt a Ciphertext encrypted under the input key into the output key.
@@ -266,34 +262,69 @@ func (keygen *keyGenerator) genrotKey(sk [2]*ring.Poly, galEl uint64, swk *Switc
 // If the degree of the output key is smaller than the input key, then generates a new key-switching key, that will re-encrypt a ciphertext encrypted
 // under skIn of dimension N to a ciphertext encrypted under sKOut of dimension n < N.
 // [-a*skOut_{Y^{N/n}} + w*P*skIn + e_{N}, a_{N}] in X^{N}
-// The output switching key is always given in max(N, n).
-func (keygen *keyGenerator) GenSwitchingKey(levelQ, levelP int, skInput, skOutput *SecretKey) (swk *SwitchingKey) {
+// The output switching key is always given in max(N, n) and in the moduli of the output switching key.
+func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *SwitchingKey) {
 
 	if keygen.params.PCount() == 0 {
 		panic("Cannot GenSwitchingKey: modulus P is empty")
 	}
 
-	swk = NewSwitchingKey(keygen.params, levelQ, levelP)
+	swk = NewSwitchingKey(keygen.params, skOutput.Value[0].Level(), skOutput.Value[1].Level())
 
 	// N -> N
 	if len(skInput.Value[0].Coeffs[0]) == len(skOutput.Value[0].Coeffs[0]) {
-		keygen.newSwitchingKey(skInput.Value, skOutput.Value, swk)
+		keygen.genSwitchingKey(skInput.Value[0], skOutput.Value, swk)
 		// n -> N
 	} else if len(skInput.Value[0].Coeffs[0]) < len(skOutput.Value[0].Coeffs[0]) {
+
 		ring.MapSmallDimensionToLargerDimensionNTT(skInput.Value[0], keygen.poolQ[1])
-		ring.MapSmallDimensionToLargerDimensionNTT(skInput.Value[1], keygen.poolP[1])
-		keygen.newSwitchingKey([2]*ring.Poly{keygen.poolQ[1], keygen.poolP[1]}, skOutput.Value, swk)
+
+		if skInput.Value[0].Level() < skOutput.Value[0].Level() {
+
+			ringQ := keygen.ringQ
+
+			ringQ.InvNTTLvl(0, keygen.poolQ[1], keygen.poolQ[0])
+			ringQ.InvMFormLvl(0, keygen.poolQ[0], keygen.poolQ[0])
+
+			Q := keygen.ringQ.Modulus[0]
+			QHalf := Q >> 1
+
+			polQ := keygen.poolQ[0]
+			polP := keygen.poolQ[1]
+			var sign uint64
+			for j := 0; j < ringQ.N; j++ {
+
+				coeff := polQ.Coeffs[0][j]
+
+				sign = 1
+				if coeff > QHalf {
+					coeff = Q - coeff
+					sign = 0
+				}
+
+				for i := skInput.Value[0].Level() + 1; i < skOutput.Value[0].Level()+1; i++ {
+					polP.Coeffs[i][j] = (coeff * sign) | (ringQ.Modulus[i]-coeff)*(sign^1)
+				}
+			}
+
+			for i := skInput.Value[0].Level() + 1; i < skOutput.Value[0].Level()+1; i++ {
+				ring.NTT(polP.Coeffs[i], polP.Coeffs[i], ringQ.N, ringQ.NttPsi[i], ringQ.Modulus[i], ringQ.MredParams[i], ringQ.BredParams[i])
+				ring.MFormVec(polP.Coeffs[i], polP.Coeffs[i], ringQ.Modulus[i], ringQ.BredParams[i])
+			}
+		}
+
+		keygen.genSwitchingKey(keygen.poolQ[1], skOutput.Value, swk)
 		// N -> n
 	} else {
 		ring.MapSmallDimensionToLargerDimensionNTT(skOutput.Value[0], keygen.poolQ[1])
 		ring.MapSmallDimensionToLargerDimensionNTT(skOutput.Value[1], keygen.poolP[1])
-		keygen.newSwitchingKey(skInput.Value, [2]*ring.Poly{keygen.poolQ[1], keygen.poolP[1]}, swk)
+		keygen.genSwitchingKey(skInput.Value[0], [2]*ring.Poly{keygen.poolQ[1], keygen.poolP[1]}, swk)
 	}
 
 	return
 }
 
-func (keygen *keyGenerator) newSwitchingKey(skIn, skOut [2]*ring.Poly, swk *SwitchingKey) {
+func (keygen *keyGenerator) genSwitchingKey(skIn *ring.Poly, skOut [2]*ring.Poly, swk *SwitchingKey) {
 
 	ringQ := keygen.ringQ
 	ringP := keygen.ringP
@@ -312,7 +343,7 @@ func (keygen *keyGenerator) newSwitchingKey(skIn, skOut [2]*ring.Poly, swk *Swit
 	}
 
 	// Computes P * skIn
-	ringQ.MulScalarBigintLvl(levelQ, skIn[0], pBigInt, keygen.poolQ[0])
+	ringQ.MulScalarBigintLvl(levelQ, skIn, pBigInt, keygen.poolQ[0])
 
 	alpha := levelP + 1
 	beta := int(math.Ceil(float64(levelQ+1) / float64(levelP+1)))

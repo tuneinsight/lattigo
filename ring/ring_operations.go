@@ -707,6 +707,24 @@ func (r *Ring) Shift(p1 *Poly, n int, p2 *Poly) {
 	}
 }
 
+// MFormVec switches the input vector to the Montgomery domain.
+func MFormVec(p0, p1 []uint64, qi uint64, bredParams []uint64) {
+
+	for j := 0; j < len(p0); j = j + 8 {
+		x := (*[8]uint64)(unsafe.Pointer(&p0[j]))
+		z := (*[8]uint64)(unsafe.Pointer(&p1[j]))
+
+		z[0] = MForm(x[0], qi, bredParams)
+		z[1] = MForm(x[1], qi, bredParams)
+		z[2] = MForm(x[2], qi, bredParams)
+		z[3] = MForm(x[3], qi, bredParams)
+		z[4] = MForm(x[4], qi, bredParams)
+		z[5] = MForm(x[5], qi, bredParams)
+		z[6] = MForm(x[6], qi, bredParams)
+		z[7] = MForm(x[7], qi, bredParams)
+	}
+}
+
 // MForm switches p1 to the Montgomery domain and writes the result on p2.
 func (r *Ring) MForm(p1, p2 *Poly) {
 	r.MFormLvl(r.minLevelBinary(p1, p2), p1, p2)
@@ -718,20 +736,7 @@ func (r *Ring) MFormLvl(level int, p1, p2 *Poly) {
 		qi := r.Modulus[i]
 		bredParams := r.BredParams[i]
 		p1tmp, p2tmp := p1.Coeffs[i], p2.Coeffs[i]
-		for j := 0; j < r.N; j = j + 8 {
-
-			x := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-			z := (*[8]uint64)(unsafe.Pointer(&p2tmp[j]))
-
-			z[0] = MForm(x[0], qi, bredParams)
-			z[1] = MForm(x[1], qi, bredParams)
-			z[2] = MForm(x[2], qi, bredParams)
-			z[3] = MForm(x[3], qi, bredParams)
-			z[4] = MForm(x[4], qi, bredParams)
-			z[5] = MForm(x[5], qi, bredParams)
-			z[6] = MForm(x[6], qi, bredParams)
-			z[7] = MForm(x[7], qi, bredParams)
-		}
+		MFormVec(p1tmp, p2tmp, qi, bredParams)
 	}
 }
 

@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/ldsec/lattigo/v2/ring"
-	"github.com/ldsec/lattigo/v2/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -174,7 +173,7 @@ func testSwitchKeyGen(kgen KeyGenerator, t *testing.T) {
 
 		// Generates Decomp([-asIn + w*P*sOut + e, a])
 		swk := NewSwitchingKey(params, params.QCount()-1, params.PCount()-1)
-		kgen.(*keyGenerator).newSwitchingKey(skIn.Value, skOut.Value, swk)
+		kgen.(*keyGenerator).genSwitchingKey(skIn.Value[0], skOut.Value, swk)
 
 		// Decrypts
 		// [-asIn + w*P*sOut + e, a] + [asIn]
@@ -429,7 +428,7 @@ func testKeySwitcher(kgen KeyGenerator, t *testing.T) {
 
 	// Test that Dec(KS(Enc(ct, sk), skOut), skOut) has a small norm
 	t.Run(testString(params, "KeySwitch/Standard/"), func(t *testing.T) {
-		swk := kgen.GenSwitchingKey(params.QCount()-1, params.PCount()-1, sk, skOut)
+		swk := kgen.GenSwitchingKey(sk, skOut)
 		ks.SwitchKeysInPlace(ciphertext.Value[1].Level(), ciphertext.Value[1], swk, ks.PoolQ[1], ks.PoolQ[2])
 		ringQ.Add(ciphertext.Value[0], ks.PoolQ[1], ciphertext.Value[0])
 		ring.CopyValues(ks.PoolQ[2], ciphertext.Value[1])
@@ -444,8 +443,8 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 	paramsLargeDim := kgen.(*keyGenerator).params
 	paramsSmallDim, _ := NewParametersFromLiteral(ParametersLiteral{
 		LogN:  paramsLargeDim.LogN() - 1,
-		Q:     paramsLargeDim.Q()[:utils.MaxInt(1, paramsLargeDim.QCount()-1)],
-		P:     paramsLargeDim.P()[:utils.MaxInt(1, paramsLargeDim.PCount()-1)],
+		Q:     paramsLargeDim.Q()[:1],
+		P:     paramsLargeDim.P()[:1],
 		Sigma: DefaultSigma,
 	})
 
@@ -459,7 +458,7 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 		kgenSmallDim := NewKeyGenerator(paramsSmallDim)
 		skSmallDim := kgenSmallDim.GenSecretKey()
 
-		swk := kgenLargeDim.GenSwitchingKey(paramsSmallDim.QCount()-1, paramsSmallDim.PCount()-1, skLargeDim, skSmallDim)
+		swk := kgenLargeDim.GenSwitchingKey(skLargeDim, skSmallDim)
 
 		plaintext := NewPlaintext(paramsLargeDim, paramsLargeDim.MaxLevel())
 		plaintext.Value.IsNTT = true
@@ -503,7 +502,7 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 		kgenSmallDim := NewKeyGenerator(paramsSmallDim)
 		skSmallDim := kgenSmallDim.GenSecretKey()
 
-		swk := kgenLargeDim.GenSwitchingKey(paramsLargeDim.QCount()-1, paramsLargeDim.PCount()-1, skSmallDim, skLargeDim)
+		swk := kgenLargeDim.GenSwitchingKey(skSmallDim, skLargeDim)
 
 		plaintext := NewPlaintext(paramsSmallDim, paramsSmallDim.MaxLevel())
 		plaintext.Value.IsNTT = true
@@ -623,7 +622,7 @@ func testMarshaller(kgen KeyGenerator, t *testing.T) {
 
 		skOut := kgen.GenSecretKey()
 
-		switchingKey := kgen.GenSwitchingKey(params.QCount()-1, params.PCount()-1, sk, skOut)
+		switchingKey := kgen.GenSwitchingKey(sk, skOut)
 		data, err := switchingKey.MarshalBinary()
 		require.NoError(t, err)
 

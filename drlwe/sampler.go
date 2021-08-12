@@ -8,10 +8,13 @@ import (
 
 // CKGCRP is a type for the common reference polynomial of the collective key protocol.
 type CKGCRP rlwe.PolyQP
+
 // RKGCRP is a type for the common reference polynomial of the relinearization key protocol.
 type RKGCRP []rlwe.PolyQP
+
 // RTGCRP is a type for the common reference polynomial of the rotation key protocol.
 type RTGCRP []rlwe.PolyQP
+
 // RefreshCRP is a type for the common reference polynomial of the refresh protocol.
 type RefreshCRP *ring.Poly
 

@@ -199,15 +199,13 @@ func (encoder *encoder) EncodeIntMul(coeffs []int64, p *PlaintextMul) {
 
 // ScaleUp transforms a PlaintextRingT (R_t) into a Plaintext (R_q) by scaling up the coefficient by Q/t.
 func (encoder *encoder) ScaleUp(ptRt *PlaintextRingT, pt *Plaintext) {
-	scaleUp(encoder.params.RingQ(), encoder.params.RingT(), ptRt.Value, pt.Value)
+	scaleUp(encoder.params.RingQ(), encoder.params.RingT(), encoder.tmpPoly.Coeffs[0], ptRt.Value, pt.Value)
 }
 
 // takes m mod T and returns round((m*Q)/T) mod Q
-func scaleUp(ringQ, ringT *ring.Ring, pIn, pOut *ring.Poly) {
+func scaleUp(ringQ, ringT *ring.Ring, tmp []uint64, pIn, pOut *ring.Poly) {
 
 	qModTmontgomery := ring.MForm(new(big.Int).Mod(ringQ.ModulusBigint, ringT.ModulusBigint).Uint64(), ringT.Modulus[0], ringT.BredParams[0])
-
-	coeffs := make([]uint64, ringT.N)
 
 	t := ringT.Modulus[0]
 	tHalf := t >> 1
@@ -222,7 +220,7 @@ func scaleUp(ringQ, ringT *ring.Ring, pIn, pOut *ring.Poly) {
 	// (x * Q + T/2) mod T
 	for i := 0; i < ringQ.N; i = i + 8 {
 		x := (*[8]uint64)(unsafe.Pointer(&pIn.Coeffs[0][i]))
-		z := (*[8]uint64)(unsafe.Pointer(&coeffs[i]))
+		z := (*[8]uint64)(unsafe.Pointer(&tmp[i]))
 
 		z[0] = ring.CRed(ring.MRed(x[0], qModTmontgomery, t, tInv)+tHalf, t)
 		z[1] = ring.CRed(ring.MRed(x[1], qModTmontgomery, t, tInv)+tHalf, t)
@@ -236,7 +234,7 @@ func scaleUp(ringQ, ringT *ring.Ring, pIn, pOut *ring.Poly) {
 
 	// (x * T^-1 - T/2) mod Qi
 	for i := 0; i < len(pOut.Coeffs); i++ {
-		p0tmp := coeffs
+		p0tmp := tmp
 		p1tmp := pOut.Coeffs[i]
 		qi := ringQ.Modulus[i]
 		bredParams := ringQ.BredParams[i]

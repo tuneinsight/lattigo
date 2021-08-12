@@ -712,7 +712,7 @@ func (eval *evaluator) getRingQElem(op Operand) *rlwe.Ciphertext {
 	case *Ciphertext, *Plaintext:
 		return o.El()
 	case *PlaintextRingT:
-		scaleUp(eval.params.RingQ(), eval.params.RingT(), o.Value, eval.tmpPt.Value)
+		scaleUp(eval.params.RingQ(), eval.params.RingT(), eval.PoolQ[0].Coeffs[0], o.Value, eval.tmpPt.Value)
 		return eval.tmpPt.El()
 	default:
 		panic(fmt.Errorf("invalid operand type for operation: %T", o))

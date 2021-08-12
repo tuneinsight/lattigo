@@ -10,10 +10,10 @@ import (
 
 // RotationKeyGenerator is an interface for the local operation in the generation of rotation keys
 type RotationKeyGenerator interface {
-	AllocateShares() (rtgShare *RTGShare)
-	GenShare(sk *rlwe.SecretKey, galEl uint64, crp []rlwe.PolyQP, shareOut *RTGShare)
+	AllocateShares() (rtgShare *RTGShare, rtgCRP RTGCRP)
+	GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, shareOut *RTGShare)
 	Aggregate(share1, share2, shareOut *RTGShare)
-	GenRotationKey(share *RTGShare, crp []rlwe.PolyQP, rotKey *rlwe.SwitchingKey)
+	GenRotationKey(share *RTGShare, crp RTGCRP, rotKey *rlwe.SwitchingKey)
 }
 
 // RTGShare is represent a Party's share in the RTG protocol
@@ -45,17 +45,19 @@ func NewRTGProtocol(params rlwe.Parameters) *RTGProtocol {
 }
 
 // AllocateShares allocates a party's share in the RTG protocol
-func (rtg *RTGProtocol) AllocateShares() (rtgShare *RTGShare) {
+func (rtg *RTGProtocol) AllocateShares() (rtgShare *RTGShare, rtgCRP RTGCRP) {
 	rtgShare = new(RTGShare)
 	rtgShare.Value = make([]rlwe.PolyQP, rtg.params.Beta())
+	rtgCRP = make([]rlwe.PolyQP, rtg.params.Beta())
 	for i := range rtgShare.Value {
 		rtgShare.Value[i] = rlwe.PolyQP{rtg.params.RingQ().NewPoly(), rtg.params.RingP().NewPoly()}
+		rtgCRP[i] = rlwe.PolyQP{rtg.params.RingQ().NewPoly(), rtg.params.RingP().NewPoly()}
 	}
 	return
 }
 
 // GenShare generates a party's share in the RTG protocol
-func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp []rlwe.PolyQP, shareOut *RTGShare) {
+func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, shareOut *RTGShare) {
 
 	ringQ := rtg.params.RingQ()
 	ringP := rtg.params.RingP()
@@ -119,7 +121,7 @@ func (rtg *RTGProtocol) Aggregate(share1, share2, shareOut *RTGShare) {
 }
 
 // GenRotationKey finalizes the RTG protocol and populates the input RotationKey with the computed collective SwitchingKey.
-func (rtg *RTGProtocol) GenRotationKey(share *RTGShare, crp []rlwe.PolyQP, rotKey *rlwe.SwitchingKey) {
+func (rtg *RTGProtocol) GenRotationKey(share *RTGShare, crp RTGCRP, rotKey *rlwe.SwitchingKey) {
 	for i := 0; i < rtg.params.Beta(); i++ {
 		ring.CopyValues(share.Value[i][0], rotKey.Value[i][0][0])
 		ring.CopyValues(share.Value[i][1], rotKey.Value[i][0][1])

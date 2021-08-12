@@ -2,6 +2,7 @@ package dckks
 
 import (
 	"github.com/ldsec/lattigo/v2/ckks"
+	"github.com/ldsec/lattigo/v2/drlwe"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
 )
@@ -24,8 +25,9 @@ func NewRefreshProtocol(params ckks.Parameters, precision int, sigmaSmudging flo
 }
 
 // AllocateShare allocates the shares of the PermuteProtocol
-func (rfp *RefreshProtocol) AllocateShare(minLevel, maxLevel int) *RefreshShare {
-	return &RefreshShare{*rfp.MaskedTransformProtocol.AllocateShare(minLevel, maxLevel)}
+func (rfp *RefreshProtocol) AllocateShare(minLevel, maxLevel int) (*RefreshShare, drlwe.RefreshCRP) {
+	share, refreshCRP := rfp.MaskedTransformProtocol.AllocateShare(minLevel, maxLevel)
+	return &RefreshShare{*share}, refreshCRP
 }
 
 // GenShares generates a share for the Refresh protocol.

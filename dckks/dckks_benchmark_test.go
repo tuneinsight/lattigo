@@ -49,24 +49,25 @@ func benchPublicKeyGen(testCtx *testContext, b *testing.B) {
 	sk0Shards := testCtx.sk0Shards
 	params := testCtx.params
 
-	crp := testCtx.crpGenerator.ReadForCKGNew()
-
 	type Party struct {
 		*CKGProtocol
-		s  *rlwe.SecretKey
-		s1 *drlwe.CKGShare
+		s   *rlwe.SecretKey
+		s1  *drlwe.CKGShare
+		crp drlwe.CKGCRP
 	}
 
 	p := new(Party)
 	p.CKGProtocol = NewCKGProtocol(params)
 	p.s = sk0Shards[0]
-	p.s1 = p.AllocateShares()
+	p.s1, p.crp = p.AllocateShares()
+
+	testCtx.crpGenerator.Read(p.crp)
 
 	b.Run(testString("PublicKeyGen/Gen/", parties, params), func(b *testing.B) {
 
 		// Each party creates a new CKGProtocol instance
 		for i := 0; i < b.N; i++ {
-			p.GenShare(p.s, crp, p.s1)
+			p.GenShare(p.s, p.crp, p.s1)
 		}
 	})
 
@@ -90,19 +91,20 @@ func benchRelinKeyGen(testCtx *testContext, b *testing.B) {
 		sk     *rlwe.SecretKey
 		share1 *drlwe.RKGShare
 		share2 *drlwe.RKGShare
+		crp    drlwe.RKGCRP
 	}
 
 	p := new(Party)
 	p.RKGProtocol = NewRKGProtocol(params)
 	p.sk = sk0Shards[0]
-	p.ephSk, p.share1, p.share2 = p.RKGProtocol.AllocateShares()
+	p.ephSk, p.share1, p.share2, p.crp = p.RKGProtocol.AllocateShares()
 
-	crp := testCtx.crpGenerator.ReadForRKGNew()
+	testCtx.crpGenerator.Read(p.crp)
 
 	b.Run(testString("RelinKeyGen/Round1Gen/", parties, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.GenShareRoundOne(p.sk, crp, p.ephSk, p.share1)
+			p.GenShareRoundOne(p.sk, p.crp, p.ephSk, p.share1)
 		}
 	})
 
@@ -116,7 +118,7 @@ func benchRelinKeyGen(testCtx *testContext, b *testing.B) {
 	b.Run(testString("RelinKeyGen/Round2Gen/", parties, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.GenShareRoundTwo(p.ephSk, p.sk, p.share1, crp, p.share2)
+			p.GenShareRoundTwo(p.ephSk, p.sk, p.share1, p.crp, p.share2)
 		}
 	})
 
@@ -135,7 +137,7 @@ func benchKeySwitching(testCtx *testContext, b *testing.B) {
 	sk1Shards := testCtx.sk1Shards
 	params := testCtx.params
 
-	ciphertext := &ckks.Ciphertext{Ciphertext: &rlwe.Ciphertext{Value: []*ring.Poly{testCtx.crpGenerator.ReadQNew(), testCtx.crpGenerator.ReadQNew()}}, Scale: params.Scale()}
+	ciphertext := ckks.NewCiphertext(params, 1, params.MaxLevel(), params.Scale())
 
 	type Party struct {
 		*CKSProtocol
@@ -178,7 +180,7 @@ func benchPublicKeySwitching(testCtx *testContext, b *testing.B) {
 	pk1 := testCtx.pk1
 	params := testCtx.params
 
-	ciphertext := &ckks.Ciphertext{Ciphertext: &rlwe.Ciphertext{Value: []*ring.Poly{testCtx.crpGenerator.ReadQNew(), testCtx.crpGenerator.ReadQNew()}}, Scale: params.Scale()}
+	ciphertext := ckks.NewCiphertext(params, 1, params.MaxLevel(), params.Scale())
 
 	type Party struct {
 		*PCKSProtocol
@@ -222,20 +224,21 @@ func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 		*RTGProtocol
 		s     *rlwe.SecretKey
 		share *drlwe.RTGShare
+		crp   drlwe.RTGCRP
 	}
 
 	p := new(Party)
 	p.RTGProtocol = NewRotKGProtocol(params)
 	p.s = sk0Shards[0]
-	p.share = p.AllocateShares()
+	p.share, p.crp = p.AllocateShares()
 
-	crp := testCtx.crpGenerator.ReadForRTGNew()
+	testCtx.crpGenerator.Read(p.crp)
 
 	galEl := params.GaloisElementForRowRotation()
 	b.Run(testString("RotKeyGen/Round1/Gen/", parties, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.GenShare(p.s, galEl, crp, p.share)
+			p.GenShare(p.s, galEl, p.crp, p.share)
 		}
 	})
 
@@ -249,7 +252,7 @@ func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 	rotKey := ckks.NewSwitchingKey(params)
 	b.Run(testString("RotKeyGen/Finalize/", parties, params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			p.GenRotationKey(p.share, crp, rotKey)
+			p.GenRotationKey(p.share, p.crp, rotKey)
 		}
 	})
 }
@@ -268,21 +271,22 @@ func benchRefresh(testCtx *testContext, b *testing.B) {
 			*RefreshProtocol
 			s     *rlwe.SecretKey
 			share *RefreshShare
+			crp   drlwe.RefreshCRP
 		}
 
 		p := new(Party)
 		p.RefreshProtocol = NewRefreshProtocol(params, logBound, 3.2)
 		p.s = sk0Shards[0]
-		p.share = p.AllocateShare(minLevel, params.MaxLevel())
+		p.share, p.crp = p.AllocateShare(minLevel, params.MaxLevel())
 
-		ciphertext := &ckks.Ciphertext{Ciphertext: &rlwe.Ciphertext{Value: []*ring.Poly{testCtx.crpGenerator.ReadLvlQNew(minLevel), testCtx.crpGenerator.ReadLvlQNew(minLevel)}}, Scale: params.Scale()}
+		ciphertext := ckks.NewCiphertext(params, 1, minLevel, params.Scale())
 
-		crp := testCtx.crpGenerator.ReadForRefreshNew(params.MaxLevel())
+		testCtx.crpGenerator.Read(p.crp)
 
 		b.Run(testString("Refresh/Round1/Gen", parties, params), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
-				p.GenShares(p.s, logBound, params.LogSlots(), ciphertext, crp, p.share)
+				p.GenShares(p.s, logBound, params.LogSlots(), ciphertext, p.crp, p.share)
 			}
 		})
 
@@ -296,7 +300,7 @@ func benchRefresh(testCtx *testContext, b *testing.B) {
 		b.Run(testString("Refresh/Finalize", parties, params), func(b *testing.B) {
 			ctOut := ckks.NewCiphertext(params, 1, params.MaxLevel(), params.Scale())
 			for i := 0; i < b.N; i++ {
-				p.Finalize(ciphertext, params.LogSlots(), crp, p.share, ctOut)
+				p.Finalize(ciphertext, params.LogSlots(), p.crp, p.share, ctOut)
 			}
 		})
 
@@ -319,16 +323,17 @@ func benchMaskedTransform(testCtx *testContext, b *testing.B) {
 			*MaskedTransformProtocol
 			s     *rlwe.SecretKey
 			share *MaskedTransformShare
+			crp   drlwe.RefreshCRP
 		}
 
-		ciphertext := &ckks.Ciphertext{Ciphertext: &rlwe.Ciphertext{Value: []*ring.Poly{testCtx.crpGenerator.ReadLvlQNew(minLevel), testCtx.crpGenerator.ReadLvlQNew(minLevel)}}, Scale: params.Scale()}
+		ciphertext := ckks.NewCiphertext(params, 1, minLevel, params.Scale())
 
 		p := new(Party)
 		p.MaskedTransformProtocol = NewMaskedTransformProtocol(params, logBound, 3.2)
 		p.s = sk0Shards[0]
-		p.share = p.AllocateShare(ciphertext.Level(), params.MaxLevel())
+		p.share, p.crp = p.AllocateShare(ciphertext.Level(), params.MaxLevel())
 
-		crp := testCtx.crpGenerator.ReadQNew()
+		testCtx.crpGenerator.Read(p.crp)
 
 		permute := func(ptIn, ptOut []*ring.Complex) {
 			for i := range ptIn {
@@ -340,7 +345,7 @@ func benchMaskedTransform(testCtx *testContext, b *testing.B) {
 		b.Run(testString("Refresh&Transform/Round1/Gen", parties, params), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
-				p.GenShares(p.s, logBound, params.LogSlots(), ciphertext, crp, permute, p.share)
+				p.GenShares(p.s, logBound, params.LogSlots(), ciphertext, p.crp, permute, p.share)
 			}
 		})
 
@@ -354,7 +359,7 @@ func benchMaskedTransform(testCtx *testContext, b *testing.B) {
 		b.Run(testString("Refresh&Transform/Transform", parties, params), func(b *testing.B) {
 			ctOut := ckks.NewCiphertext(params, 1, params.MaxLevel(), params.Scale())
 			for i := 0; i < b.N; i++ {
-				p.Transform(ciphertext, params.LogSlots(), permute, crp, p.share, ctOut)
+				p.Transform(ciphertext, params.LogSlots(), permute, p.crp, p.share, ctOut)
 			}
 		})
 

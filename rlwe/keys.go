@@ -102,12 +102,9 @@ func NewSwitchingKey(params Parameters, levelQ, levelP int) *SwitchingKey {
 	decompSize := int(math.Ceil(float64(levelQ+1) / float64(levelP+1)))
 	swk := new(SwitchingKey)
 	swk.Value = make([][2]PolyQP, int(decompSize))
-
 	for i := 0; i < decompSize; i++ {
-		swk.Value[i][0][0] = ringQ.NewPolyLvl(levelQ)
-		swk.Value[i][0][1] = ringP.NewPolyLvl(levelP)
-		swk.Value[i][1][0] = ringQ.NewPolyLvl(levelQ)
-		swk.Value[i][1][1] = ringP.NewPolyLvl(levelP)
+		swk.Value[i][0] = PolyQP{ringQ.NewPolyLvl(levelQ), ringP.NewPolyLvl(levelP)}
+		swk.Value[i][1] = PolyQP{ringQ.NewPolyLvl(levelQ), ringP.NewPolyLvl(levelP)}
 	}
 
 	return swk

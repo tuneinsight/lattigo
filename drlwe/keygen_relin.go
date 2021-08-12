@@ -10,9 +10,9 @@ import (
 
 // RelinearizationKeyGenerator is an interface describing the local steps of a generic RLWE RKG protocol
 type RelinearizationKeyGenerator interface {
-	AllocateShares() (ephKey *rlwe.SecretKey, r1 *RKGShare, r2 *RKGShare)
-	GenShareRoundOne(sk *rlwe.SecretKey, crp []rlwe.PolyQP, ephKeyOut *rlwe.SecretKey, shareOut *RKGShare)
-	GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGShare, crp []rlwe.PolyQP, shareOut *RKGShare)
+	AllocateShares() (ephKey *rlwe.SecretKey, r1 *RKGShare, r2 *RKGShare, rkgCRP RKGCRP)
+	GenShareRoundOne(sk *rlwe.SecretKey, crp RKGCRP, ephKeyOut *rlwe.SecretKey, shareOut *RKGShare)
+	GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGShare, crp RKGCRP, shareOut *RKGShare)
 	AggregateShares(share1, share2, shareOut *RKGShare)
 	GenRelinearizationKey(round1 *RKGShare, round2 *RKGShare, relinKeyOut *rlwe.RelinearizationKey) // TODO type for generic eval key
 }
@@ -53,17 +53,19 @@ func NewRKGProtocol(params rlwe.Parameters, ephSkPr float64) *RKGProtocol {
 }
 
 // AllocateShares allocates the shares of the EKG protocol.
-func (ekg *RKGProtocol) AllocateShares() (ephSk *rlwe.SecretKey, r1 *RKGShare, r2 *RKGShare) {
+func (ekg *RKGProtocol) AllocateShares() (ephSk *rlwe.SecretKey, r1 *RKGShare, r2 *RKGShare, rkgCRP RKGCRP) {
 	ephSk = rlwe.NewSecretKey(ekg.params)
 	r1, r2 = new(RKGShare), new(RKGShare)
 	r1.Value = make([][2]rlwe.PolyQP, ekg.params.Beta())
 	r2.Value = make([][2]rlwe.PolyQP, ekg.params.Beta())
+	rkgCRP = make([]rlwe.PolyQP, ekg.params.Beta())
 	ringQ, ringP := ekg.params.RingQ(), ekg.params.RingP()
 	for i := 0; i < ekg.params.Beta(); i++ {
 		r1.Value[i][0] = rlwe.PolyQP{ringQ.NewPoly(), ringP.NewPoly()}
 		r1.Value[i][1] = rlwe.PolyQP{ringQ.NewPoly(), ringP.NewPoly()}
 		r2.Value[i][0] = rlwe.PolyQP{ringQ.NewPoly(), ringP.NewPoly()}
 		r2.Value[i][1] = rlwe.PolyQP{ringQ.NewPoly(), ringP.NewPoly()}
+		rkgCRP[i] = rlwe.PolyQP{ringQ.NewPoly(), ringP.NewPoly()}
 	}
 	return
 }
@@ -71,7 +73,7 @@ func (ekg *RKGProtocol) AllocateShares() (ephSk *rlwe.SecretKey, r1 *RKGShare, r
 // GenShareRoundOne is the first of three rounds of the RKGProtocol protocol. Each party generates a pseudo encryption of
 // its secret share of the key s_i under its ephemeral key u_i : [-u_i*a + s_i*w + e_i] and broadcasts it to the other
 // j-1 parties.
-func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp []rlwe.PolyQP, ephSkOut *rlwe.SecretKey, shareOut *RKGShare) {
+func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp RKGCRP, ephSkOut *rlwe.SecretKey, shareOut *RKGShare) {
 	// Given a base decomposition w_i (here the CRT decomposition)
 	// computes [-u*a_i + P*s_i + e_i]
 	// where a_i = crp_i
@@ -137,7 +139,7 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp []rlwe.PolyQP, 
 // = [s_i * (-u*a + s*w + e) + e_i1, s_i*a + e_i2]
 //
 // and broadcasts both values to the other j-1 parties.
-func (ekg *RKGProtocol) GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGShare, crp []rlwe.PolyQP, shareOut *RKGShare) {
+func (ekg *RKGProtocol) GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGShare, crp RKGCRP, shareOut *RKGShare) {
 
 	ringQ := ekg.params.RingQ()
 	ringP := ekg.params.RingP()

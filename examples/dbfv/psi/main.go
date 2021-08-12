@@ -95,7 +95,7 @@ func main() {
 		panic(err)
 	}
 
-	crsGen, _ := drlwe.NewUniformSampler([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'}, params.Parameters)
+	crpGen, _ := drlwe.NewUniformSampler([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'}, params.Parameters)
 
 	encoder := bfv.NewEncoder(params)
 
@@ -109,10 +109,10 @@ func main() {
 	expRes := genInputs(params, P)
 
 	// 1) Collective public key generation
-	pk := ckgphase(params, crsGen, P)
+	pk := ckgphase(params, crpGen, P)
 
 	// 2) Collective relinearization key generation
-	rlk := rkgphase(params, crsGen, P)
+	rlk := rkgphase(params, crpGen, P)
 
 	l.Printf("\tdone (cloud: %s, party: %s)\n",
 		elapsedRKGCloud, elapsedRKGParty)
@@ -319,26 +319,25 @@ func pcksPhase(params bfv.Parameters, tpk *rlwe.PublicKey, encRes *bfv.Ciphertex
 
 }
 
-func rkgphase(params bfv.Parameters, crsGen drlwe.UniformSampler, P []*party) *rlwe.RelinearizationKey {
+func rkgphase(params bfv.Parameters, crpGen drlwe.UniformSampler, P []*party) *rlwe.RelinearizationKey {
 	l := log.New(os.Stderr, "", 0)
 
 	l.Println("> RKG Phase")
 
 	rkg := dbfv.NewRKGProtocol(params) // Relineariation key generation
+	_, rkgCombined1, rkgCombined2, crp := rkg.AllocateShares()
 
 	for _, pi := range P {
-		pi.rlkEphemSk, pi.rkgShareOne, pi.rkgShareTwo = rkg.AllocateShares()
+		pi.rlkEphemSk, pi.rkgShareOne, pi.rkgShareTwo, _ = rkg.AllocateShares()
 	}
 
-	crp := crsGen.ReadForRKGNew()
+	crpGen.Read(crp)
 
 	elapsedRKGParty = runTimedParty(func() {
 		for _, pi := range P {
 			rkg.GenShareRoundOne(pi.sk, crp, pi.rlkEphemSk, pi.rkgShareOne)
 		}
 	}, len(P))
-
-	_, rkgCombined1, rkgCombined2 := rkg.AllocateShares()
 
 	elapsedRKGCloud = runTimed(func() {
 		for _, pi := range P {
@@ -365,25 +364,25 @@ func rkgphase(params bfv.Parameters, crsGen drlwe.UniformSampler, P []*party) *r
 	return rlk
 }
 
-func ckgphase(params bfv.Parameters, crsGen drlwe.UniformSampler, P []*party) *rlwe.PublicKey {
+func ckgphase(params bfv.Parameters, crpGen drlwe.UniformSampler, P []*party) *rlwe.PublicKey {
 
 	l := log.New(os.Stderr, "", 0)
 
 	l.Println("> CKG Phase")
 
 	ckg := dbfv.NewCKGProtocol(params) // Public key generation
-	crs := crsGen.ReadForCKGNew()
+	ckgCombined, crp := ckg.AllocateShares()
 	for _, pi := range P {
-		pi.ckgShare = ckg.AllocateShares()
+		pi.ckgShare, _ = ckg.AllocateShares()
 	}
+
+	crpGen.Read(crp)
 
 	elapsedCKGParty = runTimedParty(func() {
 		for _, pi := range P {
-			ckg.GenShare(pi.sk, crs, pi.ckgShare)
+			ckg.GenShare(pi.sk, crp, pi.ckgShare)
 		}
 	}, len(P))
-
-	ckgCombined := ckg.AllocateShares()
 
 	pk := bfv.NewPublicKey(params)
 
@@ -391,7 +390,7 @@ func ckgphase(params bfv.Parameters, crsGen drlwe.UniformSampler, P []*party) *r
 		for _, pi := range P {
 			ckg.AggregateShares(pi.ckgShare, ckgCombined, ckgCombined)
 		}
-		ckg.GenPublicKey(ckgCombined, crs, pk)
+		ckg.GenPublicKey(ckgCombined, crp, pk)
 	})
 
 	l.Printf("\tdone (cloud: %s, party: %s)\n", elapsedCKGCloud, elapsedCKGParty)

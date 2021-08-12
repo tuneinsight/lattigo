@@ -2,6 +2,7 @@ package dbfv
 
 import (
 	"github.com/ldsec/lattigo/v2/bfv"
+	"github.com/ldsec/lattigo/v2/drlwe"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
 )
@@ -24,8 +25,9 @@ func NewRefreshProtocol(params bfv.Parameters, sigmaSmudging float64) (rfp *Refr
 }
 
 // AllocateShare allocates the shares of the PermuteProtocol
-func (rfp *RefreshProtocol) AllocateShare() *RefreshShare {
-	return &RefreshShare{*rfp.MaskedTransformProtocol.AllocateShare()}
+func (rfp *RefreshProtocol) AllocateShare() (*RefreshShare, drlwe.RefreshCRP) {
+	share, refreshCRP := rfp.MaskedTransformProtocol.AllocateShare()
+	return &RefreshShare{*share}, refreshCRP
 }
 
 // GenShares generates a share for the Refresh protocol.

@@ -30,9 +30,6 @@ type testContext struct {
 	// Polynomial degree
 	n int
 
-	// floor(Q/T) mod each Qi in Montgomery form
-	deltaMont []uint64
-
 	// Polynomial contexts
 	ringT *ring.Ring
 	ringQ *ring.Ring
@@ -106,8 +103,6 @@ func gentestContext(params bfv.Parameters) (testCtx *testContext, err error) {
 	testCtx.ringT = params.RingT()
 	testCtx.ringQ = params.RingQ()
 	testCtx.ringP = params.RingP()
-
-	testCtx.deltaMont = bfv.GenLiftParams(testCtx.ringQ, params.T())
 
 	testCtx.crpGenerator, _ = drlwe.NewUniformSampler([]byte{}, params.Parameters)
 

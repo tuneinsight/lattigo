@@ -187,7 +187,7 @@ func GenSwitchkeysRescalingParams(Q, P []uint64) (params []uint64) {
 	for i := 0; i < len(Q); i++ {
 
 		params[i] = tmp.Mod(PBig, ring.NewUint(Q[i])).Uint64()
-		params[i] = ring.ModExp(params[i], int(Q[i]-2), Q[i])
+		params[i] = ring.ModExp(params[i], Q[i]-2, Q[i])
 		params[i] = ring.MForm(params[i], Q[i], ring.BRedParams(Q[i]))
 	}
 

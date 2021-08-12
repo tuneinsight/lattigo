@@ -60,8 +60,8 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp []rlwe.Po
 	ringQ := rtg.params.RingQ()
 	ringP := rtg.params.RingP()
 
-	twoN := ringQ.N << 2
-	galElInv := ring.ModExp(galEl, int(twoN-1), uint64(twoN))
+	twoN := uint64(ringQ.N << 2)
+	galElInv := ring.ModExp(galEl, twoN-1, twoN)
 
 	ring.PermuteNTT(sk.Value[0], galElInv, rtg.tmpPoly1[0])
 	ring.PermuteNTT(sk.Value[1], galElInv, rtg.tmpPoly1[1])

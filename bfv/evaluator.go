@@ -69,8 +69,6 @@ type evaluatorBase struct {
 
 	t     uint64
 	pHalf *big.Int
-
-	deltaMont []uint64
 }
 
 func newEvaluatorPrecomp(params Parameters) *evaluatorBase {
@@ -85,7 +83,6 @@ func newEvaluatorPrecomp(params Parameters) *evaluatorBase {
 	ev.ringQMul = params.RingQMul()
 
 	ev.pHalf = new(big.Int).Rsh(ev.ringQMul.ModulusBigint, 1)
-	ev.deltaMont = GenLiftParams(ev.ringQ, params.T())
 
 	return ev
 }
@@ -715,7 +712,7 @@ func (eval *evaluator) getRingQElem(op Operand) *rlwe.Ciphertext {
 	case *Ciphertext, *Plaintext:
 		return o.El()
 	case *PlaintextRingT:
-		scaleUp(eval.ringQ, eval.deltaMont, o.Value, eval.tmpPt.Value)
+		scaleUp(eval.params.RingQ(), eval.params.RingT(), o.Value, eval.tmpPt.Value)
 		return eval.tmpPt.El()
 	default:
 		panic(fmt.Errorf("invalid operand type for operation: %T", o))

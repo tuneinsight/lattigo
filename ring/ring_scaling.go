@@ -39,7 +39,7 @@ func NewRNSScaler(ringQ, ringT *Ring) (rnss *RNSScaler) {
 
 	rnss.qHalf = new(big.Int)
 	rnss.qInv = rnss.qHalf.Mod(ringQ.ModulusBigint, NewUint(t)).Uint64()
-	rnss.qInv = ModExp(rnss.qInv, int(t-2), t)
+	rnss.qInv = ModExp(rnss.qInv, t-2, t)
 	rnss.qInv = MForm(rnss.qInv, t, BRedParams(t))
 
 	rnss.qHalf.Set(ringQ.ModulusBigint)

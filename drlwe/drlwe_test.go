@@ -319,7 +319,7 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 
 		skIn := testCtx.skIdeal.CopyNew()
 		skOut := testCtx.skIdeal.CopyNew()
-		galElInv := ring.ModExp(galEl, int(4*params.N()-1), uint64(4*params.N()))
+		galElInv := ring.ModExp(galEl, uint64(2*params.N()-1), uint64(2*params.N()))
 		ring.PermuteNTT(testCtx.skIdeal.Value[0], galElInv, skOut.Value[0])
 		ring.PermuteNTT(testCtx.skIdeal.Value[1], galElInv, skOut.Value[1])
 

@@ -49,7 +49,7 @@ func benchPublicKeyGen(testCtx *testContext, b *testing.B) {
 	sk0Shards := testCtx.sk0Shards
 	params := testCtx.params
 
-	crp := testCtx.crpGenerator.ReadQPNew()
+	crp := testCtx.crpGenerator.ReadForCKGNew()
 
 	type Party struct {
 		*CKGProtocol
@@ -97,7 +97,7 @@ func benchRelinKeyGen(testCtx *testContext, b *testing.B) {
 	p.sk = sk0Shards[0]
 	p.ephSk, p.share1, p.share2 = p.RKGProtocol.AllocateShares()
 
-	crp := testCtx.crpGenerator.ReadQPVectorNew(params.Beta())
+	crp := testCtx.crpGenerator.ReadForRKGNew()
 
 	b.Run(testString("RelinKeyGen/Round1Gen/", parties, params), func(b *testing.B) {
 
@@ -229,7 +229,7 @@ func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 	p.s = sk0Shards[0]
 	p.share = p.AllocateShares()
 
-	crp := testCtx.crpGenerator.ReadQPVectorNew(params.Beta())
+	crp := testCtx.crpGenerator.ReadForRTGNew()
 
 	galEl := params.GaloisElementForRowRotation()
 	b.Run(testString("RotKeyGen/Round1/Gen/", parties, params), func(b *testing.B) {
@@ -275,9 +275,9 @@ func benchRefresh(testCtx *testContext, b *testing.B) {
 		p.s = sk0Shards[0]
 		p.share = p.AllocateShare(minLevel, params.MaxLevel())
 
-		crp := testCtx.crpGenerator.ReadQNew()
-
 		ciphertext := &ckks.Ciphertext{Ciphertext: &rlwe.Ciphertext{Value: []*ring.Poly{testCtx.crpGenerator.ReadLvlQNew(minLevel), testCtx.crpGenerator.ReadLvlQNew(minLevel)}}, Scale: params.Scale()}
+
+		crp := testCtx.crpGenerator.ReadForRefreshNew(params.MaxLevel())
 
 		b.Run(testString("Refresh/Round1/Gen", parties, params), func(b *testing.B) {
 

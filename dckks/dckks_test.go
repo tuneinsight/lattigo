@@ -105,7 +105,6 @@ func genTestParams(defaultParams ckks.Parameters) (testCtx *testContext, err err
 	testCtx.params = defaultParams
 
 	testCtx.ringQ = defaultParams.RingQ()
-
 	testCtx.ringP = defaultParams.RingP()
 
 	testCtx.crpGenerator, _ = drlwe.NewUniformSampler([]byte{}, defaultParams.Parameters)
@@ -149,7 +148,7 @@ func testPublicKeyGen(testCtx *testContext, t *testing.T) {
 
 	t.Run(testString("PublicKeyGen/", parties, params), func(t *testing.T) {
 
-		crp := testCtx.crpGenerator.ReadForCPKNew()
+		crp := testCtx.crpGenerator.ReadForCKGNew()
 
 		type Party struct {
 			*CKGProtocol

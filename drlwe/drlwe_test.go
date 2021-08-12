@@ -101,7 +101,7 @@ func testPublicKeyGen(testCtx testContext, t *testing.T) {
 		share1 := CKGProtocol.AllocateShares()
 		share2 := CKGProtocol.AllocateShares()
 
-		crp := testCtx.crpGenerator.ReadForCPKNew()
+		crp := testCtx.crpGenerator.ReadForCKGNew()
 
 		CKGProtocol.GenShare(testCtx.sk0, crp, share0)
 		CKGProtocol.GenShare(testCtx.sk1, crp, share1)
@@ -367,7 +367,7 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 
 func testMarshalling(testCtx testContext, t *testing.T) {
 
-	crs := testCtx.crpGenerator.ReadForCPKNew()
+	crs := testCtx.crpGenerator.ReadForCKGNew()
 	params := testCtx.params
 
 	ciphertext := &rlwe.Ciphertext{Value: []*ring.Poly{testCtx.crpGenerator.ReadQNew(), testCtx.crpGenerator.ReadQNew()}}

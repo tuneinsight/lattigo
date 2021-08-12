@@ -150,7 +150,7 @@ func testPublicKeyGen(testCtx *testContext, t *testing.T) {
 
 	t.Run(testString("PublicKeyGen/", parties, testCtx.params), func(t *testing.T) {
 
-		crp := testCtx.crpGenerator.ReadForCPKNew()
+		crp := testCtx.crpGenerator.ReadForCKGNew()
 
 		type Party struct {
 			*CKGProtocol

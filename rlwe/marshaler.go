@@ -5,8 +5,14 @@ import (
 	"github.com/ldsec/lattigo/v2/ring"
 )
 
+// Copy copies the input polyQP on the target polyQP.
+func (pol PolyQP) Copy(polFrom PolyQP) {
+	pol[0].Copy(polFrom[0])
+	pol[1].Copy(polFrom[1])
+}
+
 // GetDataLen returns the length in byte of the target PolyQP
-func (pol *PolyQP) GetDataLen(WithMetadata bool) (dataLen int) {
+func (pol PolyQP) GetDataLen(WithMetadata bool) (dataLen int) {
 	return pol[0].GetDataLen(WithMetadata) + pol[1].GetDataLen(WithMetadata)
 }
 

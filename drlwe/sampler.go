@@ -27,8 +27,8 @@ func NewUniformSampler(key []byte, params rlwe.Parameters) (uniSampler UniformSa
 	return
 }
 
-// ReadForCPKNew samples new random polynomials for the CPK protocol.
-func (uniSampler *UniformSampler) ReadForCPKNew() [2]*ring.Poly {
+// ReadForCKGNew samples new random polynomials for the CPK protocol.
+func (uniSampler *UniformSampler) ReadForCKGNew() rlwe.PolyQP {
 	return uniSampler.ReadQPNew()
 }
 
@@ -43,12 +43,12 @@ func (uniSampler *UniformSampler) ReadForCKSNew() *ring.Poly {
 }
 
 // ReadForRKGNew samples new random polynomials for the RKG protocol.
-func (uniSampler *UniformSampler) ReadForRKGNew() [][2]*ring.Poly {
+func (uniSampler *UniformSampler) ReadForRKGNew() []rlwe.PolyQP {
 	return uniSampler.ReadQPVectorNew(uniSampler.beta)
 }
 
 // ReadForRTGNew samples new random polynomials for the RTG protocol.
-func (uniSampler *UniformSampler) ReadForRTGNew() [][2]*ring.Poly {
+func (uniSampler *UniformSampler) ReadForRTGNew() []rlwe.PolyQP {
 	return uniSampler.ReadQPVectorNew(uniSampler.beta)
 }
 
@@ -59,7 +59,7 @@ func (uniSampler *UniformSampler) ReadForRefreshNew(level int) *ring.Poly {
 
 // ReadQP samples a pair of random polynomials on crp.
 // The first polynomial will be in modulus Q and the second in modulus P.
-func (uniSampler *UniformSampler) ReadQP(crp [2]*ring.Poly) {
+func (uniSampler *UniformSampler) ReadQP(crp rlwe.PolyQP) {
 	uniSampler.uniformSamplerQ.Read(crp[0])
 	uniSampler.uniformSamplerP.Read(crp[1])
 }
@@ -82,14 +82,14 @@ func (uniSampler *UniformSampler) ReadQPNew() [2]*ring.Poly {
 
 // ReadLvlQPNew samples a new pair of random polynomials at the specified levels.
 // The first polynomial will be in modulus Q and the second in modulus P.
-func (uniSampler *UniformSampler) ReadLvlQPNew(levelQ, levelP int) [2]*ring.Poly {
-	return [2]*ring.Poly{uniSampler.uniformSamplerQ.ReadLvlNew(levelQ), uniSampler.uniformSamplerP.ReadLvlNew(levelP)}
+func (uniSampler *UniformSampler) ReadLvlQPNew(levelQ, levelP int) rlwe.PolyQP {
+	return rlwe.PolyQP{uniSampler.uniformSamplerQ.ReadLvlNew(levelQ), uniSampler.uniformSamplerP.ReadLvlNew(levelP)}
 }
 
 // ReadQPVectorNew samples a new vector of beta random polynomials.
 // The first polynomials will be in modulus Q and the second in modulus P.
-func (uniSampler *UniformSampler) ReadQPVectorNew(beta int) [][2]*ring.Poly {
-	crp := make([][2]*ring.Poly, beta)
+func (uniSampler *UniformSampler) ReadQPVectorNew(beta int) []rlwe.PolyQP {
+	crp := make([]rlwe.PolyQP, beta)
 	for i := range crp {
 		crp[i][0] = uniSampler.uniformSamplerQ.ReadNew()
 		crp[i][1] = uniSampler.uniformSamplerP.ReadNew()
@@ -99,8 +99,8 @@ func (uniSampler *UniformSampler) ReadQPVectorNew(beta int) [][2]*ring.Poly {
 
 // ReadQPVectorLvlNew samples a new vector of beta random polynomials at the specified levels.
 // The first polynomials will be in modulus Q and the second in modulus P.
-func (uniSampler *UniformSampler) ReadQPVectorLvlNew(beta int, levelQ, levelP int) [][2]*ring.Poly {
-	crp := make([][2]*ring.Poly, beta)
+func (uniSampler *UniformSampler) ReadQPVectorLvlNew(beta int, levelQ, levelP int) []rlwe.PolyQP {
+	crp := make([]rlwe.PolyQP, beta)
 	for i := range crp {
 		crp[i][0] = uniSampler.uniformSamplerQ.ReadLvlNew(levelQ)
 		crp[i][1] = uniSampler.uniformSamplerP.ReadLvlNew(levelP)
@@ -110,7 +110,7 @@ func (uniSampler *UniformSampler) ReadQPVectorLvlNew(beta int, levelQ, levelP in
 
 // ReadQPVector samples a new vector of beta random polynomials on crp.
 // The first polynomials will be in modulus Q and the second in modulus P.
-func (uniSampler *UniformSampler) ReadQPVector(crp [][2]*ring.Poly) {
+func (uniSampler *UniformSampler) ReadQPVector(crp []rlwe.PolyQP) {
 	for i := range crp {
 		uniSampler.uniformSamplerQ.Read(crp[i][0])
 		uniSampler.uniformSamplerP.Read(crp[i][1])

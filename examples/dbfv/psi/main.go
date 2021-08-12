@@ -369,10 +369,10 @@ func ckgphase(params bfv.Parameters, crsGen drlwe.UniformSampler, P []*party) *r
 
 	l := log.New(os.Stderr, "", 0)
 
-	l.Println("> CPK Phase")
+	l.Println("> CKG Phase")
 
 	ckg := dbfv.NewCKGProtocol(params) // Public key generation
-	crs := crsGen.ReadForCPKNew()
+	crs := crsGen.ReadForCKGNew()
 	for _, pi := range P {
 		pi.ckgShare = ckg.AllocateShares()
 	}

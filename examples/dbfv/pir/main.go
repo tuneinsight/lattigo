@@ -148,7 +148,7 @@ func main() {
 		encoder.EncodeUintMul(maskCoeffs, plainMask[i])
 	}
 
-	// Ciphertexts encrypted under CPK and stored in the cloud
+	// Ciphertexts encrypted under CKG and stored in the cloud
 	l.Println("> Encrypt Phase")
 	encryptor := bfv.NewEncryptor(params, pk)
 	pt := bfv.NewPlaintext(params)
@@ -243,10 +243,10 @@ func ckgphase(params bfv.Parameters, crsGen drlwe.UniformSampler, P []*party) *r
 
 	l := log.New(os.Stderr, "", 0)
 
-	l.Println("> CPK Phase")
+	l.Println("> CKG Phase")
 
 	ckg := dbfv.NewCKGProtocol(params) // Public key generation
-	crs := crsGen.ReadForCPKNew()
+	crs := crsGen.ReadForCKGNew()
 
 	for _, pi := range P {
 		pi.ckgShare = ckg.AllocateShares()

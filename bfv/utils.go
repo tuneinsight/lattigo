@@ -14,16 +14,31 @@ func DecryptAndPrintError(ptWant *Plaintext, cthave *Ciphertext, ringQ *ring.Rin
 	bigintCoeffs := make([]*big.Int, ringQ.N)
 	ringQ.PolyToBigint(plaintext.Value, bigintCoeffs)
 	center(bigintCoeffs, ringQ.ModulusBigint)
-	fmt.Println(math.Log2(standardDeviation(bigintCoeffs)))
+	stdErr, minErr, maxErr := errorStats(bigintCoeffs)
+	fmt.Printf("STD : %f - Min : %f - Max : %f\n", math.Log2(stdErr), math.Log2(minErr), math.Log2(maxErr))
 }
 
-func standardDeviation(vec []*big.Int) float64 {
+func errorStats(vec []*big.Int) (float64, float64, float64) {
 
 	vecfloat := make([]*big.Float, len(vec))
-
+	minErr := new(big.Float).SetFloat64(0)
+	maxErr := new(big.Float).SetFloat64(0)
+	tmp := new(big.Float)
+	minErr.SetInt(vec[0])
+	minErr.Abs(minErr)
 	for i := range vec {
 		vecfloat[i] = new(big.Float)
 		vecfloat[i].SetInt(vec[i])
+
+		tmp.Abs(vecfloat[i])
+
+		if minErr.Cmp(tmp) == 1 {
+			minErr.Set(tmp)
+		}
+
+		if maxErr.Cmp(tmp) == -1 {
+			maxErr.Set(tmp)
+		}
 	}
 
 	n := new(big.Float).SetFloat64(float64(len(vec)))
@@ -36,7 +51,6 @@ func standardDeviation(vec []*big.Int) float64 {
 
 	mean.Quo(mean, n)
 
-	tmp := new(big.Float)
 	err := new(big.Float).SetFloat64(0)
 	for _, c := range vecfloat {
 		tmp.Sub(c, mean)
@@ -48,8 +62,10 @@ func standardDeviation(vec []*big.Int) float64 {
 	err.Sqrt(err)
 
 	x, _ := err.Float64()
+	y, _ := minErr.Float64()
+	z, _ := maxErr.Float64()
 
-	return x
+	return x, y, z
 
 }
 

@@ -1,8 +1,9 @@
 package rlwe
 
 import (
-	"github.com/ldsec/lattigo/v2/ring"
 	"math"
+
+	"github.com/ldsec/lattigo/v2/ring"
 )
 
 // KeySwitcher is a struct for RLWE key-switching.
@@ -71,7 +72,7 @@ func (ks *KeySwitcher) ShallowCopy() *KeySwitcher {
 func (ks *KeySwitcher) SwitchKeysInPlace(levelQ int, cx *ring.Poly, evakey *SwitchingKey, p0, p1 *ring.Poly) {
 	ks.SwitchKeysInPlaceNoModDown(levelQ, cx, evakey, p0, ks.PoolP[1], p1, ks.PoolP[2])
 
-	levelP := len(evakey.Value[0][0][1].Coeffs) - 1
+	levelP := len(evakey.Value[0][0].P.Coeffs) - 1
 
 	if cx.IsNTT {
 		ks.Baseconverter.ModDownQPtoQNTT(levelQ, levelP, p0, ks.PoolP[1], p0)
@@ -146,7 +147,7 @@ func (ks *KeySwitcher) DecomposeSingleNTT(levelQ, levelP, alpha, beta int, c2NTT
 // pool3 = dot(decomp(cx) * evakey[1]) mod QP (encrypted input is multiplied by P factor)
 //
 // Expects the flag IsNTT of cx to correctly reflect the domain of cx.
-func (ks *KeySwitcher) SwitchKeysInPlaceNoModDown(levelQ int, cx *ring.Poly, evakey *SwitchingKey, pool2Q, pool2P, pool3Q, pool3P *ring.Poly) {
+func (ks *KeySwitcher) SwitchKeysInPlaceNoModDown(levelQ int, cx *ring.Poly, evakey *SwitchingKey, pool2Q, pool2P, pool3Q, pool3P *ring.Poly) { // TODO Extraction
 
 	var reduce int
 
@@ -169,7 +170,7 @@ func (ks *KeySwitcher) SwitchKeysInPlaceNoModDown(levelQ int, cx *ring.Poly, eva
 
 	reduce = 0
 
-	alpha := len(evakey.Value[0][0][1].Coeffs)
+	alpha := len(evakey.Value[0][0].P.Coeffs)
 	levelP := alpha - 1
 	beta := int(math.Ceil(float64(levelQ+1) / float64(levelP+1)))
 
@@ -182,15 +183,15 @@ func (ks *KeySwitcher) SwitchKeysInPlaceNoModDown(levelQ int, cx *ring.Poly, eva
 		ks.DecomposeSingleNTT(levelQ, levelP, alpha, i, cxNTT, cxInvNTT, c2QiQ, c2QiP)
 
 		if i == 0 {
-			ringQ.MulCoeffsMontgomeryConstantLvl(levelQ, evakey.Value[i][0][0], c2QiQ, pool2Q)
-			ringQ.MulCoeffsMontgomeryConstantLvl(levelQ, evakey.Value[i][1][0], c2QiQ, pool3Q)
-			ringP.MulCoeffsMontgomeryConstantLvl(levelP, evakey.Value[i][0][1], c2QiP, pool2P)
-			ringP.MulCoeffsMontgomeryConstantLvl(levelP, evakey.Value[i][1][1], c2QiP, pool3P)
+			ringQ.MulCoeffsMontgomeryConstantLvl(levelQ, evakey.Value[i][0].Q, c2QiQ, pool2Q)
+			ringQ.MulCoeffsMontgomeryConstantLvl(levelQ, evakey.Value[i][1].Q, c2QiQ, pool3Q)
+			ringP.MulCoeffsMontgomeryConstantLvl(levelP, evakey.Value[i][0].P, c2QiP, pool2P)
+			ringP.MulCoeffsMontgomeryConstantLvl(levelP, evakey.Value[i][1].P, c2QiP, pool3P)
 		} else {
-			ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, evakey.Value[i][0][0], c2QiQ, pool2Q)
-			ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, evakey.Value[i][1][0], c2QiQ, pool3Q)
-			ringP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelP, evakey.Value[i][0][1], c2QiP, pool2P)
-			ringP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelP, evakey.Value[i][1][1], c2QiP, pool3P)
+			ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, evakey.Value[i][0].Q, c2QiQ, pool2Q)
+			ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, evakey.Value[i][1].Q, c2QiQ, pool3Q) // TODO
+			ringP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelP, evakey.Value[i][0].P, c2QiP, pool2P)
+			ringP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelP, evakey.Value[i][1].P, c2QiP, pool3P)
 		}
 
 		if reduce%QiOverF == QiOverF-1 {
@@ -226,7 +227,7 @@ func (ks *KeySwitcher) KeyswitchHoisted(levelQ int, PoolDecompQ, PoolDecompP []*
 
 	ks.KeyswitchHoistedNoModDown(levelQ, PoolDecompQ, PoolDecompP, evakey, pool2Q, pool3Q, pool2P, pool3P)
 
-	levelP := len(evakey.Value[0][0][1].Coeffs) - 1
+	levelP := len(evakey.Value[0][0].P.Coeffs) - 1
 
 	// Computes pool2Q = pool2Q/pool2P and pool3Q = pool3Q/pool3P
 	ks.Baseconverter.ModDownQPtoQNTT(levelQ, levelP, pool2Q, pool2P, pool2Q)
@@ -245,7 +246,7 @@ func (ks *KeySwitcher) KeyswitchHoistedNoModDown(levelQ int, PoolDecompQ, PoolDe
 	alpha := len(ringP.Modulus)
 	beta := int(math.Ceil(float64(levelQ+1) / float64(alpha)))
 
-	levelP := len(evakey.Value[0][0][1].Coeffs) - 1
+	levelP := len(evakey.Value[0][0].P.Coeffs) - 1
 
 	QiOverF := ks.Parameters.QiOverflowMargin(levelQ) >> 1
 	PiOverF := ks.Parameters.PiOverflowMargin(levelP) >> 1
@@ -255,15 +256,15 @@ func (ks *KeySwitcher) KeyswitchHoistedNoModDown(levelQ int, PoolDecompQ, PoolDe
 	for i := 0; i < beta; i++ {
 
 		if i == 0 {
-			ringQ.MulCoeffsMontgomeryConstantLvl(levelQ, evakey.Value[i][0][0], PoolDecompQ[i], pool2Q)
-			ringQ.MulCoeffsMontgomeryConstantLvl(levelQ, evakey.Value[i][1][0], PoolDecompQ[i], pool3Q)
-			ringP.MulCoeffsMontgomeryConstantLvl(levelP, evakey.Value[i][0][1], PoolDecompP[i], pool2P)
-			ringP.MulCoeffsMontgomeryConstantLvl(levelP, evakey.Value[i][1][1], PoolDecompP[i], pool3P)
+			ringQ.MulCoeffsMontgomeryConstantLvl(levelQ, evakey.Value[i][0].Q, PoolDecompQ[i], pool2Q)
+			ringQ.MulCoeffsMontgomeryConstantLvl(levelQ, evakey.Value[i][1].Q, PoolDecompQ[i], pool3Q)
+			ringP.MulCoeffsMontgomeryConstantLvl(levelP, evakey.Value[i][0].P, PoolDecompP[i], pool2P)
+			ringP.MulCoeffsMontgomeryConstantLvl(levelP, evakey.Value[i][1].P, PoolDecompP[i], pool3P)
 		} else {
-			ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, evakey.Value[i][0][0], PoolDecompQ[i], pool2Q)
-			ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, evakey.Value[i][1][0], PoolDecompQ[i], pool3Q)
-			ringP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelP, evakey.Value[i][0][1], PoolDecompP[i], pool2P)
-			ringP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelP, evakey.Value[i][1][1], PoolDecompP[i], pool3P)
+			ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, evakey.Value[i][0].Q, PoolDecompQ[i], pool2Q)
+			ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, evakey.Value[i][1].Q, PoolDecompQ[i], pool3Q) // TODO
+			ringP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelP, evakey.Value[i][0].P, PoolDecompP[i], pool2P)
+			ringP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelP, evakey.Value[i][1].P, PoolDecompP[i], pool3P)
 		}
 
 		if reduce%QiOverF == QiOverF-1 {

@@ -1,31 +1,9 @@
 package dckks
 
 import (
-	"github.com/ldsec/lattigo/v2/ring"
 	"math"
 	"math/bits"
 )
-
-func extendBasisSmallNormAndCenter(ringQ, ringP *ring.Ring, polQ, polP *ring.Poly) {
-	var coeff, Q, QHalf, sign uint64
-	Q = ringQ.Modulus[0]
-	QHalf = Q >> 1
-
-	for j := 0; j < ringQ.N; j++ {
-
-		coeff = polQ.Coeffs[0][j]
-
-		sign = 1
-		if coeff > QHalf {
-			coeff = Q - coeff
-			sign = 0
-		}
-
-		for i, pi := range ringP.Modulus {
-			polP.Coeffs[i][j] = (coeff * sign) | (pi-coeff)*(sign^1)
-		}
-	}
-}
 
 // GetMinimumLevelForBootstrapping takes the security parameter lambda, the ciphertext scale, the number of parties and the moduli chain
 // and returns the minimum level at which the collective refresh can be called with a security of at least 128-bits.

@@ -4,14 +4,15 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/ldsec/lattigo/v2/ring"
-	"github.com/ldsec/lattigo/v2/rlwe"
-	"github.com/stretchr/testify/require"
 	"math"
 	"math/big"
 	"math/bits"
 	"runtime"
 	"testing"
+
+	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
+	"github.com/stretchr/testify/require"
 )
 
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
@@ -43,10 +44,8 @@ func newTestContext(params rlwe.Parameters) testContext {
 	sk1 := kgen.GenSecretKey()
 	sk2 := kgen.GenSecretKey()
 	skIdeal := sk0.CopyNew()
-	params.RingQ().Add(skIdeal.Value[0], sk1.Value[0], skIdeal.Value[0])
-	params.RingP().Add(skIdeal.Value[1], sk1.Value[1], skIdeal.Value[1])
-	params.RingQ().Add(skIdeal.Value[0], sk2.Value[0], skIdeal.Value[0])
-	params.RingP().Add(skIdeal.Value[1], sk2.Value[1], skIdeal.Value[1])
+	params.RingQP().Add(&skIdeal.Value, &sk1.Value, &skIdeal.Value)
+	params.RingQP().Add(&skIdeal.Value, &sk2.Value, &skIdeal.Value)
 
 	crpGenerator, _ := NewUniformSampler([]byte{}, params)
 
@@ -92,36 +91,35 @@ func testPublicKeyGen(testCtx testContext, t *testing.T) {
 	params := testCtx.params
 	ringQ := params.RingQ()
 	ringP := params.RingP()
+	ringQP := params.RingQP()
 
 	t.Run(testString(params, "PublicKeyGen/"), func(t *testing.T) {
 
-		CKGProtocol := NewCKGProtocol(params)
+		ckg := NewCKGProtocol(params)
 
-		share0, crp := CKGProtocol.AllocateShares()
-		share1, _ := CKGProtocol.AllocateShares()
-		share2, _ := CKGProtocol.AllocateShares()
+		share0, crp := ckg.AllocateShares()
+		share1, _ := ckg.AllocateShares()
+		share2, _ := ckg.AllocateShares()
 
 		testCtx.crpGenerator.Read(crp)
 
-		CKGProtocol.GenShare(testCtx.sk0, crp, share0)
-		CKGProtocol.GenShare(testCtx.sk1, crp, share1)
-		CKGProtocol.GenShare(testCtx.sk2, crp, share2)
+		ckg.GenShare(testCtx.sk0, crp, share0)
+		ckg.GenShare(testCtx.sk1, crp, share1)
+		ckg.GenShare(testCtx.sk2, crp, share2)
 
-		CKGProtocol.AggregateShares(share0, share1, share0)
-		CKGProtocol.AggregateShares(share0, share2, share0)
+		ckg.AggregateShares(share0, share1, share0)
+		ckg.AggregateShares(share0, share2, share0)
 
 		pk := rlwe.NewPublicKey(params)
-		CKGProtocol.GenPublicKey(share0, crp, pk)
+		ckg.GenPublicKey(share0, crp, pk)
 
 		// [-as + e] + [as]
-		ringQ.MulCoeffsMontgomeryAndAdd(testCtx.skIdeal.Value[0], pk.Value[1][0], pk.Value[0][0])
-		ringP.MulCoeffsMontgomeryAndAdd(testCtx.skIdeal.Value[1], pk.Value[1][1], pk.Value[0][1])
-		ringQ.InvNTT(pk.Value[0][0], pk.Value[0][0])
-		ringP.InvNTT(pk.Value[0][1], pk.Value[0][1])
+		params.RingQP().MulCoeffsMontgomeryAndAdd(&testCtx.skIdeal.Value, &pk.Value[1], &pk.Value[0])
+		ringQP.InvNTT(&pk.Value[0], &pk.Value[0])
 
 		log2Bound := bits.Len64(3 * uint64(math.Floor(rlwe.DefaultSigma*6)) * uint64(params.N()))
-		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(pk.Value[0][0].Level(), ringQ, pk.Value[0][0]))
-		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(pk.Value[0][1].Level(), ringP, pk.Value[0][1]))
+		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(pk.Value[0].Q.Level(), ringQ, pk.Value[0].Q))
+		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(pk.Value[0].P.Level(), ringP, pk.Value[0].P))
 	})
 }
 
@@ -135,13 +133,13 @@ func testKeySwitching(testCtx testContext, t *testing.T) {
 		sk1Out := testCtx.kgen.GenSecretKey()
 		sk2Out := testCtx.kgen.GenSecretKey()
 
-		skOutIdeal := sk0Out.Value[0].CopyNew()
-		params.RingQ().Add(skOutIdeal, sk1Out.Value[0], skOutIdeal)
-		params.RingQ().Add(skOutIdeal, sk2Out.Value[0], skOutIdeal)
+		skOutIdeal := sk0Out.CopyNew()
+		params.RingQP().Add(&skOutIdeal.Value, &sk1Out.Value, &skOutIdeal.Value)
+		params.RingQP().Add(&skOutIdeal.Value, &sk2Out.Value, &skOutIdeal.Value)
 
 		ciphertext := &rlwe.Ciphertext{Value: []*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly()}}
 		testCtx.crpGenerator.Read(ciphertext.Value[1])
-		ringQ.MulCoeffsMontgomeryAndSub(ciphertext.Value[1], testCtx.skIdeal.Value[0], ciphertext.Value[0])
+		ringQ.MulCoeffsMontgomeryAndSub(ciphertext.Value[1], testCtx.skIdeal.Value.Q, ciphertext.Value[0])
 		ciphertext.Value[0].IsNTT = true
 		ciphertext.Value[1].IsNTT = true
 
@@ -163,7 +161,7 @@ func testKeySwitching(testCtx testContext, t *testing.T) {
 		CKSProtocol.KeySwitch(share0, ciphertext, ksCiphertext)
 
 		// [-as + e] + [as]
-		ringQ.MulCoeffsMontgomeryAndAdd(ksCiphertext.Value[1], skOutIdeal, ksCiphertext.Value[0])
+		ringQ.MulCoeffsMontgomeryAndAdd(ksCiphertext.Value[1], skOutIdeal.Value.Q, ksCiphertext.Value[0])
 		ringQ.InvNTT(ksCiphertext.Value[0], ksCiphertext.Value[0])
 		log2Bound := bits.Len64(3 * uint64(math.Floor(rlwe.DefaultSigma*6)) * uint64(params.N()))
 		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(ksCiphertext.Value[0].Level(), ringQ, ksCiphertext.Value[0]))
@@ -182,7 +180,7 @@ func testPublicKeySwitching(testCtx testContext, t *testing.T) {
 
 		ciphertext := &rlwe.Ciphertext{Value: []*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly()}}
 		testCtx.crpGenerator.Read(ciphertext.Value[1])
-		ringQ.MulCoeffsMontgomeryAndSub(ciphertext.Value[1], testCtx.skIdeal.Value[0], ciphertext.Value[0])
+		ringQ.MulCoeffsMontgomeryAndSub(ciphertext.Value[1], testCtx.skIdeal.Value.Q, ciphertext.Value[0])
 		ciphertext.Value[0].IsNTT = true
 		ciphertext.Value[1].IsNTT = true
 
@@ -204,7 +202,7 @@ func testPublicKeySwitching(testCtx testContext, t *testing.T) {
 		PCKSProtocol.KeySwitch(share0, ciphertext, ksCiphertext)
 
 		// [-as + e] + [as]
-		ringQ.MulCoeffsMontgomeryAndAdd(ksCiphertext.Value[1], skOut.Value[0], ksCiphertext.Value[0])
+		ringQ.MulCoeffsMontgomeryAndAdd(ksCiphertext.Value[1], skOut.Value.Q, ksCiphertext.Value[0])
 		ringQ.InvNTT(ksCiphertext.Value[0], ksCiphertext.Value[0])
 		log2Bound := bits.Len64(3 * uint64(math.Floor(rlwe.DefaultSigma*6)) * uint64(params.N()))
 		require.GreaterOrEqual(t, log2Bound+5, log2OfInnerSum(ksCiphertext.Value[0].Level(), ringQ, ksCiphertext.Value[0]))
@@ -216,6 +214,7 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 	params := testCtx.params
 	ringQ := params.RingQ()
 	ringP := params.RingP()
+	ringQP := params.RingQP()
 
 	t.Run(testString(params, "RelinKeyGen/"), func(t *testing.T) {
 
@@ -246,48 +245,42 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 
 		skIn := testCtx.skIdeal.CopyNew()
 		skOut := testCtx.skIdeal.CopyNew()
-		ringQ.MulCoeffsMontgomery(skIn.Value[0], skIn.Value[0], skIn.Value[0])
-		ringP.MulCoeffsMontgomery(skIn.Value[1], skIn.Value[1], skIn.Value[1])
+		params.RingQP().MulCoeffsMontgomery(&skIn.Value, &skIn.Value, &skIn.Value)
 
 		swk := rlk.Keys[0]
 
 		// Decrypts
 		// [-asIn + w*P*sOut + e, a] + [asIn]
 		for j := range swk.Value {
-			ringQ.MulCoeffsMontgomeryAndAdd(swk.Value[j][1][0], skOut.Value[0], swk.Value[j][0][0])
-			ringP.MulCoeffsMontgomeryAndAdd(swk.Value[j][1][1], skOut.Value[1], swk.Value[j][0][1])
+			params.RingQP().MulCoeffsMontgomeryAndAdd(&swk.Value[j][1], &skOut.Value, &swk.Value[j][0])
 		}
 
-		polyQ := swk.Value[0][0][0]
-		polyP := swk.Value[0][0][1]
+		poly := &swk.Value[0][0]
 
 		// Sums all basis together (equivalent to multiplying with CRT decomposition of 1)
 		// sum([1]_w * [w*P*sOut + e]) = P*sOut + sum(e)
 		for j := range swk.Value {
 			if j > 0 {
-				ringQ.Add(polyQ, swk.Value[j][0][0], polyQ)
-				ringP.Add(polyP, swk.Value[j][0][1], polyP)
+				ringQP.Add(poly, &swk.Value[j][0], poly)
 			}
 		}
 
 		// sOut * P
-		ringQ.MulScalarBigint(skIn.Value[0], ringP.ModulusBigint, skIn.Value[0])
+		ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusBigint, skIn.Value.Q)
 
 		// P*s^i + sum(e) - P*s^i = sum(e)
-		ringQ.Sub(polyQ, skIn.Value[0], polyQ)
+		ringQ.Sub(swk.Value[0][0].Q, skIn.Value.Q, swk.Value[0][0].Q)
 
 		// Checks that the error is below the bound
 		// Worst error bound is N * floor(6*sigma) * #Keys
-		ringQ.InvNTT(polyQ, polyQ)
-		ringP.InvNTT(polyP, polyP)
-		ringQ.InvMForm(polyQ, polyQ)
-		ringP.InvMForm(polyP, polyP)
+		ringQP.InvNTT(poly, poly)
+		ringQP.InvMForm(poly, poly)
 
 		// Worst bound of inner sum
 		// N*#Keys*(N * #Parties * floor(sigma*6) + #Parties * floor(sigma*6) + N * #Parties  +  #Parties * floor(6*sigma))
 		log2Bound := bits.Len64(uint64(params.N() * len(swk.Value) * (params.N()*3*int(math.Floor(rlwe.DefaultSigma*6)) + 2*3*int(math.Floor(rlwe.DefaultSigma*6)) + params.N()*3)))
-		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(len(ringQ.Modulus)-1, ringQ, polyQ))
-		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(len(ringP.Modulus)-1, ringP, polyP))
+		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(len(ringQ.Modulus)-1, ringQ, swk.Value[0][0].Q))
+		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(len(ringP.Modulus)-1, ringP, swk.Value[0][0].P))
 	})
 }
 
@@ -296,6 +289,7 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 	params := testCtx.params
 	ringQ := params.RingQ()
 	ringP := params.RingP()
+	ringQP := params.RingQP()
 
 	t.Run(testString(params, "RotKeyGen/"), func(t *testing.T) {
 
@@ -322,48 +316,42 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 		skIn := testCtx.skIdeal.CopyNew()
 		skOut := testCtx.skIdeal.CopyNew()
 		galElInv := ring.ModExp(galEl, uint64(2*params.N()-1), uint64(2*params.N()))
-		ring.PermuteNTT(testCtx.skIdeal.Value[0], galElInv, skOut.Value[0])
-		ring.PermuteNTT(testCtx.skIdeal.Value[1], galElInv, skOut.Value[1])
+		ring.PermuteNTT(testCtx.skIdeal.Value.Q, galElInv, skOut.Value.Q)
+		ring.PermuteNTT(testCtx.skIdeal.Value.P, galElInv, skOut.Value.P)
 
 		swk := rotKeySet.Keys[galEl]
 
 		// Decrypts
 		// [-asIn + w*P*sOut + e, a] + [asIn]
 		for j := range swk.Value {
-			ringQ.MulCoeffsMontgomeryAndAdd(swk.Value[j][1][0], skOut.Value[0], swk.Value[j][0][0])
-			ringP.MulCoeffsMontgomeryAndAdd(swk.Value[j][1][1], skOut.Value[1], swk.Value[j][0][1])
-		}
+			ringQP.MulCoeffsMontgomeryAndAdd(&swk.Value[j][1], &skOut.Value, &swk.Value[j][0])
 
-		polyQ := swk.Value[0][0][0]
-		polyP := swk.Value[0][0][1]
+		}
 
 		// Sums all basis together (equivalent to multiplying with CRT decomposition of 1)
 		// sum([1]_w * [w*P*sOut + e]) = P*sOut + sum(e)
 		for j := range swk.Value {
 			if j > 0 {
-				ringQ.Add(polyQ, swk.Value[j][0][0], polyQ)
-				ringP.Add(polyP, swk.Value[j][0][1], polyP)
+				ringQP.Add(&swk.Value[0][0], &swk.Value[j][0], &swk.Value[0][0])
 			}
 		}
 
 		// sOut * P
-		ringQ.MulScalarBigint(skIn.Value[0], ringP.ModulusBigint, skIn.Value[0])
+		ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusBigint, skIn.Value.Q)
 
 		// P*s^i + sum(e) - P*s^i = sum(e)
-		ringQ.Sub(polyQ, skIn.Value[0], polyQ)
+		ringQ.Sub(swk.Value[0][0].Q, skIn.Value.Q, swk.Value[0][0].Q)
 
 		// Checks that the error is below the bound
 		// Worst error bound is N * floor(6*sigma) * #Keys
-		ringQ.InvNTT(polyQ, polyQ)
-		ringQ.InvMForm(polyQ, polyQ)
-		ringP.InvNTT(polyP, polyP)
-		ringP.InvMForm(polyP, polyP)
+		ringQP.InvNTT(&swk.Value[0][0], &swk.Value[0][0])
+		ringQP.InvMForm(&swk.Value[0][0], &swk.Value[0][0])
 
 		// Worst bound of inner sum
 		// N*#Keys*(N * #Parties * floor(sigma*6) + #Parties * floor(sigma*6) + N * #Parties  +  #Parties * floor(6*sigma))
 		log2Bound := bits.Len64(3 * uint64(math.Floor(rlwe.DefaultSigma*6)) * uint64(params.N()))
-		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(len(ringQ.Modulus)-1, ringQ, polyQ))
-		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(len(ringP.Modulus)-1, ringP, polyP))
+		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(len(ringQ.Modulus)-1, ringQ, swk.Value[0][0].Q))
+		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(len(ringP.Modulus)-1, ringP, swk.Value[0][0].P))
 	})
 }
 
@@ -394,13 +382,12 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 		}
 
 		//comparing the results
-		require.Equal(t, KeyGenShareBefore.Value[0].Degree(), KeyGenShareAfter.Value[0].Degree())
-		require.Equal(t, KeyGenShareBefore.Value[1].Degree(), KeyGenShareAfter.Value[1].Degree())
-		require.Equal(t, KeyGenShareBefore.Value[0].LenModuli(), KeyGenShareAfter.Value[0].LenModuli())
-		require.Equal(t, KeyGenShareBefore.Value[1].LenModuli(), KeyGenShareAfter.Value[1].LenModuli())
-
-		require.Equal(t, KeyGenShareAfter.Value[0].Coeffs[:], KeyGenShareBefore.Value[0].Coeffs[:])
-		require.Equal(t, KeyGenShareAfter.Value[1].Coeffs[:], KeyGenShareBefore.Value[1].Coeffs[:])
+		require.Equal(t, KeyGenShareBefore.Value.Q.Degree(), KeyGenShareAfter.Value.Q.Degree()) // TODO
+		require.Equal(t, KeyGenShareBefore.Value.P.Degree(), KeyGenShareAfter.Value.P.Degree())
+		require.Equal(t, KeyGenShareBefore.Value.Q.LenModuli(), KeyGenShareAfter.Value.Q.LenModuli())
+		require.Equal(t, KeyGenShareBefore.Value.P.LenModuli(), KeyGenShareAfter.Value.P.LenModuli())
+		require.Equal(t, KeyGenShareAfter.Value.Q.Coeffs, KeyGenShareBefore.Value.Q.Coeffs)
+		require.Equal(t, KeyGenShareAfter.Value.P.Coeffs, KeyGenShareBefore.Value.P.Coeffs)
 	})
 
 	t.Run(testString(params, "Marshalling/PCKS/"), func(t *testing.T) {
@@ -418,13 +405,12 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 		err = SwitchShareReceiver.UnmarshalBinary(data)
 		require.NoError(t, err)
 
-		for i := 0; i < 2; i++ {
-			//compare the shares.
-			ringBefore := SwitchShare.Value[i]
-			ringAfter := SwitchShareReceiver.Value[i]
-			require.Equal(t, ringBefore.Degree(), ringAfter.Degree())
-			require.Equal(t, ringAfter.Coeffs, ringBefore.Coeffs)
-		}
+		require.Equal(t, SwitchShare.Value.Q.Degree(), SwitchShareReceiver.Value.Q.Degree()) // TODO
+		require.Equal(t, SwitchShare.Value.P.Degree(), SwitchShareReceiver.Value.P.Degree())
+		require.Equal(t, SwitchShare.Value.Q.LenModuli(), SwitchShareReceiver.Value.Q.LenModuli())
+		require.Equal(t, SwitchShare.Value.P.LenModuli(), SwitchShareReceiver.Value.P.LenModuli())
+		require.Equal(t, SwitchShare.Value.Q.Coeffs, SwitchShareReceiver.Value.Q.Coeffs)
+		require.Equal(t, SwitchShare.Value.P.Coeffs, SwitchShareReceiver.Value.P.Coeffs)
 	})
 
 	t.Run(testString(params, "Marshalling/CKS/"), func(t *testing.T) {
@@ -469,16 +455,15 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 
 		require.Equal(t, len(rkgShare.Value), len(share10.Value))
 		for i, val := range share10.Value {
-			require.Equal(t, len(rkgShare.Value[i][0][0].Coeffs), len(val[0][0].Coeffs))
-			require.Equal(t, len(rkgShare.Value[i][0][1].Coeffs), len(val[0][1].Coeffs))
-			require.Equal(t, rkgShare.Value[i][0][0].Coeffs, val[0][0].Coeffs)
-			require.Equal(t, rkgShare.Value[i][0][1].Coeffs, val[0][1].Coeffs)
+			require.Equal(t, len(rkgShare.Value[i][0].Q.Coeffs), len(val[0].Q.Coeffs))
+			require.Equal(t, len(rkgShare.Value[i][0].P.Coeffs), len(val[0].P.Coeffs))
+			require.Equal(t, rkgShare.Value[i][0].Q.Coeffs, val[0].Q.Coeffs)
+			require.Equal(t, rkgShare.Value[i][0].P.Coeffs, val[0].P.Coeffs) // TODO
 
-			require.Equal(t, len(rkgShare.Value[i][1][0].Coeffs), len(val[1][0].Coeffs))
-			require.Equal(t, len(rkgShare.Value[i][1][1].Coeffs), len(val[1][1].Coeffs))
-			require.Equal(t, rkgShare.Value[i][1][0].Coeffs, val[1][0].Coeffs)
-			require.Equal(t, rkgShare.Value[i][1][1].Coeffs, val[1][1].Coeffs)
-
+			require.Equal(t, len(rkgShare.Value[i][1].Q.Coeffs), len(val[1].Q.Coeffs))
+			require.Equal(t, len(rkgShare.Value[i][1].P.Coeffs), len(val[1].P.Coeffs))
+			require.Equal(t, rkgShare.Value[i][1].Q.Coeffs, val[1].Q.Coeffs)
+			require.Equal(t, rkgShare.Value[i][1].P.Coeffs, val[1].P.Coeffs)
 		}
 	})
 
@@ -503,11 +488,10 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 		require.Equal(t, len(resRTGShare.Value), len(rtgShare.Value))
 
 		for i, val := range rtgShare.Value {
-			require.Equal(t, len(resRTGShare.Value[i][0].Coeffs), len(val[0].Coeffs))
-			require.Equal(t, resRTGShare.Value[i][0].Coeffs, val[0].Coeffs)
-			require.Equal(t, len(resRTGShare.Value[i][1].Coeffs), len(val[1].Coeffs))
-			require.Equal(t, resRTGShare.Value[i][1].Coeffs, val[1].Coeffs)
-
+			require.Equal(t, len(resRTGShare.Value[i].Q.Coeffs), len(val.Q.Coeffs))
+			require.Equal(t, resRTGShare.Value[i].Q.Coeffs, val.Q.Coeffs)
+			require.Equal(t, len(resRTGShare.Value[i].P.Coeffs), len(val.P.Coeffs)) // TODO
+			require.Equal(t, resRTGShare.Value[i].P.Coeffs, val.P.Coeffs)
 		}
 	})
 }

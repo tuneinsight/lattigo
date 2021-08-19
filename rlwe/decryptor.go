@@ -24,7 +24,7 @@ type decryptor struct {
 // NewDecryptor instantiates a new generic RLWE Decryptor.
 func NewDecryptor(params Parameters, sk *SecretKey) Decryptor {
 
-	if sk.Value[0].Degree() != params.N() {
+	if sk.Value.Q.Degree() != params.N() {
 		panic("secret_key is invalid for the provided parameters")
 	}
 
@@ -55,7 +55,7 @@ func (decryptor *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext
 
 	for i := ciphertext.Degree(); i > 0; i-- {
 
-		ringQ.MulCoeffsMontgomeryLvl(level, plaintext.Value, decryptor.sk.Value[0], plaintext.Value)
+		ringQ.MulCoeffsMontgomeryLvl(level, plaintext.Value, decryptor.sk.Value.Q, plaintext.Value)
 
 		if !ciphertext.Value[0].IsNTT {
 			ringQ.NTTLazyLvl(level, ciphertext.Value[i-1], decryptor.pool)

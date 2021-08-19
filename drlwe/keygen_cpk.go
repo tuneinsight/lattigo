@@ -23,7 +23,7 @@ type CKGProtocol struct {
 
 // CKGShare is a struct storing the CKG protocol's share.
 type CKGShare struct {
-	Value rlwe.PolyQP
+	Value ring.PolyQP
 }
 
 // MarshalBinary encodes the target element on a slice of bytes.
@@ -56,7 +56,7 @@ func NewCKGProtocol(params rlwe.Parameters) *CKGProtocol {
 
 // AllocateShares allocates the share of the CKG protocol.
 func (ckg *CKGProtocol) AllocateShares() (*CKGShare, CKGCRP) {
-	return &CKGShare{rlwe.PolyQP{ckg.params.RingQ().NewPoly(), ckg.params.RingP().NewPoly()}}, CKGCRP{ckg.params.RingQ().NewPoly(), ckg.params.RingP().NewPoly()}
+	return &CKGShare{*ckg.params.RingQP().NewPoly()}, CKGCRP(*ckg.params.RingQP().NewPoly())
 }
 
 // GenShare generates the party's public key share from its secret key as:
@@ -65,25 +65,22 @@ func (ckg *CKGProtocol) AllocateShares() (*CKGShare, CKGCRP) {
 //
 // for the receiver protocol. Has no effect is the share was already generated.
 func (ckg *CKGProtocol) GenShare(sk *rlwe.SecretKey, crp CKGCRP, shareOut *CKGShare) {
-	ringQ := ckg.params.RingQ()
-	ringP := ckg.params.RingP()
-	ckg.gaussianSamplerQ.Read(shareOut.Value[0])
-	extendBasisSmallNormAndCenter(ringQ, ringP, shareOut.Value[0], shareOut.Value[1])
-	ringQ.NTT(shareOut.Value[0], shareOut.Value[0])
-	ringP.NTT(shareOut.Value[1], shareOut.Value[1])
-	ringQ.MulCoeffsMontgomeryAndSub(sk.Value[0], crp[0], shareOut.Value[0])
-	ringP.MulCoeffsMontgomeryAndSub(sk.Value[1], crp[1], shareOut.Value[1])
+	ringQP := ckg.params.RingQP()
+	crpPoly := ring.PolyQP(crp)
+	ckg.gaussianSamplerQ.Read(shareOut.Value.Q)
+	ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value.Q, ckg.params.PCount()-1, &shareOut.Value)
+	ringQP.NTT(&shareOut.Value, &shareOut.Value)
+	ringQP.MulCoeffsMontgomeryAndSub(&sk.Value, &crpPoly, &shareOut.Value)
 }
 
 // AggregateShares aggregates a new share to the aggregate key
 func (ckg *CKGProtocol) AggregateShares(share1, share2, shareOut *CKGShare) {
-	ckg.params.RingQ().Add(share1.Value[0], share2.Value[0], shareOut.Value[0])
-	ckg.params.RingP().Add(share1.Value[1], share2.Value[1], shareOut.Value[1])
+	ckg.params.RingQP().Add(&share1.Value, &share2.Value, &shareOut.Value)
 }
 
 // GenPublicKey return the current aggregation of the received shares as a bfv.PublicKey.
 func (ckg *CKGProtocol) GenPublicKey(roundShare *CKGShare, crp CKGCRP, pubkey *rlwe.PublicKey) {
-	pubkey.Value[0].Copy(roundShare.Value)
-	pubkey.Value[1][0].Copy(crp[0])
-	pubkey.Value[1][1].Copy(crp[1])
+	crpPoly := ring.PolyQP(crp)
+	pubkey.Value[0].Copy(&roundShare.Value)
+	pubkey.Value[1].Copy(&crpPoly)
 }

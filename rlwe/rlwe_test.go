@@ -143,15 +143,15 @@ func testGenKeyPair(kgen KeyGenerator, t *testing.T) {
 		sk, pk := kgen.GenKeyPair()
 
 		// [-as + e] + [as]
-		ringQ.MulCoeffsMontgomeryAndAdd(sk.Value[0], pk.Value[1][0], pk.Value[0][0])
-		ringQ.InvNTT(pk.Value[0][0], pk.Value[0][0])
+		ringQ.MulCoeffsMontgomeryAndAdd(sk.Value.Q, pk.Value[1].Q, pk.Value[0].Q)
+		ringQ.InvNTT(pk.Value[0].Q, pk.Value[0].Q)
 
 		log2Bound := bits.Len64(uint64(math.Floor(DefaultSigma*6)) * uint64(params.N()))
-		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(pk.Value[0][0].Level(), ringQ, pk.Value[0][0]))
+		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(pk.Value[0].Q.Level(), ringQ, pk.Value[0].Q))
 
-		ringP.MulCoeffsMontgomeryAndAdd(sk.Value[1], pk.Value[1][1], pk.Value[0][1])
-		ringP.InvNTT(pk.Value[0][1], pk.Value[0][1])
-		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(pk.Value[0][1].Level(), ringP, pk.Value[0][1]))
+		ringP.MulCoeffsMontgomeryAndAdd(sk.Value.P, pk.Value[1].P, pk.Value[0].P)
+		ringP.InvNTT(pk.Value[0].P, pk.Value[0].P)
+		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(pk.Value[0].P.Level(), ringP, pk.Value[0].P))
 	})
 }
 
@@ -173,32 +173,31 @@ func testSwitchKeyGen(kgen KeyGenerator, t *testing.T) {
 
 		// Generates Decomp([-asIn + w*P*sOut + e, a])
 		swk := NewSwitchingKey(params, params.QCount()-1, params.PCount()-1)
-		kgen.(*keyGenerator).genSwitchingKey(skIn.Value[0], skOut.Value, swk)
+		kgen.(*keyGenerator).genSwitchingKey(skIn.Value.Q, &skOut.Value, swk)
 
 		// Decrypts
 		// [-asIn + w*P*sOut + e, a] + [asIn]
 		for j := range swk.Value {
-			ringQ.MulCoeffsMontgomeryAndAdd(swk.Value[j][1][0], skOut.Value[0], swk.Value[j][0][0])
-			ringP.MulCoeffsMontgomeryAndAdd(swk.Value[j][1][1], skOut.Value[1], swk.Value[j][0][1])
+			params.ringQP.MulCoeffsMontgomeryAndAdd(&swk.Value[j][1], &skOut.Value, &swk.Value[j][0])
 		}
 
-		polyQ := swk.Value[0][0][0]
-		polyP := swk.Value[0][0][1]
+		polyQ := swk.Value[0][0].Q
+		polyP := swk.Value[0][0].P
 
 		// Sums all basis together (equivalent to multiplying with CRT decomposition of 1)
 		// sum([1]_w * [w*P*sOut + e]) = P*sOut + sum(e)
 		for j := range swk.Value {
 			if j > 0 {
-				ringQ.Add(polyQ, swk.Value[j][0][0], polyQ)
-				ringP.Add(polyP, swk.Value[j][0][1], polyP)
+				ringQ.Add(polyQ, swk.Value[j][0].Q, polyQ)
+				ringP.Add(polyP, swk.Value[j][0].P, polyP)
 			}
 		}
 
 		// sOut * P
-		ringQ.MulScalarBigint(skIn.Value[0], ringP.ModulusBigint, skIn.Value[0])
+		ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusBigint, skIn.Value.Q)
 
 		// P*s^i + sum(e) - P*s^i = sum(e)
-		ringQ.Sub(polyQ, skIn.Value[0], polyQ)
+		ringQ.Sub(polyQ, skIn.Value.Q, polyQ)
 
 		// Checks that the error is below the bound
 		// Worst error bound is N * floor(6*sigma) * #Keys
@@ -229,7 +228,7 @@ func testEncryptor(kgen KeyGenerator, t *testing.T) {
 		ciphertext := NewCiphertextNTT(params, 1, plaintext.Level())
 		encryptor.Encrypt(plaintext, ciphertext)
 		require.Equal(t, plaintext.Level(), ciphertext.Level())
-		ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], sk.Value[0], ciphertext.Value[0])
+		ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], sk.Value.Q, ciphertext.Value[0])
 		ringQ.InvNTTLvl(ciphertext.Level(), ciphertext.Value[0], ciphertext.Value[0])
 		require.GreaterOrEqual(t, 12+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, ciphertext.Value[0]))
 	})
@@ -241,7 +240,7 @@ func testEncryptor(kgen KeyGenerator, t *testing.T) {
 		ciphertext := NewCiphertextNTT(params, 1, plaintext.Level())
 		encryptor.Encrypt(plaintext, ciphertext)
 		require.Equal(t, plaintext.Level(), ciphertext.Level())
-		ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], sk.Value[0], ciphertext.Value[0])
+		ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], sk.Value.Q, ciphertext.Value[0])
 		ringQ.InvNTTLvl(ciphertext.Level(), ciphertext.Value[0], ciphertext.Value[0])
 		require.GreaterOrEqual(t, 12+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, ciphertext.Value[0]))
 	})
@@ -256,7 +255,7 @@ func testEncryptor(kgen KeyGenerator, t *testing.T) {
 		ciphertext := NewCiphertextNTT(params, 1, plaintext.Level())
 		encryptor.Encrypt(plaintext, ciphertext)
 		require.Equal(t, plaintext.Level(), ciphertext.Level())
-		ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], sk.Value[0], ciphertext.Value[0])
+		ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], sk.Value.Q, ciphertext.Value[0])
 		ringQ.InvNTTLvl(ciphertext.Level(), ciphertext.Value[0], ciphertext.Value[0])
 		require.GreaterOrEqual(t, 9+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, ciphertext.Value[0]))
 	})
@@ -271,7 +270,7 @@ func testEncryptor(kgen KeyGenerator, t *testing.T) {
 		ciphertext := NewCiphertextNTT(params, 1, plaintext.Level())
 		encryptor.Encrypt(plaintext, ciphertext)
 		require.Equal(t, plaintext.Level(), ciphertext.Level())
-		ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], sk.Value[0], ciphertext.Value[0])
+		ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], sk.Value.Q, ciphertext.Value[0])
 		ringQ.InvNTTLvl(ciphertext.Level(), ciphertext.Value[0], ciphertext.Value[0])
 		require.GreaterOrEqual(t, 9+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, ciphertext.Value[0]))
 	})
@@ -283,7 +282,7 @@ func testEncryptor(kgen KeyGenerator, t *testing.T) {
 		ciphertext := NewCiphertextNTT(params, 1, plaintext.Level())
 		encryptor.Encrypt(plaintext, ciphertext)
 		require.Equal(t, plaintext.Level(), ciphertext.Level())
-		ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], sk.Value[0], ciphertext.Value[0])
+		ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], sk.Value.Q, ciphertext.Value[0])
 		ringQ.InvNTTLvl(ciphertext.Level(), ciphertext.Value[0], ciphertext.Value[0])
 		require.GreaterOrEqual(t, 5+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, ciphertext.Value[0]))
 	})
@@ -295,7 +294,7 @@ func testEncryptor(kgen KeyGenerator, t *testing.T) {
 		ciphertext := NewCiphertextNTT(params, 1, plaintext.Level())
 		encryptor.Encrypt(plaintext, ciphertext)
 		require.Equal(t, plaintext.Level(), ciphertext.Level())
-		ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], sk.Value[0], ciphertext.Value[0])
+		ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], sk.Value.Q, ciphertext.Value[0])
 		ringQ.InvNTTLvl(ciphertext.Level(), ciphertext.Value[0], ciphertext.Value[0])
 		require.GreaterOrEqual(t, 5+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, ciphertext.Value[0]))
 	})
@@ -432,7 +431,7 @@ func testKeySwitcher(kgen KeyGenerator, t *testing.T) {
 		ks.SwitchKeysInPlace(ciphertext.Value[1].Level(), ciphertext.Value[1], swk, ks.PoolQ[1], ks.PoolQ[2])
 		ringQ.Add(ciphertext.Value[0], ks.PoolQ[1], ciphertext.Value[0])
 		ring.CopyValues(ks.PoolQ[2], ciphertext.Value[1])
-		ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], skOut.Value[0], ciphertext.Value[0])
+		ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], skOut.Value.Q, ciphertext.Value[0])
 		ringQ.InvNTTLvl(ciphertext.Level(), ciphertext.Value[0], ciphertext.Value[0])
 		require.GreaterOrEqual(t, 10+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, ciphertext.Value[0]))
 	})
@@ -487,7 +486,7 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 		}
 
 		// Decrypts with smaller dimension key
-		ringQSmallDim.MulCoeffsMontgomeryAndAddLvl(ctSmallDim.Level(), ctSmallDim.Value[1], skSmallDim.Value[0], ctSmallDim.Value[0])
+		ringQSmallDim.MulCoeffsMontgomeryAndAddLvl(ctSmallDim.Level(), ctSmallDim.Value[1], skSmallDim.Value.Q, ctSmallDim.Value[0])
 		ringQSmallDim.InvNTTLvl(ctSmallDim.Level(), ctSmallDim.Value[0], ctSmallDim.Value[0])
 
 		require.GreaterOrEqual(t, 10+paramsSmallDim.LogN(), log2OfInnerSum(ctSmallDim.Level(), ringQSmallDim, ctSmallDim.Value[0]))
@@ -522,7 +521,7 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 		ring.CopyValues(ks.PoolQ[2], ctLargeDim.Value[1])
 
 		// Decrypts with smaller dimension key
-		ringQLargeDim.MulCoeffsMontgomeryAndAddLvl(ctLargeDim.Level(), ctLargeDim.Value[1], skLargeDim.Value[0], ctLargeDim.Value[0])
+		ringQLargeDim.MulCoeffsMontgomeryAndAddLvl(ctLargeDim.Level(), ctLargeDim.Value[1], skLargeDim.Value.Q, ctLargeDim.Value[0])
 		ringQLargeDim.InvNTTLvl(ctLargeDim.Level(), ctLargeDim.Value[0], ctLargeDim.Value[0])
 
 		require.GreaterOrEqual(t, 10+paramsSmallDim.LogN(), log2OfInnerSum(ctLargeDim.Level(), ringQLargeDim, ctLargeDim.Value[0]))
@@ -532,8 +531,6 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 func testMarshaller(kgen KeyGenerator, t *testing.T) {
 
 	params := kgen.(*keyGenerator).params
-	ringQ := params.RingQ()
-	ringP := params.RingP()
 
 	sk, pk := kgen.GenKeyPair()
 
@@ -569,9 +566,7 @@ func testMarshaller(kgen KeyGenerator, t *testing.T) {
 		err = skTest.UnmarshalBinary(marshalledSk)
 		require.NoError(t, err)
 
-		require.True(t, ringQ.Equal(sk.Value[0], skTest.Value[0]))
-		require.True(t, ringP.Equal(sk.Value[1], skTest.Value[1]))
-
+		require.True(t, sk.Value.Equals(&skTest.Value))
 	})
 
 	t.Run(testString(params, "Marshaller/Pk/"), func(t *testing.T) {
@@ -583,10 +578,7 @@ func testMarshaller(kgen KeyGenerator, t *testing.T) {
 		err = pkTest.UnmarshalBinary(marshalledPk)
 		require.NoError(t, err)
 
-		for k := range pk.Value {
-			require.Truef(t, ringQ.Equal(pk.Value[k][0], pkTest.Value[k][0]), "Marshal PublicKey element [%d][0]", k)
-			require.Truef(t, ringP.Equal(pk.Value[k][1], pkTest.Value[k][1]), "Marshal PublicKey element [%d][1]", k)
-		}
+		require.True(t, pk.Equals(pkTest))
 	})
 
 	t.Run(testString(params, "Marshaller/EvaluationKey/"), func(t *testing.T) {
@@ -603,15 +595,7 @@ func testMarshaller(kgen KeyGenerator, t *testing.T) {
 		err = resEvalKey.UnmarshalBinary(data)
 		require.NoError(t, err)
 
-		evakeyWant := evalKey.Keys[0].Value
-		evakeyTest := resEvalKey.Keys[0].Value
-
-		for j := range evakeyWant {
-			for k := range evakeyWant[j] {
-				require.Truef(t, ringQ.Equal(evakeyWant[j][k][0], evakeyTest[j][k][0]), "Marshal EvaluationKey element [%d][%d][0]", j, k)
-				require.Truef(t, ringP.Equal(evakeyWant[j][k][1], evakeyTest[j][k][1]), "Marshal EvaluationKey element [%d][%d][1]", j, k)
-			}
-		}
+		require.True(t, evalKey.Equals(resEvalKey))
 	})
 
 	t.Run(testString(params, "Marshaller/SwitchingKey/"), func(t *testing.T) {
@@ -630,15 +614,7 @@ func testMarshaller(kgen KeyGenerator, t *testing.T) {
 		err = resSwitchingKey.UnmarshalBinary(data)
 		require.NoError(t, err)
 
-		evakeyWant := switchingKey.Value
-		evakeyTest := resSwitchingKey.Value
-
-		for j := range evakeyWant {
-			for k := range evakeyWant[j] {
-				require.True(t, ringQ.Equal(evakeyWant[j][k][0], evakeyTest[j][k][0]), "Marshal SwitchingKey element [%d][%d][0]", j, k)
-				require.True(t, ringP.Equal(evakeyWant[j][k][1], evakeyTest[j][k][1]), "Marshal SwitchingKey element [%d][%d][1]", j, k)
-			}
-		}
+		require.True(t, switchingKey.Equals(resSwitchingKey))
 	})
 
 	t.Run(testString(params, "Marshaller/RotationKey/"), func(t *testing.T) {
@@ -662,17 +638,6 @@ func testMarshaller(kgen KeyGenerator, t *testing.T) {
 		err = resRotationKey.UnmarshalBinary(data)
 		require.NoError(t, err)
 
-		for _, galEl := range galEls {
-
-			evakeyWant := rotationKey.Keys[galEl].Value
-			evakeyTest := resRotationKey.Keys[galEl].Value
-
-			for j := range evakeyWant {
-				for k := range evakeyWant[j] {
-					require.Truef(t, ringQ.Equal(evakeyWant[j][k][0], evakeyTest[j][k][0]), "Marshal RotationKey RotateLeft %d element [%d][%d][0]", galEl, j, k)
-					require.Truef(t, ringP.Equal(evakeyWant[j][k][1], evakeyTest[j][k][1]), "Marshal RotationKey RotateLeft %d element [%d][%d][1]", galEl, j, k)
-				}
-			}
-		}
+		rotationKey.Equals(resRotationKey)
 	})
 }

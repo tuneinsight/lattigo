@@ -7,13 +7,13 @@ import (
 )
 
 // CKGCRP is a type for the common reference polynomial of the collective key protocol.
-type CKGCRP rlwe.PolyQP
+type CKGCRP ring.PolyQP
 
 // RKGCRP is a type for the common reference polynomial of the relinearization key protocol.
-type RKGCRP []rlwe.PolyQP
+type RKGCRP []ring.PolyQP
 
 // RTGCRP is a type for the common reference polynomial of the rotation key protocol.
-type RTGCRP []rlwe.PolyQP
+type RTGCRP []ring.PolyQP
 
 // RefreshCRP is a type for the common reference polynomial of the refresh protocol.
 type RefreshCRP *ring.Poly
@@ -42,26 +42,26 @@ func (uniSampler *UniformSampler) Read(crp interface{}) {
 		uniSampler.uniformSamplerQ.Read(crp)
 	case RefreshCRP:
 		uniSampler.uniformSamplerQ.Read(crp)
-	case rlwe.PolyQP:
-		uniSampler.uniformSamplerQ.Read(crp[0])
-		uniSampler.uniformSamplerP.Read(crp[1])
+	case ring.PolyQP:
+		uniSampler.uniformSamplerQ.Read(crp.Q)
+		uniSampler.uniformSamplerP.Read(crp.P)
 	case CKGCRP:
-		uniSampler.uniformSamplerQ.Read(crp[0])
-		uniSampler.uniformSamplerP.Read(crp[1])
-	case []rlwe.PolyQP:
+		uniSampler.uniformSamplerQ.Read(crp.Q)
+		uniSampler.uniformSamplerP.Read(crp.P)
+	case []ring.PolyQP:
 		for i := range crp {
-			uniSampler.uniformSamplerQ.Read(crp[i][0])
-			uniSampler.uniformSamplerP.Read(crp[i][1])
+			uniSampler.uniformSamplerQ.Read(crp[i].Q)
+			uniSampler.uniformSamplerP.Read(crp[i].P)
 		}
 	case RKGCRP:
 		for i := range crp {
-			uniSampler.uniformSamplerQ.Read(crp[i][0])
-			uniSampler.uniformSamplerP.Read(crp[i][1])
+			uniSampler.uniformSamplerQ.Read(crp[i].Q)
+			uniSampler.uniformSamplerP.Read(crp[i].P)
 		}
 	case RTGCRP:
 		for i := range crp {
-			uniSampler.uniformSamplerQ.Read(crp[i][0])
-			uniSampler.uniformSamplerP.Read(crp[i][1])
+			uniSampler.uniformSamplerQ.Read(crp[i].Q)
+			uniSampler.uniformSamplerP.Read(crp[i].P)
 		}
 	default:
 		panic("invalid crp struct, must be either *ring.Poly, [2]rlwe.PolyQP or [][2]rlwe.PolyQP")

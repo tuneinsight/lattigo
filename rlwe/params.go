@@ -46,12 +46,13 @@ type ParametersLiteral struct {
 // Parameters represents a set of generic RLWE parameters. Its fields are private and
 // immutable. See ParametersLiteral for user-specified parameters.
 type Parameters struct {
-	logN  int
-	qi    []uint64
-	pi    []uint64
-	sigma float64
-	ringQ *ring.Ring
-	ringP *ring.Ring
+	logN   int
+	qi     []uint64
+	pi     []uint64
+	sigma  float64
+	ringQ  *ring.Ring
+	ringP  *ring.Ring
+	ringQP *ring.SplitRingQP
 }
 
 var (
@@ -122,6 +123,8 @@ func NewParameters(logn int, q, p []uint64, sigma float64) (Parameters, error) {
 		}
 	}
 
+	params.ringQP = &ring.SplitRingQP{RingQ: params.ringQ, RingP: params.ringP}
+
 	copy(params.qi, q)
 	copy(params.pi, p)
 	return params, nil
@@ -162,6 +165,11 @@ func (p Parameters) RingQ() *ring.Ring {
 // RingP returns a pointer to ringP
 func (p Parameters) RingP() *ring.Ring {
 	return p.ringP
+}
+
+// RingQP returns a pointer to ringQP
+func (p Parameters) RingQP() *ring.SplitRingQP {
+	return p.ringQP
 }
 
 // Sigma returns standard deviation of the noise distribution

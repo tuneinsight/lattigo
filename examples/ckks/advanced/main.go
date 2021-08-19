@@ -2,13 +2,14 @@ package main
 
 import (
 	"fmt"
+	"math"
+	"time"
+
 	"github.com/ldsec/lattigo/v2/ckks"
 	ckksAdvanced "github.com/ldsec/lattigo/v2/ckks/advanced"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
-	"math"
-	"time"
 )
 
 // This example is an implementation of the RLWE -> LWE extraction followed by an LWE -> RLWE repacking
@@ -114,7 +115,7 @@ func main() {
 	fmt.Printf("Encode & Encrypt SK LWE... ")
 	start = time.Now()
 	skLWEInvNTT := paramsLWE.RingQ().NewPoly()
-	ring.CopyValues(skLWE.Value[0], skLWEInvNTT)
+	ring.CopyValues(skLWE.Value.Q, skLWEInvNTT)
 	paramsLWE.RingQ().InvNTT(skLWEInvNTT, skLWEInvNTT)
 	Q := paramsRLWE.Q()[0]
 	paramsLWE.RingQ().InvMFormLvl(0, skLWEInvNTT, skLWEInvNTT)

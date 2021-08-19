@@ -2,53 +2,9 @@ package rlwe
 
 import (
 	"encoding/binary"
+
 	"github.com/ldsec/lattigo/v2/ring"
 )
-
-// Copy copies the input polyQP on the target polyQP.
-func (pol PolyQP) Copy(polFrom PolyQP) {
-	pol[0].Copy(polFrom[0])
-	pol[1].Copy(polFrom[1])
-}
-
-// GetDataLen returns the length in byte of the target PolyQP
-func (pol PolyQP) GetDataLen(WithMetadata bool) (dataLen int) {
-	return pol[0].GetDataLen(WithMetadata) + pol[1].GetDataLen(WithMetadata)
-}
-
-// WriteTo writes a polyQP on the inpute data.
-func (pol *PolyQP) WriteTo(data []byte) (pt int, err error) {
-	var inc int
-	if inc, err = pol[0].WriteTo(data[pt:]); err != nil {
-		return
-	}
-	pt += inc
-
-	if inc, err = pol[1].WriteTo(data[pt:]); err != nil {
-		return
-	}
-	pt += inc
-
-	return
-}
-
-// DecodePolyNew decodes the input bytes on the target polyQP.
-func (pol *PolyQP) DecodePolyNew(data []byte) (pt int, err error) {
-	pol[0] = new(ring.Poly)
-	var inc int
-	if inc, err = pol[0].DecodePolyNew(data[pt:]); err != nil {
-		return
-	}
-	pt += inc
-
-	pol[1] = new(ring.Poly)
-	if inc, err = pol[1].DecodePolyNew(data[pt:]); err != nil {
-		return
-	}
-	pt += inc
-
-	return
-}
 
 // GetDataLen returns the length in bytes of the target SecretKey.
 func (sk *SecretKey) GetDataLen(WithMetadata bool) (dataLen int) {
@@ -235,19 +191,19 @@ func (swk *SwitchingKey) decode(data []byte) (pointer int, err error) {
 
 	pointer = 1
 
-	swk.Value = make([][2]PolyQP, decomposition)
+	swk.Value = make([][2]ring.PolyQP, decomposition)
 
 	var inc int
 
 	for j := 0; j < decomposition; j++ {
 
-		swk.Value[j][0][0] = new(ring.Poly)
+		swk.Value[j][0].Q = new(ring.Poly)
 		if inc, err = swk.Value[j][0].DecodePolyNew(data[pointer:]); err != nil {
 			return
 		}
 		pointer += inc
 
-		swk.Value[j][1][1] = new(ring.Poly)
+		swk.Value[j][1].P = new(ring.Poly)
 		if inc, err = swk.Value[j][1].DecodePolyNew(data[pointer:]); err != nil {
 			return
 		}

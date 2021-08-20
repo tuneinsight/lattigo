@@ -271,11 +271,15 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *
 
 	swk = NewSwitchingKey(keygen.params, skOutput.Value[0].Level(), skOutput.Value[1].Level())
 
-	// N -> N
-	if len(skInput.Value[0].Coeffs[0]) == len(skOutput.Value[0].Coeffs[0]) {
-		keygen.genSwitchingKey(skInput.Value[0], skOutput.Value, swk)
-		// n -> N
-	} else if len(skInput.Value[0].Coeffs[0]) < len(skOutput.Value[0].Coeffs[0]) {
+	// n -> N
+	if len(skInput.Value[0].Coeffs[0]) > len(skOutput.Value[0].Coeffs[0]) {
+
+		ring.MapSmallDimensionToLargerDimensionNTT(skOutput.Value[0], keygen.poolQ[1])
+		ring.MapSmallDimensionToLargerDimensionNTT(skOutput.Value[1], keygen.poolP[1])
+		keygen.genSwitchingKey(skInput.Value[0], [2]*ring.Poly{keygen.poolQ[1], keygen.poolP[1]}, swk)
+
+		// N -> N or N -> n
+	} else {
 
 		ring.MapSmallDimensionToLargerDimensionNTT(skInput.Value[0], keygen.poolQ[1])
 
@@ -314,11 +318,6 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *
 		}
 
 		keygen.genSwitchingKey(keygen.poolQ[1], skOutput.Value, swk)
-		// N -> n
-	} else {
-		ring.MapSmallDimensionToLargerDimensionNTT(skOutput.Value[0], keygen.poolQ[1])
-		ring.MapSmallDimensionToLargerDimensionNTT(skOutput.Value[1], keygen.poolP[1])
-		keygen.genSwitchingKey(skInput.Value[0], [2]*ring.Poly{keygen.poolQ[1], keygen.poolP[1]}, swk)
 	}
 
 	return

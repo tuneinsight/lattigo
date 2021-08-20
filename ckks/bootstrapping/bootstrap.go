@@ -10,68 +10,68 @@ import (
 // If the input ciphertext level is zero, the input scale must be an exact power of two smaller or equal to round(Q0/2^{10}).
 // If the input ciphertext is at level one or more, the input scale does not need to be an exact power of two as one level
 // can be used to do a scale matching.
-func (btp *Bootstrapper) Bootstrapp(ct *ckks.Ciphertext) *ckks.Ciphertext {
+func (btp *Bootstrapper) Bootstrapp(ctIn *ckks.Ciphertext) (ctOut *ckks.Ciphertext) {
+
+	ctOut = ctIn.CopyNew()
 
 	bootstrappingScale := math.Exp2(math.Round(math.Log2(btp.params.QiFloat64(0) / btp.evalModPoly.MessageRatio)))
 
-	var ct0, ct1 *ckks.Ciphertext
-
 	// Drops the level to 1
-	for ct.Level() > 1 {
-		btp.DropLevel(ct, 1)
+	for ctOut.Level() > 1 {
+		btp.DropLevel(ctOut, 1)
 	}
 
 	// Brings the ciphertext scale to Q0/MessageRatio
-	if ct.Level() == 1 {
+	if ctOut.Level() == 1 {
 
 		// If one level is available, then uses it to match the scale
-		btp.SetScale(ct, bootstrappingScale)
+		btp.SetScale(ctOut, bootstrappingScale)
 
 		// Then drops to level 0
-		for ct.Level() != 0 {
-			btp.DropLevel(ct, 1)
+		for ctOut.Level() != 0 {
+			btp.DropLevel(ctOut, 1)
 		}
 
 	} else {
 
 		// Does an integer constant mult by round((Q0/Delta_m)/ctscle)
-		if bootstrappingScale < ct.Scale {
+		if bootstrappingScale < ctOut.Scale {
 			panic("ciphetext scale > q/||m||)")
 		}
 
-		btp.ScaleUp(ct, math.Round(bootstrappingScale/ct.Scale), ct)
+		btp.ScaleUp(ctOut, math.Round(bootstrappingScale/ctOut.Scale), ctOut)
 	}
 
 	// Step 1 : Extend the basis from q to Q
-	ct = btp.modUpFromQ0(ct)
+	ctOut = btp.modUpFromQ0(ctOut)
 
 	// Brings the ciphertext scale to sineQi/(Q0/scale) if Q0 < sineQi
 	// Does it after modUp to avoid plaintext overflow
 	// Reduces the additive error of the next steps
-	btp.ScaleUp(ct, math.Round((btp.evalModPoly.ScalingFactor/btp.evalModPoly.MessageRatio)/ct.Scale), ct)
+	btp.ScaleUp(ctOut, math.Round((btp.evalModPoly.ScalingFactor/btp.evalModPoly.MessageRatio)/ctOut.Scale), ctOut)
 
 	//SubSum X -> (N/dslots) * Y^dslots
-	ct = btp.Trace(ct, btp.params.LogSlots(), btp.params.LogN()-1)
+	ctOut = btp.Trace(ctOut, btp.params.LogSlots(), btp.params.LogN()-1)
 
 	// Step 2 : CoeffsToSlots (Homomorphic encoding)
-	ct0, ct1 = btp.CoeffsToSlots(ct, btp.ctsMatrices)
+	ctReal, ctImag := btp.CoeffsToSlots(ctOut, btp.ctsMatrices)
 
 	// Step 3 : EvalMod (Homomorphic modular reduction)
-	// ct0 = Ecd(real)
-	// ct1 = Ecd(imag)
-	// If n < N/2 then ct0 = Ecd(real|imag)
-	ct0 = btp.EvalMod(ct0, btp.evalModPoly)
-	ct0.Scale = btp.params.Scale()
+	// ctReal = Ecd(real)
+	// ctImag = Ecd(imag)
+	// If n < N/2 then ctReal = Ecd(real|imag)
+	ctReal = btp.EvalMod(ctReal, btp.evalModPoly)
+	ctReal.Scale = btp.params.Scale()
 
-	if ct1 != nil {
-		ct1 = btp.EvalMod(ct1, btp.evalModPoly)
-		ct1.Scale = btp.params.Scale()
+	if ctImag != nil {
+		ctImag = btp.EvalMod(ctImag, btp.evalModPoly)
+		ctImag.Scale = btp.params.Scale()
 	}
 
 	// Step 4 : SlotsToCoeffs (Homomorphic decoding)
-	ct0 = btp.SlotsToCoeffs(ct0, ct1, btp.stcMatrices)
+	ctOut = btp.SlotsToCoeffs(ctReal, ctImag, btp.stcMatrices)
 
-	return ct0
+	return
 }
 
 func (btp *Bootstrapper) modUpFromQ0(ct *ckks.Ciphertext) *ckks.Ciphertext {

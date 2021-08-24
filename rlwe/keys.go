@@ -2,23 +2,21 @@ package rlwe
 
 import (
 	"math"
-
-	"github.com/ldsec/lattigo/v2/ring"
 )
 
 // SecretKey is a type for generic RLWE secret keys.
 type SecretKey struct {
-	Value ring.PolyQP
+	Value PolyQP
 }
 
 // PublicKey is a type for generic RLWE public keys.
 type PublicKey struct {
-	Value [2]ring.PolyQP
+	Value [2]PolyQP
 }
 
 // SwitchingKey is a type for generic RLWE public switching keys.
 type SwitchingKey struct {
-	Value [][2]ring.PolyQP
+	Value [][2]PolyQP
 }
 
 // RelinearizationKey is a type for generic RLWE public relinearization keys. It stores a slice with a
@@ -43,12 +41,12 @@ type EvaluationKey struct {
 
 // NewSecretKey generates a new SecretKey with zero values.
 func NewSecretKey(params Parameters) *SecretKey {
-	return &SecretKey{Value: *params.ringQP.NewPoly()}
+	return &SecretKey{Value: params.RingQP().NewPoly()}
 }
 
 // NewPublicKey returns a new PublicKey with zero values.
 func NewPublicKey(params Parameters) (pk *PublicKey) {
-	return &PublicKey{Value: [2]ring.PolyQP{*params.RingQP().NewPoly(), *params.RingQP().NewPoly()}}
+	return &PublicKey{Value: [2]PolyQP{params.RingQP().NewPoly(), params.RingQP().NewPoly()}}
 }
 
 // Equals checks two PublicKey struct for equality.
@@ -56,7 +54,7 @@ func (pk *PublicKey) Equals(other *PublicKey) bool {
 	if pk == other {
 		return true
 	}
-	return pk.Value[0].Equals(&other.Value[0]) && pk.Value[1].Equals(&other.Value[1])
+	return pk.Value[0].Equals(other.Value[0]) && pk.Value[1].Equals(other.Value[1])
 }
 
 // NewRotationKeySet returns a new RotationKeySet with pre-allocated switching keys for each distinct galoisElement value.
@@ -83,10 +81,10 @@ func (rtks *RotationKeySet) GetRotationKey(galoisEl uint64) (*SwitchingKey, bool
 func NewSwitchingKey(params Parameters, levelQ, levelP int) *SwitchingKey {
 	decompSize := int(math.Ceil(float64(levelQ+1) / float64(levelP+1)))
 	swk := new(SwitchingKey)
-	swk.Value = make([][2]ring.PolyQP, int(decompSize))
+	swk.Value = make([][2]PolyQP, int(decompSize))
 	for i := 0; i < decompSize; i++ {
-		swk.Value[i][0] = *params.ringQP.NewPolyLvl(levelQ, levelP)
-		swk.Value[i][1] = *params.ringQP.NewPolyLvl(levelQ, levelP)
+		swk.Value[i][0] = params.RingQP().NewPolyLvl(levelQ, levelP)
+		swk.Value[i][1] = params.RingQP().NewPolyLvl(levelQ, levelP)
 	}
 
 	return swk
@@ -111,7 +109,7 @@ func (sk *SecretKey) CopyNew() *SecretKey {
 	if sk == nil {
 		return nil
 	}
-	return &SecretKey{*sk.Value.CopyNew()}
+	return &SecretKey{sk.Value.CopyNew()}
 }
 
 // CopyNew creates a deep copy of the receiver PublicKey and returns it.
@@ -119,7 +117,7 @@ func (pk *PublicKey) CopyNew() *PublicKey {
 	if pk == nil {
 		return nil
 	}
-	return &PublicKey{[2]ring.PolyQP{*pk.Value[0].CopyNew(), *pk.Value[1].CopyNew()}}
+	return &PublicKey{[2]PolyQP{pk.Value[0].CopyNew(), pk.Value[1].CopyNew()}}
 }
 
 // Equals checks two RelinearizationKeys for equality.
@@ -177,9 +175,9 @@ func (swk *SwitchingKey) CopyNew() *SwitchingKey {
 	if swk == nil || len(swk.Value) == 0 {
 		return nil
 	}
-	swkb := &SwitchingKey{Value: make([][2]ring.PolyQP, len(swk.Value))}
+	swkb := &SwitchingKey{Value: make([][2]PolyQP, len(swk.Value))}
 	for i, el := range swk.Value {
-		swkb.Value[i] = [2]ring.PolyQP{*el[0].CopyNew(), *el[1].CopyNew()}
+		swkb.Value[i] = [2]PolyQP{el[0].CopyNew(), el[1].CopyNew()}
 	}
 	return swkb
 }

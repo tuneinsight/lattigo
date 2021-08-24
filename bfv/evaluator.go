@@ -545,9 +545,9 @@ func (eval *evaluator) relinearize(ct0 *Ciphertext, ctOut *Ciphertext) {
 	}
 
 	for deg := uint64(ct0.Degree()); deg > 1; deg-- {
-		eval.SwitchKeysInPlace(ct0.Value[deg].Level(), ct0.Value[deg], eval.rlk.Keys[deg-2], eval.PoolQ[1], eval.PoolQ[2])
-		eval.ringQ.Add(ctOut.Value[0], eval.PoolQ[1], ctOut.Value[0])
-		eval.ringQ.Add(ctOut.Value[1], eval.PoolQ[2], ctOut.Value[1])
+		eval.SwitchKeysInPlace(ct0.Value[deg].Level(), ct0.Value[deg], eval.rlk.Keys[deg-2], eval.Pool[1].Q, eval.Pool[2].Q)
+		eval.ringQ.Add(ctOut.Value[0], eval.Pool[1].Q, ctOut.Value[0])
+		eval.ringQ.Add(ctOut.Value[1], eval.Pool[2].Q, ctOut.Value[1])
 	}
 
 	ctOut.SetValue(ctOut.Value[:2])
@@ -602,10 +602,10 @@ func (eval *evaluator) SwitchKeys(ct0 *Ciphertext, switchKey *rlwe.SwitchingKey,
 		panic("cannot SwitchKeys: input and output must be of degree 1 to allow key switching")
 	}
 
-	eval.SwitchKeysInPlace(ct0.Value[1].Level(), ct0.Value[1], switchKey, eval.PoolQ[1], eval.PoolQ[2])
+	eval.SwitchKeysInPlace(ct0.Value[1].Level(), ct0.Value[1], switchKey, eval.Pool[1].Q, eval.Pool[2].Q)
 
-	eval.ringQ.Add(ct0.Value[0], eval.PoolQ[1], ctOut.Value[0])
-	ring.CopyValues(eval.PoolQ[2], ctOut.Value[1])
+	eval.ringQ.Add(ct0.Value[0], eval.Pool[1].Q, ctOut.Value[0])
+	ring.CopyValues(eval.Pool[2].Q, ctOut.Value[1])
 }
 
 // SwitchKeysNew applies the key-switching procedure to the ciphertext ct0 and creates a new ciphertext to store the result. It requires as an additional input a valid switching-key:
@@ -699,12 +699,12 @@ func (eval *evaluator) InnerSum(ct0 *Ciphertext, ctOut *Ciphertext) {
 
 // permute performs a column rotation on ct0 and returns the result in ctOut
 func (eval *evaluator) permute(ct0 *Ciphertext, generator uint64, switchKey *rlwe.SwitchingKey, ctOut *Ciphertext) {
-	eval.SwitchKeysInPlace(ct0.Value[1].Level(), ct0.Value[1], switchKey, eval.PoolQ[1], eval.PoolQ[2])
+	eval.SwitchKeysInPlace(ct0.Value[1].Level(), ct0.Value[1], switchKey, eval.Pool[1].Q, eval.Pool[2].Q)
 
-	eval.ringQ.Add(eval.PoolQ[1], ct0.Value[0], eval.PoolQ[1])
+	eval.ringQ.Add(eval.Pool[1].Q, ct0.Value[0], eval.Pool[1].Q)
 
-	eval.ringQ.Permute(eval.PoolQ[1], generator, ctOut.Value[0])
-	eval.ringQ.Permute(eval.PoolQ[2], generator, ctOut.Value[1])
+	eval.ringQ.Permute(eval.Pool[1].Q, generator, ctOut.Value[0])
+	eval.ringQ.Permute(eval.Pool[2].Q, generator, ctOut.Value[1])
 }
 
 func (eval *evaluator) getRingQElem(op Operand) *rlwe.Ciphertext {
@@ -712,7 +712,7 @@ func (eval *evaluator) getRingQElem(op Operand) *rlwe.Ciphertext {
 	case *Ciphertext, *Plaintext:
 		return o.El()
 	case *PlaintextRingT:
-		scaleUp(eval.params.RingQ(), eval.params.RingT(), eval.PoolQ[0].Coeffs[0], o.Value, eval.tmpPt.Value)
+		scaleUp(eval.params.RingQ(), eval.params.RingT(), eval.Pool[0].Q.Coeffs[0], o.Value, eval.tmpPt.Value)
 		return eval.tmpPt.El()
 	default:
 		panic(fmt.Errorf("invalid operand type for operation: %T", o))

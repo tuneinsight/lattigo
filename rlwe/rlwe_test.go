@@ -168,17 +168,19 @@ func testSwitchKeyGen(kgen KeyGenerator, t *testing.T) {
 
 		ringQ := params.RingQ()
 		ringP := params.RingP()
+		ringQP := params.RingQP()
 		skIn := kgen.GenSecretKey()
 		skOut := kgen.GenSecretKey()
+		levelQ, levelP := params.QCount()-1, params.PCount()-1
 
 		// Generates Decomp([-asIn + w*P*sOut + e, a])
 		swk := NewSwitchingKey(params, params.QCount()-1, params.PCount()-1)
-		kgen.(*keyGenerator).genSwitchingKey(skIn.Value.Q, &skOut.Value, swk)
+		kgen.(*keyGenerator).genSwitchingKey(skIn.Value.Q, skOut.Value, swk)
 
 		// Decrypts
 		// [-asIn + w*P*sOut + e, a] + [asIn]
 		for j := range swk.Value {
-			params.ringQP.MulCoeffsMontgomeryAndAdd(&swk.Value[j][1], &skOut.Value, &swk.Value[j][0])
+			ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, swk.Value[j][1], skOut.Value, swk.Value[j][0])
 		}
 
 		polyQ := swk.Value[0][0].Q
@@ -384,9 +386,9 @@ func testKeySwitcher(kgen KeyGenerator, t *testing.T) {
 		tmpQ := ringQ.NewPolyLvl(ciphertext.Level())
 		tmpP := ringP.NewPolyLvl(levelP)
 
-		for i := 0; i < len(ks.PoolDecompQ); i++ {
+		for i := 0; i < len(ks.PoolDecompQP); i++ {
 
-			ks.DecomposeSingleNTT(levelQ, levelP, alpha, i, ciphertext.Value[1], c2InvNTT, ks.PoolDecompQ[i], ks.PoolDecompP[i])
+			ks.DecomposeSingleNTT(levelQ, levelP, alpha, i, ciphertext.Value[1], c2InvNTT, ks.PoolDecompQP[i].Q, ks.PoolDecompQP[i].P)
 
 			// Compute q_alpha_i in bigInt
 			qalphai := ring.NewInt(1)
@@ -399,11 +401,11 @@ func testKeySwitcher(kgen KeyGenerator, t *testing.T) {
 				qalphai.Mul(qalphai, ring.NewUint(ringQ.Modulus[idx]))
 			}
 
-			ringQ.ReduceLvl(levelQ, ks.PoolDecompQ[i], ks.PoolDecompQ[i])
-			ringP.ReduceLvl(levelP, ks.PoolDecompP[i], ks.PoolDecompP[i])
+			ringQ.ReduceLvl(levelQ, ks.PoolDecompQP[i].Q, ks.PoolDecompQP[i].Q)
+			ringP.ReduceLvl(levelP, ks.PoolDecompQP[i].P, ks.PoolDecompQP[i].P)
 
-			ringQ.InvNTTLvl(levelQ, ks.PoolDecompQ[i], tmpQ)
-			ringP.InvNTTLvl(levelP, ks.PoolDecompP[i], tmpP)
+			ringQ.InvNTTLvl(levelQ, ks.PoolDecompQP[i].Q, tmpQ)
+			ringP.InvNTTLvl(levelP, ks.PoolDecompQP[i].P, tmpP)
 
 			ringQ.PolyToBigintCenteredLvl(levelQ, tmpQ, coeffsBigintHaveQ)
 			ringP.PolyToBigintCenteredLvl(levelP, tmpP, coeffsBigintHaveP)
@@ -428,9 +430,9 @@ func testKeySwitcher(kgen KeyGenerator, t *testing.T) {
 	// Test that Dec(KS(Enc(ct, sk), skOut), skOut) has a small norm
 	t.Run(testString(params, "KeySwitch/Standard/"), func(t *testing.T) {
 		swk := kgen.GenSwitchingKey(sk, skOut)
-		ks.SwitchKeysInPlace(ciphertext.Value[1].Level(), ciphertext.Value[1], swk, ks.PoolQ[1], ks.PoolQ[2])
-		ringQ.Add(ciphertext.Value[0], ks.PoolQ[1], ciphertext.Value[0])
-		ring.CopyValues(ks.PoolQ[2], ciphertext.Value[1])
+		ks.SwitchKeysInPlace(ciphertext.Value[1].Level(), ciphertext.Value[1], swk, ks.Pool[1].Q, ks.Pool[2].Q)
+		ringQ.Add(ciphertext.Value[0], ks.Pool[1].Q, ciphertext.Value[0])
+		ring.CopyValues(ks.Pool[2].Q, ciphertext.Value[1])
 		ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], skOut.Value.Q, ciphertext.Value[0])
 		ringQ.InvNTTLvl(ciphertext.Level(), ciphertext.Value[0], ciphertext.Value[0])
 		require.GreaterOrEqual(t, 10+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, ciphertext.Value[0]))
@@ -466,9 +468,9 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 		encryptor.Encrypt(plaintext, ctLargeDim)
 
 		ks := NewKeySwitcher(paramsLargeDim)
-		ks.SwitchKeysInPlace(paramsSmallDim.MaxLevel(), ctLargeDim.Value[1], swk, ks.PoolQ[1], ks.PoolQ[2])
-		ringQLargeDim.AddLvl(paramsSmallDim.MaxLevel(), ctLargeDim.Value[0], ks.PoolQ[1], ctLargeDim.Value[0])
-		ring.CopyValues(ks.PoolQ[2], ctLargeDim.Value[1])
+		ks.SwitchKeysInPlace(paramsSmallDim.MaxLevel(), ctLargeDim.Value[1], swk, ks.Pool[1].Q, ks.Pool[2].Q)
+		ringQLargeDim.AddLvl(paramsSmallDim.MaxLevel(), ctLargeDim.Value[0], ks.Pool[1].Q, ctLargeDim.Value[0])
+		ring.CopyValues(ks.Pool[2].Q, ctLargeDim.Value[1])
 
 		//Extracts Coefficients
 		ctSmallDim := NewCiphertextNTT(paramsSmallDim, 1, paramsSmallDim.MaxLevel())
@@ -516,9 +518,9 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 		ring.MapSmallDimensionToLargerDimensionNTT(ctSmallDim.Value[1], ctLargeDim.Value[1])
 
 		ks := NewKeySwitcher(paramsLargeDim)
-		ks.SwitchKeysInPlace(ctLargeDim.Value[1].Level(), ctLargeDim.Value[1], swk, ks.PoolQ[1], ks.PoolQ[2])
-		ringQLargeDim.Add(ctLargeDim.Value[0], ks.PoolQ[1], ctLargeDim.Value[0])
-		ring.CopyValues(ks.PoolQ[2], ctLargeDim.Value[1])
+		ks.SwitchKeysInPlace(ctLargeDim.Value[1].Level(), ctLargeDim.Value[1], swk, ks.Pool[1].Q, ks.Pool[2].Q)
+		ringQLargeDim.Add(ctLargeDim.Value[0], ks.Pool[1].Q, ctLargeDim.Value[0])
+		ring.CopyValues(ks.Pool[2].Q, ctLargeDim.Value[1])
 
 		// Decrypts with smaller dimension key
 		ringQLargeDim.MulCoeffsMontgomeryAndAddLvl(ctLargeDim.Level(), ctLargeDim.Value[1], skLargeDim.Value.Q, ctLargeDim.Value[0])
@@ -566,7 +568,7 @@ func testMarshaller(kgen KeyGenerator, t *testing.T) {
 		err = skTest.UnmarshalBinary(marshalledSk)
 		require.NoError(t, err)
 
-		require.True(t, sk.Value.Equals(&skTest.Value))
+		require.True(t, sk.Value.Equals(skTest.Value))
 	})
 
 	t.Run(testString(params, "Marshaller/Pk/"), func(t *testing.T) {

@@ -191,7 +191,7 @@ func (swk *SwitchingKey) decode(data []byte) (pointer int, err error) {
 
 	pointer = 1
 
-	swk.Value = make([][2]ring.PolyQP, decomposition)
+	swk.Value = make([][2]PolyQP, decomposition)
 
 	var inc int
 

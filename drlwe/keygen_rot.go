@@ -18,14 +18,14 @@ type RotationKeyGenerator interface {
 
 // RTGShare is represent a Party's share in the RTG protocol
 type RTGShare struct {
-	Value []ring.PolyQP
+	Value []rlwe.PolyQP
 }
 
 // RTGProtocol is the structure storing the parameters for the collective rotation-keys generation.
 type RTGProtocol struct {
 	params           rlwe.Parameters
-	tmpPoly0         ring.PolyQP
-	tmpPoly1         ring.PolyQP
+	tmpPoly0         rlwe.PolyQP
+	tmpPoly1         rlwe.PolyQP
 	gaussianSamplerQ *ring.GaussianSampler
 }
 
@@ -39,19 +39,19 @@ func NewRTGProtocol(params rlwe.Parameters) *RTGProtocol {
 		panic(err)
 	}
 	rtg.gaussianSamplerQ = ring.NewGaussianSampler(prng, params.RingQ(), params.Sigma(), int(6*params.Sigma()))
-	rtg.tmpPoly0 = *params.RingQP().NewPoly()
-	rtg.tmpPoly1 = *params.RingQP().NewPoly()
+	rtg.tmpPoly0 = params.RingQP().NewPoly()
+	rtg.tmpPoly1 = params.RingQP().NewPoly()
 	return rtg
 }
 
 // AllocateShares allocates a party's share in the RTG protocol
 func (rtg *RTGProtocol) AllocateShares() (rtgShare *RTGShare, rtgCRP RTGCRP) {
 	rtgShare = new(RTGShare)
-	rtgShare.Value = make([]ring.PolyQP, rtg.params.Beta())
-	rtgCRP = make([]ring.PolyQP, rtg.params.Beta())
+	rtgShare.Value = make([]rlwe.PolyQP, rtg.params.Beta())
+	rtgCRP = make([]rlwe.PolyQP, rtg.params.Beta())
 	for i := range rtgShare.Value {
-		rtgShare.Value[i] = *rtg.params.RingQP().NewPoly()
-		rtgCRP[i] = *rtg.params.RingQP().NewPoly()
+		rtgShare.Value[i] = rtg.params.RingQP().NewPoly()
+		rtgCRP[i] = rtg.params.RingQP().NewPoly()
 	}
 	return
 }
@@ -62,6 +62,7 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, s
 	ringQ := rtg.params.RingQ()
 	ringP := rtg.params.RingP()
 	ringQP := rtg.params.RingQP()
+	levelQ := rtg.params.QCount() - 1
 	levelP := rtg.params.PCount() - 1
 
 	twoN := uint64(ringQ.N << 2)
@@ -78,9 +79,9 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, s
 
 		// e
 		rtg.gaussianSamplerQ.Read(shareOut.Value[i].Q)
-		ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value[i].Q, levelP, &shareOut.Value[i])
-		ringQP.NTTLazy(&shareOut.Value[i], &shareOut.Value[i])
-		ringQP.MForm(&shareOut.Value[i], &shareOut.Value[i])
+		ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value[i].Q, levelP, shareOut.Value[i])
+		ringQP.NTTLazyLvl(levelQ, levelP, shareOut.Value[i], shareOut.Value[i])
+		ringQP.MFormLvl(levelQ, levelP, shareOut.Value[i], shareOut.Value[i])
 
 		// a is the CRP
 
@@ -105,7 +106,7 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, s
 		}
 
 		// sk_in * (qiBarre*qiStar) * 2^w - a*sk + e
-		ringQP.MulCoeffsMontgomeryAndSub(&crp[i], &rtg.tmpPoly1, &shareOut.Value[i])
+		ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, crp[i], rtg.tmpPoly1, shareOut.Value[i])
 	}
 
 	return
@@ -113,16 +114,17 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, s
 
 // Aggregate aggregates two shares in the Rotation Key Generation protocol
 func (rtg *RTGProtocol) Aggregate(share1, share2, shareOut *RTGShare) {
+	ringQP, levelQ, levelP := rtg.params.RingQP(), rtg.params.QCount()-1, rtg.params.PCount()-1
 	for i := 0; i < rtg.params.Beta(); i++ {
-		rtg.params.RingQP().Add(&share1.Value[i], &share2.Value[i], &shareOut.Value[i])
+		ringQP.AddLvl(levelQ, levelP, share1.Value[i], share2.Value[i], shareOut.Value[i])
 	}
 }
 
 // GenRotationKey finalizes the RTG protocol and populates the input RotationKey with the computed collective SwitchingKey.
 func (rtg *RTGProtocol) GenRotationKey(share *RTGShare, crp RTGCRP, rotKey *rlwe.SwitchingKey) {
 	for i := 0; i < rtg.params.Beta(); i++ {
-		rotKey.Value[i][0].CopyValues(&share.Value[i])
-		rotKey.Value[i][1].CopyValues(&crp[i])
+		rotKey.Value[i][0].CopyValues(share.Value[i])
+		rotKey.Value[i][1].CopyValues(crp[i])
 	}
 }
 
@@ -147,7 +149,7 @@ func (share *RTGShare) MarshalBinary() (data []byte, err error) {
 
 // UnmarshalBinary decodes a slice of bytes on the target element.
 func (share *RTGShare) UnmarshalBinary(data []byte) (err error) {
-	share.Value = make([]ring.PolyQP, data[0])
+	share.Value = make([]rlwe.PolyQP, data[0])
 	ptr := 1
 	var inc int
 	for i := range share.Value {

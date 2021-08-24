@@ -31,10 +31,8 @@ type KeyGenerator interface {
 // as well as a small memory pool for intermediate values.
 type keyGenerator struct {
 	params           Parameters
-	ringQ            *ring.Ring
-	ringP            *ring.Ring
-	poolQ            [2]*ring.Poly // TODO: as PolyQP ?
-	poolP            [2]*ring.Poly
+	poolQ            *ring.Poly
+	poolQP           PolyQP
 	gaussianSamplerQ *ring.GaussianSampler
 	uniformSamplerQ  *ring.UniformSampler
 	uniformSamplerP  *ring.UniformSampler
@@ -44,9 +42,6 @@ type keyGenerator struct {
 // rotation and switching keys can be generated.
 func NewKeyGenerator(params Parameters) KeyGenerator {
 
-	ringQ := params.RingQ()
-	ringP := params.RingP()
-
 	prng, err := utils.NewPRNG()
 	if err != nil {
 		panic(err)
@@ -54,24 +49,23 @@ func NewKeyGenerator(params Parameters) KeyGenerator {
 
 	return &keyGenerator{
 		params:           params,
-		ringQ:            ringQ,
-		ringP:            ringP,
-		poolQ:            [2]*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly()},
-		poolP:            [2]*ring.Poly{ringP.NewPoly(), ringP.NewPoly()},
-		gaussianSamplerQ: ring.NewGaussianSampler(prng, ringQ, params.Sigma(), int(6*params.Sigma())),
-		uniformSamplerQ:  ring.NewUniformSampler(prng, ringQ),
-		uniformSamplerP:  ring.NewUniformSampler(prng, ringP),
+		poolQ:            params.RingQ().NewPoly(),
+		poolQP:           params.RingQP().NewPoly(),
+		gaussianSamplerQ: ring.NewGaussianSampler(prng, params.RingQ(), params.Sigma(), int(6*params.Sigma())),
+		uniformSamplerQ:  ring.NewUniformSampler(prng, params.RingQ()),
+		uniformSamplerP:  ring.NewUniformSampler(prng, params.RingP()),
 	}
 }
 
 func (keygen *keyGenerator) genSecretKeyFromSampler(sampler ring.Sampler) *SecretKey {
-	ringQP := keygen.params.ringQP
+	ringQP := keygen.params.RingQP()
 	sk := new(SecretKey)
-	sk.Value = *ringQP.NewPoly()
+	sk.Value = ringQP.NewPoly()
+	levelQ, levelP := keygen.params.QCount()-1, keygen.params.PCount()-1
 	sampler.Read(sk.Value.Q)
-	ringQP.ExtendBasisSmallNormAndCenter(sk.Value.Q, keygen.params.PCount()-1, &sk.Value)
-	ringQP.NTT(&sk.Value, &sk.Value)
-	ringQP.MForm(&sk.Value, &sk.Value)
+	ringQP.ExtendBasisSmallNormAndCenter(sk.Value.Q, levelP, sk.Value)
+	ringQP.NTTLvl(levelQ, levelP, sk.Value, sk.Value)
+	ringQP.MFormLvl(levelQ, levelP, sk.Value, sk.Value)
 	return sk
 }
 
@@ -90,7 +84,7 @@ func (keygen *keyGenerator) GenSecretKeyWithDistrib(p float64) (sk *SecretKey) {
 	if err != nil {
 		panic(err)
 	}
-	ternarySamplerMontgomery := ring.NewTernarySampler(prng, keygen.ringQ, p, false)
+	ternarySamplerMontgomery := ring.NewTernarySampler(prng, keygen.params.RingQ(), p, false)
 	return keygen.genSecretKeyFromSampler(ternarySamplerMontgomery)
 }
 
@@ -100,7 +94,7 @@ func (keygen *keyGenerator) GenSecretKeySparse(hw int) (sk *SecretKey) {
 	if err != nil {
 		panic(err)
 	}
-	ternarySamplerMontgomery := ring.NewTernarySamplerSparse(prng, keygen.ringQ, hw, false)
+	ternarySamplerMontgomery := ring.NewTernarySamplerSparse(prng, keygen.params.RingQ(), hw, false)
 	return keygen.genSecretKeyFromSampler(ternarySamplerMontgomery)
 }
 
@@ -108,19 +102,20 @@ func (keygen *keyGenerator) GenSecretKeySparse(hw int) (sk *SecretKey) {
 func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 
 	pk = new(PublicKey)
-	ringQP := keygen.params.ringQP
+	ringQP := keygen.params.RingQP()
+	levelQ, levelP := keygen.params.QCount()-1, keygen.params.PCount()-1
 
 	//pk[0] = [-as + e]
 	//pk[1] = [a]
 	pk = NewPublicKey(keygen.params)
 	keygen.gaussianSamplerQ.Read(pk.Value[0].Q)
-	ringQP.ExtendBasisSmallNormAndCenter(pk.Value[0].Q, keygen.params.PCount()-1, &pk.Value[0])
-	ringQP.NTT(&pk.Value[0], &pk.Value[0])
+	ringQP.ExtendBasisSmallNormAndCenter(pk.Value[0].Q, levelP, pk.Value[0])
+	ringQP.NTTLvl(levelQ, levelP, pk.Value[0], pk.Value[0])
 
 	keygen.uniformSamplerQ.Read(pk.Value[1].Q)
 	keygen.uniformSamplerP.Read(pk.Value[1].P)
 
-	ringQP.MulCoeffsMontgomeryAndSub(&sk.Value, &pk.Value[1], &pk.Value[0])
+	ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, sk.Value, pk.Value[1], pk.Value[0])
 	return pk
 }
 
@@ -139,7 +134,7 @@ func (keygen *keyGenerator) GenKeyPairSparse(hw int) (sk *SecretKey, pk *PublicK
 // GenRelinKey generates a new EvaluationKey that will be used to relinearize Ciphertexts during multiplication.
 func (keygen *keyGenerator) GenRelinearizationKey(sk *SecretKey, maxDegree int) (evk *RelinearizationKey) {
 
-	if keygen.ringP == nil {
+	if keygen.params.PCount() == 0 {
 		panic("modulus P is empty")
 	}
 
@@ -152,11 +147,11 @@ func (keygen *keyGenerator) GenRelinearizationKey(sk *SecretKey, maxDegree int) 
 		evk.Keys[i] = NewSwitchingKey(keygen.params, levelQ, levelP)
 	}
 
-	keygen.poolQ[1].CopyValues(sk.Value.Q)
-	keygen.poolP[1].CopyValues(sk.Value.P)
+	keygen.poolQP.Q.CopyValues(sk.Value.Q)
+	ringQ := keygen.params.RingQ()
 	for i := 0; i < maxDegree; i++ {
-		keygen.ringQ.MulCoeffsMontgomery(keygen.poolQ[1], sk.Value.Q, keygen.poolQ[1])
-		keygen.genSwitchingKey(keygen.poolQ[1], &sk.Value, evk.Keys[i])
+		ringQ.MulCoeffsMontgomery(keygen.poolQP.Q, sk.Value.Q, keygen.poolQP.Q)
+		keygen.genSwitchingKey(keygen.poolQP.Q, sk.Value, evk.Keys[i])
 	}
 
 	return
@@ -167,7 +162,7 @@ func (keygen *keyGenerator) GenRelinearizationKey(sk *SecretKey, maxDegree int) 
 func (keygen *keyGenerator) GenRotationKeys(galEls []uint64, sk *SecretKey) (rks *RotationKeySet) {
 	rks = NewRotationKeySet(keygen.params, galEls)
 	for _, galEl := range galEls {
-		keygen.genrotKey(&sk.Value, keygen.params.InverseGaloisElement(galEl), rks.Keys[galEl])
+		keygen.genrotKey(sk.Value, keygen.params.InverseGaloisElement(galEl), rks.Keys[galEl])
 	}
 	return rks
 }
@@ -175,7 +170,7 @@ func (keygen *keyGenerator) GenRotationKeys(galEls []uint64, sk *SecretKey) (rks
 func (keygen *keyGenerator) GenSwitchingKeyForRotationBy(k int, sk *SecretKey) (swk *SwitchingKey) {
 	swk = NewSwitchingKey(keygen.params, keygen.params.QCount()-1, keygen.params.PCount()-1)
 	galElInv := keygen.params.GaloisElementForColumnRotationBy(-int(k))
-	keygen.genrotKey(&sk.Value, galElInv, swk)
+	keygen.genrotKey(sk.Value, galElInv, swk)
 	return
 }
 
@@ -195,13 +190,13 @@ func (keygen *keyGenerator) GenRotationKeysForRotations(ks []int, includeConjuga
 
 func (keygen *keyGenerator) GenSwitchingKeyForRowRotation(sk *SecretKey) (swk *SwitchingKey) {
 	swk = NewSwitchingKey(keygen.params, keygen.params.QCount()-1, keygen.params.PCount()-1)
-	keygen.genrotKey(&sk.Value, keygen.params.GaloisElementForRowRotation(), swk)
+	keygen.genrotKey(sk.Value, keygen.params.GaloisElementForRowRotation(), swk)
 	return
 }
 
 func (keygen *keyGenerator) GenSwitchingKeyForGalois(galoisEl uint64, sk *SecretKey) (swk *SwitchingKey) {
 	swk = NewSwitchingKey(keygen.params, keygen.params.QCount()-1, keygen.params.PCount()-1)
-	keygen.genrotKey(&sk.Value, keygen.params.InverseGaloisElement(galoisEl), swk)
+	keygen.genrotKey(sk.Value, keygen.params.InverseGaloisElement(galoisEl), swk)
 	return
 }
 
@@ -210,12 +205,12 @@ func (keygen *keyGenerator) GenRotationKeysForInnerSum(sk *SecretKey) (rks *Rota
 	return keygen.GenRotationKeys(keygen.params.GaloisElementsForRowInnerSum(), sk)
 }
 
-func (keygen *keyGenerator) genrotKey(sk *ring.PolyQP, galEl uint64, swk *SwitchingKey) {
+func (keygen *keyGenerator) genrotKey(sk PolyQP, galEl uint64, swk *SwitchingKey) {
 
 	skIn := sk
-	skOut := &ring.PolyQP{Q: keygen.poolQ[1], P: keygen.poolP[1]}
+	skOut := keygen.poolQP
 
-	index := ring.PermuteNTTIndex(galEl, uint64(keygen.ringQ.N))
+	index := ring.PermuteNTTIndex(galEl, uint64(keygen.params.N()))
 	ring.PermuteNTTWithIndexLvl(keygen.params.QCount()-1, skIn.Q, index, skOut.Q)
 	ring.PermuteNTTWithIndexLvl(keygen.params.PCount()-1, skIn.P, index, skOut.P)
 
@@ -241,27 +236,26 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *
 	// n -> N
 	if len(skInput.Value.Q.Coeffs[0]) > len(skOutput.Value.Q.Coeffs[0]) {
 
-		ring.MapSmallDimensionToLargerDimensionNTT(skOutput.Value.Q, keygen.poolQ[1])
-		ring.MapSmallDimensionToLargerDimensionNTT(skOutput.Value.P, keygen.poolP[1])
-		keygen.genSwitchingKey(skInput.Value.Q, &ring.PolyQP{Q: keygen.poolQ[1], P: keygen.poolP[1]}, swk)
-
+		ring.MapSmallDimensionToLargerDimensionNTT(skOutput.Value.Q, keygen.poolQP.Q)
+		ring.MapSmallDimensionToLargerDimensionNTT(skOutput.Value.P, keygen.poolQP.P)
+		keygen.genSwitchingKey(skInput.Value.Q, keygen.poolQP, swk)
 		// N -> N or N -> n
 	} else {
 
-		ring.MapSmallDimensionToLargerDimensionNTT(skInput.Value.Q, keygen.poolQ[1])
+		ring.MapSmallDimensionToLargerDimensionNTT(skInput.Value.Q, keygen.poolQ)
 
 		if skInput.Value.Q.Level() < skOutput.Value.Q.Level() {
 
-			ringQ := keygen.ringQ
+			ringQ := keygen.params.RingQ()
 
-			ringQ.InvNTTLvl(0, keygen.poolQ[1], keygen.poolQ[0])
-			ringQ.InvMFormLvl(0, keygen.poolQ[0], keygen.poolQ[0])
+			ringQ.InvNTTLvl(0, keygen.poolQ, keygen.poolQP.Q)
+			ringQ.InvMFormLvl(0, keygen.poolQP.Q, keygen.poolQP.Q)
 
-			Q := keygen.ringQ.Modulus[0]
+			Q := ringQ.Modulus[0]
 			QHalf := Q >> 1
 
-			polQ := keygen.poolQ[0]
-			polP := keygen.poolQ[1]
+			polQ := keygen.poolQP.Q
+			polP := keygen.poolQ
 			var sign uint64
 			for j := 0; j < ringQ.N; j++ {
 
@@ -284,33 +278,33 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *
 			}
 		}
 
-		keygen.genSwitchingKey(keygen.poolQ[1], &skOutput.Value, swk)
+		keygen.genSwitchingKey(keygen.poolQ, skOutput.Value, swk)
 	}
 
 	return
 }
 
-func (keygen *keyGenerator) genSwitchingKey(skIn *ring.Poly, skOut *ring.PolyQP, swk *SwitchingKey) {
+func (keygen *keyGenerator) genSwitchingKey(skIn *ring.Poly, skOut PolyQP, swk *SwitchingKey) {
 
-	ringQ := keygen.ringQ
-	ringP := keygen.ringP
-	ringQP := keygen.params.ringQP
+	ringQ := keygen.params.RingQ()
+	ringQP := keygen.params.RingQP()
 
 	levelQ := len(swk.Value[0][0].Q.Coeffs) - 1
 	levelP := len(swk.Value[0][0].P.Coeffs) - 1
 
 	var pBigInt *big.Int
 	if levelP == keygen.params.PCount()-1 {
-		pBigInt = ringP.ModulusBigint
+		pBigInt = keygen.params.RingP().ModulusBigint
 	} else {
-		pBigInt = new(big.Int).SetUint64(ringP.Modulus[0])
+		P := keygen.params.RingP().Modulus
+		pBigInt = new(big.Int).SetUint64(P[0])
 		for i := 1; i < levelP+1; i++ {
-			pBigInt.Mul(pBigInt, ring.NewUint(ringP.Modulus[i]))
+			pBigInt.Mul(pBigInt, ring.NewUint(P[i]))
 		}
 	}
 
 	// Computes P * skIn
-	ringQ.MulScalarBigintLvl(levelQ, skIn, pBigInt, keygen.poolQ[0])
+	ringQ.MulScalarBigintLvl(levelQ, skIn, pBigInt, keygen.poolQ)
 
 	alpha := levelP + 1
 	beta := int(math.Ceil(float64(levelQ+1) / float64(levelP+1)))
@@ -320,11 +314,9 @@ func (keygen *keyGenerator) genSwitchingKey(skIn *ring.Poly, skOut *ring.PolyQP,
 
 		// e
 		keygen.gaussianSamplerQ.ReadLvl(levelQ, swk.Value[i][0].Q)
-		ringQP.ExtendBasisSmallNormAndCenter(swk.Value[i][0].Q, levelP, &swk.Value[i][0])
-		ringQ.NTTLazyLvl(levelQ, swk.Value[i][0].Q, swk.Value[i][0].Q)
-		ringP.NTTLazyLvl(levelP, swk.Value[i][0].P, swk.Value[i][0].P)
-		ringQ.MFormLvl(levelQ, swk.Value[i][0].Q, swk.Value[i][0].Q)
-		ringP.MFormLvl(levelP, swk.Value[i][0].P, swk.Value[i][0].P)
+		ringQP.ExtendBasisSmallNormAndCenter(swk.Value[i][0].Q, levelP, swk.Value[i][0])
+		ringQP.NTTLazyLvl(levelQ, levelP, swk.Value[i][0], swk.Value[i][0])
+		ringQP.MFormLvl(levelQ, levelP, swk.Value[i][0], swk.Value[i][0])
 
 		// a (since a is uniform, we consider we already sample it in the NTT and Montgomery domain)
 		keygen.uniformSamplerQ.ReadLvl(levelQ, swk.Value[i][1].Q)
@@ -347,7 +339,7 @@ func (keygen *keyGenerator) genSwitchingKey(skIn *ring.Poly, skOut *ring.PolyQP,
 			}
 
 			qi := ringQ.Modulus[index]
-			p0tmp := keygen.poolQ[0].Coeffs[index]
+			p0tmp := keygen.poolQ.Coeffs[index]
 			p1tmp := swk.Value[i][0].Q.Coeffs[index]
 
 			for w := 0; w < ringQ.N; w++ {
@@ -356,7 +348,6 @@ func (keygen *keyGenerator) genSwitchingKey(skIn *ring.Poly, skOut *ring.PolyQP,
 		}
 
 		// (skIn * P) * (q_star * q_tild) - a * skOut + e mod QP
-		ringQ.MulCoeffsMontgomeryAndSubLvl(levelQ, swk.Value[i][1].Q, skOut.Q, swk.Value[i][0].Q)
-		ringP.MulCoeffsMontgomeryAndSubLvl(levelP, swk.Value[i][1].P, skOut.P, swk.Value[i][0].P)
+		ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, swk.Value[i][1], skOut, swk.Value[i][0])
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"math/bits"
 
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
@@ -352,11 +353,11 @@ func polyToFloatNoCRT(coeffs []uint64, values []float64, scale float64, Q uint64
 // PtDiagMatrix is a struct storing a plaintext diagonalized matrix
 // ready to be evaluated on a ciphertext using evaluator.MultiplyByDiagMatrice.
 type PtDiagMatrix struct {
-	LogSlots   int                   // Log of the number of slots of the plaintext (needed to compute the appropriate rotation keys)
-	N1         int                   // N1 is the number of inner loops of the baby-step giant-step algo used in the evaluation.
-	Level      int                   // Level is the level at which the matrix is encoded (can be circuit dependant)
-	Scale      float64               // Scale is the scale at which the matrix is encoded (can be circuit dependant)
-	Vec        map[int][2]*ring.Poly // Vec is the matrix, in diagonal form, where each entry of vec is an indexed non zero diagonal.
+	LogSlots   int                 // Log of the number of slots of the plaintext (needed to compute the appropriate rotation keys)
+	N1         int                 // N1 is the number of inner loops of the baby-step giant-step algo used in the evaluation.
+	Level      int                 // Level is the level at which the matrix is encoded (can be circuit dependant)
+	Scale      float64             // Scale is the scale at which the matrix is encoded (can be circuit dependant)
+	Vec        map[int]rlwe.PolyQP // Vec is the matrix, in diagonal form, where each entry of vec is an indexed non zero diagonal.
 	Naive      bool
 	isGaussian bool // Each diagonal of the matrix is of the form [k, ..., k] for k a gaussian integer
 }
@@ -393,7 +394,7 @@ func bsgsIndex(el interface{}, slots, N1 int) (index map[int][]int, rotations []
 				rotations = append(rotations, idx2)
 			}
 		}
-	case map[int][2]*ring.Poly:
+	case map[int]rlwe.PolyQP:
 		for key := range element {
 			key &= (slots - 1)
 			idx1 := key / N1
@@ -441,7 +442,7 @@ func (encoder *encoderComplex128) EncodeDiagMatrixBSGSAtLvl(level int, diagMatri
 
 	index, _ := bsgsIndex(diagMatrix, slots, n1)
 
-	vec := make(map[int][2]*ring.Poly)
+	vec := make(map[int]rlwe.PolyQP)
 
 	for j := range index {
 
@@ -480,7 +481,7 @@ func rotate(x []complex128, n int) (y []complex128) {
 // Faster if there is only a few non-zero diagonals but uses more keys.
 func (encoder *encoderComplex128) EncodeDiagMatrixAtLvl(level int, diagMatrix map[int][]complex128, scale float64, logSlots int) (matrix PtDiagMatrix) {
 
-	vec := make(map[int][2]*ring.Poly)
+	vec := make(map[int]rlwe.PolyQP)
 	slots := 1 << logSlots
 	for i := range diagMatrix {
 
@@ -494,26 +495,23 @@ func (encoder *encoderComplex128) EncodeDiagMatrixAtLvl(level int, diagMatrix ma
 	return PtDiagMatrix{LogSlots: logSlots, N1: 0, Vec: vec, Level: level, Scale: scale, Naive: true}
 }
 
-func (encoder *encoderComplex128) encodeDiagonal(logSlots, level int, scale float64, m []complex128) [2]*ring.Poly {
+func (encoder *encoderComplex128) encodeDiagonal(logSlots, level int, scale float64, m []complex128) (vecQP rlwe.PolyQP) {
 
-	ringQ := encoder.params.RingQ()
-	ringP := encoder.params.RingP()
+	levelQ := level
+	levelP := encoder.params.PCount() - 1
+	ringQP := encoder.params.RingQP()
 
 	encoder.Embed(m, logSlots)
 
-	mQ := ringQ.NewPolyLvl(level + 1)
-	encoder.ScaleUp(mQ, scale, ringQ.Modulus[:level+1])
-	ringQ.NTTLvl(level, mQ, mQ)
-	ringQ.MFormLvl(level, mQ, mQ)
-
-	mP := ringP.NewPoly()
-	encoder.ScaleUp(mP, scale, ringP.Modulus)
-	ringP.NTT(mP, mP)
-	ringP.MForm(mP, mP)
+	vecQP = ringQP.NewPolyLvl(levelQ, levelP)
+	encoder.ScaleUp(vecQP.Q, scale, encoder.params.RingQ().Modulus[:level+1])
+	encoder.ScaleUp(vecQP.P, scale, encoder.params.RingP().Modulus)
+	ringQP.NTTLvl(levelQ, levelP, vecQP, vecQP)
+	ringQP.MFormLvl(levelQ, levelP, vecQP, vecQP)
 
 	encoder.WipeInternalMemory()
 
-	return [2]*ring.Poly{mQ, mP}
+	return
 }
 
 // FindBestBSGSSplit finds the best N1*N2 = N for the baby-step giant-step algorithm for matrix multiplication.

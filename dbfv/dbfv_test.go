@@ -118,11 +118,12 @@ func gentestContext(params bfv.Parameters) (testCtx *testContext, err error) {
 	testCtx.sk0 = bfv.NewSecretKey(testCtx.params)
 	testCtx.sk1 = bfv.NewSecretKey(testCtx.params)
 
+	ringQP, levelQ, levelP := params.RingQP(), params.QCount()-1, params.PCount()-1
 	for j := 0; j < parties; j++ {
 		testCtx.sk0Shards[j] = kgen.GenSecretKey()
 		testCtx.sk1Shards[j] = kgen.GenSecretKey()
-		testCtx.params.RingQP().Add(&testCtx.sk0.Value, &testCtx.sk0Shards[j].Value, &testCtx.sk0.Value)
-		testCtx.params.RingQP().Add(&testCtx.sk1.Value, &testCtx.sk1Shards[j].Value, &testCtx.sk1.Value)
+		ringQP.AddLvl(levelQ, levelP, testCtx.sk0.Value, testCtx.sk0Shards[j].Value, testCtx.sk0.Value)
+		ringQP.AddLvl(levelQ, levelP, testCtx.sk1.Value, testCtx.sk1Shards[j].Value, testCtx.sk1.Value)
 	}
 
 	// Publickeys

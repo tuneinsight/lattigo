@@ -98,8 +98,8 @@ type Evaluator interface {
 
 	// Linear Transformations
 	LinearTransform(ctIn *Ciphertext, linearTransform interface{}) (ctOut []*Ciphertext)
-	MultiplyByDiagMatrix(ctIn *Ciphertext, matrix PtDiagMatrix, c2QiQDecomp, c2QiPDecomp []*ring.Poly, ctOut *Ciphertext)
-	MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix PtDiagMatrix, c2QiQDecomp, c2QiPDecomp []*ring.Poly, ctOut *Ciphertext)
+	MultiplyByDiagMatrix(ctIn *Ciphertext, matrix PtDiagMatrix, c2DecompQP []rlwe.PolyQP, ctOut *Ciphertext)
+	MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix PtDiagMatrix, c2DecompQP []rlwe.PolyQP, ctOut *Ciphertext)
 
 	// Inner sum
 	InnerSumLog(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
@@ -1418,9 +1418,9 @@ func (eval *evaluator) mulRelin(op0, op1 Operand, relin bool, ctOut *Ciphertext)
 
 		if relin {
 			c2.IsNTT = true
-			eval.SwitchKeysInPlace(level, c2, eval.rlk.Keys[0], eval.PoolQ[1], eval.PoolQ[2])
-			ringQ.AddLvl(level, c0, eval.PoolQ[1], ctOut.Value[0])
-			ringQ.AddLvl(level, c1, eval.PoolQ[2], ctOut.Value[1])
+			eval.SwitchKeysInPlace(level, c2, eval.rlk.Keys[0], eval.Pool[1].Q, eval.Pool[2].Q)
+			ringQ.AddLvl(level, c0, eval.Pool[1].Q, ctOut.Value[0])
+			ringQ.AddLvl(level, c1, eval.Pool[2].Q, ctOut.Value[1])
 		}
 
 		// Case Plaintext (x) Ciphertext or Ciphertext (x) Plaintext
@@ -1465,10 +1465,10 @@ func (eval *evaluator) Relinearize(ct0 *Ciphertext, ctOut *Ciphertext) {
 	level := utils.MinInt(ct0.Level(), ctOut.Level())
 	ringQ := eval.params.RingQ()
 
-	eval.SwitchKeysInPlace(level, ct0.Value[2], eval.rlk.Keys[0], eval.PoolQ[1], eval.PoolQ[2])
+	eval.SwitchKeysInPlace(level, ct0.Value[2], eval.rlk.Keys[0], eval.Pool[1].Q, eval.Pool[2].Q)
 
-	ringQ.AddLvl(level, ct0.Value[0], eval.PoolQ[1], ctOut.Value[0])
-	ringQ.AddLvl(level, ct0.Value[1], eval.PoolQ[2], ctOut.Value[1])
+	ringQ.AddLvl(level, ct0.Value[0], eval.Pool[1].Q, ctOut.Value[0])
+	ringQ.AddLvl(level, ct0.Value[1], eval.Pool[2].Q, ctOut.Value[1])
 
 	ctOut.El().Resize(eval.params.Parameters, 1)
 }
@@ -1496,10 +1496,10 @@ func (eval *evaluator) SwitchKeys(ct0 *Ciphertext, switchingKey *rlwe.SwitchingK
 
 	ctOut.Scale = ct0.Scale
 
-	eval.SwitchKeysInPlace(level, ct0.Value[1], switchingKey, eval.PoolQ[1], eval.PoolQ[2])
+	eval.SwitchKeysInPlace(level, ct0.Value[1], switchingKey, eval.Pool[1].Q, eval.Pool[2].Q)
 
-	ringQ.AddLvl(level, ct0.Value[0], eval.PoolQ[1], ctOut.Value[0])
-	ring.CopyValuesLvl(level, eval.PoolQ[2], ctOut.Value[1])
+	ringQ.AddLvl(level, ct0.Value[0], eval.Pool[1].Q, ctOut.Value[0])
+	ring.CopyValuesLvl(level, eval.Pool[2].Q, ctOut.Value[1])
 }
 
 // RotateNew rotates the columns of ct0 by k positions to the left, and returns the result in a newly created element.
@@ -1561,8 +1561,8 @@ func (eval *evaluator) permuteNTT(ct0 *Ciphertext, galEl uint64, ctOut *Cipherte
 
 	level := utils.MinInt(ct0.Level(), ctOut.Level())
 	index := eval.permuteNTTIndex[galEl]
-	pool2Q := eval.PoolQ[1]
-	pool3Q := eval.PoolQ[2]
+	pool2Q := eval.Pool[1].Q
+	pool3Q := eval.Pool[2].Q
 
 	eval.SwitchKeysInPlace(level, ct0.Value[1], rtk, pool2Q, pool3Q)
 
@@ -1572,7 +1572,7 @@ func (eval *evaluator) permuteNTT(ct0 *Ciphertext, galEl uint64, ctOut *Cipherte
 	ring.PermuteNTTWithIndexLvl(level, pool3Q, index, ctOut.Value[1])
 }
 
-func (eval *evaluator) rotateHoistedNoModDown(ct0 *Ciphertext, rotations []int, c2QiQDecomp, c2QiPDecomp []*ring.Poly) (cOutQ, cOutP map[int][2]*ring.Poly) {
+func (eval *evaluator) rotateHoistedNoModDown(ct0 *Ciphertext, rotations []int, c2DecompQP []rlwe.PolyQP) (cOutQ, cOutP map[int][2]*ring.Poly) {
 
 	ringQ := eval.params.RingQ()
 	ringP := eval.params.RingP()
@@ -1588,20 +1588,20 @@ func (eval *evaluator) rotateHoistedNoModDown(ct0 *Ciphertext, rotations []int, 
 			cOutQ[i] = [2]*ring.Poly{ringQ.NewPolyLvl(level), ringQ.NewPolyLvl(level)}
 			cOutP[i] = [2]*ring.Poly{ringP.NewPoly(), ringP.NewPoly()}
 
-			eval.permuteNTTHoistedNoModDown(level, c2QiQDecomp, c2QiPDecomp, i, cOutQ[i][0], cOutQ[i][1], cOutP[i][0], cOutP[i][1])
+			eval.permuteNTTHoistedNoModDown(level, c2DecompQP, i, cOutQ[i][0], cOutQ[i][1], cOutP[i][0], cOutP[i][1])
 		}
 	}
 
 	return
 }
 
-func (eval *evaluator) permuteNTTHoistedNoModDown(level int, c2QiQDecomp, c2QiPDecomp []*ring.Poly, k int, ct0OutQ, ct1OutQ, ct0OutP, ct1OutP *ring.Poly) {
+func (eval *evaluator) permuteNTTHoistedNoModDown(level int, c2DecompQP []rlwe.PolyQP, k int, ct0OutQ, ct1OutQ, ct0OutP, ct1OutP *ring.Poly) {
 
-	pool2Q := eval.PoolQ[0]
-	pool3Q := eval.PoolQ[1]
+	pool2Q := eval.Pool[0].Q
+	pool3Q := eval.Pool[1].Q
 
-	pool2P := eval.PoolP[0]
-	pool3P := eval.PoolP[1]
+	pool2P := eval.Pool[0].P
+	pool3P := eval.Pool[1].P
 
 	levelQ := level
 	levelP := eval.params.PCount() - 1
@@ -1615,7 +1615,7 @@ func (eval *evaluator) permuteNTTHoistedNoModDown(level int, c2QiQDecomp, c2QiPD
 	}
 	index := eval.permuteNTTIndex[galEl]
 
-	eval.KeyswitchHoistedNoModDown(levelQ, c2QiQDecomp, c2QiPDecomp, rtk, pool2Q, pool3Q, pool2P, pool3P)
+	eval.KeyswitchHoistedNoModDown(levelQ, c2DecompQP, rtk, pool2Q, pool3Q, pool2P, pool3P)
 
 	ring.PermuteNTTWithIndexLvl(levelQ, pool2Q, index, ct0OutQ)
 	ring.PermuteNTTWithIndexLvl(levelQ, pool3Q, index, ct1OutQ)
@@ -1624,7 +1624,7 @@ func (eval *evaluator) permuteNTTHoistedNoModDown(level int, c2QiQDecomp, c2QiPD
 	ring.PermuteNTTWithIndexLvl(levelP, pool3P, index, ct1OutP)
 }
 
-func (eval *evaluator) permuteNTTHoisted(level int, c0, c1 *ring.Poly, c2QiQDecomp, c2QiPDecomp []*ring.Poly, k int, cOut0, cOut1 *ring.Poly) {
+func (eval *evaluator) permuteNTTHoisted(level int, c0, c1 *ring.Poly, c2DecompQP []rlwe.PolyQP, k int, cOut0, cOut1 *ring.Poly) {
 
 	if k == 0 {
 		cOut0.Copy(c0)
@@ -1640,13 +1640,13 @@ func (eval *evaluator) permuteNTTHoisted(level int, c0, c1 *ring.Poly, c2QiQDeco
 
 	index := eval.permuteNTTIndex[galEl]
 
-	pool2Q := eval.PoolQ[0]
-	pool3Q := eval.PoolQ[1]
+	pool2Q := eval.Pool[0].Q
+	pool3Q := eval.Pool[1].Q
 
-	pool2P := eval.PoolP[0]
-	pool3P := eval.PoolP[1]
+	pool2P := eval.Pool[0].P
+	pool3P := eval.Pool[1].P
 
-	eval.KeyswitchHoisted(level, c2QiQDecomp, c2QiPDecomp, rtk, pool2Q, pool3Q, pool2P, pool3P)
+	eval.KeyswitchHoisted(level, c2DecompQP, rtk, pool2Q, pool3Q, pool2P, pool3P)
 
 	eval.params.RingQ().AddLvl(level, pool2Q, c0, pool2Q)
 

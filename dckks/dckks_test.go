@@ -120,11 +120,12 @@ func genTestParams(defaultParams ckks.Parameters) (testCtx *testContext, err err
 	testCtx.sk0 = ckks.NewSecretKey(testCtx.params)
 	testCtx.sk1 = ckks.NewSecretKey(testCtx.params)
 
+	ringQP, levelQ, levelP := defaultParams.RingQP(), defaultParams.QCount()-1, defaultParams.PCount()-1
 	for j := 0; j < parties; j++ {
 		testCtx.sk0Shards[j] = kgen.GenSecretKey()
 		testCtx.sk1Shards[j] = kgen.GenSecretKey()
-		testCtx.params.RingQP().Add(&testCtx.sk0.Value, &testCtx.sk0Shards[j].Value, &testCtx.sk0.Value)
-		testCtx.params.RingQP().Add(&testCtx.sk1.Value, &testCtx.sk1Shards[j].Value, &testCtx.sk1.Value)
+		ringQP.AddLvl(levelQ, levelP, testCtx.sk0.Value, testCtx.sk0Shards[j].Value, testCtx.sk0.Value)
+		ringQP.AddLvl(levelQ, levelP, testCtx.sk1.Value, testCtx.sk1Shards[j].Value, testCtx.sk1.Value)
 	}
 
 	// Publickeys

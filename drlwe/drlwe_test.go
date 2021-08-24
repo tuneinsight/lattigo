@@ -44,8 +44,9 @@ func newTestContext(params rlwe.Parameters) testContext {
 	sk1 := kgen.GenSecretKey()
 	sk2 := kgen.GenSecretKey()
 	skIdeal := sk0.CopyNew()
-	params.RingQP().Add(&skIdeal.Value, &sk1.Value, &skIdeal.Value)
-	params.RingQP().Add(&skIdeal.Value, &sk2.Value, &skIdeal.Value)
+	levelQ, levelP := params.QCount()-1, params.PCount()-1
+	params.RingQP().AddLvl(levelQ, levelP, skIdeal.Value, sk1.Value, skIdeal.Value)
+	params.RingQP().AddLvl(levelQ, levelP, skIdeal.Value, sk2.Value, skIdeal.Value)
 
 	crpGenerator, _ := NewUniformSampler([]byte{}, params)
 
@@ -92,6 +93,7 @@ func testPublicKeyGen(testCtx testContext, t *testing.T) {
 	ringQ := params.RingQ()
 	ringP := params.RingP()
 	ringQP := params.RingQP()
+	levelQ, levelP := params.QCount()-1, params.PCount()-1
 
 	t.Run(testString(params, "PublicKeyGen/"), func(t *testing.T) {
 
@@ -114,8 +116,8 @@ func testPublicKeyGen(testCtx testContext, t *testing.T) {
 		ckg.GenPublicKey(share0, crp, pk)
 
 		// [-as + e] + [as]
-		params.RingQP().MulCoeffsMontgomeryAndAdd(&testCtx.skIdeal.Value, &pk.Value[1], &pk.Value[0])
-		ringQP.InvNTT(&pk.Value[0], &pk.Value[0])
+		ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, testCtx.skIdeal.Value, pk.Value[1], pk.Value[0])
+		ringQP.InvNTTLvl(levelQ, levelP, pk.Value[0], pk.Value[0])
 
 		log2Bound := bits.Len64(3 * uint64(math.Floor(rlwe.DefaultSigma*6)) * uint64(params.N()))
 		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(pk.Value[0].Q.Level(), ringQ, pk.Value[0].Q))
@@ -127,6 +129,8 @@ func testKeySwitching(testCtx testContext, t *testing.T) {
 
 	params := testCtx.params
 	ringQ := params.RingQ()
+	ringQP := params.RingQP()
+	levelQ, levelP := params.QCount()-1, params.PCount()-1
 	t.Run(testString(params, "KeySwitching/"), func(t *testing.T) {
 
 		sk0Out := testCtx.kgen.GenSecretKey()
@@ -134,8 +138,8 @@ func testKeySwitching(testCtx testContext, t *testing.T) {
 		sk2Out := testCtx.kgen.GenSecretKey()
 
 		skOutIdeal := sk0Out.CopyNew()
-		params.RingQP().Add(&skOutIdeal.Value, &sk1Out.Value, &skOutIdeal.Value)
-		params.RingQP().Add(&skOutIdeal.Value, &sk2Out.Value, &skOutIdeal.Value)
+		ringQP.AddLvl(levelQ, levelP, skOutIdeal.Value, sk1Out.Value, skOutIdeal.Value)
+		ringQP.AddLvl(levelQ, levelP, skOutIdeal.Value, sk2Out.Value, skOutIdeal.Value)
 
 		ciphertext := &rlwe.Ciphertext{Value: []*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly()}}
 		testCtx.crpGenerator.Read(ciphertext.Value[1])
@@ -215,6 +219,7 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 	ringQ := params.RingQ()
 	ringP := params.RingP()
 	ringQP := params.RingQP()
+	levelQ, levelP := params.QCount()-1, params.PCount()-1
 
 	t.Run(testString(params, "RelinKeyGen/"), func(t *testing.T) {
 
@@ -245,23 +250,23 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 
 		skIn := testCtx.skIdeal.CopyNew()
 		skOut := testCtx.skIdeal.CopyNew()
-		params.RingQP().MulCoeffsMontgomery(&skIn.Value, &skIn.Value, &skIn.Value)
+		ringQP.MulCoeffsMontgomeryLvl(levelQ, levelP, skIn.Value, skIn.Value, skIn.Value)
 
 		swk := rlk.Keys[0]
 
 		// Decrypts
 		// [-asIn + w*P*sOut + e, a] + [asIn]
 		for j := range swk.Value {
-			params.RingQP().MulCoeffsMontgomeryAndAdd(&swk.Value[j][1], &skOut.Value, &swk.Value[j][0])
+			ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, swk.Value[j][1], skOut.Value, swk.Value[j][0])
 		}
 
-		poly := &swk.Value[0][0]
+		poly := swk.Value[0][0]
 
 		// Sums all basis together (equivalent to multiplying with CRT decomposition of 1)
 		// sum([1]_w * [w*P*sOut + e]) = P*sOut + sum(e)
 		for j := range swk.Value {
 			if j > 0 {
-				ringQP.Add(poly, &swk.Value[j][0], poly)
+				ringQP.AddLvl(levelQ, levelP, poly, swk.Value[j][0], poly)
 			}
 		}
 
@@ -273,8 +278,8 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 
 		// Checks that the error is below the bound
 		// Worst error bound is N * floor(6*sigma) * #Keys
-		ringQP.InvNTT(poly, poly)
-		ringQP.InvMForm(poly, poly)
+		ringQP.InvNTTLvl(levelQ, levelP, poly, poly)
+		ringQP.InvMFormLvl(levelQ, levelP, poly, poly)
 
 		// Worst bound of inner sum
 		// N*#Keys*(N * #Parties * floor(sigma*6) + #Parties * floor(sigma*6) + N * #Parties  +  #Parties * floor(6*sigma))
@@ -290,6 +295,7 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 	ringQ := params.RingQ()
 	ringP := params.RingP()
 	ringQP := params.RingQP()
+	levelQ, levelP := params.QCount()-1, params.PCount()-1
 
 	t.Run(testString(params, "RotKeyGen/"), func(t *testing.T) {
 
@@ -324,7 +330,7 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 		// Decrypts
 		// [-asIn + w*P*sOut + e, a] + [asIn]
 		for j := range swk.Value {
-			ringQP.MulCoeffsMontgomeryAndAdd(&swk.Value[j][1], &skOut.Value, &swk.Value[j][0])
+			ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, swk.Value[j][1], skOut.Value, swk.Value[j][0])
 
 		}
 
@@ -332,7 +338,7 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 		// sum([1]_w * [w*P*sOut + e]) = P*sOut + sum(e)
 		for j := range swk.Value {
 			if j > 0 {
-				ringQP.Add(&swk.Value[0][0], &swk.Value[j][0], &swk.Value[0][0])
+				ringQP.AddLvl(levelQ, levelP, swk.Value[0][0], swk.Value[j][0], swk.Value[0][0])
 			}
 		}
 
@@ -344,8 +350,8 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 
 		// Checks that the error is below the bound
 		// Worst error bound is N * floor(6*sigma) * #Keys
-		ringQP.InvNTT(&swk.Value[0][0], &swk.Value[0][0])
-		ringQP.InvMForm(&swk.Value[0][0], &swk.Value[0][0])
+		ringQP.InvNTTLvl(levelQ, levelP, swk.Value[0][0], swk.Value[0][0])
+		ringQP.InvMFormLvl(levelQ, levelP, swk.Value[0][0], swk.Value[0][0])
 
 		// Worst bound of inner sum
 		// N*#Keys*(N * #Parties * floor(sigma*6) + #Parties * floor(sigma*6) + N * #Parties  +  #Parties * floor(6*sigma))

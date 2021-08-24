@@ -16,7 +16,7 @@ type PublicKeySwitchingProtocol interface {
 
 // PCKSShare represents a party's share in the PCKS protocol.
 type PCKSShare struct {
-	Value ring.PolyQP
+	Value rlwe.PolyQP
 }
 
 // PCKSProtocol is the structure storing the parameters for the collective public key-switching.
@@ -24,8 +24,8 @@ type PCKSProtocol struct {
 	params        rlwe.Parameters
 	sigmaSmudging float64
 
-	tmp       ring.PolyQP
-	sharetmpP ring.PolyQP
+	tmp       rlwe.PolyQP
+	sharetmpP rlwe.PolyQP
 
 	baseconverter             *ring.FastBasisExtender
 	gaussianSampler           *ring.GaussianSampler
@@ -39,8 +39,8 @@ func NewPCKSProtocol(params rlwe.Parameters, sigmaSmudging float64) (pcks *PCKSP
 	pcks.params = params
 	pcks.sigmaSmudging = sigmaSmudging
 
-	pcks.tmp = *params.RingQP().NewPoly()
-	pcks.sharetmpP = *params.RingQP().NewPoly()
+	pcks.tmp = params.RingQP().NewPoly()
+	pcks.sharetmpP = params.RingQP().NewPoly()
 
 	pcks.baseconverter = ring.NewFastBasisExtender(params.RingQ(), params.RingP())
 	prng, err := utils.NewPRNG()
@@ -55,7 +55,7 @@ func NewPCKSProtocol(params rlwe.Parameters, sigmaSmudging float64) (pcks *PCKSP
 
 // AllocateShare allocates the shares of the PCKS protocol
 func (pcks *PCKSProtocol) AllocateShare(levelQ int) (s *PCKSShare) {
-	return &PCKSShare{ring.PolyQP{Q: pcks.params.RingQ().NewPolyLvl(levelQ), P: pcks.params.RingQ().NewPolyLvl(levelQ)}}
+	return &PCKSShare{rlwe.PolyQP{Q: pcks.params.RingQ().NewPolyLvl(levelQ), P: pcks.params.RingQ().NewPolyLvl(levelQ)}}
 }
 
 // GenShare is the first part of the unique round of the PCKSProtocol protocol. Each party computes the following :
@@ -76,15 +76,15 @@ func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct *r
 
 	// samples MForm(u_i) in Q and P separately
 	pcks.ternarySamplerMontgomeryQ.ReadLvl(levelQ, pcks.tmp.Q)
-	ringQP.ExtendBasisSmallNormAndCenter(pcks.tmp.Q, levelP, &pcks.tmp)
-	ringQP.MFormLvl(levelQ, levelP, &pcks.tmp, &pcks.tmp)
-	ringQP.NTTLvl(levelQ, levelP, &pcks.tmp, &pcks.tmp)
+	ringQP.ExtendBasisSmallNormAndCenter(pcks.tmp.Q, levelP, pcks.tmp)
+	ringQP.MFormLvl(levelQ, levelP, pcks.tmp, pcks.tmp)
+	ringQP.NTTLvl(levelQ, levelP, pcks.tmp, pcks.tmp)
 
 	// h_0 = u_i * pk_0
 	// h_1 = u_i * pk_1
-	ringQ.MulCoeffsMontgomeryLvl(levelQ, pcks.tmp.Q, pk.Value[0].Q, shareOut.Value.Q) // h1
-	ringQ.MulCoeffsMontgomeryLvl(levelQ, pcks.tmp.Q, pk.Value[1].Q, shareOut.Value.P) // h2
-	ringP.MulCoeffsMontgomeryLvl(levelP, pcks.tmp.P, pk.Value[0].P, pcks.sharetmpP.Q) // TODO: seems that there was a swap between shareOut.Value and pcks.sharetmpP
+	ringQ.MulCoeffsMontgomeryLvl(levelQ, pcks.tmp.Q, pk.Value[0].Q, shareOut.Value.Q)
+	ringQ.MulCoeffsMontgomeryLvl(levelQ, pcks.tmp.Q, pk.Value[1].Q, shareOut.Value.P)
+	ringP.MulCoeffsMontgomeryLvl(levelP, pcks.tmp.P, pk.Value[0].P, pcks.sharetmpP.Q)
 	ringP.MulCoeffsMontgomeryLvl(levelP, pcks.tmp.P, pk.Value[1].P, pcks.sharetmpP.P)
 
 	ringQ.InvNTTLvl(levelQ, shareOut.Value.Q, shareOut.Value.Q)
@@ -94,13 +94,13 @@ func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct *r
 
 	// h_0 = u_i * pk_0
 	pcks.gaussianSampler.ReadLvl(levelQ, pcks.tmp.Q)
-	ringQP.ExtendBasisSmallNormAndCenter(pcks.tmp.Q, levelP, &pcks.tmp)
+	ringQP.ExtendBasisSmallNormAndCenter(pcks.tmp.Q, levelP, pcks.tmp)
 	ringQ.AddLvl(levelQ, shareOut.Value.Q, pcks.tmp.Q, shareOut.Value.Q)
 	ringP.AddLvl(levelP, pcks.sharetmpP.Q, pcks.tmp.P, pcks.sharetmpP.Q)
 
 	// h_1 = u_i * pk_1 + e1
 	pcks.gaussianSampler.ReadLvl(levelQ, pcks.tmp.Q)
-	ringQP.ExtendBasisSmallNormAndCenter(pcks.tmp.Q, levelP, &pcks.tmp)
+	ringQP.ExtendBasisSmallNormAndCenter(pcks.tmp.Q, levelP, pcks.tmp)
 	ringQ.AddLvl(levelQ, shareOut.Value.P, pcks.tmp.Q, shareOut.Value.P)
 	ringP.AddLvl(levelP, pcks.sharetmpP.P, pcks.tmp.P, pcks.sharetmpP.P)
 

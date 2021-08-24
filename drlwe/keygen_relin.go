@@ -25,13 +25,13 @@ type RKGProtocol struct {
 	gaussianSamplerQ *ring.GaussianSampler
 	ternarySamplerQ  *ring.TernarySampler // sampling in Montgomerry form
 
-	tmpPoly1 ring.PolyQP
-	tmpPoly2 ring.PolyQP
+	tmpPoly1 rlwe.PolyQP
+	tmpPoly2 rlwe.PolyQP
 }
 
 // RKGShare is a share in the RKG protocol
 type RKGShare struct {
-	Value [][2]ring.PolyQP
+	Value [][2]rlwe.PolyQP
 }
 
 // NewRKGProtocol creates a new RKG protocol struct
@@ -48,8 +48,8 @@ func NewRKGProtocol(params rlwe.Parameters, ephSkPr float64) *RKGProtocol {
 	rkg.pBigInt = params.PBigInt()
 	rkg.gaussianSamplerQ = ring.NewGaussianSampler(prng, params.RingQ(), params.Sigma(), int(6*params.Sigma()))
 	rkg.ternarySamplerQ = ring.NewTernarySampler(prng, params.RingQ(), ephSkPr, false)
-	rkg.tmpPoly1 = *params.RingQP().NewPoly()
-	rkg.tmpPoly2 = *params.RingQP().NewPoly()
+	rkg.tmpPoly1 = params.RingQP().NewPoly()
+	rkg.tmpPoly2 = params.RingQP().NewPoly()
 	return rkg
 }
 
@@ -57,15 +57,15 @@ func NewRKGProtocol(params rlwe.Parameters, ephSkPr float64) *RKGProtocol {
 func (ekg *RKGProtocol) AllocateShares() (ephSk *rlwe.SecretKey, r1 *RKGShare, r2 *RKGShare, rkgCRP RKGCRP) {
 	ephSk = rlwe.NewSecretKey(ekg.params)
 	r1, r2 = new(RKGShare), new(RKGShare)
-	r1.Value = make([][2]ring.PolyQP, ekg.params.Beta())
-	r2.Value = make([][2]ring.PolyQP, ekg.params.Beta())
-	rkgCRP = make([]ring.PolyQP, ekg.params.Beta())
+	r1.Value = make([][2]rlwe.PolyQP, ekg.params.Beta())
+	r2.Value = make([][2]rlwe.PolyQP, ekg.params.Beta())
+	rkgCRP = make([]rlwe.PolyQP, ekg.params.Beta())
 	for i := 0; i < ekg.params.Beta(); i++ {
-		r1.Value[i][0] = *ekg.params.RingQP().NewPoly()
-		r1.Value[i][1] = *ekg.params.RingQP().NewPoly()
-		r2.Value[i][0] = *ekg.params.RingQP().NewPoly()
-		r2.Value[i][1] = *ekg.params.RingQP().NewPoly()
-		rkgCRP[i] = *ekg.params.RingQP().NewPoly()
+		r1.Value[i][0] = ekg.params.RingQP().NewPoly()
+		r1.Value[i][1] = ekg.params.RingQP().NewPoly()
+		r2.Value[i][0] = ekg.params.RingQP().NewPoly()
+		r2.Value[i][1] = ekg.params.RingQP().NewPoly()
+		rkgCRP[i] = ekg.params.RingQP().NewPoly()
 	}
 	return
 }
@@ -80,21 +80,22 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp RKGCRP, ephSkOu
 
 	ringQ := ekg.params.RingQ()
 	ringQP := ekg.params.RingQP()
+	levelQ := ekg.params.QCount() - 1
 	levelP := ekg.params.PCount() - 1
 
 	ringQ.MulScalarBigint(sk.Value.Q, ekg.pBigInt, ekg.tmpPoly1.Q)
 	ringQ.InvMForm(ekg.tmpPoly1.Q, ekg.tmpPoly1.Q)
 
 	ekg.ternarySamplerQ.Read(ephSkOut.Value.Q)
-	ringQP.ExtendBasisSmallNormAndCenter(ephSkOut.Value.Q, levelP, &ephSkOut.Value)
-	ringQP.NTT(&ephSkOut.Value, &ephSkOut.Value)
-	ringQP.MForm(&ephSkOut.Value, &ephSkOut.Value)
+	ringQP.ExtendBasisSmallNormAndCenter(ephSkOut.Value.Q, levelP, ephSkOut.Value)
+	ringQP.NTTLvl(levelQ, levelP, ephSkOut.Value, ephSkOut.Value)
+	ringQP.MFormLvl(levelQ, levelP, ephSkOut.Value, ephSkOut.Value)
 
 	for i := 0; i < ekg.params.Beta(); i++ {
 		// h = e
 		ekg.gaussianSamplerQ.Read(shareOut.Value[i][0].Q)
-		ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value[i][0].Q, levelP, &shareOut.Value[i][0])
-		ringQP.NTT(&shareOut.Value[i][0], &shareOut.Value[i][0])
+		ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value[i][0].Q, levelP, shareOut.Value[i][0])
+		ringQP.NTTLvl(levelQ, levelP, shareOut.Value[i][0], shareOut.Value[i][0])
 
 		// h = sk*CrtBaseDecompQi + e
 		for j := 0; j < ekg.params.PCount(); j++ {
@@ -115,15 +116,15 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp RKGCRP, ephSkOu
 		}
 
 		// h = sk*CrtBaseDecompQi + -u*a + e
-		ringQP.MulCoeffsMontgomeryAndSub(&ephSkOut.Value, &crp[i], &shareOut.Value[i][0])
+		ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, ephSkOut.Value, crp[i], shareOut.Value[i][0])
 
 		// Second Element
 		// e_2i
 		ekg.gaussianSamplerQ.Read(shareOut.Value[i][1].Q)
-		ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value[i][1].Q, levelP, &shareOut.Value[i][1])
-		ringQP.NTT(&shareOut.Value[i][1], &shareOut.Value[i][1])
+		ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value[i][1].Q, levelP, shareOut.Value[i][1])
+		ringQP.NTTLvl(levelQ, levelP, shareOut.Value[i][1], shareOut.Value[i][1])
 		// s*a + e_2i
-		ringQP.MulCoeffsMontgomeryAndAdd(&sk.Value, &crp[i], &shareOut.Value[i][1])
+		ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, sk.Value, crp[i], shareOut.Value[i][1])
 	}
 }
 
@@ -137,10 +138,11 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp RKGCRP, ephSkOu
 func (ekg *RKGProtocol) GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGShare, crp RKGCRP, shareOut *RKGShare) {
 
 	ringQP := ekg.params.RingQP()
+	levelQ := ekg.params.QCount() - 1
 	levelP := ekg.params.PCount() - 1
 
 	// (u_i - s_i)
-	ringQP.Sub(&ephSk.Value, &sk.Value, &ekg.tmpPoly1)
+	ringQP.SubLvl(levelQ, levelP, ephSk.Value, sk.Value, ekg.tmpPoly1)
 
 	// Each sample is of the form [-u*a_i + s*w_i + e_i]
 	// So for each element of the base decomposition w_i :
@@ -149,41 +151,41 @@ func (ekg *RKGProtocol) GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGS
 		// Computes [(sum samples)*sk + e_1i, sk*a + e_2i]
 
 		// (AggregateShareRoundTwo samples) * sk
-		ringQP.MulCoeffsMontgomeryConstant(&round1.Value[i][0], &sk.Value, &shareOut.Value[i][0])
+		ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, round1.Value[i][0], sk.Value, shareOut.Value[i][0])
 
 		// (AggregateShareRoundTwo samples) * sk + e_1i
 		ekg.gaussianSamplerQ.Read(ekg.tmpPoly2.Q)
-		ringQP.ExtendBasisSmallNormAndCenter(ekg.tmpPoly2.Q, levelP, &ekg.tmpPoly2)
-		ringQP.NTT(&ekg.tmpPoly2, &ekg.tmpPoly2)
-		ringQP.Add(&shareOut.Value[i][0], &ekg.tmpPoly2, &shareOut.Value[i][0])
+		ringQP.ExtendBasisSmallNormAndCenter(ekg.tmpPoly2.Q, levelP, ekg.tmpPoly2)
+		ringQP.NTTLvl(levelQ, levelP, ekg.tmpPoly2, ekg.tmpPoly2)
+		ringQP.AddLvl(levelQ, levelP, shareOut.Value[i][0], ekg.tmpPoly2, shareOut.Value[i][0])
 
 		// second part
 		// (u - s) * (sum [x][s*a_i + e_2i]) + e3i
 		ekg.gaussianSamplerQ.Read(shareOut.Value[i][1].Q)
-		ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value[i][1].Q, levelP, &shareOut.Value[i][1])
-		ringQP.NTT(&shareOut.Value[i][1], &shareOut.Value[i][1])
-		ringQP.MulCoeffsMontgomeryAndAdd(&ekg.tmpPoly1, &round1.Value[i][1], &shareOut.Value[i][1])
+		ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value[i][1].Q, levelP, shareOut.Value[i][1])
+		ringQP.NTTLvl(levelQ, levelP, shareOut.Value[i][1], shareOut.Value[i][1])
+		ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, ekg.tmpPoly1, round1.Value[i][1], shareOut.Value[i][1])
 	}
 
 }
 
 // AggregateShares combines two RKG shares into a single one
 func (ekg *RKGProtocol) AggregateShares(share1, share2, shareOut *RKGShare) {
-
+	ringQP, levelQ, levelP := ekg.params.RingQP(), ekg.params.QCount()-1, ekg.params.PCount()-1
 	for i := 0; i < ekg.params.Beta(); i++ {
-		ekg.params.RingQP().Add(&share1.Value[i][0], &share2.Value[i][0], &shareOut.Value[i][0])
-		ekg.params.RingQP().Add(&share1.Value[i][1], &share2.Value[i][1], &shareOut.Value[i][1])
+		ringQP.AddLvl(levelQ, levelP, share1.Value[i][0], share2.Value[i][0], shareOut.Value[i][0])
+		ringQP.AddLvl(levelQ, levelP, share1.Value[i][1], share2.Value[i][1], shareOut.Value[i][1])
 	}
 }
 
 // GenRelinearizationKey computes the generated RLK from the public shares and write the result in evalKeyOut
 func (ekg *RKGProtocol) GenRelinearizationKey(round1 *RKGShare, round2 *RKGShare, evalKeyOut *rlwe.RelinearizationKey) {
+	ringQP, levelQ, levelP := ekg.params.RingQP(), ekg.params.QCount()-1, ekg.params.PCount()-1
 	for i := 0; i < ekg.params.Beta(); i++ {
-		ekg.params.RingQP().Add(&round2.Value[i][0], &round2.Value[i][1], &evalKeyOut.Keys[0].Value[i][0])
-		evalKeyOut.Keys[0].Value[i][1].Copy(&round1.Value[i][1])
-
-		ekg.params.RingQP().MForm(&evalKeyOut.Keys[0].Value[i][0], &evalKeyOut.Keys[0].Value[i][0])
-		ekg.params.RingQP().MForm(&evalKeyOut.Keys[0].Value[i][1], &evalKeyOut.Keys[0].Value[i][1])
+		ringQP.AddLvl(levelQ, levelP, round2.Value[i][0], round2.Value[i][1], evalKeyOut.Keys[0].Value[i][0])
+		evalKeyOut.Keys[0].Value[i][1].Copy(round1.Value[i][1])
+		ringQP.MFormLvl(levelQ, levelP, evalKeyOut.Keys[0].Value[i][0], evalKeyOut.Keys[0].Value[i][0])
+		ringQP.MFormLvl(levelQ, levelP, evalKeyOut.Keys[0].Value[i][1], evalKeyOut.Keys[0].Value[i][1])
 	}
 }
 
@@ -220,7 +222,7 @@ func (share *RKGShare) MarshalBinary() ([]byte, error) {
 
 // UnmarshalBinary decodes a slice of bytes on the target element.
 func (share *RKGShare) UnmarshalBinary(data []byte) (err error) {
-	share.Value = make([][2]ring.PolyQP, data[0])
+	share.Value = make([][2]rlwe.PolyQP, data[0])
 	ptr := 1
 	var inc int
 	for i := range share.Value {

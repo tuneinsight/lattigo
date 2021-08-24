@@ -7,13 +7,13 @@ import (
 )
 
 // CKGCRP is a type for the common reference polynomial of the collective key protocol.
-type CKGCRP ring.PolyQP
+type CKGCRP rlwe.PolyQP
 
 // RKGCRP is a type for the common reference polynomial of the relinearization key protocol.
-type RKGCRP []ring.PolyQP
+type RKGCRP []rlwe.PolyQP
 
 // RTGCRP is a type for the common reference polynomial of the rotation key protocol.
-type RTGCRP []ring.PolyQP
+type RTGCRP []rlwe.PolyQP
 
 // RefreshCRP is a type for the common reference polynomial of the refresh protocol.
 type RefreshCRP *ring.Poly
@@ -42,13 +42,13 @@ func (uniSampler *UniformSampler) Read(crp interface{}) {
 		uniSampler.uniformSamplerQ.Read(crp)
 	case RefreshCRP:
 		uniSampler.uniformSamplerQ.Read(crp)
-	case ring.PolyQP:
+	case rlwe.PolyQP:
 		uniSampler.uniformSamplerQ.Read(crp.Q)
 		uniSampler.uniformSamplerP.Read(crp.P)
 	case CKGCRP:
 		uniSampler.uniformSamplerQ.Read(crp.Q)
 		uniSampler.uniformSamplerP.Read(crp.P)
-	case []ring.PolyQP:
+	case []rlwe.PolyQP:
 		for i := range crp {
 			uniSampler.uniformSamplerQ.Read(crp[i].Q)
 			uniSampler.uniformSamplerP.Read(crp[i].P)

@@ -454,25 +454,15 @@ func (encoder *encoderComplex128) EncodeDiagMatrixBSGSAtLvl(level int, diagMatri
 				v = diagMatrix[(n1*j+i)-slots]
 			}
 
-			vec[n1*j+i] = encoder.encodeDiagonal(logSlots, level, scale, rotate(v, -n1*j))
+			if len(v) != slots{
+				panic("diagMatrix []complex slices mut have len '1<<logSlots'")
+			}
+
+			vec[n1*j+i] = encoder.encodeDiagonal(logSlots, level, scale, utils.RotateComplex128Slice(v, -n1*j))
 		}
 	}
 
 	return PtDiagMatrix{LogSlots: logSlots, N1: n1, Vec: vec, Level: level, Scale: scale}
-}
-
-func rotate(x []complex128, n int) (y []complex128) {
-
-	y = make([]complex128, len(x))
-
-	mask := int(len(x) - 1)
-
-	// Rotates to the left
-	for i := 0; i < len(x); i++ {
-		y[i] = x[(i+n)&mask]
-	}
-
-	return
 }
 
 // EncodeDiagMatrixAtLvl encodes a diagonalized plaintext matrix into PtDiagMatrix struct.

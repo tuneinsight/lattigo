@@ -79,7 +79,7 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, s
 
 		// e
 		rtg.gaussianSamplerQ.Read(shareOut.Value[i].Q)
-		ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value[i].Q, levelP, shareOut.Value[i])
+		ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value[i].Q, levelP, nil, shareOut.Value[i].P)
 		ringQP.NTTLazyLvl(levelQ, levelP, shareOut.Value[i], shareOut.Value[i])
 		ringQP.MFormLvl(levelQ, levelP, shareOut.Value[i], shareOut.Value[i])
 

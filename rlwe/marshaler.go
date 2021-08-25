@@ -40,10 +40,9 @@ func (pk *PublicKey) MarshalBinary() (data []byte, err error) {
 	}
 	pt += inc
 
-	if inc, err = pk.Value[1].WriteTo(data[pt:]); err != nil {
+	if _, err = pk.Value[1].WriteTo(data[pt:]); err != nil {
 		return nil, err
 	}
-	pt += inc
 
 	return
 }

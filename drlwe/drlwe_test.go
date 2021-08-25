@@ -411,12 +411,12 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 		err = SwitchShareReceiver.UnmarshalBinary(data)
 		require.NoError(t, err)
 
-		require.Equal(t, SwitchShare.Value.Q.Degree(), SwitchShareReceiver.Value.Q.Degree()) // TODO
-		require.Equal(t, SwitchShare.Value.P.Degree(), SwitchShareReceiver.Value.P.Degree())
-		require.Equal(t, SwitchShare.Value.Q.LenModuli(), SwitchShareReceiver.Value.Q.LenModuli())
-		require.Equal(t, SwitchShare.Value.P.LenModuli(), SwitchShareReceiver.Value.P.LenModuli())
-		require.Equal(t, SwitchShare.Value.Q.Coeffs, SwitchShareReceiver.Value.Q.Coeffs)
-		require.Equal(t, SwitchShare.Value.P.Coeffs, SwitchShareReceiver.Value.P.Coeffs)
+		require.Equal(t, SwitchShare.Value[0].Degree(), SwitchShareReceiver.Value[0].Degree()) // TODO
+		require.Equal(t, SwitchShare.Value[1].Degree(), SwitchShareReceiver.Value[1].Degree())
+		require.Equal(t, SwitchShare.Value[0].LenModuli(), SwitchShareReceiver.Value[0].LenModuli())
+		require.Equal(t, SwitchShare.Value[1].LenModuli(), SwitchShareReceiver.Value[1].LenModuli())
+		require.Equal(t, SwitchShare.Value[0].Coeffs, SwitchShareReceiver.Value[0].Coeffs)
+		require.Equal(t, SwitchShare.Value[1].Coeffs, SwitchShareReceiver.Value[1].Coeffs)
 	})
 
 	t.Run(testString(params, "Marshalling/CKS/"), func(t *testing.T) {

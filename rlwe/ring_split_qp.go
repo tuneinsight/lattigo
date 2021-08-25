@@ -143,18 +143,18 @@ func (r *SplitRingQP) MulCoeffsMontgomeryAndAddLvl(levelQ, levelP int, p1, p2, p
 
 // ExtendBasisSmallNormAndCenter extends a small-norm polynomial polQ in R_Q to a polynomial
 // polQP in R_QP.
-func (r *SplitRingQP) ExtendBasisSmallNormAndCenter(polQ *ring.Poly, levelP int, polQP PolyQP) {
+func (r *SplitRingQP) ExtendBasisSmallNormAndCenter(polyInQ *ring.Poly, levelP int, polyOutQ, polyOutP *ring.Poly) {
 	var coeff, Q, QHalf, sign uint64
 	Q = r.RingQ.Modulus[0]
 	QHalf = Q >> 1
 
-	if polQ != polQP.Q {
-		polQP.Q.Copy(polQ)
+	if polyInQ != polyOutQ && polyOutQ != nil {
+		polyOutQ.Copy(polyInQ)
 	}
 
 	for j := 0; j < r.RingQ.N; j++ {
 
-		coeff = polQ.Coeffs[0][j]
+		coeff = polyInQ.Coeffs[0][j]
 
 		sign = 1
 		if coeff > QHalf {
@@ -163,7 +163,7 @@ func (r *SplitRingQP) ExtendBasisSmallNormAndCenter(polQ *ring.Poly, levelP int,
 		}
 
 		for i, pi := range r.RingP.Modulus[:levelP+1] {
-			polQP.P.Coeffs[i][j] = (coeff * sign) | (pi-coeff)*(sign^1)
+			polyOutP.Coeffs[i][j] = (coeff * sign) | (pi-coeff)*(sign^1)
 		}
 	}
 }

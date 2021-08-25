@@ -68,7 +68,7 @@ func (ckg *CKGProtocol) GenShare(sk *rlwe.SecretKey, crp CKGCRP, shareOut *CKGSh
 	ringQP := ckg.params.RingQP()
 	crpPoly := rlwe.PolyQP(crp)
 	ckg.gaussianSamplerQ.Read(shareOut.Value.Q)
-	ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value.Q, ckg.params.PCount()-1, shareOut.Value)
+	ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value.Q, ckg.params.PCount()-1, nil, shareOut.Value.P)
 	levelQ, levelP := ckg.params.QCount()-1, ckg.params.PCount()-1
 	ringQP.NTTLvl(levelQ, levelP, shareOut.Value, shareOut.Value)
 	ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, sk.Value, crpPoly, shareOut.Value)

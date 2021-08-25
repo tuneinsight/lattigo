@@ -97,7 +97,7 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlwe.Cip
 		cks.gaussianSampler.ReadLvl(level, cks.tmp.Q)
 
 		// Extend e to P (assumed to have norm < qi)
-		ringQP.ExtendBasisSmallNormAndCenter(cks.tmp.Q, levelP, cks.tmp)
+		ringQP.ExtendBasisSmallNormAndCenter(cks.tmp.Q, levelP, nil, cks.tmp.P)
 
 		// InvNTT(P * a * (skIn - skOut) + e) mod QP (mod P = e)
 		ringQ.AddNoModLvl(level, shareOut.Value, cks.tmp.Q, shareOut.Value)
@@ -110,7 +110,7 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlwe.Cip
 		cks.gaussianSampler.ReadLvl(level, cks.tmp.Q)
 
 		// Extend e to P (assumed to have norm < qi)
-		ringQP.ExtendBasisSmallNormAndCenter(cks.tmp.Q, levelP, cks.tmp)
+		ringQP.ExtendBasisSmallNormAndCenter(cks.tmp.Q, levelP, nil, cks.tmp.P)
 
 		// Takes the error to the NTT domain
 

@@ -63,7 +63,7 @@ func (keygen *keyGenerator) genSecretKeyFromSampler(sampler ring.Sampler) *Secre
 	sk.Value = ringQP.NewPoly()
 	levelQ, levelP := keygen.params.QCount()-1, keygen.params.PCount()-1
 	sampler.Read(sk.Value.Q)
-	ringQP.ExtendBasisSmallNormAndCenter(sk.Value.Q, levelP, sk.Value)
+	ringQP.ExtendBasisSmallNormAndCenter(sk.Value.Q, levelP, nil, sk.Value.P)
 	ringQP.NTTLvl(levelQ, levelP, sk.Value, sk.Value)
 	ringQP.MFormLvl(levelQ, levelP, sk.Value, sk.Value)
 	return sk
@@ -109,7 +109,7 @@ func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 	//pk[1] = [a]
 	pk = NewPublicKey(keygen.params)
 	keygen.gaussianSamplerQ.Read(pk.Value[0].Q)
-	ringQP.ExtendBasisSmallNormAndCenter(pk.Value[0].Q, levelP, pk.Value[0])
+	ringQP.ExtendBasisSmallNormAndCenter(pk.Value[0].Q, levelP, nil, pk.Value[0].P)
 	ringQP.NTTLvl(levelQ, levelP, pk.Value[0], pk.Value[0])
 
 	keygen.uniformSamplerQ.Read(pk.Value[1].Q)
@@ -314,7 +314,7 @@ func (keygen *keyGenerator) genSwitchingKey(skIn *ring.Poly, skOut PolyQP, swk *
 
 		// e
 		keygen.gaussianSamplerQ.ReadLvl(levelQ, swk.Value[i][0].Q)
-		ringQP.ExtendBasisSmallNormAndCenter(swk.Value[i][0].Q, levelP, swk.Value[i][0])
+		ringQP.ExtendBasisSmallNormAndCenter(swk.Value[i][0].Q, levelP, nil, swk.Value[i][0].P)
 		ringQP.NTTLazyLvl(levelQ, levelP, swk.Value[i][0], swk.Value[i][0])
 		ringQP.MFormLvl(levelQ, levelP, swk.Value[i][0], swk.Value[i][0])
 

@@ -98,7 +98,7 @@ func (encryptor *pkEncryptor) Encrypt(plaintext *Plaintext, ctOut *Ciphertext) {
 	u := PolyQP{Q: poolQ0, P: poolP2}
 
 	encryptor.ternarySampler.ReadLvl(levelQ, u.Q)
-	ringQP.ExtendBasisSmallNormAndCenter(u.Q, levelP, u)
+	ringQP.ExtendBasisSmallNormAndCenter(u.Q, levelP, nil, u.P)
 
 	// (#Q + #P) NTT
 	ringQP.NTTLvl(levelQ, levelP, u, u)
@@ -119,11 +119,11 @@ func (encryptor *pkEncryptor) Encrypt(plaintext *Plaintext, ctOut *Ciphertext) {
 	e := PolyQP{Q: poolQ0, P: poolP2}
 
 	encryptor.gaussianSampler.ReadLvl(levelQ, e.Q)
-	ringQP.ExtendBasisSmallNormAndCenter(e.Q, levelP, e)
+	ringQP.ExtendBasisSmallNormAndCenter(e.Q, levelP, nil, e.P)
 	ringQP.AddLvl(levelQ, levelP, ct0QP, e, ct0QP)
 
 	encryptor.gaussianSampler.ReadLvl(levelQ, e.Q)
-	ringQP.ExtendBasisSmallNormAndCenter(e.Q, levelP, e)
+	ringQP.ExtendBasisSmallNormAndCenter(e.Q, levelP, nil, e.P)
 	ringQP.AddLvl(levelQ, levelP, ct1QP, e, ct1QP)
 
 	// ct0 = (u*pk0 + e0)/P

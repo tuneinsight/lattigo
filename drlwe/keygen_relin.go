@@ -87,14 +87,14 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp RKGCRP, ephSkOu
 	ringQ.InvMForm(ekg.tmpPoly1.Q, ekg.tmpPoly1.Q)
 
 	ekg.ternarySamplerQ.Read(ephSkOut.Value.Q)
-	ringQP.ExtendBasisSmallNormAndCenter(ephSkOut.Value.Q, levelP, ephSkOut.Value)
+	ringQP.ExtendBasisSmallNormAndCenter(ephSkOut.Value.Q, levelP, nil, ephSkOut.Value.P)
 	ringQP.NTTLvl(levelQ, levelP, ephSkOut.Value, ephSkOut.Value)
 	ringQP.MFormLvl(levelQ, levelP, ephSkOut.Value, ephSkOut.Value)
 
 	for i := 0; i < ekg.params.Beta(); i++ {
 		// h = e
 		ekg.gaussianSamplerQ.Read(shareOut.Value[i][0].Q)
-		ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value[i][0].Q, levelP, shareOut.Value[i][0])
+		ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value[i][0].Q, levelP, nil, shareOut.Value[i][0].P)
 		ringQP.NTTLvl(levelQ, levelP, shareOut.Value[i][0], shareOut.Value[i][0])
 
 		// h = sk*CrtBaseDecompQi + e
@@ -121,7 +121,7 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp RKGCRP, ephSkOu
 		// Second Element
 		// e_2i
 		ekg.gaussianSamplerQ.Read(shareOut.Value[i][1].Q)
-		ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value[i][1].Q, levelP, shareOut.Value[i][1])
+		ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value[i][1].Q, levelP, nil, shareOut.Value[i][1].P)
 		ringQP.NTTLvl(levelQ, levelP, shareOut.Value[i][1], shareOut.Value[i][1])
 		// s*a + e_2i
 		ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, sk.Value, crp[i], shareOut.Value[i][1])
@@ -155,14 +155,14 @@ func (ekg *RKGProtocol) GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGS
 
 		// (AggregateShareRoundTwo samples) * sk + e_1i
 		ekg.gaussianSamplerQ.Read(ekg.tmpPoly2.Q)
-		ringQP.ExtendBasisSmallNormAndCenter(ekg.tmpPoly2.Q, levelP, ekg.tmpPoly2)
+		ringQP.ExtendBasisSmallNormAndCenter(ekg.tmpPoly2.Q, levelP, nil, ekg.tmpPoly2.P)
 		ringQP.NTTLvl(levelQ, levelP, ekg.tmpPoly2, ekg.tmpPoly2)
 		ringQP.AddLvl(levelQ, levelP, shareOut.Value[i][0], ekg.tmpPoly2, shareOut.Value[i][0])
 
 		// second part
 		// (u - s) * (sum [x][s*a_i + e_2i]) + e3i
 		ekg.gaussianSamplerQ.Read(shareOut.Value[i][1].Q)
-		ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value[i][1].Q, levelP, shareOut.Value[i][1])
+		ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value[i][1].Q, levelP, nil, shareOut.Value[i][1].P)
 		ringQP.NTTLvl(levelQ, levelP, shareOut.Value[i][1], shareOut.Value[i][1])
 		ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, ekg.tmpPoly1, round1.Value[i][1], shareOut.Value[i][1])
 	}

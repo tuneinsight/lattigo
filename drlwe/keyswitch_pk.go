@@ -80,8 +80,8 @@ func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct *r
 	ringQP.MFormLvl(levelQ, levelP, pcks.tmpQP, pcks.tmpQP)
 	ringQP.NTTLvl(levelQ, levelP, pcks.tmpQP, pcks.tmpQP)
 
-	shareOutQP0 := rlwe.PolyQP{shareOut.Value[0], pcks.tmpP[0]}
-	shareOutQP1 := rlwe.PolyQP{shareOut.Value[1], pcks.tmpP[1]}
+	shareOutQP0 := rlwe.PolyQP{Q: shareOut.Value[0], P: pcks.tmpP[0]}
+	shareOutQP1 := rlwe.PolyQP{Q: shareOut.Value[1], P: pcks.tmpP[1]}
 
 	// h_0 = u_i * pk_0
 	// h_1 = u_i * pk_1

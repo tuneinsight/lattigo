@@ -454,7 +454,7 @@ func (encoder *encoderComplex128) EncodeDiagMatrixBSGSAtLvl(level int, diagMatri
 				v = diagMatrix[(n1*j+i)-slots]
 			}
 
-			if len(v) != slots{
+			if len(v) != slots {
 				panic("diagMatrix []complex slices mut have len '1<<logSlots'")
 			}
 

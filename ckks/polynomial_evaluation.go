@@ -22,9 +22,9 @@ type PolynomialBasis int
 
 const (
 	// StandardBasis : x^(a+b) = x^a * x^b
-	StandardBasis  = PolynomialBasis(0) 
+	StandardBasis = PolynomialBasis(0)
 	// ChebyshevBasis : x^(a+b) = 2 * x^a *x^b - T^|a-b|
-	ChebyshevBasis = PolynomialBasis(1) 
+	ChebyshevBasis = PolynomialBasis(1)
 )
 
 // Depth returns the number of levels needed to evaluate the polynomial.

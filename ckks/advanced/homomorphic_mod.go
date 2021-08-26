@@ -51,7 +51,7 @@ type EvalModPoly struct {
 	EvalModParameters
 	ScFac       float64
 	Sqrt2Pi     float64
-	SinePoly    ckks.ChebyshevInterpolation
+	SinePoly    *ckks.Poly
 	ArcSinePoly *ckks.Poly
 }
 
@@ -59,7 +59,7 @@ type EvalModPoly struct {
 func (evm *EvalModParameters) GenPoly() EvalModPoly {
 
 	var arcSinePoly *ckks.Poly
-	var sinePoly *ckks.ChebyshevInterpolation
+	var sinePoly *ckks.Poly
 	var sqrt2pi float64
 
 	scFac := math.Exp2(float64(evm.DoubleAngle))
@@ -96,12 +96,13 @@ func (evm *EvalModParameters) GenPoly() EvalModPoly {
 
 	} else if evm.SineType == Cos1 {
 
-		sinePoly = new(ckks.ChebyshevInterpolation)
+		sinePoly = new(ckks.Poly)
 		sinePoly.Coeffs = ApproximateCos(evm.K, evm.SineDeg, evm.MessageRatio, int(evm.DoubleAngle))
 		sinePoly.MaxDeg = sinePoly.Degree()
 		sinePoly.A = complex(float64(-evm.K)/scFac, 0)
 		sinePoly.B = complex(float64(evm.K)/scFac, 0)
 		sinePoly.Lead = true
+		sinePoly.Basis = ckks.ChebyshevBasis
 
 	} else if evm.SineType == Cos2 {
 		sinePoly = ckks.Approximate(cos2pi, -complex(float64(evm.K)/scFac, 0), complex(float64(evm.K)/scFac, 0), evm.SineDeg)
@@ -113,7 +114,7 @@ func (evm *EvalModParameters) GenPoly() EvalModPoly {
 		sinePoly.Coeffs[i] *= complex(sqrt2pi, 0)
 	}
 
-	return EvalModPoly{EvalModParameters: *evm, ScFac: scFac, Sqrt2Pi: sqrt2pi, ArcSinePoly: arcSinePoly, SinePoly: *sinePoly}
+	return EvalModPoly{EvalModParameters: *evm, ScFac: scFac, Sqrt2Pi: sqrt2pi, ArcSinePoly: arcSinePoly, SinePoly: sinePoly}
 }
 
 // Depth returns the depth of the SineEval. If true, then also
@@ -163,7 +164,7 @@ func (eval *evaluator) EvalMod(ct *ckks.Ciphertext, evalModPoly EvalModPoly) *ck
 	}
 
 	// Chebyshev evaluation
-	if ct, err = eval.EvaluateCheby(ct, &evalModPoly.SinePoly, targetScale); err != nil {
+	if ct, err = eval.EvaluatePoly(ct, evalModPoly.SinePoly, targetScale); err != nil {
 		panic(err)
 	}
 

@@ -770,17 +770,17 @@ func testChebyshevInterpolator(testContext *testParams, t *testing.T) {
 
 		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, 0), complex(1, 0), t)
 
-		cheby := Approximate(cmplx.Sin, complex(-1.5, 0), complex(1.5, 0), 15)
+		poly := Approximate(cmplx.Sin, complex(-1.5, 0), complex(1.5, 0), 15)
 
 		for i := range values {
 			values[i] = cmplx.Sin(values[i])
 		}
 
-		eval.MultByConst(ciphertext, 2/(cheby.B-cheby.A), ciphertext)
-		eval.AddConst(ciphertext, (-cheby.A-cheby.B)/(cheby.B-cheby.A), ciphertext)
+		eval.MultByConst(ciphertext, 2/(poly.B-poly.A), ciphertext)
+		eval.AddConst(ciphertext, (-poly.A-poly.B)/(poly.B-poly.A), ciphertext)
 		eval.Rescale(ciphertext, testContext.params.Scale(), ciphertext)
 
-		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, ciphertext.Scale); err != nil {
+		if ciphertext, err = eval.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {
 			t.Error(err)
 		}
 
@@ -806,17 +806,17 @@ func testDecryptPublic(testContext *testParams, t *testing.T) {
 
 		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, 0), complex(1, 0), t)
 
-		cheby := Approximate(cmplx.Sin, complex(-1.5, 0), complex(1.5, 0), 15)
+		poly := Approximate(cmplx.Sin, complex(-1.5, 0), complex(1.5, 0), 15)
 
 		for i := range values {
 			values[i] = cmplx.Sin(values[i])
 		}
 
-		eval.MultByConst(ciphertext, 2/(cheby.B-cheby.A), ciphertext)
-		eval.AddConst(ciphertext, (-cheby.A-cheby.B)/(cheby.B-cheby.A), ciphertext)
+		eval.MultByConst(ciphertext, 2/(poly.B-poly.A), ciphertext)
+		eval.AddConst(ciphertext, (-poly.A-poly.B)/(poly.B-poly.A), ciphertext)
 		eval.Rescale(ciphertext, testContext.params.Scale(), ciphertext)
 
-		if ciphertext, err = eval.EvaluateCheby(ciphertext, cheby, ciphertext.Scale); err != nil {
+		if ciphertext, err = eval.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {
 			t.Error(err)
 		}
 

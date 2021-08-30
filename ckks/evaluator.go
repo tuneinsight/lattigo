@@ -49,11 +49,11 @@ type Evaluator interface {
 	// Constant Multiplication
 	MultByConstNew(ctIn *Ciphertext, constant interface{}) (ctOut *Ciphertext)
 	MultByConst(ctIn *Ciphertext, constant interface{}, ctOut *Ciphertext)
-	MultByGaussianInteger(ctIn *Ciphertext, cReal, cImag int64, ctOut *Ciphertext)
+	MultByGaussianInteger(ctIn *Ciphertext, cReal, cImag interface{}, ctOut *Ciphertext)
 
 	// Constant Multiplication with Addition
 	MultByConstAndAdd(ctIn *Ciphertext, constant interface{}, ctOut *Ciphertext)
-	MultByGaussianIntegerAndAdd(ctIn *Ciphertext, cReal, cImag int64, ctOut *Ciphertext)
+	MultByGaussianIntegerAndAdd(ctIn *Ciphertext, cReal, cImag interface{}, ctOut *Ciphertext)
 
 	// Multiplication by the imaginary unit
 	MultByiNew(ctIn *Ciphertext) (ctOut *Ciphertext)
@@ -857,7 +857,7 @@ func (eval *evaluator) MultByConst(ct0 *Ciphertext, constant interface{}, ctOut 
 	ctOut.Scale = ct0.Scale * scale
 }
 
-func (eval *evaluator) MultByGaussianInteger(ct0 *Ciphertext, cReal, cImag int64, ctOut *Ciphertext) {
+func (eval *evaluator) MultByGaussianInteger(ct0 *Ciphertext, cReal, cImag interface{}, ctOut *Ciphertext) {
 
 	ringQ := eval.params.RingQ()
 
@@ -872,25 +872,11 @@ func (eval *evaluator) MultByGaussianInteger(ct0 *Ciphertext, cReal, cImag int64
 		bredParams := ringQ.BredParams[i]
 		mredParams := ringQ.MredParams[i]
 
-		scaledConstReal = 0
-		scaledConstImag = 0
-		scaledConst = 0
+		scaledConstReal = interfaceMod(cReal, qi)
+		scaledConstImag = interfaceMod(cImag, qi)
+		scaledConst = scaledConstReal
 
-		if cReal != 0 {
-			if cReal < 0 {
-				scaledConstReal = uint64(int64(qi) + cReal%int64(qi))
-			} else {
-				scaledConstReal = uint64(cReal)
-			}
-			scaledConst = scaledConstReal
-		}
-
-		if cImag != 0 {
-			if cImag < 0 {
-				scaledConstImag = uint64(int64(qi) + cImag%int64(qi))
-			} else {
-				scaledConstImag = uint64(cImag)
-			}
+		if scaledConstImag != 0 {
 			scaledConstImag = ring.MRed(scaledConstImag, ringQ.NttPsi[i][1], qi, mredParams)
 			scaledConst = ring.CRed(scaledConst+scaledConstImag, qi)
 		}
@@ -944,7 +930,7 @@ func (eval *evaluator) MultByGaussianInteger(ct0 *Ciphertext, cReal, cImag int64
 	}
 }
 
-func (eval *evaluator) MultByGaussianIntegerAndAdd(ct0 *Ciphertext, cReal, cImag int64, ctOut *Ciphertext) {
+func (eval *evaluator) MultByGaussianIntegerAndAdd(ct0 *Ciphertext, cReal, cImag interface{}, ctOut *Ciphertext) {
 
 	ringQ := eval.params.RingQ()
 
@@ -957,25 +943,11 @@ func (eval *evaluator) MultByGaussianIntegerAndAdd(ct0 *Ciphertext, cReal, cImag
 		bredParams := ringQ.BredParams[i]
 		mredParams := ringQ.MredParams[i]
 
-		scaledConstReal = 0
-		scaledConstImag = 0
-		scaledConst = 0
+		scaledConstReal = interfaceMod(cReal, qi)
+		scaledConstImag = interfaceMod(cImag, qi)
+		scaledConst = scaledConstReal
 
-		if cReal != 0 {
-			if cReal < 0 {
-				scaledConstReal = uint64(int64(qi) + cReal%int64(qi))
-			} else {
-				scaledConstReal = uint64(cReal)
-			}
-			scaledConst = scaledConstReal
-		}
-
-		if cImag != 0 {
-			if cImag < 0 {
-				scaledConstImag = uint64(int64(qi) + cImag%int64(qi))
-			} else {
-				scaledConstImag = uint64(cImag)
-			}
+		if scaledConstImag != 0 {
 			scaledConstImag = ring.MRed(scaledConstImag, ringQ.NttPsi[i][1], qi, mredParams)
 			scaledConst = ring.CRed(scaledConst+scaledConstImag, qi)
 		}

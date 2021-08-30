@@ -2,6 +2,7 @@ package ckks
 
 import (
 	"fmt"
+	"github.com/ldsec/lattigo/v2/ring"
 	"math"
 	"math/bits"
 )
@@ -315,19 +316,24 @@ func evaluatePolyFromPowerBasis(targetScale float64, coeffs *Poly, logSplit int,
 		evaluator.AddConst(res, c, res)
 	}
 
+	cRealFlo, cImagFlo, constScale := ring.NewFloat(0, 128), ring.NewFloat(0, 128), ring.NewFloat(0, 128)
+	cRealBig, cImagBig := ring.NewUint(0), ring.NewUint(0)
+
 	for key := coeffs.Degree(); key > 0; key-- {
 
 		c = coeffs.Coeffs[key]
 
 		if key != 0 && isNotNegligible(c) {
 
+			cRealFlo.SetFloat64(real(c))
+			cImagFlo.SetFloat64(imag(c))
+			constScale.SetFloat64(targetScale * currentQi / C[key].Scale)
+
 			// Target scale * rescale-scale / power basis scale
-			constScale := targetScale * currentQi / C[key].Scale
+			cRealFlo.Mul(cRealFlo, constScale).Int(cRealBig)
+			cImagFlo.Mul(cImagFlo, constScale).Int(cImagBig)
 
-			cReal := int64(math.Round(real(c) * constScale))
-			cImag := int64(math.Round(imag(c) * constScale))
-
-			evaluator.MultByGaussianIntegerAndAdd(C[key], cReal, cImag, res)
+			evaluator.MultByGaussianIntegerAndAdd(C[key], cRealBig, cImagBig, res)
 		}
 	}
 

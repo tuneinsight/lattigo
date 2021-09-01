@@ -70,9 +70,7 @@ func TestBootstrap(t *testing.T) {
 		runtime.GC()
 	}
 
-	if !*flagLongTest {
-		ckksParams.LogSlots = 12
-	}
+	ckksParams.LogSlots--
 
 	// Tests homomorphic encoding and bootstrapping on full slots
 	params, err = ckks.NewParametersFromLiteral(ckksParams)

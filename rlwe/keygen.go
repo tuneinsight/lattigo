@@ -218,13 +218,14 @@ func (keygen *keyGenerator) genrotKey(sk PolyQP, galEl uint64, swk *SwitchingKey
 }
 
 // GenSwitchingKey generates a new key-switching key, that will re-encrypt a Ciphertext encrypted under the input key into the output key.
-// If the degree of the output key is larger than the input key, then generates a new key-switching key, that will re-encrypt a ciphertext encrypted
-// under skIn of dimension n to a ciphertext encrypted under sKOut of dimension N > n.
-// [-a*SkOut + w*P*skIn_{Y^{N/n}} + e, a] in X^{N}
-// If the degree of the output key is smaller than the input key, then generates a new key-switching key, that will re-encrypt a ciphertext encrypted
-// under skIn of dimension N to a ciphertext encrypted under sKOut of dimension n < N.
-// [-a*skOut_{Y^{N/n}} + w*P*skIn + e_{N}, a_{N}] in X^{N}
+// If the ringDegree(skOutput) > ringDegree(skInput),  generates [-a*SkOut + w*P*skIn_{Y^{N/n}} + e, a] in X^{N}.
+// If the ringDegree(skOutput) < ringDegree(skInput),  generates [-a*skOut_{Y^{N/n}} + w*P*skIn + e_{N}, a_{N}] in X^{N}.
+// Else generates [-a*skOut + w*P*skIn + e, a] in X^{N}.
 // The output switching key is always given in max(N, n) and in the moduli of the output switching key.
+// When key-switching a ciphertext from Y^{N/n} to X^{N}, the ciphertext must first be mapped to X^{N}
+// using SwitchCiphertextRingDegreeNTT(ctSmallDim, nil, ctLargeDim).
+// When key-switching a ciphertext from X^{N} to Y^{N/n}, the output of the key-switch is in still X^{N} and
+// must be mapped Y^{N/n} using SwitchCiphertextRingDegreeNTT(ctLargeDim, ringQLargeDim, ctSmallDim).
 func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *SwitchingKey) {
 
 	if keygen.params.PCount() == 0 {

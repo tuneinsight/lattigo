@@ -20,7 +20,7 @@ const GaloisGen uint64 = 5
 // The figure below:
 //
 // []uint64 --- Encoder.EncodeUintRingT(.) -┬-> PlaintextRingT -┬-> Encoder.ScaleUp(.) -----> Plaintext
-// []uint64 --- Encoder.EncodeIntRingT(.) --┘                   └-> encoder.params.RingT()ToMul(.) ---> PlaintextMul
+// []uint64 --- Encoder.EncodeIntRingT(.) --┘                   └-> encoder.RingTToMul(.) ---> PlaintextMul
 //
 //
 // The different plaintext types have different efficiency-related caracteristics that we summarize in the Table below. For more information

@@ -14,7 +14,7 @@ func (btp *Bootstrapper) Bootstrapp(ctIn *ckks.Ciphertext) (ctOut *ckks.Cipherte
 
 	ctOut = ctIn.CopyNew()
 
-	bootstrappingScale := math.Exp2(math.Round(math.Log2(btp.params.QiFloat64(0) / btp.evalModPoly.MessageRatio)))
+	bootstrappingScale := math.Exp2(math.Round(math.Log2(btp.params.QiFloat64(0) / btp.evalModPoly.MessageRatio())))
 
 	// Drops the level to 1
 	for ctOut.Level() > 1 {
@@ -48,28 +48,28 @@ func (btp *Bootstrapper) Bootstrapp(ctIn *ckks.Ciphertext) (ctOut *ckks.Cipherte
 	// Brings the ciphertext scale to sineQi/(Q0/scale) if Q0 < sineQi
 	// Does it after modUp to avoid plaintext overflow
 	// Reduces the additive error of the next steps
-	btp.ScaleUp(ctOut, math.Round((btp.evalModPoly.ScalingFactor/btp.evalModPoly.MessageRatio)/ctOut.Scale), ctOut)
+	btp.ScaleUp(ctOut, math.Round((btp.evalModPoly.ScalingFactor()/btp.evalModPoly.MessageRatio())/ctOut.Scale), ctOut)
 
 	//SubSum X -> (N/dslots) * Y^dslots
 	ctOut = btp.Trace(ctOut, btp.params.LogSlots(), btp.params.LogN()-1)
 
 	// Step 2 : CoeffsToSlots (Homomorphic encoding)
-	ctReal, ctImag := btp.CoeffsToSlots(ctOut, btp.ctsMatrices)
+	ctReal, ctImag := btp.CoeffsToSlotsNew(ctOut, btp.ctsMatrices)
 
 	// Step 3 : EvalMod (Homomorphic modular reduction)
 	// ctReal = Ecd(real)
 	// ctImag = Ecd(imag)
 	// If n < N/2 then ctReal = Ecd(real|imag)
-	ctReal = btp.EvalMod(ctReal, btp.evalModPoly)
+	ctReal = btp.EvalModNew(ctReal, btp.evalModPoly)
 	ctReal.Scale = btp.params.Scale()
 
 	if ctImag != nil {
-		ctImag = btp.EvalMod(ctImag, btp.evalModPoly)
+		ctImag = btp.EvalModNew(ctImag, btp.evalModPoly)
 		ctImag.Scale = btp.params.Scale()
 	}
 
 	// Step 4 : SlotsToCoeffs (Homomorphic decoding)
-	ctOut = btp.SlotsToCoeffs(ctReal, ctImag, btp.stcMatrices)
+	ctOut = btp.SlotsToCoeffsNew(ctReal, ctImag, btp.stcMatrices)
 
 	return
 }

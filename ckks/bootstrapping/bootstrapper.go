@@ -5,7 +5,6 @@ import (
 	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/ckks/advanced"
 	"github.com/ldsec/lattigo/v2/rlwe"
-	"github.com/ldsec/lattigo/v2/utils"
 	"math"
 )
 
@@ -62,7 +61,7 @@ func NewBootstrapper(params ckks.Parameters, btpParams Parameters, btpKey Key) (
 
 	btp.encoder = ckks.NewEncoder(params)
 
-	btp.evalModPoly = btpParams.EvalModParameters.GenPoly()
+	btp.evalModPoly = advanced.NewEvalModPolyFromLiteral(btpParams.EvalModParameters)
 	btp.genDFTMatrices()
 
 	btp.Key = &Key{btpKey.Rlk, btpKey.Rtks}
@@ -103,81 +102,29 @@ func (btp *Bootstrapper) CheckKeys() (err error) {
 
 func (btp *Bootstrapper) genDFTMatrices() {
 
-	a := real(btp.evalModPoly.SinePoly.A)
-	b := real(btp.evalModPoly.SinePoly.B)
+	K := btp.evalModPoly.K()
 	n := float64(btp.params.N())
+	scFac := btp.evalModPoly.ScFac()
+	ctsDepth := float64(btp.CoeffsToSlotsParameters.Depth(false))
+	stcDepth := float64(btp.SlotsToCoeffsParameters.Depth(false))
 
 	// Correcting factor for approximate division by Q
 	// The second correcting factor for approximate multiplication by Q is included in the coefficients of the EvalMod polynomials
-	qDiff := btp.params.QiFloat64(0) / math.Exp2(math.Round(math.Log2(btp.params.QiFloat64(0))))
+	qDiff := btp.evalModPoly.QDiff()
 
 	// CoeffsToSlots vectors
 	// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum + evantual scaling factor for the double angle formula
-	coeffsToSlotsDiffScale := complex(math.Pow(2.0/((b-a)*n*btp.evalModPoly.ScFac*qDiff), 1.0/float64(btp.CoeffsToSlotsParameters.Depth(false))), 0)
-	btp.ctsMatrices = btp.CoeffsToSlotsParameters.GenHomomorphicEncodingMatrix(btp.encoder, btp.params.LogN(), btp.params.LogSlots(), coeffsToSlotsDiffScale)
+	coeffsToSlotsDiffScale := complex(math.Pow(1.0/(K*n*scFac*qDiff), 1.0/ctsDepth), 0)
+	btp.ctsMatrices = advanced.NewHomomorphicEncodingMatrixFromLiteral(btp.CoeffsToSlotsParameters, btp.encoder, btp.params.LogN(), btp.params.LogSlots(), coeffsToSlotsDiffScale)
 
 	// SlotsToCoeffs vectors
 	// Rescaling factor to set the final ciphertext to the desired scale
-	slotsToCoeffsDiffScale := complex(math.Pow(btp.params.Scale()/(btp.evalModPoly.ScalingFactor/btp.evalModPoly.MessageRatio), 1.0/float64(btp.SlotsToCoeffsParameters.Depth(false))), 0)
-	btp.stcMatrices = btp.SlotsToCoeffsParameters.GenHomomorphicEncodingMatrix(btp.encoder, btp.params.LogN(), btp.params.LogSlots(), slotsToCoeffsDiffScale)
+	slotsToCoeffsDiffScale := complex(math.Pow(btp.params.Scale()/(btp.evalModPoly.ScalingFactor()/btp.evalModPoly.MessageRatio()), 1.0/stcDepth), 0)
+	btp.stcMatrices = advanced.NewHomomorphicEncodingMatrixFromLiteral(btp.SlotsToCoeffsParameters, btp.encoder, btp.params.LogN(), btp.params.LogSlots(), slotsToCoeffsDiffScale)
 
 	// List of the rotation key values to needed for the bootstrapp
 	btp.rotKeyIndex = []int{}
-
-	//SubSum rotation needed X -> Y^slots rotations
-	for i := btp.params.LogSlots(); i < btp.params.MaxLogSlots(); i++ {
-		if !utils.IsInSliceInt(1<<i, btp.rotKeyIndex) {
-			btp.rotKeyIndex = append(btp.rotKeyIndex, 1<<i)
-		}
-	}
-
-	// Coeffs to Slots rotations
-	for _, pVec := range btp.ctsMatrices.Matrices {
-		btp.rotKeyIndex = addEncodingMatrixRotationsToList(pVec, btp.rotKeyIndex, btp.params.Slots(), false)
-	}
-
-	// Slots to Coeffs rotations
-	for i, pVec := range btp.stcMatrices.Matrices {
-		btp.rotKeyIndex = addEncodingMatrixRotationsToList(pVec, btp.rotKeyIndex, btp.params.Slots(), (i == 0) && (btp.params.LogSlots() < btp.params.MaxLogSlots()))
-	}
-}
-
-// AddMatrixRotToList adds the rotations neede to evaluate pVec to the list rotations
-func addEncodingMatrixRotationsToList(pVec ckks.PtDiagMatrix, rotations []int, slots int, repack bool) []int {
-
-	if pVec.Naive {
-		for j := range pVec.Vec {
-			if !utils.IsInSliceInt(j, rotations) {
-				rotations = append(rotations, j)
-			}
-		}
-	} else {
-		var index int
-		for j := range pVec.Vec {
-
-			N1 := pVec.N1
-
-			index = ((j / N1) * N1)
-
-			if repack {
-				// Sparse repacking, occurring during the first DFT matrix of the CoeffsToSlots.
-				index &= 2*slots - 1
-			} else {
-				// Other cases
-				index &= slots - 1
-			}
-
-			if index != 0 && !utils.IsInSliceInt(index, rotations) {
-				rotations = append(rotations, index)
-			}
-
-			index = j & (N1 - 1)
-
-			if index != 0 && !utils.IsInSliceInt(index, rotations) {
-				rotations = append(rotations, index)
-			}
-		}
-	}
-
-	return rotations
+	btp.rotKeyIndex = append(btp.rotKeyIndex, btp.params.RotationsForTrace(btp.params.LogSlots(), btp.params.MaxLogSlots())...)
+	btp.rotKeyIndex = append(btp.rotKeyIndex, btp.CoeffsToSlotsParameters.Rotations(btp.params.LogN(), btp.params.LogSlots())...)
+	btp.rotKeyIndex = append(btp.rotKeyIndex, btp.SlotsToCoeffsParameters.Rotations(btp.params.LogN(), btp.params.LogSlots())...)
 }

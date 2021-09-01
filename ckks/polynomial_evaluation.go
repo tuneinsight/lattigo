@@ -7,9 +7,9 @@ import (
 	"math/bits"
 )
 
-// Poly is a struct storing the coeffients of a polynomial
+// Polynomial is a struct storing the coefficients of a polynomial
 // that then can be evaluated on the ciphertext
-type Poly struct {
+type Polynomial struct {
 	MaxDeg int
 	Coeffs []complex128
 	Lead   bool
@@ -28,20 +28,24 @@ const (
 	ChebyshevBasis = PolynomialBasis(1)
 )
 
+// IsNegligbleThreshold : threshold under which a coefficient
+// of a polynomial is ignored.
+const IsNegligbleThreshold float64 = 1e-14
+
 // Depth returns the number of levels needed to evaluate the polynomial.
-func (p *Poly) Depth() int {
+func (p *Polynomial) Depth() int {
 	return int(math.Ceil(math.Log2(float64(len(p.Coeffs)))))
 }
 
 // Degree returns the degree of the polynomial
-func (p *Poly) Degree() int {
+func (p *Polynomial) Degree() int {
 	return len(p.Coeffs) - 1
 }
 
 // NewPoly creates a new Poly from the input coefficients
-func NewPoly(coeffs []complex128) (p *Poly) {
+func NewPoly(coeffs []complex128) (p *Polynomial) {
 
-	p = new(Poly)
+	p = new(Polynomial)
 	p.Coeffs = make([]complex128, len(coeffs))
 	copy(p.Coeffs, coeffs)
 	p.MaxDeg = len(coeffs) - 1
@@ -51,9 +55,9 @@ func NewPoly(coeffs []complex128) (p *Poly) {
 }
 
 // checkEnoughLevels checks that enough levels are available to evaluate the polynomial.
-// Also checks if c is a gaussian integer or not. If not, then one more level is needed
+// Also checks if c is a Gaussian integer or not. If not, then one more level is needed
 // to evaluate the polynomial.
-func checkEnoughLevels(levels int, pol *Poly, c complex128) (err error) {
+func checkEnoughLevels(levels int, pol *Polynomial, c complex128) (err error) {
 
 	depth := pol.Depth()
 
@@ -73,7 +77,10 @@ func checkEnoughLevels(levels int, pol *Poly, c complex128) (err error) {
 // Returns an error if something is wrong with the scale.
 // If the polynomial is given in Chebyshev basis, then a change of basis ct' = (2/(b-a)) * (ct + (-a-b)/(b-a))
 // is necessary before the polynomial evaluation to ensure correctness.
-func (eval *evaluator) EvaluatePoly(ct0 *Ciphertext, pol *Poly, targetScale float64) (opOut *Ciphertext, err error) {
+// Coefficients of the polynomial with an absolute value smaller than "IsNegligbleThreshold" will automatically be set to zero
+// if the polynomial is "even" or "odd" (to ensure that the even or odd property remains valid
+// after the "splitCoeffs" polynomial decomposition).
+func (eval *evaluator) EvaluatePoly(ct0 *Ciphertext, pol *Polynomial, targetScale float64) (opOut *Ciphertext, err error) {
 
 	if err := checkEnoughLevels(ct0.Level(), pol, 1); err != nil {
 		return ct0, err
@@ -89,15 +96,7 @@ func (eval *evaluator) EvaluatePoly(ct0 *Ciphertext, pol *Poly, targetScale floa
 	odd, even := isOddOrEvenPolynomial(pol.Coeffs)
 
 	for i := 2; i < (1 << logSplit); i++ {
-		if i&1 == 0 && even {
-			if err = computePowerBasis(i, C, targetScale, pol.Basis, eval); err != nil {
-				return nil, err
-			}
-		} else if i&1 == 1 && odd {
-			if err = computePowerBasis(i, C, targetScale, pol.Basis, eval); err != nil {
-				return nil, err
-			}
-		} else if !even && !odd {
+		if !(even || odd) || (i&1 == 0 && even) || (i&1 == 1 && odd) {
 			if err = computePowerBasis(i, C, targetScale, pol.Basis, eval); err != nil {
 				return nil, err
 			}
@@ -125,7 +124,7 @@ func computePowerBasis(n int, C map[int]*Ciphertext, scale float64, basis Polyno
 		// Computes the index required to compute the asked ring evaluation
 		var a, b, c int
 		if n&(n-1) == 0 {
-			a, b = n/2, n/2 //Necessary for depth optimality
+			a, b = n/2, n/2 //Necessary for optimal depth
 		} else {
 			// [Lee et al. 2020] : High-Precision and Low-Complexity Approximate Homomorphic Encryption by Error Variance Minimization
 			// Maximize the number of odd terms of Chebyshev basis
@@ -173,11 +172,11 @@ func computePowerBasis(n int, C map[int]*Ciphertext, scale float64, basis Polyno
 	return nil
 }
 
-func splitCoeffs(coeffs *Poly, split int) (coeffsq, coeffsr *Poly) {
+func splitCoeffs(coeffs *Polynomial, split int) (coeffsq, coeffsr *Polynomial) {
 
 	// Splits a polynomial p such that p = q*C^degree + r.
 
-	coeffsr = new(Poly)
+	coeffsr = new(Polynomial)
 	coeffsr.Coeffs = make([]complex128, split)
 	if coeffs.MaxDeg == coeffs.Degree() {
 		coeffsr.MaxDeg = split - 1
@@ -189,7 +188,7 @@ func splitCoeffs(coeffs *Poly, split int) (coeffsq, coeffsr *Poly) {
 		coeffsr.Coeffs[i] = coeffs.Coeffs[i]
 	}
 
-	coeffsq = new(Poly)
+	coeffsq = new(Polynomial)
 	coeffsq.Coeffs = make([]complex128, coeffs.Degree()-split+1)
 	coeffsq.MaxDeg = coeffs.MaxDeg
 
@@ -215,9 +214,9 @@ func splitCoeffs(coeffs *Poly, split int) (coeffsq, coeffsr *Poly) {
 	return coeffsq, coeffsr
 }
 
-func recurse(targetScale float64, logSplit, logDegree int, coeffs *Poly, C map[int]*Ciphertext, evaluator *evaluator) (res *Ciphertext, err error) {
+func recurse(targetScale float64, logSplit, logDegree int, coeffs *Polynomial, C map[int]*Ciphertext, evaluator *evaluator) (res *Ciphertext, err error) {
 
-	// Recursively computes the evalution of the Chebyshev polynomial using a baby-set giant-step algorithm.
+	// Recursively computes the evaluation of the Chebyshev polynomial using a baby-set giant-step algorithm.
 	if coeffs.Degree() < (1 << logSplit) {
 
 		if coeffs.Lead && logSplit > 1 && coeffs.MaxDeg%(1<<(logSplit+1)) > (1<<(logSplit-1)) {
@@ -280,7 +279,7 @@ func recurse(targetScale float64, logSplit, logDegree int, coeffs *Poly, C map[i
 	return
 }
 
-func evaluatePolyFromPowerBasis(targetScale float64, coeffs *Poly, logSplit int, C map[int]*Ciphertext, evaluator *evaluator) (res *Ciphertext, err error) {
+func evaluatePolyFromPowerBasis(targetScale float64, coeffs *Polynomial, logSplit int, C map[int]*Ciphertext, evaluator *evaluator) (res *Ciphertext, err error) {
 
 	minimumDegreeNonZeroCoefficient := 0
 
@@ -345,7 +344,7 @@ func evaluatePolyFromPowerBasis(targetScale float64, coeffs *Poly, logSplit int,
 }
 
 func isNotNegligible(c complex128) bool {
-	return (math.Abs(real(c)) > 1e-14 || math.Abs(imag(c)) > 1e-14)
+	return (math.Abs(real(c)) > IsNegligbleThreshold || math.Abs(imag(c)) > IsNegligbleThreshold)
 }
 
 func isOddOrEvenPolynomial(coeffs []complex128) (odd, even bool) {
@@ -353,25 +352,20 @@ func isOddOrEvenPolynomial(coeffs []complex128) (odd, even bool) {
 	odd = true
 	for i, c := range coeffs {
 		isnotnegligible := isNotNegligible(c)
-		if i&1 == 0 && isnotnegligible {
-			odd = false
-		}
-
-		if i&1 == 1 && isnotnegligible {
-			even = false
-		}
-
+		odd = odd && !(i&1 == 0 && isnotnegligible)
+		even = even && !(i&1 == 1 && isnotnegligible)
 		if !odd && !even {
 			break
 		}
 	}
 
-	if even {
-		for i := 1; i < len(coeffs); i += 2 {
-			coeffs[i] = complex(0, 0)
+	// If even or odd, then sets the expected zero coefficients to zero
+	if even || odd {
+		var start int
+		if even {
+			start = 1
 		}
-	} else if odd {
-		for i := 0; i < len(coeffs); i += 2 {
+		for i := start; i < len(coeffs); i += 2 {
 			coeffs[i] = complex(0, 0)
 		}
 	}

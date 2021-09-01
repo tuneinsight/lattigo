@@ -80,7 +80,7 @@ func (evp *EvalModPoly) MessageRatio() float64 {
 	return evp.messageRatio
 }
 
-// K returns the range of the sine approximation, 
+// K returns the range of the sine approximation,
 // scaled by 1/2^r
 func (evp *EvalModPoly) K() float64 {
 	return real(evp.sinePoly.B)

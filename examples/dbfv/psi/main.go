@@ -95,7 +95,10 @@ func main() {
 		panic(err)
 	}
 
-	crpGen, _ := drlwe.NewUniformSampler([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'}, params.Parameters)
+	crs, err := utils.NewKeyedPRNG([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'})
+	if err != nil {
+		panic(err)
+	}
 
 	encoder := bfv.NewEncoder(params)
 
@@ -109,10 +112,10 @@ func main() {
 	expRes := genInputs(params, P)
 
 	// 1) Collective public key generation
-	pk := ckgphase(params, crpGen, P)
+	pk := ckgphase(params, crs, P)
 
 	// 2) Collective relinearization key generation
-	rlk := rkgphase(params, crpGen, P)
+	rlk := rkgphase(params, crs, P)
 
 	l.Printf("\tdone (cloud: %s, party: %s)\n",
 		elapsedRKGCloud, elapsedRKGParty)
@@ -319,19 +322,19 @@ func pcksPhase(params bfv.Parameters, tpk *rlwe.PublicKey, encRes *bfv.Ciphertex
 
 }
 
-func rkgphase(params bfv.Parameters, crpGen drlwe.UniformSampler, P []*party) *rlwe.RelinearizationKey {
+func rkgphase(params bfv.Parameters, crs utils.PRNG, P []*party) *rlwe.RelinearizationKey {
 	l := log.New(os.Stderr, "", 0)
 
 	l.Println("> RKG Phase")
 
 	rkg := dbfv.NewRKGProtocol(params) // Relineariation key generation
-	_, rkgCombined1, rkgCombined2, crp := rkg.AllocateShares()
+	_, rkgCombined1, rkgCombined2 := rkg.AllocateShares()
 
 	for _, pi := range P {
-		pi.rlkEphemSk, pi.rkgShareOne, pi.rkgShareTwo, _ = rkg.AllocateShares()
+		pi.rlkEphemSk, pi.rkgShareOne, pi.rkgShareTwo = rkg.AllocateShares()
 	}
 
-	crpGen.Read(crp)
+	crp := rkg.SampleCRP(crs)
 
 	elapsedRKGParty = runTimedParty(func() {
 		for _, pi := range P {
@@ -364,19 +367,19 @@ func rkgphase(params bfv.Parameters, crpGen drlwe.UniformSampler, P []*party) *r
 	return rlk
 }
 
-func ckgphase(params bfv.Parameters, crpGen drlwe.UniformSampler, P []*party) *rlwe.PublicKey {
+func ckgphase(params bfv.Parameters, crs utils.PRNG, P []*party) *rlwe.PublicKey {
 
 	l := log.New(os.Stderr, "", 0)
 
 	l.Println("> CKG Phase")
 
 	ckg := dbfv.NewCKGProtocol(params) // Public key generation
-	ckgCombined, crp := ckg.AllocateShares()
+	ckgCombined := ckg.AllocateShares()
 	for _, pi := range P {
-		pi.ckgShare, _ = ckg.AllocateShares()
+		pi.ckgShare = ckg.AllocateShares()
 	}
 
-	crpGen.Read(crp)
+	crp := ckg.SampleCRP(crs)
 
 	elapsedCKGParty = runTimedParty(func() {
 		for _, pi := range P {

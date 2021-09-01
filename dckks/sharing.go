@@ -145,6 +145,7 @@ func (e2s *E2SProtocol) GetShare(secretShare *rlwe.AdditiveShareBigint, aggregat
 // required by the shares-to-encryption protocol.
 type S2EProtocol struct {
 	CKSProtocol
+	params   ckks.Parameters
 	ringQ    *ring.Ring
 	tmp      *ring.Poly
 	ssBigint []*big.Int
@@ -155,6 +156,7 @@ type S2EProtocol struct {
 func NewS2EProtocol(params ckks.Parameters, sigmaSmudging float64) *S2EProtocol {
 	s2e := new(S2EProtocol)
 	s2e.CKSProtocol = *NewCKSProtocol(params, sigmaSmudging)
+	s2e.params = params
 	s2e.ringQ = params.RingQ()
 	s2e.tmp = s2e.ringQ.NewPoly()
 	s2e.ssBigint = make([]*big.Int, s2e.ringQ.N)
@@ -171,7 +173,9 @@ func (s2e S2EProtocol) AllocateShare(level int) (share *drlwe.CKSShare) {
 
 // GenShare generates a party's in the shares-to-encryption protocol given the party's secret-key share `sk`, a common
 // polynomial sampled from the CRS `c1` and the party's secret share of the message.
-func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, c1 *ring.Poly, secretShare *rlwe.AdditiveShareBigint, c0ShareOut *drlwe.CKSShare) {
+func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.CRP, secretShare *rlwe.AdditiveShareBigint, c0ShareOut *drlwe.CKSShare) {
+
+	c1 := crs.Get(0).Q
 
 	if c1.Level() != c0ShareOut.Value.Level() {
 		panic("c1 and c0ShareOut level must be equal")
@@ -188,11 +192,13 @@ func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, c1 *ring.Poly, secretShare 
 
 // GetEncryption computes the final encryption of the secret-shared message when provided with the aggregation `c0Agg` of the parties'
 // share in the protocol and with the common, CRS-sampled polynomial `c1`.
-func (s2e *S2EProtocol) GetEncryption(c0Agg *drlwe.CKSShare, c1 *ring.Poly, ctOut *ckks.Ciphertext) {
+func (s2e *S2EProtocol) GetEncryption(c0Agg *drlwe.CKSShare, crs drlwe.CRP, ctOut *ckks.Ciphertext) {
 
 	if ctOut.Degree() != 1 {
 		panic("ctOut must have degree 1.")
 	}
+
+	c1 := crs.Get(0).Q
 
 	if c0Agg.Value.Level() != c1.Level() {
 		panic("c0Agg level must be equal to c1 level")

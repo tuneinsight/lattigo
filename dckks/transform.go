@@ -9,6 +9,7 @@ import (
 	"github.com/ldsec/lattigo/v2/drlwe"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
+	"github.com/ldsec/lattigo/v2/utils"
 )
 
 // MaskedTransformProtocol is a struct storing the parameters for the MaskedTransformProtocol protocol.
@@ -88,8 +89,14 @@ func NewMaskedTransformProtocol(params ckks.Parameters, precision int, sigmaSmud
 }
 
 // AllocateShare allocates the shares of the PermuteProtocol
-func (rfp *MaskedTransformProtocol) AllocateShare(levelDecrypt, levelRecrypt int) (*MaskedTransformShare, drlwe.RefreshCRP) {
-	return &MaskedTransformShare{*rfp.e2s.AllocateShare(levelDecrypt), *rfp.s2e.AllocateShare(levelRecrypt)}, rfp.ringQ.NewPolyLvl(levelRecrypt)
+func (rfp *MaskedTransformProtocol) AllocateShare(levelDecrypt, levelRecrypt int) *MaskedTransformShare {
+	return &MaskedTransformShare{*rfp.e2s.AllocateShare(levelDecrypt), *rfp.s2e.AllocateShare(levelRecrypt)}
+}
+
+// SampleCRP samples a common random polynomial to be used in the Masked-Transform protocol from the provided
+// common reference string.
+func (rfp *MaskedTransformProtocol) SampleCRP(level int, crs utils.PRNG) drlwe.CRP {
+	return rfp.s2e.SampleCRP(level, crs)
 }
 
 // GenShares generates the shares of the PermuteProtocol
@@ -99,13 +106,13 @@ func (rfp *MaskedTransformProtocol) AllocateShare(levelDecrypt, levelRecrypt int
 //
 // The method "GetMinimumLevelForBootstrapping" should be used to get the minimum level at which the masked transform can be called while still ensure 128-bits of security, as well as the
 // value for logBound.
-func (rfp *MaskedTransformProtocol) GenShares(sk *rlwe.SecretKey, logBound, logSlots int, ct *ckks.Ciphertext, crs *ring.Poly, transform MaskedTransformFunc, shareOut *MaskedTransformShare) {
+func (rfp *MaskedTransformProtocol) GenShares(sk *rlwe.SecretKey, logBound, logSlots int, ct *ckks.Ciphertext, crs drlwe.CRP, transform MaskedTransformFunc, shareOut *MaskedTransformShare) {
 
 	if ct.Level() != shareOut.e2sShare.Value.Level() {
 		panic("ciphertext level must be equal to e2sShare")
 	}
 
-	if crs.Level() != shareOut.s2eShare.Value.Level() {
+	if crs.Get(0).Q.Level() != shareOut.s2eShare.Value.Level() {
 		panic("crs level must be equal to s2eShare")
 	}
 
@@ -172,17 +179,17 @@ func (rfp *MaskedTransformProtocol) Aggregate(share1, share2, shareOut *MaskedTr
 }
 
 // Transform applies Decrypt, Recode and Recrypt on the input ciphertext.
-func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, logSlots int, transform MaskedTransformFunc, crs *ring.Poly, share *MaskedTransformShare, ciphertextOut *ckks.Ciphertext) {
+func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, logSlots int, transform MaskedTransformFunc, crs drlwe.CRP, share *MaskedTransformShare, ciphertextOut *ckks.Ciphertext) {
 
 	if ct.Level() != share.e2sShare.Value.Level() {
 		panic("ciphertext level and e2s level must be the same")
 	}
 
-	if crs.Level() != share.s2eShare.Value.Level() {
+	maxLevel := crs.Get(0).Q.Level()
+
+	if maxLevel != share.s2eShare.Value.Level() {
 		panic("crs level and s2e level must be the same")
 	}
-
-	maxLevel := crs.Level()
 
 	// Returns -sum(M_i) + x (outside of the NTT domain)
 	rfp.e2s.GetShare(nil, &share.e2sShare, ct, &rlwe.AdditiveShareBigint{Value: rfp.tmpMask})
@@ -225,7 +232,7 @@ func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, logSlots int,
 	}
 
 	// Extend the levels of the ciphertext for future allocation
-	for ciphertextOut.Level() != crs.Level() {
+	for ciphertextOut.Level() != maxLevel {
 		level := ciphertextOut.Level() + 1
 
 		ciphertextOut.Value[0].Coeffs = append(ciphertextOut.Value[0].Coeffs, make([][]uint64, 1)...)

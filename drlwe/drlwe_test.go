@@ -12,6 +12,7 @@ import (
 
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
+	"github.com/ldsec/lattigo/v2/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -34,7 +35,8 @@ type testContext struct {
 	params                 rlwe.Parameters
 	kgen                   rlwe.KeyGenerator
 	sk0, sk1, sk2, skIdeal *rlwe.SecretKey
-	crpGenerator           UniformSampler
+	uniformSampler         *ring.UniformSampler
+	crs                    utils.PRNG
 }
 
 func newTestContext(params rlwe.Parameters) testContext {
@@ -48,9 +50,10 @@ func newTestContext(params rlwe.Parameters) testContext {
 	params.RingQP().AddLvl(levelQ, levelP, skIdeal.Value, sk1.Value, skIdeal.Value)
 	params.RingQP().AddLvl(levelQ, levelP, skIdeal.Value, sk2.Value, skIdeal.Value)
 
-	crpGenerator, _ := NewUniformSampler([]byte{}, params)
+	prng, _ := utils.NewKeyedPRNG([]byte{'t', 'e', 's', 't'})
+	unifSampler := ring.NewUniformSampler(prng, params.RingQ())
 
-	return testContext{params, kgen, sk0, sk1, sk2, skIdeal, crpGenerator}
+	return testContext{params, kgen, sk0, sk1, sk2, skIdeal, unifSampler, prng}
 }
 
 func TestDRLWE(t *testing.T) {
@@ -99,11 +102,11 @@ func testPublicKeyGen(testCtx testContext, t *testing.T) {
 
 		ckg := NewCKGProtocol(params)
 
-		share0, crp := ckg.AllocateShares()
-		share1, _ := ckg.AllocateShares()
-		share2, _ := ckg.AllocateShares()
+		share0 := ckg.AllocateShares()
+		share1 := ckg.AllocateShares()
+		share2 := ckg.AllocateShares()
 
-		testCtx.crpGenerator.Read(crp)
+		crp := ckg.SampleCRP(testCtx.crs)
 
 		ckg.GenShare(testCtx.sk0, crp, share0)
 		ckg.GenShare(testCtx.sk1, crp, share1)
@@ -142,7 +145,7 @@ func testKeySwitching(testCtx testContext, t *testing.T) {
 		ringQP.AddLvl(levelQ, levelP, skOutIdeal.Value, sk2Out.Value, skOutIdeal.Value)
 
 		ciphertext := &rlwe.Ciphertext{Value: []*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly()}}
-		testCtx.crpGenerator.Read(ciphertext.Value[1])
+		testCtx.uniformSampler.Read(ciphertext.Value[1])
 		ringQ.MulCoeffsMontgomeryAndSub(ciphertext.Value[1], testCtx.skIdeal.Value.Q, ciphertext.Value[0])
 		ciphertext.Value[0].IsNTT = true
 		ciphertext.Value[1].IsNTT = true
@@ -183,7 +186,7 @@ func testPublicKeySwitching(testCtx testContext, t *testing.T) {
 		skOut, pkOut := testCtx.kgen.GenKeyPair()
 
 		ciphertext := &rlwe.Ciphertext{Value: []*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly()}}
-		testCtx.crpGenerator.Read(ciphertext.Value[1])
+		testCtx.uniformSampler.Read(ciphertext.Value[1])
 		ringQ.MulCoeffsMontgomeryAndSub(ciphertext.Value[1], testCtx.skIdeal.Value.Q, ciphertext.Value[0])
 		ciphertext.Value[0].IsNTT = true
 		ciphertext.Value[1].IsNTT = true
@@ -223,30 +226,30 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 
 	t.Run(testString(params, "RelinKeyGen/"), func(t *testing.T) {
 
-		RKGProtocol := NewRKGProtocol(params, rlwe.DefaultSigma)
+		rkg := NewRKGProtocol(params, rlwe.DefaultSigma)
 
-		ephSk0, share10, share20, crp := RKGProtocol.AllocateShares()
-		ephSk1, share11, share21, _ := RKGProtocol.AllocateShares()
-		ephSk2, share12, share22, _ := RKGProtocol.AllocateShares()
+		ephSk0, share10, share20 := rkg.AllocateShares()
+		ephSk1, share11, share21 := rkg.AllocateShares()
+		ephSk2, share12, share22 := rkg.AllocateShares()
 
-		testCtx.crpGenerator.Read(crp)
+		crp := rkg.SampleCRP(testCtx.crs)
 
-		RKGProtocol.GenShareRoundOne(testCtx.sk0, crp, ephSk0, share10)
-		RKGProtocol.GenShareRoundOne(testCtx.sk1, crp, ephSk1, share11)
-		RKGProtocol.GenShareRoundOne(testCtx.sk2, crp, ephSk2, share12)
+		rkg.GenShareRoundOne(testCtx.sk0, crp, ephSk0, share10)
+		rkg.GenShareRoundOne(testCtx.sk1, crp, ephSk1, share11)
+		rkg.GenShareRoundOne(testCtx.sk2, crp, ephSk2, share12)
 
-		RKGProtocol.AggregateShares(share10, share11, share10)
-		RKGProtocol.AggregateShares(share10, share12, share10)
+		rkg.AggregateShares(share10, share11, share10)
+		rkg.AggregateShares(share10, share12, share10)
 
-		RKGProtocol.GenShareRoundTwo(ephSk0, testCtx.sk0, share10, crp, share20)
-		RKGProtocol.GenShareRoundTwo(ephSk1, testCtx.sk1, share10, crp, share21)
-		RKGProtocol.GenShareRoundTwo(ephSk2, testCtx.sk2, share10, crp, share22)
+		rkg.GenShareRoundTwo(ephSk0, testCtx.sk0, share10, crp, share20)
+		rkg.GenShareRoundTwo(ephSk1, testCtx.sk1, share10, crp, share21)
+		rkg.GenShareRoundTwo(ephSk2, testCtx.sk2, share10, crp, share22)
 
-		RKGProtocol.AggregateShares(share20, share21, share20)
-		RKGProtocol.AggregateShares(share20, share22, share20)
+		rkg.AggregateShares(share20, share21, share20)
+		rkg.AggregateShares(share20, share22, share20)
 
 		rlk := rlwe.NewRelinKey(params, 2)
-		RKGProtocol.GenRelinearizationKey(share10, share20, rlk)
+		rkg.GenRelinearizationKey(share10, share20, rlk)
 
 		skIn := testCtx.skIdeal.CopyNew()
 		skOut := testCtx.skIdeal.CopyNew()
@@ -299,25 +302,25 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 
 	t.Run(testString(params, "RotKeyGen/"), func(t *testing.T) {
 
-		RTGProtocol := NewRTGProtocol(params)
+		rtg := NewRTGProtocol(params)
 
-		share0, crp := RTGProtocol.AllocateShares()
-		share1, _ := RTGProtocol.AllocateShares()
-		share2, _ := RTGProtocol.AllocateShares()
+		share0 := rtg.AllocateShares()
+		share1 := rtg.AllocateShares()
+		share2 := rtg.AllocateShares()
 
-		testCtx.crpGenerator.Read(crp)
+		crp := rtg.SampleCRP(testCtx.crs)
 
 		galEl := params.GaloisElementForRowRotation()
 
-		RTGProtocol.GenShare(testCtx.sk0, galEl, crp, share0)
-		RTGProtocol.GenShare(testCtx.sk1, galEl, crp, share1)
-		RTGProtocol.GenShare(testCtx.sk2, galEl, crp, share2)
+		rtg.GenShare(testCtx.sk0, galEl, crp, share0)
+		rtg.GenShare(testCtx.sk1, galEl, crp, share1)
+		rtg.GenShare(testCtx.sk2, galEl, crp, share2)
 
-		RTGProtocol.Aggregate(share0, share1, share0)
-		RTGProtocol.Aggregate(share0, share2, share0)
+		rtg.Aggregate(share0, share1, share0)
+		rtg.Aggregate(share0, share2, share0)
 
 		rotKeySet := rlwe.NewRotationKeySet(params, []uint64{galEl})
-		RTGProtocol.GenRotationKey(share0, crp, rotKeySet.Keys[galEl])
+		rtg.GenRotationKey(share0, crp, rotKeySet.Keys[galEl])
 
 		skIn := testCtx.skIdeal.CopyNew()
 		skOut := testCtx.skIdeal.CopyNew()
@@ -366,14 +369,15 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 	params := testCtx.params
 
 	ciphertext := &rlwe.Ciphertext{Value: []*ring.Poly{params.RingQ().NewPoly(), params.RingQ().NewPoly()}}
-	testCtx.crpGenerator.Read(ciphertext.Value[0])
-	testCtx.crpGenerator.Read(ciphertext.Value[1])
+	testCtx.uniformSampler.Read(ciphertext.Value[0])
+	testCtx.uniformSampler.Read(ciphertext.Value[1])
 
-	t.Run(testString(params, "Marshalling/CPK/"), func(t *testing.T) {
-		keygenProtocol := NewCKGProtocol(testCtx.params)
-		KeyGenShareBefore, crp := keygenProtocol.AllocateShares()
-		testCtx.crpGenerator.Read(crp)
-		keygenProtocol.GenShare(testCtx.sk0, crp, KeyGenShareBefore)
+	t.Run(testString(params, "Marshalling/CKG/"), func(t *testing.T) {
+		ckg := NewCKGProtocol(testCtx.params)
+		KeyGenShareBefore := ckg.AllocateShares()
+		crs := ckg.SampleCRP(testCtx.crs)
+
+		ckg.GenShare(testCtx.sk0, crs, KeyGenShareBefore)
 		//now we marshall it
 		data, err := KeyGenShareBefore.MarshalBinary()
 
@@ -446,9 +450,9 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 
 		RKGProtocol := NewRKGProtocol(params, rlwe.DefaultSigma)
 
-		ephSk0, share10, _, crp := RKGProtocol.AllocateShares()
+		ephSk0, share10, _ := RKGProtocol.AllocateShares()
 
-		testCtx.crpGenerator.Read(crp)
+		crp := RKGProtocol.SampleCRP(testCtx.crs)
 
 		RKGProtocol.GenShareRoundOne(testCtx.sk0, crp, ephSk0, share10)
 
@@ -479,10 +483,12 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 
 		galEl := testCtx.params.GaloisElementForColumnRotationBy(64)
 
-		RTGProtocol := NewRTGProtocol(testCtx.params)
-		rtgShare, crp := RTGProtocol.AllocateShares()
-		testCtx.crpGenerator.Read(crp)
-		RTGProtocol.GenShare(testCtx.sk1, galEl, crp, rtgShare)
+		rtg := NewRTGProtocol(testCtx.params)
+		rtgShare := rtg.AllocateShares()
+
+		crp := rtg.SampleCRP(testCtx.crs)
+
+		rtg.GenShare(testCtx.sk1, galEl, crp, rtgShare)
 
 		data, err := rtgShare.MarshalBinary()
 		require.NoError(t, err)

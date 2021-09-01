@@ -46,22 +46,21 @@ func benchPublicKeyGen(testCtx *testContext, b *testing.B) {
 
 	type Party struct {
 		*CKGProtocol
-		s   *rlwe.SecretKey
-		s1  *drlwe.CKGShare
-		crp drlwe.CKGCRP
+		s  *rlwe.SecretKey
+		s1 *drlwe.CKGShare
 	}
 
 	p := new(Party)
 	p.CKGProtocol = NewCKGProtocol(testCtx.params)
 	p.s = sk0Shards[0]
-	p.s1, p.crp = p.AllocateShares()
+	p.s1 = p.AllocateShares()
 
-	testCtx.crpGenerator.Read(p.crp)
+	crp := p.SampleCRP(testCtx.crs)
 
 	b.Run(testString("PublicKeyGen/Round1/Gen", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.GenShare(p.s, p.crp, p.s1)
+			p.GenShare(p.s, crp, p.s1)
 		}
 	})
 
@@ -75,7 +74,7 @@ func benchPublicKeyGen(testCtx *testContext, b *testing.B) {
 	pk := bfv.NewPublicKey(testCtx.params)
 	b.Run(testString("PublicKeyGen/Finalize", parties, testCtx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			p.GenPublicKey(p.s1, p.crp, pk)
+			p.GenPublicKey(p.s1, crp, pk)
 		}
 	})
 }
@@ -90,7 +89,6 @@ func benchRelinKeyGen(testCtx *testContext, b *testing.B) {
 		sk     *rlwe.SecretKey
 		share1 *drlwe.RKGShare
 		share2 *drlwe.RKGShare
-		crp    drlwe.RKGCRP
 
 		rlk *rlwe.RelinearizationKey
 	}
@@ -98,14 +96,14 @@ func benchRelinKeyGen(testCtx *testContext, b *testing.B) {
 	p := new(Party)
 	p.RKGProtocol = NewRKGProtocol(testCtx.params)
 	p.sk = sk0Shards[0]
-	p.ephSk, p.share1, p.share2, p.crp = p.RKGProtocol.AllocateShares()
+	p.ephSk, p.share1, p.share2 = p.RKGProtocol.AllocateShares()
 	p.rlk = bfv.NewRelinearizationKey(testCtx.params, 2)
 
-	testCtx.crpGenerator.Read(p.crp)
+	crp := p.SampleCRP(testCtx.crs)
 
 	b.Run(testString("RelinKeyGen/Round1/Gen", parties, testCtx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			p.GenShareRoundOne(p.sk, p.crp, p.ephSk, p.share1)
+			p.GenShareRoundOne(p.sk, crp, p.ephSk, p.share1)
 		}
 	})
 
@@ -117,7 +115,7 @@ func benchRelinKeyGen(testCtx *testContext, b *testing.B) {
 
 	b.Run(testString("RelinKeyGen/Round2/Gen", parties, testCtx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			p.GenShareRoundTwo(p.ephSk, p.sk, p.share1, p.crp, p.share2)
+			p.GenShareRoundTwo(p.ephSk, p.sk, p.share1, crp, p.share2)
 		}
 	})
 
@@ -225,20 +223,19 @@ func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 		*RTGProtocol
 		s     *rlwe.SecretKey
 		share *drlwe.RTGShare
-		crp   drlwe.RTGCRP
 	}
 
 	p := new(Party)
 	p.RTGProtocol = NewRotKGProtocol(testCtx.params)
 	p.s = sk0Shards[0]
-	p.share, p.crp = p.AllocateShares()
+	p.share = p.AllocateShares()
 
-	testCtx.crpGenerator.Read(p.crp)
+	crp := p.SampleCRP(testCtx.crs)
 
 	b.Run(testString("RotKeyGen/Round1/Gen", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.GenShare(p.s, testCtx.params.GaloisElementForRowRotation(), p.crp, p.share)
+			p.GenShare(p.s, testCtx.params.GaloisElementForRowRotation(), crp, p.share)
 		}
 	})
 
@@ -253,7 +250,7 @@ func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 	b.Run(testString("RotKeyGen/Finalize", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.GenRotationKey(p.share, p.crp, rotKey)
+			p.GenRotationKey(p.share, crp, rotKey)
 		}
 	})
 }
@@ -266,22 +263,21 @@ func benchRefresh(testCtx *testContext, b *testing.B) {
 		*RefreshProtocol
 		s     *rlwe.SecretKey
 		share *RefreshShare
-		crp   drlwe.RefreshCRP
 	}
 
 	p := new(Party)
 	p.RefreshProtocol = NewRefreshProtocol(testCtx.params, 3.2)
 	p.s = sk0Shards[0]
-	p.share, p.crp = p.AllocateShare()
+	p.share = p.AllocateShare()
 
 	ciphertext := bfv.NewCiphertext(testCtx.params, 1)
 
-	testCtx.crpGenerator.Read(p.crp)
+	crp := p.SampleCRP(ciphertext.Level(), testCtx.crs)
 
 	b.Run(testString("Refresh/Round1/Gen", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.GenShares(p.s, ciphertext, p.crp, p.share)
+			p.GenShares(p.s, ciphertext, crp, p.share)
 		}
 	})
 
@@ -295,7 +291,7 @@ func benchRefresh(testCtx *testContext, b *testing.B) {
 	b.Run(testString("Refresh/Finalize", parties, testCtx.params), func(b *testing.B) {
 		ctOut := bfv.NewCiphertext(testCtx.params, 1)
 		for i := 0; i < b.N; i++ {
-			p.Finalize(ciphertext, p.crp, p.share, ctOut)
+			p.Finalize(ciphertext, crp, p.share, ctOut)
 		}
 	})
 }

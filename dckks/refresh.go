@@ -3,7 +3,6 @@ package dckks
 import (
 	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/drlwe"
-	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
 )
 
@@ -25,9 +24,9 @@ func NewRefreshProtocol(params ckks.Parameters, precision int, sigmaSmudging flo
 }
 
 // AllocateShare allocates the shares of the PermuteProtocol
-func (rfp *RefreshProtocol) AllocateShare(minLevel, maxLevel int) (*RefreshShare, drlwe.RefreshCRP) {
-	share, refreshCRP := rfp.MaskedTransformProtocol.AllocateShare(minLevel, maxLevel)
-	return &RefreshShare{*share}, refreshCRP
+func (rfp *RefreshProtocol) AllocateShare(inputLevel, outputLevel int) *RefreshShare {
+	share := rfp.MaskedTransformProtocol.AllocateShare(inputLevel, outputLevel)
+	return &RefreshShare{*share}
 }
 
 // GenShares generates a share for the Refresh protocol.
@@ -37,7 +36,7 @@ func (rfp *RefreshProtocol) AllocateShare(minLevel, maxLevel int) (*RefreshShare
 //
 // The method "GetMinimumLevelForBootstrapping" should be used to get the minimum level at which the refresh can be called while still ensure 128-bits of security, as well as the
 // value for logBound.
-func (rfp *RefreshProtocol) GenShares(sk *rlwe.SecretKey, logBound, logSlots int, ciphertext *ckks.Ciphertext, crs *ring.Poly, shareOut *RefreshShare) {
+func (rfp *RefreshProtocol) GenShares(sk *rlwe.SecretKey, logBound, logSlots int, ciphertext *ckks.Ciphertext, crs drlwe.CRP, shareOut *RefreshShare) {
 	rfp.MaskedTransformProtocol.GenShares(sk, logBound, logSlots, ciphertext, crs, nil, &shareOut.MaskedTransformShare)
 }
 
@@ -47,6 +46,6 @@ func (rfp *RefreshProtocol) Aggregate(share1, share2, shareOut *RefreshShare) {
 }
 
 // Finalize applies Decrypt, Recode and Recrypt on the input ciphertext.
-func (rfp *RefreshProtocol) Finalize(ciphertext *ckks.Ciphertext, logSlots int, crs *ring.Poly, share *RefreshShare, ciphertextOut *ckks.Ciphertext) {
+func (rfp *RefreshProtocol) Finalize(ciphertext *ckks.Ciphertext, logSlots int, crs drlwe.CRP, share *RefreshShare, ciphertextOut *ckks.Ciphertext) {
 	rfp.MaskedTransformProtocol.Transform(ciphertext, logSlots, nil, crs, &share.MaskedTransformShare, ciphertextOut)
 }

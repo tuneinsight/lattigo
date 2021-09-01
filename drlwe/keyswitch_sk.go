@@ -61,6 +61,12 @@ func (cks *CKSProtocol) AllocateShare(level int) *CKSShare {
 	return &CKSShare{cks.params.RingQ().NewPolyLvl(level)}
 }
 
+// SampleCRP samples a common random polynomial to be used in the CKS protocol from the provided
+// common reference string.
+func (cks *CKSProtocol) SampleCRP(level int, crs CRS) CRP {
+	return NewCRPAtLvl(cks.params, 1, level, -1, crs)
+}
+
 // GenShare computes a party's share in the CKS protocol.
 // ct.Value[0] can be nil, computations are only done using ct.Value[1]
 // NTT flag for ct.Value[1] is expected to be set correctly

@@ -57,7 +57,6 @@ func TestBootstrap(t *testing.T) {
 		ckksParams.LogSlots = 13
 	}
 
-	// Tests homomorphic modular reduction encoding and bootstrapping on sparse slots
 	params, err := ckks.NewParametersFromLiteral(ckksParams)
 	if err != nil {
 		panic(err)
@@ -72,7 +71,6 @@ func TestBootstrap(t *testing.T) {
 
 	ckksParams.LogSlots--
 
-	// Tests homomorphic encoding and bootstrapping on full slots
 	params, err = ckks.NewParametersFromLiteral(ckksParams)
 	if err != nil {
 		panic(err)

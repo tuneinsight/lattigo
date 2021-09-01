@@ -35,7 +35,7 @@ func main() {
 	fmt.Printf("LWE  Params : logN=%2d, logQP=%3d\n", paramsLWE.LogN(), paramsLWE.LogQP())
 
 	// Homomorphic decoding parameters
-	SlotsToCoeffsParameters := ckksAdvanced.EncodingMatrixParameters{
+	SlotsToCoeffsParameters := ckksAdvanced.EncodingMatrixLiteral{
 		LinearTransformType: ckksAdvanced.SlotsToCoeffs,
 		LevelStart:          2,     // starting level
 		BSGSRatio:           16.0,  // ratio between n1/n2 for n1*n2 = slots
@@ -47,7 +47,7 @@ func main() {
 	}
 
 	// Homomorphic modular reduction parameters
-	EvalModParameters := ckksAdvanced.EvalModParameters{
+	EvalModParameters := ckksAdvanced.EvalModLiteral{
 		Q:             paramsRLWE.Q()[0],         // Modulus
 		LevelStart:    paramsRLWE.MaxLevel() - 1, // Starting level of the procedure
 		SineType:      ckksAdvanced.Cos1,         // Type of approximation
@@ -62,7 +62,7 @@ func main() {
 	// Generates the homomorphic modular reduction polynomial approximation
 	fmt.Printf("Gen EvalMod Poly... ")
 	start = time.Now()
-	EvalModPoly := EvalModParameters.GenPoly()
+	EvalModPoly := ckksAdvanced.NewEvalModPolyFromLiteral(EvalModParameters)
 	fmt.Printf("Done (%s)\n", time.Since(start))
 
 	// RLWE Parameters
@@ -75,7 +75,7 @@ func main() {
 
 	fmt.Printf("Gen SlotsToCoeffs Matrices... ")
 	start = time.Now()
-	SlotsToCoeffsMatrix := SlotsToCoeffsParameters.GenHomomorphicEncodingMatrix(encoder, paramsRLWE.LogN(), paramsRLWE.LogSlots(), 1.0)
+	SlotsToCoeffsMatrix := ckksAdvanced.NewHomomorphicEncodingMatrixFromLiteral(SlotsToCoeffsParameters, encoder, paramsRLWE.LogN(), paramsRLWE.LogSlots(), 1.0)
 	fmt.Printf("Done (%s)\n", time.Since(start))
 
 	fmt.Printf("Gen Evaluation Keys:\n")
@@ -127,7 +127,7 @@ func main() {
 			skFloat[i] = complex(float64(s), 0)
 		}
 
-		skFloat[i] *= complex(math.Pow(1.0/(float64(EvalModPoly.K)*EvalModPoly.QDiff()), 0.5), 0) // sqrt(pre-scaling for Cheby)
+		skFloat[i] *= complex(math.Pow(1.0/(EvalModPoly.K()*EvalModPoly.QDiff()), 0.5), 0) // sqrt(pre-scaling for Cheby)
 	}
 
 	paramsLWE.RingQ().MFormLvl(0, skLWEInvNTT, skLWEInvNTT)
@@ -155,7 +155,7 @@ func main() {
 	// ******** STEP 1 : HOMOMORPHIC DECODING *******
 	fmt.Printf("Homomorphic Decoding... ")
 	start = time.Now()
-	ct = eval.SlotsToCoeffs(ct, nil, SlotsToCoeffsMatrix)
+	ct = eval.SlotsToCoeffsNew(ct, nil, SlotsToCoeffsMatrix)
 	fmt.Printf("Done (%s)\n", time.Since(start))
 
 	// ******** STEP 2 : RLWE -> LWE EXTRACTION *************
@@ -163,26 +163,19 @@ func main() {
 	fmt.Printf("RLWE -> LWE Extraction... ")
 	start = time.Now()
 	// Scale the message to Delta = Q/MessageRatio
-	scale := math.Exp2(math.Round(math.Log2(float64(EvalModPoly.Q) / EvalModPoly.MessageRatio)))
+	scale := math.Exp2(math.Round(math.Log2(float64(EvalModParameters.Q) / EvalModParameters.MessageRatio)))
 	eval.ScaleUp(ct, math.Round(scale/ct.Scale), ct)
 
 	//Switch from RLWE parameters to LWE parameters
 	ctTmp := eval.SwitchKeysNew(ct, swkRLWEDimToLWEDim)
 	ctLWE := ckks.NewCiphertext(paramsLWE, 1, 0, ctTmp.Scale)
-	for i := range ctLWE.Value {
-		paramsRLWE.RingQ().InvNTTLvl(0, ctTmp.Value[i], ctTmp.Value[i])
-		tmp0 := ctLWE.Value[i].Coeffs[0]
-		tmp1 := ctTmp.Value[i].Coeffs[0]
-		gap := paramsRLWE.N() / paramsLWE.N()
-		for w := 0; w < paramsLWE.N(); w++ {
-			tmp0[w] = tmp1[w*gap]
-		}
-		paramsLWE.RingQ().NTTLvl(0, ctLWE.Value[i], ctLWE.Value[i])
-	}
 
 	// Switch the ciphertext outside of the NTT domain for the LWE extraction
-	paramsLWE.RingQ().InvNTTLvl(0, ctLWE.Value[0], ctLWE.Value[0])
-	paramsLWE.RingQ().InvNTTLvl(0, ctLWE.Value[1], ctLWE.Value[1])
+	for i := range ctLWE.Value {
+		paramsRLWE.RingQ().InvNTTLvl(0, ctTmp.Value[i], ctTmp.Value[i])
+	}
+
+	rlwe.SwitchCiphertextRingDegree(ctTmp.El(), ctLWE.El())
 
 	// RLWE -> LWE Extraction
 	lweReal, lweImag := ExtractLWESamplesBitReversed(ctLWE, paramsLWE)
@@ -202,7 +195,7 @@ func main() {
 	lweEncoded := make([]complex128, paramsRLWE.Slots())
 	for i := 0; i < paramsRLWE.Slots(); i++ {
 		lweEncoded[i] = complex(float64(lweReal[i].b), float64(lweImag[i].b))
-		lweEncoded[i] *= complex(math.Pow(1/(float64(EvalModPoly.K)*EvalModPoly.QDiff()), 1.0), 0) // pre-scaling for Cheby
+		lweEncoded[i] *= complex(math.Pow(1/(EvalModPoly.K()*EvalModPoly.QDiff()), 1.0), 0) // pre-scaling for Cheby
 	}
 
 	encoder.EncodeNTT(ptLWE, lweEncoded, paramsRLWE.LogSlots())
@@ -210,15 +203,15 @@ func main() {
 
 	// Encodes A
 
-	// Compute			     skLeft 			     skRight
-	//    	   __________  	   _       __________ 	    _
-	//   	  |		     |	  | |	  |		     |	   | |
-	//   	  |		     |    | |	  |		     |     | |
-	//   n    |	 ALeft   |  x | |  +  |  ARight  |  x  | | 	= 	A x sk
-	//   	  |		     |	  | |	  |		     |     | |
-	//   	  |__________|	  |_|	  |__________|     |_|
+	// Compute               skLeft                  skRight
+	//         __________      _       __________       _
+	//        |          |    | |     |          |     | |
+	//        |          |    | |     |          |     | |
+	//   n    |  ALeft   |  x | |  +  |  ARight  |  x  | | 	=   A x sk
+	//        |          |    | |     |          |     | |
+	//        |__________|    |_|     |__________|     |_|
 	//
-	//			  N/n          1           N/n 		    1
+	//            N/n          1          N/n           1
 
 	fmt.Printf("Encode A... ")
 	start = time.Now()
@@ -227,7 +220,7 @@ func main() {
 		tmp := make([]complex128, paramsLWE.N())
 		for j := 0; j < paramsLWE.N(); j++ {
 			tmp[j] = complex(float64(lweReal[i].a[j]), float64(lweImag[i].a[j]))
-			tmp[j] *= complex(math.Pow(1/(float64(EvalModPoly.K)*EvalModPoly.QDiff()), 0.5), 0) // sqrt(pre-scaling for Cheby)
+			tmp[j] *= complex(math.Pow(1/(EvalModPoly.K()*EvalModPoly.QDiff()), 0.5), 0) // sqrt(pre-scaling for Cheby)
 		}
 
 		AVectors[i] = tmp
@@ -263,13 +256,13 @@ func main() {
 	ctAsConj := eval.ConjugateNew(ctAs)
 	ctAsReal := eval.AddNew(ctAs, ctAsConj)
 	ctAsImag := eval.SubNew(ctAs, ctAsConj)
-	ctAsReal.Scale = ctAsReal.Scale * 2                                                                               // Divides by 2
-	ctAsImag.Scale = ctAsImag.Scale * 2                                                                               // Divides by 2
-	eval.ScaleUp(ctAsReal, math.Round((EvalModPoly.ScalingFactor/EvalModPoly.MessageRatio)/ctAsReal.Scale), ctAsReal) // Scale the real message up to Sine/MessageRatio
-	eval.ScaleUp(ctAsImag, math.Round((EvalModPoly.ScalingFactor/EvalModPoly.MessageRatio)/ctAsImag.Scale), ctAsImag) // Scale the imag message up to Sine/MessageRatio
-	ctAsReal = eval.EvalMod(ctAsReal, EvalModPoly)                                                                    // Real mod Q
+	ctAsReal.Scale = ctAsReal.Scale * 2                                                                                   // Divides by 2
+	ctAsImag.Scale = ctAsImag.Scale * 2                                                                                   // Divides by 2
+	eval.ScaleUp(ctAsReal, math.Round((EvalModPoly.ScalingFactor()/EvalModPoly.MessageRatio())/ctAsReal.Scale), ctAsReal) // Scale the real message up to Sine/MessageRatio
+	eval.ScaleUp(ctAsImag, math.Round((EvalModPoly.ScalingFactor()/EvalModPoly.MessageRatio())/ctAsImag.Scale), ctAsImag) // Scale the imag message up to Sine/MessageRatio
+	ctAsReal = eval.EvalModNew(ctAsReal, EvalModPoly)                                                                     // Real mod Q
 	eval.DivByi(ctAsImag, ctAsImag)
-	ctAsImag = eval.EvalMod(ctAsImag, EvalModPoly) // (-i*imag mod Q)*i
+	ctAsImag = eval.EvalModNew(ctAsImag, EvalModPoly) // (-i*imag mod Q)*i
 	eval.MultByi(ctAsImag, ctAsImag)
 	eval.Add(ctAsReal, ctAsImag, ctAsReal) // Repack both imag and real parts
 	fmt.Printf("Done (%s)\n", time.Since(start))

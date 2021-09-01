@@ -6,9 +6,9 @@ import (
 
 // Approximate computes a Chebyshev approximation of the input function, for the range [-a, b] of degree degree.
 // To be used in conjunction with the function EvaluateCheby.
-func Approximate(function func(complex128) complex128, a, b complex128, degree int) (pol *Poly) {
+func Approximate(function func(complex128) complex128, a, b complex128, degree int) (pol *Polynomial) {
 
-	pol = new(Poly)
+	pol = new(Polynomial)
 	pol.A = a
 	pol.B = b
 	pol.MaxDeg = degree

@@ -136,22 +136,16 @@ func testGenKeyPair(kgen KeyGenerator, t *testing.T) {
 
 	// Checks that sum([-as + e, a] + [as])) <= N * 6 * sigma
 	t.Run(testString(params, "PKGen/"), func(t *testing.T) {
-
-		ringQ := params.RingQ()
-		ringP := params.RingP()
-
 		sk, pk := kgen.GenKeyPair()
 
 		// [-as + e] + [as]
-		ringQ.MulCoeffsMontgomeryAndAdd(sk.Value.Q, pk.Value[1].Q, pk.Value[0].Q)
-		ringQ.InvNTT(pk.Value[0].Q, pk.Value[0].Q)
+		params.RingQP().MulCoeffsMontgomeryAndAddLvl(sk.Value.Q.Level(), sk.Value.P.Level(), sk.Value, pk.Value[1], pk.Value[0])
+		params.RingQP().InvNTTLvl(sk.Value.Q.Level(), sk.Value.P.Level(), pk.Value[0], pk.Value[0])
 
 		log2Bound := bits.Len64(uint64(math.Floor(DefaultSigma*6)) * uint64(params.N()))
-		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(pk.Value[0].Q.Level(), ringQ, pk.Value[0].Q))
+		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(pk.Value[0].Q.Level(), params.RingQ(), pk.Value[0].Q))
 
-		ringP.MulCoeffsMontgomeryAndAdd(sk.Value.P, pk.Value[1].P, pk.Value[0].P)
-		ringP.InvNTT(pk.Value[0].P, pk.Value[0].P)
-		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(pk.Value[0].P.Level(), ringP, pk.Value[0].P))
+		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(pk.Value[0].P.Level(), params.RingP(), pk.Value[0].P))
 	})
 }
 
@@ -183,15 +177,11 @@ func testSwitchKeyGen(kgen KeyGenerator, t *testing.T) {
 			ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, swk.Value[j][1], skOut.Value, swk.Value[j][0])
 		}
 
-		polyQ := swk.Value[0][0].Q
-		polyP := swk.Value[0][0].P
-
 		// Sums all basis together (equivalent to multiplying with CRT decomposition of 1)
 		// sum([1]_w * [w*P*sOut + e]) = P*sOut + sum(e)
 		for j := range swk.Value {
 			if j > 0 {
-				ringQ.Add(polyQ, swk.Value[j][0].Q, polyQ)
-				ringP.Add(polyP, swk.Value[j][0].P, polyP)
+				ringQP.AddLvl(levelQ, levelP, swk.Value[0][0], swk.Value[j][0], swk.Value[0][0])
 			}
 		}
 
@@ -199,18 +189,17 @@ func testSwitchKeyGen(kgen KeyGenerator, t *testing.T) {
 		ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusBigint, skIn.Value.Q)
 
 		// P*s^i + sum(e) - P*s^i = sum(e)
-		ringQ.Sub(polyQ, skIn.Value.Q, polyQ)
+		ringQ.Sub(swk.Value[0][0].Q, skIn.Value.Q, swk.Value[0][0].Q)
 
 		// Checks that the error is below the bound
 		// Worst error bound is N * floor(6*sigma) * #Keys
-		ringQ.InvNTT(polyQ, polyQ)
-		ringQ.InvMForm(polyQ, polyQ)
-		ringP.InvNTT(polyP, polyP)
-		ringP.InvMForm(polyP, polyP)
+
+		ringQP.InvNTTLvl(levelQ, levelP, swk.Value[0][0], swk.Value[0][0])
+		ringQP.InvMFormLvl(levelQ, levelP, swk.Value[0][0], swk.Value[0][0])
 
 		log2Bound := bits.Len64(uint64(math.Floor(DefaultSigma*6)) * uint64(params.N()*len(swk.Value)))
-		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(len(ringQ.Modulus)-1, ringQ, polyQ))
-		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(len(ringP.Modulus)-1, ringP, polyP))
+		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(len(ringQ.Modulus)-1, ringQ, swk.Value[0][0].Q))
+		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(len(ringP.Modulus)-1, ringP, swk.Value[0][0].P))
 
 	})
 }
@@ -474,18 +463,8 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 
 		//Extracts Coefficients
 		ctSmallDim := NewCiphertextNTT(paramsSmallDim, 1, paramsSmallDim.MaxLevel())
-		for i := range ctSmallDim.Value {
-			ringQLargeDim.InvNTT(ctLargeDim.Value[i], ctLargeDim.Value[i])
-			for j := range ctSmallDim.Value[i].Coeffs {
-				tmp0 := ctSmallDim.Value[i].Coeffs[j]
-				tmp1 := ctLargeDim.Value[i].Coeffs[j]
-				gap := paramsLargeDim.N() / paramsSmallDim.N()
-				for w := 0; w < paramsSmallDim.N(); w++ {
-					tmp0[w] = tmp1[w*gap]
-				}
-			}
-			ringQSmallDim.NTTLvl(ctSmallDim.Level(), ctSmallDim.Value[i], ctSmallDim.Value[i])
-		}
+
+		SwitchCiphertextRingDegreeNTT(ctLargeDim, ringQLargeDim, ctSmallDim)
 
 		// Decrypts with smaller dimension key
 		ringQSmallDim.MulCoeffsMontgomeryAndAddLvl(ctSmallDim.Level(), ctSmallDim.Value[1], skSmallDim.Value.Q, ctSmallDim.Value[0])
@@ -514,8 +493,7 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 		//Extracts Coefficients
 		ctLargeDim := NewCiphertextNTT(paramsLargeDim, 1, plaintext.Level())
 
-		ring.MapSmallDimensionToLargerDimensionNTT(ctSmallDim.Value[0], ctLargeDim.Value[0])
-		ring.MapSmallDimensionToLargerDimensionNTT(ctSmallDim.Value[1], ctLargeDim.Value[1])
+		SwitchCiphertextRingDegreeNTT(ctSmallDim, nil, ctLargeDim)
 
 		ks := NewKeySwitcher(paramsLargeDim)
 		ks.SwitchKeysInPlace(ctLargeDim.Value[1].Level(), ctLargeDim.Value[1], swk, ks.Pool[1].Q, ks.Pool[2].Q)

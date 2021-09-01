@@ -15,6 +15,7 @@ test_examples:
 	@echo ok
 	@echo Building resources-heavy examples
 	go build -o /dev/null ./examples/ckks/bootstrapping
+	go build -o /dev/null ./examples/ckks/advanced
 	@echo ok
 
 .PHONY: test_gotest

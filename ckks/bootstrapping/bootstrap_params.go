@@ -9,9 +9,9 @@ import (
 
 // Parameters is a struct for the default bootstrapping parameters
 type Parameters struct {
-	SlotsToCoeffsParameters advanced.EncodingMatrixParameters
-	EvalModParameters       advanced.EvalModParameters
-	CoeffsToSlotsParameters advanced.EncodingMatrixParameters
+	SlotsToCoeffsParameters advanced.EncodingMatrixLiteral
+	EvalModParameters       advanced.EvalModLiteral
+	CoeffsToSlotsParameters advanced.EncodingMatrixLiteral
 	H                       int // Hamming weight of the secret key
 }
 
@@ -307,7 +307,7 @@ var DefaultParameters = []Parameters{
 	// 1546
 	{
 		H: 192,
-		SlotsToCoeffsParameters: advanced.EncodingMatrixParameters{
+		SlotsToCoeffsParameters: advanced.EncodingMatrixLiteral{
 			LinearTransformType: advanced.SlotsToCoeffs,
 			LevelStart:          12,
 			BSGSRatio:           16.0,
@@ -318,7 +318,7 @@ var DefaultParameters = []Parameters{
 				{0x7fffe00001},
 			},
 		},
-		EvalModParameters: advanced.EvalModParameters{
+		EvalModParameters: advanced.EvalModLiteral{
 			Q:             0x10000000006e0001,
 			LevelStart:    20,
 			SineType:      advanced.Cos1,
@@ -329,7 +329,7 @@ var DefaultParameters = []Parameters{
 			ArcSineDeg:    0,
 			ScalingFactor: 1 << 60,
 		},
-		CoeffsToSlotsParameters: advanced.EncodingMatrixParameters{
+		CoeffsToSlotsParameters: advanced.EncodingMatrixLiteral{
 			LinearTransformType: advanced.CoeffsToSlots,
 			LevelStart:          24,
 			BSGSRatio:           16.0,
@@ -347,7 +347,7 @@ var DefaultParameters = []Parameters{
 	// 1547
 	{
 		H: 192,
-		SlotsToCoeffsParameters: advanced.EncodingMatrixParameters{
+		SlotsToCoeffsParameters: advanced.EncodingMatrixLiteral{
 			LinearTransformType: advanced.SlotsToCoeffs,
 			LevelStart:          8,
 			BSGSRatio:           16.0,
@@ -358,7 +358,7 @@ var DefaultParameters = []Parameters{
 				{0x3ffffca0001},
 			},
 		},
-		EvalModParameters: advanced.EvalModParameters{
+		EvalModParameters: advanced.EvalModLiteral{
 			Q:             0x10000000006e0001,
 			LevelStart:    19,
 			SineType:      advanced.Cos1,
@@ -369,7 +369,7 @@ var DefaultParameters = []Parameters{
 			ArcSineDeg:    7,
 			ScalingFactor: 1 << 60,
 		},
-		CoeffsToSlotsParameters: advanced.EncodingMatrixParameters{
+		CoeffsToSlotsParameters: advanced.EncodingMatrixLiteral{
 			LinearTransformType: advanced.CoeffsToSlots,
 			LevelStart:          23,
 			BSGSRatio:           16.0,
@@ -387,7 +387,7 @@ var DefaultParameters = []Parameters{
 	// 1553
 	{
 		H: 192,
-		SlotsToCoeffsParameters: advanced.EncodingMatrixParameters{
+		SlotsToCoeffsParameters: advanced.EncodingMatrixLiteral{
 			LinearTransformType: advanced.SlotsToCoeffs,
 			LevelStart:          9,
 			BSGSRatio:           16.0,
@@ -397,7 +397,7 @@ var DefaultParameters = []Parameters{
 				{1073741824.0062866, 1073741824.0062866},
 			},
 		},
-		EvalModParameters: advanced.EvalModParameters{
+		EvalModParameters: advanced.EvalModLiteral{
 			Q:             0x80000000080001,
 			LevelStart:    17,
 			SineType:      advanced.Cos1,
@@ -408,7 +408,7 @@ var DefaultParameters = []Parameters{
 			ArcSineDeg:    0,
 			ScalingFactor: 1 << 55,
 		},
-		CoeffsToSlotsParameters: advanced.EncodingMatrixParameters{
+		CoeffsToSlotsParameters: advanced.EncodingMatrixLiteral{
 			LinearTransformType: advanced.CoeffsToSlots,
 			LevelStart:          21,
 			BSGSRatio:           16.0,
@@ -426,7 +426,7 @@ var DefaultParameters = []Parameters{
 	// 1792
 	{
 		H: 32768,
-		SlotsToCoeffsParameters: advanced.EncodingMatrixParameters{
+		SlotsToCoeffsParameters: advanced.EncodingMatrixLiteral{
 			LinearTransformType: advanced.SlotsToCoeffs,
 			LevelStart:          11,
 			BSGSRatio:           16.0,
@@ -436,7 +436,7 @@ var DefaultParameters = []Parameters{
 				{0xffa0001},
 			},
 		},
-		EvalModParameters: advanced.EvalModParameters{
+		EvalModParameters: advanced.EvalModLiteral{
 			Q:             0x4000000120001,
 			LevelStart:    23,
 			SineType:      advanced.Cos2,
@@ -447,7 +447,7 @@ var DefaultParameters = []Parameters{
 			ArcSineDeg:    0,
 			ScalingFactor: 1 << 60,
 		},
-		CoeffsToSlotsParameters: advanced.EncodingMatrixParameters{
+		CoeffsToSlotsParameters: advanced.EncodingMatrixLiteral{
 			LinearTransformType: advanced.CoeffsToSlots,
 			LevelStart:          27,
 			BSGSRatio:           16.0,
@@ -465,7 +465,7 @@ var DefaultParameters = []Parameters{
 	// 768
 	{
 		H: 192,
-		SlotsToCoeffsParameters: advanced.EncodingMatrixParameters{
+		SlotsToCoeffsParameters: advanced.EncodingMatrixLiteral{
 			LinearTransformType: advanced.SlotsToCoeffs,
 			LevelStart:          3,
 			BSGSRatio:           16.0,
@@ -474,7 +474,7 @@ var DefaultParameters = []Parameters{
 				{1073741823.9998779, 1073741823.9998779},
 			},
 		},
-		EvalModParameters: advanced.EvalModParameters{
+		EvalModParameters: advanced.EvalModLiteral{
 			Q:             0x1fff90001,
 			LevelStart:    11,
 			SineType:      advanced.Cos1,
@@ -485,7 +485,7 @@ var DefaultParameters = []Parameters{
 			ArcSineDeg:    0,
 			ScalingFactor: 1 << 50,
 		},
-		CoeffsToSlotsParameters: advanced.EncodingMatrixParameters{
+		CoeffsToSlotsParameters: advanced.EncodingMatrixLiteral{
 			LinearTransformType: advanced.CoeffsToSlots,
 			LevelStart:          13,
 			BSGSRatio:           16.0,

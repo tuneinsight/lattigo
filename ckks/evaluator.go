@@ -90,7 +90,7 @@ type Evaluator interface {
 	PowerNew(ctIn *Ciphertext, degree int) (ctOut *Ciphertext)
 
 	// Polynomial evaluation
-	EvaluatePoly(ctIn *Ciphertext, pol *Poly, targetScale float64) (ctOut *Ciphertext, err error)
+	EvaluatePoly(ctIn *Ciphertext, pol *Polynomial, targetScale float64) (ctOut *Ciphertext, err error)
 
 	// Inversion
 	InverseNew(ctIn *Ciphertext, steps int) (ctOut *Ciphertext)
@@ -857,6 +857,8 @@ func (eval *evaluator) MultByConst(ct0 *Ciphertext, constant interface{}, ctOut 
 	ctOut.Scale = ct0.Scale * scale
 }
 
+// MultByGaussianInteger multiples the ct0 by the gaussian integer cReal + i*cImag and returns the result on ctOut.
+// Accepted types for cReal and cImag are uint64, int64 and big.Int.
 func (eval *evaluator) MultByGaussianInteger(ct0 *Ciphertext, cReal, cImag interface{}, ctOut *Ciphertext) {
 
 	ringQ := eval.params.RingQ()
@@ -930,6 +932,8 @@ func (eval *evaluator) MultByGaussianInteger(ct0 *Ciphertext, cReal, cImag inter
 	}
 }
 
+// MultByGaussianIntegerAndAdd multiples the ct0 by the gaussian integer cReal + i*cImag and adds the result on ctOut.
+// Accepted types for cReal and cImag are uint64, int64 and big.Int.
 func (eval *evaluator) MultByGaussianIntegerAndAdd(ct0 *Ciphertext, cReal, cImag interface{}, ctOut *Ciphertext) {
 
 	ringQ := eval.params.RingQ()

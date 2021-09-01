@@ -41,7 +41,7 @@ func TestHomomorphicEncoding(t *testing.T) {
 		},
 	}
 
-	testEncodingMatrixMarshalling(t)
+	testEncodingMatrixLiteralMarshalling(t)
 
 	var params ckks.Parameters
 	if params, err = ckks.NewParametersFromLiteral(ParametersLiteral); err != nil {
@@ -70,9 +70,9 @@ func TestHomomorphicEncoding(t *testing.T) {
 	}
 }
 
-func testEncodingMatrixMarshalling(t *testing.T) {
+func testEncodingMatrixLiteralMarshalling(t *testing.T) {
 	t.Run("Marshalling", func(t *testing.T) {
-		m := EncodingMatrixParameters{
+		m := EncodingMatrixLiteral{
 			LinearTransformType: CoeffsToSlots,
 			LevelStart:          12,
 			BSGSRatio:           16.0,
@@ -88,7 +88,7 @@ func testEncodingMatrixMarshalling(t *testing.T) {
 		data, err := m.MarshalBinary()
 		assert.Nil(t, err)
 
-		mNew := new(EncodingMatrixParameters)
+		mNew := new(EncodingMatrixLiteral)
 		if err := mNew.UnmarshalBinary(data); err != nil {
 			assert.Nil(t, err)
 		}
@@ -124,7 +124,7 @@ func testCoeffsToSlots(params ckks.Parameters, t *testing.T) {
 		//
 		// Then checks that Dcd(Dec(Enc(Ecd(vReal)))) = vReal and Dcd(Dec(Enc(Ecd(vImag)))) = vImag
 
-		CoeffsToSlotsParameters := EncodingMatrixParameters{
+		CoeffsToSlotsParametersLiteral := EncodingMatrixLiteral{
 			LinearTransformType: CoeffsToSlots,
 			LevelStart:          params.MaxLevel(),
 			BSGSRatio:           16.0,
@@ -142,13 +142,13 @@ func testCoeffsToSlots(params ckks.Parameters, t *testing.T) {
 		encryptor := ckks.NewEncryptor(params, sk)
 		decryptor := ckks.NewDecryptor(params, sk)
 
-		n := math.Pow(1.0/float64(2*params.Slots()), 1.0/float64(CoeffsToSlotsParameters.Depth(true)))
+		n := math.Pow(1.0/float64(2*params.Slots()), 1.0/float64(CoeffsToSlotsParametersLiteral.Depth(true)))
 
 		// Generates the encoding matrices
-		CoeffsToSlotMatrices := CoeffsToSlotsParameters.GenHomomorphicEncodingMatrix(encoder, params.LogN(), params.LogSlots(), complex(n, 0))
+		CoeffsToSlotMatrices := NewHomomorphicEncodingMatrixFromLiteral(CoeffsToSlotsParametersLiteral, encoder, params.LogN(), params.LogSlots(), complex(n, 0))
 
 		// Gets the rotations indexes for CoeffsToSlots
-		rotations := CoeffsToSlotsParameters.Rotations(params.LogN(), params.LogSlots())
+		rotations := CoeffsToSlotsParametersLiteral.Rotations(params.LogN(), params.LogSlots())
 
 		// Generates the rotation keys
 		rotKey := kgen.GenRotationKeysForRotations(rotations, true, sk)
@@ -191,7 +191,7 @@ func testCoeffsToSlots(params ckks.Parameters, t *testing.T) {
 		ciphertext := encryptor.EncryptNew(plaintext)
 
 		// Applies the homomorphic DFT
-		ct0, ct1 := eval.CoeffsToSlots(ciphertext, CoeffsToSlotMatrices)
+		ct0, ct1 := eval.CoeffsToSlotsNew(ciphertext, CoeffsToSlotMatrices)
 
 		// Checks against the original coefficients
 		var coeffsReal, coeffsImag []complex128
@@ -239,7 +239,7 @@ func testSlotsToCoeffs(params ckks.Parameters, t *testing.T) {
 		// The first N/2 slots of the plaintext will be the real part while the last N/2 the imaginary part
 		// In case of 2*slots < N, then there is a gap of N/(2*slots) between each values
 
-		SlotsToCoeffsParameters := EncodingMatrixParameters{
+		SlotsToCoeffsParametersLiteral := EncodingMatrixLiteral{
 			LinearTransformType: SlotsToCoeffs,
 			LevelStart:          params.MaxLevel(),
 			BSGSRatio:           16.0,
@@ -258,10 +258,10 @@ func testSlotsToCoeffs(params ckks.Parameters, t *testing.T) {
 		decryptor := ckks.NewDecryptor(params, sk)
 
 		// Generates the encoding matrices
-		SlotsToCoeffsMatrix := SlotsToCoeffsParameters.GenHomomorphicEncodingMatrix(encoder, params.LogN(), params.LogSlots(), 1.0)
+		SlotsToCoeffsMatrix := NewHomomorphicEncodingMatrixFromLiteral(SlotsToCoeffsParametersLiteral, encoder, params.LogN(), params.LogSlots(), 1.0)
 
 		// Gets the rotations indexes for SlotsToCoeffs
-		rotations := SlotsToCoeffsParameters.Rotations(params.LogN(), params.LogSlots())
+		rotations := SlotsToCoeffsParametersLiteral.Rotations(params.LogN(), params.LogSlots())
 
 		// Generates the rotation keys
 		rotKey := kgen.GenRotationKeysForRotations(rotations, true, sk)
@@ -304,7 +304,7 @@ func testSlotsToCoeffs(params ckks.Parameters, t *testing.T) {
 		}
 
 		// Applies the homomorphic DFT
-		res := eval.SlotsToCoeffs(ct0, ct1, SlotsToCoeffsMatrix)
+		res := eval.SlotsToCoeffsNew(ct0, ct1, SlotsToCoeffsMatrix)
 
 		// Decrypt and decode in the coefficient domain
 		coeffsFloat := encoder.DecodeCoeffsPublic(decryptor.DecryptNew(res), 0)

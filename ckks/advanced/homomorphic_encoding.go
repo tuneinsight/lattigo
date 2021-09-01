@@ -17,11 +17,11 @@ const (
 
 // EncodingMatrix is a struct storing the factorized DFT matrix
 type EncodingMatrix struct {
-	Matrices []ckks.PtDiagMatrix
+	matrices []ckks.PtDiagMatrix
 }
 
-// EncodingMatrixParameters is a struct storing the parameters to generate the factorized DFT matrix.
-type EncodingMatrixParameters struct {
+// EncodingMatrixLiteral is a struct storing the parameters to generate the factorized DFT matrix.
+type EncodingMatrixLiteral struct {
 	LinearTransformType LinearTransformType
 	LevelStart          int     // Encoding level
 	BitReversed         bool    // Flag for bit-reverseed input to the DFT (with bit-reversed output), by default false.
@@ -32,7 +32,7 @@ type EncodingMatrixParameters struct {
 // Depth returns the number of levels allocated.
 // If actual == true then returns the number of moduli consumed, else
 // returns the factorization depth.
-func (mParams *EncodingMatrixParameters) Depth(actual bool) (depth int) {
+func (mParams *EncodingMatrixLiteral) Depth(actual bool) (depth int) {
 	if actual {
 		depth = len(mParams.ScalingFactor)
 	} else {
@@ -46,7 +46,7 @@ func (mParams *EncodingMatrixParameters) Depth(actual bool) (depth int) {
 }
 
 // Levels returns the index of the Qi used int CoeffsToSlots.
-func (mParams *EncodingMatrixParameters) Levels() (levels []int) {
+func (mParams *EncodingMatrixLiteral) Levels() (levels []int) {
 	levels = []int{}
 	trueDepth := mParams.Depth(true)
 	for i := range mParams.ScalingFactor {
@@ -59,7 +59,7 @@ func (mParams *EncodingMatrixParameters) Levels() (levels []int) {
 }
 
 // Rotations returns the list of rotations performed during the CoeffsToSlot operation.
-func (mParams *EncodingMatrixParameters) Rotations(logN, logSlots int) (rotations []int) {
+func (mParams *EncodingMatrixLiteral) Rotations(logN, logSlots int) (rotations []int) {
 	rotations = []int{}
 
 	slots := 1 << logSlots
@@ -82,10 +82,10 @@ func (mParams *EncodingMatrixParameters) Rotations(logN, logSlots int) (rotation
 	return
 }
 
-// GenHomomorphicEncodingMatrix generates the factorized encoding matrix.
+// NewHomomorphicEncodingMatrixFromLiteral generates the factorized encoding matrix.
 // scaling : constant by witch the all the matrices will be multuplied by.
 // encoder : ckks.Encoder.
-func (mParams *EncodingMatrixParameters) GenHomomorphicEncodingMatrix(encoder ckks.Encoder, logN, logSlots int, scaling complex128) EncodingMatrix {
+func NewHomomorphicEncodingMatrixFromLiteral(mParams EncodingMatrixLiteral, encoder ckks.Encoder, logN, logSlots int, scaling complex128) EncodingMatrix {
 
 	slots := 1 << logSlots
 	depth := mParams.Depth(false)
@@ -116,7 +116,7 @@ func (mParams *EncodingMatrixParameters) GenHomomorphicEncodingMatrix(encoder ck
 		}
 	}
 
-	return EncodingMatrix{Matrices: matrices}
+	return EncodingMatrix{matrices: matrices}
 }
 
 func computeRoots(N int) (roots []complex128) {
@@ -475,22 +475,6 @@ func computeDFTMatrices(logSlots, logdSlots, maxDepth int, roots []complex128, p
 		}
 	}
 
-	/*
-		for j := range plainVector {
-			for x := 0; x < 1<<logSlots; x++{
-				if plainVector[j][x] != nil{
-					fmt.Printf("%d :", x)
-					for i := range plainVector[j][x] {
-						fmt.Printf("%0.4f", plainVector[j][x][i])
-					}
-					fmt.Printf("\n")
-				}
-
-			}
-			fmt.Printf("\n")
-		}
-	*/
-
 	return
 }
 
@@ -570,61 +554,11 @@ func multiplyFFTMatrixWithNextFFTLevel(vec map[int][]complex128, logL, N, nextLe
 		}
 	}
 
-	/*
-		fmt.Printf("W[%d]\n", nextLevel)
-		for x := 0; x < 1<<logL; x++{
-			if vec[x] != nil{
-				fmt.Printf("%d :", x)
-				for i := range vec[x] {
-					fmt.Printf("%0.4f", vec[x][i])
-				}
-				fmt.Printf("\n")
-			}
-
-		}
-		fmt.Printf("\n")
-
-		fmt.Printf("W[%d]\n", nextLevel-1)
-		fmt.Printf("%d :", 0)
-		for i := range a {
-			fmt.Printf("%0.4f", a[i])
-		}
-		fmt.Printf("\n")
-
-		fmt.Printf("%d :", rot)
-		for i := range b {
-			fmt.Printf("%0.4f", b[i])
-		}
-		fmt.Printf("\n")
-
-		fmt.Printf("%d :", N-rot)
-		for i := range c {
-			fmt.Printf("%0.4f", c[i])
-		}
-		fmt.Printf("\n")
-		fmt.Println()
-	*/
-
 	for i := range vec {
 		addToDiagMatrix(newVec, i, mul(vec[i], a))
 		addToDiagMatrix(newVec, (i+rot)&(N-1), mul(rotate(vec[i], rot), b))
 		addToDiagMatrix(newVec, (i-rot)&(N-1), mul(rotate(vec[i], -rot), c))
 	}
-
-	/*
-		fmt.Printf("W[%d] x W[%d]\n", nextLevel, nextLevel-1)
-		for x := 0; x < 1<<logL; x++{
-			if newVec[x] != nil{
-				fmt.Printf("%d :", x)
-				for i := range newVec[x] {
-					fmt.Printf("%0.4f", newVec[x][i])
-				}
-				fmt.Printf("\n")
-			}
-
-		}
-		fmt.Printf("\n")
-	*/
 
 	return
 }

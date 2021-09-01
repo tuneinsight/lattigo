@@ -6,7 +6,7 @@ import (
 )
 
 // MarshalBinary encode the target EncodingMatrixParameters on a slice of bytes.
-func (mParams *EncodingMatrixParameters) MarshalBinary() (data []byte, err error) {
+func (mParams *EncodingMatrixLiteral) MarshalBinary() (data []byte, err error) {
 	data = make([]byte, 8)
 	data[0] = uint8(mParams.LinearTransformType)
 	data[1] = uint8(mParams.LevelStart)
@@ -29,7 +29,7 @@ func (mParams *EncodingMatrixParameters) MarshalBinary() (data []byte, err error
 }
 
 // UnmarshalBinary decodes a slice of bytes on the target EncodingMatrixParameters.
-func (mParams *EncodingMatrixParameters) UnmarshalBinary(data []byte) error {
+func (mParams *EncodingMatrixLiteral) UnmarshalBinary(data []byte) error {
 
 	mParams.LinearTransformType = LinearTransformType(int(data[0]))
 	mParams.LevelStart = int(data[1])
@@ -54,7 +54,7 @@ func (mParams *EncodingMatrixParameters) UnmarshalBinary(data []byte) error {
 }
 
 // MarshalBinary encode the target EvalModParameters on a slice of bytes.
-func (evmParams *EvalModParameters) MarshalBinary() (data []byte, err error) {
+func (evmParams *EvalModLiteral) MarshalBinary() (data []byte, err error) {
 	data = make([]byte, 35)
 	binary.BigEndian.PutUint64(data[:8], evmParams.Q)
 	data[8] = uint8(evmParams.LevelStart)
@@ -69,7 +69,7 @@ func (evmParams *EvalModParameters) MarshalBinary() (data []byte, err error) {
 }
 
 // UnmarshalBinary decodes a slice of bytes on the target EvalModParameters.
-func (evmParams *EvalModParameters) UnmarshalBinary(data []byte) (err error) {
+func (evmParams *EvalModLiteral) UnmarshalBinary(data []byte) (err error) {
 	evmParams.Q = binary.BigEndian.Uint64(data[:8])
 	evmParams.LevelStart = int(data[8])
 	evmParams.ScalingFactor = math.Float64frombits(binary.BigEndian.Uint64(data[9:17]))

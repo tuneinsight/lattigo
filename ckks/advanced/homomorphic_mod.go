@@ -25,9 +25,9 @@ const (
 	Cos2 = SineType(2) // Standard Chebyshev approximation of pow((1/2pi), 1/2^r) * cos(2pi(x-0.25)/2^r)
 )
 
-// EvalModParameters a struct for the paramters of the EvalMod step
+// EvalModLiteral a struct for the paramters of the EvalMod step
 // of the bootstrapping
-type EvalModParameters struct {
+type EvalModLiteral struct {
 	Q             uint64   // Q to reduce by during EvalMod
 	LevelStart    int      // Starting level of EvalMod
 	ScalingFactor float64  // Scaling factor used during EvalMod
@@ -41,30 +41,67 @@ type EvalModParameters struct {
 
 // QDiff return Q/ClosestedPow2
 // This is the error introduced by the approximate division by Q
-func (evm *EvalModParameters) QDiff() float64 {
+func (evm *EvalModLiteral) QDiff() float64 {
 	return float64(evm.Q) / math.Exp2(math.Round(math.Log2(float64(evm.Q))))
 }
 
-// EvalModPoly is a struct storing the EvalModParameters with
+// EvalModPoly is a struct storing the EvalModLiteral with
 // the polynomials.
 type EvalModPoly struct {
-	EvalModParameters
-	ScFac       float64
-	Sqrt2Pi     float64
-	SinePoly    *ckks.Poly
-	ArcSinePoly *ckks.Poly
+	levelStart    int
+	scalingFactor float64
+	sineType      SineType
+	messageRatio  float64
+	doubleAngle   int
+	qDiff         float64
+	scFac         float64
+	sqrt2Pi       float64
+	sinePoly      *ckks.Polynomial
+	arcSinePoly   *ckks.Polynomial
 }
 
-// GenPoly generates an EvalModPoly fromt the EvalModParameters.
-func (evm *EvalModParameters) GenPoly() EvalModPoly {
+// LevelStart returns the starting level of the EvalMod
+func (evp *EvalModPoly) LevelStart() int {
+	return evp.levelStart
+}
 
-	var arcSinePoly *ckks.Poly
-	var sinePoly *ckks.Poly
+// ScalingFactor returns scaling factor used during the EvalMod
+func (evp *EvalModPoly) ScalingFactor() float64 {
+	return evp.scalingFactor
+}
+
+// ScFac returns 1/2^r where r is the number of double angle evaluation
+func (evp *EvalModPoly) ScFac() float64 {
+	return evp.scFac
+}
+
+// MessageRatio returns the pre-set ratio Q[0]/|m|
+func (evp *EvalModPoly) MessageRatio() float64 {
+	return evp.messageRatio
+}
+
+// K returns the range of the sine approximation, 
+// scaled by 1/2^r
+func (evp *EvalModPoly) K() float64 {
+	return real(evp.sinePoly.B)
+}
+
+// QDiff return Q/ClosestedPow2
+// This is the error introduced by the approximate division by Q
+func (evp *EvalModPoly) QDiff() float64 {
+	return evp.qDiff
+}
+
+// NewEvalModPolyFromLiteral generates an EvalModPoly fromt the EvalModLiteral.
+func NewEvalModPolyFromLiteral(evm EvalModLiteral) EvalModPoly {
+
+	var arcSinePoly *ckks.Polynomial
+	var sinePoly *ckks.Polynomial
 	var sqrt2pi float64
 
 	scFac := math.Exp2(float64(evm.DoubleAngle))
 
-	qDiff := float64(evm.Q) / math.Exp2(math.Round(math.Log2(float64(evm.Q))))
+	qDiff := evm.QDiff()
 
 	if evm.ArcSineDeg > 0 {
 
@@ -96,7 +133,7 @@ func (evm *EvalModParameters) GenPoly() EvalModPoly {
 
 	} else if evm.SineType == Cos1 {
 
-		sinePoly = new(ckks.Poly)
+		sinePoly = new(ckks.Polynomial)
 		sinePoly.Coeffs = ApproximateCos(evm.K, evm.SineDeg, evm.MessageRatio, int(evm.DoubleAngle))
 		sinePoly.MaxDeg = sinePoly.Degree()
 		sinePoly.A = complex(float64(-evm.K)/scFac, 0)
@@ -114,80 +151,24 @@ func (evm *EvalModParameters) GenPoly() EvalModPoly {
 		sinePoly.Coeffs[i] *= complex(sqrt2pi, 0)
 	}
 
-	return EvalModPoly{EvalModParameters: *evm, ScFac: scFac, Sqrt2Pi: sqrt2pi, ArcSinePoly: arcSinePoly, SinePoly: sinePoly}
+	return EvalModPoly{
+		levelStart:    evm.LevelStart,
+		scalingFactor: evm.ScalingFactor,
+		sineType:      evm.SineType,
+		messageRatio:  evm.MessageRatio,
+		doubleAngle:   evm.DoubleAngle,
+		qDiff:         qDiff,
+		scFac:         scFac,
+		sqrt2Pi:       sqrt2pi,
+		arcSinePoly:   arcSinePoly,
+		sinePoly:      sinePoly}
 }
 
 // Depth returns the depth of the SineEval. If true, then also
 // counts the double angle formula.
-func (evm *EvalModParameters) Depth() int {
+func (evm *EvalModLiteral) Depth() int {
 	depth := int(math.Ceil(math.Log2(float64(evm.SineDeg + 1))))
 	depth += evm.DoubleAngle
 	depth += int(math.Ceil(math.Log2(float64(evm.ArcSineDeg + 1))))
 	return depth
-}
-
-// EvalMod does :
-//
-//	1) Delta * (Q/Delta * I(X) + m(X)) (Delta = scaling factor, I(X) integer poly, m(X) message)
-//	2) Delta * (I(X) + Delta/Q * m(X)) (divide by Q/Delta)
-//	3) Delta * (Delta/Q * m(X)) (x mod 1)
-//	4) Delta * (m(X)) (multiply back by Q/Delta)
-//
-// Since Q is not a power of two, but Delta is, then does an approximate division by the closest
-// power of two to Q instead. Hence, it assumes that the input plaintext is already scaled by
-// the correcting factor Q/2^{round(log(Q))}.
-//
-// !! Assumes that the input is normalized by 1/K for K the range of the approximation.
-//
-// Scaling back error correction by 2^{round(log(Q))}/Q afterward is included in the polynomial
-func (eval *evaluator) EvalMod(ct *ckks.Ciphertext, evalModPoly EvalModPoly) *ckks.Ciphertext {
-
-	// Stores default scales
-	prevScaleCt := ct.Scale
-
-	// Normalize the modular reduction to mod by 1 (division by Q)
-	ct.Scale = evalModPoly.ScalingFactor
-
-	var err error
-
-	// Compute the scales that the ciphertext should have before the double angle
-	// formula such that after it it has the scale it had before the polynomial
-	// evaluation
-	targetScale := ct.Scale
-	for i := 0; i < evalModPoly.DoubleAngle; i++ {
-		targetScale = math.Sqrt(targetScale * eval.params.QiFloat64(evalModPoly.LevelStart-evalModPoly.SinePoly.Depth()-evalModPoly.DoubleAngle+i+1))
-	}
-
-	// Division by 1/2^r and change of variable for the Chebysehev evaluation
-	if evalModPoly.SineType == Cos1 || evalModPoly.SineType == Cos2 {
-		eval.AddConst(ct, -0.5/(complex(evalModPoly.ScFac, 0)*(evalModPoly.SinePoly.B-evalModPoly.SinePoly.A)), ct)
-	}
-
-	// Chebyshev evaluation
-	if ct, err = eval.EvaluatePoly(ct, evalModPoly.SinePoly, targetScale); err != nil {
-		panic(err)
-	}
-
-	// Double angle
-	sqrt2pi := evalModPoly.Sqrt2Pi
-	for i := 0; i < evalModPoly.DoubleAngle; i++ {
-		sqrt2pi *= sqrt2pi
-		eval.MulRelin(ct, ct, ct)
-		eval.Add(ct, ct, ct)
-		eval.AddConst(ct, -sqrt2pi, ct)
-		if err := eval.Rescale(ct, targetScale, ct); err != nil {
-			panic(err)
-		}
-	}
-
-	// ArcSine
-	if evalModPoly.ArcSinePoly != nil {
-		if ct, err = eval.EvaluatePoly(ct, evalModPoly.ArcSinePoly, ct.Scale); err != nil {
-			panic(err)
-		}
-	}
-
-	// Multiplies back by q
-	ct.Scale = prevScaleCt
-	return ct
 }

@@ -57,23 +57,12 @@ func NewKeyGenerator(params Parameters) KeyGenerator {
 	}
 }
 
-func (keygen *keyGenerator) genSecretKeyFromSampler(sampler ring.Sampler) *SecretKey {
-	ringQP := keygen.params.RingQP()
-	sk := new(SecretKey)
-	sk.Value = ringQP.NewPoly()
-	levelQ, levelP := keygen.params.QCount()-1, keygen.params.PCount()-1
-	sampler.Read(sk.Value.Q)
-	ringQP.ExtendBasisSmallNormAndCenter(sk.Value.Q, levelP, nil, sk.Value.P)
-	ringQP.NTTLvl(levelQ, levelP, sk.Value, sk.Value)
-	ringQP.MFormLvl(levelQ, levelP, sk.Value, sk.Value)
-	return sk
-}
-
 // GenSecretKey generates a new SecretKey with the distribution [1/3, 1/3, 1/3].
 func (keygen *keyGenerator) GenSecretKey() (sk *SecretKey) {
 	return keygen.GenSecretKeyWithDistrib(1.0 / 3)
 }
 
+// GenSecretKey generates a new SecretKey with the error distribution.
 func (keygen *keyGenerator) GenSecretKeyGaussian() (sk *SecretKey) {
 	return keygen.genSecretKeyFromSampler(keygen.gaussianSamplerQ)
 }
@@ -283,6 +272,19 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *
 	}
 
 	return
+}
+
+// genSecretKeyFromSampler generates a new SecretKey sampled from the provided Sampler.
+func (keygen *keyGenerator) genSecretKeyFromSampler(sampler ring.Sampler) *SecretKey {
+	ringQP := keygen.params.RingQP()
+	sk := new(SecretKey)
+	sk.Value = ringQP.NewPoly()
+	levelQ, levelP := keygen.params.QCount()-1, keygen.params.PCount()-1
+	sampler.Read(sk.Value.Q)
+	ringQP.ExtendBasisSmallNormAndCenter(sk.Value.Q, levelP, nil, sk.Value.P)
+	ringQP.NTTLvl(levelQ, levelP, sk.Value, sk.Value)
+	ringQP.MFormLvl(levelQ, levelP, sk.Value, sk.Value)
+	return sk
 }
 
 func (keygen *keyGenerator) genSwitchingKey(skIn *ring.Poly, skOut PolyQP, swk *SwitchingKey) {

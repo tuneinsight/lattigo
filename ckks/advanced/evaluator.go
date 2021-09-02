@@ -1,9 +1,10 @@
 package advanced
 
 import (
+	"math"
+
 	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/rlwe"
-	"math"
 )
 
 // Evaluator is an interface embeding the ckks.Evaluator interface with
@@ -15,6 +16,9 @@ type Evaluator interface {
 	SlotsToCoeffsNew(ctReal, ctImag *ckks.Ciphertext, stcMatrices EncodingMatrix) (ctOut *ckks.Ciphertext)
 	// Homomorphic Modular Reduction
 	EvalModNew(ctIn *ckks.Ciphertext, evalModPoly EvalModPoly) (ctOut *ckks.Ciphertext)
+
+	ShallowCopyAdvanced() Evaluator
+	WithKeyAdvanced(evakey rlwe.EvaluationKey) Evaluator
 }
 
 type evaluator struct {
@@ -148,4 +152,31 @@ func (eval *evaluator) EvalModNew(ct *ckks.Ciphertext, evalModPoly EvalModPoly) 
 	// Multiplies back by q
 	ct.Scale = prevScaleCt
 	return ct
+}
+
+// WithKey creates a shallow copy of the receiver ckks.Evaluator for which the new EvaluationKey is evaluationKey
+// and where the temporary buffers are shared. The receiver and the returned Evaluators cannot be used concurrently.
+// The returned ckks.Evaluator can be safely casted to a advanced.Evaluator.
+func (eval *evaluator) WithKey(evaluationKey rlwe.EvaluationKey) ckks.Evaluator {
+	return &evaluator{eval.Evaluator.WithKey(evaluationKey), eval.params}
+}
+
+// WithKeyAdvanced creates a shallow copy of the receiver ckks.Evaluator for which the new EvaluationKey is evaluationKey
+// and where the temporary buffers are shared. The receiver and the returned Evaluators cannot be used concurrently.
+func (eval *evaluator) WithKeyAdvanced(evaluationKey rlwe.EvaluationKey) Evaluator {
+	return eval.WithKey(evaluationKey).(Evaluator)
+}
+
+// ShallowCopy creates a shallow copy of this evaluator in which all the read-only data-structures are
+// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+// Evaluators can be used concurrently. The returned ckks.Evaluator can be safely casted to a advanced.Evaluator.
+func (eval *evaluator) ShallowCopy() ckks.Evaluator {
+	return &evaluator{eval.Evaluator.ShallowCopy(), eval.params}
+}
+
+// ShallowCopyAdvanced creates a shallow copy of this evaluator in which all the read-only data-structures are
+// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+// Evaluators can be used concurrently
+func (eval *evaluator) ShallowCopyAdvanced() Evaluator {
+	return eval.ShallowCopy().(Evaluator)
 }

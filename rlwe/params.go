@@ -165,8 +165,8 @@ func (p Parameters) RingP() *ring.Ring {
 }
 
 // RingQP returns a pointer to ringQP
-func (p Parameters) RingQP() *SplitRingQP {
-	return &SplitRingQP{p.ringQ, p.ringP}
+func (p Parameters) RingQP() *RingQP {
+	return &RingQP{p.ringQ, p.ringP}
 }
 
 // Sigma returns standard deviation of the noise distribution

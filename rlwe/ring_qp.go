@@ -35,47 +35,47 @@ func (p *PolyQP) CopyNew() PolyQP {
 	return PolyQP{Q: p.Q.CopyNew(), P: p.P.CopyNew()}
 }
 
-// SplitRingQP is a structure that implements the operation in the ring R_QP.
+// RingQP is a structure that implements the operation in the ring R_QP.
 // This type is simply a union type between the two Ring types representing
 // R_Q and R_P.
-type SplitRingQP struct {
+type RingQP struct {
 	RingQ, RingP *ring.Ring
 }
 
 // NewPoly creates a new polynomial with all coefficients set to 0.
-func (r *SplitRingQP) NewPoly() PolyQP {
+func (r *RingQP) NewPoly() PolyQP {
 	return PolyQP{r.RingQ.NewPoly(), r.RingP.NewPoly()}
 }
 
 // NewPolyLvl creates a new polynomial with all coefficients set to 0.
-func (r *SplitRingQP) NewPolyLvl(levelQ, levelP int) PolyQP {
+func (r *RingQP) NewPolyLvl(levelQ, levelP int) PolyQP {
 	return PolyQP{r.RingQ.NewPolyLvl(levelQ), r.RingP.NewPolyLvl(levelP)}
 }
 
 // AddLvl adds p1 to p2 coefficient-wise and writes the result on p3.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
-func (r *SplitRingQP) AddLvl(levelQ, levelP int, p1, p2, pOut PolyQP) {
+func (r *RingQP) AddLvl(levelQ, levelP int, p1, p2, pOut PolyQP) {
 	r.RingQ.AddLvl(levelQ, p1.Q, p2.Q, pOut.Q)
 	r.RingP.AddLvl(levelP, p1.P, p2.P, pOut.P)
 }
 
 // SubLvl subtracts p2 to p1 coefficient-wise and writes the result on p3.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
-func (r *SplitRingQP) SubLvl(levelQ, levelP int, p1, p2, pOut PolyQP) {
+func (r *RingQP) SubLvl(levelQ, levelP int, p1, p2, pOut PolyQP) {
 	r.RingQ.SubLvl(levelQ, p1.Q, p2.Q, pOut.Q)
 	r.RingP.SubLvl(levelP, p1.P, p2.P, pOut.P)
 }
 
 // NTTLvl computes the NTT of p1 and returns the result on p2.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
-func (r *SplitRingQP) NTTLvl(levelQ, levelP int, p, pOut PolyQP) {
+func (r *RingQP) NTTLvl(levelQ, levelP int, p, pOut PolyQP) {
 	r.RingQ.NTTLvl(levelQ, p.Q, pOut.Q)
 	r.RingP.NTTLvl(levelP, p.P, pOut.P)
 }
 
 // InvNTTLvl computes the inverse-NTT of p1 and returns the result on p2.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
-func (r *SplitRingQP) InvNTTLvl(levelQ, levelP int, p, pOut PolyQP) {
+func (r *RingQP) InvNTTLvl(levelQ, levelP int, p, pOut PolyQP) {
 	r.RingQ.InvNTTLvl(levelQ, p.Q, pOut.Q)
 	r.RingP.InvNTTLvl(levelP, p.P, pOut.P)
 }
@@ -83,28 +83,28 @@ func (r *SplitRingQP) InvNTTLvl(levelQ, levelP int, p, pOut PolyQP) {
 // NTTLazyLvl computes the NTT of p1 and returns the result on p2.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
 // Output values are in the range [0, 2q-1].
-func (r *SplitRingQP) NTTLazyLvl(levelQ, levelP int, p, pOut PolyQP) {
+func (r *RingQP) NTTLazyLvl(levelQ, levelP int, p, pOut PolyQP) {
 	r.RingQ.NTTLazyLvl(levelQ, p.Q, pOut.Q)
 	r.RingP.NTTLazyLvl(levelP, p.P, pOut.P)
 }
 
 // MFormLvl switches p1 to the Montgomery domain and writes the result on p2.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
-func (r *SplitRingQP) MFormLvl(levelQ, levelP int, p, pOut PolyQP) {
+func (r *RingQP) MFormLvl(levelQ, levelP int, p, pOut PolyQP) {
 	r.RingQ.MFormLvl(levelQ, p.Q, pOut.Q)
 	r.RingP.MFormLvl(levelP, p.P, pOut.P)
 }
 
 // InvMFormLvl switches back p1 from the Montgomery domain to the conventional domain and writes the result on p2.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
-func (r *SplitRingQP) InvMFormLvl(levelQ, levelP int, p, pOut PolyQP) {
+func (r *RingQP) InvMFormLvl(levelQ, levelP int, p, pOut PolyQP) {
 	r.RingQ.InvMFormLvl(levelQ, p.Q, pOut.Q)
 	r.RingP.InvMFormLvl(levelP, p.P, pOut.P)
 }
 
 // MulCoeffsMontgomeryLvl multiplies p1 by p2 coefficient-wise with a Montgomery modular reduction.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
-func (r *SplitRingQP) MulCoeffsMontgomeryLvl(levelQ, levelP int, p1, p2, p3 PolyQP) {
+func (r *RingQP) MulCoeffsMontgomeryLvl(levelQ, levelP int, p1, p2, p3 PolyQP) {
 	r.RingQ.MulCoeffsMontgomeryLvl(levelQ, p1.Q, p2.Q, p3.Q)
 	r.RingP.MulCoeffsMontgomeryLvl(levelP, p1.P, p2.P, p3.P)
 }
@@ -112,7 +112,7 @@ func (r *SplitRingQP) MulCoeffsMontgomeryLvl(levelQ, levelP int, p1, p2, p3 Poly
 // MulCoeffsMontgomeryConstantLvl multiplies p1 by p2 coefficient-wise with a constant-time Montgomery modular reduction.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
 // Result is within [0, 2q-1].
-func (r *SplitRingQP) MulCoeffsMontgomeryConstantLvl(levelQ, levelP int, p1, p2, p3 PolyQP) {
+func (r *RingQP) MulCoeffsMontgomeryConstantLvl(levelQ, levelP int, p1, p2, p3 PolyQP) {
 	r.RingQ.MulCoeffsMontgomeryConstantLvl(levelQ, p1.Q, p2.Q, p3.Q)
 	r.RingP.MulCoeffsMontgomeryConstantLvl(levelP, p1.P, p2.P, p3.P)
 }
@@ -120,7 +120,7 @@ func (r *SplitRingQP) MulCoeffsMontgomeryConstantLvl(levelQ, levelP int, p1, p2,
 // MulCoeffsMontgomeryConstantAndAddNoModLvl multiplies p1 by p2 coefficient-wise with a
 // constant-time Montgomery modular reduction and adds the result on p3.
 // Result is within [0, 2q-1]
-func (r *SplitRingQP) MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP int, p1, p2, p3 PolyQP) {
+func (r *RingQP) MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP int, p1, p2, p3 PolyQP) {
 	r.RingQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, p1.Q, p2.Q, p3.Q)
 	r.RingP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelP, p1.P, p2.P, p3.P)
 }
@@ -128,7 +128,7 @@ func (r *SplitRingQP) MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP i
 // MulCoeffsMontgomeryAndSubLvl multiplies p1 by p2 coefficient-wise with
 // a Montgomery modular reduction and subtracts the result from p3.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
-func (r *SplitRingQP) MulCoeffsMontgomeryAndSubLvl(levelQ, levelP int, p1, p2, p3 PolyQP) {
+func (r *RingQP) MulCoeffsMontgomeryAndSubLvl(levelQ, levelP int, p1, p2, p3 PolyQP) {
 	r.RingQ.MulCoeffsMontgomeryAndSubLvl(levelQ, p1.Q, p2.Q, p3.Q)
 	r.RingP.MulCoeffsMontgomeryAndSubLvl(levelP, p1.P, p2.P, p3.P)
 }
@@ -136,14 +136,14 @@ func (r *SplitRingQP) MulCoeffsMontgomeryAndSubLvl(levelQ, levelP int, p1, p2, p
 // MulCoeffsMontgomeryAndAddLvl multiplies p1 by p2 coefficient-wise with a
 // Montgomery modular reduction and adds the result to p3.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
-func (r *SplitRingQP) MulCoeffsMontgomeryAndAddLvl(levelQ, levelP int, p1, p2, p3 PolyQP) {
+func (r *RingQP) MulCoeffsMontgomeryAndAddLvl(levelQ, levelP int, p1, p2, p3 PolyQP) {
 	r.RingQ.MulCoeffsMontgomeryAndAddLvl(levelQ, p1.Q, p2.Q, p3.Q)
 	r.RingP.MulCoeffsMontgomeryAndAddLvl(levelP, p1.P, p2.P, p3.P)
 }
 
 // ExtendBasisSmallNormAndCenter extends a small-norm polynomial polQ in R_Q to a polynomial
 // polQP in R_QP.
-func (r *SplitRingQP) ExtendBasisSmallNormAndCenter(polyInQ *ring.Poly, levelP int, polyOutQ, polyOutP *ring.Poly) {
+func (r *RingQP) ExtendBasisSmallNormAndCenter(polyInQ *ring.Poly, levelP int, polyOutQ, polyOutP *ring.Poly) {
 	var coeff, Q, QHalf, sign uint64
 	Q = r.RingQ.Modulus[0]
 	QHalf = Q >> 1

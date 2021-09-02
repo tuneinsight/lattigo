@@ -392,7 +392,7 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 		}
 
 		//comparing the results
-		require.Equal(t, KeyGenShareBefore.Value.Q.Degree(), KeyGenShareAfter.Value.Q.Degree()) // TODO
+		require.Equal(t, KeyGenShareBefore.Value.Q.Degree(), KeyGenShareAfter.Value.Q.Degree())
 		require.Equal(t, KeyGenShareBefore.Value.P.Degree(), KeyGenShareAfter.Value.P.Degree())
 		require.Equal(t, KeyGenShareBefore.Value.Q.LenModuli(), KeyGenShareAfter.Value.Q.LenModuli())
 		require.Equal(t, KeyGenShareBefore.Value.P.LenModuli(), KeyGenShareAfter.Value.P.LenModuli())
@@ -415,7 +415,7 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 		err = SwitchShareReceiver.UnmarshalBinary(data)
 		require.NoError(t, err)
 
-		require.Equal(t, SwitchShare.Value[0].Degree(), SwitchShareReceiver.Value[0].Degree()) // TODO
+		require.Equal(t, SwitchShare.Value[0].Degree(), SwitchShareReceiver.Value[0].Degree())
 		require.Equal(t, SwitchShare.Value[1].Degree(), SwitchShareReceiver.Value[1].Degree())
 		require.Equal(t, SwitchShare.Value[0].LenModuli(), SwitchShareReceiver.Value[0].LenModuli())
 		require.Equal(t, SwitchShare.Value[1].LenModuli(), SwitchShareReceiver.Value[1].LenModuli())
@@ -468,7 +468,7 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 			require.Equal(t, len(rkgShare.Value[i][0].Q.Coeffs), len(val[0].Q.Coeffs))
 			require.Equal(t, len(rkgShare.Value[i][0].P.Coeffs), len(val[0].P.Coeffs))
 			require.Equal(t, rkgShare.Value[i][0].Q.Coeffs, val[0].Q.Coeffs)
-			require.Equal(t, rkgShare.Value[i][0].P.Coeffs, val[0].P.Coeffs) // TODO
+			require.Equal(t, rkgShare.Value[i][0].P.Coeffs, val[0].P.Coeffs)
 
 			require.Equal(t, len(rkgShare.Value[i][1].Q.Coeffs), len(val[1].Q.Coeffs))
 			require.Equal(t, len(rkgShare.Value[i][1].P.Coeffs), len(val[1].P.Coeffs))
@@ -502,7 +502,7 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 		for i, val := range rtgShare.Value {
 			require.Equal(t, len(resRTGShare.Value[i].Q.Coeffs), len(val.Q.Coeffs))
 			require.Equal(t, resRTGShare.Value[i].Q.Coeffs, val.Q.Coeffs)
-			require.Equal(t, len(resRTGShare.Value[i].P.Coeffs), len(val.P.Coeffs)) // TODO
+			require.Equal(t, len(resRTGShare.Value[i].P.Coeffs), len(val.P.Coeffs))
 			require.Equal(t, resRTGShare.Value[i].P.Coeffs, val.P.Coeffs)
 		}
 	})

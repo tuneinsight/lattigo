@@ -150,22 +150,22 @@ func testKeySwitching(testCtx testContext, t *testing.T) {
 		ciphertext.Value[0].IsNTT = true
 		ciphertext.Value[1].IsNTT = true
 
-		CKSProtocol := NewCKSProtocol(params, rlwe.DefaultSigma)
+		cks := NewCKSProtocol(params, rlwe.DefaultSigma)
 
-		share0 := CKSProtocol.AllocateShare(ciphertext.Level())
-		share1 := CKSProtocol.AllocateShare(ciphertext.Level())
-		share2 := CKSProtocol.AllocateShare(ciphertext.Level())
+		share0 := cks.AllocateShare(ciphertext.Level())
+		share1 := cks.AllocateShare(ciphertext.Level())
+		share2 := cks.AllocateShare(ciphertext.Level())
 
-		CKSProtocol.GenShare(testCtx.sk0, sk0Out, ciphertext, share0)
-		CKSProtocol.GenShare(testCtx.sk1, sk1Out, ciphertext, share1)
-		CKSProtocol.GenShare(testCtx.sk2, sk2Out, ciphertext, share2)
+		cks.GenShare(testCtx.sk0, sk0Out, ciphertext, share0)
+		cks.GenShare(testCtx.sk1, sk1Out, ciphertext, share1)
+		cks.GenShare(testCtx.sk2, sk2Out, ciphertext, share2)
 
-		CKSProtocol.AggregateShares(share0, share1, share0)
-		CKSProtocol.AggregateShares(share0, share2, share0)
+		cks.AggregateShares(share0, share1, share0)
+		cks.AggregateShares(share0, share2, share0)
 
 		ksCiphertext := &rlwe.Ciphertext{Value: []*ring.Poly{params.RingQ().NewPoly(), params.RingQ().NewPoly()}}
 
-		CKSProtocol.KeySwitch(share0, ciphertext, ksCiphertext)
+		cks.KeySwitch(share0, ciphertext, ksCiphertext)
 
 		// [-as + e] + [as]
 		ringQ.MulCoeffsMontgomeryAndAdd(ksCiphertext.Value[1], skOutIdeal.Value.Q, ksCiphertext.Value[0])

@@ -55,6 +55,8 @@ type evaluator struct {
 	*evaluatorBuffers
 	*rlwe.KeySwitcher
 
+	lightEncoder *encoder
+
 	rlk  *rlwe.RelinearizationKey
 	rtks *rlwe.RotationKeySet
 
@@ -118,6 +120,13 @@ func NewEvaluator(params Parameters, evaluationKey rlwe.EvaluationKey) Evaluator
 	ev := new(evaluator)
 	ev.evaluatorBase = newEvaluatorPrecomp(params)
 	ev.evaluatorBuffers = newEvaluatorBuffer(ev.evaluatorBase)
+
+	rescaleParams := make([]uint64, len(params.RingQ().Modulus))
+	for i, qi := range params.RingQ().Modulus {
+		rescaleParams[i] = ring.MForm(ring.ModExp(params.T(), qi-2, qi), qi, params.RingQ().BredParams[i])
+	}
+
+	ev.lightEncoder = &encoder{rescaleParams: rescaleParams}
 	ev.baseconverterQ1Q2 = ring.NewFastBasisExtender(ev.ringQ, ev.ringQMul)
 	if params.PCount() != 0 {
 		ev.KeySwitcher = rlwe.NewKeySwitcher(params.Parameters)
@@ -712,7 +721,7 @@ func (eval *evaluator) getRingQElem(op Operand) *rlwe.Ciphertext {
 	case *Ciphertext, *Plaintext:
 		return o.El()
 	case *PlaintextRingT:
-		scaleUp(eval.params.RingQ(), eval.params.RingT(), eval.Pool[0].Q.Coeffs[0], o.Value, eval.tmpPt.Value)
+		eval.lightEncoder.scaleUp(eval.params.RingQ(), eval.params.RingT(), eval.Pool[0].Q.Coeffs[0], o.Value, eval.tmpPt.Value)
 		return eval.tmpPt.El()
 	default:
 		panic(fmt.Errorf("invalid operand type for operation: %T", o))

@@ -20,7 +20,7 @@ const GaloisGen uint64 = 5
 // The figure below:
 //
 // []uint64 --- Encoder.EncodeUintRingT(.) -┬-> PlaintextRingT -┬-> Encoder.ScaleUp(.) -----> Plaintext
-// []uint64 --- Encoder.EncodeIntRingT(.) --┘                   └-> encoder.RingTToMul(.) ---> PlaintextMul
+// []uint64 --- Encoder.EncodeIntRingT(.) --┘                   └-> Encoder.RingTToMul(.) ---> PlaintextMul
 //
 //
 // The different plaintext types have different efficiency-related caracteristics that we summarize in the Table below. For more information
@@ -63,6 +63,8 @@ type encoder struct {
 	indexMatrix []uint64
 	scaler      ring.Scaler
 
+	rescaleParams []uint64
+
 	tmpPoly *ring.Poly
 	tmpPtRt *PlaintextRingT
 }
@@ -97,12 +99,18 @@ func NewEncoder(params Parameters) Encoder {
 		pos &= (m - 1)
 	}
 
+	rescaleParams := make([]uint64, len(ringQ.Modulus))
+	for i, qi := range ringQ.Modulus {
+		rescaleParams[i] = ring.MForm(ring.ModExp(params.T(), qi-2, qi), qi, ringQ.BredParams[i])
+	}
+
 	return &encoder{
-		params:      params,
-		indexMatrix: indexMatrix,
-		scaler:      ring.NewRNSScaler(ringQ, ringT),
-		tmpPoly:     ringT.NewPoly(),
-		tmpPtRt:     NewPlaintextRingT(params),
+		params:        params,
+		indexMatrix:   indexMatrix,
+		scaler:        ring.NewRNSScaler(ringQ, ringT),
+		rescaleParams: rescaleParams,
+		tmpPoly:       ringT.NewPoly(),
+		tmpPtRt:       NewPlaintextRingT(params),
 	}
 }
 
@@ -199,23 +207,17 @@ func (encoder *encoder) EncodeIntMul(coeffs []int64, p *PlaintextMul) {
 
 // ScaleUp transforms a PlaintextRingT (R_t) into a Plaintext (R_q) by scaling up the coefficient by Q/t.
 func (encoder *encoder) ScaleUp(ptRt *PlaintextRingT, pt *Plaintext) {
-	scaleUp(encoder.params.RingQ(), encoder.params.RingT(), encoder.tmpPoly.Coeffs[0], ptRt.Value, pt.Value)
+	encoder.scaleUp(encoder.params.RingQ(), encoder.params.RingT(), encoder.tmpPoly.Coeffs[0], ptRt.Value, pt.Value)
 }
 
 // takes m mod T and returns round((m*Q)/T) mod Q
-func scaleUp(ringQ, ringT *ring.Ring, tmp []uint64, pIn, pOut *ring.Poly) {
+func (encoder *encoder) scaleUp(ringQ, ringT *ring.Ring, tmp []uint64, pIn, pOut *ring.Poly) {
 
 	qModTmontgomery := ring.MForm(new(big.Int).Mod(ringQ.ModulusBigint, ringT.ModulusBigint).Uint64(), ringT.Modulus[0], ringT.BredParams[0])
 
 	t := ringT.Modulus[0]
 	tHalf := t >> 1
 	tInv := ringT.MredParams[0]
-
-	rescaleParams := make([]uint64, len(ringQ.Modulus))
-
-	for i, qi := range ringQ.Modulus {
-		rescaleParams[i] = ring.MForm(ring.ModExp(t, qi-2, qi), qi, ringQ.BredParams[i])
-	}
 
 	// (x * Q + T/2) mod T
 	for i := 0; i < ringQ.N; i = i + 8 {
@@ -239,7 +241,7 @@ func scaleUp(ringQ, ringT *ring.Ring, tmp []uint64, pIn, pOut *ring.Poly) {
 		qi := ringQ.Modulus[i]
 		bredParams := ringQ.BredParams[i]
 		mredParams := ringQ.MredParams[i]
-		rescaleParams := qi - rescaleParams[i]
+		rescaleParams := qi - encoder.rescaleParams[i]
 
 		tHalfNegQi := qi - ring.BRedAdd(tHalf, qi, bredParams)
 

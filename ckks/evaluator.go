@@ -1272,21 +1272,19 @@ func (eval *evaluator) Rescale(ctIn *Ciphertext, minScale float64, ctOut *Cipher
 
 	ctOut.Scale = ctIn.Scale
 
-	var nbRescale int
+	var nbRescales int
 	// Divides the scale by each moduli of the modulus chain as long as the scale isn't smaller than minScale/2
 	// or until the output Level() would be zero
-	for ctOut.Scale/float64(ringQ.Modulus[ctIn.Level()-nbRescale]) >= minScale/2 && ctIn.Level()-nbRescale >= 0 {
-		ctOut.Scale /= (float64(ringQ.Modulus[ctIn.Level()-nbRescale]))
-		nbRescale++
+	for ctOut.Scale/float64(ringQ.Modulus[ctIn.Level()-nbRescales]) >= minScale/2 && ctIn.Level()-nbRescales >= 0 {
+		ctOut.Scale /= (float64(ringQ.Modulus[ctIn.Level()-nbRescales]))
+		nbRescales++
 	}
 
-	if nbRescale > 0 {
+	if nbRescales > 0 {
+		level := ctIn.Level()
 		for i := range ctOut.Value {
-			if nbRescale > 1 {
-				ringQ.DivRoundByLastModulusManyNTT(ctIn.Value[i], ctOut.Value[i], nbRescale)
-			} else {
-				ringQ.DivRoundByLastModulusNTT(ctIn.Value[i], ctOut.Value[i])
-			}
+			ringQ.DivRoundByLastModulusManyNTTLvl(level, nbRescales, ctIn.Value[i], eval.poolQMul[0], ctOut.Value[i])
+			ctOut.Value[i].Coeffs = ctOut.Value[i].Coeffs[:level+1-nbRescales]
 		}
 	} else {
 		if ctIn != ctOut {

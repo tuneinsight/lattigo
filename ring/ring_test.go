@@ -189,12 +189,12 @@ func testDivFloorByLastModulusMany(testContext *testParams, t *testing.T) {
 			coeffs[i].Quo(coeffs[i], NewUint(10))
 		}
 
-		nbRescals := len(testContext.ringQ.Modulus) - 1
+		nbRescales := len(testContext.ringQ.Modulus) - 1
 
 		coeffsWant := make([]*big.Int, testContext.ringQ.N)
 		for i := range coeffs {
 			coeffsWant[i] = new(big.Int).Set(coeffs[i])
-			for j := 0; j < nbRescals; j++ {
+			for j := 0; j < nbRescales; j++ {
 				coeffsWant[i].Quo(coeffsWant[i], NewUint(testContext.ringQ.Modulus[len(testContext.ringQ.Modulus)-1-j]))
 			}
 		}
@@ -202,13 +202,14 @@ func testDivFloorByLastModulusMany(testContext *testParams, t *testing.T) {
 		polTest0 := testContext.ringQ.NewPoly()
 		polTest1 := testContext.ringQ.NewPoly()
 		polWant := testContext.ringQ.NewPoly()
+		pool := testContext.ringQ.NewPoly()
 
 		testContext.ringQ.SetCoefficientsBigint(coeffs, polTest0)
 		testContext.ringQ.SetCoefficientsBigint(coeffsWant, polWant)
 
-		testContext.ringQ.DivFloorByLastModulusMany(polTest0, polTest1, nbRescals)
+		testContext.ringQ.DivFloorByLastModulusManyLvl(polTest0.Level(), nbRescales, polTest0, pool, polTest1)
 		for i := 0; i < testContext.ringQ.N; i++ {
-			for j := 0; j < len(testContext.ringQ.Modulus)-nbRescals; j++ {
+			for j := 0; j < polTest0.Level()-nbRescales+1; j++ {
 				require.Equalf(t, polWant.Coeffs[j][i], polTest1.Coeffs[j][i], "coeff %v Qi%v = %s", i, j, coeffs[i].String())
 			}
 		}
@@ -238,13 +239,14 @@ func testDivRoundByLastModulusMany(testContext *testParams, t *testing.T) {
 		polTest0 := testContext.ringQ.NewPoly()
 		polTest1 := testContext.ringQ.NewPoly()
 		polWant := testContext.ringQ.NewPoly()
+		pool := testContext.ringQ.NewPoly()
 
 		testContext.ringQ.SetCoefficientsBigint(coeffs, polTest0)
 		testContext.ringQ.SetCoefficientsBigint(coeffsWant, polWant)
 
-		testContext.ringQ.DivRoundByLastModulusMany(polTest0, polTest1, nbRescals)
+		testContext.ringQ.DivRoundByLastModulusManyLvl(polTest0.Level(), nbRescals, polTest0, pool, polTest1)
 		for i := 0; i < testContext.ringQ.N; i++ {
-			for j := 0; j < len(testContext.ringQ.Modulus)-nbRescals; j++ {
+			for j := 0; j < polTest0.Level()-nbRescals+1; j++ {
 				require.Equalf(t, polWant.Coeffs[j][i], polTest1.Coeffs[j][i], "coeff %v Qi%v = %s", i, j, coeffs[i].String())
 			}
 		}

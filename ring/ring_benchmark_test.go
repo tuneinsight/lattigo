@@ -306,27 +306,29 @@ func benchDivByLastModulus(testContext *testParams, b *testing.B) {
 	p0 := testContext.uniformSamplerQ.ReadNew()
 	p1 := testContext.ringQ.NewPolyLvl(p0.Level() - 1)
 
+	pool := testContext.ringQ.NewPoly()
+
 	b.Run(testString("DivByLastModulus/Floor/", testContext.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			testContext.ringQ.DivFloorByLastModulus(p0, p1)
+			testContext.ringQ.DivFloorByLastModulusLvl(p0.Level(), p0, p1)
 		}
 	})
 
 	b.Run(testString("DivByLastModulus/FloorNTT/", testContext.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			testContext.ringQ.DivFloorByLastModulusNTT(p0, p1)
+			testContext.ringQ.DivFloorByLastModulusNTTLvl(p0.Level(), p0, pool, p1)
 		}
 	})
 
 	b.Run(testString("DivByLastModulus/Round/", testContext.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			testContext.ringQ.DivRoundByLastModulus(p0, p1)
+			testContext.ringQ.DivRoundByLastModulusLvl(p0.Level(), p0, p1)
 		}
 	})
 
 	b.Run(testString("DivByLastModulus/RoundNTT/", testContext.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			testContext.ringQ.DivRoundByLastModulusNTT(p0, p1)
+			testContext.ringQ.DivRoundByLastModulusNTTLvl(p0.Level(), p0, pool, p1)
 		}
 	})
 }

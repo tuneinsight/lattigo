@@ -140,7 +140,7 @@ type Evaluator interface {
 	// ==============
 	// === Others ===
 	// ==============
-	GetKeySwither() *rlwe.KeySwitcher
+	GetKeySwitcher() *rlwe.KeySwitcher
 	ShallowCopy() Evaluator
 	WithKey(rlwe.EvaluationKey) Evaluator
 }
@@ -214,8 +214,8 @@ func (eval *evaluator) permuteNTTIndexesForKey(rtks *rlwe.RotationKeySet) *map[u
 	return &permuteNTTIndex
 }
 
-// GetKeySwither returns a pointer to the internal rlwe.KeySwither.
-func (eval *evaluator) GetKeySwither() *rlwe.KeySwitcher {
+// GetKeySwitcher returns a pointer to the internal rlwe.KeySwither.
+func (eval *evaluator) GetKeySwitcher() *rlwe.KeySwitcher {
 	return eval.KeySwitcher
 }
 

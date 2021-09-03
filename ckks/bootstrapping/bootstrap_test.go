@@ -4,9 +4,11 @@ import (
 	"flag"
 	"fmt"
 	"github.com/ldsec/lattigo/v2/ckks"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 	"github.com/stretchr/testify/assert"
 	"runtime"
+	"sync"
 	"testing"
 )
 
@@ -98,7 +100,7 @@ func testbootstrap(params ckks.Parameters, btpParams Parameters, t *testing.T) {
 		rotations := btpParams.RotationsForBootstrapping(params.LogN(), params.LogSlots())
 		rotkeys := kgen.GenRotationKeysForRotations(rotations, true, sk)
 
-		btp, err := NewBootstrapper(params, btpParams, Key{rlk, rotkeys})
+		btp, err := NewBootstrapper(params, btpParams, rlwe.EvaluationKey{Rlk: rlk, Rtks: rotkeys})
 		if err != nil {
 			panic(err)
 		}
@@ -115,19 +117,33 @@ func testbootstrap(params ckks.Parameters, btpParams Parameters, t *testing.T) {
 			values[3] = complex(0.9238795325112867, 0.3826834323650898)
 		}
 
-		plaintext := ckks.NewPlaintext(params, params.MaxLevel(), params.Scale())
+		plaintext := ckks.NewPlaintext(params, 0, params.Scale())
 		encoder.Encode(plaintext, values, params.LogSlots())
 
-		ciphertext := encryptor.EncryptNew(plaintext)
-
-		for ciphertext.Level() != 0 {
-			btp.DropLevel(ciphertext, 1)
+		ciphertexts := make([]*ckks.Ciphertext, 2)
+		bootstrappers := make([]*Bootstrapper, 2)
+		for i := range ciphertexts {
+			ciphertexts[i] = encryptor.EncryptNew(plaintext)
+			if i == 0 {
+				bootstrappers[i] = btp
+			} else {
+				bootstrappers[i] = bootstrappers[0].ShallowCopy()
+			}
 		}
 
-		for i := 0; i < 1; i++ {
-			ciphertext = btp.Bootstrapp(ciphertext)
-			//btp.SetScale(ciphertext, params.Scale())
-			verifyTestVectors(params, encoder, decryptor, values, ciphertext, params.LogSlots(), 0, t)
+		var wg sync.WaitGroup
+		wg.Add(2)
+		for i := range ciphertexts {
+			go func(index int) {
+				ciphertexts[index] = bootstrappers[index].Bootstrapp(ciphertexts[index])
+				//btp.SetScale(ciphertexts[index], params.Scale())
+				wg.Done()
+			}(i)
+		}
+		wg.Wait()
+
+		for i := range ciphertexts {
+			verifyTestVectors(params, encoder, decryptor, values, ciphertexts[i], params.LogSlots(), 0, t)
 		}
 	})
 }

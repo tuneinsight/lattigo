@@ -12,28 +12,23 @@ import (
 // the polynomial approximation and the keys for the bootstrapping.
 type Bootstrapper struct {
 	advanced.Evaluator
+	*bootstrapperBase
+}
+
+type bootstrapperBase struct {
 	Parameters
-	*Key
 	params ckks.Parameters
 
 	dslots    int // Number of plaintext slots after the re-encoding
 	logdslots int
 
-	encoder ckks.Encoder // Encoder
-
 	evalModPoly advanced.EvalModPoly
 	stcMatrices advanced.EncodingMatrix
 	ctsMatrices advanced.EncodingMatrix
-
-	rotKeyIndex []int // a list of the required rotation keys
 }
 
-// Key is a type for a CKKS bootstrapping key, wich regroups the necessary public relinearization
-// and rotation keys (i.e., an EvaluationKey).
-type Key rlwe.EvaluationKey
-
 // NewBootstrapper creates a new Bootstrapper.
-func NewBootstrapper(params ckks.Parameters, btpParams Parameters, btpKey Key) (btp *Bootstrapper, err error) {
+func NewBootstrapper(params ckks.Parameters, btpParams Parameters, btpKey rlwe.EvaluationKey) (btp *Bootstrapper, err error) {
 
 	if btpParams.EvalModParameters.SineType == advanced.Sin && btpParams.EvalModParameters.DoubleAngle != 0 {
 		return nil, fmt.Errorf("cannot use double angle formul for SineType = Sin -> must use SineType = Cos")
@@ -48,47 +43,47 @@ func NewBootstrapper(params ckks.Parameters, btpParams Parameters, btpKey Key) (
 	}
 
 	btp = new(Bootstrapper)
+	btp.bootstrapperBase = newBootstrapperBase(params, btpParams, btpKey)
 
-	btp.params = params
-	btp.Parameters = btpParams
-
-	btp.dslots = params.Slots()
-	btp.logdslots = params.LogSlots()
-	if params.LogSlots() < params.MaxLogSlots() {
-		btp.dslots <<= 1
-		btp.logdslots++
-	}
-
-	btp.encoder = ckks.NewEncoder(params)
-
-	btp.evalModPoly = advanced.NewEvalModPolyFromLiteral(btpParams.EvalModParameters)
-	btp.genDFTMatrices()
-
-	btp.Key = &Key{btpKey.Rlk, btpKey.Rtks}
-	if err = btp.CheckKeys(); err != nil {
+	if err = btp.bootstrapperBase.CheckKeys(btpKey); err != nil {
 		return nil, fmt.Errorf("invalid bootstrapping key: %w", err)
 	}
 
-	btp.Evaluator = advanced.NewEvaluator(params, rlwe.EvaluationKey{Rlk: btpKey.Rlk, Rtks: btpKey.Rtks})
+	btp.Evaluator = advanced.NewEvaluator(params, btpKey)
 
-	return btp, nil
+	return
 }
 
-// CheckKeys checks if all the necessary keys are present
-func (btp *Bootstrapper) CheckKeys() (err error) {
+// ShallowCopy creates a shallow copy of this Bootstrapper in which all the read-only data-structures are
+// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+// Bootstrapper can be used concurrently.
+func (btp *Bootstrapper) ShallowCopy() *Bootstrapper {
+	return &Bootstrapper{
+		Evaluator:        btp.Evaluator.ShallowCopy(),
+		bootstrapperBase: btp.bootstrapperBase,
+	}
+}
 
-	if btp.Rlk == nil {
+// CheckKeys checks if all the necessary keys are present in the instantiated Bootstrapper
+func (bb *bootstrapperBase) CheckKeys(btpKey rlwe.EvaluationKey) (err error) {
+
+	if btpKey.Rlk == nil {
 		return fmt.Errorf("relinearization key is nil")
 	}
 
-	if btp.Rtks == nil {
+	if btpKey.Rtks == nil {
 		return fmt.Errorf("rotation key is nil")
 	}
 
+	rotKeyIndex := []int{}
+	rotKeyIndex = append(rotKeyIndex, bb.params.RotationsForTrace(bb.params.LogSlots(), bb.params.MaxLogSlots())...)
+	rotKeyIndex = append(rotKeyIndex, bb.CoeffsToSlotsParameters.Rotations(bb.params.LogN(), bb.params.LogSlots())...)
+	rotKeyIndex = append(rotKeyIndex, bb.SlotsToCoeffsParameters.Rotations(bb.params.LogN(), bb.params.LogSlots())...)
+
 	rotMissing := []int{}
-	for _, i := range btp.rotKeyIndex {
-		galEl := btp.params.GaloisElementForColumnRotationBy(int(i))
-		if _, generated := btp.Rtks.Keys[galEl]; !generated {
+	for _, i := range rotKeyIndex {
+		galEl := bb.params.GaloisElementForColumnRotationBy(int(i))
+		if _, generated := btpKey.Rtks.Keys[galEl]; !generated {
 			rotMissing = append(rotMissing, i)
 		}
 	}
@@ -100,31 +95,43 @@ func (btp *Bootstrapper) CheckKeys() (err error) {
 	return nil
 }
 
-func (btp *Bootstrapper) genDFTMatrices() {
+func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey rlwe.EvaluationKey) (bb *bootstrapperBase) {
+	bb = new(bootstrapperBase)
+	bb.params = params
+	bb.Parameters = btpParams
 
-	K := btp.evalModPoly.K()
-	n := float64(btp.params.N())
-	scFac := btp.evalModPoly.ScFac()
-	ctsDepth := float64(btp.CoeffsToSlotsParameters.Depth(false))
-	stcDepth := float64(btp.SlotsToCoeffsParameters.Depth(false))
+	bb.dslots = params.Slots()
+	bb.logdslots = params.LogSlots()
+	if params.LogSlots() < params.MaxLogSlots() {
+		bb.dslots <<= 1
+		bb.logdslots++
+	}
+
+	bb.evalModPoly = advanced.NewEvalModPolyFromLiteral(btpParams.EvalModParameters)
+
+	K := bb.evalModPoly.K()
+	n := float64(bb.params.N())
+	scFac := bb.evalModPoly.ScFac()
+	ctsDepth := float64(bb.CoeffsToSlotsParameters.Depth(false))
+	stcDepth := float64(bb.SlotsToCoeffsParameters.Depth(false))
 
 	// Correcting factor for approximate division by Q
 	// The second correcting factor for approximate multiplication by Q is included in the coefficients of the EvalMod polynomials
-	qDiff := btp.evalModPoly.QDiff()
+	qDiff := bb.evalModPoly.QDiff()
+
+	encoder := ckks.NewEncoder(bb.params)
 
 	// CoeffsToSlots vectors
 	// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum + evantual scaling factor for the double angle formula
 	coeffsToSlotsDiffScale := complex(math.Pow(1.0/(K*n*scFac*qDiff), 1.0/ctsDepth), 0)
-	btp.ctsMatrices = advanced.NewHomomorphicEncodingMatrixFromLiteral(btp.CoeffsToSlotsParameters, btp.encoder, btp.params.LogN(), btp.params.LogSlots(), coeffsToSlotsDiffScale)
+	bb.ctsMatrices = advanced.NewHomomorphicEncodingMatrixFromLiteral(bb.CoeffsToSlotsParameters, encoder, bb.params.LogN(), bb.params.LogSlots(), coeffsToSlotsDiffScale)
 
 	// SlotsToCoeffs vectors
 	// Rescaling factor to set the final ciphertext to the desired scale
-	slotsToCoeffsDiffScale := complex(math.Pow(btp.params.Scale()/(btp.evalModPoly.ScalingFactor()/btp.evalModPoly.MessageRatio()), 1.0/stcDepth), 0)
-	btp.stcMatrices = advanced.NewHomomorphicEncodingMatrixFromLiteral(btp.SlotsToCoeffsParameters, btp.encoder, btp.params.LogN(), btp.params.LogSlots(), slotsToCoeffsDiffScale)
+	slotsToCoeffsDiffScale := complex(math.Pow(bb.params.Scale()/(bb.evalModPoly.ScalingFactor()/bb.evalModPoly.MessageRatio()), 1.0/stcDepth), 0)
+	bb.stcMatrices = advanced.NewHomomorphicEncodingMatrixFromLiteral(bb.SlotsToCoeffsParameters, encoder, bb.params.LogN(), bb.params.LogSlots(), slotsToCoeffsDiffScale)
 
-	// List of the rotation key values to needed for the bootstrapp
-	btp.rotKeyIndex = []int{}
-	btp.rotKeyIndex = append(btp.rotKeyIndex, btp.params.RotationsForTrace(btp.params.LogSlots(), btp.params.MaxLogSlots())...)
-	btp.rotKeyIndex = append(btp.rotKeyIndex, btp.CoeffsToSlotsParameters.Rotations(btp.params.LogN(), btp.params.LogSlots())...)
-	btp.rotKeyIndex = append(btp.rotKeyIndex, btp.SlotsToCoeffsParameters.Rotations(btp.params.LogN(), btp.params.LogSlots())...)
+	encoder = nil
+
+	return
 }

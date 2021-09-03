@@ -2,6 +2,7 @@ package bootstrapping
 
 import (
 	"github.com/ldsec/lattigo/v2/ckks"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"math"
 	"testing"
 	"time"
@@ -28,9 +29,8 @@ func BenchmarkBootstrapp(b *testing.B) {
 
 	rotations := btpParams.RotationsForBootstrapping(params.LogN(), params.LogSlots())
 	rotkeys := kgen.GenRotationKeysForRotations(rotations, true, sk)
-	btpKey := Key{rlk, rotkeys}
 
-	if btp, err = NewBootstrapper(params, btpParams, btpKey); err != nil {
+	if btp, err = NewBootstrapper(params, btpParams, rlwe.EvaluationKey{Rlk: rlk, Rtks: rotkeys}); err != nil {
 		panic(err)
 	}
 

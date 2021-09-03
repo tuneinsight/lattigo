@@ -53,8 +53,7 @@ func main() {
 	rotations := btpParams.RotationsForBootstrapping(params.LogN(), params.LogSlots())
 	rotkeys := kgen.GenRotationKeysForRotations(rotations, true, sk)
 	rlk := kgen.GenRelinearizationKey(sk, 2)
-	btpKey := bootstrapping.Key{Rlk: rlk, Rtks: rotkeys}
-	if btp, err = bootstrapping.NewBootstrapper(params, btpParams, btpKey); err != nil {
+	if btp, err = bootstrapping.NewBootstrapper(params, btpParams, rlwe.EvaluationKey{Rlk: rlk, Rtks: rotkeys}); err != nil {
 		panic(err)
 	}
 	fmt.Println("Done")

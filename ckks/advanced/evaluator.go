@@ -10,15 +10,83 @@ import (
 // Evaluator is an interface embeding the ckks.Evaluator interface with
 // additional advanced arithmetic features.
 type Evaluator interface {
-	ckks.Evaluator
-	// Homomorphic Encoding
+
+	// =======================================
+	// === Original ckks.Evaluator methods ===
+	// =======================================
+
+	Add(op0, op1 ckks.Operand, ctOut *ckks.Ciphertext)
+	AddNoMod(op0, op1 ckks.Operand, ctOut *ckks.Ciphertext)
+	AddNew(op0, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
+	AddNoModNew(op0, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
+	Sub(op0, op1 ckks.Operand, ctOut *ckks.Ciphertext)
+	SubNoMod(op0, op1 ckks.Operand, ctOut *ckks.Ciphertext)
+	SubNew(op0, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
+	SubNoModNew(op0, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
+	Neg(ctIn *ckks.Ciphertext, ctOut *ckks.Ciphertext)
+	NegNew(ctIn *ckks.Ciphertext) (ctOut *ckks.Ciphertext)
+	AddConstNew(ctIn *ckks.Ciphertext, constant interface{}) (ctOut *ckks.Ciphertext)
+	AddConst(ctIn *ckks.Ciphertext, constant interface{}, ctOut *ckks.Ciphertext)
+	MultByConstNew(ctIn *ckks.Ciphertext, constant interface{}) (ctOut *ckks.Ciphertext)
+	MultByConst(ctIn *ckks.Ciphertext, constant interface{}, ctOut *ckks.Ciphertext)
+	MultByGaussianInteger(ctIn *ckks.Ciphertext, cReal, cImag interface{}, ctOut *ckks.Ciphertext)
+	MultByConstAndAdd(ctIn *ckks.Ciphertext, constant interface{}, ctOut *ckks.Ciphertext)
+	MultByGaussianIntegerAndAdd(ctIn *ckks.Ciphertext, cReal, cImag interface{}, ctOut *ckks.Ciphertext)
+	MultByiNew(ctIn *ckks.Ciphertext) (ctOut *ckks.Ciphertext)
+	MultByi(ctIn *ckks.Ciphertext, ctOut *ckks.Ciphertext)
+	DivByiNew(ctIn *ckks.Ciphertext) (ctOut *ckks.Ciphertext)
+	DivByi(ctIn *ckks.Ciphertext, ctOut *ckks.Ciphertext)
+	ConjugateNew(ctIn *ckks.Ciphertext) (ctOut *ckks.Ciphertext)
+	Conjugate(ctIn *ckks.Ciphertext, ctOut *ckks.Ciphertext)
+	Mul(op0, op1 ckks.Operand, ctOut *ckks.Ciphertext)
+	MulNew(op0, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
+	MulRelin(op0, op1 ckks.Operand, ctOut *ckks.Ciphertext)
+	MulRelinNew(op0, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
+	RotateNew(ctIn *ckks.Ciphertext, k int) (ctOut *ckks.Ciphertext)
+	Rotate(ctIn *ckks.Ciphertext, k int, ctOut *ckks.Ciphertext)
+	RotateHoisted(ctIn *ckks.Ciphertext, rotations []int) (ctOut map[int]*ckks.Ciphertext)
+	MulByPow2New(ctIn *ckks.Ciphertext, pow2 int) (ctOut *ckks.Ciphertext)
+	MulByPow2(ctIn *ckks.Ciphertext, pow2 int, ctOut *ckks.Ciphertext)
+	PowerOf2(ctIn *ckks.Ciphertext, logPow2 int, ctOut *ckks.Ciphertext)
+	Power(ctIn *ckks.Ciphertext, degree int, ctOut *ckks.Ciphertext)
+	PowerNew(ctIn *ckks.Ciphertext, degree int) (ctOut *ckks.Ciphertext)
+	EvaluatePoly(ctIn *ckks.Ciphertext, pol *ckks.Polynomial, targetScale float64) (ctOut *ckks.Ciphertext, err error)
+	InverseNew(ctIn *ckks.Ciphertext, steps int) (ctOut *ckks.Ciphertext)
+	LinearTransform(ctIn *ckks.Ciphertext, linearTransform interface{}) (ctOut []*ckks.Ciphertext)
+	MultiplyByDiagMatrix(ctIn *ckks.Ciphertext, matrix ckks.PtDiagMatrix, c2DecompQP []rlwe.PolyQP, ctOut *ckks.Ciphertext)
+	MultiplyByDiagMatrixBSGS(ctIn *ckks.Ciphertext, matrix ckks.PtDiagMatrix, c2DecompQP []rlwe.PolyQP, ctOut *ckks.Ciphertext)
+	InnerSumLog(ctIn *ckks.Ciphertext, batch, n int, ctOut *ckks.Ciphertext)
+	InnerSum(ctIn *ckks.Ciphertext, batch, n int, ctOut *ckks.Ciphertext)
+	ReplicateLog(ctIn *ckks.Ciphertext, batch, n int, ctOut *ckks.Ciphertext)
+	Replicate(ctIn *ckks.Ciphertext, batch, n int, ctOut *ckks.Ciphertext)
+	Trace(ctIn *ckks.Ciphertext, logSlotsStart, logSlotsEnd int) *ckks.Ciphertext
+	SwitchKeysNew(ctIn *ckks.Ciphertext, switchingKey *rlwe.SwitchingKey) (ctOut *ckks.Ciphertext)
+	SwitchKeys(ctIn *ckks.Ciphertext, switchingKey *rlwe.SwitchingKey, ctOut *ckks.Ciphertext)
+	RelinearizeNew(ctIn *ckks.Ciphertext) (ctOut *ckks.Ciphertext)
+	Relinearize(ctIn *ckks.Ciphertext, ctOut *ckks.Ciphertext)
+	ScaleUpNew(ctIn *ckks.Ciphertext, scale float64) (ctOut *ckks.Ciphertext)
+	ScaleUp(ctIn *ckks.Ciphertext, scale float64, ctOut *ckks.Ciphertext)
+	SetScale(ctIn *ckks.Ciphertext, scale float64)
+	Rescale(ctIn *ckks.Ciphertext, minScale float64, ctOut *ckks.Ciphertext) (err error)
+	DropLevelNew(ctIn *ckks.Ciphertext, levels int) (ctOut *ckks.Ciphertext)
+	DropLevel(ctIn *ckks.Ciphertext, levels int)
+	ReduceNew(ctIn *ckks.Ciphertext) (ctOut *ckks.Ciphertext)
+	Reduce(ctIn *ckks.Ciphertext, ctOut *ckks.Ciphertext) error
+
+	// ======================================
+	// === advanced.Evaluator new methods ===
+	// ======================================
+
 	CoeffsToSlotsNew(ctIn *ckks.Ciphertext, ctsMatrices EncodingMatrix) (ctReal, ctImag *ckks.Ciphertext)
 	SlotsToCoeffsNew(ctReal, ctImag *ckks.Ciphertext, stcMatrices EncodingMatrix) (ctOut *ckks.Ciphertext)
-	// Homomorphic Modular Reduction
 	EvalModNew(ctIn *ckks.Ciphertext, evalModPoly EvalModPoly) (ctOut *ckks.Ciphertext)
 
-	ShallowCopyAdvanced() Evaluator
-	WithKeyAdvanced(evakey rlwe.EvaluationKey) Evaluator
+	// =================================================
+	// === original ckks.Evaluator redefined methods ===
+	// =================================================
+
+	ShallowCopy() Evaluator
+	WithKey(evakey rlwe.EvaluationKey) Evaluator
 }
 
 type evaluator struct {
@@ -29,6 +97,19 @@ type evaluator struct {
 // NewEvaluator creates a new Evaluator.
 func NewEvaluator(params ckks.Parameters, evaluationKey rlwe.EvaluationKey) Evaluator {
 	return &evaluator{ckks.NewEvaluator(params, evaluationKey), params}
+}
+
+// ShallowCopy creates a shallow copy of this evaluator in which all the read-only data-structures are
+// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+// Evaluators can be used concurrently.
+func (eval *evaluator) ShallowCopy() Evaluator {
+	return &evaluator{eval.Evaluator.ShallowCopy(), eval.params}
+}
+
+// WithKey creates a shallow copy of the receiver Evaluator for which the new EvaluationKey is evaluationKey
+// and where the temporary buffers are shared. The receiver and the returned Evaluators cannot be used concurrently.
+func (eval *evaluator) WithKey(evaluationKey rlwe.EvaluationKey) Evaluator {
+	return &evaluator{eval.Evaluator.WithKey(evaluationKey), eval.params}
 }
 
 // CoeffsToSlotsNew applies the homomorphic encoding.
@@ -152,31 +233,4 @@ func (eval *evaluator) EvalModNew(ct *ckks.Ciphertext, evalModPoly EvalModPoly) 
 	// Multiplies back by q
 	ct.Scale = prevScaleCt
 	return ct
-}
-
-// WithKey creates a shallow copy of the receiver ckks.Evaluator for which the new EvaluationKey is evaluationKey
-// and where the temporary buffers are shared. The receiver and the returned Evaluators cannot be used concurrently.
-// The returned ckks.Evaluator can be safely casted to a advanced.Evaluator.
-func (eval *evaluator) WithKey(evaluationKey rlwe.EvaluationKey) ckks.Evaluator {
-	return &evaluator{eval.Evaluator.WithKey(evaluationKey), eval.params}
-}
-
-// WithKeyAdvanced creates a shallow copy of the receiver ckks.Evaluator for which the new EvaluationKey is evaluationKey
-// and where the temporary buffers are shared. The receiver and the returned Evaluators cannot be used concurrently.
-func (eval *evaluator) WithKeyAdvanced(evaluationKey rlwe.EvaluationKey) Evaluator {
-	return eval.WithKey(evaluationKey).(Evaluator)
-}
-
-// ShallowCopy creates a shallow copy of this evaluator in which all the read-only data-structures are
-// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// Evaluators can be used concurrently. The returned ckks.Evaluator can be safely casted to a advanced.Evaluator.
-func (eval *evaluator) ShallowCopy() ckks.Evaluator {
-	return &evaluator{eval.Evaluator.ShallowCopy(), eval.params}
-}
-
-// ShallowCopyAdvanced creates a shallow copy of this evaluator in which all the read-only data-structures are
-// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// Evaluators can be used concurrently
-func (eval *evaluator) ShallowCopyAdvanced() Evaluator {
-	return eval.ShallowCopy().(Evaluator)
 }

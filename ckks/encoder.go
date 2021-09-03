@@ -30,6 +30,7 @@ type Encoder interface {
 
 	EncodeDiagMatrixBSGSAtLvl(level int, vector map[int][]complex128, scale, maxM1N2Ratio float64, logSlots int) (matrix PtDiagMatrix)
 	EncodeDiagMatrixAtLvl(level int, vector map[int][]complex128, scale float64, logSlots int) (matrix PtDiagMatrix)
+	EncodeDiagonal(logSlots, level int, scale float64, m []complex128) (vecQP rlwe.PolyQP)
 
 	Decode(plaintext *Plaintext, logSlots int) (res []complex128)
 	DecodePublic(plaintext *Plaintext, logSlots int, sigma float64) []complex128
@@ -458,7 +459,7 @@ func (encoder *encoderComplex128) EncodeDiagMatrixBSGSAtLvl(level int, diagMatri
 				panic("diagMatrix []complex slices mut have len '1<<logSlots'")
 			}
 
-			vec[n1*j+i] = encoder.encodeDiagonal(logSlots, level, scale, utils.RotateComplex128Slice(v, -n1*j))
+			vec[n1*j+i] = encoder.EncodeDiagonal(logSlots, level, scale, utils.RotateComplex128Slice(v, -n1*j))
 		}
 	}
 
@@ -479,13 +480,13 @@ func (encoder *encoderComplex128) EncodeDiagMatrixAtLvl(level int, diagMatrix ma
 		if idx < 0 {
 			idx += slots
 		}
-		vec[idx] = encoder.encodeDiagonal(logSlots, level, scale, diagMatrix[i])
+		vec[idx] = encoder.EncodeDiagonal(logSlots, level, scale, diagMatrix[i])
 	}
 
 	return PtDiagMatrix{LogSlots: logSlots, N1: 0, Vec: vec, Level: level, Scale: scale, Naive: true}
 }
 
-func (encoder *encoderComplex128) encodeDiagonal(logSlots, level int, scale float64, m []complex128) (vecQP rlwe.PolyQP) {
+func (encoder *encoderComplex128) EncodeDiagonal(logSlots, level int, scale float64, m []complex128) (vecQP rlwe.PolyQP) {
 
 	levelQ := level
 	levelP := encoder.params.PCount() - 1

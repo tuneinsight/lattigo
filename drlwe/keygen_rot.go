@@ -11,15 +11,18 @@ import (
 // RotationKeyGenerator is an interface for the local operation in the generation of rotation keys
 type RotationKeyGenerator interface {
 	AllocateShares() (rtgShare *RTGShare)
-	GenShare(sk *rlwe.SecretKey, galEl uint64, crp CRP, shareOut *RTGShare)
+	GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, shareOut *RTGShare)
 	Aggregate(share1, share2, shareOut *RTGShare)
-	GenRotationKey(share *RTGShare, crp CRP, rotKey *rlwe.SwitchingKey)
+	GenRotationKey(share *RTGShare, crp RTGCRP, rotKey *rlwe.SwitchingKey)
 }
 
 // RTGShare is represent a Party's share in the RTG protocol
 type RTGShare struct {
 	Value []rlwe.PolyQP
 }
+
+// RTGCRP is a type for common reference polynomials in the RTG protocol.
+type RTGCRP []rlwe.PolyQP
 
 // RTGProtocol is the structure storing the parameters for the collective rotation-keys generation.
 type RTGProtocol struct {
@@ -56,12 +59,18 @@ func (rtg *RTGProtocol) AllocateShares() (rtgShare *RTGShare) {
 
 // SampleCRP samples a common random polynomial to be used in the RTG protocol from the provided
 // common reference string.
-func (rtg *RTGProtocol) SampleCRP(crs CRS) CRP {
-	return NewCRP(rtg.params, rtg.params.Beta(), crs)
+func (rtg *RTGProtocol) SampleCRP(crs CRS) RTGCRP {
+	crp := make([]rlwe.PolyQP, rtg.params.Beta())
+	us := rlwe.NewUniformSamplerQP(rtg.params, crs, rtg.params.RingQP())
+	for i := range crp {
+		crp[i] = rtg.params.RingQP().NewPoly()
+		us.Read(&crp[i])
+	}
+	return RTGCRP(crp)
 }
 
 // GenShare generates a party's share in the RTG protocol
-func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp CRP, shareOut *RTGShare) {
+func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, shareOut *RTGShare) {
 
 	ringQ := rtg.params.RingQ()
 	ringP := rtg.params.RingP()
@@ -110,7 +119,7 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp CRP, shar
 		}
 
 		// sk_in * (qiBarre*qiStar) * 2^w - a*sk + e
-		ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, crp.Get(i), rtg.tmpPoly1, shareOut.Value[i])
+		ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, crp[i], rtg.tmpPoly1, shareOut.Value[i])
 	}
 }
 
@@ -123,10 +132,10 @@ func (rtg *RTGProtocol) Aggregate(share1, share2, shareOut *RTGShare) {
 }
 
 // GenRotationKey finalizes the RTG protocol and populates the input RotationKey with the computed collective SwitchingKey.
-func (rtg *RTGProtocol) GenRotationKey(share *RTGShare, crp CRP, rotKey *rlwe.SwitchingKey) {
+func (rtg *RTGProtocol) GenRotationKey(share *RTGShare, crp RTGCRP, rotKey *rlwe.SwitchingKey) {
 	for i := 0; i < rtg.params.Beta(); i++ {
 		rotKey.Value[i][0].CopyValues(share.Value[i])
-		rotKey.Value[i][1].CopyValues(crp.Get(i))
+		rotKey.Value[i][1].CopyValues(crp[i])
 	}
 }
 

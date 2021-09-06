@@ -241,9 +241,9 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 		rkg.AggregateShares(share10, share11, share10)
 		rkg.AggregateShares(share10, share12, share10)
 
-		rkg.GenShareRoundTwo(ephSk0, testCtx.sk0, share10, crp, share20)
-		rkg.GenShareRoundTwo(ephSk1, testCtx.sk1, share10, crp, share21)
-		rkg.GenShareRoundTwo(ephSk2, testCtx.sk2, share10, crp, share22)
+		rkg.GenShareRoundTwo(ephSk0, testCtx.sk0, share10, share20)
+		rkg.GenShareRoundTwo(ephSk1, testCtx.sk1, share10, share21)
+		rkg.GenShareRoundTwo(ephSk2, testCtx.sk2, share10, share22)
 
 		rkg.AggregateShares(share20, share21, share20)
 		rkg.AggregateShares(share20, share22, share20)

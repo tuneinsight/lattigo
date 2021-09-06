@@ -36,7 +36,7 @@ func (rfp *RefreshProtocol) AllocateShare(inputLevel, outputLevel int) *RefreshS
 //
 // The method "GetMinimumLevelForBootstrapping" should be used to get the minimum level at which the refresh can be called while still ensure 128-bits of security, as well as the
 // value for logBound.
-func (rfp *RefreshProtocol) GenShares(sk *rlwe.SecretKey, logBound, logSlots int, ciphertext *ckks.Ciphertext, crs drlwe.CRP, shareOut *RefreshShare) {
+func (rfp *RefreshProtocol) GenShares(sk *rlwe.SecretKey, logBound, logSlots int, ciphertext *ckks.Ciphertext, crs drlwe.CKSCRP, shareOut *RefreshShare) {
 	rfp.MaskedTransformProtocol.GenShares(sk, logBound, logSlots, ciphertext, crs, nil, &shareOut.MaskedTransformShare)
 }
 
@@ -46,6 +46,6 @@ func (rfp *RefreshProtocol) Aggregate(share1, share2, shareOut *RefreshShare) {
 }
 
 // Finalize applies Decrypt, Recode and Recrypt on the input ciphertext.
-func (rfp *RefreshProtocol) Finalize(ciphertext *ckks.Ciphertext, logSlots int, crs drlwe.CRP, share *RefreshShare, ciphertextOut *ckks.Ciphertext) {
+func (rfp *RefreshProtocol) Finalize(ciphertext *ckks.Ciphertext, logSlots int, crs drlwe.CKSCRP, share *RefreshShare, ciphertextOut *ckks.Ciphertext) {
 	rfp.MaskedTransformProtocol.Transform(ciphertext, logSlots, nil, crs, &share.MaskedTransformShare, ciphertextOut)
 }

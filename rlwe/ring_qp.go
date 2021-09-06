@@ -2,6 +2,7 @@ package rlwe
 
 import (
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/utils"
 )
 
 // PolyQP represents a polynomial in the ring of polynomial modulo Q*P.
@@ -211,4 +212,22 @@ func (p *PolyQP) DecodePolyNew(data []byte) (pt int, err error) {
 	pt += inc
 
 	return
+}
+
+// UniformSamplerQP is a type for sampling polynomials in RingQP.
+type UniformSamplerQP struct {
+	samplerQ, samplerP ring.UniformSampler
+}
+
+// NewUniformSamplerQP instantiates a new UniformSamplerQP from a given PRNG.
+func NewUniformSamplerQP(params Parameters, prng utils.PRNG, baseRing *RingQP) (s UniformSamplerQP) {
+	s.samplerQ = *ring.NewUniformSampler(prng, params.RingQ())
+	s.samplerP = *ring.NewUniformSampler(prng, params.RingP())
+	return s
+}
+
+// Read samples a new polynomial in RingQP and stores it into p.
+func (s UniformSamplerQP) Read(p *PolyQP) {
+	s.samplerQ.Read(p.Q)
+	s.samplerP.Read(p.P)
 }

@@ -12,8 +12,8 @@ import (
 // RelinearizationKeyGenerator is an interface describing the local steps of a generic RLWE RKG protocol
 type RelinearizationKeyGenerator interface {
 	AllocateShares() (ephKey *rlwe.SecretKey, r1 *RKGShare, r2 *RKGShare)
-	GenShareRoundOne(sk *rlwe.SecretKey, crp CRP, ephKeyOut *rlwe.SecretKey, shareOut *RKGShare)
-	GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGShare, crp CRP, shareOut *RKGShare)
+	GenShareRoundOne(sk *rlwe.SecretKey, crp RKGCRP, ephKeyOut *rlwe.SecretKey, shareOut *RKGShare)
+	GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGShare, shareOut *RKGShare)
 	AggregateShares(share1, share2, shareOut *RKGShare)
 	GenRelinearizationKey(round1 *RKGShare, round2 *RKGShare, relinKeyOut *rlwe.RelinearizationKey)
 }
@@ -33,6 +33,9 @@ type RKGProtocol struct {
 type RKGShare struct {
 	Value [][2]rlwe.PolyQP
 }
+
+// RKGCRP is a type for common reference polynomials in the RKG protocol.
+type RKGCRP []rlwe.PolyQP
 
 // NewRKGProtocol creates a new RKG protocol struct
 func NewRKGProtocol(params rlwe.Parameters, ephSkPr float64) *RKGProtocol {
@@ -70,15 +73,20 @@ func (ekg *RKGProtocol) AllocateShares() (ephSk *rlwe.SecretKey, r1 *RKGShare, r
 
 // SampleCRP samples a common random polynomial to be used in the RKG protocol from the provided
 // common reference string.
-func (ekg *RKGProtocol) SampleCRP(crs CRS) CRP {
-	crp := NewCRP(ekg.params, ekg.params.Beta(), crs)
-	return crp
+func (ekg *RKGProtocol) SampleCRP(crs CRS) RKGCRP {
+	crp := make([]rlwe.PolyQP, ekg.params.Beta())
+	us := rlwe.NewUniformSamplerQP(ekg.params, crs, ekg.params.RingQP())
+	for i := range crp {
+		crp[i] = ekg.params.RingQP().NewPoly()
+		us.Read(&crp[i])
+	}
+	return RKGCRP(crp)
 }
 
 // GenShareRoundOne is the first of three rounds of the RKGProtocol protocol. Each party generates a pseudo encryption of
 // its secret share of the key s_i under its ephemeral key u_i : [-u_i*a + s_i*w + e_i] and broadcasts it to the other
 // j-1 parties.
-func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp CRP, ephSkOut *rlwe.SecretKey, shareOut *RKGShare) {
+func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp RKGCRP, ephSkOut *rlwe.SecretKey, shareOut *RKGShare) {
 	// Given a base decomposition w_i (here the CRT decomposition)
 	// computes [-u*a_i + P*s_i + e_i]
 	// where a_i = crp_i
@@ -121,7 +129,7 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp CRP, ephSkOut *
 		}
 
 		// h = sk*CrtBaseDecompQi + -u*a + e
-		ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, ephSkOut.Value, crp.Get(i), shareOut.Value[i][0])
+		ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, ephSkOut.Value, crp[i], shareOut.Value[i][0])
 
 		// Second Element
 		// e_2i
@@ -129,7 +137,7 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp CRP, ephSkOut *
 		ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value[i][1].Q, levelP, nil, shareOut.Value[i][1].P)
 		ringQP.NTTLvl(levelQ, levelP, shareOut.Value[i][1], shareOut.Value[i][1])
 		// s*a + e_2i
-		ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, sk.Value, crp.Get(i), shareOut.Value[i][1])
+		ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, sk.Value, crp[i], shareOut.Value[i][1])
 	}
 }
 
@@ -140,7 +148,7 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp CRP, ephSkOut *
 // = [s_i * (-u*a + s*w + e) + e_i1, s_i*a + e_i2]
 //
 // and broadcasts both values to the other j-1 parties.
-func (ekg *RKGProtocol) GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGShare, crp CRP, shareOut *RKGShare) {
+func (ekg *RKGProtocol) GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGShare, shareOut *RKGShare) {
 
 	ringQP := ekg.params.RingQP()
 	levelQ := ekg.params.QCount() - 1

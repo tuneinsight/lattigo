@@ -95,7 +95,7 @@ func (rfp *MaskedTransformProtocol) AllocateShare(levelDecrypt, levelRecrypt int
 
 // SampleCRP samples a common random polynomial to be used in the Masked-Transform protocol from the provided
 // common reference string.
-func (rfp *MaskedTransformProtocol) SampleCRP(level int, crs utils.PRNG) drlwe.CRP {
+func (rfp *MaskedTransformProtocol) SampleCRP(level int, crs utils.PRNG) drlwe.CKSCRP {
 	return rfp.s2e.SampleCRP(level, crs)
 }
 
@@ -106,13 +106,13 @@ func (rfp *MaskedTransformProtocol) SampleCRP(level int, crs utils.PRNG) drlwe.C
 //
 // The method "GetMinimumLevelForBootstrapping" should be used to get the minimum level at which the masked transform can be called while still ensure 128-bits of security, as well as the
 // value for logBound.
-func (rfp *MaskedTransformProtocol) GenShares(sk *rlwe.SecretKey, logBound, logSlots int, ct *ckks.Ciphertext, crs drlwe.CRP, transform MaskedTransformFunc, shareOut *MaskedTransformShare) {
+func (rfp *MaskedTransformProtocol) GenShares(sk *rlwe.SecretKey, logBound, logSlots int, ct *ckks.Ciphertext, crs drlwe.CKSCRP, transform MaskedTransformFunc, shareOut *MaskedTransformShare) {
 
 	if ct.Level() != shareOut.e2sShare.Value.Level() {
 		panic("ciphertext level must be equal to e2sShare")
 	}
 
-	if crs.Get(0).Q.Level() != shareOut.s2eShare.Value.Level() {
+	if (*ring.Poly)(&crs).Level() != shareOut.s2eShare.Value.Level() {
 		panic("crs level must be equal to s2eShare")
 	}
 
@@ -179,13 +179,13 @@ func (rfp *MaskedTransformProtocol) Aggregate(share1, share2, shareOut *MaskedTr
 }
 
 // Transform applies Decrypt, Recode and Recrypt on the input ciphertext.
-func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, logSlots int, transform MaskedTransformFunc, crs drlwe.CRP, share *MaskedTransformShare, ciphertextOut *ckks.Ciphertext) {
+func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, logSlots int, transform MaskedTransformFunc, crs drlwe.CKSCRP, share *MaskedTransformShare, ciphertextOut *ckks.Ciphertext) {
 
 	if ct.Level() != share.e2sShare.Value.Level() {
 		panic("ciphertext level and e2s level must be the same")
 	}
 
-	maxLevel := crs.Get(0).Q.Level()
+	maxLevel := (*ring.Poly)(&crs).Level()
 
 	if maxLevel != share.s2eShare.Value.Level() {
 		panic("crs level and s2e level must be the same")

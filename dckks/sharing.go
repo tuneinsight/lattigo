@@ -173,9 +173,9 @@ func (s2e S2EProtocol) AllocateShare(level int) (share *drlwe.CKSShare) {
 
 // GenShare generates a party's in the shares-to-encryption protocol given the party's secret-key share `sk`, a common
 // polynomial sampled from the CRS `c1` and the party's secret share of the message.
-func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.CRP, secretShare *rlwe.AdditiveShareBigint, c0ShareOut *drlwe.CKSShare) {
+func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.CKSCRP, secretShare *rlwe.AdditiveShareBigint, c0ShareOut *drlwe.CKSShare) {
 
-	c1 := crs.Get(0).Q
+	c1 := ring.Poly(crs)
 
 	if c1.Level() != c0ShareOut.Value.Level() {
 		panic("c1 and c0ShareOut level must be equal")
@@ -183,7 +183,7 @@ func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.CRP, secretShare 
 
 	// Generates an encryption share
 	c1.IsNTT = true
-	s2e.CKSProtocol.GenShare(s2e.zero, sk, &rlwe.Ciphertext{Value: []*ring.Poly{nil, c1}}, c0ShareOut)
+	s2e.CKSProtocol.GenShare(s2e.zero, sk, &rlwe.Ciphertext{Value: []*ring.Poly{nil, &c1}}, c0ShareOut)
 
 	s2e.ringQ.SetCoefficientsBigintLvl(c1.Level(), secretShare.Value, s2e.tmp)
 	s2e.ringQ.NTTLvl(c1.Level(), s2e.tmp, s2e.tmp)
@@ -192,13 +192,13 @@ func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.CRP, secretShare 
 
 // GetEncryption computes the final encryption of the secret-shared message when provided with the aggregation `c0Agg` of the parties'
 // share in the protocol and with the common, CRS-sampled polynomial `c1`.
-func (s2e *S2EProtocol) GetEncryption(c0Agg *drlwe.CKSShare, crs drlwe.CRP, ctOut *ckks.Ciphertext) {
+func (s2e *S2EProtocol) GetEncryption(c0Agg *drlwe.CKSShare, crs drlwe.CKSCRP, ctOut *ckks.Ciphertext) {
 
 	if ctOut.Degree() != 1 {
 		panic("ctOut must have degree 1.")
 	}
 
-	c1 := crs.Get(0).Q
+	c1 := ring.Poly(crs)
 
 	if c0Agg.Value.Level() != c1.Level() {
 		panic("c0Agg level must be equal to c1 level")
@@ -209,5 +209,5 @@ func (s2e *S2EProtocol) GetEncryption(c0Agg *drlwe.CKSShare, crs drlwe.CRP, ctOu
 	}
 
 	ctOut.Value[0].Copy(c0Agg.Value)
-	ctOut.Value[1].Copy(c1)
+	ctOut.Value[1].Copy(&c1)
 }

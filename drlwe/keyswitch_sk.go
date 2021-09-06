@@ -28,6 +28,9 @@ type CKSShare struct {
 	Value *ring.Poly
 }
 
+// CKSCRP is a type for common reference polynomials in the CKS protocol.
+type CKSCRP ring.Poly
+
 // MarshalBinary encodes a CKS share on a slice of bytes.
 func (ckss *CKSShare) MarshalBinary() (data []byte, err error) {
 	return ckss.Value.MarshalBinary()
@@ -63,8 +66,10 @@ func (cks *CKSProtocol) AllocateShare(level int) *CKSShare {
 
 // SampleCRP samples a common random polynomial to be used in the CKS protocol from the provided
 // common reference string.
-func (cks *CKSProtocol) SampleCRP(level int, crs CRS) CRP {
-	return NewCRPAtLvl(cks.params, 1, level, -1, crs)
+func (cks *CKSProtocol) SampleCRP(level int, crs CRS) CKSCRP {
+	crp := cks.params.RingQ().NewPolyLvl(level)
+	ring.NewUniformSampler(crs, cks.params.RingQ()).ReadLvl(level, crp)
+	return CKSCRP(*crp)
 }
 
 // GenShare computes a party's share in the CKS protocol.

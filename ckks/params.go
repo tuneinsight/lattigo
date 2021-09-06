@@ -314,7 +314,7 @@ func (p Parameters) RotationsForDiagMatrixMult(matrix PtDiagMatrix) []int {
 
 	N1 := matrix.N1
 
-	if len(matrix.Vec) < 3 {
+	if len(matrix.Vec) < 3 || matrix.Naive {
 
 		for j := range matrix.Vec {
 

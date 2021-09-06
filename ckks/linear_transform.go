@@ -34,7 +34,7 @@ func (eval *evaluator) RotateHoisted(ctIn *Ciphertext, rotations []int) (cOut ma
 			cOut[i] = ctIn.CopyNew()
 		} else {
 			cOut[i] = NewCiphertext(eval.params, 1, levelQ, ctIn.Scale)
-			eval.permuteNTTHoisted(levelQ, ctIn.Value[0], ctIn.Value[1], eval.PoolDecompQP, i, cOut[i].Value[0], cOut[i].Value[1])
+			eval.PermuteNTTHoisted(levelQ, ctIn.Value[0], ctIn.Value[1], eval.PoolDecompQP, i, cOut[i].Value[0], cOut[i].Value[1])
 		}
 	}
 
@@ -157,7 +157,7 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 				if k != 0 {
 
 					// Rotate((tmpc0, tmpc1), k)
-					eval.permuteNTTHoistedNoModDown(levelQ, eval.PoolDecompQP, k, pool2Q, pool3Q, pool2P, pool3P)
+					eval.PermuteNTTHoistedNoModDown(levelQ, eval.PoolDecompQP, k, pool2Q, pool3Q, pool2P, pool3P)
 
 					// ctOut += Rotate((tmpc0, tmpc1), k)
 					if copy {
@@ -206,13 +206,13 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 
 			if !state {
 				if i == 0 {
-					eval.permuteNTTHoisted(levelQ, ctIn.Value[0], ctIn.Value[1], eval.PoolDecompQP, (1<<i)*batchSize, tmpc0, tmpc1)
+					eval.PermuteNTTHoisted(levelQ, ctIn.Value[0], ctIn.Value[1], eval.PoolDecompQP, (1<<i)*batchSize, tmpc0, tmpc1)
 
 					ringQ.AddLvl(levelQ, tmpc0, ctIn.Value[0], tmpc0)
 					ringQ.AddLvl(levelQ, tmpc1, ctIn.Value[1], tmpc1)
 				} else {
 					// (tmpc0, tmpc1) = Rotate((tmpc0, tmpc1), 2^i)
-					eval.permuteNTTHoisted(levelQ, tmpc0, tmpc1, eval.PoolDecompQP, (1<<i)*batchSize, pool2Q, pool3Q)
+					eval.PermuteNTTHoisted(levelQ, tmpc0, tmpc1, eval.PoolDecompQP, (1<<i)*batchSize, pool2Q, pool3Q)
 					ringQ.AddLvl(levelQ, tmpc0, pool2Q, tmpc0)
 					ringQ.AddLvl(levelQ, tmpc1, pool3Q, tmpc1)
 				}

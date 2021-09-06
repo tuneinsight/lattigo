@@ -2,6 +2,27 @@
 # Changelog
 All notable changes to this project will be documented in this file. 
 
+## [Unreleased]
+- RING: added `MapSmallDimensionToLargerDimensionNTT` method which map from  Y = X^{N/n} to X in the NTT domain.
+- RING: `FastBasisExtender` type can now extend the basis of polynomials of any level in base Q to polynomials of any level in base P.
+- RING: changed RNS division `Div[floor/round]BylastModulus[NTT]` to `Div[floor/round]BylastModulus[NTT]Lvl`.
+- RING: RNS division no longer modifies the output polynomial's level.
+- RLWE: `GenSwitchingKey` now accepts secret-keys of different dimensions and level as input to enable re-encryption between different ciphertext degrees.
+- RLWE: added `SwitchCiphertextRingDegreeNTT` and `SwitchCiphertextRingDegree` to switch ciphertext ring degrees.
+- RLWE: added the `rlwe.RingQP` type to represent the extended ring R_qp.
+- RLWE: added the `rlwe.PolyQP` type to represent polynomials in the extended ring R_qp.
+- DRLWE: added the `CKGCRP`, `RKGCRP`, `RTGCRP` and `CKSCRP` types to represent the common reference polynomials in these protocols.
+- DRLWE: added the `CRS` interface for PRNGs that implement a common reference string among the parties.
+- DRLWE: added the `SampleCRP(crs CRS)` method to each protocol types to sample their respective CRP type.
+- BFV: changed the plaintext scaling from `floor(Q/T)*m` to `round((Q*m)/T)` to reduces the initial ciphertext noise. 
+- CKKS: added the `ckks/advanced` sub-package and extracted the homomorphic encoding, decoding and modular reduction into it.
+- CKKS: added the `ckks/bootstrapping` sub-package and extracted the CKKS bootstrapping into it. This package now mostly rely on the `ckks/advanced` package.
+- CKKS: renamed the `ChebyshevInterpolation` type to `Polynomial`.
+- CKKS: removed the `EvaluateCheby` method duplicating the `EvaluatePoly` one.
+- CKKS: optimized the `EvaluatePoly` to account for odd/even polynomials and fixed some small imprecisions in scale management occurring for some specific polynomial degrees.
+- DBFV/DCKKS: are now using their respective CRP type for each protocols.
+- EXAMPLE: added showcase of the `ckks/advanced` sub-package: a bridge between between CKKS and FHEW ciphertexts using homomorphic decoding, ring dimension switching, homomorphic matrix multiplication and homomorphic modular reduction.
+
 ## [2.2.0] - 2020-07-15
 
 - Added SECURITY.md

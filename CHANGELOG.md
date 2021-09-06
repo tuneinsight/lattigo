@@ -5,8 +5,9 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 - RING: added `MapSmallDimensionToLargerDimensionNTT` method which map from  Y = X^{N/n} to X in the NTT domain.
 - RING: `FastBasisExtender` type can now extend the basis of polynomials of any level in base Q to polynomials of any level in base P.
-- RING: changed RNS division `Div[floor/round]BylastModulus[NTT]` to `Div[floor/round]BylastModulus[NTT]Lvl`.
-- RING: RNS division no longer modifies the output polynomial's level.
+- RING: changed RNS division `Div[floor/round]BylastModulus[NTT]` to `Div[floor/round]BylastModulus[NTT]Lvl` (the level of the last modulus must always be provided).
+- RING: RNS division no longer modifies the output polynomial's level, this is to facilitate the usage of memory pools.
+- RING: added the method `MFormVector`, which switches a slice of `uint64` into the Montgomery domain.
 - RLWE: `GenSwitchingKey` now accepts secret-keys of different dimensions and level as input to enable re-encryption between different ciphertext degrees.
 - RLWE: added `SwitchCiphertextRingDegreeNTT` and `SwitchCiphertextRingDegree` to switch ciphertext ring degrees.
 - RLWE: added the `rlwe.RingQP` type to represent the extended ring R_qp.
@@ -20,6 +21,7 @@ All notable changes to this project will be documented in this file.
 - CKKS: renamed the `ChebyshevInterpolation` type to `Polynomial`.
 - CKKS: removed the `EvaluateCheby` method duplicating the `EvaluatePoly` one.
 - CKKS: optimized the `EvaluatePoly` to account for odd/even polynomials and fixed some small imprecisions in scale management occurring for some specific polynomial degrees.
+- CKKS: made some methods related to rotations publics to facilitate external use.
 - DBFV/DCKKS: are now using their respective CRP type for each protocols.
 - EXAMPLE: added showcase of the `ckks/advanced` sub-package: a bridge between between CKKS and FHEW ciphertexts using homomorphic decoding, ring dimension switching, homomorphic matrix multiplication and homomorphic modular reduction.
 

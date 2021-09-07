@@ -16,6 +16,7 @@ type Scaler interface {
 // This implementation of the Scaler interface is preferred over the SimpleScaler implementation.
 type RNSScaler struct {
 	ringQ, ringT *Ring
+	polypoolQ    *Poly
 	polypoolT    *Poly
 
 	qHalf     *big.Int // (q-1)/2
@@ -33,6 +34,7 @@ func NewRNSScaler(ringQ, ringT *Ring) (rnss *RNSScaler) {
 	rnss.ringQ = ringQ
 	rnss.ringT = ringT
 
+	rnss.polypoolQ = ringQ.NewPoly()
 	rnss.polypoolT = ringT.NewPoly()
 
 	t := ringT.Modulus[0]
@@ -70,13 +72,13 @@ func (rnss *RNSScaler) DivByQOverTRounded(p1Q, p2T *Poly) {
 	// Multiply P_{Q} by t and extend the basis from P_{Q} to t*(P_{Q}||P_{t})
 	// Since the coefficients of P_{t} are multiplied by t, they are all zero,
 	// hence the basis extension can be omitted
-	ringQ.MulScalar(p1Q, T, p1Q)
+	ringQ.MulScalar(p1Q, T, rnss.polypoolQ)
 
 	// Center t*P_{Q} around (Q-1)/2 to round instead of floor during the division
-	ringQ.AddScalarBigint(p1Q, rnss.qHalf, p1Q)
+	ringQ.AddScalarBigint(rnss.polypoolQ, rnss.qHalf, rnss.polypoolQ)
 
 	// Extend the basis of (t*P_{Q} + (Q-1)/2) to (t*P_{t} + (Q-1)/2)
-	modUpExact(p1Q.Coeffs, rnss.polypoolT.Coeffs, ringQ, ringT, rnss.paramsQP)
+	modUpExact(rnss.polypoolQ.Coeffs, rnss.polypoolT.Coeffs, ringQ, ringT, rnss.paramsQP)
 
 	// Compute [Q^{-1} * (t*P_{t} -   (t*P_{Q} - ((Q-1)/2 mod t)))] mod t which returns round(t/Q * P_{Q}) mod t
 	for j := 0; j < ringQ.N; j = j + 8 {

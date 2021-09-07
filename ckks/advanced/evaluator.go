@@ -44,7 +44,8 @@ type Evaluator interface {
 	MulRelinNew(op0, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
 	RotateNew(ctIn *ckks.Ciphertext, k int) (ctOut *ckks.Ciphertext)
 	Rotate(ctIn *ckks.Ciphertext, k int, ctOut *ckks.Ciphertext)
-	RotateHoisted(ctIn *ckks.Ciphertext, rotations []int) (ctOut map[int]*ckks.Ciphertext)
+	RotateHoistedNew(ctIn *ckks.Ciphertext, rotations []int) (ctOut map[int]*ckks.Ciphertext)
+	RotateHoisted(ctIn *ckks.Ciphertext, rotations []int, ctOut map[int]*ckks.Ciphertext)
 	MulByPow2New(ctIn *ckks.Ciphertext, pow2 int) (ctOut *ckks.Ciphertext)
 	MulByPow2(ctIn *ckks.Ciphertext, pow2 int, ctOut *ckks.Ciphertext)
 	PowerOf2(ctIn *ckks.Ciphertext, logPow2 int, ctOut *ckks.Ciphertext)
@@ -52,14 +53,16 @@ type Evaluator interface {
 	PowerNew(ctIn *ckks.Ciphertext, degree int) (ctOut *ckks.Ciphertext)
 	EvaluatePoly(ctIn *ckks.Ciphertext, pol *ckks.Polynomial, targetScale float64) (ctOut *ckks.Ciphertext, err error)
 	InverseNew(ctIn *ckks.Ciphertext, steps int) (ctOut *ckks.Ciphertext)
-	LinearTransform(ctIn *ckks.Ciphertext, linearTransform interface{}) (ctOut []*ckks.Ciphertext)
+	LinearTransformNew(ctIn *ckks.Ciphertext, linearTransform interface{}) (ctOut []*ckks.Ciphertext)
+	LinearTransform(ctIn *ckks.Ciphertext, linearTransform interface{}, ctOut []*ckks.Ciphertext)
 	MultiplyByDiagMatrix(ctIn *ckks.Ciphertext, matrix ckks.PtDiagMatrix, c2DecompQP []rlwe.PolyQP, ctOut *ckks.Ciphertext)
 	MultiplyByDiagMatrixBSGS(ctIn *ckks.Ciphertext, matrix ckks.PtDiagMatrix, c2DecompQP []rlwe.PolyQP, ctOut *ckks.Ciphertext)
 	InnerSumLog(ctIn *ckks.Ciphertext, batch, n int, ctOut *ckks.Ciphertext)
 	InnerSum(ctIn *ckks.Ciphertext, batch, n int, ctOut *ckks.Ciphertext)
 	ReplicateLog(ctIn *ckks.Ciphertext, batch, n int, ctOut *ckks.Ciphertext)
 	Replicate(ctIn *ckks.Ciphertext, batch, n int, ctOut *ckks.Ciphertext)
-	Trace(ctIn *ckks.Ciphertext, logSlotsStart, logSlotsEnd int) *ckks.Ciphertext
+	TraceNew(ctIn *ckks.Ciphertext, logSlotsStart, logSlotsEnd int) *ckks.Ciphertext
+	Trace(ctIn *ckks.Ciphertext, logSlotsStart, logSlotsEnd int, ctOut *ckks.Ciphertext)
 	SwitchKeysNew(ctIn *ckks.Ciphertext, switchingKey *rlwe.SwitchingKey) (ctOut *ckks.Ciphertext)
 	SwitchKeys(ctIn *ckks.Ciphertext, switchingKey *rlwe.SwitchingKey, ctOut *ckks.Ciphertext)
 	RelinearizeNew(ctIn *ckks.Ciphertext) (ctOut *ckks.Ciphertext)
@@ -160,7 +163,7 @@ func (eval *evaluator) dft(vec *ckks.Ciphertext, plainVectors []ckks.PtDiagMatri
 	// Sequentially multiplies w with the provided dft matrices.
 	for _, plainVector := range plainVectors {
 		scale := vec.Scale
-		vec = eval.LinearTransform(vec, plainVector)[0]
+		vec = eval.LinearTransformNew(vec, plainVector)[0]
 		if err := eval.Rescale(vec, scale, vec); err != nil {
 			panic(err)
 		}

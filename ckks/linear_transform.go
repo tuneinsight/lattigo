@@ -8,44 +8,60 @@ import (
 
 // Trace maps X -> sum((-1)^i * X^{i*n+1}) for 0 <= i < N
 // For log(n) = logSlotStart and log(N/2) = logSlotsEnd
-func (eval *evaluator) Trace(ctIn *Ciphertext, logSlotsStart, logSlotsEnd int) *Ciphertext {
-	for i := logSlotsStart; i < logSlotsEnd; i++ {
-		eval.permuteNTT(ctIn, eval.params.GaloisElementForColumnRotationBy(1<<i), eval.ctxpool)
-		ctPool := &Ciphertext{Ciphertext: eval.ctxpool.Ciphertext, Scale: ctIn.Scale}
-		ctPool.Value = ctPool.Value[:2]
-		eval.Add(ctIn, ctPool, ctIn)
+func (eval *evaluator) Trace(ctIn *Ciphertext, logSlotsStart, logSlotsEnd int, ctOut *Ciphertext) {
+	if ctIn != ctOut {
+		ctOut.Copy(ctIn)
+	} else {
+		ctOut = ctIn
 	}
-
-	return ctIn
+	for i := logSlotsStart; i < logSlotsEnd; i++ {
+		eval.permuteNTT(ctOut, eval.params.GaloisElementForColumnRotationBy(1<<i), eval.ctxpool)
+		ctPool := &Ciphertext{Ciphertext: eval.ctxpool.Ciphertext, Scale: ctOut.Scale}
+		ctPool.Value = ctPool.Value[:2]
+		eval.Add(ctOut, ctPool, ctOut)
+	}
 }
 
-// RotateHoisted takes an input Ciphertext and a list of rotations and returns a map of Ciphertext, where each element of the map is the input Ciphertext
-// rotation by one element of the list. It is much faster than sequential calls to Rotate.
-func (eval *evaluator) RotateHoisted(ctIn *Ciphertext, rotations []int) (cOut map[int]*Ciphertext) {
-
-	levelQ := ctIn.Level()
-
-	eval.DecomposeNTT(levelQ, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], eval.PoolDecompQP)
-
-	cOut = make(map[int]*Ciphertext)
-	for _, i := range rotations {
-
-		if i == 0 {
-			cOut[i] = ctIn.CopyNew()
-		} else {
-			cOut[i] = NewCiphertext(eval.params, 1, levelQ, ctIn.Scale)
-			eval.PermuteNTTHoisted(levelQ, ctIn.Value[0], ctIn.Value[1], eval.PoolDecompQP, i, cOut[i].Value[0], cOut[i].Value[1])
-		}
-	}
-
+// TraceNew maps X -> sum((-1)^i * X^{i*n+1}) for 0 <= i < N and returns the result on a new ciphertext.
+// For log(n) = logSlotStart and log(N/2) = logSlotsEnd
+func (eval *evaluator) TraceNew(ctIn *Ciphertext, logSlotsStart, logSlotsEnd int) (ctOut *Ciphertext) {
+	ctOut = NewCiphertext(eval.params, 1, ctIn.Level(), ctIn.Scale)
+	eval.Trace(ctIn, logSlotsStart, logSlotsEnd, ctOut)
 	return
 }
 
-// LinearTransform evaluates a linear transform on the ciphertext. The linearTransform can either be an (ordered) list of
-// PtDiagMatrix or a single PtDiagMatrix. In either case a list of ciphertext is return (the second case returnign a list of
+// RotateHoistedNew takes an input Ciphertext and a list of rotations and returns a map of Ciphertext, where each element of the map is the input Ciphertext
+// rotation by one element of the list. It is much faster than sequential calls to Rotate.
+func (eval *evaluator) RotateHoistedNew(ctIn *Ciphertext, rotations []int) (ctOut map[int]*Ciphertext) {
+	ctOut = make(map[int]*Ciphertext)
+	for _, i := range rotations {
+		ctOut[i] = NewCiphertext(eval.params, 1, ctIn.Level(), ctIn.Scale)
+	}
+	eval.RotateHoisted(ctIn, rotations, ctOut)
+	return
+}
+
+// RotateHoisted takes an input Ciphertext and a list of rotations and populates a map of pre-allocated Ciphertexts,
+// where each element of the map is the input Ciphertext rotation by one element of the list.
+// It is much faster than sequential calls to Rotate.
+func (eval *evaluator) RotateHoisted(ctIn *Ciphertext, rotations []int, ctOut map[int]*Ciphertext) {
+	levelQ := ctIn.Level()
+	eval.DecomposeNTT(levelQ, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], eval.PoolDecompQP)
+	for _, i := range rotations {
+		if i == 0 {
+			ctOut[i].Copy(ctIn)
+		} else {
+			eval.PermuteNTTHoisted(levelQ, ctIn.Value[0], ctIn.Value[1], eval.PoolDecompQP, i, ctOut[i].Value[0], ctOut[i].Value[1])
+		}
+	}
+}
+
+// LinearTransformNew evaluates a linear transform on the ciphertext and returns the result on a new ciphertext.
+// The linearTransform can either be an (ordered) list of PtDiagMatrix or a single PtDiagMatrix.
+// In either case a list of ciphertext is return (the second case returnign a list of
 // containing a single ciphertext. A PtDiagMatrix is a diagonalized plaintext matrix contructed with an Encoder using
 // the method encoder.EncodeDiagMatrixAtLvl(*).
-func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interface{}) (ctOut []*Ciphertext) {
+func (eval *evaluator) LinearTransformNew(ctIn *Ciphertext, linearTransform interface{}) (ctOut []*Ciphertext) {
 
 	switch element := linearTransform.(type) {
 	case []PtDiagMatrix:
@@ -83,8 +99,44 @@ func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfa
 			eval.MultiplyByDiagMatrixBSGS(ctIn, element, eval.PoolDecompQP, ctOut[0])
 		}
 	}
-
 	return
+}
+
+// LinearTransformNew evaluates a linear transform on the pre-allocated ciphertexts.
+// The linearTransform can either be an (ordered) list of PtDiagMatrix or a single PtDiagMatrix.
+// In either case a list of ciphertext is return (the second case returnign a list of
+// containing a single ciphertext. A PtDiagMatrix is a diagonalized plaintext matrix contructed with an Encoder using
+// the method encoder.EncodeDiagMatrixAtLvl(*).
+func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interface{}, ctOut []*Ciphertext) {
+
+	switch element := linearTransform.(type) {
+	case []PtDiagMatrix:
+		var maxLevel int
+		for _, matrix := range element {
+			maxLevel = utils.MaxInt(maxLevel, matrix.Level)
+		}
+
+		minLevel := utils.MinInt(maxLevel, ctIn.Level())
+
+		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], eval.PoolDecompQP)
+
+		for i, matrix := range element {
+			if matrix.Naive {
+				eval.MultiplyByDiagMatrix(ctIn, matrix, eval.PoolDecompQP, ctOut[i])
+			} else {
+				eval.MultiplyByDiagMatrixBSGS(ctIn, matrix, eval.PoolDecompQP, ctOut[i])
+			}
+		}
+
+	case PtDiagMatrix:
+		minLevel := utils.MinInt(element.Level, ctIn.Level())
+		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], eval.PoolDecompQP)
+		if element.Naive {
+			eval.MultiplyByDiagMatrix(ctIn, element, eval.PoolDecompQP, ctOut[0])
+		} else {
+			eval.MultiplyByDiagMatrixBSGS(ctIn, element, eval.PoolDecompQP, ctOut[0])
+		}
+	}
 }
 
 // InnerSumLog applies an optimized inner sum on the ciphetext (log2(n) + HW(n) rotations with double hoisting).

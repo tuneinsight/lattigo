@@ -109,9 +109,9 @@ func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey rl
 
 	bb.evalModPoly = advanced.NewEvalModPolyFromLiteral(btpParams.EvalModParameters)
 
-	K := bb.evalModPoly.K()
-	n := float64(bb.params.N())
 	scFac := bb.evalModPoly.ScFac()
+	K := bb.evalModPoly.K() / scFac
+	n := float64(bb.params.N())
 	ctsDepth := float64(bb.CoeffsToSlotsParameters.Depth(false))
 	stcDepth := float64(bb.SlotsToCoeffsParameters.Depth(false))
 

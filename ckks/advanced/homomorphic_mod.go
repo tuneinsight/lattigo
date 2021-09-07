@@ -60,34 +60,43 @@ type EvalModPoly struct {
 	arcSinePoly   *ckks.Polynomial
 }
 
-// LevelStart returns the starting level of the EvalMod
+// LevelStart returns the starting level of the EvalMod.
 func (evp *EvalModPoly) LevelStart() int {
 	return evp.levelStart
 }
 
-// ScalingFactor returns scaling factor used during the EvalMod
+// ScalingFactor returns scaling factor used during the EvalMod.
 func (evp *EvalModPoly) ScalingFactor() float64 {
 	return evp.scalingFactor
 }
 
-// ScFac returns 1/2^r where r is the number of double angle evaluation
+// ScFac returns 1/2^r where r is the number of double angle evaluation.
 func (evp *EvalModPoly) ScFac() float64 {
 	return evp.scFac
 }
 
-// MessageRatio returns the pre-set ratio Q[0]/|m|
+// MessageRatio returns the pre-set ratio Q[0]/|m|.
 func (evp *EvalModPoly) MessageRatio() float64 {
 	return evp.messageRatio
 }
 
-// K returns the range of the sine approximation,
-// scaled by 1/2^r
-func (evp *EvalModPoly) K() float64 {
+// A returns the left bound of the sine approximation (scaled by 1/2^r).
+func (evp *EvalModPoly) A() float64 {
+	return real(evp.sinePoly.A)
+}
+
+// B returns the right bound of the sine approximation (scaled by 1/2^r).
+func (evp *EvalModPoly) B() float64 {
 	return real(evp.sinePoly.B)
 }
 
+// K return the sine approximation range.
+func (evp *EvalModPoly) K() float64 {
+	return real(evp.sinePoly.B) * evp.scFac
+}
+
 // QDiff return Q/ClosestedPow2
-// This is the error introduced by the approximate division by Q
+// This is the error introduced by the approximate division by Q.
 func (evp *EvalModPoly) QDiff() float64 {
 	return evp.qDiff
 }

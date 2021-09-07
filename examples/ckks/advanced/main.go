@@ -243,8 +243,8 @@ func main() {
 
 	fmt.Printf("Homomorphic Partial Decryption : pt = A x sk + encode(LWE) + I(X)*Q... ")
 	start = time.Now()
-	ctAs := evalRepack.LinearTransform(ctSk, ptMatDiag)[0]                // A_left * sk || A_right * sk
-	ctAs = evalRepack.Trace(ctAs, paramsLWE.LogSlots(), paramsLWE.LogN()) // A * sk || A * sk
+	ctAs := evalRepack.LinearTransformNew(ctSk, ptMatDiag)[0]                // A_left * sk || A_right * sk
+	ctAs = evalRepack.TraceNew(ctAs, paramsLWE.LogSlots(), paramsLWE.LogN()) // A * sk || A * sk
 	eval.Rescale(ctAs, 1.0, ctAs)
 	eval.Add(ctAs, ptLWE, ctAs) // A * sk || A * sk + LWE_real || LWE_imag = RLWE + I(X) * Q
 	ctAs.Scale = scale
@@ -260,7 +260,10 @@ func main() {
 	ctAsImag.Scale = ctAsImag.Scale * 2                                                                                   // Divides by 2
 	eval.ScaleUp(ctAsReal, math.Round((EvalModPoly.ScalingFactor()/EvalModPoly.MessageRatio())/ctAsReal.Scale), ctAsReal) // Scale the real message up to Sine/MessageRatio
 	eval.ScaleUp(ctAsImag, math.Round((EvalModPoly.ScalingFactor()/EvalModPoly.MessageRatio())/ctAsImag.Scale), ctAsImag) // Scale the imag message up to Sine/MessageRatio
-	ctAsReal = eval.EvalModNew(ctAsReal, EvalModPoly)                                                                     // Real mod Q
+	v := encoder.DecodePublic(decryptor.DecryptNew(ctAsReal), paramsRLWE.LogSlots(), 0)
+	fmt.Printf("Slot %4d : Want %f Have %f\n", 0, values[0], v[0])
+	fmt.Printf("Slot %4d : Want %f Have %f\n", paramsRLWE.Slots()-1, values[paramsRLWE.Slots()-1], v[paramsRLWE.Slots()-1])
+	ctAsReal = eval.EvalModNew(ctAsReal, EvalModPoly) // Real mod Q
 	eval.DivByi(ctAsImag, ctAsImag)
 	ctAsImag = eval.EvalModNew(ctAsImag, EvalModPoly) // (-i*imag mod Q)*i
 	eval.MultByi(ctAsImag, ctAsImag)
@@ -268,7 +271,7 @@ func main() {
 	fmt.Printf("Done (%s)\n", time.Since(start))
 
 	fmt.Println("Visual Comparison :")
-	v := encoder.DecodePublic(decryptor.DecryptNew(ctAsReal), paramsRLWE.LogSlots(), 0)
+	v = encoder.DecodePublic(decryptor.DecryptNew(ctAsReal), paramsRLWE.LogSlots(), 0)
 	fmt.Printf("Slot %4d : Want %f Have %f\n", 0, values[0], v[0])
 	fmt.Printf("Slot %4d : Want %f Have %f\n", paramsRLWE.Slots()-1, values[paramsRLWE.Slots()-1], v[paramsRLWE.Slots()-1])
 
@@ -277,8 +280,8 @@ func main() {
 func genRLWEParameters() (paramsRLWE ckks.Parameters) {
 	var err error
 	if paramsRLWE, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
-		LogN:     15,
-		LogSlots: 9,
+		LogN:     14,
+		LogSlots: 8,
 		Scale:    1 << 30,
 		Sigma:    rlwe.DefaultSigma,
 		Q: []uint64{
@@ -309,7 +312,7 @@ func genRLWEParameters() (paramsRLWE ckks.Parameters) {
 func genLWEParameters(paramsRLWE ckks.Parameters) (paramsLWE ckks.Parameters) {
 	var err error
 	if paramsLWE, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
-		LogN:     11,
+		LogN:     10,
 		LogSlots: paramsRLWE.LogSlots(),
 		Scale:    paramsRLWE.Scale(),
 		Sigma:    paramsRLWE.Sigma(),

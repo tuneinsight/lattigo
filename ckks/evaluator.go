@@ -74,7 +74,8 @@ type Evaluator interface {
 	// Slot Rotations
 	RotateNew(ctIn *Ciphertext, k int) (ctOut *Ciphertext)
 	Rotate(ctIn *Ciphertext, k int, ctOut *Ciphertext)
-	RotateHoisted(ctIn *Ciphertext, rotations []int) (ctOut map[int]*Ciphertext)
+	RotateHoistedNew(ctIn *Ciphertext, rotations []int) (ctOut map[int]*Ciphertext)
+	RotateHoisted(ctIn *Ciphertext, rotations []int, ctOut map[int]*Ciphertext)
 	PermuteNTTHoistedNoModDown(level int, c2DecompQP []rlwe.PolyQP, k int, ct0OutQ, ct1OutQ, ct0OutP, ct1OutP *ring.Poly)
 	PermuteNTTHoisted(level int, c0, c1 *ring.Poly, c2DecompQP []rlwe.PolyQP, k int, cOut0, cOut1 *ring.Poly)
 
@@ -98,7 +99,8 @@ type Evaluator interface {
 	InverseNew(ctIn *Ciphertext, steps int) (ctOut *Ciphertext)
 
 	// Linear Transformations
-	LinearTransform(ctIn *Ciphertext, linearTransform interface{}) (ctOut []*Ciphertext)
+	LinearTransformNew(ctIn *Ciphertext, linearTransform interface{}) (ctOut []*Ciphertext)
+	LinearTransform(ctIn *Ciphertext, linearTransform interface{}, ctOut []*Ciphertext)
 	MultiplyByDiagMatrix(ctIn *Ciphertext, matrix PtDiagMatrix, c2DecompQP []rlwe.PolyQP, ctOut *Ciphertext)
 	MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix PtDiagMatrix, c2DecompQP []rlwe.PolyQP, ctOut *Ciphertext)
 
@@ -111,7 +113,8 @@ type Evaluator interface {
 	Replicate(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
 
 	// Trace
-	Trace(ctIn *Ciphertext, logSlotsStart, logSlotsEnd int) *Ciphertext
+	Trace(ctIn *Ciphertext, logSlotsStart, logSlotsEnd int, ctOut *Ciphertext)
+	TraceNew(ctIn *Ciphertext, logSlotsStart, logSlotsEnd int) (ctOut *Ciphertext)
 
 	// =============================
 	// === Ciphertext Management ===

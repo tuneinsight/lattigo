@@ -943,7 +943,7 @@ func testAutomorphisms(testContext *testParams, t *testing.T) {
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-		ciphertexts := evaluator.RotateHoisted(ciphertext1, rots)
+		ciphertexts := evaluator.RotateHoistedNew(ciphertext1, rots)
 
 		for _, n := range rots {
 			verifyTestVectors(testContext.params, testContext.encoder, testContext.decryptor, utils.RotateComplex128Slice(values1, n), ciphertexts[n], testContext.params.LogSlots(), 0, t)
@@ -1113,7 +1113,7 @@ func testLinearTransform(testContext *testParams, t *testing.T) {
 
 		eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testContext.rlk, Rtks: rotKey})
 
-		res := eval.LinearTransform(ciphertext1, ptDiagMatrix)[0]
+		res := eval.LinearTransformNew(ciphertext1, ptDiagMatrix)[0]
 
 		tmp := make([]complex128, params.Slots())
 		copy(tmp, values1)
@@ -1154,7 +1154,7 @@ func testLinearTransform(testContext *testParams, t *testing.T) {
 
 		eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testContext.rlk, Rtks: rotKey})
 
-		res := eval.LinearTransform(ciphertext1, ptDiagMatrix)[0]
+		res := eval.LinearTransformNew(ciphertext1, ptDiagMatrix)[0]
 
 		tmp := make([]complex128, params.Slots())
 		copy(tmp, values1)

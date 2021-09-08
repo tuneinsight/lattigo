@@ -146,6 +146,8 @@ type Evaluator interface {
 	// === Others ===
 	// ==============
 	GetKeySwitcher() *rlwe.KeySwitcher
+	PoolQMul() [3]*ring.Poly
+	CtxPool() *Ciphertext
 	ShallowCopy() Evaluator
 	WithKey(rlwe.EvaluationKey) Evaluator
 }
@@ -169,6 +171,16 @@ type evaluatorBase struct {
 type evaluatorBuffers struct {
 	poolQMul [3]*ring.Poly // Memory pool in order : for MForm(c0), MForm(c1), c2
 	ctxpool  *Ciphertext   // Memory pool for ciphertext that need to be scaled up (to be removed eventually)
+}
+
+// PoolQMul returns a pointer to internal memory pool poolQMul.
+func (eval *evaluator) PoolQMul() [3]*ring.Poly {
+	return eval.poolQMul
+}
+
+// CtxPool returns a pointer to internal memory pool CtxPool.
+func (eval *evaluator) CtxPool() *Ciphertext {
+	return eval.ctxpool
 }
 
 func newEvaluatorBase(params Parameters) *evaluatorBase {
@@ -1556,15 +1568,13 @@ func (eval *evaluator) permuteNTT(ct0 *Ciphertext, galEl uint64, ctOut *Cipherte
 	ring.PermuteNTTWithIndexLvl(level, pool3Q, index, ctOut.Value[1])
 }
 
-func (eval *evaluator) rotateHoistedNoModDown(ct0 *Ciphertext, rotations []int, c2DecompQP []rlwe.PolyQP) (cOutQ, cOutP map[int][2]*ring.Poly) {
+func (eval *evaluator) rotateHoistedNoModDown(level int, rotations []int, c2DecompQP []rlwe.PolyQP) (cOutQ, cOutP map[int][2]*ring.Poly) {
 
 	ringQ := eval.params.RingQ()
 	ringP := eval.params.RingP()
 
 	cOutQ = make(map[int][2]*ring.Poly)
 	cOutP = make(map[int][2]*ring.Poly)
-
-	level := ct0.Level()
 
 	for _, i := range rotations {
 

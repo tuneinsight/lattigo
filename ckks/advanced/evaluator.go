@@ -1,10 +1,11 @@
 package advanced
 
 import (
-	"math"
-
 	"github.com/ldsec/lattigo/v2/ckks"
+	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
+	"github.com/ldsec/lattigo/v2/utils"
+	"math"
 )
 
 // Evaluator is an interface embeding the ckks.Evaluator interface with
@@ -81,15 +82,20 @@ type Evaluator interface {
 	// ======================================
 
 	CoeffsToSlotsNew(ctIn *ckks.Ciphertext, ctsMatrices EncodingMatrix) (ctReal, ctImag *ckks.Ciphertext)
+	CoeffsToSlots(ctIn *ckks.Ciphertext, ctsMatrices EncodingMatrix, ctReal, ctImag *ckks.Ciphertext)
 	SlotsToCoeffsNew(ctReal, ctImag *ckks.Ciphertext, stcMatrices EncodingMatrix) (ctOut *ckks.Ciphertext)
+	SlotsToCoeffs(ctReal, ctImag *ckks.Ciphertext, stcMatrices EncodingMatrix, ctOut *ckks.Ciphertext)
 	EvalModNew(ctIn *ckks.Ciphertext, evalModPoly EvalModPoly) (ctOut *ckks.Ciphertext)
 
 	// =================================================
 	// === original ckks.Evaluator redefined methods ===
 	// =================================================
 
+	GetKeySwitcher() *rlwe.KeySwitcher
+	PoolQMul() [3]*ring.Poly
+	CtxPool() *ckks.Ciphertext
 	ShallowCopy() Evaluator
-	WithKey(evakey rlwe.EvaluationKey) Evaluator
+	WithKey(rlwe.EvaluationKey) Evaluator
 }
 
 type evaluator struct {
@@ -115,64 +121,106 @@ func (eval *evaluator) WithKey(evaluationKey rlwe.EvaluationKey) Evaluator {
 	return &evaluator{eval.Evaluator.WithKey(evaluationKey), eval.params}
 }
 
-// CoeffsToSlotsNew applies the homomorphic encoding.
+// CoeffsToSlotsNew applies the homomorphic encoding and returns the result on new ciphertexts.
+// Homomorphically encodes a complex vector vReal + i*vImag.
+// If the packing is sparse (n < N/2), then returns ctReal = Ecd(vReal || vImag) and ctImag = nil.
+// If the packing is dense (n == N/2), then returns ctReal = Ecd(vReal) and ctImag = Ecd(vImag).
 func (eval *evaluator) CoeffsToSlotsNew(ctIn *ckks.Ciphertext, ctsMatrices EncodingMatrix) (ctReal, ctImag *ckks.Ciphertext) {
+	ctReal = ckks.NewCiphertext(eval.params, 1, ctIn.Level()-ctsMatrices.Depth(true), 0)
 
-	var zV *ckks.Ciphertext
+	if eval.params.LogSlots() == eval.params.LogN()-1 {
+		ctImag = ckks.NewCiphertext(eval.params, 1, ctIn.Level()-ctsMatrices.Depth(true), 0)
+	}
 
-	zV = eval.dft(ctIn, ctsMatrices.matrices)
+	eval.CoeffsToSlots(ctIn, ctsMatrices, ctReal, ctImag)
+	return
+}
 
-	ctReal = eval.ConjugateNew(zV)
+// CoeffsToSlots applies the homomorphic encoding and returns the results on the provided ciphertexts.
+// Homomorphically encodes a complex vector vReal + i*vImag of size n on a real vector of size 2n.
+// If the packing is sparse (n < N/2), then returns ctReal = Ecd(vReal || vImag) and ctImag = nil.
+// If the packing is dense (n == N/2), then returns ctReal = Ecd(vReal) and ctImag = Ecd(vImag).
+func (eval *evaluator) CoeffsToSlots(ctIn *ckks.Ciphertext, ctsMatrices EncodingMatrix, ctReal, ctImag *ckks.Ciphertext) {
+	zV := ctIn.CopyNew()
+	eval.dft(ctIn, ctsMatrices.matrices, zV)
 
-	// Imaginary part
-	ctImag = eval.SubNew(zV, ctReal)
+	eval.Conjugate(zV, ctReal)
+
+	var tmp *ckks.Ciphertext
+	if ctImag != nil {
+		tmp = ctImag
+	} else {
+		tmp = ckks.NewCiphertextAtLevelFromPoly(ctReal.Level(), [2]*ring.Poly{eval.CtxPool().Value[0], eval.CtxPool().Value[1]})
+	}
+
+	// Imag part
+	eval.Sub(zV, ctReal, tmp)
+	eval.DivByi(tmp, tmp)
 
 	// Real part
 	eval.Add(ctReal, zV, ctReal)
 
-	eval.DivByi(ctImag, ctImag)
-
 	// If repacking, then ct0 and ct1 right n/2 slots are zero.
 	if eval.params.LogSlots() < eval.params.LogN()-1 {
-		eval.Rotate(ctImag, eval.params.Slots(), ctImag)
-		eval.Add(ctReal, ctImag, ctReal)
-		return ctReal, nil
+		eval.Rotate(tmp, eval.params.Slots(), tmp)
+		eval.Add(ctReal, tmp, ctReal)
 	}
 
 	zV = nil
-
-	return ctReal, ctImag
 }
 
-// SlotsToCoeffsNew applies the homomorphic decoding.
+// SlotsToCoeffsNew applies the homomorphic decoding and returns the result on a new ciphertext.
+// Homomorphically decodes a real vector of size 2n on a complex vector vReal + i*vImag of size n.
+// If the packing is sparse (n < N/2) then ctReal = Ecd(vReal || vImag) and ctImag = nil.
+// If the packing is dense (n == N/2), then ctReal = Ecd(vReal) and ctImag = Ecd(vImag).
 func (eval *evaluator) SlotsToCoeffsNew(ctReal, ctImag *ckks.Ciphertext, stcMatrices EncodingMatrix) (ctOut *ckks.Ciphertext) {
+	level := ctReal.Level()
+	if ctImag != nil {
+		level = utils.MinInt(level, ctImag.Level())
+	}
+	ctOut = ckks.NewCiphertext(eval.params, 1, level, ctReal.Scale)
+	eval.SlotsToCoeffs(ctReal, ctImag, stcMatrices, ctOut)
+	return
 
+}
+
+// SlotsToCoeffsNew applies the homomorphic decoding and returns the result on the provided ciphertext.
+// Homomorphically decodes a real vector of size 2n on a complex vector vReal + i*vImag of size n.
+// If the packing is sparse (n < N/2) then ctReal = Ecd(vReal || vImag) and ctImag = nil.
+// If the packing is dense (n == N/2), then ctReal = Ecd(vReal) and ctImag = Ecd(vImag).
+func (eval *evaluator) SlotsToCoeffs(ctReal, ctImag *ckks.Ciphertext, stcMatrices EncodingMatrix, ctOut *ckks.Ciphertext) {
 	// If full packing, the repacking can be done directly using ct0 and ct1.
 	if ctImag != nil {
-		eval.MultByi(ctImag, ctImag)
-		eval.Add(ctReal, ctImag, ctReal)
+		eval.MultByi(ctImag, ctOut)
+		eval.Add(ctOut, ctReal, ctOut)
+		eval.dft(ctOut, stcMatrices.matrices, ctOut)
+	} else {
+		eval.dft(ctReal, stcMatrices.matrices, ctOut)
 	}
 
-	ctImag = nil
-
-	return eval.dft(ctReal, stcMatrices.matrices)
+	return
 }
 
-func (eval *evaluator) dft(vec *ckks.Ciphertext, plainVectors []ckks.PtDiagMatrix) *ckks.Ciphertext {
+func (eval *evaluator) dft(ctIn *ckks.Ciphertext, plainVectors []ckks.PtDiagMatrix, ctOut *ckks.Ciphertext) {
 
 	// Sequentially multiplies w with the provided dft matrices.
-	for _, plainVector := range plainVectors {
-		scale := vec.Scale
-		vec = eval.LinearTransformNew(vec, plainVector)[0]
-		if err := eval.Rescale(vec, scale, vec); err != nil {
+	var in, out *ckks.Ciphertext
+	for i, plainVector := range plainVectors {
+		in, out = ctOut, ctOut
+		if i == 0 {
+			in, out = ctIn, ctOut
+		}
+		scale := out.Scale
+		eval.LinearTransform(in, plainVector, []*ckks.Ciphertext{out})
+		if err := eval.Rescale(out, scale, out); err != nil {
 			panic(err)
 		}
 	}
 
-	return vec
+	return
 }
 
-// EvalModNew does :
+// EvalModNew applies a homomorphic mod Q on a vector scaled by Delta, scaled down to mod 1 :
 //
 //	1) Delta * (Q/Delta * I(X) + m(X)) (Delta = scaling factor, I(X) integer poly, m(X) message)
 //	2) Delta * (I(X) + Delta/Q * m(X)) (divide by Q/Delta)

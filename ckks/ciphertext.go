@@ -39,6 +39,15 @@ func NewCiphertextRandom(prng utils.PRNG, params Parameters, degree, level int, 
 	return ciphertext
 }
 
+// NewCiphertextAtLevelFromPoly construct a ciphertext at a specific level
+// from two polynomials, without modifying the polynomials.
+func NewCiphertextAtLevelFromPoly(level int, poly [2]*ring.Poly) *Ciphertext {
+	v0, v1 := new(ring.Poly), new(ring.Poly)
+	v0.IsNTT, v1.IsNTT = true, true
+	v0.Coeffs, v1.Coeffs = poly[0].Coeffs[:level+1], poly[1].Coeffs[:level+1]
+	return &Ciphertext{Ciphertext:&rlwe.Ciphertext{Value:[]*ring.Poly{v0, v1}}, Scale:0}
+}
+
 // ScalingFactor returns the scaling factor of the ciphertext
 func (ct *Ciphertext) ScalingFactor() float64 {
 	return ct.Scale

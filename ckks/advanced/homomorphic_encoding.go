@@ -17,6 +17,7 @@ const (
 
 // EncodingMatrix is a struct storing the factorized DFT matrix
 type EncodingMatrix struct {
+	EncodingMatrixLiteral
 	matrices []ckks.PtDiagMatrix
 }
 
@@ -116,7 +117,7 @@ func NewHomomorphicEncodingMatrixFromLiteral(mParams EncodingMatrixLiteral, enco
 		}
 	}
 
-	return EncodingMatrix{matrices: matrices}
+	return EncodingMatrix{EncodingMatrixLiteral: mParams, matrices: matrices}
 }
 
 func computeRoots(N int) (roots []complex128) {

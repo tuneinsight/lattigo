@@ -318,7 +318,7 @@ func (eval *evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 
 		// Pre-rotates all [1, ..., n-1] rotations
 		// Hoisted rotation without division by P
-		vecRotQ, vecRotP := eval.rotateHoistedNoModDown(ctIn, rotations, eval.PoolDecompQP)
+		vecRotQ, vecRotP := eval.rotateHoistedNoModDown(levelQ, rotations, eval.PoolDecompQP)
 
 		// P*c0 -> tmpQ0
 		ringQ.MulScalarBigintLvl(levelQ, ctIn.Value[0], ringP.ModulusBigint, tmpQ0)
@@ -444,7 +444,16 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix PtDiagMatri
 	tmpQ0 := eval.Pool[3].Q     // Automorphism not-inplace pool ctOut[0] mod Q
 	tmpQ1 := eval.Pool[4].Q     // Automorphism not-inplace pool ctOut[1] mod Q
 
-	ringQ.MulScalarBigintLvl(levelQ, ctIn.Value[0], ringP.ModulusBigint, ct0TimesP) // P*c0
+	var ctInTmp0, ctInTmp1 *ring.Poly
+	if ctIn != ctOut {
+		ring.CopyValuesLvl(levelQ, ctIn.Value[0], eval.ctxpool.Value[0])
+		ring.CopyValuesLvl(levelQ, ctIn.Value[1], eval.ctxpool.Value[1])
+		ctInTmp0, ctInTmp1 = eval.ctxpool.Value[0], eval.ctxpool.Value[1]
+	} else {
+		ctInTmp0, ctInTmp1 = ctIn.Value[0], ctIn.Value[1]
+	}
+
+	ringQ.MulScalarBigintLvl(levelQ, ctInTmp0, ringP.ModulusBigint, ct0TimesP) // P*c0
 
 	var state bool
 	var cnt int
@@ -520,8 +529,8 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix PtDiagMatri
 	eval.Baseconverter.ModDownQPtoQNTT(levelQ, levelP, ctOut.Value[1], accP1, ctOut.Value[1]) // sum(phi(d1_QP))/P
 
 	if state { // Rotation by zero
-		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, matrix.Vec[0].Q, ctIn.Value[0], ctOut.Value[0]) // ctOut += c0_Q * plaintext
-		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, matrix.Vec[0].Q, ctIn.Value[1], ctOut.Value[1]) // ctOut += c1_Q * plaintext
+		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, matrix.Vec[0].Q, ctInTmp0, ctOut.Value[0]) // ctOut += c0_Q * plaintext
+		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, matrix.Vec[0].Q, ctInTmp1, ctOut.Value[1]) // ctOut += c1_Q * plaintext
 	}
 
 	ctOut.Scale = matrix.Scale * ctIn.Scale
@@ -550,8 +559,17 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix PtDiagM
 
 	index, rotations := bsgsIndex(matrix.Vec, 1<<matrix.LogSlots, matrix.N1)
 
+	var ctInTmp0, ctInTmp1 *ring.Poly
+	if ctIn == ctOut {
+		ring.CopyValuesLvl(levelQ, ctIn.Value[0], eval.ctxpool.Value[0])
+		ring.CopyValuesLvl(levelQ, ctIn.Value[1], eval.ctxpool.Value[1])
+		ctInTmp0, ctInTmp1 = eval.ctxpool.Value[0], eval.ctxpool.Value[1]
+	} else {
+		ctInTmp0, ctInTmp1 = ctIn.Value[0], ctIn.Value[1]
+	}
+
 	// Pre-rotates ciphertext for the baby-step giant-step algorithm, does not divide by P yet
-	vecRotQ, vecRotP := eval.rotateHoistedNoModDown(ctIn, rotations, eval.PoolDecompQP)
+	vecRotQ, vecRotP := eval.rotateHoistedNoModDown(levelQ, rotations, eval.PoolDecompQP)
 
 	// Accumulator inner loop
 	tmpQ0 := eval.poolQMul[0] // unused memory pool from evaluator
@@ -577,7 +595,7 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix PtDiagM
 	N1Rot := 0
 	N2Rot := 0
 
-	ringQ.MulScalarBigintLvl(levelQ, ctIn.Value[0], ringP.ModulusBigint, tmpQ0) // P*c0
+	ringQ.MulScalarBigintLvl(levelQ, ctInTmp0, ringP.ModulusBigint, tmpQ0) // P*c0
 
 	for _, i := range rotations {
 		if i != 0 {
@@ -661,11 +679,11 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix PtDiagM
 
 				// If no loop before, then we copy the values on the accumulator instead of adding them
 				if len(index[j]) == 1 {
-					ringQ.MulCoeffsMontgomeryLvl(levelQ, matrix.Vec[N1*j].Q, ctIn.Value[0], tmpQ0) // c0 * plaintext + sum(phi(d0) * plaintext)/P + phi(c0) * plaintext mod Q
-					ringQ.MulCoeffsMontgomeryLvl(levelQ, matrix.Vec[N1*j].Q, ctIn.Value[1], tmpQ1) // c1 * plaintext + sum(phi(d1) * plaintext)/P + phi(c1) * plaintext mod Q
+					ringQ.MulCoeffsMontgomeryLvl(levelQ, matrix.Vec[N1*j].Q, ctInTmp0, tmpQ0) // c0 * plaintext + sum(phi(d0) * plaintext)/P + phi(c0) * plaintext mod Q
+					ringQ.MulCoeffsMontgomeryLvl(levelQ, matrix.Vec[N1*j].Q, ctInTmp1, tmpQ1) // c1 * plaintext + sum(phi(d1) * plaintext)/P + phi(c1) * plaintext mod Q
 				} else {
-					ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, matrix.Vec[N1*j].Q, ctIn.Value[0], tmpQ0) // c0 * plaintext + sum(phi(d0) * plaintext)/P + phi(c0) * plaintext mod Q
-					ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, matrix.Vec[N1*j].Q, ctIn.Value[1], tmpQ1) // c1 * plaintext + sum(phi(d1) * plaintext)/P + phi(c1) * plaintext mod Q
+					ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, matrix.Vec[N1*j].Q, ctInTmp0, tmpQ0) // c0 * plaintext + sum(phi(d0) * plaintext)/P + phi(c0) * plaintext mod Q
+					ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, matrix.Vec[N1*j].Q, ctInTmp1, tmpQ1) // c1 * plaintext + sum(phi(d1) * plaintext)/P + phi(c1) * plaintext mod Q
 				}
 
 				N1Rot++
@@ -775,8 +793,8 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix PtDiagM
 
 	if state { // Rotation by zero
 		N1Rot++
-		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, matrix.Vec[0].Q, ctIn.Value[0], ctOut.Value[0]) // ctOut += c0_Q * plaintext
-		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, matrix.Vec[0].Q, ctIn.Value[1], ctOut.Value[1]) // ctOut += c1_Q * plaintext
+		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, matrix.Vec[0].Q, ctInTmp0, ctOut.Value[0]) // ctOut += c0_Q * plaintext
+		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, matrix.Vec[0].Q, ctInTmp1, ctOut.Value[1]) // ctOut += c1_Q * plaintext
 	}
 
 	ctOut.Scale = matrix.Scale * ctIn.Scale

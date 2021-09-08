@@ -23,6 +23,8 @@ All notable changes to this project will be documented in this file.
 - CKKS: removed the `EvaluateCheby` method duplicating the `EvaluatePoly` one.
 - CKKS: optimized the `EvaluatePoly` to account for odd/even polynomials and fixed some small imprecisions in scale management occurring for some specific polynomial degrees.
 - CKKS: some advanced methods related to automorphism are now public to facilitate their external use.
+- CKKS: improved the consistency of the API for inplace and `[..]New` methods.
+- CKKS: added the method `NewCiphertextAtLevelFromPoly` which creates a ciphertext at a specific level from two polynomials.
 - DBFV/DCKKS: are now using their respective CRP type for each protocols.
 - EXAMPLE: added showcase of the `ckks/advanced` sub-package: a bridge between between CKKS and FHEW ciphertexts using homomorphic decoding, ring dimension switching, homomorphic matrix multiplication and homomorphic modular reduction.
 

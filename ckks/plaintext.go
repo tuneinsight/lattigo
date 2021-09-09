@@ -1,6 +1,7 @@
 package ckks
 
 import (
+	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
 )
 
@@ -25,4 +26,13 @@ func (p *Plaintext) ScalingFactor() float64 {
 // SetScalingFactor sets the scaling factor of the target plaintext
 func (p *Plaintext) SetScalingFactor(scale float64) {
 	p.Scale = scale
+}
+
+// NewPlaintextAtLevelFromPoly construct a plaintext at a specific level
+// from a polynomial, without modifying the polynomial.
+func NewPlaintextAtLevelFromPoly(level int, poly *ring.Poly) *Plaintext {
+	v0 := new(ring.Poly)
+	v0.IsNTT = true
+	v0.Coeffs = poly.Coeffs[:level+1]
+	return &Plaintext{Plaintext: &rlwe.Plaintext{Value: v0}, Scale: 0}
 }

@@ -28,8 +28,9 @@ func (p *Plaintext) SetScalingFactor(scale float64) {
 	p.Scale = scale
 }
 
-// NewPlaintextAtLevelFromPoly construct a plaintext at a specific level
-// from a polynomial, without modifying the polynomial.
+// NewPlaintextAtLevelFromPoly construct a new Plaintext at a specific level
+// where the message is set to the passed poly. No checks are performed on poly and
+// the returned Plaintext will share its backing array of coefficient.
 func NewPlaintextAtLevelFromPoly(level int, poly *ring.Poly) *Plaintext {
 	v0 := new(ring.Poly)
 	v0.IsNTT = true

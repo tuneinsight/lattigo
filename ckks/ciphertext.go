@@ -39,8 +39,9 @@ func NewCiphertextRandom(prng utils.PRNG, params Parameters, degree, level int, 
 	return ciphertext
 }
 
-// NewCiphertextAtLevelFromPoly construct a ciphertext at a specific level
-// from two polynomials, without modifying the polynomials.
+// NewCiphertextAtLevelFromPoly construct a new Ciphetext at a specific level
+// where the message is set to the passed poly. No checks are performed on poly and
+// the returned Ciphertext will share its backing array of coefficient.
 func NewCiphertextAtLevelFromPoly(level int, poly [2]*ring.Poly) *Ciphertext {
 	v0, v1 := new(ring.Poly), new(ring.Poly)
 	v0.IsNTT, v1.IsNTT = true, true

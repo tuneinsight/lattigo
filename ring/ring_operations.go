@@ -667,20 +667,15 @@ func (r *Ring) MulScalarLvl(level int, p1 *Poly, scalar uint64, p2 *Poly) {
 	}
 }
 
-// MulScalarBigint multiplies each coefficient of p1 by a big.Int scalar and writes the result on p2.
-func (r *Ring) MulScalarBigint(p1 *Poly, scalar *big.Int, p2 *Poly) {
-	r.MulScalarBigintLvl(r.minLevelBinary(p1, p2), p1, scalar, p2)
+func (r *Ring) MulScalarCRT(p *Poly, scalar []uint64, pOut *Poly) {
+	r.MulScalarCRTLvl(r.minLevelBinary(p, pOut), p, scalar, pOut)
 }
 
-// MulScalarBigintLvl multiplies each coefficient of p1 by a big.Int scalar
-//for the moduli from q_0 up to q_level and writes the result on p2.
-func (r *Ring) MulScalarBigintLvl(level int, p1 *Poly, scalar *big.Int, p2 *Poly) {
-	scalarQi := new(big.Int)
+func (r *Ring) MulScalarCRTLvl(level int, p *Poly, scalar []uint64, pOut *Poly) {
 	for i := 0; i < level+1; i++ {
 		Qi := r.Modulus[i]
-		scalarQi.Mod(scalar, NewUint(Qi))
-		scalarMont := MForm(BRedAdd(scalarQi.Uint64(), Qi, r.BredParams[i]), Qi, r.BredParams[i])
-		p1tmp, p2tmp := p1.Coeffs[i], p2.Coeffs[i]
+		scalarMont := MForm(scalar[i], Qi, r.BredParams[i])
+		p1tmp, p2tmp := p.Coeffs[i], pOut.Coeffs[i]
 		mredParams := r.MredParams[i]
 		for j := 0; j < r.N; j = j + 8 {
 
@@ -697,6 +692,24 @@ func (r *Ring) MulScalarBigintLvl(level int, p1 *Poly, scalar *big.Int, p2 *Poly
 			z[7] = MRed(x[7], scalarMont, Qi, mredParams)
 		}
 	}
+}
+
+// MulScalarBigint multiplies each coefficient of p1 by a big.Int scalar and writes the result on p2.
+func (r *Ring) MulScalarBigint(p1 *Poly, scalar *big.Int, p2 *Poly) {
+	r.MulScalarBigintLvl(r.minLevelBinary(p1, p2), p1, scalar, p2)
+}
+
+// MulScalarBigintLvl multiplies each coefficient of p1 by a big.Int scalar
+//for the moduli from q_0 up to q_level and writes the result on p2.
+func (r *Ring) MulScalarBigintLvl(level int, p1 *Poly, scalar *big.Int, p2 *Poly) {
+	scalarCRT := make([]uint64, len(r.Modulus))
+	scalarQi := new(big.Int)
+	for i := 0; i < level+1; i++ {
+		Qi := r.Modulus[i]
+		scalarQi.Mod(scalar, NewUint(Qi))
+		scalarCRT[i] = BRedAdd(scalarQi.Uint64(), Qi, r.BredParams[i])
+	}
+	r.MulScalarCRTLvl(level, p1, scalarCRT, p2)
 }
 
 // Shift circulary shifts the coefficients of the polynomial p1 by n positions to the left and writes the result on p2.
@@ -947,7 +960,7 @@ func (r *Ring) Rotate(p1 *Poly, n int, p2 *Poly) {
 
 		root = MRed(r.PsiMont[i], r.PsiMont[i], qi, mredParams)
 
-		root = modexpMontgomery(root, n, qi, mredParams, r.BredParams[i])
+		root = ModexpMontgomery(root, n, qi, mredParams, r.BredParams[i])
 
 		gal = MForm(1, qi, r.BredParams[i])
 

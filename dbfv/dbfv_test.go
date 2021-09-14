@@ -94,7 +94,7 @@ func Test_DBFV(t *testing.T) {
 		testRefreshAndPermutation(testCtx, t)
 		testMarshalling(testCtx, t)
 
-		for _, N := range []int{2, 3, 5, 7, 20} {
+		for _, N := range []int{ /*2, 3, */ 5, 7 /*20*/} {
 			if testCtx, err = gentestContext(params, N); err != nil {
 				panic(err)
 			}
@@ -844,7 +844,7 @@ func testThreshold(testCtx *testContext, t *testing.T) {
 			p.CachedCombiner = drlwe.NewCachedCombiner(testCtx.params.Parameters, threshold)
 			p.sk = sk0Shards[i]
 			p.tsk = bfv.NewSecretKey(testCtx.params)
-			p.tpk = p.Thresholdizer.GenShamirPublicKey()
+			p.tpk = p.Thresholdizer.GenShamirPublicKey(uint64(i) + 1)
 			p.tsks = p.Thresholdizer.AllocateThresholdSecretShare()
 			P[i] = p
 		}

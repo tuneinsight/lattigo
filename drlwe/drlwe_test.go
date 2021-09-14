@@ -4,15 +4,16 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/ldsec/lattigo/v2/ring"
-	"github.com/ldsec/lattigo/v2/rlwe"
-	"github.com/ldsec/lattigo/v2/utils"
-	"github.com/stretchr/testify/require"
 	"math"
 	"math/big"
 	"math/bits"
 	"runtime"
 	"testing"
+
+	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
+	"github.com/ldsec/lattigo/v2/utils"
+	"github.com/stretchr/testify/require"
 )
 
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
@@ -54,6 +55,35 @@ func newTestContext(params rlwe.Parameters) testContext {
 	crpGenerator := ring.NewUniformSampler(prng, params.RingQP())
 
 	return testContext{params, kgen, sk0, sk1, sk2, skIdeal, crpGenerator}
+}
+
+func TestThreshold(t *testing.T) {
+	params, _ := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
+		LogN:  12,
+		Q:     []uint64{0x7ffffec001, 0x40002001}, // 39 + 39 bits
+		P:     []uint64{0x8000016001},             // 30 bits
+		Sigma: rlwe.DefaultSigma,
+	})
+
+	Rqp := params.RingQP()
+
+	QP := params.QPBigInt()
+
+	a := big.NewInt(-10)
+	inva := big.NewInt(0)
+
+	inva.ModInverse(a, QP)
+	invamodqi := big.NewInt(0)
+	for _, qi := range Rqp.Modulus {
+		invamodqi.Mod(inva, big.NewInt(int64(qi)))
+		fmt.Printf("%d ", invamodqi.Uint64())
+	}
+	fmt.Println()
+
+	//p := Rqp.NewPoly()
+	//Rqp.SetCoefficientsInt64([]int64{2}, p)
+
+	fmt.Println(Rqp.GetInverseCRT(-10))
 }
 
 func TestDRLWE(t *testing.T) {

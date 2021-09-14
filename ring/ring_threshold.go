@@ -61,11 +61,51 @@ func (r *Ring) InvMultPolyMontgomeryNTT(p1 *Poly, p2 *Poly) error {
 	return nil
 }
 
+func (r *Ring) GetInverseCRT(a []uint64) []uint64 {
+	// inva := make([]uint64, len(r.Modulus))
+	// for i, qi := range r.Modulus {
+	// 	aiMont := MForm(a[i], qi, r.BredParams[i])
+	// 	inva[i] = ModexpMontgomery(aiMont, int(qi-2), qi, r.MredParams[i], r.BredParams[i])
+	// }
+
+	aCopy := make([]uint64, len(a))
+	copy(aCopy, a)
+	inva := make([]uint64, len(r.Modulus))
+
+	//EEA
+	for i, qi := range r.Modulus {
+
+		inva[i] = MForm(1, qi, r.BredParams[i])
+
+		mredParam := r.MredParams[i]
+
+		for k := qi - 2; k > 0; k >>= 1 {
+
+			if k&1 == 1 {
+				inva[i] = MRedConstant(inva[i], aCopy[i], qi, mredParam)
+			}
+			aCopy[i] = MRedConstant(aCopy[i], aCopy[i], qi, mredParam)
+		}
+	}
+	return inva
+}
+
 // EvalPolMontgomeryNTT evaluate the polynomial pol at pk and writes the result in p3
 func (r *Ring) EvalPolMontgomeryNTT(pol []*Poly, pk *Poly, p3 *Poly) {
 	p3.Copy(pol[len(pol)-1])
 	for i := len(pol) - 1; i > 0; i-- {
 		r.MulCoeffsMontgomeryConstant(p3, pk, p3)
+		r.AddNoMod(p3, pol[i-1], p3)
+	}
+	r.Reduce(p3, p3)
+}
+
+// EvalPolMontgomeryScalarNTT evaluate the polynomial pol at pk and writes the result in p3
+func (r *Ring) EvalPolMontgomeryScalarNTT(pol []*Poly, pk uint64, p3 *Poly) {
+	p3.Copy(pol[len(pol)-1])
+	for i := len(pol) - 1; i > 0; i-- {
+		//r.MulCoeffsMontgomeryConstant(p3, pk, p3)
+		r.MulScalar(p3, pk, p3)
 		r.AddNoMod(p3, pol[i-1], p3)
 	}
 	r.Reduce(p3, p3)

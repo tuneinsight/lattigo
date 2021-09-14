@@ -357,7 +357,7 @@ func benchThreshold(params bfv.Parameters, NParties, t int, b *testing.B) {
 	b.Run(testString("Thresholdizer/KeyGen/", NParties, params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			for j := 0; j < NParties; j++ {
-				shamirPks[j] = p.Thresholdizer.GenShamirPublicKey()
+				shamirPks[j] = p.Thresholdizer.GenShamirPublicKey(uint64(i) + 1)
 			}
 		}
 	})

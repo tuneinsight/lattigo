@@ -667,14 +667,18 @@ func (r *Ring) MulScalarLvl(level int, p1 *Poly, scalar uint64, p2 *Poly) {
 	}
 }
 
+// MulScalarCRT multiplies p with a scalar value expressed in the CRT decomposition.
+// It asssumes the scalar decomposition to be in Montgomerry form.
 func (r *Ring) MulScalarCRT(p *Poly, scalar []uint64, pOut *Poly) {
 	r.MulScalarCRTLvl(r.minLevelBinary(p, pOut), p, scalar, pOut)
 }
 
+// MulScalarCRTLvl multiplies p with a scalar value expressed in the CRT decomposition at a given level.
+// It asssumes the scalar decomposition to be in Montgomerry form.
 func (r *Ring) MulScalarCRTLvl(level int, p *Poly, scalar []uint64, pOut *Poly) {
 	for i := 0; i < level+1; i++ {
 		Qi := r.Modulus[i]
-		scalarMont := MForm(scalar[i], Qi, r.BredParams[i])
+		scalarMont := scalar[i]
 		p1tmp, p2tmp := p.Coeffs[i], pOut.Coeffs[i]
 		mredParams := r.MredParams[i]
 		for j := 0; j < r.N; j = j + 8 {
@@ -707,7 +711,8 @@ func (r *Ring) MulScalarBigintLvl(level int, p1 *Poly, scalar *big.Int, p2 *Poly
 	for i := 0; i < level+1; i++ {
 		Qi := r.Modulus[i]
 		scalarQi.Mod(scalar, NewUint(Qi))
-		scalarCRT[i] = BRedAdd(scalarQi.Uint64(), Qi, r.BredParams[i])
+		scalarCRT[i] = MForm(BRedAdd(scalarQi.Uint64(), Qi, r.BredParams[i]), Qi, r.BredParams[i])
+
 	}
 	r.MulScalarCRTLvl(level, p1, scalarCRT, p2)
 }

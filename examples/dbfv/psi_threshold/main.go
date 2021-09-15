@@ -41,7 +41,7 @@ type party struct {
 	rlkEphemSk    *rlwe.SecretKey
 	tsks          *drlwe.ShamirSecretShare
 	tsk           *rlwe.SecretKey
-	tpk           *drlwe.ShamirPublicKey
+	tpk           drlwe.ShamirPublicKey
 	ckgShare      *drlwe.CKGShare
 	rkgShareOne   *drlwe.RKGShare
 	rkgShareTwo   *drlwe.RKGShare
@@ -226,7 +226,7 @@ func thresholdCombine(params bfv.Parameters, ringQP *ring.Ring, P []*party, t ui
 
 	l.Println("> ThresholdCombine")
 	activeParties = make([]*party, int(t))
-	activePoints := make([]*drlwe.ShamirPublicKey, int(t))
+	activePoints := make([]drlwe.ShamirPublicKey, int(t))
 
 	//Determining which players are active and their key
 	elapsedThreshCombCloud = runTimed(func() {
@@ -360,10 +360,10 @@ func genThresholdizers(params bfv.Parameters, P []*party, t int) {
 	l.Println("> Thresholdizers Initialization")
 	elapsedThreshInitParty = runTimedParty(func() {
 		var err error
-		for _, pi := range P {
+		for i, pi := range P {
 			pi.thresholdizer = drlwe.NewThresholdizer(params.Parameters)
 			pi.combiner = drlwe.NewCombiner(params.Parameters, t)
-			pi.tpk = pi.thresholdizer.GenShamirPublicKey()
+			pi.tpk = drlwe.ShamirPublicKey(i + 1)
 			pi.gen, err = pi.thresholdizer.GenShamirPolynomial(t, pi.sk)
 			if err != nil {
 				panic(err)

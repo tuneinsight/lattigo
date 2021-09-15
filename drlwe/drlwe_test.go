@@ -79,11 +79,6 @@ func TestThreshold(t *testing.T) {
 		fmt.Printf("%d ", invamodqi.Uint64())
 	}
 	fmt.Println()
-
-	//p := Rqp.NewPoly()
-	//Rqp.SetCoefficientsInt64([]int64{2}, p)
-
-	fmt.Println(Rqp.GetInverseCRT(-10))
 }
 
 func TestDRLWE(t *testing.T) {

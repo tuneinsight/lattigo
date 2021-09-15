@@ -806,7 +806,7 @@ func testThreshold(testCtx *testContext, t *testing.T) {
 			sk        *rlwe.SecretKey
 			tsks      *drlwe.ShamirSecretShare
 			tsk       *rlwe.SecretKey
-			tpk       *drlwe.ShamirPublicKey
+			tpk       drlwe.ShamirPublicKey
 			pcksShare *drlwe.PCKSShare
 		}
 
@@ -844,7 +844,7 @@ func testThreshold(testCtx *testContext, t *testing.T) {
 			p.CachedCombiner = drlwe.NewCachedCombiner(testCtx.params.Parameters, threshold)
 			p.sk = sk0Shards[i]
 			p.tsk = bfv.NewSecretKey(testCtx.params)
-			p.tpk = p.Thresholdizer.GenShamirPublicKey(uint64(i) + 1)
+			p.tpk = drlwe.ShamirPublicKey(i + 1)
 			p.tsks = p.Thresholdizer.AllocateThresholdSecretShare()
 			P[i] = p
 		}
@@ -880,7 +880,7 @@ func testThreshold(testCtx *testContext, t *testing.T) {
 		// Determining which parties are active. In a distributed context, a party
 		// would receive the ids of active players and retrieve (or compute) the corresponding keys.
 		activeParties := P[:threshold]
-		activeShamirPks := make([]*drlwe.ShamirPublicKey, threshold)
+		activeShamirPks := make([]drlwe.ShamirPublicKey, threshold)
 		for i, p := range activeParties {
 			activeShamirPks[i] = p.tpk
 		}

@@ -96,9 +96,9 @@ func (thresholdizer *Thresholdizer) AggregateShares(share1, share2, outShare *Sh
 // baseCombiner is a structure that holds the parameters for the combining phase of
 // a threshold secret sharing protocol.
 type baseCombiner struct {
-	ringQP    *ring.Ring
-	threshold int
-	tmp       []uint64
+	ringQP     *ring.Ring
+	threshold  int
+	tmp1, tmp2 []uint64
 }
 
 //NewCombiner creates a new Combiner.
@@ -106,7 +106,7 @@ func NewCombiner(params rlwe.Parameters, threshold int) Combiner {
 	cmb := new(baseCombiner)
 	cmb.ringQP = params.RingQP()
 	cmb.threshold = threshold
-	cmb.tmp = make([]uint64, params.QPCount())
+	cmb.tmp1, cmb.tmp2 = make([]uint64, params.QPCount()), make([]uint64, params.QPCount())
 	return cmb
 }
 
@@ -119,16 +119,22 @@ func (cmb *baseCombiner) GenAdditiveShare(actives []ShamirPublicKey, ownPublic S
 		panic("Not enough active players to combine threshold shares.")
 	}
 
-	skOut.Value.Copy(ownSecret.Poly)
+	prod := cmb.tmp2
+	for i, qi := range cmb.ringQP.Modulus {
+		prod[i] = ring.MForm(1, qi, cmb.ringQP.BredParams[i])
+	}
+
 	for _, active := range actives[:cmb.threshold] {
 		//Lagrange Interpolation with the public threshold key of other active players
 		if active != ownPublic {
-			cmb.lagrangeCoeff(ownPublic, active, cmb.tmp)
-			cmb.ringQP.MulScalarCRT(skOut.Value, cmb.tmp, skOut.Value)
+			cmb.lagrangeCoeff(ownPublic, active, cmb.tmp1)
+			for i, qi := range cmb.ringQP.Modulus {
+				prod[i] = ring.MRedConstant(prod[i], cmb.tmp1[i], qi, cmb.ringQP.MredParams[i])
+			}
 		}
 	}
 
-	cmb.ringQP.Reduce(skOut.Value, skOut.Value)
+	cmb.ringQP.MulScalarCRT(ownSecret.Poly, prod, skOut.Value)
 }
 
 // lagrangeCoeff computes the difference between the two given keys and stores

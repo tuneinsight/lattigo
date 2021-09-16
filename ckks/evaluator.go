@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"unsafe"
 
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
@@ -584,7 +583,7 @@ func (eval *evaluator) getConstAndScale(level int, constant interface{}) (cReal,
 func (eval *evaluator) AddConst(ct0 *Ciphertext, constant interface{}, ctOut *Ciphertext) {
 
 	var level = utils.MinInt(ct0.Level(), ctOut.Level())
-	var scaledConst, scaledConstReal, scaledConstImag uint64
+	var scaledConst, scaledConstReal, scaledConstImag, qi uint64
 
 	cReal, cImag, _ := eval.getConstAndScale(level, constant)
 
@@ -596,12 +595,8 @@ func (eval *evaluator) AddConst(ct0 *Ciphertext, constant interface{}, ctOut *Ci
 	// [a + b*psi_qi^2, ....., a + b*psi_qi^2, a - b*psi_qi^2, ...., a - b*psi_qi^2] mod Qi
 	// [{                  N/2                }{                N/2               }]
 	// Which is equivalent outside of the NTT domain to adding a to the first coefficient of ct0 and b to the N/2-th coefficient of ct0.
-	var qi uint64
 	for i := 0; i < level+1; i++ {
-		scaledConstReal = 0
-		scaledConstImag = 0
-		scaledConst = 0
-
+		scaledConstReal,  scaledConstImag, scaledConst = 0, 0, 0
 		qi = ringQ.Modulus[i]
 
 		if cReal != 0 {
@@ -614,42 +609,16 @@ func (eval *evaluator) AddConst(ct0 *Ciphertext, constant interface{}, ctOut *Ci
 			scaledConst = ring.CRed(scaledConst+scaledConstImag, qi)
 		}
 
-		p1tmp := ctOut.Value[0].Coeffs[i]
 		p0tmp := ct0.Value[0].Coeffs[i]
-
-		for j := 0; j < ringQ.N>>1; j = j + 8 {
-
-			x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
-			z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-
-			z[0] = ring.CRed(x[0]+scaledConst, qi)
-			z[1] = ring.CRed(x[1]+scaledConst, qi)
-			z[2] = ring.CRed(x[2]+scaledConst, qi)
-			z[3] = ring.CRed(x[3]+scaledConst, qi)
-			z[4] = ring.CRed(x[4]+scaledConst, qi)
-			z[5] = ring.CRed(x[5]+scaledConst, qi)
-			z[6] = ring.CRed(x[6]+scaledConst, qi)
-			z[7] = ring.CRed(x[7]+scaledConst, qi)
-		}
+		p1tmp := ctOut.Value[0].Coeffs[i]
+		
+		ring.AddScalarVec(p0tmp[:ringQ.N>>1], p1tmp[:ringQ.N>>1], scaledConst, qi)
 
 		if cImag != 0 {
 			scaledConst = ring.CRed(scaledConstReal+(qi-scaledConstImag), qi)
 		}
 
-		for j := ringQ.N >> 1; j < ringQ.N; j = j + 8 {
-
-			x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
-			z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-
-			z[0] = ring.CRed(x[0]+scaledConst, qi)
-			z[1] = ring.CRed(x[1]+scaledConst, qi)
-			z[2] = ring.CRed(x[2]+scaledConst, qi)
-			z[3] = ring.CRed(x[3]+scaledConst, qi)
-			z[4] = ring.CRed(x[4]+scaledConst, qi)
-			z[5] = ring.CRed(x[5]+scaledConst, qi)
-			z[6] = ring.CRed(x[6]+scaledConst, qi)
-			z[7] = ring.CRed(x[7]+scaledConst, qi)
-		}
+		ring.AddScalarVec(p0tmp[ringQ.N>>1:], p1tmp[ringQ.N>>1:], scaledConst, qi)
 	}
 }
 
@@ -743,21 +712,7 @@ func (eval *evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interface{}, 
 		for u := range ct0.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-
-			for j := 0; j < ringQ.N>>1; j = j + 8 {
-
-				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
-				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-
-				z[0] = ring.CRed(z[0]+ring.MRed(x[0], scaledConst, qi, mredParams), qi)
-				z[1] = ring.CRed(z[1]+ring.MRed(x[1], scaledConst, qi, mredParams), qi)
-				z[2] = ring.CRed(z[2]+ring.MRed(x[2], scaledConst, qi, mredParams), qi)
-				z[3] = ring.CRed(z[3]+ring.MRed(x[3], scaledConst, qi, mredParams), qi)
-				z[4] = ring.CRed(z[4]+ring.MRed(x[4], scaledConst, qi, mredParams), qi)
-				z[5] = ring.CRed(z[5]+ring.MRed(x[5], scaledConst, qi, mredParams), qi)
-				z[6] = ring.CRed(z[6]+ring.MRed(x[6], scaledConst, qi, mredParams), qi)
-				z[7] = ring.CRed(z[7]+ring.MRed(x[7], scaledConst, qi, mredParams), qi)
-			}
+			ring.MulScalarMontgomeryAndAddVec(p0tmp[:ringQ.N>>1], p1tmp[:ringQ.N>>1], scaledConst, qi, mredParams)
 		}
 
 		if cImag != 0 {
@@ -768,20 +723,7 @@ func (eval *evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interface{}, 
 		for u := range ct0.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-			for j := ringQ.N >> 1; j < ringQ.N; j = j + 8 {
-
-				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
-				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-
-				z[0] = ring.CRed(z[0]+ring.MRed(x[0], scaledConst, qi, mredParams), qi)
-				z[1] = ring.CRed(z[1]+ring.MRed(x[1], scaledConst, qi, mredParams), qi)
-				z[2] = ring.CRed(z[2]+ring.MRed(x[2], scaledConst, qi, mredParams), qi)
-				z[3] = ring.CRed(z[3]+ring.MRed(x[3], scaledConst, qi, mredParams), qi)
-				z[4] = ring.CRed(z[4]+ring.MRed(x[4], scaledConst, qi, mredParams), qi)
-				z[5] = ring.CRed(z[5]+ring.MRed(x[5], scaledConst, qi, mredParams), qi)
-				z[6] = ring.CRed(z[6]+ring.MRed(x[6], scaledConst, qi, mredParams), qi)
-				z[7] = ring.CRed(z[7]+ring.MRed(x[7], scaledConst, qi, mredParams), qi)
-			}
+			ring.MulScalarMontgomeryAndAddVec(p0tmp[ringQ.N>>1:], p1tmp[ringQ.N>>1:], scaledConst, qi, mredParams)
 		}
 	}
 }
@@ -836,21 +778,7 @@ func (eval *evaluator) MultByConst(ct0 *Ciphertext, constant interface{}, ctOut 
 		for u := range ct0.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-
-			for j := 0; j < ringQ.N>>1; j = j + 8 {
-
-				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
-				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-
-				z[0] = ring.MRed(x[0], scaledConst, qi, mredParams)
-				z[1] = ring.MRed(x[1], scaledConst, qi, mredParams)
-				z[2] = ring.MRed(x[2], scaledConst, qi, mredParams)
-				z[3] = ring.MRed(x[3], scaledConst, qi, mredParams)
-				z[4] = ring.MRed(x[4], scaledConst, qi, mredParams)
-				z[5] = ring.MRed(x[5], scaledConst, qi, mredParams)
-				z[6] = ring.MRed(x[6], scaledConst, qi, mredParams)
-				z[7] = ring.MRed(x[7], scaledConst, qi, mredParams)
-			}
+			ring.MulScalarMontgomeryVec(p0tmp[:ringQ.N>>1], p1tmp[:ringQ.N>>1], scaledConst, qi, mredParams)
 		}
 
 		if cImag != 0 {
@@ -861,20 +789,7 @@ func (eval *evaluator) MultByConst(ct0 *Ciphertext, constant interface{}, ctOut 
 		for u := range ct0.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-			for j := ringQ.N >> 1; j < ringQ.N; j = j + 8 {
-
-				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
-				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-
-				z[0] = ring.MRed(x[0], scaledConst, qi, mredParams)
-				z[1] = ring.MRed(x[1], scaledConst, qi, mredParams)
-				z[2] = ring.MRed(x[2], scaledConst, qi, mredParams)
-				z[3] = ring.MRed(x[3], scaledConst, qi, mredParams)
-				z[4] = ring.MRed(x[4], scaledConst, qi, mredParams)
-				z[5] = ring.MRed(x[5], scaledConst, qi, mredParams)
-				z[6] = ring.MRed(x[6], scaledConst, qi, mredParams)
-				z[7] = ring.MRed(x[7], scaledConst, qi, mredParams)
-			}
+			ring.MulScalarMontgomeryVec(p0tmp[ringQ.N>>1:], p1tmp[ringQ.N>>1:], scaledConst, qi, mredParams)
 		}
 	}
 
@@ -912,21 +827,7 @@ func (eval *evaluator) MultByGaussianInteger(ct0 *Ciphertext, cReal, cImag inter
 		for u := range ct0.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-
-			for j := 0; j < ringQ.N>>1; j = j + 8 {
-
-				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
-				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-
-				z[0] = ring.MRed(x[0], scaledConst, qi, mredParams)
-				z[1] = ring.MRed(x[1], scaledConst, qi, mredParams)
-				z[2] = ring.MRed(x[2], scaledConst, qi, mredParams)
-				z[3] = ring.MRed(x[3], scaledConst, qi, mredParams)
-				z[4] = ring.MRed(x[4], scaledConst, qi, mredParams)
-				z[5] = ring.MRed(x[5], scaledConst, qi, mredParams)
-				z[6] = ring.MRed(x[6], scaledConst, qi, mredParams)
-				z[7] = ring.MRed(x[7], scaledConst, qi, mredParams)
-			}
+			ring.MulScalarMontgomeryVec(p0tmp[:ringQ.N>>1], p1tmp[:ringQ.N>>1], scaledConst, qi, mredParams)
 		}
 
 		if cImag != 0 {
@@ -937,21 +838,7 @@ func (eval *evaluator) MultByGaussianInteger(ct0 *Ciphertext, cReal, cImag inter
 		for u := range ct0.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-
-			for j := ringQ.N >> 1; j < ringQ.N; j = j + 8 {
-
-				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
-				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-
-				z[0] = ring.MRed(x[0], scaledConst, qi, mredParams)
-				z[1] = ring.MRed(x[1], scaledConst, qi, mredParams)
-				z[2] = ring.MRed(x[2], scaledConst, qi, mredParams)
-				z[3] = ring.MRed(x[3], scaledConst, qi, mredParams)
-				z[4] = ring.MRed(x[4], scaledConst, qi, mredParams)
-				z[5] = ring.MRed(x[5], scaledConst, qi, mredParams)
-				z[6] = ring.MRed(x[6], scaledConst, qi, mredParams)
-				z[7] = ring.MRed(x[7], scaledConst, qi, mredParams)
-			}
+			ring.MulScalarMontgomeryVec(p0tmp[ringQ.N>>1:], p1tmp[ringQ.N>>1:], scaledConst, qi, mredParams)
 		}
 	}
 }
@@ -985,21 +872,7 @@ func (eval *evaluator) MultByGaussianIntegerAndAdd(ct0 *Ciphertext, cReal, cImag
 		for u := range ct0.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-
-			for j := 0; j < ringQ.N>>1; j = j + 8 {
-
-				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
-				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-
-				z[0] = ring.CRed(z[0]+ring.MRed(x[0], scaledConst, qi, mredParams), qi)
-				z[1] = ring.CRed(z[1]+ring.MRed(x[1], scaledConst, qi, mredParams), qi)
-				z[2] = ring.CRed(z[2]+ring.MRed(x[2], scaledConst, qi, mredParams), qi)
-				z[3] = ring.CRed(z[3]+ring.MRed(x[3], scaledConst, qi, mredParams), qi)
-				z[4] = ring.CRed(z[4]+ring.MRed(x[4], scaledConst, qi, mredParams), qi)
-				z[5] = ring.CRed(z[5]+ring.MRed(x[5], scaledConst, qi, mredParams), qi)
-				z[6] = ring.CRed(z[6]+ring.MRed(x[6], scaledConst, qi, mredParams), qi)
-				z[7] = ring.CRed(z[7]+ring.MRed(x[7], scaledConst, qi, mredParams), qi)
-			}
+			ring.MulScalarMontgomeryAndAddVec(p0tmp[:ringQ.N>>1], p1tmp[:ringQ.N>>1], scaledConst, qi, mredParams)
 		}
 
 		if cImag != 0 {
@@ -1010,21 +883,7 @@ func (eval *evaluator) MultByGaussianIntegerAndAdd(ct0 *Ciphertext, cReal, cImag
 		for u := range ct0.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-
-			for j := ringQ.N >> 1; j < ringQ.N; j = j + 8 {
-
-				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
-				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-
-				z[0] = ring.CRed(z[0]+ring.MRed(x[0], scaledConst, qi, mredParams), qi)
-				z[1] = ring.CRed(z[1]+ring.MRed(x[1], scaledConst, qi, mredParams), qi)
-				z[2] = ring.CRed(z[2]+ring.MRed(x[2], scaledConst, qi, mredParams), qi)
-				z[3] = ring.CRed(z[3]+ring.MRed(x[3], scaledConst, qi, mredParams), qi)
-				z[4] = ring.CRed(z[4]+ring.MRed(x[4], scaledConst, qi, mredParams), qi)
-				z[5] = ring.CRed(z[5]+ring.MRed(x[5], scaledConst, qi, mredParams), qi)
-				z[6] = ring.CRed(z[6]+ring.MRed(x[6], scaledConst, qi, mredParams), qi)
-				z[7] = ring.CRed(z[7]+ring.MRed(x[7], scaledConst, qi, mredParams), qi)
-			}
+			ring.MulScalarMontgomeryAndAddVec(p0tmp[ringQ.N>>1:], p1tmp[ringQ.N>>1:], scaledConst, qi, mredParams)
 		}
 	}
 }
@@ -1059,21 +918,7 @@ func (eval *evaluator) MultByi(ct0 *Ciphertext, ctOut *Ciphertext) {
 		for u := range ctOut.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-
-			for j := 0; j < ringQ.N>>1; j = j + 8 {
-
-				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
-				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-
-				z[0] = ring.MRed(x[0], imag, qi, mredParams)
-				z[1] = ring.MRed(x[1], imag, qi, mredParams)
-				z[2] = ring.MRed(x[2], imag, qi, mredParams)
-				z[3] = ring.MRed(x[3], imag, qi, mredParams)
-				z[4] = ring.MRed(x[4], imag, qi, mredParams)
-				z[5] = ring.MRed(x[5], imag, qi, mredParams)
-				z[6] = ring.MRed(x[6], imag, qi, mredParams)
-				z[7] = ring.MRed(x[7], imag, qi, mredParams)
-			}
+			ring.MulScalarMontgomeryVec(p0tmp[:ringQ.N>>1], p1tmp[:ringQ.N>>1], imag, qi, mredParams)
 		}
 
 		imag = qi - imag
@@ -1081,21 +926,7 @@ func (eval *evaluator) MultByi(ct0 *Ciphertext, ctOut *Ciphertext) {
 		for u := range ctOut.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-			for j := ringQ.N >> 1; j < ringQ.N; j = j + 8 {
-
-				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
-				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-
-				z[0] = ring.MRed(x[0], imag, qi, mredParams)
-				z[1] = ring.MRed(x[1], imag, qi, mredParams)
-				z[2] = ring.MRed(x[2], imag, qi, mredParams)
-				z[3] = ring.MRed(x[3], imag, qi, mredParams)
-				z[4] = ring.MRed(x[4], imag, qi, mredParams)
-				z[5] = ring.MRed(x[5], imag, qi, mredParams)
-				z[6] = ring.MRed(x[6], imag, qi, mredParams)
-				z[7] = ring.MRed(x[7], imag, qi, mredParams)
-
-			}
+			ring.MulScalarMontgomeryVec(p0tmp[ringQ.N>>1:], p1tmp[ringQ.N>>1:], imag, qi, mredParams)
 		}
 	}
 }
@@ -1131,20 +962,7 @@ func (eval *evaluator) DivByi(ct0 *Ciphertext, ctOut *Ciphertext) {
 		for u := range ctOut.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-			for j := 0; j < ringQ.N>>1; j = j + 8 {
-
-				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
-				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-
-				z[0] = ring.MRed(x[0], imag, qi, mredParams)
-				z[1] = ring.MRed(x[1], imag, qi, mredParams)
-				z[2] = ring.MRed(x[2], imag, qi, mredParams)
-				z[3] = ring.MRed(x[3], imag, qi, mredParams)
-				z[4] = ring.MRed(x[4], imag, qi, mredParams)
-				z[5] = ring.MRed(x[5], imag, qi, mredParams)
-				z[6] = ring.MRed(x[6], imag, qi, mredParams)
-				z[7] = ring.MRed(x[7], imag, qi, mredParams)
-			}
+			ring.MulScalarMontgomeryVec(p0tmp[:ringQ.N>>1], p1tmp[:ringQ.N>>1], imag, qi, mredParams)
 		}
 
 		imag = ringQ.NttPsi[i][1] // Psi^2
@@ -1152,20 +970,7 @@ func (eval *evaluator) DivByi(ct0 *Ciphertext, ctOut *Ciphertext) {
 		for u := range ctOut.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-			for j := ringQ.N >> 1; j < ringQ.N; j = j + 8 {
-
-				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
-				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-
-				z[0] = ring.MRed(x[0], imag, qi, mredParams)
-				z[1] = ring.MRed(x[1], imag, qi, mredParams)
-				z[2] = ring.MRed(x[2], imag, qi, mredParams)
-				z[3] = ring.MRed(x[3], imag, qi, mredParams)
-				z[4] = ring.MRed(x[4], imag, qi, mredParams)
-				z[5] = ring.MRed(x[5], imag, qi, mredParams)
-				z[6] = ring.MRed(x[6], imag, qi, mredParams)
-				z[7] = ring.MRed(x[7], imag, qi, mredParams)
-			}
+			ring.MulScalarMontgomeryVec(p0tmp[ringQ.N>>1:], p1tmp[ringQ.N>>1:], imag, qi, mredParams)
 		}
 	}
 }

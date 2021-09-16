@@ -380,6 +380,23 @@ func MulScalarMontgomeryVec(p1, p2 []uint64, scalarMont, qi, mredParams uint64) 
 	}
 }
 
+func MulScalarMontgomeryAndAddVec(p1, p2 []uint64, scalarMont, qi, mredParams uint64) {
+	for j := 0; j < len(p1); j = j + 8 {
+
+		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
+		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
+
+		z[0] = CRed(z[0]+MRed(x[0], scalarMont, qi, mredParams), qi)
+		z[1] = CRed(z[1]+MRed(x[1], scalarMont, qi, mredParams), qi)
+		z[2] = CRed(z[2]+MRed(x[2], scalarMont, qi, mredParams), qi)
+		z[3] = CRed(z[3]+MRed(x[3], scalarMont, qi, mredParams), qi)
+		z[4] = CRed(z[4]+MRed(x[4], scalarMont, qi, mredParams), qi)
+		z[5] = CRed(z[5]+MRed(x[5], scalarMont, qi, mredParams), qi)
+		z[6] = CRed(z[6]+MRed(x[6], scalarMont, qi, mredParams), qi)
+		z[7] = CRed(z[7]+MRed(x[7], scalarMont, qi, mredParams), qi)
+	}
+}
+
 // MFormVec switches the input vector to the Montgomery domain.
 func MFormVec(p1, p2 []uint64, qi uint64, bredParams []uint64) {
 	for j := 0; j < len(p1); j = j + 8 {

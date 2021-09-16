@@ -686,14 +686,14 @@ func (r *Ring) MulScalarCRTLvl(level int, p *Poly, scalar []uint64, pOut *Poly) 
 			x := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
 			z := (*[8]uint64)(unsafe.Pointer(&p2tmp[j]))
 
-			z[0] = MRed(x[0], scalarMont, Qi, mredParams)
-			z[1] = MRed(x[1], scalarMont, Qi, mredParams)
-			z[2] = MRed(x[2], scalarMont, Qi, mredParams)
-			z[3] = MRed(x[3], scalarMont, Qi, mredParams)
-			z[4] = MRed(x[4], scalarMont, Qi, mredParams)
-			z[5] = MRed(x[5], scalarMont, Qi, mredParams)
-			z[6] = MRed(x[6], scalarMont, Qi, mredParams)
-			z[7] = MRed(x[7], scalarMont, Qi, mredParams)
+			z[0] = MRedConstant(x[0], scalarMont, Qi, mredParams)
+			z[1] = MRedConstant(x[1], scalarMont, Qi, mredParams)
+			z[2] = MRedConstant(x[2], scalarMont, Qi, mredParams)
+			z[3] = MRedConstant(x[3], scalarMont, Qi, mredParams)
+			z[4] = MRedConstant(x[4], scalarMont, Qi, mredParams)
+			z[5] = MRedConstant(x[5], scalarMont, Qi, mredParams)
+			z[6] = MRedConstant(x[6], scalarMont, Qi, mredParams)
+			z[7] = MRedConstant(x[7], scalarMont, Qi, mredParams)
 		}
 	}
 }

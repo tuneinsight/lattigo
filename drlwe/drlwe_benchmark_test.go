@@ -51,6 +51,11 @@ func benchThreshold(params rlwe.Parameters, t int, b *testing.B) {
 		tsk *ShamirSecretShare
 	}
 
+	shamirPks := make([]ShamirPublicKey, t)
+	for i := range shamirPks {
+		shamirPks[i] = ShamirPublicKey(i + 1)
+	}
+
 	p := new(Party)
 	p.s = rlwe.NewSecretKey(params)
 	p.Thresholdizer = NewThresholdizer(params)
@@ -63,14 +68,12 @@ func benchThreshold(params rlwe.Parameters, t int, b *testing.B) {
 		}
 	})
 
-	shamirPk := ShamirPublicKey(1)
-
 	shamirShare := p.Thresholdizer.AllocateThresholdSecretShare()
 
 	b.Run(testString("Thresholdizer/GenShamirSecretShare/", params)+fmt.Sprintf("/threshold=%d", t), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.Thresholdizer.GenShamirSecretShare(shamirPk, p.gen, shamirShare)
+			p.Thresholdizer.GenShamirSecretShare(shamirPks[0], p.gen, shamirShare)
 		}
 	})
 
@@ -83,22 +86,17 @@ func benchThreshold(params rlwe.Parameters, t int, b *testing.B) {
 	p.Combiner = NewCombiner(params, t)
 	p.CachedCombiner = NewCachedCombiner(params, t)
 
-	activeShamirPks := make([]ShamirPublicKey, t)
-	for i := range activeShamirPks {
-		activeShamirPks[i] = ShamirPublicKey(i + 1)
-	}
-
-	p.CachedCombiner.Precompute(activeShamirPks, activeShamirPks[0])
+	p.CachedCombiner.Precompute(shamirPks, shamirPks[0])
 
 	b.Run(testString("Combiner/GenAdditiveShare/", params)+fmt.Sprintf("/threshold=%d", t), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			p.Combiner.GenAdditiveShare(activeShamirPks, activeShamirPks[0], p.tsk, p.sk)
+			p.Combiner.GenAdditiveShare(shamirPks, shamirPks[0], p.tsk, p.sk)
 		}
 	})
 
 	b.Run(testString("CombinerCached/GenAdditiveShare/", params)+fmt.Sprintf("/threshold=%d", t), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			p.CachedCombiner.GenAdditiveShare(activeShamirPks, activeShamirPks[0], p.tsk, p.sk)
+			p.CachedCombiner.GenAdditiveShare(shamirPks, shamirPks[0], p.tsk, p.sk)
 		}
 	})
 }

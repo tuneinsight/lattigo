@@ -7,66 +7,106 @@ import (
 
 // NTT computes the NTT of p1 and returns the result on p2.
 func (r *Ring) NTT(p1, p2 *Poly) {
-	for x := range r.Modulus {
-		NTT(p1.Coeffs[x], p2.Coeffs[x], r.N, r.NttPsi[x], r.Modulus[x], r.MredParams[x], r.BredParams[x])
-	}
-}
-
-// NTTLvl computes the NTT of p1 and returns the result on p2.
-// The value level defines the number of moduli of the input polynomials.
-func (r *Ring) NTTLvl(level int, p1, p2 *Poly) {
-	for x := 0; x < level+1; x++ {
-		NTT(p1.Coeffs[x], p2.Coeffs[x], r.N, r.NttPsi[x], r.Modulus[x], r.MredParams[x], r.BredParams[x])
-	}
+	r.NTTLvl(len(r.Modulus)-1, p1, p2)
 }
 
 // NTTLazy computes the NTT of p1 and returns the result on p2.
 // Output values are in the range [0, 2q-1]
 func (r *Ring) NTTLazy(p1, p2 *Poly) {
-	for x := range r.Modulus {
-		NTTLazy(p1.Coeffs[x], p2.Coeffs[x], r.N, r.NttPsi[x], r.Modulus[x], r.MredParams[x], r.BredParams[x])
+	r.NTTLazyLvl(len(r.Modulus)-1, p1, p2)
+}
+
+// InvNTT computes the inverse-NTT of p1 and returns the result on p2.
+func (r *Ring) InvNTT(p1, p2 *Poly) {
+	r.InvNTTLvl(len(r.Modulus)-1, p1, p2)
+}
+
+// InvNTTLazy computes the inverse-NTT of p1 and returns the result on p2.
+// Output values are in the range [0, 2q-1]
+func (r *Ring) InvNTTLazy(p1, p2 *Poly) {
+	r.InvNTTLazyLvl(len(r.Modulus)-1, p1, p2)
+}
+
+// NTTLvl computes the NTT of p1 and returns the result on p2.
+// The value level defines the number of moduli of the input polynomials.
+func (r *Ring) NTTLvl(level int, p1, p2 *Poly) {
+	wg, nbGoRoutines, nbTasks := getWaitGroup(level+1, r.NbGoRoutines)
+	for g := 0; g < nbGoRoutines; g++ {
+		start, end := g*nbTasks, (g+1)*nbTasks
+		if g == nbGoRoutines-1 {
+			end = level + 1
+		}
+
+		go func(start, end int) {
+			for x := start; x < end; x++ {
+				NTT(p1.Coeffs[x], p2.Coeffs[x], r.N, r.NttPsi[x], r.Modulus[x], r.MredParams[x], r.BredParams[x])
+			}
+			wg.Done()
+		}(start, end)
 	}
+	wg.Wait()
 }
 
 // NTTLazyLvl computes the NTT of p1 and returns the result on p2.
 // The value level defines the number of moduli of the input polynomials.
 // Output values are in the range [0, 2q-1]
 func (r *Ring) NTTLazyLvl(level int, p1, p2 *Poly) {
-	for x := 0; x < level+1; x++ {
-		NTTLazy(p1.Coeffs[x], p2.Coeffs[x], r.N, r.NttPsi[x], r.Modulus[x], r.MredParams[x], r.BredParams[x])
-	}
-}
+	wg, nbGoRoutines, nbTasks := getWaitGroup(level+1, r.NbGoRoutines)
+	for g := 0; g < nbGoRoutines; g++ {
+		start, end := g*nbTasks, (g+1)*nbTasks
+		if g == nbGoRoutines-1 {
+			end = level + 1
+		}
 
-// InvNTT computes the inverse-NTT of p1 and returns the result on p2.
-func (r *Ring) InvNTT(p1, p2 *Poly) {
-	for x := range r.Modulus {
-		InvNTT(p1.Coeffs[x], p2.Coeffs[x], r.N, r.NttPsiInv[x], r.NttNInv[x], r.Modulus[x], r.MredParams[x])
+		go func(start, end int) {
+			for x := start; x < end; x++ {
+				NTTLazy(p1.Coeffs[x], p2.Coeffs[x], r.N, r.NttPsi[x], r.Modulus[x], r.MredParams[x], r.BredParams[x])
+			}
+			wg.Done()
+		}(start, end)
 	}
+	wg.Wait()
 }
 
 // InvNTTLvl computes the inverse-NTT of p1 and returns the result on p2.
 // The value level defines the number of moduli of the input polynomials.
 func (r *Ring) InvNTTLvl(level int, p1, p2 *Poly) {
-	for x := 0; x < level+1; x++ {
-		InvNTT(p1.Coeffs[x], p2.Coeffs[x], r.N, r.NttPsiInv[x], r.NttNInv[x], r.Modulus[x], r.MredParams[x])
-	}
-}
+	wg, nbGoRoutines, nbTasks := getWaitGroup(level+1, r.NbGoRoutines)
+	for g := 0; g < nbGoRoutines; g++ {
+		start, end := g*nbTasks, (g+1)*nbTasks
+		if g == nbGoRoutines-1 {
+			end = level + 1
+		}
 
-// InvNTTLazy computes the inverse-NTT of p1 and returns the result on p2.
-// Output values are in the range [0, 2q-1]
-func (r *Ring) InvNTTLazy(p1, p2 *Poly) {
-	for x := range r.Modulus {
-		InvNTTLazy(p1.Coeffs[x], p2.Coeffs[x], r.N, r.NttPsiInv[x], r.NttNInv[x], r.Modulus[x], r.MredParams[x])
+		go func(start, end int) {
+			for x := start; x < end; x++ {
+				InvNTT(p1.Coeffs[x], p2.Coeffs[x], r.N, r.NttPsiInv[x], r.NttNInv[x], r.Modulus[x], r.MredParams[x])
+			}
+			wg.Done()
+		}(start, end)
 	}
+	wg.Wait()
 }
 
 // InvNTTLazyLvl computes the inverse-NTT of p1 and returns the result on p2.
 // The value level defines the number of moduli of the input polynomials.
 // Output values are in the range [0, 2q-1]
 func (r *Ring) InvNTTLazyLvl(level int, p1, p2 *Poly) {
-	for x := 0; x < level+1; x++ {
-		InvNTTLazy(p1.Coeffs[x], p2.Coeffs[x], r.N, r.NttPsiInv[x], r.NttNInv[x], r.Modulus[x], r.MredParams[x])
+	wg, nbGoRoutines, nbTasks := getWaitGroup(level+1, r.NbGoRoutines)
+	for g := 0; g < nbGoRoutines; g++ {
+		start, end := g*nbTasks, (g+1)*nbTasks
+		if g == nbGoRoutines-1 {
+			end = level + 1
+		}
+
+		go func(start, end int) {
+			for x := start; x < end; x++ {
+				InvNTTLazy(p1.Coeffs[x], p2.Coeffs[x], r.N, r.NttPsiInv[x], r.NttNInv[x], r.Modulus[x], r.MredParams[x])
+			}
+			wg.Done()
+		}(start, end)
 	}
+	wg.Wait()
 }
 
 // butterfly computes X, Y = U + V*Psi, U - V*Psi mod Q.

@@ -15,6 +15,7 @@ import (
 
 // Ring is a structure that keeps all the variables required to operate on a polynomial represented in this ring.
 type Ring struct {
+	NbGoRoutines int
 
 	// Polynomial nb.Coefficients
 	N int
@@ -55,6 +56,7 @@ func NewRing(N int, Moduli []uint64) (r *Ring, err error) {
 	if err != nil {
 		return nil, err
 	}
+	r.NbGoRoutines = 1
 	return r, r.genNTTParams()
 }
 

@@ -61,27 +61,11 @@ func (r *Ring) InvMultPolyMontgomeryNTT(p1 *Poly, p2 *Poly) error {
 	return nil
 }
 
-// GetInverseCRT computes the inverse of a scalar a expressed in a CRT decomposition
-// and write the result into inva.
-func (r *Ring) GetInverseCRT(a, inva []uint64) {
-
-	aCopy := make([]uint64, len(a))
-	copy(aCopy, a)
-
-	//EEA
+// InverseCRT computes the modular inverse of a scalar a expressed in a CRT decomposition.
+// The inversion is done in-place and assumes that a is in Montgomery form.
+func (r *Ring) InverseCRT(a []uint64) {
 	for i, qi := range r.Modulus {
-
-		inva[i] = MForm(1, qi, r.BredParams[i])
-
-		mredParam := r.MredParams[i]
-
-		for k := qi - 2; k > 0; k >>= 1 {
-
-			if k&1 == 1 {
-				inva[i] = MRedConstant(inva[i], aCopy[i], qi, mredParam)
-			}
-			aCopy[i] = MRedConstant(aCopy[i], aCopy[i], qi, mredParam)
-		}
+		a[i] = ModexpMontgomery(a[i], int(qi-2), qi, r.MredParams[i], r.BredParams[i])
 	}
 }
 

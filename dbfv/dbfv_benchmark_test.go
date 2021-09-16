@@ -2,7 +2,6 @@ package dbfv
 
 import (
 	"encoding/json"
-	"fmt"
 	"testing"
 
 	"github.com/ldsec/lattigo/v2/bfv"
@@ -41,20 +40,6 @@ func Benchmark_DBFV(b *testing.B) {
 		benchPublicKeySwitching(testCtx, b)
 		benchRotKeyGen(testCtx, b)
 		benchRefresh(testCtx, b)
-
-		// Varying N
-		for N := 3; N < 20; N++ {
-			t := N / 2
-			benchThreshold(testCtx.params, N, t, b)
-		}
-
-		// Varying t
-		N := 20
-		for t := 2; t < N; t++ {
-			benchThreshold(testCtx.params, N, t, b)
-
-		}
-
 	}
 }
 
@@ -324,84 +309,6 @@ func benchRefresh(testCtx *testContext, b *testing.B) {
 		ctOut := bfv.NewCiphertext(testCtx.params, 1)
 		for i := 0; i < b.N; i++ {
 			p.Finalize(ciphertext, crp, p.share, ctOut)
-		}
-	})
-}
-
-func benchThreshold(params bfv.Parameters, NParties, t int, b *testing.B) {
-
-	type Party struct {
-		*drlwe.Thresholdizer
-		drlwe.Combiner
-		*drlwe.CachedCombiner
-		gen *drlwe.ShamirPolynomial
-		s   *rlwe.SecretKey
-		tsk *drlwe.ShamirSecretShare
-		sk  *rlwe.SecretKey
-	}
-
-	p := new(Party)
-	p.s = bfv.NewSecretKey(params)
-
-	b.Run(testString("Thresholdizer/Init/", NParties, params)+fmt.Sprintf("threshold=%d", t), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			p.Thresholdizer = drlwe.NewThresholdizer(params.Parameters)
-			p.Thresholdizer.GenShamirPolynomial(t, p.s)
-			p.tsk = p.Thresholdizer.AllocateThresholdSecretShare()
-			p.sk = bfv.NewSecretKey(params)
-		}
-	})
-
-	//Array of all shamir
-	shamirPks := make([]drlwe.ShamirPublicKey, NParties)
-	b.Run(testString("Thresholdizer/KeyGen/", NParties, params), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for j := 0; j < NParties; j++ {
-				shamirPks[j] = drlwe.ShamirPublicKey(uint64(i) + 1)
-			}
-		}
-	})
-
-	b.Run(testString("Thresholdizer/Share/", NParties, params), func(b *testing.B) {
-
-		for i := 0; i < b.N; i++ {
-			shamirShare := p.Thresholdizer.AllocateThresholdSecretShare()
-
-			for j := 0; j < NParties; j++ {
-				p.Thresholdizer.GenShamirSecretShare(shamirPks[j], p.gen, shamirShare)
-			}
-
-			for k := 0; k < NParties; k++ {
-				p.Thresholdizer.AggregateShares(shamirShare, shamirShare, shamirShare)
-			}
-		}
-	})
-
-	activeShamirPks := shamirPks[:t]
-	b.Run(testString("Combiner/Init/", NParties, params)+fmt.Sprintf("threshold=%d", t)+fmt.Sprintf("precomputation=false"), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			p.Combiner = drlwe.NewCombiner(params.Parameters, t)
-		}
-	})
-
-	b.Run(testString("Combiner/Init/", NParties, params)+fmt.Sprintf("threshold=%d", t)+fmt.Sprintf("precomputation=true"), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			p.CachedCombiner = drlwe.NewCachedCombiner(params.Parameters, t)
-		}
-	})
-	//Nothing is cached (simulates first decryption)
-	b.Run(testString("Combiner/Combine/", NParties, params)+fmt.Sprintf("threshold=%d", t), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			p.Combiner.GenAdditiveShare(activeShamirPks, activeShamirPks[0], p.tsk, p.sk)
-		}
-	})
-
-	p.CachedCombiner.ClearCache()
-	p.CachedCombiner.Precompute(activeShamirPks, activeShamirPks[0])
-	// Everything is cached (simulates n-th decryption)
-	b.Run(testString("Combiner/CombineCached/", NParties, params)+fmt.Sprintf("threshold=%d", t), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			p.CachedCombiner.GenAdditiveShare(activeShamirPks, activeShamirPks[0], p.tsk, p.sk)
 		}
 	})
 }

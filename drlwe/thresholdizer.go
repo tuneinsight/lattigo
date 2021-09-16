@@ -123,7 +123,7 @@ func (cmb *baseCombiner) GenAdditiveShare(actives []ShamirPublicKey, ownPublic S
 	for _, active := range actives[:cmb.threshold] {
 		//Lagrange Interpolation with the public threshold key of other active players
 		if active != ownPublic {
-			cmb.getLagrangeCoeff(ownPublic, active, cmb.tmp)
+			cmb.lagrangeCoeff(ownPublic, active, cmb.tmp)
 			cmb.ringQP.MulScalarCRT(skOut.Value, cmb.tmp, skOut.Value)
 		}
 	}
@@ -131,9 +131,9 @@ func (cmb *baseCombiner) GenAdditiveShare(actives []ShamirPublicKey, ownPublic S
 	cmb.ringQP.Reduce(skOut.Value, skOut.Value)
 }
 
-// getLagrangeCoeff computes the difference between the two given keys and stores
+// lagrangeCoeff computes the difference between the two given keys and stores
 // its multiplicative inverse in pol_out, caching it as well.
-func (cmb *baseCombiner) getLagrangeCoeff(thisKey ShamirPublicKey, thatKey ShamirPublicKey, lagCoeff []uint64) {
+func (cmb *baseCombiner) lagrangeCoeff(thisKey ShamirPublicKey, thatKey ShamirPublicKey, lagCoeff []uint64) {
 
 	this := uint64(thisKey)
 	that := uint64(thatKey)
@@ -146,9 +146,9 @@ func (cmb *baseCombiner) getLagrangeCoeff(thisKey ShamirPublicKey, thatKey Shami
 		}
 	}
 
-	cmb.ringQP.GetInverseCRT(lagCoeff, cmb.tmp)
+	cmb.ringQP.InverseCRT(lagCoeff)
 
-	for i, invi := range cmb.tmp {
+	for i, invi := range lagCoeff {
 		lagCoeff[i] = ring.MRedConstant(invi, that, cmb.ringQP.Modulus[i], cmb.ringQP.MredParams[i])
 	}
 }
@@ -178,7 +178,7 @@ func (cmb *CachedCombiner) GenAdditiveShare(actives []ShamirPublicKey, ownPublic
 	for _, active := range actives {
 		//Lagrange Interpolation with the public threshold key of other active players
 		if active != ownPublic {
-			lagrangeCoeff := cmb.getLagrangeCoeff(ownPublic, active)
+			lagrangeCoeff := cmb.lagrangeCoeff(ownPublic, active)
 			cmb.ringQP.MulScalarCRT(skOut.Value, lagrangeCoeff, skOut.Value)
 		}
 	}
@@ -196,19 +196,19 @@ func (cmb *CachedCombiner) ClearCache() {
 func (cmb *CachedCombiner) Precompute(others []ShamirPublicKey, own ShamirPublicKey) {
 	for _, key := range others {
 		if own != key {
-			_ = cmb.getLagrangeCoeff(own, key)
+			_ = cmb.lagrangeCoeff(own, key)
 		}
 	}
 }
 
-// getLagrangeCoeff computes the difference between the two given keys and stores
+// lagrangeCoeff computes the difference between the two given keys and stores
 // its multiplicative inverse in pol_out, caching it as well.
-func (cmb *CachedCombiner) getLagrangeCoeff(thisKey ShamirPublicKey, thatKey ShamirPublicKey) (lagCoeff []uint64) {
+func (cmb *CachedCombiner) lagrangeCoeff(thisKey ShamirPublicKey, thatKey ShamirPublicKey) (lagCoeff []uint64) {
 	_, found := cmb.lagrangeCoeffs[thatKey]
 	if !found {
 		//Inverse not in the cache, we have to compute it
 		cmb.lagrangeCoeffs[thatKey] = make([]uint64, len(cmb.ringQP.Modulus))
-		cmb.baseCombiner.getLagrangeCoeff(thisKey, thatKey, cmb.lagrangeCoeffs[thatKey])
+		cmb.baseCombiner.lagrangeCoeff(thisKey, thatKey, cmb.lagrangeCoeffs[thatKey])
 	}
 	return cmb.lagrangeCoeffs[thatKey]
 }

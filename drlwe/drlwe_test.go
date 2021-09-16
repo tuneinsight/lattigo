@@ -18,7 +18,7 @@ import (
 
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 
-func testString(params rlwe.Parameters, opname string) string {
+func testString(opname string, params rlwe.Parameters) string {
 	return fmt.Sprintf("%slogN=%d/logQ=%d/logP=%d/#Qi=%d/#Pi=%d",
 		opname,
 		params.LogN(),
@@ -120,7 +120,7 @@ func testPublicKeyGen(testCtx testContext, t *testing.T) {
 	params := testCtx.params
 	ringQP := params.RingQP()
 
-	t.Run(testString(params, "PublicKeyGen/"), func(t *testing.T) {
+	t.Run(testString("PublicKeyGen/", params), func(t *testing.T) {
 
 		CKGProtocol := NewCKGProtocol(params)
 
@@ -155,7 +155,7 @@ func testKeySwitching(testCtx testContext, t *testing.T) {
 	ringQ := params.RingQ()
 	level := len(ringQ.Modulus) - 1
 
-	t.Run(testString(params, "KeySwitching/"), func(t *testing.T) {
+	t.Run(testString("KeySwitching/", params), func(t *testing.T) {
 
 		sk0Out := testCtx.kgen.GenSecretKey()
 		sk1Out := testCtx.kgen.GenSecretKey()
@@ -202,7 +202,7 @@ func testPublicKeySwitching(testCtx testContext, t *testing.T) {
 	ringQ := params.RingQ()
 	level := len(ringQ.Modulus) - 1
 
-	t.Run(testString(params, "PublicKeySwitching/"), func(t *testing.T) {
+	t.Run(testString("PublicKeySwitching/", params), func(t *testing.T) {
 
 		skOut, pkOut := testCtx.kgen.GenKeyPair()
 
@@ -242,7 +242,7 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 	ringQP := params.RingQP()
 	ringQ := params.RingQ()
 
-	t.Run(testString(params, "RelinKeyGen/"), func(t *testing.T) {
+	t.Run(testString("RelinKeyGen/", params), func(t *testing.T) {
 
 		RKGProtocol := NewRKGProtocol(params, rlwe.DefaultSigma)
 
@@ -316,7 +316,7 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 	params := testCtx.params
 	ringQ := params.RingQ()
 
-	t.Run(testString(params, "RotKeyGen/"), func(t *testing.T) {
+	t.Run(testString("RotKeyGen/", params), func(t *testing.T) {
 
 		crp := make([]*ring.Poly, params.Beta())
 		for i := 0; i < params.Beta(); i++ {
@@ -390,7 +390,7 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 
 	ciphertext := &rlwe.Ciphertext{Value: []*ring.Poly{testCtx.crpGenerator.ReadLvlNew(level), testCtx.crpGenerator.ReadLvlNew(level)}}
 
-	t.Run(testString(params, "Marshalling/CPK/"), func(t *testing.T) {
+	t.Run(testString("Marshalling/CPK/", params), func(t *testing.T) {
 		keygenProtocol := NewCKGProtocol(testCtx.params)
 		KeyGenShareBefore := keygenProtocol.AllocateShares()
 		keygenProtocol.GenShare(testCtx.sk0, crs, KeyGenShareBefore)
@@ -415,7 +415,7 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 		require.Equal(t, KeyGenShareAfter.Coeffs[:moduli], KeyGenShareBefore.Coeffs[:moduli])
 	})
 
-	t.Run(testString(params, "Marshalling/PCKS/"), func(t *testing.T) {
+	t.Run(testString("Marshalling/PCKS/", params), func(t *testing.T) {
 		//Check marshalling for the PCKS
 
 		KeySwitchProtocol := NewPCKSProtocol(testCtx.params, testCtx.params.Sigma())
@@ -440,7 +440,7 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 		}
 	})
 
-	t.Run(testString(params, "Marshalling/CKS/"), func(t *testing.T) {
+	t.Run(testString("Marshalling/CKS/", params), func(t *testing.T) {
 
 		//Now for CKSShare ~ its similar to PKSShare
 		cksp := NewCKSProtocol(testCtx.params, testCtx.params.Sigma())
@@ -462,7 +462,7 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 		require.Equal(t, cksshare.Value.Coeffs[:moduli], cksshareAfter.Value.Coeffs[:moduli])
 	})
 
-	t.Run(testString(params, "Marshalling/RKG/"), func(t *testing.T) {
+	t.Run(testString("Marshalling/RKG/", params), func(t *testing.T) {
 
 		//check RTGShare
 
@@ -497,7 +497,7 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 		}
 	})
 
-	t.Run(testString(params, "Marshalling/RTG/"), func(t *testing.T) {
+	t.Run(testString("Marshalling/RTG/", params), func(t *testing.T) {
 
 		//check RTGShare
 

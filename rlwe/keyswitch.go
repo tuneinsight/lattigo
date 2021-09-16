@@ -1,9 +1,10 @@
 package rlwe
 
 import (
-	"math"
-
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/utils"
+	"math"
+	"sync"
 )
 
 // KeySwitcher is a struct for RLWE key-switching.
@@ -123,13 +124,29 @@ func (ks *KeySwitcher) DecomposeSingleNTT(levelQ, levelP, alpha, beta int, c2NTT
 	p0idxed := p0idxst + 1
 
 	// c2_qi = cx mod qi mod qi
-	for x := 0; x < levelQ+1; x++ {
-		if p0idxst <= x && x < p0idxed {
-			copy(c2QiQ.Coeffs[x], c2NTT.Coeffs[x])
-		} else {
-			ring.NTTLazy(c2QiQ.Coeffs[x], c2QiQ.Coeffs[x], ringQ.N, ringQ.NttPsi[x], ringQ.Modulus[x], ringQ.MredParams[x], ringQ.BredParams[x])
+
+	nbGoRoutines := utils.MinInt(levelQ+1, ringQ.NbGoRoutines)
+	nbTasks := int(math.Ceil(float64(levelQ+1) / float64(nbGoRoutines)))
+	var wg sync.WaitGroup
+	wg.Add(nbGoRoutines)
+	for g := 0; g < nbGoRoutines; g++ {
+
+		start, end := g*nbTasks, (g+1)*nbTasks
+		if g == nbGoRoutines-1 {
+			end = levelQ + 1
 		}
+		go func(start, end int) {
+			for x := start; x < end; x++ {
+				if p0idxst <= x && x < p0idxed {
+					copy(c2QiQ.Coeffs[x], c2NTT.Coeffs[x])
+				} else {
+					ring.NTTLazy(c2QiQ.Coeffs[x], c2QiQ.Coeffs[x], ringQ.N, ringQ.NttPsi[x], ringQ.Modulus[x], ringQ.MredParams[x], ringQ.BredParams[x])
+				}
+			}
+			wg.Done()
+		}(start, end)
 	}
+	wg.Wait()
 	// c2QiP = c2 mod qi mod pj
 	ringP.NTTLazyLvl(levelP, c2QiP, c2QiP)
 }

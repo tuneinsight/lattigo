@@ -39,9 +39,6 @@ func BenchmarkRing(b *testing.B) {
 		benchExtendBasis(testContext, b)
 		benchDivByLastModulus(testContext, b)
 		benchDivByRNSBasis(testContext, b)
-		benchMRed(testContext, b)
-		benchBRed(testContext, b)
-		benchBRedAdd(testContext, b)
 	}
 }
 
@@ -389,55 +386,6 @@ func benchDivByRNSBasis(testContext *testParams, b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			scaler.DivByQOverTRounded(polyQ, polyT)
-		}
-	})
-}
-
-func benchBRed(testContext *testParams, b *testing.B) {
-
-	var q, x, y uint64 = 1033576114481528833, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF
-
-	u := BRedParams(q)
-
-	b.ResetTimer()
-
-	b.Run("BRed", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			x = BRed(x, y, q, u)
-		}
-	})
-}
-
-func benchMRed(testContext *testParams, b *testing.B) {
-
-	var q, x, y uint64 = 1033576114481528833, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF
-
-	u := BRedParams(q)
-
-	y = MForm(y, q, u)
-
-	m := MRedParams(q)
-
-	b.ResetTimer()
-
-	b.Run("MRed", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			x = MRed(x, y, q, m)
-		}
-	})
-}
-
-func benchBRedAdd(testContext *testParams, b *testing.B) {
-
-	var q, x uint64 = 1033576114481528833, 0xFFFFFFFFFFFFFFFF
-
-	u := BRedParams(q)
-
-	b.ResetTimer()
-
-	b.Run("BRedAdd", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			BRedAdd(x, q, u)
 		}
 	})
 }

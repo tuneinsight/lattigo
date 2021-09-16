@@ -1,19 +1,8 @@
 package ring
 
 import (
-	"github.com/ldsec/lattigo/v2/utils"
-	"math"
 	"math/bits"
-	"sync"
 )
-
-func getWaitGroup(tasks, nbGoRoutines int) (sync.WaitGroup, int, int) {
-	nbGoRoutines = utils.MinInt(tasks, nbGoRoutines)
-	nbTasks := int(math.Ceil(float64(tasks) / float64(nbGoRoutines)))
-	var wg sync.WaitGroup
-	wg.Add(nbGoRoutines)
-	return wg, nbGoRoutines, nbTasks
-}
 
 // Min returns the minimum between to int
 func Min(x, y int) int {

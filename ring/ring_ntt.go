@@ -3,6 +3,8 @@ package ring
 import (
 	"math/bits"
 	"unsafe"
+	"github.com/ldsec/lattigo/v2/utils"
+	"sync"
 )
 
 // NTT computes the NTT of p1 and returns the result on p2.
@@ -30,13 +32,14 @@ func (r *Ring) InvNTTLazy(p1, p2 *Poly) {
 // NTTLvl computes the NTT of p1 and returns the result on p2.
 // The value level defines the number of moduli of the input polynomials.
 func (r *Ring) NTTLvl(level int, p1, p2 *Poly) {
-	wg, nbGoRoutines, nbTasks := getWaitGroup(level+1, r.NbGoRoutines)
-	for g := 0; g < nbGoRoutines; g++ {
-		start, end := g*nbTasks, (g+1)*nbTasks
-		if g == nbGoRoutines-1 {
-			end = level + 1
-		}
-
+	tasks := level+1
+	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
+	var wg sync.WaitGroup
+	wg.Add(nbGoRoutines)
+	var start, end, tmp int
+	for i := 0; i < nbGoRoutines; i++{
+		tmp = (tasks+nbGoRoutines-i-1) / (nbGoRoutines-i)
+		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for x := start; x < end; x++ {
 				NTT(p1.Coeffs[x], p2.Coeffs[x], r.N, r.NttPsi[x], r.Modulus[x], r.MredParams[x], r.BredParams[x])
@@ -51,13 +54,14 @@ func (r *Ring) NTTLvl(level int, p1, p2 *Poly) {
 // The value level defines the number of moduli of the input polynomials.
 // Output values are in the range [0, 2q-1]
 func (r *Ring) NTTLazyLvl(level int, p1, p2 *Poly) {
-	wg, nbGoRoutines, nbTasks := getWaitGroup(level+1, r.NbGoRoutines)
-	for g := 0; g < nbGoRoutines; g++ {
-		start, end := g*nbTasks, (g+1)*nbTasks
-		if g == nbGoRoutines-1 {
-			end = level + 1
-		}
-
+	tasks := level+1
+	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
+	var wg sync.WaitGroup
+	wg.Add(nbGoRoutines)
+	var start, end, tmp int
+	for i := 0; i < nbGoRoutines; i++{
+		tmp = (tasks+nbGoRoutines-i-1) / (nbGoRoutines-i)
+		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for x := start; x < end; x++ {
 				NTTLazy(p1.Coeffs[x], p2.Coeffs[x], r.N, r.NttPsi[x], r.Modulus[x], r.MredParams[x], r.BredParams[x])
@@ -71,13 +75,14 @@ func (r *Ring) NTTLazyLvl(level int, p1, p2 *Poly) {
 // InvNTTLvl computes the inverse-NTT of p1 and returns the result on p2.
 // The value level defines the number of moduli of the input polynomials.
 func (r *Ring) InvNTTLvl(level int, p1, p2 *Poly) {
-	wg, nbGoRoutines, nbTasks := getWaitGroup(level+1, r.NbGoRoutines)
-	for g := 0; g < nbGoRoutines; g++ {
-		start, end := g*nbTasks, (g+1)*nbTasks
-		if g == nbGoRoutines-1 {
-			end = level + 1
-		}
-
+	tasks := level+1
+	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
+	var wg sync.WaitGroup
+	wg.Add(nbGoRoutines)
+	var start, end, tmp int
+	for i := 0; i < nbGoRoutines; i++{
+		tmp = (tasks+nbGoRoutines-i-1) / (nbGoRoutines-i)
+		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for x := start; x < end; x++ {
 				InvNTT(p1.Coeffs[x], p2.Coeffs[x], r.N, r.NttPsiInv[x], r.NttNInv[x], r.Modulus[x], r.MredParams[x])
@@ -92,13 +97,14 @@ func (r *Ring) InvNTTLvl(level int, p1, p2 *Poly) {
 // The value level defines the number of moduli of the input polynomials.
 // Output values are in the range [0, 2q-1]
 func (r *Ring) InvNTTLazyLvl(level int, p1, p2 *Poly) {
-	wg, nbGoRoutines, nbTasks := getWaitGroup(level+1, r.NbGoRoutines)
-	for g := 0; g < nbGoRoutines; g++ {
-		start, end := g*nbTasks, (g+1)*nbTasks
-		if g == nbGoRoutines-1 {
-			end = level + 1
-		}
-
+	tasks := level+1
+	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
+	var wg sync.WaitGroup
+	wg.Add(nbGoRoutines)
+	var start, end, tmp int
+	for i := 0; i < nbGoRoutines; i++{
+		tmp = (tasks+nbGoRoutines-i-1) / (nbGoRoutines-i)
+		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for x := start; x < end; x++ {
 				InvNTTLazy(p1.Coeffs[x], p2.Coeffs[x], r.N, r.NttPsiInv[x], r.NttNInv[x], r.Modulus[x], r.MredParams[x])

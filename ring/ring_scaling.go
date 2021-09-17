@@ -1,8 +1,10 @@
 package ring
 
 import (
+	"github.com/ldsec/lattigo/v2/utils"
 	"math/big"
 	"math/bits"
+	"sync"
 	"unsafe"
 )
 
@@ -290,26 +292,47 @@ func (ss *SimpleScaler) reconstructAndScale(p1, p2 *Poly) {
 // DivFloorByLastModulusNTTLvl divides (floored) the polynomial by its last modulus. The input must be in the NTT domain.
 // Output poly level must be equal or one less than input level.
 func (r *Ring) DivFloorByLastModulusNTTLvl(level int, p0, pool, p1 *Poly) {
-
-	pool0 := pool.Coeffs[0]
-	pool1 := pool.Coeffs[1]
-
-	InvNTTLazy(p0.Coeffs[level], pool0, r.N, r.NttPsiInv[level], r.NttNInv[level], r.Modulus[level], r.MredParams[level])
-
-	for i := 0; i < level; i++ {
-		NTTLazy(pool0, pool1, r.N, r.NttPsi[i], r.Modulus[i], r.MredParams[i], r.BredParams[i])
-		// (-x[i] + x[-1]) * -InvQ
-		SubVecAndMulScalarMontgomeryTwoQiVec(pool1, p0.Coeffs[i], p1.Coeffs[i], r.RescaleParams[level-1][i], r.Modulus[i], r.MredParams[i])
+	InvNTTLazy(p0.Coeffs[level], pool.Coeffs[0], r.N, r.NttPsiInv[level], r.NttNInv[level], r.Modulus[level], r.MredParams[level])
+	tasks := level
+	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
+	var wg sync.WaitGroup
+	wg.Add(nbGoRoutines)
+	var start, end, tmp int
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		start, end, tasks = end, end+tmp, tasks-tmp
+		go func(start, end int) {
+			for i := start; i < end; i++ {
+				NTTLazy(pool.Coeffs[0], pool.Coeffs[1], r.N, r.NttPsi[i], r.Modulus[i], r.MredParams[i], r.BredParams[i])
+				// (-x[i] + x[-1]) * -InvQ
+				SubVecAndMulScalarMontgomeryTwoQiVec(pool.Coeffs[1], p0.Coeffs[i], p1.Coeffs[i], r.RescaleParams[level-1][i], r.Modulus[i], r.MredParams[i])
+			}
+			wg.Done()
+		}(start, end)
 	}
+	wg.Wait()
 }
 
 // DivFloorByLastModulusLvl divides (floored) the polynomial by its last modulus.
 // Output poly level must be equal or one less than input level.
 func (r *Ring) DivFloorByLastModulusLvl(level int, p0, p1 *Poly) {
-	for i := 0; i < level; i++ {
-		// (x[i] - x[-1]) * InvQ
-		SubVecAndMulScalarMontgomeryTwoQiVec(p0.Coeffs[level], p0.Coeffs[i], p1.Coeffs[i], r.RescaleParams[level-1][i], r.Modulus[i], r.MredParams[i])
+	tasks := level
+	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
+	var wg sync.WaitGroup
+	wg.Add(nbGoRoutines)
+	var start, end, tmp int
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		start, end, tasks = end, end+tmp, tasks-tmp
+		go func(start, end int) {
+			for i := start; i < end; i++ {
+				// (x[i] - x[-1]) * InvQ
+				SubVecAndMulScalarMontgomeryTwoQiVec(p0.Coeffs[level], p0.Coeffs[i], p1.Coeffs[i], r.RescaleParams[level-1][i], r.Modulus[i], r.MredParams[i])
+			}
+			wg.Done()
+		}(start, end)
 	}
+	wg.Wait()
 }
 
 // DivFloorByLastModulusManyNTTLvl divides (floored) sequentially nbRescales times the polynomial by its last modulus. Input must be in the NTT domain.
@@ -368,26 +391,36 @@ func (r *Ring) DivFloorByLastModulusManyLvl(level, nbRescales int, p0, pool, p1 
 // Output poly level must be equal or one less than input level.
 func (r *Ring) DivRoundByLastModulusNTTLvl(level int, p0, pool, p1 *Poly) {
 
-	pool0 := pool.Coeffs[0]
-	pool1 := pool.Coeffs[1]
-
-	InvNTT(p0.Coeffs[level], pool0, r.N, r.NttPsiInv[level], r.NttNInv[level], r.Modulus[level], r.MredParams[level])
+	InvNTT(p0.Coeffs[level], pool.Coeffs[level], r.N, r.NttPsiInv[level], r.NttNInv[level], r.Modulus[level], r.MredParams[level])
 
 	// Center by (p-1)/2
 	pj := r.Modulus[level]
 	pHalf := (pj - 1) >> 1
 
-	AddScalarVec(pool0, pool0, pHalf, pj)
+	AddScalarVec(pool.Coeffs[level], pool.Coeffs[level], pHalf, pj)
 
-	for i := 0; i < level; i++ {
-		qi := r.Modulus[i]
-		qInv := r.MredParams[i]
-		bredParams := r.BredParams[i]
+	tasks := level
+	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
+	var wg sync.WaitGroup
+	wg.Add(nbGoRoutines)
+	var start, end, tmp int
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		start, end, tasks = end, end+tmp, tasks-tmp
+		go func(start, end int) {
+			for i := start; i < end; i++ {
+				qi := r.Modulus[i]
+				qInv := r.MredParams[i]
+				bredParams := r.BredParams[i]
 
-		AddScalarNoModVec(pool0, pool1, r.Modulus[i]-BRedAdd(pHalf, qi, bredParams))
-		NTTLazy(pool1, pool1, r.N, r.NttPsi[i], qi, qInv, bredParams)
-		SubVecAndMulScalarMontgomeryTwoQiVec(pool1, p0.Coeffs[i], p1.Coeffs[i], r.RescaleParams[level-1][i], r.Modulus[i], r.MredParams[i])
+				AddScalarNoModVec(pool.Coeffs[level], pool.Coeffs[i], r.Modulus[i]-BRedAdd(pHalf, qi, bredParams))
+				NTTLazy(pool.Coeffs[i], pool.Coeffs[i], r.N, r.NttPsi[i], qi, qInv, bredParams)
+				SubVecAndMulScalarMontgomeryTwoQiVec(pool.Coeffs[i], p0.Coeffs[i], p1.Coeffs[i], r.RescaleParams[level-1][i], r.Modulus[i], r.MredParams[i])
+			}
+			wg.Done()
+		}(start, end)
 	}
+	wg.Wait()
 }
 
 // DivRoundByLastModulusLvl divides (rounded) the polynomial by its last modulus. The input must be in the NTT domain.
@@ -397,12 +430,25 @@ func (r *Ring) DivRoundByLastModulusLvl(level int, p0, p1 *Poly) {
 	pHalf := (r.Modulus[level] - 1) >> 1
 	pj := r.Modulus[level]
 	AddScalarVec(p0.Coeffs[level], p0.Coeffs[level], pHalf, pj)
-	for i := 0; i < level; i++ {
-		qi := r.Modulus[i]
-		bredParams := r.BredParams[i]
-		AddScalarNoModAndNegTwoQiNoModVec(p0.Coeffs[i], p0.Coeffs[i], r.Modulus[i]-BRedAdd(pHalf, qi, bredParams), qi)
-		AddVecNoModAndMulScalarMontgomeryVec(p0.Coeffs[level], p0.Coeffs[i], p1.Coeffs[i], r.RescaleParams[level-1][i], qi, r.MredParams[i])
+	tasks := level
+	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
+	var wg sync.WaitGroup
+	wg.Add(nbGoRoutines)
+	var start, end, tmp int
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		start, end, tasks = end, end+tmp, tasks-tmp
+		go func(start, end int) {
+			for i := start; i < end; i++ {
+				qi := r.Modulus[i]
+				bredParams := r.BredParams[i]
+				AddScalarNoModAndNegTwoQiNoModVec(p0.Coeffs[i], p0.Coeffs[i], r.Modulus[i]-BRedAdd(pHalf, qi, bredParams), qi)
+				AddVecNoModAndMulScalarMontgomeryVec(p0.Coeffs[level], p0.Coeffs[i], p1.Coeffs[i], r.RescaleParams[level-1][i], qi, r.MredParams[i])
+			}
+			wg.Done()
+		}(start, end)
 	}
+	wg.Wait()
 }
 
 // DivRoundByLastModulusManyNTTLvl divides (rounded) sequentially nbRescales times the polynomial by its last modulus. The input must be in the NTT domain.

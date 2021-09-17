@@ -125,16 +125,14 @@ func (ks *KeySwitcher) DecomposeSingleNTT(levelQ, levelP, alpha, beta int, c2NTT
 
 	// c2_qi = cx mod qi mod qi
 
-	nbGoRoutines := utils.MinInt(levelQ+1, ringQ.NbGoRoutines)
-	nbTasks := int(math.Ceil(float64(levelQ+1) / float64(nbGoRoutines)))
+	tasks := levelQ + 1
+	nbGoRoutines := utils.MinInt(tasks, ringQ.NbGoRoutines)
 	var wg sync.WaitGroup
 	wg.Add(nbGoRoutines)
-	for g := 0; g < nbGoRoutines; g++ {
-
-		start, end := g*nbTasks, (g+1)*nbTasks
-		if g == nbGoRoutines-1 {
-			end = levelQ + 1
-		}
+	var start, end, tmp int
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for x := start; x < end; x++ {
 				if p0idxst <= x && x < p0idxed {

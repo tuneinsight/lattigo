@@ -13,8 +13,8 @@ func BenchmarkHomomorphicEncoding(b *testing.B) {
 	var err error
 
 	ParametersLiteral := ckks.ParametersLiteral{
-		LogN:     14,
-		LogSlots: 13,
+		LogN:     16,
+		LogSlots: 15,
 		Scale:    1 << 45,
 		Sigma:    rlwe.DefaultSigma,
 		Q: []uint64{

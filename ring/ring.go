@@ -56,7 +56,7 @@ func NewRing(N int, Moduli []uint64) (r *Ring, err error) {
 	if err != nil {
 		return nil, err
 	}
-	r.NbGoRoutines = 2
+	r.NbGoRoutines = 4
 	return r, r.genNTTParams()
 }
 

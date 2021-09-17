@@ -53,6 +53,8 @@ func benchEncoder(testContext *testParams, b *testing.B) {
 
 		plaintext := NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.Scale())
 
+		b.ResetTimer()
+
 		for i := 0; i < b.N; i++ {
 			encoder.Encode(plaintext, values, logSlots)
 		}
@@ -67,6 +69,8 @@ func benchEncoder(testContext *testParams, b *testing.B) {
 
 		plaintext := NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.Scale())
 		encoder.Encode(plaintext, values, logSlots)
+
+		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
 			encoder.Decode(plaintext, logSlots)
@@ -218,6 +222,8 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 		}
 
 		galEL := testContext.params.GaloisElementForColumnRotationBy(1)
+
+		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			testContext.params.RingQ().PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.Value[0], eval.(*evaluator).permuteNTTIndex[galEL], ciphertext1.Value[0])
 			testContext.params.RingQ().PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.Value[1], eval.(*evaluator).permuteNTTIndex[galEL], ciphertext1.Value[1])

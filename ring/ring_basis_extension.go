@@ -200,15 +200,14 @@ func (be *FastBasisExtender) ModDownQPtoQ(levelQ, levelP int, p1Q, p1P, p2Q *Pol
 	// polypool is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
 	be.ModUpPtoQ(levelP, levelQ, p1P, polypool)
 
-	nbGoRoutines := utils.MinInt(levelQ+1, be.ringQ.NbGoRoutines)
-	nbTasks := int(math.Ceil(float64(levelQ+1) / float64(nbGoRoutines)))
+	tasks := levelQ + 1
+	nbGoRoutines := utils.MinInt(tasks, ringQ.NbGoRoutines)
 	var wg sync.WaitGroup
 	wg.Add(nbGoRoutines)
-	for g := 0; g < nbGoRoutines; g++ {
-		start, end := g*nbTasks, (g+1)*nbTasks
-		if g == nbGoRoutines-1 {
-			end = levelQ + 1
-		}
+	var start, end, tmp int
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			// Then, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
 			for i := start; i < end; i++ {
@@ -245,15 +244,14 @@ func (be *FastBasisExtender) ModDownQPtoQNTT(levelQ, levelP int, p1Q, p1P, p2Q *
 	// First we switch back the relevant polypool CRT array back to the NTT domain
 	ringQ.NTTLazyLvl(levelQ, polypool, polypool)
 
-	nbGoRoutines := utils.MinInt(levelQ+1, be.ringQ.NbGoRoutines)
-	nbTasks := int(math.Ceil(float64(levelQ+1) / float64(nbGoRoutines)))
+	tasks := levelQ + 1
+	nbGoRoutines := utils.MinInt(tasks, ringQ.NbGoRoutines)
 	var wg sync.WaitGroup
 	wg.Add(nbGoRoutines)
-	for g := 0; g < nbGoRoutines; g++ {
-		start, end := g*nbTasks, (g+1)*nbTasks
-		if g == nbGoRoutines-1 {
-			end = levelQ + 1
-		}
+	var start, end, tmp int
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			// Then, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
 			for i := start; i < end; i++ {
@@ -282,15 +280,14 @@ func (be *FastBasisExtender) ModDownQPtoP(levelQ, levelP int, p1Q, p1P, p2P *Pol
 	// polypool is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
 	be.ModUpQtoP(levelQ, levelP, p1Q, polypool)
 
-	nbGoRoutines := utils.MinInt(levelP+1, be.ringQ.NbGoRoutines)
-	nbTasks := int(math.Ceil(float64(levelP+1) / float64(nbGoRoutines)))
+	tasks := levelP + 1
+	nbGoRoutines := utils.MinInt(tasks, ringP.NbGoRoutines)
 	var wg sync.WaitGroup
 	wg.Add(nbGoRoutines)
-	for g := 0; g < nbGoRoutines; g++ {
-		start, end := g*nbTasks, (g+1)*nbTasks
-		if g == nbGoRoutines-1 {
-			end = levelP + 1
-		}
+	var start, end, tmp int
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
 				// Then for each coefficient we compute (-Q^-1) * (-p1[i][j] + polypool[i][j]) mod pi
@@ -316,16 +313,15 @@ func (be *FastBasisExtender) modUpExact(p1, p2 [][]uint64, ringQ, ringP *Ring, p
 	qoverqimodp := params.qoverqimodp
 
 	// We loop over each coefficient and apply the basis extension
-	nbGoRoutines := utils.MinInt(len(p1[0]), be.ringQ.NbGoRoutines)
-	nbTasks := int(math.Ceil(float64(len(p1[0])) / float64(nbGoRoutines)))
+	tasks := len(p1[0])
+	nbGoRoutines := utils.MinInt(tasks, ringQ.NbGoRoutines)
 	var wg sync.WaitGroup
 	wg.Add(nbGoRoutines)
-	for g := 0; g < nbGoRoutines; g++ {
-		start, end := g*nbTasks, (g+1)*nbTasks
-		if g == nbGoRoutines-1 {
-			end = len(p1[0])
-		}
-		go func(start, end, g int) {
+	var start, end, tmp int
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		start, end, tasks = end, end+tmp, tasks-tmp
+		go func(start, end int) {
 
 			var v [8]uint64
 			var y0, y1, y2, y3, y4, y5, y6, y7 [32]uint64
@@ -337,7 +333,7 @@ func (be *FastBasisExtender) modUpExact(p1, p2 [][]uint64, ringQ, ringP *Ring, p
 				}
 			}
 			wg.Done()
-		}(start, end, g)
+		}(start, end)
 	}
 	wg.Wait()
 }
@@ -451,37 +447,33 @@ func (decomposer *Decomposer) DecomposeAndSplit(levelQ, levelP, alpha, beta int,
 	// First we check if the vector can simply by coping and rearranging elements (the case where no reconstruction is needed)
 	if decompLvl == -1 {
 
-		nbGoRoutines := utils.MinInt(levelQ+1, ringQ.NbGoRoutines)
-		nbTasks := int(math.Ceil(float64(levelQ+1) / float64(nbGoRoutines)))
+		tasks := levelQ + 1
+		nbGoRoutines := utils.MinInt(tasks, ringQ.NbGoRoutines)
 		var wg sync.WaitGroup
 		wg.Add(nbGoRoutines)
-		for g := 0; g < nbGoRoutines; g++ {
-			start, end := g*nbTasks, (g+1)*nbTasks
-			if g == nbGoRoutines-1 {
-				end = levelQ + 1
-			}
+		var start, end, tmp int
+		for i := 0; i < nbGoRoutines; i++ {
+			tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+			start, end, tasks = end, end+tmp, tasks-tmp
 			go func(start, end int) {
-
-				for j := start; j < end; j++ {
-					copy(p1Q.Coeffs[j], p0Q.Coeffs[lvlQStart])
+				for i := start; i < end; i++ {
+					copy(p1Q.Coeffs[i], p0Q.Coeffs[lvlQStart])
 				}
 				wg.Done()
 			}(start, end)
 		}
 		wg.Wait()
 
-		nbGoRoutines = utils.MinInt(levelP+1, ringQ.NbGoRoutines)
-		nbTasks = int(math.Ceil(float64(levelP+1) / float64(nbGoRoutines)))
+		tasks = levelP + 1
+		nbGoRoutines = utils.MinInt(tasks, ringQ.NbGoRoutines)
 		wg.Add(nbGoRoutines)
-		for g := 0; g < nbGoRoutines; g++ {
-			start, end := g*nbTasks, (g+1)*nbTasks
-			if g == nbGoRoutines-1 {
-				end = levelP + 1
-			}
+		start, end = 0, 0
+		for i := 0; i < nbGoRoutines; i++ {
+			tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+			start, end, tasks = end, end+tmp, tasks-tmp
 			go func(start, end int) {
-
-				for j := start; j < end; j++ {
-					copy(p1P.Coeffs[j], p0Q.Coeffs[lvlQStart])
+				for i := start; i < end; i++ {
+					copy(p1P.Coeffs[i], p0Q.Coeffs[lvlQStart])
 				}
 				wg.Done()
 			}(start, end)
@@ -493,17 +485,14 @@ func (decomposer *Decomposer) DecomposeAndSplit(levelQ, levelP, alpha, beta int,
 
 		params := decomposer.modUpParams[alpha-2][beta][decompLvl]
 
-		nbGoRoutines := utils.MinInt(len(p0Q.Coeffs[0]), ringQ.NbGoRoutines)
-		nbTasks := int(math.Ceil(float64(len(p0Q.Coeffs[0])) / float64(nbGoRoutines)))
+		tasks := len(p0Q.Coeffs[0])
+		nbGoRoutines := utils.MinInt(tasks, ringQ.NbGoRoutines)
 		var wg sync.WaitGroup
 		wg.Add(nbGoRoutines)
-		for g := 0; g < nbGoRoutines; g++ {
-
-			start, end := g*nbTasks, (g+1)*nbTasks
-			if g == nbGoRoutines-1 {
-				end = len(p0Q.Coeffs[0])
-			}
-
+		var start, end, tmp int
+		for i := 0; i < nbGoRoutines; i++ {
+			tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+			start, end, tasks = end, end+tmp, tasks-tmp
 			go func(start, end int) {
 				var v [8]uint64
 				var vi [8]float64

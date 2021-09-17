@@ -837,7 +837,7 @@ func (r *Ring) MulByVectorMontgomeryLvl(level int, p1 *Poly, vector []uint64, p2
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
-				MulByVectorMontgomeryVec(p1.Coeffs[i], p2.Coeffs[i], vector, r.Modulus[i], r.MredParams[i])
+				MulCoeffsMontgomeryVec(p1.Coeffs[i], vector, p2.Coeffs[i], r.Modulus[i], r.MredParams[i])
 			}
 			wg.Done()
 		}(start, end)
@@ -862,7 +862,7 @@ func (r *Ring) MulByVectorMontgomeryAndAddNoModLvl(level int, p1 *Poly, vector [
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
-				MulByVectorMontgomeryAndAddNoModVec(p1.Coeffs[i], p2.Coeffs[i], vector, r.Modulus[i], r.MredParams[i])
+				MulCoeffsMontgomeryAndAddNoModVec(p1.Coeffs[i], vector, p2.Coeffs[i], r.Modulus[i], r.MredParams[i])
 			}
 			wg.Done()
 		}(start, end)

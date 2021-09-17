@@ -4,6 +4,7 @@ import (
 	"unsafe"
 )
 
+// AddVec returns p3 = p1 + p2 mod qi.
 func AddVec(p1, p2, p3 []uint64, qi uint64) {
 	for j := 0; j < len(p1); j = j + 8 {
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
@@ -21,6 +22,7 @@ func AddVec(p1, p2, p3 []uint64, qi uint64) {
 	}
 }
 
+// AddVecNoMod returns p3 = p1 + p2.
 func AddVecNoMod(p1, p2, p3 []uint64) {
 	for j := 0; j < len(p1); j = j + 8 {
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
@@ -38,6 +40,7 @@ func AddVecNoMod(p1, p2, p3 []uint64) {
 	}
 }
 
+// SubVec returns p3 = p1 - p2 mod qi.
 func SubVec(p1, p2, p3 []uint64, qi uint64) {
 	for j := 0; j < len(p1); j = j + 8 {
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
@@ -55,6 +58,7 @@ func SubVec(p1, p2, p3 []uint64, qi uint64) {
 	}
 }
 
+// SubVecNomod returns p3 = p1 + qi - p2.
 func SubVecNomod(p1, p2, p3 []uint64, qi uint64) {
 	for j := 0; j < len(p1); j = j + 8 {
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
@@ -72,6 +76,7 @@ func SubVecNomod(p1, p2, p3 []uint64, qi uint64) {
 	}
 }
 
+// NegVec returns p2 = -p1 mod qi.
 func NegVec(p1, p2 []uint64, qi uint64) {
 	for j := 0; j < len(p1); j = j + 8 {
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
@@ -88,6 +93,7 @@ func NegVec(p1, p2 []uint64, qi uint64) {
 	}
 }
 
+// ReduceVec returns p2 = p1 mod qi.
 func ReduceVec(p1, p2 []uint64, qi uint64, bredParams []uint64) {
 	for j := 0; j < len(p1); j = j + 8 {
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
@@ -104,6 +110,7 @@ func ReduceVec(p1, p2 []uint64, qi uint64, bredParams []uint64) {
 	}
 }
 
+// ReduceConstantVec returns p2 = p1 mod qi with output coefficients range [0, 2qi-1].
 func ReduceConstantVec(p1, p2 []uint64, qi uint64, bredParams []uint64) {
 	for j := 0; j < len(p1); j = j + 8 {
 
@@ -121,6 +128,7 @@ func ReduceConstantVec(p1, p2 []uint64, qi uint64, bredParams []uint64) {
 	}
 }
 
+// ModVec returns p2 = p1 mod m.
 func ModVec(p1, p2 []uint64, m uint64, bredParams []uint64) {
 	for j := 0; j < len(p1); j = j + 8 {
 
@@ -138,6 +146,7 @@ func ModVec(p1, p2 []uint64, m uint64, bredParams []uint64) {
 	}
 }
 
+// MulCoeffsVec returns p3 = p1*p2 mod qi.
 func MulCoeffsVec(p1, p2, p3 []uint64, qi uint64, bredParams []uint64) {
 	for j := 0; j < len(p1); j = j + 8 {
 
@@ -156,6 +165,7 @@ func MulCoeffsVec(p1, p2, p3 []uint64, qi uint64, bredParams []uint64) {
 	}
 }
 
+// MulCoeffsAndAddVec returns p3 = p3 + (p1*p2) mod qi.
 func MulCoeffsAndAddVec(p1, p2, p3 []uint64, qi uint64, bredParams []uint64) {
 	for j := 0; j < len(p1); j = j + 8 {
 
@@ -174,6 +184,7 @@ func MulCoeffsAndAddVec(p1, p2, p3 []uint64, qi uint64, bredParams []uint64) {
 	}
 }
 
+// MulCoeffsAndAddNoModVec returns p3 = p3 + (p1*p2 mod qi).
 func MulCoeffsAndAddNoModVec(p1, p2, p3 []uint64, qi uint64, bredParams []uint64) {
 	for j := 0; j < len(p1); j = j + 8 {
 
@@ -192,6 +203,7 @@ func MulCoeffsAndAddNoModVec(p1, p2, p3 []uint64, qi uint64, bredParams []uint64
 	}
 }
 
+// MulCoeffsMontgomeryVec returns p3 = p1*p2 mod qi.
 func MulCoeffsMontgomeryVec(p1, p2, p3 []uint64, qi, mredParams uint64) {
 	for j := 0; j < len(p1); j = j + 8 {
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
@@ -209,6 +221,7 @@ func MulCoeffsMontgomeryVec(p1, p2, p3 []uint64, qi, mredParams uint64) {
 	}
 }
 
+// MulCoeffsMontgomeryConstantVec returns p3 = p1*p2 mod qi with output coefficients in range [0, 2qi-1].
 func MulCoeffsMontgomeryConstantVec(p1, p2, p3 []uint64, qi, mredParams uint64) {
 	for j := 0; j < len(p1); j = j + 8 {
 
@@ -227,6 +240,7 @@ func MulCoeffsMontgomeryConstantVec(p1, p2, p3 []uint64, qi, mredParams uint64) 
 	}
 }
 
+// MulCoeffsMontgomeryAndAddVec returns p3 = p3 + (p1*p2) mod qi.
 func MulCoeffsMontgomeryAndAddVec(p1, p2, p3 []uint64, qi, mredParams uint64) {
 	for j := 0; j < len(p1); j = j + 8 {
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
@@ -244,6 +258,7 @@ func MulCoeffsMontgomeryAndAddVec(p1, p2, p3 []uint64, qi, mredParams uint64) {
 	}
 }
 
+// MulCoeffsMontgomeryAndAddNoModVec returns p3 = p3 + (p1*p2 mod qi).
 func MulCoeffsMontgomeryAndAddNoModVec(p1, p2, p3 []uint64, qi, mredParams uint64) {
 	for j := 0; j < len(p1); j = j + 8 {
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
@@ -261,6 +276,7 @@ func MulCoeffsMontgomeryAndAddNoModVec(p1, p2, p3 []uint64, qi, mredParams uint6
 	}
 }
 
+// MulCoeffsMontgomeryConstantAndAddNoModVec returns p3 = p3 + p1*p2 mod qi with output coefficients in range [0, 3qi-2].
 func MulCoeffsMontgomeryConstantAndAddNoModVec(p1, p2, p3 []uint64, qi, mredParams uint64) {
 	for j := 0; j < len(p1); j = j + 8 {
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
@@ -278,6 +294,7 @@ func MulCoeffsMontgomeryConstantAndAddNoModVec(p1, p2, p3 []uint64, qi, mredPara
 	}
 }
 
+// MulCoeffsMontgomeryAndSubVec returns p3 = p3 - p1*p2 mod qi.
 func MulCoeffsMontgomeryAndSubVec(p1, p2, p3 []uint64, qi, mredParams uint64) {
 	for j := 0; j < len(p1); j = j + 8 {
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
@@ -295,6 +312,7 @@ func MulCoeffsMontgomeryAndSubVec(p1, p2, p3 []uint64, qi, mredParams uint64) {
 	}
 }
 
+// MulCoeffsMontgomeryAndSubNoMod returns p3 = p3 - p1*p2 mod qi with output coefficients in range [0, 2qi-2].
 func MulCoeffsMontgomeryAndSubNoMod(p1, p2, p3 []uint64, qi, mredParams uint64) {
 	for j := 0; j < len(p1); j = j + 8 {
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
@@ -312,6 +330,7 @@ func MulCoeffsMontgomeryAndSubNoMod(p1, p2, p3 []uint64, qi, mredParams uint64) 
 	}
 }
 
+// MulCoeffsConstantVec returns p3 = p1*p2 mod qi with output coefficients in range [0, 2qi-1].
 func MulCoeffsConstantVec(p1, p2, p3 []uint64, qi uint64, bredParams []uint64) {
 	for j := 0; j < len(p1); j = j + 8 {
 
@@ -330,6 +349,7 @@ func MulCoeffsConstantVec(p1, p2, p3 []uint64, qi uint64, bredParams []uint64) {
 	}
 }
 
+// AddVecNoModAndMulScalarMontgomeryVec returns p3 = (p1+p2)*scalarMont mod qi.
 func AddVecNoModAndMulScalarMontgomeryVec(p1, p2, p3 []uint64, scalarMont, qi, mredParams uint64) {
 	for j := 0; j < len(p1); j = j + 8 {
 
@@ -348,6 +368,7 @@ func AddVecNoModAndMulScalarMontgomeryVec(p1, p2, p3 []uint64, scalarMont, qi, m
 	}
 }
 
+// AddScalarVec returns p2 = p1 + scalar mod qi.
 func AddScalarVec(p1, p2 []uint64, scalar, qi uint64) {
 	for j := 0; j < len(p1); j = j + 8 {
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
@@ -364,6 +385,7 @@ func AddScalarVec(p1, p2 []uint64, scalar, qi uint64) {
 	}
 }
 
+// AddScalarNoModVec returns p2 = p1 + scalar.
 func AddScalarNoModVec(p1, p2 []uint64, scalar uint64) {
 	for j := 0; j < len(p1); j = j + 8 {
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
@@ -380,6 +402,7 @@ func AddScalarNoModVec(p1, p2 []uint64, scalar uint64) {
 	}
 }
 
+// AddScalarNoModAndNegTwoQiNoModVec returns p2 = 2*qi - p1 + scalar.
 func AddScalarNoModAndNegTwoQiNoModVec(p1, p2 []uint64, scalar, qi uint64) {
 	twoqi := qi << 1
 	for j := 0; j < len(p1); j = j + 8 {
@@ -397,6 +420,7 @@ func AddScalarNoModAndNegTwoQiNoModVec(p1, p2 []uint64, scalar, qi uint64) {
 	}
 }
 
+// SubScalarVec returns p2 = p1 - scalar mod qi.
 func SubScalarVec(p1, p2 []uint64, scalar, qi uint64) {
 	for j := 0; j < len(p1); j = j + 8 {
 
@@ -414,6 +438,7 @@ func SubScalarVec(p1, p2 []uint64, scalar, qi uint64) {
 	}
 }
 
+// MulScalarMontgomeryVec returns p2 = p1*scalarMont mod qi.
 func MulScalarMontgomeryVec(p1, p2 []uint64, scalarMont, qi, mredParams uint64) {
 	for j := 0; j < len(p1); j = j + 8 {
 
@@ -431,6 +456,7 @@ func MulScalarMontgomeryVec(p1, p2 []uint64, scalarMont, qi, mredParams uint64) 
 	}
 }
 
+// MulScalarMontgomeryAndAddVec returns p2 = p2 + p1*scalarMont mod qi.
 func MulScalarMontgomeryAndAddVec(p1, p2 []uint64, scalarMont, qi, mredParams uint64) {
 	for j := 0; j < len(p1); j = j + 8 {
 
@@ -448,7 +474,7 @@ func MulScalarMontgomeryAndAddVec(p1, p2 []uint64, scalarMont, qi, mredParams ui
 	}
 }
 
-// Computes p3 = (p1 + twoqi - p2) * scalarMont
+// SubVecAndMulScalarMontgomeryTwoQiVec returns p3 = (p1 + twoqi - p2) * scalarMont mod qi.
 func SubVecAndMulScalarMontgomeryTwoQiVec(p1, p2, p3 []uint64, scalarMont, qi, mredParams uint64) {
 	twoqi := qi << 1
 	for j := 0; j < len(p1); j = j + 8 {
@@ -469,7 +495,7 @@ func SubVecAndMulScalarMontgomeryTwoQiVec(p1, p2, p3 []uint64, scalarMont, qi, m
 	}
 }
 
-// MFormVec switches the input vector to the Montgomery domain.
+// MFormVec returns p2 = p1 * 2^64 mod qi.
 func MFormVec(p1, p2 []uint64, qi uint64, bredParams []uint64) {
 	for j := 0; j < len(p1); j = j + 8 {
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
@@ -486,6 +512,7 @@ func MFormVec(p1, p2 []uint64, qi uint64, bredParams []uint64) {
 	}
 }
 
+// InvMFormVec returns p2 = p1 * (2^64)^-1 mod qi.
 func InvMFormVec(p1, p2 []uint64, qi, mredParams uint64) {
 	for j := 0; j < len(p1); j = j + 8 {
 
@@ -503,6 +530,7 @@ func InvMFormVec(p1, p2 []uint64, qi, mredParams uint64) {
 	}
 }
 
+// MulByPow2Vec returns p2 = p1 * 2^pow2 mod qi.
 func MulByPow2Vec(p1, p2 []uint64, pow2 int, qi, mredParams uint64) {
 	for j := 0; j < len(p1); j = j + 8 {
 
@@ -517,40 +545,5 @@ func MulByPow2Vec(p1, p2 []uint64, pow2 int, qi, mredParams uint64) {
 		z[5] = PowerOf2(x[5], pow2, qi, mredParams)
 		z[6] = PowerOf2(x[6], pow2, qi, mredParams)
 		z[7] = PowerOf2(x[7], pow2, qi, mredParams)
-	}
-}
-
-func MulByVectorMontgomeryVec(p1, p2, vector []uint64, qi, mredParams uint64) {
-	for j := 0; j < len(p1); j = j + 8 {
-
-		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		y := (*[8]uint64)(unsafe.Pointer(&vector[j]))
-		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
-
-		z[0] = MRed(x[0], y[0], qi, mredParams)
-		z[1] = MRed(x[1], y[1], qi, mredParams)
-		z[2] = MRed(x[2], y[2], qi, mredParams)
-		z[3] = MRed(x[3], y[3], qi, mredParams)
-		z[4] = MRed(x[4], y[4], qi, mredParams)
-		z[5] = MRed(x[5], y[5], qi, mredParams)
-		z[6] = MRed(x[6], y[6], qi, mredParams)
-		z[7] = MRed(x[7], y[7], qi, mredParams)
-	}
-}
-
-func MulByVectorMontgomeryAndAddNoModVec(p1, p2, vector []uint64, qi, mredParams uint64) {
-	for j := 0; j < len(p1); j = j + 8 {
-		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		y := (*[8]uint64)(unsafe.Pointer(&vector[j]))
-		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
-
-		z[0] += MRed(x[0], y[0], qi, mredParams)
-		z[1] += MRed(x[1], y[1], qi, mredParams)
-		z[2] += MRed(x[2], y[2], qi, mredParams)
-		z[3] += MRed(x[3], y[3], qi, mredParams)
-		z[4] += MRed(x[4], y[4], qi, mredParams)
-		z[5] += MRed(x[5], y[5], qi, mredParams)
-		z[6] += MRed(x[6], y[6], qi, mredParams)
-		z[7] += MRed(x[7], y[7], qi, mredParams)
 	}
 }

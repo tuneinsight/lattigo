@@ -212,31 +212,8 @@ func (be *FastBasisExtender) ModDownQPtoQ(levelQ, levelP int, p1Q, p1P, p2Q *Pol
 		go func(start, end int) {
 			// Then, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
 			for i := start; i < end; i++ {
-
-				qi := ringQ.Modulus[i]
-				twoqi := qi << 1
-				p1tmp := p1Q.Coeffs[i]
-				p2tmp := p2Q.Coeffs[i]
-				p3tmp := polypool.Coeffs[i]
-				params := qi - modDownParams[levelP][i]
-				mredParams := ringQ.MredParams[i]
-
-				// Then for each coefficient we compute (P^-1) * (p1[i][j] - polypool[i][j]) mod qi
-				for j := 0; j < ringQ.N; j = j + 8 {
-
-					x := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-					y := (*[8]uint64)(unsafe.Pointer(&p3tmp[j]))
-					z := (*[8]uint64)(unsafe.Pointer(&p2tmp[j]))
-
-					z[0] = MRed(y[0]+twoqi-x[0], params, qi, mredParams)
-					z[1] = MRed(y[1]+twoqi-x[1], params, qi, mredParams)
-					z[2] = MRed(y[2]+twoqi-x[2], params, qi, mredParams)
-					z[3] = MRed(y[3]+twoqi-x[3], params, qi, mredParams)
-					z[4] = MRed(y[4]+twoqi-x[4], params, qi, mredParams)
-					z[5] = MRed(y[5]+twoqi-x[5], params, qi, mredParams)
-					z[6] = MRed(y[6]+twoqi-x[6], params, qi, mredParams)
-					z[7] = MRed(y[7]+twoqi-x[7], params, qi, mredParams)
-				}
+				// Then for each coefficient we compute (-P^-1) * (-p1[i][j] + polypool[i][j]) mod qi
+				SubVecAndMulScalarMontgomeryTwoQiVec(polypool.Coeffs[i], p1Q.Coeffs[i], p2Q.Coeffs[i], ringQ.Modulus[i]-modDownParams[levelP][i], ringQ.Modulus[i], ringQ.MredParams[i])
 			}
 			wg.Done()
 		}(start, end)
@@ -280,31 +257,8 @@ func (be *FastBasisExtender) ModDownQPtoQNTT(levelQ, levelP int, p1Q, p1P, p2Q *
 		go func(start, end int) {
 			// Then, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
 			for i := start; i < end; i++ {
-
-				qi := ringQ.Modulus[i]
-				twoqi := qi << 1
-				p1tmp := p1Q.Coeffs[i]
-				p2tmp := p2Q.Coeffs[i]
-				p3tmp := polypool.Coeffs[i]
-				params := qi - modDownParams[levelP][i]
-				mredParams := ringQ.MredParams[i]
-
-				// Finally for each coefficient we compute (P^-1) * (p1[i][j] - polypool[i][j]) mod qi
-				for j := 0; j < ringQ.N; j = j + 8 {
-
-					x := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-					y := (*[8]uint64)(unsafe.Pointer(&p3tmp[j]))
-					z := (*[8]uint64)(unsafe.Pointer(&p2tmp[j]))
-
-					z[0] = MRed(y[0]+twoqi-x[0], params, qi, mredParams)
-					z[1] = MRed(y[1]+twoqi-x[1], params, qi, mredParams)
-					z[2] = MRed(y[2]+twoqi-x[2], params, qi, mredParams)
-					z[3] = MRed(y[3]+twoqi-x[3], params, qi, mredParams)
-					z[4] = MRed(y[4]+twoqi-x[4], params, qi, mredParams)
-					z[5] = MRed(y[5]+twoqi-x[5], params, qi, mredParams)
-					z[6] = MRed(y[6]+twoqi-x[6], params, qi, mredParams)
-					z[7] = MRed(y[7]+twoqi-x[7], params, qi, mredParams)
-				}
+				// Finally for each coefficient we compute (-P^-1) * (-p1[i][j] + polypool[i][j]) mod qi
+				SubVecAndMulScalarMontgomeryTwoQiVec(polypool.Coeffs[i], p1Q.Coeffs[i], p2Q.Coeffs[i], ringQ.Modulus[i]-modDownParams[levelP][i], ringQ.Modulus[i], ringQ.MredParams[i])
 			}
 			wg.Done()
 		}(start, end)
@@ -328,8 +282,6 @@ func (be *FastBasisExtender) ModDownQPtoP(levelQ, levelP int, p1Q, p1P, p2P *Pol
 	// polypool is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
 	be.ModUpQtoP(levelQ, levelP, p1Q, polypool)
 
-	// Finally, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
-
 	nbGoRoutines := utils.MinInt(levelP+1, be.ringQ.NbGoRoutines)
 	nbTasks := int(math.Ceil(float64(levelP+1) / float64(nbGoRoutines)))
 	var wg sync.WaitGroup
@@ -340,33 +292,9 @@ func (be *FastBasisExtender) ModDownQPtoP(levelQ, levelP int, p1Q, p1P, p2P *Pol
 			end = levelP + 1
 		}
 		go func(start, end int) {
-
 			for i := start; i < end; i++ {
-
-				qi := ringP.Modulus[i]
-				twoqi := qi << 1
-				p1tmp := p1P.Coeffs[i]
-				p2tmp := p2P.Coeffs[i]
-				p3tmp := polypool.Coeffs[i]
-				params := qi - modDownParams[levelP][i]
-				mredParams := ringP.MredParams[i]
-
-				// Then for each coefficient we compute (P^-1) * (p1[i][j] - polypool[i][j]) mod qi
-				for j := 0; j < ringP.N; j = j + 8 {
-
-					x := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-					y := (*[8]uint64)(unsafe.Pointer(&p3tmp[j]))
-					z := (*[8]uint64)(unsafe.Pointer(&p2tmp[j]))
-
-					z[0] = MRed(y[0]+twoqi-x[0], params, qi, mredParams)
-					z[1] = MRed(y[1]+twoqi-x[1], params, qi, mredParams)
-					z[2] = MRed(y[2]+twoqi-x[2], params, qi, mredParams)
-					z[3] = MRed(y[3]+twoqi-x[3], params, qi, mredParams)
-					z[4] = MRed(y[4]+twoqi-x[4], params, qi, mredParams)
-					z[5] = MRed(y[5]+twoqi-x[5], params, qi, mredParams)
-					z[6] = MRed(y[6]+twoqi-x[6], params, qi, mredParams)
-					z[7] = MRed(y[7]+twoqi-x[7], params, qi, mredParams)
-				}
+				// Then for each coefficient we compute (-Q^-1) * (-p1[i][j] + polypool[i][j]) mod pi
+				SubVecAndMulScalarMontgomeryTwoQiVec(polypool.Coeffs[i], p1P.Coeffs[i], p2P.Coeffs[i], ringP.Modulus[i]-modDownParams[levelP][i], ringP.Modulus[i], ringP.MredParams[i])
 			}
 			wg.Done()
 		}(start, end)

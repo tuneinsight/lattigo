@@ -3,7 +3,7 @@
 All notable changes to this project will be documented in this file. 
 
 ## [Unreleased]
-- RING: added `MapSmallDimensionToLargerDimensionNTT` method which map from  Y = X^{N/n} to X in the NTT domain.
+- RING: added `MapSmallDimensionToLargerDimensionNTT` method which maps from  Y = X^{N/n} to X in the NTT domain.
 - RING: `FastBasisExtender` type can now extend the basis of polynomials of any level in base Q to polynomials of any level in base P.
 - RING: changed RNS division `Div[floor/round]BylastModulus[NTT]` to `Div[floor/round]BylastModulus[NTT]Lvl` (the level of the last modulus must always be provided).
 - RING: RNS division no longer modifies the output polynomial's level, this is to facilitate the usage of memory pools.
@@ -16,17 +16,17 @@ All notable changes to this project will be documented in this file.
 - DRLWE: added the `CKGCRP`, `RKGCRP`, `RTGCRP` and `CKSCRP` types to represent the common reference polynomials in these protocols.
 - DRLWE: added the `CRS` interface for PRNGs that implement a common reference string among the parties.
 - DRLWE: added the `SampleCRP(crs CRS)` method to each protocol types to sample their respective CRP type.
-- BFV: changed the plaintext scaling from `floor(Q/T)*m` to `round((Q*m)/T)` to reduces the initial ciphertext noise. 
-- CKKS: added the `ckks/advanced` sub-package and extracted the homomorphic encoding, decoding and modular reduction into it.
-- CKKS: added the `ckks/bootstrapping` sub-package and extracted the CKKS bootstrapping into it. This package now mostly rely on the `ckks/advanced` package.
+- BFV: changed the plaintext scaling from `floor(Q/T)*m` to `round((Q*m)/T)` to reduce the initial ciphertext noise. 
+- CKKS: added the `ckks/advanced` sub-package and moved the homomorphic encoding, decoding and modular reduction into it.
+- CKKS: added the `ckks/bootstrapping` sub-package and moved the CKKS bootstrapping into it. This package now mostly relies on the `ckks/advanced` package.
 - CKKS: renamed the `ChebyshevInterpolation` type to `Polynomial`.
-- CKKS: removed the `EvaluateCheby` method duplicating the `EvaluatePoly` one.
+- CKKS: removed the `EvaluateCheby` method that was redundant with the `EvaluatePoly` one.
 - CKKS: optimized the `EvaluatePoly` to account for odd/even polynomials and fixed some small imprecisions in scale management occurring for some specific polynomial degrees.
-- CKKS: some advanced methods related to automorphism are now public to facilitate their external use.
-- CKKS: improved the consistency of the API for inplace and `[..]New` methods.
-- CKKS: added the method `NewCiphertextAtLevelFromPoly` which creates a ciphertext at a specific level from two polynomials.
-- DBFV/DCKKS: are now using their respective CRP type for each protocols.
-- EXAMPLE: added showcase of the `ckks/advanced` sub-package: a bridge between between CKKS and FHEW ciphertexts using homomorphic decoding, ring dimension switching, homomorphic matrix multiplication and homomorphic modular reduction.
+- CKKS: some advanced methods related to automorphisms are now public to facilitate their external use.
+- CKKS: improved the consistency of the API for in-place and `[..]New` methods.
+- CKKS: added the method `NewCiphertextAtLevelFromPoly`, which creates a ciphertext at a specific level from two polynomials.
+- DBFV/DCKKS: both now use their respective CRP type for each protocol.
+- EXAMPLE: added showcase of the `ckks/advanced` sub-package: a bridge between CKKS and FHEW ciphertexts using homomorphic decoding, ring dimension switching, homomorphic matrix multiplication and homomorphic modular reduction.
 
 ## [2.2.0] - 2020-07-15
 

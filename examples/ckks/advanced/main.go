@@ -15,7 +15,7 @@ import (
 // This example is an implementation of the RLWE -> LWE extraction followed by an LWE -> RLWE repacking
 // (bridge between CKKS and FHEW ciphertext) based on "Pegasus: Bridging Polynomial and Non-polynomial
 // Evaluations in Homomorphic Encryption".
-// It showcases advanced tools of the CKKS schemes, like homomorphic decoding or homomorphic modular reduction.
+// It showcases advanced tools of the CKKS scheme, such as homomorphic decoding and homomorphic modular reduction.
 
 func main() {
 
@@ -166,7 +166,7 @@ func main() {
 	scale := math.Exp2(math.Round(math.Log2(float64(EvalModParameters.Q) / EvalModParameters.MessageRatio)))
 	eval.ScaleUp(ct, math.Round(scale/ct.Scale), ct)
 
-	//Switch from RLWE parameters to LWE parameters
+	// Switch from RLWE parameters to LWE parameters
 	ctTmp := eval.SwitchKeysNew(ct, swkRLWEDimToLWEDim)
 	ctLWE := ckks.NewCiphertext(paramsLWE, 1, 0, ctTmp.Scale)
 
@@ -201,7 +201,7 @@ func main() {
 	encoder.EncodeNTT(ptLWE, lweEncoded, paramsRLWE.LogSlots())
 	fmt.Printf("Done (%s)\n", time.Since(start))
 
-	// Encodes A
+	// Encode A
 
 	// Compute               skLeft                  skRight
 	//         __________      _       __________       _
@@ -256,8 +256,8 @@ func main() {
 	ctAsConj := eval.ConjugateNew(ctAs)
 	ctAsReal := eval.AddNew(ctAs, ctAsConj)
 	ctAsImag := eval.SubNew(ctAs, ctAsConj)
-	ctAsReal.Scale = ctAsReal.Scale * 2                                                                                   // Divides by 2
-	ctAsImag.Scale = ctAsImag.Scale * 2                                                                                   // Divides by 2
+	ctAsReal.Scale = ctAsReal.Scale * 2                                                                                   // Divide by 2
+	ctAsImag.Scale = ctAsImag.Scale * 2                                                                                   // Divide by 2
 	eval.ScaleUp(ctAsReal, math.Round((EvalModPoly.ScalingFactor()/EvalModPoly.MessageRatio())/ctAsReal.Scale), ctAsReal) // Scale the real message up to Sine/MessageRatio
 	eval.ScaleUp(ctAsImag, math.Round((EvalModPoly.ScalingFactor()/EvalModPoly.MessageRatio())/ctAsImag.Scale), ctAsImag) // Scale the imag message up to Sine/MessageRatio
 	v := encoder.DecodePublic(decryptor.DecryptNew(ctAsReal), paramsRLWE.LogSlots(), 0)
@@ -324,7 +324,7 @@ func genLWEParameters(paramsRLWE ckks.Parameters) (paramsLWE ckks.Parameters) {
 	return
 }
 
-//DecryptLWE decrypts an LWE sample
+// DecryptLWE decrypts an LWE sample
 func DecryptLWE(ringQ *ring.Ring, lwe RNSLWESample, scale float64, skInvNTT *ring.Poly) float64 {
 
 	tmp := ringQ.NewPolyLvl(0)
@@ -360,7 +360,7 @@ func ExtractLWESamplesBitReversed(ct *ckks.Ciphertext, params ckks.Parameters) (
 	LWEReal = make([]RNSLWESample, params.Slots())
 	LWEImag = make([]RNSLWESample, params.Slots())
 
-	// Copies coefficients multiplied by X^{N-1} in reverse order :
+	// Copy coefficients multiplied by X^{N-1} in reverse order:
 	// a_{0} -a_{N-1} -a2_{N-2} ... -a_{1}
 	acc := ringQ.NewPolyLvl(ct.Level())
 	for i, qi := range ringQ.Modulus[:ct.Level()+1] {
@@ -398,7 +398,7 @@ func ExtractLWESamplesBitReversed(ct *ckks.Ciphertext, params ckks.Parameters) (
 		LWEImag[iRev].a = make([]uint64, params.N())
 		copy(LWEImag[iRev].a, acc.Coeffs[0])
 
-		// Multiplies the accumulator by X^{N/(2*slots)}
+		// Multiply the accumulator by X^{N/(2*slots)}
 		MulBySmallMonomial(ringQ, acc, gap)
 	}
 	return

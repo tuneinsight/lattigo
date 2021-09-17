@@ -81,8 +81,8 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, s
 	twoN := uint64(ringQ.N << 1)
 	galElInv := ring.ModExp(galEl, twoN-1, twoN)
 
-	ring.PermuteNTT(sk.Value.Q, galElInv, rtg.tmpPoly1.Q)
-	ring.PermuteNTT(sk.Value.P, galElInv, rtg.tmpPoly1.P)
+	ringQ.PermuteNTT(sk.Value.Q, galElInv, rtg.tmpPoly1.Q)
+	ringQ.PermuteNTT(sk.Value.P, galElInv, rtg.tmpPoly1.P)
 
 	ringQ.MulScalarBigint(sk.Value.Q, ringP.ModulusBigint, rtg.tmpPoly0.Q)
 

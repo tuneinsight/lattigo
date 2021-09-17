@@ -10,7 +10,7 @@ import (
 
 func Benchmark_DRLWE(b *testing.B) {
 
-	defaultParams := []rlwe.ParametersLiteral{ /*rlwe.TestPN12QP109, rlwe.TestPN13QP218, */ rlwe.TestPN14QP438 /* rlwe.TestPN15QP880*/}
+	defaultParams := []rlwe.ParametersLiteral{rlwe.TestPN12QP109, rlwe.TestPN13QP218, rlwe.TestPN14QP438, rlwe.TestPN15QP880}
 	thresholdInc := 1
 
 	if testing.Short() {

@@ -68,7 +68,7 @@ func (thresholdizer *Thresholdizer) GenShamirPolynomial(threshold int, sk *rlwe.
 		return nil, fmt.Errorf("threshold should be >= 1")
 	}
 	gen := &ShamirPolynomial{coeffs: make([]*ring.Poly, int(threshold))}
-	gen.coeffs[0] = sk.Value.CopyNew()
+	gen.coeffs[0] = sk.Value // using the sk Poly directly since gen.coeffs is private and never modified internally.
 	for i := 1; i < threshold; i++ {
 		gen.coeffs[i] = thresholdizer.samplerQP.ReadNew()
 	}

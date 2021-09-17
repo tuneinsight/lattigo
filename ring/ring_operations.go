@@ -23,13 +23,13 @@ func (r *Ring) Add(p1, p2, p3 *Poly) {
 // AddLvl adds p1 to p2 coefficient-wise for the moduli from
 // q_0 up to q_level and writes the result on p3.
 func (r *Ring) AddLvl(level int, p1, p2, p3 *Poly) {
-	tasks := level+1
+	tasks := level + 1
 	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
 	var wg sync.WaitGroup
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
-	for i := 0; i < nbGoRoutines; i++{
-		tmp = (tasks+nbGoRoutines-i-1) / (nbGoRoutines-i)
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -50,13 +50,13 @@ func (r *Ring) AddNoMod(p1, p2, p3 *Poly) {
 // AddNoModLvl adds p1 to p2 coefficient-wise without modular reduction
 // for the moduli from q_0 up to q_level and writes the result on p3.
 func (r *Ring) AddNoModLvl(level int, p1, p2, p3 *Poly) {
-	tasks := level+1
+	tasks := level + 1
 	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
 	var wg sync.WaitGroup
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
-	for i := 0; i < nbGoRoutines; i++{
-		tmp = (tasks+nbGoRoutines-i-1) / (nbGoRoutines-i)
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -75,13 +75,13 @@ func (r *Ring) Sub(p1, p2, p3 *Poly) {
 
 // SubLvl subtracts p2 to p1 coefficient-wise and writes the result on p3.
 func (r *Ring) SubLvl(level int, p1, p2, p3 *Poly) {
-	tasks := level+1
+	tasks := level + 1
 	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
 	var wg sync.WaitGroup
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
-	for i := 0; i < nbGoRoutines; i++{
-		tmp = (tasks+nbGoRoutines-i-1) / (nbGoRoutines-i)
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -102,13 +102,13 @@ func (r *Ring) SubNoMod(p1, p2, p3 *Poly) {
 // SubNoModLvl subtracts p2 to p1 coefficient-wise without modular reduction
 // for the moduli from q_0 up to q_level and writes the result on p3.
 func (r *Ring) SubNoModLvl(level int, p1, p2, p3 *Poly) {
-	tasks := level+1
+	tasks := level + 1
 	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
 	var wg sync.WaitGroup
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
-	for i := 0; i < nbGoRoutines; i++{
-		tmp = (tasks+nbGoRoutines-i-1) / (nbGoRoutines-i)
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -128,13 +128,13 @@ func (r *Ring) Neg(p1, p2 *Poly) {
 // NegLvl sets the coefficients of p1 to their additive inverse for
 // the moduli from q_0 up to q_level and writes the result on p2.
 func (r *Ring) NegLvl(level int, p1, p2 *Poly) {
-	tasks := level+1
+	tasks := level + 1
 	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
 	var wg sync.WaitGroup
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
-	for i := 0; i < nbGoRoutines; i++{
-		tmp = (tasks+nbGoRoutines-i-1) / (nbGoRoutines-i)
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -154,13 +154,13 @@ func (r *Ring) Reduce(p1, p2 *Poly) {
 // ReduceLvl applies a modular reduction on the coefficients of p1
 // for the moduli from q_0 up to q_level and writes the result on p2.
 func (r *Ring) ReduceLvl(level int, p1, p2 *Poly) {
-	tasks := level+1
+	tasks := level + 1
 	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
 	var wg sync.WaitGroup
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
-	for i := 0; i < nbGoRoutines; i++{
-		tmp = (tasks+nbGoRoutines-i-1) / (nbGoRoutines-i)
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -182,13 +182,13 @@ func (r *Ring) ReduceConstant(p1, p2 *Poly) {
 // for the moduli from q_0 up to q_level and writes the result on p2.
 // Return values in [0, 2q-1]
 func (r *Ring) ReduceConstantLvl(level int, p1, p2 *Poly) {
-	tasks := level+1
+	tasks := level + 1
 	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
 	var wg sync.WaitGroup
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
-	for i := 0; i < nbGoRoutines; i++{
-		tmp = (tasks+nbGoRoutines-i-1) / (nbGoRoutines-i)
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -208,13 +208,13 @@ func (r *Ring) Mod(p1 *Poly, m uint64, p2 *Poly) {
 // ModLvl applies a modular reduction by m on the coefficients of p1 and writes the result on p2.
 func (r *Ring) ModLvl(level int, p1 *Poly, m uint64, p2 *Poly) {
 	bredParams := BRedParams(m)
-	tasks := level+1
+	tasks := level + 1
 	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
 	var wg sync.WaitGroup
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
-	for i := 0; i < nbGoRoutines; i++{
-		tmp = (tasks+nbGoRoutines-i-1) / (nbGoRoutines-i)
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -235,13 +235,13 @@ func (r *Ring) MulCoeffs(p1, p2, p3 *Poly) {
 // MulCoeffsLvl multiplies p1 by p2 coefficient-wise, performs a
 // Barrett modular reduction and writes the result on p3.
 func (r *Ring) MulCoeffsLvl(level int, p1, p2, p3 *Poly) {
-	tasks := level+1
+	tasks := level + 1
 	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
 	var wg sync.WaitGroup
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
-	for i := 0; i < nbGoRoutines; i++{
-		tmp = (tasks+nbGoRoutines-i-1) / (nbGoRoutines-i)
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -262,13 +262,13 @@ func (r *Ring) MulCoeffsAndAdd(p1, p2, p3 *Poly) {
 // MulCoeffsAndAddLvl multiplies p1 by p2 coefficient-wise with
 // a Barret modular reduction and adds the result to p3.
 func (r *Ring) MulCoeffsAndAddLvl(level int, p1, p2, p3 *Poly) {
-	tasks := level+1
+	tasks := level + 1
 	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
 	var wg sync.WaitGroup
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
-	for i := 0; i < nbGoRoutines; i++{
-		tmp = (tasks+nbGoRoutines-i-1) / (nbGoRoutines-i)
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -289,13 +289,13 @@ func (r *Ring) MulCoeffsAndAddNoMod(p1, p2, p3 *Poly) {
 // MulCoeffsAndAddNoModLvl multiplies p1 by p2 coefficient-wise with a Barrett
 // modular reduction and adds the result to p3 without modular reduction.
 func (r *Ring) MulCoeffsAndAddNoModLvl(level int, p1, p2, p3 *Poly) {
-	tasks := level+1
+	tasks := level + 1
 	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
 	var wg sync.WaitGroup
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
-	for i := 0; i < nbGoRoutines; i++{
-		tmp = (tasks+nbGoRoutines-i-1) / (nbGoRoutines-i)
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -316,13 +316,13 @@ func (r *Ring) MulCoeffsMontgomery(p1, p2, p3 *Poly) {
 // MulCoeffsMontgomeryLvl multiplies p1 by p2 coefficient-wise with a Montgomery
 // modular reduction for the moduli from q_0 up to q_level and returns the result on p3.
 func (r *Ring) MulCoeffsMontgomeryLvl(level int, p1, p2, p3 *Poly) {
-	tasks := level+1
+	tasks := level + 1
 	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
 	var wg sync.WaitGroup
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
-	for i := 0; i < nbGoRoutines; i++{
-		tmp = (tasks+nbGoRoutines-i-1) / (nbGoRoutines-i)
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -343,13 +343,13 @@ func (r *Ring) MulCoeffsMontgomeryConstant(p1, p2, p3 *Poly) {
 // MulCoeffsMontgomeryConstantLvl multiplies p1 by p2 coefficient-wise with a Montgomery
 // modular reduction for the moduli from q_0 up to q_level and returns the result on p3.
 func (r *Ring) MulCoeffsMontgomeryConstantLvl(level int, p1, p2, p3 *Poly) {
-	tasks := level+1
+	tasks := level + 1
 	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
 	var wg sync.WaitGroup
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
-	for i := 0; i < nbGoRoutines; i++{
-		tmp = (tasks+nbGoRoutines-i-1) / (nbGoRoutines-i)
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -370,13 +370,13 @@ func (r *Ring) MulCoeffsMontgomeryAndAdd(p1, p2, p3 *Poly) {
 // MulCoeffsMontgomeryAndAddLvl multiplies p1 by p2 coefficient-wise with a Montgomery
 // modular reduction for the moduli from q_0 up to q_level and adds the result to p3.
 func (r *Ring) MulCoeffsMontgomeryAndAddLvl(level int, p1, p2, p3 *Poly) {
-	tasks := level+1
+	tasks := level + 1
 	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
 	var wg sync.WaitGroup
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
-	for i := 0; i < nbGoRoutines; i++{
-		tmp = (tasks+nbGoRoutines-i-1) / (nbGoRoutines-i)
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -397,13 +397,13 @@ func (r *Ring) MulCoeffsMontgomeryAndAddNoMod(p1, p2, p3 *Poly) {
 // MulCoeffsMontgomeryAndAddNoModLvl multiplies p1 by p2 coefficient-wise with a Montgomery modular
 // reduction for the moduli from q_0 up to q_level and adds the result to p3 without modular reduction.
 func (r *Ring) MulCoeffsMontgomeryAndAddNoModLvl(level int, p1, p2, p3 *Poly) {
-	tasks := level+1
+	tasks := level + 1
 	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
 	var wg sync.WaitGroup
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
-	for i := 0; i < nbGoRoutines; i++{
-		tmp = (tasks+nbGoRoutines-i-1) / (nbGoRoutines-i)
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -426,13 +426,13 @@ func (r *Ring) MulCoeffsMontgomeryConstantAndAddNoMod(p1, p2, p3 *Poly) {
 // modular reduction for the moduli from q_0 up to q_level and adds the result to p3 without modular reduction.
 // Return values in [0, 3q-1]
 func (r *Ring) MulCoeffsMontgomeryConstantAndAddNoModLvl(level int, p1, p2, p3 *Poly) {
-	tasks := level+1
+	tasks := level + 1
 	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
 	var wg sync.WaitGroup
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
-	for i := 0; i < nbGoRoutines; i++{
-		tmp = (tasks+nbGoRoutines-i-1) / (nbGoRoutines-i)
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -453,13 +453,13 @@ func (r *Ring) MulCoeffsMontgomeryAndSub(p1, p2, p3 *Poly) {
 // MulCoeffsMontgomeryAndSubLvl multiplies p1 by p2 coefficient-wise with
 // a Montgomery modular reduction and subtracts the result from p3.
 func (r *Ring) MulCoeffsMontgomeryAndSubLvl(level int, p1, p2, p3 *Poly) {
-	tasks := level+1
+	tasks := level + 1
 	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
 	var wg sync.WaitGroup
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
-	for i := 0; i < nbGoRoutines; i++{
-		tmp = (tasks+nbGoRoutines-i-1) / (nbGoRoutines-i)
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -480,13 +480,13 @@ func (r *Ring) MulCoeffsMontgomeryAndSubNoMod(p1, p2, p3 *Poly) {
 // MulCoeffsMontgomeryAndSubNoModLvl multiplies p1 by p2 coefficient-wise with a Montgomery
 // modular reduction and subtracts the result from p3 without modular reduction.
 func (r *Ring) MulCoeffsMontgomeryAndSubNoModLvl(level int, p1, p2, p3 *Poly) {
-	tasks := level+1
+	tasks := level + 1
 	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
 	var wg sync.WaitGroup
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
-	for i := 0; i < nbGoRoutines; i++{
-		tmp = (tasks+nbGoRoutines-i-1) / (nbGoRoutines-i)
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -507,13 +507,13 @@ func (r *Ring) MulCoeffsConstant(p1, p2, p3 *Poly) {
 // MulCoeffsConstantLvl multiplies p1 by p2 coefficient-wise with a constant-time
 // Barrett modular reduction and writes the result on p3.
 func (r *Ring) MulCoeffsConstantLvl(level int, p1, p2, p3 *Poly) {
-	tasks := level+1
+	tasks := level + 1
 	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
 	var wg sync.WaitGroup
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
-	for i := 0; i < nbGoRoutines; i++{
-		tmp = (tasks+nbGoRoutines-i-1) / (nbGoRoutines-i)
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -532,13 +532,13 @@ func (r *Ring) AddScalar(p1 *Poly, scalar uint64, p2 *Poly) {
 
 // AddScalarLvl adds a scalar to each coefficient of p1 and writes the result on p2.
 func (r *Ring) AddScalarLvl(level int, p1 *Poly, scalar uint64, p2 *Poly) {
-	tasks := level+1
+	tasks := level + 1
 	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
 	var wg sync.WaitGroup
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
-	for i := 0; i < nbGoRoutines; i++{
-		tmp = (tasks+nbGoRoutines-i-1) / (nbGoRoutines-i)
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -557,13 +557,13 @@ func (r *Ring) AddScalarBigint(p1 *Poly, scalar *big.Int, p2 *Poly) {
 
 // AddScalarBigintLvl adds a big.Int scalar to each coefficient of p1 and writes the result on p2.
 func (r *Ring) AddScalarBigintLvl(level int, p1 *Poly, scalar *big.Int, p2 *Poly) {
-	tasks := level+1
+	tasks := level + 1
 	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
 	var wg sync.WaitGroup
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
-	for i := 0; i < nbGoRoutines; i++{
-		tmp = (tasks+nbGoRoutines-i-1) / (nbGoRoutines-i)
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			tmp := new(big.Int)
@@ -583,13 +583,13 @@ func (r *Ring) SubScalar(p1 *Poly, scalar uint64, p2 *Poly) {
 
 // SubScalarLvl subtracts a scalar from each coefficient of p1 and writes the result on p2.
 func (r *Ring) SubScalarLvl(level int, p1 *Poly, scalar uint64, p2 *Poly) {
-	tasks := level+1
+	tasks := level + 1
 	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
 	var wg sync.WaitGroup
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
-	for i := 0; i < nbGoRoutines; i++{
-		tmp = (tasks+nbGoRoutines-i-1) / (nbGoRoutines-i)
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -608,13 +608,13 @@ func (r *Ring) SubScalarBigint(p1 *Poly, scalar *big.Int, p2 *Poly) {
 
 // SubScalarBigintLvl subtracts a big.Int scalar from each coefficient of p1 and writes the result on p2.
 func (r *Ring) SubScalarBigintLvl(level int, p1 *Poly, scalar *big.Int, p2 *Poly) {
-	tasks := level+1
+	tasks := level + 1
 	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
 	var wg sync.WaitGroup
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
-	for i := 0; i < nbGoRoutines; i++{
-		tmp = (tasks+nbGoRoutines-i-1) / (nbGoRoutines-i)
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			tmp := new(big.Int)
@@ -634,13 +634,13 @@ func (r *Ring) MulScalar(p1 *Poly, scalar uint64, p2 *Poly) {
 
 // MulScalarLvl multiplies each coefficient of p1 by a scalar for the moduli from q_0 up to q_level and writes the result on p2.
 func (r *Ring) MulScalarLvl(level int, p1 *Poly, scalar uint64, p2 *Poly) {
-	tasks := level+1
+	tasks := level + 1
 	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
 	var wg sync.WaitGroup
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
-	for i := 0; i < nbGoRoutines; i++{
-		tmp = (tasks+nbGoRoutines-i-1) / (nbGoRoutines-i)
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -660,13 +660,13 @@ func (r *Ring) MulScalarBigint(p1 *Poly, scalar *big.Int, p2 *Poly) {
 // MulScalarBigintLvl multiplies each coefficient of p1 by a big.Int scalar
 //for the moduli from q_0 up to q_level and writes the result on p2.
 func (r *Ring) MulScalarBigintLvl(level int, p1 *Poly, scalar *big.Int, p2 *Poly) {
-	tasks := level+1
+	tasks := level + 1
 	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
 	var wg sync.WaitGroup
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
-	for i := 0; i < nbGoRoutines; i++{
-		tmp = (tasks+nbGoRoutines-i-1) / (nbGoRoutines-i)
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			scalarQi := new(big.Int)
@@ -695,13 +695,13 @@ func (r *Ring) MForm(p1, p2 *Poly) {
 
 // MFormLvl switches p1 to the Montgomery domain for the moduli from q_0 up to q_level and writes the result on p2.
 func (r *Ring) MFormLvl(level int, p1, p2 *Poly) {
-	tasks := level+1
+	tasks := level + 1
 	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
 	var wg sync.WaitGroup
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
-	for i := 0; i < nbGoRoutines; i++{
-		tmp = (tasks+nbGoRoutines-i-1) / (nbGoRoutines-i)
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -720,13 +720,13 @@ func (r *Ring) InvMForm(p1, p2 *Poly) {
 
 // InvMFormLvl switches back p1 from the Montgomery domain to the conventional domain and writes the result on p2.
 func (r *Ring) InvMFormLvl(level int, p1, p2 *Poly) {
-	tasks := level+1
+	tasks := level + 1
 	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
 	var wg sync.WaitGroup
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
-	for i := 0; i < nbGoRoutines; i++{
-		tmp = (tasks+nbGoRoutines-i-1) / (nbGoRoutines-i)
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -746,13 +746,13 @@ func (r *Ring) MulByPow2(p1 *Poly, pow2 int, p2 *Poly) {
 // MulByPow2Lvl multiplies p1 by 2^pow2 for the moduli from q_0 up to q_level and writes the result on p2.
 func (r *Ring) MulByPow2Lvl(level int, p1 *Poly, pow2 int, p2 *Poly) {
 	r.MFormLvl(level, p1, p2)
-	tasks := level+1
+	tasks := level + 1
 	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
 	var wg sync.WaitGroup
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
-	for i := 0; i < nbGoRoutines; i++{
-		tmp = (tasks+nbGoRoutines-i-1) / (nbGoRoutines-i)
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -827,13 +827,13 @@ func (r *Ring) MulByVectorMontgomery(p1 *Poly, vector []uint64, p2 *Poly) {
 
 // MulByVectorMontgomeryLvl multiplies p1 by a vector of uint64 coefficients and writes the result on p2.
 func (r *Ring) MulByVectorMontgomeryLvl(level int, p1 *Poly, vector []uint64, p2 *Poly) {
-	tasks := level+1
+	tasks := level + 1
 	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
 	var wg sync.WaitGroup
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
-	for i := 0; i < nbGoRoutines; i++{
-		tmp = (tasks+nbGoRoutines-i-1) / (nbGoRoutines-i)
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -852,13 +852,13 @@ func (r *Ring) MulByVectorMontgomeryAndAddNoMod(p1 *Poly, vector []uint64, p2 *P
 
 // MulByVectorMontgomeryAndAddNoModLvl multiplies p1 by a vector of uint64 coefficients and adds the result on p2 without modular reduction.
 func (r *Ring) MulByVectorMontgomeryAndAddNoModLvl(level int, p1 *Poly, vector []uint64, p2 *Poly) {
-	tasks := level+1
+	tasks := level + 1
 	nbGoRoutines := utils.MinInt(tasks, r.NbGoRoutines)
 	var wg sync.WaitGroup
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
-	for i := 0; i < nbGoRoutines; i++{
-		tmp = (tasks+nbGoRoutines-i-1) / (nbGoRoutines-i)
+	for i := 0; i < nbGoRoutines; i++ {
+		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {

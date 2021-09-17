@@ -596,7 +596,7 @@ func (eval *evaluator) AddConst(ct0 *Ciphertext, constant interface{}, ctOut *Ci
 	// [{                  N/2                }{                N/2               }]
 	// Which is equivalent outside of the NTT domain to adding a to the first coefficient of ct0 and b to the N/2-th coefficient of ct0.
 	for i := 0; i < level+1; i++ {
-		scaledConstReal,  scaledConstImag, scaledConst = 0, 0, 0
+		scaledConstReal, scaledConstImag, scaledConst = 0, 0, 0
 		qi = ringQ.Modulus[i]
 
 		if cReal != 0 {
@@ -611,7 +611,7 @@ func (eval *evaluator) AddConst(ct0 *Ciphertext, constant interface{}, ctOut *Ci
 
 		p0tmp := ct0.Value[0].Coeffs[i]
 		p1tmp := ctOut.Value[0].Coeffs[i]
-		
+
 		ring.AddScalarVec(p0tmp[:ringQ.N>>1], p1tmp[:ringQ.N>>1], scaledConst, qi)
 
 		if cImag != 0 {

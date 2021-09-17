@@ -330,6 +330,24 @@ func MulCoeffsConstantVec(p1, p2, p3 []uint64, qi uint64, bredParams []uint64) {
 	}
 }
 
+func AddVecNoModAndMulScalarMontgomeryVec(p1, p2, p3 []uint64, scalarMont, qi, mredParams uint64) {
+	for j := 0; j < len(p1); j = j + 8 {
+
+		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
+		y := (*[8]uint64)(unsafe.Pointer(&p2[j]))
+		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
+
+		z[0] = MRed(x[0]+y[0], scalarMont, qi, mredParams)
+		z[1] = MRed(x[1]+y[1], scalarMont, qi, mredParams)
+		z[2] = MRed(x[2]+y[2], scalarMont, qi, mredParams)
+		z[3] = MRed(x[3]+y[3], scalarMont, qi, mredParams)
+		z[4] = MRed(x[4]+y[4], scalarMont, qi, mredParams)
+		z[5] = MRed(x[5]+y[5], scalarMont, qi, mredParams)
+		z[6] = MRed(x[6]+y[6], scalarMont, qi, mredParams)
+		z[7] = MRed(x[7]+y[7], scalarMont, qi, mredParams)
+	}
+}
+
 func AddScalarVec(p1, p2 []uint64, scalar, qi uint64) {
 	for j := 0; j < len(p1); j = j + 8 {
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
@@ -343,6 +361,39 @@ func AddScalarVec(p1, p2 []uint64, scalar, qi uint64) {
 		z[5] = CRed(x[5]+scalar, qi)
 		z[6] = CRed(x[6]+scalar, qi)
 		z[7] = CRed(x[7]+scalar, qi)
+	}
+}
+
+func AddScalarNoModVec(p1, p2 []uint64, scalar uint64) {
+	for j := 0; j < len(p1); j = j + 8 {
+		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
+		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
+
+		z[0] = x[0] + scalar
+		z[1] = x[1] + scalar
+		z[2] = x[2] + scalar
+		z[3] = x[3] + scalar
+		z[4] = x[4] + scalar
+		z[5] = x[5] + scalar
+		z[6] = x[6] + scalar
+		z[7] = x[7] + scalar
+	}
+}
+
+func AddScalarNoModAndNegTwoQiNoModVec(p1, p2 []uint64, scalar, qi uint64) {
+	twoqi := qi << 1
+	for j := 0; j < len(p1); j = j + 8 {
+		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
+		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
+
+		z[0] = scalar + twoqi - x[0]
+		z[1] = scalar + twoqi - x[1]
+		z[2] = scalar + twoqi - x[2]
+		z[3] = scalar + twoqi - x[3]
+		z[4] = scalar + twoqi - x[4]
+		z[5] = scalar + twoqi - x[5]
+		z[6] = scalar + twoqi - x[6]
+		z[7] = scalar + twoqi - x[7]
 	}
 }
 
@@ -394,6 +445,27 @@ func MulScalarMontgomeryAndAddVec(p1, p2 []uint64, scalarMont, qi, mredParams ui
 		z[5] = CRed(z[5]+MRed(x[5], scalarMont, qi, mredParams), qi)
 		z[6] = CRed(z[6]+MRed(x[6], scalarMont, qi, mredParams), qi)
 		z[7] = CRed(z[7]+MRed(x[7], scalarMont, qi, mredParams), qi)
+	}
+}
+
+// Computes p3 = (p1 + twoqi - p2) * scalarMont
+func SubVecAndMulScalarMontgomeryTwoQiVec(p1, p2, p3 []uint64, scalarMont, qi, mredParams uint64) {
+	twoqi := qi << 1
+	for j := 0; j < len(p1); j = j + 8 {
+
+		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
+		y := (*[8]uint64)(unsafe.Pointer(&p2[j]))
+		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
+
+		z[0] = MRed(twoqi-y[0]+x[0], scalarMont, qi, mredParams)
+		z[1] = MRed(twoqi-y[1]+x[1], scalarMont, qi, mredParams)
+		z[2] = MRed(twoqi-y[2]+x[2], scalarMont, qi, mredParams)
+		z[3] = MRed(twoqi-y[3]+x[3], scalarMont, qi, mredParams)
+		z[4] = MRed(twoqi-y[4]+x[4], scalarMont, qi, mredParams)
+		z[5] = MRed(twoqi-y[5]+x[5], scalarMont, qi, mredParams)
+		z[6] = MRed(twoqi-y[6]+x[6], scalarMont, qi, mredParams)
+		z[7] = MRed(twoqi-y[7]+x[7], scalarMont, qi, mredParams)
+
 	}
 }
 

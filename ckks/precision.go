@@ -27,7 +27,7 @@ type PrecisionStats struct {
 	cdfResol int
 }
 
-// Stats is a struct storing the real, imaginary and L2 norm (modulus) 
+// Stats is a struct storing the real, imaginary and L2 norm (modulus)
 // about the precision of a complex value.
 type Stats struct {
 	Real, Imag, L2 float64

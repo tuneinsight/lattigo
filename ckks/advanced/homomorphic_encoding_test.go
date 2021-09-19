@@ -338,6 +338,6 @@ func verifyTestVectors(params ckks.Parameters, encoder ckks.Encoder, decryptor c
 	if *printPrecisionStats {
 		t.Log(precStats.String())
 	}
-	require.GreaterOrEqual(t, real(precStats.MeanPrecision), minPrec)
-	require.GreaterOrEqual(t, imag(precStats.MeanPrecision), minPrec)
+	require.GreaterOrEqual(t, precStats.MeanPrecision.Real, minPrec)
+	require.GreaterOrEqual(t, precStats.MeanPrecision.Imag, minPrec)
 }

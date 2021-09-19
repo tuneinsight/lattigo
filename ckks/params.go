@@ -289,15 +289,12 @@ func (p Parameters) RotationsForReplicateLog(batch, n int) (rotations []int) {
 	return p.RotationsForInnerSumLog(-batch, n)
 }
 
-// RotationsForSubSum generates the rotations that will be performed by the
+// RotationsForTrace generates the rotations that will be performed by the
 // `Evaluator.SubSum` operation.
-func (p Parameters) RotationsForSubSum(logSlots int) (rotations []int) {
+func (p Parameters) RotationsForTrace(logSlotsStart, logSlotsEnd int) (rotations []int) {
 	rotations = []int{}
-
-	logN := p.LogN()
-
 	//SubSum rotation needed X -> Y^slots rotations
-	for i := logSlots; i < logN-1; i++ {
+	for i := logSlotsStart; i < logSlotsEnd; i++ {
 		if !utils.IsInSliceInt(1<<i, rotations) {
 			rotations = append(rotations, 1<<i)
 		}
@@ -308,7 +305,7 @@ func (p Parameters) RotationsForSubSum(logSlots int) (rotations []int) {
 
 // RotationsForDiagMatrixMult generates of all the rotations needed for a the multiplication
 // with the provided diagonal plaintext matrix.
-func (p Parameters) RotationsForDiagMatrixMult(matrix *PtDiagMatrix) []int {
+func (p Parameters) RotationsForDiagMatrixMult(matrix PtDiagMatrix) []int {
 	slots := 1 << matrix.LogSlots
 
 	rotKeyIndex := []int{}
@@ -317,7 +314,7 @@ func (p Parameters) RotationsForDiagMatrixMult(matrix *PtDiagMatrix) []int {
 
 	N1 := matrix.N1
 
-	if len(matrix.Vec) < 3 {
+	if len(matrix.Vec) < 3 || matrix.Naive {
 
 		for j := range matrix.Vec {
 
@@ -329,6 +326,47 @@ func (p Parameters) RotationsForDiagMatrixMult(matrix *PtDiagMatrix) []int {
 	} else {
 
 		for j := range matrix.Vec {
+
+			index = ((j / N1) * N1) & (slots - 1)
+
+			if index != 0 && !utils.IsInSliceInt(index, rotKeyIndex) {
+				rotKeyIndex = append(rotKeyIndex, index)
+			}
+
+			index = j & (N1 - 1)
+
+			if index != 0 && !utils.IsInSliceInt(index, rotKeyIndex) {
+				rotKeyIndex = append(rotKeyIndex, index)
+			}
+		}
+	}
+
+	return rotKeyIndex
+}
+
+// RotationsForDiaMatrixMultRaw generates of all the rotations needed for a the multiplication with a diagonalized matrix
+// with the provided list of non zero diagonals.
+func (p Parameters) RotationsForDiaMatrixMultRaw(nonZeroDiags []int, logSlots int, BSGSratio float64) []int {
+	slots := 1 << logSlots
+
+	rotKeyIndex := []int{}
+
+	var index int
+
+	N1 := FindBestBSGSSplit(nonZeroDiags, slots, BSGSratio)
+
+	if len(nonZeroDiags) < 3 {
+
+		for _, j := range nonZeroDiags {
+
+			if !utils.IsInSliceInt(j, rotKeyIndex) {
+				rotKeyIndex = append(rotKeyIndex, j)
+			}
+		}
+
+	} else {
+
+		for _, j := range nonZeroDiags {
 
 			index = ((j / N1) * N1) & (slots - 1)
 

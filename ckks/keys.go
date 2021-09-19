@@ -7,10 +7,6 @@ func NewKeyGenerator(params Parameters) rlwe.KeyGenerator {
 	return rlwe.NewKeyGenerator(params.Parameters)
 }
 
-// BootstrappingKey is a type for a CKKS bootstrapping key, wich regroups the necessary public relinearization
-// and rotation keys (i.e., an EvaluationKey).
-type BootstrappingKey rlwe.EvaluationKey
-
 // NewSecretKey returns an allocated CKKS secret key with zero values.
 func NewSecretKey(params Parameters) (sk *rlwe.SecretKey) {
 	return rlwe.NewSecretKey(params.Parameters)
@@ -23,7 +19,7 @@ func NewPublicKey(params Parameters) (pk *rlwe.PublicKey) {
 
 // NewSwitchingKey returns an allocated CKKS public switching key with zero values.
 func NewSwitchingKey(params Parameters) *rlwe.SwitchingKey {
-	return rlwe.NewSwitchingKey(params.Parameters)
+	return rlwe.NewSwitchingKey(params.Parameters, params.QCount()-1, params.PCount()-1)
 }
 
 // NewRelinearizationKey returns an allocated CKKS public relinearization key with zero value.

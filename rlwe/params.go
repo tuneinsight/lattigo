@@ -46,13 +46,12 @@ type ParametersLiteral struct {
 // Parameters represents a set of generic RLWE parameters. Its fields are private and
 // immutable. See ParametersLiteral for user-specified parameters.
 type Parameters struct {
-	logN   int
-	qi     []uint64
-	pi     []uint64
-	sigma  float64
-	ringQ  *ring.Ring
-	ringP  *ring.Ring
-	ringQP *ring.Ring
+	logN  int
+	qi    []uint64
+	pi    []uint64
+	sigma float64
+	ringQ *ring.Ring
+	ringP *ring.Ring
 }
 
 var (
@@ -123,10 +122,6 @@ func NewParameters(logn int, q, p []uint64, sigma float64) (Parameters, error) {
 		}
 	}
 
-	if params.ringQP, err = ring.NewRing(1<<logn, append(q, p...)); err != nil {
-		return Parameters{}, err
-	}
-
 	copy(params.qi, q)
 	copy(params.pi, p)
 	return params, nil
@@ -170,8 +165,8 @@ func (p Parameters) RingP() *ring.Ring {
 }
 
 // RingQP returns a pointer to ringQP
-func (p Parameters) RingQP() *ring.Ring {
-	return p.ringQP
+func (p Parameters) RingQP() *RingQP {
+	return &RingQP{p.ringQ, p.ringP}
 }
 
 // Sigma returns standard deviation of the noise distribution
@@ -189,6 +184,11 @@ func (p Parameters) Q() []uint64 {
 	qi := make([]uint64, len(p.qi))
 	copy(qi, p.qi)
 	return qi
+}
+
+// QiFloat64 returns the float64 value of the Qi at position level in the modulus chain.
+func (p Parameters) QiFloat64(level int) float64 {
+	return float64(p.qi[level])
 }
 
 // QCount returns the number of factors of the ciphertext modulus Q
@@ -298,18 +298,18 @@ func (p *Parameters) QiOverflowMargin(level int) int {
 
 // PiOverflowMargin returns floor(2^64 / max(Pi)), i.e. the number of times elements of Z_max{Pi} can
 // be added together before overflowing 2^64.
-func (p *Parameters) PiOverflowMargin() int {
-	return int(math.Exp2(64) / float64(utils.MaxSliceUint64(p.pi)))
+func (p *Parameters) PiOverflowMargin(level int) int {
+	return int(math.Exp2(64) / float64(utils.MaxSliceUint64(p.pi[:level+1])))
 }
 
 // GaloisElementForColumnRotationBy returns the galois element for plaintext
 // column rotations by k position to the left. Providing a negative k is
 // equivalent to a right rotation.
 func (p Parameters) GaloisElementForColumnRotationBy(k int) uint64 {
-	twoN := 1 << (p.logN + 1)
+	twoN := 2 << p.logN
 	mask := twoN - 1
 	kRed := k & mask
-	return ring.ModExp(GaloisGen, kRed, uint64(twoN))
+	return ring.ModExp(GaloisGen, uint64(kRed), uint64(twoN))
 }
 
 // GaloisElementForRowRotation returns the galois element for generating the row
@@ -333,8 +333,8 @@ func (p Parameters) GaloisElementsForRowInnerSum() (galEls []uint64) {
 // InverseGaloisElement takes a galois element and returns the galois element
 //  corresponding to the inverse automorphism
 func (p Parameters) InverseGaloisElement(galEl uint64) uint64 {
-	twoN := 1 << (p.logN + 1)
-	return ring.ModExp(galEl, twoN-1, uint64(twoN))
+	twoN := uint64(2 << p.logN)
+	return ring.ModExp(galEl, twoN-1, twoN)
 }
 
 // Equals checks two Parameter structs for equality.

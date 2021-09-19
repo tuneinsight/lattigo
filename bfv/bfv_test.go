@@ -25,7 +25,6 @@ func testString(opname string, p Parameters) string {
 type testContext struct {
 	params      Parameters
 	ringQ       *ring.Ring
-	ringQP      *ring.Ring
 	ringT       *ring.Ring
 	prng        utils.PRNG
 	uSampler    *ring.UniformSampler
@@ -90,7 +89,6 @@ func genTestParams(params Parameters) (testctx *testContext, err error) {
 	}
 
 	testctx.ringQ = params.RingQ()
-	testctx.ringQP = params.RingQP()
 	testctx.ringT = params.RingT()
 
 	testctx.uSampler = ring.NewUniformSampler(testctx.prng, testctx.ringT)

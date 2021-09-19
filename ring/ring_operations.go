@@ -707,6 +707,24 @@ func (r *Ring) Shift(p1 *Poly, n int, p2 *Poly) {
 	}
 }
 
+// MFormVec switches the input vector to the Montgomery domain.
+func MFormVec(p0, p1 []uint64, qi uint64, bredParams []uint64) {
+
+	for j := 0; j < len(p0); j = j + 8 {
+		x := (*[8]uint64)(unsafe.Pointer(&p0[j]))
+		z := (*[8]uint64)(unsafe.Pointer(&p1[j]))
+
+		z[0] = MForm(x[0], qi, bredParams)
+		z[1] = MForm(x[1], qi, bredParams)
+		z[2] = MForm(x[2], qi, bredParams)
+		z[3] = MForm(x[3], qi, bredParams)
+		z[4] = MForm(x[4], qi, bredParams)
+		z[5] = MForm(x[5], qi, bredParams)
+		z[6] = MForm(x[6], qi, bredParams)
+		z[7] = MForm(x[7], qi, bredParams)
+	}
+}
+
 // MForm switches p1 to the Montgomery domain and writes the result on p2.
 func (r *Ring) MForm(p1, p2 *Poly) {
 	r.MFormLvl(r.minLevelBinary(p1, p2), p1, p2)
@@ -718,20 +736,7 @@ func (r *Ring) MFormLvl(level int, p1, p2 *Poly) {
 		qi := r.Modulus[i]
 		bredParams := r.BredParams[i]
 		p1tmp, p2tmp := p1.Coeffs[i], p2.Coeffs[i]
-		for j := 0; j < r.N; j = j + 8 {
-
-			x := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-			z := (*[8]uint64)(unsafe.Pointer(&p2tmp[j]))
-
-			z[0] = MForm(x[0], qi, bredParams)
-			z[1] = MForm(x[1], qi, bredParams)
-			z[2] = MForm(x[2], qi, bredParams)
-			z[3] = MForm(x[3], qi, bredParams)
-			z[4] = MForm(x[4], qi, bredParams)
-			z[5] = MForm(x[5], qi, bredParams)
-			z[6] = MForm(x[6], qi, bredParams)
-			z[7] = MForm(x[7], qi, bredParams)
-		}
+		MFormVec(p1tmp, p2tmp, qi, bredParams)
 	}
 }
 
@@ -907,6 +912,21 @@ func (r *Ring) MulByVectorMontgomeryAndAddNoMod(p1 *Poly, vector []uint64, p2 *P
 	}
 }
 
+// MapSmallDimensionToLargerDimensionNTT maps Y = X^{N/n} -> X directly in the NTT domain
+func MapSmallDimensionToLargerDimensionNTT(polSmall, polLarge *Poly) {
+	gap := len(polLarge.Coeffs[0]) / len(polSmall.Coeffs[0])
+	for j := range polSmall.Coeffs {
+		tmp0 := polSmall.Coeffs[j]
+		tmp1 := polLarge.Coeffs[j]
+		for i := range polSmall.Coeffs[0] {
+			coeff := tmp0[i]
+			for w := 0; w < gap; w++ {
+				tmp1[i*gap+w] = coeff
+			}
+		}
+	}
+}
+
 // BitReverse applies a bit reverse permutation on the coefficients of p1 and writes the result on p2.
 // In can safely be used for in-place permutation.
 func (r *Ring) BitReverse(p1, p2 *Poly) {
@@ -947,7 +967,7 @@ func (r *Ring) Rotate(p1 *Poly, n int, p2 *Poly) {
 
 		root = MRed(r.PsiMont[i], r.PsiMont[i], qi, mredParams)
 
-		root = modexpMontgomery(root, n, qi, mredParams, r.BredParams[i])
+		root = ModexpMontgomery(root, n, qi, mredParams, r.BredParams[i])
 
 		gal = MForm(1, qi, r.BredParams[i])
 

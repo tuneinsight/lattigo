@@ -45,7 +45,7 @@ func benchEncoder(testContext *testParams, b *testing.B) {
 	encoder := testContext.encoder
 	logSlots := testContext.params.LogSlots()
 
-	b.Run(testString(testContext, "Encoder/Encode/"), func(b *testing.B) {
+	b.Run(GetTestName(testContext.params, "Encoder/Encode/"), func(b *testing.B) {
 
 		values := make([]complex128, 1<<logSlots)
 		for i := 0; i < 1<<logSlots; i++ {
@@ -59,7 +59,7 @@ func benchEncoder(testContext *testParams, b *testing.B) {
 		}
 	})
 
-	b.Run(testString(testContext, "Encoder/Decode/"), func(b *testing.B) {
+	b.Run(GetTestName(testContext.params, "Encoder/Decode/"), func(b *testing.B) {
 
 		values := make([]complex128, 1<<logSlots)
 		for i := 0; i < 1<<logSlots; i++ {
@@ -80,13 +80,13 @@ func benchKeyGen(testContext *testParams, b *testing.B) {
 	kgen := testContext.kgen
 	sk := testContext.sk
 
-	b.Run(testString(testContext, "KeyGen/KeyPairGen/"), func(b *testing.B) {
+	b.Run(GetTestName(testContext.params, "KeyGen/KeyPairGen/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			kgen.GenKeyPair()
 		}
 	})
 
-	b.Run(testString(testContext, "KeyGen/SwitchKeyGen/"), func(b *testing.B) {
+	b.Run(GetTestName(testContext.params, "KeyGen/SwitchKeyGen/"), func(b *testing.B) {
 
 		if testContext.params.PCount() == 0 {
 			b.Skip("#Pi is empty")
@@ -107,7 +107,7 @@ func benchEncrypt(testContext *testParams, b *testing.B) {
 	plaintext := NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.Scale())
 	ciphertext := NewCiphertext(testContext.params, 1, testContext.params.MaxLevel(), testContext.params.Scale())
 
-	b.Run(testString(testContext, "Encrypt/key=Pk/"), func(b *testing.B) {
+	b.Run(GetTestName(testContext.params, "Encrypt/key=Pk/"), func(b *testing.B) {
 
 		if testContext.params.PCount() == 0 {
 			b.Skip("#Pi is empty")
@@ -118,13 +118,13 @@ func benchEncrypt(testContext *testParams, b *testing.B) {
 		}
 	})
 
-	b.Run(testString(testContext, "EncryptFast/key=Pk/"), func(b *testing.B) {
+	b.Run(GetTestName(testContext.params, "EncryptFast/key=Pk/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			encryptorPkFast.Encrypt(plaintext, ciphertext)
 		}
 	})
 
-	b.Run(testString(testContext, "Encrypt/key=Sk/"), func(b *testing.B) {
+	b.Run(GetTestName(testContext.params, "Encrypt/key=Sk/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			encryptorSk.Encrypt(plaintext, ciphertext)
 		}
@@ -138,7 +138,7 @@ func benchDecrypt(testContext *testParams, b *testing.B) {
 	plaintext := NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.Scale())
 	ciphertext := NewCiphertextRandom(testContext.prng, testContext.params, 1, testContext.params.MaxLevel(), testContext.params.Scale())
 
-	b.Run(testString(testContext, "Decrypt/"), func(b *testing.B) {
+	b.Run(GetTestName(testContext.params, "Decrypt/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			decryptor.Decrypt(ciphertext, plaintext)
 		}
@@ -161,43 +161,43 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 
 	eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{Rlk: rlk, Rtks: rotkey})
 
-	b.Run(testString(testContext, "Evaluator/Add/"), func(b *testing.B) {
+	b.Run(GetTestName(testContext.params, "Evaluator/Add/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			eval.Add(ciphertext1, ciphertext2, ciphertext1)
 		}
 	})
 
-	b.Run(testString(testContext, "Evaluator/AddScalar/"), func(b *testing.B) {
+	b.Run(GetTestName(testContext.params, "Evaluator/AddScalar/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			eval.AddConst(ciphertext1, ciphertext2, ciphertext1)
 		}
 	})
 
-	b.Run(testString(testContext, "Evaluator/MulScalar/"), func(b *testing.B) {
+	b.Run(GetTestName(testContext.params, "Evaluator/MulScalar/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			eval.MultByConst(ciphertext1, complex(3.1415, -1.4142), ciphertext1)
 		}
 	})
 
-	b.Run(testString(testContext, "Evaluator/MulPlain/"), func(b *testing.B) {
+	b.Run(GetTestName(testContext.params, "Evaluator/MulPlain/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			eval.Mul(ciphertext1, plaintext, ciphertext1)
 		}
 	})
 
-	b.Run(testString(testContext, "Evaluator/Mul/"), func(b *testing.B) {
+	b.Run(GetTestName(testContext.params, "Evaluator/Mul/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			eval.Mul(ciphertext1, ciphertext2, receiver)
 		}
 	})
 
-	b.Run(testString(testContext, "Evaluator/Square/"), func(b *testing.B) {
+	b.Run(GetTestName(testContext.params, "Evaluator/Square/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			eval.Mul(ciphertext1, ciphertext1, receiver)
 		}
 	})
 
-	b.Run(testString(testContext, "Evaluator/Rescale/"), func(b *testing.B) {
+	b.Run(GetTestName(testContext.params, "Evaluator/Rescale/"), func(b *testing.B) {
 
 		if testContext.params.PCount() == 0 {
 			b.Skip("#Pi is empty")
@@ -212,7 +212,7 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 		}
 	})
 
-	b.Run(testString(testContext, "Evaluator/PermuteNTT/"), func(b *testing.B) {
+	b.Run(GetTestName(testContext.params, "Evaluator/PermuteNTT/"), func(b *testing.B) {
 
 		if testContext.params.PCount() == 0 {
 			b.Skip("#Pi is empty")
@@ -225,7 +225,7 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 		}
 	})
 
-	b.Run(testString(testContext, "Evaluator/Conjugate/"), func(b *testing.B) {
+	b.Run(GetTestName(testContext.params, "Evaluator/Conjugate/"), func(b *testing.B) {
 
 		if testContext.params.PCount() == 0 {
 			b.Skip("#Pi is empty")
@@ -236,7 +236,7 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 		}
 	})
 
-	b.Run(testString(testContext, "Evaluator/Relin/"), func(b *testing.B) {
+	b.Run(GetTestName(testContext.params, "Evaluator/Relin/"), func(b *testing.B) {
 
 		if testContext.params.PCount() == 0 {
 			b.Skip("#Pi is empty")
@@ -247,7 +247,7 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 		}
 	})
 
-	b.Run(testString(testContext, "Evaluator/Rotate/"), func(b *testing.B) {
+	b.Run(GetTestName(testContext.params, "Evaluator/Rotate/"), func(b *testing.B) {
 
 		if testContext.params.PCount() == 0 {
 			b.Skip("#Pi is empty")
@@ -266,7 +266,7 @@ func benchInnerSum(testContext *testParams, b *testing.B) {
 	batch := 1
 	n := 4
 
-	b.Run(testString(testContext, "InnerSum/"), func(b *testing.B) {
+	b.Run(GetTestName(testContext.params, "InnerSum/"), func(b *testing.B) {
 
 		if testContext.params.PCount() == 0 {
 			b.Skip("#Pi is empty")
@@ -282,7 +282,7 @@ func benchInnerSum(testContext *testParams, b *testing.B) {
 		}
 	})
 
-	b.Run(testString(testContext, "InnerSumLog/"), func(b *testing.B) {
+	b.Run(GetTestName(testContext.params, "InnerSumLog/"), func(b *testing.B) {
 
 		if testContext.params.PCount() == 0 {
 			b.Skip("#Pi is empty")

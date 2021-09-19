@@ -1,13 +1,73 @@
-package bettersine
+package advanced
 
-// This is the Go implementation of the approximation polynomial algorithm in
+// This is the Go implementation of the approximation polynomial algorithm from Han and Ki in
 //    "Better Bootstrapping for Approximate Homomorphic Encryption", <https://epring.iacr.org/2019/688O>.
 // The algorithm was originally implemented in C++, available at
 //    https://github.com/DohyeongKi/better-homomorphic-sine-evaluation
 
 import (
+	//"fmt"
+	"math"
 	"math/big"
 )
+
+// NewFloat creates a new big.Float element with 1000 bits of precision
+func NewFloat(x float64) (y *big.Float) {
+	y = new(big.Float)
+	y.SetPrec(1000) // log2 precision
+	y.SetFloat64(x)
+	return
+}
+
+// BigintCos is an iterative arbitrary precision computation of Cos(x)
+// Iterative process with an error of ~10^{−0.60206*k} after k iterations.
+// ref : Johansson, B. Tomas, An elementary algorithm to evaluate trigonometric functions to high precision, 2018
+func BigintCos(x *big.Float) (cosx *big.Float) {
+	tmp := new(big.Float)
+
+	k := 1000 // number of iterations
+	t := NewFloat(0.5)
+	half := new(big.Float).Copy(t)
+
+	for i := 1; i < k-1; i++ {
+		t.Mul(t, half)
+	}
+
+	s := new(big.Float).Mul(x, t)
+	s.Mul(s, x)
+	s.Mul(s, t)
+
+	four := NewFloat(4.0)
+
+	for i := 1; i < k; i++ {
+		tmp.Sub(four, s)
+		s.Mul(s, tmp)
+	}
+
+	cosx = new(big.Float).Quo(s, NewFloat(2.0))
+	cosx.Sub(NewFloat(1.0), cosx)
+	return
+
+}
+
+// BigintSin is an iterative arbitrary precision computation of Sin(x)
+func BigintSin(x *big.Float) (sinx *big.Float) {
+
+	sinx = NewFloat(1)
+	tmp := BigintCos(x)
+	tmp.Mul(tmp, tmp)
+	sinx.Sub(sinx, tmp)
+	sinx.Sqrt(sinx)
+	return
+}
+
+func log2(x float64) float64 {
+	return math.Log2(x)
+}
+
+func abs(x float64) float64 {
+	return math.Abs(x)
+}
 
 var pi = "3.1415926535897932384626433832795028841971693993751058209749445923078164062862089986280348253421170679821480865132823066470938446095505822317253594081284811174502841027019385211055596446229489549303819644288109756659334461284756482337867831652712019091456485669234603486104543266482133936072602491412737245870066063155881748815209209628292540917153643678925903600113305305488204665213841469519415116094330572703657595919530921861173819326117931051185480744623799627495673518857527248912279381830119491298336733624406566430860213949463952247371907021798609437027705392171762931767523846748184676694051320005681271452635608277857713427577896091736371787214684409012249534301465495853710507922796892589235420199561121290219608640344181598136297747713099605187072113499999983729780499510597317328160963185950244594553469083026425223082533446850352619311881710100031378387528865875332083814206171776691473035982534904287554687311595628638823537875937519577818577805321712268066130019278766111959092164201989"
 var mPI = 3.141592653589793238462643383279502884
@@ -141,7 +201,7 @@ func genNodes(deg []int, dev float64, totdeg, K, scnum int) ([]*big.Float, []*bi
 			tmp = NewFloat(float64(2*j - 1))
 			tmp.Mul(tmp, PI)
 			tmp.Quo(tmp, NewFloat(float64(2*deg[i])))
-			tmp = Cos(tmp)
+			tmp = BigintCos(tmp)
 
 			tmp.Mul(tmp, intersize)
 
@@ -160,7 +220,7 @@ func genNodes(deg []int, dev float64, totdeg, K, scnum int) ([]*big.Float, []*bi
 		tmp = NewFloat(float64(2*j - 1))
 		tmp.Mul(tmp, PI)
 		tmp.Quo(tmp, NewFloat(float64(2*deg[0])))
-		tmp = Cos(tmp)
+		tmp = BigintCos(tmp)
 		tmp.Mul(tmp, intersize)
 
 		z[cnt] = new(big.Float).Add(NewFloat(0), tmp)
@@ -181,7 +241,7 @@ func genNodes(deg []int, dev float64, totdeg, K, scnum int) ([]*big.Float, []*bi
 		z[i].Quo(z[i], scfac)
 
 		d[i].Mul(d[i], z[i])
-		d[i] = Cos(d[i])
+		d[i] = BigintCos(d[i])
 
 		//tmp := new(big.Float).Sqrt(PI)
 		//tmp.Sqrt(tmp)
@@ -204,7 +264,7 @@ func genNodes(deg []int, dev float64, totdeg, K, scnum int) ([]*big.Float, []*bi
 		x[i].Quo(x[i], scfac)
 		tmp.Mul(NewFloat(float64(i)), PI)
 		tmp.Quo(tmp, NewFloat(float64(totdeg-1)))
-		x[i].Mul(x[i], Cos(tmp))
+		x[i].Mul(x[i], BigintCos(tmp))
 	}
 
 	var c = make([]*big.Float, totdeg)
@@ -221,10 +281,10 @@ func genNodes(deg []int, dev float64, totdeg, K, scnum int) ([]*big.Float, []*bi
 	return x, p, c, totdeg
 }
 
-// Approximate computes a polynomial approximation of degree "degree" in Chevyshev basis of the function
+// ApproximateCos computes a polynomial approximation of degree "degree" in Chevyshev basis of the function
 // cos(2*pi*x/2^"scnum") in the range -"K" to "K"
 // The nodes of the Chevyshev approximation are are located from -dev to +dev at each integer value between -K and -K
-func Approximate(K, degree int, dev float64, scnum int) []complex128 {
+func ApproximateCos(K, degree int, dev float64, scnum int) []complex128 {
 
 	var scfac = NewFloat(float64(int(1 << scnum)))
 

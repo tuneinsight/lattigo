@@ -8,7 +8,7 @@ import (
 
 // PublicKeySwitchingProtocol is an interface describing the local steps of a generic RLWE PCKS protocol.
 type PublicKeySwitchingProtocol interface {
-	AllocateShare(level int) *PCKSShare
+	AllocateShare(levelQ int) *PCKSShare
 	GenShare(skInput *rlwe.SecretKey, pkOutput *rlwe.PublicKey, ct *rlwe.Ciphertext, shareOut *PCKSShare)
 	AggregateShares(share1, share2, shareOut *PCKSShare)
 	KeySwitch(combined *PCKSShare, ct *rlwe.Ciphertext, ctOut *rlwe.Ciphertext)
@@ -21,17 +21,11 @@ type PCKSShare struct {
 
 // PCKSProtocol is the structure storing the parameters for the collective public key-switching.
 type PCKSProtocol struct {
-	ringQ         *ring.Ring
-	ringP         *ring.Ring
-	ringQP        *ring.Ring
+	params        rlwe.Parameters
 	sigmaSmudging float64
 
-	tmpQ       *ring.Poly
-	tmpP       *ring.Poly
-	share0tmpQ *ring.Poly
-	share1tmpQ *ring.Poly
-	share0tmpP *ring.Poly
-	share1tmpP *ring.Poly
+	tmpQP rlwe.PolyQP
+	tmpP  [2]*ring.Poly
 
 	baseconverter             *ring.FastBasisExtender
 	gaussianSampler           *ring.GaussianSampler
@@ -40,36 +34,28 @@ type PCKSProtocol struct {
 
 // NewPCKSProtocol creates a new PCKSProtocol object and will be used to re-encrypt a ciphertext ctx encrypted under a secret-shared key among j parties under a new
 // collective public-key.
-func NewPCKSProtocol(params rlwe.Parameters, sigmaSmudging float64) *PCKSProtocol {
-	pcks := new(PCKSProtocol)
-	pcks.ringQ = params.RingQ()
-	pcks.ringP = params.RingP()
+func NewPCKSProtocol(params rlwe.Parameters, sigmaSmudging float64) (pcks *PCKSProtocol) {
+	pcks = new(PCKSProtocol)
+	pcks.params = params
 	pcks.sigmaSmudging = sigmaSmudging
 
-	pcks.tmpQ = pcks.ringQ.NewPoly()
-	pcks.tmpP = pcks.ringP.NewPoly()
-	pcks.share0tmpQ = pcks.ringQ.NewPoly()
-	pcks.share1tmpQ = pcks.ringQ.NewPoly()
-	pcks.share0tmpP = pcks.ringP.NewPoly()
-	pcks.share1tmpP = pcks.ringP.NewPoly()
+	pcks.tmpQP = params.RingQP().NewPoly()
+	pcks.tmpP = [2]*ring.Poly{params.RingP().NewPoly(), params.RingP().NewPoly()}
 
-	pcks.baseconverter = ring.NewFastBasisExtender(pcks.ringQ, pcks.ringP)
+	pcks.baseconverter = ring.NewFastBasisExtender(params.RingQ(), params.RingP())
 	prng, err := utils.NewPRNG()
 	if err != nil {
 		panic(err)
 	}
-	pcks.gaussianSampler = ring.NewGaussianSampler(prng, pcks.ringQ, sigmaSmudging, int(6*sigmaSmudging))
-	pcks.ternarySamplerMontgomeryQ = ring.NewTernarySampler(prng, pcks.ringQ, 0.5, false)
+	pcks.gaussianSampler = ring.NewGaussianSampler(prng, params.RingQ(), sigmaSmudging, int(6*sigmaSmudging))
+	pcks.ternarySamplerMontgomeryQ = ring.NewTernarySampler(prng, params.RingQ(), 0.5, false)
 
 	return pcks
 }
 
 // AllocateShare allocates the shares of the PCKS protocol
-func (pcks *PCKSProtocol) AllocateShare(level int) (s *PCKSShare) {
-	s = new(PCKSShare)
-	s.Value[0] = pcks.ringQ.NewPolyLvl(level)
-	s.Value[1] = pcks.ringQ.NewPolyLvl(level)
-	return
+func (pcks *PCKSProtocol) AllocateShare(levelQ int) (s *PCKSShare) {
+	return &PCKSShare{[2]*ring.Poly{pcks.params.RingQ().NewPolyLvl(levelQ), pcks.params.RingQ().NewPolyLvl(levelQ)}}
 }
 
 // GenShare is the first part of the unique round of the PCKSProtocol protocol. Each party computes the following :
@@ -81,73 +67,59 @@ func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct *r
 
 	el := ct.RLWEElement()
 
-	ringQ := pcks.ringQ
-	ringP := pcks.ringP
+	ringQ := pcks.params.RingQ()
+	ringP := pcks.params.RingP()
+	ringQP := pcks.params.RingQP()
 
-	level := el.Level()
-
-	pk0Q := new(ring.Poly)
-	pk0P := new(ring.Poly)
-	pk1Q := new(ring.Poly)
-	pk1P := new(ring.Poly)
-
-	// Splits pk[0] and pk[1] with their respective modulus Qlvl and P
-	pk0Q.Coeffs = pk.Value[0].Coeffs[:level+1]
-	pk1Q.Coeffs = pk.Value[1].Coeffs[:level+1]
-	pk0P.Coeffs = pk.Value[0].Coeffs[len(ringQ.Modulus):]
-	pk1P.Coeffs = pk.Value[1].Coeffs[len(ringQ.Modulus):]
+	levelQ := el.Level()
+	levelP := len(ringP.Modulus) - 1
 
 	// samples MForm(u_i) in Q and P separately
-	pcks.ternarySamplerMontgomeryQ.ReadLvl(level, pcks.tmpQ)
-	extendBasisSmallNormAndCenter(ringQ.Modulus[0], ringP.Modulus, pcks.tmpQ.Coeffs[0], pcks.tmpP.Coeffs)
-	ringQ.MFormLvl(level, pcks.tmpQ, pcks.tmpQ)
-	ringP.MForm(pcks.tmpP, pcks.tmpP)
-	ringQ.NTTLvl(level, pcks.tmpQ, pcks.tmpQ)
-	ringP.NTT(pcks.tmpP, pcks.tmpP)
+	pcks.ternarySamplerMontgomeryQ.ReadLvl(levelQ, pcks.tmpQP.Q)
+	ringQP.ExtendBasisSmallNormAndCenter(pcks.tmpQP.Q, levelP, nil, pcks.tmpQP.P)
+	ringQP.MFormLvl(levelQ, levelP, pcks.tmpQP, pcks.tmpQP)
+	ringQP.NTTLvl(levelQ, levelP, pcks.tmpQP, pcks.tmpQP)
 
-	// h_0 = NTT(u_i * pk_0)
-	ringQ.MulCoeffsMontgomeryLvl(level, pcks.tmpQ, pk0Q, pcks.share0tmpQ)
-	ringP.MulCoeffsMontgomery(pcks.tmpP, pk0P, pcks.share0tmpP)
-	ringQ.InvNTTLvl(level, pcks.share0tmpQ, pcks.share0tmpQ)
-	ringP.InvNTT(pcks.share0tmpP, pcks.share0tmpP)
+	shareOutQP0 := rlwe.PolyQP{Q: shareOut.Value[0], P: pcks.tmpP[0]}
+	shareOutQP1 := rlwe.PolyQP{Q: shareOut.Value[1], P: pcks.tmpP[1]}
 
-	// h_1 = NTT(u_i * pk_1)
-	ringQ.MulCoeffsMontgomeryLvl(level, pcks.tmpQ, pk1Q, pcks.share1tmpQ)
-	ringP.MulCoeffsMontgomery(pcks.tmpP, pk1P, pcks.share1tmpP)
-	ringQ.InvNTTLvl(level, pcks.share1tmpQ, pcks.share1tmpQ)
-	ringP.InvNTT(pcks.share1tmpP, pcks.share1tmpP)
+	// h_0 = u_i * pk_0
+	// h_1 = u_i * pk_1
+	ringQP.MulCoeffsMontgomeryLvl(levelQ, levelP, pcks.tmpQP, pk.Value[0], shareOutQP0)
+	ringQP.MulCoeffsMontgomeryLvl(levelQ, levelP, pcks.tmpQP, pk.Value[1], shareOutQP1)
 
-	// h_0 = u_i * pk_0 + e0
-	pcks.gaussianSampler.ReadLvl(level, pcks.tmpQ)
-	extendBasisSmallNormAndCenter(ringQ.Modulus[0], ringP.Modulus, pcks.tmpQ.Coeffs[0], pcks.tmpP.Coeffs)
-	ringQ.AddLvl(level, pcks.share0tmpQ, pcks.tmpQ, pcks.share0tmpQ)
-	ringP.Add(pcks.share0tmpP, pcks.tmpP, pcks.share0tmpP)
+	ringQP.InvNTTLvl(levelQ, levelP, shareOutQP0, shareOutQP0)
+	ringQP.InvNTTLvl(levelQ, levelP, shareOutQP1, shareOutQP1)
+
+	// h_0 = u_i * pk_0
+	pcks.gaussianSampler.ReadLvl(levelQ, pcks.tmpQP.Q)
+	ringQP.ExtendBasisSmallNormAndCenter(pcks.tmpQP.Q, levelP, nil, pcks.tmpQP.P)
+	ringQP.AddLvl(levelQ, levelP, shareOutQP0, pcks.tmpQP, shareOutQP0)
 
 	// h_1 = u_i * pk_1 + e1
-	pcks.gaussianSampler.ReadLvl(level, pcks.tmpQ)
-	extendBasisSmallNormAndCenter(ringQ.Modulus[0], ringP.Modulus, pcks.tmpQ.Coeffs[0], pcks.tmpP.Coeffs)
-	ringQ.AddLvl(level, pcks.share1tmpQ, pcks.tmpQ, pcks.share1tmpQ)
-	ringP.Add(pcks.share1tmpP, pcks.tmpP, pcks.share1tmpP)
+	pcks.gaussianSampler.ReadLvl(levelQ, pcks.tmpQP.Q)
+	ringQP.ExtendBasisSmallNormAndCenter(pcks.tmpQP.Q, levelP, nil, pcks.tmpQP.P)
+	ringQP.AddLvl(levelQ, levelP, shareOutQP1, pcks.tmpQP, shareOutQP1)
 
 	// h_0 = (u_i * pk_0 + e0)/P
-	pcks.baseconverter.ModDownSplitPQ(level, pcks.share0tmpQ, pcks.share0tmpP, shareOut.Value[0])
+	pcks.baseconverter.ModDownQPtoQ(levelQ, levelP, shareOutQP0.Q, shareOutQP0.P, shareOutQP0.Q)
 
 	// h_1 = (u_i * pk_1 + e1)/P
-	pcks.baseconverter.ModDownSplitPQ(level, pcks.share1tmpQ, pcks.share1tmpP, shareOut.Value[1])
+	pcks.baseconverter.ModDownQPtoQ(levelQ, levelP, shareOutQP1.Q, shareOutQP1.P, shareOutQP1.Q)
 
 	// h_0 = s_i*c_1 + (u_i * pk_0 + e0)/P
 	if el.Value[0].IsNTT {
-		ringQ.NTTLvl(level, shareOut.Value[0], shareOut.Value[0])
-		ringQ.NTTLvl(level, shareOut.Value[1], shareOut.Value[1])
-		ringQ.MulCoeffsMontgomeryAndAddLvl(level, el.Value[1], sk.Value, shareOut.Value[0])
+		ringQ.NTTLvl(levelQ, shareOut.Value[0], shareOut.Value[0])
+		ringQ.NTTLvl(levelQ, shareOut.Value[1], shareOut.Value[1])
+		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, el.Value[1], sk.Value.Q, shareOut.Value[0])
 	} else {
 		// tmp = s_i*c_1
-		ringQ.NTTLazyLvl(level, el.Value[1], pcks.tmpQ)
-		ringQ.MulCoeffsMontgomeryConstantLvl(level, pcks.tmpQ, sk.Value, pcks.tmpQ)
-		ringQ.InvNTTLvl(level, pcks.tmpQ, pcks.tmpQ)
+		ringQ.NTTLazyLvl(levelQ, el.Value[1], pcks.tmpQP.Q)
+		ringQ.MulCoeffsMontgomeryConstantLvl(levelQ, pcks.tmpQP.Q, sk.Value.Q, pcks.tmpQP.Q)
+		ringQ.InvNTTLvl(levelQ, pcks.tmpQP.Q, pcks.tmpQP.Q)
 
 		// h_0 = s_i*c_1 + (u_i * pk_0 + e0)/P
-		ringQ.AddLvl(level, shareOut.Value[0], pcks.tmpQ, shareOut.Value[0])
+		ringQ.AddLvl(levelQ, shareOut.Value[0], pcks.tmpQP.Q, shareOut.Value[0])
 	}
 }
 
@@ -156,60 +128,49 @@ func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct *r
 //
 // [ctx[0] + sum(s_i * ctx[0] + u_i * pk[0] + e_0i), sum(u_i * pk[1] + e_1i)]
 func (pcks *PCKSProtocol) AggregateShares(share1, share2, shareOut *PCKSShare) {
-	level1, level2 := len(share1.Value[0].Coeffs)-1, len(share2.Value[0].Coeffs)-1
-	if level1 != level2 {
-		panic("cannot aggreate two shares at different levels.")
+	levelQ1, levelQ2 := len(share1.Value[0].Coeffs)-1, len(share2.Value[1].Coeffs)-1
+	if levelQ1 != levelQ2 {
+		panic("cannot aggreate two shares at different levelQs.")
 	}
-	pcks.ringQ.AddLvl(level1, share1.Value[0], share2.Value[0], shareOut.Value[0])
-	pcks.ringQ.AddLvl(level1, share1.Value[1], share2.Value[1], shareOut.Value[1])
+	pcks.params.RingQ().AddLvl(levelQ1, share1.Value[0], share2.Value[0], shareOut.Value[0])
+	pcks.params.RingQ().AddLvl(levelQ1, share1.Value[1], share2.Value[1], shareOut.Value[1])
+
 }
 
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
 func (pcks *PCKSProtocol) KeySwitch(combined *PCKSShare, ct, ctOut *rlwe.Ciphertext) {
 	el, elOut := ct.RLWEElement(), ctOut.RLWEElement()
-	pcks.ringQ.AddLvl(el.Level(), el.Value[0], combined.Value[0], elOut.Value[0])
+	pcks.params.RingQ().AddLvl(el.Level(), el.Value[0], combined.Value[0], elOut.Value[0])
 	ring.CopyValuesLvl(el.Level(), combined.Value[1], elOut.Value[1])
 }
 
 // MarshalBinary encodes a PCKS share on a slice of bytes.
-func (share *PCKSShare) MarshalBinary() ([]byte, error) {
-	lenR1 := share.Value[0].GetDataLen(true)
-	lenR2 := share.Value[1].GetDataLen(true)
-
-	data := make([]byte, lenR1+lenR2)
-	_, err := share.Value[0].WriteTo(data[0:lenR1])
-	if err != nil {
-		return []byte{}, err
+func (share *PCKSShare) MarshalBinary() (data []byte, err error) {
+	data = make([]byte, share.Value[0].GetDataLen(true)+share.Value[1].GetDataLen(true))
+	var inc, pt int
+	if inc, err = share.Value[0].WriteTo(data[pt:]); err != nil {
+		return nil, err
 	}
+	pt += inc
 
-	_, err = share.Value[1].WriteTo(data[lenR1 : lenR1+lenR2])
-	if err != nil {
-		return []byte{}, err
+	if _, err = share.Value[1].WriteTo(data[pt:]); err != nil {
+		return nil, err
 	}
-
-	return data, nil
+	return
 }
 
 // UnmarshalBinary decodes marshaled PCKS share on the target PCKS share.
-func (share *PCKSShare) UnmarshalBinary(data []byte) error {
-
-	if share.Value[0] == nil {
-		share.Value[0] = new(ring.Poly)
+func (share *PCKSShare) UnmarshalBinary(data []byte) (err error) {
+	var pt, inc int
+	share.Value[0] = new(ring.Poly)
+	if inc, err = share.Value[0].DecodePolyNew(data[pt:]); err != nil {
+		return
 	}
+	pt += inc
 
-	if share.Value[1] == nil {
-		share.Value[1] = new(ring.Poly)
+	share.Value[1] = new(ring.Poly)
+	if _, err = share.Value[1].DecodePolyNew(data[pt:]); err != nil {
+		return
 	}
-
-	err := share.Value[0].UnmarshalBinary(data[0 : len(data)/2])
-	if err != nil {
-		return err
-	}
-
-	err = share.Value[1].UnmarshalBinary(data[len(data)/2:])
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return
 }

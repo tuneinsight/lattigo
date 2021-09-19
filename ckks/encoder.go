@@ -8,6 +8,7 @@ import (
 	"math/bits"
 
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
@@ -27,8 +28,9 @@ type Encoder interface {
 	EncodeNTTNew(values []complex128, logSlots int) (plaintext *Plaintext)
 	EncodeNTTAtLvlNew(level int, values []complex128, logSlots int) (plaintext *Plaintext)
 
-	EncodeDiagMatrixBSGSAtLvl(level int, vector map[int][]complex128, scale, maxM1N2Ratio float64, logSlots int) (matrix *PtDiagMatrix)
-	EncodeDiagMatrixAtLvl(level int, vector map[int][]complex128, scale float64, logSlots int) (matrix *PtDiagMatrix)
+	EncodeDiagMatrixBSGSAtLvl(level int, vector map[int][]complex128, scale, maxM1N2Ratio float64, logSlots int) (matrix PtDiagMatrix)
+	EncodeDiagMatrixAtLvl(level int, vector map[int][]complex128, scale float64, logSlots int) (matrix PtDiagMatrix)
+	EncodeDiagonal(logSlots, level int, scale float64, m []complex128) (vecQP rlwe.PolyQP)
 
 	Decode(plaintext *Plaintext, logSlots int) (res []complex128)
 	DecodePublic(plaintext *Plaintext, logSlots int, sigma float64) []complex128
@@ -64,8 +66,6 @@ type EncoderBigComplex interface {
 // encoder is a struct storing the necessary parameters to encode a slice of complex number on a Plaintext.
 type encoder struct {
 	params       Parameters
-	ringQ        *ring.Ring
-	ringP        *ring.Ring
 	bigintChain  []*big.Int
 	bigintCoeffs []*big.Int
 	qHalf        *big.Int
@@ -87,19 +87,6 @@ func newEncoder(params Parameters) encoder {
 
 	m := 2 * params.N()
 
-	var q *ring.Ring
-	var err error
-	if q, err = ring.NewRing(params.N(), params.Q()); err != nil {
-		panic(err)
-	}
-
-	var p *ring.Ring
-	if params.PCount() != 0 {
-		if p, err = ring.NewRing(params.N(), params.P()); err != nil {
-			panic(err)
-		}
-	}
-
 	rotGroup := make([]int, m>>1)
 	fivePows := 1
 	for i := 0; i < m>>2; i++ {
@@ -113,16 +100,14 @@ func newEncoder(params Parameters) encoder {
 		panic(err)
 	}
 
-	gaussianSampler := ring.NewGaussianSampler(prng, q, params.Sigma(), int(6*params.Sigma()))
+	gaussianSampler := ring.NewGaussianSampler(prng, params.RingQ(), params.Sigma(), int(6*params.Sigma()))
 
 	return encoder{
 		params:          params,
-		ringQ:           q,
-		ringP:           p,
 		bigintChain:     genBigIntChain(params.Q()),
 		bigintCoeffs:    make([]*big.Int, m>>1),
 		qHalf:           ring.NewUint(0),
-		polypool:        q.NewPoly(),
+		polypool:        params.RingQ().NewPoly(),
 		m:               m,
 		rotGroup:        rotGroup,
 		gaussianSampler: gaussianSampler,
@@ -166,7 +151,7 @@ func (encoder *encoderComplex128) EncodeAtLvlNew(level int, values []complex128,
 // Encode encodes a slice of complex128 of length slots = 2^{logSlots} on the input plaintext.
 func (encoder *encoderComplex128) Encode(plaintext *Plaintext, values []complex128, logSlots int) {
 	encoder.Embed(values, logSlots)
-	encoder.ScaleUp(plaintext.Value, plaintext.Scale, encoder.ringQ.Modulus[:plaintext.Level()+1])
+	encoder.ScaleUp(plaintext.Value, plaintext.Scale, encoder.params.RingQ().Modulus[:plaintext.Level()+1])
 	plaintext.Value.IsNTT = false
 }
 
@@ -188,7 +173,7 @@ func (encoder *encoderComplex128) EncodeNTTAtLvlNew(level int, values []complex1
 // Returns a plaintext in the NTT domain.
 func (encoder *encoderComplex128) EncodeNTT(plaintext *Plaintext, values []complex128, logSlots int) {
 	encoder.Encode(plaintext, values, logSlots)
-	encoder.ringQ.NTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
+	encoder.params.RingQ().NTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
 	plaintext.Value.IsNTT = true
 }
 
@@ -209,10 +194,10 @@ func (encoder *encoderComplex128) Embed(values []complex128, logSlots int) {
 	}
 
 	invfft(encoder.values, slots, encoder.m, encoder.rotGroup, encoder.roots)
+	N := encoder.params.RingQ().N
+	gap := (N >> 1) / slots
 
-	gap := (encoder.ringQ.N >> 1) / slots
-
-	for i, jdx, idx := 0, encoder.ringQ.N>>1, 0; i < slots; i, jdx, idx = i+1, jdx+gap, idx+gap {
+	for i, jdx, idx := 0, N>>1, 0; i < slots; i, jdx, idx = i+1, jdx+gap, idx+gap {
 		encoder.valuesfloat[idx] = real(encoder.values[i])
 		encoder.valuesfloat[jdx] = imag(encoder.values[i])
 	}
@@ -340,9 +325,9 @@ func polyToComplexCRT(poly *ring.Poly, bigintCoeffs []*big.Int, values []complex
 
 func (encoder *encoderComplex128) plaintextToComplex(level int, scale float64, logSlots int, p *ring.Poly, values []complex128) {
 	if level == 0 {
-		polyToComplexNoCRT(p.Coeffs[0], encoder.values, scale, logSlots, encoder.ringQ.Modulus[0])
+		polyToComplexNoCRT(p.Coeffs[0], encoder.values, scale, logSlots, encoder.params.RingQ().Modulus[0])
 	} else {
-		polyToComplexCRT(p, encoder.bigintCoeffs, values, scale, logSlots, encoder.ringQ, encoder.bigintChain[level])
+		polyToComplexCRT(p, encoder.bigintCoeffs, values, scale, logSlots, encoder.params.RingQ(), encoder.bigintChain[level])
 	}
 }
 
@@ -369,12 +354,12 @@ func polyToFloatNoCRT(coeffs []uint64, values []float64, scale float64, Q uint64
 // PtDiagMatrix is a struct storing a plaintext diagonalized matrix
 // ready to be evaluated on a ciphertext using evaluator.MultiplyByDiagMatrice.
 type PtDiagMatrix struct {
-	LogSlots   int                   // Log of the number of slots of the plaintext (needed to compute the appropriate rotation keys)
-	N1         int                   // N1 is the number of inner loops of the baby-step giant-step algo used in the evaluation.
-	Level      int                   // Level is the level at which the matrix is encoded (can be circuit dependant)
-	Scale      float64               // Scale is the scale at which the matrix is encoded (can be circuit dependant)
-	Vec        map[int][2]*ring.Poly // Vec is the matrix, in diagonal form, where each entry of vec is an indexed non zero diagonal.
-	naive      bool
+	LogSlots   int                 // Log of the number of slots of the plaintext (needed to compute the appropriate rotation keys)
+	N1         int                 // N1 is the number of inner loops of the baby-step giant-step algo used in the evaluation.
+	Level      int                 // Level is the level at which the matrix is encoded (can be circuit dependant)
+	Scale      float64             // Scale is the scale at which the matrix is encoded (can be circuit dependant)
+	Vec        map[int]rlwe.PolyQP // Vec is the matrix, in diagonal form, where each entry of vec is an indexed non zero diagonal.
+	Naive      bool
 	isGaussian bool // Each diagonal of the matrix is of the form [k, ..., k] for k a gaussian integer
 }
 
@@ -392,7 +377,6 @@ func bsgsIndex(el interface{}, slots, N1 int) (index map[int][]int, rotations []
 			} else {
 				index[idx1] = append(index[idx1], idx2)
 			}
-
 			if !utils.IsInSliceInt(idx2, rotations) {
 				rotations = append(rotations, idx2)
 			}
@@ -411,7 +395,21 @@ func bsgsIndex(el interface{}, slots, N1 int) (index map[int][]int, rotations []
 				rotations = append(rotations, idx2)
 			}
 		}
-	case map[int][2]*ring.Poly:
+	case map[int]rlwe.PolyQP:
+		for key := range element {
+			key &= (slots - 1)
+			idx1 := key / N1
+			idx2 := key & (N1 - 1)
+			if index[idx1] == nil {
+				index[idx1] = []int{idx2}
+			} else {
+				index[idx1] = append(index[idx1], idx2)
+			}
+			if !utils.IsInSliceInt(idx2, rotations) {
+				rotations = append(rotations, idx2)
+			}
+		}
+	case []int:
 		for key := range element {
 			key &= (slots - 1)
 			idx1 := key / N1
@@ -426,6 +424,7 @@ func bsgsIndex(el interface{}, slots, N1 int) (index map[int][]int, rotations []
 			}
 		}
 	}
+
 	return
 }
 
@@ -435,90 +434,79 @@ func bsgsIndex(el interface{}, slots, N1 int) (index map[int][]int, rotations []
 // Faster if there is more than a few non-zero diagonals.
 // maxM1N2Ratio is the maximum ratio between the inner and outer loop of the baby-step giant-step algorithm used in evaluator.LinearTransform.
 // Optimal maxM1N2Ratio value is between 4 and 16 depending on the sparsity of the matrix.
-func (encoder *encoderComplex128) EncodeDiagMatrixBSGSAtLvl(level int, diagMatrix map[int][]complex128, scale, maxM1N2Ratio float64, logSlots int) (matrix *PtDiagMatrix) {
+func (encoder *encoderComplex128) EncodeDiagMatrixBSGSAtLvl(level int, diagMatrix map[int][]complex128, scale, maxM1N2Ratio float64, logSlots int) (matrix PtDiagMatrix) {
 
-	matrix = new(PtDiagMatrix)
-	matrix.LogSlots = logSlots
 	slots := 1 << logSlots
 
 	// N1*N2 = N
-	N1 := findbestbabygiantstepsplit(diagMatrix, slots, maxM1N2Ratio)
-	matrix.N1 = N1
+	n1 := FindBestBSGSSplit(diagMatrix, slots, maxM1N2Ratio)
 
-	index, _ := bsgsIndex(diagMatrix, slots, N1)
+	index, _ := bsgsIndex(diagMatrix, slots, n1)
 
-	matrix.Vec = make(map[int][2]*ring.Poly)
-
-	matrix.Level = level
-	matrix.Scale = scale
+	vec := make(map[int]rlwe.PolyQP)
 
 	for j := range index {
 
 		for _, i := range index[j] {
 
 			// manages inputs that have rotation between 0 and slots-1 or between -slots/2 and slots/2-1
-			v := diagMatrix[N1*j+i]
+			v := diagMatrix[n1*j+i]
 			if len(v) == 0 {
-				v = diagMatrix[(N1*j+i)-slots]
+				v = diagMatrix[(n1*j+i)-slots]
 			}
 
-			matrix.Vec[N1*j+i] = encoder.encodeDiagonal(logSlots, level, scale, rotate(v, -N1*j))
+			if len(v) != slots {
+				panic("diagMatrix []complex slices mut have len '1<<logSlots'")
+			}
+
+			vec[n1*j+i] = encoder.EncodeDiagonal(logSlots, level, scale, utils.RotateComplex128Slice(v, -n1*j))
 		}
 	}
 
-	return
+	return PtDiagMatrix{LogSlots: logSlots, N1: n1, Vec: vec, Level: level, Scale: scale}
 }
 
 // EncodeDiagMatrixAtLvl encodes a diagonalized plaintext matrix into PtDiagMatrix struct.
 // It can then be evaluated on a ciphertext using evaluator.LinearTransform.
 // Evaluation will use the naive approach (single hoisting and no baby-step giant-step).
 // Faster if there is only a few non-zero diagonals but uses more keys.
-func (encoder *encoderComplex128) EncodeDiagMatrixAtLvl(level int, diagMatrix map[int][]complex128, scale float64, logSlots int) (matrix *PtDiagMatrix) {
+func (encoder *encoderComplex128) EncodeDiagMatrixAtLvl(level int, diagMatrix map[int][]complex128, scale float64, logSlots int) (matrix PtDiagMatrix) {
 
-	matrix = new(PtDiagMatrix)
-	matrix.Vec = make(map[int][2]*ring.Poly)
-	matrix.Level = level
-	matrix.Scale = scale
+	vec := make(map[int]rlwe.PolyQP)
 	slots := 1 << logSlots
-
 	for i := range diagMatrix {
 
 		idx := i
 		if idx < 0 {
 			idx += slots
 		}
-		matrix.Vec[idx] = encoder.encodeDiagonal(logSlots, level, scale, diagMatrix[i])
+		vec[idx] = encoder.EncodeDiagonal(logSlots, level, scale, diagMatrix[i])
 	}
 
-	matrix.naive = true
+	return PtDiagMatrix{LogSlots: logSlots, N1: 0, Vec: vec, Level: level, Scale: scale, Naive: true}
+}
+
+func (encoder *encoderComplex128) EncodeDiagonal(logSlots, level int, scale float64, m []complex128) (vecQP rlwe.PolyQP) {
+
+	levelQ := level
+	levelP := encoder.params.PCount() - 1
+	ringQP := encoder.params.RingQP()
+
+	encoder.Embed(m, logSlots)
+
+	vecQP = ringQP.NewPolyLvl(levelQ, levelP)
+	encoder.ScaleUp(vecQP.Q, scale, encoder.params.RingQ().Modulus[:level+1])
+	encoder.ScaleUp(vecQP.P, scale, encoder.params.RingP().Modulus)
+	ringQP.NTTLvl(levelQ, levelP, vecQP, vecQP)
+	ringQP.MFormLvl(levelQ, levelP, vecQP, vecQP)
+
+	encoder.WipeInternalMemory()
 
 	return
 }
 
-func (encoder *encoderComplex128) encodeDiagonal(logSlots, level int, scale float64, m []complex128) [2]*ring.Poly {
-
-	ringQ := encoder.ringQ
-	ringP := encoder.ringP
-
-	encoder.Embed(m, logSlots)
-
-	mQ := ringQ.NewPolyLvl(level + 1)
-	encoder.ScaleUp(mQ, scale, ringQ.Modulus[:level+1])
-	ringQ.NTTLvl(level, mQ, mQ)
-	ringQ.MFormLvl(level, mQ, mQ)
-
-	mP := ringP.NewPoly()
-	encoder.ScaleUp(mP, scale, ringP.Modulus)
-	ringP.NTT(mP, mP)
-	ringP.MForm(mP, mP)
-
-	encoder.WipeInternalMemory()
-
-	return [2]*ring.Poly{mQ, mP}
-}
-
-// Finds the best N1*N2 = N for the baby-step giant-step algorithm for matrix multiplication.
-func findbestbabygiantstepsplit(diagMatrix interface{}, maxN int, maxRatio float64) (minN int) {
+// FindBestBSGSSplit finds the best N1*N2 = N for the baby-step giant-step algorithm for matrix multiplication.
+func FindBestBSGSSplit(diagMatrix interface{}, maxN int, maxRatio float64) (minN int) {
 
 	for N1 := 1; N1 < maxN; N1 <<= 1 {
 
@@ -562,14 +550,14 @@ func (encoder *encoderComplex128) decodePublic(plaintext *Plaintext, logSlots in
 	slots := 1 << logSlots
 
 	if plaintext.Value.IsNTT {
-		encoder.ringQ.InvNTTLvl(plaintext.Level(), plaintext.Value, encoder.polypool)
+		encoder.params.RingQ().InvNTTLvl(plaintext.Level(), plaintext.Value, encoder.polypool)
 	} else {
 		ring.CopyValuesLvl(plaintext.Level(), plaintext.Value, encoder.polypool)
 	}
 
 	// B = floor(sigma * sqrt(2*pi))
 	if sigma != 0 {
-		encoder.gaussianSampler.ReadAndAddFromDistLvl(plaintext.Level(), encoder.polypool, encoder.ringQ, sigma, int(2.5066282746310002*sigma))
+		encoder.gaussianSampler.ReadAndAddFromDistLvl(plaintext.Level(), encoder.polypool, encoder.params.RingQ(), sigma, int(2.5066282746310002*sigma))
 	}
 
 	encoder.plaintextToComplex(plaintext.Level(), plaintext.Scale, logSlots, encoder.polypool, encoder.values)
@@ -615,7 +603,7 @@ func invfft(values []complex128, N, M int, rotGroup []int, roots []complex128) {
 		values[i] /= complex(float64(N), 0)
 	}
 
-	sliceBitReverseInPlaceComplex128(values, N)
+	SliceBitReverseInPlaceComplex128(values, N)
 }
 
 func fft(values []complex128, N, M int, rotGroup []int, roots []complex128) {
@@ -623,7 +611,7 @@ func fft(values []complex128, N, M int, rotGroup []int, roots []complex128) {
 	var lenh, lenq, gap, idx int
 	var u, v complex128
 
-	sliceBitReverseInPlaceComplex128(values, N)
+	SliceBitReverseInPlaceComplex128(values, N)
 
 	for len := 2; len <= N; len <<= 1 {
 		for i := 0; i < N; i += len {
@@ -650,7 +638,7 @@ func (encoder *encoderComplex128) EncodeCoeffs(values []float64, plaintext *Plai
 		panic("cannot EncodeCoeffs : too many values (maximum is N)")
 	}
 
-	scaleUpVecExact(values, plaintext.Scale, encoder.ringQ.Modulus[:plaintext.Level()+1], plaintext.Value.Coeffs)
+	scaleUpVecExact(values, plaintext.Scale, encoder.params.RingQ().Modulus[:plaintext.Level()+1], plaintext.Value.Coeffs)
 
 	plaintext.Value.IsNTT = false
 }
@@ -659,7 +647,7 @@ func (encoder *encoderComplex128) EncodeCoeffs(values []float64, plaintext *Plai
 // and returns a scaled integer plaintext polynomial in NTT. Encodes at the input plaintext level.
 func (encoder *encoderComplex128) EncodeCoeffsNTT(values []float64, plaintext *Plaintext) {
 	encoder.EncodeCoeffs(values, plaintext)
-	encoder.ringQ.NTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
+	encoder.params.RingQ().NTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
 	plaintext.Value.IsNTT = true
 }
 
@@ -677,14 +665,14 @@ func (encoder *encoderComplex128) DecodeCoeffs(plaintext *Plaintext) (res []floa
 func (encoder *encoderComplex128) decodeCoeffsPublic(plaintext *Plaintext, sigma float64) (res []float64) {
 
 	if plaintext.Value.IsNTT {
-		encoder.ringQ.InvNTTLvl(plaintext.Level(), plaintext.Value, encoder.polypool)
+		encoder.params.RingQ().InvNTTLvl(plaintext.Level(), plaintext.Value, encoder.polypool)
 	} else {
 		ring.CopyValuesLvl(plaintext.Level(), plaintext.Value, encoder.polypool)
 	}
 
 	if sigma != 0 {
 		// B = floor(sigma * sqrt(2*pi))
-		encoder.gaussianSampler.ReadAndAddFromDistLvl(plaintext.Level(), encoder.polypool, encoder.ringQ, sigma, int(2.5066282746310002*sigma))
+		encoder.gaussianSampler.ReadAndAddFromDistLvl(plaintext.Level(), encoder.polypool, encoder.params.RingQ(), sigma, int(2.5066282746310002*sigma))
 	}
 
 	res = make([]float64, encoder.params.N())
@@ -692,7 +680,7 @@ func (encoder *encoderComplex128) decodeCoeffsPublic(plaintext *Plaintext, sigma
 	// We have more than one moduli and need the CRT reconstruction
 	if plaintext.Level() > 0 {
 
-		encoder.ringQ.PolyToBigint(encoder.polypool, encoder.bigintCoeffs)
+		encoder.params.RingQ().PolyToBigint(encoder.polypool, encoder.bigintCoeffs)
 
 		Q := encoder.bigintChain[plaintext.Level()]
 
@@ -716,7 +704,7 @@ func (encoder *encoderComplex128) decodeCoeffsPublic(plaintext *Plaintext, sigma
 		// We can directly get the coefficients
 	} else {
 
-		Q := encoder.ringQ.Modulus[0]
+		Q := encoder.params.RingQ().Modulus[0]
 		coeffs := encoder.polypool.Coeffs[0]
 
 		for i := range res {
@@ -826,7 +814,7 @@ func (encoder *encoderBigComplex) EncodeNTTAtLvlNew(level int, values []*ring.Co
 // Returns a plaintext in the NTT domain.
 func (encoder *encoderBigComplex) EncodeNTT(plaintext *Plaintext, values []*ring.Complex, logSlots int) {
 	encoder.Encode(plaintext, values, logSlots)
-	encoder.ringQ.NTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
+	encoder.params.RingQ().NTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
 	plaintext.Value.IsNTT = true
 }
 
@@ -849,25 +837,25 @@ func (encoder *encoderBigComplex) Encode(plaintext *Plaintext, values []*ring.Co
 
 	encoder.InvFFT(encoder.values, slots)
 
-	gap := (encoder.ringQ.N >> 1) / slots
+	gap := (encoder.params.RingQ().N >> 1) / slots
 
-	for i, jdx, idx := 0, (encoder.ringQ.N >> 1), 0; i < slots; i, jdx, idx = i+1, jdx+gap, idx+gap {
+	for i, jdx, idx := 0, (encoder.params.RingQ().N >> 1), 0; i < slots; i, jdx, idx = i+1, jdx+gap, idx+gap {
 		encoder.valuesfloat[idx].Set(encoder.values[i].Real())
 		encoder.valuesfloat[jdx].Set(encoder.values[i].Imag())
 	}
 
-	scaleUpVecExactBigFloat(encoder.valuesfloat, plaintext.Scale, encoder.ringQ.Modulus[:plaintext.Level()+1], plaintext.Value.Coeffs)
+	scaleUpVecExactBigFloat(encoder.valuesfloat, plaintext.Scale, encoder.params.RingQ().Modulus[:plaintext.Level()+1], plaintext.Value.Coeffs)
 
 	coeffsBigInt := make([]*big.Int, encoder.params.N())
 
-	encoder.ringQ.PolyToBigint(plaintext.Value, coeffsBigInt)
+	encoder.params.RingQ().PolyToBigint(plaintext.Value, coeffsBigInt)
 
-	for i := 0; i < (encoder.ringQ.N >> 1); i++ {
+	for i := 0; i < (encoder.params.RingQ().N >> 1); i++ {
 		encoder.values[i].Real().Set(encoder.zero)
 		encoder.values[i].Imag().Set(encoder.zero)
 	}
 
-	for i := 0; i < encoder.ringQ.N; i++ {
+	for i := 0; i < encoder.params.RingQ().N; i++ {
 		encoder.valuesfloat[i].Set(encoder.zero)
 	}
 }
@@ -891,18 +879,18 @@ func (encoder *encoderBigComplex) decodePublic(plaintext *Plaintext, logSlots in
 		panic("cannot Decode: too many slots for the given ring degree")
 	}
 
-	encoder.ringQ.InvNTTLvl(plaintext.Level(), plaintext.Value, encoder.polypool)
+	encoder.params.RingQ().InvNTTLvl(plaintext.Level(), plaintext.Value, encoder.polypool)
 
 	if sigma != 0 {
 		// B = floor(sigma * sqrt(2*pi))
-		encoder.gaussianSampler.ReadAndAddFromDistLvl(plaintext.Level(), encoder.polypool, encoder.ringQ, sigma, int(2.5066282746310002*sigma+0.5))
+		encoder.gaussianSampler.ReadAndAddFromDistLvl(plaintext.Level(), encoder.polypool, encoder.params.RingQ(), sigma, int(2.5066282746310002*sigma+0.5))
 	}
 
-	encoder.ringQ.PolyToBigint(encoder.polypool, encoder.bigintCoeffs)
+	encoder.params.RingQ().PolyToBigint(encoder.polypool, encoder.bigintCoeffs)
 
 	Q := encoder.bigintChain[plaintext.Level()]
 
-	maxSlots := encoder.ringQ.N >> 1
+	maxSlots := encoder.params.RingQ().N >> 1
 
 	scaleFlo := ring.NewFloat(plaintext.Scale, encoder.logPrecision)
 
@@ -981,7 +969,7 @@ func (encoder *encoderBigComplex) InvFFT(values []*ring.Complex, N int) {
 		values[i][1].Quo(values[i][1], NBig)
 	}
 
-	sliceBitReverseInPlaceRingComplex(values, N)
+	SliceBitReverseInPlaceRingComplex(values, N)
 }
 
 // FFT evaluates the decoding matrix on a slice fo ring.Complex values.
@@ -992,7 +980,7 @@ func (encoder *encoderBigComplex) FFT(values []*ring.Complex, N int) {
 	u := ring.NewComplex(nil, nil)
 	v := ring.NewComplex(nil, nil)
 
-	sliceBitReverseInPlaceRingComplex(values, N)
+	SliceBitReverseInPlaceRingComplex(values, N)
 
 	for len := 2; len <= N; len <<= 1 {
 		for i := 0; i < N; i += len {

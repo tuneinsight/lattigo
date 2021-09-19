@@ -55,6 +55,8 @@ type evaluator struct {
 	*evaluatorBuffers
 	*rlwe.KeySwitcher
 
+	lightEncoder *encoder
+
 	rlk  *rlwe.RelinearizationKey
 	rtks *rlwe.RotationKeySet
 
@@ -69,8 +71,6 @@ type evaluatorBase struct {
 
 	t     uint64
 	pHalf *big.Int
-
-	deltaMont []uint64
 }
 
 func newEvaluatorPrecomp(params Parameters) *evaluatorBase {
@@ -85,7 +85,6 @@ func newEvaluatorPrecomp(params Parameters) *evaluatorBase {
 	ev.ringQMul = params.RingQMul()
 
 	ev.pHalf = new(big.Int).Rsh(ev.ringQMul.ModulusBigint, 1)
-	ev.deltaMont = GenLiftParams(ev.ringQ, params.T())
 
 	return ev
 }
@@ -121,6 +120,13 @@ func NewEvaluator(params Parameters, evaluationKey rlwe.EvaluationKey) Evaluator
 	ev := new(evaluator)
 	ev.evaluatorBase = newEvaluatorPrecomp(params)
 	ev.evaluatorBuffers = newEvaluatorBuffer(ev.evaluatorBase)
+
+	rescaleParams := make([]uint64, len(params.RingQ().Modulus))
+	for i, qi := range params.RingQ().Modulus {
+		rescaleParams[i] = ring.MForm(ring.ModExp(params.T(), qi-2, qi), qi, params.RingQ().BredParams[i])
+	}
+
+	ev.lightEncoder = &encoder{rescaleParams: rescaleParams}
 	ev.baseconverterQ1Q2 = ring.NewFastBasisExtender(ev.ringQ, ev.ringQMul)
 	if params.PCount() != 0 {
 		ev.KeySwitcher = rlwe.NewKeySwitcher(params.Parameters)
@@ -312,7 +318,7 @@ func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *rlwe.Ciphertext) {
 func (eval *evaluator) modUpAndNTT(ct *rlwe.Ciphertext, cQ, cQMul []*ring.Poly) {
 	levelQ := len(eval.ringQ.Modulus) - 1
 	for i := range ct.Value {
-		eval.baseconverterQ1Q2.ModUpSplitQP(levelQ, ct.Value[i], cQMul[i])
+		eval.baseconverterQ1Q2.ModUpQtoP(levelQ, len(eval.ringQMul.Modulus)-1, ct.Value[i], cQMul[i])
 		eval.ringQ.NTTLazy(ct.Value[i], cQ[i])
 		eval.ringQMul.NTTLazy(cQMul[i], cQMul[i])
 	}
@@ -448,11 +454,11 @@ func (eval *evaluator) quantize(ctOut *rlwe.Ciphertext) {
 		eval.ringQMul.InvNTTLazy(c2Q2[i], c2Q2[i])
 
 		// Extends the basis Q of ct(x) to the basis P and Divides (ct(x)Q -> P) by Q
-		eval.baseconverterQ1Q2.ModDownSplitQP(levelQ, levelQMul, c2Q1[i], c2Q2[i], c2Q2[i])
+		eval.baseconverterQ1Q2.ModDownQPtoP(levelQ, levelQMul, c2Q1[i], c2Q2[i], c2Q2[i])
 
 		// Centers (ct(x)Q -> P)/Q by (P-1)/2 and extends ((ct(x)Q -> P)/Q) to the basis Q
 		eval.ringQMul.AddScalarBigint(c2Q2[i], eval.pHalf, c2Q2[i])
-		eval.baseconverterQ1Q2.ModUpSplitPQ(levelQMul, c2Q2[i], ctOut.Value[i])
+		eval.baseconverterQ1Q2.ModUpPtoQ(levelQMul, levelQ, c2Q2[i], ctOut.Value[i])
 		eval.ringQ.SubScalarBigint(ctOut.Value[i], eval.pHalf, ctOut.Value[i])
 
 		// Option (2) (ct(x)/Q)*T, doing so only requires that Q*P > Q*Q, faster but adds error ~|T|
@@ -548,9 +554,9 @@ func (eval *evaluator) relinearize(ct0 *Ciphertext, ctOut *Ciphertext) {
 	}
 
 	for deg := uint64(ct0.Degree()); deg > 1; deg-- {
-		eval.SwitchKeysInPlace(ct0.Value[deg].Level(), ct0.Value[deg], eval.rlk.Keys[deg-2], eval.PoolQ[1], eval.PoolQ[2])
-		eval.ringQ.Add(ctOut.Value[0], eval.PoolQ[1], ctOut.Value[0])
-		eval.ringQ.Add(ctOut.Value[1], eval.PoolQ[2], ctOut.Value[1])
+		eval.SwitchKeysInPlace(ct0.Value[deg].Level(), ct0.Value[deg], eval.rlk.Keys[deg-2], eval.Pool[1].Q, eval.Pool[2].Q)
+		eval.ringQ.Add(ctOut.Value[0], eval.Pool[1].Q, ctOut.Value[0])
+		eval.ringQ.Add(ctOut.Value[1], eval.Pool[2].Q, ctOut.Value[1])
 	}
 
 	ctOut.SetValue(ctOut.Value[:2])
@@ -605,10 +611,10 @@ func (eval *evaluator) SwitchKeys(ct0 *Ciphertext, switchKey *rlwe.SwitchingKey,
 		panic("cannot SwitchKeys: input and output must be of degree 1 to allow key switching")
 	}
 
-	eval.SwitchKeysInPlace(ct0.Value[1].Level(), ct0.Value[1], switchKey, eval.PoolQ[1], eval.PoolQ[2])
+	eval.SwitchKeysInPlace(ct0.Value[1].Level(), ct0.Value[1], switchKey, eval.Pool[1].Q, eval.Pool[2].Q)
 
-	eval.ringQ.Add(ct0.Value[0], eval.PoolQ[1], ctOut.Value[0])
-	ring.CopyValues(eval.PoolQ[2], ctOut.Value[1])
+	eval.ringQ.Add(ct0.Value[0], eval.Pool[1].Q, ctOut.Value[0])
+	ring.CopyValues(eval.Pool[2].Q, ctOut.Value[1])
 }
 
 // SwitchKeysNew applies the key-switching procedure to the ciphertext ct0 and creates a new ciphertext to store the result. It requires as an additional input a valid switching-key:
@@ -702,12 +708,12 @@ func (eval *evaluator) InnerSum(ct0 *Ciphertext, ctOut *Ciphertext) {
 
 // permute performs a column rotation on ct0 and returns the result in ctOut
 func (eval *evaluator) permute(ct0 *Ciphertext, generator uint64, switchKey *rlwe.SwitchingKey, ctOut *Ciphertext) {
-	eval.SwitchKeysInPlace(ct0.Value[1].Level(), ct0.Value[1], switchKey, eval.PoolQ[1], eval.PoolQ[2])
+	eval.SwitchKeysInPlace(ct0.Value[1].Level(), ct0.Value[1], switchKey, eval.Pool[1].Q, eval.Pool[2].Q)
 
-	eval.ringQ.Add(eval.PoolQ[1], ct0.Value[0], eval.PoolQ[1])
+	eval.ringQ.Add(eval.Pool[1].Q, ct0.Value[0], eval.Pool[1].Q)
 
-	eval.ringQ.Permute(eval.PoolQ[1], generator, ctOut.Value[0])
-	eval.ringQ.Permute(eval.PoolQ[2], generator, ctOut.Value[1])
+	eval.ringQ.Permute(eval.Pool[1].Q, generator, ctOut.Value[0])
+	eval.ringQ.Permute(eval.Pool[2].Q, generator, ctOut.Value[1])
 }
 
 func (eval *evaluator) getRingQElem(op Operand) *rlwe.Ciphertext {
@@ -715,7 +721,7 @@ func (eval *evaluator) getRingQElem(op Operand) *rlwe.Ciphertext {
 	case *Ciphertext, *Plaintext:
 		return o.El()
 	case *PlaintextRingT:
-		scaleUp(eval.ringQ, eval.deltaMont, o.Value, eval.tmpPt.Value)
+		eval.lightEncoder.scaleUp(eval.params.RingQ(), eval.params.RingT(), eval.Pool[0].Q.Coeffs[0], o.Value, eval.tmpPt.Value)
 		return eval.tmpPt.El()
 	default:
 		panic(fmt.Errorf("invalid operand type for operation: %T", o))

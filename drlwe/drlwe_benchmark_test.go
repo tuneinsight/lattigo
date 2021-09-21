@@ -32,7 +32,7 @@ func Benchmark_DRLWE(b *testing.B) {
 
 		// Varying t
 		N := 20
-		for t := 2; t < N; t += thresholdInc {
+		for t := 19; t < N; t += thresholdInc {
 			benchThreshold(params, t, b)
 		}
 

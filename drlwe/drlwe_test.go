@@ -57,30 +57,6 @@ func newTestContext(params rlwe.Parameters) testContext {
 	return testContext{params, kgen, sk0, sk1, sk2, skIdeal, crpGenerator}
 }
 
-func TestThreshold(t *testing.T) {
-	params, _ := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
-		LogN:  12,
-		Q:     []uint64{0x7ffffec001, 0x40002001}, // 39 + 39 bits
-		P:     []uint64{0x8000016001},             // 30 bits
-		Sigma: rlwe.DefaultSigma,
-	})
-
-	Rqp := params.RingQP()
-
-	QP := params.QPBigInt()
-
-	a := big.NewInt(-10)
-	inva := big.NewInt(0)
-
-	inva.ModInverse(a, QP)
-	invamodqi := big.NewInt(0)
-	for _, qi := range Rqp.Modulus {
-		invamodqi.Mod(inva, big.NewInt(int64(qi)))
-		fmt.Printf("%d ", invamodqi.Uint64())
-	}
-	fmt.Println()
-}
-
 func TestDRLWE(t *testing.T) {
 	defaultParams := TestParams // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	if testing.Short() {

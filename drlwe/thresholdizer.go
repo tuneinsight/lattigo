@@ -179,17 +179,22 @@ func NewCachedCombiner(params rlwe.Parameters, threshold int) *CachedCombiner {
 // to every active's party is in the cache. Stores the result in out_key.
 func (cmb *CachedCombiner) GenAdditiveShare(actives []ShamirPublicKey, ownPublic ShamirPublicKey, ownSecret *ShamirSecretShare, skOut *rlwe.SecretKey) {
 
-	r := cmb.ringQP
-	skOut.Value.Copy(ownSecret.Poly)
-	for _, active := range actives {
+	prod := cmb.tmp2
+	for i, qi := range cmb.ringQP.Modulus {
+		prod[i] = ring.MForm(1, qi, cmb.ringQP.BredParams[i])
+	}
+
+	for _, active := range actives[:cmb.threshold] {
 		//Lagrange Interpolation with the public threshold key of other active players
 		if active != ownPublic {
-			lagrangeCoeff := cmb.lagrangeCoeff(ownPublic, active)
-			cmb.ringQP.MulScalarCRT(skOut.Value, lagrangeCoeff, skOut.Value)
+			lagCoeff := cmb.lagrangeCoeff(ownPublic, active)
+			for i, qi := range cmb.ringQP.Modulus {
+				prod[i] = ring.MRedConstant(prod[i], lagCoeff[i], qi, cmb.ringQP.MredParams[i])
+			}
 		}
 	}
 
-	r.Reduce(skOut.Value, skOut.Value)
+	cmb.ringQP.MulScalarCRT(ownSecret.Poly, prod, skOut.Value)
 }
 
 // ClearCache replaces the cache of a combiner by an empty one.

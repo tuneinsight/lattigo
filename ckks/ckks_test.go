@@ -1092,6 +1092,8 @@ func testLinearTransform(testContext *testParams, t *testing.T) {
 		diagMatrix[-1] = make([]complex128, params.Slots())
 		diagMatrix[0] = make([]complex128, params.Slots())
 		diagMatrix[1] = make([]complex128, params.Slots())
+		diagMatrix[2] = make([]complex128, params.Slots())
+		diagMatrix[3] = make([]complex128, params.Slots())
 		diagMatrix[4] = make([]complex128, params.Slots())
 		diagMatrix[15] = make([]complex128, params.Slots())
 
@@ -1101,6 +1103,8 @@ func testLinearTransform(testContext *testParams, t *testing.T) {
 			diagMatrix[-1][i] = complex(1, 0)
 			diagMatrix[0][i] = complex(1, 0)
 			diagMatrix[1][i] = complex(1, 0)
+			diagMatrix[2][i] = complex(1, 0)
+			diagMatrix[3][i] = complex(1, 0)
 			diagMatrix[4][i] = complex(1, 0)
 			diagMatrix[15][i] = complex(1, 0)
 		}
@@ -1123,6 +1127,8 @@ func testLinearTransform(testContext *testParams, t *testing.T) {
 			values1[i] += tmp[(i-4+params.Slots())%params.Slots()]
 			values1[i] += tmp[(i-1+params.Slots())%params.Slots()]
 			values1[i] += tmp[(i+1)%params.Slots()]
+			values1[i] += tmp[(i+2)%params.Slots()]
+			values1[i] += tmp[(i+3)%params.Slots()]
 			values1[i] += tmp[(i+4)%params.Slots()]
 			values1[i] += tmp[(i+15)%params.Slots()]
 		}

@@ -140,7 +140,7 @@ func (ks *KeySwitcher) DecomposeSingleNTT(levelQ, levelP, alpha, beta int, c2NTT
 // pool3 = dot(decomp(cx) * evakey[1]) mod QP (encrypted input is multiplied by P factor)
 //
 // Expects the flag IsNTT of cx to correctly reflect the domain of cx.
-func (ks *KeySwitcher) SwitchKeysInPlaceNoModDown(levelQ int, cx *ring.Poly, evakey *SwitchingKey, pool2Q, pool2P, pool3Q, pool3P *ring.Poly) {
+func (ks *KeySwitcher) SwitchKeysInPlaceNoModDown(levelQ int, cx *ring.Poly, evakey *SwitchingKey, c0Q, c0P, c1Q, c1P *ring.Poly) {
 
 	var reduce int
 
@@ -161,8 +161,8 @@ func (ks *KeySwitcher) SwitchKeysInPlaceNoModDown(levelQ int, cx *ring.Poly, eva
 		ringQ.NTTLvl(levelQ, cxInvNTT, cxNTT)
 	}
 
-	pool2QP := PolyQP{pool2Q, pool2P}
-	pool3QP := PolyQP{pool3Q, pool3P}
+	c0QP := PolyQP{c0Q, c0P}
+	c1QP := PolyQP{c1Q, c1P}
 
 	reduce = 0
 
@@ -179,34 +179,34 @@ func (ks *KeySwitcher) SwitchKeysInPlaceNoModDown(levelQ int, cx *ring.Poly, eva
 		ks.DecomposeSingleNTT(levelQ, levelP, alpha, i, cxNTT, cxInvNTT, c2QP.Q, c2QP.P)
 
 		if i == 0 {
-			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, evakey.Value[i][0], c2QP, pool2QP)
-			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, evakey.Value[i][1], c2QP, pool3QP)
+			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, evakey.Value[i][0], c2QP, c0QP)
+			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, evakey.Value[i][1], c2QP, c1QP)
 		} else {
-			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, evakey.Value[i][0], c2QP, pool2QP)
-			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, evakey.Value[i][1], c2QP, pool3QP)
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, evakey.Value[i][0], c2QP, c0QP)
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, evakey.Value[i][1], c2QP, c1QP)
 		}
 
 		if reduce%QiOverF == QiOverF-1 {
-			ringQ.ReduceLvl(levelQ, pool2QP.Q, pool2QP.Q)
-			ringQ.ReduceLvl(levelQ, pool3QP.Q, pool3QP.Q)
+			ringQ.ReduceLvl(levelQ, c0QP.Q, c0QP.Q)
+			ringQ.ReduceLvl(levelQ, c1QP.Q, c1QP.Q)
 		}
 
 		if reduce%PiOverF == PiOverF-1 {
-			ringP.ReduceLvl(levelP, pool2QP.P, pool2QP.P)
-			ringP.ReduceLvl(levelP, pool3QP.P, pool3QP.P)
+			ringP.ReduceLvl(levelP, c0QP.P, c0QP.P)
+			ringP.ReduceLvl(levelP, c1QP.P, c1QP.P)
 		}
 
 		reduce++
 	}
 
 	if reduce%QiOverF != 0 {
-		ringQ.ReduceLvl(levelQ, pool2QP.Q, pool2QP.Q)
-		ringQ.ReduceLvl(levelQ, pool3QP.Q, pool3QP.Q)
+		ringQ.ReduceLvl(levelQ, c0QP.Q, c0QP.Q)
+		ringQ.ReduceLvl(levelQ, c1QP.Q, c1QP.Q)
 	}
 
 	if reduce%PiOverF != 0 {
-		ringP.ReduceLvl(levelP, pool2QP.P, pool2QP.P)
-		ringP.ReduceLvl(levelP, pool3QP.P, pool3QP.P)
+		ringP.ReduceLvl(levelP, c0QP.P, c0QP.P)
+		ringP.ReduceLvl(levelP, c1QP.P, c1QP.P)
 	}
 }
 
@@ -215,29 +215,29 @@ func (ks *KeySwitcher) SwitchKeysInPlaceNoModDown(levelQ int, cx *ring.Poly, eva
 //
 // pool2 = dot(PoolDecompQ||PoolDecompP * evakey[0]) mod Q
 // pool3 = dot(PoolDecompQ||PoolDecompP * evakey[1]) mod Q
-func (ks *KeySwitcher) KeyswitchHoisted(levelQ int, PoolDecompQP []PolyQP, evakey *SwitchingKey, pool2Q, pool3Q, pool2P, pool3P *ring.Poly) {
+func (ks *KeySwitcher) KeyswitchHoisted(levelQ int, PoolDecompQP []PolyQP, evakey *SwitchingKey, c0Q, c1Q, c0P, c1P *ring.Poly) {
 
-	ks.KeyswitchHoistedNoModDown(levelQ, PoolDecompQP, evakey, pool2Q, pool3Q, pool2P, pool3P)
+	ks.KeyswitchHoistedNoModDown(levelQ, PoolDecompQP, evakey, c0Q, c1Q, c0P, c1P)
 
 	levelP := len(evakey.Value[0][0].P.Coeffs) - 1
 
-	// Computes pool2Q = pool2Q/pool2P and pool3Q = pool3Q/pool3P
-	ks.Baseconverter.ModDownQPtoQNTT(levelQ, levelP, pool2Q, pool2P, pool2Q)
-	ks.Baseconverter.ModDownQPtoQNTT(levelQ, levelP, pool3Q, pool3P, pool3Q)
+	// Computes c0Q = c0Q/c0P and c1Q = c1Q/c1P
+	ks.Baseconverter.ModDownQPtoQNTT(levelQ, levelP, c0Q, c0P, c0Q)
+	ks.Baseconverter.ModDownQPtoQNTT(levelQ, levelP, c1Q, c1P, c1Q)
 }
 
 // KeyswitchHoistedNoModDown applies the key-switch to the decomposed polynomial c2 mod QP (PoolDecompQ and PoolDecompP)
 //
 // pool2 = dot(PoolDecompQ||PoolDecompP * evakey[0]) mod QP
 // pool3 = dot(PoolDecompQ||PoolDecompP * evakey[1]) mod QP
-func (ks *KeySwitcher) KeyswitchHoistedNoModDown(levelQ int, PoolDecompQP []PolyQP, evakey *SwitchingKey, pool2Q, pool3Q, pool2P, pool3P *ring.Poly) {
+func (ks *KeySwitcher) KeyswitchHoistedNoModDown(levelQ int, PoolDecompQP []PolyQP, evakey *SwitchingKey, c0Q, c1Q, c0P, c1P *ring.Poly) {
 
 	ringQ := ks.RingQ()
 	ringP := ks.RingP()
 	ringQP := ks.RingQP()
 
-	pool2QP := PolyQP{pool2Q, pool2P}
-	pool3QP := PolyQP{pool3Q, pool3P}
+	c0QP := PolyQP{c0Q, c0P}
+	c1QP := PolyQP{c1Q, c1P}
 
 	alpha := len(evakey.Value[0][0].P.Coeffs)
 	levelP := alpha - 1
@@ -251,33 +251,33 @@ func (ks *KeySwitcher) KeyswitchHoistedNoModDown(levelQ int, PoolDecompQP []Poly
 	for i := 0; i < beta; i++ {
 
 		if i == 0 {
-			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, evakey.Value[i][0], PoolDecompQP[i], pool2QP)
-			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, evakey.Value[i][1], PoolDecompQP[i], pool3QP)
+			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, evakey.Value[i][0], PoolDecompQP[i], c0QP)
+			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, evakey.Value[i][1], PoolDecompQP[i], c1QP)
 		} else {
-			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, evakey.Value[i][0], PoolDecompQP[i], pool2QP)
-			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, evakey.Value[i][1], PoolDecompQP[i], pool3QP)
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, evakey.Value[i][0], PoolDecompQP[i], c0QP)
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, evakey.Value[i][1], PoolDecompQP[i], c1QP)
 		}
 
 		if reduce%QiOverF == QiOverF-1 {
-			ringQ.ReduceLvl(levelQ, pool2QP.Q, pool2QP.Q)
-			ringQ.ReduceLvl(levelQ, pool3QP.Q, pool3QP.Q)
+			ringQ.ReduceLvl(levelQ, c0QP.Q, c0QP.Q)
+			ringQ.ReduceLvl(levelQ, c1QP.Q, c1QP.Q)
 		}
 
 		if reduce%PiOverF == PiOverF-1 {
-			ringP.ReduceLvl(levelP, pool2QP.P, pool2QP.P)
-			ringP.ReduceLvl(levelP, pool3QP.P, pool3QP.P)
+			ringP.ReduceLvl(levelP, c0QP.P, c0QP.P)
+			ringP.ReduceLvl(levelP, c1QP.P, c1QP.P)
 		}
 
 		reduce++
 	}
 
 	if reduce%QiOverF != 0 {
-		ringQ.ReduceLvl(levelQ, pool2QP.Q, pool2QP.Q)
-		ringQ.ReduceLvl(levelQ, pool3QP.Q, pool3QP.Q)
+		ringQ.ReduceLvl(levelQ, c0QP.Q, c0QP.Q)
+		ringQ.ReduceLvl(levelQ, c1QP.Q, c1QP.Q)
 	}
 
 	if reduce%PiOverF != 0 {
-		ringP.ReduceLvl(levelP, pool2QP.P, pool2QP.P)
-		ringP.ReduceLvl(levelP, pool3QP.P, pool3QP.P)
+		ringP.ReduceLvl(levelP, c0QP.P, c0QP.P)
+		ringP.ReduceLvl(levelP, c1QP.P, c1QP.P)
 	}
 }

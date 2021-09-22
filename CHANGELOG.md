@@ -25,6 +25,8 @@ All notable changes to this project will be documented in this file.
 - CKKS: some advanced methods related to automorphisms are now public to facilitate their external use.
 - CKKS: improved the consistency of the API for in-place and `[..]New` methods.
 - CKKS: added the method `NewCiphertextAtLevelFromPoly`, which creates a ciphertext at a specific level from two polynomials.
+- CKKS: updated precision stats struct, added L2 norm in the statistics and improved the command line prints. 
+- CKKS: improved the algorithmic complexity of `MultiplyByDiagMatrixBSGS` and updated the bootstrapping parameters accordingly.
 - DBFV/DCKKS: both now use their respective CRP type for each protocol.
 - EXAMPLE: added showcase of the `ckks/advanced` sub-package: a bridge between CKKS and FHEW ciphertexts using homomorphic decoding, ring dimension switching, homomorphic matrix multiplication and homomorphic modular reduction.
 

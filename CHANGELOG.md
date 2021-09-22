@@ -27,6 +27,9 @@ All notable changes to this project will be documented in this file.
 - CKKS: added the method `NewCiphertextAtLevelFromPoly`, which creates a ciphertext at a specific level from two polynomials.
 - CKKS: updated precision stats struct, added L2 norm in the statistics and improved the command line prints. 
 - CKKS: improved the algorithmic complexity of `MultiplyByDiagMatrixBSGS` and updated the bootstrapping parameters accordingly.
+- CKKS: reduced overall code footprint and improved readability of algorithms in `linear_transform.go`.
+- CKKS: `PermuteNTTHoistedNoModDown` now returns `[phi(P*c0 + c0'), phi(c1')]` instead of `[phi(c0'), phi(c1')]`.
+- CKKS: Changed `RotateHoistedNoModDown` to `RotateHoistedNoModDownNew` for consistency.
 - DBFV/DCKKS: both now use their respective CRP type for each protocol.
 - EXAMPLE: added showcase of the `ckks/advanced` sub-package: a bridge between CKKS and FHEW ciphertexts using homomorphic decoding, ring dimension switching, homomorphic matrix multiplication and homomorphic modular reduction.
 

@@ -259,7 +259,7 @@ func (eval *evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 
 	ringQ := eval.params.RingQ()
 	ringP := eval.params.RingP()
-	ringQP := rlwe.RingQP{RingQ:ringQ, RingP:ringP}
+	ringQP := rlwe.RingQP{RingQ: ringQ, RingP: ringP}
 
 	levelQ := ctIn.Level()
 	levelP := len(ringP.Modulus) - 1
@@ -378,7 +378,7 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix PtDiagMatri
 
 	ringQ := eval.params.RingQ()
 	ringP := eval.params.RingP()
-	ringQP := rlwe.RingQP{RingQ:ringQ, RingP:ringP}
+	ringQP := rlwe.RingQP{RingQ: ringQ, RingP: ringP}
 
 	levelQ := utils.MinInt(ctOut.Level(), utils.MinInt(ctIn.Level(), matrix.Level))
 	levelP := len(ringP.Modulus) - 1

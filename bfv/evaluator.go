@@ -46,6 +46,8 @@ type Evaluator interface {
 	InnerSum(ct0 *Ciphertext, ctOut *Ciphertext)
 	ShallowCopy() Evaluator
 	WithKey(rlwe.EvaluationKey) Evaluator
+	ModUpAndNTT(ct *rlwe.Ciphertext, cQ, cQMul []*ring.Poly)
+	Quantize(ctOut *rlwe.Ciphertext, c2Q1, c2Q2 []*ring.Poly)
 }
 
 // evaluator is a struct that holds the necessary elements to perform the homomorphic operations between ciphertexts and/or plaintexts.
@@ -288,16 +290,17 @@ func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *rlwe.Ciphertext) {
 
 	c0Q1 := eval.poolQ[0]
 	c0Q2 := eval.poolQmul[0]
-
 	c1Q1 := eval.poolQ[1]
 	c1Q2 := eval.poolQmul[1]
+	c2Q1 := eval.poolQ[2]
+	c2Q2 := eval.poolQmul[2]
 
 	// Prepares the ciphertexts for the Tensoring by extending their
 	// basis from Q to QP and transforming them to NTT form
-	eval.modUpAndNTT(ct0, c0Q1, c0Q2)
+	eval.ModUpAndNTT(ct0, c0Q1, c0Q2)
 
 	if ct0 != ct1 {
-		eval.modUpAndNTT(ct1, c1Q1, c1Q2)
+		eval.ModUpAndNTT(ct1, c1Q1, c1Q2)
 	}
 
 	// Tensoring: multiplies each elements of the ciphertexts together
@@ -306,16 +309,16 @@ func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *rlwe.Ciphertext) {
 
 	// Case where both Elements are of degree 1
 	if ct0.Degree() == 1 && ct1.Degree() == 1 {
-		eval.tensoreLowDeg(ct0, ct1)
+		eval.tensoreLowDeg(ct0, ct1, c0Q1, c0Q2, c1Q1, c1Q2, c2Q1, c2Q2)
 		// Case where at least one element is not of degree 1
 	} else {
-		eval.tensortLargeDeg(ct0, ct1)
+		eval.tensortLargeDeg(ct0, ct1, c0Q1, c0Q2, c1Q1, c1Q2, c2Q1, c2Q2)
 	}
 
-	eval.quantize(ctOut)
+	eval.Quantize(ctOut, c2Q1, c2Q2)
 }
 
-func (eval *evaluator) modUpAndNTT(ct *rlwe.Ciphertext, cQ, cQMul []*ring.Poly) {
+func (eval *evaluator) ModUpAndNTT(ct *rlwe.Ciphertext, cQ, cQMul []*ring.Poly) {
 	levelQ := len(eval.ringQ.Modulus) - 1
 	for i := range ct.Value {
 		eval.baseconverterQ1Q2.ModUpQtoP(levelQ, len(eval.ringQMul.Modulus)-1, ct.Value[i], cQMul[i])
@@ -324,16 +327,7 @@ func (eval *evaluator) modUpAndNTT(ct *rlwe.Ciphertext, cQ, cQMul []*ring.Poly) 
 	}
 }
 
-func (eval *evaluator) tensoreLowDeg(ct0, ct1 *rlwe.Ciphertext) {
-
-	c0Q1 := eval.poolQ[0]
-	c0Q2 := eval.poolQmul[0]
-
-	c1Q1 := eval.poolQ[1]
-	c1Q2 := eval.poolQmul[1]
-
-	c2Q1 := eval.poolQ[2]
-	c2Q2 := eval.poolQmul[2]
+func (eval *evaluator) tensoreLowDeg(ct0, ct1 *rlwe.Ciphertext, c0Q1, c0Q2, c1Q1, c1Q2, c2Q1, c2Q2 []*ring.Poly) {
 
 	c00Q := eval.poolQ[3][0]
 	c00Q2 := eval.poolQmul[3][0]
@@ -384,16 +378,7 @@ func (eval *evaluator) tensoreLowDeg(ct0, ct1 *rlwe.Ciphertext) {
 	}
 }
 
-func (eval *evaluator) tensortLargeDeg(ct0, ct1 *rlwe.Ciphertext) {
-
-	c0Q1 := eval.poolQ[0]
-	c0Q2 := eval.poolQmul[0]
-
-	c1Q1 := eval.poolQ[1]
-	c1Q2 := eval.poolQmul[1]
-
-	c2Q1 := eval.poolQ[2]
-	c2Q2 := eval.poolQmul[2]
+func (eval *evaluator) tensortLargeDeg(ct0, ct1 *rlwe.Ciphertext, c0Q1, c0Q2, c1Q1, c1Q2, c2Q1, c2Q2 []*ring.Poly) {
 
 	for i := 0; i < ct0.Degree()+ct1.Degree()+1; i++ {
 		c2Q1[i].Zero()
@@ -439,13 +424,10 @@ func (eval *evaluator) tensortLargeDeg(ct0, ct1 *rlwe.Ciphertext) {
 	}
 }
 
-func (eval *evaluator) quantize(ctOut *rlwe.Ciphertext) {
+func (eval *evaluator) Quantize(ctOut *rlwe.Ciphertext, c2Q1, c2Q2 []*ring.Poly) {
 
 	levelQ := len(eval.ringQ.Modulus) - 1
 	levelQMul := len(eval.ringQMul.Modulus) - 1
-
-	c2Q1 := eval.poolQ[2]
-	c2Q2 := eval.poolQmul[2]
 
 	// Applies the inverse NTT to the ciphertext, scales down the ciphertext
 	// by t/q and reduces its basis from QP to Q

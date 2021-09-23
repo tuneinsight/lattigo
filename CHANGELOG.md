@@ -17,6 +17,7 @@ All notable changes to this project will be documented in this file.
 - DRLWE: added the `CRS` interface for PRNGs that implement a common reference string among the parties.
 - DRLWE: added the `SampleCRP(crs CRS)` method to each protocol types to sample their respective CRP type.
 - BFV: changed the plaintext scaling from `floor(Q/T)*m` to `round((Q*m)/T)` to reduce the initial ciphertext noise. 
+- BFV: `quantize` and `modUpAndNTT` methods of `evaluator` are now public.
 - CKKS: added the `ckks/advanced` sub-package and moved the homomorphic encoding, decoding and modular reduction into it.
 - CKKS: added the `ckks/bootstrapping` sub-package and moved the CKKS bootstrapping into it. This package now mostly relies on the `ckks/advanced` package.
 - CKKS: renamed the `ChebyshevInterpolation` type to `Polynomial`.

@@ -29,7 +29,7 @@ func (r *Ring) AddLvl(level int, p1, p2, p3 *Poly) {
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -56,7 +56,7 @@ func (r *Ring) AddNoModLvl(level int, p1, p2, p3 *Poly) {
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -81,7 +81,7 @@ func (r *Ring) SubLvl(level int, p1, p2, p3 *Poly) {
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -108,7 +108,7 @@ func (r *Ring) SubNoModLvl(level int, p1, p2, p3 *Poly) {
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -134,7 +134,7 @@ func (r *Ring) NegLvl(level int, p1, p2 *Poly) {
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -160,7 +160,7 @@ func (r *Ring) ReduceLvl(level int, p1, p2 *Poly) {
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -188,7 +188,7 @@ func (r *Ring) ReduceConstantLvl(level int, p1, p2 *Poly) {
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -214,7 +214,7 @@ func (r *Ring) ModLvl(level int, p1 *Poly, m uint64, p2 *Poly) {
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -241,7 +241,7 @@ func (r *Ring) MulCoeffsLvl(level int, p1, p2, p3 *Poly) {
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -268,7 +268,7 @@ func (r *Ring) MulCoeffsAndAddLvl(level int, p1, p2, p3 *Poly) {
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -295,7 +295,7 @@ func (r *Ring) MulCoeffsAndAddNoModLvl(level int, p1, p2, p3 *Poly) {
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -322,7 +322,7 @@ func (r *Ring) MulCoeffsMontgomeryLvl(level int, p1, p2, p3 *Poly) {
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -349,7 +349,7 @@ func (r *Ring) MulCoeffsMontgomeryConstantLvl(level int, p1, p2, p3 *Poly) {
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -376,7 +376,7 @@ func (r *Ring) MulCoeffsMontgomeryAndAddLvl(level int, p1, p2, p3 *Poly) {
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -403,7 +403,7 @@ func (r *Ring) MulCoeffsMontgomeryAndAddNoModLvl(level int, p1, p2, p3 *Poly) {
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -432,7 +432,7 @@ func (r *Ring) MulCoeffsMontgomeryConstantAndAddNoModLvl(level int, p1, p2, p3 *
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -459,7 +459,7 @@ func (r *Ring) MulCoeffsMontgomeryAndSubLvl(level int, p1, p2, p3 *Poly) {
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -486,7 +486,7 @@ func (r *Ring) MulCoeffsMontgomeryAndSubNoModLvl(level int, p1, p2, p3 *Poly) {
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -513,7 +513,7 @@ func (r *Ring) MulCoeffsConstantLvl(level int, p1, p2, p3 *Poly) {
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -538,7 +538,7 @@ func (r *Ring) AddScalarLvl(level int, p1 *Poly, scalar uint64, p2 *Poly) {
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -563,7 +563,7 @@ func (r *Ring) AddScalarBigintLvl(level int, p1 *Poly, scalar *big.Int, p2 *Poly
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			tmp := new(big.Int)
@@ -589,7 +589,7 @@ func (r *Ring) SubScalarLvl(level int, p1 *Poly, scalar uint64, p2 *Poly) {
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -614,7 +614,7 @@ func (r *Ring) SubScalarBigintLvl(level int, p1 *Poly, scalar *big.Int, p2 *Poly
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			tmp := new(big.Int)
@@ -640,7 +640,7 @@ func (r *Ring) MulScalarLvl(level int, p1 *Poly, scalar uint64, p2 *Poly) {
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -666,7 +666,7 @@ func (r *Ring) MulScalarBigintLvl(level int, p1 *Poly, scalar *big.Int, p2 *Poly
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			scalarQi := new(big.Int)
@@ -701,7 +701,7 @@ func (r *Ring) MFormLvl(level int, p1, p2 *Poly) {
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -726,7 +726,7 @@ func (r *Ring) InvMFormLvl(level int, p1, p2 *Poly) {
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -752,7 +752,7 @@ func (r *Ring) MulByPow2Lvl(level int, p1 *Poly, pow2 int, p2 *Poly) {
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -833,7 +833,7 @@ func (r *Ring) MulByVectorMontgomeryLvl(level int, p1 *Poly, vector []uint64, p2
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -858,7 +858,7 @@ func (r *Ring) MulByVectorMontgomeryAndAddNoModLvl(level int, p1 *Poly, vector [
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {

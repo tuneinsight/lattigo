@@ -299,7 +299,7 @@ func (r *Ring) DivFloorByLastModulusNTTLvl(level int, p0, pool, p1 *Poly) {
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -322,7 +322,7 @@ func (r *Ring) DivFloorByLastModulusLvl(level int, p0, p1 *Poly) {
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -405,7 +405,7 @@ func (r *Ring) DivRoundByLastModulusNTTLvl(level int, p0, pool, p1 *Poly) {
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -436,7 +436,7 @@ func (r *Ring) DivRoundByLastModulusLvl(level int, p0, p1 *Poly) {
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {

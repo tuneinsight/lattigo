@@ -38,7 +38,7 @@ func (r *Ring) NTTLvl(level int, p1, p2 *Poly) {
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for x := start; x < end; x++ {
@@ -60,7 +60,7 @@ func (r *Ring) NTTLazyLvl(level int, p1, p2 *Poly) {
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for x := start; x < end; x++ {
@@ -81,7 +81,7 @@ func (r *Ring) InvNTTLvl(level int, p1, p2 *Poly) {
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for x := start; x < end; x++ {
@@ -103,7 +103,7 @@ func (r *Ring) InvNTTLazyLvl(level int, p1, p2 *Poly) {
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for x := start; x < end; x++ {

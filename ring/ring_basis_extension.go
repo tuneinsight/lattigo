@@ -206,7 +206,7 @@ func (be *FastBasisExtender) ModDownQPtoQ(levelQ, levelP int, p1Q, p1P, p2Q *Pol
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			// Then, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
@@ -250,7 +250,7 @@ func (be *FastBasisExtender) ModDownQPtoQNTT(levelQ, levelP int, p1Q, p1P, p2Q *
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			// Then, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
@@ -286,7 +286,7 @@ func (be *FastBasisExtender) ModDownQPtoP(levelQ, levelP int, p1Q, p1P, p2P *Pol
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for i := start; i < end; i++ {
@@ -319,7 +319,7 @@ func (be *FastBasisExtender) modUpExact(p1, p2 [][]uint64, ringQ, ringP *Ring, p
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 
@@ -453,7 +453,7 @@ func (decomposer *Decomposer) DecomposeAndSplit(levelQ, levelP, alpha, beta int,
 		wg.Add(nbGoRoutines)
 		var start, end, tmp int
 		for i := 0; i < nbGoRoutines; i++ {
-			tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+			tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 			start, end, tasks = end, end+tmp, tasks-tmp
 			go func(start, end int) {
 				for i := start; i < end; i++ {
@@ -469,7 +469,7 @@ func (decomposer *Decomposer) DecomposeAndSplit(levelQ, levelP, alpha, beta int,
 		wg.Add(nbGoRoutines)
 		start, end = 0, 0
 		for i := 0; i < nbGoRoutines; i++ {
-			tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+			tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 			start, end, tasks = end, end+tmp, tasks-tmp
 			go func(start, end int) {
 				for i := start; i < end; i++ {
@@ -491,7 +491,7 @@ func (decomposer *Decomposer) DecomposeAndSplit(levelQ, levelP, alpha, beta int,
 		wg.Add(nbGoRoutines)
 		var start, end, tmp int
 		for i := 0; i < nbGoRoutines; i++ {
-			tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+			tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 			start, end, tasks = end, end+tmp, tasks-tmp
 			go func(start, end int) {
 				var v [8]uint64

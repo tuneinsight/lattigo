@@ -42,7 +42,7 @@ func (r *Ring) PermuteNTTIndex(galEl, N uint64) (index []uint64) {
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end uint64) {
 			for i := start; i < end; i += 8 {
@@ -111,7 +111,7 @@ func (r *Ring) PermuteNTTWithIndexLvl(level int, polIn *Poly, index []uint64, po
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 
@@ -152,7 +152,7 @@ func (r *Ring) PermuteNTTWithIndexAndAddNoModLvl(level int, polIn *Poly, index [
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 
@@ -193,7 +193,7 @@ func (r *Ring) Permute(polIn *Poly, gen uint64, polOut *Poly) {
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = (tasks + nbGoRoutines - i - 1) / (nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end uint64) {
 			var index, indexRaw, indexTmp uint64

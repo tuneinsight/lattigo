@@ -121,6 +121,11 @@ func MaxSliceUint64(slice []uint64) (max uint64) {
 	return
 }
 
+// DivIntCeil returns ceil(a/b).
+func DivIntCeil(a, b int) int {
+	return (a + b - 1) / b
+}
+
 // BitReverse64 returns the bit-reverse value of the input value, within a context of 2^bitLen.
 func BitReverse64(index, bitLen uint64) uint64 {
 	return bits.Reverse64(index) >> (64 - bitLen)

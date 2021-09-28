@@ -13,6 +13,7 @@ const GaloisGen uint64 = 5
 
 // Context is a struct that contains all the elements required to instantiate the CKKS Scheme. This includes the parameters (polynomial degree, ciphertext modulus,
 // Gaussian sampler, polynomial contexts and other parameters required for the homomorphic operations).
+// 这是修改
 type Context struct {
 
 	// Context parameters
@@ -43,6 +44,7 @@ type Context struct {
 
 // NewContext creates a new Context with the given parameters. It returns an error if one of the parameters would not ensure the
 // correctness of the scheme (but it does not check for security).
+// start fix
 func newContext(params *Parameters) (ckkscontext *Context) {
 
 	if !params.isValid {

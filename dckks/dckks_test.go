@@ -781,6 +781,6 @@ func verifyTestVectors(testCtx *testContext, decryptor ckks.Decryptor, valuesWan
 		t.Log(precStats.String())
 	}
 
-	require.GreaterOrEqual(t, real(precStats.MeanPrecision), minPrec)
-	require.GreaterOrEqual(t, imag(precStats.MeanPrecision), minPrec)
+	require.GreaterOrEqual(t, precStats.MeanPrecision.Real, minPrec)
+	require.GreaterOrEqual(t, precStats.MeanPrecision.Imag, minPrec)
 }

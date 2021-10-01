@@ -60,6 +60,13 @@ func (r *RingQP) AddLvl(levelQ, levelP int, p1, p2, pOut PolyQP) {
 	r.RingP.AddLvl(levelP, p1.P, p2.P, pOut.P)
 }
 
+// AddNoModLvl adds p1 to p2 coefficient-wise and writes the result on p3 without modular reduction.
+// The operation is performed at levelQ for the ringQ and levelP for the ringP.
+func (r *RingQP) AddNoModLvl(levelQ, levelP int, p1, p2, pOut PolyQP) {
+	r.RingQ.AddNoModLvl(levelQ, p1.Q, p2.Q, pOut.Q)
+	r.RingP.AddNoModLvl(levelP, p1.P, p2.P, pOut.P)
+}
+
 // SubLvl subtracts p2 to p1 coefficient-wise and writes the result on p3.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
 func (r *RingQP) SubLvl(levelQ, levelP int, p1, p2, pOut PolyQP) {
@@ -140,6 +147,31 @@ func (r *RingQP) MulCoeffsMontgomeryAndSubLvl(levelQ, levelP int, p1, p2, p3 Pol
 func (r *RingQP) MulCoeffsMontgomeryAndAddLvl(levelQ, levelP int, p1, p2, p3 PolyQP) {
 	r.RingQ.MulCoeffsMontgomeryAndAddLvl(levelQ, p1.Q, p2.Q, p3.Q)
 	r.RingP.MulCoeffsMontgomeryAndAddLvl(levelP, p1.P, p2.P, p3.P)
+}
+
+// PermuteNTTWithIndexLvl applies the automorphism X^{5^j} on p1 and writes the result on p2.
+// Index of automorphism must be provided.
+// Method is not in place.
+// The operation is performed at levelQ for the ringQ and levelP for the ringP.
+func (r *RingQP) PermuteNTTWithIndexLvl(levelQ, levelP int, p1 PolyQP, index []uint64, p2 PolyQP) {
+	ring.PermuteNTTWithIndexLvl(levelQ, p1.Q, index, p2.Q)
+	ring.PermuteNTTWithIndexLvl(levelP, p1.P, index, p2.P)
+}
+
+// PermuteNTTWithIndexAndAddNoModLvl applies the automorphism X^{5^j} on p1 and adds the result on p2.
+// Index of automorphism must be provided.
+// Method is not in place.
+// The operation is performed at levelQ for the ringQ and levelP for the ringP.
+func (r *RingQP) PermuteNTTWithIndexAndAddNoModLvl(levelQ, levelP int, p1 PolyQP, index []uint64, p2 PolyQP) {
+	ring.PermuteNTTWithIndexAndAddNoModLvl(levelQ, p1.Q, index, p2.Q)
+	ring.PermuteNTTWithIndexAndAddNoModLvl(levelP, p1.P, index, p2.P)
+}
+
+// CopyValuesLvl copies the values of p1 on p2.
+// The operation is performed at levelQ for the ringQ and levelP for the ringP.
+func (r *RingQP) CopyValuesLvl(levelQ, levelP int, p1, p2 PolyQP) {
+	ring.CopyValuesLvl(levelQ, p1.Q, p2.Q)
+	ring.CopyValuesLvl(levelP, p1.P, p2.P)
 }
 
 // ExtendBasisSmallNormAndCenter extends a small-norm polynomial polQ in R_Q to a polynomial

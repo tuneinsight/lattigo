@@ -310,7 +310,7 @@ var DefaultParameters = []Parameters{
 		SlotsToCoeffsParameters: advanced.EncodingMatrixLiteral{
 			LinearTransformType: advanced.SlotsToCoeffs,
 			LevelStart:          12,
-			BSGSRatio:           16.0,
+			BSGSRatio:           2.0,
 			BitReversed:         false,
 			ScalingFactor: [][]float64{
 				{0x7fffe60001},
@@ -332,7 +332,7 @@ var DefaultParameters = []Parameters{
 		CoeffsToSlotsParameters: advanced.EncodingMatrixLiteral{
 			LinearTransformType: advanced.CoeffsToSlots,
 			LevelStart:          24,
-			BSGSRatio:           16.0,
+			BSGSRatio:           2.0,
 			BitReversed:         false,
 			ScalingFactor: [][]float64{
 				{0x100000000060001},
@@ -350,7 +350,7 @@ var DefaultParameters = []Parameters{
 		SlotsToCoeffsParameters: advanced.EncodingMatrixLiteral{
 			LinearTransformType: advanced.SlotsToCoeffs,
 			LevelStart:          8,
-			BSGSRatio:           16.0,
+			BSGSRatio:           2.0,
 			BitReversed:         false,
 			ScalingFactor: [][]float64{
 				{0x3ffffe80001},
@@ -372,7 +372,7 @@ var DefaultParameters = []Parameters{
 		CoeffsToSlotsParameters: advanced.EncodingMatrixLiteral{
 			LinearTransformType: advanced.CoeffsToSlots,
 			LevelStart:          23,
-			BSGSRatio:           16.0,
+			BSGSRatio:           2.0,
 			BitReversed:         false,
 			ScalingFactor: [][]float64{
 				{0x400000000360001},
@@ -390,7 +390,7 @@ var DefaultParameters = []Parameters{
 		SlotsToCoeffsParameters: advanced.EncodingMatrixLiteral{
 			LinearTransformType: advanced.SlotsToCoeffs,
 			LevelStart:          9,
-			BSGSRatio:           16.0,
+			BSGSRatio:           2.0,
 			BitReversed:         false,
 			ScalingFactor: [][]float64{
 				{1073741824.0},
@@ -411,7 +411,7 @@ var DefaultParameters = []Parameters{
 		CoeffsToSlotsParameters: advanced.EncodingMatrixLiteral{
 			LinearTransformType: advanced.CoeffsToSlots,
 			LevelStart:          21,
-			BSGSRatio:           16.0,
+			BSGSRatio:           2.0,
 			BitReversed:         false,
 			ScalingFactor: [][]float64{
 				{0x200000000e0001},
@@ -429,7 +429,7 @@ var DefaultParameters = []Parameters{
 		SlotsToCoeffsParameters: advanced.EncodingMatrixLiteral{
 			LinearTransformType: advanced.SlotsToCoeffs,
 			LevelStart:          11,
-			BSGSRatio:           16.0,
+			BSGSRatio:           2.0,
 			BitReversed:         false,
 			ScalingFactor: [][]float64{
 				{268435456.0007324, 268435456.0007324},
@@ -450,7 +450,7 @@ var DefaultParameters = []Parameters{
 		CoeffsToSlotsParameters: advanced.EncodingMatrixLiteral{
 			LinearTransformType: advanced.CoeffsToSlots,
 			LevelStart:          27,
-			BSGSRatio:           16.0,
+			BSGSRatio:           2.0,
 			BitReversed:         false,
 			ScalingFactor: [][]float64{
 				{0x200000000e0001},
@@ -468,7 +468,7 @@ var DefaultParameters = []Parameters{
 		SlotsToCoeffsParameters: advanced.EncodingMatrixLiteral{
 			LinearTransformType: advanced.SlotsToCoeffs,
 			LevelStart:          3,
-			BSGSRatio:           16.0,
+			BSGSRatio:           2.0,
 			BitReversed:         false,
 			ScalingFactor: [][]float64{
 				{1073741823.9998779, 1073741823.9998779},
@@ -488,7 +488,7 @@ var DefaultParameters = []Parameters{
 		CoeffsToSlotsParameters: advanced.EncodingMatrixLiteral{
 			LinearTransformType: advanced.CoeffsToSlots,
 			LevelStart:          13,
-			BSGSRatio:           16.0,
+			BSGSRatio:           2.0,
 			BitReversed:         false,
 			ScalingFactor: [][]float64{
 				{0x1fffffff50001},

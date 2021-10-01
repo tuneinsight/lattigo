@@ -76,8 +76,9 @@ type Evaluator interface {
 	Rotate(ctIn *Ciphertext, k int, ctOut *Ciphertext)
 	RotateHoistedNew(ctIn *Ciphertext, rotations []int) (ctOut map[int]*Ciphertext)
 	RotateHoisted(ctIn *Ciphertext, rotations []int, ctOut map[int]*Ciphertext)
-	PermuteNTTHoistedNoModDown(level int, c2DecompQP []rlwe.PolyQP, k int, ct0OutQ, ct1OutQ, ct0OutP, ct1OutP *ring.Poly)
+	RotateHoistedNoModDownNew(level int, rotations []int, c0 *ring.Poly, c2DecompQP []rlwe.PolyQP) (cOut map[int][2]rlwe.PolyQP)
 	PermuteNTTHoisted(level int, c0, c1 *ring.Poly, c2DecompQP []rlwe.PolyQP, k int, cOut0, cOut1 *ring.Poly)
+	PermuteNTTHoistedNoModDown(level int, c0 *ring.Poly, c2DecompQP []rlwe.PolyQP, k int, ct0OutQ, ct1OutQ, ct0OutP, ct1OutP *ring.Poly)
 
 	// ===========================
 	// === Advanced Arithmetic ===
@@ -1568,28 +1569,22 @@ func (eval *evaluator) permuteNTT(ct0 *Ciphertext, galEl uint64, ctOut *Cipherte
 	ring.PermuteNTTWithIndexLvl(level, pool3Q, index, ctOut.Value[1])
 }
 
-func (eval *evaluator) rotateHoistedNoModDown(level int, rotations []int, c2DecompQP []rlwe.PolyQP) (cOutQ, cOutP map[int][2]*ring.Poly) {
-
+func (eval *evaluator) RotateHoistedNoModDownNew(level int, rotations []int, c0 *ring.Poly, c2DecompQP []rlwe.PolyQP) (cOut map[int][2]rlwe.PolyQP) {
 	ringQ := eval.params.RingQ()
 	ringP := eval.params.RingP()
-
-	cOutQ = make(map[int][2]*ring.Poly)
-	cOutP = make(map[int][2]*ring.Poly)
-
+	cOut = make(map[int][2]rlwe.PolyQP)
 	for _, i := range rotations {
 
 		if i != 0 {
-			cOutQ[i] = [2]*ring.Poly{ringQ.NewPolyLvl(level), ringQ.NewPolyLvl(level)}
-			cOutP[i] = [2]*ring.Poly{ringP.NewPoly(), ringP.NewPoly()}
-
-			eval.PermuteNTTHoistedNoModDown(level, c2DecompQP, i, cOutQ[i][0], cOutQ[i][1], cOutP[i][0], cOutP[i][1])
+			cOut[i] = [2]rlwe.PolyQP{{Q: ringQ.NewPolyLvl(level), P: ringP.NewPoly()}, {Q: ringQ.NewPolyLvl(level), P: ringP.NewPoly()}}
+			eval.PermuteNTTHoistedNoModDown(level, c0, c2DecompQP, i, cOut[i][0].Q, cOut[i][1].Q, cOut[i][0].P, cOut[i][1].P)
 		}
 	}
 
 	return
 }
 
-func (eval *evaluator) PermuteNTTHoistedNoModDown(level int, c2DecompQP []rlwe.PolyQP, k int, ct0OutQ, ct1OutQ, ct0OutP, ct1OutP *ring.Poly) {
+func (eval *evaluator) PermuteNTTHoistedNoModDown(level int, c0 *ring.Poly, c2DecompQP []rlwe.PolyQP, k int, ct0OutQ, ct1OutQ, ct0OutP, ct1OutP *ring.Poly) {
 
 	pool2Q := eval.Pool[0].Q
 	pool3Q := eval.Pool[1].Q
@@ -1611,11 +1606,14 @@ func (eval *evaluator) PermuteNTTHoistedNoModDown(level int, c2DecompQP []rlwe.P
 
 	eval.KeyswitchHoistedNoModDown(levelQ, c2DecompQP, rtk, pool2Q, pool3Q, pool2P, pool3P)
 
-	ring.PermuteNTTWithIndexLvl(levelQ, pool2Q, index, ct0OutQ)
 	ring.PermuteNTTWithIndexLvl(levelQ, pool3Q, index, ct1OutQ)
-
-	ring.PermuteNTTWithIndexLvl(levelP, pool2P, index, ct0OutP)
 	ring.PermuteNTTWithIndexLvl(levelP, pool3P, index, ct1OutP)
+
+	eval.params.RingQ().MulScalarBigintLvl(levelQ, c0, eval.params.RingP().ModulusBigint, pool3Q)
+	eval.params.RingQ().AddLvl(levelQ, pool2Q, pool3Q, pool2Q)
+
+	ring.PermuteNTTWithIndexLvl(levelQ, pool2Q, index, ct0OutQ)
+	ring.PermuteNTTWithIndexLvl(levelP, pool2P, index, ct0OutP)
 }
 
 func (eval *evaluator) PermuteNTTHoisted(level int, c0, c1 *ring.Poly, c2DecompQP []rlwe.PolyQP, k int, cOut0, cOut1 *ring.Poly) {

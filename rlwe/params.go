@@ -30,44 +30,57 @@ const DefaultSigma = 3.2
 // The j-th ring automorphism takes the root zeta to zeta^(5j).
 const GaloisGen uint64 = 5
 
+// RingType is the type of ring used by the cryptographic scheme
+type RingType int
+
+// RingStandard and RingConjugateInvariant are two types of Rings.
+const (
+	RingStandard           = RingType(0) // Z[X]/(X^N + 1) (Default)
+	RingConjugateInvariant = RingType(1) // Z[X+X^-1]/(X^2N + 1)
+)
+
 // ParametersLiteral is a literal representation of BFV parameters.  It has public
 // fields and is used to express unchecked user-defined parameters literally into
 // Go programs. The NewParametersFromLiteral function is used to generate the actual
 // checked parameters from the literal representation.
 type ParametersLiteral struct {
-	LogN  int
-	Q     []uint64
-	P     []uint64
-	LogQ  []int `json:",omitempty"`
-	LogP  []int `json:",omitempty"`
-	Sigma float64
+	LogN     int
+	Q        []uint64
+	P        []uint64
+	LogQ     []int `json:",omitempty"`
+	LogP     []int `json:",omitempty"`
+	Sigma    float64
+	RingType RingType
 }
 
 // Parameters represents a set of generic RLWE parameters. Its fields are private and
 // immutable. See ParametersLiteral for user-specified parameters.
 type Parameters struct {
-	logN  int
-	qi    []uint64
-	pi    []uint64
-	sigma float64
-	ringQ *ring.Ring
-	ringP *ring.Ring
+	logN     int
+	qi       []uint64
+	pi       []uint64
+	sigma    float64
+	ringQ    *ring.Ring
+	ringP    *ring.Ring
+	ringType RingType
 }
 
 var (
 	// TestPN12QP109 is a set of default parameters with logN=12 and logQP=109
 	TestPN12QP109 = ParametersLiteral{
-		LogN:  12,
-		Q:     []uint64{0x7ffffec001, 0x40002001}, // 39 + 39 bits
-		P:     []uint64{0x8000016001},             // 30 bits
-		Sigma: DefaultSigma,
+		LogN:     12,
+		Q:        []uint64{0x7ffffec001, 0x40002001}, // 39 + 39 bits
+		P:        []uint64{0x8000016001},             // 30 bits
+		Sigma:    DefaultSigma,
+		RingType: RingStandard,
 	}
 	// TestPN13QP218 is a set of default parameters with logN=13 and logQP=218
 	TestPN13QP218 = ParametersLiteral{
-		LogN:  13,
-		Q:     []uint64{0x3fffffffef8001, 0x4000000011c001, 0x40000000120001}, // 54 + 54 + 54 bits
-		P:     []uint64{0x7ffffffffb4001},                                     // 55 bits
-		Sigma: DefaultSigma,
+		LogN:     13,
+		Q:        []uint64{0x3fffffffef8001, 0x4000000011c001, 0x40000000120001}, // 54 + 54 + 54 bits
+		P:        []uint64{0x7ffffffffb4001},                                     // 55 bits
+		Sigma:    DefaultSigma,
+		RingType: RingStandard,
 	}
 
 	// TestPN14QP438 is a set of default parameters with logN=14 and logQP=438
@@ -75,8 +88,9 @@ var (
 		LogN: 14,
 		Q: []uint64{0x100000000060001, 0x80000000068001, 0x80000000080001,
 			0x3fffffffef8001, 0x40000000120001, 0x3fffffffeb8001}, // 56 + 55 + 55 + 54 + 54 + 54 bits
-		P:     []uint64{0x80000000130001, 0x7fffffffe90001}, // 55 + 55 bits
-		Sigma: DefaultSigma,
+		P:        []uint64{0x80000000130001, 0x7fffffffe90001}, // 55 + 55 bits
+		Sigma:    DefaultSigma,
+		RingType: RingStandard,
 	}
 
 	// TestPN15QP880 is a set of default parameters with logN=15 and logQP=880
@@ -86,22 +100,18 @@ var (
 			0x400000000270001, 0x400000000350001, 0x400000000360001, // 58 + 58 + 58 bits
 			0x3ffffffffc10001, 0x3ffffffffbe0001, 0x3ffffffffbd0001, // 58 + 58 + 58 bits
 			0x4000000004d0001, 0x400000000570001, 0x400000000660001}, // 58 + 58 + 58 bits
-		P:     []uint64{0xffffffffffc0001, 0x10000000001d0001, 0x10000000006e0001}, // 60 + 60 + 60 bits
-		Sigma: DefaultSigma,
+		P:        []uint64{0xffffffffffc0001, 0x10000000001d0001, 0x10000000006e0001}, // 60 + 60 + 60 bits
+		Sigma:    DefaultSigma,
+		RingType: RingStandard,
 	}
 )
 
 // NewParameters returns a new set of generic RLWE parameters from the given ring degree logn, moduli q and p, and
 // error distribution parameter sigma. It returns the empty parameters Parameters{} and a non-nil error if the
 // specified parameters are invalid.
-func NewParameters(logn int, q, p []uint64, sigma float64) (Parameters, error) {
+func NewParameters(logn int, q, p []uint64, sigma float64, ringType RingType) (Parameters, error) {
 	var err error
 	if err = checkSizeParams(logn, len(q), len(p)); err != nil {
-		return Parameters{}, err
-	}
-
-	// Checks if moduli are valid
-	if err = CheckModuli(q, p, uint64(2<<logn)); err != nil {
 		return Parameters{}, err
 	}
 
@@ -112,13 +122,37 @@ func NewParameters(logn int, q, p []uint64, sigma float64) (Parameters, error) {
 		sigma: sigma,
 	}
 
-	if params.ringQ, err = ring.NewRing(1<<logn, q); err != nil {
-		return Parameters{}, err
-	}
+	if ringType == RingStandard {
 
-	if len(p) != 0 {
-		if params.ringP, err = ring.NewRing(1<<logn, p); err != nil {
+		// Checks if moduli are valid
+		if err = CheckModuli(q, p, uint64(2<<logn)); err != nil {
 			return Parameters{}, err
+		}
+
+		if params.ringQ, err = ring.NewRing(1<<logn, q); err != nil {
+			return Parameters{}, err
+		}
+
+		if len(p) != 0 {
+			if params.ringP, err = ring.NewRing(1<<logn, p); err != nil {
+				return Parameters{}, err
+			}
+		}
+	} else if ringType == RingConjugateInvariant {
+
+		// Checks if moduli are valid
+		if err = CheckModuli(q, p, uint64(3<<logn)); err != nil {
+			return Parameters{}, err
+		}
+
+		if params.ringQ, err = ring.NewRingConjugateInvariant(1<<logn, q); err != nil {
+			return Parameters{}, err
+		}
+
+		if len(p) != 0 {
+			if params.ringP, err = ring.NewRingConjugateInvariant(1<<logn, p); err != nil {
+				return Parameters{}, err
+			}
 		}
 	}
 
@@ -132,13 +166,13 @@ func NewParameters(logn int, q, p []uint64, sigma float64) (Parameters, error) {
 func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
 	switch {
 	case paramDef.Q != nil && paramDef.LogQ == nil && paramDef.P != nil && paramDef.LogP == nil:
-		return NewParameters(paramDef.LogN, paramDef.Q, paramDef.P, paramDef.Sigma)
+		return NewParameters(paramDef.LogN, paramDef.Q, paramDef.P, paramDef.Sigma, paramDef.RingType)
 	case paramDef.LogQ != nil && paramDef.Q == nil && paramDef.LogP != nil && paramDef.P == nil:
 		q, p, err := GenModuli(paramDef.LogN, paramDef.LogQ, paramDef.LogP)
 		if err != nil {
 			return Parameters{}, err
 		}
-		return NewParameters(paramDef.LogN, q, p, paramDef.Sigma)
+		return NewParameters(paramDef.LogN, q, p, paramDef.Sigma, paramDef.RingType)
 	default:
 		return Parameters{}, fmt.Errorf("invalid parameter literal")
 	}
@@ -368,6 +402,7 @@ func (p Parameters) MarshalBinary() ([]byte, error) {
 	b.WriteUint8(uint8(len(p.qi)))
 	b.WriteUint8(uint8(len(p.pi)))
 	b.WriteUint64(math.Float64bits(p.sigma))
+	b.WriteUint8(uint8(p.ringType))
 	b.WriteUint64Slice(p.qi)
 	b.WriteUint64Slice(p.pi)
 	return b.Bytes(), nil
@@ -383,6 +418,7 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	lenQ := int(b.ReadUint8())
 	lenP := int(b.ReadUint8())
 	sigma := math.Float64frombits(b.ReadUint64())
+	ringType := RingType(b.ReadUint8())
 
 	if err := checkSizeParams(logN, lenQ, lenP); err != nil {
 		return err
@@ -394,13 +430,13 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	b.ReadUint64Slice(pi)
 
 	var err error
-	*p, err = NewParameters(logN, qi, pi, sigma)
+	*p, err = NewParameters(logN, qi, pi, sigma, ringType)
 	return err
 }
 
 // MarshalBinarySize returns the length of the []byte encoding of the reciever.
 func (p Parameters) MarshalBinarySize() int {
-	return 11 + (len(p.qi)+len(p.pi))<<3
+	return 12 + (len(p.qi)+len(p.pi))<<3
 }
 
 // MarshalJSON returns a JSON representation of this parameter set. See `Marshal` from the `encoding/json` package.

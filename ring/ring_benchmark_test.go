@@ -141,27 +141,29 @@ func benchNTT(testContext *testParams, b *testing.B) {
 
 	p := testContext.uniformSamplerQ.ReadNew()
 
-	b.Run(testString("NTT/NTT/Montgomery/", testContext.ringQ), func(b *testing.B) {
+	b.Run(testString("NTT/Forward/Standard/", testContext.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			testContext.ringQ.NTT(p, p)
 		}
 	})
 
-	b.Run(testString("NTT/InvNTT/Montgomery/", testContext.ringQ), func(b *testing.B) {
+	b.Run(testString("NTT/Backward/Standard/", testContext.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			testContext.ringQ.InvNTT(p, p)
 		}
 	})
 
-	b.Run(testString("NTT/NTT/Barrett/", testContext.ringQ), func(b *testing.B) {
+	ringQ4NthRoot, _ := NewRingWithNthRoot(testContext.ringQ.N, testContext.ringQ.N<<2, testContext.ringQ.Modulus)
+
+	b.Run(testString("NTT/Forward/ConjugateInvariant4NthRoot/", testContext.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			testContext.ringQ.NTTBarrett(p, p)
+			ringQ4NthRoot.NTTConjugateInvariant(p, p)
 		}
 	})
 
-	b.Run(testString("NTT/InvNTT/Barrett/", testContext.ringQ), func(b *testing.B) {
+	b.Run(testString("NTT/Backward/ConjugateInvariant4NthRoot/", testContext.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			testContext.ringQ.InvNTTBarrett(p, p)
+			ringQ4NthRoot.InvNTTConjugateInvariant(p, p)
 		}
 	})
 }

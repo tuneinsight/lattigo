@@ -153,17 +153,17 @@ func benchNTT(testContext *testParams, b *testing.B) {
 		}
 	})
 
-	ringQ4NthRoot, _ := NewRingWithNthRoot(testContext.ringQ.N, testContext.ringQ.N<<2, testContext.ringQ.Modulus)
+	ringQConjugateInvariant, _ := NewRingConjugateInvariant(testContext.ringQ.N, testContext.ringQ.Modulus)
 
 	b.Run(testString("NTT/Forward/ConjugateInvariant4NthRoot/", testContext.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			ringQ4NthRoot.NTTConjugateInvariant(p, p)
+			ringQConjugateInvariant.NTT(p, p)
 		}
 	})
 
 	b.Run(testString("NTT/Backward/ConjugateInvariant4NthRoot/", testContext.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			ringQ4NthRoot.InvNTTConjugateInvariant(p, p)
+			ringQConjugateInvariant.InvNTT(p, p)
 		}
 	})
 }

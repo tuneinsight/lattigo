@@ -15,6 +15,7 @@ import (
 
 // Ring is a structure that keeps all the variables required to operate on a polynomial represented in this ring.
 type Ring struct {
+	NumberTheoreticTransformer
 
 	// Polynomial nb.Coefficients
 	N int
@@ -51,12 +52,7 @@ type Ring struct {
 // a non-empty []uint64 with distinct prime elements. For the Ring instance to support NTT operation, these elements must also be equal
 // to 1 modulo 2*N. Non-nil r and error are returned in the case of non NTT-enabling parameters.
 func NewRing(N int, Moduli []uint64) (r *Ring, err error) {
-	r = new(Ring)
-	err = r.setParameters(N, Moduli)
-	if err != nil {
-		return nil, err
-	}
-	return r, r.genNTTParams(uint64(N) << 1)
+	return NewRingWithNthRoot(N, 2*N, Moduli)
 }
 
 // NewRingWithNthRoot creates a new Ring with the given parameters. It checks that N is a power of 2 and that the moduli are NTT friendly.
@@ -66,7 +62,27 @@ func NewRingWithNthRoot(N, NthRoot int, Moduli []uint64) (r *Ring, err error) {
 	if err = r.setParameters(N, Moduli); err != nil {
 		return nil, err
 	}
+
+	r.NumberTheoreticTransformer = NumberTheoreticTransformerStandard{}
+
 	return r, r.genNTTParams(uint64(NthRoot))
+}
+
+// NewRingConjugateInvariant creates a new Ring in Z[X+X^-1](X^2N + 1).
+// Z[X+X^-1]/(X^2N+1) is a closed sub-ring of Z[X]/(X^2N+1).
+// The input polynomial only needs to be size N to store all the information
+// about its 2N coefficients since the right half does not provide any additional information.
+// Primes need to be congruent to 1 mod 4N.
+func NewRingConjugateInvariant(N int, Moduli []uint64) (r *Ring, err error) {
+	r = new(Ring)
+	err = r.setParameters(N, Moduli)
+	if err != nil {
+		return nil, err
+	}
+
+	r.NumberTheoreticTransformer = NumberTheoreticTransformerConjugateInvariant{}
+
+	return r, r.genNTTParams(uint64(N) << 2)
 }
 
 // setParameters initializes a *Ring by setting the required precomputed values (except for the NTT-related values, which are set by the

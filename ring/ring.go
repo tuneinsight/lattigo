@@ -38,6 +38,7 @@ type Ring struct {
 	RescaleParams [][]uint64
 
 	//NTT Parameters
+	NthRoot    uint64
 	PsiMont    []uint64 //2N-th primitive root in Montgomery form
 	PsiInvMont []uint64 //2N-th inverse primitive root in Montgomery form
 
@@ -55,7 +56,17 @@ func NewRing(N int, Moduli []uint64) (r *Ring, err error) {
 	if err != nil {
 		return nil, err
 	}
-	return r, r.genNTTParams()
+	return r, r.genNTTParams(uint64(N) << 1)
+}
+
+// NewRingWithNthRoot creates a new Ring with the given parameters. It checks that N is a power of 2 and that the moduli are NTT friendly.
+// Instantiates the NTT params with a NthRoot primitive root of unity.
+func NewRingWithNthRoot(N, NthRoot int, Moduli []uint64) (r *Ring, err error) {
+	r = new(Ring)
+	if err = r.setParameters(N, Moduli); err != nil {
+		return nil, err
+	}
+	return r, r.genNTTParams(uint64(NthRoot))
 }
 
 // setParameters initializes a *Ring by setting the required precomputed values (except for the NTT-related values, which are set by the
@@ -115,7 +126,7 @@ func (r *Ring) setParameters(N int, Modulus []uint64) error {
 // genNTTParams checks that N has been correctly initialized, and checks that each modulus is a prime congruent to 1 mod 2N (i.e. NTT-friendly).
 // Then, it computes the variables required for the NTT. The purpose of ValidateParameters is to validate that the moduli allow the NTT, and to compute the
 // NTT parameters.
-func (r *Ring) genNTTParams() error {
+func (r *Ring) genNTTParams(NthRoot uint64) error {
 
 	if r.AllowsNTT {
 		return nil
@@ -125,17 +136,23 @@ func (r *Ring) genNTTParams() error {
 		return errors.New("invalid r parameters (missing)")
 	}
 
+	if r.N == 0 || r.Modulus == nil || NthRoot < 1 {
+		panic("error : invalid r parameters (missing)")
+	}
+
 	// Check if each qi is prime and equal to 1 mod NthRoot
 	for i, qi := range r.Modulus {
 		if !IsPrime(qi) {
 			return fmt.Errorf("invalid modulus (Modulus[%d] is not prime)", i)
 		}
 
-		if int(qi)&((r.N<<1)-1) != 1 {
+		if qi&(NthRoot-1) != 1 {
 			r.AllowsNTT = false
 			return fmt.Errorf("invalid modulus (Modulus[%d] != 1 mod 2N)", i)
 		}
 	}
+
+	r.NthRoot = NthRoot
 
 	r.RescaleParams = make([][]uint64, len(r.Modulus)-1)
 
@@ -155,23 +172,21 @@ func (r *Ring) genNTTParams() error {
 	r.NttPsiInv = make([][]uint64, len(r.Modulus))
 	r.NttNInv = make([]uint64, len(r.Modulus))
 
-	bitLenofN := bits.Len64(uint64(r.N)) - 1
+	logNthRoot := uint64(bits.Len64(NthRoot>>1) - 1)
 
 	for i, qi := range r.Modulus {
 
 		// 1.1 Compute N^(-1) mod Q in Montgomery form
-		r.NttNInv[i] = MForm(ModExp(uint64(r.N), qi-2, qi), qi, r.BredParams[i])
+		r.NttNInv[i] = MForm(ModExp(NthRoot>>1, qi-2, qi), qi, r.BredParams[i])
 
 		// 1.2 Compute Psi and PsiInv in Montgomery form
-		r.NttPsi[i] = make([]uint64, r.N)
-		r.NttPsiInv[i] = make([]uint64, r.N)
+		r.NttPsi[i] = make([]uint64, NthRoot>>1)
+		r.NttPsiInv[i] = make([]uint64, NthRoot>>1)
 
 		// Finds a 2N-th primitive Root
 		g := primitiveRoot(qi)
 
-		_2n := uint64(r.N << 1)
-
-		power := (qi - 1) / _2n
+		power := (qi - 1) / NthRoot
 		powerInv := (qi - 1) - power
 
 		// Computes Psi and PsiInv in Montgomery form
@@ -185,10 +200,10 @@ func (r *Ring) genNTTParams() error {
 		r.NttPsiInv[i][0] = MForm(1, qi, r.BredParams[i])
 
 		// Compute nttPsi[j] = nttPsi[j-1]*Psi and nttPsiInv[j] = nttPsiInv[j-1]*PsiInv
-		for j := 1; j < r.N; j++ {
+		for j := uint64(1); j < NthRoot>>1; j++ {
 
-			indexReversePrev := utils.BitReverse64(uint64(j-1), uint64(bitLenofN))
-			indexReverseNext := utils.BitReverse64(uint64(j), uint64(bitLenofN))
+			indexReversePrev := utils.BitReverse64(uint64(j-1), logNthRoot)
+			indexReverseNext := utils.BitReverse64(uint64(j), logNthRoot)
 
 			r.NttPsi[i][indexReverseNext] = MRed(r.NttPsi[i][indexReversePrev], PsiMont, qi, r.MredParams[i])
 			r.NttPsiInv[i][indexReverseNext] = MRed(r.NttPsiInv[i][indexReversePrev], PsiInvMont, qi, r.MredParams[i])
@@ -203,13 +218,14 @@ func (r *Ring) genNTTParams() error {
 // Minimal required information to recover the full ring. Used to import and export the ring.
 type ringParams struct {
 	N       int
+	NthRoot uint64
 	Modulus []uint64
 }
 
 // MarshalBinary encodes the target ring on a slice of bytes.
 func (r *Ring) MarshalBinary() ([]byte, error) {
 
-	parameters := ringParams{r.N, r.Modulus}
+	parameters := ringParams{r.N, r.NthRoot, r.Modulus}
 
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
@@ -233,7 +249,7 @@ func (r *Ring) UnmarshalBinary(data []byte) error {
 	if err := r.setParameters(parameters.N, parameters.Modulus); err != nil {
 		return err
 	}
-	if err := r.genNTTParams(); err != nil {
+	if err := r.genNTTParams(parameters.NthRoot); err != nil {
 		return err
 	}
 

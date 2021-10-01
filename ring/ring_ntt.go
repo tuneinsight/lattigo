@@ -74,7 +74,7 @@ func (r *Ring) InvNTTLazyLvl(level int, p1, p2 *Poly) {
 // since the right half does not provide any additional information.
 // See "Approximate Homomorphic Encryption over the Conjugate-invariant Ring", https://eprint.iacr.org/2018/952.
 // The implemented approach is more efficient than the one proposed in the referenced work.
-// It avoids the linear map Z[X + X^-1]/(X^2N + 1) <-> Z[X]/(X^N + 1) by instead directly computing the left 
+// It avoids the linear map Z[X + X^-1]/(X^2N + 1) <-> Z[X]/(X^N + 1) by instead directly computing the left
 // half of the NTT of Z[X + X^-1]/(X^2N + 1) since the right half provides no additional information.
 func (r *Ring) NTTConjugateInvariant(p1, p2 *Poly) {
 	for x := range r.Modulus {
@@ -87,7 +87,7 @@ func (r *Ring) NTTConjugateInvariant(p1, p2 *Poly) {
 // since the right half does not provide any additional information.
 // See "Approximate Homomorphic Encryption over the Conjugate-invariant Ring", https://eprint.iacr.org/2018/952.
 // The implemented approach is more efficient than the one proposed in the referenced work.
-// It avoids the linear map Z[X + X^-1]/(X^2N + 1) <-> Z[X]/(X^N + 1) by instead directly computing the left 
+// It avoids the linear map Z[X + X^-1]/(X^2N + 1) <-> Z[X]/(X^N + 1) by instead directly computing the left
 // half of the NTT of Z[X + X^-1]/(X^2N + 1) since the right half provides no additional information.
 // The value level defines the number of moduli of the input polynomials.
 func (r *Ring) NTTConjugateInvariantLvl(level int, p1, p2 *Poly) {
@@ -101,7 +101,7 @@ func (r *Ring) NTTConjugateInvariantLvl(level int, p1, p2 *Poly) {
 // since the right half does not provide any additional information.
 // See "Approximate Homomorphic Encryption over the Conjugate-invariant Ring", https://eprint.iacr.org/2018/952.
 // The implemented approach is more efficient than the one proposed in the referenced work.
-// It avoids the linear map Z[X + X^-1]/(X^2N + 1) <-> Z[X]/(X^N + 1) by instead directly computing the left 
+// It avoids the linear map Z[X + X^-1]/(X^2N + 1) <-> Z[X]/(X^N + 1) by instead directly computing the left
 // half of the NTT of Z[X + X^-1]/(X^2N + 1) since the right half provides no additional information.
 // Output values are in the range [0, 2q-1].
 func (r *Ring) NTTConjugateInvariantLazy(p1, p2 *Poly) {
@@ -115,7 +115,7 @@ func (r *Ring) NTTConjugateInvariantLazy(p1, p2 *Poly) {
 // since the right half does not provide any additional information.
 // See "Approximate Homomorphic Encryption over the Conjugate-invariant Ring", https://eprint.iacr.org/2018/952.
 // The implemented approach is more efficient than the one proposed in the referenced work.
-// It avoids the linear map Z[X + X^-1]/(X^2N + 1) <-> Z[X]/(X^N + 1) by instead directly computing the left 
+// It avoids the linear map Z[X + X^-1]/(X^2N + 1) <-> Z[X]/(X^N + 1) by instead directly computing the left
 // half of the NTT of Z[X + X^-1]/(X^2N + 1) since the right half provides no additional information.
 // The value level defines the number of moduli of the input polynomials.
 // Output values are in the range [0, 2q-1].
@@ -130,7 +130,7 @@ func (r *Ring) NTTConjugateInvariantLazyLvl(level int, p1, p2 *Poly) {
 // since the right half does not provide any additional information.
 // See "Approximate Homomorphic Encryption over the Conjugate-invariant Ring", https://eprint.iacr.org/2018/952.
 // The implemented approach is more efficient than the one proposed in the referenced work.
-// It avoids the linear map Z[X + X^-1]/(X^2N + 1) <-> Z[X]/(X^N + 1) by instead directly computing the left 
+// It avoids the linear map Z[X + X^-1]/(X^2N + 1) <-> Z[X]/(X^N + 1) by instead directly computing the left
 // half of the InvNTT of Z[X + X^-1]/(X^2N + 1) since the right half provides no additional information.
 func (r *Ring) InvNTTConjugateInvariant(p1, p2 *Poly) {
 	for x := range r.Modulus {
@@ -143,7 +143,7 @@ func (r *Ring) InvNTTConjugateInvariant(p1, p2 *Poly) {
 // since the right half does not provide any additional information.
 // See "Approximate Homomorphic Encryption over the Conjugate-invariant Ring", https://eprint.iacr.org/2018/952.
 // The implemented approach is more efficient than the one proposed in the referenced work.
-// It avoids the linear map Z[X + X^-1]/(X^2N + 1) <-> Z[X]/(X^N + 1) by instead directly computing the left 
+// It avoids the linear map Z[X + X^-1]/(X^2N + 1) <-> Z[X]/(X^N + 1) by instead directly computing the left
 // half of the InvNTT of Z[X + X^-1]/(X^2N + 1) since the right half provides no additional information.
 // The value level defines the number of moduli of the input polynomials.
 func (r *Ring) InvNTTConjugateInvariantLvl(level int, p1, p2 *Poly) {
@@ -157,7 +157,7 @@ func (r *Ring) InvNTTConjugateInvariantLvl(level int, p1, p2 *Poly) {
 // since the right half does not provide any additional information.
 // See "Approximate Homomorphic Encryption over the Conjugate-invariant Ring", https://eprint.iacr.org/2018/952.
 // The implemented approach is more efficient than the one proposed in the referenced work.
-// It avoids the linear map Z[X + X^-1]/(X^2N + 1) <-> Z[X]/(X^N + 1) by instead directly computing the left 
+// It avoids the linear map Z[X + X^-1]/(X^2N + 1) <-> Z[X]/(X^N + 1) by instead directly computing the left
 // half of the InvNTT of Z[X + X^-1]/(X^2N + 1) since the right half provides no additional information.
 // Output values are in the range [0, 2q-1].
 func (r *Ring) InvNTTConjugateInvariantLazy(p1, p2 *Poly) {
@@ -171,7 +171,7 @@ func (r *Ring) InvNTTConjugateInvariantLazy(p1, p2 *Poly) {
 // since the right half does not provide any additional information.
 // See "Approximate Homomorphic Encryption over the Conjugate-invariant Ring", https://eprint.iacr.org/2018/952.
 // The implemented approach is more efficient than the one proposed in the referenced work.
-// It avoids the linear map Z[X + X^-1]/(X^2N + 1) <-> Z[X]/(X^N + 1) by instead directly computing the left 
+// It avoids the linear map Z[X + X^-1]/(X^2N + 1) <-> Z[X]/(X^N + 1) by instead directly computing the left
 // half of the InvNTT of Z[X + X^-1]/(X^2N + 1) since the right half provides no additional information.
 // The value level defines the number of moduli of the input polynomials.
 // Output values are in the range [0, 2q-1].
@@ -199,7 +199,6 @@ func invbutterfly(U, V, Psi, twoQ, fourQ, Q, Qinv uint64) (X, Y uint64) {
 	Y = MRedConstant(U+fourQ-V, Psi, Q, Qinv) // At the moment it is not possible to use MRedConstant if Q > 61 bits
 	return
 }
-
 
 // NTT computes the NTT on the input coefficients using the input parameters.
 func NTT(coeffsIn, coeffsOut []uint64, N int, nttPsi []uint64, Q, mredParams uint64, bredParams []uint64) {
@@ -493,7 +492,7 @@ func NTTLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uint64, Q, QInv uint6
 	}
 }
 
-func invNTTCore(coeffsIn, coeffsOut []uint64, N int, nttPsiInv []uint64, Q, QInv uint64){
+func invNTTCore(coeffsIn, coeffsOut []uint64, N int, nttPsiInv []uint64, Q, QInv uint64) {
 	var h, t int
 	var F uint64
 
@@ -661,7 +660,7 @@ func NTTConjugateInvariantLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uin
 	t = N
 	F = nttPsi[1]
 
-	for jx, jy := 1, N-8; jx < (N>>1)-7; jx, jy = jx + 8, jy-8 {
+	for jx, jy := 1, N-8; jx < (N>>1)-7; jx, jy = jx+8, jy-8 {
 
 		xin := (*[8]uint64)(unsafe.Pointer(&coeffsIn[jx]))
 		yin := (*[8]uint64)(unsafe.Pointer(&coeffsIn[jy]))
@@ -711,7 +710,7 @@ func NTTConjugateInvariantLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uin
 
 				if reduce {
 
-					for jx, jy := j1, j1+t; jx <= j2; jx, jy = jx + 8, jy+8 {
+					for jx, jy := j1, j1+t; jx <= j2; jx, jy = jx+8, jy+8 {
 
 						x := (*[8]uint64)(unsafe.Pointer(&coeffsOut[jx]))
 						y := (*[8]uint64)(unsafe.Pointer(&coeffsOut[jy]))
@@ -728,7 +727,7 @@ func NTTConjugateInvariantLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uin
 
 				} else {
 
-					for jx, jy := j1, j1+t; jx <= j2; jx, jy = jx + 8, jy+8 {
+					for jx, jy := j1, j1+t; jx <= j2; jx, jy = jx+8, jy+8 {
 
 						x := (*[8]uint64)(unsafe.Pointer(&coeffsOut[jx]))
 						y := (*[8]uint64)(unsafe.Pointer(&coeffsOut[jy]))
@@ -764,7 +763,7 @@ func NTTConjugateInvariantLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uin
 
 			if reduce {
 
-				for i, j1 := m, 0; i < h+m; i, j1 = i + 2, j1+4*t {
+				for i, j1 := m, 0; i < h+m; i, j1 = i+2, j1+4*t {
 
 					psi := (*[2]uint64)(unsafe.Pointer(&nttPsi[i]))
 					x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[j1]))
@@ -781,7 +780,7 @@ func NTTConjugateInvariantLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uin
 				}
 			} else {
 
-				for i, j1 := m, 0; i < h+m; i, j1 = i + 2, j1+4*t {
+				for i, j1 := m, 0; i < h+m; i, j1 = i+2, j1+4*t {
 
 					psi := (*[2]uint64)(unsafe.Pointer(&nttPsi[i]))
 					x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[j1]))
@@ -817,7 +816,7 @@ func NTTConjugateInvariantLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uin
 
 			if reduce {
 
-				for i, j1 := m, 0; i < h+m; i, j1 = i + 4, j1+8*t {
+				for i, j1 := m, 0; i < h+m; i, j1 = i+4, j1+8*t {
 
 					psi := (*[4]uint64)(unsafe.Pointer(&nttPsi[i]))
 					x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[j1]))
@@ -833,7 +832,7 @@ func NTTConjugateInvariantLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uin
 				}
 			} else {
 
-				for i, j1 := m, 0; i < h+m; i, j1 = i + 4, j1+8*t {
+				for i, j1 := m, 0; i < h+m; i, j1 = i+4, j1+8*t {
 
 					psi := (*[4]uint64)(unsafe.Pointer(&nttPsi[i]))
 					x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[j1]))
@@ -868,7 +867,7 @@ func NTTConjugateInvariantLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uin
 
 			if reduce {
 
-				for i, j1 := m, 0; i < h+m; i, j1 = i + 8, j1 + 16 {
+				for i, j1 := m, 0; i < h+m; i, j1 = i+8, j1+16 {
 
 					psi := (*[8]uint64)(unsafe.Pointer(&nttPsi[i]))
 					x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[j1]))
@@ -884,7 +883,7 @@ func NTTConjugateInvariantLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uin
 				}
 			} else {
 
-				for i, j1 := m, 0; i < h+m; i, j1 = i + 8, j1 + 16 {
+				for i, j1 := m, 0; i < h+m; i, j1 = i+8, j1+16 {
 
 					psi := (*[8]uint64)(unsafe.Pointer(&nttPsi[i]))
 					x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[j1]))
@@ -960,7 +959,7 @@ func InvNTTConjugateInvariantLazy(coeffsIn, coeffsOut []uint64, N int, nttPsiInv
 	}
 }
 
-func invNTTConjugateInvariantCore(coeffsIn, coeffsOut []uint64, N int, nttPsiInv []uint64, Q, QInv uint64){
+func invNTTConjugateInvariantCore(coeffsIn, coeffsOut []uint64, N int, nttPsiInv []uint64, Q, QInv uint64) {
 	var j1, j2, h, t int
 	var F uint64
 
@@ -1063,7 +1062,7 @@ func invNTTConjugateInvariantCore(coeffsIn, coeffsOut []uint64, N int, nttPsiInv
 
 	F = nttPsiInv[1]
 
-	for jx, jy := 1, N-8; jx < (N>>1)-7; jx, jy = jx + 8, jy-8 {
+	for jx, jy := 1, N-8; jx < (N>>1)-7; jx, jy = jx+8, jy-8 {
 
 		xout := (*[8]uint64)(unsafe.Pointer(&coeffsOut[jx]))
 		yout := (*[8]uint64)(unsafe.Pointer(&coeffsOut[jy]))

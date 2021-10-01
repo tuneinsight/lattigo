@@ -92,7 +92,7 @@ func testNTTConjugateInvariant(testContext *testParams, t *testing.T) {
 
 		ringQ := testContext.ringQ
 		ringQ2N, _ := NewRing(ringQ.N<<1, ringQ.Modulus)
-		ringQ4NthRoot, _ := NewRingWithNthRoot(ringQ.N, ringQ.N<<2, ringQ.Modulus)
+		ringQConjugateInvariant, _ := NewRingConjugateInvariant(testContext.ringQ.N, testContext.ringQ.Modulus)
 
 		sampler := NewUniformSampler(testContext.prng, ringQ)
 		p1 := sampler.ReadNew()
@@ -112,11 +112,11 @@ func testNTTConjugateInvariant(testContext *testParams, t *testing.T) {
 		ringQ2N.InvMForm(p2, p2)
 		ringQ2N.InvNTT(p2, p2)
 
-		ringQ4NthRoot.NTTConjugateInvariant(p1, p1)
-		ringQ4NthRoot.MForm(p1, p1)
-		ringQ4NthRoot.MulCoeffsMontgomery(p1, p1, p1)
-		ringQ4NthRoot.InvMForm(p1, p1)
-		ringQ4NthRoot.InvNTTConjugateInvariant(p1, p1)
+		ringQConjugateInvariant.NTT(p1, p1)
+		ringQConjugateInvariant.MForm(p1, p1)
+		ringQConjugateInvariant.MulCoeffsMontgomery(p1, p1, p1)
+		ringQConjugateInvariant.InvMForm(p1, p1)
+		ringQConjugateInvariant.InvNTT(p1, p1)
 
 		for j := range ringQ.Modulus {
 			for i := 0; i < ringQ.N; i++ {

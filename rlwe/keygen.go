@@ -198,10 +198,11 @@ func (keygen *keyGenerator) genrotKey(sk PolyQP, galEl uint64, swk *SwitchingKey
 
 	skIn := sk
 	skOut := keygen.poolQP
+	ringQ := keygen.params.RingQ()
 
-	index := ring.PermuteNTTIndex(galEl, uint64(keygen.params.N()))
-	ring.PermuteNTTWithIndexLvl(keygen.params.QCount()-1, skIn.Q, index, skOut.Q)
-	ring.PermuteNTTWithIndexLvl(keygen.params.PCount()-1, skIn.P, index, skOut.P)
+	index := ringQ.PermuteNTTIndex(galEl)
+	ringQ.PermuteNTTWithIndexLvl(keygen.params.QCount()-1, skIn.Q, index, skOut.Q)
+	ringQ.PermuteNTTWithIndexLvl(keygen.params.PCount()-1, skIn.P, index, skOut.P)
 
 	keygen.genSwitchingKey(skIn.Q, skOut, swk)
 }

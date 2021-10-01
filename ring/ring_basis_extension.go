@@ -153,78 +153,54 @@ func basisextenderparameters(Q, P []uint64) modupParams {
 
 // ShallowCopy creates a shallow copy of this basis extender in which the read-only data-structures are
 // shared with the receiver.
-func (basisextender *FastBasisExtender) ShallowCopy() *FastBasisExtender {
-	if basisextender == nil {
+func (be *FastBasisExtender) ShallowCopy() *FastBasisExtender {
+	if be == nil {
 		return nil
 	}
 	return &FastBasisExtender{
-		ringQ:             basisextender.ringQ,
-		ringP:             basisextender.ringP,
-		paramsQtoP:        basisextender.paramsQtoP,
-		paramsPtoQ:        basisextender.paramsPtoQ,
-		modDownparamsQtoP: basisextender.modDownparamsQtoP,
-		modDownparamsPtoQ: basisextender.modDownparamsPtoQ,
+		ringQ:             be.ringQ,
+		ringP:             be.ringP,
+		paramsQtoP:        be.paramsQtoP,
+		paramsPtoQ:        be.paramsPtoQ,
+		modDownparamsQtoP: be.modDownparamsQtoP,
+		modDownparamsPtoQ: be.modDownparamsPtoQ,
 
-		polypoolQ: basisextender.ringQ.NewPoly(),
-		polypoolP: basisextender.ringP.NewPoly(),
+		polypoolQ: be.ringQ.NewPoly(),
+		polypoolP: be.ringP.NewPoly(),
 	}
 }
 
 // ModUpQtoP extends the RNS basis of a polynomial from Q to QP.
 // Given a polynomial with coefficients in basis {Q0,Q1....Qlevel},
 // it extends its basis from {Q0,Q1....Qlevel} to {Q0,Q1....Qlevel,P0,P1...Pj}
-func (basisextender *FastBasisExtender) ModUpQtoP(levelQ, levelP int, polQ, polP *Poly) {
-	modUpExact(polQ.Coeffs[:levelQ+1], polP.Coeffs[:levelP+1], basisextender.ringQ, basisextender.ringP, basisextender.paramsQtoP[levelQ])
+func (be *FastBasisExtender) ModUpQtoP(levelQ, levelP int, polQ, polP *Poly) {
+	modUpExact(polQ.Coeffs[:levelQ+1], polP.Coeffs[:levelP+1], be.ringQ, be.ringP, be.paramsQtoP[levelQ])
 }
 
 // ModUpPtoQ extends the RNS basis of a polynomial from P to PQ.
 // Given a polynomial with coefficients in basis {P0,P1....Plevel},
 // it extends its basis from {P0,P1....Plevel} to {Q0,Q1...Qj}
-func (basisextender *FastBasisExtender) ModUpPtoQ(levelP, levelQ int, polP, polQ *Poly) {
-	modUpExact(polP.Coeffs[:levelP+1], polQ.Coeffs[:levelQ+1], basisextender.ringP, basisextender.ringQ, basisextender.paramsPtoQ[levelP])
+func (be *FastBasisExtender) ModUpPtoQ(levelP, levelQ int, polP, polQ *Poly) {
+	modUpExact(polP.Coeffs[:levelP+1], polQ.Coeffs[:levelQ+1], be.ringP, be.ringQ, be.paramsPtoQ[levelP])
 }
 
 // ModDownQPtoQ reduces the basis of a polynomial.
 // Given a polynomial with coefficients in basis {Q0,Q1....Qlevel} and {P0,P1...Pj},
 // it reduces its basis from {Q0,Q1....Qlevel} and {P0,P1...Pj} to {Q0,Q1....Qlevel}
 // and does a rounded integer division of the result by P.
-func (basisextender *FastBasisExtender) ModDownQPtoQ(levelQ, levelP int, p1Q, p1P, p2Q *Poly) {
+func (be *FastBasisExtender) ModDownQPtoQ(levelQ, levelP int, p1Q, p1P, p2Q *Poly) {
 
-	ringQ := basisextender.ringQ
-	modDownParams := basisextender.modDownparamsPtoQ
-	polypool := basisextender.polypoolQ
+	ringQ := be.ringQ
+	modDownParams := be.modDownparamsPtoQ
+	polypool := be.polypoolQ
 
 	// Then we target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on polypool
 	// polypool is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
-	basisextender.ModUpPtoQ(levelP, levelQ, p1P, polypool)
+	be.ModUpPtoQ(levelP, levelQ, p1P, polypool)
 
 	// Finally, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
 	for i := 0; i < levelQ+1; i++ {
-
-		qi := ringQ.Modulus[i]
-		twoqi := qi << 1
-		p1tmp := p1Q.Coeffs[i]
-		p2tmp := p2Q.Coeffs[i]
-		p3tmp := polypool.Coeffs[i]
-		params := qi - modDownParams[levelP][i]
-		mredParams := ringQ.MredParams[i]
-
-		// Then for each coefficient we compute (P^-1) * (p1[i][j] - polypool[i][j]) mod qi
-		for j := 0; j < ringQ.N; j = j + 8 {
-
-			x := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-			y := (*[8]uint64)(unsafe.Pointer(&p3tmp[j]))
-			z := (*[8]uint64)(unsafe.Pointer(&p2tmp[j]))
-
-			z[0] = MRed(y[0]+twoqi-x[0], params, qi, mredParams)
-			z[1] = MRed(y[1]+twoqi-x[1], params, qi, mredParams)
-			z[2] = MRed(y[2]+twoqi-x[2], params, qi, mredParams)
-			z[3] = MRed(y[3]+twoqi-x[3], params, qi, mredParams)
-			z[4] = MRed(y[4]+twoqi-x[4], params, qi, mredParams)
-			z[5] = MRed(y[5]+twoqi-x[5], params, qi, mredParams)
-			z[6] = MRed(y[6]+twoqi-x[6], params, qi, mredParams)
-			z[7] = MRed(y[7]+twoqi-x[7], params, qi, mredParams)
-		}
+		SubVecAndMulScalarMontgomeryTwoQiVec(polypool.Coeffs[i], p1Q.Coeffs[i], p2Q.Coeffs[i], ringQ.Modulus[i]-modDownParams[levelP][i], ringQ.Modulus[i], ringQ.MredParams[i])
 	}
 
 	// In total we do len(P) + len(Q) NTT, which is optimal (linear in the number of moduli of P and Q)
@@ -235,52 +211,27 @@ func (basisextender *FastBasisExtender) ModDownQPtoQ(levelQ, levelP int, p1Q, p1
 // it reduces its basis from {Q0,Q1....Qi} and {P0,P1...Pj} to {Q0,Q1....Qi}
 // and does a rounded integer division of the result by P.
 // Inputs must be in the NTT domain.
-func (basisextender *FastBasisExtender) ModDownQPtoQNTT(levelQ, levelP int, p1Q, p1P, p2Q *Poly) {
+func (be *FastBasisExtender) ModDownQPtoQNTT(levelQ, levelP int, p1Q, p1P, p2Q *Poly) {
 
-	ringQ := basisextender.ringQ
-	ringP := basisextender.ringP
-	modDownParams := basisextender.modDownparamsPtoQ
-	polypool := basisextender.polypoolQ
+	ringQ := be.ringQ
+	ringP := be.ringP
+	modDownParams := be.modDownparamsPtoQ
+	polypool := be.polypoolQ
 
 	// First we get the P basis part of p1 out of the NTT domain
 	ringP.InvNTTLazyLvl(levelP, p1P, p1P)
 
 	// Then we target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on polypool
 	// polypool is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
-	basisextender.ModUpPtoQ(levelP, levelQ, p1P, polypool)
+	be.ModUpPtoQ(levelP, levelQ, p1P, polypool)
+
+	// First we switch back the relevant polypool CRT array back to the NTT domain
+	ringQ.NTTLazyLvl(levelQ, polypool, polypool)
 
 	// Finally, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
 	for i := 0; i < levelQ+1; i++ {
-
-		qi := ringQ.Modulus[i]
-		twoqi := qi << 1
-		p1tmp := p1Q.Coeffs[i]
-		p2tmp := p2Q.Coeffs[i]
-		p3tmp := polypool.Coeffs[i]
-		params := qi - modDownParams[levelP][i]
-		mredParams := ringQ.MredParams[i]
-		bredParams := ringQ.BredParams[i]
-		nttPsi := ringQ.NttPsi[i]
-
-		// First we switch back the relevant polypool CRT array back to the NTT domain
-		NTTLazy(p3tmp, p3tmp, ringQ.N, nttPsi, qi, mredParams, bredParams)
-
 		// Then for each coefficient we compute (P^-1) * (p1[i][j] - polypool[i][j]) mod qi
-		for j := 0; j < ringQ.N; j = j + 8 {
-
-			x := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-			y := (*[8]uint64)(unsafe.Pointer(&p3tmp[j]))
-			z := (*[8]uint64)(unsafe.Pointer(&p2tmp[j]))
-
-			z[0] = MRed(y[0]+twoqi-x[0], params, qi, mredParams)
-			z[1] = MRed(y[1]+twoqi-x[1], params, qi, mredParams)
-			z[2] = MRed(y[2]+twoqi-x[2], params, qi, mredParams)
-			z[3] = MRed(y[3]+twoqi-x[3], params, qi, mredParams)
-			z[4] = MRed(y[4]+twoqi-x[4], params, qi, mredParams)
-			z[5] = MRed(y[5]+twoqi-x[5], params, qi, mredParams)
-			z[6] = MRed(y[6]+twoqi-x[6], params, qi, mredParams)
-			z[7] = MRed(y[7]+twoqi-x[7], params, qi, mredParams)
-		}
+		SubVecAndMulScalarMontgomeryTwoQiVec(polypool.Coeffs[i], p1Q.Coeffs[i], p2Q.Coeffs[i], ringQ.Modulus[i]-modDownParams[levelP][i], ringQ.Modulus[i], ringQ.MredParams[i])
 	}
 
 	// In total we do len(P) + len(Q) NTT, which is optimal (linear in the number of moduli of P and Q)
@@ -290,43 +241,20 @@ func (basisextender *FastBasisExtender) ModDownQPtoQNTT(levelQ, levelP int, p1Q,
 // Given a polynomial with coefficients in basis {Q0,Q1....QlevelQ} and {P0,P1...PlevelP},
 // it reduces its basis from {Q0,Q1....QlevelQ} and {P0,P1...PlevelP} to {P0,P1...PlevelP}
 // and does a floored integer division of the result by Q.
-func (basisextender *FastBasisExtender) ModDownQPtoP(levelQ, levelP int, p1Q, p1P, p2P *Poly) {
+func (be *FastBasisExtender) ModDownQPtoP(levelQ, levelP int, p1Q, p1P, p2P *Poly) {
 
-	ringP := basisextender.ringP
-	modDownParams := basisextender.modDownparamsQtoP
-	polypool := basisextender.polypoolP
+	ringP := be.ringP
+	modDownParams := be.modDownparamsQtoP
+	polypool := be.polypoolP
 
 	// Then we target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on polypool
 	// polypool is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
-	basisextender.ModUpQtoP(levelQ, levelP, p1Q, polypool)
+	be.ModUpQtoP(levelQ, levelP, p1Q, polypool)
 
 	// Finally, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
 	for i := 0; i < levelP+1; i++ {
-
-		qi := ringP.Modulus[i]
-		twoqi := qi << 1
-		p1tmp := p1P.Coeffs[i]
-		p2tmp := p2P.Coeffs[i]
-		p3tmp := polypool.Coeffs[i]
-		params := qi - modDownParams[levelP][i]
-		mredParams := ringP.MredParams[i]
-
 		// Then for each coefficient we compute (P^-1) * (p1[i][j] - polypool[i][j]) mod qi
-		for j := 0; j < ringP.N; j = j + 8 {
-
-			x := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-			y := (*[8]uint64)(unsafe.Pointer(&p3tmp[j]))
-			z := (*[8]uint64)(unsafe.Pointer(&p2tmp[j]))
-
-			z[0] = MRed(y[0]+twoqi-x[0], params, qi, mredParams)
-			z[1] = MRed(y[1]+twoqi-x[1], params, qi, mredParams)
-			z[2] = MRed(y[2]+twoqi-x[2], params, qi, mredParams)
-			z[3] = MRed(y[3]+twoqi-x[3], params, qi, mredParams)
-			z[4] = MRed(y[4]+twoqi-x[4], params, qi, mredParams)
-			z[5] = MRed(y[5]+twoqi-x[5], params, qi, mredParams)
-			z[6] = MRed(y[6]+twoqi-x[6], params, qi, mredParams)
-			z[7] = MRed(y[7]+twoqi-x[7], params, qi, mredParams)
-		}
+		SubVecAndMulScalarMontgomeryTwoQiVec(polypool.Coeffs[i], p1P.Coeffs[i], p2P.Coeffs[i], ringP.Modulus[i]-modDownParams[levelP][i], ringP.Modulus[i], ringP.MredParams[i])
 	}
 
 	// In total we do len(P) + len(Q) NTT, which is optimal (linear in the number of moduli of P and Q)

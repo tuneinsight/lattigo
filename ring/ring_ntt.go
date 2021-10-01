@@ -74,22 +74,8 @@ func invbutterfly(U, V, Psi, twoQ, fourQ, Q, Qinv uint64) (X, Y uint64) {
 
 // NTT computes the NTT on the input coefficients using the input parameters.
 func NTT(coeffsIn, coeffsOut []uint64, N int, nttPsi []uint64, Q, mredParams uint64, bredParams []uint64) {
-
 	NTTLazy(coeffsIn, coeffsOut, N, nttPsi, Q, mredParams, bredParams)
-	// Finish with an exact reduction
-	for i := 0; i < N; i = i + 8 {
-
-		x := (*[8]uint64)(unsafe.Pointer(&coeffsOut[i]))
-
-		x[0] = BRedAdd(x[0], Q, bredParams)
-		x[1] = BRedAdd(x[1], Q, bredParams)
-		x[2] = BRedAdd(x[2], Q, bredParams)
-		x[3] = BRedAdd(x[3], Q, bredParams)
-		x[4] = BRedAdd(x[4], Q, bredParams)
-		x[5] = BRedAdd(x[5], Q, bredParams)
-		x[6] = BRedAdd(x[6], Q, bredParams)
-		x[7] = BRedAdd(x[7], Q, bredParams)
-	}
+	ReduceVec(coeffsOut, coeffsOut, Q, bredParams)
 }
 
 // NTTLazy computes the NTT on the input coefficients using the input parameters with output values in the range [0, 2q-1].
@@ -459,64 +445,20 @@ func invNTTCore(coeffsIn, coeffsOut []uint64, N int, nttPsiInv []uint64, Q, QInv
 
 // InvNTT computes the InvNTT transformation on the input coefficients using the input parameters.
 func InvNTT(coeffsIn, coeffsOut []uint64, N int, nttPsiInv []uint64, nttNInv, Q, QInv uint64) {
-
 	invNTTCore(coeffsIn, coeffsOut, N, nttPsiInv, Q, QInv)
-
-	// Finish with an exact reduction
-	for i := 0; i < N; i = i + 8 {
-
-		x := (*[8]uint64)(unsafe.Pointer(&coeffsOut[i]))
-
-		x[0] = MRed(x[0], nttNInv, Q, QInv)
-		x[1] = MRed(x[1], nttNInv, Q, QInv)
-		x[2] = MRed(x[2], nttNInv, Q, QInv)
-		x[3] = MRed(x[3], nttNInv, Q, QInv)
-		x[4] = MRed(x[4], nttNInv, Q, QInv)
-		x[5] = MRed(x[5], nttNInv, Q, QInv)
-		x[6] = MRed(x[6], nttNInv, Q, QInv)
-		x[7] = MRed(x[7], nttNInv, Q, QInv)
-	}
+	MulScalarMontgomeryVec(coeffsOut, coeffsOut, nttNInv, Q, QInv)
 }
 
 // InvNTTLazy computes the InvNTT transformation on the input coefficients using the input parameters with output values in the range [0, 2q-1].
 func InvNTTLazy(coeffsIn, coeffsOut []uint64, N int, nttPsiInv []uint64, nttNInv, Q, QInv uint64) {
-
 	invNTTCore(coeffsIn, coeffsOut, N, nttPsiInv, Q, QInv)
-
-	// Finish with an exact reduction
-	for i := 0; i < N; i = i + 8 {
-
-		x := (*[8]uint64)(unsafe.Pointer(&coeffsOut[i]))
-
-		x[0] = MRedConstant(x[0], nttNInv, Q, QInv)
-		x[1] = MRedConstant(x[1], nttNInv, Q, QInv)
-		x[2] = MRedConstant(x[2], nttNInv, Q, QInv)
-		x[3] = MRedConstant(x[3], nttNInv, Q, QInv)
-		x[4] = MRedConstant(x[4], nttNInv, Q, QInv)
-		x[5] = MRedConstant(x[5], nttNInv, Q, QInv)
-		x[6] = MRedConstant(x[6], nttNInv, Q, QInv)
-		x[7] = MRedConstant(x[7], nttNInv, Q, QInv)
-	}
+	MulScalarMontgomeryConstantVec(coeffsOut, coeffsOut, nttNInv, Q, QInv)
 }
 
 // NTTConjugateInvariant computes the NTT in the closed sub-ring Z[X + X^-1]/(X^2N +1) of Z[X]/(X^2N+1).
 func NTTConjugateInvariant(coeffsIn, coeffsOut []uint64, N int, nttPsi []uint64, Q, QInv uint64, bredParams []uint64) {
-
 	NTTConjugateInvariantLazy(coeffsIn, coeffsOut, N, nttPsi, Q, QInv, bredParams)
-
-	for i := 0; i < N; i = i + 8 {
-
-		x := (*[8]uint64)(unsafe.Pointer(&coeffsOut[i]))
-
-		x[0] = BRedAdd(x[0], Q, bredParams)
-		x[1] = BRedAdd(x[1], Q, bredParams)
-		x[2] = BRedAdd(x[2], Q, bredParams)
-		x[3] = BRedAdd(x[3], Q, bredParams)
-		x[4] = BRedAdd(x[4], Q, bredParams)
-		x[5] = BRedAdd(x[5], Q, bredParams)
-		x[6] = BRedAdd(x[6], Q, bredParams)
-		x[7] = BRedAdd(x[7], Q, bredParams)
-	}
+	ReduceVec(coeffsOut, coeffsOut, Q, bredParams)
 }
 
 // NTTConjugateInvariantLazy computes the NTT in the closed sub-ring Z[X + X^-1]/(X^2N +1) of Z[X]/(X^2N+1) with output values in the range [0, 2q-1].
@@ -791,44 +733,14 @@ func NTTConjugateInvariantLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uin
 
 // InvNTTConjugateInvariant computes the InvNTT in the closed sub-ring Z[X + X^-1]/(X^2N +1) of Z[X]/(X^2N+1).
 func InvNTTConjugateInvariant(coeffsIn, coeffsOut []uint64, N int, nttPsiInv []uint64, nttNInv, Q, QInv uint64) {
-
 	invNTTConjugateInvariantCore(coeffsIn, coeffsOut, N, nttPsiInv, Q, QInv)
-
-	// Finish with an exact reduction
-	for i := 0; i < N; i = i + 8 {
-
-		x := (*[8]uint64)(unsafe.Pointer(&coeffsOut[i]))
-
-		x[0] = MRed(x[0], nttNInv, Q, QInv)
-		x[1] = MRed(x[1], nttNInv, Q, QInv)
-		x[2] = MRed(x[2], nttNInv, Q, QInv)
-		x[3] = MRed(x[3], nttNInv, Q, QInv)
-		x[4] = MRed(x[4], nttNInv, Q, QInv)
-		x[5] = MRed(x[5], nttNInv, Q, QInv)
-		x[6] = MRed(x[6], nttNInv, Q, QInv)
-		x[7] = MRed(x[7], nttNInv, Q, QInv)
-	}
+	MulScalarMontgomeryVec(coeffsOut, coeffsOut, nttNInv, Q, QInv)
 }
 
 // InvNTTConjugateInvariantLazy computes the InvNTT in the closed sub-ring Z[X + X^-1]/(X^2N +1) of Z[X]/(X^2N+1) with output values in the range [0, 2q-1].
 func InvNTTConjugateInvariantLazy(coeffsIn, coeffsOut []uint64, N int, nttPsiInv []uint64, nttNInv, Q, QInv uint64) {
-
 	invNTTConjugateInvariantCore(coeffsIn, coeffsOut, N, nttPsiInv, Q, QInv)
-
-	// Finish with an exact reduction
-	for i := 0; i < N; i = i + 8 {
-
-		x := (*[8]uint64)(unsafe.Pointer(&coeffsOut[i]))
-
-		x[0] = MRedConstant(x[0], nttNInv, Q, QInv)
-		x[1] = MRedConstant(x[1], nttNInv, Q, QInv)
-		x[2] = MRedConstant(x[2], nttNInv, Q, QInv)
-		x[3] = MRedConstant(x[3], nttNInv, Q, QInv)
-		x[4] = MRedConstant(x[4], nttNInv, Q, QInv)
-		x[5] = MRedConstant(x[5], nttNInv, Q, QInv)
-		x[6] = MRedConstant(x[6], nttNInv, Q, QInv)
-		x[7] = MRedConstant(x[7], nttNInv, Q, QInv)
-	}
+	MulScalarMontgomeryConstantVec(coeffsOut, coeffsOut, nttNInv, Q, QInv)
 }
 
 func invNTTConjugateInvariantCore(coeffsIn, coeffsOut []uint64, N int, nttPsiInv []uint64, Q, QInv uint64) {

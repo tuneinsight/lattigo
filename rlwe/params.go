@@ -101,7 +101,7 @@ func NewParameters(logn int, q, p []uint64, sigma float64) (Parameters, error) {
 	}
 
 	// Checks if moduli are valid
-	if err = CheckModuli(q, p, logn); err != nil {
+	if err = CheckModuli(q, p, uint64(2<<logn)); err != nil {
 		return Parameters{}, err
 	}
 
@@ -306,16 +306,13 @@ func (p *Parameters) PiOverflowMargin(level int) int {
 // column rotations by k position to the left. Providing a negative k is
 // equivalent to a right rotation.
 func (p Parameters) GaloisElementForColumnRotationBy(k int) uint64 {
-	twoN := 2 << p.logN
-	mask := twoN - 1
-	kRed := k & mask
-	return ring.ModExp(GaloisGen, uint64(kRed), uint64(twoN))
+	return ring.ModExp(GaloisGen, uint64(k & int(p.ringQ.NthRoot-1)), p.ringQ.NthRoot)
 }
 
 // GaloisElementForRowRotation returns the galois element for generating the row
 // rotation automorphism
 func (p Parameters) GaloisElementForRowRotation() uint64 {
-	return (1 << (p.logN + 1)) - 1
+	return p.ringQ.NthRoot-1
 }
 
 // GaloisElementsForRowInnerSum returns a list of all galois elements required to
@@ -333,8 +330,7 @@ func (p Parameters) GaloisElementsForRowInnerSum() (galEls []uint64) {
 // InverseGaloisElement takes a galois element and returns the galois element
 //  corresponding to the inverse automorphism
 func (p Parameters) InverseGaloisElement(galEl uint64) uint64 {
-	twoN := uint64(2 << p.logN)
-	return ring.ModExp(galEl, twoN-1, twoN)
+	return ring.ModExp(galEl, p.ringQ.NthRoot-1, p.ringQ.NthRoot)
 }
 
 // Equals checks two Parameter structs for equality.
@@ -423,7 +419,7 @@ func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 }
 
 // CheckModuli checks that the provided q and p correspond to a valid moduli chain
-func CheckModuli(q, p []uint64, logN int) error {
+func CheckModuli(q, p []uint64, NthRoot uint64) error {
 
 	if len(q) > MaxModuliCount {
 		return fmt.Errorf("#Qi is larger than %d", MaxModuliCount)
@@ -445,16 +441,14 @@ func CheckModuli(q, p []uint64, logN int) error {
 		}
 	}
 
-	N := uint64(1 << logN)
-
 	for i, qi := range q {
-		if !ring.IsPrime(qi) || qi&((N<<1)-1) != 1 {
+		if !ring.IsPrime(qi) || qi&(NthRoot-1) != 1 {
 			return fmt.Errorf("Qi (i=%d) is not an NTT prime", i)
 		}
 	}
 
 	for i, pi := range p {
-		if !ring.IsPrime(pi) || pi&((N<<1)-1) != 1 {
+		if !ring.IsPrime(pi) || pi&(NthRoot-1) != 1 {
 			return fmt.Errorf("Pi (i=%d) is not an NTT prime", i)
 		}
 	}

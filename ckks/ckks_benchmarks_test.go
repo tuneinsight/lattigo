@@ -3,8 +3,7 @@ package ckks
 import (
 	"encoding/json"
 	"testing"
-
-	"github.com/ldsec/lattigo/v2/ring"
+	
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
@@ -220,8 +219,8 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 
 		galEL := testContext.params.GaloisElementForColumnRotationBy(1)
 		for i := 0; i < b.N; i++ {
-			ring.PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.Value[0], eval.(*evaluator).permuteNTTIndex[galEL], ciphertext1.Value[0])
-			ring.PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.Value[1], eval.(*evaluator).permuteNTTIndex[galEL], ciphertext1.Value[1])
+			testContext.params.RingQ().PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.Value[0], eval.(*evaluator).permuteNTTIndex[galEL], ciphertext1.Value[0])
+			testContext.params.RingQ().PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.Value[1], eval.(*evaluator).permuteNTTIndex[galEL], ciphertext1.Value[1])
 		}
 	})
 

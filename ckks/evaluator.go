@@ -1411,22 +1411,14 @@ func (eval *evaluator) PermuteNTTHoistedNoModDown(level int, c0 *ring.Poly, c2De
 
 	eval.KeyswitchHoistedNoModDown(levelQ, c2DecompQP, rtk, pool2Q, pool3Q, pool2P, pool3P)
 
-<<<<<<< HEAD
-	ring.PermuteNTTWithIndexLvl(levelQ, pool3Q, index, ct1OutQ)
-	ring.PermuteNTTWithIndexLvl(levelP, pool3P, index, ct1OutP)
+	eval.params.RingQ().PermuteNTTWithIndexLvl(levelQ, pool3Q, index, ct1OutQ)
+	eval.params.RingQ().PermuteNTTWithIndexLvl(levelP, pool3P, index, ct1OutP)
 
 	eval.params.RingQ().MulScalarBigintLvl(levelQ, c0, eval.params.RingP().ModulusBigint, pool3Q)
 	eval.params.RingQ().AddLvl(levelQ, pool2Q, pool3Q, pool2Q)
 
-	ring.PermuteNTTWithIndexLvl(levelQ, pool2Q, index, ct0OutQ)
-	ring.PermuteNTTWithIndexLvl(levelP, pool2P, index, ct0OutP)
-=======
 	eval.params.RingQ().PermuteNTTWithIndexLvl(levelQ, pool2Q, index, ct0OutQ)
-	eval.params.RingQ().PermuteNTTWithIndexLvl(levelQ, pool3Q, index, ct1OutQ)
-
 	eval.params.RingQ().PermuteNTTWithIndexLvl(levelP, pool2P, index, ct0OutP)
-	eval.params.RingQ().PermuteNTTWithIndexLvl(levelP, pool3P, index, ct1OutP)
->>>>>>> b8f8891ee ([ring] : parallel automorphisms)
 }
 
 func (eval *evaluator) PermuteNTTHoisted(level int, c0, c1 *ring.Poly, c2DecompQP []rlwe.PolyQP, k int, cOut0, cOut1 *ring.Poly) {

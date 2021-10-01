@@ -210,21 +210,8 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 						ringQP.CopyValuesLvl(levelQ, levelP, c1QP, c1OutQP)
 						copy = false
 					} else {
-<<<<<<< HEAD
 						ringQP.AddLvl(levelQ, levelP, c0OutQP, c0QP, c0OutQP)
 						ringQP.AddLvl(levelQ, levelP, c1OutQP, c1QP, c1OutQP)
-=======
-						ringQ.AddLvl(levelQ, ct0OutQ, pool2Q, ct0OutQ)
-						ringQ.AddLvl(levelQ, ct1OutQ, pool3Q, ct1OutQ)
-						ringP.Add(ct0OutP, pool2P, ct0OutP)
-						ringP.Add(ct1OutP, pool3P, ct1OutP)
-					}
-
-					if i == 0 {
-						ringQ.PermuteNTTWithIndexLvl(levelQ, ctIn.Value[0], eval.permuteNTTIndex[eval.params.GaloisElementForColumnRotationBy(k)], tmpc2)
-					} else {
-						ringQ.PermuteNTTWithIndexLvl(levelQ, tmpc0, eval.permuteNTTIndex[eval.params.GaloisElementForColumnRotationBy(k)], tmpc2)
->>>>>>> b8f8891ee ([ring] : parallel automorphisms)
 					}
 				} else {
 
@@ -313,26 +300,6 @@ func (eval *evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 
 		// Adds phi_k(P*c0) on each of the vecRotQ
 		// Does not need to add on the vecRotP because mod P === 0
-<<<<<<< HEAD
-=======
-		for _, i := range rotations {
-			if i != 0 {
-
-				galEl := eval.params.GaloisElementForColumnRotationBy(i)
-
-				_, generated := eval.rtks.Keys[galEl]
-				if !generated {
-					panic("switching key not available")
-				}
-
-				index := eval.permuteNTTIndex[galEl]
-
-				ringQ.PermuteNTTWithIndexLvl(levelQ, tmpQ0, index, tmpQ1) // phi(P*c0)
-				ringQ.AddLvl(levelQ, vecRotQ[i][0], tmpQ1, vecRotQ[i][0]) // phi(d0_Q) += phi(P*c0)
-			}
-		}
-
->>>>>>> b8f8891ee ([ring] : parallel automorphisms)
 		var reduce int
 		// Sums elements [2, ..., n-1]
 		for i := 1; i < n; i++ {
@@ -458,25 +425,10 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix PtDiagMatri
 
 			index := eval.permuteNTTIndex[galEl]
 
-<<<<<<< HEAD
 			eval.KeyswitchHoistedNoModDown(levelQ, PoolDecompQP, rtk, ksRes0QP.Q, ksRes1QP.Q, ksRes0QP.P, ksRes1QP.P)
 			ringQ.AddLvl(levelQ, ksRes0QP.Q, ct0TimesP, ksRes0QP.Q)
 			ringQP.PermuteNTTWithIndexLvl(levelQ, levelP, ksRes0QP, index, tmp0QP)
 			ringQP.PermuteNTTWithIndexLvl(levelQ, levelP, ksRes1QP, index, tmp1QP)
-=======
-			eval.KeyswitchHoistedNoModDown(levelQ, PoolDecompQP, rtk, ksResQ0, ksResQ1, ksResP0, ksResP1)
-
-			ringQ.AddLvl(levelQ, ksResQ0, ct0TimesP, ksResQ0) // phi(d0_Q) += phi(P*c0)
-
-			ringQ.PermuteNTTWithIndexLvl(levelQ, ksResQ0, index, tmpQ0) // phi(P*c0 + d0_Q)
-			ringQ.PermuteNTTWithIndexLvl(levelQ, ksResQ1, index, tmpQ1) // phi(       d1_Q)
-
-			ringQ.PermuteNTTWithIndexLvl(levelP, ksResP0, index, tmpP0) // phi(P*c0 + d0_P)
-			ringQ.PermuteNTTWithIndexLvl(levelP, ksResP1, index, tmpP1) // phi(       d1_P)
-
-			plaintextQ := matrix.Vec[k].Q
-			plaintextP := matrix.Vec[k].P
->>>>>>> b8f8891ee ([ring] : parallel automorphisms)
 
 			if cnt == 0 {
 				// keyswitch(c1_Q) = (d0_QP, d1_QP)
@@ -571,37 +523,8 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix PtDiagM
 	c0OutQP := rlwe.PolyQP{Q: ctOut.Value[0], P: eval.Pool[5].Q}
 	c1OutQP := rlwe.PolyQP{Q: ctOut.Value[1], P: eval.Pool[5].P}
 
-<<<<<<< HEAD
 	ringQ.MulScalarBigintLvl(levelQ, ctInTmp0, ringP.ModulusBigint, ctInTmp0) // P*c0
 	ringQ.MulScalarBigintLvl(levelQ, ctInTmp1, ringP.ModulusBigint, ctInTmp1) // P*c1
-=======
-	// Do not use (used by switchKeysInPlaceNoModDown)
-	// eval.Pool[0].P
-	// eval.Pool[0].Q
-	// eval.Pool[2].Q
-
-	N1Rot := 0
-	N2Rot := 0
-
-	ringQ.MulScalarBigintLvl(levelQ, ctInTmp0, ringP.ModulusBigint, tmpQ0) // P*c0
-
-	for _, i := range rotations {
-		if i != 0 {
-
-			galEl := eval.params.GaloisElementForColumnRotationBy(i)
-
-			_, generated := eval.rtks.Keys[galEl]
-			if !generated {
-				panic("switching key not available")
-			}
-
-			index := eval.permuteNTTIndex[galEl]
-
-			ringQ.PermuteNTTWithIndexLvl(levelQ, tmpQ0, index, tmpQ1) // phi(P*c0)
-			ringQ.AddLvl(levelQ, vecRotQ[i][0], tmpQ1, vecRotQ[i][0]) // phi(d0_Q) += phi(P*c0)
-		}
-	}
->>>>>>> b8f8891ee ([ring] : parallel automorphisms)
 
 	// OUTER LOOP
 	var cnt0 int
@@ -670,35 +593,15 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix PtDiagM
 			tmp1QP.Q.IsNTT = true
 			eval.SwitchKeysInPlaceNoModDown(levelQ, tmp1QP.Q, rtk, c0QP.Q, c0QP.P, c1QP.Q, c1QP.P) // Switchkey(P*phi(tmpRes_1)) = (d0, d1) in base QP
 
-<<<<<<< HEAD
 			ringQP.AddLvl(levelQ, levelP, c0QP, tmp0QP, c0QP)
-=======
-			// Outer loop rotations
-			ringQ.PermuteNTTWithIndexLvl(levelQ, tmpQ0, index, tmpQ1)   // phi(tmpRes_0)
-			ringQ.AddLvl(levelQ, ctOut.Value[0], tmpQ1, ctOut.Value[0]) // ctOut += phi(tmpRes)
-
-			N2Rot++
->>>>>>> b8f8891ee ([ring] : parallel automorphisms)
 
 			// Outer loop rotations
 			if cnt0 == 0 {
-<<<<<<< HEAD
 				ringQP.PermuteNTTWithIndexLvl(levelQ, levelP, c0QP, index, c0OutQP)
 				ringQP.PermuteNTTWithIndexLvl(levelQ, levelP, c1QP, index, c1OutQP)
 			} else {
 				ringQP.PermuteNTTWithIndexAndAddNoModLvl(levelQ, levelP, c0QP, index, c0OutQP)
 				ringQP.PermuteNTTWithIndexAndAddNoModLvl(levelQ, levelP, c1QP, index, c1OutQP)
-=======
-				ringQ.PermuteNTTWithIndexLvl(levelQ, pool2Q, index, tmpQ2) // sum(phi(d0_Q))
-				ringQ.PermuteNTTWithIndexLvl(levelQ, pool3Q, index, tmpQ3) // sum(phi(d1_Q))
-				ringQ.PermuteNTTWithIndexLvl(levelP, pool2P, index, tmpP2) // sum(phi(d0_P))
-				ringQ.PermuteNTTWithIndexLvl(levelP, pool3P, index, tmpP3) // sum(phi(d1_P))
-			} else {
-				ringQ.PermuteNTTWithIndexAndAddNoModLvl(levelQ, pool2Q, index, tmpQ2) // sum(phi(d0_Q))
-				ringQ.PermuteNTTWithIndexAndAddNoModLvl(levelQ, pool3Q, index, tmpQ3) // sum(phi(d1_Q))
-				ringQ.PermuteNTTWithIndexAndAddNoModLvl(levelP, pool2P, index, tmpP2) // sum(phi(d0_P))
-				ringQ.PermuteNTTWithIndexAndAddNoModLvl(levelP, pool3P, index, tmpP3) // sum(phi(d1_P))
->>>>>>> b8f8891ee ([ring] : parallel automorphisms)
 			}
 
 			// Else directly adds on ((c0QP.Q, c0QP.P), (c1QP.Q, c1QP.P))

@@ -131,7 +131,7 @@ func (ks *KeySwitcher) DecomposeSingleNTT(levelQ, levelP, alpha, beta int, c2NTT
 	wg.Add(nbGoRoutines)
 	var start, end, tmp int
 	for i := 0; i < nbGoRoutines; i++ {
-		tmp = utils.DivIntCeil(tasks, nbGoRoutines - i)
+		tmp = utils.DivIntCeil(tasks, nbGoRoutines-i)
 		start, end, tasks = end, end+tmp, tasks-tmp
 		go func(start, end int) {
 			for x := start; x < end; x++ {

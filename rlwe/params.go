@@ -306,13 +306,13 @@ func (p *Parameters) PiOverflowMargin(level int) int {
 // column rotations by k position to the left. Providing a negative k is
 // equivalent to a right rotation.
 func (p Parameters) GaloisElementForColumnRotationBy(k int) uint64 {
-	return ring.ModExp(GaloisGen, uint64(k & int(p.ringQ.NthRoot-1)), p.ringQ.NthRoot)
+	return ring.ModExp(GaloisGen, uint64(k&int(p.ringQ.NthRoot-1)), p.ringQ.NthRoot)
 }
 
 // GaloisElementForRowRotation returns the galois element for generating the row
 // rotation automorphism
 func (p Parameters) GaloisElementForRowRotation() uint64 {
-	return p.ringQ.NthRoot-1
+	return p.ringQ.NthRoot - 1
 }
 
 // GaloisElementsForRowInnerSum returns a list of all galois elements required to

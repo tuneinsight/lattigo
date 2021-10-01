@@ -3,7 +3,7 @@ package ckks
 import (
 	"encoding/json"
 	"testing"
-	
+
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )

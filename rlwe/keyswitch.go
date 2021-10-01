@@ -127,7 +127,7 @@ func (ks *KeySwitcher) DecomposeSingleNTT(levelQ, levelP, alpha, beta int, c2NTT
 		if p0idxst <= x && x < p0idxed {
 			copy(c2QiQ.Coeffs[x], c2NTT.Coeffs[x])
 		} else {
-			ring.NTTLazy(c2QiQ.Coeffs[x], c2QiQ.Coeffs[x], ringQ.N, ringQ.NttPsi[x], ringQ.Modulus[x], ringQ.MredParams[x], ringQ.BredParams[x])
+			ringQ.NTTSingleLazy(x, c2QiQ.Coeffs[x], c2QiQ.Coeffs[x])
 		}
 	}
 	// c2QiP = c2 mod qi mod pj

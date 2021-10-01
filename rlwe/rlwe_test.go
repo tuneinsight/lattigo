@@ -433,10 +433,11 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 
 	paramsLargeDim := kgen.(*keyGenerator).params
 	paramsSmallDim, _ := NewParametersFromLiteral(ParametersLiteral{
-		LogN:  paramsLargeDim.LogN() - 1,
-		Q:     paramsLargeDim.Q()[:1],
-		P:     paramsLargeDim.P()[:1],
-		Sigma: DefaultSigma,
+		LogN:     paramsLargeDim.LogN() - 1,
+		Q:        paramsLargeDim.Q()[:1],
+		P:        paramsLargeDim.P()[:1],
+		Sigma:    DefaultSigma,
+		RingType: paramsLargeDim.RingType(),
 	})
 
 	t.Run(testString(paramsLargeDim, "KeySwitchDimension/LargeToSmall/"), func(t *testing.T) {
@@ -465,7 +466,7 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 		//Extracts Coefficients
 		ctSmallDim := NewCiphertextNTT(paramsSmallDim, 1, paramsSmallDim.MaxLevel())
 
-		SwitchCiphertextRingDegreeNTT(ctLargeDim, ringQLargeDim, ctSmallDim)
+		SwitchCiphertextRingDegreeNTT(ctLargeDim, ringQSmallDim, ringQLargeDim, ctSmallDim)
 
 		// Decrypts with smaller dimension key
 		ringQSmallDim.MulCoeffsMontgomeryAndAddLvl(ctSmallDim.Level(), ctSmallDim.Value[1], skSmallDim.Value.Q, ctSmallDim.Value[0])
@@ -494,7 +495,7 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 		//Extracts Coefficients
 		ctLargeDim := NewCiphertextNTT(paramsLargeDim, 1, plaintext.Level())
 
-		SwitchCiphertextRingDegreeNTT(ctSmallDim, nil, ctLargeDim)
+		SwitchCiphertextRingDegreeNTT(ctSmallDim, nil, nil, ctLargeDim)
 
 		ks := NewKeySwitcher(paramsLargeDim)
 		ks.SwitchKeysInPlace(ctLargeDim.Value[1].Level(), ctLargeDim.Value[1], swk, ks.Pool[1].Q, ks.Pool[2].Q)
@@ -629,7 +630,11 @@ func testMarshaller(kgen KeyGenerator, t *testing.T) {
 		}
 
 		rots := []int{1, -1, 63, -63}
-		galEls := []uint64{params.GaloisElementForRowRotation()}
+		galEls := []uint64{}
+		if params.RingType() == RingStandard {
+			galEls = append(galEls, params.GaloisElementForRowRotation())
+		}
+
 		for _, n := range rots {
 			galEls = append(galEls, params.GaloisElementForColumnRotationBy(n))
 		}

@@ -143,22 +143,21 @@ func (el *Ciphertext) Resize(params Parameters, degree int) {
 // If the ring degree of ctOut is larger than the one of ctIn, then the ringQ of ctIn
 // must be provided (else a nil pointer).
 // The ctIn must be in the NTT domain and ctOut will be in the NTT domain.
-func SwitchCiphertextRingDegreeNTT(ctIn *Ciphertext, ringQLargeDim *ring.Ring, ctOut *Ciphertext) {
+func SwitchCiphertextRingDegreeNTT(ctIn *Ciphertext, ringQSmallDim, ringQLargeDim *ring.Ring, ctOut *Ciphertext) {
 
 	NIn, NOut := len(ctIn.Value[0].Coeffs[0]), len(ctOut.Value[0].Coeffs[0])
 
 	if NIn > NOut {
-		r := ringQLargeDim
 		gap := NIn / NOut
 		pool := make([]uint64, NIn)
 		for i := range ctOut.Value {
 			for j := range ctOut.Value[i].Coeffs {
-				tmp0, tmp1 := ctOut.Value[i].Coeffs[j], ctIn.Value[i].Coeffs[j]
-				ring.InvNTT(tmp1, pool, NIn, r.NttPsiInv[j], r.NttNInv[j], r.Modulus[j], r.MredParams[j])
+				tmpIn, tmpOut := ctIn.Value[i].Coeffs[j], ctIn.Value[i].Coeffs[j]
+				ringQLargeDim.InvNTTSingle(j, tmpIn, pool)
 				for w0, w1 := 0, 0; w0 < NOut; w0, w1 = w0+1, w1+gap {
-					pool[w0] = pool[w1]
+					tmpOut[w0] = pool[w1]
 				}
-				ring.NTT(pool, tmp0, NOut, r.NttPsi[j], r.Modulus[j], r.MredParams[j], r.BredParams[j])
+				ringQSmallDim.NTTSingle(j, tmpOut, tmpOut)
 			}
 		}
 	} else {

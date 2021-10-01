@@ -29,6 +29,19 @@ func (r *Ring) NTTLazyLvl(level int, p1, p2 *Poly) {
 	r.NumberTheoreticTransformer.ForwardLazyLvl(r, level, p1, p2)
 }
 
+// NTTSingle computes the NTT of p1 and returns the result on p2.
+// The level-th moduli of the ring NTT params are used.
+func (r *Ring) NTTSingle(level int, p1, p2 []uint64) {
+	r.NumberTheoreticTransformer.ForwardVec(r, level, p1, p2)
+}
+
+// NTTSingleLazy computes the NTT of p1 and returns the result on p2.
+// The level-th moduli of the ring NTT params are used.
+// Output values are in the range [0, 2q-1]
+func (r *Ring) NTTSingleLazy(level int, p1, p2 []uint64) {
+	r.NumberTheoreticTransformer.ForwardLazyVec(r, level, p1, p2)
+}
+
 // InvNTT computes the inverse-NTT of p1 and returns the result on p2.
 func (r *Ring) InvNTT(p1, p2 *Poly) {
 	r.NumberTheoreticTransformer.Backward(r, p1, p2)
@@ -51,6 +64,20 @@ func (r *Ring) InvNTTLazy(p1, p2 *Poly) {
 // Output values are in the range [0, 2q-1]
 func (r *Ring) InvNTTLazyLvl(level int, p1, p2 *Poly) {
 	r.NumberTheoreticTransformer.BackwardLazyLvl(r, level, p1, p2)
+}
+
+// InvNTTSingle computes the InvNTT of p1 and returns the result on p2.
+// The level-th moduli of the ring InvNTT params are used.
+// Only computes the InvNTT for the i-th level.
+func (r *Ring) InvNTTSingle(level int, p1, p2 []uint64) {
+	r.NumberTheoreticTransformer.BackwardVec(r, level, p1, p2)
+}
+
+// InvNTTSingleLazy computes the InvNTT of p1 and returns the result on p2.
+// The level-th moduli of the ring InvNTT params are used.
+// Output values are in the range [0, 2q-1]
+func (r *Ring) InvNTTSingleLazy(level int, p1, p2 []uint64) {
+	r.NumberTheoreticTransformer.BackwardLazyVec(r, level, p1, p2)
 }
 
 // butterfly computes X, Y = U + V*Psi, U - V*Psi mod Q.

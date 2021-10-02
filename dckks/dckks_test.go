@@ -387,6 +387,10 @@ func testRotKeyGenConjugate(testCtx *testContext, t *testing.T) {
 
 	t.Run(testString("RotKeyGenConjugate/", parties, params), func(t *testing.T) {
 
+		if testCtx.params.RingType() == rlwe.RingConjugateInvariant {
+			t.Skip("Conjugate not defined in Ring Conjugate Invariant")
+		}
+
 		type Party struct {
 			*RTGProtocol
 			s     *rlwe.SecretKey

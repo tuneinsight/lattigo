@@ -128,7 +128,7 @@ func NewEncoder(params Parameters) Encoder {
 		encoder:     encoder,
 		roots:       roots,
 		values:      make([]complex128, encoder.m>>2),
-		valuesfloat: make([]float64, params.N()),
+		valuesfloat: make([]float64, encoder.m>>1),
 	}
 }
 
@@ -193,14 +193,12 @@ func (encoder *encoderComplex128) Embed(values []complex128, logSlots int) {
 
 // GetErrSTDSlotDomain returns the scaled standard deviation of the difference between two complex vectors in the slot domains
 func (encoder *encoderComplex128) GetErrSTDSlotDomain(valuesWant, valuesHave []complex128, scale float64) (std float64) {
-
 	var err complex128
 	for i := range valuesWant {
 		err = valuesWant[i] - valuesHave[i]
 		encoder.valuesfloat[2*i] = real(err)
 		encoder.valuesfloat[2*i+1] = imag(err)
 	}
-
 	return StandardDeviation(encoder.valuesfloat[:len(valuesWant)*2], scale)
 }
 
@@ -227,7 +225,7 @@ func (encoder *encoderComplex128) GetErrSTDCoeffDomain(valuesWant, valuesHave []
 
 // ScaleUp writes the internaly stored encoded values on a polynomial.
 func (encoder *encoderComplex128) ScaleUp(pol *ring.Poly, scale float64, moduli []uint64) {
-	scaleUpVecExact(encoder.valuesfloat, scale, moduli, pol.Coeffs)
+	scaleUpVecExact(encoder.valuesfloat[:encoder.params.N()], scale, moduli, pol.Coeffs)
 }
 
 // WipeInternalMemory sets the internally stored encoded values of the encoder to zero.
@@ -252,13 +250,14 @@ func (encoder *encoderComplex128) Decode(plaintext *Plaintext, logSlots int) (re
 	return encoder.decodePublic(plaintext, logSlots, 0)
 }
 
-func polyToComplexNoCRT(coeffs []uint64, values []complex128, scale float64, logSlots int, Q uint64) {
+func polyToComplexNoCRT(coeffs []uint64, values []complex128, scale float64, logSlots int, isreal bool, ringQ *ring.Ring) {
 
 	slots := 1 << logSlots
-	maxSlots := len(coeffs) >> 1
+	maxSlots := int(ringQ.NthRoot >> 2)
 	gap := maxSlots / slots
+	Q := ringQ.Modulus[0]
 
-	var real, imag float64
+	var real float64
 	for i, idx := 0, 0; i < slots; i, idx = i+1, idx+gap {
 
 		if coeffs[idx] >= Q>>1 {
@@ -267,21 +266,33 @@ func polyToComplexNoCRT(coeffs []uint64, values []complex128, scale float64, log
 			real = float64(coeffs[idx])
 		}
 
-		if coeffs[idx+maxSlots] >= Q>>1 {
-			imag = -float64(Q - coeffs[idx+maxSlots])
-		} else {
-			imag = float64(coeffs[idx+maxSlots])
-		}
+		values[i] = complex(real, 0)
+	}
 
-		values[i] = complex(real, imag) / complex(scale, 0)
+	if !isreal {
+		var imag float64
+		for i, idx := 0, 0; i < slots; i, idx = i+1, idx+gap {
+
+			if coeffs[idx+maxSlots] >= Q>>1 {
+				imag = -float64(Q - coeffs[idx+maxSlots])
+			} else {
+				imag = float64(coeffs[idx+maxSlots])
+			}
+
+			values[i] += complex(0, imag)
+		}
+	}
+
+	for i := 0; i < slots; i++ {
+		values[i] /= complex(scale, 0)
 	}
 }
 
-func polyToComplexCRT(poly *ring.Poly, bigintCoeffs []*big.Int, values []complex128, scale float64, logSlots int, ringQ *ring.Ring, Q *big.Int) {
+func polyToComplexCRT(poly *ring.Poly, bigintCoeffs []*big.Int, values []complex128, scale float64, logSlots int, isreal bool, ringQ *ring.Ring, Q *big.Int) {
 
 	ringQ.PolyToBigint(poly, bigintCoeffs)
 
-	maxSlots := ringQ.N >> 1
+	maxSlots := int(ringQ.NthRoot >> 2)
 	slots := 1 << logSlots
 	gap := maxSlots / slots
 
@@ -300,22 +311,37 @@ func polyToComplexCRT(poly *ring.Poly, bigintCoeffs []*big.Int, values []complex
 			bigintCoeffs[idx].Sub(bigintCoeffs[idx], Q)
 		}
 
-		// Centers the value around the current modulus
-		bigintCoeffs[idx+maxSlots].Mod(bigintCoeffs[idx+maxSlots], Q)
-		sign = bigintCoeffs[idx+maxSlots].Cmp(qHalf)
-		if sign == 1 || sign == 0 {
-			bigintCoeffs[idx+maxSlots].Sub(bigintCoeffs[idx+maxSlots], Q)
-		}
+		values[i] = complex(scaleDown(bigintCoeffs[idx], scale), 0)
+	}
 
-		values[i] = complex(scaleDown(bigintCoeffs[idx], scale), scaleDown(bigintCoeffs[idx+maxSlots], scale))
+	if !isreal {
+		for i, idx := 0, 0; i < slots; i, idx = i+1, idx+gap {
+			// Centers the value around the current modulus
+			bigintCoeffs[idx+maxSlots].Mod(bigintCoeffs[idx+maxSlots], Q)
+			sign = bigintCoeffs[idx+maxSlots].Cmp(qHalf)
+			if sign == 1 || sign == 0 {
+				bigintCoeffs[idx+maxSlots].Sub(bigintCoeffs[idx+maxSlots], Q)
+			}
+			values[i] += complex(0, scaleDown(bigintCoeffs[idx+maxSlots], scale))
+		}
 	}
 }
 
 func (encoder *encoderComplex128) plaintextToComplex(level int, scale float64, logSlots int, p *ring.Poly, values []complex128) {
+
+	isreal := encoder.params.RingType() == rlwe.RingConjugateInvariant
 	if level == 0 {
-		polyToComplexNoCRT(p.Coeffs[0], encoder.values, scale, logSlots, encoder.params.RingQ().Modulus[0])
+		polyToComplexNoCRT(p.Coeffs[0], values, scale, logSlots, isreal, encoder.params.RingQ())
 	} else {
-		polyToComplexCRT(p, encoder.bigintCoeffs, values, scale, logSlots, encoder.params.RingQ(), encoder.bigintChain[level])
+		polyToComplexCRT(p, encoder.bigintCoeffs, values, scale, logSlots, isreal, encoder.params.RingQ(), encoder.bigintChain[level])
+	}
+
+	if isreal {
+		tmp := encoder.values
+		slots := 1 << logSlots
+		for i := 1; i < slots; i++ {
+			tmp[i] -= complex(0, real(tmp[slots-i]))
+		}
 	}
 }
 
@@ -531,11 +557,11 @@ func FindBestBSGSSplit(diagMatrix interface{}, maxN int, maxRatio float64) (minN
 
 func (encoder *encoderComplex128) decodePublic(plaintext *Plaintext, logSlots int, sigma float64) (res []complex128) {
 
-	if logSlots > encoder.params.LogN()-1 {
+	slots := 1 << logSlots
+
+	if slots > int(encoder.params.RingQ().NthRoot>>2) {
 		panic("cannot Decode: too many slots for the given ring degree")
 	}
-
-	slots := 1 << logSlots
 
 	if plaintext.Value.IsNTT {
 		encoder.params.RingQ().InvNTTLvl(plaintext.Level(), plaintext.Value, encoder.polypool)

@@ -362,11 +362,17 @@ func (p Parameters) GaloisElementForRowRotation() uint64 {
 // perform an InnerSum operation. This corresponds to all the left rotations by
 // k-positions where k is a power of two and the row-rotation element.
 func (p Parameters) GaloisElementsForRowInnerSum() (galEls []uint64) {
-	galEls = make([]uint64, p.logN+1)
-	galEls[0] = p.GaloisElementForRowRotation()
+	galEls = make([]uint64, p.logN)
 	for i := 0; i < int(p.logN)-1; i++ {
-		galEls[i+1] = p.GaloisElementForColumnRotationBy(1 << i)
+		galEls[i] = p.GaloisElementForColumnRotationBy(1 << i)
 	}
+
+	if p.ringType == RingStandard {
+		galEls[p.logN-1] = p.GaloisElementForRowRotation()
+	} else {
+		galEls[p.logN-1] = p.GaloisElementForColumnRotationBy(1 << (p.logN - 1))
+	}
+
 	return galEls
 }
 

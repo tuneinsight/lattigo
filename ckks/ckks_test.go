@@ -64,7 +64,7 @@ func TestCKKS(t *testing.T) {
 		defaultParams = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
-	for _, defaultParam := range defaultParams {
+	for _, defaultParam := range defaultParams[:] {
 		params, err := NewParametersFromLiteral(defaultParam)
 		if err != nil {
 			panic(err)
@@ -143,8 +143,14 @@ func newTestVectors(testContext *testParams, encryptor Encryptor, a, b complex12
 
 	values = make([]complex128, 1<<logSlots)
 
-	for i := 0; i < 1<<logSlots; i++ {
-		values[i] = complex(utils.RandFloat64(real(a), real(b)), utils.RandFloat64(imag(a), imag(b)))
+	if testContext.params.RingType() == rlwe.RingStandard {
+		for i := 0; i < 1<<logSlots; i++ {
+			values[i] = complex(utils.RandFloat64(real(a), real(b)), utils.RandFloat64(imag(a), imag(b)))
+		}
+	} else {
+		for i := 0; i < 1<<logSlots; i++ {
+			values[i] = complex(utils.RandFloat64(real(a), real(b)), 0)
+		}
 	}
 
 	values[0] = complex(0.607538, 0)
@@ -183,14 +189,14 @@ func testParameters(testContext *testParams, t *testing.T) {
 
 func testEncoder(testContext *testParams, t *testing.T) {
 
-	t.Run(GetTestName(testContext.params, "Encoder/Encode/"), func(t *testing.T) {
+	t.Run(GetTestName(testContext.params, "Encoder/Slots/"), func(t *testing.T) {
 
 		values, plaintext, _ := newTestVectors(testContext, nil, complex(-1, -1), complex(1, 1), t)
 
 		verifyTestVectors(testContext.params, testContext.encoder, testContext.decryptor, values, plaintext, testContext.params.LogSlots(), 0, t)
 	})
 
-	t.Run(GetTestName(testContext.params, "Encoder/EncodeCoeffs/"), func(t *testing.T) {
+	t.Run(GetTestName(testContext.params, "Encoder/Coeffs/"), func(t *testing.T) {
 
 		slots := testContext.params.N()
 
@@ -427,7 +433,12 @@ func testEvaluatorAddConst(testContext *testParams, t *testing.T) {
 
 		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-		constant := complex(3.1415, -1.4142)
+		var constant complex128
+		if testContext.params.RingType() == rlwe.RingStandard {
+			constant = 1.0 / complex(3.1415, -1.4142)
+		} else {
+			constant = 1.0 / complex(3.1415, 0)
+		}
 
 		for i := range values {
 			values[i] += constant
@@ -446,7 +457,12 @@ func testEvaluatorMultByConst(testContext *testParams, t *testing.T) {
 
 		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-		constant := 1.0 / complex(3.1415, -1.4142)
+		var constant complex128
+		if testContext.params.RingType() == rlwe.RingStandard {
+			constant = 1.0 / complex(3.1415, -1.4142)
+		} else {
+			constant = 1.0 / complex(3.1415, 0)
+		}
 
 		for i := range values {
 			values[i] *= constant
@@ -466,7 +482,12 @@ func testEvaluatorMultByConstAndAdd(testContext *testParams, t *testing.T) {
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 		values2, _, ciphertext2 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-		constant := 1.0 / complex(3.1415, -1.4142)
+		var constant complex128
+		if testContext.params.RingType() == rlwe.RingStandard {
+			constant = 1.0 / complex(3.1415, -1.4142)
+		} else {
+			constant = 1.0 / complex(3.1415, 0)
+		}
 
 		for i := range values1 {
 			values2[i] += (constant * values1[i])
@@ -880,13 +901,23 @@ func testAutomorphisms(testContext *testParams, t *testing.T) {
 		t.Skip("#Pi is empty")
 	}
 	rots := []int{0, 1, -1, 4, -4, 63, -63}
-	rotKey := testContext.kgen.GenRotationKeysForRotations(rots, true, testContext.sk)
+	var rotKey *rlwe.RotationKeySet
+	if testContext.params.RingType() == rlwe.RingStandard {
+		rotKey = testContext.kgen.GenRotationKeysForRotations(rots, true, testContext.sk)
+	} else {
+		rotKey = testContext.kgen.GenRotationKeysForRotations(rots, false, testContext.sk)
+	}
+
 	evaluator := testContext.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testContext.rlk, Rtks: rotKey})
 
 	t.Run(GetTestName(testContext.params, "Conjugate/"), func(t *testing.T) {
 
 		if testContext.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
+		}
+
+		if testContext.params.RingType() != rlwe.RingStandard {
+			t.Skip("Conjugate not defined in real-CKKS")
 		}
 
 		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
@@ -904,6 +935,10 @@ func testAutomorphisms(testContext *testParams, t *testing.T) {
 
 		if testContext.params.PCount() == 0 {
 			t.Skip("#Pi is empty")
+		}
+
+		if testContext.params.RingType() != rlwe.RingStandard {
+			t.Skip("Conjugate not defined in real-CKKS")
 		}
 
 		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)

@@ -534,6 +534,7 @@ func NTTConjugateInvariantLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uin
 	xout[6], yout[0] = xin[6]+twoQ-MRedConstant(yin[0], F, Q, QInv), yin[0]+twoQ-MRedConstant(xin[6], F, Q, QInv)
 
 	coeffsOut[N>>1] = coeffsIn[N>>1] + twoQ - MRedConstant(coeffsIn[N>>1], F, Q, QInv)
+	coeffsOut[0] = coeffsIn[0]
 
 	// Continue the rest of the second to the n-1 butterflies on p2 with approximate reduction
 	for m := 2; m < 2*N; m <<= 1 {

@@ -148,7 +148,7 @@ func main() {
 
 	plaintext := ckks.NewPlaintext(paramsRLWE, paramsRLWE.MaxLevel(), paramsRLWE.Scale())
 	// Must encode with 2*Slots because a real vector is returned
-	encoder.EncodeNTT(plaintext, values, utils.MinInt(paramsRLWE.LogSlots()+1, paramsRLWE.LogN()-1))
+	encoder.Encode(plaintext, values, utils.MinInt(paramsRLWE.LogSlots()+1, paramsRLWE.LogN()-1))
 	ct := encryptor.EncryptNew(plaintext)
 	fmt.Printf("Done (%s)\n", time.Since(start))
 
@@ -198,7 +198,7 @@ func main() {
 		lweEncoded[i] *= complex(math.Pow(1/(EvalModPoly.K()*EvalModPoly.QDiff()), 1.0), 0) // pre-scaling for Cheby
 	}
 
-	encoder.EncodeNTT(ptLWE, lweEncoded, paramsRLWE.LogSlots())
+	encoder.Encode(ptLWE, lweEncoded, paramsRLWE.LogSlots())
 	fmt.Printf("Done (%s)\n", time.Since(start))
 
 	// Encode A

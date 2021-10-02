@@ -17,12 +17,13 @@ var (
 	// PN12QP109 is a default parameter set for logN=12 and logQP=109
 	PN12QP109 = ParametersLiteral{
 		LogN:     12,
-		LogSlots: 11,
-		Q: []uint64{0x200000e001, // 37 + 32
-			0x100006001},
-		P:     []uint64{0x3ffffea001}, // 38
-		Scale: 1 << 32,
-		Sigma: rlwe.DefaultSigma,
+		LogSlots: 12,
+		Q: []uint64{0x1ffffe0001, // 37 + 32
+			0x100014001},
+		P:        []uint64{0x4000038001}, // 38
+		Scale:    1 << 32,
+		Sigma:    rlwe.DefaultSigma,
+		RingType: rlwe.RingConjugateInvariant,
 	}
 
 	// PN13QP218 is a default parameter set for logN=13 and logQP=218
@@ -42,15 +43,16 @@ var (
 	// PN14QP438 is a default parameter set for logN=14 and logQP=438
 	PN14QP438 = ParametersLiteral{
 		LogN:     14,
-		LogSlots: 13,
-		Q: []uint64{0x200000008001, 0x400018001, // 45 + 9 x 34
-			0x3fffd0001, 0x400060001,
-			0x400068001, 0x3fff90001,
-			0x400080001, 0x4000a8001,
-			0x400108001, 0x3ffeb8001},
-		P:     []uint64{0x7fffffd8001, 0x7fffffc8001}, // 43, 43
-		Scale: 1 << 34,
-		Sigma: rlwe.DefaultSigma,
+		LogSlots: 14,
+		Q: []uint64{0x2000000a0001, 0x3fffd0001, // 45 + 9*34
+			0x400060001, 0x3fff90001,
+			0x400080001, 0x400180001,
+			0x3ffd20001, 0x400300001,
+			0x400360001, 0x4003e0001},
+		P:        []uint64{0x80000050001, 0x7ffffdb0001}, // 43, 43
+		Scale:    1 << 34,
+		Sigma:    rlwe.DefaultSigma,
+		RingType: rlwe.RingConjugateInvariant,
 	}
 
 	// PN15QP880 is a default parameter set for logN=15 and logQP=880
@@ -157,6 +159,7 @@ type ParametersLiteral struct {
 	Sigma    float64 // Gaussian sampling variance
 	LogSlots int
 	Scale    float64
+	RingType rlwe.RingType
 }
 
 // DefaultParams is a set of default CKKS parameters ensuring 128 bit security in a classic setting.
@@ -180,8 +183,9 @@ func NewParameters(rlweParams rlwe.Parameters, logSlot int, scale float64) (p Pa
 	if rlweParams.Equals(rlwe.Parameters{}) {
 		return Parameters{}, fmt.Errorf("provided RLWE parameters are invalid")
 	}
-	if logSlot > rlweParams.LogN()-1 {
-		return Parameters{}, fmt.Errorf("logSlot=%d is larger than the logN-1=%d", logSlot, rlweParams.LogN()-1)
+
+	if logSlot > int(rlweParams.RingQ().NthRoot>>2) {
+		return Parameters{}, fmt.Errorf("logSlot=%d is larger than the logN-1=%d", logSlot, int(rlweParams.RingQ().NthRoot>>2))
 	}
 	return Parameters{rlweParams, logSlot, scale}, nil
 }
@@ -189,7 +193,7 @@ func NewParameters(rlweParams rlwe.Parameters, logSlot int, scale float64) (p Pa
 // NewParametersFromLiteral instantiate a set of CKKS parameters from a ParametersLiteral specification.
 // It returns the empty parameters Parameters{} and a non-nil error if the specified parameters are invalid.
 func NewParametersFromLiteral(pl ParametersLiteral) (Parameters, error) {
-	rlweParams, err := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{LogN: pl.LogN, Q: pl.Q, P: pl.P, LogQ: pl.LogQ, LogP: pl.LogP, Sigma: pl.Sigma})
+	rlweParams, err := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{LogN: pl.LogN, Q: pl.Q, P: pl.P, LogQ: pl.LogQ, LogP: pl.LogP, Sigma: pl.Sigma, RingType: pl.RingType})
 	if err != nil {
 		return Parameters{}, err
 	}

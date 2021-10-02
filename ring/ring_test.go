@@ -112,11 +112,13 @@ func testNTTConjugateInvariant(testContext *testParams, t *testing.T) {
 		ringQ2N.InvMForm(p2, p2)
 		ringQ2N.InvNTT(p2, p2)
 
-		ringQConjugateInvariant.NTT(p1, p1)
-		ringQConjugateInvariant.MForm(p1, p1)
-		ringQConjugateInvariant.MulCoeffsMontgomery(p1, p1, p1)
-		ringQConjugateInvariant.InvMForm(p1, p1)
-		ringQConjugateInvariant.InvNTT(p1, p1)
+		p1tmp := ringQ2N.NewPoly()
+
+		ringQConjugateInvariant.NTT(p1, p1tmp)
+		ringQConjugateInvariant.MForm(p1tmp, p1tmp)
+		ringQConjugateInvariant.MulCoeffsMontgomery(p1tmp, p1tmp, p1tmp)
+		ringQConjugateInvariant.InvMForm(p1tmp, p1tmp)
+		ringQConjugateInvariant.InvNTT(p1tmp, p1)
 
 		for j := range ringQ.Modulus {
 			for i := 0; i < ringQ.N; i++ {

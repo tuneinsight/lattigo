@@ -410,12 +410,10 @@ func (r *Ring) DivRoundByLastModulusManyNTTLvl(level, nbRescales int, p0, pool, 
 		if nbRescales > 1 {
 
 			r.InvNTTLvl(level, p0, pool)
-
 			for i := 0; i < nbRescales; i++ {
 				r.DivRoundByLastModulusLvl(level-i, pool, pool)
 			}
-
-			r.NTTLvl(p1.Level(), pool, p1)
+			r.NTTLvl(level-nbRescales, pool, p1)
 
 		} else {
 			r.DivRoundByLastModulusNTTLvl(level, p0, pool, p1)

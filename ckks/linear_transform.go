@@ -410,7 +410,7 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix PtDiagMatri
 	var cnt int
 	for k := range matrix.Vec {
 
-		k &= int((ringQ.N >> 1) - 1)
+		k &= int((ringQ.NthRoot >> 2) - 1)
 
 		if k == 0 {
 			state = true

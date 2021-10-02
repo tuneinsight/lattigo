@@ -290,11 +290,9 @@ func (ss *SimpleScaler) reconstructAndScale(p1, p2 *Poly) {
 // DivFloorByLastModulusNTTLvl divides (floored) the polynomial by its last modulus. The input must be in the NTT domain.
 // Output poly level must be equal or one less than input level.
 func (r *Ring) DivFloorByLastModulusNTTLvl(level int, p0, pool, p1 *Poly) {
-
-	InvNTTLazy(p0.Coeffs[level], pool.Coeffs[0], r.N, r.NttPsiInv[level], r.NttNInv[level], r.Modulus[level], r.MredParams[level])
-
+	r.InvNTTSingleLazy(level, p0.Coeffs[level], pool.Coeffs[0])
 	for i := 0; i < level; i++ {
-		NTTLazy(pool.Coeffs[0], pool.Coeffs[1], r.N, r.NttPsi[i], r.Modulus[i], r.MredParams[i], r.BredParams[i])
+		r.NTTSingleLazy(i, pool.Coeffs[0], pool.Coeffs[1])
 		// (-x[i] + x[-1]) * -InvQ
 		SubVecAndMulScalarMontgomeryTwoQiVec(pool.Coeffs[1], p0.Coeffs[i], p1.Coeffs[i], r.RescaleParams[level-1][i], r.Modulus[i], r.MredParams[i])
 	}
@@ -364,7 +362,7 @@ func (r *Ring) DivFloorByLastModulusManyLvl(level, nbRescales int, p0, pool, p1 
 // Output poly level must be equal or one less than input level.
 func (r *Ring) DivRoundByLastModulusNTTLvl(level int, p0, pool, p1 *Poly) {
 
-	InvNTT(p0.Coeffs[level], pool.Coeffs[level], r.N, r.NttPsiInv[level], r.NttNInv[level], r.Modulus[level], r.MredParams[level])
+	r.InvNTTSingleLazy(level, p0.Coeffs[level], pool.Coeffs[level])
 
 	// Center by (p-1)/2
 	pj := r.Modulus[level]
@@ -374,11 +372,9 @@ func (r *Ring) DivRoundByLastModulusNTTLvl(level int, p0, pool, p1 *Poly) {
 
 	for i := 0; i < level; i++ {
 		qi := r.Modulus[i]
-		qInv := r.MredParams[i]
-		bredParams := r.BredParams[i]
-		AddScalarNoModVec(pool.Coeffs[level], pool.Coeffs[i], r.Modulus[i]-BRedAdd(pHalf, qi, bredParams))
-		NTTLazy(pool.Coeffs[i], pool.Coeffs[i], r.N, r.NttPsi[i], qi, qInv, bredParams)
-		SubVecAndMulScalarMontgomeryTwoQiVec(pool.Coeffs[i], p0.Coeffs[i], p1.Coeffs[i], r.RescaleParams[level-1][i], r.Modulus[i], r.MredParams[i])
+		AddScalarNoModVec(pool.Coeffs[level], pool.Coeffs[i], qi-BRedAdd(pHalf, qi, r.BredParams[i]))
+		r.NTTSingleLazy(i, pool.Coeffs[i], pool.Coeffs[i])
+		SubVecAndMulScalarMontgomeryTwoQiVec(pool.Coeffs[i], p0.Coeffs[i], p1.Coeffs[i], r.RescaleParams[level-1][i], qi, r.MredParams[i])
 	}
 }
 
@@ -387,17 +383,15 @@ func (r *Ring) DivRoundByLastModulusNTTLvl(level int, p0, pool, p1 *Poly) {
 func (r *Ring) DivRoundByLastModulusLvl(level int, p0, p1 *Poly) {
 
 	// Center by (p-1)/2
-	pHalf := (r.Modulus[level] - 1) >> 1
 	pj := r.Modulus[level]
+	pHalf := (pj - 1) >> 1
 
 	AddScalarVec(p0.Coeffs[level], p0.Coeffs[level], pHalf, pj)
 
 	for i := 0; i < level; i++ {
 		qi := r.Modulus[i]
-		bredParams := r.BredParams[i]
-		AddScalarNoModAndNegTwoQiNoModVec(p0.Coeffs[i], p0.Coeffs[i], r.Modulus[i]-BRedAdd(pHalf, qi, bredParams), qi)
+		AddScalarNoModAndNegTwoQiNoModVec(p0.Coeffs[i], p0.Coeffs[i], qi-BRedAdd(pHalf, qi, r.BredParams[i]), qi)
 		AddVecNoModAndMulScalarMontgomeryVec(p0.Coeffs[level], p0.Coeffs[i], p1.Coeffs[i], r.RescaleParams[level-1][i], qi, r.MredParams[i])
-
 	}
 }
 

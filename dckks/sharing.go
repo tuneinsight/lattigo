@@ -14,6 +14,7 @@ import (
 type E2SProtocol struct {
 	CKSProtocol
 
+	params     ckks.Parameters
 	ringQ      *ring.Ring
 	zero       *rlwe.SecretKey
 	maskBigint []*big.Int
@@ -25,6 +26,7 @@ func NewE2SProtocol(params ckks.Parameters, sigmaSmudging float64) *E2SProtocol 
 	e2s := new(E2SProtocol)
 	e2s.CKSProtocol = *NewCKSProtocol(params, sigmaSmudging)
 	e2s.ringQ = params.RingQ()
+	e2s.params = params
 	e2s.zero = rlwe.NewSecretKey(params.Parameters)
 	e2s.maskBigint = make([]*big.Int, params.N())
 	for i := range e2s.maskBigint {
@@ -71,7 +73,7 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound, logSlots int, ct 
 		panic("ciphertext level is not large enough for refresh correctness")
 	}
 
-	gap := ringQ.N / (2 << logSlots)
+	gap := e2s.params.MaxSlots() / (1 << logSlots)
 
 	boundHalf := new(big.Int).Rsh(bound, 1)
 

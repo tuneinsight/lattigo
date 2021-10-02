@@ -217,11 +217,17 @@ func (p Parameters) Slots() int {
 
 // MaxSlots returns the theoretical maximum of plaintext slots allowed by the ring degree
 func (p Parameters) MaxSlots() int {
+	if p.RingType() == rlwe.RingConjugateInvariant {
+		return p.N()
+	}
 	return p.N() >> 1
 }
 
 // MaxLogSlots returns the log of the maximum number of slots enabled by the parameters
 func (p Parameters) MaxLogSlots() int {
+	if p.RingType() == rlwe.RingConjugateInvariant {
+		return p.LogN()
+	}
 	return p.LogN() - 1
 }
 

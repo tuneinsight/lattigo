@@ -78,10 +78,11 @@ func NewMaskedTransformProtocol(params ckks.Parameters, precision int, sigmaSmud
 	rfp.ringQ = rfp.e2s.ringQ
 
 	rfp.tmpMask = make([]*big.Int, rfp.ringQ.N)
-	rfp.tmpBigComplex = make([]*ring.Complex, rfp.ringQ.N>>1)
+	rfp.tmpBigComplex = make([]*ring.Complex, params.MaxSlots())
+	for i := range rfp.tmpMask {
+		rfp.tmpMask[i] = new(big.Int)
+	}
 	for i := range rfp.tmpBigComplex {
-		rfp.tmpMask[i*2] = new(big.Int)
-		rfp.tmpMask[i*2+1] = new(big.Int)
 		rfp.tmpBigComplex[i] = ring.NewComplex(ring.NewFloat(0, precision), ring.NewFloat(0, precision))
 	}
 	rfp.encoder = ckks.NewEncoderBigComplex(params, precision)
@@ -121,14 +122,27 @@ func (rfp *MaskedTransformProtocol) GenShares(sk *rlwe.SecretKey, logBound, logS
 	rfp.e2s.GenShare(sk, logBound, logSlots, ct, &rlwe.AdditiveShareBigint{Value: rfp.tmpMask}, &shareOut.e2sShare)
 
 	slots := 1 << logSlots
-	gap := rfp.ringQ.N / (2 * slots)
+	gap := rfp.e2s.params.MaxSlots() / slots
 
 	// Applies LT(M_i)
 	if transform != nil {
+
 		// Extracts sparse coefficients
-		for i, jdx, idx := 0, rfp.ringQ.N>>1, 0; i < slots; i, jdx, idx = i+1, jdx+gap, idx+gap {
+		for i, idx := 0, 0; i < slots; i, idx = i+1, idx+gap {
 			rfp.tmpBigComplex[idx][0].SetInt(rfp.tmpMask[idx])
-			rfp.tmpBigComplex[idx][1].SetInt(rfp.tmpMask[jdx])
+		}
+
+		if rfp.e2s.params.RingType() == rlwe.RingStandard {
+			for i, idx, jdx := 0, 0, rfp.ringQ.N>>1; i < slots; i, idx, jdx = i+1, idx+gap, jdx+gap {
+				rfp.tmpBigComplex[idx][1].SetInt(rfp.tmpMask[jdx])
+			}
+		}
+
+		if rfp.e2s.params.RingType() == rlwe.RingConjugateInvariant {
+			tmp := new(big.Int)
+			for i, idx := 1, gap; i < slots; i, idx = i+1, idx+gap {
+				rfp.tmpBigComplex[idx][1].SetInt(tmp.Neg(rfp.tmpMask[slots-idx]))
+			}
 		}
 
 		// Decodes
@@ -141,9 +155,14 @@ func (rfp *MaskedTransformProtocol) GenShares(sk *rlwe.SecretKey, logBound, logS
 		rfp.encoder.InvFFT(rfp.tmpBigComplex, 1<<logSlots)
 
 		// Puts the coefficient back
-		for i, jdx, idx := 0, rfp.ringQ.N>>1, 0; i < slots; i, jdx, idx = i+1, jdx+gap, idx+gap {
+		for i, idx := 0, 0; i < slots; i, idx = i+1, idx+gap {
 			rfp.tmpBigComplex[i].Real().Int(rfp.tmpMask[idx])
-			rfp.tmpBigComplex[i].Imag().Int(rfp.tmpMask[jdx])
+		}
+
+		if rfp.e2s.params.RingType() == rlwe.RingStandard {
+			for i, jdx := 0, rfp.ringQ.N>>1; i < slots; i, jdx = i+1, jdx+gap {
+				rfp.tmpBigComplex[i].Imag().Int(rfp.tmpMask[jdx])
+			}
 		}
 	}
 
@@ -195,14 +214,26 @@ func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, logSlots int,
 	rfp.e2s.GetShare(nil, &share.e2sShare, ct, &rlwe.AdditiveShareBigint{Value: rfp.tmpMask})
 
 	slots := 1 << logSlots
-	gap := rfp.ringQ.N / (2 * slots)
+	gap := rfp.e2s.params.MaxSlots() / slots
 
 	// Returns LT(-sum(M_i) + x)
 	if transform != nil {
 		// Extracts sparse coefficients
-		for i, jdx, idx := 0, rfp.ringQ.N>>1, 0; i < slots; i, jdx, idx = i+1, jdx+gap, idx+gap {
+		for i, idx := 0, 0; i < slots; i, idx = i+1, idx+gap {
 			rfp.tmpBigComplex[idx][0].SetInt(rfp.tmpMask[idx])
-			rfp.tmpBigComplex[idx][1].SetInt(rfp.tmpMask[jdx])
+		}
+
+		if rfp.e2s.params.RingType() == rlwe.RingStandard {
+			for i, idx, jdx := 0, 0, rfp.ringQ.N>>1; i < slots; i, idx, jdx = i+1, idx+gap, jdx+gap {
+				rfp.tmpBigComplex[idx][1].SetInt(rfp.tmpMask[jdx])
+			}
+		}
+
+		if rfp.e2s.params.RingType() == rlwe.RingConjugateInvariant {
+			tmp := new(big.Int)
+			for i, idx := 1, gap; i < slots; i, idx = i+1, idx+gap {
+				rfp.tmpBigComplex[idx][1].SetInt(tmp.Neg(rfp.tmpMask[slots-idx]))
+			}
 		}
 
 		// Decodes
@@ -215,9 +246,14 @@ func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, logSlots int,
 		rfp.encoder.InvFFT(rfp.tmpBigComplex, 1<<logSlots)
 
 		// Puts the coefficient back
-		for i, jdx, idx := 0, rfp.ringQ.N>>1, 0; i < slots; i, jdx, idx = i+1, jdx+gap, idx+gap {
+		for i, idx := 0, 0; i < slots; i, idx = i+1, idx+gap {
 			rfp.tmpBigComplex[i].Real().Int(rfp.tmpMask[idx])
-			rfp.tmpBigComplex[i].Imag().Int(rfp.tmpMask[jdx])
+		}
+
+		if rfp.e2s.params.RingType() == rlwe.RingStandard {
+			for i, jdx := 0, rfp.ringQ.N>>1; i < slots; i, jdx = i+1, jdx+gap {
+				rfp.tmpBigComplex[i].Imag().Int(rfp.tmpMask[jdx])
+			}
 		}
 	}
 

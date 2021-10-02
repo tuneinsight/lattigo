@@ -204,7 +204,7 @@ func newTestVectorsEvalMod(params ckks.Parameters, encryptor ckks.Encryptor, enc
 
 	plaintext = ckks.NewPlaintext(params, params.MaxLevel(), params.Scale())
 
-	encoder.EncodeNTT(plaintext, values, logSlots)
+	encoder.Encode(plaintext, values, logSlots)
 
 	if encryptor != nil {
 		ciphertext = encryptor.EncryptNew(plaintext)

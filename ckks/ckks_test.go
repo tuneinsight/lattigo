@@ -149,7 +149,7 @@ func newTestVectors(testContext *testParams, encryptor Encryptor, a, b complex12
 
 	values[0] = complex(0.607538, 0)
 
-	plaintext = testContext.encoder.EncodeNTTAtLvlNew(testContext.params.MaxLevel(), values, logSlots)
+	plaintext = testContext.encoder.EncodeAtLvlNew(testContext.params.MaxLevel(), values, logSlots)
 
 	if encryptor != nil {
 		ciphertext = encryptor.EncryptNew(plaintext)

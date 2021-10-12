@@ -1,36 +1,36 @@
 package main
 
-import(
+import (
+	"fmt"
+	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
-	"github.com/ldsec/lattigo/v2/ckks"
-	"fmt"
-	"time"
-	"runtime"
 	"math/bits"
+	"runtime"
+	"time"
 )
 
 var LogN = 15
 
-func main(){
+func main() {
 	RLWE()
 	//SimulatedComplex()
 	//Complex()
 }
 
-func RLWE(){
+func RLWE() {
 	Q := []uint64{0x80000000080001}
 	P := []uint64{0x1fffffffffe00001}
 
 	RLWEParams := rlwe.ParametersLiteral{
-		LogN:12,
-		Q:Q,
-		P:P,
-		Sigma:rlwe.DefaultSigma,
-		RingType:rlwe.RingStandard,
+		LogN:     12,
+		Q:        Q,
+		P:        P,
+		Sigma:    rlwe.DefaultSigma,
+		RingType: rlwe.RingStandard,
 	}
-	scale := float64(1<<40)
+	scale := float64(1 << 40)
 
 	params, _ := rlwe.NewParametersFromLiteral(RLWEParams)
 	ks := rlwe.NewKeySwitcher(params)
@@ -40,9 +40,8 @@ func RLWE(){
 	encryptor := rlwe.NewEncryptor(params, sk)
 	decryptor := rlwe.NewDecryptor(params, sk)
 
-
 	rotations := []int{}
-	for i := 1; i < params.N(); i<<=1{
+	for i := 1; i < params.N(); i <<= 1 {
 		rotations = append(rotations, i)
 	}
 
@@ -50,12 +49,11 @@ func RLWE(){
 
 	ringQ := params.RingQ()
 
-
 	plaintext := rlwe.NewPlaintext(params, params.MaxLevel())
 	plaintext.Value.IsNTT = true
-	
-	for i := 0; i < ringQ.N; i++{
-		plaintext.Value.Coeffs[0][i] = uint64(float64(i+1)/float64(ringQ.N)*scale)
+
+	for i := 0; i < ringQ.N; i++ {
+		plaintext.Value.Coeffs[0][i] = uint64(float64(i+1) / float64(ringQ.N) * scale)
 	}
 	ringQ.NTT(plaintext.Value, plaintext.Value)
 
@@ -63,14 +61,12 @@ func RLWE(){
 
 	encryptor.Encrypt(plaintext, ciphertext)
 
-
 	//Extract LWE
 	ringQ.InvNTT(ciphertext.Value[0], ciphertext.Value[0])
 	ringQ.InvNTT(ciphertext.Value[1], ciphertext.Value[1])
 	LWE := ExtractLWESamples(ciphertext.Value[0], ciphertext.Value[1], ringQ)
 	ringQ.NTT(ciphertext.Value[0], ciphertext.Value[0])
 	ringQ.NTT(ciphertext.Value[1], ciphertext.Value[1])
-
 
 	ciphertexts := make([]*rlwe.Ciphertext, len(LWE))
 
@@ -93,24 +89,23 @@ func RLWE(){
 	}
 
 	galEls := make(map[uint64]uint64)
-	for i := 0; i < params.LogN()-1; i++{
-		galEls[1<<i] = params.GaloisElementForColumnRotationBy(1<<i)
+	for i := 0; i < params.LogN()-1; i++ {
+		galEls[1<<i] = params.GaloisElementForColumnRotationBy(1 << i)
 	}
 
 	acc := ringQ.NewPoly()
 	tmp := rlwe.NewCiphertextNTT(params, 1, plaintext.Level())
 
-	_=level
-	_=tmp
-	_=ks
+	_ = level
+	_ = tmp
+	_ = ks
 
-	
-	for i := range ciphertexts[:]{
+	for i := range ciphertexts[:] {
 
 		// Alocates ciphertext
 		ciphertexts[i] = rlwe.NewCiphertextNTT(params, 1, plaintext.Level())
 		ciphertexts[i].Value[0].Coeffs[0][0] = LWE[i].b
-		
+
 		// Copy coefficients multiplied by X^{N-1} in reverse order:
 		// a_{0} -a_{N-1} -a2_{N-2} ... -a_{1}
 		tmp0 := acc.Coeffs[0]
@@ -127,41 +122,37 @@ func RLWE(){
 		ringQ.NTT(ciphertexts[i].Value[1], ciphertexts[i].Value[1])
 	}
 
-	
 	now := time.Now()
 	ciphertext = PackLWEs(ciphertexts[:4096], ks, rtks, permuteNTTIndex, params, decryptor, plaintext)
 	fmt.Printf("Done : %s\n", time.Since(now))
 
-	
 	// Trace
 
-	for j := 11; j < 11; j++{
+	for j := 11; j < 11; j++ {
 		Rotate(ciphertext, galEls[uint64(1<<j)], permuteNTTIndex, params, ks, rtks, tmp)
 		ringQ.Add(ciphertext.Value[0], tmp.Value[0], ciphertext.Value[0])
 		ringQ.Add(ciphertext.Value[1], tmp.Value[1], ciphertext.Value[1])
 	}
 
-
 	DecryptAndPrint(decryptor, ringQ.N, ringQ, ciphertext, plaintext, scale)
 }
 
-
-func PackLWEs(ciphertexts []*rlwe.Ciphertext, ks *rlwe.KeySwitcher, rtks *rlwe.RotationKeySet, permuteNTTIndex map[uint64][]uint64, params rlwe.Parameters, decryptor rlwe.Decryptor, plaintext *rlwe.Plaintext) (*rlwe.Ciphertext){
+func PackLWEs(ciphertexts []*rlwe.Ciphertext, ks *rlwe.KeySwitcher, rtks *rlwe.RotationKeySet, permuteNTTIndex map[uint64][]uint64, params rlwe.Parameters, decryptor rlwe.Decryptor, plaintext *rlwe.Plaintext) *rlwe.Ciphertext {
 
 	ringQ := params.RingQ()
 
-	L := bits.Len64(uint64(len(ciphertexts)))-1
+	L := bits.Len64(uint64(len(ciphertexts))) - 1
 
-	if L == 0{
+	if L == 0 {
 		// Multiplies by N^-1
 		//ring.MulScalarMontgomeryVec(ciphertexts[0].Value[0].Coeffs[0], ciphertexts[0].Value[0].Coeffs[0], ringQ.NttNInv[0], ringQ.Modulus[0], ringQ.MredParams[0])
 		//ring.MulScalarMontgomeryVec(ciphertexts[0].Value[1].Coeffs[0], ciphertexts[0].Value[1].Coeffs[0], ringQ.NttNInv[0], ringQ.Modulus[0], ringQ.MredParams[0])
 		return ciphertexts[0]
-	}else{
+	} else {
 		odd := make([]*rlwe.Ciphertext, len(ciphertexts)>>1)
 		even := make([]*rlwe.Ciphertext, len(ciphertexts)>>1)
 
-		for i := 0; i < len(ciphertexts)>>1; i++{
+		for i := 0; i < len(ciphertexts)>>1; i++ {
 			odd[i] = ciphertexts[2*i]
 			even[i] = ciphertexts[2*i+1]
 		}
@@ -188,17 +179,16 @@ func PackLWEs(ciphertexts []*rlwe.Ciphertext, ks *rlwe.KeySwitcher, rtks *rlwe.R
 		ringQ.Add(ctEven.Value[0], ctOdd.Value[0], ctEven.Value[0])
 		ringQ.Add(ctEven.Value[1], ctOdd.Value[1], ctEven.Value[1])
 
-		
 		// phi(ctEven - ctOdd * X^(N/2^L), 2^L+1)
 		ringQ.Sub(tmpEven.Value[0], ctOdd.Value[0], tmpEven.Value[0])
 		ringQ.Sub(tmpEven.Value[1], ctOdd.Value[1], tmpEven.Value[1])
 
-		if L == 1{
+		if L == 1 {
 			Rotate(tmpEven, uint64(2*ringQ.N-1), permuteNTTIndex, params, ks, rtks, tmpEven)
-		}else{
+		} else {
 			Rotate(tmpEven, params.GaloisElementForColumnRotationBy(1<<(L-2)), permuteNTTIndex, params, ks, rtks, tmpEven)
 		}
-		
+
 		// ctEven + ctOdd * X^(N/2^L) + phi(ctEven - ctOdd * X^(N/2^L), 2^L+1)
 		ringQ.Add(ctEven.Value[0], tmpEven.Value[0], ctEven.Value[0])
 		ringQ.Add(ctEven.Value[1], tmpEven.Value[1], ctEven.Value[1])
@@ -208,23 +198,23 @@ func PackLWEs(ciphertexts []*rlwe.Ciphertext, ks *rlwe.KeySwitcher, rtks *rlwe.R
 	}
 }
 
-func DecryptAndPrint(decryptor rlwe.Decryptor, N int, ringQ *ring.Ring, ciphertext *rlwe.Ciphertext, plaintext *rlwe.Plaintext, scale float64){
+func DecryptAndPrint(decryptor rlwe.Decryptor, N int, ringQ *ring.Ring, ciphertext *rlwe.Ciphertext, plaintext *rlwe.Plaintext, scale float64) {
 	decryptor.Decrypt(ciphertext, plaintext)
 	ringQ.InvNTT(plaintext.Value, plaintext.Value)
-	
+
 	v := make([]float64, N)
 
-	for j := 0; j < N; j++{
+	for j := 0; j < N; j++ {
 		if plaintext.Value.Coeffs[0][j] >= ringQ.Modulus[0]>>1 {
-			v[j] = -float64(ringQ.Modulus[0]-plaintext.Value.Coeffs[0][j])
-		}else{
-		 	v[j] = float64(plaintext.Value.Coeffs[0][j])
+			v[j] = -float64(ringQ.Modulus[0] - plaintext.Value.Coeffs[0][j])
+		} else {
+			v[j] = float64(plaintext.Value.Coeffs[0][j])
 		}
 
 		v[j] /= scale
 	}
 
-	for j := 0; j < N; j++{
+	for j := 0; j < N; j++ {
 		fmt.Printf("%12.4f ", v[j])
 	}
 	fmt.Printf("\n")
@@ -272,7 +262,6 @@ func DecryptLWE(ringQ *ring.Ring, lwe LWESample, scale float64, skInvNTT *ring.P
 // ExtractLWESamplesBitReversed extracts LWE samples from a R-LWE sample
 func ExtractLWESamples(b, a *ring.Poly, ringQ *ring.Ring) (LWE []LWESample) {
 
-
 	N := ringQ.N
 
 	LWE = make([]LWESample, N)
@@ -292,7 +281,7 @@ func ExtractLWESamples(b, a *ring.Poly, ringQ *ring.Ring) (LWE []LWESample) {
 	pol := b
 
 	// Real values
-	for i := 0; i < N; i++{
+	for i := 0; i < N; i++ {
 
 		LWE[i].b = pol.Coeffs[0][i]
 		LWE[i].a = make([]uint64, N)
@@ -305,7 +294,6 @@ func ExtractLWESamples(b, a *ring.Poly, ringQ *ring.Ring) (LWE []LWESample) {
 	return
 }
 
-
 //MulBySmallMonomial multiplies pol by x^n
 func MulBySmallMonomial(ringQ *ring.Ring, pol *ring.Poly, n int) {
 	for i, qi := range ringQ.Modulus[:pol.Level()+1] {
@@ -317,7 +305,7 @@ func MulBySmallMonomial(ringQ *ring.Ring, pol *ring.Poly, n int) {
 	}
 }
 
-func SimulatedComplex(){
+func SimulatedComplex() {
 	// Schemes parameters are created from scratch
 	params, err := ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
 		LogN:     LogN,
@@ -369,7 +357,6 @@ func SimulatedComplex(){
 	//diagMatrixReal[4] = make([]complex128, params.Slots())
 	//diagMatrixReal[15] = make([]complex128, params.Slots())
 
-
 	//diagMatrixImag[-15] = make([]complex128, params.Slots())
 	//diagMatrixImag[-4] = make([]complex128, params.Slots())
 	diagMatrixImag[-1] = make([]complex128, params.Slots())
@@ -379,7 +366,6 @@ func SimulatedComplex(){
 	//diagMatrixImag[3] = make([]complex128, params.Slots())
 	//diagMatrixImag[4] = make([]complex128, params.Slots())
 	//diagMatrixImag[15] = make([]complex128, params.Slots())
-
 
 	for i := 0; i < params.Slots(); i++ {
 		//diagMatrixReal[-15][i] = complex(1, 0)
@@ -406,35 +392,33 @@ func SimulatedComplex(){
 	ptDiagReal := encoder.EncodeDiagMatrixBSGSAtLvl(params.MaxLevel(), diagMatrixReal, params.QiFloat64(params.MaxLevel()), 4.0, params.LogSlots())
 	ptDiagImag := encoder.EncodeDiagMatrixBSGSAtLvl(params.MaxLevel(), diagMatrixImag, params.QiFloat64(params.MaxLevel()), 4.0, params.LogSlots())
 
-
 	diagMat := PtDiagMatrix{
-		N1 : ptDiagReal.N1, 
-		Level : ptDiagReal.Level,
+		N1:       ptDiagReal.N1,
+		Level:    ptDiagReal.Level,
 		LogSlots: ptDiagReal.LogSlots,
-		Scale: ptDiagReal.Scale,
-		VecReal:ptDiagReal.Vec,
-		VecImag:ptDiagImag.Vec}
-
+		Scale:    ptDiagReal.Scale,
+		VecReal:  ptDiagReal.Vec,
+		VecImag:  ptDiagImag.Vec}
 
 	rots := params.RotationsForDiagMatrixMult(ptDiagReal)
 
 	rotKey := kgen.GenRotationKeysForRotations(rots, false, sk)
 
 	eval := NewEvaluator(params, rlk, rotKey)
-	_= ctB
+	_ = ctB
 
 	/*
-	var ctC Ciphertext
-	var tot time.Duration
-	for i := 0; i < 1; i++{
-		now := time.Now()
-		ctC = eval.MulRelinNew(ctA, ctB)
-		eval.Rescale(ctC.Real, eval.params.Scale(), ctC.Real)
-		eval.Rescale(ctC.Imag, eval.params.Scale(), ctC.Imag)
-		tot += time.Since(now)
-	}
-	fmt.Println("RCKKS - LogN :", params.LogN())
-	fmt.Printf("Done : %s\n", tot/100.)
+		var ctC Ciphertext
+		var tot time.Duration
+		for i := 0; i < 1; i++{
+			now := time.Now()
+			ctC = eval.MulRelinNew(ctA, ctB)
+			eval.Rescale(ctC.Real, eval.params.Scale(), ctC.Real)
+			eval.Rescale(ctC.Imag, eval.params.Scale(), ctC.Imag)
+			tot += time.Since(now)
+		}
+		fmt.Println("RCKKS - LogN :", params.LogN())
+		fmt.Printf("Done : %s\n", tot/100.)
 	*/
 
 	ctC := ctA
@@ -442,7 +426,7 @@ func SimulatedComplex(){
 	PoolDecompRealQP := make([]rlwe.PolyQP, params.Beta())
 	PoolDecompImagQP := make([]rlwe.PolyQP, params.Beta())
 
-	for i := range PoolDecompImagQP{
+	for i := range PoolDecompImagQP {
 		PoolDecompRealQP[i] = params.RingQP().NewPoly()
 		PoolDecompImagQP[i] = params.RingQP().NewPoly()
 	}
@@ -454,22 +438,20 @@ func SimulatedComplex(){
 
 	eval.MultiplyByDiagMatrixBSGS(ctC, diagMat, PoolDecompRealQP, PoolDecompImagQP, ctC)
 
-	
 	fmt.Println(ctC.Real.Scale)
 
 	vReal := encoder.DecodePublic(decryptor.DecryptNew(ctC.Real), params.LogSlots(), 0)
 	vImag := encoder.DecodePublic(decryptor.DecryptNew(ctC.Imag), params.LogSlots(), 0)
 
-	for i := range vReal[:4]{
+	for i := range vReal[:4] {
 		fmt.Println(i, real(vReal[i]), real(vImag[i]))
 	}
 }
 
-
-func Complex(){
+func Complex() {
 	// Schemes parameters are created from scratch
 	params, err := ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
-		LogN:     LogN+1,
+		LogN:     LogN + 1,
 		LogQ:     []int{55, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40},
 		LogP:     []int{45, 45, 45},
 		Sigma:    rlwe.DefaultSigma,
@@ -488,9 +470,9 @@ func Complex(){
 	encoder := ckks.NewEncoder(params)
 
 	rlk := kgen.GenRelinearizationKey(sk, 2)
-	eval := ckks.NewEvaluator(params, rlwe.EvaluationKey{Rlk: rlk, Rtks:nil})
+	eval := ckks.NewEvaluator(params, rlwe.EvaluationKey{Rlk: rlk, Rtks: nil})
 
-	values:= make([]complex128, params.Slots())
+	values := make([]complex128, params.Slots())
 	for i := range values {
 		values[i] = complex(0.9238795325112867, 0.3826834323650898)
 	}
@@ -501,7 +483,7 @@ func Complex(){
 
 	var A *ckks.Ciphertext
 	var tot time.Duration
-	for i := 0; i < 100; i++{
+	for i := 0; i < 100; i++ {
 		now := time.Now()
 		A = eval.MulRelinNew(ct, ct)
 		eval.Rescale(A, params.Scale(), A)
@@ -512,18 +494,18 @@ func Complex(){
 
 	v := encoder.DecodePublic(decryptor.DecryptNew(A), params.LogSlots(), 0)
 
-	for i := range v[:4]{
+	for i := range v[:4] {
 		fmt.Println(i, v[i])
 	}
 }
 
-type Evaluator struct{
+type Evaluator struct {
 	ckks.Evaluator
-	params ckks.Parameters
-	rlk *rlwe.RelinearizationKey
-	rtks *rlwe.RotationKeySet
+	params          ckks.Parameters
+	rlk             *rlwe.RelinearizationKey
+	rtks            *rlwe.RotationKeySet
 	permuteNTTIndex map[uint64][]uint64
-	ctxpool Ciphertext
+	ctxpool         Ciphertext
 }
 
 func (eval *Evaluator) permuteNTTIndexesForKey(rtks *rlwe.RotationKeySet) *map[uint64][]uint64 {
@@ -537,55 +519,55 @@ func (eval *Evaluator) permuteNTTIndexesForKey(rtks *rlwe.RotationKeySet) *map[u
 	return &permuteNTTIndex
 }
 
-func NewEvaluator(params ckks.Parameters, rlk *rlwe.RelinearizationKey, rtks *rlwe.RotationKeySet) (eval Evaluator){
+func NewEvaluator(params ckks.Parameters, rlk *rlwe.RelinearizationKey, rtks *rlwe.RotationKeySet) (eval Evaluator) {
 
 	eval = Evaluator{}
-	eval.Evaluator = ckks.NewEvaluator(params, rlwe.EvaluationKey{Rlk: rlk, Rtks:rtks})
+	eval.Evaluator = ckks.NewEvaluator(params, rlwe.EvaluationKey{Rlk: rlk, Rtks: rtks})
 	eval.params = params
-	eval.ctxpool =  NewCiphertext(params, 2, params.MaxLevel(), 0)
-	eval.rlk = rlk 
+	eval.ctxpool = NewCiphertext(params, 2, params.MaxLevel(), 0)
+	eval.rlk = rlk
 	eval.rtks = rtks
 
 	if eval.rtks != nil {
 		eval.permuteNTTIndex = *eval.permuteNTTIndexesForKey(rtks)
 	}
-	return 
+	return
 }
 
-type Ciphertext struct{
+type Ciphertext struct {
 	Real *ckks.Ciphertext
 	Imag *ckks.Ciphertext
 }
 
-func NewCiphertext(params ckks.Parameters, degree, level int, scale float64) Ciphertext{
-	return Ciphertext{Real:ckks.NewCiphertext(params, degree, level, scale), Imag:ckks.NewCiphertext(params, degree, level, scale)}
+func NewCiphertext(params ckks.Parameters, degree, level int, scale float64) Ciphertext {
+	return Ciphertext{Real: ckks.NewCiphertext(params, degree, level, scale), Imag: ckks.NewCiphertext(params, degree, level, scale)}
 }
 
-type Plaintext struct{
+type Plaintext struct {
 	Real *ckks.Plaintext
 	Imag *ckks.Plaintext
 }
 
-func (eval *Evaluator) MulRelinNew(A, B Ciphertext) (C Ciphertext){
+func (eval *Evaluator) MulRelinNew(A, B Ciphertext) (C Ciphertext) {
 	level := utils.MinInt(utils.MinInt(A.Real.Level(), A.Imag.Level()), utils.MinInt(B.Real.Level(), B.Imag.Level()))
 	C = Ciphertext{ckks.NewCiphertext(eval.params, 1, level, 0), ckks.NewCiphertext(eval.params, 1, level, 0)}
 	eval.mulRelin(A, B, C, true)
 	return
 }
 
-func (eval *Evaluator) MulRelin(A, B, C Ciphertext){
+func (eval *Evaluator) MulRelin(A, B, C Ciphertext) {
 	eval.mulRelin(A, B, C, true)
 	return
 }
 
-func (eval *Evaluator) MulNew(A, B Ciphertext) (C Ciphertext){
+func (eval *Evaluator) MulNew(A, B Ciphertext) (C Ciphertext) {
 	level := utils.MinInt(utils.MinInt(A.Real.Level(), A.Imag.Level()), utils.MinInt(B.Real.Level(), B.Imag.Level()))
 	C = Ciphertext{ckks.NewCiphertext(eval.params, 2, level, 0), ckks.NewCiphertext(eval.params, 2, level, 0)}
 	eval.mulRelin(A, B, C, false)
 	return
 }
 
-func (eval *Evaluator) Mul(A, B, C Ciphertext){
+func (eval *Evaluator) Mul(A, B, C Ciphertext) {
 	eval.mulRelin(A, B, C, false)
 	return
 }
@@ -596,12 +578,11 @@ type Operand interface {
 	Level() int
 }
 
-
-func (eval *Evaluator) MulPlain(A Ciphertext, B Plaintext, C Ciphertext){
+func (eval *Evaluator) MulPlain(A Ciphertext, B Plaintext, C Ciphertext) {
 
 }
 
-func (eval *Evaluator) mulRelin(A, B, C Ciphertext, relin bool){
+func (eval *Evaluator) mulRelin(A, B, C Ciphertext, relin bool) {
 
 	if A.Real.Degree() > 1 || A.Imag.Degree() > 1 || B.Real.Degree() > 1 || B.Imag.Degree() > 1 {
 		panic("cannot MulRelin: input elements must be degree 0 or 1")
@@ -611,18 +592,18 @@ func (eval *Evaluator) mulRelin(A, B, C Ciphertext, relin bool){
 
 	ringQ := eval.params.RingQ()
 
-	C.Real.Scale = A.Real.Scale*B.Real.Scale
-	C.Imag.Scale = A.Imag.Scale*B.Imag.Scale
+	C.Real.Scale = A.Real.Scale * B.Real.Scale
+	C.Imag.Scale = A.Imag.Scale * B.Imag.Scale
 
 	var c00, c01 *ring.Poly
 
 	ks := eval.GetKeySwitcher()
 	pool0, pool1, pool2, pool3 := ks.Pool[1].Q, ks.Pool[2].Q, ks.Pool[3].Q, ks.Pool[4].Q
 
-	if A.Real.Degree() + A.Imag.Degree() == 2 && B.Real.Degree() + B.Imag.Degree() == 2{
+	if A.Real.Degree()+A.Imag.Degree() == 2 && B.Real.Degree()+B.Imag.Degree() == 2 {
 
 		var c2Real, c2Imag *ring.Poly
-		if relin == false{
+		if relin == false {
 			if C.Real.Degree() < 2 {
 				C.Real.El().Resize(eval.params.Parameters, 2)
 			}
@@ -632,7 +613,7 @@ func (eval *Evaluator) mulRelin(A, B, C Ciphertext, relin bool){
 
 			c2Real = C.Real.Value[2]
 			c2Imag = C.Imag.Value[2]
-		}else{
+		} else {
 			c2Real = pool0
 			c2Imag = pool1
 		}
@@ -641,23 +622,23 @@ func (eval *Evaluator) mulRelin(A, B, C Ciphertext, relin bool){
 		c01 = eval.PoolQMul()[1]
 
 		// (a + b) * (c + d)
-		if A.Real != B.Real && A.Imag != B.Imag{
+		if A.Real != B.Real && A.Imag != B.Imag {
 
 			// Mont(a)
 			ringQ.MFormConstantLvl(level, A.Real.Value[0], c00)
 			ringQ.MFormConstantLvl(level, A.Real.Value[1], c01)
 
 			// ac
-			ringQ.MulCoeffsMontgomeryConstantLvl(level, c00, B.Real.Value[0], C.Real.Value[0]) 	 // r0 : 2q
-			ringQ.MulCoeffsMontgomeryConstantLvl(level, c00, B.Real.Value[1], C.Real.Value[1])	 // r1 : 2q
+			ringQ.MulCoeffsMontgomeryConstantLvl(level, c00, B.Real.Value[0], C.Real.Value[0])    // r0 : 2q
+			ringQ.MulCoeffsMontgomeryConstantLvl(level, c00, B.Real.Value[1], C.Real.Value[1])    // r1 : 2q
 			ringQ.MulCoeffsMontgomeryAndAddNoModLvl(level, c01, B.Real.Value[0], C.Real.Value[1]) // r1 : 3q
-			ringQ.MulCoeffsMontgomeryConstantLvl(level, c01, B.Real.Value[1], c2Real)    // r2 : 2q
+			ringQ.MulCoeffsMontgomeryConstantLvl(level, c01, B.Real.Value[1], c2Real)             // r2 : 2q
 
 			// ad
-			ringQ.MulCoeffsMontgomeryConstantLvl(level, c00, B.Imag.Value[0], C.Imag.Value[0]) 	 // i0 : 2q	
-			ringQ.MulCoeffsMontgomeryConstantLvl(level, c00, B.Imag.Value[1], C.Imag.Value[1])	 // i1 : 2q
+			ringQ.MulCoeffsMontgomeryConstantLvl(level, c00, B.Imag.Value[0], C.Imag.Value[0])    // i0 : 2q
+			ringQ.MulCoeffsMontgomeryConstantLvl(level, c00, B.Imag.Value[1], C.Imag.Value[1])    // i1 : 2q
 			ringQ.MulCoeffsMontgomeryAndAddNoModLvl(level, c01, B.Imag.Value[0], C.Imag.Value[1]) // i1 : 3q
-			ringQ.MulCoeffsMontgomeryConstantLvl(level, c01, B.Imag.Value[1], c2Imag)	 // i2 : 2q
+			ringQ.MulCoeffsMontgomeryConstantLvl(level, c01, B.Imag.Value[1], c2Imag)             // i2 : 2q
 
 			// Mont(b)
 			ringQ.MFormConstantLvl(level, A.Imag.Value[0], c00)
@@ -667,17 +648,17 @@ func (eval *Evaluator) mulRelin(A, B, C Ciphertext, relin bool){
 			ringQ.MulCoeffsMontgomeryAndSubNoModLvl(level, c00, B.Imag.Value[0], C.Real.Value[0]) // r0 : 3q
 			ringQ.MulCoeffsMontgomeryAndSubNoModLvl(level, c00, B.Imag.Value[1], C.Real.Value[1]) // r1 : 4q
 			ringQ.MulCoeffsMontgomeryAndSubNoModLvl(level, c01, B.Imag.Value[0], C.Real.Value[1]) // r1 : 5q
-			ringQ.MulCoeffsMontgomeryAndSubNoModLvl(level, c01, B.Imag.Value[1], c2Real) // r2 : 3q
+			ringQ.MulCoeffsMontgomeryAndSubNoModLvl(level, c01, B.Imag.Value[1], c2Real)          // r2 : 3q
 
 			// ad + bc
 			ringQ.MulCoeffsMontgomeryAndAddNoModLvl(level, c00, B.Real.Value[0], C.Imag.Value[0]) // i0 : 3q
 			ringQ.MulCoeffsMontgomeryAndAddNoModLvl(level, c00, B.Real.Value[1], C.Imag.Value[1]) // i1 : 4q
 			ringQ.MulCoeffsMontgomeryAndAddNoModLvl(level, c01, B.Real.Value[0], C.Imag.Value[1]) // i1 : 5q
-			ringQ.MulCoeffsMontgomeryAndAddNoModLvl(level, c01, B.Real.Value[1], c2Imag) // i2 : 3q
+			ringQ.MulCoeffsMontgomeryAndAddNoModLvl(level, c01, B.Real.Value[1], c2Imag)          // i2 : 3q
 		}
 
 		// (a + b) * (a + c)
-		if A.Real == B.Real && A.Imag != B.Imag{
+		if A.Real == B.Real && A.Imag != B.Imag {
 			// Mont(a)
 			ringQ.MFormConstantLvl(level, A.Real.Value[0], c00)
 			ringQ.MFormConstantLvl(level, A.Real.Value[1], c01)
@@ -693,20 +674,20 @@ func (eval *Evaluator) mulRelin(A, B, C Ciphertext, relin bool){
 			ringQ.AddNoModLvl(level, A.Imag.Value[1], B.Imag.Value[1], pool3)
 
 			// a * (b + c)
-			ringQ.MulCoeffsMontgomeryConstantLvl(level, c00, pool2, C.Imag.Value[0]) 
-			ringQ.MulCoeffsMontgomeryConstantLvl(level, c00, pool3, C.Imag.Value[1]) 
-			ringQ.MulCoeffsMontgomeryAndAddNoModLvl(level, c01, pool2, C.Imag.Value[1]) 
-			ringQ.MulCoeffsMontgomeryConstantLvl(level, c01, pool3, c2Imag) 
+			ringQ.MulCoeffsMontgomeryConstantLvl(level, c00, pool2, C.Imag.Value[0])
+			ringQ.MulCoeffsMontgomeryConstantLvl(level, c00, pool3, C.Imag.Value[1])
+			ringQ.MulCoeffsMontgomeryAndAddNoModLvl(level, c01, pool2, C.Imag.Value[1])
+			ringQ.MulCoeffsMontgomeryConstantLvl(level, c01, pool3, c2Imag)
 
 			// Mont(b)
 			ringQ.MFormConstantLvl(level, A.Imag.Value[0], c00)
 			ringQ.MFormConstantLvl(level, A.Imag.Value[1], c01)
-			
+
 			// a * a - b * c
 			ringQ.MulCoeffsMontgomeryAndSubNoModLvl(level, c00, B.Imag.Value[0], C.Real.Value[0]) // r0 : 3q
 			ringQ.MulCoeffsMontgomeryAndSubNoModLvl(level, c00, B.Imag.Value[1], C.Real.Value[1]) // r1 : 4q
 			ringQ.MulCoeffsMontgomeryAndSubNoModLvl(level, c01, B.Imag.Value[0], C.Real.Value[1]) // r1 : 5q
-			ringQ.MulCoeffsMontgomeryAndSubNoModLvl(level, c01, B.Imag.Value[1], c2Real) // r2 : 3q
+			ringQ.MulCoeffsMontgomeryAndSubNoModLvl(level, c01, B.Imag.Value[1], c2Real)          // r2 : 3q
 		}
 
 		// (a + b) * (c + b)
@@ -719,63 +700,63 @@ func (eval *Evaluator) mulRelin(A, B, C Ciphertext, relin bool){
 			// b * b
 			ringQ.MulCoeffsMontgomeryConstantAndNegLvl(level, c00, B.Imag.Value[0], C.Real.Value[0]) // r0 : 3q
 			ringQ.MulCoeffsMontgomeryConstantAndNegLvl(level, c00, B.Imag.Value[1], C.Real.Value[1]) // r1 : 4q
-			ringQ.MulCoeffsMontgomeryAndSubNoModLvl(level, c01, B.Imag.Value[0], C.Real.Value[1]) // r1 : 5q
-			ringQ.MulCoeffsMontgomeryConstantAndNegLvl(level, c01, B.Imag.Value[1], c2Real) // r2 : 3q
+			ringQ.MulCoeffsMontgomeryAndSubNoModLvl(level, c01, B.Imag.Value[0], C.Real.Value[1])    // r1 : 5q
+			ringQ.MulCoeffsMontgomeryConstantAndNegLvl(level, c01, B.Imag.Value[1], c2Real)          // r2 : 3q
 
 			// a + c
 			ringQ.AddNoModLvl(level, A.Real.Value[0], B.Real.Value[0], pool2)
 			ringQ.AddNoModLvl(level, A.Real.Value[1], B.Real.Value[1], pool3)
 
 			// b * (a + c)
-			ringQ.MulCoeffsMontgomeryConstantLvl(level, c00, pool2, C.Imag.Value[0]) 
-			ringQ.MulCoeffsMontgomeryConstantLvl(level, c00, pool3, C.Imag.Value[1]) 
-			ringQ.MulCoeffsMontgomeryAndAddNoModLvl(level, c01, pool2, C.Imag.Value[1]) 
-			ringQ.MulCoeffsMontgomeryConstantLvl(level, c01, pool3, c2Imag) 
+			ringQ.MulCoeffsMontgomeryConstantLvl(level, c00, pool2, C.Imag.Value[0])
+			ringQ.MulCoeffsMontgomeryConstantLvl(level, c00, pool3, C.Imag.Value[1])
+			ringQ.MulCoeffsMontgomeryAndAddNoModLvl(level, c01, pool2, C.Imag.Value[1])
+			ringQ.MulCoeffsMontgomeryConstantLvl(level, c01, pool3, c2Imag)
 
 			// Mont(a)
 			ringQ.MFormConstantLvl(level, A.Real.Value[0], c00)
 			ringQ.MFormConstantLvl(level, A.Real.Value[1], c01)
-			
+
 			// a * c - b * b
 			ringQ.MulCoeffsMontgomeryAndAddNoModLvl(level, c00, B.Real.Value[0], C.Real.Value[0]) // r0 : 3q
 			ringQ.MulCoeffsMontgomeryAndAddNoModLvl(level, c00, B.Real.Value[1], C.Real.Value[1]) // r1 : 4q
 			ringQ.MulCoeffsMontgomeryAndAddNoModLvl(level, c01, B.Real.Value[0], C.Real.Value[1]) // r1 : 5q
-			ringQ.MulCoeffsMontgomeryAndAddNoModLvl(level, c01, B.Real.Value[1], c2Real) // r2 : 3q
+			ringQ.MulCoeffsMontgomeryAndAddNoModLvl(level, c01, B.Real.Value[1], c2Real)          // r2 : 3q
 		}
 
 		// (a + b) * (a + b)
-		if A.Real == B.Real && A.Imag == B.Imag{
+		if A.Real == B.Real && A.Imag == B.Imag {
 
 			// Mont(a)
 			ringQ.MFormConstantLvl(level, A.Real.Value[0], c00)
 			ringQ.MFormConstantLvl(level, A.Real.Value[1], c01)
 
 			// aa
-			ringQ.MulCoeffsMontgomeryConstantLvl(level, c00, B.Real.Value[0], C.Real.Value[0]) 	 // r0 : 2q
-			ringQ.MulCoeffsMontgomeryConstantLvl(level, c00, B.Real.Value[1], C.Real.Value[1])	 // r1 : 2q
+			ringQ.MulCoeffsMontgomeryConstantLvl(level, c00, B.Real.Value[0], C.Real.Value[0])    // r0 : 2q
+			ringQ.MulCoeffsMontgomeryConstantLvl(level, c00, B.Real.Value[1], C.Real.Value[1])    // r1 : 2q
 			ringQ.MulCoeffsMontgomeryAndAddNoModLvl(level, c01, B.Real.Value[0], C.Real.Value[1]) // r1 : 3q
-			ringQ.MulCoeffsMontgomeryConstantLvl(level, c01, B.Real.Value[1], c2Real)    // r2 : 2q
+			ringQ.MulCoeffsMontgomeryConstantLvl(level, c01, B.Real.Value[1], c2Real)             // r2 : 2q
 
 			// ab
-			ringQ.MulCoeffsMontgomeryConstantLvl(level, c00, B.Imag.Value[0], C.Imag.Value[0]) 	 // i0 : 2q	
-			ringQ.MulCoeffsMontgomeryConstantLvl(level, c00, B.Imag.Value[1], C.Imag.Value[1])	 // i1 : 2q
+			ringQ.MulCoeffsMontgomeryConstantLvl(level, c00, B.Imag.Value[0], C.Imag.Value[0])    // i0 : 2q
+			ringQ.MulCoeffsMontgomeryConstantLvl(level, c00, B.Imag.Value[1], C.Imag.Value[1])    // i1 : 2q
 			ringQ.MulCoeffsMontgomeryAndAddNoModLvl(level, c01, B.Imag.Value[0], C.Imag.Value[1]) // i1 : 3q
-			ringQ.MulCoeffsMontgomeryConstantLvl(level, c01, B.Imag.Value[1], c2Imag)	 // i2 : 2q
+			ringQ.MulCoeffsMontgomeryConstantLvl(level, c01, B.Imag.Value[1], c2Imag)             // i2 : 2q
 
 			// 2ab
-			ringQ.AddNoModLvl(level, C.Imag.Value[0], C.Imag.Value[0], C.Imag.Value[0]) 	 
-			ringQ.AddNoModLvl(level, C.Imag.Value[1], C.Imag.Value[1], C.Imag.Value[1]) 	 
-			ringQ.AddNoModLvl(level, c2Imag, c2Imag, c2Imag) 	 
- 
+			ringQ.AddNoModLvl(level, C.Imag.Value[0], C.Imag.Value[0], C.Imag.Value[0])
+			ringQ.AddNoModLvl(level, C.Imag.Value[1], C.Imag.Value[1], C.Imag.Value[1])
+			ringQ.AddNoModLvl(level, c2Imag, c2Imag, c2Imag)
+
 			// Mont(b)
 			ringQ.MFormConstantLvl(level, A.Imag.Value[0], c00)
 			ringQ.MFormConstantLvl(level, A.Imag.Value[1], c01)
 
 			// aa - bb
-			ringQ.MulCoeffsMontgomeryAndSubNoModLvl(level, c00, B.Imag.Value[0], C.Real.Value[0]) 
-			ringQ.MulCoeffsMontgomeryAndSubNoModLvl(level, c00, B.Imag.Value[1], C.Real.Value[1]) 
-			ringQ.MulCoeffsMontgomeryAndSubNoModLvl(level, c01, B.Imag.Value[0], C.Real.Value[1]) 
-			ringQ.MulCoeffsMontgomeryAndSubNoModLvl(level, c01, B.Imag.Value[1], c2Real) 
+			ringQ.MulCoeffsMontgomeryAndSubNoModLvl(level, c00, B.Imag.Value[0], C.Real.Value[0])
+			ringQ.MulCoeffsMontgomeryAndSubNoModLvl(level, c00, B.Imag.Value[1], C.Real.Value[1])
+			ringQ.MulCoeffsMontgomeryAndSubNoModLvl(level, c01, B.Imag.Value[0], C.Real.Value[1])
+			ringQ.MulCoeffsMontgomeryAndSubNoModLvl(level, c01, B.Imag.Value[1], c2Real)
 		}
 
 		ringQ.ReduceConstantLvl(level, C.Real.Value[0], C.Real.Value[0])
@@ -785,7 +766,7 @@ func (eval *Evaluator) mulRelin(A, B, C Ciphertext, relin bool){
 		ringQ.ReduceConstantLvl(level, C.Imag.Value[1], C.Imag.Value[1])
 		ringQ.ReduceConstantLvl(level, c2Imag, c2Imag)
 
-		if relin{
+		if relin {
 			c2Real.IsNTT = true
 			ks.SwitchKeysInPlace(level, c2Real, eval.rlk.Keys[0], pool2, pool3)
 			ringQ.AddLvl(level, C.Real.Value[0], pool2, C.Real.Value[0])
@@ -803,12 +784,12 @@ func (ct *Ciphertext) Level() int {
 }
 
 type PtDiagMatrix struct {
-	N1 int
-	Level int
+	N1       int
+	Level    int
 	LogSlots int
-	Scale float64
-	VecReal map[int]rlwe.PolyQP
-	VecImag map[int]rlwe.PolyQP
+	Scale    float64
+	VecReal  map[int]rlwe.PolyQP
+	VecImag  map[int]rlwe.PolyQP
 }
 
 // MultiplyByDiagMatrixBSGS multiplies the ciphertext "ctIn" by the plaintext matrix "matrix" and returns the result on the ciphertext
@@ -916,7 +897,7 @@ func (eval *Evaluator) MultiplyByDiagMatrixBSGS(ctIn Ciphertext, matrix PtDiagMa
 					ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, matrix.VecReal[N1*j+i], ctInRotRealQP[i][0], tmpReal0QP)
 					ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, matrix.VecReal[N1*j+i], ctInRotRealQP[i][1], tmpReal1QP)
 					ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, matrix.VecImag[N1*j+i], ctInRotImagQP[i][0], tmpReal0QP)
-					ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ,levelP,  matrix.VecImag[N1*j+i], ctInRotImagQP[i][1], tmpReal1QP)
+					ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, matrix.VecImag[N1*j+i], ctInRotImagQP[i][1], tmpReal1QP)
 
 					ringQP.MulCoeffsMontgomeryLvl(levelQ, levelP, matrix.VecReal[N1*j+i], ctInRotImagQP[i][0], tmpImag0QP)
 					ringQP.MulCoeffsMontgomeryLvl(levelQ, levelP, matrix.VecReal[N1*j+i], ctInRotImagQP[i][1], tmpImag1QP)
@@ -985,7 +966,7 @@ func (eval *Evaluator) MultiplyByDiagMatrixBSGS(ctIn Ciphertext, matrix PtDiagMa
 			tmpReal1QP.Q.IsNTT = true
 			tmpImag1QP.Q.IsNTT = true
 			ks.SwitchKeysInPlaceNoModDown(levelQ, tmpReal1QP.Q, rtk, c0RealQP.Q, c0RealQP.P, c1RealQP.Q, c1RealQP.P) // Switchkey(P*phi(tmpRes_1)) = (d0, d1) in base QP
-			ks.SwitchKeysInPlaceNoModDown(levelQ, tmpImag1QP.Q, rtk, c0ImagQP.Q, c0ImagQP.P, c1ImagQP.Q, c1ImagQP.P) 
+			ks.SwitchKeysInPlaceNoModDown(levelQ, tmpImag1QP.Q, rtk, c0ImagQP.Q, c0ImagQP.P, c1ImagQP.Q, c1ImagQP.P)
 
 			ringQP.AddLvl(levelQ, levelP, c0RealQP, tmpReal0QP, c0RealQP)
 			ringQP.AddLvl(levelQ, levelP, c0ImagQP, tmpImag0QP, c0ImagQP)

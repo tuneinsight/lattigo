@@ -171,14 +171,14 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
 	case paramDef.LogQ != nil && paramDef.Q == nil && paramDef.LogP != nil && paramDef.P == nil:
 		var q, p []uint64
 		var err error
-		if paramDef.RingType == RingStandard{
+		if paramDef.RingType == RingStandard {
 			q, p, err = GenModuli(paramDef.LogN, paramDef.LogQ, paramDef.LogP)
-		}else if paramDef.RingType == RingConjugateInvariant{
+		} else if paramDef.RingType == RingConjugateInvariant {
 			q, p, err = GenModuli(paramDef.LogN+1, paramDef.LogQ, paramDef.LogP)
-		}else{
+		} else {
 			panic("invalid ringType")
 		}
-		
+
 		if err != nil {
 			return Parameters{}, err
 		}

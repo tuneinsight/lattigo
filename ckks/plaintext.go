@@ -6,18 +6,17 @@ import (
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
-
 // Plaintext is is a Element with only one Poly.
 type Plaintext struct {
-	Real *rlwe.Plaintext
-	Imag *rlwe.Plaintext
+	Real      *rlwe.Plaintext
+	Imag      *rlwe.Plaintext
 	IsComplex bool
-	Scale float64
+	Scale     float64
 }
 
 // NewPlaintext creates a new Plaintext of level level and scale scale.
 func NewPlaintext(params Parameters, level int, scale float64) *Plaintext {
-	pt := &Plaintext{Real: rlwe.NewPlaintext(params.Parameters, level), Imag:nil, IsComplex:true, Scale: scale}
+	pt := &Plaintext{Real: rlwe.NewPlaintext(params.Parameters, level), Imag: nil, IsComplex: true, Scale: scale}
 	pt.Real.Value.IsNTT = true
 	return pt
 }
@@ -26,14 +25,14 @@ func (p *Plaintext) Degree() int {
 	return 0
 }
 
-func (p *Plaintext) El() *rlwe.Ciphertext{
+func (p *Plaintext) El() *rlwe.Ciphertext {
 	return &rlwe.Ciphertext{Value: []*ring.Poly{p.Real.Value}}
 }
 
 func (p *Plaintext) Level() int {
-	if p.Imag == nil{
+	if p.Imag == nil {
 		return p.Real.Level()
-	}else{
+	} else {
 		return utils.MinInt(p.Real.Level(), p.Imag.Level())
 	}
 }

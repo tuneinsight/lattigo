@@ -138,6 +138,33 @@ func (el *Ciphertext) Resize(params Parameters, degree int) {
 	}
 }
 
+// PadDefaultRingToConjuateInvariant converts a polynomial in Z[X]/(X^N +1) to a polynomial in Z[X+X^-1]/(X^2N+1).
+// Conversion will be done outside of the NTT domain.
+// Default ring Z[X]/(X^N +1) and ConjugateInvariant ring Z[X+X^-1]/(X^2N+1) must share the same moduli.
+func PadDefaultRingToConjuateInvariant(p1 *ring.Poly, ringDef, ringConjInv *ring.Ring, p2 *ring.Poly){
+
+	level := utils.MinInt(p1.Level(), p2.Level())
+	n := len(p1.Coeffs[0])
+
+	for i := 0; i < level+1; i++{
+		qi := ringDef.Modulus[i]
+		if qi != ringConjInv.Modulus[i]{
+			panic("p1 and p2 rings must share the same moduli")
+		}
+
+		if len(p2.Coeffs[i]) != 2*len(p1.Coeffs[i]) {
+			panic("p2 degree must be twice the one of p1")
+		}
+
+		tmp := p2.Coeffs[i]
+		tmp[0] = 0
+		for j := 1; j < n; j++ {
+			tmp[n-j] = qi - tmp[j]
+		}
+	}
+}
+
+
 // SwitchCiphertextRingDegreeNTT changes the ring degree of ctIn to the one of ctOut.
 // Maps Y^{N/n} -> X^{N} or X^{N} -> Y^{N/n}.
 // If the ring degree of ctOut is larger than the one of ctIn, then the ringQ of ctIn

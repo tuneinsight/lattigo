@@ -330,6 +330,44 @@ func MulCoeffsMontgomeryAndSubNoMod(p1, p2, p3 []uint64, qi, mredParams uint64) 
 	}
 }
 
+// MulCoeffsMontgomeryAndSubNoMod returns p3 = p3 - p1*p2 mod qi with output coefficients in range [0, 3qi-2].
+func MulCoeffsMontgomeryConstantAndSubNoMod(p1, p2, p3 []uint64, qi, mredParams uint64) {
+	twoQi := qi<<1
+	for j := 0; j < len(p1); j = j + 8 {
+		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
+		y := (*[8]uint64)(unsafe.Pointer(&p2[j]))
+		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
+
+		z[0] += twoQi - MRedConstant(x[0], y[0], qi, mredParams)
+		z[1] += twoQi - MRedConstant(x[1], y[1], qi, mredParams)
+		z[2] += twoQi - MRedConstant(x[2], y[2], qi, mredParams)
+		z[3] += twoQi - MRedConstant(x[3], y[3], qi, mredParams)
+		z[4] += twoQi - MRedConstant(x[4], y[4], qi, mredParams)
+		z[5] += twoQi - MRedConstant(x[5], y[5], qi, mredParams)
+		z[6] += twoQi - MRedConstant(x[6], y[6], qi, mredParams)
+		z[7] += twoQi - MRedConstant(x[7], y[7], qi, mredParams)
+	}
+}
+
+// MulCoeffsMontgomeryConstantAndNeg returns p3 = - p1*p2 mod qi with output coefficients in range [0, 2qi-2].
+func MulCoeffsMontgomeryConstantAndNeg(p1, p2, p3 []uint64, qi, mredParams uint64) {
+	twoqi := qi<<1
+	for j := 0; j < len(p1); j = j + 8 {
+		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
+		y := (*[8]uint64)(unsafe.Pointer(&p2[j]))
+		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
+
+		z[0] = twoqi - MRedConstant(x[0], y[0], qi, mredParams)
+		z[1] = twoqi - MRedConstant(x[1], y[1], qi, mredParams)
+		z[2] = twoqi - MRedConstant(x[2], y[2], qi, mredParams)
+		z[3] = twoqi - MRedConstant(x[3], y[3], qi, mredParams)
+		z[4] = twoqi - MRedConstant(x[4], y[4], qi, mredParams)
+		z[5] = twoqi - MRedConstant(x[5], y[5], qi, mredParams)
+		z[6] = twoqi - MRedConstant(x[6], y[6], qi, mredParams)
+		z[7] = twoqi - MRedConstant(x[7], y[7], qi, mredParams)
+	}
+}
+
 // MulCoeffsConstantVec returns p3 = p1*p2 mod qi with output coefficients in range [0, 2qi-1].
 func MulCoeffsConstantVec(p1, p2, p3 []uint64, qi uint64, bredParams []uint64) {
 	for j := 0; j < len(p1); j = j + 8 {
@@ -527,6 +565,23 @@ func MFormVec(p1, p2 []uint64, qi uint64, bredParams []uint64) {
 		z[5] = MForm(x[5], qi, bredParams)
 		z[6] = MForm(x[6], qi, bredParams)
 		z[7] = MForm(x[7], qi, bredParams)
+	}
+}
+
+// MFormVec returns p2 = p1 * 2^64 mod qi with result in the range [0, 2q-1]
+func MFormConstantVec(p1, p2 []uint64, qi uint64, bredParams []uint64) {
+	for j := 0; j < len(p1); j = j + 8 {
+		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
+		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
+
+		z[0] = MFormConstant(x[0], qi, bredParams)
+		z[1] = MFormConstant(x[1], qi, bredParams)
+		z[2] = MFormConstant(x[2], qi, bredParams)
+		z[3] = MFormConstant(x[3], qi, bredParams)
+		z[4] = MFormConstant(x[4], qi, bredParams)
+		z[5] = MFormConstant(x[5], qi, bredParams)
+		z[6] = MFormConstant(x[6], qi, bredParams)
+		z[7] = MFormConstant(x[7], qi, bredParams)
 	}
 }
 

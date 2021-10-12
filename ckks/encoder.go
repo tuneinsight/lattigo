@@ -20,9 +20,9 @@ var pi = "3.14159265358979323846264338327950288419716939937510582097494459230781
 
 // Encoder is an interface implenting the encoding algorithms.
 type Encoder interface {
-	Encode(plaintext *Plaintext, values []complex128, logSlots int)
-	EncodeNew(values []complex128, logSlots int) (plaintext *Plaintext)
-	EncodeAtLvlNew(level int, values []complex128, logSlots int) (plaintext *Plaintext)
+	Encode(plaintext *Plaintext, values interface{}, logSlots int)
+	EncodeNew(values interface{}, logSlots int) (plaintext *Plaintext)
+	EncodeAtLvlNew(level int, values interface{}, logSlots int) (plaintext *Plaintext)
 
 	EncodeDiagMatrixBSGSAtLvl(level int, vector map[int][]complex128, scale, maxM1N2Ratio float64, logSlots int) (matrix PtDiagMatrix)
 	EncodeDiagMatrixAtLvl(level int, vector map[int][]complex128, scale float64, logSlots int) (matrix PtDiagMatrix)
@@ -30,9 +30,6 @@ type Encoder interface {
 
 	Decode(plaintext *Plaintext, logSlots int) (res []complex128)
 	DecodePublic(plaintext *Plaintext, logSlots int, sigma float64) []complex128
-
-	Embed(values []complex128, logSlots int)
-	ScaleUp(pol *ring.Poly, scale float64, moduli []uint64)
 
 	WipeInternalMemory()
 
@@ -75,7 +72,8 @@ type encoder struct {
 type encoderComplex128 struct {
 	encoder
 	values      []complex128
-	valuesfloat []float64
+	valuesFloatReal []float64
+	valuesFloatImag []float64
 	roots       []complex128
 }
 
@@ -128,19 +126,20 @@ func NewEncoder(params Parameters) Encoder {
 		encoder:     encoder,
 		roots:       roots,
 		values:      make([]complex128, encoder.m>>2),
-		valuesfloat: make([]float64, encoder.m>>1),
+		valuesFloatReal: make([]float64, encoder.m>>1),
+		valuesFloatImag: make([]float64, encoder.m>>1),
 	}
 }
 
 // EncodeNTTNew encodes a slice of complex128 of length slots = 2^{logSlots} on new plaintext at the maximum level.
 // Returns a plaintext in the NTT domain.
-func (encoder *encoderComplex128) EncodeNew(values []complex128, logSlots int) (plaintext *Plaintext) {
+func (encoder *encoderComplex128) EncodeNew(values interface{}, logSlots int) (plaintext *Plaintext) {
 	return encoder.EncodeAtLvlNew(encoder.params.MaxLevel(), values, logSlots)
 }
 
 // EncodeNTTAtLvlNew encodes a slice of complex128 of length slots = 2^{logSlots} on new plaintext at the desired level.
 // Returns a plaintext in the NTT domain.
-func (encoder *encoderComplex128) EncodeAtLvlNew(level int, values []complex128, logSlots int) (plaintext *Plaintext) {
+func (encoder *encoderComplex128) EncodeAtLvlNew(level int, values interface{}, logSlots int) (plaintext *Plaintext) {
 	plaintext = NewPlaintext(encoder.params, level, encoder.params.Scale())
 	encoder.Encode(plaintext, values, logSlots)
 	return
@@ -148,46 +147,105 @@ func (encoder *encoderComplex128) EncodeAtLvlNew(level int, values []complex128,
 
 // EncodeNTT encodes a slice of complex128 of length slots = 2^{logSlots} on the input plaintext.
 // Returns a plaintext in the NTT domain.
-func (encoder *encoderComplex128) Encode(plaintext *Plaintext, values []complex128, logSlots int) {
-	encoder.Embed(values, logSlots)
-	encoder.ScaleUp(plaintext.Value, plaintext.Scale, encoder.params.RingQ().Modulus[:plaintext.Level()+1])
-	encoder.params.RingQ().NTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
-	plaintext.Value.IsNTT = true
+func (encoder *encoderComplex128) Encode(plaintext *Plaintext, values interface{}, logSlots int) {
+	encoder.embed(values, logSlots)
+	scaleUpVecExact(encoder.valuesFloatReal[:encoder.params.N()], plaintext.Scale, encoder.params.RingQ().Modulus[:plaintext.Level()+1], plaintext.Real.Value.Coeffs)
+	encoder.params.RingQ().NTTLvl(plaintext.Level(), plaintext.Real.Value, plaintext.Real.Value)
+	plaintext.Real.Value.IsNTT = true
 }
 
 // Embed encodes a vector and stores internally the encoded values.
 // To be used in conjunction with ScaleUp.
-func (encoder *encoderComplex128) Embed(values []complex128, logSlots int) {
+func (encoder *encoderComplex128) embed(values interface{}, logSlots int) {
 
 	encoder.WipeInternalMemory()
 
 	slots := 1 << logSlots
 
-	if len(values) > int(encoder.params.RingQ().NthRoot>>1) || len(values) > slots || slots > int(encoder.params.RingQ().NthRoot>>2) {
-		panic("cannot Encode: too many values/slots for the given ring degree")
-	}
-
-	for i := range values {
-		encoder.values[i] = values[i]
-	}
-
-	invfft(encoder.values, slots, encoder.m, encoder.rotGroup, encoder.roots)
-
 	N := encoder.params.RingQ().N
-	switch encoder.params.RingType() {
-	case rlwe.RingStandard:
-		gap := (N >> 1) / slots
-		for i, jdx, idx := 0, N>>1, 0; i < slots; i, jdx, idx = i+1, jdx+gap, idx+gap {
-			encoder.valuesfloat[idx] = real(encoder.values[i])
-			encoder.valuesfloat[jdx] = imag(encoder.values[i])
+
+	// First checks the type of input values
+	switch values := values.(type){
+
+	// If complex
+	case []complex128:
+
+		// Checks that the number of values is with the possible range
+		if len(values) > int(encoder.params.RingQ().NthRoot>>1) || len(values) > slots || slots > int(encoder.params.RingQ().NthRoot>>2) {
+			panic("cannot Encode: too many values/slots for the given ring degree")
 		}
-	case rlwe.RingConjugateInvariant:
+
+		// If the ring is Standard, then proceeds as usual
+		if encoder.params.RingType() == rlwe.RingStandard{
+
+			for i := range values {
+				encoder.values[i] = values[i]
+			}
+
+			copy(encoder.values[:len(values)], values)
+
+			invfft(encoder.values, slots, encoder.m, encoder.rotGroup, encoder.roots)
+
+			gap := (N >> 1) / slots
+
+			for i, idx, jdx := 0, 0, N>>1; i < slots; i, idx, jdx = i+1, idx+gap, jdx+gap {
+				encoder.valuesFloatReal[idx] = real(encoder.values[i])
+				encoder.valuesFloatReal[jdx] = imag(encoder.values[i])
+			}
+
+		// if the ring is RingConjugateInvariant then does two separate encoding
+		}else if encoder.params.RingType() == rlwe.RingConjugateInvariant{
+
+			// Real Part
+			for i := range values {
+				encoder.values[i] = complex(real(values[i]), 0)
+			}
+
+			invfft(encoder.values, slots, encoder.m, encoder.rotGroup, encoder.roots)
+
+			gap := N / slots
+
+			for i, idx := 0, 0; i < slots; i, idx = i+1, idx+gap {
+					encoder.valuesFloatReal[idx] = real(encoder.values[i])
+			}
+
+			// Imag Part
+			for i := range values {
+				encoder.values[i] = complex(imag(values[i]), 0)
+			}
+
+			invfft(encoder.values, slots, encoder.m, encoder.rotGroup, encoder.roots)
+
+			for i, idx := 0, 0; i < slots; i, idx = i+1, idx+gap {
+					encoder.valuesFloatImag[idx] = real(encoder.values[i])
+			}
+		}
+		
+	// If floats only
+	case []float64:
+
+		if encoder.params.RingType() != rlwe.RingConjugateInvariant{
+			panic("cannot encode []float64 when using rlwe.RingStandard")
+		}
+
+		if len(values) > int(encoder.params.RingQ().NthRoot>>1) || len(values) > slots || slots > int(encoder.params.RingQ().NthRoot>>2) {
+			panic("cannot Encode: too many values/slots for the given ring degree")
+		}
+
+		for i := range values {
+			encoder.values[i] = complex(values[i], 0)
+		}
+
+		invfft(encoder.values, slots, encoder.m, encoder.rotGroup, encoder.roots)
+
 		gap := N / slots
+
 		for i, idx := 0, 0; i < slots; i, idx = i+1, idx+gap {
-			encoder.valuesfloat[idx] = real(encoder.values[i])
+			encoder.valuesFloatReal[idx] = real(encoder.values[i])
 		}
+
 	default:
-		panic("invalide rlwe.RingType")
+		panic("values must be []complex128 or []float64")
 	}
 }
 
@@ -196,10 +254,10 @@ func (encoder *encoderComplex128) GetErrSTDSlotDomain(valuesWant, valuesHave []c
 	var err complex128
 	for i := range valuesWant {
 		err = valuesWant[i] - valuesHave[i]
-		encoder.valuesfloat[2*i] = real(err)
-		encoder.valuesfloat[2*i+1] = imag(err)
+		encoder.valuesFloatReal[2*i] = real(err)
+		encoder.valuesFloatReal[2*i+1] = imag(err)
 	}
-	return StandardDeviation(encoder.valuesfloat[:len(valuesWant)*2], scale)
+	return StandardDeviation(encoder.valuesFloatReal[:len(valuesWant)*2], scale)
 }
 
 // GetErrSTDCoeffDomain returns the scaled standard deviation in the coefficient domain of the difference between two complex vectors in the slot domains
@@ -215,17 +273,12 @@ func (encoder *encoderComplex128) GetErrSTDCoeffDomain(valuesWant, valuesHave []
 	invfft(encoder.values, 1<<bits.Len64(uint64(len(valuesHave)-1)), encoder.m, encoder.rotGroup, encoder.roots)
 
 	for i := range valuesWant {
-		encoder.valuesfloat[2*i] = real(encoder.values[i])
-		encoder.valuesfloat[2*i+1] = imag(encoder.values[i])
+		encoder.valuesFloatReal[2*i] = real(encoder.values[i])
+		encoder.valuesFloatReal[2*i+1] = imag(encoder.values[i])
 	}
 
-	return StandardDeviation(encoder.valuesfloat[:len(valuesWant)*2], scale)
+	return StandardDeviation(encoder.valuesFloatReal[:len(valuesWant)*2], scale)
 
-}
-
-// ScaleUp writes the internaly stored encoded values on a polynomial.
-func (encoder *encoderComplex128) ScaleUp(pol *ring.Poly, scale float64, moduli []uint64) {
-	scaleUpVecExact(encoder.valuesfloat[:encoder.params.N()], scale, moduli, pol.Coeffs)
 }
 
 // WipeInternalMemory sets the internally stored encoded values of the encoder to zero.
@@ -234,8 +287,9 @@ func (encoder *encoderComplex128) WipeInternalMemory() {
 		encoder.values[i] = 0
 	}
 
-	for i := range encoder.valuesfloat {
-		encoder.valuesfloat[i] = 0
+	for i := range encoder.valuesFloatReal {
+		encoder.valuesFloatReal[i] = 0
+		encoder.valuesFloatImag[i] = 0
 	}
 }
 
@@ -377,7 +431,7 @@ type PtDiagMatrix struct {
 	isGaussian bool // Each diagonal of the matrix is of the form [k, ..., k] for k a gaussian integer
 }
 
-func bsgsIndex(el interface{}, slots, N1 int) (index map[int][]int, rotations []int) {
+func BsgsIndex(el interface{}, slots, N1 int) (index map[int][]int, rotations []int) {
 	index = make(map[int][]int)
 	rotations = []int{}
 	switch element := el.(type) {
@@ -455,7 +509,7 @@ func (encoder *encoderComplex128) EncodeDiagMatrixBSGSAtLvl(level int, diagMatri
 	// N1*N2 = N
 	n1 := FindBestBSGSSplit(diagMatrix, slots, maxM1N2Ratio)
 
-	index, _ := bsgsIndex(diagMatrix, slots, n1)
+	index, _ := BsgsIndex(diagMatrix, slots, n1)
 
 	vec := make(map[int]rlwe.PolyQP)
 
@@ -506,11 +560,11 @@ func (encoder *encoderComplex128) EncodeDiagonal(logSlots, level int, scale floa
 	levelP := encoder.params.PCount() - 1
 	ringQP := encoder.params.RingQP()
 
-	encoder.Embed(m, logSlots)
+	encoder.embed(m, logSlots)
 
 	vecQP = ringQP.NewPolyLvl(levelQ, levelP)
-	encoder.ScaleUp(vecQP.Q, scale, encoder.params.RingQ().Modulus[:level+1])
-	encoder.ScaleUp(vecQP.P, scale, encoder.params.RingP().Modulus)
+	scaleUpVecExact(encoder.valuesFloatReal[:encoder.params.N()], scale, encoder.params.RingQ().Modulus[:level+1], vecQP.Q.Coeffs)
+	scaleUpVecExact(encoder.valuesFloatReal[:encoder.params.N()], scale, encoder.params.RingP().Modulus, vecQP.P.Coeffs)
 	ringQP.NTTLvl(levelQ, levelP, vecQP, vecQP)
 	ringQP.MFormLvl(levelQ, levelP, vecQP, vecQP)
 
@@ -524,7 +578,7 @@ func FindBestBSGSSplit(diagMatrix interface{}, maxN int, maxRatio float64) (minN
 
 	for N1 := 1; N1 < maxN; N1 <<= 1 {
 
-		index, _ := bsgsIndex(diagMatrix, maxN, N1)
+		index, _ := BsgsIndex(diagMatrix, maxN, N1)
 
 		if len(index[0]) > 0 {
 
@@ -563,10 +617,10 @@ func (encoder *encoderComplex128) decodePublic(plaintext *Plaintext, logSlots in
 		panic("cannot Decode: too many slots for the given ring degree")
 	}
 
-	if plaintext.Value.IsNTT {
-		encoder.params.RingQ().InvNTTLvl(plaintext.Level(), plaintext.Value, encoder.polypool)
+	if plaintext.Real.Value.IsNTT {
+		encoder.params.RingQ().InvNTTLvl(plaintext.Level(), plaintext.Real.Value, encoder.polypool)
 	} else {
-		ring.CopyValuesLvl(plaintext.Level(), plaintext.Value, encoder.polypool)
+		ring.CopyValuesLvl(plaintext.Level(), plaintext.Real.Value, encoder.polypool)
 	}
 
 	// B = floor(sigma * sqrt(2*pi))
@@ -652,17 +706,17 @@ func (encoder *encoderComplex128) EncodeCoeffs(values []float64, plaintext *Plai
 		panic("cannot EncodeCoeffs : too many values (maximum is N)")
 	}
 
-	scaleUpVecExact(values, plaintext.Scale, encoder.params.RingQ().Modulus[:plaintext.Level()+1], plaintext.Value.Coeffs)
+	scaleUpVecExact(values, plaintext.Scale, encoder.params.RingQ().Modulus[:plaintext.Level()+1], plaintext.Real.Value.Coeffs)
 
-	plaintext.Value.IsNTT = false
+	plaintext.Real.Value.IsNTT = false
 }
 
 // EncodeCoeffsNTT takes as input a polynomial a0 + a1x + a2x^2 + ... + an-1x^n-1 with float coefficient
 // and returns a scaled integer plaintext polynomial in NTT. Encodes at the input plaintext level.
 func (encoder *encoderComplex128) EncodeCoeffsNTT(values []float64, plaintext *Plaintext) {
 	encoder.EncodeCoeffs(values, plaintext)
-	encoder.params.RingQ().NTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
-	plaintext.Value.IsNTT = true
+	encoder.params.RingQ().NTTLvl(plaintext.Level(), plaintext.Real.Value, plaintext.Real.Value)
+	plaintext.Real.Value.IsNTT = true
 }
 
 // DecodeCoeffsPublic takes as input a plaintext and returns the scaled down coefficient of the plaintext in float64.
@@ -678,10 +732,10 @@ func (encoder *encoderComplex128) DecodeCoeffs(plaintext *Plaintext) (res []floa
 // DecodeCoeffs takes as input a plaintext and returns the scaled down coefficient of the plaintext in float64.
 func (encoder *encoderComplex128) decodeCoeffsPublic(plaintext *Plaintext, sigma float64) (res []float64) {
 
-	if plaintext.Value.IsNTT {
-		encoder.params.RingQ().InvNTTLvl(plaintext.Level(), plaintext.Value, encoder.polypool)
+	if plaintext.Real.Value.IsNTT {
+		encoder.params.RingQ().InvNTTLvl(plaintext.Level(), plaintext.Real.Value, encoder.polypool)
 	} else {
-		ring.CopyValuesLvl(plaintext.Level(), plaintext.Value, encoder.polypool)
+		ring.CopyValuesLvl(plaintext.Level(), plaintext.Real.Value, encoder.polypool)
 	}
 
 	if sigma != 0 {
@@ -828,8 +882,8 @@ func (encoder *encoderBigComplex) EncodeNTTAtLvlNew(level int, values []*ring.Co
 // Returns a plaintext in the NTT domain.
 func (encoder *encoderBigComplex) EncodeNTT(plaintext *Plaintext, values []*ring.Complex, logSlots int) {
 	encoder.Encode(plaintext, values, logSlots)
-	encoder.params.RingQ().NTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
-	plaintext.Value.IsNTT = true
+	encoder.params.RingQ().NTTLvl(plaintext.Level(), plaintext.Real.Value, plaintext.Real.Value)
+	plaintext.Real.Value.IsNTT = true
 }
 
 // Encode encodes a slice of ring.Complex of length slots = 2^{logSlots} on a plaintext at the input plaintext level.
@@ -858,11 +912,11 @@ func (encoder *encoderBigComplex) Encode(plaintext *Plaintext, values []*ring.Co
 		encoder.valuesfloat[jdx].Set(encoder.values[i].Imag())
 	}
 
-	scaleUpVecExactBigFloat(encoder.valuesfloat, plaintext.Scale, encoder.params.RingQ().Modulus[:plaintext.Level()+1], plaintext.Value.Coeffs)
+	scaleUpVecExactBigFloat(encoder.valuesfloat, plaintext.Scale, encoder.params.RingQ().Modulus[:plaintext.Level()+1], plaintext.Real.Value.Coeffs)
 
 	coeffsBigInt := make([]*big.Int, encoder.params.N())
 
-	encoder.params.RingQ().PolyToBigint(plaintext.Value, coeffsBigInt)
+	encoder.params.RingQ().PolyToBigint(plaintext.Real.Value, coeffsBigInt)
 
 	for i := 0; i < (encoder.params.RingQ().N >> 1); i++ {
 		encoder.values[i].Real().Set(encoder.zero)
@@ -893,7 +947,7 @@ func (encoder *encoderBigComplex) decodePublic(plaintext *Plaintext, logSlots in
 		panic("cannot Decode: too many slots for the given ring degree")
 	}
 
-	encoder.params.RingQ().InvNTTLvl(plaintext.Level(), plaintext.Value, encoder.polypool)
+	encoder.params.RingQ().InvNTTLvl(plaintext.Level(), plaintext.Real.Value, encoder.polypool)
 
 	if sigma != 0 {
 		// B = floor(sigma * sqrt(2*pi))

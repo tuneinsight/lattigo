@@ -149,9 +149,9 @@ func (encoder *encoderComplex128) EncodeAtLvlNew(level int, values interface{}, 
 // Returns a plaintext in the NTT domain.
 func (encoder *encoderComplex128) Encode(plaintext *Plaintext, values interface{}, logSlots int) {
 	encoder.embed(values, logSlots)
-	scaleUpVecExact(encoder.valuesFloatReal[:encoder.params.N()], plaintext.Scale, encoder.params.RingQ().Modulus[:plaintext.Level()+1], plaintext.Real.Value.Coeffs)
-	encoder.params.RingQ().NTTLvl(plaintext.Level(), plaintext.Real.Value, plaintext.Real.Value)
-	plaintext.Real.Value.IsNTT = true
+	scaleUpVecExact(encoder.valuesFloatReal[:encoder.params.N()], plaintext.Scale, encoder.params.RingQ().Modulus[:plaintext.Level()+1], plaintext.Value.Coeffs)
+	encoder.params.RingQ().NTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
+	plaintext.Value.IsNTT = true
 }
 
 // Embed encodes a vector and stores internally the encoded values.
@@ -431,6 +431,7 @@ type PtDiagMatrix struct {
 	isGaussian bool // Each diagonal of the matrix is of the form [k, ..., k] for k a gaussian integer
 }
 
+// BsgsIndex returns the index map and needed rotation for the BSGS matrix-vector multiplication algorithm.
 func BsgsIndex(el interface{}, slots, N1 int) (index map[int][]int, rotations []int) {
 	index = make(map[int][]int)
 	rotations = []int{}
@@ -617,10 +618,10 @@ func (encoder *encoderComplex128) decodePublic(plaintext *Plaintext, logSlots in
 		panic("cannot Decode: too many slots for the given ring degree")
 	}
 
-	if plaintext.Real.Value.IsNTT {
-		encoder.params.RingQ().InvNTTLvl(plaintext.Level(), plaintext.Real.Value, encoder.polypool)
+	if plaintext.Value.IsNTT {
+		encoder.params.RingQ().InvNTTLvl(plaintext.Level(), plaintext.Value, encoder.polypool)
 	} else {
-		ring.CopyValuesLvl(plaintext.Level(), plaintext.Real.Value, encoder.polypool)
+		ring.CopyValuesLvl(plaintext.Level(), plaintext.Value, encoder.polypool)
 	}
 
 	// B = floor(sigma * sqrt(2*pi))
@@ -706,17 +707,17 @@ func (encoder *encoderComplex128) EncodeCoeffs(values []float64, plaintext *Plai
 		panic("cannot EncodeCoeffs : too many values (maximum is N)")
 	}
 
-	scaleUpVecExact(values, plaintext.Scale, encoder.params.RingQ().Modulus[:plaintext.Level()+1], plaintext.Real.Value.Coeffs)
+	scaleUpVecExact(values, plaintext.Scale, encoder.params.RingQ().Modulus[:plaintext.Level()+1], plaintext.Value.Coeffs)
 
-	plaintext.Real.Value.IsNTT = false
+	plaintext.Value.IsNTT = false
 }
 
 // EncodeCoeffsNTT takes as input a polynomial a0 + a1x + a2x^2 + ... + an-1x^n-1 with float coefficient
 // and returns a scaled integer plaintext polynomial in NTT. Encodes at the input plaintext level.
 func (encoder *encoderComplex128) EncodeCoeffsNTT(values []float64, plaintext *Plaintext) {
 	encoder.EncodeCoeffs(values, plaintext)
-	encoder.params.RingQ().NTTLvl(plaintext.Level(), plaintext.Real.Value, plaintext.Real.Value)
-	plaintext.Real.Value.IsNTT = true
+	encoder.params.RingQ().NTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
+	plaintext.Value.IsNTT = true
 }
 
 // DecodeCoeffsPublic takes as input a plaintext and returns the scaled down coefficient of the plaintext in float64.
@@ -732,10 +733,10 @@ func (encoder *encoderComplex128) DecodeCoeffs(plaintext *Plaintext) (res []floa
 // DecodeCoeffs takes as input a plaintext and returns the scaled down coefficient of the plaintext in float64.
 func (encoder *encoderComplex128) decodeCoeffsPublic(plaintext *Plaintext, sigma float64) (res []float64) {
 
-	if plaintext.Real.Value.IsNTT {
-		encoder.params.RingQ().InvNTTLvl(plaintext.Level(), plaintext.Real.Value, encoder.polypool)
+	if plaintext.Value.IsNTT {
+		encoder.params.RingQ().InvNTTLvl(plaintext.Level(), plaintext.Value, encoder.polypool)
 	} else {
-		ring.CopyValuesLvl(plaintext.Level(), plaintext.Real.Value, encoder.polypool)
+		ring.CopyValuesLvl(plaintext.Level(), plaintext.Value, encoder.polypool)
 	}
 
 	if sigma != 0 {
@@ -882,8 +883,8 @@ func (encoder *encoderBigComplex) EncodeNTTAtLvlNew(level int, values []*ring.Co
 // Returns a plaintext in the NTT domain.
 func (encoder *encoderBigComplex) EncodeNTT(plaintext *Plaintext, values []*ring.Complex, logSlots int) {
 	encoder.Encode(plaintext, values, logSlots)
-	encoder.params.RingQ().NTTLvl(plaintext.Level(), plaintext.Real.Value, plaintext.Real.Value)
-	plaintext.Real.Value.IsNTT = true
+	encoder.params.RingQ().NTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
+	plaintext.Value.IsNTT = true
 }
 
 // Encode encodes a slice of ring.Complex of length slots = 2^{logSlots} on a plaintext at the input plaintext level.
@@ -912,11 +913,11 @@ func (encoder *encoderBigComplex) Encode(plaintext *Plaintext, values []*ring.Co
 		encoder.valuesfloat[jdx].Set(encoder.values[i].Imag())
 	}
 
-	scaleUpVecExactBigFloat(encoder.valuesfloat, plaintext.Scale, encoder.params.RingQ().Modulus[:plaintext.Level()+1], plaintext.Real.Value.Coeffs)
+	scaleUpVecExactBigFloat(encoder.valuesfloat, plaintext.Scale, encoder.params.RingQ().Modulus[:plaintext.Level()+1], plaintext.Value.Coeffs)
 
 	coeffsBigInt := make([]*big.Int, encoder.params.N())
 
-	encoder.params.RingQ().PolyToBigint(plaintext.Real.Value, coeffsBigInt)
+	encoder.params.RingQ().PolyToBigint(plaintext.Value, coeffsBigInt)
 
 	for i := 0; i < (encoder.params.RingQ().N >> 1); i++ {
 		encoder.values[i].Real().Set(encoder.zero)
@@ -947,7 +948,7 @@ func (encoder *encoderBigComplex) decodePublic(plaintext *Plaintext, logSlots in
 		panic("cannot Decode: too many slots for the given ring degree")
 	}
 
-	encoder.params.RingQ().InvNTTLvl(plaintext.Level(), plaintext.Real.Value, encoder.polypool)
+	encoder.params.RingQ().InvNTTLvl(plaintext.Level(), plaintext.Value, encoder.polypool)
 
 	if sigma != 0 {
 		// B = floor(sigma * sqrt(2*pi))

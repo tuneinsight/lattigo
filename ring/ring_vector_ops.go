@@ -330,7 +330,7 @@ func MulCoeffsMontgomeryAndSubNoMod(p1, p2, p3 []uint64, qi, mredParams uint64) 
 	}
 }
 
-// MulCoeffsMontgomeryAndSubNoMod returns p3 = p3 - p1*p2 mod qi with output coefficients in range [0, 3qi-2].
+// MulCoeffsMontgomeryConstantAndSubNoMod returns p3 = p3 - p1*p2 mod qi with output coefficients in range [0, 3qi-2].
 func MulCoeffsMontgomeryConstantAndSubNoMod(p1, p2, p3 []uint64, qi, mredParams uint64) {
 	twoQi := qi << 1
 	for j := 0; j < len(p1); j = j + 8 {
@@ -568,7 +568,7 @@ func MFormVec(p1, p2 []uint64, qi uint64, bredParams []uint64) {
 	}
 }
 
-// MFormVec returns p2 = p1 * 2^64 mod qi with result in the range [0, 2q-1]
+// MFormConstantVec returns p2 = p1 * 2^64 mod qi with result in the range [0, 2q-1]
 func MFormConstantVec(p1, p2 []uint64, qi uint64, bredParams []uint64) {
 	for j := 0; j < len(p1); j = j + 8 {
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))

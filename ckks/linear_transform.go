@@ -497,7 +497,7 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix PtDiagM
 
 	// Computes the rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giang-step algorithm
 
-	index, rotations := bsgsIndex(matrix.Vec, 1<<matrix.LogSlots, matrix.N1)
+	index, rotations := BsgsIndex(matrix.Vec, 1<<matrix.LogSlots, matrix.N1)
 
 	var ctInTmp0, ctInTmp1 *ring.Poly
 	if ctIn == ctOut {

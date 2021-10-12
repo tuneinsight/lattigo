@@ -192,6 +192,14 @@ func (r *Ring) MulCoeffsMontgomeryConstantLvl(level int, p1, p2, p3 *Poly) {
 	}
 }
 
+// MulCoeffsMontgomeryConstantAndNegLvl multiplies p1 by p2 coefficient-wise with a Montgomery
+// modular reduction for the moduli from q_0 up to q_level and returns the negative result on p3.
+func (r *Ring) MulCoeffsMontgomeryConstantAndNegLvl(level int, p1, p2, p3 *Poly) {
+	for i := 0; i < level+1; i++ {
+		MulCoeffsMontgomeryConstantAndNeg(p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i], r.Modulus[i], r.MredParams[i])
+	}
+}
+
 // MulCoeffsMontgomeryAndAdd multiplies p1 by p2 coefficient-wise with a
 // Montgomery modular reduction and adds the result to p3.
 func (r *Ring) MulCoeffsMontgomeryAndAdd(p1, p2, p3 *Poly) {
@@ -261,6 +269,15 @@ func (r *Ring) MulCoeffsMontgomeryAndSubNoMod(p1, p2, p3 *Poly) {
 func (r *Ring) MulCoeffsMontgomeryAndSubNoModLvl(level int, p1, p2, p3 *Poly) {
 	for i := 0; i < level+1; i++ {
 		MulCoeffsMontgomeryAndSubNoMod(p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i], r.Modulus[i], r.MredParams[i])
+	}
+}
+
+// MulCoeffsMontgomeryConstantAndSubNoModLvl multiplies p1 by p2 coefficient-wise with a Montgomery
+// modular reduction and subtracts the result from p3 without modular reduction.
+// Return values in [0, 3q-1]
+func (r *Ring) MulCoeffsMontgomeryConstantAndSubNoModLvl(level int, p1, p2, p3 *Poly) {
+	for i := 0; i < level+1; i++ {
+		MulCoeffsMontgomeryConstantAndSubNoMod(p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i], r.Modulus[i], r.MredParams[i])
 	}
 }
 
@@ -372,6 +389,14 @@ func (r *Ring) MForm(p1, p2 *Poly) {
 func (r *Ring) MFormLvl(level int, p1, p2 *Poly) {
 	for i := 0; i < level+1; i++ {
 		MFormVec(p1.Coeffs[i], p2.Coeffs[i], r.Modulus[i], r.BredParams[i])
+	}
+}
+
+// MFormConstantLvl switches p1 to the Montgomery domain for the moduli from q_0 up to q_level and writes the result on p2.
+// Result is in the range [0, 2q-1]
+func (r *Ring) MFormConstantLvl(level int, p1, p2 *Poly) {
+	for i := 0; i < level+1; i++ {
+		MFormConstantVec(p1.Coeffs[i], p2.Coeffs[i], r.Modulus[i], r.BredParams[i])
 	}
 }
 

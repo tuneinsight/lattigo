@@ -141,6 +141,14 @@ func (r *RingQP) MulCoeffsMontgomeryAndSubLvl(levelQ, levelP int, p1, p2, p3 Pol
 	r.RingP.MulCoeffsMontgomeryAndSubLvl(levelP, p1.P, p2.P, p3.P)
 }
 
+// MulCoeffsMontgomeryConstantAndSubNoModLvl multiplies p1 by p2 coefficient-wise with
+// a Montgomery modular reduction and subtracts the result from p3.
+// The operation is performed at levelQ for the ringQ and levelP for the ringP.
+func (r *RingQP) MulCoeffsMontgomeryConstantAndSubNoModLvl(levelQ, levelP int, p1, p2, p3 PolyQP) {
+	r.RingQ.MulCoeffsMontgomeryConstantAndSubNoModLvl(levelQ, p1.Q, p2.Q, p3.Q)
+	r.RingP.MulCoeffsMontgomeryConstantAndSubNoModLvl(levelP, p1.P, p2.P, p3.P)
+}
+
 // MulCoeffsMontgomeryAndAddLvl multiplies p1 by p2 coefficient-wise with a
 // Montgomery modular reduction and adds the result to p3.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.

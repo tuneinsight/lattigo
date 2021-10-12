@@ -36,7 +36,7 @@ func NewFastEncryptor(params Parameters, key *rlwe.PublicKey) Encryptor {
 // and NewFastEncryptor).
 // The level of the output ciphertext is min(plaintext.Level(), ciphertext.Level()).
 func (enc *encryptor) Encrypt(plaintext *Plaintext, ctOut *Ciphertext) {
-	enc.Encryptor.Encrypt(&rlwe.Plaintext{Value: plaintext.Value}, &rlwe.Ciphertext{Value: ctOut.Value})
+	enc.Encryptor.Encrypt(plaintext.Real, ctOut.Ciphertext)
 	ctOut.Scale = plaintext.Scale
 }
 
@@ -44,25 +44,25 @@ func (enc *encryptor) Encrypt(plaintext *Plaintext, ctOut *Ciphertext) {
 // The encryption algorithm depends on how the receiver encryptor was initialized (see
 // NewEncryptor and NewFastEncryptor).
 // The level of the output ciphertext is min(plaintext.Level(), ciphertext.Level()).
-func (enc *encryptor) EncryptNew(plaintext *Plaintext) *Ciphertext {
-	ct := NewCiphertext(enc.params, 1, plaintext.Level(), plaintext.Scale)
-	enc.Encryptor.Encrypt(&rlwe.Plaintext{Value: plaintext.Value}, ct.Ciphertext)
-	return ct
+func (enc *encryptor) EncryptNew(plaintext *Plaintext) (ctOut *Ciphertext) {
+	ctOut = NewCiphertext(enc.params, 1, plaintext.Level(), plaintext.Scale)
+	enc.Encryptor.Encrypt(plaintext.Real, ctOut.Ciphertext)
+	return
 }
 
 // EncryptFromCRP encrypts the input plaintext and writes the result in ctOut.
 // The passed crp is always treated as being in the NTT domain and the level of the output ciphertext is
 // min(plaintext.Level(), ciphertext.Level()).
 func (enc *encryptor) EncryptFromCRP(plaintext *Plaintext, crp *ring.Poly, ctOut *Ciphertext) {
-	enc.Encryptor.EncryptFromCRP(&rlwe.Plaintext{Value: plaintext.Value}, crp, &rlwe.Ciphertext{Value: ctOut.Value})
+	enc.Encryptor.EncryptFromCRP(plaintext.Real, crp, ctOut.Ciphertext)
 	ctOut.Scale = plaintext.Scale
 }
 
 // EncryptFromCRPNew encrypts the input plaintext and returns the result as a newly allocated ciphertext.
 // The passed crp is always treated as being in the NTT domain and the level of the output ciphertext is
 // min(plaintext.Level(), ciphertext.Level()).
-func (enc *encryptor) EncryptFromCRPNew(plaintext *Plaintext, crp *ring.Poly) *Ciphertext {
-	ct := NewCiphertext(enc.params, 1, plaintext.Level(), plaintext.Scale)
-	enc.Encryptor.EncryptFromCRP(&rlwe.Plaintext{Value: plaintext.Value}, crp, ct.Ciphertext)
-	return &Ciphertext{Ciphertext: ct.Ciphertext, Scale: plaintext.Scale}
+func (enc *encryptor) EncryptFromCRPNew(plaintext *Plaintext, crp *ring.Poly) (ctOut *Ciphertext) {
+	ctOut = NewCiphertext(enc.params, 1, plaintext.Level(), plaintext.Scale)
+	enc.Encryptor.EncryptFromCRP(plaintext.Real, crp, ctOut.Ciphertext)
+	return
 }

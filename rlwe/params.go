@@ -12,7 +12,7 @@ import (
 )
 
 // MaxLogN is the log2 of the largest supported polynomial modulus degree.
-const MaxLogN = 16
+const MaxLogN = 17
 
 // MinLogN is the log2 of the smallest supported polynomial modulus degree (needed to ensure the NTT correctness).
 const MinLogN = 4
@@ -169,7 +169,16 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
 	case paramDef.Q != nil && paramDef.LogQ == nil && paramDef.P != nil && paramDef.LogP == nil:
 		return NewParameters(paramDef.LogN, paramDef.Q, paramDef.P, paramDef.Sigma, paramDef.RingType)
 	case paramDef.LogQ != nil && paramDef.Q == nil && paramDef.LogP != nil && paramDef.P == nil:
-		q, p, err := GenModuli(paramDef.LogN, paramDef.LogQ, paramDef.LogP)
+		var q, p []uint64
+		var err error
+		if paramDef.RingType == RingStandard{
+			q, p, err = GenModuli(paramDef.LogN, paramDef.LogQ, paramDef.LogP)
+		}else if paramDef.RingType == RingConjugateInvariant{
+			q, p, err = GenModuli(paramDef.LogN+1, paramDef.LogQ, paramDef.LogP)
+		}else{
+			panic("invalid ringType")
+		}
+		
 		if err != nil {
 			return Parameters{}, err
 		}

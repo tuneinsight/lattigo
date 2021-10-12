@@ -41,12 +41,6 @@ Hence, there will be backward-incompatible changes within this version.
 
 See CHANGELOG.md for the current and past versions.
 
-### Upcoming features
-
-- README for distributed schemes
-- Network layer implementation of protocols supporting Secure Multiparty Computation (SMC).
-
-
 ## Disclaimer
 
 This library is still at an experimental stage and should be used for research purposes only.
@@ -64,9 +58,9 @@ If you want to contribute to Lattigo or you have any suggestion, do not hesitate
 Please use the following BibTex entry for citing Lattigo:
 
     @misc{lattigo,
-	    title = {Lattigo v2.2.0},
-	    howpublished = {Online: \url{http://github.com/ldsec/lattigo}},
-	    month = Jul,
+	    title = {Lattigo v2.3.0},
+	    howpublished = {Online: \url{https://github.com/ldsec/lattigo}},
+	    month = Oct,
 	    year = 2021,
 	    note = {EPFL-LDS}
     }

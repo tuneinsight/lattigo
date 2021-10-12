@@ -2,7 +2,8 @@
 # Changelog
 All notable changes to this project will be documented in this file. 
 
-## [Unreleased]
+## [2.3.0] - 2021-10-12
+
 - RING: added `MapSmallDimensionToLargerDimensionNTT` method which maps from  Y = X^{N/n} to X in the NTT domain.
 - RING: `FastBasisExtender` type can now extend the basis of polynomials of any level in base Q to polynomials of any level in base P.
 - RING: changed RNS division `Div[floor/round]BylastModulus[NTT]` to `Div[floor/round]BylastModulus[NTT]Lvl` (the level of the last modulus must always be provided).
@@ -32,7 +33,7 @@ All notable changes to this project will be documented in this file.
 - DBFV/DCKKS: both now use their respective CRP type for each protocol.
 - EXAMPLE: added showcase of the `ckks/advanced` sub-package: a bridge between CKKS and FHEW ciphertexts using homomorphic decoding, ring dimension switching, homomorphic matrix multiplication and homomorphic modular reduction.
 
-## [2.2.0] - 2020-07-15
+## [2.2.0] - 2021-07-15
 
 - Added SECURITY.md
 - ALL: when possible, public functions now use `int` instead of `uint64` as parameters and return values.

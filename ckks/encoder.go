@@ -71,10 +71,10 @@ type encoder struct {
 
 type encoderComplex128 struct {
 	encoder
-	values      []complex128
+	values          []complex128
 	valuesFloatReal []float64
 	valuesFloatImag []float64
-	roots       []complex128
+	roots           []complex128
 }
 
 func newEncoder(params Parameters) encoder {
@@ -123,9 +123,9 @@ func NewEncoder(params Parameters) Encoder {
 	roots[encoder.m] = roots[0]
 
 	return &encoderComplex128{
-		encoder:     encoder,
-		roots:       roots,
-		values:      make([]complex128, encoder.m>>2),
+		encoder:         encoder,
+		roots:           roots,
+		values:          make([]complex128, encoder.m>>2),
 		valuesFloatReal: make([]float64, encoder.m>>1),
 		valuesFloatImag: make([]float64, encoder.m>>1),
 	}
@@ -165,7 +165,7 @@ func (encoder *encoderComplex128) embed(values interface{}, logSlots int) {
 	N := encoder.params.RingQ().N
 
 	// First checks the type of input values
-	switch values := values.(type){
+	switch values := values.(type) {
 
 	// If complex
 	case []complex128:
@@ -176,7 +176,7 @@ func (encoder *encoderComplex128) embed(values interface{}, logSlots int) {
 		}
 
 		// If the ring is Standard, then proceeds as usual
-		if encoder.params.RingType() == rlwe.RingStandard{
+		if encoder.params.RingType() == rlwe.RingStandard {
 
 			for i := range values {
 				encoder.values[i] = values[i]
@@ -193,8 +193,8 @@ func (encoder *encoderComplex128) embed(values interface{}, logSlots int) {
 				encoder.valuesFloatReal[jdx] = imag(encoder.values[i])
 			}
 
-		// if the ring is RingConjugateInvariant then does two separate encoding
-		}else if encoder.params.RingType() == rlwe.RingConjugateInvariant{
+			// if the ring is RingConjugateInvariant then does two separate encoding
+		} else if encoder.params.RingType() == rlwe.RingConjugateInvariant {
 
 			// Real Part
 			for i := range values {
@@ -206,7 +206,7 @@ func (encoder *encoderComplex128) embed(values interface{}, logSlots int) {
 			gap := N / slots
 
 			for i, idx := 0, 0; i < slots; i, idx = i+1, idx+gap {
-					encoder.valuesFloatReal[idx] = real(encoder.values[i])
+				encoder.valuesFloatReal[idx] = real(encoder.values[i])
 			}
 
 			// Imag Part
@@ -217,14 +217,14 @@ func (encoder *encoderComplex128) embed(values interface{}, logSlots int) {
 			invfft(encoder.values, slots, encoder.m, encoder.rotGroup, encoder.roots)
 
 			for i, idx := 0, 0; i < slots; i, idx = i+1, idx+gap {
-					encoder.valuesFloatImag[idx] = real(encoder.values[i])
+				encoder.valuesFloatImag[idx] = real(encoder.values[i])
 			}
 		}
-		
+
 	// If floats only
 	case []float64:
 
-		if encoder.params.RingType() != rlwe.RingConjugateInvariant{
+		if encoder.params.RingType() != rlwe.RingConjugateInvariant {
 			panic("cannot encode []float64 when using rlwe.RingStandard")
 		}
 

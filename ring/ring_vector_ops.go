@@ -332,7 +332,7 @@ func MulCoeffsMontgomeryAndSubNoMod(p1, p2, p3 []uint64, qi, mredParams uint64) 
 
 // MulCoeffsMontgomeryAndSubNoMod returns p3 = p3 - p1*p2 mod qi with output coefficients in range [0, 3qi-2].
 func MulCoeffsMontgomeryConstantAndSubNoMod(p1, p2, p3 []uint64, qi, mredParams uint64) {
-	twoQi := qi<<1
+	twoQi := qi << 1
 	for j := 0; j < len(p1); j = j + 8 {
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
 		y := (*[8]uint64)(unsafe.Pointer(&p2[j]))
@@ -351,7 +351,7 @@ func MulCoeffsMontgomeryConstantAndSubNoMod(p1, p2, p3 []uint64, qi, mredParams 
 
 // MulCoeffsMontgomeryConstantAndNeg returns p3 = - p1*p2 mod qi with output coefficients in range [0, 2qi-2].
 func MulCoeffsMontgomeryConstantAndNeg(p1, p2, p3 []uint64, qi, mredParams uint64) {
-	twoqi := qi<<1
+	twoqi := qi << 1
 	for j := 0; j < len(p1); j = j + 8 {
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
 		y := (*[8]uint64)(unsafe.Pointer(&p2[j]))

@@ -11,6 +11,7 @@ import (
 	"time"
 )
 
+// LogN of the ring degree of the used parameters
 var LogN = 15
 
 func main() {
@@ -19,6 +20,7 @@ func main() {
 	//Complex()
 }
 
+// RLWE -> LWE -> RLWE repacking
 func RLWE() {
 	Q := []uint64{0x80000000080001}
 	P := []uint64{0x1fffffffffe00001}
@@ -137,6 +139,7 @@ func RLWE() {
 	DecryptAndPrint(decryptor, ringQ.N, ringQ, ciphertext, plaintext, scale)
 }
 
+// PackLWEs repacks LWE ciphertexts into a RLWE ciphertext
 func PackLWEs(ciphertexts []*rlwe.Ciphertext, ks *rlwe.KeySwitcher, rtks *rlwe.RotationKeySet, permuteNTTIndex map[uint64][]uint64, params rlwe.Parameters, decryptor rlwe.Decryptor, plaintext *rlwe.Plaintext) *rlwe.Ciphertext {
 
 	ringQ := params.RingQ()
@@ -148,56 +151,57 @@ func PackLWEs(ciphertexts []*rlwe.Ciphertext, ks *rlwe.KeySwitcher, rtks *rlwe.R
 		//ring.MulScalarMontgomeryVec(ciphertexts[0].Value[0].Coeffs[0], ciphertexts[0].Value[0].Coeffs[0], ringQ.NttNInv[0], ringQ.Modulus[0], ringQ.MredParams[0])
 		//ring.MulScalarMontgomeryVec(ciphertexts[0].Value[1].Coeffs[0], ciphertexts[0].Value[1].Coeffs[0], ringQ.NttNInv[0], ringQ.Modulus[0], ringQ.MredParams[0])
 		return ciphertexts[0]
-	} else {
-		odd := make([]*rlwe.Ciphertext, len(ciphertexts)>>1)
-		even := make([]*rlwe.Ciphertext, len(ciphertexts)>>1)
-
-		for i := 0; i < len(ciphertexts)>>1; i++ {
-			odd[i] = ciphertexts[2*i]
-			even[i] = ciphertexts[2*i+1]
-		}
-
-		ctEven := PackLWEs(odd, ks, rtks, permuteNTTIndex, params, decryptor, plaintext)
-		ctOdd := PackLWEs(even, ks, rtks, permuteNTTIndex, params, decryptor, plaintext)
-
-		//DecryptAndPrint(decryptor, ringQ.N, ringQ, ctEven, plaintext, 1<<40)
-		//DecryptAndPrint(decryptor, ringQ.N, ringQ, ctOdd, plaintext, 1<<40)
-
-		tmpEven := ctEven.CopyNew()
-
-		//X^(N/2^L)
-		XpowNoverL := ringQ.NewPoly()
-		XpowNoverL.Coeffs[0][ringQ.N/(1<<L)] = 1
-		ringQ.NTT(XpowNoverL, XpowNoverL)
-		ringQ.MForm(XpowNoverL, XpowNoverL)
-
-		// ctOdd * X^(N/2^L)
-		ringQ.MulCoeffsMontgomery(ctOdd.Value[0], XpowNoverL, ctOdd.Value[0])
-		ringQ.MulCoeffsMontgomery(ctOdd.Value[1], XpowNoverL, ctOdd.Value[1])
-
-		// ctEven + ctOdd * X^(N/2^L)
-		ringQ.Add(ctEven.Value[0], ctOdd.Value[0], ctEven.Value[0])
-		ringQ.Add(ctEven.Value[1], ctOdd.Value[1], ctEven.Value[1])
-
-		// phi(ctEven - ctOdd * X^(N/2^L), 2^L+1)
-		ringQ.Sub(tmpEven.Value[0], ctOdd.Value[0], tmpEven.Value[0])
-		ringQ.Sub(tmpEven.Value[1], ctOdd.Value[1], tmpEven.Value[1])
-
-		if L == 1 {
-			Rotate(tmpEven, uint64(2*ringQ.N-1), permuteNTTIndex, params, ks, rtks, tmpEven)
-		} else {
-			Rotate(tmpEven, params.GaloisElementForColumnRotationBy(1<<(L-2)), permuteNTTIndex, params, ks, rtks, tmpEven)
-		}
-
-		// ctEven + ctOdd * X^(N/2^L) + phi(ctEven - ctOdd * X^(N/2^L), 2^L+1)
-		ringQ.Add(ctEven.Value[0], tmpEven.Value[0], ctEven.Value[0])
-		ringQ.Add(ctEven.Value[1], tmpEven.Value[1], ctEven.Value[1])
-
-		return ctEven
-
 	}
+
+	odd := make([]*rlwe.Ciphertext, len(ciphertexts)>>1)
+	even := make([]*rlwe.Ciphertext, len(ciphertexts)>>1)
+
+	for i := 0; i < len(ciphertexts)>>1; i++ {
+		odd[i] = ciphertexts[2*i]
+		even[i] = ciphertexts[2*i+1]
+	}
+
+	ctEven := PackLWEs(odd, ks, rtks, permuteNTTIndex, params, decryptor, plaintext)
+	ctOdd := PackLWEs(even, ks, rtks, permuteNTTIndex, params, decryptor, plaintext)
+
+	//DecryptAndPrint(decryptor, ringQ.N, ringQ, ctEven, plaintext, 1<<40)
+	//DecryptAndPrint(decryptor, ringQ.N, ringQ, ctOdd, plaintext, 1<<40)
+
+	tmpEven := ctEven.CopyNew()
+
+	//X^(N/2^L)
+	XpowNoverL := ringQ.NewPoly()
+	XpowNoverL.Coeffs[0][ringQ.N/(1<<L)] = 1
+	ringQ.NTT(XpowNoverL, XpowNoverL)
+	ringQ.MForm(XpowNoverL, XpowNoverL)
+
+	// ctOdd * X^(N/2^L)
+	ringQ.MulCoeffsMontgomery(ctOdd.Value[0], XpowNoverL, ctOdd.Value[0])
+	ringQ.MulCoeffsMontgomery(ctOdd.Value[1], XpowNoverL, ctOdd.Value[1])
+
+	// ctEven + ctOdd * X^(N/2^L)
+	ringQ.Add(ctEven.Value[0], ctOdd.Value[0], ctEven.Value[0])
+	ringQ.Add(ctEven.Value[1], ctOdd.Value[1], ctEven.Value[1])
+
+	// phi(ctEven - ctOdd * X^(N/2^L), 2^L+1)
+	ringQ.Sub(tmpEven.Value[0], ctOdd.Value[0], tmpEven.Value[0])
+	ringQ.Sub(tmpEven.Value[1], ctOdd.Value[1], tmpEven.Value[1])
+
+	if L == 1 {
+		Rotate(tmpEven, uint64(2*ringQ.N-1), permuteNTTIndex, params, ks, rtks, tmpEven)
+	} else {
+		Rotate(tmpEven, params.GaloisElementForColumnRotationBy(1<<(L-2)), permuteNTTIndex, params, ks, rtks, tmpEven)
+	}
+
+	// ctEven + ctOdd * X^(N/2^L) + phi(ctEven - ctOdd * X^(N/2^L), 2^L+1)
+	ringQ.Add(ctEven.Value[0], tmpEven.Value[0], ctEven.Value[0])
+	ringQ.Add(ctEven.Value[1], tmpEven.Value[1], ctEven.Value[1])
+
+	return ctEven
+
 }
 
+// DecryptAndPrint decrypts and prints the first N values.
 func DecryptAndPrint(decryptor rlwe.Decryptor, N int, ringQ *ring.Ring, ciphertext *rlwe.Ciphertext, plaintext *rlwe.Plaintext, scale float64) {
 	decryptor.Decrypt(ciphertext, plaintext)
 	ringQ.InvNTT(plaintext.Value, plaintext.Value)
@@ -220,6 +224,7 @@ func DecryptAndPrint(decryptor rlwe.Decryptor, N int, ringQ *ring.Ring, cipherte
 	fmt.Printf("\n")
 }
 
+// Rotate rotates a ciphertext
 func Rotate(ctIn *rlwe.Ciphertext, galEl uint64, permuteNTTindex map[uint64][]uint64, params rlwe.Parameters, ks *rlwe.KeySwitcher, rtks *rlwe.RotationKeySet, ctOut *rlwe.Ciphertext) {
 	ringQ := params.RingQ()
 	rtk, _ := rtks.GetRotationKey(galEl)
@@ -231,7 +236,7 @@ func Rotate(ctIn *rlwe.Ciphertext, galEl uint64, permuteNTTindex map[uint64][]ui
 	ringQ.PermuteNTTWithIndexLvl(level, ks.Pool[2].Q, index, ctOut.Value[1])
 }
 
-// RNSLWESample is a struct for RNS LWE samples
+// LWESample is a struct for RNS LWE samples
 type LWESample struct {
 	b uint64
 	a []uint64
@@ -259,7 +264,7 @@ func DecryptLWE(ringQ *ring.Ring, lwe LWESample, scale float64, skInvNTT *ring.P
 	return float64(tmp1) / scale
 }
 
-// ExtractLWESamplesBitReversed extracts LWE samples from a R-LWE sample
+// ExtractLWESamples extracts LWE samples from a R-LWE sample
 func ExtractLWESamples(b, a *ring.Poly, ringQ *ring.Ring) (LWE []LWESample) {
 
 	N := ringQ.N
@@ -305,6 +310,7 @@ func MulBySmallMonomial(ringQ *ring.Ring, pol *ring.Poly, n int) {
 	}
 }
 
+// SimulatedComplex implements complex arithmetic using RCKKS
 func SimulatedComplex() {
 	// Schemes parameters are created from scratch
 	params, err := ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
@@ -448,6 +454,7 @@ func SimulatedComplex() {
 	}
 }
 
+// Complex implement complex arithmetic using CKKS
 func Complex() {
 	// Schemes parameters are created from scratch
 	params, err := ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
@@ -499,6 +506,7 @@ func Complex() {
 	}
 }
 
+// Evaluator is a custom evaluator for this example
 type Evaluator struct {
 	ckks.Evaluator
 	params          ckks.Parameters
@@ -519,6 +527,7 @@ func (eval *Evaluator) permuteNTTIndexesForKey(rtks *rlwe.RotationKeySet) *map[u
 	return &permuteNTTIndex
 }
 
+// NewEvaluator creates a new custom Evaluator
 func NewEvaluator(params ckks.Parameters, rlk *rlwe.RelinearizationKey, rtks *rlwe.RotationKeySet) (eval Evaluator) {
 
 	eval = Evaluator{}
@@ -534,20 +543,24 @@ func NewEvaluator(params ckks.Parameters, rlk *rlwe.RelinearizationKey, rtks *rl
 	return
 }
 
+// Ciphertext is a custom ciphertext for complex arithmetic with RCKKS.
 type Ciphertext struct {
 	Real *ckks.Ciphertext
 	Imag *ckks.Ciphertext
 }
 
+// NewCiphertext creates a new Ciphertext
 func NewCiphertext(params ckks.Parameters, degree, level int, scale float64) Ciphertext {
 	return Ciphertext{Real: ckks.NewCiphertext(params, degree, level, scale), Imag: ckks.NewCiphertext(params, degree, level, scale)}
 }
 
+// Plaintext is a custom plaintext for complex arithmetic with RCKKS
 type Plaintext struct {
 	Real *ckks.Plaintext
 	Imag *ckks.Plaintext
 }
 
+// MulRelinNew mul + relinearize
 func (eval *Evaluator) MulRelinNew(A, B Ciphertext) (C Ciphertext) {
 	level := utils.MinInt(utils.MinInt(A.Real.Level(), A.Imag.Level()), utils.MinInt(B.Real.Level(), B.Imag.Level()))
 	C = Ciphertext{ckks.NewCiphertext(eval.params, 1, level, 0), ckks.NewCiphertext(eval.params, 1, level, 0)}
@@ -555,11 +568,13 @@ func (eval *Evaluator) MulRelinNew(A, B Ciphertext) (C Ciphertext) {
 	return
 }
 
+// MulRelin mul + relinearize
 func (eval *Evaluator) MulRelin(A, B, C Ciphertext) {
 	eval.mulRelin(A, B, C, true)
 	return
 }
 
+// MulNew mul without relinearize
 func (eval *Evaluator) MulNew(A, B Ciphertext) (C Ciphertext) {
 	level := utils.MinInt(utils.MinInt(A.Real.Level(), A.Imag.Level()), utils.MinInt(B.Real.Level(), B.Imag.Level()))
 	C = Ciphertext{ckks.NewCiphertext(eval.params, 2, level, 0), ckks.NewCiphertext(eval.params, 2, level, 0)}
@@ -567,17 +582,20 @@ func (eval *Evaluator) MulNew(A, B Ciphertext) (C Ciphertext) {
 	return
 }
 
+// Mul mul without relinearize
 func (eval *Evaluator) Mul(A, B, C Ciphertext) {
 	eval.mulRelin(A, B, C, false)
 	return
 }
 
+// Operand interface for the Evaluator elements
 type Operand interface {
 	El() *rlwe.Ciphertext
 	Degree() int
 	Level() int
 }
 
+// MulPlain multiplied ct with pt
 func (eval *Evaluator) MulPlain(A Ciphertext, B Plaintext, C Ciphertext) {
 
 }
@@ -779,10 +797,12 @@ func (eval *Evaluator) mulRelin(A, B, C Ciphertext, relin bool) {
 	}
 }
 
+// Level returns the level of a custom ciphertext for RCKKS
 func (ct *Ciphertext) Level() int {
 	return utils.MinInt(ct.Real.Level(), ct.Imag.Level())
 }
 
+// PtDiagMatrix custom plaintext matrix for RCKKS with complex arithmetic
 type PtDiagMatrix struct {
 	N1       int
 	Level    int

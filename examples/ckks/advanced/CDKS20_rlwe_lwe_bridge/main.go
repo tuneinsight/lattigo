@@ -14,7 +14,7 @@ import (
 func main() {
 
 	LogN := 12
-	LogSlots := 11 // can go up to LogN
+	LogSlots := 12 // can go up to LogN
 
 	RLWEParams := rlwe.ParametersLiteral{
 		LogN:     LogN,
@@ -62,6 +62,14 @@ func main() {
 	ciphertext := rlwe.NewCiphertextNTT(params, 1, plaintext.Level())
 	encryptor.Encrypt(plaintext, ciphertext)
 
+	XPow := make(map[int]*ring.Poly)
+	for i := 1; i < LogSlots+1; i++ {
+		XpowNoverL := ringQ.NewPoly()
+		XpowNoverL.Coeffs[0][ringQ.N/(1<<i)] = ring.MForm(1, ringQ.Modulus[0], ringQ.BredParams[0])
+		ringQ.NTT(XpowNoverL, XpowNoverL)
+		XPow[i] = XpowNoverL
+	}
+
 	//RLWE to LWEs
 	now := time.Now()
 	fmt.Printf("Extract RLWE  -> LWEs")
@@ -77,7 +85,7 @@ func main() {
 	// RLWEs to RLWE
 	now = time.Now()
 	fmt.Printf("Repack  RLWEs -> RLWE")
-	ciphertext = PackLWEs(ciphertexts, ks, rtks, NTimesLogSlotsInv, permuteNTTIndex, params)
+	ciphertext = PackLWEs(ciphertexts, ks, rtks, XPow, NTimesLogSlotsInv, permuteNTTIndex, params)
 
 	// Trace
 	tmp := rlwe.NewCiphertextNTT(params, 1, plaintext.Level())
@@ -128,7 +136,7 @@ func LWEToRLWE(lwe []LWESample, level int, params rlwe.Parameters) (ciphertexts 
 }
 
 // PackLWEs repacks LWE ciphertexts into a RLWE ciphertext
-func PackLWEs(ciphertexts []*rlwe.Ciphertext, ks *rlwe.KeySwitcher, rtks *rlwe.RotationKeySet, NTimesLogSlotsInv uint64, permuteNTTIndex map[uint64][]uint64, params rlwe.Parameters) *rlwe.Ciphertext {
+func PackLWEs(ciphertexts []*rlwe.Ciphertext, ks *rlwe.KeySwitcher, rtks *rlwe.RotationKeySet, XPow map[int]*ring.Poly, NTimesLogSlotsInv uint64, permuteNTTIndex map[uint64][]uint64, params rlwe.Parameters) *rlwe.Ciphertext {
 
 	ringQ := params.RingQ()
 
@@ -151,8 +159,8 @@ func PackLWEs(ciphertexts []*rlwe.Ciphertext, ks *rlwe.KeySwitcher, rtks *rlwe.R
 		even[i] = ciphertexts[2*i+1]
 	}
 
-	ctEven := PackLWEs(odd, ks, rtks, NTimesLogSlotsInv, permuteNTTIndex, params)
-	ctOdd := PackLWEs(even, ks, rtks, NTimesLogSlotsInv, permuteNTTIndex, params)
+	ctEven := PackLWEs(odd, ks, rtks, XPow, NTimesLogSlotsInv, permuteNTTIndex, params)
+	ctOdd := PackLWEs(even, ks, rtks, XPow, NTimesLogSlotsInv, permuteNTTIndex, params)
 
 	if ctEven == nil && ctOdd == nil {
 		return nil
@@ -165,20 +173,15 @@ func PackLWEs(ciphertexts []*rlwe.Ciphertext, ks *rlwe.KeySwitcher, rtks *rlwe.R
 
 	// ctOdd * X^(N/2^L)
 	if ctOdd != nil {
-
 		//X^(N/2^L)
-		XpowNoverL := ringQ.NewPoly()
-		XpowNoverL.Coeffs[0][ringQ.N/(1<<L)] = ring.MForm(1, ringQ.Modulus[0], ringQ.BredParams[0])
-		ringQ.NTT(XpowNoverL, XpowNoverL)
-
-		ringQ.MulCoeffsMontgomery(ctOdd.Value[0], XpowNoverL, ctOdd.Value[0])
-		ringQ.MulCoeffsMontgomery(ctOdd.Value[1], XpowNoverL, ctOdd.Value[1])
+		ringQ.MulCoeffsMontgomery(ctOdd.Value[0], XPow[L], ctOdd.Value[0])
+		ringQ.MulCoeffsMontgomery(ctOdd.Value[1], XPow[L], ctOdd.Value[1])
 
 		// ctEven + ctOdd * X^(N/2^L)
 		ringQ.Add(ctEven.Value[0], ctOdd.Value[0], ctEven.Value[0])
 		ringQ.Add(ctEven.Value[1], ctOdd.Value[1], ctEven.Value[1])
 
-		// phi(ctEven - ctOdd * X^(N/2^L), 2^L+1)
+		// phi(ctEven - ctOdd * X^(N/2^L), 2^(L-2))
 		ringQ.Sub(tmpEven.Value[0], ctOdd.Value[0], tmpEven.Value[0])
 		ringQ.Sub(tmpEven.Value[1], ctOdd.Value[1], tmpEven.Value[1])
 	}

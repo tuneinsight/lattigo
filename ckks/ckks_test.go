@@ -1035,13 +1035,26 @@ func testInnerSum(testContext *testParams, t *testing.T) {
 
 	t.Run(GetTestName(testContext.params, "InnerSumLog/"), func(t *testing.T) {
 
-		batch := 3
-		n := 15
+		batch := 1
+		n := testContext.params.Slots()
 
 		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.params.RotationsForInnerSumLog(batch, n), false, testContext.sk)
 		eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testContext.rlk, Rtks: rotKey})
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
+
+		params := testContext.params
+		
+		inv2 := make([]uint64, params.MaxLevel()+1)
+		for i := range inv2{
+			inv2[i] = ring.ModExp(uint64(n), params.Q()[i]-2, params.Q()[i])
+			inv2[i] = ring.MForm(inv2[i], params.RingQ().Modulus[i], params.RingQ().BredParams[i])
+		} 
+
+		for i := 0; i < ciphertext1.Level()+1; i++{
+			ring.MulScalarMontgomeryVec(ciphertext1.Value[0].Coeffs[i], ciphertext1.Value[0].Coeffs[i], inv2[i], params.RingQ().Modulus[i], params.RingQ().MredParams[i])
+			ring.MulScalarMontgomeryVec(ciphertext1.Value[1].Coeffs[i], ciphertext1.Value[1].Coeffs[i], inv2[i], params.RingQ().Modulus[i], params.RingQ().MredParams[i])
+		}
 
 		eval.InnerSumLog(ciphertext1, batch, n, ciphertext1)
 
@@ -1056,6 +1069,12 @@ func testInnerSum(testContext *testParams, t *testing.T) {
 				values1[j] += tmp1[j]
 			}
 		}
+
+		for i := 0; i < len(values1); i++{
+			values1[i] /= complex(float64(n), 0)
+		}
+
+		fmt.Println(values1[:8])
 
 		verifyTestVectors(testContext.params, testContext.encoder, testContext.decryptor, values1, ciphertext1, testContext.params.LogSlots(), 0, t)
 

@@ -260,10 +260,7 @@ func main() {
 	ctAsImag.Scale = ctAsImag.Scale * 2                                                                                   // Divide by 2
 	eval.ScaleUp(ctAsReal, math.Round((EvalModPoly.ScalingFactor()/EvalModPoly.MessageRatio())/ctAsReal.Scale), ctAsReal) // Scale the real message up to Sine/MessageRatio
 	eval.ScaleUp(ctAsImag, math.Round((EvalModPoly.ScalingFactor()/EvalModPoly.MessageRatio())/ctAsImag.Scale), ctAsImag) // Scale the imag message up to Sine/MessageRatio
-	v := encoder.DecodePublic(decryptor.DecryptNew(ctAsReal), paramsRLWE.LogSlots(), 0)
-	fmt.Printf("Slot %4d : Want %f Have %f\n", 0, values[0], v[0])
-	fmt.Printf("Slot %4d : Want %f Have %f\n", paramsRLWE.Slots()-1, values[paramsRLWE.Slots()-1], v[paramsRLWE.Slots()-1])
-	ctAsReal = eval.EvalModNew(ctAsReal, EvalModPoly) // Real mod Q
+	ctAsReal = eval.EvalModNew(ctAsReal, EvalModPoly)                                                                     // Real mod Q
 	eval.DivByi(ctAsImag, ctAsImag)
 	ctAsImag = eval.EvalModNew(ctAsImag, EvalModPoly) // (-i*imag mod Q)*i
 	eval.MultByi(ctAsImag, ctAsImag)
@@ -271,7 +268,7 @@ func main() {
 	fmt.Printf("Done (%s)\n", time.Since(start))
 
 	fmt.Println("Visual Comparison :")
-	v = encoder.DecodePublic(decryptor.DecryptNew(ctAsReal), paramsRLWE.LogSlots(), 0)
+	v := encoder.DecodePublic(decryptor.DecryptNew(ctAsReal), paramsRLWE.LogSlots(), 0)
 	fmt.Printf("Slot %4d : Want %f Have %f\n", 0, values[0], v[0])
 	fmt.Printf("Slot %4d : Want %f Have %f\n", paramsRLWE.Slots()-1, values[paramsRLWE.Slots()-1], v[paramsRLWE.Slots()-1])
 
@@ -280,8 +277,8 @@ func main() {
 func genRLWEParameters() (paramsRLWE ckks.Parameters) {
 	var err error
 	if paramsRLWE, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
-		LogN:     14,
-		LogSlots: 8,
+		LogN:     15,
+		LogSlots: 9,
 		Scale:    1 << 30,
 		Sigma:    rlwe.DefaultSigma,
 		Q: []uint64{

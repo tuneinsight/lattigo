@@ -4,7 +4,6 @@ import (
 	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
-	"github.com/ldsec/lattigo/v2/utils"
 	"math"
 )
 
@@ -126,10 +125,10 @@ func (eval *evaluator) WithKey(evaluationKey rlwe.EvaluationKey) Evaluator {
 // If the packing is sparse (n < N/2), then returns ctReal = Ecd(vReal || vImag) and ctImag = nil.
 // If the packing is dense (n == N/2), then returns ctReal = Ecd(vReal) and ctImag = Ecd(vImag).
 func (eval *evaluator) CoeffsToSlotsNew(ctIn *ckks.Ciphertext, ctsMatrices EncodingMatrix) (ctReal, ctImag *ckks.Ciphertext) {
-	ctReal = ckks.NewCiphertext(eval.params, 1, ctIn.Level()-ctsMatrices.Depth(true), 0)
+	ctReal = ckks.NewCiphertext(eval.params, 1, ctsMatrices.LevelStart, 0)
 
 	if eval.params.LogSlots() == eval.params.LogN()-1 {
-		ctImag = ckks.NewCiphertext(eval.params, 1, ctIn.Level()-ctsMatrices.Depth(true), 0)
+		ctImag = ckks.NewCiphertext(eval.params, 1, ctsMatrices.LevelStart, 0)
 	}
 
 	eval.CoeffsToSlots(ctIn, ctsMatrices, ctReal, ctImag)
@@ -174,11 +173,12 @@ func (eval *evaluator) CoeffsToSlots(ctIn *ckks.Ciphertext, ctsMatrices Encoding
 // If the packing is sparse (n < N/2) then ctReal = Ecd(vReal || vImag) and ctImag = nil.
 // If the packing is dense (n == N/2), then ctReal = Ecd(vReal) and ctImag = Ecd(vImag).
 func (eval *evaluator) SlotsToCoeffsNew(ctReal, ctImag *ckks.Ciphertext, stcMatrices EncodingMatrix) (ctOut *ckks.Ciphertext) {
-	level := ctReal.Level()
-	if ctImag != nil {
-		level = utils.MinInt(level, ctImag.Level())
+
+	if ctReal.Level() < stcMatrices.LevelStart || (ctImag != nil && ctImag.Level() < stcMatrices.LevelStart) {
+		panic("ctReal.Level() or ctImag.Level() < EncodingMatrix.LevelStart")
 	}
-	ctOut = ckks.NewCiphertext(eval.params, 1, level, ctReal.Scale)
+
+	ctOut = ckks.NewCiphertext(eval.params, 1, stcMatrices.LevelStart, ctReal.Scale)
 	eval.SlotsToCoeffs(ctReal, ctImag, stcMatrices, ctOut)
 	return
 
@@ -235,6 +235,14 @@ func (eval *evaluator) dft(ctIn *ckks.Ciphertext, plainVectors []ckks.PtDiagMatr
 //
 // Scaling back error correction by 2^{round(log(Q))}/Q afterward is included in the polynomial
 func (eval *evaluator) EvalModNew(ct *ckks.Ciphertext, evalModPoly EvalModPoly) *ckks.Ciphertext {
+
+	if ct.Level() < evalModPoly.LevelStart() {
+		panic("ct.Level() < evalModPoly.LevelStart")
+	}
+
+	if ct.Level() > evalModPoly.LevelStart() {
+		eval.DropLevel(ct, ct.Level()-evalModPoly.LevelStart())
+	}
 
 	// Stores default scales
 	prevScaleCt := ct.Scale

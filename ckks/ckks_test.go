@@ -17,6 +17,8 @@ import (
 )
 
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters + secure bootstrapping). Overrides -short and requires -timeout=0.")
+var flagPostQuantum = flag.Bool("pq", false, "run post quantum test suite.")
+var flagRingType = flag.Bool("real", false, "changes the ring to its Conjugate Invariant, instanciating Real CKKS, requires primes congruent to 1 mod 4N")
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
 
@@ -51,13 +53,19 @@ type testParams struct {
 
 func TestCKKS(t *testing.T) {
 
-	defaultParams := DefaultParams[:4] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
-	if testing.Short() {
+	var defaultParams []ParametersLiteral
+	if *flagPostQuantum {
+		defaultParams = DefaultPostQuantumParams
+	} else {
+		defaultParams = DefaultParams
+	}
+
+	if testing.Short() && !*flagLongTest {
 		defaultParams = DefaultParams[:2] // the short test suite runs for ring degree N=2^12, 2^13
-	}
-	if *flagLongTest {
-		defaultParams = append(DefaultParams, DefaultPostQuantumParams...) // the long test suite runs for all default parameters
-	}
+	} else if !*flagLongTest {
+		defaultParams = defaultParams[:4] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
+	} // else run all the params in the test suite
+
 	if *flagParamString != "" {
 		var jsonParams ParametersLiteral
 		json.Unmarshal([]byte(*flagParamString), &jsonParams)
@@ -65,6 +73,13 @@ func TestCKKS(t *testing.T) {
 	}
 
 	for _, defaultParam := range defaultParams[:] {
+
+		// Flag to changes to Real-CKKS
+		if *flagRingType {
+			defaultParam.RingType = rlwe.RingConjugateInvariant
+			defaultParam.LogSlots = defaultParam.LogN
+		}
+
 		params, err := NewParametersFromLiteral(defaultParam)
 		if err != nil {
 			panic(err)

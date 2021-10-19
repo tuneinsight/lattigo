@@ -19,9 +19,10 @@ func main() {
 	//Complex()
 }
 
+// Bridge between CKKS and RCKKS
 func Bridge() {
 
-	LogN := 12
+	LogN := 13
 	Q := []uint64{0x80000000080001, 0x200000440001, 0x200000500001, 0x1fffff980001}
 	P := []uint64{0x80000000440001, 0x80000000500001}
 	Scale := float64(1 << 40)
@@ -70,71 +71,64 @@ func Bridge() {
 	decryptorRCKKS := ckks.NewDecryptor(paramsRCKKS, skRCKKS)
 	encoderRCKKS := ckks.NewEncoder(paramsRCKKS)
 	decryptorCKKS0 := ckks.NewDecryptor(paramsCKKS, skCKKS)
-	decryptorCKKS1 := ckks.NewDecryptor(paramsCKKS, skRCKKSMappedToCKKS)
 	encoderCKKS := ckks.NewEncoder(paramsCKKS)
-
-	_= encoderRCKKS
-	_= decryptorRCKKS
-
 
 	// Plaintext generation & Encryption
 	values := make([]float64, 1<<LogSlots)
-	for i := 0; i < 1<<LogSlots; i++{
-		values[i] = float64(i+1)
+	for i := 0; i < 1<<LogSlots; i++ {
+		values[i] = float64(i + 1)
 	}
 	plaintext := ckks.NewPlaintext(paramsRCKKS, paramsRCKKS.MaxLevel(), Scale)
 	encoderRCKKS.Encode(plaintext, values, LogSlots)
-	
+
+	// New RCKKS cipherext
 	ciphertextRCKKS := encryptorRCKKS.EncryptNew(plaintext)
 
+	// Convert RCKKS to CKKS by mapping compressed representation inZ[X+X^-1]/(X^2N+1) to full representation in Z[X]/(X^2N+1)
 	ciphertextCKKS := ckks.NewCiphertext(paramsCKKS, ciphertextRCKKS.Degree(), ciphertextRCKKS.Level(), ciphertextRCKKS.Scale)
 	UnfoldConjugateInvariantNTT(ciphertextRCKKS.Value[0], ciphertextCKKS.Value[0])
 	UnfoldConjugateInvariantNTT(ciphertextRCKKS.Value[1], ciphertextCKKS.Value[1])
 
+	// Switches the RCKKS key [X+X^-1] to a CKKS key [X]
 	ks.SwitchKeysInPlace(ciphertextCKKS.Value[1].Level(), ciphertextCKKS.Value[1], swkRtoC, ks.Pool[1].Q, ks.Pool[2].Q)
 	paramsCKKS.RingQ().Add(ciphertextCKKS.Value[0], ks.Pool[1].Q, ciphertextCKKS.Value[0])
 	ring.CopyValues(ks.Pool[2].Q, ciphertextCKKS.Value[1])
-	
+
 	fmt.Println(encoderCKKS.DecodePublic(decryptorCKKS0.DecryptNew(ciphertextCKKS), LogSlots, 0)[:8])
 
+	/*
+		inv2 := make([]uint64, paramsCKKS.MaxLevel()+1)
+		for i := range inv2{
+			inv2[i] = ring.ModExp(2, paramsCKKS.Q()[i]-2, paramsCKKS.Q()[i])
+			inv2[i] = ring.MForm(inv2[i], paramsCKKS.RingQ().Modulus[i], paramsCKKS.RingQ().BredParams[i])
+		}
 
+		for i := 0; i < ciphertextCKKS.Level()+1; i++{
+			ring.MulScalarMontgomeryVec(ciphertextCKKS.Value[0].Coeffs[i], ciphertextCKKS.Value[0].Coeffs[i], inv2[i], paramsCKKS.RingQ().Modulus[i], paramsCKKS.RingQ().MredParams[i])
+			ring.MulScalarMontgomeryVec(ciphertextCKKS.Value[1].Coeffs[i], ciphertextCKKS.Value[1].Coeffs[i], inv2[i], paramsCKKS.RingQ().Modulus[i], paramsCKKS.RingQ().MredParams[i])
+		}
+	*/
+
+	// Convert CKKS back to RCKKS
+
+	// Switch the CKKS key [X] to the RCKKS key [X+X^-1]
 	ks.SwitchKeysInPlace(ciphertextCKKS.Value[1].Level(), ciphertextCKKS.Value[1], swkCtoR, ks.Pool[1].Q, ks.Pool[2].Q)
 	paramsCKKS.RingQ().Add(ciphertextCKKS.Value[0], ks.Pool[1].Q, ciphertextCKKS.Value[0])
 	ring.CopyValues(ks.Pool[2].Q, ciphertextCKKS.Value[1])
 
-	fmt.Println(encoderCKKS.DecodePublic(decryptorCKKS1.DecryptNew(ciphertextCKKS), LogSlots, 0)[:8])
-
-	/*
-	inv2 := make([]uint64, paramsCKKS.MaxLevel()+1)
-	for i := range inv2{
-		inv2[i] = ring.ModExp(2, paramsCKKS.Q()[i]-2, paramsCKKS.Q()[i])
-		inv2[i] = ring.MForm(inv2[i], paramsCKKS.RingQ().Modulus[i], paramsCKKS.RingQ().BredParams[i])
-	} 
-
-	for i := 0; i < ciphertextCKKS.Level()+1; i++{
-		ring.MulScalarMontgomeryVec(ciphertextCKKS.Value[0].Coeffs[i], ciphertextCKKS.Value[0].Coeffs[i], inv2[i], paramsCKKS.RingQ().Modulus[i], paramsCKKS.RingQ().MredParams[i])
-		ring.MulScalarMontgomeryVec(ciphertextCKKS.Value[1].Coeffs[i], ciphertextCKKS.Value[1].Coeffs[i], inv2[i], paramsCKKS.RingQ().Modulus[i], paramsCKKS.RingQ().MredParams[i])
-	}
-	*/
-
 	ciphertextRCKKS = ckks.NewCiphertext(paramsRCKKS, ciphertextCKKS.Degree(), ciphertextCKKS.Level(), ciphertextCKKS.Scale)
 
-	index := paramsCKKS.RingQ().PermuteNTTIndex(uint64(2*paramsCKKS.N()-1))
-	tmp := paramsCKKS.RingQ().NewPoly()
-	paramsRCKKS.RingQ().PermuteNTTWithIndexLvl(ciphertextCKKS.Level(), ciphertextCKKS.Value[0], index, tmp)
-	paramsRCKKS.RingQ().Add(ciphertextCKKS.Value[0], tmp, ciphertextRCKKS.Value[0])
-	paramsRCKKS.RingQ().PermuteNTTWithIndexLvl(ciphertextCKKS.Level(), ciphertextCKKS.Value[1], index, tmp)
-	paramsRCKKS.RingQ().Add(ciphertextCKKS.Value[1], tmp, ciphertextRCKKS.Value[1])
-
+	FoldConjugateInvariantNTT(ciphertextCKKS.Value[0], paramsRCKKS.RingQ(), ciphertextRCKKS.Value[0])
+	FoldConjugateInvariantNTT(ciphertextCKKS.Value[1], paramsRCKKS.RingQ(), ciphertextRCKKS.Value[1])
 	ciphertextRCKKS.Scale *= 2
 
 	fmt.Println(encoderRCKKS.DecodePublic(decryptorRCKKS.DecryptNew(ciphertextRCKKS), LogSlots, 0)[:8])
 }
 
-// Unfold maps the compressed representation of Z_Q[X+X^-1]/(X^2N + 1) to full representation in Z_Q[X]/(X^2N+1)
+// UnfoldConjugateInvariantNTT maps the compressed representation of Z_Q[X+X^-1]/(X^2N + 1) to full representation in Z_Q[X]/(X^2N+1)
 func UnfoldConjugateInvariantNTT(p1, p2 *ring.Poly) {
 
-	if 2*len(p1.Coeffs[0]) != len(p2.Coeffs[0]){
+	if 2*len(p1.Coeffs[0]) != len(p2.Coeffs[0]) {
 		panic("Ring degree of p2 must be twice the ring degree of p1")
 	}
 
@@ -142,10 +136,10 @@ func UnfoldConjugateInvariantNTT(p1, p2 *ring.Poly) {
 
 	level := utils.MinInt(p1.Level(), p2.Level())
 
-	for i := 0; i < level+1; i++{
+	for i := 0; i < level+1; i++ {
 		tmp2, tmp1 := p2.Coeffs[i], p1.Coeffs[i]
 		copy(tmp2, tmp1)
-		for idx, jdx := N-1, N; jdx < 2*N; idx, jdx = idx-1, jdx+1{
+		for idx, jdx := N-1, N; jdx < 2*N; idx, jdx = idx-1, jdx+1 {
 			tmp2[jdx] = tmp1[idx]
 		}
 	}
@@ -155,16 +149,17 @@ func UnfoldConjugateInvariantNTT(p1, p2 *ring.Poly) {
 	return
 }
 
-func FoldConjugateInvariantNTT(p1, p2 *ring.Poly){
-	if len(p1.Coeffs[0]) != 2*len(p2.Coeffs[0]){
+// FoldConjugateInvariantNTT maps the [X] to its compressed format in [X+X^-1]
+func FoldConjugateInvariantNTT(p1 *ring.Poly, ringQ *ring.Ring, p2 *ring.Poly) {
+	if len(p1.Coeffs[0]) != 2*len(p2.Coeffs[0]) {
 		panic("Ring degree of p2 must be twice the ring degree of p1")
 	}
 
 	level := utils.MinInt(p1.Level(), p2.Level())
 
-	for i := 0; i < level+1; i++{
-		copy(p2.Coeffs[i], p1.Coeffs[i])
-	}
+	index := ringQ.PermuteNTTIndex(ringQ.NthRoot - 1)
+	ringQ.PermuteNTTWithIndexLvl(level, p1, index, p2)
+	ringQ.Add(p2, p1, p2)
 
 	p2.Coeffs = p2.Coeffs[:level+1]
 }

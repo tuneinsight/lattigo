@@ -63,7 +63,7 @@ func (r *Ring) PermuteNTTLvl(level int, polIn *Poly, gen uint64, polOut *Poly) {
 // It must be noted that the result cannot be in-place.
 func (r *Ring) PermuteNTTWithIndexLvl(level int, polIn *Poly, index []uint64, polOut *Poly) {
 
-	for j := 0; j < len(polIn.Coeffs[0]); j = j + 8 {
+	for j := 0; j < r.N; j = j + 8 {
 
 		x := (*[8]uint64)(unsafe.Pointer(&index[j]))
 
@@ -90,7 +90,7 @@ func (r *Ring) PermuteNTTWithIndexLvl(level int, polIn *Poly, index []uint64, po
 // It must be noted that the result cannot be in-place.
 func (r *Ring) PermuteNTTWithIndexAndAddNoModLvl(level int, polIn *Poly, index []uint64, polOut *Poly) {
 
-	for j := 0; j < len(polIn.Coeffs[0]); j = j + 8 {
+	for j := 0; j < r.N; j = j + 8 {
 
 		x := (*[8]uint64)(unsafe.Pointer(&index[j]))
 

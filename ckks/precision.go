@@ -62,8 +62,6 @@ func GetPrecisionStats(params Parameters, encoder Encoder, decryptor Decryptor, 
 		valuesTest = element
 	}
 
-	fmt.Println(valuesTest[:8])
-
 	var deltaReal, deltaImag, deltaL2 float64
 
 	diff := make([]Stats, slots)

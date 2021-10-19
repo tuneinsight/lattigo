@@ -104,6 +104,7 @@ func TestCKKS(t *testing.T) {
 			testEvaluatePoly,
 			testChebyshevInterpolator,
 			testSwitchKeys,
+			testBridge,
 			testAutomorphisms,
 			testInnerSum,
 			testReplicate,
@@ -907,20 +908,66 @@ func testSwitchKeys(testContext *testParams, t *testing.T) {
 
 		verifyTestVectors(testContext.params, testContext.encoder, decryptorSk2, values, ciphertext, testContext.params.LogSlots(), 0, t)
 	})
+}
 
+func testBridge(testContext *testParams, t *testing.T) {
+
+	t.Run(GetTestName(testContext.params, "Bridge/"), func(t *testing.T) {
+
+		if testContext.params.RingType() != rlwe.RingConjugateInvariant {
+			t.Skip("only tested with flag -real")
+		}
+
+		paramsRCKKS := testContext.params
+		var paramsCKKS Parameters
+		var err error
+		if paramsCKKS, err = NewParametersFromLiteral(ParametersLiteral{
+			LogN:     paramsRCKKS.LogN() + 1,
+			Q:        paramsRCKKS.Q(),
+			P:        paramsRCKKS.P(),
+			Sigma:    rlwe.DefaultSigma,
+			LogSlots: paramsRCKKS.LogSlots(),
+			Scale:    paramsRCKKS.Scale(),
+			RingType: rlwe.RingStandard,
+		}); err != nil {
+			panic(err)
+		}
+
+		kgenCKKS := NewKeyGenerator(paramsCKKS)
+		skCKKS := kgenCKKS.GenSecretKey()
+		decryptorCKKS := NewDecryptor(paramsCKKS, skCKKS)
+		encoderCKKS := NewEncoder(paramsCKKS)
+
+		swkCtR, swkRtC := GenSwitchingKeysForRingSwap(paramsCKKS, skCKKS, testContext.sk)
+
+		eval := NewEvaluator(paramsCKKS, rlwe.EvaluationKey{Rlk: nil, Rtks: nil})
+
+		values, _, ctRCKKS := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
+
+		ctCKKS := NewCiphertext(paramsCKKS, ctRCKKS.Degree(), ctRCKKS.Level(), ctRCKKS.Scale)
+
+		eval.Bridge(ctRCKKS, swkRtC, ctCKKS)
+
+		verifyTestVectors(paramsCKKS, encoderCKKS, decryptorCKKS, values, ctCKKS, paramsCKKS.LogSlots(), 0, t)
+
+		eval.Bridge(ctCKKS, swkCtR, ctRCKKS)
+
+		verifyTestVectors(testContext.params, testContext.encoder, testContext.decryptor, values, ctRCKKS, paramsRCKKS.LogSlots(), 0, t)
+	})
 }
 
 func testAutomorphisms(testContext *testParams, t *testing.T) {
 
-	if testContext.params.PCount() == 0 {
-		t.Skip("#Pi is empty")
-	}
 	rots := []int{0, 1, -1, 4, -4, 63, -63}
 	var rotKey *rlwe.RotationKeySet
-	if testContext.params.RingType() == rlwe.RingStandard {
-		rotKey = testContext.kgen.GenRotationKeysForRotations(rots, true, testContext.sk)
-	} else {
-		rotKey = testContext.kgen.GenRotationKeysForRotations(rots, false, testContext.sk)
+
+	if testContext.params.PCount() != 0 {
+
+		if testContext.params.RingType() == rlwe.RingStandard {
+			rotKey = testContext.kgen.GenRotationKeysForRotations(rots, true, testContext.sk)
+		} else {
+			rotKey = testContext.kgen.GenRotationKeysForRotations(rots, false, testContext.sk)
+		}
 	}
 
 	evaluator := testContext.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testContext.rlk, Rtks: rotKey})
@@ -1044,14 +1091,14 @@ func testInnerSum(testContext *testParams, t *testing.T) {
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
 		params := testContext.params
-		
+
 		inv2 := make([]uint64, params.MaxLevel()+1)
-		for i := range inv2{
+		for i := range inv2 {
 			inv2[i] = ring.ModExp(uint64(n), params.Q()[i]-2, params.Q()[i])
 			inv2[i] = ring.MForm(inv2[i], params.RingQ().Modulus[i], params.RingQ().BredParams[i])
-		} 
+		}
 
-		for i := 0; i < ciphertext1.Level()+1; i++{
+		for i := 0; i < ciphertext1.Level()+1; i++ {
 			ring.MulScalarMontgomeryVec(ciphertext1.Value[0].Coeffs[i], ciphertext1.Value[0].Coeffs[i], inv2[i], params.RingQ().Modulus[i], params.RingQ().MredParams[i])
 			ring.MulScalarMontgomeryVec(ciphertext1.Value[1].Coeffs[i], ciphertext1.Value[1].Coeffs[i], inv2[i], params.RingQ().Modulus[i], params.RingQ().MredParams[i])
 		}
@@ -1070,7 +1117,7 @@ func testInnerSum(testContext *testParams, t *testing.T) {
 			}
 		}
 
-		for i := 0; i < len(values1); i++{
+		for i := 0; i < len(values1); i++ {
 			values1[i] /= complex(float64(n), 0)
 		}
 

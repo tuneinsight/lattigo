@@ -45,7 +45,7 @@ type Encoder interface {
 	GetErrSTDFreqDom(valuesWant, valuesHave []complex128, scale float64) (std float64)
 
 	EncodeRVecNew(values mpc_core.RVec, slots uint64, fracBits int) (plaintext *Plaintext)
-	DecodeRVec(plaintext *Plaintext, slots uint64, fracBits int) (res mpc_core.RVec)
+	DecodeRVec(rtype mpc_core.RElem, plaintext *Plaintext, slots uint64, fracBits int) (res mpc_core.RVec)
 }
 
 // EncoderBigComplex is an interface implenting the encoding algorithms with arbitrary precision.
@@ -129,6 +129,38 @@ func newEncoder(params *Parameters) encoder {
 		m:               m,
 		rotGroup:        rotGroup,
 		gaussianSampler: gaussianSampler,
+	}
+}
+
+// NewEncoderBig creates a new Encoder that is used to encode a slice of complex values of size at most N/2 (the number of slots) on a Plaintext.
+func NewEncoderBig(params *Parameters, prec uint) Encoder {
+
+	encoder := newEncoder(params)
+
+	var angle float64
+	roots := make([]complex128, encoder.m+1)
+	rootsBig := make([]bigComplex, encoder.m+1)
+	anglePart := new(big.Float).Mul(piBig(prec), big.NewFloat(2))
+	anglePart.Quo(anglePart, big.NewFloat(float64(encoder.m)))
+
+	for i := 0; i < encoder.m; i++ {
+		angle = 2 * 3.141592653589793 * float64(i) / float64(encoder.m)
+
+		roots[i] = complex(math.Cos(angle), math.Sin(angle))
+
+		angleBig := new(big.Float)
+		angleBig.Mul(anglePart, big.NewFloat(float64(i)))
+		rootsBig[i] = bigComplex{cosBig(angleBig), sinBig(angleBig)}
+	}
+	roots[encoder.m] = roots[0]
+	rootsBig[encoder.m] = rootsBig[0]
+
+	return &encoderComplex128{
+		encoder:     encoder,
+		roots:       roots,
+		rootsBig: 	 rootsBig,
+		values:      make([]complex128, encoder.m>>2),
+		valuesfloat: make([]float64, encoder.m>>1),
 	}
 }
 
@@ -703,13 +735,13 @@ func (encoder *encoderComplex128) EncodeRVecNew(values mpc_core.RVec, slots uint
 		return NewPlaintext(encoder.params, encoder.params.MaxLevel(), encoder.params.Scale())
 	}
 
-	rtype := mpc_core.LElem128Zero
+	rtype := values[0].Zero()
 
 	if slots&(slots-1) != 0 { // slots not a power of two
 		closestPow := uint64(math.Pow(2, math.Ceil(math.Log2(float64(slots)))))
 		newValues := mpc_core.InitRVec(rtype.Zero(), int(closestPow))
 		for i := range values {
-			newValues[i] = values[i]
+			newValues[i] = values[i].Copy()
 		}
 		values = newValues
 		slots = closestPow
@@ -719,9 +751,11 @@ func (encoder *encoderComplex128) EncodeRVecNew(values mpc_core.RVec, slots uint
 		panic("cannot EncodeRVecNew: number of values must be equal to slots")
 	}
 
-	if values.Type().TypeID() != rtype.TypeID() {
-		panic("cannot EncodeRVecNew: only LElem128 supported")
+	if rtype.TypeID() != mpc_core.LElem128UniqueID && rtype.TypeID() != mpc_core.LElem256UniqueID {
+		panic("cannot EncodeRVecNew: only LElem128 or LElem256 supported")
 	}
+
+	is256 := rtype.TypeID() == mpc_core.LElem256UniqueID
 
 	plaintext = NewPlaintext(encoder.params, encoder.params.MaxLevel(), encoder.params.Scale())
 
@@ -729,7 +763,11 @@ func (encoder *encoderComplex128) EncodeRVecNew(values mpc_core.RVec, slots uint
 	zeroFloat := big.NewFloat(0)
 	for i := range slice {
 		if uint64(i) < slots {
-			slice[i] = bigComplex{values[i].(mpc_core.LElem128).ToSignedBigFloat(fracBits), big.NewFloat(0)}
+			if is256 {
+				slice[i] = bigComplex{values[i].(mpc_core.LElem256).ToSignedBigFloat(fracBits), big.NewFloat(0)}
+			} else {
+				slice[i] = bigComplex{values[i].(mpc_core.LElem128).ToSignedBigFloat(fracBits), big.NewFloat(0)}
+			}
 		} else {
 			slice[i] = bigComplex{zeroFloat, zeroFloat}
 		}
@@ -769,8 +807,7 @@ func (encoder *encoderComplex128) EncodeRVecNew(values mpc_core.RVec, slots uint
 }
 
 
-func (encoder *encoderComplex128) DecodeRVec(plaintext *Plaintext, slots uint64, fracBits int) (res mpc_core.RVec) {
-	rtype := mpc_core.LElem128Zero
+func (encoder *encoderComplex128) DecodeRVec(rtype mpc_core.RElem, plaintext *Plaintext, slots uint64, fracBits int) (res mpc_core.RVec) {
 
 	encoder.ringQ.InvNTTLvl(plaintext.Level(), plaintext.value, encoder.polypool)
 	encoder.ringQ.PolyToBigint(encoder.polypool, encoder.bigintCoeffs)
@@ -1185,7 +1222,7 @@ type bigComplex struct {
 	imag *big.Float
 }
 
-var piBase, _ = new(big.Float).SetPrec(200).SetString("3.14159265358979323846264338327950288419716939937510582097494459230781640628620899862803482534211706798214808651328230664709384460955058223172535940812848111745028410270193852110555964462294895493038196442881097566593344612847564823378678316527120190914564856692346034861045432664821339360726024914127372458700660631558817488152092096282925409171536436789259036001133053054882046652138414695194151160943305727036575959195309218611738193261179310511854807446237996274956735188575272489122793818301194912")
+var piBase, _ = new(big.Float).SetPrec(600).SetString("3.14159265358979323846264338327950288419716939937510582097494459230781640628620899862803482534211706798214808651328230664709384460955058223172535940812848111745028410270193852110555964462294895493038196442881097566593344612847564823378678316527120190914564856692346034861045432664821339360726024914127372458700660631558817488152092096282925409171536436789259036001133053054882046652138414695194151160943305727036575959195309218611738193261179310511854807446237996274956735188575272489122793818301194912")
 var piTable = make(map[uint]*big.Float)
 
 func piBig(prec uint) *big.Float {

@@ -55,8 +55,8 @@ func TestBootstrap(t *testing.T) {
 
 	// Insecure params for fast testing only
 	if !*flagLongTest {
-		ckksParams.LogN = 14
-		ckksParams.LogSlots = 13
+		ckksParams.LogN = 13
+		ckksParams.LogSlots = 12
 	}
 
 	params, err := ckks.NewParametersFromLiteral(ckksParams)

@@ -9,17 +9,43 @@ import (
 
 // Trace maps X -> sum((-1)^i * X^{i*n+1}) for 0 <= i < N
 // For log(n) = logSlotStart and log(N/2) = logSlotsEnd
+// Monomials X^k vanish if k isn't divisble by (N/n), else it is multiplied by (N/n).
+// Ciphertext is pre-multiplied by (N/n)^-1 to remove the (N/n) factor.
 func (eval *evaluator) Trace(ctIn *Ciphertext, logSlotsStart, logSlotsEnd int, ctOut *Ciphertext) {
-	if ctIn != ctOut {
-		ctOut.Copy(ctIn)
+
+	level := utils.MinInt(ctIn.Level(), ctOut.Level())
+
+	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:level+1]
+	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:level+1]
+
+	n := 1 << (logSlotsEnd - logSlotsStart)
+
+	if n > 1 {
+
+		ringQ := eval.params.RingQ()
+
+		// pre-multiplication by (N/n)^-1
+		for i := 0; i < level+1; i++ {
+			Q := ringQ.Modulus[i]
+			bredParams := ringQ.BredParams[i]
+			mredparams := ringQ.MredParams[i]
+			invN := ring.ModExp(uint64(n), Q-2, Q)
+			invN = ring.MForm(invN, Q, bredParams)
+
+			ring.MulScalarMontgomeryVec(ctIn.Value[0].Coeffs[i], ctOut.Value[0].Coeffs[i], invN, Q, mredparams)
+			ring.MulScalarMontgomeryVec(ctIn.Value[1].Coeffs[i], ctOut.Value[1].Coeffs[i], invN, Q, mredparams)
+		}
+
+		for i := logSlotsStart; i < logSlotsEnd; i++ {
+			eval.permuteNTT(ctOut, eval.params.GaloisElementForColumnRotationBy(1<<i), eval.ctxpool)
+			ctPool := &Ciphertext{Ciphertext: eval.ctxpool.Ciphertext, Scale: ctOut.Scale}
+			ctPool.Value = ctPool.Value[:2]
+			eval.Add(ctOut, ctPool, ctOut)
+		}
 	} else {
-		ctOut = ctIn
-	}
-	for i := logSlotsStart; i < logSlotsEnd; i++ {
-		eval.permuteNTT(ctOut, eval.params.GaloisElementForColumnRotationBy(1<<i), eval.ctxpool)
-		ctPool := &Ciphertext{Ciphertext: eval.ctxpool.Ciphertext, Scale: ctOut.Scale}
-		ctPool.Value = ctPool.Value[:2]
-		eval.Add(ctOut, ctPool, ctOut)
+		if ctIn != ctOut {
+			ctOut.Copy(ctIn)
+		}
 	}
 }
 

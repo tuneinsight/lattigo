@@ -161,7 +161,7 @@ func newTestVectors(testContext *testParams, encryptor Encryptor, a, b complex12
 
 	if testContext.params.RingType() == rlwe.RingStandard {
 		for i := 0; i < 1<<logSlots; i++ {
-			values[i] = complex(utils.RandFloat64(real(a), real(b)), utils.RandFloat64(imag(a), imag(b)))
+			values[i] = complex(1, 0) //complex(utils.RandFloat64(real(a), real(b)), utils.RandFloat64(imag(a), imag(b)))
 		}
 	} else {
 		for i := 0; i < 1<<logSlots; i++ {
@@ -1050,12 +1050,13 @@ func testAutomorphisms(testContext *testParams, t *testing.T) {
 
 func testInnerSum(testContext *testParams, t *testing.T) {
 
-	if testContext.params.PCount() == 0 {
-		t.Skip("#Pi is empty")
-	}
-
 	t.Run(GetTestName(testContext.params, "InnerSum/"), func(t *testing.T) {
-		batch := 2
+
+		if testContext.params.PCount() == 0 {
+			t.Skip("#Pi is empty")
+		}
+
+		batch := 7
 		n := 35
 
 		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.params.RotationsForInnerSum(batch, n), false, testContext.sk)
@@ -1082,26 +1083,17 @@ func testInnerSum(testContext *testParams, t *testing.T) {
 
 	t.Run(GetTestName(testContext.params, "InnerSumLog/"), func(t *testing.T) {
 
-		batch := 1
-		n := testContext.params.Slots()
+		if testContext.params.PCount() == 0 {
+			t.Skip("#Pi is empty")
+		}
+
+		batch := 512
+		n := testContext.params.Slots() / batch
 
 		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.params.RotationsForInnerSumLog(batch, n), false, testContext.sk)
 		eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testContext.rlk, Rtks: rotKey})
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
-
-		params := testContext.params
-
-		inv2 := make([]uint64, params.MaxLevel()+1)
-		for i := range inv2 {
-			inv2[i] = ring.ModExp(uint64(n), params.Q()[i]-2, params.Q()[i])
-			inv2[i] = ring.MForm(inv2[i], params.RingQ().Modulus[i], params.RingQ().BredParams[i])
-		}
-
-		for i := 0; i < ciphertext1.Level()+1; i++ {
-			ring.MulScalarMontgomeryVec(ciphertext1.Value[0].Coeffs[i], ciphertext1.Value[0].Coeffs[i], inv2[i], params.RingQ().Modulus[i], params.RingQ().MredParams[i])
-			ring.MulScalarMontgomeryVec(ciphertext1.Value[1].Coeffs[i], ciphertext1.Value[1].Coeffs[i], inv2[i], params.RingQ().Modulus[i], params.RingQ().MredParams[i])
-		}
 
 		eval.InnerSumLog(ciphertext1, batch, n, ciphertext1)
 
@@ -1117,11 +1109,41 @@ func testInnerSum(testContext *testParams, t *testing.T) {
 			}
 		}
 
-		for i := 0; i < len(values1); i++ {
-			values1[i] /= complex(float64(n), 0)
+		verifyTestVectors(testContext.params, testContext.encoder, testContext.decryptor, values1, ciphertext1, testContext.params.LogSlots(), 0, t)
+
+	})
+
+	t.Run(GetTestName(testContext.params, "Average/"), func(t *testing.T) {
+
+		if testContext.params.PCount() == 0 {
+			t.Skip("#Pi is empty")
 		}
 
-		fmt.Println(values1[:8])
+		batch := 512
+		n := testContext.params.Slots() / batch
+
+		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.params.RotationsForInnerSumLog(batch, n), false, testContext.sk)
+		eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testContext.rlk, Rtks: rotKey})
+
+		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
+
+		eval.Average(ciphertext1, batch, ciphertext1)
+
+		tmp0 := make([]complex128, len(values1))
+		copy(tmp0, values1)
+
+		for i := 1; i < n; i++ {
+
+			tmp1 := utils.RotateComplex128Slice(tmp0, i*batch)
+
+			for j := range values1 {
+				values1[j] += tmp1[j]
+			}
+		}
+
+		for i := range values1 {
+			values1[i] /= complex(float64(n), 0)
+		}
 
 		verifyTestVectors(testContext.params, testContext.encoder, testContext.decryptor, values1, ciphertext1, testContext.params.LogSlots(), 0, t)
 

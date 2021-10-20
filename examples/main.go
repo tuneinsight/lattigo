@@ -14,154 +14,8 @@ import (
 var LogN = 15
 
 func main() {
-	Bridge()
-	//SimulatedComplex()
-	//Complex()
-}
-
-// Bridge between CKKS and RCKKS
-func Bridge() {
-
-	LogN := 13
-	Q := []uint64{0x80000000080001, 0x200000440001, 0x200000500001, 0x1fffff980001}
-	P := []uint64{0x80000000440001, 0x80000000500001}
-	Scale := float64(1 << 40)
-	LogSlots := LogN
-
-	var paramsRCKKS, paramsCKKS ckks.Parameters
-	var err error
-	if paramsRCKKS, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
-		LogN:     LogN,
-		Q:        Q,
-		P:        P,
-		Sigma:    rlwe.DefaultSigma,
-		LogSlots: LogSlots,
-		Scale:    Scale,
-		RingType: rlwe.RingConjugateInvariant,
-	}); err != nil {
-		panic(err)
-	}
-
-	if paramsCKKS, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
-		LogN:     LogN + 1,
-		Q:        Q,
-		P:        P,
-		Sigma:    rlwe.DefaultSigma,
-		LogSlots: LogSlots,
-		Scale:    Scale,
-		RingType: rlwe.RingStandard,
-	}); err != nil {
-		panic(err)
-	}
-
-	kgenRCKKS := ckks.NewKeyGenerator(paramsRCKKS)
-	kgenCKKS := ckks.NewKeyGenerator(paramsCKKS)
-	skRCKKS := kgenRCKKS.GenSecretKey()
-	skCKKS := kgenCKKS.GenSecretKey()
-
-	skRCKKSMappedToCKKS := ckks.NewSecretKey(paramsCKKS)
-	UnfoldConjugateInvariantNTT(skRCKKS.Value.Q, skRCKKSMappedToCKKS.Value.Q)
-	UnfoldConjugateInvariantNTT(skRCKKS.Value.P, skRCKKSMappedToCKKS.Value.P)
-
-	swkRtoC := kgenCKKS.GenSwitchingKey(skRCKKSMappedToCKKS, skCKKS)
-	swkCtoR := kgenCKKS.GenSwitchingKey(skCKKS, skRCKKSMappedToCKKS)
-	ks := rlwe.NewKeySwitcher(paramsCKKS.Parameters)
-
-	encryptorRCKKS := ckks.NewEncryptor(paramsRCKKS, skRCKKS)
-	decryptorRCKKS := ckks.NewDecryptor(paramsRCKKS, skRCKKS)
-	encoderRCKKS := ckks.NewEncoder(paramsRCKKS)
-	decryptorCKKS0 := ckks.NewDecryptor(paramsCKKS, skCKKS)
-	encoderCKKS := ckks.NewEncoder(paramsCKKS)
-
-	// Plaintext generation & Encryption
-	values := make([]float64, 1<<LogSlots)
-	for i := 0; i < 1<<LogSlots; i++ {
-		values[i] = float64(i + 1)
-	}
-	plaintext := ckks.NewPlaintext(paramsRCKKS, paramsRCKKS.MaxLevel(), Scale)
-	encoderRCKKS.Encode(plaintext, values, LogSlots)
-
-	// New RCKKS cipherext
-	ciphertextRCKKS := encryptorRCKKS.EncryptNew(plaintext)
-
-	// Convert RCKKS to CKKS by mapping compressed representation inZ[X+X^-1]/(X^2N+1) to full representation in Z[X]/(X^2N+1)
-	ciphertextCKKS := ckks.NewCiphertext(paramsCKKS, ciphertextRCKKS.Degree(), ciphertextRCKKS.Level(), ciphertextRCKKS.Scale)
-	UnfoldConjugateInvariantNTT(ciphertextRCKKS.Value[0], ciphertextCKKS.Value[0])
-	UnfoldConjugateInvariantNTT(ciphertextRCKKS.Value[1], ciphertextCKKS.Value[1])
-
-	// Switches the RCKKS key [X+X^-1] to a CKKS key [X]
-	ks.SwitchKeysInPlace(ciphertextCKKS.Value[1].Level(), ciphertextCKKS.Value[1], swkRtoC, ks.Pool[1].Q, ks.Pool[2].Q)
-	paramsCKKS.RingQ().Add(ciphertextCKKS.Value[0], ks.Pool[1].Q, ciphertextCKKS.Value[0])
-	ring.CopyValues(ks.Pool[2].Q, ciphertextCKKS.Value[1])
-
-	fmt.Println(encoderCKKS.DecodePublic(decryptorCKKS0.DecryptNew(ciphertextCKKS), LogSlots, 0)[:8])
-
-	/*
-		inv2 := make([]uint64, paramsCKKS.MaxLevel()+1)
-		for i := range inv2{
-			inv2[i] = ring.ModExp(2, paramsCKKS.Q()[i]-2, paramsCKKS.Q()[i])
-			inv2[i] = ring.MForm(inv2[i], paramsCKKS.RingQ().Modulus[i], paramsCKKS.RingQ().BredParams[i])
-		}
-
-		for i := 0; i < ciphertextCKKS.Level()+1; i++{
-			ring.MulScalarMontgomeryVec(ciphertextCKKS.Value[0].Coeffs[i], ciphertextCKKS.Value[0].Coeffs[i], inv2[i], paramsCKKS.RingQ().Modulus[i], paramsCKKS.RingQ().MredParams[i])
-			ring.MulScalarMontgomeryVec(ciphertextCKKS.Value[1].Coeffs[i], ciphertextCKKS.Value[1].Coeffs[i], inv2[i], paramsCKKS.RingQ().Modulus[i], paramsCKKS.RingQ().MredParams[i])
-		}
-	*/
-
-	// Convert CKKS back to RCKKS
-
-	// Switch the CKKS key [X] to the RCKKS key [X+X^-1]
-	ks.SwitchKeysInPlace(ciphertextCKKS.Value[1].Level(), ciphertextCKKS.Value[1], swkCtoR, ks.Pool[1].Q, ks.Pool[2].Q)
-	paramsCKKS.RingQ().Add(ciphertextCKKS.Value[0], ks.Pool[1].Q, ciphertextCKKS.Value[0])
-	ring.CopyValues(ks.Pool[2].Q, ciphertextCKKS.Value[1])
-
-	ciphertextRCKKS = ckks.NewCiphertext(paramsRCKKS, ciphertextCKKS.Degree(), ciphertextCKKS.Level(), ciphertextCKKS.Scale)
-
-	FoldConjugateInvariantNTT(ciphertextCKKS.Value[0], paramsRCKKS.RingQ(), ciphertextRCKKS.Value[0])
-	FoldConjugateInvariantNTT(ciphertextCKKS.Value[1], paramsRCKKS.RingQ(), ciphertextRCKKS.Value[1])
-	ciphertextRCKKS.Scale *= 2
-
-	fmt.Println(encoderRCKKS.DecodePublic(decryptorRCKKS.DecryptNew(ciphertextRCKKS), LogSlots, 0)[:8])
-}
-
-// UnfoldConjugateInvariantNTT maps the compressed representation of Z_Q[X+X^-1]/(X^2N + 1) to full representation in Z_Q[X]/(X^2N+1)
-func UnfoldConjugateInvariantNTT(p1, p2 *ring.Poly) {
-
-	if 2*len(p1.Coeffs[0]) != len(p2.Coeffs[0]) {
-		panic("Ring degree of p2 must be twice the ring degree of p1")
-	}
-
-	N := len(p1.Coeffs[0])
-
-	level := utils.MinInt(p1.Level(), p2.Level())
-
-	for i := 0; i < level+1; i++ {
-		tmp2, tmp1 := p2.Coeffs[i], p1.Coeffs[i]
-		copy(tmp2, tmp1)
-		for idx, jdx := N-1, N; jdx < 2*N; idx, jdx = idx-1, jdx+1 {
-			tmp2[jdx] = tmp1[idx]
-		}
-	}
-
-	p2.Coeffs = p2.Coeffs[:level+1]
-
-	return
-}
-
-// FoldConjugateInvariantNTT maps the [X] to its compressed format in [X+X^-1]
-func FoldConjugateInvariantNTT(p1 *ring.Poly, ringQ *ring.Ring, p2 *ring.Poly) {
-	if len(p1.Coeffs[0]) != 2*len(p2.Coeffs[0]) {
-		panic("Ring degree of p2 must be twice the ring degree of p1")
-	}
-
-	level := utils.MinInt(p1.Level(), p2.Level())
-
-	index := ringQ.PermuteNTTIndex(ringQ.NthRoot - 1)
-	ringQ.PermuteNTTWithIndexLvl(level, p1, index, p2)
-	ringQ.Add(p2, p1, p2)
-
-	p2.Coeffs = p2.Coeffs[:level+1]
+	SimulatedComplex()
+	Complex()
 }
 
 // SimulatedComplex implements complex arithmetic using RCKKS
@@ -169,7 +23,7 @@ func SimulatedComplex() {
 	// Schemes parameters are created from scratch
 	params, err := ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
 		LogN:     LogN,
-		LogQ:     []int{55, 40, 40, 40},
+		LogQ:     []int{55, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40},
 		LogP:     []int{45, 45, 45},
 		Sigma:    rlwe.DefaultSigma,
 		LogSlots: LogN,
@@ -265,23 +119,20 @@ func SimulatedComplex() {
 	rotKey := kgen.GenRotationKeysForRotations(rots, false, sk)
 
 	eval := NewEvaluator(params, rlk, rotKey)
-	_ = ctB
 
-	/*
-		var ctC Ciphertext
-		var tot time.Duration
-		for i := 0; i < 1; i++{
-			now := time.Now()
-			ctC = eval.MulRelinNew(ctA, ctB)
-			eval.Rescale(ctC.Real, eval.params.Scale(), ctC.Real)
-			eval.Rescale(ctC.Imag, eval.params.Scale(), ctC.Imag)
-			tot += time.Since(now)
-		}
-		fmt.Println("RCKKS - LogN :", params.LogN())
-		fmt.Printf("Done : %s\n", tot/100.)
-	*/
+	var ctC Ciphertext
+	var tot time.Duration
+	for i := 0; i < 100; i++ {
+		now := time.Now()
+		ctC = eval.MulRelinNew(ctA, ctB)
+		eval.Rescale(ctC.Real, eval.params.Scale(), ctC.Real)
+		eval.Rescale(ctC.Imag, eval.params.Scale(), ctC.Imag)
+		tot += time.Since(now)
+	}
+	fmt.Println("RCKKS - LogN :", params.LogN())
+	fmt.Printf("Done : %s\n", tot/100.)
 
-	ctC := ctA
+	//ctC := ctA
 
 	PoolDecompRealQP := make([]rlwe.PolyQP, params.Beta())
 	PoolDecompImagQP := make([]rlwe.PolyQP, params.Beta())

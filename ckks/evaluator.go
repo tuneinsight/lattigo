@@ -107,6 +107,7 @@ type Evaluator interface {
 	// Inner sum
 	InnerSumLog(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
 	InnerSum(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
+	Average(ctIn *Ciphertext, batch int, ctOut *Ciphertext)
 
 	// Replicatation (inverse of Inner sum)
 	ReplicateLog(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)

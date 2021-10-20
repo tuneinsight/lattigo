@@ -140,6 +140,39 @@ func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfa
 	}
 }
 
+// Average returns the average of vectors of batchSize elemets.
+// The operation assumes that ctIn encrypts SlotCount/'batchSize' sub-vectors of size 'batchSize'.
+// It then replace all values of those sub-vectors by their average (relative to their sub-vector).
+// Operation requires log2(SlotCout/'batchSize') rotations.
+// Required rotation keys can be generated with 'RotationsForInnerSumLog(batchSize, SlotCount/batchSize)''
+func (eval *evaluator) Average(ctIn *Ciphertext, batchSize int, ctOut *Ciphertext) {
+
+	if batchSize&(batchSize-1) != 0 || batchSize > eval.params.Slots() {
+		panic("batchSize must be a power of two that is smaller or equal to the number of slots")
+	}
+
+	ringQ := eval.params.RingQ()
+
+	level := utils.MinInt(ctIn.Level(), ctOut.Level())
+
+	n := eval.params.Slots() / batchSize
+
+	// pre-multiplication by n^-1
+	for i := 0; i < level+1; i++ {
+		Q := ringQ.Modulus[i]
+		bredParams := ringQ.BredParams[i]
+		mredparams := ringQ.MredParams[i]
+		invN := ring.ModExp(uint64(n), Q-2, Q)
+		invN = ring.MForm(invN, Q, bredParams)
+
+		ring.MulScalarMontgomeryVec(ctIn.Value[0].Coeffs[i], ctOut.Value[0].Coeffs[i], invN, Q, mredparams)
+		ring.MulScalarMontgomeryVec(ctIn.Value[1].Coeffs[i], ctOut.Value[1].Coeffs[i], invN, Q, mredparams)
+	}
+
+	// Partial trace evaluation where coefficients are either scaled by n or vanish.
+	eval.InnerSumLog(ctOut, batchSize, n, ctOut)
+}
+
 // InnerSumLog applies an optimized inner sum on the ciphetext (log2(n) + HW(n) rotations with double hoisting).
 // The operation assumes that `ctIn` encrypts SlotCount/`batchSize` sub-vectors of size `batchSize` which it adds together (in parallel) by groups of `n`.
 // It outputs in ctOut a ciphertext for which the "leftmost" sub-vector of each group is equal to the sum of the group.

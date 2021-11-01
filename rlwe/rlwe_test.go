@@ -51,6 +51,7 @@ func TestRLWE(t *testing.T) {
 		kgen := NewKeyGenerator(params)
 
 		for _, testSet := range []func(kgen KeyGenerator, t *testing.T){
+			testRGSW,
 			testGenKeyPair,
 			testSwitchKeyGen,
 			testEncryptor,
@@ -128,6 +129,43 @@ func log2OfInnerSum(level int, ringQ *ring.Ring, poly *ring.Poly) (logSum int) {
 	}
 
 	return
+}
+
+func testRGSW(kgen KeyGenerator, t *testing.T) {
+
+	params := kgen.(*keyGenerator).params
+
+	t.Run(testString(params, "RGSW/"), func(t *testing.T) {
+
+		sk := kgen.GenSecretKey()
+		ringQ := params.RingQ()
+
+		encryptor := NewEncryptor(params, sk)
+
+		plaintext := NewPlaintext(params, params.MaxLevel())
+		plaintext.Value.IsNTT = false
+		plaintext.Value.Coeffs[0][1] = 1 << 20
+
+		ct := NewCiphertextNTT(params, 1, params.MaxLevel())
+		encryptor.Encrypt(plaintext, ct)
+
+		plaintextRGSW := NewPlaintext(params, params.MaxLevel())
+		plaintextRGSW.Value.IsNTT = false
+		plaintextRGSW.Value.Coeffs[0][0] = 2
+
+		ctRGSW := NewCiphertextRGSWNTT(params, params.MaxLevel())
+		encryptor.(*skEncryptor).EncryptRGSW(plaintextRGSW, ctRGSW)
+
+		ks := NewKeySwitcher(params)
+
+		ctOut := NewCiphertextNTT(params, 1, params.MaxLevel())
+		ks.MulRGSW(ct, ctRGSW, ctOut)
+
+		ringQ.MulCoeffsMontgomeryAndAddLvl(ctOut.Level(), ctOut.Value[1], sk.Value.Q, ctOut.Value[0])
+		ringQ.InvNTTLvl(ctOut.Level(), ctOut.Value[0], ctOut.Value[0])
+		fmt.Println(ctOut.Value[0].Coeffs[0][:4])
+	})
+
 }
 
 func testGenKeyPair(kgen KeyGenerator, t *testing.T) {

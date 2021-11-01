@@ -134,6 +134,96 @@ func (ks *KeySwitcher) DecomposeSingleNTT(levelQ, levelP, alpha, beta int, c2NTT
 	ringP.NTTLazyLvl(levelP, c2QiP, c2QiP)
 }
 
+func (ks *KeySwitcher) MulRGSW(ct0 *Ciphertext, rgsw *RGSWCiphertext, ctOut *Ciphertext) {
+
+	var reduce int
+
+	levelQ := ct0.Level()
+
+	ringQ := ks.RingQ()
+	ringP := ks.RingP()
+	ringQP := ks.RingQP()
+
+	aQP := ringQP.NewPoly()
+	bQP := ringQP.NewPoly()
+
+	ctOut0P := ringP.NewPoly()
+	ctOut1P := ringP.NewPoly()
+
+	c0QP := PolyQP{ctOut.Value[0], ctOut0P}
+	c1QP := PolyQP{ctOut.Value[1], ctOut1P}
+
+	var aNTT, aInvNTT, bNTT, bInvNTT *ring.Poly
+	if ct0.Value[0].IsNTT {
+		aNTT = ct0.Value[0]
+		bNTT = ct0.Value[1]
+		aInvNTT = ringQ.NewPoly()
+		bInvNTT = ringQ.NewPoly()
+		ringQ.InvNTTLvl(levelQ, aNTT, aInvNTT)
+		ringQ.InvNTTLvl(levelQ, bNTT, bInvNTT)
+	} else {
+		aNTT = ringQ.NewPoly()
+		bNTT = ringQ.NewPoly()
+		aInvNTT = ct0.Value[0]
+		bInvNTT = ct0.Value[1]
+		ringQ.NTTLvl(levelQ, aInvNTT, aNTT)
+		ringQ.NTTLvl(levelQ, bInvNTT, bNTT)
+	}
+
+	alpha := len(rgsw.Value[0][0][0].P.Coeffs)
+	levelP := alpha - 1
+	beta := int(math.Ceil(float64(levelQ+1) / float64(levelP+1)))
+
+	QiOverF := ks.Parameters.QiOverflowMargin(levelQ) >> 1
+	PiOverF := ks.Parameters.PiOverflowMargin(levelP) >> 1
+
+	// Key switching with CRT decomposition for the Qi
+	for i := 0; i < beta; i++ {
+
+		ks.DecomposeSingleNTT(levelQ, levelP, alpha, i, aNTT, aInvNTT, aQP.Q, aQP.P)
+		ks.DecomposeSingleNTT(levelQ, levelP, alpha, i, bNTT, bInvNTT, bQP.Q, bQP.P)
+
+		if i == 0 {
+			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, rgsw.Value[i][0][0], aQP, c0QP)
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, rgsw.Value[i][1][0], bQP, c0QP)
+
+			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, rgsw.Value[i][0][1], aQP, c1QP)
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, rgsw.Value[i][1][1], bQP, c1QP)
+		} else {
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, rgsw.Value[i][0][0], aQP, c0QP)
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, rgsw.Value[i][1][0], bQP, c0QP)
+
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, rgsw.Value[i][0][1], aQP, c1QP)
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, rgsw.Value[i][1][1], bQP, c1QP)
+		}
+
+		if reduce%QiOverF == QiOverF-1 {
+			ringQ.ReduceLvl(levelQ, c0QP.Q, c0QP.Q)
+			ringQ.ReduceLvl(levelQ, c1QP.Q, c1QP.Q)
+		}
+
+		if reduce%PiOverF == PiOverF-1 {
+			ringP.ReduceLvl(levelP, c0QP.P, c0QP.P)
+			ringP.ReduceLvl(levelP, c1QP.P, c1QP.P)
+		}
+
+		reduce++
+	}
+
+	if reduce%QiOverF != 0 {
+		ringQ.ReduceLvl(levelQ, c0QP.Q, c0QP.Q)
+		ringQ.ReduceLvl(levelQ, c1QP.Q, c1QP.Q)
+	}
+
+	if reduce%PiOverF != 0 {
+		ringP.ReduceLvl(levelP, c0QP.P, c0QP.P)
+		ringP.ReduceLvl(levelP, c1QP.P, c1QP.P)
+	}
+
+	ks.Baseconverter.ModDownQPtoQNTT(levelQ, levelP, c0QP.Q, c0QP.P, c0QP.Q)
+	ks.Baseconverter.ModDownQPtoQNTT(levelQ, levelP, c1QP.Q, c1QP.P, c1QP.Q)
+}
+
 // SwitchKeysInPlaceNoModDown applies the key-switch to the polynomial cx :
 //
 // pool2 = dot(decomp(cx) * evakey[0]) mod QP (encrypted input is multiplied by P factor)

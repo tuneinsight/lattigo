@@ -54,13 +54,16 @@ func InitLUT(scale float64, ringQ *ring.Ring) (F *ring.Poly) {
 	F = ringQ.NewPoly()
 	Q := ringQ.Modulus[0]
 
+	// Zero
 	F.Coeffs[0][0] = ScaleUpExact(0, scale, Q)
 
-	for i := 1; i < ringQ.N>>1; i++ {
-		F.Coeffs[0][i] = ScaleUpExact(float64(ringQ.N/2-i), scale, Q)
+	// Negatives
+	for i := 1; i < (ringQ.N>>1)+1; i++ {
+		F.Coeffs[0][i] = ScaleUpExact(-float64(-i), scale, Q)
 	}
 
-	for i := ringQ.N >> 1; i < ringQ.N; i++ {
+	// Positives
+	for i := (ringQ.N>>1)+1; i < ringQ.N; i++ {
 		F.Coeffs[0][i] = ScaleUpExact(-float64(ringQ.N-i), scale, Q)
 	}
 
@@ -205,7 +208,7 @@ func LUT() {
 
 	// Generates some LWE
 
-	m := 2.0
+	m := 1024.0
 
 	a := make([]uint64, LWEDegree)
 	for i := range a {
@@ -217,7 +220,7 @@ func LUT() {
 		b -= a[i] * skLWE[i]
 	}
 
-	b += ScaleUpExact(m, 1.0, mask+1)
+	b += ScaleUpExact(m, 1.0, uint64(2*LWEDegree))
 	b &= mask
 
 	fmt.Printf("Evaluating LUT... ")

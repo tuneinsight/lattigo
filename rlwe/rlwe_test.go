@@ -9,6 +9,7 @@ import (
 	"math/bits"
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/stretchr/testify/assert"
@@ -42,7 +43,7 @@ func TestRLWE(t *testing.T) {
 		defaultParams = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
-	for _, defaultParam := range defaultParams[:] {
+	for _, defaultParam := range defaultParams[:1] {
 		params, err := NewParametersFromLiteral(defaultParam)
 		if err != nil {
 			panic(err)
@@ -151,15 +152,25 @@ func testRGSW(kgen KeyGenerator, t *testing.T) {
 
 		plaintextRGSW := NewPlaintext(params, params.MaxLevel())
 		plaintextRGSW.Value.IsNTT = false
-		plaintextRGSW.Value.Coeffs[0][0] = 2
+		plaintextRGSW.Value.Coeffs[0][0] = 1
 
-		ctRGSW := NewCiphertextRGSWNTT(params, params.MaxLevel())
-		encryptor.(*skEncryptor).EncryptRGSW(plaintextRGSW, ctRGSW)
+		rgswciphertext := make([]*RGSWCiphertext, 1<<12)
+		for i := 0; i < 1; i++ {
+			fmt.Println(i)
+			rgswciphertext[i] = NewCiphertextRGSWNTT(params, params.MaxLevel())
+			encryptor.(*skEncryptor).EncryptRGSW(plaintextRGSW, rgswciphertext[i])
+
+		}
 
 		ks := NewKeySwitcher(params)
 
 		ctOut := NewCiphertextNTT(params, 1, params.MaxLevel())
-		ks.MulRGSW(ct, ctRGSW, ctOut)
+
+		now := time.Now()
+		for i := 0; i < 1<<10; i++ {
+			ks.MulRGSW(ct, rgswciphertext[0], ctOut)
+		}
+		fmt.Printf("Done: %s", time.Since(now))
 
 		ringQ.MulCoeffsMontgomeryAndAddLvl(ctOut.Level(), ctOut.Value[1], sk.Value.Q, ctOut.Value[0])
 		ringQ.InvNTTLvl(ctOut.Level(), ctOut.Value[0], ctOut.Value[0])

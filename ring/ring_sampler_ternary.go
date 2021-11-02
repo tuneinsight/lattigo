@@ -192,9 +192,9 @@ func (ts *TernarySampler) sampleSparse(lvl int, pol *Poly) {
 	for i := 0; i < ts.hw; i++ {
 		mask = (1 << uint64(bits.Len64(uint64(ts.baseRing.N-i)))) - 1 // rejection sampling of a random variable between [0, len(index)]
 
-		j = randInt32(ts.prng, mask)
+		j = RandInt32(ts.prng, mask)
 		for j >= uint64(ts.baseRing.N-i) {
-			j = randInt32(ts.prng, mask)
+			j = RandInt32(ts.prng, mask)
 		}
 
 		coeff = (uint8(randomBytes[0]) >> (i & 7)) & 1 // random binary digit [0, 1] from the random bytes (0 = 1, 1 = -1)

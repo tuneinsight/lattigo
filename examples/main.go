@@ -8,14 +8,348 @@ import (
 	"github.com/ldsec/lattigo/v2/utils"
 	"runtime"
 	"time"
+	//"math"
+	"math/big"
 )
 
 // LogN of the ring degree of the used parameters
 var LogN = 15
 
 func main() {
-	SimulatedComplex()
-	Complex()
+	LUT()
+	//SimulatedComplex()
+	//Complex()
+}
+
+func ScaleUpExact(value float64, scale float64, Q uint64) (res uint64) {
+
+	var isNegative bool
+	var xFlo *big.Float
+	var xInt *big.Int
+
+	isNegative = false
+	if value < 0 {
+		isNegative = true
+		xFlo = big.NewFloat(-scale * value)
+	} else {
+		xFlo = big.NewFloat(scale * value)
+	}
+
+	xFlo.Add(xFlo, big.NewFloat(0.5))
+
+	xInt = new(big.Int)
+	xFlo.Int(xInt)
+	xInt.Mod(xInt, ring.NewUint(Q))
+
+	res = xInt.Uint64()
+
+	if isNegative {
+		res = Q - res
+	}
+
+	return
+}
+
+func InitLUT(scale float64, ringQ *ring.Ring) (F *ring.Poly) {
+	F = ringQ.NewPoly()
+	Q := ringQ.Modulus[0]
+
+	F.Coeffs[0][0] = ScaleUpExact(0, scale, Q)
+
+	for i := 1; i < ringQ.N>>1; i++ {
+		F.Coeffs[0][i] = ScaleUpExact(float64(ringQ.N/2-i), scale, Q)
+	}
+
+	for i := ringQ.N >> 1; i < ringQ.N; i++ {
+		F.Coeffs[0][i] = ScaleUpExact(-float64(ringQ.N-i), scale, Q)
+	}
+
+	ringQ.NTT(F, F)
+
+	return
+}
+
+func LUT() {
+	var params rlwe.Parameters
+	var err error
+	if params, err = rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
+		LogN:     11,
+		Q:        []uint64{0x3fffffffef8001}, // 56
+		P:        []uint64{0x80000000068001}, // 60 bits
+		Sigma:    rlwe.DefaultSigma,
+		RingType: rlwe.RingStandard,
+	}); err != nil {
+		panic(err)
+	}
+
+	ringQ := params.RingQ()
+
+	ks := rlwe.NewKeySwitcher(params)
+	_ = ks
+
+	kgen := rlwe.NewKeyGenerator(params)
+	sk := kgen.GenSecretKey()
+	encryptor := rlwe.NewEncryptor(params, sk)
+	//decryptor := rlwe.NewDecryptor(params, sk)
+
+	fmt.Printf("Encrypting bits of skLWE in RGSW... ")
+	now := time.Now()
+
+	prng, _ := utils.NewPRNG()
+
+	LWEDegree := 1 << 10
+	LUTScale := float64(int(1 << 30))
+	mask := uint64(2*params.N() - 1)
+
+	skLWE := make([]uint64, LWEDegree)
+	for i := range skLWE {
+
+		si := ring.RandInt32(prng, 3)
+
+		for si == 3 {
+			si = ring.RandInt32(prng, 3)
+		}
+
+		skLWE[i] = (si - 1) & mask
+	}
+
+	plaintextRGSWOne := rlwe.NewPlaintext(params, params.MaxLevel())
+	plaintextRGSWOne.Value.IsNTT = true
+	plaintextRGSWZer := rlwe.NewPlaintext(params, params.MaxLevel())
+	plaintextRGSWZer.Value.IsNTT = true
+
+	for i := 0; i < params.N(); i++ {
+		plaintextRGSWOne.Value.Coeffs[0][i] = 1
+	}
+
+	EncOneRGSW := rlwe.NewCiphertextRGSWNTT(params, params.MaxLevel())
+
+	encryptor.EncryptRGSW(plaintextRGSWOne, EncOneRGSW)
+
+	skRGSWPos := make([]*rlwe.RGSWCiphertext, params.N())
+	skRGSWNeg := make([]*rlwe.RGSWCiphertext, params.N())
+
+	for i := 0; i < len(skLWE); i++ {
+
+		skRGSWPos[i] = rlwe.NewCiphertextRGSWNTT(params, params.MaxLevel())
+		skRGSWNeg[i] = rlwe.NewCiphertextRGSWNTT(params, params.MaxLevel())
+
+		si := skLWE[i]
+
+		if si == 1 {
+			encryptor.EncryptRGSW(plaintextRGSWOne, skRGSWPos[i])
+			encryptor.EncryptRGSW(plaintextRGSWZer, skRGSWNeg[i])
+		} else if si == mask {
+			encryptor.EncryptRGSW(plaintextRGSWZer, skRGSWPos[i])
+			encryptor.EncryptRGSW(plaintextRGSWOne, skRGSWNeg[i])
+		} else {
+			encryptor.EncryptRGSW(plaintextRGSWZer, skRGSWPos[i])
+			encryptor.EncryptRGSW(plaintextRGSWZer, skRGSWNeg[i])
+		}
+	}
+
+	fmt.Printf("Done (%s)\n", time.Since(now))
+
+	fmt.Printf("Generating LUT... ")
+	now = time.Now()
+	LUTPoly := InitLUT(LUTScale, ringQ)
+	fmt.Printf("Done (%s)\n", time.Since(now))
+
+	fmt.Printf("Generating Table for NTT(X^alpha - 1)... ")
+	now = time.Now()
+	powXMinusOne := make([]rlwe.PolyQP, 2*params.N())
+	powX := make([]*ring.Poly, 2*params.N())
+	Q := params.Q()[0]
+	P := params.P()[0]
+	ringQP := params.RingQP()
+	ringP := params.RingP()
+	// Stores NTT(X^i - 1)
+	for i := 0; i < params.N(); i++ {
+		powX[i] = ringQ.NewPoly()
+		powXMinusOne[i] = ringQP.NewPoly()
+
+		powXMinusOne[i].Q.Coeffs[0][i] = 1
+		powXMinusOne[i].P.Coeffs[0][i] = 1
+
+		ringQ.NTT(powXMinusOne[i].Q, powX[i])
+		ringQ.MForm(powX[i], powX[i])
+
+		powXMinusOne[i].Q.Coeffs[0][0] += Q - 1
+		powXMinusOne[i].P.Coeffs[0][0] += P - 1
+
+		ringQ.NTT(powXMinusOne[i].Q, powXMinusOne[i].Q)
+		ringQ.MForm(powXMinusOne[i].Q, powXMinusOne[i].Q)
+		ringP.NTT(powXMinusOne[i].P, powXMinusOne[i].P)
+		ringP.MForm(powXMinusOne[i].P, powXMinusOne[i].P)
+	}
+
+	for i, j := params.N(), 0; i < 2*params.N(); i, j = i+1, j+1 {
+		powX[i] = ringQ.NewPoly()
+		powXMinusOne[i] = ringQP.NewPoly()
+
+		powXMinusOne[i].Q.Coeffs[0][j] = Q - 1
+		powXMinusOne[i].P.Coeffs[0][j] = P - 1
+
+		ringQ.NTT(powXMinusOne[i].Q, powX[i])
+		ringQ.MForm(powX[i], powX[i])
+
+		powXMinusOne[i].Q.Coeffs[0][0] += Q - 1
+		powXMinusOne[i].P.Coeffs[0][0] += P - 1
+
+		ringQ.NTT(powXMinusOne[i].Q, powXMinusOne[i].Q)
+		ringQ.MForm(powXMinusOne[i].Q, powXMinusOne[i].Q)
+		ringP.NTT(powXMinusOne[i].P, powXMinusOne[i].P)
+		ringP.MForm(powXMinusOne[i].P, powXMinusOne[i].P)
+	}
+	fmt.Printf("Done (%s)\n", time.Since(now))
+
+	// Generates some LWE
+
+	m := 2.0
+
+	a := make([]uint64, LWEDegree)
+	for i := range a {
+		a[i] = ring.RandInt32(prng, mask)
+	}
+
+	var b uint64
+	for i := 0; i < LWEDegree; i++ {
+		b -= a[i] * skLWE[i]
+	}
+
+	b += ScaleUpExact(m, 1.0, mask+1)
+	b &= mask
+
+	fmt.Printf("Evaluating LUT... ")
+
+	acc := rlwe.NewCiphertextNTT(params, 1, params.MaxLevel())
+	ringQ.MulCoeffsMontgomery(LUTPoly, powXMinusOne[b].Q, acc.Value[0])
+	ringQ.Add(acc.Value[0], LUTPoly, acc.Value[0])
+
+	tmpRGSW := rlwe.NewCiphertextRGSWNTT(params, params.MaxLevel())
+
+	now = time.Now()
+	for i := 0; i < LWEDegree; i++ {
+		MulRGSWByXPowAlphaMinusOne(skRGSWPos[i], a[i], powXMinusOne, ringQP, tmpRGSW)
+		MulRGSWByXPowAlphaMinusOneAndAdd(skRGSWNeg[i], -a[i]&mask, powXMinusOne, ringQP, tmpRGSW)
+		AddRGSW(EncOneRGSW, ringQP, tmpRGSW)
+		ks.MulRGSW(acc, tmpRGSW, acc)
+	}
+	fmt.Printf("Done (%s)\n", time.Since(now))
+
+	tmp := ringQ.NewPoly()
+	ringQ.MulCoeffsMontgomery(LUTPoly, powX[b], tmp)
+
+	for i := 0; i < LWEDegree; i++ {
+		if skLWE[i] == 1 {
+			b += a[i] & mask
+			ringQ.MulCoeffsMontgomery(tmp, powX[+a[i]&mask], tmp)
+		} else if skLWE[i] == mask {
+			b += -a[i] & mask
+			ringQ.MulCoeffsMontgomery(tmp, powX[-a[i]&mask], tmp)
+		}
+	}
+
+	ringQ.InvNTT(tmp, tmp)
+	fmt.Printf("Want : ")
+	PrintPoly(tmp, LUTScale, Q)
+
+	fmt.Printf("Have : ")
+	DecryptAndCenter(acc.Value[0], acc.Value[1], sk.Value.Q, ringQ, false, LUTScale)
+
+}
+
+func PrintPoly(pol *ring.Poly, scale float64, Q uint64) {
+	fmt.Printf("[")
+	for _, c := range pol.Coeffs[0][:4] {
+		if c > Q>>1 {
+			fmt.Printf("%0.4f, ", float64(int(c)-int(Q))/scale)
+		} else {
+			fmt.Printf("%0.4f, ", float64(int(c))/scale)
+		}
+	}
+	fmt.Printf("]\n")
+}
+
+func DecryptAndCenter(b, a, sk *ring.Poly, ringQ *ring.Ring, mForm bool, scale float64) {
+	pt := ringQ.NewPoly()
+	ringQ.MulCoeffsMontgomery(a, sk, pt)
+	ringQ.Add(pt, b, pt)
+	ringQ.InvNTT(pt, pt)
+	if mForm {
+		ringQ.InvMForm(pt, pt)
+	}
+
+	Q := ringQ.Modulus[0]
+	fmt.Printf("[")
+	for _, c := range pt.Coeffs[0][:4] {
+		if c > Q>>1 {
+			fmt.Printf("%0.4f, ", (float64(c)-float64(Q))/scale)
+		} else {
+			fmt.Printf("%0.4f, ", float64(c)/scale)
+		}
+	}
+	fmt.Printf("]\n")
+}
+
+func AddRGSW(rgsw *rlwe.RGSWCiphertext, ringQP *rlwe.RingQP, res *rlwe.RGSWCiphertext) {
+
+	ringQ := ringQP.RingQ
+	ringP := ringQP.RingP
+
+	for i := range rgsw.Value {
+		ringQ.Add(res.Value[i][0][0].Q, rgsw.Value[i][0][0].Q, res.Value[i][0][0].Q)
+		ringP.Add(res.Value[i][0][0].P, rgsw.Value[i][0][0].P, res.Value[i][0][0].P)
+
+		ringQ.Add(res.Value[i][0][1].Q, rgsw.Value[i][0][1].Q, res.Value[i][0][1].Q)
+		ringP.Add(res.Value[i][0][1].P, rgsw.Value[i][0][1].P, res.Value[i][0][1].P)
+
+		ringQ.Add(res.Value[i][1][0].Q, rgsw.Value[i][1][0].Q, res.Value[i][1][0].Q)
+		ringP.Add(res.Value[i][1][0].P, rgsw.Value[i][1][0].P, res.Value[i][1][0].P)
+
+		ringQ.Add(res.Value[i][1][1].Q, rgsw.Value[i][1][1].Q, res.Value[i][1][1].Q)
+		ringP.Add(res.Value[i][1][1].P, rgsw.Value[i][1][1].P, res.Value[i][1][1].P)
+	}
+}
+
+func MulRGSWByXPowAlphaMinusOne(rgsw *rlwe.RGSWCiphertext, alpha uint64, powXMinusOne []rlwe.PolyQP, ringQP *rlwe.RingQP, res *rlwe.RGSWCiphertext) {
+
+	ringQ := ringQP.RingQ
+	ringP := ringQP.RingP
+
+	for i := range rgsw.Value {
+		ringQ.MulCoeffsMontgomery(rgsw.Value[i][0][0].Q, powXMinusOne[alpha].Q, res.Value[i][0][0].Q)
+		ringP.MulCoeffsMontgomery(rgsw.Value[i][0][0].P, powXMinusOne[alpha].P, res.Value[i][0][0].P)
+
+		ringQ.MulCoeffsMontgomery(rgsw.Value[i][0][1].Q, powXMinusOne[alpha].Q, res.Value[i][0][1].Q)
+		ringP.MulCoeffsMontgomery(rgsw.Value[i][0][1].P, powXMinusOne[alpha].P, res.Value[i][0][1].P)
+
+		ringQ.MulCoeffsMontgomery(rgsw.Value[i][1][0].Q, powXMinusOne[alpha].Q, res.Value[i][1][0].Q)
+		ringP.MulCoeffsMontgomery(rgsw.Value[i][1][0].P, powXMinusOne[alpha].P, res.Value[i][1][0].P)
+
+		ringQ.MulCoeffsMontgomery(rgsw.Value[i][1][1].Q, powXMinusOne[alpha].Q, res.Value[i][1][1].Q)
+		ringP.MulCoeffsMontgomery(rgsw.Value[i][1][1].P, powXMinusOne[alpha].P, res.Value[i][1][1].P)
+	}
+}
+
+func MulRGSWByXPowAlphaMinusOneAndAdd(rgsw *rlwe.RGSWCiphertext, alpha uint64, powXMinusOne []rlwe.PolyQP, ringQP *rlwe.RingQP, res *rlwe.RGSWCiphertext) {
+
+	ringQ := ringQP.RingQ
+	ringP := ringQP.RingP
+
+	for i := range rgsw.Value {
+		ringQ.MulCoeffsMontgomeryAndAdd(rgsw.Value[i][0][0].Q, powXMinusOne[alpha].Q, res.Value[i][0][0].Q)
+		ringP.MulCoeffsMontgomeryAndAdd(rgsw.Value[i][0][0].P, powXMinusOne[alpha].P, res.Value[i][0][0].P)
+
+		ringQ.MulCoeffsMontgomeryAndAdd(rgsw.Value[i][0][1].Q, powXMinusOne[alpha].Q, res.Value[i][0][1].Q)
+		ringP.MulCoeffsMontgomeryAndAdd(rgsw.Value[i][0][1].P, powXMinusOne[alpha].P, res.Value[i][0][1].P)
+
+		ringQ.MulCoeffsMontgomeryAndAdd(rgsw.Value[i][1][0].Q, powXMinusOne[alpha].Q, res.Value[i][1][0].Q)
+		ringP.MulCoeffsMontgomeryAndAdd(rgsw.Value[i][1][0].P, powXMinusOne[alpha].P, res.Value[i][1][0].P)
+
+		ringQ.MulCoeffsMontgomeryAndAdd(rgsw.Value[i][1][1].Q, powXMinusOne[alpha].Q, res.Value[i][1][1].Q)
+		ringP.MulCoeffsMontgomeryAndAdd(rgsw.Value[i][1][1].P, powXMinusOne[alpha].P, res.Value[i][1][1].P)
+	}
 }
 
 // SimulatedComplex implements complex arithmetic using RCKKS

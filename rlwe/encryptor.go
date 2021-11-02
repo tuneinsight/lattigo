@@ -16,6 +16,8 @@ type Encryptor interface {
 	// EncryptFromCRP encrypts the input plaintext and writes the result in ctOut.
 	// The encryption algorithm depends on the implementor.
 	EncryptFromCRP(pt *Plaintext, crp *ring.Poly, ctOut *Ciphertext)
+
+	EncryptRGSW(plaintext *Plaintext, ciphertext *RGSWCiphertext)
 }
 
 // encryptorBase is a struct used to encrypt Plaintexts. It stores the public-key and/or secret-key.
@@ -191,6 +193,14 @@ func (encryptor *pkEncryptor) Encrypt(plaintext *Plaintext, ctOut *Ciphertext) {
 	ctOut.Value[1].IsNTT = ctOut.Value[0].IsNTT
 	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:levelQ+1]
 	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:levelQ+1]
+}
+
+func (encryptor *pkEncryptor) EncryptRGSW(plaintext *Plaintext, ciphertext *RGSWCiphertext) {
+	panic("method not implemented")
+}
+
+func (encryptor *pkFastEncryptor) EncryptRGSW(plaintext *Plaintext, ciphertext *RGSWCiphertext) {
+	panic("method not implemented")
 }
 
 // Encrypt encrypts the input Plaintext and write the result in ctOut.

@@ -1,9 +1,8 @@
 package rlwe
 
 import (
-	"math"
-
 	"github.com/ldsec/lattigo/v2/ring"
+	"math"
 )
 
 // KeySwitcher is a struct for RLWE key-switching.
@@ -136,6 +135,10 @@ func (ks *KeySwitcher) DecomposeSingleNTT(levelQ, levelP, alpha, beta int, c2NTT
 
 func (ks *KeySwitcher) MulRGSW(ct0 *Ciphertext, rgsw *RGSWCiphertext, ctOut *Ciphertext) {
 
+	// rgsw = [(-as + P*w*m1 + e, a), (-bs + e, b + P*w*m1)]
+	// ct = [-cs + m0 + e, c]
+	// ctOut = [<ct, rgsw[0]>, <ct, rgsw[1]>] = [ct[0] * rgsw[0][0] + ct[1] * rgsw[0][1], ct[0] * rgsw[1][0] + ct[1] * rgsw[1][1]]
+
 	var reduce int
 
 	levelQ := ct0.Level()
@@ -144,31 +147,10 @@ func (ks *KeySwitcher) MulRGSW(ct0 *Ciphertext, rgsw *RGSWCiphertext, ctOut *Cip
 	ringP := ks.RingP()
 	ringQP := ks.RingQP()
 
-	aQP := ringQP.NewPoly()
-	bQP := ringQP.NewPoly()
+	c2QP := ks.Pool[0]
 
-	ctOut0P := ringP.NewPoly()
-	ctOut1P := ringP.NewPoly()
-
-	c0QP := PolyQP{ctOut.Value[0], ctOut0P}
-	c1QP := PolyQP{ctOut.Value[1], ctOut1P}
-
-	var aNTT, aInvNTT, bNTT, bInvNTT *ring.Poly
-	if ct0.Value[0].IsNTT {
-		aNTT = ct0.Value[0]
-		bNTT = ct0.Value[1]
-		aInvNTT = ringQ.NewPoly()
-		bInvNTT = ringQ.NewPoly()
-		ringQ.InvNTTLvl(levelQ, aNTT, aInvNTT)
-		ringQ.InvNTTLvl(levelQ, bNTT, bInvNTT)
-	} else {
-		aNTT = ringQ.NewPoly()
-		bNTT = ringQ.NewPoly()
-		aInvNTT = ct0.Value[0]
-		bInvNTT = ct0.Value[1]
-		ringQ.NTTLvl(levelQ, aInvNTT, aNTT)
-		ringQ.NTTLvl(levelQ, bInvNTT, bNTT)
-	}
+	c0QP := PolyQP{ks.Pool[1].Q, ks.Pool[1].P}
+	c1QP := PolyQP{ks.Pool[2].Q, ks.Pool[2].P}
 
 	alpha := len(rgsw.Value[0][0][0].P.Coeffs)
 	levelP := alpha - 1
@@ -177,24 +159,64 @@ func (ks *KeySwitcher) MulRGSW(ct0 *Ciphertext, rgsw *RGSWCiphertext, ctOut *Cip
 	QiOverF := ks.Parameters.QiOverflowMargin(levelQ) >> 1
 	PiOverF := ks.Parameters.PiOverflowMargin(levelP) >> 1
 
-	// Key switching with CRT decomposition for the Qi
+	var c2NTT, c2InvNTT *ring.Poly
+	if ct0.Value[0].IsNTT {
+		c2NTT = ct0.Value[0]
+		c2InvNTT = ks.PoolInvNTT
+		ringQ.InvNTTLvl(levelQ, c2NTT, c2InvNTT)
+	} else {
+		c2NTT = ks.PoolInvNTT
+		c2InvNTT = ct0.Value[0]
+		ringQ.NTTLvl(levelQ, c2InvNTT, c2NTT)
+	}
+
+	// (a, b) + (c0 * rgsw[0][0], c0 * rgsw[0][1])
 	for i := 0; i < beta; i++ {
 
-		ks.DecomposeSingleNTT(levelQ, levelP, alpha, i, aNTT, aInvNTT, aQP.Q, aQP.P)
-		ks.DecomposeSingleNTT(levelQ, levelP, alpha, i, bNTT, bInvNTT, bQP.Q, bQP.P)
+		ks.DecomposeSingleNTT(levelQ, levelP, alpha, i, c2NTT, c2InvNTT, c2QP.Q, c2QP.P)
 
 		if i == 0 {
-			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, rgsw.Value[i][0][0], aQP, c0QP)
-			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, rgsw.Value[i][1][0], bQP, c0QP)
-
-			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, rgsw.Value[i][0][1], aQP, c1QP)
-			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, rgsw.Value[i][1][1], bQP, c1QP)
+			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, rgsw.Value[i][0][0], c2QP, c0QP)
+			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, rgsw.Value[i][0][1], c2QP, c1QP)
 		} else {
-			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, rgsw.Value[i][0][0], aQP, c0QP)
-			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, rgsw.Value[i][1][0], bQP, c0QP)
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, rgsw.Value[i][0][0], c2QP, c0QP)
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, rgsw.Value[i][0][1], c2QP, c1QP)
+		}
 
-			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, rgsw.Value[i][0][1], aQP, c1QP)
-			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, rgsw.Value[i][1][1], bQP, c1QP)
+		if reduce%QiOverF == QiOverF-1 {
+			ringQ.ReduceLvl(levelQ, c0QP.Q, c0QP.Q)
+			ringQ.ReduceLvl(levelQ, c1QP.Q, c1QP.Q)
+		}
+
+		if reduce%PiOverF == PiOverF-1 {
+			ringP.ReduceLvl(levelP, c0QP.P, c0QP.P)
+			ringP.ReduceLvl(levelP, c1QP.P, c1QP.P)
+		}
+
+		reduce++
+	}
+
+	if ct0.Value[0].IsNTT {
+		c2NTT = ct0.Value[1]
+		c2InvNTT = ks.PoolInvNTT
+		ringQ.InvNTTLvl(levelQ, c2NTT, c2InvNTT)
+	} else {
+		c2NTT = ks.PoolInvNTT
+		c2InvNTT = ct0.Value[1]
+		ringQ.NTTLvl(levelQ, c2InvNTT, c2NTT)
+	}
+
+	// (a, b) + (c1 * rgsw[1][0], c1 * rgsw[1][1])
+	for i := 0; i < beta; i++ {
+
+		ks.DecomposeSingleNTT(levelQ, levelP, alpha, i, c2NTT, c2InvNTT, c2QP.Q, c2QP.P)
+
+		if i == 0 {
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, rgsw.Value[i][1][0], c2QP, c0QP)
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, rgsw.Value[i][1][1], c2QP, c1QP)
+		} else {
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, rgsw.Value[i][1][0], c2QP, c0QP)
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, rgsw.Value[i][1][1], c2QP, c1QP)
 		}
 
 		if reduce%QiOverF == QiOverF-1 {
@@ -220,8 +242,8 @@ func (ks *KeySwitcher) MulRGSW(ct0 *Ciphertext, rgsw *RGSWCiphertext, ctOut *Cip
 		ringP.ReduceLvl(levelP, c1QP.P, c1QP.P)
 	}
 
-	ks.Baseconverter.ModDownQPtoQNTT(levelQ, levelP, c0QP.Q, c0QP.P, c0QP.Q)
-	ks.Baseconverter.ModDownQPtoQNTT(levelQ, levelP, c1QP.Q, c1QP.P, c1QP.Q)
+	ks.Baseconverter.ModDownQPtoQNTT(levelQ, levelP, c0QP.Q, c0QP.P, ctOut.Value[0])
+	ks.Baseconverter.ModDownQPtoQNTT(levelQ, levelP, c1QP.Q, c1QP.P, ctOut.Value[1])
 }
 
 // SwitchKeysInPlaceNoModDown applies the key-switch to the polynomial cx :

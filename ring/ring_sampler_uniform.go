@@ -129,7 +129,7 @@ func (uniformSampler *UniformSampler) ReadLvlNew(level int) (Pol *Poly) {
 // mask needs to be of the form 2^n -1.
 func RandUniform(prng utils.PRNG, v uint64, mask uint64) (randomInt uint64) {
 	for {
-		randomInt = randInt64(prng, mask)
+		randomInt = RandInt64(prng, mask)
 		if randomInt < v {
 			return randomInt
 		}
@@ -137,7 +137,7 @@ func RandUniform(prng utils.PRNG, v uint64, mask uint64) (randomInt uint64) {
 }
 
 // randInt32 samples a uniform variable in the range [0, mask], where mask is of the form 2^n-1, with n in [0, 32].
-func randInt32(prng utils.PRNG, mask uint64) uint64 {
+func RandInt32(prng utils.PRNG, mask uint64) uint64 {
 
 	// generate random 4 bytes
 	randomBytes := make([]byte, 4)
@@ -151,7 +151,7 @@ func randInt32(prng utils.PRNG, mask uint64) uint64 {
 }
 
 // randInt64 samples a uniform variable in the range [0, mask], where mask is of the form 2^n-1, with n in [0, 64].
-func randInt64(prng utils.PRNG, mask uint64) uint64 {
+func RandInt64(prng utils.PRNG, mask uint64) uint64 {
 
 	// generate random 8 bytes
 	randomBytes := make([]byte, 8)

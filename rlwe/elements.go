@@ -98,6 +98,13 @@ func NewCiphertextNTT(params Parameters, degree, level int) *Ciphertext {
 	return el
 }
 
+// NewCiphertextRandom generates a new uniformly distributed Ciphertext of degree, level and scale.
+func NewCiphertextRandom(prng utils.PRNG, params Parameters, degree, level int) (ciphertext *Ciphertext) {
+	ciphertext = NewCiphertext(params, degree, level)
+	PopulateElementRandom(prng, params, ciphertext)
+	return
+}
+
 // SetValue sets the input slice of polynomials as the value of the target element.
 func (el *Ciphertext) SetValue(value []*ring.Poly) {
 	el.Value = value

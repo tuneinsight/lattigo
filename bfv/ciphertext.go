@@ -17,9 +17,7 @@ func NewCiphertext(params Parameters, degree int) (ciphertext *Ciphertext) {
 
 // NewCiphertextRandom generates a new uniformly distributed ciphertext of degree, level and scale.
 func NewCiphertextRandom(prng utils.PRNG, params Parameters, degree int) (ciphertext *Ciphertext) {
-	ciphertext = &Ciphertext{rlwe.NewCiphertext(params.Parameters, degree, params.MaxLevel())}
-	rlwe.PopulateElementRandom(prng, params.Parameters, (*rlwe.Ciphertext)(ciphertext.Ciphertext))
-	return
+	return &Ciphertext{rlwe.NewCiphertextRandom(prng, params.Parameters, degree, params.MaxLevel())}
 }
 
 // CopyNew creates a deep copy of the receiver ciphertext and returns it.

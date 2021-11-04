@@ -24,19 +24,7 @@ func NewCiphertext(params Parameters, degree, level int, scale float64) (ciphert
 
 // NewCiphertextRandom generates a new uniformly distributed Ciphertext of degree, level and scale.
 func NewCiphertextRandom(prng utils.PRNG, params Parameters, degree, level int, scale float64) (ciphertext *Ciphertext) {
-
-	ringQ, err := ring.NewRing(params.N(), params.Q()[:level+1])
-	if err != nil {
-		panic(err)
-	}
-
-	sampler := ring.NewUniformSampler(prng, ringQ)
-	ciphertext = NewCiphertext(params, degree, level, scale)
-	for i := 0; i < degree+1; i++ {
-		sampler.Read(ciphertext.Value[i])
-	}
-
-	return ciphertext
+	return &Ciphertext{rlwe.NewCiphertextRandom(prng, params.Parameters, degree, level), scale}
 }
 
 // NewCiphertextAtLevelFromPoly construct a new Ciphetext at a specific level

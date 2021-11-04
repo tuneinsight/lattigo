@@ -76,7 +76,7 @@ var (
 	}
 	// TestPN13QP218 is a set of default parameters with logN=13 and logQP=218
 	TestPN13QP218 = ParametersLiteral{
-		LogN:     13,
+		LogN:     5,
 		Q:        []uint64{0x3fffffffef8001, 0x40000000120001, 0x3fffffffeb8001}, // 54 + 54 + 54 bits
 		P:        []uint64{0x80000000068001},                                     // 55 bits
 		Sigma:    DefaultSigma,

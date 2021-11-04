@@ -30,7 +30,7 @@ func LWEToRLWE(ctLWE []*Ciphertext, params rlwe.Parameters) (ctRLWE []*rlwe.Ciph
 			tmp0, tmp1 := acc.Coeffs[u], ctLWE[i].Value[u][1:]
 			tmp0[0] = tmp1[0]
 			for k := 1; k < ringQ.N; k++ {
-				tmp0[k] = ringQ.Modulus[0] - tmp1[ringQ.N-k]
+				tmp0[k] = ringQ.Modulus[u] - tmp1[ringQ.N-k]
 			}
 
 			copy(ctRLWE[i].Value[1].Coeffs[u], acc.Coeffs[u])
@@ -108,10 +108,9 @@ func DecryptLWE(ct *Ciphertext, ringQ *ring.Ring, skMont *ring.Poly) float64 {
 
 	level := ct.Level()
 
-	pol := new(ring.Poly)
-	pol.Coeffs = make([][]uint64, ringQ.N)
+	pol := ringQ.NewPolyLvl(ct.Level())
 	for i := 0; i < level+1; i++{
-		pol.Coeffs[i] = ct.Value[i][1:]
+		copy(pol.Coeffs[i], ct.Value[i][1:])
 	}
 
 	ringQ.MulCoeffsMontgomeryLvl(level, pol, skMont, pol)

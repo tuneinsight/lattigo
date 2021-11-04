@@ -208,7 +208,7 @@ func LUT() {
 
 	// Generates some LWE
 
-	m := 1024.0
+	m := 1023.0
 
 	a := make([]uint64, LWEDegree)
 	for i := range a {

@@ -1,12 +1,10 @@
 package lwe
 
-
-import(
-	"github.com/ldsec/lattigo/v2/rlwe"
+import (
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"math/big"
 )
-
 
 // LWEToRLWE transforms a set of LWE samples into their respective RLWE ciphertext such that decrypt(RLWE)[0] = decrypt(LWE)
 func LWEToRLWE(ctLWE []*Ciphertext, params rlwe.Parameters) (ctRLWE []*rlwe.Ciphertext) {
@@ -21,10 +19,10 @@ func LWEToRLWE(ctLWE []*Ciphertext, params rlwe.Parameters) (ctRLWE []*rlwe.Ciph
 		// Alocates ciphertext
 		ctRLWE[i] = rlwe.NewCiphertextNTT(params, 1, level)
 
-		for u := 0; u < level+1; u++{
+		for u := 0; u < level+1; u++ {
 
 			ctRLWE[i].Value[0].Coeffs[u][0] = ctLWE[i].Value[u][0]
-		
+
 			// Copy coefficients multiplied by X^{N-1} in reverse order:
 			// a_{0} -a_{N-1} -a2_{N-2} ... -a_{1}
 			tmp0, tmp1 := acc.Coeffs[u], ctLWE[i].Value[u][1:]
@@ -47,7 +45,7 @@ func LWEToRLWE(ctLWE []*Ciphertext, params rlwe.Parameters) (ctRLWE []*rlwe.Ciph
 // RLWEToLWE extracts LWE samples from a RLWE sample
 func RLWEToLWE(ct *rlwe.Ciphertext, ringQ *ring.Ring, logSlots int) (LWE []*Ciphertext) {
 
-	n := 1<<logSlots
+	n := 1 << logSlots
 
 	LWE = make([]*Ciphertext, n)
 
@@ -79,18 +77,17 @@ func RLWEToLWE(ct *rlwe.Ciphertext, ringQ *ring.Ring, logSlots int) (LWE []*Ciph
 
 		LWE[i] = NewCiphertext(N, level)
 
-		for j := 0; j < level+1; j++{
+		for j := 0; j < level+1; j++ {
 			LWE[i].Value[j][0] = c0.Coeffs[j][idx]
 			copy(LWE[i].Value[j][1:], acc.Coeffs[j])
 		}
-		
+
 		// Multiplies the accumulator by X^{N/(2*slots)}
 		MulBySmallMonomial(ringQ, acc, gap)
 	}
 
 	return
 }
-
 
 //MulBySmallMonomial multiplies pol by x^n
 func MulBySmallMonomial(ringQ *ring.Ring, pol *ring.Poly, n int) {
@@ -109,7 +106,7 @@ func DecryptLWE(ct *Ciphertext, ringQ *ring.Ring, skMont *ring.Poly) float64 {
 	level := ct.Level()
 
 	pol := ringQ.NewPolyLvl(ct.Level())
-	for i := 0; i < level+1; i++{
+	for i := 0; i < level+1; i++ {
 		copy(pol.Coeffs[i], ct.Value[i][1:])
 	}
 
@@ -117,11 +114,11 @@ func DecryptLWE(ct *Ciphertext, ringQ *ring.Ring, skMont *ring.Poly) float64 {
 
 	a := make([]uint64, level+1)
 
-	for i := 0; i < level+1; i++{
+	for i := 0; i < level+1; i++ {
 		qi := ringQ.Modulus[i]
 		tmp := pol.Coeffs[i]
 		a[i] = ct.Value[i][0]
-		for j := 0; j < ringQ.N; j++{
+		for j := 0; j < ringQ.N; j++ {
 			a[i] = ring.CRed(a[i]+tmp[j], qi)
 		}
 	}
@@ -172,4 +169,3 @@ func DecryptLWE(ct *Ciphertext, ringQ *ring.Ring, skMont *ring.Poly) float64 {
 
 	return flo64
 }
-

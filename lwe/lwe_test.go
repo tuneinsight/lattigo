@@ -1,13 +1,13 @@
 package lwe
 
-import(
-	"github.com/ldsec/lattigo/v2/rlwe"
-	"flag"
-	"testing"
+import (
 	"encoding/json"
-	"runtime"
+	"flag"
 	"fmt"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"math"
+	"runtime"
+	"testing"
 )
 
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
@@ -24,7 +24,7 @@ func testString(params rlwe.Parameters, opname string) string {
 		params.PCount())
 }
 
-func TestLWE(t *testing.T){
+func TestLWE(t *testing.T) {
 	defaultParams := TestParams // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	if testing.Short() {
 		defaultParams = TestParams[:1] // the short test suite runs for ring degree N=2^12, 2^13
@@ -54,8 +54,7 @@ func TestLWE(t *testing.T){
 	}
 }
 
-
-func testRLWEToLWE(params rlwe.Parameters, t *testing.T){
+func testRLWEToLWE(params rlwe.Parameters, t *testing.T) {
 	t.Run(testString(params, "RLWEToLWE/"), func(t *testing.T) {
 		kgen := rlwe.NewKeyGenerator(params)
 		sk := kgen.GenSecretKey()
@@ -69,15 +68,15 @@ func testRLWEToLWE(params rlwe.Parameters, t *testing.T){
 
 		LWE := RLWEToLWE(ct, params.RingQ(), params.LogN())
 
-		for i := 0; i < params.RingQ().N; i++{
-			if math.Abs(DecryptLWE(LWE[i], params.RingQ(), skInvNTT)) > 19{
+		for i := 0; i < params.RingQ().N; i++ {
+			if math.Abs(DecryptLWE(LWE[i], params.RingQ(), skInvNTT)) > 19 {
 				t.Error()
 			}
 		}
 	})
 }
 
-func testLWEToRLWE(params rlwe.Parameters, t *testing.T){
+func testLWEToRLWE(params rlwe.Parameters, t *testing.T) {
 	t.Run(testString(params, "LWEToRLWE/"), func(t *testing.T) {
 		kgen := rlwe.NewKeyGenerator(params)
 		sk := kgen.GenSecretKey()
@@ -95,18 +94,18 @@ func testLWEToRLWE(params rlwe.Parameters, t *testing.T){
 
 		ctRLWE := LWEToRLWE(ctLWE, params)
 
-		for i := 0; i < len(ctRLWE); i++{
+		for i := 0; i < len(ctRLWE); i++ {
 			decryptor.Decrypt(ctRLWE[i], pt)
 
-			for j := 0; j < pt.Level()+1; j++{
+			for j := 0; j < pt.Level()+1; j++ {
 
 				c := pt.Value.Coeffs[j][0]
 
-				if c >= params.RingQ().Modulus[j]>>1{
-					c = params.RingQ().Modulus[j]-c
+				if c >= params.RingQ().Modulus[j]>>1 {
+					c = params.RingQ().Modulus[j] - c
 				}
 
-				if c > 19{
+				if c > 19 {
 					t.Fatal(i, j, c)
 				}
 			}
@@ -114,7 +113,7 @@ func testLWEToRLWE(params rlwe.Parameters, t *testing.T){
 	})
 }
 
-func testManyRLWEToSingleRLWE(params rlwe.Parameters, t *testing.T){
+func testManyRLWEToSingleRLWE(params rlwe.Parameters, t *testing.T) {
 	t.Run(testString(params, "ManyToSingleRLWE/"), func(t *testing.T) {
 		kgen := rlwe.NewKeyGenerator(params)
 		sk := kgen.GenSecretKey()
@@ -122,9 +121,9 @@ func testManyRLWEToSingleRLWE(params rlwe.Parameters, t *testing.T){
 		decryptor := rlwe.NewDecryptor(params, sk)
 		pt := rlwe.NewPlaintext(params, params.MaxLevel())
 
-		for i := 0; i < pt.Level()+1; i++{
-			for j := 0; j < params.N(); j++{
-				pt.Value.Coeffs[i][j] = (1<<30) + uint64(j)*(1<<20)
+		for i := 0; i < pt.Level()+1; i++ {
+			for j := 0; j < params.N(); j++ {
+				pt.Value.Coeffs[i][j] = (1 << 30) + uint64(j)*(1<<20)
 			}
 		}
 
@@ -152,22 +151,22 @@ func testManyRLWEToSingleRLWE(params rlwe.Parameters, t *testing.T){
 
 		bound := uint64(params.N() * params.N())
 
-		for i := 0; i < pt.Level()+1; i++{
+		for i := 0; i < pt.Level()+1; i++ {
 
 			Q := params.RingQ().Modulus[i]
-			QHalf := Q>>1
+			QHalf := Q >> 1
 
-			for _, c := range pt.Value.Coeffs[i]{
+			for _, c := range pt.Value.Coeffs[i] {
 
-				if c >= QHalf{
-					c = Q-c
+				if c >= QHalf {
+					c = Q - c
 				}
 
-				if i == 0{
+				if i == 0 {
 					fmt.Printf("%0.4f\n", float64(c)/(1<<30))
 				}
 
-				if c > bound{
+				if c > bound {
 					//t.Fatal(i,j, c)
 				}
 			}

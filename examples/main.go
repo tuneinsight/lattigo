@@ -3,10 +3,10 @@ package main
 import (
 	"fmt"
 	"github.com/ldsec/lattigo/v2/ckks"
+	"github.com/ldsec/lattigo/v2/lwe"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
-	"github.com/ldsec/lattigo/v2/lwe"
 	"runtime"
 	"time"
 	//"math"
@@ -103,29 +103,27 @@ func LUT() {
 	values := make([]float64, paramsLWE.N())
 	pt := rlwe.NewPlaintext(paramsLWE, paramsLWE.MaxLevel())
 	pt.Value.IsNTT = false
-	var scale float64 = 1<<48
-	for i := 0; i < paramsLWE.N(); i++{
+	var scale float64 = 1 << 48
+	for i := 0; i < paramsLWE.N(); i++ {
 		values[i] = utils.RandFloat64(-16, 16)
 		if values[i] < 0 {
-			pt.Value.Coeffs[0][i] = paramsLWE.Q()[0] - uint64(values[i] * -scale)
-		}else{
+			pt.Value.Coeffs[0][i] = paramsLWE.Q()[0] - uint64(values[i]*-scale)
+		} else {
 			pt.Value.Coeffs[0][i] = uint64(values[i] * scale)
 		}
 	}
 
 	fmt.Println(values[:4])
-	
+
 	kgen := rlwe.NewKeyGenerator(params)
 	sk := kgen.GenSecretKey()
 	encryptor := rlwe.NewEncryptor(params, sk)
-
 
 	fmt.Printf("Encrypting bits of skLWE in RGSW...\n ")
 	now := time.Now()
 
 	LWEDegree := paramsLWE.N()
-	LUTScale := float64(int(1 << 30)) * scale * float64(2*params.N()) / float64(paramsLWE.Q()[0])
-	
+	LUTScale := float64(int(1<<30)) * scale * float64(2*params.N()) / float64(paramsLWE.Q()[0])
 
 	kgenLWE := rlwe.NewKeyGenerator(paramsLWE)
 	skLWE := kgenLWE.GenSecretKey()
@@ -133,7 +131,7 @@ func LUT() {
 	encryptorLWE := rlwe.NewEncryptor(paramsLWE, skLWE)
 	ciphertextLWE := rlwe.NewCiphertextNTT(paramsLWE, 1, pt.Level())
 	encryptorLWE.Encrypt(pt, ciphertextLWE)
-	
+
 	paramsLWE.RingQ().InvNTT(skLWE.Value.Q, skLWE.Value.Q)
 
 	plaintextRGSWOne := rlwe.NewPlaintext(params, params.MaxLevel())
@@ -227,14 +225,12 @@ func LUT() {
 	}
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
-
-
 	LWE := lwe.RLWEToLWE(ciphertextLWE, paramsLWE.RingQ(), paramsLWE.LogN())
 
 	fmt.Printf("Evaluating LUT... \n\n")
 
 	mask := uint64(2*params.N() - 1)
-	for i := 0; i < 16; i++{
+	for i := 0; i < 16; i++ {
 
 		now = time.Now()
 
@@ -249,7 +245,6 @@ func LUT() {
 
 		tmpRGSW := rlwe.NewCiphertextRGSWNTT(params, params.MaxLevel())
 
-		
 		for i := 0; i < LWEDegree; i++ {
 			MulRGSWByXPowAlphaMinusOne(skRGSWPos[i], a[i], powXMinusOne, ringQP, tmpRGSW)
 			MulRGSWByXPowAlphaMinusOneAndAdd(skRGSWNeg[i], -a[i]&mask, powXMinusOne, ringQP, tmpRGSW)
@@ -259,20 +254,20 @@ func LUT() {
 		fmt.Printf("Done (%s)\n", time.Since(now))
 
 		/*
-		tmp := ringQ.NewPoly()
-		ringQ.MulCoeffsMontgomery(LUTPoly, powX[b], tmp)
+			tmp := ringQ.NewPoly()
+			ringQ.MulCoeffsMontgomery(LUTPoly, powX[b], tmp)
 
-		for i := 0; i < LWEDegree; i++ {
-			if skLWE.Value.Q.Coeffs[0][i] == OneMForm {
-				b += a[i] & mask
-				ringQ.MulCoeffsMontgomery(tmp, powX[+a[i]&mask], tmp)
-			} else if skLWE.Value.Q.Coeffs[0][i] == MinusOneMform {
-				b += -a[i] & mask
-				ringQ.MulCoeffsMontgomery(tmp, powX[-a[i]&mask], tmp)
+			for i := 0; i < LWEDegree; i++ {
+				if skLWE.Value.Q.Coeffs[0][i] == OneMForm {
+					b += a[i] & mask
+					ringQ.MulCoeffsMontgomery(tmp, powX[+a[i]&mask], tmp)
+				} else if skLWE.Value.Q.Coeffs[0][i] == MinusOneMform {
+					b += -a[i] & mask
+					ringQ.MulCoeffsMontgomery(tmp, powX[-a[i]&mask], tmp)
+				}
 			}
-		}
 
-		ringQ.InvNTT(tmp, tmp)
+			ringQ.InvNTT(tmp, tmp)
 		*/
 
 		fmt.Printf("Start : %0.4f\n", values[i])
@@ -286,20 +281,20 @@ func LUT() {
 	}
 }
 
-func RescaleLWE(lwe *lwe.Ciphertext, twoN, Q uint64){
-	for i := range lwe.Value[0]{
+func RescaleLWE(lwe *lwe.Ciphertext, twoN, Q uint64) {
+	for i := range lwe.Value[0] {
 		lwe.Value[0][i] = CenterMulAndDivRound(lwe.Value[0][i], twoN, Q)
 	}
 }
 
-func CenterMulAndDivRound(a, twoN, Q uint64) (uint64){
+func CenterMulAndDivRound(a, twoN, Q uint64) uint64 {
 
 	aBig := ring.NewUint(a)
 	QBig := ring.NewUint(Q)
 	aBig.Mul(aBig, ring.NewUint(twoN))
 	ring.DivRound(aBig, QBig, aBig)
 	a = aBig.Uint64()
-	return a & (twoN-1)
+	return a & (twoN - 1)
 }
 
 func PrintPoly(pol *ring.Poly, scale float64, Q uint64) {

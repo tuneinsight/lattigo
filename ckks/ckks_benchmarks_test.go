@@ -99,24 +99,34 @@ func benchKeyGen(tc *testContext, b *testing.B) {
 
 func benchEncrypt(tc *testContext, b *testing.B) {
 
+<<<<<<< HEAD
 	encryptorPk := tc.encryptorPk
 	encryptorPkFast := NewFastEncryptor(tc.params, tc.pk)
 	encryptorSk := tc.encryptorSk
+=======
+	encryptorPk := testContext.encryptorPk
+	encryptorSk := testContext.encryptorSk
+>>>>>>> 1a4f5ae6e0 ([rlwe] : revamp of encryptor)
 
 	plaintext := NewPlaintext(tc.params, tc.params.MaxLevel(), tc.params.DefaultScale())
 	ciphertext := NewCiphertext(tc.params, 1, tc.params.MaxLevel(), tc.params.DefaultScale())
 
+<<<<<<< HEAD
 	b.Run(GetTestName(tc.params, "Encrypt/key=Pk/"), func(b *testing.B) {
 
 		if tc.params.PCount() == 0 {
 			b.Skip("#Pi is empty")
 		}
 
+=======
+	b.Run(GetTestName(testContext.params, "Encrypt/key=Pk/"), func(b *testing.B) {
+>>>>>>> 1a4f5ae6e0 ([rlwe] : revamp of encryptor)
 		for i := 0; i < b.N; i++ {
 			encryptorPk.Encrypt(plaintext, ciphertext)
 		}
 	})
 
+<<<<<<< HEAD
 	b.Run(GetTestName(tc.params, "EncryptFast/key=Pk/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			encryptorPkFast.Encrypt(plaintext, ciphertext)
@@ -124,6 +134,9 @@ func benchEncrypt(tc *testContext, b *testing.B) {
 	})
 
 	b.Run(GetTestName(tc.params, "Encrypt/key=Sk/"), func(b *testing.B) {
+=======
+	b.Run(GetTestName(testContext.params, "Encrypt/key=Sk/"), func(b *testing.B) {
+>>>>>>> 1a4f5ae6e0 ([rlwe] : revamp of encryptor)
 		for i := 0; i < b.N; i++ {
 			encryptorSk.Encrypt(plaintext, ciphertext)
 		}

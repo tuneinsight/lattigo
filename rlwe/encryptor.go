@@ -14,32 +14,182 @@ type Encryptor interface {
 	// EncryptFromCRP encrypts the input plaintext and writes the result on ct.
 	// The encryption algorithm depends on the implementor.
 	EncryptFromCRP(pt *Plaintext, crp *ring.Poly, ct *Ciphertext)
+
+	// ShallowCopy creates a shallow copy of this encryptor in which all the read-only data-structures are
+	// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+	// Encryptors can be used concurrently.
+	ShallowCopy() Encryptor
+
+	// WithKey creates a shallow copy of the receiver Encryptor with the provided key.
+	// This is equivalent to calling Encryptor.ShallowCopy().WithKey(*)
+	WithKey(key interface{}) Encryptor
+
+	// SetKey sets the key of the target encryptor. Either secret-key, public-key or nil can be passed as argument.
+	// Will wrap the target Encryptor to a pkEncryptor (public-key) or skEncrytor (secret-key).
+	SetKey(key interface{}) Encryptor
+}
+
+type pkEncryptor struct {
+	encryptor
+	pk *PublicKey
+}
+
+type skEncryptor struct {
+	encryptor
+	sk *SecretKey
+}
+
+type encryptor struct {
+	*encryptorBase
+	*encryptorSamplers
+	*encryptorBuffers
+	baseconverter *ring.FastBasisExtender
+}
+
+// NewEncryptor creates a new Encryptor
+// Accepts either a secret-key or a public-key
+func NewEncryptor(params Parameters, key interface{}) Encryptor {
+	switch key := key.(type) {
+	case *PublicKey:
+		if key.Value[0].Q.Degree() != params.N() || key.Value[1].Q.Degree() != params.N() {
+			panic("cannot newEncryptor: pk ring degree does not match params ring degree")
+		}
+		return &pkEncryptor{newEncryptor(params), key}
+	case *SecretKey:
+		if key.Value.Q.Degree() != params.N() {
+			panic("cannot newEncryptor: sk ring degree does not match params ring degree")
+		}
+		return &skEncryptor{newEncryptor(params), key}
+	case nil:
+		enc := newEncryptor(params)
+		return &enc
+	default:
+		panic("key must be either rlwe.PublicKey or rlwe.SecretKey")
+	}
+}
+
+func newEncryptor(params Parameters) encryptor {
+
+	var bc *ring.FastBasisExtender
+	if params.PCount() != 0 {
+		bc = ring.NewFastBasisExtender(params.RingQ(), params.RingP())
+	}
+
+	return encryptor{
+		encryptorBase:     newEncryptorBase(params),
+		encryptorSamplers: newEncryptorSamplers(params),
+		encryptorBuffers:  newEncryptorBuffers(params),
+		baseconverter:     bc,
+	}
 }
 
 // encryptorBase is a struct used to encrypt Plaintexts. It stores the public-key and/or secret-key.
 type encryptorBase struct {
 	params Parameters
+}
 
-	ringQ *ring.Ring
-	ringP *ring.Ring
+func newEncryptorBase(params Parameters) *encryptorBase {
+	return &encryptorBase{params}
+}
 
-	poolQ [1]*ring.Poly
-	poolP [3]*ring.Poly
-
-	baseconverter   *ring.FastBasisExtender
+type encryptorSamplers struct {
 	gaussianSampler *ring.GaussianSampler
 	ternarySampler  *ring.TernarySampler
 	uniformSampler  *ring.UniformSampler
 }
 
-type pkEncryptor struct {
-	encryptorBase
-	pk *PublicKey
+func newEncryptorSamplers(params Parameters) *encryptorSamplers {
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+	ringQ := params.RingQ()
+	return &encryptorSamplers{
+		gaussianSampler: ring.NewGaussianSampler(prng, ringQ, params.Sigma(), int(6*params.Sigma())),
+		ternarySampler:  ring.NewTernarySampler(prng, ringQ, 0.5, false),
+		uniformSampler:  ring.NewUniformSampler(prng, ringQ),
+	}
 }
 
-type skEncryptor struct {
-	encryptorBase
-	sk *SecretKey
+type encryptorBuffers struct {
+	poolQ [1]*ring.Poly
+	poolP [3]*ring.Poly
+}
+
+func newEncryptorBuffers(params Parameters) *encryptorBuffers {
+
+	ringQ := params.RingQ()
+	ringP := params.RingP()
+
+	var poolP [3]*ring.Poly
+	if params.PCount() != 0 {
+		poolP = [3]*ring.Poly{ringP.NewPoly(), ringP.NewPoly(), ringP.NewPoly()}
+	}
+
+	return &encryptorBuffers{
+		poolQ: [1]*ring.Poly{ringQ.NewPoly()},
+		poolP: poolP,
+	}
+}
+
+func (enc *pkEncryptor) ShallowCopy() Encryptor {
+	return &pkEncryptor{*enc.encryptor.ShallowCopy().(*encryptor), enc.pk}
+}
+
+func (enc *skEncryptor) ShallowCopy() Encryptor {
+	return &skEncryptor{*enc.encryptor.ShallowCopy().(*encryptor), enc.sk}
+}
+
+func (enc *encryptor) ShallowCopy() Encryptor {
+
+	var bc *ring.FastBasisExtender
+	if enc.params.PCount() != 0 {
+		bc = ring.NewFastBasisExtender(enc.params.RingQ(), enc.params.RingP())
+	}
+
+	return &encryptor{
+		encryptorBase:     enc.encryptorBase,
+		encryptorSamplers: newEncryptorSamplers(enc.params),
+		encryptorBuffers:  newEncryptorBuffers(enc.params),
+		baseconverter:     bc,
+	}
+}
+
+func (enc *pkEncryptor) WithKey(key interface{}) Encryptor {
+	return enc.ShallowCopy().SetKey(key)
+}
+
+func (enc *skEncryptor) WithKey(key interface{}) Encryptor {
+	return enc.ShallowCopy().SetKey(key)
+}
+
+func (enc *encryptor) WithKey(key interface{}) Encryptor {
+	return enc.ShallowCopy().SetKey(key)
+}
+
+func (enc *pkEncryptor) SetKey(key interface{}) Encryptor {
+	return enc.encryptor.SetKey(key)
+}
+
+func (enc *skEncryptor) SetKey(key interface{}) Encryptor {
+	return enc.encryptor.SetKey(key)
+}
+
+func (enc *encryptor) SetKey(key interface{}) Encryptor {
+	switch key := key.(type) {
+	case *PublicKey:
+		if key.Value[0].Q.Degree() != enc.params.N() || key.Value[1].Q.Degree() != enc.params.N() {
+			panic("cannot newEncryptor: pk ring degree does not match params ring degree")
+		}
+		return &pkEncryptor{*enc, key}
+	case *SecretKey:
+		if key.Value.Q.Degree() != enc.params.N() {
+			panic("cannot newEncryptor: sk ring degree does not match params ring degree")
+		}
+		return &skEncryptor{*enc, key}
+	default:
+		panic("key must be either rlwe.PublicKey or rlwe.SecretKey")
+	}
 }
 
 func (enc *pkEncryptor) Encrypt(pt *Plaintext, ct *Ciphertext) {
@@ -58,63 +208,18 @@ func (enc *skEncryptor) EncryptFromCRP(pt *Plaintext, crp *ring.Poly, ct *Cipher
 	enc.encrypt(pt, enc.sk, ct)
 }
 
-// NewEncryptor creates a new Encryptor
-// Accepts either a secret-key or a public-key
-func NewEncryptor(params Parameters, key interface{}) Encryptor {
-	switch key := key.(type) {
-	case *PublicKey:
-		if key.Value[0].Q.Degree() != params.N() || key.Value[1].Q.Degree() != params.N() {
-			panic("cannot newEncryptor: pk ring degree does not match params ring degree")
-		}
-		return &pkEncryptor{newEncryptorBase(params), key}
-	case *SecretKey:
-		if key.Value.Q.Degree() != params.N() {
-			panic("cannot newEncryptor: sk ring degree does not match params ring degree")
-		}
-		return &skEncryptor{newEncryptorBase(params), key}
-	default:
-		panic("key must be either rlwe.PublicKey or rlwe.SecretKey")
-	}
+func (enc *encryptor) Encrypt(pt *Plaintext, ct *Ciphertext) {
+	panic("cannot encrypt, key is nil")
 }
 
-func newEncryptorBase(params Parameters) encryptorBase {
-
-	ringQ := params.RingQ()
-	ringP := params.RingP()
-
-	prng, err := utils.NewPRNG()
-	if err != nil {
-		panic(err)
-	}
-
-	var poolP [3]*ring.Poly
-	var bc *ring.FastBasisExtender
-	if params.PCount() != 0 {
-		poolP = [3]*ring.Poly{ringP.NewPoly(), ringP.NewPoly(), ringP.NewPoly()}
-		bc = ring.NewFastBasisExtender(ringQ, ringP)
-	}
-
-	return encryptorBase{
-		params:          params,
-		ringQ:           ringQ,
-		ringP:           ringP,
-		poolQ:           [1]*ring.Poly{ringQ.NewPoly()},
-		poolP:           poolP,
-		baseconverter:   bc,
-		gaussianSampler: ring.NewGaussianSampler(prng, ringQ, params.Sigma(), int(6*params.Sigma())),
-		ternarySampler:  ring.NewTernarySampler(prng, ringQ, 0.5, false),
-		uniformSampler:  ring.NewUniformSampler(prng, ringQ),
-	}
+func (enc *encryptor) EncryptFromCRP(pt *Plaintext, crp *ring.Poly, ct *Ciphertext) {
+	panic("cannot encrypt, key is nil")
 }
 
 // Encrypt encrypts the input Plaintext and write the result in ctOut.
-func (enc *encryptorBase) encrypt(plaintext *Plaintext, key interface{}, ciphertext *Ciphertext) {
+func (enc *encryptor) encrypt(plaintext *Plaintext, key interface{}, ciphertext *Ciphertext) {
 	switch key := key.(type) {
 	case *PublicKey:
-
-		if key.Value[0].Q.Degree() != enc.params.N() || key.Value[1].Q.Degree() != enc.params.N() {
-			panic("cannot newEncryptor: pk ring degree does not match params ring degree")
-		}
 
 		enc.uniformSampler.ReadLvl(utils.MinInt(plaintext.Level(), ciphertext.Level()), ciphertext.Value[1])
 
@@ -126,13 +231,12 @@ func (enc *encryptorBase) encrypt(plaintext *Plaintext, key interface{}, ciphert
 
 	case *SecretKey:
 
-		if key.Value.Q.Degree() != enc.params.N() {
-			panic("cannot newEncryptor: sk ring degree does not match params ring degree")
-		}
-
 		enc.uniformSampler.ReadLvl(utils.MinInt(plaintext.Level(), ciphertext.Level()), ciphertext.Value[1])
 
 		enc.encryptSk(plaintext, key, ciphertext)
+
+	case nil:
+		panic("key is nil")
 
 	default:
 		panic("key must be either rlwe.PublicKey or rlwe.SecretKey")
@@ -140,7 +244,7 @@ func (enc *encryptorBase) encrypt(plaintext *Plaintext, key interface{}, ciphert
 }
 
 // EncryptFromCRP encrypts the input Plaintext given the uniformly random element c1 and write the result in ctOut.
-func (enc *encryptorBase) encryptFromCRP(plaintext *Plaintext, key interface{}, crp *ring.Poly, ciphertext *Ciphertext) {
+func (enc *encryptor) encryptFromCRP(plaintext *Plaintext, key interface{}, crp *ring.Poly, ciphertext *Ciphertext) {
 	switch key := key.(type) {
 	case *PublicKey:
 
@@ -161,8 +265,8 @@ func (enc *encryptorBase) encryptFromCRP(plaintext *Plaintext, key interface{}, 
 	}
 }
 
-func (enc *encryptorBase) encryptPk(plaintext *Plaintext, pk *PublicKey, ciphertext *Ciphertext) {
-	ringQ := enc.ringQ
+func (enc *encryptor) encryptPk(plaintext *Plaintext, pk *PublicKey, ciphertext *Ciphertext) {
+	ringQ := enc.params.RingQ()
 	ringQP := enc.params.RingQP()
 
 	levelQ := utils.MinInt(plaintext.Level(), ciphertext.Level())
@@ -244,12 +348,12 @@ func (enc *encryptorBase) encryptPk(plaintext *Plaintext, pk *PublicKey, ciphert
 	ciphertext.Value[1].Coeffs = ciphertext.Value[1].Coeffs[:levelQ+1]
 }
 
-func (enc *encryptorBase) encryptPkNoP(plaintext *Plaintext, pk *PublicKey, ciphertext *Ciphertext) {
+func (enc *encryptor) encryptPkNoP(plaintext *Plaintext, pk *PublicKey, ciphertext *Ciphertext) {
 	levelQ := utils.MinInt(plaintext.Level(), ciphertext.Level())
 
 	poolQ0 := enc.poolQ[0]
 
-	ringQ := enc.ringQ
+	ringQ := enc.params.RingQ()
 
 	ciphertextNTT := ciphertext.Value[0].IsNTT
 
@@ -307,9 +411,9 @@ func (enc *encryptorBase) encryptPkNoP(plaintext *Plaintext, pk *PublicKey, ciph
 	ciphertext.Value[1].Coeffs = ciphertext.Value[1].Coeffs[:levelQ+1]
 }
 
-func (enc *encryptorBase) encryptSk(plaintext *Plaintext, sk *SecretKey, ciphertext *Ciphertext) {
+func (enc *encryptor) encryptSk(plaintext *Plaintext, sk *SecretKey, ciphertext *Ciphertext) {
 
-	ringQ := enc.ringQ
+	ringQ := enc.params.RingQ()
 
 	levelQ := utils.MinInt(plaintext.Level(), ciphertext.Level())
 

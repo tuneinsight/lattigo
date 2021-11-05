@@ -66,6 +66,15 @@ type Parameters struct {
 }
 
 var (
+	// TestPN11QP54 is a set of default parameters with logN=11 and logQP=54
+	TestPN11QP54 = ParametersLiteral{
+		LogN:     11,
+		Q:        []uint64{0x3fffffffef8001},
+		P:        []uint64{},
+		Sigma:    DefaultSigma,
+		RingType: RingStandard,
+	}
+
 	// TestPN12QP109 is a set of default parameters with logN=12 and logQP=109
 	TestPN12QP109 = ParametersLiteral{
 		LogN:     12,

@@ -17,15 +17,32 @@ type PolyQP struct {
 
 // Equals returns true if the receiver PolyQP is equal to the provided other PolyQP.
 // This method checks for equality of its two sub-polynomials.
-func (p *PolyQP) Equals(other PolyQP) bool {
-	return p == &other || (p.P.Equals(other.P) && p.Q.Equals(other.Q))
+func (p *PolyQP) Equals(other PolyQP) (v bool) {
+
+	if p == &other {
+		return true
+	}
+
+	v = true
+	if p.Q != nil {
+		v = p.Q.Equals(other.Q)
+	}
+	if p.P != nil {
+		v = v && p.P.Equals(other.P)
+	}
+	return v
 }
 
 // CopyValues copies the coefficients of p1 on the target polynomial.
 // This method simply calls the CopyValues method for each of its sub-polynomials.
 func (p *PolyQP) CopyValues(other PolyQP) {
-	p.Q.CopyValues(other.Q)
-	p.P.CopyValues(other.P)
+	if p.Q != nil {
+		p.Q.CopyValues(other.Q)
+	}
+
+	if p.P != nil {
+		p.P.CopyValues(other.P)
+	}
 }
 
 // CopyNew creates an exact copy of the target polynomial.
@@ -33,7 +50,17 @@ func (p *PolyQP) CopyNew() PolyQP {
 	if p == nil {
 		return PolyQP{}
 	}
-	return PolyQP{Q: p.Q.CopyNew(), P: p.P.CopyNew()}
+
+	var Q, P *ring.Poly
+	if p.Q != nil {
+		Q = p.Q.CopyNew()
+	}
+
+	if p.P != nil {
+		P = p.P.CopyNew()
+	}
+
+	return PolyQP{Q, P}
 }
 
 // RingQP is a structure that implements the operation in the ring R_QP.
@@ -45,12 +72,29 @@ type RingQP struct {
 
 // NewPoly creates a new polynomial with all coefficients set to 0.
 func (r *RingQP) NewPoly() PolyQP {
-	return PolyQP{r.RingQ.NewPoly(), r.RingP.NewPoly()}
+	var Q, P *ring.Poly
+	if r.RingQ != nil {
+		Q = r.RingQ.NewPoly()
+	}
+
+	if r.RingP != nil {
+		P = r.RingP.NewPoly()
+	}
+	return PolyQP{Q, P}
 }
 
 // NewPolyLvl creates a new polynomial with all coefficients set to 0.
 func (r *RingQP) NewPolyLvl(levelQ, levelP int) PolyQP {
-	return PolyQP{r.RingQ.NewPolyLvl(levelQ), r.RingP.NewPolyLvl(levelP)}
+
+	var Q, P *ring.Poly
+	if r.RingQ != nil {
+		Q = r.RingQ.NewPolyLvl(levelQ)
+	}
+
+	if r.RingP != nil {
+		P = r.RingP.NewPolyLvl(levelP)
+	}
+	return PolyQP{Q, P}
 }
 
 // AddLvl adds p1 to p2 coefficient-wise and writes the result on p3.
@@ -217,39 +261,71 @@ func (p *PolyQP) Copy(polFrom PolyQP) {
 
 // GetDataLen returns the length in byte of the target PolyQP
 func (p *PolyQP) GetDataLen(WithMetadata bool) (dataLen int) {
-	return p.Q.GetDataLen(WithMetadata) + p.P.GetDataLen(WithMetadata)
+	if WithMetadata {
+		dataLen = 2
+	}
+	if p.Q != nil {
+		dataLen += p.Q.GetDataLen(WithMetadata)
+	}
+	if p.P != nil {
+		dataLen += p.P.GetDataLen(WithMetadata)
+	}
+
+	return
 }
 
 // WriteTo writes a polyQP on the inpute data.
 func (p *PolyQP) WriteTo(data []byte) (pt int, err error) {
 	var inc int
-	if inc, err = p.Q.WriteTo(data[pt:]); err != nil {
-		return
-	}
-	pt += inc
 
-	if inc, err = p.P.WriteTo(data[pt:]); err != nil {
-		return
+	if p.Q != nil {
+		data[0] = 1
 	}
-	pt += inc
+
+	if p.P != nil {
+		data[1] = 1
+	}
+
+	pt = 2
+
+	if data[0] == 1 {
+		if inc, err = p.Q.WriteTo(data[pt:]); err != nil {
+			return
+		}
+		pt += inc
+	}
+
+	if data[1] == 1 {
+		if inc, err = p.P.WriteTo(data[pt:]); err != nil {
+			return
+		}
+		pt += inc
+	}
 
 	return
 }
 
 // DecodePolyNew decodes the input bytes on the target polyQP.
 func (p *PolyQP) DecodePolyNew(data []byte) (pt int, err error) {
-	p.Q = new(ring.Poly)
-	var inc int
-	if inc, err = p.Q.DecodePolyNew(data[pt:]); err != nil {
-		return
-	}
-	pt += inc
 
-	p.P = new(ring.Poly)
-	if inc, err = p.P.DecodePolyNew(data[pt:]); err != nil {
-		return
+	var inc int
+	pt = 2
+
+	if data[0] == 1 {
+		p.Q = new(ring.Poly)
+		if inc, err = p.Q.DecodePolyNew(data[pt:]); err != nil {
+			return
+		}
+		pt += inc
 	}
-	pt += inc
+
+	if data[1] == 1 {
+		p.P = new(ring.Poly)
+		if inc, err = p.P.DecodePolyNew(data[pt:]); err != nil {
+			return
+		}
+		pt += inc
+	}
 
 	return
 }

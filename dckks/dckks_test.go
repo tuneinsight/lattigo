@@ -387,7 +387,7 @@ func testRotKeyGenConjugate(testCtx *testContext, t *testing.T) {
 
 	t.Run(testString("RotKeyGenConjugate/", parties, params), func(t *testing.T) {
 
-		if testCtx.params.RingType() == rlwe.RingConjugateInvariant {
+		if testCtx.params.RingType() == ring.ConjugateInvariant {
 			t.Skip("Conjugate not defined in Ring Conjugate Invariant")
 		}
 
@@ -768,7 +768,7 @@ func newTestVectors(testContext *testContext, encryptor ckks.Encryptor, a, b com
 		values[i] = complex(utils.RandFloat64(real(a), real(b)), utils.RandFloat64(imag(a), imag(b)))
 	}
 
-	plaintext = testContext.encoder.EncodeAtLvlNew(params.MaxLevel(), values, logSlots)
+	plaintext = testContext.encoder.EncodeNew(values, params.MaxLevel(), params.Scale(), params.LogSlots())
 
 	if encryptor != nil {
 		ciphertext = encryptor.EncryptNew(plaintext)

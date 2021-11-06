@@ -30,15 +30,6 @@ const DefaultSigma = 3.2
 // The j-th ring automorphism takes the root zeta to zeta^(5j).
 const GaloisGen uint64 = 5
 
-// RingType is the type of ring used by the cryptographic scheme
-type RingType int
-
-// RingStandard and RingConjugateInvariant are two types of Rings.
-const (
-	RingStandard           = RingType(0) // Z[X]/(X^N + 1) (Default)
-	RingConjugateInvariant = RingType(1) // Z[X+X^-1]/(X^2N + 1)
-)
-
 // ParametersLiteral is a literal representation of BFV parameters.  It has public
 // fields and is used to express unchecked user-defined parameters literally into
 // Go programs. The NewParametersFromLiteral function is used to generate the actual
@@ -50,7 +41,7 @@ type ParametersLiteral struct {
 	LogQ     []int `json:",omitempty"`
 	LogP     []int `json:",omitempty"`
 	Sigma    float64
-	RingType RingType
+	RingType ring.Type
 }
 
 // Parameters represents a set of generic RLWE parameters. Its fields are private and
@@ -62,7 +53,7 @@ type Parameters struct {
 	sigma    float64
 	ringQ    *ring.Ring
 	ringP    *ring.Ring
-	ringType RingType
+	ringType ring.Type
 }
 
 var (
@@ -72,7 +63,7 @@ var (
 		Q:        []uint64{0xffffc4001, 0x100008c001}, // 36 + 36 bits
 		P:        []uint64{0x1000090001},              // 36 bits
 		Sigma:    DefaultSigma,
-		RingType: RingStandard,
+		RingType: ring.Standard,
 	}
 	// TestPN13QP218 is a set of default parameters with logN=13 and logQP=218
 	TestPN13QP218 = ParametersLiteral{
@@ -80,7 +71,7 @@ var (
 		Q:        []uint64{0x3fffffffef8001, 0x40000000120001, 0x3fffffffeb8001}, // 54 + 54 + 54 bits
 		P:        []uint64{0x80000000068001},                                     // 55 bits
 		Sigma:    DefaultSigma,
-		RingType: RingStandard,
+		RingType: ring.Standard,
 	}
 
 	// TestPN14QP438 is a set of default parameters with logN=14 and logQP=438
@@ -90,7 +81,7 @@ var (
 			0x40000000120001, 0x400000001d0001, 0x3fffffffd60001}, // 56 + 55 + 55 + 54 + 54 + 54 bits
 		P:        []uint64{0x7fffffffe90001, 0x80000000190001}, // 55 + 55 bits
 		Sigma:    DefaultSigma,
-		RingType: RingStandard,
+		RingType: ring.Standard,
 	}
 
 	// TestPN15QP880 is a set of default parameters with logN=15 and logQP=880
@@ -102,14 +93,14 @@ var (
 			0x400000000a40001, 0x400000000c00001, 0x3ffffffff3a0001}, // 58 + 58 + 58 bits
 		P:        []uint64{0xffffffffffc0001, 0x10000000006e0001, 0xfffffffff840001}, // 60 + 60 + 60 bits
 		Sigma:    DefaultSigma,
-		RingType: RingStandard,
+		RingType: ring.Standard,
 	}
 )
 
 // NewParameters returns a new set of generic RLWE parameters from the given ring degree logn, moduli q and p, and
 // error distribution parameter sigma. It returns the empty parameters Parameters{} and a non-nil error if the
 // specified parameters are invalid.
-func NewParameters(logn int, q, p []uint64, sigma float64, ringType RingType) (Parameters, error) {
+func NewParameters(logn int, q, p []uint64, sigma float64, ringType ring.Type) (Parameters, error) {
 	var err error
 	if err = checkSizeParams(logn, len(q), len(p)); err != nil {
 		return Parameters{}, err
@@ -123,7 +114,9 @@ func NewParameters(logn int, q, p []uint64, sigma float64, ringType RingType) (P
 		ringType: ringType,
 	}
 
-	if ringType == RingStandard {
+	switch ringType {
+
+	case ring.Standard:
 
 		// Checks if moduli are valid
 		if err = CheckModuli(q, p, uint64(2<<logn)); err != nil {
@@ -139,7 +132,7 @@ func NewParameters(logn int, q, p []uint64, sigma float64, ringType RingType) (P
 				return Parameters{}, err
 			}
 		}
-	} else if ringType == RingConjugateInvariant {
+	case ring.ConjugateInvariant:
 
 		// Checks if moduli are valid
 		if err = CheckModuli(q, p, uint64(3<<logn)); err != nil {
@@ -155,6 +148,8 @@ func NewParameters(logn int, q, p []uint64, sigma float64, ringType RingType) (P
 				return Parameters{}, err
 			}
 		}
+	default:
+		panic("invalid ring type")
 	}
 
 	copy(params.qi, q)
@@ -171,14 +166,14 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
 	case paramDef.LogQ != nil && paramDef.Q == nil && paramDef.LogP != nil && paramDef.P == nil:
 		var q, p []uint64
 		var err error
-		if paramDef.RingType == RingStandard {
+		switch paramDef.RingType {
+		case ring.Standard:
 			q, p, err = GenModuli(paramDef.LogN, paramDef.LogQ, paramDef.LogP)
-		} else if paramDef.RingType == RingConjugateInvariant {
+		case ring.ConjugateInvariant:
 			q, p, err = GenModuli(paramDef.LogN+1, paramDef.LogQ, paramDef.LogP)
-		} else {
-			panic("invalid ringType")
+		default:
+			panic("invalid ring type")
 		}
-
 		if err != nil {
 			return Parameters{}, err
 		}
@@ -219,7 +214,7 @@ func (p Parameters) Sigma() float64 {
 }
 
 // RingType returns the type of the underlying ring.
-func (p Parameters) RingType() RingType {
+func (p Parameters) RingType() ring.Type {
 	return p.ringType
 }
 
@@ -361,7 +356,7 @@ func (p Parameters) GaloisElementForColumnRotationBy(k int) uint64 {
 // GaloisElementForRowRotation returns the galois element for generating the row
 // rotation automorphism
 func (p Parameters) GaloisElementForRowRotation() uint64 {
-	if p.ringType == RingConjugateInvariant {
+	if p.ringType == ring.ConjugateInvariant {
 		panic("Cannot generate GaloisElementForRowRotation if ringType is ConjugateInvariant")
 	}
 	return p.ringQ.NthRoot - 1
@@ -376,10 +371,13 @@ func (p Parameters) GaloisElementsForRowInnerSum() (galEls []uint64) {
 		galEls[i] = p.GaloisElementForColumnRotationBy(1 << i)
 	}
 
-	if p.ringType == RingStandard {
+	switch p.ringType {
+	case ring.Standard:
 		galEls[p.logN-1] = p.GaloisElementForRowRotation()
-	} else {
+	case ring.ConjugateInvariant:
 		galEls[p.logN-1] = p.GaloisElementForColumnRotationBy(1 << (p.logN - 1))
+	default:
+		panic("invalid ring type")
 	}
 
 	return galEls
@@ -419,6 +417,7 @@ func (p Parameters) MarshalBinary() ([]byte, error) {
 	// 1 byte : #Q
 	// 1 byte : #P
 	// 8 byte : sigma
+	// 1 byte : ringType
 	// 8 * (#Q) : Q
 	// 8 * (#P) : P
 	b := utils.NewBuffer(make([]byte, 0, p.MarshalBinarySize()))
@@ -442,7 +441,7 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	lenQ := int(b.ReadUint8())
 	lenP := int(b.ReadUint8())
 	sigma := math.Float64frombits(b.ReadUint64())
-	ringType := RingType(b.ReadUint8())
+	ringType := ring.Type(b.ReadUint8())
 
 	if err := checkSizeParams(logN, lenQ, lenP); err != nil {
 		return err

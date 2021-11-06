@@ -13,6 +13,7 @@ import (
 // LogN of the ring degree of the used parameters
 var LogN = 15
 
+// Benchmarking between emulated complex using RCKKS and CKKS
 func main() {
 	SimulatedComplex()
 	Complex()
@@ -28,7 +29,7 @@ func SimulatedComplex() {
 		Sigma:    rlwe.DefaultSigma,
 		LogSlots: LogN,
 		Scale:    float64(1 << 40),
-		RingType: rlwe.RingConjugateInvariant,
+		RingType: ring.ConjugateInvariant,
 	})
 	if err != nil {
 		panic(err)
@@ -103,8 +104,8 @@ func SimulatedComplex() {
 		//diagMatrixImag[15][i] = complex(1, 0)
 	}
 
-	ptDiagReal := encoder.EncodeDiagMatrixBSGSAtLvl(params.MaxLevel(), diagMatrixReal, params.QiFloat64(params.MaxLevel()), 4.0, params.LogSlots())
-	ptDiagImag := encoder.EncodeDiagMatrixBSGSAtLvl(params.MaxLevel(), diagMatrixImag, params.QiFloat64(params.MaxLevel()), 4.0, params.LogSlots())
+	ptDiagReal := encoder.EncodeDiagMatrixBSGS(params.MaxLevel(), diagMatrixReal, params.QiFloat64(params.MaxLevel()), 4.0, params.LogSlots())
+	ptDiagImag := encoder.EncodeDiagMatrixBSGS(params.MaxLevel(), diagMatrixImag, params.QiFloat64(params.MaxLevel()), 4.0, params.LogSlots())
 
 	diagMat := PtDiagMatrix{
 		N1:       ptDiagReal.N1,
@@ -169,7 +170,7 @@ func Complex() {
 		Sigma:    rlwe.DefaultSigma,
 		LogSlots: 15,
 		Scale:    float64(1 << 40),
-		RingType: rlwe.RingStandard,
+		RingType: ring.Standard,
 	})
 	if err != nil {
 		panic(err)

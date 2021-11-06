@@ -63,8 +63,8 @@ type SwkRealToComplex struct {
 // GenSwitchingKeysForRingSwap generates the necessary switching keys to switch from CKKS to RCKKS and vice-versa.
 func GenSwitchingKeysForRingSwap(params Parameters, skCKKS, skRCKKS *rlwe.SecretKey) (SwkComplexToReal, SwkRealToComplex) {
 
-	if params.RingType() != rlwe.RingStandard {
-		panic("ringType must be rlwe.RingStandard")
+	if params.RingType() != ring.Standard {
+		panic("ringType must be ring.Standard")
 	}
 
 	kgen := NewKeyGenerator(params)

@@ -64,7 +64,7 @@ func main() {
 		valuesWant[i] = utils.RandComplex128(-1, 1)
 	}
 
-	plaintext = encoder.EncodeNew(valuesWant, params.LogSlots())
+	plaintext = encoder.EncodeNew(valuesWant, params.MaxLevel(), params.Scale(), params.LogSlots())
 
 	// Encrypt
 	ciphertext1 := encryptor.EncryptNew(plaintext)

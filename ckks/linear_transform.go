@@ -11,6 +11,19 @@ import (
 // For log(n) = logSlotStart and log(N/2) = logSlotsEnd
 // Monomials X^k vanish if k isn't divisble by (N/n), else it is multiplied by (N/n).
 // Ciphertext is pre-multiplied by (N/n)^-1 to remove the (N/n) factor.
+// Examples of full Trace for [0 + 1X + 2X^2 + 3X^3 + 4X^4 + 5X^5 + 6X^6 + 7X^7]
+//
+// 1)	   [1 + 2X + 3X^2 + 4X^3 + 5X^4 + 6X^5 + 7X^6 + 8X^7]
+//       + [1 - 6X - 3X^2 + 8X^3 + 5X^4 + 2X^5 - 7X^6 - 4X^7]  {X-> X^(i * 5^1)}
+//   	 = [2 - 4X + 0X^2 +12X^3 +10X^4 + 8X^5 - 0X^6 + 4X^7]
+//
+// 2)      [2 - 4X + 0X^2 +12X^3 +10X^4 + 8X^5 - 0X^6 + 4X^7]
+//       + [2 + 4X + 0X^2 -12X^3 +10X^4 - 8X^5 + 0X^6 - 4X^7]  {X-> X^(i * 5^2)}
+//       = [4 + 0X + 0X^2 - 0X^3 +20X^4 + 0X^5 + 0X^6 - 0X^7]
+//
+// 3)      [4 + 0X + 0X^2 - 0X^3 +20X^4 + 0X^5 + 0X^6 - 0X^7]
+//       + [4 + 4X + 0X^2 - 0X^3 -20X^4 + 0X^5 + 0X^6 - 0X^7]  {X-> X^(i * -1)}
+//       = [8 + 0X + 0X^2 - 0X^3 + 0X^4 + 0X^5 + 0X^6 - 0X^7]
 func (eval *evaluator) Trace(ctIn *Ciphertext, logSlotsStart, logSlotsEnd int, ctOut *Ciphertext) {
 
 	level := utils.MinInt(ctIn.Level(), ctOut.Level())
@@ -166,22 +179,23 @@ func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfa
 	}
 }
 
-// Average returns the average of vectors of batchSize elemets.
+// Average returns the average of vectors of batchSize elements.
 // The operation assumes that ctIn encrypts SlotCount/'batchSize' sub-vectors of size 'batchSize'.
 // It then replace all values of those sub-vectors by their average (relative to their sub-vector).
+// Example for batchSize=4 and slots=8: [{a, b, c, d}, {e, f, g, h}] -> [0.5*{a+e, b+f, c+g, d+h}, 0.5*{a+e, b+f, c+g, d+h}]
 // Operation requires log2(SlotCout/'batchSize') rotations.
 // Required rotation keys can be generated with 'RotationsForInnerSumLog(batchSize, SlotCount/batchSize)''
-func (eval *evaluator) Average(ctIn *Ciphertext, batchSize int, ctOut *Ciphertext) {
+func (eval *evaluator) Average(ctIn *Ciphertext, logBatchSize int, ctOut *Ciphertext) {
 
-	if batchSize&(batchSize-1) != 0 || batchSize > eval.params.Slots() {
-		panic("batchSize must be a power of two that is smaller or equal to the number of slots")
+	if logBatchSize > eval.params.LogSlots() {
+		panic("batchSize must be smaller or equal to the number of slots")
 	}
 
 	ringQ := eval.params.RingQ()
 
 	level := utils.MinInt(ctIn.Level(), ctOut.Level())
 
-	n := eval.params.Slots() / batchSize
+	n := eval.params.Slots() / (1 << logBatchSize)
 
 	// pre-multiplication by n^-1
 	for i := 0; i < level+1; i++ {
@@ -195,8 +209,7 @@ func (eval *evaluator) Average(ctIn *Ciphertext, batchSize int, ctOut *Ciphertex
 		ring.MulScalarMontgomeryVec(ctIn.Value[1].Coeffs[i], ctOut.Value[1].Coeffs[i], invN, Q, mredparams)
 	}
 
-	// Partial trace evaluation where coefficients are either scaled by n or vanish.
-	eval.InnerSumLog(ctOut, batchSize, n, ctOut)
+	eval.InnerSumLog(ctOut, 1<<logBatchSize, n, ctOut)
 }
 
 // InnerSumLog applies an optimized inner sum on the ciphetext (log2(n) + HW(n) rotations with double hoisting).
@@ -211,9 +224,6 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 
 	levelQ := ctIn.Level()
 	levelP := len(ringP.Modulus) - 1
-
-	//QiOverF := eval.params.QiOverflowMargin(levelQ)
-	//PiOverF := eval.params.PiOverflowMargin()
 
 	if n == 1 {
 		if ctIn != ctOut {

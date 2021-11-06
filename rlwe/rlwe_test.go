@@ -590,7 +590,7 @@ func testMarshaller(kgen KeyGenerator, t *testing.T) {
 	t.Run(testString(params, "Marshaller/EvaluationKey/"), func(t *testing.T) {
 
 		if params.PCount() == 0 {
-			t.Skip("#Pi is empty")
+			t.Skip("method is unsuported when params.PCount() == 0")
 		}
 
 		evalKey := kgen.GenRelinearizationKey(sk, 3)
@@ -607,7 +607,7 @@ func testMarshaller(kgen KeyGenerator, t *testing.T) {
 	t.Run(testString(params, "Marshaller/SwitchingKey/"), func(t *testing.T) {
 
 		if params.PCount() == 0 {
-			t.Skip("#Pi is empty")
+			t.Skip("method is unsuported when params.PCount() == 0")
 		}
 
 		skOut := kgen.GenSecretKey()
@@ -626,12 +626,12 @@ func testMarshaller(kgen KeyGenerator, t *testing.T) {
 	t.Run(testString(params, "Marshaller/RotationKey/"), func(t *testing.T) {
 
 		if params.PCount() == 0 {
-			t.Skip("#Pi is empty")
+			t.Skip("method is unsuported when params.PCount() == 0")
 		}
 
 		rots := []int{1, -1, 63, -63}
 		galEls := []uint64{}
-		if params.RingType() == RingStandard {
+		if params.RingType() == ring.Standard {
 			galEls = append(galEls, params.GaloisElementForRowRotation())
 		}
 

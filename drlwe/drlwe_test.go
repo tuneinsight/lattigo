@@ -226,6 +226,10 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 
 	t.Run(testString(params, "RelinKeyGen/"), func(t *testing.T) {
 
+		if params.PCount() == 0 {
+			t.Skip("method is unsuported when params.PCount() == 0")
+		}
+
 		rkg := NewRKGProtocol(params, rlwe.DefaultSigma)
 
 		ephSk0, share10, share20 := rkg.AllocateShares()
@@ -301,6 +305,10 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 	levelQ, levelP := params.QCount()-1, params.PCount()-1
 
 	t.Run(testString(params, "RotKeyGen/"), func(t *testing.T) {
+
+		if params.PCount() == 0 {
+			t.Skip("method is unsuported when params.PCount() == 0")
+		}
 
 		rtg := NewRTGProtocol(params)
 
@@ -446,6 +454,10 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 
 	t.Run(testString(params, "Marshalling/RKG/"), func(t *testing.T) {
 
+		if params.PCount() == 0 {
+			t.Skip("method is unsuported when params.PCount() == 0")
+		}
+
 		//check RTGShare
 
 		RKGProtocol := NewRKGProtocol(params, rlwe.DefaultSigma)
@@ -478,6 +490,10 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 	})
 
 	t.Run(testString(params, "Marshalling/RTG/"), func(t *testing.T) {
+
+		if params.PCount() == 0 {
+			t.Skip("method is unsuported when params.PCount() == 0")
+		}
 
 		//check RTGShare
 

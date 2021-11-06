@@ -17,7 +17,7 @@ import (
 )
 
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters + secure bootstrapping). Overrides -short and requires -timeout=0.")
-var flagPostQuantum = flag.Bool("pq", false, "run post quantum test suite.")
+var flagPostQuantum = flag.Bool("pq", false, "run post quantum test suite (does not run non-PQ parameters).")
 var flagRingType = flag.Bool("real", false, "changes the ring to its Conjugate Invariant, instanciating Real CKKS, requires primes congruent to 1 mod 4N")
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
@@ -76,7 +76,7 @@ func TestCKKS(t *testing.T) {
 
 		// Flag to changes to Real-CKKS
 		if *flagRingType {
-			defaultParam.RingType = rlwe.RingConjugateInvariant
+			defaultParam.RingType = ring.ConjugateInvariant
 			defaultParam.LogSlots = defaultParam.LogN
 		}
 
@@ -159,19 +159,22 @@ func newTestVectors(testContext *testParams, encryptor Encryptor, a, b complex12
 
 	values = make([]complex128, 1<<logSlots)
 
-	if testContext.params.RingType() == rlwe.RingStandard {
+	switch testContext.params.RingType() {
+	case ring.Standard:
 		for i := 0; i < 1<<logSlots; i++ {
-			values[i] = complex(1, 0) //complex(utils.RandFloat64(real(a), real(b)), utils.RandFloat64(imag(a), imag(b)))
+			values[i] = complex(utils.RandFloat64(real(a), real(b)), utils.RandFloat64(imag(a), imag(b)))
 		}
-	} else {
+	case ring.ConjugateInvariant:
 		for i := 0; i < 1<<logSlots; i++ {
 			values[i] = complex(utils.RandFloat64(real(a), real(b)), 0)
 		}
+	default:
+		panic("invalid ring type")
 	}
 
 	values[0] = complex(0.607538, 0)
 
-	plaintext = testContext.encoder.EncodeAtLvlNew(testContext.params.MaxLevel(), values, logSlots)
+	plaintext = testContext.encoder.EncodeNew(values, testContext.params.MaxLevel(), testContext.params.Scale(), logSlots)
 
 	if encryptor != nil {
 		ciphertext = encryptor.EncryptNew(plaintext)
@@ -205,14 +208,14 @@ func testParameters(testContext *testParams, t *testing.T) {
 
 func testEncoder(testContext *testParams, t *testing.T) {
 
-	t.Run(GetTestName(testContext.params, "Encoder/Slots/"), func(t *testing.T) {
+	t.Run(GetTestName(testContext.params, "Encoder/Encode/"), func(t *testing.T) {
 
 		values, plaintext, _ := newTestVectors(testContext, nil, complex(-1, -1), complex(1, 1), t)
 
 		verifyTestVectors(testContext.params, testContext.encoder, testContext.decryptor, values, plaintext, testContext.params.LogSlots(), 0, t)
 	})
 
-	t.Run(GetTestName(testContext.params, "Encoder/Coeffs/"), func(t *testing.T) {
+	t.Run(GetTestName(testContext.params, "Encoder/EncodeCoeffs/"), func(t *testing.T) {
 
 		slots := testContext.params.N()
 
@@ -224,9 +227,7 @@ func testEncoder(testContext *testParams, t *testing.T) {
 
 		valuesWant[0] = 0.607538
 
-		plaintext := NewPlaintext(testContext.params, testContext.params.MaxLevel(), testContext.params.Scale())
-
-		testContext.encoder.EncodeCoeffs(valuesWant, plaintext)
+		plaintext := testContext.encoder.EncodeCoeffsNew(valuesWant, testContext.params.MaxLevel(), testContext.params.Scale())
 
 		valuesTest := testContext.encoder.DecodeCoeffs(plaintext)
 
@@ -402,7 +403,7 @@ func testEvaluatorRescale(testContext *testParams, t *testing.T) {
 	t.Run(GetTestName(testContext.params, "Evaluator/Rescale/Single/"), func(t *testing.T) {
 
 		if testContext.params.PCount() == 0 {
-			t.Skip("#Pi is empty")
+			t.Skip("method is unsuported when params.PCount() == 0")
 		}
 
 		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
@@ -421,7 +422,7 @@ func testEvaluatorRescale(testContext *testParams, t *testing.T) {
 	t.Run(GetTestName(testContext.params, "Evaluator/Rescale/Many/"), func(t *testing.T) {
 
 		if testContext.params.PCount() == 0 {
-			t.Skip("#Pi is empty")
+			t.Skip("method is unsuported when params.PCount() == 0")
 		}
 
 		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
@@ -450,10 +451,13 @@ func testEvaluatorAddConst(testContext *testParams, t *testing.T) {
 		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
 		var constant complex128
-		if testContext.params.RingType() == rlwe.RingStandard {
+		switch testContext.params.RingType() {
+		case ring.Standard:
 			constant = 1.0 / complex(3.1415, -1.4142)
-		} else {
+		case ring.ConjugateInvariant:
 			constant = 1.0 / complex(3.1415, 0)
+		default:
+			panic("invalid ring type")
 		}
 
 		for i := range values {
@@ -474,10 +478,13 @@ func testEvaluatorMultByConst(testContext *testParams, t *testing.T) {
 		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
 		var constant complex128
-		if testContext.params.RingType() == rlwe.RingStandard {
+		switch testContext.params.RingType() {
+		case ring.Standard:
 			constant = 1.0 / complex(3.1415, -1.4142)
-		} else {
+		case ring.ConjugateInvariant:
 			constant = 1.0 / complex(3.1415, 0)
+		default:
+			panic("invalid ring type")
 		}
 
 		for i := range values {
@@ -499,10 +506,13 @@ func testEvaluatorMultByConstAndAdd(testContext *testParams, t *testing.T) {
 		values2, _, ciphertext2 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
 		var constant complex128
-		if testContext.params.RingType() == rlwe.RingStandard {
+		switch testContext.params.RingType() {
+		case ring.Standard:
 			constant = 1.0 / complex(3.1415, -1.4142)
-		} else {
+		case ring.ConjugateInvariant:
 			constant = 1.0 / complex(3.1415, 0)
+		default:
+			panic("invalid ring type")
 		}
 
 		for i := range values1 {
@@ -628,7 +638,7 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 	t.Run(GetTestName(testContext.params, "Evaluator/Mul/Relinearize(ct0*ct1->ct0)/"), func(t *testing.T) {
 
 		if testContext.params.PCount() == 0 {
-			t.Skip("#Pi is empty")
+			t.Skip("method is unsuported when params.PCount() == 0")
 		}
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
@@ -649,7 +659,7 @@ func testEvaluatorMul(testContext *testParams, t *testing.T) {
 	t.Run(GetTestName(testContext.params, "Evaluator/Mul/Relinearize(ct0*ct1->ct1)/"), func(t *testing.T) {
 
 		if testContext.params.PCount() == 0 {
-			t.Skip("#Pi is empty")
+			t.Skip("method is unsuported when params.PCount() == 0")
 		}
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
@@ -674,7 +684,7 @@ func testFunctions(testContext *testParams, t *testing.T) {
 	t.Run(GetTestName(testContext.params, "Evaluator/PowerOf2/"), func(t *testing.T) {
 
 		if testContext.params.PCount() == 0 {
-			t.Skip("#Pi is empty")
+			t.Skip("method is unsuported when params.PCount() == 0")
 		}
 
 		if testContext.params.MaxLevel() < 3 {
@@ -704,7 +714,7 @@ func testFunctions(testContext *testParams, t *testing.T) {
 	t.Run(GetTestName(testContext.params, "Evaluator/Power/"), func(t *testing.T) {
 
 		if testContext.params.PCount() == 0 {
-			t.Skip("#Pi is empty")
+			t.Skip("method is unsuported when params.PCount() == 0")
 		}
 
 		if testContext.params.MaxLevel() < 4 {
@@ -727,7 +737,7 @@ func testFunctions(testContext *testParams, t *testing.T) {
 	t.Run(GetTestName(testContext.params, "Evaluator/Inverse/"), func(t *testing.T) {
 
 		if testContext.params.PCount() == 0 {
-			t.Skip("#Pi is empty")
+			t.Skip("method is unsuported when params.PCount() == 0")
 		}
 
 		if testContext.params.MaxLevel() < 7 {
@@ -755,7 +765,7 @@ func testEvaluatePoly(testContext *testParams, t *testing.T) {
 	t.Run(GetTestName(testContext.params, "EvaluatePoly/Exp/"), func(t *testing.T) {
 
 		if testContext.params.PCount() == 0 {
-			t.Skip("#Pi is empty")
+			t.Skip("method is unsuported when params.PCount() == 0")
 		}
 
 		if testContext.params.MaxLevel() < 3 {
@@ -796,7 +806,7 @@ func testChebyshevInterpolator(testContext *testParams, t *testing.T) {
 	t.Run(GetTestName(testContext.params, "ChebyshevInterpolator/Sin/"), func(t *testing.T) {
 
 		if testContext.params.PCount() == 0 {
-			t.Skip("#Pi is empty")
+			t.Skip("method is unsuported when params.PCount() == 0")
 		}
 
 		if testContext.params.MaxLevel() < 5 {
@@ -832,7 +842,7 @@ func testDecryptPublic(testContext *testParams, t *testing.T) {
 	t.Run(GetTestName(testContext.params, "DecryptPublic/Sin/"), func(t *testing.T) {
 
 		if testContext.params.PCount() == 0 {
-			t.Skip("#Pi is empty")
+			t.Skip("method is unsuported when params.PCount() == 0")
 		}
 
 		if testContext.params.MaxLevel() < 5 {
@@ -886,7 +896,7 @@ func testSwitchKeys(testContext *testParams, t *testing.T) {
 	t.Run(GetTestName(testContext.params, "SwitchKeys/"), func(t *testing.T) {
 
 		if testContext.params.PCount() == 0 {
-			t.Skip("#Pi is empty")
+			t.Skip("method is unsuported when params.PCount() == 0")
 		}
 
 		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
@@ -899,7 +909,7 @@ func testSwitchKeys(testContext *testParams, t *testing.T) {
 	t.Run(GetTestName(testContext.params, "SwitchKeysNew/"), func(t *testing.T) {
 
 		if testContext.params.PCount() == 0 {
-			t.Skip("#Pi is empty")
+			t.Skip("method is unsuported when params.PCount() == 0")
 		}
 
 		values, _, ciphertext := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
@@ -914,7 +924,7 @@ func testBridge(testContext *testParams, t *testing.T) {
 
 	t.Run(GetTestName(testContext.params, "Bridge/"), func(t *testing.T) {
 
-		if testContext.params.RingType() != rlwe.RingConjugateInvariant {
+		if testContext.params.RingType() != ring.ConjugateInvariant {
 			t.Skip("only tested with flag -real")
 		}
 
@@ -928,7 +938,7 @@ func testBridge(testContext *testParams, t *testing.T) {
 			Sigma:    rlwe.DefaultSigma,
 			LogSlots: paramsRCKKS.LogSlots(),
 			Scale:    paramsRCKKS.Scale(),
-			RingType: rlwe.RingStandard,
+			RingType: ring.Standard,
 		}); err != nil {
 			panic(err)
 		}
@@ -958,27 +968,24 @@ func testBridge(testContext *testParams, t *testing.T) {
 
 func testAutomorphisms(testContext *testParams, t *testing.T) {
 
+	params := testContext.params
+
 	rots := []int{0, 1, -1, 4, -4, 63, -63}
 	var rotKey *rlwe.RotationKeySet
 
 	if testContext.params.PCount() != 0 {
-
-		if testContext.params.RingType() == rlwe.RingStandard {
-			rotKey = testContext.kgen.GenRotationKeysForRotations(rots, true, testContext.sk)
-		} else {
-			rotKey = testContext.kgen.GenRotationKeysForRotations(rots, false, testContext.sk)
-		}
+		rotKey = testContext.kgen.GenRotationKeysForRotations(rots, params.RingType() == ring.Standard, testContext.sk)
 	}
 
 	evaluator := testContext.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testContext.rlk, Rtks: rotKey})
 
-	t.Run(GetTestName(testContext.params, "Conjugate/"), func(t *testing.T) {
+	t.Run(GetTestName(params, "Conjugate/"), func(t *testing.T) {
 
-		if testContext.params.PCount() == 0 {
-			t.Skip("#Pi is empty")
+		if params.PCount() == 0 {
+			t.Skip("method is unsuported when params.PCount() == 0")
 		}
 
-		if testContext.params.RingType() != rlwe.RingStandard {
+		if params.RingType() != ring.Standard {
 			t.Skip("Conjugate not defined in real-CKKS")
 		}
 
@@ -990,16 +997,16 @@ func testAutomorphisms(testContext *testParams, t *testing.T) {
 
 		evaluator.Conjugate(ciphertext, ciphertext)
 
-		verifyTestVectors(testContext.params, testContext.encoder, testContext.decryptor, values, ciphertext, testContext.params.LogSlots(), 0, t)
+		verifyTestVectors(params, testContext.encoder, testContext.decryptor, values, ciphertext, params.LogSlots(), 0, t)
 	})
 
-	t.Run(GetTestName(testContext.params, "ConjugateNew/"), func(t *testing.T) {
+	t.Run(GetTestName(params, "ConjugateNew/"), func(t *testing.T) {
 
-		if testContext.params.PCount() == 0 {
-			t.Skip("#Pi is empty")
+		if params.PCount() == 0 {
+			t.Skip("method is unsuported when params.PCount() == 0")
 		}
 
-		if testContext.params.RingType() != rlwe.RingStandard {
+		if params.RingType() != ring.Standard {
 			t.Skip("Conjugate not defined in real-CKKS")
 		}
 
@@ -1011,7 +1018,7 @@ func testAutomorphisms(testContext *testParams, t *testing.T) {
 
 		ciphertext = evaluator.ConjugateNew(ciphertext)
 
-		verifyTestVectors(testContext.params, testContext.encoder, testContext.decryptor, values, ciphertext, testContext.params.LogSlots(), 0, t)
+		verifyTestVectors(params, testContext.encoder, testContext.decryptor, values, ciphertext, params.LogSlots(), 0, t)
 	})
 
 	t.Run(GetTestName(testContext.params, "Rotate/"), func(t *testing.T) {
@@ -1053,7 +1060,7 @@ func testInnerSum(testContext *testParams, t *testing.T) {
 	t.Run(GetTestName(testContext.params, "InnerSum/"), func(t *testing.T) {
 
 		if testContext.params.PCount() == 0 {
-			t.Skip("#Pi is empty")
+			t.Skip("method is unsuported when params.PCount() == 0")
 		}
 
 		batch := 7
@@ -1084,7 +1091,7 @@ func testInnerSum(testContext *testParams, t *testing.T) {
 	t.Run(GetTestName(testContext.params, "InnerSumLog/"), func(t *testing.T) {
 
 		if testContext.params.PCount() == 0 {
-			t.Skip("#Pi is empty")
+			t.Skip("method is unsuported when params.PCount() == 0")
 		}
 
 		batch := 512
@@ -1116,10 +1123,11 @@ func testInnerSum(testContext *testParams, t *testing.T) {
 	t.Run(GetTestName(testContext.params, "Average/"), func(t *testing.T) {
 
 		if testContext.params.PCount() == 0 {
-			t.Skip("#Pi is empty")
+			t.Skip("method is unsuported when params.PCount() == 0")
 		}
 
-		batch := 512
+		logBatch := 9
+		batch := 1 << logBatch
 		n := testContext.params.Slots() / batch
 
 		rotKey := testContext.kgen.GenRotationKeysForRotations(testContext.params.RotationsForInnerSumLog(batch, n), false, testContext.sk)
@@ -1127,7 +1135,7 @@ func testInnerSum(testContext *testParams, t *testing.T) {
 
 		values1, _, ciphertext1 := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-		eval.Average(ciphertext1, batch, ciphertext1)
+		eval.Average(ciphertext1, logBatch, ciphertext1)
 
 		tmp0 := make([]complex128, len(values1))
 		copy(tmp0, values1)
@@ -1153,7 +1161,7 @@ func testInnerSum(testContext *testParams, t *testing.T) {
 func testReplicate(testContext *testParams, t *testing.T) {
 
 	if testContext.params.PCount() == 0 {
-		t.Skip("#Pi is empty")
+		t.Skip("method is unsuported when params.PCount() == 0")
 	}
 
 	t.Run(GetTestName(testContext.params, "Replicate/"), func(t *testing.T) {
@@ -1214,7 +1222,7 @@ func testReplicate(testContext *testParams, t *testing.T) {
 func testLinearTransform(testContext *testParams, t *testing.T) {
 
 	if testContext.params.PCount() == 0 {
-		t.Skip("#Pi is empty")
+		t.Skip("method is unsuported when params.PCount() == 0")
 	}
 
 	t.Run(GetTestName(testContext.params, "LinearTransform/BSGS/"), func(t *testing.T) {
@@ -1247,7 +1255,7 @@ func testLinearTransform(testContext *testParams, t *testing.T) {
 			diagMatrix[15][i] = complex(1, 0)
 		}
 
-		ptDiagMatrix := testContext.encoder.EncodeDiagMatrixBSGSAtLvl(params.MaxLevel(), diagMatrix, params.Scale(), 1.0, params.LogSlots())
+		ptDiagMatrix := testContext.encoder.EncodeDiagMatrixBSGS(params.MaxLevel(), diagMatrix, params.Scale(), 1.0, params.LogSlots())
 
 		rots := testContext.params.RotationsForDiagMatrixMult(ptDiagMatrix)
 
@@ -1290,7 +1298,7 @@ func testLinearTransform(testContext *testParams, t *testing.T) {
 			diagMatrix[0][i] = complex(1, 0)
 		}
 
-		ptDiagMatrix := testContext.encoder.EncodeDiagMatrixAtLvl(params.MaxLevel(), diagMatrix, params.Scale(), params.LogSlots())
+		ptDiagMatrix := testContext.encoder.EncodeDiagMatrix(params.MaxLevel(), diagMatrix, params.Scale(), params.LogSlots())
 
 		rots := testContext.params.RotationsForDiagMatrixMult(ptDiagMatrix)
 

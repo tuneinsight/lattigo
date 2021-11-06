@@ -21,7 +21,8 @@ test_examples:
 
 .PHONY: test_gotest
 test_gotest:
-	go test -v -timeout=0 ./utils ./ring ./bfv ./dbfv ./dckks
+	go test -v -timeout=0 ./utils ./ring ./bfv ./ckks ./dbfv ./dckks
+	go test -v -timeout=0 ./ckks  -real
 	go test -v -timeout=0 ./ckks/advanced
 	go test -v -timeout=0 ./ckks/bootstrapping -test-bootstrapping -short
 

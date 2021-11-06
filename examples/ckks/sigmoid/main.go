@@ -57,7 +57,7 @@ func chebyshevinterpolation() {
 	fmt.Println()
 
 	// Plaintext creation and encoding process
-	plaintext := encoder.EncodeNew(values, params.LogSlots())
+	plaintext := encoder.EncodeNew(values, params.MaxLevel(), params.Scale(), params.LogSlots())
 
 	// Encryption process
 	var ciphertext *ckks.Ciphertext

@@ -21,7 +21,7 @@ func main() {
 		Q:        []uint64{0x80000000080001},
 		P:        []uint64{0x1fffffffffe00001},
 		Sigma:    rlwe.DefaultSigma,
-		RingType: rlwe.RingStandard,
+		RingType: ring.Standard,
 	}
 	scale := float64(1 << 40)
 

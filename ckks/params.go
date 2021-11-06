@@ -163,7 +163,7 @@ type ParametersLiteral struct {
 	Sigma    float64 // Gaussian sampling variance
 	LogSlots int
 	Scale    float64
-	RingType rlwe.RingType
+	RingType ring.Type
 }
 
 // DefaultParams is a set of default CKKS parameters ensuring 128 bit security in a classic setting.
@@ -221,18 +221,26 @@ func (p Parameters) Slots() int {
 
 // MaxSlots returns the theoretical maximum of plaintext slots allowed by the ring degree
 func (p Parameters) MaxSlots() int {
-	if p.RingType() == rlwe.RingConjugateInvariant {
+	switch p.RingType() {
+	case ring.Standard:
+		return p.N() >> 1
+	case ring.ConjugateInvariant:
 		return p.N()
+	default:
+		panic("invalid ring type")
 	}
-	return p.N() >> 1
 }
 
 // MaxLogSlots returns the log of the maximum number of slots enabled by the parameters
 func (p Parameters) MaxLogSlots() int {
-	if p.RingType() == rlwe.RingConjugateInvariant {
+	switch p.RingType() {
+	case ring.Standard:
+		return p.LogN() - 1
+	case ring.ConjugateInvariant:
 		return p.LogN()
+	default:
+		panic("invalid ring type")
 	}
-	return p.LogN() - 1
 }
 
 // Scale returns the default plaintext/ciphertext scale

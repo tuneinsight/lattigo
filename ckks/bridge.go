@@ -6,41 +6,6 @@ import (
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
-// UnfoldConjugateInvariantNTTLvl maps the compressed representation of Z_Q[X+X^-1]/(X^2N + 1) to full representation in Z_Q[X]/(X^2N+1)
-func UnfoldConjugateInvariantNTTLvl(level int, p1, p2 *ring.Poly) {
-
-	if 2*len(p1.Coeffs[0]) != len(p2.Coeffs[0]) {
-		panic("Ring degree of p2 must be twice the ring degree of p1")
-	}
-
-	N := len(p1.Coeffs[0])
-
-	for i := 0; i < level+1; i++ {
-		tmp2, tmp1 := p2.Coeffs[i], p1.Coeffs[i]
-		copy(tmp2, tmp1)
-		for idx, jdx := N-1, N; jdx < 2*N; idx, jdx = idx-1, jdx+1 {
-			tmp2[jdx] = tmp1[idx]
-		}
-	}
-
-	return
-}
-
-// FoldConjugateInvariantNTTLvl folds [X] to [X+X^-1] in compressed form.
-// Requires ringQ in ConjugateInvariantRing and p1 in (X^2N+1) and p2 in (X^N+1)
-func FoldConjugateInvariantNTTLvl(level int, p1 *ring.Poly, ringQ *ring.Ring, permuteNTTIndexInv []uint64, p2 *ring.Poly) {
-
-	if len(p1.Coeffs[0]) != 2*len(p2.Coeffs[0]) {
-		panic("Ring degree of p2 must be 2N and ring degree of p1 must be N")
-	}
-
-	N := ringQ.N
-	ringQ.N = len(p2.Coeffs[0])
-	ringQ.PermuteNTTWithIndexLvl(level, p1, permuteNTTIndexInv, p2)
-	ringQ.Add(p2, p1, p2)
-	ringQ.N = N
-}
-
 func isConjugateInvariant(r *ring.Ring) bool {
 	switch r.NumberTheoreticTransformer.(type) {
 	case ring.NumberTheoreticTransformerConjugateInvariant:
@@ -70,8 +35,8 @@ func GenSwitchingKeysForRingSwap(params Parameters, skCKKS, skRCKKS *rlwe.Secret
 	kgen := NewKeyGenerator(params)
 
 	skRCKKSMappedToCKKS := NewSecretKey(params)
-	UnfoldConjugateInvariantNTTLvl(skRCKKS.Value.Q.Level(), skRCKKS.Value.Q, skRCKKSMappedToCKKS.Value.Q)
-	UnfoldConjugateInvariantNTTLvl(skRCKKS.Value.P.Level(), skRCKKS.Value.P, skRCKKSMappedToCKKS.Value.P)
+	params.RingQ().UnfoldConjugateInvariantNTTLvl(skRCKKS.Value.Q.Level(), skRCKKS.Value.Q, skRCKKSMappedToCKKS.Value.Q)
+	params.RingQ().UnfoldConjugateInvariantNTTLvl(skRCKKS.Value.P.Level(), skRCKKS.Value.P, skRCKKSMappedToCKKS.Value.P)
 
 	swkRtoC := kgen.GenSwitchingKey(skRCKKSMappedToCKKS, skCKKS)
 	swkCtoR := kgen.GenSwitchingKey(skCKKS, skRCKKSMappedToCKKS)
@@ -113,8 +78,8 @@ func (eval *evaluator) Bridge(ctIn *Ciphertext, swk interface{}, ctOut *Cipherte
 			index = ringQ.PermuteNTTIndex(galEl)
 			eval.permuteNTTIndex[galEl] = index
 		}
-		FoldConjugateInvariantNTTLvl(level, ks.Pool[1].Q, ringQ, index, ctOut.Value[0])
-		FoldConjugateInvariantNTTLvl(level, ks.Pool[2].Q, ringQ, index, ctOut.Value[1])
+		ringQ.FoldConjugateInvariantNTTLvl(level, ks.Pool[1].Q, index, ctOut.Value[0])
+		ringQ.FoldConjugateInvariantNTTLvl(level, ks.Pool[2].Q, index, ctOut.Value[1])
 		ctOut.Scale = 2 * ctIn.Scale
 	case SwkRealToComplex: // Convert RCKKS to CKKS
 
@@ -122,8 +87,8 @@ func (eval *evaluator) Bridge(ctIn *Ciphertext, swk interface{}, ctOut *Cipherte
 			panic("ctOut ring degree must be twice ctIn ring degree")
 		}
 
-		UnfoldConjugateInvariantNTTLvl(level, ctIn.Value[0], ctOut.Value[0])
-		UnfoldConjugateInvariantNTTLvl(level, ctIn.Value[1], ctOut.Value[1])
+		ringQ.UnfoldConjugateInvariantNTTLvl(level, ctIn.Value[0], ctOut.Value[0])
+		ringQ.UnfoldConjugateInvariantNTTLvl(level, ctIn.Value[1], ctOut.Value[1])
 
 		// Switches the RCKKS key [X+X^-1] to a CKKS key [X]
 		ks.SwitchKeysInPlace(level, ctOut.Value[1], &swk.SwitchingKey, ks.Pool[1].Q, ks.Pool[2].Q)

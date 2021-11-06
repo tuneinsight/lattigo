@@ -4,41 +4,52 @@ import (
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
+	"math/big"
 	"math/bits"
 )
 
 type Handler struct {
 	*rlwe.KeySwitcher
-	params rlwe.Parameters
-	rtks   *rlwe.RotationKeySet
+	paramsRLWE rlwe.Parameters
+	paramsLWE  rlwe.Parameters
+	rtks       *rlwe.RotationKeySet
 
 	nPowInv      [][]uint64
 	xPow         []*ring.Poly
-	xPowMinusOne []*ring.Poly
+	xPowMinusOne []rlwe.PolyQP
 
 	permuteNTTIndex map[uint64][]uint64
+
+	poolMod2N [2]*ring.Poly
+
+	accumulator *rlwe.Ciphertext
 }
 
-func NewHandler(params rlwe.Parameters, rtks *rlwe.RotationKeySet) (h *Handler) {
+func NewHandler(paramsRLWE, paramsLWE rlwe.Parameters, rtks *rlwe.RotationKeySet) (h *Handler) {
 	h = new(Handler)
-	h.KeySwitcher = rlwe.NewKeySwitcher(params)
-	h.params = params
+	h.KeySwitcher = rlwe.NewKeySwitcher(paramsRLWE)
+	h.paramsRLWE = paramsRLWE
+	h.paramsLWE = paramsLWE
 
-	ringQ := params.RingQ()
+	ringQ := paramsRLWE.RingQ()
+	ringP := paramsRLWE.RingP()
 
-	h.nPowInv = make([][]uint64, params.LogN())
-	h.xPow = make([]*ring.Poly, params.LogN())
+	h.poolMod2N = [2]*ring.Poly{paramsLWE.RingQ().NewPolyLvl(0), paramsLWE.RingQ().NewPolyLvl(0)}
+	h.accumulator = rlwe.NewCiphertextNTT(paramsRLWE, 1, paramsRLWE.MaxLevel())
 
-	for i := 0; i < params.LogN(); i++ {
-		h.nPowInv[i] = make([]uint64, params.MaxLevel()+1)
-		var nTimesN uint64 = 1 << (params.LogN() + i)
-		for j := 0; j < params.MaxLevel()+1; j++ {
+	h.nPowInv = make([][]uint64, paramsRLWE.LogN())
+	h.xPow = make([]*ring.Poly, paramsRLWE.LogN())
+
+	for i := 0; i < paramsRLWE.LogN(); i++ {
+		h.nPowInv[i] = make([]uint64, paramsRLWE.MaxLevel()+1)
+		var nTimesN uint64 = 1 << (paramsRLWE.LogN() + i)
+		for j := 0; j < paramsRLWE.MaxLevel()+1; j++ {
 			h.nPowInv[i][j] = ring.MForm(ring.ModExp(nTimesN, ringQ.Modulus[j]-2, ringQ.Modulus[j]), ringQ.Modulus[j], ringQ.BredParams[j])
 		}
 
 		h.xPow[i] = ringQ.NewPoly()
 		if i == 0 {
-			for j := 0; j < params.MaxLevel()+1; j++ {
+			for j := 0; j < paramsRLWE.MaxLevel()+1; j++ {
 				h.xPow[i].Coeffs[j][1<<i] = ring.MForm(1, ringQ.Modulus[j], ringQ.BredParams[j])
 			}
 			ringQ.NTT(h.xPow[i], h.xPow[i])
@@ -47,30 +58,55 @@ func NewHandler(params rlwe.Parameters, rtks *rlwe.RotationKeySet) (h *Handler) 
 		}
 	}
 
-	one := ringQ.NewPoly()
-	for i := 0; i < params.MaxLevel()+1; i++ {
-		one.Coeffs[i][0] = 1
+	oneNTTMFormQ := ringQ.NewPoly()
+
+	for i := range ringQ.Modulus {
+		for j := 0; j < ringQ.N; j++ {
+			oneNTTMFormQ.Coeffs[i][j] = ring.MForm(1, ringQ.Modulus[i], ringQ.BredParams[i])
+		}
 	}
-	ringQ.NTT(one, one)
+
+	oneNTTMFormP := ringP.NewPoly()
+	for i := range ringP.Modulus {
+		for j := 0; j < ringP.N; j++ {
+			oneNTTMFormP.Coeffs[i][j] = ring.MForm(1, ringP.Modulus[i], ringP.BredParams[i])
+		}
+	}
 
 	N := ringQ.N
 
-	h.xPowMinusOne = make([]*ring.Poly, 2*N)
+	h.xPowMinusOne = make([]rlwe.PolyQP, 2*N)
 	for i := 0; i < N; i++ {
-		h.xPowMinusOne[i] = ringQ.NewPoly()
-		h.xPowMinusOne[i+N] = ringQ.NewPoly()
-		if i == 0 {
-			for j := 0; j < params.MaxLevel()+1; j++ {
-				h.xPowMinusOne[i].Coeffs[j][i] = ring.MForm(1, ringQ.Modulus[j], ringQ.BredParams[j])
+		h.xPowMinusOne[i].Q = ringQ.NewPoly()
+		h.xPowMinusOne[i].P = ringP.NewPoly()
+		h.xPowMinusOne[i+N].Q = ringQ.NewPoly()
+		h.xPowMinusOne[i+N].P = ringP.NewPoly()
+		if i == 0 || i == 1 {
+			for j := range ringQ.Modulus {
+				h.xPowMinusOne[i].Q.Coeffs[j][i] = ring.MForm(1, ringQ.Modulus[j], ringQ.BredParams[j])
 			}
-			ringQ.NTT(h.xPowMinusOne[i], h.xPowMinusOne[i])
+
+			for j := range ringP.Modulus {
+				h.xPowMinusOne[i].P.Coeffs[j][i] = ring.MForm(1, ringP.Modulus[j], ringP.BredParams[j])
+			}
+
+			ringQ.NTT(h.xPowMinusOne[i].Q, h.xPowMinusOne[i].Q)
+			ringP.NTT(h.xPowMinusOne[i].P, h.xPowMinusOne[i].P)
+
+			ringQ.Neg(h.xPowMinusOne[i].Q, h.xPowMinusOne[i+N].Q)
+			ringP.Neg(h.xPowMinusOne[i].P, h.xPowMinusOne[i+N].P)
+
 		} else {
-			ringQ.MulCoeffsMontgomery(h.xPowMinusOne[0], h.xPowMinusOne[i-1], h.xPowMinusOne[i]) // X^{n} = X^{1} * X^{n-1}
-			ringQ.Neg(h.xPowMinusOne[i], h.xPowMinusOne[i+N])                                    // X^{2n} = -X^{1} * X^{n-1}
+			ringQ.MulCoeffsMontgomery(h.xPowMinusOne[1].Q, h.xPowMinusOne[i-1].Q, h.xPowMinusOne[i].Q) // X^{n} = X^{1} * X^{n-1}
+			ringP.MulCoeffsMontgomery(h.xPowMinusOne[1].P, h.xPowMinusOne[i-1].P, h.xPowMinusOne[i].P)
+			ringQ.Neg(h.xPowMinusOne[i].Q, h.xPowMinusOne[i+N].Q) // X^{2n} = -X^{1} * X^{n-1}
+			ringP.Neg(h.xPowMinusOne[i].P, h.xPowMinusOne[i+N].P)
 		}
 	}
+
 	for i := 0; i < 2*N; i++ {
-		ringQ.Sub(h.xPowMinusOne[i], one, h.xPowMinusOne[i]) // X^{n} - 1
+		ringQ.Sub(h.xPowMinusOne[i].Q, oneNTTMFormQ, h.xPowMinusOne[i].Q) // X^{n} - 1
+		ringP.Sub(h.xPowMinusOne[i].P, oneNTTMFormP, h.xPowMinusOne[i].P)
 	}
 
 	h.rtks = rtks
@@ -85,9 +121,220 @@ func (h *Handler) permuteNTTIndexesForKey(rtks *rlwe.RotationKeySet) *map[uint64
 	}
 	permuteNTTIndex := make(map[uint64][]uint64, len(rtks.Keys))
 	for galEl := range rtks.Keys {
-		permuteNTTIndex[galEl] = h.params.RingQ().PermuteNTTIndex(galEl)
+		permuteNTTIndex[galEl] = h.paramsRLWE.RingQ().PermuteNTTIndex(galEl)
 	}
 	return &permuteNTTIndex
+}
+
+type LUTKey struct {
+	SkPos  []*rlwe.RGSWCiphertext
+	SkNeg  []*rlwe.RGSWCiphertext
+	EncOne *rlwe.RGSWCiphertext
+}
+
+func (h *Handler) GenLUTKey(skRLWE, skLWE *rlwe.SecretKey) (lutkey *LUTKey) {
+
+	paramsRLWE := h.paramsRLWE
+	paramsLWE := h.paramsLWE
+
+	skLWEInvNTT := h.paramsLWE.RingQ().NewPoly()
+
+	paramsLWE.RingQ().InvNTT(skLWE.Value.Q, skLWEInvNTT)
+
+	plaintextRGSWOne := rlwe.NewPlaintext(paramsRLWE, paramsRLWE.MaxLevel())
+	plaintextRGSWOne.Value.IsNTT = true
+	for i := 0; i < paramsRLWE.N(); i++ {
+		plaintextRGSWOne.Value.Coeffs[0][i] = 1
+	}
+
+	encryptor := rlwe.NewEncryptor(paramsRLWE, skRLWE)
+
+	EncOneRGSW := rlwe.NewCiphertextRGSWNTT(paramsRLWE, paramsRLWE.MaxLevel())
+	encryptor.EncryptRGSW(plaintextRGSWOne, EncOneRGSW)
+
+	skRGSWPos := make([]*rlwe.RGSWCiphertext, paramsRLWE.N())
+	skRGSWNeg := make([]*rlwe.RGSWCiphertext, paramsRLWE.N())
+
+	ringQ := paramsRLWE.RingQ()
+	Q := ringQ.Modulus[0]
+	OneMForm := ring.MForm(1, Q, ringQ.BredParams[0])
+	MinusOneMform := ring.MForm(Q-1, Q, ringQ.BredParams[0])
+
+	for i, si := range skLWEInvNTT.Coeffs[0] {
+
+		skRGSWPos[i] = rlwe.NewCiphertextRGSWNTT(paramsRLWE, paramsRLWE.MaxLevel())
+		skRGSWNeg[i] = rlwe.NewCiphertextRGSWNTT(paramsRLWE, paramsRLWE.MaxLevel())
+
+		if si == OneMForm {
+			encryptor.EncryptRGSW(plaintextRGSWOne, skRGSWPos[i])
+			encryptor.EncryptRGSW(nil, skRGSWNeg[i])
+		} else if si == MinusOneMform {
+			encryptor.EncryptRGSW(nil, skRGSWPos[i])
+			encryptor.EncryptRGSW(plaintextRGSWOne, skRGSWNeg[i])
+		} else {
+			encryptor.EncryptRGSW(nil, skRGSWPos[i])
+			encryptor.EncryptRGSW(nil, skRGSWNeg[i])
+		}
+	}
+
+	return &LUTKey{SkPos: skRGSWPos, SkNeg: skRGSWNeg, EncOne: EncOneRGSW}
+}
+
+// ModSwitchRLWETo2N applys round(x * 2N / Q) to the coefficients of polQ and returns the
+// result on pol2N.
+func (h *Handler) ModSwitchRLWETo2N(polQ *ring.Poly, pol2N *ring.Poly) {
+	coeffsBigint := make([]*big.Int, len(polQ.Coeffs[0]))
+
+	level := polQ.Level()
+
+	ringQ := h.paramsLWE.RingQ()
+
+	ringQ.PolyToBigintLvl(polQ.Level(), polQ, coeffsBigint)
+
+	QBig := ring.NewUint(1)
+	for i := 0; i < level+1; i++ {
+		QBig.Mul(QBig, ring.NewUint(ringQ.Modulus[i]))
+	}
+
+	twoN := uint64(h.paramsRLWE.N() << 1)
+	twoNBig := ring.NewUint(twoN)
+	tmp := pol2N.Coeffs[0]
+	for i := 0; i < ringQ.N; i++ {
+		coeffsBigint[i].Mul(coeffsBigint[i], twoNBig)
+		ring.DivRound(coeffsBigint[i], QBig, coeffsBigint[i])
+		tmp[i] = coeffsBigint[i].Uint64() & (twoN - 1)
+	}
+}
+
+func (h *Handler) ExtractAndEvaluateLUT(ct *rlwe.Ciphertext, lut *ring.Poly, lutKey *LUTKey) (lwe []*rlwe.Ciphertext) {
+
+	ks := h.KeySwitcher
+
+	bRLWEMod2N := h.poolMod2N[0]
+	aRLWEMod2N := h.poolMod2N[1]
+
+	acc := h.accumulator
+
+	ringQRLWE := h.paramsRLWE.RingQ()
+	ringQLWE := h.paramsLWE.RingQ()
+	ringQPRLWE := h.paramsRLWE.RingQP()
+
+	mask := uint64(ringQRLWE.N<<1) - 1
+
+	ringQLWE.InvNTT(ct.Value[0], acc.Value[0])
+	ringQLWE.InvNTT(ct.Value[1], acc.Value[1])
+
+	h.ModSwitchRLWETo2N(acc.Value[1], acc.Value[1])
+
+	// Copy coefficients multiplied by X^{N-1} in reverse order:
+	// a_{0} -a_{N-1} -a2_{N-2} ... -a_{1}
+	tmp0 := aRLWEMod2N.Coeffs[0]
+	tmp1 := acc.Value[1].Coeffs[0]
+	tmp0[0] = tmp1[0]
+	for j := 1; j < ringQLWE.N; j++ {
+		tmp0[j] = -tmp1[ringQLWE.N-j] & mask
+	}
+
+	h.ModSwitchRLWETo2N(acc.Value[0], bRLWEMod2N)
+
+	lwe = make([]*rlwe.Ciphertext, ringQLWE.N)
+
+	for i := 0; i < 32; i++ {
+
+		a := aRLWEMod2N.Coeffs[0]
+		b := bRLWEMod2N.Coeffs[0][i]
+
+		ringQRLWE.MulCoeffsMontgomery(lut, h.xPowMinusOne[b].Q, acc.Value[0])
+		ringQRLWE.Add(acc.Value[0], lut, acc.Value[0])
+		acc.Value[1].Zero() // TODO remove
+
+		tmpRGSW := rlwe.NewCiphertextRGSWNTT(h.paramsRLWE, h.paramsRLWE.MaxLevel())
+
+		for j := 0; j < ringQLWE.N; j++ {
+			MulRGSWByXPowAlphaMinusOne(lutKey.SkPos[j], h.xPowMinusOne[a[j]], ringQPRLWE, tmpRGSW)
+			MulRGSWByXPowAlphaMinusOneAndAdd(lutKey.SkNeg[j], h.xPowMinusOne[-a[j]&mask], ringQPRLWE, tmpRGSW)
+			AddRGSW(lutKey.EncOne, ringQPRLWE, tmpRGSW) // TODO : add 1 in plaintext
+			ks.MulRGSW(acc, tmpRGSW, acc)
+		}
+
+		// Extracts the first coefficient
+		lwe[i] = acc.CopyNew() //ExtractLWEFromRLWESingle(acc, ringQRLWE)
+
+		MulBySmallMonomialMod2N(mask, aRLWEMod2N, 1)
+	}
+
+	return lwe
+}
+
+func AddRGSW(rgsw *rlwe.RGSWCiphertext, ringQP *rlwe.RingQP, res *rlwe.RGSWCiphertext) {
+
+	ringQ := ringQP.RingQ
+	ringP := ringQP.RingP
+
+	for i := range rgsw.Value {
+		ringQ.Add(res.Value[i][0][0].Q, rgsw.Value[i][0][0].Q, res.Value[i][0][0].Q)
+		ringP.Add(res.Value[i][0][0].P, rgsw.Value[i][0][0].P, res.Value[i][0][0].P)
+
+		ringQ.Add(res.Value[i][0][1].Q, rgsw.Value[i][0][1].Q, res.Value[i][0][1].Q)
+		ringP.Add(res.Value[i][0][1].P, rgsw.Value[i][0][1].P, res.Value[i][0][1].P)
+
+		ringQ.Add(res.Value[i][1][0].Q, rgsw.Value[i][1][0].Q, res.Value[i][1][0].Q)
+		ringP.Add(res.Value[i][1][0].P, rgsw.Value[i][1][0].P, res.Value[i][1][0].P)
+
+		ringQ.Add(res.Value[i][1][1].Q, rgsw.Value[i][1][1].Q, res.Value[i][1][1].Q)
+		ringP.Add(res.Value[i][1][1].P, rgsw.Value[i][1][1].P, res.Value[i][1][1].P)
+	}
+}
+
+func MulRGSWByXPowAlphaMinusOne(rgsw *rlwe.RGSWCiphertext, powXMinusOne rlwe.PolyQP, ringQP *rlwe.RingQP, res *rlwe.RGSWCiphertext) {
+
+	ringQ := ringQP.RingQ
+	ringP := ringQP.RingP
+
+	for i := range rgsw.Value {
+		ringQ.MulCoeffsMontgomery(rgsw.Value[i][0][0].Q, powXMinusOne.Q, res.Value[i][0][0].Q)
+		ringP.MulCoeffsMontgomery(rgsw.Value[i][0][0].P, powXMinusOne.P, res.Value[i][0][0].P)
+
+		ringQ.MulCoeffsMontgomery(rgsw.Value[i][0][1].Q, powXMinusOne.Q, res.Value[i][0][1].Q)
+		ringP.MulCoeffsMontgomery(rgsw.Value[i][0][1].P, powXMinusOne.P, res.Value[i][0][1].P)
+
+		ringQ.MulCoeffsMontgomery(rgsw.Value[i][1][0].Q, powXMinusOne.Q, res.Value[i][1][0].Q)
+		ringP.MulCoeffsMontgomery(rgsw.Value[i][1][0].P, powXMinusOne.P, res.Value[i][1][0].P)
+
+		ringQ.MulCoeffsMontgomery(rgsw.Value[i][1][1].Q, powXMinusOne.Q, res.Value[i][1][1].Q)
+		ringP.MulCoeffsMontgomery(rgsw.Value[i][1][1].P, powXMinusOne.P, res.Value[i][1][1].P)
+	}
+}
+
+func MulRGSWByXPowAlphaMinusOneAndAdd(rgsw *rlwe.RGSWCiphertext, powXMinusOne rlwe.PolyQP, ringQP *rlwe.RingQP, res *rlwe.RGSWCiphertext) {
+
+	ringQ := ringQP.RingQ
+	ringP := ringQP.RingP
+
+	for i := range rgsw.Value {
+		ringQ.MulCoeffsMontgomeryAndAdd(rgsw.Value[i][0][0].Q, powXMinusOne.Q, res.Value[i][0][0].Q)
+		ringP.MulCoeffsMontgomeryAndAdd(rgsw.Value[i][0][0].P, powXMinusOne.P, res.Value[i][0][0].P)
+
+		ringQ.MulCoeffsMontgomeryAndAdd(rgsw.Value[i][0][1].Q, powXMinusOne.Q, res.Value[i][0][1].Q)
+		ringP.MulCoeffsMontgomeryAndAdd(rgsw.Value[i][0][1].P, powXMinusOne.P, res.Value[i][0][1].P)
+
+		ringQ.MulCoeffsMontgomeryAndAdd(rgsw.Value[i][1][0].Q, powXMinusOne.Q, res.Value[i][1][0].Q)
+		ringP.MulCoeffsMontgomeryAndAdd(rgsw.Value[i][1][0].P, powXMinusOne.P, res.Value[i][1][0].P)
+
+		ringQ.MulCoeffsMontgomeryAndAdd(rgsw.Value[i][1][1].Q, powXMinusOne.Q, res.Value[i][1][1].Q)
+		ringP.MulCoeffsMontgomeryAndAdd(rgsw.Value[i][1][1].P, powXMinusOne.P, res.Value[i][1][1].P)
+	}
+}
+
+//MulBySmallMonomial multiplies pol by x^n
+func MulBySmallMonomialMod2N(mask uint64, pol *ring.Poly, n int) {
+	N := len(pol.Coeffs[0])
+	pol.Coeffs[0] = append(pol.Coeffs[0][N-n:], pol.Coeffs[0][:N-n]...)
+	tmp := pol.Coeffs[0]
+	for j := 0; j < n; j++ {
+		tmp[j] = -tmp[j] & mask
+	}
+
 }
 
 func (h *Handler) MergeRLWE(ciphertexts []*rlwe.Ciphertext) (ciphertext *rlwe.Ciphertext) {
@@ -102,9 +349,9 @@ func (h *Handler) MergeRLWE(ciphertexts []*rlwe.Ciphertext) (ciphertext *rlwe.Ci
 
 	level := ciphertexts[0].Level()
 
-	ringQ := h.params.RingQ()
+	ringQ := h.paramsRLWE.RingQ()
 
-	nPowInv := h.nPowInv[h.params.LogN()-logSlots]
+	nPowInv := h.nPowInv[h.paramsRLWE.LogN()-logSlots]
 	Q := ringQ.Modulus
 	mredParams := ringQ.MredParams
 
@@ -118,8 +365,8 @@ func (h *Handler) MergeRLWE(ciphertexts []*rlwe.Ciphertext) (ciphertext *rlwe.Ci
 	}
 
 	// Padds for the repacking algorithm
-	if slots != h.params.N() {
-		ciphertexts = append(ciphertexts, make([]*rlwe.Ciphertext, h.params.N()-len(ciphertexts))...)
+	if slots != h.paramsRLWE.N() {
+		ciphertexts = append(ciphertexts, make([]*rlwe.Ciphertext, h.paramsRLWE.N()-len(ciphertexts))...)
 		N := ringQ.N
 		gap := N / slots
 		for i := 0; i < slots; i++ {
@@ -129,9 +376,9 @@ func (h *Handler) MergeRLWE(ciphertexts []*rlwe.Ciphertext) (ciphertext *rlwe.Ci
 
 	ciphertext = h.mergeRLWERecurse(ciphertexts)
 
-	tmp := rlwe.NewCiphertextNTT(h.params, 1, ciphertext.Level())
-	for i := logSlots - 1; i < h.params.LogN()-1; i++ {
-		Rotate(ciphertext, h.params.GaloisElementForColumnRotationBy(1<<i), h.permuteNTTIndex, h.params, h.KeySwitcher, h.rtks, tmp)
+	tmp := rlwe.NewCiphertextNTT(h.paramsRLWE, 1, ciphertext.Level())
+	for i := logSlots - 1; i < h.paramsRLWE.LogN()-1; i++ {
+		Rotate(ciphertext, h.paramsRLWE.GaloisElementForColumnRotationBy(1<<i), h.permuteNTTIndex, h.paramsRLWE, h.KeySwitcher, h.rtks, tmp)
 		ringQ.AddLvl(level, ciphertext.Value[0], tmp.Value[0], ciphertext.Value[0])
 		ringQ.AddLvl(level, ciphertext.Value[1], tmp.Value[1], ciphertext.Value[1])
 	}
@@ -142,7 +389,7 @@ func (h *Handler) MergeRLWE(ciphertexts []*rlwe.Ciphertext) (ciphertext *rlwe.Ci
 // PackLWEs repacks LWE ciphertexts into a RLWE ciphertext
 func (h *Handler) mergeRLWERecurse(ciphertexts []*rlwe.Ciphertext) *rlwe.Ciphertext {
 
-	ringQ := h.params.RingQ()
+	ringQ := h.paramsRLWE.RingQ()
 
 	L := bits.Len64(uint64(len(ciphertexts))) - 1
 
@@ -194,9 +441,9 @@ func (h *Handler) mergeRLWERecurse(ciphertexts []*rlwe.Ciphertext) *rlwe.Ciphert
 
 		// if L-2 == -1, then gal = 2N-1
 		if L == 1 {
-			Rotate(tmpEven, uint64(2*ringQ.N-1), h.permuteNTTIndex, h.params, h.KeySwitcher, h.rtks, tmpEven)
+			Rotate(tmpEven, uint64(2*ringQ.N-1), h.permuteNTTIndex, h.paramsRLWE, h.KeySwitcher, h.rtks, tmpEven)
 		} else {
-			Rotate(tmpEven, h.params.GaloisElementForColumnRotationBy(1<<(L-2)), h.permuteNTTIndex, h.params, h.KeySwitcher, h.rtks, tmpEven)
+			Rotate(tmpEven, h.paramsRLWE.GaloisElementForColumnRotationBy(1<<(L-2)), h.permuteNTTIndex, h.paramsRLWE, h.KeySwitcher, h.rtks, tmpEven)
 		}
 
 		// ctEven + ctOdd * X^(N/2^L) + phi(ctEven - ctOdd * X^(N/2^L), 2^(L-2))
@@ -208,9 +455,9 @@ func (h *Handler) mergeRLWERecurse(ciphertexts []*rlwe.Ciphertext) *rlwe.Ciphert
 }
 
 // Rotate rotates a ciphertext
-func Rotate(ctIn *rlwe.Ciphertext, galEl uint64, permuteNTTindex map[uint64][]uint64, params rlwe.Parameters, ks *rlwe.KeySwitcher, rtks *rlwe.RotationKeySet, ctOut *rlwe.Ciphertext) {
+func Rotate(ctIn *rlwe.Ciphertext, galEl uint64, permuteNTTindex map[uint64][]uint64, paramsRLWE rlwe.Parameters, ks *rlwe.KeySwitcher, rtks *rlwe.RotationKeySet, ctOut *rlwe.Ciphertext) {
 
-	ringQ := params.RingQ()
+	ringQ := paramsRLWE.RingQ()
 	rtk, _ := rtks.GetRotationKey(galEl)
 	level := utils.MinInt(ctIn.Level(), ctOut.Level())
 	index := permuteNTTindex[galEl]
@@ -225,7 +472,7 @@ func (h *Handler) Add(ct0, ct1, ct2 *Ciphertext) {
 	level := utils.MinInt(utils.MinInt(ct0.Level(), ct1.Level()), ct2.Level())
 
 	for i := 0; i < level+1; i++ {
-		Q := h.params.RingQ().Modulus[i]
+		Q := h.paramsRLWE.RingQ().Modulus[i]
 		ring.AddVec(ct0.Value[i][1:], ct1.Value[i][1:], ct2.Value[i][1:], Q)
 		ct2.Value[i][0] = ring.CRed(ct0.Value[i][0]+ct1.Value[i][0], Q)
 	}
@@ -237,7 +484,7 @@ func (h *Handler) Sub(ct0, ct1, ct2 *Ciphertext) {
 
 	level := utils.MinInt(utils.MinInt(ct0.Level(), ct1.Level()), ct2.Level())
 
-	Q := h.params.RingQ().Modulus
+	Q := h.paramsRLWE.RingQ().Modulus
 	for i := 0; i < level+1; i++ {
 		ring.SubVec(ct0.Value[i][1:], ct1.Value[i][1:], ct2.Value[i][1:], Q[i])
 		ct2.Value[i][0] = ring.CRed(Q[i]+ct0.Value[i][0]-ct1.Value[i][0], Q[i])
@@ -250,7 +497,7 @@ func (h *Handler) MulScalar(ct0 *Ciphertext, scalar uint64, ct1 *Ciphertext) {
 
 	level := utils.MinInt(ct0.Level(), ct1.Level())
 
-	ringQ := h.params.RingQ()
+	ringQ := h.paramsRLWE.RingQ()
 	for i := 0; i < level+1; i++ {
 		Q := ringQ.Modulus[i]
 		mredParams := ringQ.MredParams[i]

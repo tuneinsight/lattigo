@@ -395,9 +395,11 @@ func (encryptor *skEncryptor) EncryptRGSW(plaintext *Plaintext, ciphertext *RGSW
 
 	ptTimesP := encryptor.poolQ[1]
 
-	ringQ.MulScalarBigintLvl(levelQ, plaintext.Value, pBigInt, ptTimesP)
-	if !plaintext.Value.IsNTT {
-		ringQ.NTTLvl(levelQ, ptTimesP, ptTimesP)
+	if plaintext != nil {
+		ringQ.MulScalarBigintLvl(levelQ, plaintext.Value, pBigInt, ptTimesP)
+		if !plaintext.Value.IsNTT {
+			ringQ.NTTLvl(levelQ, ptTimesP, ptTimesP)
+		}
 	}
 
 	alpha := levelP + 1
@@ -405,26 +407,29 @@ func (encryptor *skEncryptor) EncryptRGSW(plaintext *Plaintext, ciphertext *RGSW
 
 	var index int
 	for i := 0; i < beta; i++ {
+
 		encryptor.encryptZeroSymetricQP(levelQ, levelP, encryptor.sk.Value, true, isNTT, ciphertext.Value[i][0][0], ciphertext.Value[i][0][1])
 		encryptor.encryptZeroSymetricQP(levelQ, levelP, encryptor.sk.Value, true, isNTT, ciphertext.Value[i][1][0], ciphertext.Value[i][1][1])
 
-		for j := 0; j < alpha; j++ {
+		if plaintext != nil {
+			for j := 0; j < alpha; j++ {
 
-			index = i*alpha + j
+				index = i*alpha + j
 
-			// It handles the case where nb pj does not divide nb qi
-			if index >= levelQ+1 {
-				break
-			}
+				// It handles the case where nb pj does not divide nb qi
+				if index >= levelQ+1 {
+					break
+				}
 
-			qi := ringQ.Modulus[index]
-			p0tmp := ptTimesP.Coeffs[index]
-			p1tmp := ciphertext.Value[i][0][0].Q.Coeffs[index]
-			p2tmp := ciphertext.Value[i][1][1].Q.Coeffs[index]
+				qi := ringQ.Modulus[index]
+				p0tmp := ptTimesP.Coeffs[index]
+				p1tmp := ciphertext.Value[i][0][0].Q.Coeffs[index]
+				p2tmp := ciphertext.Value[i][1][1].Q.Coeffs[index]
 
-			for w := 0; w < ringQ.N; w++ {
-				p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi)
-				p2tmp[w] = ring.CRed(p2tmp[w]+p0tmp[w], qi)
+				for w := 0; w < ringQ.N; w++ {
+					p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi)
+					p2tmp[w] = ring.CRed(p2tmp[w]+p0tmp[w], qi)
+				}
 			}
 		}
 

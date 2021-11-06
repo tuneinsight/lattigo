@@ -1,6 +1,6 @@
 package ring
 
-import(
+import (
 	"github.com/ldsec/lattigo/v2/utils"
 )
 

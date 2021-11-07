@@ -133,15 +133,12 @@ func (ks *KeySwitcher) DecomposeSingleNTT(levelQ, levelP, alpha, beta int, c2NTT
 	ringP.NTTLazyLvl(levelP, c2QiP, c2QiP)
 }
 
-func (ks *KeySwitcher) MulRGSW(ct0 *Ciphertext, rgsw *RGSWCiphertext, ctOut *Ciphertext) {
-
-	// rgsw = [(-as + P*w*m1 + e, a), (-bs + e, b + P*w*m1)]
+func (ks *KeySwitcher) MulRGSWNoModDown(levelQ, levelP int, ct0 *Ciphertext, rgsw *RGSWCiphertext, c0OutQ, c0OutP, c1OutQ, c1OutP *ring.Poly){
+		// rgsw = [(-as + P*w*m1 + e, a), (-bs + e, b + P*w*m1)]
 	// ct = [-cs + m0 + e, c]
 	// ctOut = [<ct, rgsw[0]>, <ct, rgsw[1]>] = [ct[0] * rgsw[0][0] + ct[1] * rgsw[0][1], ct[0] * rgsw[1][0] + ct[1] * rgsw[1][1]]
 
 	var reduce int
-
-	levelQ := ct0.Level()
 
 	ringQ := ks.RingQ()
 	ringP := ks.RingP()
@@ -149,11 +146,10 @@ func (ks *KeySwitcher) MulRGSW(ct0 *Ciphertext, rgsw *RGSWCiphertext, ctOut *Cip
 
 	c2QP := ks.Pool[0]
 
-	c0QP := PolyQP{ks.Pool[1].Q, ks.Pool[1].P}
-	c1QP := PolyQP{ks.Pool[2].Q, ks.Pool[2].P}
+	c0QP := PolyQP{c0OutQ, c0OutP}
+	c1QP := PolyQP{c1OutQ, c1OutP}
 
-	alpha := len(rgsw.Value[0][0][0].P.Coeffs)
-	levelP := alpha - 1
+	alpha := levelP+1
 	beta := int(math.Ceil(float64(levelQ+1) / float64(levelP+1)))
 
 	QiOverF := ks.Parameters.QiOverflowMargin(levelQ) >> 1
@@ -241,9 +237,16 @@ func (ks *KeySwitcher) MulRGSW(ct0 *Ciphertext, rgsw *RGSWCiphertext, ctOut *Cip
 		ringP.ReduceLvl(levelP, c0QP.P, c0QP.P)
 		ringP.ReduceLvl(levelP, c1QP.P, c1QP.P)
 	}
+}
 
-	ks.Baseconverter.ModDownQPtoQNTT(levelQ, levelP, c0QP.Q, c0QP.P, ctOut.Value[0])
-	ks.Baseconverter.ModDownQPtoQNTT(levelQ, levelP, c1QP.Q, c1QP.P, ctOut.Value[1])
+func (ks *KeySwitcher) MulRGSW(ct0 *Ciphertext, rgsw *RGSWCiphertext, ctOut *Ciphertext) {
+
+	levelQ, levelP := ct0.Level(), len(rgsw.Value[0][0][0].P.Coeffs)-1
+
+	ks.MulRGSWNoModDown(levelQ, levelP, ct0, rgsw, ks.Pool[1].Q, ks.Pool[1].P, ks.Pool[2].Q, ks.Pool[2].P)
+
+	ks.Baseconverter.ModDownQPtoQNTT(levelQ, levelP, ks.Pool[1].Q, ks.Pool[1].P, ctOut.Value[0])
+	ks.Baseconverter.ModDownQPtoQNTT(levelQ, levelP, ks.Pool[2].Q, ks.Pool[2].P, ctOut.Value[1])
 }
 
 // SwitchKeysInPlaceNoModDown applies the key-switch to the polynomial cx :

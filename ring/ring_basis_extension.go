@@ -194,16 +194,32 @@ func (be *FastBasisExtender) ModDownQPtoQ(levelQ, levelP int, p1Q, p1P, p2Q *Pol
 	modDownParams := be.modDownparamsPtoQ
 	polypool := be.polypoolQ
 
-	// Then we target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on polypool
-	// polypool is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
-	be.ModUpPtoQ(levelP, levelQ, p1P, polypool)
+	if levelP > 0 {
 
-	// Finally, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
-	for i := 0; i < levelQ+1; i++ {
-		SubVecAndMulScalarMontgomeryTwoQiVec(polypool.Coeffs[i], p1Q.Coeffs[i], p2Q.Coeffs[i], ringQ.Modulus[i]-modDownParams[levelP][i], ringQ.Modulus[i], ringQ.MredParams[i])
+		// Then we target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on polypool
+		// polypool is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
+		be.ModUpPtoQ(levelP, levelQ, p1P, polypool)
+
+		// Finally, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
+		for i := 0; i < levelQ+1; i++ {
+			SubVecAndMulScalarMontgomeryTwoQiVec(polypool.Coeffs[i], p1Q.Coeffs[i], p2Q.Coeffs[i], ringQ.Modulus[i]-modDownParams[levelP][i], ringQ.Modulus[i], ringQ.MredParams[i])
+		}
+
+		// In total we do len(P) + len(Q) NTT, which is optimal (linear in the number of moduli of P and Q)
+	}else{
+
+		// Center by (p-1)/2
+		pj := be.ringP.Modulus[0]
+		pHalf := (pj - 1) >> 1
+
+		AddScalarVec(p1P.Coeffs[0], p1P.Coeffs[0], pHalf, pj)
+
+		for i := 0; i < levelQ+1; i++ {
+			qi := ringQ.Modulus[i]
+			AddScalarNoModVec(p1P.Coeffs[0], polypool.Coeffs[i], qi-BRedAdd(pHalf, qi, ringQ.BredParams[i]))
+			SubVecAndMulScalarMontgomeryTwoQiVec(polypool.Coeffs[i], p1Q.Coeffs[i], p2Q.Coeffs[i], qi-modDownParams[0][i], qi, ringQ.MredParams[i])
+		}
 	}
-
-	// In total we do len(P) + len(Q) NTT, which is optimal (linear in the number of moduli of P and Q)
 }
 
 // ModDownQPtoQNTT reduces the basis of a polynomial.
@@ -218,23 +234,43 @@ func (be *FastBasisExtender) ModDownQPtoQNTT(levelQ, levelP int, p1Q, p1P, p2Q *
 	modDownParams := be.modDownparamsPtoQ
 	polypool := be.polypoolQ
 
-	// First we get the P basis part of p1 out of the NTT domain
-	ringP.InvNTTLazyLvl(levelP, p1P, p1P)
+	if levelP > 0 {
 
-	// Then we target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on polypool
-	// polypool is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
-	be.ModUpPtoQ(levelP, levelQ, p1P, polypool)
+		// First we get the P basis part of p1 out of the NTT domain
+		ringP.InvNTTLazyLvl(levelP, p1P, p1P)
 
-	// First we switch back the relevant polypool CRT array back to the NTT domain
-	ringQ.NTTLazyLvl(levelQ, polypool, polypool)
+		// Then we target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on polypool
+		// polypool is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
+		be.ModUpPtoQ(levelP, levelQ, p1P, polypool)
 
-	// Finally, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
-	for i := 0; i < levelQ+1; i++ {
-		// Then for each coefficient we compute (P^-1) * (p1[i][j] - polypool[i][j]) mod qi
-		SubVecAndMulScalarMontgomeryTwoQiVec(polypool.Coeffs[i], p1Q.Coeffs[i], p2Q.Coeffs[i], ringQ.Modulus[i]-modDownParams[levelP][i], ringQ.Modulus[i], ringQ.MredParams[i])
+		// First we switch back the relevant polypool CRT array back to the NTT domain
+		ringQ.NTTLazyLvl(levelQ, polypool, polypool)
+
+		// Finally, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
+		for i := 0; i < levelQ+1; i++ {
+			// Then for each coefficient we compute (P^-1) * (p1[i][j] - polypool[i][j]) mod qi
+			SubVecAndMulScalarMontgomeryTwoQiVec(polypool.Coeffs[i], p1Q.Coeffs[i], p2Q.Coeffs[i], ringQ.Modulus[i]-modDownParams[levelP][i], ringQ.Modulus[i], ringQ.MredParams[i])
+		}
+
+		// In total we do len(P) + len(Q) NTT, which is optimal (linear in the number of moduli of P and Q)
+	}else{
+		// First we get the P basis part of p1 out of the NTT domain
+
+		ringP.InvNTTSingleLazy(0, p1P.Coeffs[0], p1P.Coeffs[0])
+
+		// Center by (p-1)/2
+		pj := ringP.Modulus[0]
+		pHalf := (pj - 1) >> 1
+
+		AddScalarVec(p1P.Coeffs[0], p1P.Coeffs[0], pHalf, pj)
+
+		for i := 0; i < levelQ+1; i++ {
+			qi := ringQ.Modulus[i]
+			AddScalarNoModVec(p1P.Coeffs[0], polypool.Coeffs[i], qi-BRedAdd(pHalf, qi, ringQ.BredParams[i]))
+			ringQ.NTTSingleLazy(i, polypool.Coeffs[i], polypool.Coeffs[i])
+			SubVecAndMulScalarMontgomeryTwoQiVec(polypool.Coeffs[i], p1Q.Coeffs[i], p2Q.Coeffs[i], qi-modDownParams[0][i], qi, ringQ.MredParams[i])
+		}
 	}
-
-	// In total we do len(P) + len(Q) NTT, which is optimal (linear in the number of moduli of P and Q)
 }
 
 // ModDownQPtoP reduces the basis of a polynomial.

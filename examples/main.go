@@ -74,8 +74,8 @@ func LUT() {
 	var err error
 	if params, err = rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
 		LogN:     11,
-		Q:        []uint64{0x3fffffffef8001}, // 56
-		P:        []uint64{0x80000000068001}, // 60 bits
+		Q:        []uint64{0x8008001}, // 56
+		P:        []uint64{0x800e001}, // 60 bits
 		Sigma:    rlwe.DefaultSigma,
 		RingType: rlwe.RingStandard,
 	}); err != nil {
@@ -84,7 +84,7 @@ func LUT() {
 
 	if paramsLWE, err = rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
 		LogN:     10,
-		Q:        []uint64{0x3fffffffef8001}, // 56
+		Q:        []uint64{0x8007001}, // 27
 		P:        []uint64{},
 		Sigma:    rlwe.DefaultSigma,
 		RingType: rlwe.RingStandard,
@@ -97,7 +97,29 @@ func LUT() {
 	values := make([]float64, paramsLWE.N())
 	pt := rlwe.NewPlaintext(paramsLWE, paramsLWE.MaxLevel())
 	pt.Value.IsNTT = false
-	var scale float64 = 1 << 48
+	var scale float64 = 1 << 20
+	
+
+	kgen := rlwe.NewKeyGenerator(params)
+	sk := kgen.GenSecretKey()
+
+	LUTScale := float64(1<<26) //float64(int(1<<26)) * scale * float64(2*params.N()) / float64(paramsLWE.Q()[0])
+
+	fmt.Println(LUTScale)
+
+	kgenLWE := rlwe.NewKeyGenerator(paramsLWE)
+	skLWE := kgenLWE.GenSecretKey()
+
+	encryptorLWE := rlwe.NewEncryptor(paramsLWE, skLWE)
+	ciphertextLWE := rlwe.NewCiphertextNTT(paramsLWE, 1, pt.Level())
+
+	handler := lwe.NewHandler(params, paramsLWE, nil)
+
+	fmt.Printf("Encrypting bits of skLWE in RGSW...\n ")
+	now := time.Now()
+	LUTKEY := handler.GenLUTKey(sk, skLWE)
+	fmt.Printf("Done (%s)\n", time.Since(now))
+
 	for i := 0; i < paramsLWE.N(); i++ {
 		values[i] = utils.RandFloat64(-16, 16)
 		if values[i] < 0 {
@@ -107,24 +129,9 @@ func LUT() {
 		}
 	}
 
-	kgen := rlwe.NewKeyGenerator(params)
-	sk := kgen.GenSecretKey()
-
-	LUTScale := float64(int(1<<30)) * scale * float64(2*params.N()) / float64(paramsLWE.Q()[0])
-
-	kgenLWE := rlwe.NewKeyGenerator(paramsLWE)
-	skLWE := kgenLWE.GenSecretKey()
-
-	encryptorLWE := rlwe.NewEncryptor(paramsLWE, skLWE)
-	ciphertextLWE := rlwe.NewCiphertextNTT(paramsLWE, 1, pt.Level())
 	encryptorLWE.Encrypt(pt, ciphertextLWE)
 
-	handler := lwe.NewHandler(params, paramsLWE, nil)
-
-	fmt.Printf("Encrypting bits of skLWE in RGSW...\n ")
-	now := time.Now()
-	LUTKEY := handler.GenLUTKey(sk, skLWE)
-	fmt.Printf("Done (%s)\n", time.Since(now))
+	DecryptAndCenter(8, ciphertextLWE.Value[0], ciphertextLWE.Value[1], skLWE.Value.Q, paramsLWE.RingQ(), false, scale)
 
 	fmt.Printf("Generating LUT... ")
 	now = time.Now()
@@ -136,9 +143,9 @@ func LUT() {
 	ciphertexts := handler.ExtractAndEvaluateLUT(ciphertextLWE, LUTPoly, LUTKEY)
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
-	for i := range ciphertexts[:] {
+	for i := range ciphertexts[:8] {
 		fmt.Printf("%8.4f -> ", values[i])
-		DecryptAndCenter(ciphertexts[i].Value[0], ciphertexts[i].Value[1], sk.Value.Q, ringQ, false, LUTScale)
+		DecryptAndCenter(1, ciphertexts[i].Value[0], ciphertexts[i].Value[1], sk.Value.Q, ringQ, false, LUTScale)
 	}
 }
 
@@ -170,7 +177,7 @@ func PrintPoly(pol *ring.Poly, scale float64, Q uint64) {
 	fmt.Printf("]\n")
 }
 
-func DecryptAndCenter(b, a, sk *ring.Poly, ringQ *ring.Ring, mForm bool, scale float64) {
+func DecryptAndCenter(n int, b, a, sk *ring.Poly, ringQ *ring.Ring, mForm bool, scale float64) {
 	pt := ringQ.NewPoly()
 	ringQ.MulCoeffsMontgomery(a, sk, pt)
 	ringQ.Add(pt, b, pt)
@@ -181,7 +188,7 @@ func DecryptAndCenter(b, a, sk *ring.Poly, ringQ *ring.Ring, mForm bool, scale f
 
 	Q := ringQ.Modulus[0]
 	fmt.Printf("[")
-	for _, c := range pt.Coeffs[0][:1] {
+	for _, c := range pt.Coeffs[0][:n] {
 		if c > Q>>1 {
 			fmt.Printf("%8.4f, ", (float64(c)-float64(Q))/scale)
 		} else {

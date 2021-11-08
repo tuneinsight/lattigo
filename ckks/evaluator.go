@@ -151,7 +151,7 @@ type Evaluator interface {
 	CtxPool() *Ciphertext
 	ShallowCopy() Evaluator
 	WithKey(rlwe.EvaluationKey) Evaluator
-	Bridge(ctIn *Ciphertext, swk interface{}, ctOut *Ciphertext)
+	//Bridge(ctIn *Ciphertext, swk interface{}, ctOut *Ciphertext)
 }
 
 // evaluator is a struct that holds the necessary elements to execute the homomorphic operations between Ciphertexts and/or Plaintexts.

@@ -25,6 +25,7 @@ type KeyGenerator interface {
 	GenRotationKeysForRotations(ks []int, inclueSwapRows bool, sk *SecretKey) (rks *RotationKeySet)
 	GenSwitchingKeyForRowRotation(sk *SecretKey) (swk *SwitchingKey)
 	GenRotationKeysForInnerSum(sk *SecretKey) (rks *RotationKeySet)
+	GenSwitchingKeysForRingSwap(skCKKS, skRCKKS *SecretKey) (SwkComplexToReal, SwkRealToComplex)
 }
 
 // KeyGenerator is a structure that stores the elements required to create new keys,
@@ -205,6 +206,18 @@ func (keygen *keyGenerator) genrotKey(sk PolyQP, galEl uint64, swk *SwitchingKey
 	ringQ.PermuteNTTWithIndexLvl(keygen.params.PCount()-1, skIn.P, index, skOut.P)
 
 	keygen.genSwitchingKey(skIn.Q, skOut, swk)
+}
+
+// GenSwitchingKeysForRingSwap generates the necessary switching keys to switch from CKKS to RCKKS and vice-versa.
+func (keygen *keyGenerator) GenSwitchingKeysForRingSwap(skCKKS, skRCKKS *SecretKey) (SwkComplexToReal, SwkRealToComplex) {
+
+	skRCKKSMappedToCKKS := &SecretKey{Value: keygen.poolQP}
+	keygen.params.RingQ().UnfoldConjugateInvariantToStandard(skRCKKS.Value.Q.Level(), skRCKKS.Value.Q, skRCKKSMappedToCKKS.Value.Q)
+	keygen.params.RingQ().UnfoldConjugateInvariantToStandard(skRCKKS.Value.P.Level(), skRCKKS.Value.P, skRCKKSMappedToCKKS.Value.P)
+
+	swkRtoC := keygen.GenSwitchingKey(skRCKKSMappedToCKKS, skCKKS)
+	swkCtoR := keygen.GenSwitchingKey(skCKKS, skRCKKSMappedToCKKS)
+	return SwkComplexToReal{*swkCtoR}, SwkRealToComplex{*swkRtoC}
 }
 
 // GenSwitchingKey generates a new key-switching key, that will re-encrypt a Ciphertext encrypted under the input key into the output key.

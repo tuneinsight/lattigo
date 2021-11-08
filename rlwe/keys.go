@@ -32,6 +32,16 @@ type RotationKeySet struct {
 	Keys map[uint64]*SwitchingKey
 }
 
+// SwkComplexToReal is a SwitchingKey to switch from CKKS to RCKKS.
+type SwkComplexToReal struct {
+	SwitchingKey
+}
+
+// SwkRealToComplex is a Switchingkey to switch from RCKKS to CKKS
+type SwkRealToComplex struct {
+	SwitchingKey
+}
+
 // EvaluationKey is a type for storing generic RLWE public evaluation keys. An evaluation key is a union
 // of a relinearization key and a set of rotation keys.
 type EvaluationKey struct {

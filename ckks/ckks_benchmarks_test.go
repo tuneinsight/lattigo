@@ -211,7 +211,7 @@ func benchEvaluator(testContext *testParams, b *testing.B) {
 		}
 	})
 
-	b.Run(GetTestName(testContext.params, "Evaluator/PermuteNTT/"), func(b *testing.B) {
+	b.Run(GetTestName(testContext.params, "Evaluator/PermuteNTTWithIndexLvl/"), func(b *testing.B) {
 
 		if testContext.params.PCount() == 0 {
 			b.Skip("#Pi is empty")

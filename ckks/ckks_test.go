@@ -948,19 +948,22 @@ func testBridge(testContext *testParams, t *testing.T) {
 		decryptorCKKS := NewDecryptor(paramsCKKS, skCKKS)
 		encoderCKKS := NewEncoder(paramsCKKS)
 
-		swkCtR, swkRtC := GenSwitchingKeysForRingSwap(paramsCKKS, skCKKS, testContext.sk)
+		swkCtR, swkRtC := kgenCKKS.GenSwitchingKeysForRingSwap(skCKKS, testContext.sk)
 
-		eval := NewEvaluator(paramsCKKS, rlwe.EvaluationKey{Rlk: nil, Rtks: nil})
+		switcher, err := NewSchemeSwitcher(paramsCKKS, &swkCtR, &swkRtC)
+		if err != nil {
+			t.Error(err)
+		}
 
 		values, _, ctRCKKS := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
 		ctCKKS := NewCiphertext(paramsCKKS, ctRCKKS.Degree(), ctRCKKS.Level(), ctRCKKS.Scale)
 
-		eval.Bridge(ctRCKKS, swkRtC, ctCKKS)
+		switcher.RealToComplex(ctRCKKS, ctCKKS)
 
 		verifyTestVectors(paramsCKKS, encoderCKKS, decryptorCKKS, values, ctCKKS, paramsCKKS.LogSlots(), 0, t)
 
-		eval.Bridge(ctCKKS, swkCtR, ctRCKKS)
+		switcher.ComplexToReal(ctCKKS, ctRCKKS)
 
 		verifyTestVectors(testContext.params, testContext.encoder, testContext.decryptor, values, ctRCKKS, paramsRCKKS.LogSlots(), 0, t)
 	})

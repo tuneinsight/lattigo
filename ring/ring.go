@@ -94,6 +94,45 @@ func NewRingConjugateInvariant(N int, Moduli []uint64) (r *Ring, err error) {
 	return r, r.genNTTParams(uint64(N) << 2)
 }
 
+// ConjugateInvariantRing returns the conjugate invariant ring of the receiver ring.
+// If `r.Type()==ConjugateInvariant`, then the method returns the reciever.
+// The returned Ring is a shallow copy of the receiver.
+func (r *Ring) ConjugateInvariantRing() (*Ring, error) {
+	if r.Type() == ConjugateInvariant {
+		return r, nil
+	}
+	cr := *r
+	cr.N = r.N >> 1
+	cr.NumberTheoreticTransformer = NumberTheoreticTransformerConjugateInvariant{}
+	return &cr, cr.genNTTParams(uint64(uint64(cr.N)) << 2)
+}
+
+// StandardRing returns the standard ring of the receiver ring.
+// If `r.Type()==Standard`, then the method returns the reciever.
+// The returned Ring is a shallow copy of the receiver.
+func (r *Ring) StandardRing() (*Ring, error) {
+	if r.Type() == Standard {
+		return r, nil
+	}
+
+	cr := *r
+	cr.N = r.N << 1
+	cr.NumberTheoreticTransformer = NumberTheoreticTransformerStandard{}
+	return &cr, cr.genNTTParams(uint64(cr.N) << 2)
+}
+
+// Type returns the Type of the ring which might be either `Standard` or `ConjugateInvariant`.
+func (r *Ring) Type() Type {
+	switch r.NumberTheoreticTransformer.(type) {
+	case NumberTheoreticTransformerStandard:
+		return Standard
+	case NumberTheoreticTransformerConjugateInvariant:
+		return ConjugateInvariant
+	default:
+		panic("invalid NumberTheoreticTransformer type")
+	}
+}
+
 // setParameters initializes a *Ring by setting the required precomputed values (except for the NTT-related values, which are set by the
 // genNTTParams function).
 func (r *Ring) setParameters(N int, Modulus []uint64) error {

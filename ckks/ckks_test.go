@@ -1321,7 +1321,7 @@ func testLinearTransform(testContext *testParams, t *testing.T) {
 
 func testMarshaller(testctx *testParams, t *testing.T) {
 
-	t.Run("Marshaller/Parameters/Binary", func(t *testing.T) {
+	t.Run(GetTestName(testctx.params, "Marshaller/Parameters/Binary"), func(t *testing.T) {
 		bytes, err := testctx.params.MarshalBinary()
 		assert.Nil(t, err)
 		var p Parameters
@@ -1331,19 +1331,19 @@ func testMarshaller(testctx *testParams, t *testing.T) {
 		assert.Equal(t, testctx.params.RingQ(), p.RingQ())
 	})
 
-	t.Run("Marshaller/Parameters/JSON", func(t *testing.T) {
+	t.Run(GetTestName(testctx.params, "Marshaller/Parameters/JSON"), func(t *testing.T) {
 		// checks that parameters can be marshalled without error
 		data, err := json.Marshal(testctx.params)
 		assert.Nil(t, err)
 		assert.NotNil(t, data)
 
-		// checks that bfv.Parameters can be unmarshalled without error
+		// checks that ckks.Parameters can be unmarshalled without error
 		var paramsRec Parameters
 		err = json.Unmarshal(data, &paramsRec)
 		assert.Nil(t, err)
 		assert.True(t, testctx.params.Equals(paramsRec))
 
-		// checks that bfv.Paramters can be unmarshalled with log-moduli definition without error
+		// checks that ckks.Paramters can be unmarshalled with log-moduli definition without error
 		dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60],"Sigma":3.2,"T":65537}`, testctx.params.LogN()))
 		var paramsWithLogModuli Parameters
 		err = json.Unmarshal(dataWithLogModuli, &paramsWithLogModuli)
@@ -1351,7 +1351,7 @@ func testMarshaller(testctx *testParams, t *testing.T) {
 		assert.Equal(t, 2, paramsWithLogModuli.QCount())
 		assert.Equal(t, 1, paramsWithLogModuli.PCount())
 
-		// checks that bfv.Paramters can be unmarshalled with log-moduli definition with empty P without error
+		// checks that ckks.Paramters can be unmarshalled with log-moduli definition with empty P without error
 		dataWithLogModuliNoP := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[],"Sigma":3.2,"T":65537}`, testctx.params.LogN()))
 		var paramsWithLogModuliNoP Parameters
 		err = json.Unmarshal(dataWithLogModuliNoP, &paramsWithLogModuliNoP)

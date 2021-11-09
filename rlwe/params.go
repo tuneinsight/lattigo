@@ -114,42 +114,20 @@ func NewParameters(logn int, q, p []uint64, sigma float64, ringType ring.Type) (
 		ringType: ringType,
 	}
 
-	switch ringType {
+	// pre-check that moduli chain is of valid size and that all factors are prime.
+	// note: the Ring instantiation checks that the modulus are valid NTT-friendly primes.
+	if err = CheckModuli(q, p); err != nil {
+		return Parameters{}, err
+	}
 
-	case ring.Standard:
+	if params.ringQ, err = ring.NewRingFromType(1<<logn, q, ringType); err != nil {
+		return Parameters{}, err
+	}
 
-		// Checks if moduli are valid
-		if err = CheckModuli(q, p, uint64(2<<logn)); err != nil {
+	if len(p) != 0 {
+		if params.ringP, err = ring.NewRingFromType(1<<logn, p, ringType); err != nil {
 			return Parameters{}, err
 		}
-
-		if params.ringQ, err = ring.NewRing(1<<logn, q); err != nil {
-			return Parameters{}, err
-		}
-
-		if len(p) != 0 {
-			if params.ringP, err = ring.NewRing(1<<logn, p); err != nil {
-				return Parameters{}, err
-			}
-		}
-	case ring.ConjugateInvariant:
-
-		// Checks if moduli are valid
-		if err = CheckModuli(q, p, uint64(3<<logn)); err != nil {
-			return Parameters{}, err
-		}
-
-		if params.ringQ, err = ring.NewRingConjugateInvariant(1<<logn, q); err != nil {
-			return Parameters{}, err
-		}
-
-		if len(p) != 0 {
-			if params.ringP, err = ring.NewRingConjugateInvariant(1<<logn, p); err != nil {
-				return Parameters{}, err
-			}
-		}
-	default:
-		panic("invalid ring type")
 	}
 
 	copy(params.qi, q)
@@ -477,8 +455,8 @@ func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 	return
 }
 
-// CheckModuli checks that the provided q and p correspond to a valid moduli chain
-func CheckModuli(q, p []uint64, NthRoot uint64) error {
+// CheckModuli checks that the provided q and p correspond to a valid moduli chain.
+func CheckModuli(q, p []uint64) error {
 
 	if len(q) > MaxModuliCount {
 		return fmt.Errorf("#Qi is larger than %d", MaxModuliCount)
@@ -490,25 +468,25 @@ func CheckModuli(q, p []uint64, NthRoot uint64) error {
 
 	for i, qi := range q {
 		if uint64(bits.Len64(qi)-1) > MaxModuliSize+1 {
-			return fmt.Errorf("Qi bit-size (i=%d) is larger than %d", i, MaxModuliSize)
+			return fmt.Errorf("a Qi bit-size (i=%d) is larger than %d", i, MaxModuliSize)
 		}
 	}
 
 	for i, pi := range p {
 		if uint64(bits.Len64(pi)-1) > MaxModuliSize+2 {
-			return fmt.Errorf("Pi bit-size (i=%d) is larger than %d", i, MaxModuliSize)
+			return fmt.Errorf("a Pi bit-size (i=%d) is larger than %d", i, MaxModuliSize)
 		}
 	}
 
 	for i, qi := range q {
-		if !ring.IsPrime(qi) || qi&(NthRoot-1) != 1 {
-			return fmt.Errorf("Qi (i=%d) is not an NTT prime", i)
+		if !ring.IsPrime(qi) {
+			return fmt.Errorf("a Qi (i=%d) is not a prime", i)
 		}
 	}
 
 	for i, pi := range p {
-		if !ring.IsPrime(pi) || pi&(NthRoot-1) != 1 {
-			return fmt.Errorf("Pi (i=%d) is not an NTT prime", i)
+		if !ring.IsPrime(pi) {
+			return fmt.Errorf("a Pi (i=%d) is not a prime", i)
 		}
 	}
 

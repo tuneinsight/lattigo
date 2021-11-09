@@ -57,41 +57,54 @@ type Ring struct {
 	NttNInv   []uint64   //[N^-1] mod Qi in Montgomery form
 }
 
-// NewRing creates a new RNS Ring with degree N and coefficient moduli Moduli. N must be a power of two larger than 8. Moduli should be
-// a non-empty []uint64 with distinct prime elements. For the Ring instance to support NTT operation, these elements must also be equal
-// to 1 modulo 2*N. Non-nil r and error are returned in the case of non NTT-enabling parameters.
+// NewRing creates a new RNS Ring with degree N and coefficient moduli Moduli with Standard NTT. N must be a power of two larger than 8. Moduli should be
+// a non-empty []uint64 with distinct prime elements. All moduli must also be equal to 1 modulo 2*N.
+// An error is returned with a nil *Ring in the case of non NTT-enabling parameters.
 func NewRing(N int, Moduli []uint64) (r *Ring, err error) {
-	return NewRingWithNthRoot(N, 2*N, Moduli)
+	return NewRingWithCustomNTT(N, Moduli, NumberTheoreticTransformerStandard{}, 2*N)
 }
 
-// NewRingWithNthRoot creates a new Ring with the given parameters. It checks that N is a power of 2 and that the moduli are NTT friendly.
-// Instantiates the NTT params with a NthRoot primitive root of unity.
-func NewRingWithNthRoot(N, NthRoot int, Moduli []uint64) (r *Ring, err error) {
-	r = new(Ring)
-	if err = r.setParameters(N, Moduli); err != nil {
-		return nil, err
-	}
-
-	r.NumberTheoreticTransformer = NumberTheoreticTransformerStandard{}
-
-	return r, r.genNTTParams(uint64(NthRoot))
-}
-
-// NewRingConjugateInvariant creates a new Ring in Z[X+X^-1](X^2N + 1).
-// Z[X+X^-1]/(X^2N+1) is a closed sub-ring of Z[X]/(X^2N+1).
-// The input polynomial only needs to be size N to store all the information
-// about its 2N coefficients since the right half does not provide any additional information.
-// Primes need to be congruent to 1 mod 4N.
+// NewRingConjugateInvariant creates a new RNS Ring with degree N and coefficient moduli Moduli with Conjugate Invariant NTT. N must be a power of two larger than 8. Moduli should be
+// a non-empty []uint64 with distinct prime elements. All moduli must also be equal to 1 modulo 4*N.
+// An error is returned with a nil *Ring in the case of non NTT-enabling parameters.
 func NewRingConjugateInvariant(N int, Moduli []uint64) (r *Ring, err error) {
+	return NewRingWithCustomNTT(N, Moduli, NumberTheoreticTransformerConjugateInvariant{}, 4*N)
+}
+
+// NewRingFromType creates a new RNS Ring with degree N and coefficient moduli Moduli for which the type of NTT is determined by the ringType argument.
+// If ringType==Standard, the ring is instantiated with standard NTT transform with the Nth root of unity 2*N. If ringType==ConjugateInvariant, the ring
+// is instantiated with a ConjugateInvariant NTT with Nth root of unity 4*N. N must be a power of two larger than 8.
+// Moduli should be a non-empty []uint64 with distinct prime elements. All moduli must also be equal to 1 modulo the root of unity.
+// An error is returned with a nil *Ring in the case of non NTT-enabling parameters.
+func NewRingFromType(N int, Moduli []uint64, ringType Type) (r *Ring, err error) {
+	switch ringType {
+	case Standard:
+		return NewRingWithCustomNTT(N, Moduli, NumberTheoreticTransformerStandard{}, 2*N)
+	case ConjugateInvariant:
+		return NewRingWithCustomNTT(N, Moduli, NumberTheoreticTransformerConjugateInvariant{}, 4*N)
+	default:
+		return nil, fmt.Errorf("invalid ring type")
+	}
+}
+
+// NewRingWithCustomNTT creates a new RNS Ring with degree N and coefficient moduli Moduli with user-defined NTT tranform and primitive Nth root of unity.
+// Moduli should be a non-empty []uint64 with distinct prime elements. All moduli must also be equal to 1 modulo the root of unity.
+// N must be a power of two larger than 8. An error is returned with a nil *Ring in the case of non NTT-enabling parameters.
+func NewRingWithCustomNTT(N int, Moduli []uint64, ntt NumberTheoreticTransformer, NthRoot int) (r *Ring, err error) {
 	r = new(Ring)
 	err = r.setParameters(N, Moduli)
 	if err != nil {
 		return nil, err
 	}
 
-	r.NumberTheoreticTransformer = NumberTheoreticTransformerConjugateInvariant{}
+	r.NumberTheoreticTransformer = ntt
 
-	return r, r.genNTTParams(uint64(N) << 2)
+	err = r.genNTTParams(uint64(NthRoot))
+	if err != nil {
+		return r, err
+	}
+
+	return r, nil
 }
 
 // ConjugateInvariantRing returns the conjugate invariant ring of the receiver ring.

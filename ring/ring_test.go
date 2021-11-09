@@ -92,7 +92,7 @@ func testNTTConjugateInvariant(testContext *testParams, t *testing.T) {
 
 		ringQ := testContext.ringQ
 		ringQ2N, _ := NewRing(ringQ.N<<1, ringQ.Modulus)
-		ringQConjugateInvariant, _ := NewRingConjugateInvariant(testContext.ringQ.N, testContext.ringQ.Modulus)
+		ringQConjugateInvariant, _ := NewRingFromType(testContext.ringQ.N, testContext.ringQ.Modulus, ConjugateInvariant)
 
 		sampler := NewUniformSampler(testContext.prng, ringQ)
 		p1 := sampler.ReadNew()

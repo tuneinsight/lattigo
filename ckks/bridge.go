@@ -1,6 +1,8 @@
 package ckks
 
 import (
+	"fmt"
+
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
@@ -30,10 +32,10 @@ func NewSchemeSwitcher(params Parameters, comlexToRealSwk *rlwe.SwkComplexToReal
 	}
 	var err error
 	if s.stdRingQ, err = params.RingQ().StandardRing(); err != nil {
-		return SchemeSwitcher{}, err
+		return SchemeSwitcher{}, fmt.Errorf("cannot switch between schemes because the standard NTT is undefined for params: %f", err)
 	}
 	if s.conjugateRingQ, err = params.RingQ().ConjugateInvariantRing(); err != nil {
-		return SchemeSwitcher{}, err // TODO: better error handline in case no ConjugateInvariant ring exist
+		return SchemeSwitcher{}, fmt.Errorf("cannot switch between schemes because the standard NTT is undefined for params: %f", err)
 	}
 	s.permuteNTTIndex = s.stdRingQ.PermuteNTTIndex((uint64(s.stdRingQ.N) << 1) - 1)
 	return s, nil

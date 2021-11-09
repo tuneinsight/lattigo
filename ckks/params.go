@@ -204,6 +204,30 @@ func NewParametersFromLiteral(pl ParametersLiteral) (Parameters, error) {
 	return NewParameters(rlweParams, pl.LogSlots, pl.Scale)
 }
 
+// CKKSParameters returns the CKKS parameters corresponding to the reciever
+// RCKKS parameter set. If the reciever is already an CKKS parameter set
+// (i.e., RingType==Standard), then the method returns the reciever.
+func (p Parameters) CKKSParameters() (pckks Parameters, err error) {
+	if p.RingType() == ring.Standard {
+		return p, nil
+	}
+	pckks = p
+	pckks.Parameters, err = pckks.Parameters.StandardParameters()
+	return
+}
+
+// RCKKSParameters returns the RCKKS parameters corresponding to the reciever
+// CKKS parameter set. If the reciever is already an RCKKS parameter set
+// (i.e., RingType==ConjugateInvariant), then the method returns the reciever.
+func (p Parameters) RCKKSParameters() (prckks Parameters, err error) {
+	if p.RingType() == ring.ConjugateInvariant {
+		return p, nil
+	}
+	prckks = p
+	prckks.Parameters, err = prckks.Parameters.ConjugateInvariantParameters()
+	return
+}
+
 // LogSlots returns the log of the number of slots
 func (p Parameters) LogSlots() int {
 	return p.logSlots

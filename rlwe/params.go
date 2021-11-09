@@ -120,19 +120,10 @@ func NewParameters(logn int, q, p []uint64, sigma float64, ringType ring.Type) (
 		return Parameters{}, err
 	}
 
-	if params.ringQ, err = ring.NewRingFromType(1<<logn, q, ringType); err != nil {
-		return Parameters{}, err
-	}
-
-	if len(p) != 0 {
-		if params.ringP, err = ring.NewRingFromType(1<<logn, p, ringType); err != nil {
-			return Parameters{}, err
-		}
-	}
-
 	copy(params.qi, q)
 	copy(params.pi, p)
-	return params, nil
+
+	return params, params.initRings()
 }
 
 // NewParametersFromLiteral instantiate a set of generic RLWE parameters from a ParametersLiteral specification.
@@ -159,6 +150,38 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
 	default:
 		return Parameters{}, fmt.Errorf("invalid parameter literal")
 	}
+}
+
+// StandardParameters returns a RLWE parameter set that corresponds to the
+// standard dual of a conjugate invariant parameter set. If the reciever is already
+// a standard set, then the method returns the receiver.
+func (p Parameters) StandardParameters() (pci Parameters, err error) {
+
+	if p.ringType == ring.Standard {
+		return p, nil
+	}
+
+	pci = p
+	pci.logN = p.logN + 1
+	pci.ringType = ring.Standard
+	err = pci.initRings()
+	return
+}
+
+// ConjugateInvariantParameters returns a RLWE parameter set that corresponds to the
+// conjugate invariant dual of a standard parameter set. If the reciever is already
+// a conjugate invariant set, then the method returns the receiver.
+func (p Parameters) ConjugateInvariantParameters() (pci Parameters, err error) {
+
+	if p.ringType == ring.ConjugateInvariant {
+		return p, nil
+	}
+
+	pci = p
+	pci.logN = p.logN - 1
+	pci.ringType = ring.ConjugateInvariant
+	err = pci.initRings()
+	return
 }
 
 // N returns the ring degree
@@ -373,6 +396,7 @@ func (p Parameters) Equals(other Parameters) bool {
 	res = res && utils.EqualSliceUint64(p.qi, other.qi)
 	res = res && utils.EqualSliceUint64(p.pi, other.pi)
 	res = res && (p.sigma == other.sigma)
+	res = res && (p.ringType == other.ringType)
 	return res
 }
 
@@ -566,4 +590,14 @@ func GenModuli(logN int, logQ, logP []int) (q, p []uint64, err error) {
 	}
 
 	return
+}
+
+func (p *Parameters) initRings() (err error) {
+	if p.ringQ, err = ring.NewRingFromType(1<<p.logN, p.qi, p.ringType); err != nil {
+		return err
+	}
+	if len(p.pi) != 0 {
+		p.ringP, err = ring.NewRingFromType(1<<p.logN, p.pi, p.ringType)
+	}
+	return err
 }

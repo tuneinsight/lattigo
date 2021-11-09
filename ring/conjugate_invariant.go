@@ -4,7 +4,8 @@ import (
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
-// UnfoldConjugateInvariantToStandard maps the compressed representation of Z_Q[X+X^-1]/(X^2N + 1) to full representation in Z_Q[X]/(X^2N+1).
+// UnfoldConjugateInvariantToStandard maps the compressed representation (N/2 coefficients)
+// of Z_Q[X+X^-1]/(X^2N + 1) to full representation in Z_Q[X]/(X^2N+1).
 // Requires degree(polyConjugateInvariant) = 2*degree(polyStd).
 // Requires that polyStd and polyConjugateInvariant share the same moduli.
 func (r *Ring) UnfoldConjugateInvariantToStandard(level int, polyConjugateInvariant, polyStd *Poly) {
@@ -24,7 +25,7 @@ func (r *Ring) UnfoldConjugateInvariantToStandard(level int, polyConjugateInvari
 	}
 }
 
-// FoldStandardToConjugateInvariant folds [X] to [X+X^-1] in compressed form.
+// FoldStandardToConjugateInvariant folds [X]/(X^N+1) to [X+X^-1]/(X^N+1) in compressed form (N/2 coefficients).
 // Requires degree(polyConjugateInvariant) = 2*degree(polyStd).
 // Requires that polyStd and polyConjugateInvariant share the same moduli.
 func (r *Ring) FoldStandardToConjugateInvariant(level int, polyStandard *Poly, permuteNTTIndexInv []uint64, polyConjugateInvariant *Poly) {
@@ -40,27 +41,37 @@ func (r *Ring) FoldStandardToConjugateInvariant(level int, polyStandard *Poly, p
 }
 
 // PadDefaultRingToConjuateInvariant converts a polynomial in Z[X]/(X^N +1) to a polynomial in Z[X+X^-1]/(X^2N+1).
-// Conversion assumes polynomials are outside of the NTT domain.
-// Default ring Z[X]/(X^N +1) and ConjugateInvariant ring Z[X+X^-1]/(X^2N+1) must share the same moduli.
-func PadDefaultRingToConjuateInvariant(p1 *Poly, ringStd, ringConjInv *Ring, p2 *Poly) {
+// Conversion will check the .IsNTT flag of the polynomial p1.
+func PadDefaultRingToConjuateInvariant(p1 *Poly, ringQ *Ring, p2 *Poly) {
+
+	if p1 == p2 {
+		panic("p1 == p2 but method cannot be used in place")
+	}
 
 	level := utils.MinInt(p1.Level(), p2.Level())
 	n := len(p1.Coeffs[0])
 
 	for i := 0; i < level+1; i++ {
-		qi := ringStd.Modulus[i]
-		if qi != ringConjInv.Modulus[i] {
-			panic("p1 and p2 rings must share the same moduli")
-		}
+		qi := ringQ.Modulus[i]
 
 		if len(p2.Coeffs[i]) != 2*len(p1.Coeffs[i]) {
 			panic("p2 degree must be twice the one of p1")
 		}
 
+		copy(p2.Coeffs[i], p1.Coeffs[i])
+
 		tmp := p2.Coeffs[i]
-		tmp[0] = 0
-		for j := 1; j < n; j++ {
-			tmp[n-j] = qi - tmp[j]
+		if p1.IsNTT {
+			for j := 0; j < n; j++ {
+				tmp[n-j-1] = tmp[j]
+			}
+		} else {
+			tmp[0] = 0
+			for j := 1; j < n; j++ {
+				tmp[n-j] = qi - tmp[j]
+			}
 		}
 	}
+
+	p2.IsNTT = p1.IsNTT
 }

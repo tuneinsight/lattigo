@@ -239,12 +239,7 @@ func GetSmallestLargest(el0, el1 *Ciphertext) (smallest, largest *Ciphertext, sa
 
 // PopulateElementRandom creates a new rlwe.Element with random coefficients
 func PopulateElementRandom(prng utils.PRNG, params Parameters, el *Ciphertext) {
-
-	ringQ, err := ring.NewRing(params.N(), params.Q())
-	if err != nil {
-		panic(err)
-	}
-	sampler := ring.NewUniformSampler(prng, ringQ)
+	sampler := ring.NewUniformSampler(prng, params.RingQ())
 	for i := range el.Value {
 		sampler.Read(el.Value[i])
 	}

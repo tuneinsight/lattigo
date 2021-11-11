@@ -538,7 +538,7 @@ func testMarshaller(kgen KeyGenerator, t *testing.T) {
 		assert.True(t, params.Equals(rlweParams))
 	})
 
-	t.Run(testString(params, "Marshaller/Ciphertext/EndToEnd/"), func(t *testing.T) {
+	t.Run(testString(params, "Marshaller/Ciphertext/"), func(t *testing.T) {
 
 		prng, _ := utils.NewPRNG()
 
@@ -556,24 +556,6 @@ func testMarshaller(kgen KeyGenerator, t *testing.T) {
 		for i := range ciphertextWant.Value {
 			require.True(t, params.RingQ().EqualLvl(ciphertextWant.Level(), ciphertextWant.Value[i], ciphertextTest.Value[i]))
 		}
-	})
-
-	t.Run(testString(params, "Marshaller/Ciphertext/Minimal/"), func(t *testing.T) {
-
-		prng, _ := utils.NewPRNG()
-
-		ciphertext := NewCiphertextRandom(prng, params, 0, params.MaxLevel())
-
-		marshalledCiphertext, err := ciphertext.MarshalBinary()
-		require.NoError(t, err)
-
-		ciphertextTest := new(Ciphertext)
-		require.Error(t, ciphertextTest.UnmarshalBinary(nil))
-		require.NoError(t, ciphertextTest.UnmarshalBinary(marshalledCiphertext))
-
-		require.Equal(t, ciphertext.Degree(), 0)
-		require.Equal(t, ciphertext.Level(), params.MaxLevel())
-		require.Equal(t, len(ciphertext.Value), 1)
 	})
 
 	t.Run(testString(params, "Marshaller/Sk/"), func(t *testing.T) {

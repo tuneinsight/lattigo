@@ -1,9 +1,12 @@
 package ckks
 
 import (
+	"encoding/binary"
+	"errors"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
+	"math"
 )
 
 // Ciphertext is *ring.Poly array representing a polynomial of degree > 0 with coefficients in R_Q.
@@ -57,4 +60,44 @@ func (ct *Ciphertext) Copy(ctp *Ciphertext) {
 func (ct *Ciphertext) CopyNew() (ctc *Ciphertext) {
 	ctc = &Ciphertext{Ciphertext: ct.Ciphertext.CopyNew(), Scale: ct.Scale}
 	return
+}
+
+// GetDataLen returns the length in bytes of the target Ciphertext.
+func (ct *Ciphertext) GetDataLen(WithMetaData bool) (dataLen int) {
+	// MetaData is :
+	// 8 byte : Scale
+	if WithMetaData {
+		dataLen += 8
+	}
+
+	dataLen += ct.Ciphertext.GetDataLen(WithMetaData)
+
+	return dataLen
+}
+
+// MarshalBinary encodes a Ciphertext on a byte slice. The total size
+// in byte is 4 + 8* N * numberModuliQ * (degree + 1).
+func (ct *Ciphertext) MarshalBinary() (data []byte, err error) {
+
+	dataScale := make([]byte, 8)
+
+	binary.LittleEndian.PutUint64(dataScale, math.Float64bits(ct.Scale))
+
+	var dataCt []byte
+	if dataCt, err = ct.Ciphertext.MarshalBinary(); err != nil {
+		return nil, err
+	}
+
+	return append(dataScale, dataCt...), nil
+}
+
+// UnmarshalBinary decodes a previously marshaled Ciphertext on the target Ciphertext.
+func (ct *Ciphertext) UnmarshalBinary(data []byte) (err error) {
+	if len(data) < 10 { // cf. ct.GetDataLen()
+		return errors.New("too small bytearray")
+	}
+
+	ct.Scale = math.Float64frombits(binary.LittleEndian.Uint64(data[0:8]))
+	ct.Ciphertext = new(rlwe.Ciphertext)
+	return ct.Ciphertext.UnmarshalBinary(data[8:])
 }

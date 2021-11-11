@@ -2,6 +2,10 @@
 # Changelog
 All notable changes to this project will be documented in this file. 
 
+## [unreleased]
+
+- RLWE: added `encoding.BinaryMarshaler` implementation for `rlwe.Ciphertext` types
+
 ## [2.3.0] - 2021-10-12
 
 - RING: added `MapSmallDimensionToLargerDimensionNTT` method which maps from  Y = X^{N/n} to X in the NTT domain.

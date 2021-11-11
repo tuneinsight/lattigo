@@ -303,8 +303,6 @@ func evaluatePolyFromPowerBasis(targetScale float64, coeffs *Polynomial, logSpli
 		return
 	}
 
-	minimumDegreeNonZeroCoefficient = coeffs.Degree()
-
 	currentQi := evaluator.params.QiFloat64(C[(minimumDegreeNonZeroCoefficient)].Level())
 
 	ctScale := targetScale * currentQi

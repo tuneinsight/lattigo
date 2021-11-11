@@ -542,19 +542,23 @@ func testMarshaller(kgen KeyGenerator, t *testing.T) {
 
 		prng, _ := utils.NewPRNG()
 
-		ciphertextWant := NewCiphertextRandom(prng, params, 2, params.MaxLevel())
+		for degree := 0; degree < 4; degree++ {
+			t.Run(fmt.Sprintf("degree=%d", degree), func(t *testing.T) {
+				ciphertextWant := NewCiphertextRandom(prng, params, degree, params.MaxLevel())
 
-		marshalledCiphertext, err := ciphertextWant.MarshalBinary()
-		require.NoError(t, err)
+				marshalledCiphertext, err := ciphertextWant.MarshalBinary()
+				require.NoError(t, err)
 
-		ciphertextTest := new(Ciphertext)
-		require.NoError(t, ciphertextTest.UnmarshalBinary(marshalledCiphertext))
+				ciphertextTest := new(Ciphertext)
+				require.NoError(t, ciphertextTest.UnmarshalBinary(marshalledCiphertext))
 
-		require.Equal(t, ciphertextWant.Degree(), ciphertextTest.Degree())
-		require.Equal(t, ciphertextWant.Level(), ciphertextTest.Level())
+				require.Equal(t, ciphertextWant.Degree(), ciphertextTest.Degree())
+				require.Equal(t, ciphertextWant.Level(), ciphertextTest.Level())
 
-		for i := range ciphertextWant.Value {
-			require.True(t, params.RingQ().EqualLvl(ciphertextWant.Level(), ciphertextWant.Value[i], ciphertextTest.Value[i]))
+				for i := range ciphertextWant.Value {
+					require.True(t, params.RingQ().EqualLvl(ciphertextWant.Level(), ciphertextWant.Value[i], ciphertextTest.Value[i]))
+				}
+			})
 		}
 	})
 

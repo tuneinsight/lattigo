@@ -944,7 +944,7 @@ func testBridge(testContext *testParams, t *testing.T) {
 		skCKKS := kgenCKKS.GenSecretKey()
 		decryptorCKKS := NewDecryptor(paramsCKKS, skCKKS)
 		encoderCKKS := NewEncoder(paramsCKKS)
-		evalCKKS := NewEvaluator(paramsCKKS, rlwe.EvaluationKey{nil, nil})
+		evalCKKS := NewEvaluator(paramsCKKS, rlwe.EvaluationKey{Rlk: nil, Rtks: nil})
 
 		swkCtR, swkRtC := kgenCKKS.GenSwitchingKeysForRingSwap(skCKKS, testContext.sk)
 

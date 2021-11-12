@@ -98,6 +98,13 @@ func NewCiphertextNTT(params Parameters, degree, level int) *Ciphertext {
 	return el
 }
 
+// NewCiphertextRandom generates a new uniformly distributed Ciphertext of degree, level and scale.
+func NewCiphertextRandom(prng utils.PRNG, params Parameters, degree, level int) (ciphertext *Ciphertext) {
+	ciphertext = NewCiphertext(params, degree, level)
+	PopulateElementRandom(prng, params, ciphertext)
+	return
+}
+
 // SetValue sets the input slice of polynomials as the value of the target element.
 func (el *Ciphertext) SetValue(value []*ring.Poly) {
 	el.Value = value
@@ -232,12 +239,7 @@ func GetSmallestLargest(el0, el1 *Ciphertext) (smallest, largest *Ciphertext, sa
 
 // PopulateElementRandom creates a new rlwe.Element with random coefficients
 func PopulateElementRandom(prng utils.PRNG, params Parameters, el *Ciphertext) {
-
-	ringQ, err := ring.NewRing(params.N(), params.Q())
-	if err != nil {
-		panic(err)
-	}
-	sampler := ring.NewUniformSampler(prng, ringQ)
+	sampler := ring.NewUniformSampler(prng, params.RingQ())
 	for i := range el.Value {
 		sampler.Read(el.Value[i])
 	}

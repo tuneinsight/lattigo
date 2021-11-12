@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -535,6 +536,30 @@ func testMarshaller(kgen KeyGenerator, t *testing.T) {
 		err = json.Unmarshal(data, &rlweParams)
 		assert.Nil(t, err)
 		assert.True(t, params.Equals(rlweParams))
+	})
+
+	t.Run(testString(params, "Marshaller/Ciphertext/"), func(t *testing.T) {
+
+		prng, _ := utils.NewPRNG()
+
+		for degree := 0; degree < 4; degree++ {
+			t.Run(fmt.Sprintf("degree=%d", degree), func(t *testing.T) {
+				ciphertextWant := NewCiphertextRandom(prng, params, degree, params.MaxLevel())
+
+				marshalledCiphertext, err := ciphertextWant.MarshalBinary()
+				require.NoError(t, err)
+
+				ciphertextTest := new(Ciphertext)
+				require.NoError(t, ciphertextTest.UnmarshalBinary(marshalledCiphertext))
+
+				require.Equal(t, ciphertextWant.Degree(), ciphertextTest.Degree())
+				require.Equal(t, ciphertextWant.Level(), ciphertextTest.Level())
+
+				for i := range ciphertextWant.Value {
+					require.True(t, params.RingQ().EqualLvl(ciphertextWant.Level(), ciphertextWant.Value[i], ciphertextTest.Value[i]))
+				}
+			})
+		}
 	})
 
 	t.Run(testString(params, "Marshaller/Sk/"), func(t *testing.T) {

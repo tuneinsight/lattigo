@@ -19,7 +19,7 @@ type Operand interface {
 	SetScalingFactor(float64)
 }
 
-// Evaluator is an interface implementing the methodes to conduct homomorphic operations between ciphertext and/or plaintexts.
+// Evaluator is an interface implementing the methods to conduct homomorphic operations between ciphertext and/or plaintexts.
 type Evaluator interface {
 	// ========================
 	// === Basic Arithmetic ===
@@ -109,7 +109,7 @@ type Evaluator interface {
 	InnerSum(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
 	Average(ctIn *Ciphertext, batch int, ctOut *Ciphertext)
 
-	// Replicatation (inverse of Inner sum)
+	// Replication (inverse of Inner sum)
 	ReplicateLog(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
 	Replicate(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
 

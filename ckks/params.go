@@ -360,9 +360,9 @@ func NewParametersFromLiteral(pl ParametersLiteral) (Parameters, error) {
 	return NewParameters(rlweParams, pl.LogSlots, pl.Scale)
 }
 
-// CKKSParameters returns the CKKS parameters corresponding to the reciever
-// RCKKS parameter set. If the reciever is already an CKKS parameter set
-// (i.e., RingType==Standard), then the method returns the reciever.
+// CKKSParameters returns the CKKS parameters corresponding to the receiver
+// RCKKS parameter set. If the receiver is already an CKKS parameter set
+// (i.e., RingType==Standard), then the method returns the receiver.
 func (p Parameters) CKKSParameters() (pckks Parameters, err error) {
 	if p.RingType() == ring.Standard {
 		return p, nil
@@ -622,7 +622,7 @@ func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 	return err
 }
 
-// MarshalBinarySize returns the length of the []byte encoding of the reciever.
+// MarshalBinarySize returns the length of the []byte encoding of the receiver.
 func (p Parameters) MarshalBinarySize() int {
 	return p.Parameters.MarshalBinarySize() + 9
 }

@@ -18,7 +18,7 @@ type encryptor struct {
 	params Parameters
 }
 
-// NewEncryptor instatiates a new Encryptor for the CKKS scheme. The key argument can
+// NewEncryptor instantiates a new Encryptor for the CKKS scheme. The key argument can
 // be either a *rlwe.PublicKey or a *rlwe.SecretKey.
 func NewEncryptor(params Parameters, key interface{}) Encryptor {
 	return &encryptor{rlwe.NewEncryptor(params.Parameters, key), params}

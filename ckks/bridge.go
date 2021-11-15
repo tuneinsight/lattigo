@@ -45,7 +45,7 @@ func NewSchemeSwitcher(params Parameters, comlexToRealSwk *SwkComplexToReal, Rea
 // and write the result into `ctOut`.
 // Given ctInCKKS = enc(real(m) + imag(m)) in Z[X](X^N + 1), returns ctOutRCKKS = enc(real(m))
 // in Z[X+X^-1]/(X^N + 1) in compressed form (N/2 coefficients).
-// Requires the ring degre of ctOut to be half the ring degree of ctIn.
+// Requires the ring degree of ctOut to be half the ring degree of ctIn.
 // The security is changed from Z[X]/(X^N+1) to Z[X]/(X^N/2+1).
 // The method panics if the SchemeSwitcher was not initialized with a SwkComplexToReal key.
 func (switcher *SchemeSwitcher) ComplexToReal(ctIn, ctOut *Ciphertext) {
@@ -72,7 +72,7 @@ func (switcher *SchemeSwitcher) ComplexToReal(ctIn, ctOut *Ciphertext) {
 // and write the result into `ctOut`.
 // Given ctInRCKKS = enc(real(m)) in Z[X+X^-1]/(X^2N+1) in compressed form (N coefficients), returns
 // ctOutCKKS = enc(real(m) + imag(0)) in Z[X]/(X^2N+1).
-// Requires the ring degre of ctOut to be twice the ring degree of ctIn.
+// Requires the ring degree of ctOut to be twice the ring degree of ctIn.
 // The security is changed from Z[X]/(X^N+1) to Z[X]/(X^2N+1).
 // The method panics if the SchemeSwitcher was not initialized with a SwkRealToComplex key.
 func (switcher *SchemeSwitcher) RealToComplex(ctIn, ctOut *Ciphertext) {

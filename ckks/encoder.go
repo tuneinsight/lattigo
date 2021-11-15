@@ -18,14 +18,14 @@ const GaloisGen uint64 = 5
 
 var pi = "3.1415926535897932384626433832795028841971693993751058209749445923078164062862089986280348253421170679821480865132823066470938446095505822317253594081284811174502841027019385211055596446229489549303819644288109756659334461284756482337867831652712019091456485669234603486104543266482133936072602491412737245870066063155881748815209209628292540917153643678925903600113305305488204665213841469519415116094330572703657595919530921861173819326117931051185480744623799627495673518857527248912279381830119491298336733624406566430860213949463952247371907021798609437027705392171762931767523846748184676694051320005681271452635608277857713427577896091736371787214684409012249534301465495853710507922796892589235420199561121290219608640344181598136297747713099605187072113499999983729780499510597317328160963185950244594553469083026425223082533446850352619311881710100031378387528865875332083814206171776691473035982534904287554687311595628638823537875937519577818577805321712268066130019278766111959092164201989"
 
-// Encoder is an interface implenting the encoding algorithms.
+// Encoder is an interface implementing the encoding algorithms.
 type Encoder interface {
 
 	// Slots Encoding
 
 	// Encode encodes a set of values on the target plaintext.
 	// Encoding is done at the level and scale of the plaintext.
-	// User must ensure that 1 <= len(values) <= 2^logSlots < logN.
+	// User must ensure that 1 <= len(values) <= 2^logSlots < 2^logN.
 	// values.(type) can be either []complex128 of []float64.
 	// The imaginary part of []complex128 will be discarded if ringType == ring.ConjugateInvariant.
 	// Returned plaintext is always in the NTT domain.
@@ -33,7 +33,7 @@ type Encoder interface {
 
 	// EncodeNew encodes a set of values on a new plaintext.
 	// Encoding is done at the provided level and with the provided scale.
-	// User must ensure that 1 <= len(values) <= 2^logSlots < logN.
+	// User must ensure that 1 <= len(values) <= 2^logSlots < 2^logN.
 	// values.(type) can be either []complex128 of []float64.
 	// The imaginary part of []complex128 will be discarded if ringType == ring.ConjugateInvariant.
 	// Returned plaintext is always in the NTT domain.
@@ -41,7 +41,7 @@ type Encoder interface {
 
 	// EncodeDiagMatrixBSGS encodes a diagonalized plaintext matrix into PtDiagMatrix struct.
 	// It can then be evaluated on a ciphertext using evaluator.LinearTransform.
-	// Evaluation will use the optimized approach (doiuble hoisting and baby-step giant-step).
+	// Evaluation will use the optimized approach (double hoisting and baby-step giant-step).
 	// Faster if there is more than a few non-zero diagonals.
 	// maxM1N2Ratio is the maximum ratio between the inner and outer loop of the baby-step giant-step algorithm used in evaluator.LinearTransform.
 	// Optimal maxM1N2Ratio value is between 4 and 16 depending on the sparsity of the matrix.
@@ -64,12 +64,12 @@ type Encoder interface {
 
 	// EncodeCoeffs encodes the values on the coefficient of the plaintext.
 	// Encoding is done at the level and scale of the plaintext.
-	// User must ensure that 1<= len(values) <= ring.N
+	// User must ensure that 1<= len(values) <= 2^LogN
 	EncodeCoeffs(values []float64, plaintext *Plaintext)
 
 	// EncodeCoeffsNew encodes the values on the coefficient of a new plaintext.
 	// Encoding is done at the provided level and with the provided scale.
-	// User must ensure that 1<= len(values) <= ring.N
+	// User must ensure that 1<= len(values) <= 2^LogN
 	EncodeCoeffsNew(values []float64, level int, scale float64) (plaintext *Plaintext)
 
 	// DecodeCoeffs reconstructs the RNS coefficients of the plaintext on a slice of float64.
@@ -89,17 +89,17 @@ type Encoder interface {
 	GetErrSTDSlotDomain(valuesWant, valuesHave []complex128, scale float64) (std float64)
 }
 
-// EncoderBigComplex is an interface implenting the encoding algorithms with arbitrary precision.
+// EncoderBigComplex is an interface implementing the encoding algorithms with arbitrary precision.
 type EncoderBigComplex interface {
 
 	// Encode encodes a set of values on the target plaintext.
 	// Encoding is done at the level and scale of the plaintext.
-	// User must ensure that 1 <= len(values) <= 2^logSlots < logN.
+	// User must ensure that 1 <= len(values) <= 2^logSlots < 2^LogN.
 	Encode(plaintext *Plaintext, values []*ring.Complex, logSlots int)
 
 	// EncodeNew encodes a set of values on a new plaintext.
 	// Encoding is done at the provided level and with the provided scale.
-	// User must ensure that 1 <= len(values) <= 2^logSlots < logN.
+	// User must ensure that 1 <= len(values) <= 2^logSlots < 2^LogN.
 	EncodeNew(values []*ring.Complex, level int, scale float64, logSlots int) (plaintext *Plaintext)
 
 	// Decode decodes the input plaintext on a new slice of ring.Complex.
@@ -459,11 +459,11 @@ func polyToFloatNoCRT(coeffs []uint64, values []float64, scale float64, Q uint64
 type PtDiagMatrix struct {
 	LogSlots   int                 // Log of the number of slots of the plaintext (needed to compute the appropriate rotation keys)
 	N1         int                 // N1 is the number of inner loops of the baby-step giant-step algo used in the evaluation.
-	Level      int                 // Level is the level at which the matrix is encoded (can be circuit dependant)
-	Scale      float64             // Scale is the scale at which the matrix is encoded (can be circuit dependant)
+	Level      int                 // Level is the level at which the matrix is encoded (can be circuit dependent)
+	Scale      float64             // Scale is the scale at which the matrix is encoded (can be circuit dependent)
 	Vec        map[int]rlwe.PolyQP // Vec is the matrix, in diagonal form, where each entry of vec is an indexed non zero diagonal.
 	Naive      bool
-	isGaussian bool // Each diagonal of the matrix is of the form [k, ..., k] for k a gaussian integer
+	isGaussian bool // Each diagonal of the matrix is of the form [k, ..., k] for k a Gaussian integer
 }
 
 // BsgsIndex returns the index map and needed rotation for the BSGS matrix-vector multiplication algorithm.

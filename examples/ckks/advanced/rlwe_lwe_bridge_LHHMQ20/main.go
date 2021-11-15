@@ -41,7 +41,7 @@ func main() {
 		BSGSRatio:           16.0,  // ratio between n1/n2 for n1*n2 = slots
 		BitReversed:         false, // bit-reversed input
 		ScalingFactor: [][]float64{ // Decomposition level of the encoding matrix
-			{paramsRLWE.QiFloat64(1)}, // Scale of the second matriox
+			{paramsRLWE.QiFloat64(1)}, // Scale of the second matrix
 			{paramsRLWE.QiFloat64(2)}, // Scale of the first matrix
 		},
 	}

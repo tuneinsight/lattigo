@@ -87,7 +87,7 @@ func NewRingFromType(N int, Moduli []uint64, ringType Type) (r *Ring, err error)
 	}
 }
 
-// NewRingWithCustomNTT creates a new RNS Ring with degree N and coefficient moduli Moduli with user-defined NTT tranform and primitive Nth root of unity.
+// NewRingWithCustomNTT creates a new RNS Ring with degree N and coefficient moduli Moduli with user-defined NTT transform and primitive Nth root of unity.
 // Moduli should be a non-empty []uint64 with distinct prime elements. All moduli must also be equal to 1 modulo the root of unity.
 // N must be a power of two larger than 8. An error is returned with a nil *Ring in the case of non NTT-enabling parameters.
 func NewRingWithCustomNTT(N int, Moduli []uint64, ntt NumberTheoreticTransformer, NthRoot int) (r *Ring, err error) {
@@ -108,7 +108,9 @@ func NewRingWithCustomNTT(N int, Moduli []uint64, ntt NumberTheoreticTransformer
 }
 
 // ConjugateInvariantRing returns the conjugate invariant ring of the receiver ring.
-// If `r.Type()==ConjugateInvariant`, then the method returns the reciever.
+// If `r.Type()==ConjugateInvariant`, then the method returns the receiver.
+// if `r.Type()==Standard`, then the method returns a ring with ring degree N/2
+// that requires moduli congruent to 1 mod 2N.
 // The returned Ring is a shallow copy of the receiver.
 func (r *Ring) ConjugateInvariantRing() (*Ring, error) {
 	if r.Type() == ConjugateInvariant {
@@ -117,11 +119,13 @@ func (r *Ring) ConjugateInvariantRing() (*Ring, error) {
 	cr := *r
 	cr.N = r.N >> 1
 	cr.NumberTheoreticTransformer = NumberTheoreticTransformerConjugateInvariant{}
-	return &cr, cr.genNTTParams(uint64(uint64(cr.N)) << 2)
+	return &cr, cr.genNTTParams(uint64(r.N) << 1)
 }
 
 // StandardRing returns the standard ring of the receiver ring.
-// If `r.Type()==Standard`, then the method returns the reciever.
+// If `r.Type()==Standard`, then the method returns the receiver.
+// if `r.Type()==ConjugateInvariant`, then the method returns a ring with ring degree 2N
+// that requires moduli congruent to 1 mod 4N.
 // The returned Ring is a shallow copy of the receiver.
 func (r *Ring) StandardRing() (*Ring, error) {
 	if r.Type() == Standard {
@@ -131,7 +135,7 @@ func (r *Ring) StandardRing() (*Ring, error) {
 	cr := *r
 	cr.N = r.N << 1
 	cr.NumberTheoreticTransformer = NumberTheoreticTransformerStandard{}
-	return &cr, cr.genNTTParams(uint64(cr.N) << 2)
+	return &cr, cr.genNTTParams(uint64(cr.N) << 1)
 }
 
 // Type returns the Type of the ring which might be either `Standard` or `ConjugateInvariant`.
@@ -146,12 +150,12 @@ func (r *Ring) Type() Type {
 	}
 }
 
-// setParameters initializes a *Ring by setting the required precomputed values (except for the NTT-related values, which are set by the
+// setParameters initializes a *Ring by setting the required pre-computed values (except for the NTT-related values, which are set by the
 // genNTTParams function).
 func (r *Ring) setParameters(N int, Modulus []uint64) error {
 
 	// Checks if N is a power of 2
-	if (N < 8) || (N&(N-1)) != 0 && N != 0 {
+	if (N < 16) || (N&(N-1)) != 0 && N != 0 {
 		return errors.New("invalid ring degree (must be a power of 2 >= 8)")
 	}
 

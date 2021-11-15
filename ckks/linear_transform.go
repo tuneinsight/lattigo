@@ -9,7 +9,7 @@ import (
 
 // Trace maps X -> sum((-1)^i * X^{i*n+1}) for 0 <= i < N
 // For log(n) = logSlotStart and log(N/2) = logSlotsEnd
-// Monomials X^k vanish if k isn't divisble by (N/n), else it is multiplied by (N/n).
+// Monomial X^k vanish if k isn't divisible by (N/n), else it is multiplied by (N/n).
 // Ciphertext is pre-multiplied by (N/n)^-1 to remove the (N/n) factor.
 // Examples of full Trace for [0 + 1X + 2X^2 + 3X^3 + 4X^4 + 5X^5 + 6X^6 + 7X^7]
 //
@@ -98,8 +98,8 @@ func (eval *evaluator) RotateHoisted(ctIn *Ciphertext, rotations []int, ctOut ma
 
 // LinearTransformNew evaluates a linear transform on the ciphertext and returns the result on a new ciphertext.
 // The linearTransform can either be an (ordered) list of PtDiagMatrix or a single PtDiagMatrix.
-// In either case a list of ciphertext is return (the second case returnign a list of
-// containing a single ciphertext. A PtDiagMatrix is a diagonalized plaintext matrix contructed with an Encoder using
+// In either case a list of ciphertext is return (the second case returning a list of
+// containing a single ciphertext. A PtDiagMatrix is a diagonalized plaintext matrix constructed with an Encoder using
 // the method encoder.EncodeDiagMatrixAtLvl(*).
 func (eval *evaluator) LinearTransformNew(ctIn *Ciphertext, linearTransform interface{}) (ctOut []*Ciphertext) {
 
@@ -144,8 +144,8 @@ func (eval *evaluator) LinearTransformNew(ctIn *Ciphertext, linearTransform inte
 
 // LinearTransformNew evaluates a linear transform on the pre-allocated ciphertexts.
 // The linearTransform can either be an (ordered) list of PtDiagMatrix or a single PtDiagMatrix.
-// In either case a list of ciphertext is return (the second case returnign a list of
-// containing a single ciphertext. A PtDiagMatrix is a diagonalized plaintext matrix contructed with an Encoder using
+// In either case a list of ciphertext is return (the second case returning a list of
+// containing a single ciphertext. A PtDiagMatrix is a diagonalized plaintext matrix constructed with an Encoder using
 // the method encoder.EncodeDiagMatrixAtLvl(*).
 func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interface{}, ctOut []*Ciphertext) {
 
@@ -212,10 +212,10 @@ func (eval *evaluator) Average(ctIn *Ciphertext, logBatchSize int, ctOut *Cipher
 	eval.InnerSumLog(ctOut, 1<<logBatchSize, n, ctOut)
 }
 
-// InnerSumLog applies an optimized inner sum on the ciphetext (log2(n) + HW(n) rotations with double hoisting).
+// InnerSumLog applies an optimized inner sum on the ciphertext (log2(n) + HW(n) rotations with double hoisting).
 // The operation assumes that `ctIn` encrypts SlotCount/`batchSize` sub-vectors of size `batchSize` which it adds together (in parallel) by groups of `n`.
 // It outputs in ctOut a ciphertext for which the "leftmost" sub-vector of each group is equal to the sum of the group.
-// This method is faster than InnerSum when the number of rotations is large and uses log2(n) + HW(n) insteadn of 'n' keys.
+// This method is faster than InnerSum when the number of rotations is large and uses log2(n) + HW(n) instead of 'n' keys.
 func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
 
 	ringQ := eval.params.RingQ()
@@ -320,7 +320,7 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 	}
 }
 
-// InnerSum applies an naive inner sum on the ciphetext (n rotations with single hoisting).
+// InnerSum applies an naive inner sum on the ciphertext (n rotations with single hoisting).
 // The operation assumes that `ctIn` encrypts SlotCount/`batchSize` sub-vectors of size `batchSize` which it adds together (in parallel) by groups of `n`.
 // It outputs in ctOut a ciphertext for which the "leftmost" sub-vector of each group is equal to the sum of the group.
 // This method is faster than InnerSumLog when the number of rotations is small but uses 'n' keys instead of log(n) + HW(n).
@@ -416,7 +416,7 @@ func (eval *evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 	}
 }
 
-// ReplicateLog applies an optimized replication on the ciphetext (log2(n) + HW(n) rotations with double hoisting).
+// ReplicateLog applies an optimized replication on the ciphertext (log2(n) + HW(n) rotations with double hoisting).
 // It acts as the inverse of a inner sum (summing elements from left to right).
 // The replication is parameterized by the size of the sub-vectors to replicate "batchSize" and
 // the number of time "n" they need to be replicated.
@@ -427,7 +427,7 @@ func (eval *evaluator) ReplicateLog(ctIn *Ciphertext, batchSize, n int, ctOut *C
 	eval.InnerSumLog(ctIn, -batchSize, n, ctOut)
 }
 
-// Replicate applies naive replication on the ciphetext (n rotations with single hoisting).
+// Replicate applies naive replication on the ciphertext (n rotations with single hoisting).
 // It acts as the inverse of a inner sum (summing elements from left to right).
 // The replication is parameterized by the size of the sub-vectors to replicate "batchSize" and
 // the number of time "n" they need to be replicated.

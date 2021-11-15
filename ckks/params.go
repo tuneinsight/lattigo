@@ -372,18 +372,6 @@ func (p Parameters) CKKSParameters() (pckks Parameters, err error) {
 	return
 }
 
-// RCKKSParameters returns the RCKKS parameters corresponding to the reciever
-// CKKS parameter set. If the reciever is already an RCKKS parameter set
-// (i.e., RingType==ConjugateInvariant), then the method returns the reciever.
-func (p Parameters) RCKKSParameters() (prckks Parameters, err error) {
-	if p.RingType() == ring.ConjugateInvariant {
-		return p, nil
-	}
-	prckks = p
-	prckks.Parameters, err = prckks.Parameters.ConjugateInvariantParameters()
-	return
-}
-
 // LogSlots returns the log of the number of slots
 func (p Parameters) LogSlots() int {
 	return p.logSlots

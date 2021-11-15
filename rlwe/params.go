@@ -157,30 +157,18 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
 // a standard set, then the method returns the receiver.
 func (p Parameters) StandardParameters() (pci Parameters, err error) {
 
-	if p.ringType == ring.Standard {
+	switch p.ringType {
+	case ring.Standard:
 		return p, nil
+	case ring.ConjugateInvariant:
+		pci = p
+		pci.logN = p.logN + 1
+		pci.ringType = ring.Standard
+		err = pci.initRings()
+	default:
+		err = fmt.Errorf("invalid ring type")
 	}
 
-	pci = p
-	pci.logN = p.logN + 1
-	pci.ringType = ring.Standard
-	err = pci.initRings()
-	return
-}
-
-// ConjugateInvariantParameters returns a RLWE parameter set that corresponds to the
-// conjugate invariant dual of a standard parameter set. If the reciever is already
-// a conjugate invariant set, then the method returns the receiver.
-func (p Parameters) ConjugateInvariantParameters() (pci Parameters, err error) {
-
-	if p.ringType == ring.ConjugateInvariant {
-		return p, nil
-	}
-
-	pci = p
-	pci.logN = p.logN - 1
-	pci.ringType = ring.ConjugateInvariant
-	err = pci.initRings()
 	return
 }
 

@@ -936,11 +936,6 @@ func testBridge(testContext *testParams, t *testing.T) {
 		if paramsCKKS, err = paramsRCKKS.CKKSParameters(); err != nil {
 			t.Errorf("all RCKKS parameter should have a standard counterpart but got: %f", err)
 		}
-		paramsRCKKSrec, err := paramsCKKS.RCKKSParameters()
-		if err != nil {
-			t.Error(err)
-		}
-		require.True(t, paramsRCKKSrec.Equals(paramsRCKKS))
 
 		kgenCKKS := NewKeyGenerator(paramsCKKS)
 		skCKKS := kgenCKKS.GenSecretKey()

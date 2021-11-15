@@ -18,7 +18,7 @@ import (
 
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters + secure bootstrapping). Overrides -short and requires -timeout=0.")
 var flagPostQuantum = flag.Bool("pq", false, "run post quantum test suite (does not run non-PQ parameters).")
-var flagRingType = flag.Bool("real", false, "changes the ring to its Conjugate Invariant, instanciating Real CKKS, requires primes congruent to 1 mod 4N")
+var flagRingType = flag.Bool("real", false, "run the RCKKS test suite with its parmaeters (does not run CKKS tests)")
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
 

@@ -67,12 +67,12 @@ type Encoder interface {
 	// User must ensure that 1<= len(values) <= ring.N
 	EncodeCoeffs(values []float64, plaintext *Plaintext)
 
-	// EncodeCoeffs encodes the values on the coefficient of a new plaintext.
+	// EncodeCoeffsNew encodes the values on the coefficient of a new plaintext.
 	// Encoding is done at the provided level and with the provided scale.
 	// User must ensure that 1<= len(values) <= ring.N
 	EncodeCoeffsNew(values []float64, level int, scale float64) (plaintext *Plaintext)
 
-	// DecodeCoeffsPublic reconstructs the RNS coefficients of the plaintext on a slice of float64.
+	// DecodeCoeffs reconstructs the RNS coefficients of the plaintext on a slice of float64.
 	DecodeCoeffs(plaintext *Plaintext) (res []float64)
 
 	// DecodeCoeffsPublic reconstructs the RNS coefficients of the plaintext on a slice of float64.

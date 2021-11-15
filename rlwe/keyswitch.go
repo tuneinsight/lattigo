@@ -239,6 +239,41 @@ func (ks *KeySwitcher) MulRGSWNoModDown(levelQ, levelP int, ct0 *Ciphertext, rgs
 	}
 }
 
+func (ks *KeySwitcher) MulRGSWSingleModulus(ct0 *Ciphertext, rgsw *RGSWCiphertext, ctOut *Ciphertext){
+ 
+	if ct0.Level() != 0 || len(rgsw.Value[0][0][0].P.Coeffs)-1 != 0{
+		panic("inputs levelQ and levelP must both be at level0")
+	}
+
+	// rgsw = [(-as + P*w*m1 + e, a), (-bs + e, b + P*w*m1)]
+	// ct = [-cs + m0 + e, c]
+	// ctOut = [<ct, rgsw[0]>, <ct, rgsw[1]>] = [ct[0] * rgsw[0][0] + ct[1] * rgsw[0][1], ct[0] * rgsw[1][0] + ct[1] * rgsw[1][1]]
+	ringQ := ks.RingQ()
+	ringP := ks.RingP()
+	ringQP := ks.RingQP()
+
+	c0QP, c1QP := ks.Pool[1], ks.Pool[2]
+
+	c2QP := PolyQP{ct0.Value[0], ks.Pool[0].P}
+	ringQ.InvNTTLazyLvl(0, ct0.Value[0], c2QP.P)
+	ringP.NTTLazyLvl(0, c2QP.P, c2QP.P)
+
+	// (a, b) + (c0 * rgsw[0][0], c0 * rgsw[0][1])
+	ringQP.MulCoeffsMontgomeryConstantLvl(0, 0, rgsw.Value[0][0][0], c2QP, c0QP)
+	ringQP.MulCoeffsMontgomeryConstantLvl(0, 0, rgsw.Value[0][0][1], c2QP, c1QP)
+
+	c2QP.Q = ct0.Value[1]
+	ringQ.InvNTTLazyLvl(0, ct0.Value[1], c2QP.P)
+	ringP.NTTLazyLvl(0, c2QP.P, c2QP.P)
+
+	// (a, b) + (c1 * rgsw[1][0], c1 * rgsw[1][1])
+	ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(0, 0, rgsw.Value[0][1][0], c2QP, c0QP)
+	ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(0, 0, rgsw.Value[0][1][1], c2QP, c1QP)
+
+	ks.Baseconverter.ModDownQPtoQNTT(0, 0, c0QP.Q, c0QP.P, ctOut.Value[0])
+	ks.Baseconverter.ModDownQPtoQNTT(0, 0, c1QP.Q, c1QP.P, ctOut.Value[1])
+}
+
 func (ks *KeySwitcher) MulRGSW(ct0 *Ciphertext, rgsw *RGSWCiphertext, ctOut *Ciphertext) {
 
 	levelQ, levelP := ct0.Level(), len(rgsw.Value[0][0][0].P.Coeffs)-1

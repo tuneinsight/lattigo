@@ -34,6 +34,7 @@ type Encoder interface {
 	WipeInternalMemory()
 
 	EncodeCoeffs(values []float64, plaintext *Plaintext)
+	EncodeCoeffsNTT(values []float64, plaintext *Plaintext)
 	DecodeCoeffs(plaintext *Plaintext) (res []float64)
 	DecodeCoeffsPublic(plaintext *Plaintext, bound float64) (res []float64)
 

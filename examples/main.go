@@ -5,9 +5,10 @@ import (
 	"github.com/ldsec/lattigo/v2/lwe"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
+	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/utils"
 	"time"
-	//"math"
+	"math"
 	"math/big"
 )
 
@@ -47,21 +48,23 @@ func ScaleUpExact(value float64, scale float64, Q uint64) (res uint64) {
 	return
 }
 
-func InitLUT(scale float64, ringQ *ring.Ring) (F *ring.Poly) {
+// InitLUT takes a function g, and creates an LUT table for the function between the intervals a, b.
+// When evaluating the LUT, the input x is assumed to be normalized to (2*x - a - b)/(b-a) (rescaled to be between -1 a 1)
+func InitLUT(g func(x float64) (y float64), scale float64, ringQ *ring.Ring, a, b float64) (F *ring.Poly) {
 	F = ringQ.NewPoly()
 	Q := ringQ.Modulus[0]
 
 	// Zero
-	F.Coeffs[0][0] = ScaleUpExact(0, scale, Q)
+	interval := 2.0 / float64(ringQ.N)
 
 	// Negatives
-	for i := 1; i < (ringQ.N>>1)+1; i++ {
-		F.Coeffs[0][i] = ScaleUpExact(-float64(1), scale, Q)
+	for i := 0; i < (ringQ.N>>1)+1; i++ {
+		F.Coeffs[0][i] = ScaleUpExact(g(normalizeInv(-interval * float64(i), a, b)), scale, Q)
 	}
 
 	// Positives
-	for i := (ringQ.N >> 1) + 1; i < ringQ.N; i++ {
-		F.Coeffs[0][i] = ScaleUpExact(-float64(1), scale, Q)
+	for i := (ringQ.N>>1)+1; i < ringQ.N; i++ {
+		F.Coeffs[0][i] = ScaleUpExact(-g(normalizeInv(interval * float64(ringQ.N - i), a, b)), scale, Q)
 	}
 
 	ringQ.NTT(F, F)
@@ -69,84 +72,151 @@ func InitLUT(scale float64, ringQ *ring.Ring) (F *ring.Poly) {
 	return
 }
 
+func normalize(x, a, b float64) (y float64){
+	return (2* x - a - b)/(b-a)
+}
+
+func normalizeInv(x, a, b float64) (y float64){
+	return (x * (b-a) + b + a)/2.0
+}
+
+func sign(x float64) (y float64){
+	if x > 0{
+		return 1
+	}else if x < 0{
+		return -1
+	}else{
+		return 0
+	}
+}
+
+func sigmoid(x float64) (y float64){
+	return 1.0/(math.Exp(-x)+1)
+}
+
+func identity(x float64) (y float64){
+	return  x
+}
+
+func relu(x float64) (y float64){
+	if x < 0{
+		return 0
+	}else{
+		return x
+	}
+}
+
 func LUT() {
-	var params, paramsLWE rlwe.Parameters
+	var params rlwe.Parameters
 	var err error
 	if params, err = rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
 		LogN:     11,
-		Q:        []uint64{0x8008001}, // 56
-		P:        []uint64{0x800e001}, // 60 bits
+		Q:        []uint64{0x4000000120001}, // 27 bits
+		P:        []uint64{0x80000000440001}, // 27 bits
 		Sigma:    rlwe.DefaultSigma,
 		RingType: rlwe.RingStandard,
 	}); err != nil {
 		panic(err)
 	}
 
-	if paramsLWE, err = rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
+	var paramsLWE ckks.Parameters
+	if paramsLWE, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
 		LogN:     10,
-		Q:        []uint64{0x8007001}, // 27
+		LogSlots: 9,
+		Q:        []uint64{0x8007001, 0x8008001}, // 27 bits
 		P:        []uint64{},
+		Scale:1<<20,
 		Sigma:    rlwe.DefaultSigma,
 		RingType: rlwe.RingStandard,
 	}); err != nil {
 		panic(err)
 	}
+
+	encoder := ckks.NewEncoder(paramsLWE)
 
 	ringQ := params.RingQ()
 
-	values := make([]float64, paramsLWE.N())
-	pt := rlwe.NewPlaintext(paramsLWE, paramsLWE.MaxLevel())
-	pt.Value.IsNTT = false
-	var scale float64 = 1 << 20
 	
-
+	a, b := -4.0, 4.0
+	
 	kgen := rlwe.NewKeyGenerator(params)
 	sk := kgen.GenSecretKey()
 
-	LUTScale := float64(1<<26) //float64(int(1<<26)) * scale * float64(2*params.N()) / float64(paramsLWE.Q()[0])
+	LUTScale := float64(1<<40)
 
 	fmt.Println(LUTScale)
 
-	kgenLWE := rlwe.NewKeyGenerator(paramsLWE)
+	kgenLWE := ckks.NewKeyGenerator(paramsLWE)
 	skLWE := kgenLWE.GenSecretKey()
+	eval := ckks.NewEvaluator(paramsLWE, rlwe.EvaluationKey{nil, nil})
 
-	encryptorLWE := rlwe.NewEncryptor(paramsLWE, skLWE)
-	ciphertextLWE := rlwe.NewCiphertextNTT(paramsLWE, 1, pt.Level())
+	encryptorLWE := ckks.NewEncryptor(paramsLWE, skLWE)
 
-	handler := lwe.NewHandler(params, paramsLWE, nil)
+	handler := lwe.NewHandler(params, paramsLWE.Parameters, nil)
 
 	fmt.Printf("Encrypting bits of skLWE in RGSW...\n ")
 	now := time.Now()
 	LUTKEY := handler.GenLUTKey(sk, skLWE)
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
+	values := make([]float64, paramsLWE.N())
+	valuesMinusAMinusB := make([]float64, paramsLWE.N())
 	for i := 0; i < paramsLWE.N(); i++ {
-		values[i] = utils.RandFloat64(-16, 16)
-		if values[i] < 0 {
-			pt.Value.Coeffs[0][i] = paramsLWE.Q()[0] - uint64(values[i]*-scale)
-		} else {
-			pt.Value.Coeffs[0][i] = uint64(values[i] * scale)
-		}
+		values[i] = utils.RandFloat64(a, b)
+		valuesMinusAMinusB[i] = (-a-b)/(b-a)
 	}
 
-	encryptorLWE.Encrypt(pt, ciphertextLWE)
+	pt := ckks.NewPlaintext(paramsLWE, paramsLWE.MaxLevel(), paramsLWE.Scale())
+	encoder.EncodeCoeffsNTT(values, pt)
 
-	DecryptAndCenter(8, ciphertextLWE.Value[0], ciphertextLWE.Value[1], skLWE.Value.Q, paramsLWE.RingQ(), false, scale)
+	ptMinusAminusB := ckks.NewPlaintext(paramsLWE, paramsLWE.MaxLevel(), (paramsLWE.QiFloat64(0) / 4.0) * paramsLWE.QiFloat64(1))
+	encoder.EncodeCoeffsNTT(valuesMinusAMinusB, ptMinusAminusB)
+
+	ciphertextLWE := encryptorLWE.EncryptNew(pt)
+
+	fmt.Println(ciphertextLWE.Value[0].IsNTT)
+	
 
 	fmt.Printf("Generating LUT... ")
 	now = time.Now()
-	LUTPoly := InitLUT(LUTScale, ringQ)
+	LUTPoly := InitLUT(relu, LUTScale, ringQ, a, b)
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
 	fmt.Printf("Evaluating LUT... ")
 	now = time.Now()
-	ciphertexts := handler.ExtractAndEvaluateLUT(ciphertextLWE, LUTPoly, LUTKEY)
+
+	fmt.Println()
+	DecryptAndCenter(8, ciphertextLWE.Value[0], ciphertextLWE.Value[1], skLWE.Value.Q, paramsLWE.RingQ(), false, ciphertextLWE.Scale)
+
+	// Change of basis and changes the scale from Delta to Q/4
+	diffScale := paramsLWE.QiFloat64(0) / (4.0 * ciphertextLWE.Scale)
+	eval.MultByConst(ciphertextLWE, (2.0/(b-a)) * diffScale , ciphertextLWE)
+	ciphertextLWE.Scale =  (paramsLWE.QiFloat64(0) / 4.0) * paramsLWE.QiFloat64(1)
+	eval.Add(ciphertextLWE, ptMinusAminusB, ciphertextLWE)
+	eval.Rescale(ciphertextLWE, paramsLWE.Scale(), ciphertextLWE)
+	
+	DecryptAndCenter(8, ciphertextLWE.Value[0], ciphertextLWE.Value[1], skLWE.Value.Q, paramsLWE.RingQ(), false, ciphertextLWE.Scale)
+
+	ciphertexts := handler.ExtractAndEvaluateLUT(ciphertextLWE.Ciphertext, LUTPoly, LUTKEY)
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
-	for i := range ciphertexts[:8] {
+	for i := range ciphertexts[:16] {
 		fmt.Printf("%8.4f -> ", values[i])
 		DecryptAndCenter(1, ciphertexts[i].Value[0], ciphertexts[i].Value[1], sk.Value.Q, ringQ, false, LUTScale)
 	}
+}
+
+func AddConst(p *ring.Poly, scalar, scale float64, ringQ *ring.Ring){
+
+	fmt.Println(scale)
+
+	ringQ.InvNTTLvl(p.Level(), p, p)
+	fmt.Println(scalar)
+	for i := 0; i < p.Level()+1; i++{
+		qi := ringQ.Modulus[i]
+		ring.AddScalarVec(p.Coeffs[i], p.Coeffs[i], ScaleUpExact(scalar, scale, qi), qi)
+	}
+	ringQ.NTTLvl(p.Level(), p, p)
 }
 
 func RescaleLWE(lwe *lwe.Ciphertext, twoN, Q uint64) {
@@ -178,12 +248,13 @@ func PrintPoly(pol *ring.Poly, scale float64, Q uint64) {
 }
 
 func DecryptAndCenter(n int, b, a, sk *ring.Poly, ringQ *ring.Ring, mForm bool, scale float64) {
-	pt := ringQ.NewPoly()
-	ringQ.MulCoeffsMontgomery(a, sk, pt)
-	ringQ.Add(pt, b, pt)
-	ringQ.InvNTT(pt, pt)
+
+	pt := ringQ.NewPolyLvl(0)
+	ringQ.MulCoeffsMontgomeryLvl(0, a, sk, pt)
+	ringQ.AddLvl(0, pt, b, pt)
+	ringQ.InvNTTLvl(0, pt, pt)
 	if mForm {
-		ringQ.InvMForm(pt, pt)
+		ringQ.InvMFormLvl(0, pt, pt)
 	}
 
 	Q := ringQ.Modulus[0]

@@ -87,11 +87,6 @@ type Encoder interface {
 	// GetErrSTDSlotDomain returns StandardDeviation(valuesWant-valuesHave)*scale
 	// Which is the scaled standard deviation of two complex vectors.
 	GetErrSTDSlotDomain(valuesWant, valuesHave []complex128, scale float64) (std float64)
-
-	// Others
-
-	// WipeInternalMemory sets the internally stored encoded values of the encoder to zero.
-	WipeInternalMemory()
 }
 
 // EncoderBigComplex is an interface implenting the encoding algorithms with arbitrary precision.
@@ -205,8 +200,6 @@ func (encoder *encoderComplex128) Encode(plaintext *Plaintext, values interface{
 
 func (encoder *encoderComplex128) embed(values interface{}, logSlots int) {
 
-	encoder.WipeInternalMemory()
-
 	slots := 1 << logSlots
 
 	N := encoder.params.RingQ().N
@@ -236,11 +229,11 @@ func (encoder *encoderComplex128) embed(values interface{}, logSlots int) {
 
 		case ring.Standard:
 
-			for i := range values {
-				encoder.values[i] = values[i]
-			}
-
 			copy(encoder.values[:len(values)], values)
+
+			for i := len(values); i < slots; i++ {
+				encoder.values[i] = 0
+			}
 
 			invfft(encoder.values, slots, encoder.m, encoder.rotGroup, encoder.roots)
 
@@ -254,6 +247,10 @@ func (encoder *encoderComplex128) embed(values interface{}, logSlots int) {
 			// Discards the imaginary part
 			for i := range values {
 				encoder.values[i] = complex(real(values[i]), 0)
+			}
+
+			for i := len(values); i < slots; i++ {
+				encoder.values[i] = 0
 			}
 
 			invfft(encoder.values, slots, encoder.m, encoder.rotGroup, encoder.roots)
@@ -276,6 +273,10 @@ func (encoder *encoderComplex128) embed(values interface{}, logSlots int) {
 
 		for i := range values {
 			encoder.values[i] = complex(values[i], 0)
+		}
+
+		for i := len(values); i < slots; i++ {
+			encoder.values[i] = 0
 		}
 
 		invfft(encoder.values, slots, encoder.m, encoder.rotGroup, encoder.roots)
@@ -307,10 +308,12 @@ func (encoder *encoderComplex128) GetErrSTDSlotDomain(valuesWant, valuesHave []c
 
 func (encoder *encoderComplex128) GetErrSTDCoeffDomain(valuesWant, valuesHave []complex128, scale float64) (std float64) {
 
-	encoder.WipeInternalMemory()
-
 	for i := range valuesHave {
 		encoder.values[i] = (valuesWant[i] - valuesHave[i])
+	}
+
+	for i := len(valuesHave); i < len(encoder.values); i++ {
+		encoder.values[i] = complex(0, 0)
 	}
 
 	// Runs FFT^-1 with the smallest power of two length that is greater than the input size
@@ -323,16 +326,6 @@ func (encoder *encoderComplex128) GetErrSTDCoeffDomain(valuesWant, valuesHave []
 
 	return StandardDeviation(encoder.valuesFloat[:len(valuesWant)*2], scale)
 
-}
-
-func (encoder *encoderComplex128) WipeInternalMemory() {
-	for i := range encoder.values {
-		encoder.values[i] = 0
-	}
-
-	for i := range encoder.valuesFloat {
-		encoder.valuesFloat[i] = 0
-	}
 }
 
 // DecodePublic decodes the Plaintext values to a slice of complex128 values of size at most N/2.
@@ -600,8 +593,6 @@ func (encoder *encoderComplex128) encodeDiagonalSingle(logSlots, level int, scal
 	scaleUpVecExact(encoder.valuesFloat[:encoder.params.N()], scale, encoder.params.RingP().Modulus, vecQP.P.Coeffs)
 	ringQP.NTTLvl(levelQ, levelP, vecQP, vecQP)
 	ringQP.MFormLvl(levelQ, levelP, vecQP, vecQP)
-
-	encoder.WipeInternalMemory()
 
 	return
 }

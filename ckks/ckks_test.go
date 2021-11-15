@@ -948,9 +948,9 @@ func testBridge(testContext *testParams, t *testing.T) {
 		encoderCKKS := NewEncoder(paramsCKKS)
 		evalCKKS := NewEvaluator(paramsCKKS, rlwe.EvaluationKey{Rlk: nil, Rtks: nil})
 
-		swkCtR, swkRtC := kgenCKKS.GenSwitchingKeysForRingSwap(skCKKS, testContext.sk)
+		swkCtR, swkRtC := kgenCKKS.GenSwitchingKeysForBridge(skCKKS, testContext.sk)
 
-		switcher, err := NewSchemeSwitcher(paramsCKKS, &swkCtR, &swkRtC)
+		switcher, err := NewSchemeSwitcher(paramsCKKS, swkCtR, swkRtC)
 		if err != nil {
 			t.Error(err)
 		}

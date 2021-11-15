@@ -14,8 +14,8 @@ type SchemeSwitcher struct {
 
 	stdRingQ, conjugateRingQ *ring.Ring
 
-	*rlwe.SwkComplexToReal
-	*rlwe.SwkRealToComplex
+	*SwkComplexToReal
+	*SwkRealToComplex
 
 	permuteNTTIndex []uint64
 }
@@ -23,7 +23,7 @@ type SchemeSwitcher struct {
 // NewSchemeSwitcher instantiate a new SchemeSwitcher type. It may be instantiated from parameters from either RingType.
 // The method returns an error if the parameters cannot support the switching (e.g., the NTT transforms are undefined for
 // either of the two ring type).
-func NewSchemeSwitcher(params Parameters, comlexToRealSwk *rlwe.SwkComplexToReal, RealToComplexSwk *rlwe.SwkRealToComplex) (SchemeSwitcher, error) {
+func NewSchemeSwitcher(params Parameters, comlexToRealSwk *SwkComplexToReal, RealToComplexSwk *SwkRealToComplex) (SchemeSwitcher, error) {
 
 	s := SchemeSwitcher{
 		KeySwitcher:      *rlwe.NewKeySwitcher(params.Parameters),

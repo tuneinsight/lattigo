@@ -55,13 +55,21 @@ func TestCKKS(t *testing.T) {
 
 	var defaultParams []ParametersLiteral
 	if *flagPostQuantum {
-		defaultParams = DefaultPostQuantumParams
+		if *flagRingType {
+			defaultParams = DefaultPostQuantumParamsRCKKS
+		} else {
+			defaultParams = DefaultPostQuantumParams
+		}
 	} else {
-		defaultParams = DefaultParams
+		if *flagRingType {
+			defaultParams = DefaultParamsRCKKS
+		} else {
+			defaultParams = DefaultParams
+		}
 	}
 
 	if testing.Short() && !*flagLongTest {
-		defaultParams = DefaultParams[:2] // the short test suite runs for ring degree N=2^12, 2^13
+		defaultParams = defaultParams[:2] // the short test suite runs for ring degree N=2^12, 2^13
 	} else if !*flagLongTest {
 		defaultParams = defaultParams[:4] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	} // else run all the params in the test suite
@@ -73,12 +81,6 @@ func TestCKKS(t *testing.T) {
 	}
 
 	for _, defaultParam := range defaultParams[:] {
-
-		// Flag to changes to Real-CKKS
-		if *flagRingType {
-			defaultParam.RingType = ring.ConjugateInvariant
-			defaultParam.LogSlots = defaultParam.LogN
-		}
 
 		params, err := NewParametersFromLiteral(defaultParam)
 		if err != nil {

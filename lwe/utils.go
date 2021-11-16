@@ -2,136 +2,40 @@ package lwe
 
 import (
 	"github.com/ldsec/lattigo/v2/ring"
-	"github.com/ldsec/lattigo/v2/rlwe"
 	"math/big"
 )
 
-// LWEToRLWE transforms a set of LWE samples into their respective RLWE ciphertext such that decrypt(RLWE)[0] = decrypt(LWE)
-func LWEToRLWE(ctLWE []*Ciphertext, params rlwe.Parameters) (ctRLWE []*rlwe.Ciphertext) {
+func normalizeInv(x, a, b float64) (y float64) {
+	return (x*(b-a) + b + a) / 2.0
+}
 
-	level := ctLWE[0].Level()
+func scaleUp(value float64, scale float64, Q uint64) (res uint64) {
 
-	ringQ := params.RingQ()
-	acc := ringQ.NewPolyLvl(level)
-	ctRLWE = make([]*rlwe.Ciphertext, len(ctLWE))
-	for i := 0; i < len(ctLWE); i++ {
+	var isNegative bool
+	var xFlo *big.Float
+	var xInt *big.Int
 
-		// Alocates ciphertext
-		ctRLWE[i] = rlwe.NewCiphertextNTT(params, 1, level)
+	isNegative = false
+	if value < 0 {
+		isNegative = true
+		xFlo = big.NewFloat(-scale * value)
+	} else {
+		xFlo = big.NewFloat(scale * value)
+	}
 
-		for u := 0; u < level+1; u++ {
+	xFlo.Add(xFlo, big.NewFloat(0.5))
 
-			ctRLWE[i].Value[0].Coeffs[u][0] = ctLWE[i].Value[u][0]
+	xInt = new(big.Int)
+	xFlo.Int(xInt)
+	xInt.Mod(xInt, ring.NewUint(Q))
 
-			// Copy coefficients multiplied by X^{N-1} in reverse order:
-			// a_{0} -a_{N-1} -a2_{N-2} ... -a_{1}
-			tmp0, tmp1 := acc.Coeffs[u], ctLWE[i].Value[u][1:]
-			tmp0[0] = tmp1[0]
-			for k := 1; k < ringQ.N; k++ {
-				tmp0[k] = ringQ.Modulus[u] - tmp1[ringQ.N-k]
-			}
+	res = xInt.Uint64()
 
-			copy(ctRLWE[i].Value[1].Coeffs[u], acc.Coeffs[u])
-		}
-
-		// Switches to NTT domain
-		ringQ.NTTLvl(level, ctRLWE[i].Value[0], ctRLWE[i].Value[0])
-		ringQ.NTTLvl(level, ctRLWE[i].Value[1], ctRLWE[i].Value[1])
+	if isNegative {
+		res = Q - res
 	}
 
 	return
-}
-
-func ExtractLWEFromRLWESingle(ct *rlwe.Ciphertext, ringQ *ring.Ring) (lwe *Ciphertext) {
-
-	level := ct.Level()
-
-	c0 := ringQ.NewPolyLvl(level)
-	c1 := ringQ.NewPolyLvl(level)
-	acc := ringQ.NewPolyLvl(level)
-
-	ringQ.InvNTTLvl(level, ct.Value[0], c0)
-	ringQ.InvNTTLvl(level, ct.Value[1], c1)
-
-	// Copy coefficients multiplied by X^{N-1} in reverse order:
-	// a_{0} -a_{N-1} -a2_{N-2} ... -a_{1}
-	for i, qi := range ringQ.Modulus[:level+1] {
-		tmp0 := acc.Coeffs[i]
-		tmp1 := c1.Coeffs[i]
-		tmp0[0] = tmp1[0]
-		for j := 1; j < ringQ.N; j++ {
-			tmp0[j] = qi - tmp1[ringQ.N-j]
-		}
-	}
-
-	N := ringQ.N
-
-	lwe = NewCiphertext(N, level)
-
-	for j := 0; j < level+1; j++ {
-		lwe.Value[j][0] = c0.Coeffs[j][0]
-		copy(lwe.Value[j][1:], acc.Coeffs[j])
-	}
-
-	return
-}
-
-// RLWEToLWE extracts LWE samples from a RLWE sample
-func RLWEToLWE(ct *rlwe.Ciphertext, ringQ *ring.Ring, logSlots int) (LWE []*Ciphertext) {
-
-	n := 1 << logSlots
-
-	LWE = make([]*Ciphertext, n)
-
-	level := ct.Level()
-
-	c0 := ringQ.NewPolyLvl(level)
-	c1 := ringQ.NewPolyLvl(level)
-	acc := ringQ.NewPolyLvl(level)
-
-	ringQ.InvNTTLvl(level, ct.Value[0], c0)
-	ringQ.InvNTTLvl(level, ct.Value[1], c1)
-
-	// Copy coefficients multiplied by X^{N-1} in reverse order:
-	// a_{0} -a_{N-1} -a2_{N-2} ... -a_{1}
-	for i, qi := range ringQ.Modulus[:level+1] {
-		tmp0 := acc.Coeffs[i]
-		tmp1 := c1.Coeffs[i]
-		tmp0[0] = tmp1[0]
-		for j := 1; j < ringQ.N; j++ {
-			tmp0[j] = qi - tmp1[ringQ.N-j]
-		}
-	}
-
-	N := ringQ.N
-	gap := N / n
-
-	// Real values
-	for i, idx := 0, 0; i < n; i, idx = i+1, idx+gap {
-
-		LWE[i] = NewCiphertext(N, level)
-
-		for j := 0; j < level+1; j++ {
-			LWE[i].Value[j][0] = c0.Coeffs[j][idx]
-			copy(LWE[i].Value[j][1:], acc.Coeffs[j])
-		}
-
-		// Multiplies the accumulator by X^{N/(2*slots)}
-		MulBySmallMonomial(ringQ, acc, gap)
-	}
-
-	return
-}
-
-//MulBySmallMonomial multiplies pol by x^n
-func MulBySmallMonomial(ringQ *ring.Ring, pol *ring.Poly, n int) {
-	for i, qi := range ringQ.Modulus[:pol.Level()+1] {
-		pol.Coeffs[i] = append(pol.Coeffs[i][ringQ.N-n:], pol.Coeffs[i][:ringQ.N-n]...)
-		tmp := pol.Coeffs[i]
-		for j := 0; j < n; j++ {
-			tmp[j] = qi - tmp[j]
-		}
-	}
 }
 
 // DecryptLWE decrypts an LWE sample

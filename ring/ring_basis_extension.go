@@ -206,7 +206,7 @@ func (be *FastBasisExtender) ModDownQPtoQ(levelQ, levelP int, p1Q, p1P, p2Q *Pol
 		}
 
 		// In total we do len(P) + len(Q) NTT, which is optimal (linear in the number of moduli of P and Q)
-	}else{
+	} else {
 
 		// Center by (p-1)/2
 		pj := be.ringP.Modulus[0]
@@ -253,7 +253,7 @@ func (be *FastBasisExtender) ModDownQPtoQNTT(levelQ, levelP int, p1Q, p1P, p2Q *
 		}
 
 		// In total we do len(P) + len(Q) NTT, which is optimal (linear in the number of moduli of P and Q)
-	}else{
+	} else {
 		// First we get the P basis part of p1 out of the NTT domain
 
 		ringP.InvNTTSingleLazy(0, p1P.Coeffs[0], p1P.Coeffs[0])

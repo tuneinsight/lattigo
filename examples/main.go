@@ -86,7 +86,17 @@ func LUT() {
 
 	encryptorLWE := ckks.NewEncryptor(paramsLWE, skLWE)
 
-	handler := lwe.NewHandler(params, paramsLWE.Parameters, nil)
+	// Rotation Keys
+	rotations := []int{}
+	for i := 1; i < params.N(); i <<= 1 {
+		rotations = append(rotations, i)
+	}
+
+	rtks := kgen.GenRotationKeysForRotations(rotations, true, sk)
+
+	handler := lwe.NewHandler(params, paramsLWE.Parameters, rtks)
+
+
 
 	fmt.Printf("Encrypting bits of skLWE in RGSW...\n ")
 	now := time.Now()
@@ -131,13 +141,13 @@ func LUT() {
 	DecryptAndCenter(8, ciphertextLWE.Value[0], ciphertextLWE.Value[1], skLWE.Value.Q, paramsLWE.RingQ(), false, ciphertextLWE.Scale)
 
 	lutPolyMap := make(map[int]*ring.Poly)
-
+	repackIndex := make(map[int]int)
 	for i := 0; i < 32; i++ {
 		lutPolyMap[i] = LUTPoly
+		repackIndex[i] = i
 	}
 
-	lutPolyMap[64] = LUTPoly
-
+	/*
 	ciphertexts := handler.ExtractAndEvaluateLUT(ciphertextLWE.Ciphertext, lutPolyMap, LUTKEY)
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
@@ -145,6 +155,10 @@ func LUT() {
 		fmt.Printf("Slot %4d : %8.4f -> ", i, values[i])
 		DecryptAndCenter(1, ciphertexts[i].Value[0], ciphertexts[i].Value[1], sk.Value.Q, ringQ, false, LUTScale)
 	}
+	*/
+
+	ciphertext := handler.ExtractAndEvaluateLUTAndRepack(ciphertextLWE.Ciphertext, lutPolyMap, repackIndex, LUTKEY)
+	DecryptAndCenter(1024, ciphertext.Value[0], ciphertext.Value[1], sk.Value.Q, ringQ, false, LUTScale)
 }
 
 func PrintPoly(pol *ring.Poly, scale float64, Q uint64) {

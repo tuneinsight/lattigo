@@ -4,6 +4,7 @@ import (
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"math/big"
+	"math/bits"
 )
 
 // InitLUT takes a function g, and creates an LUT polynomial for the function between the intervals a, b.
@@ -32,6 +33,20 @@ func InitLUT(g func(x float64) (y float64), scale float64, ringQ *ring.Ring, a, 
 	ringQ.NTT(F, F)
 
 	return
+}
+
+func (h *Handler) ExtractAndEvaluateLUTAndRepack(ct *rlwe.Ciphertext, lutPolyWihtSlotIndex map[int]*ring.Poly, repackIndex map[int]int, lutKey *LUTKey) (res *rlwe.Ciphertext){
+	cts := h.ExtractAndEvaluateLUT(ct, lutPolyWihtSlotIndex, lutKey)
+
+	nextPow2 := 1<<bits.Len64(uint64(len(cts)))
+
+	ciphertexts := make([]*rlwe.Ciphertext, nextPow2)
+
+	for i := range cts{
+		ciphertexts[repackIndex[i]] = cts[i]
+	}
+
+	return h.MergeRLWE(ciphertexts)
 }
 
 // ExtractAndEvaluateLUT extracts on the fly LWE samples and evaluate the provided LUT on the LWE.
@@ -98,8 +113,7 @@ func (h *Handler) ExtractAndEvaluateLUT(ct *rlwe.Ciphertext, lutPolyWihtSlotInde
 				ks.MulRGSWSingleModulus(acc, tmpRGSW, acc)
 			}
 
-			// Extracts the first coefficient
-			res[index] = acc.CopyNew() //ExtractLWEFromRLWESingle(acc, ringQRLWE)
+			res[index] = acc.CopyNew()
 		}
 	}
 

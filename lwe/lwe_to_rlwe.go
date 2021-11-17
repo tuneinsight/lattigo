@@ -63,10 +63,12 @@ func (h *Handler) MergeRLWE(ciphertexts []*rlwe.Ciphertext) (ciphertext *rlwe.Ci
 
 	// Multiplies by (Slots * N) ^-1 mod Q
 	for i := range ciphertexts {
-		v0, v1 := ciphertexts[i].Value[0], ciphertexts[i].Value[1]
-		for j := 0; j < ciphertexts[0].Level()+1; j++ {
-			ring.MulScalarMontgomeryVec(v0.Coeffs[j], v0.Coeffs[j], nPowInv[j], Q[j], mredParams[j])
-			ring.MulScalarMontgomeryVec(v1.Coeffs[j], v1.Coeffs[j], nPowInv[j], Q[j], mredParams[j])
+		if ciphertexts[i] != nil{
+			v0, v1 := ciphertexts[i].Value[0], ciphertexts[i].Value[1]
+			for j := 0; j < ciphertexts[0].Level()+1; j++ {
+				ring.MulScalarMontgomeryVec(v0.Coeffs[j], v0.Coeffs[j], nPowInv[j], Q[j], mredParams[j])
+				ring.MulScalarMontgomeryVec(v1.Coeffs[j], v1.Coeffs[j], nPowInv[j], Q[j], mredParams[j])
+			}
 		}
 	}
 

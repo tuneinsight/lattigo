@@ -46,8 +46,8 @@ func LUT() {
 	var err error
 	if params, err = rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
 		LogN:     11,
-		Q:        []uint64{0x4000000120001},  // 27 bits
-		P:        []uint64{0x80000000440001}, // 27 bits
+		Q:        []uint64{0x80000000080001},  // 27 bits
+		P:        []uint64{0x4000000008a0001}, // 27 bits
 		Sigma:    rlwe.DefaultSigma,
 		RingType: rlwe.RingStandard,
 	}); err != nil {
@@ -58,9 +58,9 @@ func LUT() {
 	if paramsLWE, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
 		LogN:     10,
 		LogSlots: 9,
-		Q:        []uint64{0x8007001, 0x8008001}, // 27 bits
+		Q:        []uint64{0x2000000a0001, 0x2000000e0001}, // 27 bits
 		P:        []uint64{},
-		Scale:    1 << 20,
+		Scale:    1 << 30,
 		Sigma:    rlwe.DefaultSigma,
 		RingType: rlwe.RingStandard,
 	}); err != nil {
@@ -118,8 +118,6 @@ func LUT() {
 
 	ciphertextLWE := encryptorLWE.EncryptNew(pt)
 
-	fmt.Println(ciphertextLWE.Value[0].IsNTT)
-
 	fmt.Printf("Generating LUT... ")
 	now = time.Now()
 	LUTPoly := lwe.InitLUT(relu, LUTScale, ringQ, a, b)
@@ -129,7 +127,7 @@ func LUT() {
 	now = time.Now()
 
 	fmt.Println()
-	DecryptAndCenter(8, ciphertextLWE.Value[0], ciphertextLWE.Value[1], skLWE.Value.Q, paramsLWE.RingQ(), false, ciphertextLWE.Scale)
+	DecryptAndCenter(32, ciphertextLWE.Value[0], ciphertextLWE.Value[1], skLWE.Value.Q, paramsLWE.RingQ(), false, ciphertextLWE.Scale)
 
 	// Change of basis and changes the scale from Delta to Q/4
 	diffScale := paramsLWE.QiFloat64(0) / (4.0 * ciphertextLWE.Scale)

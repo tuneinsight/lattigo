@@ -67,14 +67,15 @@ func (h *Handler) ExtractAndEvaluateLUT(ct *rlwe.Ciphertext, lutPolyWihtSlotInde
 	ringQLWE := h.paramsLWE.RingQ()
 	ringQPLUT := h.paramsLUT.RingQP()
 
+	lutLvlIsZero := (h.paramsLUT.QCount() == 1 && h.paramsLUT.PCount() == 1)
+
+
 	mask := uint64(ringQLUT.N<<1) - 1
 
-	level := ct.Level()
+	ringQLWE.InvNTTLvl(ct.Level(), ct.Value[0], acc.Value[0])
+	ringQLWE.InvNTTLvl(ct.Level(), ct.Value[1], acc.Value[1])
 
-	ringQLWE.InvNTTLvl(level, ct.Value[0], acc.Value[0])
-	ringQLWE.InvNTTLvl(level, ct.Value[1], acc.Value[1])
-
-	h.ModSwitchRLWETo2N(acc.Value[1], acc.Value[1])
+	h.ModSwitchRLWETo2NLvl(ct.Level(), acc.Value[1], acc.Value[1])
 
 	// Copy coefficients multiplied by X^{N-1} in reverse order:
 	// a_{0} -a_{N-1} -a2_{N-2} ... -a_{1}
@@ -85,7 +86,7 @@ func (h *Handler) ExtractAndEvaluateLUT(ct *rlwe.Ciphertext, lutPolyWihtSlotInde
 		tmp0[j] = -tmp1[ringQLWE.N-j] & mask
 	}
 
-	h.ModSwitchRLWETo2N(acc.Value[0], bRLWEMod2N)
+	h.ModSwitchRLWETo2NLvl(ct.Level(), acc.Value[0], bRLWEMod2N)
 
 	res = make(map[int]*rlwe.Ciphertext)
 
@@ -106,11 +107,20 @@ func (h *Handler) ExtractAndEvaluateLUT(ct *rlwe.Ciphertext, lutPolyWihtSlotInde
 			ringQLUT.Add(acc.Value[0], lut, acc.Value[0])
 			acc.Value[1].Zero() // TODO remove
 
-			for j := 0; j < ringQLWE.N; j++ {
-				MulRGSWByXPowAlphaMinusOne(lutKey.SkPos[j], h.xPowMinusOne[a[j]], ringQPLUT, tmpRGSW)
-				MulRGSWByXPowAlphaMinusOneAndAdd(lutKey.SkNeg[j], h.xPowMinusOne[-a[j]&mask], ringQPLUT, tmpRGSW)
-				AddRGSW(lutKey.EncOne, ringQPLUT, tmpRGSW) // TODO : add 1 in plaintext
-				ks.MulRGSWSingleModulus(acc, tmpRGSW, acc)
+			if lutLvlIsZero{
+				for j := 0; j < ringQLWE.N; j++ {
+					MulRGSWByXPowAlphaMinusOne(lutKey.SkPos[j], h.xPowMinusOne[a[j]], ringQPLUT, tmpRGSW)
+					MulRGSWByXPowAlphaMinusOneAndAdd(lutKey.SkNeg[j], h.xPowMinusOne[-a[j]&mask], ringQPLUT, tmpRGSW)
+					AddRGSW(lutKey.EncOne, ringQPLUT, tmpRGSW) // TODO : add 1 in plaintext
+					ks.MulRGSWSingleModulus(acc, tmpRGSW, acc)
+				}
+			}else{
+				for j := 0; j < ringQLWE.N; j++ {
+					MulRGSWByXPowAlphaMinusOne(lutKey.SkPos[j], h.xPowMinusOne[a[j]], ringQPLUT, tmpRGSW)
+					MulRGSWByXPowAlphaMinusOneAndAdd(lutKey.SkNeg[j], h.xPowMinusOne[-a[j]&mask], ringQPLUT, tmpRGSW)
+					AddRGSW(lutKey.EncOne, ringQPLUT, tmpRGSW) // TODO : add 1 in plaintext
+					ks.MulRGSW(acc, tmpRGSW, acc)
+				}
 			}
 
 			res[index] = acc.CopyNew()
@@ -134,10 +144,8 @@ func MulBySmallMonomialMod2N(mask uint64, pol *ring.Poly, n int) {
 
 // ModSwitchRLWETo2N applys round(x * 2N / Q) to the coefficients of polQ and returns the
 // result on pol2N.
-func (h *Handler) ModSwitchRLWETo2N(polQ *ring.Poly, pol2N *ring.Poly) {
+func (h *Handler) ModSwitchRLWETo2NLvl(level int, polQ *ring.Poly, pol2N *ring.Poly) {
 	coeffsBigint := make([]*big.Int, len(polQ.Coeffs[0]))
-
-	level := polQ.Level()
 
 	ringQ := h.paramsLWE.RingQ()
 

@@ -3,8 +3,8 @@ package lwe
 import (
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
+	"math"
 	"math/big"
-	"math/bits"
 )
 
 // InitLUT takes a function g, and creates an LUT polynomial for the function between the intervals a, b.
@@ -38,7 +38,7 @@ func InitLUT(g func(x float64) (y float64), scale float64, ringQ *ring.Ring, a, 
 func (h *Handler) ExtractAndEvaluateLUTAndRepack(ct *rlwe.Ciphertext, lutPolyWihtSlotIndex map[int]*ring.Poly, repackIndex map[int]int, lutKey *LUTKey) (res *rlwe.Ciphertext){
 	cts := h.ExtractAndEvaluateLUT(ct, lutPolyWihtSlotIndex, lutKey)
 
-	nextPow2 := 1<<bits.Len64(uint64(len(cts)))
+	nextPow2 := 1<<int(math.Ceil(math.Log2(float64(len(cts)))))
 
 	ciphertexts := make([]*rlwe.Ciphertext, nextPow2)
 
@@ -120,7 +120,7 @@ func (h *Handler) ExtractAndEvaluateLUT(ct *rlwe.Ciphertext, lutPolyWihtSlotInde
 					MulRGSWByXPowAlphaMinusOneAndAdd(lutKey.SkNeg[j], h.xPowMinusOne[-a[j]&mask], ringQPLUT, tmpRGSW)
 					AddRGSW(lutKey.EncOne, ringQPLUT, tmpRGSW) // TODO : add 1 in plaintext
 					ks.MulRGSW(acc, tmpRGSW, acc)
-				}
+				}		
 			}
 
 			res[index] = acc.CopyNew()
@@ -149,7 +149,7 @@ func (h *Handler) ModSwitchRLWETo2NLvl(level int, polQ *ring.Poly, pol2N *ring.P
 
 	ringQ := h.paramsLWE.RingQ()
 
-	ringQ.PolyToBigintLvl(polQ.Level(), polQ, coeffsBigint)
+	ringQ.PolyToBigintLvl(level, polQ, coeffsBigint)
 
 	QBig := ring.NewUint(1)
 	for i := 0; i < level+1; i++ {

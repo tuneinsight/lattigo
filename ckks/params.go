@@ -91,6 +91,84 @@ var (
 		RingType: ring.Standard,
 	}
 
+	// PN12QP109CI is a default parameter set for logN=12 and logQP=109
+	PN12QP109CI = ParametersLiteral{
+		LogN:     12,
+		LogSlots: 12,
+		Q: []uint64{0x1ffffe0001, // 37 + 32
+			0x100014001},
+		P:        []uint64{0x4000038001}, // 38
+		Scale:    1 << 32,
+		Sigma:    rlwe.DefaultSigma,
+		RingType: ring.ConjugateInvariant,
+	}
+
+	// PN13QP218CI is a default parameter set for logN=13 and logQP=218
+	PN13QP218CI = ParametersLiteral{
+		LogN:     13,
+		LogSlots: 13,
+		Q: []uint64{0x200038001, // 33 + 5 x 30
+			0x3ffe8001,
+			0x40020001,
+			0x40038001,
+			0x3ffc0001,
+			0x40080001},
+		P:        []uint64{0x800008001}, // 35
+		Scale:    1 << 30,
+		Sigma:    rlwe.DefaultSigma,
+		RingType: ring.ConjugateInvariant,
+	}
+	// PN14QP438CI is a default parameter set for logN=14 and logQP=438
+	PN14QP438CI = ParametersLiteral{
+		LogN:     14,
+		LogSlots: 14,
+		Q: []uint64{0x2000000a0001, 0x3fffd0001, // 45 + 9*34
+			0x400060001, 0x3fff90001,
+			0x400080001, 0x400180001,
+			0x3ffd20001, 0x400300001,
+			0x400360001, 0x4003e0001},
+		P:        []uint64{0x80000050001, 0x7ffffdb0001}, // 43, 43
+		Scale:    1 << 34,
+		Sigma:    rlwe.DefaultSigma,
+		RingType: ring.ConjugateInvariant,
+	}
+
+	// PN15QP880CI is a default parameter set for logN=15 and logQP=880
+	PN15QP880CI = ParametersLiteral{
+		LogN:     15,
+		LogSlots: 15,
+		Q: []uint64{0x4000000120001, // 50 + 17 x 40
+			0x10000140001, 0xffffe80001, 0xffffc40001,
+			0x100003e0001, 0xffffb20001, 0x10000500001,
+			0xffff940001, 0xffff8a0001, 0xffff820001,
+			0xffff780001, 0x10000960001, 0x10000a40001,
+			0xffff580001, 0x10000b60001, 0xffff480001,
+			0xffff420001, 0xffff340001},
+		P:        []uint64{0x3ffffffd20001, 0x4000000420001, 0x3ffffffb80001}, // 50, 50, 50
+		Scale:    1 << 40,
+		Sigma:    rlwe.DefaultSigma,
+		RingType: ring.ConjugateInvariant,
+	}
+	// PN16QP1761CI is a default parameter set for logN=16 and logQP = 1761
+	PN16QP1761CI = ParametersLiteral{
+		LogN:     16,
+		LogSlots: 16,
+		Q: []uint64{0x80000000080001, // 55 + 33 x 45
+			0x200000440001, 0x200000500001, 0x1fffff980001, 0x200000c80001,
+			0x1ffffeb40001, 0x1ffffe640001, 0x200001a00001, 0x200001e80001,
+			0x1ffffe0c0001, 0x200002480001, 0x200002800001, 0x1ffffd800001,
+			0x200002900001, 0x1ffffd700001, 0x2000029c0001, 0x1ffffcf00001,
+			0x200003140001, 0x1ffffcc80001, 0x1ffffcb40001, 0x1ffffc980001,
+			0x200003740001, 0x200003800001, 0x200003d40001, 0x1ffffc200001,
+			0x1ffffc140001, 0x200004100001, 0x200004180001, 0x1ffffbc40001,
+			0x200004700001, 0x1ffffb900001, 0x200004cc0001, 0x1ffffb240001,
+			0x200004e80001},
+		P:        []uint64{0x80000000440001, 0x80000000500001, 0x7fffffff380001, 0x80000000e00001}, // 4 x 55
+		Scale:    1 << 45,
+		Sigma:    rlwe.DefaultSigma,
+		RingType: ring.ConjugateInvariant,
+	}
+
 	// PN12QP101pq is a default (post quantum) parameter set for logN=12 and logQP=101
 	PN12QP101pq = ParametersLiteral{
 		LogN:     12,
@@ -154,86 +232,8 @@ var (
 		RingType: ring.Standard,
 	}
 
-	// PN12QP109RCKKS is a default parameter set for logN=12 and logQP=109
-	PN12QP109RCKKS = ParametersLiteral{
-		LogN:     12,
-		LogSlots: 12,
-		Q: []uint64{0x1ffffe0001, // 37 + 32
-			0x100014001},
-		P:        []uint64{0x4000038001}, // 38
-		Scale:    1 << 32,
-		Sigma:    rlwe.DefaultSigma,
-		RingType: ring.ConjugateInvariant,
-	}
-
-	// PN13QP218RCKKS is a default parameter set for logN=13 and logQP=218
-	PN13QP218RCKKS = ParametersLiteral{
-		LogN:     13,
-		LogSlots: 13,
-		Q: []uint64{0x200038001, // 33 + 5 x 30
-			0x3ffe8001,
-			0x40020001,
-			0x40038001,
-			0x3ffc0001,
-			0x40080001},
-		P:        []uint64{0x800008001}, // 35
-		Scale:    1 << 30,
-		Sigma:    rlwe.DefaultSigma,
-		RingType: ring.ConjugateInvariant,
-	}
-	// PN14QP438RCKKS is a default parameter set for logN=14 and logQP=438
-	PN14QP438RCKKS = ParametersLiteral{
-		LogN:     14,
-		LogSlots: 14,
-		Q: []uint64{0x2000000a0001, 0x3fffd0001, // 45 + 9*34
-			0x400060001, 0x3fff90001,
-			0x400080001, 0x400180001,
-			0x3ffd20001, 0x400300001,
-			0x400360001, 0x4003e0001},
-		P:        []uint64{0x80000050001, 0x7ffffdb0001}, // 43, 43
-		Scale:    1 << 34,
-		Sigma:    rlwe.DefaultSigma,
-		RingType: ring.ConjugateInvariant,
-	}
-
-	// PN15QP880RCKKS is a default parameter set for logN=15 and logQP=880
-	PN15QP880RCKKS = ParametersLiteral{
-		LogN:     15,
-		LogSlots: 15,
-		Q: []uint64{0x4000000120001, // 50 + 17 x 40
-			0x10000140001, 0xffffe80001, 0xffffc40001,
-			0x100003e0001, 0xffffb20001, 0x10000500001,
-			0xffff940001, 0xffff8a0001, 0xffff820001,
-			0xffff780001, 0x10000960001, 0x10000a40001,
-			0xffff580001, 0x10000b60001, 0xffff480001,
-			0xffff420001, 0xffff340001},
-		P:        []uint64{0x3ffffffd20001, 0x4000000420001, 0x3ffffffb80001}, // 50, 50, 50
-		Scale:    1 << 40,
-		Sigma:    rlwe.DefaultSigma,
-		RingType: ring.ConjugateInvariant,
-	}
-	// PN16QP1761RCKKS is a default parameter set for logN=16 and logQP = 1761
-	PN16QP1761RCKKS = ParametersLiteral{
-		LogN:     16,
-		LogSlots: 16,
-		Q: []uint64{0x80000000080001, // 55 + 33 x 45
-			0x200000440001, 0x200000500001, 0x1fffff980001, 0x200000c80001,
-			0x1ffffeb40001, 0x1ffffe640001, 0x200001a00001, 0x200001e80001,
-			0x1ffffe0c0001, 0x200002480001, 0x200002800001, 0x1ffffd800001,
-			0x200002900001, 0x1ffffd700001, 0x2000029c0001, 0x1ffffcf00001,
-			0x200003140001, 0x1ffffcc80001, 0x1ffffcb40001, 0x1ffffc980001,
-			0x200003740001, 0x200003800001, 0x200003d40001, 0x1ffffc200001,
-			0x1ffffc140001, 0x200004100001, 0x200004180001, 0x1ffffbc40001,
-			0x200004700001, 0x1ffffb900001, 0x200004cc0001, 0x1ffffb240001,
-			0x200004e80001},
-		P:        []uint64{0x80000000440001, 0x80000000500001, 0x7fffffff380001, 0x80000000e00001}, // 4 x 55
-		Scale:    1 << 45,
-		Sigma:    rlwe.DefaultSigma,
-		RingType: ring.ConjugateInvariant,
-	}
-
 	// PN12QP101pq is a default (post quantum) parameter set for logN=12 and logQP=101
-	PN12QP101RCKKSpq = ParametersLiteral{
+	PN12QP101CIpq = ParametersLiteral{
 		LogN:     12,
 		LogSlots: 12,
 		Q:        []uint64{0x800004001, 0x3fff4001}, // 35 + 30
@@ -242,8 +242,8 @@ var (
 		Sigma:    rlwe.DefaultSigma,
 		RingType: ring.ConjugateInvariant,
 	}
-	// PN13QP202RCKKSpq is a default (post quantum) parameter set for logN=13 and logQP=202
-	PN13QP202RCKKSpq = ParametersLiteral{
+	// PN13QP202CIpq is a default (post quantum) parameter set for logN=13 and logQP=202
+	PN13QP202CIpq = ParametersLiteral{
 		LogN:     13,
 		LogSlots: 13,
 		Q:        []uint64{0x1ffffe0001, 0x100050001, 0xfff88001, 0x100098001, 0x1000b0001}, // 37 + 4 x 32
@@ -253,8 +253,8 @@ var (
 		RingType: ring.ConjugateInvariant,
 	}
 
-	// PN14QP411RCKKSpq is a default (post quantum) parameter set for logN=14 and logQP=411
-	PN14QP411RCKKSpq = ParametersLiteral{
+	// PN14QP411CIpq is a default (post quantum) parameter set for logN=14 and logQP=411
+	PN14QP411CIpq = ParametersLiteral{
 		LogN:     14,
 		LogSlots: 14,
 		Q: []uint64{0x10000140001, 0x1fff90001, 0x200080001,
@@ -268,8 +268,8 @@ var (
 		RingType: ring.ConjugateInvariant,
 	}
 
-	// PN15QP827RCKKSpq is a default (post quantum) parameter set for logN=15 and logQP=827
-	PN15QP827RCKKSpq = ParametersLiteral{
+	// PN15QP827CIpq is a default (post quantum) parameter set for logN=15 and logQP=827
+	PN15QP827CIpq = ParametersLiteral{
 		LogN:     15,
 		LogSlots: 15,
 		Q: []uint64{0x400000060001, 0x3fffe80001, 0x4000300001, 0x3fffb80001,
@@ -282,8 +282,8 @@ var (
 		Sigma:    rlwe.DefaultSigma,
 		RingType: ring.ConjugateInvariant,
 	}
-	// PN16QP1654RCKKSpq is a default (post quantum) parameter set for logN=16 and logQP=1654
-	PN16QP1654RCKKSpq = ParametersLiteral{LogN: 16,
+	// PN16QP1654CIpq is a default (post quantum) parameter set for logN=16 and logQP=1654
+	PN16QP1654CIpq = ParametersLiteral{LogN: 16,
 		LogSlots: 16,
 		Q: []uint64{0x80000000080001, 0x200000440001, 0x200000500001, 0x1fffff980001,
 			0x200000c80001, 0x1ffffeb40001, 0x1ffffe640001, 0x200001a00001,
@@ -319,14 +319,14 @@ type ParametersLiteral struct {
 // DefaultParams is a set of default CKKS parameters ensuring 128 bit security in a classic setting.
 var DefaultParams = []ParametersLiteral{PN12QP109, PN13QP218, PN14QP438, PN15QP880, PN16QP1761}
 
-// DefaultParamsRCKKS is a set of default RCKKS parameters ensuring 128 bit security in a classic setting.
-var DefaultParamsRCKKS = []ParametersLiteral{PN12QP109RCKKS, PN13QP218RCKKS, PN14QP438RCKKS, PN15QP880RCKKS, PN16QP1761RCKKS}
+// DefaultConjugateInvariantParams is a set of default RCKKS parameters ensuring 128 bit security in a classic setting.
+var DefaultConjugateInvariantParams = []ParametersLiteral{PN12QP109CI, PN13QP218CI, PN14QP438CI, PN15QP880CI, PN16QP1761CI}
 
 // DefaultPostQuantumParams is a set of default CKKS parameters ensuring 128 bit security in a post-quantum setting.
 var DefaultPostQuantumParams = []ParametersLiteral{PN12QP101pq, PN13QP202pq, PN14QP411pq, PN15QP827pq, PN16QP1654pq}
 
-// DefaultPostQuantumParamsRCKKS is a set of default RCKKS parameters ensuring 128 bit security in a post-quantum setting.
-var DefaultPostQuantumParamsRCKKS = []ParametersLiteral{PN12QP101RCKKSpq, PN13QP202RCKKSpq, PN14QP411RCKKSpq, PN15QP827RCKKSpq, PN16QP1654RCKKSpq}
+// DefaultPostQuantumConjugateInvariantParams is a set of default RCKKS parameters ensuring 128 bit security in a post-quantum setting.
+var DefaultPostQuantumConjugateInvariantParams = []ParametersLiteral{PN12QP101CIpq, PN13QP202CIpq, PN14QP411CIpq, PN15QP827CIpq, PN16QP1654CIpq}
 
 // Parameters represents a parameter set for the CKKS cryptosystem. Its fields are private and
 // immutable. See ParametersLiteral for user-specified parameters.

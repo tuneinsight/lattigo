@@ -22,6 +22,17 @@ const (
 	ConjugateInvariant = Type(1) // Z[X+X^-1]/(X^2N + 1)
 )
 
+func (rt Type) String() string {
+	switch rt {
+	case Standard:
+		return "Standard"
+	case ConjugateInvariant:
+		return "ConjugateInvariant"
+	default:
+		panic("invalid ring type")
+	}
+}
+
 // Ring is a structure that keeps all the variables required to operate on a polynomial represented in this ring.
 type Ring struct {
 	NumberTheoreticTransformer

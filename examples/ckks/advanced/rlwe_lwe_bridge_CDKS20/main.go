@@ -70,19 +70,25 @@ func main() {
 		XPow[i] = XpowNoverL
 	}
 
-	//RLWE to LWEs
+	fmt.Println("M(X) before extraction and repacking")
+	DecryptAndPrint(decryptor, params.LogN(), ringQ, ciphertext, plaintext, scale)
+	fmt.Println()
+
+	//RLWE to LWEs : extracts each coefficient of enc(M(X)) = RLWE into a separate LWE ciphertext
+	// such that dec(RLWE)[i] = dec(LWE[i])
 	now := time.Now()
 	fmt.Printf("Extract RLWE  -> LWEs")
 	LWE := RLWEToLWE(ciphertext.Value[0], ciphertext.Value[1], LogSlots, params)
 	fmt.Printf("  Done : %s\n", time.Since(now))
 
-	// LWEs to RLWEs
+	// LWEs to RLWEs : repacks each individual LWE ciphertext into RLWE ciphertexts such that
+	// dec(RLWEs[i])[0] = dec(LWE[i])
 	now = time.Now()
 	fmt.Printf("Repack  LWE   -> RLWEs")
 	ciphertexts := LWEToRLWE(LWE, ciphertext.Level(), params)
 	fmt.Printf(" Done : %s\n", time.Since(now))
 
-	// RLWEs to RLWE
+	// RLWEs to RLWE : repacks all the RLWEs into a single RLWE such that dec(RLWE) = M(X)
 	now = time.Now()
 	fmt.Printf("Repack  RLWEs -> RLWE")
 	ciphertext = PackLWEs(ciphertexts, ks, rtks, XPow, NTimesLogSlotsInv, permuteNTTIndex, params)
@@ -96,7 +102,8 @@ func main() {
 	}
 	fmt.Printf("  Done : %s\n", time.Since(now))
 
-	// Print some values
+	fmt.Println()
+	fmt.Println("M(X) after extraction and repacking")
 	DecryptAndPrint(decryptor, params.LogN(), ringQ, ciphertext, plaintext, scale)
 }
 

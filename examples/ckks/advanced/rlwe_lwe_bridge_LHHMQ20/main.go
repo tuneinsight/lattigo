@@ -278,7 +278,7 @@ func main() {
 func genRLWEParameters() (paramsRLWE ckks.Parameters) {
 	var err error
 	if paramsRLWE, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
-		LogN:     12,
+		LogN:     15,
 		LogSlots: 9,
 		Scale:    1 << 30,
 		Sigma:    rlwe.DefaultSigma,

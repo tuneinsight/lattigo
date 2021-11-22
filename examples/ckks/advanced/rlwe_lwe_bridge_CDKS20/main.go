@@ -14,7 +14,7 @@ import (
 func main() {
 
 	LogN := 12
-	LogSlots := 12 // can go up to LogN
+	LogSlots := 7 // can go up to LogN
 
 	RLWEParams := rlwe.ParametersLiteral{
 		LogN:     LogN,
@@ -71,7 +71,7 @@ func main() {
 	}
 
 	fmt.Println("M(X) before extraction and repacking")
-	DecryptAndPrint(decryptor, params.LogN(), ringQ, ciphertext, plaintext, scale)
+	DecryptAndPrint(decryptor, LogSlots, ringQ, ciphertext, plaintext, scale)
 	fmt.Println()
 
 	//RLWE to LWEs : extracts each coefficient of enc(M(X)) = RLWE into a separate LWE ciphertext
@@ -104,7 +104,7 @@ func main() {
 
 	fmt.Println()
 	fmt.Println("M(X) after extraction and repacking")
-	DecryptAndPrint(decryptor, params.LogN(), ringQ, ciphertext, plaintext, scale)
+	DecryptAndPrint(decryptor, LogSlots, ringQ, ciphertext, plaintext, scale)
 }
 
 // LWESample is a struct for RNS LWE samples
@@ -290,7 +290,7 @@ func DecryptAndPrint(decryptor rlwe.Decryptor, LogSlots int, ringQ *ring.Ring, c
 		if plaintext.Value.Coeffs[0][j] >= ringQ.Modulus[0]>>1 {
 			v[i] = -float64(ringQ.Modulus[0] - plaintext.Value.Coeffs[0][j])
 		} else {
-			v[i] = float64(plaintext.Value.Coeffs[0][i])
+			v[i] = float64(plaintext.Value.Coeffs[0][j])
 		}
 
 		v[i] /= scale

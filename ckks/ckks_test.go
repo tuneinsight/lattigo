@@ -952,23 +952,19 @@ func testBridge(testContext *testParams, t *testing.T) {
 
 		values, _, ctRCKKS := newTestVectors(testContext, testContext.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-		ctCKKS := NewCiphertext(paramsCKKS, ctRCKKS.Degree(), ctRCKKS.Level(), ctRCKKS.Scale)
+		ctCKKSHave := NewCiphertext(paramsCKKS, ctRCKKS.Degree(), ctRCKKS.Level(), ctRCKKS.Scale)
 
-		switcher.RealToComplex(ctRCKKS, ctCKKS)
+		switcher.RealToComplex(ctRCKKS, ctCKKSHave)
 
-		verifyTestVectors(paramsCKKS, encoderCKKS, decryptorCKKS, values, ctCKKS, paramsCKKS.LogSlots(), 0, t)
+		verifyTestVectors(paramsCKKS, encoderCKKS, decryptorCKKS, values, ctCKKSHave, paramsCKKS.LogSlots(), 0, t)
 
-		ctCKKSImag := evalCKKS.MultByiNew(ctCKKS)
-		evalCKKS.Add(ctCKKS, ctCKKSImag, ctCKKS)
+		ctCKKSImag := evalCKKS.MultByiNew(ctCKKSHave)
+		evalCKKS.Add(ctCKKSHave, ctCKKSImag, ctCKKSHave)
 
-		switcher.ComplexToReal(ctCKKS, ctRCKKS)
+		ctRCKKSHave := paramsRCKKS.NewCiphertext(paramsRCKKS, 1, ctCKKSHave.Level(), ctCKKSHave.Scale)
+		switcher.ComplexToReal(ctCKKSHave, ctRCKKSHave)
 
-		verifyTestVectors(testContext.params, testContext.encoder, testContext.decryptor, values, ctRCKKS, paramsRCKKS.LogSlots(), 0, t)
-
-		evalCKKS.DivByi(ctCKKS, ctCKKS)
-		switcher.ComplexToReal(ctCKKS, ctRCKKS)
-
-		verifyTestVectors(testContext.params, testContext.encoder, testContext.decryptor, values, ctRCKKS, paramsRCKKS.LogSlots(), 0, t)
+		verifyTestVectors(testContext.params, testContext.encoder, testContext.decryptor, values, ctRCKKSHave, paramsRCKKS.LogSlots(), 0, t)
 	})
 }
 

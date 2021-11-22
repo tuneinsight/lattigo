@@ -245,6 +245,7 @@ func main() {
 	start = time.Now()
 	ctAs := evalRepack.LinearTransformNew(ctSk, ptMatDiag)[0]                // A_left * sk || A_right * sk
 	ctAs = evalRepack.TraceNew(ctAs, paramsLWE.LogSlots(), paramsLWE.LogN()) // A * sk || A * sk
+	evalRepack.MultByConst(ctAs, paramsLWE.N()/paramsLWE.Slots(), ctAs)
 	eval.Rescale(ctAs, 1.0, ctAs)
 	eval.Add(ctAs, ptLWE, ctAs) // A * sk || A * sk + LWE_real || LWE_imag = RLWE + I(X) * Q
 	ctAs.Scale = scale
@@ -277,7 +278,7 @@ func main() {
 func genRLWEParameters() (paramsRLWE ckks.Parameters) {
 	var err error
 	if paramsRLWE, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
-		LogN:     15,
+		LogN:     12,
 		LogSlots: 9,
 		Scale:    1 << 30,
 		Sigma:    rlwe.DefaultSigma,

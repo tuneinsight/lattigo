@@ -11,16 +11,136 @@ import (
 )
 
 // LogN of the ring degree of the used parameters
-var LogN = 15
+var LogN = 14
 
-// Benchmarking between emulated complex using RCKKS and CKKS
+// Benchmarking between emulated complex using RCKKS and plain CKKS
 func main() {
-	SimulatedComplex()
-	Complex()
+	EmulateComplexWithRCKKS()
+	PlainComplexwithCKKS()
+	LinearTransformWithRCKKS()
 }
 
-// SimulatedComplex implements complex arithmetic using RCKKS
-func SimulatedComplex() {
+// EmulateComplexWithRCKKS implements complex arithmetic using RCKKS
+func EmulateComplexWithRCKKS() {
+
+	// Schemes parameters are created from scratch
+	params, err := ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
+		LogN:     LogN,
+		LogQ:     []int{55, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40},
+		LogP:     []int{45, 45, 45},
+		Sigma:    rlwe.DefaultSigma,
+		LogSlots: LogN,
+		Scale:    float64(1 << 40),
+		RingType: ring.ConjugateInvariant,
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	kgen := ckks.NewKeyGenerator(params)
+	sk := kgen.GenSecretKey()
+	encryptor := ckks.NewEncryptor(params, sk)
+	decryptor := ckks.NewDecryptor(params, sk)
+	encoder := ckks.NewEncoder(params)
+
+	rlk := kgen.GenRelinearizationKey(sk, 2)
+
+	valuesReal := make([]complex128, params.Slots())
+	valuesImag := make([]complex128, params.Slots())
+	for i := range valuesReal {
+		valuesReal[i] = complex(0.9238795325112867, 0)
+		valuesImag[i] = complex(0.3826834323650898, 0)
+	}
+
+	// Instantiates two plaintext : one for the real part, one for the imaginary part
+	ptReal := ckks.NewPlaintext(params, params.MaxLevel(), params.Scale())
+	ptImag := ckks.NewPlaintext(params, params.MaxLevel(), params.Scale())
+	encoder.Encode(ptReal, valuesReal, params.LogSlots())
+	encoder.Encode(ptImag, valuesImag, params.LogSlots())
+
+	// Encrypts the real and imaginary part into dual ciphertexts
+	ctA := Ciphertext{encryptor.EncryptNew(ptReal), encryptor.EncryptNew(ptImag)}
+	ctB := Ciphertext{encryptor.EncryptNew(ptReal), encryptor.EncryptNew(ptImag)}
+
+	eval := NewEvaluator(params, rlk, nil)
+
+	var ctC Ciphertext
+	var tot time.Duration
+	level := utils.MinInt(utils.MinInt(ctA.Real.Level(), ctA.Imag.Level()), utils.MinInt(ctB.Real.Level(), ctB.Imag.Level()))
+	ctC = Ciphertext{ckks.NewCiphertext(params, 1, level, 0), ckks.NewCiphertext(params, 1, level, 0)}
+	fmt.Printf("RCKKS - LogN : %d | LogSlots : %d\n", params.LogN(), params.LogSlots())
+	fmt.Printf("Starting 100 multiplications... ")
+	now := time.Now()
+	for i := 0; i < 100; i++ {
+		eval.MulRelin(ctA, ctB, ctC)
+	}
+	tot += time.Since(now)
+	fmt.Printf("Done : %s avg/mul\n", tot/100.)
+
+	vReal := encoder.DecodePublic(decryptor.DecryptNew(ctC.Real), params.LogSlots(), 0)
+	vImag := encoder.DecodePublic(decryptor.DecryptNew(ctC.Imag), params.LogSlots(), 0)
+
+	for i := range vReal[:4] {
+		fmt.Printf("%d : (%12.10f+%12.10fi)\n", i, real(vReal[i]), real(vImag[i]))
+	}
+	fmt.Println()
+}
+
+// PlainComplexwithCKKS implement complex arithmetic using CKKS
+func PlainComplexwithCKKS() {
+	// Schemes parameters are created from scratch
+	params, err := ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
+		LogN:     LogN + 1,
+		LogQ:     []int{55, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40},
+		LogP:     []int{45, 45, 45},
+		Sigma:    rlwe.DefaultSigma,
+		LogSlots: LogN,
+		Scale:    float64(1 << 40),
+		RingType: ring.Standard,
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	kgen := ckks.NewKeyGenerator(params)
+	sk := kgen.GenSecretKey()
+	encryptor := ckks.NewEncryptor(params, sk)
+	decryptor := ckks.NewDecryptor(params, sk)
+	encoder := ckks.NewEncoder(params)
+
+	rlk := kgen.GenRelinearizationKey(sk, 2)
+	eval := ckks.NewEvaluator(params, rlwe.EvaluationKey{Rlk: rlk, Rtks: nil})
+
+	values := make([]complex128, params.Slots())
+	for i := range values {
+		values[i] = complex(0.9238795325112867, 0.3826834323650898)
+	}
+
+	plaintext := ckks.NewPlaintext(params, params.MaxLevel(), params.Scale())
+	encoder.Encode(plaintext, values, params.LogSlots())
+	ct0 := encryptor.EncryptNew(plaintext)
+	ct1 := encryptor.EncryptNew(plaintext)
+	ct2 := ckks.NewCiphertext(params, 1, utils.MinInt(ct0.Level(), ct1.Level()), 0)
+	fmt.Printf("CKKS - LogN : %d | LogSlots : %d\n", params.LogN(), params.LogSlots())
+	fmt.Printf("Starting 100 multiplications... ")
+	var tot time.Duration
+	now := time.Now()
+	for i := 0; i < 100; i++ {
+		eval.MulRelin(ct0, ct1, ct2)
+	}
+	tot += time.Since(now)
+	fmt.Printf("Done : %s avg/mul\n", tot/100.)
+
+	v := encoder.DecodePublic(decryptor.DecryptNew(ct2), params.LogSlots(), 0)
+
+	for i := range v[:4] {
+		fmt.Printf("%d : %12.10f\n", i, v[i])
+	}
+	fmt.Println()
+}
+
+// LinearTransformWithRCKKS implements complex linear transform using RCKKS
+func LinearTransformWithRCKKS() {
 	// Schemes parameters are created from scratch
 	params, err := ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
 		LogN:     LogN,
@@ -50,58 +170,58 @@ func SimulatedComplex() {
 		valuesImag[i] = complex(1, 0)
 	}
 
+	// Instantiates two plaintext : one for the real part, one for the imaginary part
 	ptReal := ckks.NewPlaintext(params, params.MaxLevel(), params.Scale())
 	ptImag := ckks.NewPlaintext(params, params.MaxLevel(), params.Scale())
-
 	encoder.Encode(ptReal, valuesReal, params.LogSlots())
 	encoder.Encode(ptImag, valuesImag, params.LogSlots())
 
+	// Encrypts the real and imaginary part into dual ciphertexts
 	ctA := Ciphertext{encryptor.EncryptNew(ptReal), encryptor.EncryptNew(ptImag)}
-	ctB := Ciphertext{encryptor.EncryptNew(ptReal), encryptor.EncryptNew(ptImag)}
 
 	diagMatrixReal := make(map[int][]complex128)
 	diagMatrixImag := make(map[int][]complex128)
 
-	//diagMatrixReal[-15] = make([]complex128, params.Slots())
-	//diagMatrixReal[-4] = make([]complex128, params.Slots())
+	diagMatrixReal[-15] = make([]complex128, params.Slots())
+	diagMatrixReal[-4] = make([]complex128, params.Slots())
 	diagMatrixReal[-1] = make([]complex128, params.Slots())
 	diagMatrixReal[0] = make([]complex128, params.Slots())
 	diagMatrixReal[1] = make([]complex128, params.Slots())
-	//diagMatrixReal[2] = make([]complex128, params.Slots())
-	//diagMatrixReal[3] = make([]complex128, params.Slots())
-	//diagMatrixReal[4] = make([]complex128, params.Slots())
-	//diagMatrixReal[15] = make([]complex128, params.Slots())
+	diagMatrixReal[2] = make([]complex128, params.Slots())
+	diagMatrixReal[3] = make([]complex128, params.Slots())
+	diagMatrixReal[4] = make([]complex128, params.Slots())
+	diagMatrixReal[15] = make([]complex128, params.Slots())
 
-	//diagMatrixImag[-15] = make([]complex128, params.Slots())
-	//diagMatrixImag[-4] = make([]complex128, params.Slots())
+	diagMatrixImag[-15] = make([]complex128, params.Slots())
+	diagMatrixImag[-4] = make([]complex128, params.Slots())
 	diagMatrixImag[-1] = make([]complex128, params.Slots())
 	diagMatrixImag[0] = make([]complex128, params.Slots())
 	diagMatrixImag[1] = make([]complex128, params.Slots())
-	//diagMatrixImag[2] = make([]complex128, params.Slots())
-	//diagMatrixImag[3] = make([]complex128, params.Slots())
-	//diagMatrixImag[4] = make([]complex128, params.Slots())
-	//diagMatrixImag[15] = make([]complex128, params.Slots())
+	diagMatrixImag[2] = make([]complex128, params.Slots())
+	diagMatrixImag[3] = make([]complex128, params.Slots())
+	diagMatrixImag[4] = make([]complex128, params.Slots())
+	diagMatrixImag[15] = make([]complex128, params.Slots())
 
 	for i := 0; i < params.Slots(); i++ {
-		//diagMatrixReal[-15][i] = complex(1, 0)
-		//diagMatrixReal[-4][i] = complex(1, 0)
+		diagMatrixReal[-15][i] = complex(1, 0)
+		diagMatrixReal[-4][i] = complex(1, 0)
 		diagMatrixReal[-1][i] = complex(1, 0)
 		diagMatrixReal[0][i] = complex(1, 0)
 		diagMatrixReal[1][i] = complex(1, 0)
-		//diagMatrixReal[2][i] = complex(1, 0)
-		//diagMatrixReal[3][i] = complex(1, 0)
-		//diagMatrixReal[4][i] = complex(1, 0)
-		//diagMatrixReal[15][i] = complex(1, 0)
+		diagMatrixReal[2][i] = complex(1, 0)
+		diagMatrixReal[3][i] = complex(1, 0)
+		diagMatrixReal[4][i] = complex(1, 0)
+		diagMatrixReal[15][i] = complex(1, 0)
 
-		//diagMatrixImag[-15][i] = complex(1, 0)
-		//diagMatrixImag[-4][i] = complex(1, 0)
+		diagMatrixImag[-15][i] = complex(1, 0)
+		diagMatrixImag[-4][i] = complex(1, 0)
 		diagMatrixImag[-1][i] = complex(1, 0)
 		diagMatrixImag[0][i] = complex(1, 0)
 		diagMatrixImag[1][i] = complex(1, 0)
-		//diagMatrixImag[2][i] = complex(1, 0)
-		//diagMatrixImag[3][i] = complex(1, 0)
-		//diagMatrixImag[4][i] = complex(1, 0)
-		//diagMatrixImag[15][i] = complex(1, 0)
+		diagMatrixImag[2][i] = complex(1, 0)
+		diagMatrixImag[3][i] = complex(1, 0)
+		diagMatrixImag[4][i] = complex(1, 0)
+		diagMatrixImag[15][i] = complex(1, 0)
 	}
 
 	ptDiagReal := encoder.EncodeDiagMatrixBSGS(params.MaxLevel(), diagMatrixReal, params.QiFloat64(params.MaxLevel()), 4.0, params.LogSlots())
@@ -121,20 +241,6 @@ func SimulatedComplex() {
 
 	eval := NewEvaluator(params, rlk, rotKey)
 
-	var ctC Ciphertext
-	var tot time.Duration
-	for i := 0; i < 100; i++ {
-		now := time.Now()
-		ctC = eval.MulRelinNew(ctA, ctB)
-		eval.Rescale(ctC.Real, eval.params.Scale(), ctC.Real)
-		eval.Rescale(ctC.Imag, eval.params.Scale(), ctC.Imag)
-		tot += time.Since(now)
-	}
-	fmt.Println("RCKKS - LogN :", params.LogN())
-	fmt.Printf("Done : %s\n", tot/100.)
-
-	//ctC := ctA
-
 	PoolDecompRealQP := make([]rlwe.PolyQP, params.Beta())
 	PoolDecompImagQP := make([]rlwe.PolyQP, params.Beta())
 
@@ -145,70 +251,17 @@ func SimulatedComplex() {
 
 	ks := eval.GetKeySwitcher()
 
-	ks.DecomposeNTT(ctC.Level(), params.PCount()-1, params.PCount(), ctC.Real.Value[1], PoolDecompRealQP)
-	ks.DecomposeNTT(ctC.Level(), params.PCount()-1, params.PCount(), ctC.Imag.Value[1], PoolDecompImagQP)
+	ks.DecomposeNTT(ctA.Level(), params.PCount()-1, params.PCount(), ctA.Real.Value[1], PoolDecompRealQP)
+	ks.DecomposeNTT(ctA.Level(), params.PCount()-1, params.PCount(), ctA.Imag.Value[1], PoolDecompImagQP)
 
-	eval.MultiplyByDiagMatrixBSGS(ctC, diagMat, PoolDecompRealQP, PoolDecompImagQP, ctC)
+	eval.MultiplyByDiagMatrixBSGS(ctA, diagMat, PoolDecompRealQP, PoolDecompImagQP, ctA)
 
-	fmt.Println(ctC.Real.Scale)
+	vReal := encoder.DecodePublic(decryptor.DecryptNew(ctA.Real), params.LogSlots(), 0)
+	vImag := encoder.DecodePublic(decryptor.DecryptNew(ctA.Imag), params.LogSlots(), 0)
 
-	vReal := encoder.DecodePublic(decryptor.DecryptNew(ctC.Real), params.LogSlots(), 0)
-	vImag := encoder.DecodePublic(decryptor.DecryptNew(ctC.Imag), params.LogSlots(), 0)
-
+	fmt.Println("Linear Transform Result (expected : (0 + 18i)")
 	for i := range vReal[:4] {
 		fmt.Println(i, real(vReal[i]), real(vImag[i]))
-	}
-}
-
-// Complex implement complex arithmetic using CKKS
-func Complex() {
-	// Schemes parameters are created from scratch
-	params, err := ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
-		LogN:     LogN + 1,
-		LogQ:     []int{55, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40},
-		LogP:     []int{45, 45, 45},
-		Sigma:    rlwe.DefaultSigma,
-		LogSlots: 15,
-		Scale:    float64(1 << 40),
-		RingType: ring.Standard,
-	})
-	if err != nil {
-		panic(err)
-	}
-
-	kgen := ckks.NewKeyGenerator(params)
-	sk := kgen.GenSecretKey()
-	encryptor := ckks.NewEncryptor(params, sk)
-	decryptor := ckks.NewDecryptor(params, sk)
-	encoder := ckks.NewEncoder(params)
-
-	rlk := kgen.GenRelinearizationKey(sk, 2)
-	eval := ckks.NewEvaluator(params, rlwe.EvaluationKey{Rlk: rlk, Rtks: nil})
-
-	values := make([]complex128, params.Slots())
-	for i := range values {
-		values[i] = complex(0.9238795325112867, 0.3826834323650898)
-	}
-
-	plaintext := ckks.NewPlaintext(params, params.MaxLevel(), params.Scale())
-	encoder.Encode(plaintext, values, params.LogSlots())
-	ct := encryptor.EncryptNew(plaintext)
-
-	var A *ckks.Ciphertext
-	var tot time.Duration
-	for i := 0; i < 100; i++ {
-		now := time.Now()
-		A = eval.MulRelinNew(ct, ct)
-		eval.Rescale(A, params.Scale(), A)
-		tot += time.Since(now)
-	}
-	fmt.Println("CKKS - LogN :", params.LogN())
-	fmt.Printf("Done : %s\n", tot/100.)
-
-	v := encoder.DecodePublic(decryptor.DecryptNew(A), params.LogSlots(), 0)
-
-	for i := range v[:4] {
-		fmt.Println(i, v[i])
 	}
 }
 

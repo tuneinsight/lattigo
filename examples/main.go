@@ -47,7 +47,7 @@ var P = []uint64{0x4000000008a0001}
 
 var ckksParamsN12 = ckks.ParametersLiteral{
 	LogN:     10,
-	LogSlots: 5,
+	LogSlots: 7,
 	Q:        Q,
 	P:        P,
 	Scale: 1<<40,
@@ -97,11 +97,11 @@ func LUT() {
 		panic(err)
 	}
 
-	a, b := -1.0, 1.0
+	a, b := -8.0, 8.0
 
 	fmt.Printf("Generating LUT... ")
 	now := time.Now()
-	LUTPoly := lwe.InitLUT(identity, paramsN12.Scale(), paramsN12.RingQ(), a, b)
+	LUTPoly := lwe.InitLUT(sign, paramsN12.Scale(), paramsN12.RingQ(), a, b)
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
 	lutPolyMap := make(map[int]*ring.Poly)
@@ -155,9 +155,12 @@ func LUT() {
 	fmt.Printf("Generating Plaintext & Encrypting... ")
 	now = time.Now()
 	values := make([]float64, paramsN12.Slots())
+
+	interval := (b-a) / float64(paramsN12.Slots())
 	for i := 0; i < paramsN12.Slots(); i++ {
-		values[i] = float64(i+1)/float64(paramsN12.Slots())
+		values[i] = a + float64(i)*interval
 	}
+
 
 	/*
 	fmt.Println()
@@ -182,11 +185,7 @@ func LUT() {
 	eval.DropLevel(ctN12, ctN12.Level())
 	ctTmp := eval.SwitchKeysNew(ctN12, swkN12ToN10)
 	ctN10 := ckks.NewCiphertext(paramsN10, 1, paramsN10.MaxLevel(), ctTmp.Scale)
-	paramsN12.RingQ().InvNTTLvl(ctTmp.Level(), ctTmp.Value[0], ctTmp.Value[0])
-	paramsN12.RingQ().InvNTTLvl(ctTmp.Level(), ctTmp.Value[1], ctTmp.Value[1])
-	rlwe.SwitchCiphertextRingDegree(ctTmp.El(), ctN10.El())
-	paramsN10.RingQ().NTT(ctN10.Value[0], ctN10.Value[0])
-	paramsN10.RingQ().NTT(ctN10.Value[1], ctN10.Value[1])
+	rlwe.SwitchCiphertextRingDegreeNTT(ctTmp.Ciphertext, paramsN10.RingQ(), paramsN12.RingQ(), ctN10.Ciphertext)
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
 	fmt.Printf("Evaluating LUT... ")

@@ -114,10 +114,10 @@ func (p *Parameters) RotationsForBootstrapping(LogN, LogSlots int) (rotations []
 // To be used in conjonction with DefaultParameters.
 var DefaultCKKSParameters = []ckks.ParametersLiteral{
 	{
-		LogN:     16,
-		LogSlots: 15,
-		Scale:    1 << 40,
-		Sigma:    rlwe.DefaultSigma,
+		LogN:         16,
+		LogSlots:     15,
+		DefaultScale: 1 << 40,
+		Sigma:        rlwe.DefaultSigma,
 		Q: []uint64{
 			0x10000000006e0001, // 60 Q0
 			0x10000140001,      // 40
@@ -154,10 +154,10 @@ var DefaultCKKSParameters = []ckks.ParametersLiteral{
 		},
 	},
 	{
-		LogN:     16,
-		LogSlots: 15,
-		Scale:    1 << 45,
-		Sigma:    rlwe.DefaultSigma,
+		LogN:         16,
+		LogSlots:     15,
+		DefaultScale: 1 << 45,
+		Sigma:        rlwe.DefaultSigma,
 		Q: []uint64{
 			0x10000000006e0001, // 60 Q0
 			0x2000000a0001,     // 45
@@ -192,10 +192,10 @@ var DefaultCKKSParameters = []ckks.ParametersLiteral{
 		},
 	},
 	{
-		LogN:     16,
-		LogSlots: 15,
-		Scale:    1 << 30,
-		Sigma:    rlwe.DefaultSigma,
+		LogN:         16,
+		LogSlots:     15,
+		DefaultScale: 1 << 30,
+		Sigma:        rlwe.DefaultSigma,
 		Q: []uint64{
 			0x80000000080001,   // 55 Q0
 			0xffffffffffc0001,  // 60
@@ -229,10 +229,10 @@ var DefaultCKKSParameters = []ckks.ParametersLiteral{
 		},
 	},
 	{
-		LogN:     16,
-		LogSlots: 15,
-		Scale:    1 << 40,
-		Sigma:    rlwe.DefaultSigma,
+		LogN:         16,
+		LogSlots:     15,
+		DefaultScale: 1 << 40,
+		Sigma:        rlwe.DefaultSigma,
 		Q: []uint64{
 			0x4000000120001, // 60 Q0
 			0x10000140001,
@@ -273,10 +273,10 @@ var DefaultCKKSParameters = []ckks.ParametersLiteral{
 		},
 	},
 	{
-		LogN:     15,
-		LogSlots: 14,
-		Scale:    1 << 25,
-		Sigma:    rlwe.DefaultSigma,
+		LogN:         15,
+		LogSlots:     14,
+		DefaultScale: 1 << 25,
+		Sigma:        rlwe.DefaultSigma,
 		Q: []uint64{
 			0x1fff90001,       // 32 Q0
 			0x4000000420001,   // 50

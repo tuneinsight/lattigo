@@ -119,7 +119,7 @@ func testbootstrap(params ckks.Parameters, btpParams Parameters, t *testing.T) {
 			values[3] = complex(0.9238795325112867, 0.3826834323650898)
 		}
 
-		plaintext := ckks.NewPlaintext(params, 0, params.Scale())
+		plaintext := ckks.NewPlaintext(params, 0, params.DefaultScale())
 		encoder.Encode(plaintext, values, params.LogSlots())
 
 		ciphertexts := make([]*ckks.Ciphertext, 2)

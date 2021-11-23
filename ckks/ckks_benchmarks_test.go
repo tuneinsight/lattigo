@@ -51,7 +51,7 @@ func benchEncoder(tc *testContext, b *testing.B) {
 			values[i] = utils.RandComplex128(-1, 1)
 		}
 
-		plaintext := NewPlaintext(tc.params, tc.params.MaxLevel(), tc.params.Scale())
+		plaintext := NewPlaintext(tc.params, tc.params.MaxLevel(), tc.params.DefaultScale())
 
 		for i := 0; i < b.N; i++ {
 			encoder.Encode(plaintext, values, logSlots)
@@ -65,7 +65,7 @@ func benchEncoder(tc *testContext, b *testing.B) {
 			values[i] = utils.RandComplex128(-1, 1)
 		}
 
-		plaintext := NewPlaintext(tc.params, tc.params.MaxLevel(), tc.params.Scale())
+		plaintext := NewPlaintext(tc.params, tc.params.MaxLevel(), tc.params.DefaultScale())
 		encoder.Encode(plaintext, values, logSlots)
 
 		for i := 0; i < b.N; i++ {
@@ -103,8 +103,8 @@ func benchEncrypt(tc *testContext, b *testing.B) {
 	encryptorPkFast := NewFastEncryptor(tc.params, tc.pk)
 	encryptorSk := tc.encryptorSk
 
-	plaintext := NewPlaintext(tc.params, tc.params.MaxLevel(), tc.params.Scale())
-	ciphertext := NewCiphertext(tc.params, 1, tc.params.MaxLevel(), tc.params.Scale())
+	plaintext := NewPlaintext(tc.params, tc.params.MaxLevel(), tc.params.DefaultScale())
+	ciphertext := NewCiphertext(tc.params, 1, tc.params.MaxLevel(), tc.params.DefaultScale())
 
 	b.Run(GetTestName(tc.params, "Encrypt/key=Pk/"), func(b *testing.B) {
 
@@ -134,8 +134,8 @@ func benchDecrypt(tc *testContext, b *testing.B) {
 
 	decryptor := tc.decryptor
 
-	plaintext := NewPlaintext(tc.params, tc.params.MaxLevel(), tc.params.Scale())
-	ciphertext := NewCiphertextRandom(tc.prng, tc.params, 1, tc.params.MaxLevel(), tc.params.Scale())
+	plaintext := NewPlaintext(tc.params, tc.params.MaxLevel(), tc.params.DefaultScale())
+	ciphertext := NewCiphertextRandom(tc.prng, tc.params, 1, tc.params.MaxLevel(), tc.params.DefaultScale())
 
 	b.Run(GetTestName(tc.params, "Decrypt/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -146,10 +146,10 @@ func benchDecrypt(tc *testContext, b *testing.B) {
 
 func benchEvaluator(tc *testContext, b *testing.B) {
 
-	plaintext := NewPlaintext(tc.params, tc.params.MaxLevel(), tc.params.Scale())
-	ciphertext1 := NewCiphertextRandom(tc.prng, tc.params, 1, tc.params.MaxLevel(), tc.params.Scale())
-	ciphertext2 := NewCiphertextRandom(tc.prng, tc.params, 1, tc.params.MaxLevel(), tc.params.Scale())
-	receiver := NewCiphertextRandom(tc.prng, tc.params, 2, tc.params.MaxLevel(), tc.params.Scale())
+	plaintext := NewPlaintext(tc.params, tc.params.MaxLevel(), tc.params.DefaultScale())
+	ciphertext1 := NewCiphertextRandom(tc.prng, tc.params, 1, tc.params.MaxLevel(), tc.params.DefaultScale())
+	ciphertext2 := NewCiphertextRandom(tc.prng, tc.params, 1, tc.params.MaxLevel(), tc.params.DefaultScale())
+	receiver := NewCiphertextRandom(tc.prng, tc.params, 2, tc.params.MaxLevel(), tc.params.DefaultScale())
 
 	var rlk *rlwe.RelinearizationKey
 	var rotkey *rlwe.RotationKeySet
@@ -202,10 +202,10 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 			b.Skip("#Pi is empty")
 		}
 
-		ciphertext1.Scale = tc.params.Scale() * tc.params.Scale()
+		ciphertext1.Scale = tc.params.DefaultScale() * tc.params.DefaultScale()
 
 		for i := 0; i < b.N; i++ {
-			if err := eval.Rescale(ciphertext1, tc.params.Scale(), ciphertext2); err != nil {
+			if err := eval.Rescale(ciphertext1, tc.params.DefaultScale(), ciphertext2); err != nil {
 				panic(err)
 			}
 		}
@@ -260,7 +260,7 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 
 func benchInnerSum(tc *testContext, b *testing.B) {
 
-	ciphertext1 := NewCiphertextRandom(tc.prng, tc.params, 1, tc.params.MaxLevel(), tc.params.Scale())
+	ciphertext1 := NewCiphertextRandom(tc.prng, tc.params, 1, tc.params.MaxLevel(), tc.params.DefaultScale())
 
 	batch := 1
 	n := 4

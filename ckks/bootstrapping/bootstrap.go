@@ -1,9 +1,10 @@
 package bootstrapping
 
 import (
+	"math"
+
 	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/ring"
-	"math"
 )
 
 // Bootstrapp re-encrypt a ciphertext at lvl Q0 to a ciphertext at MaxLevel-k where k is the depth of the bootstrapping circuit.
@@ -61,11 +62,11 @@ func (btp *Bootstrapper) Bootstrapp(ctIn *ckks.Ciphertext) (ctOut *ckks.Cipherte
 	// ctImag = Ecd(imag)
 	// If n < N/2 then ctReal = Ecd(real|imag)
 	ctReal = btp.EvalModNew(ctReal, btp.evalModPoly)
-	ctReal.Scale = btp.params.Scale()
+	ctReal.Scale = btp.params.DefaultScale()
 
 	if ctImag != nil {
 		ctImag = btp.EvalModNew(ctImag, btp.evalModPoly)
-		ctImag.Scale = btp.params.Scale()
+		ctImag.Scale = btp.params.DefaultScale()
 	}
 
 	// Step 4 : SlotsToCoeffs (Homomorphic decoding)

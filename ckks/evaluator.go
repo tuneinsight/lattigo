@@ -196,7 +196,7 @@ func newEvaluatorBuffers(evalBase *evaluatorBase) *evaluatorBuffers {
 	params := evalBase.params
 	ringQ := params.RingQ()
 	buff.poolQMul = [3]*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly(), ringQ.NewPoly()}
-	buff.ctxpool = NewCiphertext(params, 2, params.MaxLevel(), params.Scale())
+	buff.ctxpool = NewCiphertext(params, 2, params.MaxLevel(), params.DefaultScale())
 	return buff
 }
 

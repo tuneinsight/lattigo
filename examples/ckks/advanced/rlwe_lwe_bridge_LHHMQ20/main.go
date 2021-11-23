@@ -146,7 +146,7 @@ func main() {
 		values[i] = complex(float64(i+1)/float64(paramsRLWE.Slots()), 1+float64(i+1)/float64(paramsRLWE.Slots()))
 	}
 
-	plaintext := ckks.NewPlaintext(paramsRLWE, paramsRLWE.MaxLevel(), paramsRLWE.Scale())
+	plaintext := ckks.NewPlaintext(paramsRLWE, paramsRLWE.MaxLevel(), paramsRLWE.DefaultScale())
 	// Must encode with 2*Slots because a real vector is returned
 	encoder.Encode(plaintext, values, utils.MinInt(paramsRLWE.LogSlots()+1, paramsRLWE.LogN()-1))
 	ct := encryptor.EncryptNew(plaintext)
@@ -278,10 +278,10 @@ func main() {
 func genRLWEParameters() (paramsRLWE ckks.Parameters) {
 	var err error
 	if paramsRLWE, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
-		LogN:     15,
-		LogSlots: 9,
-		Scale:    1 << 30,
-		Sigma:    rlwe.DefaultSigma,
+		LogN:         15,
+		LogSlots:     9,
+		DefaultScale: 1 << 30,
+		Sigma:        rlwe.DefaultSigma,
 		Q: []uint64{
 			0xffff820001,       // 40 Q0
 			0x2000000a0001,     // 45
@@ -310,12 +310,12 @@ func genRLWEParameters() (paramsRLWE ckks.Parameters) {
 func genLWEParameters(paramsRLWE ckks.Parameters) (paramsLWE ckks.Parameters) {
 	var err error
 	if paramsLWE, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
-		LogN:     10,
-		LogSlots: paramsRLWE.LogSlots(),
-		Scale:    paramsRLWE.Scale(),
-		Sigma:    paramsRLWE.Sigma(),
-		Q:        paramsRLWE.Q()[:1], // 40 Q0
-		P:        paramsRLWE.P()[:1], // Pi 61
+		LogN:         10,
+		LogSlots:     paramsRLWE.LogSlots(),
+		DefaultScale: paramsRLWE.DefaultScale(),
+		Sigma:        paramsRLWE.Sigma(),
+		Q:            paramsRLWE.Q()[:1], // 40 Q0
+		P:            paramsRLWE.P()[:1], // Pi 61
 	}); err != nil {
 		panic(err)
 	}

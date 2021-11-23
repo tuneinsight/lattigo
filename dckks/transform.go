@@ -73,7 +73,7 @@ func NewMaskedTransformProtocol(params ckks.Parameters, precision int, sigmaSmud
 	rfp.s2e = *NewS2EProtocol(params, sigmaSmudging)
 
 	rfp.defaultScale = new(big.Int)
-	ring.NewFloat(params.Scale(), precision).Int(rfp.defaultScale)
+	ring.NewFloat(params.DefaultScale(), precision).Int(rfp.defaultScale)
 
 	rfp.ringQ = rfp.e2s.ringQ
 

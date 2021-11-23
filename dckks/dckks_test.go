@@ -253,7 +253,7 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 		evaluator := testCtx.evaluator.WithKey(rlwe.EvaluationKey{Rlk: rlk, Rtks: nil})
 		evaluator.MulRelin(ciphertext, ciphertext, ciphertext)
 
-		evaluator.Rescale(ciphertext, params.Scale(), ciphertext)
+		evaluator.Rescale(ciphertext, params.DefaultScale(), ciphertext)
 
 		require.Equal(t, ciphertext.Degree(), 1)
 
@@ -505,7 +505,7 @@ func testE2SProtocol(testCtx *testContext, t *testing.T) {
 
 		var minLevel, logBound int
 		var ok bool
-		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.Scale(), parties, params.Q()); ok != true {
+		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.DefaultScale(), parties, params.Q()); ok != true {
 			t.Skip("Not enough levels to ensure correcness and 128 security")
 		}
 
@@ -596,7 +596,7 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 
 		var minLevel, logBound int
 		var ok bool
-		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.Scale(), parties, params.Q()); ok != true {
+		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.DefaultScale(), parties, params.Q()); ok != true {
 			t.Skip("Not enough levels to ensure correcness and 128 security")
 		}
 
@@ -651,7 +651,7 @@ func testRefreshAndTransform(testCtx *testContext, t *testing.T) {
 
 		var minLevel, logBound int
 		var ok bool
-		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.Scale(), parties, params.Q()); ok != true {
+		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.DefaultScale(), parties, params.Q()); ok != true {
 			t.Skip("Not enough levels to ensure correcness and 128 security")
 		}
 
@@ -712,11 +712,11 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 
 		var minLevel, logBound int
 		var ok bool
-		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.Scale(), parties, params.Q()); ok != true {
+		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.DefaultScale(), parties, params.Q()); ok != true {
 			t.Skip("Not enough levels to ensure correcness and 128 security")
 		}
 
-		ciphertext := ckks.NewCiphertext(params, 1, minLevel, params.Scale())
+		ciphertext := ckks.NewCiphertext(params, 1, minLevel, params.DefaultScale())
 		testCtx.uniformSampler.Read(ciphertext.Value[0])
 		testCtx.uniformSampler.Read(ciphertext.Value[1])
 
@@ -768,7 +768,7 @@ func newTestVectors(testContext *testContext, encryptor ckks.Encryptor, a, b com
 		values[i] = complex(utils.RandFloat64(real(a), real(b)), utils.RandFloat64(imag(a), imag(b)))
 	}
 
-	plaintext = testContext.encoder.EncodeNew(values, params.MaxLevel(), params.Scale(), params.LogSlots())
+	plaintext = testContext.encoder.EncodeNew(values, params.MaxLevel(), params.DefaultScale(), params.LogSlots())
 
 	if encryptor != nil {
 		ciphertext = encryptor.EncryptNew(plaintext)

@@ -2,10 +2,11 @@ package bootstrapping
 
 import (
 	"fmt"
+	"math"
+
 	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/ckks/advanced"
 	"github.com/ldsec/lattigo/v2/rlwe"
-	"math"
 )
 
 // Bootstrapper is a struct to stores a memory pool the plaintext matrices
@@ -128,7 +129,7 @@ func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey rl
 
 	// SlotsToCoeffs vectors
 	// Rescaling factor to set the final ciphertext to the desired scale
-	slotsToCoeffsDiffScale := complex(math.Pow(bb.params.Scale()/(bb.evalModPoly.ScalingFactor()/bb.evalModPoly.MessageRatio()), 1.0/stcDepth), 0)
+	slotsToCoeffsDiffScale := complex(math.Pow(bb.params.DefaultScale()/(bb.evalModPoly.ScalingFactor()/bb.evalModPoly.MessageRatio()), 1.0/stcDepth), 0)
 	bb.stcMatrices = advanced.NewHomomorphicEncodingMatrixFromLiteral(bb.SlotsToCoeffsParameters, encoder, bb.params.LogN(), bb.params.LogSlots(), slotsToCoeffsDiffScale)
 
 	encoder = nil

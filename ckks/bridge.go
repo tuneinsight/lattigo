@@ -27,7 +27,6 @@ type DomainSwitcher struct {
 func NewDomainSwitcher(params Parameters, comlexToRealSwk *SwkComplexToReal, RealToComplexSwk *SwkRealToComplex) (DomainSwitcher, error) {
 
 	s := DomainSwitcher{
-		KeySwitcher:      *rlwe.NewKeySwitcher(params.Parameters),
 		SwkComplexToReal: comlexToRealSwk,
 		SwkRealToComplex: RealToComplexSwk,
 	}
@@ -38,6 +37,10 @@ func NewDomainSwitcher(params Parameters, comlexToRealSwk *SwkComplexToReal, Rea
 	if s.conjugateRingQ, err = params.RingQ().ConjugateInvariantRing(); err != nil {
 		return DomainSwitcher{}, fmt.Errorf("cannot switch between schemes because the standard NTT is undefined for params: %f", err)
 	}
+
+	stdParams, err := params.StandardParameters()
+	s.KeySwitcher = *rlwe.NewKeySwitcher(stdParams.Parameters)
+
 	s.permuteNTTIndex = s.stdRingQ.PermuteNTTIndex((uint64(s.stdRingQ.N) << 1) - 1)
 	return s, nil
 }

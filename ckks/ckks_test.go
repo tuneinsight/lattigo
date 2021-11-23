@@ -937,41 +937,41 @@ func testBridge(tc *testContext, t *testing.T) {
 			t.Skip("only tested for params.RingTypre() == ring.ConjugateInvariant")
 		}
 
-		paramsCI := tc.params
-		var paramsCKKS Parameters
+		ciParams := tc.params
+		var stdParams Parameters
 		var err error
-		if paramsCKKS, err = paramsCI.StandardParameters(); err != nil {
+		if stdParams, err = ciParams.StandardParameters(); err != nil {
 			t.Errorf("all Conjugate Invariant parameters should have a standard counterpart but got: %f", err)
 		}
 
-		stdKeyGen := NewKeyGenerator(paramsCKKS)
+		stdKeyGen := NewKeyGenerator(stdParams)
 		stdSK := stdKeyGen.GenSecretKey()
-		stdDecryptor := NewDecryptor(paramsCKKS, stdSK)
-		stdEncoder := NewEncoder(paramsCKKS)
-		stdEvaluator := NewEvaluator(paramsCKKS, rlwe.EvaluationKey{Rlk: nil, Rtks: nil})
+		stdDecryptor := NewDecryptor(stdParams, stdSK)
+		stdEncoder := NewEncoder(stdParams)
+		stdEvaluator := NewEvaluator(stdParams, rlwe.EvaluationKey{Rlk: nil, Rtks: nil})
 
 		swkCtR, swkRtC := stdKeyGen.GenSwitchingKeysForBridge(stdSK, tc.sk)
 
-		switcher, err := NewDomainSwitcher(paramsCKKS, swkCtR, swkRtC)
+		switcher, err := NewDomainSwitcher(stdParams, swkCtR, swkRtC)
 		if err != nil {
 			t.Error(err)
 		}
 
 		values, _, ctCI := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-		stdCTHave := NewCiphertext(paramsCKKS, ctCI.Degree(), ctCI.Level(), ctCI.Scale)
+		stdCTHave := NewCiphertext(stdParams, ctCI.Degree(), ctCI.Level(), ctCI.Scale)
 
 		switcher.RealToComplex(ctCI, stdCTHave)
 
-		verifyTestVectors(paramsCKKS, stdEncoder, stdDecryptor, values, stdCTHave, paramsCKKS.LogSlots(), 0, t)
+		verifyTestVectors(stdParams, stdEncoder, stdDecryptor, values, stdCTHave, stdParams.LogSlots(), 0, t)
 
 		stdCTImag := stdEvaluator.MultByiNew(stdCTHave)
 		stdEvaluator.Add(stdCTHave, stdCTImag, stdCTHave)
 
-		ciCTHave := NewCiphertext(paramsCI, 1, stdCTHave.Level(), stdCTHave.Scale)
+		ciCTHave := NewCiphertext(ciParams, 1, stdCTHave.Level(), stdCTHave.Scale)
 		switcher.ComplexToReal(stdCTHave, ciCTHave)
 
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciCTHave, paramsCI.LogSlots(), 0, t)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciCTHave, ciParams.LogSlots(), 0, t)
 	})
 }
 

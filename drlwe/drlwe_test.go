@@ -29,7 +29,7 @@ func testString(params rlwe.Parameters, opname string) string {
 }
 
 // TestParams is a set of test parameters for the correctness of the rlwe pacakge.
-var TestParams = []rlwe.ParametersLiteral{rlwe.TestPN12QP109, rlwe.TestPN13QP218, rlwe.TestPN14QP438, rlwe.TestPN15QP880}
+var TestParams = []rlwe.ParametersLiteral{rlwe.TestPN12QP109, rlwe.TestPN13QP218, rlwe.TestPN14QP438, rlwe.TestPN15QP880, rlwe.TestPN16QP240, rlwe.TestPN17QP360}
 
 type testContext struct {
 	params                 rlwe.Parameters

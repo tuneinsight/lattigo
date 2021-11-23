@@ -5,15 +5,15 @@ import "github.com/ldsec/lattigo/v2/rlwe"
 // KeyGenerator is an interface for the generation of CKKS keys.
 type KeyGenerator interface {
 	rlwe.KeyGenerator
-	GenSwitchingKeysForBridge(skCKKS, skRCKKS *rlwe.SecretKey) (*SwkComplexToReal, *SwkRealToComplex)
+	GenSwitchingKeysForBridge(skCKKS, skCI *rlwe.SecretKey) (*SwkComplexToReal, *SwkRealToComplex)
 }
 
-// SwkComplexToReal is a SwitchingKey to switch from CKKS to RCKKS.
+// SwkComplexToReal is a SwitchingKey to switch from the standard domain to the conjugate invariant domain.
 type SwkComplexToReal struct {
 	rlwe.SwitchingKey
 }
 
-// SwkRealToComplex is a Switchingkey to switch from RCKKS to CKKS
+// SwkRealToComplex is a Switchingkey to switch from the conjugate invariant domain to the standard domain.
 type SwkRealToComplex struct {
 	rlwe.SwitchingKey
 }
@@ -24,7 +24,8 @@ type keyGenerator struct {
 	params *Parameters
 }
 
-// GenSwitchingKeysForBridge generates the necessary switching keys to switch from CKKS to RCKKS and vice-versa.
+// GenSwitchingKeysForBridge generates the necessary switching keys to switch from the standard domain to the conjugate invariant domain
+// and vice-versa.
 func (keygen *keyGenerator) GenSwitchingKeysForBridge(skStd, skConjugateInvariant *rlwe.SecretKey) (*SwkComplexToReal, *SwkRealToComplex) {
 	swkStdToCi, swkCitoStd := keygen.GenSwitchingKeysForRingSwap(skStd, skConjugateInvariant)
 	return &SwkComplexToReal{*swkStdToCi}, &SwkRealToComplex{*swkCitoStd}

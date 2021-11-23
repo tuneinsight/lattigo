@@ -941,41 +941,41 @@ func testBridge(tc *testContext, t *testing.T) {
 			t.Skip("only tested for params.RingTypre() == ring.ConjugateInvariant")
 		}
 
-		paramsRCKKS := tc.params
+		paramsCI := tc.params
 		var paramsCKKS Parameters
 		var err error
-		if paramsCKKS, err = paramsRCKKS.StandardParameters(); err != nil {
-			t.Errorf("all RCKKS parameter should have a standard counterpart but got: %f", err)
+		if paramsCKKS, err = paramsCI.StandardParameters(); err != nil {
+			t.Errorf("all Conjugate Invariant parameters should have a standard counterpart but got: %f", err)
 		}
 
-		kgenCKKS := NewKeyGenerator(paramsCKKS)
-		skCKKS := kgenCKKS.GenSecretKey()
-		decryptorCKKS := NewDecryptor(paramsCKKS, skCKKS)
-		encoderCKKS := NewEncoder(paramsCKKS)
-		evalCKKS := NewEvaluator(paramsCKKS, rlwe.EvaluationKey{Rlk: nil, Rtks: nil})
+		stdKeyGen := NewKeyGenerator(paramsCKKS)
+		stdSK := stdKeyGen.GenSecretKey()
+		stdDecryptor := NewDecryptor(paramsCKKS, stdSK)
+		stdEncoder := NewEncoder(paramsCKKS)
+		stdEvaluator := NewEvaluator(paramsCKKS, rlwe.EvaluationKey{Rlk: nil, Rtks: nil})
 
-		swkCtR, swkRtC := kgenCKKS.GenSwitchingKeysForBridge(skCKKS, tc.sk)
+		swkCtR, swkRtC := stdKeyGen.GenSwitchingKeysForBridge(stdSK, tc.sk)
 
 		switcher, err := NewDomainSwitcher(paramsCKKS, swkCtR, swkRtC)
 		if err != nil {
 			t.Error(err)
 		}
 
-		values, _, ctRCKKS := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
+		values, _, ctCI := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-		ctCKKSHave := NewCiphertext(paramsCKKS, ctRCKKS.Degree(), ctRCKKS.Level(), ctRCKKS.Scale)
+		stdCTHave := NewCiphertext(paramsCKKS, ctCI.Degree(), ctCI.Level(), ctCI.Scale)
 
-		switcher.RealToComplex(ctRCKKS, ctCKKSHave)
+		switcher.RealToComplex(ctCI, stdCTHave)
 
-		verifyTestVectors(paramsCKKS, encoderCKKS, decryptorCKKS, values, ctCKKSHave, paramsCKKS.LogSlots(), 0, t)
+		verifyTestVectors(paramsCKKS, stdEncoder, stdDecryptor, values, stdCTHave, paramsCKKS.LogSlots(), 0, t)
 
-		ctCKKSImag := evalCKKS.MultByiNew(ctCKKSHave)
-		evalCKKS.Add(ctCKKSHave, ctCKKSImag, ctCKKSHave)
+		stdCTImag := stdEvaluator.MultByiNew(stdCTHave)
+		stdEvaluator.Add(stdCTHave, stdCTImag, stdCTHave)
 
-		ctRCKKSHave := NewCiphertext(paramsRCKKS, 1, ctCKKSHave.Level(), ctCKKSHave.Scale)
-		switcher.ComplexToReal(ctCKKSHave, ctRCKKSHave)
+		ciCTHave := NewCiphertext(paramsCI, 1, stdCTHave.Level(), stdCTHave.Scale)
+		switcher.ComplexToReal(stdCTHave, ciCTHave)
 
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ctRCKKSHave, paramsRCKKS.LogSlots(), 0, t)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciCTHave, paramsCI.LogSlots(), 0, t)
 	})
 }
 

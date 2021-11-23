@@ -25,7 +25,7 @@ type KeyGenerator interface {
 	GenRotationKeysForRotations(ks []int, inclueSwapRows bool, sk *SecretKey) (rks *RotationKeySet)
 	GenSwitchingKeyForRowRotation(sk *SecretKey) (swk *SwitchingKey)
 	GenRotationKeysForInnerSum(sk *SecretKey) (rks *RotationKeySet)
-	GenSwitchingKeysForRingSwap(skCKKS, skRCKKS *SecretKey) (swkStdToConjugateInvariant, swkConjugateInvariantToStd *SwitchingKey)
+	GenSwitchingKeysForRingSwap(skCKKS, skCI *SecretKey) (swkStdToConjugateInvariant, swkConjugateInvariantToStd *SwitchingKey)
 }
 
 // KeyGenerator is a structure that stores the elements required to create new keys,
@@ -211,12 +211,12 @@ func (keygen *keyGenerator) genrotKey(sk PolyQP, galEl uint64, swk *SwitchingKey
 // GenSwitchingKeysForRingSwap generates the necessary switching keys to switch from standard ring to to a conjugate invariant ring and vice-versa.
 func (keygen *keyGenerator) GenSwitchingKeysForRingSwap(skStd, skConjugateInvariant *SecretKey) (swkStdToConjugateInvariant, swkConjugateInvariantToStd *SwitchingKey) {
 
-	skRCKKSMappedToCKKS := &SecretKey{Value: keygen.poolQP}
-	keygen.params.RingQ().UnfoldConjugateInvariantToStandard(skConjugateInvariant.Value.Q.Level(), skConjugateInvariant.Value.Q, skRCKKSMappedToCKKS.Value.Q)
-	keygen.params.RingQ().UnfoldConjugateInvariantToStandard(skConjugateInvariant.Value.P.Level(), skConjugateInvariant.Value.P, skRCKKSMappedToCKKS.Value.P)
+	skCIMappedToStandard := &SecretKey{Value: keygen.poolQP}
+	keygen.params.RingQ().UnfoldConjugateInvariantToStandard(skConjugateInvariant.Value.Q.Level(), skConjugateInvariant.Value.Q, skCIMappedToStandard.Value.Q)
+	keygen.params.RingQ().UnfoldConjugateInvariantToStandard(skConjugateInvariant.Value.P.Level(), skConjugateInvariant.Value.P, skCIMappedToStandard.Value.P)
 
-	swkConjugateInvariantToStd = keygen.GenSwitchingKey(skRCKKSMappedToCKKS, skStd)
-	swkStdToConjugateInvariant = keygen.GenSwitchingKey(skStd, skRCKKSMappedToCKKS)
+	swkConjugateInvariantToStd = keygen.GenSwitchingKey(skCIMappedToStandard, skStd)
+	swkStdToConjugateInvariant = keygen.GenSwitchingKey(skStd, skCIMappedToStandard)
 	return
 }
 

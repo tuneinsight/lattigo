@@ -8,7 +8,8 @@ import (
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
-// DomainSwitcher is a type for switching between the CKKS and RCKKS schemes.
+// DomainSwitcher is a type for switching between the standard CKKS domain (which encrypts vectors of complex numbers)
+// and the conjugate invariant variant of CKKS (which encrypts vectors of real numbers).
 type DomainSwitcher struct {
 	rlwe.KeySwitcher
 
@@ -41,9 +42,9 @@ func NewDomainSwitcher(params Parameters, comlexToRealSwk *SwkComplexToReal, Rea
 	return s, nil
 }
 
-// ComplexToReal switches the provided ciphertext `ctIn` from the  CKKS scheme to the RCKKS scheme
-// and write the result into `ctOut`.
-// Given ctInCKKS = enc(real(m) + imag(m)) in Z[X](X^N + 1), returns ctOutRCKKS = enc(real(m))
+// ComplexToReal switches the provided ciphertext `ctIn` from the standard domain to the conjugate
+// invariant domain and write the result into `ctOut`.
+// Given ctInCKKS = enc(real(m) + imag(m)) in Z[X](X^N + 1), returns ctOutCI = enc(real(m))
 // in Z[X+X^-1]/(X^N + 1) in compressed form (N/2 coefficients).
 // The scale of the output ciphertext is 2 times the scale of the input one.
 // Requires the ring degree of ctOut to be half the ring degree of ctIn.
@@ -69,9 +70,9 @@ func (switcher *DomainSwitcher) ComplexToReal(ctIn, ctOut *Ciphertext) {
 	ctOut.Scale = 2 * ctIn.Scale
 }
 
-// RealToComplex switches the provided ciphertext `ctIn` from the  RCKKS scheme to the CKKS scheme.
-// and write the result into `ctOut`.
-// Given ctInRCKKS = enc(real(m)) in Z[X+X^-1]/(X^2N+1) in compressed form (N coefficients), returns
+// RealToComplex switches the provided ciphertext `ctIn` from the conjugate invariant domain to the .
+// standard domain and write the result into `ctOut`.
+// Given ctInCI = enc(real(m)) in Z[X+X^-1]/(X^2N+1) in compressed form (N coefficients), returns
 // ctOutCKKS = enc(real(m) + imag(0)) in Z[X]/(X^2N+1).
 // Requires the ring degree of ctOut to be twice the ring degree of ctIn.
 // The security is changed from Z[X]/(X^N+1) to Z[X]/(X^2N+1).

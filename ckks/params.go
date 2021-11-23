@@ -319,13 +319,13 @@ type ParametersLiteral struct {
 // DefaultParams is a set of default CKKS parameters ensuring 128 bit security in a classic setting.
 var DefaultParams = []ParametersLiteral{PN12QP109, PN13QP218, PN14QP438, PN15QP880, PN16QP1761}
 
-// DefaultConjugateInvariantParams is a set of default RCKKS parameters ensuring 128 bit security in a classic setting.
+// DefaultConjugateInvariantParams is a set of default conjugate invariant parameters for encrypting real values and ensuring 128 bit security in a classic setting.
 var DefaultConjugateInvariantParams = []ParametersLiteral{PN12QP109CI, PN13QP218CI, PN14QP438CI, PN15QP880CI, PN16QP1761CI}
 
 // DefaultPostQuantumParams is a set of default CKKS parameters ensuring 128 bit security in a post-quantum setting.
 var DefaultPostQuantumParams = []ParametersLiteral{PN12QP101pq, PN13QP202pq, PN14QP411pq, PN15QP827pq, PN16QP1654pq}
 
-// DefaultPostQuantumConjugateInvariantParams is a set of default RCKKS parameters ensuring 128 bit security in a post-quantum setting.
+// DefaultPostQuantumConjugateInvariantParams is a set of default conjugate invariant parameters for encrypting real values and ensuring 128 bit security in a post-quantum setting.
 var DefaultPostQuantumConjugateInvariantParams = []ParametersLiteral{PN12QP101CIpq, PN13QP202CIpq, PN14QP411CIpq, PN15QP827CIpq, PN16QP1654CIpq}
 
 // Parameters represents a parameter set for the CKKS cryptosystem. Its fields are private and

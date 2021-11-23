@@ -2,15 +2,16 @@ package main
 
 import (
 	"fmt"
+	"math/bits"
+	"time"
+
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
-	"math/bits"
-	"time"
 )
 
 // This example is an implementation of the work "Efficient Homomorphic Conversion Between (Ring) LWE Ciphertexts"
-// from Hao Chen and Wei Dai and Miran Kim and Yongsoo Song.
+// from Hao Chen and Wei Dai and Miran Kim and Yongsoo Song (https://eprint.iacr.org/2020/015).
 func main() {
 
 	LogN := 12

@@ -202,6 +202,21 @@ func testParameters(tc *testContext, t *testing.T) {
 		assert.False(t, params1.Equals(tc.params))
 		assert.True(t, params2.Equals(tc.params))
 	})
+
+	t.Run(GetTestName(tc.params, "Parameters/StandardRing/"), func(t *testing.T) {
+		params, err := tc.params.StandardParameters()
+		switch tc.params.RingType() {
+		case ring.Standard:
+			require.True(t, params.Equals(tc.params))
+			require.NoError(t, err)
+		case ring.ConjugateInvariant:
+			require.Equal(t, params.LogN(), tc.params.LogN()+1)
+			require.Equal(t, params.LogSlots(), tc.params.LogSlots())
+			require.NoError(t, err)
+		default:
+			t.Error("invalid RingType")
+		}
+	})
 }
 
 func testEncoder(tc *testContext, t *testing.T) {
@@ -929,7 +944,7 @@ func testBridge(tc *testContext, t *testing.T) {
 		paramsRCKKS := tc.params
 		var paramsCKKS Parameters
 		var err error
-		if paramsCKKS, err = paramsRCKKS.CKKSParameters(); err != nil {
+		if paramsCKKS, err = paramsRCKKS.StandardParameters(); err != nil {
 			t.Errorf("all RCKKS parameter should have a standard counterpart but got: %f", err)
 		}
 
@@ -941,7 +956,7 @@ func testBridge(tc *testContext, t *testing.T) {
 
 		swkCtR, swkRtC := kgenCKKS.GenSwitchingKeysForBridge(skCKKS, tc.sk)
 
-		switcher, err := NewSchemeSwitcher(paramsCKKS, swkCtR, swkRtC)
+		switcher, err := NewDomainSwitcher(paramsCKKS, swkCtR, swkRtC)
 		if err != nil {
 			t.Error(err)
 		}

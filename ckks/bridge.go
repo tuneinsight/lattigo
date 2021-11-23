@@ -8,8 +8,8 @@ import (
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
-// SchemeSwitcher is a type for switching between the CKKS and RCKKS schemes.
-type SchemeSwitcher struct {
+// DomainSwitcher is a type for switching between the CKKS and RCKKS schemes.
+type DomainSwitcher struct {
 	rlwe.KeySwitcher
 
 	stdRingQ, conjugateRingQ *ring.Ring
@@ -20,22 +20,22 @@ type SchemeSwitcher struct {
 	permuteNTTIndex []uint64
 }
 
-// NewSchemeSwitcher instantiate a new SchemeSwitcher type. It may be instantiated from parameters from either RingType.
+// NewDomainSwitcher instantiate a new DomainSwitcher type. It may be instantiated from parameters from either RingType.
 // The method returns an error if the parameters cannot support the switching (e.g., the NTT transforms are undefined for
 // either of the two ring type).
-func NewSchemeSwitcher(params Parameters, comlexToRealSwk *SwkComplexToReal, RealToComplexSwk *SwkRealToComplex) (SchemeSwitcher, error) {
+func NewDomainSwitcher(params Parameters, comlexToRealSwk *SwkComplexToReal, RealToComplexSwk *SwkRealToComplex) (DomainSwitcher, error) {
 
-	s := SchemeSwitcher{
+	s := DomainSwitcher{
 		KeySwitcher:      *rlwe.NewKeySwitcher(params.Parameters),
 		SwkComplexToReal: comlexToRealSwk,
 		SwkRealToComplex: RealToComplexSwk,
 	}
 	var err error
 	if s.stdRingQ, err = params.RingQ().StandardRing(); err != nil {
-		return SchemeSwitcher{}, fmt.Errorf("cannot switch between schemes because the standard NTT is undefined for params: %f", err)
+		return DomainSwitcher{}, fmt.Errorf("cannot switch between schemes because the standard NTT is undefined for params: %f", err)
 	}
 	if s.conjugateRingQ, err = params.RingQ().ConjugateInvariantRing(); err != nil {
-		return SchemeSwitcher{}, fmt.Errorf("cannot switch between schemes because the standard NTT is undefined for params: %f", err)
+		return DomainSwitcher{}, fmt.Errorf("cannot switch between schemes because the standard NTT is undefined for params: %f", err)
 	}
 	s.permuteNTTIndex = s.stdRingQ.PermuteNTTIndex((uint64(s.stdRingQ.N) << 1) - 1)
 	return s, nil
@@ -48,8 +48,8 @@ func NewSchemeSwitcher(params Parameters, comlexToRealSwk *SwkComplexToReal, Rea
 // The scale of the output ciphertext is 2 times the scale of the input one.
 // Requires the ring degree of ctOut to be half the ring degree of ctIn.
 // The security is changed from Z[X]/(X^N+1) to Z[X]/(X^N/2+1).
-// The method panics if the SchemeSwitcher was not initialized with a SwkComplexToReal key.
-func (switcher *SchemeSwitcher) ComplexToReal(ctIn, ctOut *Ciphertext) {
+// The method panics if the DomainSwitcher was not initialized with a SwkComplexToReal key.
+func (switcher *DomainSwitcher) ComplexToReal(ctIn, ctOut *Ciphertext) {
 
 	level := utils.MinInt(ctIn.Level(), ctOut.Level())
 
@@ -58,7 +58,7 @@ func (switcher *SchemeSwitcher) ComplexToReal(ctIn, ctOut *Ciphertext) {
 	}
 
 	if switcher.SwkComplexToReal == nil {
-		panic("no SwkComplexToReal provided to this SchemeSwitcher")
+		panic("no SwkComplexToReal provided to this DomainSwitcher")
 	}
 
 	switcher.SwitchKeysInPlace(level, ctIn.Value[1], &switcher.SwkComplexToReal.SwitchingKey, switcher.Pool[1].Q, switcher.Pool[2].Q)
@@ -75,8 +75,8 @@ func (switcher *SchemeSwitcher) ComplexToReal(ctIn, ctOut *Ciphertext) {
 // ctOutCKKS = enc(real(m) + imag(0)) in Z[X]/(X^2N+1).
 // Requires the ring degree of ctOut to be twice the ring degree of ctIn.
 // The security is changed from Z[X]/(X^N+1) to Z[X]/(X^2N+1).
-// The method panics if the SchemeSwitcher was not initialized with a SwkRealToComplex key.
-func (switcher *SchemeSwitcher) RealToComplex(ctIn, ctOut *Ciphertext) {
+// The method panics if the DomainSwitcher was not initialized with a SwkRealToComplex key.
+func (switcher *DomainSwitcher) RealToComplex(ctIn, ctOut *Ciphertext) {
 
 	level := utils.MinInt(ctIn.Level(), ctOut.Level())
 
@@ -85,7 +85,7 @@ func (switcher *SchemeSwitcher) RealToComplex(ctIn, ctOut *Ciphertext) {
 	}
 
 	if switcher.SwkRealToComplex == nil {
-		panic("no SwkRealToComplex provided to this SchemeSwitcher")
+		panic("no SwkRealToComplex provided to this DomainSwitcher")
 	}
 
 	switcher.stdRingQ.UnfoldConjugateInvariantToStandard(level, ctIn.Value[0], ctOut.Value[0])

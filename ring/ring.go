@@ -120,8 +120,7 @@ func NewRingWithCustomNTT(N int, Moduli []uint64, ntt NumberTheoreticTransformer
 
 // ConjugateInvariantRing returns the conjugate invariant ring of the receiver ring.
 // If `r.Type()==ConjugateInvariant`, then the method returns the receiver.
-// if `r.Type()==Standard`, then the method returns a ring with ring degree N/2
-// that requires moduli congruent to 1 mod 2N.
+// if `r.Type()==Standard`, then the method returns a ring with ring degree N/2.
 // The returned Ring is a shallow copy of the receiver.
 func (r *Ring) ConjugateInvariantRing() (*Ring, error) {
 	if r.Type() == ConjugateInvariant {
@@ -130,23 +129,22 @@ func (r *Ring) ConjugateInvariantRing() (*Ring, error) {
 	cr := *r
 	cr.N = r.N >> 1
 	cr.NumberTheoreticTransformer = NumberTheoreticTransformerConjugateInvariant{}
-	return &cr, cr.genNTTParams(uint64(r.N) << 1)
+	return &cr, cr.genNTTParams(uint64(cr.N) << 2)
 }
 
 // StandardRing returns the standard ring of the receiver ring.
 // If `r.Type()==Standard`, then the method returns the receiver.
-// if `r.Type()==ConjugateInvariant`, then the method returns a ring with ring degree 2N
-// that requires moduli congruent to 1 mod 4N.
+// if `r.Type()==ConjugateInvariant`, then the method returns a ring with ring degree 2N.
 // The returned Ring is a shallow copy of the receiver.
 func (r *Ring) StandardRing() (*Ring, error) {
 	if r.Type() == Standard {
 		return r, nil
 	}
 
-	cr := *r
-	cr.N = r.N << 1
-	cr.NumberTheoreticTransformer = NumberTheoreticTransformerStandard{}
-	return &cr, cr.genNTTParams(uint64(cr.N) << 1)
+	sr := *r
+	sr.N = r.N << 1
+	sr.NumberTheoreticTransformer = NumberTheoreticTransformerStandard{}
+	return &sr, sr.genNTTParams(uint64(sr.N) << 1)
 }
 
 // Type returns the Type of the ring which might be either `Standard` or `ConjugateInvariant`.
@@ -220,10 +218,6 @@ func (r *Ring) setParameters(N int, Modulus []uint64) error {
 // NTT parameters.
 func (r *Ring) genNTTParams(NthRoot uint64) error {
 
-	if r.AllowsNTT {
-		return nil
-	}
-
 	if r.N == 0 || r.Modulus == nil {
 		return errors.New("invalid r parameters (missing)")
 	}
@@ -240,7 +234,7 @@ func (r *Ring) genNTTParams(NthRoot uint64) error {
 
 		if qi&(NthRoot-1) != 1 {
 			r.AllowsNTT = false
-			return fmt.Errorf("invalid modulus (Modulus[%d] != 1 mod 2N)", i)
+			return fmt.Errorf("invalid modulus (Modulus[%d] != 1 mod NthRoot)", i)
 		}
 	}
 

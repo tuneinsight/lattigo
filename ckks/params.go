@@ -360,10 +360,10 @@ func NewParametersFromLiteral(pl ParametersLiteral) (Parameters, error) {
 	return NewParameters(rlweParams, pl.LogSlots, pl.Scale)
 }
 
-// CKKSParameters returns the CKKS parameters corresponding to the receiver
-// RCKKS parameter set. If the receiver is already an CKKS parameter set
+// StandardParameters returns the CKKS parameters corresponding to the receiver
+// parameter set. If the receiver is already a standard parameter set
 // (i.e., RingType==Standard), then the method returns the receiver.
-func (p Parameters) CKKSParameters() (pckks Parameters, err error) {
+func (p Parameters) StandardParameters() (pckks Parameters, err error) {
 	if p.RingType() == ring.Standard {
 		return p, nil
 	}

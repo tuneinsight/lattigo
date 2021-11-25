@@ -18,12 +18,34 @@ const GaloisGen uint64 = 5
 
 var pi = "3.1415926535897932384626433832795028841971693993751058209749445923078164062862089986280348253421170679821480865132823066470938446095505822317253594081284811174502841027019385211055596446229489549303819644288109756659334461284756482337867831652712019091456485669234603486104543266482133936072602491412737245870066063155881748815209209628292540917153643678925903600113305305488204665213841469519415116094330572703657595919530921861173819326117931051185480744623799627495673518857527248912279381830119491298336733624406566430860213949463952247371907021798609437027705392171762931767523846748184676694051320005681271452635608277857713427577896091736371787214684409012249534301465495853710507922796892589235420199561121290219608640344181598136297747713099605187072113499999983729780499510597317328160963185950244594553469083026425223082533446850352619311881710100031378387528865875332083814206171776691473035982534904287554687311595628638823537875937519577818577805321712268066130019278766111959092164201989"
 
-// Encoder is an interface implementing the encoding algorithms.
+// Encoder is an interface implementing the encoding and decoding operations. It provides method to embed []complex128 and []float64 types
+// into plaintexts and the inverse operations.
+// Two different encodings are provided:
+//
+//     - Slots: The coefficients are first subjected to a special Fourier transform before being embedded on the plaintext. This encoding can embed
+//              []complex128 and []float64 slices of size at most N/2 (N being the ring degree) and leverages the convolution property of the DFT
+//              to preserve point-wise complex multiplication in the plaintext domain, i.e. a ciphertext multiplication will result in an element-
+//              wise multiplication in the plaintext domain. It also enables plaintext slots cyclic rotations. Other operations, like addition or
+//              constant multiplication behave as usual.
+//
+//     - Coeffs: The coefficients are directly embedded on the plaintext. This encoding only allows to encode []float64 slices, but of size up to N
+//               (N being the ring degree) and does not preserve the point-wise multiplication. A ciphertext multiplication will result in a nega-
+//               cyclic polynomial convolution in the plaintext domain. This encoding does not provide native slot cyclic rotation.
+//               Other operations, like addition or constant multiplication behave as usual.
+//
+// The figure bellow illustrates the relationship between those two encoding:
+//
+//                                              Real^{N}          Z_Q[X]/(X^N+1)
+// EncodeCoeffs: ----------------------------->[]float64 ---------> Plaintext
+//                                                 |
+//                    Complex^{N/2}                |
+// EncodeSlots:  []complex128/[]float64 -> iDFT ---┘
 type Encoder interface {
 
 	// Slots Encoding
 
 	// Encode encodes a set of values on the target plaintext.
+	// This method is identical to "EncodeSlots".
 	// Encoding is done at the level and scale of the plaintext.
 	// User must ensure that 1 <= len(values) <= 2^logSlots < 2^logN.
 	// values.(type) can be either []complex128 of []float64.
@@ -31,13 +53,30 @@ type Encoder interface {
 	// Returned plaintext is always in the NTT domain.
 	Encode(plaintext *Plaintext, values interface{}, logSlots int)
 
-	// EncodeNew encodes a set of values on a new plaintext.
+	// EncodeSlots encodes a set of values on a new plaintext.
+	// This method is identical to "EncodeSlotsNew".
 	// Encoding is done at the provided level and with the provided scale.
 	// User must ensure that 1 <= len(values) <= 2^logSlots < 2^logN.
 	// values.(type) can be either []complex128 of []float64.
 	// The imaginary part of []complex128 will be discarded if ringType == ring.ConjugateInvariant.
 	// Returned plaintext is always in the NTT domain.
 	EncodeNew(values interface{}, level int, scale float64, logSlots int) (plaintext *Plaintext)
+
+	// Encode encodes a set of values on the target plaintext.
+	// Encoding is done at the level and scale of the plaintext.
+	// User must ensure that 1 <= len(values) <= 2^logSlots < 2^logN.
+	// values.(type) can be either []complex128 of []float64.
+	// The imaginary part of []complex128 will be discarded if ringType == ring.ConjugateInvariant.
+	// Returned plaintext is always in the NTT domain.
+	EncodeSlots(plaintext *Plaintext, values interface{}, logSlots int)
+
+	// EncodeSlotsNew encodes a set of values on a new plaintext.
+	// Encoding is done at the provided level and with the provided scale.
+	// User must ensure that 1 <= len(values) <= 2^logSlots < 2^logN.
+	// values.(type) can be either []complex128 of []float64.
+	// The imaginary part of []complex128 will be discarded if ringType == ring.ConjugateInvariant.
+	// Returned plaintext is always in the NTT domain.
+	EncodeSlotsNew(values interface{}, level int, scale float64, logSlots int) (plaintext *Plaintext)
 
 	// EncodeDiagMatrixBSGS encodes a diagonalized plaintext matrix into PtDiagMatrix struct.
 	// It can then be evaluated on a ciphertext using evaluator.LinearTransform.
@@ -196,6 +235,14 @@ func (encoder *encoderComplex128) Encode(plaintext *Plaintext, values interface{
 	scaleUpVecExact(encoder.valuesFloat[:encoder.params.N()], plaintext.Scale, encoder.params.RingQ().Modulus[:plaintext.Level()+1], plaintext.Value.Coeffs)
 	encoder.params.RingQ().NTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
 	plaintext.Value.IsNTT = true
+}
+
+func (encoder *encoderComplex128) EncodeSlotsNew(values interface{}, level int, scale float64, logSlots int) (plaintext *Plaintext) {
+	return encoder.EncodeSlotsNew(values, level, scale, logSlots)
+}
+
+func (encoder *encoderComplex128) EncodeSlots(plaintext *Plaintext, values interface{}, logSlots int) {
+	encoder.Encode(plaintext, values, logSlots)
 }
 
 func (encoder *encoderComplex128) embed(values interface{}, logSlots int) {

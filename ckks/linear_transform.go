@@ -500,7 +500,7 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix PtDiagM
 	index, rotations := bsgsIndex(matrix.Vec, 1<<matrix.LogSlots, matrix.N1)
 
 	var ctInTmp0, ctInTmp1 *ring.Poly
-	if ctIn == ctOut {
+	if ctIn != ctOut {
 		ring.CopyValuesLvl(levelQ, ctIn.Value[0], eval.ctxpool.Value[0])
 		ring.CopyValuesLvl(levelQ, ctIn.Value[1], eval.ctxpool.Value[1])
 		ctInTmp0, ctInTmp1 = eval.ctxpool.Value[0], eval.ctxpool.Value[1]

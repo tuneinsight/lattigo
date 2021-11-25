@@ -395,14 +395,9 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix PtDiagMatri
 	ksRes0QP := eval.Pool[3]
 	ksRes1QP := eval.Pool[4]
 
-	var ctInTmp0, ctInTmp1 *ring.Poly
-	if ctIn != ctOut {
-		ring.CopyValuesLvl(levelQ, ctIn.Value[0], eval.ctxpool.Value[0])
-		ring.CopyValuesLvl(levelQ, ctIn.Value[1], eval.ctxpool.Value[1])
-		ctInTmp0, ctInTmp1 = eval.ctxpool.Value[0], eval.ctxpool.Value[1]
-	} else {
-		ctInTmp0, ctInTmp1 = ctIn.Value[0], ctIn.Value[1]
-	}
+	ring.CopyValuesLvl(levelQ, ctIn.Value[0], eval.ctxpool.Value[0])
+	ring.CopyValuesLvl(levelQ, ctIn.Value[1], eval.ctxpool.Value[1])
+	ctInTmp0, ctInTmp1 := eval.ctxpool.Value[0], eval.ctxpool.Value[1]
 
 	ringQ.MulScalarBigintLvl(levelQ, ctInTmp0, ringP.ModulusBigint, ct0TimesP) // P*c0
 
@@ -499,14 +494,9 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix PtDiagM
 
 	index, rotations := bsgsIndex(matrix.Vec, 1<<matrix.LogSlots, matrix.N1)
 
-	var ctInTmp0, ctInTmp1 *ring.Poly
-	if ctIn != ctOut {
-		ring.CopyValuesLvl(levelQ, ctIn.Value[0], eval.ctxpool.Value[0])
-		ring.CopyValuesLvl(levelQ, ctIn.Value[1], eval.ctxpool.Value[1])
-		ctInTmp0, ctInTmp1 = eval.ctxpool.Value[0], eval.ctxpool.Value[1]
-	} else {
-		ctInTmp0, ctInTmp1 = ctIn.Value[0], ctIn.Value[1]
-	}
+	ring.CopyValuesLvl(levelQ, ctIn.Value[0], eval.ctxpool.Value[0])
+	ring.CopyValuesLvl(levelQ, ctIn.Value[1], eval.ctxpool.Value[1])
+	ctInTmp0, ctInTmp1 := eval.ctxpool.Value[0], eval.ctxpool.Value[1]
 
 	// Pre-rotates ciphertext for the baby-step giant-step algorithm, does not divide by P yet
 	ctInRotQP := eval.RotateHoistedNoModDownNew(levelQ, rotations, ctInTmp0, eval.PoolDecompQP)

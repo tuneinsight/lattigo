@@ -1117,7 +1117,9 @@ func testLinearTransform(testContext *testParams, t *testing.T) {
 
 		eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testContext.rlk, Rtks: rotKey})
 
-		res := eval.LinearTransformNew(ciphertext1, ptDiagMatrix)[0]
+		eval.LinearTransform(ciphertext1, ptDiagMatrix, []*Ciphertext{ciphertext1})
+
+		res := ciphertext1
 
 		tmp := make([]complex128, params.Slots())
 		copy(tmp, values1)

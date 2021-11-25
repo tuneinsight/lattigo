@@ -97,6 +97,8 @@ type Encoder interface {
 
 	// DecodePublic decodes the input plaintext on a new slice of complex128.
 	// Adds, before the decoding step, an error with standard deviation sigma.
+	// If the underlying ringType is ConjugateInvariant, the imaginary part (and
+	// its related error) are zero.
 	DecodePublic(plaintext *Plaintext, logSlots int, sigma float64) []complex128
 
 	// Coeffs Encoding

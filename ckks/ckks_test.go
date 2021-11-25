@@ -1119,8 +1119,6 @@ func testLinearTransform(testContext *testParams, t *testing.T) {
 
 		eval.LinearTransform(ciphertext1, ptDiagMatrix, []*Ciphertext{ciphertext1})
 
-		res := ciphertext1
-
 		tmp := make([]complex128, params.Slots())
 		copy(tmp, values1)
 
@@ -1135,7 +1133,7 @@ func testLinearTransform(testContext *testParams, t *testing.T) {
 			values1[i] += tmp[(i+15)%params.Slots()]
 		}
 
-		verifyTestVectors(testContext.params, testContext.encoder, testContext.decryptor, values1, res, testContext.params.LogSlots(), 0, t)
+		verifyTestVectors(testContext.params, testContext.encoder, testContext.decryptor, values1, ciphertext1, testContext.params.LogSlots(), 0, t)
 	})
 
 	t.Run(GetTestName(testContext.params, "LinearTransform/Naive/"), func(t *testing.T) {
@@ -1162,7 +1160,7 @@ func testLinearTransform(testContext *testParams, t *testing.T) {
 
 		eval := testContext.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testContext.rlk, Rtks: rotKey})
 
-		res := eval.LinearTransformNew(ciphertext1, ptDiagMatrix)[0]
+		eval.LinearTransform(ciphertext1, ptDiagMatrix, []*Ciphertext{ciphertext1})
 
 		tmp := make([]complex128, params.Slots())
 		copy(tmp, values1)
@@ -1171,7 +1169,7 @@ func testLinearTransform(testContext *testParams, t *testing.T) {
 			values1[i] += tmp[(i-1+params.Slots())%params.Slots()]
 		}
 
-		verifyTestVectors(testContext.params, testContext.encoder, testContext.decryptor, values1, res, testContext.params.LogSlots(), 0, t)
+		verifyTestVectors(testContext.params, testContext.encoder, testContext.decryptor, values1, ciphertext1, testContext.params.LogSlots(), 0, t)
 	})
 }
 

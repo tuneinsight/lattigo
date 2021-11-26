@@ -24,11 +24,11 @@ var printPrecisionStats = flag.Bool("print-precision", false, "print precision s
 var minPrec float64 = 15.0
 
 func GetTestName(params Parameters, opname string) string {
-	return fmt.Sprintf("%slogN=%d/logQP=%d/RingType=%s/LogSlots=%d/levels=%d/alpha=%d/beta=%d",
+	return fmt.Sprintf("RingType=%s/%slogN=%d/logQP=%d/LogSlots=%d/levels=%d/alpha=%d/beta=%d",
+		params.RingType(),
 		opname,
 		params.LogN(),
 		params.LogQP(),
-		params.RingType(),
 		params.LogSlots(),
 		params.MaxLevel()+1,
 		params.PCount(),
@@ -179,6 +179,18 @@ func newTestVectors(tc *testContext, encryptor Encryptor, a, b complex128, t *te
 	}
 
 	return values, plaintext, ciphertext
+}
+
+func randomConst(tp ring.Type, a, b complex128) (constant complex128) {
+	switch tp {
+	case ring.Standard:
+		constant = complex(utils.RandFloat64(real(a), real(b)), utils.RandFloat64(imag(a), imag(b)))
+	case ring.ConjugateInvariant:
+		constant = complex(utils.RandFloat64(real(a), real(b)), 0)
+	default:
+		panic("invalid ring type")
+	}
+	return
 }
 
 func verifyTestVectors(params Parameters, encoder Encoder, decryptor Decryptor, valuesWant []complex128, element interface{}, logSlots int, bound float64, t *testing.T) {
@@ -463,15 +475,7 @@ func testEvaluatorAddConst(tc *testContext, t *testing.T) {
 
 		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-		var constant complex128
-		switch tc.params.RingType() {
-		case ring.Standard:
-			constant = 1.0 / complex(3.1415, -1.4142)
-		case ring.ConjugateInvariant:
-			constant = 1.0 / complex(3.1415, 0)
-		default:
-			panic("invalid ring type")
-		}
+		constant := randomConst(tc.params.RingType(), complex(-1, 1), complex(-1, 1))
 
 		for i := range values {
 			values[i] += constant
@@ -481,7 +485,6 @@ func testEvaluatorAddConst(tc *testContext, t *testing.T) {
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogSlots(), 0, t)
 	})
-
 }
 
 func testEvaluatorMultByConst(tc *testContext, t *testing.T) {
@@ -490,15 +493,7 @@ func testEvaluatorMultByConst(tc *testContext, t *testing.T) {
 
 		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-		var constant complex128
-		switch tc.params.RingType() {
-		case ring.Standard:
-			constant = 1.0 / complex(3.1415, -1.4142)
-		case ring.ConjugateInvariant:
-			constant = 1.0 / complex(3.1415, 0)
-		default:
-			panic("invalid ring type")
-		}
+		constant := randomConst(tc.params.RingType(), complex(-1, 1), complex(-1, 1))
 
 		for i := range values {
 			values[i] *= constant
@@ -518,15 +513,7 @@ func testEvaluatorMultByConstAndAdd(tc *testContext, t *testing.T) {
 		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
 		values2, _, ciphertext2 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-		var constant complex128
-		switch tc.params.RingType() {
-		case ring.Standard:
-			constant = 1.0 / complex(3.1415, -1.4142)
-		case ring.ConjugateInvariant:
-			constant = 1.0 / complex(3.1415, 0)
-		default:
-			panic("invalid ring type")
-		}
+		constant := randomConst(tc.params.RingType(), complex(-1, 1), complex(-1, 1))
 
 		for i := range values1 {
 			values2[i] += (constant * values1[i])

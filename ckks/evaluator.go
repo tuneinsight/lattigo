@@ -577,6 +577,10 @@ func (eval *evaluator) getConstAndScale(level int, constant interface{}) (cReal,
 		cImag = float64(0)
 	}
 
+	if eval.params.RingType() == ring.ConjugateInvariant {
+		cImag = float64(0)
+	}
+
 	return
 }
 
@@ -815,7 +819,11 @@ func (eval *evaluator) MultByGaussianInteger(ct0 *Ciphertext, cReal, cImag inter
 		mredParams := ringQ.MredParams[i]
 
 		scaledConstReal = interfaceMod(cReal, qi)
-		scaledConstImag = interfaceMod(cImag, qi)
+
+		if eval.params.RingType() != ring.ConjugateInvariant {
+			scaledConstImag = interfaceMod(cImag, qi)
+		}
+
 		scaledConst = scaledConstReal
 
 		if scaledConstImag != 0 {
@@ -860,7 +868,11 @@ func (eval *evaluator) MultByGaussianIntegerAndAdd(ct0 *Ciphertext, cReal, cImag
 		mredParams := ringQ.MredParams[i]
 
 		scaledConstReal = interfaceMod(cReal, qi)
-		scaledConstImag = interfaceMod(cImag, qi)
+
+		if eval.params.RingType() != ring.ConjugateInvariant {
+			scaledConstImag = interfaceMod(cImag, qi)
+		}
+
 		scaledConst = scaledConstReal
 
 		if scaledConstImag != 0 {
@@ -892,6 +904,11 @@ func (eval *evaluator) MultByGaussianIntegerAndAdd(ct0 *Ciphertext, cReal, cImag
 // MultByiNew multiplies ct0 by the imaginary number i, and returns the result in a newly created element.
 // It does not change the scale.
 func (eval *evaluator) MultByiNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
+
+	if eval.params.RingType() == ring.ConjugateInvariant {
+		panic("method MultByi is not supported when ring.Type == ring.ConjugateInvariant")
+	}
+
 	ctOut = NewCiphertext(eval.params, 1, ct0.Level(), ct0.Scale)
 	eval.MultByi(ct0, ctOut)
 	return ctOut
@@ -900,6 +917,10 @@ func (eval *evaluator) MultByiNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 // MultByi multiplies ct0 by the imaginary number i, and returns the result in ctOut.
 // It does not change the scale.
 func (eval *evaluator) MultByi(ct0 *Ciphertext, ctOut *Ciphertext) {
+
+	if eval.params.RingType() == ring.ConjugateInvariant {
+		panic("method MultByi is not supported when ring.Type == ring.ConjugateInvariant")
+	}
 
 	var level = utils.MinInt(ct0.Level(), ctOut.Level())
 	ctOut.Scale = ct0.Scale
@@ -935,6 +956,11 @@ func (eval *evaluator) MultByi(ct0 *Ciphertext, ctOut *Ciphertext) {
 // DivByiNew multiplies ct0 by the imaginary number 1/i = -i, and returns the result in a newly created element.
 // It does not change the scale.
 func (eval *evaluator) DivByiNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
+
+	if eval.params.RingType() == ring.ConjugateInvariant {
+		panic("method MultByi is not supported when ring.Type == ring.ConjugateInvariant")
+	}
+
 	ctOut = NewCiphertext(eval.params, 1, ct0.Level(), ct0.Scale)
 	eval.DivByi(ct0, ctOut)
 	return
@@ -943,6 +969,10 @@ func (eval *evaluator) DivByiNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 // DivByi multiplies ct0 by the imaginary number 1/i = -i, and returns the result in ctOut.
 // It does not change the scale.
 func (eval *evaluator) DivByi(ct0 *Ciphertext, ctOut *Ciphertext) {
+
+	if eval.params.RingType() == ring.ConjugateInvariant {
+		panic("method MultByi is not supported when ring.Type == ring.ConjugateInvariant")
+	}
 
 	var level = utils.MinInt(ct0.Level(), ctOut.Level())
 
@@ -1337,6 +1367,11 @@ func (eval *evaluator) Rotate(ct0 *Ciphertext, k int, ctOut *Ciphertext) {
 // created element. If the provided element is a Ciphertext, a key-switching operation is necessary and a rotation key
 // for the row rotation needs to be provided.
 func (eval *evaluator) ConjugateNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
+
+	if eval.params.RingType() == ring.ConjugateInvariant {
+		panic("method MultByi is not supported when ring.Type == ring.ConjugateInvariant")
+	}
+
 	ctOut = NewCiphertext(eval.params, ct0.Degree(), ct0.Level(), ct0.Scale)
 	eval.Conjugate(ct0, ctOut)
 	return
@@ -1345,6 +1380,10 @@ func (eval *evaluator) ConjugateNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 // Conjugate conjugates ct0 (which is equivalent to a row rotation) and returns the result in ctOut.
 // If the provided element is a Ciphertext, a key-switching operation is necessary and a rotation key for the row rotation needs to be provided.
 func (eval *evaluator) Conjugate(ct0 *Ciphertext, ctOut *Ciphertext) {
+
+	if eval.params.RingType() == ring.ConjugateInvariant {
+		panic("method MultByi is not supported when ring.Type == ring.ConjugateInvariant")
+	}
 
 	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
 		panic("input and output Ciphertext must be of degree 1")

@@ -10,7 +10,7 @@ test_examples:
 	go run ./examples/bfv > /dev/null
 	go run ./examples/ckks/euler > /dev/null
 	go run ./examples/ckks/sigmoid > /dev/null
-	go run ./examples/ckks/advanced/rlwe_lwe_bridge_CDKS20 > /dev/null
+	go run ./examples/rlwe/lwe_bridge > /dev/null
 	go run ./examples/dbfv/pir &> /dev/null
 	go run ./examples/dbfv/psi &> /dev/null
 	@echo ok

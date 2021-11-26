@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"math/bits"
+	"math/rand"
 	"time"
 
 	"github.com/ldsec/lattigo/v2/ring"
@@ -10,12 +12,18 @@ import (
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
-// This example is an implementation of the work "Efficient Homomorphic Conversion Between (Ring) LWE Ciphertexts"
-// from Hao Chen and Wei Dai and Miran Kim and Yongsoo Song (https://eprint.iacr.org/2020/015).
+// This example implements an oblivious shuffling of the plaintext slots of an RLWE encryption.
+// In such a scenario, an evaluator operates an arbitrary permutation (in this example, a random shuffle)
+// over the ciphertext's slots, homomorphically.
+//
+// The circuit uses the LWE <-> RLWE conversion "Efficient Homomorphic Conversion Between (Ring) LWE Ciphertexts"
+// of Hao Chen and Wei Dai and Miran Kim and Yongsoo Song (https://eprint.iacr.org/2020/015) to extract each message
+// slot as one LWE ciphertext, shuffles the obtained LWE ciphertexts and repacks all the LWE ciphertexts' messages
+// into a single a single RLWE ciphertext.
 func main() {
 
 	LogN := 12
-	LogSlots := 7 // can go up to LogN
+	LogSlots := 8 // can go up to LogN
 
 	RLWEParams := rlwe.ParametersLiteral{
 		LogN:     LogN,
@@ -56,13 +64,42 @@ func main() {
 	plaintext.Value.IsNTT = true
 	gap := 1 << (LogN - LogSlots)
 	for i, j := 0, 0; i < ringQ.N; i, j = i+gap, j+1 {
-		plaintext.Value.Coeffs[0][i] = uint64(float64(j+1) / float64(int(1<<LogSlots)) * scale)
+		plaintext.Value.Coeffs[0][i] = uint64(float64(j%2) * scale)
 	}
 
 	ringQ.NTT(plaintext.Value, plaintext.Value)
 	ciphertext := rlwe.NewCiphertextNTT(params, 1, plaintext.Level())
 	encryptor.Encrypt(plaintext, ciphertext)
 
+	fmt.Println("Plaintext before slot-shuffling:\nM(X) =")
+	DecryptAndPrint(decryptor, LogSlots, ringQ, ciphertext, plaintext, scale)
+	fmt.Println()
+
+	//RLWE to LWEs : extracts each coefficient of enc(M(X)) = RLWE into a separate LWE ciphertext
+	// such that dec(RLWE)[i] = dec(LWE[i])
+	now := time.Now()
+	fmt.Printf("Extracting RLWE  -> LWEs")
+	LWE := RLWEToLWE(ciphertext, LogSlots, params)
+	fmt.Printf("  Done : %s\n", time.Since(now))
+
+	fmt.Printf("Shuffling the LWE samples")
+	now = time.Now()
+	rand.Shuffle(len(LWE), func(i, j int) { // for the sake of the example, this is using an insecure, fixed-seed RNG
+		lwei := LWE[i]
+		LWE[i] = LWE[j]
+		LWE[j] = lwei
+	})
+	fmt.Printf(" Done : %s\n", time.Since(now))
+
+	// LWEs to RLWEs switches each individual LWE ciphertext into RLWE ciphertexts such that
+	// dec(RLWEs[i])[0] = dec(LWE[i])
+	now = time.Now()
+	fmt.Printf("Switching  LWE   -> RLWEs")
+	ciphertexts := LWEToRLWE(LWE, ciphertext.Level(), params)
+	fmt.Printf(" Done : %s\n", time.Since(now))
+
+	// RLWEs to RLWE : repacks all the RLWEs into a single RLWE such that dec(RLWE) = M(X)
+	fmt.Printf("Repacking  RLWEs -> RLWE")
 	XPow := make(map[int]*ring.Poly)
 	for i := 1; i < LogSlots+1; i++ {
 		XpowNoverL := ringQ.NewPoly()
@@ -70,28 +107,7 @@ func main() {
 		ringQ.NTT(XpowNoverL, XpowNoverL)
 		XPow[i] = XpowNoverL
 	}
-
-	fmt.Println("M(X) before extraction and repacking")
-	DecryptAndPrint(decryptor, LogSlots, ringQ, ciphertext, plaintext, scale)
-	fmt.Println()
-
-	//RLWE to LWEs : extracts each coefficient of enc(M(X)) = RLWE into a separate LWE ciphertext
-	// such that dec(RLWE)[i] = dec(LWE[i])
-	now := time.Now()
-	fmt.Printf("Extract RLWE  -> LWEs")
-	LWE := RLWEToLWE(ciphertext.Value[0], ciphertext.Value[1], LogSlots, params)
-	fmt.Printf("  Done : %s\n", time.Since(now))
-
-	// LWEs to RLWEs : repacks each individual LWE ciphertext into RLWE ciphertexts such that
-	// dec(RLWEs[i])[0] = dec(LWE[i])
 	now = time.Now()
-	fmt.Printf("Repack  LWE   -> RLWEs")
-	ciphertexts := LWEToRLWE(LWE, ciphertext.Level(), params)
-	fmt.Printf(" Done : %s\n", time.Since(now))
-
-	// RLWEs to RLWE : repacks all the RLWEs into a single RLWE such that dec(RLWE) = M(X)
-	now = time.Now()
-	fmt.Printf("Repack  RLWEs -> RLWE")
 	ciphertext = PackLWEs(ciphertexts, ks, rtks, XPow, NTimesLogSlotsInv, permuteNTTIndex, params)
 
 	// Trace
@@ -103,8 +119,7 @@ func main() {
 	}
 	fmt.Printf("  Done : %s\n", time.Since(now))
 
-	fmt.Println()
-	fmt.Println("M(X) after extraction and repacking")
+	fmt.Println("\nPlaintext after slot-shuffling:\nM'(X) =")
 	DecryptAndPrint(decryptor, LogSlots, ringQ, ciphertext, plaintext, scale)
 }
 
@@ -112,6 +127,50 @@ func main() {
 type LWESample struct {
 	b uint64
 	a []uint64
+}
+
+// RLWEToLWE extracts each slot of a R-LWE ciphertext as a LWE sample.
+func RLWEToLWE(ciphertext *rlwe.Ciphertext, LogSlots int, params rlwe.Parameters) (LWE []LWESample) {
+
+	ringQ := params.RingQ()
+
+	lvl := ciphertext.Level()
+	a := ringQ.NewPolyLvl(lvl)
+	b := ringQ.NewPolyLvl(lvl)
+
+	ringQ.InvNTT(ciphertext.Value[0], b)
+	ringQ.InvNTT(ciphertext.Value[1], a)
+
+	LWE = make([]LWESample, 1<<LogSlots)
+
+	// Copy coefficients multiplied by X^{N-1} in reverse order:
+	// a_{0} -a_{N-1} -a2_{N-2} ... -a_{1}
+	acc := ringQ.NewPoly()
+	for i, qi := range ringQ.Modulus {
+		tmp0 := acc.Coeffs[i]
+		tmp1 := a.Coeffs[i]
+		tmp0[0] = tmp1[0]
+		for j := 1; j < ringQ.N; j++ {
+			tmp0[j] = qi - tmp1[ringQ.N-j]
+		}
+	}
+
+	pol := b
+
+	gap := 1 << (params.LogN() - LogSlots)
+
+	// Real values
+	for i, j := 0, 0; i < ringQ.N; i, j = i+gap, j+1 {
+
+		LWE[j].b = pol.Coeffs[0][i]
+		LWE[j].a = make([]uint64, ringQ.N)
+		copy(LWE[j].a, acc.Coeffs[0])
+
+		// Multiplies the accumulator by X
+		MulBySmallMonomial(ringQ, acc, gap)
+	}
+
+	return
 }
 
 // LWEToRLWE transforms a set of LWE samples into their respective RLWE ciphertext such that decrypt(ct)[0] = decrypt(LWE)
@@ -211,51 +270,6 @@ func PackLWEs(ciphertexts []*rlwe.Ciphertext, ks *rlwe.KeySwitcher, rtks *rlwe.R
 	return ctEven
 }
 
-// RLWEToLWE extracts LWE samples from a R-LWE sample
-func RLWEToLWE(bNTT, aNTT *ring.Poly, LogSlots int, params rlwe.Parameters) (LWE []LWESample) {
-
-	ringQ := params.RingQ()
-
-	a := ringQ.NewPolyLvl(aNTT.Level())
-	b := ringQ.NewPolyLvl(bNTT.Level())
-
-	ringQ.InvNTT(bNTT, b)
-	ringQ.InvNTT(aNTT, a)
-
-	N := ringQ.N
-
-	LWE = make([]LWESample, 1<<LogSlots)
-
-	// Copy coefficients multiplied by X^{N-1} in reverse order:
-	// a_{0} -a_{N-1} -a2_{N-2} ... -a_{1}
-	acc := ringQ.NewPoly()
-	for i, qi := range ringQ.Modulus {
-		tmp0 := acc.Coeffs[i]
-		tmp1 := a.Coeffs[i]
-		tmp0[0] = tmp1[0]
-		for j := 1; j < N; j++ {
-			tmp0[j] = qi - tmp1[ringQ.N-j]
-		}
-	}
-
-	pol := b
-
-	gap := 1 << (params.LogN() - LogSlots)
-
-	// Real values
-	for i, j := 0, 0; i < N; i, j = i+gap, j+1 {
-
-		LWE[j].b = pol.Coeffs[0][i]
-		LWE[j].a = make([]uint64, N)
-		copy(LWE[j].a, acc.Coeffs[0])
-
-		// Multiplies the accumulator by X
-		MulBySmallMonomial(ringQ, acc, gap)
-	}
-
-	return
-}
-
 //MulBySmallMonomial multiplies pol by x^n
 func MulBySmallMonomial(ringQ *ring.Ring, pol *ring.Poly, n int) {
 	for i, qi := range ringQ.Modulus[:pol.Level()+1] {
@@ -297,11 +311,12 @@ func DecryptAndPrint(decryptor rlwe.Decryptor, LogSlots int, ringQ *ring.Ring, c
 		v[i] /= scale
 	}
 
+	fmt.Printf("   ")
 	for i := 0; i < 1<<LogSlots; i++ {
-		if i&15 == 0 {
-			fmt.Printf("\n")
+		if i != 0 && i&31 == 0 {
+			fmt.Printf("\n   ")
 		}
-		fmt.Printf("%7.4f ", v[i])
+		fmt.Printf("%d ", uint64(math.Round(v[i])))
 
 	}
 	fmt.Printf("\n")

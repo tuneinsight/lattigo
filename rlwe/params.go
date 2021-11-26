@@ -88,6 +88,11 @@ func NewParameters(logn int, q, p []uint64, sigma float64, ringType ring.Type) (
 // NewParametersFromLiteral instantiate a set of generic RLWE parameters from a ParametersLiteral specification.
 // It returns the empty parameters Parameters{} and a non-nil error if the specified parameters are invalid.
 func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
+	if paramDef.Sigma == 0 {
+		// prevents the zero value of ParameterLiteral to result in a noise-less parameter instance.
+		// Users should use the NewParameters method to explicitely create noise-less instances.
+		paramDef.Sigma = DefaultSigma
+	}
 	switch {
 	case paramDef.Q != nil && paramDef.LogQ == nil && paramDef.P != nil && paramDef.LogP == nil:
 		return NewParameters(paramDef.LogN, paramDef.Q, paramDef.P, paramDef.Sigma, paramDef.RingType)

@@ -5,6 +5,7 @@ package ring
 import (
 	"bytes"
 	"encoding/gob"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -31,6 +32,37 @@ func (rt Type) String() string {
 	default:
 		return "Invalid"
 	}
+}
+
+func (a *Type) UnmarshalJSON(b []byte) error {
+	var s string
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+	switch s {
+	default:
+		return fmt.Errorf("invalid ring type: %s", s)
+	case "Standard":
+		*a = Standard
+	case "ConjugateInvariant":
+		*a = ConjugateInvariant
+	}
+
+	return nil
+}
+
+func (a Type) MarshalJSON() ([]byte, error) {
+	var s string
+	switch a {
+	default:
+		return nil, fmt.Errorf("invalid ring type")
+	case Standard:
+		s = "Standard"
+	case ConjugateInvariant:
+		s = "ConjugateInvariant"
+	}
+
+	return json.Marshal(s)
 }
 
 // Ring is a structure that keeps all the variables required to operate on a polynomial represented in this ring.

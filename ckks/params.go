@@ -357,6 +357,16 @@ func NewParametersFromLiteral(pl ParametersLiteral) (Parameters, error) {
 	if err != nil {
 		return Parameters{}, err
 	}
+
+	if pl.LogSlots == 0 {
+		switch pl.RingType {
+		case ring.Standard:
+			pl.LogSlots = pl.LogN - 1
+		case ring.ConjugateInvariant:
+			pl.LogSlots = pl.LogN
+		}
+	}
+
 	return NewParameters(rlweParams, pl.LogSlots, pl.DefaultScale)
 }
 

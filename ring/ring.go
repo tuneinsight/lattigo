@@ -23,6 +23,7 @@ const (
 	ConjugateInvariant = Type(1) // Z[X+X^-1]/(X^2N + 1)
 )
 
+// String returns the string representation of the ring Type
 func (rt Type) String() string {
 	switch rt {
 	case Standard:
@@ -34,7 +35,8 @@ func (rt Type) String() string {
 	}
 }
 
-func (a *Type) UnmarshalJSON(b []byte) error {
+// UnmarshalJSON reads a JSON byte slice into the receiver Type
+func (rt *Type) UnmarshalJSON(b []byte) error {
 	var s string
 	if err := json.Unmarshal(b, &s); err != nil {
 		return err
@@ -43,26 +45,17 @@ func (a *Type) UnmarshalJSON(b []byte) error {
 	default:
 		return fmt.Errorf("invalid ring type: %s", s)
 	case "Standard":
-		*a = Standard
+		*rt = Standard
 	case "ConjugateInvariant":
-		*a = ConjugateInvariant
+		*rt = ConjugateInvariant
 	}
 
 	return nil
 }
 
-func (a Type) MarshalJSON() ([]byte, error) {
-	var s string
-	switch a {
-	default:
-		return nil, fmt.Errorf("invalid ring type")
-	case Standard:
-		s = "Standard"
-	case ConjugateInvariant:
-		s = "ConjugateInvariant"
-	}
-
-	return json.Marshal(s)
+// MarshalJSON marshals the receiver Type into a JSON []byte
+func (rt Type) MarshalJSON() ([]byte, error) {
+	return json.Marshal(rt.String())
 }
 
 // Ring is a structure that keeps all the variables required to operate on a polynomial represented in this ring.

@@ -29,7 +29,7 @@ func (rt Type) String() string {
 	case ConjugateInvariant:
 		return "ConjugateInvariant"
 	default:
-		panic("invalid ring type")
+		return "Invalid"
 	}
 }
 

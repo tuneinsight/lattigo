@@ -4,7 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
-- RLWE: added `encoding.BinaryMarshaler` implementation for `rlwe.Ciphertext` types
+- RING: added support for ring operations over the conjugate invariant ring.
+- RING: added support for custom NTT via the `NumberTheoreticTransformer` interface 
+- RLWE: added support for RLWE primitives over the conjugate invariant ring.
+- RLWE: added `encoding.BinaryMarshaler` implementation for `rlwe.Ciphertext` types.
+- RLWE: added an example implementation of homomorphic RLWE slot shuffling based on RLWE<->LWE conversion.
+- RLWE: increased the maximum supported polynomial degree to 2^17
+- CKKS: Trace doesn't multiply the inputs by (N/n)^-1 anymore
+- CKKS: added support for the CKKS scheme over the conjugate invariant ring.
+- CKKS: added the `Evaluator.Average` method.
+- CKKS: added `DomainSwitcher` type for conversion between Standard and Conjugate Invariant variants of CKKS.
+- CKKS: `Encoder.Encode*` methods now support both  `[]complex128` and `[]float64` as input 
+- CKKS: renamed `Encoder.EncodeNTT/New` to `Encoder.Encode/New`.
+- CKKS: renamed `Scale` to `DefaultScale` in `Parameters` and `ParametersLiteral`.
+- CKKS: renamed `Encoder.EncodeDiagMatrixBSGSAtLvl` to `Encoder.EncodeDiagMatrixBSGS`.
+- DCKKS: added support for multiparty CKKS over the conjugate invariant ring.
 
 ## [2.3.0] - 2021-10-12
 

@@ -18,6 +18,7 @@ All notable changes to this project will be documented in this file.
 - CKKS: renamed `Encoder.EncodeNTT/New` to `Encoder.Encode/New`.
 - CKKS: renamed `Scale` to `DefaultScale` in `Parameters` and `ParametersLiteral`.
 - CKKS: renamed `Encoder.EncodeDiagMatrixBSGSAtLvl` to `Encoder.EncodeDiagMatrixBSGS`.
+- CKKS: added `EncodeSlotsQP` to encode on `rlwe.PolyQP` and create custom `PtDiagMatrix`.
 - DCKKS: added support for multiparty CKKS over the conjugate invariant ring.
 
 ## [2.3.0] - 2021-10-12

@@ -54,7 +54,7 @@ type Encoder interface {
 	// Returned plaintext is always in the NTT domain.
 	Encode(plaintext *Plaintext, values interface{}, logSlots int)
 
-	// EncodeSlots encodes a set of values on a new plaintext.
+	// EncodeNew encodes a set of values on a new plaintext.
 	// This method is identical to "EncodeSlotsNew".
 	// Encoding is done at the provided level and with the provided scale.
 	// User must ensure that 1 <= len(values) <= 2^logSlots < 2^logN.
@@ -63,7 +63,7 @@ type Encoder interface {
 	// Returned plaintext is always in the NTT domain.
 	EncodeNew(values interface{}, level int, scale float64, logSlots int) (plaintext *Plaintext)
 
-	// Encode encodes a set of values on the target plaintext.
+	// EncodeSlots encodes a set of values on the target plaintext.
 	// Encoding is done at the level and scale of the plaintext.
 	// User must ensure that 1 <= len(values) <= 2^logSlots < 2^logN.
 	// values.(type) can be either []complex128 of []float64.
@@ -78,6 +78,23 @@ type Encoder interface {
 	// The imaginary part of []complex128 will be discarded if ringType == ring.ConjugateInvariant.
 	// Returned plaintext is always in the NTT domain.
 	EncodeSlotsNew(values interface{}, level int, scale float64, logSlots int) (plaintext *Plaintext)
+
+	// EncodeSlotsQP encodes a set of values on the target rlwe.polyQP.
+	// This method is identical to "EncodeSlots".
+	// Encoding is done at the level of the rlwe.polyQP, and provided scale.
+	// User must ensure that 1 <= len(values) <= 2^logSlots < 2^logN.
+	// values.(type) can be either []complex128 of []float64.
+	// The imaginary part of []complex128 will be discarded if ringType == ring.ConjugateInvariant.
+	// Returned rlwe.polyQP is always in the NTT domain.
+	EncodeSlotsQP(m []complex128, vecQP rlwe.PolyQP, scale float64, logSlots int)
+
+	// EncodeSlotsNew encodes a set of values on a new rlwe.PolyQP.
+	// Encoding is done at the provided level and with the provided scale.
+	// User must ensure that 1 <= len(values) <= 2^logSlots < 2^logN.
+	// values.(type) can be either []complex128 of []float64.
+	// The imaginary part of []complex128 will be discarded if ringType == ring.ConjugateInvariant.
+	// Returned rlwe.polyQP is always in the NTT domain.
+	EncodeSlotsQPNew(m []complex128, level int, scale float64, logSlots int) (vecQP rlwe.PolyQP)
 
 	// EncodeDiagMatrixBSGS encodes a diagonalized plaintext matrix into PtDiagMatrix struct.
 	// It can then be evaluated on a ciphertext using evaluator.LinearTransform.
@@ -507,13 +524,12 @@ func polyToFloatNoCRT(coeffs []uint64, values []float64, scale float64, Q uint64
 // PtDiagMatrix is a struct storing a plaintext diagonalized matrix
 // ready to be evaluated on a ciphertext using evaluator.MultiplyByDiagMatrice.
 type PtDiagMatrix struct {
-	LogSlots   int                 // Log of the number of slots of the plaintext (needed to compute the appropriate rotation keys)
-	N1         int                 // N1 is the number of inner loops of the baby-step giant-step algo used in the evaluation.
-	Level      int                 // Level is the level at which the matrix is encoded (can be circuit dependent)
-	Scale      float64             // Scale is the scale at which the matrix is encoded (can be circuit dependent)
-	Vec        map[int]rlwe.PolyQP // Vec is the matrix, in diagonal form, where each entry of vec is an indexed non zero diagonal.
-	Naive      bool
-	isGaussian bool // Each diagonal of the matrix is of the form [k, ..., k] for k a Gaussian integer
+	LogSlots int                 // Log of the number of slots of the plaintext (needed to compute the appropriate rotation keys)
+	N1       int                 // N1 is the number of inner loops of the baby-step giant-step algo used in the evaluation.
+	Level    int                 // Level is the level at which the matrix is encoded (can be circuit dependent)
+	Scale    float64             // Scale is the scale at which the matrix is encoded (can be circuit dependent)
+	Vec      map[int]rlwe.PolyQP // Vec is the matrix, in diagonal form, where each entry of vec is an indexed non zero diagonal.
+	Naive    bool
 }
 
 // BsgsIndex returns the index map and needed rotation for the BSGS matrix-vector multiplication algorithm.
@@ -607,7 +623,7 @@ func (encoder *encoderComplex128) EncodeDiagMatrixBSGS(level int, diagMatrix map
 				panic("diagMatrix []complex slices mut have len '1<<logSlots'")
 			}
 
-			vec[n1*j+i] = encoder.encodeDiagonalSingle(logSlots, level, scale, utils.RotateComplex128Slice(v, -n1*j))
+			vec[n1*j+i] = encoder.EncodeSlotsQPNew(utils.RotateComplex128Slice(v, -n1*j), level, scale, logSlots)
 		}
 	}
 
@@ -624,23 +640,29 @@ func (encoder *encoderComplex128) EncodeDiagMatrix(level int, diagMatrix map[int
 		if idx < 0 {
 			idx += slots
 		}
-		vec[idx] = encoder.encodeDiagonalSingle(logSlots, level, scale, diagMatrix[i])
+		vec[idx] = encoder.EncodeSlotsQPNew(diagMatrix[i], level, scale, logSlots)
 	}
 
 	return PtDiagMatrix{LogSlots: logSlots, N1: 0, Vec: vec, Level: level, Scale: scale, Naive: true}
 }
 
-func (encoder *encoderComplex128) encodeDiagonalSingle(logSlots, level int, scale float64, m []complex128) (vecQP rlwe.PolyQP) {
-
+func (encoder *encoderComplex128) EncodeSlotsQPNew(m []complex128, level int, scale float64, logSlots int) (vecQP rlwe.PolyQP) {
 	levelQ := level
 	levelP := encoder.params.PCount() - 1
+	vecQP = encoder.params.RingQP().NewPolyLvl(levelQ, levelP)
+	encoder.EncodeSlotsQP(m, vecQP, scale, logSlots)
+	return
+}
+
+func (encoder *encoderComplex128) EncodeSlotsQP(m []complex128, vecQP rlwe.PolyQP, scale float64, logSlots int) {
+
+	levelQ := vecQP.Q.Level()
+	levelP := vecQP.P.Level()
 	ringQP := encoder.params.RingQP()
 
 	encoder.embed(m, logSlots)
-
-	vecQP = ringQP.NewPolyLvl(levelQ, levelP)
-	scaleUpVecExact(encoder.valuesFloat[:encoder.params.N()], scale, encoder.params.RingQ().Modulus[:level+1], vecQP.Q.Coeffs)
-	scaleUpVecExact(encoder.valuesFloat[:encoder.params.N()], scale, encoder.params.RingP().Modulus, vecQP.P.Coeffs)
+	scaleUpVecExact(encoder.valuesFloat[:encoder.params.N()], scale, ringQP.RingQ.Modulus[:levelQ+1], vecQP.Q.Coeffs)
+	scaleUpVecExact(encoder.valuesFloat[:encoder.params.N()], scale, ringQP.RingP.Modulus[:levelP+1], vecQP.P.Coeffs)
 	ringQP.NTTLvl(levelQ, levelP, vecQP, vecQP)
 	ringQP.MFormLvl(levelQ, levelP, vecQP, vecQP)
 

@@ -82,17 +82,17 @@ func (evp *EvalModPoly) MessageRatio() float64 {
 
 // A returns the left bound of the sine approximation (scaled by 1/2^r).
 func (evp *EvalModPoly) A() float64 {
-	return real(evp.sinePoly.A)
+	return evp.sinePoly.A
 }
 
 // B returns the right bound of the sine approximation (scaled by 1/2^r).
 func (evp *EvalModPoly) B() float64 {
-	return real(evp.sinePoly.B)
+	return evp.sinePoly.B
 }
 
 // K return the sine approximation range.
 func (evp *EvalModPoly) K() float64 {
-	return real(evp.sinePoly.B) * evp.scFac
+	return evp.sinePoly.B * evp.scFac
 }
 
 // QDiff return Q/ClosestedPow2
@@ -138,20 +138,20 @@ func NewEvalModPolyFromLiteral(evm EvalModLiteral) EvalModPoly {
 			panic("cannot user double angle with SineType == Sin")
 		}
 
-		sinePoly = ckks.Approximate(sin2pi2pi, -complex(float64(evm.K), 0), complex(float64(evm.K), 0), evm.SineDeg)
+		sinePoly = ckks.Approximate(sin2pi2pi, -float64(evm.K), float64(evm.K), evm.SineDeg)
 
 	} else if evm.SineType == Cos1 {
 
 		sinePoly = new(ckks.Polynomial)
 		sinePoly.Coeffs = ApproximateCos(evm.K, evm.SineDeg, evm.MessageRatio, int(evm.DoubleAngle))
 		sinePoly.MaxDeg = sinePoly.Degree()
-		sinePoly.A = complex(float64(-evm.K)/scFac, 0)
-		sinePoly.B = complex(float64(evm.K)/scFac, 0)
+		sinePoly.A = float64(-evm.K) / scFac
+		sinePoly.B = float64(evm.K) / scFac
 		sinePoly.Lead = true
 		sinePoly.Basis = ckks.ChebyshevBasis
 
 	} else if evm.SineType == Cos2 {
-		sinePoly = ckks.Approximate(cos2pi, -complex(float64(evm.K)/scFac, 0), complex(float64(evm.K)/scFac, 0), evm.SineDeg)
+		sinePoly = ckks.Approximate(cos2pi, -float64(evm.K)/scFac, float64(evm.K)/scFac, evm.SineDeg)
 	} else {
 		panic("invalid SineType")
 	}

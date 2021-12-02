@@ -54,7 +54,7 @@ func benchEncoder(tc *testContext, b *testing.B) {
 		plaintext := NewPlaintext(tc.params, tc.params.MaxLevel(), tc.params.DefaultScale())
 
 		for i := 0; i < b.N; i++ {
-			encoder.Encode(plaintext, values, logSlots)
+			encoder.Encode(values, plaintext, logSlots)
 		}
 	})
 
@@ -66,7 +66,7 @@ func benchEncoder(tc *testContext, b *testing.B) {
 		}
 
 		plaintext := NewPlaintext(tc.params, tc.params.MaxLevel(), tc.params.DefaultScale())
-		encoder.Encode(plaintext, values, logSlots)
+		encoder.Encode(values, plaintext, logSlots)
 
 		for i := 0; i < b.N; i++ {
 			encoder.Decode(plaintext, logSlots)

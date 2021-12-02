@@ -1264,7 +1264,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 			diagMatrix[15][i] = complex(1, 0)
 		}
 
-		ptDiagMatrix := tc.encoder.EncodeDiagMatrixBSGS(params.MaxLevel(), diagMatrix, params.DefaultScale(), 1.0, params.LogSlots())
+		ptDiagMatrix := tc.encoder.EncodeDiagMatrixBSGS(diagMatrix, params.MaxLevel(), params.DefaultScale(), 1.0, params.LogSlots())
 
 		rots := tc.params.RotationsForDiagMatrixMult(ptDiagMatrix)
 
@@ -1307,7 +1307,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 			diagMatrix[0][i] = complex(1, 0)
 		}
 
-		ptDiagMatrix := tc.encoder.EncodeDiagMatrix(params.MaxLevel(), diagMatrix, params.DefaultScale(), params.LogSlots())
+		ptDiagMatrix := tc.encoder.EncodeDiagMatrix(diagMatrix, params.MaxLevel(), params.DefaultScale(), params.LogSlots())
 
 		rots := tc.params.RotationsForDiagMatrixMult(ptDiagMatrix)
 

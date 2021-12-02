@@ -15,10 +15,14 @@ All notable changes to this project will be documented in this file.
 - CKKS: added the `Evaluator.Average` method.
 - CKKS: added `DomainSwitcher` type for conversion between Standard and Conjugate Invariant variants of CKKS.
 - CKKS: `Encoder.Encode*` methods now support both  `[]complex128` and `[]float64` as input.
+- CKKS: uniformized order of inputs of the `Encoder` interface.
 - CKKS: renamed `Encoder.EncodeNTT/New` to `Encoder.Encode/New`.
 - CKKS: renamed `Scale` to `DefaultScale` in `Parameters` and `ParametersLiteral`.
 - CKKS: renamed `Encoder.EncodeDiagMatrixBSGSAtLvl` to `Encoder.EncodeDiagMatrixBSGS`.
 - CKKS: added `EncodeSlotsQP` to encode on `rlwe.PolyQP` and create custom `PtDiagMatrix`.
+- CKKS: `GetPrecisionStats` now also accepts `[]float64`.
+- CKKS: `Approximate` now accepts `func(float64)float64` and `func(complex128)complex128`
+- CKKS: approximation intervals are now `float64` instead of `complex128`.
 - DCKKS: added support for multiparty CKKS over the conjugate invariant ring.
 
 ## [2.3.0] - 2021-10-12

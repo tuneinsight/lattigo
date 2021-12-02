@@ -13,8 +13,8 @@ type Polynomial struct {
 	MaxDeg int
 	Coeffs []complex128
 	Lead   bool
-	A      complex128
-	B      complex128
+	A      float64
+	B      float64
 	Basis  PolynomialBasis
 }
 

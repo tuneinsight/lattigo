@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"math"
-	"math/cmplx"
 
 	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/rlwe"
@@ -43,9 +42,9 @@ func chebyshevinterpolation() {
 	evaluator := ckks.NewEvaluator(params, rlwe.EvaluationKey{Rlk: rlk})
 
 	// Values to encrypt
-	values := make([]complex128, params.Slots())
+	values := make([]float64, params.Slots())
 	for i := range values {
-		values[i] = complex(utils.RandFloat64(-8, 8), 0)
+		values[i] = utils.RandFloat64(-8, 8)
 	}
 
 	fmt.Printf("CKKS parameters: logN = %d, logQ = %d, levels = %d, scale= %f, sigma = %f \n",
@@ -96,20 +95,22 @@ func chebyshevinterpolation() {
 
 }
 
-func f(x complex128) complex128 {
-	return 1 / (cmplx.Exp(-x) + 1)
+func f(x float64) float64 {
+	return 1 / (math.Exp(-x) + 1)
 }
 
-func round(x complex128) complex128 {
-	var factor float64 = 100000000
-	a := math.Round(real(x)*factor) / factor
-	b := math.Round(imag(x)*factor) / factor
-	return complex(a, b)
+func round(x float64) float64 {
+	return math.Round(x*100000000) / 100000000
 }
 
-func printDebug(params ckks.Parameters, ciphertext *ckks.Ciphertext, valuesWant []complex128, decryptor ckks.Decryptor, encoder ckks.Encoder) (valuesTest []complex128) {
+func printDebug(params ckks.Parameters, ciphertext *ckks.Ciphertext, valuesWant []float64, decryptor ckks.Decryptor, encoder ckks.Encoder) (valuesTest []float64) {
 
-	valuesTest = encoder.Decode(decryptor.DecryptNew(ciphertext), params.LogSlots())
+	tmp := encoder.Decode(decryptor.DecryptNew(ciphertext), params.LogSlots())
+
+	valuesTest = make([]float64, len(tmp))
+	for i := range tmp {
+		valuesTest[i] = real(tmp[i])
+	}
 
 	fmt.Println()
 	fmt.Printf("Level: %d (logQ = %d)\n", ciphertext.Level(), params.LogQLvl(ciphertext.Level()))

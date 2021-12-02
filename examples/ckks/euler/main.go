@@ -75,7 +75,7 @@ func example() {
 	}
 
 	plaintext := ckks.NewPlaintext(params, params.MaxLevel(), params.DefaultScale()/r)
-	encoder.Encode(plaintext, values, params.LogSlots())
+	encoder.Encode(values, plaintext, params.LogSlots())
 
 	fmt.Printf("Done in %s \n", time.Since(start))
 

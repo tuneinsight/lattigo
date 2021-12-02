@@ -119,20 +119,20 @@ func main() {
 	paramsLWE.RingQ().InvNTT(skLWEInvNTT, skLWEInvNTT)
 	Q := paramsRLWE.Q()[0]
 	paramsLWE.RingQ().InvMFormLvl(0, skLWEInvNTT, skLWEInvNTT)
-	skFloat := make([]complex128, paramsLWE.N())
+	skFloat := make([]float64, paramsLWE.N())
 	for i, s := range skLWEInvNTT.Coeffs[0] {
 		if s >= Q>>1 {
-			skFloat[i] = -complex(float64(Q-s), 0)
+			skFloat[i] = -float64(Q - s)
 		} else {
-			skFloat[i] = complex(float64(s), 0)
+			skFloat[i] = float64(s)
 		}
 
-		skFloat[i] *= complex(math.Pow(1.0/(EvalModPoly.K()*EvalModPoly.QDiff()), 0.5), 0) // sqrt(pre-scaling for Cheby)
+		skFloat[i] *= math.Pow(1.0/(EvalModPoly.K()*EvalModPoly.QDiff()), 0.5) // sqrt(pre-scaling for Cheby)
 	}
 
 	paramsLWE.RingQ().MFormLvl(0, skLWEInvNTT, skLWEInvNTT)
 	ptSk := ckks.NewPlaintext(paramsRLWE, paramsRLWE.MaxLevel(), paramsRLWE.QiFloat64(paramsRLWE.MaxLevel()))
-	encoder.Encode(ptSk, skFloat, paramsLWE.LogN())
+	encoder.Encode(skFloat, ptSk, paramsLWE.LogN())
 	ctSk := encryptor.EncryptNew(ptSk)
 	fmt.Printf("Done (%s)\n", time.Since(start))
 
@@ -148,7 +148,7 @@ func main() {
 
 	plaintext := ckks.NewPlaintext(paramsRLWE, paramsRLWE.MaxLevel(), paramsRLWE.DefaultScale())
 	// Must encode with 2*Slots because a real vector is returned
-	encoder.Encode(plaintext, values, utils.MinInt(paramsRLWE.LogSlots()+1, paramsRLWE.LogN()-1))
+	encoder.Encode(values, plaintext, utils.MinInt(paramsRLWE.LogSlots()+1, paramsRLWE.LogN()-1))
 	ct := encryptor.EncryptNew(plaintext)
 	fmt.Printf("Done (%s)\n", time.Since(start))
 
@@ -198,7 +198,7 @@ func main() {
 		lweEncoded[i] *= complex(math.Pow(1/(EvalModPoly.K()*EvalModPoly.QDiff()), 1.0), 0) // pre-scaling for Cheby
 	}
 
-	encoder.Encode(ptLWE, lweEncoded, paramsRLWE.LogSlots())
+	encoder.Encode(lweEncoded, ptLWE, paramsRLWE.LogSlots())
 	fmt.Printf("Done (%s)\n", time.Since(start))
 
 	// Encode A
@@ -236,7 +236,7 @@ func main() {
 		AMatDiag[i] = tmp
 	}
 
-	ptMatDiag := encoder.EncodeDiagMatrixBSGS(paramsRLWE.MaxLevel(), AMatDiag, 1.0, 16.0, paramsLWE.LogN())
+	ptMatDiag := encoder.EncodeDiagMatrixBSGS(AMatDiag, paramsRLWE.MaxLevel(), 1.0, 16.0, paramsLWE.LogN())
 	fmt.Printf("Done (%s)\n", time.Since(start))
 
 	evalRepack := ckks.NewEvaluator(paramsRLWE, rlwe.EvaluationKey{Rlk: rlk, Rtks: rotKeyRepack})

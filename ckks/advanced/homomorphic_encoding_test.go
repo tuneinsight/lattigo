@@ -296,11 +296,11 @@ func testSlotsToCoeffs(params ckks.Parameters, t *testing.T) {
 		}
 
 		plaintext := ckks.NewPlaintext(params, params.MaxLevel(), params.DefaultScale())
-		encoder.Encode(plaintext, valuesReal, logSlots)
+		encoder.Encode(valuesReal, plaintext, logSlots)
 		ct0 := encryptor.EncryptNew(plaintext)
 		var ct1 *ckks.Ciphertext
 		if params.LogSlots() == params.LogN()-1 {
-			encoder.Encode(plaintext, valuesImag, logSlots)
+			encoder.Encode(valuesImag, plaintext, logSlots)
 			ct1 = encryptor.EncryptNew(plaintext)
 		}
 

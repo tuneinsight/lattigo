@@ -52,7 +52,7 @@ type Encoder interface {
 	// values.(type) can be either []complex128 of []float64.
 	// The imaginary part of []complex128 will be discarded if ringType == ring.ConjugateInvariant.
 	// Returned plaintext is always in the NTT domain.
-	Encode(plaintext *Plaintext, values interface{}, logSlots int)
+	Encode(values interface{}, plaintext *Plaintext, logSlots int)
 
 	// EncodeNew encodes a set of values on a new plaintext.
 	// This method is identical to "EncodeSlotsNew".
@@ -69,7 +69,7 @@ type Encoder interface {
 	// values.(type) can be either []complex128 of []float64.
 	// The imaginary part of []complex128 will be discarded if ringType == ring.ConjugateInvariant.
 	// Returned plaintext is always in the NTT domain.
-	EncodeSlots(plaintext *Plaintext, values interface{}, logSlots int)
+	EncodeSlots(values interface{}, plaintext *Plaintext, logSlots int)
 
 	// EncodeSlotsNew encodes a set of values on a new plaintext.
 	// Encoding is done at the provided level and with the provided scale.
@@ -86,7 +86,7 @@ type Encoder interface {
 	// values.(type) can be either []complex128 of []float64.
 	// The imaginary part of []complex128 will be discarded if ringType == ring.ConjugateInvariant.
 	// Returned rlwe.polyQP is always in the NTT domain.
-	EncodeSlotsQP(m []complex128, vecQP rlwe.PolyQP, scale float64, logSlots int)
+	EncodeSlotsQP(values interface{}, vecQP rlwe.PolyQP, scale float64, logSlots int)
 
 	// EncodeSlotsNew encodes a set of values on a new rlwe.PolyQP.
 	// Encoding is done at the provided level and with the provided scale.
@@ -94,21 +94,25 @@ type Encoder interface {
 	// values.(type) can be either []complex128 of []float64.
 	// The imaginary part of []complex128 will be discarded if ringType == ring.ConjugateInvariant.
 	// Returned rlwe.polyQP is always in the NTT domain.
-	EncodeSlotsQPNew(m []complex128, level int, scale float64, logSlots int) (vecQP rlwe.PolyQP)
+	EncodeSlotsQPNew(values interface{}, level int, scale float64, logSlots int) (vecQP rlwe.PolyQP)
 
 	// EncodeDiagMatrixBSGS encodes a diagonalized plaintext matrix into PtDiagMatrix struct.
+	// values.(type) can be either map[int][]complex128 or map[int][]float64.
+	// User must ensure that 1 <= len([]complex128\[]float64) <= 2^logSlots < 2^logN.
 	// It can then be evaluated on a ciphertext using evaluator.LinearTransform.
 	// Evaluation will use the optimized approach (double hoisting and baby-step giant-step).
 	// Faster if there is more than a few non-zero diagonals.
 	// maxM1N2Ratio is the maximum ratio between the inner and outer loop of the baby-step giant-step algorithm used in evaluator.LinearTransform.
 	// Optimal maxM1N2Ratio value is between 4 and 16 depending on the sparsity of the matrix.
-	EncodeDiagMatrixBSGS(level int, diagMatrix map[int][]complex128, scale, maxM1N2Ratio float64, logSlots int) (matrix PtDiagMatrix)
+	EncodeDiagMatrixBSGS(values interface{}, level int, scale, maxM1N2Ratio float64, logSlots int) (matrix PtDiagMatrix)
 
 	// EncodeDiagMatrix encodes a diagonalized plaintext matrix into PtDiagMatrix struct.
+	// values.(type) can be either map[int][]complex128 or map[int][]float64.
+	// User must ensure that 1 <= len([]complex128\[]float64) <= 2^logSlots < 2^logN.
 	// It can then be evaluated on a ciphertext using evaluator.LinearTransform.
 	// Evaluation will use the naive approach (single hoisting and no baby-step giant-step).
 	// Faster if there is only a few non-zero diagonals but uses more keys.
-	EncodeDiagMatrix(level int, vector map[int][]complex128, scale float64, logSlots int) (matrix PtDiagMatrix)
+	EncodeDiagMatrix(values interface{}, level int, scale float64, logSlots int) (matrix PtDiagMatrix)
 
 	// Decode decodes the input plaintext on a new slice of complex128.
 	Decode(plaintext *Plaintext, logSlots int) (res []complex128)
@@ -154,7 +158,7 @@ type EncoderBigComplex interface {
 	// Encode encodes a set of values on the target plaintext.
 	// Encoding is done at the level and scale of the plaintext.
 	// User must ensure that 1 <= len(values) <= 2^logSlots < 2^LogN.
-	Encode(plaintext *Plaintext, values []*ring.Complex, logSlots int)
+	Encode(values []*ring.Complex, plaintext *Plaintext, logSlots int)
 
 	// EncodeNew encodes a set of values on a new plaintext.
 	// Encoding is done at the provided level and with the provided scale.
@@ -246,11 +250,11 @@ func NewEncoder(params Parameters) Encoder {
 
 func (encoder *encoderComplex128) EncodeNew(values interface{}, level int, scale float64, logSlots int) (plaintext *Plaintext) {
 	plaintext = NewPlaintext(encoder.params, level, scale)
-	encoder.Encode(plaintext, values, logSlots)
+	encoder.Encode(values, plaintext, logSlots)
 	return
 }
 
-func (encoder *encoderComplex128) Encode(plaintext *Plaintext, values interface{}, logSlots int) {
+func (encoder *encoderComplex128) Encode(values interface{}, plaintext *Plaintext, logSlots int) {
 	encoder.embed(values, logSlots)
 	scaleUpVecExact(encoder.valuesFloat[:encoder.params.N()], plaintext.Scale, encoder.params.RingQ().Modulus[:plaintext.Level()+1], plaintext.Value.Coeffs)
 	encoder.params.RingQ().NTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
@@ -261,8 +265,8 @@ func (encoder *encoderComplex128) EncodeSlotsNew(values interface{}, level int, 
 	return encoder.EncodeSlotsNew(values, level, scale, logSlots)
 }
 
-func (encoder *encoderComplex128) EncodeSlots(plaintext *Plaintext, values interface{}, logSlots int) {
-	encoder.Encode(plaintext, values, logSlots)
+func (encoder *encoderComplex128) EncodeSlots(values interface{}, plaintext *Plaintext, logSlots int) {
+	encoder.Encode(values, plaintext, logSlots)
 }
 
 func (encoder *encoderComplex128) embed(values interface{}, logSlots int) {
@@ -551,6 +555,20 @@ func BsgsIndex(el interface{}, slots, N1 int) (index map[int][]int, rotations []
 				rotations = append(rotations, idx2)
 			}
 		}
+	case map[int][]float64:
+		for key := range element {
+			key &= (slots - 1)
+			idx1 := key / N1
+			idx2 := key & (N1 - 1)
+			if index[idx1] == nil {
+				index[idx1] = []int{idx2}
+			} else {
+				index[idx1] = append(index[idx1], idx2)
+			}
+			if !utils.IsInSliceInt(idx2, rotations) {
+				rotations = append(rotations, idx2)
+			}
+		}
 	case map[int]bool:
 		for key := range element {
 			key &= (slots - 1)
@@ -598,55 +616,72 @@ func BsgsIndex(el interface{}, slots, N1 int) (index map[int][]int, rotations []
 	return
 }
 
-func (encoder *encoderComplex128) EncodeDiagMatrixBSGS(level int, diagMatrix map[int][]complex128, scale, maxM1N2Ratio float64, logSlots int) (matrix PtDiagMatrix) {
+func interfaceMapToMapOfInterface(m interface{}) map[int]interface{} {
+	d := make(map[int]interface{})
+	switch el := m.(type) {
+	case map[int][]complex128:
+		for i := range el {
+			d[i] = el[i]
+		}
+	case map[int][]float64:
+		for i := range el {
+			d[i] = el[i]
+		}
+	default:
+		panic("invalid input, must be map[int][]complex128 or map[int][]float64")
+	}
+	return d
+}
+
+func (encoder *encoderComplex128) EncodeDiagMatrixBSGS(value interface{}, level int, scale, maxM1N2Ratio float64, logSlots int) (matrix PtDiagMatrix) {
 
 	slots := 1 << logSlots
 
 	// N1*N2 = N
-	n1 := FindBestBSGSSplit(diagMatrix, slots, maxM1N2Ratio)
+	n1 := FindBestBSGSSplit(value, slots, maxM1N2Ratio)
 
-	index, _ := BsgsIndex(diagMatrix, slots, n1)
+	index, _ := BsgsIndex(value, slots, n1)
 
 	vec := make(map[int]rlwe.PolyQP)
+
+	dMat := interfaceMapToMapOfInterface(value)
 
 	for j := range index {
 
 		for _, i := range index[j] {
 
 			// manages inputs that have rotation between 0 and slots-1 or between -slots/2 and slots/2-1
-			v := diagMatrix[n1*j+i]
-			if len(v) == 0 {
-				v = diagMatrix[(n1*j+i)-slots]
+			v, ok := dMat[n1*j+i]
+			if !ok {
+				v = dMat[(n1*j+i)-slots]
 			}
 
-			if len(v) != slots {
-				panic("diagMatrix []complex slices mut have len '1<<logSlots'")
-			}
-
-			vec[n1*j+i] = encoder.EncodeSlotsQPNew(utils.RotateComplex128Slice(v, -n1*j), level, scale, logSlots)
+			vec[n1*j+i] = encoder.EncodeSlotsQPNew(utils.RotateSlice(v, -n1*j), level, scale, logSlots)
 		}
 	}
 
 	return PtDiagMatrix{LogSlots: logSlots, N1: n1, Vec: vec, Level: level, Scale: scale}
 }
 
-func (encoder *encoderComplex128) EncodeDiagMatrix(level int, diagMatrix map[int][]complex128, scale float64, logSlots int) (matrix PtDiagMatrix) {
+func (encoder *encoderComplex128) EncodeDiagMatrix(value interface{}, level int, scale float64, logSlots int) (matrix PtDiagMatrix) {
+
+	dMat := interfaceMapToMapOfInterface(value)
 
 	vec := make(map[int]rlwe.PolyQP)
 	slots := 1 << logSlots
-	for i := range diagMatrix {
+	for i := range dMat {
 
 		idx := i
 		if idx < 0 {
 			idx += slots
 		}
-		vec[idx] = encoder.EncodeSlotsQPNew(diagMatrix[i], level, scale, logSlots)
+		vec[idx] = encoder.EncodeSlotsQPNew(dMat[i], level, scale, logSlots)
 	}
 
 	return PtDiagMatrix{LogSlots: logSlots, N1: 0, Vec: vec, Level: level, Scale: scale, Naive: true}
 }
 
-func (encoder *encoderComplex128) EncodeSlotsQPNew(m []complex128, level int, scale float64, logSlots int) (vecQP rlwe.PolyQP) {
+func (encoder *encoderComplex128) EncodeSlotsQPNew(m interface{}, level int, scale float64, logSlots int) (vecQP rlwe.PolyQP) {
 	levelQ := level
 	levelP := encoder.params.PCount() - 1
 	vecQP = encoder.params.RingQP().NewPolyLvl(levelQ, levelP)
@@ -654,7 +689,7 @@ func (encoder *encoderComplex128) EncodeSlotsQPNew(m []complex128, level int, sc
 	return
 }
 
-func (encoder *encoderComplex128) EncodeSlotsQP(m []complex128, vecQP rlwe.PolyQP, scale float64, logSlots int) {
+func (encoder *encoderComplex128) EncodeSlotsQP(m interface{}, vecQP rlwe.PolyQP, scale float64, logSlots int) {
 
 	levelQ := vecQP.Q.Level()
 	levelP := vecQP.P.Level()
@@ -947,11 +982,11 @@ func NewEncoderBigComplex(params Parameters, logPrecision int) EncoderBigComplex
 
 func (encoder *encoderBigComplex) EncodeNew(values []*ring.Complex, level int, scale float64, logSlots int) (plaintext *Plaintext) {
 	plaintext = NewPlaintext(encoder.params, level, scale)
-	encoder.Encode(plaintext, values, logSlots)
+	encoder.Encode(values, plaintext, logSlots)
 	return
 }
 
-func (encoder *encoderBigComplex) Encode(plaintext *Plaintext, values []*ring.Complex, logSlots int) {
+func (encoder *encoderBigComplex) Encode(values []*ring.Complex, plaintext *Plaintext, logSlots int) {
 
 	slots := 1 << logSlots
 

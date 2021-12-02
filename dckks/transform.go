@@ -109,8 +109,11 @@ func (rfp *MaskedTransformProtocol) SampleCRP(level int, crs utils.PRNG) drlwe.C
 // value for logBound.
 func (rfp *MaskedTransformProtocol) GenShares(sk *rlwe.SecretKey, logBound, logSlots int, ct *ckks.Ciphertext, crs drlwe.CKSCRP, transform MaskedTransformFunc, shareOut *MaskedTransformShare) {
 
-	if ct.Level() != shareOut.e2sShare.Value.Level() {
-		panic("ciphertext level must be equal to e2sShare")
+	if ct.Level() > shareOut.e2sShare.Value.Level() {
+		ct.Value[0].Coeffs = ct.Value[0].Coeffs[:shareOut.e2sShare.Value.Level()+1]
+		ct.Value[1].Coeffs = ct.Value[1].Coeffs[:shareOut.e2sShare.Value.Level()+1]
+	} else if ct.Level() < shareOut.e2sShare.Value.Level() {
+		panic("ciphertext level must be at least equal to e2sShare level")
 	}
 
 	if (*ring.Poly)(&crs).Level() != shareOut.s2eShare.Value.Level() {

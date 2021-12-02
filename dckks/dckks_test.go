@@ -505,7 +505,7 @@ func testE2SProtocol(testCtx *testContext, t *testing.T) {
 
 		var minLevel, logBound int
 		var ok bool
-		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.DefaultScale(), parties, params.Q()); ok != true {
+		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.DefaultScale(), parties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
 			t.Skip("Not enough levels to ensure correcness and 128 security")
 		}
 
@@ -520,7 +520,7 @@ func testE2SProtocol(testCtx *testContext, t *testing.T) {
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, testCtx.encryptorPk0, -1, 1, t)
 
-		testCtx.evaluator.DropLevel(ciphertext, ciphertext.Level()-minLevel)
+		testCtx.evaluator.DropLevel(ciphertext, ciphertext.Level()-minLevel-1)
 
 		params := testCtx.params
 		P := make([]Party, parties)
@@ -528,13 +528,9 @@ func testE2SProtocol(testCtx *testContext, t *testing.T) {
 			P[i].e2s = NewE2SProtocol(params, 3.2)
 			P[i].s2e = NewS2EProtocol(params, 3.2)
 			P[i].sk = testCtx.sk0Shards[i]
-			P[i].publicShareE2S = P[i].e2s.AllocateShare(ciphertext.Level())
+			P[i].publicShareE2S = P[i].e2s.AllocateShare(minLevel)
 			P[i].publicShareS2E = P[i].s2e.AllocateShare(params.Parameters.MaxLevel())
 			P[i].secretShare = rlwe.NewAdditiveShareBigint(params.Parameters)
-		}
-
-		if testCtx.params.MaxLevel() < minLevel {
-			t.Skip("Not enough levels to ensure correcness and 128 security")
 		}
 
 		for i, p := range P {
@@ -596,7 +592,7 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 
 		var minLevel, logBound int
 		var ok bool
-		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.DefaultScale(), parties, params.Q()); ok != true {
+		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.DefaultScale(), parties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
 			t.Skip("Not enough levels to ensure correcness and 128 security")
 		}
 
@@ -608,10 +604,10 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, -1, 1, t)
 
-		// Brings ciphertext to level 2
-		testCtx.evaluator.DropLevel(ciphertext, ciphertext.Level()-minLevel)
+		// Brings ciphertext to minLevel + 1
+		testCtx.evaluator.DropLevel(ciphertext, ciphertext.Level()-minLevel-1)
 
-		levelIn := ciphertext.Level()
+		levelIn := minLevel
 		levelOut := params.MaxLevel()
 
 		RefreshParties := make([]*Party, parties)
@@ -651,7 +647,7 @@ func testRefreshAndTransform(testCtx *testContext, t *testing.T) {
 
 		var minLevel, logBound int
 		var ok bool
-		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.DefaultScale(), parties, params.Q()); ok != true {
+		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.DefaultScale(), parties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
 			t.Skip("Not enough levels to ensure correcness and 128 security")
 		}
 
@@ -664,9 +660,9 @@ func testRefreshAndTransform(testCtx *testContext, t *testing.T) {
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, -1, 1, t)
 
 		// Drops the ciphertext to the minimum level that ensures correctness and 128-bit security
-		testCtx.evaluator.DropLevel(ciphertext, ciphertext.Level()-minLevel)
+		testCtx.evaluator.DropLevel(ciphertext, ciphertext.Level()-minLevel-1)
 
-		levelIn := ciphertext.Level()
+		levelIn := minLevel
 		levelOut := params.MaxLevel()
 
 		RefreshParties := make([]*Party, parties)

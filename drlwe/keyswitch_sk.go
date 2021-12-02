@@ -83,59 +83,59 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlwe.Cip
 	ringP := cks.params.RingP()
 	ringQP := cks.params.RingQP()
 
-	level := utils.MinInt(len(ringQ.Modulus)-1, el.Value[1].Level())
+	levelQ := utils.MinInt(shareOut.Value.Level(), el.Value[1].Level())
 	levelP := cks.params.PCount() - 1
 
-	ringQ.SubLvl(level, skInput.Value.Q, skOutput.Value.Q, cks.tmpDelta)
+	ringQ.SubLvl(levelQ, skInput.Value.Q, skOutput.Value.Q, cks.tmpDelta)
 
 	ct1 := el.Value[1]
 	if !el.Value[1].IsNTT {
-		ringQ.NTTLazyLvl(level, el.Value[1], cks.tmpQP.Q)
+		ringQ.NTTLazyLvl(levelQ, el.Value[1], cks.tmpQP.Q)
 		ct1 = cks.tmpQP.Q
 	}
 
 	// a * (skIn - skOut) mod Q
-	ringQ.MulCoeffsMontgomeryConstantLvl(level, ct1, cks.tmpDelta, shareOut.Value)
+	ringQ.MulCoeffsMontgomeryConstantLvl(levelQ, ct1, cks.tmpDelta, shareOut.Value)
 
 	// P * a * (skIn - skOut) mod QP (mod P = 0)
-	ringQ.MulScalarBigintLvl(level, shareOut.Value, ringP.ModulusBigint, shareOut.Value)
+	ringQ.MulScalarBigintLvl(levelQ, shareOut.Value, ringP.ModulusBigint, shareOut.Value)
 
 	if !el.Value[1].IsNTT {
 		// InvNTT(P * a * (skIn - skOut)) mod QP (mod P = 0)
-		ringQ.InvNTTLazyLvl(level, shareOut.Value, shareOut.Value)
+		ringQ.InvNTTLazyLvl(levelQ, shareOut.Value, shareOut.Value)
 
 		// Samples e in Q
-		cks.gaussianSampler.ReadLvl(level, cks.tmpQP.Q)
+		cks.gaussianSampler.ReadLvl(levelQ, cks.tmpQP.Q)
 
 		// Extend e to P (assumed to have norm < qi)
 		ringQP.ExtendBasisSmallNormAndCenter(cks.tmpQP.Q, levelP, nil, cks.tmpQP.P)
 
 		// InvNTT(P * a * (skIn - skOut) + e) mod QP (mod P = e)
-		ringQ.AddNoModLvl(level, shareOut.Value, cks.tmpQP.Q, shareOut.Value)
+		ringQ.AddNoModLvl(levelQ, shareOut.Value, cks.tmpQP.Q, shareOut.Value)
 
 		// InvNTT(P * a * (skIn - skOut) + e) * (1/P) mod QP (mod P = e)
-		cks.baseconverter.ModDownQPtoQ(level, levelP, shareOut.Value, cks.tmpQP.P, shareOut.Value)
+		cks.baseconverter.ModDownQPtoQ(levelQ, levelP, shareOut.Value, cks.tmpQP.P, shareOut.Value)
 
 	} else {
 		// Sample e in Q
-		cks.gaussianSampler.ReadLvl(level, cks.tmpQP.Q)
+		cks.gaussianSampler.ReadLvl(levelQ, cks.tmpQP.Q)
 
 		// Extend e to P (assumed to have norm < qi)
 		ringQP.ExtendBasisSmallNormAndCenter(cks.tmpQP.Q, levelP, nil, cks.tmpQP.P)
 
 		// Takes the error to the NTT domain
-		ringQ.InvNTTLvl(level, shareOut.Value, shareOut.Value)
+		ringQ.InvNTTLvl(levelQ, shareOut.Value, shareOut.Value)
 
 		// P * a * (skIn - skOut) + e mod Q (mod P = 0, so P = e)
-		ringQ.AddLvl(level, shareOut.Value, cks.tmpQP.Q, shareOut.Value)
+		ringQ.AddLvl(levelQ, shareOut.Value, cks.tmpQP.Q, shareOut.Value)
 
 		// (P * a * (skIn - skOut) + e) * (1/P) mod QP (mod P = e)
-		cks.baseconverter.ModDownQPtoQ(level, levelP, shareOut.Value, cks.tmpQP.P, shareOut.Value)
+		cks.baseconverter.ModDownQPtoQ(levelQ, levelP, shareOut.Value, cks.tmpQP.P, shareOut.Value)
 
-		ringQ.NTTLvl(level, shareOut.Value, shareOut.Value)
+		ringQ.NTTLvl(levelQ, shareOut.Value, shareOut.Value)
 	}
 
-	shareOut.Value.Coeffs = shareOut.Value.Coeffs[:level+1]
+	shareOut.Value.Coeffs = shareOut.Value.Coeffs[:levelQ+1]
 }
 
 // AggregateShares is the second part of the unique round of the CKSProtocol protocol. Upon receiving the j-1 elements each party computes :

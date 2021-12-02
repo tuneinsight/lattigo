@@ -88,7 +88,7 @@ type Encoder interface {
 	// Returned rlwe.polyQP is always in the NTT domain.
 	EncodeSlotsQP(values interface{}, vecQP rlwe.PolyQP, scale float64, logSlots int)
 
-	// EncodeSlotsNew encodes a set of values on a new rlwe.PolyQP.
+	// EncodeSlotsQPNew encodes a set of values on a new rlwe.PolyQP.
 	// Encoding is done at the provided level and with the provided scale.
 	// User must ensure that 1 <= len(values) <= 2^logSlots < 2^logN.
 	// values.(type) can be either []complex128 of []float64.
@@ -262,7 +262,7 @@ func (encoder *encoderComplex128) Encode(values interface{}, plaintext *Plaintex
 }
 
 func (encoder *encoderComplex128) EncodeSlotsNew(values interface{}, level int, scale float64, logSlots int) (plaintext *Plaintext) {
-	return encoder.EncodeSlotsNew(values, level, scale, logSlots)
+	return encoder.EncodeNew(values, level, scale, logSlots)
 }
 
 func (encoder *encoderComplex128) EncodeSlots(values interface{}, plaintext *Plaintext, logSlots int) {

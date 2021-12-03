@@ -101,8 +101,8 @@ type Evaluator interface {
 	// Linear Transformations
 	LinearTransformNew(ctIn *Ciphertext, linearTransform interface{}) (ctOut []*Ciphertext)
 	LinearTransform(ctIn *Ciphertext, linearTransform interface{}, ctOut []*Ciphertext)
-	MultiplyByDiagMatrix(ctIn *Ciphertext, matrix PtDiagMatrix, c2DecompQP []rlwe.PolyQP, ctOut *Ciphertext)
-	MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix PtDiagMatrix, c2DecompQP []rlwe.PolyQP, ctOut *Ciphertext)
+	MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTransform, c2DecompQP []rlwe.PolyQP, ctOut *Ciphertext)
+	MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearTransform, c2DecompQP []rlwe.PolyQP, ctOut *Ciphertext)
 
 	// Inner sum
 	InnerSumLog(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)

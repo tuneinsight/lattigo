@@ -44,6 +44,7 @@ var pi = "3.14159265358979323846264338327950288419716939937510582097494459230781
 type Encoder interface {
 
 	// Slots Encoding
+	Embed(values interface{}, logSlots int, scale float64, polyOut interface{})
 
 	// Encode encodes a set of values on the target plaintext.
 	// This method is identical to "EncodeSlots".
@@ -78,41 +79,6 @@ type Encoder interface {
 	// The imaginary part of []complex128 will be discarded if ringType == ring.ConjugateInvariant.
 	// Returned plaintext is always in the NTT domain.
 	EncodeSlotsNew(values interface{}, level int, scale float64, logSlots int) (plaintext *Plaintext)
-
-	// EncodeSlotsQP encodes a set of values on the target rlwe.polyQP.
-	// This method is identical to "EncodeSlots".
-	// Encoding is done at the level of the rlwe.polyQP, and provided scale.
-	// User must ensure that 1 <= len(values) <= 2^logSlots < 2^logN.
-	// values.(type) can be either []complex128 of []float64.
-	// The imaginary part of []complex128 will be discarded if ringType == ring.ConjugateInvariant.
-	// Returned rlwe.polyQP is always in the NTT domain.
-	EncodeSlotsQP(values interface{}, vecQP rlwe.PolyQP, scale float64, logSlots int)
-
-	// EncodeSlotsQPNew encodes a set of values on a new rlwe.PolyQP.
-	// Encoding is done at the provided level and with the provided scale.
-	// User must ensure that 1 <= len(values) <= 2^logSlots < 2^logN.
-	// values.(type) can be either []complex128 of []float64.
-	// The imaginary part of []complex128 will be discarded if ringType == ring.ConjugateInvariant.
-	// Returned rlwe.polyQP is always in the NTT domain.
-	EncodeSlotsQPNew(values interface{}, level int, scale float64, logSlots int) (vecQP rlwe.PolyQP)
-
-	// EncodeDiagMatrixBSGS encodes a diagonalized plaintext matrix into PtDiagMatrix struct.
-	// values.(type) can be either map[int][]complex128 or map[int][]float64.
-	// User must ensure that 1 <= len([]complex128\[]float64) <= 2^logSlots < 2^logN.
-	// It can then be evaluated on a ciphertext using evaluator.LinearTransform.
-	// Evaluation will use the optimized approach (double hoisting and baby-step giant-step).
-	// Faster if there is more than a few non-zero diagonals.
-	// maxM1N2Ratio is the maximum ratio between the inner and outer loop of the baby-step giant-step algorithm used in evaluator.LinearTransform.
-	// Optimal maxM1N2Ratio value is between 4 and 16 depending on the sparsity of the matrix.
-	EncodeDiagMatrixBSGS(values interface{}, level int, scale, maxM1N2Ratio float64, logSlots int) (matrix PtDiagMatrix)
-
-	// EncodeDiagMatrix encodes a diagonalized plaintext matrix into PtDiagMatrix struct.
-	// values.(type) can be either map[int][]complex128 or map[int][]float64.
-	// User must ensure that 1 <= len([]complex128\[]float64) <= 2^logSlots < 2^logN.
-	// It can then be evaluated on a ciphertext using evaluator.LinearTransform.
-	// Evaluation will use the naive approach (single hoisting and no baby-step giant-step).
-	// Faster if there is only a few non-zero diagonals but uses more keys.
-	EncodeDiagMatrix(values interface{}, level int, scale float64, logSlots int) (matrix PtDiagMatrix)
 
 	// Decode decodes the input plaintext on a new slice of complex128.
 	Decode(plaintext *Plaintext, logSlots int) (res []complex128)
@@ -255,8 +221,7 @@ func (encoder *encoderComplex128) EncodeNew(values interface{}, level int, scale
 }
 
 func (encoder *encoderComplex128) Encode(values interface{}, plaintext *Plaintext, logSlots int) {
-	encoder.embed(values, logSlots)
-	scaleUpVecExact(encoder.valuesFloat[:encoder.params.N()], plaintext.Scale, encoder.params.RingQ().Modulus[:plaintext.Level()+1], plaintext.Value.Coeffs)
+	encoder.Embed(values, logSlots, plaintext.Scale, *plaintext.Value)
 	encoder.params.RingQ().NTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
 	plaintext.Value.IsNTT = true
 }
@@ -269,7 +234,7 @@ func (encoder *encoderComplex128) EncodeSlots(values interface{}, plaintext *Pla
 	encoder.Encode(values, plaintext, logSlots)
 }
 
-func (encoder *encoderComplex128) embed(values interface{}, logSlots int) {
+func (encoder *encoderComplex128) Embed(values interface{}, logSlots int, scale float64, polyOut interface{}) {
 
 	slots := 1 << logSlots
 
@@ -364,6 +329,23 @@ func (encoder *encoderComplex128) embed(values interface{}, logSlots int) {
 
 	default:
 		panic("values must be []complex128 or []float64")
+	}
+
+	encoder.ScaleUp(encoder.valuesFloat, scale, polyOut)
+}
+
+func (encoder *encoderComplex128) ScaleUp(values []float64, scale float64, polyOut interface{}) {
+	switch p := polyOut.(type) {
+	case rlwe.PolyQP:
+		levelQ := p.Q.Level()
+		levelP := p.P.Level()
+		ringQP := encoder.params.RingQP()
+		scaleUpVecExact(encoder.valuesFloat[:encoder.params.N()], scale, ringQP.RingQ.Modulus[:levelQ+1], p.Q.Coeffs)
+		scaleUpVecExact(encoder.valuesFloat[:encoder.params.N()], scale, ringQP.RingP.Modulus[:levelP+1], p.P.Coeffs)
+	case ring.Poly:
+		scaleUpVecExact(encoder.valuesFloat[:encoder.params.N()], scale, encoder.params.RingQ().Modulus[:p.Level()+1], p.Coeffs)
+	default:
+		panic("invalid polyOut type")
 	}
 }
 
@@ -503,241 +485,6 @@ func (encoder *encoderComplex128) plaintextToComplex(level int, scale float64, l
 			tmp[i] -= complex(0, real(tmp[slots-i]))
 		}
 	}
-}
-
-func roundComplexVector(values []complex128, bound float64) {
-	for i := range values {
-		a := math.Round(real(values[i])*bound) / bound
-		b := math.Round(imag(values[i])*bound) / bound
-		values[i] = complex(a, b)
-	}
-}
-
-func polyToFloatNoCRT(coeffs []uint64, values []float64, scale float64, Q uint64) {
-
-	for i, c := range coeffs {
-
-		if c >= Q>>1 {
-			values[i] = -float64(Q-c) / scale
-		} else {
-			values[i] = float64(c) / scale
-		}
-	}
-}
-
-// PtDiagMatrix is a struct storing a plaintext diagonalized matrix
-// ready to be evaluated on a ciphertext using evaluator.MultiplyByDiagMatrice.
-type PtDiagMatrix struct {
-	LogSlots int                 // Log of the number of slots of the plaintext (needed to compute the appropriate rotation keys)
-	N1       int                 // N1 is the number of inner loops of the baby-step giant-step algo used in the evaluation.
-	Level    int                 // Level is the level at which the matrix is encoded (can be circuit dependent)
-	Scale    float64             // Scale is the scale at which the matrix is encoded (can be circuit dependent)
-	Vec      map[int]rlwe.PolyQP // Vec is the matrix, in diagonal form, where each entry of vec is an indexed non zero diagonal.
-	Naive    bool
-}
-
-// BsgsIndex returns the index map and needed rotation for the BSGS matrix-vector multiplication algorithm.
-func BsgsIndex(el interface{}, slots, N1 int) (index map[int][]int, rotations []int) {
-	index = make(map[int][]int)
-	rotations = []int{}
-	switch element := el.(type) {
-	case map[int][]complex128:
-		for key := range element {
-			key &= (slots - 1)
-			idx1 := key / N1
-			idx2 := key & (N1 - 1)
-			if index[idx1] == nil {
-				index[idx1] = []int{idx2}
-			} else {
-				index[idx1] = append(index[idx1], idx2)
-			}
-			if !utils.IsInSliceInt(idx2, rotations) {
-				rotations = append(rotations, idx2)
-			}
-		}
-	case map[int][]float64:
-		for key := range element {
-			key &= (slots - 1)
-			idx1 := key / N1
-			idx2 := key & (N1 - 1)
-			if index[idx1] == nil {
-				index[idx1] = []int{idx2}
-			} else {
-				index[idx1] = append(index[idx1], idx2)
-			}
-			if !utils.IsInSliceInt(idx2, rotations) {
-				rotations = append(rotations, idx2)
-			}
-		}
-	case map[int]bool:
-		for key := range element {
-			key &= (slots - 1)
-			idx1 := key / N1
-			idx2 := key & (N1 - 1)
-			if index[idx1] == nil {
-				index[idx1] = []int{idx2}
-			} else {
-				index[idx1] = append(index[idx1], idx2)
-			}
-			if !utils.IsInSliceInt(idx2, rotations) {
-				rotations = append(rotations, idx2)
-			}
-		}
-	case map[int]rlwe.PolyQP:
-		for key := range element {
-			key &= (slots - 1)
-			idx1 := key / N1
-			idx2 := key & (N1 - 1)
-			if index[idx1] == nil {
-				index[idx1] = []int{idx2}
-			} else {
-				index[idx1] = append(index[idx1], idx2)
-			}
-			if !utils.IsInSliceInt(idx2, rotations) {
-				rotations = append(rotations, idx2)
-			}
-		}
-	case []int:
-		for key := range element {
-			key &= (slots - 1)
-			idx1 := key / N1
-			idx2 := key & (N1 - 1)
-			if index[idx1] == nil {
-				index[idx1] = []int{idx2}
-			} else {
-				index[idx1] = append(index[idx1], idx2)
-			}
-			if !utils.IsInSliceInt(idx2, rotations) {
-				rotations = append(rotations, idx2)
-			}
-		}
-	}
-
-	return
-}
-
-func interfaceMapToMapOfInterface(m interface{}) map[int]interface{} {
-	d := make(map[int]interface{})
-	switch el := m.(type) {
-	case map[int][]complex128:
-		for i := range el {
-			d[i] = el[i]
-		}
-	case map[int][]float64:
-		for i := range el {
-			d[i] = el[i]
-		}
-	default:
-		panic("invalid input, must be map[int][]complex128 or map[int][]float64")
-	}
-	return d
-}
-
-func (encoder *encoderComplex128) EncodeDiagMatrixBSGS(value interface{}, level int, scale, maxM1N2Ratio float64, logSlots int) (matrix PtDiagMatrix) {
-
-	slots := 1 << logSlots
-
-	// N1*N2 = N
-	n1 := FindBestBSGSSplit(value, slots, maxM1N2Ratio)
-
-	index, _ := BsgsIndex(value, slots, n1)
-
-	vec := make(map[int]rlwe.PolyQP)
-
-	dMat := interfaceMapToMapOfInterface(value)
-
-	for j := range index {
-
-		for _, i := range index[j] {
-
-			// manages inputs that have rotation between 0 and slots-1 or between -slots/2 and slots/2-1
-			v, ok := dMat[n1*j+i]
-			if !ok {
-				v = dMat[(n1*j+i)-slots]
-			}
-
-			vec[n1*j+i] = encoder.EncodeSlotsQPNew(utils.RotateSlice(v, -n1*j), level, scale, logSlots)
-		}
-	}
-
-	return PtDiagMatrix{LogSlots: logSlots, N1: n1, Vec: vec, Level: level, Scale: scale}
-}
-
-func (encoder *encoderComplex128) EncodeDiagMatrix(value interface{}, level int, scale float64, logSlots int) (matrix PtDiagMatrix) {
-
-	dMat := interfaceMapToMapOfInterface(value)
-
-	vec := make(map[int]rlwe.PolyQP)
-	slots := 1 << logSlots
-	for i := range dMat {
-
-		idx := i
-		if idx < 0 {
-			idx += slots
-		}
-		vec[idx] = encoder.EncodeSlotsQPNew(dMat[i], level, scale, logSlots)
-	}
-
-	return PtDiagMatrix{LogSlots: logSlots, N1: 0, Vec: vec, Level: level, Scale: scale, Naive: true}
-}
-
-func (encoder *encoderComplex128) EncodeSlotsQPNew(m interface{}, level int, scale float64, logSlots int) (vecQP rlwe.PolyQP) {
-	levelQ := level
-	levelP := encoder.params.PCount() - 1
-	vecQP = encoder.params.RingQP().NewPolyLvl(levelQ, levelP)
-	encoder.EncodeSlotsQP(m, vecQP, scale, logSlots)
-	return
-}
-
-func (encoder *encoderComplex128) EncodeSlotsQP(m interface{}, vecQP rlwe.PolyQP, scale float64, logSlots int) {
-
-	levelQ := vecQP.Q.Level()
-	levelP := vecQP.P.Level()
-	ringQP := encoder.params.RingQP()
-
-	encoder.embed(m, logSlots)
-	scaleUpVecExact(encoder.valuesFloat[:encoder.params.N()], scale, ringQP.RingQ.Modulus[:levelQ+1], vecQP.Q.Coeffs)
-	scaleUpVecExact(encoder.valuesFloat[:encoder.params.N()], scale, ringQP.RingP.Modulus[:levelP+1], vecQP.P.Coeffs)
-	ringQP.NTTLvl(levelQ, levelP, vecQP, vecQP)
-	ringQP.MFormLvl(levelQ, levelP, vecQP, vecQP)
-
-	return
-}
-
-// FindBestBSGSSplit finds the best N1*N2 = N for the baby-step giant-step algorithm for matrix multiplication.
-func FindBestBSGSSplit(diagMatrix interface{}, maxN int, maxRatio float64) (minN int) {
-
-	for N1 := 1; N1 < maxN; N1 <<= 1 {
-
-		index, _ := BsgsIndex(diagMatrix, maxN, N1)
-
-		if len(index[0]) > 0 {
-
-			hoisted := len(index[0]) - 1
-			normal := len(index) - 1
-
-			// The matrice is very sparse already
-			if normal == 0 {
-				return N1 / 2
-			}
-
-			if hoisted > normal {
-				// Finds the next split that has a ratio hoisted/normal greater or equal to maxRatio
-				for float64(hoisted)/float64(normal) < maxRatio {
-
-					if normal/2 == 0 {
-						break
-					}
-					N1 *= 2
-					hoisted = hoisted*2 + 1
-					normal = normal / 2
-				}
-				return N1
-			}
-		}
-	}
-
-	return 1
 }
 
 func (encoder *encoderComplex128) decodePublic(plaintext *Plaintext, logSlots int, sigma float64) (res []complex128) {

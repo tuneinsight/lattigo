@@ -109,10 +109,7 @@ func (rfp *MaskedTransformProtocol) SampleCRP(level int, crs utils.PRNG) drlwe.C
 // value for logBound.
 func (rfp *MaskedTransformProtocol) GenShares(sk *rlwe.SecretKey, logBound, logSlots int, ct *ckks.Ciphertext, crs drlwe.CKSCRP, transform MaskedTransformFunc, shareOut *MaskedTransformShare) {
 
-	if ct.Level() > shareOut.e2sShare.Value.Level() {
-		ct.Value[0].Coeffs = ct.Value[0].Coeffs[:shareOut.e2sShare.Value.Level()+1]
-		ct.Value[1].Coeffs = ct.Value[1].Coeffs[:shareOut.e2sShare.Value.Level()+1]
-	} else if ct.Level() < shareOut.e2sShare.Value.Level() {
+	if ct.Level() < shareOut.e2sShare.Value.Level() {
 		panic("ciphertext level must be at least equal to e2sShare level")
 	}
 
@@ -204,8 +201,8 @@ func (rfp *MaskedTransformProtocol) Aggregate(share1, share2, shareOut *MaskedTr
 // Transform applies Decrypt, Recode and Recrypt on the input ciphertext.
 func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, logSlots int, transform MaskedTransformFunc, crs drlwe.CKSCRP, share *MaskedTransformShare, ciphertextOut *ckks.Ciphertext) {
 
-	if ct.Level() != share.e2sShare.Value.Level() {
-		panic("ciphertext level and e2s level must be the same")
+	if ct.Level() < share.e2sShare.Value.Level() {
+		panic("input ciphertext level must be at least equal to e2s level")
 	}
 
 	maxLevel := (*ring.Poly)(&crs).Level()

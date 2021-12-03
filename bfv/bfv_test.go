@@ -653,7 +653,7 @@ func testEvaluatorRotate(testctx *testContext, t *testing.T) {
 
 func testMarshaller(testctx *testContext, t *testing.T) {
 
-	t.Run("Marshaller/Parameters/Binary", func(t *testing.T) {
+	t.Run(testString("Marshaller/Parameters/Binary", testctx.params), func(t *testing.T) {
 		bytes, err := testctx.params.MarshalBinary()
 		assert.Nil(t, err)
 		var p Parameters
@@ -662,7 +662,7 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 		assert.Equal(t, testctx.params, p)
 	})
 
-	t.Run("Marshaller/Parameters/JSON", func(t *testing.T) {
+	t.Run(testString("Marshaller/Parameters/JSON", testctx.params), func(t *testing.T) {
 		// checks that parameters can be marshalled without error
 		data, err := json.Marshal(testctx.params)
 		assert.Nil(t, err)

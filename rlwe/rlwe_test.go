@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -19,7 +20,11 @@ import (
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 
 // TestParams is a set of test parameters for the correctness of the rlwe pacakge.
+<<<<<<< HEAD
 var TestParams = []ParametersLiteral{TestPN11QP54, TestPN12QP109, TestPN13QP218, TestPN14QP438, TestPN15QP880}
+=======
+var TestParams = []ParametersLiteral{TestPN12QP109, TestPN13QP218, TestPN14QP438, TestPN15QP880, TestPN16QP240, TestPN17QP360}
+>>>>>>> dev_rckks
 
 func testString(params Parameters, opname string) string {
 	return fmt.Sprintf("%slogN=%d/logQ=%d/logP=%d/#Qi=%d/#Pi=%d",
@@ -475,6 +480,16 @@ func testKeySwitcher(kgen KeyGenerator, t *testing.T) {
 func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 
 	paramsLargeDim := kgen.(*keyGenerator).params
+<<<<<<< HEAD
+=======
+	paramsSmallDim, _ := NewParametersFromLiteral(ParametersLiteral{
+		LogN:     paramsLargeDim.LogN() - 1,
+		Q:        paramsLargeDim.Q()[:1],
+		P:        paramsLargeDim.P()[:1],
+		Sigma:    DefaultSigma,
+		RingType: paramsLargeDim.RingType(),
+	})
+>>>>>>> dev_rckks
 
 	t.Run(testString(paramsLargeDim, "KeySwitchDimension/"), func(t *testing.T) {
 
@@ -502,11 +517,15 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 
 			swk := kgenLargeDim.GenSwitchingKey(skLargeDim, skSmallDim)
 
+<<<<<<< HEAD
 			plaintext := NewPlaintext(paramsLargeDim, paramsLargeDim.MaxLevel())
 			plaintext.Value.IsNTT = true
 			encryptor := NewEncryptor(paramsLargeDim, skLargeDim)
 			ctLargeDim := NewCiphertextNTT(paramsLargeDim, 1, plaintext.Level())
 			encryptor.Encrypt(plaintext, ctLargeDim)
+=======
+		SwitchCiphertextRingDegreeNTT(ctLargeDim, ringQSmallDim, ringQLargeDim, ctSmallDim)
+>>>>>>> dev_rckks
 
 			ks := NewKeySwitcher(paramsLargeDim)
 			ks.SwitchKeysInPlace(paramsSmallDim.MaxLevel(), ctLargeDim.Value[1], swk, ks.Pool[1].Q, ks.Pool[2].Q)
@@ -542,8 +561,12 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 			ctSmallDim := NewCiphertextNTT(paramsSmallDim, 1, plaintext.Level())
 			encryptor.Encrypt(plaintext, ctSmallDim)
 
+<<<<<<< HEAD
 			//Extracts Coefficients
 			ctLargeDim := NewCiphertextNTT(paramsLargeDim, 1, plaintext.Level())
+=======
+		SwitchCiphertextRingDegreeNTT(ctSmallDim, nil, nil, ctLargeDim)
+>>>>>>> dev_rckks
 
 			SwitchCiphertextRingDegreeNTT(ctSmallDim, nil, nil, ctLargeDim)
 
@@ -590,6 +613,30 @@ func testMarshaller(kgen KeyGenerator, t *testing.T) {
 		assert.True(t, params.Equals(rlweParams))
 	})
 
+	t.Run(testString(params, "Marshaller/Ciphertext/"), func(t *testing.T) {
+
+		prng, _ := utils.NewPRNG()
+
+		for degree := 0; degree < 4; degree++ {
+			t.Run(fmt.Sprintf("degree=%d", degree), func(t *testing.T) {
+				ciphertextWant := NewCiphertextRandom(prng, params, degree, params.MaxLevel())
+
+				marshalledCiphertext, err := ciphertextWant.MarshalBinary()
+				require.NoError(t, err)
+
+				ciphertextTest := new(Ciphertext)
+				require.NoError(t, ciphertextTest.UnmarshalBinary(marshalledCiphertext))
+
+				require.Equal(t, ciphertextWant.Degree(), ciphertextTest.Degree())
+				require.Equal(t, ciphertextWant.Level(), ciphertextTest.Level())
+
+				for i := range ciphertextWant.Value {
+					require.True(t, params.RingQ().EqualLvl(ciphertextWant.Level(), ciphertextWant.Value[i], ciphertextTest.Value[i]))
+				}
+			})
+		}
+	})
+
 	t.Run(testString(params, "Marshaller/Sk/"), func(t *testing.T) {
 
 		marshalledSk, err := sk.MarshalBinary()
@@ -617,7 +664,7 @@ func testMarshaller(kgen KeyGenerator, t *testing.T) {
 	t.Run(testString(params, "Marshaller/EvaluationKey/"), func(t *testing.T) {
 
 		if params.PCount() == 0 {
-			t.Skip("#Pi is empty")
+			t.Skip("method is unsuported when params.PCount() == 0")
 		}
 
 		evalKey := kgen.GenRelinearizationKey(sk, 3)
@@ -634,7 +681,7 @@ func testMarshaller(kgen KeyGenerator, t *testing.T) {
 	t.Run(testString(params, "Marshaller/SwitchingKey/"), func(t *testing.T) {
 
 		if params.PCount() == 0 {
-			t.Skip("#Pi is empty")
+			t.Skip("method is unsuported when params.PCount() == 0")
 		}
 
 		skOut := kgen.GenSecretKey()
@@ -653,12 +700,16 @@ func testMarshaller(kgen KeyGenerator, t *testing.T) {
 	t.Run(testString(params, "Marshaller/RotationKey/"), func(t *testing.T) {
 
 		if params.PCount() == 0 {
-			t.Skip("#Pi is empty")
+			t.Skip("method is unsuported when params.PCount() == 0")
 		}
 
 		rots := []int{1, -1, 63, -63}
 		galEls := []uint64{}
+<<<<<<< HEAD
 		if params.RingType() == RingStandard {
+=======
+		if params.RingType() == ring.Standard {
+>>>>>>> dev_rckks
 			galEls = append(galEls, params.GaloisElementForRowRotation())
 		}
 

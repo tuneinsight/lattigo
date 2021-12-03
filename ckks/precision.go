@@ -47,7 +47,9 @@ func (prec PrecisionStats) String() string {
 }
 
 // GetPrecisionStats generates a PrecisionStats struct from the reference values and the decrypted values
-func GetPrecisionStats(params Parameters, encoder Encoder, decryptor Decryptor, valuesWant []complex128, element interface{}, logSlots int, sigma float64) (prec PrecisionStats) {
+// vWant.(type) must be either []complex128 or []float64
+// element.(type) must be either *Plaintext, *Ciphertext, []complex128 or []float64. If not *Ciphertext, then decryptor can be nil.
+func GetPrecisionStats(params Parameters, encoder Encoder, decryptor Decryptor, vWant, element interface{}, logSlots int, sigma float64) (prec PrecisionStats) {
 
 	var valuesTest []complex128
 
@@ -60,6 +62,22 @@ func GetPrecisionStats(params Parameters, encoder Encoder, decryptor Decryptor, 
 		valuesTest = encoder.DecodePublic(element, logSlots, sigma)
 	case []complex128:
 		valuesTest = element
+	case []float64:
+		valuesTest = make([]complex128, len(element))
+		for i := range element {
+			valuesTest[i] = complex(element[i], 0)
+		}
+	}
+
+	var valuesWant []complex128
+	switch element := vWant.(type) {
+	case []complex128:
+		valuesWant = element
+	case []float64:
+		valuesWant = make([]complex128, len(element))
+		for i := range element {
+			valuesWant[i] = complex(element[i], 0)
+		}
 	}
 
 	var deltaReal, deltaImag, deltaL2 float64
@@ -143,8 +161,8 @@ func GetPrecisionStats(params Parameters, encoder Encoder, decryptor Decryptor, 
 	prec.MeanPrecision = deltaToPrecision(prec.MeanDelta)
 	prec.MedianDelta = calcmedian(diff)
 	prec.MedianPrecision = deltaToPrecision(prec.MedianDelta)
-	prec.STDFreq = encoder.GetErrSTDSlotDomain(valuesWant[:], valuesTest[:], params.Scale())
-	prec.STDTime = encoder.GetErrSTDCoeffDomain(valuesWant, valuesTest, params.Scale())
+	prec.STDFreq = encoder.GetErrSTDSlotDomain(valuesWant[:], valuesTest[:], params.DefaultScale())
+	prec.STDTime = encoder.GetErrSTDCoeffDomain(valuesWant, valuesTest, params.DefaultScale())
 	return prec
 }
 

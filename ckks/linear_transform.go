@@ -1,16 +1,35 @@
 package ckks
 
 import (
+	"runtime"
+
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
-	"runtime"
 )
 
 // Trace maps X -> sum((-1)^i * X^{i*n+1}) for 0 <= i < N
 // For log(n) = logSlotStart and log(N/2) = logSlotsEnd
+<<<<<<< HEAD
 // Monomials X^k vanish if k isn't divisble by (N/n), else it is multiplied by (N/n).
 // Ciphertext is pre-multiplied by (N/n)^-1 to remove the (N/n) factor.
+=======
+// Monomial X^k vanish if k isn't divisible by (N/n), else it is multiplied by (N/n).
+// Ciphertext is pre-multiplied by (N/n)^-1 to remove the (N/n) factor.
+// Examples of full Trace for [0 + 1X + 2X^2 + 3X^3 + 4X^4 + 5X^5 + 6X^6 + 7X^7]
+//
+// 1)	   [1 + 2X + 3X^2 + 4X^3 + 5X^4 + 6X^5 + 7X^6 + 8X^7]
+//       + [1 - 6X - 3X^2 + 8X^3 + 5X^4 + 2X^5 - 7X^6 - 4X^7]  {X-> X^(i * 5^1)}
+//   	 = [2 - 4X + 0X^2 +12X^3 +10X^4 + 8X^5 - 0X^6 + 4X^7]
+//
+// 2)      [2 - 4X + 0X^2 +12X^3 +10X^4 + 8X^5 - 0X^6 + 4X^7]
+//       + [2 + 4X + 0X^2 -12X^3 +10X^4 - 8X^5 + 0X^6 - 4X^7]  {X-> X^(i * 5^2)}
+//       = [4 + 0X + 0X^2 - 0X^3 +20X^4 + 0X^5 + 0X^6 - 0X^7]
+//
+// 3)      [4 + 0X + 0X^2 - 0X^3 +20X^4 + 0X^5 + 0X^6 - 0X^7]
+//       + [4 + 4X + 0X^2 - 0X^3 -20X^4 + 0X^5 + 0X^6 - 0X^7]  {X-> X^(i * -1)}
+//       = [8 + 0X + 0X^2 - 0X^3 + 0X^4 + 0X^5 + 0X^6 - 0X^7]
+>>>>>>> dev_rckks
 func (eval *evaluator) Trace(ctIn *Ciphertext, logSlotsStart, logSlotsEnd int, ctOut *Ciphertext) {
 
 	level := utils.MinInt(ctIn.Level(), ctOut.Level())
@@ -85,8 +104,8 @@ func (eval *evaluator) RotateHoisted(ctIn *Ciphertext, rotations []int, ctOut ma
 
 // LinearTransformNew evaluates a linear transform on the ciphertext and returns the result on a new ciphertext.
 // The linearTransform can either be an (ordered) list of PtDiagMatrix or a single PtDiagMatrix.
-// In either case a list of ciphertext is return (the second case returnign a list of
-// containing a single ciphertext. A PtDiagMatrix is a diagonalized plaintext matrix contructed with an Encoder using
+// In either case a list of ciphertext is returned (the second case returning a list of
+// containing a single ciphertext. A PtDiagMatrix is a diagonalized plaintext matrix constructed with an Encoder using
 // the method encoder.EncodeDiagMatrixAtLvl(*).
 func (eval *evaluator) LinearTransformNew(ctIn *Ciphertext, linearTransform interface{}) (ctOut []*Ciphertext) {
 
@@ -131,8 +150,8 @@ func (eval *evaluator) LinearTransformNew(ctIn *Ciphertext, linearTransform inte
 
 // LinearTransformNew evaluates a linear transform on the pre-allocated ciphertexts.
 // The linearTransform can either be an (ordered) list of PtDiagMatrix or a single PtDiagMatrix.
-// In either case a list of ciphertext is return (the second case returnign a list of
-// containing a single ciphertext. A PtDiagMatrix is a diagonalized plaintext matrix contructed with an Encoder using
+// In either case a list of ciphertext is returned (the second case returning a list of
+// containing a single ciphertext. A PtDiagMatrix is a diagonalized plaintext matrix constructed with an Encoder using
 // the method encoder.EncodeDiagMatrixAtLvl(*).
 func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interface{}, ctOut []*Ciphertext) {
 
@@ -166,6 +185,7 @@ func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfa
 	}
 }
 
+<<<<<<< HEAD
 // Average returns the average of vectors of batchSize elemets.
 // The operation assumes that ctIn encrypts SlotCount/'batchSize' sub-vectors of size 'batchSize'.
 // It then replace all values of those sub-vectors by their average (relative to their sub-vector).
@@ -175,13 +195,29 @@ func (eval *evaluator) Average(ctIn *Ciphertext, batchSize int, ctOut *Ciphertex
 
 	if batchSize&(batchSize-1) != 0 || batchSize > eval.params.Slots() {
 		panic("batchSize must be a power of two that is smaller or equal to the number of slots")
+=======
+// Average returns the average of vectors of batchSize elements.
+// The operation assumes that ctIn encrypts SlotCount/'batchSize' sub-vectors of size 'batchSize'.
+// It then replaces all values of those sub-vectors by the component-wise average between all the sub-vectors.
+// Example for batchSize=4 and slots=8: [{a, b, c, d}, {e, f, g, h}] -> [0.5*{a+e, b+f, c+g, d+h}, 0.5*{a+e, b+f, c+g, d+h}]
+// Operation requires log2(SlotCout/'batchSize') rotations.
+// Required rotation keys can be generated with 'RotationsForInnerSumLog(batchSize, SlotCount/batchSize)''
+func (eval *evaluator) Average(ctIn *Ciphertext, logBatchSize int, ctOut *Ciphertext) {
+
+	if logBatchSize > eval.params.LogSlots() {
+		panic("batchSize must be smaller or equal to the number of slots")
+>>>>>>> dev_rckks
 	}
 
 	ringQ := eval.params.RingQ()
 
 	level := utils.MinInt(ctIn.Level(), ctOut.Level())
 
+<<<<<<< HEAD
 	n := eval.params.Slots() / batchSize
+=======
+	n := eval.params.Slots() / (1 << logBatchSize)
+>>>>>>> dev_rckks
 
 	// pre-multiplication by n^-1
 	for i := 0; i < level+1; i++ {
@@ -195,14 +231,21 @@ func (eval *evaluator) Average(ctIn *Ciphertext, batchSize int, ctOut *Ciphertex
 		ring.MulScalarMontgomeryVec(ctIn.Value[1].Coeffs[i], ctOut.Value[1].Coeffs[i], invN, Q, mredparams)
 	}
 
+<<<<<<< HEAD
 	// Partial trace evaluation where coefficients are either scaled by n or vanish.
 	eval.InnerSumLog(ctOut, batchSize, n, ctOut)
 }
 
 // InnerSumLog applies an optimized inner sum on the ciphetext (log2(n) + HW(n) rotations with double hoisting).
+=======
+	eval.InnerSumLog(ctOut, 1<<logBatchSize, n, ctOut)
+}
+
+// InnerSumLog applies an optimized inner sum on the ciphertext (log2(n) + HW(n) rotations with double hoisting).
+>>>>>>> dev_rckks
 // The operation assumes that `ctIn` encrypts SlotCount/`batchSize` sub-vectors of size `batchSize` which it adds together (in parallel) by groups of `n`.
 // It outputs in ctOut a ciphertext for which the "leftmost" sub-vector of each group is equal to the sum of the group.
-// This method is faster than InnerSum when the number of rotations is large and uses log2(n) + HW(n) insteadn of 'n' keys.
+// This method is faster than InnerSum when the number of rotations is large and uses log2(n) + HW(n) instead of 'n' keys.
 func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
 
 	ringQ := eval.params.RingQ()
@@ -211,9 +254,6 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 
 	levelQ := ctIn.Level()
 	levelP := len(ringP.Modulus) - 1
-
-	//QiOverF := eval.params.QiOverflowMargin(levelQ)
-	//PiOverF := eval.params.PiOverflowMargin()
 
 	if n == 1 {
 		if ctIn != ctOut {
@@ -310,7 +350,7 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 	}
 }
 
-// InnerSum applies an naive inner sum on the ciphetext (n rotations with single hoisting).
+// InnerSum applies an naive inner sum on the ciphertext (n rotations with single hoisting).
 // The operation assumes that `ctIn` encrypts SlotCount/`batchSize` sub-vectors of size `batchSize` which it adds together (in parallel) by groups of `n`.
 // It outputs in ctOut a ciphertext for which the "leftmost" sub-vector of each group is equal to the sum of the group.
 // This method is faster than InnerSumLog when the number of rotations is small but uses 'n' keys instead of log(n) + HW(n).
@@ -406,7 +446,7 @@ func (eval *evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 	}
 }
 
-// ReplicateLog applies an optimized replication on the ciphetext (log2(n) + HW(n) rotations with double hoisting).
+// ReplicateLog applies an optimized replication on the ciphertext (log2(n) + HW(n) rotations with double hoisting).
 // It acts as the inverse of a inner sum (summing elements from left to right).
 // The replication is parameterized by the size of the sub-vectors to replicate "batchSize" and
 // the number of time "n" they need to be replicated.
@@ -417,7 +457,7 @@ func (eval *evaluator) ReplicateLog(ctIn *Ciphertext, batchSize, n int, ctOut *C
 	eval.InnerSumLog(ctIn, -batchSize, n, ctOut)
 }
 
-// Replicate applies naive replication on the ciphetext (n rotations with single hoisting).
+// Replicate applies naive replication on the ciphertext (n rotations with single hoisting).
 // It acts as the inverse of a inner sum (summing elements from left to right).
 // The replication is parameterized by the size of the sub-vectors to replicate "batchSize" and
 // the number of time "n" they need to be replicated.
@@ -454,14 +494,9 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix PtDiagMatri
 	ksRes0QP := eval.Pool[3]
 	ksRes1QP := eval.Pool[4]
 
-	var ctInTmp0, ctInTmp1 *ring.Poly
-	if ctIn != ctOut {
-		ring.CopyValuesLvl(levelQ, ctIn.Value[0], eval.ctxpool.Value[0])
-		ring.CopyValuesLvl(levelQ, ctIn.Value[1], eval.ctxpool.Value[1])
-		ctInTmp0, ctInTmp1 = eval.ctxpool.Value[0], eval.ctxpool.Value[1]
-	} else {
-		ctInTmp0, ctInTmp1 = ctIn.Value[0], ctIn.Value[1]
-	}
+	ring.CopyValuesLvl(levelQ, ctIn.Value[0], eval.ctxpool.Value[0])
+	ring.CopyValuesLvl(levelQ, ctIn.Value[1], eval.ctxpool.Value[1])
+	ctInTmp0, ctInTmp1 := eval.ctxpool.Value[0], eval.ctxpool.Value[1]
 
 	ringQ.MulScalarBigintLvl(levelQ, ctInTmp0, ringP.ModulusBigint, ct0TimesP) // P*c0
 
@@ -558,14 +593,9 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix PtDiagM
 
 	index, rotations := BsgsIndex(matrix.Vec, 1<<matrix.LogSlots, matrix.N1)
 
-	var ctInTmp0, ctInTmp1 *ring.Poly
-	if ctIn == ctOut {
-		ring.CopyValuesLvl(levelQ, ctIn.Value[0], eval.ctxpool.Value[0])
-		ring.CopyValuesLvl(levelQ, ctIn.Value[1], eval.ctxpool.Value[1])
-		ctInTmp0, ctInTmp1 = eval.ctxpool.Value[0], eval.ctxpool.Value[1]
-	} else {
-		ctInTmp0, ctInTmp1 = ctIn.Value[0], ctIn.Value[1]
-	}
+	ring.CopyValuesLvl(levelQ, ctIn.Value[0], eval.ctxpool.Value[0])
+	ring.CopyValuesLvl(levelQ, ctIn.Value[1], eval.ctxpool.Value[1])
+	ctInTmp0, ctInTmp1 := eval.ctxpool.Value[0], eval.ctxpool.Value[1]
 
 	// Pre-rotates ciphertext for the baby-step giant-step algorithm, does not divide by P yet
 	ctInRotQP := eval.RotateHoistedNoModDownNew(levelQ, rotations, ctInTmp0, eval.PoolDecompQP)

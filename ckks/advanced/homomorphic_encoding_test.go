@@ -2,14 +2,15 @@ package advanced
 
 import (
 	"flag"
+	"math"
+	"runtime"
+	"testing"
+
 	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"math"
-	"runtime"
-	"testing"
 )
 
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
@@ -24,10 +25,10 @@ func TestHomomorphicEncoding(t *testing.T) {
 	}
 
 	ParametersLiteral := ckks.ParametersLiteral{
-		LogN:     13,
-		LogSlots: 12,
-		Scale:    1 << 45,
-		Sigma:    rlwe.DefaultSigma,
+		LogN:         13,
+		LogSlots:     12,
+		DefaultScale: 1 << 45,
+		Sigma:        rlwe.DefaultSigma,
 		Q: []uint64{
 			0x10000000006e0001, // 60 Q0
 			0x2000000a0001,     // 45
@@ -186,7 +187,7 @@ func testCoeffsToSlots(params ckks.Parameters, t *testing.T) {
 		}
 
 		// Encodes coefficient-wise and encrypts the test vector
-		plaintext := ckks.NewPlaintext(params, params.MaxLevel(), params.Scale())
+		plaintext := ckks.NewPlaintext(params, params.MaxLevel(), params.DefaultScale())
 		encoder.EncodeCoeffs(valuesFloat, plaintext)
 		ciphertext := encryptor.EncryptNew(plaintext)
 
@@ -294,12 +295,12 @@ func testSlotsToCoeffs(params ckks.Parameters, t *testing.T) {
 			logSlots++
 		}
 
-		plaintext := ckks.NewPlaintext(params, params.MaxLevel(), params.Scale())
-		encoder.Encode(plaintext, valuesReal, logSlots)
+		plaintext := ckks.NewPlaintext(params, params.MaxLevel(), params.DefaultScale())
+		encoder.Encode(valuesReal, plaintext, logSlots)
 		ct0 := encryptor.EncryptNew(plaintext)
 		var ct1 *ckks.Ciphertext
 		if params.LogSlots() == params.LogN()-1 {
-			encoder.Encode(plaintext, valuesImag, logSlots)
+			encoder.Encode(valuesImag, plaintext, logSlots)
 			ct1 = encryptor.EncryptNew(plaintext)
 		}
 

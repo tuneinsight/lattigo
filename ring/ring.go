@@ -5,6 +5,7 @@ package ring
 import (
 	"bytes"
 	"encoding/gob"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -12,6 +13,50 @@ import (
 
 	"github.com/ldsec/lattigo/v2/utils"
 )
+
+// Type is the type of ring used by the cryptographic scheme
+type Type int
+
+// RingStandard and RingConjugateInvariant are two types of Rings.
+const (
+	Standard           = Type(0) // Z[X]/(X^N + 1) (Default)
+	ConjugateInvariant = Type(1) // Z[X+X^-1]/(X^2N + 1)
+)
+
+// String returns the string representation of the ring Type
+func (rt Type) String() string {
+	switch rt {
+	case Standard:
+		return "Standard"
+	case ConjugateInvariant:
+		return "ConjugateInvariant"
+	default:
+		return "Invalid"
+	}
+}
+
+// UnmarshalJSON reads a JSON byte slice into the receiver Type
+func (rt *Type) UnmarshalJSON(b []byte) error {
+	var s string
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+	switch s {
+	default:
+		return fmt.Errorf("invalid ring type: %s", s)
+	case "Standard":
+		*rt = Standard
+	case "ConjugateInvariant":
+		*rt = ConjugateInvariant
+	}
+
+	return nil
+}
+
+// MarshalJSON marshals the receiver Type into a JSON []byte
+func (rt Type) MarshalJSON() ([]byte, error) {
+	return json.Marshal(rt.String())
+}
 
 // Ring is a structure that keeps all the variables required to operate on a polynomial represented in this ring.
 type Ring struct {
@@ -48,10 +93,11 @@ type Ring struct {
 	NttNInv   []uint64   //[N^-1] mod Qi in Montgomery form
 }
 
-// NewRing creates a new RNS Ring with degree N and coefficient moduli Moduli. N must be a power of two larger than 8. Moduli should be
-// a non-empty []uint64 with distinct prime elements. For the Ring instance to support NTT operation, these elements must also be equal
-// to 1 modulo 2*N. Non-nil r and error are returned in the case of non NTT-enabling parameters.
+// NewRing creates a new RNS Ring with degree N and coefficient moduli Moduli with Standard NTT. N must be a power of two larger than 8. Moduli should be
+// a non-empty []uint64 with distinct prime elements. All moduli must also be equal to 1 modulo 2*N.
+// An error is returned with a nil *Ring in the case of non NTT-enabling parameters.
 func NewRing(N int, Moduli []uint64) (r *Ring, err error) {
+<<<<<<< HEAD
 	return NewRingWithNthRoot(N, 2*N, Moduli)
 }
 
@@ -74,18 +120,102 @@ func NewRingWithNthRoot(N, NthRoot int, Moduli []uint64) (r *Ring, err error) {
 // about its 2N coefficients since the right half does not provide any additional information.
 // Primes need to be congruent to 1 mod 4N.
 func NewRingConjugateInvariant(N int, Moduli []uint64) (r *Ring, err error) {
+=======
+	return NewRingWithCustomNTT(N, Moduli, NumberTheoreticTransformerStandard{}, 2*N)
+}
+
+// NewRingConjugateInvariant creates a new RNS Ring with degree N and coefficient moduli Moduli with Conjugate Invariant NTT. N must be a power of two larger than 8. Moduli should be
+// a non-empty []uint64 with distinct prime elements. All moduli must also be equal to 1 modulo 4*N.
+// An error is returned with a nil *Ring in the case of non NTT-enabling parameters.
+func NewRingConjugateInvariant(N int, Moduli []uint64) (r *Ring, err error) {
+	return NewRingWithCustomNTT(N, Moduli, NumberTheoreticTransformerConjugateInvariant{}, 4*N)
+}
+
+// NewRingFromType creates a new RNS Ring with degree N and coefficient moduli Moduli for which the type of NTT is determined by the ringType argument.
+// If ringType==Standard, the ring is instantiated with standard NTT transform with the Nth root of unity 2*N. If ringType==ConjugateInvariant, the ring
+// is instantiated with a ConjugateInvariant NTT with Nth root of unity 4*N. N must be a power of two larger than 8.
+// Moduli should be a non-empty []uint64 with distinct prime elements. All moduli must also be equal to 1 modulo the root of unity.
+// An error is returned with a nil *Ring in the case of non NTT-enabling parameters.
+func NewRingFromType(N int, Moduli []uint64, ringType Type) (r *Ring, err error) {
+	switch ringType {
+	case Standard:
+		return NewRingWithCustomNTT(N, Moduli, NumberTheoreticTransformerStandard{}, 2*N)
+	case ConjugateInvariant:
+		return NewRingWithCustomNTT(N, Moduli, NumberTheoreticTransformerConjugateInvariant{}, 4*N)
+	default:
+		return nil, fmt.Errorf("invalid ring type")
+	}
+}
+
+// NewRingWithCustomNTT creates a new RNS Ring with degree N and coefficient moduli Moduli with user-defined NTT transform and primitive Nth root of unity.
+// Moduli should be a non-empty []uint64 with distinct prime elements. All moduli must also be equal to 1 modulo the root of unity.
+// N must be a power of two larger than 8. An error is returned with a nil *Ring in the case of non NTT-enabling parameters.
+func NewRingWithCustomNTT(N int, Moduli []uint64, ntt NumberTheoreticTransformer, NthRoot int) (r *Ring, err error) {
+>>>>>>> dev_rckks
 	r = new(Ring)
 	err = r.setParameters(N, Moduli)
 	if err != nil {
 		return nil, err
 	}
 
+<<<<<<< HEAD
 	r.NumberTheoreticTransformer = NumberTheoreticTransformerConjugateInvariant{}
 
 	return r, r.genNTTParams(uint64(N) << 2)
+=======
+	r.NumberTheoreticTransformer = ntt
+
+	err = r.genNTTParams(uint64(NthRoot))
+	if err != nil {
+		return r, err
+	}
+
+	return r, nil
+>>>>>>> dev_rckks
 }
 
-// setParameters initializes a *Ring by setting the required precomputed values (except for the NTT-related values, which are set by the
+// ConjugateInvariantRing returns the conjugate invariant ring of the receiver ring.
+// If `r.Type()==ConjugateInvariant`, then the method returns the receiver.
+// if `r.Type()==Standard`, then the method returns a ring with ring degree N/2.
+// The returned Ring is a shallow copy of the receiver.
+func (r *Ring) ConjugateInvariantRing() (*Ring, error) {
+	if r.Type() == ConjugateInvariant {
+		return r, nil
+	}
+	cr := *r
+	cr.N = r.N >> 1
+	cr.NumberTheoreticTransformer = NumberTheoreticTransformerConjugateInvariant{}
+	return &cr, cr.genNTTParams(uint64(cr.N) << 2)
+}
+
+// StandardRing returns the standard ring of the receiver ring.
+// If `r.Type()==Standard`, then the method returns the receiver.
+// if `r.Type()==ConjugateInvariant`, then the method returns a ring with ring degree 2N.
+// The returned Ring is a shallow copy of the receiver.
+func (r *Ring) StandardRing() (*Ring, error) {
+	if r.Type() == Standard {
+		return r, nil
+	}
+
+	sr := *r
+	sr.N = r.N << 1
+	sr.NumberTheoreticTransformer = NumberTheoreticTransformerStandard{}
+	return &sr, sr.genNTTParams(uint64(sr.N) << 1)
+}
+
+// Type returns the Type of the ring which might be either `Standard` or `ConjugateInvariant`.
+func (r *Ring) Type() Type {
+	switch r.NumberTheoreticTransformer.(type) {
+	case NumberTheoreticTransformerStandard:
+		return Standard
+	case NumberTheoreticTransformerConjugateInvariant:
+		return ConjugateInvariant
+	default:
+		panic("invalid NumberTheoreticTransformer type")
+	}
+}
+
+// setParameters initializes a *Ring by setting the required pre-computed values (except for the NTT-related values, which are set by the
 // genNTTParams function).
 func (r *Ring) setParameters(N int, Modulus []uint64) error {
 
@@ -143,10 +273,13 @@ func (r *Ring) setParameters(N int, Modulus []uint64) error {
 // Then, it computes the variables required for the NTT. The purpose of ValidateParameters is to validate that the moduli allow the NTT, and to compute the
 // NTT parameters.
 func (r *Ring) genNTTParams(NthRoot uint64) error {
+<<<<<<< HEAD
 
 	if r.AllowsNTT {
 		return nil
 	}
+=======
+>>>>>>> dev_rckks
 
 	if r.N == 0 || r.Modulus == nil {
 		return errors.New("invalid r parameters (missing)")
@@ -164,7 +297,7 @@ func (r *Ring) genNTTParams(NthRoot uint64) error {
 
 		if qi&(NthRoot-1) != 1 {
 			r.AllowsNTT = false
-			return fmt.Errorf("invalid modulus (Modulus[%d] != 1 mod 2N)", i)
+			return fmt.Errorf("invalid modulus (Modulus[%d] != 1 mod NthRoot)", i)
 		}
 	}
 

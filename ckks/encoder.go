@@ -18,8 +18,31 @@ const GaloisGen uint64 = 5
 
 var pi = "3.1415926535897932384626433832795028841971693993751058209749445923078164062862089986280348253421170679821480865132823066470938446095505822317253594081284811174502841027019385211055596446229489549303819644288109756659334461284756482337867831652712019091456485669234603486104543266482133936072602491412737245870066063155881748815209209628292540917153643678925903600113305305488204665213841469519415116094330572703657595919530921861173819326117931051185480744623799627495673518857527248912279381830119491298336733624406566430860213949463952247371907021798609437027705392171762931767523846748184676694051320005681271452635608277857713427577896091736371787214684409012249534301465495853710507922796892589235420199561121290219608640344181598136297747713099605187072113499999983729780499510597317328160963185950244594553469083026425223082533446850352619311881710100031378387528865875332083814206171776691473035982534904287554687311595628638823537875937519577818577805321712268066130019278766111959092164201989"
 
-// Encoder is an interface implenting the encoding algorithms.
+// Encoder is an interface implementing the encoding and decoding operations. It provides methods to encode/decode []complex128 and []float64 types
+// into/from Plaintext types.
+// Two different encodings are provided:
+//
+//     - Coeffs: The coefficients are directly embedded on the plaintext. This encoding only allows to encode []float64 slices, but of size up to N
+//               (N being the ring degree) and does not preserve the point-wise multiplication. A ciphertext multiplication will result in a nega-
+//               cyclic polynomial convolution in the plaintext domain. This encoding does not provide native slot cyclic rotation.
+//               Other operations, like addition or constant multiplication behave as usual.
+//
+//     - Slots: The coefficients are first subjected to a special Fourier transform before being embedded in the plaintext by using Coeffs encoding.
+//              This encoding can embed []complex128 and []float64 slices of size at most N/2 (N being the ring degree) and leverages the convolution
+//              property of the DFT to preserve point-wise complex multiplication in the plaintext domain, i.e. a ciphertext multiplication will result
+//              in an element-wise multiplication in the plaintext domain. It also enables plaintext slots cyclic rotations. Other operations, like
+//              constant multiplication behave as usual. It is condidered the default encoding method for CKKS.
+//
+//
+// The figure bellow illustrates the relationship between those two encoding:
+//
+//                                              Real^{N}          Z_Q[X]/(X^N+1)
+// EncodeCoeffs: ----------------------------->[]float64 ---------> Plaintext
+//                                                 |
+//                    Complex^{N/2}                |
+// EncodeSlots:  []complex128/[]float64 -> iDFT ---┘
 type Encoder interface {
+<<<<<<< HEAD
 	Encode(plaintext *Plaintext, values interface{}, logSlots int)
 	EncodeNew(values interface{}, logSlots int) (plaintext *Plaintext)
 	EncodeAtLvlNew(level int, values interface{}, logSlots int) (plaintext *Plaintext)
@@ -27,34 +50,147 @@ type Encoder interface {
 	EncodeDiagMatrixBSGSAtLvl(level int, vector map[int][]complex128, scale, maxM1N2Ratio float64, logSlots int) (matrix PtDiagMatrix)
 	EncodeDiagMatrixAtLvl(level int, vector map[int][]complex128, scale float64, logSlots int) (matrix PtDiagMatrix)
 	EncodeDiagonal(logSlots, level int, scale float64, m []complex128) (vecQP rlwe.PolyQP)
+=======
+>>>>>>> dev_rckks
 
+	// Slots Encoding
+
+	// Encode encodes a set of values on the target plaintext.
+	// This method is identical to "EncodeSlots".
+	// Encoding is done at the level and scale of the plaintext.
+	// User must ensure that 1 <= len(values) <= 2^logSlots < 2^logN.
+	// values.(type) can be either []complex128 of []float64.
+	// The imaginary part of []complex128 will be discarded if ringType == ring.ConjugateInvariant.
+	// Returned plaintext is always in the NTT domain.
+	Encode(values interface{}, plaintext *Plaintext, logSlots int)
+
+	// EncodeNew encodes a set of values on a new plaintext.
+	// This method is identical to "EncodeSlotsNew".
+	// Encoding is done at the provided level and with the provided scale.
+	// User must ensure that 1 <= len(values) <= 2^logSlots < 2^logN.
+	// values.(type) can be either []complex128 of []float64.
+	// The imaginary part of []complex128 will be discarded if ringType == ring.ConjugateInvariant.
+	// Returned plaintext is always in the NTT domain.
+	EncodeNew(values interface{}, level int, scale float64, logSlots int) (plaintext *Plaintext)
+
+	// EncodeSlots encodes a set of values on the target plaintext.
+	// Encoding is done at the level and scale of the plaintext.
+	// User must ensure that 1 <= len(values) <= 2^logSlots < 2^logN.
+	// values.(type) can be either []complex128 of []float64.
+	// The imaginary part of []complex128 will be discarded if ringType == ring.ConjugateInvariant.
+	// Returned plaintext is always in the NTT domain.
+	EncodeSlots(values interface{}, plaintext *Plaintext, logSlots int)
+
+	// EncodeSlotsNew encodes a set of values on a new plaintext.
+	// Encoding is done at the provided level and with the provided scale.
+	// User must ensure that 1 <= len(values) <= 2^logSlots < 2^logN.
+	// values.(type) can be either []complex128 of []float64.
+	// The imaginary part of []complex128 will be discarded if ringType == ring.ConjugateInvariant.
+	// Returned plaintext is always in the NTT domain.
+	EncodeSlotsNew(values interface{}, level int, scale float64, logSlots int) (plaintext *Plaintext)
+
+	// EncodeSlotsQP encodes a set of values on the target rlwe.polyQP.
+	// This method is identical to "EncodeSlots".
+	// Encoding is done at the level of the rlwe.polyQP, and provided scale.
+	// User must ensure that 1 <= len(values) <= 2^logSlots < 2^logN.
+	// values.(type) can be either []complex128 of []float64.
+	// The imaginary part of []complex128 will be discarded if ringType == ring.ConjugateInvariant.
+	// Returned rlwe.polyQP is always in the NTT domain.
+	EncodeSlotsQP(values interface{}, vecQP rlwe.PolyQP, scale float64, logSlots int)
+
+	// EncodeSlotsQPNew encodes a set of values on a new rlwe.PolyQP.
+	// Encoding is done at the provided level and with the provided scale.
+	// User must ensure that 1 <= len(values) <= 2^logSlots < 2^logN.
+	// values.(type) can be either []complex128 of []float64.
+	// The imaginary part of []complex128 will be discarded if ringType == ring.ConjugateInvariant.
+	// Returned rlwe.polyQP is always in the NTT domain.
+	EncodeSlotsQPNew(values interface{}, level int, scale float64, logSlots int) (vecQP rlwe.PolyQP)
+
+	// EncodeDiagMatrixBSGS encodes a diagonalized plaintext matrix into PtDiagMatrix struct.
+	// values.(type) can be either map[int][]complex128 or map[int][]float64.
+	// User must ensure that 1 <= len([]complex128\[]float64) <= 2^logSlots < 2^logN.
+	// It can then be evaluated on a ciphertext using evaluator.LinearTransform.
+	// Evaluation will use the optimized approach (double hoisting and baby-step giant-step).
+	// Faster if there is more than a few non-zero diagonals.
+	// maxM1N2Ratio is the maximum ratio between the inner and outer loop of the baby-step giant-step algorithm used in evaluator.LinearTransform.
+	// Optimal maxM1N2Ratio value is between 4 and 16 depending on the sparsity of the matrix.
+	EncodeDiagMatrixBSGS(values interface{}, level int, scale, maxM1N2Ratio float64, logSlots int) (matrix PtDiagMatrix)
+
+	// EncodeDiagMatrix encodes a diagonalized plaintext matrix into PtDiagMatrix struct.
+	// values.(type) can be either map[int][]complex128 or map[int][]float64.
+	// User must ensure that 1 <= len([]complex128\[]float64) <= 2^logSlots < 2^logN.
+	// It can then be evaluated on a ciphertext using evaluator.LinearTransform.
+	// Evaluation will use the naive approach (single hoisting and no baby-step giant-step).
+	// Faster if there is only a few non-zero diagonals but uses more keys.
+	EncodeDiagMatrix(values interface{}, level int, scale float64, logSlots int) (matrix PtDiagMatrix)
+
+	// Decode decodes the input plaintext on a new slice of complex128.
 	Decode(plaintext *Plaintext, logSlots int) (res []complex128)
+
+<<<<<<< HEAD
+	WipeInternalMemory()
+=======
+	// DecodePublic decodes the input plaintext on a new slice of complex128.
+	// Adds, before the decoding step, an error with standard deviation sigma.
+	// If the underlying ringType is ConjugateInvariant, the imaginary part (and
+	// its related error) are zero.
 	DecodePublic(plaintext *Plaintext, logSlots int, sigma float64) []complex128
 
-	WipeInternalMemory()
+	// Coeffs Encoding
+>>>>>>> dev_rckks
 
+	// EncodeCoeffs encodes the values on the coefficient of the plaintext.
+	// Encoding is done at the level and scale of the plaintext.
+	// User must ensure that 1<= len(values) <= 2^LogN
 	EncodeCoeffs(values []float64, plaintext *Plaintext)
+<<<<<<< HEAD
 	EncodeCoeffsNTT(values []float64, plaintext *Plaintext)
+=======
+
+	// EncodeCoeffsNew encodes the values on the coefficient of a new plaintext.
+	// Encoding is done at the provided level and with the provided scale.
+	// User must ensure that 1<= len(values) <= 2^LogN
+	EncodeCoeffsNew(values []float64, level int, scale float64) (plaintext *Plaintext)
+
+	// DecodeCoeffs reconstructs the RNS coefficients of the plaintext on a slice of float64.
+>>>>>>> dev_rckks
 	DecodeCoeffs(plaintext *Plaintext) (res []float64)
+
+	// DecodeCoeffsPublic reconstructs the RNS coefficients of the plaintext on a slice of float64.
+	// Adds an error with standard deviation sigma.
 	DecodeCoeffsPublic(plaintext *Plaintext, bound float64) (res []float64)
 
+	// GetErrSTDCoeffDomain returns StandardDeviation(Encode(valuesWant-valuesHave))*scale
+	// Which is the scaled standard deviation in the coefficient domain of the difference
+	// of two complex vector in the slot domain.
 	GetErrSTDCoeffDomain(valuesWant, valuesHave []complex128, scale float64) (std float64)
+
+	// GetErrSTDSlotDomain returns StandardDeviation(valuesWant-valuesHave)*scale
+	// Which is the scaled standard deviation of two complex vectors.
 	GetErrSTDSlotDomain(valuesWant, valuesHave []complex128, scale float64) (std float64)
 }
 
-// EncoderBigComplex is an interface implenting the encoding algorithms with arbitrary precision.
+// EncoderBigComplex is an interface implementing the encoding algorithms with arbitrary precision.
 type EncoderBigComplex interface {
-	Encode(plaintext *Plaintext, values []*ring.Complex, logSlots int)
-	EncodeNew(values []*ring.Complex, logSlots int) (plaintext *Plaintext)
-	EncodeAtLvlNew(level int, values []*ring.Complex, logSlots int) (plaintext *Plaintext)
-	EncodeNTT(plaintext *Plaintext, values []*ring.Complex, logSlots int)
-	EncodeNTTAtLvlNew(level int, values []*ring.Complex, logSlots int) (plaintext *Plaintext)
-	Decode(plaintext *Plaintext, logSlots int) (res []*ring.Complex)
-	FFT(values []*ring.Complex, N int)
-	InvFFT(values []*ring.Complex, N int)
 
-	//EncodeCoeffs(values []*big.Float, plaintext *Plaintext)
-	//DecodeCoeffs(plaintext *Plaintext) (res []*big.Float)
+	// Encode encodes a set of values on the target plaintext.
+	// Encoding is done at the level and scale of the plaintext.
+	// User must ensure that 1 <= len(values) <= 2^logSlots < 2^LogN.
+	Encode(values []*ring.Complex, plaintext *Plaintext, logSlots int)
+
+	// EncodeNew encodes a set of values on a new plaintext.
+	// Encoding is done at the provided level and with the provided scale.
+	// User must ensure that 1 <= len(values) <= 2^logSlots < 2^LogN.
+	EncodeNew(values []*ring.Complex, level int, scale float64, logSlots int) (plaintext *Plaintext)
+
+	// Decode decodes the input plaintext on a new slice of ring.Complex.
+	Decode(plaintext *Plaintext, logSlots int) (res []*ring.Complex)
+
+	// FFT evaluates the decoding matrix on a slice fo ring.Complex values.
+	FFT(values []*ring.Complex, N int)
+
+	// InvFFT evaluates the encoding matrix on a slice fo ring.Complex values.
+	InvFFT(values []*ring.Complex, N int)
 }
 
 // encoder is a struct storing the necessary parameters to encode a slice of complex number on a Plaintext.
@@ -130,6 +266,7 @@ func NewEncoder(params Parameters) Encoder {
 	}
 }
 
+<<<<<<< HEAD
 // EncodeNTTNew encodes a slice of complex128 of length slots = 2^{logSlots} on new plaintext at the maximum level.
 // Returns a plaintext in the NTT domain.
 func (encoder *encoderComplex128) EncodeNew(values interface{}, logSlots int) (plaintext *Plaintext) {
@@ -158,20 +295,55 @@ func (encoder *encoderComplex128) Encode(plaintext *Plaintext, values interface{
 func (encoder *encoderComplex128) embed(values interface{}, logSlots int) {
 
 	encoder.WipeInternalMemory()
+=======
+func (encoder *encoderComplex128) EncodeNew(values interface{}, level int, scale float64, logSlots int) (plaintext *Plaintext) {
+	plaintext = NewPlaintext(encoder.params, level, scale)
+	encoder.Encode(values, plaintext, logSlots)
+	return
+}
+
+func (encoder *encoderComplex128) Encode(values interface{}, plaintext *Plaintext, logSlots int) {
+	encoder.embed(values, logSlots)
+	scaleUpVecExact(encoder.valuesFloat[:encoder.params.N()], plaintext.Scale, encoder.params.RingQ().Modulus[:plaintext.Level()+1], plaintext.Value.Coeffs)
+	encoder.params.RingQ().NTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
+	plaintext.Value.IsNTT = true
+}
+
+func (encoder *encoderComplex128) EncodeSlotsNew(values interface{}, level int, scale float64, logSlots int) (plaintext *Plaintext) {
+	return encoder.EncodeNew(values, level, scale, logSlots)
+}
+
+func (encoder *encoderComplex128) EncodeSlots(values interface{}, plaintext *Plaintext, logSlots int) {
+	encoder.Encode(values, plaintext, logSlots)
+}
+
+func (encoder *encoderComplex128) embed(values interface{}, logSlots int) {
+>>>>>>> dev_rckks
 
 	slots := 1 << logSlots
 
 	N := encoder.params.RingQ().N
 
 	var gap int
+<<<<<<< HEAD
 	if encoder.params.RingType() == rlwe.RingConjugateInvariant {
 		gap = N / slots
 	} else {
 		gap = (N >> 1) / slots
+=======
+	switch encoder.params.RingType() {
+	case ring.Standard:
+		gap = (N >> 1) / slots
+	case ring.ConjugateInvariant:
+		gap = N / slots
+	default:
+		panic("invalid ring type")
+>>>>>>> dev_rckks
 	}
 
 	// First checks the type of input values
 	switch values := values.(type) {
+<<<<<<< HEAD
 
 	// If complex
 	case []complex128:
@@ -212,6 +384,56 @@ func (encoder *encoderComplex128) embed(values interface{}, logSlots int) {
 			}
 		}
 
+=======
+
+	// If complex
+	case []complex128:
+
+		// Checks that the number of values is with the possible range
+		if len(values) > int(encoder.params.RingQ().NthRoot>>1) || len(values) > slots || slots > int(encoder.params.RingQ().NthRoot>>2) {
+			panic("cannot Encode: too many values/slots for the given ring degree")
+		}
+
+		switch encoder.params.RingType() {
+
+		case ring.Standard:
+
+			copy(encoder.values[:len(values)], values)
+
+			for i := len(values); i < slots; i++ {
+				encoder.values[i] = 0
+			}
+
+			invfft(encoder.values, slots, encoder.m, encoder.rotGroup, encoder.roots)
+
+			for i, idx, jdx := 0, 0, N>>1; i < slots; i, idx, jdx = i+1, idx+gap, jdx+gap {
+				encoder.valuesFloat[idx] = real(encoder.values[i])
+				encoder.valuesFloat[jdx] = imag(encoder.values[i])
+			}
+
+		case ring.ConjugateInvariant:
+
+			// Discards the imaginary part
+			for i := range values {
+				encoder.values[i] = complex(real(values[i]), 0)
+			}
+
+			for i := len(values); i < slots; i++ {
+				encoder.values[i] = 0
+			}
+
+			invfft(encoder.values, slots, encoder.m, encoder.rotGroup, encoder.roots)
+
+			for i, idx := 0, 0; i < slots; i, idx = i+1, idx+gap {
+				encoder.valuesFloat[idx] = real(encoder.values[i])
+			}
+
+		// Else panics
+		default:
+			panic("unsuported ringType")
+		}
+
+>>>>>>> dev_rckks
 	// If floats only
 	case []float64:
 
@@ -223,13 +445,24 @@ func (encoder *encoderComplex128) embed(values interface{}, logSlots int) {
 			encoder.values[i] = complex(values[i], 0)
 		}
 
+<<<<<<< HEAD
+=======
+		for i := len(values); i < slots; i++ {
+			encoder.values[i] = 0
+		}
+
+>>>>>>> dev_rckks
 		invfft(encoder.values, slots, encoder.m, encoder.rotGroup, encoder.roots)
 
 		for i, idx := 0, 0; i < slots; i, idx = i+1, idx+gap {
 			encoder.valuesFloat[idx] = real(encoder.values[i])
 		}
 
+<<<<<<< HEAD
 		if encoder.params.RingType() == rlwe.RingStandard {
+=======
+		if encoder.params.RingType() == ring.Standard {
+>>>>>>> dev_rckks
 			for i, jdx := 0, N>>1; i < slots; i, jdx = i+1, jdx+gap {
 				encoder.valuesFloat[jdx] = imag(encoder.values[i])
 			}
@@ -240,7 +473,6 @@ func (encoder *encoderComplex128) embed(values interface{}, logSlots int) {
 	}
 }
 
-// GetErrSTDSlotDomain returns the scaled standard deviation of the difference between two complex vectors in the slot domains
 func (encoder *encoderComplex128) GetErrSTDSlotDomain(valuesWant, valuesHave []complex128, scale float64) (std float64) {
 	var err complex128
 	for i := range valuesWant {
@@ -251,13 +483,14 @@ func (encoder *encoderComplex128) GetErrSTDSlotDomain(valuesWant, valuesHave []c
 	return StandardDeviation(encoder.valuesFloat[:len(valuesWant)*2], scale)
 }
 
-// GetErrSTDCoeffDomain returns the scaled standard deviation in the coefficient domain of the difference between two complex vectors in the slot domains
 func (encoder *encoderComplex128) GetErrSTDCoeffDomain(valuesWant, valuesHave []complex128, scale float64) (std float64) {
-
-	encoder.WipeInternalMemory()
 
 	for i := range valuesHave {
 		encoder.values[i] = (valuesWant[i] - valuesHave[i])
+	}
+
+	for i := len(valuesHave); i < len(encoder.values); i++ {
+		encoder.values[i] = complex(0, 0)
 	}
 
 	// Runs FFT^-1 with the smallest power of two length that is greater than the input size
@@ -272,6 +505,7 @@ func (encoder *encoderComplex128) GetErrSTDCoeffDomain(valuesWant, valuesHave []
 
 }
 
+<<<<<<< HEAD
 // WipeInternalMemory sets the internally stored encoded values of the encoder to zero.
 func (encoder *encoderComplex128) WipeInternalMemory() {
 	for i := range encoder.values {
@@ -283,6 +517,8 @@ func (encoder *encoderComplex128) WipeInternalMemory() {
 	}
 }
 
+=======
+>>>>>>> dev_rckks
 // DecodePublic decodes the Plaintext values to a slice of complex128 values of size at most N/2.
 // Adds a Gaussian error to the plaintext of variance sigma and bound floor(sqrt(2*pi)*sigma) before decoding
 func (encoder *encoderComplex128) DecodePublic(plaintext *Plaintext, logSlots int, bound float64) (res []complex128) {
@@ -373,14 +609,22 @@ func polyToComplexCRT(poly *ring.Poly, bigintCoeffs []*big.Int, values []complex
 
 func (encoder *encoderComplex128) plaintextToComplex(level int, scale float64, logSlots int, p *ring.Poly, values []complex128) {
 
+<<<<<<< HEAD
 	isreal := encoder.params.RingType() == rlwe.RingConjugateInvariant
+=======
+	isreal := encoder.params.RingType() == ring.ConjugateInvariant
+>>>>>>> dev_rckks
 	if level == 0 {
 		polyToComplexNoCRT(p.Coeffs[0], values, scale, logSlots, isreal, encoder.params.RingQ())
 	} else {
 		polyToComplexCRT(p, encoder.bigintCoeffs, values, scale, logSlots, isreal, encoder.params.RingQ(), encoder.bigintChain[level])
 	}
 
+<<<<<<< HEAD
 	if isreal {
+=======
+	if isreal { // [X]/(X^N+1) to [X+X^-1]/(X^N+1)
+>>>>>>> dev_rckks
 		tmp := encoder.values
 		slots := 1 << logSlots
 		for i := 1; i < slots; i++ {
@@ -412,13 +656,12 @@ func polyToFloatNoCRT(coeffs []uint64, values []float64, scale float64, Q uint64
 // PtDiagMatrix is a struct storing a plaintext diagonalized matrix
 // ready to be evaluated on a ciphertext using evaluator.MultiplyByDiagMatrice.
 type PtDiagMatrix struct {
-	LogSlots   int                 // Log of the number of slots of the plaintext (needed to compute the appropriate rotation keys)
-	N1         int                 // N1 is the number of inner loops of the baby-step giant-step algo used in the evaluation.
-	Level      int                 // Level is the level at which the matrix is encoded (can be circuit dependant)
-	Scale      float64             // Scale is the scale at which the matrix is encoded (can be circuit dependant)
-	Vec        map[int]rlwe.PolyQP // Vec is the matrix, in diagonal form, where each entry of vec is an indexed non zero diagonal.
-	Naive      bool
-	isGaussian bool // Each diagonal of the matrix is of the form [k, ..., k] for k a gaussian integer
+	LogSlots int                 // Log of the number of slots of the plaintext (needed to compute the appropriate rotation keys)
+	N1       int                 // N1 is the number of inner loops of the baby-step giant-step algo used in the evaluation.
+	Level    int                 // Level is the level at which the matrix is encoded (can be circuit dependent)
+	Scale    float64             // Scale is the scale at which the matrix is encoded (can be circuit dependent)
+	Vec      map[int]rlwe.PolyQP // Vec is the matrix, in diagonal form, where each entry of vec is an indexed non zero diagonal.
+	Naive    bool
 }
 
 // BsgsIndex returns the index map and needed rotation for the BSGS matrix-vector multiplication algorithm.
@@ -427,6 +670,20 @@ func BsgsIndex(el interface{}, slots, N1 int) (index map[int][]int, rotations []
 	rotations = []int{}
 	switch element := el.(type) {
 	case map[int][]complex128:
+		for key := range element {
+			key &= (slots - 1)
+			idx1 := key / N1
+			idx2 := key & (N1 - 1)
+			if index[idx1] == nil {
+				index[idx1] = []int{idx2}
+			} else {
+				index[idx1] = append(index[idx1], idx2)
+			}
+			if !utils.IsInSliceInt(idx2, rotations) {
+				rotations = append(rotations, idx2)
+			}
+		}
+	case map[int][]float64:
 		for key := range element {
 			key &= (slots - 1)
 			idx1 := key / N1
@@ -487,79 +744,102 @@ func BsgsIndex(el interface{}, slots, N1 int) (index map[int][]int, rotations []
 	return
 }
 
-// EncodeDiagMatrixBSGSAtLvl encodes a diagonalized plaintext matrix into PtDiagMatrix struct.
-// It can then be evaluated on a ciphertext using evaluator.LinearTransform.
-// Evaluation will use the optimized approach (doiuble hoisting and baby-step giant-step).
-// Faster if there is more than a few non-zero diagonals.
-// maxM1N2Ratio is the maximum ratio between the inner and outer loop of the baby-step giant-step algorithm used in evaluator.LinearTransform.
-// Optimal maxM1N2Ratio value is between 4 and 16 depending on the sparsity of the matrix.
-func (encoder *encoderComplex128) EncodeDiagMatrixBSGSAtLvl(level int, diagMatrix map[int][]complex128, scale, maxM1N2Ratio float64, logSlots int) (matrix PtDiagMatrix) {
+func interfaceMapToMapOfInterface(m interface{}) map[int]interface{} {
+	d := make(map[int]interface{})
+	switch el := m.(type) {
+	case map[int][]complex128:
+		for i := range el {
+			d[i] = el[i]
+		}
+	case map[int][]float64:
+		for i := range el {
+			d[i] = el[i]
+		}
+	default:
+		panic("invalid input, must be map[int][]complex128 or map[int][]float64")
+	}
+	return d
+}
+
+func (encoder *encoderComplex128) EncodeDiagMatrixBSGS(value interface{}, level int, scale, maxM1N2Ratio float64, logSlots int) (matrix PtDiagMatrix) {
 
 	slots := 1 << logSlots
 
 	// N1*N2 = N
-	n1 := FindBestBSGSSplit(diagMatrix, slots, maxM1N2Ratio)
+	n1 := FindBestBSGSSplit(value, slots, maxM1N2Ratio)
 
+<<<<<<< HEAD
 	index, _ := BsgsIndex(diagMatrix, slots, n1)
+=======
+	index, _ := BsgsIndex(value, slots, n1)
+>>>>>>> dev_rckks
 
 	vec := make(map[int]rlwe.PolyQP)
+
+	dMat := interfaceMapToMapOfInterface(value)
 
 	for j := range index {
 
 		for _, i := range index[j] {
 
 			// manages inputs that have rotation between 0 and slots-1 or between -slots/2 and slots/2-1
-			v := diagMatrix[n1*j+i]
-			if len(v) == 0 {
-				v = diagMatrix[(n1*j+i)-slots]
+			v, ok := dMat[n1*j+i]
+			if !ok {
+				v = dMat[(n1*j+i)-slots]
 			}
 
-			if len(v) != slots {
-				panic("diagMatrix []complex slices mut have len '1<<logSlots'")
-			}
-
-			vec[n1*j+i] = encoder.EncodeDiagonal(logSlots, level, scale, utils.RotateComplex128Slice(v, -n1*j))
+			vec[n1*j+i] = encoder.EncodeSlotsQPNew(utils.RotateSlice(v, -n1*j), level, scale, logSlots)
 		}
 	}
 
 	return PtDiagMatrix{LogSlots: logSlots, N1: n1, Vec: vec, Level: level, Scale: scale}
 }
 
-// EncodeDiagMatrixAtLvl encodes a diagonalized plaintext matrix into PtDiagMatrix struct.
-// It can then be evaluated on a ciphertext using evaluator.LinearTransform.
-// Evaluation will use the naive approach (single hoisting and no baby-step giant-step).
-// Faster if there is only a few non-zero diagonals but uses more keys.
-func (encoder *encoderComplex128) EncodeDiagMatrixAtLvl(level int, diagMatrix map[int][]complex128, scale float64, logSlots int) (matrix PtDiagMatrix) {
+func (encoder *encoderComplex128) EncodeDiagMatrix(value interface{}, level int, scale float64, logSlots int) (matrix PtDiagMatrix) {
+
+	dMat := interfaceMapToMapOfInterface(value)
 
 	vec := make(map[int]rlwe.PolyQP)
 	slots := 1 << logSlots
-	for i := range diagMatrix {
+	for i := range dMat {
 
 		idx := i
 		if idx < 0 {
 			idx += slots
 		}
-		vec[idx] = encoder.EncodeDiagonal(logSlots, level, scale, diagMatrix[i])
+		vec[idx] = encoder.EncodeSlotsQPNew(dMat[i], level, scale, logSlots)
 	}
 
 	return PtDiagMatrix{LogSlots: logSlots, N1: 0, Vec: vec, Level: level, Scale: scale, Naive: true}
 }
 
-func (encoder *encoderComplex128) EncodeDiagonal(logSlots, level int, scale float64, m []complex128) (vecQP rlwe.PolyQP) {
-
+func (encoder *encoderComplex128) EncodeSlotsQPNew(m interface{}, level int, scale float64, logSlots int) (vecQP rlwe.PolyQP) {
 	levelQ := level
 	levelP := encoder.params.PCount() - 1
-	ringQP := encoder.params.RingQP()
+	vecQP = encoder.params.RingQP().NewPolyLvl(levelQ, levelP)
+	encoder.EncodeSlotsQP(m, vecQP, scale, logSlots)
+	return
+}
 
+<<<<<<< HEAD
 	encoder.embed(m, logSlots)
 
 	vecQP = ringQP.NewPolyLvl(levelQ, levelP)
 	scaleUpVecExact(encoder.valuesFloat[:encoder.params.N()], scale, encoder.params.RingQ().Modulus[:level+1], vecQP.Q.Coeffs)
 	scaleUpVecExact(encoder.valuesFloat[:encoder.params.N()], scale, encoder.params.RingP().Modulus, vecQP.P.Coeffs)
+=======
+func (encoder *encoderComplex128) EncodeSlotsQP(m interface{}, vecQP rlwe.PolyQP, scale float64, logSlots int) {
+
+	levelQ := vecQP.Q.Level()
+	levelP := vecQP.P.Level()
+	ringQP := encoder.params.RingQP()
+
+	encoder.embed(m, logSlots)
+	scaleUpVecExact(encoder.valuesFloat[:encoder.params.N()], scale, ringQP.RingQ.Modulus[:levelQ+1], vecQP.Q.Coeffs)
+	scaleUpVecExact(encoder.valuesFloat[:encoder.params.N()], scale, ringQP.RingP.Modulus[:levelP+1], vecQP.P.Coeffs)
+>>>>>>> dev_rckks
 	ringQP.NTTLvl(levelQ, levelP, vecQP, vecQP)
 	ringQP.MFormLvl(levelQ, levelP, vecQP, vecQP)
-
-	encoder.WipeInternalMemory()
 
 	return
 }
@@ -696,18 +976,15 @@ func (encoder *encoderComplex128) EncodeCoeffs(values []float64, plaintext *Plai
 	if len(values) > encoder.params.N() {
 		panic("cannot EncodeCoeffs : too many values (maximum is N)")
 	}
-
 	scaleUpVecExact(values, plaintext.Scale, encoder.params.RingQ().Modulus[:plaintext.Level()+1], plaintext.Value.Coeffs)
-
-	plaintext.Value.IsNTT = false
-}
-
-// EncodeCoeffsNTT takes as input a polynomial a0 + a1x + a2x^2 + ... + an-1x^n-1 with float coefficient
-// and returns a scaled integer plaintext polynomial in NTT. Encodes at the input plaintext level.
-func (encoder *encoderComplex128) EncodeCoeffsNTT(values []float64, plaintext *Plaintext) {
-	encoder.EncodeCoeffs(values, plaintext)
 	encoder.params.RingQ().NTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
 	plaintext.Value.IsNTT = true
+}
+
+func (encoder *encoderComplex128) EncodeCoeffsNew(values []float64, level int, scale float64) (plaintext *Plaintext) {
+	plaintext = NewPlaintext(encoder.params, level, scale)
+	encoder.EncodeCoeffs(values, plaintext)
+	return
 }
 
 // DecodeCoeffsPublic takes as input a plaintext and returns the scaled down coefficient of the plaintext in float64.
@@ -843,42 +1120,13 @@ func NewEncoderBigComplex(params Parameters, logPrecision int) EncoderBigComplex
 	}
 }
 
-// EncodeNew encodes a slice of ring.Complex of length slots = 2^{logSlots} on a new plaintext at the maximum level.
-func (encoder *encoderBigComplex) EncodeNew(values []*ring.Complex, logSlots int) (plaintext *Plaintext) {
-	return encoder.EncodeAtLvlNew(encoder.params.MaxLevel(), values, logSlots)
-}
-
-// EncodeAtLvlNew encodes a slice of ring.Complex of length slots = 2^{logSlots} on a new plaintext at the desired level.
-func (encoder *encoderBigComplex) EncodeAtLvlNew(level int, values []*ring.Complex, logSlots int) (plaintext *Plaintext) {
-	plaintext = NewPlaintext(encoder.params, level, encoder.params.Scale())
-	encoder.Encode(plaintext, values, logSlots)
+func (encoder *encoderBigComplex) EncodeNew(values []*ring.Complex, level int, scale float64, logSlots int) (plaintext *Plaintext) {
+	plaintext = NewPlaintext(encoder.params, level, scale)
+	encoder.Encode(values, plaintext, logSlots)
 	return
 }
 
-// EncodeNTTNew encodes a slice of ring.Complex of length slots = 2^{logSlots} on a plaintext at the maximum level.
-// Returns a plaintext in the NTT domain.
-func (encoder *encoderBigComplex) EncodeNTTNew(values []*ring.Complex, logSlots int) (plaintext *Plaintext) {
-	return encoder.EncodeNTTAtLvlNew(encoder.params.MaxLevel(), values, logSlots)
-}
-
-// EncodeNTTAtLvlNew encodes a slice of ring.Complex of length slots = 2^{logSlots} on a plaintext at the desired level.
-// Returns a plaintext in the NTT domain.
-func (encoder *encoderBigComplex) EncodeNTTAtLvlNew(level int, values []*ring.Complex, logSlots int) (plaintext *Plaintext) {
-	plaintext = NewPlaintext(encoder.params, encoder.params.MaxLevel(), encoder.params.Scale())
-	encoder.EncodeNTT(plaintext, values, logSlots)
-	return
-}
-
-// Encode encodes a slice of ring.Complex of length slots = 2^{logSlots} on a plaintext at the input plaintext level.
-// Returns a plaintext in the NTT domain.
-func (encoder *encoderBigComplex) EncodeNTT(plaintext *Plaintext, values []*ring.Complex, logSlots int) {
-	encoder.Encode(plaintext, values, logSlots)
-	encoder.params.RingQ().NTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
-	plaintext.Value.IsNTT = true
-}
-
-// Encode encodes a slice of ring.Complex of length slots = 2^{logSlots} on a plaintext at the input plaintext level.
-func (encoder *encoderBigComplex) Encode(plaintext *Plaintext, values []*ring.Complex, logSlots int) {
+func (encoder *encoderBigComplex) Encode(values []*ring.Complex, plaintext *Plaintext, logSlots int) {
 
 	slots := 1 << logSlots
 
@@ -917,15 +1165,15 @@ func (encoder *encoderBigComplex) Encode(plaintext *Plaintext, values []*ring.Co
 	for i := 0; i < encoder.params.RingQ().N; i++ {
 		encoder.valuesfloat[i].Set(encoder.zero)
 	}
+
+	encoder.params.RingQ().NTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
+	plaintext.Value.IsNTT = true
 }
 
-// DecodePublic decodes the Plaintext values to a slice of complex128 values of size at most N/2.
-// Adds a Gaussian error to the plaintext of variance sigma and bound floor(sqrt(2*pi)*sigma) before decoding
 func (encoder *encoderBigComplex) DecodePublic(plaintext *Plaintext, logSlots int, sigma float64) (res []*ring.Complex) {
 	return encoder.decodePublic(plaintext, logSlots, sigma)
 }
 
-// Decode decodes the Plaintext values to a slice of complex128 values of size at most N/2.
 func (encoder *encoderBigComplex) Decode(plaintext *Plaintext, logSlots int) (res []*ring.Complex) {
 	return encoder.decodePublic(plaintext, logSlots, 0)
 }
@@ -999,7 +1247,6 @@ func (encoder *encoderBigComplex) decodePublic(plaintext *Plaintext, logSlots in
 	return
 }
 
-// InvFFT evaluates the encoding matrix on a slice fo ring.Complex values.
 func (encoder *encoderBigComplex) InvFFT(values []*ring.Complex, N int) {
 
 	var lenh, lenq, gap, idx int
@@ -1031,7 +1278,6 @@ func (encoder *encoderBigComplex) InvFFT(values []*ring.Complex, N int) {
 	SliceBitReverseInPlaceRingComplex(values, N)
 }
 
-// FFT evaluates the decoding matrix on a slice fo ring.Complex values.
 func (encoder *encoderBigComplex) FFT(values []*ring.Complex, N int) {
 
 	var lenh, lenq, gap, idx int

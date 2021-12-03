@@ -262,7 +262,7 @@ func (eval *evaluator) EvalModNew(ct *ckks.Ciphertext, evalModPoly EvalModPoly) 
 
 	// Division by 1/2^r and change of variable for the Chebysehev evaluation
 	if evalModPoly.sineType == Cos1 || evalModPoly.sineType == Cos2 {
-		eval.AddConst(ct, -0.5/(complex(evalModPoly.scFac, 0)*(evalModPoly.sinePoly.B-evalModPoly.sinePoly.A)), ct)
+		eval.AddConst(ct, -0.5/(evalModPoly.scFac*(evalModPoly.sinePoly.B-evalModPoly.sinePoly.A)), ct)
 	}
 
 	// Chebyshev evaluation

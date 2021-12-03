@@ -25,6 +25,7 @@ type KeyGenerator interface {
 	GenRotationKeysForRotations(ks []int, inclueSwapRows bool, sk *SecretKey) (rks *RotationKeySet)
 	GenSwitchingKeyForRowRotation(sk *SecretKey) (swk *SwitchingKey)
 	GenRotationKeysForInnerSum(sk *SecretKey) (rks *RotationKeySet)
+	GenSwitchingKeysForRingSwap(skCKKS, skCI *SecretKey) (swkStdToConjugateInvariant, swkConjugateInvariantToStd *SwitchingKey)
 }
 
 // KeyGenerator is a structure that stores the elements required to create new keys,
@@ -254,6 +255,18 @@ func (keygen *keyGenerator) genrotKey(sk PolyQP, galEl uint64, swk *SwitchingKey
 	keygen.genSwitchingKey(skIn.Q, skOut, swk)
 }
 
+// GenSwitchingKeysForRingSwap generates the necessary switching keys to switch from standard ring to to a conjugate invariant ring and vice-versa.
+func (keygen *keyGenerator) GenSwitchingKeysForRingSwap(skStd, skConjugateInvariant *SecretKey) (swkStdToConjugateInvariant, swkConjugateInvariantToStd *SwitchingKey) {
+
+	skCIMappedToStandard := &SecretKey{Value: keygen.poolQP}
+	keygen.params.RingQ().UnfoldConjugateInvariantToStandard(skConjugateInvariant.Value.Q.Level(), skConjugateInvariant.Value.Q, skCIMappedToStandard.Value.Q)
+	keygen.params.RingQ().UnfoldConjugateInvariantToStandard(skConjugateInvariant.Value.P.Level(), skConjugateInvariant.Value.P, skCIMappedToStandard.Value.P)
+
+	swkConjugateInvariantToStd = keygen.GenSwitchingKey(skCIMappedToStandard, skStd)
+	swkStdToConjugateInvariant = keygen.GenSwitchingKey(skStd, skCIMappedToStandard)
+	return
+}
+
 // GenSwitchingKey generates a new key-switching key, that will re-encrypt a Ciphertext encrypted under the input key into the output key.
 // If the ringDegree(skOutput) > ringDegree(skInput),  generates [-a*SkOut + w*P*skIn_{Y^{N/n}} + e, a] in X^{N}.
 // If the ringDegree(skOutput) < ringDegree(skInput),  generates [-a*skOut_{Y^{N/n}} + w*P*skIn + e_{N}, a_{N}] in X^{N}.
@@ -271,6 +284,7 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *
 
 	swk = NewSwitchingKey(keygen.params, skOutput.Value.Q.Level(), skOutput.Value.P.Level())
 
+<<<<<<< HEAD
 	// N -> n
 	if len(skInput.Value.Q.Coeffs[0]) > len(skOutput.Value.Q.Coeffs[0]) {
 
@@ -280,6 +294,13 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *
 		// N -> N or n -> N
 	} else {
 
+=======
+	if len(skInput.Value.Q.Coeffs[0]) > len(skOutput.Value.Q.Coeffs[0]) { // N -> n
+		ring.MapSmallDimensionToLargerDimensionNTT(skOutput.Value.Q, keygen.poolQP.Q)
+		ring.MapSmallDimensionToLargerDimensionNTT(skOutput.Value.P, keygen.poolQP.P)
+		keygen.genSwitchingKey(skInput.Value.Q, keygen.poolQP, swk)
+	} else { // N -> N or n -> N
+>>>>>>> dev_rckks
 		ring.MapSmallDimensionToLargerDimensionNTT(skInput.Value.Q, keygen.poolQ)
 
 		if skInput.Value.Q.Level() < skOutput.Value.Q.Level() {

@@ -3,17 +3,19 @@ package bootstrapping
 import (
 	"flag"
 	"fmt"
+	"runtime"
+	"sync"
+	"testing"
+
 	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 	"github.com/stretchr/testify/assert"
-	"runtime"
-	"sync"
-	"testing"
 )
 
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters + secure bootstrapping). Overrides -short and requires -timeout=0.")
 var testBootstrapping = flag.Bool("test-bootstrapping", false, "run the bootstrapping tests (memory intensive)")
+var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
 
 func ParamsToString(params ckks.Parameters, opname string) string {
 	return fmt.Sprintf("%slogN=%d/LogSlots=%d/logQP=%d/levels=%d/a=%d/b=%d",
@@ -117,8 +119,8 @@ func testbootstrap(params ckks.Parameters, btpParams Parameters, t *testing.T) {
 			values[3] = complex(0.9238795325112867, 0.3826834323650898)
 		}
 
-		plaintext := ckks.NewPlaintext(params, 0, params.Scale())
-		encoder.Encode(plaintext, values, params.LogSlots())
+		plaintext := ckks.NewPlaintext(params, 0, params.DefaultScale())
+		encoder.Encode(values, plaintext, params.LogSlots())
 
 		ciphertexts := make([]*ckks.Ciphertext, 2)
 		bootstrappers := make([]*Bootstrapper, 2)
@@ -150,5 +152,7 @@ func testbootstrap(params ckks.Parameters, btpParams Parameters, t *testing.T) {
 
 func verifyTestVectors(params ckks.Parameters, encoder ckks.Encoder, decryptor ckks.Decryptor, valuesWant []complex128, element interface{}, logSlots int, bound float64, t *testing.T) {
 	precStats := ckks.GetPrecisionStats(params, encoder, decryptor, valuesWant, element, logSlots, bound)
-	t.Log(precStats.String())
+	if *printPrecisionStats {
+		t.Log(precStats.String())
+	}
 }

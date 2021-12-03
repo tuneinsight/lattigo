@@ -110,6 +110,7 @@ func NewCiphertextNTT(params Parameters, degree, level int) *Ciphertext {
 	return el
 }
 
+<<<<<<< HEAD
 func NewCiphertextRGSWNTT(params Parameters, levelQ int) (rgsw *RGSWCiphertext) {
 
 	rgsw = new(RGSWCiphertext)
@@ -126,6 +127,12 @@ func NewCiphertextRGSWNTT(params Parameters, levelQ int) (rgsw *RGSWCiphertext) 
 		rgsw.Value[i][0][0].P.IsNTT = true
 		rgsw.Value[i][1][0].P.IsNTT = true
 	}
+=======
+// NewCiphertextRandom generates a new uniformly distributed Ciphertext of degree, level and scale.
+func NewCiphertextRandom(prng utils.PRNG, params Parameters, degree, level int) (ciphertext *Ciphertext) {
+	ciphertext = NewCiphertext(params, degree, level)
+	PopulateElementRandom(prng, params, ciphertext)
+>>>>>>> dev_rckks
 	return
 }
 
@@ -202,7 +209,11 @@ func SwitchCiphertextRingDegreeNTT(ctIn *Ciphertext, ringQSmallDim, ringQLargeDi
 		pool := make([]uint64, NIn)
 		for i := range ctOut.Value {
 			for j := range ctOut.Value[i].Coeffs {
+<<<<<<< HEAD
 				tmpIn, tmpOut := ctIn.Value[i].Coeffs[j], ctOut.Value[i].Coeffs[j]
+=======
+				tmpIn, tmpOut := ctIn.Value[i].Coeffs[j], ctIn.Value[i].Coeffs[j]
+>>>>>>> dev_rckks
 				ringQLargeDim.InvNTTSingle(j, tmpIn, pool)
 				for w0, w1 := 0, 0; w0 < NOut; w0, w1 = w0+1, w1+gap {
 					tmpOut[w0] = pool[w1]
@@ -288,12 +299,7 @@ func GetSmallestLargest(el0, el1 *Ciphertext) (smallest, largest *Ciphertext, sa
 
 // PopulateElementRandom creates a new rlwe.Element with random coefficients
 func PopulateElementRandom(prng utils.PRNG, params Parameters, el *Ciphertext) {
-
-	ringQ, err := ring.NewRing(params.N(), params.Q())
-	if err != nil {
-		panic(err)
-	}
-	sampler := ring.NewUniformSampler(prng, ringQ)
+	sampler := ring.NewUniformSampler(prng, params.RingQ())
 	for i := range el.Value {
 		sampler.Read(el.Value[i])
 	}

@@ -50,7 +50,11 @@ type ParametersLiteral struct {
 	LogQ     []int `json:",omitempty"`
 	LogP     []int `json:",omitempty"`
 	Sigma    float64
+<<<<<<< HEAD
 	RingType RingType
+=======
+	RingType ring.Type
+>>>>>>> dev_rckks
 }
 
 // Parameters represents a set of generic RLWE parameters. Its fields are private and
@@ -62,6 +66,7 @@ type Parameters struct {
 	sigma    float64
 	ringQ    *ring.Ring
 	ringP    *ring.Ring
+<<<<<<< HEAD
 	ringType RingType
 }
 
@@ -114,11 +119,19 @@ var (
 		RingType: RingStandard,
 	}
 )
+=======
+	ringType ring.Type
+}
+>>>>>>> dev_rckks
 
 // NewParameters returns a new set of generic RLWE parameters from the given ring degree logn, moduli q and p, and
 // error distribution parameter sigma. It returns the empty parameters Parameters{} and a non-nil error if the
 // specified parameters are invalid.
+<<<<<<< HEAD
 func NewParameters(logn int, q, p []uint64, sigma float64, ringType RingType) (Parameters, error) {
+=======
+func NewParameters(logn int, q, p []uint64, sigma float64, ringType ring.Type) (Parameters, error) {
+>>>>>>> dev_rckks
 	var err error
 	if err = checkSizeParams(logn, len(q), len(p)); err != nil {
 		return Parameters{}, err
@@ -132,6 +145,7 @@ func NewParameters(logn int, q, p []uint64, sigma float64, ringType RingType) (P
 		ringType: ringType,
 	}
 
+<<<<<<< HEAD
 	if ringType == RingStandard {
 
 		// Checks if moduli are valid
@@ -166,20 +180,35 @@ func NewParameters(logn int, q, p []uint64, sigma float64, ringType RingType) (P
 		}
 	}
 
+=======
+	// pre-check that moduli chain is of valid size and that all factors are prime.
+	// note: the Ring instantiation checks that the modulus are valid NTT-friendly primes.
+	if err = CheckModuli(q, p); err != nil {
+		return Parameters{}, err
+	}
+
+>>>>>>> dev_rckks
 	copy(params.qi, q)
 	copy(params.pi, p)
-	return params, nil
+
+	return params, params.initRings()
 }
 
 // NewParametersFromLiteral instantiate a set of generic RLWE parameters from a ParametersLiteral specification.
 // It returns the empty parameters Parameters{} and a non-nil error if the specified parameters are invalid.
 func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
+	if paramDef.Sigma == 0 {
+		// prevents the zero value of ParameterLiteral to result in a noise-less parameter instance.
+		// Users should use the NewParameters method to explicitely create noise-less instances.
+		paramDef.Sigma = DefaultSigma
+	}
 	switch {
 	case paramDef.Q != nil && paramDef.LogQ == nil && paramDef.P != nil && paramDef.LogP == nil:
 		return NewParameters(paramDef.LogN, paramDef.Q, paramDef.P, paramDef.Sigma, paramDef.RingType)
 	case paramDef.LogQ != nil && paramDef.Q == nil && paramDef.LogP != nil && paramDef.P == nil:
 		var q, p []uint64
 		var err error
+<<<<<<< HEAD
 		if paramDef.RingType == RingStandard {
 			q, p, err = GenModuli(paramDef.LogN, paramDef.LogQ, paramDef.LogP)
 		} else if paramDef.RingType == RingConjugateInvariant {
@@ -188,6 +217,16 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
 			panic("invalid ringType")
 		}
 
+=======
+		switch paramDef.RingType {
+		case ring.Standard:
+			q, p, err = GenModuli(paramDef.LogN, paramDef.LogQ, paramDef.LogP)
+		case ring.ConjugateInvariant:
+			q, p, err = GenModuli(paramDef.LogN+1, paramDef.LogQ, paramDef.LogP)
+		default:
+			panic("invalid ring type")
+		}
+>>>>>>> dev_rckks
 		if err != nil {
 			return Parameters{}, err
 		}
@@ -195,6 +234,26 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
 	default:
 		return Parameters{}, fmt.Errorf("invalid parameter literal")
 	}
+}
+
+// StandardParameters returns a RLWE parameter set that corresponds to the
+// standard dual of a conjugate invariant parameter set. If the reciever is already
+// a standard set, then the method returns the receiver.
+func (p Parameters) StandardParameters() (pci Parameters, err error) {
+
+	switch p.ringType {
+	case ring.Standard:
+		return p, nil
+	case ring.ConjugateInvariant:
+		pci = p
+		pci.logN = p.logN + 1
+		pci.ringType = ring.Standard
+		err = pci.initRings()
+	default:
+		err = fmt.Errorf("invalid ring type")
+	}
+
+	return
 }
 
 // N returns the ring degree
@@ -228,7 +287,11 @@ func (p Parameters) Sigma() float64 {
 }
 
 // RingType returns the type of the underlying ring.
+<<<<<<< HEAD
 func (p Parameters) RingType() RingType {
+=======
+func (p Parameters) RingType() ring.Type {
+>>>>>>> dev_rckks
 	return p.ringType
 }
 
@@ -370,7 +433,11 @@ func (p Parameters) GaloisElementForColumnRotationBy(k int) uint64 {
 // GaloisElementForRowRotation returns the galois element for generating the row
 // rotation automorphism
 func (p Parameters) GaloisElementForRowRotation() uint64 {
+<<<<<<< HEAD
 	if p.ringType == RingConjugateInvariant {
+=======
+	if p.ringType == ring.ConjugateInvariant {
+>>>>>>> dev_rckks
 		panic("Cannot generate GaloisElementForRowRotation if ringType is ConjugateInvariant")
 	}
 	return p.ringQ.NthRoot - 1
@@ -383,6 +450,7 @@ func (p Parameters) GaloisElementsForRowInnerSum() (galEls []uint64) {
 	galEls = make([]uint64, p.logN)
 	for i := 0; i < int(p.logN)-1; i++ {
 		galEls[i] = p.GaloisElementForColumnRotationBy(1 << i)
+<<<<<<< HEAD
 	}
 
 	if p.ringType == RingStandard {
@@ -391,6 +459,19 @@ func (p Parameters) GaloisElementsForRowInnerSum() (galEls []uint64) {
 		galEls[p.logN-1] = p.GaloisElementForColumnRotationBy(1 << (p.logN - 1))
 	}
 
+=======
+	}
+
+	switch p.ringType {
+	case ring.Standard:
+		galEls[p.logN-1] = p.GaloisElementForRowRotation()
+	case ring.ConjugateInvariant:
+		galEls[p.logN-1] = p.GaloisElementForColumnRotationBy(1 << (p.logN - 1))
+	default:
+		panic("invalid ring type")
+	}
+
+>>>>>>> dev_rckks
 	return galEls
 }
 
@@ -406,6 +487,7 @@ func (p Parameters) Equals(other Parameters) bool {
 	res = res && utils.EqualSliceUint64(p.qi, other.qi)
 	res = res && utils.EqualSliceUint64(p.pi, other.pi)
 	res = res && (p.sigma == other.sigma)
+	res = res && (p.ringType == other.ringType)
 	return res
 }
 
@@ -428,6 +510,7 @@ func (p Parameters) MarshalBinary() ([]byte, error) {
 	// 1 byte : #Q
 	// 1 byte : #P
 	// 8 byte : sigma
+	// 1 byte : ringType
 	// 8 * (#Q) : Q
 	// 8 * (#P) : P
 	b := utils.NewBuffer(make([]byte, 0, p.MarshalBinarySize()))
@@ -451,7 +534,11 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	lenQ := int(b.ReadUint8())
 	lenP := int(b.ReadUint8())
 	sigma := math.Float64frombits(b.ReadUint64())
+<<<<<<< HEAD
 	ringType := RingType(b.ReadUint8())
+=======
+	ringType := ring.Type(b.ReadUint8())
+>>>>>>> dev_rckks
 
 	if err := checkSizeParams(logN, lenQ, lenP); err != nil {
 		return err
@@ -487,8 +574,13 @@ func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 	return
 }
 
+<<<<<<< HEAD
 // CheckModuli checks that the provided q and p correspond to a valid moduli chain
 func CheckModuli(q, p []uint64, NthRoot uint64) error {
+=======
+// CheckModuli checks that the provided q and p correspond to a valid moduli chain.
+func CheckModuli(q, p []uint64) error {
+>>>>>>> dev_rckks
 
 	if len(q) > MaxModuliCount {
 		return fmt.Errorf("#Qi is larger than %d", MaxModuliCount)
@@ -500,25 +592,35 @@ func CheckModuli(q, p []uint64, NthRoot uint64) error {
 
 	for i, qi := range q {
 		if uint64(bits.Len64(qi)-1) > MaxModuliSize+1 {
-			return fmt.Errorf("Qi bit-size (i=%d) is larger than %d", i, MaxModuliSize)
+			return fmt.Errorf("a Qi bit-size (i=%d) is larger than %d", i, MaxModuliSize)
 		}
 	}
 
 	for i, pi := range p {
 		if uint64(bits.Len64(pi)-1) > MaxModuliSize+2 {
-			return fmt.Errorf("Pi bit-size (i=%d) is larger than %d", i, MaxModuliSize)
+			return fmt.Errorf("a Pi bit-size (i=%d) is larger than %d", i, MaxModuliSize)
 		}
 	}
 
 	for i, qi := range q {
+<<<<<<< HEAD
 		if !ring.IsPrime(qi) || qi&(NthRoot-1) != 1 {
 			return fmt.Errorf("Qi (i=%d) is not an NTT prime", i)
+=======
+		if !ring.IsPrime(qi) {
+			return fmt.Errorf("a Qi (i=%d) is not a prime", i)
+>>>>>>> dev_rckks
 		}
 	}
 
 	for i, pi := range p {
+<<<<<<< HEAD
 		if !ring.IsPrime(pi) || pi&(NthRoot-1) != 1 {
 			return fmt.Errorf("Pi (i=%d) is not an NTT prime", i)
+=======
+		if !ring.IsPrime(pi) {
+			return fmt.Errorf("a Pi (i=%d) is not a prime", i)
+>>>>>>> dev_rckks
 		}
 	}
 
@@ -598,4 +700,14 @@ func GenModuli(logN int, logQ, logP []int) (q, p []uint64, err error) {
 	}
 
 	return
+}
+
+func (p *Parameters) initRings() (err error) {
+	if p.ringQ, err = ring.NewRingFromType(1<<p.logN, p.qi, p.ringType); err != nil {
+		return err
+	}
+	if len(p.pi) != 0 {
+		p.ringP, err = ring.NewRingFromType(1<<p.logN, p.pi, p.ringType)
+	}
+	return err
 }

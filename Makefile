@@ -10,18 +10,23 @@ test_examples:
 	go run ./examples/bfv > /dev/null
 	go run ./examples/ckks/euler > /dev/null
 	go run ./examples/ckks/sigmoid > /dev/null
+	go run ./examples/rlwe/lwe_bridge > /dev/null
 	go run ./examples/dbfv/pir &> /dev/null
 	go run ./examples/dbfv/psi &> /dev/null
 	@echo ok
 	@echo Building resources-heavy examples
 	go build -o /dev/null ./examples/ckks/bootstrapping
+<<<<<<< HEAD
 	go build -o /dev/null ./examples/ckks/advanced/CDKS20_rlwe_lwe_bridge
 	go build -o /dev/null ./examples/ckks/advanced/LHHMQ20_rlwe_lwe_bridge
+=======
+	go build -o /dev/null ./examples/ckks/advanced/rlwe_lwe_bridge_LHHMQ20
+>>>>>>> dev_rckks
 	@echo ok
 
 .PHONY: test_gotest
 test_gotest:
-	go test -v -timeout=0 ./utils ./ring ./bfv ./dbfv ./dckks
+	go test -v -timeout=0 ./utils ./ring ./bfv ./ckks ./dbfv ./dckks
 	go test -v -timeout=0 ./ckks/advanced
 	go test -v -timeout=0 ./ckks/bootstrapping -test-bootstrapping -short
 

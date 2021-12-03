@@ -13,8 +13,8 @@ type Polynomial struct {
 	MaxDeg int
 	Coeffs []complex128
 	Lead   bool
-	A      complex128
-	B      complex128
+	A      float64
+	B      float64
 	Basis  PolynomialBasis
 }
 
@@ -302,8 +302,6 @@ func evaluatePolyFromPowerBasis(targetScale float64, coeffs *Polynomial, logSpli
 
 		return
 	}
-
-	minimumDegreeNonZeroCoefficient = coeffs.Degree()
 
 	currentQi := evaluator.params.QiFloat64(C[(minimumDegreeNonZeroCoefficient)].Level())
 

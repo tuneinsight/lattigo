@@ -1,11 +1,12 @@
 package bootstrapping
 
 import (
-	"github.com/ldsec/lattigo/v2/ckks"
-	"github.com/ldsec/lattigo/v2/rlwe"
 	"math"
 	"testing"
 	"time"
+
+	"github.com/ldsec/lattigo/v2/ckks"
+	"github.com/ldsec/lattigo/v2/rlwe"
 )
 
 func BenchmarkBootstrapp(b *testing.B) {
@@ -64,11 +65,11 @@ func BenchmarkBootstrapp(b *testing.B) {
 			// Part 2 : SineEval
 			t = time.Now()
 			ct0 = btp.EvalModNew(ct0, btp.evalModPoly)
-			ct0.Scale = btp.params.Scale()
+			ct0.Scale = btp.params.DefaultScale()
 
 			if ct1 != nil {
 				ct1 = btp.EvalModNew(ct1, btp.evalModPoly)
-				ct1.Scale = btp.params.Scale()
+				ct1.Scale = btp.params.DefaultScale()
 			}
 			b.Log("After Sine   :", time.Since(t), ct0.Level(), ct0.Scale)
 

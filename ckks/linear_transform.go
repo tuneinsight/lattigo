@@ -97,8 +97,9 @@ func (eval *evaluator) RotateHoisted(ctIn *Ciphertext, rotations []int, ctOut ma
 	}
 }
 
-// LinearTransform is a struct storing a plaintext diagonalized matrix
-// ready to be evaluated on a ciphertext using evaluator.MultiplyByDiagMatrice.
+// LinearTransform is a type for linear transformations on ciphertexts.
+// It stores a plaintext matrix diagonalized in diagonalized form and
+// can be evaluated on a ciphertext by using the evaluator.LinearTransform method.
 type LinearTransform struct {
 	LogSlots int                 // Log of the number of slots of the plaintext (needed to compute the appropriate rotation keys)
 	N1       int                 // N1 is the number of inner loops of the baby-step giant-step algo used in the evaluation.
@@ -108,9 +109,21 @@ type LinearTransform struct {
 	Naive    bool
 }
 
-func NewLinearTransform(params Parameters, encoder Encoder, value interface{}, level int, scale float64, logslots int) *LinearTransform {
-	dMat := interfaceMapToMapOfInterface(value)
+// NewLinearTransform creates a new LinearTransform struct from the linear transforms' matrix in diagonalized form `value`.
+// values.(type) can be either map[int][]complex128 or map[int][]float64.
+// User must ensure that 1 <= len([]complex128\[]float64) <= 2^logSlots < 2^logN.
+// It can then be evaluated on a ciphertext using evaluator.LinearTransform.
+// Evaluation will use the naive approach (single hoisting and no baby-step giant-step).
+// Faster if there is only a few non-zero diagonals but uses more keys.
+func NewLinearTransform(encoder Encoder, value interface{}, level int, scale float64, logslots int) LinearTransform {
 
+	enc, ok := encoder.(*encoderComplex128)
+	if !ok {
+		panic("encoder should be an encoderComplex128")
+	}
+
+	params := enc.params
+	dMat := interfaceMapToMapOfInterface(value)
 	vec := make(map[int]rlwe.PolyQP)
 	slots := 1 << logslots
 	levelQ := level
@@ -122,15 +135,31 @@ func NewLinearTransform(params Parameters, encoder Encoder, value interface{}, l
 			idx += slots
 		}
 		vec[idx] = params.RingQP().NewPolyLvl(levelQ, levelP)
-		encoder.Embed(dMat[i], logslots, scale, vec[idx])
+		enc.embed(dMat[i], logslots, scale, vec[idx])
 		params.RingQP().NTTLvl(levelQ, levelP, vec[idx], vec[idx])
 		params.RingQP().MFormLvl(levelQ, levelP, vec[idx], vec[idx])
 	}
 
-	return &LinearTransform{LogSlots: logslots, N1: 0, Vec: vec, Level: level, Scale: scale, Naive: true}
+	return LinearTransform{LogSlots: logslots, N1: 0, Vec: vec, Level: level, Scale: scale, Naive: true}
 }
 
-func NewLinearTransforBSGS(params Parameters, encoder Encoder, value interface{}, level int, scale, maxM1N2Ratio float64, logSlots int) (matrix LinearTransform) {
+// NewLinearTransformBSGS creates a new LinearTransform struct from the linear transforms' matrix in diagonalized form `value` for evaluation with a baby-step giant-step approach.
+// values.(type) can be either map[int][]complex128 or map[int][]float64.
+// User must ensure that 1 <= len([]complex128\[]float64) <= 2^logSlots < 2^logN.
+// LinearTransform types can be be evaluated on a ciphertext using evaluator.LinearTransform.
+// Evaluation will use the optimized approach (double hoisting and baby-step giant-step).
+// Faster if there is more than a few non-zero diagonals.
+// maxM1N2Ratio is the maximum ratio between the inner and outer loop of the baby-step giant-step algorithm used in evaluator.LinearTransform.
+// Optimal maxM1N2Ratio value is between 4 and 16 depending on the sparsity of the matrix.
+func NewLinearTransformBSGS(encoder Encoder, value interface{}, level int, scale, maxM1N2Ratio float64, logSlots int) (matrix LinearTransform) {
+
+	enc, ok := encoder.(*encoderComplex128)
+	if !ok {
+		panic("encoder should be an encoderComplex128")
+	}
+
+	params := enc.params
+
 	slots := 1 << logSlots
 
 	// N1*N2 = N
@@ -153,7 +182,7 @@ func NewLinearTransforBSGS(params Parameters, encoder Encoder, value interface{}
 				v = dMat[(n1*j+i)-slots]
 			}
 			vec[n1*j+i] = params.RingQP().NewPolyLvl(levelQ, levelP)
-			encoder.Embed(utils.RotateSlice(v, -n1*j), logSlots, scale, vec[n1*j+i])
+			enc.embed(utils.RotateSlice(v, -n1*j), logSlots, scale, vec[n1*j+i])
 			params.RingQP().NTTLvl(levelQ, levelP, vec[n1*j+i], vec[n1*j+i])
 			params.RingQP().MFormLvl(levelQ, levelP, vec[n1*j+i], vec[n1*j+i])
 		}

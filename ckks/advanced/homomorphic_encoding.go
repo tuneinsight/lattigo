@@ -113,8 +113,7 @@ func NewHomomorphicEncodingMatrixFromLiteral(mParams EncodingMatrixLiteral, para
 	trueDepth := mParams.Depth(true)
 	for i := range mParams.ScalingFactor {
 		for j := range mParams.ScalingFactor[trueDepth-i-1] {
-			//matrices[cnt] = encoder.EncodeDiagMatrixBSGS(pVecDFT[cnt], ctsLevels[cnt], mParams.ScalingFactor[trueDepth-i-1][j], mParams.BSGSRatio, logdSlots)
-			matrices[cnt] = ckks.NewLinearTransforBSGS(params, encoder, pVecDFT[cnt], ctsLevels[cnt], mParams.ScalingFactor[trueDepth-i-1][j], mParams.BSGSRatio, logdSlots)
+			matrices[cnt] = ckks.NewLinearTransformBSGS(encoder, pVecDFT[cnt], ctsLevels[cnt], mParams.ScalingFactor[trueDepth-i-1][j], mParams.BSGSRatio, logdSlots)
 			cnt++
 		}
 	}

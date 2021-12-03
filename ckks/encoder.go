@@ -44,7 +44,6 @@ var pi = "3.14159265358979323846264338327950288419716939937510582097494459230781
 type Encoder interface {
 
 	// Slots Encoding
-	Embed(values interface{}, logSlots int, scale float64, polyOut interface{})
 
 	// Encode encodes a set of values on the target plaintext.
 	// This method is identical to "EncodeSlots".
@@ -221,7 +220,7 @@ func (encoder *encoderComplex128) EncodeNew(values interface{}, level int, scale
 }
 
 func (encoder *encoderComplex128) Encode(values interface{}, plaintext *Plaintext, logSlots int) {
-	encoder.Embed(values, logSlots, plaintext.Scale, *plaintext.Value)
+	encoder.embed(values, logSlots, plaintext.Scale, *plaintext.Value)
 	encoder.params.RingQ().NTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
 	plaintext.Value.IsNTT = true
 }
@@ -234,7 +233,7 @@ func (encoder *encoderComplex128) EncodeSlots(values interface{}, plaintext *Pla
 	encoder.Encode(values, plaintext, logSlots)
 }
 
-func (encoder *encoderComplex128) Embed(values interface{}, logSlots int, scale float64, polyOut interface{}) {
+func (encoder *encoderComplex128) embed(values interface{}, logSlots int, scale float64, polyOut interface{}) {
 
 	slots := 1 << logSlots
 
@@ -331,10 +330,10 @@ func (encoder *encoderComplex128) Embed(values interface{}, logSlots int, scale 
 		panic("values must be []complex128 or []float64")
 	}
 
-	encoder.ScaleUp(encoder.valuesFloat, scale, polyOut)
+	encoder.scaleUp(encoder.valuesFloat, scale, polyOut)
 }
 
-func (encoder *encoderComplex128) ScaleUp(values []float64, scale float64, polyOut interface{}) {
+func (encoder *encoderComplex128) scaleUp(values []float64, scale float64, polyOut interface{}) {
 	switch p := polyOut.(type) {
 	case rlwe.PolyQP:
 		levelQ := p.Q.Level()

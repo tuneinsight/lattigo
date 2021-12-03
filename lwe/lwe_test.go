@@ -92,7 +92,9 @@ func testLWEToRLWE(params rlwe.Parameters, t *testing.T) {
 
 		DecryptLWE(ctLWE[0], params.RingQ(), skInvNTT)
 
-		ctRLWE := LWEToRLWE(ctLWE, params)
+		handler := NewHandler(params, params, nil)
+
+		ctRLWE := handler.LWEToRLWE(ctLWE)
 
 		for i := 0; i < len(ctRLWE); i++ {
 			decryptor.Decrypt(ctRLWE[i], pt)
@@ -127,14 +129,6 @@ func testManyRLWEToSingleRLWE(params rlwe.Parameters, t *testing.T) {
 			}
 		}
 
-		ct := rlwe.NewCiphertextNTT(params, 1, params.MaxLevel())
-		encryptor.Encrypt(pt, ct)
-		logn := 4
-
-		ctLWE := RLWEToLWE(ct, params.RingQ(), logn)
-
-		ctRLWE := LWEToRLWE(ctLWE, params)
-
 		// Rotation Keys
 		rotations := []int{}
 		for i := 1; i < params.N(); i <<= 1 {
@@ -143,7 +137,15 @@ func testManyRLWEToSingleRLWE(params rlwe.Parameters, t *testing.T) {
 
 		rtks := kgen.GenRotationKeysForRotations(rotations, true, sk)
 
-		handler := NewHandler(params, rtks)
+		handler := NewHandler(params, params, rtks)
+
+		ct := rlwe.NewCiphertextNTT(params, 1, params.MaxLevel())
+		encryptor.Encrypt(pt, ct)
+		logn := 4
+
+		ctLWE := RLWEToLWE(ct, params.RingQ(), logn)
+
+		ctRLWE := handler.LWEToRLWE(ctLWE)
 
 		ct = handler.MergeRLWE(ctRLWE)
 
@@ -156,18 +158,16 @@ func testManyRLWEToSingleRLWE(params rlwe.Parameters, t *testing.T) {
 			Q := params.RingQ().Modulus[i]
 			QHalf := Q >> 1
 
-			for _, c := range pt.Value.Coeffs[i] {
+			for i, c := range pt.Value.Coeffs[i] {
 
 				if c >= QHalf {
 					c = Q - c
 				}
 
-				if i == 0 {
-					fmt.Printf("%0.4f\n", float64(c)/(1<<30))
-				}
-
-				if c > bound {
-					//t.Fatal(i,j, c)
+				if i&((1<<logn)-1) != 0 {
+					if c > bound {
+						t.Fatal(i, c)
+					}
 				}
 			}
 		}

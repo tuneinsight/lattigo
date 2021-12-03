@@ -17,14 +17,17 @@ type Ciphertext struct {
 	Value []*ring.Poly
 }
 
+// RGSWCiphertext is a generic type for RGSW ciphertext.
 type RGSWCiphertext struct {
 	Value [][2][2]PolyQP
 }
 
+// LevelQ returns the level of the modulus Q of the target.
 func (rgsw *RGSWCiphertext) LevelQ() int {
 	return rgsw.Value[0][0][0].Q.Level()
 }
 
+// LevelP returns the level of the modulus P of the target.
 func (rgsw *RGSWCiphertext) LevelP() int {
 	return rgsw.Value[0][0][0].P.Level()
 }
@@ -110,7 +113,7 @@ func NewCiphertextNTT(params Parameters, degree, level int) *Ciphertext {
 	return el
 }
 
-<<<<<<< HEAD
+// NewCiphertextRGSWNTT allocates a new RGSW ciphertext in the NTT domain.
 func NewCiphertextRGSWNTT(params Parameters, levelQ int) (rgsw *RGSWCiphertext) {
 
 	rgsw = new(RGSWCiphertext)
@@ -127,12 +130,13 @@ func NewCiphertextRGSWNTT(params Parameters, levelQ int) (rgsw *RGSWCiphertext) 
 		rgsw.Value[i][0][0].P.IsNTT = true
 		rgsw.Value[i][1][0].P.IsNTT = true
 	}
-=======
+	return
+}
+
 // NewCiphertextRandom generates a new uniformly distributed Ciphertext of degree, level and scale.
 func NewCiphertextRandom(prng utils.PRNG, params Parameters, degree, level int) (ciphertext *Ciphertext) {
 	ciphertext = NewCiphertext(params, degree, level)
 	PopulateElementRandom(prng, params, ciphertext)
->>>>>>> dev_rckks
 	return
 }
 
@@ -209,11 +213,7 @@ func SwitchCiphertextRingDegreeNTT(ctIn *Ciphertext, ringQSmallDim, ringQLargeDi
 		pool := make([]uint64, NIn)
 		for i := range ctOut.Value {
 			for j := range ctOut.Value[i].Coeffs {
-<<<<<<< HEAD
 				tmpIn, tmpOut := ctIn.Value[i].Coeffs[j], ctOut.Value[i].Coeffs[j]
-=======
-				tmpIn, tmpOut := ctIn.Value[i].Coeffs[j], ctIn.Value[i].Coeffs[j]
->>>>>>> dev_rckks
 				ringQLargeDim.InvNTTSingle(j, tmpIn, pool)
 				for w0, w1 := 0, 0; w0 < NOut; w0, w1 = w0+1, w1+gap {
 					tmpOut[w0] = pool[w1]

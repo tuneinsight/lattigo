@@ -19,20 +19,12 @@ var (
 	PN12QP109 = ParametersLiteral{
 		LogN:     12,
 		LogSlots: 11,
-<<<<<<< HEAD
-		Q: []uint64{0x1ffffe0001, // 37 + 32
-			0x100014001},
-		P:     []uint64{0x4000038001}, // 38
-		Scale: 1 << 32,
-		Sigma: rlwe.DefaultSigma,
-=======
 		Q: []uint64{0x200000e001, // 37 + 32
 			0x100006001},
 		P:            []uint64{0x3ffffea001}, // 38
 		DefaultScale: 1 << 32,
 		Sigma:        rlwe.DefaultSigma,
 		RingType:     ring.Standard,
->>>>>>> dev_rckks
 	}
 
 	// PN13QP218 is a default parameter set for logN=13 and logQP=218
@@ -43,34 +35,16 @@ var (
 			0x3ffe8001,
 			0x40020001,
 			0x40038001,
-<<<<<<< HEAD
-			0x3ffc0001,
-			0x40080001},
-		P:     []uint64{0x800008001}, // 35
-		Scale: 1 << 30,
-		Sigma: rlwe.DefaultSigma,
-=======
 			0x3ffc0001},
 		P:            []uint64{0x800004001}, // 35
 		DefaultScale: 1 << 30,
 		Sigma:        rlwe.DefaultSigma,
 		RingType:     ring.Standard,
->>>>>>> dev_rckks
 	}
 	// PN14QP438 is a default parameter set for logN=14 and logQP=438
 	PN14QP438 = ParametersLiteral{
 		LogN:     14,
 		LogSlots: 13,
-<<<<<<< HEAD
-		Q: []uint64{0x2000000a0001, 0x3fffd0001, // 45 + 9*34
-			0x400060001, 0x3fff90001,
-			0x400080001, 0x400180001,
-			0x3ffd20001, 0x400300001,
-			0x400360001, 0x4003e0001},
-		P:     []uint64{0x80000050001, 0x7ffffdb0001}, // 43, 43
-		Scale: 1 << 34,
-		Sigma: rlwe.DefaultSigma,
-=======
 		Q: []uint64{0x200000008001, 0x400018001, // 45 + 9 x 34
 			0x3fffd0001, 0x400060001,
 			0x400068001, 0x3fff90001,
@@ -80,25 +54,12 @@ var (
 		DefaultScale: 1 << 34,
 		Sigma:        rlwe.DefaultSigma,
 		RingType:     ring.Standard,
->>>>>>> dev_rckks
 	}
 
 	// PN15QP880 is a default parameter set for logN=15 and logQP=880
 	PN15QP880 = ParametersLiteral{
 		LogN:     15,
 		LogSlots: 14,
-<<<<<<< HEAD
-		Q: []uint64{0x4000000120001, // 50 + 17 x 40
-			0x10000140001, 0xffffe80001, 0xffffc40001,
-			0x100003e0001, 0xffffb20001, 0x10000500001,
-			0xffff940001, 0xffff8a0001, 0xffff820001,
-			0xffff780001, 0x10000960001, 0x10000a40001,
-			0xffff580001, 0x10000b60001, 0xffff480001,
-			0xffff420001, 0xffff340001},
-		P:     []uint64{0x3ffffffd20001, 0x4000000420001, 0x3ffffffb80001}, // 50, 50, 50
-		Scale: 1 << 40,
-		Sigma: rlwe.DefaultSigma,
-=======
 		Q: []uint64{0x4000000120001, 0x10000140001, 0xffffe80001, // 50 + 17 x 40
 			0x10000290001, 0xffffc40001, 0x100003e0001,
 			0x10000470001, 0x100004b0001, 0xffffb20001,
@@ -109,14 +70,11 @@ var (
 		DefaultScale: 1 << 40,
 		Sigma:        rlwe.DefaultSigma,
 		RingType:     ring.Standard,
->>>>>>> dev_rckks
 	}
 	// PN16QP1761 is a default parameter set for logN=16 and logQP = 1761
 	PN16QP1761 = ParametersLiteral{
 		LogN:     16,
 		LogSlots: 15,
-<<<<<<< HEAD
-=======
 		Q: []uint64{0x80000000080001, 0x2000000a0001, 0x2000000e0001, 0x1fffffc20001, // 55 + 33 x 45
 			0x200000440001, 0x200000500001, 0x200000620001, 0x1fffff980001,
 			0x2000006a0001, 0x1fffff7e0001, 0x200000860001, 0x200000a60001,
@@ -194,7 +152,6 @@ var (
 	PN16QP1761CI = ParametersLiteral{
 		LogN:     16,
 		LogSlots: 16,
->>>>>>> dev_rckks
 		Q: []uint64{0x80000000080001, // 55 + 33 x 45
 			0x200000440001, 0x200000500001, 0x1fffff980001, 0x200000c80001,
 			0x1ffffeb40001, 0x1ffffe640001, 0x200001a00001, 0x200001e80001,
@@ -205,37 +162,14 @@ var (
 			0x1ffffc140001, 0x200004100001, 0x200004180001, 0x1ffffbc40001,
 			0x200004700001, 0x1ffffb900001, 0x200004cc0001, 0x1ffffb240001,
 			0x200004e80001},
-<<<<<<< HEAD
-		P:     []uint64{0x80000000440001, 0x80000000500001, 0x7fffffff380001, 0x80000000e00001}, // 4 x 55
-		Scale: 1 << 45,
-		Sigma: rlwe.DefaultSigma,
-=======
 		P:            []uint64{0x80000000440001, 0x80000000500001, 0x7fffffff380001, 0x80000000e00001}, // 4 x 55
 		DefaultScale: 1 << 45,
 		Sigma:        rlwe.DefaultSigma,
 		RingType:     ring.ConjugateInvariant,
->>>>>>> dev_rckks
 	}
 
 	// PN12QP101pq is a default (post quantum) parameter set for logN=12 and logQP=101
 	PN12QP101pq = ParametersLiteral{
-<<<<<<< HEAD
-		LogN:     12,
-		LogSlots: 11,
-		Q:        []uint64{0x800004001, 0x3fff4001}, // 35 + 30
-		P:        []uint64{0xffffc4001},             // 36
-		Scale:    1 << 30,
-		Sigma:    rlwe.DefaultSigma,
-	}
-	// PN13QP202pq is a default (post quantum) parameter set for logN=13 and logQP=202
-	PN13QP202pq = ParametersLiteral{
-		LogN:     13,
-		LogSlots: 12,
-		Q:        []uint64{0x1ffffe0001, 0x100050001, 0xfff88001, 0x100098001, 0x1000b0001}, // 37 + 4 x 32
-		P:        []uint64{0x1ffffc0001},                                                    // 37
-		Scale:    1 << 32,
-		Sigma:    rlwe.DefaultSigma,
-=======
 		LogN:         12,
 		LogSlots:     11,
 		Q:            []uint64{0x800004001, 0x40002001}, // 35 + 30
@@ -253,7 +187,6 @@ var (
 		DefaultScale: 1 << 27,
 		Sigma:        rlwe.DefaultSigma,
 		RingType:     ring.Standard,
->>>>>>> dev_rckks
 	}
 
 	// PN14QP411pq is a default (post quantum) parameter set for logN=14 and logQP=411
@@ -275,16 +208,6 @@ var (
 	PN15QP827pq = ParametersLiteral{
 		LogN:     15,
 		LogSlots: 14,
-<<<<<<< HEAD
-		Q: []uint64{0x400000060001, 0x3fffe80001, 0x4000300001, 0x3fffb80001,
-			0x40004a0001, 0x3fffb20001, 0x4000540001, 0x4000560001,
-			0x3fff900001, 0x4000720001, 0x3fff8e0001, 0x4000800001,
-			0x40008a0001, 0x3fff6c0001, 0x40009e0001, 0x3fff300001,
-			0x3fff1c0001, 0x4000fc0001}, // 46 + 17 x 38
-		P:     []uint64{0x2000000a0001, 0x2000000e0001, 0x1fffffc20001}, // 3 x 45
-		Scale: 1 << 38,
-		Sigma: rlwe.DefaultSigma,
-=======
 		Q: []uint64{0x400000060001, 0x4000170001, 0x3fffe80001, 0x40002f0001, 0x4000300001,
 			0x3fffcf0001, 0x40003f0001, 0x3fffc10001, 0x4000450001, 0x3fffb80001,
 			0x3fffb70001, 0x40004a0001, 0x3fffb20001, 0x4000510001, 0x3fffaf0001,
@@ -293,13 +216,10 @@ var (
 		DefaultScale: 1 << 38,
 		Sigma:        rlwe.DefaultSigma,
 		RingType:     ring.Standard,
->>>>>>> dev_rckks
 	}
 	// PN16QP1654pq is a default (post quantum) parameter set for logN=16 and logQP=1654
 	PN16QP1654pq = ParametersLiteral{LogN: 16,
 		LogSlots: 15,
-<<<<<<< HEAD
-=======
 		Q: []uint64{0x80000000080001, 0x2000000a0001, 0x2000000e0001, 0x1fffffc20001, 0x200000440001,
 			0x200000500001, 0x200000620001, 0x1fffff980001, 0x2000006a0001, 0x1fffff7e0001,
 			0x200000860001, 0x200000a60001, 0x200000aa0001, 0x200000b20001, 0x200000c80001,
@@ -366,7 +286,6 @@ var (
 	// PN16QP1654CIpq is a default (post quantum) parameter set for logN=16 and logQP=1654
 	PN16QP1654CIpq = ParametersLiteral{LogN: 16,
 		LogSlots: 16,
->>>>>>> dev_rckks
 		Q: []uint64{0x80000000080001, 0x200000440001, 0x200000500001, 0x1fffff980001,
 			0x200000c80001, 0x1ffffeb40001, 0x1ffffe640001, 0x200001a00001,
 			0x200001e80001, 0x1ffffe0c0001, 0x200002480001, 0x200002800001,
@@ -375,16 +294,10 @@ var (
 			0x1ffffc980001, 0x200003740001, 0x200003800001, 0x200003d40001,
 			0x1ffffc200001, 0x1ffffc140001, 0x200004100001, 0x200004180001,
 			0x1ffffbc40001, 0x200004700001, 0x1ffffb900001, 0x200004cc0001}, // 55 + 31 x 45
-<<<<<<< HEAD
-		P:     []uint64{0x80000001c0001, 0x80000002c0001, 0x8000000500001, 0x7ffffff9c0001}, // 4 x 51
-		Scale: 1 << 45,
-		Sigma: rlwe.DefaultSigma,
-=======
 		P:            []uint64{0x80000001c0001, 0x80000002c0001, 0x8000000500001, 0x7ffffff9c0001}, // 4 x 51
 		DefaultScale: 1 << 45,
 		Sigma:        rlwe.DefaultSigma,
 		RingType:     ring.ConjugateInvariant,
->>>>>>> dev_rckks
 	}
 )
 
@@ -393,17 +306,6 @@ var (
 // Go programs. The NewParametersFromLiteral function is used to generate the actual
 // checked parameters from the literal representation.
 type ParametersLiteral struct {
-<<<<<<< HEAD
-	LogN     int // Ring degree (power of 2)
-	Q        []uint64
-	P        []uint64
-	LogQ     []int   `json:",omitempty"`
-	LogP     []int   `json:",omitempty"`
-	Sigma    float64 // Gaussian sampling variance
-	LogSlots int
-	Scale    float64
-	RingType rlwe.RingType
-=======
 	LogN         int // Ring degree (power of 2)
 	Q            []uint64
 	P            []uint64
@@ -413,7 +315,6 @@ type ParametersLiteral struct {
 	LogSlots     int
 	DefaultScale float64
 	RingType     ring.Type
->>>>>>> dev_rckks
 }
 
 // DefaultParams is a set of default CKKS parameters ensuring 128 bit security in a classic setting.
@@ -499,12 +400,6 @@ func (p Parameters) Slots() int {
 
 // MaxSlots returns the theoretical maximum of plaintext slots allowed by the ring degree
 func (p Parameters) MaxSlots() int {
-<<<<<<< HEAD
-	if p.RingType() == rlwe.RingConjugateInvariant {
-		return p.N()
-	}
-	return p.N() >> 1
-=======
 	switch p.RingType() {
 	case ring.Standard:
 		return p.N() >> 1
@@ -513,17 +408,10 @@ func (p Parameters) MaxSlots() int {
 	default:
 		panic("invalid ring type")
 	}
->>>>>>> dev_rckks
 }
 
 // MaxLogSlots returns the log of the maximum number of slots enabled by the parameters
 func (p Parameters) MaxLogSlots() int {
-<<<<<<< HEAD
-	if p.RingType() == rlwe.RingConjugateInvariant {
-		return p.LogN()
-	}
-	return p.LogN() - 1
-=======
 	switch p.RingType() {
 	case ring.Standard:
 		return p.LogN() - 1
@@ -532,7 +420,6 @@ func (p Parameters) MaxLogSlots() int {
 	default:
 		panic("invalid ring type")
 	}
->>>>>>> dev_rckks
 }
 
 // DefaultScale returns the default plaintext/ciphertext scale

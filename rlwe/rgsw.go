@@ -6,6 +6,8 @@ import (
 	"math"
 )
 
+// MulRGSWSingleModulus multiplies ct0 (RLWE) with rgsw (RGSW) and writes the result on ctOut (RLWE).
+// Assumes that the level of the modulus Q of all the inputs and outputs is zero.
 func (ks *KeySwitcher) MulRGSWSingleModulus(ct0 *Ciphertext, rgsw *RGSWCiphertext, ctOut *Ciphertext) {
 
 	// rgsw = [(-as + P*w*m1 + e, a), (-bs + e, b + P*w*m1)]
@@ -37,6 +39,7 @@ func (ks *KeySwitcher) MulRGSWSingleModulus(ct0 *Ciphertext, rgsw *RGSWCiphertex
 	ks.Baseconverter.ModDownQPtoQNTT(0, 0, c1QP.Q, c1QP.P, ctOut.Value[1])
 }
 
+// MulRGSW multiplies ct0 (RLWE) with rgsw (RGSW) and writes the result on ctOut (RLWE).
 func (ks *KeySwitcher) MulRGSW(ct0 *Ciphertext, rgsw *RGSWCiphertext, ctOut *Ciphertext) {
 
 	levelQ, levelP := ct0.Level(), len(rgsw.Value[0][0][0].P.Coeffs)-1
@@ -47,6 +50,8 @@ func (ks *KeySwitcher) MulRGSW(ct0 *Ciphertext, rgsw *RGSWCiphertext, ctOut *Cip
 	ks.Baseconverter.ModDownQPtoQNTT(levelQ, levelP, ks.Pool[2].Q, ks.Pool[2].P, ctOut.Value[1])
 }
 
+// MulRGSWNoModDown multiplies ct0 (RLWE) with rgsw (RGSW) without the division by P and returns the result in modulus Q and modulus P
+// in separate poly.
 func (ks *KeySwitcher) MulRGSWNoModDown(levelQ, levelP int, ct0 *Ciphertext, rgsw *RGSWCiphertext, c0OutQ, c0OutP, c1OutQ, c1OutP *ring.Poly) {
 	// rgsw = [(-as + P*w*m1 + e, a), (-bs + e, b + P*w*m1)]
 	// ct = [-cs + m0 + e, c]

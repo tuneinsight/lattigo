@@ -132,31 +132,18 @@ func (rfp *MaskedTransformProtocol) GenShares(sk *rlwe.SecretKey, logBound, logS
 			rfp.tmpBigComplex[idx][0].SetInt(rfp.tmpMask[idx])
 		}
 
-<<<<<<< HEAD
-		if rfp.e2s.params.RingType() == rlwe.RingStandard {
-			for i, idx, jdx := 0, 0, rfp.ringQ.N>>1; i < slots; i, idx, jdx = i+1, idx+gap, jdx+gap {
-				rfp.tmpBigComplex[idx][1].SetInt(rfp.tmpMask[jdx])
-			}
-		}
-
-		if rfp.e2s.params.RingType() == rlwe.RingConjugateInvariant {
-=======
 		switch rfp.e2s.params.RingType() {
 		case ring.Standard:
 			for i, idx, jdx := 0, 0, rfp.ringQ.N>>1; i < slots; i, idx, jdx = i+1, idx+gap, jdx+gap {
 				rfp.tmpBigComplex[idx][1].SetInt(rfp.tmpMask[jdx])
 			}
 		case ring.ConjugateInvariant:
->>>>>>> dev_rckks
 			tmp := new(big.Int)
 			for i, idx := 1, gap; i < slots; i, idx = i+1, idx+gap {
 				rfp.tmpBigComplex[idx][1].SetInt(tmp.Neg(rfp.tmpMask[slots-idx]))
 			}
-<<<<<<< HEAD
-=======
 		default:
 			panic("invalid ring type")
->>>>>>> dev_rckks
 		}
 
 		// Decodes
@@ -173,11 +160,7 @@ func (rfp *MaskedTransformProtocol) GenShares(sk *rlwe.SecretKey, logBound, logS
 			rfp.tmpBigComplex[i].Real().Int(rfp.tmpMask[idx])
 		}
 
-<<<<<<< HEAD
-		if rfp.e2s.params.RingType() == rlwe.RingStandard {
-=======
 		if rfp.e2s.params.RingType() == ring.Standard {
->>>>>>> dev_rckks
 			for i, jdx := 0, rfp.ringQ.N>>1; i < slots; i, jdx = i+1, jdx+gap {
 				rfp.tmpBigComplex[i].Imag().Int(rfp.tmpMask[jdx])
 			}
@@ -241,31 +224,18 @@ func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, logSlots int,
 			rfp.tmpBigComplex[idx][0].SetInt(rfp.tmpMask[idx])
 		}
 
-<<<<<<< HEAD
-		if rfp.e2s.params.RingType() == rlwe.RingStandard {
-			for i, idx, jdx := 0, 0, rfp.ringQ.N>>1; i < slots; i, idx, jdx = i+1, idx+gap, jdx+gap {
-				rfp.tmpBigComplex[idx][1].SetInt(rfp.tmpMask[jdx])
-			}
-		}
-
-		if rfp.e2s.params.RingType() == rlwe.RingConjugateInvariant {
-=======
 		switch rfp.e2s.params.RingType() {
 		case ring.Standard:
 			for i, idx, jdx := 0, 0, rfp.ringQ.N>>1; i < slots; i, idx, jdx = i+1, idx+gap, jdx+gap {
 				rfp.tmpBigComplex[idx][1].SetInt(rfp.tmpMask[jdx])
 			}
 		case ring.ConjugateInvariant:
->>>>>>> dev_rckks
 			tmp := new(big.Int)
 			for i, idx := 1, gap; i < slots; i, idx = i+1, idx+gap {
 				rfp.tmpBigComplex[idx][1].SetInt(tmp.Neg(rfp.tmpMask[slots-idx]))
 			}
-<<<<<<< HEAD
-=======
 		default:
 			panic("invalid ring type")
->>>>>>> dev_rckks
 		}
 
 		// Decodes
@@ -282,11 +252,7 @@ func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, logSlots int,
 			rfp.tmpBigComplex[i].Real().Int(rfp.tmpMask[idx])
 		}
 
-<<<<<<< HEAD
-		if rfp.e2s.params.RingType() == rlwe.RingStandard {
-=======
 		if rfp.e2s.params.RingType() == ring.Standard {
->>>>>>> dev_rckks
 			for i, jdx := 0, rfp.ringQ.N>>1; i < slots; i, jdx = i+1, jdx+gap {
 				rfp.tmpBigComplex[i].Imag().Int(rfp.tmpMask[jdx])
 			}

@@ -42,17 +42,6 @@ var pi = "3.14159265358979323846264338327950288419716939937510582097494459230781
 //                    Complex^{N/2}                |
 // EncodeSlots:  []complex128/[]float64 -> iDFT ---┘
 type Encoder interface {
-<<<<<<< HEAD
-	Encode(plaintext *Plaintext, values interface{}, logSlots int)
-	EncodeNew(values interface{}, logSlots int) (plaintext *Plaintext)
-	EncodeAtLvlNew(level int, values interface{}, logSlots int) (plaintext *Plaintext)
-
-	EncodeDiagMatrixBSGSAtLvl(level int, vector map[int][]complex128, scale, maxM1N2Ratio float64, logSlots int) (matrix PtDiagMatrix)
-	EncodeDiagMatrixAtLvl(level int, vector map[int][]complex128, scale float64, logSlots int) (matrix PtDiagMatrix)
-	EncodeDiagonal(logSlots, level int, scale float64, m []complex128) (vecQP rlwe.PolyQP)
-=======
->>>>>>> dev_rckks
-
 	// Slots Encoding
 
 	// Encode encodes a set of values on the target plaintext.
@@ -127,9 +116,6 @@ type Encoder interface {
 	// Decode decodes the input plaintext on a new slice of complex128.
 	Decode(plaintext *Plaintext, logSlots int) (res []complex128)
 
-<<<<<<< HEAD
-	WipeInternalMemory()
-=======
 	// DecodePublic decodes the input plaintext on a new slice of complex128.
 	// Adds, before the decoding step, an error with standard deviation sigma.
 	// If the underlying ringType is ConjugateInvariant, the imaginary part (and
@@ -137,15 +123,11 @@ type Encoder interface {
 	DecodePublic(plaintext *Plaintext, logSlots int, sigma float64) []complex128
 
 	// Coeffs Encoding
->>>>>>> dev_rckks
 
 	// EncodeCoeffs encodes the values on the coefficient of the plaintext.
 	// Encoding is done at the level and scale of the plaintext.
 	// User must ensure that 1<= len(values) <= 2^LogN
 	EncodeCoeffs(values []float64, plaintext *Plaintext)
-<<<<<<< HEAD
-	EncodeCoeffsNTT(values []float64, plaintext *Plaintext)
-=======
 
 	// EncodeCoeffsNew encodes the values on the coefficient of a new plaintext.
 	// Encoding is done at the provided level and with the provided scale.
@@ -153,7 +135,6 @@ type Encoder interface {
 	EncodeCoeffsNew(values []float64, level int, scale float64) (plaintext *Plaintext)
 
 	// DecodeCoeffs reconstructs the RNS coefficients of the plaintext on a slice of float64.
->>>>>>> dev_rckks
 	DecodeCoeffs(plaintext *Plaintext) (res []float64)
 
 	// DecodeCoeffsPublic reconstructs the RNS coefficients of the plaintext on a slice of float64.
@@ -266,36 +247,6 @@ func NewEncoder(params Parameters) Encoder {
 	}
 }
 
-<<<<<<< HEAD
-// EncodeNTTNew encodes a slice of complex128 of length slots = 2^{logSlots} on new plaintext at the maximum level.
-// Returns a plaintext in the NTT domain.
-func (encoder *encoderComplex128) EncodeNew(values interface{}, logSlots int) (plaintext *Plaintext) {
-	return encoder.EncodeAtLvlNew(encoder.params.MaxLevel(), values, logSlots)
-}
-
-// EncodeNTTAtLvlNew encodes a slice of complex128 of length slots = 2^{logSlots} on new plaintext at the desired level.
-// Returns a plaintext in the NTT domain.
-func (encoder *encoderComplex128) EncodeAtLvlNew(level int, values interface{}, logSlots int) (plaintext *Plaintext) {
-	plaintext = NewPlaintext(encoder.params, level, encoder.params.Scale())
-	encoder.Encode(plaintext, values, logSlots)
-	return
-}
-
-// EncodeNTT encodes a slice of complex128 of length slots = 2^{logSlots} on the input plaintext.
-// Returns a plaintext in the NTT domain.
-func (encoder *encoderComplex128) Encode(plaintext *Plaintext, values interface{}, logSlots int) {
-	encoder.embed(values, logSlots)
-	scaleUpVecExact(encoder.valuesFloat[:encoder.params.N()], plaintext.Scale, encoder.params.RingQ().Modulus[:plaintext.Level()+1], plaintext.Value.Coeffs)
-	encoder.params.RingQ().NTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
-	plaintext.Value.IsNTT = true
-}
-
-// Embed encodes a vector and stores internally the encoded values.
-// To be used in conjunction with ScaleUp.
-func (encoder *encoderComplex128) embed(values interface{}, logSlots int) {
-
-	encoder.WipeInternalMemory()
-=======
 func (encoder *encoderComplex128) EncodeNew(values interface{}, level int, scale float64, logSlots int) (plaintext *Plaintext) {
 	plaintext = NewPlaintext(encoder.params, level, scale)
 	encoder.Encode(values, plaintext, logSlots)
@@ -318,19 +269,12 @@ func (encoder *encoderComplex128) EncodeSlots(values interface{}, plaintext *Pla
 }
 
 func (encoder *encoderComplex128) embed(values interface{}, logSlots int) {
->>>>>>> dev_rckks
 
 	slots := 1 << logSlots
 
 	N := encoder.params.RingQ().N
 
 	var gap int
-<<<<<<< HEAD
-	if encoder.params.RingType() == rlwe.RingConjugateInvariant {
-		gap = N / slots
-	} else {
-		gap = (N >> 1) / slots
-=======
 	switch encoder.params.RingType() {
 	case ring.Standard:
 		gap = (N >> 1) / slots
@@ -338,54 +282,10 @@ func (encoder *encoderComplex128) embed(values interface{}, logSlots int) {
 		gap = N / slots
 	default:
 		panic("invalid ring type")
->>>>>>> dev_rckks
 	}
 
 	// First checks the type of input values
 	switch values := values.(type) {
-<<<<<<< HEAD
-
-	// If complex
-	case []complex128:
-
-		// Checks that the number of values is with the possible range
-		if len(values) > int(encoder.params.RingQ().NthRoot>>1) || len(values) > slots || slots > int(encoder.params.RingQ().NthRoot>>2) {
-			panic("cannot Encode: too many values/slots for the given ring degree")
-		}
-
-		// If the ring is Standard, then proceeds as usual
-		if encoder.params.RingType() == rlwe.RingStandard {
-
-			for i := range values {
-				encoder.values[i] = values[i]
-			}
-
-			copy(encoder.values[:len(values)], values)
-
-			invfft(encoder.values, slots, encoder.m, encoder.rotGroup, encoder.roots)
-
-			for i, idx, jdx := 0, 0, N>>1; i < slots; i, idx, jdx = i+1, idx+gap, jdx+gap {
-				encoder.valuesFloat[idx] = real(encoder.values[i])
-				encoder.valuesFloat[jdx] = imag(encoder.values[i])
-			}
-
-			// if the ring is RingConjugateInvariant then does two separate encoding
-		} else if encoder.params.RingType() == rlwe.RingConjugateInvariant {
-
-			// Real Part only
-			for i := range values {
-				encoder.values[i] = complex(real(values[i]), 0)
-			}
-
-			invfft(encoder.values, slots, encoder.m, encoder.rotGroup, encoder.roots)
-
-			for i, idx := 0, 0; i < slots; i, idx = i+1, idx+gap {
-				encoder.valuesFloat[idx] = real(encoder.values[i])
-			}
-		}
-
-=======
-
 	// If complex
 	case []complex128:
 
@@ -433,7 +333,6 @@ func (encoder *encoderComplex128) embed(values interface{}, logSlots int) {
 			panic("unsuported ringType")
 		}
 
->>>>>>> dev_rckks
 	// If floats only
 	case []float64:
 
@@ -445,24 +344,17 @@ func (encoder *encoderComplex128) embed(values interface{}, logSlots int) {
 			encoder.values[i] = complex(values[i], 0)
 		}
 
-<<<<<<< HEAD
-=======
 		for i := len(values); i < slots; i++ {
 			encoder.values[i] = 0
 		}
 
->>>>>>> dev_rckks
 		invfft(encoder.values, slots, encoder.m, encoder.rotGroup, encoder.roots)
 
 		for i, idx := 0, 0; i < slots; i, idx = i+1, idx+gap {
 			encoder.valuesFloat[idx] = real(encoder.values[i])
 		}
 
-<<<<<<< HEAD
-		if encoder.params.RingType() == rlwe.RingStandard {
-=======
 		if encoder.params.RingType() == ring.Standard {
->>>>>>> dev_rckks
 			for i, jdx := 0, N>>1; i < slots; i, jdx = i+1, jdx+gap {
 				encoder.valuesFloat[jdx] = imag(encoder.values[i])
 			}
@@ -505,20 +397,6 @@ func (encoder *encoderComplex128) GetErrSTDCoeffDomain(valuesWant, valuesHave []
 
 }
 
-<<<<<<< HEAD
-// WipeInternalMemory sets the internally stored encoded values of the encoder to zero.
-func (encoder *encoderComplex128) WipeInternalMemory() {
-	for i := range encoder.values {
-		encoder.values[i] = 0
-	}
-
-	for i := range encoder.valuesFloat {
-		encoder.valuesFloat[i] = 0
-	}
-}
-
-=======
->>>>>>> dev_rckks
 // DecodePublic decodes the Plaintext values to a slice of complex128 values of size at most N/2.
 // Adds a Gaussian error to the plaintext of variance sigma and bound floor(sqrt(2*pi)*sigma) before decoding
 func (encoder *encoderComplex128) DecodePublic(plaintext *Plaintext, logSlots int, bound float64) (res []complex128) {
@@ -608,23 +486,13 @@ func polyToComplexCRT(poly *ring.Poly, bigintCoeffs []*big.Int, values []complex
 }
 
 func (encoder *encoderComplex128) plaintextToComplex(level int, scale float64, logSlots int, p *ring.Poly, values []complex128) {
-
-<<<<<<< HEAD
-	isreal := encoder.params.RingType() == rlwe.RingConjugateInvariant
-=======
 	isreal := encoder.params.RingType() == ring.ConjugateInvariant
->>>>>>> dev_rckks
 	if level == 0 {
 		polyToComplexNoCRT(p.Coeffs[0], values, scale, logSlots, isreal, encoder.params.RingQ())
 	} else {
 		polyToComplexCRT(p, encoder.bigintCoeffs, values, scale, logSlots, isreal, encoder.params.RingQ(), encoder.bigintChain[level])
 	}
-
-<<<<<<< HEAD
-	if isreal {
-=======
 	if isreal { // [X]/(X^N+1) to [X+X^-1]/(X^N+1)
->>>>>>> dev_rckks
 		tmp := encoder.values
 		slots := 1 << logSlots
 		for i := 1; i < slots; i++ {
@@ -768,11 +636,7 @@ func (encoder *encoderComplex128) EncodeDiagMatrixBSGS(value interface{}, level 
 	// N1*N2 = N
 	n1 := FindBestBSGSSplit(value, slots, maxM1N2Ratio)
 
-<<<<<<< HEAD
-	index, _ := BsgsIndex(diagMatrix, slots, n1)
-=======
 	index, _ := BsgsIndex(value, slots, n1)
->>>>>>> dev_rckks
 
 	vec := make(map[int]rlwe.PolyQP)
 
@@ -821,23 +685,14 @@ func (encoder *encoderComplex128) EncodeSlotsQPNew(m interface{}, level int, sca
 	return
 }
 
-<<<<<<< HEAD
-	encoder.embed(m, logSlots)
-
-	vecQP = ringQP.NewPolyLvl(levelQ, levelP)
-	scaleUpVecExact(encoder.valuesFloat[:encoder.params.N()], scale, encoder.params.RingQ().Modulus[:level+1], vecQP.Q.Coeffs)
-	scaleUpVecExact(encoder.valuesFloat[:encoder.params.N()], scale, encoder.params.RingP().Modulus, vecQP.P.Coeffs)
-=======
 func (encoder *encoderComplex128) EncodeSlotsQP(m interface{}, vecQP rlwe.PolyQP, scale float64, logSlots int) {
 
 	levelQ := vecQP.Q.Level()
 	levelP := vecQP.P.Level()
 	ringQP := encoder.params.RingQP()
-
 	encoder.embed(m, logSlots)
 	scaleUpVecExact(encoder.valuesFloat[:encoder.params.N()], scale, ringQP.RingQ.Modulus[:levelQ+1], vecQP.Q.Coeffs)
 	scaleUpVecExact(encoder.valuesFloat[:encoder.params.N()], scale, ringQP.RingP.Modulus[:levelP+1], vecQP.P.Coeffs)
->>>>>>> dev_rckks
 	ringQP.NTTLvl(levelQ, levelP, vecQP, vecQP)
 	ringQP.MFormLvl(levelQ, levelP, vecQP, vecQP)
 

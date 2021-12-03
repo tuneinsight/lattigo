@@ -8,17 +8,17 @@ import (
 )
 
 // LWEToRLWE transforms a set of LWE samples into their respective RLWE ciphertext such that decrypt(RLWE)[0] = decrypt(LWE)
-func LWEToRLWE(ctLWE []*Ciphertext, params rlwe.Parameters) (ctRLWE []*rlwe.Ciphertext) {
+func (h *Handler) LWEToRLWE(ctLWE []*Ciphertext) (ctRLWE []*rlwe.Ciphertext) {
 
 	level := ctLWE[0].Level()
 
-	ringQ := params.RingQ()
+	ringQ := h.paramsLUT.RingQ()
 	acc := ringQ.NewPolyLvl(level)
 	ctRLWE = make([]*rlwe.Ciphertext, len(ctLWE))
 	for i := 0; i < len(ctLWE); i++ {
 
 		// Alocates ciphertext
-		ctRLWE[i] = rlwe.NewCiphertextNTT(params, 1, level)
+		ctRLWE[i] = rlwe.NewCiphertextNTT(h.paramsLUT, 1, level)
 
 		for u := 0; u < level+1; u++ {
 
@@ -43,6 +43,8 @@ func LWEToRLWE(ctLWE []*Ciphertext, params rlwe.Parameters) (ctRLWE []*rlwe.Ciph
 	return
 }
 
+// MergeRLWE merges a series of RLWE where decrypt(RLWE)[0] = decrypt(LWE) into a single RLWE.
+// inputs RLWE should have been created using the method LWEToRLWE.
 func (h *Handler) MergeRLWE(ciphertexts []*rlwe.Ciphertext) (ciphertext *rlwe.Ciphertext) {
 
 	slots := len(ciphertexts)
@@ -63,7 +65,7 @@ func (h *Handler) MergeRLWE(ciphertexts []*rlwe.Ciphertext) (ciphertext *rlwe.Ci
 
 	// Multiplies by (Slots * N) ^-1 mod Q
 	for i := range ciphertexts {
-		if ciphertexts[i] != nil{
+		if ciphertexts[i] != nil {
 			v0, v1 := ciphertexts[i].Value[0], ciphertexts[i].Value[1]
 			for j := 0; j < ciphertexts[0].Level()+1; j++ {
 				ring.MulScalarMontgomeryVec(v0.Coeffs[j], v0.Coeffs[j], nPowInv[j], Q[j], mredParams[j])
@@ -86,7 +88,7 @@ func (h *Handler) MergeRLWE(ciphertexts []*rlwe.Ciphertext) (ciphertext *rlwe.Ci
 
 	tmp := rlwe.NewCiphertextNTT(h.paramsLUT, 1, ciphertext.Level())
 	for i := logSlots - 1; i < h.paramsLUT.LogN()-1; i++ {
-		Rotate(ciphertext, h.paramsLUT.GaloisElementForColumnRotationBy(1<<i), h.permuteNTTIndex, h.paramsLUT, h.KeySwitcher, h.rtks, tmp)
+		rotate(ciphertext, h.paramsLUT.GaloisElementForColumnRotationBy(1<<i), h.permuteNTTIndex, h.paramsLUT, h.KeySwitcher, h.rtks, tmp)
 		ringQ.AddLvl(level, ciphertext.Value[0], tmp.Value[0], ciphertext.Value[0])
 		ringQ.AddLvl(level, ciphertext.Value[1], tmp.Value[1], ciphertext.Value[1])
 	}
@@ -94,7 +96,6 @@ func (h *Handler) MergeRLWE(ciphertexts []*rlwe.Ciphertext) (ciphertext *rlwe.Ci
 	return
 }
 
-// PackLWEs repacks LWE ciphertexts into a RLWE ciphertext
 func (h *Handler) mergeRLWERecurse(ciphertexts []*rlwe.Ciphertext) *rlwe.Ciphertext {
 
 	ringQ := h.paramsLUT.RingQ()
@@ -149,9 +150,9 @@ func (h *Handler) mergeRLWERecurse(ciphertexts []*rlwe.Ciphertext) *rlwe.Ciphert
 
 		// if L-2 == -1, then gal = 2N-1
 		if L == 1 {
-			Rotate(tmpEven, uint64(2*ringQ.N-1), h.permuteNTTIndex, h.paramsLUT, h.KeySwitcher, h.rtks, tmpEven)
+			rotate(tmpEven, uint64(2*ringQ.N-1), h.permuteNTTIndex, h.paramsLUT, h.KeySwitcher, h.rtks, tmpEven)
 		} else {
-			Rotate(tmpEven, h.paramsLUT.GaloisElementForColumnRotationBy(1<<(L-2)), h.permuteNTTIndex, h.paramsLUT, h.KeySwitcher, h.rtks, tmpEven)
+			rotate(tmpEven, h.paramsLUT.GaloisElementForColumnRotationBy(1<<(L-2)), h.permuteNTTIndex, h.paramsLUT, h.KeySwitcher, h.rtks, tmpEven)
 		}
 
 		// ctEven + ctOdd * X^(N/2^L) + phi(ctEven - ctOdd * X^(N/2^L), 2^(L-2))
@@ -162,8 +163,7 @@ func (h *Handler) mergeRLWERecurse(ciphertexts []*rlwe.Ciphertext) *rlwe.Ciphert
 	return ctEven
 }
 
-// Rotate rotates a ciphertext
-func Rotate(ctIn *rlwe.Ciphertext, galEl uint64, permuteNTTindex map[uint64][]uint64, paramsLUT rlwe.Parameters, ks *rlwe.KeySwitcher, rtks *rlwe.RotationKeySet, ctOut *rlwe.Ciphertext) {
+func rotate(ctIn *rlwe.Ciphertext, galEl uint64, permuteNTTindex map[uint64][]uint64, paramsLUT rlwe.Parameters, ks *rlwe.KeySwitcher, rtks *rlwe.RotationKeySet, ctOut *rlwe.Ciphertext) {
 
 	ringQ := paramsLUT.RingQ()
 	rtk, _ := rtks.GetRotationKey(galEl)

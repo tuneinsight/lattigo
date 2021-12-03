@@ -5,6 +5,9 @@ import (
 	"github.com/ldsec/lattigo/v2/rlwe"
 )
 
+// Handler is a struct that stores necessary
+// data to handle LWE <-> RLWE conversion and
+// LUT evaluation.
 type Handler struct {
 	*rlwe.KeySwitcher
 	paramsLUT rlwe.Parameters
@@ -22,6 +25,7 @@ type Handler struct {
 	accumulator *rlwe.Ciphertext
 }
 
+// NewHandler creates a new Handler
 func NewHandler(paramsLUT, paramsLWE rlwe.Parameters, rtks *rlwe.RotationKeySet) (h *Handler) {
 	h = new(Handler)
 	h.KeySwitcher = rlwe.NewKeySwitcher(paramsLUT)
@@ -123,12 +127,15 @@ func (h *Handler) permuteNTTIndexesForKey(rtks *rlwe.RotationKeySet) *map[uint64
 	return &permuteNTTIndex
 }
 
+// LUTKey is a struct storing the encryption
+// of the bits of the LWE key.
 type LUTKey struct {
 	SkPos  []*rlwe.RGSWCiphertext
 	SkNeg  []*rlwe.RGSWCiphertext
 	EncOne *rlwe.RGSWCiphertext
 }
 
+// GenLUTKey generates the LUT evaluation key
 func (h *Handler) GenLUTKey(skRLWE, skLWE *rlwe.SecretKey) (lutkey *LUTKey) {
 
 	paramsLUT := h.paramsLUT
@@ -140,7 +147,7 @@ func (h *Handler) GenLUTKey(skRLWE, skLWE *rlwe.SecretKey) (lutkey *LUTKey) {
 
 	plaintextRGSWOne := rlwe.NewPlaintext(paramsLUT, paramsLUT.MaxLevel())
 	plaintextRGSWOne.Value.IsNTT = true
-	for j := 0; j < paramsLUT.QCount(); j++{
+	for j := 0; j < paramsLUT.QCount(); j++ {
 		for i := 0; i < paramsLUT.N(); i++ {
 			plaintextRGSWOne.Value.Coeffs[j][i] = 1
 		}
@@ -179,6 +186,8 @@ func (h *Handler) GenLUTKey(skRLWE, skLWE *rlwe.SecretKey) (lutkey *LUTKey) {
 	return &LUTKey{SkPos: skRGSWPos, SkNeg: skRGSWNeg, EncOne: EncOneRGSW}
 }
 
+// ReduceRGSW applies a homomorphic modular reduction on the input RGSW ciphertext and returns
+// the result on the output RGSW ciphertext.
 func ReduceRGSW(rgsw *rlwe.RGSWCiphertext, ringQP *rlwe.RingQP, res *rlwe.RGSWCiphertext) {
 
 	ringQ := ringQP.RingQ
@@ -199,6 +208,7 @@ func ReduceRGSW(rgsw *rlwe.RGSWCiphertext, ringQP *rlwe.RingQP, res *rlwe.RGSWCi
 	}
 }
 
+// AddRGSW adds the input RGSW ciphertext on the output RGSW ciphertext.
 func AddRGSW(rgsw *rlwe.RGSWCiphertext, ringQP *rlwe.RingQP, res *rlwe.RGSWCiphertext) {
 
 	ringQ := ringQP.RingQ
@@ -219,6 +229,7 @@ func AddRGSW(rgsw *rlwe.RGSWCiphertext, ringQP *rlwe.RingQP, res *rlwe.RGSWCiphe
 	}
 }
 
+// MulRGSWByXPowAlphaMinusOne multiplies the input RGSW ciphertext by (X^alpha - 1) and returns the result on the output RGSW ciphertext.
 func MulRGSWByXPowAlphaMinusOne(rgsw *rlwe.RGSWCiphertext, powXMinusOne rlwe.PolyQP, ringQP *rlwe.RingQP, res *rlwe.RGSWCiphertext) {
 
 	ringQ := ringQP.RingQ
@@ -239,6 +250,7 @@ func MulRGSWByXPowAlphaMinusOne(rgsw *rlwe.RGSWCiphertext, powXMinusOne rlwe.Pol
 	}
 }
 
+// MulRGSWByXPowAlphaMinusOneAndAdd multiplies the input RGSW ciphertext by (X^alpha - 1) and adds the result on the output RGSW ciphertext.
 func MulRGSWByXPowAlphaMinusOneAndAdd(rgsw *rlwe.RGSWCiphertext, powXMinusOne rlwe.PolyQP, ringQP *rlwe.RingQP, res *rlwe.RGSWCiphertext) {
 
 	ringQ := ringQP.RingQ

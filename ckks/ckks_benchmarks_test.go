@@ -99,44 +99,19 @@ func benchKeyGen(tc *testContext, b *testing.B) {
 
 func benchEncrypt(tc *testContext, b *testing.B) {
 
-<<<<<<< HEAD
-	encryptorPk := testContext.encryptorPk
-	encryptorSk := testContext.encryptorSk
-=======
 	encryptorPk := tc.encryptorPk
-	encryptorPkFast := NewFastEncryptor(tc.params, tc.pk)
 	encryptorSk := tc.encryptorSk
->>>>>>> dev_rckks
 
 	plaintext := NewPlaintext(tc.params, tc.params.MaxLevel(), tc.params.DefaultScale())
 	ciphertext := NewCiphertext(tc.params, 1, tc.params.MaxLevel(), tc.params.DefaultScale())
 
-<<<<<<< HEAD
-	b.Run(GetTestName(testContext.params, "Encrypt/key=Pk/"), func(b *testing.B) {
-=======
 	b.Run(GetTestName(tc.params, "Encrypt/key=Pk/"), func(b *testing.B) {
-
-		if tc.params.PCount() == 0 {
-			b.Skip("#Pi is empty")
-		}
-
->>>>>>> dev_rckks
 		for i := 0; i < b.N; i++ {
 			encryptorPk.Encrypt(plaintext, ciphertext)
 		}
 	})
 
-<<<<<<< HEAD
-	b.Run(GetTestName(testContext.params, "Encrypt/key=Sk/"), func(b *testing.B) {
-=======
-	b.Run(GetTestName(tc.params, "EncryptFast/key=Pk/"), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			encryptorPkFast.Encrypt(plaintext, ciphertext)
-		}
-	})
-
 	b.Run(GetTestName(tc.params, "Encrypt/key=Sk/"), func(b *testing.B) {
->>>>>>> dev_rckks
 		for i := 0; i < b.N; i++ {
 			encryptorSk.Encrypt(plaintext, ciphertext)
 		}
@@ -232,13 +207,8 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 
 		galEL := tc.params.GaloisElementForColumnRotationBy(1)
 		for i := 0; i < b.N; i++ {
-<<<<<<< HEAD
-			testContext.params.RingQ().PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.Value[0], eval.(*evaluator).permuteNTTIndex[galEL], ciphertext1.Value[0])
-			testContext.params.RingQ().PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.Value[1], eval.(*evaluator).permuteNTTIndex[galEL], ciphertext1.Value[1])
-=======
 			tc.params.RingQ().PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.Value[0], eval.(*evaluator).permuteNTTIndex[galEL], ciphertext1.Value[0])
 			tc.params.RingQ().PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.Value[1], eval.(*evaluator).permuteNTTIndex[galEL], ciphertext1.Value[1])
->>>>>>> dev_rckks
 		}
 	})
 

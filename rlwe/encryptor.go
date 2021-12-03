@@ -17,7 +17,8 @@ type Encryptor interface {
 	// The encryption algorithm depends on the implementor.
 	EncryptFromCRP(pt *Plaintext, crp *ring.Poly, ctOut *Ciphertext)
 
-	EncryptRGSW(plaintext *Plaintext, ciphertext *RGSWCiphertext)
+	// EncryptFromCRP encrypts the input plaintext and write the result on ct.
+	EncryptRGSW(pt *Plaintext, ct *RGSWCiphertext)
 }
 
 // encryptorBase is a struct used to encrypt Plaintexts. It stores the public-key and/or secret-key.
@@ -115,7 +116,7 @@ func newEncryptorBase(params Parameters) encryptorBase {
 	}
 }
 
-// Encrypt encrypts the input Plaintext and write the result in ctOut.
+// Encrypt encrypts the input Plaintext and write the result on the output Ciphertext.
 func (enc *encryptorBase) encrypt(plaintext *Plaintext, key interface{}, ciphertext *Ciphertext) {
 	switch key := key.(type) {
 	case *PublicKey:
@@ -251,7 +252,8 @@ func (enc *encryptorBase) encryptPk(plaintext *Plaintext, pk *PublicKey, ciphert
 	ciphertext.Value[1].Coeffs = ciphertext.Value[1].Coeffs[:levelQ+1]
 }
 
-func (encryptor *pkEncryptor) EncryptRGSW(plaintext *Plaintext, ciphertext *RGSWCiphertext) {
+// EncryptRGSW encrypts the input Plaintext and writes the result on the output RGSW ciphertext.
+func (enc *pkEncryptor) EncryptRGSW(plaintext *Plaintext, ciphertext *RGSWCiphertext) {
 	panic("method not implemented")
 }
 
@@ -372,9 +374,9 @@ func (enc *encryptorBase) encryptSk(plaintext *Plaintext, sk *SecretKey, ciphert
 	ciphertext.Value[1].Coeffs = ciphertext.Value[1].Coeffs[:levelQ+1]
 }
 
-func (encryptor *skEncryptor) EncryptRGSW(plaintext *Plaintext, ciphertext *RGSWCiphertext) {
+func (enc *skEncryptor) EncryptRGSW(plaintext *Plaintext, ciphertext *RGSWCiphertext) {
 
-	params := encryptor.params
+	params := enc.params
 	ringQ := params.RingQ()
 	ringP := params.RingP()
 	ringQP := params.RingQP()
@@ -393,7 +395,7 @@ func (encryptor *skEncryptor) EncryptRGSW(plaintext *Plaintext, ciphertext *RGSW
 		}
 	}
 
-	ptTimesP := encryptor.poolQ[1]
+	ptTimesP := enc.poolQ[1]
 
 	if plaintext != nil {
 		ringQ.MulScalarBigintLvl(levelQ, plaintext.Value, pBigInt, ptTimesP)
@@ -408,8 +410,8 @@ func (encryptor *skEncryptor) EncryptRGSW(plaintext *Plaintext, ciphertext *RGSW
 	var index int
 	for i := 0; i < beta; i++ {
 
-		encryptor.encryptZeroSymetricQP(levelQ, levelP, encryptor.sk.Value, true, isNTT, ciphertext.Value[i][0][0], ciphertext.Value[i][0][1])
-		encryptor.encryptZeroSymetricQP(levelQ, levelP, encryptor.sk.Value, true, isNTT, ciphertext.Value[i][1][0], ciphertext.Value[i][1][1])
+		enc.encryptZeroSymetricQP(levelQ, levelP, enc.sk.Value, true, isNTT, ciphertext.Value[i][0][0], ciphertext.Value[i][0][1])
+		enc.encryptZeroSymetricQP(levelQ, levelP, enc.sk.Value, true, isNTT, ciphertext.Value[i][1][0], ciphertext.Value[i][1][1])
 
 		if plaintext != nil {
 			for j := 0; j < alpha; j++ {
@@ -440,20 +442,20 @@ func (encryptor *skEncryptor) EncryptRGSW(plaintext *Plaintext, ciphertext *RGSW
 	}
 }
 
-func (encryptor *encryptorBase) encryptZeroSymetricQP(levelQ, levelP int, sk PolyQP, sample, ntt bool, a, b PolyQP) {
+func (enc *encryptorBase) encryptZeroSymetricQP(levelQ, levelP int, sk PolyQP, sample, ntt bool, a, b PolyQP) {
 
-	params := encryptor.params
+	params := enc.params
 	ringQP := params.RingQP()
 
 	if ntt {
-		encryptor.gaussianSampler.ReadLvl(levelQ, a.Q)
+		enc.gaussianSampler.ReadLvl(levelQ, a.Q)
 		ringQP.ExtendBasisSmallNormAndCenter(a.Q, levelP, nil, a.P)
 		ringQP.NTTLvl(levelQ, levelP, a, a)
 	}
 
 	if sample {
-		encryptor.uniformSamplerQ.ReadLvl(levelQ, b.Q)
-		encryptor.uniformSamplerP.ReadLvl(levelP, b.P)
+		enc.uniformSamplerQ.ReadLvl(levelQ, b.Q)
+		enc.uniformSamplerP.ReadLvl(levelP, b.P)
 	}
 
 	ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, b, sk, a)
@@ -462,25 +464,25 @@ func (encryptor *encryptorBase) encryptZeroSymetricQP(levelQ, levelP int, sk Pol
 		ringQP.InvNTTLvl(levelQ, levelP, a, a)
 		ringQP.InvNTTLvl(levelQ, levelP, b, b)
 
-		e := PolyQP{Q: encryptor.poolQ[0], P: encryptor.poolP[0]}
-		encryptor.gaussianSampler.ReadLvl(levelQ, e.Q)
+		e := PolyQP{Q: enc.poolQ[0], P: enc.poolP[0]}
+		enc.gaussianSampler.ReadLvl(levelQ, e.Q)
 		ringQP.ExtendBasisSmallNormAndCenter(e.Q, levelP, nil, e.P)
 		ringQP.AddLvl(levelQ, levelP, a, e, a)
 	}
 }
 
-func (encryptor *encryptorBase) encryptZeroSymetricQ(levelQ int, sk *ring.Poly, sample, ntt bool, a, b *ring.Poly) {
+func (enc *encryptorBase) encryptZeroSymetricQ(levelQ int, sk *ring.Poly, sample, ntt bool, a, b *ring.Poly) {
 
-	params := encryptor.params
+	params := enc.params
 	ringQ := params.RingQ()
 
 	if ntt {
-		encryptor.gaussianSampler.ReadLvl(levelQ, a)
+		enc.gaussianSampler.ReadLvl(levelQ, a)
 		ringQ.NTTLazyLvl(levelQ, a, a)
 	}
 
 	if sample {
-		encryptor.uniformSamplerQ.ReadLvl(levelQ, b)
+		enc.uniformSamplerQ.ReadLvl(levelQ, b)
 	}
 
 	ringQ.MulCoeffsMontgomeryAndSubLvl(levelQ, b, sk, a)
@@ -488,6 +490,6 @@ func (encryptor *encryptorBase) encryptZeroSymetricQ(levelQ int, sk *ring.Poly, 
 	if !ntt {
 		ringQ.InvNTTLvl(levelQ, a, a)
 		ringQ.InvNTTLvl(levelQ, b, b)
-		encryptor.gaussianSampler.ReadAndAddLvl(levelQ, a)
+		enc.gaussianSampler.ReadAndAddLvl(levelQ, a)
 	}
 }

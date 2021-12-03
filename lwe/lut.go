@@ -35,14 +35,20 @@ func InitLUT(g func(x float64) (y float64), scale float64, ringQ *ring.Ring, a, 
 	return
 }
 
-func (h *Handler) ExtractAndEvaluateLUTAndRepack(ct *rlwe.Ciphertext, lutPolyWihtSlotIndex map[int]*ring.Poly, repackIndex map[int]int, lutKey *LUTKey) (res *rlwe.Ciphertext){
+// ExtractAndEvaluateLUTAndRepack extracts on the fly LWE samples and evaluate the provided LUT on the LWE and repacks everything into a single rlwe.Ciphertext.
+// ct : a rlwe Ciphertext with coefficient encoded values at level 0
+// lutPolyWihtSlotIndex : a map with [slot_index] -> LUT
+// repackIndex : a map with [slot_index_have] -> slot_index_want
+// lutKey : LUTKey
+// Returns a *rlwe.Ciphertext
+func (h *Handler) ExtractAndEvaluateLUTAndRepack(ct *rlwe.Ciphertext, lutPolyWihtSlotIndex map[int]*ring.Poly, repackIndex map[int]int, lutKey *LUTKey) (res *rlwe.Ciphertext) {
 	cts := h.ExtractAndEvaluateLUT(ct, lutPolyWihtSlotIndex, lutKey)
 
-	nextPow2 := 1<<int(math.Ceil(math.Log2(float64(len(cts)))))
+	nextPow2 := 1 << int(math.Ceil(math.Log2(float64(len(cts)))))
 
 	ciphertexts := make([]*rlwe.Ciphertext, nextPow2)
 
-	for i := range cts{
+	for i := range cts {
 		ciphertexts[repackIndex[i]] = cts[i]
 	}
 
@@ -68,7 +74,6 @@ func (h *Handler) ExtractAndEvaluateLUT(ct *rlwe.Ciphertext, lutPolyWihtSlotInde
 	ringQPLUT := h.paramsLUT.RingQP()
 
 	lutLvlIsZero := (h.paramsLUT.QCount() == 1 && h.paramsLUT.PCount() == 1)
-
 
 	mask := uint64(ringQLUT.N<<1) - 1
 
@@ -107,20 +112,20 @@ func (h *Handler) ExtractAndEvaluateLUT(ct *rlwe.Ciphertext, lutPolyWihtSlotInde
 			ringQLUT.Add(acc.Value[0], lut, acc.Value[0])
 			acc.Value[1].Zero() // TODO remove
 
-			if lutLvlIsZero{
+			if lutLvlIsZero {
 				for j := 0; j < ringQLWE.N; j++ {
 					MulRGSWByXPowAlphaMinusOne(lutKey.SkPos[j], h.xPowMinusOne[a[j]], ringQPLUT, tmpRGSW)
 					MulRGSWByXPowAlphaMinusOneAndAdd(lutKey.SkNeg[j], h.xPowMinusOne[-a[j]&mask], ringQPLUT, tmpRGSW)
 					AddRGSW(lutKey.EncOne, ringQPLUT, tmpRGSW) // TODO : add 1 in plaintext
 					ks.MulRGSWSingleModulus(acc, tmpRGSW, acc)
 				}
-			}else{
+			} else {
 				for j := 0; j < ringQLWE.N; j++ {
 					MulRGSWByXPowAlphaMinusOne(lutKey.SkPos[j], h.xPowMinusOne[a[j]], ringQPLUT, tmpRGSW)
 					MulRGSWByXPowAlphaMinusOneAndAdd(lutKey.SkNeg[j], h.xPowMinusOne[-a[j]&mask], ringQPLUT, tmpRGSW)
 					AddRGSW(lutKey.EncOne, ringQPLUT, tmpRGSW) // TODO : add 1 in plaintext
 					ks.MulRGSW(acc, tmpRGSW, acc)
-				}		
+				}
 			}
 
 			res[index] = acc.CopyNew()
@@ -130,7 +135,7 @@ func (h *Handler) ExtractAndEvaluateLUT(ct *rlwe.Ciphertext, lutPolyWihtSlotInde
 	return
 }
 
-//MulBySmallMonomial multiplies pol by x^n, with 0 <= n < N
+//MulBySmallMonomialMod2N multiplies pol by x^n, with 0 <= n < N
 func MulBySmallMonomialMod2N(mask uint64, pol *ring.Poly, n int) {
 	if n != 0 {
 		N := len(pol.Coeffs[0])
@@ -142,7 +147,7 @@ func MulBySmallMonomialMod2N(mask uint64, pol *ring.Poly, n int) {
 	}
 }
 
-// ModSwitchRLWETo2N applys round(x * 2N / Q) to the coefficients of polQ and returns the
+// ModSwitchRLWETo2NLvl applys round(x * 2N / Q) to the coefficients of polQ and returns the
 // result on pol2N.
 func (h *Handler) ModSwitchRLWETo2NLvl(level int, polQ *ring.Poly, pol2N *ring.Poly) {
 	coeffsBigint := make([]*big.Int, len(polQ.Coeffs[0]))

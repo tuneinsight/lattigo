@@ -16,12 +16,7 @@ test_examples:
 	@echo ok
 	@echo Building resources-heavy examples
 	go build -o /dev/null ./examples/ckks/bootstrapping
-<<<<<<< HEAD
-	go build -o /dev/null ./examples/ckks/advanced/CDKS20_rlwe_lwe_bridge
-	go build -o /dev/null ./examples/ckks/advanced/LHHMQ20_rlwe_lwe_bridge
-=======
 	go build -o /dev/null ./examples/ckks/advanced/rlwe_lwe_bridge_LHHMQ20
->>>>>>> dev_rckks
 	@echo ok
 
 .PHONY: test_gotest

@@ -37,22 +37,25 @@ func identity(x float64) (y float64) {
 func relu(x float64) (y float64) {
 	if x < 0 {
 		return 0
-	} else {
-		return x
 	}
+
+	return x
 }
 
+// Q modulus Q
 var Q = []uint64{0x80000000080001, 0x2000000e0001, 0x1fffffc20001}
+
+// P modulus P
 var P = []uint64{0x4000000008a0001}
 
 var ckksParamsN12 = ckks.ParametersLiteral{
-	LogN:     10,
-	LogSlots: 7,
-	Q:        Q,
-	P:        P,
-	Scale: 1<<40,
-	Sigma:    rlwe.DefaultSigma,
-	RingType: rlwe.RingStandard,
+	LogN:         10,
+	LogSlots:     7,
+	Q:            Q,
+	P:            P,
+	DefaultScale: 1 << 40,
+	Sigma:        rlwe.DefaultSigma,
+	RingType:     ring.Standard,
 }
 
 var ckksParamsN10 = ckks.ParametersLiteral{
@@ -60,13 +63,14 @@ var ckksParamsN10 = ckks.ParametersLiteral{
 	Q:        Q[:1],
 	P:        P[:1],
 	Sigma:    rlwe.DefaultSigma,
-	RingType: rlwe.RingStandard,
+	RingType: ring.Standard,
 }
 
+// SlotsToCoeffsParameters homomorphic encoding parameters
 var SlotsToCoeffsParameters = ckksAdvanced.EncodingMatrixLiteral{
 	LinearTransformType: ckksAdvanced.SlotsToCoeffs,
 	LevelStart:          2,     // starting level
-	BSGSRatio:           4.0,  // ratio between n1/n2 for n1*n2 = slots
+	BSGSRatio:           4.0,   // ratio between n1/n2 for n1*n2 = slots
 	BitReversed:         false, // bit-reversed input
 	ScalingFactor: [][]float64{ // Decomposition level of the encoding matrix
 		{0x2000000e0001}, // Scale of the second matriox
@@ -74,10 +78,11 @@ var SlotsToCoeffsParameters = ckksAdvanced.EncodingMatrixLiteral{
 	},
 }
 
+// CoeffsToSlotsParameters homomorphic decoding parameters
 var CoeffsToSlotsParameters = ckksAdvanced.EncodingMatrixLiteral{
 	LinearTransformType: ckksAdvanced.CoeffsToSlots,
 	LevelStart:          2,     // starting level
-	BSGSRatio:           4.0,  // ratio between n1/n2 for n1*n2 = slots
+	BSGSRatio:           4.0,   // ratio between n1/n2 for n1*n2 = slots
 	BitReversed:         false, // bit-reversed input
 	ScalingFactor: [][]float64{ // Decomposition level of the encoding matrix
 		{0x2000000e0001}, // Scale of the second matriox
@@ -85,10 +90,11 @@ var CoeffsToSlotsParameters = ckksAdvanced.EncodingMatrixLiteral{
 	},
 }
 
+// LUT example
 func LUT() {
 	var err error
 	var paramsN12, paramsN10 ckks.Parameters
-	
+
 	if paramsN12, err = ckks.NewParametersFromLiteral(ckksParamsN12); err != nil {
 		panic(err)
 	}
@@ -101,15 +107,15 @@ func LUT() {
 
 	fmt.Printf("Generating LUT... ")
 	now := time.Now()
-	LUTPoly := lwe.InitLUT(sign, paramsN12.Scale(), paramsN12.RingQ(), a, b)
+	LUTPoly := lwe.InitLUT(sign, paramsN12.DefaultScale(), paramsN12.RingQ(), a, b)
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
 	lutPolyMap := make(map[int]*ring.Poly)
 	repackIndex := make(map[int]int)
-	gap := paramsN10.N() / (2*paramsN12.Slots())
+	gap := paramsN10.N() / (2 * paramsN12.Slots())
 	for i := 0; i < paramsN10.N(); i += gap {
 		lutPolyMap[i] = LUTPoly
-		repackIndex[i] = i/gap
+		repackIndex[i] = i / gap
 	}
 
 	kgenN12 := ckks.NewKeyGenerator(paramsN12)
@@ -125,8 +131,8 @@ func LUT() {
 
 	fmt.Printf("Gen SlotsToCoeffs Matrices... ")
 	now = time.Now()
-	diffScale := paramsN10.QiFloat64(0) / (4.0 * paramsN12.Scale())
-	normalization := 2.0/(b-a)
+	diffScale := paramsN10.QiFloat64(0) / (4.0 * paramsN12.DefaultScale())
+	normalization := 2.0 / (b - a)
 	sf := math.Pow(normalization*diffScale, 0.5)
 	SlotsToCoeffsMatrix := ckksAdvanced.NewHomomorphicEncodingMatrixFromLiteral(SlotsToCoeffsParameters, encoderN12, paramsN12.LogN(), paramsN12.LogSlots()+1, complex(sf, 0))
 	CoeffsToSlotsMatrix := ckksAdvanced.NewHomomorphicEncodingMatrixFromLiteral(CoeffsToSlotsParameters, encoderN12, paramsN12.LogN(), paramsN12.LogSlots(), complex(math.Pow(1/float64(2*paramsN12.Slots()), 0.5), 0))
@@ -156,26 +162,24 @@ func LUT() {
 	now = time.Now()
 	values := make([]float64, paramsN12.Slots())
 
-	interval := (b-a) / float64(paramsN12.Slots())
+	interval := (b - a) / float64(paramsN12.Slots())
 	for i := 0; i < paramsN12.Slots(); i++ {
 		values[i] = a + float64(i)*interval
 	}
 
-
 	/*
-	fmt.Println()
-	ckks.SliceBitReverseInPlaceFloat64(values, paramsN12.Slots())
-	for i := range values{
-		fmt.Printf("%7.4f\n", values[i])
-	}
-	ckks.SliceBitReverseInPlaceFloat64(values, paramsN12.Slots())
+		fmt.Println()
+		ckks.SliceBitReverseInPlaceFloat64(values, paramsN12.Slots())
+		for i := range values{
+			fmt.Printf("%7.4f\n", values[i])
+		}
+		ckks.SliceBitReverseInPlaceFloat64(values, paramsN12.Slots())
 	*/
 
-	pt := ckks.NewPlaintext(paramsN12, paramsN12.MaxLevel(), paramsN12.Scale())
-	encoderN12.Encode(pt, values, paramsN12.LogSlots())
+	pt := ckks.NewPlaintext(paramsN12, paramsN12.MaxLevel(), paramsN12.DefaultScale())
+	encoderN12.EncodeSlots(values, pt, paramsN12.LogSlots())
 	ctN12 := encryptorN12.EncryptNew(pt)
 	fmt.Printf("Done (%s)\n", time.Since(now))
-
 
 	fmt.Printf("Homomorphic Decoding... ")
 	now = time.Now()
@@ -191,7 +195,7 @@ func LUT() {
 	fmt.Printf("Evaluating LUT... ")
 	now = time.Now()
 	ctN12.Ciphertext = handler.ExtractAndEvaluateLUTAndRepack(ctN10.Ciphertext, lutPolyMap, repackIndex, LUTKEY)
-	ctN12.Scale = paramsN12.Scale()
+	ctN12.Scale = paramsN12.DefaultScale()
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
 	fmt.Println("Homomorphic Encoding... ")
@@ -203,11 +207,12 @@ func LUT() {
 
 	v := encoderN12.Decode(decryptorN12.DecryptNew(ctN12), paramsN12.LogSlots())
 
-	for i := range v{
+	for i := range v {
 		fmt.Printf("%7.4f -> %7.4f\n", values[i], v[i])
 	}
 }
 
+// PrintPoly prints poly
 func PrintPoly(pol *ring.Poly, scale float64, Q uint64) {
 	fmt.Printf("[")
 	for _, c := range pol.Coeffs[0][:1] {
@@ -248,6 +253,7 @@ func DecryptAndPrint(decryptor ckks.Decryptor, LogSlots int, ringQ *ring.Ring, c
 	fmt.Printf("\n")
 }
 
+// DecryptAndCenter decrypts and prints
 func DecryptAndCenter(n int, b, a, sk *ring.Poly, ringQ *ring.Ring, mForm bool, scale float64, slots int) {
 
 	pt := ringQ.NewPolyLvl(0)
@@ -261,7 +267,7 @@ func DecryptAndCenter(n int, b, a, sk *ring.Poly, ringQ *ring.Ring, mForm bool, 
 	Q := ringQ.Modulus[0]
 	fmt.Printf("[")
 	for i, c := range pt.Coeffs[0][:n] {
-		if i%slots==0{
+		if i%slots == 0 {
 			if c > Q>>1 {
 				fmt.Printf("%8.4f, ", (float64(c)-float64(Q))/scale)
 			} else {

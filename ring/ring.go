@@ -97,30 +97,6 @@ type Ring struct {
 // a non-empty []uint64 with distinct prime elements. All moduli must also be equal to 1 modulo 2*N.
 // An error is returned with a nil *Ring in the case of non NTT-enabling parameters.
 func NewRing(N int, Moduli []uint64) (r *Ring, err error) {
-<<<<<<< HEAD
-	return NewRingWithNthRoot(N, 2*N, Moduli)
-}
-
-// NewRingWithNthRoot creates a new Ring with the given parameters. It checks that N is a power of 2 and that the moduli are NTT friendly.
-// Instantiates the NTT params with a NthRoot primitive root of unity.
-func NewRingWithNthRoot(N, NthRoot int, Moduli []uint64) (r *Ring, err error) {
-	r = new(Ring)
-	if err = r.setParameters(N, Moduli); err != nil {
-		return nil, err
-	}
-
-	r.NumberTheoreticTransformer = NumberTheoreticTransformerStandard{}
-
-	return r, r.genNTTParams(uint64(NthRoot))
-}
-
-// NewRingConjugateInvariant creates a new Ring in Z[X+X^-1](X^2N + 1).
-// Z[X+X^-1]/(X^2N+1) is a closed sub-ring of Z[X]/(X^2N+1).
-// The input polynomial only needs to be size N to store all the information
-// about its 2N coefficients since the right half does not provide any additional information.
-// Primes need to be congruent to 1 mod 4N.
-func NewRingConjugateInvariant(N int, Moduli []uint64) (r *Ring, err error) {
-=======
 	return NewRingWithCustomNTT(N, Moduli, NumberTheoreticTransformerStandard{}, 2*N)
 }
 
@@ -151,18 +127,12 @@ func NewRingFromType(N int, Moduli []uint64, ringType Type) (r *Ring, err error)
 // Moduli should be a non-empty []uint64 with distinct prime elements. All moduli must also be equal to 1 modulo the root of unity.
 // N must be a power of two larger than 8. An error is returned with a nil *Ring in the case of non NTT-enabling parameters.
 func NewRingWithCustomNTT(N int, Moduli []uint64, ntt NumberTheoreticTransformer, NthRoot int) (r *Ring, err error) {
->>>>>>> dev_rckks
 	r = new(Ring)
 	err = r.setParameters(N, Moduli)
 	if err != nil {
 		return nil, err
 	}
 
-<<<<<<< HEAD
-	r.NumberTheoreticTransformer = NumberTheoreticTransformerConjugateInvariant{}
-
-	return r, r.genNTTParams(uint64(N) << 2)
-=======
 	r.NumberTheoreticTransformer = ntt
 
 	err = r.genNTTParams(uint64(NthRoot))
@@ -171,7 +141,6 @@ func NewRingWithCustomNTT(N int, Moduli []uint64, ntt NumberTheoreticTransformer
 	}
 
 	return r, nil
->>>>>>> dev_rckks
 }
 
 // ConjugateInvariantRing returns the conjugate invariant ring of the receiver ring.
@@ -273,13 +242,6 @@ func (r *Ring) setParameters(N int, Modulus []uint64) error {
 // Then, it computes the variables required for the NTT. The purpose of ValidateParameters is to validate that the moduli allow the NTT, and to compute the
 // NTT parameters.
 func (r *Ring) genNTTParams(NthRoot uint64) error {
-<<<<<<< HEAD
-
-	if r.AllowsNTT {
-		return nil
-	}
-=======
->>>>>>> dev_rckks
 
 	if r.N == 0 || r.Modulus == nil {
 		return errors.New("invalid r parameters (missing)")

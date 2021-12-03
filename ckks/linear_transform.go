@@ -10,10 +10,6 @@ import (
 
 // Trace maps X -> sum((-1)^i * X^{i*n+1}) for 0 <= i < N
 // For log(n) = logSlotStart and log(N/2) = logSlotsEnd
-<<<<<<< HEAD
-// Monomials X^k vanish if k isn't divisble by (N/n), else it is multiplied by (N/n).
-// Ciphertext is pre-multiplied by (N/n)^-1 to remove the (N/n) factor.
-=======
 // Monomial X^k vanish if k isn't divisible by (N/n), else it is multiplied by (N/n).
 // Ciphertext is pre-multiplied by (N/n)^-1 to remove the (N/n) factor.
 // Examples of full Trace for [0 + 1X + 2X^2 + 3X^3 + 4X^4 + 5X^5 + 6X^6 + 7X^7]
@@ -29,7 +25,6 @@ import (
 // 3)      [4 + 0X + 0X^2 - 0X^3 +20X^4 + 0X^5 + 0X^6 - 0X^7]
 //       + [4 + 4X + 0X^2 - 0X^3 -20X^4 + 0X^5 + 0X^6 - 0X^7]  {X-> X^(i * -1)}
 //       = [8 + 0X + 0X^2 - 0X^3 + 0X^4 + 0X^5 + 0X^6 - 0X^7]
->>>>>>> dev_rckks
 func (eval *evaluator) Trace(ctIn *Ciphertext, logSlotsStart, logSlotsEnd int, ctOut *Ciphertext) {
 
 	level := utils.MinInt(ctIn.Level(), ctOut.Level())
@@ -185,17 +180,6 @@ func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfa
 	}
 }
 
-<<<<<<< HEAD
-// Average returns the average of vectors of batchSize elemets.
-// The operation assumes that ctIn encrypts SlotCount/'batchSize' sub-vectors of size 'batchSize'.
-// It then replace all values of those sub-vectors by their average (relative to their sub-vector).
-// Operation requires log2(SlotCout/'batchSize') rotations.
-// Required rotation keys can be generated with 'RotationsForInnerSumLog(batchSize, SlotCount/batchSize)''
-func (eval *evaluator) Average(ctIn *Ciphertext, batchSize int, ctOut *Ciphertext) {
-
-	if batchSize&(batchSize-1) != 0 || batchSize > eval.params.Slots() {
-		panic("batchSize must be a power of two that is smaller or equal to the number of slots")
-=======
 // Average returns the average of vectors of batchSize elements.
 // The operation assumes that ctIn encrypts SlotCount/'batchSize' sub-vectors of size 'batchSize'.
 // It then replaces all values of those sub-vectors by the component-wise average between all the sub-vectors.
@@ -206,18 +190,13 @@ func (eval *evaluator) Average(ctIn *Ciphertext, logBatchSize int, ctOut *Cipher
 
 	if logBatchSize > eval.params.LogSlots() {
 		panic("batchSize must be smaller or equal to the number of slots")
->>>>>>> dev_rckks
 	}
 
 	ringQ := eval.params.RingQ()
 
 	level := utils.MinInt(ctIn.Level(), ctOut.Level())
 
-<<<<<<< HEAD
-	n := eval.params.Slots() / batchSize
-=======
 	n := eval.params.Slots() / (1 << logBatchSize)
->>>>>>> dev_rckks
 
 	// pre-multiplication by n^-1
 	for i := 0; i < level+1; i++ {
@@ -231,18 +210,10 @@ func (eval *evaluator) Average(ctIn *Ciphertext, logBatchSize int, ctOut *Cipher
 		ring.MulScalarMontgomeryVec(ctIn.Value[1].Coeffs[i], ctOut.Value[1].Coeffs[i], invN, Q, mredparams)
 	}
 
-<<<<<<< HEAD
-	// Partial trace evaluation where coefficients are either scaled by n or vanish.
-	eval.InnerSumLog(ctOut, batchSize, n, ctOut)
-}
-
-// InnerSumLog applies an optimized inner sum on the ciphetext (log2(n) + HW(n) rotations with double hoisting).
-=======
 	eval.InnerSumLog(ctOut, 1<<logBatchSize, n, ctOut)
 }
 
 // InnerSumLog applies an optimized inner sum on the ciphertext (log2(n) + HW(n) rotations with double hoisting).
->>>>>>> dev_rckks
 // The operation assumes that `ctIn` encrypts SlotCount/`batchSize` sub-vectors of size `batchSize` which it adds together (in parallel) by groups of `n`.
 // It outputs in ctOut a ciphertext for which the "leftmost" sub-vector of each group is equal to the sum of the group.
 // This method is faster than InnerSum when the number of rotations is large and uses log2(n) + HW(n) instead of 'n' keys.

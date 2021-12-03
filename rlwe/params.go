@@ -50,11 +50,7 @@ type ParametersLiteral struct {
 	LogQ     []int `json:",omitempty"`
 	LogP     []int `json:",omitempty"`
 	Sigma    float64
-<<<<<<< HEAD
-	RingType RingType
-=======
 	RingType ring.Type
->>>>>>> dev_rckks
 }
 
 // Parameters represents a set of generic RLWE parameters. Its fields are private and
@@ -66,72 +62,13 @@ type Parameters struct {
 	sigma    float64
 	ringQ    *ring.Ring
 	ringP    *ring.Ring
-<<<<<<< HEAD
-	ringType RingType
-}
-
-var (
-	// TestPN11QP54 is a set of default parameters with logN=11 and logQP=54
-	TestPN11QP54 = ParametersLiteral{
-		LogN:     11,
-		Q:        []uint64{0x3fffffffef8001},
-		P:        []uint64{},
-		Sigma:    DefaultSigma,
-		RingType: RingStandard,
-	}
-
-	// TestPN12QP109 is a set of default parameters with logN=12 and logQP=109
-	TestPN12QP109 = ParametersLiteral{
-		LogN:     12,
-		Q:        []uint64{0xffffc4001, 0x100008c001}, // 36 + 36 bits
-		P:        []uint64{0x1000090001},              // 36 bits
-		Sigma:    DefaultSigma,
-		RingType: RingStandard,
-	}
-	// TestPN13QP218 is a set of default parameters with logN=13 and logQP=218
-	TestPN13QP218 = ParametersLiteral{
-		LogN:     5,
-		Q:        []uint64{0x3fffffffef8001, 0x40000000120001, 0x3fffffffeb8001}, // 54 + 54 + 54 bits
-		P:        []uint64{0x80000000068001},                                     // 55 bits
-		Sigma:    DefaultSigma,
-		RingType: RingStandard,
-	}
-
-	// TestPN14QP438 is a set of default parameters with logN=14 and logQP=438
-	TestPN14QP438 = ParametersLiteral{
-		LogN: 14,
-		Q: []uint64{0x100000000060001, 0x80000000080001, 0x80000000130001,
-			0x40000000120001, 0x400000001d0001, 0x3fffffffd60001}, // 56 + 55 + 55 + 54 + 54 + 54 bits
-		P:        []uint64{0x7fffffffe90001, 0x80000000190001}, // 55 + 55 bits
-		Sigma:    DefaultSigma,
-		RingType: RingStandard,
-	}
-
-	// TestPN15QP880 is a set of default parameters with logN=15 and logQP=880
-	TestPN15QP880 = ParametersLiteral{
-		LogN: 15,
-		Q: []uint64{0x7ffffffffcc0001, 0x7ffffffffba0001, 0x8000000004a0001, // 59 + 59 + 59 bits
-			0x400000000360001, 0x3ffffffffbe0001, 0x400000000660001, // 58 + 58 + 58 bits
-			0x4000000008a0001, 0x400000000920001, 0x400000000980001, // 58 + 58 + 58 bits
-			0x400000000a40001, 0x400000000c00001, 0x3ffffffff3a0001}, // 58 + 58 + 58 bits
-		P:        []uint64{0xffffffffffc0001, 0x10000000006e0001, 0xfffffffff840001}, // 60 + 60 + 60 bits
-		Sigma:    DefaultSigma,
-		RingType: RingStandard,
-	}
-)
-=======
 	ringType ring.Type
 }
->>>>>>> dev_rckks
 
 // NewParameters returns a new set of generic RLWE parameters from the given ring degree logn, moduli q and p, and
 // error distribution parameter sigma. It returns the empty parameters Parameters{} and a non-nil error if the
 // specified parameters are invalid.
-<<<<<<< HEAD
-func NewParameters(logn int, q, p []uint64, sigma float64, ringType RingType) (Parameters, error) {
-=======
 func NewParameters(logn int, q, p []uint64, sigma float64, ringType ring.Type) (Parameters, error) {
->>>>>>> dev_rckks
 	var err error
 	if err = checkSizeParams(logn, len(q), len(p)); err != nil {
 		return Parameters{}, err
@@ -145,49 +82,12 @@ func NewParameters(logn int, q, p []uint64, sigma float64, ringType ring.Type) (
 		ringType: ringType,
 	}
 
-<<<<<<< HEAD
-	if ringType == RingStandard {
-
-		// Checks if moduli are valid
-		if err = CheckModuli(q, p, uint64(2<<logn)); err != nil {
-			return Parameters{}, err
-		}
-
-		if params.ringQ, err = ring.NewRing(1<<logn, q); err != nil {
-			return Parameters{}, err
-		}
-
-		if len(p) != 0 {
-			if params.ringP, err = ring.NewRing(1<<logn, p); err != nil {
-				return Parameters{}, err
-			}
-		}
-	} else if ringType == RingConjugateInvariant {
-
-		// Checks if moduli are valid
-		if err = CheckModuli(q, p, uint64(3<<logn)); err != nil {
-			return Parameters{}, err
-		}
-
-		if params.ringQ, err = ring.NewRingConjugateInvariant(1<<logn, q); err != nil {
-			return Parameters{}, err
-		}
-
-		if len(p) != 0 {
-			if params.ringP, err = ring.NewRingConjugateInvariant(1<<logn, p); err != nil {
-				return Parameters{}, err
-			}
-		}
-	}
-
-=======
 	// pre-check that moduli chain is of valid size and that all factors are prime.
 	// note: the Ring instantiation checks that the modulus are valid NTT-friendly primes.
 	if err = CheckModuli(q, p); err != nil {
 		return Parameters{}, err
 	}
 
->>>>>>> dev_rckks
 	copy(params.qi, q)
 	copy(params.pi, p)
 
@@ -208,16 +108,6 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
 	case paramDef.LogQ != nil && paramDef.Q == nil && paramDef.LogP != nil && paramDef.P == nil:
 		var q, p []uint64
 		var err error
-<<<<<<< HEAD
-		if paramDef.RingType == RingStandard {
-			q, p, err = GenModuli(paramDef.LogN, paramDef.LogQ, paramDef.LogP)
-		} else if paramDef.RingType == RingConjugateInvariant {
-			q, p, err = GenModuli(paramDef.LogN+1, paramDef.LogQ, paramDef.LogP)
-		} else {
-			panic("invalid ringType")
-		}
-
-=======
 		switch paramDef.RingType {
 		case ring.Standard:
 			q, p, err = GenModuli(paramDef.LogN, paramDef.LogQ, paramDef.LogP)
@@ -226,7 +116,6 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
 		default:
 			panic("invalid ring type")
 		}
->>>>>>> dev_rckks
 		if err != nil {
 			return Parameters{}, err
 		}
@@ -287,11 +176,7 @@ func (p Parameters) Sigma() float64 {
 }
 
 // RingType returns the type of the underlying ring.
-<<<<<<< HEAD
-func (p Parameters) RingType() RingType {
-=======
 func (p Parameters) RingType() ring.Type {
->>>>>>> dev_rckks
 	return p.ringType
 }
 
@@ -433,11 +318,7 @@ func (p Parameters) GaloisElementForColumnRotationBy(k int) uint64 {
 // GaloisElementForRowRotation returns the galois element for generating the row
 // rotation automorphism
 func (p Parameters) GaloisElementForRowRotation() uint64 {
-<<<<<<< HEAD
-	if p.ringType == RingConjugateInvariant {
-=======
 	if p.ringType == ring.ConjugateInvariant {
->>>>>>> dev_rckks
 		panic("Cannot generate GaloisElementForRowRotation if ringType is ConjugateInvariant")
 	}
 	return p.ringQ.NthRoot - 1
@@ -450,16 +331,6 @@ func (p Parameters) GaloisElementsForRowInnerSum() (galEls []uint64) {
 	galEls = make([]uint64, p.logN)
 	for i := 0; i < int(p.logN)-1; i++ {
 		galEls[i] = p.GaloisElementForColumnRotationBy(1 << i)
-<<<<<<< HEAD
-	}
-
-	if p.ringType == RingStandard {
-		galEls[p.logN-1] = p.GaloisElementForRowRotation()
-	} else {
-		galEls[p.logN-1] = p.GaloisElementForColumnRotationBy(1 << (p.logN - 1))
-	}
-
-=======
 	}
 
 	switch p.ringType {
@@ -471,7 +342,6 @@ func (p Parameters) GaloisElementsForRowInnerSum() (galEls []uint64) {
 		panic("invalid ring type")
 	}
 
->>>>>>> dev_rckks
 	return galEls
 }
 
@@ -534,11 +404,7 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	lenQ := int(b.ReadUint8())
 	lenP := int(b.ReadUint8())
 	sigma := math.Float64frombits(b.ReadUint64())
-<<<<<<< HEAD
-	ringType := RingType(b.ReadUint8())
-=======
 	ringType := ring.Type(b.ReadUint8())
->>>>>>> dev_rckks
 
 	if err := checkSizeParams(logN, lenQ, lenP); err != nil {
 		return err
@@ -574,13 +440,8 @@ func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 	return
 }
 
-<<<<<<< HEAD
-// CheckModuli checks that the provided q and p correspond to a valid moduli chain
-func CheckModuli(q, p []uint64, NthRoot uint64) error {
-=======
 // CheckModuli checks that the provided q and p correspond to a valid moduli chain.
 func CheckModuli(q, p []uint64) error {
->>>>>>> dev_rckks
 
 	if len(q) > MaxModuliCount {
 		return fmt.Errorf("#Qi is larger than %d", MaxModuliCount)
@@ -603,24 +464,14 @@ func CheckModuli(q, p []uint64) error {
 	}
 
 	for i, qi := range q {
-<<<<<<< HEAD
-		if !ring.IsPrime(qi) || qi&(NthRoot-1) != 1 {
-			return fmt.Errorf("Qi (i=%d) is not an NTT prime", i)
-=======
 		if !ring.IsPrime(qi) {
 			return fmt.Errorf("a Qi (i=%d) is not a prime", i)
->>>>>>> dev_rckks
 		}
 	}
 
 	for i, pi := range p {
-<<<<<<< HEAD
-		if !ring.IsPrime(pi) || pi&(NthRoot-1) != 1 {
-			return fmt.Errorf("Pi (i=%d) is not an NTT prime", i)
-=======
 		if !ring.IsPrime(pi) {
 			return fmt.Errorf("a Pi (i=%d) is not a prime", i)
->>>>>>> dev_rckks
 		}
 	}
 

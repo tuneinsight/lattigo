@@ -24,16 +24,6 @@ func NewEncryptor(params Parameters, key interface{}) Encryptor {
 	return &encryptor{rlwe.NewEncryptor(params.Parameters, key), params}
 }
 
-<<<<<<< HEAD
-=======
-// NewFastEncryptor instantiates a new Encryptor for the CKKS scheme.
-// This encryptor's Encrypt method first encrypts zero in Q and then adds the plaintext.
-// This method is faster than the normal encryptor but result in a noisier ciphertext.
-func NewFastEncryptor(params Parameters, key *rlwe.PublicKey) Encryptor {
-	return &encryptor{rlwe.NewFastEncryptor(params.Parameters, key), params}
-}
-
->>>>>>> dev_rckks
 // Encrypt encrypts the input plaintext and write the result on ciphertext. The encryption
 // algorithm depends on how the receiver encryptor was initialized (see NewEncryptor
 // and NewFastEncryptor).

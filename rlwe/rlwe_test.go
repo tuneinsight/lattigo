@@ -9,7 +9,6 @@ import (
 	"math/bits"
 	"runtime"
 	"testing"
-	"time"
 
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/utils"
@@ -20,11 +19,7 @@ import (
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 
 // TestParams is a set of test parameters for the correctness of the rlwe pacakge.
-<<<<<<< HEAD
-var TestParams = []ParametersLiteral{TestPN11QP54, TestPN12QP109, TestPN13QP218, TestPN14QP438, TestPN15QP880}
-=======
 var TestParams = []ParametersLiteral{TestPN12QP109, TestPN13QP218, TestPN14QP438, TestPN15QP880, TestPN16QP240, TestPN17QP360}
->>>>>>> dev_rckks
 
 func testString(params Parameters, opname string) string {
 	return fmt.Sprintf("%slogN=%d/logQ=%d/logP=%d/#Qi=%d/#Pi=%d",
@@ -165,7 +160,6 @@ func testRGSW(kgen KeyGenerator, t *testing.T) {
 
 		rgswciphertext := make([]*RGSWCiphertext, 1<<12)
 		for i := 0; i < 1; i++ {
-			fmt.Println(i)
 			rgswciphertext[i] = NewCiphertextRGSWNTT(params, params.MaxLevel())
 			encryptor.(*skEncryptor).EncryptRGSW(plaintextRGSW, rgswciphertext[i])
 
@@ -175,11 +169,9 @@ func testRGSW(kgen KeyGenerator, t *testing.T) {
 
 		ctOut := NewCiphertextNTT(params, 1, params.MaxLevel())
 
-		now := time.Now()
-		for i := 0; i < 1<<10; i++ {
+		for i := 0; i < 1; i++ {
 			ks.MulRGSW(ct, rgswciphertext[0], ctOut)
 		}
-		fmt.Printf("Done: %s", time.Since(now))
 
 		ringQ.MulCoeffsMontgomeryAndAddLvl(ctOut.Level(), ctOut.Value[1], sk.Value.Q, ctOut.Value[0])
 		ringQ.InvNTTLvl(ctOut.Level(), ctOut.Value[0], ctOut.Value[0])
@@ -480,17 +472,6 @@ func testKeySwitcher(kgen KeyGenerator, t *testing.T) {
 func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 
 	paramsLargeDim := kgen.(*keyGenerator).params
-<<<<<<< HEAD
-=======
-	paramsSmallDim, _ := NewParametersFromLiteral(ParametersLiteral{
-		LogN:     paramsLargeDim.LogN() - 1,
-		Q:        paramsLargeDim.Q()[:1],
-		P:        paramsLargeDim.P()[:1],
-		Sigma:    DefaultSigma,
-		RingType: paramsLargeDim.RingType(),
-	})
->>>>>>> dev_rckks
-
 	t.Run(testString(paramsLargeDim, "KeySwitchDimension/"), func(t *testing.T) {
 
 		if paramsLargeDim.PCount() == 0 {
@@ -517,15 +498,11 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 
 			swk := kgenLargeDim.GenSwitchingKey(skLargeDim, skSmallDim)
 
-<<<<<<< HEAD
 			plaintext := NewPlaintext(paramsLargeDim, paramsLargeDim.MaxLevel())
 			plaintext.Value.IsNTT = true
 			encryptor := NewEncryptor(paramsLargeDim, skLargeDim)
 			ctLargeDim := NewCiphertextNTT(paramsLargeDim, 1, plaintext.Level())
 			encryptor.Encrypt(plaintext, ctLargeDim)
-=======
-		SwitchCiphertextRingDegreeNTT(ctLargeDim, ringQSmallDim, ringQLargeDim, ctSmallDim)
->>>>>>> dev_rckks
 
 			ks := NewKeySwitcher(paramsLargeDim)
 			ks.SwitchKeysInPlace(paramsSmallDim.MaxLevel(), ctLargeDim.Value[1], swk, ks.Pool[1].Q, ks.Pool[2].Q)
@@ -561,12 +538,8 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 			ctSmallDim := NewCiphertextNTT(paramsSmallDim, 1, plaintext.Level())
 			encryptor.Encrypt(plaintext, ctSmallDim)
 
-<<<<<<< HEAD
 			//Extracts Coefficients
 			ctLargeDim := NewCiphertextNTT(paramsLargeDim, 1, plaintext.Level())
-=======
-		SwitchCiphertextRingDegreeNTT(ctSmallDim, nil, nil, ctLargeDim)
->>>>>>> dev_rckks
 
 			SwitchCiphertextRingDegreeNTT(ctSmallDim, nil, nil, ctLargeDim)
 
@@ -705,11 +678,7 @@ func testMarshaller(kgen KeyGenerator, t *testing.T) {
 
 		rots := []int{1, -1, 63, -63}
 		galEls := []uint64{}
-<<<<<<< HEAD
-		if params.RingType() == RingStandard {
-=======
 		if params.RingType() == ring.Standard {
->>>>>>> dev_rckks
 			galEls = append(galEls, params.GaloisElementForRowRotation())
 		}
 

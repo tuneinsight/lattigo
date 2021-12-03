@@ -5,6 +5,8 @@ import (
 	"github.com/ldsec/lattigo/v2/rlwe"
 )
 
+// RLWEToLWESingle extract the first coefficient of the input RLWE and returns it
+// as a LWE sample.
 func RLWEToLWESingle(ct *rlwe.Ciphertext, ringQ *ring.Ring) (lwe *Ciphertext) {
 
 	level := ct.Level()
@@ -39,7 +41,7 @@ func RLWEToLWESingle(ct *rlwe.Ciphertext, ringQ *ring.Ring) (lwe *Ciphertext) {
 	return
 }
 
-// RLWEToLWE extracts LWE samples from a RLWE sample
+// RLWEToLWE extracts all LWE samples from a RLWE ciphertext.
 func RLWEToLWE(ct *rlwe.Ciphertext, ringQ *ring.Ring, logSlots int) (LWE []*Ciphertext) {
 
 	n := 1 << logSlots

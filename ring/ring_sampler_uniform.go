@@ -136,7 +136,7 @@ func RandUniform(prng utils.PRNG, v uint64, mask uint64) (randomInt uint64) {
 	}
 }
 
-// randInt32 samples a uniform variable in the range [0, mask], where mask is of the form 2^n-1, with n in [0, 32].
+// RandInt32 samples a uniform variable in the range [0, mask], where mask is of the form 2^n-1, with n in [0, 32].
 func RandInt32(prng utils.PRNG, mask uint64) uint64 {
 
 	// generate random 4 bytes
@@ -150,7 +150,7 @@ func RandInt32(prng utils.PRNG, mask uint64) uint64 {
 	return mask & randomUint32
 }
 
-// randInt64 samples a uniform variable in the range [0, mask], where mask is of the form 2^n-1, with n in [0, 64].
+// RandInt64 samples a uniform variable in the range [0, mask], where mask is of the form 2^n-1, with n in [0, 64].
 func RandInt64(prng utils.PRNG, mask uint64) uint64 {
 
 	// generate random 8 bytes

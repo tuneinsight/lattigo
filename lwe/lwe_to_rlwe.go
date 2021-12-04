@@ -5,7 +5,6 @@ import (
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 	"math/bits"
-	"fmt"
 )
 
 // LWEToRLWE transforms a set of LWE samples into their respective RLWE ciphertext such that decrypt(RLWE)[0] = decrypt(LWE)
@@ -48,21 +47,11 @@ func (h *Handler) LWEToRLWE(ctLWE []*Ciphertext) (ctRLWE []*rlwe.Ciphertext) {
 // inputs RLWE should have been created using the method LWEToRLWE.
 func (h *Handler) MergeRLWE(ciphertexts []*rlwe.Ciphertext) (ciphertext *rlwe.Ciphertext) {
 
-	slots := len(ciphertexts)
-
-	if slots&(slots-1) != 0 {
-		panic("len(ciphertext) must be a power of two smaller or equal to the ring degree")
-	}
-
-	logSlots := bits.Len64(uint64(len(ciphertexts))) - 1
-
 	level := ciphertexts[0].Level()
 
 	ringQ := h.paramsLUT.RingQ()
 
-	fmt.Println(h.paramsLUT.LogN(), logSlots)
-
-	nPowInv := h.nPowInv[h.paramsLUT.LogN()-logSlots]
+	NInv := ringQ.NttNInv
 	Q := ringQ.Modulus
 	mredParams := ringQ.MredParams
 
@@ -70,37 +59,20 @@ func (h *Handler) MergeRLWE(ciphertexts []*rlwe.Ciphertext) (ciphertext *rlwe.Ci
 	for i := range ciphertexts {
 		if ciphertexts[i] != nil {
 			v0, v1 := ciphertexts[i].Value[0], ciphertexts[i].Value[1]
-			for j := 0; j < ciphertexts[0].Level()+1; j++ {
-				ring.MulScalarMontgomeryVec(v0.Coeffs[j], v0.Coeffs[j], nPowInv[j], Q[j], mredParams[j])
-				ring.MulScalarMontgomeryVec(v1.Coeffs[j], v1.Coeffs[j], nPowInv[j], Q[j], mredParams[j])
+			for j := 0; j < level+1; j++ {
+				ring.MulScalarMontgomeryVec(v0.Coeffs[j], v0.Coeffs[j], NInv[j], Q[j], mredParams[j])
+				ring.MulScalarMontgomeryVec(v1.Coeffs[j], v1.Coeffs[j], NInv[j], Q[j], mredParams[j])
 			}
 		}
 	}
 
-	// Padds for the repacking algorithm
-	if slots != h.paramsLUT.N() {
-		ciphertexts = append(ciphertexts, make([]*rlwe.Ciphertext, h.paramsLUT.N()-len(ciphertexts))...)
-		/*
-		N := ringQ.N
-		gap := N / slots
-		for i := 0; i < slots; i++ {
-			ciphertexts[N-(i+1)*gap], ciphertexts[slots-i-1] = ciphertexts[slots-i-1], ciphertexts[N-(i+1)*gap]
+	for i := range ciphertexts{
+		if ciphertexts[i] == nil{
+			ciphertexts[i] = rlwe.NewCiphertextNTT(h.paramsLUT, 1, level)
 		}
-		*/
 	}
 
-	fmt.Println(ciphertexts)
-
-	ciphertext = h.mergeRLWERecurse(ciphertexts)
-
-	tmp := rlwe.NewCiphertextNTT(h.paramsLUT, 1, ciphertext.Level())
-	for i := logSlots - 1; i < h.paramsLUT.LogN()-1; i++ {
-		rotate(ciphertext, h.paramsLUT.GaloisElementForColumnRotationBy(1<<i), h.permuteNTTIndex, h.paramsLUT, h.KeySwitcher, h.rtks, tmp)
-		ringQ.AddLvl(level, ciphertext.Value[0], tmp.Value[0], ciphertext.Value[0])
-		ringQ.AddLvl(level, ciphertext.Value[1], tmp.Value[1], ciphertext.Value[1])
-	}
-
-	return
+	return h.mergeRLWERecurse(ciphertexts)
 }
 
 func (h *Handler) mergeRLWERecurse(ciphertexts []*rlwe.Ciphertext) *rlwe.Ciphertext {

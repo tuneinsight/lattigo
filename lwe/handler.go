@@ -14,7 +14,6 @@ type Handler struct {
 	paramsLWE rlwe.Parameters
 	rtks      *rlwe.RotationKeySet
 
-	nPowInv      [][]uint64
 	xPow         []*ring.Poly
 	xPowMinusOne []rlwe.PolyQP
 
@@ -38,16 +37,9 @@ func NewHandler(paramsLUT, paramsLWE rlwe.Parameters, rtks *rlwe.RotationKeySet)
 	h.poolMod2N = [2]*ring.Poly{paramsLWE.RingQ().NewPolyLvl(0), paramsLWE.RingQ().NewPolyLvl(0)}
 	h.accumulator = rlwe.NewCiphertextNTT(paramsLUT, 1, paramsLUT.MaxLevel())
 
-	h.nPowInv = make([][]uint64, paramsLUT.LogN())
 	h.xPow = make([]*ring.Poly, paramsLUT.LogN())
 
 	for i := 0; i < paramsLUT.LogN(); i++ {
-		h.nPowInv[i] = make([]uint64, paramsLUT.MaxLevel()+1)
-		var nTimesN uint64 = 1 << (paramsLUT.LogN() + i)
-		for j := 0; j < paramsLUT.MaxLevel()+1; j++ {
-			h.nPowInv[i][j] = ring.MForm(ring.ModExp(nTimesN, ringQ.Modulus[j]-2, ringQ.Modulus[j]), ringQ.Modulus[j], ringQ.BredParams[j])
-		}
-
 		h.xPow[i] = ringQ.NewPoly()
 		if i == 0 {
 			for j := 0; j < paramsLUT.MaxLevel()+1; j++ {

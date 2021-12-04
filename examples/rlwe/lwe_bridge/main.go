@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math"
 	"math/bits"
-	"math/rand"
 	"time"
 
 	"github.com/ldsec/lattigo/v2/ring"
@@ -23,7 +22,7 @@ import (
 func main() {
 
 	LogN := 12
-	LogSlots := 8 // can go up to LogN
+	LogSlots := 12 // can go up to LogN
 
 	RLWEParams := rlwe.ParametersLiteral{
 		LogN:     LogN,
@@ -39,8 +38,7 @@ func main() {
 	ks := rlwe.NewKeySwitcher(params)
 	kgen := rlwe.NewKeyGenerator(params)
 
-	NTimesLogSlotsInv := ring.ModExp((1 << (2*LogN - LogSlots)), ringQ.Modulus[0]-2, ringQ.Modulus[0])
-	NTimesLogSlotsInv = ring.MForm(NTimesLogSlotsInv, ringQ.Modulus[0], ringQ.BredParams[0])
+	NInv := ringQ.NttNInv[0]
 
 	sk := kgen.GenSecretKey()
 	encryptor := rlwe.NewEncryptor(params, sk)
@@ -59,12 +57,20 @@ func main() {
 		permuteNTTIndex[galEl] = ringQ.PermuteNTTIndex(galEl)
 	}
 
+	XPow := make(map[int]*ring.Poly)
+	for i := 1; i < LogSlots+1; i++ {
+		XpowNoverL := ringQ.NewPoly()
+		XpowNoverL.Coeffs[0][ringQ.N/(1<<i)] = ring.MForm(1, ringQ.Modulus[0], ringQ.BredParams[0])
+		ringQ.NTT(XpowNoverL, XpowNoverL)
+		XPow[i] = XpowNoverL
+	}
+
 	// Plaintext generation & Encryption
 	plaintext := rlwe.NewPlaintext(params, params.MaxLevel())
 	plaintext.Value.IsNTT = true
 	gap := 1 << (LogN - LogSlots)
 	for i, j := 0, 0; i < ringQ.N; i, j = i+gap, j+1 {
-		plaintext.Value.Coeffs[0][i] = uint64(float64(j%2) * scale)
+		plaintext.Value.Coeffs[0][i] = uint64(float64(j) * scale)
 	}
 
 	ringQ.NTT(plaintext.Value, plaintext.Value)
@@ -82,15 +88,6 @@ func main() {
 	LWE := RLWEToLWE(ciphertext, LogSlots, params)
 	fmt.Printf("  Done : %s\n", time.Since(now))
 
-	fmt.Printf("Shuffling the LWE samples")
-	now = time.Now()
-	rand.Shuffle(len(LWE), func(i, j int) { // for the sake of the example, this is using an insecure, fixed-seed RNG
-		lwei := LWE[i]
-		LWE[i] = LWE[j]
-		LWE[j] = lwei
-	})
-	fmt.Printf(" Done : %s\n", time.Since(now))
-
 	// LWEs to RLWEs switches each individual LWE ciphertext into RLWE ciphertexts such that
 	// dec(RLWEs[i])[0] = dec(LWE[i])
 	now = time.Now()
@@ -100,23 +97,12 @@ func main() {
 
 	// RLWEs to RLWE : repacks all the RLWEs into a single RLWE such that dec(RLWE) = M(X)
 	fmt.Printf("Repacking  RLWEs -> RLWE")
-	XPow := make(map[int]*ring.Poly)
-	for i := 1; i < LogSlots+1; i++ {
-		XpowNoverL := ringQ.NewPoly()
-		XpowNoverL.Coeffs[0][ringQ.N/(1<<i)] = ring.MForm(1, ringQ.Modulus[0], ringQ.BredParams[0])
-		ringQ.NTT(XpowNoverL, XpowNoverL)
-		XPow[i] = XpowNoverL
-	}
-	now = time.Now()
-	ciphertext = PackLWEs(ciphertexts, ks, rtks, XPow, NTimesLogSlotsInv, permuteNTTIndex, params)
+	
+	n := gap*8
+	ciphertexts = append(ciphertexts[:n], make([]*rlwe.Ciphertext, params.N()-n)...)
 
-	// Trace
-	tmp := rlwe.NewCiphertextNTT(params, 1, plaintext.Level())
-	for i := LogSlots - 1; i < LogN-1; i++ {
-		Rotate(ciphertext, params.GaloisElementForColumnRotationBy(1<<i), permuteNTTIndex, params, ks, rtks, tmp)
-		ringQ.Add(ciphertext.Value[0], tmp.Value[0], ciphertext.Value[0])
-		ringQ.Add(ciphertext.Value[1], tmp.Value[1], ciphertext.Value[1])
-	}
+	now = time.Now()
+	ciphertext = PackLWEs(ciphertexts, ks, rtks, XPow, NInv, permuteNTTIndex, params)
 	fmt.Printf("  Done : %s\n", time.Since(now))
 
 	fmt.Println("\nPlaintext after slot-shuffling:\nM'(X) =")
@@ -203,7 +189,7 @@ func LWEToRLWE(lwe []LWESample, level int, params rlwe.Parameters) (ciphertexts 
 }
 
 // PackLWEs repacks LWE ciphertexts into a RLWE ciphertext
-func PackLWEs(ciphertexts []*rlwe.Ciphertext, ks *rlwe.KeySwitcher, rtks *rlwe.RotationKeySet, XPow map[int]*ring.Poly, NTimesLogSlotsInv uint64, permuteNTTIndex map[uint64][]uint64, params rlwe.Parameters) *rlwe.Ciphertext {
+func PackLWEs(ciphertexts []*rlwe.Ciphertext, ks *rlwe.KeySwitcher, rtks *rlwe.RotationKeySet, XPow map[int]*ring.Poly, NInv uint64, permuteNTTIndex map[uint64][]uint64, params rlwe.Parameters) *rlwe.Ciphertext {
 
 	ringQ := params.RingQ()
 
@@ -212,8 +198,8 @@ func PackLWEs(ciphertexts []*rlwe.Ciphertext, ks *rlwe.KeySwitcher, rtks *rlwe.R
 	if L == 0 {
 		// Multiplies by (Slots * N) ^-1 mod Q
 		if ciphertexts[0] != nil {
-			ring.MulScalarMontgomeryVec(ciphertexts[0].Value[0].Coeffs[0], ciphertexts[0].Value[0].Coeffs[0], NTimesLogSlotsInv, ringQ.Modulus[0], ringQ.MredParams[0])
-			ring.MulScalarMontgomeryVec(ciphertexts[0].Value[1].Coeffs[0], ciphertexts[0].Value[1].Coeffs[0], NTimesLogSlotsInv, ringQ.Modulus[0], ringQ.MredParams[0])
+			ring.MulScalarMontgomeryVec(ciphertexts[0].Value[0].Coeffs[0], ciphertexts[0].Value[0].Coeffs[0], NInv, ringQ.Modulus[0], ringQ.MredParams[0])
+			ring.MulScalarMontgomeryVec(ciphertexts[0].Value[1].Coeffs[0], ciphertexts[0].Value[1].Coeffs[0], NInv, ringQ.Modulus[0], ringQ.MredParams[0])
 		}
 		return ciphertexts[0]
 	}
@@ -226,8 +212,8 @@ func PackLWEs(ciphertexts []*rlwe.Ciphertext, ks *rlwe.KeySwitcher, rtks *rlwe.R
 		even[i] = ciphertexts[2*i+1]
 	}
 
-	ctEven := PackLWEs(odd, ks, rtks, XPow, NTimesLogSlotsInv, permuteNTTIndex, params)
-	ctOdd := PackLWEs(even, ks, rtks, XPow, NTimesLogSlotsInv, permuteNTTIndex, params)
+	ctEven := PackLWEs(odd, ks, rtks, XPow, NInv, permuteNTTIndex, params)
+	ctOdd := PackLWEs(even, ks, rtks, XPow, NInv, permuteNTTIndex, params)
 
 	if ctEven == nil && ctOdd == nil {
 		return nil

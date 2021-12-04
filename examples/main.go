@@ -49,8 +49,8 @@ var Q = []uint64{0x80000000080001, 0x2000000e0001, 0x1fffffc20001}
 var P = []uint64{0x4000000008a0001}
 
 var ckksParamsN12 = ckks.ParametersLiteral{
-	LogN:         10,
-	LogSlots:     7,
+	LogN:         5,
+	LogSlots:     3,
 	Q:            Q,
 	P:            P,
 	DefaultScale: 1 << 40,
@@ -59,7 +59,7 @@ var ckksParamsN12 = ckks.ParametersLiteral{
 }
 
 var ckksParamsN10 = ckks.ParametersLiteral{
-	LogN:     9,
+	LogN:     4,
 	Q:        Q[:1],
 	P:        P[:1],
 	Sigma:    rlwe.DefaultSigma,
@@ -126,6 +126,8 @@ func LUT() {
 
 	kgenN10 := ckks.NewKeyGenerator(paramsN10)
 	skN10 := kgenN10.GenSecretKey()
+	decryptorN10 := ckks.NewDecryptor(paramsN10, skN10)
+	encoderN10 := ckks.NewEncoder(paramsN10)
 
 	swkN12ToN10 := kgenN12.GenSwitchingKey(skN12, skN10)
 
@@ -186,10 +188,14 @@ func LUT() {
 	//eval.AddConst(ctN12, 2*(-a - b), ctN12)
 	ctN12 = eval.SlotsToCoeffsNew(ctN12, nil, SlotsToCoeffsMatrix)
 	ctN12.Scale = paramsN10.QiFloat64(0) / 4.0
+
+	fmt.Println(encoderN12.DecodeCoeffs(decryptorN12.DecryptNew(ctN12)))
+
 	eval.DropLevel(ctN12, ctN12.Level())
 	ctTmp := eval.SwitchKeysNew(ctN12, swkN12ToN10)
 	ctN10 := ckks.NewCiphertext(paramsN10, 1, paramsN10.MaxLevel(), ctTmp.Scale)
 	rlwe.SwitchCiphertextRingDegreeNTT(ctTmp.Ciphertext, paramsN10.RingQ(), paramsN12.RingQ(), ctN10.Ciphertext)
+	fmt.Println(encoderN10.DecodeCoeffs(decryptorN10.DecryptNew(ctN10)))
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
 	fmt.Printf("Evaluating LUT... ")

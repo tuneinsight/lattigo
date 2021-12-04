@@ -5,6 +5,7 @@ import (
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 	"math/bits"
+	"fmt"
 )
 
 // LWEToRLWE transforms a set of LWE samples into their respective RLWE ciphertext such that decrypt(RLWE)[0] = decrypt(LWE)
@@ -59,6 +60,8 @@ func (h *Handler) MergeRLWE(ciphertexts []*rlwe.Ciphertext) (ciphertext *rlwe.Ci
 
 	ringQ := h.paramsLUT.RingQ()
 
+	fmt.Println(h.paramsLUT.LogN(), logSlots)
+
 	nPowInv := h.nPowInv[h.paramsLUT.LogN()-logSlots]
 	Q := ringQ.Modulus
 	mredParams := ringQ.MredParams
@@ -77,12 +80,16 @@ func (h *Handler) MergeRLWE(ciphertexts []*rlwe.Ciphertext) (ciphertext *rlwe.Ci
 	// Padds for the repacking algorithm
 	if slots != h.paramsLUT.N() {
 		ciphertexts = append(ciphertexts, make([]*rlwe.Ciphertext, h.paramsLUT.N()-len(ciphertexts))...)
+		/*
 		N := ringQ.N
 		gap := N / slots
 		for i := 0; i < slots; i++ {
 			ciphertexts[N-(i+1)*gap], ciphertexts[slots-i-1] = ciphertexts[slots-i-1], ciphertexts[N-(i+1)*gap]
 		}
+		*/
 	}
+
+	fmt.Println(ciphertexts)
 
 	ciphertext = h.mergeRLWERecurse(ciphertexts)
 

@@ -5,6 +5,7 @@ import (
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"math"
 	"math/big"
+	"fmt"
 )
 
 // InitLUT takes a function g, and creates an LUT polynomial for the function between the intervals a, b.
@@ -131,6 +132,8 @@ func (h *Handler) ExtractAndEvaluateLUT(ct *rlwe.Ciphertext, lutPolyWihtSlotInde
 			res[index] = acc.CopyNew()
 		}
 	}
+
+	fmt.Println(res)
 
 	return
 }

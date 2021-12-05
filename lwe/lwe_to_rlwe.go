@@ -66,11 +66,13 @@ func (h *Handler) MergeRLWE(ciphertexts []*rlwe.Ciphertext) (ciphertext *rlwe.Ci
 		}
 	}
 
+	/*
 	for i := range ciphertexts{
 		if ciphertexts[i] == nil{
 			ciphertexts[i] = rlwe.NewCiphertextNTT(h.paramsLUT, 1, level)
 		}
 	}
+	*/
 
 	return h.mergeRLWERecurse(ciphertexts)
 }

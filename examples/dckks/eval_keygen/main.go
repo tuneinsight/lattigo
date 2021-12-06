@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"math"
 	"math/big"
@@ -41,6 +42,10 @@ type party struct {
 	genTaskQueue chan genTask
 }
 
+func (p *party) String() string {
+	return fmt.Sprintf("Party#%d", p.i)
+}
+
 type cloud struct {
 	*drlwe.RTGProtocol
 
@@ -53,13 +58,17 @@ type cloud struct {
 
 var crp []*ring.Poly
 
-func (p *party) Run(wg *sync.WaitGroup, params ckks.Parameters, P []*party, C *cloud) {
+func (p *party) Run(wg *sync.WaitGroup, params ckks.Parameters, N int, P []*party, C *cloud) {
 
 	var i int
+	var start time.Time
+	var cpuTime time.Duration
+	var byteSent int
 	for task := range p.genTaskQueue {
+
+		start = time.Now()
 		var sk *rlwe.SecretKey
 		t := len(task.group)
-		N := len(P)
 		if t == N {
 			sk = p.sk
 		} else {
@@ -77,10 +86,13 @@ func (p *party) Run(wg *sync.WaitGroup, params ckks.Parameters, P []*party, C *c
 			p.GenShare(sk, galEl, crp, rtgShare)
 			C.aggTaskQueue <- genTaskResult{galEl: galEl, rtgShare: rtgShare}
 			i++
+			byteSent += len(rtgShare.Value) * rtgShare.Value[0].GetDataLen(false)
 		}
+
+		cpuTime += time.Since(start)
 	}
 	wg.Done()
-	fmt.Printf("\tParty %d finished generating %d shares\n", p.i, i)
+	fmt.Printf("\tParty %d finished generating %d shares in %s, sent %s\n", p.i, i, cpuTime, ByteCountSI(byteSent))
 }
 
 func (c *cloud) Run(galEls []uint64, params ckks.Parameters, t int) {
@@ -97,7 +109,10 @@ func (c *cloud) Run(galEls []uint64, params ckks.Parameters, t int) {
 	}
 
 	var i int
+	var cpuTime time.Duration
+	var byteRecv int
 	for task := range c.aggTaskQueue {
+		start := time.Now()
 		acc := shares[task.galEl]
 		c.Aggregate(acc.share, task.rtgShare, acc.share)
 		acc.needed--
@@ -110,21 +125,40 @@ func (c *cloud) Run(galEls []uint64, params ckks.Parameters, t int) {
 			}{galEl: task.galEl, rtk: *rtk}
 		}
 		i++
+		cpuTime += time.Since(start)
+		byteRecv += len(acc.share.Value) * acc.share.Value[0].GetDataLen(false)
 	}
 	close(c.finDone)
-	fmt.Printf("\tCloud finished aggregating %d shares\n", i)
+	fmt.Printf("\tCloud finished aggregating %d shares in %s, received %s\n", i, cpuTime, ByteCountSI(byteRecv))
 
 }
 
-func getSubGroups(P []*party, t, N int) [][]*party {
-	if t == N {
+func getSubGroups(P []*party, t, k int) [][]*party {
+	if t == len(P) {
 		return [][]*party{P}
 	}
-	return [][]*party{
-		{P[0], P[1]},
-		{P[0], P[2]},
-		{P[1], P[2]},
+	if t > len(P) {
+		panic("t > len(P)")
 	}
+
+	groups := [][]*party{}
+	for i := 0; i < k; i++ {
+		start := (i * t) % len(P)
+		end := ((i + 1) * t) % len(P)
+		switch {
+		case i > 0 && start == 0 && end == t:
+			return groups
+		case start > end:
+			group := make([]*party, t)
+			copy(group, P[0:end])
+			copy(group[end:], P[start:])
+			groups = append(groups, group)
+		default:
+			groups = append(groups, P[start:end])
+		}
+	}
+
+	return groups
 }
 
 func getTasks(galEls []uint64, groups [][]*party) []genTask {
@@ -138,24 +172,51 @@ func getTasks(galEls []uint64, groups [][]*party) []genTask {
 	return tasks
 }
 
+var flagN = flag.Int("N", 3, "the number of parties")
+var flagT = flag.Int("t", 2, "the threshold")
+var flagO = flag.Int("o", 0, "the number of online parties")
+var flagK = flag.Int("k", 10, "number of rotation keys to generate")
+var flagParams = flag.Int("params", 3, "default param set to use")
+
 func main() {
 
-	btpParams := ckks.DefaultBootstrapParams[4] // LogN=15, LogSlot=14, Rotations=130
-	params, err := btpParams.Params()
-	//params, err := ckks.NewParametersFromLiteral(ckks.DefaultParams[0])
+	flag.Parse()
+
+	if *flagParams >= len(ckks.DefaultParams) {
+		panic("invalid default parameter set")
+	}
+
+	params, err := ckks.NewParametersFromLiteral(ckks.DefaultParams[*flagParams])
 	if err != nil {
 		panic(err)
 	}
-	rots := btpParams.RotationsForBootstrapping(params.LogSlots())[:]
-	//rots := []int{2, 4, 8, 16, 32, 64}
-	galEls := make([]uint64, len(rots))
-	for i, rot := range rots {
-		galEls[i] = params.GaloisElementForColumnRotationBy(rot)
+
+	if *flagN < 2 {
+		panic("-N should be >= 2")
+	}
+	N := *flagN
+
+	if *flagT > N {
+		panic("-t should be <= N")
+	}
+	t := *flagT
+
+	var o int
+	if *flagO <= 0 {
+		o = N
+	} else {
+		o = *flagO
 	}
 
-	N := 3
-	t := 2
-	k := len(galEls)
+	if *flagK < 1 {
+		panic("-k should be >= 1")
+	}
+	k := *flagK
+
+	galEls := make([]uint64, k)
+	for i := range galEls {
+		galEls[i] = params.GaloisElementForColumnRotationBy(i + 1)
+	}
 
 	fmt.Printf("Starting for N=%d, t=%d\n", N, t)
 	fmt.Printf("LogN=%d, LogSlot=%d, k=%d\n", params.LogN(), params.LogSlots(), k)
@@ -221,16 +282,18 @@ func main() {
 		}
 	}
 
-	fmt.Printf("Generating %d rotation keys\n", len(galEls))
+	P = P[:o]
+
+	groups := getSubGroups(P, t, k)
+	fmt.Printf("Generating %d rotation keys with %d parties in %d groups\n", len(galEls), len(P), len(groups))
 
 	go C.Run(galEls, params, t)
 	for _, pi := range P {
-		go pi.Run(wg, params, P, C)
+		go pi.Run(wg, params, N, P, C)
 	}
 
-	wg.Add(N)
+	wg.Add(len(P))
 	start := time.Now()
-	groups := getSubGroups(P, N, t)
 	tasks := getTasks(galEls, groups)
 	for _, task := range tasks {
 		for _, p := range task.group {
@@ -363,4 +426,18 @@ func log2OfInnerSum(level int, ringQ *ring.Ring, poly *ring.Poly) (logSum int) {
 	}
 
 	return
+}
+
+func ByteCountSI(b int) string {
+	const unit = 1000
+	if b < unit {
+		return fmt.Sprintf("%d B", b)
+	}
+	div, exp := int64(unit), 0
+	for n := b / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB",
+		float64(b)/float64(div), "kMGTPE"[exp])
 }

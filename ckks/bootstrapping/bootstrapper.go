@@ -121,11 +121,15 @@ func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey rl
 
 	// CoeffsToSlots vectors
 	// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum + evantual scaling factor for the double angle formula
+	bb.CoeffsToSlotsParameters.LogN = params.LogN()
+	bb.CoeffsToSlotsParameters.LogSlots = params.LogSlots()
 	bb.CoeffsToSlotsParameters.Scaling = 1.0 / (K * n * scFac * qDiff)
 	bb.ctsMatrices = advanced.NewHomomorphicEncodingMatrixFromLiteral(bb.CoeffsToSlotsParameters, encoder)
 
 	// SlotsToCoeffs vectors
 	// Rescaling factor to set the final ciphertext to the desired scale
+	bb.SlotsToCoeffsParameters.LogN = params.LogN()
+	bb.SlotsToCoeffsParameters.LogSlots = params.LogSlots()
 	bb.SlotsToCoeffsParameters.Scaling = bb.params.DefaultScale() / (bb.evalModPoly.ScalingFactor() / bb.evalModPoly.MessageRatio())
 	bb.stcMatrices = advanced.NewHomomorphicEncodingMatrixFromLiteral(bb.SlotsToCoeffsParameters, encoder)
 

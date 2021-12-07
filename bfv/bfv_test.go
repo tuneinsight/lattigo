@@ -19,7 +19,7 @@ var flagLongTest = flag.Bool("long", false, "run the long test suite (all parame
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 
 func testString(opname string, p Parameters) string {
-	return fmt.Sprintf("%sLogN=%d/logQ=%d/alpha=%d/beta=%d", opname, p.LogN(), p.LogQP(), p.PCount(), p.Beta())
+	return fmt.Sprintf("LogN=%d/logQ=%d/alpha=%d/beta=%d/%s", p.LogN(), p.LogQP(), p.PCount(), p.Beta(), opname)
 }
 
 type testContext struct {

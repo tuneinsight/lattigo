@@ -24,15 +24,15 @@ var printPrecisionStats = flag.Bool("print-precision", false, "print precision s
 var minPrec float64 = 15.0
 
 func GetTestName(params Parameters, opname string) string {
-	return fmt.Sprintf("%sRingType=%s/logN=%d/logQP=%d/LogSlots=%d/levels=%d/alpha=%d/beta=%d",
-		opname,
+	return fmt.Sprintf("RingType=%s/logN=%d/logQP=%d/LogSlots=%d/levels=%d/alpha=%d/beta=%d/%s",
 		params.RingType(),
 		params.LogN(),
 		params.LogQP(),
 		params.LogSlots(),
 		params.MaxLevel()+1,
 		params.PCount(),
-		params.Beta())
+		params.Beta(),
+		opname)
 }
 
 type testContext struct {

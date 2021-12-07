@@ -36,6 +36,9 @@ func main() {
 
 	// Homomorphic decoding parameters
 	SlotsToCoeffsParameters := ckksAdvanced.EncodingMatrixLiteral{
+		LogN:                paramsRLWE.LogN(),
+		LogSlots:            paramsRLWE.LogSlots(),
+		Scaling:             1.0,
 		LinearTransformType: ckksAdvanced.SlotsToCoeffs,
 		LevelStart:          2,     // starting level
 		BSGSRatio:           16.0,  // ratio between n1/n2 for n1*n2 = slots
@@ -75,7 +78,7 @@ func main() {
 
 	fmt.Printf("Gen SlotsToCoeffs Matrices... ")
 	start = time.Now()
-	SlotsToCoeffsMatrix := ckksAdvanced.NewHomomorphicEncodingMatrixFromLiteral(SlotsToCoeffsParameters, paramsRLWE, encoder, paramsRLWE.LogN(), paramsRLWE.LogSlots(), 1.0)
+	SlotsToCoeffsMatrix := ckksAdvanced.NewHomomorphicEncodingMatrixFromLiteral(SlotsToCoeffsParameters, encoder)
 	fmt.Printf("Done (%s)\n", time.Since(start))
 
 	fmt.Printf("Gen Evaluation Keys:\n")

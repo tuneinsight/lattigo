@@ -25,6 +25,9 @@ type EncodingMatrix struct {
 // EncodingMatrixLiteral is a struct storing the parameters to generate the factorized DFT matrix.
 type EncodingMatrixLiteral struct {
 	LinearTransformType LinearTransformType
+	LogN                int     // log(RingDegree)
+	LogSlots            int     // log(slots)
+	Scaling             float64 // constant by which the matrix is multiplied with
 	LevelStart          int     // Encoding level
 	BitReversed         bool    // Flag for bit-reverseed input to the DFT (with bit-reversed output), by default false.
 	BSGSRatio           float64 // n1/n2 ratio for the bsgs algo for matrix x vector eval
@@ -87,12 +90,13 @@ func (mParams *EncodingMatrixLiteral) Rotations(logN, logSlots int) (rotations [
 // NewHomomorphicEncodingMatrixFromLiteral generates the factorized encoding matrix.
 // scaling : constant by witch the all the matrices will be multuplied by.
 // encoder : ckks.Encoder.
-func NewHomomorphicEncodingMatrixFromLiteral(mParams EncodingMatrixLiteral, params ckks.Parameters, encoder ckks.Encoder, logN, logSlots int, scaling complex128) EncodingMatrix {
+func NewHomomorphicEncodingMatrixFromLiteral(mParams EncodingMatrixLiteral, encoder ckks.Encoder) EncodingMatrix {
 
+	logSlots := mParams.LogSlots
 	slots := 1 << logSlots
 	depth := mParams.Depth(false)
-	logdSlots := logSlots + 1
-	if logdSlots == logN {
+	logdSlots := mParams.LogSlots + 1
+	if logdSlots == mParams.LogN {
 		logdSlots--
 	}
 
@@ -105,6 +109,8 @@ func NewHomomorphicEncodingMatrixFromLiteral(mParams EncodingMatrixLiteral, para
 	}
 
 	ctsLevels := mParams.Levels()
+
+	scaling := complex(math.Pow(mParams.Scaling, 1.0/float64(mParams.Depth(false))), 0)
 
 	// CoeffsToSlots vectors
 	matrices := make([]ckks.LinearTransform, len(ctsLevels))

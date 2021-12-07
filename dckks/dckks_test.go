@@ -165,7 +165,7 @@ func testPublicKeyGen(testCtx *testContext, t *testing.T) {
 	sk0Shards := testCtx.sk0Shards
 	params := testCtx.params
 
-	t.Run(testString("PublicKeyGen/", parties, params), func(t *testing.T) {
+	t.Run(testString("PublicKeyGen", parties, params), func(t *testing.T) {
 
 		type Party struct {
 			*CKGProtocol
@@ -215,7 +215,7 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 	sk0Shards := testCtx.sk0Shards
 	params := testCtx.params
 
-	t.Run(testString("RelinKeyGen/", parties, params), func(t *testing.T) {
+	t.Run(testString("RelinKeyGen", parties, params), func(t *testing.T) {
 
 		type Party struct {
 			*RKGProtocol
@@ -288,7 +288,7 @@ func testKeyswitching(testCtx *testContext, t *testing.T) {
 	sk1Shards := testCtx.sk1Shards
 	params := testCtx.params
 
-	t.Run(testString("Keyswitching/", parties, params), func(t *testing.T) {
+	t.Run(testString("Keyswitching", parties, params), func(t *testing.T) {
 
 		coeffs, _, ciphertextFullLevels := newTestVectors(testCtx, encryptorPk0, -1, 1, t)
 
@@ -349,7 +349,7 @@ func testPublicKeySwitching(testCtx *testContext, t *testing.T) {
 	pk1 := testCtx.pk1
 	params := testCtx.params
 
-	t.Run(testString("PublicKeySwitching/", parties, params), func(t *testing.T) {
+	t.Run(testString("PublicKeySwitching", parties, params), func(t *testing.T) {
 
 		coeffs, _, ciphertextFullLevels := newTestVectors(testCtx, encryptorPk0, -1, 1, t)
 
@@ -402,7 +402,7 @@ func testRotKeyGenConjugate(testCtx *testContext, t *testing.T) {
 	sk0Shards := testCtx.sk0Shards
 	params := testCtx.params
 
-	t.Run(testString("RotKeyGenConjugate/", parties, params), func(t *testing.T) {
+	t.Run(testString("RotKeyGenConjugate", parties, params), func(t *testing.T) {
 
 		if testCtx.params.RingType() == ring.ConjugateInvariant {
 			t.Skip("Conjugate not defined in Ring Conjugate Invariant")
@@ -464,7 +464,7 @@ func testRotKeyGenCols(testCtx *testContext, t *testing.T) {
 	sk0Shards := testCtx.sk0Shards
 	params := testCtx.params
 
-	t.Run(testString("RotKeyGenCols/", parties, params), func(t *testing.T) {
+	t.Run(testString("RotKeyGenCols", parties, params), func(t *testing.T) {
 
 		type Party struct {
 			*RTGProtocol
@@ -518,7 +518,7 @@ func testE2SProtocol(testCtx *testContext, t *testing.T) {
 
 	params := testCtx.params
 
-	t.Run(testString("E2SProtocol/", parties, params), func(t *testing.T) {
+	t.Run(testString("E2SProtocol", parties, params), func(t *testing.T) {
 
 		var minLevel, logBound int
 		var ok bool
@@ -605,7 +605,7 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 	decryptorSk0 := testCtx.decryptorSk0
 	params := testCtx.params
 
-	t.Run(testString("Refresh/", parties, params), func(t *testing.T) {
+	t.Run(testString("Refresh", parties, params), func(t *testing.T) {
 
 		var minLevel, logBound int
 		var ok bool
@@ -660,7 +660,7 @@ func testRefreshAndTransform(testCtx *testContext, t *testing.T) {
 	params := testCtx.params
 	decryptorSk0 := testCtx.decryptorSk0
 
-	t.Run(testString("RefreshAndTransform/", parties, params), func(t *testing.T) {
+	t.Run(testString("RefreshAndTransform", parties, params), func(t *testing.T) {
 
 		var minLevel, logBound int
 		var ok bool
@@ -721,7 +721,7 @@ func testRefreshAndTransform(testCtx *testContext, t *testing.T) {
 func testMarshalling(testCtx *testContext, t *testing.T) {
 	params := testCtx.params
 
-	t.Run(testString("Marshalling/Refresh/", parties, params), func(t *testing.T) {
+	t.Run(testString("Marshalling/Refresh", parties, params), func(t *testing.T) {
 
 		var minLevel, logBound int
 		var ok bool

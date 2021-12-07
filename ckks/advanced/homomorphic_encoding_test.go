@@ -2,7 +2,6 @@ package advanced
 
 import (
 	"flag"
-	"math"
 	"runtime"
 	"testing"
 
@@ -126,6 +125,9 @@ func testCoeffsToSlots(params ckks.Parameters, t *testing.T) {
 		// Then checks that Dcd(Dec(Enc(Ecd(vReal)))) = vReal and Dcd(Dec(Enc(Ecd(vImag)))) = vImag
 
 		CoeffsToSlotsParametersLiteral := EncodingMatrixLiteral{
+			LogN:                params.LogN(),
+			LogSlots:            params.LogSlots(),
+			Scaling:             1.0 / float64(2*params.Slots()),
 			LinearTransformType: CoeffsToSlots,
 			LevelStart:          params.MaxLevel(),
 			BSGSRatio:           16.0,
@@ -143,10 +145,8 @@ func testCoeffsToSlots(params ckks.Parameters, t *testing.T) {
 		encryptor := ckks.NewEncryptor(params, sk)
 		decryptor := ckks.NewDecryptor(params, sk)
 
-		n := math.Pow(1.0/float64(2*params.Slots()), 1.0/float64(CoeffsToSlotsParametersLiteral.Depth(true)))
-
 		// Generates the encoding matrices
-		CoeffsToSlotMatrices := NewHomomorphicEncodingMatrixFromLiteral(CoeffsToSlotsParametersLiteral, params, encoder, params.LogN(), params.LogSlots(), complex(n, 0))
+		CoeffsToSlotMatrices := NewHomomorphicEncodingMatrixFromLiteral(CoeffsToSlotsParametersLiteral, encoder)
 
 		// Gets the rotations indexes for CoeffsToSlots
 		rotations := CoeffsToSlotsParametersLiteral.Rotations(params.LogN(), params.LogSlots())
@@ -241,6 +241,9 @@ func testSlotsToCoeffs(params ckks.Parameters, t *testing.T) {
 		// In case of 2*slots < N, then there is a gap of N/(2*slots) between each values
 
 		SlotsToCoeffsParametersLiteral := EncodingMatrixLiteral{
+			LogN:                params.LogN(),
+			LogSlots:            params.LogSlots(),
+			Scaling:             1.0,
 			LinearTransformType: SlotsToCoeffs,
 			LevelStart:          params.MaxLevel(),
 			BSGSRatio:           16.0,
@@ -259,7 +262,7 @@ func testSlotsToCoeffs(params ckks.Parameters, t *testing.T) {
 		decryptor := ckks.NewDecryptor(params, sk)
 
 		// Generates the encoding matrices
-		SlotsToCoeffsMatrix := NewHomomorphicEncodingMatrixFromLiteral(SlotsToCoeffsParametersLiteral, params, encoder, params.LogN(), params.LogSlots(), 1.0)
+		SlotsToCoeffsMatrix := NewHomomorphicEncodingMatrixFromLiteral(SlotsToCoeffsParametersLiteral, encoder)
 
 		// Gets the rotations indexes for SlotsToCoeffs
 		rotations := SlotsToCoeffsParametersLiteral.Rotations(params.LogN(), params.LogSlots())

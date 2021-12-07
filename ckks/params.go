@@ -506,7 +506,7 @@ func (p Parameters) RotationsForTrace(logSlotsStart, logSlotsEnd int) (rotations
 
 // RotationsForDiagMatrixMult generates of all the rotations needed for a the multiplication
 // with the provided diagonal plaintext matrix.
-func (p Parameters) RotationsForDiagMatrixMult(matrix PtDiagMatrix) []int {
+func (p Parameters) RotationsForDiagMatrixMult(matrix LinearTransform) []int {
 	slots := 1 << matrix.LogSlots
 
 	rotKeyIndex := []int{}

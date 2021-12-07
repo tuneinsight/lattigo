@@ -1,10 +1,11 @@
 package advanced
 
 import (
+	"math"
+
 	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
-	"math"
 )
 
 // Evaluator is an interface embeding the ckks.Evaluator interface with
@@ -55,8 +56,8 @@ type Evaluator interface {
 	InverseNew(ctIn *ckks.Ciphertext, steps int) (ctOut *ckks.Ciphertext)
 	LinearTransformNew(ctIn *ckks.Ciphertext, linearTransform interface{}) (ctOut []*ckks.Ciphertext)
 	LinearTransform(ctIn *ckks.Ciphertext, linearTransform interface{}, ctOut []*ckks.Ciphertext)
-	MultiplyByDiagMatrix(ctIn *ckks.Ciphertext, matrix ckks.PtDiagMatrix, c2DecompQP []rlwe.PolyQP, ctOut *ckks.Ciphertext)
-	MultiplyByDiagMatrixBSGS(ctIn *ckks.Ciphertext, matrix ckks.PtDiagMatrix, c2DecompQP []rlwe.PolyQP, ctOut *ckks.Ciphertext)
+	MultiplyByDiagMatrix(ctIn *ckks.Ciphertext, matrix ckks.LinearTransform, c2DecompQP []rlwe.PolyQP, ctOut *ckks.Ciphertext)
+	MultiplyByDiagMatrixBSGS(ctIn *ckks.Ciphertext, matrix ckks.LinearTransform, c2DecompQP []rlwe.PolyQP, ctOut *ckks.Ciphertext)
 	InnerSumLog(ctIn *ckks.Ciphertext, batch, n int, ctOut *ckks.Ciphertext)
 	InnerSum(ctIn *ckks.Ciphertext, batch, n int, ctOut *ckks.Ciphertext)
 	ReplicateLog(ctIn *ckks.Ciphertext, batch, n int, ctOut *ckks.Ciphertext)
@@ -201,16 +202,16 @@ func (eval *evaluator) SlotsToCoeffs(ctReal, ctImag *ckks.Ciphertext, stcMatrice
 	return
 }
 
-func (eval *evaluator) dft(ctIn *ckks.Ciphertext, plainVectors []ckks.PtDiagMatrix, ctOut *ckks.Ciphertext) {
+func (eval *evaluator) dft(ctIn *ckks.Ciphertext, plainVectors []ckks.LinearTransform, ctOut *ckks.Ciphertext) {
 
 	// Sequentially multiplies w with the provided dft matrices.
+	scale := ctIn.Scale
 	var in, out *ckks.Ciphertext
 	for i, plainVector := range plainVectors {
 		in, out = ctOut, ctOut
 		if i == 0 {
 			in, out = ctIn, ctOut
 		}
-		scale := out.Scale
 		eval.LinearTransform(in, plainVector, []*ckks.Ciphertext{out})
 		if err := eval.Rescale(out, scale, out); err != nil {
 			panic(err)

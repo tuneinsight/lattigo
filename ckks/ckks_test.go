@@ -24,15 +24,15 @@ var printPrecisionStats = flag.Bool("print-precision", false, "print precision s
 var minPrec float64 = 15.0
 
 func GetTestName(params Parameters, opname string) string {
-	return fmt.Sprintf("%sRingType=%s/logN=%d/logQP=%d/LogSlots=%d/levels=%d/alpha=%d/beta=%d",
-		opname,
+	return fmt.Sprintf("RingType=%s/logN=%d/logQP=%d/LogSlots=%d/levels=%d/alpha=%d/beta=%d/%s",
 		params.RingType(),
 		params.LogN(),
 		params.LogQP(),
 		params.LogSlots(),
 		params.MaxLevel()+1,
 		params.PCount(),
-		params.Beta())
+		params.Beta(),
+		opname)
 }
 
 type testContext struct {
@@ -935,7 +935,7 @@ func testBridge(tc *testContext, t *testing.T) {
 	t.Run(GetTestName(tc.params, "Bridge/"), func(t *testing.T) {
 
 		if tc.params.RingType() != ring.ConjugateInvariant {
-			t.Skip("only tested for params.RingTypre() == ring.ConjugateInvariant")
+			t.Skip("only tested for params.RingType() == ring.ConjugateInvariant")
 		}
 
 		ciParams := tc.params
@@ -1265,15 +1265,15 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 			diagMatrix[15][i] = complex(1, 0)
 		}
 
-		ptDiagMatrix := tc.encoder.EncodeDiagMatrixBSGS(diagMatrix, params.MaxLevel(), params.DefaultScale(), 1.0, params.LogSlots())
+		linTransf := NewLinearTransformBSGS(tc.encoder, diagMatrix, params.MaxLevel(), params.DefaultScale(), 1.0, params.logSlots)
 
-		rots := tc.params.RotationsForDiagMatrixMult(ptDiagMatrix)
+		rots := tc.params.RotationsForDiagMatrixMult(linTransf)
 
 		rotKey := tc.kgen.GenRotationKeysForRotations(rots, false, tc.sk)
 
 		eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
 
-		eval.LinearTransform(ciphertext1, ptDiagMatrix, []*Ciphertext{ciphertext1})
+		eval.LinearTransform(ciphertext1, linTransf, []*Ciphertext{ciphertext1})
 
 		tmp := make([]complex128, params.Slots())
 		copy(tmp, values1)
@@ -1308,15 +1308,15 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 			diagMatrix[0][i] = complex(1, 0)
 		}
 
-		ptDiagMatrix := tc.encoder.EncodeDiagMatrix(diagMatrix, params.MaxLevel(), params.DefaultScale(), params.LogSlots())
+		linTransf := NewLinearTransform(tc.encoder, diagMatrix, params.MaxLevel(), params.DefaultScale(), params.LogSlots())
 
-		rots := tc.params.RotationsForDiagMatrixMult(ptDiagMatrix)
+		rots := tc.params.RotationsForDiagMatrixMult(linTransf)
 
 		rotKey := tc.kgen.GenRotationKeysForRotations(rots, false, tc.sk)
 
 		eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
 
-		eval.LinearTransform(ciphertext1, ptDiagMatrix, []*Ciphertext{ciphertext1})
+		eval.LinearTransform(ciphertext1, linTransf, []*Ciphertext{ciphertext1})
 
 		tmp := make([]complex128, params.Slots())
 		copy(tmp, values1)

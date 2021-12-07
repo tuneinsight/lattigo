@@ -1,9 +1,10 @@
 package advanced
 
 import (
+	"math"
+
 	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/utils"
-	"math"
 )
 
 // LinearTransformType is a type used to distinguish different linear transformations.
@@ -18,7 +19,7 @@ const (
 // EncodingMatrix is a struct storing the factorized DFT matrix
 type EncodingMatrix struct {
 	EncodingMatrixLiteral
-	matrices []ckks.PtDiagMatrix
+	matrices []ckks.LinearTransform
 }
 
 // EncodingMatrixLiteral is a struct storing the parameters to generate the factorized DFT matrix.
@@ -86,7 +87,7 @@ func (mParams *EncodingMatrixLiteral) Rotations(logN, logSlots int) (rotations [
 // NewHomomorphicEncodingMatrixFromLiteral generates the factorized encoding matrix.
 // scaling : constant by witch the all the matrices will be multuplied by.
 // encoder : ckks.Encoder.
-func NewHomomorphicEncodingMatrixFromLiteral(mParams EncodingMatrixLiteral, encoder ckks.Encoder, logN, logSlots int, scaling complex128) EncodingMatrix {
+func NewHomomorphicEncodingMatrixFromLiteral(mParams EncodingMatrixLiteral, params ckks.Parameters, encoder ckks.Encoder, logN, logSlots int, scaling complex128) EncodingMatrix {
 
 	slots := 1 << logSlots
 	depth := mParams.Depth(false)
@@ -106,13 +107,13 @@ func NewHomomorphicEncodingMatrixFromLiteral(mParams EncodingMatrixLiteral, enco
 	ctsLevels := mParams.Levels()
 
 	// CoeffsToSlots vectors
-	matrices := make([]ckks.PtDiagMatrix, len(ctsLevels))
+	matrices := make([]ckks.LinearTransform, len(ctsLevels))
 	pVecDFT := computeDFTMatrices(logSlots, logdSlots, depth, roots, pow5, scaling, mParams.LinearTransformType, mParams.BitReversed)
 	cnt := 0
 	trueDepth := mParams.Depth(true)
 	for i := range mParams.ScalingFactor {
 		for j := range mParams.ScalingFactor[trueDepth-i-1] {
-			matrices[cnt] = encoder.EncodeDiagMatrixBSGS(pVecDFT[cnt], ctsLevels[cnt], mParams.ScalingFactor[trueDepth-i-1][j], mParams.BSGSRatio, logdSlots)
+			matrices[cnt] = ckks.NewLinearTransformBSGS(encoder, pVecDFT[cnt], ctsLevels[cnt], mParams.ScalingFactor[trueDepth-i-1][j], mParams.BSGSRatio, logdSlots)
 			cnt++
 		}
 	}

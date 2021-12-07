@@ -75,7 +75,7 @@ func main() {
 
 	fmt.Printf("Gen SlotsToCoeffs Matrices... ")
 	start = time.Now()
-	SlotsToCoeffsMatrix := ckksAdvanced.NewHomomorphicEncodingMatrixFromLiteral(SlotsToCoeffsParameters, encoder, paramsRLWE.LogN(), paramsRLWE.LogSlots(), 1.0)
+	SlotsToCoeffsMatrix := ckksAdvanced.NewHomomorphicEncodingMatrixFromLiteral(SlotsToCoeffsParameters, paramsRLWE, encoder, paramsRLWE.LogN(), paramsRLWE.LogSlots(), 1.0)
 	fmt.Printf("Done (%s)\n", time.Since(start))
 
 	fmt.Printf("Gen Evaluation Keys:\n")
@@ -236,14 +236,14 @@ func main() {
 		AMatDiag[i] = tmp
 	}
 
-	ptMatDiag := encoder.EncodeDiagMatrixBSGS(AMatDiag, paramsRLWE.MaxLevel(), 1.0, 16.0, paramsLWE.LogN())
+	linTransf := ckks.NewLinearTransformBSGS(encoder, AMatDiag, paramsRLWE.MaxLevel(), 1.0, 16.0, paramsLWE.LogN())
 	fmt.Printf("Done (%s)\n", time.Since(start))
 
 	evalRepack := ckks.NewEvaluator(paramsRLWE, rlwe.EvaluationKey{Rlk: rlk, Rtks: rotKeyRepack})
 
 	fmt.Printf("Homomorphic Partial Decryption : pt = A x sk + encode(LWE) + I(X)*Q... ")
 	start = time.Now()
-	ctAs := evalRepack.LinearTransformNew(ctSk, ptMatDiag)[0]                // A_left * sk || A_right * sk
+	ctAs := evalRepack.LinearTransformNew(ctSk, linTransf)[0]                // A_left * sk || A_right * sk
 	ctAs = evalRepack.TraceNew(ctAs, paramsLWE.LogSlots(), paramsLWE.LogN()) // A * sk || A * sk
 	evalRepack.MultByConst(ctAs, paramsLWE.N()/paramsLWE.Slots(), ctAs)
 	eval.Rescale(ctAs, 1.0, ctAs)

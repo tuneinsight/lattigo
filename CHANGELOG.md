@@ -18,7 +18,8 @@ All notable changes to this project will be documented in this file.
 - CKKS: uniformized the arguments' position for all methods of the `Encoder` interface.
 - CKKS: renamed `Encoder.EncodeNTT/New` to `Encoder.Encode/New`.
 - CKKS: renamed `Scale` to `DefaultScale` in `Parameters` and `ParametersLiteral`.
-- CKKS: renamed `Encoder.EncodeDiagMatrixBSGSAtLvl` to `Encoder.EncodeDiagMatrixBSGS`.
+- CKKS: renamed `PtDiagMatrix` to `LinearTransform`
+- CKKS: changed constructors of `LinearTransform` structs from `Encoder.EncodeDiagMatrix*` to `NewLinearTransform*`.
 - CKKS: added `EncodeSlotsQP` to encode on `rlwe.PolyQP` and create custom `PtDiagMatrix`.
 - CKKS: `GetPrecisionStats` now also accepts `[]float64`.
 - CKKS: `Approximate` now accepts `func(float64)float64` and `func(complex128)complex128`

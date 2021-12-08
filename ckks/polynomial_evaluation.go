@@ -450,6 +450,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetScale floa
 		// If a non-zero degre coefficient was found, encode and adds the values on the output
 		// ciphertext
 		if toEncode {
+
 			pt.Scale = res.Scale
 			polyEval.EncodeSlots(values, pt, params.LogSlots())
 			polyEval.Add(res, pt, res)
@@ -459,6 +460,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetScale floa
 		// Loops starting from the highest degree coefficient
 		for key := pol.Value[0].Degree(); key > 0; key-- {
 
+			var reset bool
 			// Loops over the polynomials
 			for i, p := range pol.Value {
 
@@ -470,8 +472,11 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetScale floa
 					// is needed if a zero coefficient
 					// is at the place of a previous non-zero
 					// coefficient
-					for j := range values {
-						values[j] = 0
+					if !reset {
+						for j := range values {
+							values[j] = 0
+						}
+						reset = true
 					}
 
 					// Copies the coefficient on the temporary array
@@ -555,6 +560,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetScale floa
 	if err = polyEval.Rescale(res, targetScale, res); err != nil {
 		return nil, err
 	}
+
 	return
 }
 

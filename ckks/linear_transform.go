@@ -189,6 +189,8 @@ func EncodeOnAllocatedLinearTransform(encoder Encoder, value interface{}, scale 
 		params.RingQP().NTTLvl(levelQ, levelP, vec, vec)
 		params.RingQP().MFormLvl(levelQ, levelP, vec, vec)
 	}
+
+	LT.Scale = scale
 }
 
 // NewLinearTransform creates a new LinearTransform struct from the linear transforms' matrix in diagonalized form `value`.

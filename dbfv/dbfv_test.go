@@ -22,7 +22,7 @@ var flagParamString = flag.String("params", "", "specify the test cryptographic 
 var parties int = 3
 
 func testString(opname string, parties int, params bfv.Parameters) string {
-	return fmt.Sprintf("LogN=%d/logQ=%d/parties=%d/%s", params.LogN(), params.LogQP(), parties, opname)
+	return fmt.Sprintf("%s/LogN=%d/logQ=%d/parties=%d", opname, params.LogN(), params.LogQP(), parties)
 }
 
 type testContext struct {

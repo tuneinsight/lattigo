@@ -29,7 +29,7 @@ type PolynomialVector struct {
 	SlotsIndex map[int][]int
 }
 
-// NewPolynmialVector creates a new PolynomialVector, whose degree
+// NewPolynomialVector creates a new PolynomialVector, whose degree
 // is the maximum degree among all the polynomials.
 // pols : a list of polynomials (indexed)
 // slotsIndex : a map with as input the index of the polynomial to apply and output the index of the slots
@@ -40,7 +40,7 @@ type PolynomialVector struct {
 // Example: if pols = []*Polynomial{pol0, pol1} and slotsIndex = map[int][]int:{0:[1, 2, 4, 5, 7],
 // 1:[0, 3]}, then pol0 will be applied to slots [1, 2, 4, 5, 7], pol1 to slots [0, 3] and the slot
 // 6 will be multiplied by zero.
-func NewPolynmialVector(pols []*Polynomial, slotsIndex map[int][]int, encoder Encoder) PolynomialVector {
+func NewPolynomialVector(pols []*Polynomial, slotsIndex map[int][]int, encoder Encoder) PolynomialVector {
 	var maxDeg int
 	var basis PolynomialBasis
 	for i := range pols {

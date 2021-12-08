@@ -87,7 +87,7 @@ func chebyshevinterpolation() {
 	slotsIndex[0] = idxF // Assigns index of all even slots to poly[0] = f(x)
 	slotsIndex[1] = idxG // Assigns index of all odd slots to poly[1] = g(x)
 
-	polyVector := ckks.NewPolynmialVector([]*ckks.Polynomial{approxF, approxG}, slotsIndex, encoder)
+	polyVector := ckks.NewPolynomialVector([]*ckks.Polynomial{approxF, approxG}, slotsIndex, encoder)
 
 	// Change of variable
 	evaluator.MultByConst(ciphertext, 2/(b-a), ciphertext)

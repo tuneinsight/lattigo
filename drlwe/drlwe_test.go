@@ -19,7 +19,7 @@ import (
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 
 func testString(params rlwe.Parameters, opname string) string {
-	return fmt.Sprintf("%slogN=%d/logQ=%d/logP=%d/#Qi=%d/#Pi=%d",
+	return fmt.Sprintf("%s/logN=%d/logQ=%d/logP=%d/#Qi=%d/#Pi=%d",
 		opname,
 		params.LogN(),
 		params.LogQ(),
@@ -98,7 +98,7 @@ func testPublicKeyGen(testCtx testContext, t *testing.T) {
 	ringQP := params.RingQP()
 	levelQ, levelP := params.QCount()-1, params.PCount()-1
 
-	t.Run(testString(params, "PublicKeyGen/"), func(t *testing.T) {
+	t.Run(testString(params, "PublicKeyGen"), func(t *testing.T) {
 
 		ckg := NewCKGProtocol(params)
 
@@ -134,7 +134,7 @@ func testKeySwitching(testCtx testContext, t *testing.T) {
 	ringQ := params.RingQ()
 	ringQP := params.RingQP()
 	levelQ, levelP := params.QCount()-1, params.PCount()-1
-	t.Run(testString(params, "KeySwitching/"), func(t *testing.T) {
+	t.Run(testString(params, "KeySwitching"), func(t *testing.T) {
 
 		sk0Out := testCtx.kgen.GenSecretKey()
 		sk1Out := testCtx.kgen.GenSecretKey()
@@ -181,7 +181,7 @@ func testPublicKeySwitching(testCtx testContext, t *testing.T) {
 	params := testCtx.params
 	ringQ := params.RingQ()
 
-	t.Run(testString(params, "PublicKeySwitching/"), func(t *testing.T) {
+	t.Run(testString(params, "PublicKeySwitching"), func(t *testing.T) {
 
 		skOut, pkOut := testCtx.kgen.GenKeyPair()
 
@@ -224,7 +224,7 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 	ringQP := params.RingQP()
 	levelQ, levelP := params.QCount()-1, params.PCount()-1
 
-	t.Run(testString(params, "RelinKeyGen/"), func(t *testing.T) {
+	t.Run(testString(params, "RelinKeyGen"), func(t *testing.T) {
 
 		if params.PCount() == 0 {
 			t.Skip("method is unsuported when params.PCount() == 0")
@@ -304,7 +304,7 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 	ringQP := params.RingQP()
 	levelQ, levelP := params.QCount()-1, params.PCount()-1
 
-	t.Run(testString(params, "RotKeyGen/"), func(t *testing.T) {
+	t.Run(testString(params, "RotKeyGen"), func(t *testing.T) {
 
 		if params.PCount() == 0 {
 			t.Skip("method is unsuported when params.PCount() == 0")
@@ -380,7 +380,7 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 	testCtx.uniformSampler.Read(ciphertext.Value[0])
 	testCtx.uniformSampler.Read(ciphertext.Value[1])
 
-	t.Run(testString(params, "Marshalling/CKG/"), func(t *testing.T) {
+	t.Run(testString(params, "Marshalling/CKG"), func(t *testing.T) {
 		ckg := NewCKGProtocol(testCtx.params)
 		KeyGenShareBefore := ckg.AllocateShares()
 		crs := ckg.SampleCRP(testCtx.crs)
@@ -408,7 +408,7 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 		require.Equal(t, KeyGenShareAfter.Value.P.Coeffs, KeyGenShareBefore.Value.P.Coeffs)
 	})
 
-	t.Run(testString(params, "Marshalling/PCKS/"), func(t *testing.T) {
+	t.Run(testString(params, "Marshalling/PCKS"), func(t *testing.T) {
 		//Check marshalling for the PCKS
 
 		KeySwitchProtocol := NewPCKSProtocol(testCtx.params, testCtx.params.Sigma())
@@ -431,7 +431,7 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 		require.Equal(t, SwitchShare.Value[1].Coeffs, SwitchShareReceiver.Value[1].Coeffs)
 	})
 
-	t.Run(testString(params, "Marshalling/CKS/"), func(t *testing.T) {
+	t.Run(testString(params, "Marshalling/CKS"), func(t *testing.T) {
 
 		//Now for CKSShare ~ its similar to PKSShare
 		cksp := NewCKSProtocol(testCtx.params, testCtx.params.Sigma())
@@ -452,7 +452,7 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 		require.Equal(t, cksshare.Value.Coeffs, cksshareAfter.Value.Coeffs)
 	})
 
-	t.Run(testString(params, "Marshalling/RKG/"), func(t *testing.T) {
+	t.Run(testString(params, "Marshalling/RKG"), func(t *testing.T) {
 
 		if params.PCount() == 0 {
 			t.Skip("method is unsuported when params.PCount() == 0")
@@ -489,7 +489,7 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 		}
 	})
 
-	t.Run(testString(params, "Marshalling/RTG/"), func(t *testing.T) {
+	t.Run(testString(params, "Marshalling/RTG"), func(t *testing.T) {
 
 		if params.PCount() == 0 {
 			t.Skip("method is unsuported when params.PCount() == 0")

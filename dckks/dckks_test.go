@@ -24,7 +24,8 @@ var minPrec float64 = 15.0
 var parties int = 3
 
 func testString(opname string, parties int, params ckks.Parameters) string {
-	return fmt.Sprintf("RingType=%s/logN=%d/logSlots=%d/logQ=%d/levels=%d/alpha=%d/beta=%d/parties=%d/%s",
+	return fmt.Sprintf("%s/RingType=%s/logN=%d/logSlots=%d/logQ=%d/levels=%d/alpha=%d/beta=%d/parties=%d",
+		opname,
 		params.RingType(),
 		params.LogN(),
 		params.LogSlots(),
@@ -32,8 +33,7 @@ func testString(opname string, parties int, params ckks.Parameters) string {
 		params.MaxLevel()+1,
 		params.PCount(),
 		params.Beta(),
-		parties,
-		opname)
+		parties)
 }
 
 type testContext struct {

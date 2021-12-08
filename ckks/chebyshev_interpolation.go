@@ -9,12 +9,6 @@ import (
 // To be used in conjunction with the function EvaluateCheby.
 func Approximate(function interface{}, a, b float64, degree int) (pol *Polynomial) {
 
-	pol = new(Polynomial)
-	pol.A = a
-	pol.B = b
-	pol.MaxDeg = degree
-	pol.Lead = true
-	pol.Basis = ChebyshevBasis
 	nodes := chebyshevNodes(degree+1, a, b)
 
 	fi := make([]complex128, len(nodes))
@@ -32,7 +26,12 @@ func Approximate(function interface{}, a, b float64, degree int) (pol *Polynomia
 		panic("function must be either func(complex128)complex128 or func(float64)float64")
 	}
 
-	pol.Coeffs = chebyCoeffs(nodes, fi, a, b)
+	pol = NewPoly(chebyCoeffs(nodes, fi, a, b))
+	pol.A = a
+	pol.B = b
+	pol.MaxDeg = degree
+	pol.Lead = true
+	pol.Basis = ChebyshevBasis
 
 	return
 }

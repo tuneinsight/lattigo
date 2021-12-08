@@ -70,6 +70,9 @@ type Evaluator interface {
 	MulRelin(op0, op1 Operand, ctOut *Ciphertext)
 	MulRelinNew(op0, op1 Operand) (ctOut *Ciphertext)
 
+	MulAndAdd(op0, op1 Operand, ctOut *Ciphertext)
+	MulRelinAndAdd(op0, op1 Operand, ctOut *Ciphertext)
+
 	// Slot Rotations
 	RotateNew(ctIn *Ciphertext, k int) (ctOut *Ciphertext)
 	Rotate(ctIn *Ciphertext, k int, ctOut *Ciphertext)
@@ -93,7 +96,7 @@ type Evaluator interface {
 	PowerNew(ctIn *Ciphertext, degree int) (ctOut *Ciphertext)
 
 	// Polynomial evaluation
-	EvaluatePoly(ctIn *Ciphertext, pol *Polynomial, targetScale float64) (ctOut *Ciphertext, err error)
+	EvaluatePoly(ctIn *Ciphertext, pol interface{}, targetScale float64) (ctOut *Ciphertext, err error)
 
 	// Inversion
 	InverseNew(ctIn *Ciphertext, steps int) (ctOut *Ciphertext)
@@ -1271,6 +1274,110 @@ func (eval *evaluator) mulRelin(op0, op1 Operand, relin bool, ctOut *Ciphertext)
 		ringQ.MFormLvl(level, tmp0.Value[0], c00)
 		ringQ.MulCoeffsMontgomeryLvl(level, c00, tmp1.Value[0], ctOut.Value[0])
 		ringQ.MulCoeffsMontgomeryLvl(level, c00, tmp1.Value[1], ctOut.Value[1])
+	}
+}
+
+// Mul multiplies op0 with op1 without relinearization and adds the result on ctOut.
+// Use must ensure that ctOut.Scale <= op0.Scale * op1.Scale.
+// If ctOut.Scale < op0.Scale * op1.Scale, then scales up ctOut before adding the result.
+// The procedure will panic if either op0 or op1 are have a degree higher than 1.
+// The procedure will panic if ctOut.Degree != op0.Degree + op1.Degree.
+func (eval *evaluator) MulAndAdd(op0, op1 Operand, ctOut *Ciphertext) {
+	eval.mulRelinAndAdd(op0, op1, false, ctOut)
+}
+
+// MulRelin multiplies op0 with op1 with relinearization and adds the result on ctOut.
+// Use must ensure that ctOut.Scale <= op0.Scale * op1.Scale.
+// If ctOut.Scale < op0.Scale * op1.Scale, then scales up ctOut before adding the result.
+// The procedure will panic if either op0.Degree or op1.Degree > 1.
+// The procedure will panic if ctOut.Degree != op0.Degree + op1.Degree.
+// The procedure will panic if the evaluator was not created with an relinearization key.
+func (eval *evaluator) MulRelinAndAdd(op0, op1 Operand, ctOut *Ciphertext) {
+	eval.mulRelinAndAdd(op0, op1, true, ctOut)
+}
+
+func (eval *evaluator) mulRelinAndAdd(op0, op1 Operand, relin bool, ctOut *Ciphertext) {
+
+	eval.checkBinary(op0, op1, ctOut, utils.MaxInt(op0.Degree(), op1.Degree()))
+
+	level := utils.MinInt(utils.MinInt(op0.Level(), op1.Level()), ctOut.Level())
+
+	if ctOut.Level() > level {
+		eval.DropLevel(ctOut, ctOut.Level()-level)
+	}
+
+	if op0.Degree() > 1 || op1.Degree() > 1 {
+		panic("cannot MulRelin: input elements must be of degree 0 or 1")
+	}
+
+	resScale := op0.ScalingFactor() * op1.ScalingFactor()
+
+	if ctOut.Scale < resScale {
+		eval.MultByConst(ctOut, math.Round(resScale/ctOut.Scale), ctOut)
+		ctOut.Scale = resScale
+	}
+
+	ringQ := eval.params.RingQ()
+
+	var c00, c01, c0, c1, c2 *ring.Poly
+
+	// Case Ciphertext (x) Ciphertext
+	if op0.Degree()+op1.Degree() == 2 {
+
+		c00 = eval.poolQMul[0]
+		c01 = eval.poolQMul[1]
+
+		c0 = ctOut.Value[0]
+		c1 = ctOut.Value[1]
+
+		if relin == false {
+			if ctOut.Degree() < 2 {
+				ctOut.El().Resize(eval.params.Parameters, 2)
+			}
+			c2 = ctOut.Value[2]
+		} else {
+			c2 = eval.poolQMul[2]
+		}
+
+		// Avoid overwritting if the second input is the output
+		var tmp0, tmp1 *rlwe.Ciphertext
+		if op1.El() == ctOut.El() {
+			tmp0, tmp1 = op1.El(), op0.El()
+		} else {
+			tmp0, tmp1 = op0.El(), op1.El()
+		}
+
+		ringQ.MFormLvl(level, tmp0.Value[0], c00)
+		ringQ.MFormLvl(level, tmp0.Value[1], c01)
+
+		ringQ.MulCoeffsMontgomeryAndAddLvl(level, c00, tmp1.Value[0], c0) // c0 = c[0]*c[0]
+		ringQ.MulCoeffsMontgomeryAndAddLvl(level, c00, tmp1.Value[1], c1) // c1 = c[0]*c[1]
+		ringQ.MulCoeffsMontgomeryAndAddLvl(level, c00, tmp1.Value[1], c1) // c1 = *c[0]*c[1]
+		ringQ.MulCoeffsMontgomeryAndAddLvl(level, c01, tmp1.Value[1], c2) // c2 = c[1]*c[1]
+
+		if relin {
+			c2.IsNTT = true
+			eval.SwitchKeysInPlace(level, c2, eval.rlk.Keys[0], eval.Pool[1].Q, eval.Pool[2].Q)
+			ringQ.AddLvl(level, c0, eval.Pool[1].Q, ctOut.Value[0])
+			ringQ.AddLvl(level, c1, eval.Pool[2].Q, ctOut.Value[1])
+		}
+
+		// Case Plaintext (x) Ciphertext or Ciphertext (x) Plaintext
+	} else {
+
+		var tmp0, tmp1 *rlwe.Ciphertext
+
+		if op0.Degree() == 1 {
+			tmp0, tmp1 = op1.El(), op0.El()
+		} else {
+			tmp0, tmp1 = op0.El(), op1.El()
+		}
+
+		c00 := eval.poolQMul[0]
+
+		ringQ.MFormLvl(level, tmp0.Value[0], c00)
+		ringQ.MulCoeffsMontgomeryAndAddLvl(level, c00, tmp1.Value[0], ctOut.Value[0])
+		ringQ.MulCoeffsMontgomeryAndAddLvl(level, c00, tmp1.Value[1], ctOut.Value[1])
 	}
 }
 

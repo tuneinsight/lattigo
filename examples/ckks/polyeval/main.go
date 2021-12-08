@@ -14,7 +14,9 @@ func chebyshevinterpolation() {
 	var err error
 
 	// This example packs random 8192 float64 values in the range [-8, 8]
-	// and approximates the function 1/(exp(-x) + 1) over the range [-8, 8].
+	// and approximates the function f = 1/(exp(-x) + 1) over the range [-8, 8]
+	// for the even slots and the function g = f * (1-f) over the range [-8, 8]
+	// for the odd slots.
 	// The result is then parsed and compared to the expected result.
 
 	// Scheme params are taken directly from the proposed defaults
@@ -62,14 +64,30 @@ func chebyshevinterpolation() {
 	var ciphertext *ckks.Ciphertext
 	ciphertext = encryptor.EncryptNew(plaintext)
 
-	fmt.Println("Evaluation of the function 1/(exp(-x)+1) in the range [-8, 8] (degree of approximation: 32)")
+	a, b := -8.0, 8.0
+	deg := 63
+
+	fmt.Printf("Evaluation of the function f(x) for even slots and g(x) for odd slots in the range [%0.2f, %0.2f] (degree of approximation: %d)\n", a, b, deg)
 
 	// Evaluation process
 	// We approximate f(x) in the range [-8, 8] with a Chebyshev interpolant of 33 coefficients (degree 32).
-	chebyapproximation := ckks.Approximate(f, -8, 8, 33)
+	approxF := ckks.Approximate(f, a, b, deg)
+	approxG := ckks.Approximate(g, a, b, deg)
 
-	a := chebyapproximation.A
-	b := chebyapproximation.B
+	// Map storing the of which polynomial has to be applied to which slot.
+	slotsIndex := make(map[int][]int)
+
+	idxF := make([]int, params.Slots()>>1)
+	idxG := make([]int, params.Slots()>>1)
+	for i := 0; i < params.Slots()>>1; i++ {
+		idxF[i] = i * 2   // Index with all even slots
+		idxG[i] = i*2 + 1 // Index with all odd slots
+	}
+
+	slotsIndex[0] = idxF // Assigns index of all even slots to poly[0] = f(x)
+	slotsIndex[1] = idxG // Assigns index of all odd slots to poly[1] = g(x)
+
+	polyVector := ckks.NewPolynmialVector([]*ckks.Polynomial{approxF, approxG}, slotsIndex, encoder)
 
 	// Change of variable
 	evaluator.MultByConst(ciphertext, 2/(b-a), ciphertext)
@@ -79,15 +97,16 @@ func chebyshevinterpolation() {
 	}
 
 	// We evaluate the interpolated Chebyshev interpolant on the ciphertext
-	if ciphertext, err = evaluator.EvaluatePoly(ciphertext, chebyapproximation, ciphertext.Scale); err != nil {
+	if ciphertext, err = evaluator.EvaluatePoly(ciphertext, polyVector, ciphertext.Scale); err != nil {
 		panic(err)
 	}
 
 	fmt.Println("Done... Consumed levels:", params.MaxLevel()-ciphertext.Level())
 
 	// Computation of the reference values
-	for i := range values {
-		values[i] = f(values[i])
+	for i := 0; i < params.Slots()>>1; i++ {
+		values[i*2] = f(values[i*2])
+		values[i*2+1] = g(values[i*2+1])
 	}
 
 	// Print results and comparison
@@ -97,6 +116,10 @@ func chebyshevinterpolation() {
 
 func f(x float64) float64 {
 	return 1 / (math.Exp(-x) + 1)
+}
+
+func g(x float64) float64 {
+	return f(x) * (1 - f(x))
 }
 
 func round(x float64) float64 {

@@ -25,6 +25,10 @@ All notable changes to this project will be documented in this file.
 - CKKS: `Approximate` now accepts `func(float64)float64` and `func(complex128)complex128`
 - CKKS: approximation intervals are now `float64` instead of `complex128`.
 - CKKS: added `PolynomialVector` struct, which allows to evaluate multiple different polynomials on the same ciphertext with `Evaluator.EvaluatePoly`.
+- CKKS: `PtDiagMatrix` has been renamed `LinearTransform`
+- CKKS: encoding methods of `Encoder.Encode*` for diagonal matrix have been removed.
+- CKKS: added `AllocateLinearTransform`, `EncodeOnAllocatedLinearTransform`, `NewLinearTransform` and `NewLinearTransformBSGS`.
+- CKKS: `RotationsForDiaMatrixMult`, `RotationsForDiaMatrixMultRaw` have been renamed `RotationsForLinearTransformRaw`, `RotationsForLinearTransformRaw` respectively.
 - DCKKS: added support for multiparty CKKS over the conjugate invariant ring.
 - Examples: updated the `ckks/sigmoid` example to `ckks/polyeval` example, that now showcases the use of `PolynomialVector`.
 

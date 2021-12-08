@@ -503,20 +503,20 @@ func (p Parameters) RotationsForTrace(logSlotsStart, logSlotsEnd int) (rotations
 	return
 }
 
-// RotationsForDiagMatrixMult generates of all the rotations needed for a the multiplication
-// with the provided diagonal plaintext matrix.
-func (p Parameters) RotationsForDiagMatrixMult(matrix LinearTransform) []int {
-	slots := 1 << matrix.LogSlots
+// RotationsForLinearTransform returns the list of rotations needed for the evaluation
+// of the linear transform.
+func (p Parameters) RotationsForLinearTransform(LT LinearTransform) []int {
+	slots := 1 << LT.LogSlots
 
 	rotKeyIndex := []int{}
 
 	var index int
 
-	N1 := matrix.N1
+	N1 := LT.N1
 
-	if len(matrix.Vec) < 3 || matrix.Naive {
+	if LT.N1 == 0 {
 
-		for j := range matrix.Vec {
+		for j := range LT.Vec {
 
 			if !utils.IsInSliceInt(j, rotKeyIndex) {
 				rotKeyIndex = append(rotKeyIndex, j)
@@ -525,7 +525,7 @@ func (p Parameters) RotationsForDiagMatrixMult(matrix LinearTransform) []int {
 
 	} else {
 
-		for j := range matrix.Vec {
+		for j := range LT.Vec {
 
 			index = ((j / N1) * N1) & (slots - 1)
 
@@ -544,18 +544,14 @@ func (p Parameters) RotationsForDiagMatrixMult(matrix LinearTransform) []int {
 	return rotKeyIndex
 }
 
-// RotationsForDiaMatrixMultRaw generates of all the rotations needed for a the multiplication with a diagonalized matrix
-// with the provided list of non zero diagonals.
-func (p Parameters) RotationsForDiaMatrixMultRaw(nonZeroDiags []int, logSlots int, BSGSratio float64) []int {
+// RotationsForLinearTransformRaw generates the list of rotations needed for the evaluation of a linear transform
+// with the provided list of non-zero diagonals, logSlots encoding and BSGSratio.
+// If BSGSratio == 0, then provides the rotations needed for an evaluation without the BSGS approach.
+func (p Parameters) RotationsForLinearTransformRaw(nonZeroDiags []int, logSlots int, BSGSratio float64) []int {
 	slots := 1 << logSlots
-
 	rotKeyIndex := []int{}
 
-	var index int
-
-	N1 := FindBestBSGSSplit(nonZeroDiags, slots, BSGSratio)
-
-	if len(nonZeroDiags) < 3 {
+	if BSGSratio == 0 {
 
 		for _, j := range nonZeroDiags {
 
@@ -565,6 +561,10 @@ func (p Parameters) RotationsForDiaMatrixMultRaw(nonZeroDiags []int, logSlots in
 		}
 
 	} else {
+
+		var index int
+
+		N1 := FindBestBSGSSplit(nonZeroDiags, slots, BSGSratio)
 
 		for _, j := range nonZeroDiags {
 

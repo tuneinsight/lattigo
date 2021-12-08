@@ -104,11 +104,91 @@ func (eval *evaluator) RotateHoisted(ctIn *Ciphertext, rotations []int, ctOut ma
 // can be evaluated on a ciphertext by using the evaluator.LinearTransform method.
 type LinearTransform struct {
 	LogSlots int                 // Log of the number of slots of the plaintext (needed to compute the appropriate rotation keys)
-	N1       int                 // N1 is the number of inner loops of the baby-step giant-step algo used in the evaluation.
+	N1       int                 // N1 is the number of inner loops of the baby-step giant-step algo used in the evaluation (if N1 == 0, BSGS isn't used).
 	Level    int                 // Level is the level at which the matrix is encoded (can be circuit dependent)
 	Scale    float64             // Scale is the scale at which the matrix is encoded (can be circuit dependent)
 	Vec      map[int]rlwe.PolyQP // Vec is the matrix, in diagonal form, where each entry of vec is an indexed non zero diagonal.
-	Naive    bool
+}
+
+// AllocateLinearTransform allocates a new LinearTransform with zero plaintexts at the specified level.
+// If BSGSRatio == 0, the LinearTransform is set to not use the BSGS approach.
+// Method will panic if BSGSRatio < 0.
+func AllocateLinearTransform(params Parameters, nonZeroDiags []int, level, logSlots int, BSGSRatio float64) LinearTransform {
+	vec := make(map[int]rlwe.PolyQP)
+	slots := 1 << logSlots
+	levelQ := level
+	levelP := params.PCount() - 1
+	var N1 int
+	if BSGSRatio == 0 {
+		N1 = 0
+		for _, i := range nonZeroDiags {
+			idx := i
+			if idx < 0 {
+				idx += slots
+			}
+			vec[idx] = params.RingQP().NewPolyLvl(levelQ, levelP)
+		}
+	} else if BSGSRatio > 0 {
+		N1 = FindBestBSGSSplit(nonZeroDiags, slots, BSGSRatio)
+		index, _ := BsgsIndex(nonZeroDiags, slots, N1)
+		for j := range index {
+			for _, i := range index[j] {
+				vec[N1*j+i] = params.RingQP().NewPolyLvl(levelQ, levelP)
+			}
+		}
+	} else {
+		panic("BSGS ratio cannot be negative")
+	}
+
+	return LinearTransform{LogSlots: logSlots, N1: N1, Level: level, Vec: vec}
+}
+
+// EncodeOnAllocatedLinearTransform encodes on a pre-allocated LinearTransform the linear transforms' matrix in diagonalized form `value`.
+// values.(type) can be either map[int][]complex128 or map[int][]float64.
+// User must ensure that 1 <= len([]complex128\[]float64) <= 2^logSlots < 2^logN.
+// It can then be evaluated on a ciphertext using evaluator.LinearTransform.
+// Evaluation will use the naive approach (single hoisting and no baby-step giant-step).
+// Faster if there is only a few non-zero diagonals but uses more keys.
+func EncodeOnAllocatedLinearTransform(encoder Encoder, value interface{}, scale float64, LT LinearTransform) {
+
+	enc, ok := encoder.(*encoderComplex128)
+	if !ok {
+		panic("encoder should be an encoderComplex128")
+	}
+
+	params := enc.params
+	dMat := interfaceMapToMapOfInterface(value)
+	slots := 1 << LT.LogSlots
+	levelQ := LT.Level
+	levelP := params.PCount() - 1
+	N1 := LT.N1
+
+	if N1 == 0 {
+		for i := range dMat {
+			idx := i
+			if idx < 0 {
+				idx += slots
+			}
+			enc.embed(dMat[i], LT.LogSlots, scale, LT.Vec[idx])
+		}
+	} else {
+		index, _ := BsgsIndex(value, slots, N1)
+		for j := range index {
+			for _, i := range index[j] {
+				// manages inputs that have rotation between 0 and slots-1 or between -slots/2 and slots/2-1
+				v, ok := dMat[N1*j+i]
+				if !ok {
+					v = dMat[(N1*j+i)-slots]
+				}
+				enc.embed(utils.RotateSlice(v, -N1*j), LT.LogSlots, scale, LT.Vec[N1*j+i])
+			}
+		}
+	}
+
+	for _, vec := range LT.Vec {
+		params.RingQP().NTTLvl(levelQ, levelP, vec, vec)
+		params.RingQP().MFormLvl(levelQ, levelP, vec, vec)
+	}
 }
 
 // NewLinearTransform creates a new LinearTransform struct from the linear transforms' matrix in diagonalized form `value`.
@@ -142,7 +222,7 @@ func NewLinearTransform(encoder Encoder, value interface{}, level int, scale flo
 		params.RingQP().MFormLvl(levelQ, levelP, vec[idx], vec[idx])
 	}
 
-	return LinearTransform{LogSlots: logslots, N1: 0, Vec: vec, Level: level, Scale: scale, Naive: true}
+	return LinearTransform{LogSlots: logslots, N1: 0, Vec: vec, Level: level, Scale: scale}
 }
 
 // NewLinearTransformBSGS creates a new LinearTransform struct from the linear transforms' matrix in diagonalized form `value` for evaluation with a baby-step giant-step approach.
@@ -151,9 +231,9 @@ func NewLinearTransform(encoder Encoder, value interface{}, level int, scale flo
 // LinearTransform types can be be evaluated on a ciphertext using evaluator.LinearTransform.
 // Evaluation will use the optimized approach (double hoisting and baby-step giant-step).
 // Faster if there is more than a few non-zero diagonals.
-// maxM1N2Ratio is the maximum ratio between the inner and outer loop of the baby-step giant-step algorithm used in evaluator.LinearTransform.
-// Optimal maxM1N2Ratio value is between 4 and 16 depending on the sparsity of the matrix.
-func NewLinearTransformBSGS(encoder Encoder, value interface{}, level int, scale, maxM1N2Ratio float64, logSlots int) (matrix LinearTransform) {
+// BSGSRatio is the maximum ratio between the inner and outer loop of the baby-step giant-step algorithm used in evaluator.LinearTransform.
+// Optimal BSGSRatio value is between 4 and 16 depending on the sparsity of the matrix.
+func NewLinearTransformBSGS(encoder Encoder, value interface{}, level int, scale, BSGSRatio float64, logSlots int) (LT LinearTransform) {
 
 	enc, ok := encoder.(*encoderComplex128)
 	if !ok {
@@ -165,7 +245,7 @@ func NewLinearTransformBSGS(encoder Encoder, value interface{}, level int, scale
 	slots := 1 << logSlots
 
 	// N1*N2 = N
-	n1 := FindBestBSGSSplit(value, slots, maxM1N2Ratio)
+	n1 := FindBestBSGSSplit(value, slots, BSGSRatio)
 
 	index, _ := BsgsIndex(value, slots, n1)
 
@@ -333,40 +413,40 @@ func FindBestBSGSSplit(diagMatrix interface{}, maxN int, maxRatio float64) (minN
 // the method encoder.EncodeDiagMatrixAtLvl(*).
 func (eval *evaluator) LinearTransformNew(ctIn *Ciphertext, linearTransform interface{}) (ctOut []*Ciphertext) {
 
-	switch element := linearTransform.(type) {
+	switch LTs := linearTransform.(type) {
 	case []LinearTransform:
-		ctOut = make([]*Ciphertext, len(element))
+		ctOut = make([]*Ciphertext, len(LTs))
 
 		var maxLevel int
-		for _, matrix := range element {
-			maxLevel = utils.MaxInt(maxLevel, matrix.Level)
+		for _, LT := range LTs {
+			maxLevel = utils.MaxInt(maxLevel, LT.Level)
 		}
 
 		minLevel := utils.MinInt(maxLevel, ctIn.Level())
 
 		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], eval.PoolDecompQP)
 
-		for i, matrix := range element {
+		for i, LT := range LTs {
 			ctOut[i] = NewCiphertext(eval.params, 1, minLevel, ctIn.Scale)
 
-			if matrix.Naive {
-				eval.MultiplyByDiagMatrix(ctIn, matrix, eval.PoolDecompQP, ctOut[i])
+			if LT.N1 == 0 {
+				eval.MultiplyByDiagMatrix(ctIn, LT, eval.PoolDecompQP, ctOut[i])
 			} else {
-				eval.MultiplyByDiagMatrixBSGS(ctIn, matrix, eval.PoolDecompQP, ctOut[i])
+				eval.MultiplyByDiagMatrixBSGS(ctIn, LT, eval.PoolDecompQP, ctOut[i])
 			}
 		}
 
 	case LinearTransform:
 
-		minLevel := utils.MinInt(element.Level, ctIn.Level())
+		minLevel := utils.MinInt(LTs.Level, ctIn.Level())
 		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], eval.PoolDecompQP)
 
 		ctOut = []*Ciphertext{NewCiphertext(eval.params, 1, minLevel, ctIn.Scale)}
 
-		if element.Naive {
-			eval.MultiplyByDiagMatrix(ctIn, element, eval.PoolDecompQP, ctOut[0])
+		if LTs.N1 == 0 {
+			eval.MultiplyByDiagMatrix(ctIn, LTs, eval.PoolDecompQP, ctOut[0])
 		} else {
-			eval.MultiplyByDiagMatrixBSGS(ctIn, element, eval.PoolDecompQP, ctOut[0])
+			eval.MultiplyByDiagMatrixBSGS(ctIn, LTs, eval.PoolDecompQP, ctOut[0])
 		}
 	}
 	return
@@ -379,32 +459,32 @@ func (eval *evaluator) LinearTransformNew(ctIn *Ciphertext, linearTransform inte
 // the method encoder.EncodeDiagMatrixAtLvl(*).
 func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interface{}, ctOut []*Ciphertext) {
 
-	switch element := linearTransform.(type) {
+	switch LTs := linearTransform.(type) {
 	case []LinearTransform:
 		var maxLevel int
-		for _, matrix := range element {
-			maxLevel = utils.MaxInt(maxLevel, matrix.Level)
+		for _, LT := range LTs {
+			maxLevel = utils.MaxInt(maxLevel, LT.Level)
 		}
 
 		minLevel := utils.MinInt(maxLevel, ctIn.Level())
 
 		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], eval.PoolDecompQP)
 
-		for i, matrix := range element {
-			if matrix.Naive {
-				eval.MultiplyByDiagMatrix(ctIn, matrix, eval.PoolDecompQP, ctOut[i])
+		for i, LT := range LTs {
+			if LT.N1 == 0 {
+				eval.MultiplyByDiagMatrix(ctIn, LT, eval.PoolDecompQP, ctOut[i])
 			} else {
-				eval.MultiplyByDiagMatrixBSGS(ctIn, matrix, eval.PoolDecompQP, ctOut[i])
+				eval.MultiplyByDiagMatrixBSGS(ctIn, LT, eval.PoolDecompQP, ctOut[i])
 			}
 		}
 
 	case LinearTransform:
-		minLevel := utils.MinInt(element.Level, ctIn.Level())
+		minLevel := utils.MinInt(LTs.Level, ctIn.Level())
 		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], eval.PoolDecompQP)
-		if element.Naive {
-			eval.MultiplyByDiagMatrix(ctIn, element, eval.PoolDecompQP, ctOut[0])
+		if LTs.N1 == 0 {
+			eval.MultiplyByDiagMatrix(ctIn, LTs, eval.PoolDecompQP, ctOut[0])
 		} else {
-			eval.MultiplyByDiagMatrixBSGS(ctIn, element, eval.PoolDecompQP, ctOut[0])
+			eval.MultiplyByDiagMatrixBSGS(ctIn, LTs, eval.PoolDecompQP, ctOut[0])
 		}
 	}
 }

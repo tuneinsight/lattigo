@@ -335,7 +335,7 @@ func BsgsIndex(el interface{}, slots, N1 int) (index map[int][]int, rotations []
 			}
 		}
 	case []int:
-		for key := range element {
+		for _, key := range element {
 			key &= (slots - 1)
 			idx1 := key / N1
 			idx2 := key & (N1 - 1)

@@ -53,8 +53,6 @@ func GetPrecisionStats(params Parameters, encoder Encoder, decryptor Decryptor, 
 
 	var valuesTest []complex128
 
-	slots := uint64(1 << logSlots)
-
 	switch element := element.(type) {
 	case *Ciphertext:
 		valuesTest = encoder.DecodePublic(decryptor.DecryptNew(element), logSlots, sigma)
@@ -81,6 +79,8 @@ func GetPrecisionStats(params Parameters, encoder Encoder, decryptor Decryptor, 
 	}
 
 	var deltaReal, deltaImag, deltaL2 float64
+
+	slots := len(valuesWant)
 
 	diff := make([]Stats, slots)
 

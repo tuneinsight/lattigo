@@ -130,7 +130,7 @@ func AllocateLinearTransform(params Parameters, nonZeroDiags []int, level, logSl
 		}
 	} else if BSGSRatio > 0 {
 		N1 = FindBestBSGSSplit(nonZeroDiags, slots, BSGSRatio)
-		index, _ := BsgsIndex(nonZeroDiags, slots, N1)
+		index, _, _ := BsgsIndex(nonZeroDiags, slots, N1)
 		for j := range index {
 			for _, i := range index[j] {
 				vec[N1*j+i] = params.RingQP().NewPolyLvl(levelQ, levelP)
@@ -172,7 +172,7 @@ func EncodeOnAllocatedLinearTransform(encoder Encoder, value interface{}, scale 
 			enc.embed(dMat[i], LT.LogSlots, scale, LT.Vec[idx])
 		}
 	} else {
-		index, _ := BsgsIndex(value, slots, N1)
+		index, _, _ := BsgsIndex(value, slots, N1)
 		for j := range index {
 			for _, i := range index[j] {
 				// manages inputs that have rotation between 0 and slots-1 or between -slots/2 and slots/2-1
@@ -249,7 +249,7 @@ func NewLinearTransformBSGS(encoder Encoder, value interface{}, level int, scale
 	// N1*N2 = N
 	n1 := FindBestBSGSSplit(value, slots, BSGSRatio)
 
-	index, _ := BsgsIndex(value, slots, n1)
+	index, _, _ := BsgsIndex(value, slots, n1)
 
 	vec := make(map[int]rlwe.PolyQP)
 
@@ -276,80 +276,86 @@ func NewLinearTransformBSGS(encoder Encoder, value interface{}, level int, scale
 }
 
 // BsgsIndex returns the index map and needed rotation for the BSGS matrix-vector multiplication algorithm.
-func BsgsIndex(el interface{}, slots, N1 int) (index map[int][]int, rotations []int) {
+func BsgsIndex(el interface{}, slots, N1 int) (index map[int][]int, rotN1, rotN2 []int) {
 	index = make(map[int][]int)
-	rotations = []int{}
+	rotN1Map := make(map[int]bool)
+	rotN2Map := make(map[int]bool)
 	switch element := el.(type) {
 	case map[int][]complex128:
 		for key := range element {
 			key &= (slots - 1)
-			idx1 := key / N1
-			idx2 := key & (N1 - 1)
-			if index[idx1] == nil {
-				index[idx1] = []int{idx2}
+			idxN1 := key / N1
+			idxN2 := key & (N1 - 1)
+			if index[idxN1] == nil {
+				index[idxN1] = []int{idxN2}
 			} else {
-				index[idx1] = append(index[idx1], idx2)
+				index[idxN1] = append(index[idxN1], idxN2)
 			}
-			if !utils.IsInSliceInt(idx2, rotations) {
-				rotations = append(rotations, idx2)
-			}
+			rotN1Map[idxN1] = true
+			rotN2Map[idxN2] = true
 		}
 	case map[int][]float64:
 		for key := range element {
 			key &= (slots - 1)
-			idx1 := key / N1
-			idx2 := key & (N1 - 1)
-			if index[idx1] == nil {
-				index[idx1] = []int{idx2}
+			idxN1 := key / N1
+			idxN2 := key & (N1 - 1)
+			if index[idxN1] == nil {
+				index[idxN1] = []int{idxN2}
 			} else {
-				index[idx1] = append(index[idx1], idx2)
+				index[idxN1] = append(index[idxN1], idxN2)
 			}
-			if !utils.IsInSliceInt(idx2, rotations) {
-				rotations = append(rotations, idx2)
-			}
+			rotN1Map[idxN1] = true
+			rotN2Map[idxN2] = true
 		}
 	case map[int]bool:
 		for key := range element {
 			key &= (slots - 1)
-			idx1 := key / N1
-			idx2 := key & (N1 - 1)
-			if index[idx1] == nil {
-				index[idx1] = []int{idx2}
+			idxN1 := key / N1
+			idxN2 := key & (N1 - 1)
+			if index[idxN1] == nil {
+				index[idxN1] = []int{idxN2}
 			} else {
-				index[idx1] = append(index[idx1], idx2)
+				index[idxN1] = append(index[idxN1], idxN2)
 			}
-			if !utils.IsInSliceInt(idx2, rotations) {
-				rotations = append(rotations, idx2)
-			}
+			rotN1Map[idxN1] = true
+			rotN2Map[idxN2] = true
 		}
 	case map[int]rlwe.PolyQP:
 		for key := range element {
 			key &= (slots - 1)
-			idx1 := key / N1
-			idx2 := key & (N1 - 1)
-			if index[idx1] == nil {
-				index[idx1] = []int{idx2}
+			idxN1 := key / N1
+			idxN2 := key & (N1 - 1)
+			if index[idxN1] == nil {
+				index[idxN1] = []int{idxN2}
 			} else {
-				index[idx1] = append(index[idx1], idx2)
+				index[idxN1] = append(index[idxN1], idxN2)
 			}
-			if !utils.IsInSliceInt(idx2, rotations) {
-				rotations = append(rotations, idx2)
-			}
+			rotN1Map[idxN1] = true
+			rotN2Map[idxN2] = true
 		}
 	case []int:
 		for _, key := range element {
 			key &= (slots - 1)
-			idx1 := key / N1
-			idx2 := key & (N1 - 1)
-			if index[idx1] == nil {
-				index[idx1] = []int{idx2}
+			idxN1 := key / N1
+			idxN2 := key & (N1 - 1)
+			if index[idxN1] == nil {
+				index[idxN1] = []int{idxN2}
 			} else {
-				index[idx1] = append(index[idx1], idx2)
+				index[idxN1] = append(index[idxN1], idxN2)
 			}
-			if !utils.IsInSliceInt(idx2, rotations) {
-				rotations = append(rotations, idx2)
-			}
+			rotN1Map[idxN1] = true
+			rotN2Map[idxN2] = true
 		}
+	}
+
+	rotN1 = []int{}
+	for i := range rotN1Map {
+		rotN1 = append(rotN1, i)
+	}
+
+	rotN2 = []int{}
+	for i := range rotN2Map {
+		rotN2 = append(rotN2, i)
 	}
 
 	return
@@ -377,31 +383,16 @@ func FindBestBSGSSplit(diagMatrix interface{}, maxN int, maxRatio float64) (minN
 
 	for N1 := 1; N1 < maxN; N1 <<= 1 {
 
-		index, _ := BsgsIndex(diagMatrix, maxN, N1)
+		_, rotN1, rotN2 := BsgsIndex(diagMatrix, maxN, N1)
 
-		if len(index[0]) > 0 {
+		nbN1, nbN2 := len(rotN1)-1, len(rotN2)-1
 
-			hoisted := len(index[0]) - 1
-			normal := len(index) - 1
+		if float64(nbN2)/float64(nbN1) == maxRatio {
+			return N1
+		}
 
-			// The matrice is very sparse already
-			if normal == 0 {
-				return N1 / 2
-			}
-
-			if hoisted > normal {
-				// Finds the next split that has a ratio hoisted/normal greater or equal to maxRatio
-				for float64(hoisted)/float64(normal) < maxRatio {
-
-					if normal/2 == 0 {
-						break
-					}
-					N1 *= 2
-					hoisted = hoisted*2 + 1
-					normal = normal / 2
-				}
-				return N1
-			}
+		if float64(nbN2)/float64(nbN1) > maxRatio {
+			return N1 / 2
 		}
 	}
 
@@ -883,16 +874,16 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearT
 	QiOverF := eval.params.QiOverflowMargin(levelQ)
 	PiOverF := eval.params.PiOverflowMargin(levelP)
 
-	// Computes the rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giang-step algorithm
+	// Computes the N2 rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giang-step algorithm
 
-	index, rotations := BsgsIndex(matrix.Vec, 1<<matrix.LogSlots, matrix.N1)
+	index, _, rotN2 := BsgsIndex(matrix.Vec, 1<<matrix.LogSlots, matrix.N1)
 
 	ring.CopyValuesLvl(levelQ, ctIn.Value[0], eval.ctxpool.Value[0])
 	ring.CopyValuesLvl(levelQ, ctIn.Value[1], eval.ctxpool.Value[1])
 	ctInTmp0, ctInTmp1 := eval.ctxpool.Value[0], eval.ctxpool.Value[1]
 
 	// Pre-rotates ciphertext for the baby-step giant-step algorithm, does not divide by P yet
-	ctInRotQP := eval.RotateHoistedNoModDownNew(levelQ, rotations, ctInTmp0, eval.PoolDecompQP)
+	ctInRotQP := eval.RotateHoistedNoModDownNew(levelQ, rotN2, ctInTmp0, eval.PoolDecompQP)
 
 	// Accumulator inner loop
 	tmp0QP := eval.Pool[1]

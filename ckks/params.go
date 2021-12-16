@@ -455,23 +455,26 @@ func (p Parameters) RotationsForInnerSum(batch, n int) (rotations []int) {
 // `Evaluator.InnerSumLog` operation when performed with parameters `batch` and `n`.
 func (p Parameters) RotationsForInnerSumLog(batch, n int) (rotations []int) {
 
+	rotIndex := make(map[int]bool)
+
 	rotations = []int{}
 	var k int
 	for i := 1; i < n; i <<= 1 {
 
 		k = i
 		k *= batch
-
-		if !utils.IsInSliceInt(k, rotations) && k != 0 {
-			rotations = append(rotations, k)
-		}
+		rotIndex[k] = true
 
 		k = n - (n & ((i << 1) - 1))
 		k *= batch
+		rotIndex[k] = true
+	}
 
-		if !utils.IsInSliceInt(k, rotations) && k != 0 {
-			rotations = append(rotations, k)
-		}
+	rotations = make([]int, len(rotIndex))
+	var i int
+	for j := range rotIndex {
+		rotations[i] = j
+		i++
 	}
 
 	return
@@ -495,9 +498,7 @@ func (p Parameters) RotationsForTrace(logSlotsStart, logSlotsEnd int) (rotations
 	rotations = []int{}
 	//SubSum rotation needed X -> Y^slots rotations
 	for i := logSlotsStart; i < logSlotsEnd; i++ {
-		if !utils.IsInSliceInt(1<<i, rotations) {
-			rotations = append(rotations, 1<<i)
-		}
+		rotations = append(rotations, 1<<i)
 	}
 
 	return
@@ -505,10 +506,10 @@ func (p Parameters) RotationsForTrace(logSlotsStart, logSlotsEnd int) (rotations
 
 // RotationsForLinearTransform returns the list of rotations needed for the evaluation
 // of the linear transform.
-func (p Parameters) RotationsForLinearTransform(LT LinearTransform) []int {
+func (p Parameters) RotationsForLinearTransform(LT LinearTransform) (rotations []int) {
 	slots := 1 << LT.LogSlots
 
-	rotKeyIndex := []int{}
+	rotIndex := make(map[int]bool)
 
 	var index int
 
@@ -517,10 +518,7 @@ func (p Parameters) RotationsForLinearTransform(LT LinearTransform) []int {
 	if LT.N1 == 0 {
 
 		for j := range LT.Vec {
-
-			if !utils.IsInSliceInt(j, rotKeyIndex) {
-				rotKeyIndex = append(rotKeyIndex, j)
-			}
+			rotIndex[j] = true
 		}
 
 	} else {
@@ -528,61 +526,58 @@ func (p Parameters) RotationsForLinearTransform(LT LinearTransform) []int {
 		for j := range LT.Vec {
 
 			index = ((j / N1) * N1) & (slots - 1)
-
-			if index != 0 && !utils.IsInSliceInt(index, rotKeyIndex) {
-				rotKeyIndex = append(rotKeyIndex, index)
-			}
+			rotIndex[index] = true
 
 			index = j & (N1 - 1)
-
-			if index != 0 && !utils.IsInSliceInt(index, rotKeyIndex) {
-				rotKeyIndex = append(rotKeyIndex, index)
-			}
+			rotIndex[index] = true
 		}
 	}
 
-	return rotKeyIndex
+	rotations = make([]int, len(rotIndex))
+	var i int
+	for j := range rotIndex {
+		rotations[i] = j
+		i++
+	}
+
+	return rotations
 }
 
 // RotationsForLinearTransformRaw generates the list of rotations needed for the evaluation of a linear transform
 // with the provided list of non-zero diagonals, logSlots encoding and BSGSratio.
 // If BSGSratio == 0, then provides the rotations needed for an evaluation without the BSGS approach.
-func (p Parameters) RotationsForLinearTransformRaw(nonZeroDiags []int, logSlots int, BSGSratio float64) []int {
+func (p Parameters) RotationsForLinearTransformRaw(nonZeroDiags []int, logSlots int, BSGSratio float64) (rotations []int) {
 	slots := 1 << logSlots
-	rotKeyIndex := []int{}
+	rotIndex := make(map[int]bool)
 
 	if BSGSratio == 0 {
-
 		for _, j := range nonZeroDiags {
-
-			if !utils.IsInSliceInt(j, rotKeyIndex) {
-				rotKeyIndex = append(rotKeyIndex, j)
-			}
+			rotIndex[j] = true
 		}
 
 	} else {
 
 		var index int
-
 		N1 := FindBestBSGSSplit(nonZeroDiags, slots, BSGSratio)
 
 		for _, j := range nonZeroDiags {
-
 			index = ((j / N1) * N1) & (slots - 1)
-
-			if index != 0 && !utils.IsInSliceInt(index, rotKeyIndex) {
-				rotKeyIndex = append(rotKeyIndex, index)
-			}
+			rotIndex[index] = true
 
 			index = j & (N1 - 1)
+			rotIndex[index] = true
 
-			if index != 0 && !utils.IsInSliceInt(index, rotKeyIndex) {
-				rotKeyIndex = append(rotKeyIndex, index)
-			}
 		}
 	}
 
-	return rotKeyIndex
+	rotations = make([]int, len(rotIndex))
+	var i int
+	for j := range rotIndex {
+		rotations[i] = j
+		i++
+	}
+
+	return rotations
 }
 
 // Equals compares two sets of parameters for equality.

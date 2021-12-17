@@ -871,8 +871,8 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearT
 	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:levelQ+1]
 	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:levelQ+1]
 
-	QiOverF := eval.params.QiOverflowMargin(levelQ)
-	PiOverF := eval.params.PiOverflowMargin(levelP)
+	QiOverF := eval.params.QiOverflowMargin(levelQ) >> 1
+	PiOverF := eval.params.PiOverflowMargin(levelP) >> 1
 
 	// Computes the N2 rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giang-step algorithm
 
@@ -926,12 +926,12 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearT
 				}
 			}
 
-			if cnt1%(QiOverF>>1) == (QiOverF>>1)-1 {
+			if cnt1%QiOverF == QiOverF-1 {
 				ringQ.ReduceLvl(levelQ, tmp0QP.Q, tmp0QP.Q)
 				ringQ.ReduceLvl(levelQ, tmp1QP.Q, tmp1QP.Q)
 			}
 
-			if cnt1%(PiOverF>>1) == (PiOverF>>1)-1 {
+			if cnt1%PiOverF == PiOverF-1 {
 				ringP.ReduceLvl(levelP, tmp0QP.P, tmp0QP.P)
 				ringP.ReduceLvl(levelP, tmp1QP.P, tmp1QP.P)
 			}
@@ -939,12 +939,12 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearT
 			cnt1++
 		}
 
-		if cnt1%(QiOverF>>1) != 0 {
+		if cnt1%QiOverF != 0 {
 			ringQ.ReduceLvl(levelQ, tmp0QP.Q, tmp0QP.Q)
 			ringQ.ReduceLvl(levelQ, tmp1QP.Q, tmp1QP.Q)
 		}
 
-		if cnt1%(PiOverF>>1) != 0 {
+		if cnt1%PiOverF != 0 {
 			ringP.ReduceLvl(levelP, tmp0QP.P, tmp0QP.P)
 			ringP.ReduceLvl(levelP, tmp1QP.P, tmp1QP.P)
 		}
@@ -962,20 +962,19 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearT
 				panic("switching key not available")
 			}
 
-			index := eval.permuteNTTIndex[galEl]
+			rotIndex := eval.permuteNTTIndex[galEl]
 
 			tmp1QP.Q.IsNTT = true
 			eval.SwitchKeysInPlaceNoModDown(levelQ, tmp1QP.Q, rtk, c0QP.Q, c0QP.P, c1QP.Q, c1QP.P) // Switchkey(P*phi(tmpRes_1)) = (d0, d1) in base QP
-
 			ringQP.AddLvl(levelQ, levelP, c0QP, tmp0QP, c0QP)
 
 			// Outer loop rotations
 			if cnt0 == 0 {
-				ringQP.PermuteNTTWithIndexLvl(levelQ, levelP, c0QP, index, c0OutQP)
-				ringQP.PermuteNTTWithIndexLvl(levelQ, levelP, c1QP, index, c1OutQP)
+				ringQP.PermuteNTTWithIndexLvl(levelQ, levelP, c0QP, rotIndex, c0OutQP)
+				ringQP.PermuteNTTWithIndexLvl(levelQ, levelP, c1QP, rotIndex, c1OutQP)
 			} else {
-				ringQP.PermuteNTTWithIndexAndAddNoModLvl(levelQ, levelP, c0QP, index, c0OutQP)
-				ringQP.PermuteNTTWithIndexAndAddNoModLvl(levelQ, levelP, c1QP, index, c1OutQP)
+				ringQP.PermuteNTTWithIndexAndAddNoModLvl(levelQ, levelP, c0QP, rotIndex, c0OutQP)
+				ringQP.PermuteNTTWithIndexAndAddNoModLvl(levelQ, levelP, c1QP, rotIndex, c1OutQP)
 			}
 
 			// Else directly adds on ((c0QP.Q, c0QP.P), (c1QP.Q, c1QP.P))
@@ -1019,4 +1018,5 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearT
 
 	ctInRotQP = nil
 	runtime.GC()
+
 }

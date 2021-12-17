@@ -87,8 +87,6 @@ func chebyshevinterpolation() {
 	slotsIndex[0] = idxF // Assigns index of all even slots to poly[0] = f(x)
 	slotsIndex[1] = idxG // Assigns index of all odd slots to poly[1] = g(x)
 
-	polyVector := ckks.NewPolynomialVector([]*ckks.Polynomial{approxF, approxG}, slotsIndex, encoder)
-
 	// Change of variable
 	evaluator.MultByConst(ciphertext, 2/(b-a), ciphertext)
 	evaluator.AddConst(ciphertext, (-a-b)/(b-a), ciphertext)
@@ -97,7 +95,7 @@ func chebyshevinterpolation() {
 	}
 
 	// We evaluate the interpolated Chebyshev interpolant on the ciphertext
-	if ciphertext, err = evaluator.EvaluatePoly(ciphertext, polyVector, ciphertext.Scale); err != nil {
+	if ciphertext, err = evaluator.EvaluatePolyVector(ciphertext, []*ckks.Polynomial{approxF, approxG}, encoder, slotsIndex, ciphertext.Scale); err != nil {
 		panic(err)
 	}
 

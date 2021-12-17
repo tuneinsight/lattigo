@@ -900,9 +900,7 @@ func testEvaluatePoly(tc *testContext, t *testing.T) {
 			values[j] = cmplx.Exp(values[j])
 		}
 
-		polyVector := NewPolynomialVector([]*Polynomial{poly}, slotIndex, tc.encoder)
-
-		if ciphertext, err = tc.evaluator.EvaluatePoly(ciphertext, polyVector, ciphertext.Scale); err != nil {
+		if ciphertext, err = tc.evaluator.EvaluatePolyVector(ciphertext, []*Polynomial{poly}, tc.encoder, slotIndex, ciphertext.Scale); err != nil {
 			t.Error(err)
 		}
 

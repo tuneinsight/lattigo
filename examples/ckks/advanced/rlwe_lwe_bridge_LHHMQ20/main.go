@@ -96,7 +96,7 @@ func main() {
 	for i := range nonzerodiags {
 		nonzerodiags[i] = i
 	}
-	rotationsRepack := paramsRLWE.RotationsForLinearTransformRaw(nonzerodiags, paramsRLWE.Slots(), 16.0)
+	rotationsRepack := paramsRLWE.RotationsForLinearTransform(nonzerodiags, paramsRLWE.Slots(), 4.0)
 	rotationsRepack = append(rotationsRepack, paramsRLWE.RotationsForTrace(paramsRLWE.LogSlots(), paramsLWE.LogN())...)
 	rotKeyRepack := kgenRLWE.GenRotationKeysForRotations(rotationsRepack, false, skRLWE)
 

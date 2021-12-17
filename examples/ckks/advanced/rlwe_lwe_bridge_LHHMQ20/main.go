@@ -239,7 +239,7 @@ func main() {
 		AMatDiag[i] = tmp
 	}
 
-	linTransf := ckks.NewLinearTransformBSGS(encoder, AMatDiag, paramsRLWE.MaxLevel(), 1.0, 16.0, paramsLWE.LogN())
+	linTransf := ckks.GenLinearTransformBSGS(encoder, AMatDiag, paramsRLWE.MaxLevel(), 1.0, 16.0, paramsLWE.LogN())
 	fmt.Printf("Done (%s)\n", time.Since(start))
 
 	evalRepack := ckks.NewEvaluator(paramsRLWE, rlwe.EvaluationKey{Rlk: rlk, Rtks: rotKeyRepack})

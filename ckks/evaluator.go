@@ -1278,7 +1278,7 @@ func (eval *evaluator) mulRelin(op0, op1 Operand, relin bool, ctOut *Ciphertext)
 }
 
 // Mul multiplies op0 with op1 without relinearization and adds the result on ctOut.
-// Use must ensure that ctOut.Scale <= op0.Scale * op1.Scale.
+// User must ensure that ctOut.Scale <= op0.Scale * op1.Scale.
 // If ctOut.Scale < op0.Scale * op1.Scale, then scales up ctOut before adding the result.
 // The procedure will panic if either op0 or op1 are have a degree higher than 1.
 // The procedure will panic if ctOut.Degree != op0.Degree + op1.Degree.

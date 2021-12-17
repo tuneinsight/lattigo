@@ -504,80 +504,19 @@ func (p Parameters) RotationsForTrace(logSlotsStart, logSlotsEnd int) (rotations
 	return
 }
 
-// RotationsForLinearTransform returns the list of rotations needed for the evaluation
-// of the linear transform.
-func (p Parameters) RotationsForLinearTransform(LT LinearTransform) (rotations []int) {
-	slots := 1 << LT.LogSlots
-
-	rotIndex := make(map[int]bool)
-
-	var index int
-
-	N1 := LT.N1
-
-	if LT.N1 == 0 {
-
-		for j := range LT.Vec {
-			rotIndex[j] = true
-		}
-
-	} else {
-
-		for j := range LT.Vec {
-
-			index = ((j / N1) * N1) & (slots - 1)
-			rotIndex[index] = true
-
-			index = j & (N1 - 1)
-			rotIndex[index] = true
-		}
-	}
-
-	rotations = make([]int, len(rotIndex))
-	var i int
-	for j := range rotIndex {
-		rotations[i] = j
-		i++
-	}
-
-	return rotations
-}
-
-// RotationsForLinearTransformRaw generates the list of rotations needed for the evaluation of a linear transform
+// RotationsForLinearTransform generates the list of rotations needed for the evaluation of a linear transform
 // with the provided list of non-zero diagonals, logSlots encoding and BSGSratio.
 // If BSGSratio == 0, then provides the rotations needed for an evaluation without the BSGS approach.
-func (p Parameters) RotationsForLinearTransformRaw(nonZeroDiags []int, logSlots int, BSGSratio float64) (rotations []int) {
+func (p Parameters) RotationsForLinearTransform(nonZeroDiags interface{}, logSlots int, BSGSratio float64) (rotations []int) {
 	slots := 1 << logSlots
-	rotIndex := make(map[int]bool)
-
 	if BSGSratio == 0 {
-		for _, j := range nonZeroDiags {
-			rotIndex[j] = true
-		}
-
+		_, _, rotN2 := BsgsIndex(nonZeroDiags, slots, slots)
+		return rotN2
 	} else {
-
-		var index int
 		N1 := FindBestBSGSSplit(nonZeroDiags, slots, BSGSratio)
-
-		for _, j := range nonZeroDiags {
-			index = ((j / N1) * N1) & (slots - 1)
-			rotIndex[index] = true
-
-			index = j & (N1 - 1)
-			rotIndex[index] = true
-
-		}
+		_, rotN1, rotN2 := BsgsIndex(nonZeroDiags, slots, N1)
+		return append(rotN1, rotN2...)
 	}
-
-	rotations = make([]int, len(rotIndex))
-	var i int
-	for j := range rotIndex {
-		rotations[i] = j
-		i++
-	}
-
-	return rotations
 }
 
 // Equals compares two sets of parameters for equality.

@@ -18,17 +18,17 @@ All notable changes to this project will be documented in this file.
 - CKKS: uniformized the arguments' position for all methods of the `Encoder` interface.
 - CKKS: renamed `Encoder.EncodeNTT/New` to `Encoder.Encode/New`.
 - CKKS: renamed `Scale` to `DefaultScale` in `Parameters` and `ParametersLiteral`.
-- CKKS: renamed `PtDiagMatrix` to `LinearTransform`
-- CKKS: changed constructors of `LinearTransform` structs from `Encoder.EncodeDiagMatrix*` to `NewLinearTransform*`.
 - CKKS: added `EncodeSlotsQP` to encode on `rlwe.PolyQP` and create custom `PtDiagMatrix`.
 - CKKS: `GetPrecisionStats` now also accepts `[]float64`.
 - CKKS: `Approximate` now accepts `func(float64)float64` and `func(complex128)complex128`
 - CKKS: approximation intervals are now `float64` instead of `complex128`.
 - CKKS: added `PolynomialVector` struct, which allows to evaluate multiple different polynomials on the same ciphertext with `Evaluator.EvaluatePoly`.
-- CKKS: `PtDiagMatrix` has been renamed `LinearTransform`
 - CKKS: encoding methods of `Encoder.Encode*` for diagonal matrix have been removed.
-- CKKS: added `AllocateLinearTransform`, `EncodeOnAllocatedLinearTransform`, `NewLinearTransform` and `NewLinearTransformBSGS`.
-- CKKS: `RotationsForDiaMatrixMult`, `RotationsForDiaMatrixMultRaw` have been renamed `RotationsForLinearTransformRaw`, `RotationsForLinearTransformRaw` respectively.
+- CKKS: renamed `PtDiagMatrix` to `LinearTransform`
+- CKKS: removed constructors of `PtDiagMatrix` structs from `Encoder`.
+- CKKS: added `NewLinearTransform`, `EncodeNewLinearTransform`, `GenLinearTransform` and `GenLinearTransformBSGS`.
+- CKKS: `RotationsForDiaMatrixMult` has been removed and replaced by `(*LinearTransform) GetRotations()`, 
+- CKKS: `RotationsForDiaMatrixMultRaw` have been renamed `RotationsForLinearTransform`.
 - CKKS: fixed bug in BSGS approach for linear transform where the selection of the ratio bettween giant step and baby step could lead to a ratio of N.
 - DCKKS: added support for multiparty CKKS over the conjugate invariant ring.
 - Examples: updated the `ckks/sigmoid` example to `ckks/polyeval` example, that now showcases the use of `PolynomialVector`.

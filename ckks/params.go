@@ -512,11 +512,11 @@ func (p Parameters) RotationsForLinearTransform(nonZeroDiags interface{}, logSlo
 	if BSGSratio == 0 {
 		_, _, rotN2 := BsgsIndex(nonZeroDiags, slots, slots)
 		return rotN2
-	} else {
-		N1 := FindBestBSGSSplit(nonZeroDiags, slots, BSGSratio)
-		_, rotN1, rotN2 := BsgsIndex(nonZeroDiags, slots, N1)
-		return append(rotN1, rotN2...)
 	}
+
+	N1 := FindBestBSGSSplit(nonZeroDiags, slots, BSGSratio)
+	_, rotN1, rotN2 := BsgsIndex(nonZeroDiags, slots, N1)
+	return append(rotN1, rotN2...)
 }
 
 // Equals compares two sets of parameters for equality.

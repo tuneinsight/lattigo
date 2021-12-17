@@ -29,6 +29,7 @@ All notable changes to this project will be documented in this file.
 - CKKS: encoding methods of `Encoder.Encode*` for diagonal matrix have been removed.
 - CKKS: added `AllocateLinearTransform`, `EncodeOnAllocatedLinearTransform`, `NewLinearTransform` and `NewLinearTransformBSGS`.
 - CKKS: `RotationsForDiaMatrixMult`, `RotationsForDiaMatrixMultRaw` have been renamed `RotationsForLinearTransformRaw`, `RotationsForLinearTransformRaw` respectively.
+- CKKS: fixed bug in BSGS approach for linear transform where the selection of the ratio bettween giant step and baby step could lead to a ratio of N.
 - DCKKS: added support for multiparty CKKS over the conjugate invariant ring.
 - Examples: updated the `ckks/sigmoid` example to `ckks/polyeval` example, that now showcases the use of `PolynomialVector`.
 

@@ -9,7 +9,7 @@ test_examples:
 	go run ./examples/ring/vOLE -short > /dev/null
 	go run ./examples/bfv > /dev/null
 	go run ./examples/ckks/euler > /dev/null
-	go run ./examples/ckks/sigmoid > /dev/null
+	go run ./examples/ckks/polyeval > /dev/null
 	go run ./examples/rlwe/lwe_bridge > /dev/null
 	go run ./examples/dbfv/pir &> /dev/null
 	go run ./examples/dbfv/psi &> /dev/null

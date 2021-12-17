@@ -229,15 +229,29 @@ func (encoder *encoderComplex128) EncodeNew(values interface{}, level int, scale
 }
 
 func (encoder *encoderComplex128) Encode(values interface{}, plaintext *Plaintext, logSlots int) {
+	encoder.embed(values, logSlots, plaintext.Scale, plaintext.Value)
+	encoder.switchToNTTDomain(logSlots, false, plaintext.Value)
+}
 
-	ringQ := encoder.params.RingQ()
+func (encoder *encoderComplex128) switchToNTTDomain(logSlots int, montgomery bool, polyOut interface{}) {
+	switch p := polyOut.(type) {
+	case rlwe.PolyQP:
+		encoder.nttandmontgomery(p.Q.Level(), logSlots, encoder.params.RingQ(), montgomery, p.Q)
+		encoder.nttandmontgomery(p.P.Level(), logSlots, encoder.params.RingP(), montgomery, p.P)
+	case *ring.Poly:
+		encoder.nttandmontgomery(p.Level(), logSlots, encoder.params.RingQ(), montgomery, p)
+	default:
+		panic("invalid polyOut type")
+	}
+}
 
+func (encoder *encoderComplex128) nttandmontgomery(level int, logSlots int, ringQ *ring.Ring, montgomery bool, pol *ring.Poly) {
 	if logSlots == encoder.params.MaxLogSlots() {
-		encoder.embed(values, logSlots, plaintext.Scale, plaintext.Value)
-		ringQ.NTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
+		ringQ.NTTLvl(level, pol, pol)
+		if montgomery {
+			ringQ.MFormLvl(level, pol, pol)
+		}
 	} else {
-
-		encoder.embed(values, logSlots, plaintext.Scale, encoder.polypool)
 
 		var n int
 		var NTT func(coeffsIn, coeffsOut []uint64, N int, nttPsi []uint64, Q, QInv uint64, bredParams []uint64)
@@ -252,22 +266,26 @@ func (encoder *encoderComplex128) Encode(values interface{}, plaintext *Plaintex
 
 		N := encoder.params.N()
 		gap := N / n
-		for i := 0; i < plaintext.Level()+1; i++ {
+		for i := 0; i < level+1; i++ {
+
+			coeffs := pol.Coeffs[i]
+
 			// NTT in dimension n
-			NTT(encoder.polypool.Coeffs[i][:n], encoder.polypool.Coeffs[i][:n], n, ringQ.NttPsi[i], ringQ.Modulus[i], ringQ.MredParams[i], ringQ.BredParams[i])
+			NTT(coeffs[:n], coeffs[:n], n, ringQ.NttPsi[i], ringQ.Modulus[i], ringQ.MredParams[i], ringQ.BredParams[i])
+
+			if montgomery {
+				ring.MFormVec(coeffs[:n], coeffs[:n], ringQ.Modulus[i], ringQ.BredParams[i])
+			}
+
 			// Maps NTT in dimension n to NTT in dimension N
-			tmp0 := encoder.polypool.Coeffs[i]
-			tmp1 := plaintext.Value.Coeffs[i]
-			for j := 0; j < n; j++ {
-				coeff := tmp0[j]
+			for j := n - 1; j >= 0; j-- {
+				c := coeffs[j]
 				for w := 0; w < gap; w++ {
-					tmp1[j*gap+w] = coeff
+					coeffs[j*gap+w] = c
 				}
 			}
 		}
 	}
-
-	plaintext.Value.IsNTT = true
 }
 
 func (encoder *encoderComplex128) EncodeSlotsNew(values interface{}, level int, scale float64, logSlots int) (plaintext *Plaintext) {

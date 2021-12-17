@@ -133,7 +133,7 @@ func NewLinearTransform(params Parameters, nonZeroDiags []int, level, logSlots i
 		index, _, _ := BsgsIndex(nonZeroDiags, slots, N1)
 		for j := range index {
 			for _, i := range index[j] {
-				vec[N1*j+i] = params.RingQP().NewPolyLvl(levelQ, levelP)
+				vec[j+i] = params.RingQP().NewPolyLvl(levelQ, levelP)
 			}
 		}
 	} else {
@@ -195,11 +195,8 @@ func (LT *LinearTransform) Encode(encoder Encoder, value interface{}, scale floa
 		panic("encoder should be an encoderComplex128")
 	}
 
-	params := enc.params
 	dMat := interfaceMapToMapOfInterface(value)
 	slots := 1 << LT.LogSlots
-	levelQ := LT.Level
-	levelP := params.PCount() - 1
 	N1 := LT.N1
 
 	if N1 == 0 {
@@ -209,9 +206,11 @@ func (LT *LinearTransform) Encode(encoder Encoder, value interface{}, scale floa
 				idx += slots
 			}
 			enc.embed(dMat[i], LT.LogSlots, scale, LT.Vec[idx])
+			enc.switchToNTTDomain(LT.LogSlots, true, LT.Vec[idx])
 		}
 	} else {
 		index, _, _ := BsgsIndex(value, slots, N1)
+
 		for j := range index {
 			for _, i := range index[j] {
 				// manages inputs that have rotation between 0 and slots-1 or between -slots/2 and slots/2-1
@@ -219,14 +218,11 @@ func (LT *LinearTransform) Encode(encoder Encoder, value interface{}, scale floa
 				if !ok {
 					v = dMat[j+i-slots]
 				}
+
 				enc.embed(utils.RotateSlice(v, -j), LT.LogSlots, scale, LT.Vec[j+i])
+				enc.switchToNTTDomain(LT.LogSlots, true, LT.Vec[j+i])
 			}
 		}
-	}
-
-	for _, vec := range LT.Vec {
-		params.RingQP().NTTLvl(levelQ, levelP, vec, vec)
-		params.RingQP().MFormLvl(levelQ, levelP, vec, vec)
 	}
 
 	LT.Scale = scale
@@ -259,8 +255,7 @@ func GenLinearTransform(encoder Encoder, value interface{}, level int, scale flo
 		}
 		vec[idx] = params.RingQP().NewPolyLvl(levelQ, levelP)
 		enc.embed(dMat[i], logslots, scale, vec[idx])
-		params.RingQP().NTTLvl(levelQ, levelP, vec[idx], vec[idx])
-		params.RingQP().MFormLvl(levelQ, levelP, vec[idx], vec[idx])
+		enc.switchToNTTDomain(logslots, true, vec[idx])
 	}
 
 	return LinearTransform{LogSlots: logslots, N1: 0, Vec: vec, Level: level, Scale: scale}
@@ -306,8 +301,7 @@ func GenLinearTransformBSGS(encoder Encoder, value interface{}, level int, scale
 			}
 			vec[j+i] = params.RingQP().NewPolyLvl(levelQ, levelP)
 			enc.embed(utils.RotateSlice(v, -j), logSlots, scale, vec[j+i])
-			params.RingQP().NTTLvl(levelQ, levelP, vec[j+i], vec[j+i])
-			params.RingQP().MFormLvl(levelQ, levelP, vec[j+i], vec[j+i])
+			enc.switchToNTTDomain(logSlots, true, vec[j+i])
 		}
 	}
 

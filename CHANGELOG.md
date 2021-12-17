@@ -17,6 +17,8 @@ All notable changes to this project will be documented in this file.
 - CKKS: `Encoder.Encode*` methods now support both  `[]complex128` and `[]float64` as input.
 - CKKS: uniformized the arguments' position for all methods of the `Encoder` interface.
 - CKKS: renamed `Encoder.EncodeNTT/New` to `Encoder.Encode/New`.
+- CKKS: improved `Encoder` interface consistency by adding `Encoder.EncodeSlots`, `Encoder.DecodeSlots` and `Encoder.DecodeSlotsPublic`.
+- CKKS: `Encoder` is now much faster when encoding sparse plaintexts.
 - CKKS: renamed `Scale` to `DefaultScale` in `Parameters` and `ParametersLiteral`.
 - CKKS: added `EncodeSlotsQP` to encode on `rlwe.PolyQP` and create custom `PtDiagMatrix`.
 - CKKS: `GetPrecisionStats` now also accepts `[]float64`.

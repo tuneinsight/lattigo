@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"math"
@@ -60,7 +61,7 @@ var crp []*ring.Poly
 
 func (p *party) Run(wg *sync.WaitGroup, params ckks.Parameters, N int, P []*party, C *cloud) {
 
-	var i int
+	var nShares, nTasks int
 	var start time.Time
 	var cpuTime time.Duration
 	var byteSent int
@@ -85,14 +86,14 @@ func (p *party) Run(wg *sync.WaitGroup, params ckks.Parameters, N int, P []*part
 
 			p.GenShare(sk, galEl, crp, rtgShare)
 			C.aggTaskQueue <- genTaskResult{galEl: galEl, rtgShare: rtgShare}
-			i++
+			nShares++
 			byteSent += len(rtgShare.Value) * rtgShare.Value[0].GetDataLen(false)
 		}
-
+		nTasks++
 		cpuTime += time.Since(start)
 	}
 	wg.Done()
-	fmt.Printf("\tParty %d finished generating %d shares in %s, sent %s\n", p.i, i, cpuTime, ByteCountSI(byteSent))
+	fmt.Printf("\tParty %d finished generating %d shares of %d tasks in %s, sent %s\n", p.i, nShares, nTasks, cpuTime, ByteCountSI(byteSent))
 }
 
 func (c *cloud) Run(galEls []uint64, params ckks.Parameters, t int) {
@@ -176,17 +177,26 @@ var flagN = flag.Int("N", 3, "the number of parties")
 var flagT = flag.Int("t", 2, "the threshold")
 var flagO = flag.Int("o", 0, "the number of online parties")
 var flagK = flag.Int("k", 10, "number of rotation keys to generate")
-var flagParams = flag.Int("params", 3, "default param set to use")
+var flagDefaultParams = flag.Int("params", 3, "default param set to use")
+var flagJSONParams = flag.String("json", "", "the JSON encoded parameter set to use")
 
 func main() {
 
 	flag.Parse()
 
-	if *flagParams >= len(ckks.DefaultParams) {
+	if *flagDefaultParams >= len(ckks.DefaultParams) {
 		panic("invalid default parameter set")
 	}
 
-	params, err := ckks.NewParametersFromLiteral(ckks.DefaultParams[*flagParams])
+	paramsDef := ckks.DefaultParams[*flagDefaultParams]
+
+	if *flagJSONParams != "" {
+		if err := json.Unmarshal([]byte(*flagJSONParams), &paramsDef); err != nil {
+			panic(err)
+		}
+	}
+
+	params, err := ckks.NewParametersFromLiteral(paramsDef)
 	if err != nil {
 		panic(err)
 	}
@@ -219,7 +229,7 @@ func main() {
 	}
 
 	fmt.Printf("Starting for N=%d, t=%d\n", N, t)
-	fmt.Printf("LogN=%d, LogSlot=%d, k=%d\n", params.LogN(), params.LogSlots(), k)
+	fmt.Printf("LogN=%d, LogQP=%d, L=%d, LogSlot=%d, k=%d\n", params.LogN(), params.LogQP(), params.QPCount(), params.LogSlots(), k)
 
 	kg := ckks.NewKeyGenerator(params)
 

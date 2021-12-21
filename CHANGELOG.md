@@ -12,25 +12,23 @@ All notable changes to this project will be documented in this file.
 - RLWE: increased the maximum supported polynomial degree to 2^17.
 - CKKS: Trace doesn't multiply the output by (N/n)^-1 anymore.
 - CKKS: added support for the CKKS scheme over the conjugate invariant ring.
+- CKKS: renamed `Scale` to `DefaultScale` in `Parameters` and `ParametersLiteral`.
 - CKKS: added the `Evaluator.Average` method.
 - CKKS: added `DomainSwitcher` type for conversion between Standard and Conjugate Invariant variants of CKKS.
-- CKKS: `Encoder.Encode*` methods now support both  `[]complex128` and `[]float64` as input.
+- CKKS: added support for both  `[]complex128` and `[]float64` as input to `Encoder.Encode*` methods.
+- CKKS: added support for `[]float64` as input to `GetPrecisionStats`.
+- CKKS: added support for `func(float64)float64` and `func(complex128)complex128` as input to `Approximate`.
 - CKKS: uniformized the arguments' position for all methods of the `Encoder` interface.
-- CKKS: renamed `Encoder.EncodeNTT/New` to `Encoder.Encode/New`.
-- CKKS: improved `Encoder` interface consistency by adding `Encoder.EncodeSlots`, `Encoder.DecodeSlots` and `Encoder.DecodeSlotsPublic`.
-- CKKS: `Encoder` is now much faster when encoding sparse plaintexts (including `LinearTransform`).
-- CKKS: renamed `Scale` to `DefaultScale` in `Parameters` and `ParametersLiteral`.
-- CKKS: added `EncodeSlotsQP` to encode on `rlwe.PolyQP` and create custom `PtDiagMatrix`.
-- CKKS: `GetPrecisionStats` now also accepts `[]float64`.
-- CKKS: `Approximate` now accepts `func(float64)float64` and `func(complex128)complex128`
-- CKKS: approximation intervals are now `float64` instead of `complex128`.
-- CKKS: added `PolynomialVector` struct, which allows to evaluate multiple different polynomials on the same ciphertext with `Evaluator.EvaluatePoly`.
-- CKKS: encoding methods of `Encoder.Encode*` for diagonal matrix have been removed.
-- CKKS: renamed `PtDiagMatrix` to `LinearTransform`
-- CKKS: removed constructors of `PtDiagMatrix` structs from `Encoder`.
-- CKKS: added `NewLinearTransform`, `EncodeNewLinearTransform`, `GenLinearTransform` and `GenLinearTransformBSGS`.
-- CKKS: `RotationsForDiaMatrixMult` has been removed and replaced by `(*LinearTransform) GetRotations()`, 
-- CKKS: `RotationsForDiaMatrixMultRaw` have been renamed `RotationsForLinearTransform`.
+- CKKS: renamed `Encoder.EncodeNTT/New` to `Encoder.Encode/New`and added  `Encoder.EncodeSlots`, `Encoder.DecodeSlots` and `Encoder.DecodeSlotsPublic`.
+- CKKS: added `EncodeSlotsQP` to encode on `rlwe.PolyQP` to support the new `LinearTransform` interface.
+- CKKS: improved `Encoder` implementation, it is now much faster when encoding sparse plaintexts.
+- CKKS: changed the approximation intervals from `complex128` to `float64`.
+- CKKS: renamed `PtDiagMatrix` to `LinearTransform`.
+- CKKS: added `LinearTransform.Rotations()` to get the required rotation for the reciever plaintext linear tranform.
+- CKKS: added `Parameters.RotationsForLinearTransform` to get the required rotation for the given plaintext linear tranform..
+- CKKS: added `NewLinearTransform`, `EncodeNewLinearTransform`, `GenLinearTransform` and `GenLinearTransformBSGS` to allocate and initialize plaintext linear transforms.
+- CKKS: removed plaintext linear transforms (old `PtDiagMatrix`) constructors and initializers from `Encoder`. 
+- CKKS: added `Evaluator.EvaluatePolyVector` to allows to efficiently evaluate multiple different polynomials on the same ciphertext.
 - CKKS: fixed bug in BSGS approach for linear transform where the selection of the ratio bettween giant step and baby step could lead to a ratio of N.
 - DCKKS: added support for multiparty CKKS over the conjugate invariant ring.
 - Examples: updated the `ckks/sigmoid` example to `ckks/polyeval` example, that now showcases the use of `PolynomialVector`.

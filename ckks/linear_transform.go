@@ -143,9 +143,9 @@ func NewLinearTransform(params Parameters, nonZeroDiags []int, level, logSlots i
 	return LinearTransform{LogSlots: logSlots, N1: N1, Level: level, Vec: vec}
 }
 
-// RotationsForLinearTransform returns the list of rotations needed for the evaluation
+// Rotations returns the list of rotations needed for the evaluation
 // of the linear transform.
-func (LT *LinearTransform) RotationsForLinearTransform() (rotations []int) {
+func (LT *LinearTransform) Rotations() (rotations []int) {
 	slots := 1 << LT.LogSlots
 
 	rotIndex := make(map[int]bool)

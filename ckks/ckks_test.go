@@ -1366,7 +1366,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		linTransf := GenLinearTransformBSGS(tc.encoder, diagMatrix, params.MaxLevel(), params.DefaultScale(), 1.0, params.logSlots)
 
-		rots := linTransf.RotationsForLinearTransform()
+		rots := linTransf.Rotations()
 
 		rotKey := tc.kgen.GenRotationKeysForRotations(rots, false, tc.sk)
 
@@ -1409,7 +1409,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		linTransf := GenLinearTransform(tc.encoder, diagMatrix, params.MaxLevel(), params.DefaultScale(), params.LogSlots())
 
-		rots := linTransf.RotationsForLinearTransform()
+		rots := linTransf.Rotations()
 
 		rotKey := tc.kgen.GenRotationKeysForRotations(rots, false, tc.sk)
 

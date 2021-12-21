@@ -205,6 +205,11 @@ func (LT *LinearTransform) Encode(encoder Encoder, value interface{}, scale floa
 			if idx < 0 {
 				idx += slots
 			}
+
+			if _, ok := LT.Vec[idx]; !ok {
+				panic("error encoding on LinearTransform: input does not match the same non-zero diagonals")
+			}
+
 			enc.embed(dMat[i], LT.LogSlots, scale, LT.Vec[idx])
 			enc.switchToNTTDomain(LT.LogSlots, true, LT.Vec[idx])
 		}
@@ -217,6 +222,10 @@ func (LT *LinearTransform) Encode(encoder Encoder, value interface{}, scale floa
 				v, ok := dMat[j+i]
 				if !ok {
 					v = dMat[j+i-slots]
+				}
+
+				if _, ok := LT.Vec[j+i]; !ok {
+					panic("error encoding on LinearTransform BSGS: input does not match the same non-zero diagonals")
 				}
 
 				enc.embed(utils.RotateSlice(v, -j), LT.LogSlots, scale, LT.Vec[j+i])

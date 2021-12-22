@@ -30,6 +30,7 @@ All notable changes to this project will be documented in this file.
 - CKKS: removed plaintext linear transforms (old `PtDiagMatrix`) constructors and initializers from `Encoder`. 
 - CKKS: added `Evaluator.EvaluatePolyVector` to allows to efficiently evaluate multiple different polynomials on the same ciphertext.
 - CKKS: fixed bug in BSGS approach for linear transform where the selection of the ratio bettween giant step and baby step could lead to a ratio of N.
+- CKKS: the EvalMod step of the bootstrapping now works for moduli of any size, regardless of `Q[0]` or `MessageRatio`.
 - DCKKS: added support for multiparty CKKS over the conjugate invariant ring.
 - Examples: updated the `ckks/sigmoid` example to `ckks/polyeval` example, that now showcases the use of `PolynomialVector`.
 

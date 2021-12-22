@@ -15,10 +15,8 @@ func (btp *Bootstrapper) Bootstrapp(ctIn *ckks.Ciphertext) (ctOut *ckks.Cipherte
 
 	ctOut = ctIn.CopyNew()
 
-	bootstrappingScale := math.Exp2(math.Round(math.Log2(btp.params.QiFloat64(0) / btp.evalModPoly.MessageRatio())))
-
 	// Drops the level to 1
-	for ctOut.Level() > 1 {
+	for ctOut.Level() > 0 {
 		btp.DropLevel(ctOut, 1)
 	}
 
@@ -26,7 +24,7 @@ func (btp *Bootstrapper) Bootstrapp(ctIn *ckks.Ciphertext) (ctOut *ckks.Cipherte
 	if ctOut.Level() == 1 {
 
 		// If one level is available, then uses it to match the scale
-		btp.SetScale(ctOut, bootstrappingScale)
+		btp.SetScale(ctOut, btp.q0OverMessageRatio)
 
 		// Then drops to level 0
 		for ctOut.Level() != 0 {
@@ -36,20 +34,22 @@ func (btp *Bootstrapper) Bootstrapp(ctIn *ckks.Ciphertext) (ctOut *ckks.Cipherte
 	} else {
 
 		// Does an integer constant mult by round((Q0/Delta_m)/ctscle)
-		if bootstrappingScale < ctOut.Scale {
+		if btp.q0OverMessageRatio < ctOut.Scale {
 			panic("ciphetext scale > q/||m||)")
 		}
 
-		btp.ScaleUp(ctOut, math.Round(bootstrappingScale/ctOut.Scale), ctOut)
+		btp.ScaleUp(ctOut, math.Round(btp.q0OverMessageRatio/ctOut.Scale), ctOut)
 	}
 
 	// Step 1 : Extend the basis from q to Q
 	ctOut = btp.modUpFromQ0(ctOut)
 
-	// Brings the ciphertext scale to sineQi/(Q0/scale) if Q0 < sineQi
-	// Does it after modUp to avoid plaintext overflow
-	// Reduces the additive error of the next steps
-	btp.ScaleUp(ctOut, math.Round((btp.evalModPoly.ScalingFactor()/btp.evalModPoly.MessageRatio())/ctOut.Scale), ctOut)
+	// Brings the ciphertext scale to EvalMod-ScalingFactor/(Q0/scale) if Q0 < EvalMod-ScalingFactor.
+	// Does it after modUp to avoid plaintext overflow as the scaling used during EvalMod can be larger than Q0.
+	// Doing this at this stage helps mitigate the additive error of the next steps.
+	if (btp.evalModPoly.ScalingFactor()/btp.evalModPoly.MessageRatio())/ctOut.Scale > 1 {
+		btp.ScaleUp(ctOut, math.Round((btp.evalModPoly.ScalingFactor()/btp.evalModPoly.MessageRatio())/ctOut.Scale), ctOut)
+	}
 
 	//SubSum X -> (N/dslots) * Y^dslots
 	btp.Trace(ctOut, btp.params.LogSlots(), btp.params.LogN()-1, ctOut)

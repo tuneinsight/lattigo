@@ -21,7 +21,7 @@ func cos2pi(x complex128) complex128 {
 // Sin and Cos are the two proposed functions for SineType
 const (
 	Sin  = SineType(0) // Standard Chebyshev approximation of (1/2pi) * sin(2pix)
-	Cos1 = SineType(1) // Special approximation (Han and Ki) of pow((1/2pi), 1/2^r) * cos(2pi(x-0.25)/2^r)
+	Cos1 = SineType(1) // Special approximation (Han and Ki) of pow((1/2pi), 1/2^r) * cos(2pi(x-0.25)/2^r), this method requires a minimum degree of 2*(K-1).
 	Cos2 = SineType(2) // Standard Chebyshev approximation of pow((1/2pi), 1/2^r) * cos(2pi(x-0.25)/2^r)
 )
 

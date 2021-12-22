@@ -16,7 +16,7 @@ func (btp *Bootstrapper) Bootstrapp(ctIn *ckks.Ciphertext) (ctOut *ckks.Cipherte
 	ctOut = ctIn.CopyNew()
 
 	// Drops the level to 1
-	for ctOut.Level() > 0 {
+	for ctOut.Level() > 1 {
 		btp.DropLevel(ctOut, 1)
 	}
 

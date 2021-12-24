@@ -74,7 +74,7 @@ func chebyshevinterpolation() {
 	approxF := ckks.Approximate(f, a, b, deg)
 	approxG := ckks.Approximate(g, a, b, deg)
 
-	// Map storing the of which polynomial has to be applied to which slot.
+	// Map storing which polynomial has to be applied to which slot.
 	slotsIndex := make(map[int][]int)
 
 	idxF := make([]int, params.Slots()>>1)

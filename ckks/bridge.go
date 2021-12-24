@@ -22,8 +22,8 @@ type DomainSwitcher struct {
 }
 
 // NewDomainSwitcher instantiate a new DomainSwitcher type. It may be instantiated from parameters from either RingType.
-// The method returns an error if the parameters cannot support the switching (e.g., the NTT transforms are undefined for
-// either of the two ring type).
+// The method returns an error if the parameters cannot support the switching (e.g., the NTTs are undefined for
+// either of the two ring types).
 func NewDomainSwitcher(params Parameters, comlexToRealSwk *SwkComplexToReal, RealToComplexSwk *SwkRealToComplex) (DomainSwitcher, error) {
 
 	s := DomainSwitcher{
@@ -46,10 +46,10 @@ func NewDomainSwitcher(params Parameters, comlexToRealSwk *SwkComplexToReal, Rea
 }
 
 // ComplexToReal switches the provided ciphertext `ctIn` from the standard domain to the conjugate
-// invariant domain and write the result into `ctOut`.
+// invariant domain and writes the result into `ctOut`.
 // Given ctInCKKS = enc(real(m) + imag(m)) in Z[X](X^N + 1), returns ctOutCI = enc(real(m))
 // in Z[X+X^-1]/(X^N + 1) in compressed form (N/2 coefficients).
-// The scale of the output ciphertext is 2 times the scale of the input one.
+// The scale of the output ciphertext is twice the scale of the input one.
 // Requires the ring degree of ctOut to be half the ring degree of ctIn.
 // The security is changed from Z[X]/(X^N+1) to Z[X]/(X^N/2+1).
 // The method panics if the DomainSwitcher was not initialized with a SwkComplexToReal key.
@@ -73,8 +73,8 @@ func (switcher *DomainSwitcher) ComplexToReal(ctIn, ctOut *Ciphertext) {
 	ctOut.Scale = 2 * ctIn.Scale
 }
 
-// RealToComplex switches the provided ciphertext `ctIn` from the conjugate invariant domain to the .
-// standard domain and write the result into `ctOut`.
+// RealToComplex switches the provided ciphertext `ctIn` from the conjugate invariant domain to the
+// standard domain and writes the result into `ctOut`.
 // Given ctInCI = enc(real(m)) in Z[X+X^-1]/(X^2N+1) in compressed form (N coefficients), returns
 // ctOutCKKS = enc(real(m) + imag(0)) in Z[X]/(X^2N+1).
 // Requires the ring degree of ctOut to be twice the ring degree of ctIn.

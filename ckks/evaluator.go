@@ -961,7 +961,7 @@ func (eval *evaluator) MultByi(ct0 *Ciphertext, ctOut *Ciphertext) {
 func (eval *evaluator) DivByiNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 
 	if eval.params.RingType() == ring.ConjugateInvariant {
-		panic("method MultByi is not supported when params.RingType() == ring.ConjugateInvariant")
+		panic("method DivByi is not supported when params.RingType() == ring.ConjugateInvariant")
 	}
 
 	ctOut = NewCiphertext(eval.params, 1, ct0.Level(), ct0.Scale)
@@ -974,7 +974,7 @@ func (eval *evaluator) DivByiNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 func (eval *evaluator) DivByi(ct0 *Ciphertext, ctOut *Ciphertext) {
 
 	if eval.params.RingType() == ring.ConjugateInvariant {
-		panic("method MultByi is not supported when params.RingType() == ring.ConjugateInvariant")
+		panic("method DivByi is not supported when params.RingType() == ring.ConjugateInvariant")
 	}
 
 	var level = utils.MinInt(ct0.Level(), ctOut.Level())
@@ -1219,7 +1219,7 @@ func (eval *evaluator) mulRelin(op0, op1 Operand, relin bool, ctOut *Ciphertext)
 		c0 = ctOut.Value[0]
 		c1 = ctOut.Value[1]
 
-		if relin == false {
+		if !relin {
 			if ctOut.Degree() < 2 {
 				ctOut.El().Resize(eval.params.Parameters, 2)
 			}
@@ -1228,7 +1228,7 @@ func (eval *evaluator) mulRelin(op0, op1 Operand, relin bool, ctOut *Ciphertext)
 			c2 = eval.poolQMul[2]
 		}
 
-		// Avoid overwritting if the second input is the output
+		// Avoid overwriting if the second input is the output
 		var tmp0, tmp1 *rlwe.Ciphertext
 		if op1.El() == ctOut.El() {
 			tmp0, tmp1 = op1.El(), op0.El()
@@ -1278,7 +1278,7 @@ func (eval *evaluator) mulRelin(op0, op1 Operand, relin bool, ctOut *Ciphertext)
 	}
 }
 
-// Mul multiplies op0 with op1 without relinearization and adds the result on ctOut.
+// MulAndAdd multiplies op0 with op1 without relinearization and adds the result on ctOut.
 // User must ensure that ctOut.Scale <= op0.Scale * op1.Scale.
 // If ctOut.Scale < op0.Scale * op1.Scale, then scales up ctOut before adding the result.
 // The procedure will panic if either op0 or op1 are have a degree higher than 1.
@@ -1287,8 +1287,8 @@ func (eval *evaluator) MulAndAdd(op0, op1 Operand, ctOut *Ciphertext) {
 	eval.mulRelinAndAdd(op0, op1, false, ctOut)
 }
 
-// MulRelin multiplies op0 with op1 with relinearization and adds the result on ctOut.
-// Use must ensure that ctOut.Scale <= op0.Scale * op1.Scale.
+// MulRelinAndAdd multiplies op0 with op1 with relinearization and adds the result on ctOut.
+// User must ensure that ctOut.Scale <= op0.Scale * op1.Scale.
 // If ctOut.Scale < op0.Scale * op1.Scale, then scales up ctOut before adding the result.
 // The procedure will panic if either op0.Degree or op1.Degree > 1.
 // The procedure will panic if ctOut.Degree != op0.Degree + op1.Degree.
@@ -1308,7 +1308,7 @@ func (eval *evaluator) mulRelinAndAdd(op0, op1 Operand, relin bool, ctOut *Ciphe
 	}
 
 	if op0.Degree() > 1 || op1.Degree() > 1 {
-		panic("cannot MulRelin: input elements must be of degree 0 or 1")
+		panic("cannot MulRelinAndAdd: input elements must be of degree 0 or 1")
 	}
 
 	resScale := op0.ScalingFactor() * op1.ScalingFactor()
@@ -1331,7 +1331,7 @@ func (eval *evaluator) mulRelinAndAdd(op0, op1 Operand, relin bool, ctOut *Ciphe
 		c0 = ctOut.Value[0]
 		c1 = ctOut.Value[1]
 
-		if relin == false {
+		if !relin {
 			if ctOut.Degree() < 2 {
 				ctOut.El().Resize(eval.params.Parameters, 2)
 			}
@@ -1340,7 +1340,7 @@ func (eval *evaluator) mulRelinAndAdd(op0, op1 Operand, relin bool, ctOut *Ciphe
 			c2 = eval.poolQMul[2]
 		}
 
-		// Avoid overwritting if the second input is the output
+		// Avoid overwriting if the second input is the output
 		var tmp0, tmp1 *rlwe.Ciphertext
 		if op1.El() == ctOut.El() {
 			tmp0, tmp1 = op1.El(), op0.El()
@@ -1478,7 +1478,7 @@ func (eval *evaluator) Rotate(ct0 *Ciphertext, k int, ctOut *Ciphertext) {
 func (eval *evaluator) ConjugateNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 
 	if eval.params.RingType() == ring.ConjugateInvariant {
-		panic("method MultByi is not supported when params.RingType() == ring.ConjugateInvariant")
+		panic("method ConjugateNew is not supported when params.RingType() == ring.ConjugateInvariant")
 	}
 
 	ctOut = NewCiphertext(eval.params, ct0.Degree(), ct0.Level(), ct0.Scale)
@@ -1491,7 +1491,7 @@ func (eval *evaluator) ConjugateNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 func (eval *evaluator) Conjugate(ct0 *Ciphertext, ctOut *Ciphertext) {
 
 	if eval.params.RingType() == ring.ConjugateInvariant {
-		panic("method MultByi is not supported when params.RingType() == ring.ConjugateInvariant")
+		panic("method Conjugate is not supported when params.RingType() == ring.ConjugateInvariant")
 	}
 
 	if ct0.Degree() != 1 || ctOut.Degree() != 1 {

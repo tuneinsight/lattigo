@@ -74,7 +74,7 @@ func NewParameters(logn int, q, p []uint64, sigma float64, ringType ring.Type) (
 	}
 
 	// pre-check that moduli chain is of valid size and that all factors are prime.
-	// note: the Ring instantiation checks that the modulus are valid NTT-friendly primes.
+	// note: the Ring instantiation checks that the moduli are valid NTT-friendly primes.
 	if err = CheckModuli(q, p); err != nil {
 		return Parameters{}, err
 	}
@@ -90,7 +90,7 @@ func NewParameters(logn int, q, p []uint64, sigma float64, ringType ring.Type) (
 func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
 	if paramDef.Sigma == 0 {
 		// prevents the zero value of ParameterLiteral to result in a noise-less parameter instance.
-		// Users should use the NewParameters method to explicitely create noise-less instances.
+		// Users should use the NewParameters method to explicitely create noiseless instances.
 		paramDef.Sigma = DefaultSigma
 	}
 	switch {
@@ -117,7 +117,7 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
 }
 
 // StandardParameters returns a RLWE parameter set that corresponds to the
-// standard dual of a conjugate invariant parameter set. If the reciever is already
+// standard dual of a conjugate invariant parameter set. If the receiver is already
 // a standard set, then the method returns the receiver.
 func (p Parameters) StandardParameters() (pci Parameters, err error) {
 

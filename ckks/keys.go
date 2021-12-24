@@ -13,7 +13,7 @@ type SwkComplexToReal struct {
 	rlwe.SwitchingKey
 }
 
-// SwkRealToComplex is a Switchingkey to switch from the conjugate invariant domain to the standard domain.
+// SwkRealToComplex is a SwitchingKey to switch from the conjugate invariant domain to the standard domain.
 type SwkRealToComplex struct {
 	rlwe.SwitchingKey
 }

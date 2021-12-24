@@ -10,7 +10,7 @@ import (
 
 // Trace maps X -> sum((-1)^i * X^{i*n+1}) for 0 <= i < N
 // For log(n) = logSlotStart and log(N/2) = logSlotsEnd
-// Monomial X^k vanish if k isn't divisible by (N/n), else it is multiplied by (N/n).
+// Monomial X^k vanishes if k is not divisible by (N/n), else it is multiplied by (N/n).
 // Ciphertext is pre-multiplied by (N/n)^-1 to remove the (N/n) factor.
 // Examples of full Trace for [0 + 1X + 2X^2 + 3X^3 + 4X^4 + 5X^5 + 6X^6 + 7X^7]
 //
@@ -100,14 +100,14 @@ func (eval *evaluator) RotateHoisted(ctIn *Ciphertext, rotations []int, ctOut ma
 }
 
 // LinearTransform is a type for linear transformations on ciphertexts.
-// It stores a plaintext matrix diagonalized in diagonalized form and
+// It stores a plaintext matrix diagonalized in diagonal form and
 // can be evaluated on a ciphertext by using the evaluator.LinearTransform method.
 type LinearTransform struct {
 	LogSlots int                 // Log of the number of slots of the plaintext (needed to compute the appropriate rotation keys)
-	N1       int                 // N1 is the number of inner loops of the baby-step giant-step algo used in the evaluation (if N1 == 0, BSGS isn't used).
+	N1       int                 // N1 is the number of inner loops of the baby-step giant-step algorithm used in the evaluation (if N1 == 0, BSGS is not used).
 	Level    int                 // Level is the level at which the matrix is encoded (can be circuit dependent)
 	Scale    float64             // Scale is the scale at which the matrix is encoded (can be circuit dependent)
-	Vec      map[int]rlwe.PolyQP // Vec is the matrix, in diagonal form, where each entry of vec is an indexed non zero diagonal.
+	Vec      map[int]rlwe.PolyQP // Vec is the matrix, in diagonal form, where each entry of vec is an indexed non-zero diagonal.
 }
 
 // NewLinearTransform allocates a new LinearTransform with zero plaintexts at the specified level.
@@ -182,7 +182,7 @@ func (LT *LinearTransform) Rotations() (rotations []int) {
 	return rotations
 }
 
-// Encode encodes on a pre-allocated LinearTransform the linear transforms' matrix in diagonalized form `value`.
+// Encode encodes on a pre-allocated LinearTransform the linear transforms' matrix in diagonal form `value`.
 // values.(type) can be either map[int][]complex128 or map[int][]float64.
 // User must ensure that 1 <= len([]complex128\[]float64) <= 2^logSlots < 2^logN.
 // It can then be evaluated on a ciphertext using evaluator.LinearTransform.
@@ -237,7 +237,7 @@ func (LT *LinearTransform) Encode(encoder Encoder, value interface{}, scale floa
 	LT.Scale = scale
 }
 
-// GenLinearTransform allocates and encode a new LinearTransform struct from the linear transforms' matrix in diagonalized form `value`.
+// GenLinearTransform allocates and encode a new LinearTransform struct from the linear transforms' matrix in diagonal form `value`.
 // values.(type) can be either map[int][]complex128 or map[int][]float64.
 // User must ensure that 1 <= len([]complex128\[]float64) <= 2^logSlots < 2^logN.
 // It can then be evaluated on a ciphertext using evaluator.LinearTransform.
@@ -270,7 +270,7 @@ func GenLinearTransform(encoder Encoder, value interface{}, level int, scale flo
 	return LinearTransform{LogSlots: logslots, N1: 0, Vec: vec, Level: level, Scale: scale}
 }
 
-// GenLinearTransformBSGS allocates and encodes a new LinearTransform struct from the linear transforms' matrix in diagonalized form `value` for evaluation with a baby-step giant-step approach.
+// GenLinearTransformBSGS allocates and encodes a new LinearTransform struct from the linear transforms' matrix in diagonal form `value` for evaluation with a baby-step giant-step approach.
 // values.(type) can be either map[int][]complex128 or map[int][]float64.
 // User must ensure that 1 <= len([]complex128\[]float64) <= 2^logSlots < 2^logN.
 // LinearTransform types can be be evaluated on a ciphertext using evaluator.LinearTransform.

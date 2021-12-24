@@ -208,7 +208,7 @@ func (keygen *keyGenerator) genrotKey(sk PolyQP, galEl uint64, swk *SwitchingKey
 	keygen.genSwitchingKey(skIn.Q, skOut, swk)
 }
 
-// GenSwitchingKeysForRingSwap generates the necessary switching keys to switch from standard ring to to a conjugate invariant ring and vice-versa.
+// GenSwitchingKeysForRingSwap generates the necessary switching keys to switch from a standard ring to to a conjugate invariant ring and vice-versa.
 func (keygen *keyGenerator) GenSwitchingKeysForRingSwap(skStd, skConjugateInvariant *SecretKey) (swkStdToConjugateInvariant, swkConjugateInvariantToStd *SwitchingKey) {
 
 	skCIMappedToStandard := &SecretKey{Value: keygen.poolQP}

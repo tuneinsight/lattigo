@@ -21,14 +21,14 @@ type NumberTheoreticTransformer interface {
 type NumberTheoreticTransformerStandard struct {
 }
 
-// Forward write the forward NTT in Z[X]/(X^N+1) of p1 on p2.
+// Forward writes the forward NTT in Z[X]/(X^N+1) of p1 on p2.
 func (rntt NumberTheoreticTransformerStandard) Forward(r *Ring, p1, p2 *Poly) {
 	for x := range r.Modulus {
 		NTT(p1.Coeffs[x], p2.Coeffs[x], r.N, r.NttPsi[x], r.Modulus[x], r.MredParams[x], r.BredParams[x])
 	}
 }
 
-// ForwardLvl write the forward NTT in Z[X]/(X^N+1) of p1 on p2.
+// ForwardLvl writes the forward NTT in Z[X]/(X^N+1) of p1 on p2.
 // Only computes the NTT for the first level+1 moduli.
 func (rntt NumberTheoreticTransformerStandard) ForwardLvl(r *Ring, level int, p1, p2 *Poly) {
 	for x := 0; x < level+1; x++ {
@@ -36,7 +36,7 @@ func (rntt NumberTheoreticTransformerStandard) ForwardLvl(r *Ring, level int, p1
 	}
 }
 
-// ForwardLazy write the forward NTT in Z[X]/(X^N+1) of p1 on p2.
+// ForwardLazy writes the forward NTT in Z[X]/(X^N+1) of p1 on p2.
 // Returns values in the range [0, 2q-1].
 func (rntt NumberTheoreticTransformerStandard) ForwardLazy(r *Ring, p1, p2 *Poly) {
 	for x := range r.Modulus {
@@ -44,7 +44,7 @@ func (rntt NumberTheoreticTransformerStandard) ForwardLazy(r *Ring, p1, p2 *Poly
 	}
 }
 
-// ForwardLazyLvl write the forward NTT in Z[X]/(X^N+1) of p1 on p2.
+// ForwardLazyLvl writes the forward NTT in Z[X]/(X^N+1) of p1 on p2.
 // Only computes the NTT for the first level+1 moduli and returns values in the range [0, 2q-1].
 func (rntt NumberTheoreticTransformerStandard) ForwardLazyLvl(r *Ring, level int, p1, p2 *Poly) {
 	for x := 0; x < level+1; x++ {
@@ -83,23 +83,23 @@ func (rntt NumberTheoreticTransformerStandard) BackwardLazyLvl(r *Ring, level in
 	}
 }
 
-// ForwardVec write the forward NTT in Z[X]/(X^N+1) of the i-th level of p1 on the i-th level of p2.
+// ForwardVec writes the forward NTT in Z[X]/(X^N+1) of the i-th level of p1 on the i-th level of p2.
 func (rntt NumberTheoreticTransformerStandard) ForwardVec(r *Ring, level int, p1, p2 []uint64) {
 	NTT(p1, p2, r.N, r.NttPsi[level], r.Modulus[level], r.MredParams[level], r.BredParams[level])
 }
 
-// ForwardLazyVec write the forward NTT in Z[X]/(X^N+1) of the i-th level of p1 on the i-th level of p2.
+// ForwardLazyVec writes the forward NTT in Z[X]/(X^N+1) of the i-th level of p1 on the i-th level of p2.
 // Returns values in the range [0, 2q-1].
 func (rntt NumberTheoreticTransformerStandard) ForwardLazyVec(r *Ring, level int, p1, p2 []uint64) {
 	NTTLazy(p1, p2, r.N, r.NttPsi[level], r.Modulus[level], r.MredParams[level], r.BredParams[level])
 }
 
-// BackwardVec write the backward NTT in Z[X]/(X^N+1) of the i-th level of p1 on the i-th level of p2.
+// BackwardVec writes the backward NTT in Z[X]/(X^N+1) of the i-th level of p1 on the i-th level of p2.
 func (rntt NumberTheoreticTransformerStandard) BackwardVec(r *Ring, level int, p1, p2 []uint64) {
 	InvNTT(p1, p2, r.N, r.NttPsiInv[level], r.NttNInv[level], r.Modulus[level], r.MredParams[level])
 }
 
-// BackwardLazyVec write the backward NTT in Z[X]/(X^N+1) of the i-th level of p1 on the i-th level of p2.
+// BackwardLazyVec writes the backward NTT in Z[X]/(X^N+1) of the i-th level of p1 on the i-th level of p2.
 // Returns values in the range [0, 2q-1].
 func (rntt NumberTheoreticTransformerStandard) BackwardLazyVec(r *Ring, level int, p1, p2 []uint64) {
 	InvNTTLazy(p1, p2, r.N, r.NttPsiInv[level], r.NttNInv[level], r.Modulus[level], r.MredParams[level])
@@ -178,23 +178,23 @@ func (rntt NumberTheoreticTransformerConjugateInvariant) BackwardLazyLvl(r *Ring
 	}
 }
 
-// ForwardVec write the forward NTT in Z[X+X^-1]/(X^2N+1) of the i-th level of p1 on the i-th level of p2.
+// ForwardVec writes the forward NTT in Z[X+X^-1]/(X^2N+1) of the i-th level of p1 on the i-th level of p2.
 func (rntt NumberTheoreticTransformerConjugateInvariant) ForwardVec(r *Ring, level int, p1, p2 []uint64) {
 	NTTConjugateInvariant(p1, p2, r.N, r.NttPsi[level], r.Modulus[level], r.MredParams[level], r.BredParams[level])
 }
 
-// ForwardLazyVec write the forward NTT in Z[X+X^-1]/(X^2N+1) of the i-th level of p1 on the i-th level of p2.
+// ForwardLazyVec writes the forward NTT in Z[X+X^-1]/(X^2N+1) of the i-th level of p1 on the i-th level of p2.
 // Returns values in the range [0, 2q-1].
 func (rntt NumberTheoreticTransformerConjugateInvariant) ForwardLazyVec(r *Ring, level int, p1, p2 []uint64) {
 	NTTConjugateInvariantLazy(p1, p2, r.N, r.NttPsi[level], r.Modulus[level], r.MredParams[level], r.BredParams[level])
 }
 
-// BackwardVec write the backward NTT in Z[X+X^-1]/(X^2N+1) of the i-th level of p1 on the i-th level of p2.
+// BackwardVec writes the backward NTT in Z[X+X^-1]/(X^2N+1) of the i-th level of p1 on the i-th level of p2.
 func (rntt NumberTheoreticTransformerConjugateInvariant) BackwardVec(r *Ring, level int, p1, p2 []uint64) {
 	InvNTTConjugateInvariant(p1, p2, r.N, r.NttPsiInv[level], r.NttNInv[level], r.Modulus[level], r.MredParams[level])
 }
 
-// BackwardLazyVec write the backward NTT in Z[X+X^-1]/(X^2N+1) of the i-th level of p1 on the i-th level of p2.
+// BackwardLazyVec writes the backward NTT in Z[X+X^-1]/(X^2N+1) of the i-th level of p1 on the i-th level of p2.
 // Returns values in the range [0, 2q-1].
 func (rntt NumberTheoreticTransformerConjugateInvariant) BackwardLazyVec(r *Ring, level int, p1, p2 []uint64) {
 	InvNTTConjugateInvariantLazy(p1, p2, r.N, r.NttPsiInv[level], r.NttNInv[level], r.Modulus[level], r.MredParams[level])

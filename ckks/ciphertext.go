@@ -3,10 +3,11 @@ package ckks
 import (
 	"encoding/binary"
 	"errors"
+	"math"
+
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
-	"math"
 )
 
 // Ciphertext is *ring.Poly array representing a polynomial of degree > 0 with coefficients in R_Q.

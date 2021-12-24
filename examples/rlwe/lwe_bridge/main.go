@@ -13,7 +13,7 @@ import (
 )
 
 // This example implements an oblivious shuffling of the plaintext slots of an RLWE encryption.
-// In such a scenario, an evaluator operates an arbitrary permutation (in this example, a random shuffle)
+// In such a scenario, an evaluator performs an arbitrary permutation (in this example, a random shuffle)
 // over the ciphertext's slots, homomorphically.
 //
 // The circuit uses the LWE <-> RLWE conversion "Efficient Homomorphic Conversion Between (Ring) LWE Ciphertexts"
@@ -75,7 +75,7 @@ func main() {
 	DecryptAndPrint(decryptor, LogSlots, ringQ, ciphertext, plaintext, scale)
 	fmt.Println()
 
-	//RLWE to LWEs : extracts each coefficient of enc(M(X)) = RLWE into a separate LWE ciphertext
+	//RLWE to LWEs: extracts each coefficient of enc(M(X)) = RLWE into a separate LWE ciphertext
 	// such that dec(RLWE)[i] = dec(LWE[i])
 	now := time.Now()
 	fmt.Printf("Extracting RLWE  -> LWEs")
@@ -91,14 +91,14 @@ func main() {
 	})
 	fmt.Printf(" Done : %s\n", time.Since(now))
 
-	// LWEs to RLWEs switches each individual LWE ciphertext into RLWE ciphertexts such that
+	// LWEs to RLWEs: switches each individual LWE ciphertext into RLWE ciphertexts such that
 	// dec(RLWEs[i])[0] = dec(LWE[i])
 	now = time.Now()
-	fmt.Printf("Switching  LWE   -> RLWEs")
+	fmt.Printf("Switching  LWEs   -> RLWEs")
 	ciphertexts := LWEToRLWE(LWE, ciphertext.Level(), params)
 	fmt.Printf(" Done : %s\n", time.Since(now))
 
-	// RLWEs to RLWE : repacks all the RLWEs into a single RLWE such that dec(RLWE) = M(X)
+	// RLWEs to RLWE: repacks all the RLWEs into a single RLWE such that dec(RLWE) = M(X)
 	fmt.Printf("Repacking  RLWEs -> RLWE")
 	XPow := make(map[int]*ring.Poly)
 	for i := 1; i < LogSlots+1; i++ {
@@ -185,7 +185,7 @@ func LWEToRLWE(lwe []LWESample, level int, params rlwe.Parameters) (ciphertexts 
 		ciphertexts[i] = rlwe.NewCiphertextNTT(params, 1, level)
 		ciphertexts[i].Value[0].Coeffs[0][0] = lwe[j].b
 
-		// Copy coefficients multiplied by X^{N-1} in reverse order:
+		// Copies coefficients multiplied by X^{N-1} in reverse order:
 		// a_{0} -a_{N-1} -a2_{N-2} ... -a_{1}
 		tmp0, tmp1 := acc.Coeffs[0], lwe[j].a
 		tmp0[0] = tmp1[0]

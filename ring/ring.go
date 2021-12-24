@@ -108,7 +108,7 @@ func NewRingConjugateInvariant(N int, Moduli []uint64) (r *Ring, err error) {
 }
 
 // NewRingFromType creates a new RNS Ring with degree N and coefficient moduli Moduli for which the type of NTT is determined by the ringType argument.
-// If ringType==Standard, the ring is instantiated with standard NTT transform with the Nth root of unity 2*N. If ringType==ConjugateInvariant, the ring
+// If ringType==Standard, the ring is instantiated with standard NTT with the Nth root of unity 2*N. If ringType==ConjugateInvariant, the ring
 // is instantiated with a ConjugateInvariant NTT with Nth root of unity 4*N. N must be a power of two larger than 8.
 // Moduli should be a non-empty []uint64 with distinct prime elements. All moduli must also be equal to 1 modulo the root of unity.
 // An error is returned with a nil *Ring in the case of non NTT-enabling parameters.

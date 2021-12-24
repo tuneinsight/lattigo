@@ -2,12 +2,13 @@ package ckks
 
 import (
 	"fmt"
-	"github.com/ldsec/lattigo/v2/ring"
-	"github.com/ldsec/lattigo/v2/utils"
 	"math"
 	"math/big"
 	"math/bits"
 	"runtime"
+
+	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/utils"
 )
 
 // Polynomial is a struct storing the coefficients of a polynomial
@@ -95,7 +96,7 @@ type polynomialVector struct {
 	SlotsIndex map[int][]int
 }
 
-// EvaluatePoly evaluates a vector of Polyomials in on the input Ciphertext in ceil(log2(deg+1)) levels.
+// EvaluatePoly evaluates a vector of Polyomials on the input Ciphertext in ceil(log2(deg+1)) levels.
 // Returns an error if the input ciphertext does not have enough level to carry out the full polynomial evaluation.
 // Returns an error if something is wrong with the scale.
 // Returns an error if polynomials are not all in the same basis.

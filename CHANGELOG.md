@@ -32,6 +32,7 @@ All notable changes to this project will be documented in this file.
 - CKKS: fixed a bug in the BSGS approach for linear transform where the selection of the ratio bettween giant step and baby step could lead to a ratio of N.
 - CKKS: the EvalMod step of the bootstrapping now works for moduli of any size, regardless of `Q[0]` or `MessageRatio`.
 - DCKKS: added support for multiparty CKKS over the conjugate invariant ring.
+- DCKKS: fixed `MaskedTransformProtocol` correctness for sparse plaintexts.
 - Examples: updated the `ckks/sigmoid` example to `ckks/polyeval` example, that now showcases the use of `PolynomialVector`.
 
 ## [2.3.0] - 2021-10-12

@@ -129,18 +129,17 @@ func (rfp *MaskedTransformProtocol) GenShares(sk *rlwe.SecretKey, logBound, logS
 
 		// Extracts sparse coefficients
 		for i, idx := 0, 0; i < slots; i, idx = i+1, idx+gap {
-			rfp.tmpBigComplex[idx][0].SetInt(rfp.tmpMask[idx])
+			rfp.tmpBigComplex[i][0].SetInt(rfp.tmpMask[idx])
 		}
 
 		switch rfp.e2s.params.RingType() {
 		case ring.Standard:
-			for i, idx, jdx := 0, 0, rfp.ringQ.N>>1; i < slots; i, idx, jdx = i+1, idx+gap, jdx+gap {
-				rfp.tmpBigComplex[idx][1].SetInt(rfp.tmpMask[jdx])
+			for i, idx := 0, rfp.ringQ.N>>1; i < slots; i, idx = i+1, idx+gap {
+				rfp.tmpBigComplex[i][1].SetInt(rfp.tmpMask[idx])
 			}
 		case ring.ConjugateInvariant:
-			tmp := new(big.Int)
-			for i, idx := 1, gap; i < slots; i, idx = i+1, idx+gap {
-				rfp.tmpBigComplex[idx][1].SetInt(tmp.Neg(rfp.tmpMask[slots-idx]))
+			for i := 1; i < slots; i++ {
+				rfp.tmpBigComplex[i][1].Neg(rfp.tmpBigComplex[slots-i][0])
 			}
 		default:
 			panic("invalid ring type")
@@ -221,18 +220,17 @@ func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, logSlots int,
 	if transform != nil {
 		// Extracts sparse coefficients
 		for i, idx := 0, 0; i < slots; i, idx = i+1, idx+gap {
-			rfp.tmpBigComplex[idx][0].SetInt(rfp.tmpMask[idx])
+			rfp.tmpBigComplex[i][0].SetInt(rfp.tmpMask[idx])
 		}
 
 		switch rfp.e2s.params.RingType() {
 		case ring.Standard:
-			for i, idx, jdx := 0, 0, rfp.ringQ.N>>1; i < slots; i, idx, jdx = i+1, idx+gap, jdx+gap {
-				rfp.tmpBigComplex[idx][1].SetInt(rfp.tmpMask[jdx])
+			for i, idx := 0, rfp.ringQ.N>>1; i < slots; i, idx = i+1, idx+gap {
+				rfp.tmpBigComplex[i][1].SetInt(rfp.tmpMask[idx])
 			}
 		case ring.ConjugateInvariant:
-			tmp := new(big.Int)
-			for i, idx := 1, gap; i < slots; i, idx = i+1, idx+gap {
-				rfp.tmpBigComplex[idx][1].SetInt(tmp.Neg(rfp.tmpMask[slots-idx]))
+			for i := 1; i < slots; i++ {
+				rfp.tmpBigComplex[i][1].Neg(rfp.tmpBigComplex[slots-i][0])
 			}
 		default:
 			panic("invalid ring type")

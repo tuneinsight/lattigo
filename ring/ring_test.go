@@ -66,6 +66,7 @@ func TestRing(t *testing.T) {
 		if testContext, err = genTestParams(defaultParam); err != nil {
 			t.Error(err)
 		}
+		testNTTConjugateInvariant(testContext, t)
 		testPRNG(testContext, t)
 		testGenerateNTTPrimes(testContext, t)
 		testImportExportPolyString(testContext, t)
@@ -83,6 +84,48 @@ func TestRing(t *testing.T) {
 		testScaling(testContext, t)
 		testMultByMonomial(testContext, t)
 	}
+}
+
+func testNTTConjugateInvariant(testContext *testParams, t *testing.T) {
+
+	t.Run(testString("NTTConjugateInvariant/", testContext.ringQ), func(t *testing.T) {
+
+		ringQ := testContext.ringQ
+		ringQ2N, _ := NewRing(ringQ.N<<1, ringQ.Modulus)
+		ringQConjugateInvariant, _ := NewRingFromType(testContext.ringQ.N, testContext.ringQ.Modulus, ConjugateInvariant)
+
+		sampler := NewUniformSampler(testContext.prng, ringQ)
+		p1 := sampler.ReadNew()
+		p2 := p1.CopyNew()
+
+		for i, qi := range ringQ.Modulus {
+			p2.Coeffs[i] = append(p2.Coeffs[i], make([]uint64, ringQ.N)...)
+			p2.Coeffs[i][ringQ.N] = 0
+			for j := 1; j < ringQ.N; j++ {
+				p2.Coeffs[i][ringQ.N*2-j] = qi - p2.Coeffs[i][j]
+			}
+		}
+
+		ringQ2N.NTT(p2, p2)
+		ringQ2N.MForm(p2, p2)
+		ringQ2N.MulCoeffsMontgomery(p2, p2, p2)
+		ringQ2N.InvMForm(p2, p2)
+		ringQ2N.InvNTT(p2, p2)
+
+		p1tmp := ringQ2N.NewPoly()
+
+		ringQConjugateInvariant.NTT(p1, p1tmp)
+		ringQConjugateInvariant.MForm(p1tmp, p1tmp)
+		ringQConjugateInvariant.MulCoeffsMontgomery(p1tmp, p1tmp, p1tmp)
+		ringQConjugateInvariant.InvMForm(p1tmp, p1tmp)
+		ringQConjugateInvariant.InvNTT(p1tmp, p1)
+
+		for j := range ringQ.Modulus {
+			for i := 0; i < ringQ.N; i++ {
+				require.Equal(t, p1.Coeffs[j][i], p2.Coeffs[j][i])
+			}
+		}
+	})
 }
 
 func testNewRing(t *testing.T) {

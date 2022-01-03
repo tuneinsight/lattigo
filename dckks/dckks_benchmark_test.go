@@ -135,7 +135,7 @@ func benchKeySwitching(testCtx *testContext, b *testing.B) {
 	sk1Shards := testCtx.sk1Shards
 	params := testCtx.params
 
-	ciphertext := ckks.NewCiphertext(params, 1, params.MaxLevel(), params.Scale())
+	ciphertext := ckks.NewCiphertext(params, 1, params.MaxLevel(), params.DefaultScale())
 
 	type Party struct {
 		*CKSProtocol
@@ -178,7 +178,7 @@ func benchPublicKeySwitching(testCtx *testContext, b *testing.B) {
 	pk1 := testCtx.pk1
 	params := testCtx.params
 
-	ciphertext := ckks.NewCiphertext(params, 1, params.MaxLevel(), params.Scale())
+	ciphertext := ckks.NewCiphertext(params, 1, params.MaxLevel(), params.DefaultScale())
 
 	type Party struct {
 		*PCKSProtocol
@@ -258,7 +258,7 @@ func benchRefresh(testCtx *testContext, b *testing.B) {
 
 	params := testCtx.params
 
-	minLevel, logBound, ok := GetMinimumLevelForBootstrapping(128, params.Scale(), parties, params.Q())
+	minLevel, logBound, ok := GetMinimumLevelForBootstrapping(128, params.DefaultScale(), parties, params.Q())
 
 	if ok {
 
@@ -275,7 +275,7 @@ func benchRefresh(testCtx *testContext, b *testing.B) {
 		p.s = sk0Shards[0]
 		p.share = p.AllocateShare(minLevel, params.MaxLevel())
 
-		ciphertext := ckks.NewCiphertext(params, 1, minLevel, params.Scale())
+		ciphertext := ckks.NewCiphertext(params, 1, minLevel, params.DefaultScale())
 
 		crp := p.SampleCRP(params.MaxLevel(), testCtx.crs)
 
@@ -294,7 +294,7 @@ func benchRefresh(testCtx *testContext, b *testing.B) {
 		})
 
 		b.Run(testString("Refresh/Finalize", parties, params), func(b *testing.B) {
-			ctOut := ckks.NewCiphertext(params, 1, params.MaxLevel(), params.Scale())
+			ctOut := ckks.NewCiphertext(params, 1, params.MaxLevel(), params.DefaultScale())
 			for i := 0; i < b.N; i++ {
 				p.Finalize(ciphertext, params.LogSlots(), crp, p.share, ctOut)
 			}
@@ -309,7 +309,7 @@ func benchMaskedTransform(testCtx *testContext, b *testing.B) {
 
 	params := testCtx.params
 
-	minLevel, logBound, ok := GetMinimumLevelForBootstrapping(128, params.Scale(), parties, params.Q())
+	minLevel, logBound, ok := GetMinimumLevelForBootstrapping(128, params.DefaultScale(), parties, params.Q())
 
 	if ok {
 
@@ -321,7 +321,7 @@ func benchMaskedTransform(testCtx *testContext, b *testing.B) {
 			share *MaskedTransformShare
 		}
 
-		ciphertext := ckks.NewCiphertext(params, 1, minLevel, params.Scale())
+		ciphertext := ckks.NewCiphertext(params, 1, minLevel, params.DefaultScale())
 
 		p := new(Party)
 		p.MaskedTransformProtocol = NewMaskedTransformProtocol(params, logBound, 3.2)
@@ -352,7 +352,7 @@ func benchMaskedTransform(testCtx *testContext, b *testing.B) {
 		})
 
 		b.Run(testString("Refresh&Transform/Transform", parties, params), func(b *testing.B) {
-			ctOut := ckks.NewCiphertext(params, 1, params.MaxLevel(), params.Scale())
+			ctOut := ckks.NewCiphertext(params, 1, params.MaxLevel(), params.DefaultScale())
 			for i := 0; i < b.N; i++ {
 				p.Transform(ciphertext, params.LogSlots(), permute, crp, p.share, ctOut)
 			}

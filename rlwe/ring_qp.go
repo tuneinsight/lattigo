@@ -141,6 +141,14 @@ func (r *RingQP) MulCoeffsMontgomeryAndSubLvl(levelQ, levelP int, p1, p2, p3 Pol
 	r.RingP.MulCoeffsMontgomeryAndSubLvl(levelP, p1.P, p2.P, p3.P)
 }
 
+// MulCoeffsMontgomeryConstantAndSubNoModLvl multiplies p1 by p2 coefficient-wise with
+// a Montgomery modular reduction and subtracts the result from p3.
+// The operation is performed at levelQ for the ringQ and levelP for the ringP.
+func (r *RingQP) MulCoeffsMontgomeryConstantAndSubNoModLvl(levelQ, levelP int, p1, p2, p3 PolyQP) {
+	r.RingQ.MulCoeffsMontgomeryConstantAndSubNoModLvl(levelQ, p1.Q, p2.Q, p3.Q)
+	r.RingP.MulCoeffsMontgomeryConstantAndSubNoModLvl(levelP, p1.P, p2.P, p3.P)
+}
+
 // MulCoeffsMontgomeryAndAddLvl multiplies p1 by p2 coefficient-wise with a
 // Montgomery modular reduction and adds the result to p3.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
@@ -154,8 +162,8 @@ func (r *RingQP) MulCoeffsMontgomeryAndAddLvl(levelQ, levelP int, p1, p2, p3 Pol
 // Method is not in place.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
 func (r *RingQP) PermuteNTTWithIndexLvl(levelQ, levelP int, p1 PolyQP, index []uint64, p2 PolyQP) {
-	ring.PermuteNTTWithIndexLvl(levelQ, p1.Q, index, p2.Q)
-	ring.PermuteNTTWithIndexLvl(levelP, p1.P, index, p2.P)
+	r.RingQ.PermuteNTTWithIndexLvl(levelQ, p1.Q, index, p2.Q)
+	r.RingP.PermuteNTTWithIndexLvl(levelP, p1.P, index, p2.P)
 }
 
 // PermuteNTTWithIndexAndAddNoModLvl applies the automorphism X^{5^j} on p1 and adds the result on p2.
@@ -163,8 +171,8 @@ func (r *RingQP) PermuteNTTWithIndexLvl(levelQ, levelP int, p1 PolyQP, index []u
 // Method is not in place.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
 func (r *RingQP) PermuteNTTWithIndexAndAddNoModLvl(levelQ, levelP int, p1 PolyQP, index []uint64, p2 PolyQP) {
-	ring.PermuteNTTWithIndexAndAddNoModLvl(levelQ, p1.Q, index, p2.Q)
-	ring.PermuteNTTWithIndexAndAddNoModLvl(levelP, p1.P, index, p2.P)
+	r.RingQ.PermuteNTTWithIndexAndAddNoModLvl(levelQ, p1.Q, index, p2.Q)
+	r.RingP.PermuteNTTWithIndexAndAddNoModLvl(levelP, p1.P, index, p2.P)
 }
 
 // CopyValuesLvl copies the values of p1 on p2.

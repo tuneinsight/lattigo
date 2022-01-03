@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"math/big"
+	"runtime"
 	"testing"
 
 	"github.com/ldsec/lattigo/v2/bfv"
@@ -21,7 +22,7 @@ var flagParamString = flag.String("params", "", "specify the test cryptographic 
 var parties int = 3
 
 func testString(opname string, parties int, params bfv.Parameters) string {
-	return fmt.Sprintf("%sparties=%d/LogN=%d/logQ=%d", opname, parties, params.LogN(), params.LogQP())
+	return fmt.Sprintf("%s/LogN=%d/logQ=%d/parties=%d", opname, params.LogN(), params.LogQP(), parties)
 }
 
 type testContext struct {
@@ -61,10 +62,10 @@ func Test_DBFV(t *testing.T) {
 
 	defaultParams := bfv.DefaultParams // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	if testing.Short() {
-		defaultParams = bfv.DefaultParams[:2] // the short test runs for ring degree N=2^12, 2^13
+		defaultParams = bfv.DefaultParams[:2] // the short test suite runs for ring degree N=2^12, 2^13
 	}
 	if *flagLongTest {
-		defaultParams = bfv.DefaultParams // the long test suite runs for all default parameters
+		defaultParams = append(defaultParams, bfv.DefaultPostQuantumParams...) // the long test suite runs for all default parameters
 	}
 	if *flagParamString != "" {
 		var jsonParams bfv.ParametersLiteral
@@ -75,21 +76,29 @@ func Test_DBFV(t *testing.T) {
 	for _, p := range defaultParams {
 
 		params, err := bfv.NewParametersFromLiteral(p)
-		var testCtx *testContext
-		if testCtx, err = gentestContext(params); err != nil {
+		if err != nil {
 			panic(err)
 		}
+		var tc *testContext
+		if tc, err = gentestContext(params); err != nil {
+			panic(err)
+		}
+		for _, testSet := range []func(tc *testContext, t *testing.T){
 
-		testPublicKeyGen(testCtx, t)
-		testRelinKeyGen(testCtx, t)
-		testKeyswitching(testCtx, t)
-		testPublicKeySwitching(testCtx, t)
-		testRotKeyGenRotRows(testCtx, t)
-		testRotKeyGenRotCols(testCtx, t)
-		testEncToShares(testCtx, t)
-		testRefresh(testCtx, t)
-		testRefreshAndPermutation(testCtx, t)
-		testMarshalling(testCtx, t)
+			testPublicKeyGen,
+			testRelinKeyGen,
+			testKeyswitching,
+			testPublicKeySwitching,
+			testRotKeyGenRotRows,
+			testRotKeyGenRotCols,
+			testEncToShares,
+			testRefresh,
+			testRefreshAndPermutation,
+			testMarshalling,
+		} {
+			testSet(tc, t)
+			runtime.GC()
+		}
 	}
 }
 

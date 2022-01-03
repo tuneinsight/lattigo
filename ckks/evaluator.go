@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"unsafe"
 
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
@@ -20,7 +19,7 @@ type Operand interface {
 	SetScalingFactor(float64)
 }
 
-// Evaluator is an interface implementing the methodes to conduct homomorphic operations between ciphertext and/or plaintexts.
+// Evaluator is an interface implementing the methods to conduct homomorphic operations between ciphertext and/or plaintexts.
 type Evaluator interface {
 	// ========================
 	// === Basic Arithmetic ===
@@ -71,6 +70,9 @@ type Evaluator interface {
 	MulRelin(op0, op1 Operand, ctOut *Ciphertext)
 	MulRelinNew(op0, op1 Operand) (ctOut *Ciphertext)
 
+	MulAndAdd(op0, op1 Operand, ctOut *Ciphertext)
+	MulRelinAndAdd(op0, op1 Operand, ctOut *Ciphertext)
+
 	// Slot Rotations
 	RotateNew(ctIn *Ciphertext, k int) (ctOut *Ciphertext)
 	Rotate(ctIn *Ciphertext, k int, ctOut *Ciphertext)
@@ -95,6 +97,7 @@ type Evaluator interface {
 
 	// Polynomial evaluation
 	EvaluatePoly(ctIn *Ciphertext, pol *Polynomial, targetScale float64) (ctOut *Ciphertext, err error)
+	EvaluatePolyVector(ctIn *Ciphertext, pols []*Polynomial, encoder Encoder, slotIndex map[int][]int, targetScale float64) (ctOut *Ciphertext, err error)
 
 	// Inversion
 	InverseNew(ctIn *Ciphertext, steps int) (ctOut *Ciphertext)
@@ -102,14 +105,15 @@ type Evaluator interface {
 	// Linear Transformations
 	LinearTransformNew(ctIn *Ciphertext, linearTransform interface{}) (ctOut []*Ciphertext)
 	LinearTransform(ctIn *Ciphertext, linearTransform interface{}, ctOut []*Ciphertext)
-	MultiplyByDiagMatrix(ctIn *Ciphertext, matrix PtDiagMatrix, c2DecompQP []rlwe.PolyQP, ctOut *Ciphertext)
-	MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix PtDiagMatrix, c2DecompQP []rlwe.PolyQP, ctOut *Ciphertext)
+	MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTransform, c2DecompQP []rlwe.PolyQP, ctOut *Ciphertext)
+	MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearTransform, c2DecompQP []rlwe.PolyQP, ctOut *Ciphertext)
 
 	// Inner sum
 	InnerSumLog(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
 	InnerSum(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
+	Average(ctIn *Ciphertext, batch int, ctOut *Ciphertext)
 
-	// Replicatation (inverse of Inner sum)
+	// Replication (inverse of Inner sum)
 	ReplicateLog(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
 	Replicate(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
 
@@ -195,7 +199,7 @@ func newEvaluatorBuffers(evalBase *evaluatorBase) *evaluatorBuffers {
 	params := evalBase.params
 	ringQ := params.RingQ()
 	buff.poolQMul = [3]*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly(), ringQ.NewPoly()}
-	buff.ctxpool = NewCiphertext(params, 2, params.MaxLevel(), params.Scale())
+	buff.ctxpool = NewCiphertext(params, 2, params.MaxLevel(), params.DefaultScale())
 	return buff
 }
 
@@ -225,9 +229,8 @@ func (eval *evaluator) permuteNTTIndexesForKey(rtks *rlwe.RotationKeySet) *map[u
 		return &map[uint64][]uint64{}
 	}
 	permuteNTTIndex := make(map[uint64][]uint64, len(rtks.Keys))
-	N := uint64(eval.params.RingQ().N)
 	for galEl := range rtks.Keys {
-		permuteNTTIndex[galEl] = ring.PermuteNTTIndex(galEl, N)
+		permuteNTTIndex[galEl] = eval.params.RingQ().PermuteNTTIndex(galEl)
 	}
 	return &permuteNTTIndex
 }
@@ -577,6 +580,10 @@ func (eval *evaluator) getConstAndScale(level int, constant interface{}) (cReal,
 		cImag = float64(0)
 	}
 
+	if eval.params.RingType() == ring.ConjugateInvariant {
+		cImag = float64(0)
+	}
+
 	return
 }
 
@@ -584,7 +591,7 @@ func (eval *evaluator) getConstAndScale(level int, constant interface{}) (cReal,
 func (eval *evaluator) AddConst(ct0 *Ciphertext, constant interface{}, ctOut *Ciphertext) {
 
 	var level = utils.MinInt(ct0.Level(), ctOut.Level())
-	var scaledConst, scaledConstReal, scaledConstImag uint64
+	var scaledConst, scaledConstReal, scaledConstImag, qi uint64
 
 	cReal, cImag, _ := eval.getConstAndScale(level, constant)
 
@@ -596,12 +603,8 @@ func (eval *evaluator) AddConst(ct0 *Ciphertext, constant interface{}, ctOut *Ci
 	// [a + b*psi_qi^2, ....., a + b*psi_qi^2, a - b*psi_qi^2, ...., a - b*psi_qi^2] mod Qi
 	// [{                  N/2                }{                N/2               }]
 	// Which is equivalent outside of the NTT domain to adding a to the first coefficient of ct0 and b to the N/2-th coefficient of ct0.
-	var qi uint64
 	for i := 0; i < level+1; i++ {
-		scaledConstReal = 0
-		scaledConstImag = 0
-		scaledConst = 0
-
+		scaledConstReal, scaledConstImag, scaledConst = 0, 0, 0
 		qi = ringQ.Modulus[i]
 
 		if cReal != 0 {
@@ -614,42 +617,16 @@ func (eval *evaluator) AddConst(ct0 *Ciphertext, constant interface{}, ctOut *Ci
 			scaledConst = ring.CRed(scaledConst+scaledConstImag, qi)
 		}
 
-		p1tmp := ctOut.Value[0].Coeffs[i]
 		p0tmp := ct0.Value[0].Coeffs[i]
+		p1tmp := ctOut.Value[0].Coeffs[i]
 
-		for j := 0; j < ringQ.N>>1; j = j + 8 {
-
-			x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
-			z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-
-			z[0] = ring.CRed(x[0]+scaledConst, qi)
-			z[1] = ring.CRed(x[1]+scaledConst, qi)
-			z[2] = ring.CRed(x[2]+scaledConst, qi)
-			z[3] = ring.CRed(x[3]+scaledConst, qi)
-			z[4] = ring.CRed(x[4]+scaledConst, qi)
-			z[5] = ring.CRed(x[5]+scaledConst, qi)
-			z[6] = ring.CRed(x[6]+scaledConst, qi)
-			z[7] = ring.CRed(x[7]+scaledConst, qi)
-		}
+		ring.AddScalarVec(p0tmp[:ringQ.N>>1], p1tmp[:ringQ.N>>1], scaledConst, qi)
 
 		if cImag != 0 {
 			scaledConst = ring.CRed(scaledConstReal+(qi-scaledConstImag), qi)
 		}
 
-		for j := ringQ.N >> 1; j < ringQ.N; j = j + 8 {
-
-			x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
-			z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-
-			z[0] = ring.CRed(x[0]+scaledConst, qi)
-			z[1] = ring.CRed(x[1]+scaledConst, qi)
-			z[2] = ring.CRed(x[2]+scaledConst, qi)
-			z[3] = ring.CRed(x[3]+scaledConst, qi)
-			z[4] = ring.CRed(x[4]+scaledConst, qi)
-			z[5] = ring.CRed(x[5]+scaledConst, qi)
-			z[6] = ring.CRed(x[6]+scaledConst, qi)
-			z[7] = ring.CRed(x[7]+scaledConst, qi)
-		}
+		ring.AddScalarVec(p0tmp[ringQ.N>>1:], p1tmp[ringQ.N>>1:], scaledConst, qi)
 	}
 }
 
@@ -743,21 +720,7 @@ func (eval *evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interface{}, 
 		for u := range ct0.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-
-			for j := 0; j < ringQ.N>>1; j = j + 8 {
-
-				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
-				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-
-				z[0] = ring.CRed(z[0]+ring.MRed(x[0], scaledConst, qi, mredParams), qi)
-				z[1] = ring.CRed(z[1]+ring.MRed(x[1], scaledConst, qi, mredParams), qi)
-				z[2] = ring.CRed(z[2]+ring.MRed(x[2], scaledConst, qi, mredParams), qi)
-				z[3] = ring.CRed(z[3]+ring.MRed(x[3], scaledConst, qi, mredParams), qi)
-				z[4] = ring.CRed(z[4]+ring.MRed(x[4], scaledConst, qi, mredParams), qi)
-				z[5] = ring.CRed(z[5]+ring.MRed(x[5], scaledConst, qi, mredParams), qi)
-				z[6] = ring.CRed(z[6]+ring.MRed(x[6], scaledConst, qi, mredParams), qi)
-				z[7] = ring.CRed(z[7]+ring.MRed(x[7], scaledConst, qi, mredParams), qi)
-			}
+			ring.MulScalarMontgomeryAndAddVec(p0tmp[:ringQ.N>>1], p1tmp[:ringQ.N>>1], scaledConst, qi, mredParams)
 		}
 
 		if cImag != 0 {
@@ -768,20 +731,7 @@ func (eval *evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interface{}, 
 		for u := range ct0.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-			for j := ringQ.N >> 1; j < ringQ.N; j = j + 8 {
-
-				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
-				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-
-				z[0] = ring.CRed(z[0]+ring.MRed(x[0], scaledConst, qi, mredParams), qi)
-				z[1] = ring.CRed(z[1]+ring.MRed(x[1], scaledConst, qi, mredParams), qi)
-				z[2] = ring.CRed(z[2]+ring.MRed(x[2], scaledConst, qi, mredParams), qi)
-				z[3] = ring.CRed(z[3]+ring.MRed(x[3], scaledConst, qi, mredParams), qi)
-				z[4] = ring.CRed(z[4]+ring.MRed(x[4], scaledConst, qi, mredParams), qi)
-				z[5] = ring.CRed(z[5]+ring.MRed(x[5], scaledConst, qi, mredParams), qi)
-				z[6] = ring.CRed(z[6]+ring.MRed(x[6], scaledConst, qi, mredParams), qi)
-				z[7] = ring.CRed(z[7]+ring.MRed(x[7], scaledConst, qi, mredParams), qi)
-			}
+			ring.MulScalarMontgomeryAndAddVec(p0tmp[ringQ.N>>1:], p1tmp[ringQ.N>>1:], scaledConst, qi, mredParams)
 		}
 	}
 }
@@ -836,21 +786,7 @@ func (eval *evaluator) MultByConst(ct0 *Ciphertext, constant interface{}, ctOut 
 		for u := range ct0.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-
-			for j := 0; j < ringQ.N>>1; j = j + 8 {
-
-				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
-				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-
-				z[0] = ring.MRed(x[0], scaledConst, qi, mredParams)
-				z[1] = ring.MRed(x[1], scaledConst, qi, mredParams)
-				z[2] = ring.MRed(x[2], scaledConst, qi, mredParams)
-				z[3] = ring.MRed(x[3], scaledConst, qi, mredParams)
-				z[4] = ring.MRed(x[4], scaledConst, qi, mredParams)
-				z[5] = ring.MRed(x[5], scaledConst, qi, mredParams)
-				z[6] = ring.MRed(x[6], scaledConst, qi, mredParams)
-				z[7] = ring.MRed(x[7], scaledConst, qi, mredParams)
-			}
+			ring.MulScalarMontgomeryVec(p0tmp[:ringQ.N>>1], p1tmp[:ringQ.N>>1], scaledConst, qi, mredParams)
 		}
 
 		if cImag != 0 {
@@ -861,20 +797,7 @@ func (eval *evaluator) MultByConst(ct0 *Ciphertext, constant interface{}, ctOut 
 		for u := range ct0.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-			for j := ringQ.N >> 1; j < ringQ.N; j = j + 8 {
-
-				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
-				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-
-				z[0] = ring.MRed(x[0], scaledConst, qi, mredParams)
-				z[1] = ring.MRed(x[1], scaledConst, qi, mredParams)
-				z[2] = ring.MRed(x[2], scaledConst, qi, mredParams)
-				z[3] = ring.MRed(x[3], scaledConst, qi, mredParams)
-				z[4] = ring.MRed(x[4], scaledConst, qi, mredParams)
-				z[5] = ring.MRed(x[5], scaledConst, qi, mredParams)
-				z[6] = ring.MRed(x[6], scaledConst, qi, mredParams)
-				z[7] = ring.MRed(x[7], scaledConst, qi, mredParams)
-			}
+			ring.MulScalarMontgomeryVec(p0tmp[ringQ.N>>1:], p1tmp[ringQ.N>>1:], scaledConst, qi, mredParams)
 		}
 	}
 
@@ -899,7 +822,11 @@ func (eval *evaluator) MultByGaussianInteger(ct0 *Ciphertext, cReal, cImag inter
 		mredParams := ringQ.MredParams[i]
 
 		scaledConstReal = interfaceMod(cReal, qi)
-		scaledConstImag = interfaceMod(cImag, qi)
+
+		if eval.params.RingType() != ring.ConjugateInvariant {
+			scaledConstImag = interfaceMod(cImag, qi)
+		}
+
 		scaledConst = scaledConstReal
 
 		if scaledConstImag != 0 {
@@ -912,21 +839,7 @@ func (eval *evaluator) MultByGaussianInteger(ct0 *Ciphertext, cReal, cImag inter
 		for u := range ct0.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-
-			for j := 0; j < ringQ.N>>1; j = j + 8 {
-
-				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
-				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-
-				z[0] = ring.MRed(x[0], scaledConst, qi, mredParams)
-				z[1] = ring.MRed(x[1], scaledConst, qi, mredParams)
-				z[2] = ring.MRed(x[2], scaledConst, qi, mredParams)
-				z[3] = ring.MRed(x[3], scaledConst, qi, mredParams)
-				z[4] = ring.MRed(x[4], scaledConst, qi, mredParams)
-				z[5] = ring.MRed(x[5], scaledConst, qi, mredParams)
-				z[6] = ring.MRed(x[6], scaledConst, qi, mredParams)
-				z[7] = ring.MRed(x[7], scaledConst, qi, mredParams)
-			}
+			ring.MulScalarMontgomeryVec(p0tmp[:ringQ.N>>1], p1tmp[:ringQ.N>>1], scaledConst, qi, mredParams)
 		}
 
 		if cImag != 0 {
@@ -937,21 +850,7 @@ func (eval *evaluator) MultByGaussianInteger(ct0 *Ciphertext, cReal, cImag inter
 		for u := range ct0.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-
-			for j := ringQ.N >> 1; j < ringQ.N; j = j + 8 {
-
-				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
-				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-
-				z[0] = ring.MRed(x[0], scaledConst, qi, mredParams)
-				z[1] = ring.MRed(x[1], scaledConst, qi, mredParams)
-				z[2] = ring.MRed(x[2], scaledConst, qi, mredParams)
-				z[3] = ring.MRed(x[3], scaledConst, qi, mredParams)
-				z[4] = ring.MRed(x[4], scaledConst, qi, mredParams)
-				z[5] = ring.MRed(x[5], scaledConst, qi, mredParams)
-				z[6] = ring.MRed(x[6], scaledConst, qi, mredParams)
-				z[7] = ring.MRed(x[7], scaledConst, qi, mredParams)
-			}
+			ring.MulScalarMontgomeryVec(p0tmp[ringQ.N>>1:], p1tmp[ringQ.N>>1:], scaledConst, qi, mredParams)
 		}
 	}
 }
@@ -972,7 +871,11 @@ func (eval *evaluator) MultByGaussianIntegerAndAdd(ct0 *Ciphertext, cReal, cImag
 		mredParams := ringQ.MredParams[i]
 
 		scaledConstReal = interfaceMod(cReal, qi)
-		scaledConstImag = interfaceMod(cImag, qi)
+
+		if eval.params.RingType() != ring.ConjugateInvariant {
+			scaledConstImag = interfaceMod(cImag, qi)
+		}
+
 		scaledConst = scaledConstReal
 
 		if scaledConstImag != 0 {
@@ -985,21 +888,7 @@ func (eval *evaluator) MultByGaussianIntegerAndAdd(ct0 *Ciphertext, cReal, cImag
 		for u := range ct0.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-
-			for j := 0; j < ringQ.N>>1; j = j + 8 {
-
-				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
-				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-
-				z[0] = ring.CRed(z[0]+ring.MRed(x[0], scaledConst, qi, mredParams), qi)
-				z[1] = ring.CRed(z[1]+ring.MRed(x[1], scaledConst, qi, mredParams), qi)
-				z[2] = ring.CRed(z[2]+ring.MRed(x[2], scaledConst, qi, mredParams), qi)
-				z[3] = ring.CRed(z[3]+ring.MRed(x[3], scaledConst, qi, mredParams), qi)
-				z[4] = ring.CRed(z[4]+ring.MRed(x[4], scaledConst, qi, mredParams), qi)
-				z[5] = ring.CRed(z[5]+ring.MRed(x[5], scaledConst, qi, mredParams), qi)
-				z[6] = ring.CRed(z[6]+ring.MRed(x[6], scaledConst, qi, mredParams), qi)
-				z[7] = ring.CRed(z[7]+ring.MRed(x[7], scaledConst, qi, mredParams), qi)
-			}
+			ring.MulScalarMontgomeryAndAddVec(p0tmp[:ringQ.N>>1], p1tmp[:ringQ.N>>1], scaledConst, qi, mredParams)
 		}
 
 		if cImag != 0 {
@@ -1010,21 +899,7 @@ func (eval *evaluator) MultByGaussianIntegerAndAdd(ct0 *Ciphertext, cReal, cImag
 		for u := range ct0.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-
-			for j := ringQ.N >> 1; j < ringQ.N; j = j + 8 {
-
-				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
-				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-
-				z[0] = ring.CRed(z[0]+ring.MRed(x[0], scaledConst, qi, mredParams), qi)
-				z[1] = ring.CRed(z[1]+ring.MRed(x[1], scaledConst, qi, mredParams), qi)
-				z[2] = ring.CRed(z[2]+ring.MRed(x[2], scaledConst, qi, mredParams), qi)
-				z[3] = ring.CRed(z[3]+ring.MRed(x[3], scaledConst, qi, mredParams), qi)
-				z[4] = ring.CRed(z[4]+ring.MRed(x[4], scaledConst, qi, mredParams), qi)
-				z[5] = ring.CRed(z[5]+ring.MRed(x[5], scaledConst, qi, mredParams), qi)
-				z[6] = ring.CRed(z[6]+ring.MRed(x[6], scaledConst, qi, mredParams), qi)
-				z[7] = ring.CRed(z[7]+ring.MRed(x[7], scaledConst, qi, mredParams), qi)
-			}
+			ring.MulScalarMontgomeryAndAddVec(p0tmp[ringQ.N>>1:], p1tmp[ringQ.N>>1:], scaledConst, qi, mredParams)
 		}
 	}
 }
@@ -1032,6 +907,11 @@ func (eval *evaluator) MultByGaussianIntegerAndAdd(ct0 *Ciphertext, cReal, cImag
 // MultByiNew multiplies ct0 by the imaginary number i, and returns the result in a newly created element.
 // It does not change the scale.
 func (eval *evaluator) MultByiNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
+
+	if eval.params.RingType() == ring.ConjugateInvariant {
+		panic("method MultByi is not supported when params.RingType() == ring.ConjugateInvariant")
+	}
+
 	ctOut = NewCiphertext(eval.params, 1, ct0.Level(), ct0.Scale)
 	eval.MultByi(ct0, ctOut)
 	return ctOut
@@ -1040,6 +920,10 @@ func (eval *evaluator) MultByiNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 // MultByi multiplies ct0 by the imaginary number i, and returns the result in ctOut.
 // It does not change the scale.
 func (eval *evaluator) MultByi(ct0 *Ciphertext, ctOut *Ciphertext) {
+
+	if eval.params.RingType() == ring.ConjugateInvariant {
+		panic("method MultByi is not supported when params.RingType() == ring.ConjugateInvariant")
+	}
 
 	var level = utils.MinInt(ct0.Level(), ctOut.Level())
 	ctOut.Scale = ct0.Scale
@@ -1059,21 +943,7 @@ func (eval *evaluator) MultByi(ct0 *Ciphertext, ctOut *Ciphertext) {
 		for u := range ctOut.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-
-			for j := 0; j < ringQ.N>>1; j = j + 8 {
-
-				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
-				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-
-				z[0] = ring.MRed(x[0], imag, qi, mredParams)
-				z[1] = ring.MRed(x[1], imag, qi, mredParams)
-				z[2] = ring.MRed(x[2], imag, qi, mredParams)
-				z[3] = ring.MRed(x[3], imag, qi, mredParams)
-				z[4] = ring.MRed(x[4], imag, qi, mredParams)
-				z[5] = ring.MRed(x[5], imag, qi, mredParams)
-				z[6] = ring.MRed(x[6], imag, qi, mredParams)
-				z[7] = ring.MRed(x[7], imag, qi, mredParams)
-			}
+			ring.MulScalarMontgomeryVec(p0tmp[:ringQ.N>>1], p1tmp[:ringQ.N>>1], imag, qi, mredParams)
 		}
 
 		imag = qi - imag
@@ -1081,21 +951,7 @@ func (eval *evaluator) MultByi(ct0 *Ciphertext, ctOut *Ciphertext) {
 		for u := range ctOut.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-			for j := ringQ.N >> 1; j < ringQ.N; j = j + 8 {
-
-				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
-				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-
-				z[0] = ring.MRed(x[0], imag, qi, mredParams)
-				z[1] = ring.MRed(x[1], imag, qi, mredParams)
-				z[2] = ring.MRed(x[2], imag, qi, mredParams)
-				z[3] = ring.MRed(x[3], imag, qi, mredParams)
-				z[4] = ring.MRed(x[4], imag, qi, mredParams)
-				z[5] = ring.MRed(x[5], imag, qi, mredParams)
-				z[6] = ring.MRed(x[6], imag, qi, mredParams)
-				z[7] = ring.MRed(x[7], imag, qi, mredParams)
-
-			}
+			ring.MulScalarMontgomeryVec(p0tmp[ringQ.N>>1:], p1tmp[ringQ.N>>1:], imag, qi, mredParams)
 		}
 	}
 }
@@ -1103,6 +959,11 @@ func (eval *evaluator) MultByi(ct0 *Ciphertext, ctOut *Ciphertext) {
 // DivByiNew multiplies ct0 by the imaginary number 1/i = -i, and returns the result in a newly created element.
 // It does not change the scale.
 func (eval *evaluator) DivByiNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
+
+	if eval.params.RingType() == ring.ConjugateInvariant {
+		panic("method DivByi is not supported when params.RingType() == ring.ConjugateInvariant")
+	}
+
 	ctOut = NewCiphertext(eval.params, 1, ct0.Level(), ct0.Scale)
 	eval.DivByi(ct0, ctOut)
 	return
@@ -1111,6 +972,10 @@ func (eval *evaluator) DivByiNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 // DivByi multiplies ct0 by the imaginary number 1/i = -i, and returns the result in ctOut.
 // It does not change the scale.
 func (eval *evaluator) DivByi(ct0 *Ciphertext, ctOut *Ciphertext) {
+
+	if eval.params.RingType() == ring.ConjugateInvariant {
+		panic("method DivByi is not supported when params.RingType() == ring.ConjugateInvariant")
+	}
 
 	var level = utils.MinInt(ct0.Level(), ctOut.Level())
 
@@ -1131,20 +996,7 @@ func (eval *evaluator) DivByi(ct0 *Ciphertext, ctOut *Ciphertext) {
 		for u := range ctOut.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-			for j := 0; j < ringQ.N>>1; j = j + 8 {
-
-				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
-				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-
-				z[0] = ring.MRed(x[0], imag, qi, mredParams)
-				z[1] = ring.MRed(x[1], imag, qi, mredParams)
-				z[2] = ring.MRed(x[2], imag, qi, mredParams)
-				z[3] = ring.MRed(x[3], imag, qi, mredParams)
-				z[4] = ring.MRed(x[4], imag, qi, mredParams)
-				z[5] = ring.MRed(x[5], imag, qi, mredParams)
-				z[6] = ring.MRed(x[6], imag, qi, mredParams)
-				z[7] = ring.MRed(x[7], imag, qi, mredParams)
-			}
+			ring.MulScalarMontgomeryVec(p0tmp[:ringQ.N>>1], p1tmp[:ringQ.N>>1], imag, qi, mredParams)
 		}
 
 		imag = ringQ.NttPsi[i][1] // Psi^2
@@ -1152,20 +1004,7 @@ func (eval *evaluator) DivByi(ct0 *Ciphertext, ctOut *Ciphertext) {
 		for u := range ctOut.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-			for j := ringQ.N >> 1; j < ringQ.N; j = j + 8 {
-
-				x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
-				z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-
-				z[0] = ring.MRed(x[0], imag, qi, mredParams)
-				z[1] = ring.MRed(x[1], imag, qi, mredParams)
-				z[2] = ring.MRed(x[2], imag, qi, mredParams)
-				z[3] = ring.MRed(x[3], imag, qi, mredParams)
-				z[4] = ring.MRed(x[4], imag, qi, mredParams)
-				z[5] = ring.MRed(x[5], imag, qi, mredParams)
-				z[6] = ring.MRed(x[6], imag, qi, mredParams)
-				z[7] = ring.MRed(x[7], imag, qi, mredParams)
-			}
+			ring.MulScalarMontgomeryVec(p0tmp[ringQ.N>>1:], p1tmp[ringQ.N>>1:], imag, qi, mredParams)
 		}
 	}
 }
@@ -1380,7 +1219,7 @@ func (eval *evaluator) mulRelin(op0, op1 Operand, relin bool, ctOut *Ciphertext)
 		c0 = ctOut.Value[0]
 		c1 = ctOut.Value[1]
 
-		if relin == false {
+		if !relin {
 			if ctOut.Degree() < 2 {
 				ctOut.El().Resize(eval.params.Parameters, 2)
 			}
@@ -1389,7 +1228,7 @@ func (eval *evaluator) mulRelin(op0, op1 Operand, relin bool, ctOut *Ciphertext)
 			c2 = eval.poolQMul[2]
 		}
 
-		// Avoid overwritting if the second input is the output
+		// Avoid overwriting if the second input is the output
 		var tmp0, tmp1 *rlwe.Ciphertext
 		if op1.El() == ctOut.El() {
 			tmp0, tmp1 = op1.El(), op0.El()
@@ -1436,6 +1275,112 @@ func (eval *evaluator) mulRelin(op0, op1 Operand, relin bool, ctOut *Ciphertext)
 		ringQ.MFormLvl(level, tmp0.Value[0], c00)
 		ringQ.MulCoeffsMontgomeryLvl(level, c00, tmp1.Value[0], ctOut.Value[0])
 		ringQ.MulCoeffsMontgomeryLvl(level, c00, tmp1.Value[1], ctOut.Value[1])
+	}
+}
+
+// MulAndAdd multiplies op0 with op1 without relinearization and adds the result on ctOut.
+// User must ensure that ctOut.Scale <= op0.Scale * op1.Scale.
+// If ctOut.Scale < op0.Scale * op1.Scale, then scales up ctOut before adding the result.
+// The procedure will panic if either op0 or op1 are have a degree higher than 1.
+// The procedure will panic if ctOut.Degree != op0.Degree + op1.Degree.
+func (eval *evaluator) MulAndAdd(op0, op1 Operand, ctOut *Ciphertext) {
+	eval.mulRelinAndAdd(op0, op1, false, ctOut)
+}
+
+// MulRelinAndAdd multiplies op0 with op1 with relinearization and adds the result on ctOut.
+// User must ensure that ctOut.Scale <= op0.Scale * op1.Scale.
+// If ctOut.Scale < op0.Scale * op1.Scale, then scales up ctOut before adding the result.
+// The procedure will panic if either op0.Degree or op1.Degree > 1.
+// The procedure will panic if ctOut.Degree != op0.Degree + op1.Degree.
+// The procedure will panic if the evaluator was not created with an relinearization key.
+func (eval *evaluator) MulRelinAndAdd(op0, op1 Operand, ctOut *Ciphertext) {
+	eval.mulRelinAndAdd(op0, op1, true, ctOut)
+}
+
+func (eval *evaluator) mulRelinAndAdd(op0, op1 Operand, relin bool, ctOut *Ciphertext) {
+
+	eval.checkBinary(op0, op1, ctOut, utils.MaxInt(op0.Degree(), op1.Degree()))
+
+	level := utils.MinInt(utils.MinInt(op0.Level(), op1.Level()), ctOut.Level())
+
+	if ctOut.Level() > level {
+		eval.DropLevel(ctOut, ctOut.Level()-level)
+	}
+
+	if op0.Degree() > 1 || op1.Degree() > 1 {
+		panic("cannot MulRelinAndAdd: input elements must be of degree 0 or 1")
+	}
+
+	resScale := op0.ScalingFactor() * op1.ScalingFactor()
+
+	if ctOut.Scale < resScale {
+		eval.MultByConst(ctOut, math.Round(resScale/ctOut.Scale), ctOut)
+		ctOut.Scale = resScale
+	}
+
+	ringQ := eval.params.RingQ()
+
+	var c00, c01, c0, c1, c2 *ring.Poly
+
+	// Case Ciphertext (x) Ciphertext
+	if op0.Degree()+op1.Degree() == 2 {
+
+		c00 = eval.poolQMul[0]
+		c01 = eval.poolQMul[1]
+
+		c0 = ctOut.Value[0]
+		c1 = ctOut.Value[1]
+
+		if !relin {
+			if ctOut.Degree() < 2 {
+				ctOut.El().Resize(eval.params.Parameters, 2)
+			}
+			c2 = ctOut.Value[2]
+		} else {
+			c2 = eval.poolQMul[2]
+		}
+
+		// Avoid overwriting if the second input is the output
+		var tmp0, tmp1 *rlwe.Ciphertext
+		if op1.El() == ctOut.El() {
+			tmp0, tmp1 = op1.El(), op0.El()
+		} else {
+			tmp0, tmp1 = op0.El(), op1.El()
+		}
+
+		ringQ.MFormLvl(level, tmp0.Value[0], c00)
+		ringQ.MFormLvl(level, tmp0.Value[1], c01)
+
+		ringQ.MulCoeffsMontgomeryAndAddLvl(level, c00, tmp1.Value[0], c0) // c0 = c[0]*c[0]
+		ringQ.MulCoeffsMontgomeryAndAddLvl(level, c00, tmp1.Value[1], c1) // c1 = c[0]*c[1]
+		ringQ.MulCoeffsMontgomeryAndAddLvl(level, c00, tmp1.Value[1], c1) // c1 = c[0]*c[1]
+
+		if relin {
+			c2.IsNTT = true
+			ringQ.MulCoeffsMontgomeryLvl(level, c01, tmp1.Value[1], c2) // c2 = c[1]*c[1]
+			eval.SwitchKeysInPlace(level, c2, eval.rlk.Keys[0], eval.Pool[1].Q, eval.Pool[2].Q)
+			ringQ.AddLvl(level, c0, eval.Pool[1].Q, c0)
+			ringQ.AddLvl(level, c1, eval.Pool[2].Q, c1)
+		} else {
+			ringQ.MulCoeffsMontgomeryAndAddLvl(level, c01, tmp1.Value[1], c2) // c2 = c[1]*c[1]
+		}
+
+		// Case Plaintext (x) Ciphertext or Ciphertext (x) Plaintext
+	} else {
+
+		var tmp0, tmp1 *rlwe.Ciphertext
+
+		if op0.Degree() == 1 {
+			tmp0, tmp1 = op1.El(), op0.El()
+		} else {
+			tmp0, tmp1 = op0.El(), op1.El()
+		}
+
+		c00 := eval.poolQMul[0]
+
+		ringQ.MFormLvl(level, tmp0.Value[0], c00)
+		ringQ.MulCoeffsMontgomeryAndAddLvl(level, c00, tmp1.Value[0], ctOut.Value[0])
+		ringQ.MulCoeffsMontgomeryAndAddLvl(level, c00, tmp1.Value[1], ctOut.Value[1])
 	}
 }
 
@@ -1531,6 +1476,11 @@ func (eval *evaluator) Rotate(ct0 *Ciphertext, k int, ctOut *Ciphertext) {
 // created element. If the provided element is a Ciphertext, a key-switching operation is necessary and a rotation key
 // for the row rotation needs to be provided.
 func (eval *evaluator) ConjugateNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
+
+	if eval.params.RingType() == ring.ConjugateInvariant {
+		panic("method ConjugateNew is not supported when params.RingType() == ring.ConjugateInvariant")
+	}
+
 	ctOut = NewCiphertext(eval.params, ct0.Degree(), ct0.Level(), ct0.Scale)
 	eval.Conjugate(ct0, ctOut)
 	return
@@ -1539,6 +1489,10 @@ func (eval *evaluator) ConjugateNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 // Conjugate conjugates ct0 (which is equivalent to a row rotation) and returns the result in ctOut.
 // If the provided element is a Ciphertext, a key-switching operation is necessary and a rotation key for the row rotation needs to be provided.
 func (eval *evaluator) Conjugate(ct0 *Ciphertext, ctOut *Ciphertext) {
+
+	if eval.params.RingType() == ring.ConjugateInvariant {
+		panic("method Conjugate is not supported when params.RingType() == ring.ConjugateInvariant")
+	}
 
 	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
 		panic("input and output Ciphertext must be of degree 1")
@@ -1560,13 +1514,14 @@ func (eval *evaluator) permuteNTT(ct0 *Ciphertext, galEl uint64, ctOut *Cipherte
 	index := eval.permuteNTTIndex[galEl]
 	pool2Q := eval.Pool[1].Q
 	pool3Q := eval.Pool[2].Q
+	ringQ := eval.params.RingQ()
 
 	eval.SwitchKeysInPlace(level, ct0.Value[1], rtk, pool2Q, pool3Q)
 
 	eval.params.RingQ().AddLvl(level, pool2Q, ct0.Value[0], pool2Q)
 
-	ring.PermuteNTTWithIndexLvl(level, pool2Q, index, ctOut.Value[0])
-	ring.PermuteNTTWithIndexLvl(level, pool3Q, index, ctOut.Value[1])
+	ringQ.PermuteNTTWithIndexLvl(level, pool2Q, index, ctOut.Value[0])
+	ringQ.PermuteNTTWithIndexLvl(level, pool3Q, index, ctOut.Value[1])
 }
 
 func (eval *evaluator) RotateHoistedNoModDownNew(level int, rotations []int, c0 *ring.Poly, c2DecompQP []rlwe.PolyQP) (cOut map[int][2]rlwe.PolyQP) {
@@ -1606,14 +1561,16 @@ func (eval *evaluator) PermuteNTTHoistedNoModDown(level int, c0 *ring.Poly, c2De
 
 	eval.KeyswitchHoistedNoModDown(levelQ, c2DecompQP, rtk, pool2Q, pool3Q, pool2P, pool3P)
 
-	ring.PermuteNTTWithIndexLvl(levelQ, pool3Q, index, ct1OutQ)
-	ring.PermuteNTTWithIndexLvl(levelP, pool3P, index, ct1OutP)
+	ringQ := eval.params.RingQ()
 
-	eval.params.RingQ().MulScalarBigintLvl(levelQ, c0, eval.params.RingP().ModulusBigint, pool3Q)
-	eval.params.RingQ().AddLvl(levelQ, pool2Q, pool3Q, pool2Q)
+	ringQ.PermuteNTTWithIndexLvl(levelQ, pool3Q, index, ct1OutQ)
+	ringQ.PermuteNTTWithIndexLvl(levelP, pool3P, index, ct1OutP)
 
-	ring.PermuteNTTWithIndexLvl(levelQ, pool2Q, index, ct0OutQ)
-	ring.PermuteNTTWithIndexLvl(levelP, pool2P, index, ct0OutP)
+	ringQ.MulScalarBigintLvl(levelQ, c0, eval.params.RingP().ModulusBigint, pool3Q)
+	ringQ.AddLvl(levelQ, pool2Q, pool3Q, pool2Q)
+
+	ringQ.PermuteNTTWithIndexLvl(levelQ, pool2Q, index, ct0OutQ)
+	ringQ.PermuteNTTWithIndexLvl(levelP, pool2P, index, ct0OutP)
 }
 
 func (eval *evaluator) PermuteNTTHoisted(level int, c0, c1 *ring.Poly, c2DecompQP []rlwe.PolyQP, k int, cOut0, cOut1 *ring.Poly) {
@@ -1640,8 +1597,10 @@ func (eval *evaluator) PermuteNTTHoisted(level int, c0, c1 *ring.Poly, c2DecompQ
 
 	eval.KeyswitchHoisted(level, c2DecompQP, rtk, pool2Q, pool3Q, pool2P, pool3P)
 
-	eval.params.RingQ().AddLvl(level, pool2Q, c0, pool2Q)
+	ringQ := eval.params.RingQ()
 
-	ring.PermuteNTTWithIndexLvl(level, pool2Q, index, cOut0)
-	ring.PermuteNTTWithIndexLvl(level, pool3Q, index, cOut1)
+	ringQ.AddLvl(level, pool2Q, c0, pool2Q)
+
+	ringQ.PermuteNTTWithIndexLvl(level, pool2Q, index, cOut0)
+	ringQ.PermuteNTTWithIndexLvl(level, pool3Q, index, cOut1)
 }

@@ -2,9 +2,13 @@ package ckks
 
 import (
 	"fmt"
-	"github.com/ldsec/lattigo/v2/ring"
 	"math"
+	"math/big"
 	"math/bits"
+	"runtime"
+
+	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/utils"
 )
 
 // Polynomial is a struct storing the coefficients of a polynomial
@@ -13,8 +17,8 @@ type Polynomial struct {
 	MaxDeg int
 	Coeffs []complex128
 	Lead   bool
-	A      complex128
-	B      complex128
+	A      float64
+	B      float64
 	Basis  PolynomialBasis
 }
 
@@ -44,22 +48,15 @@ func (p *Polynomial) Degree() int {
 
 // NewPoly creates a new Poly from the input coefficients
 func NewPoly(coeffs []complex128) (p *Polynomial) {
-
-	p = new(Polynomial)
-	p.Coeffs = make([]complex128, len(coeffs))
-	copy(p.Coeffs, coeffs)
-	p.MaxDeg = len(coeffs) - 1
-	p.Lead = true
-
-	return
+	c := make([]complex128, len(coeffs))
+	copy(c, coeffs)
+	return &Polynomial{Coeffs: c, MaxDeg: len(c) - 1, Lead: true}
 }
 
 // checkEnoughLevels checks that enough levels are available to evaluate the polynomial.
 // Also checks if c is a Gaussian integer or not. If not, then one more level is needed
 // to evaluate the polynomial.
-func checkEnoughLevels(levels int, pol *Polynomial, c complex128) (err error) {
-
-	depth := pol.Depth()
+func checkEnoughLevels(levels, depth int, c complex128) (err error) {
 
 	if real(c) != float64(int64(real(c))) || imag(c) != float64(int64(imag(c))) {
 		depth++
@@ -72,6 +69,15 @@ func checkEnoughLevels(levels int, pol *Polynomial, c complex128) (err error) {
 	return nil
 }
 
+type polynomialEvaluator struct {
+	Evaluator
+	Encoder
+	slotsIndex map[int][]int
+	powerBasis map[int]*Ciphertext
+	logDegree  int
+	logSplit   int
+}
+
 // EvaluatePoly evaluates a polynomial in standard basis on the input Ciphertext in ceil(log2(deg+1)) levels.
 // Returns an error if the input ciphertext does not have enough level to carry out the full polynomial evaluation.
 // Returns an error if something is wrong with the scale.
@@ -81,39 +87,104 @@ func checkEnoughLevels(levels int, pol *Polynomial, c complex128) (err error) {
 // if the polynomial is "even" or "odd" (to ensure that the even or odd property remains valid
 // after the "splitCoeffs" polynomial decomposition).
 func (eval *evaluator) EvaluatePoly(ct0 *Ciphertext, pol *Polynomial, targetScale float64) (opOut *Ciphertext, err error) {
+	return eval.evaluatePolyVector(ct0, polynomialVector{Value: []*Polynomial{pol}}, targetScale)
+}
 
-	if err := checkEnoughLevels(ct0.Level(), pol, 1); err != nil {
+type polynomialVector struct {
+	Encoder    Encoder
+	Value      []*Polynomial
+	SlotsIndex map[int][]int
+}
+
+// EvaluatePoly evaluates a vector of Polyomials on the input Ciphertext in ceil(log2(deg+1)) levels.
+// Returns an error if the input ciphertext does not have enough level to carry out the full polynomial evaluation.
+// Returns an error if something is wrong with the scale.
+// Returns an error if polynomials are not all in the same basis.
+// Returns an error if polynomials do not all have the same degree.
+// If the polynomials are given in Chebyshev basis, then a change of basis ct' = (2/(b-a)) * (ct + (-a-b)/(b-a))
+// is necessary before the polynomial evaluation to ensure correctness.
+// Coefficients of the polynomial with an absolute value smaller than "IsNegligbleThreshold" will automatically be set to zero
+// if the polynomial is "even" or "odd" (to ensure that the even or odd property remains valid
+// after the "splitCoeffs" polynomial decomposition).
+// Inputs:
+// pols: a slice of N *Polynomial, indexed from 0 to N-1.
+// encoder: an Encoder.
+// slotsIndex: a map[int][]int indexing as key the polynomial to evalute and as value the index of the slots on which to evaluate the polynomial index by the key.
+//
+// Example: if pols = []*Polynomial{pol0, pol1} and slotsIndex = map[int][]int:{0:[1, 2, 4, 5, 7], 1:[0, 3]},
+// then pol0 will be applied to slots [1, 2, 4, 5, 7], pol1 to slots [0, 3] and the slot 6 will be zero-ed.
+func (eval *evaluator) EvaluatePolyVector(ct0 *Ciphertext, pols []*Polynomial, encoder Encoder, slotsIndex map[int][]int, targetScale float64) (opOut *Ciphertext, err error) {
+	var maxDeg int
+	var basis PolynomialBasis
+	for i := range pols {
+		maxDeg = utils.MaxInt(maxDeg, pols[i].MaxDeg)
+		basis = pols[i].Basis
+	}
+
+	for i := range pols {
+		if basis != pols[i].Basis {
+			return nil, fmt.Errorf("polynomial basis must be the same for all polynomials in a polynomial vector")
+		}
+
+		if maxDeg != pols[i].MaxDeg {
+			return nil, fmt.Errorf("polynomial degree must all be the same")
+		}
+	}
+
+	return eval.evaluatePolyVector(ct0, polynomialVector{Encoder: encoder, Value: pols, SlotsIndex: slotsIndex}, targetScale)
+}
+
+func (eval *evaluator) evaluatePolyVector(ct0 *Ciphertext, pol polynomialVector, targetScale float64) (opOut *Ciphertext, err error) {
+
+	if pol.SlotsIndex != nil && pol.Encoder == nil {
+		return nil, fmt.Errorf("cannot EvaluatePolyVector, missing Encoder input")
+	}
+
+	if err := checkEnoughLevels(ct0.Level(), pol.Value[0].Depth(), 1); err != nil {
 		return ct0, err
 	}
 
-	C := make(map[int]*Ciphertext)
+	poweBasis := make(map[int]*Ciphertext)
 
-	C[1] = ct0.CopyNew()
+	poweBasis[1] = ct0.CopyNew()
 
-	logDegree := bits.Len64(uint64(pol.Degree()))
+	logDegree := bits.Len64(uint64(pol.Value[0].Degree()))
 	logSplit := (logDegree >> 1) //optimalSplit(logDegree) //
 
-	odd, even := isOddOrEvenPolynomial(pol.Coeffs)
+	var odd, even bool
+	for _, p := range pol.Value {
+		tmp0, tmp1 := isOddOrEvenPolynomial(p.Coeffs)
+		odd, even = odd && tmp0, even && tmp1
+	}
 
 	for i := 2; i < (1 << logSplit); i++ {
 		if !(even || odd) || (i&1 == 0 && even) || (i&1 == 1 && odd) {
-			if err = computePowerBasis(i, C, targetScale, pol.Basis, eval); err != nil {
+			if err = computePowerBasis(i, poweBasis, targetScale, pol.Value[0].Basis, eval); err != nil {
 				return nil, err
 			}
 		}
 	}
 
 	for i := logSplit; i < logDegree; i++ {
-		if err = computePowerBasis(1<<i, C, targetScale, pol.Basis, eval); err != nil {
+		if err = computePowerBasis(1<<i, poweBasis, targetScale, pol.Value[0].Basis, eval); err != nil {
 			return nil, err
 		}
 	}
 
-	opOut, err = recurse(targetScale, logSplit, logDegree, pol, C, eval)
+	polyEval := &polynomialEvaluator{}
+	polyEval.slotsIndex = pol.SlotsIndex
+	polyEval.Evaluator = eval
+	polyEval.Encoder = pol.Encoder
+	polyEval.powerBasis = poweBasis
+	polyEval.logDegree = logDegree
+	polyEval.logSplit = logSplit
+
+	opOut, err = polyEval.recurse(targetScale, pol)
 
 	opOut.Scale = targetScale // solves float64 precision issues
 
-	C = nil
+	polyEval = nil
+	runtime.GC()
 	return opOut, err
 }
 
@@ -175,8 +246,7 @@ func computePowerBasis(n int, C map[int]*Ciphertext, scale float64, basis Polyno
 func splitCoeffs(coeffs *Polynomial, split int) (coeffsq, coeffsr *Polynomial) {
 
 	// Splits a polynomial p such that p = q*C^degree + r.
-
-	coeffsr = new(Polynomial)
+	coeffsr = &Polynomial{}
 	coeffsr.Coeffs = make([]complex128, split)
 	if coeffs.MaxDeg == coeffs.Degree() {
 		coeffsr.MaxDeg = split - 1
@@ -188,7 +258,7 @@ func splitCoeffs(coeffs *Polynomial, split int) (coeffsq, coeffsr *Polynomial) {
 		coeffsr.Coeffs[i] = coeffs.Coeffs[i]
 	}
 
-	coeffsq = new(Polynomial)
+	coeffsq = &Polynomial{}
 	coeffsq.Coeffs = make([]complex128, coeffs.Degree()-split+1)
 	coeffsq.MaxDeg = coeffs.MaxDeg
 
@@ -211,65 +281,86 @@ func splitCoeffs(coeffs *Polynomial, split int) (coeffsq, coeffsr *Polynomial) {
 
 	coeffsq.Basis, coeffsr.Basis = coeffs.Basis, coeffs.Basis
 
-	return coeffsq, coeffsr
+	return
 }
 
-func recurse(targetScale float64, logSplit, logDegree int, coeffs *Polynomial, C map[int]*Ciphertext, evaluator *evaluator) (res *Ciphertext, err error) {
-
-	// Recursively computes the evaluation of the Chebyshev polynomial using a baby-set giant-step algorithm.
-	if coeffs.Degree() < (1 << logSplit) {
-
-		if coeffs.Lead && logSplit > 1 && coeffs.MaxDeg%(1<<(logSplit+1)) > (1<<(logSplit-1)) {
-
-			logDegree = int(bits.Len64(uint64(coeffs.Degree())))
-			logSplit = logDegree >> 1
-
-			return recurse(targetScale, logSplit, logDegree, coeffs, C, evaluator)
-		}
-
-		return evaluatePolyFromPowerBasis(targetScale, coeffs, logSplit, C, evaluator)
+func splitCoeffsPolyVector(poly polynomialVector, split int) (polyq, polyr polynomialVector) {
+	coeffsq := make([]*Polynomial, len(poly.Value))
+	coeffsr := make([]*Polynomial, len(poly.Value))
+	for i, p := range poly.Value {
+		coeffsq[i], coeffsr[i] = splitCoeffs(p, split)
 	}
 
-	var nextPower = 1 << logSplit
-	for nextPower < (coeffs.Degree()>>1)+1 {
+	return polynomialVector{Value: coeffsq}, polynomialVector{Value: coeffsr}
+}
+
+func (polyEval *polynomialEvaluator) recurse(targetScale float64, pol polynomialVector) (res *Ciphertext, err error) {
+
+	logSplit := polyEval.logSplit
+
+	// Recursively computes the evaluation of the Chebyshev polynomial using a baby-set giant-step algorithm.
+	if pol.Value[0].Degree() < (1 << logSplit) {
+
+		if pol.Value[0].Lead && polyEval.logSplit > 1 && pol.Value[0].MaxDeg%(1<<(logSplit+1)) > (1<<(logSplit-1)) {
+
+			logDegree := int(bits.Len64(uint64(pol.Value[0].Degree())))
+			logSplit := logDegree >> 1
+
+			polyEvalBis := new(polynomialEvaluator)
+			polyEvalBis.Evaluator = polyEval.Evaluator
+			polyEvalBis.Encoder = polyEval.Encoder
+			polyEvalBis.logDegree = logDegree
+			polyEvalBis.logSplit = logSplit
+			polyEvalBis.powerBasis = polyEval.powerBasis
+
+			return polyEvalBis.recurse(targetScale, pol)
+		}
+
+		return polyEval.evaluatePolyFromPowerBasis(targetScale, pol)
+	}
+
+	var nextPower = 1 << polyEval.logSplit
+	for nextPower < (pol.Value[0].Degree()>>1)+1 {
 		nextPower <<= 1
 	}
 
-	coeffsq, coeffsr := splitCoeffs(coeffs, nextPower)
+	coeffsq, coeffsr := splitCoeffsPolyVector(pol, nextPower)
 
-	level := C[nextPower].Level() - 1
+	XPow := polyEval.powerBasis[nextPower]
 
-	if coeffsq.MaxDeg >= 1<<(logDegree-1) && coeffsq.Lead {
+	level := XPow.Level() - 1
+
+	if coeffsq.Value[0].MaxDeg >= 1<<(polyEval.logDegree-1) && coeffsq.Value[0].Lead {
 		level++
 	}
 
-	currentQi := evaluator.params.QiFloat64(level)
+	currentQi := polyEval.Evaluator.(*evaluator).params.QiFloat64(level)
 
-	if res, err = recurse(targetScale*currentQi/C[nextPower].Scale, logSplit, logDegree, coeffsq, C, evaluator); err != nil {
+	if res, err = polyEval.recurse(targetScale*currentQi/XPow.Scale, coeffsq); err != nil {
 		return nil, err
 	}
 
 	var tmp *Ciphertext
-	if tmp, err = recurse(targetScale, logSplit, logDegree, coeffsr, C, evaluator); err != nil {
+	if tmp, err = polyEval.recurse(targetScale, coeffsr); err != nil {
 		return nil, err
 	}
 
 	if res.Level() > tmp.Level() {
 		for res.Level() != tmp.Level()+1 {
-			evaluator.DropLevel(res, 1)
+			polyEval.DropLevel(res, 1)
 		}
 	}
 
-	evaluator.MulRelin(res, C[nextPower], res)
+	polyEval.MulRelin(res, XPow, res)
 
 	if res.Level() > tmp.Level() {
-		if err = evaluator.Rescale(res, targetScale, res); err != nil {
+		if err = polyEval.Rescale(res, targetScale, res); err != nil {
 			return nil, err
 		}
-		evaluator.Add(res, tmp, res)
+		polyEval.Add(res, tmp, res)
 	} else {
-		evaluator.Add(res, tmp, res)
-		if err = evaluator.Rescale(res, targetScale, res); err != nil {
+		polyEval.Add(res, tmp, res)
+		if err = polyEval.Rescale(res, targetScale, res); err != nil {
 			return nil, err
 		}
 	}
@@ -279,62 +370,192 @@ func recurse(targetScale float64, logSplit, logDegree int, coeffs *Polynomial, C
 	return
 }
 
-func evaluatePolyFromPowerBasis(targetScale float64, coeffs *Polynomial, logSplit int, C map[int]*Ciphertext, evaluator *evaluator) (res *Ciphertext, err error) {
+func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetScale float64, pol polynomialVector) (res *Ciphertext, err error) {
+
+	X := polyEval.powerBasis
+
+	params := polyEval.Evaluator.(*evaluator).params
+	slotsIndex := polyEval.slotsIndex
 
 	minimumDegreeNonZeroCoefficient := 0
 
-	for i := coeffs.Degree(); i > 0; i-- {
-		if isNotNegligible(coeffs.Coeffs[i]) {
-			minimumDegreeNonZeroCoefficient = i
-			break
+	// Get the minimum non-zero degree coefficient
+	for i := pol.Value[0].Degree(); i > 0; i-- {
+		for _, p := range pol.Value {
+			if isNotNegligible(p.Coeffs[i]) {
+				minimumDegreeNonZeroCoefficient = utils.MaxInt(minimumDegreeNonZeroCoefficient, i)
+				break
+			}
 		}
 	}
 
-	c := coeffs.Coeffs[0]
+	// If an index slot is given (either multiply polynomials or masking)
+	if slotsIndex != nil {
 
-	if minimumDegreeNonZeroCoefficient == 0 {
+		var toEncode bool
 
-		res = NewCiphertext(evaluator.params, 1, C[1].Level(), targetScale)
+		// Allocates temporary buffer for coefficients encoding
+		values := make([]complex128, params.Slots())
+
+		// If the degree of the poly is zero
+		if minimumDegreeNonZeroCoefficient == 0 {
+
+			// Allocates the output ciphertext
+			res = NewCiphertext(params, 1, X[1].Level(), targetScale)
+
+			// Looks for non-zero coefficients among the degree 0 coefficients of the polynomials
+			for i, p := range pol.Value {
+				if isNotNegligible(p.Coeffs[0]) {
+					toEncode = true
+					for _, j := range slotsIndex[i] {
+						values[j] = p.Coeffs[0]
+					}
+				}
+			}
+
+			// If a non-zero coefficient was found, encode the values, adds on the ciphertext, and returns
+			if toEncode {
+				pt := NewPlaintextAtLevelFromPoly(X[1].Level(), res.Value[0])
+				pt.Scale = res.Scale
+				polyEval.EncodeSlots(values, pt, params.LogSlots())
+			}
+
+			return
+		}
+
+		// Current modulus qi for the next rescale
+		currentQi := params.QiFloat64(X[(minimumDegreeNonZeroCoefficient)].Level())
+
+		// Target output scale before the rescaling, such that the rescaling does not change the ciphertext scale
+		ctScale := targetScale * currentQi
+
+		// Allocates the output ciphertext
+		res = NewCiphertext(params, 1, X[minimumDegreeNonZeroCoefficient].Level(), ctScale)
+
+		// Allocates a temporary plaintext to encode the values
+		pt := NewPlaintextAtLevelFromPoly(X[minimumDegreeNonZeroCoefficient].Level(), polyEval.Evaluator.CtxPool().Value[0])
+
+		// Looks for a non-zero coefficient among the degree zero coefficient of the polynomials
+		for i, p := range pol.Value {
+			if isNotNegligible(p.Coeffs[0]) {
+				toEncode = true
+				for _, j := range slotsIndex[i] {
+					values[j] = p.Coeffs[0]
+				}
+			}
+		}
+
+		// If a non-zero degre coefficient was found, encode and adds the values on the output
+		// ciphertext
+		if toEncode {
+
+			pt.Scale = res.Scale
+			polyEval.EncodeSlots(values, pt, params.LogSlots())
+			polyEval.Add(res, pt, res)
+			toEncode = false
+		}
+
+		// Loops starting from the highest degree coefficient
+		for key := pol.Value[0].Degree(); key > 0; key-- {
+
+			var reset bool
+			// Loops over the polynomials
+			for i, p := range pol.Value {
+
+				// Looks for a non-zero coefficient
+				if isNotNegligible(p.Coeffs[key]) {
+					toEncode = true
+
+					// Resets the temporary array to zero
+					// is needed if a zero coefficient
+					// is at the place of a previous non-zero
+					// coefficient
+					if !reset {
+						for j := range values {
+							values[j] = 0
+						}
+						reset = true
+					}
+
+					// Copies the coefficient on the temporary array
+					// according to the slot map index
+					for _, j := range slotsIndex[i] {
+						values[j] = p.Coeffs[key]
+					}
+				}
+			}
+
+			// If a non-zero degre coefficient was found, encode and adds the values on the output
+			// ciphertext
+			if toEncode {
+				pt.Scale = targetScale * currentQi / X[key].Scale
+				polyEval.EncodeSlots(values, pt, params.LogSlots())
+				polyEval.MulAndAdd(X[key], pt, res)
+				toEncode = false
+			}
+		}
+
+	} else {
+
+		c := pol.Value[0].Coeffs[0]
+
+		if minimumDegreeNonZeroCoefficient == 0 {
+
+			res = NewCiphertext(params, 1, X[1].Level(), targetScale)
+
+			if isNotNegligible(c) {
+				polyEval.AddConst(res, c, res)
+			}
+
+			return
+		}
+
+		currentQi := params.QiFloat64(X[(minimumDegreeNonZeroCoefficient)].Level())
+		ctScale := targetScale * currentQi
+		res = NewCiphertext(params, 1, X[minimumDegreeNonZeroCoefficient].Level(), ctScale)
 
 		if isNotNegligible(c) {
-			evaluator.AddConst(res, c, res)
+			polyEval.AddConst(res, c, res)
 		}
 
-		return
-	}
+		cRealFlo, cImagFlo, constScale := ring.NewFloat(0, 128), ring.NewFloat(0, 128), ring.NewFloat(0, 128)
+		cRealBig, cImagBig := ring.NewUint(0), ring.NewUint(0)
 
-	currentQi := evaluator.params.QiFloat64(C[(minimumDegreeNonZeroCoefficient)].Level())
+		for key := pol.Value[0].Degree(); key > 0; key-- {
 
-	ctScale := targetScale * currentQi
+			c = pol.Value[0].Coeffs[key]
 
-	res = NewCiphertext(evaluator.params, 1, C[minimumDegreeNonZeroCoefficient].Level(), ctScale)
+			if key != 0 && isNotNegligible(c) {
 
-	if isNotNegligible(c) {
-		evaluator.AddConst(res, c, res)
-	}
+				cRealFlo.SetFloat64(real(c))
+				cImagFlo.SetFloat64(imag(c))
+				constScale.SetFloat64(targetScale * currentQi / X[key].Scale)
 
-	cRealFlo, cImagFlo, constScale := ring.NewFloat(0, 128), ring.NewFloat(0, 128), ring.NewFloat(0, 128)
-	cRealBig, cImagBig := ring.NewUint(0), ring.NewUint(0)
+				// Target scale * rescale-scale / power basis scale
+				cRealFlo.Mul(cRealFlo, constScale)
+				cImagFlo.Mul(cImagFlo, constScale)
 
-	for key := coeffs.Degree(); key > 0; key-- {
+				if cRealFlo.Sign() < 0 {
+					cRealFlo.Sub(cRealFlo, new(big.Float).SetFloat64(0.5))
+				} else {
+					cRealFlo.Add(cRealFlo, new(big.Float).SetFloat64(0.5))
+				}
 
-		c = coeffs.Coeffs[key]
+				if cImagFlo.Sign() < 0 {
+					cImagFlo.Sub(cImagFlo, new(big.Float).SetFloat64(0.5))
+				} else {
+					cImagFlo.Add(cImagFlo, new(big.Float).SetFloat64(0.5))
+				}
 
-		if key != 0 && isNotNegligible(c) {
+				cRealFlo.Int(cRealBig)
+				cImagFlo.Int(cImagBig)
 
-			cRealFlo.SetFloat64(real(c))
-			cImagFlo.SetFloat64(imag(c))
-			constScale.SetFloat64(targetScale * currentQi / C[key].Scale)
-
-			// Target scale * rescale-scale / power basis scale
-			cRealFlo.Mul(cRealFlo, constScale).Int(cRealBig)
-			cImagFlo.Mul(cImagFlo, constScale).Int(cImagBig)
-
-			evaluator.MultByGaussianIntegerAndAdd(C[key], cRealBig, cImagBig, res)
+				polyEval.MultByGaussianIntegerAndAdd(X[key], cRealBig, cImagBig, res)
+			}
 		}
 	}
 
-	if err = evaluator.Rescale(res, targetScale, res); err != nil {
+	if err = polyEval.Rescale(res, targetScale, res); err != nil {
 		return nil, err
 	}
 

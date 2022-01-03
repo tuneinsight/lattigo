@@ -25,6 +25,7 @@ type KeyGenerator interface {
 	GenRotationKeysForRotations(ks []int, inclueSwapRows bool, sk *SecretKey) (rks *RotationKeySet)
 	GenSwitchingKeyForRowRotation(sk *SecretKey) (swk *SwitchingKey)
 	GenRotationKeysForInnerSum(sk *SecretKey) (rks *RotationKeySet)
+	GenSwitchingKeysForRingSwap(skCKKS, skCI *SecretKey) (swkStdToConjugateInvariant, swkConjugateInvariantToStd *SwitchingKey)
 }
 
 // KeyGenerator is a structure that stores the elements required to create new keys,
@@ -198,12 +199,25 @@ func (keygen *keyGenerator) genrotKey(sk PolyQP, galEl uint64, swk *SwitchingKey
 
 	skIn := sk
 	skOut := keygen.poolQP
+	ringQ := keygen.params.RingQ()
 
-	index := ring.PermuteNTTIndex(galEl, uint64(keygen.params.N()))
-	ring.PermuteNTTWithIndexLvl(keygen.params.QCount()-1, skIn.Q, index, skOut.Q)
-	ring.PermuteNTTWithIndexLvl(keygen.params.PCount()-1, skIn.P, index, skOut.P)
+	index := ringQ.PermuteNTTIndex(galEl)
+	ringQ.PermuteNTTWithIndexLvl(keygen.params.QCount()-1, skIn.Q, index, skOut.Q)
+	ringQ.PermuteNTTWithIndexLvl(keygen.params.PCount()-1, skIn.P, index, skOut.P)
 
 	keygen.genSwitchingKey(skIn.Q, skOut, swk)
+}
+
+// GenSwitchingKeysForRingSwap generates the necessary switching keys to switch from a standard ring to to a conjugate invariant ring and vice-versa.
+func (keygen *keyGenerator) GenSwitchingKeysForRingSwap(skStd, skConjugateInvariant *SecretKey) (swkStdToConjugateInvariant, swkConjugateInvariantToStd *SwitchingKey) {
+
+	skCIMappedToStandard := &SecretKey{Value: keygen.poolQP}
+	keygen.params.RingQ().UnfoldConjugateInvariantToStandard(skConjugateInvariant.Value.Q.Level(), skConjugateInvariant.Value.Q, skCIMappedToStandard.Value.Q)
+	keygen.params.RingQ().UnfoldConjugateInvariantToStandard(skConjugateInvariant.Value.P.Level(), skConjugateInvariant.Value.P, skCIMappedToStandard.Value.P)
+
+	swkConjugateInvariantToStd = keygen.GenSwitchingKey(skCIMappedToStandard, skStd)
+	swkStdToConjugateInvariant = keygen.GenSwitchingKey(skStd, skCIMappedToStandard)
+	return
 }
 
 // GenSwitchingKey generates a new key-switching key, that will re-encrypt a Ciphertext encrypted under the input key into the output key.
@@ -223,15 +237,11 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *
 
 	swk = NewSwitchingKey(keygen.params, skOutput.Value.Q.Level(), skOutput.Value.P.Level())
 
-	// n -> N
-	if len(skInput.Value.Q.Coeffs[0]) > len(skOutput.Value.Q.Coeffs[0]) {
-
+	if len(skInput.Value.Q.Coeffs[0]) > len(skOutput.Value.Q.Coeffs[0]) { // N -> n
 		ring.MapSmallDimensionToLargerDimensionNTT(skOutput.Value.Q, keygen.poolQP.Q)
 		ring.MapSmallDimensionToLargerDimensionNTT(skOutput.Value.P, keygen.poolQP.P)
 		keygen.genSwitchingKey(skInput.Value.Q, keygen.poolQP, swk)
-		// N -> N or N -> n
-	} else {
-
+	} else { // N -> N or n -> N
 		ring.MapSmallDimensionToLargerDimensionNTT(skInput.Value.Q, keygen.poolQ)
 
 		if skInput.Value.Q.Level() < skOutput.Value.Q.Level() {
@@ -263,7 +273,7 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *
 			}
 
 			for i := skInput.Value.Q.Level() + 1; i < skOutput.Value.Q.Level()+1; i++ {
-				ring.NTT(polP.Coeffs[i], polP.Coeffs[i], ringQ.N, ringQ.NttPsi[i], ringQ.Modulus[i], ringQ.MredParams[i], ringQ.BredParams[i])
+				ringQ.NTTSingle(i, polP.Coeffs[i], polP.Coeffs[i])
 				ring.MFormVec(polP.Coeffs[i], polP.Coeffs[i], ringQ.Modulus[i], ringQ.BredParams[i])
 			}
 		}

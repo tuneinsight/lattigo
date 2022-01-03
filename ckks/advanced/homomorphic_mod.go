@@ -1,9 +1,11 @@
 package advanced
 
 import (
-	"github.com/ldsec/lattigo/v2/ckks"
 	"math"
 	"math/cmplx"
+
+	"github.com/ldsec/lattigo/v2/ckks"
+	"github.com/ldsec/lattigo/v2/utils"
 )
 
 // SineType is the type of function used during the bootstrapping
@@ -21,7 +23,7 @@ func cos2pi(x complex128) complex128 {
 // Sin and Cos are the two proposed functions for SineType
 const (
 	Sin  = SineType(0) // Standard Chebyshev approximation of (1/2pi) * sin(2pix)
-	Cos1 = SineType(1) // Special approximation (Han and Ki) of pow((1/2pi), 1/2^r) * cos(2pi(x-0.25)/2^r)
+	Cos1 = SineType(1) // Special approximation (Han and Ki) of pow((1/2pi), 1/2^r) * cos(2pi(x-0.25)/2^r); this method requires a minimum degree of 2*(K-1).
 	Cos2 = SineType(2) // Standard Chebyshev approximation of pow((1/2pi), 1/2^r) * cos(2pi(x-0.25)/2^r)
 )
 
@@ -82,17 +84,17 @@ func (evp *EvalModPoly) MessageRatio() float64 {
 
 // A returns the left bound of the sine approximation (scaled by 1/2^r).
 func (evp *EvalModPoly) A() float64 {
-	return real(evp.sinePoly.A)
+	return evp.sinePoly.A
 }
 
 // B returns the right bound of the sine approximation (scaled by 1/2^r).
 func (evp *EvalModPoly) B() float64 {
-	return real(evp.sinePoly.B)
+	return evp.sinePoly.B
 }
 
 // K return the sine approximation range.
 func (evp *EvalModPoly) K() float64 {
-	return real(evp.sinePoly.B) * evp.scFac
+	return evp.sinePoly.B * evp.scFac
 }
 
 // QDiff return Q/ClosestedPow2
@@ -138,20 +140,20 @@ func NewEvalModPolyFromLiteral(evm EvalModLiteral) EvalModPoly {
 			panic("cannot user double angle with SineType == Sin")
 		}
 
-		sinePoly = ckks.Approximate(sin2pi2pi, -complex(float64(evm.K), 0), complex(float64(evm.K), 0), evm.SineDeg)
+		sinePoly = ckks.Approximate(sin2pi2pi, -float64(evm.K), float64(evm.K), evm.SineDeg)
 
 	} else if evm.SineType == Cos1 {
 
 		sinePoly = new(ckks.Polynomial)
 		sinePoly.Coeffs = ApproximateCos(evm.K, evm.SineDeg, evm.MessageRatio, int(evm.DoubleAngle))
 		sinePoly.MaxDeg = sinePoly.Degree()
-		sinePoly.A = complex(float64(-evm.K)/scFac, 0)
-		sinePoly.B = complex(float64(evm.K)/scFac, 0)
+		sinePoly.A = float64(-evm.K) / scFac
+		sinePoly.B = float64(evm.K) / scFac
 		sinePoly.Lead = true
 		sinePoly.Basis = ckks.ChebyshevBasis
 
 	} else if evm.SineType == Cos2 {
-		sinePoly = ckks.Approximate(cos2pi, -complex(float64(evm.K)/scFac, 0), complex(float64(evm.K)/scFac, 0), evm.SineDeg)
+		sinePoly = ckks.Approximate(cos2pi, -float64(evm.K)/scFac, float64(evm.K)/scFac, evm.SineDeg)
 	} else {
 		panic("invalid SineType")
 	}
@@ -175,8 +177,14 @@ func NewEvalModPolyFromLiteral(evm EvalModLiteral) EvalModPoly {
 
 // Depth returns the depth of the SineEval. If true, then also
 // counts the double angle formula.
-func (evm *EvalModLiteral) Depth() int {
-	depth := int(math.Ceil(math.Log2(float64(evm.SineDeg + 1))))
+func (evm *EvalModLiteral) Depth() (depth int) {
+
+	if evm.SineType == Cos1 { // this method requires a minimum degree of 2*K-1.
+		depth += int(math.Ceil(math.Log2(float64(utils.MaxInt(evm.SineDeg, 2*evm.K-1) + 1))))
+	} else {
+		depth += int(math.Ceil(math.Log2(float64(evm.SineDeg + 1))))
+	}
+
 	depth += evm.DoubleAngle
 	depth += int(math.Ceil(math.Log2(float64(evm.ArcSineDeg + 1))))
 	return depth

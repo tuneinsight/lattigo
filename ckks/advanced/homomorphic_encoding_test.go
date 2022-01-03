@@ -2,14 +2,14 @@ package advanced
 
 import (
 	"flag"
+	"runtime"
+	"testing"
+
 	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"math"
-	"runtime"
-	"testing"
 )
 
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
@@ -24,10 +24,10 @@ func TestHomomorphicEncoding(t *testing.T) {
 	}
 
 	ParametersLiteral := ckks.ParametersLiteral{
-		LogN:     13,
-		LogSlots: 12,
-		Scale:    1 << 45,
-		Sigma:    rlwe.DefaultSigma,
+		LogN:         13,
+		LogSlots:     12,
+		DefaultScale: 1 << 45,
+		Sigma:        rlwe.DefaultSigma,
 		Q: []uint64{
 			0x10000000006e0001, // 60 Q0
 			0x2000000a0001,     // 45
@@ -125,6 +125,9 @@ func testCoeffsToSlots(params ckks.Parameters, t *testing.T) {
 		// Then checks that Dcd(Dec(Enc(Ecd(vReal)))) = vReal and Dcd(Dec(Enc(Ecd(vImag)))) = vImag
 
 		CoeffsToSlotsParametersLiteral := EncodingMatrixLiteral{
+			LogN:                params.LogN(),
+			LogSlots:            params.LogSlots(),
+			Scaling:             1.0 / float64(2*params.Slots()),
 			LinearTransformType: CoeffsToSlots,
 			LevelStart:          params.MaxLevel(),
 			BSGSRatio:           16.0,
@@ -142,10 +145,8 @@ func testCoeffsToSlots(params ckks.Parameters, t *testing.T) {
 		encryptor := ckks.NewEncryptor(params, sk)
 		decryptor := ckks.NewDecryptor(params, sk)
 
-		n := math.Pow(1.0/float64(2*params.Slots()), 1.0/float64(CoeffsToSlotsParametersLiteral.Depth(true)))
-
 		// Generates the encoding matrices
-		CoeffsToSlotMatrices := NewHomomorphicEncodingMatrixFromLiteral(CoeffsToSlotsParametersLiteral, encoder, params.LogN(), params.LogSlots(), complex(n, 0))
+		CoeffsToSlotMatrices := NewHomomorphicEncodingMatrixFromLiteral(CoeffsToSlotsParametersLiteral, encoder)
 
 		// Gets the rotations indexes for CoeffsToSlots
 		rotations := CoeffsToSlotsParametersLiteral.Rotations(params.LogN(), params.LogSlots())
@@ -186,7 +187,7 @@ func testCoeffsToSlots(params ckks.Parameters, t *testing.T) {
 		}
 
 		// Encodes coefficient-wise and encrypts the test vector
-		plaintext := ckks.NewPlaintext(params, params.MaxLevel(), params.Scale())
+		plaintext := ckks.NewPlaintext(params, params.MaxLevel(), params.DefaultScale())
 		encoder.EncodeCoeffs(valuesFloat, plaintext)
 		ciphertext := encryptor.EncryptNew(plaintext)
 
@@ -240,6 +241,9 @@ func testSlotsToCoeffs(params ckks.Parameters, t *testing.T) {
 		// In case of 2*slots < N, then there is a gap of N/(2*slots) between each values
 
 		SlotsToCoeffsParametersLiteral := EncodingMatrixLiteral{
+			LogN:                params.LogN(),
+			LogSlots:            params.LogSlots(),
+			Scaling:             1.0,
 			LinearTransformType: SlotsToCoeffs,
 			LevelStart:          params.MaxLevel(),
 			BSGSRatio:           16.0,
@@ -258,7 +262,7 @@ func testSlotsToCoeffs(params ckks.Parameters, t *testing.T) {
 		decryptor := ckks.NewDecryptor(params, sk)
 
 		// Generates the encoding matrices
-		SlotsToCoeffsMatrix := NewHomomorphicEncodingMatrixFromLiteral(SlotsToCoeffsParametersLiteral, encoder, params.LogN(), params.LogSlots(), 1.0)
+		SlotsToCoeffsMatrix := NewHomomorphicEncodingMatrixFromLiteral(SlotsToCoeffsParametersLiteral, encoder)
 
 		// Gets the rotations indexes for SlotsToCoeffs
 		rotations := SlotsToCoeffsParametersLiteral.Rotations(params.LogN(), params.LogSlots())
@@ -294,12 +298,12 @@ func testSlotsToCoeffs(params ckks.Parameters, t *testing.T) {
 			logSlots++
 		}
 
-		plaintext := ckks.NewPlaintext(params, params.MaxLevel(), params.Scale())
-		encoder.Encode(plaintext, valuesReal, logSlots)
+		plaintext := ckks.NewPlaintext(params, params.MaxLevel(), params.DefaultScale())
+		encoder.Encode(valuesReal, plaintext, logSlots)
 		ct0 := encryptor.EncryptNew(plaintext)
 		var ct1 *ckks.Ciphertext
 		if params.LogSlots() == params.LogN()-1 {
-			encoder.Encode(plaintext, valuesImag, logSlots)
+			encoder.Encode(valuesImag, plaintext, logSlots)
 			ct1 = encryptor.EncryptNew(plaintext)
 		}
 

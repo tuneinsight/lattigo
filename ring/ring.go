@@ -5,6 +5,7 @@ package ring
 import (
 	"bytes"
 	"encoding/gob"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -13,8 +14,53 @@ import (
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
+// Type is the type of ring used by the cryptographic scheme
+type Type int
+
+// RingStandard and RingConjugateInvariant are two types of Rings.
+const (
+	Standard           = Type(0) // Z[X]/(X^N + 1) (Default)
+	ConjugateInvariant = Type(1) // Z[X+X^-1]/(X^2N + 1)
+)
+
+// String returns the string representation of the ring Type
+func (rt Type) String() string {
+	switch rt {
+	case Standard:
+		return "Standard"
+	case ConjugateInvariant:
+		return "ConjugateInvariant"
+	default:
+		return "Invalid"
+	}
+}
+
+// UnmarshalJSON reads a JSON byte slice into the receiver Type
+func (rt *Type) UnmarshalJSON(b []byte) error {
+	var s string
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+	switch s {
+	default:
+		return fmt.Errorf("invalid ring type: %s", s)
+	case "Standard":
+		*rt = Standard
+	case "ConjugateInvariant":
+		*rt = ConjugateInvariant
+	}
+
+	return nil
+}
+
+// MarshalJSON marshals the receiver Type into a JSON []byte
+func (rt Type) MarshalJSON() ([]byte, error) {
+	return json.Marshal(rt.String())
+}
+
 // Ring is a structure that keeps all the variables required to operate on a polynomial represented in this ring.
 type Ring struct {
+	NumberTheoreticTransformer
 
 	// Polynomial nb.Coefficients
 	N int
@@ -38,6 +84,7 @@ type Ring struct {
 	RescaleParams [][]uint64
 
 	//NTT Parameters
+	NthRoot    uint64
 	PsiMont    []uint64 //2N-th primitive root in Montgomery form
 	PsiInvMont []uint64 //2N-th inverse primitive root in Montgomery form
 
@@ -46,19 +93,98 @@ type Ring struct {
 	NttNInv   []uint64   //[N^-1] mod Qi in Montgomery form
 }
 
-// NewRing creates a new RNS Ring with degree N and coefficient moduli Moduli. N must be a power of two larger than 8. Moduli should be
-// a non-empty []uint64 with distinct prime elements. For the Ring instance to support NTT operation, these elements must also be equal
-// to 1 modulo 2*N. Non-nil r and error are returned in the case of non NTT-enabling parameters.
+// NewRing creates a new RNS Ring with degree N and coefficient moduli Moduli with Standard NTT. N must be a power of two larger than 8. Moduli should be
+// a non-empty []uint64 with distinct prime elements. All moduli must also be equal to 1 modulo 2*N.
+// An error is returned with a nil *Ring in the case of non NTT-enabling parameters.
 func NewRing(N int, Moduli []uint64) (r *Ring, err error) {
+	return NewRingWithCustomNTT(N, Moduli, NumberTheoreticTransformerStandard{}, 2*N)
+}
+
+// NewRingConjugateInvariant creates a new RNS Ring with degree N and coefficient moduli Moduli with Conjugate Invariant NTT. N must be a power of two larger than 8. Moduli should be
+// a non-empty []uint64 with distinct prime elements. All moduli must also be equal to 1 modulo 4*N.
+// An error is returned with a nil *Ring in the case of non NTT-enabling parameters.
+func NewRingConjugateInvariant(N int, Moduli []uint64) (r *Ring, err error) {
+	return NewRingWithCustomNTT(N, Moduli, NumberTheoreticTransformerConjugateInvariant{}, 4*N)
+}
+
+// NewRingFromType creates a new RNS Ring with degree N and coefficient moduli Moduli for which the type of NTT is determined by the ringType argument.
+// If ringType==Standard, the ring is instantiated with standard NTT with the Nth root of unity 2*N. If ringType==ConjugateInvariant, the ring
+// is instantiated with a ConjugateInvariant NTT with Nth root of unity 4*N. N must be a power of two larger than 8.
+// Moduli should be a non-empty []uint64 with distinct prime elements. All moduli must also be equal to 1 modulo the root of unity.
+// An error is returned with a nil *Ring in the case of non NTT-enabling parameters.
+func NewRingFromType(N int, Moduli []uint64, ringType Type) (r *Ring, err error) {
+	switch ringType {
+	case Standard:
+		return NewRingWithCustomNTT(N, Moduli, NumberTheoreticTransformerStandard{}, 2*N)
+	case ConjugateInvariant:
+		return NewRingWithCustomNTT(N, Moduli, NumberTheoreticTransformerConjugateInvariant{}, 4*N)
+	default:
+		return nil, fmt.Errorf("invalid ring type")
+	}
+}
+
+// NewRingWithCustomNTT creates a new RNS Ring with degree N and coefficient moduli Moduli with user-defined NTT transform and primitive Nth root of unity.
+// Moduli should be a non-empty []uint64 with distinct prime elements. All moduli must also be equal to 1 modulo the root of unity.
+// N must be a power of two larger than 8. An error is returned with a nil *Ring in the case of non NTT-enabling parameters.
+func NewRingWithCustomNTT(N int, Moduli []uint64, ntt NumberTheoreticTransformer, NthRoot int) (r *Ring, err error) {
 	r = new(Ring)
 	err = r.setParameters(N, Moduli)
 	if err != nil {
 		return nil, err
 	}
-	return r, r.genNTTParams()
+
+	r.NumberTheoreticTransformer = ntt
+
+	err = r.genNTTParams(uint64(NthRoot))
+	if err != nil {
+		return r, err
+	}
+
+	return r, nil
 }
 
-// setParameters initializes a *Ring by setting the required precomputed values (except for the NTT-related values, which are set by the
+// ConjugateInvariantRing returns the conjugate invariant ring of the receiver ring.
+// If `r.Type()==ConjugateInvariant`, then the method returns the receiver.
+// if `r.Type()==Standard`, then the method returns a ring with ring degree N/2.
+// The returned Ring is a shallow copy of the receiver.
+func (r *Ring) ConjugateInvariantRing() (*Ring, error) {
+	if r.Type() == ConjugateInvariant {
+		return r, nil
+	}
+	cr := *r
+	cr.N = r.N >> 1
+	cr.NumberTheoreticTransformer = NumberTheoreticTransformerConjugateInvariant{}
+	return &cr, cr.genNTTParams(uint64(cr.N) << 2)
+}
+
+// StandardRing returns the standard ring of the receiver ring.
+// If `r.Type()==Standard`, then the method returns the receiver.
+// if `r.Type()==ConjugateInvariant`, then the method returns a ring with ring degree 2N.
+// The returned Ring is a shallow copy of the receiver.
+func (r *Ring) StandardRing() (*Ring, error) {
+	if r.Type() == Standard {
+		return r, nil
+	}
+
+	sr := *r
+	sr.N = r.N << 1
+	sr.NumberTheoreticTransformer = NumberTheoreticTransformerStandard{}
+	return &sr, sr.genNTTParams(uint64(sr.N) << 1)
+}
+
+// Type returns the Type of the ring which might be either `Standard` or `ConjugateInvariant`.
+func (r *Ring) Type() Type {
+	switch r.NumberTheoreticTransformer.(type) {
+	case NumberTheoreticTransformerStandard:
+		return Standard
+	case NumberTheoreticTransformerConjugateInvariant:
+		return ConjugateInvariant
+	default:
+		panic("invalid NumberTheoreticTransformer type")
+	}
+}
+
+// setParameters initializes a *Ring by setting the required pre-computed values (except for the NTT-related values, which are set by the
 // genNTTParams function).
 func (r *Ring) setParameters(N int, Modulus []uint64) error {
 
@@ -115,14 +241,14 @@ func (r *Ring) setParameters(N int, Modulus []uint64) error {
 // genNTTParams checks that N has been correctly initialized, and checks that each modulus is a prime congruent to 1 mod 2N (i.e. NTT-friendly).
 // Then, it computes the variables required for the NTT. The purpose of ValidateParameters is to validate that the moduli allow the NTT, and to compute the
 // NTT parameters.
-func (r *Ring) genNTTParams() error {
-
-	if r.AllowsNTT {
-		return nil
-	}
+func (r *Ring) genNTTParams(NthRoot uint64) error {
 
 	if r.N == 0 || r.Modulus == nil {
 		return errors.New("invalid r parameters (missing)")
+	}
+
+	if r.N == 0 || r.Modulus == nil || NthRoot < 1 {
+		panic("error : invalid r parameters (missing)")
 	}
 
 	// Check if each qi is prime and equal to 1 mod NthRoot
@@ -131,11 +257,13 @@ func (r *Ring) genNTTParams() error {
 			return fmt.Errorf("invalid modulus (Modulus[%d] is not prime)", i)
 		}
 
-		if int(qi)&((r.N<<1)-1) != 1 {
+		if qi&(NthRoot-1) != 1 {
 			r.AllowsNTT = false
-			return fmt.Errorf("invalid modulus (Modulus[%d] != 1 mod 2N)", i)
+			return fmt.Errorf("invalid modulus (Modulus[%d] != 1 mod NthRoot)", i)
 		}
 	}
+
+	r.NthRoot = NthRoot
 
 	r.RescaleParams = make([][]uint64, len(r.Modulus)-1)
 
@@ -155,23 +283,21 @@ func (r *Ring) genNTTParams() error {
 	r.NttPsiInv = make([][]uint64, len(r.Modulus))
 	r.NttNInv = make([]uint64, len(r.Modulus))
 
-	bitLenofN := bits.Len64(uint64(r.N)) - 1
+	logNthRoot := uint64(bits.Len64(NthRoot>>1) - 1)
 
 	for i, qi := range r.Modulus {
 
 		// 1.1 Compute N^(-1) mod Q in Montgomery form
-		r.NttNInv[i] = MForm(ModExp(uint64(r.N), qi-2, qi), qi, r.BredParams[i])
+		r.NttNInv[i] = MForm(ModExp(NthRoot>>1, qi-2, qi), qi, r.BredParams[i])
 
 		// 1.2 Compute Psi and PsiInv in Montgomery form
-		r.NttPsi[i] = make([]uint64, r.N)
-		r.NttPsiInv[i] = make([]uint64, r.N)
+		r.NttPsi[i] = make([]uint64, NthRoot>>1)
+		r.NttPsiInv[i] = make([]uint64, NthRoot>>1)
 
 		// Finds a 2N-th primitive Root
 		g := primitiveRoot(qi)
 
-		_2n := uint64(r.N << 1)
-
-		power := (qi - 1) / _2n
+		power := (qi - 1) / NthRoot
 		powerInv := (qi - 1) - power
 
 		// Computes Psi and PsiInv in Montgomery form
@@ -185,10 +311,10 @@ func (r *Ring) genNTTParams() error {
 		r.NttPsiInv[i][0] = MForm(1, qi, r.BredParams[i])
 
 		// Compute nttPsi[j] = nttPsi[j-1]*Psi and nttPsiInv[j] = nttPsiInv[j-1]*PsiInv
-		for j := 1; j < r.N; j++ {
+		for j := uint64(1); j < NthRoot>>1; j++ {
 
-			indexReversePrev := utils.BitReverse64(uint64(j-1), uint64(bitLenofN))
-			indexReverseNext := utils.BitReverse64(uint64(j), uint64(bitLenofN))
+			indexReversePrev := utils.BitReverse64(uint64(j-1), logNthRoot)
+			indexReverseNext := utils.BitReverse64(uint64(j), logNthRoot)
 
 			r.NttPsi[i][indexReverseNext] = MRed(r.NttPsi[i][indexReversePrev], PsiMont, qi, r.MredParams[i])
 			r.NttPsiInv[i][indexReverseNext] = MRed(r.NttPsiInv[i][indexReversePrev], PsiInvMont, qi, r.MredParams[i])
@@ -203,13 +329,14 @@ func (r *Ring) genNTTParams() error {
 // Minimal required information to recover the full ring. Used to import and export the ring.
 type ringParams struct {
 	N       int
+	NthRoot uint64
 	Modulus []uint64
 }
 
 // MarshalBinary encodes the target ring on a slice of bytes.
 func (r *Ring) MarshalBinary() ([]byte, error) {
 
-	parameters := ringParams{r.N, r.Modulus}
+	parameters := ringParams{r.N, r.NthRoot, r.Modulus}
 
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
@@ -233,7 +360,7 @@ func (r *Ring) UnmarshalBinary(data []byte) error {
 	if err := r.setParameters(parameters.N, parameters.Modulus); err != nil {
 		return err
 	}
-	if err := r.genNTTParams(); err != nil {
+	if err := r.genNTTParams(parameters.NthRoot); err != nil {
 		return err
 	}
 

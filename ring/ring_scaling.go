@@ -290,73 +290,19 @@ func (ss *SimpleScaler) reconstructAndScale(p1, p2 *Poly) {
 // DivFloorByLastModulusNTTLvl divides (floored) the polynomial by its last modulus. The input must be in the NTT domain.
 // Output poly level must be equal or one less than input level.
 func (r *Ring) DivFloorByLastModulusNTTLvl(level int, p0, pool, p1 *Poly) {
-
-	pool0 := pool.Coeffs[0]
-	pool1 := pool.Coeffs[1]
-
-	InvNTTLazy(p0.Coeffs[level], pool0, r.N, r.NttPsiInv[level], r.NttNInv[level], r.Modulus[level], r.MredParams[level])
-
+	r.InvNTTSingleLazy(level, p0.Coeffs[level], pool.Coeffs[0])
 	for i := 0; i < level; i++ {
-
-		NTTLazy(pool0, pool1, r.N, r.NttPsi[i], r.Modulus[i], r.MredParams[i], r.BredParams[i])
-
-		p0tmp := p0.Coeffs[i]
-		p1tmp := p1.Coeffs[i]
-
-		qi := r.Modulus[i]
-		twoqi := qi << 1
-		qInv := r.MredParams[i]
-		rescaleParams := r.RescaleParams[level-1][i]
-
-		// (x[i] - x[-1]) * InvQ
-		for j := 0; j < r.N; j = j + 8 {
-
-			x := (*[8]uint64)(unsafe.Pointer(&pool1[j]))
-			y := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
-			z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-
-			z[0] = MRed(twoqi-y[0]+x[0], rescaleParams, qi, qInv)
-			z[1] = MRed(twoqi-y[1]+x[1], rescaleParams, qi, qInv)
-			z[2] = MRed(twoqi-y[2]+x[2], rescaleParams, qi, qInv)
-			z[3] = MRed(twoqi-y[3]+x[3], rescaleParams, qi, qInv)
-			z[4] = MRed(twoqi-y[4]+x[4], rescaleParams, qi, qInv)
-			z[5] = MRed(twoqi-y[5]+x[5], rescaleParams, qi, qInv)
-			z[6] = MRed(twoqi-y[6]+x[6], rescaleParams, qi, qInv)
-			z[7] = MRed(twoqi-y[7]+x[7], rescaleParams, qi, qInv)
-
-		}
+		r.NTTSingleLazy(i, pool.Coeffs[0], pool.Coeffs[1])
+		// (-x[i] + x[-1]) * -InvQ
+		SubVecAndMulScalarMontgomeryTwoQiVec(pool.Coeffs[1], p0.Coeffs[i], p1.Coeffs[i], r.RescaleParams[level-1][i], r.Modulus[i], r.MredParams[i])
 	}
 }
 
 // DivFloorByLastModulusLvl divides (floored) the polynomial by its last modulus.
 // Output poly level must be equal or one less than input level.
 func (r *Ring) DivFloorByLastModulusLvl(level int, p0, p1 *Poly) {
-
 	for i := 0; i < level; i++ {
-		p0tmp := p0.Coeffs[level]
-		p1tmp := p0.Coeffs[i]
-		p2tmp := p1.Coeffs[i]
-		qi := r.Modulus[i]
-		twoqi := qi << 1
-		qInv := r.MredParams[i]
-		rescaleParams := r.RescaleParams[level-1][i]
-
-		// (x[i] - x[-1]) * InvQ
-		for j := 0; j < r.N; j = j + 8 {
-
-			x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
-			y := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-			z := (*[8]uint64)(unsafe.Pointer(&p2tmp[j]))
-
-			z[0] = MRed(twoqi-y[0]+x[0], rescaleParams, qi, qInv)
-			z[1] = MRed(twoqi-y[1]+x[1], rescaleParams, qi, qInv)
-			z[2] = MRed(twoqi-y[2]+x[2], rescaleParams, qi, qInv)
-			z[3] = MRed(twoqi-y[3]+x[3], rescaleParams, qi, qInv)
-			z[4] = MRed(twoqi-y[4]+x[4], rescaleParams, qi, qInv)
-			z[5] = MRed(twoqi-y[5]+x[5], rescaleParams, qi, qInv)
-			z[6] = MRed(twoqi-y[6]+x[6], rescaleParams, qi, qInv)
-			z[7] = MRed(twoqi-y[7]+x[7], rescaleParams, qi, qInv)
-		}
+		SubVecAndMulScalarMontgomeryTwoQiVec(p0.Coeffs[level], p0.Coeffs[i], p1.Coeffs[i], r.RescaleParams[level-1][i], r.Modulus[i], r.MredParams[i])
 	}
 }
 
@@ -416,77 +362,19 @@ func (r *Ring) DivFloorByLastModulusManyLvl(level, nbRescales int, p0, pool, p1 
 // Output poly level must be equal or one less than input level.
 func (r *Ring) DivRoundByLastModulusNTTLvl(level int, p0, pool, p1 *Poly) {
 
-	var pHalf, pHalfNegQi uint64
-
-	pool0 := pool.Coeffs[0]
-	pool1 := pool.Coeffs[1]
-
-	InvNTT(p0.Coeffs[level], pool0, r.N, r.NttPsiInv[level], r.NttNInv[level], r.Modulus[level], r.MredParams[level])
+	r.InvNTTSingleLazy(level, p0.Coeffs[level], pool.Coeffs[level])
 
 	// Center by (p-1)/2
 	pj := r.Modulus[level]
-	pHalf = (pj - 1) >> 1
+	pHalf := (pj - 1) >> 1
 
-	for i := 0; i < r.N; i = i + 8 {
-
-		z := (*[8]uint64)(unsafe.Pointer(&pool0[i]))
-
-		z[0] = CRed(z[0]+pHalf, pj)
-		z[1] = CRed(z[1]+pHalf, pj)
-		z[2] = CRed(z[2]+pHalf, pj)
-		z[3] = CRed(z[3]+pHalf, pj)
-		z[4] = CRed(z[4]+pHalf, pj)
-		z[5] = CRed(z[5]+pHalf, pj)
-		z[6] = CRed(z[6]+pHalf, pj)
-		z[7] = CRed(z[7]+pHalf, pj)
-	}
+	AddScalarVec(pool.Coeffs[level], pool.Coeffs[level], pHalf, pj)
 
 	for i := 0; i < level; i++ {
-
-		p0tmp := p0.Coeffs[i]
-		p1tmp := p1.Coeffs[i]
 		qi := r.Modulus[i]
-		twoqi := qi << 1
-		qInv := r.MredParams[i]
-		bredParams := r.BredParams[i]
-		nttPsi := r.NttPsi[i]
-		rescaleParams := r.RescaleParams[level-1][i]
-
-		pHalfNegQi = r.Modulus[i] - BRedAdd(pHalf, qi, bredParams)
-
-		for j := 0; j < r.N; j = j + 8 {
-
-			x := (*[8]uint64)(unsafe.Pointer(&pool0[j]))
-			z := (*[8]uint64)(unsafe.Pointer(&pool1[j]))
-
-			z[0] = x[0] + pHalfNegQi
-			z[1] = x[1] + pHalfNegQi
-			z[2] = x[2] + pHalfNegQi
-			z[3] = x[3] + pHalfNegQi
-			z[4] = x[4] + pHalfNegQi
-			z[5] = x[5] + pHalfNegQi
-			z[6] = x[6] + pHalfNegQi
-			z[7] = x[7] + pHalfNegQi
-		}
-
-		NTTLazy(pool1, pool1, r.N, nttPsi, qi, qInv, bredParams)
-
-		// (x[i] - x[-1]) * InvQ
-		for j := 0; j < r.N; j = j + 8 {
-
-			x := (*[8]uint64)(unsafe.Pointer(&pool1[j]))
-			y := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
-			z := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-
-			z[0] = MRed(twoqi+x[0]-y[0], rescaleParams, qi, qInv)
-			z[1] = MRed(twoqi+x[1]-y[1], rescaleParams, qi, qInv)
-			z[2] = MRed(twoqi+x[2]-y[2], rescaleParams, qi, qInv)
-			z[3] = MRed(twoqi+x[3]-y[3], rescaleParams, qi, qInv)
-			z[4] = MRed(twoqi+x[4]-y[4], rescaleParams, qi, qInv)
-			z[5] = MRed(twoqi+x[5]-y[5], rescaleParams, qi, qInv)
-			z[6] = MRed(twoqi+x[6]-y[6], rescaleParams, qi, qInv)
-			z[7] = MRed(twoqi+x[7]-y[7], rescaleParams, qi, qInv)
-		}
+		AddScalarNoModVec(pool.Coeffs[level], pool.Coeffs[i], qi-BRedAdd(pHalf, qi, r.BredParams[i]))
+		r.NTTSingleLazy(i, pool.Coeffs[i], pool.Coeffs[i])
+		SubVecAndMulScalarMontgomeryTwoQiVec(pool.Coeffs[i], p0.Coeffs[i], p1.Coeffs[i], r.RescaleParams[level-1][i], qi, r.MredParams[i])
 	}
 }
 
@@ -494,56 +382,16 @@ func (r *Ring) DivRoundByLastModulusNTTLvl(level int, p0, pool, p1 *Poly) {
 // Output poly level must be equal or one less than input level.
 func (r *Ring) DivRoundByLastModulusLvl(level int, p0, p1 *Poly) {
 
-	var pHalf, pHalfNegQi uint64
-
 	// Center by (p-1)/2
-	pHalf = (r.Modulus[level] - 1) >> 1
-	p0tmp := p0.Coeffs[level]
 	pj := r.Modulus[level]
+	pHalf := (pj - 1) >> 1
 
-	for i := 0; i < r.N; i = i + 8 {
-
-		x := (*[8]uint64)(unsafe.Pointer(&p0tmp[i]))
-
-		x[0] = CRed(x[0]+pHalf, pj)
-		x[1] = CRed(x[1]+pHalf, pj)
-		x[2] = CRed(x[2]+pHalf, pj)
-		x[3] = CRed(x[3]+pHalf, pj)
-		x[4] = CRed(x[4]+pHalf, pj)
-		x[5] = CRed(x[5]+pHalf, pj)
-		x[6] = CRed(x[6]+pHalf, pj)
-		x[7] = CRed(x[7]+pHalf, pj)
-	}
+	AddScalarVec(p0.Coeffs[level], p0.Coeffs[level], pHalf, pj)
 
 	for i := 0; i < level; i++ {
-
-		p1tmp := p0.Coeffs[i]
-		p2tmp := p1.Coeffs[i]
-
 		qi := r.Modulus[i]
-		twoqi := qi << 1
-		qInv := r.MredParams[i]
-		bredParams := r.BredParams[i]
-		rescaleParams := r.RescaleParams[level-1][i]
-
-		pHalfNegQi = r.Modulus[i] - BRedAdd(pHalf, qi, bredParams)
-
-		// (x[i] - x[-1]) * InvQ
-		for j := 0; j < r.N; j = j + 8 {
-
-			x := (*[8]uint64)(unsafe.Pointer(&p0tmp[j]))
-			y := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-			z := (*[8]uint64)(unsafe.Pointer(&p2tmp[j]))
-
-			z[0] = MRed(x[0]+pHalfNegQi+twoqi-y[0], rescaleParams, qi, qInv)
-			z[1] = MRed(x[1]+pHalfNegQi+twoqi-y[1], rescaleParams, qi, qInv)
-			z[2] = MRed(x[2]+pHalfNegQi+twoqi-y[2], rescaleParams, qi, qInv)
-			z[3] = MRed(x[3]+pHalfNegQi+twoqi-y[3], rescaleParams, qi, qInv)
-			z[4] = MRed(x[4]+pHalfNegQi+twoqi-y[4], rescaleParams, qi, qInv)
-			z[5] = MRed(x[5]+pHalfNegQi+twoqi-y[5], rescaleParams, qi, qInv)
-			z[6] = MRed(x[6]+pHalfNegQi+twoqi-y[6], rescaleParams, qi, qInv)
-			z[7] = MRed(x[7]+pHalfNegQi+twoqi-y[7], rescaleParams, qi, qInv)
-		}
+		AddScalarNoModAndNegTwoQiNoModVec(p0.Coeffs[i], p0.Coeffs[i], qi-BRedAdd(pHalf, qi, r.BredParams[i]), qi)
+		AddVecNoModAndMulScalarMontgomeryVec(p0.Coeffs[level], p0.Coeffs[i], p1.Coeffs[i], r.RescaleParams[level-1][i], qi, r.MredParams[i])
 	}
 }
 
@@ -562,12 +410,10 @@ func (r *Ring) DivRoundByLastModulusManyNTTLvl(level, nbRescales int, p0, pool, 
 		if nbRescales > 1 {
 
 			r.InvNTTLvl(level, p0, pool)
-
 			for i := 0; i < nbRescales; i++ {
 				r.DivRoundByLastModulusLvl(level-i, pool, pool)
 			}
-
-			r.NTTLvl(p1.Level(), pool, p1)
+			r.NTTLvl(level-nbRescales, pool, p1)
 
 		} else {
 			r.DivRoundByLastModulusNTTLvl(level, p0, pool, p1)

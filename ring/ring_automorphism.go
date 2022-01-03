@@ -28,17 +28,17 @@ func GenGaloisParams(n, gen uint64) (galElRotCol []uint64) {
 }
 
 // PermuteNTTIndex computes the index table for PermuteNTT.
-func PermuteNTTIndex(galEl, N uint64) (index []uint64) {
+func (r *Ring) PermuteNTTIndex(galEl uint64) (index []uint64) {
 
-	var mask, logN, tmp1, tmp2 uint64
-	logN = uint64(bits.Len64(N) - 1)
-	mask = (N << 1) - 1
-	index = make([]uint64, N)
+	var mask, tmp1, tmp2, logNthRoot uint64
+	logNthRoot = uint64(bits.Len64(r.NthRoot) - 2)
+	mask = r.NthRoot - 1
+	index = make([]uint64, r.N)
 
-	for i := uint64(0); i < N; i++ {
-		tmp1 = 2*utils.BitReverse64(i, logN) + 1
+	for i := uint64(0); i < uint64(r.N); i++ {
+		tmp1 = 2*utils.BitReverse64(i, logNthRoot) + 1
 		tmp2 = ((galEl * tmp1 & mask) - 1) >> 1
-		index[i] = utils.BitReverse64(tmp2, logN)
+		index[i] = utils.BitReverse64(tmp2, logNthRoot)
 	}
 
 	return
@@ -47,23 +47,23 @@ func PermuteNTTIndex(galEl, N uint64) (index []uint64) {
 // PermuteNTT applies the Galois transform on a polynomial in the NTT domain.
 // It maps the coefficients x^i to x^(gen*i)
 // It must be noted that the result cannot be in-place.
-func PermuteNTT(polIn *Poly, gen uint64, polOut *Poly) {
-	PermuteNTTLvl(utils.MinInt(polIn.Level(), polOut.Level()), polIn, gen, polOut)
+func (r *Ring) PermuteNTT(polIn *Poly, gen uint64, polOut *Poly) {
+	r.PermuteNTTLvl(utils.MinInt(polIn.Level(), polOut.Level()), polIn, gen, polOut)
 }
 
 // PermuteNTTLvl applies the Galois transform on a polynomial in the NTT domain, up to a given level.
 // It maps the coefficients x^i to x^(gen*i)
 // It must be noted that the result cannot be in-place.
-func PermuteNTTLvl(level int, polIn *Poly, gen uint64, polOut *Poly) {
-	PermuteNTTWithIndexLvl(level, polIn, PermuteNTTIndex(gen, uint64(len(polIn.Coeffs[0]))), polOut)
+func (r *Ring) PermuteNTTLvl(level int, polIn *Poly, gen uint64, polOut *Poly) {
+	r.PermuteNTTWithIndexLvl(level, polIn, r.PermuteNTTIndex(gen), polOut)
 }
 
 // PermuteNTTWithIndexLvl applies the Galois transform on a polynomial in the NTT domain, up to a given level.
 // It maps the coefficients x^i to x^(gen*i) using the PermuteNTTIndex table.
 // It must be noted that the result cannot be in-place.
-func PermuteNTTWithIndexLvl(level int, polIn *Poly, index []uint64, polOut *Poly) {
+func (r *Ring) PermuteNTTWithIndexLvl(level int, polIn *Poly, index []uint64, polOut *Poly) {
 
-	for j := 0; j < len(polIn.Coeffs[0]); j = j + 8 {
+	for j := 0; j < r.N; j = j + 8 {
 
 		x := (*[8]uint64)(unsafe.Pointer(&index[j]))
 
@@ -88,9 +88,9 @@ func PermuteNTTWithIndexLvl(level int, polIn *Poly, index []uint64, polOut *Poly
 // and adds the result to the output polynomial without modular reduction.
 // It maps the coefficients x^i to x^(gen*i) using the PermuteNTTIndex table.
 // It must be noted that the result cannot be in-place.
-func PermuteNTTWithIndexAndAddNoModLvl(level int, polIn *Poly, index []uint64, polOut *Poly) {
+func (r *Ring) PermuteNTTWithIndexAndAddNoModLvl(level int, polIn *Poly, index []uint64, polOut *Poly) {
 
-	for j := 0; j < len(polIn.Coeffs[0]); j = j + 8 {
+	for j := 0; j < r.N; j = j + 8 {
 
 		x := (*[8]uint64)(unsafe.Pointer(&index[j]))
 

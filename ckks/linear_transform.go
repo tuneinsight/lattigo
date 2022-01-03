@@ -1,25 +1,65 @@
 package ckks
 
 import (
+	"runtime"
+
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
-	"runtime"
 )
 
 // Trace maps X -> sum((-1)^i * X^{i*n+1}) for 0 <= i < N
 // For log(n) = logSlotStart and log(N/2) = logSlotsEnd
+// Monomial X^k vanishes if k is not divisible by (N/n), else it is multiplied by (N/n).
+// Ciphertext is pre-multiplied by (N/n)^-1 to remove the (N/n) factor.
+// Examples of full Trace for [0 + 1X + 2X^2 + 3X^3 + 4X^4 + 5X^5 + 6X^6 + 7X^7]
+//
+// 1)	   [1 + 2X + 3X^2 + 4X^3 + 5X^4 + 6X^5 + 7X^6 + 8X^7]
+//       + [1 - 6X - 3X^2 + 8X^3 + 5X^4 + 2X^5 - 7X^6 - 4X^7]  {X-> X^(i * 5^1)}
+//   	 = [2 - 4X + 0X^2 +12X^3 +10X^4 + 8X^5 - 0X^6 + 4X^7]
+//
+// 2)      [2 - 4X + 0X^2 +12X^3 +10X^4 + 8X^5 - 0X^6 + 4X^7]
+//       + [2 + 4X + 0X^2 -12X^3 +10X^4 - 8X^5 + 0X^6 - 4X^7]  {X-> X^(i * 5^2)}
+//       = [4 + 0X + 0X^2 - 0X^3 +20X^4 + 0X^5 + 0X^6 - 0X^7]
+//
+// 3)      [4 + 0X + 0X^2 - 0X^3 +20X^4 + 0X^5 + 0X^6 - 0X^7]
+//       + [4 + 4X + 0X^2 - 0X^3 -20X^4 + 0X^5 + 0X^6 - 0X^7]  {X-> X^(i * -1)}
+//       = [8 + 0X + 0X^2 - 0X^3 + 0X^4 + 0X^5 + 0X^6 - 0X^7]
 func (eval *evaluator) Trace(ctIn *Ciphertext, logSlotsStart, logSlotsEnd int, ctOut *Ciphertext) {
-	if ctIn != ctOut {
-		ctOut.Copy(ctIn)
+
+	levelQ := utils.MinInt(ctIn.Level(), ctOut.Level())
+
+	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:levelQ+1]
+	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:levelQ+1]
+
+	n := 1 << (logSlotsEnd - logSlotsStart)
+
+	if n > 1 {
+
+		ringQ := eval.params.RingQ()
+
+		// pre-multiplication by (N/n)^-1
+		for i := 0; i < levelQ+1; i++ {
+			Q := ringQ.Modulus[i]
+			bredParams := ringQ.BredParams[i]
+			mredparams := ringQ.MredParams[i]
+			invN := ring.ModExp(uint64(n), Q-2, Q)
+			invN = ring.MForm(invN, Q, bredParams)
+
+			ring.MulScalarMontgomeryVec(ctIn.Value[0].Coeffs[i], ctOut.Value[0].Coeffs[i], invN, Q, mredparams)
+			ring.MulScalarMontgomeryVec(ctIn.Value[1].Coeffs[i], ctOut.Value[1].Coeffs[i], invN, Q, mredparams)
+		}
+
+		for i := logSlotsStart; i < logSlotsEnd; i++ {
+			eval.permuteNTT(ctOut, eval.params.GaloisElementForColumnRotationBy(1<<i), eval.ctxpool)
+			ctPool := &Ciphertext{Ciphertext: eval.ctxpool.Ciphertext, Scale: ctOut.Scale}
+			ctPool.Value = ctPool.Value[:2]
+			eval.Add(ctOut, ctPool, ctOut)
+		}
 	} else {
-		ctOut = ctIn
-	}
-	for i := logSlotsStart; i < logSlotsEnd; i++ {
-		eval.permuteNTT(ctOut, eval.params.GaloisElementForColumnRotationBy(1<<i), eval.ctxpool)
-		ctPool := &Ciphertext{Ciphertext: eval.ctxpool.Ciphertext, Scale: ctOut.Scale}
-		ctPool.Value = ctPool.Value[:2]
-		eval.Add(ctOut, ctPool, ctOut)
+		if ctIn != ctOut {
+			ctOut.Copy(ctIn)
+		}
 	}
 }
 
@@ -49,6 +89,8 @@ func (eval *evaluator) RotateHoisted(ctIn *Ciphertext, rotations []int, ctOut ma
 	levelQ := ctIn.Level()
 	eval.DecomposeNTT(levelQ, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], eval.PoolDecompQP)
 	for _, i := range rotations {
+		ctOut[i].Value[0].Coeffs = ctOut[i].Value[0].Coeffs[:levelQ+1]
+		ctOut[i].Value[1].Coeffs = ctOut[i].Value[1].Coeffs[:levelQ+1]
 		if i == 0 {
 			ctOut[i].Copy(ctIn)
 		} else {
@@ -57,47 +99,368 @@ func (eval *evaluator) RotateHoisted(ctIn *Ciphertext, rotations []int, ctOut ma
 	}
 }
 
+// LinearTransform is a type for linear transformations on ciphertexts.
+// It stores a plaintext matrix diagonalized in diagonal form and
+// can be evaluated on a ciphertext by using the evaluator.LinearTransform method.
+type LinearTransform struct {
+	LogSlots int                 // Log of the number of slots of the plaintext (needed to compute the appropriate rotation keys)
+	N1       int                 // N1 is the number of inner loops of the baby-step giant-step algorithm used in the evaluation (if N1 == 0, BSGS is not used).
+	Level    int                 // Level is the level at which the matrix is encoded (can be circuit dependent)
+	Scale    float64             // Scale is the scale at which the matrix is encoded (can be circuit dependent)
+	Vec      map[int]rlwe.PolyQP // Vec is the matrix, in diagonal form, where each entry of vec is an indexed non-zero diagonal.
+}
+
+// NewLinearTransform allocates a new LinearTransform with zero plaintexts at the specified level.
+// If BSGSRatio == 0, the LinearTransform is set to not use the BSGS approach.
+// Method will panic if BSGSRatio < 0.
+func NewLinearTransform(params Parameters, nonZeroDiags []int, level, logSlots int, BSGSRatio float64) LinearTransform {
+	vec := make(map[int]rlwe.PolyQP)
+	slots := 1 << logSlots
+	levelQ := level
+	levelP := params.PCount() - 1
+	var N1 int
+	if BSGSRatio == 0 {
+		N1 = 0
+		for _, i := range nonZeroDiags {
+			idx := i
+			if idx < 0 {
+				idx += slots
+			}
+			vec[idx] = params.RingQP().NewPolyLvl(levelQ, levelP)
+		}
+	} else if BSGSRatio > 0 {
+		N1 = FindBestBSGSSplit(nonZeroDiags, slots, BSGSRatio)
+		index, _, _ := BsgsIndex(nonZeroDiags, slots, N1)
+		for j := range index {
+			for _, i := range index[j] {
+				vec[j+i] = params.RingQP().NewPolyLvl(levelQ, levelP)
+			}
+		}
+	} else {
+		panic("BSGS ratio cannot be negative")
+	}
+
+	return LinearTransform{LogSlots: logSlots, N1: N1, Level: level, Vec: vec}
+}
+
+// Rotations returns the list of rotations needed for the evaluation
+// of the linear transform.
+func (LT *LinearTransform) Rotations() (rotations []int) {
+	slots := 1 << LT.LogSlots
+
+	rotIndex := make(map[int]bool)
+
+	var index int
+
+	N1 := LT.N1
+
+	if LT.N1 == 0 {
+
+		for j := range LT.Vec {
+			rotIndex[j] = true
+		}
+
+	} else {
+
+		for j := range LT.Vec {
+
+			index = ((j / N1) * N1) & (slots - 1)
+			rotIndex[index] = true
+
+			index = j & (N1 - 1)
+			rotIndex[index] = true
+		}
+	}
+
+	rotations = make([]int, len(rotIndex))
+	var i int
+	for j := range rotIndex {
+		rotations[i] = j
+		i++
+	}
+
+	return rotations
+}
+
+// Encode encodes on a pre-allocated LinearTransform the linear transforms' matrix in diagonal form `value`.
+// values.(type) can be either map[int][]complex128 or map[int][]float64.
+// User must ensure that 1 <= len([]complex128\[]float64) <= 2^logSlots < 2^logN.
+// It can then be evaluated on a ciphertext using evaluator.LinearTransform.
+// Evaluation will use the naive approach (single hoisting and no baby-step giant-step).
+// Faster if there is only a few non-zero diagonals but uses more keys.
+func (LT *LinearTransform) Encode(encoder Encoder, value interface{}, scale float64) {
+
+	enc, ok := encoder.(*encoderComplex128)
+	if !ok {
+		panic("encoder should be an encoderComplex128")
+	}
+
+	dMat := interfaceMapToMapOfInterface(value)
+	slots := 1 << LT.LogSlots
+	N1 := LT.N1
+
+	if N1 == 0 {
+		for i := range dMat {
+			idx := i
+			if idx < 0 {
+				idx += slots
+			}
+
+			if _, ok := LT.Vec[idx]; !ok {
+				panic("error encoding on LinearTransform: input does not match the same non-zero diagonals")
+			}
+
+			enc.embed(dMat[i], LT.LogSlots, scale, LT.Vec[idx])
+			enc.switchToNTTDomain(LT.LogSlots, true, LT.Vec[idx])
+		}
+	} else {
+		index, _, _ := BsgsIndex(value, slots, N1)
+
+		for j := range index {
+			for _, i := range index[j] {
+				// manages inputs that have rotation between 0 and slots-1 or between -slots/2 and slots/2-1
+				v, ok := dMat[j+i]
+				if !ok {
+					v = dMat[j+i-slots]
+				}
+
+				if _, ok := LT.Vec[j+i]; !ok {
+					panic("error encoding on LinearTransform BSGS: input does not match the same non-zero diagonals")
+				}
+
+				enc.embed(utils.RotateSlice(v, -j), LT.LogSlots, scale, LT.Vec[j+i])
+				enc.switchToNTTDomain(LT.LogSlots, true, LT.Vec[j+i])
+			}
+		}
+	}
+
+	LT.Scale = scale
+}
+
+// GenLinearTransform allocates and encode a new LinearTransform struct from the linear transforms' matrix in diagonal form `value`.
+// values.(type) can be either map[int][]complex128 or map[int][]float64.
+// User must ensure that 1 <= len([]complex128\[]float64) <= 2^logSlots < 2^logN.
+// It can then be evaluated on a ciphertext using evaluator.LinearTransform.
+// Evaluation will use the naive approach (single hoisting and no baby-step giant-step).
+// Faster if there is only a few non-zero diagonals but uses more keys.
+func GenLinearTransform(encoder Encoder, value interface{}, level int, scale float64, logslots int) LinearTransform {
+
+	enc, ok := encoder.(*encoderComplex128)
+	if !ok {
+		panic("encoder should be an encoderComplex128")
+	}
+
+	params := enc.params
+	dMat := interfaceMapToMapOfInterface(value)
+	vec := make(map[int]rlwe.PolyQP)
+	slots := 1 << logslots
+	levelQ := level
+	levelP := params.PCount() - 1
+	for i := range dMat {
+
+		idx := i
+		if idx < 0 {
+			idx += slots
+		}
+		vec[idx] = params.RingQP().NewPolyLvl(levelQ, levelP)
+		enc.embed(dMat[i], logslots, scale, vec[idx])
+		enc.switchToNTTDomain(logslots, true, vec[idx])
+	}
+
+	return LinearTransform{LogSlots: logslots, N1: 0, Vec: vec, Level: level, Scale: scale}
+}
+
+// GenLinearTransformBSGS allocates and encodes a new LinearTransform struct from the linear transforms' matrix in diagonal form `value` for evaluation with a baby-step giant-step approach.
+// values.(type) can be either map[int][]complex128 or map[int][]float64.
+// User must ensure that 1 <= len([]complex128\[]float64) <= 2^logSlots < 2^logN.
+// LinearTransform types can be be evaluated on a ciphertext using evaluator.LinearTransform.
+// Evaluation will use the optimized approach (double hoisting and baby-step giant-step).
+// Faster if there is more than a few non-zero diagonals.
+// BSGSRatio is the maximum ratio between the inner and outer loop of the baby-step giant-step algorithm used in evaluator.LinearTransform.
+// Optimal BSGSRatio value is between 4 and 16 depending on the sparsity of the matrix.
+func GenLinearTransformBSGS(encoder Encoder, value interface{}, level int, scale, BSGSRatio float64, logSlots int) (LT LinearTransform) {
+
+	enc, ok := encoder.(*encoderComplex128)
+	if !ok {
+		panic("encoder should be an encoderComplex128")
+	}
+
+	params := enc.params
+
+	slots := 1 << logSlots
+
+	// N1*N2 = N
+	N1 := FindBestBSGSSplit(value, slots, BSGSRatio)
+
+	index, _, _ := BsgsIndex(value, slots, N1)
+
+	vec := make(map[int]rlwe.PolyQP)
+
+	dMat := interfaceMapToMapOfInterface(value)
+	levelQ := level
+	levelP := params.PCount() - 1
+	for j := range index {
+
+		for _, i := range index[j] {
+
+			// manages inputs that have rotation between 0 and slots-1 or between -slots/2 and slots/2-1
+			v, ok := dMat[j+i]
+			if !ok {
+				v = dMat[j+i-slots]
+			}
+			vec[j+i] = params.RingQP().NewPolyLvl(levelQ, levelP)
+			enc.embed(utils.RotateSlice(v, -j), logSlots, scale, vec[j+i])
+			enc.switchToNTTDomain(logSlots, true, vec[j+i])
+		}
+	}
+
+	return LinearTransform{LogSlots: logSlots, N1: N1, Vec: vec, Level: level, Scale: scale}
+}
+
+// BsgsIndex returns the index map and needed rotation for the BSGS matrix-vector multiplication algorithm.
+func BsgsIndex(el interface{}, slots, N1 int) (index map[int][]int, rotN1, rotN2 []int) {
+	index = make(map[int][]int)
+	rotN1Map := make(map[int]bool)
+	rotN2Map := make(map[int]bool)
+	var nonZeroDiags []int
+	switch element := el.(type) {
+	case map[int][]complex128:
+		nonZeroDiags = make([]int, len(element))
+		var i int
+		for key := range element {
+			nonZeroDiags[i] = key
+			i++
+		}
+	case map[int][]float64:
+		nonZeroDiags = make([]int, len(element))
+		var i int
+		for key := range element {
+			nonZeroDiags[i] = key
+			i++
+		}
+	case map[int]bool:
+		nonZeroDiags = make([]int, len(element))
+		var i int
+		for key := range element {
+			nonZeroDiags[i] = key
+			i++
+		}
+	case map[int]rlwe.PolyQP:
+		nonZeroDiags = make([]int, len(element))
+		var i int
+		for key := range element {
+			nonZeroDiags[i] = key
+			i++
+		}
+	case []int:
+		nonZeroDiags = element
+	}
+
+	for _, rot := range nonZeroDiags {
+		rot &= (slots - 1)
+		idxN1 := ((rot / N1) * N1) & (slots - 1)
+		idxN2 := rot & (N1 - 1)
+		if index[idxN1] == nil {
+			index[idxN1] = []int{idxN2}
+		} else {
+			index[idxN1] = append(index[idxN1], idxN2)
+		}
+		rotN1Map[idxN1] = true
+		rotN2Map[idxN2] = true
+	}
+
+	rotN1 = []int{}
+	for i := range rotN1Map {
+		rotN1 = append(rotN1, i)
+	}
+
+	rotN2 = []int{}
+	for i := range rotN2Map {
+		rotN2 = append(rotN2, i)
+	}
+
+	return
+}
+
+func interfaceMapToMapOfInterface(m interface{}) map[int]interface{} {
+	d := make(map[int]interface{})
+	switch el := m.(type) {
+	case map[int][]complex128:
+		for i := range el {
+			d[i] = el[i]
+		}
+	case map[int][]float64:
+		for i := range el {
+			d[i] = el[i]
+		}
+	default:
+		panic("invalid input, must be map[int][]complex128 or map[int][]float64")
+	}
+	return d
+}
+
+// FindBestBSGSSplit finds the best N1*N2 = N for the baby-step giant-step algorithm for matrix multiplication.
+func FindBestBSGSSplit(diagMatrix interface{}, maxN int, maxRatio float64) (minN int) {
+
+	for N1 := 1; N1 < maxN; N1 <<= 1 {
+
+		_, rotN1, rotN2 := BsgsIndex(diagMatrix, maxN, N1)
+
+		nbN1, nbN2 := len(rotN1)-1, len(rotN2)-1
+
+		if float64(nbN2)/float64(nbN1) == maxRatio {
+			return N1
+		}
+
+		if float64(nbN2)/float64(nbN1) > maxRatio {
+			return N1 / 2
+		}
+	}
+
+	return 1
+}
+
 // LinearTransformNew evaluates a linear transform on the ciphertext and returns the result on a new ciphertext.
 // The linearTransform can either be an (ordered) list of PtDiagMatrix or a single PtDiagMatrix.
-// In either case a list of ciphertext is return (the second case returnign a list of
-// containing a single ciphertext. A PtDiagMatrix is a diagonalized plaintext matrix contructed with an Encoder using
+// In either case a list of ciphertext is returned (the second case returning a list of
+// containing a single ciphertext. A PtDiagMatrix is a diagonalized plaintext matrix constructed with an Encoder using
 // the method encoder.EncodeDiagMatrixAtLvl(*).
 func (eval *evaluator) LinearTransformNew(ctIn *Ciphertext, linearTransform interface{}) (ctOut []*Ciphertext) {
 
-	switch element := linearTransform.(type) {
-	case []PtDiagMatrix:
-		ctOut = make([]*Ciphertext, len(element))
+	switch LTs := linearTransform.(type) {
+	case []LinearTransform:
+		ctOut = make([]*Ciphertext, len(LTs))
 
 		var maxLevel int
-		for _, matrix := range element {
-			maxLevel = utils.MaxInt(maxLevel, matrix.Level)
+		for _, LT := range LTs {
+			maxLevel = utils.MaxInt(maxLevel, LT.Level)
 		}
 
 		minLevel := utils.MinInt(maxLevel, ctIn.Level())
 
 		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], eval.PoolDecompQP)
 
-		for i, matrix := range element {
+		for i, LT := range LTs {
 			ctOut[i] = NewCiphertext(eval.params, 1, minLevel, ctIn.Scale)
 
-			if matrix.Naive {
-				eval.MultiplyByDiagMatrix(ctIn, matrix, eval.PoolDecompQP, ctOut[i])
+			if LT.N1 == 0 {
+				eval.MultiplyByDiagMatrix(ctIn, LT, eval.PoolDecompQP, ctOut[i])
 			} else {
-				eval.MultiplyByDiagMatrixBSGS(ctIn, matrix, eval.PoolDecompQP, ctOut[i])
+				eval.MultiplyByDiagMatrixBSGS(ctIn, LT, eval.PoolDecompQP, ctOut[i])
 			}
 		}
 
-	case PtDiagMatrix:
+	case LinearTransform:
 
-		minLevel := utils.MinInt(element.Level, ctIn.Level())
+		minLevel := utils.MinInt(LTs.Level, ctIn.Level())
 		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], eval.PoolDecompQP)
 
 		ctOut = []*Ciphertext{NewCiphertext(eval.params, 1, minLevel, ctIn.Scale)}
 
-		if element.Naive {
-			eval.MultiplyByDiagMatrix(ctIn, element, eval.PoolDecompQP, ctOut[0])
+		if LTs.N1 == 0 {
+			eval.MultiplyByDiagMatrix(ctIn, LTs, eval.PoolDecompQP, ctOut[0])
 		} else {
-			eval.MultiplyByDiagMatrixBSGS(ctIn, element, eval.PoolDecompQP, ctOut[0])
+			eval.MultiplyByDiagMatrixBSGS(ctIn, LTs, eval.PoolDecompQP, ctOut[0])
 		}
 	}
 	return
@@ -105,45 +468,78 @@ func (eval *evaluator) LinearTransformNew(ctIn *Ciphertext, linearTransform inte
 
 // LinearTransformNew evaluates a linear transform on the pre-allocated ciphertexts.
 // The linearTransform can either be an (ordered) list of PtDiagMatrix or a single PtDiagMatrix.
-// In either case a list of ciphertext is return (the second case returnign a list of
-// containing a single ciphertext. A PtDiagMatrix is a diagonalized plaintext matrix contructed with an Encoder using
+// In either case a list of ciphertext is returned (the second case returning a list of
+// containing a single ciphertext. A PtDiagMatrix is a diagonalized plaintext matrix constructed with an Encoder using
 // the method encoder.EncodeDiagMatrixAtLvl(*).
 func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interface{}, ctOut []*Ciphertext) {
 
-	switch element := linearTransform.(type) {
-	case []PtDiagMatrix:
+	switch LTs := linearTransform.(type) {
+	case []LinearTransform:
 		var maxLevel int
-		for _, matrix := range element {
-			maxLevel = utils.MaxInt(maxLevel, matrix.Level)
+		for _, LT := range LTs {
+			maxLevel = utils.MaxInt(maxLevel, LT.Level)
 		}
 
 		minLevel := utils.MinInt(maxLevel, ctIn.Level())
 
 		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], eval.PoolDecompQP)
 
-		for i, matrix := range element {
-			if matrix.Naive {
-				eval.MultiplyByDiagMatrix(ctIn, matrix, eval.PoolDecompQP, ctOut[i])
+		for i, LT := range LTs {
+			if LT.N1 == 0 {
+				eval.MultiplyByDiagMatrix(ctIn, LT, eval.PoolDecompQP, ctOut[i])
 			} else {
-				eval.MultiplyByDiagMatrixBSGS(ctIn, matrix, eval.PoolDecompQP, ctOut[i])
+				eval.MultiplyByDiagMatrixBSGS(ctIn, LT, eval.PoolDecompQP, ctOut[i])
 			}
 		}
 
-	case PtDiagMatrix:
-		minLevel := utils.MinInt(element.Level, ctIn.Level())
+	case LinearTransform:
+		minLevel := utils.MinInt(LTs.Level, ctIn.Level())
 		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], eval.PoolDecompQP)
-		if element.Naive {
-			eval.MultiplyByDiagMatrix(ctIn, element, eval.PoolDecompQP, ctOut[0])
+		if LTs.N1 == 0 {
+			eval.MultiplyByDiagMatrix(ctIn, LTs, eval.PoolDecompQP, ctOut[0])
 		} else {
-			eval.MultiplyByDiagMatrixBSGS(ctIn, element, eval.PoolDecompQP, ctOut[0])
+			eval.MultiplyByDiagMatrixBSGS(ctIn, LTs, eval.PoolDecompQP, ctOut[0])
 		}
 	}
 }
 
-// InnerSumLog applies an optimized inner sum on the ciphetext (log2(n) + HW(n) rotations with double hoisting).
+// Average returns the average of vectors of batchSize elements.
+// The operation assumes that ctIn encrypts SlotCount/'batchSize' sub-vectors of size 'batchSize'.
+// It then replaces all values of those sub-vectors by the component-wise average between all the sub-vectors.
+// Example for batchSize=4 and slots=8: [{a, b, c, d}, {e, f, g, h}] -> [0.5*{a+e, b+f, c+g, d+h}, 0.5*{a+e, b+f, c+g, d+h}]
+// Operation requires log2(SlotCout/'batchSize') rotations.
+// Required rotation keys can be generated with 'RotationsForInnerSumLog(batchSize, SlotCount/batchSize)''
+func (eval *evaluator) Average(ctIn *Ciphertext, logBatchSize int, ctOut *Ciphertext) {
+
+	if logBatchSize > eval.params.LogSlots() {
+		panic("batchSize must be smaller or equal to the number of slots")
+	}
+
+	ringQ := eval.params.RingQ()
+
+	level := utils.MinInt(ctIn.Level(), ctOut.Level())
+
+	n := eval.params.Slots() / (1 << logBatchSize)
+
+	// pre-multiplication by n^-1
+	for i := 0; i < level+1; i++ {
+		Q := ringQ.Modulus[i]
+		bredParams := ringQ.BredParams[i]
+		mredparams := ringQ.MredParams[i]
+		invN := ring.ModExp(uint64(n), Q-2, Q)
+		invN = ring.MForm(invN, Q, bredParams)
+
+		ring.MulScalarMontgomeryVec(ctIn.Value[0].Coeffs[i], ctOut.Value[0].Coeffs[i], invN, Q, mredparams)
+		ring.MulScalarMontgomeryVec(ctIn.Value[1].Coeffs[i], ctOut.Value[1].Coeffs[i], invN, Q, mredparams)
+	}
+
+	eval.InnerSumLog(ctOut, 1<<logBatchSize, n, ctOut)
+}
+
+// InnerSumLog applies an optimized inner sum on the ciphertext (log2(n) + HW(n) rotations with double hoisting).
 // The operation assumes that `ctIn` encrypts SlotCount/`batchSize` sub-vectors of size `batchSize` which it adds together (in parallel) by groups of `n`.
 // It outputs in ctOut a ciphertext for which the "leftmost" sub-vector of each group is equal to the sum of the group.
-// This method is faster than InnerSum when the number of rotations is large and uses log2(n) + HW(n) insteadn of 'n' keys.
+// This method is faster than InnerSum when the number of rotations is large and uses log2(n) + HW(n) instead of 'n' keys.
 func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
 
 	ringQ := eval.params.RingQ()
@@ -153,8 +549,8 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 	levelQ := ctIn.Level()
 	levelP := len(ringP.Modulus) - 1
 
-	//QiOverF := eval.params.QiOverflowMargin(levelQ)
-	//PiOverF := eval.params.PiOverflowMargin()
+	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:levelQ+1]
+	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:levelQ+1]
 
 	if n == 1 {
 		if ctIn != ctOut {
@@ -251,7 +647,7 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 	}
 }
 
-// InnerSum applies an naive inner sum on the ciphetext (n rotations with single hoisting).
+// InnerSum applies an naive inner sum on the ciphertext (n rotations with single hoisting).
 // The operation assumes that `ctIn` encrypts SlotCount/`batchSize` sub-vectors of size `batchSize` which it adds together (in parallel) by groups of `n`.
 // It outputs in ctOut a ciphertext for which the "leftmost" sub-vector of each group is equal to the sum of the group.
 // This method is faster than InnerSumLog when the number of rotations is small but uses 'n' keys instead of log(n) + HW(n).
@@ -266,6 +662,9 @@ func (eval *evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 
 	QiOverF := eval.params.QiOverflowMargin(levelQ) >> 1
 	PiOverF := eval.params.PiOverflowMargin(levelP) >> 1
+
+	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:levelQ+1]
+	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:levelQ+1]
 
 	// If sum with only the first element, then returns the input
 	if n == 1 {
@@ -347,7 +746,7 @@ func (eval *evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 	}
 }
 
-// ReplicateLog applies an optimized replication on the ciphetext (log2(n) + HW(n) rotations with double hoisting).
+// ReplicateLog applies an optimized replication on the ciphertext (log2(n) + HW(n) rotations with double hoisting).
 // It acts as the inverse of a inner sum (summing elements from left to right).
 // The replication is parameterized by the size of the sub-vectors to replicate "batchSize" and
 // the number of time "n" they need to be replicated.
@@ -358,7 +757,7 @@ func (eval *evaluator) ReplicateLog(ctIn *Ciphertext, batchSize, n int, ctOut *C
 	eval.InnerSumLog(ctIn, -batchSize, n, ctOut)
 }
 
-// Replicate applies naive replication on the ciphetext (n rotations with single hoisting).
+// Replicate applies naive replication on the ciphertext (n rotations with single hoisting).
 // It acts as the inverse of a inner sum (summing elements from left to right).
 // The replication is parameterized by the size of the sub-vectors to replicate "batchSize" and
 // the number of time "n" they need to be replicated.
@@ -374,7 +773,7 @@ func (eval *evaluator) Replicate(ctIn *Ciphertext, batchSize, n int, ctOut *Ciph
 // respectively, each of size params.Beta().
 // The naive approach is used (single hoisting and no baby-step giant-step), which is faster than MultiplyByDiagMatrixBSGS
 // for matrix of only a few non-zero diagonals but uses more keys.
-func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix PtDiagMatrix, PoolDecompQP []rlwe.PolyQP, ctOut *Ciphertext) {
+func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTransform, PoolDecompQP []rlwe.PolyQP, ctOut *Ciphertext) {
 
 	ringQ := eval.params.RingQ()
 	ringP := eval.params.RingP()
@@ -382,6 +781,9 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix PtDiagMatri
 
 	levelQ := utils.MinInt(ctOut.Level(), utils.MinInt(ctIn.Level(), matrix.Level))
 	levelP := len(ringP.Modulus) - 1
+
+	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:levelQ+1]
+	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:levelQ+1]
 
 	QiOverF := eval.params.QiOverflowMargin(levelQ)
 	PiOverF := eval.params.PiOverflowMargin(levelP)
@@ -405,7 +807,7 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix PtDiagMatri
 	var cnt int
 	for k := range matrix.Vec {
 
-		k &= int((ringQ.N >> 1) - 1)
+		k &= int((ringQ.NthRoot >> 2) - 1)
 
 		if k == 0 {
 			state = true
@@ -475,10 +877,7 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix PtDiagMatri
 // respectively, each of size params.Beta().
 // The BSGS approach is used (double hoisting with baby-step giant-step), which is faster than MultiplyByDiagMatrix
 // for matrix with more than a few non-zero diagonals and uses much less keys.
-func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix PtDiagMatrix, PoolDecompQP []rlwe.PolyQP, ctOut *Ciphertext) {
-
-	// N1*N2 = N
-	N1 := matrix.N1
+func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearTransform, PoolDecompQP []rlwe.PolyQP, ctOut *Ciphertext) {
 
 	ringQ := eval.params.RingQ()
 	ringP := eval.params.RingP()
@@ -487,19 +886,22 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix PtDiagM
 	levelQ := utils.MinInt(ctOut.Level(), utils.MinInt(ctIn.Level(), matrix.Level))
 	levelP := len(ringP.Modulus) - 1
 
-	QiOverF := eval.params.QiOverflowMargin(levelQ)
-	PiOverF := eval.params.PiOverflowMargin(levelP)
+	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:levelQ+1]
+	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:levelQ+1]
 
-	// Computes the rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giang-step algorithm
+	QiOverF := eval.params.QiOverflowMargin(levelQ) >> 1
+	PiOverF := eval.params.PiOverflowMargin(levelP) >> 1
 
-	index, rotations := bsgsIndex(matrix.Vec, 1<<matrix.LogSlots, matrix.N1)
+	// Computes the N2 rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giang-step algorithm
+
+	index, _, rotN2 := BsgsIndex(matrix.Vec, 1<<matrix.LogSlots, matrix.N1)
 
 	ring.CopyValuesLvl(levelQ, ctIn.Value[0], eval.ctxpool.Value[0])
 	ring.CopyValuesLvl(levelQ, ctIn.Value[1], eval.ctxpool.Value[1])
 	ctInTmp0, ctInTmp1 := eval.ctxpool.Value[0], eval.ctxpool.Value[1]
 
 	// Pre-rotates ciphertext for the baby-step giant-step algorithm, does not divide by P yet
-	ctInRotQP := eval.RotateHoistedNoModDownNew(levelQ, rotations, ctInTmp0, eval.PoolDecompQP)
+	ctInRotQP := eval.RotateHoistedNoModDownNew(levelQ, rotN2, ctInTmp0, eval.PoolDecompQP)
 
 	// Accumulator inner loop
 	tmp0QP := eval.Pool[1]
@@ -524,30 +926,30 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix PtDiagM
 		for _, i := range index[j] {
 			if i == 0 {
 				if cnt1 == 0 {
-					ringQ.MulCoeffsMontgomeryConstantLvl(levelQ, matrix.Vec[N1*j].Q, ctInTmp0, tmp0QP.Q)
-					ringQ.MulCoeffsMontgomeryConstantLvl(levelQ, matrix.Vec[N1*j].Q, ctInTmp1, tmp1QP.Q)
+					ringQ.MulCoeffsMontgomeryConstantLvl(levelQ, matrix.Vec[j].Q, ctInTmp0, tmp0QP.Q)
+					ringQ.MulCoeffsMontgomeryConstantLvl(levelQ, matrix.Vec[j].Q, ctInTmp1, tmp1QP.Q)
 					tmp0QP.P.Zero()
 					tmp1QP.P.Zero()
 				} else {
-					ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, matrix.Vec[N1*j].Q, ctInTmp0, tmp0QP.Q)
-					ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, matrix.Vec[N1*j].Q, ctInTmp1, tmp1QP.Q)
+					ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, matrix.Vec[j].Q, ctInTmp0, tmp0QP.Q)
+					ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, matrix.Vec[j].Q, ctInTmp1, tmp1QP.Q)
 				}
 			} else {
 				if cnt1 == 0 {
-					ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, matrix.Vec[N1*j+i], ctInRotQP[i][0], tmp0QP)
-					ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, matrix.Vec[N1*j+i], ctInRotQP[i][1], tmp1QP)
+					ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, matrix.Vec[j+i], ctInRotQP[i][0], tmp0QP)
+					ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, matrix.Vec[j+i], ctInRotQP[i][1], tmp1QP)
 				} else {
-					ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, matrix.Vec[N1*j+i], ctInRotQP[i][0], tmp0QP)
-					ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, matrix.Vec[N1*j+i], ctInRotQP[i][1], tmp1QP)
+					ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, matrix.Vec[j+i], ctInRotQP[i][0], tmp0QP)
+					ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, matrix.Vec[j+i], ctInRotQP[i][1], tmp1QP)
 				}
 			}
 
-			if cnt1%(QiOverF>>1) == (QiOverF>>1)-1 {
+			if cnt1%QiOverF == QiOverF-1 {
 				ringQ.ReduceLvl(levelQ, tmp0QP.Q, tmp0QP.Q)
 				ringQ.ReduceLvl(levelQ, tmp1QP.Q, tmp1QP.Q)
 			}
 
-			if cnt1%(PiOverF>>1) == (PiOverF>>1)-1 {
+			if cnt1%PiOverF == PiOverF-1 {
 				ringP.ReduceLvl(levelP, tmp0QP.P, tmp0QP.P)
 				ringP.ReduceLvl(levelP, tmp1QP.P, tmp1QP.P)
 			}
@@ -555,12 +957,12 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix PtDiagM
 			cnt1++
 		}
 
-		if cnt1%(QiOverF>>1) != 0 {
+		if cnt1%QiOverF != 0 {
 			ringQ.ReduceLvl(levelQ, tmp0QP.Q, tmp0QP.Q)
 			ringQ.ReduceLvl(levelQ, tmp1QP.Q, tmp1QP.Q)
 		}
 
-		if cnt1%(PiOverF>>1) != 0 {
+		if cnt1%PiOverF != 0 {
 			ringP.ReduceLvl(levelP, tmp0QP.P, tmp0QP.P)
 			ringP.ReduceLvl(levelP, tmp1QP.P, tmp1QP.P)
 		}
@@ -571,27 +973,26 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix PtDiagM
 			// Hoisting of the ModDown of sum(sum(phi(d1) * plaintext))
 			eval.Baseconverter.ModDownQPtoQNTT(levelQ, levelP, tmp1QP.Q, tmp1QP.P, tmp1QP.Q) // c1 * plaintext + sum(phi(d1) * plaintext) + phi(c1) * plaintext mod Q
 
-			galEl := eval.params.GaloisElementForColumnRotationBy(N1 * j)
+			galEl := eval.params.GaloisElementForColumnRotationBy(j)
 
 			rtk, generated := eval.rtks.Keys[galEl]
 			if !generated {
 				panic("switching key not available")
 			}
 
-			index := eval.permuteNTTIndex[galEl]
+			rotIndex := eval.permuteNTTIndex[galEl]
 
 			tmp1QP.Q.IsNTT = true
 			eval.SwitchKeysInPlaceNoModDown(levelQ, tmp1QP.Q, rtk, c0QP.Q, c0QP.P, c1QP.Q, c1QP.P) // Switchkey(P*phi(tmpRes_1)) = (d0, d1) in base QP
-
 			ringQP.AddLvl(levelQ, levelP, c0QP, tmp0QP, c0QP)
 
 			// Outer loop rotations
 			if cnt0 == 0 {
-				ringQP.PermuteNTTWithIndexLvl(levelQ, levelP, c0QP, index, c0OutQP)
-				ringQP.PermuteNTTWithIndexLvl(levelQ, levelP, c1QP, index, c1OutQP)
+				ringQP.PermuteNTTWithIndexLvl(levelQ, levelP, c0QP, rotIndex, c0OutQP)
+				ringQP.PermuteNTTWithIndexLvl(levelQ, levelP, c1QP, rotIndex, c1OutQP)
 			} else {
-				ringQP.PermuteNTTWithIndexAndAddNoModLvl(levelQ, levelP, c0QP, index, c0OutQP)
-				ringQP.PermuteNTTWithIndexAndAddNoModLvl(levelQ, levelP, c1QP, index, c1OutQP)
+				ringQP.PermuteNTTWithIndexAndAddNoModLvl(levelQ, levelP, c0QP, rotIndex, c0OutQP)
+				ringQP.PermuteNTTWithIndexAndAddNoModLvl(levelQ, levelP, c1QP, rotIndex, c1OutQP)
 			}
 
 			// Else directly adds on ((c0QP.Q, c0QP.P), (c1QP.Q, c1QP.P))
@@ -635,4 +1036,5 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix PtDiagM
 
 	ctInRotQP = nil
 	runtime.GC()
+
 }

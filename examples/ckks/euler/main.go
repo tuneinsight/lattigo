@@ -17,12 +17,12 @@ func example() {
 
 	// Schemes parameters are created from scratch
 	params, err := ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
-		LogN:     14,
-		LogQ:     []int{55, 40, 40, 40, 40, 40, 40, 40},
-		LogP:     []int{45, 45},
-		Sigma:    rlwe.DefaultSigma,
-		LogSlots: 13,
-		Scale:    float64(1 << 40),
+		LogN:         14,
+		LogQ:         []int{55, 40, 40, 40, 40, 40, 40, 40},
+		LogP:         []int{45, 45},
+		Sigma:        rlwe.DefaultSigma,
+		LogSlots:     13,
+		DefaultScale: float64(1 << 40),
 	})
 	if err != nil {
 		panic(err)
@@ -53,7 +53,7 @@ func example() {
 	fmt.Printf("Done in %s \n", time.Since(start))
 
 	fmt.Println()
-	fmt.Printf("CKKS parameters: logN = %d, logSlots = %d, logQP = %d, levels = %d, scale= %f, sigma = %f \n", params.LogN(), params.LogSlots(), params.LogQP(), params.MaxLevel()+1, params.Scale(), params.Sigma())
+	fmt.Printf("CKKS parameters: logN = %d, logSlots = %d, logQP = %d, levels = %d, scale= %f, sigma = %f \n", params.LogN(), params.LogSlots(), params.LogQP(), params.MaxLevel()+1, params.DefaultScale(), params.Sigma())
 
 	fmt.Println()
 	fmt.Println("=========================================")
@@ -74,8 +74,8 @@ func example() {
 		values[i] = complex(2*pi, 0)
 	}
 
-	plaintext := ckks.NewPlaintext(params, params.MaxLevel(), params.Scale()/r)
-	encoder.Encode(plaintext, values, params.LogSlots())
+	plaintext := ckks.NewPlaintext(params, params.MaxLevel(), params.DefaultScale()/r)
+	encoder.Encode(values, plaintext, params.LogSlots())
 
 	fmt.Printf("Done in %s \n", time.Since(start))
 

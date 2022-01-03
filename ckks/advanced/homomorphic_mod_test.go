@@ -19,10 +19,10 @@ func TestHomomorphicMod(t *testing.T) {
 	}
 
 	ParametersLiteral := ckks.ParametersLiteral{
-		LogN:     14,
-		LogSlots: 13,
-		Scale:    1 << 45,
-		Sigma:    rlwe.DefaultSigma,
+		LogN:         14,
+		LogSlots:     13,
+		DefaultScale: 1 << 45,
+		Sigma:        rlwe.DefaultSigma,
 		Q: []uint64{
 			0x80000000080001,   // 55 Q0
 			0xffffffffffc0001,  // 60
@@ -130,7 +130,7 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 
 		// Normalization
 		eval.MultByConst(ciphertext, 1/(float64(evm.K)*evm.QDiff()), ciphertext)
-		eval.Rescale(ciphertext, params.Scale(), ciphertext)
+		eval.Rescale(ciphertext, params.DefaultScale(), ciphertext)
 
 		// EvalMod
 		ciphertext = eval.EvalModNew(ciphertext, EvalModPoly)
@@ -172,7 +172,7 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 
 		// Normalization
 		eval.MultByConst(ciphertext, 1/(float64(evm.K)*evm.QDiff()), ciphertext)
-		eval.Rescale(ciphertext, params.Scale(), ciphertext)
+		eval.Rescale(ciphertext, params.DefaultScale(), ciphertext)
 
 		// EvalMod
 		ciphertext = eval.EvalModNew(ciphertext, EvalModPoly)
@@ -202,9 +202,9 @@ func newTestVectorsEvalMod(params ckks.Parameters, encryptor ckks.Encryptor, enc
 
 	values[0] = complex(K*Q+0.5, 0)
 
-	plaintext = ckks.NewPlaintext(params, params.MaxLevel(), params.Scale())
+	plaintext = ckks.NewPlaintext(params, params.MaxLevel(), params.DefaultScale())
 
-	encoder.EncodeNTT(plaintext, values, logSlots)
+	encoder.Encode(values, plaintext, logSlots)
 
 	if encryptor != nil {
 		ciphertext = encryptor.EncryptNew(plaintext)

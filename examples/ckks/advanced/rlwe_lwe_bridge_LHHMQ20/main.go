@@ -36,12 +36,15 @@ func main() {
 
 	// Homomorphic decoding parameters
 	SlotsToCoeffsParameters := ckksAdvanced.EncodingMatrixLiteral{
+		LogN:                paramsRLWE.LogN(),
+		LogSlots:            paramsRLWE.LogSlots(),
+		Scaling:             1.0,
 		LinearTransformType: ckksAdvanced.SlotsToCoeffs,
 		LevelStart:          2,     // starting level
 		BSGSRatio:           16.0,  // ratio between n1/n2 for n1*n2 = slots
 		BitReversed:         false, // bit-reversed input
 		ScalingFactor: [][]float64{ // Decomposition level of the encoding matrix
-			{paramsRLWE.QiFloat64(1)}, // Scale of the second matriox
+			{paramsRLWE.QiFloat64(1)}, // Scale of the second matrix
 			{paramsRLWE.QiFloat64(2)}, // Scale of the first matrix
 		},
 	}
@@ -75,7 +78,7 @@ func main() {
 
 	fmt.Printf("Gen SlotsToCoeffs Matrices... ")
 	start = time.Now()
-	SlotsToCoeffsMatrix := ckksAdvanced.NewHomomorphicEncodingMatrixFromLiteral(SlotsToCoeffsParameters, encoder, paramsRLWE.LogN(), paramsRLWE.LogSlots(), 1.0)
+	SlotsToCoeffsMatrix := ckksAdvanced.NewHomomorphicEncodingMatrixFromLiteral(SlotsToCoeffsParameters, encoder)
 	fmt.Printf("Done (%s)\n", time.Since(start))
 
 	fmt.Printf("Gen Evaluation Keys:\n")
@@ -93,7 +96,7 @@ func main() {
 	for i := range nonzerodiags {
 		nonzerodiags[i] = i
 	}
-	rotationsRepack := paramsRLWE.RotationsForDiaMatrixMultRaw(nonzerodiags, paramsRLWE.Slots(), 16.0)
+	rotationsRepack := paramsRLWE.RotationsForLinearTransform(nonzerodiags, paramsRLWE.Slots(), 4.0)
 	rotationsRepack = append(rotationsRepack, paramsRLWE.RotationsForTrace(paramsRLWE.LogSlots(), paramsLWE.LogN())...)
 	rotKeyRepack := kgenRLWE.GenRotationKeysForRotations(rotationsRepack, false, skRLWE)
 
@@ -119,20 +122,20 @@ func main() {
 	paramsLWE.RingQ().InvNTT(skLWEInvNTT, skLWEInvNTT)
 	Q := paramsRLWE.Q()[0]
 	paramsLWE.RingQ().InvMFormLvl(0, skLWEInvNTT, skLWEInvNTT)
-	skFloat := make([]complex128, paramsLWE.N())
+	skFloat := make([]float64, paramsLWE.N())
 	for i, s := range skLWEInvNTT.Coeffs[0] {
 		if s >= Q>>1 {
-			skFloat[i] = -complex(float64(Q-s), 0)
+			skFloat[i] = -float64(Q - s)
 		} else {
-			skFloat[i] = complex(float64(s), 0)
+			skFloat[i] = float64(s)
 		}
 
-		skFloat[i] *= complex(math.Pow(1.0/(EvalModPoly.K()*EvalModPoly.QDiff()), 0.5), 0) // sqrt(pre-scaling for Cheby)
+		skFloat[i] *= math.Pow(1.0/(EvalModPoly.K()*EvalModPoly.QDiff()), 0.5) // sqrt(pre-scaling for Cheby)
 	}
 
 	paramsLWE.RingQ().MFormLvl(0, skLWEInvNTT, skLWEInvNTT)
 	ptSk := ckks.NewPlaintext(paramsRLWE, paramsRLWE.MaxLevel(), paramsRLWE.QiFloat64(paramsRLWE.MaxLevel()))
-	encoder.Encode(ptSk, skFloat, paramsLWE.LogN())
+	encoder.Encode(skFloat, ptSk, paramsLWE.LogN())
 	ctSk := encryptor.EncryptNew(ptSk)
 	fmt.Printf("Done (%s)\n", time.Since(start))
 
@@ -146,9 +149,9 @@ func main() {
 		values[i] = complex(float64(i+1)/float64(paramsRLWE.Slots()), 1+float64(i+1)/float64(paramsRLWE.Slots()))
 	}
 
-	plaintext := ckks.NewPlaintext(paramsRLWE, paramsRLWE.MaxLevel(), paramsRLWE.Scale())
+	plaintext := ckks.NewPlaintext(paramsRLWE, paramsRLWE.MaxLevel(), paramsRLWE.DefaultScale())
 	// Must encode with 2*Slots because a real vector is returned
-	encoder.EncodeNTT(plaintext, values, utils.MinInt(paramsRLWE.LogSlots()+1, paramsRLWE.LogN()-1))
+	encoder.Encode(values, plaintext, utils.MinInt(paramsRLWE.LogSlots()+1, paramsRLWE.LogN()-1))
 	ct := encryptor.EncryptNew(plaintext)
 	fmt.Printf("Done (%s)\n", time.Since(start))
 
@@ -198,7 +201,7 @@ func main() {
 		lweEncoded[i] *= complex(math.Pow(1/(EvalModPoly.K()*EvalModPoly.QDiff()), 1.0), 0) // pre-scaling for Cheby
 	}
 
-	encoder.EncodeNTT(ptLWE, lweEncoded, paramsRLWE.LogSlots())
+	encoder.Encode(lweEncoded, ptLWE, paramsRLWE.LogSlots())
 	fmt.Printf("Done (%s)\n", time.Since(start))
 
 	// Encode A
@@ -236,15 +239,16 @@ func main() {
 		AMatDiag[i] = tmp
 	}
 
-	ptMatDiag := encoder.EncodeDiagMatrixBSGSAtLvl(paramsRLWE.MaxLevel(), AMatDiag, 1.0, 16.0, paramsLWE.LogN())
+	linTransf := ckks.GenLinearTransformBSGS(encoder, AMatDiag, paramsRLWE.MaxLevel(), 1.0, 16.0, paramsLWE.LogN())
 	fmt.Printf("Done (%s)\n", time.Since(start))
 
 	evalRepack := ckks.NewEvaluator(paramsRLWE, rlwe.EvaluationKey{Rlk: rlk, Rtks: rotKeyRepack})
 
 	fmt.Printf("Homomorphic Partial Decryption : pt = A x sk + encode(LWE) + I(X)*Q... ")
 	start = time.Now()
-	ctAs := evalRepack.LinearTransformNew(ctSk, ptMatDiag)[0]                // A_left * sk || A_right * sk
+	ctAs := evalRepack.LinearTransformNew(ctSk, linTransf)[0]                // A_left * sk || A_right * sk
 	ctAs = evalRepack.TraceNew(ctAs, paramsLWE.LogSlots(), paramsLWE.LogN()) // A * sk || A * sk
+	evalRepack.MultByConst(ctAs, paramsLWE.N()/paramsLWE.Slots(), ctAs)
 	eval.Rescale(ctAs, 1.0, ctAs)
 	eval.Add(ctAs, ptLWE, ctAs) // A * sk || A * sk + LWE_real || LWE_imag = RLWE + I(X) * Q
 	ctAs.Scale = scale
@@ -277,10 +281,10 @@ func main() {
 func genRLWEParameters() (paramsRLWE ckks.Parameters) {
 	var err error
 	if paramsRLWE, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
-		LogN:     15,
-		LogSlots: 9,
-		Scale:    1 << 30,
-		Sigma:    rlwe.DefaultSigma,
+		LogN:         15,
+		LogSlots:     9,
+		DefaultScale: 1 << 30,
+		Sigma:        rlwe.DefaultSigma,
 		Q: []uint64{
 			0xffff820001,       // 40 Q0
 			0x2000000a0001,     // 45
@@ -309,12 +313,12 @@ func genRLWEParameters() (paramsRLWE ckks.Parameters) {
 func genLWEParameters(paramsRLWE ckks.Parameters) (paramsLWE ckks.Parameters) {
 	var err error
 	if paramsLWE, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
-		LogN:     10,
-		LogSlots: paramsRLWE.LogSlots(),
-		Scale:    paramsRLWE.Scale(),
-		Sigma:    paramsRLWE.Sigma(),
-		Q:        paramsRLWE.Q()[:1], // 40 Q0
-		P:        paramsRLWE.P()[:1], // Pi 61
+		LogN:         10,
+		LogSlots:     paramsRLWE.LogSlots(),
+		DefaultScale: paramsRLWE.DefaultScale(),
+		Sigma:        paramsRLWE.Sigma(),
+		Q:            paramsRLWE.Q()[:1], // 40 Q0
+		P:            paramsRLWE.P()[:1], // Pi 61
 	}); err != nil {
 		panic(err)
 	}

@@ -2,10 +2,11 @@ package bootstrapping
 
 import (
 	"fmt"
+	"math"
+
 	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/ckks/advanced"
 	"github.com/ldsec/lattigo/v2/rlwe"
-	"math"
 )
 
 // Bootstrapper is a struct to stores a memory pool the plaintext matrices
@@ -25,6 +26,8 @@ type bootstrapperBase struct {
 	evalModPoly advanced.EvalModPoly
 	stcMatrices advanced.EncodingMatrix
 	ctsMatrices advanced.EncodingMatrix
+
+	q0OverMessageRatio float64
 }
 
 // NewBootstrapper creates a new Bootstrapper.
@@ -32,6 +35,10 @@ func NewBootstrapper(params ckks.Parameters, btpParams Parameters, btpKey rlwe.E
 
 	if btpParams.EvalModParameters.SineType == advanced.Sin && btpParams.EvalModParameters.DoubleAngle != 0 {
 		return nil, fmt.Errorf("cannot use double angle formul for SineType = Sin -> must use SineType = Cos")
+	}
+
+	if btpParams.EvalModParameters.SineType == advanced.Cos1 && btpParams.EvalModParameters.SineDeg < 2*(btpParams.EvalModParameters.K-1) {
+		return nil, fmt.Errorf("SineType 'advanced.Cos1' uses a minimum degree of 2*(K-1) but EvalMod degree is smaller")
 	}
 
 	if btpParams.CoeffsToSlotsParameters.LevelStart-btpParams.CoeffsToSlotsParameters.Depth(true) != btpParams.EvalModParameters.LevelStart {
@@ -111,25 +118,40 @@ func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey rl
 
 	scFac := bb.evalModPoly.ScFac()
 	K := bb.evalModPoly.K() / scFac
-	n := float64(bb.params.N())
-	ctsDepth := float64(bb.CoeffsToSlotsParameters.Depth(false))
-	stcDepth := float64(bb.SlotsToCoeffsParameters.Depth(false))
+	n := float64(2 * params.Slots())
 
 	// Correcting factor for approximate division by Q
 	// The second correcting factor for approximate multiplication by Q is included in the coefficients of the EvalMod polynomials
 	qDiff := bb.evalModPoly.QDiff()
 
+	// Q0/|m|
+	bb.q0OverMessageRatio = math.Exp2(math.Round(math.Log2(params.QiFloat64(0) / bb.evalModPoly.MessageRatio())))
+
+	// If the scale used during the EvalMod step is smaller than Q0, then we cannot increase the scale during
+	// the EvalMod step to get a free division by MessageRatio, and we need to do this division (totally or partly)
+	// during the CoeffstoSlots step
+	qDiv := btpParams.EvalModParameters.ScalingFactor / math.Exp2(math.Round(math.Log2(params.QiFloat64(0))))
+
+	// Sets qDiv to 1 if there is enough room for the division to happen using scale manipulation.
+	if qDiv > 1 {
+		qDiv = 1
+	}
+
 	encoder := ckks.NewEncoder(bb.params)
 
 	// CoeffsToSlots vectors
-	// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum + evantual scaling factor for the double angle formula
-	coeffsToSlotsDiffScale := complex(math.Pow(1.0/(K*n*scFac*qDiff), 1.0/ctsDepth), 0)
-	bb.ctsMatrices = advanced.NewHomomorphicEncodingMatrixFromLiteral(bb.CoeffsToSlotsParameters, encoder, bb.params.LogN(), bb.params.LogSlots(), coeffsToSlotsDiffScale)
+	// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum + eventual scaling factor for the double angle formula
+	bb.CoeffsToSlotsParameters.LogN = params.LogN()
+	bb.CoeffsToSlotsParameters.LogSlots = params.LogSlots()
+	bb.CoeffsToSlotsParameters.Scaling = qDiv / (K * n * scFac * qDiff)
+	bb.ctsMatrices = advanced.NewHomomorphicEncodingMatrixFromLiteral(bb.CoeffsToSlotsParameters, encoder)
 
 	// SlotsToCoeffs vectors
 	// Rescaling factor to set the final ciphertext to the desired scale
-	slotsToCoeffsDiffScale := complex(math.Pow(bb.params.Scale()/(bb.evalModPoly.ScalingFactor()/bb.evalModPoly.MessageRatio()), 1.0/stcDepth), 0)
-	bb.stcMatrices = advanced.NewHomomorphicEncodingMatrixFromLiteral(bb.SlotsToCoeffsParameters, encoder, bb.params.LogN(), bb.params.LogSlots(), slotsToCoeffsDiffScale)
+	bb.SlotsToCoeffsParameters.LogN = params.LogN()
+	bb.SlotsToCoeffsParameters.LogSlots = params.LogSlots()
+	bb.SlotsToCoeffsParameters.Scaling = bb.params.DefaultScale() / (bb.evalModPoly.ScalingFactor() / bb.evalModPoly.MessageRatio())
+	bb.stcMatrices = advanced.NewHomomorphicEncodingMatrixFromLiteral(bb.SlotsToCoeffsParameters, encoder)
 
 	encoder = nil
 

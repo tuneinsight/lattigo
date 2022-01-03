@@ -10,19 +10,20 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/ldsec/lattigo/v2/ring"
-	"github.com/ldsec/lattigo/v2/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/utils"
 )
 
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 
 // TestParams is a set of test parameters for the correctness of the rlwe pacakge.
-var TestParams = []ParametersLiteral{TestPN12QP109, TestPN13QP218, TestPN14QP438, TestPN15QP880}
+var TestParams = []ParametersLiteral{TestPN12QP109, TestPN13QP218, TestPN14QP438, TestPN15QP880, TestPN16QP240, TestPN17QP360}
 
 func testString(params Parameters, opname string) string {
-	return fmt.Sprintf("%slogN=%d/logQ=%d/logP=%d/#Qi=%d/#Pi=%d",
+	return fmt.Sprintf("%s/logN=%d/logQ=%d/logP=%d/#Qi=%d/#Pi=%d",
 		opname,
 		params.LogN(),
 		params.LogQ(),
@@ -136,7 +137,7 @@ func testGenKeyPair(kgen KeyGenerator, t *testing.T) {
 	params := kgen.(*keyGenerator).params
 
 	// Checks that sum([-as + e, a] + [as])) <= N * 6 * sigma
-	t.Run(testString(params, "PKGen/"), func(t *testing.T) {
+	t.Run(testString(params, "PKGen"), func(t *testing.T) {
 		sk, pk := kgen.GenKeyPair()
 
 		// [-as + e] + [as]
@@ -213,7 +214,7 @@ func testEncryptor(kgen KeyGenerator, t *testing.T) {
 
 	ringQ := params.RingQ()
 
-	t.Run(testString(params, "Encrypt/Pk/Fast/MaxLevel/"), func(t *testing.T) {
+	t.Run(testString(params, "Encrypt/Pk/Fast/MaxLevel"), func(t *testing.T) {
 		plaintext := NewPlaintext(params, params.MaxLevel())
 		plaintext.Value.IsNTT = true
 		encryptor := NewFastEncryptor(params, pk)
@@ -225,7 +226,7 @@ func testEncryptor(kgen KeyGenerator, t *testing.T) {
 		require.GreaterOrEqual(t, 12+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, ciphertext.Value[0]))
 	})
 
-	t.Run(testString(params, "Encrypt/Pk/Fast/MinLevel/"), func(t *testing.T) {
+	t.Run(testString(params, "Encrypt/Pk/Fast/MinLevel"), func(t *testing.T) {
 		plaintext := NewPlaintext(params, 0)
 		plaintext.Value.IsNTT = true
 		encryptor := NewFastEncryptor(params, pk)
@@ -237,7 +238,7 @@ func testEncryptor(kgen KeyGenerator, t *testing.T) {
 		require.GreaterOrEqual(t, 12+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, ciphertext.Value[0]))
 	})
 
-	t.Run(testString(params, "Encrypt/Pk/Slow/MaxLevel/"), func(t *testing.T) {
+	t.Run(testString(params, "Encrypt/Pk/Slow/MaxLevel"), func(t *testing.T) {
 		if params.PCount() == 0 {
 			t.Skip()
 		}
@@ -252,7 +253,7 @@ func testEncryptor(kgen KeyGenerator, t *testing.T) {
 		require.GreaterOrEqual(t, 9+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, ciphertext.Value[0]))
 	})
 
-	t.Run(testString(params, "Encrypt/Pk/Slow/MinLevel/"), func(t *testing.T) {
+	t.Run(testString(params, "Encrypt/Pk/Slow/MinLevel"), func(t *testing.T) {
 		if params.PCount() == 0 {
 			t.Skip()
 		}
@@ -267,7 +268,7 @@ func testEncryptor(kgen KeyGenerator, t *testing.T) {
 		require.GreaterOrEqual(t, 9+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, ciphertext.Value[0]))
 	})
 
-	t.Run(testString(params, "Encrypt/Sk/MaxLevel/"), func(t *testing.T) {
+	t.Run(testString(params, "Encrypt/Sk/MaxLevel"), func(t *testing.T) {
 		plaintext := NewPlaintext(params, params.MaxLevel())
 		plaintext.Value.IsNTT = true
 		encryptor := NewEncryptor(params, sk)
@@ -279,7 +280,7 @@ func testEncryptor(kgen KeyGenerator, t *testing.T) {
 		require.GreaterOrEqual(t, 5+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, ciphertext.Value[0]))
 	})
 
-	t.Run(testString(params, "Encrypt/Sk/MinLevel/"), func(t *testing.T) {
+	t.Run(testString(params, "Encrypt/Sk/MinLevel"), func(t *testing.T) {
 		plaintext := NewPlaintext(params, 0)
 		plaintext.Value.IsNTT = true
 		encryptor := NewEncryptor(params, sk)
@@ -299,7 +300,7 @@ func testDecryptor(kgen KeyGenerator, t *testing.T) {
 	encryptor := NewEncryptor(params, sk)
 	decryptor := NewDecryptor(params, sk)
 
-	t.Run(testString(params, "Decrypt/MaxLevel/"), func(t *testing.T) {
+	t.Run(testString(params, "Decrypt/MaxLevel"), func(t *testing.T) {
 		plaintext := NewPlaintext(params, params.MaxLevel())
 		plaintext.Value.IsNTT = true
 		ciphertext := NewCiphertextNTT(params, 1, plaintext.Level())
@@ -310,7 +311,7 @@ func testDecryptor(kgen KeyGenerator, t *testing.T) {
 		require.GreaterOrEqual(t, 5+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, plaintext.Value))
 	})
 
-	t.Run(testString(params, "Encrypt/MinLevel/"), func(t *testing.T) {
+	t.Run(testString(params, "Encrypt/MinLevel"), func(t *testing.T) {
 		plaintext := NewPlaintext(params, 0)
 		plaintext.Value.IsNTT = true
 		ciphertext := NewCiphertextNTT(params, 1, plaintext.Level())
@@ -354,7 +355,7 @@ func testKeySwitcher(kgen KeyGenerator, t *testing.T) {
 
 	// Tests that a random polynomial decomposed is equal to its
 	// reconstruction mod each RNS
-	t.Run(testString(params, "DecomposeNTT/"), func(t *testing.T) {
+	t.Run(testString(params, "DecomposeNTT"), func(t *testing.T) {
 
 		c2InvNTT := ringQ.NewPolyLvl(ciphertext.Level())
 		ringQ.InvNTT(ciphertext.Value[1], c2InvNTT)
@@ -418,7 +419,7 @@ func testKeySwitcher(kgen KeyGenerator, t *testing.T) {
 	})
 
 	// Test that Dec(KS(Enc(ct, sk), skOut), skOut) has a small norm
-	t.Run(testString(params, "KeySwitch/Standard/"), func(t *testing.T) {
+	t.Run(testString(params, "KeySwitch/Standard"), func(t *testing.T) {
 		swk := kgen.GenSwitchingKey(sk, skOut)
 		ks.SwitchKeysInPlace(ciphertext.Value[1].Level(), ciphertext.Value[1], swk, ks.Pool[1].Q, ks.Pool[2].Q)
 		ringQ.Add(ciphertext.Value[0], ks.Pool[1].Q, ciphertext.Value[0])
@@ -433,13 +434,14 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 
 	paramsLargeDim := kgen.(*keyGenerator).params
 	paramsSmallDim, _ := NewParametersFromLiteral(ParametersLiteral{
-		LogN:  paramsLargeDim.LogN() - 1,
-		Q:     paramsLargeDim.Q()[:1],
-		P:     paramsLargeDim.P()[:1],
-		Sigma: DefaultSigma,
+		LogN:     paramsLargeDim.LogN() - 1,
+		Q:        paramsLargeDim.Q()[:1],
+		P:        paramsLargeDim.P()[:1],
+		Sigma:    DefaultSigma,
+		RingType: paramsLargeDim.RingType(),
 	})
 
-	t.Run(testString(paramsLargeDim, "KeySwitchDimension/LargeToSmall/"), func(t *testing.T) {
+	t.Run(testString(paramsLargeDim, "KeySwitchDimension/LargeToSmall"), func(t *testing.T) {
 
 		ringQLargeDim := paramsLargeDim.RingQ()
 		ringQSmallDim := paramsSmallDim.RingQ()
@@ -465,7 +467,7 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 		//Extracts Coefficients
 		ctSmallDim := NewCiphertextNTT(paramsSmallDim, 1, paramsSmallDim.MaxLevel())
 
-		SwitchCiphertextRingDegreeNTT(ctLargeDim, ringQLargeDim, ctSmallDim)
+		SwitchCiphertextRingDegreeNTT(ctLargeDim, ringQSmallDim, ringQLargeDim, ctSmallDim)
 
 		// Decrypts with smaller dimension key
 		ringQSmallDim.MulCoeffsMontgomeryAndAddLvl(ctSmallDim.Level(), ctSmallDim.Value[1], skSmallDim.Value.Q, ctSmallDim.Value[0])
@@ -474,7 +476,7 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 		require.GreaterOrEqual(t, 10+paramsSmallDim.LogN(), log2OfInnerSum(ctSmallDim.Level(), ringQSmallDim, ctSmallDim.Value[0]))
 	})
 
-	t.Run(testString(paramsLargeDim, "KeySwitchDimension/SmallToLarge/"), func(t *testing.T) {
+	t.Run(testString(paramsLargeDim, "KeySwitchDimension/SmallToLarge"), func(t *testing.T) {
 
 		ringQLargeDim := paramsLargeDim.RingQ()
 
@@ -494,7 +496,7 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 		//Extracts Coefficients
 		ctLargeDim := NewCiphertextNTT(paramsLargeDim, 1, plaintext.Level())
 
-		SwitchCiphertextRingDegreeNTT(ctSmallDim, nil, ctLargeDim)
+		SwitchCiphertextRingDegreeNTT(ctSmallDim, nil, nil, ctLargeDim)
 
 		ks := NewKeySwitcher(paramsLargeDim)
 		ks.SwitchKeysInPlace(ctLargeDim.Value[1].Level(), ctLargeDim.Value[1], swk, ks.Pool[1].Q, ks.Pool[2].Q)
@@ -538,7 +540,7 @@ func testMarshaller(kgen KeyGenerator, t *testing.T) {
 		assert.True(t, params.Equals(rlweParams))
 	})
 
-	t.Run(testString(params, "Marshaller/Ciphertext/"), func(t *testing.T) {
+	t.Run(testString(params, "Marshaller/Ciphertext"), func(t *testing.T) {
 
 		prng, _ := utils.NewPRNG()
 
@@ -562,7 +564,7 @@ func testMarshaller(kgen KeyGenerator, t *testing.T) {
 		}
 	})
 
-	t.Run(testString(params, "Marshaller/Sk/"), func(t *testing.T) {
+	t.Run(testString(params, "Marshaller/Sk"), func(t *testing.T) {
 
 		marshalledSk, err := sk.MarshalBinary()
 		require.NoError(t, err)
@@ -574,7 +576,7 @@ func testMarshaller(kgen KeyGenerator, t *testing.T) {
 		require.True(t, sk.Value.Equals(skTest.Value))
 	})
 
-	t.Run(testString(params, "Marshaller/Pk/"), func(t *testing.T) {
+	t.Run(testString(params, "Marshaller/Pk"), func(t *testing.T) {
 
 		marshalledPk, err := pk.MarshalBinary()
 		require.NoError(t, err)
@@ -586,10 +588,10 @@ func testMarshaller(kgen KeyGenerator, t *testing.T) {
 		require.True(t, pk.Equals(pkTest))
 	})
 
-	t.Run(testString(params, "Marshaller/EvaluationKey/"), func(t *testing.T) {
+	t.Run(testString(params, "Marshaller/EvaluationKey"), func(t *testing.T) {
 
 		if params.PCount() == 0 {
-			t.Skip("#Pi is empty")
+			t.Skip("method is unsuported when params.PCount() == 0")
 		}
 
 		evalKey := kgen.GenRelinearizationKey(sk, 3)
@@ -603,10 +605,10 @@ func testMarshaller(kgen KeyGenerator, t *testing.T) {
 		require.True(t, evalKey.Equals(resEvalKey))
 	})
 
-	t.Run(testString(params, "Marshaller/SwitchingKey/"), func(t *testing.T) {
+	t.Run(testString(params, "Marshaller/SwitchingKey"), func(t *testing.T) {
 
 		if params.PCount() == 0 {
-			t.Skip("#Pi is empty")
+			t.Skip("method is unsuported when params.PCount() == 0")
 		}
 
 		skOut := kgen.GenSecretKey()
@@ -622,14 +624,18 @@ func testMarshaller(kgen KeyGenerator, t *testing.T) {
 		require.True(t, switchingKey.Equals(resSwitchingKey))
 	})
 
-	t.Run(testString(params, "Marshaller/RotationKey/"), func(t *testing.T) {
+	t.Run(testString(params, "Marshaller/RotationKey"), func(t *testing.T) {
 
 		if params.PCount() == 0 {
-			t.Skip("#Pi is empty")
+			t.Skip("method is unsuported when params.PCount() == 0")
 		}
 
 		rots := []int{1, -1, 63, -63}
-		galEls := []uint64{params.GaloisElementForRowRotation()}
+		galEls := []uint64{}
+		if params.RingType() == ring.Standard {
+			galEls = append(galEls, params.GaloisElementForRowRotation())
+		}
+
 		for _, n := range rots {
 			galEls = append(galEls, params.GaloisElementForColumnRotationBy(n))
 		}

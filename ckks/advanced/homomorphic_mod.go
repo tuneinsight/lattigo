@@ -5,6 +5,7 @@ import (
 	"math/cmplx"
 
 	"github.com/ldsec/lattigo/v2/ckks"
+	"github.com/ldsec/lattigo/v2/utils"
 )
 
 // SineType is the type of function used during the bootstrapping
@@ -176,8 +177,14 @@ func NewEvalModPolyFromLiteral(evm EvalModLiteral) EvalModPoly {
 
 // Depth returns the depth of the SineEval. If true, then also
 // counts the double angle formula.
-func (evm *EvalModLiteral) Depth() int {
-	depth := int(math.Ceil(math.Log2(float64(evm.SineDeg + 1))))
+func (evm *EvalModLiteral) Depth() (depth int) {
+
+	if evm.SineType == Cos1 { // this method requires a minimum degree of 2*K-1.
+		depth += int(math.Ceil(math.Log2(float64(utils.MaxInt(evm.SineDeg, 2*evm.K-1) + 1))))
+	} else {
+		depth += int(math.Ceil(math.Log2(float64(evm.SineDeg + 1))))
+	}
+
 	depth += evm.DoubleAngle
 	depth += int(math.Ceil(math.Log2(float64(evm.ArcSineDeg + 1))))
 	return depth

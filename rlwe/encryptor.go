@@ -21,7 +21,7 @@ type Encryptor interface {
 	ShallowCopy() Encryptor
 
 	// WithKey creates a shallow copy of the receiver Encryptor with the provided key.
-	// This is equivalent to calling Encryptor.ShallowCopy().WithKey(*)
+	// This is equivalent to calling Encryptor.ShallowCopy().SetKey(*)
 	WithKey(key interface{}) Encryptor
 
 	// SetKey sets the key of the target encryptor. Either secret-key, public-key or nil can be passed as argument.

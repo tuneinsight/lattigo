@@ -10,6 +10,7 @@ type Decryptor interface {
 	Decrypt(ciphertext *Ciphertext, plaintext *Plaintext)
 	ShallowCopy() Decryptor
 	WithKey(sk *rlwe.SecretKey) Decryptor
+	SetKey(sk *rlwe.SecretKey)
 }
 type decryptor struct {
 	rlwe.Decryptor
@@ -37,13 +38,13 @@ func (dec *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) {
 // ShallowCopy creates a shallow copy of Decryptor in which all the read-only data-structures are
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // Decryptor can be used concurrently.
-func (d *decryptor) ShallowCopy() Decryptor {
-	return &decryptor{d.Decryptor.ShallowCopy(), d.params}
+func (dec *decryptor) ShallowCopy() Decryptor {
+	return &decryptor{dec.Decryptor.ShallowCopy(), dec.params}
 }
 
 // WithKey creates a shallow copy of Decryptor with a new decryption key, in which all the
 // read-only data-structures are shared with the receiver and the temporary buffers
 // are reallocated. The receiver and the returned Decryptor can be used concurrently.
-func (d *decryptor) WithKey(sk *rlwe.SecretKey) Decryptor {
-	return &decryptor{d.Decryptor.WithKey(sk), d.params}
+func (dec *decryptor) WithKey(sk *rlwe.SecretKey) Decryptor {
+	return &decryptor{dec.Decryptor.WithKey(sk), dec.params}
 }

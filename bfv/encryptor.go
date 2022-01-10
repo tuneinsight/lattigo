@@ -11,6 +11,10 @@ type Encryptor interface {
 	EncryptNew(plaintext *Plaintext) *Ciphertext
 	EncryptFromCRP(plaintext *Plaintext, crp *ring.Poly, ctOut *Ciphertext)
 	EncryptFromCRPNew(plaintext *Plaintext, crp *ring.Poly) *Ciphertext
+
+	ShallowCopy() Encryptor
+	WithKey(key interface{}) Encryptor
+	SetKey(key interface{}) Encryptor
 }
 
 type encryptor struct {
@@ -52,4 +56,22 @@ func (enc *encryptor) EncryptFromCRPNew(plaintext *Plaintext, crp *ring.Poly) *C
 	ct := NewCiphertext(enc.params, 1)
 	enc.Encryptor.EncryptFromCRP(&rlwe.Plaintext{Value: plaintext.Value}, crp, ct.Ciphertext)
 	return ct
+}
+
+// ShallowCopy creates a shallow copy of this encryptor in which all the read-only data-structures are
+// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+// Encryptors can be used concurrently.
+func (enc *encryptor) ShallowCopy() Encryptor {
+	return &encryptor{enc.Encryptor.ShallowCopy(), enc.params}
+}
+
+// WithKey creates a shallow copy of the receiver Encryptor with the provided key.
+// This is equivalent to calling Encryptor.ShallowCopy().WithKey(*)
+func (enc *encryptor) WithKey(key interface{}) Encryptor {
+	return &encryptor{enc.Encryptor.WithKey(key), enc.params}
+}
+
+// SetKey sets the key of the target encryptor. Either secret-key, public-key or nil can be passed as argument.
+func (enc *encryptor) SetKey(key interface{}) Encryptor {
+	return &encryptor{enc.Encryptor.SetKey(key), enc.params}
 }

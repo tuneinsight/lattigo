@@ -12,8 +12,18 @@ type Decryptor interface {
 	// Output domain will match plaintext.Value.IsNTT value.
 	Decrypt(ciphertext *Ciphertext, plaintext *Plaintext)
 
+	// ShallowCopy creates a shallow copy of Decryptor in which all the read-only data-structures are
+	// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+	// Decryptor can be used concurrently.
 	ShallowCopy() Decryptor
+
+	// WithKey creates a shallow copy of Decryptor with a new decryption key, in which all the
+	// read-only data-structures are shared with the receiver and the temporary buffers
+	// are reallocated. The receiver and the returned Decryptor can be used concurrently.
 	WithKey(sk *SecretKey) Decryptor
+
+	// SetKey sets the key of the target decryptor.
+	SetKey(sk *SecretKey)
 }
 
 // decryptor is a structure used to decrypt ciphertext. It stores the secret-key.
@@ -43,6 +53,11 @@ func (d *decryptor) WithKey(sk *SecretKey) Decryptor {
 		pool:  d.ringQ.NewPoly(),
 		sk:    sk,
 	}
+}
+
+// SetKey sets the key of the target decryptor.
+func (d *decryptor) SetKey(sk *SecretKey) {
+	d.sk = sk
 }
 
 // NewDecryptor instantiates a new generic RLWE Decryptor.

@@ -18,11 +18,39 @@ type MaskedTransformProtocol struct {
 	s2e S2EProtocol
 
 	defaultScale *big.Int
+	precision    int
 
-	ringQ         *ring.Ring
 	tmpMask       []*big.Int
 	tmpBigComplex []*ring.Complex
 	encoder       ckks.EncoderBigComplex
+}
+
+// ShallowCopy creates a shallow copy of MaskedTransformProtocol in which all the read-only data-structures are
+// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+// MaskedTransformProtocol can be used concurrently.
+func (rfp *MaskedTransformProtocol) ShallowCopy() *MaskedTransformProtocol {
+
+	params := rfp.e2s.params
+	precision := rfp.precision
+
+	tmpMask := make([]*big.Int, params.N())
+	tmpBigComplex := make([]*ring.Complex, params.MaxSlots())
+	for i := range rfp.tmpMask {
+		tmpMask[i] = new(big.Int)
+	}
+	for i := range rfp.tmpBigComplex {
+		tmpBigComplex[i] = ring.NewComplex(ring.NewFloat(0, precision), ring.NewFloat(0, precision))
+	}
+
+	return &MaskedTransformProtocol{
+		e2s:           *rfp.e2s.ShallowCopy(),
+		s2e:           *rfp.s2e.ShallowCopy(),
+		precision:     precision,
+		defaultScale:  rfp.defaultScale,
+		tmpMask:       tmpMask,
+		tmpBigComplex: tmpBigComplex,
+		encoder:       rfp.encoder.ShallowCopy(),
+	}
 }
 
 // MaskedTransformFunc is a method template for linear transforms that can be
@@ -71,13 +99,12 @@ func NewMaskedTransformProtocol(params ckks.Parameters, precision int, sigmaSmud
 	rfp = new(MaskedTransformProtocol)
 	rfp.e2s = *NewE2SProtocol(params, sigmaSmudging)
 	rfp.s2e = *NewS2EProtocol(params, sigmaSmudging)
+	rfp.precision = precision
 
 	rfp.defaultScale = new(big.Int)
 	ring.NewFloat(params.DefaultScale(), precision).Int(rfp.defaultScale)
 
-	rfp.ringQ = rfp.e2s.ringQ
-
-	rfp.tmpMask = make([]*big.Int, rfp.ringQ.N)
+	rfp.tmpMask = make([]*big.Int, params.N())
 	rfp.tmpBigComplex = make([]*ring.Complex, params.MaxSlots())
 	for i := range rfp.tmpMask {
 		rfp.tmpMask[i] = new(big.Int)
@@ -109,6 +136,8 @@ func (rfp *MaskedTransformProtocol) SampleCRP(level int, crs utils.PRNG) drlwe.C
 // value for logBound.
 func (rfp *MaskedTransformProtocol) GenShares(sk *rlwe.SecretKey, logBound, logSlots int, ct *ckks.Ciphertext, crs drlwe.CKSCRP, transform MaskedTransformFunc, shareOut *MaskedTransformShare) {
 
+	ringQ := rfp.s2e.params.RingQ()
+
 	if ct.Level() < shareOut.e2sShare.Value.Level() {
 		panic("ciphertext level must be at least equal to e2sShare level")
 	}
@@ -134,7 +163,7 @@ func (rfp *MaskedTransformProtocol) GenShares(sk *rlwe.SecretKey, logBound, logS
 
 		switch rfp.e2s.params.RingType() {
 		case ring.Standard:
-			for i, idx := 0, rfp.ringQ.N>>1; i < slots; i, idx = i+1, idx+gap {
+			for i, idx := 0, ringQ.N>>1; i < slots; i, idx = i+1, idx+gap {
 				rfp.tmpBigComplex[i][1].SetInt(rfp.tmpMask[idx])
 			}
 		case ring.ConjugateInvariant:
@@ -160,7 +189,7 @@ func (rfp *MaskedTransformProtocol) GenShares(sk *rlwe.SecretKey, logBound, logS
 		}
 
 		if rfp.e2s.params.RingType() == ring.Standard {
-			for i, jdx := 0, rfp.ringQ.N>>1; i < slots; i, jdx = i+1, jdx+gap {
+			for i, jdx := 0, ringQ.N>>1; i < slots; i, jdx = i+1, jdx+gap {
 				rfp.tmpBigComplex[i].Imag().Int(rfp.tmpMask[jdx])
 			}
 		}
@@ -171,7 +200,7 @@ func (rfp *MaskedTransformProtocol) GenShares(sk *rlwe.SecretKey, logBound, logS
 	ring.NewFloat(ct.Scale, 256).Int(inputScaleInt)
 
 	// Scales the mask by the ratio between the two scales
-	for i := 0; i < rfp.ringQ.N; i++ {
+	for i := 0; i < ringQ.N; i++ {
 		if i%gap == 0 {
 			rfp.tmpMask[i].Mul(rfp.tmpMask[i], rfp.defaultScale)
 			rfp.tmpMask[i].Quo(rfp.tmpMask[i], inputScaleInt)
@@ -193,8 +222,10 @@ func (rfp *MaskedTransformProtocol) Aggregate(share1, share2, shareOut *MaskedTr
 		panic("all s2e shares must be at the same level")
 	}
 
-	rfp.ringQ.AddLvl(share1.e2sShare.Value.Level(), share1.e2sShare.Value, share2.e2sShare.Value, shareOut.e2sShare.Value)
-	rfp.ringQ.AddLvl(share1.s2eShare.Value.Level(), share1.s2eShare.Value, share2.s2eShare.Value, shareOut.s2eShare.Value)
+	ringQ := rfp.s2e.params.RingQ()
+
+	ringQ.AddLvl(share1.e2sShare.Value.Level(), share1.e2sShare.Value, share2.e2sShare.Value, shareOut.e2sShare.Value)
+	ringQ.AddLvl(share1.s2eShare.Value.Level(), share1.s2eShare.Value, share2.s2eShare.Value, shareOut.s2eShare.Value)
 }
 
 // Transform applies Decrypt, Recode and Recrypt on the input ciphertext.
@@ -209,6 +240,8 @@ func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, logSlots int,
 	if maxLevel != share.s2eShare.Value.Level() {
 		panic("crs level and s2e level must be the same")
 	}
+
+	ringQ := rfp.s2e.params.RingQ()
 
 	// Returns -sum(M_i) + x (outside of the NTT domain)
 	rfp.e2s.GetShare(nil, &share.e2sShare, ct, &rlwe.AdditiveShareBigint{Value: rfp.tmpMask})
@@ -225,7 +258,7 @@ func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, logSlots int,
 
 		switch rfp.e2s.params.RingType() {
 		case ring.Standard:
-			for i, idx := 0, rfp.ringQ.N>>1; i < slots; i, idx = i+1, idx+gap {
+			for i, idx := 0, ringQ.N>>1; i < slots; i, idx = i+1, idx+gap {
 				rfp.tmpBigComplex[i][1].SetInt(rfp.tmpMask[idx])
 			}
 		case ring.ConjugateInvariant:
@@ -251,7 +284,7 @@ func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, logSlots int,
 		}
 
 		if rfp.e2s.params.RingType() == ring.Standard {
-			for i, jdx := 0, rfp.ringQ.N>>1; i < slots; i, jdx = i+1, jdx+gap {
+			for i, jdx := 0, ringQ.N>>1; i < slots; i, jdx = i+1, jdx+gap {
 				rfp.tmpBigComplex[i].Imag().Int(rfp.tmpMask[jdx])
 			}
 		}
@@ -272,20 +305,20 @@ func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, logSlots int,
 		level := ciphertextOut.Level() + 1
 
 		ciphertextOut.Value[0].Coeffs = append(ciphertextOut.Value[0].Coeffs, make([][]uint64, 1)...)
-		ciphertextOut.Value[0].Coeffs[level] = make([]uint64, rfp.ringQ.N)
+		ciphertextOut.Value[0].Coeffs[level] = make([]uint64, ringQ.N)
 
 		ciphertextOut.Value[1].Coeffs = append(ciphertextOut.Value[1].Coeffs, make([][]uint64, 1)...)
-		ciphertextOut.Value[1].Coeffs[level] = make([]uint64, rfp.ringQ.N)
+		ciphertextOut.Value[1].Coeffs[level] = make([]uint64, ringQ.N)
 	}
 
 	// Sets LT(-sum(M_i) + x) * diffscale in the RNS domain
-	rfp.ringQ.SetCoefficientsBigintLvl(maxLevel, rfp.tmpMask, ciphertextOut.Value[0])
+	ringQ.SetCoefficientsBigintLvl(maxLevel, rfp.tmpMask, ciphertextOut.Value[0])
 
 	// Sets LT(-sum(M_i) + x) * diffscale in the NTT domain
-	rfp.ringQ.NTTLvl(maxLevel, ciphertextOut.Value[0], ciphertextOut.Value[0])
+	ringQ.NTTLvl(maxLevel, ciphertextOut.Value[0], ciphertextOut.Value[0])
 
 	// LT(-sum(M_i) + x) * diffscale + [-a*s + LT(M_i) * diffscale + e] = [-a*s + LT(x) * diffscale + e]
-	rfp.ringQ.AddLvl(maxLevel, ciphertextOut.Value[0], share.s2eShare.Value, ciphertextOut.Value[0])
+	ringQ.AddLvl(maxLevel, ciphertextOut.Value[0], share.s2eShare.Value, ciphertextOut.Value[0])
 
 	// Copies the result on the out ciphertext
 	rfp.s2e.GetEncryption(&drlwe.CKSShare{Value: ciphertextOut.Value[0]}, crs, ciphertextOut)

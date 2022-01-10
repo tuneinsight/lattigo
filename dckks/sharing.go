@@ -16,24 +16,41 @@ type E2SProtocol struct {
 	CKSProtocol
 
 	params     ckks.Parameters
-	ringQ      *ring.Ring
 	zero       *rlwe.SecretKey
 	maskBigint []*big.Int
 	pool       *ring.Poly
+}
+
+// ShallowCopy creates a shallow copy of E2SProtocol in which all the read-only data-structures are
+// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+// E2SProtocol can be used concurrently.
+func (e2s *E2SProtocol) ShallowCopy() *E2SProtocol {
+
+	maskBigint := make([]*big.Int, len(e2s.maskBigint))
+	for i := range maskBigint {
+		maskBigint[i] = new(big.Int)
+	}
+
+	return &E2SProtocol{
+		CKSProtocol: CKSProtocol{*e2s.CKSProtocol.ShallowCopy()},
+		params:      e2s.params,
+		zero:        e2s.zero,
+		maskBigint:  maskBigint,
+		pool:        e2s.params.RingQ().NewPoly(),
+	}
 }
 
 // NewE2SProtocol creates a new E2SProtocol struct from the passed CKKS parameters.
 func NewE2SProtocol(params ckks.Parameters, sigmaSmudging float64) *E2SProtocol {
 	e2s := new(E2SProtocol)
 	e2s.CKSProtocol = *NewCKSProtocol(params, sigmaSmudging)
-	e2s.ringQ = params.RingQ()
 	e2s.params = params
 	e2s.zero = rlwe.NewSecretKey(params.Parameters)
 	e2s.maskBigint = make([]*big.Int, params.N())
 	for i := range e2s.maskBigint {
 		e2s.maskBigint[i] = new(big.Int)
 	}
-	e2s.pool = e2s.ringQ.NewPoly()
+	e2s.pool = e2s.params.RingQ().NewPoly()
 	return e2s
 }
 
@@ -54,7 +71,7 @@ func (e2s *E2SProtocol) AllocateShare(level int) (share *drlwe.CKSShare) {
 // value for logBound.
 func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound, logSlots int, ct *ckks.Ciphertext, secretShareOut *rlwe.AdditiveShareBigint, publicShareOut *drlwe.CKSShare) {
 
-	ringQ := e2s.ringQ
+	ringQ := e2s.params.RingQ()
 
 	levelQ := utils.MinInt(ct.Level(), publicShareOut.Value.Level())
 
@@ -104,11 +121,11 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound, logSlots int, ct 
 	// Generates an encryption of zero and subtracts the mask
 	e2s.CKSProtocol.GenShare(sk, e2s.zero, ct.Ciphertext, publicShareOut)
 	// Puts the mask in a poly
-	e2s.ringQ.SetCoefficientsBigintLvl(levelQ, secretShareOut.Value, e2s.pool)
+	ringQ.SetCoefficientsBigintLvl(levelQ, secretShareOut.Value, e2s.pool)
 	// NTT the poly
-	e2s.ringQ.NTTLvl(levelQ, e2s.pool, e2s.pool)
+	ringQ.NTTLvl(levelQ, e2s.pool, e2s.pool)
 	// Substracts the mask to the encryption of zero
-	e2s.ringQ.SubLvl(levelQ, publicShareOut.Value, e2s.pool, publicShareOut.Value)
+	ringQ.SubLvl(levelQ, publicShareOut.Value, e2s.pool, publicShareOut.Value)
 }
 
 // GetShare is the final step of the encryption-to-share protocol. It performs the masked decryption of the target ciphertext followed by a
@@ -118,18 +135,18 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound, logSlots int, ct 
 // the secretShareOut output of the GenShare method.
 func (e2s *E2SProtocol) GetShare(secretShare *rlwe.AdditiveShareBigint, aggregatePublicShare *drlwe.CKSShare, ct *ckks.Ciphertext, secretShareOut *rlwe.AdditiveShareBigint) {
 
+	ringQ := e2s.params.RingQ()
+
 	levelQ := utils.MinInt(ct.Level(), aggregatePublicShare.Value.Level())
 
-	e2s.pool.Zero()
-
 	// Adds the decryption share on the ciphertext and stores the result in a pool
-	e2s.ringQ.AddLvl(levelQ, aggregatePublicShare.Value, ct.Value[0], e2s.pool)
+	ringQ.AddLvl(levelQ, aggregatePublicShare.Value, ct.Value[0], e2s.pool)
 
 	// Switches the LSSS RNS NTT ciphertext outside of the NTT domain
-	e2s.ringQ.InvNTTLvl(levelQ, e2s.pool, e2s.pool)
+	ringQ.InvNTTLvl(levelQ, e2s.pool, e2s.pool)
 
 	// Switches the LSSS RNS ciphertext outside of the RNS domain
-	e2s.ringQ.PolyToBigintCenteredLvl(levelQ, e2s.pool, e2s.maskBigint)
+	ringQ.PolyToBigintCenteredLvl(levelQ, e2s.pool, e2s.maskBigint)
 
 	// Substracts the last mask
 	if secretShare != nil {
@@ -153,10 +170,22 @@ func (e2s *E2SProtocol) GetShare(secretShare *rlwe.AdditiveShareBigint, aggregat
 type S2EProtocol struct {
 	CKSProtocol
 	params   ckks.Parameters
-	ringQ    *ring.Ring
 	tmp      *ring.Poly
 	ssBigint []*big.Int
 	zero     *rlwe.SecretKey
+}
+
+// ShallowCopy creates a shallow copy of S2EProtocol in which all the read-only data-structures are
+// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+// S2EProtocol can be used concurrently.
+func (s2e *S2EProtocol) ShallowCopy() *S2EProtocol {
+	return &S2EProtocol{
+		CKSProtocol: CKSProtocol{*s2e.CKSProtocol.ShallowCopy()},
+		params:      s2e.params,
+		tmp:         s2e.params.RingQ().NewPoly(),
+		ssBigint:    make([]*big.Int, s2e.params.N()),
+		zero:        s2e.zero,
+	}
 }
 
 // NewS2EProtocol creates a new S2EProtocol struct from the passed CKKS parameters.
@@ -164,9 +193,8 @@ func NewS2EProtocol(params ckks.Parameters, sigmaSmudging float64) *S2EProtocol 
 	s2e := new(S2EProtocol)
 	s2e.CKSProtocol = *NewCKSProtocol(params, sigmaSmudging)
 	s2e.params = params
-	s2e.ringQ = params.RingQ()
-	s2e.tmp = s2e.ringQ.NewPoly()
-	s2e.ssBigint = make([]*big.Int, s2e.ringQ.N)
+	s2e.tmp = s2e.params.RingQ().NewPoly()
+	s2e.ssBigint = make([]*big.Int, s2e.params.N())
 	s2e.zero = rlwe.NewSecretKey(params.Parameters)
 	return s2e
 }
@@ -182,6 +210,8 @@ func (s2e S2EProtocol) AllocateShare(level int) (share *drlwe.CKSShare) {
 // polynomial sampled from the CRS `c1` and the party's secret share of the message.
 func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.CKSCRP, secretShare *rlwe.AdditiveShareBigint, c0ShareOut *drlwe.CKSShare) {
 
+	ringQ := s2e.params.RingQ()
+
 	c1 := ring.Poly(crs)
 
 	if c1.Level() != c0ShareOut.Value.Level() {
@@ -192,9 +222,9 @@ func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.CKSCRP, secretSha
 	c1.IsNTT = true
 	s2e.CKSProtocol.GenShare(s2e.zero, sk, &rlwe.Ciphertext{Value: []*ring.Poly{nil, &c1}}, c0ShareOut)
 
-	s2e.ringQ.SetCoefficientsBigintLvl(c1.Level(), secretShare.Value, s2e.tmp)
-	s2e.ringQ.NTTLvl(c1.Level(), s2e.tmp, s2e.tmp)
-	s2e.ringQ.AddLvl(c1.Level(), c0ShareOut.Value, s2e.tmp, c0ShareOut.Value)
+	ringQ.SetCoefficientsBigintLvl(c1.Level(), secretShare.Value, s2e.tmp)
+	ringQ.NTTLvl(c1.Level(), s2e.tmp, s2e.tmp)
+	ringQ.AddLvl(c1.Level(), c0ShareOut.Value, s2e.tmp, c0ShareOut.Value)
 }
 
 // GetEncryption computes the final encryption of the secret-shared message when provided with the aggregation `c0Agg` of the parties'

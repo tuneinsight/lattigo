@@ -23,6 +23,13 @@ func NewRefreshProtocol(params ckks.Parameters, precision int, sigmaSmudging flo
 	return
 }
 
+// ShallowCopy creates a shallow copy of RefreshProtocol in which all the read-only data-structures are
+// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+// RefreshProtocol can be used concurrently.
+func (rfp *RefreshProtocol) ShallowCopy() *RefreshProtocol {
+	return &RefreshProtocol{*rfp.MaskedTransformProtocol.ShallowCopy()}
+}
+
 // AllocateShare allocates the shares of the PermuteProtocol
 func (rfp *RefreshProtocol) AllocateShare(inputLevel, outputLevel int) *RefreshShare {
 	share := rfp.MaskedTransformProtocol.AllocateShare(inputLevel, outputLevel)

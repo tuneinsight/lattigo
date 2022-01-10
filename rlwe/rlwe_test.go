@@ -416,7 +416,7 @@ func testKeySwitcher(kgen KeyGenerator, t *testing.T) {
 			ring.CopyValues(ks.Pool[2].Q, ciphertext.Value[1])
 			ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], skOut.Value.Q, ciphertext.Value[0])
 			ringQ.InvNTTLvl(ciphertext.Level(), ciphertext.Value[0], ciphertext.Value[0])
-			require.GreaterOrEqual(t, 10+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, ciphertext.Value[0]))
+			require.GreaterOrEqual(t, 11+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, ciphertext.Value[0]))
 		})
 	})
 }

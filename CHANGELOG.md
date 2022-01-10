@@ -2,7 +2,7 @@
 # Changelog
 All notable changes to this project will be documented in this file. 
 
-## [unreleased]
+## [2.4.0] - 2022-01-10
 
 - RING: added support for ring operations over the conjugate invariant ring.
 - RING: added support for custom NTT via the `NumberTheoreticTransformer` interface.

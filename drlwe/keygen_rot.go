@@ -32,6 +32,25 @@ type RTGProtocol struct {
 	gaussianSamplerQ *ring.GaussianSampler
 }
 
+// ShallowCopy creates a shallow copy of RTGProtocol in which all the read-only data-structures are
+// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+// RTGProtocol can be used concurrently.
+func (rtg *RTGProtocol) ShallowCopy() *RTGProtocol {
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+
+	params := rtg.params
+
+	return &RTGProtocol{
+		params:           rtg.params,
+		tmpPoly0:         params.RingQP().NewPoly(),
+		tmpPoly1:         params.RingQP().NewPoly(),
+		gaussianSamplerQ: ring.NewGaussianSampler(prng, params.RingQ(), params.Sigma(), int(6*params.Sigma())),
+	}
+}
+
 // NewRTGProtocol creates a RTGProtocol instance
 func NewRTGProtocol(params rlwe.Parameters) *RTGProtocol {
 	rtg := new(RTGProtocol)

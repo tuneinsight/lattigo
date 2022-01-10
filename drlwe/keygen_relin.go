@@ -21,12 +21,35 @@ type RelinearizationKeyGenerator interface {
 // RKGProtocol is the structure storing the parameters and and precomputations for the collective relinearization key generation protocol.
 type RKGProtocol struct {
 	params           rlwe.Parameters
+	ephSkPr          float64
 	pBigInt          *big.Int
 	gaussianSamplerQ *ring.GaussianSampler
 	ternarySamplerQ  *ring.TernarySampler // sampling in Montgomerry form
 
 	tmpPoly1 rlwe.PolyQP
 	tmpPoly2 rlwe.PolyQP
+}
+
+// ShallowCopy creates a shallow copy of RKGProtocol in which all the read-only data-structures are
+// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+// RKGProtocol can be used concurrently.
+func (ekg *RKGProtocol) ShallowCopy() *RKGProtocol {
+	var err error
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+
+	params := ekg.params
+
+	return &RKGProtocol{
+		params:           ekg.params,
+		pBigInt:          ekg.pBigInt,
+		gaussianSamplerQ: ring.NewGaussianSampler(prng, params.RingQ(), params.Sigma(), int(6*params.Sigma())),
+		ternarySamplerQ:  ring.NewTernarySampler(prng, params.RingQ(), ekg.ephSkPr, false),
+		tmpPoly1:         params.RingQP().NewPoly(),
+		tmpPoly2:         params.RingQP().NewPoly(),
+	}
 }
 
 // RKGShare is a share in the RKG protocol
@@ -41,6 +64,7 @@ type RKGCRP []rlwe.PolyQP
 func NewRKGProtocol(params rlwe.Parameters, ephSkPr float64) *RKGProtocol {
 	rkg := new(RKGProtocol)
 	rkg.params = params
+	rkg.ephSkPr = ephSkPr
 
 	var err error
 	prng, err := utils.NewPRNG()

@@ -17,10 +17,31 @@ type KeySwitchingProtocol interface {
 // CKSProtocol is the structure storing the parameters and and precomputations for the collective key-switching protocol.
 type CKSProtocol struct {
 	params          rlwe.Parameters
+	sigmaSmudging   float64
 	gaussianSampler *ring.GaussianSampler
 	baseconverter   *ring.FastBasisExtender
 	tmpQP           rlwe.PolyQP
 	tmpDelta        *ring.Poly
+}
+
+// ShallowCopy creates a shallow copy of CKSProtocol in which all the read-only data-structures are
+// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+// CKSProtocol can be used concurrently.
+func (cks *CKSProtocol) ShallowCopy() *CKSProtocol {
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+
+	params := cks.params
+
+	return &CKSProtocol{
+		params:          params,
+		gaussianSampler: ring.NewGaussianSampler(prng, params.RingQ(), cks.sigmaSmudging, int(6*cks.sigmaSmudging)),
+		baseconverter:   ring.NewFastBasisExtender(params.RingQ(), params.RingP()),
+		tmpQP:           params.RingQP().NewPoly(),
+		tmpDelta:        params.RingQ().NewPoly(),
+	}
 }
 
 // CKSShare is a type for the CKS protocol shares.
@@ -48,6 +69,7 @@ func (ckss *CKSShare) UnmarshalBinary(data []byte) (err error) {
 func NewCKSProtocol(params rlwe.Parameters, sigmaSmudging float64) *CKSProtocol {
 	cks := new(CKSProtocol)
 	cks.params = params
+	cks.sigmaSmudging = sigmaSmudging
 	prng, err := utils.NewPRNG()
 	if err != nil {
 		panic(err)

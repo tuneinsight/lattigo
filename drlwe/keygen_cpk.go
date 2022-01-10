@@ -21,6 +21,18 @@ type CKGProtocol struct {
 	gaussianSamplerQ *ring.GaussianSampler
 }
 
+// ShallowCopy creates a shallow copy of CKGProtocol in which all the read-only data-structures are
+// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+// CKGProtocol can be used concurrently.
+func (ckg *CKGProtocol) ShallowCopy() *CKGProtocol {
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+
+	return &CKGProtocol{ckg.params, ring.NewGaussianSampler(prng, ckg.params.RingQ(), ckg.params.Sigma(), int(6*ckg.params.Sigma()))}
+}
+
 // CKGShare is a struct storing the CKG protocol's share.
 type CKGShare struct {
 	Value rlwe.PolyQP
@@ -53,7 +65,7 @@ func NewCKGProtocol(params rlwe.Parameters) *CKGProtocol {
 	if err != nil {
 		panic(err)
 	}
-	ckg.gaussianSamplerQ = ring.NewGaussianSampler(prng, ckg.params.RingQ(), params.Sigma(), int(6*params.Sigma()))
+	ckg.gaussianSamplerQ = ring.NewGaussianSampler(prng, params.RingQ(), params.Sigma(), int(6*params.Sigma()))
 	return ckg
 }
 

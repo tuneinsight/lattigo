@@ -32,6 +32,28 @@ type PCKSProtocol struct {
 	ternarySamplerMontgomeryQ *ring.TernarySampler
 }
 
+// ShallowCopy creates a shallow copy of PCKSProtocol in which all the read-only data-structures are
+// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+// PCKSProtocol can be used concurrently.
+func (pcks *PCKSProtocol) ShallowCopy() *PCKSProtocol {
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+
+	params := pcks.params
+
+	return &PCKSProtocol{
+		params:                    params,
+		sigmaSmudging:             pcks.sigmaSmudging,
+		tmpQP:                     params.RingQP().NewPoly(),
+		tmpP:                      [2]*ring.Poly{params.RingP().NewPoly(), params.RingP().NewPoly()},
+		baseconverter:             ring.NewFastBasisExtender(params.RingQ(), params.RingP()),
+		gaussianSampler:           ring.NewGaussianSampler(prng, params.RingQ(), pcks.sigmaSmudging, int(6*pcks.sigmaSmudging)),
+		ternarySamplerMontgomeryQ: ring.NewTernarySampler(prng, params.RingQ(), 0.5, false),
+	}
+}
+
 // NewPCKSProtocol creates a new PCKSProtocol object and will be used to re-encrypt a ciphertext ctx encrypted under a secret-shared key among j parties under a new
 // collective public-key.
 func NewPCKSProtocol(params rlwe.Parameters, sigmaSmudging float64) (pcks *PCKSProtocol) {

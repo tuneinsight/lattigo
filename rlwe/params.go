@@ -53,63 +53,8 @@ type Parameters struct {
 	sigma    float64
 	ringQ    *ring.Ring
 	ringP    *ring.Ring
-<<<<<<< HEAD
 	ringType ring.Type
 }
-=======
-	ringType RingType
-}
-
-var (
-	// TestPN11QP54 is a set of default parameters with logN=11 and logQP=54
-	TestPN11QP54 = ParametersLiteral{
-		LogN:     11,
-		Q:        []uint64{0x3fffffffef8001},
-		P:        []uint64{},
-		Sigma:    DefaultSigma,
-		RingType: RingStandard,
-	}
-
-	// TestPN12QP109 is a set of default parameters with logN=12 and logQP=109
-	TestPN12QP109 = ParametersLiteral{
-		LogN:     12,
-		Q:        []uint64{0xffffc4001, 0x100008c001}, // 36 + 36 bits
-		P:        []uint64{0x1000090001},              // 36 bits
-		Sigma:    DefaultSigma,
-		RingType: RingStandard,
-	}
-	// TestPN13QP218 is a set of default parameters with logN=13 and logQP=218
-	TestPN13QP218 = ParametersLiteral{
-		LogN:     13,
-		Q:        []uint64{0x3fffffffef8001, 0x40000000120001, 0x3fffffffeb8001}, // 54 + 54 + 54 bits
-		P:        []uint64{0x80000000068001},                                     // 55 bits
-		Sigma:    DefaultSigma,
-		RingType: RingStandard,
-	}
-
-	// TestPN14QP438 is a set of default parameters with logN=14 and logQP=438
-	TestPN14QP438 = ParametersLiteral{
-		LogN: 14,
-		Q: []uint64{0x100000000060001, 0x80000000080001, 0x80000000130001,
-			0x40000000120001, 0x400000001d0001, 0x3fffffffd60001}, // 56 + 55 + 55 + 54 + 54 + 54 bits
-		P:        []uint64{0x7fffffffe90001, 0x80000000190001}, // 55 + 55 bits
-		Sigma:    DefaultSigma,
-		RingType: RingStandard,
-	}
-
-	// TestPN15QP880 is a set of default parameters with logN=15 and logQP=880
-	TestPN15QP880 = ParametersLiteral{
-		LogN: 15,
-		Q: []uint64{0x7ffffffffcc0001, 0x7ffffffffba0001, 0x8000000004a0001, // 59 + 59 + 59 bits
-			0x400000000360001, 0x3ffffffffbe0001, 0x400000000660001, // 58 + 58 + 58 bits
-			0x4000000008a0001, 0x400000000920001, 0x400000000980001, // 58 + 58 + 58 bits
-			0x400000000a40001, 0x400000000c00001, 0x3ffffffff3a0001}, // 58 + 58 + 58 bits
-		P:        []uint64{0xffffffffffc0001, 0x10000000006e0001, 0xfffffffff840001}, // 60 + 60 + 60 bits
-		Sigma:    DefaultSigma,
-		RingType: RingStandard,
-	}
-)
->>>>>>> 1a4f5ae6e0 ([rlwe] : revamp of encryptor)
 
 // NewParameters returns a new set of generic RLWE parameters from the given ring degree logn, moduli q and p, and
 // error distribution parameter sigma. It returns the empty parameters Parameters{} and a non-nil error if the

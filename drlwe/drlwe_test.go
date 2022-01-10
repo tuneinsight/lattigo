@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"math/bits"
 	"runtime"
+	"sync"
 	"testing"
 
 	"github.com/ldsec/lattigo/v2/ring"
@@ -136,13 +137,19 @@ func testKeySwitching(testCtx testContext, t *testing.T) {
 	levelQ, levelP := params.QCount()-1, params.PCount()-1
 	t.Run(testString(params, "KeySwitching"), func(t *testing.T) {
 
-		sk0Out := testCtx.kgen.GenSecretKey()
-		sk1Out := testCtx.kgen.GenSecretKey()
-		sk2Out := testCtx.kgen.GenSecretKey()
+		sk := make([]*rlwe.SecretKey, 3)
+		sk[0] = testCtx.sk0
+		sk[1] = testCtx.sk1
+		sk[2] = testCtx.sk2
 
-		skOutIdeal := sk0Out.CopyNew()
-		ringQP.AddLvl(levelQ, levelP, skOutIdeal.Value, sk1Out.Value, skOutIdeal.Value)
-		ringQP.AddLvl(levelQ, levelP, skOutIdeal.Value, sk2Out.Value, skOutIdeal.Value)
+		skout := make([]*rlwe.SecretKey, 3)
+		for i := range skout {
+			skout[i] = testCtx.kgen.GenSecretKey()
+		}
+
+		skOutIdeal := skout[0].CopyNew()
+		ringQP.AddLvl(levelQ, levelP, skOutIdeal.Value, skout[1].Value, skOutIdeal.Value)
+		ringQP.AddLvl(levelQ, levelP, skOutIdeal.Value, skout[2].Value, skOutIdeal.Value)
 
 		ciphertext := &rlwe.Ciphertext{Value: []*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly()}}
 		testCtx.uniformSampler.Read(ciphertext.Value[1])
@@ -150,22 +157,44 @@ func testKeySwitching(testCtx testContext, t *testing.T) {
 		ciphertext.Value[0].IsNTT = true
 		ciphertext.Value[1].IsNTT = true
 
-		cks := NewCKSProtocol(params, rlwe.DefaultSigma)
+		cks := make([]*CKSProtocol, 3)
 
-		share0 := cks.AllocateShare(ciphertext.Level())
-		share1 := cks.AllocateShare(ciphertext.Level())
-		share2 := cks.AllocateShare(ciphertext.Level())
+		for i := range cks {
+			if i == 0 {
+				cks[i] = NewCKSProtocol(params, rlwe.DefaultSigma)
+			} else {
+				cks[i] = cks[0].ShallowCopy()
+			}
+		}
 
-		cks.GenShare(testCtx.sk0, sk0Out, ciphertext, share0)
-		cks.GenShare(testCtx.sk1, sk1Out, ciphertext, share1)
-		cks.GenShare(testCtx.sk2, sk2Out, ciphertext, share2)
+		shares := make([]*CKSShare, 3)
 
-		cks.AggregateShares(share0, share1, share0)
-		cks.AggregateShares(share0, share2, share0)
+		var wg sync.WaitGroup
+		wg.Add(3)
+		for i := range shares {
+			go func(i int) {
+				shares[i] = cks[i].AllocateShare(ciphertext.Level())
+				wg.Done()
+			}(i)
+		}
+		wg.Wait()
+
+		wg.Add(3)
+		for i := range shares {
+			go func(i int) {
+
+				cks[i].GenShare(sk[i], skout[i], ciphertext, shares[i])
+				wg.Done()
+			}(i)
+		}
+		wg.Wait()
+
+		cks[0].AggregateShares(shares[0], shares[1], shares[0])
+		cks[0].AggregateShares(shares[0], shares[2], shares[0])
 
 		ksCiphertext := &rlwe.Ciphertext{Value: []*ring.Poly{params.RingQ().NewPoly(), params.RingQ().NewPoly()}}
 
-		cks.KeySwitch(share0, ciphertext, ksCiphertext)
+		cks[0].KeySwitch(shares[0], ciphertext, ksCiphertext)
 
 		// [-as + e] + [as]
 		ringQ.MulCoeffsMontgomeryAndAdd(ksCiphertext.Value[1], skOutIdeal.Value.Q, ksCiphertext.Value[0])

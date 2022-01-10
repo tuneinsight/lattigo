@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"runtime"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -630,7 +631,12 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 		RefreshParties := make([]*Party, parties)
 		for i := 0; i < parties; i++ {
 			p := new(Party)
-			p.RefreshProtocol = NewRefreshProtocol(params, logBound, 3.2)
+			if i == 0 {
+				p.RefreshProtocol = NewRefreshProtocol(params, logBound, 3.2)
+			} else {
+				p.RefreshProtocol = RefreshParties[0].RefreshProtocol.ShallowCopy()
+			}
+
 			p.s = sk0Shards[i]
 			p.share = p.AllocateShare(levelIn, levelOut)
 			RefreshParties[i] = p
@@ -640,8 +646,17 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 
 		crp := P0.SampleCRP(levelOut, testCtx.crs)
 
+		var wg sync.WaitGroup
+		wg.Add(len(RefreshParties))
+		for _, p := range RefreshParties {
+			go func(p *Party) {
+				p.GenShares(p.s, logBound, params.LogSlots(), ciphertext, crp, p.share)
+				wg.Done()
+			}(p)
+		}
+		wg.Wait()
+
 		for i, p := range RefreshParties {
-			p.GenShares(p.s, logBound, params.LogSlots(), ciphertext, crp, p.share)
 			if i > 0 {
 				P0.Aggregate(p.share, P0.share, P0.share)
 			}
@@ -685,7 +700,13 @@ func testRefreshAndTransform(testCtx *testContext, t *testing.T) {
 		RefreshParties := make([]*Party, parties)
 		for i := 0; i < parties; i++ {
 			p := new(Party)
-			p.MaskedTransformProtocol = NewMaskedTransformProtocol(params, logBound, 3.2)
+
+			if i == 0 {
+				p.MaskedTransformProtocol = NewMaskedTransformProtocol(params, logBound, 3.2)
+			} else {
+				p.MaskedTransformProtocol = RefreshParties[0].MaskedTransformProtocol.ShallowCopy()
+			}
+
 			p.s = sk0Shards[i]
 			p.share = p.AllocateShare(levelIn, levelOut)
 			RefreshParties[i] = p
@@ -701,8 +722,17 @@ func testRefreshAndTransform(testCtx *testContext, t *testing.T) {
 			}
 		}
 
+		var wg sync.WaitGroup
+		wg.Add(len(RefreshParties))
+		for _, p := range RefreshParties {
+			go func(p *Party) {
+				p.GenShares(p.s, logBound, params.LogSlots(), ciphertext, crp, permute, p.share)
+				wg.Done()
+			}(p)
+		}
+		wg.Wait()
+
 		for i, p := range RefreshParties {
-			p.GenShares(p.s, logBound, params.LogSlots(), ciphertext, crp, permute, p.share)
 			if i > 0 {
 				P0.Aggregate(p.share, P0.share, P0.share)
 			}

@@ -12,7 +12,7 @@ import (
 type RotationKeyGenerator interface {
 	AllocateShares() (rtgShare *RTGShare)
 	GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, shareOut *RTGShare)
-	Aggregate(share1, share2, shareOut *RTGShare)
+	AggregateShares(share1, share2, shareOut *RTGShare)
 	GenRotationKey(share *RTGShare, crp RTGCRP, rotKey *rlwe.SwitchingKey)
 }
 
@@ -141,8 +141,8 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, s
 	}
 }
 
-// Aggregate aggregates two shares in the Rotation Key Generation protocol
-func (rtg *RTGProtocol) Aggregate(share1, share2, shareOut *RTGShare) {
+// AggregateShares aggregates two shares in the Rotation Key Generation protocol
+func (rtg *RTGProtocol) AggregateShares(share1, share2, shareOut *RTGShare) {
 	ringQP, levelQ, levelP := rtg.params.RingQP(), rtg.params.QCount()-1, rtg.params.PCount()-1
 	for i := 0; i < rtg.params.Beta(); i++ {
 		ringQP.AddLvl(levelQ, levelP, share1.Value[i], share2.Value[i], shareOut.Value[i])

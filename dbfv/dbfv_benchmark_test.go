@@ -242,7 +242,7 @@ func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 	b.Run(testString("RotKeyGen/Round1/Agg", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.Aggregate(p.share, p.share, p.share)
+			p.AggregateShares(p.share, p.share, p.share)
 		}
 	})
 

@@ -400,7 +400,7 @@ func testRotKeyGenRotRows(testCtx *testContext, t *testing.T) {
 		for i, p := range pcksParties {
 			p.GenShare(p.s, galEl, crp, p.share)
 			if i > 0 {
-				P0.Aggregate(p.share, P0.share, P0.share)
+				P0.AggregateShares(p.share, P0.share, P0.share)
 			}
 		}
 
@@ -457,7 +457,7 @@ func testRotKeyGenRotCols(testCtx *testContext, t *testing.T) {
 			for i, p := range pcksParties {
 				p.GenShare(p.s, galEl, crp, p.share)
 				if i > 0 {
-					P0.Aggregate(p.share, P0.share, P0.share)
+					P0.AggregateShares(p.share, P0.share, P0.share)
 				}
 			}
 

@@ -17,6 +17,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var nbParties = int(3)
+
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 
 func testString(params rlwe.Parameters, opname string) string {
@@ -33,28 +35,30 @@ func testString(params rlwe.Parameters, opname string) string {
 var TestParams = []rlwe.ParametersLiteral{rlwe.TestPN12QP109, rlwe.TestPN13QP218, rlwe.TestPN14QP438, rlwe.TestPN15QP880, rlwe.TestPN16QP240, rlwe.TestPN17QP360}
 
 type testContext struct {
-	params                 rlwe.Parameters
-	kgen                   rlwe.KeyGenerator
-	sk0, sk1, sk2, skIdeal *rlwe.SecretKey
-	uniformSampler         *ring.UniformSampler
-	crs                    utils.PRNG
+	params         rlwe.Parameters
+	kgen           rlwe.KeyGenerator
+	skShares       []*rlwe.SecretKey
+	skIdeal        *rlwe.SecretKey
+	uniformSampler *ring.UniformSampler
+	crs            utils.PRNG
 }
 
 func newTestContext(params rlwe.Parameters) testContext {
 
-	kgen := rlwe.NewKeyGenerator(params)
-	sk0 := kgen.GenSecretKey()
-	sk1 := kgen.GenSecretKey()
-	sk2 := kgen.GenSecretKey()
-	skIdeal := sk0.CopyNew()
 	levelQ, levelP := params.QCount()-1, params.PCount()-1
-	params.RingQP().AddLvl(levelQ, levelP, skIdeal.Value, sk1.Value, skIdeal.Value)
-	params.RingQP().AddLvl(levelQ, levelP, skIdeal.Value, sk2.Value, skIdeal.Value)
+
+	kgen := rlwe.NewKeyGenerator(params)
+	skShares := make([]*rlwe.SecretKey, nbParties)
+	skIdeal := rlwe.NewSecretKey(params)
+	for i := range skShares {
+		skShares[i] = kgen.GenSecretKey()
+		params.RingQP().AddLvl(levelQ, levelP, skIdeal.Value, skShares[i].Value, skIdeal.Value)
+	}
 
 	prng, _ := utils.NewKeyedPRNG([]byte{'t', 'e', 's', 't'})
 	unifSampler := ring.NewUniformSampler(prng, params.RingQ())
 
-	return testContext{params, kgen, sk0, sk1, sk2, skIdeal, unifSampler, prng}
+	return testContext{params, kgen, skShares, skIdeal, unifSampler, prng}
 }
 
 func TestDRLWE(t *testing.T) {
@@ -101,23 +105,43 @@ func testPublicKeyGen(testCtx testContext, t *testing.T) {
 
 	t.Run(testString(params, "PublicKeyGen"), func(t *testing.T) {
 
-		ckg := NewCKGProtocol(params)
+		ckg := make([]*CKGProtocol, nbParties)
+		for i := range ckg {
+			if i == 0 {
+				ckg[i] = NewCKGProtocol(params)
+			} else {
+				ckg[i] = ckg[0].ShallowCopy()
+			}
+		}
 
-		share0 := ckg.AllocateShares()
-		share1 := ckg.AllocateShares()
-		share2 := ckg.AllocateShares()
+		shares := make([]*CKGShare, nbParties)
+		var wg sync.WaitGroup
+		wg.Add(nbParties)
+		for i := range shares {
+			go func(i int) {
+				shares[i] = ckg[i].AllocateShares()
+				wg.Done()
+			}(i)
+		}
+		wg.Wait()
 
-		crp := ckg.SampleCRP(testCtx.crs)
+		crp := ckg[0].SampleCRP(testCtx.crs)
 
-		ckg.GenShare(testCtx.sk0, crp, share0)
-		ckg.GenShare(testCtx.sk1, crp, share1)
-		ckg.GenShare(testCtx.sk2, crp, share2)
+		wg.Add(nbParties)
+		for i := range shares {
+			go func(i int) {
+				ckg[i].GenShare(testCtx.skShares[i], crp, shares[i])
+				wg.Done()
+			}(i)
+		}
+		wg.Wait()
 
-		ckg.AggregateShares(share0, share1, share0)
-		ckg.AggregateShares(share0, share2, share0)
+		for i := 1; i < nbParties; i++ {
+			ckg[0].AggregateShares(shares[0], shares[i], shares[0])
+		}
 
 		pk := rlwe.NewPublicKey(params)
-		ckg.GenPublicKey(share0, crp, pk)
+		ckg[0].GenPublicKey(shares[0], crp, pk)
 
 		// [-as + e] + [as]
 		ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, testCtx.skIdeal.Value, pk.Value[1], pk.Value[0])
@@ -137,27 +161,7 @@ func testKeySwitching(testCtx testContext, t *testing.T) {
 	levelQ, levelP := params.QCount()-1, params.PCount()-1
 	t.Run(testString(params, "KeySwitching"), func(t *testing.T) {
 
-		sk := make([]*rlwe.SecretKey, 3)
-		sk[0] = testCtx.sk0
-		sk[1] = testCtx.sk1
-		sk[2] = testCtx.sk2
-
-		skout := make([]*rlwe.SecretKey, 3)
-		for i := range skout {
-			skout[i] = testCtx.kgen.GenSecretKey()
-		}
-
-		skOutIdeal := skout[0].CopyNew()
-		ringQP.AddLvl(levelQ, levelP, skOutIdeal.Value, skout[1].Value, skOutIdeal.Value)
-		ringQP.AddLvl(levelQ, levelP, skOutIdeal.Value, skout[2].Value, skOutIdeal.Value)
-
-		ciphertext := &rlwe.Ciphertext{Value: []*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly()}}
-		testCtx.uniformSampler.Read(ciphertext.Value[1])
-		ringQ.MulCoeffsMontgomeryAndSub(ciphertext.Value[1], testCtx.skIdeal.Value.Q, ciphertext.Value[0])
-		ciphertext.Value[0].IsNTT = true
-		ciphertext.Value[1].IsNTT = true
-
-		cks := make([]*CKSProtocol, 3)
+		cks := make([]*CKSProtocol, nbParties)
 
 		for i := range cks {
 			if i == 0 {
@@ -167,10 +171,23 @@ func testKeySwitching(testCtx testContext, t *testing.T) {
 			}
 		}
 
-		shares := make([]*CKSShare, 3)
+		skout := make([]*rlwe.SecretKey, nbParties)
+		skOutIdeal := rlwe.NewSecretKey(params)
+		for i := range skout {
+			skout[i] = testCtx.kgen.GenSecretKey()
+			ringQP.AddLvl(levelQ, levelP, skOutIdeal.Value, skout[i].Value, skOutIdeal.Value)
+		}
+
+		ciphertext := &rlwe.Ciphertext{Value: []*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly()}}
+		testCtx.uniformSampler.Read(ciphertext.Value[1])
+		ringQ.MulCoeffsMontgomeryAndSub(ciphertext.Value[1], testCtx.skIdeal.Value.Q, ciphertext.Value[0])
+		ciphertext.Value[0].IsNTT = true
+		ciphertext.Value[1].IsNTT = true
+
+		shares := make([]*CKSShare, nbParties)
 
 		var wg sync.WaitGroup
-		wg.Add(3)
+		wg.Add(nbParties)
 		for i := range shares {
 			go func(i int) {
 				shares[i] = cks[i].AllocateShare(ciphertext.Level())
@@ -179,18 +196,18 @@ func testKeySwitching(testCtx testContext, t *testing.T) {
 		}
 		wg.Wait()
 
-		wg.Add(3)
+		wg.Add(nbParties)
 		for i := range shares {
 			go func(i int) {
-
-				cks[i].GenShare(sk[i], skout[i], ciphertext, shares[i])
+				cks[i].GenShare(testCtx.skShares[i], skout[i], ciphertext, shares[i])
 				wg.Done()
 			}(i)
 		}
 		wg.Wait()
 
-		cks[0].AggregateShares(shares[0], shares[1], shares[0])
-		cks[0].AggregateShares(shares[0], shares[2], shares[0])
+		for i := 1; i < nbParties; i++ {
+			cks[i].AggregateShares(shares[0], shares[i], shares[0])
+		}
 
 		ksCiphertext := &rlwe.Ciphertext{Value: []*ring.Poly{params.RingQ().NewPoly(), params.RingQ().NewPoly()}}
 
@@ -214,28 +231,48 @@ func testPublicKeySwitching(testCtx testContext, t *testing.T) {
 
 		skOut, pkOut := testCtx.kgen.GenKeyPair()
 
+		pcks := make([]*PCKSProtocol, nbParties)
+		for i := range pcks {
+			if i == 0 {
+				pcks[i] = NewPCKSProtocol(params, rlwe.DefaultSigma)
+			} else {
+				pcks[i] = pcks[0].ShallowCopy()
+			}
+		}
+
 		ciphertext := &rlwe.Ciphertext{Value: []*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly()}}
 		testCtx.uniformSampler.Read(ciphertext.Value[1])
 		ringQ.MulCoeffsMontgomeryAndSub(ciphertext.Value[1], testCtx.skIdeal.Value.Q, ciphertext.Value[0])
 		ciphertext.Value[0].IsNTT = true
 		ciphertext.Value[1].IsNTT = true
 
-		PCKSProtocol := NewPCKSProtocol(params, rlwe.DefaultSigma)
+		shares := make([]*PCKSShare, nbParties)
+		var wg sync.WaitGroup
+		wg.Add(nbParties)
+		for i := range shares {
+			go func(i int) {
+				shares[i] = pcks[i].AllocateShare(ciphertext.Level())
+				wg.Done()
+			}(i)
+		}
+		wg.Wait()
 
-		share0 := PCKSProtocol.AllocateShare(ciphertext.Level())
-		share1 := PCKSProtocol.AllocateShare(ciphertext.Level())
-		share2 := PCKSProtocol.AllocateShare(ciphertext.Level())
+		wg.Add(nbParties)
+		for i := range shares {
+			go func(i int) {
+				pcks[i].GenShare(testCtx.skShares[i], pkOut, ciphertext, shares[i])
+				wg.Done()
+			}(i)
+		}
+		wg.Wait()
 
-		PCKSProtocol.GenShare(testCtx.sk0, pkOut, ciphertext, share0)
-		PCKSProtocol.GenShare(testCtx.sk1, pkOut, ciphertext, share1)
-		PCKSProtocol.GenShare(testCtx.sk2, pkOut, ciphertext, share2)
-
-		PCKSProtocol.AggregateShares(share0, share1, share0)
-		PCKSProtocol.AggregateShares(share0, share2, share0)
+		for i := 1; i < nbParties; i++ {
+			pcks[0].AggregateShares(shares[0], shares[i], shares[0])
+		}
 
 		ksCiphertext := &rlwe.Ciphertext{Value: []*ring.Poly{params.RingQ().NewPoly(), params.RingQ().NewPoly()}}
 
-		PCKSProtocol.KeySwitch(share0, ciphertext, ksCiphertext)
+		pcks[0].KeySwitch(shares[0], ciphertext, ksCiphertext)
 
 		// [-as + e] + [as]
 		ringQ.MulCoeffsMontgomeryAndAdd(ksCiphertext.Value[1], skOut.Value.Q, ksCiphertext.Value[0])
@@ -259,30 +296,60 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 			t.Skip("method is unsuported when params.PCount() == 0")
 		}
 
-		rkg := NewRKGProtocol(params, rlwe.DefaultSigma)
+		rkg := make([]*RKGProtocol, nbParties)
 
-		ephSk0, share10, share20 := rkg.AllocateShares()
-		ephSk1, share11, share21 := rkg.AllocateShares()
-		ephSk2, share12, share22 := rkg.AllocateShares()
+		for i := range rkg {
+			if i == 0 {
+				rkg[i] = NewRKGProtocol(params, rlwe.DefaultSigma)
+			} else {
+				rkg[i] = rkg[0].ShallowCopy()
+			}
+		}
 
-		crp := rkg.SampleCRP(testCtx.crs)
+		ephSk := make([]*rlwe.SecretKey, nbParties)
+		share1 := make([]*RKGShare, nbParties)
+		share2 := make([]*RKGShare, nbParties)
 
-		rkg.GenShareRoundOne(testCtx.sk0, crp, ephSk0, share10)
-		rkg.GenShareRoundOne(testCtx.sk1, crp, ephSk1, share11)
-		rkg.GenShareRoundOne(testCtx.sk2, crp, ephSk2, share12)
+		var wg sync.WaitGroup
+		wg.Add(nbParties)
+		for i := range rkg {
+			go func(i int) {
+				ephSk[i], share1[i], share2[i] = rkg[i].AllocateShares()
+				wg.Done()
+			}(i)
+		}
+		wg.Wait()
 
-		rkg.AggregateShares(share10, share11, share10)
-		rkg.AggregateShares(share10, share12, share10)
+		crp := rkg[0].SampleCRP(testCtx.crs)
 
-		rkg.GenShareRoundTwo(ephSk0, testCtx.sk0, share10, share20)
-		rkg.GenShareRoundTwo(ephSk1, testCtx.sk1, share10, share21)
-		rkg.GenShareRoundTwo(ephSk2, testCtx.sk2, share10, share22)
+		wg.Add(nbParties)
+		for i := range rkg {
+			go func(i int) {
+				rkg[i].GenShareRoundOne(testCtx.skShares[i], crp, ephSk[i], share1[i])
+				wg.Done()
+			}(i)
+		}
+		wg.Wait()
 
-		rkg.AggregateShares(share20, share21, share20)
-		rkg.AggregateShares(share20, share22, share20)
+		for i := 1; i < nbParties; i++ {
+			rkg[0].AggregateShares(share1[0], share1[i], share1[0])
+		}
+
+		wg.Add(nbParties)
+		for i := range rkg {
+			go func(i int) {
+				rkg[i].GenShareRoundTwo(ephSk[i], testCtx.skShares[i], share1[0], share2[i])
+				wg.Done()
+			}(i)
+		}
+		wg.Wait()
+
+		for i := 1; i < nbParties; i++ {
+			rkg[0].AggregateShares(share2[0], share2[i], share2[0])
+		}
 
 		rlk := rlwe.NewRelinKey(params, 2)
-		rkg.GenRelinearizationKey(share10, share20, rlk)
+		rkg[0].GenRelinearizationKey(share1[0], share2[0], rlk)
 
 		skIn := testCtx.skIdeal.CopyNew()
 		skOut := testCtx.skIdeal.CopyNew()
@@ -339,25 +406,45 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 			t.Skip("method is unsuported when params.PCount() == 0")
 		}
 
-		rtg := NewRTGProtocol(params)
+		rtg := make([]*RTGProtocol, nbParties)
+		for i := range rtg {
+			if i == 0 {
+				rtg[i] = NewRTGProtocol(params)
+			} else {
+				rtg[i] = rtg[0].ShallowCopy()
+			}
+		}
 
-		share0 := rtg.AllocateShares()
-		share1 := rtg.AllocateShares()
-		share2 := rtg.AllocateShares()
+		shares := make([]*RTGShare, nbParties)
+		var wg sync.WaitGroup
+		wg.Add(nbParties)
+		for i := range shares {
+			go func(i int) {
+				shares[i] = rtg[i].AllocateShares()
+				wg.Done()
+			}(i)
+		}
+		wg.Wait()
 
-		crp := rtg.SampleCRP(testCtx.crs)
+		crp := rtg[0].SampleCRP(testCtx.crs)
 
 		galEl := params.GaloisElementForRowRotation()
 
-		rtg.GenShare(testCtx.sk0, galEl, crp, share0)
-		rtg.GenShare(testCtx.sk1, galEl, crp, share1)
-		rtg.GenShare(testCtx.sk2, galEl, crp, share2)
+		wg.Add(nbParties)
+		for i := range shares {
+			go func(i int) {
+				rtg[i].GenShare(testCtx.skShares[i], galEl, crp, shares[i])
+				wg.Done()
+			}(i)
+		}
+		wg.Wait()
 
-		rtg.Aggregate(share0, share1, share0)
-		rtg.Aggregate(share0, share2, share0)
+		for i := 1; i < nbParties; i++ {
+			rtg[0].AggregateShares(shares[0], shares[i], shares[0])
+		}
 
 		rotKeySet := rlwe.NewRotationKeySet(params, []uint64{galEl})
-		rtg.GenRotationKey(share0, crp, rotKeySet.Keys[galEl])
+		rtg[0].GenRotationKey(shares[0], crp, rotKeySet.Keys[galEl])
 
 		skIn := testCtx.skIdeal.CopyNew()
 		skOut := testCtx.skIdeal.CopyNew()
@@ -414,7 +501,7 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 		KeyGenShareBefore := ckg.AllocateShares()
 		crs := ckg.SampleCRP(testCtx.crs)
 
-		ckg.GenShare(testCtx.sk0, crs, KeyGenShareBefore)
+		ckg.GenShare(testCtx.skShares[0], crs, KeyGenShareBefore)
 		//now we marshall it
 		data, err := KeyGenShareBefore.MarshalBinary()
 
@@ -443,7 +530,7 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 		KeySwitchProtocol := NewPCKSProtocol(testCtx.params, testCtx.params.Sigma())
 		SwitchShare := KeySwitchProtocol.AllocateShare(ciphertext.Level())
 		_, pkOut := testCtx.kgen.GenKeyPair()
-		KeySwitchProtocol.GenShare(testCtx.sk0, pkOut, ciphertext, SwitchShare)
+		KeySwitchProtocol.GenShare(testCtx.skShares[0], pkOut, ciphertext, SwitchShare)
 
 		data, err := SwitchShare.MarshalBinary()
 		require.NoError(t, err)
@@ -465,7 +552,7 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 		//Now for CKSShare ~ its similar to PKSShare
 		cksp := NewCKSProtocol(testCtx.params, testCtx.params.Sigma())
 		cksshare := cksp.AllocateShare(ciphertext.Level())
-		cksp.GenShare(testCtx.sk0, testCtx.sk1, ciphertext, cksshare)
+		cksp.GenShare(testCtx.skShares[0], testCtx.skShares[1], ciphertext, cksshare)
 
 		data, err := cksshare.MarshalBinary()
 		require.NoError(t, err)
@@ -495,7 +582,7 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 
 		crp := RKGProtocol.SampleCRP(testCtx.crs)
 
-		RKGProtocol.GenShareRoundOne(testCtx.sk0, crp, ephSk0, share10)
+		RKGProtocol.GenShareRoundOne(testCtx.skShares[0], crp, ephSk0, share10)
 
 		data, err := share10.MarshalBinary()
 		require.NoError(t, err)
@@ -533,7 +620,7 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 
 		crp := rtg.SampleCRP(testCtx.crs)
 
-		rtg.GenShare(testCtx.sk1, galEl, crp, rtgShare)
+		rtg.GenShare(testCtx.skShares[0], galEl, crp, rtgShare)
 
 		data, err := rtgShare.MarshalBinary()
 		require.NoError(t, err)

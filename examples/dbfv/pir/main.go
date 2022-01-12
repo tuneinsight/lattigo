@@ -353,7 +353,7 @@ func rtkphase(params bfv.Parameters, crs utils.PRNG, P []*party) *rlwe.RotationK
 
 		elapsedRTGCloud += runTimed(func() {
 			for _, pi := range P {
-				rtg.Aggregate(pi.rtgShare, rtgShareCombined, rtgShareCombined)
+				rtg.AggregateShares(pi.rtgShare, rtgShareCombined, rtgShareCombined)
 			}
 			rtg.GenRotationKey(rtgShareCombined, crp, rotKeySet.Keys[galEl])
 		})

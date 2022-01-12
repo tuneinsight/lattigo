@@ -3,7 +3,6 @@ package ring
 import (
 	"math/big"
 	"math/bits"
-	"unsafe"
 
 	"github.com/ldsec/lattigo/v2/utils"
 )
@@ -372,20 +371,7 @@ func (r *Ring) MulScalarRNSScalarLvl(level int, p *Poly, scalar RNSScalar, pOut 
 		scalar := scalar[i]
 		p1tmp, p2tmp := p.Coeffs[i], pOut.Coeffs[i]
 		mredParams := r.MredParams[i]
-		for j := 0; j < r.N; j = j + 8 {
-
-			x := (*[8]uint64)(unsafe.Pointer(&p1tmp[j]))
-			z := (*[8]uint64)(unsafe.Pointer(&p2tmp[j]))
-
-			z[0] = MRed(x[0], scalar, Qi, mredParams)
-			z[1] = MRed(x[1], scalar, Qi, mredParams)
-			z[2] = MRed(x[2], scalar, Qi, mredParams)
-			z[3] = MRed(x[3], scalar, Qi, mredParams)
-			z[4] = MRed(x[4], scalar, Qi, mredParams)
-			z[5] = MRed(x[5], scalar, Qi, mredParams)
-			z[6] = MRed(x[6], scalar, Qi, mredParams)
-			z[7] = MRed(x[7], scalar, Qi, mredParams)
-		}
+		MulScalarMontgomeryVec(p1tmp, p2tmp, scalar, Qi, mredParams)
 	}
 }
 

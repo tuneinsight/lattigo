@@ -141,7 +141,7 @@ func (cmb *baseCombiner) GenAdditiveShare(actives []ShamirPublicKey, ownPublic S
 		//Lagrange Interpolation with the public threshold key of other active players
 		if active != ownPublic {
 			cmb.lagrangeCoeff(ownPublic, active, cmb.tmp1)
-			cmb.ringQP.ScalarMulCRT(prod, cmb.tmp1, prod)
+			cmb.ringQP.ScalarMul(prod, cmb.tmp1, prod)
 		}
 	}
 
@@ -155,11 +155,11 @@ func (cmb *baseCombiner) lagrangeCoeff(thisKey ShamirPublicKey, thatKey ShamirPu
 	this := cmb.ringQP.NewScalarFromUInt64(uint64(thisKey))
 	that := cmb.ringQP.NewScalarFromUInt64(uint64(thatKey))
 
-	cmb.ringQP.SubScalarCRT(that, this, lagCoeff)
+	cmb.ringQP.ScalarSub(that, this, lagCoeff)
 
 	cmb.ringQP.InverseCRT(lagCoeff)
 
-	cmb.ringQP.ScalarMulCRT(lagCoeff, that, lagCoeff)
+	cmb.ringQP.ScalarMul(lagCoeff, that, lagCoeff)
 }
 
 // CachedCombiner is a structure that holds the parameters for the combining phase of

@@ -397,13 +397,11 @@ func (r *Ring) MulScalarBigint(p1 *Poly, scalar *big.Int, p2 *Poly) {
 // MulScalarBigintLvl multiplies each coefficient of p1 by a big.Int scalar
 //for the moduli from q_0 up to q_level and writes the result on p2.
 func (r *Ring) MulScalarBigintLvl(level int, p1 *Poly, scalar *big.Int, p2 *Poly) {
-	scalarCRT := make([]uint64, len(r.Modulus))
 	scalarQi := new(big.Int)
 	for i := 0; i < level+1; i++ {
 		scalarQi.Mod(scalar, NewUint(r.Modulus[i]))
 		MulScalarMontgomeryVec(p1.Coeffs[i][:r.N], p2.Coeffs[i][:r.N], MForm(BRedAdd(scalarQi.Uint64(), r.Modulus[i], r.BredParams[i]), r.Modulus[i], r.BredParams[i]), r.Modulus[i], r.MredParams[i])
 	}
-	r.MulScalarCRTLvl(level, p1, scalarCRT, p2)
 }
 
 // Shift circulary shifts the coefficients of the polynomial p1 by n positions to the left and writes the result on p2.

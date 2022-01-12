@@ -57,7 +57,7 @@ type cloud struct {
 	}
 }
 
-var crp []*ring.Poly
+var crp drlwe.RTGCRP
 
 func (p *party) Run(wg *sync.WaitGroup, params ckks.Parameters, N int, P []*party, C *cloud) {
 
@@ -233,14 +233,9 @@ func main() {
 
 	kg := ckks.NewKeyGenerator(params)
 
-	prng, err := utils.NewPRNG()
+	crs, err := utils.NewPRNG()
 	if err != nil {
 		panic(err)
-	}
-	crpGenerator := ring.NewUniformSampler(prng, params.RingQP())
-	crp = make([]*ring.Poly, params.Beta())
-	for i := 0; i < params.Beta(); i++ {
-		crp[i] = crpGenerator.ReadNew()
 	}
 
 	wg := new(sync.WaitGroup)
@@ -261,7 +256,7 @@ func main() {
 		pi.Combiner = drlwe.NewCombiner(params.Parameters, t)
 		pi.i = i
 		pi.sk = kg.GenSecretKey()
-		params.RingQP().Add(skIdeal.Value, pi.sk.Value, skIdeal.Value)
+		params.RingQP().AddLvl(params.QCount()-1, params.PCount()-1, skIdeal.Value, pi.sk.Value, skIdeal.Value)
 		pi.tsk = pi.AllocateThresholdSecretShare()
 		pi.ssp, err = pi.GenShamirPolynomial(t, pi.sk)
 		if err != nil {
@@ -296,6 +291,8 @@ func main() {
 
 	groups := getSubGroups(P, t, k)
 	fmt.Printf("Generating %d rotation keys with %d parties in %d groups\n", len(galEls), len(P), len(groups))
+
+	crp = P[0].SampleCRP(crs)
 
 	go C.Run(galEls, params, t)
 	for _, pi := range P {
@@ -335,41 +332,43 @@ func main() {
 func verifyKey(swk rlwe.SwitchingKey, galEl uint64, skIdeal *rlwe.SecretKey, params rlwe.Parameters) bool {
 	skIn := skIdeal.CopyNew()
 	skOut := skIdeal.CopyNew()
-	galElInv := ring.ModExp(galEl, int(4*params.N()-1), uint64(4*params.N()))
-	ring.PermuteNTT(skIdeal.Value, galElInv, skOut.Value)
+	galElInv := ring.ModExp(galEl, uint64(4*params.N()-1), uint64(4*params.N()))
+	levelQ, levelP := params.QCount()-1, params.PCount()-1
+	ringQ, ringP, ringQP := params.RingQ(), params.RingP(), params.RingQP()
 
-	ringQ := params.RingQ()
+	ringQ.PermuteNTT(skIdeal.Value.Q, galElInv, skOut.Value.Q)
+	ringP.PermuteNTT(skIdeal.Value.P, galElInv, skOut.Value.P)
 
 	// Decrypts
 	// [-asIn + w*P*sOut + e, a] + [asIn]
 	for j := range swk.Value {
-		ringQ.MulCoeffsMontgomeryAndAdd(swk.Value[j][1], skOut.Value, swk.Value[j][0])
-	}
+		ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, swk.Value[j][1], skOut.Value, swk.Value[j][0])
 
-	poly := swk.Value[0][0]
+	}
 
 	// Sums all basis together (equivalent to multiplying with CRT decomposition of 1)
 	// sum([1]_w * [w*P*sOut + e]) = P*sOut + sum(e)
 	for j := range swk.Value {
 		if j > 0 {
-			ringQ.Add(poly, swk.Value[j][0], poly)
+			ringQP.AddLvl(levelQ, levelP, swk.Value[0][0], swk.Value[j][0], swk.Value[0][0])
 		}
 	}
 
 	// sOut * P
-	ringQ.MulScalarBigint(skIn.Value, params.RingP().ModulusBigint, skIn.Value)
+	ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusBigint, skIn.Value.Q)
 
 	// P*s^i + sum(e) - P*s^i = sum(e)
-	ringQ.Sub(poly, skIn.Value, poly)
+	ringQ.Sub(swk.Value[0][0].Q, skIn.Value.Q, swk.Value[0][0].Q)
 
 	// Checks that the error is below the bound
-	ringQ.InvNTT(poly, poly)
-	ringQ.InvMForm(poly, poly)
+	// Worst error bound is N * floor(6*sigma) * #Keys
+	ringQP.InvNTTLvl(levelQ, levelP, swk.Value[0][0], swk.Value[0][0])
+	ringQP.InvMFormLvl(levelQ, levelP, swk.Value[0][0], swk.Value[0][0])
 
 	// Worst bound of inner sum
 	// N*#Keys*(N * #Parties * floor(sigma*6) + #Parties * floor(sigma*6) + N * #Parties  +  #Parties * floor(6*sigma))
 	log2Bound := bits.Len64(uint64(params.N() * len(swk.Value) * (params.N()*3*int(math.Floor(rlwe.DefaultSigma*6)) + 2*3*int(math.Floor(rlwe.DefaultSigma*6)) + params.N()*3)))
-	have := log2OfInnerSum(len(ringQ.Modulus)-1, ringQ, poly)
+	have := log2OfInnerSum(len(ringQ.Modulus)-1, ringQ, swk.Value[0][0].Q)
 	return log2Bound >= have
 }
 

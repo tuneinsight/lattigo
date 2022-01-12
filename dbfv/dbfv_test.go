@@ -824,17 +824,13 @@ func testThreshold(testCtx *testContext, t *testing.T) {
 			p := new(Party)
 			p.Thresholdizer = drlwe.NewThresholdizer(testCtx.params.Parameters)
 			p.Combiner = drlwe.NewCombiner(testCtx.params.Parameters, threshold)
-			//p.CachedCombiner = drlwe.NewCachedCombiner(testCtx.params.Parameters, threshold)
+			p.CachedCombiner = drlwe.NewCachedCombiner(testCtx.params.Parameters, threshold)
 			p.sk = sk0Shards[i]
 			p.tsk = bfv.NewSecretKey(testCtx.params)
 			p.tpk = drlwe.ShamirPublicKey(i + 1)
 			p.tsks = p.Thresholdizer.AllocateThresholdSecretShare()
 			P[i] = p
 		}
-
-		// Checks that dbfv types complies to the corresponding drlwe interfaces
-		//var _ drlwe.ThresholdizerProtocol = P[0].Thresholdizer
-		//var _ drlwe.CombinerProtocol = P[0].Combiner
 
 		shares := make(map[*Party]map[*Party]*drlwe.ShamirSecretShare, testCtx.NParties)
 		var err error
@@ -874,7 +870,7 @@ func testThreshold(testCtx *testContext, t *testing.T) {
 		for _, pi := range activeParties {
 			pi.Combiner.GenAdditiveShare(activeShamirPks, pi.tpk, pi.tsks, pi.tsk)
 			tsk := pi.tsk.Value.CopyNew()
-			//pi.CachedCombiner.Precompute(activeShamirPks, pi.tpk)
+			pi.CachedCombiner.Precompute(activeShamirPks, pi.tpk)
 			pi.CachedCombiner.GenAdditiveShare(activeShamirPks, pi.tpk, pi.tsks, pi.tsk)
 			//the cached and non-cached combiners should yield the same results
 			require.True(t, testCtx.ringQ.Equal(tsk.Q, pi.tsk.Value.Q))
@@ -882,9 +878,9 @@ func testThreshold(testCtx *testContext, t *testing.T) {
 		}
 
 		//Clearing caches
-		// for _, pi := range activeParties {
-		// 	pi.CachedCombiner.ClearCache()
-		// }
+		for _, pi := range activeParties {
+			pi.CachedCombiner.ClearCache()
+		}
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, testCtx.encryptorPk0, t)
 

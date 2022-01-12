@@ -10,7 +10,6 @@ import (
 	"github.com/ldsec/lattigo/v2/bfv"
 	"github.com/ldsec/lattigo/v2/dbfv"
 	"github.com/ldsec/lattigo/v2/drlwe"
-	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
@@ -115,42 +114,29 @@ func main() {
 	}
 
 	// PRNG keyed with "lattigo"
-	lattigoPRNG, err := utils.NewKeyedPRNG([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'})
+	crs, err := utils.NewKeyedPRNG([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'})
 	if err != nil {
 		panic(err)
 	}
-
-	// Ring for the common reference polynomials sampling
-	ringQP := params.RingQP()
-
-	// Common reference polynomial generator that uses the PRNG
-	crsGen := ring.NewUniformSampler(lattigoPRNG, ringQP)
 
 	encoder := bfv.NewEncoder(params)
 
 	// Target private and public keys
 	tsk, tpk := bfv.NewKeyGenerator(params).GenKeyPair()
 
-	var prng utils.PRNG
-	if prng, err = utils.NewPRNG(); err != nil {
-		panic(err)
-	}
-
-	ternarySamplerMontgomery := ring.NewTernarySampler(prng, ringQP, 0.5, true)
-
 	// Create each party, and allocate the memory for all the shares that the protocols will need
-	P := genparties(params, N, ternarySamplerMontgomery)
+	P := genparties(params, N)
 
 	genThresholdizers(params, P, t)
 
-	thresholdGenShares(params, ringQP, P, crsGen)
+	thresholdGenShares(params, P)
 	// Inputs & expected result
 	expRes := genInputs(params, P)
 
 	// 1) Collective public key generation
-	pk := ckgphase(params, crsGen, P)
+	pk := ckgphase(params, crs, P)
 	// 2) Collective relinearization key generation
-	rlk := rkgphase(params, crsGen, P)
+	rlk := rkgphase(params, crs, P)
 
 	l.Printf("\tdone (cloud: %s, party: %s)\n",
 		elapsedRKGCloud, elapsedRKGParty)
@@ -161,7 +147,7 @@ func main() {
 
 	encRes := evalPhase(params, NGoRoutine, encInputs, rlk)
 
-	activeParties := thresholdCombine(params, ringQP, P, uint64(t))
+	activeParties := thresholdCombine(params, P, uint64(t))
 	//Active players have now a different secret key share
 
 	//Only active players take part in the key switching protocol
@@ -193,7 +179,7 @@ func main() {
 
 }
 
-func thresholdGenShares(params bfv.Parameters, ringQP *ring.Ring, P []*party, crsGen *ring.UniformSampler) {
+func thresholdGenShares(params bfv.Parameters, P []*party) {
 
 	l.Println("> Threshold Shares Generation")
 
@@ -222,7 +208,7 @@ func thresholdGenShares(params bfv.Parameters, ringQP *ring.Ring, P []*party, cr
 	l.Printf("\tdone (cloud: %s, party: %s)\n", elapsedThreshShareCloud, elapsedThreshShareParty)
 }
 
-func thresholdCombine(params bfv.Parameters, ringQP *ring.Ring, P []*party, t uint64) (activeParties []*party) {
+func thresholdCombine(params bfv.Parameters, P []*party, t uint64) (activeParties []*party) {
 
 	l.Println("> ThresholdCombine")
 	activeParties = make([]*party, int(t))
@@ -342,7 +328,7 @@ func evalPhase(params bfv.Parameters, NGoRoutine int, encInputs []*bfv.Ciphertex
 	return
 }
 
-func genparties(params bfv.Parameters, N int, sampler *ring.TernarySampler) []*party {
+func genparties(params bfv.Parameters, N int) []*party {
 
 	// Create each party, and allocate the memory for all the shares that the protocols will need
 	P := make([]*party, N)
@@ -429,7 +415,7 @@ func pcksPhase(params bfv.Parameters, tpk *rlwe.PublicKey, encRes *bfv.Ciphertex
 
 }
 
-func rkgphase(params bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *rlwe.RelinearizationKey {
+func rkgphase(params bfv.Parameters, crs drlwe.CRS, P []*party) *rlwe.RelinearizationKey {
 
 	l.Println("> RKG Phase")
 
@@ -439,10 +425,7 @@ func rkgphase(params bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *r
 		pi.rlkEphemSk, pi.rkgShareOne, pi.rkgShareTwo = rkg.AllocateShares()
 	}
 
-	crp := make([]*ring.Poly, params.Beta()) // for the relinearization keys
-	for i := 0; i < params.Beta(); i++ {
-		crp[i] = crsGen.ReadNew()
-	}
+	crp := rkg.SampleCRP(crs)
 
 	elapsedRKGParty = runTimedParty(func() {
 		for _, pi := range P {
@@ -460,7 +443,7 @@ func rkgphase(params bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *r
 
 	elapsedRKGParty += runTimedParty(func() {
 		for _, pi := range P {
-			rkg.GenShareRoundTwo(pi.rlkEphemSk, pi.sk, rkgCombined1, crp, pi.rkgShareTwo)
+			rkg.GenShareRoundTwo(pi.rlkEphemSk, pi.sk, rkgCombined1, pi.rkgShareTwo)
 		}
 	}, len(P))
 
@@ -477,12 +460,12 @@ func rkgphase(params bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *r
 	return rlk
 }
 
-func ckgphase(params bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *rlwe.PublicKey {
+func ckgphase(params bfv.Parameters, crs drlwe.CRS, P []*party) *rlwe.PublicKey {
 
 	l.Println("> CKG Phase")
 
 	ckg := dbfv.NewCKGProtocol(params) // Public key generation
-	crs := crsGen.ReadNew()            // for the public-key
+	crp := ckg.SampleCRP(crs)          // for the public-key
 
 	for _, pi := range P {
 		pi.ckgShare = ckg.AllocateShares()
@@ -490,7 +473,7 @@ func ckgphase(params bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *r
 
 	elapsedCKGParty = runTimedParty(func() {
 		for _, pi := range P {
-			ckg.GenShare(pi.sk, crs, pi.ckgShare)
+			ckg.GenShare(pi.sk, crp, pi.ckgShare)
 		}
 	}, len(P))
 
@@ -502,7 +485,7 @@ func ckgphase(params bfv.Parameters, crsGen *ring.UniformSampler, P []*party) *r
 		for _, pi := range P {
 			ckg.AggregateShares(pi.ckgShare, ckgCombined, ckgCombined)
 		}
-		ckg.GenPublicKey(ckgCombined, crs, pk)
+		ckg.GenPublicKey(ckgCombined, crp, pk)
 	})
 
 	l.Printf("\tdone (cloud: %s, party: %s)\n", elapsedCKGCloud, elapsedCKGParty)

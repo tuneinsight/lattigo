@@ -166,7 +166,7 @@ func testPublicKeyGen(testCtx *testContext, t *testing.T) {
 	sk0Shards := testCtx.sk0Shards
 	decryptorSk0 := testCtx.decryptorSk0
 
-	t.Run(testString("PublicKeyGen/", testCtx.NParties, testCtx.params), func(t *testing.T) {
+	t.Run(testString("PublicKeyGen", testCtx.NParties, testCtx.params), func(t *testing.T) {
 
 		type Party struct {
 			*CKGProtocol
@@ -215,7 +215,7 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 	encryptorPk0 := testCtx.encryptorPk0
 	decryptorSk0 := testCtx.decryptorSk0
 
-	t.Run(testString("RelinKeyGen/", testCtx.NParties, testCtx.params), func(t *testing.T) {
+	t.Run(testString("RelinKeyGen", testCtx.NParties, testCtx.params), func(t *testing.T) {
 
 		type Party struct {
 			*RKGProtocol
@@ -287,7 +287,7 @@ func testKeyswitching(testCtx *testContext, t *testing.T) {
 	encryptorPk0 := testCtx.encryptorPk0
 	decryptorSk1 := testCtx.decryptorSk1
 
-	t.Run(testString("Keyswitching/", testCtx.NParties, testCtx.params), func(t *testing.T) {
+	t.Run(testString("Keyswitching", testCtx.NParties, testCtx.params), func(t *testing.T) {
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, t)
 
@@ -339,7 +339,7 @@ func testPublicKeySwitching(testCtx *testContext, t *testing.T) {
 	encryptorPk0 := testCtx.encryptorPk0
 	decryptorSk1 := testCtx.decryptorSk1
 
-	t.Run(testString("PublicKeySwitching/", testCtx.NParties, testCtx.params), func(t *testing.T) {
+	t.Run(testString("PublicKeySwitching", testCtx.NParties, testCtx.params), func(t *testing.T) {
 
 		type Party struct {
 			*PCKSProtocol
@@ -383,7 +383,7 @@ func testRotKeyGenRotRows(testCtx *testContext, t *testing.T) {
 	decryptorSk0 := testCtx.decryptorSk0
 	sk0Shards := testCtx.sk0Shards
 
-	t.Run(testString("RotKeyGenRotRows/", testCtx.NParties, testCtx.params), func(t *testing.T) {
+	t.Run(testString("RotKeyGenRotRows", testCtx.NParties, testCtx.params), func(t *testing.T) {
 
 		type Party struct {
 			*RTGProtocol
@@ -435,7 +435,7 @@ func testRotKeyGenRotCols(testCtx *testContext, t *testing.T) {
 	decryptorSk0 := testCtx.decryptorSk0
 	sk0Shards := testCtx.sk0Shards
 
-	t.Run(testString("RotKeyGenRotCols/", testCtx.NParties, testCtx.params), func(t *testing.T) {
+	t.Run(testString("RotKeyGenRotCols", testCtx.NParties, testCtx.params), func(t *testing.T) {
 
 		type Party struct {
 			*RTGProtocol
@@ -518,7 +518,7 @@ func testEncToShares(testCtx *testContext, t *testing.T) {
 
 	P[0].e2s.GetShare(P[0].secretShare, P[0].publicShare, ciphertext, P[0].secretShare)
 
-	t.Run(testString("E2SProtocol/", testCtx.NParties, testCtx.params), func(t *testing.T) {
+	t.Run(testString("E2SProtocol", testCtx.NParties, testCtx.params), func(t *testing.T) {
 
 		rec := rlwe.NewAdditiveShare(params.Parameters)
 		for _, p := range P {
@@ -535,7 +535,7 @@ func testEncToShares(testCtx *testContext, t *testing.T) {
 
 	crp := P[0].e2s.SampleCRP(params.MaxLevel(), testCtx.crs)
 
-	t.Run(testString("S2EProtocol/", testCtx.NParties, testCtx.params), func(t *testing.T) {
+	t.Run(testString("S2EProtocol", testCtx.NParties, testCtx.params), func(t *testing.T) {
 		for i, p := range P {
 			p.s2e.GenShare(p.sk, crp, p.secretShare, p.publicShare)
 			if i > 0 {
@@ -561,7 +561,7 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 
 	rlk := kgen.GenRelinearizationKey(testCtx.sk0, 2)
 
-	t.Run(testString("Refresh/", testCtx.NParties, testCtx.params), func(t *testing.T) {
+	t.Run(testString("Refresh", testCtx.NParties, testCtx.params), func(t *testing.T) {
 
 		type Party struct {
 			*RefreshProtocol
@@ -656,7 +656,7 @@ func testRefreshAndPermutation(testCtx *testContext, t *testing.T) {
 	encoder := testCtx.encoder
 	decryptorSk0 := testCtx.decryptorSk0
 
-	t.Run(testString("RefreshAndPermutation/", testCtx.NParties, testCtx.params), func(t *testing.T) {
+	t.Run(testString("RefreshAndPermutation", testCtx.NParties, testCtx.params), func(t *testing.T) {
 
 		type Party struct {
 			*MaskedTransformProtocol
@@ -738,7 +738,7 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 	testCtx.uniformSampler.Read(ciphertext.Value[0])
 	testCtx.uniformSampler.Read(ciphertext.Value[1])
 
-	t.Run(testString("MarshallingRefresh/", testCtx.NParties, testCtx.params), func(t *testing.T) {
+	t.Run(testString("MarshallingRefresh", testCtx.NParties, testCtx.params), func(t *testing.T) {
 
 		//testing refresh shares
 		refreshproto := NewRefreshProtocol(testCtx.params, 3.2)
@@ -779,7 +779,7 @@ func testThreshold(testCtx *testContext, t *testing.T) {
 
 	threshold := testCtx.NParties / 2
 
-	t.Run(testString("Threshold/", testCtx.NParties, testCtx.params)+fmt.Sprintf("/threshold=%d", threshold), func(t *testing.T) {
+	t.Run(testString("Threshold", testCtx.NParties, testCtx.params)+fmt.Sprintf("/threshold=%d", threshold), func(t *testing.T) {
 
 		type Party struct {
 			*drlwe.Thresholdizer

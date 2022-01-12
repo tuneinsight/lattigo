@@ -64,7 +64,7 @@ func benchPublicKeyGen(testCtx *testContext, b *testing.B) {
 
 	crp := p.SampleCRP(testCtx.crs)
 
-	b.Run(testString("PublicKeyGen/Gen/", testCtx.NParties, params), func(b *testing.B) {
+	b.Run(testString("PublicKeyGen/Gen", testCtx.NParties, params), func(b *testing.B) {
 
 		// Each party creates a new CKGProtocol instance
 		for i := 0; i < b.N; i++ {
@@ -72,7 +72,7 @@ func benchPublicKeyGen(testCtx *testContext, b *testing.B) {
 		}
 	})
 
-	b.Run(testString("PublicKeyGen/Agg/", testCtx.NParties, params), func(b *testing.B) {
+	b.Run(testString("PublicKeyGen/Agg", testCtx.NParties, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			p.AggregateShares(p.s1, p.s1, p.s1)
@@ -101,28 +101,28 @@ func benchRelinKeyGen(testCtx *testContext, b *testing.B) {
 
 	crp := p.SampleCRP(testCtx.crs)
 
-	b.Run(testString("RelinKeyGen/Round1Gen/", testCtx.NParties, params), func(b *testing.B) {
+	b.Run(testString("RelinKeyGen/Round1Gen", testCtx.NParties, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			p.GenShareRoundOne(p.sk, crp, p.ephSk, p.share1)
 		}
 	})
 
-	b.Run(testString("RelinKeyGen/Round1Agg/", testCtx.NParties, params), func(b *testing.B) {
+	b.Run(testString("RelinKeyGen/Round1Agg", testCtx.NParties, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			p.AggregateShares(p.share1, p.share1, p.share1)
 		}
 	})
 
-	b.Run(testString("RelinKeyGen/Round2Gen/", testCtx.NParties, params), func(b *testing.B) {
+	b.Run(testString("RelinKeyGen/Round2Gen", testCtx.NParties, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			p.GenShareRoundTwo(p.ephSk, p.sk, p.share1, p.share2)
 		}
 	})
 
-	b.Run(testString("RelinKeyGen/Round2Agg/", testCtx.NParties, params), func(b *testing.B) {
+	b.Run(testString("RelinKeyGen/Round2Agg", testCtx.NParties, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			p.AggregateShares(p.share2, p.share2, p.share2)
@@ -152,21 +152,21 @@ func benchKeySwitching(testCtx *testContext, b *testing.B) {
 	p.s1 = sk1Shards[0]
 	p.share = p.AllocateShare(ciphertext.Level())
 
-	b.Run(testString("KeySwitching/Gen/", testCtx.NParties, params), func(b *testing.B) {
+	b.Run(testString("KeySwitching/Gen", testCtx.NParties, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			p.GenShare(p.s0, p.s1, ciphertext.Ciphertext, p.share)
 		}
 	})
 
-	b.Run(testString("KeySwitching/Agg/", testCtx.NParties, params), func(b *testing.B) {
+	b.Run(testString("KeySwitching/Agg", testCtx.NParties, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			p.AggregateShares(p.share, p.share, p.share)
 		}
 	})
 
-	b.Run(testString("KeySwitching/KS/", testCtx.NParties, params), func(b *testing.B) {
+	b.Run(testString("KeySwitching/KS", testCtx.NParties, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			p.KeySwitch(p.share, ciphertext.Ciphertext, ciphertext.Ciphertext)
@@ -193,21 +193,21 @@ func benchPublicKeySwitching(testCtx *testContext, b *testing.B) {
 	p.s = sk0Shards[0]
 	p.share = p.AllocateShare(ciphertext.Level())
 
-	b.Run(testString("PublicKeySwitching/Gen/", testCtx.NParties, params), func(b *testing.B) {
+	b.Run(testString("PublicKeySwitching/Gen", testCtx.NParties, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			p.GenShare(p.s, pk1, ciphertext.Ciphertext, p.share)
 		}
 	})
 
-	b.Run(testString("PublicKeySwitching/Agg/", testCtx.NParties, params), func(b *testing.B) {
+	b.Run(testString("PublicKeySwitching/Agg", testCtx.NParties, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			p.AggregateShares(p.share, p.share, p.share)
 		}
 	})
 
-	b.Run(testString("PublicKeySwitching/KS/", testCtx.NParties, params), func(b *testing.B) {
+	b.Run(testString("PublicKeySwitching/KS", testCtx.NParties, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			p.KeySwitch(p.share, ciphertext.Ciphertext, ciphertext.Ciphertext)
@@ -234,14 +234,14 @@ func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 	crp := p.SampleCRP(testCtx.crs)
 
 	galEl := params.GaloisElementForRowRotation()
-	b.Run(testString("RotKeyGen/Round1/Gen/", testCtx.NParties, params), func(b *testing.B) {
+	b.Run(testString("RotKeyGen/Round1/Gen", testCtx.NParties, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			p.GenShare(p.s, galEl, crp, p.share)
 		}
 	})
 
-	b.Run(testString("RotKeyGen/Round1/Agg/", testCtx.NParties, params), func(b *testing.B) {
+	b.Run(testString("RotKeyGen/Round1/Agg", testCtx.NParties, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			p.Aggregate(p.share, p.share, p.share)
@@ -249,7 +249,7 @@ func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 	})
 
 	rotKey := ckks.NewSwitchingKey(params)
-	b.Run(testString("RotKeyGen/Finalize/", testCtx.NParties, params), func(b *testing.B) {
+	b.Run(testString("RotKeyGen/Finalize", testCtx.NParties, params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			p.GenRotationKey(p.share, crp, rotKey)
 		}

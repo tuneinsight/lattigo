@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"runtime"
+	"sync"
 	"testing"
 
 	"github.com/ldsec/lattigo/v2/bfv"
@@ -154,7 +155,7 @@ func testPublicKeyGen(testCtx *testContext, t *testing.T) {
 	sk0Shards := testCtx.sk0Shards
 	decryptorSk0 := testCtx.decryptorSk0
 
-	t.Run(testString("PublicKeyGen/", parties, testCtx.params), func(t *testing.T) {
+	t.Run(testString("PublicKeyGen", parties, testCtx.params), func(t *testing.T) {
 
 		type Party struct {
 			*CKGProtocol
@@ -203,7 +204,7 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 	encryptorPk0 := testCtx.encryptorPk0
 	decryptorSk0 := testCtx.decryptorSk0
 
-	t.Run(testString("RelinKeyGen/", parties, testCtx.params), func(t *testing.T) {
+	t.Run(testString("RelinKeyGen", parties, testCtx.params), func(t *testing.T) {
 
 		type Party struct {
 			*RKGProtocol
@@ -275,7 +276,7 @@ func testKeyswitching(testCtx *testContext, t *testing.T) {
 	encryptorPk0 := testCtx.encryptorPk0
 	decryptorSk1 := testCtx.decryptorSk1
 
-	t.Run(testString("Keyswitching/", parties, testCtx.params), func(t *testing.T) {
+	t.Run(testString("Keyswitching", parties, testCtx.params), func(t *testing.T) {
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, t)
 
@@ -327,7 +328,7 @@ func testPublicKeySwitching(testCtx *testContext, t *testing.T) {
 	encryptorPk0 := testCtx.encryptorPk0
 	decryptorSk1 := testCtx.decryptorSk1
 
-	t.Run(testString("PublicKeySwitching/", parties, testCtx.params), func(t *testing.T) {
+	t.Run(testString("PublicKeySwitching", parties, testCtx.params), func(t *testing.T) {
 
 		type Party struct {
 			*PCKSProtocol
@@ -371,7 +372,7 @@ func testRotKeyGenRotRows(testCtx *testContext, t *testing.T) {
 	decryptorSk0 := testCtx.decryptorSk0
 	sk0Shards := testCtx.sk0Shards
 
-	t.Run(testString("RotKeyGenRotRows/", parties, testCtx.params), func(t *testing.T) {
+	t.Run(testString("RotKeyGenRotRows", parties, testCtx.params), func(t *testing.T) {
 
 		type Party struct {
 			*RTGProtocol
@@ -423,7 +424,7 @@ func testRotKeyGenRotCols(testCtx *testContext, t *testing.T) {
 	decryptorSk0 := testCtx.decryptorSk0
 	sk0Shards := testCtx.sk0Shards
 
-	t.Run(testString("RotKeyGenRotCols/", parties, testCtx.params), func(t *testing.T) {
+	t.Run(testString("RotKeyGenRotCols", parties, testCtx.params), func(t *testing.T) {
 
 		type Party struct {
 			*RTGProtocol
@@ -489,16 +490,31 @@ func testEncToShares(testCtx *testContext, t *testing.T) {
 	P := make([]Party, parties)
 
 	for i := range P {
-		P[i].e2s = NewE2SProtocol(params, 3.2)
-		P[i].s2e = NewS2EProtocol(params, 3.2)
+		if i == 0 {
+			P[i].e2s = NewE2SProtocol(params, 3.2)
+			P[i].s2e = NewS2EProtocol(params, 3.2)
+		} else {
+			P[i].e2s = P[0].e2s.ShallowCopy()
+			P[i].s2e = P[0].s2e.ShallowCopy()
+		}
+
 		P[i].sk = testCtx.sk0Shards[i]
 		P[i].publicShare = P[i].e2s.AllocateShare(ciphertext.Level())
 		P[i].secretShare = rlwe.NewAdditiveShare(params.Parameters)
 	}
 
 	// The E2S protocol is run in all tests, as a setup to the S2E test.
+	var wg sync.WaitGroup
+	wg.Add(parties)
+	for _, p := range P {
+		go func(p Party) {
+			p.e2s.GenShare(p.sk, ciphertext, p.secretShare, p.publicShare)
+			wg.Done()
+		}(p)
+	}
+	wg.Wait()
+
 	for i, p := range P {
-		p.e2s.GenShare(p.sk, ciphertext, p.secretShare, p.publicShare)
 		if i > 0 {
 			p.e2s.AggregateShares(P[0].publicShare, p.publicShare, P[0].publicShare)
 		}
@@ -506,7 +522,7 @@ func testEncToShares(testCtx *testContext, t *testing.T) {
 
 	P[0].e2s.GetShare(P[0].secretShare, P[0].publicShare, ciphertext, P[0].secretShare)
 
-	t.Run(testString("E2SProtocol/", parties, testCtx.params), func(t *testing.T) {
+	t.Run(testString("E2SProtocol", parties, testCtx.params), func(t *testing.T) {
 
 		rec := rlwe.NewAdditiveShare(params.Parameters)
 		for _, p := range P {
@@ -523,9 +539,18 @@ func testEncToShares(testCtx *testContext, t *testing.T) {
 
 	crp := P[0].e2s.SampleCRP(params.MaxLevel(), testCtx.crs)
 
-	t.Run(testString("S2EProtocol/", parties, testCtx.params), func(t *testing.T) {
+	t.Run(testString("S2EProtocol", parties, testCtx.params), func(t *testing.T) {
+
+		wg.Add(parties)
+		for _, p := range P {
+			go func(p Party) {
+				p.s2e.GenShare(p.sk, crp, p.secretShare, p.publicShare)
+				wg.Done()
+			}(p)
+		}
+		wg.Wait()
+
 		for i, p := range P {
-			p.s2e.GenShare(p.sk, crp, p.secretShare, p.publicShare)
 			if i > 0 {
 				p.s2e.AggregateShares(P[0].publicShare, p.publicShare, P[0].publicShare)
 			}
@@ -549,7 +574,7 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 
 	rlk := kgen.GenRelinearizationKey(testCtx.sk0, 2)
 
-	t.Run(testString("Refresh/", parties, testCtx.params), func(t *testing.T) {
+	t.Run(testString("Refresh", parties, testCtx.params), func(t *testing.T) {
 
 		type Party struct {
 			*RefreshProtocol
@@ -561,7 +586,12 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 		RefreshParties := make([]*Party, parties)
 		for i := 0; i < parties; i++ {
 			p := new(Party)
-			p.RefreshProtocol = NewRefreshProtocol(testCtx.params, 3.2)
+			if i == 0 {
+				p.RefreshProtocol = NewRefreshProtocol(testCtx.params, 3.2)
+			} else {
+				p.RefreshProtocol = RefreshParties[0].RefreshProtocol.ShallowCopy()
+			}
+
 			p.s = sk0Shards[i]
 			p.share = p.AllocateShare()
 			p.ptShare = bfv.NewPlaintext(testCtx.params)
@@ -612,8 +642,17 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 
 		testCtx.ringQ.SetCoefficientsBigint(coeffsBigint, ciphertext.Value[0])
 
+		var wg sync.WaitGroup
+		wg.Add(parties)
+		for _, p := range RefreshParties {
+			go func(p *Party) {
+				p.GenShares(p.s, ciphertext, crp, p.share)
+				wg.Done()
+			}(p)
+		}
+		wg.Wait()
+
 		for i, p := range RefreshParties {
-			p.GenShares(p.s, ciphertext, crp, p.share)
 			if i > 0 {
 				P0.Aggregate(p.share, P0.share, P0.share)
 			}
@@ -644,7 +683,7 @@ func testRefreshAndPermutation(testCtx *testContext, t *testing.T) {
 	encoder := testCtx.encoder
 	decryptorSk0 := testCtx.decryptorSk0
 
-	t.Run(testString("RefreshAndPermutation/", parties, testCtx.params), func(t *testing.T) {
+	t.Run(testString("RefreshAndPermutation", parties, testCtx.params), func(t *testing.T) {
 
 		type Party struct {
 			*MaskedTransformProtocol
@@ -656,7 +695,12 @@ func testRefreshAndPermutation(testCtx *testContext, t *testing.T) {
 		RefreshParties := make([]*Party, parties)
 		for i := 0; i < parties; i++ {
 			p := new(Party)
-			p.MaskedTransformProtocol = NewMaskedTransformProtocol(testCtx.params, 3.2)
+			if i == 0 {
+				p.MaskedTransformProtocol = NewMaskedTransformProtocol(testCtx.params, 3.2)
+			} else {
+				p.MaskedTransformProtocol = NewMaskedTransformProtocol(testCtx.params, 3.2)
+			}
+
 			p.s = sk0Shards[i]
 			p.share = p.AllocateShare()
 			p.ptShare = bfv.NewPlaintext(testCtx.params)
@@ -676,19 +720,27 @@ func testRefreshAndPermutation(testCtx *testContext, t *testing.T) {
 			permutation[i] = ring.RandUniform(prng, N, N-1)
 		}
 
-		permute := func(ptIn, ptOut bfv.PlaintextRingT) {
-			coeffs := testCtx.encoder.DecodeUintNew(&ptIn)
+		permute := func(coeffsIn, coeffsOut []uint64) {
 			coeffsPerm := make([]uint64, len(coeffs))
 			for i := range coeffs {
-				coeffsPerm[i] = coeffs[permutation[i]]
+				coeffsPerm[i] = coeffsIn[permutation[i]]
 			}
-			testCtx.encoder.EncodeUintRingT(coeffsPerm, &ptOut)
+			copy(coeffsOut, coeffsPerm)
 		}
 
+		var wg sync.WaitGroup
+		wg.Add(parties)
 		for i, p := range RefreshParties {
-			p.GenShares(p.s, ciphertext, crp, permute, p.share)
+			go func(i int, p *Party) {
+				p.GenShares(p.s, ciphertext, crp, permute, p.share)
+				wg.Done()
+			}(i, p)
+		}
+		wg.Wait()
+
+		for i, p := range RefreshParties {
 			if i > 0 {
-				P0.Aggregate(p.share, P0.share, P0.share)
+				P0.Aggregate(P0.share, p.share, P0.share)
 			}
 		}
 
@@ -726,7 +778,7 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 	testCtx.uniformSampler.Read(ciphertext.Value[0])
 	testCtx.uniformSampler.Read(ciphertext.Value[1])
 
-	t.Run(testString("MarshallingRefresh/", parties, testCtx.params), func(t *testing.T) {
+	t.Run(testString("MarshallingRefresh", parties, testCtx.params), func(t *testing.T) {
 
 		//testing refresh shares
 		refreshproto := NewRefreshProtocol(testCtx.params, 3.2)

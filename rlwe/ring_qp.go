@@ -75,29 +75,29 @@ func (r *RingQP) SubLvl(levelQ, levelP int, p1, p2, pOut PolyQP) {
 }
 
 // NewScalar creates a new Scalar value (i.e., a degree-0 polynomial) in the RingQP.
-func (r *RingQP) NewScalar() ring.Scalar {
-	return make(ring.Scalar, len(r.RingQ.Modulus)+len(r.RingP.Modulus))
+func (r *RingQP) NewScalar() ring.RNSScalar {
+	return make(ring.RNSScalar, len(r.RingQ.Modulus)+len(r.RingP.Modulus))
 }
 
 // NewScalarFromUInt64 creates a new Scalar in the RingQP initialized with value v.
-func (r *RingQP) NewScalarFromUInt64(v uint64) ring.Scalar {
-	scalarQ := r.RingQ.NewScalarFromUInt64(v)
-	scalarP := r.RingP.NewScalarFromUInt64(v)
+func (r *RingQP) NewScalarFromUInt64(v uint64) ring.RNSScalar {
+	scalarQ := r.RingQ.NewRNSScalarFromUInt64(v)
+	scalarP := r.RingP.NewRNSScalarFromUInt64(v)
 	return append(scalarQ, scalarP...)
 }
 
-// ScalarSub subtracts s2 to s1 and stores the result in sout.
-func (r *RingQP) ScalarSub(s1, s2, sout ring.Scalar) {
+// SubRNSScalar subtracts s2 to s1 and stores the result in sout.
+func (r *RingQP) SubRNSScalar(s1, s2, sout ring.RNSScalar) {
 	qlen := len(r.RingQ.Modulus)
-	r.RingQ.ScalarSub(s1[:qlen], s2[:qlen], sout[:qlen])
-	r.RingP.ScalarSub(s1[qlen:], s2[qlen:], sout[qlen:])
+	r.RingQ.SubRNSScalar(s1[:qlen], s2[:qlen], sout[:qlen])
+	r.RingP.SubRNSScalar(s1[qlen:], s2[qlen:], sout[qlen:])
 }
 
-// ScalarMul multiplies s1 and s2 and stores the result in sout.
-func (r *RingQP) ScalarMul(s1, s2, sout ring.Scalar) {
+// MulRNSScalar multiplies s1 and s2 and stores the result in sout.
+func (r *RingQP) MulRNSScalar(s1, s2, sout ring.RNSScalar) {
 	qlen := len(r.RingQ.Modulus)
-	r.RingQ.ScalarMul(s1[:qlen], s2[:qlen], sout[:qlen])
-	r.RingP.ScalarMul(s1[qlen:], s2[qlen:], sout[qlen:])
+	r.RingQ.MulRNSScalar(s1[:qlen], s2[:qlen], sout[:qlen])
+	r.RingP.MulRNSScalar(s1[qlen:], s2[qlen:], sout[qlen:])
 }
 
 // EvalPolMontgomeryScalarNTT evaluate the polynomial pol at pt and writes the result in p3
@@ -198,8 +198,8 @@ func (r *RingQP) MulCoeffsMontgomeryAndAddLvl(levelQ, levelP int, p1, p2, p3 Pol
 // It asssumes the scalar decomposition to be in Montgomerry form.
 func (r *RingQP) MulScalarCRT(p PolyQP, scalar []uint64, pOut PolyQP) {
 	scalarQ, scalarP := scalar[:len(r.RingQ.Modulus)], scalar[len(r.RingQ.Modulus):]
-	r.RingQ.MulScalarCRT(p.Q, scalarQ, pOut.Q)
-	r.RingP.MulScalarCRT(p.P, scalarP, pOut.P)
+	r.RingQ.MulScalarRNSScalar(p.Q, scalarQ, pOut.Q)
+	r.RingP.MulScalarRNSScalar(p.P, scalarP, pOut.P)
 }
 
 // InverseCRT computes the modular inverse of a scalar a expressed in a CRT decomposition.

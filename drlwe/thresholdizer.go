@@ -104,7 +104,7 @@ type baseCombiner struct {
 	ringQP     *rlwe.RingQP
 	threshold  int
 	tmp1, tmp2 []uint64
-	one        ring.Scalar
+	one        ring.RNSScalar
 }
 
 //NewCombiner creates a new Combiner.
@@ -141,7 +141,7 @@ func (cmb *baseCombiner) GenAdditiveShare(actives []ShamirPublicKey, ownPublic S
 		//Lagrange Interpolation with the public threshold key of other active players
 		if active != ownPublic {
 			cmb.lagrangeCoeff(ownPublic, active, cmb.tmp1)
-			cmb.ringQP.ScalarMul(prod, cmb.tmp1, prod)
+			cmb.ringQP.MulRNSScalar(prod, cmb.tmp1, prod)
 		}
 	}
 
@@ -155,25 +155,25 @@ func (cmb *baseCombiner) lagrangeCoeff(thisKey ShamirPublicKey, thatKey ShamirPu
 	this := cmb.ringQP.NewScalarFromUInt64(uint64(thisKey))
 	that := cmb.ringQP.NewScalarFromUInt64(uint64(thatKey))
 
-	cmb.ringQP.ScalarSub(that, this, lagCoeff)
+	cmb.ringQP.SubRNSScalar(that, this, lagCoeff)
 
 	cmb.ringQP.InverseCRT(lagCoeff)
 
-	cmb.ringQP.ScalarMul(lagCoeff, that, lagCoeff)
+	cmb.ringQP.MulRNSScalar(lagCoeff, that, lagCoeff)
 }
 
 // CachedCombiner is a structure that holds the parameters for the combining phase of
 // a threshold secret sharing protocol, augmented with a stateful cache.
 type CachedCombiner struct {
 	*baseCombiner
-	lagrangeCoeffs map[ShamirPublicKey]ring.Scalar
+	lagrangeCoeffs map[ShamirPublicKey]ring.RNSScalar
 }
 
 // NewCachedCombiner creates a new combiner with cache from parameters.
 func NewCachedCombiner(params rlwe.Parameters, threshold int) *CachedCombiner {
 	ccmb := new(CachedCombiner)
 	ccmb.baseCombiner = NewCombiner(params, threshold).(*baseCombiner)
-	ccmb.lagrangeCoeffs = make(map[ShamirPublicKey]ring.Scalar)
+	ccmb.lagrangeCoeffs = make(map[ShamirPublicKey]ring.RNSScalar)
 	return ccmb
 }
 
@@ -202,7 +202,7 @@ func NewCachedCombiner(params rlwe.Parameters, threshold int) *CachedCombiner {
 
 // ClearCache replaces the cache of a combiner by an empty one.
 func (cmb *CachedCombiner) ClearCache() {
-	cmb.lagrangeCoeffs = make(map[ShamirPublicKey]ring.Scalar)
+	cmb.lagrangeCoeffs = make(map[ShamirPublicKey]ring.RNSScalar)
 }
 
 // Precompute caches the inverses of the differences between tpk and each of

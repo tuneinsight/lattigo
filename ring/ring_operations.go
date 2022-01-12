@@ -358,15 +358,15 @@ func (r *Ring) MulScalarLvl(level int, p1 *Poly, scalar uint64, p2 *Poly) {
 	}
 }
 
-// MulScalarCRT multiplies p with a scalar value expressed in the CRT decomposition.
+// MulScalarRNSScalar multiplies p with a scalar value expressed in the CRT decomposition.
 // It asssumes the scalar decomposition to be in Montgomerry form.
-func (r *Ring) MulScalarCRT(p *Poly, scalar []uint64, pOut *Poly) {
-	r.MulScalarCRTLvl(r.minLevelBinary(p, pOut), p, scalar, pOut)
+func (r *Ring) MulScalarRNSScalar(p *Poly, scalar RNSScalar, pOut *Poly) {
+	r.MulScalarRNSScalarLvl(r.minLevelBinary(p, pOut), p, scalar, pOut)
 }
 
-// MulScalarCRTLvl multiplies p with a scalar value expressed in the CRT decomposition at a given level.
+// MulScalarRNSScalarLvl multiplies p with a scalar value expressed in the CRT decomposition at a given level.
 // It asssumes the scalar decomposition to be in Montgomerry form.
-func (r *Ring) MulScalarCRTLvl(level int, p *Poly, scalar []uint64, pOut *Poly) {
+func (r *Ring) MulScalarRNSScalarLvl(level int, p *Poly, scalar RNSScalar, pOut *Poly) {
 	for i := 0; i < level+1; i++ {
 		Qi := r.Modulus[i]
 		scalar := scalar[i]

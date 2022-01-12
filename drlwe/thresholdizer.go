@@ -155,7 +155,7 @@ func (cmb *baseCombiner) lagrangeCoeff(thisKey ShamirPublicKey, thatKey ShamirPu
 	this := cmb.ringQP.NewScalarFromUInt64(uint64(thisKey))
 	that := cmb.ringQP.NewScalarFromUInt64(uint64(thatKey))
 
-	cmb.ringQP.SubScalarCRT(this, that, lagCoeff)
+	cmb.ringQP.SubScalarCRT(that, this, lagCoeff)
 
 	cmb.ringQP.InverseCRT(lagCoeff)
 

@@ -74,26 +74,30 @@ func (r *RingQP) SubLvl(levelQ, levelP int, p1, p2, pOut PolyQP) {
 	r.RingP.SubLvl(levelP, p1.P, p2.P, pOut.P)
 }
 
+// NewScalar creates a new Scalar value (i.e., a degree-0 polynomial) in the RingQP.
 func (r *RingQP) NewScalar() ring.Scalar {
 	return make(ring.Scalar, len(r.RingQ.Modulus)+len(r.RingP.Modulus))
 }
 
+// NewScalarFromUInt64 creates a new Scalar in the RingQP initialized with value v.
 func (r *RingQP) NewScalarFromUInt64(v uint64) ring.Scalar {
 	scalarQ := r.RingQ.NewScalarFromUInt64(v)
 	scalarP := r.RingP.NewScalarFromUInt64(v)
 	return append(scalarQ, scalarP...)
 }
 
-func (r *RingQP) SubScalarCRT(s1, s2, sout ring.Scalar) {
+// ScalarSub subtracts s2 to s1 and stores the result in sout.
+func (r *RingQP) ScalarSub(s1, s2, sout ring.Scalar) {
 	qlen := len(r.RingQ.Modulus)
-	r.RingQ.SubScalarCRT(s1[:qlen], s2[:qlen], sout[:qlen])
-	r.RingP.SubScalarCRT(s1[qlen:], s2[qlen:], sout[qlen:])
+	r.RingQ.ScalarSub(s1[:qlen], s2[:qlen], sout[:qlen])
+	r.RingP.ScalarSub(s1[qlen:], s2[qlen:], sout[qlen:])
 }
 
-func (r *RingQP) ScalarMulCRT(s1, s2, sout ring.Scalar) {
+// ScalarMul multiplies s1 and s2 and stores the result in sout.
+func (r *RingQP) ScalarMul(s1, s2, sout ring.Scalar) {
 	qlen := len(r.RingQ.Modulus)
-	r.RingQ.ScalarMulCRT(s1[:qlen], s2[:qlen], sout[:qlen])
-	r.RingP.ScalarMulCRT(s1[qlen:], s2[qlen:], sout[qlen:])
+	r.RingQ.ScalarMul(s1[:qlen], s2[:qlen], sout[:qlen])
+	r.RingP.ScalarMul(s1[qlen:], s2[qlen:], sout[qlen:])
 }
 
 // EvalPolMontgomeryScalarNTT evaluate the polynomial pol at pt and writes the result in p3

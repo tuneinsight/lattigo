@@ -4,12 +4,15 @@ import (
 	"errors"
 )
 
+// Scalar represents a scalar value in the Ring (i.e., a degree-0 polynomial) in CRT form.
 type Scalar []uint64
 
+// NewScalar creates a new Scalar value.
 func (r *Ring) NewScalar() Scalar {
 	return make(Scalar, len(r.Modulus))
 }
 
+// NewScalarFromUInt64 creates a new Scalar initialized with value v.
 func (r *Ring) NewScalarFromUInt64(v uint64) Scalar {
 	s := make(Scalar, len(r.Modulus))
 	for i, qi := range r.Modulus {
@@ -40,17 +43,19 @@ func (r *Ring) IsInvertible(p *Poly) (invertible bool) {
 	return
 }
 
-func (r *Ring) SubScalarCRT(s1, s2, sout Scalar) {
+// ScalarSub subtracts s2 to s1 and stores the result in sout.
+func (r *Ring) ScalarSub(s1, s2, sout Scalar) {
 	for i, qi := range r.Modulus {
-		if s1[i] > s2[i] {
-			sout[i] = s2[i] + qi - s1[i]
+		if s2[i] > s1[i] {
+			sout[i] = s1[i] + qi - s2[i]
 		} else {
-			sout[i] = s2[i] - s1[i]
+			sout[i] = s1[i] - s2[i]
 		}
 	}
 }
 
-func (r *Ring) ScalarMulCRT(s1, s2, sout Scalar) {
+// ScalarMul multiplies s1 and s2 and stores the result in sout.
+func (r *Ring) ScalarMul(s1, s2, sout Scalar) {
 	for i, qi := range r.Modulus {
 		sout[i] = MRedConstant(s1[i], s2[i], qi, r.MredParams[i])
 	}

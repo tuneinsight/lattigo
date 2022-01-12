@@ -93,7 +93,7 @@ func (p *party) Run(wg *sync.WaitGroup, params ckks.Parameters, N int, P []*part
 		cpuTime += time.Since(start)
 	}
 	wg.Done()
-	fmt.Printf("\tParty %d finished generating %d shares of %d tasks in %s, sent %s\n", p.i, nShares, nTasks, cpuTime, ByteCountSI(byteSent))
+	fmt.Printf("\tParty %d finished generating %d shares of %d tasks in %s, sent %s\n", p.i, nShares, nTasks, cpuTime, byteCountSI(byteSent))
 }
 
 func (c *cloud) Run(galEls []uint64, params ckks.Parameters, t int) {
@@ -130,7 +130,7 @@ func (c *cloud) Run(galEls []uint64, params ckks.Parameters, t int) {
 		byteRecv += len(acc.share.Value) * acc.share.Value[0].GetDataLen(false)
 	}
 	close(c.finDone)
-	fmt.Printf("\tCloud finished aggregating %d shares in %s, received %s\n", i, cpuTime, ByteCountSI(byteRecv))
+	fmt.Printf("\tCloud finished aggregating %d shares in %s, received %s\n", i, cpuTime, byteCountSI(byteRecv))
 
 }
 
@@ -437,7 +437,7 @@ func log2OfInnerSum(level int, ringQ *ring.Ring, poly *ring.Poly) (logSum int) {
 	return
 }
 
-func ByteCountSI(b int) string {
+func byteCountSI(b int) string {
 	const unit = 1000
 	if b < unit {
 		return fmt.Sprintf("%d B", b)

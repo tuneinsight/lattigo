@@ -29,7 +29,7 @@ func (uniformSampler *UniformSampler) Read(Pol *Poly) {
 
 	uniformSampler.prng.Clock(uniformSampler.randomBufferN)
 
-	for j := range uniformSampler.baseRing.Modulus {
+	for j := range uniformSampler.baseRing.Modulus[:len(Pol.Coeffs)] {
 
 		qi = uniformSampler.baseRing.Modulus[j]
 

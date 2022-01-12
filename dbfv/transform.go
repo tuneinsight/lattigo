@@ -5,6 +5,7 @@ import (
 	"github.com/ldsec/lattigo/v2/drlwe"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
+	"github.com/ldsec/lattigo/v2/utils"
 )
 
 // MaskedTransformProtocol is a struct storing the parameters for the MaskedTransformProtocol protocol.
@@ -71,6 +72,12 @@ func NewMaskedTransformProtocol(params bfv.Parameters, sigmaSmudging float64) (r
 	return
 }
 
+// SampleCRP samples a common random polynomial to be used in the Masked-Transform protocol from the provided
+// common reference string.
+func (rfp *MaskedTransformProtocol) SampleCRP(level int, crs utils.PRNG) drlwe.CKSCRP {
+	return rfp.e2s.SampleCRP(level, crs)
+}
+
 // AllocateShare allocates the shares of the PermuteProtocol
 func (rfp *MaskedTransformProtocol) AllocateShare() *MaskedTransformShare {
 	level := len(rfp.ringQ.Modulus) - 1
@@ -78,7 +85,7 @@ func (rfp *MaskedTransformProtocol) AllocateShare() *MaskedTransformShare {
 }
 
 // GenShares generates the shares of the PermuteProtocol
-func (rfp *MaskedTransformProtocol) GenShares(sk *rlwe.SecretKey, ciphertext *bfv.Ciphertext, crs *ring.Poly, transform MaskedTransformFunc, shareOut *MaskedTransformShare) {
+func (rfp *MaskedTransformProtocol) GenShares(sk *rlwe.SecretKey, ciphertext *bfv.Ciphertext, crs drlwe.CKSCRP, transform MaskedTransformFunc, shareOut *MaskedTransformShare) {
 	rfp.e2s.GenShare(sk, ciphertext, &rlwe.AdditiveShare{Value: *rfp.tmpMask}, &shareOut.e2sShare)
 	mask := rfp.tmpMask
 	if transform != nil {
@@ -95,7 +102,7 @@ func (rfp *MaskedTransformProtocol) Aggregate(share1, share2, shareOut *MaskedTr
 }
 
 // Transform applies Decrypt, Recode and Recrypt on the input ciphertext.
-func (rfp *MaskedTransformProtocol) Transform(ciphertext *bfv.Ciphertext, transform MaskedTransformFunc, crs *ring.Poly, share *MaskedTransformShare, ciphertextOut *bfv.Ciphertext) {
+func (rfp *MaskedTransformProtocol) Transform(ciphertext *bfv.Ciphertext, transform MaskedTransformFunc, crs drlwe.CKSCRP, share *MaskedTransformShare, ciphertextOut *bfv.Ciphertext) {
 	rfp.e2s.GetShare(nil, &share.e2sShare, ciphertext, &rlwe.AdditiveShare{Value: *rfp.tmpMask}) // tmpMask RingT(m - sum M_i)
 	mask := rfp.tmpMask
 	if transform != nil {

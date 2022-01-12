@@ -7,6 +7,7 @@ import (
 	"github.com/ldsec/lattigo/v2/drlwe"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
+	"github.com/ldsec/lattigo/v2/utils"
 )
 
 // E2SProtocol is the structure storing the parameters and temporary buffers
@@ -14,6 +15,7 @@ import (
 type E2SProtocol struct {
 	CKSProtocol
 
+	params     ckks.Parameters
 	ringQ      *ring.Ring
 	zero       *rlwe.SecretKey
 	maskBigint []*big.Int
@@ -25,6 +27,7 @@ func NewE2SProtocol(params ckks.Parameters, sigmaSmudging float64) *E2SProtocol 
 	e2s := new(E2SProtocol)
 	e2s.CKSProtocol = *NewCKSProtocol(params, sigmaSmudging)
 	e2s.ringQ = params.RingQ()
+	e2s.params = params
 	e2s.zero = rlwe.NewSecretKey(params.Parameters)
 	e2s.maskBigint = make([]*big.Int, params.N())
 	for i := range e2s.maskBigint {
@@ -53,6 +56,8 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound, logSlots int, ct 
 
 	ringQ := e2s.ringQ
 
+	levelQ := utils.MinInt(ct.Level(), publicShareOut.Value.Level())
+
 	// Get the upperbound on the norm
 	// Ensures that bound >= 2^{128+logbound}
 	bound := ring.NewUint(1)
@@ -71,7 +76,7 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound, logSlots int, ct 
 		panic("ciphertext level is not large enough for refresh correctness")
 	}
 
-	gap := ringQ.N / (2 << logSlots)
+	gap := e2s.params.MaxSlots() / (1 << logSlots)
 
 	boundHalf := new(big.Int).Rsh(bound, 1)
 
@@ -99,11 +104,11 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound, logSlots int, ct 
 	// Generates an encryption of zero and subtracts the mask
 	e2s.CKSProtocol.GenShare(sk, e2s.zero, ct.Ciphertext, publicShareOut)
 	// Puts the mask in a poly
-	e2s.ringQ.SetCoefficientsBigintLvl(ct.Level(), secretShareOut.Value, e2s.pool)
+	e2s.ringQ.SetCoefficientsBigintLvl(levelQ, secretShareOut.Value, e2s.pool)
 	// NTT the poly
-	e2s.ringQ.NTTLvl(ct.Level(), e2s.pool, e2s.pool)
+	e2s.ringQ.NTTLvl(levelQ, e2s.pool, e2s.pool)
 	// Substracts the mask to the encryption of zero
-	e2s.ringQ.SubLvl(ct.Level(), publicShareOut.Value, e2s.pool, publicShareOut.Value)
+	e2s.ringQ.SubLvl(levelQ, publicShareOut.Value, e2s.pool, publicShareOut.Value)
 }
 
 // GetShare is the final step of the encryption-to-share protocol. It performs the masked decryption of the target ciphertext followed by a
@@ -113,16 +118,18 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound, logSlots int, ct 
 // the secretShareOut output of the GenShare method.
 func (e2s *E2SProtocol) GetShare(secretShare *rlwe.AdditiveShareBigint, aggregatePublicShare *drlwe.CKSShare, ct *ckks.Ciphertext, secretShareOut *rlwe.AdditiveShareBigint) {
 
+	levelQ := utils.MinInt(ct.Level(), aggregatePublicShare.Value.Level())
+
 	e2s.pool.Zero()
 
 	// Adds the decryption share on the ciphertext and stores the result in a pool
-	e2s.ringQ.AddLvl(ct.Level(), aggregatePublicShare.Value, ct.Value[0], e2s.pool)
+	e2s.ringQ.AddLvl(levelQ, aggregatePublicShare.Value, ct.Value[0], e2s.pool)
 
 	// Switches the LSSS RNS NTT ciphertext outside of the NTT domain
-	e2s.ringQ.InvNTTLvl(ct.Level(), e2s.pool, e2s.pool)
+	e2s.ringQ.InvNTTLvl(levelQ, e2s.pool, e2s.pool)
 
 	// Switches the LSSS RNS ciphertext outside of the RNS domain
-	e2s.ringQ.PolyToBigintCenteredLvl(ct.Level(), e2s.pool, e2s.maskBigint)
+	e2s.ringQ.PolyToBigintCenteredLvl(levelQ, e2s.pool, e2s.maskBigint)
 
 	// Substracts the last mask
 	if secretShare != nil {
@@ -145,6 +152,7 @@ func (e2s *E2SProtocol) GetShare(secretShare *rlwe.AdditiveShareBigint, aggregat
 // required by the shares-to-encryption protocol.
 type S2EProtocol struct {
 	CKSProtocol
+	params   ckks.Parameters
 	ringQ    *ring.Ring
 	tmp      *ring.Poly
 	ssBigint []*big.Int
@@ -155,6 +163,7 @@ type S2EProtocol struct {
 func NewS2EProtocol(params ckks.Parameters, sigmaSmudging float64) *S2EProtocol {
 	s2e := new(S2EProtocol)
 	s2e.CKSProtocol = *NewCKSProtocol(params, sigmaSmudging)
+	s2e.params = params
 	s2e.ringQ = params.RingQ()
 	s2e.tmp = s2e.ringQ.NewPoly()
 	s2e.ssBigint = make([]*big.Int, s2e.ringQ.N)
@@ -171,7 +180,9 @@ func (s2e S2EProtocol) AllocateShare(level int) (share *drlwe.CKSShare) {
 
 // GenShare generates a party's in the shares-to-encryption protocol given the party's secret-key share `sk`, a common
 // polynomial sampled from the CRS `c1` and the party's secret share of the message.
-func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, c1 *ring.Poly, secretShare *rlwe.AdditiveShareBigint, c0ShareOut *drlwe.CKSShare) {
+func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.CKSCRP, secretShare *rlwe.AdditiveShareBigint, c0ShareOut *drlwe.CKSShare) {
+
+	c1 := ring.Poly(crs)
 
 	if c1.Level() != c0ShareOut.Value.Level() {
 		panic("c1 and c0ShareOut level must be equal")
@@ -179,7 +190,7 @@ func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, c1 *ring.Poly, secretShare 
 
 	// Generates an encryption share
 	c1.IsNTT = true
-	s2e.CKSProtocol.GenShare(s2e.zero, sk, &rlwe.Ciphertext{Value: []*ring.Poly{nil, c1}}, c0ShareOut)
+	s2e.CKSProtocol.GenShare(s2e.zero, sk, &rlwe.Ciphertext{Value: []*ring.Poly{nil, &c1}}, c0ShareOut)
 
 	s2e.ringQ.SetCoefficientsBigintLvl(c1.Level(), secretShare.Value, s2e.tmp)
 	s2e.ringQ.NTTLvl(c1.Level(), s2e.tmp, s2e.tmp)
@@ -188,11 +199,13 @@ func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, c1 *ring.Poly, secretShare 
 
 // GetEncryption computes the final encryption of the secret-shared message when provided with the aggregation `c0Agg` of the parties'
 // share in the protocol and with the common, CRS-sampled polynomial `c1`.
-func (s2e *S2EProtocol) GetEncryption(c0Agg *drlwe.CKSShare, c1 *ring.Poly, ctOut *ckks.Ciphertext) {
+func (s2e *S2EProtocol) GetEncryption(c0Agg *drlwe.CKSShare, crs drlwe.CKSCRP, ctOut *ckks.Ciphertext) {
 
 	if ctOut.Degree() != 1 {
 		panic("ctOut must have degree 1.")
 	}
+
+	c1 := ring.Poly(crs)
 
 	if c0Agg.Value.Level() != c1.Level() {
 		panic("c0Agg level must be equal to c1 level")
@@ -203,5 +216,5 @@ func (s2e *S2EProtocol) GetEncryption(c0Agg *drlwe.CKSShare, c1 *ring.Poly, ctOu
 	}
 
 	ctOut.Value[0].Copy(c0Agg.Value)
-	ctOut.Value[1].Copy(c1)
+	ctOut.Value[1].Copy(&c1)
 }

@@ -1,8 +1,12 @@
 # CKKS
 
-The package CKKS is an RNS-accelerated version of the Homomorphic Encryption for Arithmetic of Approximate Numbers (HEAAN, a.k.a. CKKS) scheme originally proposed by Cheon, Kim, Kim and Song. It provides approximate arithmetic over complex numbers.
+The package CKKS is an RNS-accelerated version of the Homomorphic Encryption for Arithmetic of Approximate Numbers (HEAAN, a.k.a. CKKS) scheme originally proposed by Cheon, Kim, Kim and Song. The package supports two variants of the scheme: the standard one that encrypts vectors of complex numbers, and the conjugate-invariant one that encrypts vectors of real numbers, as [proposed by Kim and Song](https://eprint.iacr.org/2018/952).The `RingType` field of the `Parameter` struct controls which variant is instantiated:
 
-## Brief description
+For `RingType: ring.Standard`, the standard variant of CKKS is used. This requires that all moduli in the chain are congruent to 1 modulo 2N for N the ring degree. This variant supports packing of up to N/2 plaintext complex values into a single ciphertext.
+
+For `RingType: ring.ConjugateInvariant`, the conjugate-invariant variant of CKKS is used. This requires that all moduli in the chain are congruent to 1 modulo 4N for N the ring degree. This variant supports packing of up to N plaintext real values into a single ciphertext.
+
+## Brief description of the Standard variant
 
 This scheme can be used to do arithmetic over ![equation](https://latex.codecogs.com/gif.latex?%5Cmathbb%7BC%7D%5E%7BN/2%7D). The plaintext space and the ciphertext space share the same domain
 

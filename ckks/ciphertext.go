@@ -1,6 +1,10 @@
 package ckks
 
 import (
+	"encoding/binary"
+	"errors"
+	"math"
+
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
@@ -24,19 +28,17 @@ func NewCiphertext(params Parameters, degree, level int, scale float64) (ciphert
 
 // NewCiphertextRandom generates a new uniformly distributed Ciphertext of degree, level and scale.
 func NewCiphertextRandom(prng utils.PRNG, params Parameters, degree, level int, scale float64) (ciphertext *Ciphertext) {
+	return &Ciphertext{rlwe.NewCiphertextRandom(prng, params.Parameters, degree, level), scale}
+}
 
-	ringQ, err := ring.NewRing(params.N(), params.Q()[:level+1])
-	if err != nil {
-		panic(err)
-	}
-
-	sampler := ring.NewUniformSampler(prng, ringQ)
-	ciphertext = NewCiphertext(params, degree, level, scale)
-	for i := 0; i < degree+1; i++ {
-		sampler.Read(ciphertext.Value[i])
-	}
-
-	return ciphertext
+// NewCiphertextAtLevelFromPoly construct a new Ciphetext at a specific level
+// where the message is set to the passed poly. No checks are performed on poly and
+// the returned Ciphertext will share its backing array of coefficient.
+func NewCiphertextAtLevelFromPoly(level int, poly [2]*ring.Poly) *Ciphertext {
+	v0, v1 := new(ring.Poly), new(ring.Poly)
+	v0.IsNTT, v1.IsNTT = true, true
+	v0.Coeffs, v1.Coeffs = poly[0].Coeffs[:level+1], poly[1].Coeffs[:level+1]
+	return &Ciphertext{Ciphertext: &rlwe.Ciphertext{Value: []*ring.Poly{v0, v1}}, Scale: 0}
 }
 
 // ScalingFactor returns the scaling factor of the ciphertext
@@ -59,4 +61,44 @@ func (ct *Ciphertext) Copy(ctp *Ciphertext) {
 func (ct *Ciphertext) CopyNew() (ctc *Ciphertext) {
 	ctc = &Ciphertext{Ciphertext: ct.Ciphertext.CopyNew(), Scale: ct.Scale}
 	return
+}
+
+// GetDataLen returns the length in bytes of the target Ciphertext.
+func (ct *Ciphertext) GetDataLen(WithMetaData bool) (dataLen int) {
+	// MetaData is :
+	// 8 byte : Scale
+	if WithMetaData {
+		dataLen += 8
+	}
+
+	dataLen += ct.Ciphertext.GetDataLen(WithMetaData)
+
+	return dataLen
+}
+
+// MarshalBinary encodes a Ciphertext on a byte slice. The total size
+// in byte is 4 + 8* N * numberModuliQ * (degree + 1).
+func (ct *Ciphertext) MarshalBinary() (data []byte, err error) {
+
+	dataScale := make([]byte, 8)
+
+	binary.LittleEndian.PutUint64(dataScale, math.Float64bits(ct.Scale))
+
+	var dataCt []byte
+	if dataCt, err = ct.Ciphertext.MarshalBinary(); err != nil {
+		return nil, err
+	}
+
+	return append(dataScale, dataCt...), nil
+}
+
+// UnmarshalBinary decodes a previously marshaled Ciphertext on the target Ciphertext.
+func (ct *Ciphertext) UnmarshalBinary(data []byte) (err error) {
+	if len(data) < 10 { // cf. ct.GetDataLen()
+		return errors.New("too small bytearray")
+	}
+
+	ct.Scale = math.Float64frombits(binary.LittleEndian.Uint64(data[0:8]))
+	ct.Ciphertext = new(rlwe.Ciphertext)
+	return ct.Ciphertext.UnmarshalBinary(data[8:])
 }

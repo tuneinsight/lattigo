@@ -27,6 +27,35 @@ func StandardDeviation(vec []float64, scale float64) (std float64) {
 	return math.Sqrt(err/n) * scale
 }
 
+func interfaceMod(x interface{}, qi uint64) uint64 {
+
+	switch x := x.(type) {
+
+	case uint64:
+		return x % qi
+
+	case int64:
+
+		if x > 0 {
+			return uint64(x)
+		} else if x < 0 {
+			return uint64(int64(qi) + x%int64(qi))
+		}
+		return 0
+
+	case *big.Int:
+
+		if x.Cmp(ring.NewUint(0)) != 0 {
+			return new(big.Int).Mod(x, ring.NewUint(qi)).Uint64()
+		}
+
+		return 0
+
+	default:
+		panic("constant must either be uint64, int64 or *big.Int")
+	}
+}
+
 func scaleUpExact(value float64, n float64, q uint64) (res uint64) {
 
 	var isNegative bool
@@ -187,14 +216,15 @@ func GenSwitchkeysRescalingParams(Q, P []uint64) (params []uint64) {
 	for i := 0; i < len(Q); i++ {
 
 		params[i] = tmp.Mod(PBig, ring.NewUint(Q[i])).Uint64()
-		params[i] = ring.ModExp(params[i], int(Q[i]-2), Q[i])
+		params[i] = ring.ModExp(params[i], Q[i]-2, Q[i])
 		params[i] = ring.MForm(params[i], Q[i], ring.BRedParams(Q[i]))
 	}
 
 	return
 }
 
-func sliceBitReverseInPlaceFloat64(slice []float64, N int) {
+// SliceBitReverseInPlaceFloat64 applies an in-place bit-reverse permuation on the input slice.
+func SliceBitReverseInPlaceFloat64(slice []float64, N int) {
 
 	var bit, j int
 
@@ -215,7 +245,8 @@ func sliceBitReverseInPlaceFloat64(slice []float64, N int) {
 	}
 }
 
-func sliceBitReverseInPlaceComplex128(slice []complex128, N int) {
+// SliceBitReverseInPlaceComplex128 applies an in-place bit-reverse permuation on the input slice.
+func SliceBitReverseInPlaceComplex128(slice []complex128, N int) {
 
 	var bit, j int
 
@@ -236,7 +267,8 @@ func sliceBitReverseInPlaceComplex128(slice []complex128, N int) {
 	}
 }
 
-func sliceBitReverseInPlaceRingComplex(slice []*ring.Complex, N int) {
+// SliceBitReverseInPlaceRingComplex applies an in-place bit-reverse permuation on the input slice.
+func SliceBitReverseInPlaceRingComplex(slice []*ring.Complex, N int) {
 
 	var bit, j int
 

@@ -4,6 +4,20 @@ import (
 	"errors"
 )
 
+type Scalar []uint64
+
+func (r *Ring) NewScalar() Scalar {
+	return make(Scalar, len(r.Modulus))
+}
+
+func (r *Ring) NewScalarFromUInt64(v uint64) Scalar {
+	s := make(Scalar, len(r.Modulus))
+	for i, qi := range r.Modulus {
+		s[i] = v % qi
+	}
+	return s
+}
+
 // Unit sets all coeff of the target polynomial to 1.
 func (pol *Poly) Unit() {
 	for i := range pol.Coeffs {
@@ -24,6 +38,22 @@ func (r *Ring) IsInvertible(p *Poly) (invertible bool) {
 		}
 	}
 	return
+}
+
+func (r *Ring) SubScalarCRT(s1, s2, sout Scalar) {
+	for i, qi := range r.Modulus {
+		if s1[i] > s2[i] {
+			sout[i] = s2[i] + qi - s1[i]
+		} else {
+			sout[i] = s2[i] - s1[i]
+		}
+	}
+}
+
+func (r *Ring) ScalarMulCRT(s1, s2, sout Scalar) {
+	for i, qi := range r.Modulus {
+		sout[i] = MRedConstant(s1[i], s2[i], qi, r.MredParams[i])
+	}
 }
 
 // InvMultPolyMontgomeryNTT computes the multiplicative inverse

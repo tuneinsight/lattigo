@@ -18,7 +18,7 @@ type encryptor struct {
 	params Parameters
 }
 
-// NewEncryptor instatiates a new Encryptor for the CKKS scheme. The key argument can
+// NewEncryptor instantiates a new Encryptor for the CKKS scheme. The key argument can
 // be either a *rlwe.PublicKey or a *rlwe.SecretKey.
 func NewEncryptor(params Parameters, key interface{}) Encryptor {
 	return &encryptor{rlwe.NewEncryptor(params.Parameters, key), params}
@@ -31,38 +31,38 @@ func NewFastEncryptor(params Parameters, key *rlwe.PublicKey) Encryptor {
 	return &encryptor{rlwe.NewFastEncryptor(params.Parameters, key), params}
 }
 
-// Encrypt encrypts the input plaintext and write the result on ctOut. The encryption
+// Encrypt encrypts the input plaintext and write the result on ciphertext. The encryption
 // algorithm depends on how the receiver encryptor was initialized (see NewEncryptor
 // and NewFastEncryptor).
 // The level of the output ciphertext is min(plaintext.Level(), ciphertext.Level()).
-func (enc *encryptor) Encrypt(plaintext *Plaintext, ctOut *Ciphertext) {
-	enc.Encryptor.Encrypt(&rlwe.Plaintext{Value: plaintext.Value}, &rlwe.Ciphertext{Value: ctOut.Value})
-	ctOut.Scale = plaintext.Scale
+func (enc *encryptor) Encrypt(plaintext *Plaintext, ciphertext *Ciphertext) {
+	enc.Encryptor.Encrypt(plaintext.Plaintext, ciphertext.Ciphertext)
+	ciphertext.Scale = plaintext.Scale
 }
 
 // EncryptNew encrypts the input plaintext returns the result as a newly allocated ciphertext.
 // The encryption algorithm depends on how the receiver encryptor was initialized (see
 // NewEncryptor and NewFastEncryptor).
 // The level of the output ciphertext is min(plaintext.Level(), ciphertext.Level()).
-func (enc *encryptor) EncryptNew(plaintext *Plaintext) *Ciphertext {
-	ct := NewCiphertext(enc.params, 1, plaintext.Level(), plaintext.Scale)
-	enc.Encryptor.Encrypt(&rlwe.Plaintext{Value: plaintext.Value}, ct.Ciphertext)
-	return ct
+func (enc *encryptor) EncryptNew(plaintext *Plaintext) (ciphertext *Ciphertext) {
+	ciphertext = NewCiphertext(enc.params, 1, plaintext.Level(), plaintext.Scale)
+	enc.Encryptor.Encrypt(plaintext.Plaintext, ciphertext.Ciphertext)
+	return
 }
 
-// EncryptFromCRP encrypts the input plaintext and writes the result in ctOut.
+// EncryptFromCRP encrypts the input plaintext and writes the result in ciphertext.
 // The passed crp is always treated as being in the NTT domain and the level of the output ciphertext is
 // min(plaintext.Level(), ciphertext.Level()).
-func (enc *encryptor) EncryptFromCRP(plaintext *Plaintext, crp *ring.Poly, ctOut *Ciphertext) {
-	enc.Encryptor.EncryptFromCRP(&rlwe.Plaintext{Value: plaintext.Value}, crp, &rlwe.Ciphertext{Value: ctOut.Value})
-	ctOut.Scale = plaintext.Scale
+func (enc *encryptor) EncryptFromCRP(plaintext *Plaintext, crp *ring.Poly, ciphertext *Ciphertext) {
+	enc.Encryptor.EncryptFromCRP(plaintext.Plaintext, crp, ciphertext.Ciphertext)
+	ciphertext.Scale = plaintext.Scale
 }
 
 // EncryptFromCRPNew encrypts the input plaintext and returns the result as a newly allocated ciphertext.
 // The passed crp is always treated as being in the NTT domain and the level of the output ciphertext is
 // min(plaintext.Level(), ciphertext.Level()).
-func (enc *encryptor) EncryptFromCRPNew(plaintext *Plaintext, crp *ring.Poly) *Ciphertext {
-	ct := NewCiphertext(enc.params, 1, plaintext.Level(), plaintext.Scale)
-	enc.Encryptor.EncryptFromCRP(&rlwe.Plaintext{Value: plaintext.Value}, crp, ct.Ciphertext)
-	return &Ciphertext{Ciphertext: ct.Ciphertext, Scale: plaintext.Scale}
+func (enc *encryptor) EncryptFromCRPNew(plaintext *Plaintext, crp *ring.Poly) (ciphertext *Ciphertext) {
+	ciphertext = NewCiphertext(enc.params, 1, plaintext.Level(), plaintext.Scale)
+	enc.Encryptor.EncryptFromCRP(plaintext.Plaintext, crp, ciphertext.Ciphertext)
+	return
 }

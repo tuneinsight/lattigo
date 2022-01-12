@@ -51,9 +51,6 @@ func benchPublicKeyGen(testCtx *testContext, b *testing.B) {
 	sk0Shards := testCtx.sk0Shards
 	params := testCtx.params
 
-	crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQP)
-	crp := crpGenerator.ReadNew()
-
 	type Party struct {
 		*CKGProtocol
 		s  *rlwe.SecretKey
@@ -64,6 +61,8 @@ func benchPublicKeyGen(testCtx *testContext, b *testing.B) {
 	p.CKGProtocol = NewCKGProtocol(params)
 	p.s = sk0Shards[0]
 	p.s1 = p.AllocateShares()
+
+	crp := p.SampleCRP(testCtx.crs)
 
 	b.Run(testString("PublicKeyGen/Gen/", testCtx.NParties, params), func(b *testing.B) {
 
@@ -100,12 +99,7 @@ func benchRelinKeyGen(testCtx *testContext, b *testing.B) {
 	p.sk = sk0Shards[0]
 	p.ephSk, p.share1, p.share2 = p.RKGProtocol.AllocateShares()
 
-	crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQP)
-	crp := make([]*ring.Poly, params.Beta())
-
-	for i := 0; i < params.Beta(); i++ {
-		crp[i] = crpGenerator.ReadNew()
-	}
+	crp := p.SampleCRP(testCtx.crs)
 
 	b.Run(testString("RelinKeyGen/Round1Gen/", testCtx.NParties, params), func(b *testing.B) {
 
@@ -124,7 +118,7 @@ func benchRelinKeyGen(testCtx *testContext, b *testing.B) {
 	b.Run(testString("RelinKeyGen/Round2Gen/", testCtx.NParties, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.GenShareRoundTwo(p.ephSk, p.sk, p.share1, crp, p.share2)
+			p.GenShareRoundTwo(p.ephSk, p.sk, p.share1, p.share2)
 		}
 	})
 
@@ -143,7 +137,7 @@ func benchKeySwitching(testCtx *testContext, b *testing.B) {
 	sk1Shards := testCtx.sk1Shards
 	params := testCtx.params
 
-	ciphertext := ckks.NewCiphertextRandom(testCtx.prng, params, 1, params.MaxLevel(), params.Scale())
+	ciphertext := ckks.NewCiphertext(params, 1, params.MaxLevel(), params.DefaultScale())
 
 	type Party struct {
 		*CKSProtocol
@@ -186,7 +180,7 @@ func benchPublicKeySwitching(testCtx *testContext, b *testing.B) {
 	pk1 := testCtx.pk1
 	params := testCtx.params
 
-	ciphertext := ckks.NewCiphertextRandom(testCtx.prng, params, 1, params.MaxLevel(), params.Scale())
+	ciphertext := ckks.NewCiphertext(params, 1, params.MaxLevel(), params.DefaultScale())
 
 	type Party struct {
 		*PCKSProtocol
@@ -223,7 +217,6 @@ func benchPublicKeySwitching(testCtx *testContext, b *testing.B) {
 
 func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 
-	ringQP := testCtx.ringQP
 	sk0Shards := testCtx.sk0Shards
 	params := testCtx.params
 
@@ -238,12 +231,8 @@ func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 	p.s = sk0Shards[0]
 	p.share = p.AllocateShares()
 
-	crpGenerator := ring.NewUniformSampler(testCtx.prng, ringQP)
-	crp := make([]*ring.Poly, params.Beta())
+	crp := p.SampleCRP(testCtx.crs)
 
-	for i := 0; i < params.Beta(); i++ {
-		crp[i] = crpGenerator.ReadNew()
-	}
 	galEl := params.GaloisElementForRowRotation()
 	b.Run(testString("RotKeyGen/Round1/Gen/", testCtx.NParties, params), func(b *testing.B) {
 
@@ -271,7 +260,7 @@ func benchRefresh(testCtx *testContext, b *testing.B) {
 
 	params := testCtx.params
 
-	minLevel, logBound, ok := GetMinimumLevelForBootstrapping(128, params.Scale(), testCtx.NParties, params.Q())
+	minLevel, logBound, ok := GetMinimumLevelForBootstrapping(128, params.DefaultScale(), testCtx.NParties, params.Q())
 
 	if ok {
 
@@ -288,10 +277,9 @@ func benchRefresh(testCtx *testContext, b *testing.B) {
 		p.s = sk0Shards[0]
 		p.share = p.AllocateShare(minLevel, params.MaxLevel())
 
-		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
-		crp := crpGenerator.ReadNew()
+		ciphertext := ckks.NewCiphertext(params, 1, minLevel, params.DefaultScale())
 
-		ciphertext := ckks.NewCiphertextRandom(testCtx.prng, params, 1, minLevel, params.Scale())
+		crp := p.SampleCRP(params.MaxLevel(), testCtx.crs)
 
 		b.Run(testString("Refresh/Round1/Gen", testCtx.NParties, params), func(b *testing.B) {
 
@@ -308,7 +296,7 @@ func benchRefresh(testCtx *testContext, b *testing.B) {
 		})
 
 		b.Run(testString("Refresh/Finalize", testCtx.NParties, params), func(b *testing.B) {
-			ctOut := ckks.NewCiphertext(params, 1, params.MaxLevel(), params.Scale())
+			ctOut := ckks.NewCiphertext(params, 1, params.MaxLevel(), params.DefaultScale())
 			for i := 0; i < b.N; i++ {
 				p.Finalize(ciphertext, params.LogSlots(), crp, p.share, ctOut)
 			}
@@ -323,7 +311,7 @@ func benchMaskedTransform(testCtx *testContext, b *testing.B) {
 
 	params := testCtx.params
 
-	minLevel, logBound, ok := GetMinimumLevelForBootstrapping(128, params.Scale(), testCtx.NParties, params.Q())
+	minLevel, logBound, ok := GetMinimumLevelForBootstrapping(128, params.DefaultScale(), testCtx.NParties, params.Q())
 
 	if ok {
 
@@ -335,15 +323,14 @@ func benchMaskedTransform(testCtx *testContext, b *testing.B) {
 			share *MaskedTransformShare
 		}
 
-		ciphertext := ckks.NewCiphertextRandom(testCtx.prng, params, 1, minLevel, params.Scale())
+		ciphertext := ckks.NewCiphertext(params, 1, minLevel, params.DefaultScale())
 
 		p := new(Party)
 		p.MaskedTransformProtocol = NewMaskedTransformProtocol(params, logBound, 3.2)
 		p.s = sk0Shards[0]
 		p.share = p.AllocateShare(ciphertext.Level(), params.MaxLevel())
 
-		crpGenerator := ring.NewUniformSampler(testCtx.prng, testCtx.ringQ)
-		crp := crpGenerator.ReadNew()
+		crp := p.SampleCRP(params.MaxLevel(), testCtx.crs)
 
 		permute := func(ptIn, ptOut []*ring.Complex) {
 			for i := range ptIn {
@@ -367,7 +354,7 @@ func benchMaskedTransform(testCtx *testContext, b *testing.B) {
 		})
 
 		b.Run(testString("Refresh&Transform/Transform", testCtx.NParties, params), func(b *testing.B) {
-			ctOut := ckks.NewCiphertext(params, 1, params.MaxLevel(), params.Scale())
+			ctOut := ckks.NewCiphertext(params, 1, params.MaxLevel(), params.DefaultScale())
 			for i := 0; i < b.N; i++ {
 				p.Transform(ciphertext, params.LogSlots(), permute, crp, p.share, ctOut)
 			}

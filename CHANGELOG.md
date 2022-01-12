@@ -2,7 +2,71 @@
 # Changelog
 All notable changes to this project will be documented in this file. 
 
-## [2.2.0] - 2020-07-15
+## [2.4.0] - 2022-01-10
+
+- RING: added support for ring operations over the conjugate invariant ring.
+- RING: added support for custom NTT via the `NumberTheoreticTransformer` interface.
+- RLWE: added support for RLWE primitives over the conjugate invariant ring.
+- RLWE: added `encoding.BinaryMarshaler` implementation for `rlwe.Ciphertext` types.
+- RLWE: added an example implementation of homomorphic RLWE slot shuffling based on RLWE<->LWE conversion.
+- RLWE: increased the maximum supported polynomial degree to 2^17.
+- CKKS: Trace does not multiply the output by (N/n)^-1 anymore.
+- CKKS: added support for the CKKS scheme over the conjugate invariant ring.
+- CKKS: renamed `Scale` to `DefaultScale` in `Parameters` and `ParametersLiteral`.
+- CKKS: added the `Evaluator.Average` method.
+- CKKS: added `DomainSwitcher` type for conversion between Standard and Conjugate Invariant variants of CKKS.
+- CKKS: added support for both  `[]complex128` and `[]float64` as input to `Encoder.Encode*` methods.
+- CKKS: added support for `[]float64` as input to `GetPrecisionStats`.
+- CKKS: added support for `func(float64)float64` and `func(complex128)complex128` as input to `Approximate`.
+- CKKS: uniformized the arguments' position for all methods of the `Encoder` interface.
+- CKKS: renamed `Encoder.EncodeNTT/New` to `Encoder.Encode/New`and added  `Encoder.EncodeSlots`, `Encoder.DecodeSlots` and `Encoder.DecodeSlotsPublic`.
+- CKKS: added `EncodeSlotsQP` to encode on `rlwe.PolyQP` to support the new `LinearTransform` interface.
+- CKKS: improved `Encoder` implementation; it is now much faster when encoding sparse plaintexts.
+- CKKS: changed the approximation intervals from `complex128` to `float64`.
+- CKKS: renamed `PtDiagMatrix` to `LinearTransform`.
+- CKKS: added `LinearTransform.Rotations()` to get the required rotation for the reciever plaintext linear tranform.
+- CKKS: added `Parameters.RotationsForLinearTransform` to get the required rotation for the given plaintext linear tranform.
+- CKKS: added `NewLinearTransform`, `EncodeNewLinearTransform`, `GenLinearTransform` and `GenLinearTransformBSGS` to allocate and initialize plaintext linear transforms.
+- CKKS: removed plaintext linear transforms (old `PtDiagMatrix`) constructors and initializers from `Encoder`.
+- CKKS: added `Evaluator.EvaluatePolyVector` to enable efficient evaluation of multiple different polynomials on the same ciphertext.
+- CKKS: fixed a bug in the BSGS approach for linear transform where the selection of the ratio bettween giant step and baby step could lead to a ratio of N.
+- CKKS: the EvalMod step of the bootstrapping now works for moduli of any size, regardless of `Q[0]` or `MessageRatio`.
+- DCKKS: added support for multiparty CKKS over the conjugate invariant ring.
+- DCKKS: fixed `MaskedTransformProtocol` correctness for sparse plaintexts.
+- Examples: updated the `ckks/sigmoid` example to `ckks/polyeval` example, that now showcases the use of `PolynomialVector`.
+
+## [2.3.0] - 2021-10-12
+
+- RING: added `MapSmallDimensionToLargerDimensionNTT` method which maps from  Y = X^{N/n} to X in the NTT domain.
+- RING: `FastBasisExtender` type can now extend the basis of polynomials of any level in base Q to polynomials of any level in base P.
+- RING: changed RNS division `Div[floor/round]BylastModulus[NTT]` to `Div[floor/round]BylastModulus[NTT]Lvl` (the level of the last modulus must always be provided).
+- RING: RNS division no longer modifies the output polynomial's level, this is to facilitate the usage of memory pools.
+- RING: added the method `MFormVector`, which switches a slice of `uint64` into the Montgomery domain.
+- RING: RNS scaler (used in BFV) does not modify the input anymore.
+- RLWE: `GenSwitchingKey` now accepts secret-keys of different dimensions and level as input to enable re-encryption between different ciphertext degrees.
+- RLWE: added `SwitchCiphertextRingDegreeNTT` and `SwitchCiphertextRingDegree` to switch ciphertext ring degrees.
+- RLWE: added the `rlwe.RingQP` type to represent the extended ring R_qp.
+- RLWE: added the `rlwe.PolyQP` type to represent polynomials in the extended ring R_qp.
+- DRLWE: added the `CKGCRP`, `RKGCRP`, `RTGCRP` and `CKSCRP` types to represent the common reference polynomials in these protocols.
+- DRLWE: added the `CRS` interface for PRNGs that implement a common reference string among the parties.
+- DRLWE: added the `SampleCRP(crs CRS)` method to each protocol types to sample their respective CRP type.
+- BFV: changed the plaintext scaling from `floor(Q/T)*m` to `round((Q*m)/T)` to reduce the initial ciphertext noise. 
+- CKKS: added the `ckks/advanced` sub-package and moved the homomorphic encoding, decoding and modular reduction into it.
+- CKKS: added the `ckks/bootstrapping` sub-package and moved the CKKS bootstrapping into it. This package now mostly relies on the `ckks/advanced` package.
+- CKKS: renamed the `ChebyshevInterpolation` type to `Polynomial`.
+- CKKS: removed the `EvaluateCheby` method that was redundant with the `EvaluatePoly` one.
+- CKKS: optimized the `EvaluatePoly` to account for odd/even polynomials and fixed some small imprecisions in scale management occurring for some specific polynomial degrees.
+- CKKS: some advanced methods related to automorphisms are now public to facilitate their external use.
+- CKKS: improved the consistency of the API for in-place and `[..]New` methods.
+- CKKS: added the method `NewCiphertextAtLevelFromPoly`, which creates a ciphertext at a specific level from two polynomials.
+- CKKS: updated precision stats struct, added L2 norm in the statistics and improved the command line prints. 
+- CKKS: improved the algorithmic complexity of `MultiplyByDiagMatrixBSGS` and updated the bootstrapping parameters accordingly.
+- CKKS: `PermuteNTTHoistedNoModDown` now returns `[phi(P*c0 + c0'), phi(c1')]` instead of `[phi(c0'), phi(c1')]`.
+- CKKS: Changed `RotateHoistedNoModDown` to `RotateHoistedNoModDownNew` for consistency.
+- DBFV/DCKKS: both now use their respective CRP type for each protocol.
+- EXAMPLE: added showcase of the `ckks/advanced` sub-package: a bridge between CKKS and FHEW ciphertexts using homomorphic decoding, ring dimension switching, homomorphic matrix multiplication and homomorphic modular reduction.
+
+## [2.2.0] - 2021-07-15
 
 - Added SECURITY.md
 - ALL: when possible, public functions now use `int` instead of `uint64` as parameters and return values.

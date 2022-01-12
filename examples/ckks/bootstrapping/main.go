@@ -5,6 +5,7 @@ import (
 	"math"
 
 	"github.com/ldsec/lattigo/v2/ckks"
+	"github.com/ldsec/lattigo/v2/ckks/bootstrapping"
 	"github.com/ldsec/lattigo/v2/rlwe"
 	"github.com/ldsec/lattigo/v2/utils"
 )
@@ -13,7 +14,7 @@ func main() {
 
 	var err error
 
-	var btp *ckks.Bootstrapper
+	var btp *bootstrapping.Bootstrapper
 	var kgen rlwe.KeyGenerator
 	var encoder ckks.Encoder
 	var sk *rlwe.SecretKey
@@ -28,14 +29,15 @@ func main() {
 	// LogSlots is hardcoded to 15 in the parameters, but can be changed from 1 to 15.
 	// When changing logSlots make sure that the number of levels allocated to CtS and StC is
 	// smaller or equal to logSlots.
-	btpParams := ckks.DefaultBootstrapParams[0]
-	params, err := btpParams.Params()
+	ckksParams := bootstrapping.DefaultCKKSParameters[0]
+	btpParams := bootstrapping.DefaultParameters[0]
+	params, err := ckks.NewParametersFromLiteral(ckksParams)
 	if err != nil {
 		panic(err)
 	}
 
 	fmt.Println()
-	fmt.Printf("CKKS parameters: logN = %d, logSlots = %d, h = %d, logQP = %d, levels = %d, scale= 2^%f, sigma = %f \n", params.LogN(), params.LogSlots(), btpParams.H, params.LogQP(), params.QCount(), math.Log2(params.Scale()), params.Sigma())
+	fmt.Printf("CKKS parameters: logN = %d, logSlots = %d, h = %d, logQP = %d, levels = %d, scale= 2^%f, sigma = %f \n", params.LogN(), params.LogSlots(), btpParams.H, params.LogQP(), params.QCount(), math.Log2(params.DefaultScale()), params.Sigma())
 
 	// Scheme context and keys
 	kgen = ckks.NewKeyGenerator(params)
@@ -48,11 +50,10 @@ func main() {
 
 	fmt.Println()
 	fmt.Println("Generating bootstrapping keys...")
-	rotations := btpParams.RotationsForBootstrapping(params.LogSlots())
+	rotations := btpParams.RotationsForBootstrapping(params.LogN(), params.LogSlots())
 	rotkeys := kgen.GenRotationKeysForRotations(rotations, true, sk)
 	rlk := kgen.GenRelinearizationKey(sk, 2)
-	btpKey := ckks.BootstrappingKey{Rlk: rlk, Rtks: rotkeys}
-	if btp, err = ckks.NewBootstrapper(params, btpParams, btpKey); err != nil {
+	if btp, err = bootstrapping.NewBootstrapper(params, btpParams, rlwe.EvaluationKey{Rlk: rlk, Rtks: rotkeys}); err != nil {
 		panic(err)
 	}
 	fmt.Println("Done")
@@ -63,7 +64,7 @@ func main() {
 		valuesWant[i] = utils.RandComplex128(-1, 1)
 	}
 
-	plaintext = encoder.EncodeNew(valuesWant, params.LogSlots())
+	plaintext = encoder.EncodeNew(valuesWant, params.MaxLevel(), params.DefaultScale(), params.LogSlots())
 
 	// Encrypt
 	ciphertext1 := encryptor.EncryptNew(plaintext)

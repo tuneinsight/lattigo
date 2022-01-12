@@ -23,7 +23,7 @@ The library exposes the following packages:
 
 - `lattigo/bfv`: The Full-RNS variant of the Brakerski-Fan-Vercauteren scale-invariant homomorphic encryption scheme. It provides modular arithmetic over the integers.
 	
-- `lattigo/ckks`: The Full-RNS variant of the Homomorphic Encryption for Arithmetic for Approximate Numbers (HEAAN, a.k.a. CKKS) scheme. It provides approximate arithmetic over the complex numbers.
+- `lattigo/ckks`: The Full-RNS Homomorphic Encryption for Arithmetic for Approximate Numbers (HEAAN, a.k.a. CKKS) scheme. It provides approximate arithmetic over the complex numbers (in its classic variant) and over the real numbers (in its conjugate-invariant variant).
 
 - `lattigo/dbfv` and `lattigo/dckks`: Multiparty (a.k.a. distributed or threshold) versions of the BFV and CKKS schemes that enable secure multiparty computation solutions with secret-shared secret keys.
 
@@ -40,12 +40,6 @@ This version of Lattigo, (v2.x.x) is meant to be a working prototype.
 Hence, there will be backward-incompatible changes within this version. 
 
 See CHANGELOG.md for the current and past versions.
-
-### Upcoming features
-
-- README for distributed schemes
-- Network layer implementation of protocols supporting Secure Multiparty Computation (SMC).
-
 
 ## Disclaimer
 
@@ -64,10 +58,10 @@ If you want to contribute to Lattigo or you have any suggestion, do not hesitate
 Please use the following BibTex entry for citing Lattigo:
 
     @misc{lattigo,
-	    title = {Lattigo v2.2.0},
-	    howpublished = {Online: \url{http://github.com/ldsec/lattigo}},
-	    month = Jul,
-	    year = 2021,
+	    title = {Lattigo v2.4.0},
+	    howpublished = {Online: \url{https://github.com/ldsec/lattigo}},
+	    month = Jan,
+	    year = 2022,
 	    note = {EPFL-LDS}
     }
     

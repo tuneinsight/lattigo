@@ -161,6 +161,21 @@ func RotateUint64Slice(s []uint64, k int) []uint64 {
 	return ret
 }
 
+// RotateInt64Slice returns a new slice corresponding to s rotated by k positions to the left.
+func RotateInt64Slice(s []int64, k int) []int64 {
+	if k == 0 || len(s) == 0 {
+		return s
+	}
+	r := k % len(s)
+	if r < 0 {
+		r = r + len(s)
+	}
+	ret := make([]int64, len(s), len(s))
+	copy(ret[:len(s)-r], s[r:])
+	copy(ret[len(s)-r:], s[:r])
+	return ret
+}
+
 // RotateUint64Slots returns a new slice corresponding to s where each half of the slice
 // have been rotated by k positions to the left.
 func RotateUint64Slots(s []uint64, k int) []uint64 {
@@ -184,4 +199,36 @@ func RotateComplex128Slice(s []complex128, k int) []complex128 {
 	copy(ret[:len(s)-r], s[r:])
 	copy(ret[len(s)-r:], s[:r])
 	return ret
+}
+
+// RotateFloat64Slice returns a new slice corresponding to s rotated by k positions to the left.
+func RotateFloat64Slice(s []float64, k int) []float64 {
+	if k == 0 || len(s) == 0 {
+		return s
+	}
+	r := k % len(s)
+	if r < 0 {
+		r = r + len(s)
+	}
+	ret := make([]float64, len(s), len(s))
+	copy(ret[:len(s)-r], s[r:])
+	copy(ret[len(s)-r:], s[:r])
+	return ret
+}
+
+// RotateSlice takes as input an interface slice and returns a new interface slice
+// corresponding to s rotated by k positions to the left.
+// s.(type) can be either []complex128, []float64, []uint64 or []int64.
+func RotateSlice(s interface{}, k int) interface{} {
+	switch el := s.(type) {
+	case []complex128:
+		return RotateComplex128Slice(el, k)
+	case []float64:
+		return RotateFloat64Slice(el, k)
+	case []uint64:
+		return RotateUint64Slice(el, k)
+	case []int64:
+		return RotateInt64Slice(el, k)
+	}
+	return nil
 }

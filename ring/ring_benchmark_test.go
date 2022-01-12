@@ -141,27 +141,29 @@ func benchNTT(testContext *testParams, b *testing.B) {
 
 	p := testContext.uniformSamplerQ.ReadNew()
 
-	b.Run(testString("NTT/NTT/Montgomery/", testContext.ringQ), func(b *testing.B) {
+	b.Run(testString("NTT/Forward/Standard/", testContext.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			testContext.ringQ.NTT(p, p)
 		}
 	})
 
-	b.Run(testString("NTT/InvNTT/Montgomery/", testContext.ringQ), func(b *testing.B) {
+	b.Run(testString("NTT/Backward/Standard/", testContext.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			testContext.ringQ.InvNTT(p, p)
 		}
 	})
 
-	b.Run(testString("NTT/NTT/Barrett/", testContext.ringQ), func(b *testing.B) {
+	ringQConjugateInvariant, _ := NewRingConjugateInvariant(testContext.ringQ.N, testContext.ringQ.Modulus)
+
+	b.Run(testString("NTT/Forward/ConjugateInvariant4NthRoot/", testContext.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			testContext.ringQ.NTTBarrett(p, p)
+			ringQConjugateInvariant.NTT(p, p)
 		}
 	})
 
-	b.Run(testString("NTT/InvNTT/Barrett/", testContext.ringQ), func(b *testing.B) {
+	b.Run(testString("NTT/Backward/ConjugateInvariant4NthRoot/", testContext.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			testContext.ringQ.InvNTTBarrett(p, p)
+			ringQConjugateInvariant.InvNTT(p, p)
 		}
 	})
 }
@@ -279,23 +281,24 @@ func benchExtendBasis(testContext *testParams, b *testing.B) {
 	p0 := testContext.uniformSamplerQ.ReadNew()
 	p1 := testContext.uniformSamplerP.ReadNew()
 
-	level := len(testContext.ringQ.Modulus) - 1
+	levelQ := len(testContext.ringQ.Modulus) - 1
+	levelP := len(testContext.ringP.Modulus) - 1
 
 	b.Run(fmt.Sprintf("ExtendBasis/ModUp/N=%d/limbsQ=%d/limbsP=%d", testContext.ringQ.N, len(testContext.ringQ.Modulus), len(testContext.ringP.Modulus)), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			basisExtender.ModUpSplitQP(level, p0, p1)
+			basisExtender.ModUpQtoP(levelQ, levelP, p0, p1)
 		}
 	})
 
 	b.Run(fmt.Sprintf("ExtendBasis/ModDown/N=%d/limbsQ=%d/limbsP=%d", testContext.ringQ.N, len(testContext.ringQ.Modulus), len(testContext.ringP.Modulus)), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			basisExtender.ModDownSplitPQ(level, p0, p1, p0)
+			basisExtender.ModDownQPtoQ(levelQ, levelP, p0, p1, p0)
 		}
 	})
 
 	b.Run(fmt.Sprintf("ExtendBasis/ModDownNTT/N=%d/limbsQ=%d/limbsP=%d", testContext.ringQ.N, len(testContext.ringQ.Modulus), len(testContext.ringP.Modulus)), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			basisExtender.ModDownSplitNTTPQ(level, p0, p1, p0)
+			basisExtender.ModDownQPtoQNTT(levelQ, levelP, p0, p1, p0)
 		}
 	})
 }
@@ -305,27 +308,29 @@ func benchDivByLastModulus(testContext *testParams, b *testing.B) {
 	p0 := testContext.uniformSamplerQ.ReadNew()
 	p1 := testContext.ringQ.NewPolyLvl(p0.Level() - 1)
 
+	pool := testContext.ringQ.NewPoly()
+
 	b.Run(testString("DivByLastModulus/Floor/", testContext.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			testContext.ringQ.DivFloorByLastModulus(p0, p1)
+			testContext.ringQ.DivFloorByLastModulusLvl(p0.Level(), p0, p1)
 		}
 	})
 
 	b.Run(testString("DivByLastModulus/FloorNTT/", testContext.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			testContext.ringQ.DivFloorByLastModulusNTT(p0, p1)
+			testContext.ringQ.DivFloorByLastModulusNTTLvl(p0.Level(), p0, pool, p1)
 		}
 	})
 
 	b.Run(testString("DivByLastModulus/Round/", testContext.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			testContext.ringQ.DivRoundByLastModulus(p0, p1)
+			testContext.ringQ.DivRoundByLastModulusLvl(p0.Level(), p0, p1)
 		}
 	})
 
 	b.Run(testString("DivByLastModulus/RoundNTT/", testContext.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			testContext.ringQ.DivRoundByLastModulusNTT(p0, p1)
+			testContext.ringQ.DivRoundByLastModulusNTTLvl(p0.Level(), p0, pool, p1)
 		}
 	})
 }
@@ -377,7 +382,9 @@ func benchDivByRNSBasis(testContext *testParams, b *testing.B) {
 			coeffs[i] = RandInt(testContext.ringQ.ModulusBigint)
 		}
 
-		scaler := NewRNSScaler(T, testContext.ringQ)
+		ringT, _ := NewRing(testContext.ringQ.N, []uint64{T})
+
+		scaler := NewRNSScaler(testContext.ringQ, ringT)
 		polyQ := testContext.ringQ.NewPoly()
 		polyT := NewPoly(testContext.ringQ.N, 1)
 		testContext.ringQ.SetCoefficientsBigint(coeffs, polyQ)

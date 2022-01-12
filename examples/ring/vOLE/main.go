@@ -178,6 +178,8 @@ func main() {
 
 		// ********* 1. SETUP *********
 
+		pool := ringQ.NewPoly()
+
 		// NTT(MForm(skBob))
 		skBob := ternarySamplerMontgomeryQ.ReadNew()
 		ringQ.NTT(skBob, skBob)
@@ -286,7 +288,8 @@ func main() {
 			ringQ.MulCoeffsMontgomeryAndSub(a[i], sigmaAlice, rhoAlice[i])
 
 			// rhoAlice = NTT(skBob * u)  + NTT(a*skBob*skAlice - a*sigmaAlice) * (P/Q)
-			ringQ.DivRoundByLastModulusManyNTT(rhoAlice[i], rhoAlice[i], qlevel-plevel)
+			ringQ.DivRoundByLastModulusManyNTTLvl(qlevel, qlevel-plevel, rhoAlice[i], pool, rhoAlice[i])
+			rhoAlice[i].Coeffs = rhoAlice[i].Coeffs[:plevel+1]
 		}
 
 		elapsed = time.Since(start)
@@ -303,7 +306,8 @@ func main() {
 			ringQ.MulCoeffsMontgomery(a[i], sigmaBob, rhoBob[i])
 
 			// rhoBob = NTT(a * sigmaBob * (P/Q))
-			ringQ.DivRoundByLastModulusManyNTT(rhoBob[i], rhoBob[i], qlevel-plevel)
+			ringQ.DivRoundByLastModulusManyNTTLvl(qlevel, qlevel-plevel, rhoBob[i], pool, rhoBob[i])
+			rhoBob[i].Coeffs = rhoBob[i].Coeffs[:plevel+1]
 
 			// rhoBob = NTT(-a * sigmaBob) * (P/Q)
 			ringQ.NegLvl(plevel, rhoBob[i], rhoBob[i])
@@ -394,7 +398,8 @@ func main() {
 			// beta = (u*(v * (P/M) + e + a'*skAlice) * u -  a'*-a*sigmaBob * (P/Q)) * (M/P)
 			// 		= (M/P) * u * (v * (P/M) + e + a'*skAlice) - a'*-a*sigmaBob * (M/Q)
 			//		= u*v + a'*skAlice*u*(M/P) + a'*a*sigmaBob * (M/Q)
-			ringQ.DivRoundByLastModulusMany(beta[i], beta[i], plevel-mlevel)
+			ringQ.DivRoundByLastModulusManyLvl(plevel, plevel-mlevel, beta[i], pool, beta[i])
+			beta[i].Coeffs = beta[i].Coeffs[:mlevel+1]
 		}
 
 		elapsed = time.Since(start)
@@ -413,7 +418,8 @@ func main() {
 
 			// alpha = (a'*skAlice*u + (a'*a*skBob*skAlice - a'*a*sigmaAlice) * (P/Q)) * (M/P)
 			//		 = a'*skAlice*u*(M/P) + a'*a*skBob*skAlice*(M/Q) - a'*a*sigmaAlice*(M/Q)
-			ringQ.DivRoundByLastModulusMany(alpha[i], alpha[i], plevel-mlevel)
+			ringQ.DivRoundByLastModulusManyLvl(plevel, plevel-mlevel, alpha[i], pool, alpha[i])
+			alpha[i].Coeffs = alpha[i].Coeffs[:mlevel+1]
 
 			// alpha = - a'*skAlice*u*(M/P) - a'*a*skBob*skAlice*(M/Q) + a'*a*sigmaAlice*(M/Q)
 			// 	 	 = - a'*skAlice*u*(M/P) - a'*a*skBob*skAlice*(M/Q) + a'*a*(skBob*skAlice - sigmaBob)*(M/Q)

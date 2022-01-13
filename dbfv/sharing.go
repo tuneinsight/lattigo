@@ -35,10 +35,10 @@ func (e2s *E2SProtocol) ShallowCopy() *E2SProtocol {
 	}
 
 	return &E2SProtocol{
-		CKSProtocol:       CKSProtocol{*e2s.CKSProtocol.ShallowCopy(), params.MaxLevel()},
+		CKSProtocol:       *e2s.CKSProtocol.ShallowCopy(),
 		Parameters:        e2s.Parameters,
 		maskSampler:       ring.NewUniformSampler(prng, params.RingT()),
-		encoder:           bfv.NewEncoder(params),
+		encoder:           e2s.encoder.ShallowCopy(),
 		zero:              e2s.zero,
 		tmpPlaintextRingT: bfv.NewPlaintextRingT(params),
 		tmpPlaintext:      bfv.NewPlaintext(params),
@@ -115,8 +115,8 @@ func NewS2EProtocol(params bfv.Parameters, sigmaSmudging float64) *S2EProtocol {
 func (s2e *S2EProtocol) ShallowCopy() *S2EProtocol {
 	params := s2e.Parameters
 	return &S2EProtocol{
-		CKSProtocol:  CKSProtocol{*s2e.CKSProtocol.ShallowCopy(), params.MaxLevel()},
-		encoder:      bfv.NewEncoder(params),
+		CKSProtocol:  *s2e.CKSProtocol.ShallowCopy(),
+		encoder:      s2e.encoder.ShallowCopy(),
 		Parameters:   params,
 		zero:         s2e.zero,
 		tmpPlaintext: bfv.NewPlaintext(params),

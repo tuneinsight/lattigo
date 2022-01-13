@@ -54,6 +54,8 @@ type Encoder interface {
 	DecodeInt(pt interface{}, coeffs []int64)
 	DecodeUintNew(pt interface{}) (coeffs []uint64)
 	DecodeIntNew(pt interface{}) (coeffs []int64)
+
+	ShallowCopy() Encoder
 }
 
 // Encoder is a structure that stores the parameters to encode values on a plaintext in a SIMD (Single-Instruction Multiple-Data) fashion.

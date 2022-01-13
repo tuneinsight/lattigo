@@ -23,6 +23,13 @@ func (cks *CKSProtocol) KeySwitchCKKS(combined *drlwe.CKSShare, ct *ckks.Ciphert
 	cks.CKSProtocol.KeySwitch(combined, ct.Ciphertext, ctOut.Ciphertext)
 }
 
+// ShallowCopy creates a shallow copy of CKSProtocol in which all the read-only data-structures are
+// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+// CKSProtocol can be used concurrently.
+func (cks *CKSProtocol) ShallowCopy() *CKSProtocol {
+	return &CKSProtocol{*cks.CKSProtocol.ShallowCopy()}
+}
+
 // PCKSProtocol is the structure storing the parameters for the collective public key-switching.
 type PCKSProtocol struct {
 	drlwe.PCKSProtocol
@@ -38,4 +45,11 @@ func NewPCKSProtocol(params ckks.Parameters, sigmaSmudging float64) *PCKSProtoco
 func (pcks *PCKSProtocol) KeySwitchCKKS(combined *drlwe.PCKSShare, ct, ctOut *ckks.Ciphertext) {
 	pcks.PCKSProtocol.KeySwitch(combined, ct.Ciphertext, ctOut.Ciphertext)
 	ctOut.Scale = ct.Scale
+}
+
+// ShallowCopy creates a shallow copy of PCKSProtocol in which all the read-only data-structures are
+// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+// PCKSProtocol can be used concurrently.
+func (pcks *PCKSProtocol) ShallowCopy() *PCKSProtocol {
+	return &PCKSProtocol{*pcks.PCKSProtocol.ShallowCopy()}
 }

@@ -32,7 +32,7 @@ func (e2s *E2SProtocol) ShallowCopy() *E2SProtocol {
 	}
 
 	return &E2SProtocol{
-		CKSProtocol: CKSProtocol{*e2s.CKSProtocol.ShallowCopy()},
+		CKSProtocol: *e2s.CKSProtocol.ShallowCopy(),
 		params:      e2s.params,
 		zero:        e2s.zero,
 		maskBigint:  maskBigint,
@@ -180,7 +180,7 @@ type S2EProtocol struct {
 // S2EProtocol can be used concurrently.
 func (s2e *S2EProtocol) ShallowCopy() *S2EProtocol {
 	return &S2EProtocol{
-		CKSProtocol: CKSProtocol{*s2e.CKSProtocol.ShallowCopy()},
+		CKSProtocol: *s2e.CKSProtocol.ShallowCopy(),
 		params:      s2e.params,
 		tmp:         s2e.params.RingQ().NewPoly(),
 		ssBigint:    make([]*big.Int, s2e.params.N()),

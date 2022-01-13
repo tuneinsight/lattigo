@@ -2,6 +2,19 @@
 # Changelog
 All notable changes to this project will be documented in this file. 
 
+
+## Unreleased
+
+- RING: renamed `FastBasisExtender` to `BasisExtender`.
+- RLWE: added `.ShallowCopy()`, `.WithKey()` (shallow copy with new key) and `.SetKey()` to `Encryptor` and `Decryptor`.
+- BFV: added `.ShallowCopy()` for `Encoder`.
+- BFV: added `.ShallowCopy()`, `.WithKey()` (shallow copy with new key) and `.SetKey()` to `Encryptor` and `Decryptor`.
+- CKKS: added `.ShallowCopy()` for `Encoder` and `EncoderBigComplex`.
+- CKKS: added `ShallowCopy()`, `.WithKey()` (shallow copy with new key) and `.SetKey()` to `Encryptor` and `Decryptor`.
+- DRLWE: added `.ShallowCopy()` for all protocols.
+- DBFV: added `.ShallowCopy()` for all protocols.
+- DCKKS: added `.ShallowCopy()` for all protocols.
+
 ## [2.4.0] - 2022-01-10
 
 - RING: added support for ring operations over the conjugate invariant ring.

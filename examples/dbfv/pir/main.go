@@ -199,14 +199,14 @@ func cksphase(params bfv.Parameters, P []*party, result *bfv.Ciphertext) *bfv.Ci
 	cks := dbfv.NewCKSProtocol(params, 3.19) // Collective public-key re-encryption
 
 	for _, pi := range P {
-		pi.cksShare = cks.AllocateShareBFV()
+		pi.cksShare = cks.AllocateShare()
 	}
 
 	zero := bfv.NewSecretKey(params)
-	cksCombined := cks.AllocateShareBFV()
+	cksCombined := cks.AllocateShare()
 	elapsedPCKSParty = runTimedParty(func() {
 		for _, pi := range P[1:] {
-			cks.GenShare(pi.sk, zero, result.Ciphertext, pi.cksShare)
+			cks.GenShare(pi.sk, zero, result.Value[1], pi.cksShare)
 		}
 	}, len(P)-1)
 
@@ -215,7 +215,7 @@ func cksphase(params bfv.Parameters, P []*party, result *bfv.Ciphertext) *bfv.Ci
 		for _, pi := range P {
 			cks.AggregateShares(pi.cksShare, cksCombined, cksCombined)
 		}
-		cks.KeySwitch(cksCombined, result.Ciphertext, encOut.Ciphertext)
+		cks.KeySwitch(result, cksCombined, encOut)
 	})
 	l.Printf("\tdone (cloud: %s, party: %s)\n", elapsedCKSCloud, elapsedPCKSParty)
 

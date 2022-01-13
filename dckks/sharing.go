@@ -69,11 +69,11 @@ func (e2s *E2SProtocol) AllocateShare(level int) (share *drlwe.CKSShare) {
 //
 // The method "GetMinimumLevelForBootstrapping" should be used to get the minimum level at which E2S can be called while still ensure 128-bits of security, as well as the
 // value for logBound.
-func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound, logSlots int, ct *ckks.Ciphertext, secretShareOut *rlwe.AdditiveShareBigint, publicShareOut *drlwe.CKSShare) {
+func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound, logSlots int, c1 *ring.Poly, secretShareOut *rlwe.AdditiveShareBigint, publicShareOut *drlwe.CKSShare) {
 
 	ringQ := e2s.params.RingQ()
 
-	levelQ := utils.MinInt(ct.Level(), publicShareOut.Value.Level())
+	levelQ := utils.MinInt(c1.Level(), publicShareOut.Value.Level())
 
 	// Get the upperbound on the norm
 	// Ensures that bound >= 2^{128+logbound}
@@ -81,7 +81,7 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound, logSlots int, ct 
 	bound.Lsh(bound, uint(logBound))
 
 	boundMax := ring.NewUint(ringQ.Modulus[0])
-	for i := 1; i < ct.Level()+1; i++ {
+	for i := 1; i < c1.Level()+1; i++ {
 		boundMax.Mul(boundMax, ring.NewUint(ringQ.Modulus[i]))
 	}
 
@@ -119,7 +119,7 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound, logSlots int, ct 
 
 	// Encrypt the mask
 	// Generates an encryption of zero and subtracts the mask
-	e2s.CKSProtocol.GenShare(sk, e2s.zero, ct.Ciphertext, publicShareOut)
+	e2s.CKSProtocol.GenShare(sk, e2s.zero, c1, publicShareOut)
 	// Puts the mask in a poly
 	ringQ.SetCoefficientsBigintLvl(levelQ, secretShareOut.Value, e2s.pool)
 	// NTT the poly
@@ -220,7 +220,7 @@ func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.CKSCRP, secretSha
 
 	// Generates an encryption share
 	c1.IsNTT = true
-	s2e.CKSProtocol.GenShare(s2e.zero, sk, &rlwe.Ciphertext{Value: []*ring.Poly{nil, &c1}}, c0ShareOut)
+	s2e.CKSProtocol.GenShare(s2e.zero, sk, &c1, c0ShareOut)
 
 	ringQ.SetCoefficientsBigintLvl(c1.Level(), secretShare.Value, s2e.tmp)
 	ringQ.NTTLvl(c1.Level(), s2e.tmp, s2e.tmp)

@@ -153,7 +153,7 @@ func benchKeySwitching(testCtx *testContext, b *testing.B) {
 	b.Run(testString("KeySwitching/Gen/", parties, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.GenShare(p.s0, p.s1, ciphertext.Ciphertext, p.share)
+			p.GenShare(p.s0, p.s1, ciphertext.Value[1], p.share)
 		}
 	})
 
@@ -167,7 +167,7 @@ func benchKeySwitching(testCtx *testContext, b *testing.B) {
 	b.Run(testString("KeySwitching/KS/", parties, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.KeySwitch(p.share, ciphertext.Ciphertext, ciphertext.Ciphertext)
+			p.KeySwitch(ciphertext, p.share, ciphertext)
 		}
 	})
 }
@@ -194,7 +194,7 @@ func benchPublicKeySwitching(testCtx *testContext, b *testing.B) {
 	b.Run(testString("PublicKeySwitching/Gen/", parties, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.GenShare(p.s, pk1, ciphertext.Ciphertext, p.share)
+			p.GenShare(p.s, pk1, ciphertext.Value[1], p.share)
 		}
 	})
 
@@ -208,7 +208,7 @@ func benchPublicKeySwitching(testCtx *testContext, b *testing.B) {
 	b.Run(testString("PublicKeySwitching/KS/", parties, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.KeySwitch(p.share, ciphertext.Ciphertext, ciphertext.Ciphertext)
+			p.KeySwitch(ciphertext, p.share, ciphertext)
 		}
 	})
 }
@@ -282,7 +282,7 @@ func benchRefresh(testCtx *testContext, b *testing.B) {
 		b.Run(testString("Refresh/Round1/Gen", parties, params), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
-				p.GenShares(p.s, logBound, params.LogSlots(), ciphertext, crp, p.share)
+				p.GenShares(p.s, logBound, params.LogSlots(), ciphertext.Value[1], ciphertext.Scale, crp, p.share)
 			}
 		})
 
@@ -340,7 +340,7 @@ func benchMaskedTransform(testCtx *testContext, b *testing.B) {
 		b.Run(testString("Refresh&Transform/Round1/Gen", parties, params), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
-				p.GenShares(p.s, logBound, params.LogSlots(), ciphertext, crp, permute, p.share)
+				p.GenShares(p.s, logBound, params.LogSlots(), ciphertext.Value[1], ciphertext.Scale, crp, permute, p.share)
 			}
 		})
 

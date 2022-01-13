@@ -3,6 +3,7 @@ package dckks
 import (
 	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/drlwe"
+	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
 )
 
@@ -43,8 +44,8 @@ func (rfp *RefreshProtocol) AllocateShare(inputLevel, outputLevel int) *RefreshS
 //
 // The method "GetMinimumLevelForBootstrapping" should be used to get the minimum level at which the refresh can be called while still ensure 128-bits of security, as well as the
 // value for logBound.
-func (rfp *RefreshProtocol) GenShares(sk *rlwe.SecretKey, logBound, logSlots int, ciphertext *ckks.Ciphertext, crs drlwe.CKSCRP, shareOut *RefreshShare) {
-	rfp.MaskedTransformProtocol.GenShares(sk, logBound, logSlots, ciphertext, crs, nil, &shareOut.MaskedTransformShare)
+func (rfp *RefreshProtocol) GenShares(sk *rlwe.SecretKey, logBound, logSlots int, c1 *ring.Poly, scale float64, crs drlwe.CKSCRP, shareOut *RefreshShare) {
+	rfp.MaskedTransformProtocol.GenShares(sk, logBound, logSlots, c1, scale, crs, nil, &shareOut.MaskedTransformShare)
 }
 
 // Aggregate aggregates two parties' shares in the Refresh protocol.
@@ -53,6 +54,6 @@ func (rfp *RefreshProtocol) Aggregate(share1, share2, shareOut *RefreshShare) {
 }
 
 // Finalize applies Decrypt, Recode and Recrypt on the input ciphertext.
-func (rfp *RefreshProtocol) Finalize(ciphertext *ckks.Ciphertext, logSlots int, crs drlwe.CKSCRP, share *RefreshShare, ciphertextOut *ckks.Ciphertext) {
-	rfp.MaskedTransformProtocol.Transform(ciphertext, logSlots, nil, crs, &share.MaskedTransformShare, ciphertextOut)
+func (rfp *RefreshProtocol) Finalize(ctIn *ckks.Ciphertext, logSlots int, crs drlwe.CKSCRP, share *RefreshShare, ctOut *ckks.Ciphertext) {
+	rfp.MaskedTransformProtocol.Transform(ctIn, logSlots, nil, crs, &share.MaskedTransformShare, ctOut)
 }

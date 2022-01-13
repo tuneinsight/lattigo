@@ -9,9 +9,9 @@ import (
 // PublicKeySwitchingProtocol is an interface describing the local steps of a generic RLWE PCKS protocol.
 type PublicKeySwitchingProtocol interface {
 	AllocateShare(levelQ int) *PCKSShare
-	GenShare(skInput *rlwe.SecretKey, pkOutput *rlwe.PublicKey, ct *rlwe.Ciphertext, shareOut *PCKSShare)
+	GenShare(skInput *rlwe.SecretKey, pkOutput *rlwe.PublicKey, c1 *ring.Poly, shareOut *PCKSShare)
 	AggregateShares(share1, share2, shareOut *PCKSShare)
-	KeySwitch(combined *PCKSShare, ct *rlwe.Ciphertext, ctOut *rlwe.Ciphertext)
+	KeySwitch(ctIn *rlwe.Ciphertext, combined *PCKSShare, ctOut *rlwe.Ciphertext)
 }
 
 // PCKSShare represents a party's share in the PCKS protocol.
@@ -82,18 +82,17 @@ func (pcks *PCKSProtocol) AllocateShare(levelQ int) (s *PCKSShare) {
 
 // GenShare is the first part of the unique round of the PCKSProtocol protocol. Each party computes the following :
 //
-// [s_i * ctx[0] + (u_i * pk[0] + e_0i)/P, (u_i * pk[1] + e_1i)/P]
+// [s_i * ct[1] + (u_i * pk[0] + e_0i)/P, (u_i * pk[1] + e_1i)/P]
 //
 // and broadcasts the result to the other j-1 parties.
-func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct *rlwe.Ciphertext, shareOut *PCKSShare) {
-
-	el := ct.RLWEElement()
+// c1 = rlwe.Ciphertext.Value[1]
+func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, c1 *ring.Poly, shareOut *PCKSShare) {
 
 	ringQ := pcks.params.RingQ()
 	ringP := pcks.params.RingP()
 	ringQP := pcks.params.RingQP()
 
-	levelQ := el.Level()
+	levelQ := utils.MinInt(shareOut.Value[0].Level(), c1.Level())
 	levelP := len(ringP.Modulus) - 1
 
 	// samples MForm(u_i) in Q and P separately
@@ -130,13 +129,13 @@ func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct *r
 	pcks.basisExtender.ModDownQPtoQ(levelQ, levelP, shareOutQP1.Q, shareOutQP1.P, shareOutQP1.Q)
 
 	// h_0 = s_i*c_1 + (u_i * pk_0 + e0)/P
-	if el.Value[0].IsNTT {
+	if c1.IsNTT {
 		ringQ.NTTLvl(levelQ, shareOut.Value[0], shareOut.Value[0])
 		ringQ.NTTLvl(levelQ, shareOut.Value[1], shareOut.Value[1])
-		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, el.Value[1], sk.Value.Q, shareOut.Value[0])
+		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, c1, sk.Value.Q, shareOut.Value[0])
 	} else {
 		// tmp = s_i*c_1
-		ringQ.NTTLazyLvl(levelQ, el.Value[1], pcks.tmpQP.Q)
+		ringQ.NTTLazyLvl(levelQ, c1, pcks.tmpQP.Q)
 		ringQ.MulCoeffsMontgomeryConstantLvl(levelQ, pcks.tmpQP.Q, sk.Value.Q, pcks.tmpQP.Q)
 		ringQ.InvNTTLvl(levelQ, pcks.tmpQP.Q, pcks.tmpQP.Q)
 
@@ -160,10 +159,10 @@ func (pcks *PCKSProtocol) AggregateShares(share1, share2, shareOut *PCKSShare) {
 }
 
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
-func (pcks *PCKSProtocol) KeySwitch(combined *PCKSShare, ct, ctOut *rlwe.Ciphertext) {
-	el, elOut := ct.RLWEElement(), ctOut.RLWEElement()
-	pcks.params.RingQ().AddLvl(el.Level(), el.Value[0], combined.Value[0], elOut.Value[0])
-	ring.CopyValuesLvl(el.Level(), combined.Value[1], elOut.Value[1])
+func (pcks *PCKSProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined *PCKSShare, ctOut *rlwe.Ciphertext) {
+	level := utils.MinInt(ctIn.Level(), ctOut.Level())
+	pcks.params.RingQ().AddLvl(level, ctIn.Value[0], combined.Value[0], ctOut.Value[0])
+	ring.CopyValuesLvl(level, combined.Value[1], ctOut.Value[1])
 }
 
 // MarshalBinary encodes a PCKS share on a slice of bytes.

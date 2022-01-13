@@ -317,11 +317,11 @@ func testKeyswitching(testCtx *testContext, t *testing.T) {
 				P0 := cksParties[0]
 
 				// Checks that the protocol complies to the drlwe.KeySwitchingProtocol interface
-				var _ drlwe.KeySwitchingProtocol = P0.cks
+				var _ drlwe.KeySwitchingProtocol = &P0.cks.CKSProtocol
 
 				// Each party creates its CKSProtocol instance with tmp = si-si'
 				for i, p := range cksParties {
-					p.cks.GenShare(p.s0, p.s1, ciphertext.Ciphertext, p.share)
+					p.cks.GenShare(p.s0, p.s1, ciphertext.Value[1], p.share)
 					if i > 0 {
 						P0.cks.AggregateShares(p.share, P0.share, P0.share)
 					}
@@ -329,11 +329,11 @@ func testKeyswitching(testCtx *testContext, t *testing.T) {
 
 				ksCiphertext := ckks.NewCiphertext(params, 1, ciphertext.Level(), ciphertext.Scale/2)
 
-				P0.cks.KeySwitchCKKS(P0.share, ciphertext, ksCiphertext)
+				P0.cks.KeySwitch(ciphertext, P0.share, ksCiphertext)
 
 				verifyTestVectors(testCtx, decryptorSk1, coeffs, ksCiphertext, t)
 
-				P0.cks.KeySwitchCKKS(P0.share, ciphertext, ciphertext)
+				P0.cks.KeySwitch(ciphertext, P0.share, ciphertext)
 
 				verifyTestVectors(testCtx, decryptorSk1, coeffs, ksCiphertext, t)
 
@@ -376,18 +376,18 @@ func testPublicKeySwitching(testCtx *testContext, t *testing.T) {
 				P0 := pcksParties[0]
 
 				// Checks that the protocol complies to the drlwe.KeySwitchingProtocol interface
-				var _ drlwe.PublicKeySwitchingProtocol = P0.PCKSProtocol
+				var _ drlwe.PublicKeySwitchingProtocol = &P0.PCKSProtocol.PCKSProtocol
 
 				ciphertextSwitched := ckks.NewCiphertext(params, 1, ciphertext.Level(), ciphertext.Scale)
 
 				for i, p := range pcksParties {
-					p.GenShare(p.s, pk1, ciphertext.Ciphertext, p.share)
+					p.GenShare(p.s, pk1, ciphertext.Value[1], p.share)
 					if i > 0 {
 						P0.AggregateShares(p.share, P0.share, P0.share)
 					}
 				}
 
-				P0.KeySwitchCKKS(P0.share, ciphertext, ciphertextSwitched)
+				P0.KeySwitch(ciphertext, P0.share, ciphertextSwitched)
 
 				verifyTestVectors(testCtx, decryptorSk1, coeffs, ciphertextSwitched, t)
 			})
@@ -556,7 +556,7 @@ func testE2SProtocol(testCtx *testContext, t *testing.T) {
 		for _, p := range P {
 			// Enc(-M_i)
 			go func(p Party) {
-				p.e2s.GenShare(p.sk, logBound, params.LogSlots(), ciphertext, p.secretShare, p.publicShareE2S)
+				p.e2s.GenShare(p.sk, logBound, params.LogSlots(), ciphertext.Value[1], p.secretShare, p.publicShareE2S)
 				wg.Done()
 			}(p)
 		}
@@ -665,7 +665,7 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 		wg.Add(len(RefreshParties))
 		for _, p := range RefreshParties {
 			go func(p *Party) {
-				p.GenShares(p.s, logBound, params.LogSlots(), ciphertext, crp, p.share)
+				p.GenShares(p.s, logBound, params.LogSlots(), ciphertext.Value[1], ciphertext.Scale, crp, p.share)
 				wg.Done()
 			}(p)
 		}
@@ -741,7 +741,7 @@ func testRefreshAndTransform(testCtx *testContext, t *testing.T) {
 		wg.Add(len(RefreshParties))
 		for _, p := range RefreshParties {
 			go func(p *Party) {
-				p.GenShares(p.s, logBound, params.LogSlots(), ciphertext, crp, permute, p.share)
+				p.GenShares(p.s, logBound, params.LogSlots(), ciphertext.Value[1], ciphertext.Scale, crp, permute, p.share)
 				wg.Done()
 			}(p)
 		}
@@ -784,7 +784,7 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 
 		crp := refreshproto.SampleCRP(params.MaxLevel(), testCtx.crs)
 
-		refreshproto.GenShares(testCtx.sk0, logBound, params.LogSlots(), ciphertext, crp, refreshshare)
+		refreshproto.GenShares(testCtx.sk0, logBound, params.LogSlots(), ciphertext.Value[1], ciphertext.Scale, crp, refreshshare)
 
 		data, err := refreshshare.MarshalBinary()
 

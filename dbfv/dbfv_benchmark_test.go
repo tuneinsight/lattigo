@@ -150,12 +150,12 @@ func benchKeyswitching(testCtx *testContext, b *testing.B) {
 	p.CKSProtocol = NewCKSProtocol(testCtx.params, 6.36)
 	p.s0 = sk0Shards[0]
 	p.s1 = sk1Shards[0]
-	p.share = p.AllocateShare(ciphertext.Level())
+	p.share = p.AllocateShare()
 
 	b.Run(testString("Keyswitching/Round1/Gen", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.GenShare(p.s0, p.s1, ciphertext.Ciphertext, p.share)
+			p.GenShare(p.s0, p.s1, ciphertext.Value[1], p.share)
 		}
 	})
 
@@ -169,7 +169,7 @@ func benchKeyswitching(testCtx *testContext, b *testing.B) {
 	b.Run(testString("Keyswitching/Finalize", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.KeySwitch(p.share, ciphertext.Ciphertext, ciphertext.Ciphertext)
+			p.KeySwitch(ciphertext, p.share, ciphertext)
 		}
 	})
 }
@@ -190,12 +190,12 @@ func benchPublicKeySwitching(testCtx *testContext, b *testing.B) {
 	p := new(Party)
 	p.PCKSProtocol = NewPCKSProtocol(testCtx.params, 6.36)
 	p.s = sk0Shards[0]
-	p.share = p.AllocateShare(ciphertext.Level())
+	p.share = p.AllocateShare()
 
 	b.Run(testString("PublicKeySwitching/Round1/Gen", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.GenShare(p.s, pk1, ciphertext.Ciphertext, p.share)
+			p.GenShare(p.s, pk1, ciphertext.Value[1], p.share)
 
 		}
 	})
@@ -210,7 +210,7 @@ func benchPublicKeySwitching(testCtx *testContext, b *testing.B) {
 	b.Run(testString("PublicKeySwitching/Finalize", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.KeySwitch(p.share, ciphertext.Ciphertext, ciphertext.Ciphertext)
+			p.KeySwitch(ciphertext, p.share, ciphertext)
 		}
 	})
 }
@@ -277,7 +277,7 @@ func benchRefresh(testCtx *testContext, b *testing.B) {
 	b.Run(testString("Refresh/Round1/Gen", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.GenShares(p.s, ciphertext, crp, p.share)
+			p.GenShares(p.s, ciphertext.Value[1], crp, p.share)
 		}
 	})
 

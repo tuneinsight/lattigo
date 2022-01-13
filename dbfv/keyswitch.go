@@ -18,9 +18,14 @@ func NewCKSProtocol(params bfv.Parameters, sigmaSmudging float64) *CKSProtocol {
 	return &CKSProtocol{*drlwe.NewCKSProtocol(params.Parameters, sigmaSmudging), params.MaxLevel()}
 }
 
-// AllocateShareBFV allocates the shares of one party in the CKS protocol for BFV.
-func (cks *CKSProtocol) AllocateShareBFV() *drlwe.CKSShare {
-	return cks.AllocateShare(cks.maxLevel)
+// KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
+func (cks *CKSProtocol) KeySwitch(ctIn *bfv.Ciphertext, combined *drlwe.CKSShare, ctOut *bfv.Ciphertext) {
+	cks.CKSProtocol.KeySwitch(ctIn.Ciphertext, combined, ctOut.Ciphertext)
+}
+
+// AllocateShare allocates the shares of one party in the CKS protocol for BFV.
+func (cks *CKSProtocol) AllocateShare() *drlwe.CKSShare {
+	return cks.CKSProtocol.AllocateShare(cks.maxLevel)
 }
 
 // ShallowCopy creates a shallow copy of CKSProtocol in which all the read-only data-structures are
@@ -42,9 +47,14 @@ func NewPCKSProtocol(params bfv.Parameters, sigmaSmudging float64) *PCKSProtocol
 	return &PCKSProtocol{*drlwe.NewPCKSProtocol(params.Parameters, sigmaSmudging), params.MaxLevel()}
 }
 
-// AllocateShareBFV allocates the shares of one party in the PCKS protocol for BFV.
-func (pcks *PCKSProtocol) AllocateShareBFV() *drlwe.PCKSShare {
-	return pcks.AllocateShare(pcks.maxLevel)
+// AllocateShare allocates the shares of one party in the PCKS protocol for BFV.
+func (pcks *PCKSProtocol) AllocateShare() *drlwe.PCKSShare {
+	return pcks.PCKSProtocol.AllocateShare(pcks.maxLevel)
+}
+
+// KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut.
+func (pcks *PCKSProtocol) KeySwitch(ctIn *bfv.Ciphertext, combined *drlwe.PCKSShare, ctOut *bfv.Ciphertext) {
+	pcks.PCKSProtocol.KeySwitch(ctIn.Ciphertext, combined, ctOut.Ciphertext)
 }
 
 // ShallowCopy creates a shallow copy of PCKSProtocol in which all the read-only data-structures are

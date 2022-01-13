@@ -114,6 +114,8 @@ func testPublicKeyGen(testCtx testContext, t *testing.T) {
 			}
 		}
 
+		var _ CollectivePublicKeyGenerator = ckg[0]
+
 		shares := make([]*CKGShare, nbParties)
 		var wg sync.WaitGroup
 		wg.Add(nbParties)
@@ -171,6 +173,8 @@ func testKeySwitching(testCtx testContext, t *testing.T) {
 			}
 		}
 
+		var _ KeySwitchingProtocol = cks[0]
+
 		skout := make([]*rlwe.SecretKey, nbParties)
 		skOutIdeal := rlwe.NewSecretKey(params)
 		for i := range skout {
@@ -199,7 +203,7 @@ func testKeySwitching(testCtx testContext, t *testing.T) {
 		wg.Add(nbParties)
 		for i := range shares {
 			go func(i int) {
-				cks[i].GenShare(testCtx.skShares[i], skout[i], ciphertext, shares[i])
+				cks[i].GenShare(testCtx.skShares[i], skout[i], ciphertext.Value[1], shares[i])
 				wg.Done()
 			}(i)
 		}
@@ -211,7 +215,7 @@ func testKeySwitching(testCtx testContext, t *testing.T) {
 
 		ksCiphertext := &rlwe.Ciphertext{Value: []*ring.Poly{params.RingQ().NewPoly(), params.RingQ().NewPoly()}}
 
-		cks[0].KeySwitch(shares[0], ciphertext, ksCiphertext)
+		cks[0].KeySwitch(ciphertext, shares[0], ksCiphertext)
 
 		// [-as + e] + [as]
 		ringQ.MulCoeffsMontgomeryAndAdd(ksCiphertext.Value[1], skOutIdeal.Value.Q, ksCiphertext.Value[0])
@@ -240,6 +244,8 @@ func testPublicKeySwitching(testCtx testContext, t *testing.T) {
 			}
 		}
 
+		var _ PublicKeySwitchingProtocol = pcks[0]
+
 		ciphertext := &rlwe.Ciphertext{Value: []*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly()}}
 		testCtx.uniformSampler.Read(ciphertext.Value[1])
 		ringQ.MulCoeffsMontgomeryAndSub(ciphertext.Value[1], testCtx.skIdeal.Value.Q, ciphertext.Value[0])
@@ -260,7 +266,7 @@ func testPublicKeySwitching(testCtx testContext, t *testing.T) {
 		wg.Add(nbParties)
 		for i := range shares {
 			go func(i int) {
-				pcks[i].GenShare(testCtx.skShares[i], pkOut, ciphertext, shares[i])
+				pcks[i].GenShare(testCtx.skShares[i], pkOut, ciphertext.Value[1], shares[i])
 				wg.Done()
 			}(i)
 		}
@@ -272,7 +278,7 @@ func testPublicKeySwitching(testCtx testContext, t *testing.T) {
 
 		ksCiphertext := &rlwe.Ciphertext{Value: []*ring.Poly{params.RingQ().NewPoly(), params.RingQ().NewPoly()}}
 
-		pcks[0].KeySwitch(shares[0], ciphertext, ksCiphertext)
+		pcks[0].KeySwitch(ciphertext, shares[0], ksCiphertext)
 
 		// [-as + e] + [as]
 		ringQ.MulCoeffsMontgomeryAndAdd(ksCiphertext.Value[1], skOut.Value.Q, ksCiphertext.Value[0])
@@ -305,6 +311,8 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 				rkg[i] = rkg[0].ShallowCopy()
 			}
 		}
+
+		var _ RelinearizationKeyGenerator = rkg[0]
 
 		ephSk := make([]*rlwe.SecretKey, nbParties)
 		share1 := make([]*RKGShare, nbParties)
@@ -414,6 +422,8 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 				rtg[i] = rtg[0].ShallowCopy()
 			}
 		}
+
+		var _ RotationKeyGenerator = rtg[0]
 
 		shares := make([]*RTGShare, nbParties)
 		var wg sync.WaitGroup
@@ -530,7 +540,7 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 		KeySwitchProtocol := NewPCKSProtocol(testCtx.params, testCtx.params.Sigma())
 		SwitchShare := KeySwitchProtocol.AllocateShare(ciphertext.Level())
 		_, pkOut := testCtx.kgen.GenKeyPair()
-		KeySwitchProtocol.GenShare(testCtx.skShares[0], pkOut, ciphertext, SwitchShare)
+		KeySwitchProtocol.GenShare(testCtx.skShares[0], pkOut, ciphertext.Value[1], SwitchShare)
 
 		data, err := SwitchShare.MarshalBinary()
 		require.NoError(t, err)
@@ -552,7 +562,7 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 		//Now for CKSShare ~ its similar to PKSShare
 		cksp := NewCKSProtocol(testCtx.params, testCtx.params.Sigma())
 		cksshare := cksp.AllocateShare(ciphertext.Level())
-		cksp.GenShare(testCtx.skShares[0], testCtx.skShares[1], ciphertext, cksshare)
+		cksp.GenShare(testCtx.skShares[0], testCtx.skShares[1], ciphertext.Value[1], cksshare)
 
 		data, err := cksshare.MarshalBinary()
 		require.NoError(t, err)

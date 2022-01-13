@@ -297,23 +297,23 @@ func pcksPhase(params bfv.Parameters, tpk *rlwe.PublicKey, encRes *bfv.Ciphertex
 	pcks := dbfv.NewPCKSProtocol(params, 3.19)
 
 	for _, pi := range P {
-		pi.pcksShare = pcks.AllocateShareBFV()
+		pi.pcksShare = pcks.AllocateShare()
 	}
 
 	l.Println("> PCKS Phase")
 	elapsedPCKSParty = runTimedParty(func() {
 		for _, pi := range P {
-			pcks.GenShare(pi.sk, tpk, encRes.Ciphertext, pi.pcksShare)
+			pcks.GenShare(pi.sk, tpk, encRes.Value[1], pi.pcksShare)
 		}
 	}, len(P))
 
-	pcksCombined := pcks.AllocateShareBFV()
+	pcksCombined := pcks.AllocateShare()
 	encOut = bfv.NewCiphertext(params, 1)
 	elapsedPCKSCloud = runTimed(func() {
 		for _, pi := range P {
 			pcks.AggregateShares(pi.pcksShare, pcksCombined, pcksCombined)
 		}
-		pcks.KeySwitch(pcksCombined, encRes.Ciphertext, encOut.Ciphertext)
+		pcks.KeySwitch(encRes, pcksCombined, encOut)
 
 	})
 	l.Printf("\tdone (cloud: %s, party: %s)\n", elapsedPCKSCloud, elapsedPCKSParty)

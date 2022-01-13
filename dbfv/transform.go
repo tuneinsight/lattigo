@@ -89,13 +89,12 @@ func (rfp *MaskedTransformProtocol) SampleCRP(level int, crs utils.PRNG) drlwe.C
 
 // AllocateShare allocates the shares of the PermuteProtocol
 func (rfp *MaskedTransformProtocol) AllocateShare() *MaskedTransformShare {
-	level := rfp.QCount() - 1
-	return &MaskedTransformShare{*rfp.e2s.AllocateShare(level), *rfp.s2e.AllocateShare(level)}
+	return &MaskedTransformShare{*rfp.e2s.AllocateShare(), *rfp.s2e.AllocateShare()}
 }
 
 // GenShares generates the shares of the PermuteProtocol
-func (rfp *MaskedTransformProtocol) GenShares(sk *rlwe.SecretKey, ciphertext *bfv.Ciphertext, crs drlwe.CKSCRP, transform MaskedTransformFunc, shareOut *MaskedTransformShare) {
-	rfp.e2s.GenShare(sk, ciphertext, &rlwe.AdditiveShare{Value: *rfp.tmpMask}, &shareOut.e2sShare)
+func (rfp *MaskedTransformProtocol) GenShares(sk *rlwe.SecretKey, c1 *ring.Poly, crs drlwe.CKSCRP, transform MaskedTransformFunc, shareOut *MaskedTransformShare) {
+	rfp.e2s.GenShare(sk, c1, &rlwe.AdditiveShare{Value: *rfp.tmpMask}, &shareOut.e2sShare)
 	mask := rfp.tmpMask
 	if transform != nil {
 		coeffs := rfp.e2s.encoder.DecodeUintNew(&bfv.PlaintextRingT{Plaintext: &rlwe.Plaintext{Value: mask}})

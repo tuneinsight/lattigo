@@ -13,8 +13,12 @@ All notable changes to this project will be documented in this file.
 - CKKS: added `.ShallowCopy()` to `Encoder` and `EncoderBigComplex`.
 - CKKS: added `ShallowCopy()`, `.WithKey()` (shallow copy with new key) and `.SetKey()` to `Encryptor` and `Decryptor`.
 - DRLWE: added `.ShallowCopy()` for all protocols.
-- DBFV: added `.ShallowCopy()` for all protocols.
+- DRLWE: `GenShare(*)` of `CKSProtocol` and `PCKSProtocol` now only take as input a polynomial instead of the full ciphertext.
+- DBFV: updated `PCKSProtocol` and `CKSProtocol` API consistency, updated tests and benchmarks accordingly.
+- DBFV: protocols using `drlwe.CKSProtocol` or `drlwe.PCKSProtocol` as sub-protocols now only take a polynomial as input instead of the full ciphertext.
 - DCKKS: added `.ShallowCopy()` for all protocols.
+- DCKKS: updated `PCKSProtocol` and `CKSProtocol` API consistency, updated tests and benchmarks accordingly.
+- DCKKS: protocols using `drlwe.CKSProtocol` or `drlwe.PCKSProtocol` as sub-protocols now only take a polynomial as input instead of the full ciphertext.
 
 ## [2.4.0] - 2022-01-10
 

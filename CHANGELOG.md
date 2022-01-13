@@ -7,9 +7,10 @@ All notable changes to this project will be documented in this file.
 
 - RING: renamed `FastBasisExtender` to `BasisExtender`.
 - RLWE: added `.ShallowCopy()`, `.WithKey()` (shallow copy with new key) and `.SetKey()` to `Encryptor` and `Decryptor`.
-- BFV: added `.ShallowCopy()` for `Encoder`.
+- RLWE: removed `FastEncryptor`. Encryption without rescaling by `P` is now automatically used by `Encryptor` if no `P` is specified in the parameters.
+- BFV: added `.ShallowCopy()` to `Encoder`.
 - BFV: added `.ShallowCopy()`, `.WithKey()` (shallow copy with new key) and `.SetKey()` to `Encryptor` and `Decryptor`.
-- CKKS: added `.ShallowCopy()` for `Encoder` and `EncoderBigComplex`.
+- CKKS: added `.ShallowCopy()` to `Encoder` and `EncoderBigComplex`.
 - CKKS: added `ShallowCopy()`, `.WithKey()` (shallow copy with new key) and `.SetKey()` to `Encryptor` and `Decryptor`.
 - DRLWE: added `.ShallowCopy()` for all protocols.
 - DBFV: added `.ShallowCopy()` for all protocols.

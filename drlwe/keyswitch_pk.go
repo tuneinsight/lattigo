@@ -27,7 +27,7 @@ type PCKSProtocol struct {
 	tmpQP rlwe.PolyQP
 	tmpP  [2]*ring.Poly
 
-	baseconverter             *ring.FastBasisExtender
+	basisExtender             *ring.BasisExtender
 	gaussianSampler           *ring.GaussianSampler
 	ternarySamplerMontgomeryQ *ring.TernarySampler
 }
@@ -48,7 +48,7 @@ func (pcks *PCKSProtocol) ShallowCopy() *PCKSProtocol {
 		sigmaSmudging:             pcks.sigmaSmudging,
 		tmpQP:                     params.RingQP().NewPoly(),
 		tmpP:                      [2]*ring.Poly{params.RingP().NewPoly(), params.RingP().NewPoly()},
-		baseconverter:             ring.NewFastBasisExtender(params.RingQ(), params.RingP()),
+		basisExtender:             pcks.basisExtender.ShallowCopy(),
 		gaussianSampler:           ring.NewGaussianSampler(prng, params.RingQ(), pcks.sigmaSmudging, int(6*pcks.sigmaSmudging)),
 		ternarySamplerMontgomeryQ: ring.NewTernarySampler(prng, params.RingQ(), 0.5, false),
 	}
@@ -64,7 +64,7 @@ func NewPCKSProtocol(params rlwe.Parameters, sigmaSmudging float64) (pcks *PCKSP
 	pcks.tmpQP = params.RingQP().NewPoly()
 	pcks.tmpP = [2]*ring.Poly{params.RingP().NewPoly(), params.RingP().NewPoly()}
 
-	pcks.baseconverter = ring.NewFastBasisExtender(params.RingQ(), params.RingP())
+	pcks.basisExtender = ring.NewBasisExtender(params.RingQ(), params.RingP())
 	prng, err := utils.NewPRNG()
 	if err != nil {
 		panic(err)
@@ -124,10 +124,10 @@ func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct *r
 	ringQP.AddLvl(levelQ, levelP, shareOutQP1, pcks.tmpQP, shareOutQP1)
 
 	// h_0 = (u_i * pk_0 + e0)/P
-	pcks.baseconverter.ModDownQPtoQ(levelQ, levelP, shareOutQP0.Q, shareOutQP0.P, shareOutQP0.Q)
+	pcks.basisExtender.ModDownQPtoQ(levelQ, levelP, shareOutQP0.Q, shareOutQP0.P, shareOutQP0.Q)
 
 	// h_1 = (u_i * pk_1 + e1)/P
-	pcks.baseconverter.ModDownQPtoQ(levelQ, levelP, shareOutQP1.Q, shareOutQP1.P, shareOutQP1.Q)
+	pcks.basisExtender.ModDownQPtoQ(levelQ, levelP, shareOutQP1.Q, shareOutQP1.P, shareOutQP1.Q)
 
 	// h_0 = s_i*c_1 + (u_i * pk_0 + e0)/P
 	if el.Value[0].IsNTT {

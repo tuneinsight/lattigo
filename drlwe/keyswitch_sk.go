@@ -19,7 +19,7 @@ type CKSProtocol struct {
 	params          rlwe.Parameters
 	sigmaSmudging   float64
 	gaussianSampler *ring.GaussianSampler
-	baseconverter   *ring.FastBasisExtender
+	basisExtender   *ring.BasisExtender
 	tmpQP           rlwe.PolyQP
 	tmpDelta        *ring.Poly
 }
@@ -38,7 +38,7 @@ func (cks *CKSProtocol) ShallowCopy() *CKSProtocol {
 	return &CKSProtocol{
 		params:          params,
 		gaussianSampler: ring.NewGaussianSampler(prng, params.RingQ(), cks.sigmaSmudging, int(6*cks.sigmaSmudging)),
-		baseconverter:   ring.NewFastBasisExtender(params.RingQ(), params.RingP()),
+		basisExtender:   cks.basisExtender.ShallowCopy(),
 		tmpQP:           params.RingQP().NewPoly(),
 		tmpDelta:        params.RingQ().NewPoly(),
 	}
@@ -75,7 +75,7 @@ func NewCKSProtocol(params rlwe.Parameters, sigmaSmudging float64) *CKSProtocol 
 		panic(err)
 	}
 	cks.gaussianSampler = ring.NewGaussianSampler(prng, params.RingQ(), sigmaSmudging, int(6*sigmaSmudging))
-	cks.baseconverter = ring.NewFastBasisExtender(params.RingQ(), params.RingP())
+	cks.basisExtender = ring.NewBasisExtender(params.RingQ(), params.RingP())
 	cks.tmpQP = params.RingQP().NewPoly()
 	cks.tmpDelta = params.RingQ().NewPoly()
 	return cks
@@ -136,7 +136,7 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlwe.Cip
 		ringQ.AddNoModLvl(levelQ, shareOut.Value, cks.tmpQP.Q, shareOut.Value)
 
 		// InvNTT(P * a * (skIn - skOut) + e) * (1/P) mod QP (mod P = e)
-		cks.baseconverter.ModDownQPtoQ(levelQ, levelP, shareOut.Value, cks.tmpQP.P, shareOut.Value)
+		cks.basisExtender.ModDownQPtoQ(levelQ, levelP, shareOut.Value, cks.tmpQP.P, shareOut.Value)
 
 	} else {
 		// Sample e in Q
@@ -152,7 +152,7 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlwe.Cip
 		ringQ.AddLvl(levelQ, shareOut.Value, cks.tmpQP.Q, shareOut.Value)
 
 		// (P * a * (skIn - skOut) + e) * (1/P) mod QP (mod P = e)
-		cks.baseconverter.ModDownQPtoQ(levelQ, levelP, shareOut.Value, cks.tmpQP.P, shareOut.Value)
+		cks.basisExtender.ModDownQPtoQ(levelQ, levelP, shareOut.Value, cks.tmpQP.P, shareOut.Value)
 
 		ringQ.NTTLvl(levelQ, shareOut.Value, shareOut.Value)
 	}

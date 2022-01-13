@@ -69,6 +69,20 @@ type encoder struct {
 	tmpPtRt *PlaintextRingT
 }
 
+// ShallowCopy creates a shallow copy of Encoder in which all the read-only data-structures are
+// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+// Encoder can be used concurrently.
+func (ecd *encoder) ShallowCopy() Encoder {
+	return &encoder{
+		params:        ecd.params,
+		indexMatrix:   ecd.indexMatrix,
+		scaler:        ring.NewRNSScaler(ecd.params.RingQ(), ecd.params.RingT()),
+		rescaleParams: ecd.rescaleParams,
+		tmpPoly:       ecd.params.RingT().NewPoly(),
+		tmpPtRt:       NewPlaintextRingT(ecd.params),
+	}
+}
+
 // NewEncoder creates a new encoder from the provided parameters.
 func NewEncoder(params Parameters) Encoder {
 
@@ -115,103 +129,103 @@ func NewEncoder(params Parameters) Encoder {
 }
 
 // EncodeUintRingT encodes a slice of uint64 into a Plaintext in R_t
-func (encoder *encoder) EncodeUintRingT(coeffs []uint64, p *PlaintextRingT) {
-	if len(coeffs) > len(encoder.indexMatrix) {
+func (ecd *encoder) EncodeUintRingT(coeffs []uint64, p *PlaintextRingT) {
+	if len(coeffs) > len(ecd.indexMatrix) {
 		panic("invalid input to encode: number of coefficients must be smaller or equal to the ring degree")
 	}
 
-	if len(p.Value.Coeffs[0]) != len(encoder.indexMatrix) {
+	if len(p.Value.Coeffs[0]) != len(ecd.indexMatrix) {
 		panic("invalid plaintext to receive encoding: number of coefficients does not match the ring degree")
 	}
 
 	for i := 0; i < len(coeffs); i++ {
-		p.Value.Coeffs[0][encoder.indexMatrix[i]] = coeffs[i]
+		p.Value.Coeffs[0][ecd.indexMatrix[i]] = coeffs[i]
 	}
 
-	for i := len(coeffs); i < len(encoder.indexMatrix); i++ {
-		p.Value.Coeffs[0][encoder.indexMatrix[i]] = 0
+	for i := len(coeffs); i < len(ecd.indexMatrix); i++ {
+		p.Value.Coeffs[0][ecd.indexMatrix[i]] = 0
 	}
 
-	encoder.params.RingT().InvNTT(p.Value, p.Value)
+	ecd.params.RingT().InvNTT(p.Value, p.Value)
 }
 
 // EncodeUint encodes an uint64 slice of size at most N on a plaintext.
-func (encoder *encoder) EncodeUint(coeffs []uint64, p *Plaintext) {
+func (ecd *encoder) EncodeUint(coeffs []uint64, p *Plaintext) {
 	ptRt := &PlaintextRingT{p.Plaintext}
 
 	// Encodes the values in RingT
-	encoder.EncodeUintRingT(coeffs, ptRt)
+	ecd.EncodeUintRingT(coeffs, ptRt)
 
 	// Scales by Q/t
-	encoder.ScaleUp(ptRt, p)
+	ecd.ScaleUp(ptRt, p)
 }
 
-func (encoder *encoder) EncodeUintMul(coeffs []uint64, p *PlaintextMul) {
+func (ecd *encoder) EncodeUintMul(coeffs []uint64, p *PlaintextMul) {
 
 	ptRt := &PlaintextRingT{p.Plaintext}
 
 	// Encodes the values in RingT
-	encoder.EncodeUintRingT(coeffs, ptRt)
+	ecd.EncodeUintRingT(coeffs, ptRt)
 
 	// Puts in NTT+Montgomery domains of ringQ
-	encoder.RingTToMul(ptRt, p)
+	ecd.RingTToMul(ptRt, p)
 }
 
 // EncodeInt encodes an int64 slice of size at most N on a plaintext. It also encodes the sign of the given integer (as its inverse modulo the plaintext modulus).
 // The sign will correctly decode as long as the absolute value of the coefficient does not exceed half of the plaintext modulus.
-func (encoder *encoder) EncodeIntRingT(coeffs []int64, p *PlaintextRingT) {
+func (ecd *encoder) EncodeIntRingT(coeffs []int64, p *PlaintextRingT) {
 
-	if len(coeffs) > len(encoder.indexMatrix) {
+	if len(coeffs) > len(ecd.indexMatrix) {
 		panic("invalid input to encode: number of coefficients must be smaller or equal to the ring degree")
 	}
 
-	if len(p.Value.Coeffs[0]) != len(encoder.indexMatrix) {
+	if len(p.Value.Coeffs[0]) != len(ecd.indexMatrix) {
 		panic("invalid plaintext to receive encoding: number of coefficients does not match the ring degree")
 	}
 
 	for i := 0; i < len(coeffs); i++ {
 
 		if coeffs[i] < 0 {
-			p.Value.Coeffs[0][encoder.indexMatrix[i]] = uint64(int64(encoder.params.T()) + coeffs[i])
+			p.Value.Coeffs[0][ecd.indexMatrix[i]] = uint64(int64(ecd.params.T()) + coeffs[i])
 		} else {
-			p.Value.Coeffs[0][encoder.indexMatrix[i]] = uint64(coeffs[i])
+			p.Value.Coeffs[0][ecd.indexMatrix[i]] = uint64(coeffs[i])
 		}
 	}
 
-	for i := len(coeffs); i < len(encoder.indexMatrix); i++ {
-		p.Value.Coeffs[0][encoder.indexMatrix[i]] = 0
+	for i := len(coeffs); i < len(ecd.indexMatrix); i++ {
+		p.Value.Coeffs[0][ecd.indexMatrix[i]] = 0
 	}
 
-	encoder.params.RingT().InvNTTLazy(p.Value, p.Value)
+	ecd.params.RingT().InvNTTLazy(p.Value, p.Value)
 }
 
-func (encoder *encoder) EncodeInt(coeffs []int64, p *Plaintext) {
+func (ecd *encoder) EncodeInt(coeffs []int64, p *Plaintext) {
 	ptRt := &PlaintextRingT{p.Plaintext}
 
 	// Encodes the values in RingT
-	encoder.EncodeIntRingT(coeffs, ptRt)
+	ecd.EncodeIntRingT(coeffs, ptRt)
 
 	// Scales by Q/t
-	encoder.ScaleUp(ptRt, p)
+	ecd.ScaleUp(ptRt, p)
 }
 
-func (encoder *encoder) EncodeIntMul(coeffs []int64, p *PlaintextMul) {
+func (ecd *encoder) EncodeIntMul(coeffs []int64, p *PlaintextMul) {
 	ptRt := &PlaintextRingT{p.Plaintext}
 
 	// Encodes the values in RingT
-	encoder.EncodeIntRingT(coeffs, ptRt)
+	ecd.EncodeIntRingT(coeffs, ptRt)
 
 	// Puts in NTT+Montgomery domains of ringQ
-	encoder.RingTToMul(ptRt, p)
+	ecd.RingTToMul(ptRt, p)
 }
 
 // ScaleUp transforms a PlaintextRingT (R_t) into a Plaintext (R_q) by scaling up the coefficient by Q/t.
-func (encoder *encoder) ScaleUp(ptRt *PlaintextRingT, pt *Plaintext) {
-	encoder.scaleUp(encoder.params.RingQ(), encoder.params.RingT(), encoder.tmpPoly.Coeffs[0], ptRt.Value, pt.Value)
+func (ecd *encoder) ScaleUp(ptRt *PlaintextRingT, pt *Plaintext) {
+	ecd.scaleUp(ecd.params.RingQ(), ecd.params.RingT(), ecd.tmpPoly.Coeffs[0], ptRt.Value, pt.Value)
 }
 
 // takes m mod T and returns round((m*Q)/T) mod Q
-func (encoder *encoder) scaleUp(ringQ, ringT *ring.Ring, tmp []uint64, pIn, pOut *ring.Poly) {
+func (ecd *encoder) scaleUp(ringQ, ringT *ring.Ring, tmp []uint64, pIn, pOut *ring.Poly) {
 
 	qModTmontgomery := ring.MForm(new(big.Int).Mod(ringQ.ModulusBigint, ringT.ModulusBigint).Uint64(), ringT.Modulus[0], ringT.BredParams[0])
 
@@ -241,7 +255,7 @@ func (encoder *encoder) scaleUp(ringQ, ringT *ring.Ring, tmp []uint64, pIn, pOut
 		qi := ringQ.Modulus[i]
 		bredParams := ringQ.BredParams[i]
 		mredParams := ringQ.MredParams[i]
-		rescaleParams := qi - encoder.rescaleParams[i]
+		rescaleParams := qi - ecd.rescaleParams[i]
 
 		tHalfNegQi := qi - ring.BRedAdd(tHalf, qi, bredParams)
 
@@ -263,38 +277,38 @@ func (encoder *encoder) scaleUp(ringQ, ringT *ring.Ring, tmp []uint64, pIn, pOut
 }
 
 // ScaleDown transforms a Plaintext (R_q) into a PlaintextRingT (R_t) by scaling down the coefficient by t/Q and rounding.
-func (encoder *encoder) ScaleDown(pt *Plaintext, ptRt *PlaintextRingT) {
-	encoder.scaler.DivByQOverTRounded(pt.Value, ptRt.Value)
+func (ecd *encoder) ScaleDown(pt *Plaintext, ptRt *PlaintextRingT) {
+	ecd.scaler.DivByQOverTRounded(pt.Value, ptRt.Value)
 }
 
 // RingTToMul transforms a PlaintextRingT into a PlaintextMul by operating the NTT transform
 // of R_q and putting the coefficients in Montgomery form.
-func (encoder *encoder) RingTToMul(ptRt *PlaintextRingT, ptMul *PlaintextMul) {
+func (ecd *encoder) RingTToMul(ptRt *PlaintextRingT, ptMul *PlaintextMul) {
 	if ptRt.Value != ptMul.Value {
 		copy(ptMul.Value.Coeffs[0], ptRt.Value.Coeffs[0])
 	}
-	for i := 1; i < len(encoder.params.RingQ().Modulus); i++ {
+	for i := 1; i < len(ecd.params.RingQ().Modulus); i++ {
 		copy(ptMul.Value.Coeffs[i], ptRt.Value.Coeffs[0])
 	}
 
-	encoder.params.RingQ().NTTLazy(ptMul.Value, ptMul.Value)
-	encoder.params.RingQ().MForm(ptMul.Value, ptMul.Value)
+	ecd.params.RingQ().NTTLazy(ptMul.Value, ptMul.Value)
+	ecd.params.RingQ().MForm(ptMul.Value, ptMul.Value)
 }
 
 // MulToRingT transforms a PlaintextMul into PlaintextRingT by operating the inverse NTT transform of R_q and
 // putting the coefficients out of the Montgomery form.
-func (encoder *encoder) MulToRingT(pt *PlaintextMul, ptRt *PlaintextRingT) {
-	encoder.params.RingQ().InvNTTLvl(0, pt.Value, ptRt.Value)
-	encoder.params.RingQ().InvMFormLvl(0, ptRt.Value, ptRt.Value)
+func (ecd *encoder) MulToRingT(pt *PlaintextMul, ptRt *PlaintextRingT) {
+	ecd.params.RingQ().InvNTTLvl(0, pt.Value, ptRt.Value)
+	ecd.params.RingQ().InvMFormLvl(0, ptRt.Value, ptRt.Value)
 }
 
 // DecodeRingT decodes any plaintext type into a PlaintextRingT. It panics if p is not PlaintextRingT, Plaintext or PlaintextMul.
-func (encoder *encoder) DecodeRingT(p interface{}, ptRt *PlaintextRingT) {
+func (ecd *encoder) DecodeRingT(p interface{}, ptRt *PlaintextRingT) {
 	switch pt := p.(type) {
 	case *Plaintext:
-		encoder.ScaleDown(pt, ptRt)
+		ecd.ScaleDown(pt, ptRt)
 	case *PlaintextMul:
-		encoder.MulToRingT(pt, ptRt)
+		ecd.MulToRingT(pt, ptRt)
 	case *PlaintextRingT:
 		ptRt.Copy(pt.Plaintext)
 	default:
@@ -303,44 +317,44 @@ func (encoder *encoder) DecodeRingT(p interface{}, ptRt *PlaintextRingT) {
 }
 
 // DecodeUint decodes a any plaintext type and write the coefficients in coeffs. It panics if p is not PlaintextRingT, Plaintext or PlaintextMul.
-func (encoder *encoder) DecodeUint(p interface{}, coeffs []uint64) {
+func (ecd *encoder) DecodeUint(p interface{}, coeffs []uint64) {
 
 	var ptRt *PlaintextRingT
 	var isInRingT bool
 	if ptRt, isInRingT = p.(*PlaintextRingT); !isInRingT {
-		encoder.DecodeRingT(p, encoder.tmpPtRt)
-		ptRt = encoder.tmpPtRt
+		ecd.DecodeRingT(p, ecd.tmpPtRt)
+		ptRt = ecd.tmpPtRt
 	}
 
-	encoder.params.RingT().NTT(ptRt.Value, encoder.tmpPoly)
+	ecd.params.RingT().NTT(ptRt.Value, ecd.tmpPoly)
 
-	for i := 0; i < encoder.params.RingQ().N; i++ {
-		coeffs[i] = encoder.tmpPoly.Coeffs[0][encoder.indexMatrix[i]]
+	for i := 0; i < ecd.params.RingQ().N; i++ {
+		coeffs[i] = ecd.tmpPoly.Coeffs[0][ecd.indexMatrix[i]]
 	}
 }
 
 // DecodeUintNew decodes any plaintext type and returns the coefficients in a new []uint64.
 // It panics if p is not PlaintextRingT, Plaintext or PlaintextMul.
-func (encoder *encoder) DecodeUintNew(p interface{}) (coeffs []uint64) {
-	coeffs = make([]uint64, encoder.params.RingQ().N)
-	encoder.DecodeUint(p, coeffs)
+func (ecd *encoder) DecodeUintNew(p interface{}) (coeffs []uint64) {
+	coeffs = make([]uint64, ecd.params.RingQ().N)
+	ecd.DecodeUint(p, coeffs)
 	return
 }
 
 // DecodeInt decodes a any plaintext type and write the coefficients in coeffs. It also decodes the sign
 // modulus (by centering the values around the plaintext). It panics if p is not PlaintextRingT, Plaintext or PlaintextMul.
-func (encoder *encoder) DecodeInt(p interface{}, coeffs []int64) {
+func (ecd *encoder) DecodeInt(p interface{}, coeffs []int64) {
 
-	encoder.DecodeRingT(p, encoder.tmpPtRt)
+	ecd.DecodeRingT(p, ecd.tmpPtRt)
 
-	encoder.params.RingT().NTT(encoder.tmpPtRt.Value, encoder.tmpPoly)
+	ecd.params.RingT().NTT(ecd.tmpPtRt.Value, ecd.tmpPoly)
 
-	modulus := int64(encoder.params.T())
+	modulus := int64(ecd.params.T())
 	modulusHalf := modulus >> 1
 	var value int64
-	for i := 0; i < encoder.params.RingQ().N; i++ {
+	for i := 0; i < ecd.params.RingQ().N; i++ {
 
-		value = int64(encoder.tmpPoly.Coeffs[0][encoder.indexMatrix[i]])
+		value = int64(ecd.tmpPoly.Coeffs[0][ecd.indexMatrix[i]])
 		coeffs[i] = value
 		if value >= modulusHalf {
 			coeffs[i] -= modulus
@@ -350,8 +364,8 @@ func (encoder *encoder) DecodeInt(p interface{}, coeffs []int64) {
 
 // DecodeIntNew decodes any plaintext type and returns the coefficients in a new []int64. It also decodes the sign
 // modulus (by centering the values around the plaintext). It panics if p is not PlaintextRingT, Plaintext or PlaintextMul.
-func (encoder *encoder) DecodeIntNew(p interface{}) (coeffs []int64) {
-	coeffs = make([]int64, encoder.params.RingQ().N)
-	encoder.DecodeInt(p, coeffs)
+func (ecd *encoder) DecodeIntNew(p interface{}) (coeffs []int64) {
+	coeffs = make([]int64, ecd.params.RingQ().N)
+	ecd.DecodeInt(p, coeffs)
 	return
 }

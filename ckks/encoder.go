@@ -131,34 +131,6 @@ type Encoder interface {
 	ShallowCopy() Encoder
 }
 
-// EncoderBigComplex is an interface that implements the encoding algorithms with arbitrary precision.
-type EncoderBigComplex interface {
-
-	// Encode encodes a set of values on the target plaintext.
-	// Encoding is done at the level and scale of the plaintext.
-	// User must ensure that 1 <= len(values) <= 2^logSlots < 2^LogN.
-	Encode(values []*ring.Complex, plaintext *Plaintext, logSlots int)
-
-	// EncodeNew encodes a set of values on a new plaintext.
-	// Encoding is done at the provided level and with the provided scale.
-	// User must ensure that 1 <= len(values) <= 2^logSlots < 2^LogN.
-	EncodeNew(values []*ring.Complex, level int, scale float64, logSlots int) (plaintext *Plaintext)
-
-	// Decode decodes the input plaintext on a new slice of ring.Complex.
-	Decode(plaintext *Plaintext, logSlots int) (res []*ring.Complex)
-
-	// FFT evaluates the decoding matrix on a slice of ring.Complex values.
-	FFT(values []*ring.Complex, N int)
-
-	// InvFFT evaluates the encoding matrix on a slice of ring.Complex values.
-	InvFFT(values []*ring.Complex, N int)
-
-	// ShallowCopy creates a shallow copy of this EncoderBigComplex in which all the read-only data-structures are
-	// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-	// EncoderBigComplex can be used concurrently.
-	ShallowCopy() EncoderBigComplex
-}
-
 // encoder is a struct storing the necessary parameters to encode a slice of complex number on a Plaintext.
 type encoder struct {
 	params       Parameters
@@ -179,6 +151,9 @@ type encoderComplex128 struct {
 	roots       []complex128
 }
 
+// ShallowCopy creates a shallow copy of EncoderBigComplex in which all the read-only data-structures are
+// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+// EncoderBigComplex can be used concurrently.
 func (ecd *encoder) ShallowCopy() *encoder {
 
 	prng, err := utils.NewPRNG()
@@ -772,6 +747,34 @@ func (ecd *encoderComplex128) decodeCoeffsPublic(plaintext *Plaintext, sigma flo
 	return
 }
 
+// EncoderBigComplex is an interface that implements the encoding algorithms with arbitrary precision.
+type EncoderBigComplex interface {
+
+	// Encode encodes a set of values on the target plaintext.
+	// Encoding is done at the level and scale of the plaintext.
+	// User must ensure that 1 <= len(values) <= 2^logSlots < 2^LogN.
+	Encode(values []*ring.Complex, plaintext *Plaintext, logSlots int)
+
+	// EncodeNew encodes a set of values on a new plaintext.
+	// Encoding is done at the provided level and with the provided scale.
+	// User must ensure that 1 <= len(values) <= 2^logSlots < 2^LogN.
+	EncodeNew(values []*ring.Complex, level int, scale float64, logSlots int) (plaintext *Plaintext)
+
+	// Decode decodes the input plaintext on a new slice of ring.Complex.
+	Decode(plaintext *Plaintext, logSlots int) (res []*ring.Complex)
+
+	// FFT evaluates the decoding matrix on a slice of ring.Complex values.
+	FFT(values []*ring.Complex, N int)
+
+	// InvFFT evaluates the encoding matrix on a slice of ring.Complex values.
+	InvFFT(values []*ring.Complex, N int)
+
+	// ShallowCopy creates a shallow copy of this EncoderBigComplex in which all the read-only data-structures are
+	// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+	// EncoderBigComplex can be used concurrently.
+	ShallowCopy() EncoderBigComplex
+}
+
 type encoderBigComplex struct {
 	encoder
 	zero         *big.Float
@@ -782,6 +785,9 @@ type encoderBigComplex struct {
 	roots        []*ring.Complex
 }
 
+// ShallowCopy creates a shallow copy of EncoderBigComplex in which all the read-only data-structures are
+// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+// EncoderBigComplex can be used concurrently.
 func (ecd *encoderBigComplex) ShallowCopy() EncoderBigComplex {
 
 	values := make([]*ring.Complex, ecd.m>>2)

@@ -43,7 +43,7 @@ type encryptor struct {
 	*encryptorBase
 	*encryptorSamplers
 	*encryptorBuffers
-	baseconverter *ring.FastBasisExtender
+	basisextender *ring.BasisExtender
 }
 
 // NewEncryptor creates a new Encryptor
@@ -70,16 +70,16 @@ func NewEncryptor(params Parameters, key interface{}) Encryptor {
 
 func newEncryptor(params Parameters) encryptor {
 
-	var bc *ring.FastBasisExtender
+	var bc *ring.BasisExtender
 	if params.PCount() != 0 {
-		bc = ring.NewFastBasisExtender(params.RingQ(), params.RingP())
+		bc = ring.NewBasisExtender(params.RingQ(), params.RingP())
 	}
 
 	return encryptor{
 		encryptorBase:     newEncryptorBase(params),
 		encryptorSamplers: newEncryptorSamplers(params),
 		encryptorBuffers:  newEncryptorBuffers(params),
-		baseconverter:     bc,
+		basisextender:     bc,
 	}
 }
 
@@ -142,16 +142,16 @@ func (enc *skEncryptor) ShallowCopy() Encryptor {
 
 func (enc *encryptor) ShallowCopy() Encryptor {
 
-	var bc *ring.FastBasisExtender
+	var bc *ring.BasisExtender
 	if enc.params.PCount() != 0 {
-		bc = ring.NewFastBasisExtender(enc.params.RingQ(), enc.params.RingP())
+		bc = enc.basisextender.ShallowCopy()
 	}
 
 	return &encryptor{
 		encryptorBase:     enc.encryptorBase,
 		encryptorSamplers: newEncryptorSamplers(enc.params),
 		encryptorBuffers:  newEncryptorBuffers(enc.params),
-		baseconverter:     bc,
+		basisextender:     bc,
 	}
 }
 
@@ -223,7 +223,7 @@ func (enc *encryptor) encrypt(plaintext *Plaintext, key interface{}, ciphertext 
 
 		enc.uniformSampler.ReadLvl(utils.MinInt(plaintext.Level(), ciphertext.Level()), ciphertext.Value[1])
 
-		if enc.baseconverter != nil {
+		if enc.basisextender != nil {
 			enc.encryptPk(plaintext, key, ciphertext)
 		} else {
 			enc.encryptPkNoP(plaintext, key, ciphertext)
@@ -313,10 +313,10 @@ func (enc *encryptor) encryptPk(plaintext *Plaintext, pk *PublicKey, ciphertext 
 	ringQP.AddLvl(levelQ, levelP, ct1QP, e, ct1QP)
 
 	// ct0 = (u*pk0 + e0)/P
-	enc.baseconverter.ModDownQPtoQ(levelQ, levelP, ct0QP.Q, ct0QP.P, ct0QP.Q)
+	enc.basisextender.ModDownQPtoQ(levelQ, levelP, ct0QP.Q, ct0QP.P, ct0QP.Q)
 
 	// ct1 = (u*pk1 + e1)/P
-	enc.baseconverter.ModDownQPtoQ(levelQ, levelP, ct1QP.Q, ct1QP.P, ct1QP.Q)
+	enc.basisextender.ModDownQPtoQ(levelQ, levelP, ct1QP.Q, ct1QP.P, ct1QP.Q)
 
 	if ciphertextNTT {
 

@@ -64,7 +64,7 @@ func NewEncryptor(params Parameters, key interface{}) Encryptor {
 		enc := newEncryptor(params)
 		return &enc
 	default:
-		panic("key must be either rlwe.PublicKey or rlwe.SecretKey")
+		panic("key must be either *rlwe.PublicKey, *rlwe.SecretKey or nil")
 	}
 }
 
@@ -188,7 +188,7 @@ func (enc *encryptor) SetKey(key interface{}) Encryptor {
 		}
 		return &skEncryptor{*enc, key}
 	default:
-		panic("key must be either rlwe.PublicKey or rlwe.SecretKey")
+		panic("key must be either *rlwe.PublicKey or *rlwe.SecretKey")
 	}
 }
 

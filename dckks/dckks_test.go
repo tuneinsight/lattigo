@@ -551,9 +551,18 @@ func testE2SProtocol(testCtx *testContext, t *testing.T) {
 			P[i].secretShare = rlwe.NewAdditiveShareBigint(params.Parameters)
 		}
 
-		for i, p := range P {
+		var wg sync.WaitGroup
+		wg.Add(parties)
+		for _, p := range P {
 			// Enc(-M_i)
-			p.e2s.GenShare(p.sk, logBound, params.LogSlots(), ciphertext, p.secretShare, p.publicShareE2S)
+			go func(p Party) {
+				p.e2s.GenShare(p.sk, logBound, params.LogSlots(), ciphertext, p.secretShare, p.publicShareE2S)
+				wg.Done()
+			}(p)
+		}
+		wg.Wait()
+
+		for i, p := range P {
 			if i > 0 {
 				// Enc(sum(-M_i))
 				p.e2s.AggregateShares(P[0].publicShareE2S, p.publicShareE2S, P[0].publicShareE2S)
@@ -582,10 +591,16 @@ func testE2SProtocol(testCtx *testContext, t *testing.T) {
 
 		crp := P[0].s2e.SampleCRP(params.Parameters.MaxLevel(), testCtx.crs)
 
+		wg.Add(parties)
+		for _, p := range P {
+			go func(p Party) {
+				p.s2e.GenShare(p.sk, crp, p.secretShare, p.publicShareS2E)
+				wg.Done()
+			}(p)
+		}
+		wg.Wait()
+
 		for i, p := range P {
-
-			p.s2e.GenShare(p.sk, crp, p.secretShare, p.publicShareS2E)
-
 			if i > 0 {
 				p.s2e.AggregateShares(P[0].publicShareS2E, p.publicShareS2E, P[0].publicShareS2E)
 			}

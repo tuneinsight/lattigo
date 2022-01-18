@@ -12,7 +12,7 @@ func DecryptAndPrintError(ptWant *Plaintext, cthave *Ciphertext, ringQ *ring.Rin
 	ringQ.Sub(cthave.Value[0], ptWant.Value, cthave.Value[0])
 	plaintext := decryptor.DecryptNew(cthave)
 	bigintCoeffs := make([]*big.Int, ringQ.N)
-	ringQ.PolyToBigint(plaintext.Value, bigintCoeffs)
+	ringQ.PolyToBigint(plaintext.Value, 1, bigintCoeffs)
 	center(bigintCoeffs, ringQ.ModulusBigint)
 	stdErr, minErr, maxErr := errorStats(bigintCoeffs)
 	fmt.Printf("STD : %f - Min : %f - Max : %f\n", math.Log2(stdErr), math.Log2(minErr), math.Log2(maxErr))

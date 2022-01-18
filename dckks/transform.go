@@ -146,25 +146,29 @@ func (rfp *MaskedTransformProtocol) GenShares(sk *rlwe.SecretKey, logBound, logS
 		panic("crs level must be equal to s2eShare")
 	}
 
+	slots := 1 << logSlots
+
+	dslots := slots
+	if ringQ.Type() == ring.Standard {
+		dslots *= 2
+	}
+
 	// Generates the decryption share
 	// Returns [M_i] on rfp.tmpMask and [a*s_i -M_i + e] on e2sShare
 	rfp.e2s.GenShare(sk, logBound, logSlots, c1, &rlwe.AdditiveShareBigint{Value: rfp.tmpMask}, &shareOut.e2sShare)
-
-	slots := 1 << logSlots
-	gap := rfp.e2s.params.MaxSlots() / slots
 
 	// Applies LT(M_i)
 	if transform != nil {
 
 		// Extracts sparse coefficients
-		for i, idx := 0, 0; i < slots; i, idx = i+1, idx+gap {
-			rfp.tmpBigComplex[i][0].SetInt(rfp.tmpMask[idx])
+		for i := 0; i < slots; i++ {
+			rfp.tmpBigComplex[i][0].SetInt(rfp.tmpMask[i])
 		}
 
 		switch rfp.e2s.params.RingType() {
 		case ring.Standard:
-			for i, idx := 0, ringQ.N>>1; i < slots; i, idx = i+1, idx+gap {
-				rfp.tmpBigComplex[i][1].SetInt(rfp.tmpMask[idx])
+			for i, j := 0, slots; i < slots; i, j = i+1, j+1 {
+				rfp.tmpBigComplex[i][1].SetInt(rfp.tmpMask[j])
 			}
 		case ring.ConjugateInvariant:
 			for i := 1; i < slots; i++ {
@@ -184,13 +188,13 @@ func (rfp *MaskedTransformProtocol) GenShares(sk *rlwe.SecretKey, logBound, logS
 		rfp.encoder.InvFFT(rfp.tmpBigComplex, 1<<logSlots)
 
 		// Puts the coefficient back
-		for i, idx := 0, 0; i < slots; i, idx = i+1, idx+gap {
-			rfp.tmpBigComplex[i].Real().Int(rfp.tmpMask[idx])
+		for i := 0; i < slots; i++ {
+			rfp.tmpBigComplex[i].Real().Int(rfp.tmpMask[i])
 		}
 
 		if rfp.e2s.params.RingType() == ring.Standard {
-			for i, jdx := 0, ringQ.N>>1; i < slots; i, jdx = i+1, jdx+gap {
-				rfp.tmpBigComplex[i].Imag().Int(rfp.tmpMask[jdx])
+			for i, j := 0, slots; i < slots; i, j = i+1, j+1 {
+				rfp.tmpBigComplex[i].Imag().Int(rfp.tmpMask[j])
 			}
 		}
 	}
@@ -200,15 +204,13 @@ func (rfp *MaskedTransformProtocol) GenShares(sk *rlwe.SecretKey, logBound, logS
 	ring.NewFloat(scale, 256).Int(inputScaleInt)
 
 	// Scales the mask by the ratio between the two scales
-	for i := 0; i < ringQ.N; i++ {
-		if i%gap == 0 {
-			rfp.tmpMask[i].Mul(rfp.tmpMask[i], rfp.defaultScale)
-			rfp.tmpMask[i].Quo(rfp.tmpMask[i], inputScaleInt)
-		}
+	for i := 0; i < dslots; i++ {
+		rfp.tmpMask[i].Mul(rfp.tmpMask[i], rfp.defaultScale)
+		rfp.tmpMask[i].Quo(rfp.tmpMask[i], inputScaleInt)
 	}
 
 	// Returns [-a*s_i + LT(M_i) * diffscale + e] on s2eShare
-	rfp.s2e.GenShare(sk, crs, &rlwe.AdditiveShareBigint{Value: rfp.tmpMask}, &shareOut.s2eShare)
+	rfp.s2e.GenShare(sk, crs, logSlots, &rlwe.AdditiveShareBigint{Value: rfp.tmpMask}, &shareOut.s2eShare)
 }
 
 // Aggregate sums share1 and share2 on shareOut.
@@ -243,23 +245,27 @@ func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, logSlots int,
 
 	ringQ := rfp.s2e.params.RingQ()
 
-	// Returns -sum(M_i) + x (outside of the NTT domain)
-	rfp.e2s.GetShare(nil, &share.e2sShare, ct, &rlwe.AdditiveShareBigint{Value: rfp.tmpMask})
-
 	slots := 1 << logSlots
-	gap := rfp.e2s.params.MaxSlots() / slots
+
+	dslots := slots
+	if ringQ.Type() == ring.Standard {
+		dslots *= 2
+	}
+
+	// Returns -sum(M_i) + x (outside of the NTT domain)
+	rfp.e2s.GetShare(nil, &share.e2sShare, logSlots, ct, &rlwe.AdditiveShareBigint{Value: rfp.tmpMask[:dslots]})
 
 	// Returns LT(-sum(M_i) + x)
 	if transform != nil {
 		// Extracts sparse coefficients
-		for i, idx := 0, 0; i < slots; i, idx = i+1, idx+gap {
-			rfp.tmpBigComplex[i][0].SetInt(rfp.tmpMask[idx])
+		for i := 0; i < slots; i++ {
+			rfp.tmpBigComplex[i][0].SetInt(rfp.tmpMask[i])
 		}
 
 		switch rfp.e2s.params.RingType() {
 		case ring.Standard:
-			for i, idx := 0, ringQ.N>>1; i < slots; i, idx = i+1, idx+gap {
-				rfp.tmpBigComplex[i][1].SetInt(rfp.tmpMask[idx])
+			for i, j := 0, slots; i < slots; i, j = i+1, j+1 {
+				rfp.tmpBigComplex[i][1].SetInt(rfp.tmpMask[j])
 			}
 		case ring.ConjugateInvariant:
 			for i := 1; i < slots; i++ {
@@ -279,13 +285,13 @@ func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, logSlots int,
 		rfp.encoder.InvFFT(rfp.tmpBigComplex, 1<<logSlots)
 
 		// Puts the coefficient back
-		for i, idx := 0, 0; i < slots; i, idx = i+1, idx+gap {
-			rfp.tmpBigComplex[i].Real().Int(rfp.tmpMask[idx])
+		for i := 0; i < slots; i++ {
+			rfp.tmpBigComplex[i].Real().Int(rfp.tmpMask[i])
 		}
 
 		if rfp.e2s.params.RingType() == ring.Standard {
-			for i, jdx := 0, ringQ.N>>1; i < slots; i, jdx = i+1, jdx+gap {
-				rfp.tmpBigComplex[i].Imag().Int(rfp.tmpMask[jdx])
+			for i := 0; i < slots; i++ {
+				rfp.tmpBigComplex[i].Imag().Int(rfp.tmpMask[i+slots])
 			}
 		}
 	}
@@ -295,7 +301,7 @@ func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, logSlots int,
 	ring.NewFloat(ct.Scale, 256).Int(inputScaleInt)
 
 	// Scales the mask by the ratio between the two scales
-	for i := range rfp.tmpMask {
+	for i := 0; i < slots; i++ {
 		rfp.tmpMask[i].Mul(rfp.tmpMask[i], rfp.defaultScale)
 		rfp.tmpMask[i].Quo(rfp.tmpMask[i], inputScaleInt)
 	}
@@ -311,15 +317,65 @@ func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, logSlots int,
 		ciphertextOut.Value[1].Coeffs[level] = make([]uint64, ringQ.N)
 	}
 
-	// Sets LT(-sum(M_i) + x) * diffscale in the RNS domain
-	ringQ.SetCoefficientsBigintLvl(maxLevel, rfp.tmpMask, ciphertextOut.Value[0])
+	ciphertextOut.Value[0].Zero()
 
-	// Sets LT(-sum(M_i) + x) * diffscale in the NTT domain
-	ringQ.NTTLvl(maxLevel, ciphertextOut.Value[0], ciphertextOut.Value[0])
+	// Sets LT(-sum(M_i) + x) * diffscale in the RNS domain
+	ringQ.SetCoefficientsBigintLvl(maxLevel, rfp.tmpMask[:dslots], ciphertextOut.Value[0])
+	nttAndMontgomery(maxLevel, logSlots, ringQ, false, ciphertextOut.Value[0])
 
 	// LT(-sum(M_i) + x) * diffscale + [-a*s + LT(M_i) * diffscale + e] = [-a*s + LT(x) * diffscale + e]
 	ringQ.AddLvl(maxLevel, ciphertextOut.Value[0], share.s2eShare.Value, ciphertextOut.Value[0])
 
 	// Copies the result on the out ciphertext
 	rfp.s2e.GetEncryption(&drlwe.CKSShare{Value: ciphertextOut.Value[0]}, crs, ciphertextOut)
+}
+
+func nttAndMontgomery(level int, logSlots int, ringQ *ring.Ring, montgomery bool, pol *ring.Poly) {
+
+	maxSlots := ringQ.N / 2
+
+	if ringQ.Type() == ring.ConjugateInvariant {
+		maxSlots = ringQ.N
+	}
+
+	if 1<<logSlots == maxSlots {
+		ringQ.NTTLvl(level, pol, pol)
+		if montgomery {
+			ringQ.MFormLvl(level, pol, pol)
+		}
+	} else {
+
+		var n int
+		var NTT func(coeffsIn, coeffsOut []uint64, N int, nttPsi []uint64, Q, QInv uint64, bredParams []uint64)
+		switch ringQ.Type() {
+		case ring.Standard:
+			n = 2 << logSlots
+			NTT = ring.NTT
+		case ring.ConjugateInvariant:
+			n = 1 << logSlots
+			NTT = ring.NTTConjugateInvariant
+		}
+
+		N := ringQ.N
+		gap := N / n
+		for i := 0; i < level+1; i++ {
+
+			coeffs := pol.Coeffs[i]
+
+			// NTT in dimension n
+			NTT(coeffs[:n], coeffs[:n], n, ringQ.NttPsi[i], ringQ.Modulus[i], ringQ.MredParams[i], ringQ.BredParams[i])
+
+			if montgomery {
+				ring.MFormVec(coeffs[:n], coeffs[:n], ringQ.Modulus[i], ringQ.BredParams[i])
+			}
+
+			// Maps NTT in dimension n to NTT in dimension N
+			for j := n - 1; j >= 0; j-- {
+				c := coeffs[j]
+				for w := 0; w < gap; w++ {
+					coeffs[j*gap+w] = c
+				}
+			}
+		}
+	}
 }

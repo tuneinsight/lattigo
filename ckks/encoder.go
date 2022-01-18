@@ -258,8 +258,8 @@ func (ecd *encoderComplex128) switchToNTTDomain(logSlots int, montgomery bool, p
 	}
 }
 
-func (ecd *encoderComplex128) nttandmontgomery(level int, logSlots int, ringQ *ring.Ring, montgomery bool, pol *ring.Poly) {
-	if logSlots == ecd.params.MaxLogSlots() {
+func (ecd *encoder) nttandmontgomery(level int, logSlots int, ringQ *ring.Ring, montgomery bool, pol *ring.Poly) {
+	if 1<<logSlots == int(ringQ.NthRoot>>2) {
 		ringQ.NTTLvl(level, pol, pol)
 		if montgomery {
 			ringQ.MFormLvl(level, pol, pol)
@@ -268,7 +268,7 @@ func (ecd *encoderComplex128) nttandmontgomery(level int, logSlots int, ringQ *r
 
 		var n int
 		var NTT func(coeffsIn, coeffsOut []uint64, N int, nttPsi []uint64, Q, QInv uint64, bredParams []uint64)
-		switch ecd.params.RingType() {
+		switch ringQ.Type() {
 		case ring.Standard:
 			n = 2 << logSlots
 			NTT = ring.NTT
@@ -277,7 +277,7 @@ func (ecd *encoderComplex128) nttandmontgomery(level int, logSlots int, ringQ *r
 			NTT = ring.NTTConjugateInvariant
 		}
 
-		N := ecd.params.N()
+		N := ringQ.N
 		gap := N / n
 		for i := 0; i < level+1; i++ {
 
@@ -514,11 +514,11 @@ func polyToComplexNoCRT(coeffs []uint64, values []complex128, scale float64, log
 
 func polyToComplexCRT(poly *ring.Poly, bigintCoeffs []*big.Int, values []complex128, scale float64, logSlots int, isreal bool, ringQ *ring.Ring, Q *big.Int) {
 
-	ringQ.PolyToBigint(poly, bigintCoeffs)
-
 	maxSlots := int(ringQ.NthRoot >> 2)
 	slots := 1 << logSlots
 	gap := maxSlots / slots
+
+	ringQ.PolyToBigint(poly, gap, bigintCoeffs)
 
 	qHalf := new(big.Int)
 	qHalf.Set(Q)
@@ -526,27 +526,27 @@ func polyToComplexCRT(poly *ring.Poly, bigintCoeffs []*big.Int, values []complex
 
 	var sign int
 
-	for i, idx := 0, 0; i < slots; i, idx = i+1, idx+gap {
+	for i := 0; i < slots; i++ {
 
 		// Centers the value around the current modulus
-		bigintCoeffs[idx].Mod(bigintCoeffs[idx], Q)
-		sign = bigintCoeffs[idx].Cmp(qHalf)
+		bigintCoeffs[i].Mod(bigintCoeffs[i], Q)
+		sign = bigintCoeffs[i].Cmp(qHalf)
 		if sign == 1 || sign == 0 {
-			bigintCoeffs[idx].Sub(bigintCoeffs[idx], Q)
+			bigintCoeffs[i].Sub(bigintCoeffs[i], Q)
 		}
 
-		values[i] = complex(scaleDown(bigintCoeffs[idx], scale), 0)
+		values[i] = complex(scaleDown(bigintCoeffs[i], scale), 0)
 	}
 
 	if !isreal {
-		for i, idx := 0, 0; i < slots; i, idx = i+1, idx+gap {
+		for i, j := 0, slots; i < slots; i, j = i+1, j+1 {
 			// Centers the value around the current modulus
-			bigintCoeffs[idx+maxSlots].Mod(bigintCoeffs[idx+maxSlots], Q)
-			sign = bigintCoeffs[idx+maxSlots].Cmp(qHalf)
+			bigintCoeffs[j].Mod(bigintCoeffs[j], Q)
+			sign = bigintCoeffs[j].Cmp(qHalf)
 			if sign == 1 || sign == 0 {
-				bigintCoeffs[idx+maxSlots].Sub(bigintCoeffs[idx+maxSlots], Q)
+				bigintCoeffs[j].Sub(bigintCoeffs[j], Q)
 			}
-			values[i] += complex(0, scaleDown(bigintCoeffs[idx+maxSlots], scale))
+			values[i] += complex(0, scaleDown(bigintCoeffs[j], scale))
 		}
 	}
 }
@@ -705,7 +705,7 @@ func (ecd *encoderComplex128) decodeCoeffsPublic(plaintext *Plaintext, sigma flo
 	// We have more than one moduli and need the CRT reconstruction
 	if plaintext.Level() > 0 {
 
-		ecd.params.RingQ().PolyToBigint(ecd.polypool, ecd.bigintCoeffs)
+		ecd.params.RingQ().PolyToBigint(ecd.polypool, 1, ecd.bigintCoeffs)
 
 		Q := ecd.bigintChain[plaintext.Level()]
 
@@ -895,10 +895,6 @@ func (ecd *encoderBigComplex) Encode(values []*ring.Complex, plaintext *Plaintex
 
 	scaleUpVecExactBigFloat(ecd.valuesfloat, plaintext.Scale, ecd.params.RingQ().Modulus[:plaintext.Level()+1], plaintext.Value.Coeffs)
 
-	coeffsBigInt := make([]*big.Int, ecd.params.N())
-
-	ecd.params.RingQ().PolyToBigint(plaintext.Value, coeffsBigInt)
-
 	for i := 0; i < (ecd.params.RingQ().N >> 1); i++ {
 		ecd.values[i].Real().Set(ecd.zero)
 		ecd.values[i].Imag().Set(ecd.zero)
@@ -935,8 +931,6 @@ func (ecd *encoderBigComplex) decodePublic(plaintext *Plaintext, logSlots int, s
 		ecd.gaussianSampler.ReadAndAddFromDistLvl(plaintext.Level(), ecd.polypool, ecd.params.RingQ(), sigma, int(2.5066282746310002*sigma+0.5))
 	}
 
-	ecd.params.RingQ().PolyToBigint(ecd.polypool, ecd.bigintCoeffs)
-
 	Q := ecd.bigintChain[plaintext.Level()]
 
 	maxSlots := ecd.params.RingQ().N >> 1
@@ -948,28 +942,30 @@ func (ecd *encoderBigComplex) decodePublic(plaintext *Plaintext, logSlots int, s
 
 	gap := maxSlots / slots
 
+	ecd.params.RingQ().PolyToBigint(ecd.polypool, gap, ecd.bigintCoeffs)
+
 	var sign int
 
-	for i, idx := 0, 0; i < slots; i, idx = i+1, idx+gap {
+	for i, j := 0, slots; i < slots; i, j = i+1, j+1 {
 
 		// Centers the value around the current modulus
-		ecd.bigintCoeffs[idx].Mod(ecd.bigintCoeffs[idx], Q)
-		sign = ecd.bigintCoeffs[idx].Cmp(ecd.qHalf)
+		ecd.bigintCoeffs[i].Mod(ecd.bigintCoeffs[i], Q)
+		sign = ecd.bigintCoeffs[i].Cmp(ecd.qHalf)
 		if sign == 1 || sign == 0 {
-			ecd.bigintCoeffs[idx].Sub(ecd.bigintCoeffs[idx], Q)
+			ecd.bigintCoeffs[i].Sub(ecd.bigintCoeffs[i], Q)
 		}
 
 		// Centers the value around the current modulus
-		ecd.bigintCoeffs[idx+maxSlots].Mod(ecd.bigintCoeffs[idx+maxSlots], Q)
-		sign = ecd.bigintCoeffs[idx+maxSlots].Cmp(ecd.qHalf)
+		ecd.bigintCoeffs[j].Mod(ecd.bigintCoeffs[j], Q)
+		sign = ecd.bigintCoeffs[j].Cmp(ecd.qHalf)
 		if sign == 1 || sign == 0 {
-			ecd.bigintCoeffs[idx+maxSlots].Sub(ecd.bigintCoeffs[idx+maxSlots], Q)
+			ecd.bigintCoeffs[j].Sub(ecd.bigintCoeffs[j], Q)
 		}
 
-		ecd.values[i].Real().SetInt(ecd.bigintCoeffs[idx])
+		ecd.values[i].Real().SetInt(ecd.bigintCoeffs[i])
 		ecd.values[i].Real().Quo(ecd.values[i].Real(), scaleFlo)
 
-		ecd.values[i].Imag().SetInt(ecd.bigintCoeffs[idx+maxSlots])
+		ecd.values[i].Imag().SetInt(ecd.bigintCoeffs[j])
 		ecd.values[i].Imag().Quo(ecd.values[i].Imag(), scaleFlo)
 	}
 

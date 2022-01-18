@@ -88,7 +88,7 @@ func TestDCKKS(t *testing.T) {
 		testParams = append(ckks.DefaultParams[:4], ckks.DefaultConjugateInvariantParams[:4]...)
 	}
 
-	for _, paramsLiteral := range testParams[:] {
+	for _, paramsLiteral := range testParams {
 
 		params, err := ckks.NewParametersFromLiteral(paramsLiteral)
 		if err != nil {
@@ -548,7 +548,7 @@ func testE2SProtocol(testCtx *testContext, t *testing.T) {
 			P[i].sk = testCtx.sk0Shards[i]
 			P[i].publicShareE2S = P[i].e2s.AllocateShare(minLevel)
 			P[i].publicShareS2E = P[i].s2e.AllocateShare(params.Parameters.MaxLevel())
-			P[i].secretShare = rlwe.NewAdditiveShareBigint(params.Parameters)
+			P[i].secretShare = rlwe.NewAdditiveShareBigint(params.Parameters, params.LogSlots())
 		}
 
 		var wg sync.WaitGroup
@@ -570,10 +570,10 @@ func testE2SProtocol(testCtx *testContext, t *testing.T) {
 		}
 
 		// sum(-M_i) + x
-		P[0].e2s.GetShare(P[0].secretShare, P[0].publicShareE2S, ciphertext, P[0].secretShare)
+		P[0].e2s.GetShare(P[0].secretShare, P[0].publicShareE2S, params.LogSlots(), ciphertext, P[0].secretShare)
 
 		// sum(-M_i) + x + sum(M_i) = x
-		rec := rlwe.NewAdditiveShareBigint(params.Parameters)
+		rec := rlwe.NewAdditiveShareBigint(params.Parameters, params.LogSlots())
 		for _, p := range P {
 			a := rec.Value
 			b := p.secretShare.Value
@@ -594,7 +594,7 @@ func testE2SProtocol(testCtx *testContext, t *testing.T) {
 		wg.Add(parties)
 		for _, p := range P {
 			go func(p Party) {
-				p.s2e.GenShare(p.sk, crp, p.secretShare, p.publicShareS2E)
+				p.s2e.GenShare(p.sk, crp, params.LogSlots(), p.secretShare, p.publicShareS2E)
 				wg.Done()
 			}(p)
 		}

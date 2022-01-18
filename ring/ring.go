@@ -453,7 +453,7 @@ func (r *Ring) SetCoefficientsBigintLvl(level int, coeffs []*big.Int, p1 *Poly) 
 func (r *Ring) PolyToString(p1 *Poly) []string {
 
 	coeffsBigint := make([]*big.Int, r.N)
-	r.PolyToBigint(p1, coeffsBigint)
+	r.PolyToBigint(p1, 1, coeffsBigint)
 	coeffsString := make([]string, len(coeffsBigint))
 
 	for i := range coeffsBigint {
@@ -464,12 +464,12 @@ func (r *Ring) PolyToString(p1 *Poly) []string {
 }
 
 // PolyToBigint reconstructs p1 and returns the result in an array of Int.
-func (r *Ring) PolyToBigint(p1 *Poly, coeffsBigint []*big.Int) {
-	r.PolyToBigintLvl(p1.Level(), p1, coeffsBigint)
+func (r *Ring) PolyToBigint(p1 *Poly, gap int, coeffsBigint []*big.Int) {
+	r.PolyToBigintLvl(p1.Level(), p1, gap, coeffsBigint)
 }
 
 // PolyToBigintLvl reconstructs p1 and returns the result in an array of Int.
-func (r *Ring) PolyToBigintLvl(level int, p1 *Poly, coeffsBigint []*big.Int) {
+func (r *Ring) PolyToBigintLvl(level int, p1 *Poly, gap int, coeffsBigint []*big.Int) {
 	var qi uint64
 
 	crtReconstruction := make([]*big.Int, level+1)
@@ -492,22 +492,22 @@ func (r *Ring) PolyToBigintLvl(level int, p1 *Poly, coeffsBigint []*big.Int) {
 		crtReconstruction[i].Mul(crtReconstruction[i], tmp)
 	}
 
-	for x := 0; x < r.N; x++ {
+	for i, j := 0, 0; j < r.N; i, j = i+1, j+gap {
 
 		tmp.SetUint64(0)
-		coeffsBigint[x] = new(big.Int)
+		coeffsBigint[i] = new(big.Int)
 
-		for i := 0; i < level+1; i++ {
-			coeffsBigint[x].Add(coeffsBigint[x], tmp.Mul(NewUint(p1.Coeffs[i][x]), crtReconstruction[i]))
+		for k := 0; k < level+1; k++ {
+			coeffsBigint[i].Add(coeffsBigint[i], tmp.Mul(NewUint(p1.Coeffs[k][j]), crtReconstruction[k]))
 		}
 
-		coeffsBigint[x].Mod(coeffsBigint[x], modulusBigint)
+		coeffsBigint[i].Mod(coeffsBigint[i], modulusBigint)
 	}
 }
 
 // PolyToBigintCenteredLvl reconstructs p1 and returns the result in an array of Int.
 // Coefficients are centered around Q/2
-func (r *Ring) PolyToBigintCenteredLvl(level int, p1 *Poly, coeffsBigint []*big.Int) {
+func (r *Ring) PolyToBigintCenteredLvl(level int, p1 *Poly, gap int, coeffsBigint []*big.Int) {
 	var qi uint64
 
 	crtReconstruction := make([]*big.Int, level+1)
@@ -534,22 +534,22 @@ func (r *Ring) PolyToBigintCenteredLvl(level int, p1 *Poly, coeffsBigint []*big.
 	modulusBigintHalf.Rsh(modulusBigint, 1)
 
 	var sign int
-	for x := 0; x < r.N; x++ {
+	for i, j := 0, 0; j < r.N; i, j = i+1, j+gap {
 
 		tmp.SetUint64(0)
-		coeffsBigint[x].SetUint64(0)
+		coeffsBigint[i].SetUint64(0)
 
-		for i := 0; i < level+1; i++ {
-			coeffsBigint[x].Add(coeffsBigint[x], tmp.Mul(NewUint(p1.Coeffs[i][x]), crtReconstruction[i]))
+		for k := 0; k < level+1; k++ {
+			coeffsBigint[i].Add(coeffsBigint[i], tmp.Mul(NewUint(p1.Coeffs[k][j]), crtReconstruction[k]))
 		}
 
-		coeffsBigint[x].Mod(coeffsBigint[x], modulusBigint)
+		coeffsBigint[i].Mod(coeffsBigint[i], modulusBigint)
 
 		// Centers the coefficients
-		sign = coeffsBigint[x].Cmp(modulusBigintHalf)
+		sign = coeffsBigint[i].Cmp(modulusBigintHalf)
 
 		if sign == 1 || sign == 0 {
-			coeffsBigint[x].Sub(coeffsBigint[x], modulusBigint)
+			coeffsBigint[i].Sub(coeffsBigint[i], modulusBigint)
 		}
 	}
 }

@@ -41,8 +41,12 @@ func NewAdditiveShareAtLevel(params Parameters, level int) *AdditiveShare {
 }
 
 // NewAdditiveShareBigint instantiate a new additive share struct composed of big.Int elements
-func NewAdditiveShareBigint(params Parameters) *AdditiveShareBigint {
-	v := make([]*big.Int, params.N())
+func NewAdditiveShareBigint(params Parameters, logSlots int) *AdditiveShareBigint {
+	dslots := 1 << logSlots
+	if params.RingType() == ring.Standard {
+		dslots *= 2
+	}
+	v := make([]*big.Int, dslots)
 	for i := range v {
 		v[i] = new(big.Int)
 	}

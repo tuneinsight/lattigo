@@ -630,7 +630,7 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 
 		// Simulated added error of size Q/(T^2) and add it to the fresh ciphertext
 		coeffsBigint := make([]*big.Int, testCtx.params.N())
-		testCtx.ringQ.PolyToBigint(ciphertext.Value[0], coeffsBigint)
+		testCtx.ringQ.PolyToBigint(ciphertext.Value[0], 1, coeffsBigint)
 
 		errorRange := new(big.Int).Set(testCtx.ringQ.ModulusBigint)
 		errorRange.Quo(errorRange, testCtx.ringT.ModulusBigint)

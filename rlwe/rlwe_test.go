@@ -362,7 +362,7 @@ func testKeySwitcher(kgen KeyGenerator, t *testing.T) {
 				coeffsBigintWant[i] = new(big.Int)
 			}
 
-			ringQ.PolyToBigintCenteredLvl(ciphertext.Level(), c2InvNTT, coeffsBigintRef)
+			ringQ.PolyToBigintCenteredLvl(ciphertext.Level(), c2InvNTT, 1, coeffsBigintRef)
 
 			tmpQ := ringQ.NewPolyLvl(ciphertext.Level())
 			tmpP := ringP.NewPolyLvl(levelP)
@@ -388,8 +388,8 @@ func testKeySwitcher(kgen KeyGenerator, t *testing.T) {
 				ringQ.InvNTTLvl(levelQ, ks.PoolDecompQP[i].Q, tmpQ)
 				ringP.InvNTTLvl(levelP, ks.PoolDecompQP[i].P, tmpP)
 
-				ringQ.PolyToBigintCenteredLvl(levelQ, tmpQ, coeffsBigintHaveQ)
-				ringP.PolyToBigintCenteredLvl(levelP, tmpP, coeffsBigintHaveP)
+				ringQ.PolyToBigintCenteredLvl(levelQ, tmpQ, 1, coeffsBigintHaveQ)
+				ringP.PolyToBigintCenteredLvl(levelP, tmpP, 1, coeffsBigintHaveP)
 
 				// Checks that Reconstruct(NTT(c2 mod Q)) mod q_alpha_i == Reconstruct(NTT(Decomp(c2 mod Q, q_alpha-i) mod QP))
 				for i := range coeffsBigintWant[:1] {

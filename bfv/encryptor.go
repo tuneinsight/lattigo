@@ -11,7 +11,6 @@ type Encryptor interface {
 	EncryptNew(plaintext *Plaintext) *Ciphertext
 	EncryptFromCRP(plaintext *Plaintext, crp *ring.Poly, ctOut *Ciphertext)
 	EncryptFromCRPNew(plaintext *Plaintext, crp *ring.Poly) *Ciphertext
-
 	ShallowCopy() Encryptor
 	WithKey(key interface{}) Encryptor
 }

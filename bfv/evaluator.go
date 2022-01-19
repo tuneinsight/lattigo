@@ -152,32 +152,6 @@ func NewEvaluators(params Parameters, evaluationKey rlwe.EvaluationKey, n int) [
 	return evas
 }
 
-// ShallowCopy creates a shallow copy of this evaluator in which the read-only data-structures are
-// shared with the receiver.
-func (eval *evaluator) ShallowCopy() Evaluator {
-	return &evaluator{
-		evaluatorBase:       eval.evaluatorBase,
-		KeySwitcher:         eval.KeySwitcher.ShallowCopy(),
-		evaluatorBuffers:    newEvaluatorBuffer(eval.evaluatorBase),
-		basisExtenderQ1toQ2: eval.basisExtenderQ1toQ2.ShallowCopy(),
-		rlk:                 eval.rlk,
-		rtks:                eval.rtks,
-	}
-}
-
-// ShallowCopyWithKey creates a shallow copy of this evaluator in which the read-only data-structures are
-// shared with the receiver but the EvaluationKey is evaluationKey.
-func (eval *evaluator) WithKey(evaluationKey rlwe.EvaluationKey) Evaluator {
-	return &evaluator{
-		evaluatorBase:       eval.evaluatorBase,
-		KeySwitcher:         eval.KeySwitcher,
-		evaluatorBuffers:    eval.evaluatorBuffers,
-		basisExtenderQ1toQ2: eval.basisExtenderQ1toQ2,
-		rlk:                 evaluationKey.Rlk,
-		rtks:                evaluationKey.Rtks,
-	}
-}
-
 // Add adds op0 to op1 and returns the result in ctOut.
 func (eval *evaluator) Add(op0, op1 Operand, ctOut *Ciphertext) {
 	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxInt(op0.Degree(), op1.Degree()), true)
@@ -704,6 +678,32 @@ func (eval *evaluator) InnerSum(ct0 *Ciphertext, ctOut *Ciphertext) {
 
 	eval.RotateRows(ctOut, cTmp)
 	eval.Add(ctOut, cTmp, ctOut)
+}
+
+// ShallowCopy creates a shallow copy of this evaluator in which the read-only data-structures are
+// shared with the receiver.
+func (eval *evaluator) ShallowCopy() Evaluator {
+	return &evaluator{
+		evaluatorBase:       eval.evaluatorBase,
+		KeySwitcher:         eval.KeySwitcher.ShallowCopy(),
+		evaluatorBuffers:    newEvaluatorBuffer(eval.evaluatorBase),
+		basisExtenderQ1toQ2: eval.basisExtenderQ1toQ2.ShallowCopy(),
+		rlk:                 eval.rlk,
+		rtks:                eval.rtks,
+	}
+}
+
+// ShallowCopyWithKey creates a shallow copy of this evaluator in which the read-only data-structures are
+// shared with the receiver but the EvaluationKey is evaluationKey.
+func (eval *evaluator) WithKey(evaluationKey rlwe.EvaluationKey) Evaluator {
+	return &evaluator{
+		evaluatorBase:       eval.evaluatorBase,
+		KeySwitcher:         eval.KeySwitcher,
+		evaluatorBuffers:    eval.evaluatorBuffers,
+		basisExtenderQ1toQ2: eval.basisExtenderQ1toQ2,
+		rlk:                 evaluationKey.Rlk,
+		rtks:                evaluationKey.Rtks,
+	}
 }
 
 // permute performs a column rotation on ct0 and returns the result in ctOut

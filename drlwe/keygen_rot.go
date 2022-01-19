@@ -10,9 +10,9 @@ import (
 
 // RotationKeyGenerator is an interface for the local operation in the generation of rotation keys
 type RotationKeyGenerator interface {
-	AllocateShares() (rtgShare *RTGShare)
+	AllocateShare() (rtgShare *RTGShare)
 	GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, shareOut *RTGShare)
-	AggregateShares(share1, share2, shareOut *RTGShare)
+	AggregateShare(share1, share2, shareOut *RTGShare)
 	GenRotationKey(share *RTGShare, crp RTGCRP, rotKey *rlwe.SwitchingKey)
 }
 
@@ -66,8 +66,8 @@ func NewRTGProtocol(params rlwe.Parameters) *RTGProtocol {
 	return rtg
 }
 
-// AllocateShares allocates a party's share in the RTG protocol
-func (rtg *RTGProtocol) AllocateShares() (rtgShare *RTGShare) {
+// AllocateShare allocates a party's share in the RTG protocol
+func (rtg *RTGProtocol) AllocateShare() (rtgShare *RTGShare) {
 	rtgShare = new(RTGShare)
 	rtgShare.Value = make([]rlwe.PolyQP, rtg.params.Beta())
 	for i := range rtgShare.Value {
@@ -141,8 +141,8 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, s
 	}
 }
 
-// AggregateShares aggregates two shares in the Rotation Key Generation protocol
-func (rtg *RTGProtocol) AggregateShares(share1, share2, shareOut *RTGShare) {
+// AggregateShare aggregates two share in the Rotation Key Generation protocol
+func (rtg *RTGProtocol) AggregateShare(share1, share2, shareOut *RTGShare) {
 	ringQP, levelQ, levelP := rtg.params.RingQP(), rtg.params.QCount()-1, rtg.params.PCount()-1
 	for i := 0; i < rtg.params.Beta(); i++ {
 		ringQP.AddLvl(levelQ, levelP, share1.Value[i], share2.Value[i], shareOut.Value[i])

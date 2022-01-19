@@ -9,9 +9,9 @@ import (
 
 // CollectivePublicKeyGenerator is an interface describing the local steps of a generic RLWE CKG protocol.
 type CollectivePublicKeyGenerator interface {
-	AllocateShares() *CKGShare
+	AllocateShare() *CKGShare
 	GenShare(sk *rlwe.SecretKey, crp CKGCRP, shareOut *CKGShare)
-	AggregateShares(share1, share2, shareOut *CKGShare)
+	AggregateShare(share1, share2, shareOut *CKGShare)
 	GenPublicKey(aggregatedShare *CKGShare, crp CKGCRP, pubkey *rlwe.PublicKey)
 }
 
@@ -69,8 +69,8 @@ func NewCKGProtocol(params rlwe.Parameters) *CKGProtocol {
 	return ckg
 }
 
-// AllocateShares allocates the share of the CKG protocol.
-func (ckg *CKGProtocol) AllocateShares() *CKGShare {
+// AllocateShare allocates the share of the CKG protocol.
+func (ckg *CKGProtocol) AllocateShare() *CKGShare {
 	return &CKGShare{ckg.params.RingQP().NewPoly()}
 }
 
@@ -98,8 +98,8 @@ func (ckg *CKGProtocol) GenShare(sk *rlwe.SecretKey, crp CKGCRP, shareOut *CKGSh
 	ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, sk.Value, rlwe.PolyQP(crp), shareOut.Value)
 }
 
-// AggregateShares aggregates a new share to the aggregate key
-func (ckg *CKGProtocol) AggregateShares(share1, share2, shareOut *CKGShare) {
+// AggregateShare aggregates a new share to the aggregate key
+func (ckg *CKGProtocol) AggregateShare(share1, share2, shareOut *CKGShare) {
 	ckg.params.RingQP().AddLvl(ckg.params.QCount()-1, ckg.params.PCount()-1, share1.Value, share2.Value, shareOut.Value)
 }
 

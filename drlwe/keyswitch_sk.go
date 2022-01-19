@@ -10,7 +10,7 @@ import (
 type KeySwitchingProtocol interface {
 	AllocateShare(level int) *CKSShare
 	GenShare(skInput, skOutput *rlwe.SecretKey, c1 *ring.Poly, shareOut *CKSShare)
-	AggregateShares(share1, share2, shareOut *CKSShare)
+	AggregateShare(share1, share2, shareOut *CKSShare)
 	KeySwitch(ctIn *rlwe.Ciphertext, combined *CKSShare, ctOut *rlwe.Ciphertext)
 }
 
@@ -95,8 +95,8 @@ func (cks *CKSProtocol) SampleCRP(level int, crs CRS) CKSCRP {
 }
 
 // GenShare computes a party's share in the CKS protocol.
-// c1 = rlwe.Ciphertext.Value[1]
-// NTT flag for ct.Value[1] is expected to be set correctly
+// ct1 is the degree 1 element of the rlwe.Ciphertext to keyswitch, i.e. ct1 = rlwe.Ciphertext.Value[1].
+// NTT flag for ct1 is expected to be set correctly.
 func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, c1 *ring.Poly, shareOut *CKSShare) {
 
 	ringQ := cks.params.RingQ()
@@ -158,10 +158,10 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, c1 *ring.Pol
 	shareOut.Value.Coeffs = shareOut.Value.Coeffs[:levelQ+1]
 }
 
-// AggregateShares is the second part of the unique round of the CKSProtocol protocol. Upon receiving the j-1 elements each party computes :
+// AggregateShare is the second part of the unique round of the CKSProtocol protocol. Upon receiving the j-1 elements each party computes :
 //
 // [ctx[0] + sum((skInput_i - skOutput_i) * ctx[0] + e_i), ctx[1]]
-func (cks *CKSProtocol) AggregateShares(share1, share2, shareOut *CKSShare) {
+func (cks *CKSProtocol) AggregateShare(share1, share2, shareOut *CKSShare) {
 	cks.params.RingQ().AddLvl(share1.Value.Level(), share1.Value, share2.Value, shareOut.Value)
 }
 

@@ -10,7 +10,7 @@ import (
 type PublicKeySwitchingProtocol interface {
 	AllocateShare(levelQ int) *PCKSShare
 	GenShare(skInput *rlwe.SecretKey, pkOutput *rlwe.PublicKey, c1 *ring.Poly, shareOut *PCKSShare)
-	AggregateShares(share1, share2, shareOut *PCKSShare)
+	AggregateShare(share1, share2, shareOut *PCKSShare)
 	KeySwitch(ctIn *rlwe.Ciphertext, combined *PCKSShare, ctOut *rlwe.Ciphertext)
 }
 
@@ -85,14 +85,15 @@ func (pcks *PCKSProtocol) AllocateShare(levelQ int) (s *PCKSShare) {
 // [s_i * ct[1] + (u_i * pk[0] + e_0i)/P, (u_i * pk[1] + e_1i)/P]
 //
 // and broadcasts the result to the other j-1 parties.
-// c1 = rlwe.Ciphertext.Value[1]
-func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, c1 *ring.Poly, shareOut *PCKSShare) {
+// ct1 is the degree 1 element of the rlwe.Ciphertext to keyswitch, i.e. ct1 = rlwe.Ciphertext.Value[1].
+// NTT flag for ct1 is expected to be set correctly.
+func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct1 *ring.Poly, shareOut *PCKSShare) {
 
 	ringQ := pcks.params.RingQ()
 	ringP := pcks.params.RingP()
 	ringQP := pcks.params.RingQP()
 
-	levelQ := utils.MinInt(shareOut.Value[0].Level(), c1.Level())
+	levelQ := utils.MinInt(shareOut.Value[0].Level(), ct1.Level())
 	levelP := len(ringP.Modulus) - 1
 
 	// samples MForm(u_i) in Q and P separately
@@ -129,13 +130,13 @@ func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, c1 *r
 	pcks.basisExtender.ModDownQPtoQ(levelQ, levelP, shareOutQP1.Q, shareOutQP1.P, shareOutQP1.Q)
 
 	// h_0 = s_i*c_1 + (u_i * pk_0 + e0)/P
-	if c1.IsNTT {
+	if ct1.IsNTT {
 		ringQ.NTTLvl(levelQ, shareOut.Value[0], shareOut.Value[0])
 		ringQ.NTTLvl(levelQ, shareOut.Value[1], shareOut.Value[1])
-		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, c1, sk.Value.Q, shareOut.Value[0])
+		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, ct1, sk.Value.Q, shareOut.Value[0])
 	} else {
 		// tmp = s_i*c_1
-		ringQ.NTTLazyLvl(levelQ, c1, pcks.tmpQP.Q)
+		ringQ.NTTLazyLvl(levelQ, ct1, pcks.tmpQP.Q)
 		ringQ.MulCoeffsMontgomeryConstantLvl(levelQ, pcks.tmpQP.Q, sk.Value.Q, pcks.tmpQP.Q)
 		ringQ.InvNTTLvl(levelQ, pcks.tmpQP.Q, pcks.tmpQP.Q)
 
@@ -144,11 +145,11 @@ func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, c1 *r
 	}
 }
 
-// AggregateShares is the second part of the first and unique round of the PCKSProtocol protocol. Each party uppon receiving the j-1 elements from the
+// AggregateShare is the second part of the first and unique round of the PCKSProtocol protocol. Each party uppon receiving the j-1 elements from the
 // other parties computes :
 //
 // [ctx[0] + sum(s_i * ctx[0] + u_i * pk[0] + e_0i), sum(u_i * pk[1] + e_1i)]
-func (pcks *PCKSProtocol) AggregateShares(share1, share2, shareOut *PCKSShare) {
+func (pcks *PCKSProtocol) AggregateShare(share1, share2, shareOut *PCKSShare) {
 	levelQ1, levelQ2 := len(share1.Value[0].Coeffs)-1, len(share2.Value[1].Coeffs)-1
 	if levelQ1 != levelQ2 {
 		panic("cannot aggreate two shares at different levelQs.")

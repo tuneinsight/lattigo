@@ -23,10 +23,6 @@ type Encryptor interface {
 	// WithKey creates a shallow copy of the receiver Encryptor with the provided key.
 	// This is equivalent to calling Encryptor.ShallowCopy().SetKey(*)
 	WithKey(key interface{}) Encryptor
-
-	// SetKey sets the key of the target encryptor. Either secret-key, public-key or nil can be passed as argument.
-	// Will wrap the target Encryptor to a pkEncryptor (public-key) or skEncrytor (secret-key).
-	SetKey(key interface{}) Encryptor
 }
 
 type pkEncryptor struct {
@@ -156,26 +152,26 @@ func (enc *encryptor) ShallowCopy() Encryptor {
 }
 
 func (enc *pkEncryptor) WithKey(key interface{}) Encryptor {
-	return enc.ShallowCopy().SetKey(key)
+	return enc.ShallowCopy().(*pkEncryptor).setKey(key)
 }
 
 func (enc *skEncryptor) WithKey(key interface{}) Encryptor {
-	return enc.ShallowCopy().SetKey(key)
+	return enc.ShallowCopy().(*skEncryptor).setKey(key)
 }
 
 func (enc *encryptor) WithKey(key interface{}) Encryptor {
-	return enc.ShallowCopy().SetKey(key)
+	return enc.ShallowCopy().(*encryptor).setKey(key)
 }
 
-func (enc *pkEncryptor) SetKey(key interface{}) Encryptor {
-	return enc.encryptor.SetKey(key)
+func (enc *pkEncryptor) setKey(key interface{}) Encryptor {
+	return enc.encryptor.setKey(key)
 }
 
-func (enc *skEncryptor) SetKey(key interface{}) Encryptor {
-	return enc.encryptor.SetKey(key)
+func (enc *skEncryptor) setKey(key interface{}) Encryptor {
+	return enc.encryptor.setKey(key)
 }
 
-func (enc *encryptor) SetKey(key interface{}) Encryptor {
+func (enc *encryptor) setKey(key interface{}) Encryptor {
 	switch key := key.(type) {
 	case *PublicKey:
 		if key.Value[0].Q.Degree() != enc.params.N() || key.Value[1].Q.Degree() != enc.params.N() {

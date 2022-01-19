@@ -14,7 +14,6 @@ type Encryptor interface {
 
 	ShallowCopy() Encryptor
 	WithKey(key interface{}) Encryptor
-	SetKey(key interface{}) Encryptor
 }
 
 type encryptor struct {
@@ -75,9 +74,4 @@ func (enc *encryptor) ShallowCopy() Encryptor {
 // This is equivalent to calling Encryptor.ShallowCopy().WithKey(*)
 func (enc *encryptor) WithKey(key interface{}) Encryptor {
 	return &encryptor{enc.Encryptor.WithKey(key), enc.params}
-}
-
-// SetKey sets the key of the target encryptor. Either secret-key, public-key or nil can be passed as argument.
-func (enc *encryptor) SetKey(key interface{}) Encryptor {
-	return &encryptor{enc.Encryptor.SetKey(key), enc.params}
 }

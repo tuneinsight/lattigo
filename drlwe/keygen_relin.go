@@ -11,10 +11,10 @@ import (
 
 // RelinearizationKeyGenerator is an interface describing the local steps of a generic RLWE RKG protocol
 type RelinearizationKeyGenerator interface {
-	AllocateShares() (ephKey *rlwe.SecretKey, r1 *RKGShare, r2 *RKGShare)
+	AllocateShare() (ephKey *rlwe.SecretKey, r1 *RKGShare, r2 *RKGShare)
 	GenShareRoundOne(sk *rlwe.SecretKey, crp RKGCRP, ephKeyOut *rlwe.SecretKey, shareOut *RKGShare)
 	GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGShare, shareOut *RKGShare)
-	AggregateShares(share1, share2, shareOut *RKGShare)
+	AggregateShare(share1, share2, shareOut *RKGShare)
 	GenRelinearizationKey(round1 *RKGShare, round2 *RKGShare, relinKeyOut *rlwe.RelinearizationKey)
 }
 
@@ -80,8 +80,8 @@ func NewRKGProtocol(params rlwe.Parameters, ephSkPr float64) *RKGProtocol {
 	return rkg
 }
 
-// AllocateShares allocates the shares of the EKG protocol.
-func (ekg *RKGProtocol) AllocateShares() (ephSk *rlwe.SecretKey, r1 *RKGShare, r2 *RKGShare) {
+// AllocateShare allocates the share of the EKG protocol.
+func (ekg *RKGProtocol) AllocateShare() (ephSk *rlwe.SecretKey, r1 *RKGShare, r2 *RKGShare) {
 	ephSk = rlwe.NewSecretKey(ekg.params)
 	r1, r2 = new(RKGShare), new(RKGShare)
 	r1.Value = make([][2]rlwe.PolyQP, ekg.params.Beta())
@@ -206,8 +206,8 @@ func (ekg *RKGProtocol) GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGS
 
 }
 
-// AggregateShares combines two RKG shares into a single one
-func (ekg *RKGProtocol) AggregateShares(share1, share2, shareOut *RKGShare) {
+// AggregateShare combines two RKG shares into a single one
+func (ekg *RKGProtocol) AggregateShare(share1, share2, shareOut *RKGShare) {
 	ringQP, levelQ, levelP := ekg.params.RingQP(), ekg.params.QCount()-1, ekg.params.PCount()-1
 	for i := 0; i < ekg.params.Beta(); i++ {
 		ringQP.AddLvl(levelQ, levelP, share1.Value[i][0], share2.Value[i][0], shareOut.Value[i][0])

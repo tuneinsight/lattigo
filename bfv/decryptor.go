@@ -10,7 +10,6 @@ type Decryptor interface {
 	Decrypt(ciphertext *Ciphertext, plaintext *Plaintext)
 	ShallowCopy() Decryptor
 	WithKey(sk *rlwe.SecretKey) Decryptor
-	SetKey(sk *rlwe.SecretKey)
 }
 
 type decryptor struct {

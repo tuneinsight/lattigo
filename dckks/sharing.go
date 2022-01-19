@@ -66,14 +66,14 @@ func (e2s *E2SProtocol) AllocateShare(level int) (share *drlwe.CKSShare) {
 // This protocol requires additional inputs which are :
 // logBound : the bit length of the masks
 // logSlots : the bit length of the number of slots
-//
+// ct1      : the degree 1 element the ciphertext to share, i.e. ct1 = ckk.Ciphetext.Value[1].
 // The method "GetMinimumLevelForBootstrapping" should be used to get the minimum level at which E2S can be called while still ensure 128-bits of security, as well as the
 // value for logBound.
-func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound, logSlots int, c1 *ring.Poly, secretShareOut *rlwe.AdditiveShareBigint, publicShareOut *drlwe.CKSShare) {
+func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound, logSlots int, ct1 *ring.Poly, secretShareOut *rlwe.AdditiveShareBigint, publicShareOut *drlwe.CKSShare) {
 
 	ringQ := e2s.params.RingQ()
 
-	levelQ := utils.MinInt(c1.Level(), publicShareOut.Value.Level())
+	levelQ := utils.MinInt(ct1.Level(), publicShareOut.Value.Level())
 
 	// Get the upperbound on the norm
 	// Ensures that bound >= 2^{128+logbound}
@@ -81,7 +81,7 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound, logSlots int, c1 
 	bound.Lsh(bound, uint(logBound))
 
 	boundMax := ring.NewUint(ringQ.Modulus[0])
-	for i := 1; i < c1.Level()+1; i++ {
+	for i := 1; i < levelQ+1; i++ {
 		boundMax.Mul(boundMax, ring.NewUint(ringQ.Modulus[i]))
 	}
 
@@ -113,10 +113,10 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound, logSlots int, c1 
 
 	// Encrypt the mask
 	// Generates an encryption of zero and subtracts the mask
-	e2s.CKSProtocol.GenShare(sk, e2s.zero, c1, publicShareOut)
+	e2s.CKSProtocol.GenShare(sk, e2s.zero, ct1, publicShareOut)
 
 	ringQ.SetCoefficientsBigintLvl(levelQ, secretShareOut.Value[:dslots], e2s.pool)
-	nttAndMontgomery(levelQ, logSlots, ringQ, false, e2s.pool)
+	ckks.NttAndMontgomeryLvl(levelQ, logSlots, ringQ, false, e2s.pool)
 
 	// Substracts the mask to the encryption of zero
 	ringQ.SubLvl(levelQ, publicShareOut.Value, e2s.pool, publicShareOut.Value)
@@ -229,7 +229,7 @@ func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.CKSCRP, logSlots 
 	}
 
 	ringQ.SetCoefficientsBigintLvl(c1.Level(), secretShare.Value[:dslots], s2e.tmp)
-	nttAndMontgomery(c1.Level(), logSlots, ringQ, false, s2e.tmp)
+	ckks.NttAndMontgomeryLvl(c1.Level(), logSlots, ringQ, false, s2e.tmp)
 
 	ringQ.AddLvl(c1.Level(), c0ShareOut.Value, s2e.tmp, c0ShareOut.Value)
 }

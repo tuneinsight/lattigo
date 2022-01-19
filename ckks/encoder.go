@@ -249,55 +249,12 @@ func (ecd *encoderComplex128) Encode(values interface{}, plaintext *Plaintext, l
 func (ecd *encoderComplex128) switchToNTTDomain(logSlots int, montgomery bool, polyOut interface{}) {
 	switch p := polyOut.(type) {
 	case rlwe.PolyQP:
-		ecd.nttandmontgomery(p.Q.Level(), logSlots, ecd.params.RingQ(), montgomery, p.Q)
-		ecd.nttandmontgomery(p.P.Level(), logSlots, ecd.params.RingP(), montgomery, p.P)
+		NttAndMontgomeryLvl(p.Q.Level(), logSlots, ecd.params.RingQ(), montgomery, p.Q)
+		NttAndMontgomeryLvl(p.P.Level(), logSlots, ecd.params.RingP(), montgomery, p.P)
 	case *ring.Poly:
-		ecd.nttandmontgomery(p.Level(), logSlots, ecd.params.RingQ(), montgomery, p)
+		NttAndMontgomeryLvl(p.Level(), logSlots, ecd.params.RingQ(), montgomery, p)
 	default:
 		panic("invalid polyOut type")
-	}
-}
-
-func (ecd *encoder) nttandmontgomery(level int, logSlots int, ringQ *ring.Ring, montgomery bool, pol *ring.Poly) {
-	if 1<<logSlots == int(ringQ.NthRoot>>2) {
-		ringQ.NTTLvl(level, pol, pol)
-		if montgomery {
-			ringQ.MFormLvl(level, pol, pol)
-		}
-	} else {
-
-		var n int
-		var NTT func(coeffsIn, coeffsOut []uint64, N int, nttPsi []uint64, Q, QInv uint64, bredParams []uint64)
-		switch ringQ.Type() {
-		case ring.Standard:
-			n = 2 << logSlots
-			NTT = ring.NTT
-		case ring.ConjugateInvariant:
-			n = 1 << logSlots
-			NTT = ring.NTTConjugateInvariant
-		}
-
-		N := ringQ.N
-		gap := N / n
-		for i := 0; i < level+1; i++ {
-
-			coeffs := pol.Coeffs[i]
-
-			// NTT in dimension n
-			NTT(coeffs[:n], coeffs[:n], n, ringQ.NttPsi[i], ringQ.Modulus[i], ringQ.MredParams[i], ringQ.BredParams[i])
-
-			if montgomery {
-				ring.MFormVec(coeffs[:n], coeffs[:n], ringQ.Modulus[i], ringQ.BredParams[i])
-			}
-
-			// Maps NTT in dimension n to NTT in dimension N
-			for j := n - 1; j >= 0; j-- {
-				c := coeffs[j]
-				for w := 0; w < gap; w++ {
-					coeffs[j*gap+w] = c
-				}
-			}
-		}
 	}
 }
 

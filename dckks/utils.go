@@ -1,6 +1,9 @@
 package dckks
 
 import (
+	"github.com/ldsec/lattigo/v2/ckks"
+	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/ldsec/lattigo/v2/rlwe"
 	"math"
 	"math/bits"
 )
@@ -29,4 +32,13 @@ func GetMinimumLevelForBootstrapping(lambda int, scale float64, nParties int, mo
 	}
 
 	return minLevel, logBound, true
+}
+
+// NewAdditiveShareBigint instantiate a new additive share struct composed of "n" big.Int elements
+func NewAdditiveShareBigint(params ckks.Parameters, logSlots int) *rlwe.AdditiveShareBigint {
+	dslots := 1 << logSlots
+	if params.RingType() == ring.Standard {
+		dslots *= 2
+	}
+	return rlwe.NewAdditiveShareBigint(params.Parameters, dslots)
 }

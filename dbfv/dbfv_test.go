@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/big"
 	"runtime"
-	"sync"
 	"testing"
 
 	"github.com/ldsec/lattigo/v2/bfv"
@@ -168,7 +167,7 @@ func testPublicKeyGen(testCtx *testContext, t *testing.T) {
 			p := new(Party)
 			p.CKGProtocol = NewCKGProtocol(testCtx.params)
 			p.s = sk0Shards[i]
-			p.s1 = p.AllocateShares()
+			p.s1 = p.AllocateShare()
 			ckgParties[i] = p
 		}
 		P0 := ckgParties[0]
@@ -182,7 +181,7 @@ func testPublicKeyGen(testCtx *testContext, t *testing.T) {
 		for i, p := range ckgParties {
 			p.GenShare(p.s, crp, p.s1)
 			if i > 0 {
-				P0.AggregateShares(p.s1, P0.s1, P0.s1)
+				P0.AggregateShare(p.s1, P0.s1, P0.s1)
 			}
 		}
 
@@ -220,7 +219,7 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 			p := new(Party)
 			p.RKGProtocol = NewRKGProtocol(testCtx.params)
 			p.sk = sk0Shards[i]
-			p.ephSk, p.share1, p.share2 = p.AllocateShares()
+			p.ephSk, p.share1, p.share2 = p.AllocateShare()
 			rkgParties[i] = p
 		}
 
@@ -235,7 +234,7 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 		for i, p := range rkgParties {
 			p.GenShareRoundOne(p.sk, crp, p.ephSk, p.share1)
 			if i > 0 {
-				P0.AggregateShares(p.share1, P0.share1, P0.share1)
+				P0.AggregateShare(p.share1, P0.share1, P0.share1)
 			}
 		}
 
@@ -243,7 +242,7 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 		for i, p := range rkgParties {
 			p.GenShareRoundTwo(p.ephSk, p.sk, P0.share1, p.share2)
 			if i > 0 {
-				P0.AggregateShares(p.share2, P0.share2, P0.share2)
+				P0.AggregateShare(p.share2, P0.share2, P0.share2)
 			}
 		}
 
@@ -305,7 +304,7 @@ func testKeyswitching(testCtx *testContext, t *testing.T) {
 		for i, p := range cksParties {
 			p.cks.GenShare(p.s0, p.s1, ciphertext.Value[1], p.share)
 			if i > 0 {
-				P0.cks.AggregateShares(p.share, P0.share, P0.share)
+				P0.cks.AggregateShare(p.share, P0.share, P0.share)
 			}
 		}
 
@@ -356,7 +355,7 @@ func testPublicKeySwitching(testCtx *testContext, t *testing.T) {
 		for i, p := range pcksParties {
 			p.GenShare(p.s, pk1, ciphertext.Value[1], p.share)
 			if i > 0 {
-				P0.AggregateShares(p.share, P0.share, P0.share)
+				P0.AggregateShare(p.share, P0.share, P0.share)
 			}
 		}
 
@@ -385,7 +384,7 @@ func testRotKeyGenRotRows(testCtx *testContext, t *testing.T) {
 			p := new(Party)
 			p.RTGProtocol = NewRotKGProtocol(testCtx.params)
 			p.s = sk0Shards[i]
-			p.share = p.AllocateShares()
+			p.share = p.AllocateShare()
 			pcksParties[i] = p
 		}
 		P0 := pcksParties[0]
@@ -401,7 +400,7 @@ func testRotKeyGenRotRows(testCtx *testContext, t *testing.T) {
 		for i, p := range pcksParties {
 			p.GenShare(p.s, galEl, crp, p.share)
 			if i > 0 {
-				P0.AggregateShares(p.share, P0.share, P0.share)
+				P0.AggregateShare(p.share, P0.share, P0.share)
 			}
 		}
 
@@ -437,7 +436,7 @@ func testRotKeyGenRotCols(testCtx *testContext, t *testing.T) {
 			p := new(Party)
 			p.RTGProtocol = NewRotKGProtocol(testCtx.params)
 			p.s = sk0Shards[i]
-			p.share = p.AllocateShares()
+			p.share = p.AllocateShare()
 			pcksParties[i] = p
 		}
 
@@ -458,7 +457,7 @@ func testRotKeyGenRotCols(testCtx *testContext, t *testing.T) {
 			for i, p := range pcksParties {
 				p.GenShare(p.s, galEl, crp, p.share)
 				if i > 0 {
-					P0.AggregateShares(p.share, P0.share, P0.share)
+					P0.AggregateShare(p.share, P0.share, P0.share)
 				}
 			}
 
@@ -504,19 +503,11 @@ func testEncToShares(testCtx *testContext, t *testing.T) {
 	}
 
 	// The E2S protocol is run in all tests, as a setup to the S2E test.
-	var wg sync.WaitGroup
-	wg.Add(parties)
-	for _, p := range P {
-		go func(p Party) {
-			p.e2s.GenShare(p.sk, ciphertext.Value[1], p.secretShare, p.publicShare)
-			wg.Done()
-		}(p)
-	}
-	wg.Wait()
-
 	for i, p := range P {
+
+		p.e2s.GenShare(p.sk, ciphertext.Value[1], p.secretShare, p.publicShare)
 		if i > 0 {
-			p.e2s.AggregateShares(P[0].publicShare, p.publicShare, P[0].publicShare)
+			p.e2s.AggregateShare(P[0].publicShare, p.publicShare, P[0].publicShare)
 		}
 	}
 
@@ -541,18 +532,10 @@ func testEncToShares(testCtx *testContext, t *testing.T) {
 
 	t.Run(testString("S2EProtocol", parties, testCtx.params), func(t *testing.T) {
 
-		wg.Add(parties)
-		for _, p := range P {
-			go func(p Party) {
-				p.s2e.GenShare(p.sk, crp, p.secretShare, p.publicShare)
-				wg.Done()
-			}(p)
-		}
-		wg.Wait()
-
 		for i, p := range P {
+			p.s2e.GenShare(p.sk, crp, p.secretShare, p.publicShare)
 			if i > 0 {
-				p.s2e.AggregateShares(P[0].publicShare, p.publicShare, P[0].publicShare)
+				p.s2e.AggregateShare(P[0].publicShare, p.publicShare, P[0].publicShare)
 			}
 		}
 
@@ -642,20 +625,12 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 
 		testCtx.ringQ.SetCoefficientsBigint(coeffsBigint, ciphertext.Value[0])
 
-		var wg sync.WaitGroup
-		wg.Add(parties)
-		for _, p := range RefreshParties {
-			go func(p *Party) {
-				p.GenShares(p.s, ciphertext.Value[1], crp, p.share)
-				wg.Done()
-			}(p)
-		}
-		wg.Wait()
-
 		for i, p := range RefreshParties {
+			p.GenShare(p.s, ciphertext.Value[1], crp, p.share)
 			if i > 0 {
 				P0.Aggregate(p.share, P0.share, P0.share)
 			}
+
 		}
 
 		ctRes := bfv.NewCiphertext(testCtx.params, 1)
@@ -720,25 +695,16 @@ func testRefreshAndPermutation(testCtx *testContext, t *testing.T) {
 			permutation[i] = ring.RandUniform(prng, N, N-1)
 		}
 
-		permute := func(coeffsIn, coeffsOut []uint64) {
+		permute := func(coeffs []uint64) {
 			coeffsPerm := make([]uint64, len(coeffs))
 			for i := range coeffs {
-				coeffsPerm[i] = coeffsIn[permutation[i]]
+				coeffsPerm[i] = coeffs[permutation[i]]
 			}
-			copy(coeffsOut, coeffsPerm)
+			copy(coeffs, coeffsPerm)
 		}
 
-		var wg sync.WaitGroup
-		wg.Add(parties)
 		for i, p := range RefreshParties {
-			go func(i int, p *Party) {
-				p.GenShares(p.s, ciphertext.Value[1], crp, permute, p.share)
-				wg.Done()
-			}(i, p)
-		}
-		wg.Wait()
-
-		for i, p := range RefreshParties {
+			p.GenShare(p.s, ciphertext.Value[1], crp, permute, p.share)
 			if i > 0 {
 				P0.Aggregate(P0.share, p.share, P0.share)
 			}
@@ -786,7 +752,7 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 
 		crp := refreshproto.SampleCRP(testCtx.params.MaxLevel(), testCtx.crs)
 
-		refreshproto.GenShares(testCtx.sk0, ciphertext.Value[1], crp, refreshshare)
+		refreshproto.GenShare(testCtx.sk0, ciphertext.Value[1], crp, refreshshare)
 
 		data, err := refreshshare.MarshalBinary()
 		if err != nil {

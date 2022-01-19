@@ -21,9 +21,6 @@ type Decryptor interface {
 	// read-only data-structures are shared with the receiver and the temporary buffers
 	// are reallocated. The receiver and the returned Decryptor can be used concurrently.
 	WithKey(sk *SecretKey) Decryptor
-
-	// SetKey sets the key of the target decryptor.
-	SetKey(sk *SecretKey)
 }
 
 // decryptor is a structure used to decrypt ciphertext. It stores the secret-key.
@@ -53,11 +50,6 @@ func (d *decryptor) WithKey(sk *SecretKey) Decryptor {
 		pool:  d.ringQ.NewPoly(),
 		sk:    sk,
 	}
-}
-
-// SetKey sets the key of the target decryptor.
-func (d *decryptor) SetKey(sk *SecretKey) {
-	d.sk = sk
 }
 
 // NewDecryptor instantiates a new generic RLWE Decryptor.

@@ -44,90 +44,24 @@ var pi = "3.14159265358979323846264338327950288419716939937510582097494459230781
 type Encoder interface {
 
 	// Slots Encoding
-
-	// Encode encodes a set of values on the target plaintext.
-	// This method is identical to "EncodeSlots".
-	// Encoding is done at the level and scale of the plaintext.
-	// User must ensure that 1 <= len(values) <= 2^logSlots < 2^logN.
-	// values.(type) can be either []complex128 of []float64.
-	// The imaginary part of []complex128 will be discarded if ringType == ring.ConjugateInvariant.
-	// Returned plaintext is always in the NTT domain.
 	Encode(values interface{}, plaintext *Plaintext, logSlots int)
-
-	// EncodeNew encodes a set of values on a new plaintext.
-	// This method is identical to "EncodeSlotsNew".
-	// Encoding is done at the provided level and with the provided scale.
-	// User must ensure that 1 <= len(values) <= 2^logSlots < 2^logN.
-	// values.(type) can be either []complex128 of []float64.
-	// The imaginary part of []complex128 will be discarded if ringType == ring.ConjugateInvariant.
-	// Returned plaintext is always in the NTT domain.
 	EncodeNew(values interface{}, level int, scale float64, logSlots int) (plaintext *Plaintext)
-
-	// EncodeSlots encodes a set of values on the target plaintext.
-	// Encoding is done at the level and scale of the plaintext.
-	// User must ensure that 1 <= len(values) <= 2^logSlots < 2^logN.
-	// values.(type) can be either []complex128 of []float64.
-	// The imaginary part of []complex128 will be discarded if ringType == ring.ConjugateInvariant.
-	// Returned plaintext is always in the NTT domain.
 	EncodeSlots(values interface{}, plaintext *Plaintext, logSlots int)
-
-	// EncodeSlotsNew encodes a set of values on a new plaintext.
-	// Encoding is done at the provided level and with the provided scale.
-	// User must ensure that 1 <= len(values) <= 2^logSlots < 2^logN.
-	// values.(type) can be either []complex128 of []float64.
-	// The imaginary part of []complex128 will be discarded if ringType == ring.ConjugateInvariant.
-	// Returned plaintext is always in the NTT domain.
 	EncodeSlotsNew(values interface{}, level int, scale float64, logSlots int) (plaintext *Plaintext)
-
-	// Decode decodes the input plaintext on a new slice of complex128.
 	Decode(plaintext *Plaintext, logSlots int) (res []complex128)
-
-	// DecodeSlots decodes the input plaintext on a new slice of complex128.
 	DecodeSlots(plaintext *Plaintext, logSlots int) (res []complex128)
-
-	// DecodePublic decodes the input plaintext on a new slice of complex128.
-	// Adds, before the decoding step, an error with standard deviation sigma.
-	// If the underlying ringType is ConjugateInvariant, the imaginary part (and
-	// its related error) are zero.
 	DecodePublic(plaintext *Plaintext, logSlots int, sigma float64) []complex128
-
-	// DecodeSlotsPublic decodes the input plaintext on a new slice of complex128.
-	// Adds, before the decoding step, an error with standard deviation sigma.
-	// If the underlying ringType is ConjugateInvariant, the imaginary part (and
-	// its related error) are zero.
 	DecodeSlotsPublic(plaintext *Plaintext, logSlots int, sigma float64) []complex128
 
 	// Coeffs Encoding
-
-	// EncodeCoeffs encodes the values on the coefficient of the plaintext.
-	// Encoding is done at the level and scale of the plaintext.
-	// User must ensure that 1<= len(values) <= 2^LogN
 	EncodeCoeffs(values []float64, plaintext *Plaintext)
-
-	// EncodeCoeffsNew encodes the values on the coefficient of a new plaintext.
-	// Encoding is done at the provided level and with the provided scale.
-	// User must ensure that 1<= len(values) <= 2^LogN
 	EncodeCoeffsNew(values []float64, level int, scale float64) (plaintext *Plaintext)
-
-	// DecodeCoeffs reconstructs the RNS coefficients of the plaintext on a slice of float64.
 	DecodeCoeffs(plaintext *Plaintext) (res []float64)
-
-	// DecodeCoeffsPublic reconstructs the RNS coefficients of the plaintext on a slice of float64.
-	// Adds an error with standard deviation sigma.
 	DecodeCoeffsPublic(plaintext *Plaintext, bound float64) (res []float64)
 
-	// GetErrSTDCoeffDomain returns StandardDeviation(Encode(valuesWant-valuesHave))*scale
-	// Which is the scaled standard deviation in the coefficient domain of the difference
-	// of two complex vector in the slot domain.
+	// Utility
 	GetErrSTDCoeffDomain(valuesWant, valuesHave []complex128, scale float64) (std float64)
-
-	// GetErrSTDSlotDomain returns StandardDeviation(valuesWant-valuesHave)*scale
-	// Which is the scaled standard deviation of two complex vectors.
 	GetErrSTDSlotDomain(valuesWant, valuesHave []complex128, scale float64) (std float64)
-
-	// ShallowCopy creates a shallow copy of this Encoder in which all the read-only data-structures are
-	// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-	// Encoder can be used concurrently.
 	ShallowCopy() Encoder
 }
 
@@ -170,15 +104,6 @@ func (ecd *encoder) ShallowCopy() *encoder {
 		m:               ecd.m,
 		rotGroup:        ecd.rotGroup,
 		gaussianSampler: ring.NewGaussianSampler(prng, ecd.params.RingQ(), ecd.params.Sigma(), int(6*ecd.params.Sigma())),
-	}
-}
-
-func (ecd *encoderComplex128) ShallowCopy() Encoder {
-	return &encoderComplex128{
-		encoder:     *ecd.encoder.ShallowCopy(),
-		values:      make([]complex128, len(ecd.values)),
-		valuesFloat: make([]float64, len(ecd.valuesFloat)),
-		roots:       ecd.roots,
 	}
 }
 
@@ -235,35 +160,173 @@ func NewEncoder(params Parameters) Encoder {
 	}
 }
 
+// Encode encodes a set of values on the target plaintext.
+// This method is identical to "EncodeSlots".
+// Encoding is done at the level and scale of the plaintext.
+// User must ensure that 1 <= len(values) <= 2^logSlots < 2^logN.
+// values.(type) can be either []complex128 of []float64.
+// The imaginary part of []complex128 will be discarded if ringType == ring.ConjugateInvariant.
+// Returned plaintext is always in the NTT domain.
+func (ecd *encoderComplex128) Encode(values interface{}, plaintext *Plaintext, logSlots int) {
+	ecd.embed(values, logSlots, plaintext.Scale, plaintext.Value)
+	ecd.switchToNTTDomain(logSlots, false, plaintext.Value)
+}
+
+// EncodeNew encodes a set of values on a new plaintext.
+// This method is identical to "EncodeSlotsNew".
+// Encoding is done at the provided level and with the provided scale.
+// User must ensure that 1 <= len(values) <= 2^logSlots < 2^logN.
+// values.(type) can be either []complex128 of []float64.
+// The imaginary part of []complex128 will be discarded if ringType == ring.ConjugateInvariant.
+// Returned plaintext is always in the NTT domain.
 func (ecd *encoderComplex128) EncodeNew(values interface{}, level int, scale float64, logSlots int) (plaintext *Plaintext) {
 	plaintext = NewPlaintext(ecd.params, level, scale)
 	ecd.Encode(values, plaintext, logSlots)
 	return
 }
 
-func (ecd *encoderComplex128) Encode(values interface{}, plaintext *Plaintext, logSlots int) {
-	ecd.embed(values, logSlots, plaintext.Scale, plaintext.Value)
-	ecd.switchToNTTDomain(logSlots, false, plaintext.Value)
+// EncodeSlots encodes a set of values on the target plaintext.
+// Encoding is done at the level and scale of the plaintext.
+// User must ensure that 1 <= len(values) <= 2^logSlots < 2^logN.
+// values.(type) can be either []complex128 of []float64.
+// The imaginary part of []complex128 will be discarded if ringType == ring.ConjugateInvariant.
+// Returned plaintext is always in the NTT domain.
+func (ecd *encoderComplex128) EncodeSlots(values interface{}, plaintext *Plaintext, logSlots int) {
+	ecd.Encode(values, plaintext, logSlots)
 }
 
-func (ecd *encoderComplex128) switchToNTTDomain(logSlots int, montgomery bool, polyOut interface{}) {
-	switch p := polyOut.(type) {
-	case rlwe.PolyQP:
-		NttAndMontgomeryLvl(p.Q.Level(), logSlots, ecd.params.RingQ(), montgomery, p.Q)
-		NttAndMontgomeryLvl(p.P.Level(), logSlots, ecd.params.RingP(), montgomery, p.P)
-	case *ring.Poly:
-		NttAndMontgomeryLvl(p.Level(), logSlots, ecd.params.RingQ(), montgomery, p)
-	default:
-		panic("invalid polyOut type")
-	}
-}
-
+// EncodeSlotsNew encodes a set of values on a new plaintext.
+// Encoding is done at the provided level and with the provided scale.
+// User must ensure that 1 <= len(values) <= 2^logSlots < 2^logN.
+// values.(type) can be either []complex128 of []float64.
+// The imaginary part of []complex128 will be discarded if ringType == ring.ConjugateInvariant.
+// Returned plaintext is always in the NTT domain.
 func (ecd *encoderComplex128) EncodeSlotsNew(values interface{}, level int, scale float64, logSlots int) (plaintext *Plaintext) {
 	return ecd.EncodeNew(values, level, scale, logSlots)
 }
 
-func (ecd *encoderComplex128) EncodeSlots(values interface{}, plaintext *Plaintext, logSlots int) {
-	ecd.Encode(values, plaintext, logSlots)
+// Decode decodes the input plaintext on a new slice of complex128.
+// This method is the same as .DecodeSlots(*).
+func (ecd *encoderComplex128) Decode(plaintext *Plaintext, logSlots int) (res []complex128) {
+	return ecd.DecodeSlotsPublic(plaintext, logSlots, 0)
+}
+
+// DecodeSlots decodes the input plaintext on a new slice of complex128.
+func (ecd *encoderComplex128) DecodeSlots(plaintext *Plaintext, logSlots int) (res []complex128) {
+	return ecd.decodePublic(plaintext, logSlots, 0)
+}
+
+// DecodePublic decodes the input plaintext on a new slice of complex128.
+// This method is the same as .DecodeSlotsPublic(*).
+// Adds, before the decoding step, an error with standard deviation sigma and bound floor(sqrt(2*pi)*sigma).
+// If the underlying ringType is ConjugateInvariant, the imaginary part (and
+// its related error) are zero.
+func (ecd *encoderComplex128) DecodePublic(plaintext *Plaintext, logSlots int, bound float64) (res []complex128) {
+	return ecd.DecodeSlotsPublic(plaintext, logSlots, bound)
+}
+
+// DecodeSlotsPublic decodes the input plaintext on a new slice of complex128.
+// Adds, before the decoding step, an error with standard deviation sigma and bound floor(sqrt(2*pi)*sigma).
+// If the underlying ringType is ConjugateInvariant, the imaginary part (and
+// its related error) are zero.
+func (ecd *encoderComplex128) DecodeSlotsPublic(plaintext *Plaintext, logSlots int, bound float64) (res []complex128) {
+	return ecd.decodePublic(plaintext, logSlots, bound)
+}
+
+// EncodeCoeffs encodes the values on the coefficient of the plaintext polynomial.
+// Encoding is done at the level and scale of the plaintext.
+// User must ensure that 1<= len(values) <= 2^LogN
+func (ecd *encoderComplex128) EncodeCoeffs(values []float64, plaintext *Plaintext) {
+
+	if len(values) > ecd.params.N() {
+		panic("cannot EncodeCoeffs : too many values (maximum is N)")
+	}
+	scaleUpVecExact(values, plaintext.Scale, ecd.params.RingQ().Modulus[:plaintext.Level()+1], plaintext.Value.Coeffs)
+	ecd.params.RingQ().NTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
+	plaintext.Value.IsNTT = true
+}
+
+// EncodeCoeffsNew encodes the values on the coefficient of a new plaintext.
+// Encoding is done at the provided level and with the provided scale.
+// User must ensure that 1<= len(values) <= 2^LogN
+func (ecd *encoderComplex128) EncodeCoeffsNew(values []float64, level int, scale float64) (plaintext *Plaintext) {
+	plaintext = NewPlaintext(ecd.params, level, scale)
+	ecd.EncodeCoeffs(values, plaintext)
+	return
+}
+
+// DecodeCoeffs reconstructs the RNS coefficients of the plaintext on a slice of float64.
+func (ecd *encoderComplex128) DecodeCoeffs(plaintext *Plaintext) (res []float64) {
+	return ecd.decodeCoeffsPublic(plaintext, 0)
+}
+
+// DecodeCoeffsPublic reconstructs the RNS coefficients of the plaintext on a slice of float64.
+// Adds an error with standard deviation sigma and bound floor(sqrt(2*pi)*sigma).
+func (ecd *encoderComplex128) DecodeCoeffsPublic(plaintext *Plaintext, sigma float64) (res []float64) {
+	return ecd.decodeCoeffsPublic(plaintext, sigma)
+}
+
+// GetErrSTDCoeffDomain returns StandardDeviation(Encode(valuesWant-valuesHave))*scale
+// Which is the scaled standard deviation in the coefficient domain of the difference
+// of two complex vector in the slot domain.
+func (ecd *encoderComplex128) GetErrSTDCoeffDomain(valuesWant, valuesHave []complex128, scale float64) (std float64) {
+
+	for i := range valuesHave {
+		ecd.values[i] = (valuesWant[i] - valuesHave[i])
+	}
+
+	for i := len(valuesHave); i < len(ecd.values); i++ {
+		ecd.values[i] = complex(0, 0)
+	}
+
+	// Runs FFT^-1 with the smallest power of two length that is greater than the input size
+	invfft(ecd.values, 1<<bits.Len64(uint64(len(valuesHave)-1)), ecd.m, ecd.rotGroup, ecd.roots)
+
+	for i := range valuesWant {
+		ecd.valuesFloat[2*i] = real(ecd.values[i])
+		ecd.valuesFloat[2*i+1] = imag(ecd.values[i])
+	}
+
+	return StandardDeviation(ecd.valuesFloat[:len(valuesWant)*2], scale)
+}
+
+// GetErrSTDSlotDomain returns StandardDeviation(valuesWant-valuesHave)*scale
+// Which is the scaled standard deviation of two complex vectors.
+func (ecd *encoderComplex128) GetErrSTDSlotDomain(valuesWant, valuesHave []complex128, scale float64) (std float64) {
+	var err complex128
+	for i := range valuesWant {
+		err = valuesWant[i] - valuesHave[i]
+		ecd.valuesFloat[2*i] = real(err)
+		ecd.valuesFloat[2*i+1] = imag(err)
+	}
+	return StandardDeviation(ecd.valuesFloat[:len(valuesWant)*2], scale)
+}
+
+// ShallowCopy creates a shallow copy of this Encoder in which all the read-only data-structures are
+// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+// Encoder can be used concurrently.
+func (ecd *encoderComplex128) ShallowCopy() Encoder {
+	return &encoderComplex128{
+		encoder:     *ecd.encoder.ShallowCopy(),
+		values:      make([]complex128, len(ecd.values)),
+		valuesFloat: make([]float64, len(ecd.valuesFloat)),
+		roots:       ecd.roots,
+	}
+}
+
+func (ecd *encoderComplex128) scaleUp(values []float64, scale float64, polyOut interface{}) {
+	switch p := polyOut.(type) {
+	case rlwe.PolyQP:
+		levelQ := p.Q.Level()
+		levelP := p.P.Level()
+		ringQP := ecd.params.RingQP()
+		scaleUpVecExact(values, scale, ringQP.RingQ.Modulus[:levelQ+1], p.Q.Coeffs)
+		scaleUpVecExact(values, scale, ringQP.RingP.Modulus[:levelP+1], p.P.Coeffs)
+	case *ring.Poly:
+		scaleUpVecExact(values, scale, ecd.params.RingQ().Modulus[:p.Level()+1], p.Coeffs)
+	default:
+		panic("invalid polyOut type")
+	}
 }
 
 func (ecd *encoderComplex128) embed(values interface{}, logSlots int, scale float64, polyOut interface{}) {
@@ -359,76 +422,6 @@ func (ecd *encoderComplex128) embed(values interface{}, logSlots int, scale floa
 	default:
 		panic("invalid ring type")
 	}
-
-}
-
-func (ecd *encoderComplex128) scaleUp(values []float64, scale float64, polyOut interface{}) {
-	switch p := polyOut.(type) {
-	case rlwe.PolyQP:
-		levelQ := p.Q.Level()
-		levelP := p.P.Level()
-		ringQP := ecd.params.RingQP()
-		scaleUpVecExact(values, scale, ringQP.RingQ.Modulus[:levelQ+1], p.Q.Coeffs)
-		scaleUpVecExact(values, scale, ringQP.RingP.Modulus[:levelP+1], p.P.Coeffs)
-	case *ring.Poly:
-		scaleUpVecExact(values, scale, ecd.params.RingQ().Modulus[:p.Level()+1], p.Coeffs)
-	default:
-		panic("invalid polyOut type")
-	}
-}
-
-func (ecd *encoderComplex128) GetErrSTDSlotDomain(valuesWant, valuesHave []complex128, scale float64) (std float64) {
-	var err complex128
-	for i := range valuesWant {
-		err = valuesWant[i] - valuesHave[i]
-		ecd.valuesFloat[2*i] = real(err)
-		ecd.valuesFloat[2*i+1] = imag(err)
-	}
-	return StandardDeviation(ecd.valuesFloat[:len(valuesWant)*2], scale)
-}
-
-func (ecd *encoderComplex128) GetErrSTDCoeffDomain(valuesWant, valuesHave []complex128, scale float64) (std float64) {
-
-	for i := range valuesHave {
-		ecd.values[i] = (valuesWant[i] - valuesHave[i])
-	}
-
-	for i := len(valuesHave); i < len(ecd.values); i++ {
-		ecd.values[i] = complex(0, 0)
-	}
-
-	// Runs FFT^-1 with the smallest power of two length that is greater than the input size
-	invfft(ecd.values, 1<<bits.Len64(uint64(len(valuesHave)-1)), ecd.m, ecd.rotGroup, ecd.roots)
-
-	for i := range valuesWant {
-		ecd.valuesFloat[2*i] = real(ecd.values[i])
-		ecd.valuesFloat[2*i+1] = imag(ecd.values[i])
-	}
-
-	return StandardDeviation(ecd.valuesFloat[:len(valuesWant)*2], scale)
-
-}
-
-// DecodePublic decodes the Plaintext values to a slice of complex128 values of size at most N/2.
-// Adds a Gaussian error to the plaintext of variance sigma and bound floor(sqrt(2*pi)*sigma) before decoding
-func (ecd *encoderComplex128) DecodePublic(plaintext *Plaintext, logSlots int, bound float64) (res []complex128) {
-	return ecd.DecodeSlotsPublic(plaintext, logSlots, bound)
-}
-
-// Decode decodes the Plaintext values to a slice of complex128 values of size at most N/2.
-func (ecd *encoderComplex128) Decode(plaintext *Plaintext, logSlots int) (res []complex128) {
-	return ecd.DecodeSlotsPublic(plaintext, logSlots, 0)
-}
-
-// DecodeSlotsPublic decodes the Plaintext values to a slice of complex128 values of size at most N/2.
-// Adds a Gaussian error to the plaintext of variance sigma and bound floor(sqrt(2*pi)*sigma) before decoding
-func (ecd *encoderComplex128) DecodeSlotsPublic(plaintext *Plaintext, logSlots int, bound float64) (res []complex128) {
-	return ecd.decodePublic(plaintext, logSlots, bound)
-}
-
-// DecodeSlots decodes the Plaintext values to a slice of complex128 values of size at most N/2.
-func (ecd *encoderComplex128) DecodeSlots(plaintext *Plaintext, logSlots int) (res []complex128) {
-	return ecd.decodePublic(plaintext, logSlots, 0)
 }
 
 func polyToComplexNoCRT(coeffs []uint64, values []complex128, scale float64, logSlots int, isreal bool, ringQ *ring.Ring) {
@@ -615,35 +608,18 @@ func fft(values []complex128, N, M int, rotGroup []int, roots []complex128) {
 	}
 }
 
-// EncodeCoeffs takes as input a polynomial a0 + a1x + a2x^2 + ... + an-1x^n-1 with float coefficient
-// and returns a scaled integer plaintext polynomial. Encodes at the input plaintext level.
-func (ecd *encoderComplex128) EncodeCoeffs(values []float64, plaintext *Plaintext) {
-
-	if len(values) > ecd.params.N() {
-		panic("cannot EncodeCoeffs : too many values (maximum is N)")
+func (ecd *encoderComplex128) switchToNTTDomain(logSlots int, montgomery bool, polyOut interface{}) {
+	switch p := polyOut.(type) {
+	case rlwe.PolyQP:
+		NttAndMontgomeryLvl(p.Q.Level(), logSlots, ecd.params.RingQ(), montgomery, p.Q)
+		NttAndMontgomeryLvl(p.P.Level(), logSlots, ecd.params.RingP(), montgomery, p.P)
+	case *ring.Poly:
+		NttAndMontgomeryLvl(p.Level(), logSlots, ecd.params.RingQ(), montgomery, p)
+	default:
+		panic("invalid polyOut type")
 	}
-	scaleUpVecExact(values, plaintext.Scale, ecd.params.RingQ().Modulus[:plaintext.Level()+1], plaintext.Value.Coeffs)
-	ecd.params.RingQ().NTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
-	plaintext.Value.IsNTT = true
 }
 
-func (ecd *encoderComplex128) EncodeCoeffsNew(values []float64, level int, scale float64) (plaintext *Plaintext) {
-	plaintext = NewPlaintext(ecd.params, level, scale)
-	ecd.EncodeCoeffs(values, plaintext)
-	return
-}
-
-// DecodeCoeffsPublic takes as input a plaintext and returns the scaled down coefficient of the plaintext in float64.
-// Rounds the decimal part of the output (the bits under the scale) to "logPrecision" bits of precision.
-func (ecd *encoderComplex128) DecodeCoeffsPublic(plaintext *Plaintext, sigma float64) (res []float64) {
-	return ecd.decodeCoeffsPublic(plaintext, sigma)
-}
-
-func (ecd *encoderComplex128) DecodeCoeffs(plaintext *Plaintext) (res []float64) {
-	return ecd.decodeCoeffsPublic(plaintext, 0)
-}
-
-// DecodeCoeffs takes as input a plaintext and returns the scaled down coefficient of the plaintext in float64.
 func (ecd *encoderComplex128) decodeCoeffsPublic(plaintext *Plaintext, sigma float64) (res []float64) {
 
 	if plaintext.Value.IsNTT {
@@ -706,29 +682,12 @@ func (ecd *encoderComplex128) decodeCoeffsPublic(plaintext *Plaintext, sigma flo
 
 // EncoderBigComplex is an interface that implements the encoding algorithms with arbitrary precision.
 type EncoderBigComplex interface {
-
-	// Encode encodes a set of values on the target plaintext.
-	// Encoding is done at the level and scale of the plaintext.
-	// User must ensure that 1 <= len(values) <= 2^logSlots < 2^LogN.
 	Encode(values []*ring.Complex, plaintext *Plaintext, logSlots int)
-
-	// EncodeNew encodes a set of values on a new plaintext.
-	// Encoding is done at the provided level and with the provided scale.
-	// User must ensure that 1 <= len(values) <= 2^logSlots < 2^LogN.
 	EncodeNew(values []*ring.Complex, level int, scale float64, logSlots int) (plaintext *Plaintext)
-
-	// Decode decodes the input plaintext on a new slice of ring.Complex.
 	Decode(plaintext *Plaintext, logSlots int) (res []*ring.Complex)
-
-	// FFT evaluates the decoding matrix on a slice of ring.Complex values.
+	DecodePublic(plaintext *Plaintext, logSlots int, sigma float64) (res []*ring.Complex)
 	FFT(values []*ring.Complex, N int)
-
-	// InvFFT evaluates the encoding matrix on a slice of ring.Complex values.
 	InvFFT(values []*ring.Complex, N int)
-
-	// ShallowCopy creates a shallow copy of this EncoderBigComplex in which all the read-only data-structures are
-	// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-	// EncoderBigComplex can be used concurrently.
 	ShallowCopy() EncoderBigComplex
 }
 
@@ -740,32 +699,6 @@ type encoderBigComplex struct {
 	values       []*ring.Complex
 	valuesfloat  []*big.Float
 	roots        []*ring.Complex
-}
-
-// ShallowCopy creates a shallow copy of EncoderBigComplex in which all the read-only data-structures are
-// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// EncoderBigComplex can be used concurrently.
-func (ecd *encoderBigComplex) ShallowCopy() EncoderBigComplex {
-
-	values := make([]*ring.Complex, ecd.m>>2)
-	valuesfloat := make([]*big.Float, ecd.m>>1)
-
-	for i := 0; i < ecd.m>>2; i++ {
-
-		values[i] = ring.NewComplex(ring.NewFloat(0, ecd.logPrecision), ring.NewFloat(0, ecd.logPrecision))
-		valuesfloat[i*2] = ring.NewFloat(0, ecd.logPrecision)
-		valuesfloat[(i*2)+1] = ring.NewFloat(0, ecd.logPrecision)
-	}
-
-	return &encoderBigComplex{
-		encoder:      *ecd.encoder.ShallowCopy(),
-		zero:         ring.NewFloat(0, ecd.logPrecision),
-		cMul:         ring.NewComplexMultiplier(),
-		logPrecision: ecd.logPrecision,
-		values:       values,
-		valuesfloat:  valuesfloat,
-		roots:        ecd.roots,
-	}
 }
 
 // NewEncoderBigComplex creates a new encoder using arbitrary precision complex arithmetic.
@@ -819,12 +752,9 @@ func NewEncoderBigComplex(params Parameters, logPrecision int) EncoderBigComplex
 	}
 }
 
-func (ecd *encoderBigComplex) EncodeNew(values []*ring.Complex, level int, scale float64, logSlots int) (plaintext *Plaintext) {
-	plaintext = NewPlaintext(ecd.params, level, scale)
-	ecd.Encode(values, plaintext, logSlots)
-	return
-}
-
+// Encode encodes a set of values on the target plaintext.
+// Encoding is done at the level and scale of the plaintext.
+// User must ensure that 1 <= len(values) <= 2^logSlots < 2^LogN.
 func (ecd *encoderBigComplex) Encode(values []*ring.Complex, plaintext *Plaintext, logSlots int) {
 
 	slots := 1 << logSlots
@@ -865,12 +795,107 @@ func (ecd *encoderBigComplex) Encode(values []*ring.Complex, plaintext *Plaintex
 	plaintext.Value.IsNTT = true
 }
 
+// EncodeNew encodes a set of values on a new plaintext.
+// Encoding is done at the provided level and with the provided scale.
+// User must ensure that 1 <= len(values) <= 2^logSlots < 2^LogN.
+func (ecd *encoderBigComplex) EncodeNew(values []*ring.Complex, level int, scale float64, logSlots int) (plaintext *Plaintext) {
+	plaintext = NewPlaintext(ecd.params, level, scale)
+	ecd.Encode(values, plaintext, logSlots)
+	return
+}
+
+// Decode decodes the input plaintext on a new slice of ring.Complex.
+func (ecd *encoderBigComplex) Decode(plaintext *Plaintext, logSlots int) (res []*ring.Complex) {
+	return ecd.decodePublic(plaintext, logSlots, 0)
+}
+
 func (ecd *encoderBigComplex) DecodePublic(plaintext *Plaintext, logSlots int, sigma float64) (res []*ring.Complex) {
 	return ecd.decodePublic(plaintext, logSlots, sigma)
 }
 
-func (ecd *encoderBigComplex) Decode(plaintext *Plaintext, logSlots int) (res []*ring.Complex) {
-	return ecd.decodePublic(plaintext, logSlots, 0)
+// FFT evaluates the decoding matrix on a slice of ring.Complex values.
+func (ecd *encoderBigComplex) FFT(values []*ring.Complex, N int) {
+
+	var lenh, lenq, gap, idx int
+
+	u := ring.NewComplex(nil, nil)
+	v := ring.NewComplex(nil, nil)
+
+	SliceBitReverseInPlaceRingComplex(values, N)
+
+	for len := 2; len <= N; len <<= 1 {
+		for i := 0; i < N; i += len {
+			lenh = len >> 1
+			lenq = len << 2
+			gap = ecd.m / lenq
+			for j := 0; j < lenh; j++ {
+				idx = (ecd.rotGroup[j] % lenq) * gap
+				u.Set(values[i+j])
+				v.Set(values[i+j+lenh])
+				ecd.cMul.Mul(v, ecd.roots[idx], v)
+				values[i+j].Add(u, v)
+				values[i+j+lenh].Sub(u, v)
+			}
+		}
+	}
+}
+
+// InvFFT evaluates the encoding matrix on a slice of ring.Complex values.
+func (ecd *encoderBigComplex) InvFFT(values []*ring.Complex, N int) {
+
+	var lenh, lenq, gap, idx int
+	u := ring.NewComplex(nil, nil)
+	v := ring.NewComplex(nil, nil)
+
+	for len := N; len >= 1; len >>= 1 {
+		for i := 0; i < N; i += len {
+			lenh = len >> 1
+			lenq = len << 2
+			gap = ecd.m / lenq
+			for j := 0; j < lenh; j++ {
+				idx = (lenq - (ecd.rotGroup[j] % lenq)) * gap
+				u.Add(values[i+j], values[i+j+lenh])
+				v.Sub(values[i+j], values[i+j+lenh])
+				ecd.cMul.Mul(v, ecd.roots[idx], v)
+				values[i+j].Set(u)
+				values[i+j+lenh].Set(v)
+			}
+		}
+	}
+
+	NBig := ring.NewFloat(float64(N), ecd.logPrecision)
+	for i := range values {
+		values[i][0].Quo(values[i][0], NBig)
+		values[i][1].Quo(values[i][1], NBig)
+	}
+
+	SliceBitReverseInPlaceRingComplex(values, N)
+}
+
+// ShallowCopy creates a shallow copy of this EncoderBigComplex in which all the read-only data-structures are
+// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+// EncoderBigComplex can be used concurrently.
+func (ecd *encoderBigComplex) ShallowCopy() EncoderBigComplex {
+
+	values := make([]*ring.Complex, ecd.m>>2)
+	valuesfloat := make([]*big.Float, ecd.m>>1)
+
+	for i := 0; i < ecd.m>>2; i++ {
+
+		values[i] = ring.NewComplex(ring.NewFloat(0, ecd.logPrecision), ring.NewFloat(0, ecd.logPrecision))
+		valuesfloat[i*2] = ring.NewFloat(0, ecd.logPrecision)
+		valuesfloat[(i*2)+1] = ring.NewFloat(0, ecd.logPrecision)
+	}
+
+	return &encoderBigComplex{
+		encoder:      *ecd.encoder.ShallowCopy(),
+		zero:         ring.NewFloat(0, ecd.logPrecision),
+		cMul:         ring.NewComplexMultiplier(),
+		logPrecision: ecd.logPrecision,
+		values:       values,
+		valuesfloat:  valuesfloat,
+		roots:        ecd.roots,
+	}
 }
 
 func (ecd *encoderBigComplex) decodePublic(plaintext *Plaintext, logSlots int, sigma float64) (res []*ring.Complex) {
@@ -940,61 +965,4 @@ func (ecd *encoderBigComplex) decodePublic(plaintext *Plaintext, logSlots int, s
 	}
 
 	return
-}
-
-func (ecd *encoderBigComplex) InvFFT(values []*ring.Complex, N int) {
-
-	var lenh, lenq, gap, idx int
-	u := ring.NewComplex(nil, nil)
-	v := ring.NewComplex(nil, nil)
-
-	for len := N; len >= 1; len >>= 1 {
-		for i := 0; i < N; i += len {
-			lenh = len >> 1
-			lenq = len << 2
-			gap = ecd.m / lenq
-			for j := 0; j < lenh; j++ {
-				idx = (lenq - (ecd.rotGroup[j] % lenq)) * gap
-				u.Add(values[i+j], values[i+j+lenh])
-				v.Sub(values[i+j], values[i+j+lenh])
-				ecd.cMul.Mul(v, ecd.roots[idx], v)
-				values[i+j].Set(u)
-				values[i+j+lenh].Set(v)
-			}
-		}
-	}
-
-	NBig := ring.NewFloat(float64(N), ecd.logPrecision)
-	for i := range values {
-		values[i][0].Quo(values[i][0], NBig)
-		values[i][1].Quo(values[i][1], NBig)
-	}
-
-	SliceBitReverseInPlaceRingComplex(values, N)
-}
-
-func (ecd *encoderBigComplex) FFT(values []*ring.Complex, N int) {
-
-	var lenh, lenq, gap, idx int
-
-	u := ring.NewComplex(nil, nil)
-	v := ring.NewComplex(nil, nil)
-
-	SliceBitReverseInPlaceRingComplex(values, N)
-
-	for len := 2; len <= N; len <<= 1 {
-		for i := 0; i < N; i += len {
-			lenh = len >> 1
-			lenq = len << 2
-			gap = ecd.m / lenq
-			for j := 0; j < lenh; j++ {
-				idx = (ecd.rotGroup[j] % lenq) * gap
-				u.Set(values[i+j])
-				v.Set(values[i+j+lenh])
-				ecd.cMul.Mul(v, ecd.roots[idx], v)
-				values[i+j].Add(u, v)
-				values[i+j+lenh].Sub(u, v)
-			}
-		}
-	}
 }

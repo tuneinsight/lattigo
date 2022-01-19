@@ -240,39 +240,6 @@ func (eval *evaluator) GetKeySwitcher() *rlwe.KeySwitcher {
 	return eval.KeySwitcher
 }
 
-// ShallowCopy creates a shallow copy of this evaluator in which all the read-only data-structures are
-// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// Evaluators can be used concurrently.
-func (eval *evaluator) ShallowCopy() Evaluator {
-	return &evaluator{
-		evaluatorBase:    eval.evaluatorBase,
-		KeySwitcher:      eval.KeySwitcher.ShallowCopy(),
-		evaluatorBuffers: newEvaluatorBuffers(eval.evaluatorBase),
-		rlk:              eval.rlk,
-		rtks:             eval.rtks,
-		permuteNTTIndex:  eval.permuteNTTIndex,
-	}
-}
-
-// WithKey creates a shallow copy of the receiver Evaluator for which the new EvaluationKey is evaluationKey
-// and where the temporary buffers are shared. The receiver and the returned Evaluators cannot be used concurrently.
-func (eval *evaluator) WithKey(evaluationKey rlwe.EvaluationKey) Evaluator {
-	var indexes map[uint64][]uint64
-	if evaluationKey.Rtks == eval.rtks {
-		indexes = eval.permuteNTTIndex
-	} else {
-		indexes = *eval.permuteNTTIndexesForKey(evaluationKey.Rtks)
-	}
-	return &evaluator{
-		KeySwitcher:      eval.KeySwitcher,
-		evaluatorBase:    eval.evaluatorBase,
-		evaluatorBuffers: eval.evaluatorBuffers,
-		rlk:              evaluationKey.Rlk,
-		rtks:             evaluationKey.Rtks,
-		permuteNTTIndex:  indexes,
-	}
-}
-
 func (eval *evaluator) checkBinary(op0, op1, opOut Operand, opOutMinDegree int) {
 	if op0 == nil || op1 == nil || opOut == nil {
 		panic("operands cannot be nil")
@@ -1603,4 +1570,37 @@ func (eval *evaluator) PermuteNTTHoisted(level int, c0, c1 *ring.Poly, c2DecompQ
 
 	ringQ.PermuteNTTWithIndexLvl(level, pool2Q, index, cOut0)
 	ringQ.PermuteNTTWithIndexLvl(level, pool3Q, index, cOut1)
+}
+
+// ShallowCopy creates a shallow copy of this evaluator in which all the read-only data-structures are
+// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+// Evaluators can be used concurrently.
+func (eval *evaluator) ShallowCopy() Evaluator {
+	return &evaluator{
+		evaluatorBase:    eval.evaluatorBase,
+		KeySwitcher:      eval.KeySwitcher.ShallowCopy(),
+		evaluatorBuffers: newEvaluatorBuffers(eval.evaluatorBase),
+		rlk:              eval.rlk,
+		rtks:             eval.rtks,
+		permuteNTTIndex:  eval.permuteNTTIndex,
+	}
+}
+
+// WithKey creates a shallow copy of the receiver Evaluator for which the new EvaluationKey is evaluationKey
+// and where the temporary buffers are shared. The receiver and the returned Evaluators cannot be used concurrently.
+func (eval *evaluator) WithKey(evaluationKey rlwe.EvaluationKey) Evaluator {
+	var indexes map[uint64][]uint64
+	if evaluationKey.Rtks == eval.rtks {
+		indexes = eval.permuteNTTIndex
+	} else {
+		indexes = *eval.permuteNTTIndexesForKey(evaluationKey.Rtks)
+	}
+	return &evaluator{
+		KeySwitcher:      eval.KeySwitcher,
+		evaluatorBase:    eval.evaluatorBase,
+		evaluatorBuffers: eval.evaluatorBuffers,
+		rlk:              evaluationKey.Rlk,
+		rtks:             evaluationKey.Rtks,
+		permuteNTTIndex:  indexes,
+	}
 }

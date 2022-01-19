@@ -21,21 +21,17 @@ type encryptor struct {
 }
 
 // NewEncryptor instantiates a new Encryptor for the BFV scheme. The key argument can
-// be either a *rlwe.PublicKey or a *rlwe.SecretKey.
+// be *rlwe.PublicKey, *rlwe.SecretKey or nil.
 func NewEncryptor(params Parameters, key interface{}) Encryptor {
 	return &encryptor{rlwe.NewEncryptor(params.Parameters, key), params}
 }
 
 // Encrypt encrypts the input plaintext and write the result on ctOut.
-// The encryption algorithm depends on how the receiver encryptor was initialized (see
-// NewEncryptor and NewFastEncryptor).
 func (enc *encryptor) Encrypt(plaintext *Plaintext, ctOut *Ciphertext) {
 	enc.Encryptor.Encrypt(&rlwe.Plaintext{Value: plaintext.Value}, &rlwe.Ciphertext{Value: ctOut.Value})
 }
 
 // EncryptNew encrypts the input plaintext returns the result as a newly allocated ciphertext.
-// The encryption algorithm depends on how the receiver encryptor was initialized (see
-// NewEncryptor and NewFastEncryptor).
 func (enc *encryptor) EncryptNew(plaintext *Plaintext) *Ciphertext {
 	ct := NewCiphertext(enc.params, 1)
 	enc.Encryptor.Encrypt(plaintext.Plaintext, ct.Ciphertext)
@@ -43,12 +39,16 @@ func (enc *encryptor) EncryptNew(plaintext *Plaintext) *Ciphertext {
 }
 
 // EncryptFromCRP encrypts the input plaintext and writes the result in ctOut.
+// This method of encryption only works if the encryptor has been instantiated with
+// a secret key.
 // The passed crp is always treated as being in the NTT domain.
 func (enc *encryptor) EncryptFromCRP(plaintext *Plaintext, crp *ring.Poly, ctOut *Ciphertext) {
 	enc.Encryptor.EncryptFromCRP(&rlwe.Plaintext{Value: plaintext.Value}, crp, &rlwe.Ciphertext{Value: ctOut.Value})
 }
 
 // EncryptFromCRPNew encrypts the input plaintext and returns the result as a newly allocated ciphertext.
+// This method of encryption only works if the encryptor has been instantiated with
+// a secret key.
 // The passed crp is always treated as being in the NTT domain.
 func (enc *encryptor) EncryptFromCRPNew(plaintext *Plaintext, crp *ring.Poly) *Ciphertext {
 	ct := NewCiphertext(enc.params, 1)
@@ -63,8 +63,10 @@ func (enc *encryptor) ShallowCopy() Encryptor {
 	return &encryptor{enc.Encryptor.ShallowCopy(), enc.params}
 }
 
-// WithKey creates a shallow copy of the receiver Encryptor with the provided key.
-// This is equivalent to calling Encryptor.ShallowCopy().WithKey(*)
+// ShallowCopy creates a shallow copy of this encryptor with a new key in which all the read-only data-structures are
+// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+// Encryptors can be used concurrently.
+// Key can be *rlwe.PublicKey or *rlwe.SecretKey.
 func (enc *encryptor) WithKey(key interface{}) Encryptor {
 	return &encryptor{enc.Encryptor.WithKey(key), enc.params}
 }

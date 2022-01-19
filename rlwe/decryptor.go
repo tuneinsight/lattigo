@@ -7,19 +7,8 @@ import (
 
 // Decryptor is an interface generic RLWE encryption.
 type Decryptor interface {
-	// Decrypt decrypts the ciphertext and write the result in ptOut.
-	// The level of the output plaintext is min(ciphertext.Level(), plaintext.Level())
-	// Output domain will match plaintext.Value.IsNTT value.
 	Decrypt(ciphertext *Ciphertext, plaintext *Plaintext)
-
-	// ShallowCopy creates a shallow copy of Decryptor in which all the read-only data-structures are
-	// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-	// Decryptor can be used concurrently.
 	ShallowCopy() Decryptor
-
-	// WithKey creates a shallow copy of Decryptor with a new decryption key, in which all the
-	// read-only data-structures are shared with the receiver and the temporary buffers
-	// are reallocated. The receiver and the returned Decryptor can be used concurrently.
 	WithKey(sk *SecretKey) Decryptor
 }
 
@@ -28,28 +17,6 @@ type decryptor struct {
 	ringQ *ring.Ring
 	pool  *ring.Poly
 	sk    *SecretKey
-}
-
-// ShallowCopy creates a shallow copy of Decryptor in which all the read-only data-structures are
-// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// Decryptor can be used concurrently.
-func (d *decryptor) ShallowCopy() Decryptor {
-	return &decryptor{
-		ringQ: d.ringQ,
-		pool:  d.ringQ.NewPoly(),
-		sk:    d.sk,
-	}
-}
-
-// WithKey creates a shallow copy of Decryptor with a new decryption key, in which all the
-// read-only data-structures are shared with the receiver and the temporary buffers
-// are reallocated. The receiver and the returned Decryptor can be used concurrently.
-func (d *decryptor) WithKey(sk *SecretKey) Decryptor {
-	return &decryptor{
-		ringQ: d.ringQ,
-		pool:  d.ringQ.NewPoly(),
-		sk:    sk,
-	}
 }
 
 // NewDecryptor instantiates a new generic RLWE Decryptor.
@@ -105,5 +72,27 @@ func (d *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) {
 
 	if !plaintext.Value.IsNTT {
 		ringQ.InvNTTLvl(level, plaintext.Value, plaintext.Value)
+	}
+}
+
+// ShallowCopy creates a shallow copy of Decryptor in which all the read-only data-structures are
+// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+// Decryptor can be used concurrently.
+func (d *decryptor) ShallowCopy() Decryptor {
+	return &decryptor{
+		ringQ: d.ringQ,
+		pool:  d.ringQ.NewPoly(),
+		sk:    d.sk,
+	}
+}
+
+// WithKey creates a shallow copy of Decryptor with a new decryption key, in which all the
+// read-only data-structures are shared with the receiver and the temporary buffers
+// are reallocated. The receiver and the returned Decryptor can be used concurrently.
+func (d *decryptor) WithKey(sk *SecretKey) Decryptor {
+	return &decryptor{
+		ringQ: d.ringQ,
+		pool:  d.ringQ.NewPoly(),
+		sk:    sk,
 	}
 }

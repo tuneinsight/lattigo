@@ -128,7 +128,7 @@ func (enc *pkEncryptor) Encrypt(pt *Plaintext, ct *Ciphertext) {
 
 // EncryptFromCRP is not defined when using a public-key. This method will panic.
 func (enc *pkEncryptor) EncryptFromCRP(pt *Plaintext, crp *ring.Poly, ct *Ciphertext) {
-	enc.encryptFromCRP(pt, enc.pk, ct)
+	enc.encryptFromCRP(pt, enc.pk, crp, ct)
 }
 
 // Encrypt encrypts the input plaintext and write the result on ct.
@@ -139,7 +139,7 @@ func (enc *skEncryptor) Encrypt(pt *Plaintext, ct *Ciphertext) {
 // EncryptFromCRP encrypts the input plaintext and writes the result on ct.
 // The encryption algorithm depends on the implementor.
 func (enc *skEncryptor) EncryptFromCRP(pt *Plaintext, crp *ring.Poly, ct *Ciphertext) {
-	enc.encryptFromCRP(pt, enc.sk, ct)
+	enc.encryptFromCRP(pt, enc.sk, crp, ct)
 }
 
 // Encrypt is not defined when the key is nil. This method will panic.

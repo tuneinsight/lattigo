@@ -13,6 +13,13 @@ type Encryptor interface {
 	WithKey(key interface{}) Encryptor
 }
 
+type encryptor struct {
+	*encryptorBase
+	*encryptorSamplers
+	*encryptorBuffers
+	basisextender *ring.BasisExtender
+}
+
 type pkEncryptor struct {
 	encryptor
 	pk *PublicKey
@@ -23,33 +30,11 @@ type skEncryptor struct {
 	sk *SecretKey
 }
 
-type encryptor struct {
-	*encryptorBase
-	*encryptorSamplers
-	*encryptorBuffers
-	basisextender *ring.BasisExtender
-}
-
 // NewEncryptor creates a new Encryptor
 // Accepts either a secret-key or a public-key
 func NewEncryptor(params Parameters, key interface{}) Encryptor {
-	switch key := key.(type) {
-	case *PublicKey:
-		if key.Value[0].Q.Degree() != params.N() || key.Value[1].Q.Degree() != params.N() {
-			panic("cannot newEncryptor: pk ring degree does not match params ring degree")
-		}
-		return &pkEncryptor{newEncryptor(params), key}
-	case *SecretKey:
-		if key.Value.Q.Degree() != params.N() {
-			panic("cannot newEncryptor: sk ring degree does not match params ring degree")
-		}
-		return &skEncryptor{newEncryptor(params), key}
-	case nil:
-		enc := newEncryptor(params)
-		return &enc
-	default:
-		panic("key must be either *rlwe.PublicKey, *rlwe.SecretKey or nil")
-	}
+	enc := newEncryptor(params)
+	return enc.setKey(key)
 }
 
 func newEncryptor(params Parameters) encryptor {
@@ -123,53 +108,54 @@ func newEncryptorBuffers(params Parameters) *encryptorBuffers {
 // then the encryption of zero is sampled in QP before being rescaled by P, else it is directly
 // samples in Q.
 func (enc *pkEncryptor) Encrypt(pt *Plaintext, ct *Ciphertext) {
-	enc.encrypt(pt, enc.pk, ct)
+	enc.uniformSampler.ReadLvl(utils.MinInt(pt.Level(), ct.Level()), ct.Value[1])
+
+	if enc.basisextender != nil {
+		enc.encrypt(pt, ct)
+	} else {
+		enc.encryptNoP(pt, ct)
+	}
 }
 
 // EncryptFromCRP is not defined when using a public-key. This method will panic.
 func (enc *pkEncryptor) EncryptFromCRP(pt *Plaintext, crp *ring.Poly, ct *Ciphertext) {
-	enc.encryptFromCRP(pt, enc.pk, crp, ct)
+	panic("Cannot encrypt with CRP using a public-key")
 }
 
 // Encrypt encrypts the input plaintext and write the result on ct.
 func (enc *skEncryptor) Encrypt(pt *Plaintext, ct *Ciphertext) {
-	enc.encrypt(pt, enc.sk, ct)
+
+	enc.uniformSampler.ReadLvl(utils.MinInt(pt.Level(), ct.Level()), ct.Value[1])
+
+	enc.encrypt(pt, ct)
 }
 
 // EncryptFromCRP encrypts the input plaintext and writes the result on ct.
 // The encryption algorithm depends on the implementor.
 func (enc *skEncryptor) EncryptFromCRP(pt *Plaintext, crp *ring.Poly, ct *Ciphertext) {
-	enc.encryptFromCRP(pt, enc.sk, crp, ct)
-}
+	ring.CopyValues(crp, ct.Value[1])
 
-// Encrypt is not defined when the key is nil. This method will panic.
-func (enc *encryptor) Encrypt(pt *Plaintext, ct *Ciphertext) {
-	panic("cannot encrypt, key is nil")
-}
-
-// EncryptFromCRP is not defined when the key is nil. This method will panic.
-func (enc *encryptor) EncryptFromCRP(pt *Plaintext, crp *ring.Poly, ct *Ciphertext) {
-	panic("cannot encrypt, key is nil")
+	enc.encrypt(pt, ct)
 }
 
 // ShallowCopy creates a shallow copy of this pkEncryptor in which all the read-only data-structures are
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // Encryptors can be used concurrently.
 func (enc *pkEncryptor) ShallowCopy() Encryptor {
-	return &pkEncryptor{*enc.encryptor.ShallowCopy().(*encryptor), enc.pk}
+	return &pkEncryptor{*enc.encryptor.ShallowCopy(), enc.pk}
 }
 
 // ShallowCopy creates a shallow copy of this skEncryptor in which all the read-only data-structures are
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // Encryptors can be used concurrently.
 func (enc *skEncryptor) ShallowCopy() Encryptor {
-	return &skEncryptor{*enc.encryptor.ShallowCopy().(*encryptor), enc.sk}
+	return &skEncryptor{*enc.encryptor.ShallowCopy(), enc.sk}
 }
 
 // ShallowCopy creates a shallow copy of this encryptor in which all the read-only data-structures are
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // Encryptors can be used concurrently.
-func (enc *encryptor) ShallowCopy() Encryptor {
+func (enc *encryptor) ShallowCopy() *encryptor {
 
 	var bc *ring.BasisExtender
 	if enc.params.PCount() != 0 {
@@ -184,75 +170,14 @@ func (enc *encryptor) ShallowCopy() Encryptor {
 	}
 }
 
-// WithKey creates a shallow copy of this pkEncryptor with a new key in which all the read-only data-structures are
-// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// Encryptors can be used concurrently.
-func (enc *pkEncryptor) WithKey(key interface{}) Encryptor {
-	return enc.ShallowCopy().(*pkEncryptor).setKey(key)
-}
-
-// WithKey creates a shallow copy of this skEncryptor with a new key in which all the read-only data-structures are
-// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// Encryptors can be used concurrently.
-func (enc *skEncryptor) WithKey(key interface{}) Encryptor {
-	return enc.ShallowCopy().(*skEncryptor).setKey(key)
-}
-
 // WithKey creates a shallow copy of this encryptor with a new key in which all the read-only data-structures are
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // Encryptors can be used concurrently.
 func (enc *encryptor) WithKey(key interface{}) Encryptor {
-	return enc.ShallowCopy().(*encryptor).setKey(key)
+	return enc.ShallowCopy().setKey(key)
 }
 
-func (enc *encryptor) encrypt(plaintext *Plaintext, key interface{}, ciphertext *Ciphertext) {
-	switch key := key.(type) {
-	case *PublicKey:
-
-		enc.uniformSampler.ReadLvl(utils.MinInt(plaintext.Level(), ciphertext.Level()), ciphertext.Value[1])
-
-		if enc.basisextender != nil {
-			enc.encryptPk(plaintext, key, ciphertext)
-		} else {
-			enc.encryptPkNoP(plaintext, key, ciphertext)
-		}
-
-	case *SecretKey:
-
-		enc.uniformSampler.ReadLvl(utils.MinInt(plaintext.Level(), ciphertext.Level()), ciphertext.Value[1])
-
-		enc.encryptSk(plaintext, key, ciphertext)
-
-	case nil:
-		panic("key is nil")
-
-	default:
-		panic("key must be either rlwe.PublicKey or rlwe.SecretKey")
-	}
-}
-
-func (enc *encryptor) encryptFromCRP(plaintext *Plaintext, key interface{}, crp *ring.Poly, ciphertext *Ciphertext) {
-	switch key := key.(type) {
-	case *PublicKey:
-
-		panic("Cannot encrypt with CRP using a public-key")
-
-	case *SecretKey:
-
-		if key.Value.Q.Degree() != enc.params.N() {
-			panic("cannot newEncryptor: sk ring degree does not match params ring degree")
-		}
-
-		ring.CopyValues(crp, ciphertext.Value[1])
-
-		enc.encryptSk(plaintext, key, ciphertext)
-
-	default:
-		panic("key must be either rlwe.PublicKey or rlwe.SecretKey")
-	}
-}
-
-func (enc *encryptor) encryptPk(plaintext *Plaintext, pk *PublicKey, ciphertext *Ciphertext) {
+func (enc *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Ciphertext) {
 	ringQ := enc.params.RingQ()
 	ringQP := enc.params.RingQP()
 
@@ -282,8 +207,8 @@ func (enc *encryptor) encryptPk(plaintext *Plaintext, pk *PublicKey, ciphertext 
 
 	// ct0 = u*pk0
 	// ct1 = u*pk1
-	ringQP.MulCoeffsMontgomeryLvl(levelQ, levelP, u, pk.Value[0], ct0QP)
-	ringQP.MulCoeffsMontgomeryLvl(levelQ, levelP, u, pk.Value[1], ct1QP)
+	ringQP.MulCoeffsMontgomeryLvl(levelQ, levelP, u, enc.pk.Value[0], ct0QP)
+	ringQP.MulCoeffsMontgomeryLvl(levelQ, levelP, u, enc.pk.Value[1], ct1QP)
 
 	// 2*(#Q + #P) NTT
 	ringQP.InvNTTLvl(levelQ, levelP, ct0QP, ct0QP)
@@ -335,7 +260,7 @@ func (enc *encryptor) encryptPk(plaintext *Plaintext, pk *PublicKey, ciphertext 
 	ciphertext.Value[1].Coeffs = ciphertext.Value[1].Coeffs[:levelQ+1]
 }
 
-func (enc *encryptor) encryptPkNoP(plaintext *Plaintext, pk *PublicKey, ciphertext *Ciphertext) {
+func (enc *pkEncryptor) encryptNoP(plaintext *Plaintext, ciphertext *Ciphertext) {
 	levelQ := utils.MinInt(plaintext.Level(), ciphertext.Level())
 
 	poolQ0 := enc.poolQ[0]
@@ -349,9 +274,9 @@ func (enc *encryptor) encryptPkNoP(plaintext *Plaintext, pk *PublicKey, cipherte
 	ringQ.MFormLvl(levelQ, poolQ0, poolQ0)
 
 	// ct0 = u*pk0
-	ringQ.MulCoeffsMontgomeryLvl(levelQ, poolQ0, pk.Value[0].Q, ciphertext.Value[0])
+	ringQ.MulCoeffsMontgomeryLvl(levelQ, poolQ0, enc.pk.Value[0].Q, ciphertext.Value[0])
 	// ct1 = u*pk1
-	ringQ.MulCoeffsMontgomeryLvl(levelQ, poolQ0, pk.Value[1].Q, ciphertext.Value[1])
+	ringQ.MulCoeffsMontgomeryLvl(levelQ, poolQ0, enc.pk.Value[1].Q, ciphertext.Value[1])
 
 	if ciphertextNTT {
 
@@ -398,7 +323,7 @@ func (enc *encryptor) encryptPkNoP(plaintext *Plaintext, pk *PublicKey, cipherte
 	ciphertext.Value[1].Coeffs = ciphertext.Value[1].Coeffs[:levelQ+1]
 }
 
-func (enc *encryptor) encryptSk(plaintext *Plaintext, sk *SecretKey, ciphertext *Ciphertext) {
+func (enc *skEncryptor) encrypt(plaintext *Plaintext, ciphertext *Ciphertext) {
 
 	ringQ := enc.params.RingQ()
 
@@ -408,7 +333,7 @@ func (enc *encryptor) encryptSk(plaintext *Plaintext, sk *SecretKey, ciphertext 
 
 	ciphertextNTT := ciphertext.Value[0].IsNTT
 
-	ringQ.MulCoeffsMontgomeryLvl(levelQ, ciphertext.Value[1], sk.Value.Q, ciphertext.Value[0])
+	ringQ.MulCoeffsMontgomeryLvl(levelQ, ciphertext.Value[1], enc.sk.Value.Q, ciphertext.Value[0])
 	ringQ.NegLvl(levelQ, ciphertext.Value[0], ciphertext.Value[0])
 
 	if ciphertextNTT {
@@ -450,14 +375,6 @@ func (enc *encryptor) encryptSk(plaintext *Plaintext, sk *SecretKey, ciphertext 
 
 	ciphertext.Value[0].Coeffs = ciphertext.Value[0].Coeffs[:levelQ+1]
 	ciphertext.Value[1].Coeffs = ciphertext.Value[1].Coeffs[:levelQ+1]
-}
-
-func (enc *pkEncryptor) setKey(key interface{}) Encryptor {
-	return enc.encryptor.setKey(key)
-}
-
-func (enc *skEncryptor) setKey(key interface{}) Encryptor {
-	return enc.encryptor.setKey(key)
 }
 
 func (enc *encryptor) setKey(key interface{}) Encryptor {

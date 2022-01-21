@@ -274,6 +274,51 @@ func testEncryptor(kgen KeyGenerator, t *testing.T) {
 		ringQ.InvNTTLvl(ciphertext.Level(), ciphertext.Value[0], ciphertext.Value[0])
 		require.GreaterOrEqual(t, 5+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, ciphertext.Value[0]))
 	})
+
+	t.Run(testString(params, "ShallowCopy/Sk"), func(t *testing.T) {
+		enc1 := NewEncryptor(params, sk)
+		enc2 := enc1.ShallowCopy()
+		skEnc1, skEnc2 := enc1.(*skEncryptor), enc2.(*skEncryptor)
+		require.True(t, skEnc1.encryptorBase == skEnc2.encryptorBase)
+		require.True(t, skEnc1.sk == skEnc2.sk)
+		require.False(t, skEnc1.basisextender == skEnc2.basisextender)
+		require.False(t, skEnc1.encryptorBuffers == skEnc2.encryptorBuffers)
+		require.False(t, skEnc1.encryptorSamplers == skEnc2.encryptorSamplers)
+	})
+
+	t.Run(testString(params, "ShallowCopy/Pk"), func(t *testing.T) {
+		enc1 := NewEncryptor(params, pk)
+		enc2 := enc1.ShallowCopy()
+		pkEnc1, pkEnc2 := enc1.(*pkEncryptor), enc2.(*pkEncryptor)
+		require.True(t, pkEnc1.encryptorBase == pkEnc2.encryptorBase)
+		require.True(t, pkEnc1.pk == pkEnc2.pk)
+		require.False(t, pkEnc1.basisextender == pkEnc2.basisextender)
+		require.False(t, pkEnc1.encryptorBuffers == pkEnc2.encryptorBuffers)
+		require.False(t, pkEnc1.encryptorSamplers == pkEnc2.encryptorSamplers)
+	})
+
+	sk2 := kgen.GenSecretKey()
+
+	t.Run(testString(params, "WithKey/Sk->Sk"), func(t *testing.T) {
+		enc1 := NewEncryptor(params, sk)
+		enc2 := enc1.WithKey(sk2)
+		skEnc1, skEnc2 := enc1.(*skEncryptor), enc2.(*skEncryptor)
+		require.True(t, skEnc1.encryptorBase == skEnc2.encryptorBase)
+		require.False(t, skEnc1.sk == skEnc2.sk)
+		require.False(t, skEnc1.basisextender == skEnc2.basisextender)
+		require.False(t, skEnc1.encryptorBuffers == skEnc2.encryptorBuffers)
+		require.False(t, skEnc1.encryptorSamplers == skEnc2.encryptorSamplers)
+	})
+
+	t.Run(testString(params, "WithKey/Sk->Pk"), func(t *testing.T) {
+		enc1 := NewEncryptor(params, sk)
+		enc2 := enc1.WithKey(pk)
+		skEnc1, pkEnc2 := enc1.(*skEncryptor), enc2.(*pkEncryptor)
+		require.True(t, skEnc1.encryptorBase == pkEnc2.encryptorBase)
+		require.False(t, skEnc1.basisextender == pkEnc2.basisextender)
+		require.False(t, skEnc1.encryptorBuffers == pkEnc2.encryptorBuffers)
+		require.False(t, skEnc1.encryptorSamplers == pkEnc2.encryptorSamplers)
+	})
 }
 
 func testDecryptor(kgen KeyGenerator, t *testing.T) {

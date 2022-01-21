@@ -47,10 +47,10 @@ func (rfp *MaskedTransformProtocol) ShallowCopy() *MaskedTransformProtocol {
 	}
 }
 
-// MaskedTransformFunc is a method template for linear transforms that can be
-// evaluated on a ciphertext during its collective refresh.
-// Function takes as input a vector of *ring.Complex of size ckks.Parameters.Slots() and maps it
-// to another vector *ring.Complex of size ckks.Parameters.Slots().
+// MaskedTransformFunc represents a user-defined in-place function that can be evaluated on masked CKKS plaintexts, as a part of the
+// Masked Transform Protocol.
+// The function is called with a vector of *ring.Complex modulo ckks.Parameters.Slots() as input, and must write
+// its output on the same buffer.
 type MaskedTransformFunc func(coeffs []*ring.Complex)
 
 // MaskedTransformShare is a struct storing the decryption and recryption shares.

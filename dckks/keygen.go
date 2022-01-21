@@ -32,7 +32,7 @@ type RKGProtocol struct {
 // NewRKGProtocol creates a new RKGProtocol object that will be used to generate a collective evaluation-key
 // among j parties in the given context with the given bit-decomposition.
 func NewRKGProtocol(params ckks.Parameters) *RKGProtocol {
-	return &RKGProtocol{*drlwe.NewRKGProtocol(params.Parameters, 0.5)}
+	return &RKGProtocol{*drlwe.NewRKGProtocol(params.Parameters)}
 }
 
 // ShallowCopy creates a shallow copy of RKGProtocol in which all the read-only data-structures are

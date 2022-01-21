@@ -61,10 +61,10 @@ type RKGShare struct {
 type RKGCRP []rlwe.PolyQP
 
 // NewRKGProtocol creates a new RKG protocol struct
-func NewRKGProtocol(params rlwe.Parameters, ephSkPr float64) *RKGProtocol {
+func NewRKGProtocol(params rlwe.Parameters) *RKGProtocol {
 	rkg := new(RKGProtocol)
 	rkg.params = params
-	rkg.ephSkPr = ephSkPr
+	rkg.ephSkPr = 0.5 // TODO: read from Params
 
 	var err error
 	prng, err := utils.NewPRNG()
@@ -74,7 +74,7 @@ func NewRKGProtocol(params rlwe.Parameters, ephSkPr float64) *RKGProtocol {
 
 	rkg.pBigInt = params.PBigInt()
 	rkg.gaussianSamplerQ = ring.NewGaussianSampler(prng, params.RingQ(), params.Sigma(), int(6*params.Sigma()))
-	rkg.ternarySamplerQ = ring.NewTernarySampler(prng, params.RingQ(), ephSkPr, false)
+	rkg.ternarySamplerQ = ring.NewTernarySampler(prng, params.RingQ(), rkg.ephSkPr, false)
 	rkg.tmpPoly1 = params.RingQP().NewPoly()
 	rkg.tmpPoly2 = params.RingQP().NewPoly()
 	return rkg

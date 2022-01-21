@@ -306,7 +306,7 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 
 		for i := range rkg {
 			if i == 0 {
-				rkg[i] = NewRKGProtocol(params, rlwe.DefaultSigma)
+				rkg[i] = NewRKGProtocol(params)
 			} else {
 				rkg[i] = rkg[0].ShallowCopy()
 			}
@@ -586,7 +586,7 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 
 		//check RTGShare
 
-		RKGProtocol := NewRKGProtocol(params, rlwe.DefaultSigma)
+		RKGProtocol := NewRKGProtocol(params)
 
 		ephSk0, share10, _ := RKGProtocol.AllocateShare()
 

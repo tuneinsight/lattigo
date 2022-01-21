@@ -6,21 +6,14 @@ All notable changes to this project will be documented in this file.
 ## Unreleased
 
 - RING: renamed `FastBasisExtender` to `BasisExtender`.
-- RING: `.PolyToBigint[...]` now take as input `gap` which defines the multiples of `X^{i*gap}` to reconstruct.
-- RLWE: added `.ShallowCopy()`, `.WithKey()` (shallow copy with new key) to `Encryptor` and `Decryptor`.
+- RING: `.PolyToBigint[...](*)` now take as input `gap` which defines the multiples of `X^{i*gap}` to reconstruct.
 - RLWE: removed `FastEncryptor`. Encryption without rescaling by `P` is now automatically used by `Encryptor` if no `P` is specified in the parameters.
 - RLWE: `NewAdditiveShareBigint` now takes as input the size of the share.
-- BFV: added `.ShallowCopy()` to `Encoder`.
-- BFV: added `.ShallowCopy()`, `.WithKey()` (shallow copy with new key) to `Encryptor` and `Decryptor`.
-- CKKS: added `.ShallowCopy()` to `Encoder` and `EncoderBigComplex`.
-- CKKS: added `ShallowCopy()`, `.WithKey()` (shallow copy with new key) to `Encryptor` and `Decryptor`.
-- DRLWE: added `.ShallowCopy()` for all protocols.
-- DRLWE: `GenShare(*)` of `CKSProtocol` and `PCKSProtocol` now only take as input a polynomial instead of the full ciphertext.
-- DBFV: protocols using `drlwe.CKSProtocol` or `drlwe.PCKSProtocol` as sub-protocols now only take a polynomial as input instead of the full ciphertext.
-- DCKKS: added `.ShallowCopy()` for all protocols.
-- DCKKS: updated `PCKSProtocol` and `CKSProtocol` API consistency, updated tests and benchmarks accordingly.
-- DCKKS: protocols using `drlwe.CKSProtocol` or `drlwe.PCKSProtocol` as sub-protocols now only take a polynomial as input instead of the full ciphertext.
-- DRLWE/DCKKS/DBFV: uniformized API of share generation and aggregation to `.GenShare(*)` and `.AggregateShare`.
+- RLWE/CKKS/BFV: added `.ShallowCopy()`, `.WithKey()` (shallow copy with new key) to `Encryptor` and `Decryptor`.
+- BFV/CKKS: added `.ShallowCopy()` to `Encoder` and `EncoderBigComplex` (only CKKS).
+- DRLWE/DCKKS/DBFV: added `.ShallowCopy()` to all protocols.
+- DLRWE/DCKKS/DBFV: protocols `drlwe.CKSProtocol` or `drlwe.PCKSProtocol` and sub-protocols based on these two protocols now only take a polynomial as input instead of the full ciphertext.
+- DRLWE/DCKKS/DBFV: uniformized API of share generation and aggregation to `.GenShare(*)` and `.AggregateShare(*)`.
 
 ## [2.4.0] - 2022-01-10
 

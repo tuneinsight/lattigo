@@ -36,7 +36,7 @@ type Stats struct {
 func (prec PrecisionStats) String() string {
 	return fmt.Sprintf(`
 ┌─────────┬───────┬───────┬───────┐
-│    Log2 │ REAL  │ IMAG  │  L2   │
+│    Log2 │ REAL  │ IMAG  │ L2    │
 ├─────────┼───────┼───────┼───────┤
 │MIN Prec │ %.2f │ %.2f │ %.2f │
 │MAX Prec │ %.2f │ %.2f │ %.2f │

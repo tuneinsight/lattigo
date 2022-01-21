@@ -8,7 +8,6 @@ import (
 	"math/big"
 	"math/bits"
 	"runtime"
-	"sync"
 	"testing"
 
 	"github.com/ldsec/lattigo/v2/ring"
@@ -117,26 +116,15 @@ func testPublicKeyGen(testCtx testContext, t *testing.T) {
 		var _ CollectivePublicKeyGenerator = ckg[0]
 
 		shares := make([]*CKGShare, nbParties)
-		var wg sync.WaitGroup
-		wg.Add(nbParties)
 		for i := range shares {
-			go func(i int) {
-				shares[i] = ckg[i].AllocateShare()
-				wg.Done()
-			}(i)
+			shares[i] = ckg[i].AllocateShare()
 		}
-		wg.Wait()
 
 		crp := ckg[0].SampleCRP(testCtx.crs)
 
-		wg.Add(nbParties)
 		for i := range shares {
-			go func(i int) {
-				ckg[i].GenShare(testCtx.skShares[i], crp, shares[i])
-				wg.Done()
-			}(i)
+			ckg[i].GenShare(testCtx.skShares[i], crp, shares[i])
 		}
-		wg.Wait()
 
 		for i := 1; i < nbParties; i++ {
 			ckg[0].AggregateShare(shares[0], shares[i], shares[0])
@@ -189,25 +177,13 @@ func testKeySwitching(testCtx testContext, t *testing.T) {
 		ciphertext.Value[1].IsNTT = true
 
 		shares := make([]*CKSShare, nbParties)
-
-		var wg sync.WaitGroup
-		wg.Add(nbParties)
 		for i := range shares {
-			go func(i int) {
-				shares[i] = cks[i].AllocateShare(ciphertext.Level())
-				wg.Done()
-			}(i)
+			shares[i] = cks[i].AllocateShare(ciphertext.Level())
 		}
-		wg.Wait()
 
-		wg.Add(nbParties)
 		for i := range shares {
-			go func(i int) {
-				cks[i].GenShare(testCtx.skShares[i], skout[i], ciphertext.Value[1], shares[i])
-				wg.Done()
-			}(i)
+			cks[i].GenShare(testCtx.skShares[i], skout[i], ciphertext.Value[1], shares[i])
 		}
-		wg.Wait()
 
 		for i := 1; i < nbParties; i++ {
 			cks[i].AggregateShare(shares[0], shares[i], shares[0])
@@ -253,24 +229,13 @@ func testPublicKeySwitching(testCtx testContext, t *testing.T) {
 		ciphertext.Value[1].IsNTT = true
 
 		shares := make([]*PCKSShare, nbParties)
-		var wg sync.WaitGroup
-		wg.Add(nbParties)
 		for i := range shares {
-			go func(i int) {
-				shares[i] = pcks[i].AllocateShare(ciphertext.Level())
-				wg.Done()
-			}(i)
+			shares[i] = pcks[i].AllocateShare(ciphertext.Level())
 		}
-		wg.Wait()
 
-		wg.Add(nbParties)
 		for i := range shares {
-			go func(i int) {
-				pcks[i].GenShare(testCtx.skShares[i], pkOut, ciphertext.Value[1], shares[i])
-				wg.Done()
-			}(i)
+			pcks[i].GenShare(testCtx.skShares[i], pkOut, ciphertext.Value[1], shares[i])
 		}
-		wg.Wait()
 
 		for i := 1; i < nbParties; i++ {
 			pcks[0].AggregateShare(shares[0], shares[i], shares[0])
@@ -318,39 +283,22 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 		share1 := make([]*RKGShare, nbParties)
 		share2 := make([]*RKGShare, nbParties)
 
-		var wg sync.WaitGroup
-		wg.Add(nbParties)
 		for i := range rkg {
-			go func(i int) {
-				ephSk[i], share1[i], share2[i] = rkg[i].AllocateShare()
-				wg.Done()
-			}(i)
+			ephSk[i], share1[i], share2[i] = rkg[i].AllocateShare()
 		}
-		wg.Wait()
 
 		crp := rkg[0].SampleCRP(testCtx.crs)
-
-		wg.Add(nbParties)
 		for i := range rkg {
-			go func(i int) {
-				rkg[i].GenShareRoundOne(testCtx.skShares[i], crp, ephSk[i], share1[i])
-				wg.Done()
-			}(i)
+			rkg[i].GenShareRoundOne(testCtx.skShares[i], crp, ephSk[i], share1[i])
 		}
-		wg.Wait()
 
 		for i := 1; i < nbParties; i++ {
 			rkg[0].AggregateShare(share1[0], share1[i], share1[0])
 		}
 
-		wg.Add(nbParties)
 		for i := range rkg {
-			go func(i int) {
-				rkg[i].GenShareRoundTwo(ephSk[i], testCtx.skShares[i], share1[0], share2[i])
-				wg.Done()
-			}(i)
+			rkg[i].GenShareRoundTwo(ephSk[i], testCtx.skShares[i], share1[0], share2[i])
 		}
-		wg.Wait()
 
 		for i := 1; i < nbParties; i++ {
 			rkg[0].AggregateShare(share2[0], share2[i], share2[0])
@@ -426,28 +374,17 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 		var _ RotationKeyGenerator = rtg[0]
 
 		shares := make([]*RTGShare, nbParties)
-		var wg sync.WaitGroup
-		wg.Add(nbParties)
 		for i := range shares {
-			go func(i int) {
-				shares[i] = rtg[i].AllocateShare()
-				wg.Done()
-			}(i)
+			shares[i] = rtg[i].AllocateShare()
 		}
-		wg.Wait()
 
 		crp := rtg[0].SampleCRP(testCtx.crs)
 
 		galEl := params.GaloisElementForRowRotation()
 
-		wg.Add(nbParties)
 		for i := range shares {
-			go func(i int) {
-				rtg[i].GenShare(testCtx.skShares[i], galEl, crp, shares[i])
-				wg.Done()
-			}(i)
+			rtg[i].GenShare(testCtx.skShares[i], galEl, crp, shares[i])
 		}
-		wg.Wait()
 
 		for i := 1; i < nbParties; i++ {
 			rtg[0].AggregateShare(shares[0], shares[i], shares[0])

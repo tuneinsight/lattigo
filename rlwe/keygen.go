@@ -34,6 +34,7 @@ type keyGenerator struct {
 	params           Parameters
 	poolQ            *ring.Poly
 	poolQP           PolyQP
+	ternarySampler   *ring.TernarySampler
 	gaussianSamplerQ *ring.GaussianSampler
 	uniformSamplerQ  *ring.UniformSampler
 	uniformSamplerP  *ring.UniformSampler
@@ -59,6 +60,7 @@ func NewKeyGenerator(params Parameters) KeyGenerator {
 		params:           params,
 		poolQ:            params.RingQ().NewPoly(),
 		poolQP:           poolQP,
+		ternarySampler:   ring.NewTernarySamplerSparse(prng, params.ringQ, params.h, false),
 		gaussianSamplerQ: ring.NewGaussianSampler(prng, params.RingQ(), params.Sigma(), int(6*params.Sigma())),
 		uniformSamplerQ:  ring.NewUniformSampler(prng, params.RingQ()),
 		uniformSamplerP:  uniformSamplerP,
@@ -67,7 +69,7 @@ func NewKeyGenerator(params Parameters) KeyGenerator {
 
 // GenSecretKey generates a new SecretKey with the distribution [1/3, 1/3, 1/3].
 func (keygen *keyGenerator) GenSecretKey() (sk *SecretKey) {
-	return keygen.GenSecretKeyWithDistrib(1.0 / 3)
+	return keygen.genSecretKeyFromSampler(keygen.ternarySampler)
 }
 
 // GenSecretKey generates a new SecretKey with the error distribution.

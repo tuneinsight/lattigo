@@ -1440,6 +1440,7 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, testctx.params, p)
 		assert.Equal(t, testctx.params.RingQ(), p.RingQ())
+		assert.Equal(t, testctx.params.MarshalBinarySize(), len(bytes))
 	})
 
 	t.Run(GetTestName(testctx.params, "Marshaller/Parameters/JSON"), func(t *testing.T) {
@@ -1455,22 +1456,31 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 		assert.True(t, testctx.params.Equals(paramsRec))
 
 		// checks that ckks.Paramters can be unmarshalled with log-moduli definition without error
-		dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60],"Sigma":3.2,"T":65537}`, testctx.params.LogN()))
+		dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60]}`, testctx.params.LogN()))
 		var paramsWithLogModuli Parameters
 		err = json.Unmarshal(dataWithLogModuli, &paramsWithLogModuli)
 		assert.Nil(t, err)
 		assert.Equal(t, 2, paramsWithLogModuli.QCount())
 		assert.Equal(t, 1, paramsWithLogModuli.PCount())
-		assert.Equal(t, ring.Standard, paramsWithLogModuli.RingType()) // Omitting the RingType field should result in a standard instance
+		assert.Equal(t, ring.Standard, paramsWithLogModuli.RingType())  // Omitting the RingType field should result in a standard instance
+		assert.Equal(t, rlwe.DefaultSigma, paramsWithLogModuli.Sigma()) // Ommiting sigma should result in Default being used
 
 		// checks that ckks.Paramters can be unmarshalled with log-moduli definition with empty P without error
-		dataWithLogModuliNoP := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[],"Sigma":3.2,"T":65537, "RingType": "ConjugateInvariant"}`, testctx.params.LogN()))
+		dataWithLogModuliNoP := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[], "RingType": "ConjugateInvariant"}`, testctx.params.LogN()))
 		var paramsWithLogModuliNoP Parameters
 		err = json.Unmarshal(dataWithLogModuliNoP, &paramsWithLogModuliNoP)
 		assert.Nil(t, err)
 		assert.Equal(t, 2, paramsWithLogModuliNoP.QCount())
 		assert.Equal(t, 0, paramsWithLogModuliNoP.PCount())
 		assert.Equal(t, ring.ConjugateInvariant, paramsWithLogModuliNoP.RingType())
+
+		// checks that one can provide custom parameters for the secret-key and error distributions
+		dataWithCustomSecrets := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60], "H": 192, "Sigma": 6.6}`, testctx.params.LogN()))
+		var paramsWithCustomSecrets Parameters
+		err = json.Unmarshal(dataWithCustomSecrets, &paramsWithCustomSecrets)
+		assert.Nil(t, err)
+		assert.Equal(t, 6.6, paramsWithCustomSecrets.Sigma())
+		assert.Equal(t, 192, paramsWithCustomSecrets.HammingWeight())
 	})
 
 	t.Run("Marshaller/Ciphertext/", func(t *testing.T) {

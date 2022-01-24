@@ -103,8 +103,9 @@ type ParametersLiteral struct {
 	LogN  int // Log Ring degree (power of 2)
 	Q     []uint64
 	P     []uint64
-	LogQ  []int   `json:",omitempty"`
-	LogP  []int   `json:",omitempty"`
+	LogQ  []int `json:",omitempty"`
+	LogP  []int `json:",omitempty"`
+	H     int
 	Sigma float64 // Gaussian sampling standard deviation
 	T     uint64  // Plaintext modulus
 }
@@ -144,7 +145,7 @@ func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err erro
 // NewParametersFromLiteral instantiate a set of BFV parameters from a ParametersLiteral specification.
 // It returns the empty parameters Parameters{} and a non-nil error if the specified parameters are invalid.
 func NewParametersFromLiteral(pl ParametersLiteral) (Parameters, error) {
-	rlweParams, err := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{LogN: pl.LogN, Q: pl.Q, P: pl.P, LogQ: pl.LogQ, LogP: pl.LogP, Sigma: pl.Sigma})
+	rlweParams, err := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{LogN: pl.LogN, Q: pl.Q, P: pl.P, LogQ: pl.LogQ, LogP: pl.LogP, H: pl.H, Sigma: pl.Sigma})
 	if err != nil {
 		return Parameters{}, err
 	}
@@ -223,7 +224,7 @@ func (p Parameters) MarshalBinarySize() int {
 
 // MarshalJSON returns a JSON representation of this parameter set. See `Marshal` from the `encoding/json` package.
 func (p Parameters) MarshalJSON() ([]byte, error) {
-	return json.Marshal(ParametersLiteral{LogN: p.LogN(), Q: p.Q(), P: p.P(), Sigma: p.Sigma(), T: p.T()})
+	return json.Marshal(ParametersLiteral{LogN: p.LogN(), Q: p.Q(), P: p.P(), H: p.HammingWeight(), Sigma: p.Sigma(), T: p.T()})
 }
 
 // UnmarshalJSON reads a JSON representation of a parameter set into the receiver Parameter. See `Unmarshal` from the `encoding/json` package.

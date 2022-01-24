@@ -170,6 +170,7 @@ func (p Parameters) RingQP() *RingQP {
 	return &RingQP{p.ringQ, p.ringP}
 }
 
+// HammingWeight returns the number of non-zero coefficients in secret-keys.
 func (p Parameters) HammingWeight() int {
 	return p.h
 }

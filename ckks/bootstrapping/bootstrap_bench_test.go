@@ -25,7 +25,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 	}
 
 	kgen := ckks.NewKeyGenerator(params)
-	sk := kgen.GenSecretKeySparse(btpParams.H)
+	sk := kgen.GenSecretKey()
 	rlk := kgen.GenRelinearizationKey(sk, 2)
 
 	rotations := btpParams.RotationsForBootstrapping(params.LogN(), params.LogSlots())

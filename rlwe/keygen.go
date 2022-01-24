@@ -13,10 +13,9 @@ type KeyGenerator interface {
 	GenSecretKey() (sk *SecretKey)
 	GenSecretKeyGaussian() (sk *SecretKey)
 	GenSecretKeyWithDistrib(p float64) (sk *SecretKey)
-	GenSecretKeySparse(hw int) (sk *SecretKey)
+	GenSecretKeyWithHammingWeight(hw int) (sk *SecretKey)
 	GenPublicKey(sk *SecretKey) (pk *PublicKey)
 	GenKeyPair() (sk *SecretKey, pk *PublicKey)
-	GenKeyPairSparse(hw int) (sk *SecretKey, pk *PublicKey)
 	GenRelinearizationKey(sk *SecretKey, maxDegree int) (evk *RelinearizationKey)
 	GenSwitchingKey(skInput, skOutput *SecretKey) (newevakey *SwitchingKey)
 	GenSwitchingKeyForGalois(galEl uint64, sk *SecretKey) (swk *SwitchingKey)
@@ -87,8 +86,8 @@ func (keygen *keyGenerator) GenSecretKeyWithDistrib(p float64) (sk *SecretKey) {
 	return keygen.genSecretKeyFromSampler(ternarySamplerMontgomery)
 }
 
-// GenSecretKeySparse generates a new SecretKey with exactly hw non-zero coefficients.
-func (keygen *keyGenerator) GenSecretKeySparse(hw int) (sk *SecretKey) {
+// GenSecretKeyWithHammingWeight generates a new SecretKey with exactly hw non-zero coefficients.
+func (keygen *keyGenerator) GenSecretKeyWithHammingWeight(hw int) (sk *SecretKey) {
 	prng, err := utils.NewPRNG()
 	if err != nil {
 		panic(err)
@@ -161,12 +160,6 @@ func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 // GenKeyPair generates a new SecretKey with distribution [1/3, 1/3, 1/3] and a corresponding public key.
 func (keygen *keyGenerator) GenKeyPair() (sk *SecretKey, pk *PublicKey) {
 	sk = keygen.GenSecretKey()
-	return sk, keygen.GenPublicKey(sk)
-}
-
-// GenKeyPairSparse generates a new SecretKey with exactly hw non zero coefficients [1/2, 0, 1/2].
-func (keygen *keyGenerator) GenKeyPairSparse(hw int) (sk *SecretKey, pk *PublicKey) {
-	sk = keygen.GenSecretKeySparse(hw)
 	return sk, keygen.GenPublicKey(sk)
 }
 

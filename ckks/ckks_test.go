@@ -83,7 +83,7 @@ func TestCKKS(t *testing.T) {
 			panic(err)
 		}
 		var tc *testContext
-		if tc, err = genTestParams(params, 0); err != nil {
+		if tc, err = genTestParams(params); err != nil {
 			panic(err)
 		}
 
@@ -116,7 +116,7 @@ func TestCKKS(t *testing.T) {
 	}
 }
 
-func genTestParams(defaultParam Parameters, hw int) (tc *testContext, err error) {
+func genTestParams(defaultParam Parameters) (tc *testContext, err error) {
 
 	tc = new(testContext)
 
@@ -124,11 +124,7 @@ func genTestParams(defaultParam Parameters, hw int) (tc *testContext, err error)
 
 	tc.kgen = NewKeyGenerator(tc.params)
 
-	if hw == 0 {
-		tc.sk, tc.pk = tc.kgen.GenKeyPair()
-	} else {
-		tc.sk, tc.pk = tc.kgen.GenKeyPairSparse(hw)
-	}
+	tc.sk, tc.pk = tc.kgen.GenKeyPair()
 
 	tc.ringQ = defaultParam.RingQ()
 	if tc.params.PCount() != 0 {

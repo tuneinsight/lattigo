@@ -12,7 +12,6 @@ type Parameters struct {
 	SlotsToCoeffsParameters advanced.EncodingMatrixLiteral
 	EvalModParameters       advanced.EvalModLiteral
 	CoeffsToSlotsParameters advanced.EncodingMatrixLiteral
-	H                       int // Hamming weight of the secret key
 }
 
 // MarshalBinary encode the target Parameters on a slice of bytes.
@@ -41,12 +40,6 @@ func (p *Parameters) MarshalBinary() (data []byte, err error) {
 	data = append(data, uint8(len(tmp)))
 	data = append(data, tmp...)
 
-	tmp = make([]byte, 4)
-	tmp[0] = uint8(p.H >> 24)
-	tmp[1] = uint8(p.H >> 16)
-	tmp[2] = uint8(p.H >> 8)
-	tmp[3] = uint8(p.H >> 0)
-	data = append(data, tmp...)
 	return
 }
 
@@ -75,12 +68,6 @@ func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 	if err := p.CoeffsToSlotsParameters.UnmarshalBinary(data[pt+1 : pt+dLen+1]); err != nil {
 		return err
 	}
-
-	pt += dLen
-	pt++
-	dLen = int(data[pt])
-
-	p.H = int(data[pt])<<24 | int(data[pt+1])<<16 | int(data[pt+2])<<8 | int(data[pt+3])
 
 	return
 }
@@ -117,6 +104,7 @@ var DefaultCKKSParameters = []ckks.ParametersLiteral{
 		LogN:         16,
 		LogSlots:     15,
 		DefaultScale: 1 << 40,
+		H:            192,
 		Sigma:        rlwe.DefaultSigma,
 		Q: []uint64{
 			0x10000000006e0001, // 60 Q0
@@ -157,6 +145,7 @@ var DefaultCKKSParameters = []ckks.ParametersLiteral{
 		LogN:         16,
 		LogSlots:     15,
 		DefaultScale: 1 << 45,
+		H:            192,
 		Sigma:        rlwe.DefaultSigma,
 		Q: []uint64{
 			0x10000000006e0001, // 60 Q0
@@ -195,6 +184,7 @@ var DefaultCKKSParameters = []ckks.ParametersLiteral{
 		LogN:         16,
 		LogSlots:     15,
 		DefaultScale: 1 << 30,
+		H:            192,
 		Sigma:        rlwe.DefaultSigma,
 		Q: []uint64{
 			0x80000000080001,   // 55 Q0
@@ -232,6 +222,7 @@ var DefaultCKKSParameters = []ckks.ParametersLiteral{
 		LogN:         16,
 		LogSlots:     15,
 		DefaultScale: 1 << 40,
+		H:            32768,
 		Sigma:        rlwe.DefaultSigma,
 		Q: []uint64{
 			0x4000000120001, // 60 Q0
@@ -276,6 +267,7 @@ var DefaultCKKSParameters = []ckks.ParametersLiteral{
 		LogN:         15,
 		LogSlots:     14,
 		DefaultScale: 1 << 25,
+		H:            192,
 		Sigma:        rlwe.DefaultSigma,
 		Q: []uint64{
 			0x1fff90001,       // 32 Q0
@@ -306,7 +298,6 @@ var DefaultParameters = []Parameters{
 	// SET I
 	// 1546
 	{
-		H: 192,
 		SlotsToCoeffsParameters: advanced.EncodingMatrixLiteral{
 			LinearTransformType: advanced.SlotsToCoeffs,
 			LevelStart:          12,
@@ -346,7 +337,6 @@ var DefaultParameters = []Parameters{
 	// SET II
 	// 1547
 	{
-		H: 192,
 		SlotsToCoeffsParameters: advanced.EncodingMatrixLiteral{
 			LinearTransformType: advanced.SlotsToCoeffs,
 			LevelStart:          8,
@@ -386,7 +376,6 @@ var DefaultParameters = []Parameters{
 	// SET III
 	// 1553
 	{
-		H: 192,
 		SlotsToCoeffsParameters: advanced.EncodingMatrixLiteral{
 			LinearTransformType: advanced.SlotsToCoeffs,
 			LevelStart:          9,
@@ -425,7 +414,6 @@ var DefaultParameters = []Parameters{
 	// Set IV
 	// 1792
 	{
-		H: 32768,
 		SlotsToCoeffsParameters: advanced.EncodingMatrixLiteral{
 			LinearTransformType: advanced.SlotsToCoeffs,
 			LevelStart:          11,
@@ -464,7 +452,6 @@ var DefaultParameters = []Parameters{
 	// Set V
 	// 768
 	{
-		H: 192,
 		SlotsToCoeffsParameters: advanced.EncodingMatrixLiteral{
 			LinearTransformType: advanced.SlotsToCoeffs,
 			LevelStart:          3,

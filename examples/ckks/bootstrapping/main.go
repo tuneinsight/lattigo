@@ -37,12 +37,12 @@ func main() {
 	}
 
 	fmt.Println()
-	fmt.Printf("CKKS parameters: logN = %d, logSlots = %d, h = %d, logQP = %d, levels = %d, scale= 2^%f, sigma = %f \n", params.LogN(), params.LogSlots(), btpParams.H, params.LogQP(), params.QCount(), math.Log2(params.DefaultScale()), params.Sigma())
+	fmt.Printf("CKKS parameters: logN = %d, logSlots = %d, h = %d, logQP = %d, levels = %d, scale= 2^%f, sigma = %f \n", params.LogN(), params.LogSlots(), params.HammingWeight(), params.LogQP(), params.QCount(), math.Log2(params.DefaultScale()), params.Sigma())
 
 	// Scheme context and keys
 	kgen = ckks.NewKeyGenerator(params)
 
-	sk, pk = kgen.GenKeyPairSparse(btpParams.H)
+	sk, pk = kgen.GenKeyPair()
 
 	encoder = ckks.NewEncoder(params)
 	decryptor = ckks.NewDecryptor(params, sk)

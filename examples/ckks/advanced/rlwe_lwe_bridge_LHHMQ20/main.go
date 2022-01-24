@@ -106,7 +106,7 @@ func main() {
 
 	// LWE Parameters
 	kgenLWE := ckks.NewKeyGenerator(paramsLWE)
-	skLWE := kgenLWE.GenSecretKeySparse(64)
+	skLWE := kgenLWE.GenSecretKeyWithHammingWeight(64)
 
 	// RLWE -> LWE Switching key
 	fmt.Printf("	RLWE -> LWE Switching Key... ")

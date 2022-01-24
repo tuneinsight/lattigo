@@ -59,7 +59,7 @@ func NewKeyGenerator(params Parameters) KeyGenerator {
 		params:           params,
 		poolQ:            params.RingQ().NewPoly(),
 		poolQP:           poolQP,
-		ternarySampler:   ring.NewTernarySamplerSparse(prng, params.ringQ, params.h, false),
+		ternarySampler:   ring.NewTernarySamplerWithHammingWeight(prng, params.ringQ, params.h, false),
 		gaussianSamplerQ: ring.NewGaussianSampler(prng, params.RingQ(), params.Sigma(), int(6*params.Sigma())),
 		uniformSamplerQ:  ring.NewUniformSampler(prng, params.RingQ()),
 		uniformSamplerP:  uniformSamplerP,
@@ -92,7 +92,7 @@ func (keygen *keyGenerator) GenSecretKeyWithHammingWeight(hw int) (sk *SecretKey
 	if err != nil {
 		panic(err)
 	}
-	ternarySamplerMontgomery := ring.NewTernarySamplerSparse(prng, keygen.params.RingQ(), hw, false)
+	ternarySamplerMontgomery := ring.NewTernarySamplerWithHammingWeight(prng, keygen.params.RingQ(), hw, false)
 	return keygen.genSecretKeyFromSampler(ternarySamplerMontgomery)
 }
 

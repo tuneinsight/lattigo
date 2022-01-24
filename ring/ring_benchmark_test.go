@@ -106,7 +106,7 @@ func benchSampling(testContext *testParams, b *testing.B) {
 
 	b.Run(testString("Sampling/Ternary/sparse128/", testContext.ringQ), func(b *testing.B) {
 
-		ternarySampler := NewTernarySamplerSparse(testContext.prng, testContext.ringQ, 128, true)
+		ternarySampler := NewTernarySamplerWithHammingWeight(testContext.prng, testContext.ringQ, 128, true)
 
 		for i := 0; i < b.N; i++ {
 			ternarySampler.Read(pol)

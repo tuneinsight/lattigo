@@ -389,7 +389,7 @@ func testTernarySampler(testContext *testParams, t *testing.T) {
 				panic(err)
 			}
 
-			ternarySampler := NewTernarySamplerSparse(prng, testContext.ringQ, p, false)
+			ternarySampler := NewTernarySamplerWithHammingWeight(prng, testContext.ringQ, p, false)
 
 			pol := ternarySampler.ReadNew()
 

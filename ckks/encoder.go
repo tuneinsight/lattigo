@@ -85,9 +85,9 @@ type encoderComplex128 struct {
 	roots       []complex128
 }
 
-// ShallowCopy creates a shallow copy of EncoderBigComplex in which all the read-only data-structures are
+// ShallowCopy creates a shallow copy of encoder in which all the read-only data-structures are
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// EncoderBigComplex can be used concurrently.
+// encoder can be used concurrently.
 func (ecd *encoder) ShallowCopy() *encoder {
 
 	prng, err := utils.NewPRNG()
@@ -302,7 +302,7 @@ func (ecd *encoderComplex128) GetErrSTDSlotDomain(valuesWant, valuesHave []compl
 	return StandardDeviation(ecd.valuesFloat[:len(valuesWant)*2], scale)
 }
 
-// ShallowCopy creates a shallow copy of this Encoder in which all the read-only data-structures are
+// ShallowCopy creates a shallow copy of this encoderComplex128 in which all the read-only data-structures are
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // Encoder can be used concurrently.
 func (ecd *encoderComplex128) ShallowCopy() Encoder {
@@ -872,7 +872,7 @@ func (ecd *encoderBigComplex) InvFFT(values []*ring.Complex, N int) {
 	SliceBitReverseInPlaceRingComplex(values, N)
 }
 
-// ShallowCopy creates a shallow copy of this EncoderBigComplex in which all the read-only data-structures are
+// ShallowCopy creates a shallow copy of this encoderBigComplex in which all the read-only data-structures are
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // EncoderBigComplex can be used concurrently.
 func (ecd *encoderBigComplex) ShallowCopy() EncoderBigComplex {

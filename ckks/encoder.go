@@ -6,6 +6,7 @@ import (
 	"math"
 	"math/big"
 	"math/bits"
+	"unsafe"
 
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
@@ -241,7 +242,7 @@ func (ecd *encoderComplex128) EncodeCoeffs(values []float64, plaintext *Plaintex
 	if len(values) > ecd.params.N() {
 		panic("cannot EncodeCoeffs : too many values (maximum is N)")
 	}
-	scaleUpVecExact(values, plaintext.Scale, ecd.params.RingQ().Modulus[:plaintext.Level()+1], plaintext.Value.Coeffs)
+	floatToFixedPointCRT(plaintext.Level(), values, plaintext.Scale, ecd.params.RingQ(), plaintext.Value.Coeffs)
 	ecd.params.RingQ().NTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
 	plaintext.Value.IsNTT = true
 }
@@ -314,68 +315,32 @@ func (ecd *encoderComplex128) ShallowCopy() Encoder {
 	}
 }
 
-func (ecd *encoderComplex128) scaleUp(values []float64, scale float64, polyOut interface{}) {
-	switch p := polyOut.(type) {
-	case rlwe.PolyQP:
-		levelQ := p.Q.Level()
-		levelP := p.P.Level()
-		ringQP := ecd.params.RingQP()
-		scaleUpVecExact(values, scale, ringQP.RingQ.Modulus[:levelQ+1], p.Q.Coeffs)
-		scaleUpVecExact(values, scale, ringQP.RingP.Modulus[:levelP+1], p.P.Coeffs)
-	case *ring.Poly:
-		scaleUpVecExact(values, scale, ecd.params.RingQ().Modulus[:p.Level()+1], p.Coeffs)
-	default:
-		panic("invalid polyOut type")
-	}
-}
-
 func (ecd *encoderComplex128) embed(values interface{}, logSlots int, scale float64, polyOut interface{}) {
 
 	slots := 1 << logSlots
+	var lenValues int
 
 	// First checks the type of input values
 	switch values := values.(type) {
 
 	// If complex
 	case []complex128:
-
 		// Checks that the number of values is with the possible range
 		if len(values) > int(ecd.params.RingQ().NthRoot>>1) || len(values) > slots || slots > int(ecd.params.RingQ().NthRoot>>2) {
 			panic("cannot Encode: too many values/slots for the given ring degree")
 		}
 
+		lenValues = len(values)
+
 		switch ecd.params.RingType() {
 
 		case ring.Standard:
-
 			copy(ecd.values[:len(values)], values)
 
-			for i := len(values); i < slots; i++ {
-				ecd.values[i] = 0
-			}
-
-			invfft(ecd.values, slots, ecd.m, ecd.rotGroup, ecd.roots)
-
-			for i, j := 0, slots; i < slots; i, j = i+1, j+1 {
-				ecd.valuesFloat[i] = real(ecd.values[i])
-				ecd.valuesFloat[j] = imag(ecd.values[i])
-			}
-
 		case ring.ConjugateInvariant:
-
 			// Discards the imaginary part
 			for i := range values {
 				ecd.values[i] = complex(real(values[i]), 0)
-			}
-
-			for i := len(values); i < slots; i++ {
-				ecd.values[i] = 0
-			}
-
-			invfft(ecd.values, slots, ecd.m, ecd.rotGroup, ecd.roots)
-
-			for i := 0; i < slots; i++ {
-				ecd.valuesFloat[i] = real(ecd.values[i])
 			}
 
 		// Else panics
@@ -385,42 +350,39 @@ func (ecd *encoderComplex128) embed(values interface{}, logSlots int, scale floa
 
 	// If floats only
 	case []float64:
-
 		if len(values) > int(ecd.params.RingQ().NthRoot>>1) || len(values) > slots || slots > int(ecd.params.RingQ().NthRoot>>2) {
 			panic("cannot Encode: too many values/slots for the given ring degree")
 		}
 
+		lenValues = len(values)
+
 		for i := range values {
 			ecd.values[i] = complex(values[i], 0)
-		}
-
-		for i := len(values); i < slots; i++ {
-			ecd.values[i] = 0
-		}
-
-		invfft(ecd.values, slots, ecd.m, ecd.rotGroup, ecd.roots)
-
-		for i := 0; i < slots; i++ {
-			ecd.valuesFloat[i] = real(ecd.values[i])
-		}
-
-		if ecd.params.RingType() == ring.Standard {
-			for i, j := 0, slots; i < slots; i, j = i+1, j+1 {
-				ecd.valuesFloat[j] = imag(ecd.values[i])
-			}
 		}
 
 	default:
 		panic("values must be []complex128 or []float64")
 	}
 
-	switch ecd.params.RingType() {
-	case ring.Standard:
-		ecd.scaleUp(ecd.valuesFloat[:2*slots], scale, polyOut)
-	case ring.ConjugateInvariant:
-		ecd.scaleUp(ecd.valuesFloat[:slots], scale, polyOut)
+	for i := lenValues; i < slots; i += 8 {
+		v := (*[8]complex128)(unsafe.Pointer(&ecd.values[i]))
+		v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7] = 0, 0, 0, 0, 0, 0, 0, 0
+	}
+
+	invfft(ecd.values, slots, ecd.m, ecd.rotGroup, ecd.roots)
+
+	isRingStandard := ecd.params.RingType() == ring.Standard
+
+	switch p := polyOut.(type) {
+	case rlwe.PolyQP:
+		levelQ := p.Q.Level()
+		levelP := p.P.Level()
+		complexToFixedPointCRT(levelQ, ecd.values[:slots], scale, ecd.params.RingQ(), p.Q.Coeffs, isRingStandard)
+		complexToFixedPointCRT(levelP, ecd.values[:slots], scale, ecd.params.RingP(), p.P.Coeffs, isRingStandard)
+	case *ring.Poly:
+		complexToFixedPointCRT(p.Level(), ecd.values[:slots], scale, ecd.params.RingQ(), p.Coeffs, isRingStandard)
 	default:
-		panic("invalid ring type")
+		panic("invalid polyOut type")
 	}
 }
 
@@ -557,28 +519,132 @@ func (ecd *encoderComplex128) decodePublic(plaintext *Plaintext, logSlots int, s
 
 func invfft(values []complex128, N, M int, rotGroup []int, roots []complex128) {
 
-	var lenh, lenq, gap, idx int
-	var u, v complex128
+	var lenh, lenq, mask, logGap int
 
-	for len := N; len >= 1; len >>= 1 {
-		for i := 0; i < N; i += len {
-			lenh = len >> 1
-			lenq = len << 2
-			gap = M / lenq
-			for j := 0; j < lenh; j++ {
-				idx = (lenq - (rotGroup[j] % lenq)) * gap
-				u = values[i+j] + values[i+j+lenh]
-				v = values[i+j] - values[i+j+lenh]
-				v *= roots[idx]
-				values[i+j] = u
-				values[i+j+lenh] = v
+	logN := int(bits.Len64(uint64(N))) - 1
+	logM := int(bits.Len64(uint64(M))) - 1
 
+	for loglen := logN; loglen > 0; loglen-- {
+		len := 1 << loglen
+		lenh = len >> 1
+		lenq = len << 2
+		logGap = logM - 2 - loglen
+		mask = lenq - 1
+
+		if lenh > 8 {
+			for i := 0; i < N; i += len {
+				for j, k := 0, i; j < lenh; j, k = j+8, k+8 {
+
+					u := (*[8]complex128)(unsafe.Pointer(&values[k]))
+					v := (*[8]complex128)(unsafe.Pointer(&values[k+lenh]))
+					w := (*[8]int)(unsafe.Pointer(&rotGroup[j]))
+
+					u[0], v[0] = u[0]+v[0], (u[0]-v[0])*roots[(lenq-(w[0]&mask))<<logGap]
+					u[1], v[1] = u[1]+v[1], (u[1]-v[1])*roots[(lenq-(w[1]&mask))<<logGap]
+					u[2], v[2] = u[2]+v[2], (u[2]-v[2])*roots[(lenq-(w[2]&mask))<<logGap]
+					u[3], v[3] = u[3]+v[3], (u[3]-v[3])*roots[(lenq-(w[3]&mask))<<logGap]
+					u[4], v[4] = u[4]+v[4], (u[4]-v[4])*roots[(lenq-(w[4]&mask))<<logGap]
+					u[5], v[5] = u[5]+v[5], (u[5]-v[5])*roots[(lenq-(w[5]&mask))<<logGap]
+					u[6], v[6] = u[6]+v[6], (u[6]-v[6])*roots[(lenq-(w[6]&mask))<<logGap]
+					u[7], v[7] = u[7]+v[7], (u[7]-v[7])*roots[(lenq-(w[7]&mask))<<logGap]
+				}
+			}
+		} else if lenh == 8 {
+
+			psi0 := roots[(lenq-(rotGroup[0]&mask))<<logGap]
+			psi1 := roots[(lenq-(rotGroup[1]&mask))<<logGap]
+			psi2 := roots[(lenq-(rotGroup[2]&mask))<<logGap]
+			psi3 := roots[(lenq-(rotGroup[3]&mask))<<logGap]
+			psi4 := roots[(lenq-(rotGroup[4]&mask))<<logGap]
+			psi5 := roots[(lenq-(rotGroup[5]&mask))<<logGap]
+			psi6 := roots[(lenq-(rotGroup[6]&mask))<<logGap]
+			psi7 := roots[(lenq-(rotGroup[7]&mask))<<logGap]
+
+			for i := 0; i < N; i += 16 {
+
+				u := (*[16]complex128)(unsafe.Pointer(&values[i]))
+
+				u[0], u[8] = u[0]+u[8], (u[0]-u[8])*psi0
+				u[1], u[9] = u[1]+u[9], (u[1]-u[9])*psi1
+				u[2], u[10] = u[2]+u[10], (u[2]-u[10])*psi2
+				u[3], u[11] = u[3]+u[11], (u[3]-u[11])*psi3
+				u[4], u[12] = u[4]+u[12], (u[4]-u[12])*psi4
+				u[5], u[13] = u[5]+u[13], (u[5]-u[13])*psi5
+				u[6], u[14] = u[6]+u[14], (u[6]-u[14])*psi6
+				u[7], u[15] = u[7]+u[15], (u[7]-u[15])*psi7
+			}
+
+		} else if lenh == 4 {
+
+			psi0 := roots[(lenq-(rotGroup[0]&mask))<<logGap]
+			psi1 := roots[(lenq-(rotGroup[1]&mask))<<logGap]
+			psi2 := roots[(lenq-(rotGroup[2]&mask))<<logGap]
+			psi3 := roots[(lenq-(rotGroup[3]&mask))<<logGap]
+
+			for i := 0; i < N; i += 16 {
+
+				u := (*[16]complex128)(unsafe.Pointer(&values[i]))
+
+				u[0], u[4] = u[0]+u[4], (u[0]-u[4])*psi0
+				u[1], u[5] = u[1]+u[5], (u[1]-u[5])*psi1
+				u[2], u[6] = u[2]+u[6], (u[2]-u[6])*psi2
+				u[3], u[7] = u[3]+u[7], (u[3]-u[7])*psi3
+				u[8], u[12] = u[8]+u[12], (u[8]-u[12])*psi0
+				u[9], u[13] = u[9]+u[13], (u[9]-u[13])*psi1
+				u[10], u[14] = u[10]+u[14], (u[10]-u[14])*psi2
+				u[11], u[15] = u[11]+u[15], (u[11]-u[15])*psi3
+			}
+		} else if lenh == 2 {
+
+			psi0 := roots[(lenq-(rotGroup[0]&mask))<<logGap]
+			psi1 := roots[(lenq-(rotGroup[1]&mask))<<logGap]
+
+			for i := 0; i < N; i += 16 {
+
+				u := (*[16]complex128)(unsafe.Pointer(&values[i]))
+
+				u[0], u[2] = u[0]+u[2], (u[0]-u[2])*psi0
+				u[1], u[3] = u[1]+u[3], (u[1]-u[3])*psi1
+				u[4], u[6] = u[4]+u[6], (u[4]-u[6])*psi0
+				u[5], u[7] = u[5]+u[7], (u[5]-u[7])*psi1
+				u[8], u[10] = u[8]+u[10], (u[8]-u[10])*psi0
+				u[9], u[11] = u[9]+u[11], (u[9]-u[11])*psi1
+				u[12], u[14] = u[12]+u[14], (u[12]-u[14])*psi0
+				u[13], u[15] = u[13]+u[15], (u[13]-u[15])*psi1
+			}
+		} else if lenh == 1 {
+
+			psi0 := roots[(lenq-(rotGroup[0]&mask))<<logGap]
+
+			for i := 0; i < N; i += 16 {
+
+				u := (*[16]complex128)(unsafe.Pointer(&values[i]))
+
+				u[0], u[1] = u[0]+u[1], (u[0]-u[1])*psi0
+				u[2], u[3] = u[2]+u[3], (u[2]-u[3])*psi0
+				u[4], u[5] = u[4]+u[5], (u[4]-u[5])*psi0
+				u[6], u[7] = u[6]+u[7], (u[6]-u[7])*psi0
+				u[8], u[9] = u[8]+u[9], (u[8]-u[9])*psi0
+				u[10], u[11] = u[10]+u[11], (u[10]-u[11])*psi0
+				u[12], u[13] = u[12]+u[13], (u[12]-u[13])*psi0
+				u[14], u[15] = u[14]+u[15], (u[14]-u[15])*psi0
 			}
 		}
 	}
 
-	for i := 0; i < N; i++ {
-		values[i] /= complex(float64(N), 0)
+	invN := complex(float64(N), 0)
+	for i := 0; i < N; i = i + 8 {
+
+		v := (*[8]complex128)(unsafe.Pointer(&values[i]))
+
+		v[0] /= invN
+		v[1] /= invN
+		v[2] /= invN
+		v[3] /= invN
+		v[4] /= invN
+		v[5] /= invN
+		v[6] /= invN
+		v[7] /= invN
 	}
 
 	SliceBitReverseInPlaceComplex128(values, N)
@@ -586,23 +652,161 @@ func invfft(values []complex128, N, M int, rotGroup []int, roots []complex128) {
 
 func fft(values []complex128, N, M int, rotGroup []int, roots []complex128) {
 
-	var lenh, lenq, gap, idx int
-	var u, v complex128
-
 	SliceBitReverseInPlaceComplex128(values, N)
 
-	for len := 2; len <= N; len <<= 1 {
-		for i := 0; i < N; i += len {
-			lenh = len >> 1
-			lenq = len << 2
-			gap = M / lenq
-			for j := 0; j < lenh; j++ {
-				idx = (rotGroup[j] % lenq) * gap
-				u = values[i+j]
-				v = values[i+j+lenh]
-				v *= roots[idx]
-				values[i+j] = u + v
-				values[i+j+lenh] = u - v
+	logN := int(bits.Len64(uint64(N))) - 1
+	logM := int(bits.Len64(uint64(M))) - 1
+
+	for loglen := 1; loglen <= logN; loglen++ {
+		len := 1 << loglen
+		lenh := len >> 1
+		lenq := len << 2
+		logGap := logM - 2 - loglen
+		mask := lenq - 1
+
+		if lenh > 8 {
+			for i := 0; i < N; i += len {
+
+				for j, k := 0, i; j < lenh; j, k = j+8, k+8 {
+
+					u := (*[8]complex128)(unsafe.Pointer(&values[k]))
+					v := (*[8]complex128)(unsafe.Pointer(&values[k+lenh]))
+					w := (*[8]int)(unsafe.Pointer(&rotGroup[j]))
+
+					v[0] *= roots[(w[0]&mask)<<logGap]
+					v[1] *= roots[(w[1]&mask)<<logGap]
+					v[2] *= roots[(w[2]&mask)<<logGap]
+					v[3] *= roots[(w[3]&mask)<<logGap]
+					v[4] *= roots[(w[4]&mask)<<logGap]
+					v[5] *= roots[(w[5]&mask)<<logGap]
+					v[6] *= roots[(w[6]&mask)<<logGap]
+					v[7] *= roots[(w[7]&mask)<<logGap]
+
+					u[0], v[0] = u[0]+v[0], u[0]-v[0]
+					u[1], v[1] = u[1]+v[1], u[1]-v[1]
+					u[2], v[2] = u[2]+v[2], u[2]-v[2]
+					u[3], v[3] = u[3]+v[3], u[3]-v[3]
+					u[4], v[4] = u[4]+v[4], u[4]-v[4]
+					u[5], v[5] = u[5]+v[5], u[5]-v[5]
+					u[6], v[6] = u[6]+v[6], u[6]-v[6]
+					u[7], v[7] = u[7]+v[7], u[7]-v[7]
+				}
+			}
+		} else if lenh == 8 {
+
+			psi0 := roots[(rotGroup[0]&mask)<<logGap]
+			psi1 := roots[(rotGroup[1]&mask)<<logGap]
+			psi2 := roots[(rotGroup[2]&mask)<<logGap]
+			psi3 := roots[(rotGroup[3]&mask)<<logGap]
+			psi4 := roots[(rotGroup[4]&mask)<<logGap]
+			psi5 := roots[(rotGroup[5]&mask)<<logGap]
+			psi6 := roots[(rotGroup[6]&mask)<<logGap]
+			psi7 := roots[(rotGroup[7]&mask)<<logGap]
+
+			for i := 0; i < N; i += 16 {
+
+				u := (*[16]complex128)(unsafe.Pointer(&values[i]))
+
+				u[8] *= psi0
+				u[9] *= psi1
+				u[10] *= psi2
+				u[11] *= psi3
+				u[12] *= psi4
+				u[13] *= psi5
+				u[14] *= psi6
+				u[15] *= psi7
+
+				u[0], u[8] = u[0]+u[8], u[0]-u[8]
+				u[1], u[9] = u[1]+u[9], u[1]-u[9]
+				u[2], u[10] = u[2]+u[10], u[2]-u[10]
+				u[3], u[11] = u[3]+u[11], u[3]-u[11]
+				u[4], u[12] = u[4]+u[12], u[4]-u[12]
+				u[5], u[13] = u[5]+u[13], u[5]-u[13]
+				u[6], u[14] = u[6]+u[14], u[6]-u[14]
+				u[7], u[15] = u[7]+u[15], u[7]-u[15]
+
+			}
+		} else if lenh == 4 {
+
+			psi0 := roots[(rotGroup[0]&mask)<<logGap]
+			psi1 := roots[(rotGroup[1]&mask)<<logGap]
+			psi2 := roots[(rotGroup[2]&mask)<<logGap]
+			psi3 := roots[(rotGroup[3]&mask)<<logGap]
+
+			for i := 0; i < N; i += 16 {
+
+				u := (*[16]complex128)(unsafe.Pointer(&values[i]))
+
+				u[4] *= psi0
+				u[5] *= psi1
+				u[6] *= psi2
+				u[7] *= psi3
+				u[12] *= psi0
+				u[13] *= psi1
+				u[14] *= psi2
+				u[15] *= psi3
+
+				u[0], u[4] = u[0]+u[4], u[0]-u[4]
+				u[1], u[5] = u[1]+u[5], u[1]-u[5]
+				u[2], u[6] = u[2]+u[6], u[2]-u[6]
+				u[3], u[7] = u[3]+u[7], u[3]-u[7]
+				u[8], u[12] = u[8]+u[12], u[8]-u[12]
+				u[9], u[13] = u[9]+u[13], u[9]-u[13]
+				u[10], u[14] = u[10]+u[14], u[10]-u[14]
+				u[11], u[15] = u[11]+u[15], u[11]-u[15]
+			}
+		} else if lenh == 2 {
+
+			psi0 := roots[(rotGroup[0]&mask)<<logGap]
+			psi1 := roots[(rotGroup[1]&mask)<<logGap]
+
+			for i := 0; i < N; i += 16 {
+
+				u := (*[16]complex128)(unsafe.Pointer(&values[i]))
+
+				u[2] *= psi0
+				u[3] *= psi1
+				u[6] *= psi0
+				u[7] *= psi1
+				u[10] *= psi0
+				u[11] *= psi1
+				u[14] *= psi0
+				u[15] *= psi1
+
+				u[0], u[2] = u[0]+u[2], u[0]-u[2]
+				u[1], u[3] = u[1]+u[3], u[1]-u[3]
+				u[4], u[6] = u[4]+u[6], u[4]-u[6]
+				u[5], u[7] = u[5]+u[7], u[5]-u[7]
+				u[8], u[10] = u[8]+u[10], u[8]-u[10]
+				u[9], u[11] = u[9]+u[11], u[9]-u[11]
+				u[12], u[14] = u[12]+u[14], u[12]-u[14]
+				u[13], u[15] = u[13]+u[15], u[13]-u[15]
+			}
+		} else if lenh == 1 {
+
+			psi0 := roots[(rotGroup[0]&mask)<<logGap]
+
+			for i := 0; i < N; i += 16 {
+
+				u := (*[16]complex128)(unsafe.Pointer(&values[i]))
+
+				u[1] *= psi0
+				u[3] *= psi0
+				u[5] *= psi0
+				u[7] *= psi0
+				u[9] *= psi0
+				u[11] *= psi0
+				u[13] *= psi0
+				u[15] *= psi0
+
+				u[0], u[1] = u[0]+u[1], u[0]-u[1]
+				u[2], u[3] = u[2]+u[3], u[2]-u[3]
+				u[4], u[5] = u[4]+u[5], u[4]-u[5]
+				u[6], u[7] = u[6]+u[7], u[6]-u[7]
+				u[8], u[9] = u[8]+u[9], u[8]-u[9]
+				u[10], u[11] = u[10]+u[11], u[10]-u[11]
+				u[12], u[13] = u[12]+u[13], u[12]-u[13]
+				u[14], u[15] = u[14]+u[15], u[14]-u[15]
 			}
 		}
 	}

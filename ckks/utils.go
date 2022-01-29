@@ -103,6 +103,75 @@ func interfaceMod(x interface{}, qi uint64) uint64 {
 	}
 }
 
+func complexToFixedPointCRT(level int, values []complex128, scale float64, ringQ *ring.Ring, coeffs [][]uint64, isRingStandard bool) {
+
+	for i, v := range values {
+		singleFloatToFixedPointCRT(level, i, real(v), scale, ringQ, coeffs)
+	}
+
+	if isRingStandard {
+		slots := len(values)
+		for i, v := range values {
+			singleFloatToFixedPointCRT(level, i+slots, imag(v), scale, ringQ, coeffs)
+		}
+	}
+}
+
+func floatToFixedPointCRT(level int, values []float64, scale float64, ringQ *ring.Ring, coeffs [][]uint64) {
+	for i, v := range values {
+		singleFloatToFixedPointCRT(level, i, v, scale, ringQ, coeffs)
+	}
+}
+
+func singleFloatToFixedPointCRT(level, i int, value float64, scale float64, ringQ *ring.Ring, coeffs [][]uint64) {
+
+	var isNegative bool
+	var xFlo *big.Float
+	var xInt *big.Int
+	tmp := new(big.Int)
+	var c uint64
+
+	isNegative = false
+
+	if value < 0 {
+		isNegative = true
+		scale *= -1
+	}
+
+	value *= scale
+
+	moduli := ringQ.Modulus
+
+	if value > 1.8446744073709552e+19 {
+		xFlo = big.NewFloat(value)
+		xFlo.Add(xFlo, big.NewFloat(0.5))
+		xInt = new(big.Int)
+		xFlo.Int(xInt)
+		for j := range moduli[:level+1] {
+			tmp.Mod(xInt, ring.NewUint(moduli[j]))
+			if isNegative {
+				coeffs[j][i] = moduli[j] - tmp.Uint64()
+			} else {
+				coeffs[j][i] = tmp.Uint64()
+			}
+		}
+
+	} else {
+		bredParams := ringQ.BredParams
+
+		c = uint64(value + 0.5)
+		if isNegative {
+			for j, qi := range moduli[:level+1] {
+				coeffs[j][i] = qi - ring.BRedAdd(c, qi, bredParams[j])
+			}
+		} else {
+			for j, qi := range moduli[:level+1] {
+				coeffs[j][i] = ring.BRedAdd(c, qi, bredParams[j])
+			}
+		}
+	}
+}
+
 func scaleUpExact(value float64, n float64, q uint64) (res uint64) {
 
 	var isNegative bool
@@ -130,62 +199,6 @@ func scaleUpExact(value float64, n float64, q uint64) (res uint64) {
 	}
 
 	return
-}
-
-func scaleUpVecExact(values []float64, n float64, moduli []uint64, coeffs [][]uint64) {
-
-	var isNegative bool
-	var xFlo *big.Float
-	var xInt *big.Int
-	tmp := new(big.Int)
-
-	for i := range values {
-
-		if n*math.Abs(values[i]) > 1.8446744073709552e+19 {
-
-			isNegative = false
-			if values[i] < 0 {
-				isNegative = true
-				xFlo = big.NewFloat(-n * values[i])
-			} else {
-				xFlo = big.NewFloat(n * values[i])
-			}
-
-			xFlo.Add(xFlo, big.NewFloat(0.5))
-
-			xInt = new(big.Int)
-			xFlo.Int(xInt)
-
-			for j := range moduli {
-				tmp.Mod(xInt, ring.NewUint(moduli[j]))
-				if isNegative {
-					coeffs[j][i] = moduli[j] - tmp.Uint64()
-				} else {
-					coeffs[j][i] = tmp.Uint64()
-				}
-			}
-		} else {
-
-			if values[i] < 0 {
-				for j := range moduli {
-					coeffs[j][i] = moduli[j] - (uint64(-n*values[i]+0.5) % moduli[j])
-				}
-			} else {
-				for j := range moduli {
-					coeffs[j][i] = uint64(n*values[i]+0.5) % moduli[j]
-				}
-			}
-		}
-	}
-
-	if len(values) < len(coeffs[0]) {
-		for i := range moduli {
-			tmp := coeffs[i]
-			for j := len(values); j < len(coeffs[0]); j++ {
-				tmp[j] = 0
-			}
-		}
-	}
 }
 
 func scaleUpVecExactBigFloat(values []*big.Float, scale float64, moduli []uint64, coeffs [][]uint64) {

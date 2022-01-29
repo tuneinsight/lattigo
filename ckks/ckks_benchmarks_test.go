@@ -10,7 +10,7 @@ import (
 
 func BenchmarkCKKSScheme(b *testing.B) {
 
-	defaultParams := DefaultParams
+	defaultParams := append(DefaultParams, DefaultConjugateInvariantParams...)
 	if testing.Short() {
 		defaultParams = DefaultParams[:2]
 	}

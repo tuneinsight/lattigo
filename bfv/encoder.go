@@ -77,21 +77,28 @@ func NewEncoder(params Parameters) Encoder {
 	ringQ := params.RingQ()
 	ringT := params.RingT()
 
-	var m, pos uint64
+	var m, pos, index1, index2 uint64
 
-	N := params.N()
+	slots := params.N()
+
+	indexMatrix := make([]uint64, slots)
+
 	logN := uint64(params.LogN())
 
-	indexMatrix := make([]uint64, N)
-
+	rowSize := params.N() >> 1
 	m = uint64(params.N()) << 1
 	pos = 1
 
-	for i, j := 0, N>>1; i < N>>1; i, j = i+1, j+1 {
-		indexMatrix[i] = utils.BitReverse64(pos >> 1, logN)
-		indexMatrix[j] = uint64(N) - 1 - indexMatrix[i]
-		pos = (pos * GaloisGen) & (m - 1)
+	for i := 0; i < rowSize; i++ {
 
+		index1 = (pos - 1) >> 1
+		index2 = (m - pos - 1) >> 1
+
+		indexMatrix[i] = utils.BitReverse64(index1, logN)
+		indexMatrix[i|rowSize] = utils.BitReverse64(index2, logN)
+
+		pos *= GaloisGen
+		pos &= (m - 1)
 	}
 
 	rescaleParams := make([]uint64, len(ringQ.Modulus))
@@ -130,25 +137,12 @@ func (ecd *encoder) EncodeUintRingT(coeffs []uint64, p *PlaintextRingT) {
 		panic("invalid plaintext to receive encoding: number of coefficients does not match the ring degree")
 	}
 
-	ringT := ecd.params.RingT()
-	T := ringT.Modulus[0]
-	bredParams := ringT.BredParams[0]
-
-	var c uint64
-	tmp := p.Value.Coeffs[0]
-	for i, j := range ecd.indexMatrix[:len(coeffs)]{
-
-		c = uint64(coeffs[i])
-
-		if c > T {
-			c = ring.BRedAdd(c, T, bredParams)
-		}
-
-		tmp[j] = c
+	for i := 0; i < len(coeffs); i++ {
+		p.Value.Coeffs[0][ecd.indexMatrix[i]] = coeffs[i]
 	}
 
-	for _, j := range ecd.indexMatrix[len(coeffs):]{
-		tmp[j] = 0
+	for i := len(coeffs); i < len(ecd.indexMatrix); i++ {
+		p.Value.Coeffs[0][ecd.indexMatrix[i]] = 0
 	}
 
 	ecd.params.RingT().InvNTT(p.Value, p.Value)
@@ -178,41 +172,20 @@ func (ecd *encoder) EncodeIntRingT(coeffs []int64, p *PlaintextRingT) {
 		panic("invalid plaintext to receive encoding: number of coefficients does not match the ring degree")
 	}
 
-	ringT := ecd.params.RingT()
-	T := ringT.Modulus[0]
-	bredParams := ringT.BredParams[0]
-
-	tmp := p.Value.Coeffs[0]
-	var c uint64
-	for i, j := range ecd.indexMatrix[:len(coeffs)]{
+	for i := 0; i < len(coeffs); i++ {
 
 		if coeffs[i] < 0 {
-
-			c = uint64(-coeffs[i])
-
-			if c > T {
-				c = ring.BRedAdd(c, T, bredParams)
-			}
-
-			tmp[j] = T - c
-			
+			p.Value.Coeffs[0][ecd.indexMatrix[i]] = uint64(int64(ecd.params.T()) + coeffs[i])
 		} else {
-
-			c = uint64(coeffs[i])
-
-			if c > T {
-				c = ring.BRedAdd(c, T, bredParams)
-			}
-
-			tmp[j] = c
+			p.Value.Coeffs[0][ecd.indexMatrix[i]] = uint64(coeffs[i])
 		}
 	}
 
-	for _, j := range ecd.indexMatrix[len(coeffs):]{
-		tmp[j] = 0
+	for i := len(coeffs); i < len(ecd.indexMatrix); i++ {
+		p.Value.Coeffs[0][ecd.indexMatrix[i]] = 0
 	}
 
-	ringT.InvNTTLazy(p.Value, p.Value)
+	ecd.params.RingT().InvNTTLazy(p.Value, p.Value)
 }
 
 // EncodeInt encodes an int64 slice of size at most N on a plaintext.
@@ -294,9 +267,8 @@ func (ecd *encoder) DecodeUint(p interface{}, coeffs []uint64) {
 
 	ecd.params.RingT().NTT(ptRt.Value, ecd.tmpPoly)
 
-	tmp := ecd.tmpPoly.Coeffs[0]
-	for i, j := range ecd.indexMatrix{
-		coeffs[i] = tmp[j]
+	for i := 0; i < ecd.params.RingQ().N; i++ {
+		coeffs[i] = ecd.tmpPoly.Coeffs[0][ecd.indexMatrix[i]]
 	}
 }
 
@@ -316,16 +288,15 @@ func (ecd *encoder) DecodeInt(p interface{}, coeffs []int64) {
 
 	ecd.params.RingT().NTT(ecd.tmpPtRt.Value, ecd.tmpPoly)
 
-	T := int64(ecd.params.T())
-	THalf := T >> 1
-	tmp := ecd.tmpPoly.Coeffs[0]
+	modulus := int64(ecd.params.T())
+	modulusHalf := modulus >> 1
+	var value int64
+	for i := 0; i < ecd.params.RingQ().N; i++ {
 
-	var c int64
-	for i, j := range ecd.indexMatrix{
-		if c = int64(tmp[j]); c >= THalf{
-			coeffs[i] = c - T
-		}else{
-			coeffs[i] = c
+		value = int64(ecd.tmpPoly.Coeffs[0][ecd.indexMatrix[i]])
+		coeffs[i] = value
+		if value >= modulusHalf {
+			coeffs[i] -= modulus
 		}
 	}
 }

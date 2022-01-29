@@ -212,8 +212,7 @@ func (LT *LinearTransform) Encode(encoder Encoder, value interface{}, scale floa
 				panic("error encoding on LinearTransform: input does not match the same non-zero diagonals")
 			}
 
-			enc.embed(dMat[i], LT.LogSlots, scale, LT.Vec[idx])
-			enc.switchToNTTDomain(LT.LogSlots, true, LT.Vec[idx])
+			enc.Embed(dMat[i], LT.LogSlots, scale, true, LT.Vec[idx])
 		}
 	} else {
 		index, _, _ := BsgsIndex(value, slots, N1)
@@ -230,8 +229,7 @@ func (LT *LinearTransform) Encode(encoder Encoder, value interface{}, scale floa
 					panic("error encoding on LinearTransform BSGS: input does not match the same non-zero diagonals")
 				}
 
-				enc.embed(utils.RotateSlice(v, -j), LT.LogSlots, scale, LT.Vec[j+i])
-				enc.switchToNTTDomain(LT.LogSlots, true, LT.Vec[j+i])
+				enc.Embed(utils.RotateSlice(v, -j), LT.LogSlots, scale, true, LT.Vec[j+i])
 			}
 		}
 	}
@@ -265,8 +263,7 @@ func GenLinearTransform(encoder Encoder, value interface{}, level int, scale flo
 			idx += slots
 		}
 		vec[idx] = params.RingQP().NewPolyLvl(levelQ, levelP)
-		enc.embed(dMat[i], logslots, scale, vec[idx])
-		enc.switchToNTTDomain(logslots, true, vec[idx])
+		enc.Embed(dMat[i], logslots, scale, true, vec[idx])
 	}
 
 	return LinearTransform{LogSlots: logslots, N1: 0, Vec: vec, Level: level, Scale: scale}
@@ -311,8 +308,7 @@ func GenLinearTransformBSGS(encoder Encoder, value interface{}, level int, scale
 				v = dMat[j+i-slots]
 			}
 			vec[j+i] = params.RingQP().NewPolyLvl(levelQ, levelP)
-			enc.embed(utils.RotateSlice(v, -j), logSlots, scale, vec[j+i])
-			enc.switchToNTTDomain(logSlots, true, vec[j+i])
+			enc.Embed(utils.RotateSlice(v, -j), logSlots, scale, true, vec[j+i])
 		}
 	}
 

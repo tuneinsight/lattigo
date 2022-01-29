@@ -162,11 +162,19 @@ func singleFloatToFixedPointCRT(level, i int, value float64, scale float64, ring
 		c = uint64(value + 0.5)
 		if isNegative {
 			for j, qi := range moduli[:level+1] {
-				coeffs[j][i] = qi - ring.BRedAdd(c, qi, bredParams[j])
+				if c > qi {
+					coeffs[j][i] = qi - ring.BRedAdd(c, qi, bredParams[j])
+				} else {
+					coeffs[j][i] = qi - c
+				}
 			}
 		} else {
 			for j, qi := range moduli[:level+1] {
-				coeffs[j][i] = ring.BRedAdd(c, qi, bredParams[j])
+				if c > 0x1fffffffffffffff {
+					coeffs[j][i] = ring.BRedAdd(c, qi, bredParams[j])
+				} else {
+					coeffs[j][i] = c
+				}
 			}
 		}
 	}

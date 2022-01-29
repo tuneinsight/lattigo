@@ -48,31 +48,31 @@ func benchEncoder(testctx *testContext, b *testing.B) {
 	plaintextRingT := NewPlaintextRingT(testctx.params)
 	plaintextMul := NewPlaintextMul(testctx.params)
 
-	b.Run(testString("Encoder/EncodeUint/", testctx.params), func(b *testing.B) {
+	b.Run(testString("Encoder/EncodeUint", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			encoder.EncodeUint(coeffs.Coeffs[0], plaintext)
 		}
 	})
 
-	b.Run(testString("Encoder/DecodeUint/pt=Plaintext/", testctx.params), func(b *testing.B) {
+	b.Run(testString("Encoder/DecodeUint/pt=Plaintext", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			testctx.encoder.DecodeUint(plaintext, coeffsOut)
 		}
 	})
 
-	b.Run(testString("Encoder/EncodeUintRingT/", testctx.params), func(b *testing.B) {
+	b.Run(testString("Encoder/EncodeUintRingT", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			encoder.EncodeUintRingT(coeffs.Coeffs[0], plaintextRingT)
 		}
 	})
 
-	b.Run(testString("Encoder/DecodeUint/pt=PlaintextRingT/", testctx.params), func(b *testing.B) {
+	b.Run(testString("Encoder/DecodeUint/pt=PlaintextRingT", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			testctx.encoder.DecodeUint(plaintextRingT, coeffsOut)
 		}
 	})
 
-	b.Run(testString("Encoder/EncodeUintMul/", testctx.params), func(b *testing.B) {
+	b.Run(testString("Encoder/EncodeUintMul", testctx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			encoder.EncodeUintMul(coeffs.Coeffs[0], plaintextMul)
@@ -85,13 +85,13 @@ func benchKeyGen(testctx *testContext, b *testing.B) {
 	kgen := testctx.kgen
 	sk := testctx.sk
 
-	b.Run(testString("KeyGen/KeyPairGen/", testctx.params), func(b *testing.B) {
+	b.Run(testString("KeyGen/KeyPairGen", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			kgen.GenKeyPair()
 		}
 	})
 
-	b.Run(testString("KeyGen/SwitchKeyGen/", testctx.params), func(b *testing.B) {
+	b.Run(testString("KeyGen/SwitchKeyGen", testctx.params), func(b *testing.B) {
 
 		if testctx.params.PCount() == 0 {
 			b.Skip("#Pi is empty")
@@ -111,13 +111,13 @@ func benchEncrypt(testctx *testContext, b *testing.B) {
 	plaintext := NewPlaintext(testctx.params)
 	ciphertext := NewCiphertextRandom(testctx.prng, testctx.params, 1)
 
-	b.Run(testString("Encrypt/key=Pk/", testctx.params), func(b *testing.B) {
+	b.Run(testString("Encrypt/key=Pk", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			encryptorPk.Encrypt(plaintext, ciphertext)
 		}
 	})
 
-	b.Run(testString("Encrypt/key=Sk/", testctx.params), func(b *testing.B) {
+	b.Run(testString("Encrypt/key=Sk", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			encryptorSk.Encrypt(plaintext, ciphertext)
 		}
@@ -160,31 +160,31 @@ func benchEvaluator(testctx *testContext, b *testing.B) {
 	}
 	evaluator := testctx.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testctx.rlk, Rtks: rotkey})
 
-	b.Run(testString("Evaluator/Add/Ct/", testctx.params), func(b *testing.B) {
+	b.Run(testString("Evaluator/Add/Ct", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			evaluator.Add(ciphertext1, ciphertext2, ciphertext1)
 		}
 	})
 
-	b.Run(testString("Evaluator/Add/op1=Ciphertext/op2=PlaintextRingT/", testctx.params), func(b *testing.B) {
+	b.Run(testString("Evaluator/Add/op1=Ciphertext/op2=PlaintextRingT", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			evaluator.Add(ciphertext1, plaintextRingT, ciphertext1)
 		}
 	})
 
-	b.Run(testString("Evaluator/Add/op1=Ciphertext/op2=Plaintext/", testctx.params), func(b *testing.B) {
+	b.Run(testString("Evaluator/Add/op1=Ciphertext/op2=Plaintext", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			evaluator.Add(ciphertext1, plaintext, ciphertext1)
 		}
 	})
 
-	b.Run(testString("Evaluator/MulScalar/", testctx.params), func(b *testing.B) {
+	b.Run(testString("Evaluator/MulScalar", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			evaluator.MulScalar(ciphertext1, 5, ciphertext1)
 		}
 	})
 
-	b.Run(testString("Evaluator/Mul/op1=Ciphertext/op2=Ciphertext/", testctx.params), func(b *testing.B) {
+	b.Run(testString("Evaluator/Mul/op1=Ciphertext/op2=Ciphertext", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			evaluator.Mul(ciphertext1, ciphertext2, receiver)
 		}
@@ -196,25 +196,25 @@ func benchEvaluator(testctx *testContext, b *testing.B) {
 		}
 	})
 
-	b.Run(testString("Evaluator/Mul/op1=Ciphertext/op2=PlaintextRingT/", testctx.params), func(b *testing.B) {
+	b.Run(testString("Evaluator/Mul/op1=Ciphertext/op2=PlaintextRingT", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			evaluator.Mul(ciphertext1, plaintextRingT, ciphertext1)
 		}
 	})
 
-	b.Run(testString("Evaluator/Mul/op1=Ciphertext/op2=PlaintextMul/", testctx.params), func(b *testing.B) {
+	b.Run(testString("Evaluator/Mul/op1=Ciphertext/op2=PlaintextMul", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			evaluator.Mul(ciphertext1, plaintextMul, ciphertext1)
 		}
 	})
 
-	b.Run(testString("Evaluator/Square/", testctx.params), func(b *testing.B) {
+	b.Run(testString("Evaluator/Square", testctx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			evaluator.Mul(ciphertext1, ciphertext1, receiver)
 		}
 	})
 
-	b.Run(testString("Evaluator/Relin/", testctx.params), func(b *testing.B) {
+	b.Run(testString("Evaluator/Relin", testctx.params), func(b *testing.B) {
 
 		if testctx.params.PCount() == 0 {
 			b.Skip("#Pi is empty")
@@ -225,7 +225,7 @@ func benchEvaluator(testctx *testContext, b *testing.B) {
 		}
 	})
 
-	b.Run(testString("Evaluator/RotateRows/", testctx.params), func(b *testing.B) {
+	b.Run(testString("Evaluator/RotateRows", testctx.params), func(b *testing.B) {
 
 		if testctx.params.PCount() == 0 {
 			b.Skip("#Pi is empty")
@@ -236,7 +236,7 @@ func benchEvaluator(testctx *testContext, b *testing.B) {
 		}
 	})
 
-	b.Run(testString("Evaluator/RotateCols/", testctx.params), func(b *testing.B) {
+	b.Run(testString("Evaluator/RotateCols", testctx.params), func(b *testing.B) {
 
 		if testctx.params.PCount() == 0 {
 			b.Skip("#Pi is empty")

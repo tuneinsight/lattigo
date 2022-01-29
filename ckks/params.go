@@ -6,13 +6,14 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"math/bits"
 
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
-var MinLogSlots = 3
+var minLogSlots = 3
 
 // Name of the different default parameter sets
 var (
@@ -346,9 +347,10 @@ func NewParameters(rlweParams rlwe.Parameters, logSlots int, defaultScale float6
 		return Parameters{}, fmt.Errorf("provided RLWE parameters are invalid")
 	}
 
-	if logSlots > int(rlweParams.RingQ().NthRoot>>2) || logSlots < 3 {
-		return Parameters{}, fmt.Errorf("logSlot=%d is larger than the logN-1=%d or smaller than 3", logSlots, int(rlweParams.RingQ().NthRoot>>2))
+	if maxLogSlots := bits.Len64(rlweParams.RingQ().NthRoot) - 3; logSlots > maxLogSlots || logSlots < minLogSlots {
+		return Parameters{}, fmt.Errorf("logSlot=%d is larger than the logN-1=%d or smaller than %d", logSlots, maxLogSlots, minLogSlots)
 	}
+
 	return Parameters{rlweParams, logSlots, defaultScale}, nil
 }
 

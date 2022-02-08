@@ -63,7 +63,7 @@ func (enc *encryptor) ShallowCopy() Encryptor {
 	return &encryptor{enc.Encryptor.ShallowCopy(), enc.params}
 }
 
-// ShallowCopy creates a shallow copy of this encryptor with a new key in which all the read-only data-structures are
+// WithKey creates a shallow copy of this encryptor with a new key in which all the read-only data-structures are
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // Encryptors can be used concurrently.
 // Key can be *rlwe.PublicKey or *rlwe.SecretKey.

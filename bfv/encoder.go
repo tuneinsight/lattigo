@@ -148,7 +148,7 @@ func (ecd *encoder) EncodeUintRingT(coeffs []uint64, p *PlaintextRingT) {
 	ecd.params.RingT().InvNTT(p.Value, p.Value)
 }
 
-// EncodeUintMul encodes an uint64 slice of size at most N on a PlaintextRingT (R_t) optimized for ciphertext x plaintext multiplication.
+// EncodeUintMul encodes an uint64 slice of size at most N on a PlaintextRingT (R_t) optimized for ciphertext-plaintext multiplication.
 func (ecd *encoder) EncodeUintMul(coeffs []uint64, p *PlaintextMul) {
 
 	ptRt := &PlaintextRingT{p.Plaintext}
@@ -160,7 +160,7 @@ func (ecd *encoder) EncodeUintMul(coeffs []uint64, p *PlaintextMul) {
 	ecd.RingTToMul(ptRt, p)
 }
 
-// EncodeInt encodes an int64 slice of size at most N on a plaintext. It also encodes the sign of the given integer (as its inverse modulo the plaintext modulus).
+// EncodeIntRingT encodes an int64 slice of size at most N on a plaintext. It also encodes the sign of the given integer (as its inverse modulo the plaintext modulus).
 // The sign will correctly decode as long as the absolute value of the coefficient does not exceed half of the plaintext modulus.
 func (ecd *encoder) EncodeIntRingT(coeffs []int64, p *PlaintextRingT) {
 
@@ -323,7 +323,7 @@ func (ecd *encoder) ShallowCopy() Encoder {
 	}
 }
 
-// takes m mod T and returns round((m*Q)/T) mod Q
+// scaleUp takes m mod T and returns round((m*Q)/T) mod Q
 func (ecd *encoder) scaleUp(ringQ, ringT *ring.Ring, tmp []uint64, pIn, pOut *ring.Poly) {
 
 	qModTmontgomery := ring.MForm(new(big.Int).Mod(ringQ.ModulusBigint, ringT.ModulusBigint).Uint64(), ringT.Modulus[0], ringT.BredParams[0])

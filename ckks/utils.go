@@ -1,9 +1,10 @@
 package ckks
 
 import (
-	"github.com/ldsec/lattigo/v2/ring"
 	"math"
 	"math/big"
+
+	"github.com/ldsec/lattigo/v2/ring"
 )
 
 // StandardDeviation computes the scaled standard deviation of the input vector.
@@ -27,7 +28,7 @@ func StandardDeviation(vec []float64, scale float64) (std float64) {
 	return math.Sqrt(err/n) * scale
 }
 
-// NttAndMontgomeryLvl takes maps the polynomial polIn Z[Y] outside of the NTT domain to the polynomial Z[X] in the NTT domain where Y = X^(gap).
+// NttAndMontgomeryLvl takes the polynomial polIn Z[Y] outside of the NTT domain to the polynomial Z[X] in the NTT domain where Y = X^(gap).
 // This method is used to accelerate the NTT of polynomials that encode sparse plaintexts.
 func NttAndMontgomeryLvl(level int, logSlots int, ringQ *ring.Ring, montgomery bool, pol *ring.Poly) {
 

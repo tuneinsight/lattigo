@@ -12,7 +12,7 @@ All notable changes to this project will be documented in this file.
 - RLWE/CKKS/BFV: added `.ShallowCopy()`, `.WithKey()` (shallow copy with new key) to `Encryptor` and `Decryptor`.
 - BFV/CKKS: added `.ShallowCopy()` to `Encoder` and `EncoderBigComplex` (only CKKS).
 - DRLWE/DCKKS/DBFV: added `.ShallowCopy()` to all protocols.
-- DLRWE/DCKKS/DBFV: protocols `drlwe.CKSProtocol` or `drlwe.PCKSProtocol` and sub-protocols based on these two protocols now only take a polynomial as input instead of the full ciphertext.
+- DLRWE/DCKKS/DBFV: protocols `drlwe.CKSProtocol` and `drlwe.PCKSProtocol` and sub-protocols based on these two protocols now only take a polynomial as input for the share generation instead of the full ciphertext.
 - DRLWE/DCKKS/DBFV: uniformized API of share generation and aggregation to `.GenShare(*)` and `.AggregateShare(*)`.
 
 ## [2.4.0] - 2022-01-10

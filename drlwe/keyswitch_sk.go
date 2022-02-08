@@ -63,7 +63,7 @@ func (ckss *CKSShare) UnmarshalBinary(data []byte) (err error) {
 	return ckss.Value.UnmarshalBinary(data)
 }
 
-// NewCKSProtocol creates a new CKSProtocol that will be used to operate a collective key-switching on a ciphertext encrypted under a collective public-key, whose
+// NewCKSProtocol creates a new CKSProtocol that will be used to perform a collective key-switching on a ciphertext encrypted under a collective public-key, whose
 // secret-shares are distributed among j parties, re-encrypting the ciphertext under another public-key, whose secret-shares are also known to the
 // parties.
 func NewCKSProtocol(params rlwe.Parameters, sigmaSmudging float64) *CKSProtocol {

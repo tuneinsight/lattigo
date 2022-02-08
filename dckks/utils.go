@@ -1,11 +1,12 @@
 package dckks
 
 import (
+	"math"
+	"math/bits"
+
 	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/ring"
 	"github.com/ldsec/lattigo/v2/rlwe"
-	"math"
-	"math/bits"
 )
 
 // GetMinimumLevelForBootstrapping takes the security parameter lambda, the ciphertext scale, the number of parties and the moduli chain
@@ -34,7 +35,7 @@ func GetMinimumLevelForBootstrapping(lambda int, scale float64, nParties int, mo
 	return minLevel, logBound, true
 }
 
-// NewAdditiveShareBigint instantiate a new additive share struct composed of "n" big.Int elements
+// NewAdditiveShareBigint instantiates a new additive share struct composed of "n" big.Int elements
 func NewAdditiveShareBigint(params ckks.Parameters, logSlots int) *rlwe.AdditiveShareBigint {
 	dslots := 1 << logSlots
 	if params.RingType() == ring.Standard {

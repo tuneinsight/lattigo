@@ -75,7 +75,7 @@ func NewPCKSProtocol(params rlwe.Parameters, sigmaSmudging float64) (pcks *PCKSP
 	return pcks
 }
 
-// AllocateShare allocates the shares of the PCKS protocol
+// AllocateShare allocates the shares of the PCKS protocol.
 func (pcks *PCKSProtocol) AllocateShare(levelQ int) (s *PCKSShare) {
 	return &PCKSShare{[2]*ring.Poly{pcks.params.RingQ().NewPolyLvl(levelQ), pcks.params.RingQ().NewPolyLvl(levelQ)}}
 }

@@ -465,16 +465,16 @@ func (r *Ring) PolyToString(p1 *Poly) []string {
 
 // PolyToBigint reconstructs p1 and returns the result in an array of Int.
 // gap defines coefficients X^{i*gap} that will be reconstructed.
-// For example if gap = 1, then all coefficients are recontructed, while
-// if gap = 2 then only coefficients X^{2*i} are recontructed.
+// For example, if gap = 1, then all coefficients are reconstructed, while
+// if gap = 2 then only coefficients X^{2*i} are reconstructed.
 func (r *Ring) PolyToBigint(p1 *Poly, gap int, coeffsBigint []*big.Int) {
 	r.PolyToBigintLvl(p1.Level(), p1, gap, coeffsBigint)
 }
 
 // PolyToBigintLvl reconstructs p1 and returns the result in an array of Int.
 // gap defines coefficients X^{i*gap} that will be reconstructed.
-// For example if gap = 1, then all coefficients are recontructed, while
-// if gap = 2 then only coefficients X^{2*i} are recontructed.
+// For example, if gap = 1, then all coefficients are reconstructed, while
+// if gap = 2 then only coefficients X^{2*i} are reconstructed.
 func (r *Ring) PolyToBigintLvl(level int, p1 *Poly, gap int, coeffsBigint []*big.Int) {
 	var qi uint64
 
@@ -514,8 +514,8 @@ func (r *Ring) PolyToBigintLvl(level int, p1 *Poly, gap int, coeffsBigint []*big
 // PolyToBigintCenteredLvl reconstructs p1 and returns the result in an array of Int.
 // Coefficients are centered around Q/2
 // gap defines coefficients X^{i*gap} that will be reconstructed.
-// For example if gap = 1, then all coefficients are recontructed, while
-// if gap = 2 then only coefficients X^{2*i} are recontructed.
+// For example, if gap = 1, then all coefficients are reconstructed, while
+// if gap = 2 then only coefficients X^{2*i} are reconstructed.
 func (r *Ring) PolyToBigintCenteredLvl(level int, p1 *Poly, gap int, coeffsBigint []*big.Int) {
 	var qi uint64
 

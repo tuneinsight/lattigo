@@ -267,7 +267,7 @@ func (ecd *encoderComplex128) DecodeCoeffsPublic(plaintext *Plaintext, sigma flo
 }
 
 // GetErrSTDCoeffDomain returns StandardDeviation(Encode(valuesWant-valuesHave))*scale
-// Which is the scaled standard deviation in the coefficient domain of the difference
+// which is the scaled standard deviation in the coefficient domain of the difference
 // of two complex vector in the slot domain.
 func (ecd *encoderComplex128) GetErrSTDCoeffDomain(valuesWant, valuesHave []complex128, scale float64) (std float64) {
 
@@ -291,7 +291,7 @@ func (ecd *encoderComplex128) GetErrSTDCoeffDomain(valuesWant, valuesHave []comp
 }
 
 // GetErrSTDSlotDomain returns StandardDeviation(valuesWant-valuesHave)*scale
-// Which is the scaled standard deviation of two complex vectors.
+// which is the scaled standard deviation of two complex vectors.
 func (ecd *encoderComplex128) GetErrSTDSlotDomain(valuesWant, valuesHave []complex128, scale float64) (std float64) {
 	var err complex128
 	for i := range valuesWant {

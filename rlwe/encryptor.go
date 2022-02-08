@@ -31,7 +31,7 @@ type skEncryptor struct {
 }
 
 // NewEncryptor creates a new Encryptor
-// Accepts either a secret-key or a public-key
+// Accepts either a secret-key or a public-key.
 func NewEncryptor(params Parameters, key interface{}) Encryptor {
 	enc := newEncryptor(params)
 	return enc.setKey(key)
@@ -101,12 +101,12 @@ func newEncryptorBuffers(params Parameters) *encryptorBuffers {
 	}
 }
 
-// Encrypt encrypts the input plaintext using the stored public-key and write the result on ct.
+// Encrypt encrypts the input plaintext using the stored public-key and writes the result on ct.
 // The encryption procedure first samples an new encryption of zero under the public-key and
 // then adds the plaintext.
 // The encryption procedures depends on the parameters. If the auxiliary modulus P is defined,
-// then the encryption of zero is sampled in QP before being rescaled by P, else it is directly
-// samples in Q.
+// then the encryption of zero is sampled in QP before being rescaled by P; otherwise, it is directly
+// sampled in Q.
 func (enc *pkEncryptor) Encrypt(pt *Plaintext, ct *Ciphertext) {
 	enc.uniformSampler.ReadLvl(utils.MinInt(pt.Level(), ct.Level()), ct.Value[1])
 
@@ -381,15 +381,15 @@ func (enc *encryptor) setKey(key interface{}) Encryptor {
 	switch key := key.(type) {
 	case *PublicKey:
 		if key.Value[0].Q.Degree() != enc.params.N() || key.Value[1].Q.Degree() != enc.params.N() {
-			panic("cannot newEncryptor: pk ring degree does not match params ring degree")
+			panic("cannot setKey: pk ring degree does not match params ring degree")
 		}
 		return &pkEncryptor{*enc, key}
 	case *SecretKey:
 		if key.Value.Q.Degree() != enc.params.N() {
-			panic("cannot newEncryptor: sk ring degree does not match params ring degree")
+			panic("cannot setKey: sk ring degree does not match params ring degree")
 		}
 		return &skEncryptor{*enc, key}
 	default:
-		panic("key must be either *rlwe.PublicKey or *rlwe.SecretKey")
+		panic("cannot setKey: key must be either *rlwe.PublicKey or *rlwe.SecretKey")
 	}
 }

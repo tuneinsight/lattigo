@@ -8,7 +8,7 @@ import (
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
-// RotationKeyGenerator is an interface for the local operation in the generation of rotation keys
+// RotationKeyGenerator is an interface for the local operation in the generation of rotation keys.
 type RotationKeyGenerator interface {
 	AllocateShare() (rtgShare *RTGShare)
 	GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, shareOut *RTGShare)
@@ -16,7 +16,7 @@ type RotationKeyGenerator interface {
 	GenRotationKey(share *RTGShare, crp RTGCRP, rotKey *rlwe.SwitchingKey)
 }
 
-// RTGShare is represent a Party's share in the RTG protocol
+// RTGShare is represent a Party's share in the RTG protocol.
 type RTGShare struct {
 	Value []rlwe.PolyQP
 }
@@ -51,7 +51,7 @@ func (rtg *RTGProtocol) ShallowCopy() *RTGProtocol {
 	}
 }
 
-// NewRTGProtocol creates a RTGProtocol instance
+// NewRTGProtocol creates a RTGProtocol instance.
 func NewRTGProtocol(params rlwe.Parameters) *RTGProtocol {
 	rtg := new(RTGProtocol)
 	rtg.params = params
@@ -66,7 +66,7 @@ func NewRTGProtocol(params rlwe.Parameters) *RTGProtocol {
 	return rtg
 }
 
-// AllocateShare allocates a party's share in the RTG protocol
+// AllocateShare allocates a party's share in the RTG protocol.
 func (rtg *RTGProtocol) AllocateShare() (rtgShare *RTGShare) {
 	rtgShare = new(RTGShare)
 	rtgShare.Value = make([]rlwe.PolyQP, rtg.params.Beta())
@@ -88,7 +88,7 @@ func (rtg *RTGProtocol) SampleCRP(crs CRS) RTGCRP {
 	return RTGCRP(crp)
 }
 
-// GenShare generates a party's share in the RTG protocol
+// GenShare generates a party's share in the RTG protocol.
 func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, shareOut *RTGShare) {
 
 	ringQ := rtg.params.RingQ()
@@ -141,7 +141,7 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, s
 	}
 }
 
-// AggregateShare aggregates two share in the Rotation Key Generation protocol
+// AggregateShare aggregates two share in the Rotation Key Generation protocol.
 func (rtg *RTGProtocol) AggregateShare(share1, share2, shareOut *RTGShare) {
 	ringQP, levelQ, levelP := rtg.params.RingQP(), rtg.params.QCount()-1, rtg.params.PCount()-1
 	for i := 0; i < rtg.params.Beta(); i++ {

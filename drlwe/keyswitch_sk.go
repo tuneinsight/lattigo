@@ -9,18 +9,39 @@ import (
 // KeySwitchingProtocol is an interface describing the local steps of a generic RLWE CKS protocol
 type KeySwitchingProtocol interface {
 	AllocateShare(level int) *CKSShare
-	GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlwe.Ciphertext, shareOut *CKSShare)
-	AggregateShares(share1, share2, shareOut *CKSShare)
-	KeySwitch(combined *CKSShare, ct, ctOut *rlwe.Ciphertext)
+	GenShare(skInput, skOutput *rlwe.SecretKey, c1 *ring.Poly, shareOut *CKSShare)
+	AggregateShare(share1, share2, shareOut *CKSShare)
+	KeySwitch(ctIn *rlwe.Ciphertext, combined *CKSShare, ctOut *rlwe.Ciphertext)
 }
 
 // CKSProtocol is the structure storing the parameters and and precomputations for the collective key-switching protocol.
 type CKSProtocol struct {
 	params          rlwe.Parameters
+	sigmaSmudging   float64
 	gaussianSampler *ring.GaussianSampler
-	baseconverter   *ring.FastBasisExtender
+	basisExtender   *ring.BasisExtender
 	tmpQP           rlwe.PolyQP
 	tmpDelta        *ring.Poly
+}
+
+// ShallowCopy creates a shallow copy of CKSProtocol in which all the read-only data-structures are
+// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+// CKSProtocol can be used concurrently.
+func (cks *CKSProtocol) ShallowCopy() *CKSProtocol {
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+
+	params := cks.params
+
+	return &CKSProtocol{
+		params:          params,
+		gaussianSampler: ring.NewGaussianSampler(prng, params.RingQ(), cks.sigmaSmudging, int(6*cks.sigmaSmudging)),
+		basisExtender:   cks.basisExtender.ShallowCopy(),
+		tmpQP:           params.RingQP().NewPoly(),
+		tmpDelta:        params.RingQ().NewPoly(),
+	}
 }
 
 // CKSShare is a type for the CKS protocol shares.
@@ -42,18 +63,19 @@ func (ckss *CKSShare) UnmarshalBinary(data []byte) (err error) {
 	return ckss.Value.UnmarshalBinary(data)
 }
 
-// NewCKSProtocol creates a new CKSProtocol that will be used to operate a collective key-switching on a ciphertext encrypted under a collective public-key, whose
+// NewCKSProtocol creates a new CKSProtocol that will be used to perform a collective key-switching on a ciphertext encrypted under a collective public-key, whose
 // secret-shares are distributed among j parties, re-encrypting the ciphertext under another public-key, whose secret-shares are also known to the
 // parties.
 func NewCKSProtocol(params rlwe.Parameters, sigmaSmudging float64) *CKSProtocol {
 	cks := new(CKSProtocol)
 	cks.params = params
+	cks.sigmaSmudging = sigmaSmudging
 	prng, err := utils.NewPRNG()
 	if err != nil {
 		panic(err)
 	}
 	cks.gaussianSampler = ring.NewGaussianSampler(prng, params.RingQ(), sigmaSmudging, int(6*sigmaSmudging))
-	cks.baseconverter = ring.NewFastBasisExtender(params.RingQ(), params.RingP())
+	cks.basisExtender = ring.NewBasisExtender(params.RingQ(), params.RingP())
 	cks.tmpQP = params.RingQP().NewPoly()
 	cks.tmpDelta = params.RingQ().NewPoly()
 	return cks
@@ -73,24 +95,22 @@ func (cks *CKSProtocol) SampleCRP(level int, crs CRS) CKSCRP {
 }
 
 // GenShare computes a party's share in the CKS protocol.
-// ct.Value[0] can be nil, computations are only done using ct.Value[1]
-// NTT flag for ct.Value[1] is expected to be set correctly
-func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlwe.Ciphertext, shareOut *CKSShare) {
-
-	el := ct.RLWEElement()
+// ct1 is the degree 1 element of the rlwe.Ciphertext to keyswitch, i.e. ct1 = rlwe.Ciphertext.Value[1].
+// NTT flag for ct1 is expected to be set correctly.
+func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, c1 *ring.Poly, shareOut *CKSShare) {
 
 	ringQ := cks.params.RingQ()
 	ringP := cks.params.RingP()
 	ringQP := cks.params.RingQP()
 
-	levelQ := utils.MinInt(shareOut.Value.Level(), el.Value[1].Level())
+	levelQ := utils.MinInt(shareOut.Value.Level(), c1.Level())
 	levelP := cks.params.PCount() - 1
 
 	ringQ.SubLvl(levelQ, skInput.Value.Q, skOutput.Value.Q, cks.tmpDelta)
 
-	ct1 := el.Value[1]
-	if !el.Value[1].IsNTT {
-		ringQ.NTTLazyLvl(levelQ, el.Value[1], cks.tmpQP.Q)
+	ct1 := c1
+	if !c1.IsNTT {
+		ringQ.NTTLazyLvl(levelQ, c1, cks.tmpQP.Q)
 		ct1 = cks.tmpQP.Q
 	}
 
@@ -100,7 +120,7 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlwe.Cip
 	// P * a * (skIn - skOut) mod QP (mod P = 0)
 	ringQ.MulScalarBigintLvl(levelQ, shareOut.Value, ringP.ModulusBigint, shareOut.Value)
 
-	if !el.Value[1].IsNTT {
+	if !c1.IsNTT {
 		// InvNTT(P * a * (skIn - skOut)) mod QP (mod P = 0)
 		ringQ.InvNTTLazyLvl(levelQ, shareOut.Value, shareOut.Value)
 
@@ -114,7 +134,7 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlwe.Cip
 		ringQ.AddNoModLvl(levelQ, shareOut.Value, cks.tmpQP.Q, shareOut.Value)
 
 		// InvNTT(P * a * (skIn - skOut) + e) * (1/P) mod QP (mod P = e)
-		cks.baseconverter.ModDownQPtoQ(levelQ, levelP, shareOut.Value, cks.tmpQP.P, shareOut.Value)
+		cks.basisExtender.ModDownQPtoQ(levelQ, levelP, shareOut.Value, cks.tmpQP.P, shareOut.Value)
 
 	} else {
 		// Sample e in Q
@@ -130,7 +150,7 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlwe.Cip
 		ringQ.AddLvl(levelQ, shareOut.Value, cks.tmpQP.Q, shareOut.Value)
 
 		// (P * a * (skIn - skOut) + e) * (1/P) mod QP (mod P = e)
-		cks.baseconverter.ModDownQPtoQ(levelQ, levelP, shareOut.Value, cks.tmpQP.P, shareOut.Value)
+		cks.basisExtender.ModDownQPtoQ(levelQ, levelP, shareOut.Value, cks.tmpQP.P, shareOut.Value)
 
 		ringQ.NTTLvl(levelQ, shareOut.Value, shareOut.Value)
 	}
@@ -138,16 +158,16 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlwe.Cip
 	shareOut.Value.Coeffs = shareOut.Value.Coeffs[:levelQ+1]
 }
 
-// AggregateShares is the second part of the unique round of the CKSProtocol protocol. Upon receiving the j-1 elements each party computes :
+// AggregateShare is the second part of the unique round of the CKSProtocol protocol. Upon receiving the j-1 elements each party computes :
 //
 // [ctx[0] + sum((skInput_i - skOutput_i) * ctx[0] + e_i), ctx[1]]
-func (cks *CKSProtocol) AggregateShares(share1, share2, shareOut *CKSShare) {
+func (cks *CKSProtocol) AggregateShare(share1, share2, shareOut *CKSShare) {
 	cks.params.RingQ().AddLvl(share1.Value.Level(), share1.Value, share2.Value, shareOut.Value)
 }
 
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
-func (cks *CKSProtocol) KeySwitch(combined *CKSShare, ct, ctOut *rlwe.Ciphertext) {
-	el, elOut := ct.RLWEElement(), ctOut.RLWEElement()
-	cks.params.RingQ().AddLvl(el.Level(), el.Value[0], combined.Value, elOut.Value[0])
-	ring.CopyValuesLvl(el.Level(), el.Value[1], elOut.Value[1])
+func (cks *CKSProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined *CKSShare, ctOut *rlwe.Ciphertext) {
+	level := utils.MinInt(ctIn.Level(), ctOut.Level())
+	cks.params.RingQ().AddLvl(level, ctIn.Value[0], combined.Value, ctOut.Value[0])
+	ring.CopyValuesLvl(level, ctIn.Value[1], ctOut.Value[1])
 }

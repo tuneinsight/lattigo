@@ -605,7 +605,7 @@ func testExtendBasis(testContext *testParams, t *testing.T) {
 
 	t.Run(testString("ModUp/", testContext.ringQ), func(t *testing.T) {
 
-		basisextender := NewFastBasisExtender(testContext.ringQ, testContext.ringP)
+		basisextender := NewBasisExtender(testContext.ringQ, testContext.ringP)
 
 		levelQ := len(testContext.ringQ.Modulus) - 2
 		levelP := len(testContext.ringQ.Modulus) - 2
@@ -637,7 +637,7 @@ func testExtendBasis(testContext *testParams, t *testing.T) {
 
 	t.Run(testString("ModDown/", testContext.ringQ), func(t *testing.T) {
 
-		basisextender := NewFastBasisExtender(testContext.ringQ, testContext.ringP)
+		basisextender := NewBasisExtender(testContext.ringQ, testContext.ringP)
 
 		levelQ := len(testContext.ringQ.Modulus) - 2
 		levelP := len(testContext.ringP.Modulus) - 2

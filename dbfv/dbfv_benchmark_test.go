@@ -53,7 +53,7 @@ func benchPublicKeyGen(testCtx *testContext, b *testing.B) {
 	p := new(Party)
 	p.CKGProtocol = NewCKGProtocol(testCtx.params)
 	p.s = sk0Shards[0]
-	p.s1 = p.AllocateShares()
+	p.s1 = p.AllocateShare()
 
 	crp := p.SampleCRP(testCtx.crs)
 
@@ -67,7 +67,7 @@ func benchPublicKeyGen(testCtx *testContext, b *testing.B) {
 	b.Run(testString("PublicKeyGen/Round1/Agg", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.AggregateShares(p.s1, p.s1, p.s1)
+			p.AggregateShare(p.s1, p.s1, p.s1)
 		}
 	})
 
@@ -96,7 +96,7 @@ func benchRelinKeyGen(testCtx *testContext, b *testing.B) {
 	p := new(Party)
 	p.RKGProtocol = NewRKGProtocol(testCtx.params)
 	p.sk = sk0Shards[0]
-	p.ephSk, p.share1, p.share2 = p.RKGProtocol.AllocateShares()
+	p.ephSk, p.share1, p.share2 = p.RKGProtocol.AllocateShare()
 	p.rlk = bfv.NewRelinearizationKey(testCtx.params, 2)
 
 	crp := p.SampleCRP(testCtx.crs)
@@ -109,7 +109,7 @@ func benchRelinKeyGen(testCtx *testContext, b *testing.B) {
 
 	b.Run(testString("RelinKeyGen/Round1/Agg", parties, testCtx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			p.AggregateShares(p.share1, p.share1, p.share1)
+			p.AggregateShare(p.share1, p.share1, p.share1)
 		}
 	})
 
@@ -121,7 +121,7 @@ func benchRelinKeyGen(testCtx *testContext, b *testing.B) {
 
 	b.Run(testString("RelinKeyGen/Round2/Agg", parties, testCtx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			p.AggregateShares(p.share2, p.share2, p.share2)
+			p.AggregateShare(p.share2, p.share2, p.share2)
 		}
 	})
 
@@ -150,26 +150,26 @@ func benchKeyswitching(testCtx *testContext, b *testing.B) {
 	p.CKSProtocol = NewCKSProtocol(testCtx.params, 6.36)
 	p.s0 = sk0Shards[0]
 	p.s1 = sk1Shards[0]
-	p.share = p.AllocateShare(ciphertext.Level())
+	p.share = p.AllocateShare()
 
 	b.Run(testString("Keyswitching/Round1/Gen", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.GenShare(p.s0, p.s1, ciphertext.Ciphertext, p.share)
+			p.GenShare(p.s0, p.s1, ciphertext.Value[1], p.share)
 		}
 	})
 
 	b.Run(testString("Keyswitching/Round1/Agg", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.AggregateShares(p.share, p.share, p.share)
+			p.AggregateShare(p.share, p.share, p.share)
 		}
 	})
 
 	b.Run(testString("Keyswitching/Finalize", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.KeySwitch(p.share, ciphertext.Ciphertext, ciphertext.Ciphertext)
+			p.KeySwitch(ciphertext, p.share, ciphertext)
 		}
 	})
 }
@@ -190,12 +190,12 @@ func benchPublicKeySwitching(testCtx *testContext, b *testing.B) {
 	p := new(Party)
 	p.PCKSProtocol = NewPCKSProtocol(testCtx.params, 6.36)
 	p.s = sk0Shards[0]
-	p.share = p.AllocateShare(ciphertext.Level())
+	p.share = p.AllocateShare()
 
 	b.Run(testString("PublicKeySwitching/Round1/Gen", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.GenShare(p.s, pk1, ciphertext.Ciphertext, p.share)
+			p.GenShare(p.s, pk1, ciphertext.Value[1], p.share)
 
 		}
 	})
@@ -203,14 +203,14 @@ func benchPublicKeySwitching(testCtx *testContext, b *testing.B) {
 	b.Run(testString("PublicKeySwitching/Round1/Agg", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.AggregateShares(p.share, p.share, p.share)
+			p.AggregateShare(p.share, p.share, p.share)
 		}
 	})
 
 	b.Run(testString("PublicKeySwitching/Finalize", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.KeySwitch(p.share, ciphertext.Ciphertext, ciphertext.Ciphertext)
+			p.KeySwitch(ciphertext, p.share, ciphertext)
 		}
 	})
 }
@@ -228,7 +228,7 @@ func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 	p := new(Party)
 	p.RTGProtocol = NewRotKGProtocol(testCtx.params)
 	p.s = sk0Shards[0]
-	p.share = p.AllocateShares()
+	p.share = p.AllocateShare()
 
 	crp := p.SampleCRP(testCtx.crs)
 
@@ -242,7 +242,7 @@ func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 	b.Run(testString("RotKeyGen/Round1/Agg", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.Aggregate(p.share, p.share, p.share)
+			p.AggregateShare(p.share, p.share, p.share)
 		}
 	})
 
@@ -277,7 +277,7 @@ func benchRefresh(testCtx *testContext, b *testing.B) {
 	b.Run(testString("Refresh/Round1/Gen", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.GenShares(p.s, ciphertext, crp, p.share)
+			p.GenShare(p.s, ciphertext.Value[1], crp, p.share)
 		}
 	})
 

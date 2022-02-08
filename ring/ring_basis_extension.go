@@ -6,9 +6,9 @@ import (
 	"unsafe"
 )
 
-// FastBasisExtender stores the necessary parameters for RNS basis extension.
+// BasisExtender stores the necessary parameters for RNS basis extension.
 // The used algorithm is from https://eprint.iacr.org/2018/117.pdf.
-type FastBasisExtender struct {
+type BasisExtender struct {
 	ringQ             *Ring
 	ringP             *Ring
 	paramsQtoP        []modupParams
@@ -52,10 +52,10 @@ func genModDownParams(ringQ, ringP *Ring) (params [][]uint64) {
 	return
 }
 
-// NewFastBasisExtender creates a new FastBasisExtender, enabling RNS basis extension from Q to P and P to Q.
-func NewFastBasisExtender(ringQ, ringP *Ring) *FastBasisExtender {
+// NewBasisExtender creates a new BasisExtender, enabling RNS basis extension from Q to P and P to Q.
+func NewBasisExtender(ringQ, ringP *Ring) *BasisExtender {
 
-	newParams := new(FastBasisExtender)
+	newParams := new(BasisExtender)
 
 	newParams.ringQ = ringQ
 	newParams.ringP = ringP
@@ -153,11 +153,11 @@ func basisextenderparameters(Q, P []uint64) modupParams {
 
 // ShallowCopy creates a shallow copy of this basis extender in which the read-only data-structures are
 // shared with the receiver.
-func (be *FastBasisExtender) ShallowCopy() *FastBasisExtender {
+func (be *BasisExtender) ShallowCopy() *BasisExtender {
 	if be == nil {
 		return nil
 	}
-	return &FastBasisExtender{
+	return &BasisExtender{
 		ringQ:             be.ringQ,
 		ringP:             be.ringP,
 		paramsQtoP:        be.paramsQtoP,
@@ -173,14 +173,14 @@ func (be *FastBasisExtender) ShallowCopy() *FastBasisExtender {
 // ModUpQtoP extends the RNS basis of a polynomial from Q to QP.
 // Given a polynomial with coefficients in basis {Q0,Q1....Qlevel},
 // it extends its basis from {Q0,Q1....Qlevel} to {Q0,Q1....Qlevel,P0,P1...Pj}
-func (be *FastBasisExtender) ModUpQtoP(levelQ, levelP int, polQ, polP *Poly) {
+func (be *BasisExtender) ModUpQtoP(levelQ, levelP int, polQ, polP *Poly) {
 	modUpExact(polQ.Coeffs[:levelQ+1], polP.Coeffs[:levelP+1], be.ringQ, be.ringP, be.paramsQtoP[levelQ])
 }
 
 // ModUpPtoQ extends the RNS basis of a polynomial from P to PQ.
 // Given a polynomial with coefficients in basis {P0,P1....Plevel},
 // it extends its basis from {P0,P1....Plevel} to {Q0,Q1...Qj}
-func (be *FastBasisExtender) ModUpPtoQ(levelP, levelQ int, polP, polQ *Poly) {
+func (be *BasisExtender) ModUpPtoQ(levelP, levelQ int, polP, polQ *Poly) {
 	modUpExact(polP.Coeffs[:levelP+1], polQ.Coeffs[:levelQ+1], be.ringP, be.ringQ, be.paramsPtoQ[levelP])
 }
 
@@ -188,7 +188,7 @@ func (be *FastBasisExtender) ModUpPtoQ(levelP, levelQ int, polP, polQ *Poly) {
 // Given a polynomial with coefficients in basis {Q0,Q1....Qlevel} and {P0,P1...Pj},
 // it reduces its basis from {Q0,Q1....Qlevel} and {P0,P1...Pj} to {Q0,Q1....Qlevel}
 // and does a rounded integer division of the result by P.
-func (be *FastBasisExtender) ModDownQPtoQ(levelQ, levelP int, p1Q, p1P, p2Q *Poly) {
+func (be *BasisExtender) ModDownQPtoQ(levelQ, levelP int, p1Q, p1P, p2Q *Poly) {
 
 	ringQ := be.ringQ
 	modDownParams := be.modDownparamsPtoQ
@@ -211,7 +211,7 @@ func (be *FastBasisExtender) ModDownQPtoQ(levelQ, levelP int, p1Q, p1P, p2Q *Pol
 // it reduces its basis from {Q0,Q1....Qi} and {P0,P1...Pj} to {Q0,Q1....Qi}
 // and does a rounded integer division of the result by P.
 // Inputs must be in the NTT domain.
-func (be *FastBasisExtender) ModDownQPtoQNTT(levelQ, levelP int, p1Q, p1P, p2Q *Poly) {
+func (be *BasisExtender) ModDownQPtoQNTT(levelQ, levelP int, p1Q, p1P, p2Q *Poly) {
 
 	ringQ := be.ringQ
 	ringP := be.ringP
@@ -242,7 +242,7 @@ func (be *FastBasisExtender) ModDownQPtoQNTT(levelQ, levelP int, p1Q, p1P, p2Q *
 // Given a polynomial with coefficients in basis {Q0,Q1....QlevelQ} and {P0,P1...PlevelP},
 // it reduces its basis from {Q0,Q1....QlevelQ} and {P0,P1...PlevelP} to {P0,P1...PlevelP}
 // and does a floored integer division of the result by Q.
-func (be *FastBasisExtender) ModDownQPtoP(levelQ, levelP int, p1Q, p1P, p2P *Poly) {
+func (be *BasisExtender) ModDownQPtoP(levelQ, levelP int, p1Q, p1P, p2P *Poly) {
 
 	ringP := be.ringP
 	modDownParams := be.modDownparamsQtoP

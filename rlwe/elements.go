@@ -40,9 +40,9 @@ func NewAdditiveShareAtLevel(params Parameters, level int) *AdditiveShare {
 	return &AdditiveShare{Value: *ring.NewPoly(params.N(), level+1)}
 }
 
-// NewAdditiveShareBigint instantiate a new additive share struct composed of big.Int elements
-func NewAdditiveShareBigint(params Parameters) *AdditiveShareBigint {
-	v := make([]*big.Int, params.N())
+// NewAdditiveShareBigint instantiate a new additive share struct composed of "n" big.Int elements
+func NewAdditiveShareBigint(params Parameters, n int) *AdditiveShareBigint {
+	v := make([]*big.Int, n)
 	for i := range v {
 		v[i] = new(big.Int)
 	}

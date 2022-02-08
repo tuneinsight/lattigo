@@ -276,7 +276,7 @@ func benchExtendBasis(testContext *testParams, b *testing.B) {
 		rescaleParams[i] = RandUniform(testContext.prng, pi, (1<<uint64(bits.Len64(pi)-1) - 1))
 	}
 
-	basisExtender := NewFastBasisExtender(testContext.ringQ, testContext.ringP)
+	basisExtender := NewBasisExtender(testContext.ringQ, testContext.ringP)
 
 	p0 := testContext.uniformSamplerQ.ReadNew()
 	p1 := testContext.uniformSamplerP.ReadNew()

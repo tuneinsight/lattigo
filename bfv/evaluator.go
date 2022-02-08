@@ -60,7 +60,7 @@ type evaluator struct {
 	rlk  *rlwe.RelinearizationKey
 	rtks *rlwe.RotationKeySet
 
-	baseconverterQ1Q2 *ring.FastBasisExtender
+	basisExtenderQ1toQ2 *ring.BasisExtender
 }
 
 type evaluatorBase struct {
@@ -127,7 +127,7 @@ func NewEvaluator(params Parameters, evaluationKey rlwe.EvaluationKey) Evaluator
 	}
 
 	ev.lightEncoder = &encoder{rescaleParams: rescaleParams}
-	ev.baseconverterQ1Q2 = ring.NewFastBasisExtender(ev.ringQ, ev.ringQMul)
+	ev.basisExtenderQ1toQ2 = ring.NewBasisExtender(ev.ringQ, ev.ringQMul)
 	if params.PCount() != 0 {
 		ev.KeySwitcher = rlwe.NewKeySwitcher(params.Parameters)
 	}
@@ -150,32 +150,6 @@ func NewEvaluators(params Parameters, evaluationKey rlwe.EvaluationKey, n int) [
 		}
 	}
 	return evas
-}
-
-// ShallowCopy creates a shallow copy of this evaluator in which the read-only data-structures are
-// shared with the receiver.
-func (eval *evaluator) ShallowCopy() Evaluator {
-	return &evaluator{
-		evaluatorBase:     eval.evaluatorBase,
-		KeySwitcher:       eval.KeySwitcher.ShallowCopy(),
-		evaluatorBuffers:  newEvaluatorBuffer(eval.evaluatorBase),
-		baseconverterQ1Q2: eval.baseconverterQ1Q2.ShallowCopy(),
-		rlk:               eval.rlk,
-		rtks:              eval.rtks,
-	}
-}
-
-// ShallowCopyWithKey creates a shallow copy of this evaluator in which the read-only data-structures are
-// shared with the receiver but the EvaluationKey is evaluationKey.
-func (eval *evaluator) WithKey(evaluationKey rlwe.EvaluationKey) Evaluator {
-	return &evaluator{
-		evaluatorBase:     eval.evaluatorBase,
-		KeySwitcher:       eval.KeySwitcher,
-		evaluatorBuffers:  eval.evaluatorBuffers,
-		baseconverterQ1Q2: eval.baseconverterQ1Q2,
-		rlk:               evaluationKey.Rlk,
-		rtks:              evaluationKey.Rtks,
-	}
 }
 
 // Add adds op0 to op1 and returns the result in ctOut.
@@ -318,7 +292,7 @@ func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *rlwe.Ciphertext) {
 func (eval *evaluator) modUpAndNTT(ct *rlwe.Ciphertext, cQ, cQMul []*ring.Poly) {
 	levelQ := len(eval.ringQ.Modulus) - 1
 	for i := range ct.Value {
-		eval.baseconverterQ1Q2.ModUpQtoP(levelQ, len(eval.ringQMul.Modulus)-1, ct.Value[i], cQMul[i])
+		eval.basisExtenderQ1toQ2.ModUpQtoP(levelQ, len(eval.ringQMul.Modulus)-1, ct.Value[i], cQMul[i])
 		eval.ringQ.NTTLazy(ct.Value[i], cQ[i])
 		eval.ringQMul.NTTLazy(cQMul[i], cQMul[i])
 	}
@@ -454,11 +428,11 @@ func (eval *evaluator) quantize(ctOut *rlwe.Ciphertext) {
 		eval.ringQMul.InvNTTLazy(c2Q2[i], c2Q2[i])
 
 		// Extends the basis Q of ct(x) to the basis P and Divides (ct(x)Q -> P) by Q
-		eval.baseconverterQ1Q2.ModDownQPtoP(levelQ, levelQMul, c2Q1[i], c2Q2[i], c2Q2[i])
+		eval.basisExtenderQ1toQ2.ModDownQPtoP(levelQ, levelQMul, c2Q1[i], c2Q2[i], c2Q2[i])
 
 		// Centers (ct(x)Q -> P)/Q by (P-1)/2 and extends ((ct(x)Q -> P)/Q) to the basis Q
 		eval.ringQMul.AddScalarBigint(c2Q2[i], eval.pHalf, c2Q2[i])
-		eval.baseconverterQ1Q2.ModUpPtoQ(levelQMul, levelQ, c2Q2[i], ctOut.Value[i])
+		eval.basisExtenderQ1toQ2.ModUpPtoQ(levelQMul, levelQ, c2Q2[i], ctOut.Value[i])
 		eval.ringQ.SubScalarBigint(ctOut.Value[i], eval.pHalf, ctOut.Value[i])
 
 		// Option (2) (ct(x)/Q)*T, doing so only requires that Q*P > Q*Q, faster but adds error ~|T|
@@ -704,6 +678,32 @@ func (eval *evaluator) InnerSum(ct0 *Ciphertext, ctOut *Ciphertext) {
 
 	eval.RotateRows(ctOut, cTmp)
 	eval.Add(ctOut, cTmp, ctOut)
+}
+
+// ShallowCopy creates a shallow copy of this evaluator in which the read-only data-structures are
+// shared with the receiver.
+func (eval *evaluator) ShallowCopy() Evaluator {
+	return &evaluator{
+		evaluatorBase:       eval.evaluatorBase,
+		KeySwitcher:         eval.KeySwitcher.ShallowCopy(),
+		evaluatorBuffers:    newEvaluatorBuffer(eval.evaluatorBase),
+		basisExtenderQ1toQ2: eval.basisExtenderQ1toQ2.ShallowCopy(),
+		rlk:                 eval.rlk,
+		rtks:                eval.rtks,
+	}
+}
+
+// WithKey creates a shallow copy of this evaluator in which the read-only data-structures are
+// shared with the receiver but the EvaluationKey is evaluationKey.
+func (eval *evaluator) WithKey(evaluationKey rlwe.EvaluationKey) Evaluator {
+	return &evaluator{
+		evaluatorBase:       eval.evaluatorBase,
+		KeySwitcher:         eval.KeySwitcher,
+		evaluatorBuffers:    eval.evaluatorBuffers,
+		basisExtenderQ1toQ2: eval.basisExtenderQ1toQ2,
+		rlk:                 evaluationKey.Rlk,
+		rtks:                evaluationKey.Rtks,
+	}
 }
 
 // permute performs a column rotation on ct0 and returns the result in ctOut

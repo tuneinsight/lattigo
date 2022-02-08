@@ -9,18 +9,19 @@ import (
 	"github.com/ldsec/lattigo/v2/utils"
 )
 
-// RelinearizationKeyGenerator is an interface describing the local steps of a generic RLWE RKG protocol
+// RelinearizationKeyGenerator is an interface describing the local steps of a generic RLWE RKG protocol.
 type RelinearizationKeyGenerator interface {
-	AllocateShares() (ephKey *rlwe.SecretKey, r1 *RKGShare, r2 *RKGShare)
+	AllocateShare() (ephKey *rlwe.SecretKey, r1 *RKGShare, r2 *RKGShare)
 	GenShareRoundOne(sk *rlwe.SecretKey, crp RKGCRP, ephKeyOut *rlwe.SecretKey, shareOut *RKGShare)
 	GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGShare, shareOut *RKGShare)
-	AggregateShares(share1, share2, shareOut *RKGShare)
+	AggregateShare(share1, share2, shareOut *RKGShare)
 	GenRelinearizationKey(round1 *RKGShare, round2 *RKGShare, relinKeyOut *rlwe.RelinearizationKey)
 }
 
 // RKGProtocol is the structure storing the parameters and and precomputations for the collective relinearization key generation protocol.
 type RKGProtocol struct {
 	params           rlwe.Parameters
+	ephSkPr          float64
 	pBigInt          *big.Int
 	gaussianSamplerQ *ring.GaussianSampler
 	ternarySamplerQ  *ring.TernarySampler // sampling in Montgomerry form
@@ -29,7 +30,29 @@ type RKGProtocol struct {
 	tmpPoly2 rlwe.PolyQP
 }
 
-// RKGShare is a share in the RKG protocol
+// ShallowCopy creates a shallow copy of RKGProtocol in which all the read-only data-structures are
+// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+// RKGProtocol can be used concurrently.
+func (ekg *RKGProtocol) ShallowCopy() *RKGProtocol {
+	var err error
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+
+	params := ekg.params
+
+	return &RKGProtocol{
+		params:           ekg.params,
+		pBigInt:          ekg.pBigInt,
+		gaussianSamplerQ: ring.NewGaussianSampler(prng, params.RingQ(), params.Sigma(), int(6*params.Sigma())),
+		ternarySamplerQ:  ring.NewTernarySampler(prng, params.RingQ(), ekg.ephSkPr, false),
+		tmpPoly1:         params.RingQP().NewPoly(),
+		tmpPoly2:         params.RingQP().NewPoly(),
+	}
+}
+
+// RKGShare is a share in the RKG protocol.
 type RKGShare struct {
 	Value [][2]rlwe.PolyQP
 }
@@ -37,10 +60,11 @@ type RKGShare struct {
 // RKGCRP is a type for common reference polynomials in the RKG protocol.
 type RKGCRP []rlwe.PolyQP
 
-// NewRKGProtocol creates a new RKG protocol struct
-func NewRKGProtocol(params rlwe.Parameters, ephSkPr float64) *RKGProtocol {
+// NewRKGProtocol creates a new RKG protocol struct.
+func NewRKGProtocol(params rlwe.Parameters) *RKGProtocol {
 	rkg := new(RKGProtocol)
 	rkg.params = params
+	rkg.ephSkPr = 0.5 // TODO: read from Params
 
 	var err error
 	prng, err := utils.NewPRNG()
@@ -50,14 +74,14 @@ func NewRKGProtocol(params rlwe.Parameters, ephSkPr float64) *RKGProtocol {
 
 	rkg.pBigInt = params.PBigInt()
 	rkg.gaussianSamplerQ = ring.NewGaussianSampler(prng, params.RingQ(), params.Sigma(), int(6*params.Sigma()))
-	rkg.ternarySamplerQ = ring.NewTernarySampler(prng, params.RingQ(), ephSkPr, false)
+	rkg.ternarySamplerQ = ring.NewTernarySampler(prng, params.RingQ(), rkg.ephSkPr, false)
 	rkg.tmpPoly1 = params.RingQP().NewPoly()
 	rkg.tmpPoly2 = params.RingQP().NewPoly()
 	return rkg
 }
 
-// AllocateShares allocates the shares of the EKG protocol.
-func (ekg *RKGProtocol) AllocateShares() (ephSk *rlwe.SecretKey, r1 *RKGShare, r2 *RKGShare) {
+// AllocateShare allocates the share of the EKG protocol.
+func (ekg *RKGProtocol) AllocateShare() (ephSk *rlwe.SecretKey, r1 *RKGShare, r2 *RKGShare) {
 	ephSk = rlwe.NewSecretKey(ekg.params)
 	r1, r2 = new(RKGShare), new(RKGShare)
 	r1.Value = make([][2]rlwe.PolyQP, ekg.params.Beta())
@@ -158,7 +182,7 @@ func (ekg *RKGProtocol) GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGS
 	ringQP.SubLvl(levelQ, levelP, ephSk.Value, sk.Value, ekg.tmpPoly1)
 
 	// Each sample is of the form [-u*a_i + s*w_i + e_i]
-	// So for each element of the base decomposition w_i :
+	// So for each element of the base decomposition w_i:
 	for i := 0; i < ekg.params.Beta(); i++ {
 
 		// Computes [(sum samples)*sk + e_1i, sk*a + e_2i]
@@ -182,8 +206,8 @@ func (ekg *RKGProtocol) GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGS
 
 }
 
-// AggregateShares combines two RKG shares into a single one
-func (ekg *RKGProtocol) AggregateShares(share1, share2, shareOut *RKGShare) {
+// AggregateShare combines two RKG shares into a single one.
+func (ekg *RKGProtocol) AggregateShare(share1, share2, shareOut *RKGShare) {
 	ringQP, levelQ, levelP := ekg.params.RingQP(), ekg.params.QCount()-1, ekg.params.PCount()-1
 	for i := 0; i < ekg.params.Beta(); i++ {
 		ringQP.AddLvl(levelQ, levelP, share1.Value[i][0], share2.Value[i][0], shareOut.Value[i][0])
@@ -191,7 +215,7 @@ func (ekg *RKGProtocol) AggregateShares(share1, share2, shareOut *RKGShare) {
 	}
 }
 
-// GenRelinearizationKey computes the generated RLK from the public shares and write the result in evalKeyOut
+// GenRelinearizationKey computes the generated RLK from the public shares and write the result in evalKeyOut.
 func (ekg *RKGProtocol) GenRelinearizationKey(round1 *RKGShare, round2 *RKGShare, evalKeyOut *rlwe.RelinearizationKey) {
 	ringQP, levelQ, levelP := ekg.params.RingQP(), ekg.params.QCount()-1, ekg.params.PCount()-1
 	for i := 0; i < ekg.params.Beta(); i++ {
@@ -211,7 +235,7 @@ func (share *RKGShare) MarshalBinary() ([]byte, error) {
 	}
 	data[0] = uint8(len(share.Value))
 
-	//write all of our rings in the data.
+	//write all of our rings in the data
 	//write all the polys
 	ptr := 1
 	var inc int

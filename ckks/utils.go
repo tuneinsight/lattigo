@@ -1,9 +1,10 @@
 package ckks
 
 import (
-	"github.com/ldsec/lattigo/v2/ring"
 	"math"
 	"math/big"
+
+	"github.com/ldsec/lattigo/v2/ring"
 )
 
 // StandardDeviation computes the scaled standard deviation of the input vector.
@@ -25,6 +26,52 @@ func StandardDeviation(vec []float64, scale float64) (std float64) {
 	}
 
 	return math.Sqrt(err/n) * scale
+}
+
+// NttAndMontgomeryLvl takes the polynomial polIn Z[Y] outside of the NTT domain to the polynomial Z[X] in the NTT domain where Y = X^(gap).
+// This method is used to accelerate the NTT of polynomials that encode sparse plaintexts.
+func NttAndMontgomeryLvl(level int, logSlots int, ringQ *ring.Ring, montgomery bool, pol *ring.Poly) {
+
+	if 1<<logSlots == ringQ.NthRoot>>2 {
+		ringQ.NTTLvl(level, pol, pol)
+		if montgomery {
+			ringQ.MFormLvl(level, pol, pol)
+		}
+	} else {
+
+		var n int
+		var NTT func(coeffsIn, coeffsOut []uint64, N int, nttPsi []uint64, Q, QInv uint64, bredParams []uint64)
+		switch ringQ.Type() {
+		case ring.Standard:
+			n = 2 << logSlots
+			NTT = ring.NTT
+		case ring.ConjugateInvariant:
+			n = 1 << logSlots
+			NTT = ring.NTTConjugateInvariant
+		}
+
+		N := ringQ.N
+		gap := N / n
+		for i := 0; i < level+1; i++ {
+
+			coeffs := pol.Coeffs[i]
+
+			// NTT in dimension n
+			NTT(coeffs[:n], coeffs[:n], n, ringQ.NttPsi[i], ringQ.Modulus[i], ringQ.MredParams[i], ringQ.BredParams[i])
+
+			if montgomery {
+				ring.MFormVec(coeffs[:n], coeffs[:n], ringQ.Modulus[i], ringQ.BredParams[i])
+			}
+
+			// Maps NTT in dimension n to NTT in dimension N
+			for j := n - 1; j >= 0; j-- {
+				c := coeffs[j]
+				for w := 0; w < gap; w++ {
+					coeffs[j*gap+w] = c
+				}
+			}
+		}
+	}
 }
 
 func interfaceMod(x interface{}, qi uint64) uint64 {

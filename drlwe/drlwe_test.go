@@ -139,7 +139,10 @@ func testPublicKeyGen(testCtx testContext, t *testing.T) {
 
 		log2Bound := bits.Len64(3 * uint64(math.Floor(rlwe.DefaultSigma*6)) * uint64(params.N()))
 		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(pk.Value[0].Q.Level(), ringQ, pk.Value[0].Q))
-		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(pk.Value[0].P.Level(), ringP, pk.Value[0].P))
+
+		if ringP != nil {
+			require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(pk.Value[0].P.Level(), ringP, pk.Value[0].P))
+		}
 	})
 }
 
@@ -464,11 +467,14 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 
 		//comparing the results
 		require.Equal(t, KeyGenShareBefore.Value.Q.Degree(), KeyGenShareAfter.Value.Q.Degree())
-		require.Equal(t, KeyGenShareBefore.Value.P.Degree(), KeyGenShareAfter.Value.P.Degree())
 		require.Equal(t, KeyGenShareBefore.Value.Q.LenModuli(), KeyGenShareAfter.Value.Q.LenModuli())
-		require.Equal(t, KeyGenShareBefore.Value.P.LenModuli(), KeyGenShareAfter.Value.P.LenModuli())
 		require.Equal(t, KeyGenShareAfter.Value.Q.Coeffs, KeyGenShareBefore.Value.Q.Coeffs)
-		require.Equal(t, KeyGenShareAfter.Value.P.Coeffs, KeyGenShareBefore.Value.P.Coeffs)
+
+		if params.RingP() != nil {
+			require.Equal(t, KeyGenShareBefore.Value.P.Degree(), KeyGenShareAfter.Value.P.Degree())
+			require.Equal(t, KeyGenShareBefore.Value.P.LenModuli(), KeyGenShareAfter.Value.P.LenModuli())
+			require.Equal(t, KeyGenShareAfter.Value.P.Coeffs, KeyGenShareBefore.Value.P.Coeffs)
+		}
 	})
 
 	t.Run(testString(params, "Marshalling/PCKS"), func(t *testing.T) {

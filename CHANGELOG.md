@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file.
 - DRLWE/DCKKS/DBFV: added `.ShallowCopy()` to all protocols.
 - DLRWE/DCKKS/DBFV: protocols `drlwe.CKSProtocol` and `drlwe.PCKSProtocol` and sub-protocols based on these two protocols now only take a polynomial as input for the share generation instead of the full ciphertext.
 - DRLWE/DCKKS/DBFV: uniformized API of share generation and aggregation to `.GenShare(*)` and `.AggregateShare(*)`.
+- CKKS: encoder is now about 3.5x faster (without taking the NTT into account).
 
 ## [2.4.0] - 2022-01-10
 

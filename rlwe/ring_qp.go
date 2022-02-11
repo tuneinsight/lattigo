@@ -408,7 +408,7 @@ type UniformSamplerQP struct {
 }
 
 // NewUniformSamplerQP instantiates a new UniformSamplerQP from a given PRNG.
-func NewUniformSamplerQP(params Parameters, prng utils.PRNG, baseRing *RingQP) (s UniformSamplerQP) {
+func NewUniformSamplerQP(params Parameters, prng utils.PRNG) (s UniformSamplerQP) {
 	if params.RingQ() != nil {
 		s.samplerQ = ring.NewUniformSampler(prng, params.RingQ())
 	}

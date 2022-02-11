@@ -99,7 +99,7 @@ func (ekg *RKGProtocol) AllocateShare() (ephSk *rlwe.SecretKey, r1 *RKGShare, r2
 // common reference string.
 func (ekg *RKGProtocol) SampleCRP(crs CRS) RKGCRP {
 	crp := make([]rlwe.PolyQP, ekg.params.Beta())
-	us := rlwe.NewUniformSamplerQP(ekg.params, crs, ekg.params.RingQP())
+	us := rlwe.NewUniformSamplerQP(ekg.params, crs)
 	for i := range crp {
 		crp[i] = ekg.params.RingQP().NewPoly()
 		us.Read(&crp[i])

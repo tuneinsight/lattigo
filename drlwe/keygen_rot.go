@@ -80,7 +80,7 @@ func (rtg *RTGProtocol) AllocateShare() (rtgShare *RTGShare) {
 // common reference string.
 func (rtg *RTGProtocol) SampleCRP(crs CRS) RTGCRP {
 	crp := make([]rlwe.PolyQP, rtg.params.Beta())
-	us := rlwe.NewUniformSamplerQP(rtg.params, crs, rtg.params.RingQP())
+	us := rlwe.NewUniformSamplerQP(rtg.params, crs)
 	for i := range crp {
 		crp[i] = rtg.params.RingQP().NewPoly()
 		us.Read(&crp[i])

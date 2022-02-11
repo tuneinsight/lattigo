@@ -43,11 +43,16 @@ func (pcks *PCKSProtocol) ShallowCopy() *PCKSProtocol {
 
 	params := pcks.params
 
+	var tmpP [2]*ring.Poly
+	if params.RingP() != nil {
+		tmpP = [2]*ring.Poly{params.RingP().NewPoly(), params.RingP().NewPoly()}
+	}
+
 	return &PCKSProtocol{
 		params:                    params,
 		sigmaSmudging:             pcks.sigmaSmudging,
 		tmpQP:                     params.RingQP().NewPoly(),
-		tmpP:                      [2]*ring.Poly{params.RingP().NewPoly(), params.RingP().NewPoly()},
+		tmpP:                      tmpP,
 		basisExtender:             pcks.basisExtender.ShallowCopy(),
 		gaussianSampler:           ring.NewGaussianSampler(prng, params.RingQ(), pcks.sigmaSmudging, int(6*pcks.sigmaSmudging)),
 		ternarySamplerMontgomeryQ: ring.NewTernarySampler(prng, params.RingQ(), 0.5, false),
@@ -62,9 +67,12 @@ func NewPCKSProtocol(params rlwe.Parameters, sigmaSmudging float64) (pcks *PCKSP
 	pcks.sigmaSmudging = sigmaSmudging
 
 	pcks.tmpQP = params.RingQP().NewPoly()
-	pcks.tmpP = [2]*ring.Poly{params.RingP().NewPoly(), params.RingP().NewPoly()}
 
-	pcks.basisExtender = ring.NewBasisExtender(params.RingQ(), params.RingP())
+	if params.RingP() != nil {
+		pcks.basisExtender = ring.NewBasisExtender(params.RingQ(), params.RingP())
+		pcks.tmpP = [2]*ring.Poly{params.RingP().NewPoly(), params.RingP().NewPoly()}
+	}
+
 	prng, err := utils.NewPRNG()
 	if err != nil {
 		panic(err)
@@ -94,11 +102,18 @@ func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct1 *
 	ringQP := pcks.params.RingQP()
 
 	levelQ := utils.MinInt(shareOut.Value[0].Level(), ct1.Level())
-	levelP := len(ringP.Modulus) - 1
+	var levelP int
+	if ringP != nil {
+		levelP = len(ringP.Modulus) - 1
+	}
 
 	// samples MForm(u_i) in Q and P separately
 	pcks.ternarySamplerMontgomeryQ.ReadLvl(levelQ, pcks.tmpQP.Q)
-	ringQP.ExtendBasisSmallNormAndCenter(pcks.tmpQP.Q, levelP, nil, pcks.tmpQP.P)
+
+	if ringP != nil {
+		ringQP.ExtendBasisSmallNormAndCenter(pcks.tmpQP.Q, levelP, nil, pcks.tmpQP.P)
+	}
+
 	ringQP.MFormLvl(levelQ, levelP, pcks.tmpQP, pcks.tmpQP)
 	ringQP.NTTLvl(levelQ, levelP, pcks.tmpQP, pcks.tmpQP)
 
@@ -115,19 +130,27 @@ func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct1 *
 
 	// h_0 = u_i * pk_0
 	pcks.gaussianSampler.ReadLvl(levelQ, pcks.tmpQP.Q)
-	ringQP.ExtendBasisSmallNormAndCenter(pcks.tmpQP.Q, levelP, nil, pcks.tmpQP.P)
+	if ringP != nil {
+		ringQP.ExtendBasisSmallNormAndCenter(pcks.tmpQP.Q, levelP, nil, pcks.tmpQP.P)
+	}
+
 	ringQP.AddLvl(levelQ, levelP, shareOutQP0, pcks.tmpQP, shareOutQP0)
 
 	// h_1 = u_i * pk_1 + e1
 	pcks.gaussianSampler.ReadLvl(levelQ, pcks.tmpQP.Q)
-	ringQP.ExtendBasisSmallNormAndCenter(pcks.tmpQP.Q, levelP, nil, pcks.tmpQP.P)
+	if ringP != nil {
+		ringQP.ExtendBasisSmallNormAndCenter(pcks.tmpQP.Q, levelP, nil, pcks.tmpQP.P)
+	}
+
 	ringQP.AddLvl(levelQ, levelP, shareOutQP1, pcks.tmpQP, shareOutQP1)
 
-	// h_0 = (u_i * pk_0 + e0)/P
-	pcks.basisExtender.ModDownQPtoQ(levelQ, levelP, shareOutQP0.Q, shareOutQP0.P, shareOutQP0.Q)
+	if ringP != nil {
+		// h_0 = (u_i * pk_0 + e0)/P
+		pcks.basisExtender.ModDownQPtoQ(levelQ, levelP, shareOutQP0.Q, shareOutQP0.P, shareOutQP0.Q)
 
-	// h_1 = (u_i * pk_1 + e1)/P
-	pcks.basisExtender.ModDownQPtoQ(levelQ, levelP, shareOutQP1.Q, shareOutQP1.P, shareOutQP1.Q)
+		// h_1 = (u_i * pk_1 + e1)/P
+		pcks.basisExtender.ModDownQPtoQ(levelQ, levelP, shareOutQP1.Q, shareOutQP1.P, shareOutQP1.Q)
+	}
 
 	// h_0 = s_i*c_1 + (u_i * pk_0 + e0)/P
 	if ct1.IsNTT {

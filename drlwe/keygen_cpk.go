@@ -78,7 +78,7 @@ func (ckg *CKGProtocol) AllocateShare() *CKGShare {
 // common reference string.
 func (ckg *CKGProtocol) SampleCRP(crs CRS) CKGCRP {
 	crp := ckg.params.RingQP().NewPoly()
-	rlwe.NewUniformSamplerQP(ckg.params, crs, ckg.params.RingQP()).Read(&crp)
+	rlwe.NewUniformSamplerQP(ckg.params, crs).Read(&crp)
 	return CKGCRP(crp)
 }
 
@@ -91,7 +91,11 @@ func (ckg *CKGProtocol) GenShare(sk *rlwe.SecretKey, crp CKGCRP, shareOut *CKGSh
 	ringQP := ckg.params.RingQP()
 
 	ckg.gaussianSamplerQ.Read(shareOut.Value.Q)
-	ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value.Q, ckg.params.PCount()-1, nil, shareOut.Value.P)
+
+	if ringQP.RingP != nil {
+		ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value.Q, ckg.params.PCount()-1, nil, shareOut.Value.P)
+	}
+
 	levelQ, levelP := ckg.params.QCount()-1, ckg.params.PCount()-1
 	ringQP.NTTLvl(levelQ, levelP, shareOut.Value, shareOut.Value)
 

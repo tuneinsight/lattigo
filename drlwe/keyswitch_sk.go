@@ -75,7 +75,10 @@ func NewCKSProtocol(params rlwe.Parameters, sigmaSmudging float64) *CKSProtocol 
 		panic(err)
 	}
 	cks.gaussianSampler = ring.NewGaussianSampler(prng, params.RingQ(), sigmaSmudging, int(6*sigmaSmudging))
-	cks.basisExtender = ring.NewBasisExtender(params.RingQ(), params.RingP())
+
+	if cks.params.RingP() != nil {
+		cks.basisExtender = ring.NewBasisExtender(params.RingQ(), params.RingP())
+	}
 	cks.tmpQP = params.RingQP().NewPoly()
 	cks.tmpDelta = params.RingQ().NewPoly()
 	return cks
@@ -117,8 +120,10 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, c1 *ring.Pol
 	// a * (skIn - skOut) mod Q
 	ringQ.MulCoeffsMontgomeryConstantLvl(levelQ, ct1, cks.tmpDelta, shareOut.Value)
 
-	// P * a * (skIn - skOut) mod QP (mod P = 0)
-	ringQ.MulScalarBigintLvl(levelQ, shareOut.Value, ringP.ModulusBigint, shareOut.Value)
+	if ringP != nil {
+		// P * a * (skIn - skOut) mod QP (mod P = 0)
+		ringQ.MulScalarBigintLvl(levelQ, shareOut.Value, ringP.ModulusBigint, shareOut.Value)
+	}
 
 	if !c1.IsNTT {
 		// InvNTT(P * a * (skIn - skOut)) mod QP (mod P = 0)
@@ -127,21 +132,27 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, c1 *ring.Pol
 		// Samples e in Q
 		cks.gaussianSampler.ReadLvl(levelQ, cks.tmpQP.Q)
 
-		// Extend e to P (assumed to have norm < qi)
-		ringQP.ExtendBasisSmallNormAndCenter(cks.tmpQP.Q, levelP, nil, cks.tmpQP.P)
+		if ringP != nil {
+			// Extend e to P (assumed to have norm < qi)
+			ringQP.ExtendBasisSmallNormAndCenter(cks.tmpQP.Q, levelP, nil, cks.tmpQP.P)
+		}
 
 		// InvNTT(P * a * (skIn - skOut) + e) mod QP (mod P = e)
 		ringQ.AddNoModLvl(levelQ, shareOut.Value, cks.tmpQP.Q, shareOut.Value)
 
-		// InvNTT(P * a * (skIn - skOut) + e) * (1/P) mod QP (mod P = e)
-		cks.basisExtender.ModDownQPtoQ(levelQ, levelP, shareOut.Value, cks.tmpQP.P, shareOut.Value)
+		if ringP != nil {
+			// InvNTT(P * a * (skIn - skOut) + e) * (1/P) mod QP (mod P = e)
+			cks.basisExtender.ModDownQPtoQ(levelQ, levelP, shareOut.Value, cks.tmpQP.P, shareOut.Value)
+		}
 
 	} else {
 		// Sample e in Q
 		cks.gaussianSampler.ReadLvl(levelQ, cks.tmpQP.Q)
 
-		// Extend e to P (assumed to have norm < qi)
-		ringQP.ExtendBasisSmallNormAndCenter(cks.tmpQP.Q, levelP, nil, cks.tmpQP.P)
+		if ringP != nil {
+			// Extend e to P (assumed to have norm < qi)
+			ringQP.ExtendBasisSmallNormAndCenter(cks.tmpQP.Q, levelP, nil, cks.tmpQP.P)
+		}
 
 		// Takes the error to the NTT domain
 		ringQ.InvNTTLvl(levelQ, shareOut.Value, shareOut.Value)
@@ -149,8 +160,10 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, c1 *ring.Pol
 		// P * a * (skIn - skOut) + e mod Q (mod P = 0, so P = e)
 		ringQ.AddLvl(levelQ, shareOut.Value, cks.tmpQP.Q, shareOut.Value)
 
-		// (P * a * (skIn - skOut) + e) * (1/P) mod QP (mod P = e)
-		cks.basisExtender.ModDownQPtoQ(levelQ, levelP, shareOut.Value, cks.tmpQP.P, shareOut.Value)
+		if ringP != nil {
+			// (P * a * (skIn - skOut) + e) * (1/P) mod QP (mod P = e)
+			cks.basisExtender.ModDownQPtoQ(levelQ, levelP, shareOut.Value, cks.tmpQP.P, shareOut.Value)
+		}
 
 		ringQ.NTTLvl(levelQ, shareOut.Value, shareOut.Value)
 	}

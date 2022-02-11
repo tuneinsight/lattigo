@@ -7,7 +7,6 @@ import (
 	"math"
 	"math/big"
 	"math/bits"
-	"unsafe"
 
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
@@ -282,7 +281,7 @@ func (ecd *encoderComplex128) GetErrSTDCoeffDomain(valuesWant, valuesHave []comp
 	}
 
 	// Runs FFT^-1 with the smallest power of two length that is greater than the input size
-	invfft(ecd.values, 1<<bits.Len64(uint64(len(valuesHave)-1)), ecd.m, ecd.rotGroup, ecd.roots)
+	ring.SpecialInvFFTVec(ecd.values, 1<<bits.Len64(uint64(len(valuesHave)-1)), ecd.m, ecd.rotGroup, ecd.roots)
 
 	for i := range valuesWant {
 		ecd.valuesFloat[2*i] = real(ecd.values[i])
@@ -379,12 +378,11 @@ func (ecd *encoderComplex128) Embed(values interface{}, logSlots int, scale floa
 		panic("values.(Type) must be []complex128 or []float64")
 	}
 
-	for i := lenValues; i < slots; i += 8 {
-		v := (*[8]complex128)(unsafe.Pointer(&ecd.values[i]))
-		v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7] = 0, 0, 0, 0, 0, 0, 0, 0
+	for i := lenValues; i < slots; i++ {
+		ecd.values[i] = 0
 	}
 
-	invfft(ecd.values, slots, ecd.m, ecd.rotGroup, ecd.roots)
+	ring.SpecialInvFFTVec(ecd.values, slots, ecd.m, ecd.rotGroup, ecd.roots)
 
 	isRingStandard := ecd.params.RingType() == ring.Standard
 
@@ -429,19 +427,7 @@ func polyToComplexNoCRT(coeffs []uint64, values []complex128, scale float64, log
 		}
 	}
 
-	scaleCmplx := complex(scale, 0)
-	for i := 0; i < slots; i += 8 {
-		v := (*[8]complex128)(unsafe.Pointer(&values[i]))
-
-		v[0] /= scaleCmplx
-		v[1] /= scaleCmplx
-		v[2] /= scaleCmplx
-		v[3] /= scaleCmplx
-		v[4] /= scaleCmplx
-		v[5] /= scaleCmplx
-		v[6] /= scaleCmplx
-		v[7] /= scaleCmplx
-	}
+	ring.DivideComplex128SliceVec(values, complex(scale, 0))
 }
 
 func polyToComplexCRT(poly *ring.Poly, bigintCoeffs []*big.Int, values []complex128, scale float64, logSlots int, isreal bool, ringQ *ring.Ring, Q *big.Int) {
@@ -517,307 +503,12 @@ func (ecd *encoderComplex128) decodePublic(plaintext *Plaintext, logSlots int, s
 
 	ecd.plaintextToComplex(plaintext.Level(), plaintext.Scale, logSlots, ecd.polypool, ecd.values)
 
-	fft(ecd.values, 1<<logSlots, ecd.m, ecd.rotGroup, ecd.roots)
+	ring.SpecialFFTVec(ecd.values, 1<<logSlots, ecd.m, ecd.rotGroup, ecd.roots)
 
 	res = make([]complex128, 1<<logSlots)
 	copy(res, ecd.values)
 
 	return
-}
-
-func invfft(values []complex128, N, M int, rotGroup []int, roots []complex128) {
-
-	var lenh, lenq, mask, logGap int
-
-	logN := int(bits.Len64(uint64(N))) - 1
-	logM := int(bits.Len64(uint64(M))) - 1
-
-	for loglen := logN; loglen > 0; loglen-- {
-		len := 1 << loglen
-		lenh = len >> 1
-		lenq = len << 2
-		logGap = logM - 2 - loglen
-		mask = lenq - 1
-
-		if lenh > 8 {
-			for i := 0; i < N; i += len {
-				for j, k := 0, i; j < lenh; j, k = j+8, k+8 {
-
-					u := (*[8]complex128)(unsafe.Pointer(&values[k]))
-					v := (*[8]complex128)(unsafe.Pointer(&values[k+lenh]))
-					w := (*[8]int)(unsafe.Pointer(&rotGroup[j]))
-
-					u[0], v[0] = u[0]+v[0], (u[0]-v[0])*roots[(lenq-(w[0]&mask))<<logGap]
-					u[1], v[1] = u[1]+v[1], (u[1]-v[1])*roots[(lenq-(w[1]&mask))<<logGap]
-					u[2], v[2] = u[2]+v[2], (u[2]-v[2])*roots[(lenq-(w[2]&mask))<<logGap]
-					u[3], v[3] = u[3]+v[3], (u[3]-v[3])*roots[(lenq-(w[3]&mask))<<logGap]
-					u[4], v[4] = u[4]+v[4], (u[4]-v[4])*roots[(lenq-(w[4]&mask))<<logGap]
-					u[5], v[5] = u[5]+v[5], (u[5]-v[5])*roots[(lenq-(w[5]&mask))<<logGap]
-					u[6], v[6] = u[6]+v[6], (u[6]-v[6])*roots[(lenq-(w[6]&mask))<<logGap]
-					u[7], v[7] = u[7]+v[7], (u[7]-v[7])*roots[(lenq-(w[7]&mask))<<logGap]
-				}
-			}
-		} else if lenh == 8 {
-
-			psi0 := roots[(lenq-(rotGroup[0]&mask))<<logGap]
-			psi1 := roots[(lenq-(rotGroup[1]&mask))<<logGap]
-			psi2 := roots[(lenq-(rotGroup[2]&mask))<<logGap]
-			psi3 := roots[(lenq-(rotGroup[3]&mask))<<logGap]
-			psi4 := roots[(lenq-(rotGroup[4]&mask))<<logGap]
-			psi5 := roots[(lenq-(rotGroup[5]&mask))<<logGap]
-			psi6 := roots[(lenq-(rotGroup[6]&mask))<<logGap]
-			psi7 := roots[(lenq-(rotGroup[7]&mask))<<logGap]
-
-			for i := 0; i < N; i += 16 {
-
-				u := (*[16]complex128)(unsafe.Pointer(&values[i]))
-
-				u[0], u[8] = u[0]+u[8], (u[0]-u[8])*psi0
-				u[1], u[9] = u[1]+u[9], (u[1]-u[9])*psi1
-				u[2], u[10] = u[2]+u[10], (u[2]-u[10])*psi2
-				u[3], u[11] = u[3]+u[11], (u[3]-u[11])*psi3
-				u[4], u[12] = u[4]+u[12], (u[4]-u[12])*psi4
-				u[5], u[13] = u[5]+u[13], (u[5]-u[13])*psi5
-				u[6], u[14] = u[6]+u[14], (u[6]-u[14])*psi6
-				u[7], u[15] = u[7]+u[15], (u[7]-u[15])*psi7
-			}
-
-		} else if lenh == 4 {
-
-			psi0 := roots[(lenq-(rotGroup[0]&mask))<<logGap]
-			psi1 := roots[(lenq-(rotGroup[1]&mask))<<logGap]
-			psi2 := roots[(lenq-(rotGroup[2]&mask))<<logGap]
-			psi3 := roots[(lenq-(rotGroup[3]&mask))<<logGap]
-
-			for i := 0; i < N; i += 16 {
-
-				u := (*[16]complex128)(unsafe.Pointer(&values[i]))
-
-				u[0], u[4] = u[0]+u[4], (u[0]-u[4])*psi0
-				u[1], u[5] = u[1]+u[5], (u[1]-u[5])*psi1
-				u[2], u[6] = u[2]+u[6], (u[2]-u[6])*psi2
-				u[3], u[7] = u[3]+u[7], (u[3]-u[7])*psi3
-				u[8], u[12] = u[8]+u[12], (u[8]-u[12])*psi0
-				u[9], u[13] = u[9]+u[13], (u[9]-u[13])*psi1
-				u[10], u[14] = u[10]+u[14], (u[10]-u[14])*psi2
-				u[11], u[15] = u[11]+u[15], (u[11]-u[15])*psi3
-			}
-		} else if lenh == 2 {
-
-			psi0 := roots[(lenq-(rotGroup[0]&mask))<<logGap]
-			psi1 := roots[(lenq-(rotGroup[1]&mask))<<logGap]
-
-			for i := 0; i < N; i += 16 {
-
-				u := (*[16]complex128)(unsafe.Pointer(&values[i]))
-
-				u[0], u[2] = u[0]+u[2], (u[0]-u[2])*psi0
-				u[1], u[3] = u[1]+u[3], (u[1]-u[3])*psi1
-				u[4], u[6] = u[4]+u[6], (u[4]-u[6])*psi0
-				u[5], u[7] = u[5]+u[7], (u[5]-u[7])*psi1
-				u[8], u[10] = u[8]+u[10], (u[8]-u[10])*psi0
-				u[9], u[11] = u[9]+u[11], (u[9]-u[11])*psi1
-				u[12], u[14] = u[12]+u[14], (u[12]-u[14])*psi0
-				u[13], u[15] = u[13]+u[15], (u[13]-u[15])*psi1
-			}
-		} else if lenh == 1 {
-
-			psi0 := roots[(lenq-(rotGroup[0]&mask))<<logGap]
-
-			for i := 0; i < N; i += 16 {
-
-				u := (*[16]complex128)(unsafe.Pointer(&values[i]))
-
-				u[0], u[1] = u[0]+u[1], (u[0]-u[1])*psi0
-				u[2], u[3] = u[2]+u[3], (u[2]-u[3])*psi0
-				u[4], u[5] = u[4]+u[5], (u[4]-u[5])*psi0
-				u[6], u[7] = u[6]+u[7], (u[6]-u[7])*psi0
-				u[8], u[9] = u[8]+u[9], (u[8]-u[9])*psi0
-				u[10], u[11] = u[10]+u[11], (u[10]-u[11])*psi0
-				u[12], u[13] = u[12]+u[13], (u[12]-u[13])*psi0
-				u[14], u[15] = u[14]+u[15], (u[14]-u[15])*psi0
-			}
-		}
-	}
-
-	invN := complex(float64(N), 0)
-	for i := 0; i < N; i = i + 8 {
-
-		v := (*[8]complex128)(unsafe.Pointer(&values[i]))
-
-		v[0] /= invN
-		v[1] /= invN
-		v[2] /= invN
-		v[3] /= invN
-		v[4] /= invN
-		v[5] /= invN
-		v[6] /= invN
-		v[7] /= invN
-	}
-
-	SliceBitReverseInPlaceComplex128(values, N)
-}
-
-func fft(values []complex128, N, M int, rotGroup []int, roots []complex128) {
-
-	SliceBitReverseInPlaceComplex128(values, N)
-
-	logN := int(bits.Len64(uint64(N))) - 1
-	logM := int(bits.Len64(uint64(M))) - 1
-
-	for loglen := 1; loglen <= logN; loglen++ {
-		len := 1 << loglen
-		lenh := len >> 1
-		lenq := len << 2
-		logGap := logM - 2 - loglen
-		mask := lenq - 1
-
-		if lenh > 8 {
-			for i := 0; i < N; i += len {
-
-				for j, k := 0, i; j < lenh; j, k = j+8, k+8 {
-
-					u := (*[8]complex128)(unsafe.Pointer(&values[k]))
-					v := (*[8]complex128)(unsafe.Pointer(&values[k+lenh]))
-					w := (*[8]int)(unsafe.Pointer(&rotGroup[j]))
-
-					v[0] *= roots[(w[0]&mask)<<logGap]
-					v[1] *= roots[(w[1]&mask)<<logGap]
-					v[2] *= roots[(w[2]&mask)<<logGap]
-					v[3] *= roots[(w[3]&mask)<<logGap]
-					v[4] *= roots[(w[4]&mask)<<logGap]
-					v[5] *= roots[(w[5]&mask)<<logGap]
-					v[6] *= roots[(w[6]&mask)<<logGap]
-					v[7] *= roots[(w[7]&mask)<<logGap]
-
-					u[0], v[0] = u[0]+v[0], u[0]-v[0]
-					u[1], v[1] = u[1]+v[1], u[1]-v[1]
-					u[2], v[2] = u[2]+v[2], u[2]-v[2]
-					u[3], v[3] = u[3]+v[3], u[3]-v[3]
-					u[4], v[4] = u[4]+v[4], u[4]-v[4]
-					u[5], v[5] = u[5]+v[5], u[5]-v[5]
-					u[6], v[6] = u[6]+v[6], u[6]-v[6]
-					u[7], v[7] = u[7]+v[7], u[7]-v[7]
-				}
-			}
-		} else if lenh == 8 {
-
-			psi0 := roots[(rotGroup[0]&mask)<<logGap]
-			psi1 := roots[(rotGroup[1]&mask)<<logGap]
-			psi2 := roots[(rotGroup[2]&mask)<<logGap]
-			psi3 := roots[(rotGroup[3]&mask)<<logGap]
-			psi4 := roots[(rotGroup[4]&mask)<<logGap]
-			psi5 := roots[(rotGroup[5]&mask)<<logGap]
-			psi6 := roots[(rotGroup[6]&mask)<<logGap]
-			psi7 := roots[(rotGroup[7]&mask)<<logGap]
-
-			for i := 0; i < N; i += 16 {
-
-				u := (*[16]complex128)(unsafe.Pointer(&values[i]))
-
-				u[8] *= psi0
-				u[9] *= psi1
-				u[10] *= psi2
-				u[11] *= psi3
-				u[12] *= psi4
-				u[13] *= psi5
-				u[14] *= psi6
-				u[15] *= psi7
-
-				u[0], u[8] = u[0]+u[8], u[0]-u[8]
-				u[1], u[9] = u[1]+u[9], u[1]-u[9]
-				u[2], u[10] = u[2]+u[10], u[2]-u[10]
-				u[3], u[11] = u[3]+u[11], u[3]-u[11]
-				u[4], u[12] = u[4]+u[12], u[4]-u[12]
-				u[5], u[13] = u[5]+u[13], u[5]-u[13]
-				u[6], u[14] = u[6]+u[14], u[6]-u[14]
-				u[7], u[15] = u[7]+u[15], u[7]-u[15]
-
-			}
-		} else if lenh == 4 {
-
-			psi0 := roots[(rotGroup[0]&mask)<<logGap]
-			psi1 := roots[(rotGroup[1]&mask)<<logGap]
-			psi2 := roots[(rotGroup[2]&mask)<<logGap]
-			psi3 := roots[(rotGroup[3]&mask)<<logGap]
-
-			for i := 0; i < N; i += 16 {
-
-				u := (*[16]complex128)(unsafe.Pointer(&values[i]))
-
-				u[4] *= psi0
-				u[5] *= psi1
-				u[6] *= psi2
-				u[7] *= psi3
-				u[12] *= psi0
-				u[13] *= psi1
-				u[14] *= psi2
-				u[15] *= psi3
-
-				u[0], u[4] = u[0]+u[4], u[0]-u[4]
-				u[1], u[5] = u[1]+u[5], u[1]-u[5]
-				u[2], u[6] = u[2]+u[6], u[2]-u[6]
-				u[3], u[7] = u[3]+u[7], u[3]-u[7]
-				u[8], u[12] = u[8]+u[12], u[8]-u[12]
-				u[9], u[13] = u[9]+u[13], u[9]-u[13]
-				u[10], u[14] = u[10]+u[14], u[10]-u[14]
-				u[11], u[15] = u[11]+u[15], u[11]-u[15]
-			}
-		} else if lenh == 2 {
-
-			psi0 := roots[(rotGroup[0]&mask)<<logGap]
-			psi1 := roots[(rotGroup[1]&mask)<<logGap]
-
-			for i := 0; i < N; i += 16 {
-
-				u := (*[16]complex128)(unsafe.Pointer(&values[i]))
-
-				u[2] *= psi0
-				u[3] *= psi1
-				u[6] *= psi0
-				u[7] *= psi1
-				u[10] *= psi0
-				u[11] *= psi1
-				u[14] *= psi0
-				u[15] *= psi1
-
-				u[0], u[2] = u[0]+u[2], u[0]-u[2]
-				u[1], u[3] = u[1]+u[3], u[1]-u[3]
-				u[4], u[6] = u[4]+u[6], u[4]-u[6]
-				u[5], u[7] = u[5]+u[7], u[5]-u[7]
-				u[8], u[10] = u[8]+u[10], u[8]-u[10]
-				u[9], u[11] = u[9]+u[11], u[9]-u[11]
-				u[12], u[14] = u[12]+u[14], u[12]-u[14]
-				u[13], u[15] = u[13]+u[15], u[13]-u[15]
-			}
-		} else if lenh == 1 {
-
-			psi0 := roots[(rotGroup[0]&mask)<<logGap]
-
-			for i := 0; i < N; i += 16 {
-
-				u := (*[16]complex128)(unsafe.Pointer(&values[i]))
-
-				u[1] *= psi0
-				u[3] *= psi0
-				u[5] *= psi0
-				u[7] *= psi0
-				u[9] *= psi0
-				u[11] *= psi0
-				u[13] *= psi0
-				u[15] *= psi0
-
-				u[0], u[1] = u[0]+u[1], u[0]-u[1]
-				u[2], u[3] = u[2]+u[3], u[2]-u[3]
-				u[4], u[5] = u[4]+u[5], u[4]-u[5]
-				u[6], u[7] = u[6]+u[7], u[6]-u[7]
-				u[8], u[9] = u[8]+u[9], u[8]-u[9]
-				u[10], u[11] = u[10]+u[11], u[10]-u[11]
-				u[12], u[13] = u[12]+u[13], u[12]-u[13]
-				u[14], u[15] = u[14]+u[15], u[14]-u[15]
-			}
-		}
-	}
 }
 
 func (ecd *encoderComplex128) decodeCoeffsPublic(plaintext *Plaintext, sigma float64) (res []float64) {
@@ -1021,7 +712,7 @@ func (ecd *encoderBigComplex) FFT(values []*ring.Complex, N int) {
 	u := ring.NewComplex(nil, nil)
 	v := ring.NewComplex(nil, nil)
 
-	SliceBitReverseInPlaceRingComplex(values, N)
+	ring.SliceBitReverseInPlaceRingComplex(values, N)
 
 	for len := 2; len <= N; len <<= 1 {
 		for i := 0; i < N; i += len {
@@ -1069,7 +760,7 @@ func (ecd *encoderBigComplex) InvFFT(values []*ring.Complex, N int) {
 		values[i][1].Quo(values[i][1], NBig)
 	}
 
-	SliceBitReverseInPlaceRingComplex(values, N)
+	ring.SliceBitReverseInPlaceRingComplex(values, N)
 }
 
 // ShallowCopy creates a shallow copy of this encoderBigComplex in which all the read-only data-structures are

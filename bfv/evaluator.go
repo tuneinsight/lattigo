@@ -7,8 +7,6 @@ import (
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
 	"github.com/tuneinsight/lattigo/v3/utils"
-
-	"unsafe"
 )
 
 // Operand is a common interface for Ciphertext and Plaintext.
@@ -126,7 +124,7 @@ func NewEvaluator(params Parameters, evaluationKey rlwe.EvaluationKey) Evaluator
 		rescaleParams[i] = ring.MForm(ring.ModExp(params.T(), qi-2, qi), qi, params.RingQ().BredParams[i])
 	}
 
-	ev.lightEncoder = &encoder{rescaleParams: rescaleParams}
+	ev.lightEncoder = &encoder{tInvModQ: rescaleParams}
 	ev.basisExtenderQ1toQ2 = ring.NewBasisExtender(ev.ringQ, ev.ringQMul)
 	if params.PCount() != 0 {
 		ev.KeySwitcher = rlwe.NewKeySwitcher(params.Parameters)
@@ -491,20 +489,8 @@ func (eval *evaluator) mulPlaintextRingT(ct0 *Ciphertext, ptRt *PlaintextRingT, 
 			ring.NTTLazy(coeffs, coeffsNTT, ringQ.N, nttPsi, qi, mredParams, bredParams)
 
 			// Multiplies NTT_qi(pt) * NTT_qi(ct)
-			for k := 0; k < eval.ringQ.N; k = k + 8 {
+			ring.MulCoeffsMontgomeryVec(tmp, coeffsNTT, tmp, qi, mredParams)
 
-				x := (*[8]uint64)(unsafe.Pointer(&coeffsNTT[k]))
-				z := (*[8]uint64)(unsafe.Pointer(&tmp[k]))
-
-				z[0] = ring.MRed(z[0], x[0], qi, mredParams)
-				z[1] = ring.MRed(z[1], x[1], qi, mredParams)
-				z[2] = ring.MRed(z[2], x[2], qi, mredParams)
-				z[3] = ring.MRed(z[3], x[3], qi, mredParams)
-				z[4] = ring.MRed(z[4], x[4], qi, mredParams)
-				z[5] = ring.MRed(z[5], x[5], qi, mredParams)
-				z[6] = ring.MRed(z[6], x[6], qi, mredParams)
-				z[7] = ring.MRed(z[7], x[7], qi, mredParams)
-			}
 		}
 
 		// Switches the ciphertext out of the NTT domain
@@ -721,7 +707,7 @@ func (eval *evaluator) getRingQElem(op Operand) *rlwe.Ciphertext {
 	case *Ciphertext, *Plaintext:
 		return o.El()
 	case *PlaintextRingT:
-		eval.lightEncoder.scaleUp(eval.params.RingQ(), eval.params.RingT(), eval.Pool[0].Q.Coeffs[0], o.Value, eval.tmpPt.Value)
+		ring.ScaleUpVec(eval.params.RingQ(), eval.params.RingT(), eval.lightEncoder.tInvModQ, eval.Pool[0].Q.Coeffs[0], o.Value, eval.tmpPt.Value)
 		return eval.tmpPt.El()
 	default:
 		panic(fmt.Errorf("invalid operand type for operation: %T", o))

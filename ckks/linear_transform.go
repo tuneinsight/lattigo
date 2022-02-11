@@ -31,6 +31,7 @@ func (eval *evaluator) Trace(ctIn *Ciphertext, logSlotsStart, logSlotsEnd int, c
 
 	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:levelQ+1]
 	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:levelQ+1]
+	ctOut.Scale = ctIn.Scale
 
 	n := 1 << (logSlotsEnd - logSlotsStart)
 
@@ -91,6 +92,7 @@ func (eval *evaluator) RotateHoisted(ctIn *Ciphertext, rotations []int, ctOut ma
 	for _, i := range rotations {
 		ctOut[i].Value[0].Coeffs = ctOut[i].Value[0].Coeffs[:levelQ+1]
 		ctOut[i].Value[1].Coeffs = ctOut[i].Value[1].Coeffs[:levelQ+1]
+		ctOut[i].Scale = ctIn.Scale
 		if i == 0 {
 			ctOut[i].Copy(ctIn)
 		} else {
@@ -551,6 +553,7 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 
 	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:levelQ+1]
 	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:levelQ+1]
+	ctOut.Scale = ctIn.Scale
 
 	if n == 1 {
 		if ctIn != ctOut {
@@ -665,6 +668,7 @@ func (eval *evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 
 	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:levelQ+1]
 	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:levelQ+1]
+	ctOut.Scale = ctIn.Scale
 
 	// If sum with only the first element, then returns the input
 	if n == 1 {

@@ -54,28 +54,6 @@ func ModexpMontgomery(x uint64, e int, q, qInv uint64, bredParams []uint64) (res
 	return result
 }
 
-// SliceBitReverseInPlaceFloat64 applies an in-place bit-reverse permuation on the input slice.
-func SliceBitReverseInPlaceFloat64(slice []float64, N int) {
-
-	var bit, j int
-
-	for i := 1; i < N; i++ {
-
-		bit = N >> 1
-
-		for j >= bit {
-			j -= bit
-			bit >>= 1
-		}
-
-		j += bit
-
-		if i < j {
-			slice[i], slice[j] = slice[j], slice[i]
-		}
-	}
-}
-
 // gcd computes the greatest common divisor gcd(a,b) for a,b uint64 variables
 func gcd(a, b uint64) uint64 {
 	if a == 0 || b == 0 {

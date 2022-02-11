@@ -4,7 +4,6 @@ import (
 	"math"
 
 	"github.com/tuneinsight/lattigo/v3/ckks"
-	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
@@ -500,14 +499,14 @@ func genFFTDiagMatrix(logL, fftLevel int, a, b, c []complex128, ltType LinearTra
 	vectors = make(map[int][]complex128)
 
 	if bitreversed {
-		ring.SliceBitReverseInPlaceComplex128(a, 1<<logL)
-		ring.SliceBitReverseInPlaceComplex128(b, 1<<logL)
-		ring.SliceBitReverseInPlaceComplex128(c, 1<<logL)
+		ckks.SliceBitReverseInPlaceComplex128(a, 1<<logL)
+		ckks.SliceBitReverseInPlaceComplex128(b, 1<<logL)
+		ckks.SliceBitReverseInPlaceComplex128(c, 1<<logL)
 
 		if len(a) > 1<<logL {
-			ring.SliceBitReverseInPlaceComplex128(a[1<<logL:], 1<<logL)
-			ring.SliceBitReverseInPlaceComplex128(b[1<<logL:], 1<<logL)
-			ring.SliceBitReverseInPlaceComplex128(c[1<<logL:], 1<<logL)
+			ckks.SliceBitReverseInPlaceComplex128(a[1<<logL:], 1<<logL)
+			ckks.SliceBitReverseInPlaceComplex128(b[1<<logL:], 1<<logL)
+			ckks.SliceBitReverseInPlaceComplex128(c[1<<logL:], 1<<logL)
 		}
 	}
 
@@ -552,14 +551,14 @@ func multiplyFFTMatrixWithNextFFTLevel(vec map[int][]complex128, logL, N, nextLe
 	}
 
 	if bitreversed {
-		ring.SliceBitReverseInPlaceComplex128(a, 1<<logL)
-		ring.SliceBitReverseInPlaceComplex128(b, 1<<logL)
-		ring.SliceBitReverseInPlaceComplex128(c, 1<<logL)
+		ckks.SliceBitReverseInPlaceComplex128(a, 1<<logL)
+		ckks.SliceBitReverseInPlaceComplex128(b, 1<<logL)
+		ckks.SliceBitReverseInPlaceComplex128(c, 1<<logL)
 
 		if len(a) > 1<<logL {
-			ring.SliceBitReverseInPlaceComplex128(a[1<<logL:], 1<<logL)
-			ring.SliceBitReverseInPlaceComplex128(b[1<<logL:], 1<<logL)
-			ring.SliceBitReverseInPlaceComplex128(c[1<<logL:], 1<<logL)
+			ckks.SliceBitReverseInPlaceComplex128(a[1<<logL:], 1<<logL)
+			ckks.SliceBitReverseInPlaceComplex128(b[1<<logL:], 1<<logL)
+			ckks.SliceBitReverseInPlaceComplex128(c[1<<logL:], 1<<logL)
 		}
 	}
 

@@ -210,7 +210,7 @@ func (ecd *encoder) EncodeIntMul(coeffs []int64, p *PlaintextMul) {
 
 // ScaleUp transforms a PlaintextRingT (R_t) into a Plaintext (R_q) by scaling up the coefficient by Q/t.
 func (ecd *encoder) ScaleUp(ptRt *PlaintextRingT, pt *Plaintext) {
-	ring.ScaleUpVec(ecd.params.RingQ(), ecd.params.RingT(), ecd.tInvModQ, ecd.tmpPoly.Coeffs[0], ptRt.Value, pt.Value)
+	ScaleUpVec(ecd.params.RingQ(), ecd.params.RingT(), ecd.tInvModQ, ecd.tmpPoly.Coeffs[0], ptRt.Value, pt.Value)
 }
 
 // ScaleDown transforms a Plaintext (R_q) into a PlaintextRingT (R_t) by scaling down the coefficient by t/Q and rounding.

@@ -707,7 +707,7 @@ func (eval *evaluator) getRingQElem(op Operand) *rlwe.Ciphertext {
 	case *Ciphertext, *Plaintext:
 		return o.El()
 	case *PlaintextRingT:
-		ring.ScaleUpVec(eval.params.RingQ(), eval.params.RingT(), eval.lightEncoder.tInvModQ, eval.Pool[0].Q.Coeffs[0], o.Value, eval.tmpPt.Value)
+		ScaleUpVec(eval.params.RingQ(), eval.params.RingT(), eval.lightEncoder.tInvModQ, eval.Pool[0].Q.Coeffs[0], o.Value, eval.tmpPt.Value)
 		return eval.tmpPt.El()
 	default:
 		panic(fmt.Errorf("invalid operand type for operation: %T", o))

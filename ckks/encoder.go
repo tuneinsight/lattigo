@@ -281,7 +281,7 @@ func (ecd *encoderComplex128) GetErrSTDCoeffDomain(valuesWant, valuesHave []comp
 	}
 
 	// Runs FFT^-1 with the smallest power of two length that is greater than the input size
-	ring.SpecialInvFFTVec(ecd.values, 1<<bits.Len64(uint64(len(valuesHave)-1)), ecd.m, ecd.rotGroup, ecd.roots)
+	SpecialInvFFTVec(ecd.values, 1<<bits.Len64(uint64(len(valuesHave)-1)), ecd.m, ecd.rotGroup, ecd.roots)
 
 	for i := range valuesWant {
 		ecd.valuesFloat[2*i] = real(ecd.values[i])
@@ -382,7 +382,7 @@ func (ecd *encoderComplex128) Embed(values interface{}, logSlots int, scale floa
 		ecd.values[i] = 0
 	}
 
-	ring.SpecialInvFFTVec(ecd.values, slots, ecd.m, ecd.rotGroup, ecd.roots)
+	SpecialInvFFTVec(ecd.values, slots, ecd.m, ecd.rotGroup, ecd.roots)
 
 	isRingStandard := ecd.params.RingType() == ring.Standard
 
@@ -427,7 +427,7 @@ func polyToComplexNoCRT(coeffs []uint64, values []complex128, scale float64, log
 		}
 	}
 
-	ring.DivideComplex128SliceVec(values, complex(scale, 0))
+	DivideComplex128SliceVec(values, complex(scale, 0))
 }
 
 func polyToComplexCRT(poly *ring.Poly, bigintCoeffs []*big.Int, values []complex128, scale float64, logSlots int, isreal bool, ringQ *ring.Ring, Q *big.Int) {
@@ -503,7 +503,7 @@ func (ecd *encoderComplex128) decodePublic(plaintext *Plaintext, logSlots int, s
 
 	ecd.plaintextToComplex(plaintext.Level(), plaintext.Scale, logSlots, ecd.polypool, ecd.values)
 
-	ring.SpecialFFTVec(ecd.values, 1<<logSlots, ecd.m, ecd.rotGroup, ecd.roots)
+	SpecialFFTVec(ecd.values, 1<<logSlots, ecd.m, ecd.rotGroup, ecd.roots)
 
 	res = make([]complex128, 1<<logSlots)
 	copy(res, ecd.values)
@@ -712,7 +712,7 @@ func (ecd *encoderBigComplex) FFT(values []*ring.Complex, N int) {
 	u := ring.NewComplex(nil, nil)
 	v := ring.NewComplex(nil, nil)
 
-	ring.SliceBitReverseInPlaceRingComplex(values, N)
+	SliceBitReverseInPlaceRingComplex(values, N)
 
 	for len := 2; len <= N; len <<= 1 {
 		for i := 0; i < N; i += len {
@@ -760,7 +760,7 @@ func (ecd *encoderBigComplex) InvFFT(values []*ring.Complex, N int) {
 		values[i][1].Quo(values[i][1], NBig)
 	}
 
-	ring.SliceBitReverseInPlaceRingComplex(values, N)
+	SliceBitReverseInPlaceRingComplex(values, N)
 }
 
 // ShallowCopy creates a shallow copy of this encoderBigComplex in which all the read-only data-structures are

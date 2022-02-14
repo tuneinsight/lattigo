@@ -13,7 +13,7 @@ import (
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
-var minLogSlots = 3
+var minLogSlots = 0
 
 // Name of the different default parameter sets
 var (

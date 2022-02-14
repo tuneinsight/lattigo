@@ -5,8 +5,52 @@ import (
 	"unsafe"
 )
 
+// SpecialiFFTVec performs the CKKS special inverse FFT transform in place.
+func SpecialiFFTVec(values []complex128, N, M int, rotGroup []int, roots []complex128) {
+	logN := int(bits.Len64(uint64(N))) - 1
+	logM := int(bits.Len64(uint64(M))) - 1
+	for loglen := logN; loglen > 0; loglen-- {
+		len := 1 << loglen
+		lenh := len >> 1
+		lenq := len << 2
+		logGap := logM - 2 - loglen
+		mask := lenq - 1
+		for i := 0; i < N; i += len {
+			for j, k := 0, i; j < lenh; j, k = j+1, k+1 {
+				values[k], values[k+lenh] = values[k]+values[k+lenh], (values[k]-values[k+lenh])*roots[(lenq-(rotGroup[j]&mask))<<logGap]
+			}
+		}
+	}
+
+	for i := 0; i < N; i++ {
+		values[i] /= complex(float64(N), 0)
+	}
+
+	SliceBitReverseInPlaceComplex128(values, N)
+}
+
 // SpecialFFTVec performs the CKKS special FFT transform in place.
 func SpecialFFTVec(values []complex128, N, M int, rotGroup []int, roots []complex128) {
+	SliceBitReverseInPlaceComplex128(values, N)
+	logN := int(bits.Len64(uint64(N))) - 1
+	logM := int(bits.Len64(uint64(M))) - 1
+	for loglen := 1; loglen <= logN; loglen++ {
+		len := 1 << loglen
+		lenh := len >> 1
+		lenq := len << 2
+		logGap := logM - 2 - loglen
+		mask := lenq - 1
+		for i := 0; i < N; i += len {
+			for j, k := 0, i; j < lenh; j, k = j+1, k+1 {
+				values[k+lenh] *= roots[(rotGroup[j]&mask)<<logGap]
+				values[k], values[k+lenh] = values[k]+values[k+lenh], values[k]-values[k+lenh]
+			}
+		}
+	}
+}
+
+// SpecialFFTUL8Vec performs the CKKS special FFT transform in place with unrolled loops of size 8.
+func SpecialFFTUL8Vec(values []complex128, N, M int, rotGroup []int, roots []complex128) {
 
 	SliceBitReverseInPlaceComplex128(values, N)
 
@@ -168,21 +212,18 @@ func SpecialFFTVec(values []complex128, N, M int, rotGroup []int, roots []comple
 	}
 }
 
-// SpecialInvFFTVec performs the CKKS special inverse FFT transform in place.
-func SpecialInvFFTVec(values []complex128, N, M int, rotGroup []int, roots []complex128) {
-
-	var lenh, lenq, mask, logGap int
+// SpecialiFFTUL8Vec performs the CKKS special inverse FFT transform in place with unrolled loops of size 8.
+func SpecialiFFTUL8Vec(values []complex128, N, M int, rotGroup []int, roots []complex128) {
 
 	logN := int(bits.Len64(uint64(N))) - 1
 	logM := int(bits.Len64(uint64(M))) - 1
 
 	for loglen := logN; loglen > 0; loglen-- {
 		len := 1 << loglen
-		lenh = len >> 1
-		lenq = len << 2
-		logGap = logM - 2 - loglen
-		mask = lenq - 1
-
+		lenh := len >> 1
+		lenq := len << 2
+		logGap := logM - 2 - loglen
+		mask := lenq - 1
 		if lenh > 8 {
 			for i := 0; i < N; i += len {
 				for j, k := 0, i; j < lenh; j, k = j+8, k+8 {

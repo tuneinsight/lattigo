@@ -280,8 +280,14 @@ func (ecd *encoderComplex128) GetErrSTDCoeffDomain(valuesWant, valuesHave []comp
 		ecd.values[i] = complex(0, 0)
 	}
 
+	logSlots := bits.Len64(uint64(len(valuesHave) - 1))
+
 	// Runs FFT^-1 with the smallest power of two length that is greater than the input size
-	SpecialInvFFTVec(ecd.values, 1<<bits.Len64(uint64(len(valuesHave)-1)), ecd.m, ecd.rotGroup, ecd.roots)
+	if logSlots < 3 {
+		SpecialiFFTVec(ecd.values, 1<<logSlots, ecd.m, ecd.rotGroup, ecd.roots)
+	} else {
+		SpecialiFFTUL8Vec(ecd.values, 1<<logSlots, ecd.m, ecd.rotGroup, ecd.roots)
+	}
 
 	for i := range valuesWant {
 		ecd.valuesFloat[2*i] = real(ecd.values[i])
@@ -382,7 +388,11 @@ func (ecd *encoderComplex128) Embed(values interface{}, logSlots int, scale floa
 		ecd.values[i] = 0
 	}
 
-	SpecialInvFFTVec(ecd.values, slots, ecd.m, ecd.rotGroup, ecd.roots)
+	if logSlots < 3 {
+		SpecialiFFTVec(ecd.values, slots, ecd.m, ecd.rotGroup, ecd.roots)
+	} else {
+		SpecialiFFTUL8Vec(ecd.values, slots, ecd.m, ecd.rotGroup, ecd.roots)
+	}
 
 	isRingStandard := ecd.params.RingType() == ring.Standard
 
@@ -503,7 +513,11 @@ func (ecd *encoderComplex128) decodePublic(plaintext *Plaintext, logSlots int, s
 
 	ecd.plaintextToComplex(plaintext.Level(), plaintext.Scale, logSlots, ecd.polypool, ecd.values)
 
-	SpecialFFTVec(ecd.values, 1<<logSlots, ecd.m, ecd.rotGroup, ecd.roots)
+	if logSlots < 3 {
+		SpecialFFTVec(ecd.values, 1<<logSlots, ecd.m, ecd.rotGroup, ecd.roots)
+	} else {
+		SpecialFFTUL8Vec(ecd.values, 1<<logSlots, ecd.m, ecd.rotGroup, ecd.roots)
+	}
 
 	res = make([]complex128, 1<<logSlots)
 	copy(res, ecd.values)

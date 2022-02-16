@@ -55,7 +55,7 @@ func (pcks *PCKSProtocol) ShallowCopy() *PCKSProtocol {
 		tmpP:                      tmpP,
 		basisExtender:             pcks.basisExtender.ShallowCopy(),
 		gaussianSampler:           ring.NewGaussianSampler(prng, params.RingQ(), pcks.sigmaSmudging, int(6*pcks.sigmaSmudging)),
-		ternarySamplerMontgomeryQ: ring.NewTernarySampler(prng, params.RingQ(), 0.5, false),
+		ternarySamplerMontgomeryQ: ring.NewTernarySamplerWithHammingWeight(prng, params.RingQ(), params.HammingWeight(), false),
 	}
 }
 
@@ -78,7 +78,7 @@ func NewPCKSProtocol(params rlwe.Parameters, sigmaSmudging float64) (pcks *PCKSP
 		panic(err)
 	}
 	pcks.gaussianSampler = ring.NewGaussianSampler(prng, params.RingQ(), sigmaSmudging, int(6*sigmaSmudging))
-	pcks.ternarySamplerMontgomeryQ = ring.NewTernarySampler(prng, params.RingQ(), 0.5, false)
+	pcks.ternarySamplerMontgomeryQ = ring.NewTernarySamplerWithHammingWeight(prng, params.RingQ(), params.HammingWeight(), false)
 
 	return pcks
 }

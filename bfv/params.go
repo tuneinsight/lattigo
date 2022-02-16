@@ -99,6 +99,15 @@ var DefaultPostQuantumParams = []ParametersLiteral{PN12QP101pq, PN13QP202pq, PN1
 // fields and is used to express unchecked user-defined parameters literally into
 // Go programs. The NewParametersFromLiteral function is used to generate the actual
 // checked parameters from the literal representation.
+//
+// Users must set the polynomial degree (LogN) and the coefficient modulus, by either setting
+// the Q and P fields to the desired moduli chain, or by setting the LogQ and LogP fields to
+// the desired moduli sizes. Users must also specify the coefficient modulus in plaintext-space
+// (T).
+//
+// Optionally, users may specify the error variance (Sigma) and secrets' density (H). If left
+// unset, standard default values for these field are substituted at parameter creation (see
+// NewParametersFromLiteral).
 type ParametersLiteral struct {
 	LogN  int // Log Ring degree (power of 2)
 	Q     []uint64
@@ -144,6 +153,8 @@ func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err erro
 
 // NewParametersFromLiteral instantiate a set of BFV parameters from a ParametersLiteral specification.
 // It returns the empty parameters Parameters{} and a non-nil error if the specified parameters are invalid.
+//
+// See `rlwe.NewParametersFromLiteral` for default values of the optional fields.
 func NewParametersFromLiteral(pl ParametersLiteral) (Parameters, error) {
 	rlweParams, err := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{LogN: pl.LogN, Q: pl.Q, P: pl.P, LogQ: pl.LogQ, LogP: pl.LogP, H: pl.H, Sigma: pl.Sigma})
 	if err != nil {
@@ -175,6 +186,10 @@ func (p Parameters) Equals(other Parameters) bool {
 }
 
 // CopyNew makes a deep copy of the receiver and returns it.
+//
+// Deprecated: Parameter is now a read-only struct, except for the UnmarshalBinary method: deep copying should only be
+// required to save a Parameter struct before calling its UnmarshalBinary method and it will be deprecated when
+// transitioning to a immutable serialization interface.
 func (p Parameters) CopyNew() Parameters {
 	p.Parameters = p.Parameters.CopyNew()
 	return p

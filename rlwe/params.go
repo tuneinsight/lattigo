@@ -34,6 +34,14 @@ const GaloisGen uint64 = 5
 // fields and is used to express unchecked user-defined parameters literally into
 // Go programs. The NewParametersFromLiteral function is used to generate the actual
 // checked parameters from the literal representation.
+//
+// Users must set the polynomial degree (LogN) and the coefficient modulus, by either setting
+// the Q and P fields to the desired moduli chain, or by setting the LogQ and LogP fields to
+// the desired moduli sizes.
+//
+// Optionally, users may specify the error variance (Sigma) and secrets' density (H) and the ring
+// type (RingType). If left unset, standard default values for these field are substituted at
+// parameter creation (see NewParametersFromLiteral).
 type ParametersLiteral struct {
 	LogN     int
 	Q        []uint64
@@ -90,6 +98,16 @@ func NewParameters(logn int, q, p []uint64, h int, sigma float64, ringType ring.
 
 // NewParametersFromLiteral instantiate a set of generic RLWE parameters from a ParametersLiteral specification.
 // It returns the empty parameters Parameters{} and a non-nil error if the specified parameters are invalid.
+//
+// If the moduli chain is specified through the LogQ and LogP fields, the method generates a moduli chain matching
+// the specified sizes (see `GenModuli`).
+//
+// If the secrets' density parameter (H) is left unset, its value is set to 2^(paramDef.LogN-1) to match
+// the standard ternary distribution.
+//
+// If the error variance is left unset, its value is set to `DefaultSigma`.
+//
+// If the RingType is left unset, the default value is ring.Standard.
 func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
 
 	if paramDef.H == 0 {
@@ -368,6 +386,10 @@ func (p Parameters) Equals(other Parameters) bool {
 }
 
 // CopyNew makes a deep copy of the receiver and returns it.
+//
+// Deprecated: Parameter is now a read-only struct, except for the UnmarshalBinary method: deep copying should only be
+// required to save a Parameter struct before calling its UnmarshalBinary method and it will be deprecated when
+// transitioning to a immutable serialization interface.
 func (p Parameters) CopyNew() Parameters {
 	qi, pi := p.qi, p.pi
 	p.qi, p.pi = make([]uint64, len(p.qi)), make([]uint64, len(p.pi))

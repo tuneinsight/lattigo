@@ -4,7 +4,7 @@
 	<img src="logo.png" />
 </p>
 
-![Go tests](https://github.com/ldsec/lattigo/actions/workflows/ci.yml/badge.svg)
+![Go tests](https://github.com/tuneinsight/lattigo/actions/workflows/ci.yml/badge.svg)
 
 Lattigo is a Go module that implements Ring-Learning-With-Errors-based homomorphic-encryption primitives and Multiparty-Homomorphic-Encryption-based secure protocols.
 The library features:
@@ -36,14 +36,19 @@ The library exposes the following packages:
 
 ## Versions and Roadmap
 
-This version of Lattigo, (v2.x.x) is meant to be a working prototype.
-Hence, there will be backward-incompatible changes within this version. 
+The Lattigo library was originally exclusively developed by the EPFL Laboratory for Data Security until its version 2.4.0.
+
+Starting with the release of version 3.0.0, Lattigo is maintained and supported by [Tune Insight SA](https://tuneinsight.com).
+
+Also starting with from version 3.0.0, the module name has changed to github.com/tuneinsight/lattigo/v3, and the official repository has been moved to https://github.com/tuneinsight/lattigo. This has the following implications for modules that depend on Lattigo:
+- Modules that require github.com/ldsec/lattigo/v2 will still build correctly.
+- To upgrade to a version >= 3.0.0, modules have to require `github.com/tuneinsight/lattigo/v3/`, for example by changing the imports to `github.com/tuneinsight/lattigo/v3/[package]` and by running `go mod tidy`.
+
+
+The current version of Lattigo, (v3.x.x) is fast-evolving and in constant development. Consequently, there will still be backward-incompatible changes within this major version, in addition to many bug fixes and new features. Hence, we encourage all Lattigo users to update to the latest Lattigo version.
+ 
 
 See CHANGELOG.md for the current and past versions.
-
-## Disclaimer
-
-This library is still at an experimental stage and should be used for research purposes only.
 
 ## License
 
@@ -51,18 +56,18 @@ Lattigo is licensed under the Apache 2.0 License. See LICENSE.
 
 ## Contact
 
-If you want to contribute to Lattigo or you have any suggestion, do not hesitate to contact us at [lattigo@listes.epfl.ch](mailto:lattigo@listes.epfl.ch).
+If you want to contribute to Lattigo or you have any suggestion, do not hesitate to contact us at [lattigo@tuneinsight.com](mailto:lattigo@tuneinsight.com).
 
 ## Citing
 
 Please use the following BibTex entry for citing Lattigo:
 
     @misc{lattigo,
-	    title = {Lattigo v2.4.0},
-	    howpublished = {Online: \url{https://github.com/ldsec/lattigo}},
-	    month = Jan,
+	    title = {Lattigo v3.0.0.},
+	    howpublished = {Online: \url{https://github.com/tuneinsight/lattigo}},
+	    month = Feb,
 	    year = 2022,
-	    note = {EPFL-LDS}
+	    note = {EPFL-LDS, Tune Insight SA}
     }
     
 

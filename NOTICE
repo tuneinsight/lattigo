@@ -1,4 +1,10 @@
-Copyright 2020 EPFL
+Copyright 2022 EPFL, Tune Insight SA
+
+The Lattigo library was originally exclusively developed by the EPFL Laboratory for Data Security until its version 2.4.0.
+
+Starting with the release of version 3.0.0, Lattigo is maintained and supported by [Tune Insight SA](https://tuneinsight.com).
+
+Active development of new features in Lattigo is still carried out both at the EPFL Laboratory for Data Security and at Tune Insight SA.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

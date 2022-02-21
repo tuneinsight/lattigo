@@ -57,8 +57,8 @@ Also starting with from version 3.0.0, the module name has changed to
 github.com/tuneinsight/lattigo/v3, and the official repository has been moved to
 https://github.com/tuneinsight/lattigo. This has the following implications for modules that depend
 on Lattigo:
-- Modules that require github.com/ldsec/lattigo/v2 will still build correctly.
-- To upgrade to a version >= 3.0.0, modules have to require `github.com/tuneinsight/lattigo/v3/`,
+- Modules that require `github.com/ldsec/lattigo/v2` will still build correctly.
+- To upgrade to a version >= 3.0.0, depending modules must require `github.com/tuneinsight/lattigo/v3/`,
   for example by changing the imports to `github.com/tuneinsight/lattigo/v3/[package]` and by
   running `go mod tidy`.
 

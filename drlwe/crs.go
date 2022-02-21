@@ -1,7 +1,7 @@
 package drlwe
 
 import (
-	"github.com/ldsec/lattigo/v2/utils"
+	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
 // CRS is an interface for Common Reference Strings.

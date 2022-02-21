@@ -1,7 +1,7 @@
 package ckks
 
 import (
-	"github.com/ldsec/lattigo/v2/rlwe"
+	"github.com/tuneinsight/lattigo/v3/rlwe"
 )
 
 // Decryptor is an interface wrapping a rlwe.Decryptor.

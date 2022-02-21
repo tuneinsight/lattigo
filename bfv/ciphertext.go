@@ -1,8 +1,8 @@
 package bfv
 
 import (
-	"github.com/ldsec/lattigo/v2/rlwe"
-	"github.com/ldsec/lattigo/v2/utils"
+	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
 // Ciphertext is a *ring.Poly array representing a polynomial of degree > 0 with coefficients in R_Q.

@@ -1,6 +1,6 @@
 package ckks
 
-import "github.com/ldsec/lattigo/v2/rlwe"
+import "github.com/tuneinsight/lattigo/v3/rlwe"
 
 // KeyGenerator is an interface for the generation of CKKS keys.
 type KeyGenerator interface {

@@ -1,7 +1,7 @@
 package ring
 
 import (
-	"github.com/ldsec/lattigo/v2/utils"
+	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
 // UnfoldConjugateInvariantToStandard maps the compressed representation (N/2 coefficients)

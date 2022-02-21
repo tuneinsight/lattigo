@@ -4,7 +4,7 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/tuneinsight/lattigo/v3/ring"
 )
 
 // StandardDeviation computes the scaled standard deviation of the input vector.

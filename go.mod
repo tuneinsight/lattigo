@@ -1,4 +1,4 @@
-module github.com/ldsec/lattigo/v2
+module github.com/tuneinsight/lattigo/v3
 
 go 1.13
 

@@ -4,8 +4,8 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/ldsec/lattigo/v2/ring"
-	"github.com/ldsec/lattigo/v2/utils"
+	"github.com/tuneinsight/lattigo/v3/ring"
+	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
 // KeyGenerator is an interface implementing the methods of the KeyGenerator.

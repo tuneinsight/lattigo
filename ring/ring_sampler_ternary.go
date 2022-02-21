@@ -4,7 +4,7 @@ import (
 	"math"
 	"math/bits"
 
-	"github.com/ldsec/lattigo/v2/utils"
+	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
 // TernarySampler keeps the state of a polynomial sampler in the ternary distribution.

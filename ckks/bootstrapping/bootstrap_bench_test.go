@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ldsec/lattigo/v2/ckks"
-	"github.com/ldsec/lattigo/v2/rlwe"
+	"github.com/tuneinsight/lattigo/v3/ckks"
+	"github.com/tuneinsight/lattigo/v3/rlwe"
 )
 
 func BenchmarkBootstrapp(b *testing.B) {

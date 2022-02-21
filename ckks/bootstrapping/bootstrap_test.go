@@ -93,7 +93,7 @@ func testbootstrap(params ckks.Parameters, btpParams Parameters, t *testing.T) {
 	t.Run(ParamsToString(params, "Bootstrapping/FullCircuit/"), func(t *testing.T) {
 
 		kgen := ckks.NewKeyGenerator(params)
-		sk := kgen.GenSecretKeySparse(btpParams.H)
+		sk := kgen.GenSecretKey()
 		rlk := kgen.GenRelinearizationKey(sk, 2)
 		encoder := ckks.NewEncoder(params)
 		encryptor := ckks.NewEncryptor(params, sk)

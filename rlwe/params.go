@@ -34,6 +34,14 @@ const GaloisGen uint64 = 5
 // fields and is used to express unchecked user-defined parameters literally into
 // Go programs. The NewParametersFromLiteral function is used to generate the actual
 // checked parameters from the literal representation.
+//
+// Users must set the polynomial degree (LogN) and the coefficient modulus, by either setting
+// the Q and P fields to the desired moduli chain, or by setting the LogQ and LogP fields to
+// the desired moduli sizes.
+//
+// Optionally, users may specify the error variance (Sigma) and secrets' density (H) and the ring
+// type (RingType). If left unset, standard default values for these field are substituted at
+// parameter creation (see NewParametersFromLiteral).
 type ParametersLiteral struct {
 	LogN     int
 	Q        []uint64
@@ -41,6 +49,7 @@ type ParametersLiteral struct {
 	LogQ     []int `json:",omitempty"`
 	LogP     []int `json:",omitempty"`
 	Sigma    float64
+	H        int
 	RingType ring.Type
 }
 
@@ -51,6 +60,7 @@ type Parameters struct {
 	qi       []uint64
 	pi       []uint64
 	sigma    float64
+	h        int
 	ringQ    *ring.Ring
 	ringP    *ring.Ring
 	ringType ring.Type
@@ -59,7 +69,7 @@ type Parameters struct {
 // NewParameters returns a new set of generic RLWE parameters from the given ring degree logn, moduli q and p, and
 // error distribution parameter sigma. It returns the empty parameters Parameters{} and a non-nil error if the
 // specified parameters are invalid.
-func NewParameters(logn int, q, p []uint64, sigma float64, ringType ring.Type) (Parameters, error) {
+func NewParameters(logn int, q, p []uint64, h int, sigma float64, ringType ring.Type) (Parameters, error) {
 	var err error
 	if err = checkSizeParams(logn, len(q), len(p)); err != nil {
 		return Parameters{}, err
@@ -69,6 +79,7 @@ func NewParameters(logn int, q, p []uint64, sigma float64, ringType ring.Type) (
 		logN:     logn,
 		pi:       make([]uint64, len(p)),
 		qi:       make([]uint64, len(q)),
+		h:        h,
 		sigma:    sigma,
 		ringType: ringType,
 	}
@@ -87,15 +98,31 @@ func NewParameters(logn int, q, p []uint64, sigma float64, ringType ring.Type) (
 
 // NewParametersFromLiteral instantiate a set of generic RLWE parameters from a ParametersLiteral specification.
 // It returns the empty parameters Parameters{} and a non-nil error if the specified parameters are invalid.
+//
+// If the moduli chain is specified through the LogQ and LogP fields, the method generates a moduli chain matching
+// the specified sizes (see `GenModuli`).
+//
+// If the secrets' density parameter (H) is left unset, its value is set to 2^(paramDef.LogN-1) to match
+// the standard ternary distribution.
+//
+// If the error variance is left unset, its value is set to `DefaultSigma`.
+//
+// If the RingType is left unset, the default value is ring.Standard.
 func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
+
+	if paramDef.H == 0 {
+		paramDef.H = 1 << (paramDef.LogN - 1)
+	}
+
 	if paramDef.Sigma == 0 {
 		// prevents the zero value of ParameterLiteral to result in a noise-less parameter instance.
 		// Users should use the NewParameters method to explicitely create noiseless instances.
 		paramDef.Sigma = DefaultSigma
 	}
+
 	switch {
 	case paramDef.Q != nil && paramDef.LogQ == nil && paramDef.P != nil && paramDef.LogP == nil:
-		return NewParameters(paramDef.LogN, paramDef.Q, paramDef.P, paramDef.Sigma, paramDef.RingType)
+		return NewParameters(paramDef.LogN, paramDef.Q, paramDef.P, paramDef.H, paramDef.Sigma, paramDef.RingType)
 	case paramDef.LogQ != nil && paramDef.Q == nil && paramDef.LogP != nil && paramDef.P == nil:
 		var q, p []uint64
 		var err error
@@ -110,7 +137,7 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
 		if err != nil {
 			return Parameters{}, err
 		}
-		return NewParameters(paramDef.LogN, q, p, paramDef.Sigma, paramDef.RingType)
+		return NewParameters(paramDef.LogN, q, p, paramDef.H, paramDef.Sigma, paramDef.RingType)
 	default:
 		return Parameters{}, fmt.Errorf("invalid parameter literal")
 	}
@@ -159,6 +186,11 @@ func (p Parameters) RingP() *ring.Ring {
 // RingQP returns a pointer to ringQP
 func (p Parameters) RingQP() *RingQP {
 	return &RingQP{p.ringQ, p.ringP}
+}
+
+// HammingWeight returns the number of non-zero coefficients in secret-keys.
+func (p Parameters) HammingWeight() int {
+	return p.h
 }
 
 // Sigma returns standard deviation of the noise distribution
@@ -347,17 +379,26 @@ func (p Parameters) Equals(other Parameters) bool {
 	res := p.logN == other.logN
 	res = res && utils.EqualSliceUint64(p.qi, other.qi)
 	res = res && utils.EqualSliceUint64(p.pi, other.pi)
+	res = res && (p.h == other.h)
 	res = res && (p.sigma == other.sigma)
 	res = res && (p.ringType == other.ringType)
 	return res
 }
 
 // CopyNew makes a deep copy of the receiver and returns it.
+//
+// Deprecated: Parameter is now a read-only struct, except for the UnmarshalBinary method: deep copying should only be
+// required to save a Parameter struct before calling its UnmarshalBinary method and it will be deprecated when
+// transitioning to a immutable serialization interface.
 func (p Parameters) CopyNew() Parameters {
 	qi, pi := p.qi, p.pi
 	p.qi, p.pi = make([]uint64, len(p.qi)), make([]uint64, len(p.pi))
 	copy(p.qi, qi)
-	copy(p.pi, pi)
+	p.ringQ, _ = ring.NewRingFromType(1<<p.logN, p.qi, p.ringType)
+	if len(p.pi) > 0 {
+		copy(p.pi, pi)
+		p.ringP, _ = ring.NewRingFromType(1<<p.logN, p.pi, p.ringType)
+	}
 	return p
 }
 
@@ -370,6 +411,7 @@ func (p Parameters) MarshalBinary() ([]byte, error) {
 	// 1 byte : logN
 	// 1 byte : #Q
 	// 1 byte : #P
+	// 8 byte : H
 	// 8 byte : sigma
 	// 1 byte : ringType
 	// 8 * (#Q) : Q
@@ -378,6 +420,7 @@ func (p Parameters) MarshalBinary() ([]byte, error) {
 	b.WriteUint8(uint8(p.logN))
 	b.WriteUint8(uint8(len(p.qi)))
 	b.WriteUint8(uint8(len(p.pi)))
+	b.WriteUint64(uint64(p.h))
 	b.WriteUint64(math.Float64bits(p.sigma))
 	b.WriteUint8(uint8(p.ringType))
 	b.WriteUint64Slice(p.qi)
@@ -394,6 +437,7 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	logN := int(b.ReadUint8())
 	lenQ := int(b.ReadUint8())
 	lenP := int(b.ReadUint8())
+	h := int(b.ReadUint64())
 	sigma := math.Float64frombits(b.ReadUint64())
 	ringType := ring.Type(b.ReadUint8())
 
@@ -407,18 +451,18 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	b.ReadUint64Slice(pi)
 
 	var err error
-	*p, err = NewParameters(logN, qi, pi, sigma, ringType)
+	*p, err = NewParameters(logN, qi, pi, h, sigma, ringType)
 	return err
 }
 
 // MarshalBinarySize returns the length of the []byte encoding of the reciever.
 func (p Parameters) MarshalBinarySize() int {
-	return 12 + (len(p.qi)+len(p.pi))<<3
+	return 20 + (len(p.qi)+len(p.pi))<<3
 }
 
 // MarshalJSON returns a JSON representation of this parameter set. See `Marshal` from the `encoding/json` package.
 func (p Parameters) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&ParametersLiteral{LogN: p.logN, Q: p.qi, P: p.pi, Sigma: p.sigma})
+	return json.Marshal(&ParametersLiteral{LogN: p.logN, Q: p.qi, P: p.pi, H: p.h, Sigma: p.sigma})
 }
 
 // UnmarshalJSON reads a JSON representation of a parameter set into the receiver Parameter. See `Unmarshal` from the `encoding/json` package.

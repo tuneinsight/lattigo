@@ -9,6 +9,8 @@ All notable changes to this project will be documented in this file.
 - RING: `.PolyToBigint[...](*)` now take as input `gap` which defines the multiples of `X^{i*gap}` to reconstruct.
 - RLWE: removed `FastEncryptor`. Encryption without rescaling by `P` is now automatically used by `Encryptor` if no `P` is specified in the parameters.
 - RLWE: `NewAdditiveShareBigint` now takes as input the size of the share.
+- RLWE/CKKS/BFV: added the `H` field and `HammingWeight` method in parameters-related structs, to specify distribution of all secrets in the schemes.
+- RLWE/DRLWE: all secrets in the ternary distribution are now sampled with a fixed hamming weight, according to the parameters.
 - RLWE/CKKS/BFV: added `.ShallowCopy()`, `.WithKey()` (shallow copy with new key) to `Encryptor` and `Decryptor`.
 - BFV/CKKS: added `.ShallowCopy()` to `Encoder` and `EncoderBigComplex` (only CKKS).
 - DRLWE/DCKKS/DBFV: added `.ShallowCopy()` to all protocols.

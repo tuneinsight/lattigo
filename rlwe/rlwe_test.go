@@ -136,11 +136,42 @@ func testGenKeyPair(kgen KeyGenerator, t *testing.T) {
 
 	params := kgen.(*keyGenerator).params
 
-	// Checks that sum([-as + e, a] + [as])) <= N * 6 * sigma
-	t.Run(testString(params, "PKGen"), func(t *testing.T) {
-		sk, pk := kgen.GenKeyPair()
+	sk, pk := kgen.GenKeyPair()
 
-		// [-as + e] + [as]
+	// Checks that the secret-key has exactly params.h non-zero coefficients
+	t.Run(testString(params, "SK"), func(t *testing.T) {
+
+		skInvNTT := NewSecretKey(params)
+
+		if params.PCount() > 0 {
+			params.RingP().InvNTTLvl(sk.Value.P.Level(), sk.Value.P, skInvNTT.Value.P)
+			for i := range skInvNTT.Value.P.Coeffs {
+				var zeros int
+				for j := range skInvNTT.Value.P.Coeffs[i] {
+					if skInvNTT.Value.P.Coeffs[i][j] == 0 {
+						zeros++
+					}
+				}
+				require.Equal(t, params.ringP.N, zeros+params.h)
+			}
+		}
+
+		params.RingQ().InvNTTLvl(sk.Value.Q.Level(), sk.Value.Q, skInvNTT.Value.Q)
+		for i := range skInvNTT.Value.Q.Coeffs {
+			var zeros int
+			for j := range skInvNTT.Value.Q.Coeffs[i] {
+				if skInvNTT.Value.Q.Coeffs[i][j] == 0 {
+					zeros++
+				}
+			}
+			require.Equal(t, params.ringQ.N, zeros+params.h)
+		}
+
+	})
+
+	// Checks that sum([-as + e, a] + [as])) <= N * 6 * sigma
+	t.Run(testString(params, "PK"), func(t *testing.T) {
+
 		if params.PCount() > 0 {
 
 			params.RingQP().MulCoeffsMontgomeryAndAddLvl(sk.Value.Q.Level(), sk.Value.P.Level(), sk.Value, pk.Value[1], pk.Value[0])
@@ -158,6 +189,7 @@ func testGenKeyPair(kgen KeyGenerator, t *testing.T) {
 		}
 
 	})
+
 }
 
 func testSwitchKeyGen(kgen KeyGenerator, t *testing.T) {

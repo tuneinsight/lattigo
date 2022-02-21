@@ -27,7 +27,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 			panic(err)
 		}
 		var tc *testContext
-		if tc, err = genTestParams(params, 0); err != nil {
+		if tc, err = genTestParams(params); err != nil {
 			panic(err)
 		}
 

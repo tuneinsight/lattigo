@@ -36,10 +36,10 @@ func NewTernarySampler(prng utils.PRNG, baseRing *Ring, p float64, montgomery bo
 	return ternarySampler
 }
 
-// NewTernarySamplerSparse creates a new instance of a fixed-hamming-weight TernarySampler from a PRNG, the ring definition and the desired
+// NewTernarySamplerWithHammingWeight creates a new instance of a fixed-hamming-weight TernarySampler from a PRNG, the ring definition and the desired
 // hamming weight for the output polynomials. If "montgomery" is set to true, polynomials read from this sampler
 // are in Montgomery form.
-func NewTernarySamplerSparse(prng utils.PRNG, baseRing *Ring, hw int, montgomery bool) *TernarySampler {
+func NewTernarySamplerWithHammingWeight(prng utils.PRNG, baseRing *Ring, hw int, montgomery bool) *TernarySampler {
 	ternarySampler := new(TernarySampler)
 	ternarySampler.baseRing = baseRing
 	ternarySampler.prng = prng

@@ -13,10 +13,9 @@ type KeyGenerator interface {
 	GenSecretKey() (sk *SecretKey)
 	GenSecretKeyGaussian() (sk *SecretKey)
 	GenSecretKeyWithDistrib(p float64) (sk *SecretKey)
-	GenSecretKeySparse(hw int) (sk *SecretKey)
+	GenSecretKeyWithHammingWeight(hw int) (sk *SecretKey)
 	GenPublicKey(sk *SecretKey) (pk *PublicKey)
 	GenKeyPair() (sk *SecretKey, pk *PublicKey)
-	GenKeyPairSparse(hw int) (sk *SecretKey, pk *PublicKey)
 	GenRelinearizationKey(sk *SecretKey, maxDegree int) (evk *RelinearizationKey)
 	GenSwitchingKey(skInput, skOutput *SecretKey) (newevakey *SwitchingKey)
 	GenSwitchingKeyForGalois(galEl uint64, sk *SecretKey) (swk *SwitchingKey)
@@ -34,6 +33,7 @@ type keyGenerator struct {
 	params           Parameters
 	poolQ            *ring.Poly
 	poolQP           PolyQP
+	ternarySampler   *ring.TernarySampler
 	gaussianSamplerQ *ring.GaussianSampler
 	uniformSamplerQ  *ring.UniformSampler
 	uniformSamplerP  *ring.UniformSampler
@@ -59,6 +59,7 @@ func NewKeyGenerator(params Parameters) KeyGenerator {
 		params:           params,
 		poolQ:            params.RingQ().NewPoly(),
 		poolQP:           poolQP,
+		ternarySampler:   ring.NewTernarySamplerWithHammingWeight(prng, params.ringQ, params.h, false),
 		gaussianSamplerQ: ring.NewGaussianSampler(prng, params.RingQ(), params.Sigma(), int(6*params.Sigma())),
 		uniformSamplerQ:  ring.NewUniformSampler(prng, params.RingQ()),
 		uniformSamplerP:  uniformSamplerP,
@@ -67,7 +68,7 @@ func NewKeyGenerator(params Parameters) KeyGenerator {
 
 // GenSecretKey generates a new SecretKey with the distribution [1/3, 1/3, 1/3].
 func (keygen *keyGenerator) GenSecretKey() (sk *SecretKey) {
-	return keygen.GenSecretKeyWithDistrib(1.0 / 3)
+	return keygen.genSecretKeyFromSampler(keygen.ternarySampler)
 }
 
 // GenSecretKey generates a new SecretKey with the error distribution.
@@ -85,13 +86,13 @@ func (keygen *keyGenerator) GenSecretKeyWithDistrib(p float64) (sk *SecretKey) {
 	return keygen.genSecretKeyFromSampler(ternarySamplerMontgomery)
 }
 
-// GenSecretKeySparse generates a new SecretKey with exactly hw non-zero coefficients.
-func (keygen *keyGenerator) GenSecretKeySparse(hw int) (sk *SecretKey) {
+// GenSecretKeyWithHammingWeight generates a new SecretKey with exactly hw non-zero coefficients.
+func (keygen *keyGenerator) GenSecretKeyWithHammingWeight(hw int) (sk *SecretKey) {
 	prng, err := utils.NewPRNG()
 	if err != nil {
 		panic(err)
 	}
-	ternarySamplerMontgomery := ring.NewTernarySamplerSparse(prng, keygen.params.RingQ(), hw, false)
+	ternarySamplerMontgomery := ring.NewTernarySamplerWithHammingWeight(prng, keygen.params.RingQ(), hw, false)
 	return keygen.genSecretKeyFromSampler(ternarySamplerMontgomery)
 }
 
@@ -159,12 +160,6 @@ func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 // GenKeyPair generates a new SecretKey with distribution [1/3, 1/3, 1/3] and a corresponding public key.
 func (keygen *keyGenerator) GenKeyPair() (sk *SecretKey, pk *PublicKey) {
 	sk = keygen.GenSecretKey()
-	return sk, keygen.GenPublicKey(sk)
-}
-
-// GenKeyPairSparse generates a new SecretKey with exactly hw non zero coefficients [1/2, 0, 1/2].
-func (keygen *keyGenerator) GenKeyPairSparse(hw int) (sk *SecretKey, pk *PublicKey) {
-	sk = keygen.GenSecretKeySparse(hw)
 	return sk, keygen.GenPublicKey(sk)
 }
 

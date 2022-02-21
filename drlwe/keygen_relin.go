@@ -21,7 +21,6 @@ type RelinearizationKeyGenerator interface {
 // RKGProtocol is the structure storing the parameters and and precomputations for the collective relinearization key generation protocol.
 type RKGProtocol struct {
 	params           rlwe.Parameters
-	ephSkPr          float64
 	pBigInt          *big.Int
 	gaussianSamplerQ *ring.GaussianSampler
 	ternarySamplerQ  *ring.TernarySampler // sampling in Montgomerry form
@@ -46,7 +45,7 @@ func (ekg *RKGProtocol) ShallowCopy() *RKGProtocol {
 		params:           ekg.params,
 		pBigInt:          ekg.pBigInt,
 		gaussianSamplerQ: ring.NewGaussianSampler(prng, params.RingQ(), params.Sigma(), int(6*params.Sigma())),
-		ternarySamplerQ:  ring.NewTernarySampler(prng, params.RingQ(), ekg.ephSkPr, false),
+		ternarySamplerQ:  ring.NewTernarySamplerWithHammingWeight(prng, params.RingQ(), params.HammingWeight(), false),
 		tmpPoly1:         params.RingQP().NewPoly(),
 		tmpPoly2:         params.RingQP().NewPoly(),
 	}
@@ -64,7 +63,6 @@ type RKGCRP []rlwe.PolyQP
 func NewRKGProtocol(params rlwe.Parameters) *RKGProtocol {
 	rkg := new(RKGProtocol)
 	rkg.params = params
-	rkg.ephSkPr = 0.5 // TODO: read from Params
 
 	var err error
 	prng, err := utils.NewPRNG()
@@ -74,7 +72,7 @@ func NewRKGProtocol(params rlwe.Parameters) *RKGProtocol {
 
 	rkg.pBigInt = params.PBigInt()
 	rkg.gaussianSamplerQ = ring.NewGaussianSampler(prng, params.RingQ(), params.Sigma(), int(6*params.Sigma()))
-	rkg.ternarySamplerQ = ring.NewTernarySampler(prng, params.RingQ(), rkg.ephSkPr, false)
+	rkg.ternarySamplerQ = ring.NewTernarySamplerWithHammingWeight(prng, params.RingQ(), params.HammingWeight(), false)
 	rkg.tmpPoly1 = params.RingQP().NewPoly()
 	rkg.tmpPoly2 = params.RingQP().NewPoly()
 	return rkg

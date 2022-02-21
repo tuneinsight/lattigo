@@ -660,6 +660,7 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 		err = p.UnmarshalBinary(bytes)
 		assert.Nil(t, err)
 		assert.Equal(t, testctx.params, p)
+		assert.Equal(t, testctx.params.MarshalBinarySize(), len(bytes))
 	})
 
 	t.Run(testString("Marshaller/Parameters/JSON", testctx.params), func(t *testing.T) {
@@ -675,20 +676,30 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 		assert.True(t, testctx.params.Equals(paramsRec))
 
 		// checks that bfv.Paramters can be unmarshalled with log-moduli definition without error
-		dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60],"Sigma":3.2,"T":65537}`, testctx.params.LogN()))
+		dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60], "T":65537}`, testctx.params.LogN()))
 		var paramsWithLogModuli Parameters
 		err = json.Unmarshal(dataWithLogModuli, &paramsWithLogModuli)
 		assert.Nil(t, err)
 		assert.Equal(t, 2, paramsWithLogModuli.QCount())
 		assert.Equal(t, 1, paramsWithLogModuli.PCount())
+		assert.Equal(t, rlwe.DefaultSigma, paramsWithLogModuli.Sigma()) // ommiting sigma should result in Default being used
 
 		// checks that bfv.Paramters can be unmarshalled with log-moduli definition with empty P without error
-		dataWithLogModuliNoP := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[],"Sigma":3.2,"T":65537}`, testctx.params.LogN()))
+		dataWithLogModuliNoP := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[],"T":65537}`, testctx.params.LogN()))
 		var paramsWithLogModuliNoP Parameters
 		err = json.Unmarshal(dataWithLogModuliNoP, &paramsWithLogModuliNoP)
 		assert.Nil(t, err)
 		assert.Equal(t, 2, paramsWithLogModuliNoP.QCount())
 		assert.Equal(t, 0, paramsWithLogModuliNoP.PCount())
+
+		// checks that one can provide custom parameters for the secret-key and error distributions
+		dataWithCustomSecrets := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60], "H": 192, "Sigma": 6.6,"T":65537}`, testctx.params.LogN()))
+		var paramsWithCustomSecrets Parameters
+		err = json.Unmarshal(dataWithCustomSecrets, &paramsWithCustomSecrets)
+		assert.Nil(t, err)
+		assert.Equal(t, 6.6, paramsWithCustomSecrets.Sigma())
+		assert.Equal(t, 192, paramsWithCustomSecrets.HammingWeight())
+
 	})
 
 	t.Run(testString("Marshaller/Ciphertext", testctx.params), func(t *testing.T) {

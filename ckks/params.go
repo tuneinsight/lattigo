@@ -6,11 +6,14 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"math/bits"
 
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
+
+var minLogSlots = 0
 
 // Name of the different default parameter sets
 var (
@@ -339,15 +342,16 @@ type Parameters struct {
 
 // NewParameters instantiate a set of CKKS parameters from the generic RLWE parameters and the CKKS-specific ones.
 // It returns the empty parameters Parameters{} and a non-nil error if the specified parameters are invalid.
-func NewParameters(rlweParams rlwe.Parameters, logSlot int, defaultScale float64) (p Parameters, err error) {
+func NewParameters(rlweParams rlwe.Parameters, logSlots int, defaultScale float64) (p Parameters, err error) {
 	if rlweParams.Equals(rlwe.Parameters{}) {
 		return Parameters{}, fmt.Errorf("provided RLWE parameters are invalid")
 	}
 
-	if logSlot > int(rlweParams.RingQ().NthRoot>>2) {
-		return Parameters{}, fmt.Errorf("logSlot=%d is larger than the logN-1=%d", logSlot, int(rlweParams.RingQ().NthRoot>>2))
+	if maxLogSlots := bits.Len64(rlweParams.RingQ().NthRoot) - 3; logSlots > maxLogSlots || logSlots < minLogSlots {
+		return Parameters{}, fmt.Errorf("logSlot=%d is larger than the logN-1=%d or smaller than %d", logSlots, maxLogSlots, minLogSlots)
 	}
-	return Parameters{rlweParams, logSlot, defaultScale}, nil
+
+	return Parameters{rlweParams, logSlots, defaultScale}, nil
 }
 
 // NewParametersFromLiteral instantiate a set of CKKS parameters from a ParametersLiteral specification.

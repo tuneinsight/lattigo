@@ -213,6 +213,13 @@ func (ts *TernarySampler) sampleSparse(lvl int, pol *Poly) {
 			pointer = 0
 		}
 	}
+
+	for _, i := range index {
+		for k := 0; k < lvl+1; k++ {
+			pol.Coeffs[k][i] = 0
+		}
+
+	}
 }
 
 // kysampling uses the binary expansion and random bytes matrix to sample a discrete Gaussian value and its sign.

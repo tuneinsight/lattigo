@@ -115,9 +115,11 @@ func (rfp *MaskedTransformProtocol) AllocateShare(levelDecrypt, levelRecrypt int
 }
 
 // SampleCRP samples a common random polynomial to be used in the Masked-Transform protocol from the provided
-// common reference string.
+// common reference string. The CRP is considered to be in the NTT domain.
 func (rfp *MaskedTransformProtocol) SampleCRP(level int, crs utils.PRNG) drlwe.CKSCRP {
-	return rfp.s2e.SampleCRP(level, crs)
+	crp := rfp.s2e.SampleCRP(level, crs)
+	crp.IsNTT = true
+	return crp
 }
 
 // GenShare generates the shares of the PermuteProtocol

@@ -391,17 +391,25 @@ func testTernarySampler(testContext *testParams, t *testing.T) {
 
 			ternarySampler := NewTernarySamplerWithHammingWeight(prng, testContext.ringQ, p, false)
 
+			checkPoly := func(pol *Poly) {
+				for i := range testContext.ringQ.Modulus {
+					hw := 0
+					for _, c := range pol.Coeffs[i] {
+						if c != 0 {
+							hw++
+						}
+					}
+					require.True(t, hw == p)
+				}
+			}
+
 			pol := ternarySampler.ReadNew()
 
-			for i := range testContext.ringQ.Modulus {
-				hw := 0
-				for _, c := range pol.Coeffs[i] {
-					if c != 0 {
-						hw++
-					}
-				}
-				require.True(t, hw == p)
-			}
+			checkPoly(pol)
+
+			ternarySampler.Read(pol)
+
+			checkPoly(pol)
 		})
 	}
 }

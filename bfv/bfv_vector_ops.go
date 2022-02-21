@@ -4,7 +4,7 @@ import (
 	"math/big"
 	"unsafe"
 
-	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/tuneinsight/lattigo/v3/ring"
 )
 
 // ScaleUpVec takes a Poly pIn in ringT, scales its coefficients up by (Q/T) mod Q, and writes the result in a

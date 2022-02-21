@@ -63,7 +63,7 @@ If you want to contribute to Lattigo or you have any suggestion, do not hesitate
 Please use the following BibTex entry for citing Lattigo:
 
     @misc{lattigo,
-	    title = {Lattigo v3.0.0.},
+	    title = {Lattigo v3.0.0},
 	    howpublished = {Online: \url{https://github.com/tuneinsight/lattigo}},
 	    month = Feb,
 	    year = 2022,

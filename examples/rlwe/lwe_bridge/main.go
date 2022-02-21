@@ -7,9 +7,9 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/ldsec/lattigo/v2/ring"
-	"github.com/ldsec/lattigo/v2/rlwe"
-	"github.com/ldsec/lattigo/v2/utils"
+	"github.com/tuneinsight/lattigo/v3/ring"
+	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
 // This example implements an oblivious shuffling of the plaintext slots of an RLWE encryption.

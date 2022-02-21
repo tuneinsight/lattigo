@@ -1,8 +1,8 @@
 package rlwe
 
 import (
-	"github.com/ldsec/lattigo/v2/ring"
-	"github.com/ldsec/lattigo/v2/utils"
+	"github.com/tuneinsight/lattigo/v3/ring"
+	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
 // Encryptor a generic RLWE encryption interface.

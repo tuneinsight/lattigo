@@ -3,8 +3,8 @@ package bootstrapping
 import (
 	"math"
 
-	"github.com/ldsec/lattigo/v2/ckks"
-	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/tuneinsight/lattigo/v3/ckks"
+	"github.com/tuneinsight/lattigo/v3/ring"
 )
 
 // Bootstrapp re-encrypt a ciphertext at lvl Q0 to a ciphertext at MaxLevel-k where k is the depth of the bootstrapping circuit.

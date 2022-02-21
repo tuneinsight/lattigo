@@ -3,9 +3,9 @@ package ckks
 import (
 	"runtime"
 
-	"github.com/ldsec/lattigo/v2/ring"
-	"github.com/ldsec/lattigo/v2/rlwe"
-	"github.com/ldsec/lattigo/v2/utils"
+	"github.com/tuneinsight/lattigo/v3/ring"
+	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
 // Trace maps X -> sum((-1)^i * X^{i*n+1}) for 0 <= i < N

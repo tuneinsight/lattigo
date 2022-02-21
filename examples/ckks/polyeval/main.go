@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/ldsec/lattigo/v2/ckks"
-	"github.com/ldsec/lattigo/v2/rlwe"
-	"github.com/ldsec/lattigo/v2/utils"
+	"github.com/tuneinsight/lattigo/v3/ckks"
+	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
 func chebyshevinterpolation() {

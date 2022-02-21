@@ -2,9 +2,10 @@ package bfv
 
 import (
 	"fmt"
-	"github.com/ldsec/lattigo/v2/ring"
 	"math"
 	"math/big"
+
+	"github.com/tuneinsight/lattigo/v3/ring"
 )
 
 // DecryptAndPrintError decrypts a ciphertext and prints the log2 of the error.

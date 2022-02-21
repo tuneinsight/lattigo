@@ -3,7 +3,7 @@
 All notable changes to this project will be documented in this file. 
 
 
-## Unreleased
+## [3.0.0] - 2022-02-21
 
 - RING: renamed `FastBasisExtender` to `BasisExtender`.
 - RING: `.PolyToBigint[...](*)` now take as input `gap` which defines the multiples of `X^{i*gap}` to reconstruct.

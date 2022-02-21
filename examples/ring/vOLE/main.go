@@ -6,8 +6,8 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/ldsec/lattigo/v2/ring"
-	"github.com/ldsec/lattigo/v2/utils"
+	"github.com/tuneinsight/lattigo/v3/ring"
+	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
 // Vectorized oblivious evaluation is a two-party protocol for the function f(x) = ax + b where a sender

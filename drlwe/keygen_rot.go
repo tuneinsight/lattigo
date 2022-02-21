@@ -3,9 +3,9 @@ package drlwe
 import (
 	"errors"
 
-	"github.com/ldsec/lattigo/v2/ring"
-	"github.com/ldsec/lattigo/v2/rlwe"
-	"github.com/ldsec/lattigo/v2/utils"
+	"github.com/tuneinsight/lattigo/v3/ring"
+	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
 // RotationKeyGenerator is an interface for the local operation in the generation of rotation keys.

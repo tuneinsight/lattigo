@@ -3,8 +3,8 @@ package rlwe
 import (
 	"math/big"
 
-	"github.com/ldsec/lattigo/v2/ring"
-	"github.com/ldsec/lattigo/v2/utils"
+	"github.com/tuneinsight/lattigo/v3/ring"
+	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
 // Plaintext is a common base type for RLWE plaintexts.

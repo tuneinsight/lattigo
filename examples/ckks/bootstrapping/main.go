@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/ldsec/lattigo/v2/ckks"
-	"github.com/ldsec/lattigo/v2/ckks/bootstrapping"
-	"github.com/ldsec/lattigo/v2/rlwe"
-	"github.com/ldsec/lattigo/v2/utils"
+	"github.com/tuneinsight/lattigo/v3/ckks"
+	"github.com/tuneinsight/lattigo/v3/ckks/bootstrapping"
+	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
 func main() {
@@ -25,7 +25,7 @@ func main() {
 
 	// Bootstrapping parameters
 	// Four sets of parameters (index 0 to 3) ensuring 128 bit of security
-	// are available in github.com/ldsec/lattigo/v2/ckks/bootstrap_params
+	// are available in github.com/tuneinsight/lattigo/v3/ckks/bootstrap_params
 	// LogSlots is hardcoded to 15 in the parameters, but can be changed from 1 to 15.
 	// When changing logSlots make sure that the number of levels allocated to CtS and StC is
 	// smaller or equal to logSlots.

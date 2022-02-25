@@ -25,6 +25,7 @@ type EncodingMatrix struct {
 // EncodingMatrixLiteral is a struct storing the parameters to generate the factorized DFT matrix.
 type EncodingMatrixLiteral struct {
 	LinearTransformType LinearTransformType
+	RepackImag2Real     bool    // Repack imag into the right n slots or reals.
 	LogN                int     // log(RingDegree)
 	LogSlots            int     // log(slots)
 	Scaling             float64 // constant by which the matrix is multiplied with
@@ -64,24 +65,26 @@ func (mParams *EncodingMatrixLiteral) Levels() (levels []int) {
 }
 
 // Rotations returns the list of rotations performed during the CoeffsToSlot operation.
-func (mParams *EncodingMatrixLiteral) Rotations(logN, logSlots int) (rotations []int) {
+func (mParams *EncodingMatrixLiteral) Rotations() (rotations []int) {
 	rotations = []int{}
 
+	logSlots := mParams.LogSlots
+	logN := mParams.LogN
 	slots := 1 << logSlots
 	dslots := slots
-	if logSlots < logN-1 {
+	if logSlots < logN-1 && mParams.RepackImag2Real {
 		dslots <<= 1
 		if mParams.LinearTransformType == CoeffsToSlots {
 			rotations = append(rotations, slots)
 		}
 	}
 
-	indexCtS := computeBootstrappingDFTIndexMap(logN, logSlots, mParams.Depth(false), mParams.LinearTransformType, mParams.BitReversed)
+	indexCtS := mParams.computeBootstrappingDFTIndexMap()
 
 	// Coeffs to Slots rotations
 	for i, pVec := range indexCtS {
 		N1 := ckks.FindBestBSGSSplit(pVec, dslots, mParams.BSGSRatio)
-		rotations = addMatrixRotToList(pVec, rotations, N1, slots, mParams.LinearTransformType == SlotsToCoeffs && logSlots < logN-1 && i == 0)
+		rotations = addMatrixRotToList(pVec, rotations, N1, slots, mParams.LinearTransformType == SlotsToCoeffs && logSlots < logN-1 && i == 0 && mParams.RepackImag2Real)
 	}
 
 	return
@@ -93,28 +96,16 @@ func (mParams *EncodingMatrixLiteral) Rotations(logN, logSlots int) (rotations [
 func NewHomomorphicEncodingMatrixFromLiteral(mParams EncodingMatrixLiteral, encoder ckks.Encoder) EncodingMatrix {
 
 	logSlots := mParams.LogSlots
-	slots := 1 << logSlots
-	depth := mParams.Depth(false)
-	logdSlots := mParams.LogSlots + 1
-	if logdSlots == mParams.LogN {
-		logdSlots--
-	}
-
-	roots := computeRoots(slots << 1)
-	pow5 := make([]int, (slots<<1)+1)
-	pow5[0] = 1
-	for i := 1; i < (slots<<1)+1; i++ {
-		pow5[i] = pow5[i-1] * 5
-		pow5[i] &= (slots << 2) - 1
+	logdSlots := logSlots
+	if logdSlots < mParams.LogN-1 && mParams.RepackImag2Real {
+		logdSlots++
 	}
 
 	ctsLevels := mParams.Levels()
 
-	scaling := complex(math.Pow(mParams.Scaling, 1.0/float64(mParams.Depth(false))), 0)
-
 	// CoeffsToSlots vectors
 	matrices := make([]ckks.LinearTransform, len(ctsLevels))
-	pVecDFT := computeDFTMatrices(logSlots, logdSlots, depth, roots, pow5, scaling, mParams.LinearTransformType, mParams.BitReversed)
+	pVecDFT := mParams.computeDFTMatrices()
 	cnt := 0
 	trueDepth := mParams.Depth(true)
 	for i := range mParams.ScalingFactor {
@@ -289,7 +280,14 @@ func addMatrixRotToList(pVec map[int]bool, rotations []int, N1, slots int, repac
 	return rotations
 }
 
-func computeBootstrappingDFTIndexMap(logN, logSlots, maxDepth int, ltType LinearTransformType, bitreversed bool) (rotationMap []map[int]bool) {
+func (mParams *EncodingMatrixLiteral) computeBootstrappingDFTIndexMap() (rotationMap []map[int]bool) {
+
+	logN := mParams.LogN
+	logSlots := mParams.LogSlots
+	ltType := mParams.LinearTransformType
+	repacki2r := mParams.RepackImag2Real
+	bitreversed := mParams.BitReversed
+	maxDepth := mParams.Depth(false)
 
 	var level, depth, nextLevel int
 
@@ -319,7 +317,7 @@ func computeBootstrappingDFTIndexMap(logN, logSlots, maxDepth int, ltType Linear
 	level = logSlots
 	for i := 0; i < maxDepth; i++ {
 
-		if logSlots < logN-1 && ltType == SlotsToCoeffs && i == 0 {
+		if logSlots < logN-1 && ltType == SlotsToCoeffs && i == 0 && repacki2r {
 
 			// Special initial matrix for the repacking before SlotsToCoeffs
 			rotationMap[i] = genWfftRepackIndexMap(logSlots, level)
@@ -335,6 +333,7 @@ func computeBootstrappingDFTIndexMap(logN, logSlots, maxDepth int, ltType Linear
 			}
 
 		} else {
+
 			// First layer of the i-th level of the DFT
 			rotationMap[i] = genWfftIndexMap(logSlots, level, ltType, bitreversed)
 
@@ -397,14 +396,32 @@ func nextLevelfftIndexMap(vec map[int]bool, logL, N, nextLevel int, ltType Linea
 	return
 }
 
-func computeDFTMatrices(logSlots, logdSlots, maxDepth int, roots []complex128, pow5 []int, diffscale complex128, ltType LinearTransformType, bitreversed bool) (plainVector []map[int][]complex128) {
+func (mParams *EncodingMatrixLiteral) computeDFTMatrices() (plainVector []map[int][]complex128) {
+
+	logSlots := mParams.LogSlots
+	slots := 1 << logSlots
+	maxDepth := mParams.Depth(false)
+	ltType := mParams.LinearTransformType
+	bitreversed := mParams.BitReversed
+
+	logdSlots := logSlots
+	if logdSlots < mParams.LogN-1 && mParams.RepackImag2Real {
+		logdSlots++
+	}
+
+	roots := computeRoots(slots << 1)
+	pow5 := make([]int, (slots<<1)+1)
+	pow5[0] = 1
+	for i := 1; i < (slots<<1)+1; i++ {
+		pow5[i] = pow5[i-1] * 5
+		pow5[i] &= (slots << 2) - 1
+	}
 
 	var fftLevel, depth, nextfftLevel int
 
 	fftLevel = logSlots
 
 	var a, b, c [][]complex128
-
 	if ltType == CoeffsToSlots {
 		a, b, c = fftInvPlainVec(logSlots, 1<<logdSlots, roots, pow5)
 	} else {
@@ -435,7 +452,7 @@ func computeDFTMatrices(logSlots, logdSlots, maxDepth int, roots []complex128, p
 	fftLevel = logSlots
 	for i := 0; i < maxDepth; i++ {
 
-		if logSlots != logdSlots && ltType == SlotsToCoeffs && i == 0 {
+		if logSlots != logdSlots && ltType == SlotsToCoeffs && i == 0 && mParams.RepackImag2Real {
 
 			// Special initial matrix for the repacking before SlotsToCoeffs
 			plainVector[i] = genRepackMatrix(logSlots, bitreversed)
@@ -466,7 +483,7 @@ func computeDFTMatrices(logSlots, logdSlots, maxDepth int, roots []complex128, p
 	}
 
 	// Repacking after the CoeffsToSlots (we multiply the last DFT matrix with the vector [1, 1, ..., 1, 1, 0, 0, ..., 0, 0]).
-	if logSlots != logdSlots && ltType == CoeffsToSlots {
+	if logSlots != logdSlots && ltType == CoeffsToSlots && mParams.RepackImag2Real {
 		for j := range plainVector[maxDepth-1] {
 			for x := 0; x < 1<<logSlots; x++ {
 				plainVector[maxDepth-1][j][x+(1<<logSlots)] = complex(0, 0)
@@ -475,10 +492,11 @@ func computeDFTMatrices(logSlots, logdSlots, maxDepth int, roots []complex128, p
 	}
 
 	// Rescaling of the DFT matrix of the SlotsToCoeffs/CoeffsToSlots
+	scaling := complex(math.Pow(mParams.Scaling, 1.0/float64(mParams.Depth(false))), 0)
 	for j := range plainVector {
 		for x := range plainVector[j] {
 			for i := range plainVector[j][x] {
-				plainVector[j][x][i] *= diffscale
+				plainVector[j][x][i] *= scaling
 			}
 		}
 	}

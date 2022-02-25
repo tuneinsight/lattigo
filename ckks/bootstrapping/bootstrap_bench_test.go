@@ -25,7 +25,12 @@ func BenchmarkBootstrapp(b *testing.B) {
 	kgen := ckks.NewKeyGenerator(params)
 	sk := kgen.GenSecretKey()
 
+<<<<<<< btp_eprint
 	evk := GenEvaluationKeys(btpParams, params, sk)
+=======
+	rotations := btpParams.RotationsForBootstrapping(params)
+	rotkeys := kgen.GenRotationKeysForRotations(rotations, true, sk)
+>>>>>>> [ckks/advanced]: better StC & CtS
 
 	if btp, err = NewBootstrapper(params, btpParams, evk); err != nil {
 		panic(err)

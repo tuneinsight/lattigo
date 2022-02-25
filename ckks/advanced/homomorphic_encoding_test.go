@@ -129,6 +129,7 @@ func testCoeffsToSlots(params ckks.Parameters, t *testing.T) {
 			LogSlots:            params.LogSlots(),
 			Scaling:             1.0 / float64(2*params.Slots()),
 			LinearTransformType: CoeffsToSlots,
+			RepackImag2Real:     true,
 			LevelStart:          params.MaxLevel(),
 			BSGSRatio:           16.0,
 			BitReversed:         false,
@@ -149,7 +150,7 @@ func testCoeffsToSlots(params ckks.Parameters, t *testing.T) {
 		CoeffsToSlotMatrices := NewHomomorphicEncodingMatrixFromLiteral(CoeffsToSlotsParametersLiteral, encoder)
 
 		// Gets the rotations indexes for CoeffsToSlots
-		rotations := CoeffsToSlotsParametersLiteral.Rotations(params.LogN(), params.LogSlots())
+		rotations := CoeffsToSlotsParametersLiteral.Rotations()
 
 		// Generates the rotation keys
 		rotKey := kgen.GenRotationKeysForRotations(rotations, true, sk)
@@ -245,6 +246,7 @@ func testSlotsToCoeffs(params ckks.Parameters, t *testing.T) {
 			LogSlots:            params.LogSlots(),
 			Scaling:             1.0,
 			LinearTransformType: SlotsToCoeffs,
+			RepackImag2Real:     true,
 			LevelStart:          params.MaxLevel(),
 			BSGSRatio:           16.0,
 			BitReversed:         false,
@@ -265,7 +267,7 @@ func testSlotsToCoeffs(params ckks.Parameters, t *testing.T) {
 		SlotsToCoeffsMatrix := NewHomomorphicEncodingMatrixFromLiteral(SlotsToCoeffsParametersLiteral, encoder)
 
 		// Gets the rotations indexes for SlotsToCoeffs
-		rotations := SlotsToCoeffsParametersLiteral.Rotations(params.LogN(), params.LogSlots())
+		rotations := SlotsToCoeffsParametersLiteral.Rotations()
 
 		// Generates the rotation keys
 		rotKey := kgen.GenRotationKeysForRotations(rotations, true, sk)

@@ -7,7 +7,7 @@ import (
 
 // MarshalBinary encode the target EncodingMatrixParameters on a slice of bytes.
 func (mParams *EncodingMatrixLiteral) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, 8)
+	data = make([]byte, 9)
 	data[0] = uint8(mParams.LinearTransformType)
 	data[1] = uint8(mParams.LevelStart)
 	if mParams.BitReversed {
@@ -16,6 +16,10 @@ func (mParams *EncodingMatrixLiteral) MarshalBinary() (data []byte, err error) {
 
 	binary.BigEndian.PutUint32(data[3:7], math.Float32bits(float32(mParams.BSGSRatio)))
 	data[7] = uint8(len(mParams.ScalingFactor))
+
+	if mParams.RepackImag2Real {
+		data[8] = uint8(1)
+	}
 
 	for _, d := range mParams.ScalingFactor {
 		data = append(data, uint8(len(d)))
@@ -37,9 +41,10 @@ func (mParams *EncodingMatrixLiteral) UnmarshalBinary(data []byte) error {
 		mParams.BitReversed = true
 	}
 	mParams.BSGSRatio = float64(math.Float32frombits(binary.BigEndian.Uint32(data[3:7])))
-
 	mParams.ScalingFactor = make([][]float64, data[7])
-	pt := 8
+	mParams.RepackImag2Real = data[8] == 1
+
+	pt := 9
 	for i := range mParams.ScalingFactor {
 		tmp := make([]float64, data[pt])
 		pt++

@@ -388,7 +388,7 @@ func (ecd *encoderComplex128) Embed(values interface{}, logSlots int, scale floa
 		ecd.values[i] = 0
 	}
 
-	if logSlots < 3 {
+	if logSlots < 4 {
 		SpecialiFFTVec(ecd.values, slots, ecd.m, ecd.rotGroup, ecd.roots)
 	} else {
 		SpecialiFFTUL8Vec(ecd.values, slots, ecd.m, ecd.rotGroup, ecd.roots)

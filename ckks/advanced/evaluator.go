@@ -142,32 +142,39 @@ func (eval *evaluator) CoeffsToSlotsNew(ctIn *ckks.Ciphertext, ctsMatrices Encod
 // If the packing is sparse (n < N/2), then returns ctReal = Ecd(vReal || vImag) and ctImag = nil.
 // If the packing is dense (n == N/2), then returns ctReal = Ecd(vReal) and ctImag = Ecd(vImag).
 func (eval *evaluator) CoeffsToSlots(ctIn *ckks.Ciphertext, ctsMatrices EncodingMatrix, ctReal, ctImag *ckks.Ciphertext) {
-	zV := ctIn.CopyNew()
-	eval.dft(ctIn, ctsMatrices.matrices, zV)
 
-	eval.Conjugate(zV, ctReal)
+	if ctsMatrices.RepackImag2Real {
 
-	var tmp *ckks.Ciphertext
-	if ctImag != nil {
-		tmp = ctImag
+		zV := ctIn.CopyNew()
+
+		eval.dft(ctIn, ctsMatrices.matrices, zV)
+
+		eval.Conjugate(zV, ctReal)
+
+		var tmp *ckks.Ciphertext
+		if ctImag != nil {
+			tmp = ctImag
+		} else {
+			tmp = ckks.NewCiphertextAtLevelFromPoly(ctReal.Level(), [2]*ring.Poly{eval.BuffCt().Value[0], eval.BuffCt().Value[1]})
+		}
+
+		// Imag part
+		eval.Sub(zV, ctReal, tmp)
+		eval.DivByi(tmp, tmp)
+
+		// Real part
+		eval.Add(ctReal, zV, ctReal)
+
+		// If repacking, then ct0 and ct1 right n/2 slots are zero.
+		if eval.params.LogSlots() < eval.params.LogN()-1 {
+			eval.Rotate(tmp, eval.params.Slots(), tmp)
+			eval.Add(ctReal, tmp, ctReal)
+		}
+
+		zV = nil
 	} else {
-		tmp = ckks.NewCiphertextAtLevelFromPoly(ctReal.Level(), [2]*ring.Poly{eval.BuffCt().Value[0], eval.BuffCt().Value[1]})
+		eval.dft(ctIn, ctsMatrices.matrices, ctReal)
 	}
-
-	// Imag part
-	eval.Sub(zV, ctReal, tmp)
-	eval.DivByi(tmp, tmp)
-
-	// Real part
-	eval.Add(ctReal, zV, ctReal)
-
-	// If repacking, then ct0 and ct1 right n/2 slots are zero.
-	if eval.params.LogSlots() < eval.params.LogN()-1 {
-		eval.Rotate(tmp, eval.params.Slots(), tmp)
-		eval.Add(ctReal, tmp, ctReal)
-	}
-
-	zV = nil
 }
 
 // SlotsToCoeffsNew applies the homomorphic decoding and returns the result on a new ciphertext.

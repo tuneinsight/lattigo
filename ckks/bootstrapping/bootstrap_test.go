@@ -109,7 +109,12 @@ func testbootstrap(params ckks.Parameters, original bool, btpParams Parameters, 
 		encryptor := ckks.NewEncryptor(params, sk)
 		decryptor := ckks.NewDecryptor(params, sk)
 
+<<<<<<< btp_eprint
 		evk := GenEvaluationKeys(btpParams, params, sk)
+=======
+		rotations := btpParams.RotationsForBootstrapping(params)
+		rotkeys := kgen.GenRotationKeysForRotations(rotations, true, sk)
+>>>>>>> [ckks/advanced]: better StC & CtS
 
 		btp, err := NewBootstrapper(params, btpParams, evk)
 		if err != nil {

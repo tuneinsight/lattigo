@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 	"github.com/tuneinsight/lattigo/v3/ckks"
+	ckksAdvanced "github.com/tuneinsight/lattigo/v3/ckks/advanced"
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
-	ckksAdvanced "github.com/tuneinsight/lattigo/v3/ckks/advanced"
 )
 
 func main() {
@@ -47,11 +47,11 @@ func LUT() {
 
 	// SlotsToCoeffsParameters homomorphic encoding parameters
 	var SlotsToCoeffsParameters = ckksAdvanced.EncodingMatrixLiteral{
-		LogN: paramsN12.LogN(),
-		LogSlots: paramsN12.LogSlots(),
-		Scaling: 1.0,
+		LogN:                paramsN12.LogN(),
+		LogSlots:            paramsN12.LogSlots(),
+		Scaling:             1.0,
 		LinearTransformType: ckksAdvanced.SlotsToCoeffs,
-		RepackImag2Real: false,
+		RepackImag2Real:     false,
 		LevelStart:          2,     // starting level
 		BSGSRatio:           4.0,   // ratio between n1/n2 for n1*n2 = slots
 		BitReversed:         false, // bit-reversed input
@@ -64,10 +64,10 @@ func LUT() {
 	// CoeffsToSlotsParameters homomorphic decoding parameters
 	var CoeffsToSlotsParameters = ckksAdvanced.EncodingMatrixLiteral{
 		LinearTransformType: ckksAdvanced.CoeffsToSlots,
-		RepackImag2Real: false,
-		LogN: paramsN12.LogN(),
-		LogSlots: paramsN12.LogSlots(),
-		Scaling: 1/16.0,
+		RepackImag2Real:     false,
+		LogN:                paramsN12.LogN(),
+		LogSlots:            paramsN12.LogSlots(),
+		Scaling:             1 / 16.0,
 		LevelStart:          2,     // starting level
 		BSGSRatio:           4.0,   // ratio between n1/n2 for n1*n2 = slots
 		BitReversed:         false, // bit-reversed input
@@ -89,7 +89,7 @@ func LUT() {
 	rotations = append(rotations, SlotsToCoeffsParameters.Rotations()...)
 	rotations = append(rotations, CoeffsToSlotsParameters.Rotations()...)
 
-	for i := 0; i < 32; i++{
+	for i := 0; i < 32; i++ {
 		rotations = append(rotations, i)
 	}
 
@@ -105,7 +105,7 @@ func LUT() {
 
 	fmt.Println("Before")
 	ckks.SliceBitReverseInPlaceComplex128(values, paramsN12.Slots())
-	for i := range values{
+	for i := range values {
 		fmt.Printf("%2d: %7.4f\n", i, values[i])
 	}
 	ckks.SliceBitReverseInPlaceComplex128(values, paramsN12.Slots())
@@ -114,13 +114,12 @@ func LUT() {
 	encoderN12.EncodeSlots(values, pt, paramsN12.LogSlots())
 	ctN12 := encryptorN12.EncryptNew(pt)
 
-
 	ctN12R := eval.SlotsToCoeffsNew(ctN12, nil, SlotsToCoeffsMatrix)
 
 	valuesF := encoderN12.DecodeCoeffs(decryptorN12.DecryptNew(ctN12R))
 
 	fmt.Println("After")
-	for i, v := range valuesF{
+	for i, v := range valuesF {
 		fmt.Printf("%2d: %7.4f\n", i, v)
 	}
 
@@ -130,7 +129,7 @@ func LUT() {
 	var ctN12I *ckks.Ciphertext
 	ctN12R, ctN12I = eval.CoeffsToSlotsNew(ctN12, CoeffsToSlotsMatrix)
 
-	if ctN12I != nil{
+	if ctN12I != nil {
 		eval.MultByi(ctN12I, ctN12I)
 		eval.Add(ctN12R, ctN12I, ctN12R)
 	}
@@ -138,7 +137,7 @@ func LUT() {
 	values = encoderN12.DecodeSlots(decryptorN12.DecryptNew(ctN12R), paramsN12.LogSlots())
 
 	fmt.Println("After")
-	for i, v := range values{
+	for i, v := range values {
 		fmt.Printf("%2d: %7.4f\n", i, v)
 	}
 

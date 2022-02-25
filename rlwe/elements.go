@@ -17,6 +17,21 @@ type Ciphertext struct {
 	Value []*ring.Poly
 }
 
+// RGSWCiphertext is a generic type for RGSW ciphertext.
+type RGSWCiphertext struct {
+	Value [][2][2]PolyQP
+}
+
+// LevelQ returns the level of the modulus Q of the target.
+func (rgsw *RGSWCiphertext) LevelQ() int {
+	return rgsw.Value[0][0][0].Q.Level()
+}
+
+// LevelP returns the level of the modulus P of the target.
+func (rgsw *RGSWCiphertext) LevelP() int {
+	return rgsw.Value[0][0][0].P.Level()
+}
+
 // AdditiveShare is a type for storing additively shared values in Z_Q[X] (RNS domain)
 type AdditiveShare struct {
 	Value ring.Poly
@@ -96,6 +111,26 @@ func NewCiphertextNTT(params Parameters, degree, level int) *Ciphertext {
 		el.Value[i].IsNTT = true
 	}
 	return el
+}
+
+// NewCiphertextRGSWNTT allocates a new RGSW ciphertext in the NTT domain.
+func NewCiphertextRGSWNTT(params Parameters, levelQ int) (rgsw *RGSWCiphertext) {
+
+	rgsw = new(RGSWCiphertext)
+	ringQP := params.RingQP()
+	beta := params.Beta()
+	rgsw.Value = make([][2][2]PolyQP, beta)
+	levelP := params.PCount() - 1
+	for i := 0; i < beta; i++ {
+		rgsw.Value[i][0] = [2]PolyQP{ringQP.NewPolyLvl(levelQ, levelP), ringQP.NewPolyLvl(levelQ, levelP)}
+		rgsw.Value[i][1] = [2]PolyQP{ringQP.NewPolyLvl(levelQ, levelP), ringQP.NewPolyLvl(levelQ, levelP)}
+
+		rgsw.Value[i][0][0].Q.IsNTT = true
+		rgsw.Value[i][1][0].Q.IsNTT = true
+		rgsw.Value[i][0][0].P.IsNTT = true
+		rgsw.Value[i][1][0].P.IsNTT = true
+	}
+	return
 }
 
 // NewCiphertextRandom generates a new uniformly distributed Ciphertext of degree, level and scale.

@@ -3,6 +3,7 @@ package lwe
 import (
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"math/big"
 )
 
 // Handler is a struct that stores necessary
@@ -127,9 +128,9 @@ func (h *Handler) permuteNTTIndexesForKey(rtks *rlwe.RotationKeySet) *map[uint64
 // LUTKey is a struct storing the encryption
 // of the bits of the LWE key.
 type LUTKey struct {
-	SkPos  []*rlwe.RGSWCiphertext
-	SkNeg  []*rlwe.RGSWCiphertext
-	EncOne *rlwe.RGSWCiphertext
+	SkPos   []*rlwe.RGSWCiphertext
+	SkNeg   []*rlwe.RGSWCiphertext
+	OneRGSW *ring.Poly
 }
 
 // GenLUTKey generates the LUT evaluation key
@@ -152,8 +153,31 @@ func (h *Handler) GenLUTKey(skRLWE, skLWE *rlwe.SecretKey) (lutkey *LUTKey) {
 
 	encryptor := rlwe.NewEncryptor(paramsLUT, skRLWE)
 
-	EncOneRGSW := rlwe.NewCiphertextRGSWNTT(paramsLUT, paramsLUT.MaxLevel())
-	encryptor.EncryptRGSW(plaintextRGSWOne, EncOneRGSW)
+	ringQLUT := paramsLUT.RingQ()
+	ringPLUT := paramsLUT.RingP()
+
+	levelQ := paramsLUT.QCount() - 1
+	levelP := paramsLUT.PCount() - 1
+
+	var pBigInt *big.Int
+	if levelP == paramsLUT.PCount()-1 {
+		pBigInt = ringPLUT.ModulusBigint
+	} else {
+		P := ringPLUT.Modulus
+		pBigInt = new(big.Int).SetUint64(P[0])
+		for i := 1; i < levelP+1; i++ {
+			pBigInt.Mul(pBigInt, ring.NewUint(P[i]))
+		}
+	}
+
+	OneRGSW := ringQLUT.NewPoly()
+	tmp := new(big.Int)
+	for i := 0; i < levelQ+1; i++ {
+		OneRGSW.Coeffs[i][0] = tmp.Mod(pBigInt, ring.NewUint(ringQLUT.Modulus[i])).Uint64()
+	}
+
+	ringQLUT.NTTLvl(levelQ, OneRGSW, OneRGSW)
+	ringQLUT.MFormLvl(levelQ, OneRGSW, OneRGSW)
 
 	skRGSWPos := make([]*rlwe.RGSWCiphertext, paramsLWE.N())
 	skRGSWNeg := make([]*rlwe.RGSWCiphertext, paramsLWE.N())
@@ -183,7 +207,7 @@ func (h *Handler) GenLUTKey(skRLWE, skLWE *rlwe.SecretKey) (lutkey *LUTKey) {
 		}
 	}
 
-	return &LUTKey{SkPos: skRGSWPos, SkNeg: skRGSWNeg, EncOne: EncOneRGSW}
+	return &LUTKey{SkPos: skRGSWPos, SkNeg: skRGSWNeg, OneRGSW: OneRGSW}
 }
 
 // ReduceRGSW applies a homomorphic modular reduction on the input RGSW ciphertext and returns

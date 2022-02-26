@@ -116,19 +116,19 @@ func (h *Handler) ExtractAndEvaluateLUT(ct *rlwe.Ciphertext, lutPolyWihtSlotInde
 
 			if lutLvlIsZero {
 				for j := 0; j < ringQLWE.N; j++ {
-					// (X^{a} - 1) * sk_{i}[0] + (X^{-a} - 1) * sk_{i}[1] + 1
+					// RGSW[(X^{a} - 1) * sk_{j}[0] + (X^{-a} - 1) * sk_{j}[1] + 1]
 					MulRGSWByXPowAlphaMinusOne(lutKey.SkPos[j], h.xPowMinusOne[a[j]], ringQPLUT, tmpRGSW)
 					MulRGSWByXPowAlphaMinusOneAndAdd(lutKey.SkNeg[j], h.xPowMinusOne[-a[j]&mask], ringQPLUT, tmpRGSW)
-					AddRGSW(lutKey.EncOne, ringQPLUT, tmpRGSW) // TODO : add 1 in plaintext
+					AddOneRGSW(lutKey.OneRGSW, ringQLUT, tmpRGSW)
 
-					// LUT *= (X^{a} - 1) * sk_{i}[0] + (X^{-a} - 1) * sk_{i}[1] + 1)
+					// LUT[RLWE] = LUT[RLWE] x RGSW[(X^{a} - 1) * sk_{j}[0] + (X^{-a} - 1) * sk_{j}[1] + 1]
 					ks.MulRGSWSingleModulus(acc, tmpRGSW, acc)
 				}
 			} else {
 				for j := 0; j < ringQLWE.N; j++ {
 					MulRGSWByXPowAlphaMinusOne(lutKey.SkPos[j], h.xPowMinusOne[a[j]], ringQPLUT, tmpRGSW)
 					MulRGSWByXPowAlphaMinusOneAndAdd(lutKey.SkNeg[j], h.xPowMinusOne[-a[j]&mask], ringQPLUT, tmpRGSW)
-					AddRGSW(lutKey.EncOne, ringQPLUT, tmpRGSW) // TODO : add 1 in plaintext
+					AddOneRGSW(lutKey.OneRGSW, ringQLUT, tmpRGSW)
 					ks.MulRGSW(acc, tmpRGSW, acc)
 				}
 			}
@@ -136,10 +136,26 @@ func (h *Handler) ExtractAndEvaluateLUT(ct *rlwe.Ciphertext, lutPolyWihtSlotInde
 			res[index] = acc.CopyNew()
 		}
 
-		// LUT = LUT * X^{m+e}
+		// LUT[RLWE] = LUT[RLWE] * X^{m+e}
 	}
 
 	return
+}
+
+// AddOneRGSW adds one in plaintext on the output RGSW ciphertext.
+func AddOneRGSW(oneRGSW *ring.Poly, ringQ *ring.Ring, res *rlwe.RGSWCiphertext) {
+	nQ := len(res.Value[0][0][0].Q.Coeffs)
+	nP := len(res.Value[0][0][0].P.Coeffs)
+	for i := range res.Value {
+		start, end := i*nP, (i+1)*nP
+		if end > nQ {
+			end = nQ
+		}
+		for j := start; j < end; j++ {
+			ring.AddVecNoMod(res.Value[i][0][0].Q.Coeffs[j], oneRGSW.Coeffs[j], res.Value[i][0][0].Q.Coeffs[j])
+			ring.AddVecNoMod(res.Value[i][1][1].Q.Coeffs[j], oneRGSW.Coeffs[j], res.Value[i][1][1].Q.Coeffs[j])
+		}
+	}
 }
 
 //MulBySmallMonomialMod2N multiplies pol by x^n, with 0 <= n < N

@@ -14,8 +14,8 @@ type Handler struct {
 	paramsLWE rlwe.Parameters
 	rtks      *rlwe.RotationKeySet
 
-	xPow         []*ring.Poly
-	xPowMinusOne []rlwe.PolyQP
+	xPow         []*ring.Poly  //X^n from 0 to LogN LUT
+	xPowMinusOne []rlwe.PolyQP //X^n - 1 from 0 to 2N LWE
 
 	permuteNTTIndex map[uint64][]uint64
 
@@ -38,8 +38,8 @@ func NewHandler(paramsLUT, paramsLWE rlwe.Parameters, rtks *rlwe.RotationKeySet)
 	h.poolMod2N = [2]*ring.Poly{paramsLWE.RingQ().NewPolyLvl(0), paramsLWE.RingQ().NewPolyLvl(0)}
 	h.accumulator = rlwe.NewCiphertextNTT(paramsLUT, 1, paramsLUT.MaxLevel())
 
+	// Compute X^{n} from 0 to LogN LUT
 	h.xPow = make([]*ring.Poly, paramsLUT.LogN())
-
 	for i := 0; i < paramsLUT.LogN(); i++ {
 		h.xPow[i] = ringQ.NewPoly()
 		if i == 0 {
@@ -52,8 +52,8 @@ func NewHandler(paramsLUT, paramsLWE rlwe.Parameters, rtks *rlwe.RotationKeySet)
 		}
 	}
 
+	// Compute X^{n} -  1 from 0 to 2N LWE
 	oneNTTMFormQ := ringQ.NewPoly()
-
 	for i := range ringQ.Modulus {
 		for j := 0; j < ringQ.N; j++ {
 			oneNTTMFormQ.Coeffs[i][j] = ring.MForm(1, ringQ.Modulus[i], ringQ.BredParams[i])
@@ -87,17 +87,21 @@ func NewHandler(paramsLUT, paramsLWE rlwe.Parameters, rtks *rlwe.RotationKeySet)
 			ringQ.NTT(h.xPowMinusOne[i].Q, h.xPowMinusOne[i].Q)
 			ringP.NTT(h.xPowMinusOne[i].P, h.xPowMinusOne[i].P)
 
+			// Negacyclic wrap-arround for n > N
 			ringQ.Neg(h.xPowMinusOne[i].Q, h.xPowMinusOne[i+N].Q)
 			ringP.Neg(h.xPowMinusOne[i].P, h.xPowMinusOne[i+N].P)
 
 		} else {
 			ringQ.MulCoeffsMontgomery(h.xPowMinusOne[1].Q, h.xPowMinusOne[i-1].Q, h.xPowMinusOne[i].Q) // X^{n} = X^{1} * X^{n-1}
 			ringP.MulCoeffsMontgomery(h.xPowMinusOne[1].P, h.xPowMinusOne[i-1].P, h.xPowMinusOne[i].P)
+
+			// Negacyclic wrap-arround for n > N
 			ringQ.Neg(h.xPowMinusOne[i].Q, h.xPowMinusOne[i+N].Q) // X^{2n} = -X^{1} * X^{n-1}
 			ringP.Neg(h.xPowMinusOne[i].P, h.xPowMinusOne[i+N].P)
 		}
 	}
 
+	// Subtract -1 in NTT
 	for i := 0; i < 2*N; i++ {
 		ringQ.Sub(h.xPowMinusOne[i].Q, oneNTTMFormQ, h.xPowMinusOne[i].Q) // X^{n} - 1
 		ringP.Sub(h.xPowMinusOne[i].P, oneNTTMFormP, h.xPowMinusOne[i].P)
@@ -139,6 +143,7 @@ func (h *Handler) GenLUTKey(skRLWE, skLWE *rlwe.SecretKey) (lutkey *LUTKey) {
 	paramsLWE.RingQ().InvNTT(skLWE.Value.Q, skLWEInvNTT)
 
 	plaintextRGSWOne := rlwe.NewPlaintext(paramsLUT, paramsLUT.MaxLevel())
+	plaintextRGSWOne := rlwe.NewPlaintext(paramsLUT, paramsLUT.MaxLevel())
 	plaintextRGSWOne.Value.IsNTT = true
 	for j := 0; j < paramsLUT.QCount(); j++ {
 		for i := 0; i < paramsLUT.N(); i++ {
@@ -164,12 +169,15 @@ func (h *Handler) GenLUTKey(skRLWE, skLWE *rlwe.SecretKey) (lutkey *LUTKey) {
 		skRGSWPos[i] = rlwe.NewCiphertextRGSWNTT(paramsLUT, paramsLUT.MaxLevel())
 		skRGSWNeg[i] = rlwe.NewCiphertextRGSWNTT(paramsLUT, paramsLUT.MaxLevel())
 
+		// sk_i =  1 -> [RGSW(1), RGSW(0)]
 		if si == OneMForm {
 			encryptor.EncryptRGSW(plaintextRGSWOne, skRGSWPos[i])
 			encryptor.EncryptRGSW(nil, skRGSWNeg[i])
+			// sk_i = -1 -> [RGSW(0), RGSW(1)]
 		} else if si == MinusOneMform {
 			encryptor.EncryptRGSW(nil, skRGSWPos[i])
 			encryptor.EncryptRGSW(plaintextRGSWOne, skRGSWNeg[i])
+			// sk_i =  0 -> [RGSW(0), RGSW(0)]
 		} else {
 			encryptor.EncryptRGSW(nil, skRGSWPos[i])
 			encryptor.EncryptRGSW(nil, skRGSWNeg[i])

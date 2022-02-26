@@ -187,14 +187,16 @@ func SwitchCiphertextRingDegreeNTT(ctIn *Ciphertext, ringQSmallDim, ringQLargeDi
 		buff := make([]uint64, NIn)
 		for i := range ctOut.Value {
 			for j := range ctOut.Value[i].Coeffs {
-				tmpIn, tmpOut := ctIn.Value[i].Coeffs[j], ctIn.Value[i].Coeffs[j]
-				ringQLargeDim.InvNTTSingle(j, tmpIn, buff)
+				tmpIn, tmpOut := ctIn.Value[i].Coeffs[j], ctOut.Value[i].Coeffs[j]
+				ringQLargeDim.InvNTTSingle(j, tmpIn, pool)
 				for w0, w1 := 0, 0; w0 < NOut; w0, w1 = w0+1, w1+gap {
 					tmpOut[w0] = buff[w1]
 				}
+
 				ringQSmallDim.NTTSingle(j, tmpOut, tmpOut)
 			}
 		}
+
 	} else {
 		for i := range ctOut.Value {
 			ring.MapSmallDimensionToLargerDimensionNTT(ctIn.Value[i], ctOut.Value[i])

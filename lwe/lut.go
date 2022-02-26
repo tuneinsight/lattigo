@@ -72,13 +72,16 @@ func (h *Handler) ExtractAndEvaluateLUT(ct *rlwe.Ciphertext, lutPolyWihtSlotInde
 
 	lutLvlIsZero := (h.paramsLUT.QCount() == 1 && h.paramsLUT.PCount() == 1)
 
+	// mod 2N
 	mask := uint64(ringQLUT.N<<1) - 1
 
 	ringQLWE.InvNTTLvl(ct.Level(), ct.Value[0], acc.Value[0])
 	ringQLWE.InvNTTLvl(ct.Level(), ct.Value[1], acc.Value[1])
 
+	// Switch modulus from Q to 2N
 	h.ModSwitchRLWETo2NLvl(ct.Level(), acc.Value[1], acc.Value[1])
 
+	// Conversion from Convolution(a, sk) to DotProd(a, sk) for LWE decryption.
 	// Copy coefficients multiplied by X^{N-1} in reverse order:
 	// a_{0} -a_{N-1} -a2_{N-2} ... -a_{1}
 	tmp0 := aRLWEMod2N.Coeffs[0]
@@ -105,15 +108,20 @@ func (h *Handler) ExtractAndEvaluateLUT(ct *rlwe.Ciphertext, lutPolyWihtSlotInde
 			a := aRLWEMod2N.Coeffs[0]
 			b := bRLWEMod2N.Coeffs[0][index]
 
+			// LWE = -as + m + e, a
+			// LUT = LUT * X^{-as + m + e}
 			ringQLUT.MulCoeffsMontgomery(lut, h.xPowMinusOne[b].Q, acc.Value[0])
 			ringQLUT.Add(acc.Value[0], lut, acc.Value[0])
 			acc.Value[1].Zero() // TODO remove
 
 			if lutLvlIsZero {
 				for j := 0; j < ringQLWE.N; j++ {
+					// (X^{a} - 1) * sk_{i}[0] + (X^{-a} - 1) * sk_{i}[1] + 1
 					MulRGSWByXPowAlphaMinusOne(lutKey.SkPos[j], h.xPowMinusOne[a[j]], ringQPLUT, tmpRGSW)
 					MulRGSWByXPowAlphaMinusOneAndAdd(lutKey.SkNeg[j], h.xPowMinusOne[-a[j]&mask], ringQPLUT, tmpRGSW)
 					AddRGSW(lutKey.EncOne, ringQPLUT, tmpRGSW) // TODO : add 1 in plaintext
+
+					// LUT *= (X^{a} - 1) * sk_{i}[0] + (X^{-a} - 1) * sk_{i}[1] + 1)
 					ks.MulRGSWSingleModulus(acc, tmpRGSW, acc)
 				}
 			} else {
@@ -127,6 +135,8 @@ func (h *Handler) ExtractAndEvaluateLUT(ct *rlwe.Ciphertext, lutPolyWihtSlotInde
 
 			res[index] = acc.CopyNew()
 		}
+
+		// LUT = LUT * X^{m+e}
 	}
 
 	return
@@ -144,8 +154,7 @@ func MulBySmallMonomialMod2N(mask uint64, pol *ring.Poly, n int) {
 	}
 }
 
-// ModSwitchRLWETo2NLvl applys round(x * 2N / Q) to the coefficients of polQ and returns the
-// result on pol2N.
+// ModSwitchRLWETo2NLvl applys round(x * 2N / Q) to the coefficients of polQ and returns the result on pol2N.
 func (h *Handler) ModSwitchRLWETo2NLvl(level int, polQ *ring.Poly, pol2N *ring.Poly) {
 	coeffsBigint := make([]*big.Int, len(polQ.Coeffs[0]))
 

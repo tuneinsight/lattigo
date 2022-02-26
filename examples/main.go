@@ -54,7 +54,7 @@ var P = []uint64{0x4000000008a0001}
 // determine the complexity of the LUT:
 // each LUT takes N RGSW ciphertext-ciphetext mul.
 var ckksParamsN12 = ckks.ParametersLiteral{
-	LogN:         6,
+	LogN:         7,
 	LogSlots:     4,
 	Q:            Q,
 	P:            P,
@@ -66,7 +66,7 @@ var ckksParamsN12 = ckks.ParametersLiteral{
 // LUT RLWE params, N of these params determine
 // the LUT poly and therefore precision.
 var ckksParamsN10 = ckks.ParametersLiteral{
-	LogN:     5,
+	LogN:     6,
 	Q:        Q[:1],
 	P:        P[:1],
 	Sigma:    rlwe.DefaultSigma,
@@ -98,9 +98,10 @@ func LUT() {
 	repackIndex := make(map[int]int)       // Where to repack slots after the LUT
 	gapN10 := paramsN10.N() / (2 * paramsN12.Slots())
 	gapN12 := paramsN12.N() / (2 * paramsN12.Slots())
+
 	for i := 0; i < paramsN12.Slots(); i++ {
 		lutPolyMap[i*gapN10] = LUTPoly
-		repackIndex[i] = i * gapN12
+		repackIndex[i*gapN10] = i * gapN12
 	}
 
 	kgenN12 := ckks.NewKeyGenerator(paramsN12)
@@ -172,10 +173,6 @@ func LUT() {
 	rotations = append(rotations, SlotsToCoeffsParameters.Rotations()...)
 	rotations = append(rotations, CoeffsToSlotsParameters.Rotations()...)
 
-	for i := 0; i < 32; i++ {
-		rotations = append(rotations, i)
-	}
-
 	rotKey := kgenN12.GenRotationKeysForRotations(rotations, true, skN12)
 
 	// LUT handler
@@ -209,12 +206,20 @@ func LUT() {
 	rlwe.SwitchCiphertextRingDegreeNTT(ctTmp.Ciphertext, paramsN10.RingQ(), paramsN12.RingQ(), ctN10.Ciphertext)
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
+	//for i, v := range encoderN10.DecodeCoeffs(decryptorN10.DecryptNew(ctN10)){
+	//	fmt.Printf("%3d: %7.4f\n", i, v)
+	//}
+
 	fmt.Printf("Evaluating LUT... ")
 	now = time.Now()
 	// Extracts & EvalLUT(LWEs, indexLUT) on the fly -> Repack(LWEs, indexRepack) -> RLWE
 	ctN12.Ciphertext = handler.ExtractAndEvaluateLUTAndRepack(ctN10.Ciphertext, lutPolyMap, repackIndex, LUTKEY)
 	ctN12.Scale = paramsN12.DefaultScale()
 	fmt.Printf("Done (%s)\n", time.Since(now))
+
+	//for i, v := range encoderN12.DecodeCoeffs(decryptorN12.DecryptNew(ctN12)){
+	//	fmt.Printf("%3d: %7.4f\n", i, v)
+	//}
 
 	fmt.Println("Homomorphic Encoding... ")
 	now = time.Now()

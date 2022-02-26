@@ -41,7 +41,7 @@ func main() {
 		Scaling:             1.0,
 		LinearTransformType: ckksAdvanced.SlotsToCoeffs,
 		LevelStart:          2,     // starting level
-		BSGSRatio:           16.0,  // ratio between n1/n2 for n1*n2 = slots
+		BSGSRatio:           4.0,   // ratio between n1/n2 for n1*n2 = slots
 		BitReversed:         false, // bit-reversed input
 		ScalingFactor: [][]float64{ // Decomposition level of the encoding matrix
 			{paramsRLWE.QiFloat64(1)}, // Scale of the second matrix
@@ -84,7 +84,7 @@ func main() {
 	fmt.Printf("Gen Evaluation Keys:\n")
 	fmt.Printf("	Decoding Keys... ")
 	start = time.Now()
-	rotKey := kgenRLWE.GenRotationKeysForRotations(SlotsToCoeffsParameters.Rotations(paramsRLWE.LogN(), paramsRLWE.LogSlots()), true, skRLWE)
+	rotKey := kgenRLWE.GenRotationKeysForRotations(SlotsToCoeffsParameters.Rotations(), true, skRLWE)
 	fmt.Printf("Done (%s)\n", time.Since(start))
 	fmt.Printf("	Relinearization Key... ")
 	start = time.Now()
@@ -151,7 +151,7 @@ func main() {
 
 	plaintext := ckks.NewPlaintext(paramsRLWE, paramsRLWE.MaxLevel(), paramsRLWE.DefaultScale())
 	// Must encode with 2*Slots because a real vector is returned
-	encoder.Encode(values, plaintext, utils.MinInt(paramsRLWE.LogSlots()+1, paramsRLWE.LogN()-1))
+	encoder.Encode(values, plaintext, paramsRLWE.LogSlots())
 	ct := encryptor.EncryptNew(plaintext)
 	fmt.Printf("Done (%s)\n", time.Since(start))
 
@@ -239,7 +239,7 @@ func main() {
 		AMatDiag[i] = tmp
 	}
 
-	linTransf := ckks.GenLinearTransformBSGS(encoder, AMatDiag, paramsRLWE.MaxLevel(), 1.0, 16.0, paramsLWE.LogN())
+	linTransf := ckks.GenLinearTransformBSGS(encoder, AMatDiag, paramsRLWE.MaxLevel(), 1.0, 4.0, paramsLWE.LogN())
 	fmt.Printf("Done (%s)\n", time.Since(start))
 
 	evalRepack := ckks.NewEvaluator(paramsRLWE, rlwe.EvaluationKey{Rlk: rlk, Rtks: rotKeyRepack})

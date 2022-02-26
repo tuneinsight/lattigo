@@ -143,7 +143,6 @@ func (h *Handler) GenLUTKey(skRLWE, skLWE *rlwe.SecretKey) (lutkey *LUTKey) {
 	paramsLWE.RingQ().InvNTT(skLWE.Value.Q, skLWEInvNTT)
 
 	plaintextRGSWOne := rlwe.NewPlaintext(paramsLUT, paramsLUT.MaxLevel())
-	plaintextRGSWOne := rlwe.NewPlaintext(paramsLUT, paramsLUT.MaxLevel())
 	plaintextRGSWOne.Value.IsNTT = true
 	for j := 0; j < paramsLUT.QCount(); j++ {
 		for i := 0; i < paramsLUT.N(); i++ {

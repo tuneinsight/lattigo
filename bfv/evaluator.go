@@ -30,14 +30,19 @@ type Evaluator interface {
 	NegNew(op Operand) (ctOut *Ciphertext)
 	Reduce(op Operand, ctOut *Ciphertext)
 	ReduceNew(op Operand) (ctOut *Ciphertext)
+	AddScalar(op1 *Ciphertext, scalar uint64, ctOut *Ciphertext)
 	MulScalar(op Operand, scalar uint64, ctOut *Ciphertext)
+	MulScalarAndAdd(op Operand, scalar uint64, ctOut *Ciphertext)
 	MulScalarNew(op Operand, scalar uint64) (ctOut *Ciphertext)
 	QuantizeToLvl(level int, op0 *Ciphertext)
 	Mul(op0 *Ciphertext, op1 Operand, ctOut *Ciphertext)
 	MulNew(op0 *Ciphertext, op1 Operand) (ctOut *Ciphertext)
+	MulAndAdd(op0 *Ciphertext, op1 Operand, ctOut *Ciphertext)
 	Relinearize(ct0 *Ciphertext, ctOut *Ciphertext)
 	RelinearizeNew(ct0 *Ciphertext) (ctOut *Ciphertext)
 	SwitchKeys(ct0 *Ciphertext, switchKey *rlwe.SwitchingKey, ctOut *Ciphertext)
+	EvaluatePoly(ct0 *Ciphertext, pol *Polynomial) (opOut *Ciphertext, err error)
+	EvaluatePolyVector(ct0 *Ciphertext, pols []*Polynomial, encoder Encoder, slotsIndex map[int][]int) (opOut *Ciphertext, err error)
 	SwitchKeysNew(ct0 *Ciphertext, switchkey *rlwe.SwitchingKey) (ctOut *Ciphertext)
 	RotateColumnsNew(ct0 *Ciphertext, k int) (ctOut *Ciphertext)
 	RotateColumns(ct0 *Ciphertext, k int, ctOut *Ciphertext)
@@ -46,6 +51,10 @@ type Evaluator interface {
 	InnerSum(ct0 *Ciphertext, ctOut *Ciphertext)
 	ShallowCopy() Evaluator
 	WithKey(rlwe.EvaluationKey) Evaluator
+
+	PoolQ() [][]*ring.Poly
+	PoolQMul() [][]*ring.Poly
+	PoolPt() *Plaintext
 }
 
 // evaluator is a struct that holds the necessary elements to perform the homomorphic operations between ciphertexts and/or plaintexts.
@@ -268,6 +277,24 @@ func (eval *evaluator) MulScalar(op Operand, scalar uint64, ctOut *Ciphertext) {
 	evaluateInPlaceUnary(el0, elOut, fun)
 }
 
+// MulScalarAndAdd multiplies op by a uint64 scalar adds the result on ctOut.
+func (eval *evaluator) MulScalarAndAdd(op Operand, scalar uint64, ctOut *Ciphertext) {
+	el0, elOut := eval.getElemAndCheckUnary(op, ctOut, op.Degree())
+	fun := func(level int, el, elOut *ring.Poly) { eval.ringQ.MulScalarAndAddLvl(level, el, scalar, elOut) }
+	evaluateInPlaceUnary(el0, elOut, fun)
+}
+
+// AddScalar adds the scalar on op and returns the result on ctOut.
+func (eval *evaluator) AddScalar(op *Ciphertext, scalar uint64, ctOut *Ciphertext) {
+	scalarBigint := new(big.Int).SetUint64(scalar)
+	scalarBigint.Mul(scalarBigint, eval.ringQ.ModulusBigint)
+	ring.DivRound(scalarBigint, eval.params.RingT().ModulusBigint, scalarBigint)
+	tmp := new(big.Int)
+	for i, qi := range eval.ringQ.Modulus {
+		ctOut.Value[0].Coeffs[i][0] = ring.CRed(op.Value[0].Coeffs[i][0]+tmp.Mod(scalarBigint, new(big.Int).SetUint64(qi)).Uint64(), qi)
+	}
+}
+
 // MulScalarNew multiplies op by a uint64 scalar and creates a new element ctOut to store the result.
 func (eval *evaluator) MulScalarNew(op Operand, scalar uint64) (ctOut *Ciphertext) {
 	ctOut = NewCiphertext(eval.params, op.Degree())
@@ -482,6 +509,17 @@ func (eval *evaluator) Mul(op0 *Ciphertext, op1 Operand, ctOut *Ciphertext) {
 	default:
 		panic(fmt.Errorf("invalid operand type for Mul: %T", op1))
 	}
+}
+
+// MulAndAdd multiplies op0 with op1 and adds the result on ctOut.
+func (eval *evaluator) MulAndAdd(op0 *Ciphertext, op1 Operand, ctOut *Ciphertext) {
+	ct2 := &Ciphertext{&rlwe.Ciphertext{Value: make([]*ring.Poly, op0.Degree() + op1.Degree() + 1)}}
+	for i := range ct2.Value {
+		ct2.Value[i] = eval.poolQ[2][i]
+	}
+
+	eval.Mul(op0, op1, ct2)
+	eval.Add(ctOut, ct2, ctOut)
 }
 
 func (eval *evaluator) mulPlaintextMul(ct0 *Ciphertext, ptRt *PlaintextMul, ctOut *Ciphertext) {
@@ -758,6 +796,21 @@ func (eval *evaluator) WithKey(evaluationKey rlwe.EvaluationKey) Evaluator {
 		rlk:                 evaluationKey.Rlk,
 		rtks:                evaluationKey.Rtks,
 	}
+}
+
+// PoolQ returns the internal evaluator poolyQ buffer.
+func (eval *evaluator) PoolQ() [][]*ring.Poly {
+	return eval.poolQ
+}
+
+// PoolQMul returns the internal evaluator PoolQMul buffer.
+func (eval *evaluator) PoolQMul() [][]*ring.Poly {
+	return eval.poolQmul
+}
+
+// tmpPt returns the internal evaluator plaintext buffer
+func (eval *evaluator) PoolPt() *Plaintext {
+	return eval.tmpPt
 }
 
 func (eval *evaluator) getRingQElem(op Operand) *rlwe.Ciphertext {

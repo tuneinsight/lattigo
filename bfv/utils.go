@@ -8,6 +8,17 @@ import (
 	"github.com/tuneinsight/lattigo/v3/ring"
 )
 
+func evalPoly(x uint64, poly []uint64, t uint64, bredParams []uint64) (y uint64) {
+	y = poly[len(poly)-1]
+
+	for i := len(poly) - 2; i >= 0; i-- {
+		y = ring.BRed(y, x, t, bredParams)
+		y = ring.CRed(y+poly[i], t)
+	}
+
+	return
+}
+
 // DecryptAndPrintError decrypts a ciphertext and prints the log2 of the error.
 func DecryptAndPrintError(ptWant *Plaintext, cthave *Ciphertext, ringQ *ring.Ring, decryptor Decryptor) {
 

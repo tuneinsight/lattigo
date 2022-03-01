@@ -264,11 +264,10 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 	ringQP := params.RingQP()
 	levelQ, levelP := params.QCount()-1, params.PCount()-1
 
-	t.Run(testString(params, "RelinKeyGen"), func(t *testing.T) {
+	bitDecomp := 2 // set to 0 for no bit-decomp
+	decompBIT := params.DecompBIT(bitDecomp)
 
-		if params.PCount() == 0 {
-			t.Skip("method is unsuported when params.PCount() == 0")
-		}
+	t.Run(testString(params, "RelinKeyGen"), func(t *testing.T) {
 
 		rkg := make([]*RKGProtocol, nbParties)
 
@@ -287,12 +286,12 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 		share2 := make([]*RKGShare, nbParties)
 
 		for i := range rkg {
-			ephSk[i], share1[i], share2[i] = rkg[i].AllocateShare()
+			ephSk[i], share1[i], share2[i] = rkg[i].AllocateShare(bitDecomp)
 		}
 
-		crp := rkg[0].SampleCRP(testCtx.crs)
+		crp := rkg[0].SampleCRP(testCtx.crs, bitDecomp)
 		for i := range rkg {
-			rkg[i].GenShareRoundOne(testCtx.skShares[i], crp, ephSk[i], share1[i])
+			rkg[i].GenShareRoundOne(testCtx.skShares[i], crp, ephSk[i], bitDecomp, share1[i])
 		}
 
 		for i := 1; i < nbParties; i++ {
@@ -307,7 +306,7 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 			rkg[0].AggregateShare(share2[0], share2[i], share2[0])
 		}
 
-		rlk := rlwe.NewRelinKey(params, 2)
+		rlk := rlwe.NewRelinKey(params, 2, bitDecomp)
 		rkg[0].GenRelinearizationKey(share1[0], share2[0], rlk)
 
 		skIn := testCtx.skIdeal.CopyNew()
@@ -318,36 +317,67 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 
 		// Decrypts
 		// [-asIn + w*P*sOut + e, a] + [asIn]
-		for j := range swk.Value {
-			ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, swk.Value[j][1], skOut.Value, swk.Value[j][0])
-		}
-
-		poly := swk.Value[0][0]
-
-		// Sums all basis together (equivalent to multiplying with CRT decomposition of 1)
-		// sum([1]_w * [w*P*sOut + e]) = P*sOut + sum(e)
-		for j := range swk.Value {
-			if j > 0 {
-				ringQP.AddLvl(levelQ, levelP, poly, swk.Value[j][0], poly)
+		for i := range swk.Value {
+			for j := range swk.Value[i] {
+				ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, swk.Value[i][j][1], skOut.Value, swk.Value[i][j][0])
 			}
 		}
 
+		// Sums all basis together (equivalent to multiplying with CRT decomposition of 1)
+		// sum([1]_w * [RNS*BIT*P*sOut + e]) = BIT*P*sOut + sum(e)
+		for i := range swk.Value { // RNS decomp
+			if i > 0 {
+				for j := range swk.Value[i] { // BIT decomp
+					ringQP.AddLvl(levelQ, levelP, swk.Value[0][j][0], swk.Value[i][j][0], swk.Value[0][j][0])
+				}
+			}
+		}
+
+<<<<<<< dev_bfv_poly
 		// sOut * P
+<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
 		ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusAtLevel[levelP], skIn.Value.Q)
+=======
+		ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusBigint[levelP], skIn.Value.Q)
+=======
+		if levelP != -1 {
+			// sOut * P
+			ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusBigint, skIn.Value.Q)
+		}
 
-		// P*s^i + sum(e) - P*s^i = sum(e)
-		ringQ.Sub(swk.Value[0][0].Q, skIn.Value.Q, swk.Value[0][0].Q)
+		log2Bound := bits.Len64(uint64(params.N() * len(swk.Value) * len(swk.Value[0]) * (params.N()*3*int(math.Floor(rlwe.DefaultSigma*6)) + 2*3*int(math.Floor(rlwe.DefaultSigma*6)) + params.N()*3)))
+		for i := 0; i < decompBIT; i++ {
 
-		// Checks that the error is below the bound
-		// Worst error bound is N * floor(6*sigma) * #Keys
-		ringQP.InvNTTLvl(levelQ, levelP, poly, poly)
-		ringQP.InvMFormLvl(levelQ, levelP, poly, poly)
+			// P*s^i + sum(e) - P*s^i = sum(e)
+			ringQ.Sub(swk.Value[0][i][0].Q, skIn.Value.Q, swk.Value[0][i][0].Q)
 
+			// Checks that the error is below the bound
+			// Worst error bound is N * floor(6*sigma) * #Keys
+			ringQP.InvNTTLvl(levelQ, levelP, swk.Value[0][i][0], swk.Value[0][i][0])
+			ringQP.InvMFormLvl(levelQ, levelP, swk.Value[0][i][0], swk.Value[0][i][0])
+>>>>>>> First step for adding bit-decomp
+>>>>>>> First step for adding bit-decomp
+
+			// Worst bound of inner sum
+			// N*#Keys*(N * #Parties * floor(sigma*6) + #Parties * floor(sigma*6) + N * #Parties  +  #Parties * floor(6*sigma))
+
+			require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(len(ringQ.Modulus)-1, ringQ, swk.Value[0][i][0].Q))
+
+<<<<<<< dev_bfv_poly
 		// Worst bound of inner sum
 		// N*#Keys*(N * #Parties * floor(sigma*6) + #Parties * floor(sigma*6) + N * #Parties  +  #Parties * floor(6*sigma))
 		log2Bound := bits.Len64(uint64(params.N() * len(swk.Value) * (params.N()*3*int(math.Floor(rlwe.DefaultSigma*6)) + 2*3*int(math.Floor(rlwe.DefaultSigma*6)) + params.N()*3)))
 		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelQ, ringQ, swk.Value[0][0].Q))
 		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelP, ringP, swk.Value[0][0].P))
+=======
+			if levelP != -1 {
+				require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(len(ringP.Modulus)-1, ringP, swk.Value[0][i][0].P))
+			}
+
+			// sOut * P * BIT
+			ringQ.MulScalar(skIn.Value.Q, 1<<bitDecomp, skIn.Value.Q)
+		}
+>>>>>>> First step for adding bit-decomp
 	})
 }
 
@@ -359,11 +389,16 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 	ringQP := params.RingQP()
 	levelQ, levelP := params.QCount()-1, params.PCount()-1
 
-	t.Run(testString(params, "RotKeyGen"), func(t *testing.T) {
+	bitDecomp := 2 // set to 0 for no bit-decomp
+	decompBIT := params.DecompBIT(bitDecomp)
 
+<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
 		if params.PCount() == 0 {
 			t.Skip("method is unsupported when params.PCount() == 0")
 		}
+=======
+	t.Run(testString(params, "RotKeyGen"), func(t *testing.T) {
+>>>>>>> First step for adding bit-decomp
 
 		rtg := make([]*RTGProtocol, nbParties)
 		for i := range rtg {
@@ -378,10 +413,10 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 
 		shares := make([]*RTGShare, nbParties)
 		for i := range shares {
-			shares[i] = rtg[i].AllocateShare()
+			shares[i] = rtg[i].AllocateShare(bitDecomp)
 		}
 
-		crp := rtg[0].SampleCRP(testCtx.crs)
+		crp := rtg[0].SampleCRP(testCtx.crs, bitDecomp)
 
 		galEl := params.GaloisElementForRowRotation()
 
@@ -393,48 +428,83 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 			rtg[0].AggregateShare(shares[0], shares[i], shares[0])
 		}
 
-		rotKeySet := rlwe.NewRotationKeySet(params, []uint64{galEl})
+		rotKeySet := rlwe.NewRotationKeySet(params, []uint64{galEl}, bitDecomp)
 		rtg[0].GenRotationKey(shares[0], crp, rotKeySet.Keys[galEl])
 
 		skIn := testCtx.skIdeal.CopyNew()
 		skOut := testCtx.skIdeal.CopyNew()
 		galElInv := ring.ModExp(galEl, uint64(2*params.N()-1), uint64(2*params.N()))
 		ringQ.PermuteNTT(testCtx.skIdeal.Value.Q, galElInv, skOut.Value.Q)
-		ringP.PermuteNTT(testCtx.skIdeal.Value.P, galElInv, skOut.Value.P)
+
+		if levelP != -1 {
+			ringP.PermuteNTT(testCtx.skIdeal.Value.P, galElInv, skOut.Value.P)
+		}
 
 		swk := rotKeySet.Keys[galEl]
 
 		// Decrypts
 		// [-asIn + w*P*sOut + e, a] + [asIn]
-		for j := range swk.Value {
-			ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, swk.Value[j][1], skOut.Value, swk.Value[j][0])
-
-		}
-
-		// Sums all basis together (equivalent to multiplying with CRT decomposition of 1)
-		// sum([1]_w * [w*P*sOut + e]) = P*sOut + sum(e)
-		for j := range swk.Value {
-			if j > 0 {
-				ringQP.AddLvl(levelQ, levelP, swk.Value[0][0], swk.Value[j][0], swk.Value[0][0])
+		for i := range swk.Value {
+			for j := range swk.Value[i] {
+				ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, swk.Value[i][j][1], skOut.Value, swk.Value[i][j][0])
 			}
 		}
 
+		// Sums all basis together (equivalent to multiplying with CRT decomposition of 1)
+		// sum([1]_w * [RNS*BIT*P*sOut + e]) = BIT*P*sOut + sum(e)
+		for i := range swk.Value { // RNS decomp
+			if i > 0 {
+				for j := range swk.Value[i] { // BIT decomp
+					ringQP.AddLvl(levelQ, levelP, swk.Value[0][j][0], swk.Value[i][j][0], swk.Value[0][j][0])
+				}
+			}
+		}
+
+<<<<<<< dev_bfv_poly
 		// sOut * P
+<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
 		ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusAtLevel[levelP], skIn.Value.Q)
+=======
+		ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusBigint[levelP], skIn.Value.Q)
+=======
+		if levelP != -1 {
+			// sOut * P
+			ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusBigint, skIn.Value.Q)
+		}
+>>>>>>> First step for adding bit-decomp
+>>>>>>> First step for adding bit-decomp
 
-		// P*s^i + sum(e) - P*s^i = sum(e)
-		ringQ.Sub(swk.Value[0][0].Q, skIn.Value.Q, swk.Value[0][0].Q)
+		log2Bound := bits.Len64(uint64(params.N() * len(swk.Value) * len(swk.Value[0]) * (params.N()*3*int(math.Floor(rlwe.DefaultSigma*6)) + 2*3*int(math.Floor(rlwe.DefaultSigma*6)) + params.N()*3)))
+		for i := 0; i < decompBIT; i++ {
 
-		// Checks that the error is below the bound
-		// Worst error bound is N * floor(6*sigma) * #Keys
-		ringQP.InvNTTLvl(levelQ, levelP, swk.Value[0][0], swk.Value[0][0])
-		ringQP.InvMFormLvl(levelQ, levelP, swk.Value[0][0], swk.Value[0][0])
+			// P*s^i + sum(e) - P*s^i = sum(e)
+			ringQ.Sub(swk.Value[0][i][0].Q, skIn.Value.Q, swk.Value[0][i][0].Q)
 
+<<<<<<< dev_bfv_poly
 		// Worst bound of inner sum
 		// N*#Keys*(N * #Parties * floor(sigma*6) + #Parties * floor(sigma*6) + N * #Parties  +  #Parties * floor(6*sigma))
 		log2Bound := bits.Len64(3 * uint64(math.Floor(rlwe.DefaultSigma*6)) * uint64(params.N()))
 		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelQ, ringQ, swk.Value[0][0].Q))
 		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelP, ringP, swk.Value[0][0].P))
+=======
+			// Checks that the error is below the bound
+			// Worst error bound is N * floor(6*sigma) * #Keys
+			ringQP.InvNTTLvl(levelQ, levelP, swk.Value[0][i][0], swk.Value[0][i][0])
+			ringQP.InvMFormLvl(levelQ, levelP, swk.Value[0][i][0], swk.Value[0][i][0])
+
+			// Worst bound of inner sum
+			// N*#Keys*(N * #Parties * floor(sigma*6) + #Parties * floor(sigma*6) + N * #Parties  +  #Parties * floor(6*sigma))
+
+			require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(len(ringQ.Modulus)-1, ringQ, swk.Value[0][i][0].Q))
+
+			if levelP != -1 {
+				require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(len(ringP.Modulus)-1, ringP, swk.Value[0][i][0].P))
+			}
+
+			// sOut * P * BIT
+			ringQ.MulScalar(skOut.Value.Q, 1<<bitDecomp, skOut.Value.Q)
+		}
+>>>>>>> First step for adding bit-decomp
 	})
 }
 
@@ -445,6 +515,8 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 	ciphertext := &rlwe.Ciphertext{Value: []*ring.Poly{params.RingQ().NewPoly(), params.RingQ().NewPoly()}}
 	testCtx.uniformSampler.Read(ciphertext.Value[0])
 	testCtx.uniformSampler.Read(ciphertext.Value[1])
+
+	bitDecomp := 2 // set to 0 for no bit-decomp
 
 	t.Run(testString(params, "Marshalling/CKG"), func(t *testing.T) {
 		ckg := NewCKGProtocol(testCtx.params)
@@ -523,19 +595,22 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 
 	t.Run(testString(params, "Marshalling/RKG"), func(t *testing.T) {
 
+<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
 		if params.PCount() == 0 {
 			t.Skip("method is unsupported when params.PCount() == 0")
 		}
 
+=======
+>>>>>>> First step for adding bit-decomp
 		//check RTGShare
 
 		RKGProtocol := NewRKGProtocol(params)
 
-		ephSk0, share10, _ := RKGProtocol.AllocateShare()
+		ephSk0, share10, _ := RKGProtocol.AllocateShare(bitDecomp)
 
-		crp := RKGProtocol.SampleCRP(testCtx.crs)
+		crp := RKGProtocol.SampleCRP(testCtx.crs, bitDecomp)
 
-		RKGProtocol.GenShareRoundOne(testCtx.skShares[0], crp, ephSk0, share10)
+		RKGProtocol.GenShareRoundOne(testCtx.skShares[0], crp, ephSk0, bitDecomp, share10)
 
 		data, err := share10.MarshalBinary()
 		require.NoError(t, err)
@@ -545,33 +620,41 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 		require.NoError(t, err)
 
 		require.Equal(t, len(rkgShare.Value), len(share10.Value))
-		for i, val := range share10.Value {
-			require.Equal(t, len(rkgShare.Value[i][0].Q.Coeffs), len(val[0].Q.Coeffs))
-			require.Equal(t, len(rkgShare.Value[i][0].P.Coeffs), len(val[0].P.Coeffs))
-			require.Equal(t, rkgShare.Value[i][0].Q.Coeffs, val[0].Q.Coeffs)
-			require.Equal(t, rkgShare.Value[i][0].P.Coeffs, val[0].P.Coeffs)
+		for i := range share10.Value {
+			for j, val := range share10.Value[i] {
 
-			require.Equal(t, len(rkgShare.Value[i][1].Q.Coeffs), len(val[1].Q.Coeffs))
-			require.Equal(t, len(rkgShare.Value[i][1].P.Coeffs), len(val[1].P.Coeffs))
-			require.Equal(t, rkgShare.Value[i][1].Q.Coeffs, val[1].Q.Coeffs)
-			require.Equal(t, rkgShare.Value[i][1].P.Coeffs, val[1].P.Coeffs)
+				require.Equal(t, len(rkgShare.Value[i][j][0].Q.Coeffs), len(val[0].Q.Coeffs))
+				require.Equal(t, rkgShare.Value[i][j][0].Q.Coeffs, val[0].Q.Coeffs)
+				require.Equal(t, len(rkgShare.Value[i][j][1].Q.Coeffs), len(val[1].Q.Coeffs))
+				require.Equal(t, rkgShare.Value[i][j][1].Q.Coeffs, val[1].Q.Coeffs)
+
+				if params.PCount() != 0 {
+					require.Equal(t, len(rkgShare.Value[i][j][0].P.Coeffs), len(val[0].P.Coeffs))
+					require.Equal(t, rkgShare.Value[i][j][0].P.Coeffs, val[0].P.Coeffs)
+					require.Equal(t, len(rkgShare.Value[i][j][1].P.Coeffs), len(val[1].P.Coeffs))
+					require.Equal(t, rkgShare.Value[i][j][1].P.Coeffs, val[1].P.Coeffs)
+				}
+			}
 		}
 	})
 
 	t.Run(testString(params, "Marshalling/RTG"), func(t *testing.T) {
 
+<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
 		if params.PCount() == 0 {
 			t.Skip("method is unsupported when params.PCount() == 0")
 		}
 
+=======
+>>>>>>> First step for adding bit-decomp
 		//check RTGShare
 
 		galEl := testCtx.params.GaloisElementForColumnRotationBy(64)
 
 		rtg := NewRTGProtocol(testCtx.params)
-		rtgShare := rtg.AllocateShare()
+		rtgShare := rtg.AllocateShare(bitDecomp)
 
-		crp := rtg.SampleCRP(testCtx.crs)
+		crp := rtg.SampleCRP(testCtx.crs, bitDecomp)
 
 		rtg.GenShare(testCtx.skShares[0], galEl, crp, rtgShare)
 
@@ -584,11 +667,16 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 
 		require.Equal(t, len(resRTGShare.Value), len(rtgShare.Value))
 
-		for i, val := range rtgShare.Value {
-			require.Equal(t, len(resRTGShare.Value[i].Q.Coeffs), len(val.Q.Coeffs))
-			require.Equal(t, resRTGShare.Value[i].Q.Coeffs, val.Q.Coeffs)
-			require.Equal(t, len(resRTGShare.Value[i].P.Coeffs), len(val.P.Coeffs))
-			require.Equal(t, resRTGShare.Value[i].P.Coeffs, val.P.Coeffs)
+		for i := range rtgShare.Value {
+			for j, val := range rtgShare.Value[i] {
+				require.Equal(t, len(resRTGShare.Value[i][j].Q.Coeffs), len(val.Q.Coeffs))
+				require.Equal(t, resRTGShare.Value[i][j].Q.Coeffs, val.Q.Coeffs)
+
+				if params.PCount() != 0 {
+					require.Equal(t, len(resRTGShare.Value[i][j].P.Coeffs), len(val.P.Coeffs))
+					require.Equal(t, resRTGShare.Value[i][j].P.Coeffs, val.P.Coeffs)
+				}
+			}
 		}
 	})
 }

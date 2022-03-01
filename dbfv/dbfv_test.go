@@ -199,9 +199,16 @@ func testPublicKeyGen(tc *testContext, t *testing.T) {
 
 func testRelinKeyGen(tc *testContext, t *testing.T) {
 
+<<<<<<< dev_bfv_poly
 	sk0Shards := tc.sk0Shards
 	encryptorPk0 := tc.encryptorPk0
 	decryptorSk0 := tc.decryptorSk0
+=======
+	sk0Shards := testCtx.sk0Shards
+	encryptorPk0 := testCtx.encryptorPk0
+	decryptorSk0 := testCtx.decryptorSk0
+	bitDecomp := 0
+>>>>>>> First step for adding bit-decomp
 
 	t.Run(testString("RelinKeyGen", parties, tc.params), func(t *testing.T) {
 
@@ -219,7 +226,7 @@ func testRelinKeyGen(tc *testContext, t *testing.T) {
 			p := new(Party)
 			p.RKGProtocol = NewRKGProtocol(tc.params)
 			p.sk = sk0Shards[i]
-			p.ephSk, p.share1, p.share2 = p.AllocateShare()
+			p.ephSk, p.share1, p.share2 = p.AllocateShare(bitDecomp)
 			rkgParties[i] = p
 		}
 
@@ -228,11 +235,15 @@ func testRelinKeyGen(tc *testContext, t *testing.T) {
 		// Checks that bfv.RKGProtocol complies to the drlwe.RelinearizationKeyGenerator interface
 		var _ drlwe.RelinearizationKeyGenerator = P0.RKGProtocol
 
+<<<<<<< dev_bfv_poly
 		crp := P0.SampleCRP(tc.crs)
+=======
+		crp := P0.SampleCRP(testCtx.crs, bitDecomp)
+>>>>>>> First step for adding bit-decomp
 
 		// ROUND 1
 		for i, p := range rkgParties {
-			p.GenShareRoundOne(p.sk, crp, p.ephSk, p.share1)
+			p.GenShareRoundOne(p.sk, crp, p.ephSk, bitDecomp, p.share1)
 			if i > 0 {
 				P0.AggregateShare(p.share1, P0.share1, P0.share1)
 			}
@@ -367,9 +378,16 @@ func testPublicKeySwitching(tc *testContext, t *testing.T) {
 
 func testRotKeyGenRotRows(tc *testContext, t *testing.T) {
 
+<<<<<<< dev_bfv_poly
 	encryptorPk0 := tc.encryptorPk0
 	decryptorSk0 := tc.decryptorSk0
 	sk0Shards := tc.sk0Shards
+=======
+	encryptorPk0 := testCtx.encryptorPk0
+	decryptorSk0 := testCtx.decryptorSk0
+	sk0Shards := testCtx.sk0Shards
+	bitDecomp := 0
+>>>>>>> First step for adding bit-decomp
 
 	t.Run(testString("RotKeyGenRotRows", parties, tc.params), func(t *testing.T) {
 
@@ -384,7 +402,7 @@ func testRotKeyGenRotRows(tc *testContext, t *testing.T) {
 			p := new(Party)
 			p.RTGProtocol = NewRotKGProtocol(tc.params)
 			p.s = sk0Shards[i]
-			p.share = p.AllocateShare()
+			p.share = p.AllocateShare(bitDecomp)
 			pcksParties[i] = p
 		}
 		P0 := pcksParties[0]
@@ -392,7 +410,11 @@ func testRotKeyGenRotRows(tc *testContext, t *testing.T) {
 		// Checks that bfv.RTGProtocol complies to the drlwe.RotationKeyGenerator interface
 		var _ drlwe.RotationKeyGenerator = P0.RTGProtocol
 
+<<<<<<< dev_bfv_poly
 		crp := P0.SampleCRP(tc.crs)
+=======
+		crp := P0.SampleCRP(testCtx.crs, bitDecomp)
+>>>>>>> First step for adding bit-decomp
 
 		galEl := tc.params.GaloisElementForRowRotation()
 		rotKeySet := bfv.NewRotationKeySet(tc.params, []uint64{galEl})
@@ -419,9 +441,16 @@ func testRotKeyGenRotRows(tc *testContext, t *testing.T) {
 
 func testRotKeyGenRotCols(tc *testContext, t *testing.T) {
 
+<<<<<<< dev_bfv_poly
 	encryptorPk0 := tc.encryptorPk0
 	decryptorSk0 := tc.decryptorSk0
 	sk0Shards := tc.sk0Shards
+=======
+	encryptorPk0 := testCtx.encryptorPk0
+	decryptorSk0 := testCtx.decryptorSk0
+	sk0Shards := testCtx.sk0Shards
+	bitDecomp := 0
+>>>>>>> First step for adding bit-decomp
 
 	t.Run(testString("RotKeyGenRotCols", parties, tc.params), func(t *testing.T) {
 
@@ -436,7 +465,7 @@ func testRotKeyGenRotCols(tc *testContext, t *testing.T) {
 			p := new(Party)
 			p.RTGProtocol = NewRotKGProtocol(tc.params)
 			p.s = sk0Shards[i]
-			p.share = p.AllocateShare()
+			p.share = p.AllocateShare(bitDecomp)
 			pcksParties[i] = p
 		}
 
@@ -445,7 +474,11 @@ func testRotKeyGenRotCols(tc *testContext, t *testing.T) {
 		// Checks that bfv.RTGProtocol complies to the drlwe.RotationKeyGenerator interface
 		var _ drlwe.RotationKeyGenerator = P0.RTGProtocol
 
+<<<<<<< dev_bfv_poly
 		crp := P0.SampleCRP(tc.crs)
+=======
+		crp := P0.SampleCRP(testCtx.crs, bitDecomp)
+>>>>>>> First step for adding bit-decomp
 
 		coeffs, _, ciphertext := newTestVectors(tc, encryptorPk0, t)
 
@@ -548,14 +581,26 @@ func testEncToShares(tc *testContext, t *testing.T) {
 
 func testRefresh(tc *testContext, t *testing.T) {
 
+<<<<<<< dev_bfv_poly
 	encryptorPk0 := tc.encryptorPk0
 	sk0Shards := tc.sk0Shards
 	encoder := tc.encoder
 	decryptorSk0 := tc.decryptorSk0
+=======
+	encryptorPk0 := testCtx.encryptorPk0
+	sk0Shards := testCtx.sk0Shards
+	encoder := testCtx.encoder
+	decryptorSk0 := testCtx.decryptorSk0
+	bitDecomp := 0
+>>>>>>> First step for adding bit-decomp
 
 	kgen := bfv.NewKeyGenerator(tc.params)
 
+<<<<<<< dev_bfv_poly
 	rlk := kgen.GenRelinearizationKey(tc.sk0, 2)
+=======
+	rlk := kgen.GenRelinearizationKey(testCtx.sk0, 2, bitDecomp)
+>>>>>>> First step for adding bit-decomp
 
 	t.Run(testString("Refresh", parties, tc.params), func(t *testing.T) {
 

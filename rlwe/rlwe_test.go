@@ -44,7 +44,7 @@ func TestRLWE(t *testing.T) {
 		defaultParams = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
-	for _, defaultParam := range defaultParams[:] {
+	for _, defaultParam := range defaultParams[:1] {
 		params, err := NewParametersFromLiteral(defaultParam)
 		if err != nil {
 			panic(err)
@@ -197,51 +197,74 @@ func testSwitchKeyGen(kgen KeyGenerator, t *testing.T) {
 	// 3) Checking that the difference with the input key has a small norm
 	t.Run(testString(params, "SWKGen/"), func(t *testing.T) {
 
-		if params.PCount() == 0 {
-			t.Skip("#Pi is empty")
-		}
-
 		ringQ := params.RingQ()
 		ringP := params.RingP()
 		ringQP := params.RingQP()
 		skIn := kgen.GenSecretKey()
 		skOut := kgen.GenSecretKey()
 		levelQ, levelP := params.QCount()-1, params.PCount()-1
+		bitDecomp := 2 // set to 0 for no bit-decomp
+		BITLog := params.DecompBIT(bitDecomp)
 
 		// Generates Decomp([-asIn + w*P*sOut + e, a])
-		swk := NewSwitchingKey(params, params.QCount()-1, params.PCount()-1)
+		swk := NewSwitchingKey(params, params.QCount()-1, params.PCount()-1, bitDecomp)
 		kgen.(*keyGenerator).genSwitchingKey(skIn.Value.Q, skOut.Value, swk)
 
 		// Decrypts
 		// [-asIn + w*P*sOut + e, a] + [asIn]
-		for j := range swk.Value {
-			ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, swk.Value[j][1], skOut.Value, swk.Value[j][0])
-		}
-
-		// Sums all basis together (equivalent to multiplying with CRT decomposition of 1)
-		// sum([1]_w * [w*P*sOut + e]) = P*sOut + sum(e)
-		for j := range swk.Value {
-			if j > 0 {
-				ringQP.AddLvl(levelQ, levelP, swk.Value[0][0], swk.Value[j][0], swk.Value[0][0])
+		for i := range swk.Value {
+			for _, el := range swk.Value[i] {
+				ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, el[1], skOut.Value, el[0])
 			}
 		}
 
+		// Sums all basis together (equivalent to multiplying with CRT decomposition of 1)
+		// sum([1]_w * [RNS*BIT*P*sOut + e]) = BIT*P*sOut + sum(e)
+		for i := range swk.Value { // RNS decomp
+			if i > 0 {
+				for j := range swk.Value[i] { // BIT decomp
+					ringQP.AddLvl(levelQ, levelP, swk.Value[0][j][0], swk.Value[i][j][0], swk.Value[0][j][0])
+				}
+			}
+		}
+
+<<<<<<< dev_bfv_poly
 		// sOut * P
-		ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusAtLevel[levelP], skIn.Value.Q)
+		ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusBigint[levelP], skIn.Value.Q)
+=======
+		// sOut * P * BIT
+		if levelP != -1 {
+			ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusBigint, skIn.Value.Q)
+		}
+>>>>>>> First step for adding bit-decomp
 
-		// P*s^i + sum(e) - P*s^i = sum(e)
-		ringQ.Sub(swk.Value[0][0].Q, skIn.Value.Q, swk.Value[0][0].Q)
+		log2Bound := bits.Len64(uint64(math.Floor(DefaultSigma*6)) * uint64(params.N()*len(swk.Value)))
+		for i := 0; i < BITLog; i++ {
 
-		// Checks that the error is below the bound
-		// Worst error bound is N * floor(6*sigma) * #Keys
+			// P*s^i + sum(e) - P*s^i = sum(e)
+			ringQ.Sub(swk.Value[0][i][0].Q, skIn.Value.Q, swk.Value[0][i][0].Q)
 
-		ringQP.InvNTTLvl(levelQ, levelP, swk.Value[0][0], swk.Value[0][0])
-		ringQP.InvMFormLvl(levelQ, levelP, swk.Value[0][0], swk.Value[0][0])
+			// Checks that the error is below the bound
+			// Worst error bound is N * floor(6*sigma) * #Keys
 
+<<<<<<< dev_bfv_poly
 		log2Bound := bits.Len64(uint64(math.Floor(DefaultSigma*6)) * uint64(params.N()*len(swk.Value)))
 		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelQ, ringQ, swk.Value[0][0].Q))
 		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelP, ringP, swk.Value[0][0].P))
+=======
+			ringQP.InvNTTLvl(levelQ, levelP, swk.Value[0][i][0], swk.Value[0][i][0])
+			ringQP.InvMFormLvl(levelQ, levelP, swk.Value[0][i][0], swk.Value[0][i][0])
 
+			require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(len(ringQ.Modulus)-1, ringQ, swk.Value[0][i][0].Q))
+>>>>>>> First step for adding bit-decomp
+
+			if levelP != -1 {
+				require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(len(ringP.Modulus)-1, ringP, swk.Value[0][i][0].P))
+			}
+
+			// sOut * P * BIT
+			ringQ.MulScalar(skIn.Value.Q, 1<<bitDecomp, skIn.Value.Q)
+		}
 	})
 }
 
@@ -307,7 +330,7 @@ func testEncryptor(kgen KeyGenerator, t *testing.T) {
 		skEnc1, skEnc2 := enc1.(*skEncryptor), enc2.(*skEncryptor)
 		require.True(t, skEnc1.encryptorBase == skEnc2.encryptorBase)
 		require.True(t, skEnc1.sk == skEnc2.sk)
-		require.False(t, skEnc1.basisextender == skEnc2.basisextender)
+		require.False(t, (skEnc1.basisextender == skEnc2.basisextender) && (skEnc1.basisextender != nil) && (skEnc2.basisextender != nil))
 		require.False(t, skEnc1.encryptorBuffers == skEnc2.encryptorBuffers)
 		require.False(t, skEnc1.encryptorSamplers == skEnc2.encryptorSamplers)
 	})
@@ -318,7 +341,7 @@ func testEncryptor(kgen KeyGenerator, t *testing.T) {
 		pkEnc1, pkEnc2 := enc1.(*pkEncryptor), enc2.(*pkEncryptor)
 		require.True(t, pkEnc1.encryptorBase == pkEnc2.encryptorBase)
 		require.True(t, pkEnc1.pk == pkEnc2.pk)
-		require.False(t, pkEnc1.basisextender == pkEnc2.basisextender)
+		require.False(t, (pkEnc1.basisextender == pkEnc2.basisextender) && (pkEnc1.basisextender != nil) && (pkEnc2.basisextender != nil))
 		require.False(t, pkEnc1.encryptorBuffers == pkEnc2.encryptorBuffers)
 		require.False(t, pkEnc1.encryptorSamplers == pkEnc2.encryptorSamplers)
 	})
@@ -331,7 +354,7 @@ func testEncryptor(kgen KeyGenerator, t *testing.T) {
 		skEnc1, skEnc2 := enc1.(*skEncryptor), enc2.(*skEncryptor)
 		require.True(t, skEnc1.encryptorBase == skEnc2.encryptorBase)
 		require.False(t, skEnc1.sk == skEnc2.sk)
-		require.False(t, skEnc1.basisextender == skEnc2.basisextender)
+		require.False(t, (skEnc1.basisextender == skEnc2.basisextender) && (skEnc1.basisextender != nil) && (skEnc2.basisextender != nil))
 		require.False(t, skEnc1.encryptorBuffers == skEnc2.encryptorBuffers)
 		require.False(t, skEnc1.encryptorSamplers == skEnc2.encryptorSamplers)
 	})
@@ -341,7 +364,7 @@ func testEncryptor(kgen KeyGenerator, t *testing.T) {
 		enc2 := enc1.WithKey(pk)
 		skEnc1, pkEnc2 := enc1.(*skEncryptor), enc2.(*pkEncryptor)
 		require.True(t, skEnc1.encryptorBase == pkEnc2.encryptorBase)
-		require.False(t, skEnc1.basisextender == pkEnc2.basisextender)
+		require.False(t, (skEnc1.basisextender == pkEnc2.basisextender) && (skEnc1.basisextender != nil) && (pkEnc2.basisextender != nil))
 		require.False(t, skEnc1.encryptorBuffers == pkEnc2.encryptorBuffers)
 		require.False(t, skEnc1.encryptorSamplers == pkEnc2.encryptorSamplers)
 	})
@@ -481,10 +504,17 @@ func testKeySwitcher(kgen KeyGenerator, t *testing.T) {
 
 		// Test that Dec(KS(Enc(ct, sk), skOut), skOut) has a small norm
 		t.Run(testString(params, "KeySwitch/Standard/"), func(t *testing.T) {
+<<<<<<< dev_bfv_poly
 			swk := kgen.GenSwitchingKey(sk, skOut)
 			ks.SwitchKeysInPlace(ciphertext.Value[1].Level(), ciphertext.Value[1], swk, ks.BuffQP[1].Q, ks.BuffQP[2].Q)
 			ringQ.Add(ciphertext.Value[0], ks.BuffQP[1].Q, ciphertext.Value[0])
 			ring.CopyValues(ks.BuffQP[2].Q, ciphertext.Value[1])
+=======
+			swk := kgen.GenSwitchingKey(sk, skOut, 0)
+			ks.SwitchKeysInPlace(ciphertext.Value[1].Level(), ciphertext.Value[1], swk, ks.Pool[1].Q, ks.Pool[2].Q)
+			ringQ.Add(ciphertext.Value[0], ks.Pool[1].Q, ciphertext.Value[0])
+			ring.CopyValues(ks.Pool[2].Q, ciphertext.Value[1])
+>>>>>>> First step for adding bit-decomp
 			ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], skOut.Value.Q, ciphertext.Value[0])
 			ringQ.InvNTTLvl(ciphertext.Level(), ciphertext.Value[0], ciphertext.Value[0])
 			require.GreaterOrEqual(t, 11+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, ciphertext.Value[0]))
@@ -520,7 +550,7 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 			kgenSmallDim := NewKeyGenerator(paramsSmallDim)
 			skSmallDim := kgenSmallDim.GenSecretKey()
 
-			swk := kgenLargeDim.GenSwitchingKey(skLargeDim, skSmallDim)
+			swk := kgenLargeDim.GenSwitchingKey(skLargeDim, skSmallDim, 0)
 
 			plaintext := NewPlaintext(paramsLargeDim, paramsLargeDim.MaxLevel())
 			plaintext.Value.IsNTT = true
@@ -554,7 +584,7 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 			kgenSmallDim := NewKeyGenerator(paramsSmallDim)
 			skSmallDim := kgenSmallDim.GenSecretKey()
 
-			swk := kgenLargeDim.GenSwitchingKey(skSmallDim, skLargeDim)
+			swk := kgenLargeDim.GenSwitchingKey(skSmallDim, skLargeDim, 0)
 
 			plaintext := NewPlaintext(paramsSmallDim, paramsSmallDim.MaxLevel())
 			plaintext.Value.IsNTT = true
@@ -664,7 +694,7 @@ func testMarshaller(kgen KeyGenerator, t *testing.T) {
 			t.Skip("method is unsuported when params.PCount() == 0")
 		}
 
-		evalKey := kgen.GenRelinearizationKey(sk, 3)
+		evalKey := kgen.GenRelinearizationKey(sk, 3, 0)
 		data, err := evalKey.MarshalBinary()
 		require.NoError(t, err)
 
@@ -683,7 +713,7 @@ func testMarshaller(kgen KeyGenerator, t *testing.T) {
 
 		skOut := kgen.GenSecretKey()
 
-		switchingKey := kgen.GenSwitchingKey(sk, skOut)
+		switchingKey := kgen.GenSwitchingKey(sk, skOut, 0)
 		data, err := switchingKey.MarshalBinary()
 		require.NoError(t, err)
 
@@ -710,7 +740,7 @@ func testMarshaller(kgen KeyGenerator, t *testing.T) {
 			galEls = append(galEls, params.GaloisElementForColumnRotationBy(n))
 		}
 
-		rotationKey := kgen.GenRotationKeys(galEls, sk)
+		rotationKey := kgen.GenRotationKeys(galEls, sk, 0)
 
 		data, err := rotationKey.MarshalBinary()
 		require.NoError(t, err)

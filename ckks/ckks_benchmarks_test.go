@@ -93,7 +93,7 @@ func benchKeyGen(tc *testContext, b *testing.B) {
 		}
 
 		for i := 0; i < b.N; i++ {
-			kgen.GenRelinearizationKey(sk, 2)
+			kgen.GenRelinearizationKey(sk, 2, 0)
 		}
 	})
 }
@@ -143,8 +143,8 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 	var rlk *rlwe.RelinearizationKey
 	var rotkey *rlwe.RotationKeySet
 	if tc.params.PCount() != 0 {
-		rlk = tc.kgen.GenRelinearizationKey(tc.sk, 2)
-		rotkey = tc.kgen.GenRotationKeysForRotations([]int{1}, tc.params.RingType() == ring.Standard, tc.sk)
+		rlk = tc.kgen.GenRelinearizationKey(tc.sk, 2, 0)
+		rotkey = tc.kgen.GenRotationKeysForRotations([]int{1}, tc.params.RingType() == ring.Standard, tc.sk, 0)
 	}
 
 	eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: rlk, Rtks: rotkey})
@@ -264,7 +264,7 @@ func benchInnerSum(tc *testContext, b *testing.B) {
 			b.Skip("#Pi is empty")
 		}
 
-		rotKey := tc.kgen.GenRotationKeysForRotations(tc.params.RotationsForInnerSum(batch, n), false, tc.sk)
+		rotKey := tc.kgen.GenRotationKeysForRotations(tc.params.RotationsForInnerSum(batch, n), false, tc.sk, 0)
 		eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
 
 		b.ResetTimer()
@@ -280,7 +280,7 @@ func benchInnerSum(tc *testContext, b *testing.B) {
 			b.Skip("#Pi is empty")
 		}
 
-		rotKey := tc.kgen.GenRotationKeysForRotations(tc.params.RotationsForInnerSumLog(batch, n), false, tc.sk)
+		rotKey := tc.kgen.GenRotationKeysForRotations(tc.params.RotationsForInnerSumLog(batch, n), false, tc.sk, 0)
 		eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
 
 		b.ResetTimer()

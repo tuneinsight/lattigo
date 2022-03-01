@@ -193,12 +193,15 @@ func (rlk *RelinearizationKey) UnmarshalBinary(data []byte) (err error) {
 func (swk *SwitchingKey) GetDataLen(WithMetadata bool) (dataLen int) {
 
 	if WithMetadata {
-		dataLen++
+		dataLen += 2
 	}
 
-	for j := uint64(0); j < uint64(len(swk.Value)); j++ {
-		dataLen += swk.Value[j][0].GetDataLen(WithMetadata)
-		dataLen += swk.Value[j][1].GetDataLen(WithMetadata)
+	dataLen++ // BitDecomp
+	for i := range swk.Value {
+		for _, el := range swk.Value[i] {
+			dataLen += el[0].GetDataLen(WithMetadata)
+			dataLen += el[1].GetDataLen(WithMetadata)
+		}
 	}
 
 	return
@@ -206,9 +209,7 @@ func (swk *SwitchingKey) GetDataLen(WithMetadata bool) (dataLen int) {
 
 // MarshalBinary encodes an SwitchingKey in a byte slice.
 func (swk *SwitchingKey) MarshalBinary() (data []byte, err error) {
-
 	data = make([]byte, swk.GetDataLen(true))
-
 	if _, err = swk.encode(0, data); err != nil {
 		return nil, err
 	}
@@ -218,7 +219,6 @@ func (swk *SwitchingKey) MarshalBinary() (data []byte, err error) {
 
 // UnmarshalBinary decode a previously marshaled SwitchingKey in the target SwitchingKey.
 func (swk *SwitchingKey) UnmarshalBinary(data []byte) (err error) {
-
 	if _, err = swk.decode(data); err != nil {
 		return err
 	}
@@ -232,22 +232,25 @@ func (swk *SwitchingKey) encode(pointer int, data []byte) (int, error) {
 	var inc int
 
 	data[pointer] = uint8(len(swk.Value))
-
+	pointer++
+	data[pointer] = uint8(len(swk.Value[0]))
+	pointer++
+	data[pointer] = uint8(swk.LogBase2)
 	pointer++
 
-	for j := 0; j < len(swk.Value); j++ {
+	for i := range swk.Value {
+		for _, el := range swk.Value[i] {
 
-		if inc, err = swk.Value[j][0].WriteTo(data[pointer : pointer+swk.Value[j][0].GetDataLen(true)]); err != nil {
-			return pointer, err
+			if inc, err = el[0].WriteTo(data[pointer:]); err != nil {
+				return pointer, err
+			}
+			pointer += inc
+
+			if inc, err = el[1].WriteTo(data[pointer:]); err != nil {
+				return pointer, err
+			}
+			pointer += inc
 		}
-
-		pointer += inc
-
-		if inc, err = swk.Value[j][1].WriteTo(data[pointer : pointer+swk.Value[j][1].GetDataLen(true)]); err != nil {
-			return pointer, err
-		}
-
-		pointer += inc
 	}
 
 	return pointer, nil
@@ -255,27 +258,34 @@ func (swk *SwitchingKey) encode(pointer int, data []byte) (int, error) {
 
 func (swk *SwitchingKey) decode(data []byte) (pointer int, err error) {
 
-	decomposition := int(data[0])
+	decompRNS := int(data[0])
+	decompBIT := int(data[1])
+	swk.LogBase2 = int(data[2])
 
-	pointer = 1
+	pointer = 3
 
-	swk.Value = make([][2]PolyQP, decomposition)
+	swk.Value = make([][][2]PolyQP, decompRNS)
 
 	var inc int
 
-	for j := 0; j < decomposition; j++ {
+	for i := range swk.Value {
 
-		swk.Value[j][0].Q = new(ring.Poly)
-		if inc, err = swk.Value[j][0].DecodePolyNew(data[pointer:]); err != nil {
-			return
-		}
-		pointer += inc
+		swk.Value[i] = make([][2]PolyQP, decompBIT)
 
-		swk.Value[j][1].P = new(ring.Poly)
-		if inc, err = swk.Value[j][1].DecodePolyNew(data[pointer:]); err != nil {
-			return
+		for _, el := range swk.Value[i] {
+
+			el[0].Q = new(ring.Poly)
+			if inc, err = el[0].DecodePolyNew(data[pointer:]); err != nil {
+				return
+			}
+			pointer += inc
+
+			el[1].P = new(ring.Poly)
+			if inc, err = el[1].DecodePolyNew(data[pointer:]); err != nil {
+				return
+			}
+			pointer += inc
 		}
-		pointer += inc
 	}
 
 	return

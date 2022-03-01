@@ -50,6 +50,8 @@ var Q = []uint64{0x80000000080001, 0x2000000e0001, 0x1fffffc20001}
 // P modulus P
 var P = []uint64{0x4000000008a0001}
 
+var bitDecomp = 0
+
 // Starting RLWE params, size of these params
 // determine the complexity of the LUT:
 // each LUT takes N RGSW ciphertext-ciphetext mul.
@@ -116,7 +118,7 @@ func LUT() {
 	//encoderN10 := ckks.NewEncoder(paramsN10)
 
 	// Switchingkey RLWEN12 -> RLWEN10
-	swkN12ToN10 := kgenN12.GenSwitchingKey(skN12, skN10)
+	swkN12ToN10 := kgenN12.GenSwitchingKey(skN12, skN10, bitDecomp)
 
 	fmt.Printf("Gen SlotsToCoeffs Matrices... ")
 	now = time.Now()
@@ -173,7 +175,7 @@ func LUT() {
 	rotations = append(rotations, SlotsToCoeffsParameters.Rotations()...)
 	rotations = append(rotations, CoeffsToSlotsParameters.Rotations()...)
 
-	rotKey := kgenN12.GenRotationKeysForRotations(rotations, true, skN12)
+	rotKey := kgenN12.GenRotationKeysForRotations(rotations, true, skN12, bitDecomp)
 
 	// LUT handler
 	handler := lwe.NewHandler(paramsN12.Parameters, paramsN10.Parameters, rotKey)

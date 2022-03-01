@@ -28,6 +28,8 @@ func example() {
 		panic(err)
 	}
 
+	bitDecomp := 0
+
 	fmt.Println()
 	fmt.Println("=========================================")
 	fmt.Println("         INSTANTIATING SCHEME            ")
@@ -40,7 +42,7 @@ func example() {
 
 	sk := kgen.GenSecretKey()
 
-	rlk := kgen.GenRelinearizationKey(sk, 2)
+	rlk := kgen.GenRelinearizationKey(sk, 2, bitDecomp)
 
 	encryptor := ckks.NewEncryptor(params, sk)
 

@@ -27,7 +27,7 @@ func ParamsToString(params ckks.Parameters, opname string) string {
 		params.LogQP(),
 		params.MaxLevel()+1,
 		params.PCount(),
-		params.Beta())
+		params.DecompRNS())
 }
 
 func TestBootstrapParametersMarshalling(t *testing.T) {
@@ -104,7 +104,11 @@ func testbootstrap(params ckks.Parameters, original bool, btpParams Parameters, 
 
 		kgen := ckks.NewKeyGenerator(params)
 		sk := kgen.GenSecretKey()
+<<<<<<< btp_eprint
 
+=======
+		rlk := kgen.GenRelinearizationKey(sk, 2, 0)
+>>>>>>> First step for adding bit-decomp
 		encoder := ckks.NewEncoder(params)
 		encryptor := ckks.NewEncryptor(params, sk)
 		decryptor := ckks.NewDecryptor(params, sk)
@@ -113,8 +117,19 @@ func testbootstrap(params ckks.Parameters, original bool, btpParams Parameters, 
 		evk := GenEvaluationKeys(btpParams, params, sk)
 =======
 		rotations := btpParams.RotationsForBootstrapping(params)
+<<<<<<< btp_eprint
 		rotkeys := kgen.GenRotationKeysForRotations(rotations, true, sk)
+<<<<<<< btp_eprint
 >>>>>>> [ckks/advanced]: better StC & CtS
+=======
+<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
+=======
+		swkDtS, swkStD := btpParams.GenEncapsulationSwitchingKeys(params, sk)
+=======
+		rotkeys := kgen.GenRotationKeysForRotations(rotations, true, sk, 0)
+>>>>>>> First step for adding bit-decomp
+>>>>>>> First step for adding bit-decomp
+>>>>>>> First step for adding bit-decomp
 
 		btp, err := NewBootstrapper(params, btpParams, evk)
 		if err != nil {

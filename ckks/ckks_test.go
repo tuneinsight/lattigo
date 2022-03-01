@@ -32,7 +32,7 @@ func GetTestName(params Parameters, opname string) string {
 		params.LogSlots(),
 		params.MaxLevel()+1,
 		params.PCount(),
-		params.Beta())
+		params.DecompRNS())
 }
 
 type testContext struct {
@@ -129,7 +129,7 @@ func genTestParams(defaultParam Parameters) (tc *testContext, err error) {
 	tc.ringQ = defaultParam.RingQ()
 	if tc.params.PCount() != 0 {
 		tc.ringP = defaultParam.RingP()
-		tc.rlk = tc.kgen.GenRelinearizationKey(tc.sk, 2)
+		tc.rlk = tc.kgen.GenRelinearizationKey(tc.sk, 2, 0)
 	}
 
 	if tc.prng, err = utils.NewPRNG(); err != nil {
@@ -1016,7 +1016,7 @@ func testSwitchKeys(tc *testContext, t *testing.T) {
 	if tc.params.PCount() != 0 {
 		sk2 = tc.kgen.GenSecretKey()
 		decryptorSk2 = NewDecryptor(tc.params, sk2)
-		switchingKey = tc.kgen.GenSwitchingKey(tc.sk, sk2)
+		switchingKey = tc.kgen.GenSwitchingKey(tc.sk, sk2, 0)
 	}
 
 	t.Run(GetTestName(tc.params, "SwitchKeys"), func(t *testing.T) {
@@ -1100,7 +1100,7 @@ func testAutomorphisms(tc *testContext, t *testing.T) {
 	var rotKey *rlwe.RotationKeySet
 
 	if tc.params.PCount() != 0 {
-		rotKey = tc.kgen.GenRotationKeysForRotations(rots, params.RingType() == ring.Standard, tc.sk)
+		rotKey = tc.kgen.GenRotationKeysForRotations(rots, params.RingType() == ring.Standard, tc.sk, 0)
 	}
 
 	evaluator := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
@@ -1192,7 +1192,7 @@ func testInnerSum(tc *testContext, t *testing.T) {
 		batch := 7
 		n := 35
 
-		rotKey := tc.kgen.GenRotationKeysForRotations(tc.params.RotationsForInnerSum(batch, n), false, tc.sk)
+		rotKey := tc.kgen.GenRotationKeysForRotations(tc.params.RotationsForInnerSum(batch, n), false, tc.sk, 0)
 		eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
 
 		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
@@ -1223,7 +1223,7 @@ func testInnerSum(tc *testContext, t *testing.T) {
 		batch := 512
 		n := tc.params.Slots() / batch
 
-		rotKey := tc.kgen.GenRotationKeysForRotations(tc.params.RotationsForInnerSumLog(batch, n), false, tc.sk)
+		rotKey := tc.kgen.GenRotationKeysForRotations(tc.params.RotationsForInnerSumLog(batch, n), false, tc.sk, 0)
 		eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
 
 		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
@@ -1256,7 +1256,7 @@ func testInnerSum(tc *testContext, t *testing.T) {
 		batch := 1 << logBatch
 		n := tc.params.Slots() / batch
 
-		rotKey := tc.kgen.GenRotationKeysForRotations(tc.params.RotationsForInnerSumLog(batch, n), false, tc.sk)
+		rotKey := tc.kgen.GenRotationKeysForRotations(tc.params.RotationsForInnerSumLog(batch, n), false, tc.sk, 0)
 		eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
 
 		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
@@ -1294,7 +1294,7 @@ func testReplicate(tc *testContext, t *testing.T) {
 		batch := 2
 		n := 35
 
-		rotKey := tc.kgen.GenRotationKeysForRotations(tc.params.RotationsForReplicate(batch, n), false, tc.sk)
+		rotKey := tc.kgen.GenRotationKeysForRotations(tc.params.RotationsForReplicate(batch, n), false, tc.sk, 0)
 		eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
 
 		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
@@ -1321,7 +1321,7 @@ func testReplicate(tc *testContext, t *testing.T) {
 		batch := 3
 		n := 15
 
-		rotKey := tc.kgen.GenRotationKeysForRotations(tc.params.RotationsForReplicateLog(batch, n), false, tc.sk)
+		rotKey := tc.kgen.GenRotationKeysForRotations(tc.params.RotationsForReplicateLog(batch, n), false, tc.sk, 0)
 		eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
 
 		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
@@ -1385,7 +1385,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		rots := linTransf.Rotations()
 
-		rotKey := tc.kgen.GenRotationKeysForRotations(rots, false, tc.sk)
+		rotKey := tc.kgen.GenRotationKeysForRotations(rots, false, tc.sk, 0)
 
 		eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
 
@@ -1428,7 +1428,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		rots := linTransf.Rotations()
 
-		rotKey := tc.kgen.GenRotationKeysForRotations(rots, false, tc.sk)
+		rotKey := tc.kgen.GenRotationKeysForRotations(rots, false, tc.sk, 0)
 
 		eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
 

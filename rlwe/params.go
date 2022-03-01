@@ -305,18 +305,33 @@ func (p Parameters) LogQP() int {
 	return tmp.BitLen()
 }
 
-// Alpha returns the number of moduli in in P
-func (p Parameters) Alpha() int {
-	return p.PCount()
-}
-
-// Beta returns the number of element in the RNS decomposition basis: Ceil(lenQi / lenPi)
-func (p Parameters) Beta() int {
-	if p.Alpha() != 0 {
-		return int(math.Ceil(float64(p.QCount()) / float64(p.Alpha())))
+// MaxBit returns max(max(bitLen(Q[:levelQ+1])), max(bitLen(P[:levelP+1])).
+func (p Parameters) MaxBit(levelQ, levelP int) (c int) {
+	for _, qi := range p.Q()[:levelQ+1] {
+		c = utils.MaxInt(c, bits.Len64(qi))
 	}
 
-	return 1
+	for _, pi := range p.P()[:levelP+1] {
+		c = utils.MaxInt(c, bits.Len64(pi))
+	}
+	return
+}
+
+// DecompBIT returns ceil(MaxBitQ(levelQ, levelP)/bitDecomp).
+func (p Parameters) DecompBIT(logBase2 int) (c int) {
+	if logBase2 == 0 {
+		return 1
+	}
+	return (p.MaxBit(p.QCount()-1, p.PCount()-1) + logBase2 - 1) / logBase2
+}
+
+// DecompRNS returns the number of element in the RNS decomposition basis: Ceil(lenQi / lenPi)
+func (p Parameters) DecompRNS() int {
+	if p.PCount() != 0 {
+		return (p.QCount() + p.PCount() - 1) / p.PCount()
+	}
+
+	return p.QCount()
 }
 
 // QiOverflowMargin returns floor(2^64 / max(Qi)), i.e. the number of times elements of Z_max{Qi} can

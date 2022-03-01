@@ -93,17 +93,19 @@ func benchRelinKeyGen(testCtx *testContext, b *testing.B) {
 		rlk *rlwe.RelinearizationKey
 	}
 
+	bitDecomp := 0
+
 	p := new(Party)
 	p.RKGProtocol = NewRKGProtocol(testCtx.params)
 	p.sk = sk0Shards[0]
-	p.ephSk, p.share1, p.share2 = p.RKGProtocol.AllocateShare()
+	p.ephSk, p.share1, p.share2 = p.RKGProtocol.AllocateShare(bitDecomp)
 	p.rlk = bfv.NewRelinearizationKey(testCtx.params, 2)
 
-	crp := p.SampleCRP(testCtx.crs)
+	crp := p.SampleCRP(testCtx.crs, bitDecomp)
 
 	b.Run(testString("RelinKeyGen/Round1/Gen", parties, testCtx.params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			p.GenShareRoundOne(p.sk, crp, p.ephSk, p.share1)
+			p.GenShareRoundOne(p.sk, crp, p.ephSk, bitDecomp, p.share1)
 		}
 	})
 
@@ -225,12 +227,14 @@ func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 		share *drlwe.RTGShare
 	}
 
+	bitDecomp := 0
+
 	p := new(Party)
 	p.RTGProtocol = NewRotKGProtocol(testCtx.params)
 	p.s = sk0Shards[0]
-	p.share = p.AllocateShare()
+	p.share = p.AllocateShare(bitDecomp)
 
-	crp := p.SampleCRP(testCtx.crs)
+	crp := p.SampleCRP(testCtx.crs, bitDecomp)
 
 	b.Run(testString("RotKeyGen/Round1/Gen", parties, testCtx.params), func(b *testing.B) {
 

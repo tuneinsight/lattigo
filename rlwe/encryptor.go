@@ -77,11 +77,16 @@ func newEncryptorSamplers(params Parameters) *encryptorSamplers {
 		panic(err)
 	}
 
+	var uniformSamplerP *ring.UniformSampler
+	if params.PCount() != 0 {
+		uniformSamplerP = ring.NewUniformSampler(prng, params.RingP())
+	}
+
 	return &encryptorSamplers{
 		gaussianSampler: ring.NewGaussianSampler(prng, params.RingQ(), params.Sigma(), int(6*params.Sigma())),
 		ternarySampler:  ring.NewTernarySamplerWithHammingWeight(prng, params.ringQ, params.h, false),
 		uniformSamplerQ: ring.NewUniformSampler(prng, params.RingQ()),
-		uniformSamplerP: ring.NewUniformSampler(prng, params.RingP()),
+		uniformSamplerP: uniformSamplerP,
 	}
 }
 

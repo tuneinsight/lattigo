@@ -1,9 +1,5 @@
 package rlwe
 
-import (
-	"math"
-)
-
 // SecretKey is a type for generic RLWE secret keys.
 type SecretKey struct {
 	Value PolyQP
@@ -16,7 +12,8 @@ type PublicKey struct {
 
 // SwitchingKey is a type for generic RLWE public switching keys.
 type SwitchingKey struct {
-	Value [][2]PolyQP
+	Value    [][][2]PolyQP
+	LogBase2 int
 }
 
 // RelinearizationKey is a type for generic RLWE public relinearization keys. It stores a slice with a
@@ -58,11 +55,11 @@ func (pk *PublicKey) Equals(other *PublicKey) bool {
 }
 
 // NewRotationKeySet returns a new RotationKeySet with pre-allocated switching keys for each distinct galoisElement value.
-func NewRotationKeySet(params Parameters, galoisElement []uint64) (rotKey *RotationKeySet) {
+func NewRotationKeySet(params Parameters, galoisElement []uint64, bitDecomp int) (rotKey *RotationKeySet) {
 	rotKey = new(RotationKeySet)
 	rotKey.Keys = make(map[uint64]*SwitchingKey, len(galoisElement))
 	for _, galEl := range galoisElement {
-		rotKey.Keys[galEl] = NewSwitchingKey(params, params.QCount()-1, params.PCount()-1)
+		rotKey.Keys[galEl] = NewSwitchingKey(params, params.QCount()-1, params.PCount()-1, bitDecomp)
 	}
 	return
 }
@@ -78,27 +75,41 @@ func (rtks *RotationKeySet) GetRotationKey(galoisEl uint64) (*SwitchingKey, bool
 }
 
 // NewSwitchingKey returns a new public switching key with pre-allocated zero-value
-func NewSwitchingKey(params Parameters, levelQ, levelP int) *SwitchingKey {
-	decompSize := int(math.Ceil(float64(levelQ+1) / float64(levelP+1)))
+func NewSwitchingKey(params Parameters, levelQ, levelP, logBase2 int) *SwitchingKey {
+	var decompRNS int
+	if levelP > -1 {
+		decompRNS = (levelQ + 1 + levelP) / (levelP + 1)
+	} else {
+		decompRNS = levelQ + 1
+	}
+
+	var decompBIT int
+	if logBase2 == 0 {
+		decompBIT = 1
+	} else {
+		decompBIT = (params.MaxBit(levelQ, levelP) + logBase2 - 1) / logBase2
+	}
+
 	swk := new(SwitchingKey)
-	swk.Value = make([][2]PolyQP, int(decompSize))
-	for i := 0; i < decompSize; i++ {
-		swk.Value[i][0] = params.RingQP().NewPolyLvl(levelQ, levelP)
-		swk.Value[i][1] = params.RingQP().NewPolyLvl(levelQ, levelP)
+	swk.Value = make([][][2]PolyQP, decompRNS)
+	swk.LogBase2 = logBase2
+	for i := 0; i < decompRNS; i++ {
+		swk.Value[i] = make([][2]PolyQP, decompBIT)
+		for j := 0; j < decompBIT; j++ {
+			swk.Value[i][j][0] = params.RingQP().NewPolyLvl(levelQ, levelP)
+			swk.Value[i][j][1] = params.RingQP().NewPolyLvl(levelQ, levelP)
+		}
 	}
 
 	return swk
 }
 
 // NewRelinKey creates a new EvaluationKey with zero values.
-func NewRelinKey(params Parameters, maxRelinDegree int) (evakey *RelinearizationKey) {
-
+func NewRelinKey(params Parameters, maxRelinDegree, bitDecomp int) (evakey *RelinearizationKey) {
 	evakey = new(RelinearizationKey)
-
 	evakey.Keys = make([]*SwitchingKey, maxRelinDegree)
-
 	for d := 0; d < maxRelinDegree; d++ {
-		evakey.Keys[d] = NewSwitchingKey(params, params.QCount()-1, params.PCount()-1)
+		evakey.Keys[d] = NewSwitchingKey(params, params.QCount()-1, params.PCount()-1, bitDecomp)
 	}
 
 	return
@@ -163,8 +174,10 @@ func (swk *SwitchingKey) Equals(other *SwitchingKey) bool {
 		return false
 	}
 	for i := range swk.Value {
-		if !((&PublicKey{Value: swk.Value[i]}).Equals(&PublicKey{Value: other.Value[i]})) {
-			return false
+		for _, key := range swk.Value[i] {
+			if !((&PublicKey{Value: key}).Equals(&PublicKey{Value: key})) {
+				return false
+			}
 		}
 	}
 	return true
@@ -175,9 +188,11 @@ func (swk *SwitchingKey) CopyNew() *SwitchingKey {
 	if swk == nil || len(swk.Value) == 0 {
 		return nil
 	}
-	swkb := &SwitchingKey{Value: make([][2]PolyQP, len(swk.Value))}
-	for i, el := range swk.Value {
-		swkb.Value[i] = [2]PolyQP{el[0].CopyNew(), el[1].CopyNew()}
+	swkb := &SwitchingKey{Value: make([][][2]PolyQP, len(swk.Value))}
+	for i := range swk.Value {
+		for j, el := range swk.Value[i] {
+			swkb.Value[i][j] = [2]PolyQP{el[0].CopyNew(), el[1].CopyNew()}
+		}
 	}
 	return swkb
 }

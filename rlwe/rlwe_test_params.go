@@ -3,9 +3,9 @@ package rlwe
 var (
 	// TestPN12QP109 is a set of default parameters with logN=12 and logQP=109
 	TestPN12QP109 = ParametersLiteral{
-		LogN:  12,
+		LogN:  4,
 		Q:     []uint64{0x7ffffec001, 0x40002001}, // 39 + 39 bits
-		P:     []uint64{0x8000016001},             // 30 bits
+		P:     []uint64{},                         // 30 bits
 		Sigma: DefaultSigma,
 	}
 	// TestPN13QP218 is a set of default parameters with logN=13 and logQP=218

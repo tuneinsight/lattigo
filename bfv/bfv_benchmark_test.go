@@ -98,7 +98,7 @@ func benchKeyGen(tc *testContext, b *testing.B) {
 		}
 
 		for i := 0; i < b.N; i++ {
-			kgen.GenRelinearizationKey(sk, 1)
+			kgen.GenRelinearizationKey(sk, 2, 0)
 		}
 	})
 }
@@ -155,8 +155,13 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 	receiver := NewCiphertextRandom(tc.prng, tc.params, 2)
 
 	var rotkey *rlwe.RotationKeySet
+<<<<<<< dev_bfv_poly
 	if tc.params.PCount() != 0 {
 		rotkey = tc.kgen.GenRotationKeysForRotations([]int{1}, true, tc.sk)
+=======
+	if testctx.params.PCount() != 0 {
+		rotkey = testctx.kgen.GenRotationKeysForRotations([]int{1}, true, testctx.sk, 0)
+>>>>>>> First step for adding bit-decomp
 	}
 	evaluator := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotkey})
 

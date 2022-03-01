@@ -19,8 +19,17 @@ import (
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters). Overrides -short and requires -timeout=0.")
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 
+<<<<<<< dev_bfv_poly
 func testString(opname string, p Parameters, lvl int) string {
+<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
 	return fmt.Sprintf("%s/LogN=%d/logQP=%d/logT=%d/TIsQ0=%t/#Q=%d/#P=%d/lvl=%d", opname, p.LogN(), p.LogQP(), p.LogT(), p.T() == p.Q()[0], p.QCount(), p.PCount(), lvl)
+=======
+	return fmt.Sprintf("%s/LogN=%d/logQP=%d/logT=%d/T==Q0:%t/#Q=%d/#P=%d/lvl=%d", opname, p.LogN(), p.LogQP(), p.LogT(), p.T() == p.Q()[0], p.QCount(), p.PCount(), lvl)
+=======
+func testString(opname string, p Parameters) string {
+	return fmt.Sprintf("%s/LogN=%d/logQ=%d/alpha=%d/beta=%d", opname, p.LogN(), p.LogQP(), p.PCount(), p.DecompRNS())
+>>>>>>> First step for adding bit-decomp
+>>>>>>> First step for adding bit-decomp
 }
 
 type testContext struct {
@@ -124,7 +133,7 @@ func genTestParams(params Parameters) (tc *testContext, err error) {
 	tc.kgen = NewKeyGenerator(tc.params)
 	tc.sk, tc.pk = tc.kgen.GenKeyPair()
 	if params.PCount() != 0 {
-		tc.rlk = tc.kgen.GenRelinearizationKey(tc.sk, 1)
+		testctx.rlk = testctx.kgen.GenRelinearizationKey(testctx.sk, 1, 0)
 	}
 
 	tc.encoder = NewEncoder(tc.params)
@@ -802,9 +811,19 @@ func testPolyEval(tc *testContext, t *testing.T) {
 
 func testEvaluatorKeySwitch(tc *testContext, t *testing.T) {
 
+<<<<<<< dev_bfv_poly
 	sk2 := tc.kgen.GenSecretKey()
 	decryptorSk2 := NewDecryptor(tc.params, sk2)
 	switchKey := tc.kgen.GenSwitchingKey(tc.sk, sk2)
+=======
+	if tc.params.PCount() == 0 {
+		t.Skip("#Pi is empty")
+	}
+
+	sk2 := testctx.kgen.GenSecretKey()
+	decryptorSk2 := NewDecryptor(testctx.params, sk2)
+	switchKey := testctx.kgen.GenSwitchingKey(testctx.sk, sk2, 0)
+>>>>>>> First step for adding bit-decomp
 
 	for _, lvl := range tc.testLevel {
 		t.Run(testString("Evaluator/KeySwitch/InPlace", tc.params, lvl), func(t *testing.T) {
@@ -841,8 +860,8 @@ func testEvaluatorRotate(tc *testContext, t *testing.T) {
 	}
 
 	rots := []int{1, -1, 4, -4, 63, -63}
-	rotkey := tc.kgen.GenRotationKeysForRotations(rots, true, tc.sk)
-	evaluator := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotkey})
+	rotkey := testctx.kgen.GenRotationKeysForRotations(rots, true, testctx.sk, 0)
+	evaluator := testctx.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testctx.rlk, Rtks: rotkey})
 
 	for _, lvl := range tc.testLevel {
 		t.Run(testString("Evaluator/RotateRows", tc.params, lvl), func(t *testing.T) {
@@ -893,8 +912,8 @@ func testEvaluatorRotate(tc *testContext, t *testing.T) {
 		})
 	}
 
-	rotkey = tc.kgen.GenRotationKeysForInnerSum(tc.sk)
-	evaluator = evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotkey})
+	rotkey = testctx.kgen.GenRotationKeysForInnerSum(testctx.sk, 0)
+	evaluator = evaluator.WithKey(rlwe.EvaluationKey{Rlk: testctx.rlk, Rtks: rotkey})
 
 	for _, lvl := range tc.testLevel {
 		t.Run(testString("Evaluator/Rotate/InnerSum", tc.params, lvl), func(t *testing.T) {

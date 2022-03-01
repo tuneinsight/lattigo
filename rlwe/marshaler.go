@@ -196,7 +196,6 @@ func (swk *SwitchingKey) GetDataLen(WithMetadata bool) (dataLen int) {
 		dataLen += 2
 	}
 
-	dataLen++ // BitDecomp
 	for i := range swk.Value {
 		for _, el := range swk.Value[i] {
 			dataLen += el[0].GetDataLen(WithMetadata)
@@ -235,8 +234,6 @@ func (swk *SwitchingKey) encode(pointer int, data []byte) (int, error) {
 	pointer++
 	data[pointer] = uint8(len(swk.Value[0]))
 	pointer++
-	data[pointer] = uint8(swk.LogBase2)
-	pointer++
 
 	for i := range swk.Value {
 		for _, el := range swk.Value[i] {
@@ -260,9 +257,8 @@ func (swk *SwitchingKey) decode(data []byte) (pointer int, err error) {
 
 	decompRNS := int(data[0])
 	decompBIT := int(data[1])
-	swk.LogBase2 = int(data[2])
 
-	pointer = 3
+	pointer = 2
 
 	swk.Value = make([][][2]PolyQP, decompRNS)
 

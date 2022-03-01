@@ -13,7 +13,6 @@ type PublicKey struct {
 // SwitchingKey is a type for generic RLWE public switching keys.
 type SwitchingKey struct {
 	Value    [][][2]PolyQP
-	LogBase2 int
 }
 
 // RelinearizationKey is a type for generic RLWE public relinearization keys. It stores a slice with a
@@ -55,11 +54,11 @@ func (pk *PublicKey) Equals(other *PublicKey) bool {
 }
 
 // NewRotationKeySet returns a new RotationKeySet with pre-allocated switching keys for each distinct galoisElement value.
-func NewRotationKeySet(params Parameters, galoisElement []uint64, bitDecomp int) (rotKey *RotationKeySet) {
+func NewRotationKeySet(params Parameters, galoisElement []uint64) (rotKey *RotationKeySet) {
 	rotKey = new(RotationKeySet)
 	rotKey.Keys = make(map[uint64]*SwitchingKey, len(galoisElement))
 	for _, galEl := range galoisElement {
-		rotKey.Keys[galEl] = NewSwitchingKey(params, params.QCount()-1, params.PCount()-1, bitDecomp)
+		rotKey.Keys[galEl] = NewSwitchingKey(params, params.QCount()-1, params.PCount()-1)
 	}
 	return
 }
@@ -75,24 +74,11 @@ func (rtks *RotationKeySet) GetRotationKey(galoisEl uint64) (*SwitchingKey, bool
 }
 
 // NewSwitchingKey returns a new public switching key with pre-allocated zero-value
-func NewSwitchingKey(params Parameters, levelQ, levelP, logBase2 int) *SwitchingKey {
-	var decompRNS int
-	if levelP > -1 {
-		decompRNS = (levelQ + 1 + levelP) / (levelP + 1)
-	} else {
-		decompRNS = levelQ + 1
-	}
-
-	var decompBIT int
-	if logBase2 == 0 {
-		decompBIT = 1
-	} else {
-		decompBIT = (params.MaxBit(levelQ, levelP) + logBase2 - 1) / logBase2
-	}
-
+func NewSwitchingKey(params Parameters, levelQ, levelP int) *SwitchingKey {
+	decompRNS := params.DecompRNS(levelQ, levelP)
+	decompBIT := params.DecompBIT(levelQ, levelP)
 	swk := new(SwitchingKey)
 	swk.Value = make([][][2]PolyQP, decompRNS)
-	swk.LogBase2 = logBase2
 	for i := 0; i < decompRNS; i++ {
 		swk.Value[i] = make([][2]PolyQP, decompBIT)
 		for j := 0; j < decompBIT; j++ {
@@ -104,12 +90,24 @@ func NewSwitchingKey(params Parameters, levelQ, levelP, logBase2 int) *Switching
 	return swk
 }
 
+func (swk *SwitchingKey) LevelQ() int {
+	return swk.Value[0][0][0].Q.Level()
+}
+
+func (swk *SwitchingKey) LevelP() int {
+	if swk.Value[0][0][0].P != nil{
+		return swk.Value[0][0][0].P.Level()
+	}
+
+	return -1
+}
+
 // NewRelinKey creates a new EvaluationKey with zero values.
-func NewRelinKey(params Parameters, maxRelinDegree, bitDecomp int) (evakey *RelinearizationKey) {
+func NewRelinKey(params Parameters, maxRelinDegree int) (evakey *RelinearizationKey) {
 	evakey = new(RelinearizationKey)
 	evakey.Keys = make([]*SwitchingKey, maxRelinDegree)
 	for d := 0; d < maxRelinDegree; d++ {
-		evakey.Keys[d] = NewSwitchingKey(params, params.QCount()-1, params.PCount()-1, bitDecomp)
+		evakey.Keys[d] = NewSwitchingKey(params, params.QCount()-1, params.PCount()-1)
 	}
 
 	return

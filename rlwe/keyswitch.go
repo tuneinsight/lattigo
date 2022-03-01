@@ -15,17 +15,26 @@ type KeySwitcher struct {
 }
 
 type keySwitcherBuffer struct {
+<<<<<<< dev_bfv_poly
 	// BuffQ[0]/BuffP[0] : on the fly decomp(c2)
 	// BuffQ[1-5]/BuffP[1-5] : available
 	BuffQP       [6]PolyQP
 	BuffInvNTT   *ring.Poly
 	BuffDecompQP []PolyQP // Memory Buff for the basis extension in hoisting
+=======
+	// PoolQ[0]/PoolP[0] : on the fly decomp(c2)
+	// PoolQ[1-5]/PoolP[1-5] : available
+	Pool         [6]PolyQP
+	PoolInvNTT   *ring.Poly
+	PoolDecompQP []PolyQP // Memory pool for the basis extension in hoisting
+	PoolBitDecomp []uint64
+>>>>>>> wip
 }
 
 func newKeySwitcherBuffer(params Parameters) *keySwitcherBuffer {
 
 	buff := new(keySwitcherBuffer)
-	decompRNS := params.DecompRNS()
+	decompRNS := params.DecompRNS(params.QCount()-1, params.PCount()-1)
 	ringQP := params.RingQP()
 
 	buff.BuffQP = [6]PolyQP{ringQP.NewPoly(), ringQP.NewPoly(), ringQP.NewPoly(), ringQP.NewPoly(), ringQP.NewPoly(), ringQP.NewPoly()}
@@ -43,6 +52,8 @@ func newKeySwitcherBuffer(params Parameters) *keySwitcherBuffer {
 >>>>>>> First step for adding bit-decomp
 	}
 
+	buff.PoolBitDecomp = make([]uint64, params.RingQ().N)
+
 	return buff
 }
 
@@ -50,11 +61,11 @@ func newKeySwitcherBuffer(params Parameters) *keySwitcherBuffer {
 func NewKeySwitcher(params Parameters) *KeySwitcher {
 	ks := new(KeySwitcher)
 	ks.Parameters = &params
-	if params.PCount() != 0 {
+	if params.RingP() != nil{
 		ks.BasisExtender = ring.NewBasisExtender(params.RingQ(), params.RingP())
 		ks.Decomposer = ring.NewDecomposer(params.RingQ(), params.RingP())
 	}
-
+	
 	ks.keySwitcherBuffer = newKeySwitcherBuffer(params)
 	return ks
 }
@@ -72,10 +83,14 @@ func (ks *KeySwitcher) ShallowCopy() *KeySwitcher {
 // SwitchKeysInPlace applies the general key-switching procedure of the form [c0 + cx*evakey[0], c1 + cx*evakey[1]]
 // Will return the result in the same NTT domain as the input cx.
 func (ks *KeySwitcher) SwitchKeysInPlace(levelQ int, cx *ring.Poly, evakey *SwitchingKey, p0, p1 *ring.Poly) {
+<<<<<<< dev_bfv_poly
 	ks.SwitchKeysInPlaceNoModDown(levelQ, cx, evakey, p0, ks.BuffQP[1].P, p1, ks.BuffQP[2].P)
+=======
+>>>>>>> wip
 
-	levelP := evakey.Value[0][0][0].P.Level()
+	levelP := evakey.LevelP()
 
+<<<<<<< dev_bfv_poly
 	if cx.IsNTT {
 		ks.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, p0, ks.BuffQP[1].P, p0)
 		ks.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, p1, ks.BuffQP[2].P, p1)
@@ -88,6 +103,27 @@ func (ks *KeySwitcher) SwitchKeysInPlace(levelQ int, cx *ring.Poly, evakey *Swit
 
 		ks.BasisExtender.ModDownQPtoQ(levelQ, levelP, p0, ks.BuffQP[1].P, p0)
 		ks.BasisExtender.ModDownQPtoQ(levelQ, levelP, p1, ks.BuffQP[2].P, p1)
+=======
+	if levelP > 0{
+		ks.SwitchKeysInPlaceNoModDown(levelQ, cx, evakey, p0, ks.Pool[1].P, p1, ks.Pool[2].P)
+	}else{
+		ks.SwitchKeyInPlaceSinglePAndBitDecomp(levelQ, cx, evakey, p0, ks.Pool[1].P, p1, ks.Pool[2].P)
+	}
+
+	if cx.IsNTT && levelP != -1{
+		ks.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, p0, ks.Pool[1].P, p0)
+		ks.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, p1, ks.Pool[2].P, p1)
+	} else if !cx.IsNTT {
+		ks.ringQ.InvNTTLazyLvl(levelQ, p0, p0)
+		ks.ringQ.InvNTTLazyLvl(levelQ, p1, p1)
+
+		if levelP != -1{
+			ks.ringP.InvNTTLazyLvl(levelP, ks.Pool[1].P, ks.Pool[1].P)
+			ks.ringP.InvNTTLazyLvl(levelP, ks.Pool[2].P, ks.Pool[2].P)
+			ks.BasisExtender.ModDownQPtoQ(levelQ, levelP, p0, ks.Pool[1].P, p0)
+			ks.BasisExtender.ModDownQPtoQ(levelQ, levelP, p1, ks.Pool[2].P, p1)
+		}
+>>>>>>> wip
 	}
 }
 
@@ -128,7 +164,7 @@ func (ks *KeySwitcher) DecomposeSingleNTT(levelQ, levelP, alpha, beta int, c2NTT
 
 	ks.Decomposer.DecomposeAndSplit(levelQ, levelP, alpha, beta, c2InvNTT, c2QiQ, c2QiP)
 
-	p0idxst := beta * (levelP + 1)
+	p0idxst := beta * alpha
 	p0idxed := p0idxst + 1
 
 	// c2_qi = cx mod qi mod qi
@@ -136,11 +172,14 @@ func (ks *KeySwitcher) DecomposeSingleNTT(levelQ, levelP, alpha, beta int, c2NTT
 		if p0idxst <= x && x < p0idxed {
 			copy(c2QiQ.Coeffs[x], c2NTT.Coeffs[x])
 		} else {
-			ringQ.NTTSingleLazy(x, c2QiQ.Coeffs[x], c2QiQ.Coeffs[x])
+			ringQ.NTTSingle(x, c2QiQ.Coeffs[x], c2QiQ.Coeffs[x])
 		}
 	}
-	// c2QiP = c2 mod qi mod pj
-	ringP.NTTLazyLvl(levelP, c2QiP, c2QiP)
+
+	if ringP != nil{
+		// c2QiP = c2 mod qi mod pj
+		ringP.NTTLvl(levelP, c2QiP, c2QiP)
+	}
 }
 
 // SwitchKeysInPlaceNoModDown applies the key-switch to the polynomial cx :
@@ -215,7 +254,118 @@ func (ks *KeySwitcher) SwitchKeysInPlaceNoModDown(levelQ int, cx *ring.Poly, eva
 	}
 }
 
+<<<<<<< dev_bfv_poly
 // KeyswitchHoisted applies the key-switch to the decomposed polynomial c2 mod QP (BuffDecompQ and BuffDecompP)
+=======
+// SwitchKeyInPlaceSinglePAndBitDecomp applies the key-switch to the polynomial cx :
+//
+// pool2 = dot(decomp(cx) * evakey[0]) mod QP (encrypted input is multiplied by P factor)
+// pool3 = dot(decomp(cx) * evakey[1]) mod QP (encrypted input is multiplied by P factor)
+//
+// Expects the flag IsNTT of cx to correctly reflect the domain of cx.
+func (ks *KeySwitcher) SwitchKeyInPlaceSinglePAndBitDecomp(levelQ int, cx *ring.Poly, evakey *SwitchingKey, c0Q, c0P, c1Q, c1P *ring.Poly) {
+
+	ringQ := ks.RingQ()
+	ringP := ks.RingP()
+
+	var cxInvNTT *ring.Poly
+	if cx.IsNTT {
+		cxInvNTT = ks.PoolInvNTT
+		ringQ.InvNTTLvl(levelQ, cx, cxInvNTT)
+	} else {
+		cxInvNTT = cx
+	}
+
+	c0QP := PolyQP{c0Q, c0P}
+	c1QP := PolyQP{c1Q, c1P}
+
+	var levelP int
+	if evakey.Value[0][0][0].P != nil{
+		levelP = evakey.Value[0][0][0].P.Level()
+	}else{
+		levelP = -1
+	}
+	
+	decompRNS := ks.DecompRNS(levelQ, levelP)
+	decompBIT := ks.DecompBIT(levelQ, levelP)
+
+	lb2 := ks.logbase2
+
+	mask := uint64(((1<<lb2)-1))
+
+	if mask == 0{
+		mask = 0xFFFFFFFFFFFFFFFF
+	}
+
+	cw := ks.Pool[0].Q.Coeffs[0]
+	cwNTT := ks.PoolBitDecomp
+
+	QiOverF := ks.QiOverflowMargin(levelQ) >> 1
+	PiOverF := ks.PiOverflowMargin(levelP) >> 1
+
+	// Key switching with CRT decomposition for the Qi
+	var reduce int
+	for i := 0; i < decompRNS; i++ {
+		for j := 0; j < decompBIT; j++{
+
+			ring.MaskVec(cxInvNTT.Coeffs[i], cw, j*lb2, mask)
+
+			if i == 0 && j == 0{
+				for u := 0; u < levelQ+1; u++{
+					ringQ.NTTSingleLazy(u, cw, cwNTT)
+					ring.MulCoeffsMontgomeryConstantVec(evakey.Value[i][j][0].Q.Coeffs[u], cwNTT, c0QP.Q.Coeffs[u], ringQ.Modulus[u], ringQ.MredParams[u])
+					ring.MulCoeffsMontgomeryConstantVec(evakey.Value[i][j][1].Q.Coeffs[u], cwNTT, c1QP.Q.Coeffs[u], ringQ.Modulus[u], ringQ.MredParams[u])
+				}
+
+				for u := 0; u < levelP+1; u++{
+					ringP.NTTSingleLazy(u, cw, cwNTT)
+					ring.MulCoeffsMontgomeryConstantVec(evakey.Value[i][j][0].P.Coeffs[u], cwNTT, c0QP.P.Coeffs[u], ringP.Modulus[u], ringP.MredParams[u])
+					ring.MulCoeffsMontgomeryConstantVec(evakey.Value[i][j][1].P.Coeffs[u], cwNTT, c1QP.P.Coeffs[u], ringP.Modulus[u], ringP.MredParams[u])
+				}
+			} else {
+				for u := 0; u < levelQ+1; u++{
+					ringQ.NTTSingleLazy(u, cw, cwNTT)
+					ring.MulCoeffsMontgomeryConstantAndAddNoModVec(evakey.Value[i][j][0].Q.Coeffs[u], cwNTT, c0QP.Q.Coeffs[u], ringQ.Modulus[u], ringQ.MredParams[u])
+					ring.MulCoeffsMontgomeryConstantAndAddNoModVec(evakey.Value[i][j][1].Q.Coeffs[u], cwNTT, c1QP.Q.Coeffs[u], ringQ.Modulus[u], ringQ.MredParams[u])
+				}
+
+				for u := 0; u < levelP+1; u++{
+					ringP.NTTSingleLazy(u, cw, cwNTT)
+					ring.MulCoeffsMontgomeryConstantAndAddNoModVec(evakey.Value[i][j][0].P.Coeffs[u], cwNTT, c0QP.P.Coeffs[u], ringP.Modulus[u], ringP.MredParams[u])
+					ring.MulCoeffsMontgomeryConstantAndAddNoModVec(evakey.Value[i][j][1].P.Coeffs[u], cwNTT, c1QP.P.Coeffs[u], ringP.Modulus[u], ringP.MredParams[u])
+				}
+			}
+
+			if reduce%QiOverF == QiOverF-1 {
+				ringQ.ReduceLvl(levelQ, c0QP.Q, c0QP.Q)
+				ringQ.ReduceLvl(levelQ, c1QP.Q, c1QP.Q)
+			}
+
+			if reduce%PiOverF == PiOverF-1 {
+				ringP.ReduceLvl(levelP, c0QP.P, c0QP.P)
+				ringP.ReduceLvl(levelP, c1QP.P, c1QP.P)
+			}
+
+			reduce++
+		}
+	}
+
+	if reduce%QiOverF != 0 {
+		ringQ.ReduceLvl(levelQ, c0QP.Q, c0QP.Q)
+		ringQ.ReduceLvl(levelQ, c1QP.Q, c1QP.Q)
+	}
+
+	if reduce%PiOverF != 0 {
+		ringP.ReduceLvl(levelP, c0QP.P, c0QP.P)
+		ringP.ReduceLvl(levelP, c1QP.P, c1QP.P)
+	}
+}
+
+
+
+
+// KeyswitchHoisted applies the key-switch to the decomposed polynomial c2 mod QP (PoolDecompQ and PoolDecompP)
+>>>>>>> wip
 // and divides the result by P, reducing the basis from QP to Q.
 //
 // Buff2 = dot(BuffDecompQ||BuffDecompP * evakey[0]) mod Q

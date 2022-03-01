@@ -19,15 +19,15 @@ type KeyGenerator interface {
 	GenSecretKeyWithHammingWeight(hw int) (sk *SecretKey)
 	GenPublicKey(sk *SecretKey) (pk *PublicKey)
 	GenKeyPair() (sk *SecretKey, pk *PublicKey)
-	GenRelinearizationKey(sk *SecretKey, maxDegree, bitDecomp int) (evk *RelinearizationKey)
-	GenSwitchingKey(skInput, skOutput *SecretKey, bitDecomp int) (newevakey *SwitchingKey)
-	GenSwitchingKeyForGalois(galEl uint64, sk *SecretKey, bitDecomp int) (swk *SwitchingKey)
-	GenRotationKeys(galEls []uint64, sk *SecretKey, bitDecomp int) (rks *RotationKeySet)
-	GenSwitchingKeyForRotationBy(k int, sk *SecretKey, bitDecomp int) (swk *SwitchingKey)
-	GenRotationKeysForRotations(ks []int, inclueSwapRows bool, sk *SecretKey, bitDecomp int) (rks *RotationKeySet)
-	GenSwitchingKeyForRowRotation(sk *SecretKey, bitDecomp int) (swk *SwitchingKey)
-	GenRotationKeysForInnerSum(sk *SecretKey, bitDecomp int) (rks *RotationKeySet)
-	GenSwitchingKeysForRingSwap(skCKKS, skCI *SecretKey, bitDecomp int) (swkStdToConjugateInvariant, swkConjugateInvariantToStd *SwitchingKey)
+	GenRelinearizationKey(sk *SecretKey, maxDegree int) (evk *RelinearizationKey)
+	GenSwitchingKey(skInput, skOutput *SecretKey) (newevakey *SwitchingKey)
+	GenSwitchingKeyForGalois(galEl uint64, sk *SecretKey) (swk *SwitchingKey)
+	GenRotationKeys(galEls []uint64, sk *SecretKey) (rks *RotationKeySet)
+	GenSwitchingKeyForRotationBy(k int, sk *SecretKey) (swk *SwitchingKey)
+	GenRotationKeysForRotations(ks []int, inclueSwapRows bool, sk *SecretKey) (rks *RotationKeySet)
+	GenSwitchingKeyForRowRotation(sk *SecretKey) (swk *SwitchingKey)
+	GenRotationKeysForInnerSum(sk *SecretKey) (rks *RotationKeySet)
+	GenSwitchingKeysForRingSwap(skCKKS, skCI *SecretKey) (swkStdToConjugateInvariant, swkConjugateInvariantToStd *SwitchingKey)
 }
 
 // KeyGenerator is a structure that stores the elements required to create new keys,
@@ -56,6 +56,8 @@ func NewKeyGenerator(params Parameters) KeyGenerator {
 	if params.PCount() > 0 {
 		buffQP = params.RingQP().NewPoly()
 		uniformSamplerP = ring.NewUniformSampler(prng, params.RingP())
+	}else{
+		poolQP = PolyQP{Q:params.RingQ().NewPoly()}
 	}
 
 	return &keyGenerator{
@@ -167,11 +169,15 @@ func (keygen *keyGenerator) GenKeyPair() (sk *SecretKey, pk *PublicKey) {
 }
 
 // GenRelinKey generates a new EvaluationKey that will be used to relinearize Ciphertexts during multiplication.
+<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
 func (keygen *keyGenerator) GenRelinearizationKey(sk *SecretKey, maxDegree, bitDecomp int) (evk *RelinearizationKey) {
 
 	if keygen.params.PCount() == 0 {
 		panic("cannot GenRelinearizationKey: modulus P is empty")
 	}
+=======
+func (keygen *keyGenerator) GenRelinearizationKey(sk *SecretKey, maxDegree int) (evk *RelinearizationKey) {
+>>>>>>> wip
 
 	levelQ := keygen.params.QCount() - 1
 	levelP := keygen.params.PCount() - 1
@@ -179,7 +185,7 @@ func (keygen *keyGenerator) GenRelinearizationKey(sk *SecretKey, maxDegree, bitD
 	evk = new(RelinearizationKey)
 	evk.Keys = make([]*SwitchingKey, maxDegree)
 	for i := range evk.Keys {
-		evk.Keys[i] = NewSwitchingKey(keygen.params, levelQ, levelP, bitDecomp)
+		evk.Keys[i] = NewSwitchingKey(keygen.params, levelQ, levelP)
 	}
 
 	keygen.buffQP.Q.CopyValues(sk.Value.Q)
@@ -194,16 +200,16 @@ func (keygen *keyGenerator) GenRelinearizationKey(sk *SecretKey, maxDegree, bitD
 
 // GenRotationKeys generates a RotationKeySet from a list of galois element corresponding to the desired rotations
 // See also GenRotationKeysForRotations.
-func (keygen *keyGenerator) GenRotationKeys(galEls []uint64, sk *SecretKey, bitDecomp int) (rks *RotationKeySet) {
-	rks = NewRotationKeySet(keygen.params, galEls, bitDecomp)
+func (keygen *keyGenerator) GenRotationKeys(galEls []uint64, sk *SecretKey) (rks *RotationKeySet) {
+	rks = NewRotationKeySet(keygen.params, galEls)
 	for _, galEl := range galEls {
 		keygen.genrotKey(sk.Value, keygen.params.InverseGaloisElement(galEl), rks.Keys[galEl])
 	}
 	return rks
 }
 
-func (keygen *keyGenerator) GenSwitchingKeyForRotationBy(k int, sk *SecretKey, bitDecomp int) (swk *SwitchingKey) {
-	swk = NewSwitchingKey(keygen.params, keygen.params.QCount()-1, keygen.params.PCount()-1, bitDecomp)
+func (keygen *keyGenerator) GenSwitchingKeyForRotationBy(k int, sk *SecretKey) (swk *SwitchingKey) {
+	swk = NewSwitchingKey(keygen.params, keygen.params.QCount()-1, keygen.params.PCount()-1)
 	galElInv := keygen.params.GaloisElementForColumnRotationBy(-int(k))
 	keygen.genrotKey(sk.Value, galElInv, swk)
 	return
@@ -212,7 +218,7 @@ func (keygen *keyGenerator) GenSwitchingKeyForRotationBy(k int, sk *SecretKey, b
 // GenRotationKeysForRotations generates a RotationKeySet supporting left rotations by k positions for all k in ks.
 // Negative k is equivalent to a right rotation by k positions
 // If includeConjugate is true, the resulting set contains the conjugation key.
-func (keygen *keyGenerator) GenRotationKeysForRotations(ks []int, includeConjugate bool, sk *SecretKey, bitDecomp int) (rks *RotationKeySet) {
+func (keygen *keyGenerator) GenRotationKeysForRotations(ks []int, includeConjugate bool, sk *SecretKey) (rks *RotationKeySet) {
 	galEls := make([]uint64, len(ks), len(ks)+1)
 	for i, k := range ks {
 		galEls[i] = keygen.params.GaloisElementForColumnRotationBy(k)
@@ -220,24 +226,24 @@ func (keygen *keyGenerator) GenRotationKeysForRotations(ks []int, includeConjuga
 	if includeConjugate {
 		galEls = append(galEls, keygen.params.GaloisElementForRowRotation())
 	}
-	return keygen.GenRotationKeys(galEls, sk, bitDecomp)
+	return keygen.GenRotationKeys(galEls, sk)
 }
 
-func (keygen *keyGenerator) GenSwitchingKeyForRowRotation(sk *SecretKey, bitDecomp int) (swk *SwitchingKey) {
-	swk = NewSwitchingKey(keygen.params, keygen.params.QCount()-1, keygen.params.PCount()-1, bitDecomp)
+func (keygen *keyGenerator) GenSwitchingKeyForRowRotation(sk *SecretKey) (swk *SwitchingKey) {
+	swk = NewSwitchingKey(keygen.params, keygen.params.QCount()-1, keygen.params.PCount()-1)
 	keygen.genrotKey(sk.Value, keygen.params.GaloisElementForRowRotation(), swk)
 	return
 }
 
-func (keygen *keyGenerator) GenSwitchingKeyForGalois(galoisEl uint64, sk *SecretKey, bitDecomp int) (swk *SwitchingKey) {
-	swk = NewSwitchingKey(keygen.params, keygen.params.QCount()-1, keygen.params.PCount()-1, bitDecomp)
+func (keygen *keyGenerator) GenSwitchingKeyForGalois(galoisEl uint64, sk *SecretKey) (swk *SwitchingKey) {
+	swk = NewSwitchingKey(keygen.params, keygen.params.QCount()-1, keygen.params.PCount()-1)
 	keygen.genrotKey(sk.Value, keygen.params.InverseGaloisElement(galoisEl), swk)
 	return
 }
 
 // GenRotationKeysForInnerSum generates a RotationKeySet supporting the InnerSum operation of the Evaluator
-func (keygen *keyGenerator) GenRotationKeysForInnerSum(sk *SecretKey, bitDecomp int) (rks *RotationKeySet) {
-	return keygen.GenRotationKeys(keygen.params.GaloisElementsForRowInnerSum(), sk, bitDecomp)
+func (keygen *keyGenerator) GenRotationKeysForInnerSum(sk *SecretKey) (rks *RotationKeySet) {
+	return keygen.GenRotationKeys(keygen.params.GaloisElementsForRowInnerSum(), sk)
 }
 
 func (keygen *keyGenerator) genrotKey(sk PolyQP, galEl uint64, swk *SwitchingKey) {
@@ -254,14 +260,14 @@ func (keygen *keyGenerator) genrotKey(sk PolyQP, galEl uint64, swk *SwitchingKey
 }
 
 // GenSwitchingKeysForRingSwap generates the necessary switching keys to switch from a standard ring to to a conjugate invariant ring and vice-versa.
-func (keygen *keyGenerator) GenSwitchingKeysForRingSwap(skStd, skConjugateInvariant *SecretKey, bitDecomp int) (swkStdToConjugateInvariant, swkConjugateInvariantToStd *SwitchingKey) {
+func (keygen *keyGenerator) GenSwitchingKeysForRingSwap(skStd, skConjugateInvariant *SecretKey) (swkStdToConjugateInvariant, swkConjugateInvariantToStd *SwitchingKey) {
 
 	skCIMappedToStandard := &SecretKey{Value: keygen.buffQP}
 	keygen.params.RingQ().UnfoldConjugateInvariantToStandard(skConjugateInvariant.Value.Q.Level(), skConjugateInvariant.Value.Q, skCIMappedToStandard.Value.Q)
 	keygen.params.RingQ().UnfoldConjugateInvariantToStandard(skConjugateInvariant.Value.P.Level(), skConjugateInvariant.Value.P, skCIMappedToStandard.Value.P)
 
-	swkConjugateInvariantToStd = keygen.GenSwitchingKey(skCIMappedToStandard, skStd, bitDecomp)
-	swkStdToConjugateInvariant = keygen.GenSwitchingKey(skStd, skCIMappedToStandard, bitDecomp)
+	swkConjugateInvariantToStd = keygen.GenSwitchingKey(skCIMappedToStandard, skStd)
+	swkStdToConjugateInvariant = keygen.GenSwitchingKey(skStd, skCIMappedToStandard)
 	return
 }
 
@@ -274,18 +280,32 @@ func (keygen *keyGenerator) GenSwitchingKeysForRingSwap(skStd, skConjugateInvari
 // using SwitchCiphertextRingDegreeNTT(ctSmallDim, nil, ctLargeDim).
 // When key-switching a ciphertext from X^{N} to Y^{N/n}, the output of the key-switch is in still X^{N} and
 // must be mapped Y^{N/n} using SwitchCiphertextRingDegreeNTT(ctLargeDim, ringQLargeDim, ctSmallDim).
-func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey, bitDecomp int) (swk *SwitchingKey) {
+func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *SwitchingKey) {
 
-	if keygen.params.PCount() == 0 {
-		panic("Cannot GenSwitchingKey: modulus P is empty")
+	var levelP int
+	if skOutput.Value.P != nil{
+		levelP = skOutput.Value.P.Level()
+	}else{
+		levelP = -1
 	}
 
-	swk = NewSwitchingKey(keygen.params, skOutput.Value.Q.Level(), skOutput.Value.P.Level(), bitDecomp)
+	swk = NewSwitchingKey(keygen.params, skOutput.Value.Q.Level(), levelP)
 
 	if len(skInput.Value.Q.Coeffs[0]) > len(skOutput.Value.Q.Coeffs[0]) { // N -> n
+<<<<<<< dev_bfv_poly
 		ring.MapSmallDimensionToLargerDimensionNTT(skOutput.Value.Q, keygen.buffQP.Q)
 		ring.MapSmallDimensionToLargerDimensionNTT(skOutput.Value.P, keygen.buffQP.P)
 		keygen.genSwitchingKey(skInput.Value.Q, keygen.buffQP, swk)
+=======
+
+		ring.MapSmallDimensionToLargerDimensionNTT(skOutput.Value.Q, keygen.poolQP.Q)
+
+		if levelP != -1{
+			ring.MapSmallDimensionToLargerDimensionNTT(skOutput.Value.P, keygen.poolQP.P)
+		}
+
+		keygen.genSwitchingKey(skInput.Value.Q, keygen.poolQP, swk)
+>>>>>>> wip
 	} else { // N -> N or n -> N
 		ring.MapSmallDimensionToLargerDimensionNTT(skInput.Value.Q, keygen.buffQ)
 
@@ -429,6 +449,6 @@ func (keygen *keyGenerator) genSwitchingKey(skIn *ring.Poly, skOut PolyQP, swk *
 			ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, swk.Value[i][j][1], skOut, swk.Value[i][j][0])
 		}
 
-		ringQ.MulScalar(keygen.poolQ, 1<<swk.LogBase2, keygen.poolQ)
+		ringQ.MulScalar(keygen.poolQ, 1<<keygen.params.logbase2, keygen.poolQ)
 	}
 }

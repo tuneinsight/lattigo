@@ -118,9 +118,9 @@ func NewCiphertextRGSWNTT(params Parameters, levelQ int) (rgsw *RGSWCiphertext) 
 
 	rgsw = new(RGSWCiphertext)
 	ringQP := params.RingQP()
-	decompRNS := params.DecompRNS()
-	rgsw.Value = make([][2][2]PolyQP, decompRNS)
 	levelP := params.PCount() - 1
+	decompRNS := params.DecompRNS(levelQ, levelP)
+	rgsw.Value = make([][2][2]PolyQP, decompRNS)
 	for i := 0; i < decompRNS; i++ {
 		rgsw.Value[i][0] = [2]PolyQP{ringQP.NewPolyLvl(levelQ, levelP), ringQP.NewPolyLvl(levelQ, levelP)}
 		rgsw.Value[i][1] = [2]PolyQP{ringQP.NewPolyLvl(levelQ, levelP), ringQP.NewPolyLvl(levelQ, levelP)}

@@ -31,7 +31,15 @@ func testString(params rlwe.Parameters, opname string) string {
 }
 
 // TestParams is a set of test parameters for the correctness of the rlwe pacakge.
-var TestParams = []rlwe.ParametersLiteral{rlwe.TestPN12QP109, rlwe.TestPN13QP218, rlwe.TestPN14QP438, rlwe.TestPN15QP880, rlwe.TestPN16QP240, rlwe.TestPN17QP360}
+var TestParams = []rlwe.ParametersLiteral{
+	rlwe.TestPN10QP27,
+	rlwe.TestPN11QP54,
+	rlwe.TestPN12QP109, 
+	rlwe.TestPN13QP218, 
+	rlwe.TestPN14QP438, 
+	rlwe.TestPN15QP880, 
+	rlwe.TestPN16QP240, 
+	rlwe.TestPN17QP360}
 
 type testContext struct {
 	params         rlwe.Parameters
@@ -264,8 +272,7 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 	ringQP := params.RingQP()
 	levelQ, levelP := params.QCount()-1, params.PCount()-1
 
-	bitDecomp := 2 // set to 0 for no bit-decomp
-	decompBIT := params.DecompBIT(bitDecomp)
+	decompBIT := params.DecompBIT(levelQ, levelP)
 
 	t.Run(testString(params, "RelinKeyGen"), func(t *testing.T) {
 
@@ -286,12 +293,12 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 		share2 := make([]*RKGShare, nbParties)
 
 		for i := range rkg {
-			ephSk[i], share1[i], share2[i] = rkg[i].AllocateShare(bitDecomp)
+			ephSk[i], share1[i], share2[i] = rkg[i].AllocateShare()
 		}
 
-		crp := rkg[0].SampleCRP(testCtx.crs, bitDecomp)
+		crp := rkg[0].SampleCRP(testCtx.crs)
 		for i := range rkg {
-			rkg[i].GenShareRoundOne(testCtx.skShares[i], crp, ephSk[i], bitDecomp, share1[i])
+			rkg[i].GenShareRoundOne(testCtx.skShares[i], crp, ephSk[i], share1[i])
 		}
 
 		for i := 1; i < nbParties; i++ {
@@ -306,7 +313,7 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 			rkg[0].AggregateShare(share2[0], share2[i], share2[0])
 		}
 
-		rlk := rlwe.NewRelinKey(params, 2, bitDecomp)
+		rlk := rlwe.NewRelinKey(params, 2)
 		rkg[0].GenRelinearizationKey(share1[0], share2[0], rlk)
 
 		skIn := testCtx.skIdeal.CopyNew()
@@ -375,7 +382,7 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 			}
 
 			// sOut * P * BIT
-			ringQ.MulScalar(skIn.Value.Q, 1<<bitDecomp, skIn.Value.Q)
+			ringQ.MulScalar(skIn.Value.Q, 1<<params.LogBase2(), skIn.Value.Q)
 		}
 >>>>>>> First step for adding bit-decomp
 	})
@@ -389,8 +396,7 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 	ringQP := params.RingQP()
 	levelQ, levelP := params.QCount()-1, params.PCount()-1
 
-	bitDecomp := 2 // set to 0 for no bit-decomp
-	decompBIT := params.DecompBIT(bitDecomp)
+	decompBIT := params.DecompBIT(levelQ, levelP)
 
 <<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
 		if params.PCount() == 0 {
@@ -413,10 +419,10 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 
 		shares := make([]*RTGShare, nbParties)
 		for i := range shares {
-			shares[i] = rtg[i].AllocateShare(bitDecomp)
+			shares[i] = rtg[i].AllocateShare()
 		}
 
-		crp := rtg[0].SampleCRP(testCtx.crs, bitDecomp)
+		crp := rtg[0].SampleCRP(testCtx.crs)
 
 		galEl := params.GaloisElementForRowRotation()
 
@@ -428,7 +434,7 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 			rtg[0].AggregateShare(shares[0], shares[i], shares[0])
 		}
 
-		rotKeySet := rlwe.NewRotationKeySet(params, []uint64{galEl}, bitDecomp)
+		rotKeySet := rlwe.NewRotationKeySet(params, []uint64{galEl})
 		rtg[0].GenRotationKey(shares[0], crp, rotKeySet.Keys[galEl])
 
 		skIn := testCtx.skIdeal.CopyNew()
@@ -502,7 +508,7 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 			}
 
 			// sOut * P * BIT
-			ringQ.MulScalar(skOut.Value.Q, 1<<bitDecomp, skOut.Value.Q)
+			ringQ.MulScalar(skOut.Value.Q, 1<<params.LogBase2(), skOut.Value.Q)
 		}
 >>>>>>> First step for adding bit-decomp
 	})
@@ -515,8 +521,6 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 	ciphertext := &rlwe.Ciphertext{Value: []*ring.Poly{params.RingQ().NewPoly(), params.RingQ().NewPoly()}}
 	testCtx.uniformSampler.Read(ciphertext.Value[0])
 	testCtx.uniformSampler.Read(ciphertext.Value[1])
-
-	bitDecomp := 2 // set to 0 for no bit-decomp
 
 	t.Run(testString(params, "Marshalling/CKG"), func(t *testing.T) {
 		ckg := NewCKGProtocol(testCtx.params)
@@ -606,11 +610,11 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 
 		RKGProtocol := NewRKGProtocol(params)
 
-		ephSk0, share10, _ := RKGProtocol.AllocateShare(bitDecomp)
+		ephSk0, share10, _ := RKGProtocol.AllocateShare()
 
-		crp := RKGProtocol.SampleCRP(testCtx.crs, bitDecomp)
+		crp := RKGProtocol.SampleCRP(testCtx.crs)
 
-		RKGProtocol.GenShareRoundOne(testCtx.skShares[0], crp, ephSk0, bitDecomp, share10)
+		RKGProtocol.GenShareRoundOne(testCtx.skShares[0], crp, ephSk0, share10)
 
 		data, err := share10.MarshalBinary()
 		require.NoError(t, err)
@@ -652,9 +656,9 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 		galEl := testCtx.params.GaloisElementForColumnRotationBy(64)
 
 		rtg := NewRTGProtocol(testCtx.params)
-		rtgShare := rtg.AllocateShare(bitDecomp)
+		rtgShare := rtg.AllocateShare()
 
-		crp := rtg.SampleCRP(testCtx.crs, bitDecomp)
+		crp := rtg.SampleCRP(testCtx.crs)
 
 		rtg.GenShare(testCtx.skShares[0], galEl, crp, rtgShare)
 

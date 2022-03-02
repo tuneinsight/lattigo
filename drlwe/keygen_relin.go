@@ -11,8 +11,8 @@ import (
 
 // RelinearizationKeyGenerator is an interface describing the local steps of a generic RLWE RKG protocol.
 type RelinearizationKeyGenerator interface {
-	AllocateShare(logBase2 int) (ephKey *rlwe.SecretKey, r1 *RKGShare, r2 *RKGShare)
-	GenShareRoundOne(sk *rlwe.SecretKey, crp RKGCRP, ephKeyOut *rlwe.SecretKey, logBit int, shareOut *RKGShare)
+	AllocateShare() (ephKey *rlwe.SecretKey, r1 *RKGShare, r2 *RKGShare)
+	GenShareRoundOne(sk *rlwe.SecretKey, crp RKGCRP, ephKeyOut *rlwe.SecretKey, shareOut *RKGShare)
 	GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGShare, shareOut *RKGShare)
 	AggregateShare(share1, share2, shareOut *RKGShare)
 	GenRelinearizationKey(round1 *RKGShare, round2 *RKGShare, relinKeyOut *rlwe.RelinearizationKey)
@@ -77,12 +77,13 @@ func NewRKGProtocol(params rlwe.Parameters) *RKGProtocol {
 }
 
 // AllocateShare allocates the share of the EKG protocol.
-func (ekg *RKGProtocol) AllocateShare(logBase2 int) (ephSk *rlwe.SecretKey, r1 *RKGShare, r2 *RKGShare) {
-	ephSk = rlwe.NewSecretKey(ekg.params)
+func (ekg *RKGProtocol) AllocateShare() (ephSk *rlwe.SecretKey, r1 *RKGShare, r2 *RKGShare) {
+	params := ekg.params
+	ephSk = rlwe.NewSecretKey(params)
 	r1, r2 = new(RKGShare), new(RKGShare)
 
-	decompRNS := ekg.params.DecompRNS()
-	decompBIT := ekg.params.DecompBIT(logBase2)
+	decompRNS := params.DecompRNS(params.QCount()-1, params.PCount()-1)
+	decompBIT := params.DecompBIT(params.QCount()-1, params.PCount()-1)
 
 	r1.Value = make([][][2]rlwe.PolyQP, decompRNS)
 	r2.Value = make([][][2]rlwe.PolyQP, decompRNS)
@@ -102,13 +103,17 @@ func (ekg *RKGProtocol) AllocateShare(logBase2 int) (ephSk *rlwe.SecretKey, r1 *
 
 // SampleCRP samples a common random polynomial to be used in the RKG protocol from the provided
 // common reference string.
-func (ekg *RKGProtocol) SampleCRP(crs CRS, logBase2 int) RKGCRP {
-	crp := make([][]rlwe.PolyQP, ekg.params.DecompRNS())
+func (ekg *RKGProtocol) SampleCRP(crs CRS) RKGCRP {
+	params := ekg.params
+	decompRNS := params.DecompRNS(params.QCount()-1, params.PCount()-1)
+	decompBIT := params.DecompBIT(params.QCount()-1, params.PCount()-1)
+
+	crp := make([][]rlwe.PolyQP, decompRNS)
 	us := rlwe.NewUniformSamplerQP(ekg.params, crs)
 	for i := range crp {
-		crp[i] = make([]rlwe.PolyQP, ekg.params.DecompBIT(logBase2))
+		crp[i] = make([]rlwe.PolyQP, decompBIT)
 		for j := range crp[i] {
-			crp[i][j] = ekg.params.RingQP().NewPoly()
+			crp[i][j] = params.RingQP().NewPoly()
 			us.Read(&crp[i][j])
 		}
 	}
@@ -118,7 +123,7 @@ func (ekg *RKGProtocol) SampleCRP(crs CRS, logBase2 int) RKGCRP {
 // GenShareRoundOne is the first of three rounds of the RKGProtocol protocol. Each party generates a pseudo encryption of
 // its secret share of the key s_i under its ephemeral key u_i : [-u_i*a + s_i*w + e_i] and broadcasts it to the other
 // j-1 parties.
-func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp RKGCRP, ephSkOut *rlwe.SecretKey, logBase2 int, shareOut *RKGShare) {
+func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp RKGCRP, ephSkOut *rlwe.SecretKey, shareOut *RKGShare) {
 	// Given a base decomposition w_i (here the CRT decomposition)
 	// computes [-u*a_i + P*s_i + e_i]
 	// where a_i = crp_i
@@ -211,7 +216,7 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp RKGCRP, ephSkOu
 			ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, sk.Value, crp[i][j], shareOut.Value[i][j][1])
 		}
 
-		ringQ.MulScalar(ekg.tmpPoly1.Q, 1<<logBase2, ekg.tmpPoly1.Q)
+		ringQ.MulScalar(ekg.tmpPoly1.Q, 1<<ekg.params.LogBase2(), ekg.tmpPoly1.Q)
 	}
 }
 

@@ -11,7 +11,7 @@ import (
 
 // RotationKeyGenerator is an interface for the local operation in the generation of rotation keys.
 type RotationKeyGenerator interface {
-	AllocateShare(logBase2 int) (rtgShare *RTGShare)
+	AllocateShare() (rtgShare *RTGShare)
 	GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, shareOut *RTGShare)
 	AggregateShare(share1, share2, shareOut *RTGShare)
 	GenRotationKey(share *RTGShare, crp RTGCRP, rotKey *rlwe.SwitchingKey)
@@ -68,11 +68,12 @@ func NewRTGProtocol(params rlwe.Parameters) *RTGProtocol {
 }
 
 // AllocateShare allocates a party's share in the RTG protocol.
-func (rtg *RTGProtocol) AllocateShare(logBase2 int) (rtgShare *RTGShare) {
+func (rtg *RTGProtocol) AllocateShare() (rtgShare *RTGShare) {
 	rtgShare = new(RTGShare)
 
-	decompRNS := rtg.params.DecompRNS()
-	decompBIT := rtg.params.DecompBIT(logBase2)
+	params := rtg.params
+	decompRNS := rtg.params.DecompRNS(params.QCount()-1, params.PCount()-1)
+	decompBIT := rtg.params.DecompBIT(params.QCount()-1, params.PCount()-1)
 
 	rtgShare.Value = make([][]rlwe.PolyQP, decompRNS)
 
@@ -87,10 +88,11 @@ func (rtg *RTGProtocol) AllocateShare(logBase2 int) (rtgShare *RTGShare) {
 
 // SampleCRP samples a common random polynomial to be used in the RTG protocol from the provided
 // common reference string.
-func (rtg *RTGProtocol) SampleCRP(crs CRS, logBase2 int) RTGCRP {
+func (rtg *RTGProtocol) SampleCRP(crs CRS) RTGCRP {
 
-	decompRNS := rtg.params.DecompRNS()
-	decompBIT := rtg.params.DecompBIT(logBase2)
+	params := rtg.params
+	decompRNS := rtg.params.DecompRNS(params.QCount()-1, params.PCount()-1)
+	decompBIT := rtg.params.DecompBIT(params.QCount()-1, params.PCount()-1)
 
 	crp := make([][]rlwe.PolyQP, decompRNS)
 	us := rlwe.NewUniformSamplerQP(rtg.params, crs)

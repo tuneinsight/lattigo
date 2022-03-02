@@ -308,6 +308,12 @@ func (p Parameters) LogQP() int {
 	return tmp.BitLen()
 }
 
+// LogBase2 returns the base 2 decomposition used for the key-switching keys.
+// Returns 0 if not binary decomposition is used.
+func (p Parameters) LogBase2() int {
+	return p.logbase2
+}
+
 // MaxBit returns max(max(bitLen(Q[:levelQ+1])), max(bitLen(P[:levelP+1])).
 func (p Parameters) MaxBit(levelQ, levelP int) (c int) {
 	for _, qi := range p.Q()[:levelQ+1] {

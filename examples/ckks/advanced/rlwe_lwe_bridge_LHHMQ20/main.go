@@ -19,8 +19,6 @@ import (
 
 func main() {
 
-	bitDecomp := 0
-
 	// Ring Learning With Error parameters
 	fmt.Printf("Gen RLWE Parameters... ")
 	start := time.Now()
@@ -86,11 +84,11 @@ func main() {
 	fmt.Printf("Gen Evaluation Keys:\n")
 	fmt.Printf("	Decoding Keys... ")
 	start = time.Now()
-	rotKey := kgenRLWE.GenRotationKeysForRotations(SlotsToCoeffsParameters.Rotations(), true, skRLWE, bitDecomp)
+	rotKey := kgenRLWE.GenRotationKeysForRotations(SlotsToCoeffsParameters.Rotations(), true, skRLWE)
 	fmt.Printf("Done (%s)\n", time.Since(start))
 	fmt.Printf("	Relinearization Key... ")
 	start = time.Now()
-	rlk := kgenRLWE.GenRelinearizationKey(skRLWE, 2, bitDecomp)
+	rlk := kgenRLWE.GenRelinearizationKey(skRLWE, 1)
 	fmt.Printf("Done (%s)\n", time.Since(start))
 
 	fmt.Printf("	Repacking Keys... ")
@@ -100,7 +98,7 @@ func main() {
 	}
 	rotationsRepack := paramsRLWE.RotationsForLinearTransform(nonzerodiags, paramsRLWE.Slots(), 4.0)
 	rotationsRepack = append(rotationsRepack, paramsRLWE.RotationsForTrace(paramsRLWE.LogSlots(), paramsLWE.LogN())...)
-	rotKeyRepack := kgenRLWE.GenRotationKeysForRotations(rotationsRepack, false, skRLWE, bitDecomp)
+	rotKeyRepack := kgenRLWE.GenRotationKeysForRotations(rotationsRepack, false, skRLWE)
 
 	fmt.Printf("Done (%s)\n", time.Since(start))
 
@@ -113,7 +111,7 @@ func main() {
 	// RLWE -> LWE Switching key
 	fmt.Printf("	RLWE -> LWE Switching Key... ")
 	start = time.Now()
-	swkRLWEDimToLWEDim := kgenRLWE.GenSwitchingKey(skRLWE, skLWE, bitDecomp)
+	swkRLWEDimToLWEDim := kgenRLWE.GenSwitchingKey(skRLWE, skLWE)
 	fmt.Printf("Done (%s)\n", time.Since(start))
 
 	// Encodes and Encrypts skLWE

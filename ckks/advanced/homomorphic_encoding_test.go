@@ -153,7 +153,7 @@ func testCoeffsToSlots(params ckks.Parameters, t *testing.T) {
 		rotations := CoeffsToSlotsParametersLiteral.Rotations()
 
 		// Generates the rotation keys
-		rotKey := kgen.GenRotationKeysForRotations(rotations, true, sk, 0)
+		rotKey := kgen.GenRotationKeysForRotations(rotations, true, sk)
 
 		// Creates an evaluator with the rotation keys
 		eval := NewEvaluator(params, rlwe.EvaluationKey{Rlk: nil, Rtks: rotKey})
@@ -270,7 +270,7 @@ func testSlotsToCoeffs(params ckks.Parameters, t *testing.T) {
 		rotations := SlotsToCoeffsParametersLiteral.Rotations()
 
 		// Generates the rotation keys
-		rotKey := kgen.GenRotationKeysForRotations(rotations, true, sk, 0)
+		rotKey := kgen.GenRotationKeysForRotations(rotations, true, sk)
 
 		// Creates an evaluator with the rotation keys
 		eval := NewEvaluator(params, rlwe.EvaluationKey{Rlk: nil, Rtks: rotKey})

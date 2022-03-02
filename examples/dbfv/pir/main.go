@@ -14,8 +14,6 @@ import (
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
-var bitDecomp = 0
-
 func check(err error) {
 	if err != nil {
 		panic(err)
@@ -287,17 +285,17 @@ func rkgphase(params bfv.Parameters, crs utils.PRNG, P []*party) *rlwe.Relineari
 
 	rkg := dbfv.NewRKGProtocol(params) // Relineariation key generation
 
-	_, rkgCombined1, rkgCombined2 := rkg.AllocateShare(bitDecomp)
+	_, rkgCombined1, rkgCombined2 := rkg.AllocateShare()
 
 	for _, pi := range P {
-		pi.rlkEphemSk, pi.rkgShareOne, pi.rkgShareTwo = rkg.AllocateShare(bitDecomp)
+		pi.rlkEphemSk, pi.rkgShareOne, pi.rkgShareTwo = rkg.AllocateShare()
 	}
 
-	crp := rkg.SampleCRP(crs, bitDecomp)
+	crp := rkg.SampleCRP(crs)
 
 	elapsedRKGParty = runTimedParty(func() {
 		for _, pi := range P {
-			rkg.GenShareRoundOne(pi.sk, crp, pi.rlkEphemSk, bitDecomp, pi.rkgShareOne)
+			rkg.GenShareRoundOne(pi.sk, crp, pi.rlkEphemSk, pi.rkgShareOne)
 		}
 	}, len(P))
 
@@ -335,7 +333,7 @@ func rtkphase(params bfv.Parameters, crs utils.PRNG, P []*party) *rlwe.RotationK
 	rtg := dbfv.NewRotKGProtocol(params) // Rotation keys generation
 
 	for _, pi := range P {
-		pi.rtgShare = rtg.AllocateShare(bitDecomp)
+		pi.rtgShare = rtg.AllocateShare()
 	}
 
 	galEls := params.GaloisElementsForRowInnerSum()
@@ -343,9 +341,9 @@ func rtkphase(params bfv.Parameters, crs utils.PRNG, P []*party) *rlwe.RotationK
 
 	for _, galEl := range galEls {
 
-		rtgShareCombined := rtg.AllocateShare(bitDecomp)
+		rtgShareCombined := rtg.AllocateShare()
 
-		crp := rtg.SampleCRP(crs, bitDecomp)
+		crp := rtg.SampleCRP(crs)
 
 		elapsedRTGParty += runTimedParty(func() {
 			for _, pi := range P {

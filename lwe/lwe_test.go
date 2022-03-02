@@ -128,8 +128,6 @@ func testLWEToRLWE(params rlwe.Parameters, t *testing.T) {
 
 func testManyRLWEToSingleRLWE(params rlwe.Parameters, t *testing.T) {
 
-	bitDecomp := 0
-
 	t.Run(testString(params, "ManyToSingleRLWE/"), func(t *testing.T) {
 		kgen := rlwe.NewKeyGenerator(params)
 		sk := kgen.GenSecretKey()
@@ -149,7 +147,7 @@ func testManyRLWEToSingleRLWE(params rlwe.Parameters, t *testing.T) {
 			rotations = append(rotations, i)
 		}
 
-		rtks := kgen.GenRotationKeysForRotations(rotations, true, sk, bitDecomp)
+		rtks := kgen.GenRotationKeysForRotations(rotations, true, sk)
 
 		handler := NewHandler(params, params, rtks)
 

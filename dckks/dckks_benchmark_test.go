@@ -83,7 +83,6 @@ func benchRelinKeyGen(testCtx *testContext, b *testing.B) {
 
 	sk0Shards := testCtx.sk0Shards
 	params := testCtx.params
-	bitDecomp := 0
 
 	type Party struct {
 		*RKGProtocol
@@ -96,14 +95,14 @@ func benchRelinKeyGen(testCtx *testContext, b *testing.B) {
 	p := new(Party)
 	p.RKGProtocol = NewRKGProtocol(params)
 	p.sk = sk0Shards[0]
-	p.ephSk, p.share1, p.share2 = p.RKGProtocol.AllocateShare(bitDecomp)
+	p.ephSk, p.share1, p.share2 = p.RKGProtocol.AllocateShare()
 
-	crp := p.SampleCRP(testCtx.crs, bitDecomp)
+	crp := p.SampleCRP(testCtx.crs)
 
 	b.Run(testString("RelinKeyGen/Round1Gen/", parties, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.GenShareRoundOne(p.sk, crp, p.ephSk, bitDecomp, p.share1)
+			p.GenShareRoundOne(p.sk, crp, p.ephSk, p.share1)
 		}
 	})
 
@@ -218,7 +217,6 @@ func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 
 	sk0Shards := testCtx.sk0Shards
 	params := testCtx.params
-	bitDecomp := 0
 
 	type Party struct {
 		*RTGProtocol
@@ -229,9 +227,9 @@ func benchRotKeyGen(testCtx *testContext, b *testing.B) {
 	p := new(Party)
 	p.RTGProtocol = NewRotKGProtocol(params)
 	p.s = sk0Shards[0]
-	p.share = p.AllocateShare(bitDecomp)
+	p.share = p.AllocateShare()
 
-	crp := p.SampleCRP(testCtx.crs, bitDecomp)
+	crp := p.SampleCRP(testCtx.crs)
 
 	galEl := params.GaloisElementForRowRotation()
 	b.Run(testString("RotKeyGen/Round1/Gen/", parties, params), func(b *testing.B) {

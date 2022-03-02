@@ -34,11 +34,11 @@ func testString(params rlwe.Parameters, opname string) string {
 var TestParams = []rlwe.ParametersLiteral{
 	rlwe.TestPN10QP27,
 	rlwe.TestPN11QP54,
-	rlwe.TestPN12QP109, 
-	rlwe.TestPN13QP218, 
-	rlwe.TestPN14QP438, 
-	rlwe.TestPN15QP880, 
-	rlwe.TestPN16QP240, 
+	rlwe.TestPN12QP109,
+	rlwe.TestPN13QP218,
+	rlwe.TestPN14QP438,
+	rlwe.TestPN15QP880,
+	rlwe.TestPN16QP240,
 	rlwe.TestPN17QP360}
 
 type testContext struct {

@@ -32,7 +32,7 @@ func testString(opname string, parties int, params ckks.Parameters) string {
 		params.LogQP(),
 		params.MaxLevel()+1,
 		params.PCount(),
-		params.DecompRNS(),
+		params.DecompRNS(params.QCount()-1, params.PCount()-1),
 		parties)
 }
 
@@ -214,7 +214,6 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 	decryptorSk0 := testCtx.decryptorSk0
 	sk0Shards := testCtx.sk0Shards
 	params := testCtx.params
-	bitDecomp := 0
 
 	t.Run(testString("RelinKeyGen", parties, params), func(t *testing.T) {
 
@@ -232,20 +231,20 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 			p := new(Party)
 			p.RKGProtocol = NewRKGProtocol(params)
 			p.sk = sk0Shards[i]
-			p.ephSk, p.share1, p.share2 = p.AllocateShare(bitDecomp)
+			p.ephSk, p.share1, p.share2 = p.AllocateShare()
 			rkgParties[i] = p
 		}
 
 		P0 := rkgParties[0]
 
-		crp := P0.SampleCRP(testCtx.crs, bitDecomp)
+		crp := P0.SampleCRP(testCtx.crs)
 
 		// Checks that ckks.RKGProtocol complies to the drlwe.RelinearizationKeyGenerator interface
 		var _ drlwe.RelinearizationKeyGenerator = P0.RKGProtocol
 
 		// ROUND 1
 		for i, p := range rkgParties {
-			p.GenShareRoundOne(p.sk, crp, p.ephSk, bitDecomp, p.share1)
+			p.GenShareRoundOne(p.sk, crp, p.ephSk, p.share1)
 			if i > 0 {
 				P0.AggregateShare(p.share1, P0.share1, P0.share1)
 			}
@@ -402,7 +401,6 @@ func testRotKeyGenConjugate(testCtx *testContext, t *testing.T) {
 	decryptorSk0 := testCtx.decryptorSk0
 	sk0Shards := testCtx.sk0Shards
 	params := testCtx.params
-	bitDecomp := 0
 
 	t.Run(testString("RotKeyGenConjugate", parties, params), func(t *testing.T) {
 
@@ -421,7 +419,7 @@ func testRotKeyGenConjugate(testCtx *testContext, t *testing.T) {
 			p := new(Party)
 			p.RTGProtocol = NewRotKGProtocol(params)
 			p.s = sk0Shards[i]
-			p.share = p.AllocateShare(bitDecomp)
+			p.share = p.AllocateShare()
 			pcksParties[i] = p
 		}
 		P0 := pcksParties[0]
@@ -429,7 +427,7 @@ func testRotKeyGenConjugate(testCtx *testContext, t *testing.T) {
 		// Checks that ckks.RTGProtocol complies to the drlwe.RotationKeyGenerator interface
 		var _ drlwe.RotationKeyGenerator = P0.RTGProtocol
 
-		crp := P0.SampleCRP(testCtx.crs, bitDecomp)
+		crp := P0.SampleCRP(testCtx.crs)
 
 		galEl := params.GaloisElementForRowRotation()
 		rotKeySet := ckks.NewRotationKeySet(params, []uint64{galEl})
@@ -465,7 +463,6 @@ func testRotKeyGenCols(testCtx *testContext, t *testing.T) {
 	decryptorSk0 := testCtx.decryptorSk0
 	sk0Shards := testCtx.sk0Shards
 	params := testCtx.params
-	bitDecomp := 0
 
 	t.Run(testString("RotKeyGenCols", parties, params), func(t *testing.T) {
 
@@ -480,13 +477,13 @@ func testRotKeyGenCols(testCtx *testContext, t *testing.T) {
 			p := new(Party)
 			p.RTGProtocol = NewRotKGProtocol(params)
 			p.s = sk0Shards[i]
-			p.share = p.AllocateShare(bitDecomp)
+			p.share = p.AllocateShare()
 			pcksParties[i] = p
 		}
 
 		P0 := pcksParties[0]
 
-		crp := P0.SampleCRP(testCtx.crs, bitDecomp)
+		crp := P0.SampleCRP(testCtx.crs)
 
 		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, -1, 1)
 

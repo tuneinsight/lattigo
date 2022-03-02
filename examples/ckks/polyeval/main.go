@@ -25,8 +25,6 @@ func chebyshevinterpolation() {
 		panic(err)
 	}
 
-	bitDecomp := 0
-
 	encoder := ckks.NewEncoder(params)
 
 	// Keys
@@ -34,7 +32,7 @@ func chebyshevinterpolation() {
 	sk, pk := kgen.GenKeyPair()
 
 	// Relinearization key
-	rlk := kgen.GenRelinearizationKey(sk, 2, bitDecomp)
+	rlk := kgen.GenRelinearizationKey(sk, 1)
 
 	// Encryptor
 	encryptor := ckks.NewEncryptor(params, pk)

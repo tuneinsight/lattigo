@@ -34,8 +34,6 @@ func main() {
 	}
 	scale := float64(1 << 40)
 
-	bitDecomp := 0
-
 	params, _ := rlwe.NewParametersFromLiteral(RLWEParams)
 	ringQ := params.RingQ()
 	ks := rlwe.NewKeySwitcher(params)
@@ -54,7 +52,7 @@ func main() {
 		rotations = append(rotations, i)
 	}
 
-	rtks := kgen.GenRotationKeysForRotations(rotations, true, sk, bitDecomp)
+	rtks := kgen.GenRotationKeysForRotations(rotations, true, sk)
 
 	permuteNTTIndex := make(map[uint64][]uint64, len(rtks.Keys))
 	for galEl := range rtks.Keys {

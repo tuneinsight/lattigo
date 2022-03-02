@@ -14,8 +14,6 @@ import (
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
-var bitDecomp = 0
-
 func check(err error) {
 	if err != nil {
 		panic(err)
@@ -330,17 +328,17 @@ func rkgphase(params bfv.Parameters, crs utils.PRNG, P []*party) *rlwe.Relineari
 	l.Println("> RKG Phase")
 
 	rkg := dbfv.NewRKGProtocol(params) // Relineariation key generation
-	_, rkgCombined1, rkgCombined2 := rkg.AllocateShare(bitDecomp)
+	_, rkgCombined1, rkgCombined2 := rkg.AllocateShare()
 
 	for _, pi := range P {
-		pi.rlkEphemSk, pi.rkgShareOne, pi.rkgShareTwo = rkg.AllocateShare(bitDecomp)
+		pi.rlkEphemSk, pi.rkgShareOne, pi.rkgShareTwo = rkg.AllocateShare()
 	}
 
-	crp := rkg.SampleCRP(crs, bitDecomp)
+	crp := rkg.SampleCRP(crs)
 
 	elapsedRKGParty = runTimedParty(func() {
 		for _, pi := range P {
-			rkg.GenShareRoundOne(pi.sk, crp, pi.rlkEphemSk, bitDecomp, pi.rkgShareOne)
+			rkg.GenShareRoundOne(pi.sk, crp, pi.rlkEphemSk, pi.rkgShareOne)
 		}
 	}, len(P))
 

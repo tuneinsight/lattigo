@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/stretchr/testify/assert"
+	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
 	"math"
 	"runtime"
@@ -44,6 +46,7 @@ func TestLWE(t *testing.T) {
 		}
 
 		for _, testSet := range []func(params rlwe.Parameters, t *testing.T){
+			testLUT,
 			testRLWEToLWE,
 			testLWEToRLWE,
 			testManyRLWEToSingleRLWE,
@@ -52,6 +55,106 @@ func TestLWE(t *testing.T) {
 			runtime.GC()
 		}
 	}
+}
+
+func sign(x float64) (y float64) {
+	if x < 0 {
+		return -1
+	}
+
+	if x == 0 {
+		return 0
+	}
+
+	return 1
+}
+
+func testLUT(params rlwe.Parameters, t *testing.T) {
+	var err error
+
+	// N=1024, Q=0x7fff801 -> 2^131
+	paramsLUT, err := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
+		LogN:     10,
+		Q:        []uint64{0x7fff801},
+		P:        []uint64{},
+		Sigma:    rlwe.DefaultSigma,
+		LogBase2: 9,
+	})
+
+	assert.Nil(t, err)
+
+	// N=512, Q=0x3001 -> 2^135
+	paramsLWE, err := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
+		LogN:  9,
+		Q:     []uint64{0x3001},
+		P:     []uint64{},
+		Sigma: rlwe.DefaultSigma,
+	})
+
+	assert.Nil(t, err)
+
+	t.Run(testString(paramsLUT, "LUT/"), func(t *testing.T) {
+
+		scaleLWE := float64(paramsLWE.Q()[0]) / 4.0
+		scaleLUT := float64(paramsLUT.Q()[0]) / 4.0
+
+		slots := 32
+
+		LUTPoly := InitLUT(sign, scaleLUT, paramsLUT.RingQ(), -1, 1)
+
+		lutPolyMap := make(map[int]*ring.Poly)
+		for i := 0; i < slots; i++ {
+			lutPolyMap[i] = LUTPoly
+		}
+
+		skLWE := rlwe.NewKeyGenerator(paramsLWE).GenSecretKey()
+		encryptorLWE := rlwe.NewEncryptor(paramsLWE, skLWE)
+
+		values := make([]float64, slots)
+		for i := 0; i < slots; i++ {
+			values[i] = -1 + float64(2*i)/float64(slots)
+		}
+
+		ptLWE := rlwe.NewPlaintext(paramsLWE, paramsLWE.MaxLevel())
+		for i := range values {
+			if values[i] < 0 {
+				ptLWE.Value.Coeffs[0][i] = paramsLWE.Q()[0] - uint64(-values[i]*scaleLWE)
+			} else {
+				ptLWE.Value.Coeffs[0][i] = uint64(values[i] * scaleLWE)
+			}
+		}
+		ctLWE := rlwe.NewCiphertextNTT(paramsLWE, 1, paramsLWE.MaxLevel())
+		encryptorLWE.Encrypt(ptLWE, ctLWE)
+
+		handler := NewHandler(paramsLUT, paramsLWE, nil)
+
+		skLUT := rlwe.NewKeyGenerator(paramsLUT).GenSecretKey()
+		LUTKEY := handler.GenLUTKey(skLUT, skLWE)
+
+		ctsLUT := handler.ExtractAndEvaluateLUT(ctLWE, lutPolyMap, LUTKEY)
+
+		q := paramsLUT.Q()[0]
+		qHalf := q >> 1
+		decryptorLUT := rlwe.NewDecryptor(paramsLUT, skLUT)
+		ptLUT := rlwe.NewPlaintext(paramsLUT, paramsLUT.MaxLevel())
+		for i := 0; i < slots; i++ {
+
+			decryptorLUT.Decrypt(ctsLUT[i], ptLUT)
+
+			c := ptLUT.Value.Coeffs[0][i]
+
+			var a float64
+			if c >= qHalf {
+				a = -float64(q-c) / scaleLUT
+			} else {
+				a = float64(c) / scaleLUT
+			}
+
+			if b := sign(values[i]); b != 0 {
+				assert.Equal(t, math.Round(a), b)
+			}
+		}
+	})
 }
 
 func testRLWEToLWE(params rlwe.Parameters, t *testing.T) {

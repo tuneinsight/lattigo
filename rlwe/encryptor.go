@@ -417,6 +417,9 @@ func (enc *skEncryptor) EncryptRGSW(plaintext *Plaintext, ciphertext *RGSWCipher
 	levelQ := ciphertext.LevelQ()
 	levelP := ciphertext.LevelP()
 
+	decompRNS := params.DecompRNS(levelQ, levelP)
+	decompBIT := params.DecompBIT(levelQ, levelP)
+
 	ptTimesP := enc.poolQ[1]
 
 	if plaintext != nil {
@@ -446,9 +449,6 @@ func (enc *skEncryptor) EncryptRGSW(plaintext *Plaintext, ciphertext *RGSWCipher
 			}
 		}
 	}
-
-	decompRNS := params.DecompRNS(levelQ, levelP)
-	decompBIT := params.DecompBIT(levelQ, levelP)
 
 	var index int
 	for j := 0; j < decompBIT; j++ {

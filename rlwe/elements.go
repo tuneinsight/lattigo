@@ -128,13 +128,17 @@ func NewCiphertextRGSWNTT(params Parameters, levelQ int) (rgsw *RGSWCiphertext) 
 	for i := 0; i < decompRNS; i++ {
 		rgsw.Value[i] = make([][2][2]PolyQP, decompBIT)
 		for j := 0; j < decompBIT; j++ {
+
 			rgsw.Value[i][j][0] = [2]PolyQP{ringQP.NewPolyLvl(levelQ, levelP), ringQP.NewPolyLvl(levelQ, levelP)}
 			rgsw.Value[i][j][1] = [2]PolyQP{ringQP.NewPolyLvl(levelQ, levelP), ringQP.NewPolyLvl(levelQ, levelP)}
 
 			rgsw.Value[i][j][0][0].Q.IsNTT = true
 			rgsw.Value[i][j][1][0].Q.IsNTT = true
-			rgsw.Value[i][j][0][0].P.IsNTT = true
-			rgsw.Value[i][j][1][0].P.IsNTT = true
+
+			if levelP != -1 {
+				rgsw.Value[i][j][0][0].P.IsNTT = true
+				rgsw.Value[i][j][1][0].P.IsNTT = true
+			}
 		}
 	}
 	return

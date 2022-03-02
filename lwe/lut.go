@@ -133,11 +133,13 @@ func (h *Handler) ExtractAndEvaluateLUT(ct *rlwe.Ciphertext, lutPolyWihtSlotInde
 
 // AddOneRGSW adds one in plaintext on the output RGSW ciphertext.
 func AddOneRGSW(oneRGSW []*ring.Poly, ringQ *ring.Ring, res *rlwe.RGSWCiphertext) {
-	nQ := len(res.Value[0][0][0][0].Q.Coeffs)
-	nP := len(res.Value[0][0][0][0].P.Coeffs)
+	nQ := res.LevelQ() + 1
+	nP := res.LevelP() + 1
+
 	if nP == 0 {
 		nP = 1
 	}
+
 	for i := range res.Value {
 		for j := range res.Value[i] {
 			start, end := i*nP, (i+1)*nP

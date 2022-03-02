@@ -399,9 +399,12 @@ func (ecd *encoderComplex128) Embed(values interface{}, logSlots int, scale floa
 	switch p := polyOut.(type) {
 	case rlwe.PolyQP:
 		complexToFixedPointCRT(p.Q.Level(), ecd.values[:slots], scale, ecd.params.RingQ(), p.Q.Coeffs, isRingStandard)
-		complexToFixedPointCRT(p.P.Level(), ecd.values[:slots], scale, ecd.params.RingP(), p.P.Coeffs, isRingStandard)
 		NttAndMontgomeryLvl(p.Q.Level(), logSlots, ecd.params.RingQ(), montgomery, p.Q)
-		NttAndMontgomeryLvl(p.P.Level(), logSlots, ecd.params.RingP(), montgomery, p.P)
+
+		if p.P != nil {
+			complexToFixedPointCRT(p.P.Level(), ecd.values[:slots], scale, ecd.params.RingP(), p.P.Coeffs, isRingStandard)
+			NttAndMontgomeryLvl(p.P.Level(), logSlots, ecd.params.RingP(), montgomery, p.P)
+		}
 	case *ring.Poly:
 		complexToFixedPointCRT(p.Level(), ecd.values[:slots], scale, ecd.params.RingQ(), p.Coeffs, isRingStandard)
 		NttAndMontgomeryLvl(p.Level(), logSlots, ecd.params.RingQ(), montgomery, p)

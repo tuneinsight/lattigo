@@ -61,51 +61,71 @@ func NewHandler(paramsLUT, paramsLWE rlwe.Parameters, rtks *rlwe.RotationKeySet)
 		}
 	}
 
-	oneNTTMFormP := ringP.NewPoly()
-	for i := range ringP.Modulus {
-		for j := 0; j < ringP.N; j++ {
-			oneNTTMFormP.Coeffs[i][j] = ring.MForm(1, ringP.Modulus[i], ringP.BredParams[i])
-		}
-	}
-
 	N := ringQ.N
 
 	h.xPowMinusOne = make([]rlwe.PolyQP, 2*N)
 	for i := 0; i < N; i++ {
 		h.xPowMinusOne[i].Q = ringQ.NewPoly()
-		h.xPowMinusOne[i].P = ringP.NewPoly()
 		h.xPowMinusOne[i+N].Q = ringQ.NewPoly()
-		h.xPowMinusOne[i+N].P = ringP.NewPoly()
 		if i == 0 || i == 1 {
 			for j := range ringQ.Modulus {
 				h.xPowMinusOne[i].Q.Coeffs[j][i] = ring.MForm(1, ringQ.Modulus[j], ringQ.BredParams[j])
 			}
 
-			for j := range ringP.Modulus {
-				h.xPowMinusOne[i].P.Coeffs[j][i] = ring.MForm(1, ringP.Modulus[j], ringP.BredParams[j])
-			}
-
 			ringQ.NTT(h.xPowMinusOne[i].Q, h.xPowMinusOne[i].Q)
-			ringP.NTT(h.xPowMinusOne[i].P, h.xPowMinusOne[i].P)
 
 			// Negacyclic wrap-arround for n > N
 			ringQ.Neg(h.xPowMinusOne[i].Q, h.xPowMinusOne[i+N].Q)
-			ringP.Neg(h.xPowMinusOne[i].P, h.xPowMinusOne[i+N].P)
 
 		} else {
 			ringQ.MulCoeffsMontgomery(h.xPowMinusOne[1].Q, h.xPowMinusOne[i-1].Q, h.xPowMinusOne[i].Q) // X^{n} = X^{1} * X^{n-1}
-			ringP.MulCoeffsMontgomery(h.xPowMinusOne[1].P, h.xPowMinusOne[i-1].P, h.xPowMinusOne[i].P)
 
 			// Negacyclic wrap-arround for n > N
 			ringQ.Neg(h.xPowMinusOne[i].Q, h.xPowMinusOne[i+N].Q) // X^{2n} = -X^{1} * X^{n-1}
-			ringP.Neg(h.xPowMinusOne[i].P, h.xPowMinusOne[i+N].P)
 		}
 	}
 
 	// Subtract -1 in NTT
 	for i := 0; i < 2*N; i++ {
 		ringQ.Sub(h.xPowMinusOne[i].Q, oneNTTMFormQ, h.xPowMinusOne[i].Q) // X^{n} - 1
-		ringP.Sub(h.xPowMinusOne[i].P, oneNTTMFormP, h.xPowMinusOne[i].P)
+	}
+
+	if ringP != nil {
+		oneNTTMFormP := ringP.NewPoly()
+		for i := range ringP.Modulus {
+			for j := 0; j < ringP.N; j++ {
+				oneNTTMFormP.Coeffs[i][j] = ring.MForm(1, ringP.Modulus[i], ringP.BredParams[i])
+			}
+		}
+
+		for i := 0; i < N; i++ {
+			h.xPowMinusOne[i].P = ringP.NewPoly()
+			h.xPowMinusOne[i+N].P = ringP.NewPoly()
+			if i == 0 || i == 1 {
+				for j := range ringP.Modulus {
+					h.xPowMinusOne[i].P.Coeffs[j][i] = ring.MForm(1, ringP.Modulus[j], ringP.BredParams[j])
+				}
+
+				ringP.NTT(h.xPowMinusOne[i].P, h.xPowMinusOne[i].P)
+
+				// Negacyclic wrap-arround for n > N
+				ringP.Neg(h.xPowMinusOne[i].P, h.xPowMinusOne[i+N].P)
+
+			} else {
+				// X^{n} = X^{1} * X^{n-1}
+				ringP.MulCoeffsMontgomery(h.xPowMinusOne[1].P, h.xPowMinusOne[i-1].P, h.xPowMinusOne[i].P)
+
+				// Negacyclic wrap-arround for n > N
+				// X^{2n} = -X^{1} * X^{n-1}
+				ringP.Neg(h.xPowMinusOne[i].P, h.xPowMinusOne[i+N].P)
+			}
+		}
+
+		// Subtract -1 in NTT
+		for i := 0; i < 2*N; i++ {
+			// X^{n} - 1
+			ringP.Sub(h.xPowMinusOne[i].P, oneNTTMFormP, h.xPowMinusOne[i].P)
+		}
 	}
 
 	h.rtks = rtks
@@ -229,19 +249,19 @@ func ReduceRGSW(rgsw *rlwe.RGSWCiphertext, ringQP *rlwe.RingQP, res *rlwe.RGSWCi
 
 	for i := range rgsw.Value {
 		for _, el := range rgsw.Value[i] {
+
 			ringQ.Reduce(el[0][0].Q, el[0][0].Q)
-			ringP.Reduce(el[0][0].P, el[0][0].P)
-
 			ringQ.Reduce(el[0][1].Q, el[0][1].Q)
-			ringP.Reduce(el[0][1].P, el[0][1].P)
-
 			ringQ.Reduce(el[1][0].Q, el[1][0].Q)
-			ringP.Reduce(el[1][0].P, el[1][0].P)
-
 			ringQ.Reduce(el[1][1].Q, el[1][1].Q)
-			ringP.Reduce(el[1][1].P, el[1][1].P)
-		}
 
+			if ringP != nil {
+				ringP.Reduce(el[0][0].P, el[0][0].P)
+				ringP.Reduce(el[0][1].P, el[0][1].P)
+				ringP.Reduce(el[1][0].P, el[1][0].P)
+				ringP.Reduce(el[1][1].P, el[1][1].P)
+			}
+		}
 	}
 }
 
@@ -253,17 +273,18 @@ func AddRGSW(rgsw *rlwe.RGSWCiphertext, ringQP *rlwe.RingQP, res *rlwe.RGSWCiphe
 
 	for i := range rgsw.Value {
 		for _, el := range rgsw.Value[i] {
+
 			ringQ.AddNoMod(el[0][0].Q, el[0][0].Q, el[0][0].Q)
-			ringP.AddNoMod(el[0][0].P, el[0][0].P, el[0][0].P)
-
 			ringQ.AddNoMod(el[0][1].Q, el[0][1].Q, el[0][1].Q)
-			ringP.AddNoMod(el[0][1].P, el[0][1].P, el[0][1].P)
-
 			ringQ.AddNoMod(el[1][0].Q, el[1][0].Q, el[1][0].Q)
-			ringP.AddNoMod(el[1][0].P, el[1][0].P, el[1][0].P)
-
 			ringQ.AddNoMod(el[1][1].Q, el[1][1].Q, el[1][1].Q)
-			ringP.AddNoMod(el[1][1].P, el[1][1].P, el[1][1].P)
+
+			if ringP != nil {
+				ringP.AddNoMod(el[0][0].P, el[0][0].P, el[0][0].P)
+				ringP.AddNoMod(el[0][1].P, el[0][1].P, el[0][1].P)
+				ringP.AddNoMod(el[1][0].P, el[1][0].P, el[1][0].P)
+				ringP.AddNoMod(el[1][1].P, el[1][1].P, el[1][1].P)
+			}
 		}
 	}
 }
@@ -276,17 +297,18 @@ func MulRGSWByXPowAlphaMinusOne(rgsw *rlwe.RGSWCiphertext, powXMinusOne rlwe.Pol
 
 	for i := range rgsw.Value {
 		for j, el := range rgsw.Value[i] {
+
 			ringQ.MulCoeffsMontgomeryConstant(el[0][0].Q, powXMinusOne.Q, res.Value[i][j][0][0].Q)
-			ringP.MulCoeffsMontgomeryConstant(el[0][0].P, powXMinusOne.P, res.Value[i][j][0][0].P)
-
 			ringQ.MulCoeffsMontgomeryConstant(el[0][1].Q, powXMinusOne.Q, res.Value[i][j][0][1].Q)
-			ringP.MulCoeffsMontgomeryConstant(el[0][1].P, powXMinusOne.P, res.Value[i][j][0][1].P)
-
 			ringQ.MulCoeffsMontgomeryConstant(el[1][0].Q, powXMinusOne.Q, res.Value[i][j][1][0].Q)
-			ringP.MulCoeffsMontgomeryConstant(el[1][0].P, powXMinusOne.P, res.Value[i][j][1][0].P)
-
 			ringQ.MulCoeffsMontgomeryConstant(el[1][1].Q, powXMinusOne.Q, res.Value[i][j][1][1].Q)
-			ringP.MulCoeffsMontgomeryConstant(el[1][1].P, powXMinusOne.P, res.Value[i][j][1][1].P)
+
+			if ringP != nil {
+				ringP.MulCoeffsMontgomeryConstant(el[0][0].P, powXMinusOne.P, res.Value[i][j][0][0].P)
+				ringP.MulCoeffsMontgomeryConstant(el[0][1].P, powXMinusOne.P, res.Value[i][j][0][1].P)
+				ringP.MulCoeffsMontgomeryConstant(el[1][0].P, powXMinusOne.P, res.Value[i][j][1][0].P)
+				ringP.MulCoeffsMontgomeryConstant(el[1][1].P, powXMinusOne.P, res.Value[i][j][1][1].P)
+			}
 		}
 	}
 }
@@ -299,17 +321,18 @@ func MulRGSWByXPowAlphaMinusOneAndAdd(rgsw *rlwe.RGSWCiphertext, powXMinusOne rl
 
 	for i := range rgsw.Value {
 		for j, el := range rgsw.Value[i] {
+
 			ringQ.MulCoeffsMontgomeryConstantAndAddNoMod(el[0][0].Q, powXMinusOne.Q, res.Value[i][j][0][0].Q)
-			ringP.MulCoeffsMontgomeryConstantAndAddNoMod(el[0][0].P, powXMinusOne.P, res.Value[i][j][0][0].P)
-
 			ringQ.MulCoeffsMontgomeryConstantAndAddNoMod(el[0][1].Q, powXMinusOne.Q, res.Value[i][j][0][1].Q)
-			ringP.MulCoeffsMontgomeryConstantAndAddNoMod(el[0][1].P, powXMinusOne.P, res.Value[i][j][0][1].P)
-
 			ringQ.MulCoeffsMontgomeryConstantAndAddNoMod(el[1][0].Q, powXMinusOne.Q, res.Value[i][j][1][0].Q)
-			ringP.MulCoeffsMontgomeryConstantAndAddNoMod(el[1][0].P, powXMinusOne.P, res.Value[i][j][1][0].P)
-
 			ringQ.MulCoeffsMontgomeryConstantAndAddNoMod(el[1][1].Q, powXMinusOne.Q, res.Value[i][j][1][1].Q)
-			ringP.MulCoeffsMontgomeryConstantAndAddNoMod(el[1][1].P, powXMinusOne.P, res.Value[i][j][1][1].P)
+
+			if ringP != nil {
+				ringP.MulCoeffsMontgomeryConstantAndAddNoMod(el[0][0].P, powXMinusOne.P, res.Value[i][j][0][0].P)
+				ringP.MulCoeffsMontgomeryConstantAndAddNoMod(el[0][1].P, powXMinusOne.P, res.Value[i][j][0][1].P)
+				ringP.MulCoeffsMontgomeryConstantAndAddNoMod(el[1][0].P, powXMinusOne.P, res.Value[i][j][1][0].P)
+				ringP.MulCoeffsMontgomeryConstantAndAddNoMod(el[1][1].P, powXMinusOne.P, res.Value[i][j][1][1].P)
+			}
 		}
 	}
 }

@@ -19,17 +19,20 @@ type Ciphertext struct {
 
 // RGSWCiphertext is a generic type for RGSW ciphertext.
 type RGSWCiphertext struct {
-	Value [][2][2]PolyQP
+	Value [][][2][2]PolyQP
 }
 
 // LevelQ returns the level of the modulus Q of the target.
 func (rgsw *RGSWCiphertext) LevelQ() int {
-	return rgsw.Value[0][0][0].Q.Level()
+	return rgsw.Value[0][0][0][0].Q.Level()
 }
 
 // LevelP returns the level of the modulus P of the target.
 func (rgsw *RGSWCiphertext) LevelP() int {
-	return rgsw.Value[0][0][0].P.Level()
+	if rgsw.Value[0][0][0][0].P != nil {
+		return rgsw.Value[0][0][0][0].P.Level()
+	}
+	return -1
 }
 
 // AdditiveShare is a type for storing additively shared values in Z_Q[X] (RNS domain)
@@ -120,15 +123,19 @@ func NewCiphertextRGSWNTT(params Parameters, levelQ int) (rgsw *RGSWCiphertext) 
 	ringQP := params.RingQP()
 	levelP := params.PCount() - 1
 	decompRNS := params.DecompRNS(levelQ, levelP)
-	rgsw.Value = make([][2][2]PolyQP, decompRNS)
+	decompBIT := params.DecompBIT(levelQ, levelP)
+	rgsw.Value = make([][][2][2]PolyQP, decompRNS)
 	for i := 0; i < decompRNS; i++ {
-		rgsw.Value[i][0] = [2]PolyQP{ringQP.NewPolyLvl(levelQ, levelP), ringQP.NewPolyLvl(levelQ, levelP)}
-		rgsw.Value[i][1] = [2]PolyQP{ringQP.NewPolyLvl(levelQ, levelP), ringQP.NewPolyLvl(levelQ, levelP)}
+		rgsw.Value[i] = make([][2][2]PolyQP, decompBIT)
+		for j := 0; j < decompBIT; j++ {
+			rgsw.Value[i][j][0] = [2]PolyQP{ringQP.NewPolyLvl(levelQ, levelP), ringQP.NewPolyLvl(levelQ, levelP)}
+			rgsw.Value[i][j][1] = [2]PolyQP{ringQP.NewPolyLvl(levelQ, levelP), ringQP.NewPolyLvl(levelQ, levelP)}
 
-		rgsw.Value[i][0][0].Q.IsNTT = true
-		rgsw.Value[i][1][0].Q.IsNTT = true
-		rgsw.Value[i][0][0].P.IsNTT = true
-		rgsw.Value[i][1][0].P.IsNTT = true
+			rgsw.Value[i][j][0][0].Q.IsNTT = true
+			rgsw.Value[i][j][1][0].Q.IsNTT = true
+			rgsw.Value[i][j][0][0].P.IsNTT = true
+			rgsw.Value[i][j][1][0].P.IsNTT = true
+		}
 	}
 	return
 }

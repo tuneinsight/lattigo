@@ -54,23 +54,33 @@ var P = []uint64{0x4000000008a0001}
 // determine the complexity of the LUT:
 // each LUT takes N RGSW ciphertext-ciphetext mul.
 var ckksParamsN12 = ckks.ParametersLiteral{
-	LogN:         7,
+	ParametersLiteral: rlwe.ParametersLiteral{
+		LogN:     7,
+		Q:        Q,
+		P:        P,
+		LogBase2: 0,
+		H:        0,
+		Sigma:    rlwe.DefaultSigma,
+		RingType: ring.Standard,
+	},
 	LogSlots:     4,
-	Q:            Q,
-	P:            P,
 	DefaultScale: 1 << 40,
-	Sigma:        rlwe.DefaultSigma,
-	RingType:     ring.Standard,
 }
 
 // LUT RLWE params, N of these params determine
 // the LUT poly and therefore precision.
 var ckksParamsN10 = ckks.ParametersLiteral{
-	LogN:     6,
-	Q:        Q[:1],
-	P:        P[:1],
-	Sigma:    rlwe.DefaultSigma,
-	RingType: ring.Standard,
+	ParametersLiteral: rlwe.ParametersLiteral{
+		LogN:     5,
+		Q:        Q[:1],
+		P:        P[:1],
+		LogBase2: 0,
+		H:        0,
+		Sigma:    rlwe.DefaultSigma,
+		RingType: ring.Standard,
+	},
+	LogSlots:     0,
+	DefaultScale: 0,
 }
 
 // LUT example

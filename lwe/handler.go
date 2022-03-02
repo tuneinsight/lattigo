@@ -130,7 +130,7 @@ func (h *Handler) permuteNTTIndexesForKey(rtks *rlwe.RotationKeySet) *map[uint64
 type LUTKey struct {
 	SkPos   []*rlwe.RGSWCiphertext
 	SkNeg   []*rlwe.RGSWCiphertext
-	OneRGSW *ring.Poly
+	OneRGSW []*ring.Poly
 }
 
 // GenLUTKey generates the LUT evaluation key
@@ -160,24 +160,34 @@ func (h *Handler) GenLUTKey(skRLWE, skLWE *rlwe.SecretKey) (lutkey *LUTKey) {
 	levelP := paramsLUT.PCount() - 1
 
 	var pBigInt *big.Int
-	if levelP == paramsLUT.PCount()-1 {
-		pBigInt = ringPLUT.ModulusBigint
-	} else {
-		P := ringPLUT.Modulus
-		pBigInt = new(big.Int).SetUint64(P[0])
-		for i := 1; i < levelP+1; i++ {
-			pBigInt.Mul(pBigInt, ring.NewUint(P[i]))
+	if levelP > -1 {
+		if levelP == paramsLUT.PCount()-1 {
+			pBigInt = ringPLUT.ModulusBigint
+		} else {
+			P := ringPLUT.Modulus
+			pBigInt = new(big.Int).SetUint64(P[0])
+			for i := 1; i < levelP+1; i++ {
+				pBigInt.Mul(pBigInt, ring.NewUint(P[i]))
+			}
 		}
+	} else {
+		pBigInt = ring.NewUint(1)
 	}
 
-	OneRGSW := ringQLUT.NewPoly()
+	OneRGSW := make([]*ring.Poly, paramsLUT.DecompBIT(paramsLUT.QCount()-1, paramsLUT.PCount()-1))
+	OneRGSW[0] = ringQLUT.NewPoly()
 	tmp := new(big.Int)
 	for i := 0; i < levelQ+1; i++ {
-		OneRGSW.Coeffs[i][0] = tmp.Mod(pBigInt, ring.NewUint(ringQLUT.Modulus[i])).Uint64()
+		OneRGSW[0].Coeffs[i][0] = tmp.Mod(pBigInt, ring.NewUint(ringQLUT.Modulus[i])).Uint64()
 	}
 
-	ringQLUT.NTTLvl(levelQ, OneRGSW, OneRGSW)
-	ringQLUT.MFormLvl(levelQ, OneRGSW, OneRGSW)
+	ringQLUT.NTTLvl(levelQ, OneRGSW[0], OneRGSW[0])
+	ringQLUT.MFormLvl(levelQ, OneRGSW[0], OneRGSW[0])
+
+	for i := 1; i < len(OneRGSW); i++ {
+		OneRGSW[i] = OneRGSW[0].CopyNew()
+		ringQLUT.MulByPow2(OneRGSW[i], i*paramsLUT.LogBase2(), OneRGSW[i])
+	}
 
 	skRGSWPos := make([]*rlwe.RGSWCiphertext, paramsLWE.N())
 	skRGSWNeg := make([]*rlwe.RGSWCiphertext, paramsLWE.N())
@@ -218,17 +228,20 @@ func ReduceRGSW(rgsw *rlwe.RGSWCiphertext, ringQP *rlwe.RingQP, res *rlwe.RGSWCi
 	ringP := ringQP.RingP
 
 	for i := range rgsw.Value {
-		ringQ.Reduce(rgsw.Value[i][0][0].Q, res.Value[i][0][0].Q)
-		ringP.Reduce(rgsw.Value[i][0][0].P, res.Value[i][0][0].P)
+		for _, el := range rgsw.Value[i] {
+			ringQ.Reduce(el[0][0].Q, el[0][0].Q)
+			ringP.Reduce(el[0][0].P, el[0][0].P)
 
-		ringQ.Reduce(rgsw.Value[i][0][1].Q, res.Value[i][0][1].Q)
-		ringP.Reduce(rgsw.Value[i][0][1].P, res.Value[i][0][1].P)
+			ringQ.Reduce(el[0][1].Q, el[0][1].Q)
+			ringP.Reduce(el[0][1].P, el[0][1].P)
 
-		ringQ.Reduce(rgsw.Value[i][1][0].Q, res.Value[i][1][0].Q)
-		ringP.Reduce(rgsw.Value[i][1][0].P, res.Value[i][1][0].P)
+			ringQ.Reduce(el[1][0].Q, el[1][0].Q)
+			ringP.Reduce(el[1][0].P, el[1][0].P)
 
-		ringQ.Reduce(rgsw.Value[i][1][1].Q, res.Value[i][1][1].Q)
-		ringP.Reduce(rgsw.Value[i][1][1].P, res.Value[i][1][1].P)
+			ringQ.Reduce(el[1][1].Q, el[1][1].Q)
+			ringP.Reduce(el[1][1].P, el[1][1].P)
+		}
+
 	}
 }
 
@@ -239,17 +252,19 @@ func AddRGSW(rgsw *rlwe.RGSWCiphertext, ringQP *rlwe.RingQP, res *rlwe.RGSWCiphe
 	ringP := ringQP.RingP
 
 	for i := range rgsw.Value {
-		ringQ.AddNoMod(res.Value[i][0][0].Q, rgsw.Value[i][0][0].Q, res.Value[i][0][0].Q)
-		ringP.AddNoMod(res.Value[i][0][0].P, rgsw.Value[i][0][0].P, res.Value[i][0][0].P)
+		for _, el := range rgsw.Value[i] {
+			ringQ.AddNoMod(el[0][0].Q, el[0][0].Q, el[0][0].Q)
+			ringP.AddNoMod(el[0][0].P, el[0][0].P, el[0][0].P)
 
-		ringQ.AddNoMod(res.Value[i][0][1].Q, rgsw.Value[i][0][1].Q, res.Value[i][0][1].Q)
-		ringP.AddNoMod(res.Value[i][0][1].P, rgsw.Value[i][0][1].P, res.Value[i][0][1].P)
+			ringQ.AddNoMod(el[0][1].Q, el[0][1].Q, el[0][1].Q)
+			ringP.AddNoMod(el[0][1].P, el[0][1].P, el[0][1].P)
 
-		ringQ.AddNoMod(res.Value[i][1][0].Q, rgsw.Value[i][1][0].Q, res.Value[i][1][0].Q)
-		ringP.AddNoMod(res.Value[i][1][0].P, rgsw.Value[i][1][0].P, res.Value[i][1][0].P)
+			ringQ.AddNoMod(el[1][0].Q, el[1][0].Q, el[1][0].Q)
+			ringP.AddNoMod(el[1][0].P, el[1][0].P, el[1][0].P)
 
-		ringQ.AddNoMod(res.Value[i][1][1].Q, rgsw.Value[i][1][1].Q, res.Value[i][1][1].Q)
-		ringP.AddNoMod(res.Value[i][1][1].P, rgsw.Value[i][1][1].P, res.Value[i][1][1].P)
+			ringQ.AddNoMod(el[1][1].Q, el[1][1].Q, el[1][1].Q)
+			ringP.AddNoMod(el[1][1].P, el[1][1].P, el[1][1].P)
+		}
 	}
 }
 
@@ -260,17 +275,19 @@ func MulRGSWByXPowAlphaMinusOne(rgsw *rlwe.RGSWCiphertext, powXMinusOne rlwe.Pol
 	ringP := ringQP.RingP
 
 	for i := range rgsw.Value {
-		ringQ.MulCoeffsMontgomeryConstant(rgsw.Value[i][0][0].Q, powXMinusOne.Q, res.Value[i][0][0].Q)
-		ringP.MulCoeffsMontgomeryConstant(rgsw.Value[i][0][0].P, powXMinusOne.P, res.Value[i][0][0].P)
+		for j, el := range rgsw.Value[i] {
+			ringQ.MulCoeffsMontgomeryConstant(el[0][0].Q, powXMinusOne.Q, res.Value[i][j][0][0].Q)
+			ringP.MulCoeffsMontgomeryConstant(el[0][0].P, powXMinusOne.P, res.Value[i][j][0][0].P)
 
-		ringQ.MulCoeffsMontgomeryConstant(rgsw.Value[i][0][1].Q, powXMinusOne.Q, res.Value[i][0][1].Q)
-		ringP.MulCoeffsMontgomeryConstant(rgsw.Value[i][0][1].P, powXMinusOne.P, res.Value[i][0][1].P)
+			ringQ.MulCoeffsMontgomeryConstant(el[0][1].Q, powXMinusOne.Q, res.Value[i][j][0][1].Q)
+			ringP.MulCoeffsMontgomeryConstant(el[0][1].P, powXMinusOne.P, res.Value[i][j][0][1].P)
 
-		ringQ.MulCoeffsMontgomeryConstant(rgsw.Value[i][1][0].Q, powXMinusOne.Q, res.Value[i][1][0].Q)
-		ringP.MulCoeffsMontgomeryConstant(rgsw.Value[i][1][0].P, powXMinusOne.P, res.Value[i][1][0].P)
+			ringQ.MulCoeffsMontgomeryConstant(el[1][0].Q, powXMinusOne.Q, res.Value[i][j][1][0].Q)
+			ringP.MulCoeffsMontgomeryConstant(el[1][0].P, powXMinusOne.P, res.Value[i][j][1][0].P)
 
-		ringQ.MulCoeffsMontgomeryConstant(rgsw.Value[i][1][1].Q, powXMinusOne.Q, res.Value[i][1][1].Q)
-		ringP.MulCoeffsMontgomeryConstant(rgsw.Value[i][1][1].P, powXMinusOne.P, res.Value[i][1][1].P)
+			ringQ.MulCoeffsMontgomeryConstant(el[1][1].Q, powXMinusOne.Q, res.Value[i][j][1][1].Q)
+			ringP.MulCoeffsMontgomeryConstant(el[1][1].P, powXMinusOne.P, res.Value[i][j][1][1].P)
+		}
 	}
 }
 
@@ -281,16 +298,18 @@ func MulRGSWByXPowAlphaMinusOneAndAdd(rgsw *rlwe.RGSWCiphertext, powXMinusOne rl
 	ringP := ringQP.RingP
 
 	for i := range rgsw.Value {
-		ringQ.MulCoeffsMontgomeryConstantAndAddNoMod(rgsw.Value[i][0][0].Q, powXMinusOne.Q, res.Value[i][0][0].Q)
-		ringP.MulCoeffsMontgomeryConstantAndAddNoMod(rgsw.Value[i][0][0].P, powXMinusOne.P, res.Value[i][0][0].P)
+		for j, el := range rgsw.Value[i] {
+			ringQ.MulCoeffsMontgomeryConstantAndAddNoMod(el[0][0].Q, powXMinusOne.Q, res.Value[i][j][0][0].Q)
+			ringP.MulCoeffsMontgomeryConstantAndAddNoMod(el[0][0].P, powXMinusOne.P, res.Value[i][j][0][0].P)
 
-		ringQ.MulCoeffsMontgomeryConstantAndAddNoMod(rgsw.Value[i][0][1].Q, powXMinusOne.Q, res.Value[i][0][1].Q)
-		ringP.MulCoeffsMontgomeryConstantAndAddNoMod(rgsw.Value[i][0][1].P, powXMinusOne.P, res.Value[i][0][1].P)
+			ringQ.MulCoeffsMontgomeryConstantAndAddNoMod(el[0][1].Q, powXMinusOne.Q, res.Value[i][j][0][1].Q)
+			ringP.MulCoeffsMontgomeryConstantAndAddNoMod(el[0][1].P, powXMinusOne.P, res.Value[i][j][0][1].P)
 
-		ringQ.MulCoeffsMontgomeryConstantAndAddNoMod(rgsw.Value[i][1][0].Q, powXMinusOne.Q, res.Value[i][1][0].Q)
-		ringP.MulCoeffsMontgomeryConstantAndAddNoMod(rgsw.Value[i][1][0].P, powXMinusOne.P, res.Value[i][1][0].P)
+			ringQ.MulCoeffsMontgomeryConstantAndAddNoMod(el[1][0].Q, powXMinusOne.Q, res.Value[i][j][1][0].Q)
+			ringP.MulCoeffsMontgomeryConstantAndAddNoMod(el[1][0].P, powXMinusOne.P, res.Value[i][j][1][0].P)
 
-		ringQ.MulCoeffsMontgomeryConstantAndAddNoMod(rgsw.Value[i][1][1].Q, powXMinusOne.Q, res.Value[i][1][1].Q)
-		ringP.MulCoeffsMontgomeryConstantAndAddNoMod(rgsw.Value[i][1][1].P, powXMinusOne.P, res.Value[i][1][1].P)
+			ringQ.MulCoeffsMontgomeryConstantAndAddNoMod(el[1][1].Q, powXMinusOne.Q, res.Value[i][j][1][1].Q)
+			ringP.MulCoeffsMontgomeryConstantAndAddNoMod(el[1][1].P, powXMinusOne.P, res.Value[i][j][1][1].P)
+		}
 	}
 }

@@ -16,14 +16,18 @@ func example() {
 	var err error
 
 	// Schemes parameters are created from scratch
-	params, err := ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
-		LogN:         14,
-		LogQ:         []int{55, 40, 40, 40, 40, 40, 40, 40},
-		LogP:         []int{45, 45},
-		Sigma:        rlwe.DefaultSigma,
-		LogSlots:     13,
-		DefaultScale: float64(1 << 40),
-	})
+	params, err := ckks.NewParametersFromLiteral(
+		ckks.ParametersLiteral{
+			ParametersLiteral: rlwe.ParametersLiteral{
+				LogN:     14,
+				LogQ:     []int{55, 40, 40, 40, 40, 40, 40, 40},
+				LogP:     []int{45, 45},
+				LogBase2: 0,
+				H:        0,
+				Sigma:    rlwe.DefaultSigma},
+			LogSlots:     13,
+			DefaultScale: 1 << 40,
+		})
 	if err != nil {
 		panic(err)
 	}

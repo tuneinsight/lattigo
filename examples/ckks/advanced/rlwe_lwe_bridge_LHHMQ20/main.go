@@ -106,7 +106,7 @@ func main() {
 
 	// LWE Parameters
 	kgenLWE := ckks.NewKeyGenerator(paramsLWE)
-	skLWE := kgenLWE.GenSecretKeyWithHammingWeight(64)
+	skLWE := kgenLWE.GenSecretKey()
 
 	// RLWE -> LWE Switching key
 	fmt.Printf("	RLWE -> LWE Switching Key... ")
@@ -281,29 +281,33 @@ func main() {
 func genRLWEParameters() (paramsRLWE ckks.Parameters) {
 	var err error
 	if paramsRLWE, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
-		LogN:         15,
+		ParametersLiteral: rlwe.ParametersLiteral{
+			LogN: 15,
+			Q: []uint64{
+				0xffff820001,       // 40 Q0
+				0x2000000a0001,     // 45
+				0x2000000e0001,     // 45
+				0xfffffffff840001,  // 60 Sine (double angle)
+				0x1000000000860001, // 60 Sine (double angle)
+				0xfffffffff6a0001,  // 60 Sine
+				0x1000000000980001, // 60 Sine
+				0xfffffffff5a0001,  // 60 Sine
+				0x1000000000b00001, // 60 Sine
+				0x1000000000ce0001, // 60 Sine
+				0xfffffffff2a0001,  // 60 Sine
+				0x100000000060001,  // 58 Repack & Change of basis
+			},
+			P: []uint64{
+				0x1fffffffffe00001, // 61
+				0x1fffffffffc80001, // 61
+				0x1fffffffffb40001, // 61
+			},
+			LogBase2: 0,
+			H:        0,
+			Sigma:    rlwe.DefaultSigma,
+		},
 		LogSlots:     9,
 		DefaultScale: 1 << 30,
-		Sigma:        rlwe.DefaultSigma,
-		Q: []uint64{
-			0xffff820001,       // 40 Q0
-			0x2000000a0001,     // 45
-			0x2000000e0001,     // 45
-			0xfffffffff840001,  // 60 Sine (double angle)
-			0x1000000000860001, // 60 Sine (double angle)
-			0xfffffffff6a0001,  // 60 Sine
-			0x1000000000980001, // 60 Sine
-			0xfffffffff5a0001,  // 60 Sine
-			0x1000000000b00001, // 60 Sine
-			0x1000000000ce0001, // 60 Sine
-			0xfffffffff2a0001,  // 60 Sine
-			0x100000000060001,  // 58 Repack & Change of basis
-		},
-		P: []uint64{
-			0x1fffffffffe00001, // 61
-			0x1fffffffffc80001, // 61
-			0x1fffffffffb40001, // 61
-		},
 	}); err != nil {
 		panic(err)
 	}
@@ -313,12 +317,16 @@ func genRLWEParameters() (paramsRLWE ckks.Parameters) {
 func genLWEParameters(paramsRLWE ckks.Parameters) (paramsLWE ckks.Parameters) {
 	var err error
 	if paramsLWE, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
-		LogN:         10,
+		ParametersLiteral: rlwe.ParametersLiteral{
+			LogN:     10,
+			Q:        paramsRLWE.Q()[:1], // 40 Q0
+			P:        paramsRLWE.P()[:1], // Pi 61
+			LogBase2: 0,
+			H:        64,
+			Sigma:    paramsRLWE.Sigma(),
+		},
 		LogSlots:     paramsRLWE.LogSlots(),
 		DefaultScale: paramsRLWE.DefaultScale(),
-		Sigma:        paramsRLWE.Sigma(),
-		Q:            paramsRLWE.Q()[:1], // 40 Q0
-		P:            paramsRLWE.P()[:1], // Pi 61
 	}); err != nil {
 		panic(err)
 	}

@@ -70,8 +70,6 @@ func (h *Handler) ExtractAndEvaluateLUT(ct *rlwe.Ciphertext, lutPolyWihtSlotInde
 	ringQLWE := h.paramsLWE.RingQ()
 	ringQPLUT := h.paramsLUT.RingQP()
 
-	lutLvlIsZero := (h.paramsLUT.QCount() == 1 && h.paramsLUT.PCount() == 1)
-
 	// mod 2N
 	mask := uint64(ringQLUT.N<<1) - 1
 
@@ -114,23 +112,14 @@ func (h *Handler) ExtractAndEvaluateLUT(ct *rlwe.Ciphertext, lutPolyWihtSlotInde
 			ringQLUT.Add(acc.Value[0], lut, acc.Value[0])
 			acc.Value[1].Zero() // TODO remove
 
-			if lutLvlIsZero {
-				for j := 0; j < ringQLWE.N; j++ {
-					// RGSW[(X^{a} - 1) * sk_{j}[0] + (X^{-a} - 1) * sk_{j}[1] + 1]
-					MulRGSWByXPowAlphaMinusOne(lutKey.SkPos[j], h.xPowMinusOne[a[j]], ringQPLUT, tmpRGSW)
-					MulRGSWByXPowAlphaMinusOneAndAdd(lutKey.SkNeg[j], h.xPowMinusOne[-a[j]&mask], ringQPLUT, tmpRGSW)
-					AddOneRGSW(lutKey.OneRGSW, ringQLUT, tmpRGSW)
+			for j := 0; j < ringQLWE.N; j++ {
+				// RGSW[(X^{a} - 1) * sk_{j}[0] + (X^{-a} - 1) * sk_{j}[1] + 1]
+				MulRGSWByXPowAlphaMinusOne(lutKey.SkPos[j], h.xPowMinusOne[a[j]], ringQPLUT, tmpRGSW)
+				MulRGSWByXPowAlphaMinusOneAndAdd(lutKey.SkNeg[j], h.xPowMinusOne[-a[j]&mask], ringQPLUT, tmpRGSW)
+				AddOneRGSW(lutKey.OneRGSW, ringQLUT, tmpRGSW)
 
-					// LUT[RLWE] = LUT[RLWE] x RGSW[(X^{a} - 1) * sk_{j}[0] + (X^{-a} - 1) * sk_{j}[1] + 1]
-					ks.MulRGSWSingleModulus(acc, tmpRGSW, acc)
-				}
-			} else {
-				for j := 0; j < ringQLWE.N; j++ {
-					MulRGSWByXPowAlphaMinusOne(lutKey.SkPos[j], h.xPowMinusOne[a[j]], ringQPLUT, tmpRGSW)
-					MulRGSWByXPowAlphaMinusOneAndAdd(lutKey.SkNeg[j], h.xPowMinusOne[-a[j]&mask], ringQPLUT, tmpRGSW)
-					AddOneRGSW(lutKey.OneRGSW, ringQLUT, tmpRGSW)
-					ks.MulRGSW(acc, tmpRGSW, acc)
-				}
+				// LUT[RLWE] = LUT[RLWE] x RGSW[(X^{a} - 1) * sk_{j}[0] + (X^{-a} - 1) * sk_{j}[1] + 1]
+				ks.ExternalProduct(acc, tmpRGSW, acc)
 			}
 
 			res[index] = acc.CopyNew()
@@ -143,17 +132,22 @@ func (h *Handler) ExtractAndEvaluateLUT(ct *rlwe.Ciphertext, lutPolyWihtSlotInde
 }
 
 // AddOneRGSW adds one in plaintext on the output RGSW ciphertext.
-func AddOneRGSW(oneRGSW *ring.Poly, ringQ *ring.Ring, res *rlwe.RGSWCiphertext) {
-	nQ := len(res.Value[0][0][0].Q.Coeffs)
-	nP := len(res.Value[0][0][0].P.Coeffs)
+func AddOneRGSW(oneRGSW []*ring.Poly, ringQ *ring.Ring, res *rlwe.RGSWCiphertext) {
+	nQ := len(res.Value[0][0][0][0].Q.Coeffs)
+	nP := len(res.Value[0][0][0][0].P.Coeffs)
+	if nP == 0 {
+		nP = 1
+	}
 	for i := range res.Value {
-		start, end := i*nP, (i+1)*nP
-		if end > nQ {
-			end = nQ
-		}
-		for j := start; j < end; j++ {
-			ring.AddVecNoMod(res.Value[i][0][0].Q.Coeffs[j], oneRGSW.Coeffs[j], res.Value[i][0][0].Q.Coeffs[j])
-			ring.AddVecNoMod(res.Value[i][1][1].Q.Coeffs[j], oneRGSW.Coeffs[j], res.Value[i][1][1].Q.Coeffs[j])
+		for j := range res.Value[i] {
+			start, end := i*nP, (i+1)*nP
+			if end > nQ {
+				end = nQ
+			}
+			for k := start; k < end; k++ {
+				ring.AddVecNoMod(res.Value[i][j][0][0].Q.Coeffs[k], oneRGSW[j].Coeffs[k], res.Value[i][j][0][0].Q.Coeffs[k])
+				ring.AddVecNoMod(res.Value[i][j][1][1].Q.Coeffs[k], oneRGSW[j].Coeffs[k], res.Value[i][j][1][1].Q.Coeffs[k])
+			}
 		}
 	}
 }

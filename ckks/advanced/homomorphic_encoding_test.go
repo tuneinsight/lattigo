@@ -24,21 +24,25 @@ func TestHomomorphicEncoding(t *testing.T) {
 	}
 
 	ParametersLiteral := ckks.ParametersLiteral{
-		LogN:         13,
+		ParametersLiteral: rlwe.ParametersLiteral{
+			LogN: 13,
+			Q: []uint64{
+				0x10000000006e0001, // 60 Q0
+				0x2000000a0001,     // 45
+				0x2000000e0001,     // 45
+				0x1fffffc20001,     // 45
+
+			},
+			P: []uint64{
+				0x1fffffffffe00001, // Pi 61
+				0x1fffffffffc80001, // Pi 61
+			},
+			LogBase2: 0,
+			H:        0,
+			Sigma:    rlwe.DefaultSigma,
+		},
 		LogSlots:     12,
 		DefaultScale: 1 << 45,
-		Sigma:        rlwe.DefaultSigma,
-		Q: []uint64{
-			0x10000000006e0001, // 60 Q0
-			0x2000000a0001,     // 45
-			0x2000000e0001,     // 45
-			0x1fffffc20001,     // 45
-
-		},
-		P: []uint64{
-			0x1fffffffffe00001, // Pi 61
-			0x1fffffffffc80001, // Pi 61
-		},
 	}
 
 	testEncodingMatrixLiteralMarshalling(t)

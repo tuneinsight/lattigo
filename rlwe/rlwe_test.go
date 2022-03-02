@@ -517,16 +517,16 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 	t.Run(testString(paramsLargeDim, "KeySwitchDimension/"), func(t *testing.T) {
 
 		var Q []uint64
-		if len(paramsLargeDim.Q()) > 1{
+		if len(paramsLargeDim.Q()) > 1 {
 			Q = paramsLargeDim.Q()[:1]
-		}else{
+		} else {
 			Q = paramsLargeDim.Q()
 		}
 
 		var P []uint64
-		if len(paramsLargeDim.P()) != 0{
+		if len(paramsLargeDim.P()) != 0 {
 			P = paramsLargeDim.P()[:1]
-		}else{
+		} else {
 			P = []uint64{}
 		}
 

@@ -12,7 +12,7 @@ type PublicKey struct {
 
 // SwitchingKey is a type for generic RLWE public switching keys.
 type SwitchingKey struct {
-	Value    [][][2]PolyQP
+	Value [][][2]PolyQP
 }
 
 // RelinearizationKey is a type for generic RLWE public relinearization keys. It stores a slice with a
@@ -90,12 +90,14 @@ func NewSwitchingKey(params Parameters, levelQ, levelP int) *SwitchingKey {
 	return swk
 }
 
+// LevelQ returns the level of the modulus Q of the switching-key.
 func (swk *SwitchingKey) LevelQ() int {
 	return swk.Value[0][0][0].Q.Level()
 }
 
+// LevelP returns the level of the modulus P of the switching-key.
 func (swk *SwitchingKey) LevelP() int {
-	if swk.Value[0][0][0].P != nil{
+	if swk.Value[0][0][0].P != nil {
 		return swk.Value[0][0][0].P.Level()
 	}
 

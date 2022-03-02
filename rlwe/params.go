@@ -332,8 +332,8 @@ func (p Parameters) DecompBIT(levelQ, levelP int) (c int) {
 // DecompRNS returns the number of element in the RNS decomposition basis: Ceil(lenQi / lenPi)
 func (p Parameters) DecompRNS(levelQ, levelP int) int {
 
-	if levelP == -1{
-		return levelQ+1
+	if levelP == -1 {
+		return levelQ + 1
 	}
 
 	return (levelQ + levelP + 1) / (levelP + 1)

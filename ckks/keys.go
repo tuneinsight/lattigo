@@ -27,7 +27,7 @@ type keyGenerator struct {
 // GenSwitchingKeysForBridge generates the necessary switching keys to switch from the standard domain to the conjugate invariant domain
 // and vice-versa.
 func (keygen *keyGenerator) GenSwitchingKeysForBridge(skStd, skConjugateInvariant *rlwe.SecretKey) (*SwkComplexToReal, *SwkRealToComplex) {
-	swkStdToCi, swkCitoStd := keygen.GenSwitchingKeysForRingSwap(skStd, skConjugateInvariant, 0)
+	swkStdToCi, swkCitoStd := keygen.GenSwitchingKeysForRingSwap(skStd, skConjugateInvariant)
 	return &SwkComplexToReal{*swkStdToCi}, &SwkRealToComplex{*swkCitoStd}
 }
 
@@ -48,16 +48,16 @@ func NewPublicKey(params Parameters) (pk *rlwe.PublicKey) {
 
 // NewSwitchingKey returns an allocated CKKS public switching key with zero values.
 func NewSwitchingKey(params Parameters) *rlwe.SwitchingKey {
-	return rlwe.NewSwitchingKey(params.Parameters, params.QCount()-1, params.PCount()-1, 0)
+	return rlwe.NewSwitchingKey(params.Parameters, params.QCount()-1, params.PCount()-1)
 }
 
 // NewRelinearizationKey returns an allocated CKKS public relinearization key with zero value.
 func NewRelinearizationKey(params Parameters) *rlwe.RelinearizationKey {
-	return rlwe.NewRelinKey(params.Parameters, 2, 0)
+	return rlwe.NewRelinKey(params.Parameters, 1)
 }
 
 // NewRotationKeySet returns an allocated set of CKKS public rotation keys with zero values for each galois element
 // (i.e., for each supported rotation).
 func NewRotationKeySet(params Parameters, galoisElements []uint64) *rlwe.RotationKeySet {
-	return rlwe.NewRotationKeySet(params.Parameters, galoisElements, 0)
+	return rlwe.NewRotationKeySet(params.Parameters, galoisElements)
 }

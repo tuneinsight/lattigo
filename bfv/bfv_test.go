@@ -27,9 +27,16 @@ func testString(opname string, p Parameters, lvl int) string {
 	return fmt.Sprintf("%s/LogN=%d/logQP=%d/logT=%d/T==Q0:%t/#Q=%d/#P=%d/lvl=%d", opname, p.LogN(), p.LogQP(), p.LogT(), p.T() == p.Q()[0], p.QCount(), p.PCount(), lvl)
 =======
 func testString(opname string, p Parameters) string {
+<<<<<<< dev_bfv_poly
 	return fmt.Sprintf("%s/LogN=%d/logQ=%d/alpha=%d/beta=%d", opname, p.LogN(), p.LogQP(), p.PCount(), p.DecompRNS())
 >>>>>>> First step for adding bit-decomp
+<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
 >>>>>>> First step for adding bit-decomp
+=======
+=======
+	return fmt.Sprintf("%s/LogN=%d/logQ=%d/alpha=%d/beta=%d", opname, p.LogN(), p.LogQP(), p.PCount(), p.DecompRNS(p.QCount()-1, p.PCount()-1))
+>>>>>>> fixed bfv & ckks
+>>>>>>> fixed bfv & ckks
 }
 
 type testContext struct {
@@ -133,7 +140,7 @@ func genTestParams(params Parameters) (tc *testContext, err error) {
 	tc.kgen = NewKeyGenerator(tc.params)
 	tc.sk, tc.pk = tc.kgen.GenKeyPair()
 	if params.PCount() != 0 {
-		testctx.rlk = testctx.kgen.GenRelinearizationKey(testctx.sk, 1, 0)
+		testctx.rlk = testctx.kgen.GenRelinearizationKey(testctx.sk, 1)
 	}
 
 	tc.encoder = NewEncoder(tc.params)
@@ -690,7 +697,16 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		verifyTestVectors(tc, tc.decryptor, values1, ciphertext1, t)
 	})
 
+<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
 	t.Run(testString("Evaluator/RescaleTo/ThenMulRelin", tc.params, 1), func(t *testing.T) {
+=======
+<<<<<<< btp_eprint
+	t.Run(testString("Evaluator/RescaleTo/MulRelin", tc.params, 1), func(t *testing.T) {
+=======
+<<<<<<< dev_bfv_poly
+	t.Run(testString("Evaluator/QuantizeToLvl/MulRelin", tc.params, 1), func(t *testing.T) {
+>>>>>>> fixed bfv & ckks
+>>>>>>> fixed bfv & ckks
 		values1, _, ciphertext1 := newTestVectorsRingQLvl(tc.params.MaxLevel(), tc, tc.encryptorPk, t)
 		values2, _, ciphertext2 := newTestVectorsRingQLvl(tc.params.MaxLevel(), tc, tc.encryptorPk, t)
 		tc.evaluator.RescaleTo(1, ciphertext1, ciphertext1)
@@ -698,6 +714,14 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		assert.True(t, ciphertext1.Level() == 1)
 		assert.True(t, ciphertext2.Level() == 1)
 		receiver := NewCiphertextLvl(tc.params, ciphertext1.Degree()+ciphertext2.Degree(), ciphertext2.Level())
+=======
+	t.Run(testString("Evaluator/Mul/Relinearize", tc.params), func(t *testing.T) {
+
+		values1, _, ciphertext1 := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
+		values2, _, ciphertext2 := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
+
+		receiver := NewCiphertext(tc.params, ciphertext1.Degree()+ciphertext2.Degree())
+>>>>>>> fixed bfv & ckks
 		tc.evaluator.Mul(ciphertext1, ciphertext2, receiver)
 		tc.ringT.MulCoeffs(values1, values2, values1)
 		verifyTestVectors(tc, tc.decryptor, values1, receiver, t)
@@ -708,6 +732,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 
 func testPolyEval(tc *testContext, t *testing.T) {
 
+<<<<<<< dev_bfv_poly
 	t.Run(testString("PowerBasis/Marshalling", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
 
 		_, _, ct := newTestVectorsRingQLvl(tc.params.MaxLevel(), tc, tc.encryptorPk, t)
@@ -824,6 +849,11 @@ func testEvaluatorKeySwitch(tc *testContext, t *testing.T) {
 	decryptorSk2 := NewDecryptor(testctx.params, sk2)
 	switchKey := testctx.kgen.GenSwitchingKey(testctx.sk, sk2, 0)
 >>>>>>> First step for adding bit-decomp
+=======
+	sk2 := testctx.kgen.GenSecretKey()
+	decryptorSk2 := NewDecryptor(testctx.params, sk2)
+	switchKey := testctx.kgen.GenSwitchingKey(testctx.sk, sk2)
+>>>>>>> fixed bfv & ckks
 
 	for _, lvl := range tc.testLevel {
 		t.Run(testString("Evaluator/KeySwitch/InPlace", tc.params, lvl), func(t *testing.T) {
@@ -855,12 +885,8 @@ func testEvaluatorKeySwitch(tc *testContext, t *testing.T) {
 
 func testEvaluatorRotate(tc *testContext, t *testing.T) {
 
-	if tc.params.PCount() == 0 {
-		t.Skip("#Pi is empty")
-	}
-
 	rots := []int{1, -1, 4, -4, 63, -63}
-	rotkey := testctx.kgen.GenRotationKeysForRotations(rots, true, testctx.sk, 0)
+	rotkey := testctx.kgen.GenRotationKeysForRotations(rots, true, testctx.sk)
 	evaluator := testctx.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testctx.rlk, Rtks: rotkey})
 
 	for _, lvl := range tc.testLevel {
@@ -912,7 +938,7 @@ func testEvaluatorRotate(tc *testContext, t *testing.T) {
 		})
 	}
 
-	rotkey = testctx.kgen.GenRotationKeysForInnerSum(testctx.sk, 0)
+	rotkey = testctx.kgen.GenRotationKeysForInnerSum(testctx.sk)
 	evaluator = evaluator.WithKey(rlwe.EvaluationKey{Rlk: testctx.rlk, Rtks: rotkey})
 
 	for _, lvl := range tc.testLevel {

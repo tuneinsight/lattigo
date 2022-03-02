@@ -19,16 +19,16 @@ func NewPublicKey(params Parameters) (pk *rlwe.PublicKey) {
 
 // NewSwitchingKey returns an allocated BFV public switching key with zero values.
 func NewSwitchingKey(params Parameters) *rlwe.SwitchingKey {
-	return rlwe.NewSwitchingKey(params.Parameters, params.QCount()-1, params.PCount()-1, 0)
+	return rlwe.NewSwitchingKey(params.Parameters, params.QCount()-1, params.PCount()-1)
 }
 
 // NewRelinearizationKey returns an allocated BFV public relinearization key with zero value for each degree in [2 < maxRelinDegree].
 func NewRelinearizationKey(params Parameters, maxRelinDegree int) *rlwe.RelinearizationKey {
-	return rlwe.NewRelinKey(params.Parameters, maxRelinDegree, 0)
+	return rlwe.NewRelinKey(params.Parameters, maxRelinDegree)
 }
 
 // NewRotationKeySet returns an allocated set of BFV public rotation keys with zero values for each galois element
 // (i.e., for each supported rotation).
 func NewRotationKeySet(params Parameters, galoisElements []uint64) *rlwe.RotationKeySet {
-	return rlwe.NewRotationKeySet(params.Parameters, galoisElements, 0)
+	return rlwe.NewRotationKeySet(params.Parameters, galoisElements)
 }

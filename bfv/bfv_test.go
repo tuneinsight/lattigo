@@ -9,7 +9,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
 	"github.com/tuneinsight/lattigo/v3/utils"
@@ -660,6 +659,31 @@ func testEvaluator(tc *testContext, t *testing.T) {
 }
 
 func testPolyEval(tc *testContext, t *testing.T) {
+
+	t.Run(testString("PowerBasis/Marshalling", tc.params), func(t *testing.T) {
+		_, _, ct := newTestVectorsRingQ(tc, tc.encryptorPk, t)
+
+		pb := NewPowerBasis(ct)
+
+		for i := 2; i < 4; i++ {
+			pb.GenPower(i, tc.evaluator)
+		}
+
+		pbBytes, err := pb.MarshalBinary()
+		assert.Nil(t, err)
+		pbNew := new(PowerBasis)
+		assert.Nil(t, pbNew.UnmarshalBinary(pbBytes))
+
+		for i := range pb.Value {
+			ctWant := pb.Value[i]
+			ctHave := pbNew.Value[i]
+			require.NotNil(t, ctHave)
+			for j := range ct.Value {
+				require.True(t, tc.ringQ.Equal(ctWant.Value[j], ctHave.Value[j]))
+			}
+		}
+	})
+
 	t.Run(testString("PolyEval/Single", tc.params), func(t *testing.T) {
 		if tc.params.PCount() == 0 {
 			t.Skip("#Pi is empty")

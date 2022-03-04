@@ -1,6 +1,7 @@
 package bfv
 
 import (
+	"encoding/binary"
 	"fmt"
 	"math"
 	"math/bits"
@@ -45,8 +46,9 @@ type polynomialEvaluator struct {
 }
 
 // EvaluatePoly evaluates a polynomial in standard basis on the input Ciphertext in ceil(log2(deg+1)) depth.
-func (eval *evaluator) EvaluatePoly(ct0 *Ciphertext, pol *Polynomial) (opOut *Ciphertext, err error) {
-	return eval.evaluatePolyVector(ct0, polynomialVector{Value: []*Polynomial{pol}})
+// input must be either *Ciphertext or *Powerbasis.
+func (eval *evaluator) EvaluatePoly(input interface{}, pol *Polynomial) (opOut *Ciphertext, err error) {
+	return eval.evaluatePolyVector(input, polynomialVector{Value: []*Polynomial{pol}})
 }
 
 type polynomialVector struct {
@@ -56,6 +58,7 @@ type polynomialVector struct {
 }
 
 // EvaluatePolyVector evaluates a vector of Polyomials on the input Ciphertext in ceil(log2(deg+1)) levels.
+// input must be either *Ciphertext or *PowerBasis.
 // Returns an error if polynomials do not all have the same degree.
 // is necessary before the polynomial evaluation to ensure correctness.
 // Inputs:
@@ -65,7 +68,7 @@ type polynomialVector struct {
 //
 // Example: if pols = []*Polynomial{pol0, pol1} and slotsIndex = map[int][]int:{0:[1, 2, 4, 5, 7], 1:[0, 3]},
 // then pol0 will be applied to slots [1, 2, 4, 5, 7], pol1 to slots [0, 3] and the slot 6 will be zero-ed.
-func (eval *evaluator) EvaluatePolyVector(ct0 *Ciphertext, pols []*Polynomial, encoder Encoder, slotsIndex map[int][]int) (opOut *Ciphertext, err error) {
+func (eval *evaluator) EvaluatePolyVector(input interface{}, pols []*Polynomial, encoder Encoder, slotsIndex map[int][]int) (opOut *Ciphertext, err error) {
 	var maxDeg int
 	for i := range pols {
 		maxDeg = utils.MaxInt(maxDeg, pols[i].MaxDeg)
@@ -77,18 +80,27 @@ func (eval *evaluator) EvaluatePolyVector(ct0 *Ciphertext, pols []*Polynomial, e
 		}
 	}
 
-	return eval.evaluatePolyVector(ct0, polynomialVector{Encoder: encoder, Value: pols, SlotsIndex: slotsIndex})
+	return eval.evaluatePolyVector(input, polynomialVector{Encoder: encoder, Value: pols, SlotsIndex: slotsIndex})
 }
 
-func (eval *evaluator) evaluatePolyVector(ct0 *Ciphertext, pol polynomialVector) (opOut *Ciphertext, err error) {
+func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVector) (opOut *Ciphertext, err error) {
 
 	if pol.SlotsIndex != nil && pol.Encoder == nil {
 		return nil, fmt.Errorf("cannot EvaluatePolyVector, missing Encoder input")
 	}
 
-	poweBasis := make(map[int]*Ciphertext)
-
-	poweBasis[1] = ct0.CopyNew()
+	var powerBasis *PowerBasis
+	switch input := input.(type) {
+	case *Ciphertext:
+		powerBasis = NewPowerBasis(input)
+	case *PowerBasis:
+		if input.Value[1] == nil {
+			return nil, fmt.Errorf("cannot EvaluatePolyVector, given PowerBasis[1] is empty")
+		}
+		powerBasis = input
+	default:
+		return nil, fmt.Errorf("cannot EvaluatePolyVector, invalid input, must be either *Ciphertext or *PowerBasis")
+	}
 
 	logDegree := bits.Len64(uint64(pol.Value[0].Degree()))
 	logSplit := (logDegree >> 1) //optimalSplit(logDegree) //
@@ -101,23 +113,19 @@ func (eval *evaluator) evaluatePolyVector(ct0 *Ciphertext, pol polynomialVector)
 
 	for i := 2; i < (1 << logSplit); i++ {
 		if !(even || odd) || (i&1 == 0 && even) || (i&1 == 1 && odd) {
-			if err = computePowerBasis(i, poweBasis, eval); err != nil {
-				return nil, err
-			}
+			powerBasis.GenPower(i, eval)
 		}
 	}
 
 	for i := logSplit; i < logDegree; i++ {
-		if err = computePowerBasis(1<<i, poweBasis, eval); err != nil {
-			return nil, err
-		}
+		powerBasis.GenPower(1<<i, eval)
 	}
 
 	polyEval := &polynomialEvaluator{}
 	polyEval.slotsIndex = pol.SlotsIndex
 	polyEval.Evaluator = eval
 	polyEval.Encoder = pol.Encoder
-	polyEval.powerBasis = poweBasis
+	polyEval.powerBasis = powerBasis.Value
 	polyEval.logDegree = logDegree
 	polyEval.logSplit = logSplit
 
@@ -128,9 +136,25 @@ func (eval *evaluator) evaluatePolyVector(ct0 *Ciphertext, pol polynomialVector)
 	return opOut, err
 }
 
-func computePowerBasis(n int, C map[int]*Ciphertext, eval *evaluator) (err error) {
+// PowerBasis is a struct storing powers of a ciphertext.
+type PowerBasis struct {
+	Value map[int]*Ciphertext
+}
 
-	if C[n] == nil {
+// NewPowerBasis creates a new PowerBasis.
+func NewPowerBasis(ct *Ciphertext) (p *PowerBasis) {
+	p = new(PowerBasis)
+	p.Value = make(map[int]*Ciphertext)
+	p.Value[1] = ct.CopyNew()
+	return
+}
+
+// GenPower generates the n-th power of the power basis,
+// as well as all the necessary intermediate powers if
+// they are not yet present.
+func (p *PowerBasis) GenPower(n int, eval Evaluator) {
+
+	if p.Value[n] == nil {
 
 		// Computes the index required to compute the asked ring evaluation
 		var a, b int
@@ -144,19 +168,49 @@ func computePowerBasis(n int, C map[int]*Ciphertext, eval *evaluator) (err error
 		}
 
 		// Recurses on the given indexes
-		if err = computePowerBasis(a, C, eval); err != nil {
-			return err
-		}
-		if err = computePowerBasis(b, C, eval); err != nil {
-			return err
-		}
+		p.GenPower(a, eval)
+		p.GenPower(b, eval)
 
 		// Computes C[n] = C[a]*C[b]
-		C[n] = eval.MulNew(C[a], C[b])
-		eval.Relinearize(C[n], C[n])
+		p.Value[n] = eval.MulNew(p.Value[a], p.Value[b])
+		eval.Relinearize(p.Value[n], p.Value[n])
 	}
+}
 
-	return nil
+// MarshalBinary encodes the target on a slice of bytes.
+func (p *PowerBasis) MarshalBinary() (data []byte, err error) {
+	data = make([]byte, 16)
+	binary.LittleEndian.PutUint64(data[0:8], uint64(len(p.Value)))
+	binary.LittleEndian.PutUint64(data[8:16], uint64(p.Value[1].GetDataLen(true)))
+	for key, ct := range p.Value {
+		keyBytes := make([]byte, 8)
+		binary.LittleEndian.PutUint64(keyBytes, uint64(key))
+		data = append(data, keyBytes...)
+		ctBytes, err := ct.MarshalBinary()
+		if err != nil {
+			return []byte{}, err
+		}
+		data = append(data, ctBytes...)
+	}
+	return
+}
+
+// UnmarshalBinary decodes a slice of bytes on the target.
+func (p *PowerBasis) UnmarshalBinary(data []byte) (err error) {
+	p.Value = make(map[int]*Ciphertext)
+	nbct := int(binary.LittleEndian.Uint64(data[0:8]))
+	dtLen := int(binary.LittleEndian.Uint64(data[8:16]))
+	ptr := 16
+	for i := 0; i < nbct; i++ {
+		idx := int(binary.LittleEndian.Uint64(data[ptr : ptr+8]))
+		ptr += 8
+		p.Value[idx] = new(Ciphertext)
+		if err = p.Value[idx].UnmarshalBinary(data[ptr : ptr+dtLen]); err != nil {
+			return
+		}
+		ptr += dtLen
+	}
+	return
 }
 
 func splitCoeffs(coeffs *Polynomial, split int) (coeffsq, coeffsr *Polynomial) {

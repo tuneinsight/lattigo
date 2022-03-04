@@ -41,8 +41,8 @@ type Evaluator interface {
 	Relinearize(ct0 *Ciphertext, ctOut *Ciphertext)
 	RelinearizeNew(ct0 *Ciphertext) (ctOut *Ciphertext)
 	SwitchKeys(ct0 *Ciphertext, switchKey *rlwe.SwitchingKey, ctOut *Ciphertext)
-	EvaluatePoly(ct0 *Ciphertext, pol *Polynomial) (opOut *Ciphertext, err error)
-	EvaluatePolyVector(ct0 *Ciphertext, pols []*Polynomial, encoder Encoder, slotsIndex map[int][]int) (opOut *Ciphertext, err error)
+	EvaluatePoly(input interface{}, pol *Polynomial) (opOut *Ciphertext, err error)
+	EvaluatePolyVector(input interface{}, pols []*Polynomial, encoder Encoder, slotsIndex map[int][]int) (opOut *Ciphertext, err error)
 	SwitchKeysNew(ct0 *Ciphertext, switchkey *rlwe.SwitchingKey) (ctOut *Ciphertext)
 	RotateColumnsNew(ct0 *Ciphertext, k int) (ctOut *Ciphertext)
 	RotateColumns(ct0 *Ciphertext, k int, ctOut *Ciphertext)
@@ -513,7 +513,7 @@ func (eval *evaluator) Mul(op0 *Ciphertext, op1 Operand, ctOut *Ciphertext) {
 
 // MulAndAdd multiplies op0 with op1 and adds the result on ctOut.
 func (eval *evaluator) MulAndAdd(op0 *Ciphertext, op1 Operand, ctOut *Ciphertext) {
-	ct2 := &Ciphertext{&rlwe.Ciphertext{Value: make([]*ring.Poly, op0.Degree() + op1.Degree() + 1)}}
+	ct2 := &Ciphertext{&rlwe.Ciphertext{Value: make([]*ring.Poly, op0.Degree()+op1.Degree()+1)}}
 	for i := range ct2.Value {
 		ct2.Value[i] = eval.poolQ[2][i]
 	}

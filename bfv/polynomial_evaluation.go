@@ -269,6 +269,7 @@ func (polyEval *polynomialEvaluator) recurse(pol polynomialVector) (res *Ciphert
 
 			polyEvalBis := new(polynomialEvaluator)
 			polyEvalBis.Evaluator = polyEval.Evaluator
+			polyEvalBis.slotsIndex = polyEval.slotsIndex
 			polyEvalBis.Encoder = polyEval.Encoder
 			polyEvalBis.logDegree = logDegree
 			polyEvalBis.logSplit = logSplit

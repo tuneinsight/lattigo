@@ -311,7 +311,7 @@ func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, logSlots int,
 	ring.NewFloat(ct.Scale, 256).Int(inputScaleInt)
 
 	// Scales the mask by the ratio between the two scales
-	for i := 0; i < slots; i++ {
+	for i := 0; i < dslots; i++ {
 		rfp.tmpMask[i].Mul(rfp.tmpMask[i], rfp.defaultScale)
 		rfp.tmpMask[i].Quo(rfp.tmpMask[i], inputScaleInt)
 	}

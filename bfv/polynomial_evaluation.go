@@ -24,12 +24,12 @@ func (p *Polynomial) Depth() int {
 	return int(math.Ceil(math.Log2(float64(len(p.Coeffs)))))
 }
 
-// Degree returns the degree of the polynomial
+// Degree returns the degree of the polynomial.
 func (p *Polynomial) Degree() int {
 	return len(p.Coeffs) - 1
 }
 
-// NewPoly creates a new Poly from the input coefficients
+// NewPoly creates a new Poly from the input coefficients.
 func NewPoly(coeffs []uint64) (p *Polynomial) {
 	c := make([]uint64, len(coeffs))
 	copy(c, coeffs)
@@ -57,12 +57,10 @@ type polynomialVector struct {
 	SlotsIndex map[int][]int
 }
 
-// EvaluatePolyVector evaluates a vector of Polyomials on the input Ciphertext in ceil(log2(deg+1)) levels.
-// input must be either *Ciphertext or *PowerBasis.
-// Returns an error if polynomials do not all have the same degree.
-// is necessary before the polynomial evaluation to ensure correctness.
+// EvaluatePolyVector evaluates a vector of Polyomials on the input Ciphertext in ceil(log2(deg+1)) depth.
 // Inputs:
-// pols: a slice of up to 'n' *Polynomial ('n' being the maximum number of slots), indexed from 0 to n-1.
+// input: *Ciphertext or *PowerBasis.
+// pols: a slice of up to 'n' *Polynomial ('n' being the maximum number of slots), indexed from 0 to n-1. Returns an error if the polynomials do not all have the same degree.
 // encoder: an Encoder.
 // slotsIndex: a map[int][]int indexing as key the polynomial to evalute and as value the index of the slots on which to evaluate the polynomial indexed by the key.
 //

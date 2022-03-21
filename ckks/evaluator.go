@@ -1281,7 +1281,7 @@ func (eval *evaluator) mulRelinAndAdd(op0, op1 Operand, relin bool, ctOut *Ciphe
 	}
 
 	if op0.El() == ctOut.El() || op1.El() == ctOut.El() {
-		panic("ctOut must be different fron op0 and op1")
+		panic("ctOut must be different from op0 and op1")
 	}
 
 	resScale := op0.ScalingFactor() * op1.ScalingFactor()

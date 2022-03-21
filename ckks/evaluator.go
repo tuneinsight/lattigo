@@ -1105,7 +1105,7 @@ func (eval *evaluator) Rescale(ctIn *Ciphertext, minScale float64, ctOut *Cipher
 	var nbRescales int
 	// Divides the scale by each moduli of the modulus chain as long as the scale isn't smaller than minScale/2
 	// or until the output Level() would be zero
-	for ctOut.Scale/float64(ringQ.Modulus[ctIn.Level()-nbRescales]) >= minScale/2 && ctIn.Level()-nbRescales >= 0 {
+	for ctIn.Level()-nbRescales >= 0 && ctOut.Scale/float64(ringQ.Modulus[ctIn.Level()-nbRescales]) >= minScale/2 {
 		ctOut.Scale /= (float64(ringQ.Modulus[ctIn.Level()-nbRescales]))
 		nbRescales++
 	}
@@ -1250,6 +1250,7 @@ func (eval *evaluator) mulRelin(op0, op1 Operand, relin bool, ctOut *Ciphertext)
 // If ctOut.Scale < op0.Scale * op1.Scale, then scales up ctOut before adding the result.
 // The procedure will panic if either op0 or op1 are have a degree higher than 1.
 // The procedure will panic if ctOut.Degree != op0.Degree + op1.Degree.
+// The procedure will panic if ctOut = op0 or op1.
 func (eval *evaluator) MulAndAdd(op0, op1 Operand, ctOut *Ciphertext) {
 	eval.mulRelinAndAdd(op0, op1, false, ctOut)
 }
@@ -1260,6 +1261,7 @@ func (eval *evaluator) MulAndAdd(op0, op1 Operand, ctOut *Ciphertext) {
 // The procedure will panic if either op0.Degree or op1.Degree > 1.
 // The procedure will panic if ctOut.Degree != op0.Degree + op1.Degree.
 // The procedure will panic if the evaluator was not created with an relinearization key.
+// The procedure will panic if ctOut = op0 or op1.
 func (eval *evaluator) MulRelinAndAdd(op0, op1 Operand, ctOut *Ciphertext) {
 	eval.mulRelinAndAdd(op0, op1, true, ctOut)
 }
@@ -1276,6 +1278,10 @@ func (eval *evaluator) mulRelinAndAdd(op0, op1 Operand, relin bool, ctOut *Ciphe
 
 	if op0.Degree() > 1 || op1.Degree() > 1 {
 		panic("cannot MulRelinAndAdd: input elements must be of degree 0 or 1")
+	}
+
+	if op0.El() == ctOut.El() || op1.El() == ctOut.El() {
+		panic("ctOut must be different from op0 and op1")
 	}
 
 	resScale := op0.ScalingFactor() * op1.ScalingFactor()
@@ -1307,29 +1313,23 @@ func (eval *evaluator) mulRelinAndAdd(op0, op1 Operand, relin bool, ctOut *Ciphe
 			c2 = eval.poolQMul[2]
 		}
 
-		// Avoid overwriting if the second input is the output
-		var tmp0, tmp1 *rlwe.Ciphertext
-		if op1.El() == ctOut.El() {
-			tmp0, tmp1 = op1.El(), op0.El()
-		} else {
-			tmp0, tmp1 = op0.El(), op1.El()
-		}
+		tmp0, tmp1 := op0.El(), op1.El()
 
 		ringQ.MFormLvl(level, tmp0.Value[0], c00)
 		ringQ.MFormLvl(level, tmp0.Value[1], c01)
 
-		ringQ.MulCoeffsMontgomeryAndAddLvl(level, c00, tmp1.Value[0], c0) // c0 = c[0]*c[0]
-		ringQ.MulCoeffsMontgomeryAndAddLvl(level, c00, tmp1.Value[1], c1) // c1 = c[0]*c[1]
-		ringQ.MulCoeffsMontgomeryAndAddLvl(level, c00, tmp1.Value[1], c1) // c1 = c[0]*c[1]
+		ringQ.MulCoeffsMontgomeryAndAddLvl(level, c00, tmp1.Value[0], c0) // c0 += c[0]*c[0]
+		ringQ.MulCoeffsMontgomeryAndAddLvl(level, c00, tmp1.Value[1], c1) // c1 += c[0]*c[1]
+		ringQ.MulCoeffsMontgomeryAndAddLvl(level, c01, tmp1.Value[0], c1) // c1 += c[1]*c[0]
 
 		if relin {
 			c2.IsNTT = true
-			ringQ.MulCoeffsMontgomeryLvl(level, c01, tmp1.Value[1], c2) // c2 = c[1]*c[1]
+			ringQ.MulCoeffsMontgomeryLvl(level, c01, tmp1.Value[1], c2) // c2 += c[1]*c[1]
 			eval.SwitchKeysInPlace(level, c2, eval.rlk.Keys[0], eval.Pool[1].Q, eval.Pool[2].Q)
 			ringQ.AddLvl(level, c0, eval.Pool[1].Q, c0)
 			ringQ.AddLvl(level, c1, eval.Pool[2].Q, c1)
 		} else {
-			ringQ.MulCoeffsMontgomeryAndAddLvl(level, c01, tmp1.Value[1], c2) // c2 = c[1]*c[1]
+			ringQ.MulCoeffsMontgomeryAndAddLvl(level, c01, tmp1.Value[1], c2) // c2 += c[1]*c[1]
 		}
 
 		// Case Plaintext (x) Ciphertext or Ciphertext (x) Plaintext

@@ -713,11 +713,30 @@ func testEvaluatorMulAndAdd(tc *testContext, t *testing.T) {
 
 		tc.evaluator.MulRelinAndAdd(ciphertext2, ciphertext2, ciphertext1)
 
-		//fmt.Println(ciphertext1.Value[2].Coeffs[0][:4])
-
 		require.Equal(t, ciphertext1.Degree(), 1)
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
+	})
+
+	t.Run(GetTestName(tc.params, "Evaluator/MulAndAdd/ct0*ct1->ct2"), func(t *testing.T) {
+
+		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
+		values2, _, ciphertext2 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
+
+		for i := range values1 {
+			values1[i] = values1[i] * values2[i]
+		}
+
+		ciphertext3 := NewCiphertext(tc.params, 2, ciphertext1.Level(), ciphertext1.Scale*ciphertext2.Scale)
+		tc.evaluator.MulAndAdd(ciphertext1, ciphertext2, ciphertext3)
+
+		require.Equal(t, ciphertext3.Degree(), 2)
+
+		tc.evaluator.Relinearize(ciphertext3, ciphertext3)
+
+		require.Equal(t, ciphertext3.Degree(), 1)
+
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext3, tc.params.LogSlots(), 0, t)
 	})
 
 	t.Run(GetTestName(tc.params, "Evaluator/MulAndAdd/ct1*ct1->ct0"), func(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 // Scaler is an interface that rescales polynomial coefficients by a fraction t/Q.
 type Scaler interface {
 	// DivByQOverTRounded returns p1 scaled by a factor t/Q and mod t on the receiver p2.
-	DivByQOverTRounded(p1, p2 *Poly)
+	DivByQOverTRoundedLvl(level int, p1, p2 *Poly)
 }
 
 // RNSScaler implements the Scaler interface by performing a scaling by t/Q in the RNS domain.
@@ -57,7 +57,7 @@ func NewRNSScaler(ringQ, ringT *Ring) (rnss *RNSScaler) {
 }
 
 // DivByQOverTRounded returns p1 scaled by a factor t/Q and mod t on the receiver p2.
-func (rnss *RNSScaler) DivByQOverTRounded(p1Q, p2T *Poly) {
+func (rnss *RNSScaler) DivByQOverTRoundedLvl(level int, p1Q, p2T *Poly) {
 
 	ringQ := rnss.ringQ
 	ringT := rnss.ringT
@@ -72,13 +72,13 @@ func (rnss *RNSScaler) DivByQOverTRounded(p1Q, p2T *Poly) {
 	// Multiply P_{Q} by t and extend the basis from P_{Q} to t*(P_{Q}||P_{t})
 	// Since the coefficients of P_{t} are multiplied by t, they are all zero,
 	// hence the basis extension can be omitted
-	ringQ.MulScalar(p1Q, T, rnss.polypoolQ)
+	ringQ.MulScalarLvl(level, p1Q, T, rnss.polypoolQ)
 
 	// Center t*P_{Q} around (Q-1)/2 to round instead of floor during the division
-	ringQ.AddScalarBigint(rnss.polypoolQ, rnss.qHalf, rnss.polypoolQ)
+	ringQ.AddScalarBigintLvl(level, rnss.polypoolQ, rnss.qHalf, rnss.polypoolQ)
 
 	// Extend the basis of (t*P_{Q} + (Q-1)/2) to (t*P_{t} + (Q-1)/2)
-	modUpExact(rnss.polypoolQ.Coeffs, rnss.polypoolT.Coeffs, ringQ, ringT, rnss.paramsQP)
+	modUpExact(rnss.polypoolQ.Coeffs[:level+1], rnss.polypoolT.Coeffs, ringQ, ringT, rnss.paramsQP)
 
 	// Compute [Q^{-1} * (t*P_{t} -   (t*P_{Q} - ((Q-1)/2 mod t)))] mod t which returns round(t/Q * P_{Q}) mod t
 	for j := 0; j < ringQ.N; j = j + 8 {

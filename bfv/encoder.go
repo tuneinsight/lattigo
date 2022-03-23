@@ -215,7 +215,7 @@ func (ecd *encoder) ScaleUp(ptRt *PlaintextRingT, pt *Plaintext) {
 
 // ScaleDown transforms a Plaintext (R_q) into a PlaintextRingT (R_t) by scaling down the coefficient by t/Q and rounding.
 func (ecd *encoder) ScaleDown(pt *Plaintext, ptRt *PlaintextRingT) {
-	ecd.scaler.DivByQOverTRounded(pt.Value, ptRt.Value)
+	ecd.scaler.DivByQOverTRoundedLvl(pt.Level(), pt.Value, ptRt.Value)
 }
 
 // RingTToMul transforms a PlaintextRingT into a PlaintextMul by operating the NTT transform

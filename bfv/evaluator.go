@@ -2,6 +2,7 @@ package bfv
 
 import (
 	"fmt"
+	"math"
 	"math/big"
 
 	"github.com/tuneinsight/lattigo/v3/ring"
@@ -66,9 +67,10 @@ type evaluatorBase struct {
 	ringP    *ring.Ring
 	ringQMul *ring.Ring
 
-	t        uint64
-	tInvModQ []uint64
-	pHalf    *big.Int
+	t         uint64
+	tInvModQ  []uint64
+	levelQMul []int      // optimal #QiMul depending on #Qi (variable level)
+	pHalf     []*big.Int // all prod(QiMul) / 2 depending on #Qi
 
 	tDividesQ bool
 }
@@ -84,7 +86,20 @@ func newEvaluatorPrecomp(params Parameters) *evaluatorBase {
 	ev.ringP = params.RingP()
 	ev.ringQMul = params.RingQMul()
 
-	ev.pHalf = new(big.Int).Rsh(ev.ringQMul.ModulusBigint, 1)
+	ev.levelQMul = make([]int, len(ev.ringQ.Modulus))
+	Q := new(big.Int).SetUint64(1)
+	for i := range ev.levelQMul {
+		Q.Mul(Q, new(big.Int).SetUint64(ev.ringQ.Modulus[i]))
+		ev.levelQMul[i] = int(math.Ceil(float64(Q.BitLen()+params.LogN())/61.0)) - 1
+	}
+
+	ev.pHalf = make([]*big.Int, len(ev.ringQMul.Modulus))
+
+	QMul := new(big.Int).SetUint64(1)
+	for i := range ev.pHalf {
+		QMul.Mul(QMul, new(big.Int).SetUint64(ev.ringQMul.Modulus[i]))
+		ev.pHalf[i] = new(big.Int).Rsh(QMul, 1)
+	}
 
 	return ev
 }
@@ -158,7 +173,7 @@ func NewEvaluators(params Parameters, evaluationKey rlwe.EvaluationKey, n int) [
 // Add adds op0 to op1 and returns the result in ctOut.
 func (eval *evaluator) Add(op0, op1 Operand, ctOut *Ciphertext) {
 	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxInt(op0.Degree(), op1.Degree()), true)
-	eval.evaluateInPlaceBinary(el0, el1, elOut, eval.ringQ.Add)
+	eval.evaluateInPlaceBinary(el0, el1, elOut, eval.ringQ.AddLvl)
 }
 
 // AddNew adds op0 to op1 and creates a new element ctOut to store the result.
@@ -171,7 +186,7 @@ func (eval *evaluator) AddNew(op0, op1 Operand) (ctOut *Ciphertext) {
 // AddNoMod adds op0 to op1 without modular reduction, and returns the result in cOut.
 func (eval *evaluator) AddNoMod(op0, op1 Operand, ctOut *Ciphertext) {
 	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxInt(op0.Degree(), op1.Degree()), true)
-	eval.evaluateInPlaceBinary(el0, el1, elOut, eval.ringQ.AddNoMod)
+	eval.evaluateInPlaceBinary(el0, el1, elOut, eval.ringQ.AddNoModLvl)
 }
 
 // AddNoModNew adds op0 to op1 without modular reduction and creates a new element ctOut to store the result.
@@ -184,7 +199,7 @@ func (eval *evaluator) AddNoModNew(op0, op1 Operand) (ctOut *Ciphertext) {
 // Sub subtracts op1 from op0 and returns the result in cOut.
 func (eval *evaluator) Sub(op0, op1 Operand, ctOut *Ciphertext) {
 	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxInt(op0.Degree(), op1.Degree()), true)
-	eval.evaluateInPlaceBinary(el0, el1, elOut, eval.ringQ.Sub)
+	eval.evaluateInPlaceBinary(el0, el1, elOut, eval.ringQ.SubLvl)
 
 	if el0.Degree() < el1.Degree() {
 		for i := el0.Degree() + 1; i < el1.Degree()+1; i++ {
@@ -204,7 +219,7 @@ func (eval *evaluator) SubNew(op0, op1 Operand) (ctOut *Ciphertext) {
 func (eval *evaluator) SubNoMod(op0, op1 Operand, ctOut *Ciphertext) {
 	el0, el1, elOut := eval.getElemAndCheckBinary(op0, op1, ctOut, utils.MaxInt(op0.Degree(), op1.Degree()), true)
 
-	eval.evaluateInPlaceBinary(el0, el1, elOut, eval.ringQ.SubNoMod)
+	eval.evaluateInPlaceBinary(el0, el1, elOut, eval.ringQ.SubNoModLvl)
 
 	if el0.Degree() < el1.Degree() {
 		for i := el0.Degree() + 1; i < el1.Degree()+1; i++ {
@@ -223,7 +238,7 @@ func (eval *evaluator) SubNoModNew(op0, op1 Operand) (ctOut *Ciphertext) {
 // Neg negates op and returns the result in ctOut.
 func (eval *evaluator) Neg(op Operand, ctOut *Ciphertext) {
 	el0, elOut := eval.getElemAndCheckUnary(op, ctOut, op.Degree())
-	evaluateInPlaceUnary(el0, elOut, eval.ringQ.Neg)
+	evaluateInPlaceUnary(el0, elOut, eval.ringQ.NegLvl)
 }
 
 // NegNew negates op and creates a new element to store the result.
@@ -236,7 +251,7 @@ func (eval *evaluator) NegNew(op Operand) (ctOut *Ciphertext) {
 // Reduce applies a modular reduction to op and returns the result in ctOut.
 func (eval *evaluator) Reduce(op Operand, ctOut *Ciphertext) {
 	el0, elOut := eval.getElemAndCheckUnary(op, ctOut, op.Degree())
-	evaluateInPlaceUnary(el0, elOut, eval.ringQ.Reduce)
+	evaluateInPlaceUnary(el0, elOut, eval.ringQ.ReduceLvl)
 }
 
 // ReduceNew applies a modular reduction to op and creates a new element ctOut to store the result.
@@ -249,7 +264,7 @@ func (eval *evaluator) ReduceNew(op Operand) (ctOut *Ciphertext) {
 // MulScalar multiplies op by a uint64 scalar and returns the result in ctOut.
 func (eval *evaluator) MulScalar(op Operand, scalar uint64, ctOut *Ciphertext) {
 	el0, elOut := eval.getElemAndCheckUnary(op, ctOut, op.Degree())
-	fun := func(el, elOut *ring.Poly) { eval.ringQ.MulScalar(el, scalar, elOut) }
+	fun := func(level int, el, elOut *ring.Poly) { eval.ringQ.MulScalarLvl(level, el, scalar, elOut) }
 	evaluateInPlaceUnary(el0, elOut, fun)
 }
 
@@ -271,6 +286,13 @@ func (eval *evaluator) QuantizeToLvl(level int, op0 *Ciphertext) {
 // tensorAndRescale computes (ct0 x ct1) * (t/Q) and stores the result in ctOut.
 func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *rlwe.Ciphertext) {
 
+	level := utils.MinInt(utils.MinInt(ct0.Level(), ct1.Level()), ctOut.Level())
+
+	levelQMul := eval.levelQMul[level]
+
+	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:level+1]
+	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:level+1]
+
 	c0Q1 := eval.poolQ[0]
 	c0Q2 := eval.poolQmul[0]
 
@@ -279,10 +301,10 @@ func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *rlwe.Ciphertext) {
 
 	// Prepares the ciphertexts for the Tensoring by extending their
 	// basis from Q to QP and transforming them to NTT form
-	eval.modUpAndNTT(ct0, c0Q1, c0Q2)
+	eval.modUpAndNTTLvl(level, levelQMul, ct0, c0Q1, c0Q2)
 
 	if ct0 != ct1 {
-		eval.modUpAndNTT(ct1, c1Q1, c1Q2)
+		eval.modUpAndNTTLvl(level, levelQMul, ct1, c1Q1, c1Q2)
 	}
 
 	// Tensoring: multiplies each elements of the ciphertexts together
@@ -291,25 +313,24 @@ func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *rlwe.Ciphertext) {
 
 	// Case where both Elements are of degree 1
 	if ct0.Degree() == 1 && ct1.Degree() == 1 {
-		eval.tensoreLowDeg(ct0, ct1)
+		eval.tensoreLowDegLvl(level, levelQMul, ct0, ct1)
 		// Case where at least one element is not of degree 1
 	} else {
-		eval.tensortLargeDeg(ct0, ct1)
+		eval.tensortLargeDegLvl(level, levelQMul, ct0, ct1)
 	}
 
-	eval.quantize(ctOut)
+	eval.quantizeLvl(level, levelQMul, ctOut)
 }
 
-func (eval *evaluator) modUpAndNTT(ct *rlwe.Ciphertext, cQ, cQMul []*ring.Poly) {
-	levelQ := len(eval.ringQ.Modulus) - 1
+func (eval *evaluator) modUpAndNTTLvl(level, levelQMul int, ct *rlwe.Ciphertext, cQ, cQMul []*ring.Poly) {
 	for i := range ct.Value {
-		eval.basisExtenderQ1toQ2.ModUpQtoP(levelQ, len(eval.ringQMul.Modulus)-1, ct.Value[i], cQMul[i])
-		eval.ringQ.NTTLazy(ct.Value[i], cQ[i])
-		eval.ringQMul.NTTLazy(cQMul[i], cQMul[i])
+		eval.basisExtenderQ1toQ2.ModUpQtoP(level, levelQMul, ct.Value[i], cQMul[i])
+		eval.ringQ.NTTLazyLvl(level, ct.Value[i], cQ[i])
+		eval.ringQMul.NTTLazyLvl(levelQMul, cQMul[i], cQMul[i])
 	}
 }
 
-func (eval *evaluator) tensoreLowDeg(ct0, ct1 *rlwe.Ciphertext) {
+func (eval *evaluator) tensoreLowDegLvl(level, levelQMul int, ct0, ct1 *rlwe.Ciphertext) {
 
 	c0Q1 := eval.poolQ[0]
 	c0Q2 := eval.poolQmul[0]
@@ -325,51 +346,51 @@ func (eval *evaluator) tensoreLowDeg(ct0, ct1 *rlwe.Ciphertext) {
 	c01Q := eval.poolQ[3][1]
 	c01P := eval.poolQmul[3][1]
 
-	eval.ringQ.MForm(c0Q1[0], c00Q)
+	eval.ringQ.MFormLvl(level, c0Q1[0], c00Q)
 	eval.ringQMul.MForm(c0Q2[0], c00Q2)
 
-	eval.ringQ.MForm(c0Q1[1], c01Q)
+	eval.ringQ.MFormLvl(level, c0Q1[1], c01Q)
 	eval.ringQMul.MForm(c0Q2[1], c01P)
 
 	// Squaring case
 	if ct0 == ct1 {
 
 		// c0 = c0[0]*c0[0]
-		eval.ringQ.MulCoeffsMontgomery(c00Q, c0Q1[0], c2Q1[0])
-		eval.ringQMul.MulCoeffsMontgomery(c00Q2, c0Q2[0], c2Q2[0])
+		eval.ringQ.MulCoeffsMontgomeryLvl(level, c00Q, c0Q1[0], c2Q1[0])
+		eval.ringQMul.MulCoeffsMontgomeryLvl(levelQMul, c00Q2, c0Q2[0], c2Q2[0])
 
 		// c1 = 2*c0[0]*c0[1]
-		eval.ringQ.MulCoeffsMontgomery(c00Q, c0Q1[1], c2Q1[1])
-		eval.ringQMul.MulCoeffsMontgomery(c00Q2, c0Q2[1], c2Q2[1])
+		eval.ringQ.MulCoeffsMontgomeryLvl(level, c00Q, c0Q1[1], c2Q1[1])
+		eval.ringQMul.MulCoeffsMontgomeryLvl(levelQMul, c00Q2, c0Q2[1], c2Q2[1])
 
-		eval.ringQ.AddNoMod(c2Q1[1], c2Q1[1], c2Q1[1])
-		eval.ringQMul.AddNoMod(c2Q2[1], c2Q2[1], c2Q2[1])
+		eval.ringQ.AddNoModLvl(level, c2Q1[1], c2Q1[1], c2Q1[1])
+		eval.ringQMul.AddNoModLvl(levelQMul, c2Q2[1], c2Q2[1], c2Q2[1])
 
 		// c2 = c0[1]*c0[1]
-		eval.ringQ.MulCoeffsMontgomery(c01Q, c0Q1[1], c2Q1[2])
-		eval.ringQMul.MulCoeffsMontgomery(c01P, c0Q2[1], c2Q2[2])
+		eval.ringQ.MulCoeffsMontgomeryLvl(level, c01Q, c0Q1[1], c2Q1[2])
+		eval.ringQMul.MulCoeffsMontgomeryLvl(levelQMul, c01P, c0Q2[1], c2Q2[2])
 
 		// Normal case
 	} else {
 
 		// c0 = c0[0]*c1[0]
-		eval.ringQ.MulCoeffsMontgomery(c00Q, c1Q1[0], c2Q1[0])
-		eval.ringQMul.MulCoeffsMontgomery(c00Q2, c1Q2[0], c2Q2[0])
+		eval.ringQ.MulCoeffsMontgomeryLvl(level, c00Q, c1Q1[0], c2Q1[0])
+		eval.ringQMul.MulCoeffsMontgomeryLvl(levelQMul, c00Q2, c1Q2[0], c2Q2[0])
 
 		// c1 = c0[0]*c1[1] + c0[1]*c1[0]
-		eval.ringQ.MulCoeffsMontgomery(c00Q, c1Q1[1], c2Q1[1])
-		eval.ringQMul.MulCoeffsMontgomery(c00Q2, c1Q2[1], c2Q2[1])
+		eval.ringQ.MulCoeffsMontgomeryLvl(level, c00Q, c1Q1[1], c2Q1[1])
+		eval.ringQMul.MulCoeffsMontgomeryLvl(levelQMul, c00Q2, c1Q2[1], c2Q2[1])
 
-		eval.ringQ.MulCoeffsMontgomeryAndAddNoMod(c01Q, c1Q1[0], c2Q1[1])
-		eval.ringQMul.MulCoeffsMontgomeryAndAddNoMod(c01P, c1Q2[0], c2Q2[1])
+		eval.ringQ.MulCoeffsMontgomeryAndAddNoModLvl(level, c01Q, c1Q1[0], c2Q1[1])
+		eval.ringQMul.MulCoeffsMontgomeryAndAddNoModLvl(levelQMul, c01P, c1Q2[0], c2Q2[1])
 
 		// c2 = c0[1]*c1[1]
-		eval.ringQ.MulCoeffsMontgomery(c01Q, c1Q1[1], c2Q1[2])
-		eval.ringQMul.MulCoeffsMontgomery(c01P, c1Q2[1], c2Q2[2])
+		eval.ringQ.MulCoeffsMontgomeryLvl(level, c01Q, c1Q1[1], c2Q1[2])
+		eval.ringQMul.MulCoeffsMontgomeryLvl(levelQMul, c01P, c1Q2[1], c2Q2[2])
 	}
 }
 
-func (eval *evaluator) tensortLargeDeg(ct0, ct1 *rlwe.Ciphertext) {
+func (eval *evaluator) tensortLargeDegLvl(level, levelQMul int, ct0, ct1 *rlwe.Ciphertext) {
 
 	c0Q1 := eval.poolQ[0]
 	c0Q2 := eval.poolQmul[0]
@@ -392,42 +413,39 @@ func (eval *evaluator) tensortLargeDeg(ct0, ct1 *rlwe.Ciphertext) {
 		c00Q2 := eval.poolQmul[3]
 
 		for i := range ct0.Value {
-			eval.ringQ.MForm(c0Q1[i], c00Q1[i])
-			eval.ringQMul.MForm(c0Q2[i], c00Q2[i])
+			eval.ringQ.MFormLvl(level, c0Q1[i], c00Q1[i])
+			eval.ringQMul.MFormLvl(levelQMul, c0Q2[i], c00Q2[i])
 		}
 
 		for i := 0; i < ct0.Degree()+1; i++ {
 			for j := i + 1; j < ct0.Degree()+1; j++ {
-				eval.ringQ.MulCoeffsMontgomery(c00Q1[i], c0Q1[j], c2Q1[i+j])
-				eval.ringQMul.MulCoeffsMontgomery(c00Q2[i], c0Q2[j], c2Q2[i+j])
+				eval.ringQ.MulCoeffsMontgomeryLvl(level, c00Q1[i], c0Q1[j], c2Q1[i+j])
+				eval.ringQMul.MulCoeffsMontgomeryLvl(levelQMul, c00Q2[i], c0Q2[j], c2Q2[i+j])
 
-				eval.ringQ.Add(c2Q1[i+j], c2Q1[i+j], c2Q1[i+j])
-				eval.ringQMul.Add(c2Q2[i+j], c2Q2[i+j], c2Q2[i+j])
+				eval.ringQ.AddLvl(level, c2Q1[i+j], c2Q1[i+j], c2Q1[i+j])
+				eval.ringQMul.AddLvl(levelQMul, c2Q2[i+j], c2Q2[i+j], c2Q2[i+j])
 			}
 		}
 
 		for i := 0; i < ct0.Degree()+1; i++ {
-			eval.ringQ.MulCoeffsMontgomeryAndAdd(c00Q1[i], c0Q1[i], c2Q1[i<<1])
-			eval.ringQMul.MulCoeffsMontgomeryAndAdd(c00Q2[i], c0Q2[i], c2Q2[i<<1])
+			eval.ringQ.MulCoeffsMontgomeryAndAddLvl(level, c00Q1[i], c0Q1[i], c2Q1[i<<1])
+			eval.ringQMul.MulCoeffsMontgomeryAndAddLvl(levelQMul, c00Q2[i], c0Q2[i], c2Q2[i<<1])
 		}
 
 		// Normal case
 	} else {
 		for i := range ct0.Value {
-			eval.ringQ.MForm(c0Q1[i], c0Q1[i])
-			eval.ringQMul.MForm(c0Q2[i], c0Q2[i])
+			eval.ringQ.MFormLvl(level, c0Q1[i], c0Q1[i])
+			eval.ringQMul.MFormLvl(levelQMul, c0Q2[i], c0Q2[i])
 			for j := range ct1.Value {
-				eval.ringQ.MulCoeffsMontgomeryAndAdd(c0Q1[i], c1Q1[j], c2Q1[i+j])
-				eval.ringQMul.MulCoeffsMontgomeryAndAdd(c0Q2[i], c1Q2[j], c2Q2[i+j])
+				eval.ringQ.MulCoeffsMontgomeryAndAddLvl(level, c0Q1[i], c1Q1[j], c2Q1[i+j])
+				eval.ringQMul.MulCoeffsMontgomeryAndAddLvl(levelQMul, c0Q2[i], c1Q2[j], c2Q2[i+j])
 			}
 		}
 	}
 }
 
-func (eval *evaluator) quantize(ctOut *rlwe.Ciphertext) {
-
-	levelQ := len(eval.ringQ.Modulus) - 1
-	levelQMul := len(eval.ringQMul.Modulus) - 1
+func (eval *evaluator) quantizeLvl(level, levelQMul int, ctOut *rlwe.Ciphertext) {
 
 	c2Q1 := eval.poolQ[2]
 	c2Q2 := eval.poolQmul[2]
@@ -435,19 +453,19 @@ func (eval *evaluator) quantize(ctOut *rlwe.Ciphertext) {
 	// Applies the inverse NTT to the ciphertext, scales down the ciphertext
 	// by t/q and reduces its basis from QP to Q
 	for i := range ctOut.Value {
-		eval.ringQ.InvNTTLazy(c2Q1[i], c2Q1[i])
-		eval.ringQMul.InvNTTLazy(c2Q2[i], c2Q2[i])
+		eval.ringQ.InvNTTLazyLvl(level, c2Q1[i], c2Q1[i])
+		eval.ringQMul.InvNTTLazyLvl(levelQMul, c2Q2[i], c2Q2[i])
 
 		// Extends the basis Q of ct(x) to the basis P and Divides (ct(x)Q -> P) by Q
-		eval.basisExtenderQ1toQ2.ModDownQPtoP(levelQ, levelQMul, c2Q1[i], c2Q2[i], c2Q2[i]) // QP / Q -> P
+		eval.basisExtenderQ1toQ2.ModDownQPtoP(level, levelQMul, c2Q1[i], c2Q2[i], c2Q2[i]) // QP / Q -> P
 
 		// Centers ct(x)P by (P-1)/2 and extends ct(x)P to the basis Q
-		eval.ringQMul.AddScalarBigint(c2Q2[i], eval.pHalf, c2Q2[i])
-		eval.basisExtenderQ1toQ2.ModUpPtoQ(levelQMul, levelQ, c2Q2[i], ctOut.Value[i])
-		eval.ringQ.SubScalarBigint(ctOut.Value[i], eval.pHalf, ctOut.Value[i])
+		eval.ringQMul.AddScalarBigintLvl(levelQMul, c2Q2[i], eval.pHalf[levelQMul], c2Q2[i])
+		eval.basisExtenderQ1toQ2.ModUpPtoQ(levelQMul, level, c2Q2[i], ctOut.Value[i])
+		eval.ringQ.SubScalarBigintLvl(level, ctOut.Value[i], eval.pHalf[levelQMul], ctOut.Value[i])
 
 		// (ct(x)/Q)*T, doing so only requires that Q*P > Q*Q, faster but adds error ~|T|
-		eval.ringQ.MulScalar(ctOut.Value[i], eval.t, ctOut.Value[i])
+		eval.ringQ.MulScalarLvl(level, ctOut.Value[i], eval.t, ctOut.Value[i])
 	}
 }
 
@@ -464,18 +482,29 @@ func (eval *evaluator) Mul(op0 *Ciphertext, op1 Operand, ctOut *Ciphertext) {
 	default:
 		panic(fmt.Errorf("invalid operand type for Mul: %T", op1))
 	}
-
 }
 
 func (eval *evaluator) mulPlaintextMul(ct0 *Ciphertext, ptRt *PlaintextMul, ctOut *Ciphertext) {
+
+	level := utils.MinInt(ct0.Level(), ctOut.Level())
+
+	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:level+1]
+	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:level+1]
+
 	for i := range ct0.Value {
-		eval.ringQ.NTTLazy(ct0.Value[i], ctOut.Value[i])
-		eval.ringQ.MulCoeffsMontgomeryConstant(ctOut.Value[i], ptRt.Value, ctOut.Value[i])
-		eval.ringQ.InvNTT(ctOut.Value[i], ctOut.Value[i])
+		eval.ringQ.NTTLazyLvl(level, ct0.Value[i], ctOut.Value[i])
+		eval.ringQ.MulCoeffsMontgomeryConstantLvl(level, ctOut.Value[i], ptRt.Value, ctOut.Value[i])
+		eval.ringQ.InvNTTLvl(level, ctOut.Value[i], ctOut.Value[i])
 	}
 }
 
 func (eval *evaluator) mulPlaintextRingT(ct0 *Ciphertext, ptRt *PlaintextRingT, ctOut *Ciphertext) {
+
+	level := utils.MinInt(ct0.Level(), ctOut.Level())
+
+	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:level+1]
+	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:level+1]
+
 	ringQ := eval.ringQ
 
 	coeffs := ptRt.Value.Coeffs[0]
@@ -484,13 +513,13 @@ func (eval *evaluator) mulPlaintextRingT(ct0 *Ciphertext, ptRt *PlaintextRingT, 
 	for i := range ct0.Value {
 
 		// Copies the inputCT on the outputCT and switches to the NTT domain
-		eval.ringQ.NTTLazy(ct0.Value[i], ctOut.Value[i])
+		eval.ringQ.NTTLazyLvl(level, ct0.Value[i], ctOut.Value[i])
 
 		// Switches the outputCT in the Montgomery domain
-		eval.ringQ.MForm(ctOut.Value[i], ctOut.Value[i])
+		eval.ringQ.MFormLvl(level, ctOut.Value[i], ctOut.Value[i])
 
 		// For each qi in Q
-		for j := range ringQ.Modulus {
+		for j := range ringQ.Modulus[:level+1] {
 
 			tmp := ctOut.Value[i].Coeffs[j]
 			qi := ringQ.Modulus[j]
@@ -507,7 +536,7 @@ func (eval *evaluator) mulPlaintextRingT(ct0 *Ciphertext, ptRt *PlaintextRingT, 
 		}
 
 		// Switches the ciphertext out of the NTT domain
-		eval.ringQ.InvNTT(ctOut.Value[i], ctOut.Value[i])
+		eval.ringQ.InvNTTLvl(level, ctOut.Value[i], ctOut.Value[i])
 	}
 }
 
@@ -521,15 +550,20 @@ func (eval *evaluator) MulNew(op0 *Ciphertext, op1 Operand) (ctOut *Ciphertext) 
 // relinearize is a method common to Relinearize and RelinearizeNew. It switches ct0 to the NTT domain, applies the keyswitch, and returns the result out of the NTT domain.
 func (eval *evaluator) relinearize(ct0 *Ciphertext, ctOut *Ciphertext) {
 
+	level := utils.MinInt(ct0.Level(), ctOut.Level())
+
+	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:level+1]
+	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:level+1]
+
 	if ctOut != ct0 {
 		ring.CopyValues(ct0.Value[0], ctOut.Value[0])
 		ring.CopyValues(ct0.Value[1], ctOut.Value[1])
 	}
 
 	for deg := uint64(ct0.Degree()); deg > 1; deg-- {
-		eval.SwitchKeysInPlace(ct0.Value[deg].Level(), ct0.Value[deg], eval.rlk.Keys[deg-2], eval.Pool[1].Q, eval.Pool[2].Q)
-		eval.ringQ.Add(ctOut.Value[0], eval.Pool[1].Q, ctOut.Value[0])
-		eval.ringQ.Add(ctOut.Value[1], eval.Pool[2].Q, ctOut.Value[1])
+		eval.SwitchKeysInPlace(level, ct0.Value[deg], eval.rlk.Keys[deg-2], eval.Pool[1].Q, eval.Pool[2].Q)
+		eval.ringQ.AddLvl(level, ctOut.Value[0], eval.Pool[1].Q, ctOut.Value[0])
+		eval.ringQ.AddLvl(level, ctOut.Value[1], eval.Pool[2].Q, ctOut.Value[1])
 	}
 
 	ctOut.SetValue(ctOut.Value[:2])
@@ -584,9 +618,14 @@ func (eval *evaluator) SwitchKeys(ct0 *Ciphertext, switchKey *rlwe.SwitchingKey,
 		panic("cannot SwitchKeys: input and output must be of degree 1 to allow key switching")
 	}
 
-	eval.SwitchKeysInPlace(ct0.Value[1].Level(), ct0.Value[1], switchKey, eval.Pool[1].Q, eval.Pool[2].Q)
+	level := utils.MinInt(ct0.Level(), ctOut.Level())
 
-	eval.ringQ.Add(ct0.Value[0], eval.Pool[1].Q, ctOut.Value[0])
+	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:level+1]
+	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:level+1]
+
+	eval.SwitchKeysInPlace(level, ct0.Value[1], switchKey, eval.Pool[1].Q, eval.Pool[2].Q)
+
+	eval.ringQ.AddLvl(level, ct0.Value[0], eval.Pool[1].Q, ctOut.Value[0])
 	ring.CopyValues(eval.Pool[2].Q, ctOut.Value[1])
 }
 
@@ -626,6 +665,22 @@ func (eval *evaluator) RotateColumns(ct0 *Ciphertext, k int, ctOut *Ciphertext) 
 			panic(fmt.Errorf("evaluator has no rotation key for rotation by %d", k))
 		}
 	}
+}
+
+// permute performs a column rotation on ct0 and returns the result in ctOut
+func (eval *evaluator) permute(ct0 *Ciphertext, generator uint64, switchKey *rlwe.SwitchingKey, ctOut *Ciphertext) {
+
+	level := utils.MinInt(ct0.Level(), ctOut.Level())
+
+	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:level+1]
+	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:level+1]
+
+	eval.SwitchKeysInPlace(level, ct0.Value[1], switchKey, eval.Pool[1].Q, eval.Pool[2].Q)
+
+	eval.ringQ.AddLvl(level, eval.Pool[1].Q, ct0.Value[0], eval.Pool[1].Q)
+
+	eval.ringQ.PermuteLvl(level, eval.Pool[1].Q, generator, ctOut.Value[0])
+	eval.ringQ.PermuteLvl(level, eval.Pool[2].Q, generator, ctOut.Value[1])
 }
 
 // RotateColumnsNew applies RotateColumns and returns the result in a new Ciphertext.
@@ -705,16 +760,6 @@ func (eval *evaluator) WithKey(evaluationKey rlwe.EvaluationKey) Evaluator {
 	}
 }
 
-// permute performs a column rotation on ct0 and returns the result in ctOut
-func (eval *evaluator) permute(ct0 *Ciphertext, generator uint64, switchKey *rlwe.SwitchingKey, ctOut *Ciphertext) {
-	eval.SwitchKeysInPlace(ct0.Value[1].Level(), ct0.Value[1], switchKey, eval.Pool[1].Q, eval.Pool[2].Q)
-
-	eval.ringQ.Add(eval.Pool[1].Q, ct0.Value[0], eval.Pool[1].Q)
-
-	eval.ringQ.Permute(eval.Pool[1].Q, generator, ctOut.Value[0])
-	eval.ringQ.Permute(eval.Pool[2].Q, generator, ctOut.Value[1])
-}
-
 func (eval *evaluator) getRingQElem(op Operand) *rlwe.Ciphertext {
 	switch o := op.(type) {
 	case *Ciphertext, *Plaintext:
@@ -769,12 +814,20 @@ func (eval *evaluator) getElemAndCheckUnary(op0, opOut Operand, opOutMinDegree i
 }
 
 // evaluateInPlaceBinary applies the provided function in place on el0 and el1 and returns the result in elOut.
-func (eval *evaluator) evaluateInPlaceBinary(el0, el1, elOut *rlwe.Ciphertext, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly)) {
+func (eval *evaluator) evaluateInPlaceBinary(el0, el1, elOut *rlwe.Ciphertext, evaluate func(int, *ring.Poly, *ring.Poly, *ring.Poly)) {
 
 	smallest, largest, _ := rlwe.GetSmallestLargest(el0, el1)
 
+	level := utils.MinInt(utils.MinInt(el0.Level(), el1.Level()), elOut.Level())
+
+	if elOut.Level() > level {
+		for i := range elOut.Value {
+			elOut.Value[i].Coeffs = elOut.Value[i].Coeffs[:level+1]
+		}
+	}
+
 	for i := 0; i < smallest.Degree()+1; i++ {
-		evaluate(el0.Value[i], el1.Value[i], elOut.Value[i])
+		evaluate(level, el0.Value[i], el1.Value[i], elOut.Value[i])
 	}
 
 	// If the inputs degrees differ, it copies the remaining degree on the receiver.
@@ -786,8 +839,17 @@ func (eval *evaluator) evaluateInPlaceBinary(el0, el1, elOut *rlwe.Ciphertext, e
 }
 
 // evaluateInPlaceUnary applies the provided function in place on el0 and returns the result in elOut.
-func evaluateInPlaceUnary(el0, elOut *rlwe.Ciphertext, evaluate func(*ring.Poly, *ring.Poly)) {
+func evaluateInPlaceUnary(el0, elOut *rlwe.Ciphertext, evaluate func(int, *ring.Poly, *ring.Poly)) {
+
+	level := utils.MinInt(el0.Level(), elOut.Level())
+
+	if elOut.Level() > level {
+		for i := range elOut.Value {
+			elOut.Value[i].Coeffs = elOut.Value[i].Coeffs[:level+1]
+		}
+	}
+
 	for i := range el0.Value {
-		evaluate(el0.Value[i], elOut.Value[i])
+		evaluate(level, el0.Value[i], elOut.Value[i])
 	}
 }

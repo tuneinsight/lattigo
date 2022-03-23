@@ -7,9 +7,9 @@ import (
 	"github.com/tuneinsight/lattigo/v3/ring"
 )
 
-// ScaleUpVec takes a Poly pIn in ringT, scales its coefficients up by (Q/T) mod Q, and writes the result in a
+// ScaleUpTCoprimeWithQVec takes a Poly pIn in ringT, scales its coefficients up by (Q/T) mod Q, and writes the result in a
 // Poly pOut in ringQ.
-func ScaleUpVec(ringQ, ringT *ring.Ring, rescaleParams, tmp []uint64, pIn, pOut *ring.Poly) {
+func ScaleUpTCoprimeWithQVec(ringQ, ringT *ring.Ring, rescaleParams, tmp []uint64, pIn, pOut *ring.Poly) {
 
 	qModTmontgomery := ring.MForm(new(big.Int).Mod(ringQ.ModulusBigint, ringT.ModulusBigint).Uint64(), ringT.Modulus[0], ringT.BredParams[0])
 
@@ -58,4 +58,18 @@ func ScaleUpVec(ringQ, ringT *ring.Ring, rescaleParams, tmp []uint64, pIn, pOut 
 			z[7] = ring.MRed(x[7]+tHalfNegQi, rescaleParams, qi, mredParams)
 		}
 	}
+}
+
+// ScaleUpTDividesQVec takes a Poly pIn in ringT, scales its coefficients up by (Q/T) mod Q, and writes the result in a
+// Poly pOut in ringQ.
+// T is in this case assumed to be the first prime in the moduli chain.
+func ScaleUpTDividesQVec(ringQ *ring.Ring, pIn, pOut *ring.Poly) {
+	// Q/T mod T
+	tmp := new(big.Int).Set(ringQ.ModulusBigint)
+	tmp.Quo(tmp, new(big.Int).SetUint64(ringQ.Modulus[0]))
+	QOverTMont := tmp.Mod(tmp, new(big.Int).SetUint64(ringQ.Modulus[0])).Uint64()
+
+	// pOut = Q/T * pIn
+	ring.MForm(QOverTMont, ringQ.Modulus[0], ringQ.BredParams[0])
+	ring.MulScalarMontgomeryVec(pIn.Coeffs[0], pOut.Coeffs[0], QOverTMont, ringQ.Modulus[0], ringQ.MredParams[0])
 }

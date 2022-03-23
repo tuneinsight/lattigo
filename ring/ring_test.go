@@ -747,7 +747,7 @@ func testScaling(testContext *testParams, t *testing.T) {
 		polyT := NewPoly(testContext.ringQ.N, 1)
 		testContext.ringQ.SetCoefficientsBigint(coeffs, polyQ)
 
-		scaler.DivByQOverTRounded(polyQ, polyT)
+		scaler.DivByQOverTRoundedLvl(polyQ.Level(), polyQ, polyT)
 
 		for i := 0; i < testContext.ringQ.N; i++ {
 			require.Equal(t, polyT.Coeffs[0][i], coeffsWant[i].Uint64())

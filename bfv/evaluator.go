@@ -68,6 +68,8 @@ type evaluatorBase struct {
 	t        uint64
 	tInvModQ []uint64
 	pHalf    *big.Int
+
+	tDividesQ bool
 }
 
 func newEvaluatorPrecomp(params Parameters) *evaluatorBase {
@@ -118,9 +120,13 @@ func NewEvaluator(params Parameters, evaluationKey rlwe.EvaluationKey) Evaluator
 	ev.evaluatorBase = newEvaluatorPrecomp(params)
 	ev.evaluatorBuffers = newEvaluatorBuffer(ev.evaluatorBase)
 
-	ev.tInvModQ = make([]uint64, len(params.RingQ().Modulus))
-	for i, qi := range params.RingQ().Modulus {
-		ev.tInvModQ[i] = ring.MForm(ring.ModExp(params.T(), qi-2, qi), qi, params.RingQ().BredParams[i])
+	if !utils.IsInSliceUint64(params.T(), params.Q()) {
+		ev.tInvModQ = make([]uint64, len(params.RingQ().Modulus))
+		for i, qi := range params.RingQ().Modulus {
+			ev.tInvModQ[i] = ring.MForm(ring.ModExp(params.T(), qi-2, qi), qi, params.RingQ().BredParams[i])
+		}
+	} else {
+		ev.tDividesQ = true
 	}
 
 	ev.basisExtenderQ1toQ2 = ring.NewBasisExtender(ev.ringQ, ev.ringQMul)
@@ -705,7 +711,11 @@ func (eval *evaluator) getRingQElem(op Operand) *rlwe.Ciphertext {
 	case *Ciphertext, *Plaintext:
 		return o.El()
 	case *PlaintextRingT:
-		ScaleUpVec(eval.params.RingQ(), eval.params.RingT(), eval.tInvModQ, eval.Pool[0].Q.Coeffs[0], o.Value, eval.tmpPt.Value)
+		if eval.tDividesQ {
+			ScaleUpTDividesQVec(eval.params.RingQ(), o.Value, eval.tmpPt.Value)
+		} else {
+			ScaleUpTCoprimeWithQVec(eval.params.RingQ(), eval.params.RingT(), eval.tInvModQ, eval.Pool[0].Q.Coeffs[0], o.Value, eval.tmpPt.Value)
+		}
 		return eval.tmpPt.El()
 	default:
 		panic(fmt.Errorf("invalid operand type for operation: %T", o))

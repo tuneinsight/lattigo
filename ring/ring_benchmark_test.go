@@ -390,7 +390,7 @@ func benchDivByRNSBasis(testContext *testParams, b *testing.B) {
 		testContext.ringQ.SetCoefficientsBigint(coeffs, polyQ)
 
 		for i := 0; i < b.N; i++ {
-			scaler.DivByQOverTRounded(polyQ, polyT)
+			scaler.DivByQOverTRoundedLvl(polyQ.Level(), polyQ, polyT)
 		}
 	})
 }

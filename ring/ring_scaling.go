@@ -8,7 +8,7 @@ import (
 
 // Scaler is an interface that rescales polynomial coefficients by a fraction t/Q.
 type Scaler interface {
-	// DivByQOverTRounded returns p1 scaled by a factor t/Q and mod t on the receiver p2.
+	// DivByQOverTRoundedLvl returns p1 scaled by a factor t/Q and mod t on the receiver p2.
 	DivByQOverTRoundedLvl(level int, p1, p2 *Poly)
 }
 
@@ -56,7 +56,7 @@ func NewRNSScaler(ringQ, ringT *Ring) (rnss *RNSScaler) {
 	return
 }
 
-// DivByQOverTRounded returns p1 scaled by a factor t/Q and mod t on the receiver p2.
+// DivByQOverTRoundedLvl returns p1 scaled by a factor t/Q and mod t on the receiver p2.
 func (rnss *RNSScaler) DivByQOverTRoundedLvl(level int, p1Q, p2T *Poly) {
 
 	ringQ := rnss.ringQ

@@ -17,7 +17,7 @@ var (
 		LogN:  12,
 		T:     65537,
 		Q:     []uint64{0x7ffffec001, 0x8000016001}, // 39 + 39 bits
-		P:     []uint64{0x40002001},                        // 30 bits
+		P:     []uint64{0x40002001},                 // 30 bits
 		Sigma: rlwe.DefaultSigma,
 	}
 	// PN13QP218 is a set of default parameters with logN=13 and logQP=218
@@ -25,7 +25,7 @@ var (
 		LogN:  13,
 		T:     65537,
 		Q:     []uint64{0x3fffffffef8001, 0x4000000011c001, 0x40000000120001}, // 54 + 54 + 54 bits
-		P:     []uint64{0x7ffffffffb4001},                                            // 55 bits
+		P:     []uint64{0x7ffffffffb4001},                                     // 55 bits
 		Sigma: rlwe.DefaultSigma,
 	}
 
@@ -132,7 +132,7 @@ type Parameters struct {
 // It returns the empty parameters Parameters{} and a non-nil error if the specified parameters are invalid.
 func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err error) {
 
-	if utils.IsInSliceUint64(t, rlweParams.Q()) && rlweParams.Q()[0] != t{
+	if utils.IsInSliceUint64(t, rlweParams.Q()) && rlweParams.Q()[0] != t {
 		return Parameters{}, fmt.Errorf("if t|Q then Q[0] must be t")
 	}
 

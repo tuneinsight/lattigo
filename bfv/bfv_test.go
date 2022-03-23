@@ -54,7 +54,7 @@ func TestBFV(t *testing.T) {
 		defaultParams = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
-	for _, p := range defaultParams {
+	for _, p := range defaultParams[:] {
 
 		params, err := NewParametersFromLiteral(p)
 		if err != nil {
@@ -454,6 +454,17 @@ func testEvaluator(testctx *testContext, t *testing.T) {
 		ciphertext1 = testctx.evaluator.MulScalarNew(ciphertext1, 37)
 		testctx.ringT.MulScalar(values1, 37, values1)
 
+		verifyTestVectors(testctx, testctx.decryptor, values1, ciphertext1, t)
+	})
+
+	t.Run(testString("Evaluator/QuantizeToLvl", testctx.params), func(t *testing.T) {
+
+		values1, _, ciphertext1 := newTestVectorsRingQ(testctx, testctx.encryptorPk, t)
+
+		testctx.evaluator.QuantizeToLvl(1, ciphertext1)
+		verifyTestVectors(testctx, testctx.decryptor, values1, ciphertext1, t)
+
+		testctx.evaluator.QuantizeToLvl(0, ciphertext1)
 		verifyTestVectors(testctx, testctx.decryptor, values1, ciphertext1, t)
 	})
 

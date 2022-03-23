@@ -230,10 +230,20 @@ func (ecd *encoder) ScaleUp(ptRt *PlaintextRingT, pt *Plaintext) {
 
 // ScaleDown transforms a Plaintext (R_q) into a PlaintextRingT (R_t) by scaling down the coefficient by t/Q and rounding.
 func (ecd *encoder) ScaleDown(pt *Plaintext, ptRt *PlaintextRingT) {
-	if ecd.tdividesQ {
-		ecd.params.RingQ().DivRoundByLastModulusManyLvl(pt.Level(), pt.Level(), pt.Value, ecd.tmpPoly, ptRt.Value)
+
+	if pt.Level() > 0 {
+		if ecd.tdividesQ {
+			ecd.params.RingQ().DivRoundByLastModulusManyLvl(pt.Level(), pt.Level(), pt.Value, ecd.tmpPoly, ptRt.Value)
+		} else {
+			ecd.scaler.DivByQOverTRoundedLvl(pt.Level(), pt.Value, ptRt.Value)
+		}
 	} else {
-		ecd.scaler.DivByQOverTRoundedLvl(pt.Level(), pt.Value, ptRt.Value)
+		ringQ := ecd.params.RingQ()
+		qOverT := float64(ringQ.Modulus[0]) / float64(ecd.params.T())
+		tmp0, tmp1 := ptRt.Value.Coeffs[0], pt.Value.Coeffs[0]
+		for i := 0; i < ringQ.N; i++ {
+			tmp0[i] = uint64(float64(tmp1[i])/qOverT + 0.5)
+		}
 	}
 }
 

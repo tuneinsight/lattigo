@@ -31,6 +31,7 @@ type Evaluator interface {
 	ReduceNew(op Operand) (ctOut *Ciphertext)
 	MulScalar(op Operand, scalar uint64, ctOut *Ciphertext)
 	MulScalarNew(op Operand, scalar uint64) (ctOut *Ciphertext)
+	QuantizeToLvl(level int, op0 *Ciphertext)
 	Mul(op0 *Ciphertext, op1 Operand, ctOut *Ciphertext)
 	MulNew(op0 *Ciphertext, op1 Operand) (ctOut *Ciphertext)
 	Relinearize(ct0 *Ciphertext, ctOut *Ciphertext)
@@ -259,6 +260,14 @@ func (eval *evaluator) MulScalarNew(op Operand, scalar uint64) (ctOut *Ciphertex
 	return
 }
 
+func (eval *evaluator) QuantizeToLvl(level int, op0 *Ciphertext) {
+	eval.ringQ.DivRoundByLastModulusManyLvl(op0.Level(), op0.Level()-level, op0.Value[0], eval.poolQ[0][0], op0.Value[0])
+	eval.ringQ.DivRoundByLastModulusManyLvl(op0.Level(), op0.Level()-level, op0.Value[1], eval.poolQ[0][0], op0.Value[1])
+
+	op0.Value[0].Coeffs = op0.Value[0].Coeffs[:level+1]
+	op0.Value[1].Coeffs = op0.Value[1].Coeffs[:level+1]
+}
+
 // tensorAndRescale computes (ct0 x ct1) * (t/Q) and stores the result in ctOut.
 func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *rlwe.Ciphertext) {
 
@@ -430,14 +439,14 @@ func (eval *evaluator) quantize(ctOut *rlwe.Ciphertext) {
 		eval.ringQMul.InvNTTLazy(c2Q2[i], c2Q2[i])
 
 		// Extends the basis Q of ct(x) to the basis P and Divides (ct(x)Q -> P) by Q
-		eval.basisExtenderQ1toQ2.ModDownQPtoP(levelQ, levelQMul, c2Q1[i], c2Q2[i], c2Q2[i])
+		eval.basisExtenderQ1toQ2.ModDownQPtoP(levelQ, levelQMul, c2Q1[i], c2Q2[i], c2Q2[i]) // QP / Q -> P
 
-		// Centers (ct(x)Q -> P)/Q by (P-1)/2 and extends ((ct(x)Q -> P)/Q) to the basis Q
+		// Centers ct(x)P by (P-1)/2 and extends ct(x)P to the basis Q
 		eval.ringQMul.AddScalarBigint(c2Q2[i], eval.pHalf, c2Q2[i])
 		eval.basisExtenderQ1toQ2.ModUpPtoQ(levelQMul, levelQ, c2Q2[i], ctOut.Value[i])
 		eval.ringQ.SubScalarBigint(ctOut.Value[i], eval.pHalf, ctOut.Value[i])
 
-		// Option (2) (ct(x)/Q)*T, doing so only requires that Q*P > Q*Q, faster but adds error ~|T|
+		// (ct(x)/Q)*T, doing so only requires that Q*P > Q*Q, faster but adds error ~|T|
 		eval.ringQ.MulScalar(ctOut.Value[i], eval.t, ctOut.Value[i])
 	}
 }

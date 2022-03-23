@@ -19,11 +19,11 @@ type RNSScaler struct {
 	polypoolQ    *Poly
 	polypoolT    *Poly
 
-	qHalf     *big.Int // (q-1)/2
-	qHalfModT uint64   // (q-1)/2 mod t
-	qInv      uint64   //(q mod t)^-1 mod t
+	qHalf     []*big.Int // (q-1)/2
+	qHalfModT []uint64   // (q-1)/2 mod t
+	qInv      []uint64   //(q mod t)^-1 mod t
 
-	paramsQP modupParams
+	paramsQP []modupParams
 }
 
 // NewRNSScaler creates a new SimpleScaler from t, the modulus under which the reconstruction is returned, the Ring in which the polynomial to reconstruct is represented.
@@ -39,19 +39,27 @@ func NewRNSScaler(ringQ, ringT *Ring) (rnss *RNSScaler) {
 
 	t := ringT.Modulus[0]
 
-	rnss.qHalf = new(big.Int)
-	rnss.qInv = rnss.qHalf.Mod(ringQ.ModulusBigint, NewUint(t)).Uint64()
-	rnss.qInv = ModExp(rnss.qInv, t-2, t)
-	rnss.qInv = MForm(rnss.qInv, t, BRedParams(t))
+	rnss.qHalf = make([]*big.Int, len(ringQ.Modulus))
+	rnss.qInv = make([]uint64, len(ringQ.Modulus))
+	rnss.qHalfModT = make([]uint64, len(ringQ.Modulus))
+	rnss.paramsQP = make([]modupParams, len(ringQ.Modulus))
 
-	rnss.qHalf.Set(ringQ.ModulusBigint)
-	rnss.qHalf.Rsh(rnss.qHalf, 1)
-	rnss.qHalfModT = rnss.qHalf.Mod(rnss.qHalf, NewUint(t)).Uint64()
+	bigQ := new(big.Int).SetUint64(1)
+	tmp := new(big.Int)
+	for i := range ringQ.Modulus {
+		rnss.paramsQP[i] = basisextenderparameters(ringQ.Modulus[:i+1], []uint64{t})
 
-	rnss.qHalf.Set(ringQ.ModulusBigint)
-	rnss.qHalf.Rsh(rnss.qHalf, 1)
+		bigQ.Mul(bigQ, NewUint(ringQ.Modulus[i]))
 
-	rnss.paramsQP = basisextenderparameters(ringQ.Modulus, []uint64{t})
+		rnss.qInv[i] = tmp.Mod(bigQ, NewUint(t)).Uint64()
+		rnss.qInv[i] = ModExp(rnss.qInv[i], t-2, t)
+		rnss.qInv[i] = MForm(rnss.qInv[i], t, BRedParams(t))
+
+		rnss.qHalf[i] = new(big.Int).Set(bigQ)
+		rnss.qHalf[i].Rsh(rnss.qHalf[i], 1)
+
+		rnss.qHalfModT[i] = tmp.Mod(rnss.qHalf[i], NewUint(t)).Uint64()
+	}
 
 	return
 }
@@ -66,8 +74,8 @@ func (rnss *RNSScaler) DivByQOverTRoundedLvl(level int, p1Q, p2T *Poly) {
 	p2tmp := p2T.Coeffs[0]
 	p3tmp := rnss.polypoolT.Coeffs[0]
 	mredParams := rnss.ringT.MredParams[0]
-	qInv := T - rnss.qInv
-	qHalfModT := T - rnss.qHalfModT
+	qInv := T - rnss.qInv[level]
+	qHalfModT := T - rnss.qHalfModT[level]
 
 	// Multiply P_{Q} by t and extend the basis from P_{Q} to t*(P_{Q}||P_{t})
 	// Since the coefficients of P_{t} are multiplied by t, they are all zero,
@@ -75,10 +83,10 @@ func (rnss *RNSScaler) DivByQOverTRoundedLvl(level int, p1Q, p2T *Poly) {
 	ringQ.MulScalarLvl(level, p1Q, T, rnss.polypoolQ)
 
 	// Center t*P_{Q} around (Q-1)/2 to round instead of floor during the division
-	ringQ.AddScalarBigintLvl(level, rnss.polypoolQ, rnss.qHalf, rnss.polypoolQ)
+	ringQ.AddScalarBigintLvl(level, rnss.polypoolQ, rnss.qHalf[level], rnss.polypoolQ)
 
 	// Extend the basis of (t*P_{Q} + (Q-1)/2) to (t*P_{t} + (Q-1)/2)
-	modUpExact(rnss.polypoolQ.Coeffs[:level+1], rnss.polypoolT.Coeffs, ringQ, ringT, rnss.paramsQP)
+	modUpExact(rnss.polypoolQ.Coeffs[:level+1], rnss.polypoolT.Coeffs, ringQ, ringT, rnss.paramsQP[level])
 
 	// Compute [Q^{-1} * (t*P_{t} -   (t*P_{Q} - ((Q-1)/2 mod t)))] mod t which returns round(t/Q * P_{Q}) mod t
 	for j := 0; j < ringQ.N; j = j + 8 {

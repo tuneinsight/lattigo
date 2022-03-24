@@ -136,7 +136,7 @@ func NewEvaluator(params Parameters, evaluationKey rlwe.EvaluationKey) Evaluator
 	ev.evaluatorBase = newEvaluatorPrecomp(params)
 	ev.evaluatorBuffers = newEvaluatorBuffer(ev.evaluatorBase)
 
-	if !utils.IsInSliceUint64(params.T(), params.Q()) {
+	if params.T() != params.Q()[0] {
 		ev.tInvModQ = make([]uint64, len(params.RingQ().Modulus))
 		for i, qi := range params.RingQ().Modulus {
 			ev.tInvModQ[i] = ring.MForm(ring.ModExp(params.T(), qi-2, qi), qi, params.RingQ().BredParams[i])

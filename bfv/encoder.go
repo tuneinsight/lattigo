@@ -104,7 +104,7 @@ func NewEncoder(params Parameters) Encoder {
 	var rescaleParams []uint64
 	var scaler ring.Scaler
 	var tdividesQ bool
-	if !utils.IsInSliceUint64(params.T(), params.Q()) {
+	if params.T() != params.Q()[0] {
 		rescaleParams = make([]uint64, len(ringQ.Modulus))
 		for i, qi := range ringQ.Modulus {
 			rescaleParams[i] = ring.MForm(ring.ModExp(params.T(), qi-2, qi), qi, ringQ.BredParams[i])

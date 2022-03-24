@@ -305,7 +305,6 @@ func testQuantize(tc *testContext, t *testing.T) {
 	})
 }
 
-
 func testEvaluator(tc *testContext, t *testing.T) {
 
 	t.Run(testString("Evaluator/Add/op1=Ciphertext/op2=Ciphertext", tc.params), func(t *testing.T) {

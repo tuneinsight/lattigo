@@ -53,14 +53,18 @@ func (eval *evaluator) Trace(ctIn *Ciphertext, logSlotsStart, logSlotsEnd int, c
 
 		for i := logSlotsStart; i < logSlotsEnd; i++ {
 <<<<<<< dev_bfv_poly
+<<<<<<< dev_bfv_poly
 			eval.permuteNTT(ctOut, eval.params.GaloisElementForColumnRotationBy(1<<i), eval.buffCt)
 			ctBuff := &Ciphertext{Ciphertext: eval.buffCt.Ciphertext, Scale: ctOut.Scale}
 			ctBuff.Value = ctBuff.Value[:2]
 			eval.Add(ctOut, ctBuff, ctOut)
 =======
 			eval.Automorphism(ctOut.Ciphertext, eval.params.GaloisElementForColumnRotationBy(1<<i), eval.ctxpool.Ciphertext)
+=======
+>>>>>>> [ckks] fixed Trace
 			ctPool := &Ciphertext{Ciphertext: eval.ctxpool.Ciphertext, Scale: ctOut.Scale}
 			ctPool.Value = ctPool.Value[:2]
+			eval.Automorphism(ctOut.Ciphertext, eval.params.GaloisElementForColumnRotationBy(1<<i), ctPool.Ciphertext)
 			eval.Add(ctOut, ctPool, ctOut)
 >>>>>>> [rlwe]: complete refactoring
 		}

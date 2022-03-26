@@ -13,7 +13,6 @@ test_examples:
 	go run ./examples/bfv > /dev/null
 	go run ./examples/ckks/euler > /dev/null
 	go run ./examples/ckks/polyeval > /dev/null
-	go run ./examples/rlwe/lwe_bridge > /dev/null
 	go run ./examples/dbfv/pir &> /dev/null
 	go run ./examples/dbfv/psi &> /dev/null
 	@echo ok

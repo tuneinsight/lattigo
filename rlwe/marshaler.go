@@ -132,6 +132,16 @@ func (pk *PublicKey) UnmarshalBinary(data []byte) (err error) {
 	return
 }
 
+// MarshalBinary encodes the target SwitchingKey on a slice of bytes.
+func (swk *SwitchingKey) MarshalBinary() (data []byte, err error) {
+	return swk.Ciphertext.MarshalBinary()
+}
+
+// UnmarshalBinary decodes a slice of bytes on the target SwitchingKey.
+func (swk *SwitchingKey) UnmarshalBinary(data []byte) (err error) {
+	return swk.Ciphertext.UnmarshalBinary(data)
+}
+
 // GetDataLen returns the length in bytes of the target EvaluationKey.
 func (rlk *RelinearizationKey) GetDataLen(WithMetadata bool) (dataLen int) {
 
@@ -139,11 +149,7 @@ func (rlk *RelinearizationKey) GetDataLen(WithMetadata bool) (dataLen int) {
 		dataLen++
 	}
 
-	for _, evakey := range rlk.Keys {
-		dataLen += (*SwitchingKey)(evakey).GetDataLen(WithMetadata)
-	}
-
-	return
+	return dataLen + len(rlk.Keys)*rlk.Keys[0].GetDataLen(WithMetadata)
 }
 
 // MarshalBinary encodes an EvaluationKey key in a byte slice.
@@ -161,7 +167,7 @@ func (rlk *RelinearizationKey) MarshalBinary() (data []byte, err error) {
 
 	for _, evakey := range rlk.Keys {
 
-		if pointer, err = (*SwitchingKey)(evakey).encode(pointer, data); err != nil {
+		if pointer, err = evakey.Encode(pointer, data); err != nil {
 			return nil, err
 		}
 	}
@@ -180,111 +186,13 @@ func (rlk *RelinearizationKey) UnmarshalBinary(data []byte) (err error) {
 	var inc int
 	for i := 0; i < deg; i++ {
 		rlk.Keys[i] = new(SwitchingKey)
-		if inc, err = rlk.Keys[i].decode(data[pointer:]); err != nil {
+		if inc, err = rlk.Keys[i].Decode(data[pointer:]); err != nil {
 			return err
 		}
 		pointer += inc
 	}
 
 	return nil
-}
-
-// GetDataLen returns the length in bytes of the target SwitchingKey.
-func (swk *SwitchingKey) GetDataLen(WithMetadata bool) (dataLen int) {
-
-	if WithMetadata {
-		dataLen += 2
-	}
-
-	for i := range swk.Value {
-		for _, el := range swk.Value[i] {
-			dataLen += el[0].GetDataLen(WithMetadata)
-			dataLen += el[1].GetDataLen(WithMetadata)
-		}
-	}
-
-	return
-}
-
-// MarshalBinary encodes an SwitchingKey in a byte slice.
-func (swk *SwitchingKey) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, swk.GetDataLen(true))
-	if _, err = swk.encode(0, data); err != nil {
-		return nil, err
-	}
-
-	return data, nil
-}
-
-// UnmarshalBinary decode a previously marshaled SwitchingKey in the target SwitchingKey.
-func (swk *SwitchingKey) UnmarshalBinary(data []byte) (err error) {
-	if _, err = swk.decode(data); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (swk *SwitchingKey) encode(pointer int, data []byte) (int, error) {
-
-	var err error
-	var inc int
-
-	data[pointer] = uint8(len(swk.Value))
-	pointer++
-	data[pointer] = uint8(len(swk.Value[0]))
-	pointer++
-
-	for i := range swk.Value {
-		for _, el := range swk.Value[i] {
-
-			if inc, err = el[0].WriteTo(data[pointer:]); err != nil {
-				return pointer, err
-			}
-			pointer += inc
-
-			if inc, err = el[1].WriteTo(data[pointer:]); err != nil {
-				return pointer, err
-			}
-			pointer += inc
-		}
-	}
-
-	return pointer, nil
-}
-
-func (swk *SwitchingKey) decode(data []byte) (pointer int, err error) {
-
-	decompRNS := int(data[0])
-	decompBIT := int(data[1])
-
-	pointer = 2
-
-	swk.Value = make([][][2]PolyQP, decompRNS)
-
-	var inc int
-
-	for i := range swk.Value {
-
-		swk.Value[i] = make([][2]PolyQP, decompBIT)
-
-		for _, el := range swk.Value[i] {
-
-			el[0].Q = new(ring.Poly)
-			if inc, err = el[0].DecodePolyNew(data[pointer:]); err != nil {
-				return
-			}
-			pointer += inc
-
-			el[1].P = new(ring.Poly)
-			if inc, err = el[1].DecodePolyNew(data[pointer:]); err != nil {
-				return
-			}
-			pointer += inc
-		}
-	}
-
-	return
 }
 
 // GetDataLen returns the length in bytes of the target RotationKeys.
@@ -310,7 +218,7 @@ func (rtks *RotationKeySet) MarshalBinary() (data []byte, err error) {
 		binary.BigEndian.PutUint32(data[pointer:pointer+4], uint32(galEL))
 		pointer += 4
 
-		if pointer, err = key.encode(pointer, data); err != nil {
+		if pointer, err = key.Encode(pointer, data); err != nil {
 			return nil, err
 		}
 	}
@@ -330,7 +238,7 @@ func (rtks *RotationKeySet) UnmarshalBinary(data []byte) (err error) {
 
 		swk := new(SwitchingKey)
 		var inc int
-		if inc, err = swk.decode(data); err != nil {
+		if inc, err = swk.Decode(data); err != nil {
 			return err
 		}
 		data = data[inc:]

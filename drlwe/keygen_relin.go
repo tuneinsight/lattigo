@@ -6,6 +6,7 @@ import (
 
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
@@ -25,8 +26,8 @@ type RKGProtocol struct {
 	gaussianSamplerQ *ring.GaussianSampler
 	ternarySamplerQ  *ring.TernarySampler // sampling in Montgomerry form
 
-	tmpPoly1 rlwe.PolyQP
-	tmpPoly2 rlwe.PolyQP
+	tmpPoly1 ringqp.Poly
+	tmpPoly2 ringqp.Poly
 }
 
 // ShallowCopy creates a shallow copy of RKGProtocol in which all the read-only data-structures are
@@ -52,11 +53,11 @@ func (ekg *RKGProtocol) ShallowCopy() *RKGProtocol {
 
 // RKGShare is a share in the RKG protocol.
 type RKGShare struct {
-	Value [][][2]rlwe.PolyQP
+	Value [][][2]ringqp.Poly
 }
 
 // RKGCRP is a type for common reference polynomials in the RKG protocol.
-type RKGCRP [][]rlwe.PolyQP
+type RKGCRP [][]ringqp.Poly
 
 // NewRKGProtocol creates a new RKG protocol struct.
 func NewRKGProtocol(params rlwe.Parameters) *RKGProtocol {
@@ -85,12 +86,12 @@ func (ekg *RKGProtocol) AllocateShare() (ephSk *rlwe.SecretKey, r1 *RKGShare, r2
 	decompRNS := params.DecompRNS(params.QCount()-1, params.PCount()-1)
 	decompBIT := params.DecompBIT(params.QCount()-1, params.PCount()-1)
 
-	r1.Value = make([][][2]rlwe.PolyQP, decompRNS)
-	r2.Value = make([][][2]rlwe.PolyQP, decompRNS)
+	r1.Value = make([][][2]ringqp.Poly, decompRNS)
+	r2.Value = make([][][2]ringqp.Poly, decompRNS)
 
 	for i := 0; i < decompRNS; i++ {
-		r1.Value[i] = make([][2]rlwe.PolyQP, decompBIT)
-		r2.Value[i] = make([][2]rlwe.PolyQP, decompBIT)
+		r1.Value[i] = make([][2]ringqp.Poly, decompBIT)
+		r2.Value[i] = make([][2]ringqp.Poly, decompBIT)
 		for j := 0; j < decompBIT; j++ {
 			r1.Value[i][j][0] = ekg.params.RingQP().NewPoly()
 			r1.Value[i][j][1] = ekg.params.RingQP().NewPoly()
@@ -108,10 +109,10 @@ func (ekg *RKGProtocol) SampleCRP(crs CRS) RKGCRP {
 	decompRNS := params.DecompRNS(params.QCount()-1, params.PCount()-1)
 	decompBIT := params.DecompBIT(params.QCount()-1, params.PCount()-1)
 
-	crp := make([][]rlwe.PolyQP, decompRNS)
-	us := rlwe.NewUniformSamplerQP(ekg.params, crs)
+	crp := make([][]ringqp.Poly, decompRNS)
+	us := ringqp.NewUniformSampler(params.RingQP(), crs)
 	for i := range crp {
-		crp[i] = make([]rlwe.PolyQP, decompBIT)
+		crp[i] = make([]ringqp.Poly, decompBIT)
 		for j := range crp[i] {
 			crp[i][j] = params.RingQP().NewPoly()
 			us.Read(&crp[i][j])
@@ -360,11 +361,11 @@ func (share *RKGShare) MarshalBinary() ([]byte, error) {
 
 // UnmarshalBinary decodes a slice of bytes on the target element.
 func (share *RKGShare) UnmarshalBinary(data []byte) (err error) {
-	share.Value = make([][][2]rlwe.PolyQP, data[0])
+	share.Value = make([][][2]ringqp.Poly, data[0])
 	ptr := 2
 	var inc int
 	for i := range share.Value {
-		share.Value[i] = make([][2]rlwe.PolyQP, data[1])
+		share.Value[i] = make([][2]ringqp.Poly, data[1])
 		for j := range share.Value[i] {
 
 			if inc, err = share.Value[i][j][0].DecodePolyNew(data[ptr:]); err != nil {

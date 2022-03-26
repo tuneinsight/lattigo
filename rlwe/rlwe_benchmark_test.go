@@ -24,18 +24,18 @@ func BenchmarkRLWE(b *testing.B) {
 		}
 
 		kgen := NewKeyGenerator(params)
-		keySwitcher := NewKeySwitcher(params)
+		eval := NewEvaluator(params, nil)
 
-		for _, testSet := range []func(kgen KeyGenerator, keySwitcher *KeySwitcher, b *testing.B){
+		for _, testSet := range []func(kgen KeyGenerator, eval *Evaluator, b *testing.B){
 			benchHoistedKeySwitch,
 		} {
-			testSet(kgen, keySwitcher, b)
+			testSet(kgen, eval, b)
 			runtime.GC()
 		}
 	}
 }
 
-func benchHoistedKeySwitch(kgen KeyGenerator, keySwitcher *KeySwitcher, b *testing.B) {
+func benchHoistedKeySwitch(kgen KeyGenerator, eval *Evaluator, b *testing.B) {
 
 	params := kgen.(*keyGenerator).params
 	skIn := kgen.GenSecretKey()
@@ -51,14 +51,22 @@ func benchHoistedKeySwitch(kgen KeyGenerator, keySwitcher *KeySwitcher, b *testi
 	b.Run(testString(params, "DecomposeNTT/"), func(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
+<<<<<<< dev_bfv_poly
 			keySwitcher.DecomposeNTT(ciphertext.Level(), params.PCount()-1, params.PCount(), ciphertext.Value[1], keySwitcher.BuffDecompQP)
+=======
+			eval.DecomposeNTT(ciphertext.Level(), params.PCount()-1, params.PCount(), ciphertext.Value[1], eval.PoolDecompQP)
+>>>>>>> [rlwe]: complete refactoring
 		}
 	})
 
 	b.Run(testString(params, "KeySwitchHoisted/"), func(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
+<<<<<<< dev_bfv_poly
 			keySwitcher.KeyswitchHoisted(ciphertext.Level(), keySwitcher.BuffDecompQP, swk, ciphertext.Value[0], ciphertext.Value[1], keySwitcher.BuffQP[1].P, keySwitcher.BuffQP[2].P)
+=======
+			eval.KeyswitchHoisted(ciphertext.Level(), eval.PoolDecompQP, swk, ciphertext.Value[0], ciphertext.Value[1], eval.Pool[1].P, eval.Pool[2].P)
+>>>>>>> [rlwe]: complete refactoring
 		}
 	})
 }

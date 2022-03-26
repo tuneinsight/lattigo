@@ -8,6 +8,7 @@ import (
 	"math/bits"
 
 	"github.com/tuneinsight/lattigo/v3/ring"
+	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
@@ -187,8 +188,8 @@ func (p Parameters) RingP() *ring.Ring {
 }
 
 // RingQP returns a pointer to ringQP
-func (p Parameters) RingQP() *RingQP {
-	return &RingQP{p.ringQ, p.ringP}
+func (p Parameters) RingQP() *ringqp.Ring {
+	return &ringqp.Ring{RingQ: p.ringQ, RingP: p.ringP}
 }
 
 // HammingWeight returns the number of non-zero coefficients in secret-keys.

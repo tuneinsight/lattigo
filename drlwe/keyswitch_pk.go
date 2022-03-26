@@ -3,6 +3,7 @@ package drlwe
 import (
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
@@ -24,7 +25,7 @@ type PCKSProtocol struct {
 	params        rlwe.Parameters
 	sigmaSmudging float64
 
-	tmpQP rlwe.PolyQP
+	tmpQP ringqp.Poly
 	tmpP  [2]*ring.Poly
 
 	basisExtender             *ring.BasisExtender
@@ -117,8 +118,8 @@ func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct1 *
 	ringQP.MFormLvl(levelQ, levelP, pcks.tmpQP, pcks.tmpQP)
 	ringQP.NTTLvl(levelQ, levelP, pcks.tmpQP, pcks.tmpQP)
 
-	shareOutQP0 := rlwe.PolyQP{Q: shareOut.Value[0], P: pcks.tmpP[0]}
-	shareOutQP1 := rlwe.PolyQP{Q: shareOut.Value[1], P: pcks.tmpP[1]}
+	shareOutQP0 := ringqp.Poly{Q: shareOut.Value[0], P: pcks.tmpP[0]}
+	shareOutQP1 := ringqp.Poly{Q: shareOut.Value[1], P: pcks.tmpP[1]}
 
 	// h_0 = u_i * pk_0
 	// h_1 = u_i * pk_1

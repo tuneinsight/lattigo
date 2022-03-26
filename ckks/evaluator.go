@@ -2,11 +2,11 @@ package ckks
 
 import (
 	"errors"
-	"fmt"
 	"math"
 
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
@@ -78,9 +78,13 @@ type Evaluator interface {
 	Rotate(ctIn *Ciphertext, k int, ctOut *Ciphertext)
 	RotateHoistedNew(ctIn *Ciphertext, rotations []int) (ctOut map[int]*Ciphertext)
 	RotateHoisted(ctIn *Ciphertext, rotations []int, ctOut map[int]*Ciphertext)
+<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
 	RotateHoistedNoModDownNew(level int, rotations []int, c0 *ring.Poly, c1DecompQP []rlwe.PolyQP) (cOut map[int][2]rlwe.PolyQP)
 	PermuteNTTHoisted(level int, c0, c1 *ring.Poly, c1DecompQP []rlwe.PolyQP, k int, cOut0, cOut1 *ring.Poly)
 	PermuteNTTHoistedNoModDown(level int, c0 *ring.Poly, c1DecompQP []rlwe.PolyQP, k int, ct0OutQ, ct1OutQ, ct0OutP, ct1OutP *ring.Poly)
+=======
+	RotateHoistedNoModDownNew(level int, rotations []int, c0 *ring.Poly, c2DecompQP []ringqp.Poly) (cOut map[int][2]ringqp.Poly)
+>>>>>>> [rlwe]: complete refactoring
 
 	// ===========================
 	// === Advanced Arithmetic ===
@@ -105,8 +109,13 @@ type Evaluator interface {
 	// Linear Transformations
 	LinearTransformNew(ctIn *Ciphertext, linearTransform interface{}) (ctOut []*Ciphertext)
 	LinearTransform(ctIn *Ciphertext, linearTransform interface{}, ctOut []*Ciphertext)
+<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
 	MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTransform, c1DecompQP []rlwe.PolyQP, ctOut *Ciphertext)
 	MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearTransform, c1DecompQP []rlwe.PolyQP, ctOut *Ciphertext)
+=======
+	MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTransform, c2DecompQP []ringqp.Poly, ctOut *Ciphertext)
+	MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearTransform, c2DecompQP []ringqp.Poly, ctOut *Ciphertext)
+>>>>>>> [rlwe]: complete refactoring
 
 	// Inner sum
 	InnerSumLog(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
@@ -150,9 +159,15 @@ type Evaluator interface {
 	// ==============
 	// === Others ===
 	// ==============
+<<<<<<< dev_bfv_poly
 	GetKeySwitcher() *rlwe.KeySwitcher
 	BuffQ() [3]*ring.Poly
 	BuffCt() *Ciphertext
+=======
+	GetRLWEEvaluator() *rlwe.Evaluator
+	PoolQMul() [3]*ring.Poly
+	CtxPool() *Ciphertext
+>>>>>>> [rlwe]: complete refactoring
 	ShallowCopy() Evaluator
 	WithKey(rlwe.EvaluationKey) Evaluator
 }
@@ -162,11 +177,7 @@ type Evaluator interface {
 type evaluator struct {
 	*evaluatorBase
 	*evaluatorBuffers
-	*rlwe.KeySwitcher
-
-	rlk             *rlwe.RelinearizationKey
-	rtks            *rlwe.RotationKeySet
-	permuteNTTIndex map[uint64][]uint64
+	*rlwe.Evaluator
 }
 
 type evaluatorBase struct {
@@ -210,34 +221,25 @@ func NewEvaluator(params Parameters, evaluationKey rlwe.EvaluationKey) Evaluator
 	eval := new(evaluator)
 	eval.evaluatorBase = newEvaluatorBase(params)
 	eval.evaluatorBuffers = newEvaluatorBuffers(eval.evaluatorBase)
-
-	eval.rlk = evaluationKey.Rlk
-	eval.rtks = evaluationKey.Rtks
-	if eval.rtks != nil {
-		eval.permuteNTTIndex = *eval.permuteNTTIndexesForKey(eval.rtks)
-	}
-
-	if params.PCount() != 0 {
-		eval.KeySwitcher = rlwe.NewKeySwitcher(params.Parameters)
-	}
+	eval.Evaluator = rlwe.NewEvaluator(params.Parameters, &evaluationKey)
 
 	return eval
 }
 
-func (eval *evaluator) permuteNTTIndexesForKey(rtks *rlwe.RotationKeySet) *map[uint64][]uint64 {
+// GetRLWEEvaluator returns the underlying *rlwe.Evaluator.
+func (eval *evaluator) GetRLWEEvaluator() *rlwe.Evaluator {
+	return eval.Evaluator
+}
+
+func (eval *evaluator) PermuteNTTIndexesForKey(rtks *rlwe.RotationKeySet) *map[uint64][]uint64 {
 	if rtks == nil {
 		return &map[uint64][]uint64{}
 	}
-	permuteNTTIndex := make(map[uint64][]uint64, len(rtks.Keys))
+	PermuteNTTIndex := make(map[uint64][]uint64, len(rtks.Keys))
 	for galEl := range rtks.Keys {
-		permuteNTTIndex[galEl] = eval.params.RingQ().PermuteNTTIndex(galEl)
+		PermuteNTTIndex[galEl] = eval.params.RingQ().PermuteNTTIndex(galEl)
 	}
-	return &permuteNTTIndex
-}
-
-// GetKeySwitcher returns a pointer to the internal rlwe.KeySwither.
-func (eval *evaluator) GetKeySwitcher() *rlwe.KeySwitcher {
-	return eval.KeySwitcher
+	return &PermuteNTTIndex
 }
 
 func (eval *evaluator) checkBinary(op0, op1, opOut Operand, opOutMinDegree int) {
@@ -1221,9 +1223,15 @@ func (eval *evaluator) mulRelin(op0, op1 Operand, relin bool, ctOut *Ciphertext)
 
 		if relin {
 			c2.IsNTT = true
+<<<<<<< dev_bfv_poly
 			eval.SwitchKeysInPlace(level, c2, eval.rlk.Keys[0], eval.BuffQP[1].Q, eval.BuffQP[2].Q)
 			ringQ.AddLvl(level, c0, eval.BuffQP[1].Q, ctOut.Value[0])
 			ringQ.AddLvl(level, c1, eval.BuffQP[2].Q, ctOut.Value[1])
+=======
+			eval.SwitchKeysInPlace(level, c2, eval.Rlk.Keys[0], eval.Pool[1].Q, eval.Pool[2].Q)
+			ringQ.AddLvl(level, c0, eval.Pool[1].Q, ctOut.Value[0])
+			ringQ.AddLvl(level, c1, eval.Pool[2].Q, ctOut.Value[1])
+>>>>>>> [rlwe]: complete refactoring
 		}
 
 		// Case Plaintext (x) Ciphertext or Ciphertext (x) Plaintext
@@ -1330,9 +1338,15 @@ func (eval *evaluator) mulRelinAndAdd(op0, op1 Operand, relin bool, ctOut *Ciphe
 		if relin {
 			c2.IsNTT = true
 			ringQ.MulCoeffsMontgomeryLvl(level, c01, tmp1.Value[1], c2) // c2 += c[1]*c[1]
+<<<<<<< dev_bfv_poly
 			eval.SwitchKeysInPlace(level, c2, eval.rlk.Keys[0], eval.BuffQP[1].Q, eval.BuffQP[2].Q)
 			ringQ.AddLvl(level, c0, eval.BuffQP[1].Q, c0)
 			ringQ.AddLvl(level, c1, eval.BuffQP[2].Q, c1)
+=======
+			eval.SwitchKeysInPlace(level, c2, eval.Rlk.Keys[0], eval.Pool[1].Q, eval.Pool[2].Q)
+			ringQ.AddLvl(level, c0, eval.Pool[1].Q, c0)
+			ringQ.AddLvl(level, c1, eval.Pool[2].Q, c1)
+>>>>>>> [rlwe]: complete refactoring
 		} else {
 			ringQ.MulCoeffsMontgomeryAndAddLvl(level, c01, tmp1.Value[1], c2) // c2 += c[1]*c[1]
 		}
@@ -1371,15 +1385,9 @@ func (eval *evaluator) RelinearizeNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 
 // Relinearize applies the relinearization procedure on ct0 and returns the result in ctOut. The input Ciphertext must be of degree two.
 func (eval *evaluator) Relinearize(ct0 *Ciphertext, ctOut *Ciphertext) {
-	if ct0.Degree() != 2 {
-		panic("cannot Relinearize: input Ciphertext is not of degree 2")
-	}
-
-	if ctOut.Level() > ct0.Level() {
-		eval.DropLevel(ctOut, ctOut.Level()-ct0.Level())
-	}
-
+	eval.Evaluator.Relinearize(ct0.Ciphertext, ctOut.Ciphertext)
 	ctOut.Scale = ct0.Scale
+<<<<<<< dev_bfv_poly
 
 	level := utils.MinInt(ct0.Level(), ctOut.Level())
 	ringQ := eval.params.RingQ()
@@ -1390,6 +1398,8 @@ func (eval *evaluator) Relinearize(ct0 *Ciphertext, ctOut *Ciphertext) {
 	ringQ.AddLvl(level, ct0.Value[1], eval.BuffQP[2].Q, ctOut.Value[1])
 
 	ctOut.El().Resize(eval.params.Parameters, 1)
+=======
+>>>>>>> [rlwe]: complete refactoring
 }
 
 // SwitchKeysNew re-encrypts ct0 under a different key and returns the result in a newly created element.
@@ -1401,9 +1411,10 @@ func (eval *evaluator) SwitchKeysNew(ct0 *Ciphertext, switchingKey *rlwe.Switchi
 	return
 }
 
-// SwitchKeys re-encrypts ct0 under a different key and returns the result in ctOut.
+// SwitchKeys re-encrypts ctIn under a different key and returns the result in ctOut.
 // It requires a SwitchingKey, which is computed from the key under which the Ciphertext is currently encrypted,
 // and the key under which the Ciphertext will be re-encrypted.
+<<<<<<< dev_bfv_poly
 func (eval *evaluator) SwitchKeys(ct0 *Ciphertext, switchingKey *rlwe.SwitchingKey, ctOut *Ciphertext) {
 
 	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
@@ -1419,6 +1430,11 @@ func (eval *evaluator) SwitchKeys(ct0 *Ciphertext, switchingKey *rlwe.SwitchingK
 
 	ringQ.AddLvl(level, ct0.Value[0], eval.BuffQP[1].Q, ctOut.Value[0])
 	ring.CopyValuesLvl(level, eval.BuffQP[2].Q, ctOut.Value[1])
+=======
+func (eval *evaluator) SwitchKeys(ctIn *Ciphertext, switchingKey *rlwe.SwitchingKey, ctOut *Ciphertext) {
+	eval.Evaluator.SwitchKeys(ctIn.Ciphertext, switchingKey, ctOut.Ciphertext)
+	ctOut.Scale = ctIn.Scale
+>>>>>>> [rlwe]: complete refactoring
 }
 
 // RotateNew rotates the columns of ct0 by k positions to the left, and returns the result in a newly created element.
@@ -1432,21 +1448,8 @@ func (eval *evaluator) RotateNew(ct0 *Ciphertext, k int) (ctOut *Ciphertext) {
 // Rotate rotates the columns of ct0 by k positions to the left and returns the result in ctOut.
 // If the provided element is a Ciphertext, a key-switching operation is necessary and a rotation key for the specific rotation needs to be provided.
 func (eval *evaluator) Rotate(ct0 *Ciphertext, k int, ctOut *Ciphertext) {
-
-	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
-		panic("cannot Rotate: input and output Ciphertext must be of degree 1")
-	}
-
-	if k == 0 {
-		ctOut.Copy(ct0)
-	} else {
-
-		ctOut.Scale = ct0.Scale
-
-		galEl := eval.params.GaloisElementForColumnRotationBy(k)
-
-		eval.permuteNTT(ct0, galEl, ctOut)
-	}
+	eval.Automorphism(ct0.Ciphertext, eval.params.GaloisElementForColumnRotationBy(k), ctOut.Ciphertext)
+	ctOut.Scale = ct0.Scale
 }
 
 // ConjugateNew conjugates ct0 (which is equivalent to a row rotation) and returns the result in a newly
@@ -1471,12 +1474,17 @@ func (eval *evaluator) Conjugate(ct0 *Ciphertext, ctOut *Ciphertext) {
 		panic("cannot Conjugate: method is not supported when params.RingType() == ring.ConjugateInvariant")
 	}
 
+<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
 	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
 		panic("cannot Conjugate: input and output Ciphertext must be of degree 1")
 	}
 
 	galEl := eval.params.GaloisElementForRowRotation()
+=======
+	eval.Automorphism(ct0.Ciphertext, eval.params.GaloisElementForRowRotation(), ctOut.Ciphertext)
+>>>>>>> [rlwe]: complete refactoring
 	ctOut.Scale = ct0.Scale
+<<<<<<< dev_bfv_poly
 	eval.permuteNTT(ct0, galEl, ctOut)
 }
 
@@ -1499,28 +1507,43 @@ func (eval *evaluator) permuteNTT(ct0 *Ciphertext, galEl uint64, ctOut *Cipherte
 
 	ringQ.PermuteNTTWithIndexLvl(level, buff2Q, index, ctOut.Value[0])
 	ringQ.PermuteNTTWithIndexLvl(level, buff3Q, index, ctOut.Value[1])
+=======
+>>>>>>> [rlwe]: complete refactoring
 }
 
+<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
 // RotateHoistedNoModDownNew takes a list of rotations `rotations`, a ciphertext (`c0`, RNSDecomp(c1) = `c1DecompQP`) and returns a map of [2]rlwe.PolyQP,
 // where the rotations are the index of the map, and the elements of the map are the rotated ciphertexts mod Q and mod P, with the message scaled by P.
 func (eval *evaluator) RotateHoistedNoModDownNew(level int, rotations []int, c0 *ring.Poly, c1DecompQP []rlwe.PolyQP) (cOut map[int][2]rlwe.PolyQP) {
+=======
+func (eval *evaluator) RotateHoistedNoModDownNew(level int, rotations []int, c0 *ring.Poly, c2DecompQP []ringqp.Poly) (cOut map[int][2]ringqp.Poly) {
+>>>>>>> [rlwe]: complete refactoring
 	ringQ := eval.params.RingQ()
 	ringP := eval.params.RingP()
-	cOut = make(map[int][2]rlwe.PolyQP)
+	cOut = make(map[int][2]ringqp.Poly)
 	for _, i := range rotations {
-
 		if i != 0 {
+<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
 			cOut[i] = [2]rlwe.PolyQP{{Q: ringQ.NewPolyLvl(level), P: ringP.NewPoly()}, {Q: ringQ.NewPolyLvl(level), P: ringP.NewPoly()}}
 			eval.PermuteNTTHoistedNoModDown(level, c0, c1DecompQP, i, cOut[i][0].Q, cOut[i][1].Q, cOut[i][0].P, cOut[i][1].P)
+=======
+			cOut[i] = [2]ringqp.Poly{{Q: ringQ.NewPolyLvl(level), P: ringP.NewPoly()}, {Q: ringQ.NewPolyLvl(level), P: ringP.NewPoly()}}
+			eval.AutomorphismHoistedNoModDown(level, c0, c2DecompQP, eval.params.GaloisElementForColumnRotationBy(i), cOut[i][0].Q, cOut[i][1].Q, cOut[i][0].P, cOut[i][1].P)
+>>>>>>> [rlwe]: complete refactoring
 		}
 	}
 
 	return
 }
 
+<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
 // PermuteNTTHoistedNoModDown takes a rotation `k`, a ciphertext (`c0`, RNSDecomp(c1) = `c1DecompQP`) and returns the polynomials of the rotated
 // ciphertext mod Q and mod P, with the message scaled by P.
 func (eval *evaluator) PermuteNTTHoistedNoModDown(level int, c0 *ring.Poly, c1DecompQP []rlwe.PolyQP, k int, ct0OutQ, ct1OutQ, ct0OutP, ct1OutP *ring.Poly) {
+=======
+<<<<<<< dev_bfv_poly
+func (eval *evaluator) PermuteNTTHoistedNoModDown(level int, c0 *ring.Poly, c2DecompQP []ringqp.Poly, k int, ct0OutQ, ct1OutQ, ct0OutP, ct1OutP *ring.Poly) {
+>>>>>>> [rlwe]: complete refactoring
 
 	buff2Q := eval.BuffQP[0].Q
 	buff3Q := eval.BuffQP[1].Q
@@ -1554,9 +1577,13 @@ func (eval *evaluator) PermuteNTTHoistedNoModDown(level int, c0 *ring.Poly, c1De
 	ringQ.PermuteNTTWithIndexLvl(levelP, buff2P, index, ct0OutP)
 }
 
+<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
 // PermuteNTTHoisted takes a rotation `k`, a ciphertext (`c0`, RNSDecomp(c1) = `c1DecompQP`) and returns
 // the polynomials of the rotated ciphertext mod Q Rotate(c0, c1) = (`cOut0`, `cOut1`).
 func (eval *evaluator) PermuteNTTHoisted(level int, c0, c1 *ring.Poly, c1DecompQP []rlwe.PolyQP, k int, cOut0, cOut1 *ring.Poly) {
+=======
+func (eval *evaluator) PermuteNTTHoisted(level int, c0, c1 *ring.Poly, c2DecompQP []ringqp.Poly, k int, cOut0, cOut1 *ring.Poly) {
+>>>>>>> [rlwe]: complete refactoring
 
 	if k == 0 {
 		cOut0.Copy(c0)
@@ -1585,35 +1612,25 @@ func (eval *evaluator) PermuteNTTHoisted(level int, c0, c1 *ring.Poly, c1DecompQ
 	ringQ.PermuteNTTWithIndexLvl(level, buff3Q, index, cOut1)
 }
 
+=======
+>>>>>>> wip
 // ShallowCopy creates a shallow copy of this evaluator in which all the read-only data-structures are
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // Evaluators can be used concurrently.
 func (eval *evaluator) ShallowCopy() Evaluator {
 	return &evaluator{
 		evaluatorBase:    eval.evaluatorBase,
-		KeySwitcher:      eval.KeySwitcher.ShallowCopy(),
+		Evaluator:        eval.Evaluator.ShallowCopy(),
 		evaluatorBuffers: newEvaluatorBuffers(eval.evaluatorBase),
-		rlk:              eval.rlk,
-		rtks:             eval.rtks,
-		permuteNTTIndex:  eval.permuteNTTIndex,
 	}
 }
 
 // WithKey creates a shallow copy of the receiver Evaluator for which the new EvaluationKey is evaluationKey
 // and where the temporary buffers are shared. The receiver and the returned Evaluators cannot be used concurrently.
 func (eval *evaluator) WithKey(evaluationKey rlwe.EvaluationKey) Evaluator {
-	var indexes map[uint64][]uint64
-	if evaluationKey.Rtks == eval.rtks {
-		indexes = eval.permuteNTTIndex
-	} else {
-		indexes = *eval.permuteNTTIndexesForKey(evaluationKey.Rtks)
-	}
 	return &evaluator{
-		KeySwitcher:      eval.KeySwitcher,
+		Evaluator:        eval.Evaluator.WithKey(&evaluationKey),
 		evaluatorBase:    eval.evaluatorBase,
 		evaluatorBuffers: eval.evaluatorBuffers,
-		rlk:              evaluationKey.Rlk,
-		rtks:             evaluationKey.Rtks,
-		permuteNTTIndex:  indexes,
 	}
 }

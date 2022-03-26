@@ -11,7 +11,7 @@ import (
 // DomainSwitcher is a type for switching between the standard CKKS domain (which encrypts vectors of complex numbers)
 // and the conjugate invariant variant of CKKS (which encrypts vectors of real numbers).
 type DomainSwitcher struct {
-	rlwe.KeySwitcher
+	*rlwe.Evaluator
 
 	stdRingQ, conjugateRingQ *ring.Ring
 
@@ -39,7 +39,7 @@ func NewDomainSwitcher(params Parameters, comlexToRealSwk *SwkComplexToReal, Rea
 	}
 
 	stdParams, err := params.StandardParameters()
-	s.KeySwitcher = *rlwe.NewKeySwitcher(stdParams.Parameters)
+	s.Evaluator = rlwe.NewEvaluator(stdParams.Parameters, nil)
 
 	s.permuteNTTIndex = s.stdRingQ.PermuteNTTIndex((uint64(s.stdRingQ.N) << 1) - 1)
 	return s, nil

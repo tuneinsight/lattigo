@@ -1,18 +1,23 @@
 package rlwe
 
+import (
+	"github.com/tuneinsight/lattigo/v3/rlwe/gadget"
+	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
+)
+
 // SecretKey is a type for generic RLWE secret keys.
 type SecretKey struct {
-	Value PolyQP
+	Value ringqp.Poly
 }
 
 // PublicKey is a type for generic RLWE public keys.
 type PublicKey struct {
-	Value [2]PolyQP
+	Value [2]ringqp.Poly
 }
 
 // SwitchingKey is a type for generic RLWE public switching keys.
 type SwitchingKey struct {
-	Value [][][2]PolyQP
+	gadget.Ciphertext
 }
 
 // RelinearizationKey is a type for generic RLWE public relinearization keys. It stores a slice with a
@@ -42,7 +47,7 @@ func NewSecretKey(params Parameters) *SecretKey {
 
 // NewPublicKey returns a new PublicKey with zero values.
 func NewPublicKey(params Parameters) (pk *PublicKey) {
-	return &PublicKey{Value: [2]PolyQP{params.RingQP().NewPoly(), params.RingQP().NewPoly()}}
+	return &PublicKey{Value: [2]ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()}}
 }
 
 // Equals checks two PublicKey struct for equality.
@@ -75,33 +80,22 @@ func (rtks *RotationKeySet) GetRotationKey(galoisEl uint64) (*SwitchingKey, bool
 
 // NewSwitchingKey returns a new public switching key with pre-allocated zero-value
 func NewSwitchingKey(params Parameters, levelQ, levelP int) *SwitchingKey {
-	decompRNS := params.DecompRNS(levelQ, levelP)
-	decompBIT := params.DecompBIT(levelQ, levelP)
-	swk := new(SwitchingKey)
-	swk.Value = make([][][2]PolyQP, decompRNS)
-	for i := 0; i < decompRNS; i++ {
-		swk.Value[i] = make([][2]PolyQP, decompBIT)
-		for j := 0; j < decompBIT; j++ {
-			swk.Value[i][j][0] = params.RingQP().NewPolyLvl(levelQ, levelP)
-			swk.Value[i][j][1] = params.RingQP().NewPolyLvl(levelQ, levelP)
-		}
-	}
-
-	return swk
+	return &SwitchingKey{Ciphertext: *gadget.NewCiphertextNTT(
+		levelQ,
+		levelP,
+		params.DecompRNS(levelQ, levelP),
+		params.DecompBIT(levelQ, levelP),
+		*params.RingQP())}
 }
 
-// LevelQ returns the level of the modulus Q of the switching-key.
-func (swk *SwitchingKey) LevelQ() int {
-	return swk.Value[0][0][0].Q.Level()
+// Equals checks two SwitchingKeys for equality.
+func (swk *SwitchingKey) Equals(other *SwitchingKey) bool {
+	return swk.Ciphertext.Equals(&other.Ciphertext)
 }
 
-// LevelP returns the level of the modulus P of the switching-key.
-func (swk *SwitchingKey) LevelP() int {
-	if swk.Value[0][0][0].P != nil {
-		return swk.Value[0][0][0].P.Level()
-	}
-
-	return -1
+// CopyNew creates a deep copy of the target SwitchingKey and returns it.
+func (swk *SwitchingKey) CopyNew() *SwitchingKey {
+	return &SwitchingKey{Ciphertext: *swk.Ciphertext.CopyNew()}
 }
 
 // NewRelinKey creates a new EvaluationKey with zero values.
@@ -128,7 +122,7 @@ func (pk *PublicKey) CopyNew() *PublicKey {
 	if pk == nil {
 		return nil
 	}
-	return &PublicKey{[2]PolyQP{pk.Value[0].CopyNew(), pk.Value[1].CopyNew()}}
+	return &PublicKey{[2]ringqp.Poly{pk.Value[0].CopyNew(), pk.Value[1].CopyNew()}}
 }
 
 // Equals checks two RelinearizationKeys for equality.
@@ -162,41 +156,6 @@ func (rlk *RelinearizationKey) CopyNew() *RelinearizationKey {
 	return rlkb
 }
 
-// Equals checks two SwitchingKeys for equality.
-func (swk *SwitchingKey) Equals(other *SwitchingKey) bool {
-	if swk == other {
-		return true
-	}
-	if (swk == nil) != (other == nil) {
-		return false
-	}
-	if len(swk.Value) != len(other.Value) {
-		return false
-	}
-	for i := range swk.Value {
-		for _, key := range swk.Value[i] {
-			if !((&PublicKey{Value: key}).Equals(&PublicKey{Value: key})) {
-				return false
-			}
-		}
-	}
-	return true
-}
-
-// CopyNew creates a deep copy of the receiver SwitchingKey and returns it.
-func (swk *SwitchingKey) CopyNew() *SwitchingKey {
-	if swk == nil || len(swk.Value) == 0 {
-		return nil
-	}
-	swkb := &SwitchingKey{Value: make([][][2]PolyQP, len(swk.Value))}
-	for i := range swk.Value {
-		for j, el := range swk.Value[i] {
-			swkb.Value[i][j] = [2]PolyQP{el[0].CopyNew(), el[1].CopyNew()}
-		}
-	}
-	return swkb
-}
-
 // Equals checks to RotationKeySets for equality.
 func (rtks *RotationKeySet) Equals(other *RotationKeySet) bool {
 	if rtks == other {
@@ -209,7 +168,7 @@ func (rtks *RotationKeySet) Equals(other *RotationKeySet) bool {
 		return false
 	}
 	for galEl, otherKey := range other.Keys {
-		if key, inSet := rtks.Keys[galEl]; !inSet || !otherKey.Equals(key) {
+		if key, inSet := rtks.Keys[galEl]; !inSet || !otherKey.Ciphertext.Equals(&key.Ciphertext) {
 			return false
 		}
 	}

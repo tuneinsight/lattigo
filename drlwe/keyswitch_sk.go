@@ -3,6 +3,7 @@ package drlwe
 import (
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
@@ -20,7 +21,7 @@ type CKSProtocol struct {
 	sigmaSmudging   float64
 	gaussianSampler *ring.GaussianSampler
 	basisExtender   *ring.BasisExtender
-	tmpQP           rlwe.PolyQP
+	tmpQP           ringqp.Poly
 	tmpDelta        *ring.Poly
 }
 

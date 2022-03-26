@@ -9,7 +9,7 @@ import (
 	"math/bits"
 
 	"github.com/tuneinsight/lattigo/v3/ring"
-	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
@@ -328,7 +328,7 @@ func (ecd *encoderComplex128) ShallowCopy() Encoder {
 // logslots: user must ensure that 1 <= len(values) <= 2^logSlots < 2^logN and that logSlots >= 3.
 // scale: the scaling factor used do discretize float64 to fixed point integers.
 // montgomery: if true then the value written on polyOut are put in the Montgomery domain.
-// polyOut: polyOut.(type) can be either rlwe.PolyQP or *ring.Poly.
+// polyOut: polyOut.(type) can be either ringqp.Poly or *ring.Poly.
 //          The encoding encoding is done at the level of polyOut.
 // Values written on  polyOut are always in the NTT domain.
 func (ecd *encoderComplex128) Embed(values interface{}, logSlots int, scale float64, montgomery bool, polyOut interface{}) {
@@ -397,7 +397,7 @@ func (ecd *encoderComplex128) Embed(values interface{}, logSlots int, scale floa
 	isRingStandard := ecd.params.RingType() == ring.Standard
 
 	switch p := polyOut.(type) {
-	case rlwe.PolyQP:
+	case ringqp.Poly:
 		complexToFixedPointCRT(p.Q.Level(), ecd.values[:slots], scale, ecd.params.RingQ(), p.Q.Coeffs, isRingStandard)
 		NttAndMontgomeryLvl(p.Q.Level(), logSlots, ecd.params.RingQ(), montgomery, p.Q)
 
@@ -409,7 +409,11 @@ func (ecd *encoderComplex128) Embed(values interface{}, logSlots int, scale floa
 		complexToFixedPointCRT(p.Level(), ecd.values[:slots], scale, ecd.params.RingQ(), p.Coeffs, isRingStandard)
 		NttAndMontgomeryLvl(p.Level(), logSlots, ecd.params.RingQ(), montgomery, p)
 	default:
+<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
 		panic("cannot Embed: invalid polyOut.(Type) must be rlwe.PolyQP or *ring.Poly")
+=======
+		panic("invalid polyOut.(Type) must be ringqp.Poly or *ring.Poly")
+>>>>>>> [rlwe]: complete refactoring
 	}
 }
 

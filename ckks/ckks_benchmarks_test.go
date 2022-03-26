@@ -208,8 +208,8 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 
 		galEL := tc.params.GaloisElementForColumnRotationBy(1)
 		for i := 0; i < b.N; i++ {
-			tc.params.RingQ().PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.Value[0], eval.(*evaluator).permuteNTTIndex[galEL], ciphertext1.Value[0])
-			tc.params.RingQ().PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.Value[1], eval.(*evaluator).permuteNTTIndex[galEL], ciphertext1.Value[1])
+			tc.params.RingQ().PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.Value[0], eval.(*evaluator).PermuteNTTIndex[galEL], ciphertext1.Value[0])
+			tc.params.RingQ().PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.Value[1], eval.(*evaluator).PermuteNTTIndex[galEL], ciphertext1.Value[1])
 		}
 	})
 

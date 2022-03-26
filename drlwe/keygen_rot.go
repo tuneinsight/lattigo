@@ -6,6 +6,7 @@ import (
 
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
@@ -19,17 +20,17 @@ type RotationKeyGenerator interface {
 
 // RTGShare is represent a Party's share in the RTG protocol.
 type RTGShare struct {
-	Value [][]rlwe.PolyQP
+	Value [][]ringqp.Poly
 }
 
 // RTGCRP is a type for common reference polynomials in the RTG protocol.
-type RTGCRP [][]rlwe.PolyQP
+type RTGCRP [][]ringqp.Poly
 
 // RTGProtocol is the structure storing the parameters for the collective rotation-keys generation.
 type RTGProtocol struct {
 	params           rlwe.Parameters
-	tmpPoly0         rlwe.PolyQP
-	tmpPoly1         rlwe.PolyQP
+	tmpPoly0         ringqp.Poly
+	tmpPoly1         ringqp.Poly
 	gaussianSamplerQ *ring.GaussianSampler
 }
 
@@ -75,10 +76,10 @@ func (rtg *RTGProtocol) AllocateShare() (rtgShare *RTGShare) {
 	decompRNS := rtg.params.DecompRNS(params.QCount()-1, params.PCount()-1)
 	decompBIT := rtg.params.DecompBIT(params.QCount()-1, params.PCount()-1)
 
-	rtgShare.Value = make([][]rlwe.PolyQP, decompRNS)
+	rtgShare.Value = make([][]ringqp.Poly, decompRNS)
 
 	for i := 0; i < decompRNS; i++ {
-		rtgShare.Value[i] = make([]rlwe.PolyQP, decompBIT)
+		rtgShare.Value[i] = make([]ringqp.Poly, decompBIT)
 		for j := 0; j < decompBIT; j++ {
 			rtgShare.Value[i][j] = rtg.params.RingQP().NewPoly()
 		}
@@ -94,10 +95,10 @@ func (rtg *RTGProtocol) SampleCRP(crs CRS) RTGCRP {
 	decompRNS := rtg.params.DecompRNS(params.QCount()-1, params.PCount()-1)
 	decompBIT := rtg.params.DecompBIT(params.QCount()-1, params.PCount()-1)
 
-	crp := make([][]rlwe.PolyQP, decompRNS)
-	us := rlwe.NewUniformSamplerQP(rtg.params, crs)
+	crp := make([][]ringqp.Poly, decompRNS)
+	us := ringqp.NewUniformSampler(params.RingQP(), crs)
 	for i := 0; i < decompRNS; i++ {
-		crp[i] = make([]rlwe.PolyQP, decompBIT)
+		crp[i] = make([]ringqp.Poly, decompBIT)
 		for j := 0; j < decompBIT; j++ {
 			crp[i][j] = rtg.params.RingQP().NewPoly()
 			us.Read(&crp[i][j])
@@ -252,11 +253,11 @@ func (share *RTGShare) MarshalBinary() (data []byte, err error) {
 
 // UnmarshalBinary decodes a slice of bytes on the target element.
 func (share *RTGShare) UnmarshalBinary(data []byte) (err error) {
-	share.Value = make([][]rlwe.PolyQP, data[0])
+	share.Value = make([][]ringqp.Poly, data[0])
 	ptr := 2
 	var inc int
 	for i := range share.Value {
-		share.Value[i] = make([]rlwe.PolyQP, data[1])
+		share.Value[i] = make([]ringqp.Poly, data[1])
 		for j := range share.Value[i] {
 			if inc, err = share.Value[i][j].DecodePolyNew(data[ptr:]); err != nil {
 				return err

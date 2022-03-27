@@ -11,7 +11,7 @@ test_examples:
 	@echo Running the examples
 	go run ./examples/ring/vOLE -short > /dev/null
 	go run ./examples/bfv > /dev/null
-	go run ./examples/ckks/bootstrapping -short > /dev/nul
+	go run ./examples/ckks/bootstrapping -short > /dev/null
 	go run ./examples/ckks/advanced/lut -short > /dev/null
 	go run ./examples/ckks/euler > /dev/null
 	go run ./examples/ckks/polyeval > /dev/null

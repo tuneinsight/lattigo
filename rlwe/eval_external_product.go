@@ -1,23 +1,11 @@
-package rgsw
+package rlwe
 
 import (
 	"github.com/tuneinsight/lattigo/v3/ring"
-	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v3/rlwe/rgsw"
 	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 	"math"
 )
-
-// Evaluator is a struct storing the necessary elements to perform
-// homomorphic operations with RGSW ciphertexts.
-type Evaluator struct {
-	params rlwe.Parameters
-	*rlwe.Evaluator
-}
-
-// NewEvaluator creates a new evaluator.
-func NewEvaluator(params rlwe.Parameters) *Evaluator {
-	return &Evaluator{params, rlwe.NewEvaluator(params, nil)}
-}
 
 // ExternalProduct computes RLWE x RGSW -> RLWE
 // RLWE : (-as + m + e, a)
@@ -25,7 +13,7 @@ func NewEvaluator(params rlwe.Parameters) *Evaluator {
 // RGSW : [(-as + P*w*m1 + e, a), (-bs + e, b + P*w*m1)]
 //  =
 // RLWE : (<RLWE, RGSW[0]>, <RLWE, RGSW[1]>)
-func (eval *Evaluator) ExternalProduct(op0 *rlwe.Ciphertext, op1 *Ciphertext, op2 *rlwe.Ciphertext) {
+func (eval *Evaluator) ExternalProduct(op0 *Ciphertext, op1 *rgsw.Ciphertext, op2 *Ciphertext) {
 
 	levelQ, levelP := op1.LevelQ(), op1.LevelP()
 
@@ -64,7 +52,7 @@ func (eval *Evaluator) ExternalProduct(op0 *rlwe.Ciphertext, op1 *Ciphertext, op
 	}
 }
 
-func (eval *Evaluator) externalProduct32Bit(ct0 *rlwe.Ciphertext, rgsw *Ciphertext, c0, c1 *ring.Poly) {
+func (eval *Evaluator) externalProduct32Bit(ct0 *Ciphertext, rgsw *rgsw.Ciphertext, c0, c1 *ring.Poly) {
 
 	// rgsw = [(-as + P*w*m1 + e, a), (-bs + e, b + P*w*m1)]
 	// ct = [-cs + m0 + e, c]
@@ -98,7 +86,7 @@ func (eval *Evaluator) externalProduct32Bit(ct0 *rlwe.Ciphertext, rgsw *Cipherte
 	}
 }
 
-func (eval *Evaluator) externalProductInPlaceSinglePAndBitDecomp(ct0 *rlwe.Ciphertext, rgsw *Ciphertext, c0QP, c1QP ringqp.Poly) {
+func (eval *Evaluator) externalProductInPlaceSinglePAndBitDecomp(ct0 *Ciphertext, rgsw *rgsw.Ciphertext, c0QP, c1QP ringqp.Poly) {
 
 	// rgsw = [(-as + P*w*m1 + e, a), (-bs + e, b + P*w*m1)]
 	// ct = [-cs + m0 + e, c]
@@ -159,7 +147,7 @@ func (eval *Evaluator) externalProductInPlaceSinglePAndBitDecomp(ct0 *rlwe.Ciphe
 	}
 }
 
-func (eval *Evaluator) externalProductInPlaceMultipleP(levelQ, levelP int, ct0 *rlwe.Ciphertext, rgsw *Ciphertext, c0OutQ, c0OutP, c1OutQ, c1OutP *ring.Poly) {
+func (eval *Evaluator) externalProductInPlaceMultipleP(levelQ, levelP int, ct0 *Ciphertext, rgsw *rgsw.Ciphertext, c0OutQ, c0OutP, c1OutQ, c1OutP *ring.Poly) {
 	var reduce int
 
 	ringQ := eval.params.RingQ()

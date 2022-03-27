@@ -11,14 +11,12 @@ test_examples:
 	@echo Running the examples
 	go run ./examples/ring/vOLE -short > /dev/null
 	go run ./examples/bfv > /dev/null
+	go run ./examples/ckks/bootstrapping -short > /dev/nul
+	go run ./examples/ckks/advanced/lut -short > /dev/null
 	go run ./examples/ckks/euler > /dev/null
 	go run ./examples/ckks/polyeval > /dev/null
 	go run ./examples/dbfv/pir &> /dev/null
 	go run ./examples/dbfv/psi &> /dev/null
-	@echo ok
-	@echo Building resources-heavy examples
-	go build -o /dev/null ./examples/ckks/bootstrapping
-	go build -o /dev/null ./examples/ckks/advanced/rlwe_lwe_bridge_LHHMQ20
 	@echo ok
 
 .PHONY: static_check
@@ -33,6 +31,21 @@ static_check: check_tools
 		echo $$FMTOUT;\
 		false;\
     fi
+.PHONY: test_gotest
+test_gotest:
+	go test -v -timeout=0 ./utils
+	go test -v -timeout=0 ./ring
+	go test -v -timeout=0 ./rlwe
+	go test -v -timeout=0 ./rlwe/ringqp
+	go test -v -timeout=0 ./rlwe/gadget
+	go test -v -timeout=0 ./rlwe/rgsw
+	go test -v -timeout=0 ./rlwe/lut
+	go test -v -timeout=0 ./bfv
+	go test -v -timeout=0 ./dbfv
+	go test -v -timeout=0 ./ckks
+	go test -v -timeout=0 ./ckks/advanced
+	go test -v -timeout=0 ./ckks/bootstrapping -test-bootstrapping -short
+	go test -v -timeout=0 ./dckks
 
 	@GOVETOUT=$$(go vet ./... 2>&1); \
 	if [ -z "$$GOVETOUT" ]; then\

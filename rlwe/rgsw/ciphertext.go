@@ -1,8 +1,8 @@
 package rgsw
 
 import (
-	"github.com/tuneinsight/lattigo/v3/rlwe"
 	"github.com/tuneinsight/lattigo/v3/rlwe/gadget"
+	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 )
 
 // Ciphertext is a generic type for RGSW ciphertext.
@@ -21,12 +21,11 @@ func (ct *Ciphertext) LevelP() int {
 }
 
 // NewCiphertextNTT allocates a new RGSW ciphertext in the NTT domain.
-func NewCiphertextNTT(params rlwe.Parameters, levelQ int) (ct *Ciphertext) {
-	levelP := params.PCount() - 1
+func NewCiphertextNTT(levelQ, levelP, decompRNS, decompBit int, ringQP *ringqp.Ring) (ct *Ciphertext) {
 	return &Ciphertext{
 		Value: [2]gadget.Ciphertext{
-			*gadget.NewCiphertextNTT(levelQ, levelP, params.DecompRNS(levelQ, levelP), params.DecompBIT(levelQ, levelP), *params.RingQP()),
-			*gadget.NewCiphertextNTT(levelQ, levelP, params.DecompRNS(levelQ, levelP), params.DecompBIT(levelQ, levelP), *params.RingQP()),
+			*gadget.NewCiphertextNTT(levelQ, levelP, decompRNS, decompBit, *ringQP),
+			*gadget.NewCiphertextNTT(levelQ, levelP, decompRNS, decompBit, *ringQP),
 		},
 	}
 }

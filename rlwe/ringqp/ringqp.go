@@ -257,6 +257,17 @@ func (r *Ring) MulCoeffsMontgomeryAndAddLvl(levelQ, levelP int, p1, p2, p3 Poly)
 	}
 }
 
+// ReduceLvl applies the modular reduction on the coefficients of p1 and returns the result on p2.
+// The operation is performed at levelQ for the ringQ and levelP for the ringP.
+func (r *Ring) ReduceLvl(levelQ, levelP int, p1, p2 Poly) {
+	if r.RingQ != nil {
+		r.RingQ.ReduceLvl(levelQ, p1.Q, p2.Q)
+	}
+	if r.RingP != nil {
+		r.RingP.ReduceLvl(levelP, p1.P, p2.P)
+	}
+}
+
 // PermuteNTTWithIndexLvl applies the automorphism X^{5^j} on p1 and writes the result on p2.
 // Index of automorphism must be provided.
 // Method is not in place.

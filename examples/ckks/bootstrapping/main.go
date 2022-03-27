@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"math"
 
@@ -13,6 +14,9 @@ import (
 func main() {
 
 	var err error
+
+	flagShort := flag.Bool("short", false, "runs the example with insecure parameters for fast testing")
+	flag.Parse()
 
 	var btp *bootstrapping.Bootstrapper
 	var kgen rlwe.KeyGenerator
@@ -29,13 +33,37 @@ func main() {
 	// github.com/tuneinsight/lattigo/v3/ckks/bootstrapping/default_params.go
 	//
 	// LogSlots is hardcoded to 15 in the parameters, but can be changed from 1 to 15.
+<<<<<<< btp_eprint
 	// When changing LogSlots make sure that the number of levels allocated to CtS and StC is
 	// smaller or equal to LogSlots.
+=======
+	// When changing logSlots make sure that the number of levels allocated to CtS and StC is
+	// smaller or equal to logSlots.
+<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
+	ckksParams := bootstrapping.DefaultCKKSParameters[0]
+	btpParams := bootstrapping.DefaultParameters[0]
+=======
+<<<<<<< btp_eprint
+>>>>>>> [rlwe]: further refactoring
 
 	paramSet := bootstrapping.DefaultParametersSparse[0] // bootstrapping.DefaultParametersDense[0]
 	ckksParams := paramSet.SchemeParams
 	btpParams := paramSet.BootstrappingParams
 
+<<<<<<< btp_eprint
+=======
+=======
+	ckksParams := bootstrapping.DefaultCKKSParameters[0]
+
+	if *flagShort {
+		ckksParams.LogN = 13
+		ckksParams.LogSlots = 12
+	}
+
+	btpParams := bootstrapping.DefaultParameters[0]
+>>>>>>> [rlwe]: further refactoring
+>>>>>>> [rlwe]: further refactoring
+>>>>>>> [rlwe]: further refactoring
 	params, err := ckks.NewParametersFromLiteral(ckksParams)
 	if err != nil {
 		panic(err)

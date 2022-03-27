@@ -44,7 +44,7 @@ func TestRLWE(t *testing.T) {
 		defaultParams = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
-	for _, defaultParam := range defaultParams[:1] {
+	for _, defaultParam := range defaultParams[:] {
 		params, err := NewParametersFromLiteral(defaultParam)
 		if err != nil {
 			panic(err)
@@ -651,7 +651,7 @@ func testManyRLWEToSingleRLWE(kgen KeyGenerator, t *testing.T) {
 
 		ciphertexts := make(map[int]*Ciphertext)
 		slotIndex := make(map[int]bool)
-		for i := 0; i < params.N()/2; i += 64 {
+		for i := 0; i < params.N(); i += params.N() / 16 {
 			ciphertexts[i] = NewCiphertextNTT(params, 1, params.MaxLevel())
 			encryptor.Encrypt(pt, ciphertexts[i])
 			slotIndex[i] = true

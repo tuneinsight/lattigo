@@ -6,34 +6,6 @@ import (
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
-// Relinearize applies the relinearization procedure on ct0 and returns the result in ctOut.
-// The method will panic if the corresponding relinearization key to the ciphertext degree
-// is missing.
-func (eval *Evaluator) Relinearize(ctIn *Ciphertext, ctOut *Ciphertext) {
-	if eval.Rlk == nil || ctIn.Degree()-1 > len(eval.Rlk.Keys) {
-		panic("cannot Relinearize: relinearization key missing (or ciphertext degree is too large)")
-	}
-
-	level := utils.MinInt(ctIn.Level(), ctOut.Level())
-
-	ringQ := eval.params.RingQ()
-
-	eval.SwitchKeysInPlace(level, ctIn.Value[2], eval.Rlk.Keys[0], eval.Pool[1].Q, eval.Pool[2].Q)
-	ringQ.AddLvl(level, ctIn.Value[0], eval.Pool[1].Q, ctOut.Value[0])
-	ringQ.AddLvl(level, ctIn.Value[1], eval.Pool[2].Q, ctOut.Value[1])
-
-	for deg := ctIn.Degree() - 1; deg > 1; deg-- {
-		eval.SwitchKeysInPlace(level, ctIn.Value[deg], eval.Rlk.Keys[deg-2], eval.Pool[1].Q, eval.Pool[2].Q)
-		ringQ.AddLvl(level, ctOut.Value[0], eval.Pool[1].Q, ctOut.Value[0])
-		ringQ.AddLvl(level, ctOut.Value[1], eval.Pool[2].Q, ctOut.Value[1])
-	}
-
-	ctOut.Value = ctOut.Value[:2]
-
-	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:level+1]
-	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:level+1]
-}
-
 // SwitchKeys re-encrypts ctIn under a different key and returns the result in ctOut.
 // It requires a SwitchingKey, which is computed from the key under which the Ciphertext is currently encrypted,
 // and the key under which the Ciphertext will be re-encrypted.
@@ -79,6 +51,34 @@ func (eval *Evaluator) SwitchKeysInPlace(levelQ int, cx *ring.Poly, evakey *Swit
 			eval.BasisExtender.ModDownQPtoQ(levelQ, levelP, p1, eval.Pool[2].P, p1)
 		}
 	}
+}
+
+// Relinearize applies the relinearization procedure on ct0 and returns the result in ctOut.
+// The method will panic if the corresponding relinearization key to the ciphertext degree
+// is missing.
+func (eval *Evaluator) Relinearize(ctIn *Ciphertext, ctOut *Ciphertext) {
+	if eval.Rlk == nil || ctIn.Degree()-1 > len(eval.Rlk.Keys) {
+		panic("cannot Relinearize: relinearization key missing (or ciphertext degree is too large)")
+	}
+
+	level := utils.MinInt(ctIn.Level(), ctOut.Level())
+
+	ringQ := eval.params.RingQ()
+
+	eval.SwitchKeysInPlace(level, ctIn.Value[2], eval.Rlk.Keys[0], eval.Pool[1].Q, eval.Pool[2].Q)
+	ringQ.AddLvl(level, ctIn.Value[0], eval.Pool[1].Q, ctOut.Value[0])
+	ringQ.AddLvl(level, ctIn.Value[1], eval.Pool[2].Q, ctOut.Value[1])
+
+	for deg := ctIn.Degree() - 1; deg > 1; deg-- {
+		eval.SwitchKeysInPlace(level, ctIn.Value[deg], eval.Rlk.Keys[deg-2], eval.Pool[1].Q, eval.Pool[2].Q)
+		ringQ.AddLvl(level, ctOut.Value[0], eval.Pool[1].Q, ctOut.Value[0])
+		ringQ.AddLvl(level, ctOut.Value[1], eval.Pool[2].Q, ctOut.Value[1])
+	}
+
+	ctOut.Value = ctOut.Value[:2]
+
+	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:level+1]
+	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:level+1]
 }
 
 // DecomposeNTT applies the full RNS basis decomposition for all q_alpha_i on c2.

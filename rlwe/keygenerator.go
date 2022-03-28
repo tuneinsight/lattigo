@@ -254,49 +254,64 @@ func (keygen *keyGenerator) GenSwitchingKeysForRingSwap(skStd, skConjugateInvari
 // must be mapped Y^{N/n} using SwitchCiphertextRingDegreeNTT(ctLargeDim, ringQLargeDim, ctSmallDim).
 func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *SwitchingKey) {
 
-	var levelP int
-	if skOutput.Value.P != nil {
-		levelP = skOutput.Value.P.Level()
-	} else {
-		levelP = -1
-	}
+	levelP := skOutput.LevelP()
 
+	// Allocates the switching-key.
 	swk = NewSwitchingKey(keygen.params, skOutput.Value.Q.Level(), levelP)
 
+<<<<<<< dev_bfv_poly:rlwe/keygen.go
 	if len(skInput.Value.Q.Coeffs[0]) > len(skOutput.Value.Q.Coeffs[0]) { // N -> n
 <<<<<<< dev_bfv_poly
 		ring.MapSmallDimensionToLargerDimensionNTT(skOutput.Value.Q, keygen.buffQP.Q)
 		ring.MapSmallDimensionToLargerDimensionNTT(skOutput.Value.P, keygen.buffQP.P)
 		keygen.genSwitchingKey(skInput.Value.Q, keygen.buffQP, swk)
 =======
+=======
+	// N -> n (swk is to switch to a smaller dimension).
+	if len(skInput.Value.Q.Coeffs[0]) > len(skOutput.Value.Q.Coeffs[0]) {
+>>>>>>> file name update & doc:rlwe/keygenerator.go
 
+		// Maps the smaller key to the largest with Y = X^{N/n}.
 		ring.MapSmallDimensionToLargerDimensionNTT(skOutput.Value.Q, keygen.poolQP.Q)
-
 		if levelP != -1 {
 			ring.MapSmallDimensionToLargerDimensionNTT(skOutput.Value.P, keygen.poolQP.P)
 		}
 
 		keygen.genSwitchingKey(skInput.Value.Q, keygen.poolQP, swk)
+<<<<<<< dev_bfv_poly:rlwe/keygen.go
 >>>>>>> wip
 	} else { // N -> N or n -> N
 <<<<<<< dev_bfv_poly
 		ring.MapSmallDimensionToLargerDimensionNTT(skInput.Value.Q, keygen.buffQ)
 =======
+=======
+
+	} else { // N -> N or n -> N (swk switch to the same or a larger dimension)
+
+		// Maps the smaller key to the largest dimension with Y = X^{N/n}.
+>>>>>>> file name update & doc:rlwe/keygenerator.go
 		ring.MapSmallDimensionToLargerDimensionNTT(skInput.Value.Q, keygen.poolQ[0])
 >>>>>>> [rlwe]: simplified KeyGenerator, which is now based on Encryptor.
 
+		// Extends the modulus of the input key to the one of the output key
+		// if the former is smaller.
 		if skInput.Value.Q.Level() < skOutput.Value.Q.Level() {
 
 			ringQ := keygen.params.RingQ()
 
+<<<<<<< dev_bfv_poly:rlwe/keygen.go
 <<<<<<< dev_bfv_poly
 			ringQ.InvNTTLvl(0, keygen.buffQ, keygen.buffQP.Q)
 			ringQ.InvMFormLvl(0, keygen.buffQP.Q, keygen.buffQP.Q)
 =======
+=======
+			// Switches out of the NTT and Montgomery domain.
+>>>>>>> file name update & doc:rlwe/keygenerator.go
 			ringQ.InvNTTLvl(0, keygen.poolQ[0], keygen.poolQP.Q)
 			ringQ.InvMFormLvl(0, keygen.poolQP.Q, keygen.poolQP.Q)
 >>>>>>> [rlwe]: simplified KeyGenerator, which is now based on Encryptor.
 
+			// Extends the RNS basis of the small norm polynomial.
 			Q := ringQ.Modulus[0]
 			QHalf := Q >> 1
 
@@ -323,6 +338,7 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *
 				}
 			}
 
+			// Switches back to the NTT and Montgomery domain.
 			for i := skInput.Value.Q.Level() + 1; i < skOutput.Value.Q.Level()+1; i++ {
 				ringQ.NTTSingle(i, polP.Coeffs[i], polP.Coeffs[i])
 				ring.MFormVec(polP.Coeffs[i], polP.Coeffs[i], ringQ.Modulus[i], ringQ.BredParams[i])
@@ -396,6 +412,7 @@ func (keygen *keyGenerator) genSwitchingKey(skIn *ring.Poly, skOut ringqp.Poly, 
 >>>>>>> [rlwe]: complete refactoring
 >>>>>>> [rlwe]: complete refactoring
 
+<<<<<<< dev_bfv_poly:rlwe/keygen.go
 <<<<<<< dev_bfv_poly
 	RNSDecomp := len(swk.Value)
 	BITDecomp := len(swk.Value[0])
@@ -426,6 +443,9 @@ func (keygen *keyGenerator) genSwitchingKey(skIn *ring.Poly, skOut ringqp.Poly, 
 			// (- a * skOut + e, a)
 			ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, swk.Value[i][j][1], skOut, swk.Value[i][j][0])
 =======
+=======
+	// Samples an encryption of zero for each element of the switching-key.
+>>>>>>> file name update & doc:rlwe/keygenerator.go
 	for i := 0; i < len(swk.Value); i++ {
 		for j := 0; j < len(swk.Value[0]); j++ {
 			keygen.encryptZeroSymetricQPNTT(levelQ, levelP, skOut, true, true, swk.Value[i][j])
@@ -433,5 +453,6 @@ func (keygen *keyGenerator) genSwitchingKey(skIn *ring.Poly, skOut ringqp.Poly, 
 		}
 	}
 
+	// Adds the plaintext (input-key) to the switching-key.
 	gadget.AddPolyToGadgetMatrix(skIn, []gadget.Ciphertext{swk.Ciphertext}, *keygen.params.RingQP(), keygen.params.LogBase2(), keygen.poolQ[0])
 }

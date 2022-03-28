@@ -31,6 +31,34 @@ All notable changes to this project will be documented in this file.
 - Fixed sparse ternary sampler to properly sample on non-zero poly.
 
 ## [3.0.1] - 2022-02-21
+=======
+# [3.1.0] - UNREALEASED
+
+- RING: fixed prime generation to not skip the first candidate.
+- RLWE: refactored the package to enable better modularity and implementation of advanced features.
+    - `rlwe/gadget`: a package that provides the type `gadget.Ciphertext`, a type of ciphertext on which are based all encryptions with RNS and bit decomposition, such as `rlwe.SwitchingKey` or `rgsw.Ciphertext`.
+    - `rlwe/lut`: a package that provides tools for the evaluation of Look-Up-Tables (LUT) on `rlwe.Ciphertext`.
+    - `rlwe/rgsw`: a package that provides the type `rgsw.Ciphertext`, a type of ciphertext used in the external product `RLWE x RGSW -> RLWE`.
+    - `rlwe/ringp`: a package that provides the type `ringqp.Ring` and `ringqp.Poly`, replaces the types `rlwe.RingQP` and `rlwe.PolyQP`.
+- RLWE: added the type `rlwe.Evaluator`, which provides methods for automorphisms, key-switching, relinearization and external-product.
+- RLWE: re-enabled bit-decomposition, on top of RNS decomposition, for the inner-product between `rlwe.Ciphertext` and `gadget.Ciphertext`.
+- RLWE: updated `rlwe.Encryptor` to accept as input both `rlwe.Ciphertext` and `rgsw.Ciphertext`.
+- BFV/CKKS: key-switching functionalities (such as rotations, relinearization and key-switching) are now all based on the `rlwe.Evaluator`.
+- BFV/CKKS: the parameters now are based on the sub-type `rlwe.Parameters`.
+- BFV: fixed a panic that was happening during the benchmark testing.
+- CKKS: fixed `MulAndAdd` correctness for non-identical inputs.
+- CKKS: fixed a panic that was happening during the benchmark testing.
+- DCKKS: fixed `Refresh` correctness when the output scale was different from the input scale.
+- Added `examples/ckks/advanced/lut`, which is an example that does homomorphic decoding -> LUT -> homomorphic encoding on a `ckks.Ciphertext`.
+- Removed `examples/ckks/advanced/rlwe_lwe_bridge_LHHMQ20`, which is replaced `examples/ckks/advanced/lut`.
+- Removed `examples/rlwe/lwe_bridge` since the code of this example is now part of the `rlwe/lut` package and showcased in `examples/ckks/advanced/lut`.
+
+# [3.0.2] - 2022-02-21
+
+- RING: fixed sparse ternary sampler to properly sample on non-zero poly.
+
+# [3.0.1] - 2022-02-21
+>>>>>>> updated CHANGELOG.md [ci skip]
 
 - RLWE/CKKS/BFV: added the `H` field and `HammingWeight` method in parameters-related structs, to specify distribution of all secrets in the schemes.
 - RLWE/DRLWE: all secrets in the ternary distribution are now sampled with a fixed hamming weight, according to the parameters.

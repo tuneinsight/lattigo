@@ -2,7 +2,17 @@
 # Changelog
 All notable changes to this project will be documented in this file. 
 
-# [3.0.1] - 2022-02-21
+# [3.0.3] - UNREALEASED
+
+- BFV: the plaintext modulus `T` can now be a factor of `Q`. If so, it is always assumed to be the first moduli.
+- BFV: partially introduced the concept of `level`, a ciphertext can be rescaled with `QuantizeToLvl` to erase its lowest bits, which can be used to enforce circuit privacy. Rescaled ciphertexts can still be operated on, but operations must be done between ciphertexts of the same level to ensure correctness.
+- BFV: added polynomial evaluation as well as some new methods to support and implement this feature. API is identical to the one already present in the `ckks` package.
+
+## [3.0.2] - 2022-02-21
+
+- Fixed sparse ternary sampler to properly sample on non-zero poly.
+
+## [3.0.1] - 2022-02-21
 
 - RLWE/CKKS/BFV: added the `H` field and `HammingWeight` method in parameters-related structs, to specify distribution of all secrets in the schemes.
 - RLWE/DRLWE: all secrets in the ternary distribution are now sampled with a fixed hamming weight, according to the parameters.

@@ -207,7 +207,7 @@ func main() {
 
 	fmt.Printf("Encrypting bits of skLWE in RGSW... ")
 	now = time.Now()
-	LUTKEY := evalLUT.GenLUTKey(skN12, skN11) // Generate RGSW(sk_i) for all coefficients of sk
+	LUTKEY := lut.GenKey(paramsN12.Parameters, skN12, paramsN11.Parameters, skN11) // Generate RGSW(sk_i) for all coefficients of sk
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
 	// Generates the starting plaintext values.

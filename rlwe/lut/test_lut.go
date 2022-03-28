@@ -104,7 +104,7 @@ func testLUT(t *testing.T) {
 		eval := NewEvaluator(paramsLUT, paramsLWE, nil)
 
 		skLUT := rlwe.NewKeyGenerator(paramsLUT).GenSecretKey()
-		LUTKEY := eval.GenLUTKey(skLUT, skLWE)
+		LUTKEY := GenKey(paramsLUT, skLUT, paramsLWE, skLWE)
 
 		ctsLUT := eval.Evaluate(ctLWE, lutPolyMap, LUTKEY)
 

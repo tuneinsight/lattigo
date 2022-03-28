@@ -79,7 +79,7 @@ func (ckg *CKGProtocol) AllocateShare() *CKGShare {
 // common reference string.
 func (ckg *CKGProtocol) SampleCRP(crs CRS) CKGCRP {
 	crp := ckg.params.RingQP().NewPoly()
-	ringqp.NewUniformSampler(ckg.params.RingQP(), crs).Read(&crp)
+	ringqp.NewUniformSampler(crs, *ckg.params.RingQP()).Read(crp)
 	return CKGCRP(crp)
 }
 

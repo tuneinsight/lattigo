@@ -419,7 +419,7 @@ type UniformSampler struct {
 }
 
 // NewUniformSampler instantiates a new UniformSampler from a given PRNG.
-func NewUniformSampler(r *Ring, prng utils.PRNG) (s UniformSampler) {
+func NewUniformSampler(prng utils.PRNG, r Ring) (s UniformSampler) {
 	if r.RingQ != nil {
 		s.samplerQ = ring.NewUniformSampler(prng, r.RingQ)
 	}
@@ -432,12 +432,23 @@ func NewUniformSampler(r *Ring, prng utils.PRNG) (s UniformSampler) {
 }
 
 // Read samples a new polynomial in Ring and stores it into p.
-func (s UniformSampler) Read(p *Poly) {
+func (s UniformSampler) Read(p Poly) {
 	if p.Q != nil && s.samplerQ != nil {
 		s.samplerQ.Read(p.Q)
 	}
 
 	if p.P != nil && s.samplerP != nil {
 		s.samplerP.Read(p.P)
+	}
+}
+
+// ReadLvl samples a new polynomial in Ring and stores it into p.
+func (s UniformSampler) ReadLvl(levelQ, levelP int, p Poly) {
+	if p.Q != nil && s.samplerQ != nil {
+		s.samplerQ.ReadLvl(levelQ, p.Q)
+	}
+
+	if p.P != nil && s.samplerP != nil {
+		s.samplerP.ReadLvl(levelP, p.P)
 	}
 }

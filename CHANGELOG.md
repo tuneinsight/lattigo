@@ -42,7 +42,9 @@ All notable changes to this project will be documented in this file.
     - `rlwe/ringp`: a package that provides the type `ringqp.Ring` and `ringqp.Poly`, replaces the types `rlwe.RingQP` and `rlwe.PolyQP`.
 - RLWE: added the type `rlwe.Evaluator`, which provides methods for automorphisms, key-switching, relinearization and external-product.
 - RLWE: re-enabled bit-decomposition, on top of RNS decomposition, for the inner-product between `rlwe.Ciphertext` and `gadget.Ciphertext`.
+- RLWE: `rlwe.Parameters` can be instantiated without the modulus `P`.
 - RLWE: updated `rlwe.Encryptor` to accept as input both `rlwe.Ciphertext` and `rgsw.Ciphertext`.
+- RLWE: `rlwe.KeyGenerator` now uses an `rlwe.Encryptor` to generate keys encryption keys and evaluation keys.
 - BFV/CKKS: key-switching functionalities (such as rotations, relinearization and key-switching) are now all based on the `rlwe.Evaluator`.
 - BFV/CKKS: the parameters now are based on the sub-type `rlwe.Parameters`.
 - BFV: fixed a panic that was happening during the benchmark testing.

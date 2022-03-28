@@ -9,7 +9,6 @@ import (
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe/gadget"
 	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
-	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
 // KeyGenerator is an interface implementing the methods of the KeyGenerator.
@@ -34,6 +33,7 @@ type KeyGenerator interface {
 // KeyGenerator is a structure that stores the elements required to create new keys,
 // as well as a memory buffer for intermediate values.
 type keyGenerator struct {
+<<<<<<< dev_bfv_poly
 	params           Parameters
 <<<<<<< dev_bfv_poly
 	buffQ            *ring.Poly
@@ -46,11 +46,15 @@ type keyGenerator struct {
 	gaussianSamplerQ *ring.GaussianSampler
 	uniformSamplerQ  *ring.UniformSampler
 	uniformSamplerP  *ring.UniformSampler
+=======
+	encryptor
+>>>>>>> [rlwe]: simplified KeyGenerator, which is now based on Encryptor.
 }
 
 // NewKeyGenerator creates a new KeyGenerator, from which the secret and public keys, as well as the evaluation,
 // rotation and switching keys can be generated.
 func NewKeyGenerator(params Parameters) KeyGenerator {
+<<<<<<< dev_bfv_poly
 
 	prng, err := utils.NewPRNG()
 	if err != nil {
@@ -78,6 +82,10 @@ func NewKeyGenerator(params Parameters) KeyGenerator {
 		gaussianSamplerQ: ring.NewGaussianSampler(prng, params.RingQ(), params.Sigma(), int(6*params.Sigma())),
 		uniformSamplerQ:  ring.NewUniformSampler(prng, params.RingQ()),
 		uniformSamplerP:  uniformSamplerP,
+=======
+	return &keyGenerator{
+		encryptor: newEncryptor(params),
+>>>>>>> [rlwe]: simplified KeyGenerator, which is now based on Encryptor.
 	}
 }
 
@@ -88,88 +96,42 @@ func (keygen *keyGenerator) GenSecretKey() (sk *SecretKey) {
 
 // GenSecretKey generates a new SecretKey with the error distribution.
 func (keygen *keyGenerator) GenSecretKeyGaussian() (sk *SecretKey) {
-	return keygen.genSecretKeyFromSampler(keygen.gaussianSamplerQ)
+	return keygen.genSecretKeyFromSampler(keygen.gaussianSampler)
 }
 
 // GenSecretKeyWithDistrib generates a new SecretKey with the distribution [(p-1)/2, p, (p-1)/2].
 func (keygen *keyGenerator) GenSecretKeyWithDistrib(p float64) (sk *SecretKey) {
-	prng, err := utils.NewPRNG()
-	if err != nil {
-		panic(err)
-	}
-	ternarySamplerMontgomery := ring.NewTernarySampler(prng, keygen.params.RingQ(), p, false)
-	return keygen.genSecretKeyFromSampler(ternarySamplerMontgomery)
+	return keygen.genSecretKeyFromSampler(ring.NewTernarySampler(keygen.prng, keygen.params.RingQ(), p, false))
 }
 
 // GenSecretKeyWithHammingWeight generates a new SecretKey with exactly hw non-zero coefficients.
 func (keygen *keyGenerator) GenSecretKeyWithHammingWeight(hw int) (sk *SecretKey) {
-	prng, err := utils.NewPRNG()
-	if err != nil {
-		panic(err)
-	}
-	ternarySamplerMontgomery := ring.NewTernarySamplerWithHammingWeight(prng, keygen.params.RingQ(), hw, false)
-	return keygen.genSecretKeyFromSampler(ternarySamplerMontgomery)
+	return keygen.genSecretKeyFromSampler(ring.NewTernarySamplerWithHammingWeight(keygen.prng, keygen.params.RingQ(), hw, false))
 }
 
 // genSecretKeyFromSampler generates a new SecretKey sampled from the provided Sampler.
 func (keygen *keyGenerator) genSecretKeyFromSampler(sampler ring.Sampler) (sk *SecretKey) {
 	sk = new(SecretKey)
-	if keygen.params.PCount() > 0 {
-		ringQP := keygen.params.RingQP()
-		sk.Value = ringQP.NewPoly()
-		levelQ, levelP := keygen.params.QCount()-1, keygen.params.PCount()-1
-		sampler.Read(sk.Value.Q)
+	ringQP := keygen.params.RingQP()
+	sk.Value = ringQP.NewPoly()
+	levelQ, levelP := sk.LevelQ(), sk.LevelP()
+	sampler.Read(sk.Value.Q)
+
+	if levelP > -1 {
 		ringQP.ExtendBasisSmallNormAndCenter(sk.Value.Q, levelP, nil, sk.Value.P)
-		ringQP.NTTLvl(levelQ, levelP, sk.Value, sk.Value)
-		ringQP.MFormLvl(levelQ, levelP, sk.Value, sk.Value)
-	} else {
-		ringQ := keygen.params.RingQ()
-		sk = new(SecretKey)
-		sk.Value.Q = ringQ.NewPoly()
-		sampler.Read(sk.Value.Q)
-		ringQ.NTT(sk.Value.Q, sk.Value.Q)
-		ringQ.MForm(sk.Value.Q, sk.Value.Q)
 	}
+
+	ringQP.NTTLvl(levelQ, levelP, sk.Value, sk.Value)
+	ringQP.MFormLvl(levelQ, levelP, sk.Value, sk.Value)
 
 	return
 }
 
 // GenPublicKey generates a new public key from the provided SecretKey.
 func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
-
-	pk = new(PublicKey)
-
-	if keygen.params.PCount() > 0 {
-
-		ringQP := keygen.params.RingQP()
-		levelQ, levelP := keygen.params.QCount()-1, keygen.params.PCount()-1
-
-		//pk[0] = [-as + e]
-		//pk[1] = [a]
-		pk = NewPublicKey(keygen.params)
-		keygen.gaussianSamplerQ.Read(pk.Value[0].Q)
-		ringQP.ExtendBasisSmallNormAndCenter(pk.Value[0].Q, levelP, nil, pk.Value[0].P)
-		ringQP.NTTLvl(levelQ, levelP, pk.Value[0], pk.Value[0])
-
-		keygen.uniformSamplerQ.Read(pk.Value[1].Q)
-		keygen.uniformSamplerP.Read(pk.Value[1].P)
-
-		ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, sk.Value, pk.Value[1], pk.Value[0])
-	} else {
-		ringQ := keygen.params.RingQ()
-
-		//pk[0] = [-as + e]
-		//pk[1] = [a]
-		pk = NewPublicKey(keygen.params)
-		keygen.gaussianSamplerQ.Read(pk.Value[0].Q)
-
-		ringQ.NTT(pk.Value[0].Q, pk.Value[0].Q)
-
-		keygen.uniformSamplerQ.Read(pk.Value[1].Q)
-
-		ringQ.MulCoeffsMontgomeryAndSub(sk.Value.Q, pk.Value[1].Q, pk.Value[0].Q)
-	}
-	return pk
+	pk = NewPublicKey(keygen.params)
+	keygen.encryptZeroSymetricQPNTT(pk.LevelQ(), pk.LevelP(), sk.Value, true, false, pk.Value)
+	return
 }
 
 // GenKeyPair generates a new SecretKey with distribution [1/3, 1/3, 1/3] and a corresponding public key.
@@ -317,20 +279,34 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *
 		keygen.genSwitchingKey(skInput.Value.Q, keygen.poolQP, swk)
 >>>>>>> wip
 	} else { // N -> N or n -> N
+<<<<<<< dev_bfv_poly
 		ring.MapSmallDimensionToLargerDimensionNTT(skInput.Value.Q, keygen.buffQ)
+=======
+		ring.MapSmallDimensionToLargerDimensionNTT(skInput.Value.Q, keygen.poolQ[0])
+>>>>>>> [rlwe]: simplified KeyGenerator, which is now based on Encryptor.
 
 		if skInput.Value.Q.Level() < skOutput.Value.Q.Level() {
 
 			ringQ := keygen.params.RingQ()
 
+<<<<<<< dev_bfv_poly
 			ringQ.InvNTTLvl(0, keygen.buffQ, keygen.buffQP.Q)
 			ringQ.InvMFormLvl(0, keygen.buffQP.Q, keygen.buffQP.Q)
+=======
+			ringQ.InvNTTLvl(0, keygen.poolQ[0], keygen.poolQP.Q)
+			ringQ.InvMFormLvl(0, keygen.poolQP.Q, keygen.poolQP.Q)
+>>>>>>> [rlwe]: simplified KeyGenerator, which is now based on Encryptor.
 
 			Q := ringQ.Modulus[0]
 			QHalf := Q >> 1
 
+<<<<<<< dev_bfv_poly
 			polQ := keygen.buffQP.Q
 			polP := keygen.buffQ
+=======
+			polQ := keygen.poolQP.Q
+			polP := keygen.poolQ[0]
+>>>>>>> [rlwe]: simplified KeyGenerator, which is now based on Encryptor.
 			var sign uint64
 			for j := 0; j < ringQ.N; j++ {
 
@@ -342,7 +318,7 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *
 					sign = 0
 				}
 
-				for i := skInput.Value.Q.Level() + 1; i < skOutput.Value.Q.Level()+1; i++ {
+				for i := skInput.LevelQ() + 1; i < skOutput.LevelQ()+1; i++ {
 					polP.Coeffs[i][j] = (coeff * sign) | (ringQ.Modulus[i]-coeff)*(sign^1)
 				}
 			}
@@ -353,7 +329,11 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *
 			}
 		}
 
+<<<<<<< dev_bfv_poly
 		keygen.genSwitchingKey(keygen.buffQ, skOutput.Value, swk)
+=======
+		keygen.genSwitchingKey(keygen.poolQ[0], skOutput.Value, swk)
+>>>>>>> [rlwe]: simplified KeyGenerator, which is now based on Encryptor.
 	}
 
 	return
@@ -361,6 +341,7 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *
 
 func (keygen *keyGenerator) genSwitchingKey(skIn *ring.Poly, skOut ringqp.Poly, swk *SwitchingKey) {
 
+<<<<<<< dev_bfv_poly
 	ringQP := keygen.params.RingQP()
 
 <<<<<<< dev_bfv_poly
@@ -407,12 +388,15 @@ func (keygen *keyGenerator) genSwitchingKey(skIn *ring.Poly, skOut ringqp.Poly, 
 =======
 =======
 =======
+=======
+>>>>>>> [rlwe]: simplified KeyGenerator, which is now based on Encryptor.
 	levelQ := swk.LevelQ()
 	levelP := swk.LevelP()
 >>>>>>> wip
 >>>>>>> [rlwe]: complete refactoring
 >>>>>>> [rlwe]: complete refactoring
 
+<<<<<<< dev_bfv_poly
 	RNSDecomp := len(swk.Value)
 	BITDecomp := len(swk.Value[0])
 
@@ -441,8 +425,13 @@ func (keygen *keyGenerator) genSwitchingKey(skIn *ring.Poly, skOut ringqp.Poly, 
 
 			// (- a * skOut + e, a)
 			ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, swk.Value[i][j][1], skOut, swk.Value[i][j][0])
+=======
+	for i := 0; i < len(swk.Value); i++ {
+		for j := 0; j < len(swk.Value[0]); j++ {
+			keygen.encryptZeroSymetricQPNTT(levelQ, levelP, skOut, true, true, swk.Value[i][j])
+>>>>>>> [rlwe]: simplified KeyGenerator, which is now based on Encryptor.
 		}
 	}
 
-	gadget.AddPolyToGadgetMatrix(skIn, []gadget.Ciphertext{swk.Ciphertext}, *keygen.params.RingQP(), keygen.params.LogBase2(), keygen.poolQ)
+	gadget.AddPolyToGadgetMatrix(skIn, []gadget.Ciphertext{swk.Ciphertext}, *keygen.params.RingQP(), keygen.params.LogBase2(), keygen.poolQ[0])
 }

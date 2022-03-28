@@ -65,10 +65,10 @@ func newEncryptorBase(params Parameters) *encryptorBase {
 }
 
 type encryptorSamplers struct {
+	prng            utils.PRNG
 	gaussianSampler *ring.GaussianSampler
 	ternarySampler  *ring.TernarySampler
-	uniformSamplerQ *ring.UniformSampler
-	uniformSamplerP *ring.UniformSampler
+	uniformSampler  ringqp.UniformSampler
 }
 
 func newEncryptorSamplers(params Parameters) *encryptorSamplers {
@@ -77,16 +77,11 @@ func newEncryptorSamplers(params Parameters) *encryptorSamplers {
 		panic(err)
 	}
 
-	var uniformSamplerP *ring.UniformSampler
-	if params.PCount() != 0 {
-		uniformSamplerP = ring.NewUniformSampler(prng, params.RingP())
-	}
-
 	return &encryptorSamplers{
+		prng:            prng,
 		gaussianSampler: ring.NewGaussianSampler(prng, params.RingQ(), params.Sigma(), int(6*params.Sigma())),
 		ternarySampler:  ring.NewTernarySamplerWithHammingWeight(prng, params.ringQ, params.h, false),
-		uniformSamplerQ: ring.NewUniformSampler(prng, params.RingQ()),
-		uniformSamplerP: uniformSamplerP,
+		uniformSampler:  ringqp.NewUniformSampler(prng, *params.RingQP()),
 	}
 }
 
@@ -131,10 +126,8 @@ func newEncryptorBuffers(params Parameters) *encryptorBuffers {
 // sampled in Q.
 // The method accepts only *rlwe.Ciphertext as input.
 func (enc *pkEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
-
 	switch el := ct.(type) {
 	case *Ciphertext:
-		enc.uniformSamplerQ.ReadLvl(utils.MinInt(pt.Level(), el.Level()), el.Value[1])
 		if enc.basisextender != nil {
 			enc.encryptRLWE(pt, el)
 		} else {
@@ -161,7 +154,7 @@ func (enc *pkEncryptor) EncryptFromCRP(pt *Plaintext, crp *ring.Poly, ct *Cipher
 func (enc *skEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
 	switch el := ct.(type) {
 	case *Ciphertext:
-		enc.uniformSamplerQ.ReadLvl(utils.MinInt(pt.Level(), el.Level()), el.Value[1])
+		enc.uniformSampler.ReadLvl(utils.MinInt(pt.Level(), el.Level()), -1, ringqp.Poly{Q: el.Value[1]})
 		enc.encryptRLWE(pt, el)
 	case *rgsw.Ciphertext:
 		enc.encryptRGSW(pt, el)
@@ -431,8 +424,8 @@ func (enc *skEncryptor) encryptRGSW(pt *Plaintext, ct *rgsw.Ciphertext) {
 
 	for j := 0; j < decompBIT; j++ {
 		for i := 0; i < decompRNS; i++ {
-			enc.encryptZeroSymetricQP(levelQ, levelP, enc.sk.Value, true, true, true, ct.Value[0].Value[i][j])
-			enc.encryptZeroSymetricQP(levelQ, levelP, enc.sk.Value, true, true, true, ct.Value[1].Value[i][j])
+			enc.encryptZeroSymetricQPNTT(levelQ, levelP, enc.sk.Value, true, true, ct.Value[0].Value[i][j])
+			enc.encryptZeroSymetricQPNTT(levelQ, levelP, enc.sk.Value, true, true, ct.Value[1].Value[i][j])
 		}
 	}
 
@@ -450,51 +443,30 @@ func (enc *skEncryptor) encryptRGSW(pt *Plaintext, ct *rgsw.Ciphertext) {
 	}
 }
 
-func (enc *encryptor) encryptZeroSymetricQP(levelQ, levelP int, sk ringqp.Poly, sample, montgomery, ntt bool, ct [2]ringqp.Poly) {
+func (enc *encryptor) encryptZeroSymetricQPNTT(levelQ, levelP int, sk ringqp.Poly, sample, montgomery bool, ct [2]ringqp.Poly) {
 
-	params := enc.params
-	ringQP := params.RingQP()
+	ringQP := enc.params.RingQP()
 
-	hasModulusP := ct[0].P != nil
-
-	if ntt {
-		enc.gaussianSampler.ReadLvl(levelQ, ct[0].Q)
-
-		if hasModulusP {
-			ringQP.ExtendBasisSmallNormAndCenter(ct[0].Q, levelP, nil, ct[0].P)
-		}
-
-		ringQP.NTTLvl(levelQ, levelP, ct[0], ct[0])
+	// (e, 0)
+	enc.gaussianSampler.ReadLvl(levelQ, ct[0].Q)
+	if levelP != -1 {
+		ringQP.ExtendBasisSmallNormAndCenter(ct[0].Q, levelP, nil, ct[0].P)
 	}
 
-	if sample {
-		enc.uniformSamplerQ.ReadLvl(levelQ, ct[1].Q)
+	ringQP.NTTLvl(levelQ, levelP, ct[0], ct[0])
 
-		if hasModulusP {
-			enc.uniformSamplerP.ReadLvl(levelP, ct[1].P)
-		}
-	}
-
-	ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, ct[1], sk, ct[0])
-
-	if !ntt {
-		ringQP.InvNTTLvl(levelQ, levelP, ct[0], ct[0])
-		ringQP.InvNTTLvl(levelQ, levelP, ct[1], ct[1])
-
-		e := enc.poolQP
-		enc.gaussianSampler.ReadLvl(levelQ, e.Q)
-
-		if hasModulusP {
-			ringQP.ExtendBasisSmallNormAndCenter(e.Q, levelP, nil, e.P)
-		}
-
-		ringQP.AddLvl(levelQ, levelP, ct[0], e, ct[0])
-	}
-
+	// If montgomery, then ct[1] is assumed to be sampled in of the Montgomery domain,
+	// thus -as will also be in the montgomery domain (s is by default), therefore 'e'
+	// must be switched to the montgomery domain.
 	if montgomery {
 		ringQP.MFormLvl(levelQ, levelP, ct[0], ct[0])
-		ringQP.MFormLvl(levelQ, levelP, ct[1], ct[1])
 	}
+
+	// (e, a)
+	enc.uniformSampler.ReadLvl(levelQ, levelP, ct[1])
+
+	// (-a*sk + e, a)
+	ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, ct[1], sk, ct[0])
 }
 
 // ShallowCopy creates a shallow copy of this pkEncryptor in which all the read-only data-structures are

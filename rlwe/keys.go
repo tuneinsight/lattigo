@@ -45,9 +45,39 @@ func NewSecretKey(params Parameters) *SecretKey {
 	return &SecretKey{Value: params.RingQP().NewPoly()}
 }
 
+// LevelQ returns the level of the modulus Q of the target.
+func (sk *SecretKey) LevelQ() int {
+	return sk.Value.Q.Level()
+}
+
+// LevelP returns the level of the modulus P of the target.
+// Returns -1 if P is absent.
+func (sk *SecretKey) LevelP() int {
+	if sk.Value.P != nil {
+		return sk.Value.P.Level()
+	}
+
+	return -1
+}
+
 // NewPublicKey returns a new PublicKey with zero values.
 func NewPublicKey(params Parameters) (pk *PublicKey) {
 	return &PublicKey{Value: [2]ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()}}
+}
+
+// LevelQ returns the level of the modulus Q of the target.
+func (pk *PublicKey) LevelQ() int {
+	return pk.Value[0].Q.Level()
+}
+
+// LevelP returns the level of the modulus P of the target.
+// Returns -1 if P is absent.
+func (pk *PublicKey) LevelP() int {
+	if pk.Value[0].P != nil {
+		return pk.Value[0].P.Level()
+	}
+
+	return -1
 }
 
 // Equals checks two PublicKey struct for equality.

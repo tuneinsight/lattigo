@@ -110,12 +110,12 @@ func (ekg *RKGProtocol) SampleCRP(crs CRS) RKGCRP {
 	decompBIT := params.DecompBIT(params.QCount()-1, params.PCount()-1)
 
 	crp := make([][]ringqp.Poly, decompRNS)
-	us := ringqp.NewUniformSampler(params.RingQP(), crs)
+	us := ringqp.NewUniformSampler(crs, *params.RingQP())
 	for i := range crp {
 		crp[i] = make([]ringqp.Poly, decompBIT)
 		for j := range crp[i] {
 			crp[i][j] = params.RingQP().NewPoly()
-			us.Read(&crp[i][j])
+			us.Read(crp[i][j])
 		}
 	}
 	return RKGCRP(crp)

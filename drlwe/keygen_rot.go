@@ -96,12 +96,12 @@ func (rtg *RTGProtocol) SampleCRP(crs CRS) RTGCRP {
 	decompBIT := rtg.params.DecompBIT(params.QCount()-1, params.PCount()-1)
 
 	crp := make([][]ringqp.Poly, decompRNS)
-	us := ringqp.NewUniformSampler(params.RingQP(), crs)
+	us := ringqp.NewUniformSampler(crs, *params.RingQP())
 	for i := 0; i < decompRNS; i++ {
 		crp[i] = make([]ringqp.Poly, decompBIT)
 		for j := 0; j < decompBIT; j++ {
 			crp[i][j] = rtg.params.RingQP().NewPoly()
-			us.Read(&crp[i][j])
+			us.Read(crp[i][j])
 		}
 	}
 	return RTGCRP(crp)

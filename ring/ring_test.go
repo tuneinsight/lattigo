@@ -81,7 +81,6 @@ func TestRing(t *testing.T) {
 		testMForm(testContext, t)
 		testMulScalarBigint(testContext, t)
 		testExtendBasis(testContext, t)
-		testScaling(testContext, t)
 		testMultByMonomial(testContext, t)
 	}
 }
@@ -691,67 +690,6 @@ func testExtendBasis(testContext *testParams, t *testing.T) {
 			require.Equal(t, PolQHave.Coeffs[i][:testContext.ringQ.N], PolQWant.Coeffs[i][:testContext.ringQ.N])
 		}
 
-	})
-}
-
-func testScaling(testContext *testParams, t *testing.T) {
-
-	t.Run(testString("Scaling/Simple/", testContext.ringQ), func(t *testing.T) {
-
-		rescaler := NewSimpleScaler(T, testContext.ringQ)
-
-		coeffs := make([]*big.Int, testContext.ringQ.N)
-		for i := 0; i < testContext.ringQ.N; i++ {
-			coeffs[i] = RandInt(testContext.ringQ.ModulusBigint)
-		}
-
-		coeffsWant := make([]*big.Int, testContext.ringQ.N)
-		for i := range coeffs {
-			coeffsWant[i] = new(big.Int).Set(coeffs[i])
-			coeffsWant[i].Mul(coeffsWant[i], NewUint(T))
-			DivRound(coeffsWant[i], testContext.ringQ.ModulusBigint, coeffsWant[i])
-			coeffsWant[i].Mod(coeffsWant[i], NewUint(T))
-		}
-
-		PolTest := testContext.ringQ.NewPoly()
-
-		testContext.ringQ.SetCoefficientsBigint(coeffs, PolTest)
-
-		rescaler.DivByQOverTRounded(PolTest, PolTest)
-
-		for i := 0; i < testContext.ringQ.N; i++ {
-			require.Equal(t, PolTest.Coeffs[0][i], coeffsWant[i].Uint64())
-		}
-	})
-
-	t.Run(testString("Scaling/RNS", testContext.ringQ), func(t *testing.T) {
-
-		ringT, _ := NewRing(testContext.ringQ.N, []uint64{T})
-
-		scaler := NewRNSScaler(testContext.ringQ, ringT)
-
-		coeffs := make([]*big.Int, testContext.ringQ.N)
-		for i := 0; i < testContext.ringQ.N; i++ {
-			coeffs[i] = RandInt(testContext.ringQ.ModulusBigint)
-		}
-
-		coeffsWant := make([]*big.Int, testContext.ringQ.N)
-		for i := range coeffs {
-			coeffsWant[i] = new(big.Int).Set(coeffs[i])
-			coeffsWant[i].Mul(coeffsWant[i], NewUint(T))
-			DivRound(coeffsWant[i], testContext.ringQ.ModulusBigint, coeffsWant[i])
-			coeffsWant[i].Mod(coeffsWant[i], NewUint(T))
-		}
-
-		polyQ := testContext.ringQ.NewPoly()
-		polyT := NewPoly(testContext.ringQ.N, 1)
-		testContext.ringQ.SetCoefficientsBigint(coeffs, polyQ)
-
-		scaler.DivByQOverTRoundedLvl(polyQ.Level(), polyQ, polyT)
-
-		for i := 0; i < testContext.ringQ.N; i++ {
-			require.Equal(t, polyT.Coeffs[0][i], coeffsWant[i].Uint64())
-		}
 	})
 }
 

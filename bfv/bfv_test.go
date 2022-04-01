@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"math/big"
 	"runtime"
 	"testing"
 
@@ -183,6 +184,39 @@ func verifyTestVectors(tc *testContext, decryptor Decryptor, coeffs *ring.Poly, 
 }
 
 func testEncoder(tc *testContext, t *testing.T) {
+
+	t.Run(testString("Encoder/Scaling", tc.params), func(t *testing.T) {
+
+		T := tc.ringT.Modulus[0]
+		ringQ := tc.ringQ
+
+		scaler := NewRNSScaler(ringQ, T)
+
+		coeffs := make([]*big.Int, ringQ.N)
+		for i := 0; i < ringQ.N; i++ {
+			coeffs[i] = ring.RandInt(ringQ.ModulusBigint)
+		}
+
+		coeffsWant := make([]*big.Int, ringQ.N)
+		bigT := ring.NewUint(T)
+		for i := range coeffs {
+			coeffsWant[i] = new(big.Int).Set(coeffs[i])
+			coeffsWant[i].Mul(coeffsWant[i], bigT)
+			ring.DivRound(coeffsWant[i], ringQ.ModulusBigint, coeffsWant[i])
+			coeffsWant[i].Mod(coeffsWant[i], bigT)
+		}
+
+		polyQ := ringQ.NewPoly()
+		polyT := ring.NewPoly(ringQ.N, 1)
+		ringQ.SetCoefficientsBigint(coeffs, polyQ)
+
+		scaler.DivByQOverTRoundedLvl(polyQ.Level(), polyQ, polyT)
+
+		for i := 0; i < ringQ.N; i++ {
+			require.Equal(t, polyT.Coeffs[0][i], coeffsWant[i].Uint64())
+		}
+	})
+
 	t.Run(testString("Encoder/Encode&Decode/RingT/Uint", tc.params), func(t *testing.T) {
 		values, plaintext := newTestVectorsRingT(tc, t)
 		verifyTestVectors(tc, nil, values, plaintext, t)

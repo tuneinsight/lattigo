@@ -69,7 +69,6 @@ func TestBFV(t *testing.T) {
 			testParameters,
 			testEncoder,
 			testEvaluator,
-			testQuantize,
 			testPolyEval,
 			testEvaluatorKeySwitch,
 			testEvaluatorRotate,
@@ -272,70 +271,6 @@ func testEncoder(tc *testContext, t *testing.T) {
 	t.Run(testString("Encoder/Encode&Decode/PlaintextMul", tc.params), func(t *testing.T) {
 		values, plaintext := newTestVectorsMul(tc, t)
 		verifyTestVectors(tc, nil, values, plaintext, t)
-	})
-}
-
-func testQuantize(tc *testContext, t *testing.T) {
-
-	t.Run(testString("QuantizeToLvl", tc.params), func(t *testing.T) {
-
-		values1, _, ciphertext1 := newTestVectorsRingQ(tc, tc.encryptorPk, t)
-
-		tc.evaluator.QuantizeToLvl(1, ciphertext1)
-		verifyTestVectors(tc, tc.decryptor, values1, ciphertext1, t)
-
-		if tc.params.T() != tc.params.RingQ().Modulus[0] { // only happens if T divides Q.
-			tc.evaluator.QuantizeToLvl(0, ciphertext1)
-			verifyTestVectors(tc, tc.decryptor, values1, ciphertext1, t)
-		}
-	})
-
-	t.Run(testString("QuantizeToLvl/Add", tc.params), func(t *testing.T) {
-
-		values1, _, ciphertext1 := newTestVectorsRingQ(tc, tc.encryptorPk, t)
-		values2, _, ciphertext2 := newTestVectorsRingQ(tc, tc.encryptorPk, t)
-
-		tc.evaluator.QuantizeToLvl(1, ciphertext1)
-		tc.evaluator.QuantizeToLvl(1, ciphertext2)
-
-		tc.evaluator.Add(ciphertext1, ciphertext2, ciphertext1)
-		tc.ringT.Add(values1, values2, values1)
-
-		verifyTestVectors(tc, tc.decryptor, values1, ciphertext1, t)
-	})
-
-	t.Run(testString("QuantizeToLvl/MulRelin", tc.params), func(t *testing.T) {
-
-		values1, _, ciphertext1 := newTestVectorsRingQ(tc, tc.encryptorPk, t)
-		values2, _, ciphertext2 := newTestVectorsRingQ(tc, tc.encryptorPk, t)
-
-		tc.evaluator.QuantizeToLvl(1, ciphertext1)
-		tc.evaluator.QuantizeToLvl(1, ciphertext2)
-
-		receiver := NewCiphertext(tc.params, ciphertext1.Degree()+ciphertext2.Degree())
-		tc.evaluator.Mul(ciphertext1, ciphertext2, receiver)
-		tc.ringT.MulCoeffs(values1, values2, values1)
-
-		verifyTestVectors(tc, tc.decryptor, values1, receiver, t)
-
-		receiver2 := tc.evaluator.RelinearizeNew(receiver)
-		verifyTestVectors(tc, tc.decryptor, values1, receiver2, t)
-	})
-
-	t.Run(testString("QuantizeToLvl/Rotate", tc.params), func(t *testing.T) {
-
-		values1, _, ciphertext1 := newTestVectorsRingQ(tc, tc.encryptorPk, t)
-
-		tc.evaluator.QuantizeToLvl(1, ciphertext1)
-
-		rotkey := tc.kgen.GenRotationKeysForRotations(nil, true, tc.sk)
-		evaluator := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotkey})
-
-		tc.evaluator.QuantizeToLvl(1, ciphertext1)
-
-		evaluator.RotateRows(ciphertext1, ciphertext1)
-		values1.Coeffs[0] = append(values1.Coeffs[0][tc.params.N()>>1:], values1.Coeffs[0][:tc.params.N()>>1]...)
-		verifyTestVectors(tc, tc.decryptor, values1, ciphertext1, t)
 	})
 }
 
@@ -689,6 +624,57 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		tc.evaluator.Relinearize(receiver, receiver)
 		verifyTestVectors(tc, tc.decryptor, values1, receiver, t)
 	})
+
+	t.Run(testString("Evaluator/QuantizeToLvl", tc.params), func(t *testing.T) {
+
+		values1, _, ciphertext1 := newTestVectorsRingQ(tc, tc.encryptorPk, t)
+
+		tc.evaluator.QuantizeToLvl(1, ciphertext1)
+		verifyTestVectors(tc, tc.decryptor, values1, ciphertext1, t)
+
+		if tc.params.T() != tc.params.RingQ().Modulus[0] { // only happens if T divides Q.
+			tc.evaluator.QuantizeToLvl(0, ciphertext1)
+			verifyTestVectors(tc, tc.decryptor, values1, ciphertext1, t)
+		}
+	})
+
+	t.Run(testString("Evaluator/QuantizeToLvl/Add", tc.params), func(t *testing.T) {
+
+		values1, _, ciphertext1 := newTestVectorsRingQ(tc, tc.encryptorPk, t)
+		values2, _, ciphertext2 := newTestVectorsRingQ(tc, tc.encryptorPk, t)
+
+		tc.evaluator.QuantizeToLvl(1, ciphertext1)
+		tc.evaluator.QuantizeToLvl(1, ciphertext2)
+
+		assert.True(t, ciphertext1.Level() == 1)
+		assert.True(t, ciphertext2.Level() == 1)
+
+		tc.evaluator.Add(ciphertext1, ciphertext2, ciphertext1)
+		tc.ringT.Add(values1, values2, values1)
+
+		verifyTestVectors(tc, tc.decryptor, values1, ciphertext1, t)
+	})
+
+	t.Run(testString("Evaluator/QuantizeToLvl/MulRelin", tc.params), func(t *testing.T) {
+
+		values1, _, ciphertext1 := newTestVectorsRingQ(tc, tc.encryptorPk, t)
+		values2, _, ciphertext2 := newTestVectorsRingQ(tc, tc.encryptorPk, t)
+
+		tc.evaluator.QuantizeToLvl(1, ciphertext1)
+		tc.evaluator.QuantizeToLvl(1, ciphertext2)
+
+		assert.True(t, ciphertext1.Level() == 1)
+		assert.True(t, ciphertext2.Level() == 1)
+
+		receiver := NewCiphertext(tc.params, ciphertext1.Degree()+ciphertext2.Degree())
+		tc.evaluator.Mul(ciphertext1, ciphertext2, receiver)
+		tc.ringT.MulCoeffs(values1, values2, values1)
+
+		verifyTestVectors(tc, tc.decryptor, values1, receiver, t)
+
+		receiver2 := tc.evaluator.RelinearizeNew(receiver)
+		verifyTestVectors(tc, tc.decryptor, values1, receiver2, t)
+	})
 }
 
 func testPolyEval(tc *testContext, t *testing.T) {
@@ -875,6 +861,26 @@ func testEvaluatorRotate(tc *testContext, t *testing.T) {
 			values.Coeffs[0][i] = sum
 		}
 		verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
+	})
+
+	t.Run(testString("Evaluator/QuantizeToLvl/Rotate", tc.params), func(t *testing.T) {
+
+		values1, _, ciphertext1 := newTestVectorsRingQ(tc, tc.encryptorPk, t)
+
+		tc.evaluator.QuantizeToLvl(1, ciphertext1)
+
+		assert.True(t, ciphertext1.Level() == 1)
+
+		rotkey := tc.kgen.GenRotationKeysForRotations(nil, true, tc.sk)
+		evaluator := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotkey})
+
+		tc.evaluator.QuantizeToLvl(1, ciphertext1)
+
+		assert.True(t, ciphertext1.Level() == 1)
+
+		evaluator.RotateRows(ciphertext1, ciphertext1)
+		values1.Coeffs[0] = append(values1.Coeffs[0][tc.params.N()>>1:], values1.Coeffs[0][:tc.params.N()>>1]...)
+		verifyTestVectors(tc, tc.decryptor, values1, ciphertext1, t)
 	})
 }
 

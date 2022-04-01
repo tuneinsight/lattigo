@@ -13,6 +13,7 @@ import (
 // Operand is a common interface for Ciphertext and Plaintext.
 type Operand interface {
 	El() *rlwe.Ciphertext
+	Level() int
 	Degree() int
 }
 
@@ -77,7 +78,7 @@ type evaluatorBase struct {
 	ringQMul *ring.Ring
 
 	t         uint64
-	tInvModQ  []uint64
+	tInvModQi []uint64
 	levelQMul []int      // optimal #QiMul depending on #Qi (variable level)
 	pHalf     []*big.Int // all prod(QiMul) / 2 depending on #Qi
 
@@ -146,9 +147,9 @@ func NewEvaluator(params Parameters, evaluationKey rlwe.EvaluationKey) Evaluator
 	ev.evaluatorBuffers = newEvaluatorBuffer(ev.evaluatorBase)
 
 	if params.T() != params.Q()[0] {
-		ev.tInvModQ = make([]uint64, len(params.RingQ().Modulus))
+		ev.tInvModQi = make([]uint64, len(params.RingQ().Modulus))
 		for i, qi := range params.RingQ().Modulus {
-			ev.tInvModQ[i] = ring.MForm(ring.ModExp(params.T(), qi-2, qi), qi, params.RingQ().BredParams[i])
+			ev.tInvModQi[i] = ring.MForm(ring.ModExp(params.T(), qi-2, qi), qi, params.RingQ().BredParams[i])
 		}
 	} else {
 		ev.tDividesQ = true
@@ -819,9 +820,9 @@ func (eval *evaluator) getRingQElem(op Operand) *rlwe.Ciphertext {
 		return o.El()
 	case *PlaintextRingT:
 		if eval.tDividesQ {
-			ScaleUpTDividesQVec(eval.params.RingQ(), o.Value, eval.tmpPt.Value)
+			ScaleUpTIsQ0VecLvl(op.Level(), eval.params.RingQ(), o.Value, eval.tmpPt.Value)
 		} else {
-			ScaleUpTCoprimeWithQVec(eval.params.RingQ(), eval.params.RingT(), eval.tInvModQ, eval.Pool[0].Q.Coeffs[0], o.Value, eval.tmpPt.Value)
+			ScaleUpTCoprimeWithQVecLvl(eval.params.QCount()-1, eval.params.RingQ(), eval.params.RingT(), eval.tInvModQi, eval.Pool[0].Q.Coeffs[0], o.Value, eval.tmpPt.Value)
 		}
 		return eval.tmpPt.El()
 	default:

@@ -67,8 +67,6 @@ type encoder struct {
 
 	tmpPoly *ring.Poly
 	tmpPtRt *PlaintextRingT
-
-	tDividesQ bool
 }
 
 // NewEncoder creates a new encoder from the provided parameters.
@@ -101,23 +99,12 @@ func NewEncoder(params Parameters) Encoder {
 		pos &= (m - 1)
 	}
 
-	var rescaleParams []uint64
-	var tDividesQ bool
-	if tDividesQ = params.T() == params.Q()[0]; !tDividesQ {
-		rescaleParams = make([]uint64, len(ringQ.Modulus))
-		for i, qi := range ringQ.Modulus {
-			rescaleParams[i] = ring.MForm(ring.ModExp(params.T(), qi-2, qi), qi, ringQ.BredParams[i])
-		}
-	}
-
 	return &encoder{
 		params:      params,
 		indexMatrix: indexMatrix,
 		scaler:      NewRNSScaler(ringQ, ringT.Modulus[0]),
-		tInvModQ:    rescaleParams,
 		tmpPoly:     ringQ.NewPoly(),
 		tmpPtRt:     NewPlaintextRingT(params),
-		tDividesQ:   tDividesQ,
 	}
 }
 
@@ -217,11 +204,7 @@ func (ecd *encoder) EncodeIntMul(coeffs []int64, p *PlaintextMul) {
 
 // ScaleUp transforms a PlaintextRingT (R_t) into a Plaintext (R_q) by scaling up the coefficient by Q/t.
 func (ecd *encoder) ScaleUp(ptRt *PlaintextRingT, pt *Plaintext) {
-	if ecd.tDividesQ {
-		ScaleUpTDividesQVec(ecd.params.RingQ(), ptRt.Value, pt.Value)
-	} else {
-		ScaleUpTCoprimeWithQVec(ecd.params.RingQ(), ecd.params.RingT(), ecd.tInvModQ, ecd.tmpPoly.Coeffs[0], ptRt.Value, pt.Value)
-	}
+	ecd.scaler.ScaleUpByQOverTLvl(pt.Level(), ptRt.Value, pt.Value)
 }
 
 // ScaleDown transforms a Plaintext (R_q) into a PlaintextRingT (R_t) by scaling down the coefficient by t/Q and rounding.
@@ -326,9 +309,7 @@ func (ecd *encoder) ShallowCopy() Encoder {
 		params:      ecd.params,
 		indexMatrix: ecd.indexMatrix,
 		scaler:      NewRNSScaler(ecd.params.RingQ(), ecd.params.RingT().Modulus[0]),
-		tInvModQ:    ecd.tInvModQ,
 		tmpPoly:     ecd.params.RingQ().NewPoly(),
 		tmpPtRt:     NewPlaintextRingT(ecd.params),
-		tDividesQ:   ecd.tDividesQ,
 	}
 }

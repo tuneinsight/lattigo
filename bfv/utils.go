@@ -13,6 +13,7 @@ import (
 type Scaler interface {
 	// DivByQOverTRoundedLvl returns p1 scaled by a factor t/Q and mod t on the receiver p2.
 	DivByQOverTRoundedLvl(level int, p1, p2 *ring.Poly)
+	ScaleUpByQOverTLvl(level int, p1, p2 *ring.Poly)
 }
 
 // RNSScaler implements the Scaler interface by performing a scaling by t/Q in the RNS domain.
@@ -26,6 +27,7 @@ type RNSScaler struct {
 	qHalf     []*big.Int // (q-1)/2
 	qHalfModT []uint64   // (q-1)/2 mod t
 	qInv      []uint64   //(q mod t)^-1 mod t
+	tInvModQi []uint64   // t^-1 mod qi
 
 	paramsQP []ring.ModupParams
 
@@ -48,12 +50,18 @@ func NewRNSScaler(ringQ *ring.Ring, T uint64) (rnss *RNSScaler) {
 	rnss.ringT = new(ring.Ring)
 	rnss.ringT.N = ringQ.N
 	rnss.ringT.Modulus = []uint64{T}
+	rnss.ringT.BredParams = [][]uint64{ring.BRedParams(T)}
 	rnss.ringT.MredParams = []uint64{ring.MRedParams(T)}
 	rnss.polypoolT = rnss.ringT.NewPoly()
 
 	rnss.tDividesQ = T == ringQ.Modulus[0]
 
 	if !rnss.tDividesQ {
+
+		rnss.tInvModQi = make([]uint64, len(ringQ.Modulus))
+		for i, qi := range ringQ.Modulus {
+			rnss.tInvModQi[i] = ring.MForm(ring.ModExp(T, qi-2, qi), qi, ringQ.BredParams[i])
+		}
 
 		rnss.qHalf = make([]*big.Int, len(ringQ.Modulus))
 		rnss.qInv = make([]uint64, len(ringQ.Modulus))
@@ -126,40 +134,56 @@ func (rnss *RNSScaler) DivByQOverTRoundedLvl(level int, p1Q, p2T *ring.Poly) {
 	}
 }
 
-// ScaleUpTCoprimeWithQVec takes a Poly pIn in ringT, scales its coefficients up by (Q/T) mod Q, and writes the result in a
-// Poly pOut in ringQ.
-func ScaleUpTCoprimeWithQVec(ringQ, ringT *ring.Ring, rescaleParams, tmp []uint64, pIn, pOut *ring.Poly) {
+// ScaleUpByQOverTLvl takes a Poly pIn in ringT, scales its coefficients up by (Q/T) mod Q, and writes the result on pOut.
+func (rnss *RNSScaler) ScaleUpByQOverTLvl(level int, pIn, pOut *ring.Poly) {
+	if !rnss.tDividesQ {
+		ScaleUpTCoprimeWithQVecLvl(level, rnss.ringQ, rnss.ringT, rnss.tInvModQi, rnss.polypoolQ.Coeffs[0], pIn, pOut)
+	} else {
+		ScaleUpTIsQ0VecLvl(level, rnss.ringQ, pIn, pOut)
+	}
+}
 
-	qModTmontgomery := ring.MForm(new(big.Int).Mod(ringQ.ModulusBigint, ringT.ModulusBigint).Uint64(), ringT.Modulus[0], ringT.BredParams[0])
+// ScaleUpTCoprimeWithQVecLvl takes a Poly pIn in ringT, scales its coefficients up by (Q/T) mod Q, and writes the result in a
+// Poly pOut in ringQ.
+func ScaleUpTCoprimeWithQVecLvl(level int, ringQ, ringT *ring.Ring, tInvModQi, buffN []uint64, pIn, pOut *ring.Poly) {
+
+	bigQ := ring.NewUint(1)
+	for i := 0; i < level+1; i++ {
+		bigQ.Mul(bigQ, ring.NewUint(ringQ.Modulus[i]))
+	}
+
+	qModTmontgomery := ring.MForm(new(big.Int).Mod(bigQ, ring.NewUint(ringT.Modulus[0])).Uint64(), ringT.Modulus[0], ringT.BredParams[0])
 
 	t := ringT.Modulus[0]
 	tHalf := t >> 1
 	tInv := ringT.MredParams[0]
 
 	// (x * Q + T/2) mod T
-	ring.MulScalarMontgomeryAndAddScalarVec(pIn.Coeffs[0], tmp, tHalf, qModTmontgomery, t, tInv)
+	ring.MulScalarMontgomeryAndAddScalarVec(pIn.Coeffs[0], buffN, tHalf, qModTmontgomery, t, tInv)
 
 	// (x * T^-1 - T/2) mod Qi
-	for i := 0; i < len(pOut.Coeffs); i++ {
-		p0tmp := tmp
+	for i := 0; i < level+1; i++ {
+		p0tmp := buffN
 		p1tmp := pOut.Coeffs[i]
 		qi := ringQ.Modulus[i]
 		bredParams := ringQ.BredParams[i]
 		mredParams := ringQ.MredParams[i]
-		rescaleParams := qi - rescaleParams[i]
+		rescaleParams := qi - tInvModQi[i]
 		tHalfNegQi := qi - ring.BRedAdd(tHalf, qi, bredParams)
 
 		ring.AddScalarNoModAndMulScalarMontgomeryVec(p0tmp, p1tmp, tHalfNegQi, rescaleParams, qi, mredParams)
 	}
 }
 
-// ScaleUpTDividesQVec takes a Poly pIn in ringT, scales its coefficients up by (Q/T) mod Q, and writes the result in a
+// ScaleUpTIsQ0VecLvl takes a Poly pIn in ringT, scales its coefficients up by (Q/T) mod Q, and writes the result in a
 // Poly pOut in ringQ.
 // T is in this case assumed to be the first prime in the moduli chain.
-func ScaleUpTDividesQVec(ringQ *ring.Ring, pIn, pOut *ring.Poly) {
+func ScaleUpTIsQ0VecLvl(level int, ringQ *ring.Ring, pIn, pOut *ring.Poly) {
 	// Q/T mod T
-	tmp := new(big.Int).Set(ringQ.ModulusBigint)
-	tmp.Quo(tmp, new(big.Int).SetUint64(ringQ.Modulus[0]))
+	tmp := ring.NewUint(1)
+	for i := 1; i < level+1; i++ {
+		tmp.Mul(tmp, ring.NewUint(ringQ.Modulus[i]))
+	}
 	QOverTMont := tmp.Mod(tmp, new(big.Int).SetUint64(ringQ.Modulus[0])).Uint64()
 
 	// pOut = Q/T * pIn

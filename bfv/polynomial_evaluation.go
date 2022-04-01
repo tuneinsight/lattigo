@@ -11,8 +11,8 @@ import (
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
-// Polynomial is a struct storing the coefficients of a polynomial
-// that then can be evaluated on the ciphertext
+// Polynomial is a struct storing the coefficients of a plaintext
+// polynomial that then can be evaluated on the ciphertext.
 type Polynomial struct {
 	MaxDeg int
 	Coeffs []uint64

@@ -44,3 +44,20 @@ func NewPlaintextMul(params Parameters) *PlaintextMul {
 	plaintext := &PlaintextMul{rlwe.NewPlaintext(params.Parameters, params.MaxLevel())}
 	return plaintext
 }
+
+// NewPlaintextLvl creates and allocates a new plaintext in RingQ (multiple moduli of Q).
+// The plaintext is allocated with level+1 moduli.
+// The plaintext will be in RingQ and scaled by Q/t.
+// Slower encoding and larger plaintext size
+func NewPlaintextLvl(params Parameters, level int) *Plaintext {
+	plaintext := &Plaintext{rlwe.NewPlaintext(params.Parameters, level)}
+	return plaintext
+}
+
+// NewPlaintextMulLvl creates and allocates a new plaintext optimized for ciphertext x plaintext multiplication.
+// The plaintext is allocated with level+1 moduli.
+// The plaintext will be in the NTT and Montgomery domain of RingQ and not scaled by Q/t.
+func NewPlaintextMulLvl(params Parameters, level int) *PlaintextMul {
+	plaintext := &PlaintextMul{rlwe.NewPlaintext(params.Parameters, level)}
+	return plaintext
+}

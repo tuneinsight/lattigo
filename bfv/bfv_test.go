@@ -693,9 +693,8 @@ func testPolyEval(tc *testContext, t *testing.T) {
 		coeffs := []uint64{1, 2, 3}
 
 		T := tc.ringT.Modulus[0]
-		bredParams := tc.ringT.BredParams[0]
 		for i := range values.Coeffs[0] {
-			values.Coeffs[0][i] = evalPoly(values.Coeffs[0][i], coeffs, T, bredParams)
+			values.Coeffs[0][i] = ring.EvalPolyModP(values.Coeffs[0][i], coeffs, T)
 		}
 
 		poly := NewPoly(coeffs)
@@ -734,10 +733,9 @@ func testPolyEval(tc *testContext, t *testing.T) {
 		slotIndex[1] = idx1
 
 		T := tc.ringT.Modulus[0]
-		bredParams := tc.ringT.BredParams[0]
 		for pol, idx := range slotIndex {
 			for _, i := range idx {
-				values.Coeffs[0][i] = evalPoly(values.Coeffs[0][i], polyVec[pol].Coeffs, T, bredParams)
+				values.Coeffs[0][i] = ring.EvalPolyModP(values.Coeffs[0][i], polyVec[pol].Coeffs, T)
 			}
 		}
 

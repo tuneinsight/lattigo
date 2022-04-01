@@ -11,23 +11,13 @@ import (
 type BasisExtender struct {
 	ringQ             *Ring
 	ringP             *Ring
-	paramsQtoP        []modupParams
-	paramsPtoQ        []modupParams
+	paramsQtoP        []ModupParams
+	paramsPtoQ        []ModupParams
 	modDownparamsPtoQ [][]uint64
 	modDownparamsQtoP [][]uint64
 
 	polypoolQ *Poly
 	polypoolP *Poly
-}
-
-type modupParams struct {
-	//Parameters for basis extension from Q to P
-	// (Q/Qi)^-1) (mod each Qi) (in Montgomery form)
-	qoverqiinvqi []uint64
-	// Q/qi (mod each Pj) (in Montgomery form)
-	qoverqimodp [][]uint64
-	// Q*v (mod each Pj) for v in [1,...,k] where k is the number of Pj moduli
-	vtimesqmodp [][]uint64
 }
 
 func genModDownParams(ringQ, ringP *Ring) (params [][]uint64) {
@@ -60,14 +50,14 @@ func NewBasisExtender(ringQ, ringP *Ring) *BasisExtender {
 	newParams.ringQ = ringQ
 	newParams.ringP = ringP
 
-	newParams.paramsQtoP = make([]modupParams, len(ringQ.Modulus))
+	newParams.paramsQtoP = make([]ModupParams, len(ringQ.Modulus))
 	for i := range ringQ.Modulus {
-		newParams.paramsQtoP[i] = basisextenderparameters(ringQ.Modulus[:i+1], ringP.Modulus)
+		newParams.paramsQtoP[i] = GenModUpParams(ringQ.Modulus[:i+1], ringP.Modulus)
 	}
 
-	newParams.paramsPtoQ = make([]modupParams, len(ringP.Modulus))
+	newParams.paramsPtoQ = make([]ModupParams, len(ringP.Modulus))
 	for i := range ringP.Modulus {
-		newParams.paramsPtoQ[i] = basisextenderparameters(ringP.Modulus[:i+1], ringQ.Modulus)
+		newParams.paramsPtoQ[i] = GenModUpParams(ringP.Modulus[:i+1], ringQ.Modulus)
 	}
 
 	newParams.modDownparamsPtoQ = genModDownParams(ringQ, ringP)
@@ -79,7 +69,19 @@ func NewBasisExtender(ringQ, ringP *Ring) *BasisExtender {
 	return newParams
 }
 
-func basisextenderparameters(Q, P []uint64) modupParams {
+// ModupParams stores the necessary parametrs for RNS basis extension.
+type ModupParams struct {
+	//Parameters for basis extension from Q to P
+	// (Q/Qi)^-1) (mod each Qi) (in Montgomery form)
+	qoverqiinvqi []uint64
+	// Q/qi (mod each Pj) (in Montgomery form)
+	qoverqimodp [][]uint64
+	// Q*v (mod each Pj) for v in [1,...,k] where k is the number of Pj moduli
+	vtimesqmodp [][]uint64
+}
+
+// GenModUpParams generates the ModupParams for basis extension from Q to P and P to Q.
+func GenModUpParams(Q, P []uint64) ModupParams {
 
 	bredParamsQ := make([][]uint64, len(Q))
 	mredParamsQ := make([]uint64, len(Q))
@@ -148,7 +150,7 @@ func basisextenderparameters(Q, P []uint64) modupParams {
 		}
 	}
 
-	return modupParams{qoverqiinvqi: qoverqiinvqi, qoverqimodp: qoverqimodp, vtimesqmodp: vtimesqmodp}
+	return ModupParams{qoverqiinvqi: qoverqiinvqi, qoverqimodp: qoverqimodp, vtimesqmodp: vtimesqmodp}
 }
 
 // ShallowCopy creates a shallow copy of this basis extender in which the read-only data-structures are
@@ -174,14 +176,14 @@ func (be *BasisExtender) ShallowCopy() *BasisExtender {
 // Given a polynomial with coefficients in basis {Q0,Q1....Qlevel},
 // it extends its basis from {Q0,Q1....Qlevel} to {Q0,Q1....Qlevel,P0,P1...Pj}
 func (be *BasisExtender) ModUpQtoP(levelQ, levelP int, polQ, polP *Poly) {
-	modUpExact(polQ.Coeffs[:levelQ+1], polP.Coeffs[:levelP+1], be.ringQ, be.ringP, be.paramsQtoP[levelQ])
+	ModUpExact(polQ.Coeffs[:levelQ+1], polP.Coeffs[:levelP+1], be.ringQ, be.ringP, be.paramsQtoP[levelQ])
 }
 
 // ModUpPtoQ extends the RNS basis of a polynomial from P to PQ.
 // Given a polynomial with coefficients in basis {P0,P1....Plevel},
 // it extends its basis from {P0,P1....Plevel} to {Q0,Q1...Qj}
 func (be *BasisExtender) ModUpPtoQ(levelP, levelQ int, polP, polQ *Poly) {
-	modUpExact(polP.Coeffs[:levelP+1], polQ.Coeffs[:levelQ+1], be.ringP, be.ringQ, be.paramsPtoQ[levelP])
+	ModUpExact(polP.Coeffs[:levelP+1], polQ.Coeffs[:levelQ+1], be.ringP, be.ringQ, be.paramsPtoQ[levelP])
 }
 
 // ModDownQPtoQ reduces the basis of a polynomial.
@@ -261,8 +263,9 @@ func (be *BasisExtender) ModDownQPtoP(levelQ, levelP int, p1Q, p1P, p2P *Poly) {
 	// In total we do len(P) + len(Q) NTT, which is optimal (linear in the number of moduli of P and Q)
 }
 
+// ModUpExact takes p1 mod Q and switches its basis to P, returning the result on p2.
 // Caution, returns the values in [0, 2q-1]
-func modUpExact(p1, p2 [][]uint64, ringQ, ringP *Ring, params modupParams) {
+func ModUpExact(p1, p2 [][]uint64, ringQ, ringP *Ring, params ModupParams) {
 
 	var v [8]uint64
 	var y0, y1, y2, y3, y4, y5, y6, y7 [32]uint64
@@ -289,7 +292,7 @@ func modUpExact(p1, p2 [][]uint64, ringQ, ringP *Ring, params modupParams) {
 // qi = prod(Q_i) for 0<=i<=L, where L is the number of factors in P.
 type Decomposer struct {
 	ringQ, ringP *Ring
-	modUpParams  [][][]modupParams
+	modUpParams  [][][]ModupParams
 }
 
 // NewDecomposer creates a new Decomposer.
@@ -301,7 +304,7 @@ func NewDecomposer(ringQ, ringP *Ring) (decomposer *Decomposer) {
 
 	Q := ringQ.Modulus
 
-	decomposer.modUpParams = make([][][]modupParams, len(ringP.Modulus)-1)
+	decomposer.modUpParams = make([][][]ModupParams, len(ringP.Modulus)-1)
 
 	for lvlP := range ringP.Modulus[1:] {
 
@@ -319,12 +322,12 @@ func NewDecomposer(ringQ, ringP *Ring) (decomposer *Decomposer) {
 			xalpha[beta-1] = len(Q) % alpha
 		}
 
-		decomposer.modUpParams[lvlP] = make([][]modupParams, beta)
+		decomposer.modUpParams[lvlP] = make([][]ModupParams, beta)
 
 		// Create modUpParams for each possible combination of [Qi,Pj] according to xalpha
 		for i := 0; i < beta; i++ {
 
-			decomposer.modUpParams[lvlP][i] = make([]modupParams, xalpha[i]-1)
+			decomposer.modUpParams[lvlP][i] = make([]ModupParams, xalpha[i]-1)
 
 			for j := 0; j < xalpha[i]-1; j++ {
 
@@ -343,7 +346,7 @@ func NewDecomposer(ringQ, ringP *Ring) (decomposer *Decomposer) {
 					Pi[k] = P[k-len(Q)]
 				}
 
-				decomposer.modUpParams[lvlP][i][j] = basisextenderparameters(Qi, Pi)
+				decomposer.modUpParams[lvlP][i][j] = GenModUpParams(Qi, Pi)
 			}
 		}
 	}

@@ -3,7 +3,6 @@ package rgsw
 import (
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
-	"math/big"
 )
 
 // Plaintext stores an RGSW plaintext value.
@@ -43,19 +42,8 @@ func NewPlaintext(value interface{}, levelQ, levelP, logBase2, decompBIT int, ri
 		panic("unsupported type, must be wither uint64 or *ring.Poly")
 	}
 
-	var pBigInt *big.Int
 	if levelP > -1 {
-		ringP := ringQP.RingP
-		if levelP == len(ringP.Modulus)-1 {
-			pBigInt = ringP.ModulusBigint
-		} else {
-			P := ringP.Modulus
-			pBigInt = new(big.Int).SetUint64(P[0])
-			for i := 1; i < levelP+1; i++ {
-				pBigInt.Mul(pBigInt, ring.NewUint(P[i]))
-			}
-		}
-		ringQ.MulScalarBigintLvl(levelQ, pt.Value[0], pBigInt, pt.Value[0])
+		ringQ.MulScalarBigintLvl(levelQ, pt.Value[0], ringQP.RingP.ModulusBigint[levelP], pt.Value[0])
 	}
 
 	ringQ.NTTLvl(levelQ, pt.Value[0], pt.Value[0])

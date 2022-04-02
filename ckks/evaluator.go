@@ -1542,6 +1542,7 @@ func (eval *evaluator) RotateHoistedNoModDownNew(level int, rotations []int, c0 
 func (eval *evaluator) PermuteNTTHoistedNoModDown(level int, c0 *ring.Poly, c1DecompQP []rlwe.PolyQP, k int, ct0OutQ, ct1OutQ, ct0OutP, ct1OutP *ring.Poly) {
 =======
 <<<<<<< dev_bfv_poly
+<<<<<<< dev_bfv_poly
 func (eval *evaluator) PermuteNTTHoistedNoModDown(level int, c0 *ring.Poly, c2DecompQP []ringqp.Poly, k int, ct0OutQ, ct1OutQ, ct0OutP, ct1OutP *ring.Poly) {
 >>>>>>> [rlwe]: complete refactoring
 
@@ -1614,6 +1615,8 @@ func (eval *evaluator) PermuteNTTHoisted(level int, c0, c1 *ring.Poly, c2DecompQ
 
 =======
 >>>>>>> wip
+=======
+>>>>>>> rebased on dev_bfv_poly
 // ShallowCopy creates a shallow copy of this evaluator in which all the read-only data-structures are
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // Evaluators can be used concurrently.

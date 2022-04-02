@@ -302,6 +302,7 @@ func (eval *evaluator) MulScalarNew(ctIn *Ciphertext, scalar uint64) (ctOut *Cip
 // Rescale divides the ciphertext by the last modulus.
 =======
 <<<<<<< btp_eprint
+<<<<<<< btp_eprint
 // Rescale divides the ciphertext by the last moduli.
 >>>>>>> [rlwe]: complete refactoring
 func (eval *evaluator) Rescale(ctIn, ctOut *Ciphertext) {
@@ -312,6 +313,8 @@ func (eval *evaluator) Rescale(ctIn, ctOut *Ciphertext) {
 func (eval *evaluator) RescaleTo(level int, ctIn, ctOut *Ciphertext) {
 =======
 <<<<<<< dev_bfv_poly
+=======
+>>>>>>> rebased on dev_bfv_poly
 func (eval *evaluator) QuantizeToLvl(level int, ctIn, ctOut *Ciphertext) {
 >>>>>>> [rlwe]: complete refactoring
 
@@ -324,13 +327,6 @@ func (eval *evaluator) QuantizeToLvl(level int, ctIn, ctOut *Ciphertext) {
 
 	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:level+1]
 	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:level+1]
-=======
-func (eval *evaluator) QuantizeToLvl(level int, op0 *Ciphertext) {
-	eval.ringQ.DivRoundByLastModulusManyLvl(op0.Level(), op0.Level()-level, op0.Value[0], eval.poolQ[0][0], op0.Value[0])
-	eval.ringQ.DivRoundByLastModulusManyLvl(op0.Level(), op0.Level()-level, op0.Value[1], eval.poolQ[0][0], op0.Value[1])
-	op0.Value[0].Coeffs = op0.Value[0].Coeffs[:level+1]
-	op0.Value[1].Coeffs = op0.Value[1].Coeffs[:level+1]
->>>>>>> wip
 }
 
 // tensorAndRescale computes (ct0 x ct1) * (t/Q) and stores the result in ctOut.
@@ -610,6 +606,7 @@ func (eval *evaluator) MulNew(ctIn *Ciphertext, op1 Operand) (ctOut *Ciphertext)
 }
 
 <<<<<<< dev_bfv_poly
+<<<<<<< dev_bfv_poly
 // relinearize is a method common to Relinearize and RelinearizeNew. It switches ctIn to the NTT domain, applies the keyswitch, and returns the result out of the NTT domain.
 func (eval *evaluator) relinearize(ctIn *Ciphertext, ctOut *Ciphertext) {
 
@@ -632,10 +629,9 @@ func (eval *evaluator) relinearize(ctIn *Ciphertext, ctOut *Ciphertext) {
 	ctOut.SetValue(ctOut.Value[:2])
 }
 
-// Relinearize relinearizes the ciphertext ctIn of degree > 1 until it is of degree 1, and returns the result in cOut.
 =======
-// Relinearize relinearizes the ciphertext ct0 of degree > 1 until it is of degree 1, and returns the result in cOut.
->>>>>>> wip
+>>>>>>> rebased on dev_bfv_poly
+// Relinearize relinearizes the ciphertext ctIn of degree > 1 until it is of degree 1, and returns the result in cOut.
 //
 // It requires a correct evaluation key as additional input:
 //
@@ -643,30 +639,8 @@ func (eval *evaluator) relinearize(ctIn *Ciphertext, ctOut *Ciphertext) {
 //
 // - it must be of degree high enough to relinearize the input ciphertext to degree 1 (e.g., a ciphertext
 // of degree 3 will require that the evaluation key stores the keys for both degree 3 and degree 2 ciphertexts).
-<<<<<<< dev_bfv_poly
-func (eval *evaluator) Relinearize(ctIn *Ciphertext, ctOut *Ciphertext) {
-
-	if eval.rlk == nil {
-		panic("evaluator has no relinearization key")
-	}
-
-	if ctIn.Degree()-1 > len(eval.rlk.Keys) {
-		panic("input ciphertext degree is too large to allow relinearization with the evluator's relinearization key")
-	}
-
-	eval.getElemAndCheckUnary(ctIn, ctOut, 1)
-
-	if ctIn.Degree() < 2 {
-		if ctIn != ctOut {
-			ctOut.Copy(ctIn.El())
-		}
-	} else {
-		eval.relinearize(ctIn, ctOut)
-	}
-=======
 func (eval *evaluator) Relinearize(ct0 *Ciphertext, ctOut *Ciphertext) {
 	eval.Evaluator.Relinearize(ct0.Ciphertext, ctOut.Ciphertext)
->>>>>>> wip
 }
 
 // RelinearizeNew relinearizes the ciphertext ctIn of degree > 1 until it is of degree 1, and creates a new ciphertext to store the result.
@@ -685,6 +659,7 @@ func (eval *evaluator) RelinearizeNew(ctIn *Ciphertext) (ctOut *Ciphertext) {
 
 // SwitchKeys applies the key-switching procedure to the ciphertext ct0 and returns the result in ctOut. It requires as an additional input a valid switching-key:
 // it must encrypt the target key under the public key under which ct0 is currently encrypted.
+<<<<<<< dev_bfv_poly
 <<<<<<< dev_bfv_poly
 func (eval *evaluator) SwitchKeys(ctIn *Ciphertext, switchKey *rlwe.SwitchingKey, ctOut *Ciphertext) {
 
@@ -708,6 +683,10 @@ func (eval *evaluator) SwitchKeys(ct0 *Ciphertext, switchKey *rlwe.SwitchingKey,
 	eval.Evaluator.SwitchKeys(ct0.Ciphertext, switchKey, ctOut.Ciphertext)
 >>>>>>> wip
 >>>>>>> [rlwe]: complete refactoring
+=======
+func (eval *evaluator) SwitchKeys(ct0 *Ciphertext, switchKey *rlwe.SwitchingKey, ctOut *Ciphertext) {
+	eval.Evaluator.SwitchKeys(ct0.Ciphertext, switchKey, ctOut.Ciphertext)
+>>>>>>> rebased on dev_bfv_poly
 }
 
 // SwitchKeysNew applies the key-switching procedure to the ciphertext ct0 and creates a new ciphertext to store the result. It requires as an additional input a valid switching-key:
@@ -724,6 +703,7 @@ func (eval *evaluator) SwitchKeysNew(ctIn *Ciphertext, switchkey *rlwe.Switching
 //
 // If only the power-of-two rotations are stored, the numbers k and n/2-k will be decomposed in base-2 and the rotation with the lowest
 // hamming weight will be chosen; then the specific rotation will be computed as a sum of powers of two rotations.
+<<<<<<< dev_bfv_poly
 <<<<<<< dev_bfv_poly
 func (eval *evaluator) RotateColumns(ctIn *Ciphertext, k int, ctOut *Ciphertext) {
 
@@ -768,6 +748,10 @@ func (eval *evaluator) RotateColumns(ct0 *Ciphertext, k int, ctOut *Ciphertext) 
 	eval.Automorphism(ct0.Ciphertext, eval.params.GaloisElementForColumnRotationBy(k), ctOut.Ciphertext)
 >>>>>>> wip
 >>>>>>> [rlwe]: complete refactoring
+=======
+func (eval *evaluator) RotateColumns(ct0 *Ciphertext, k int, ctOut *Ciphertext) {
+	eval.Automorphism(ct0.Ciphertext, eval.params.GaloisElementForColumnRotationBy(k), ctOut.Ciphertext)
+>>>>>>> rebased on dev_bfv_poly
 }
 
 // RotateColumnsNew applies RotateColumns and returns the result in a new Ciphertext.
@@ -777,28 +761,9 @@ func (eval *evaluator) RotateColumnsNew(ctIn *Ciphertext, k int) (ctOut *Ciphert
 	return
 }
 
-<<<<<<< dev_bfv_poly
-// RotateRows rotates the rows of ctIn and returns the result in ctOut.
-func (eval *evaluator) RotateRows(ctIn *Ciphertext, ctOut *Ciphertext) {
-
-	if ctIn.Degree() != 1 || ctOut.Degree() != 1 {
-		panic("cannot RotateRows: input and/or output must be of degree 1")
-	}
-
-	eval.getElemAndCheckUnary(ctIn, ctOut, 1)
-
-	galEl := eval.params.GaloisElementForRowRotation()
-
-	if key, inSet := eval.rtks.GetRotationKey(galEl); inSet {
-		eval.permuteLvl(ctIn.Level(), ctIn, galEl, key, ctOut)
-	} else {
-		panic("evaluator has no rotation key for row rotation")
-	}
-=======
 // RotateRows rotates the rows of ct0 and returns the result in ctOut.
 func (eval *evaluator) RotateRows(ct0 *Ciphertext, ctOut *Ciphertext) {
 	eval.Automorphism(ct0.Ciphertext, eval.params.GaloisElementForRowRotation(), ctOut.Ciphertext)
->>>>>>> wip
 }
 
 // RotateRowsNew rotates the rows of ctIn and returns the result a new Ciphertext.
@@ -811,19 +776,11 @@ func (eval *evaluator) RotateRowsNew(ctIn *Ciphertext) (ctOut *Ciphertext) {
 // InnerSum computes the inner sum of ctIn and returns the result in ctOut. It requires a rotation key that stores all the left powers of two rotations.
 // The resulting vector will be of the form [sum, sum, .., sum, sum].
 func (eval *evaluator) InnerSum(ctIn *Ciphertext, ctOut *Ciphertext) {
-
-<<<<<<< dev_bfv_poly
 	if ctIn.Degree() != 1 || ctOut.Degree() != 1 {
 		panic("cannot InnerSum: input and output must be of degree 1")
 	}
-
 	cTmp := NewCiphertextLvl(eval.params, 1, ctIn.Level())
-
 	ctOut.Copy(ctIn.El())
-=======
-	cTmp := NewCiphertext(eval.params, 1)
-	ctOut.Copy(ct0.El())
->>>>>>> wip
 
 	for i := 1; i < int(eval.ringQ.N>>1); i <<= 1 {
 		eval.RotateColumns(ctOut, i, cTmp)

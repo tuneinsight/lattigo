@@ -154,19 +154,8 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 	ciphertext2 := NewCiphertextRandom(tc.prng, tc.params, 1)
 	receiver := NewCiphertextRandom(tc.prng, tc.params, 2)
 
-	var rotkey *rlwe.RotationKeySet
-<<<<<<< dev_bfv_poly
-	if tc.params.PCount() != 0 {
-		rotkey = tc.kgen.GenRotationKeysForRotations([]int{1}, true, tc.sk)
-=======
-	if testctx.params.PCount() != 0 {
-<<<<<<< dev_bfv_poly
-		rotkey = testctx.kgen.GenRotationKeysForRotations([]int{1}, true, testctx.sk, 0)
->>>>>>> First step for adding bit-decomp
-=======
-		rotkey = testctx.kgen.GenRotationKeysForRotations([]int{1}, true, testctx.sk)
->>>>>>> fixed bfv & ckks
-	}
+	rotkey := tc.kgen.GenRotationKeysForRotations([]int{1}, true, tc.sk)
+
 	evaluator := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotkey})
 
 	b.Run(testString("Evaluator/Add/Ct", tc.params, tc.params.MaxLevel()), func(b *testing.B) {

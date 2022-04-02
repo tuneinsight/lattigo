@@ -3,7 +3,6 @@ package gadget
 import (
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
-	"math/big"
 )
 
 // AddPolyToGadgetMatrix takes a plaintext polynomial and a list of switching keys and adds the
@@ -16,17 +15,7 @@ func AddPolyToGadgetMatrix(pt *ring.Poly, ct []Ciphertext, ringQP ringqp.Ring, l
 	levelP := ct[0].LevelP()
 
 	if levelP != -1 {
-		var pBigInt *big.Int
-		if levelP == len(ringQP.RingP.Modulus)-1 {
-			pBigInt = ringQP.RingP.ModulusBigint
-		} else {
-			P := ringQP.RingP.Modulus
-			pBigInt = new(big.Int).SetUint64(P[0])
-			for i := 1; i < levelP+1; i++ {
-				pBigInt.Mul(pBigInt, ring.NewUint(P[i]))
-			}
-		}
-		ringQ.MulScalarBigintLvl(levelQ, pt, pBigInt, pool) // P * pt
+		ringQ.MulScalarBigintLvl(levelQ, pt, ringQP.RingP.ModulusBigint[levelP], pool) // P * pt
 	} else {
 		levelP = 0
 		if pt != pool {

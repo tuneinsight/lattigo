@@ -14,6 +14,31 @@ import (
 
 var (
 
+<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
+=======
+	// TESTTDivQN2Q1P is a set of test parameters where T = Q[0].
+	TESTTDivQN2Q1P = ParametersLiteral{
+		ParametersLiteral: rlwe.ParametersLiteral{
+			LogN:  14,
+			Q:     []uint64{0x10001, 0xffffffffffe8001, 0xffffffffffd8001, 0xffffffffffc0001, 0xffffffffff28001},
+			P:     []uint64{0x1fffffffffe10001, 0x1fffffffffe00001},
+			Sigma: rlwe.DefaultSigma,
+		},
+		T: 0x10001,
+	}
+
+	// TESTTCPrimeQN2Q1P is a set of test parameters where T is coprime with Q.
+	TESTTCPrimeQN2Q1P = ParametersLiteral{
+		ParametersLiteral: rlwe.ParametersLiteral{
+			LogN:  14,
+			Q:     []uint64{0xffffffffffe8001, 0xffffffffffd8001, 0xffffffffffc0001, 0xffffffffff28001},
+			P:     []uint64{0x1fffffffffe10001, 0x1fffffffffe00001},
+			Sigma: rlwe.DefaultSigma,
+		},
+		T: 0x10001,
+	}
+
+>>>>>>> rebased on dev_bfv_poly
 	// PN12QP109 is a set of default parameters with logN=12 and logQP=109
 	PN12QP109 = ParametersLiteral{
 		ParametersLiteral: rlwe.ParametersLiteral{

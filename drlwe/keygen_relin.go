@@ -2,7 +2,6 @@ package drlwe
 
 import (
 	"errors"
-	"math/big"
 
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
@@ -131,29 +130,17 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp RKGCRP, ephSkOu
 
 	ringQ := ekg.params.RingQ()
 	ringQP := ekg.params.RingQP()
+
 	levelQ := sk.Value.Q.Level()
+	levelP := sk.Value.P.Level()
 
-	hasModulusP := sk.Value.P != nil
+	hasModulusP := levelP > -1
 
-	var levelP int
 	if hasModulusP {
-
-		levelP = sk.Value.P.Level()
-
-		var pBigInt *big.Int
-		if levelP == ekg.params.PCount()-1 {
-			pBigInt = ekg.params.RingP().ModulusBigint
-		} else {
-			P := ekg.params.RingP().Modulus
-			pBigInt = new(big.Int).SetUint64(P[0])
-			for i := 1; i < levelP+1; i++ {
-				pBigInt.Mul(pBigInt, ring.NewUint(P[i]))
-			}
-		}
-
 		// Computes P * sk
-		ringQ.MulScalarBigintLvl(levelQ, sk.Value.Q, pBigInt, ekg.tmpPoly1.Q)
+		ringQ.MulScalarBigintLvl(levelQ, sk.Value.Q, ringQP.RingP.ModulusBigint[levelP], ekg.tmpPoly1.Q)
 	} else {
+		levelP = 0
 		ring.CopyLvl(levelQ, sk.Value.Q, ekg.tmpPoly1.Q)
 	}
 

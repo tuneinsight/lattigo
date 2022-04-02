@@ -6,7 +6,7 @@ var (
 	TestPN10QP27 = ParametersLiteral{
 		LogN:     10,
 		Q:        []uint64{0x7fff801}, // 27 bits
-		P:        []uint64{},
+		P:        []uint64{0x3001},
 		Sigma:    DefaultSigma,
 		LogBase2: 2,
 	}

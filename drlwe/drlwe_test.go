@@ -340,6 +340,7 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 			}
 		}
 
+<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
 <<<<<<< dev_bfv_poly
 		// sOut * P
 <<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
@@ -347,9 +348,11 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 =======
 		ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusBigint[levelP], skIn.Value.Q)
 =======
+=======
+>>>>>>> rebased on dev_bfv_poly
 		if levelP != -1 {
 			// sOut * P
-			ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusBigint, skIn.Value.Q)
+			ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusBigint[levelP], skIn.Value.Q)
 		}
 
 		log2Bound := bits.Len64(uint64(params.N() * len(swk.Value) * len(swk.Value[0]) * (params.N()*3*int(math.Floor(rlwe.DefaultSigma*6)) + 2*3*int(math.Floor(rlwe.DefaultSigma*6)) + params.N()*3)))
@@ -362,29 +365,24 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 			// Worst error bound is N * floor(6*sigma) * #Keys
 			ringQP.InvNTTLvl(levelQ, levelP, swk.Value[0][i][0], swk.Value[0][i][0])
 			ringQP.InvMFormLvl(levelQ, levelP, swk.Value[0][i][0], swk.Value[0][i][0])
+<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
 >>>>>>> First step for adding bit-decomp
 >>>>>>> First step for adding bit-decomp
+=======
+>>>>>>> rebased on dev_bfv_poly
 
 			// Worst bound of inner sum
 			// N*#Keys*(N * #Parties * floor(sigma*6) + #Parties * floor(sigma*6) + N * #Parties  +  #Parties * floor(6*sigma))
 
-			require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(len(ringQ.Modulus)-1, ringQ, swk.Value[0][i][0].Q))
+			require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelQ, ringQ, swk.Value[0][i][0].Q))
 
-<<<<<<< dev_bfv_poly
-		// Worst bound of inner sum
-		// N*#Keys*(N * #Parties * floor(sigma*6) + #Parties * floor(sigma*6) + N * #Parties  +  #Parties * floor(6*sigma))
-		log2Bound := bits.Len64(uint64(params.N() * len(swk.Value) * (params.N()*3*int(math.Floor(rlwe.DefaultSigma*6)) + 2*3*int(math.Floor(rlwe.DefaultSigma*6)) + params.N()*3)))
-		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelQ, ringQ, swk.Value[0][0].Q))
-		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelP, ringP, swk.Value[0][0].P))
-=======
 			if levelP != -1 {
-				require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(len(ringP.Modulus)-1, ringP, swk.Value[0][i][0].P))
+				require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelP, ringP, swk.Value[0][i][0].P))
 			}
 
 			// sOut * P * BIT
 			ringQ.MulScalar(skIn.Value.Q, 1<<params.LogBase2(), skIn.Value.Q)
 		}
->>>>>>> First step for adding bit-decomp
 	})
 }
 
@@ -466,6 +464,7 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 			}
 		}
 
+<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
 <<<<<<< dev_bfv_poly
 		// sOut * P
 <<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
@@ -473,12 +472,17 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 =======
 		ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusBigint[levelP], skIn.Value.Q)
 =======
+=======
+>>>>>>> rebased on dev_bfv_poly
 		if levelP != -1 {
 			// sOut * P
-			ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusBigint, skIn.Value.Q)
+			ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusBigint[levelP], skIn.Value.Q)
 		}
+<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
 >>>>>>> First step for adding bit-decomp
 >>>>>>> First step for adding bit-decomp
+=======
+>>>>>>> rebased on dev_bfv_poly
 
 		log2Bound := bits.Len64(uint64(params.N() * len(swk.Value) * len(swk.Value[0]) * (params.N()*3*int(math.Floor(rlwe.DefaultSigma*6)) + 2*3*int(math.Floor(rlwe.DefaultSigma*6)) + params.N()*3)))
 		for i := 0; i < decompBIT; i++ {
@@ -486,13 +490,6 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 			// P*s^i + sum(e) - P*s^i = sum(e)
 			ringQ.Sub(swk.Value[0][i][0].Q, skIn.Value.Q, swk.Value[0][i][0].Q)
 
-<<<<<<< dev_bfv_poly
-		// Worst bound of inner sum
-		// N*#Keys*(N * #Parties * floor(sigma*6) + #Parties * floor(sigma*6) + N * #Parties  +  #Parties * floor(6*sigma))
-		log2Bound := bits.Len64(3 * uint64(math.Floor(rlwe.DefaultSigma*6)) * uint64(params.N()))
-		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelQ, ringQ, swk.Value[0][0].Q))
-		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelP, ringP, swk.Value[0][0].P))
-=======
 			// Checks that the error is below the bound
 			// Worst error bound is N * floor(6*sigma) * #Keys
 			ringQP.InvNTTLvl(levelQ, levelP, swk.Value[0][i][0], swk.Value[0][i][0])
@@ -501,16 +498,15 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 			// Worst bound of inner sum
 			// N*#Keys*(N * #Parties * floor(sigma*6) + #Parties * floor(sigma*6) + N * #Parties  +  #Parties * floor(6*sigma))
 
-			require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(len(ringQ.Modulus)-1, ringQ, swk.Value[0][i][0].Q))
+			require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelQ, ringQ, swk.Value[0][i][0].Q))
 
 			if levelP != -1 {
-				require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(len(ringP.Modulus)-1, ringP, swk.Value[0][i][0].P))
+				require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelP, ringP, swk.Value[0][i][0].P))
 			}
 
 			// sOut * P * BIT
 			ringQ.MulScalar(skOut.Value.Q, 1<<params.LogBase2(), skOut.Value.Q)
 		}
->>>>>>> First step for adding bit-decomp
 	})
 }
 

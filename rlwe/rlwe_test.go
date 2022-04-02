@@ -228,15 +228,10 @@ func testSwitchKeyGen(kgen KeyGenerator, t *testing.T) {
 			}
 		}
 
-<<<<<<< dev_bfv_poly
-		// sOut * P
-		ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusBigint[levelP], skIn.Value.Q)
-=======
 		// sOut * P * BIT
 		if levelP != -1 {
-			ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusBigint, skIn.Value.Q)
+			ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusBigint[levelP], skIn.Value.Q)
 		}
->>>>>>> First step for adding bit-decomp
 
 		log2Bound := bits.Len64(uint64(math.Floor(DefaultSigma*6)) * uint64(params.N()*len(swk.Value)))
 		for i := 0; i < decompBIT; i++ {
@@ -247,19 +242,13 @@ func testSwitchKeyGen(kgen KeyGenerator, t *testing.T) {
 			// Checks that the error is below the bound
 			// Worst error bound is N * floor(6*sigma) * #Keys
 
-<<<<<<< dev_bfv_poly
-		log2Bound := bits.Len64(uint64(math.Floor(DefaultSigma*6)) * uint64(params.N()*len(swk.Value)))
-		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelQ, ringQ, swk.Value[0][0].Q))
-		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelP, ringP, swk.Value[0][0].P))
-=======
 			ringQP.InvNTTLvl(levelQ, levelP, swk.Value[0][i][0], swk.Value[0][i][0])
 			ringQP.InvMFormLvl(levelQ, levelP, swk.Value[0][i][0], swk.Value[0][i][0])
 
-			require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(len(ringQ.Modulus)-1, ringQ, swk.Value[0][i][0].Q))
->>>>>>> First step for adding bit-decomp
+			require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelQ, ringQ, swk.Value[0][i][0].Q))
 
 			if levelP != -1 {
-				require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(len(ringP.Modulus)-1, ringP, swk.Value[0][i][0].P))
+				require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelP, ringP, swk.Value[0][i][0].P))
 			}
 
 			// sOut * P * BIT

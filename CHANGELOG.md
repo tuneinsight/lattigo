@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # [3.0.3] - UNREALEASED
 
-- BFV: the plaintext modulus `T` can now be a factor of `Q`. If so, it is always assumed to be the first moduli.
+- BFV: the plaintext modulus `T` can now be a factor of `Q`. This can be enforced by setting Q[0] = T.
 - BFV: partially introduced the concept of `level`, a ciphertext can be rescaled with `QuantizeToLvl` to erase its lowest bits, which can be used to enforce circuit privacy. Rescaled ciphertexts can still be operated on, but operations must be done between ciphertexts of the same level to ensure correctness.
 - BFV: added polynomial evaluation as well as some new methods to support and implement this feature. API is identical to the one already present in the `ckks` package.
 - BFV/RING: moved `RNSScaler` from `ring` to `bfv`.

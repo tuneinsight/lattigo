@@ -636,69 +636,80 @@ func testPolyEval(tc *testContext, t *testing.T) {
 		}
 	})
 
-	t.Run(testString("PolyEval/Single", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
-		if tc.params.PCount() == 0 {
-			t.Skip("#Pi is empty")
-		}
-
-		values, _, ciphertext := newTestVectorsRingQLvl(tc.params.MaxLevel(), tc, tc.encryptorPk, t)
-
-		coeffs := []uint64{1, 2, 3}
-
-		T := tc.ringT.Modulus[0]
-		for i := range values.Coeffs[0] {
-			values.Coeffs[0][i] = ring.EvalPolyModP(values.Coeffs[0][i], coeffs, T)
-		}
-
-		poly := NewPoly(coeffs)
-
-		var err error
-		if ciphertext, err = tc.evaluator.EvaluatePoly(ciphertext, poly); err != nil {
-			t.Fail()
-		}
-
-		verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
-
-	})
-
-	t.Run(testString("PolyEval/Vector", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
-
-		if tc.params.PCount() == 0 {
-			t.Skip("#Pi is empty")
-		}
-
-		values, _, ciphertext := newTestVectorsRingQLvl(tc.params.MaxLevel(), tc, tc.encryptorPk, t)
-
-		coeffs0 := []uint64{1, 2, 3}
-		coeffs1 := []uint64{2, 3, 4}
-
-		slotIndex := make(map[int][]int)
-		idx0 := make([]int, tc.params.N()>>1)
-		idx1 := make([]int, tc.params.N()>>1)
-		for i := 0; i < tc.params.N()>>1; i++ {
-			idx0[i] = 2 * i
-			idx1[i] = 2*i + 1
-		}
-
-		polyVec := []*Polynomial{NewPoly(coeffs0), NewPoly(coeffs1)}
-
-		slotIndex[0] = idx0
-		slotIndex[1] = idx1
-
-		T := tc.ringT.Modulus[0]
-		for pol, idx := range slotIndex {
-			for _, i := range idx {
-				values.Coeffs[0][i] = ring.EvalPolyModP(values.Coeffs[0][i], polyVec[pol].Coeffs, T)
+	for _, lvl := range []int{tc.params.MaxLevel(), tc.params.MaxLevel() - 1} {
+		t.Run(testString("PolyEval/Single", tc.params, lvl), func(t *testing.T) {
+			if tc.params.PCount() == 0 {
+				t.Skip("#Pi is empty")
 			}
-		}
 
-		var err error
-		if ciphertext, err = tc.evaluator.EvaluatePolyVector(ciphertext, polyVec, tc.encoder, slotIndex); err != nil {
-			t.Fail()
-		}
+			if (tc.params.LogQ()-tc.params.LogT())/(tc.params.LogT()+tc.params.LogN()) < 3 {
+				t.Skip("Homomorphic Capacity Too Low")
+			}
 
-		verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
-	})
+			values, _, ciphertext := newTestVectorsRingQLvl(tc.params.MaxLevel()-1, tc, tc.encryptorPk, t)
+
+			coeffs := []uint64{1, 2, 3, 4, 5, 6, 7, 8}
+
+			T := tc.ringT.Modulus[0]
+			for i := range values.Coeffs[0] {
+				values.Coeffs[0][i] = ring.EvalPolyModP(values.Coeffs[0][i], coeffs, T)
+			}
+
+			poly := NewPoly(coeffs)
+
+			var err error
+			if ciphertext, err = tc.evaluator.EvaluatePoly(ciphertext, poly); err != nil {
+				t.Fail()
+			}
+
+			verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
+		})
+	}
+
+	for _, lvl := range []int{tc.params.MaxLevel(), tc.params.MaxLevel() - 1} {
+		t.Run(testString("PolyEval/Vector", tc.params, lvl), func(t *testing.T) {
+
+			if tc.params.PCount() == 0 {
+				t.Skip("#Pi is empty")
+			}
+
+			if (tc.params.LogQ()-tc.params.LogT()-tc.params.LogN())/(tc.params.LogT()+tc.params.LogN()) < 3 {
+				t.Skip("Homomorphic Capacity Too Low")
+			}
+
+			values, _, ciphertext := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
+
+			coeffs0 := []uint64{1, 2, 3, 4, 5, 6, 7, 8}
+			coeffs1 := []uint64{2, 3, 4, 5, 6, 7, 8, 9}
+
+			slotIndex := make(map[int][]int)
+			idx0 := make([]int, tc.params.N()>>1)
+			idx1 := make([]int, tc.params.N()>>1)
+			for i := 0; i < tc.params.N()>>1; i++ {
+				idx0[i] = 2 * i
+				idx1[i] = 2*i + 1
+			}
+
+			polyVec := []*Polynomial{NewPoly(coeffs0), NewPoly(coeffs1)}
+
+			slotIndex[0] = idx0
+			slotIndex[1] = idx1
+
+			T := tc.ringT.Modulus[0]
+			for pol, idx := range slotIndex {
+				for _, i := range idx {
+					values.Coeffs[0][i] = ring.EvalPolyModP(values.Coeffs[0][i], polyVec[pol].Coeffs, T)
+				}
+			}
+
+			var err error
+			if ciphertext, err = tc.evaluator.EvaluatePolyVector(ciphertext, polyVec, tc.encoder, slotIndex); err != nil {
+				t.Fail()
+			}
+
+			verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
+		})
+	}
 }
 
 func testEvaluatorKeySwitch(tc *testContext, t *testing.T) {

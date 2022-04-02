@@ -656,3 +656,20 @@ func MulByPow2Vec(p1, p2 []uint64, pow2 int, qi, mredParams uint64) {
 		z[7] = PowerOf2(x[7], pow2, qi, mredParams)
 	}
 }
+
+// ZeroVec sets all values of p1 to zero.
+func ZeroVec(p1 []uint64) {
+	for j := 0; j < len(p1); j = j + 8 {
+
+		z := (*[8]uint64)(unsafe.Pointer(&p1[j]))
+
+		z[0] = 0
+		z[1] = 0
+		z[2] = 0
+		z[3] = 0
+		z[4] = 0
+		z[5] = 0
+		z[6] = 0
+		z[7] = 0
+	}
+}

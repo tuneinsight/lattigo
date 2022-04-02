@@ -146,11 +146,8 @@ func (rnss *RNSScaler) ScaleUpByQOverTLvl(level int, pIn, pOut *ring.Poly) {
 	if !rnss.tDividesQ {
 		ScaleUpTCoprimeWithQVecLvl(level, rnss.ringQ, rnss.ringT, rnss.tInvModQi, rnss.polypoolQ.Coeffs[0], pIn, pOut)
 	} else {
-
 		ScaleUpTIsQ0VecLvl(level, rnss.ringQ, pIn, pOut)
-
 	}
-
 }
 
 // ScaleUpTCoprimeWithQVecLvl takes a Poly pIn in ringT, scales its coefficients up by (Q/T) mod Q, and writes the result in a
@@ -199,6 +196,10 @@ func ScaleUpTIsQ0VecLvl(level int, ringQ *ring.Ring, pIn, pOut *ring.Poly) {
 
 	// pOut = Q/T * pIn
 	ring.MulScalarMontgomeryVec(pIn.Coeffs[0], pOut.Coeffs[0], QOverTMont, ringQ.Modulus[0], ringQ.MredParams[0])
+
+	for i := 1; i < level+1; i++ {
+		ring.ZeroVec(pOut.Coeffs[i])
+	}
 }
 
 // DecryptAndPrintError decrypts a ciphertext and prints the log2 of the error.

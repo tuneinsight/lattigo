@@ -297,10 +297,9 @@ func (polyEval *polynomialEvaluator) recurse(pol polynomialVector) (res *Ciphert
 		return nil, err
 	}
 
-	res2 := NewCiphertext(polyEval.Evaluator.(*evaluator).params, 2)
+	res2 := NewCiphertextLvl(polyEval.Evaluator.(*evaluator).params, 2, res.Level())
 	polyEval.Mul(res, XPow, res2)
 	polyEval.Relinearize(res2, res)
-
 	polyEval.Add(res, tmp, res)
 
 	tmp = nil
@@ -311,6 +310,7 @@ func (polyEval *polynomialEvaluator) recurse(pol polynomialVector) (res *Ciphert
 func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(pol polynomialVector) (res *Ciphertext, err error) {
 
 	X := polyEval.powerBasis
+	level := X[1].Level()
 
 	params := polyEval.Evaluator.(*evaluator).params
 	slotsIndex := polyEval.slotsIndex
@@ -339,7 +339,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(pol polynomialVe
 		if minimumDegreeNonZeroCoefficient == 0 {
 
 			// Allocates the output ciphertext
-			res = NewCiphertext(params, 1)
+			res = NewCiphertextLvl(params, 1, level)
 
 			// Looks for non-zero coefficients among the degree 0 coefficients of the polynomials
 			for i, p := range pol.Value {
@@ -360,10 +360,10 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(pol polynomialVe
 		}
 
 		// Allocates the output ciphertext
-		res = NewCiphertext(params, 1)
+		res = NewCiphertextLvl(params, 1, level)
 
 		// Allocates a temporary plaintext to encode the values
-		pt := polyEval.PoolPt()
+		pt := NewPlaintextAtLevelFromPoly(level, polyEval.Evaluator.PoolQMul()[0][0])
 
 		// Looks for a non-zero coefficient among the degree zero coefficient of the polynomials
 		for i, p := range pol.Value {
@@ -428,7 +428,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(pol polynomialVe
 
 		if minimumDegreeNonZeroCoefficient == 0 {
 
-			res = NewCiphertext(params, 1)
+			res = NewCiphertextLvl(params, 1, level)
 
 			if c != 0 {
 				polyEval.AddScalar(res, c, res)
@@ -437,7 +437,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(pol polynomialVe
 			return
 		}
 
-		res = NewCiphertext(params, 1)
+		res = NewCiphertextLvl(params, 1, level)
 
 		if c != 0 {
 			polyEval.AddScalar(res, c, res)

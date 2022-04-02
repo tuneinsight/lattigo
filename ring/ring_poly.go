@@ -42,11 +42,8 @@ func (pol *Poly) Level() int {
 
 // Zero sets all coefficients of the target polynomial to 0.
 func (pol *Poly) Zero() {
-	for i := range pol.Coeffs {
-		p0tmp := pol.Coeffs[i]
-		for j := range p0tmp {
-			p0tmp[j] = 0
-		}
+	for _, coeffs := range pol.Coeffs {
+		ZeroVec(coeffs)
 	}
 }
 

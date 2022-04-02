@@ -467,6 +467,11 @@ func testEvaluator(tc *testContext, t *testing.T) {
 	}
 
 	for _, lvl := range tc.testLevel {
+
+		if lvl == 0 && tc.params.MaxLevel() > 0 {
+			lvl++
+		}
+
 		t.Run(testString("Evaluator/Mul/op1=Ciphertext/op2=Ciphertext", tc.params, lvl), func(t *testing.T) {
 			values1, _, ciphertext1 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
 			values2, _, ciphertext2 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
@@ -478,6 +483,11 @@ func testEvaluator(tc *testContext, t *testing.T) {
 	}
 
 	for _, lvl := range tc.testLevel {
+
+		if lvl == 0 && tc.params.MaxLevel() > 0 {
+			lvl++
+		}
+
 		t.Run(testString("Evaluator/MulAndAdd/op1=Ciphertext/op2=Plaintext", tc.params, lvl), func(t *testing.T) {
 			values1, _, ciphertext1 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
 			values2, plaintext2, ciphertext2 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
@@ -490,6 +500,11 @@ func testEvaluator(tc *testContext, t *testing.T) {
 	}
 
 	for _, lvl := range tc.testLevel {
+
+		if lvl == 0 && tc.params.MaxLevel() > 0 {
+			lvl++
+		}
+
 		t.Run(testString("Evaluator/MulAndAdd/op1=Ciphertext/op2=Ciphetext", tc.params, lvl), func(t *testing.T) {
 			values1, _, ciphertext1 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
 			values2, _, ciphertext2 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
@@ -503,6 +518,11 @@ func testEvaluator(tc *testContext, t *testing.T) {
 	}
 
 	for _, lvl := range tc.testLevel {
+
+		if lvl == 0 && tc.params.MaxLevel() > 0 {
+			lvl++
+		}
+
 		t.Run(testString("Evaluator/MulNew/op1=Ciphertext/op2=Ciphertext", tc.params, lvl), func(t *testing.T) {
 			values1, _, ciphertext1 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
 			values2, _, ciphertext2 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
@@ -513,6 +533,11 @@ func testEvaluator(tc *testContext, t *testing.T) {
 	}
 
 	for _, lvl := range tc.testLevel {
+
+		if lvl == 0 && tc.params.MaxLevel() > 0 {
+			lvl++
+		}
+
 		t.Run(testString("Evaluator/MulSquare/op1=Ciphertext/op2=Ciphertext", tc.params, lvl), func(t *testing.T) {
 			values1, _, ciphertext1 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
 			receiver := NewCiphertextLvl(tc.params, ciphertext1.Degree()+ciphertext1.Degree(), lvl)
@@ -523,6 +548,11 @@ func testEvaluator(tc *testContext, t *testing.T) {
 	}
 
 	for _, lvl := range tc.testLevel {
+
+		if lvl == 0 && tc.params.MaxLevel() > 0 {
+			lvl++
+		}
+
 		t.Run(testString("Evaluator/Mul/op1=Ciphertext/op2=Plaintext", tc.params, lvl), func(t *testing.T) {
 			values1, _, ciphertext1 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
 			values2, plaintext2, _ := newTestVectorsRingQLvl(lvl, tc, nil, t)
@@ -533,6 +563,11 @@ func testEvaluator(tc *testContext, t *testing.T) {
 	}
 
 	for _, lvl := range tc.testLevel {
+
+		if lvl == 0 && tc.params.MaxLevel() > 0 {
+			lvl++
+		}
+
 		t.Run(testString("Evaluator/Mul/op1=Ciphertext/op2=PlaintextRingT", tc.params, lvl), func(t *testing.T) {
 			values1, plaintextRingT := newTestVectorsRingT(tc, t)
 			values2, _, ciphertext := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
@@ -544,6 +579,11 @@ func testEvaluator(tc *testContext, t *testing.T) {
 	}
 
 	for _, lvl := range tc.testLevel {
+
+		if lvl == 0 && tc.params.MaxLevel() > 0 {
+			lvl++
+		}
+
 		t.Run(testString("Evaluator/Mul/op1=Ciphertext/op2=PlaintextMul", tc.params, lvl), func(t *testing.T) {
 			values1, _, ciphertext1 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
 			values2, plaintext2 := newTestVectorsMulLvl(lvl, tc, t)
@@ -554,6 +594,11 @@ func testEvaluator(tc *testContext, t *testing.T) {
 	}
 
 	for _, lvl := range tc.testLevel {
+
+		if lvl == 0 && tc.params.MaxLevel() > 0 {
+			lvl++
+		}
+
 		t.Run(testString("Evaluator/Mul/Relinearize", tc.params, lvl), func(t *testing.T) {
 
 			if tc.params.PCount() == 0 {

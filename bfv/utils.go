@@ -98,9 +98,7 @@ func (rnss *RNSScaler) DivByQOverTRoundedLvl(level int, p1Q, p2T *ring.Poly) {
 
 	if level > 0 {
 		if rnss.tDividesQ {
-
 			ringQ.DivRoundByLastModulusManyLvl(level, level, p1Q, rnss.polypoolQ, p2T)
-
 		} else {
 
 			ringT := rnss.ringT
@@ -122,25 +120,37 @@ func (rnss *RNSScaler) DivByQOverTRoundedLvl(level int, p1Q, p2T *ring.Poly) {
 			// Extend the basis of (t*P_{Q} + (Q-1)/2) to (t*P_{t} + (Q-1)/2)
 			ring.ModUpExact(rnss.polypoolQ.Coeffs[:level+1], rnss.polypoolT.Coeffs, ringQ, ringT, rnss.paramsQP[level])
 
-			// Compute [Q^{-1} * (t*P_{t} -   (t*P_{Q} - ((Q-1)/2 mod t)))] mod t which returns round(t/Q * P_{Q}) mod t
+			// Compute [Q^{-1} * (t*P_{t} - (t*P_{Q} - ((Q-1)/2 mod t)))] mod t which returns round(t/Q * P_{Q}) mod t
 			ring.AddScalarNoModAndMulScalarMontgomeryVec(p3tmp, p2tmp, qHalfModT, qInv, T, tInv)
 		}
 	} else {
-		qOverT := float64(ringQ.Modulus[0]) / float64(rnss.ringT.Modulus[0])
-		tmp0, tmp1 := p2T.Coeffs[0], p1Q.Coeffs[0]
-		for i := 0; i < ringQ.N; i++ {
-			tmp0[i] = uint64(float64(tmp1[i])/qOverT + 0.5)
+		if rnss.tDividesQ {
+			copy(p2T.Coeffs[0], p1Q.Coeffs[0])
+		} else {
+			// In this case lvl = 0 and T < Q. This step has limited precision to 53 bits, however
+			// since |Q| < 62 bits, and min(logN) = 10, then |<s, e>| > 10 bits, hence there is no
+			// possible case where |T| > 51 bits & lvl = 0 that does not lead to an overflow of
+			// the error when decrypting.
+			qOverT := float64(ringQ.Modulus[0]) / float64(rnss.ringT.Modulus[0])
+			tmp0, tmp1 := p2T.Coeffs[0], p1Q.Coeffs[0]
+			for i := 0; i < ringQ.N; i++ {
+				tmp0[i] = uint64(float64(tmp1[i])/qOverT + 0.5)
+			}
 		}
 	}
 }
 
 // ScaleUpByQOverTLvl takes a Poly pIn in ringT, scales its coefficients up by (Q/T) mod Q, and writes the result on pOut.
 func (rnss *RNSScaler) ScaleUpByQOverTLvl(level int, pIn, pOut *ring.Poly) {
+
 	if !rnss.tDividesQ {
 		ScaleUpTCoprimeWithQVecLvl(level, rnss.ringQ, rnss.ringT, rnss.tInvModQi, rnss.polypoolQ.Coeffs[0], pIn, pOut)
 	} else {
+
 		ScaleUpTIsQ0VecLvl(level, rnss.ringQ, pIn, pOut)
+
 	}
+
 }
 
 // ScaleUpTCoprimeWithQVecLvl takes a Poly pIn in ringT, scales its coefficients up by (Q/T) mod Q, and writes the result in a
@@ -179,15 +189,15 @@ func ScaleUpTCoprimeWithQVecLvl(level int, ringQ, ringT *ring.Ring, tInvModQi, b
 // Poly pOut in ringQ.
 // T is in this case assumed to be the first prime in the moduli chain.
 func ScaleUpTIsQ0VecLvl(level int, ringQ *ring.Ring, pIn, pOut *ring.Poly) {
+
 	// Q/T mod T
 	tmp := ring.NewUint(1)
 	for i := 1; i < level+1; i++ {
 		tmp.Mul(tmp, ring.NewUint(ringQ.Modulus[i]))
 	}
-	QOverTMont := tmp.Mod(tmp, new(big.Int).SetUint64(ringQ.Modulus[0])).Uint64()
+	QOverTMont := ring.MForm(tmp.Mod(tmp, new(big.Int).SetUint64(ringQ.Modulus[0])).Uint64(), ringQ.Modulus[0], ringQ.BredParams[0])
 
 	// pOut = Q/T * pIn
-	ring.MForm(QOverTMont, ringQ.Modulus[0], ringQ.BredParams[0])
 	ring.MulScalarMontgomeryVec(pIn.Coeffs[0], pOut.Coeffs[0], QOverTMont, ringQ.Modulus[0], ringQ.MredParams[0])
 }
 

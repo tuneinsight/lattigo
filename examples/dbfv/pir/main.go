@@ -149,7 +149,7 @@ func main() {
 		maskCoeffs := make([]uint64, params.N())
 		maskCoeffs[i] = 1
 		plainMask[i] = bfv.NewPlaintextMul(params)
-		encoder.EncodeUintMul(maskCoeffs, plainMask[i])
+		encoder.EncodeMul(maskCoeffs, plainMask[i])
 	}
 
 	// Ciphertexts encrypted under CKG and stored in the cloud
@@ -158,7 +158,7 @@ func main() {
 	pt := bfv.NewPlaintext(params)
 	elapsedEncryptParty := runTimedParty(func() {
 		for i, pi := range P {
-			encoder.EncodeUint(pi.input, pt)
+			encoder.Encode(pi.input, pt)
 			encryptor.Encrypt(pt, encInputs[i])
 		}
 	}, N)
@@ -370,7 +370,7 @@ func genquery(params bfv.Parameters, queryIndex int, encoder bfv.Encoder, encryp
 	query := bfv.NewPlaintext(params)
 	var encQuery *bfv.Ciphertext
 	elapsedRequestParty += runTimed(func() {
-		encoder.EncodeUint(queryCoeffs, query)
+		encoder.Encode(queryCoeffs, query)
 		encQuery = encryptor.EncryptNew(query)
 	})
 

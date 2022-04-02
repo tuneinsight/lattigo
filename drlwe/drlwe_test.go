@@ -333,7 +333,7 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 		}
 
 		// sOut * P
-		ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusBigint, skIn.Value.Q)
+		ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusBigint[levelP], skIn.Value.Q)
 
 		// P*s^i + sum(e) - P*s^i = sum(e)
 		ringQ.Sub(swk.Value[0][0].Q, skIn.Value.Q, swk.Value[0][0].Q)
@@ -346,8 +346,8 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 		// Worst bound of inner sum
 		// N*#Keys*(N * #Parties * floor(sigma*6) + #Parties * floor(sigma*6) + N * #Parties  +  #Parties * floor(6*sigma))
 		log2Bound := bits.Len64(uint64(params.N() * len(swk.Value) * (params.N()*3*int(math.Floor(rlwe.DefaultSigma*6)) + 2*3*int(math.Floor(rlwe.DefaultSigma*6)) + params.N()*3)))
-		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(len(ringQ.Modulus)-1, ringQ, swk.Value[0][0].Q))
-		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(len(ringP.Modulus)-1, ringP, swk.Value[0][0].P))
+		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelQ, ringQ, swk.Value[0][0].Q))
+		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelP, ringP, swk.Value[0][0].P))
 	})
 }
 
@@ -420,7 +420,7 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 		}
 
 		// sOut * P
-		ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusBigint, skIn.Value.Q)
+		ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusBigint[levelP], skIn.Value.Q)
 
 		// P*s^i + sum(e) - P*s^i = sum(e)
 		ringQ.Sub(swk.Value[0][0].Q, skIn.Value.Q, swk.Value[0][0].Q)
@@ -433,8 +433,8 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 		// Worst bound of inner sum
 		// N*#Keys*(N * #Parties * floor(sigma*6) + #Parties * floor(sigma*6) + N * #Parties  +  #Parties * floor(6*sigma))
 		log2Bound := bits.Len64(3 * uint64(math.Floor(rlwe.DefaultSigma*6)) * uint64(params.N()))
-		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(len(ringQ.Modulus)-1, ringQ, swk.Value[0][0].Q))
-		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(len(ringP.Modulus)-1, ringP, swk.Value[0][0].P))
+		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelQ, ringQ, swk.Value[0][0].Q))
+		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelP, ringP, swk.Value[0][0].P))
 	})
 }
 
@@ -624,27 +624,19 @@ func log2OfInnerSum(level int, ringQ *ring.Ring, poly *ring.Poly) (logSum int) {
 	}
 
 	if !smallNorm {
-		var qi uint64
 		var crtReconstruction *big.Int
 
 		sumBigInt := ring.NewUint(0)
 		QiB := new(big.Int)
 		tmp := new(big.Int)
-		modulusBigint := ring.NewUint(1)
+		modulusBigint := ringQ.ModulusBigint[level]
 
 		for i := 0; i < level+1; i++ {
-
-			qi = ringQ.Modulus[i]
-			QiB.SetUint64(qi)
-
-			modulusBigint.Mul(modulusBigint, QiB)
-
-			crtReconstruction = new(big.Int)
-			crtReconstruction.Quo(ringQ.ModulusBigint, QiB)
+			QiB.SetUint64(ringQ.Modulus[i])
+			crtReconstruction = new(big.Int).Quo(modulusBigint, QiB)
 			tmp.ModInverse(crtReconstruction, QiB)
 			tmp.Mod(tmp, QiB)
 			crtReconstruction.Mul(crtReconstruction, tmp)
-
 			sumBigInt.Add(sumBigInt, tmp.Mul(ring.NewUint(sumRNS[i]), crtReconstruction))
 		}
 

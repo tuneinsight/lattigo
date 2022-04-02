@@ -25,75 +25,75 @@ func BenchmarkBFV(b *testing.B) {
 	for _, p := range defaultParams {
 
 		params, err := NewParametersFromLiteral(p)
-		var testctx *testContext
-		if testctx, err = genTestParams(params); err != nil {
+		var tc *testContext
+		if tc, err = genTestParams(params); err != nil {
 			panic(err)
 		}
 
-		benchEncoder(testctx, b)
-		benchKeyGen(testctx, b)
-		benchEncrypt(testctx, b)
-		benchDecrypt(testctx, b)
-		benchEvaluator(testctx, b)
+		benchEncoder(tc, b)
+		benchKeyGen(tc, b)
+		benchEncrypt(tc, b)
+		benchDecrypt(tc, b)
+		benchEvaluator(tc, b)
 	}
 }
 
-func benchEncoder(testctx *testContext, b *testing.B) {
+func benchEncoder(tc *testContext, b *testing.B) {
 
-	encoder := testctx.encoder
-	coeffs := testctx.uSampler.ReadNew()
-	coeffsOut := make([]uint64, testctx.params.N())
+	encoder := tc.encoder
+	coeffs := tc.uSampler.ReadNew()
+	coeffsOut := make([]uint64, tc.params.N())
 
-	plaintext := NewPlaintext(testctx.params)
-	plaintextRingT := NewPlaintextRingT(testctx.params)
-	plaintextMul := NewPlaintextMul(testctx.params)
+	plaintext := NewPlaintext(tc.params)
+	plaintextRingT := NewPlaintextRingT(tc.params)
+	plaintextMul := NewPlaintextMul(tc.params)
 
-	b.Run(testString("Encoder/EncodeUint", testctx.params), func(b *testing.B) {
+	b.Run(testString("Encoder/EncodeUint", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			encoder.EncodeUint(coeffs.Coeffs[0], plaintext)
+			encoder.Encode(coeffs.Coeffs[0], plaintext)
 		}
 	})
 
-	b.Run(testString("Encoder/DecodeUint/pt=Plaintext", testctx.params), func(b *testing.B) {
+	b.Run(testString("Encoder/DecodeUint/pt=Plaintext", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			testctx.encoder.DecodeUint(plaintext, coeffsOut)
+			encoder.DecodeUint(plaintext, coeffsOut)
 		}
 	})
 
-	b.Run(testString("Encoder/EncodeUintRingT", testctx.params), func(b *testing.B) {
+	b.Run(testString("Encoder/EncodeUintRingT", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			encoder.EncodeUintRingT(coeffs.Coeffs[0], plaintextRingT)
+			encoder.EncodeRingT(coeffs.Coeffs[0], plaintextRingT)
 		}
 	})
 
-	b.Run(testString("Encoder/DecodeUint/pt=PlaintextRingT", testctx.params), func(b *testing.B) {
+	b.Run(testString("Encoder/DecodeUint/pt=PlaintextRingT", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			testctx.encoder.DecodeUint(plaintextRingT, coeffsOut)
+			encoder.DecodeUint(plaintextRingT, coeffsOut)
 		}
 	})
 
-	b.Run(testString("Encoder/EncodeUintMul", testctx.params), func(b *testing.B) {
+	b.Run(testString("Encoder/EncodeUintMul", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			encoder.EncodeUintMul(coeffs.Coeffs[0], plaintextMul)
+			encoder.EncodeMul(coeffs.Coeffs[0], plaintextMul)
 		}
 	})
 }
 
-func benchKeyGen(testctx *testContext, b *testing.B) {
+func benchKeyGen(tc *testContext, b *testing.B) {
 
-	kgen := testctx.kgen
-	sk := testctx.sk
+	kgen := tc.kgen
+	sk := tc.sk
 
-	b.Run(testString("KeyGen/KeyPairGen", testctx.params), func(b *testing.B) {
+	b.Run(testString("KeyGen/KeyPairGen", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			kgen.GenKeyPair()
 		}
 	})
 
-	b.Run(testString("KeyGen/SwitchKeyGen", testctx.params), func(b *testing.B) {
+	b.Run(testString("KeyGen/SwitchKeyGen", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
 
-		if testctx.params.PCount() == 0 {
+		if tc.params.PCount() == 0 {
 			b.Skip("#Pi is empty")
 		}
 
@@ -103,120 +103,120 @@ func benchKeyGen(testctx *testContext, b *testing.B) {
 	})
 }
 
-func benchEncrypt(testctx *testContext, b *testing.B) {
+func benchEncrypt(tc *testContext, b *testing.B) {
 
-	encryptorPk := testctx.encryptorPk
-	encryptorSk := testctx.encryptorSk
+	encryptorPk := tc.encryptorPk
+	encryptorSk := tc.encryptorSk
 
-	plaintext := NewPlaintext(testctx.params)
-	ciphertext := NewCiphertextRandom(testctx.prng, testctx.params, 1)
+	plaintext := NewPlaintext(tc.params)
+	ciphertext := NewCiphertextRandomLvl(tc.prng, tc.params, 1, tc.params.MaxLevel())
 
-	b.Run(testString("Encrypt/key=Pk", testctx.params), func(b *testing.B) {
+	b.Run(testString("Encrypt/key=Pk", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			encryptorPk.Encrypt(plaintext, ciphertext)
 		}
 	})
 
-	b.Run(testString("Encrypt/key=Sk", testctx.params), func(b *testing.B) {
+	b.Run(testString("Encrypt/key=Sk", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			encryptorSk.Encrypt(plaintext, ciphertext)
 		}
 	})
 }
 
-func benchDecrypt(testctx *testContext, b *testing.B) {
+func benchDecrypt(tc *testContext, b *testing.B) {
 
-	decryptor := testctx.decryptor
-	ciphertext := NewCiphertextRandom(testctx.prng, testctx.params, 1)
+	decryptor := tc.decryptor
+	ciphertext := NewCiphertextRandomLvl(tc.prng, tc.params, 1, tc.params.MaxLevel())
 
-	b.Run(testString("Decrypt/", testctx.params), func(b *testing.B) {
-		plaintext := NewPlaintext(testctx.params)
+	b.Run(testString("Decrypt/", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
+		plaintext := NewPlaintext(tc.params)
 		for i := 0; i < b.N; i++ {
 			decryptor.Decrypt(ciphertext, plaintext)
 		}
 	})
 }
 
-func benchEvaluator(testctx *testContext, b *testing.B) {
+func benchEvaluator(tc *testContext, b *testing.B) {
 
-	encoder := testctx.encoder
+	encoder := tc.encoder
 
-	plaintext := NewPlaintext(testctx.params)
-	plaintextRingT := NewPlaintextRingT(testctx.params)
-	plaintextMul := NewPlaintextMul(testctx.params)
+	plaintext := NewPlaintext(tc.params)
+	plaintextRingT := NewPlaintextRingT(tc.params)
+	plaintextMul := NewPlaintextMul(tc.params)
 
-	coeffs := testctx.uSampler.ReadNew()
-	encoder.EncodeUintRingT(coeffs.Coeffs[0], plaintextRingT)
-	encoder.EncodeUint(coeffs.Coeffs[0], plaintext)
-	encoder.EncodeUintMul(coeffs.Coeffs[0], plaintextMul)
+	coeffs := tc.uSampler.ReadNew()
+	encoder.EncodeRingT(coeffs.Coeffs[0], plaintextRingT)
+	encoder.Encode(coeffs.Coeffs[0], plaintext)
+	encoder.EncodeMul(coeffs.Coeffs[0], plaintextMul)
 
-	ciphertext1 := NewCiphertextRandom(testctx.prng, testctx.params, 1)
-	ciphertext2 := NewCiphertextRandom(testctx.prng, testctx.params, 1)
-	receiver := NewCiphertextRandom(testctx.prng, testctx.params, 2)
+	ciphertext1 := NewCiphertextRandomLvl(tc.prng, tc.params, 1, tc.params.MaxLevel())
+	ciphertext2 := NewCiphertextRandomLvl(tc.prng, tc.params, 1, tc.params.MaxLevel())
+	receiver := NewCiphertextRandomLvl(tc.prng, tc.params, 2, tc.params.MaxLevel())
 
 	var rotkey *rlwe.RotationKeySet
-	if testctx.params.PCount() != 0 {
-		rotkey = testctx.kgen.GenRotationKeysForRotations([]int{1}, true, testctx.sk)
+	if tc.params.PCount() != 0 {
+		rotkey = tc.kgen.GenRotationKeysForRotations([]int{1}, true, tc.sk)
 	}
-	evaluator := testctx.evaluator.WithKey(rlwe.EvaluationKey{Rlk: testctx.rlk, Rtks: rotkey})
+	evaluator := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotkey})
 
-	b.Run(testString("Evaluator/Add/Ct", testctx.params), func(b *testing.B) {
+	b.Run(testString("Evaluator/Add/Ct", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			evaluator.Add(ciphertext1, ciphertext2, ciphertext1)
 		}
 	})
 
-	b.Run(testString("Evaluator/Add/op1=Ciphertext/op2=PlaintextRingT", testctx.params), func(b *testing.B) {
+	b.Run(testString("Evaluator/Add/op1=Ciphertext/op2=PlaintextRingT", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			evaluator.Add(ciphertext1, plaintextRingT, ciphertext1)
 		}
 	})
 
-	b.Run(testString("Evaluator/Add/op1=Ciphertext/op2=Plaintext", testctx.params), func(b *testing.B) {
+	b.Run(testString("Evaluator/Add/op1=Ciphertext/op2=Plaintext", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			evaluator.Add(ciphertext1, plaintext, ciphertext1)
 		}
 	})
 
-	b.Run(testString("Evaluator/MulScalar", testctx.params), func(b *testing.B) {
+	b.Run(testString("Evaluator/MulScalar", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			evaluator.MulScalar(ciphertext1, 5, ciphertext1)
 		}
 	})
 
-	b.Run(testString("Evaluator/Mul/op1=Ciphertext/op2=Ciphertext", testctx.params), func(b *testing.B) {
+	b.Run(testString("Evaluator/Mul/op1=Ciphertext/op2=Ciphertext", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			evaluator.Mul(ciphertext1, ciphertext2, receiver)
 		}
 	})
 
-	b.Run(testString("Evaluator/Mul/op1=Ciphertext/op2=Plaintext/", testctx.params), func(b *testing.B) {
+	b.Run(testString("Evaluator/Mul/op1=Ciphertext/op2=Plaintext/", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			evaluator.Mul(ciphertext1, plaintext, ciphertext1)
 		}
 	})
 
-	b.Run(testString("Evaluator/Mul/op1=Ciphertext/op2=PlaintextRingT", testctx.params), func(b *testing.B) {
+	b.Run(testString("Evaluator/Mul/op1=Ciphertext/op2=PlaintextRingT", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			evaluator.Mul(ciphertext1, plaintextRingT, ciphertext1)
 		}
 	})
 
-	b.Run(testString("Evaluator/Mul/op1=Ciphertext/op2=PlaintextMul", testctx.params), func(b *testing.B) {
+	b.Run(testString("Evaluator/Mul/op1=Ciphertext/op2=PlaintextMul", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			evaluator.Mul(ciphertext1, plaintextMul, ciphertext1)
 		}
 	})
 
-	b.Run(testString("Evaluator/Square", testctx.params), func(b *testing.B) {
+	b.Run(testString("Evaluator/Square", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			evaluator.Mul(ciphertext1, ciphertext1, receiver)
 		}
 	})
 
-	b.Run(testString("Evaluator/Relin", testctx.params), func(b *testing.B) {
+	b.Run(testString("Evaluator/Relin", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
 
-		if testctx.params.PCount() == 0 {
+		if tc.params.PCount() == 0 {
 			b.Skip("#Pi is empty")
 		}
 
@@ -225,9 +225,9 @@ func benchEvaluator(testctx *testContext, b *testing.B) {
 		}
 	})
 
-	b.Run(testString("Evaluator/RotateRows", testctx.params), func(b *testing.B) {
+	b.Run(testString("Evaluator/RotateRows", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
 
-		if testctx.params.PCount() == 0 {
+		if tc.params.PCount() == 0 {
 			b.Skip("#Pi is empty")
 		}
 
@@ -236,9 +236,9 @@ func benchEvaluator(testctx *testContext, b *testing.B) {
 		}
 	})
 
-	b.Run(testString("Evaluator/RotateCols", testctx.params), func(b *testing.B) {
+	b.Run(testString("Evaluator/RotateCols", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
 
-		if testctx.params.PCount() == 0 {
+		if tc.params.PCount() == 0 {
 			b.Skip("#Pi is empty")
 		}
 

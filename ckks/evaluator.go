@@ -1533,7 +1533,7 @@ func (eval *evaluator) PermuteNTTHoistedNoModDown(level int, c0 *ring.Poly, c2De
 	ringQ.PermuteNTTWithIndexLvl(levelQ, pool3Q, index, ct1OutQ)
 	ringQ.PermuteNTTWithIndexLvl(levelP, pool3P, index, ct1OutP)
 
-	ringQ.MulScalarBigintLvl(levelQ, c0, eval.params.RingP().ModulusBigint, pool3Q)
+	ringQ.MulScalarBigintLvl(levelQ, c0, eval.params.RingP().ModulusBigint[levelP], pool3Q)
 	ringQ.AddLvl(levelQ, pool2Q, pool3Q, pool2Q)
 
 	ringQ.PermuteNTTWithIndexLvl(levelQ, pool2Q, index, ct0OutQ)

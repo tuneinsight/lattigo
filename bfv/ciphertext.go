@@ -10,14 +10,19 @@ type Ciphertext struct {
 	*rlwe.Ciphertext
 }
 
-// NewCiphertext creates a new ciphertext parameterized by degree, level and scale.
+// NewCiphertext creates a new ciphertext parameterized by degree and at the max level.
 func NewCiphertext(params Parameters, degree int) (ciphertext *Ciphertext) {
 	return &Ciphertext{rlwe.NewCiphertext(params.Parameters, degree, params.MaxLevel())}
 }
 
-// NewCiphertextRandom generates a new uniformly distributed ciphertext of degree, level and scale.
-func NewCiphertextRandom(prng utils.PRNG, params Parameters, degree int) (ciphertext *Ciphertext) {
-	return &Ciphertext{rlwe.NewCiphertextRandom(prng, params.Parameters, degree, params.MaxLevel())}
+// NewCiphertextLvl creates a new ciphertext parameterized by degree and level.
+func NewCiphertextLvl(params Parameters, degree, level int) (ciphertext *Ciphertext) {
+	return &Ciphertext{rlwe.NewCiphertext(params.Parameters, degree, level)}
+}
+
+// NewCiphertextRandomLvl generates a new uniformly distributed ciphertext of degree, level.
+func NewCiphertextRandomLvl(prng utils.PRNG, params Parameters, degree, level int) (ciphertext *Ciphertext) {
+	return &Ciphertext{rlwe.NewCiphertextRandom(prng, params.Parameters, degree, level)}
 }
 
 // CopyNew creates a deep copy of the receiver ciphertext and returns it.

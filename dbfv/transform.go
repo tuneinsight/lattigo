@@ -98,7 +98,7 @@ func (rfp *MaskedTransformProtocol) GenShare(sk *rlwe.SecretKey, c1 *ring.Poly, 
 	if transform != nil {
 		coeffs := rfp.e2s.encoder.DecodeUintNew(&bfv.PlaintextRingT{Plaintext: &rlwe.Plaintext{Value: mask}})
 		transform(coeffs)
-		rfp.e2s.encoder.EncodeUintRingT(coeffs, &bfv.PlaintextRingT{Plaintext: &rlwe.Plaintext{Value: rfp.tmpMaskPerm}})
+		rfp.e2s.encoder.EncodeRingT(coeffs, &bfv.PlaintextRingT{Plaintext: &rlwe.Plaintext{Value: rfp.tmpMaskPerm}})
 		mask = rfp.tmpMaskPerm
 	}
 	rfp.s2e.GenShare(sk, crs, &rlwe.AdditiveShare{Value: *mask}, &shareOut.s2eShare)
@@ -117,7 +117,7 @@ func (rfp *MaskedTransformProtocol) Transform(ciphertext *bfv.Ciphertext, transf
 	if transform != nil {
 		coeffs := rfp.e2s.encoder.DecodeUintNew(&bfv.PlaintextRingT{Plaintext: &rlwe.Plaintext{Value: mask}})
 		transform(coeffs)
-		rfp.e2s.encoder.EncodeUintRingT(coeffs, &bfv.PlaintextRingT{Plaintext: &rlwe.Plaintext{Value: rfp.tmpMaskPerm}})
+		rfp.e2s.encoder.EncodeRingT(coeffs, &bfv.PlaintextRingT{Plaintext: &rlwe.Plaintext{Value: rfp.tmpMaskPerm}})
 		mask = rfp.tmpMaskPerm
 	}
 	rfp.e2s.encoder.ScaleUp(&bfv.PlaintextRingT{Plaintext: &rlwe.Plaintext{Value: mask}}, &rfp.tmpPt)

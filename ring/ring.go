@@ -75,7 +75,7 @@ type Ring struct {
 	AllowsNTT bool
 
 	// Product of the Moduli
-	ModulusBigint *big.Int
+	ModulusBigint []*big.Int
 
 	// Fast reduction parameters
 	BredParams [][]uint64
@@ -213,10 +213,11 @@ func (r *Ring) setParameters(N int, Modulus []uint64) error {
 		r.Mask[i] = (1 << uint64(bits.Len64(qi))) - 1
 	}
 
-	// Compute the bigQ
-	r.ModulusBigint = NewInt(1)
-	for _, qi := range r.Modulus {
-		r.ModulusBigint.Mul(r.ModulusBigint, NewUint(qi))
+	// Compute bigQ for all levels
+	r.ModulusBigint = make([]*big.Int, len(r.Modulus))
+	r.ModulusBigint[0] = NewUint(r.Modulus[0])
+	for i := 1; i < len(r.Modulus); i++ {
+		r.ModulusBigint[i] = new(big.Int).Mul(r.ModulusBigint[i-1], NewUint(r.Modulus[i]))
 	}
 
 	// Compute the fast reduction parameters
@@ -476,23 +477,16 @@ func (r *Ring) PolyToBigint(p1 *Poly, gap int, coeffsBigint []*big.Int) {
 // For example, if gap = 1, then all coefficients are reconstructed, while
 // if gap = 2 then only coefficients X^{2*i} are reconstructed.
 func (r *Ring) PolyToBigintLvl(level int, p1 *Poly, gap int, coeffsBigint []*big.Int) {
-	var qi uint64
 
 	crtReconstruction := make([]*big.Int, level+1)
 
 	QiB := new(big.Int)
 	tmp := new(big.Int)
-	modulusBigint := NewUint(1)
+	modulusBigint := r.ModulusBigint[level]
 
 	for i := 0; i < level+1; i++ {
-
-		qi = r.Modulus[i]
-		QiB.SetUint64(qi)
-
-		modulusBigint.Mul(modulusBigint, QiB)
-
-		crtReconstruction[i] = new(big.Int)
-		crtReconstruction[i].Quo(r.ModulusBigint, QiB)
+		QiB.SetUint64(r.Modulus[i])
+		crtReconstruction[i] = new(big.Int).Quo(modulusBigint, QiB)
 		tmp.ModInverse(crtReconstruction[i], QiB)
 		tmp.Mod(tmp, QiB)
 		crtReconstruction[i].Mul(crtReconstruction[i], tmp)
@@ -517,23 +511,16 @@ func (r *Ring) PolyToBigintLvl(level int, p1 *Poly, gap int, coeffsBigint []*big
 // For example, if gap = 1, then all coefficients are reconstructed, while
 // if gap = 2 then only coefficients X^{2*i} are reconstructed.
 func (r *Ring) PolyToBigintCenteredLvl(level int, p1 *Poly, gap int, coeffsBigint []*big.Int) {
-	var qi uint64
 
 	crtReconstruction := make([]*big.Int, level+1)
 
 	QiB := new(big.Int)
 	tmp := new(big.Int)
-	modulusBigint := NewUint(1)
+	modulusBigint := r.ModulusBigint[level]
 
 	for i := 0; i < level+1; i++ {
-
-		qi = r.Modulus[i]
-		QiB.SetUint64(qi)
-
-		modulusBigint.Mul(modulusBigint, QiB)
-
-		crtReconstruction[i] = new(big.Int)
-		crtReconstruction[i].Quo(r.ModulusBigint, QiB)
+		QiB.SetUint64(r.Modulus[i])
+		crtReconstruction[i] = new(big.Int).Quo(modulusBigint, QiB)
 		tmp.ModInverse(crtReconstruction[i], QiB)
 		tmp.Mod(tmp, QiB)
 		crtReconstruction[i].Mul(crtReconstruction[i], tmp)

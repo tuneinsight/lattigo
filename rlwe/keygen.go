@@ -2,7 +2,6 @@ package rlwe
 
 import (
 	"math"
-	"math/big"
 
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/utils"
@@ -334,19 +333,8 @@ func (keygen *keyGenerator) genSwitchingKey(skIn *ring.Poly, skOut PolyQP, swk *
 	levelQ := len(swk.Value[0][0].Q.Coeffs) - 1
 	levelP := len(swk.Value[0][0].P.Coeffs) - 1
 
-	var pBigInt *big.Int
-	if levelP == keygen.params.PCount()-1 {
-		pBigInt = keygen.params.RingP().ModulusBigint
-	} else {
-		P := keygen.params.RingP().Modulus
-		pBigInt = new(big.Int).SetUint64(P[0])
-		for i := 1; i < levelP+1; i++ {
-			pBigInt.Mul(pBigInt, ring.NewUint(P[i]))
-		}
-	}
-
 	// Computes P * skIn
-	ringQ.MulScalarBigintLvl(levelQ, skIn, pBigInt, keygen.poolQ)
+	ringQ.MulScalarBigintLvl(levelQ, skIn, ringQP.RingP.ModulusBigint[levelP], keygen.poolQ)
 
 	alpha := levelP + 1
 	beta := int(math.Ceil(float64(levelQ+1) / float64(levelP+1)))

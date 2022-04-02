@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"math/bits"
 
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
@@ -12,6 +13,25 @@ import (
 )
 
 var (
+
+	// TESTTDivQN2Q1P is a set of test parameters where T = Q[0].
+	TESTTDivQN2Q1P = ParametersLiteral{
+		LogN:  14,
+		T:     0x3ffe8001,
+		Q:     []uint64{0x3ffe8001, 0xffffffffffe8001, 0xffffffffffd8001, 0xffffffffffc0001, 0xffffffffff28001},
+		P:     []uint64{0x1fffffffffe10001, 0x1fffffffffe00001},
+		Sigma: rlwe.DefaultSigma,
+	}
+
+	// TESTTCPrimeQN2Q1P is a set of test parameters where T is coprime with Q.
+	TESTTCPrimeQN2Q1P = ParametersLiteral{
+		LogN:  14,
+		T:     0x10001,
+		Q:     []uint64{0xffffffffffe8001, 0xffffffffffd8001, 0xffffffffffc0001, 0xffffffffff28001},
+		P:     []uint64{0x1fffffffffe10001, 0x1fffffffffe00001},
+		Sigma: rlwe.DefaultSigma,
+	}
+
 	// PN12QP109 is a set of default parameters with logN=12 and logQP=109
 	PN12QP109 = ParametersLiteral{
 		LogN:  12,
@@ -90,6 +110,9 @@ var (
 	}
 )
 
+// TestParams is a set of test parameters for BFV ensuring 128 bit security in the classic setting.
+var TestParams = []ParametersLiteral{TESTTDivQN2Q1P, TESTTCPrimeQN2Q1P}
+
 // DefaultParams is a set of default BFV parameters ensuring 128 bit security in the classic setting.
 var DefaultParams = []ParametersLiteral{PN12QP109, PN13QP218, PN14QP438, PN15QP880}
 
@@ -146,7 +169,7 @@ func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err erro
 
 	var ringQMul, ringT *ring.Ring
 
-	nbQiMul := int(math.Ceil(float64(rlweParams.RingQ().ModulusBigint.BitLen()+rlweParams.LogN()) / 61.0))
+	nbQiMul := int(math.Ceil(float64(rlweParams.RingQ().ModulusBigint[rlweParams.MaxLevel()].BitLen()+rlweParams.LogN()) / 61.0))
 	if ringQMul, err = ring.NewRing(rlweParams.N(), ring.GenerateNTTPrimesP(61, 2*rlweParams.N(), nbQiMul)); err != nil {
 		return Parameters{}, err
 	}
@@ -170,17 +193,22 @@ func NewParametersFromLiteral(pl ParametersLiteral) (Parameters, error) {
 	return NewParameters(rlweParams, pl.T)
 }
 
-// RingQMul returns a pointer to the ring of the extended basis for multiplication
+// RingQMul returns a pointer to the ring of the extended basis for multiplication.
 func (p Parameters) RingQMul() *ring.Ring {
 	return p.ringQMul
 }
 
-// T returns the plaintext coefficient modulus t
+// T returns the plaintext coefficient modulus t.
 func (p Parameters) T() uint64 {
 	return p.ringT.Modulus[0]
 }
 
-// RingT returns a pointer to the plaintext ring
+// LogT returns log2(plaintext coefficient modulus).
+func (p Parameters) LogT() int {
+	return bits.Len64(p.T())
+}
+
+// RingT returns a pointer to the plaintext ring.
 func (p Parameters) RingT() *ring.Ring {
 	return p.ringT
 }
@@ -228,7 +256,7 @@ func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 	}
 	dataBfv := data[len(data)-8:]
 
-	nbQiMul := int(math.Ceil(float64(p.RingQ().ModulusBigint.BitLen()+p.LogN()) / 61.0))
+	nbQiMul := int(math.Ceil(float64(p.RingQ().ModulusBigint[p.MaxLevel()].BitLen()+p.LogN()) / 61.0))
 	if p.ringQMul, err = ring.NewRing(p.N(), ring.GenerateNTTPrimesP(61, 2*p.N(), nbQiMul)); err != nil {
 		return err
 	}

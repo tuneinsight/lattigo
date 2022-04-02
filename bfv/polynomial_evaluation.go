@@ -353,7 +353,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(pol polynomialVe
 
 			// If a non-zero coefficient was found, encode the values, adds on the ciphertext, and returns
 			if toEncode {
-				polyEval.EncodeUint(values, &Plaintext{&rlwe.Plaintext{Value: res.Value[0]}})
+				polyEval.Encode(values, &Plaintext{&rlwe.Plaintext{Value: res.Value[0]}})
 			}
 
 			return
@@ -378,7 +378,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(pol polynomialVe
 		// If a non-zero degre coefficient was found, encode and adds the values on the output
 		// ciphertext
 		if toEncode {
-			polyEval.EncodeUint(values, pt)
+			polyEval.Encode(values, pt)
 			polyEval.Add(res, pt, res)
 			toEncode = false
 		}
@@ -416,7 +416,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(pol polynomialVe
 			// If a non-zero degre coefficient was found, encode and adds the values on the output
 			// ciphertext
 			if toEncode {
-				polyEval.EncodeUintMul(values, &PlaintextMul{pt.Plaintext})
+				polyEval.EncodeMul(values, &PlaintextMul{pt.Plaintext})
 				polyEval.MulAndAdd(X[key], &PlaintextMul{pt.Plaintext}, res)
 				toEncode = false
 			}

@@ -17,8 +17,8 @@ var (
 	// TESTTDivQN2Q1P is a set of test parameters where T = Q[0].
 	TESTTDivQN2Q1P = ParametersLiteral{
 		LogN:  14,
-		T:     0x3ffe8001,
-		Q:     []uint64{0x3ffe8001, 0xffffffffffe8001, 0xffffffffffd8001, 0xffffffffffc0001, 0xffffffffff28001},
+		T:     0x10001,
+		Q:     []uint64{0x10001, 0xffffffffffe8001, 0xffffffffffd8001, 0xffffffffffc0001, 0xffffffffff28001},
 		P:     []uint64{0x1fffffffffe10001, 0x1fffffffffe00001},
 		Sigma: rlwe.DefaultSigma,
 	}

@@ -36,7 +36,8 @@ type Evaluator interface {
 	MulScalar(ctIn *Ciphertext, scalar uint64, ctOut *Ciphertext)
 	MulScalarAndAdd(ctIn *Ciphertext, scalar uint64, ctOut *Ciphertext)
 	MulScalarNew(ctIn *Ciphertext, scalar uint64) (ctOut *Ciphertext)
-	QuantizeToLvl(level int, ctIn, ctOut *Ciphertext)
+	Rescale(ctIn, ctOut *Ciphertext)
+	RescaleTo(level int, ctIn, ctOut *Ciphertext)
 	Mul(ctIn *Ciphertext, op1 Operand, ctOut *Ciphertext)
 	MulNew(ctIn *Ciphertext, op1 Operand) (ctOut *Ciphertext)
 	MulAndAdd(ctIn *Ciphertext, op1 Operand, ctOut *Ciphertext)
@@ -304,10 +305,16 @@ func (eval *evaluator) MulScalarNew(ctIn *Ciphertext, scalar uint64) (ctOut *Cip
 	return
 }
 
-func (eval *evaluator) QuantizeToLvl(level int, ctIn, ctOut *Ciphertext) {
+// Rescale divides the ciphertext by the last moduli.
+func (eval *evaluator) Rescale(ctIn, ctOut *Ciphertext) {
+	eval.RescaleTo(ctIn.Level()-1, ctIn, ctOut)
+}
+
+// RescaleTo divides the ciphertext by the last modulis until it has `level+1` moduli left.
+func (eval *evaluator) RescaleTo(level int, ctIn, ctOut *Ciphertext) {
 
 	if ctIn.Level() < level || ctOut.Level() < ctIn.Level()-level {
-		panic("cannot QuantizeToLvl: (ctIn.Level() || ctOut.Level()) < level")
+		panic("cannot RescaleTo: (ctIn.Level() || ctOut.Level()) < level")
 	}
 
 	eval.ringQ.DivRoundByLastModulusManyLvl(ctIn.Level(), ctIn.Level()-level, ctIn.Value[0], eval.buffQ[0][0], ctOut.Value[0])

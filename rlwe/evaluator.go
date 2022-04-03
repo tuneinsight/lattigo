@@ -25,12 +25,12 @@ type evaluatorBase struct {
 }
 
 type evaluatorBuffers struct {
-	// PoolQ[0]/PoolP[0] : on the fly decomp(c2)
-	// PoolQ[1-5]/PoolP[1-5] : available
-	Pool          [6]ringqp.Poly
-	PoolInvNTT    *ring.Poly
-	PoolDecompQP  []ringqp.Poly // Memory pool for the basis extension in hoisting
-	PoolBitDecomp []uint64
+	// BuffQ[0]/BuffP[0] : on the fly decomp(c2)
+	// BuffQ[1-5]/BuffP[1-5] : available
+	BuffQP        [6]ringqp.Poly
+	BuffInvNTT    *ring.Poly
+	BuffDecompQP  []ringqp.Poly // Memory Buff for the basis extension in hoisting
+	BuffBitDecomp []uint64
 }
 
 func newEvaluatorBase(params Parameters) *evaluatorBase {
@@ -45,16 +45,16 @@ func newEvaluatorBuffers(params Parameters) *evaluatorBuffers {
 	decompRNS := params.DecompRNS(params.QCount()-1, params.PCount()-1)
 	ringQP := params.RingQP()
 
-	buff.Pool = [6]ringqp.Poly{ringQP.NewPoly(), ringQP.NewPoly(), ringQP.NewPoly(), ringQP.NewPoly(), ringQP.NewPoly(), ringQP.NewPoly()}
+	buff.BuffQP = [6]ringqp.Poly{ringQP.NewPoly(), ringQP.NewPoly(), ringQP.NewPoly(), ringQP.NewPoly(), ringQP.NewPoly(), ringQP.NewPoly()}
 
-	buff.PoolInvNTT = params.RingQ().NewPoly()
+	buff.BuffInvNTT = params.RingQ().NewPoly()
 
-	buff.PoolDecompQP = make([]ringqp.Poly, decompRNS)
+	buff.BuffDecompQP = make([]ringqp.Poly, decompRNS)
 	for i := 0; i < decompRNS; i++ {
-		buff.PoolDecompQP[i] = ringQP.NewPoly()
+		buff.BuffDecompQP[i] = ringQP.NewPoly()
 	}
 
-	buff.PoolBitDecomp = make([]uint64, params.RingQ().N)
+	buff.BuffBitDecomp = make([]uint64, params.RingQ().N)
 
 	return buff
 }

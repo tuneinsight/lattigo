@@ -52,21 +52,10 @@ func (eval *evaluator) Trace(ctIn *Ciphertext, logSlotsStart, logSlotsEnd int, c
 		}
 
 		for i := logSlotsStart; i < logSlotsEnd; i++ {
-<<<<<<< dev_bfv_poly
-<<<<<<< dev_bfv_poly
-			eval.permuteNTT(ctOut, eval.params.GaloisElementForColumnRotationBy(1<<i), eval.buffCt)
-			ctBuff := &Ciphertext{Ciphertext: eval.buffCt.Ciphertext, Scale: ctOut.Scale}
-			ctBuff.Value = ctBuff.Value[:2]
-			eval.Add(ctOut, ctBuff, ctOut)
-=======
-			eval.Automorphism(ctOut.Ciphertext, eval.params.GaloisElementForColumnRotationBy(1<<i), eval.ctxpool.Ciphertext)
-=======
->>>>>>> [ckks] fixed Trace
-			ctPool := &Ciphertext{Ciphertext: eval.ctxpool.Ciphertext, Scale: ctOut.Scale}
-			ctPool.Value = ctPool.Value[:2]
-			eval.Automorphism(ctOut.Ciphertext, eval.params.GaloisElementForColumnRotationBy(1<<i), ctPool.Ciphertext)
-			eval.Add(ctOut, ctPool, ctOut)
->>>>>>> [rlwe]: complete refactoring
+			buff := &Ciphertext{Ciphertext: eval.buffCt.Ciphertext, Scale: ctOut.Scale}
+			buff.Value = buff.Value[:2]
+			eval.Automorphism(ctOut.Ciphertext, eval.params.GaloisElementForColumnRotationBy(1<<i), buff.Ciphertext)
+			eval.Add(ctOut, buff, ctOut)
 		}
 	} else {
 		if ctIn != ctOut {
@@ -101,16 +90,8 @@ func (eval *evaluator) RotateHoisted(ctIn *Ciphertext, rotations []int, ctOut ma
 	levelQ := ctIn.Level()
 	eval.DecomposeNTT(levelQ, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], eval.BuffDecompQP)
 	for _, i := range rotations {
-		eval.AutomorphismHoisted(levelQ, ctIn.Ciphertext, eval.PoolDecompQP, eval.params.GaloisElementForColumnRotationBy(i), ctOut[i].Ciphertext)
+		eval.AutomorphismHoisted(levelQ, ctIn.Ciphertext, eval.BuffDecompQP, eval.params.GaloisElementForColumnRotationBy(i), ctOut[i].Ciphertext)
 		ctOut[i].Scale = ctIn.Scale
-<<<<<<< dev_bfv_poly
-		if i == 0 {
-			ctOut[i].Copy(ctIn)
-		} else {
-			eval.PermuteNTTHoisted(levelQ, ctIn.Value[0], ctIn.Value[1], eval.BuffDecompQP, i, ctOut[i].Value[0], ctOut[i].Value[1])
-		}
-=======
->>>>>>> [rlwe]: complete refactoring
 	}
 }
 
@@ -575,19 +556,10 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 		tmpc0 := eval.buffQ[0] // unused memory buffer from evaluator
 		tmpc1 := eval.buffQ[1] // unused memory buffer from evaluator
 
-<<<<<<< dev_bfv_poly
-		tmpc1.IsNTT = true
-
 		c0OutQP := eval.BuffQP[2]
 		c1OutQP := eval.BuffQP[3]
 		c0QP := eval.BuffQP[4]
 		c1QP := eval.BuffQP[5]
-=======
-		c0OutQP := eval.Pool[2]
-		c1OutQP := eval.Pool[3]
-		c0QP := eval.Pool[4]
-		c1QP := eval.Pool[5]
->>>>>>> [rlwe]: complete refactoring
 
 		tmpc0.IsNTT = true
 		tmpc1.IsNTT = true
@@ -622,15 +594,9 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 
 					// Rotate((tmpc0, tmpc1), k)
 					if i == 0 {
-<<<<<<< dev_bfv_poly
-						eval.PermuteNTTHoistedNoModDown(levelQ, ctIn.Value[0], eval.BuffDecompQP, k, c0QP.Q, c1QP.Q, c0QP.P, c1QP.P)
+						eval.AutomorphismHoistedNoModDown(levelQ, ctIn.Value[0], eval.BuffDecompQP, eval.params.GaloisElementForColumnRotationBy(k), c0QP.Q, c1QP.Q, c0QP.P, c1QP.P)
 					} else {
-						eval.PermuteNTTHoistedNoModDown(levelQ, tmpc0, eval.BuffDecompQP, k, c0QP.Q, c1QP.Q, c0QP.P, c1QP.P)
-=======
-						eval.AutomorphismHoistedNoModDown(levelQ, ctIn.Value[0], eval.PoolDecompQP, eval.params.GaloisElementForColumnRotationBy(k), c0QP.Q, c1QP.Q, c0QP.P, c1QP.P)
-					} else {
-						eval.AutomorphismHoistedNoModDown(levelQ, tmpc0, eval.PoolDecompQP, eval.params.GaloisElementForColumnRotationBy(k), c0QP.Q, c1QP.Q, c0QP.P, c1QP.P)
->>>>>>> [rlwe]: complete refactoring
+						eval.AutomorphismHoistedNoModDown(levelQ, tmpc0, eval.BuffDecompQP, eval.params.GaloisElementForColumnRotationBy(k), c0QP.Q, c1QP.Q, c0QP.P, c1QP.P)
 					}
 
 					// ctOut += Rotate((tmpc0, tmpc1), k)
@@ -668,20 +634,12 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 
 				rot := eval.params.GaloisElementForColumnRotationBy((1 << i) * batchSize)
 				if i == 0 {
-<<<<<<< dev_bfv_poly
-					eval.PermuteNTTHoisted(levelQ, ctIn.Value[0], ctIn.Value[1], eval.BuffDecompQP, (1<<i)*batchSize, tmpc0, tmpc1)
-=======
-					eval.AutomorphismHoisted(levelQ, ctIn.Ciphertext, eval.PoolDecompQP, rot, tmpct.Ciphertext)
->>>>>>> [rlwe]: complete refactoring
+					eval.AutomorphismHoisted(levelQ, ctIn.Ciphertext, eval.BuffDecompQP, rot, tmpct.Ciphertext)
 					ringQ.AddLvl(levelQ, tmpc0, ctIn.Value[0], tmpc0)
 					ringQ.AddLvl(levelQ, tmpc1, ctIn.Value[1], tmpc1)
 				} else {
 					// (tmpc0, tmpc1) = Rotate((tmpc0, tmpc1), 2^i)
-<<<<<<< dev_bfv_poly
-					eval.PermuteNTTHoisted(levelQ, tmpc0, tmpc1, eval.BuffDecompQP, (1<<i)*batchSize, c0QP.Q, c1QP.Q)
-=======
-					eval.AutomorphismHoisted(levelQ, tmpct.Ciphertext, eval.PoolDecompQP, rot, ctqp.Ciphertext)
->>>>>>> [rlwe]: complete refactoring
+					eval.AutomorphismHoisted(levelQ, tmpct.Ciphertext, eval.BuffDecompQP, rot, ctqp.Ciphertext)
 					ringQ.AddLvl(levelQ, tmpc0, c0QP.Q, tmpc0)
 					ringQ.AddLvl(levelQ, tmpc1, c1QP.Q, tmpc1)
 				}
@@ -817,11 +775,7 @@ func (eval *evaluator) Replicate(ctIn *Ciphertext, batchSize, n int, ctOut *Ciph
 // respectively, each of size params.Beta().
 // The naive approach is used (single hoisting and no baby-step giant-step), which is faster than MultiplyByDiagMatrixBSGS
 // for matrix of only a few non-zero diagonals but uses more keys.
-<<<<<<< dev_bfv_poly
-func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTransform, BuffDecompQP []rlwe.PolyQP, ctOut *Ciphertext) {
-=======
-func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTransform, PoolDecompQP []ringqp.Poly, ctOut *Ciphertext) {
->>>>>>> [rlwe]: complete refactoring
+func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTransform, BuffDecompQP []ringqp.Poly, ctOut *Ciphertext) {
 
 	ringQ := eval.params.RingQ()
 	ringP := eval.params.RingP()
@@ -836,13 +790,8 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTrans
 	QiOverF := eval.params.QiOverflowMargin(levelQ)
 	PiOverF := eval.params.PiOverflowMargin(levelP)
 
-<<<<<<< dev_bfv_poly
-	c0OutQP := rlwe.PolyQP{Q: ctOut.Value[0], P: eval.BuffQP[5].Q}
-	c1OutQP := rlwe.PolyQP{Q: ctOut.Value[1], P: eval.BuffQP[5].P}
-=======
-	c0OutQP := ringqp.Poly{Q: ctOut.Value[0], P: eval.Pool[5].Q}
-	c1OutQP := ringqp.Poly{Q: ctOut.Value[1], P: eval.Pool[5].P}
->>>>>>> [rlwe]: complete refactoring
+	c0OutQP := ringqp.Poly{Q: ctOut.Value[0], P: eval.BuffQP[5].Q}
+	c1OutQP := ringqp.Poly{Q: ctOut.Value[1], P: eval.BuffQP[5].P}
 
 	ct0TimesP := eval.BuffQP[0].Q // ct0 * P mod Q
 	tmp0QP := eval.BuffQP[1]
@@ -930,11 +879,7 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTrans
 // respectively, each of size params.Beta().
 // The BSGS approach is used (double hoisting with baby-step giant-step), which is faster than MultiplyByDiagMatrix
 // for matrix with more than a few non-zero diagonals and uses much less keys.
-<<<<<<< dev_bfv_poly
-func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearTransform, BuffDecompQP []rlwe.PolyQP, ctOut *Ciphertext) {
-=======
 func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearTransform, PoolDecompQP []ringqp.Poly, ctOut *Ciphertext) {
->>>>>>> [rlwe]: complete refactoring
 
 	ringQ := eval.params.RingQ()
 	ringP := eval.params.RingP()
@@ -969,13 +914,8 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearT
 	c1QP := eval.BuffQP[4]
 
 	// Result in QP
-<<<<<<< dev_bfv_poly
-	c0OutQP := rlwe.PolyQP{Q: ctOut.Value[0], P: eval.BuffQP[5].Q}
-	c1OutQP := rlwe.PolyQP{Q: ctOut.Value[1], P: eval.BuffQP[5].P}
-=======
-	c0OutQP := ringqp.Poly{Q: ctOut.Value[0], P: eval.Pool[5].Q}
-	c1OutQP := ringqp.Poly{Q: ctOut.Value[1], P: eval.Pool[5].P}
->>>>>>> [rlwe]: complete refactoring
+	c0OutQP := ringqp.Poly{Q: ctOut.Value[0], P: eval.BuffQP[5].Q}
+	c1OutQP := ringqp.Poly{Q: ctOut.Value[1], P: eval.BuffQP[5].P}
 
 	ringQ.MulScalarBigintLvl(levelQ, ctInTmp0, ringP.ModulusAtLevel[levelP], ctInTmp0) // P*c0
 	ringQ.MulScalarBigintLvl(levelQ, ctInTmp1, ringP.ModulusAtLevel[levelP], ctInTmp1) // P*c1

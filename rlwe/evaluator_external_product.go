@@ -19,9 +19,9 @@ func (eval *Evaluator) ExternalProduct(op0 *Ciphertext, op1 *rgsw.Ciphertext, op
 
 	var c0QP, c1QP ringqp.Poly
 	if op0 == op2 {
-		c0QP, c1QP = eval.Pool[1], eval.Pool[2]
+		c0QP, c1QP = eval.BuffQP[1], eval.BuffQP[2]
 	} else {
-		c0QP, c1QP = ringqp.Poly{Q: op2.Value[0], P: eval.Pool[1].P}, ringqp.Poly{Q: op2.Value[1], P: eval.Pool[2].P}
+		c0QP, c1QP = ringqp.Poly{Q: op2.Value[0], P: eval.BuffQP[1].P}, ringqp.Poly{Q: op2.Value[1], P: eval.BuffQP[2].P}
 	}
 
 	if levelP < 1 {
@@ -45,7 +45,7 @@ func (eval *Evaluator) ExternalProduct(op0 *Ciphertext, op1 *rgsw.Ciphertext, op
 			}
 		}
 	} else {
-		eval.externalProductInPlaceMultipleP(levelQ, levelP, op0, op1, eval.Pool[1].Q, eval.Pool[1].P, eval.Pool[2].Q, eval.Pool[2].P)
+		eval.externalProductInPlaceMultipleP(levelQ, levelP, op0, op1, eval.BuffQP[1].Q, eval.BuffQP[1].P, eval.BuffQP[2].Q, eval.BuffQP[2].P)
 		eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, c0QP.Q, c0QP.P, op2.Value[0])
 		eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, c1QP.Q, c1QP.P, op2.Value[1])
 
@@ -61,8 +61,8 @@ func (eval *Evaluator) externalProduct32Bit(ct0 *Ciphertext, rgsw *rgsw.Cipherte
 	lb2 := eval.params.LogBase2()
 	mask := uint64(((1 << lb2) - 1))
 
-	cw := eval.Pool[0].Q.Coeffs[0]
-	cwNTT := eval.PoolBitDecomp
+	cw := eval.BuffQP[0].Q.Coeffs[0]
+	cwNTT := eval.BuffBitDecomp
 
 	acc0 := c0.Coeffs[0]
 	acc1 := c1.Coeffs[0]
@@ -70,9 +70,9 @@ func (eval *Evaluator) externalProduct32Bit(ct0 *Ciphertext, rgsw *rgsw.Cipherte
 	// (a, b) + (c0 * rgsw[0][0], c0 * rgsw[0][1])
 	// (a, b) + (c1 * rgsw[1][0], c1 * rgsw[1][1])
 	for i, el := range rgsw.Value {
-		ringQ.InvNTTLvl(0, ct0.Value[i], eval.PoolInvNTT)
+		ringQ.InvNTTLvl(0, ct0.Value[i], eval.BuffInvNTT)
 		for j := range el.Value[0] {
-			ring.MaskVec(eval.PoolInvNTT.Coeffs[0], cw, j*lb2, mask)
+			ring.MaskVec(eval.BuffInvNTT.Coeffs[0], cw, j*lb2, mask)
 			if j == 0 && i == 0 {
 				ringQ.NTTSingleLazy(0, cw, cwNTT)
 				ring.MulCoeffsNoModVec(el.Value[0][j][0].Q.Coeffs[0], cwNTT, acc0)
@@ -108,12 +108,12 @@ func (eval *Evaluator) externalProductInPlaceSinglePAndBitDecomp(ct0 *Ciphertext
 
 	// (a, b) + (c0 * rgsw[k][0], c0 * rgsw[k][1])
 	for k, el := range rgsw.Value {
-		ringQ.InvNTTLvl(levelQ, ct0.Value[k], eval.PoolInvNTT)
-		cw := eval.Pool[0].Q.Coeffs[0]
-		cwNTT := eval.PoolBitDecomp
+		ringQ.InvNTTLvl(levelQ, ct0.Value[k], eval.BuffInvNTT)
+		cw := eval.BuffQP[0].Q.Coeffs[0]
+		cwNTT := eval.BuffBitDecomp
 		for i := 0; i < decompRNS; i++ {
 			for j := 0; j < decompBIT; j++ {
-				ring.MaskVec(eval.PoolInvNTT.Coeffs[i], cw, j*lb2, mask)
+				ring.MaskVec(eval.BuffInvNTT.Coeffs[i], cw, j*lb2, mask)
 				if k == 0 && i == 0 && j == 0 {
 
 					for u := 0; u < levelQ+1; u++ {
@@ -154,7 +154,7 @@ func (eval *Evaluator) externalProductInPlaceMultipleP(levelQ, levelP int, ct0 *
 	ringP := eval.params.RingP()
 	ringQP := eval.params.RingQP()
 
-	c2QP := eval.Pool[0]
+	c2QP := eval.BuffQP[0]
 
 	c0QP := ringqp.Poly{Q: c0OutQ, P: c0OutP}
 	c1QP := ringqp.Poly{Q: c1OutQ, P: c1OutP}
@@ -171,10 +171,10 @@ func (eval *Evaluator) externalProductInPlaceMultipleP(levelQ, levelP int, ct0 *
 
 		if ct0.Value[k].IsNTT {
 			c2NTT = ct0.Value[k]
-			c2InvNTT = eval.PoolInvNTT
+			c2InvNTT = eval.BuffInvNTT
 			ringQ.InvNTTLvl(levelQ, c2NTT, c2InvNTT)
 		} else {
-			c2NTT = eval.PoolInvNTT
+			c2NTT = eval.BuffInvNTT
 			c2InvNTT = ct0.Value[k]
 			ringQ.NTTLvl(levelQ, c2InvNTT, c2NTT)
 		}

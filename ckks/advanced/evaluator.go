@@ -93,15 +93,9 @@ type Evaluator interface {
 	// === original ckks.Evaluator redefined methods ===
 	// =================================================
 
-<<<<<<< dev_bfv_poly
-	GetKeySwitcher() *rlwe.KeySwitcher
+	GetRLWEEvaluator() *rlwe.Evaluator
 	BuffQ() [3]*ring.Poly
 	BuffCt() *ckks.Ciphertext
-=======
-	GetRLWEEvaluator() *rlwe.Evaluator
-	PoolQMul() [3]*ring.Poly
-	CtxPool() *ckks.Ciphertext
->>>>>>> [rlwe]: complete refactoring
 	ShallowCopy() Evaluator
 	WithKey(rlwe.EvaluationKey) Evaluator
 }

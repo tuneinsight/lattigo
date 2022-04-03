@@ -19,10 +19,10 @@ func (eval *Evaluator) SwitchKeys(ctIn *Ciphertext, switchingKey *SwitchingKey, 
 	level := utils.MinInt(ctIn.Level(), ctOut.Level())
 	ringQ := eval.params.RingQ()
 
-	eval.SwitchKeysInPlace(level, ctIn.Value[1], switchingKey, eval.Pool[1].Q, eval.Pool[2].Q)
+	eval.SwitchKeysInPlace(level, ctIn.Value[1], switchingKey, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
 
-	ringQ.AddLvl(level, ctIn.Value[0], eval.Pool[1].Q, ctOut.Value[0])
-	ring.CopyValuesLvl(level, eval.Pool[2].Q, ctOut.Value[1])
+	ringQ.AddLvl(level, ctIn.Value[0], eval.BuffQP[1].Q, ctOut.Value[0])
+	ring.CopyValuesLvl(level, eval.BuffQP[2].Q, ctOut.Value[1])
 }
 
 // SwitchKeysInPlace applies the general key-switching procedure of the form [c0 + cx*evakey[0], c1 + cx*evakey[1]]
@@ -32,23 +32,23 @@ func (eval *Evaluator) SwitchKeysInPlace(levelQ int, cx *ring.Poly, evakey *Swit
 	levelP := evakey.LevelP()
 
 	if levelP > 0 {
-		eval.SwitchKeysInPlaceNoModDown(levelQ, cx, evakey, p0, eval.Pool[1].P, p1, eval.Pool[2].P)
+		eval.SwitchKeysInPlaceNoModDown(levelQ, cx, evakey, p0, eval.BuffQP[1].P, p1, eval.BuffQP[2].P)
 	} else {
-		eval.SwitchKeyInPlaceSinglePAndBitDecomp(levelQ, cx, evakey, p0, eval.Pool[1].P, p1, eval.Pool[2].P)
+		eval.SwitchKeyInPlaceSinglePAndBitDecomp(levelQ, cx, evakey, p0, eval.BuffQP[1].P, p1, eval.BuffQP[2].P)
 	}
 
 	if cx.IsNTT && levelP != -1 {
-		eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, p0, eval.Pool[1].P, p0)
-		eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, p1, eval.Pool[2].P, p1)
+		eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, p0, eval.BuffQP[1].P, p0)
+		eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, p1, eval.BuffQP[2].P, p1)
 	} else if !cx.IsNTT {
 		eval.params.RingQ().InvNTTLazyLvl(levelQ, p0, p0)
 		eval.params.RingQ().InvNTTLazyLvl(levelQ, p1, p1)
 
 		if levelP != -1 {
-			eval.params.RingP().InvNTTLazyLvl(levelP, eval.Pool[1].P, eval.Pool[1].P)
-			eval.params.RingP().InvNTTLazyLvl(levelP, eval.Pool[2].P, eval.Pool[2].P)
-			eval.BasisExtender.ModDownQPtoQ(levelQ, levelP, p0, eval.Pool[1].P, p0)
-			eval.BasisExtender.ModDownQPtoQ(levelQ, levelP, p1, eval.Pool[2].P, p1)
+			eval.params.RingP().InvNTTLazyLvl(levelP, eval.BuffQP[1].P, eval.BuffQP[1].P)
+			eval.params.RingP().InvNTTLazyLvl(levelP, eval.BuffQP[2].P, eval.BuffQP[2].P)
+			eval.BasisExtender.ModDownQPtoQ(levelQ, levelP, p0, eval.BuffQP[1].P, p0)
+			eval.BasisExtender.ModDownQPtoQ(levelQ, levelP, p1, eval.BuffQP[2].P, p1)
 		}
 	}
 }
@@ -65,14 +65,14 @@ func (eval *Evaluator) Relinearize(ctIn *Ciphertext, ctOut *Ciphertext) {
 
 	ringQ := eval.params.RingQ()
 
-	eval.SwitchKeysInPlace(level, ctIn.Value[2], eval.Rlk.Keys[0], eval.Pool[1].Q, eval.Pool[2].Q)
-	ringQ.AddLvl(level, ctIn.Value[0], eval.Pool[1].Q, ctOut.Value[0])
-	ringQ.AddLvl(level, ctIn.Value[1], eval.Pool[2].Q, ctOut.Value[1])
+	eval.SwitchKeysInPlace(level, ctIn.Value[2], eval.Rlk.Keys[0], eval.BuffQP[1].Q, eval.BuffQP[2].Q)
+	ringQ.AddLvl(level, ctIn.Value[0], eval.BuffQP[1].Q, ctOut.Value[0])
+	ringQ.AddLvl(level, ctIn.Value[1], eval.BuffQP[2].Q, ctOut.Value[1])
 
 	for deg := ctIn.Degree() - 1; deg > 1; deg-- {
-		eval.SwitchKeysInPlace(level, ctIn.Value[deg], eval.Rlk.Keys[deg-2], eval.Pool[1].Q, eval.Pool[2].Q)
-		ringQ.AddLvl(level, ctOut.Value[0], eval.Pool[1].Q, ctOut.Value[0])
-		ringQ.AddLvl(level, ctOut.Value[1], eval.Pool[2].Q, ctOut.Value[1])
+		eval.SwitchKeysInPlace(level, ctIn.Value[deg], eval.Rlk.Keys[deg-2], eval.BuffQP[1].Q, eval.BuffQP[2].Q)
+		ringQ.AddLvl(level, ctOut.Value[0], eval.BuffQP[1].Q, ctOut.Value[0])
+		ringQ.AddLvl(level, ctOut.Value[1], eval.BuffQP[2].Q, ctOut.Value[1])
 	}
 
 	ctOut.Value = ctOut.Value[:2]
@@ -83,9 +83,9 @@ func (eval *Evaluator) Relinearize(ctIn *Ciphertext, ctOut *Ciphertext) {
 
 // DecomposeNTT applies the full RNS basis decomposition for all q_alpha_i on c2.
 // Expects the IsNTT flag of c2 to correctly reflect the domain of c2.
-// PoolDecompQ and PoolDecompQ are vectors of polynomials (mod Q and mod P) that store the
+// BuffQPDecompQ and BuffQPDecompQ are vectors of polynomials (mod Q and mod P) that store the
 // special RNS decomposition of c2 (in the NTT domain)
-func (eval *Evaluator) DecomposeNTT(levelQ, levelP, alpha int, c2 *ring.Poly, PoolDecomp []ringqp.Poly) {
+func (eval *Evaluator) DecomposeNTT(levelQ, levelP, alpha int, c2 *ring.Poly, BuffDecompQP []ringqp.Poly) {
 
 	ringQ := eval.params.RingQ()
 
@@ -93,10 +93,10 @@ func (eval *Evaluator) DecomposeNTT(levelQ, levelP, alpha int, c2 *ring.Poly, Po
 
 	if c2.IsNTT {
 		polyNTT = c2
-		polyInvNTT = eval.PoolInvNTT
+		polyInvNTT = eval.BuffInvNTT
 		ringQ.InvNTTLvl(levelQ, polyNTT, polyInvNTT)
 	} else {
-		polyNTT = eval.PoolInvNTT
+		polyNTT = eval.BuffInvNTT
 		polyInvNTT = c2
 		ringQ.NTTLvl(levelQ, polyInvNTT, polyNTT)
 	}
@@ -104,7 +104,7 @@ func (eval *Evaluator) DecomposeNTT(levelQ, levelP, alpha int, c2 *ring.Poly, Po
 	beta := (levelQ + 1 + levelP) / (levelP + 1)
 
 	for i := 0; i < beta; i++ {
-		eval.DecomposeSingleNTT(levelQ, levelP, alpha, i, polyNTT, polyInvNTT, PoolDecomp[i].Q, PoolDecomp[i].P)
+		eval.DecomposeSingleNTT(levelQ, levelP, alpha, i, polyNTT, polyInvNTT, BuffDecompQP[i].Q, BuffDecompQP[i].P)
 	}
 }
 
@@ -138,8 +138,8 @@ func (eval *Evaluator) DecomposeSingleNTT(levelQ, levelP, alpha, beta int, c2NTT
 
 // SwitchKeysInPlaceNoModDown applies the key-switch to the polynomial cx :
 //
-// pool2 = dot(decomp(cx) * evakey[0]) mod QP (encrypted input is multiplied by P factor)
-// pool3 = dot(decomp(cx) * evakey[1]) mod QP (encrypted input is multiplied by P factor)
+// BuffQP2 = dot(decomp(cx) * evakey[0]) mod QP (encrypted input is multiplied by P factor)
+// BuffQP3 = dot(decomp(cx) * evakey[1]) mod QP (encrypted input is multiplied by P factor)
 //
 // Expects the flag IsNTT of cx to correctly reflect the domain of cx.
 func (eval *Evaluator) SwitchKeysInPlaceNoModDown(levelQ int, cx *ring.Poly, evakey *SwitchingKey, c0Q, c0P, c1Q, c1P *ring.Poly) {
@@ -148,15 +148,15 @@ func (eval *Evaluator) SwitchKeysInPlaceNoModDown(levelQ int, cx *ring.Poly, eva
 	ringP := eval.params.RingP()
 	ringQP := eval.params.RingQP()
 
-	c2QP := eval.Pool[0]
+	c2QP := eval.BuffQP[0]
 
 	var cxNTT, cxInvNTT *ring.Poly
 	if cx.IsNTT {
 		cxNTT = cx
-		cxInvNTT = eval.PoolInvNTT
+		cxInvNTT = eval.BuffInvNTT
 		ringQ.InvNTTLvl(levelQ, cxNTT, cxInvNTT)
 	} else {
-		cxNTT = eval.PoolInvNTT
+		cxNTT = eval.BuffInvNTT
 		cxInvNTT = cx
 		ringQ.NTTLvl(levelQ, cxInvNTT, cxNTT)
 	}
@@ -210,8 +210,8 @@ func (eval *Evaluator) SwitchKeysInPlaceNoModDown(levelQ int, cx *ring.Poly, eva
 
 // SwitchKeyInPlaceSinglePAndBitDecomp applies the key-switch to the polynomial cx :
 //
-// pool2 = dot(decomp(cx) * evakey[0]) mod QP (encrypted input is multiplied by P factor)
-// pool3 = dot(decomp(cx) * evakey[1]) mod QP (encrypted input is multiplied by P factor)
+// BuffQP2 = dot(decomp(cx) * evakey[0]) mod QP (encrypted input is multiplied by P factor)
+// BuffQP3 = dot(decomp(cx) * evakey[1]) mod QP (encrypted input is multiplied by P factor)
 //
 // Expects the flag IsNTT of cx to correctly reflect the domain of cx.
 func (eval *Evaluator) SwitchKeyInPlaceSinglePAndBitDecomp(levelQ int, cx *ring.Poly, evakey *SwitchingKey, c0Q, c0P, c1Q, c1P *ring.Poly) {
@@ -221,7 +221,7 @@ func (eval *Evaluator) SwitchKeyInPlaceSinglePAndBitDecomp(levelQ int, cx *ring.
 
 	var cxInvNTT *ring.Poly
 	if cx.IsNTT {
-		cxInvNTT = eval.PoolInvNTT
+		cxInvNTT = eval.BuffInvNTT
 		ringQ.InvNTTLvl(levelQ, cx, cxInvNTT)
 	} else {
 		cxInvNTT = cx
@@ -248,8 +248,8 @@ func (eval *Evaluator) SwitchKeyInPlaceSinglePAndBitDecomp(levelQ int, cx *ring.
 		mask = 0xFFFFFFFFFFFFFFFF
 	}
 
-	cw := eval.Pool[0].Q.Coeffs[0]
-	cwNTT := eval.PoolBitDecomp
+	cw := eval.BuffQP[0].Q.Coeffs[0]
+	cwNTT := eval.BuffBitDecomp
 
 	QiOverF := eval.params.QiOverflowMargin(levelQ) >> 1
 	PiOverF := eval.params.PiOverflowMargin(levelP) >> 1
@@ -312,14 +312,14 @@ func (eval *Evaluator) SwitchKeyInPlaceSinglePAndBitDecomp(levelQ int, cx *ring.
 	}
 }
 
-// KeyswitchHoisted applies the key-switch to the decomposed polynomial c2 mod QP (PoolDecompQ and PoolDecompP)
+// KeyswitchHoisted applies the key-switch to the decomposed polynomial c2 mod QP (BuffQPDecompQ and BuffQPDecompP)
 // and divides the result by P, reducing the basis from QP to Q.
 //
-// pool2 = dot(PoolDecompQ||PoolDecompP * evakey[0]) mod Q
-// pool3 = dot(PoolDecompQ||PoolDecompP * evakey[1]) mod Q
-func (eval *Evaluator) KeyswitchHoisted(levelQ int, PoolDecompQP []ringqp.Poly, evakey *SwitchingKey, c0Q, c1Q, c0P, c1P *ring.Poly) {
+// BuffQP2 = dot(BuffQPDecompQ||BuffQPDecompP * evakey[0]) mod Q
+// BuffQP3 = dot(BuffQPDecompQ||BuffQPDecompP * evakey[1]) mod Q
+func (eval *Evaluator) KeyswitchHoisted(levelQ int, BuffQPDecompQP []ringqp.Poly, evakey *SwitchingKey, c0Q, c1Q, c0P, c1P *ring.Poly) {
 
-	eval.KeyswitchHoistedNoModDown(levelQ, PoolDecompQP, evakey, c0Q, c1Q, c0P, c1P)
+	eval.KeyswitchHoistedNoModDown(levelQ, BuffQPDecompQP, evakey, c0Q, c1Q, c0P, c1P)
 
 	levelP := evakey.Value[0][0][0].P.Level()
 
@@ -328,11 +328,11 @@ func (eval *Evaluator) KeyswitchHoisted(levelQ int, PoolDecompQP []ringqp.Poly, 
 	eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, c1Q, c1P, c1Q)
 }
 
-// KeyswitchHoistedNoModDown applies the key-switch to the decomposed polynomial c2 mod QP (PoolDecompQ and PoolDecompP)
+// KeyswitchHoistedNoModDown applies the key-switch to the decomposed polynomial c2 mod QP (BuffQPDecompQ and BuffQPDecompP)
 //
-// pool2 = dot(PoolDecompQ||PoolDecompP * evakey[0]) mod QP
-// pool3 = dot(PoolDecompQ||PoolDecompP * evakey[1]) mod QP
-func (eval *Evaluator) KeyswitchHoistedNoModDown(levelQ int, PoolDecompQP []ringqp.Poly, evakey *SwitchingKey, c0Q, c1Q, c0P, c1P *ring.Poly) {
+// BuffQP2 = dot(BuffQPDecompQ||BuffQPDecompP * evakey[0]) mod QP
+// BuffQP3 = dot(BuffQPDecompQ||BuffQPDecompP * evakey[1]) mod QP
+func (eval *Evaluator) KeyswitchHoistedNoModDown(levelQ int, BuffQPDecompQP []ringqp.Poly, evakey *SwitchingKey, c0Q, c1Q, c0P, c1P *ring.Poly) {
 
 	ringQ := eval.params.RingQ()
 	ringP := eval.params.RingP()
@@ -352,11 +352,11 @@ func (eval *Evaluator) KeyswitchHoistedNoModDown(levelQ int, PoolDecompQP []ring
 	for i := 0; i < decompRNS; i++ {
 
 		if i == 0 {
-			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, evakey.Value[i][0][0], PoolDecompQP[i], c0QP)
-			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, evakey.Value[i][0][1], PoolDecompQP[i], c1QP)
+			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, evakey.Value[i][0][0], BuffQPDecompQP[i], c0QP)
+			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, evakey.Value[i][0][1], BuffQPDecompQP[i], c1QP)
 		} else {
-			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, evakey.Value[i][0][0], PoolDecompQP[i], c0QP)
-			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, evakey.Value[i][0][1], PoolDecompQP[i], c1QP)
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, evakey.Value[i][0][0], BuffQPDecompQP[i], c0QP)
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, evakey.Value[i][0][1], BuffQPDecompQP[i], c1QP)
 		}
 
 		if reduce%QiOverF == QiOverF-1 {

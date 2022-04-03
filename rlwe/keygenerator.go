@@ -28,59 +28,14 @@ type KeyGenerator interface {
 // KeyGenerator is a structure that stores the elements required to create new keys,
 // as well as a memory buffer for intermediate values.
 type keyGenerator struct {
-<<<<<<< dev_bfv_poly
-	params           Parameters
-<<<<<<< dev_bfv_poly
-	buffQ            *ring.Poly
-	buffQP           PolyQP
-=======
-	poolQ            *ring.Poly
-	poolQP           ringqp.Poly
->>>>>>> [rlwe]: complete refactoring
-	ternarySampler   *ring.TernarySampler
-	gaussianSamplerQ *ring.GaussianSampler
-	uniformSamplerQ  *ring.UniformSampler
-	uniformSamplerP  *ring.UniformSampler
-=======
 	encryptor
->>>>>>> [rlwe]: simplified KeyGenerator, which is now based on Encryptor.
 }
 
 // NewKeyGenerator creates a new KeyGenerator, from which the secret and public keys, as well as the evaluation,
 // rotation and switching keys can be generated.
 func NewKeyGenerator(params Parameters) KeyGenerator {
-<<<<<<< dev_bfv_poly
-
-	prng, err := utils.NewPRNG()
-	if err != nil {
-		panic(err)
-	}
-
-<<<<<<< dev_bfv_poly
-	var buffQP PolyQP
-=======
-	var poolQP ringqp.Poly
->>>>>>> [rlwe]: complete refactoring
-	var uniformSamplerP *ring.UniformSampler
-	if params.PCount() > 0 {
-		buffQP = params.RingQP().NewPoly()
-		uniformSamplerP = ring.NewUniformSampler(prng, params.RingP())
-	} else {
-		poolQP = ringqp.Poly{Q: params.RingQ().NewPoly()}
-	}
-
-	return &keyGenerator{
-		params:           params,
-		buffQ:            params.RingQ().NewPoly(),
-		buffQP:           buffQP,
-		ternarySampler:   ring.NewTernarySamplerWithHammingWeight(prng, params.ringQ, params.h, false),
-		gaussianSamplerQ: ring.NewGaussianSampler(prng, params.RingQ(), params.Sigma(), int(6*params.Sigma())),
-		uniformSamplerQ:  ring.NewUniformSampler(prng, params.RingQ()),
-		uniformSamplerP:  uniformSamplerP,
-=======
 	return &keyGenerator{
 		encryptor: newEncryptor(params),
->>>>>>> [rlwe]: simplified KeyGenerator, which is now based on Encryptor.
 	}
 }
 
@@ -254,39 +209,21 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *
 	// Allocates the switching-key.
 	swk = NewSwitchingKey(keygen.params, skOutput.Value.Q.Level(), levelP)
 
-<<<<<<< dev_bfv_poly:rlwe/keygen.go
-	if len(skInput.Value.Q.Coeffs[0]) > len(skOutput.Value.Q.Coeffs[0]) { // N -> n
-<<<<<<< dev_bfv_poly
-		ring.MapSmallDimensionToLargerDimensionNTT(skOutput.Value.Q, keygen.buffQP.Q)
-		ring.MapSmallDimensionToLargerDimensionNTT(skOutput.Value.P, keygen.buffQP.P)
-		keygen.genSwitchingKey(skInput.Value.Q, keygen.buffQP, swk)
-=======
-=======
 	// N -> n (swk is to switch to a smaller dimension).
 	if len(skInput.Value.Q.Coeffs[0]) > len(skOutput.Value.Q.Coeffs[0]) {
->>>>>>> file name update & doc:rlwe/keygenerator.go
 
 		// Maps the smaller key to the largest with Y = X^{N/n}.
-		ring.MapSmallDimensionToLargerDimensionNTT(skOutput.Value.Q, keygen.poolQP.Q)
+		ring.MapSmallDimensionToLargerDimensionNTT(skOutput.Value.Q, keygen.buffQP.Q)
 		if levelP != -1 {
-			ring.MapSmallDimensionToLargerDimensionNTT(skOutput.Value.P, keygen.poolQP.P)
+			ring.MapSmallDimensionToLargerDimensionNTT(skOutput.Value.P, keygen.buffQP.P)
 		}
 
-		keygen.genSwitchingKey(skInput.Value.Q, keygen.poolQP, swk)
-<<<<<<< dev_bfv_poly:rlwe/keygen.go
->>>>>>> wip
-	} else { // N -> N or n -> N
-<<<<<<< dev_bfv_poly
-		ring.MapSmallDimensionToLargerDimensionNTT(skInput.Value.Q, keygen.buffQ)
-=======
-=======
+		keygen.genSwitchingKey(skInput.Value.Q, keygen.buffQP, swk)
 
 	} else { // N -> N or n -> N (swk switch to the same or a larger dimension)
 
 		// Maps the smaller key to the largest dimension with Y = X^{N/n}.
->>>>>>> file name update & doc:rlwe/keygenerator.go
-		ring.MapSmallDimensionToLargerDimensionNTT(skInput.Value.Q, keygen.poolQ[0])
->>>>>>> [rlwe]: simplified KeyGenerator, which is now based on Encryptor.
+		ring.MapSmallDimensionToLargerDimensionNTT(skInput.Value.Q, keygen.buffQ[0])
 
 		// Extends the modulus of the input key to the one of the output key
 		// if the former is smaller.
@@ -294,29 +231,16 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *
 
 			ringQ := keygen.params.RingQ()
 
-<<<<<<< dev_bfv_poly:rlwe/keygen.go
-<<<<<<< dev_bfv_poly
-			ringQ.InvNTTLvl(0, keygen.buffQ, keygen.buffQP.Q)
-			ringQ.InvMFormLvl(0, keygen.buffQP.Q, keygen.buffQP.Q)
-=======
-=======
 			// Switches out of the NTT and Montgomery domain.
->>>>>>> file name update & doc:rlwe/keygenerator.go
-			ringQ.InvNTTLvl(0, keygen.poolQ[0], keygen.poolQP.Q)
-			ringQ.InvMFormLvl(0, keygen.poolQP.Q, keygen.poolQP.Q)
->>>>>>> [rlwe]: simplified KeyGenerator, which is now based on Encryptor.
+			ringQ.InvNTTLvl(0, keygen.buffQ[0], keygen.buffQP.Q)
+			ringQ.InvMFormLvl(0, keygen.buffQP.Q, keygen.buffQP.Q)
 
 			// Extends the RNS basis of the small norm polynomial.
 			Q := ringQ.Modulus[0]
 			QHalf := Q >> 1
 
-<<<<<<< dev_bfv_poly
 			polQ := keygen.buffQP.Q
-			polP := keygen.buffQ
-=======
-			polQ := keygen.poolQP.Q
-			polP := keygen.poolQ[0]
->>>>>>> [rlwe]: simplified KeyGenerator, which is now based on Encryptor.
+			polP := keygen.buffQ[0]
 			var sign uint64
 			for j := 0; j < ringQ.N; j++ {
 
@@ -340,11 +264,7 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *
 			}
 		}
 
-<<<<<<< dev_bfv_poly
-		keygen.genSwitchingKey(keygen.buffQ, skOutput.Value, swk)
-=======
-		keygen.genSwitchingKey(keygen.poolQ[0], skOutput.Value, swk)
->>>>>>> [rlwe]: simplified KeyGenerator, which is now based on Encryptor.
+		keygen.genSwitchingKey(keygen.buffQ[0], skOutput.Value, swk)
 	}
 
 	return
@@ -352,6 +272,7 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *
 
 func (keygen *keyGenerator) genSwitchingKey(skIn *ring.Poly, skOut ringqp.Poly, swk *SwitchingKey) {
 
+<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
 <<<<<<< dev_bfv_poly
 <<<<<<< dev_bfv_poly
 	ringQP := keygen.params.RingQP()
@@ -430,32 +351,18 @@ func (keygen *keyGenerator) genSwitchingKey(skIn *ring.Poly, skOut ringqp.Poly, 
 				ringQP.ExtendBasisSmallNormAndCenter(swk.Value[i][j][0].Q, levelP, nil, swk.Value[i][j][0].P)
 				keygen.uniformSamplerP.ReadLvl(levelP, swk.Value[i][j][1].P)
 			}
-
-<<<<<<< dev_bfv_poly
-			qi := ringQ.Modulus[index]
-			p0tmp := keygen.buffQ.Coeffs[index]
-			p1tmp := swk.Value[i][0].Q.Coeffs[index]
 =======
-			ringQP.NTTLazyLvl(levelQ, levelP, swk.Value[i][j][0], swk.Value[i][j][0])
-			ringQP.MFormLvl(levelQ, levelP, swk.Value[i][j][0], swk.Value[i][j][0])
+	levelQ := swk.LevelQ()
+	levelP := swk.LevelP()
+>>>>>>> rebased on dev_bfv_poly
 
-			// (e, a)
-			keygen.uniformSamplerQ.ReadLvl(levelQ, swk.Value[i][j][1].Q)
->>>>>>> First step for adding bit-decomp
-
-			// (- a * skOut + e, a)
-			ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, swk.Value[i][j][1], skOut, swk.Value[i][j][0])
-=======
-=======
 	// Samples an encryption of zero for each element of the switching-key.
->>>>>>> file name update & doc:rlwe/keygenerator.go
 	for i := 0; i < len(swk.Value); i++ {
 		for j := 0; j < len(swk.Value[0]); j++ {
 			keygen.encryptZeroSymetricQPNTT(levelQ, levelP, skOut, true, true, swk.Value[i][j])
->>>>>>> [rlwe]: simplified KeyGenerator, which is now based on Encryptor.
 		}
 	}
 
 	// Adds the plaintext (input-key) to the switching-key.
-	gadget.AddPolyToGadgetMatrix(skIn, []gadget.Ciphertext{swk.Ciphertext}, *keygen.params.RingQP(), keygen.params.LogBase2(), keygen.poolQ[0])
+	gadget.AddPolyToGadgetMatrix(skIn, []gadget.Ciphertext{swk.Ciphertext}, *keygen.params.RingQP(), keygen.params.LogBase2(), keygen.buffQ[0])
 }

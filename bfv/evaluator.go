@@ -605,32 +605,6 @@ func (eval *evaluator) MulNew(ctIn *Ciphertext, op1 Operand) (ctOut *Ciphertext)
 	return
 }
 
-<<<<<<< dev_bfv_poly
-<<<<<<< dev_bfv_poly
-// relinearize is a method common to Relinearize and RelinearizeNew. It switches ctIn to the NTT domain, applies the keyswitch, and returns the result out of the NTT domain.
-func (eval *evaluator) relinearize(ctIn *Ciphertext, ctOut *Ciphertext) {
-
-	level := utils.MinInt(ctIn.Level(), ctOut.Level())
-
-	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:level+1]
-	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:level+1]
-
-	if ctOut != ctIn {
-		ring.CopyValues(ctIn.Value[0], ctOut.Value[0])
-		ring.CopyValues(ctIn.Value[1], ctOut.Value[1])
-	}
-
-	for deg := uint64(ctIn.Degree()); deg > 1; deg-- {
-		eval.SwitchKeysInPlace(level, ctIn.Value[deg], eval.rlk.Keys[deg-2], eval.BuffQP[1].Q, eval.BuffQP[2].Q)
-		eval.ringQ.AddLvl(level, ctOut.Value[0], eval.BuffQP[1].Q, ctOut.Value[0])
-		eval.ringQ.AddLvl(level, ctOut.Value[1], eval.BuffQP[2].Q, ctOut.Value[1])
-	}
-
-	ctOut.SetValue(ctOut.Value[:2])
-}
-
-=======
->>>>>>> rebased on dev_bfv_poly
 // Relinearize relinearizes the ciphertext ctIn of degree > 1 until it is of degree 1, and returns the result in cOut.
 //
 // It requires a correct evaluation key as additional input:
@@ -659,34 +633,8 @@ func (eval *evaluator) RelinearizeNew(ctIn *Ciphertext) (ctOut *Ciphertext) {
 
 // SwitchKeys applies the key-switching procedure to the ciphertext ct0 and returns the result in ctOut. It requires as an additional input a valid switching-key:
 // it must encrypt the target key under the public key under which ct0 is currently encrypted.
-<<<<<<< dev_bfv_poly
-<<<<<<< dev_bfv_poly
-func (eval *evaluator) SwitchKeys(ctIn *Ciphertext, switchKey *rlwe.SwitchingKey, ctOut *Ciphertext) {
-
-	if ctIn.Degree() != 1 || ctOut.Degree() != 1 {
-		panic("cannot SwitchKeys: input and output must be of degree 1 to allow key switching")
-	}
-
-	eval.getElemAndCheckUnary(ctIn, ctOut, 1)
-
-	level := utils.MinInt(ctIn.Level(), ctOut.Level())
-<<<<<<< dev_bfv_poly
-	eval.SwitchKeysInPlace(level, ctIn.Value[1], switchKey, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
-	eval.ringQ.AddLvl(level, ctIn.Value[0], eval.BuffQP[1].Q, ctOut.Value[0])
-	ring.CopyValues(eval.BuffQP[2].Q, ctOut.Value[1])
-=======
-	eval.SwitchKeysInPlace(level, ctIn.Value[1], switchKey, eval.Pool[1].Q, eval.Pool[2].Q)
-	eval.ringQ.AddLvl(level, ctIn.Value[0], eval.Pool[1].Q, ctOut.Value[0])
-	ring.CopyValues(eval.Pool[2].Q, ctOut.Value[1])
-=======
 func (eval *evaluator) SwitchKeys(ct0 *Ciphertext, switchKey *rlwe.SwitchingKey, ctOut *Ciphertext) {
 	eval.Evaluator.SwitchKeys(ct0.Ciphertext, switchKey, ctOut.Ciphertext)
->>>>>>> wip
->>>>>>> [rlwe]: complete refactoring
-=======
-func (eval *evaluator) SwitchKeys(ct0 *Ciphertext, switchKey *rlwe.SwitchingKey, ctOut *Ciphertext) {
-	eval.Evaluator.SwitchKeys(ct0.Ciphertext, switchKey, ctOut.Ciphertext)
->>>>>>> rebased on dev_bfv_poly
 }
 
 // SwitchKeysNew applies the key-switching procedure to the ciphertext ct0 and creates a new ciphertext to store the result. It requires as an additional input a valid switching-key:
@@ -697,6 +645,7 @@ func (eval *evaluator) SwitchKeysNew(ctIn *Ciphertext, switchkey *rlwe.Switching
 	return
 }
 
+<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
 // RotateColumns rotates the columns of ct0 by k positions to the left and returns the result in ctOut. As an additional input it requires a RotationKeys struct:
 //
 // - it must either store all the left and right power-of-2 rotations or the specific rotation that is requested.
@@ -744,14 +693,11 @@ func (eval *evaluator) permuteLvl(level int, ctIn *Ciphertext, generator uint64,
 	eval.ringQ.PermuteLvl(level, eval.Pool[1].Q, generator, ctOut.Value[0])
 	eval.ringQ.PermuteLvl(level, eval.Pool[2].Q, generator, ctOut.Value[1])
 =======
-func (eval *evaluator) RotateColumns(ct0 *Ciphertext, k int, ctOut *Ciphertext) {
-	eval.Automorphism(ct0.Ciphertext, eval.params.GaloisElementForColumnRotationBy(k), ctOut.Ciphertext)
->>>>>>> wip
->>>>>>> [rlwe]: complete refactoring
 =======
+// RotateColumns rotates the columns of ct0 by k positions to the left and returns the result in ctOut. As an additional input it requires a RotationKeys struct.
+>>>>>>> rebased on dev_bfv_poly
 func (eval *evaluator) RotateColumns(ct0 *Ciphertext, k int, ctOut *Ciphertext) {
 	eval.Automorphism(ct0.Ciphertext, eval.params.GaloisElementForColumnRotationBy(k), ctOut.Ciphertext)
->>>>>>> rebased on dev_bfv_poly
 }
 
 // RotateColumnsNew applies RotateColumns and returns the result in a new Ciphertext.

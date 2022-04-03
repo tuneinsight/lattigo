@@ -363,7 +363,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(pol polynomialVe
 		res = NewCiphertextLvl(params, 1, level)
 
 		// Allocates a temporary plaintext to encode the values
-		pt := NewPlaintextAtLevelFromPoly(level, polyEval.Evaluator.PoolQMul()[0][0])
+		pt := NewPlaintextAtLevelFromPoly(level, polyEval.Evaluator.BuffPt().Value)
 
 		// Looks for a non-zero coefficient among the degree zero coefficient of the polynomials
 		for i, p := range pol.Value {

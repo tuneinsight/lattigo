@@ -15,7 +15,7 @@ type Decryptor interface {
 // decryptor is a structure used to decrypt ciphertext. It stores the secret-key.
 type decryptor struct {
 	ringQ *ring.Ring
-	pool  *ring.Poly
+	buff  *ring.Poly
 	sk    *SecretKey
 }
 
@@ -28,7 +28,7 @@ func NewDecryptor(params Parameters, sk *SecretKey) Decryptor {
 
 	return &decryptor{
 		ringQ: params.RingQ(),
-		pool:  params.RingQ().NewPoly(),
+		buff:  params.RingQ().NewPoly(),
 		sk:    sk,
 	}
 }
@@ -55,8 +55,8 @@ func (d *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) {
 		ringQ.MulCoeffsMontgomeryLvl(level, plaintext.Value, d.sk.Value.Q, plaintext.Value)
 
 		if !ciphertext.Value[0].IsNTT {
-			ringQ.NTTLazyLvl(level, ciphertext.Value[i-1], d.pool)
-			ringQ.AddLvl(level, plaintext.Value, d.pool, plaintext.Value)
+			ringQ.NTTLazyLvl(level, ciphertext.Value[i-1], d.buff)
+			ringQ.AddLvl(level, plaintext.Value, d.buff, plaintext.Value)
 		} else {
 			ringQ.AddLvl(level, plaintext.Value, ciphertext.Value[i-1], plaintext.Value)
 		}
@@ -81,7 +81,7 @@ func (d *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) {
 func (d *decryptor) ShallowCopy() Decryptor {
 	return &decryptor{
 		ringQ: d.ringQ,
-		pool:  d.ringQ.NewPoly(),
+		buff:  d.ringQ.NewPoly(),
 		sk:    d.sk,
 	}
 }
@@ -92,7 +92,7 @@ func (d *decryptor) ShallowCopy() Decryptor {
 func (d *decryptor) WithKey(sk *SecretKey) Decryptor {
 	return &decryptor{
 		ringQ: d.ringQ,
-		pool:  d.ringQ.NewPoly(),
+		buff:  d.ringQ.NewPoly(),
 		sk:    sk,
 	}
 }

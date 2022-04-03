@@ -16,8 +16,8 @@ type BasisExtender struct {
 	modDownparamsPtoQ [][]uint64
 	modDownparamsQtoP [][]uint64
 
-	polypoolQ *Poly
-	polypoolP *Poly
+	buffQ *Poly
+	buffP *Poly
 }
 
 func genModDownParams(ringQ, ringP *Ring) (params [][]uint64) {
@@ -63,8 +63,8 @@ func NewBasisExtender(ringQ, ringP *Ring) *BasisExtender {
 	newParams.modDownparamsPtoQ = genModDownParams(ringQ, ringP)
 	newParams.modDownparamsQtoP = genModDownParams(ringP, ringQ)
 
-	newParams.polypoolQ = ringQ.NewPoly()
-	newParams.polypoolP = ringP.NewPoly()
+	newParams.buffQ = ringQ.NewPoly()
+	newParams.buffP = ringP.NewPoly()
 
 	return newParams
 }
@@ -167,8 +167,8 @@ func (be *BasisExtender) ShallowCopy() *BasisExtender {
 		modDownparamsQtoP: be.modDownparamsQtoP,
 		modDownparamsPtoQ: be.modDownparamsPtoQ,
 
-		polypoolQ: be.ringQ.NewPoly(),
-		polypoolP: be.ringP.NewPoly(),
+		buffQ: be.ringQ.NewPoly(),
+		buffP: be.ringP.NewPoly(),
 	}
 }
 
@@ -194,15 +194,15 @@ func (be *BasisExtender) ModDownQPtoQ(levelQ, levelP int, p1Q, p1P, p2Q *Poly) {
 
 	ringQ := be.ringQ
 	modDownParams := be.modDownparamsPtoQ
-	polypool := be.polypoolQ
+	buff := be.buffQ
 
-	// Then we target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on polypool
-	// polypool is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
-	be.ModUpPtoQ(levelP, levelQ, p1P, polypool)
+	// Then we target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on buff
+	// buff is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
+	be.ModUpPtoQ(levelP, levelQ, p1P, buff)
 
-	// Finally, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
+	// Finally, for each level of p1 (and buff since they now share the same basis) we compute p2 = (P^-1) * (p1 - buff) mod Q
 	for i := 0; i < levelQ+1; i++ {
-		SubVecAndMulScalarMontgomeryTwoQiVec(polypool.Coeffs[i], p1Q.Coeffs[i], p2Q.Coeffs[i], ringQ.Modulus[i]-modDownParams[levelP][i], ringQ.Modulus[i], ringQ.MredParams[i])
+		SubVecAndMulScalarMontgomeryTwoQiVec(buff.Coeffs[i], p1Q.Coeffs[i], p2Q.Coeffs[i], ringQ.Modulus[i]-modDownParams[levelP][i], ringQ.Modulus[i], ringQ.MredParams[i])
 	}
 
 	// In total we do len(P) + len(Q) NTT, which is optimal (linear in the number of moduli of P and Q)
@@ -218,23 +218,23 @@ func (be *BasisExtender) ModDownQPtoQNTT(levelQ, levelP int, p1Q, p1P, p2Q *Poly
 	ringQ := be.ringQ
 	ringP := be.ringP
 	modDownParams := be.modDownparamsPtoQ
-	polypoolP := be.polypoolP
-	polypoolQ := be.polypoolQ
+	buffP := be.buffP
+	buffQ := be.buffQ
 
 	// First we get the P basis part of p1 out of the NTT domain
-	ringP.InvNTTLazyLvl(levelP, p1P, polypoolP)
+	ringP.InvNTTLazyLvl(levelP, p1P, buffP)
 
-	// Then we target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on polypool
-	// polypool is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
-	be.ModUpPtoQ(levelP, levelQ, polypoolP, polypoolQ)
+	// Then we target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on the buffer.
+	// The buffer is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
+	be.ModUpPtoQ(levelP, levelQ, buffP, buffQ)
 
-	// First we switch back the relevant polypool CRT array back to the NTT domain
-	ringQ.NTTLazyLvl(levelQ, polypoolQ, polypoolQ)
+	// First we switch back the buffer CRT array back to the NTT domain
+	ringQ.NTTLazyLvl(levelQ, buffQ, buffQ)
 
-	// Finally, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
+	// Finally, for each level of p1 (and the buffer since they now share the same basis) we compute p2 = (P^-1) * (p1 - buff) mod Q
 	for i := 0; i < levelQ+1; i++ {
-		// Then for each coefficient we compute (P^-1) * (p1[i][j] - polypool[i][j]) mod qi
-		SubVecAndMulScalarMontgomeryTwoQiVec(polypoolQ.Coeffs[i], p1Q.Coeffs[i], p2Q.Coeffs[i], ringQ.Modulus[i]-modDownParams[levelP][i], ringQ.Modulus[i], ringQ.MredParams[i])
+		// Then for each coefficient we compute (P^-1) * (p1[i][j] - buff[i][j]) mod qi
+		SubVecAndMulScalarMontgomeryTwoQiVec(buffQ.Coeffs[i], p1Q.Coeffs[i], p2Q.Coeffs[i], ringQ.Modulus[i]-modDownParams[levelP][i], ringQ.Modulus[i], ringQ.MredParams[i])
 	}
 
 	// In total we do len(P) + len(Q) NTT, which is optimal (linear in the number of moduli of P and Q)
@@ -248,16 +248,16 @@ func (be *BasisExtender) ModDownQPtoP(levelQ, levelP int, p1Q, p1P, p2P *Poly) {
 
 	ringP := be.ringP
 	modDownParams := be.modDownparamsQtoP
-	polypool := be.polypoolP
+	buff := be.buffP
 
-	// Then we target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on polypool
-	// polypool is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
-	be.ModUpQtoP(levelQ, levelP, p1Q, polypool)
+	// Then we target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on buff
+	// buff is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
+	be.ModUpQtoP(levelQ, levelP, p1Q, buff)
 
-	// Finally, for each level of p1 (and polypool since they now share the same basis) we compute p2 = (P^-1) * (p1 - polypool) mod Q
+	// Finally, for each level of p1 (and buff since they now share the same basis) we compute p2 = (P^-1) * (p1 - buff) mod Q
 	for i := 0; i < levelP+1; i++ {
-		// Then for each coefficient we compute (P^-1) * (p1[i][j] - polypool[i][j]) mod qi
-		SubVecAndMulScalarMontgomeryTwoQiVec(polypool.Coeffs[i], p1P.Coeffs[i], p2P.Coeffs[i], ringP.Modulus[i]-modDownParams[levelQ][i], ringP.Modulus[i], ringP.MredParams[i])
+		// Then for each coefficient we compute (P^-1) * (p1[i][j] - buff[i][j]) mod qi
+		SubVecAndMulScalarMontgomeryTwoQiVec(buff.Coeffs[i], p1P.Coeffs[i], p2P.Coeffs[i], ringP.Modulus[i]-modDownParams[levelQ][i], ringP.Modulus[i], ringP.MredParams[i])
 	}
 
 	// In total we do len(P) + len(Q) NTT, which is optimal (linear in the number of moduli of P and Q)

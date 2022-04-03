@@ -54,13 +54,13 @@ type Evaluator interface {
 	ShallowCopy() Evaluator
 	WithKey(rlwe.EvaluationKey) Evaluator
 
-	PoolQ() [][]*ring.Poly
-	PoolQMul() [][]*ring.Poly
-	PoolPt() *Plaintext
+	BuffQ() [][]*ring.Poly
+	BuffQMul() [][]*ring.Poly
+	BuffPt() *Plaintext
 }
 
 // evaluator is a struct that holds the necessary elements to perform the homomorphic operations between ciphertexts and/or plaintexts.
-// It also holds a small memory pool used to store intermediate computations.
+// It also holds a memory buffer used to store intermediate computations.
 type evaluator struct {
 	*evaluatorBase
 	*evaluatorBuffers
@@ -116,31 +116,31 @@ func newEvaluatorPrecomp(params Parameters) *evaluatorBase {
 }
 
 type evaluatorBuffers struct {
-	poolQ    [][]*ring.Poly
-	poolQmul [][]*ring.Poly
-	tmpPt    *Plaintext
+	buffQ    [][]*ring.Poly
+	buffQMul [][]*ring.Poly
+	buffPt   *Plaintext
 }
 
 func newEvaluatorBuffer(eval *evaluatorBase) *evaluatorBuffers {
 	evb := new(evaluatorBuffers)
-	evb.poolQ = make([][]*ring.Poly, 4)
-	evb.poolQmul = make([][]*ring.Poly, 4)
+	evb.buffQ = make([][]*ring.Poly, 4)
+	evb.buffQMul = make([][]*ring.Poly, 4)
 	for i := 0; i < 4; i++ {
-		evb.poolQ[i] = make([]*ring.Poly, 6)
-		evb.poolQmul[i] = make([]*ring.Poly, 6)
+		evb.buffQ[i] = make([]*ring.Poly, 6)
+		evb.buffQMul[i] = make([]*ring.Poly, 6)
 		for j := 0; j < 6; j++ {
-			evb.poolQ[i][j] = eval.ringQ.NewPoly()
-			evb.poolQmul[i][j] = eval.ringQMul.NewPoly()
+			evb.buffQ[i][j] = eval.ringQ.NewPoly()
+			evb.buffQMul[i][j] = eval.ringQMul.NewPoly()
 		}
 	}
 
-	evb.tmpPt = NewPlaintext(eval.params)
+	evb.buffPt = NewPlaintext(eval.params)
 
 	return evb
 }
 
 // NewEvaluator creates a new Evaluator, that can be used to do homomorphic
-// operations on ciphertexts and/or plaintexts. It stores a small pool of polynomials
+// operations on ciphertexts and/or plaintexts. It stores a memory buffer
 // and ciphertexts that will be used for intermediate values.
 func NewEvaluator(params Parameters, evaluationKey rlwe.EvaluationKey) Evaluator {
 	ev := new(evaluator)
@@ -310,8 +310,8 @@ func (eval *evaluator) QuantizeToLvl(level int, ctIn, ctOut *Ciphertext) {
 		panic("cannot QuantizeToLvl: (ctIn.Level() || ctOut.Level()) < level")
 	}
 
-	eval.ringQ.DivRoundByLastModulusManyLvl(ctIn.Level(), ctIn.Level()-level, ctIn.Value[0], eval.poolQ[0][0], ctOut.Value[0])
-	eval.ringQ.DivRoundByLastModulusManyLvl(ctIn.Level(), ctIn.Level()-level, ctIn.Value[1], eval.poolQ[0][0], ctOut.Value[1])
+	eval.ringQ.DivRoundByLastModulusManyLvl(ctIn.Level(), ctIn.Level()-level, ctIn.Value[0], eval.buffQ[0][0], ctOut.Value[0])
+	eval.ringQ.DivRoundByLastModulusManyLvl(ctIn.Level(), ctIn.Level()-level, ctIn.Value[1], eval.buffQ[0][0], ctOut.Value[1])
 
 	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:level+1]
 	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:level+1]
@@ -327,11 +327,11 @@ func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *rlwe.Ciphertext) {
 	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:level+1]
 	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:level+1]
 
-	c0Q1 := eval.poolQ[0]
-	c0Q2 := eval.poolQmul[0]
+	c0Q1 := eval.buffQ[0]
+	c0Q2 := eval.buffQMul[0]
 
-	c1Q1 := eval.poolQ[1]
-	c1Q2 := eval.poolQmul[1]
+	c1Q1 := eval.buffQ[1]
+	c1Q2 := eval.buffQMul[1]
 
 	// Prepares the ciphertexts for the Tensoring by extending their
 	// basis from Q to QP and transforming them to NTT form
@@ -366,19 +366,19 @@ func (eval *evaluator) modUpAndNTTLvl(level, levelQMul int, ct *rlwe.Ciphertext,
 
 func (eval *evaluator) tensoreLowDegLvl(level, levelQMul int, ct0, ct1 *rlwe.Ciphertext) {
 
-	c0Q1 := eval.poolQ[0]
-	c0Q2 := eval.poolQmul[0]
+	c0Q1 := eval.buffQ[0]
+	c0Q2 := eval.buffQMul[0]
 
-	c1Q1 := eval.poolQ[1]
-	c1Q2 := eval.poolQmul[1]
+	c1Q1 := eval.buffQ[1]
+	c1Q2 := eval.buffQMul[1]
 
-	c2Q1 := eval.poolQ[2]
-	c2Q2 := eval.poolQmul[2]
+	c2Q1 := eval.buffQ[2]
+	c2Q2 := eval.buffQMul[2]
 
-	c00Q := eval.poolQ[3][0]
-	c00Q2 := eval.poolQmul[3][0]
-	c01Q := eval.poolQ[3][1]
-	c01P := eval.poolQmul[3][1]
+	c00Q := eval.buffQ[3][0]
+	c00Q2 := eval.buffQMul[3][0]
+	c01Q := eval.buffQ[3][1]
+	c01P := eval.buffQMul[3][1]
 
 	eval.ringQ.MFormLvl(level, c0Q1[0], c00Q)
 	eval.ringQMul.MForm(c0Q2[0], c00Q2)
@@ -426,14 +426,14 @@ func (eval *evaluator) tensoreLowDegLvl(level, levelQMul int, ct0, ct1 *rlwe.Cip
 
 func (eval *evaluator) tensortLargeDegLvl(level, levelQMul int, ct0, ct1 *rlwe.Ciphertext) {
 
-	c0Q1 := eval.poolQ[0]
-	c0Q2 := eval.poolQmul[0]
+	c0Q1 := eval.buffQ[0]
+	c0Q2 := eval.buffQMul[0]
 
-	c1Q1 := eval.poolQ[1]
-	c1Q2 := eval.poolQmul[1]
+	c1Q1 := eval.buffQ[1]
+	c1Q2 := eval.buffQMul[1]
 
-	c2Q1 := eval.poolQ[2]
-	c2Q2 := eval.poolQmul[2]
+	c2Q1 := eval.buffQ[2]
+	c2Q2 := eval.buffQMul[2]
 
 	for i := 0; i < ct0.Degree()+ct1.Degree()+1; i++ {
 		c2Q1[i].Zero()
@@ -443,8 +443,8 @@ func (eval *evaluator) tensortLargeDegLvl(level, levelQMul int, ct0, ct1 *rlwe.C
 	// Squaring case
 	if ct0 == ct1 {
 
-		c00Q1 := eval.poolQ[3]
-		c00Q2 := eval.poolQmul[3]
+		c00Q1 := eval.buffQ[3]
+		c00Q2 := eval.buffQMul[3]
 
 		for i := range ct0.Value {
 			eval.ringQ.MFormLvl(level, c0Q1[i], c00Q1[i])
@@ -481,8 +481,8 @@ func (eval *evaluator) tensortLargeDegLvl(level, levelQMul int, ct0, ct1 *rlwe.C
 
 func (eval *evaluator) quantizeLvl(level, levelQMul int, ctOut *rlwe.Ciphertext) {
 
-	c2Q1 := eval.poolQ[2]
-	c2Q2 := eval.poolQmul[2]
+	c2Q1 := eval.buffQ[2]
+	c2Q2 := eval.buffQMul[2]
 
 	// Applies the inverse NTT to the ciphertext, scales down the ciphertext
 	// by t/q and reduces its basis from QP to Q
@@ -526,7 +526,7 @@ func (eval *evaluator) MulAndAdd(ctIn *Ciphertext, op1 Operand, ctOut *Ciphertex
 	ct2 := &Ciphertext{&rlwe.Ciphertext{Value: make([]*ring.Poly, ctIn.Degree()+op1.Degree()+1)}}
 	for i := range ct2.Value {
 		ct2.Value[i] = new(ring.Poly)
-		ct2.Value[i].Coeffs = eval.poolQ[2][i].Coeffs[:level+1]
+		ct2.Value[i].Coeffs = eval.buffQ[2][i].Coeffs[:level+1]
 	}
 
 	eval.Mul(ctIn, op1, ct2)
@@ -554,7 +554,7 @@ func (eval *evaluator) mulPlaintextRingT(ctIn *Ciphertext, ptRt *PlaintextRingT,
 	ringQ := eval.ringQ
 
 	coeffs := ptRt.Value.Coeffs[0]
-	coeffsNTT := eval.poolQ[0][0].Coeffs[0]
+	coeffsNTT := eval.buffQ[0][0].Coeffs[0]
 
 	for i := range ctIn.Value {
 
@@ -607,9 +607,9 @@ func (eval *evaluator) relinearize(ctIn *Ciphertext, ctOut *Ciphertext) {
 	}
 
 	for deg := uint64(ctIn.Degree()); deg > 1; deg-- {
-		eval.SwitchKeysInPlace(level, ctIn.Value[deg], eval.rlk.Keys[deg-2], eval.Pool[1].Q, eval.Pool[2].Q)
-		eval.ringQ.AddLvl(level, ctOut.Value[0], eval.Pool[1].Q, ctOut.Value[0])
-		eval.ringQ.AddLvl(level, ctOut.Value[1], eval.Pool[2].Q, ctOut.Value[1])
+		eval.SwitchKeysInPlace(level, ctIn.Value[deg], eval.rlk.Keys[deg-2], eval.BuffQP[1].Q, eval.BuffQP[2].Q)
+		eval.ringQ.AddLvl(level, ctOut.Value[0], eval.BuffQP[1].Q, ctOut.Value[0])
+		eval.ringQ.AddLvl(level, ctOut.Value[1], eval.BuffQP[2].Q, ctOut.Value[1])
 	}
 
 	ctOut.SetValue(ctOut.Value[:2])
@@ -669,9 +669,9 @@ func (eval *evaluator) SwitchKeys(ctIn *Ciphertext, switchKey *rlwe.SwitchingKey
 	eval.getElemAndCheckUnary(ctIn, ctOut, 1)
 
 	level := utils.MinInt(ctIn.Level(), ctOut.Level())
-	eval.SwitchKeysInPlace(level, ctIn.Value[1], switchKey, eval.Pool[1].Q, eval.Pool[2].Q)
-	eval.ringQ.AddLvl(level, ctIn.Value[0], eval.Pool[1].Q, ctOut.Value[0])
-	ring.CopyValues(eval.Pool[2].Q, ctOut.Value[1])
+	eval.SwitchKeysInPlace(level, ctIn.Value[1], switchKey, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
+	eval.ringQ.AddLvl(level, ctIn.Value[0], eval.BuffQP[1].Q, ctOut.Value[0])
+	ring.CopyValues(eval.BuffQP[2].Q, ctOut.Value[1])
 }
 
 // SwitchKeysNew applies the key-switching procedure to the ciphertext ct0 and creates a new ciphertext to store the result. It requires as an additional input a valid switching-key:
@@ -716,10 +716,10 @@ func (eval *evaluator) RotateColumns(ctIn *Ciphertext, k int, ctOut *Ciphertext)
 
 // permute performs a column rotation on ctIn and returns the result in ctOut
 func (eval *evaluator) permuteLvl(level int, ctIn *Ciphertext, generator uint64, switchKey *rlwe.SwitchingKey, ctOut *Ciphertext) {
-	eval.SwitchKeysInPlace(level, ctIn.Value[1], switchKey, eval.Pool[1].Q, eval.Pool[2].Q)
-	eval.ringQ.AddLvl(level, eval.Pool[1].Q, ctIn.Value[0], eval.Pool[1].Q)
-	eval.ringQ.PermuteLvl(level, eval.Pool[1].Q, generator, ctOut.Value[0])
-	eval.ringQ.PermuteLvl(level, eval.Pool[2].Q, generator, ctOut.Value[1])
+	eval.SwitchKeysInPlace(level, ctIn.Value[1], switchKey, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
+	eval.ringQ.AddLvl(level, eval.BuffQP[1].Q, ctIn.Value[0], eval.BuffQP[1].Q)
+	eval.ringQ.PermuteLvl(level, eval.BuffQP[1].Q, generator, ctOut.Value[0])
+	eval.ringQ.PermuteLvl(level, eval.BuffQP[2].Q, generator, ctOut.Value[1])
 }
 
 // RotateColumnsNew applies RotateColumns and returns the result in a new Ciphertext.
@@ -801,19 +801,19 @@ func (eval *evaluator) WithKey(evaluationKey rlwe.EvaluationKey) Evaluator {
 	}
 }
 
-// PoolQ returns the internal evaluator poolyQ buffer.
-func (eval *evaluator) PoolQ() [][]*ring.Poly {
-	return eval.poolQ
+// BuffQ returns the internal evaluator buffQ buffer.
+func (eval *evaluator) BuffQ() [][]*ring.Poly {
+	return eval.buffQ
 }
 
-// PoolQMul returns the internal evaluator PoolQMul buffer.
-func (eval *evaluator) PoolQMul() [][]*ring.Poly {
-	return eval.poolQmul
+// BuffQMul returns the internal evaluator buffQMul buffer.
+func (eval *evaluator) BuffQMul() [][]*ring.Poly {
+	return eval.buffQMul
 }
 
-// tmpPt returns the internal evaluator plaintext buffer
-func (eval *evaluator) PoolPt() *Plaintext {
-	return eval.tmpPt
+// BuffPt returns the internal evaluator plaintext buffer.
+func (eval *evaluator) BuffPt() *Plaintext {
+	return eval.buffPt
 }
 
 func (eval *evaluator) getRingQElem(level int, op Operand) *rlwe.Ciphertext {
@@ -822,11 +822,11 @@ func (eval *evaluator) getRingQElem(level int, op Operand) *rlwe.Ciphertext {
 		return o.El()
 	case *PlaintextRingT:
 		if eval.tDividesQ {
-			ScaleUpTIsQ0VecLvl(level, eval.params.RingQ(), o.Value, eval.tmpPt.Value)
+			ScaleUpTIsQ0VecLvl(level, eval.params.RingQ(), o.Value, eval.buffPt.Value)
 		} else {
-			ScaleUpTCoprimeWithQVecLvl(level, eval.params.RingQ(), eval.params.RingT(), eval.tInvModQi, eval.Pool[0].Q.Coeffs[0], o.Value, eval.tmpPt.Value)
+			ScaleUpTCoprimeWithQVecLvl(level, eval.params.RingQ(), eval.params.RingT(), eval.tInvModQi, eval.BuffQP[0].Q.Coeffs[0], o.Value, eval.buffPt.Value)
 		}
-		return eval.tmpPt.El()
+		return eval.buffPt.El()
 	default:
 		panic(fmt.Errorf("invalid operand type for operation: %T", o))
 	}

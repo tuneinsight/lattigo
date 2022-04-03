@@ -245,12 +245,12 @@ func testDivFloorByLastModulusMany(tc *testParams, t *testing.T) {
 		polTest0 := tc.ringQ.NewPoly()
 		polTest1 := tc.ringQ.NewPoly()
 		polWant := tc.ringQ.NewPoly()
-		pool := tc.ringQ.NewPoly()
+		buff := tc.ringQ.NewPoly()
 
 		tc.ringQ.SetCoefficientsBigint(coeffs, polTest0)
 		tc.ringQ.SetCoefficientsBigint(coeffsWant, polWant)
 
-		tc.ringQ.DivFloorByLastModulusManyLvl(polTest0.Level(), nbRescales, polTest0, pool, polTest1)
+		tc.ringQ.DivFloorByLastModulusManyLvl(polTest0.Level(), nbRescales, polTest0, buff, polTest1)
 		for i := 0; i < tc.ringQ.N; i++ {
 			for j := 0; j < polTest0.Level()-nbRescales+1; j++ {
 				require.Equalf(t, polWant.Coeffs[j][i], polTest1.Coeffs[j][i], "coeff %v Qi%v = %s", i, j, coeffs[i].String())
@@ -283,12 +283,12 @@ func testDivRoundByLastModulusMany(tc *testParams, t *testing.T) {
 		polTest0 := tc.ringQ.NewPoly()
 		polTest1 := tc.ringQ.NewPoly()
 		polWant := tc.ringQ.NewPoly()
-		pool := tc.ringQ.NewPoly()
+		buff := tc.ringQ.NewPoly()
 
 		tc.ringQ.SetCoefficientsBigint(coeffs, polTest0)
 		tc.ringQ.SetCoefficientsBigint(coeffsWant, polWant)
 
-		tc.ringQ.DivRoundByLastModulusManyLvl(polTest0.Level(), nbRescals, polTest0, pool, polTest1)
+		tc.ringQ.DivRoundByLastModulusManyLvl(polTest0.Level(), nbRescals, polTest0, buff, polTest1)
 		for i := 0; i < tc.ringQ.N; i++ {
 			for j := 0; j < polTest0.Level()-nbRescals+1; j++ {
 				require.Equalf(t, polWant.Coeffs[j][i], polTest1.Coeffs[j][i], "coeff %v Qi%v = %s", i, j, coeffs[i].String())

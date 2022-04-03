@@ -21,8 +21,8 @@ type Scaler interface {
 type RNSScaler struct {
 	ringQ, ringT *ring.Ring
 
-	polypoolQ *ring.Poly
-	polypoolT *ring.Poly
+	buffQ *ring.Poly
+	buffP *ring.Poly
 
 	qHalf     []*big.Int // (q-1)/2
 	qHalfModT []uint64   // (q-1)/2 mod t
@@ -45,14 +45,14 @@ func NewRNSScaler(ringQ *ring.Ring, T uint64) (rnss *RNSScaler) {
 
 	rnss.ringQ = ringQ
 
-	rnss.polypoolQ = ringQ.NewPoly()
+	rnss.buffQ = ringQ.NewPoly()
 
 	rnss.ringT = new(ring.Ring)
 	rnss.ringT.N = ringQ.N
 	rnss.ringT.Modulus = []uint64{T}
 	rnss.ringT.BredParams = [][]uint64{ring.BRedParams(T)}
 	rnss.ringT.MredParams = []uint64{ring.MRedParams(T)}
-	rnss.polypoolT = rnss.ringT.NewPoly()
+	rnss.buffP = rnss.ringT.NewPoly()
 
 	rnss.tDividesQ = T == ringQ.Modulus[0]
 
@@ -98,27 +98,27 @@ func (rnss *RNSScaler) DivByQOverTRoundedLvl(level int, p1Q, p2T *ring.Poly) {
 
 	if level > 0 {
 		if rnss.tDividesQ {
-			ringQ.DivRoundByLastModulusManyLvl(level, level, p1Q, rnss.polypoolQ, p2T)
+			ringQ.DivRoundByLastModulusManyLvl(level, level, p1Q, rnss.buffQ, p2T)
 		} else {
 
 			ringT := rnss.ringT
 			T := ringT.Modulus[0]
 			tInv := ringT.MredParams[0]
 			p2tmp := p2T.Coeffs[0]
-			p3tmp := rnss.polypoolT.Coeffs[0]
+			p3tmp := rnss.buffP.Coeffs[0]
 			qInv := T - rnss.qInv[level]
 			qHalfModT := T - rnss.qHalfModT[level]
 
 			// Multiply P_{Q} by t and extend the basis from P_{Q} to t*(P_{Q}||P_{t})
 			// Since the coefficients of P_{t} are multiplied by t, they are all zero,
 			// hence the basis extension can be omitted
-			ringQ.MulScalarLvl(level, p1Q, T, rnss.polypoolQ)
+			ringQ.MulScalarLvl(level, p1Q, T, rnss.buffQ)
 
 			// Center t*P_{Q} around (Q-1)/2 to round instead of floor during the division
-			ringQ.AddScalarBigintLvl(level, rnss.polypoolQ, rnss.qHalf[level], rnss.polypoolQ)
+			ringQ.AddScalarBigintLvl(level, rnss.buffQ, rnss.qHalf[level], rnss.buffQ)
 
 			// Extend the basis of (t*P_{Q} + (Q-1)/2) to (t*P_{t} + (Q-1)/2)
-			ring.ModUpExact(rnss.polypoolQ.Coeffs[:level+1], rnss.polypoolT.Coeffs, ringQ, ringT, rnss.paramsQP[level])
+			ring.ModUpExact(rnss.buffQ.Coeffs[:level+1], rnss.buffP.Coeffs, ringQ, ringT, rnss.paramsQP[level])
 
 			// Compute [Q^{-1} * (t*P_{t} - (t*P_{Q} - ((Q-1)/2 mod t)))] mod t which returns round(t/Q * P_{Q}) mod t
 			ring.AddScalarNoModAndMulScalarMontgomeryVec(p3tmp, p2tmp, qHalfModT, qInv, T, tInv)
@@ -144,7 +144,7 @@ func (rnss *RNSScaler) DivByQOverTRoundedLvl(level int, p1Q, p2T *ring.Poly) {
 func (rnss *RNSScaler) ScaleUpByQOverTLvl(level int, pIn, pOut *ring.Poly) {
 
 	if !rnss.tDividesQ {
-		ScaleUpTCoprimeWithQVecLvl(level, rnss.ringQ, rnss.ringT, rnss.tInvModQi, rnss.polypoolQ.Coeffs[0], pIn, pOut)
+		ScaleUpTCoprimeWithQVecLvl(level, rnss.ringQ, rnss.ringT, rnss.tInvModQi, rnss.buffQ.Coeffs[0], pIn, pOut)
 	} else {
 		ScaleUpTIsQ0VecLvl(level, rnss.ringQ, pIn, pOut)
 	}

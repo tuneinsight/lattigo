@@ -18,7 +18,7 @@ type E2SProtocol struct {
 	params     ckks.Parameters
 	zero       *rlwe.SecretKey
 	maskBigint []*big.Int
-	pool       *ring.Poly
+	buff       *ring.Poly
 }
 
 // ShallowCopy creates a shallow copy of E2SProtocol in which all the read-only data-structures are
@@ -36,7 +36,7 @@ func (e2s *E2SProtocol) ShallowCopy() *E2SProtocol {
 		params:      e2s.params,
 		zero:        e2s.zero,
 		maskBigint:  maskBigint,
-		pool:        e2s.params.RingQ().NewPoly(),
+		buff:        e2s.params.RingQ().NewPoly(),
 	}
 }
 
@@ -50,7 +50,7 @@ func NewE2SProtocol(params ckks.Parameters, sigmaSmudging float64) *E2SProtocol 
 	for i := range e2s.maskBigint {
 		e2s.maskBigint[i] = new(big.Int)
 	}
-	e2s.pool = e2s.params.RingQ().NewPoly()
+	e2s.buff = e2s.params.RingQ().NewPoly()
 	return e2s
 }
 
@@ -115,11 +115,11 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound, logSlots int, ct1
 	// Generates an encryption of zero and subtracts the mask
 	e2s.CKSProtocol.GenShare(sk, e2s.zero, ct1, publicShareOut)
 
-	ringQ.SetCoefficientsBigintLvl(levelQ, secretShareOut.Value[:dslots], e2s.pool)
-	ckks.NttAndMontgomeryLvl(levelQ, logSlots, ringQ, false, e2s.pool)
+	ringQ.SetCoefficientsBigintLvl(levelQ, secretShareOut.Value[:dslots], e2s.buff)
+	ckks.NttAndMontgomeryLvl(levelQ, logSlots, ringQ, false, e2s.buff)
 
 	// Substracts the mask to the encryption of zero
-	ringQ.SubLvl(levelQ, publicShareOut.Value, e2s.pool, publicShareOut.Value)
+	ringQ.SubLvl(levelQ, publicShareOut.Value, e2s.buff, publicShareOut.Value)
 }
 
 // GetShare is the final step of the encryption-to-share protocol. It performs the masked decryption of the target ciphertext followed by a
@@ -133,11 +133,11 @@ func (e2s *E2SProtocol) GetShare(secretShare *rlwe.AdditiveShareBigint, aggregat
 
 	levelQ := utils.MinInt(ct.Level(), aggregatePublicShare.Value.Level())
 
-	// Adds the decryption share on the ciphertext and stores the result in a pool
-	ringQ.AddLvl(levelQ, aggregatePublicShare.Value, ct.Value[0], e2s.pool)
+	// Adds the decryption share on the ciphertext and stores the result in a buff
+	ringQ.AddLvl(levelQ, aggregatePublicShare.Value, ct.Value[0], e2s.buff)
 
 	// Switches the LSSS RNS NTT ciphertext outside of the NTT domain
-	ringQ.InvNTTLvl(levelQ, e2s.pool, e2s.pool)
+	ringQ.InvNTTLvl(levelQ, e2s.buff, e2s.buff)
 
 	dslots := 1 << logSlots
 	if ringQ.Type() == ring.Standard {
@@ -147,7 +147,7 @@ func (e2s *E2SProtocol) GetShare(secretShare *rlwe.AdditiveShareBigint, aggregat
 	gap := ringQ.N / dslots
 
 	// Switches the LSSS RNS ciphertext outside of the RNS domain
-	ringQ.PolyToBigintCenteredLvl(levelQ, e2s.pool, gap, e2s.maskBigint)
+	ringQ.PolyToBigintCenteredLvl(levelQ, e2s.buff, gap, e2s.maskBigint)
 
 	// Substracts the last mask
 	if secretShare != nil {

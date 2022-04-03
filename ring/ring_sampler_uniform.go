@@ -44,13 +44,13 @@ func (uniformSampler *UniformSampler) Read(Pol *Poly) {
 			// Sample an integer between [0, qi-1]
 			for {
 
-				// Refill the pool if it runs empty
+				// Refill the buff if it runs empty
 				if ptr == uniformSampler.baseRing.N {
 					uniformSampler.prng.Clock(uniformSampler.randomBufferN)
 					ptr = 0
 				}
 
-				// Read bytes from the pool
+				// Read bytes from the buff
 				randomUint = binary.BigEndian.Uint64(uniformSampler.randomBufferN[ptr:ptr+8]) & mask
 				ptr += 8
 
@@ -88,13 +88,13 @@ func (uniformSampler *UniformSampler) ReadLvl(level int, Pol *Poly) {
 			// Sample an integer between [0, qi-1]
 			for {
 
-				// Refill the pool if it runs empty
+				// Refill the buff if it runs empty
 				if ptr == uniformSampler.baseRing.N {
 					uniformSampler.prng.Clock(uniformSampler.randomBufferN)
 					ptr = 0
 				}
 
-				// Read bytes from the pool
+				// Read bytes from the buff
 				randomUint = binary.BigEndian.Uint64(uniformSampler.randomBufferN[ptr:ptr+8]) & mask
 				ptr += 8
 

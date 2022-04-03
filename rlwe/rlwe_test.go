@@ -438,9 +438,9 @@ func testKeySwitcher(kgen KeyGenerator, t *testing.T) {
 			tmpQ := ringQ.NewPolyLvl(ciphertext.Level())
 			tmpP := ringP.NewPolyLvl(levelP)
 
-			for i := 0; i < len(ks.PoolDecompQP); i++ {
+			for i := 0; i < len(ks.BuffDecompQP); i++ {
 
-				ks.DecomposeSingleNTT(levelQ, levelP, alpha, i, ciphertext.Value[1], c2InvNTT, ks.PoolDecompQP[i].Q, ks.PoolDecompQP[i].P)
+				ks.DecomposeSingleNTT(levelQ, levelP, alpha, i, ciphertext.Value[1], c2InvNTT, ks.BuffDecompQP[i].Q, ks.BuffDecompQP[i].P)
 
 				// Compute q_alpha_i in bigInt
 				qalphai := ring.NewInt(1)
@@ -453,11 +453,11 @@ func testKeySwitcher(kgen KeyGenerator, t *testing.T) {
 					qalphai.Mul(qalphai, ring.NewUint(ringQ.Modulus[idx]))
 				}
 
-				ringQ.ReduceLvl(levelQ, ks.PoolDecompQP[i].Q, ks.PoolDecompQP[i].Q)
-				ringP.ReduceLvl(levelP, ks.PoolDecompQP[i].P, ks.PoolDecompQP[i].P)
+				ringQ.ReduceLvl(levelQ, ks.BuffDecompQP[i].Q, ks.BuffDecompQP[i].Q)
+				ringP.ReduceLvl(levelP, ks.BuffDecompQP[i].P, ks.BuffDecompQP[i].P)
 
-				ringQ.InvNTTLvl(levelQ, ks.PoolDecompQP[i].Q, tmpQ)
-				ringP.InvNTTLvl(levelP, ks.PoolDecompQP[i].P, tmpP)
+				ringQ.InvNTTLvl(levelQ, ks.BuffDecompQP[i].Q, tmpQ)
+				ringP.InvNTTLvl(levelP, ks.BuffDecompQP[i].P, tmpP)
 
 				ringQ.PolyToBigintCenteredLvl(levelQ, tmpQ, 1, coeffsBigintHaveQ)
 				ringP.PolyToBigintCenteredLvl(levelP, tmpP, 1, coeffsBigintHaveP)
@@ -482,9 +482,9 @@ func testKeySwitcher(kgen KeyGenerator, t *testing.T) {
 		// Test that Dec(KS(Enc(ct, sk), skOut), skOut) has a small norm
 		t.Run(testString(params, "KeySwitch/Standard/"), func(t *testing.T) {
 			swk := kgen.GenSwitchingKey(sk, skOut)
-			ks.SwitchKeysInPlace(ciphertext.Value[1].Level(), ciphertext.Value[1], swk, ks.Pool[1].Q, ks.Pool[2].Q)
-			ringQ.Add(ciphertext.Value[0], ks.Pool[1].Q, ciphertext.Value[0])
-			ring.CopyValues(ks.Pool[2].Q, ciphertext.Value[1])
+			ks.SwitchKeysInPlace(ciphertext.Value[1].Level(), ciphertext.Value[1], swk, ks.BuffQP[1].Q, ks.BuffQP[2].Q)
+			ringQ.Add(ciphertext.Value[0], ks.BuffQP[1].Q, ciphertext.Value[0])
+			ring.CopyValues(ks.BuffQP[2].Q, ciphertext.Value[1])
 			ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], skOut.Value.Q, ciphertext.Value[0])
 			ringQ.InvNTTLvl(ciphertext.Level(), ciphertext.Value[0], ciphertext.Value[0])
 			require.GreaterOrEqual(t, 11+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, ciphertext.Value[0]))
@@ -529,9 +529,9 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 			encryptor.Encrypt(plaintext, ctLargeDim)
 
 			ks := NewKeySwitcher(paramsLargeDim)
-			ks.SwitchKeysInPlace(paramsSmallDim.MaxLevel(), ctLargeDim.Value[1], swk, ks.Pool[1].Q, ks.Pool[2].Q)
-			ringQLargeDim.AddLvl(paramsSmallDim.MaxLevel(), ctLargeDim.Value[0], ks.Pool[1].Q, ctLargeDim.Value[0])
-			ring.CopyValues(ks.Pool[2].Q, ctLargeDim.Value[1])
+			ks.SwitchKeysInPlace(paramsSmallDim.MaxLevel(), ctLargeDim.Value[1], swk, ks.BuffQP[1].Q, ks.BuffQP[2].Q)
+			ringQLargeDim.AddLvl(paramsSmallDim.MaxLevel(), ctLargeDim.Value[0], ks.BuffQP[1].Q, ctLargeDim.Value[0])
+			ring.CopyValues(ks.BuffQP[2].Q, ctLargeDim.Value[1])
 
 			//Extracts Coefficients
 			ctSmallDim := NewCiphertextNTT(paramsSmallDim, 1, paramsSmallDim.MaxLevel())
@@ -568,9 +568,9 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 			SwitchCiphertextRingDegreeNTT(ctSmallDim, nil, nil, ctLargeDim)
 
 			ks := NewKeySwitcher(paramsLargeDim)
-			ks.SwitchKeysInPlace(ctLargeDim.Value[1].Level(), ctLargeDim.Value[1], swk, ks.Pool[1].Q, ks.Pool[2].Q)
-			ringQLargeDim.Add(ctLargeDim.Value[0], ks.Pool[1].Q, ctLargeDim.Value[0])
-			ring.CopyValues(ks.Pool[2].Q, ctLargeDim.Value[1])
+			ks.SwitchKeysInPlace(ctLargeDim.Value[1].Level(), ctLargeDim.Value[1], swk, ks.BuffQP[1].Q, ks.BuffQP[2].Q)
+			ringQLargeDim.Add(ctLargeDim.Value[0], ks.BuffQP[1].Q, ctLargeDim.Value[0])
+			ring.CopyValues(ks.BuffQP[2].Q, ctLargeDim.Value[1])
 
 			// Decrypts with smaller dimension key
 			ringQLargeDim.MulCoeffsMontgomeryAndAddLvl(ctLargeDim.Level(), ctLargeDim.Value[1], skLargeDim.Value.Q, ctLargeDim.Value[0])

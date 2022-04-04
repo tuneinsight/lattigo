@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 # [3.0.3] - UNREALEASED
 
 - ALL: the word `pool` has been replaced by the word `buff` in all related struct names (and methods to access them) to emphasize that these structs are not dynamic.
-- BFV: added `TestParams`, a set of parameters provides better testing than standard `DefaultParams`. `TestParams` is used by default and the parameters `DefaultParams` and `DefaultPostQuantumParams` can be run with the flag -long.
+- BFV: added `TestParams`, a set of parameters provides better testing than standard `DefaultParams`.
 - BFV: the plaintext modulus `T` can now be a factor of `Q`. This can be enforced by setting Q[0] = T.
 - BFV: introduced the concept of `level`, a ciphertext can be rescaled with `RescaleTo` or `Rescale` to erase its lowest bits, which can be used to enforce circuit privacy. Additionally, the Evaluator now supports operations at any level, but it will panic if the operands are not all at the same level.
 - BFV: added the methods `NewCiphertextLvl`, `NewPlaintextLvl`, `NewPlaintextMulLvl`, `AddScalar` and `MulScalarAndAdd`. 

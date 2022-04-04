@@ -44,11 +44,12 @@ func TestBFV(t *testing.T) {
 
 	var paramsLit []ParametersLiteral
 
-	if *flagLongTest { // The long test suite runs for all parameters
-		paramsLit = append(TestParams, DefaultParams...)
-		paramsLit = append(paramsLit, DefaultPostQuantumParams...)
-	} else {
-		paramsLit = TestParams
+	defaultParams := append(TestParams, DefaultParams...) // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
+	if testing.Short() {
+		defaultParams = TestParams
+	}
+	if *flagLongTest {
+		defaultParams = append(defaultParams, DefaultPostQuantumParams...) // the long test suite runs for all default parameters
 	}
 
 	if *flagParamString != "" {

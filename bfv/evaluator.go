@@ -299,10 +299,13 @@ func (eval *evaluator) MulScalarNew(ctIn *Ciphertext, scalar uint64) (ctOut *Cip
 }
 
 <<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
+<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
 // Rescale divides the ciphertext by the last modulus.
 =======
 <<<<<<< btp_eprint
 <<<<<<< btp_eprint
+=======
+>>>>>>> rebased onto btp_eprint
 // Rescale divides the ciphertext by the last moduli.
 >>>>>>> [rlwe]: complete refactoring
 func (eval *evaluator) Rescale(ctIn, ctOut *Ciphertext) {
@@ -311,12 +314,6 @@ func (eval *evaluator) Rescale(ctIn, ctOut *Ciphertext) {
 
 // RescaleTo divides the ciphertext by the last moduli until it has `level+1` moduli left.
 func (eval *evaluator) RescaleTo(level int, ctIn, ctOut *Ciphertext) {
-=======
-<<<<<<< dev_bfv_poly
-=======
->>>>>>> rebased on dev_bfv_poly
-func (eval *evaluator) QuantizeToLvl(level int, ctIn, ctOut *Ciphertext) {
->>>>>>> [rlwe]: complete refactoring
 
 	if ctIn.Level() < level || ctOut.Level() < ctIn.Level()-level {
 		panic("cannot RescaleTo: (ctIn.Level() || ctOut.Level()) < level")

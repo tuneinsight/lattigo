@@ -37,8 +37,6 @@ func BenchmarkBootstrapp(b *testing.B) {
 	evk := GenEvaluationKeys(btpParams, params, sk)
 =======
 	rotations := btpParams.RotationsForBootstrapping(params)
-<<<<<<< btp_eprint
-<<<<<<< btp_eprint
 	rotkeys := kgen.GenRotationKeysForRotations(rotations, true, sk)
 <<<<<<< btp_eprint
 >>>>>>> [ckks/advanced]: better StC & CtS
@@ -46,6 +44,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 <<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
 =======
 	swkDtS, swkStD := btpParams.GenEncapsulationSwitchingKeys(params, sk)
+<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
 =======
 	rotkeys := kgen.GenRotationKeysForRotations(rotations, true, sk, 0)
 >>>>>>> First step for adding bit-decomp
@@ -59,7 +58,12 @@ func BenchmarkBootstrapp(b *testing.B) {
 	rotkeys := kgen.GenRotationKeysForRotations(rotations, true, sk)
 >>>>>>> all test passing
 >>>>>>> all test passing
+<<<<<<< btp_eprint
 >>>>>>> all test passing
+=======
+=======
+>>>>>>> rebased onto btp_eprint
+>>>>>>> rebased onto btp_eprint
 
 	if btp, err = NewBootstrapper(params, btpParams, evk); err != nil {
 		panic(err)

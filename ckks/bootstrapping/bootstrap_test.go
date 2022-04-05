@@ -121,8 +121,6 @@ func testbootstrap(params ckks.Parameters, original bool, btpParams Parameters, 
 		evk := GenEvaluationKeys(btpParams, params, sk)
 =======
 		rotations := btpParams.RotationsForBootstrapping(params)
-<<<<<<< btp_eprint
-<<<<<<< btp_eprint
 		rotkeys := kgen.GenRotationKeysForRotations(rotations, true, sk)
 <<<<<<< btp_eprint
 >>>>>>> [ckks/advanced]: better StC & CtS
@@ -130,6 +128,7 @@ func testbootstrap(params ckks.Parameters, original bool, btpParams Parameters, 
 <<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
 =======
 		swkDtS, swkStD := btpParams.GenEncapsulationSwitchingKeys(params, sk)
+<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
 =======
 		rotkeys := kgen.GenRotationKeysForRotations(rotations, true, sk, 0)
 >>>>>>> First step for adding bit-decomp
@@ -143,7 +142,12 @@ func testbootstrap(params ckks.Parameters, original bool, btpParams Parameters, 
 		rotkeys := kgen.GenRotationKeysForRotations(rotations, true, sk)
 >>>>>>> all test passing
 >>>>>>> all test passing
+<<<<<<< btp_eprint
 >>>>>>> all test passing
+=======
+=======
+>>>>>>> rebased onto btp_eprint
+>>>>>>> rebased onto btp_eprint
 
 		btp, err := NewBootstrapper(params, btpParams, evk)
 		if err != nil {
@@ -167,13 +171,11 @@ func testbootstrap(params ckks.Parameters, original bool, btpParams Parameters, 
 
 		ciphertexts := make([]*ckks.Ciphertext, 2)
 		bootstrappers := make([]*Bootstrapper, 2)
-		for i := range ciphertexts {
+		bootstrappers[0] = btp
+		ciphertexts[0] = encryptor.EncryptNew(plaintext)
+		for i := 1; i < len(ciphertexts); i++{
 			ciphertexts[i] = encryptor.EncryptNew(plaintext)
-			if i == 0 {
-				bootstrappers[i] = btp
-			} else {
-				bootstrappers[i] = bootstrappers[0].ShallowCopy()
-			}
+			bootstrappers[i] = bootstrappers[0].ShallowCopy()
 		}
 
 		var wg sync.WaitGroup
@@ -199,6 +201,11 @@ func verifyTestVectors(params ckks.Parameters, encoder ckks.Encoder, decryptor c
 		t.Log(precStats.String())
 	}
 
+<<<<<<< btp_eprint
 	require.GreaterOrEqual(t, precStats.MeanPrecision.Real, minPrec)
 	require.GreaterOrEqual(t, precStats.MeanPrecision.Imag, minPrec)
+=======
+	require.GreaterOrEqual(t, precStats.MeanPrecision.Real, 12.0)
+	require.GreaterOrEqual(t, precStats.MeanPrecision.Imag, 12.0)
+>>>>>>> rebased onto btp_eprint
 }

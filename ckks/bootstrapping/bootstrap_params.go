@@ -109,6 +109,7 @@ func (p *Parameters) RotationsForBootstrapping(params ckks.Parameters) (rotation
 	rotations = append(rotations, p.SlotsToCoeffsParameters.Rotations()...)
 
 	return
+<<<<<<< btp_eprint
 }
 <<<<<<< btp_eprint
 =======
@@ -529,3 +530,6 @@ var DefaultParameters = []Parameters{
 }
 >>>>>>> [ckks/advanced]: better StC & CtS
 >>>>>>> [ckks/advanced]: better StC & CtS
+=======
+}
+>>>>>>> rebased onto btp_eprint

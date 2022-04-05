@@ -699,6 +699,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 	})
 
 <<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
+<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
 	t.Run(testString("Evaluator/RescaleTo/ThenMulRelin", tc.params, 1), func(t *testing.T) {
 =======
 <<<<<<< btp_eprint
@@ -711,6 +712,9 @@ func testEvaluator(tc *testContext, t *testing.T) {
 	t.Run(testString("Evaluator/QuantizeToLvl/MulRelin", tc.params, 1), func(t *testing.T) {
 >>>>>>> fixed bfv & ckks
 >>>>>>> fixed bfv & ckks
+=======
+	t.Run(testString("Evaluator/RescaleTo/MulRelin", tc.params, 1), func(t *testing.T) {
+>>>>>>> rebased onto btp_eprint
 		values1, _, ciphertext1 := newTestVectorsRingQLvl(tc.params.MaxLevel(), tc, tc.encryptorPk, t)
 		values2, _, ciphertext2 := newTestVectorsRingQLvl(tc.params.MaxLevel(), tc, tc.encryptorPk, t)
 		tc.evaluator.RescaleTo(1, ciphertext1, ciphertext1)
@@ -783,15 +787,8 @@ func testPolyEval(tc *testContext, t *testing.T) {
 	for _, lvl := range []int{tc.params.MaxLevel(), tc.params.MaxLevel() - 1} {
 		t.Run(testString("PolyEval/Vector", tc.params, lvl), func(t *testing.T) {
 
-<<<<<<< btp_eprint
-			if tc.params.PCount() == 0 {
-				t.Skip("#Pi is empty")
-			}
-
 			if (tc.params.LogQ()-tc.params.LogT()-tc.params.LogN())/(tc.params.LogT()+tc.params.LogN()) < 5 {
-=======
-			if (tc.params.LogQ()-tc.params.LogT()-tc.params.LogN())/(tc.params.LogT()+tc.params.LogN()) < 3 {
->>>>>>> rebased on dev_bfv_poly
+
 				t.Skip("Homomorphic Capacity Too Low")
 			}
 

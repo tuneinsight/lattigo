@@ -103,7 +103,7 @@ func log2OfInnerSum(level int, ringQ *ring.Ring, poly *ring.Poly) (logSum int) {
 		sumBigInt := ring.NewUint(0)
 		QiB := new(big.Int)
 		tmp := new(big.Int)
-		modulusBigint := ringQ.ModulusBigint[level]
+		modulusBigint := ringQ.ModulusAtLevel[level]
 
 		for i := 0; i < level+1; i++ {
 			QiB.SetUint64(ringQ.Modulus[i])
@@ -227,7 +227,7 @@ func testSwitchKeyGen(kgen KeyGenerator, t *testing.T) {
 		}
 
 		// sOut * P
-		ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusBigint[levelP], skIn.Value.Q)
+		ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusAtLevel[levelP], skIn.Value.Q)
 
 		// P*s^i + sum(e) - P*s^i = sum(e)
 		ringQ.Sub(swk.Value[0][0].Q, skIn.Value.Q, swk.Value[0][0].Q)

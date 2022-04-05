@@ -615,9 +615,9 @@ func testRefresh(tc *testContext, t *testing.T) {
 		coeffsBigint := make([]*big.Int, tc.params.N())
 		tc.ringQ.PolyToBigint(ciphertext.Value[0], 1, coeffsBigint)
 
-		errorRange := new(big.Int).Set(tc.ringQ.ModulusBigint[tc.params.MaxLevel()])
-		errorRange.Quo(errorRange, tc.ringT.ModulusBigint[0])
-		errorRange.Quo(errorRange, tc.ringT.ModulusBigint[0])
+		errorRange := new(big.Int).Set(tc.ringQ.ModulusAtLevel[tc.params.MaxLevel()])
+		errorRange.Quo(errorRange, tc.ringT.ModulusAtLevel[0])
+		errorRange.Quo(errorRange, tc.ringT.ModulusAtLevel[0])
 
 		for i := 0; i < tc.params.N(); i++ {
 			coeffsBigint[i].Add(coeffsBigint[i], ring.RandInt(errorRange))

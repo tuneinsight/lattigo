@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math"
 	"math/big"
-	"reflect"
 
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
@@ -290,8 +289,8 @@ func (eval *evaluator) MulScalarAndAdd(ctIn *Ciphertext, scalar uint64, ctOut *C
 // AddScalar adds the scalar on ctIn and returns the result on ctOut.
 func (eval *evaluator) AddScalar(ctIn *Ciphertext, scalar uint64, ctOut *Ciphertext) {
 	scalarBigint := new(big.Int).SetUint64(scalar)
-	scalarBigint.Mul(scalarBigint, eval.ringQ.ModulusBigint[ctIn.Level()])
-	ring.DivRound(scalarBigint, eval.params.RingT().ModulusBigint[0], scalarBigint)
+	scalarBigint.Mul(scalarBigint, eval.ringQ.ModulusAtLevel[ctIn.Level()])
+	ring.DivRound(scalarBigint, eval.params.RingT().ModulusAtLevel[0], scalarBigint)
 	tmp := new(big.Int)
 	for i, qi := range eval.ringQ.Modulus[:ctIn.Level()+1] {
 		ctOut.Value[0].Coeffs[i][0] = ring.CRed(ctIn.Value[0].Coeffs[i][0]+tmp.Mod(scalarBigint, new(big.Int).SetUint64(qi)).Uint64(), qi)
@@ -853,8 +852,8 @@ func (eval *evaluator) getElemAndCheckBinary(ctIn *Ciphertext, op1 Operand, ctOu
 		panic("ctIn and ctOut must be at the same level")
 	}
 
-	if reflect.TypeOf(op1) != reflect.TypeOf(&PlaintextRingT{}) && ctIn.Level() != op1.Level() {
-		panic("ctIn & op1 (*bfv.Plaintext or *bfv.PlaintextMul) must be at the same level")
+	if _, isPtRingT := op1.(*PlaintextRingT); !isPtRingT && ctIn.Level() != op1.Level() {
+		panic("ctIn & op1 of type *bfv.Plaintext or *bfv.PlaintextMul must be at the same level")
 	}
 
 	level := ctIn.Level()

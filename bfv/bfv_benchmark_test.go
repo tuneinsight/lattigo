@@ -109,7 +109,7 @@ func benchEncrypt(tc *testContext, b *testing.B) {
 	encryptorSk := tc.encryptorSk
 
 	plaintext := NewPlaintext(tc.params)
-	ciphertext := NewCiphertextRandomLvl(tc.prng, tc.params, 1, tc.params.MaxLevel())
+	ciphertext := NewCiphertextRandom(tc.prng, tc.params, 1)
 
 	b.Run(testString("Encrypt/key=Pk", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -127,7 +127,7 @@ func benchEncrypt(tc *testContext, b *testing.B) {
 func benchDecrypt(tc *testContext, b *testing.B) {
 
 	decryptor := tc.decryptor
-	ciphertext := NewCiphertextRandomLvl(tc.prng, tc.params, 1, tc.params.MaxLevel())
+	ciphertext := NewCiphertextRandom(tc.prng, tc.params, 1)
 
 	b.Run(testString("Decrypt/", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
 		plaintext := NewPlaintext(tc.params)
@@ -150,9 +150,9 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 	encoder.Encode(coeffs.Coeffs[0], plaintext)
 	encoder.EncodeMul(coeffs.Coeffs[0], plaintextMul)
 
-	ciphertext1 := NewCiphertextRandomLvl(tc.prng, tc.params, 1, tc.params.MaxLevel())
-	ciphertext2 := NewCiphertextRandomLvl(tc.prng, tc.params, 1, tc.params.MaxLevel())
-	receiver := NewCiphertextRandomLvl(tc.prng, tc.params, 2, tc.params.MaxLevel())
+	ciphertext1 := NewCiphertextRandom(tc.prng, tc.params, 1)
+	ciphertext2 := NewCiphertextRandom(tc.prng, tc.params, 1)
+	receiver := NewCiphertextRandom(tc.prng, tc.params, 2)
 
 	var rotkey *rlwe.RotationKeySet
 	if tc.params.PCount() != 0 {

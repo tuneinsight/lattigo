@@ -228,7 +228,7 @@ func testDivFloorByLastModulusMany(tc *testParams, t *testing.T) {
 		level := len(tc.ringQ.Modulus) - 1
 		coeffs := make([]*big.Int, tc.ringQ.N)
 		for i := 0; i < tc.ringQ.N; i++ {
-			coeffs[i] = RandInt(tc.ringQ.ModulusBigint[level])
+			coeffs[i] = RandInt(tc.ringQ.ModulusAtLevel[level])
 			coeffs[i].Quo(coeffs[i], NewUint(10))
 		}
 
@@ -266,7 +266,7 @@ func testDivRoundByLastModulusMany(tc *testParams, t *testing.T) {
 		level := len(tc.ringQ.Modulus) - 1
 		coeffs := make([]*big.Int, tc.ringQ.N)
 		for i := 0; i < tc.ringQ.N; i++ {
-			coeffs[i] = RandInt(tc.ringQ.ModulusBigint[level])
+			coeffs[i] = RandInt(tc.ringQ.ModulusAtLevel[level])
 			coeffs[i].Quo(coeffs[i], NewUint(10))
 		}
 

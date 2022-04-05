@@ -16,10 +16,10 @@ const GaloisGen uint64 = 5
 // the various plaintext types and the inverse operations. It also provides methodes to convert between the different plaintext types.
 // The different plaintext types represent different embeddings of the message in the polynomial space. This relation is illustrated in
 // The figure below:
-//
-// []uint64 --- Encoder.EncodeUintRingT(.) -┬-> PlaintextRingT -┬-> Encoder.ScaleUp(.) -----> Plaintext
-// []uint64 --- Encoder.EncodeIntRingT(.) --┘                   └-> Encoder.RingTToMul(.) ---> PlaintextMul
-//
+//                   ┌-> Encoder.Encode(.) -----------------------------------------------------┐
+// []uint64/[]int64 -┼-> Encoder.EncodeRingT(.) ---> PlaintextRingT -┬-> Encoder.ScaleUp(.) ----┴-> Plaintext
+//                   |                                               └-> Encoder.RingTToMul(.) -┬-> PlaintextMul
+//                   └-> Encoder.EncodeMul(.) --------------------------------------------------┘
 //
 // The different plaintext types have different efficiency-related caracteristics that we summarize in the Table below. For more information
 // about the different plaintext types, see plaintext.go.
@@ -56,7 +56,7 @@ type Encoder interface {
 	ShallowCopy() Encoder
 }
 
-// Encoder is a structure that stores the parameters to encode values on a plaintext in a SIMD (Single-Instruction Multiple-Data) fashion.
+// encoder is a structure that stores the parameters to encode values on a plaintext in a SIMD (Single-Instruction Multiple-Data) fashion.
 type encoder struct {
 	params Parameters
 
@@ -108,85 +108,83 @@ func NewEncoder(params Parameters) Encoder {
 	}
 }
 
-// EncodeUintNew encodes an uint64 slice of size at most N on a newly allocated plaintext.
-func (ecd *encoder) EncodeNew(coeffs interface{}, level int) (pt *Plaintext) {
+// EncodeNew encodes a slice of integers of type []uint64 or []int64 of size at most N on a newly allocated plaintext.
+func (ecd *encoder) EncodeNew(values interface{}, level int) (pt *Plaintext) {
 	pt = NewPlaintextLvl(ecd.params, level)
-	ecd.Encode(coeffs, pt)
+	ecd.Encode(values, pt)
 	return
 }
 
-// EncodeUint encodes an uint64 slice of size at most N on a pre-allocated plaintext.
-func (ecd *encoder) Encode(coeffs interface{}, pt *Plaintext) {
+// Encode encodes a slice of integers of type []uint64 or []int64 of size at most N into a pre-allocated plaintext.
+func (ecd *encoder) Encode(values interface{}, pt *Plaintext) {
 	ptRt := &PlaintextRingT{pt.Plaintext}
 
 	// Encodes the values in RingT
-	ecd.EncodeRingT(coeffs, ptRt)
+	ecd.EncodeRingT(values, ptRt)
 
 	// Scales by Q/t
 	ecd.ScaleUp(ptRt, pt)
 }
 
-// EncodeUintRingTNew encodes a slice of uint64 into a newly allocated PlaintextRingT.
-func (ecd *encoder) EncodeRingTNew(coeffs interface{}) (pt *PlaintextRingT) {
+// EncodeRingTNew encodes a slice of integers of type []uint64 or []int64 of size at most N into a newly allocated PlaintextRingT.
+func (ecd *encoder) EncodeRingTNew(values interface{}) (pt *PlaintextRingT) {
 	pt = NewPlaintextRingT(ecd.params)
-	ecd.EncodeRingT(coeffs, pt)
+	ecd.EncodeRingT(values, pt)
 	return
 }
 
-// EncodeUintRingT encodes a slice of uint64 into a pre-allocated PlaintextRingT.
-func (ecd *encoder) EncodeRingT(coeffs interface{}, pt *PlaintextRingT) {
+// EncodeRingT encodes a slice of integers of type []uint64 or []int64 of size at most N into a pre-allocated PlaintextRingT.
+// The input values are reduced modulo T before encoding.
+func (ecd *encoder) EncodeRingT(values interface{}, ptOut *PlaintextRingT) {
 
-	if len(pt.Value.Coeffs[0]) != len(ecd.indexMatrix) {
+	if len(ptOut.Value.Coeffs[0]) != len(ecd.indexMatrix) {
 		panic("invalid plaintext to receive encoding: number of coefficients does not match the ring degree")
 	}
 
-	switch coeffs := coeffs.(type) {
+	pt := ptOut.Value.Coeffs[0]
+	valLen := 0
+	switch values := values.(type) {
 	case []uint64:
-
-		if len(coeffs) > len(ecd.indexMatrix) {
-			panic("invalid input to encode: number of coefficients must be smaller or equal to the ring degree")
-		}
-
-		value := pt.Value.Coeffs[0]
-		for i := 0; i < len(coeffs); i++ {
-			value[ecd.indexMatrix[i]] = coeffs[i]
-		}
-		for i := len(coeffs); i < len(ecd.indexMatrix); i++ {
-			value[ecd.indexMatrix[i]] = 0
-		}
-	case []int64:
-
-		if len(coeffs) > len(ecd.indexMatrix) {
-			panic("invalid input to encode: number of coefficients must be smaller or equal to the ring degree")
-		}
-
-		value := pt.Value.Coeffs[0]
-		T := int64(ecd.params.T())
-		for i := 0; i < len(coeffs); i++ {
-			if coeffs[i] < 0 {
-				value[ecd.indexMatrix[i]] = uint64(T + coeffs[i])
+		T := uint64(ecd.params.T())
+		for i := 0; i < len(values); i++ {
+			v := values[i]
+			if v < T {
+				pt[ecd.indexMatrix[i]] = v
 			} else {
-				value[ecd.indexMatrix[i]] = uint64(coeffs[i])
+				pt[ecd.indexMatrix[i]] = v % T
 			}
 		}
-		for i := len(coeffs); i < len(ecd.indexMatrix); i++ {
-			value[ecd.indexMatrix[i]] = 0
+		valLen = len(values)
+	case []int64:
+		T := int64(ecd.params.T())
+		for i := 0; i < len(values); i++ {
+			v := values[i] % T
+			if v >= 0 { // Go's modulo operation returns values in [-(t-1); t-1]
+				pt[ecd.indexMatrix[i]] = uint64(v)
+			} else {
+				pt[ecd.indexMatrix[i]] = uint64(v + T)
+			}
 		}
+		valLen = len(values)
 	default:
 		panic("coeffs must be either []uint64 or int64")
 	}
 
-	ecd.params.RingT().InvNTT(pt.Value, pt.Value)
+	for i := valLen; i < len(ecd.indexMatrix); i++ {
+		pt[ecd.indexMatrix[i]] = 0
+	}
+
+	ecd.params.RingT().InvNTT(ptOut.Value, ptOut.Value)
 }
 
-// EncodeUintMulNew encodes an uint64 slice of size at most N on a newly allocated PlaintextMul (optimized for ciphertext-plaintext multiplication).
+// EncodeMulNew encodes a slice of integers of type []uint64 or []int64 of size at most N into a newly allocated PlaintextMul (optimized for ciphertext-plaintext multiplication).
 func (ecd *encoder) EncodeMulNew(coeffs interface{}, level int) (pt *PlaintextMul) {
 	pt = NewPlaintextMulLvl(ecd.params, level)
 	ecd.EncodeMul(coeffs, pt)
 	return
 }
 
-// EncodeUintMul encodes an uint64 slice of size at most N on a pre-allocated PlaintextMul (optimized for ciphertext-plaintext multiplication).
+// EncodeMul encodes a slice of integers of type []uint64 or []int64 of size at most N into a pre-allocated PlaintextMul (optimized for ciphertext-plaintext multiplication).
 func (ecd *encoder) EncodeMul(coeffs interface{}, pt *PlaintextMul) {
 
 	ptRt := &PlaintextRingT{pt.Plaintext}

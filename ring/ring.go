@@ -74,8 +74,8 @@ type Ring struct {
 	// Indicates whether NTT can be used with the current ring.
 	AllowsNTT bool
 
-	// Product of the Moduli
-	ModulusBigint []*big.Int
+	// Product of the Moduli for each level
+	ModulusAtLevel []*big.Int
 
 	// Fast reduction parameters
 	BredParams [][]uint64
@@ -214,10 +214,10 @@ func (r *Ring) setParameters(N int, Modulus []uint64) error {
 	}
 
 	// Compute bigQ for all levels
-	r.ModulusBigint = make([]*big.Int, len(r.Modulus))
-	r.ModulusBigint[0] = NewUint(r.Modulus[0])
+	r.ModulusAtLevel = make([]*big.Int, len(r.Modulus))
+	r.ModulusAtLevel[0] = NewUint(r.Modulus[0])
 	for i := 1; i < len(r.Modulus); i++ {
-		r.ModulusBigint[i] = new(big.Int).Mul(r.ModulusBigint[i-1], NewUint(r.Modulus[i]))
+		r.ModulusAtLevel[i] = new(big.Int).Mul(r.ModulusAtLevel[i-1], NewUint(r.Modulus[i]))
 	}
 
 	// Compute the fast reduction parameters
@@ -482,7 +482,7 @@ func (r *Ring) PolyToBigintLvl(level int, p1 *Poly, gap int, coeffsBigint []*big
 
 	QiB := new(big.Int)
 	tmp := new(big.Int)
-	modulusBigint := r.ModulusBigint[level]
+	modulusBigint := r.ModulusAtLevel[level]
 
 	for i := 0; i < level+1; i++ {
 		QiB.SetUint64(r.Modulus[i])
@@ -516,7 +516,7 @@ func (r *Ring) PolyToBigintCenteredLvl(level int, p1 *Poly, gap int, coeffsBigin
 
 	QiB := new(big.Int)
 	tmp := new(big.Int)
-	modulusBigint := r.ModulusBigint[level]
+	modulusBigint := r.ModulusAtLevel[level]
 
 	for i := 0; i < level+1; i++ {
 		QiB.SetUint64(r.Modulus[i])

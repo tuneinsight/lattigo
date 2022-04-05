@@ -20,7 +20,7 @@ var flagLongTest = flag.Bool("long", false, "run the long test suite (all parame
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 
 func testString(opname string, p Parameters, lvl int) string {
-	return fmt.Sprintf("%s/LogN=%d/logQP=%d/logT=%d/T==Q0:%t/#Q=%d/#P=%d/lvl=%d", opname, p.LogN(), p.LogQP(), p.LogT(), p.T() == p.Q()[0], p.QCount(), p.PCount(), lvl)
+	return fmt.Sprintf("%s/LogN=%d/logQP=%d/logT=%d/TIsQ0=%t/#Q=%d/#P=%d/lvl=%d", opname, p.LogN(), p.LogQP(), p.LogT(), p.T() == p.Q()[0], p.QCount(), p.PCount(), lvl)
 }
 
 type testContext struct {
@@ -41,27 +41,50 @@ type testContext struct {
 	testLevel   []int
 }
 
+var (
+	// TESTTDivQN2Q1P is a set of test parameters where T = Q[0].
+	TESTTDivQN2Q1P = ParametersLiteral{
+		LogN:  14,
+		T:     0x10001,
+		Q:     []uint64{0x10001, 0xffffffffffe8001, 0xffffffffffd8001, 0xffffffffffc0001, 0xffffffffff28001},
+		P:     []uint64{0x1fffffffffe10001, 0x1fffffffffe00001},
+		Sigma: rlwe.DefaultSigma,
+	}
+
+	// TESTTCPrimeQN2Q1P is a set of test parameters where T is coprime with Q.
+	TESTTCPrimeQN2Q1P = ParametersLiteral{
+		LogN:  14,
+		T:     0x10001,
+		Q:     []uint64{0xffffffffffe8001, 0xffffffffffd8001, 0xffffffffffc0001, 0xffffffffff28001},
+		P:     []uint64{0x1fffffffffe10001, 0x1fffffffffe00001},
+		Sigma: rlwe.DefaultSigma,
+	}
+
+	// TestParams is a set of test parameters for BFV ensuring 128 bit security in the classic setting.
+	TestParams = []ParametersLiteral{TESTTDivQN2Q1P, TESTTCPrimeQN2Q1P}
+)
+
 func TestBFV(t *testing.T) {
 
-	var paramsLit []ParametersLiteral
+	var paramsLiterals []ParametersLiteral
 
-	paramsLit = append(TestParams, DefaultParams...) // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
+	paramsLiterals = append(TestParams, DefaultParams...) // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 
 	if testing.Short() {
-		paramsLit = TestParams
+		paramsLiterals = TestParams
 	}
 
 	if *flagLongTest {
-		paramsLit = append(paramsLit, DefaultPostQuantumParams...) // the long test suite runs for all default parameters
+		paramsLiterals = append(paramsLiterals, DefaultPostQuantumParams...) // the long test suite runs for all default parameters
 	}
 
 	if *flagParamString != "" {
 		var jsonParams ParametersLiteral
 		json.Unmarshal([]byte(*flagParamString), &jsonParams)
-		paramsLit = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
+		paramsLiterals = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
-	for _, p := range paramsLit[:] {
+	for _, p := range paramsLiterals[:] {
 
 		params, err := NewParametersFromLiteral(p)
 		assert.Nil(t, err)
@@ -193,7 +216,7 @@ func testScaler(tc *testContext, t *testing.T) {
 		scaler := NewRNSScaler(ringQ, T)
 
 		coeffs := make([]*big.Int, ringQ.N)
-		bigQ := ringQ.ModulusBigint[tc.params.MaxLevel()]
+		bigQ := ringQ.ModulusAtLevel[tc.params.MaxLevel()]
 		for i := 0; i < ringQ.N; i++ {
 			coeffs[i] = ring.RandInt(bigQ)
 		}
@@ -635,7 +658,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		}
 	})
 
-	t.Run(testString("Evaluator/RescaleTo/Add", tc.params, 1), func(t *testing.T) {
+	t.Run(testString("Evaluator/RescaleTo/ThenAdd", tc.params, 1), func(t *testing.T) {
 		values1, _, ciphertext1 := newTestVectorsRingQLvl(tc.params.MaxLevel(), tc, tc.encryptorPk, t)
 		values2, _, ciphertext2 := newTestVectorsRingQLvl(tc.params.MaxLevel(), tc, tc.encryptorPk, t)
 		tc.evaluator.RescaleTo(1, ciphertext1, ciphertext1)
@@ -647,7 +670,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		verifyTestVectors(tc, tc.decryptor, values1, ciphertext1, t)
 	})
 
-	t.Run(testString("Evaluator/RescaleTo/MulRelin", tc.params, 1), func(t *testing.T) {
+	t.Run(testString("Evaluator/RescaleTo/ThenMulRelin", tc.params, 1), func(t *testing.T) {
 		values1, _, ciphertext1 := newTestVectorsRingQLvl(tc.params.MaxLevel(), tc, tc.encryptorPk, t)
 		values2, _, ciphertext2 := newTestVectorsRingQLvl(tc.params.MaxLevel(), tc, tc.encryptorPk, t)
 		tc.evaluator.RescaleTo(1, ciphertext1, ciphertext1)
@@ -947,7 +970,7 @@ func testMarshaller(tc *testContext, t *testing.T) {
 
 	t.Run(testString("Marshaller/Ciphertext", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
 
-		ciphertextWant := NewCiphertextRandomLvl(tc.prng, tc.params, 2, tc.params.MaxLevel())
+		ciphertextWant := NewCiphertextRandom(tc.prng, tc.params, 2)
 
 		marshalledCiphertext, err := ciphertextWant.MarshalBinary()
 		require.NoError(t, err)

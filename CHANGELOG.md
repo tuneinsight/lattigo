@@ -4,13 +4,12 @@ All notable changes to this project will be documented in this file.
 
 # [3.0.3] - UNREALEASED
 
-- ALL: the word `pool` has been replaced by the word `buff` in all related struct names (and methods to access them) to emphasize that these structs are not dynamic.
-- BFV: added `TestParams`, a set of parameters provides better testing than standard `DefaultParams`.
-- BFV: the plaintext modulus `T` can now be a factor of `Q`. This can be enforced by setting Q[0] = T.
-- BFV: introduced the concept of `level`, a ciphertext can be rescaled with `RescaleTo` or `Rescale` to erase its lowest bits, which can be used to enforce circuit privacy. Additionally, the Evaluator now supports operations at any level, but it will panic if the operands are not all at the same level.
-- BFV: added the methods `NewCiphertextLvl`, `NewPlaintextLvl`, `NewPlaintextMulLvl`, `AddScalar` and `MulScalarAndAdd`. 
-- BFV: merged `uint64` and `int64` encoding methods (e.g. `EncodeUint` and `EncodeInt` are replaced by `Encode`) and added the respective `[...]New` methods.
-- BFV: added the methods `EvaluatePoly` and `EvaluatePolyVector` for polynomial evaluation.
+- BFV: added the `Evaluator.Rescale` and `Evaluator.RescaleTo` methods to operate modulus switching to lower levels on BFV ciphertexts.
+- BFV: all `Evaluator` methods on ciphertext supports all arithmetic operations at lower levels, but requires operands to be at the same level.
+- BFV: the plaintext modulus `T` can now equal to the level-zero modulus Q[0] (i.e., be a factor of the ciphertext modulus `Q`).
+- BFV: added the methods `NewCiphertextLvl`, `NewPlaintextLvl`, `NewPlaintextMulLvl`, `Evaluator.AddScalar` and `Evaluator.MulScalarAndAdd`. 
+- BFV: merged `[]uint64` and `[]int64` plaintext encoding methods (e.g. `EncodeUint` and `EncodeInt` are replaced by `Encode`) and added the respective `[...]New` methods.
+- BFV: added the methods `EvaluatePoly` and `EvaluatePolyVector` for homomorphic polynomial evaluation.
 - BFV/RING: moved `RNSScaler` from `ring` to `bfv`.
 - RING: removed depreciated `SimpleScaler`.
 

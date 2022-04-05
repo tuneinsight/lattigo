@@ -695,7 +695,7 @@ func (eval *evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 		ctInRotQP := eval.RotateHoistedNoModDownNew(levelQ, rotations, ctIn.Value[0], eval.BuffDecompQP)
 
 		// P*c0 -> tmp0QP.Q
-		ringQ.MulScalarBigintLvl(levelQ, ctIn.Value[0], ringP.ModulusBigint[levelP], tmp0QP.Q)
+		ringQ.MulScalarBigintLvl(levelQ, ctIn.Value[0], ringP.ModulusAtLevel[levelP], tmp0QP.Q)
 
 		// Adds phi_k(P*c0) on each of the vecRotQ
 		// Does not need to add on the vecRotP because mod P === 0
@@ -801,7 +801,7 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTrans
 	ring.CopyValuesLvl(levelQ, ctIn.Value[1], eval.buffCt.Value[1])
 	ctInTmp0, ctInTmp1 := eval.buffCt.Value[0], eval.buffCt.Value[1]
 
-	ringQ.MulScalarBigintLvl(levelQ, ctInTmp0, ringP.ModulusBigint[levelP], ct0TimesP) // P*c0
+	ringQ.MulScalarBigintLvl(levelQ, ctInTmp0, ringP.ModulusAtLevel[levelP], ct0TimesP) // P*c0
 
 	var state bool
 	var cnt int
@@ -915,8 +915,8 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearT
 	c0OutQP := rlwe.PolyQP{Q: ctOut.Value[0], P: eval.BuffQP[5].Q}
 	c1OutQP := rlwe.PolyQP{Q: ctOut.Value[1], P: eval.BuffQP[5].P}
 
-	ringQ.MulScalarBigintLvl(levelQ, ctInTmp0, ringP.ModulusBigint[levelP], ctInTmp0) // P*c0
-	ringQ.MulScalarBigintLvl(levelQ, ctInTmp1, ringP.ModulusBigint[levelP], ctInTmp1) // P*c1
+	ringQ.MulScalarBigintLvl(levelQ, ctInTmp0, ringP.ModulusAtLevel[levelP], ctInTmp0) // P*c0
+	ringQ.MulScalarBigintLvl(levelQ, ctInTmp1, ringP.ModulusAtLevel[levelP], ctInTmp1) // P*c1
 
 	// OUTER LOOP
 	var cnt0 int

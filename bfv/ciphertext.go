@@ -20,7 +20,12 @@ func NewCiphertextLvl(params Parameters, degree, level int) (ciphertext *Ciphert
 	return &Ciphertext{rlwe.NewCiphertext(params.Parameters, degree, level)}
 }
 
-// NewCiphertextRandomLvl generates a new uniformly distributed ciphertext of degree, level.
+// NewCiphertextRandom generates a new uniformly distributed ciphertext of given degree at maximum level.
+func NewCiphertextRandom(prng utils.PRNG, params Parameters, degree int) (ciphertext *Ciphertext) {
+	return &Ciphertext{rlwe.NewCiphertextRandom(prng, params.Parameters, degree, params.MaxLevel())}
+}
+
+// NewCiphertextRandomLvl generates a new uniformly distributed ciphertext of given degree and level.
 func NewCiphertextRandomLvl(prng utils.PRNG, params Parameters, degree, level int) (ciphertext *Ciphertext) {
 	return &Ciphertext{rlwe.NewCiphertextRandom(prng, params.Parameters, degree, level)}
 }

@@ -395,6 +395,24 @@ func (p Parameters) GaloisElementsForRowInnerSum() (galEls []uint64) {
 	return galEls
 }
 
+// GaloisElementForExpandRLWE returns the list of galois elements required
+// to perform the ExpandRLWE operation.
+func (p Parameters) GaloisElementForExpandRLWE(logN int) (galEls []uint64) {
+	galEls = make([]uint64, logN)
+
+	for i := 0; i < logN; i++ {
+		galEls[i] = uint64(p.N()/(1<<i) + 1)
+	}
+
+	return
+}
+
+// GaloisElementsForMergeRLWE returns the list of galois elements required
+// to perform the MergeRLWE operation.
+func (p Parameters) GaloisElementsForMergeRLWE() (galEls []uint64) {
+	return p.GaloisElementsForRowInnerSum()
+}
+
 // InverseGaloisElement takes a galois element and returns the galois element
 //  corresponding to the inverse automorphism
 func (p Parameters) InverseGaloisElement(galEl uint64) uint64 {

@@ -132,12 +132,86 @@ func (eval *Evaluator) WithKey(evaluationKey *EvaluationKey) *Evaluator {
 	}
 }
 
+// ExpandRLWE expands a RLWE ciphertext encrypting sum ai * X^i to 2^logN ciphertexts,
+// each encrypting ai * X^0 for 0 <= i < 2^LogN. That is, it extracts the first 2^logN
+// coefficients of ctIn and returns a RLWE ciphetext for each coefficient extracted.
+func (eval *Evaluator) ExpandRLWE(ctIn *Ciphertext, logN int) (ctOut []*Ciphertext) {
+
+	params := eval.params
+	ringQ := params.RingQ()
+
+	// Compute X^{-n} from 0 to LogN
+	xPow := make([]*ring.Poly, logN)
+	N := ringQ.N
+	for i := 0; i < logN; i++ {
+		xPow[i] = ringQ.NewPoly()
+		if i == 0 {
+			for j := 0; j < params.MaxLevel()+1; j++ {
+				xPow[i].Coeffs[j][N-(1<<i)] = ring.MForm(1, ringQ.Modulus[j], ringQ.BredParams[j])
+			}
+			ringQ.NTT(xPow[i], xPow[i])
+		} else {
+			ringQ.MulCoeffsMontgomery(xPow[i-1], xPow[i-1], xPow[i]) // X^{n} = X^{1} * X^{n-1}
+		}
+	}
+
+	for i := 0; i < logN; i++ {
+		ringQ.Neg(xPow[i], xPow[i])
+	}
+
+	level := ctIn.Level()
+
+	ctOut = make([]*Ciphertext, 1<<logN)
+	ctOut[0] = ctIn.CopyNew()
+
+	Q := ringQ.Modulus
+	mredParams := ringQ.MredParams
+	bredParams := ringQ.BredParams
+
+	// Multiplies by N^-1 mod Q
+	v0, v1 := ctOut[0].Value[0], ctOut[0].Value[1]
+	for i := 0; i < level+1; i++ {
+		NInv := ring.MForm(ring.ModExp(1<<logN, Q[i]-2, Q[i]), Q[i], bredParams[i])
+		ring.MulScalarMontgomeryVec(v0.Coeffs[i], v0.Coeffs[i], NInv, Q[i], mredParams[i])
+		ring.MulScalarMontgomeryVec(v1.Coeffs[i], v1.Coeffs[i], NInv, Q[i], mredParams[i])
+	}
+
+	tmp := NewCiphertextNTT(params, 1, level)
+
+	for i := 0; i < logN; i++ {
+
+		galEl := uint64(ringQ.N/(1<<i) + 1)
+
+		for j := 0; j < (1 << i); j++ {
+
+			c0 := ctOut[j]
+
+			eval.Automorphism(c0, galEl, tmp)
+
+			c1 := c0.CopyNew()
+
+			ringQ.AddLvl(level, c0.Value[0], tmp.Value[0], c0.Value[0])
+			ringQ.AddLvl(level, c0.Value[1], tmp.Value[1], c0.Value[1])
+
+			ringQ.SubLvl(level, c1.Value[0], tmp.Value[0], c1.Value[0])
+			ringQ.SubLvl(level, c1.Value[1], tmp.Value[1], c1.Value[1])
+
+			ringQ.MulCoeffsMontgomeryLvl(level, c1.Value[0], xPow[i], c1.Value[0])
+			ringQ.MulCoeffsMontgomeryLvl(level, c1.Value[1], xPow[i], c1.Value[1])
+
+			ctOut[j+(1<<i)] = c1
+		}
+	}
+
+	return
+}
+
 // MergeRLWE merges a batch of RLWE, packing the first coefficient of each RLWE into a single RLWE.
 // The operation will require N/gap + log(gap) key-switches, where gap is the minimum gap between
 // two non-zero coefficients of the final ciphertext.
 // The method takes as input a map of Ciphertexts, indexing in which coefficient, of the final
 // ciphertext, the first coefficient of each ciphertext of the map must be packed.
-func (eval *Evaluator) MergeRLWE(ciphertexts map[int]*Ciphertext) (ciphertext *Ciphertext) {
+func (eval *Evaluator) MergeRLWE(ctIn map[int]*Ciphertext) (ctOut *Ciphertext) {
 
 	params := eval.params
 	ringQ := params.RingQ()
@@ -157,8 +231,8 @@ func (eval *Evaluator) MergeRLWE(ciphertexts map[int]*Ciphertext) (ciphertext *C
 	}
 
 	var level int
-	for i := range ciphertexts {
-		level = ciphertexts[i].Level()
+	for i := range ctIn {
+		level = ctIn[i].Level()
 		break
 	}
 
@@ -167,9 +241,9 @@ func (eval *Evaluator) MergeRLWE(ciphertexts map[int]*Ciphertext) (ciphertext *C
 	mredParams := ringQ.MredParams
 
 	// Multiplies by (Slots * N) ^-1 mod Q
-	for i := range ciphertexts {
-		if ciphertexts[i] != nil {
-			v0, v1 := ciphertexts[i].Value[0], ciphertexts[i].Value[1]
+	for i := range ctIn {
+		if ctIn[i] != nil {
+			v0, v1 := ctIn[i].Value[0], ctIn[i].Value[1]
 			for j := 0; j < level+1; j++ {
 				ring.MulScalarMontgomeryVec(v0.Coeffs[j], v0.Coeffs[j], NInv[j], Q[j], mredParams[j])
 				ring.MulScalarMontgomeryVec(v1.Coeffs[j], v1.Coeffs[j], NInv[j], Q[j], mredParams[j])
@@ -179,8 +253,8 @@ func (eval *Evaluator) MergeRLWE(ciphertexts map[int]*Ciphertext) (ciphertext *C
 
 	ciphertextslist := make([]*Ciphertext, ringQ.N)
 
-	for i := range ciphertexts {
-		ciphertextslist[i] = ciphertexts[i]
+	for i := range ctIn {
+		ciphertextslist[i] = ctIn[i]
 	}
 
 	if ciphertextslist[0] == nil {

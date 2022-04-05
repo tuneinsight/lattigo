@@ -59,7 +59,8 @@ func TestRLWE(t *testing.T) {
 			testDecryptor,
 			testKeySwitcher,
 			testKeySwitchDimension,
-			testManyRLWEToSingleRLWE,
+			testMergeRLWE,
+			testExpandRLWE,
 			testMarshaller,
 		} {
 			testSet(kgen, t)
@@ -522,11 +523,11 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 	})
 }
 
-func testManyRLWEToSingleRLWE(kgen KeyGenerator, t *testing.T) {
+func testMergeRLWE(kgen KeyGenerator, t *testing.T) {
 
 	params := kgen.(*keyGenerator).params
 
-	t.Run(testString(params, "ManyToSingleRLWE"), func(t *testing.T) {
+	t.Run(testString(params, "MergeRLWE"), func(t *testing.T) {
 
 		kgen := NewKeyGenerator(params)
 		sk := kgen.GenSecretKey()
@@ -549,12 +550,8 @@ func testManyRLWEToSingleRLWE(kgen KeyGenerator, t *testing.T) {
 		}
 
 		// Rotation Keys
-		rotations := []int{}
-		for i := 1; i < params.N(); i <<= 1 {
-			rotations = append(rotations, i)
-		}
-
-		rtks := kgen.GenRotationKeysForRotations(rotations, true, sk)
+		galEls := params.GaloisElementsForMergeRLWE()
+		rtks := kgen.GenRotationKeys(galEls, sk)
 
 		eval := NewEvaluator(params, &EvaluationKey{Rtks: rtks})
 
@@ -578,6 +575,72 @@ func testManyRLWEToSingleRLWE(kgen KeyGenerator, t *testing.T) {
 				if _, ok := slotIndex[i]; !ok {
 					if c > bound {
 						t.Fatal(i, c)
+					}
+				}
+			}
+		}
+	})
+}
+
+func testExpandRLWE(kgen KeyGenerator, t *testing.T) {
+
+	params := kgen.(*keyGenerator).params
+
+	t.Run(testString(params, "ExpandRLWE"), func(t *testing.T) {
+
+		kgen := NewKeyGenerator(params)
+		sk := kgen.GenSecretKey()
+		encryptor := NewEncryptor(params, sk)
+		decryptor := NewDecryptor(params, sk)
+		pt := NewPlaintext(params, params.MaxLevel())
+
+		logN := 3
+
+		values := make([]uint64, params.N())
+
+		scale := 1 << 22
+
+		for i := 0; i < 1<<logN; i++ {
+			values[i] = uint64(scale * i)
+		}
+
+		for i := 0; i < pt.Level()+1; i++ {
+			copy(pt.Value.Coeffs[i], values)
+		}
+
+		ctIn := NewCiphertextNTT(params, 1, params.MaxLevel())
+		encryptor.Encrypt(pt, ctIn)
+
+		// Rotation Keys
+		galEls := params.GaloisElementForExpandRLWE(logN)
+
+		rtks := kgen.GenRotationKeys(galEls, sk)
+
+		eval := NewEvaluator(params, &EvaluationKey{Rtks: rtks})
+
+		ciphertexts := eval.ExpandRLWE(ctIn, logN)
+
+		bound := uint64(params.N() * params.N())
+
+		for i := range ciphertexts {
+
+			decryptor.Decrypt(ciphertexts[i], pt)
+
+			for j := 0; j < pt.Level()+1; j++ {
+
+				Q := params.RingQ().Modulus[j]
+				QHalf := Q >> 1
+
+				for k, c := range pt.Value.Coeffs[j] {
+
+					if c >= QHalf {
+						c = Q - c
+					}
+
+					if k != 0 {
+						require.Greater(t, bound, c)
+					} else {
+						require.InDelta(t, 0, math.Abs(float64(values[i])-float64(c))/float64(scale), 0.01)
 					}
 				}
 			}

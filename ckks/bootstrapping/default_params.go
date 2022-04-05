@@ -74,10 +74,10 @@ var (
 			},
 =======
 			ParametersLiteral: rlwe.ParametersLiteral{
-				LogN:         16,
-				Sigma:        rlwe.DefaultSigma,
-				H:            192,
-				LogBase2:     0,
+				LogN:     16,
+				Sigma:    rlwe.DefaultSigma,
+				H:        192,
+				LogBase2: 0,
 				Q: []uint64{
 					0x10000000006e0001, // 60 Q0
 					0x10000140001,      // 40
@@ -124,9 +124,13 @@ var (
 			SlotsToCoeffsParameters: advanced.EncodingMatrixLiteral{
 				LinearTransformType: advanced.SlotsToCoeffs,
 <<<<<<< btp_eprint
+<<<<<<< btp_eprint
 =======
 				RepackImag2Real: true,
 >>>>>>> rebased onto btp_eprint
+=======
+				RepackImag2Real:     true,
+>>>>>>> [rlwe]: added ExpandRLWE
 				LevelStart:          12,
 				BSGSRatio:           2.0,
 				BitReversed:         false,
@@ -150,9 +154,13 @@ var (
 			CoeffsToSlotsParameters: advanced.EncodingMatrixLiteral{
 				LinearTransformType: advanced.CoeffsToSlots,
 <<<<<<< btp_eprint
+<<<<<<< btp_eprint
 =======
 				RepackImag2Real: true,
 >>>>>>> rebased onto btp_eprint
+=======
+				RepackImag2Real:     true,
+>>>>>>> [rlwe]: added ExpandRLWE
 				LevelStart:          24,
 				BSGSRatio:           2.0,
 				BitReversed:         false,
@@ -212,10 +220,10 @@ var (
 			},
 =======
 			ParametersLiteral: rlwe.ParametersLiteral{
-				LogN:         16,
-				Sigma:        rlwe.DefaultSigma,
-				H:            192,
-				LogBase2:     0,
+				LogN:     16,
+				Sigma:    rlwe.DefaultSigma,
+				H:        192,
+				LogBase2: 0,
 				Q: []uint64{
 					0x10000000006e0001, // 60 Q0
 					0x2000000a0001,     // 45
@@ -260,9 +268,13 @@ var (
 			SlotsToCoeffsParameters: advanced.EncodingMatrixLiteral{
 				LinearTransformType: advanced.SlotsToCoeffs,
 <<<<<<< btp_eprint
+<<<<<<< btp_eprint
 =======
 				RepackImag2Real: true,
 >>>>>>> rebased onto btp_eprint
+=======
+				RepackImag2Real:     true,
+>>>>>>> [rlwe]: added ExpandRLWE
 				LevelStart:          8,
 				BSGSRatio:           2.0,
 				BitReversed:         false,
@@ -286,9 +298,13 @@ var (
 			CoeffsToSlotsParameters: advanced.EncodingMatrixLiteral{
 				LinearTransformType: advanced.CoeffsToSlots,
 <<<<<<< btp_eprint
+<<<<<<< btp_eprint
 =======
 				RepackImag2Real: true,
 >>>>>>> rebased onto btp_eprint
+=======
+				RepackImag2Real:     true,
+>>>>>>> [rlwe]: added ExpandRLWE
 				LevelStart:          23,
 				BSGSRatio:           2.0,
 				BitReversed:         false,
@@ -347,10 +363,10 @@ var (
 			},
 =======
 			ParametersLiteral: rlwe.ParametersLiteral{
-				LogN:         16,
-				Sigma:        rlwe.DefaultSigma,
-				H:            192,
-				LogBase2:     0,
+				LogN:     16,
+				Sigma:    rlwe.DefaultSigma,
+				H:        192,
+				LogBase2: 0,
 				Q: []uint64{
 					0x80000000080001,   // 55 Q0
 					0xffffffffffc0001,  // 60
@@ -394,9 +410,13 @@ var (
 			SlotsToCoeffsParameters: advanced.EncodingMatrixLiteral{
 				LinearTransformType: advanced.SlotsToCoeffs,
 <<<<<<< btp_eprint
+<<<<<<< btp_eprint
 =======
 				RepackImag2Real: true,
 >>>>>>> rebased onto btp_eprint
+=======
+				RepackImag2Real:     true,
+>>>>>>> [rlwe]: added ExpandRLWE
 				LevelStart:          9,
 				BSGSRatio:           2.0,
 				BitReversed:         false,
@@ -419,9 +439,13 @@ var (
 			CoeffsToSlotsParameters: advanced.EncodingMatrixLiteral{
 				LinearTransformType: advanced.CoeffsToSlots,
 <<<<<<< btp_eprint
+<<<<<<< btp_eprint
 =======
 				RepackImag2Real: true,
 >>>>>>> rebased onto btp_eprint
+=======
+				RepackImag2Real:     true,
+>>>>>>> [rlwe]: added ExpandRLWE
 				LevelStart:          21,
 				BSGSRatio:           2.0,
 				BitReversed:         false,
@@ -469,10 +493,10 @@ var (
 			},
 =======
 			ParametersLiteral: rlwe.ParametersLiteral{
-				LogN:         15,
-				Sigma:        rlwe.DefaultSigma,
-				H:            192,
-				LogBase2:     0,
+				LogN:     15,
+				Sigma:    rlwe.DefaultSigma,
+				H:        192,
+				LogBase2: 0,
 				Q: []uint64{
 					0x1fff90001,       // 32 Q0
 					0x4000000420001,   // 50
@@ -505,9 +529,13 @@ var (
 			SlotsToCoeffsParameters: advanced.EncodingMatrixLiteral{
 				LinearTransformType: advanced.SlotsToCoeffs,
 <<<<<<< btp_eprint
+<<<<<<< btp_eprint
 =======
 				RepackImag2Real: true,
 >>>>>>> rebased onto btp_eprint
+=======
+				RepackImag2Real:     true,
+>>>>>>> [rlwe]: added ExpandRLWE
 				LevelStart:          3,
 				BSGSRatio:           2.0,
 				BitReversed:         false,
@@ -529,9 +557,13 @@ var (
 			CoeffsToSlotsParameters: advanced.EncodingMatrixLiteral{
 				LinearTransformType: advanced.CoeffsToSlots,
 <<<<<<< btp_eprint
+<<<<<<< btp_eprint
 =======
 				RepackImag2Real: true,
 >>>>>>> rebased onto btp_eprint
+=======
+				RepackImag2Real:     true,
+>>>>>>> [rlwe]: added ExpandRLWE
 				LevelStart:          13,
 				BSGSRatio:           2.0,
 				BitReversed:         false,
@@ -596,10 +628,10 @@ var (
 			},
 =======
 			ParametersLiteral: rlwe.ParametersLiteral{
-				LogN:         16,
-				Sigma:        rlwe.DefaultSigma,
-				H:            32768,
-				LogBase2:     0,
+				LogN:     16,
+				Sigma:    rlwe.DefaultSigma,
+				H:        32768,
+				LogBase2: 0,
 				Q: []uint64{
 					0x10000000006e0001, // 60 Q0
 					0x10000140001,      // 40
@@ -651,9 +683,13 @@ var (
 			SlotsToCoeffsParameters: advanced.EncodingMatrixLiteral{
 				LinearTransformType: advanced.SlotsToCoeffs,
 <<<<<<< btp_eprint
+<<<<<<< btp_eprint
 =======
 				RepackImag2Real: true,
 >>>>>>> rebased onto btp_eprint
+=======
+				RepackImag2Real:     true,
+>>>>>>> [rlwe]: added ExpandRLWE
 				LevelStart:          16,
 				BSGSRatio:           2.0,
 				BitReversed:         false,
@@ -677,9 +713,13 @@ var (
 			CoeffsToSlotsParameters: advanced.EncodingMatrixLiteral{
 				LinearTransformType: advanced.CoeffsToSlots,
 <<<<<<< btp_eprint
+<<<<<<< btp_eprint
 =======
 				RepackImag2Real: true,
 >>>>>>> rebased onto btp_eprint
+=======
+				RepackImag2Real:     true,
+>>>>>>> [rlwe]: added ExpandRLWE
 				LevelStart:          28,
 				BSGSRatio:           2.0,
 				BitReversed:         false,
@@ -744,10 +784,10 @@ var (
 			},
 =======
 			ParametersLiteral: rlwe.ParametersLiteral{
-				LogN:         16,
-				Sigma:        rlwe.DefaultSigma,
-				H:            32768,
-				LogBase2:     0,
+				LogN:     16,
+				Sigma:    rlwe.DefaultSigma,
+				H:        32768,
+				LogBase2: 0,
 				Q: []uint64{
 					0x10000000006e0001, // 60 Q0
 					0x2000000a0001,     // 45
@@ -797,9 +837,13 @@ var (
 			SlotsToCoeffsParameters: advanced.EncodingMatrixLiteral{
 				LinearTransformType: advanced.SlotsToCoeffs,
 <<<<<<< btp_eprint
+<<<<<<< btp_eprint
 =======
 				RepackImag2Real: true,
 >>>>>>> rebased onto btp_eprint
+=======
+				RepackImag2Real:     true,
+>>>>>>> [rlwe]: added ExpandRLWE
 				LevelStart:          12,
 				BSGSRatio:           2.0,
 				BitReversed:         false,
@@ -823,9 +867,13 @@ var (
 			CoeffsToSlotsParameters: advanced.EncodingMatrixLiteral{
 				LinearTransformType: advanced.CoeffsToSlots,
 <<<<<<< btp_eprint
+<<<<<<< btp_eprint
 =======
 				RepackImag2Real: true,
 >>>>>>> rebased onto btp_eprint
+=======
+				RepackImag2Real:     true,
+>>>>>>> [rlwe]: added ExpandRLWE
 				LevelStart:          27,
 				BSGSRatio:           2.0,
 				BitReversed:         false,
@@ -888,10 +936,10 @@ var (
 			},
 =======
 			ParametersLiteral: rlwe.ParametersLiteral{
-				LogN:         16,
-				Sigma:        rlwe.DefaultSigma,
-				H:            32768,
-				LogBase2:     0,
+				LogN:     16,
+				Sigma:    rlwe.DefaultSigma,
+				H:        32768,
+				LogBase2: 0,
 				Q: []uint64{
 					0x80000000080001,   // 55 Q0
 					0xffffffffffc0001,  // 60
@@ -939,9 +987,13 @@ var (
 			SlotsToCoeffsParameters: advanced.EncodingMatrixLiteral{
 				LinearTransformType: advanced.SlotsToCoeffs,
 <<<<<<< btp_eprint
+<<<<<<< btp_eprint
 =======
 				RepackImag2Real: true,
 >>>>>>> rebased onto btp_eprint
+=======
+				RepackImag2Real:     true,
+>>>>>>> [rlwe]: added ExpandRLWE
 				LevelStart:          13,
 				BSGSRatio:           2.0,
 				BitReversed:         false,
@@ -964,9 +1016,13 @@ var (
 			CoeffsToSlotsParameters: advanced.EncodingMatrixLiteral{
 				LinearTransformType: advanced.CoeffsToSlots,
 <<<<<<< btp_eprint
+<<<<<<< btp_eprint
 =======
 				RepackImag2Real: true,
 >>>>>>> rebased onto btp_eprint
+=======
+				RepackImag2Real:     true,
+>>>>>>> [rlwe]: added ExpandRLWE
 				LevelStart:          25,
 				BSGSRatio:           2.0,
 				BitReversed:         false,
@@ -1016,10 +1072,10 @@ var (
 			},
 =======
 			ParametersLiteral: rlwe.ParametersLiteral{
-				LogN:         15,
-				Sigma:        rlwe.DefaultSigma,
-				H:            16384,
-				LogBase2:     0,
+				LogN:     15,
+				Sigma:    rlwe.DefaultSigma,
+				H:        16384,
+				LogBase2: 0,
 				Q: []uint64{
 					0x10000140001,      // 40 Q0
 					0x7ffe0001,         // 31
@@ -1054,9 +1110,13 @@ var (
 			SlotsToCoeffsParameters: advanced.EncodingMatrixLiteral{
 				LinearTransformType: advanced.SlotsToCoeffs,
 <<<<<<< btp_eprint
+<<<<<<< btp_eprint
 =======
 				RepackImag2Real: true,
 >>>>>>> rebased onto btp_eprint
+=======
+				RepackImag2Real:     true,
+>>>>>>> [rlwe]: added ExpandRLWE
 				LevelStart:          5,
 				BSGSRatio:           2.0,
 				BitReversed:         false,
@@ -1082,9 +1142,13 @@ var (
 			CoeffsToSlotsParameters: advanced.EncodingMatrixLiteral{
 				LinearTransformType: advanced.CoeffsToSlots,
 <<<<<<< btp_eprint
+<<<<<<< btp_eprint
 =======
 				RepackImag2Real: true,
 >>>>>>> rebased onto btp_eprint
+=======
+				RepackImag2Real:     true,
+>>>>>>> [rlwe]: added ExpandRLWE
 				LevelStart:          15,
 				BSGSRatio:           2.0,
 				BitReversed:         false,

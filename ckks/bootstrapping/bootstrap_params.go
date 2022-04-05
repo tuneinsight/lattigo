@@ -110,6 +110,7 @@ func (p *Parameters) RotationsForBootstrapping(params ckks.Parameters) (rotation
 
 	return
 <<<<<<< btp_eprint
+<<<<<<< btp_eprint
 }
 <<<<<<< btp_eprint
 =======
@@ -533,3 +534,6 @@ var DefaultParameters = []Parameters{
 =======
 }
 >>>>>>> rebased onto btp_eprint
+=======
+}
+>>>>>>> [rlwe]: added ExpandRLWE

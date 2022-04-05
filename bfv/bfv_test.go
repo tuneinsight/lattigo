@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"math/big"
+	"math/bits"
 	"runtime"
 	"testing"
 
@@ -44,12 +45,14 @@ func TestBFV(t *testing.T) {
 
 	var paramsLit []ParametersLiteral
 
-	defaultParams := append(TestParams, DefaultParams...) // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
+	paramsLit = append(TestParams, DefaultParams...) // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
+
 	if testing.Short() {
-		defaultParams = TestParams
+		paramsLit = TestParams
 	}
+
 	if *flagLongTest {
-		defaultParams = append(defaultParams, DefaultPostQuantumParams...) // the long test suite runs for all default parameters
+		paramsLit = append(paramsLit, DefaultPostQuantumParams...) // the long test suite runs for all default parameters
 	}
 
 	if *flagParamString != "" {
@@ -111,6 +114,10 @@ func genTestParams(params Parameters) (tc *testContext, err error) {
 		tc.testLevel = []int{1, params.MaxLevel()}
 	} else {
 		tc.testLevel = []int{0, params.MaxLevel()}
+
+		if 2*bits.Len64(params.T())+params.LogN() > bits.Len64(params.Q()[0]) {
+			tc.testLevel[0]++
+		}
 	}
 
 	return
@@ -659,6 +666,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 func testPolyEval(tc *testContext, t *testing.T) {
 
 	t.Run(testString("PowerBasis/Marshalling", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
+
 		_, _, ct := newTestVectorsRingQLvl(tc.params.MaxLevel(), tc, tc.encryptorPk, t)
 
 		pb := NewPowerBasis(ct)
@@ -688,7 +696,7 @@ func testPolyEval(tc *testContext, t *testing.T) {
 				t.Skip("#Pi is empty")
 			}
 
-			if (tc.params.LogQ()-tc.params.LogT())/(tc.params.LogT()+tc.params.LogN()) < 3 {
+			if (tc.params.LogQ()-tc.params.LogT())/(tc.params.LogT()+tc.params.LogN()) < 5 {
 				t.Skip("Homomorphic Capacity Too Low")
 			}
 
@@ -719,7 +727,7 @@ func testPolyEval(tc *testContext, t *testing.T) {
 				t.Skip("#Pi is empty")
 			}
 
-			if (tc.params.LogQ()-tc.params.LogT()-tc.params.LogN())/(tc.params.LogT()+tc.params.LogN()) < 3 {
+			if (tc.params.LogQ()-tc.params.LogT()-tc.params.LogN())/(tc.params.LogT()+tc.params.LogN()) < 5 {
 				t.Skip("Homomorphic Capacity Too Low")
 			}
 

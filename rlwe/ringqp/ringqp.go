@@ -15,6 +15,24 @@ type Poly struct {
 	Q, P *ring.Poly
 }
 
+// LevelQ returns the level of the polynomial modulo Q.
+// Returns -1 if the modulus Q is absent.
+func (p *Poly) LevelQ() int {
+	if p.Q != nil {
+		return p.Q.Level()
+	}
+	return -1
+}
+
+// LevelP returns the level of the polynomial modulo P.
+// Returns -1 if the modulus P is absent.
+func (p *Poly) LevelP() int {
+	if p.P != nil {
+		return p.P.Level()
+	}
+	return -1
+}
+
 // Equals returns true if the receiver Poly is equal to the provided other Poly.
 // This method checks for equality of its two sub-polynomials.
 func (p *Poly) Equals(other Poly) (v bool) {
@@ -99,90 +117,101 @@ func (r *Ring) NewPolyLvl(levelQ, levelP int) Poly {
 
 // AddLvl adds p1 to p2 coefficient-wise and writes the result on p3.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
-func (r *Ring) AddLvl(levelQ, levelP int, p1, p2, pOut Poly) {
+func (r *Ring) AddLvl(levelQ, levelP int, p1, p2, p3 Poly) {
 	if r.RingQ != nil {
-		r.RingQ.AddLvl(levelQ, p1.Q, p2.Q, pOut.Q)
+		r.RingQ.AddLvl(levelQ, p1.Q, p2.Q, p3.Q)
 	}
 	if r.RingP != nil {
-		r.RingP.AddLvl(levelP, p1.P, p2.P, pOut.P)
+		r.RingP.AddLvl(levelP, p1.P, p2.P, p3.P)
 	}
 }
 
 // AddNoModLvl adds p1 to p2 coefficient-wise and writes the result on p3 without modular reduction.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
-func (r *Ring) AddNoModLvl(levelQ, levelP int, p1, p2, pOut Poly) {
+func (r *Ring) AddNoModLvl(levelQ, levelP int, p1, p2, p3 Poly) {
 	if r.RingQ != nil {
-		r.RingQ.AddNoModLvl(levelQ, p1.Q, p2.Q, pOut.Q)
+		r.RingQ.AddNoModLvl(levelQ, p1.Q, p2.Q, p3.Q)
 	}
 	if r.RingP != nil {
-		r.RingP.AddNoModLvl(levelP, p1.P, p2.P, pOut.P)
+		r.RingP.AddNoModLvl(levelP, p1.P, p2.P, p3.P)
 	}
 }
 
 // SubLvl subtracts p2 to p1 coefficient-wise and writes the result on p3.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
-func (r *Ring) SubLvl(levelQ, levelP int, p1, p2, pOut Poly) {
+func (r *Ring) SubLvl(levelQ, levelP int, p1, p2, p3 Poly) {
 	if r.RingQ != nil {
-		r.RingQ.SubLvl(levelQ, p1.Q, p2.Q, pOut.Q)
+		r.RingQ.SubLvl(levelQ, p1.Q, p2.Q, p3.Q)
 	}
 	if r.RingP != nil {
-		r.RingP.SubLvl(levelP, p1.P, p2.P, pOut.P)
+		r.RingP.SubLvl(levelP, p1.P, p2.P, p3.P)
+	}
+}
+
+// NegLvl negates p1 coefficient-wise and writes the result on p2.
+// The operation is performed at levelQ for the ringQ and levelP for the ringP.
+func (r *Ring) NegLvl(levelQ, levelP int, p1, p2 Poly) {
+	if r.RingQ != nil {
+		r.RingQ.NegLvl(levelQ, p1.Q, p2.Q)
+	}
+	if r.RingP != nil {
+		r.RingP.NegLvl(levelP, p1.P, p2.P)
 	}
 }
 
 // NTTLvl computes the NTT of p1 and returns the result on p2.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
-func (r *Ring) NTTLvl(levelQ, levelP int, p, pOut Poly) {
+func (r *Ring) NTTLvl(levelQ, levelP int, p1, p2 Poly) {
 	if r.RingQ != nil {
-		r.RingQ.NTTLvl(levelQ, p.Q, pOut.Q)
+		r.RingQ.NTTLvl(levelQ, p1.Q, p2.Q)
 	}
 	if r.RingP != nil {
-		r.RingP.NTTLvl(levelP, p.P, pOut.P)
+		r.RingP.NTTLvl(levelP, p1.P, p2.P)
 	}
 }
 
 // InvNTTLvl computes the inverse-NTT of p1 and returns the result on p2.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
-func (r *Ring) InvNTTLvl(levelQ, levelP int, p, pOut Poly) {
+func (r *Ring) InvNTTLvl(levelQ, levelP int, p1, p2 Poly) {
 	if r.RingQ != nil {
-		r.RingQ.InvNTTLvl(levelQ, p.Q, pOut.Q)
+		r.RingQ.InvNTTLvl(levelQ, p1.Q, p2.Q)
 	}
 	if r.RingP != nil {
-		r.RingP.InvNTTLvl(levelP, p.P, pOut.P)
+		r.RingP.InvNTTLvl(levelP, p1.P, p2.P)
 	}
 }
 
 // NTTLazyLvl computes the NTT of p1 and returns the result on p2.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
 // Output values are in the range [0, 2q-1].
-func (r *Ring) NTTLazyLvl(levelQ, levelP int, p, pOut Poly) {
+func (r *Ring) NTTLazyLvl(levelQ, levelP int, p1, p2 Poly) {
 	if r.RingQ != nil {
-		r.RingQ.NTTLazyLvl(levelQ, p.Q, pOut.Q)
+		r.RingQ.NTTLazyLvl(levelQ, p1.Q, p2.Q)
 	}
 	if r.RingP != nil {
-		r.RingP.NTTLazyLvl(levelP, p.P, pOut.P)
+		r.RingP.NTTLazyLvl(levelP, p1.P, p2.P)
 	}
 }
 
 // MFormLvl switches p1 to the Montgomery domain and writes the result on p2.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
-func (r *Ring) MFormLvl(levelQ, levelP int, p, pOut Poly) {
+func (r *Ring) MFormLvl(levelQ, levelP int, p1, p2 Poly) {
 	if r.RingQ != nil {
-		r.RingQ.MFormLvl(levelQ, p.Q, pOut.Q)
+		r.RingQ.MFormLvl(levelQ, p1.Q, p2.Q)
 	}
 	if r.RingP != nil {
-		r.RingP.MFormLvl(levelP, p.P, pOut.P)
+		r.RingP.MFormLvl(levelP, p1.P, p2.P)
 	}
 }
 
 // InvMFormLvl switches back p1 from the Montgomery domain to the conventional domain and writes the result on p2.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
-func (r *Ring) InvMFormLvl(levelQ, levelP int, p, pOut Poly) {
+func (r *Ring) InvMFormLvl(levelQ, levelP int, p1, p2 Poly) {
 	if r.RingQ != nil {
-		r.RingQ.InvMFormLvl(levelQ, p.Q, pOut.Q)
+		r.RingQ.InvMFormLvl(levelQ, p1.Q, p2.Q)
 	}
 	if r.RingP != nil {
-		r.RingP.InvMFormLvl(levelP, p.P, pOut.P)
+		r.RingP.InvMFormLvl(levelP, p1.P, p2.P)
 	}
 }
 

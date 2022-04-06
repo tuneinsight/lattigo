@@ -7,7 +7,7 @@ import (
 
 // AddPolyToGadgetMatrix takes a plaintext polynomial and a list of switching keys and adds the
 // plaintext times the RNS and BIT decomposition to the i-th element of the i-th switching key.
-func AddPolyToGadgetMatrix(pt *ring.Poly, ct []Ciphertext, ringQP ringqp.Ring, logbase2 int, pool *ring.Poly) {
+func AddPolyToGadgetMatrix(pt *ring.Poly, ct []Ciphertext, ringQP ringqp.Ring, logbase2 int, buff *ring.Poly) {
 
 	ringQ := ringQP.RingQ
 
@@ -15,11 +15,11 @@ func AddPolyToGadgetMatrix(pt *ring.Poly, ct []Ciphertext, ringQP ringqp.Ring, l
 	levelP := ct[0].LevelP()
 
 	if levelP != -1 {
-		ringQ.MulScalarBigintLvl(levelQ, pt, ringQP.RingP.ModulusBigint[levelP], pool) // P * pt
+		ringQ.MulScalarBigintLvl(levelQ, pt, ringQP.RingP.ModulusBigint[levelP], buff) // P * pt
 	} else {
 		levelP = 0
-		if pt != pool {
-			ring.CopyLvl(levelQ, pt, pool) // 1 * pt
+		if pt != buff {
+			ring.CopyLvl(levelQ, pt, buff) // 1 * pt
 		}
 	}
 
@@ -47,7 +47,7 @@ func AddPolyToGadgetMatrix(pt *ring.Poly, ct []Ciphertext, ringQP ringqp.Ring, l
 				}
 
 				qi := ringQ.Modulus[index]
-				p0tmp := pool.Coeffs[index]
+				p0tmp := buff.Coeffs[index]
 
 				for u, el := range ct {
 					p1tmp := el.Value[i][j][u].Q.Coeffs[index]
@@ -59,6 +59,6 @@ func AddPolyToGadgetMatrix(pt *ring.Poly, ct []Ciphertext, ringQP ringqp.Ring, l
 		}
 
 		// w^2j
-		ringQ.MulScalar(pool, 1<<logbase2, pool)
+		ringQ.MulScalar(buff, 1<<logbase2, buff)
 	}
 }

@@ -12,6 +12,7 @@ import (
 type Encryptor interface {
 	Encrypt(pt *Plaintext, ct interface{})
 	EncryptFromCRP(pt *Plaintext, crp *ring.Poly, ct *Ciphertext)
+	EncryptZeroSymetricQPNTT(levelQ, levelP int, sk ringqp.Poly, sample, montgomery bool, ct [2]ringqp.Poly)
 	ShallowCopy() Encryptor
 	WithKey(key interface{}) Encryptor
 }
@@ -371,8 +372,8 @@ func (enc *skEncryptor) encryptRGSW(pt *Plaintext, ct *rgsw.Ciphertext) {
 
 	for j := 0; j < decompBIT; j++ {
 		for i := 0; i < decompRNS; i++ {
-			enc.encryptZeroSymetricQPNTT(levelQ, levelP, enc.sk.Value, true, true, ct.Value[0].Value[i][j])
-			enc.encryptZeroSymetricQPNTT(levelQ, levelP, enc.sk.Value, true, true, ct.Value[1].Value[i][j])
+			enc.EncryptZeroSymetricQPNTT(levelQ, levelP, enc.sk.Value, true, true, ct.Value[0].Value[i][j])
+			enc.EncryptZeroSymetricQPNTT(levelQ, levelP, enc.sk.Value, true, true, ct.Value[1].Value[i][j])
 		}
 	}
 
@@ -390,7 +391,8 @@ func (enc *skEncryptor) encryptRGSW(pt *Plaintext, ct *rgsw.Ciphertext) {
 	}
 }
 
-func (enc *encryptor) encryptZeroSymetricQPNTT(levelQ, levelP int, sk ringqp.Poly, sample, montgomery bool, ct [2]ringqp.Poly) {
+// EncryptZeroSymetricQPNTT generates en encryption of zero under sk.
+func (enc *encryptor) EncryptZeroSymetricQPNTT(levelQ, levelP int, sk ringqp.Poly, sample, montgomery bool, ct [2]ringqp.Poly) {
 
 	ringQP := enc.params.RingQP()
 

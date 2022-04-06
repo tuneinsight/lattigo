@@ -140,26 +140,10 @@ func (eval *Evaluator) ExpandRLWE(ctIn *Ciphertext, logN int) (ctOut []*Cipherte
 	params := eval.params
 	ringQ := params.RingQ()
 
-	// Compute X^{-n} from 0 to LogN
-	xPow := make([]*ring.Poly, logN)
-	N := ringQ.N
-	for i := 0; i < logN; i++ {
-		xPow[i] = ringQ.NewPoly()
-		if i == 0 {
-			for j := 0; j < params.MaxLevel()+1; j++ {
-				xPow[i].Coeffs[j][N-(1<<i)] = ring.MForm(1, ringQ.Modulus[j], ringQ.BredParams[j])
-			}
-			ringQ.NTT(xPow[i], xPow[i])
-		} else {
-			ringQ.MulCoeffsMontgomery(xPow[i-1], xPow[i-1], xPow[i]) // X^{n} = X^{1} * X^{n-1}
-		}
-	}
+	levelQ := ctIn.Level()
 
-	for i := 0; i < logN; i++ {
-		ringQ.Neg(xPow[i], xPow[i])
-	}
-
-	level := ctIn.Level()
+	// Compute X^{-2^{i}} from 1 to LogN
+	xPow2 := genXPow2(ringQ, levelQ, logN, true)
 
 	ctOut = make([]*Ciphertext, 1<<logN)
 	ctOut[0] = ctIn.CopyNew()
@@ -168,15 +152,15 @@ func (eval *Evaluator) ExpandRLWE(ctIn *Ciphertext, logN int) (ctOut []*Cipherte
 	mredParams := ringQ.MredParams
 	bredParams := ringQ.BredParams
 
-	// Multiplies by N^-1 mod Q
+	// Multiplies by 2^{-logN} mod Q
 	v0, v1 := ctOut[0].Value[0], ctOut[0].Value[1]
-	for i := 0; i < level+1; i++ {
+	for i := 0; i < levelQ+1; i++ {
 		NInv := ring.MForm(ring.ModExp(1<<logN, Q[i]-2, Q[i]), Q[i], bredParams[i])
 		ring.MulScalarMontgomeryVec(v0.Coeffs[i], v0.Coeffs[i], NInv, Q[i], mredParams[i])
 		ring.MulScalarMontgomeryVec(v1.Coeffs[i], v1.Coeffs[i], NInv, Q[i], mredParams[i])
 	}
 
-	tmp := NewCiphertextNTT(params, 1, level)
+	tmp := NewCiphertextNTT(params, 1, levelQ)
 
 	for i := 0; i < logN; i++ {
 
@@ -186,18 +170,22 @@ func (eval *Evaluator) ExpandRLWE(ctIn *Ciphertext, logN int) (ctOut []*Cipherte
 
 			c0 := ctOut[j]
 
+			// X -> X^{N/2^{i} + 1}
 			eval.Automorphism(c0, galEl, tmp)
 
 			c1 := c0.CopyNew()
 
-			ringQ.AddLvl(level, c0.Value[0], tmp.Value[0], c0.Value[0])
-			ringQ.AddLvl(level, c0.Value[1], tmp.Value[1], c0.Value[1])
+			// Zeroes odd coeffs: [a, b, c, d] -> [2a, 0, 2b, 0]
+			ringQ.AddLvl(levelQ, c0.Value[0], tmp.Value[0], c0.Value[0])
+			ringQ.AddLvl(levelQ, c0.Value[1], tmp.Value[1], c0.Value[1])
 
-			ringQ.SubLvl(level, c1.Value[0], tmp.Value[0], c1.Value[0])
-			ringQ.SubLvl(level, c1.Value[1], tmp.Value[1], c1.Value[1])
+			// Zeroes even coeffs: [a, b, c, d] -> [0, 2b, 0, 2d]
+			ringQ.SubLvl(levelQ, c1.Value[0], tmp.Value[0], c1.Value[0])
+			ringQ.SubLvl(levelQ, c1.Value[1], tmp.Value[1], c1.Value[1])
 
-			ringQ.MulCoeffsMontgomeryLvl(level, c1.Value[0], xPow[i], c1.Value[0])
-			ringQ.MulCoeffsMontgomeryLvl(level, c1.Value[1], xPow[i], c1.Value[1])
+			// c1 * X^{-2^{i}}: [0, 2b, 0, 2d] -> [2b, 0, 2d, 0]
+			ringQ.MulCoeffsMontgomeryLvl(levelQ, c1.Value[0], xPow2[i], c1.Value[0])
+			ringQ.MulCoeffsMontgomeryLvl(levelQ, c1.Value[1], xPow2[i], c1.Value[1])
 
 			ctOut[j+(1<<i)] = c1
 		}
@@ -216,25 +204,13 @@ func (eval *Evaluator) MergeRLWE(ctIn map[int]*Ciphertext) (ctOut *Ciphertext) {
 	params := eval.params
 	ringQ := params.RingQ()
 
-	// Compute X^{n} from 0 to LogN LUT
-	xPow := make([]*ring.Poly, params.LogN())
-	for i := 0; i < params.LogN(); i++ {
-		xPow[i] = ringQ.NewPoly()
-		if i == 0 {
-			for j := 0; j < params.MaxLevel()+1; j++ {
-				xPow[i].Coeffs[j][1<<i] = ring.MForm(1, ringQ.Modulus[j], ringQ.BredParams[j])
-			}
-			ringQ.NTT(xPow[i], xPow[i])
-		} else {
-			ringQ.MulCoeffsMontgomery(xPow[i-1], xPow[i-1], xPow[i]) // X^{n} = X^{1} * X^{n-1}
-		}
-	}
-
-	var level int
+	var levelQ int
 	for i := range ctIn {
-		level = ctIn[i].Level()
+		levelQ = ctIn[i].Level()
 		break
 	}
+
+	xPow2 := genXPow2(ringQ, levelQ, params.LogN(), false)
 
 	NInv := ringQ.NttNInv
 	Q := ringQ.Modulus
@@ -244,7 +220,7 @@ func (eval *Evaluator) MergeRLWE(ctIn map[int]*Ciphertext) (ctOut *Ciphertext) {
 	for i := range ctIn {
 		if ctIn[i] != nil {
 			v0, v1 := ctIn[i].Value[0], ctIn[i].Value[1]
-			for j := 0; j < level+1; j++ {
+			for j := 0; j < levelQ+1; j++ {
 				ring.MulScalarMontgomeryVec(v0.Coeffs[j], v0.Coeffs[j], NInv[j], Q[j], mredParams[j])
 				ring.MulScalarMontgomeryVec(v1.Coeffs[j], v1.Coeffs[j], NInv[j], Q[j], mredParams[j])
 			}
@@ -258,10 +234,10 @@ func (eval *Evaluator) MergeRLWE(ctIn map[int]*Ciphertext) (ctOut *Ciphertext) {
 	}
 
 	if ciphertextslist[0] == nil {
-		ciphertextslist[0] = NewCiphertextNTT(params, 1, level)
+		ciphertextslist[0] = NewCiphertextNTT(params, 1, levelQ)
 	}
 
-	return eval.mergeRLWERecurse(ciphertextslist, xPow)
+	return eval.mergeRLWERecurse(ciphertextslist, xPow2)
 }
 
 func (eval *Evaluator) mergeRLWERecurse(ciphertexts []*Ciphertext, xPow []*ring.Poly) *Ciphertext {
@@ -331,4 +307,40 @@ func (eval *Evaluator) mergeRLWERecurse(ciphertexts []*Ciphertext, xPow []*ring.
 	}
 
 	return ctEven
+}
+
+func genXPow2(r *ring.Ring, levelQ, logN int, div bool) (xPow []*ring.Poly) {
+
+	// Compute X^{-n} from 0 to LogN
+	xPow = make([]*ring.Poly, logN)
+
+	var idx int
+	for i := 0; i < logN; i++ {
+
+		idx = 1 << i
+
+		if div {
+			idx = r.N - idx
+		}
+
+		xPow[i] = r.NewPoly()
+
+		if i == 0 {
+
+			for j := 0; j < levelQ+1; j++ {
+				xPow[i].Coeffs[j][idx] = ring.MForm(1, r.Modulus[j], r.BredParams[j])
+			}
+
+			r.NTTLvl(levelQ, xPow[i], xPow[i])
+
+		} else {
+			r.MulCoeffsMontgomeryLvl(levelQ, xPow[i-1], xPow[i-1], xPow[i]) // X^{n} = X^{1} * X^{n-1}
+		}
+	}
+
+	if div {
+		r.NegLvl(levelQ, xPow[0], xPow[0])
+	}
+
+	return
 }

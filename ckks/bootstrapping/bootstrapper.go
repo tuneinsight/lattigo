@@ -146,7 +146,6 @@ func (bb *bootstrapperBase) CheckKeys(btpKeys EvaluationKeys) (err error) {
 	}
 
 	rotKeyIndex := []int{}
-	rotKeyIndex = append(rotKeyIndex, bb.params.RotationsForTrace(bb.params.LogSlots(), bb.params.MaxLogSlots())...)
 	rotKeyIndex = append(rotKeyIndex, bb.CoeffsToSlotsParameters.Rotations()...)
 	rotKeyIndex = append(rotKeyIndex, bb.SlotsToCoeffsParameters.Rotations()...)
 
@@ -155,6 +154,12 @@ func (bb *bootstrapperBase) CheckKeys(btpKeys EvaluationKeys) (err error) {
 		galEl := bb.params.GaloisElementForColumnRotationBy(int(i))
 		if _, generated := btpKeys.Rtks.Keys[galEl]; !generated {
 			rotMissing = append(rotMissing, i)
+		}
+	}
+
+	for _, galEl := range bb.params.GaloisElementsForTrace(bb.params.LogSlots()) {
+		if _, generated := btpKey.Rtks.Keys[galEl]; !generated {
+			rotMissing = append(rotMissing, int(galEl))
 		}
 	}
 

@@ -583,18 +583,6 @@ func (p Parameters) RotationsForReplicateLog(batch, n int) (rotations []int) {
 	return p.RotationsForInnerSumLog(-batch, n)
 }
 
-// RotationsForTrace generates the rotations that will be performed by the
-// `Evaluator.SubSum` operation.
-func (p Parameters) RotationsForTrace(logSlotsStart, logSlotsEnd int) (rotations []int) {
-	rotations = []int{}
-	//SubSum rotation needed X -> Y^slots rotations
-	for i := logSlotsStart; i < logSlotsEnd; i++ {
-		rotations = append(rotations, 1<<i)
-	}
-
-	return
-}
-
 // RotationsForLinearTransform generates the list of rotations needed for the evaluation of a linear transform
 // with the provided list of non-zero diagonals, logSlots encoding and BSGSratio.
 // If BSGSratio == 0, then provides the rotations needed for an evaluation without the BSGS approach.

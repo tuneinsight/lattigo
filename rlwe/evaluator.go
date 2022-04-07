@@ -25,8 +25,9 @@ type evaluatorBase struct {
 }
 
 type evaluatorBuffers struct {
-	// BuffQ[0]/BuffP[0] : on the fly decomp(c2)
-	// BuffQ[1-5]/BuffP[1-5] : available
+	// BuffQP[0-0]: Key-Switch on the fly decomp(c2)
+	// BuffQP[1-2]: Key-Switch output
+	// BuffQP[3-5]: Available
 	BuffQP        [6]ringqp.Poly
 	BuffInvNTT    *ring.Poly
 	BuffDecompQP  []ringqp.Poly // Memory Buff for the basis extension in hoisting

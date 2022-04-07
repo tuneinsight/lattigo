@@ -64,8 +64,8 @@ type Evaluator interface {
 	InnerSum(ctIn *ckks.Ciphertext, batch, n int, ctOut *ckks.Ciphertext)
 	ReplicateLog(ctIn *ckks.Ciphertext, batch, n int, ctOut *ckks.Ciphertext)
 	Replicate(ctIn *ckks.Ciphertext, batch, n int, ctOut *ckks.Ciphertext)
-	TraceNew(ctIn *ckks.Ciphertext, logSlotsStart, logSlotsEnd int) *ckks.Ciphertext
-	Trace(ctIn *ckks.Ciphertext, logSlotsStart, logSlotsEnd int, ctOut *ckks.Ciphertext)
+	TraceNew(ctIn *ckks.Ciphertext, logSlots int) *ckks.Ciphertext
+	Trace(ctIn *ckks.Ciphertext, logSlots int, ctOut *ckks.Ciphertext)
 	SwitchKeysNew(ctIn *ckks.Ciphertext, switchingKey *rlwe.SwitchingKey) (ctOut *ckks.Ciphertext)
 	SwitchKeys(ctIn *ckks.Ciphertext, switchingKey *rlwe.SwitchingKey, ctOut *ckks.Ciphertext)
 	RelinearizeNew(ctIn *ckks.Ciphertext) (ctOut *ckks.Ciphertext)

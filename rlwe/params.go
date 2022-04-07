@@ -374,6 +374,29 @@ func (p Parameters) GaloisElementForRowRotation() uint64 {
 	return p.ringQ.NthRoot - 1
 }
 
+// GaloisElementsForTrace generates the galois elements for the Trace evaluation.
+// Trace maps X -> sum((-1)^i * X^{i*n+1}) for 2^{LogN} <= i < N.
+func (p Parameters) GaloisElementsForTrace(logN int) (galEls []uint64) {
+
+	galEls = []uint64{}
+	for i, j := logN, 0; i < p.LogN()-1; i, j = i+1, j+1 {
+		galEls = append(galEls, p.GaloisElementForColumnRotationBy(1<<i))
+	}
+
+	if logN == 0 {
+		switch p.ringType {
+		case ring.Standard:
+			galEls = append(galEls, p.GaloisElementForRowRotation())
+		case ring.ConjugateInvariant:
+			panic("galois element 5^-1 is undefined in ConjugateInvariant Ring")
+		default:
+			panic("invalid ring type")
+		}
+	}
+
+	return
+}
+
 // GaloisElementsForRowInnerSum returns a list of all galois elements required to
 // perform an InnerSum operation. This corresponds to all the left rotations by
 // k-positions where k is a power of two and the row-rotation element.

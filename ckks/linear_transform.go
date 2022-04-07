@@ -9,7 +9,7 @@ import (
 )
 
 // Trace maps X -> sum((-1)^i * X^{i*n+1}) for 0 <= i < N
-// For log(n) = logSlotStart and log(N/2) = logSlotsEnd
+// For log(n) = logSlots.
 // Monomial X^k vanishes if k is not divisible by (N/n), else it is multiplied by (N/n).
 // Ciphertext is pre-multiplied by (N/n)^-1 to remove the (N/n) factor.
 // Examples of full Trace for [0 + 1X + 2X^2 + 3X^3 + 4X^4 + 5X^5 + 6X^6 + 7X^7]
@@ -25,50 +25,16 @@ import (
 // 3)      [4 + 0X + 0X^2 - 0X^3 +20X^4 + 0X^5 + 0X^6 - 0X^7]
 //       + [4 + 4X + 0X^2 - 0X^3 -20X^4 + 0X^5 + 0X^6 - 0X^7]  {X-> X^(i * -1)}
 //       = [8 + 0X + 0X^2 - 0X^3 + 0X^4 + 0X^5 + 0X^6 - 0X^7]
-func (eval *evaluator) Trace(ctIn *Ciphertext, logSlotsStart, logSlotsEnd int, ctOut *Ciphertext) {
-
-	levelQ := utils.MinInt(ctIn.Level(), ctOut.Level())
-
-	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:levelQ+1]
-	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:levelQ+1]
+func (eval *evaluator) Trace(ctIn *Ciphertext, logSlots int, ctOut *Ciphertext) {
+	eval.Evaluator.Trace(ctIn.Ciphertext, logSlots, ctOut.Ciphertext)
 	ctOut.Scale = ctIn.Scale
-
-	n := 1 << (logSlotsEnd - logSlotsStart)
-
-	if n > 1 {
-
-		ringQ := eval.params.RingQ()
-
-		// pre-multiplication by (N/n)^-1
-		for i := 0; i < levelQ+1; i++ {
-			Q := ringQ.Modulus[i]
-			bredParams := ringQ.BredParams[i]
-			mredparams := ringQ.MredParams[i]
-			invN := ring.ModExp(uint64(n), Q-2, Q)
-			invN = ring.MForm(invN, Q, bredParams)
-
-			ring.MulScalarMontgomeryVec(ctIn.Value[0].Coeffs[i], ctOut.Value[0].Coeffs[i], invN, Q, mredparams)
-			ring.MulScalarMontgomeryVec(ctIn.Value[1].Coeffs[i], ctOut.Value[1].Coeffs[i], invN, Q, mredparams)
-		}
-
-		for i := logSlotsStart; i < logSlotsEnd; i++ {
-			buff := &Ciphertext{Ciphertext: eval.buffCt.Ciphertext, Scale: ctOut.Scale}
-			buff.Value = buff.Value[:2]
-			eval.Automorphism(ctOut.Ciphertext, eval.params.GaloisElementForColumnRotationBy(1<<i), buff.Ciphertext)
-			eval.Add(ctOut, buff, ctOut)
-		}
-	} else {
-		if ctIn != ctOut {
-			ctOut.Copy(ctIn)
-		}
-	}
 }
 
 // TraceNew maps X -> sum((-1)^i * X^{i*n+1}) for 0 <= i < N and returns the result on a new ciphertext.
-// For log(n) = logSlotStart and log(N/2) = logSlotsEnd
-func (eval *evaluator) TraceNew(ctIn *Ciphertext, logSlotsStart, logSlotsEnd int) (ctOut *Ciphertext) {
+// For log(n) = logSlots.
+func (eval *evaluator) TraceNew(ctIn *Ciphertext, logSlots int) (ctOut *Ciphertext) {
 	ctOut = NewCiphertext(eval.params, 1, ctIn.Level(), ctIn.Scale)
-	eval.Trace(ctIn, logSlotsStart, logSlotsEnd, ctOut)
+	eval.Trace(ctIn, logSlots, ctOut)
 	return
 }
 

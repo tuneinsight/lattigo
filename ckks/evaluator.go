@@ -127,8 +127,8 @@ type Evaluator interface {
 	Replicate(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
 
 	// Trace
-	Trace(ctIn *Ciphertext, logSlotsStart, logSlotsEnd int, ctOut *Ciphertext)
-	TraceNew(ctIn *Ciphertext, logSlotsStart, logSlotsEnd int) (ctOut *Ciphertext)
+	Trace(ctIn *Ciphertext, logSlots int, ctOut *Ciphertext)
+	TraceNew(ctIn *Ciphertext, logSlots int) (ctOut *Ciphertext)
 
 	// =============================
 	// === Ciphertext Management ===

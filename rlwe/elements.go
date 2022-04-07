@@ -98,7 +98,17 @@ func NewCiphertextNTT(params Parameters, degree, level int) *Ciphertext {
 	return el
 }
 
-// NewCiphertextRandom generates a new uniformly distributed Ciphertext of degree, level and scale.
+// NewCiphertextNTTAtLevelFromPoly construct a new Ciphetext at a specific level
+// where the message is set to the passed poly. No checks are performed on poly and
+// the returned Ciphertext will share its backing array of coefficient.
+func NewCiphertextNTTAtLevelFromPoly(level int, poly [2]*ring.Poly) *Ciphertext {
+	v0, v1 := new(ring.Poly), new(ring.Poly)
+	v0.IsNTT, v1.IsNTT = true, true
+	v0.Coeffs, v1.Coeffs = poly[0].Coeffs[:level+1], poly[1].Coeffs[:level+1]
+	return &Ciphertext{Value: []*ring.Poly{v0, v1}}
+}
+
+// NewCiphertextRandom generates a new uniformly distributed Ciphertext of degree, level.
 func NewCiphertextRandom(prng utils.PRNG, params Parameters, degree, level int) (ciphertext *Ciphertext) {
 	ciphertext = NewCiphertext(params, degree, level)
 	PopulateElementRandom(prng, params, ciphertext)

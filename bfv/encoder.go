@@ -144,19 +144,20 @@ func (ecd *encoder) EncodeRingT(values interface{}, ptOut *PlaintextRingT) {
 	pt := ptOut.Value.Coeffs[0]
 	valLen := 0
 	T := ecd.params.T()
+	bredParams := ecd.params.RingT().BredParams[0]
 	switch values := values.(type) {
 	case []uint64:
 		for i := 0; i < len(values); i++ {
-			pt[ecd.indexMatrix[i]] = ring.BRedAdd(values[i], T, ecd.params.bredParamsT)
+			pt[ecd.indexMatrix[i]] = ring.BRedAdd(values[i], T, bredParams)
 		}
 		valLen = len(values)
 	case []int64:
 		for i := 0; i < len(values); i++ {
 			if values[i] < 0 {
-				negV := ring.BRedAdd(uint64(-values[i]), T, ecd.params.bredParamsT)
+				negV := ring.BRedAdd(uint64(-values[i]), T, bredParams)
 				pt[ecd.indexMatrix[i]] = uint64(T - negV)
 			} else {
-				pt[ecd.indexMatrix[i]] = ring.BRedAdd(uint64(values[i]), T, ecd.params.bredParamsT)
+				pt[ecd.indexMatrix[i]] = ring.BRedAdd(uint64(values[i]), T, bredParams)
 			}
 		}
 		valLen = len(values)

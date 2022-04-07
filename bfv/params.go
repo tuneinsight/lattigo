@@ -126,9 +126,8 @@ type ParametersLiteral struct {
 // immutable. See ParametersLiteral for user-specified parameters.
 type Parameters struct {
 	rlwe.Parameters
-	ringQMul    *ring.Ring
-	ringT       *ring.Ring
-	bredParamsT []uint64
+	ringQMul *ring.Ring
+	ringT    *ring.Ring
 }
 
 // NewParameters instantiate a set of BFV parameters from the generic RLWE parameters and the BFV-specific ones.
@@ -158,9 +157,7 @@ func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err erro
 		return Parameters{}, err
 	}
 
-	bredParams := ring.BRedParams(t)
-
-	return Parameters{rlweParams, ringQMul, ringT, bredParams}, nil
+	return Parameters{rlweParams, ringQMul, ringT}, nil
 }
 
 // NewParametersFromLiteral instantiate a set of BFV parameters from a ParametersLiteral specification.
@@ -247,8 +244,6 @@ func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 	if p.ringT, err = ring.NewRing(p.N(), []uint64{t}); err != nil {
 		return err
 	}
-
-	p.bredParamsT = ring.BRedParams(t)
 
 	return nil
 }

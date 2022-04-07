@@ -152,12 +152,7 @@ func (rnss *RNSScaler) ScaleUpByQOverTLvl(level int, pIn, pOut *ring.Poly) {
 // Poly pOut in ringQ.
 func ScaleUpTCoprimeWithQVecLvl(level int, ringQ, ringT *ring.Ring, tInvModQi, buffN []uint64, pIn, pOut *ring.Poly) {
 
-	bigQ := ring.NewUint(1)
-	for i := 0; i < level+1; i++ {
-		bigQ.Mul(bigQ, ring.NewUint(ringQ.Modulus[i]))
-	}
-
-	qModTmontgomery := ring.MForm(new(big.Int).Mod(bigQ, ring.NewUint(ringT.Modulus[0])).Uint64(), ringT.Modulus[0], ringT.BredParams[0])
+	qModTmontgomery := ring.MForm(new(big.Int).Mod(ringQ.ModulusAtLevel[level], ring.NewUint(ringT.Modulus[0])).Uint64(), ringT.Modulus[0], ringT.BredParams[0])
 
 	t := ringT.Modulus[0]
 	tHalf := t >> 1
@@ -186,10 +181,8 @@ func ScaleUpTCoprimeWithQVecLvl(level int, ringQ, ringT *ring.Ring, tInvModQi, b
 func ScaleUpTIsQ0VecLvl(level int, ringQ *ring.Ring, pIn, pOut *ring.Poly) {
 
 	// Q/T mod T
-	tmp := ring.NewUint(1)
-	for i := 1; i < level+1; i++ {
-		tmp.Mul(tmp, ring.NewUint(ringQ.Modulus[i]))
-	}
+	tmp := new(big.Int)
+	tmp.Quo(ringQ.ModulusAtLevel[level], ringQ.ModulusAtLevel[0])
 	QOverTMont := ring.MForm(tmp.Mod(tmp, new(big.Int).SetUint64(ringQ.Modulus[0])).Uint64(), ringQ.Modulus[0], ringQ.BredParams[0])
 
 	// pOut = Q/T * pIn

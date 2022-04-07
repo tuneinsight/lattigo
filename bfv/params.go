@@ -236,16 +236,20 @@ func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 	if err := p.Parameters.UnmarshalBinary(data); err != nil {
 		return err
 	}
-	dataBfv := data[len(data)-8:]
 
 	nbQiMul := int(math.Ceil(float64(p.RingQ().ModulusAtLevel[p.MaxLevel()].BitLen()+p.LogN()) / 61.0))
 	if p.ringQMul, err = ring.NewRing(p.N(), ring.GenerateNTTPrimesP(61, 2*p.N(), nbQiMul)); err != nil {
 		return err
 	}
 
-	if p.ringT, err = ring.NewRing(p.N(), []uint64{binary.BigEndian.Uint64(dataBfv)}); err != nil {
+	t := binary.BigEndian.Uint64(data[len(data)-8:])
+
+	if p.ringT, err = ring.NewRing(p.N(), []uint64{t}); err != nil {
 		return err
 	}
+
+	p.bredParamsT = ring.BRedParams(t)
+
 	return nil
 }
 

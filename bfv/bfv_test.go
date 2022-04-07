@@ -247,6 +247,17 @@ func testEncoder(tc *testContext, t *testing.T) {
 	t.Run(testString("Encoder/Encode&Decode/RingT/Uint", tc.params, 0), func(t *testing.T) {
 		values, plaintext := newTestVectorsRingT(tc, t)
 		verifyTestVectors(tc, nil, values, plaintext, t)
+
+		coeffsInt := make([]uint64, len(values.Coeffs[0]))
+		for i, v := range values.Coeffs[0] {
+			coeffsInt[i] = v + tc.params.T()*uint64(i%10)
+		}
+
+		plaintext = NewPlaintextRingT(tc.params)
+		tc.encoder.EncodeRingT(coeffsInt, plaintext)
+		//	coeffsTest := tc.encoder.DecodeIntNew(plaintext)
+
+		verifyTestVectors(tc, nil, values, plaintext, t)
 	})
 
 	t.Run(testString("Encoder/Encode&Decode/RingT/Int", tc.params, 0), func(t *testing.T) {

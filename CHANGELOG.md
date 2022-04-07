@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # [3.0.3] - UNREALEASED
 
-- BFV: added the `Evaluator.Rescale` and `Evaluator.RescaleTo` methods to operate modulus switching to lower levels on BFV ciphertexts.
+- BFV: added the `Evaluator.Rescale` and `Evaluator.RescaleTo` methods to switch BFV ciphertexts to lower levels.
 - BFV: all `Evaluator` methods on ciphertext supports all arithmetic operations at lower levels, but requires operands to be at the same level.
 - BFV: the plaintext modulus `T` can now equal to the level-zero modulus Q[0] (i.e., be a factor of the ciphertext modulus `Q`).
 - BFV: added the methods `NewCiphertextLvl`, `NewPlaintextLvl`, `NewPlaintextMulLvl`, `Evaluator.AddScalar` and `Evaluator.MulScalarAndAdd`. 

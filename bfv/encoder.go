@@ -143,31 +143,25 @@ func (ecd *encoder) EncodeRingT(values interface{}, ptOut *PlaintextRingT) {
 
 	pt := ptOut.Value.Coeffs[0]
 	valLen := 0
+	T := ecd.params.T()
 	switch values := values.(type) {
 	case []uint64:
-		T := uint64(ecd.params.T())
 		for i := 0; i < len(values); i++ {
-			v := values[i]
-			if v < T {
-				pt[ecd.indexMatrix[i]] = v
-			} else {
-				pt[ecd.indexMatrix[i]] = v % T
-			}
+			pt[ecd.indexMatrix[i]] = ring.BRedAdd(values[i], T, ecd.params.bredParamsT)
 		}
 		valLen = len(values)
 	case []int64:
-		T := int64(ecd.params.T())
 		for i := 0; i < len(values); i++ {
-			v := values[i] % T
-			if v >= 0 { // Go's modulo operation returns values in [-(t-1); t-1]
-				pt[ecd.indexMatrix[i]] = uint64(v)
+			if values[i] < 0 {
+				negV := ring.BRedAdd(uint64(-values[i]), T, ecd.params.bredParamsT)
+				pt[ecd.indexMatrix[i]] = uint64(T - negV)
 			} else {
-				pt[ecd.indexMatrix[i]] = uint64(v + T)
+				pt[ecd.indexMatrix[i]] = ring.BRedAdd(uint64(values[i]), T, ecd.params.bredParamsT)
 			}
 		}
 		valLen = len(values)
 	default:
-		panic("coeffs must be either []uint64 or int64")
+		panic("coeffs must be either []uint64 or []int64")
 	}
 
 	for i := valLen; i < len(ecd.indexMatrix); i++ {

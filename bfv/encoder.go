@@ -142,23 +142,27 @@ func (ecd *encoder) EncodeRingT(values interface{}, ptOut *PlaintextRingT) {
 	}
 
 	pt := ptOut.Value.Coeffs[0]
-	valLen := 0
-	T := ecd.params.T()
-	bredParams := ecd.params.RingT().BredParams[0]
+
+	ringT := ecd.params.RingT()
+
+	var valLen int
 	switch values := values.(type) {
 	case []uint64:
-		for i := 0; i < len(values); i++ {
-			pt[ecd.indexMatrix[i]] = ring.BRedAdd(values[i], T, bredParams)
+		for i, c := range values {
+			pt[ecd.indexMatrix[i]] = c
 		}
+		ringT.Reduce(ptOut.Value, ptOut.Value)
 		valLen = len(values)
 	case []int64:
-		for i := 0; i < len(values); i++ {
-			if values[i] < 0 {
-				negV := ring.BRedAdd(uint64(-values[i]), T, bredParams)
-				pt[ecd.indexMatrix[i]] = uint64(T - negV)
-			} else {
-				pt[ecd.indexMatrix[i]] = ring.BRedAdd(uint64(values[i]), T, bredParams)
-			}
+
+		T := ringT.Modulus[0]
+		bredparamsT := ringT.BredParams[0]
+
+		var sign, abs uint64
+		for i, c := range values {
+			sign = uint64(c) >> 63
+			abs = ring.BRedAdd(uint64(c*((int64(sign)^1)-int64(sign))), T, bredparamsT)
+			pt[ecd.indexMatrix[i]] = sign*(T-abs) | (sign^1)*abs
 		}
 		valLen = len(values)
 	default:
@@ -169,7 +173,7 @@ func (ecd *encoder) EncodeRingT(values interface{}, ptOut *PlaintextRingT) {
 		pt[ecd.indexMatrix[i]] = 0
 	}
 
-	ecd.params.RingT().InvNTT(ptOut.Value, ptOut.Value)
+	ringT.InvNTT(ptOut.Value, ptOut.Value)
 }
 
 // EncodeMulNew encodes a slice of integers of type []uint64 or []int64 of size at most N into a newly allocated PlaintextMul (optimized for ciphertext-plaintext multiplication).

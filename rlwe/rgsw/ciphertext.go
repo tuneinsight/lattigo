@@ -21,11 +21,11 @@ func (ct *Ciphertext) LevelP() int {
 }
 
 // NewCiphertextNTT allocates a new RGSW ciphertext in the NTT domain.
-func NewCiphertextNTT(levelQ, levelP, decompRNS, decompBit int, ringQP *ringqp.Ring) (ct *Ciphertext) {
+func NewCiphertextNTT(levelQ, levelP, decompRNS, decompBit int, ringQP ringqp.Ring) (ct *Ciphertext) {
 	return &Ciphertext{
 		Value: [2]gadget.Ciphertext{
-			*gadget.NewCiphertextNTT(levelQ, levelP, decompRNS, decompBit, *ringQP),
-			*gadget.NewCiphertextNTT(levelQ, levelP, decompRNS, decompBit, *ringQP),
+			*gadget.NewCiphertextNTT(levelQ, levelP, decompRNS, decompBit, ringQP),
+			*gadget.NewCiphertextNTT(levelQ, levelP, decompRNS, decompBit, ringQP),
 		},
 	}
 }

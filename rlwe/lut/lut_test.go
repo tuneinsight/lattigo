@@ -30,18 +30,14 @@ func TestLUT(t *testing.T) {
 	}
 }
 
-// m0 : [0, 1/4]
-// m1 : [0, 1/4]
-// | 0 0 -> 1 (0/8) -> 2/8
-// | 0 1 -> 1 (2/8) -> 2/8
-// | 1 0 -> 1 (2/8) -> 2/8
-// | 1 1 -> 0 (4/8) -> 0/8
-func nandGate(x float64) float64 {
-	if x > -1/8.0 && x < 3/8.0 {
-		return 2 / 8.0
+func sign(x float64) float64 {
+	if x > 0 {
+		return 1
+	} else if x == 0 {
+		return 0
 	}
 
-	return 0
+	return -1
 }
 
 func testLUT(t *testing.T) {
@@ -49,18 +45,18 @@ func testLUT(t *testing.T) {
 
 	// N=1024, Q=0x7fff801 -> 2^131
 	paramsLUT, err := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
-		LogN:     8,
+		LogN:     10,
 		Q:        []uint64{0x7fff801},
 		P:        []uint64{},
 		Sigma:    rlwe.DefaultSigma,
-		LogBase2: 7,
+		LogBase2: 6,
 	})
 
 	assert.Nil(t, err)
 
 	// N=512, Q=0x3001 -> 2^135
 	paramsLWE, err := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
-		LogN:  7,
+		LogN:  9,
 		Q:     []uint64{0x3001},
 		P:     []uint64{},
 		Sigma: rlwe.DefaultSigma,
@@ -75,7 +71,7 @@ func testLUT(t *testing.T) {
 
 		slots := 16
 
-		LUTPoly := InitLUT(nandGate, scaleLUT, paramsLUT.RingQ(), -1, 1)
+		LUTPoly := InitLUT(sign, scaleLUT, paramsLUT.RingQ(), -1, 1)
 
 		lutPolyMap := make(map[int]*ring.Poly)
 		for i := 0; i < slots; i++ {
@@ -125,8 +121,10 @@ func testLUT(t *testing.T) {
 				a = float64(c) / scaleLUT
 			}
 
-			//fmt.Printf("%7.4f - %7.4f - %7.4f\n", math.Round(a*32)/32, math.Round(a*8)/8, values[i])
-			assert.Equal(t, nandGate(values[i]), math.Round(a*8)/8)
+			if values[i] != 0 {
+				fmt.Printf("%7.4f - %7.4f - %7.4f\n", math.Round(a*32)/32, math.Round(a*8)/8, values[i])
+				assert.Equal(t, sign(values[i]), math.Round(a*8)/8)
+			}
 		}
 	})
 }

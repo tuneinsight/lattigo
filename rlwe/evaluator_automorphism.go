@@ -32,7 +32,7 @@ func (eval *Evaluator) Automorphism(ctIn *Ciphertext, galEl uint64, ctOut *Ciphe
 
 	ringQ := eval.params.RingQ()
 
-	eval.SwitchKeysInPlace(level, ctIn.Value[1], rtk, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
+	eval.GadgetProduct(level, ctIn.Value[1], rtk.Ciphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
 	ringQ.AddLvl(level, eval.BuffQP[1].Q, ctIn.Value[0], eval.BuffQP[1].Q)
 
 	if ctIn.Value[0].IsNTT {

@@ -412,7 +412,7 @@ func testKeySwitcher(kgen KeyGenerator, t *testing.T) {
 		// Test that Dec(KS(Enc(ct, sk), skOut), skOut) has a small norm
 		t.Run(testString(params, "Standard"), func(t *testing.T) {
 			swk := kgen.GenSwitchingKey(sk, skOut)
-			eval.SwitchKeysInPlace(ciphertext.Value[1].Level(), ciphertext.Value[1], swk, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
+			eval.GadgetProduct(ciphertext.Value[1].Level(), ciphertext.Value[1], swk.Ciphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
 			ringQ.Add(ciphertext.Value[0], eval.BuffQP[1].Q, ciphertext.Value[0])
 			ring.CopyValues(eval.BuffQP[2].Q, ciphertext.Value[1])
 			ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], skOut.Value.Q, ciphertext.Value[0])
@@ -471,7 +471,7 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 			encryptor.Encrypt(plaintext, ctLargeDim)
 
 			eval := NewEvaluator(paramsLargeDim, nil)
-			eval.SwitchKeysInPlace(paramsSmallDim.MaxLevel(), ctLargeDim.Value[1], swk, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
+			eval.GadgetProduct(paramsSmallDim.MaxLevel(), ctLargeDim.Value[1], swk.Ciphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
 			ringQLargeDim.AddLvl(paramsSmallDim.MaxLevel(), ctLargeDim.Value[0], eval.BuffQP[1].Q, ctLargeDim.Value[0])
 			ring.CopyValues(eval.BuffQP[2].Q, ctLargeDim.Value[1])
 
@@ -510,7 +510,7 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 			SwitchCiphertextRingDegreeNTT(ctSmallDim, nil, nil, ctLargeDim)
 
 			eval := NewEvaluator(paramsLargeDim, nil)
-			eval.SwitchKeysInPlace(ctLargeDim.Value[1].Level(), ctLargeDim.Value[1], swk, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
+			eval.GadgetProduct(ctLargeDim.Value[1].Level(), ctLargeDim.Value[1], swk.Ciphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
 			ringQLargeDim.Add(ctLargeDim.Value[0], eval.BuffQP[1].Q, ctLargeDim.Value[0])
 			ring.CopyValues(eval.BuffQP[2].Q, ctLargeDim.Value[1])
 

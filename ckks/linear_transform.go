@@ -951,7 +951,7 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearT
 			rotIndex := eval.PermuteNTTIndex[galEl]
 
 			tmp1QP.Q.IsNTT = true
-			eval.SwitchKeysInPlaceNoModDown(levelQ, tmp1QP.Q, rtk, c0QP.Q, c0QP.P, c1QP.Q, c1QP.P) // Switchkey(P*phi(tmpRes_1)) = (d0, d1) in base QP
+			eval.GadgetProductNoModDown(levelQ, tmp1QP.Q, rtk.Ciphertext, c0QP, c1QP) // Switchkey(P*phi(tmpRes_1)) = (d0, d1) in base QP
 			ringQP.AddLvl(levelQ, levelP, c0QP, tmp0QP, c0QP)
 
 			// Outer loop rotations

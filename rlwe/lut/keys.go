@@ -44,7 +44,7 @@ func GenKey(paramsRLWE rlwe.Parameters, skRLWE *rlwe.SecretKey, paramsLWE rlwe.P
 
 	decompRNS := paramsRLWE.DecompRNS(levelQ, levelP)
 	decompBIT := paramsRLWE.DecompBIT(levelQ, levelP)
-	ringQP := paramsRLWE.RingQP()
+	ringQP := *paramsRLWE.RingQP()
 
 	for i, si := range skLWEInvNTT.Coeffs[0] {
 
@@ -66,5 +66,5 @@ func GenKey(paramsRLWE rlwe.Parameters, skRLWE *rlwe.SecretKey, paramsLWE rlwe.P
 		}
 	}
 
-	return Key{SkPos: skRGSWPos, SkNeg: skRGSWNeg, One: rgsw.NewPlaintext(uint64(1), levelQ, levelP, paramsRLWE.LogBase2(), decompBIT, *ringQP)}
+	return Key{SkPos: skRGSWPos, SkNeg: skRGSWNeg, One: rgsw.NewPlaintext(uint64(1), levelQ, levelP, paramsRLWE.LogBase2(), decompBIT, ringQP)}
 }

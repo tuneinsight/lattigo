@@ -472,7 +472,11 @@ func (enc *encryptor) EncryptZeroSymetricQPNTT(levelQ, levelP int, sk ringqp.Pol
 	}
 
 	// ct = (e, a)
-	enc.uniformSampler.ReadLvl(levelQ, levelP, c1)
+	if sampler == nil {
+		enc.uniformSampler.ReadLvl(levelQ, levelP, c1)
+	} else {
+		sampler.ReadLvl(levelQ, levelP, c1)
+	}
 
 	// (-a*sk + e, a)
 	ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, c1, sk, c0)

@@ -12,7 +12,7 @@ import (
 type Encryptor interface {
 	Encrypt(pt *Plaintext, ct interface{})
 	EncryptFromCRP(pt *Plaintext, crp *ring.Poly, ct *Ciphertext)
-	EncryptZeroSymetricQPNTT(levelQ, levelP int, sk ringqp.Poly, sampler *ringqp.UniformSampler, montgomery bool, ct [2]ringqp.Poly)
+	EncryptZeroSymetricQPNTT(levelQ, levelP int, sk ringqp.Poly, sampler *ringqp.UniformSampler, montgomery bool, ct interface{})
 	EncryptSeeded(pt *Plaintext, sampler ringqp.UniformSampler, ct interface{})
 	ShallowCopy() Encryptor
 	WithKey(key interface{}) Encryptor
@@ -437,34 +437,45 @@ func (enc *skEncryptor) encryptRGSW(pt *Plaintext, sampler *ringqp.UniformSample
 // sk     : secret key
 // sampler: uniform sampler, if `sampler` is nil, then will sample using the internal sampler.
 // montgomery: returns the result in the Montgomery domain.
-func (enc *encryptor) EncryptZeroSymetricQPNTT(levelQ, levelP int, sk ringqp.Poly, sampler *ringqp.UniformSampler, montgomery bool, ct [2]ringqp.Poly) {
+func (enc *encryptor) EncryptZeroSymetricQPNTT(levelQ, levelP int, sk ringqp.Poly, sampler *ringqp.UniformSampler, montgomery bool, ct interface{}) {
+
+	var c0, c1 ringqp.Poly
+	switch ct := ct.(type) {
+	case [2]ringqp.Poly:
+		c0, c1 = ct[0], ct[1]
+	case ringqp.Poly:
+
+		if sampler == nil {
+			panic("cannot EncryptZeroSymetricQPNTT: sampler cannot be nil if ct.(type) is ringqp.Poly")
+		}
+
+		c0, c1 = ct, enc.buffQP
+	default:
+		panic("cannot EncryptZeroSymetricQPNTT: ct must be either [2]3ingqp.Poly or ringqp.Poly")
+	}
 
 	ringQP := enc.params.RingQP()
 
-	// (e, 0)
-	enc.gaussianSampler.ReadLvl(levelQ, ct[0].Q)
+	// ct = (e, 0)
+	enc.gaussianSampler.ReadLvl(levelQ, c0.Q)
 	if levelP != -1 {
-		ringQP.ExtendBasisSmallNormAndCenter(ct[0].Q, levelP, nil, ct[0].P)
+		ringQP.ExtendBasisSmallNormAndCenter(c0.Q, levelP, nil, c0.P)
 	}
 
-	ringQP.NTTLvl(levelQ, levelP, ct[0], ct[0])
+	ringQP.NTTLvl(levelQ, levelP, c0, c0)
 
 	// If montgomery, then ct[1] is assumed to be sampled in of the Montgomery domain,
 	// thus -as will also be in the montgomery domain (s is by default), therefore 'e'
 	// must be switched to the montgomery domain.
 	if montgomery {
-		ringQP.MFormLvl(levelQ, levelP, ct[0], ct[0])
+		ringQP.MFormLvl(levelQ, levelP, c0, c0)
 	}
 
-	if sampler == nil {
-		enc.uniformSampler.ReadLvl(levelQ, levelP, ct[1])
-	} else {
-		// (e, a)
-		sampler.ReadLvl(levelQ, levelP, ct[1])
-	}
+	// ct = (e, a)
+	enc.uniformSampler.ReadLvl(levelQ, levelP, c1)
 
 	// (-a*sk + e, a)
-	ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, ct[1], sk, ct[0])
+	ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, c1, sk, c0)
 }
 
 // ShallowCopy creates a shallow copy of this pkEncryptor in which all the read-only data-structures are

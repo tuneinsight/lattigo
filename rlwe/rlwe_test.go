@@ -1,6 +1,7 @@
 package rlwe
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -197,7 +198,7 @@ func testSwitchKeyGen(kgen KeyGenerator, t *testing.T) {
 	// 1) Decrypting the RNS decomposed input key
 	// 2) Reconstructing the key
 	// 3) Checking that the difference with the input key has a small norm
-	t.Run(testString(params, "SWKGen/"), func(t *testing.T) {
+	t.Run(testString(params, "SWKGen"), func(t *testing.T) {
 
 		ringQ := params.RingQ()
 		ringP := params.RingP()
@@ -393,7 +394,7 @@ func testKeySwitcher(kgen KeyGenerator, t *testing.T) {
 
 	params := kgen.(*keyGenerator).params
 
-	t.Run("KeySwitch", func(t *testing.T) {
+	t.Run(testString(params, "KeySwitch"), func(t *testing.T) {
 
 		sk := kgen.GenSecretKey()
 		skOut := kgen.GenSecretKey()
@@ -410,15 +411,13 @@ func testKeySwitcher(kgen KeyGenerator, t *testing.T) {
 		encryptor.Encrypt(plaintext, ciphertext)
 
 		// Test that Dec(KS(Enc(ct, sk), skOut), skOut) has a small norm
-		t.Run(testString(params, "Standard"), func(t *testing.T) {
-			swk := kgen.GenSwitchingKey(sk, skOut)
-			eval.GadgetProduct(ciphertext.Value[1].Level(), ciphertext.Value[1], swk.Ciphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
-			ringQ.Add(ciphertext.Value[0], eval.BuffQP[1].Q, ciphertext.Value[0])
-			ring.CopyValues(eval.BuffQP[2].Q, ciphertext.Value[1])
-			ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], skOut.Value.Q, ciphertext.Value[0])
-			ringQ.InvNTTLvl(ciphertext.Level(), ciphertext.Value[0], ciphertext.Value[0])
-			require.GreaterOrEqual(t, 11+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, ciphertext.Value[0]))
-		})
+		swk := kgen.GenSwitchingKey(sk, skOut)
+		eval.GadgetProduct(ciphertext.Value[1].Level(), ciphertext.Value[1], swk.Ciphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
+		ringQ.Add(ciphertext.Value[0], eval.BuffQP[1].Q, ciphertext.Value[0])
+		ring.CopyValues(eval.BuffQP[2].Q, ciphertext.Value[1])
+		ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], skOut.Value.Q, ciphertext.Value[0])
+		ringQ.InvNTTLvl(ciphertext.Level(), ciphertext.Value[0], ciphertext.Value[0])
+		require.GreaterOrEqual(t, 11+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, ciphertext.Value[0]))
 	})
 }
 
@@ -654,7 +653,7 @@ func testMarshaller(kgen KeyGenerator, t *testing.T) {
 
 	sk, pk := kgen.GenKeyPair()
 
-	t.Run("Marshaller/Parameters/Binary", func(t *testing.T) {
+	t.Run(testString(params, "Marshaller/Parameters/Binary"), func(t *testing.T) {
 		bytes, err := params.MarshalBinary()
 		assert.Nil(t, err)
 		var p Parameters
@@ -664,7 +663,7 @@ func testMarshaller(kgen KeyGenerator, t *testing.T) {
 		assert.Equal(t, params.RingQ(), p.RingQ())
 	})
 
-	t.Run("Marshaller/Parameters/JSON", func(t *testing.T) {
+	t.Run(testString(params, "Marshaller/Parameters/JSON"), func(t *testing.T) {
 		// checks that parameters can be marshalled without error
 		data, err := json.Marshal(params)
 		assert.Nil(t, err)
@@ -698,6 +697,43 @@ func testMarshaller(kgen KeyGenerator, t *testing.T) {
 					require.True(t, params.RingQ().EqualLvl(ciphertextWant.Level(), ciphertextWant.Value[i], ciphertextTest.Value[i]))
 				}
 			})
+		}
+	})
+
+	t.Run(testString(params, "Marshaller/SeededCiphertextBatch"), func(t *testing.T) {
+
+		prng, _ := utils.NewPRNG()
+
+		value := []*Ciphertext{
+			NewCiphertextRandom(prng, params, 1, params.MaxLevel()),
+			NewCiphertextRandom(prng, params, 1, params.MaxLevel()),
+		}
+
+		seed := []byte{'L', 'a', 't', 't', 'i', 'g', 'o'}
+
+		ctBatch := SeededCiphertextBatch{
+			Seed:  seed,
+			Value: value,
+		}
+
+		marshalledCiphertext, err := ctBatch.MarshalBinary()
+		require.NoError(t, err)
+
+		ctBatchTest := SeededCiphertextBatch{}
+		require.NoError(t, ctBatchTest.UnmarshalBinary(marshalledCiphertext))
+
+		require.True(t, bytes.Equal(seed, ctBatchTest.Seed))
+
+		for i, ciphertextTest := range ctBatchTest.Value {
+
+			ciphertextWant := value[i]
+
+			require.Equal(t, ciphertextWant.Degree(), ciphertextTest.Degree())
+			require.Equal(t, ciphertextWant.Level(), ciphertextTest.Level())
+
+			for j := range ciphertextWant.Value {
+				require.True(t, params.RingQ().EqualLvl(ciphertextWant.Level(), ciphertextWant.Value[j], ciphertextTest.Value[j]))
+			}
 		}
 	})
 

@@ -17,6 +17,13 @@ type Ciphertext struct {
 	Value []*ring.Poly
 }
 
+// SeededCiphertextBatch is a generic type for a batch of RLWE ciphertext
+// generated using the method EncryptSeeded.
+type SeededCiphertextBatch struct {
+	Seed  []byte
+	Value []*Ciphertext
+}
+
 // AdditiveShare is a type for storing additively shared values in Z_Q[X] (RNS domain)
 type AdditiveShare struct {
 	Value ring.Poly
@@ -246,6 +253,17 @@ func GetSmallestLargest(el0, el1 *Ciphertext) (smallest, largest *Ciphertext, sa
 		return el0, el1, false
 	}
 	return el0, el1, true
+}
+
+// Reconstruct reconstructs the degree 1 element of the batch of ciphertexts.
+func (scb *SeededCiphertextBatch) Reconstruct(params Parameters) {
+	prng, _ := utils.NewKeyedPRNG(scb.Seed)
+	ringQ := params.RingQ()
+	sampler := ring.NewUniformSampler(prng, ringQ)
+	for _, ct := range scb.Value {
+		ct.Value[1] = ringQ.NewPoly()
+		sampler.Read(ct.Value[1])
+	}
 }
 
 // PopulateElementRandom creates a new rlwe.Element with random coefficients

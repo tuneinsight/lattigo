@@ -12,7 +12,8 @@ import (
 type Encryptor interface {
 	Encrypt(pt *Plaintext, ct interface{})
 	EncryptFromCRP(pt *Plaintext, crp *ring.Poly, ct *Ciphertext)
-	EncryptZeroSymetricQPNTT(levelQ, levelP int, sk ringqp.Poly, sample, montgomery bool, ct [2]ringqp.Poly)
+	EncryptZeroSymetricQPNTT(levelQ, levelP int, sk ringqp.Poly, sampler *ringqp.UniformSampler, montgomery bool, ct [2]ringqp.Poly)
+	EncryptSeeded(pt *Plaintext, sampler ringqp.UniformSampler, ct interface{})
 	ShallowCopy() Encryptor
 	WithKey(key interface{}) Encryptor
 }
@@ -135,6 +136,11 @@ func (enc *pkEncryptor) EncryptFromCRP(pt *Plaintext, crp *ring.Poly, ct *Cipher
 	panic("Cannot encrypt with CRP using a public-key")
 }
 
+// EncryptSeeded is not defined when using a public-key. This method will panic.
+func (enc *pkEncryptor) EncryptSeeded(pt *Plaintext, sampler ringqp.UniformSampler, ct interface{}) {
+	panic("Cannot encrypt seeded using a public-key")
+}
+
 // Encrypt encrypts the input plaintext using the stored public-key and writes the result on ct.
 // The encryption procedure first samples an new encryption of zero under the public-key and
 // then adds the plaintext.
@@ -143,12 +149,26 @@ func (enc *pkEncryptor) EncryptFromCRP(pt *Plaintext, crp *ring.Poly, ct *Cipher
 // sampled in Q.
 // The method accepts only *rlwe.Ciphertext or *rgsw.Ciphertext as input and will panic otherwise.
 func (enc *skEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
+	enc.encrypt(pt, &enc.uniformSampler, ct)
+}
+
+// EncryptSeeded encrypts a slice of plaintext on a pre-allocated slice of cts, using a seed
+// to generate a pseudo random public random polynomial.
+// The pre-allocated ciphertexts can either have their degree 1 element allocated or nil.
+// If the degree 1 element is allocated, then the encryptor will populate this element
+// with the pseudo-random public polynomial.
+// If the degree 1 element is nil, then the encryptor will only mask the degree 0 element
+// using an ephemeral pseudo-random polynomial, which can later be reconstruceted using the seed.
+func (enc *skEncryptor) EncryptSeeded(pt *Plaintext, sampler ringqp.UniformSampler, ct interface{}) {
+	enc.encrypt(pt, &sampler, ct)
+}
+
+func (enc *skEncryptor) encrypt(pt *Plaintext, sampler *ringqp.UniformSampler, ct interface{}) {
 	switch el := ct.(type) {
 	case *Ciphertext:
-		enc.uniformSampler.ReadLvl(utils.MinInt(pt.Level(), el.Level()), -1, ringqp.Poly{Q: el.Value[1]})
-		enc.encryptRLWE(pt, el)
+		enc.encryptRLWE(pt, &enc.uniformSampler, el)
 	case *rgsw.Ciphertext:
-		enc.encryptRGSW(pt, el)
+		enc.encryptRGSW(pt, &enc.uniformSampler, el)
 	default:
 		panic("input ciphertext type unsuported (must be *rlwe.Ciphertext or *rgsw.Ciphertext)")
 	}
@@ -158,7 +178,7 @@ func (enc *skEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
 // The encryption algorithm depends on the implementor.
 func (enc *skEncryptor) EncryptFromCRP(pt *Plaintext, crp *ring.Poly, ct *Ciphertext) {
 	ring.CopyValues(crp, ct.Value[1])
-	enc.encryptRLWE(pt, ct)
+	enc.encryptRLWE(pt, nil, ct)
 }
 
 func (enc *pkEncryptor) encryptRLWE(plaintext *Plaintext, ciphertext *Ciphertext) {
@@ -310,57 +330,77 @@ func (enc *pkEncryptor) encryptNoPRLWE(plaintext *Plaintext, ciphertext *Ciphert
 	ciphertext.Value[1].Coeffs = ciphertext.Value[1].Coeffs[:levelQ+1]
 }
 
-func (enc *skEncryptor) encryptRLWE(plaintext *Plaintext, ciphertext *Ciphertext) {
+func (enc *skEncryptor) encryptRLWE(pt *Plaintext, sampler *ringqp.UniformSampler, ct *Ciphertext) {
+
+	var c0 *ring.Poly
+
+	if ct.Degree() == 0 || ct.Value[1] == nil {
+		c0 = enc.buffQ[1]
+	} else {
+		c0 = ct.Value[1]
+	}
+
+	if sampler == nil {
+		enc.uniformSampler.ReadLvl(utils.MinInt(pt.Level(), ct.Level()), -1, ringqp.Poly{Q: c0})
+	} else {
+		sampler.ReadLvl(utils.MinInt(pt.Level(), ct.Level()), -1, ringqp.Poly{Q: c0})
+	}
 
 	ringQ := enc.params.RingQ()
 
-	levelQ := utils.MinInt(plaintext.Level(), ciphertext.Level())
+	levelQ := utils.MinInt(pt.Level(), ct.Level())
 
 	buffQ0 := enc.buffQ[0]
 
-	ciphertextNTT := ciphertext.Value[0].IsNTT
+	ctNTT := ct.Value[0].IsNTT
 
-	ringQ.MulCoeffsMontgomeryLvl(levelQ, ciphertext.Value[1], enc.sk.Value.Q, ciphertext.Value[0])
-	ringQ.NegLvl(levelQ, ciphertext.Value[0], ciphertext.Value[0])
+	ringQ.MulCoeffsMontgomeryLvl(levelQ, c0, enc.sk.Value.Q, ct.Value[0])
+	ringQ.NegLvl(levelQ, ct.Value[0], ct.Value[0])
 
-	if ciphertextNTT {
+	if ctNTT {
 
 		enc.gaussianSampler.ReadLvl(levelQ, buffQ0)
 
-		if plaintext != nil {
-			if plaintext.Value.IsNTT {
+		if pt != nil {
+			if pt.Value.IsNTT {
 				ringQ.NTTLvl(levelQ, buffQ0, buffQ0)
-				ringQ.AddLvl(levelQ, ciphertext.Value[0], buffQ0, ciphertext.Value[0])
-				ringQ.AddLvl(levelQ, ciphertext.Value[0], plaintext.Value, ciphertext.Value[0])
+				ringQ.AddLvl(levelQ, ct.Value[0], buffQ0, ct.Value[0])
+				ringQ.AddLvl(levelQ, ct.Value[0], pt.Value, ct.Value[0])
 			} else {
-				ringQ.AddLvl(levelQ, buffQ0, plaintext.Value, buffQ0)
+				ringQ.AddLvl(levelQ, buffQ0, pt.Value, buffQ0)
 				ringQ.NTTLvl(levelQ, buffQ0, buffQ0)
-				ringQ.AddLvl(levelQ, ciphertext.Value[0], buffQ0, ciphertext.Value[0])
+				ringQ.AddLvl(levelQ, ct.Value[0], buffQ0, ct.Value[0])
 			}
 		}
 	} else {
-		if plaintext != nil {
-			if plaintext.Value.IsNTT {
-				ringQ.AddLvl(levelQ, ciphertext.Value[0], plaintext.Value, ciphertext.Value[0])
-				ringQ.InvNTTLvl(levelQ, ciphertext.Value[0], ciphertext.Value[0])
+		if pt != nil {
+			if pt.Value.IsNTT {
+				ringQ.AddLvl(levelQ, ct.Value[0], pt.Value, ct.Value[0])
+				ringQ.InvNTTLvl(levelQ, ct.Value[0], ct.Value[0])
 
 			} else {
-				ringQ.InvNTTLvl(levelQ, ciphertext.Value[0], ciphertext.Value[0])
-				ringQ.AddLvl(levelQ, ciphertext.Value[0], plaintext.Value, ciphertext.Value[0])
+				ringQ.InvNTTLvl(levelQ, ct.Value[0], ct.Value[0])
+				ringQ.AddLvl(levelQ, ct.Value[0], pt.Value, ct.Value[0])
 			}
 		}
 
-		enc.gaussianSampler.ReadAndAddLvl(ciphertext.Level(), ciphertext.Value[0])
+		enc.gaussianSampler.ReadAndAddLvl(ct.Level(), ct.Value[0])
 
-		ringQ.InvNTTLvl(levelQ, ciphertext.Value[1], ciphertext.Value[1])
+		if c0 != enc.buffQ[1] {
+			ringQ.InvNTTLvl(levelQ, ct.Value[1], ct.Value[1])
+		}
+
 	}
 
-	ciphertext.Value[1].IsNTT = ciphertext.Value[0].IsNTT
-	ciphertext.Value[0].Coeffs = ciphertext.Value[0].Coeffs[:levelQ+1]
-	ciphertext.Value[1].Coeffs = ciphertext.Value[1].Coeffs[:levelQ+1]
+	if c0 != enc.buffQ[1] {
+		ct.Value[1].IsNTT = ct.Value[0].IsNTT
+		ct.Value[1].Coeffs = ct.Value[1].Coeffs[:levelQ+1]
+	}
+
+	ct.Value[0].Coeffs = ct.Value[0].Coeffs[:levelQ+1]
 }
 
-func (enc *skEncryptor) encryptRGSW(pt *Plaintext, ct *rgsw.Ciphertext) {
+func (enc *skEncryptor) encryptRGSW(pt *Plaintext, sampler *ringqp.UniformSampler, ct *rgsw.Ciphertext) {
 
 	params := enc.params
 	ringQ := params.RingQ()
@@ -372,8 +412,8 @@ func (enc *skEncryptor) encryptRGSW(pt *Plaintext, ct *rgsw.Ciphertext) {
 
 	for j := 0; j < decompBIT; j++ {
 		for i := 0; i < decompRNS; i++ {
-			enc.EncryptZeroSymetricQPNTT(levelQ, levelP, enc.sk.Value, true, true, ct.Value[0].Value[i][j])
-			enc.EncryptZeroSymetricQPNTT(levelQ, levelP, enc.sk.Value, true, true, ct.Value[1].Value[i][j])
+			enc.EncryptZeroSymetricQPNTT(levelQ, levelP, enc.sk.Value, sampler, true, ct.Value[0].Value[i][j])
+			enc.EncryptZeroSymetricQPNTT(levelQ, levelP, enc.sk.Value, sampler, true, ct.Value[1].Value[i][j])
 		}
 	}
 
@@ -392,7 +432,12 @@ func (enc *skEncryptor) encryptRGSW(pt *Plaintext, ct *rgsw.Ciphertext) {
 }
 
 // EncryptZeroSymetricQPNTT generates en encryption of zero under sk.
-func (enc *encryptor) EncryptZeroSymetricQPNTT(levelQ, levelP int, sk ringqp.Poly, sample, montgomery bool, ct [2]ringqp.Poly) {
+// levelQ : level of the modulus Q
+// levelP : level of the modulus P
+// sk     : secret key
+// sampler: uniform sampler, if `sampler` is nil, then will sample using the internal sampler.
+// montgomery: returns the result in the Montgomery domain.
+func (enc *encryptor) EncryptZeroSymetricQPNTT(levelQ, levelP int, sk ringqp.Poly, sampler *ringqp.UniformSampler, montgomery bool, ct [2]ringqp.Poly) {
 
 	ringQP := enc.params.RingQP()
 
@@ -411,8 +456,12 @@ func (enc *encryptor) EncryptZeroSymetricQPNTT(levelQ, levelP int, sk ringqp.Pol
 		ringQP.MFormLvl(levelQ, levelP, ct[0], ct[0])
 	}
 
-	// (e, a)
-	enc.uniformSampler.ReadLvl(levelQ, levelP, ct[1])
+	if sampler == nil {
+		enc.uniformSampler.ReadLvl(levelQ, levelP, ct[1])
+	} else {
+		// (e, a)
+		sampler.ReadLvl(levelQ, levelP, ct[1])
+	}
 
 	// (-a*sk + e, a)
 	ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, ct[1], sk, ct[0])

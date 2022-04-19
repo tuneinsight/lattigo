@@ -422,7 +422,7 @@ func (enc *skEncryptor) encryptRGSW(pt *Plaintext, sampler *ringqp.UniformSample
 		if !pt.Value.IsNTT {
 			ringQ.NTTLvl(levelQ, enc.buffQP.Q, enc.buffQP.Q)
 		}
-		gadget.AddPolyToGadgetMatrix(
+		gadget.AddPolyToCiphertext(
 			enc.buffQP.Q,
 			[]gadget.Ciphertext{ct.Value[0], ct.Value[1]},
 			*params.RingQP(),

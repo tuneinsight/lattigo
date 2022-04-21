@@ -96,8 +96,8 @@ func (ct *Ciphertext) GetDataLen(WithMetadata bool) (dataLen int) {
 
 	for i := range ct.Value {
 		for _, el := range ct.Value[i] {
-			dataLen += el[0].GetDataLen(WithMetadata)
-			dataLen += el[1].GetDataLen(WithMetadata)
+			dataLen += el[0].GetDataLen64(WithMetadata)
+			dataLen += el[1].GetDataLen64(WithMetadata)
 		}
 	}
 
@@ -137,12 +137,12 @@ func (ct *Ciphertext) Encode(pointer int, data []byte) (int, error) {
 	for i := range ct.Value {
 		for _, el := range ct.Value[i] {
 
-			if inc, err = el[0].WriteTo(data[pointer:]); err != nil {
+			if inc, err = el[0].WriteTo64(data[pointer:]); err != nil {
 				return pointer, err
 			}
 			pointer += inc
 
-			if inc, err = el[1].WriteTo(data[pointer:]); err != nil {
+			if inc, err = el[1].WriteTo64(data[pointer:]); err != nil {
 				return pointer, err
 			}
 			pointer += inc
@@ -170,12 +170,12 @@ func (ct *Ciphertext) Decode(data []byte) (pointer int, err error) {
 
 		for j := range ct.Value[i] {
 
-			if inc, err = ct.Value[i][j][0].DecodePolyNew(data[pointer:]); err != nil {
+			if inc, err = ct.Value[i][j][0].DecodePoly64New(data[pointer:]); err != nil {
 				return
 			}
 			pointer += inc
 
-			if inc, err = ct.Value[i][j][1].DecodePolyNew(data[pointer:]); err != nil {
+			if inc, err = ct.Value[i][j][1].DecodePoly64New(data[pointer:]); err != nil {
 				return
 			}
 			pointer += inc

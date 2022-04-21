@@ -221,7 +221,7 @@ func (rtg *RTGProtocol) GenRotationKey(share *RTGShare, crp RTGCRP, rotKey *rlwe
 
 // MarshalBinary encode the target element on a slice of byte.
 func (share *RTGShare) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, 2+share.Value[0][0].GetDataLen(true)*len(share.Value)*len(share.Value[0]))
+	data = make([]byte, 2+share.Value[0][0].GetDataLen64(true)*len(share.Value)*len(share.Value[0]))
 	if len(share.Value) > 0xFF {
 		return []byte{}, errors.New("RKGShare : uint8 overflow on length")
 	}
@@ -231,7 +231,7 @@ func (share *RTGShare) MarshalBinary() (data []byte, err error) {
 	var inc int
 	for i := range share.Value {
 		for _, el := range share.Value[i] {
-			if inc, err = el.WriteTo(data[ptr:]); err != nil {
+			if inc, err = el.WriteTo64(data[ptr:]); err != nil {
 				return []byte{}, err
 			}
 			ptr += inc
@@ -249,7 +249,7 @@ func (share *RTGShare) UnmarshalBinary(data []byte) (err error) {
 	for i := range share.Value {
 		share.Value[i] = make([]ringqp.Poly, data[1])
 		for j := range share.Value[i] {
-			if inc, err = share.Value[i][j].DecodePolyNew(data[ptr:]); err != nil {
+			if inc, err = share.Value[i][j].DecodePoly64New(data[ptr:]); err != nil {
 				return err
 			}
 			ptr += inc

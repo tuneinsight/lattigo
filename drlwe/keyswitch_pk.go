@@ -192,14 +192,14 @@ func (pcks *PCKSProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined *PCKSShare, 
 
 // MarshalBinary encodes a PCKS share on a slice of bytes.
 func (share *PCKSShare) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, share.Value[0].GetDataLen(true)+share.Value[1].GetDataLen(true))
+	data = make([]byte, share.Value[0].GetDataLen64(true)+share.Value[1].GetDataLen64(true))
 	var inc, pt int
-	if inc, err = share.Value[0].WriteTo(data[pt:]); err != nil {
+	if inc, err = share.Value[0].WriteTo64(data[pt:]); err != nil {
 		return nil, err
 	}
 	pt += inc
 
-	if _, err = share.Value[1].WriteTo(data[pt:]); err != nil {
+	if _, err = share.Value[1].WriteTo64(data[pt:]); err != nil {
 		return nil, err
 	}
 	return
@@ -209,13 +209,13 @@ func (share *PCKSShare) MarshalBinary() (data []byte, err error) {
 func (share *PCKSShare) UnmarshalBinary(data []byte) (err error) {
 	var pt, inc int
 	share.Value[0] = new(ring.Poly)
-	if inc, err = share.Value[0].DecodePolyNew(data[pt:]); err != nil {
+	if inc, err = share.Value[0].DecodePoly64New(data[pt:]); err != nil {
 		return
 	}
 	pt += inc
 
 	share.Value[1] = new(ring.Poly)
-	if _, err = share.Value[1].DecodePolyNew(data[pt:]); err != nil {
+	if _, err = share.Value[1].DecodePoly64New(data[pt:]); err != nil {
 		return
 	}
 	return

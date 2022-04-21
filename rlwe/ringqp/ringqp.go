@@ -371,23 +371,25 @@ func (p *Poly) Copy(polFrom Poly) {
 	}
 }
 
-// GetDataLen returns the length in byte of the target Poly
-func (p *Poly) GetDataLen(WithMetadata bool) (dataLen int) {
+// GetDataLen64 returns the length in byte of the target Poly.
+// Assumes that each coefficient uses 8 bytes.
+func (p *Poly) GetDataLen64(WithMetadata bool) (dataLen int) {
 	if WithMetadata {
 		dataLen = 2
 	}
 	if p.Q != nil {
-		dataLen += p.Q.GetDataLen(WithMetadata)
+		dataLen += p.Q.GetDataLen64(WithMetadata)
 	}
 	if p.P != nil {
-		dataLen += p.P.GetDataLen(WithMetadata)
+		dataLen += p.P.GetDataLen64(WithMetadata)
 	}
 
 	return
 }
 
-// WriteTo writes a Poly on the inpute data.
-func (p *Poly) WriteTo(data []byte) (pt int, err error) {
+// WriteTo64 writes a Poly on the inpute data.
+// Encodes each coefficient on 8 bytes.
+func (p *Poly) WriteTo64(data []byte) (pt int, err error) {
 	var inc int
 
 	if p.Q != nil {
@@ -401,14 +403,14 @@ func (p *Poly) WriteTo(data []byte) (pt int, err error) {
 	pt = 2
 
 	if data[0] == 1 {
-		if inc, err = p.Q.WriteTo(data[pt:]); err != nil {
+		if inc, err = p.Q.WriteTo64(data[pt:]); err != nil {
 			return
 		}
 		pt += inc
 	}
 
 	if data[1] == 1 {
-		if inc, err = p.P.WriteTo(data[pt:]); err != nil {
+		if inc, err = p.P.WriteTo64(data[pt:]); err != nil {
 			return
 		}
 		pt += inc
@@ -417,23 +419,55 @@ func (p *Poly) WriteTo(data []byte) (pt int, err error) {
 	return
 }
 
-// DecodePolyNew decodes the input bytes on the target Poly.
-func (p *Poly) DecodePolyNew(data []byte) (pt int, err error) {
+// DecodePoly64 decodes the input bytes on the target Poly.
+// Writes on pre-allocated coefficients.
+// Assumes that each coefficient is encoded on 8 bytes.
+func (p *Poly) DecodePoly64(data []byte) (pt int, err error) {
 
 	var inc int
 	pt = 2
 
 	if data[0] == 1 {
-		p.Q = new(ring.Poly)
-		if inc, err = p.Q.DecodePolyNew(data[pt:]); err != nil {
+		if inc, err = p.Q.DecodePoly64(data[pt:]); err != nil {
 			return
 		}
 		pt += inc
 	}
 
 	if data[1] == 1 {
-		p.P = new(ring.Poly)
-		if inc, err = p.P.DecodePolyNew(data[pt:]); err != nil {
+		if inc, err = p.P.DecodePoly64(data[pt:]); err != nil {
+			return
+		}
+		pt += inc
+	}
+
+	return
+}
+
+// DecodePoly64New decodes the input bytes on the target Poly.
+// Allocates the coefficients.
+// Assumes that each coefficient is encoded on 8 bytes.
+func (p *Poly) DecodePoly64New(data []byte) (pt int, err error) {
+
+	var inc int
+	pt = 2
+
+	if data[0] == 1 {
+		if p.Q == nil{
+			p.Q = new(ring.Poly)
+		}
+		
+		if inc, err = p.Q.DecodePoly64New(data[pt:]); err != nil {
+			return
+		}
+		pt += inc
+	}
+
+	if data[1] == 1 {
+		if p.P == nil{
+			p.P = new(ring.Poly)
+		}
+		if inc, err = p.P.DecodePoly64New(data[pt:]); err != nil {
 			return
 		}
 		pt += inc

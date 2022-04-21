@@ -311,7 +311,7 @@ func (ekg *RKGProtocol) GenRelinearizationKey(round1 *RKGShare, round2 *RKGShare
 // MarshalBinary encodes the target element on a slice of bytes.
 func (share *RKGShare) MarshalBinary() ([]byte, error) {
 	//we have modulus * bitLog * Len of 1 ring rings
-	data := make([]byte, 2+2*share.Value[0][0][0].GetDataLen(true)*len(share.Value)*len(share.Value[0]))
+	data := make([]byte, 2+2*share.Value[0][0][0].GetDataLen64(true)*len(share.Value)*len(share.Value[0]))
 	if len(share.Value) > 0xFF {
 		return []byte{}, errors.New("RKGShare : uint8 overflow on length")
 	}
@@ -331,12 +331,12 @@ func (share *RKGShare) MarshalBinary() ([]byte, error) {
 	for i := range share.Value {
 		for _, el := range share.Value[i] {
 
-			if inc, err = el[0].WriteTo(data[ptr:]); err != nil {
+			if inc, err = el[0].WriteTo64(data[ptr:]); err != nil {
 				return []byte{}, err
 			}
 			ptr += inc
 
-			if inc, err = el[1].WriteTo(data[ptr:]); err != nil {
+			if inc, err = el[1].WriteTo64(data[ptr:]); err != nil {
 				return []byte{}, err
 			}
 			ptr += inc
@@ -355,12 +355,12 @@ func (share *RKGShare) UnmarshalBinary(data []byte) (err error) {
 		share.Value[i] = make([][2]ringqp.Poly, data[1])
 		for j := range share.Value[i] {
 
-			if inc, err = share.Value[i][j][0].DecodePolyNew(data[ptr:]); err != nil {
+			if inc, err = share.Value[i][j][0].DecodePoly64New(data[ptr:]); err != nil {
 				return err
 			}
 			ptr += inc
 
-			if inc, err = share.Value[i][j][1].DecodePolyNew(data[ptr:]); err != nil {
+			if inc, err = share.Value[i][j][1].DecodePoly64New(data[ptr:]); err != nil {
 				return err
 			}
 			ptr += inc

@@ -16,7 +16,7 @@ func (ciphertext *Ciphertext) GetDataLen(WithMetaData bool) (dataLen int) {
 	}
 
 	for _, el := range ciphertext.Value {
-		dataLen += el.GetDataLen(WithMetaData)
+		dataLen += el.GetDataLen64(WithMetaData)
 	}
 
 	return dataLen
@@ -36,7 +36,7 @@ func (ciphertext *Ciphertext) MarshalBinary() (data []byte, err error) {
 
 	for _, el := range ciphertext.Value {
 
-		if inc, err = el.WriteTo(data[pointer:]); err != nil {
+		if inc, err = el.WriteTo64(data[pointer:]); err != nil {
 			return nil, err
 		}
 
@@ -61,7 +61,7 @@ func (ciphertext *Ciphertext) UnmarshalBinary(data []byte) (err error) {
 
 		ciphertext.Value[i] = new(ring.Poly)
 
-		if inc, err = ciphertext.Value[i].DecodePolyNew(data[pointer:]); err != nil {
+		if inc, err = ciphertext.Value[i].DecodePoly64New(data[pointer:]); err != nil {
 			return err
 		}
 
@@ -112,7 +112,7 @@ func (ct *SeededCiphertextBatch) MarshalBinary() (data []byte, err error) {
 
 		for _, el := range ciphertext.Value {
 
-			if inc, err = el.WriteTo(data[ptr:]); err != nil {
+			if inc, err = el.WriteTo64(data[ptr:]); err != nil {
 				return nil, err
 			}
 
@@ -148,7 +148,7 @@ func (ct *SeededCiphertextBatch) UnmarshalBinary(data []byte) (err error) {
 
 		for i := range ciphertext.Value {
 			ciphertext.Value[i] = new(ring.Poly)
-			if inc, err = ciphertext.Value[i].DecodePolyNew(data[ptr:]); err != nil {
+			if inc, err = ciphertext.Value[i].DecodePoly64New(data[ptr:]); err != nil {
 				return err
 			}
 
@@ -165,15 +165,16 @@ func (ct *SeededCiphertextBatch) UnmarshalBinary(data []byte) (err error) {
 	return
 }
 
-// GetDataLen returns the length in bytes of the target SecretKey.
-func (sk *SecretKey) GetDataLen(WithMetadata bool) (dataLen int) {
-	return sk.Value.GetDataLen(WithMetadata)
+// GetDataLen64 returns the length in bytes of the target SecretKey.
+// Assumes that each coefficient uses 8 bytes.
+func (sk *SecretKey) GetDataLen64(WithMetadata bool) (dataLen int) {
+	return sk.Value.GetDataLen64(WithMetadata)
 }
 
 // MarshalBinary encodes a secret key in a byte slice.
 func (sk *SecretKey) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, sk.GetDataLen(true))
-	if _, err = sk.Value.WriteTo(data); err != nil {
+	data = make([]byte, sk.GetDataLen64(true))
+	if _, err = sk.Value.WriteTo64(data); err != nil {
 		return nil, err
 	}
 	return
@@ -181,25 +182,25 @@ func (sk *SecretKey) MarshalBinary() (data []byte, err error) {
 
 // UnmarshalBinary decodes a previously marshaled SecretKey in the target SecretKey.
 func (sk *SecretKey) UnmarshalBinary(data []byte) (err error) {
-	_, err = sk.Value.DecodePolyNew(data)
+	_, err = sk.Value.DecodePoly64New(data)
 	return
 }
 
-// GetDataLen returns the length in bytes of the target PublicKey.
-func (pk *PublicKey) GetDataLen(WithMetadata bool) (dataLen int) {
-	return pk.Value[0].GetDataLen(WithMetadata) + pk.Value[1].GetDataLen(WithMetadata)
+// GetDataLen64 returns the length in bytes of the target PublicKey.
+func (pk *PublicKey) GetDataLen64(WithMetadata bool) (dataLen int) {
+	return pk.Value[0].GetDataLen64(WithMetadata) + pk.Value[1].GetDataLen64(WithMetadata)
 }
 
 // MarshalBinary encodes a PublicKey in a byte slice.
 func (pk *PublicKey) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, pk.GetDataLen(true))
+	data = make([]byte, pk.GetDataLen64(true))
 	var inc, pt int
-	if inc, err = pk.Value[0].WriteTo(data[pt:]); err != nil {
+	if inc, err = pk.Value[0].WriteTo64(data[pt:]); err != nil {
 		return nil, err
 	}
 	pt += inc
 
-	if _, err = pk.Value[1].WriteTo(data[pt:]); err != nil {
+	if _, err = pk.Value[1].WriteTo64(data[pt:]); err != nil {
 		return nil, err
 	}
 
@@ -210,12 +211,12 @@ func (pk *PublicKey) MarshalBinary() (data []byte, err error) {
 func (pk *PublicKey) UnmarshalBinary(data []byte) (err error) {
 
 	var pt, inc int
-	if inc, err = pk.Value[0].DecodePolyNew(data[pt:]); err != nil {
+	if inc, err = pk.Value[0].DecodePoly64New(data[pt:]); err != nil {
 		return
 	}
 	pt += inc
 
-	if _, err = pk.Value[1].DecodePolyNew(data[pt:]); err != nil {
+	if _, err = pk.Value[1].DecodePoly64New(data[pt:]); err != nil {
 		return
 	}
 

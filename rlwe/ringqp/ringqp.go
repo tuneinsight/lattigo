@@ -453,10 +453,10 @@ func (p *Poly) DecodePoly64New(data []byte) (pt int, err error) {
 	pt = 2
 
 	if data[0] == 1 {
-		if p.Q == nil{
+		if p.Q == nil {
 			p.Q = new(ring.Poly)
 		}
-		
+
 		if inc, err = p.Q.DecodePoly64New(data[pt:]); err != nil {
 			return
 		}
@@ -464,7 +464,7 @@ func (p *Poly) DecodePoly64New(data []byte) (pt int, err error) {
 	}
 
 	if data[1] == 1 {
-		if p.P == nil{
+		if p.P == nil {
 			p.P = new(ring.Poly)
 		}
 		if inc, err = p.P.DecodePoly64New(data[pt:]); err != nil {

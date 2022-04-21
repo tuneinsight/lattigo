@@ -1,7 +1,6 @@
 package gadget
 
 import (
-	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 )
 
@@ -171,13 +170,11 @@ func (ct *Ciphertext) Decode(data []byte) (pointer int, err error) {
 
 		for j := range ct.Value[i] {
 
-			ct.Value[i][j][0].Q = new(ring.Poly)
 			if inc, err = ct.Value[i][j][0].DecodePolyNew(data[pointer:]); err != nil {
 				return
 			}
 			pointer += inc
 
-			ct.Value[i][j][0].P = new(ring.Poly)
 			if inc, err = ct.Value[i][j][1].DecodePolyNew(data[pointer:]); err != nil {
 				return
 			}

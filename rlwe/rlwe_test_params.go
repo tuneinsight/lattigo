@@ -6,7 +6,7 @@ var (
 	TestPN10QP27 = ParametersLiteral{
 		LogN:     10,
 		Q:        []uint64{0x7fff801}, // 27 bits
-		P:        []uint64{0x3001},
+		P:        []uint64{},
 		Sigma:    DefaultSigma,
 		LogBase2: 2,
 	}
@@ -17,7 +17,7 @@ var (
 		Q:        []uint64{0x15400000001}, // 40 bits
 		P:        []uint64{0x3001},        // 14 bits
 		Sigma:    DefaultSigma,
-		LogBase2: 16,
+		LogBase2: 14,
 	}
 	// TestPN12QP109 is a set of default parameters with logN=12 and logQP=109
 	TestPN12QP109 = ParametersLiteral{

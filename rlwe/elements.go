@@ -38,13 +38,13 @@ type AdditiveShareBigint struct {
 // NewAdditiveShare instantiate a new additive share struct for the ring defined
 // by the given parameters at maximum level.
 func NewAdditiveShare(params Parameters) *AdditiveShare {
-	return &AdditiveShare{Value: *ring.NewPoly(params.N(), 1)}
+	return &AdditiveShare{Value: *ring.NewPoly(params.N(), 0)}
 }
 
 // NewAdditiveShareAtLevel instantiate a new additive share struct for the ring defined
 // by the given parameters at level `level`.
 func NewAdditiveShareAtLevel(params Parameters, level int) *AdditiveShare {
-	return &AdditiveShare{Value: *ring.NewPoly(params.N(), level+1)}
+	return &AdditiveShare{Value: *ring.NewPoly(params.N(), level)}
 }
 
 // NewAdditiveShareBigint instantiate a new additive share struct composed of "n" big.Int elements
@@ -58,7 +58,7 @@ func NewAdditiveShareBigint(params Parameters, n int) *AdditiveShareBigint {
 
 // NewPlaintext creates a new Plaintext at level `level` from the parameters.
 func NewPlaintext(params Parameters, level int) *Plaintext {
-	return &Plaintext{Value: ring.NewPoly(params.N(), level+1)}
+	return &Plaintext{Value: ring.NewPoly(params.N(), level)}
 }
 
 // Degree returns the degree of the target element.
@@ -89,7 +89,7 @@ func NewCiphertext(params Parameters, degree, level int) *Ciphertext {
 	el := new(Ciphertext)
 	el.Value = make([]*ring.Poly, degree+1)
 	for i := 0; i < degree+1; i++ {
-		el.Value[i] = ring.NewPoly(params.N(), level+1)
+		el.Value[i] = ring.NewPoly(params.N(), level)
 	}
 	return el
 }
@@ -99,7 +99,7 @@ func NewCiphertextNTT(params Parameters, degree, level int) *Ciphertext {
 	el := new(Ciphertext)
 	el.Value = make([]*ring.Poly, degree+1)
 	for i := 0; i < degree+1; i++ {
-		el.Value[i] = ring.NewPoly(params.N(), level+1)
+		el.Value[i] = ring.NewPoly(params.N(), level)
 		el.Value[i].IsNTT = true
 	}
 	return el

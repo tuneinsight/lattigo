@@ -112,8 +112,8 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, s
 	ringQ := rtg.params.RingQ()
 	ringQP := rtg.params.RingQP()
 
-	levelQ := sk.Value.Q.Level()
-	levelP := sk.Value.P.Level()
+	levelQ := sk.Value.LevelQ()
+	levelP := sk.Value.LevelP()
 
 	hasModulusP := levelP > -1
 

@@ -131,8 +131,8 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp RKGCRP, ephSkOu
 	ringQ := ekg.params.RingQ()
 	ringQP := ekg.params.RingQP()
 
-	levelQ := sk.Value.Q.Level()
-	levelP := sk.Value.P.Level()
+	levelQ := sk.Value.LevelQ()
+	levelP := sk.Value.LevelP()
 
 	hasModulusP := levelP > -1
 

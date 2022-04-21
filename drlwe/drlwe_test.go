@@ -538,13 +538,13 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 		}
 
 		//comparing the results
-		require.Equal(t, KeyGenShareBefore.Value.Q.Degree(), KeyGenShareAfter.Value.Q.Degree())
-		require.Equal(t, KeyGenShareBefore.Value.Q.LenModuli(), KeyGenShareAfter.Value.Q.LenModuli())
+		require.Equal(t, KeyGenShareBefore.Value.Q.N(), KeyGenShareAfter.Value.Q.N())
+		require.Equal(t, KeyGenShareBefore.Value.Q.Level(), KeyGenShareAfter.Value.Q.Level())
 		require.Equal(t, KeyGenShareAfter.Value.Q.Coeffs, KeyGenShareBefore.Value.Q.Coeffs)
 
 		if params.RingP() != nil {
-			require.Equal(t, KeyGenShareBefore.Value.P.Degree(), KeyGenShareAfter.Value.P.Degree())
-			require.Equal(t, KeyGenShareBefore.Value.P.LenModuli(), KeyGenShareAfter.Value.P.LenModuli())
+			require.Equal(t, KeyGenShareBefore.Value.P.N(), KeyGenShareAfter.Value.P.N())
+			require.Equal(t, KeyGenShareBefore.Value.P.Level(), KeyGenShareAfter.Value.P.Level())
 			require.Equal(t, KeyGenShareAfter.Value.P.Coeffs, KeyGenShareBefore.Value.P.Coeffs)
 		}
 	})
@@ -564,10 +564,10 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 		err = SwitchShareReceiver.UnmarshalBinary(data)
 		require.NoError(t, err)
 
-		require.Equal(t, SwitchShare.Value[0].Degree(), SwitchShareReceiver.Value[0].Degree())
-		require.Equal(t, SwitchShare.Value[1].Degree(), SwitchShareReceiver.Value[1].Degree())
-		require.Equal(t, SwitchShare.Value[0].LenModuli(), SwitchShareReceiver.Value[0].LenModuli())
-		require.Equal(t, SwitchShare.Value[1].LenModuli(), SwitchShareReceiver.Value[1].LenModuli())
+		require.Equal(t, SwitchShare.Value[0].N(), SwitchShareReceiver.Value[0].N())
+		require.Equal(t, SwitchShare.Value[1].N(), SwitchShareReceiver.Value[1].N())
+		require.Equal(t, SwitchShare.Value[0].Level(), SwitchShareReceiver.Value[0].Level())
+		require.Equal(t, SwitchShare.Value[1].Level(), SwitchShareReceiver.Value[1].Level())
 		require.Equal(t, SwitchShare.Value[0].Coeffs, SwitchShareReceiver.Value[0].Coeffs)
 		require.Equal(t, SwitchShare.Value[1].Coeffs, SwitchShareReceiver.Value[1].Coeffs)
 	})
@@ -587,8 +587,8 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 
 		//now compare both shares.
 
-		require.Equal(t, cksshare.Value.Degree(), cksshareAfter.Value.Degree())
-		require.Equal(t, cksshare.Value.LenModuli(), cksshareAfter.Value.LenModuli())
+		require.Equal(t, cksshare.Value.N(), cksshareAfter.Value.N())
+		require.Equal(t, cksshare.Value.Level(), cksshareAfter.Value.Level())
 
 		require.Equal(t, cksshare.Value.Coeffs, cksshareAfter.Value.Coeffs)
 	})

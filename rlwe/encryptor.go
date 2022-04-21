@@ -524,12 +524,12 @@ func (enc *encryptor) WithKey(key interface{}) Encryptor {
 func (enc *encryptor) setKey(key interface{}) Encryptor {
 	switch key := key.(type) {
 	case *PublicKey:
-		if key.Value[0].Q.Degree() != enc.params.N() || key.Value[1].Q.Degree() != enc.params.N() {
+		if key.Value[0].Q.N() != enc.params.N() || key.Value[1].Q.N() != enc.params.N() {
 			panic("cannot setKey: pk ring degree does not match params ring degree")
 		}
 		return &pkEncryptor{*enc, key}
 	case *SecretKey:
-		if key.Value.Q.Degree() != enc.params.N() {
+		if key.Value.Q.N() != enc.params.N() {
 			panic("cannot setKey: sk ring degree does not match params ring degree")
 		}
 		return &skEncryptor{*enc, key}

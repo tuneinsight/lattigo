@@ -22,7 +22,7 @@ type decryptor struct {
 // NewDecryptor instantiates a new generic RLWE Decryptor.
 func NewDecryptor(params Parameters, sk *SecretKey) Decryptor {
 
-	if sk.Value.Q.Degree() != params.N() {
+	if sk.Value.Q.N() != params.N() {
 		panic("secret_key is invalid for the provided parameters")
 	}
 

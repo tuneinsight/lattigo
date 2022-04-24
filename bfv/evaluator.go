@@ -279,7 +279,7 @@ func (eval *evaluator) MulScalar(ctIn *Ciphertext, scalar uint64, ctOut *Ciphert
 	evaluateInPlaceUnary(el0, elOut, fun)
 }
 
-// MulScalarAndAdd multiplies ctIn by a uint64 scalar adds the result on ctOut.
+// MulScalarAndAdd multiplies ctIn by a uint64 scalar and adds the result on ctOut.
 func (eval *evaluator) MulScalarAndAdd(ctIn *Ciphertext, scalar uint64, ctOut *Ciphertext) {
 	el0, elOut := eval.getElemAndCheckUnary(ctIn, ctOut, ctIn.Degree())
 	fun := func(level int, el, elOut *ring.Poly) { eval.ringQ.MulScalarAndAddLvl(level, el, scalar, elOut) }
@@ -304,12 +304,12 @@ func (eval *evaluator) MulScalarNew(ctIn *Ciphertext, scalar uint64) (ctOut *Cip
 	return
 }
 
-// Rescale divides the ciphertext by the last moduli.
+// Rescale divides the ciphertext by the last modulus.
 func (eval *evaluator) Rescale(ctIn, ctOut *Ciphertext) {
 	eval.RescaleTo(ctIn.Level()-1, ctIn, ctOut)
 }
 
-// RescaleTo divides the ciphertext by the last modulis until it has `level+1` moduli left.
+// RescaleTo divides the ciphertext by the last moduli until it has `level+1` moduli left.
 func (eval *evaluator) RescaleTo(level int, ctIn, ctOut *Ciphertext) {
 
 	if ctIn.Level() < level || ctOut.Level() < ctIn.Level()-level {
@@ -720,7 +720,7 @@ func (eval *evaluator) RotateColumns(ctIn *Ciphertext, k int, ctOut *Ciphertext)
 	}
 }
 
-// permute performs a column rotation on ctIn and returns the result in ctOut
+// permuteLvl performs a column rotation on ctIn and returns the result in ctOut
 func (eval *evaluator) permuteLvl(level int, ctIn *Ciphertext, generator uint64, switchKey *rlwe.SwitchingKey, ctOut *Ciphertext) {
 	eval.SwitchKeysInPlace(level, ctIn.Value[1], switchKey, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
 	eval.ringQ.AddLvl(level, eval.BuffQP[1].Q, ctIn.Value[0], eval.BuffQP[1].Q)
@@ -760,7 +760,7 @@ func (eval *evaluator) RotateRowsNew(ctIn *Ciphertext) (ctOut *Ciphertext) {
 	return
 }
 
-// InnerSum computes the inner sum of ctIn and returns the result in ctOut. It requires a rotation key storing all the left powers of two rotations.
+// InnerSum computes the inner sum of ctIn and returns the result in ctOut. It requires a rotation key that stores all the left powers of two rotations.
 // The resulting vector will be of the form [sum, sum, .., sum, sum].
 func (eval *evaluator) InnerSum(ctIn *Ciphertext, ctOut *Ciphertext) {
 
@@ -834,26 +834,26 @@ func (eval *evaluator) getRingQElem(level int, op Operand) *rlwe.Ciphertext {
 		}
 		return eval.buffPt.El()
 	default:
-		panic(fmt.Errorf("invalid operand type for operation: %T", o))
+		panic(fmt.Errorf("cannot getRingQElem: invalid operand type for operation: %T", o))
 	}
 }
 
 // getElemAndCheckBinary unwraps the elements from the operands and checks that the receiver has sufficiently large degree.
 func (eval *evaluator) getElemAndCheckBinary(ctIn *Ciphertext, op1 Operand, ctOut *Ciphertext, opOutMinDegree int, ensureRingQ bool) (el0, el1, elOut *rlwe.Ciphertext) {
 	if ctIn == nil || op1 == nil || ctOut == nil {
-		panic("ctIn, op1 or ctOut cannot be nil")
+		panic("cannot getElemAndCheckBinary: ctIn, op1 or ctOut cannot be nil")
 	}
 
 	if ctOut.Degree() < opOutMinDegree {
-		panic("ctOut.Degree() degree is too small")
+		panic("cannot getElemAndCheckBinary: ctOut.Degree() degree is too small")
 	}
 
 	if ctIn.Level() != ctOut.Level() {
-		panic("ctIn and ctOut must be at the same level")
+		panic("cannot getElemAndCheckBinary: ctIn and ctOut must be at the same level")
 	}
 
 	if _, isPtRingT := op1.(*PlaintextRingT); !isPtRingT && ctIn.Level() != op1.Level() {
-		panic("ctIn & op1 of type *bfv.Plaintext or *bfv.PlaintextMul must be at the same level")
+		panic("cannot getElemAndCheckBinary: ctIn & op1 of type *bfv.Plaintext or *bfv.PlaintextMul must be at the same level")
 	}
 
 	level := ctIn.Level()
@@ -868,15 +868,15 @@ func (eval *evaluator) getElemAndCheckBinary(ctIn *Ciphertext, op1 Operand, ctOu
 func (eval *evaluator) getElemAndCheckUnary(ctIn, ctOut *Ciphertext, opOutMinDegree int) (el0, elOut *rlwe.Ciphertext) {
 
 	if ctIn == nil || ctOut == nil {
-		panic("ctIn or ctOut cannot be nil")
+		panic("cannot getElemAndCheckUnary: ctIn or ctOut cannot be nil")
 	}
 
 	if ctIn.Level() != ctOut.Level() {
-		panic("ctIn.Level() is not equal to ctOut.Level()")
+		panic("cannot getElemAndCheckUnary: ctIn.Level() is not equal to ctOut.Level()")
 	}
 
 	if ctOut.Degree() < opOutMinDegree {
-		panic("ctOut.Degree() is too small")
+		panic("cannot getElemAndCheckUnary: ctOut.Degree() is too small")
 	}
 
 	return ctIn.El(), ctOut.El()

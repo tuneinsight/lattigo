@@ -15,7 +15,6 @@ type Scaler interface {
 }
 
 // RNSScaler implements the Scaler interface by performing a scaling by t/Q in the RNS domain.
-// This implementation of the Scaler interface is preferred over the SimpleScaler implementation.
 type RNSScaler struct {
 	ringQ, ringT *ring.Ring
 
@@ -32,11 +31,11 @@ type RNSScaler struct {
 	tDividesQ bool
 }
 
-// NewRNSScaler creates a new SimpleScaler from t, the modulus under which the reconstruction is returned, the Ring in which the polynomial to reconstruct is represented.
+// NewRNSScaler creates a new RNSScaler from t, the modulus under which the reconstruction is returned, the Ring in which the polynomial to reconstruct is represented.
 func NewRNSScaler(ringQ *ring.Ring, T uint64) (rnss *RNSScaler) {
 
 	if utils.IsInSliceUint64(T, ringQ.Modulus) && ringQ.Modulus[0] != T {
-		panic("T must be Q[0] if T|Q")
+		panic("cannot NewRNSScaler: T must be Q[0] if T|Q")
 	}
 
 	rnss = new(RNSScaler)
@@ -107,25 +106,25 @@ func (rnss *RNSScaler) DivByQOverTRoundedLvl(level int, p1Q, p2T *ring.Poly) {
 			qInv := T - rnss.qInv[level]
 			qHalfModT := T - rnss.qHalfModT[level]
 
-			// Multiply P_{Q} by t and extend the basis from P_{Q} to t*(P_{Q}||P_{t})
+			// Multiplies P_{Q} by t and extend the basis from P_{Q} to t*(P_{Q}||P_{t})
 			// Since the coefficients of P_{t} are multiplied by t, they are all zero,
 			// hence the basis extension can be omitted
 			ringQ.MulScalarLvl(level, p1Q, T, rnss.buffQ)
 
-			// Center t*P_{Q} around (Q-1)/2 to round instead of floor during the division
+			// Centers t*P_{Q} around (Q-1)/2 to round instead of floor during the division
 			ringQ.AddScalarBigintLvl(level, rnss.buffQ, rnss.qHalf[level], rnss.buffQ)
 
-			// Extend the basis of (t*P_{Q} + (Q-1)/2) to (t*P_{t} + (Q-1)/2)
+			// Extends the basis of (t*P_{Q} + (Q-1)/2) to (t*P_{t} + (Q-1)/2)
 			ring.ModUpExact(rnss.buffQ.Coeffs[:level+1], rnss.buffP.Coeffs, ringQ, ringT, rnss.paramsQP[level])
 
-			// Compute [Q^{-1} * (t*P_{t} - (t*P_{Q} - ((Q-1)/2 mod t)))] mod t which returns round(t/Q * P_{Q}) mod t
+			// Computes [Q^{-1} * (t*P_{t} - (t*P_{Q} - ((Q-1)/2 mod t)))] mod t which returns round(t/Q * P_{Q}) mod t
 			ring.AddScalarNoModAndMulScalarMontgomeryVec(p3tmp, p2tmp, qHalfModT, qInv, T, tInv)
 		}
 	} else {
 		if rnss.tDividesQ {
 			copy(p2T.Coeffs[0], p1Q.Coeffs[0])
 		} else {
-			// In this case lvl = 0 and T < Q. This step has limited precision to 53 bits, however
+			// In this case lvl = 0 and T < Q. This step has a maximum precision of 53 bits, however
 			// since |Q| < 62 bits, and min(logN) = 10, then |<s, e>| > 10 bits, hence there is no
 			// possible case where |T| > 51 bits & lvl = 0 that does not lead to an overflow of
 			// the error when decrypting.
@@ -175,7 +174,7 @@ func ScaleUpTCoprimeWithQVecLvl(level int, ringQ, ringT *ring.Ring, tInvModQi, b
 	}
 }
 
-// ScaleUpTIsQ0VecLvl takes a Poly pIn in ringT, scales its coefficients up by (Q/T) mod Q, and writes the result in a
+// ScaleUpTIsQ0VecLvl takes a Poly pIn in ringT, scales its coefficients up by (Q/T) mod Q, and writes the result on a
 // Poly pOut in ringQ.
 // T is in this case assumed to be the first prime in the moduli chain.
 func ScaleUpTIsQ0VecLvl(level int, ringQ *ring.Ring, pIn, pOut *ring.Poly) {

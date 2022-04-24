@@ -281,7 +281,7 @@ func GenLinearTransformBSGS(encoder Encoder, value interface{}, level int, scale
 
 	enc, ok := encoder.(*encoderComplex128)
 	if !ok {
-		panic("encoder should be an encoderComplex128")
+		panic("cannot GenLinearTransformBSGS: encoder should be an encoderComplex128")
 	}
 
 	params := enc.params
@@ -392,7 +392,7 @@ func interfaceMapToMapOfInterface(m interface{}) map[int]interface{} {
 			d[i] = el[i]
 		}
 	default:
-		panic("invalid input, must be map[int][]complex128 or map[int][]float64")
+		panic("cannot interfaceMapToMapOfInterface: invalid input, must be map[int][]complex128 or map[int][]float64")
 	}
 	return d
 }
@@ -510,7 +510,7 @@ func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfa
 func (eval *evaluator) Average(ctIn *Ciphertext, logBatchSize int, ctOut *Ciphertext) {
 
 	if logBatchSize > eval.params.LogSlots() {
-		panic("batchSize must be smaller or equal to the number of slots")
+		panic("cannot Average: batchSize must be smaller or equal to the number of slots")
 	}
 
 	ringQ := eval.params.RingQ()
@@ -817,7 +817,7 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTrans
 
 			rtk, generated := eval.rtks.Keys[galEl]
 			if !generated {
-				panic("switching key not available")
+				panic("cannot MultiplyByDiagMatrix: switching key not available")
 			}
 
 			index := eval.permuteNTTIndex[galEl]
@@ -977,7 +977,7 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearT
 
 			rtk, generated := eval.rtks.Keys[galEl]
 			if !generated {
-				panic("switching key not available")
+				panic("cannot MultiplyByDiagMatrixBSGS: switching key not available")
 			}
 
 			rotIndex := eval.permuteNTTIndex[galEl]

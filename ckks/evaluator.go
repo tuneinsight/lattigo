@@ -174,8 +174,8 @@ type evaluatorBase struct {
 }
 
 type evaluatorBuffers struct {
-	buffQ  [3]*ring.Poly // Memory buffer in order : for MForm(c0), MForm(c1), c2
-	buffCt *Ciphertext   // Memory buffer for ciphertext that need to be scaled up (to be removed eventually)
+	buffQ  [3]*ring.Poly // Memory buffer in order: for MForm(c0), MForm(c1), c2
+	buffCt *Ciphertext   // Memory buffer for ciphertexts that need to be scaled up (to be removed eventually)
 }
 
 // BuffQ returns a pointer to the internal memory buffer buffQ.
@@ -183,7 +183,7 @@ func (eval *evaluator) BuffQ() [3]*ring.Poly {
 	return eval.buffQ
 }
 
-// BuffCt returns a pointer to internal memory buffer buffCt.
+// BuffCt returns a pointer to the internal memory buffer buffCt.
 func (eval *evaluator) BuffCt() *Ciphertext {
 	return eval.buffCt
 }
@@ -242,26 +242,26 @@ func (eval *evaluator) GetKeySwitcher() *rlwe.KeySwitcher {
 
 func (eval *evaluator) checkBinary(op0, op1, opOut Operand, opOutMinDegree int) {
 	if op0 == nil || op1 == nil || opOut == nil {
-		panic("operands cannot be nil")
+		panic("cannot checkBinary: operands cannot be nil")
 	}
 
 	if op0.Degree()+op1.Degree() == 0 {
-		panic("operands cannot be both plaintext")
+		panic("cannot checkBinary: operands cannot be both plaintext")
 	}
 
 	if opOut.Degree() < opOutMinDegree {
-		panic("receiver operand degree is too small")
+		panic("cannot checkBinary: receiver operand degree is too small")
 	}
 
 	for _, pol := range op0.El().Value {
 		if !pol.IsNTT {
-			panic("cannot evaluate: op0 must be in NTT")
+			panic("cannot checkBinary: op0 must be in NTT")
 		}
 	}
 
 	for _, pol := range op1.El().Value {
 		if !pol.IsNTT {
-			panic("cannot evaluate: op1 must be in NTT")
+			panic("cannot checkBinary: op1 must be in NTT")
 		}
 	}
 
@@ -1097,7 +1097,7 @@ func (eval *evaluator) Rescale(ctIn *Ciphertext, minScale float64, ctOut *Cipher
 	}
 
 	if ctOut.Degree() != ctIn.Degree() {
-		return errors.New("cannot Rescale : ctIn.Degree() != ctOut.Degree()")
+		return errors.New("cannot Rescale: ctIn.Degree() != ctOut.Degree()")
 	}
 
 	ctOut.Scale = ctIn.Scale
@@ -1281,7 +1281,7 @@ func (eval *evaluator) mulRelinAndAdd(op0, op1 Operand, relin bool, ctOut *Ciphe
 	}
 
 	if op0.El() == ctOut.El() || op1.El() == ctOut.El() {
-		panic("ctOut must be different from op0 and op1")
+		panic("cannot MulRelinAndAdd: ctOut must be different from op0 and op1")
 	}
 
 	resScale := op0.ScalingFactor() * op1.ScalingFactor()
@@ -1445,7 +1445,7 @@ func (eval *evaluator) Rotate(ct0 *Ciphertext, k int, ctOut *Ciphertext) {
 func (eval *evaluator) ConjugateNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 
 	if eval.params.RingType() == ring.ConjugateInvariant {
-		panic("method ConjugateNew is not supported when params.RingType() == ring.ConjugateInvariant")
+		panic("cannot ConjugateNew: method is not supported when params.RingType() == ring.ConjugateInvariant")
 	}
 
 	ctOut = NewCiphertext(eval.params, ct0.Degree(), ct0.Level(), ct0.Scale)
@@ -1458,11 +1458,11 @@ func (eval *evaluator) ConjugateNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 func (eval *evaluator) Conjugate(ct0 *Ciphertext, ctOut *Ciphertext) {
 
 	if eval.params.RingType() == ring.ConjugateInvariant {
-		panic("method Conjugate is not supported when params.RingType() == ring.ConjugateInvariant")
+		panic("cannot Conjugate: method is not supported when params.RingType() == ring.ConjugateInvariant")
 	}
 
 	if ct0.Degree() != 1 || ctOut.Degree() != 1 {
-		panic("input and output Ciphertext must be of degree 1")
+		panic("cannot Conjugate: input and output Ciphertext must be of degree 1")
 	}
 
 	galEl := eval.params.GaloisElementForRowRotation()
@@ -1474,7 +1474,7 @@ func (eval *evaluator) permuteNTT(ct0 *Ciphertext, galEl uint64, ctOut *Cipherte
 
 	rtk, generated := eval.rtks.GetRotationKey(galEl)
 	if !generated {
-		panic(fmt.Sprintf("rotation key k=%d not available", eval.params.InverseGaloisElement(galEl)))
+		panic(fmt.Sprintf("cannot permuteNTT: rotation key k=%d not available", eval.params.InverseGaloisElement(galEl)))
 	}
 
 	level := utils.MinInt(ct0.Level(), ctOut.Level())
@@ -1522,7 +1522,7 @@ func (eval *evaluator) PermuteNTTHoistedNoModDown(level int, c0 *ring.Poly, c2De
 	rtk, generated := eval.rtks.Keys[galEl]
 	if !generated {
 		fmt.Println(k)
-		panic("switching key not available")
+		panic("cannot PermuteNTTHoistedNoModDown: switching key not available")
 	}
 	index := eval.permuteNTTIndex[galEl]
 
@@ -1551,7 +1551,7 @@ func (eval *evaluator) PermuteNTTHoisted(level int, c0, c1 *ring.Poly, c2DecompQ
 	galEl := eval.params.GaloisElementForColumnRotationBy(k)
 	rtk, generated := eval.rtks.Keys[galEl]
 	if !generated {
-		panic(fmt.Sprintf("specific rotation has not been generated: %d", k))
+		panic(fmt.Sprintf("cannot PermuteNTTHoisted: specific rotation has not been generated: %d", k))
 	}
 
 	index := eval.permuteNTTIndex[galEl]

@@ -166,7 +166,7 @@ func (keygen *keyGenerator) GenKeyPair() (sk *SecretKey, pk *PublicKey) {
 func (keygen *keyGenerator) GenRelinearizationKey(sk *SecretKey, maxDegree int) (evk *RelinearizationKey) {
 
 	if keygen.params.PCount() == 0 {
-		panic("modulus P is empty")
+		panic("cannot GenRelinearizationKey: modulus P is empty")
 	}
 
 	levelQ := keygen.params.QCount() - 1

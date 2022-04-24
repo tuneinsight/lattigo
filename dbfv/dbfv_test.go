@@ -225,7 +225,7 @@ func testRelinKeyGen(tc *testContext, t *testing.T) {
 
 		P0 := rkgParties[0]
 
-		// checks that bfv.RKGProtocol complies to the drlwe.RelinearizationKeyGenerator interface
+		// Checks that bfv.RKGProtocol complies to the drlwe.RelinearizationKeyGenerator interface
 		var _ drlwe.RelinearizationKeyGenerator = P0.RKGProtocol
 
 		crp := P0.SampleCRP(tc.crs)
@@ -297,7 +297,7 @@ func testKeyswitching(tc *testContext, t *testing.T) {
 		}
 		P0 := cksParties[0]
 
-		// checks that the protocol complies to the drlwe.PublicKeySwitchingProtocol interface
+		// Checks that the protocol complies to the drlwe.PublicKeySwitchingProtocol interface
 		var _ drlwe.KeySwitchingProtocol = &P0.cks.CKSProtocol
 
 		// Each party creates its CKSProtocol instance with tmp = si-si'
@@ -345,7 +345,7 @@ func testPublicKeySwitching(tc *testContext, t *testing.T) {
 		}
 		P0 := pcksParties[0]
 
-		// checks that the protocol complies to the drlwe.PublicKeySwitchingProtocol interface
+		// Checks that the protocol complies to the drlwe.PublicKeySwitchingProtocol interface
 		var _ drlwe.PublicKeySwitchingProtocol = &P0.PCKSProtocol.PCKSProtocol
 
 		coeffs, _, ciphertext := newTestVectors(tc, encryptorPk0, t)
@@ -636,7 +636,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 		ctRes := bfv.NewCiphertext(tc.params, 1)
 		P0.Finalize(ciphertext, crp, P0.share, ctRes)
 
-		// Square the refreshed ciphertext up to the maximum depth-1
+		// Squares the refreshed ciphertext up to the maximum depth-1
 		for i := 0; i < maxDepth-1; i++ {
 
 			evaluator.Relinearize(tc.evaluator.MulNew(ctRes, ctRes), ctRes)
@@ -719,7 +719,7 @@ func testRefreshAndPermutation(tc *testContext, t *testing.T) {
 
 		coeffsHave := encoder.DecodeUintNew(decryptorSk0.DecryptNew(ciphertext))
 
-		//Decrypts and compare
+		//Decrypts and compares
 		require.True(t, utils.EqualSliceUint64(coeffsPermute, coeffsHave))
 	})
 }
@@ -746,7 +746,7 @@ func testMarshalling(tc *testContext, t *testing.T) {
 
 	t.Run(testString("MarshallingRefresh", parties, tc.params), func(t *testing.T) {
 
-		//testing refresh shares
+		// Testing refresh shares
 		refreshproto := NewRefreshProtocol(tc.params, 3.2)
 		refreshshare := refreshproto.AllocateShare()
 
@@ -766,13 +766,13 @@ func testMarshalling(tc *testContext, t *testing.T) {
 		}
 		for i, r := range refreshshare.e2sShare.Value.Coeffs {
 			if !utils.EqualSliceUint64(resRefreshShare.e2sShare.Value.Coeffs[i], r) {
-				t.Fatal("Resulting of marshalling not the same as original : RefreshShare")
+				t.Fatal("Result of marshalling not the same as original : RefreshShare")
 			}
 
 		}
 		for i, r := range refreshshare.s2eShare.Value.Coeffs {
 			if !utils.EqualSliceUint64(resRefreshShare.s2eShare.Value.Coeffs[i], r) {
-				t.Fatal("Resulting of marshalling not the same as original : RefreshShare")
+				t.Fatal("Result of marshalling not the same as original : RefreshShare")
 			}
 		}
 	})

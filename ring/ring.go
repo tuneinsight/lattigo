@@ -213,20 +213,20 @@ func (r *Ring) setParameters(N int, Modulus []uint64) error {
 		r.Mask[i] = (1 << uint64(bits.Len64(qi))) - 1
 	}
 
-	// Compute bigQ for all levels
+	// Computes bigQ for all levels
 	r.ModulusAtLevel = make([]*big.Int, len(r.Modulus))
 	r.ModulusAtLevel[0] = NewUint(r.Modulus[0])
 	for i := 1; i < len(r.Modulus); i++ {
 		r.ModulusAtLevel[i] = new(big.Int).Mul(r.ModulusAtLevel[i-1], NewUint(r.Modulus[i]))
 	}
 
-	// Compute the fast reduction parameters
+	// Computes the fast reduction parameters
 	r.BredParams = make([][]uint64, len(r.Modulus))
 	r.MredParams = make([]uint64, len(r.Modulus))
 
 	for i, qi := range r.Modulus {
 
-		// Compute the fast modular reduction parameters for the Ring
+		// Computes the fast modular reduction parameters for the Ring
 		r.BredParams[i] = BRedParams(qi)
 
 		// If qi is not a power of 2, we can compute the MRedParams (otherwise, it
@@ -252,7 +252,7 @@ func (r *Ring) genNTTParams(NthRoot uint64) error {
 		panic("error : invalid r parameters (missing)")
 	}
 
-	// Check if each qi is prime and equal to 1 mod NthRoot
+	// Checks if each qi is prime and equal to 1 mod NthRoot
 	for i, qi := range r.Modulus {
 		if !IsPrime(qi) {
 			return fmt.Errorf("invalid modulus (Modulus[%d] is not prime)", i)
@@ -288,10 +288,10 @@ func (r *Ring) genNTTParams(NthRoot uint64) error {
 
 	for i, qi := range r.Modulus {
 
-		// 1.1 Compute N^(-1) mod Q in Montgomery form
+		// 1.1 Computes N^(-1) mod Q in Montgomery form
 		r.NttNInv[i] = MForm(ModExp(NthRoot>>1, qi-2, qi), qi, r.BredParams[i])
 
-		// 1.2 Compute Psi and PsiInv in Montgomery form
+		// 1.2 Computes Psi and PsiInv in Montgomery form
 		r.NttPsi[i] = make([]uint64, NthRoot>>1)
 		r.NttPsiInv[i] = make([]uint64, NthRoot>>1)
 
@@ -311,7 +311,7 @@ func (r *Ring) genNTTParams(NthRoot uint64) error {
 		r.NttPsi[i][0] = MForm(1, qi, r.BredParams[i])
 		r.NttPsiInv[i][0] = MForm(1, qi, r.BredParams[i])
 
-		// Compute nttPsi[j] = nttPsi[j-1]*Psi and nttPsiInv[j] = nttPsiInv[j-1]*PsiInv
+		// Computes nttPsi[j] = nttPsi[j-1]*Psi and nttPsiInv[j] = nttPsiInv[j-1]*PsiInv
 		for j := uint64(1); j < NthRoot>>1; j++ {
 
 			indexReversePrev := utils.BitReverse64(uint64(j-1), logNthRoot)

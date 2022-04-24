@@ -9,8 +9,8 @@ import (
 	"github.com/tuneinsight/lattigo/v3/rlwe"
 )
 
-// Bootstrapper is a struct to stores a memory buffer the plaintext matrices
-// the polynomial approximation and the keys for the bootstrapping.
+// Bootstrapper is a struct to store a memory buffer with the plaintext matrices,
+// the polynomial approximation, and the keys for the bootstrapping.
 type Bootstrapper struct {
 	advanced.Evaluator
 	*bootstrapperBase

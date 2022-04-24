@@ -46,7 +46,7 @@ func NewPlaintextLvl(params Parameters, level int) *Plaintext {
 // the returned Plaintext will share its backing array of coefficient.
 func NewPlaintextAtLevelFromPoly(level int, poly *ring.Poly) *Plaintext {
 	if len(poly.Coeffs) < level+1 {
-		panic("provided ring.Poly level is too small")
+		panic("cannot NewPlaintextAtLevelFromPoly: provided ring.Poly level is too small")
 	}
 	v0 := new(ring.Poly)
 	v0.Coeffs = poly.Coeffs[:level+1]

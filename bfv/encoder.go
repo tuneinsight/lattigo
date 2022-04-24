@@ -15,7 +15,7 @@ const GaloisGen uint64 = 5
 // Encoder is an interface for plaintext encoding and decoding operations. It provides methods to embed []uint64 and []int64 types into
 // the various plaintext types and the inverse operations. It also provides methodes to convert between the different plaintext types.
 // The different plaintext types represent different embeddings of the message in the polynomial space. This relation is illustrated in
-// The figure below:
+// the figure below:
 //                   ┌-> Encoder.Encode(.) -----------------------------------------------------┐
 // []uint64/[]int64 -┼-> Encoder.EncodeRingT(.) ---> PlaintextRingT -┬-> Encoder.ScaleUp(.) ----┴-> Plaintext
 //                   |                                               └-> Encoder.RingTToMul(.) -┬-> PlaintextMul
@@ -24,15 +24,15 @@ const GaloisGen uint64 = 5
 // The different plaintext types have different efficiency-related caracteristics that we summarize in the Table below. For more information
 // about the different plaintext types, see plaintext.go.
 //
-// Relative efficiency of operation
-//  -----------------------------------------------------------------------
-// |                      |  PlaintextRingT  |  Plaintext  | PlaintextMul  |
-//  -----------------------------------------------------------------------
-// | Encoding/Decoding    |    Faster      |    Slower   |    Slower       |
-// | Memory size          |    Smaller     |    Larger   |    Larger       |
-// | Ct-Pt Add / Sub      |    Slower      |    Faster   |    N/A          |
-// | Ct-Pt Mul            |    Faster      |    Slower   |    Much Faster  |
-//  -----------------------------------------------------------------------
+// Relative efficiency of operations
+//  -------------------------------------------------------------------------
+// |                      |  PlaintextRingT  |  Plaintext  | PlaintextMul    |
+//  -------------------------------------------------------------------------
+// | Encoding/Decoding    |    Faster        |    Slower   |    Slower       |
+// | Memory size          |    Smaller       |    Larger   |    Larger       |
+// | Ct-Pt Add / Sub      |    Slower        |    Faster   |    N/A          |
+// | Ct-Pt Mul            |    Faster        |    Slower   |    Much Faster  |
+//  -------------------------------------------------------------------------
 //
 type Encoder interface {
 	Encode(coeffs interface{}, pt *Plaintext)
@@ -138,7 +138,7 @@ func (ecd *encoder) EncodeRingTNew(values interface{}) (pt *PlaintextRingT) {
 func (ecd *encoder) EncodeRingT(values interface{}, ptOut *PlaintextRingT) {
 
 	if len(ptOut.Value.Coeffs[0]) != len(ecd.indexMatrix) {
-		panic("invalid plaintext to receive encoding: number of coefficients does not match the ring degree")
+		panic("cannot EncodeRingT: invalid plaintext to receive encoding: number of coefficients does not match the ring degree")
 	}
 
 	pt := ptOut.Value.Coeffs[0]
@@ -166,7 +166,7 @@ func (ecd *encoder) EncodeRingT(values interface{}, ptOut *PlaintextRingT) {
 		}
 		valLen = len(values)
 	default:
-		panic("coeffs must be either []uint64 or []int64")
+		panic("cannot EncodeRingT: coeffs must be either []uint64 or []int64")
 	}
 
 	for i := valLen; i < len(ecd.indexMatrix); i++ {
@@ -205,7 +205,7 @@ func (ecd *encoder) ScaleDown(pt *Plaintext, ptRt *PlaintextRingT) {
 	ecd.scaler.DivByQOverTRoundedLvl(pt.Level(), pt.Value, ptRt.Value)
 }
 
-// RingTToMul transforms a PlaintextRingT into a PlaintextMul by operating the NTT transform
+// RingTToMul transforms a PlaintextRingT into a PlaintextMul by performing the NTT transform
 // of R_q and putting the coefficients in Montgomery form.
 func (ecd *encoder) RingTToMul(ptRt *PlaintextRingT, ptMul *PlaintextMul) {
 
@@ -222,7 +222,7 @@ func (ecd *encoder) RingTToMul(ptRt *PlaintextRingT, ptMul *PlaintextMul) {
 	ecd.params.RingQ().MFormLvl(level, ptMul.Value, ptMul.Value)
 }
 
-// MulToRingT transforms a PlaintextMul into PlaintextRingT by operating the inverse NTT transform of R_q and
+// MulToRingT transforms a PlaintextMul into PlaintextRingT by performing the inverse NTT transform of R_q and
 // putting the coefficients out of the Montgomery form.
 func (ecd *encoder) MulToRingT(pt *PlaintextMul, ptRt *PlaintextRingT) {
 	ecd.params.RingQ().InvNTTLvl(0, pt.Value, ptRt.Value)
@@ -239,7 +239,7 @@ func (ecd *encoder) DecodeRingT(p interface{}, ptRt *PlaintextRingT) {
 	case *PlaintextRingT:
 		ptRt.Copy(pt.Plaintext)
 	default:
-		panic(fmt.Errorf("unsupported plaintext type (%T)", pt))
+		panic(fmt.Errorf("cannot DecodeRingT: unsupported plaintext type (%T)", pt))
 	}
 }
 
@@ -268,7 +268,7 @@ func (ecd *encoder) DecodeUintNew(p interface{}) (coeffs []uint64) {
 	return
 }
 
-// DecodeInt decodes a any plaintext type and write the coefficients in coeffs. It also decodes the sign
+// DecodeInt decodes a any plaintext type and writes the coefficients in coeffs. It also decodes the sign
 // modulus (by centering the values around the plaintext). It panics if p is not PlaintextRingT, Plaintext or PlaintextMul.
 func (ecd *encoder) DecodeInt(p interface{}, coeffs []int64) {
 

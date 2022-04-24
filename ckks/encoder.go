@@ -334,7 +334,7 @@ func (ecd *encoderComplex128) ShallowCopy() Encoder {
 func (ecd *encoderComplex128) Embed(values interface{}, logSlots int, scale float64, montgomery bool, polyOut interface{}) {
 
 	if logSlots < minLogSlots || logSlots > ecd.params.MaxLogSlots() {
-		panic(fmt.Sprintf("cannot Encode: logSlots (%d) must be greater or equal to %d and smaller than %d\n", logSlots, minLogSlots, ecd.params.MaxLogSlots()))
+		panic(fmt.Sprintf("cannot Embed: logSlots (%d) must be greater or equal to %d and smaller than %d\n", logSlots, minLogSlots, ecd.params.MaxLogSlots()))
 	}
 
 	slots := 1 << logSlots
@@ -347,7 +347,7 @@ func (ecd *encoderComplex128) Embed(values interface{}, logSlots int, scale floa
 	case []complex128:
 		// Checks that the number of values is with the possible range
 		if len(values) > ecd.params.MaxSlots() || len(values) > slots {
-			panic(fmt.Sprintf("cannot Encode: ensure that #values (%d) <= slots (%d) <= maxSlots (%d)\n", len(values), slots, ecd.params.MaxSlots()))
+			panic(fmt.Sprintf("cannot Embed: ensure that #values (%d) <= slots (%d) <= maxSlots (%d)\n", len(values), slots, ecd.params.MaxSlots()))
 		}
 
 		lenValues = len(values)
@@ -365,13 +365,13 @@ func (ecd *encoderComplex128) Embed(values interface{}, logSlots int, scale floa
 
 		// Else panics
 		default:
-			panic("ringType must be ring.Standard or ring.ConjugateInvariant")
+			panic("cannot Embed: ringType must be ring.Standard or ring.ConjugateInvariant")
 		}
 
 	// If floats only
 	case []float64:
 		if len(values) > ecd.params.MaxSlots() || len(values) > slots {
-			panic(fmt.Sprintf("cannot Encode: ensure that #values (%d) <= slots (%d) <= maxSlots (%d)\n", len(values), slots, ecd.params.MaxSlots()))
+			panic(fmt.Sprintf("cannot Embed: ensure that #values (%d) <= slots (%d) <= maxSlots (%d)\n", len(values), slots, ecd.params.MaxSlots()))
 		}
 
 		lenValues = len(values)
@@ -381,7 +381,7 @@ func (ecd *encoderComplex128) Embed(values interface{}, logSlots int, scale floa
 		}
 
 	default:
-		panic("values.(Type) must be []complex128 or []float64")
+		panic("cannot Embed: values.(Type) must be []complex128 or []float64")
 	}
 
 	for i := lenValues; i < slots; i++ {
@@ -406,7 +406,7 @@ func (ecd *encoderComplex128) Embed(values interface{}, logSlots int, scale floa
 		complexToFixedPointCRT(p.Level(), ecd.values[:slots], scale, ecd.params.RingQ(), p.Coeffs, isRingStandard)
 		NttAndMontgomeryLvl(p.Level(), logSlots, ecd.params.RingQ(), montgomery, p)
 	default:
-		panic("invalid polyOut.(Type) must be rlwe.PolyQP or *ring.Poly")
+		panic("cannot Embed: invalid polyOut.(Type) must be rlwe.PolyQP or *ring.Poly")
 	}
 }
 

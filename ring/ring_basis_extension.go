@@ -69,9 +69,9 @@ func NewBasisExtender(ringQ, ringP *Ring) *BasisExtender {
 	return newParams
 }
 
-// ModupParams stores the necessary parametrs for RNS basis extension.
+// ModupParams stores the necessary parameters for RNS basis extension.
 type ModupParams struct {
-	//Parameters for basis extension from Q to P
+	// Parameters for basis extension from Q to P
 	// (Q/Qi)^-1) (mod each Qi) (in Montgomery form)
 	qoverqiinvqi []uint64
 	// Q/qi (mod each Pj) (in Montgomery form)
@@ -228,7 +228,7 @@ func (be *BasisExtender) ModDownQPtoQNTT(levelQ, levelP int, p1Q, p1P, p2Q *Poly
 	// The buffer is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
 	be.ModUpPtoQ(levelP, levelQ, buffP, buffQ)
 
-	// First we switch back the buffer CRT array back to the NTT domain
+	// First, we switch back the buffer CRT array back to the NTT domain
 	ringQ.NTTLazyLvl(levelQ, buffQ, buffQ)
 
 	// Finally, for each level of p1 (and the buffer since they now share the same basis) we compute p2 = (P^-1) * (p1 - buff) mod Q
@@ -250,13 +250,13 @@ func (be *BasisExtender) ModDownQPtoP(levelQ, levelP int, p1Q, p1P, p2P *Poly) {
 	modDownParams := be.modDownparamsQtoP
 	buff := be.buffP
 
-	// Then we target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on buff
+	// Then, we target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on buff
 	// buff is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
 	be.ModUpQtoP(levelQ, levelP, p1Q, buff)
 
 	// Finally, for each level of p1 (and buff since they now share the same basis) we compute p2 = (P^-1) * (p1 - buff) mod Q
 	for i := 0; i < levelP+1; i++ {
-		// Then for each coefficient we compute (P^-1) * (p1[i][j] - buff[i][j]) mod qi
+		// Then, for each coefficient we compute (P^-1) * (p1[i][j] - buff[i][j]) mod qi
 		SubVecAndMulScalarMontgomeryTwoQiVec(buff.Coeffs[i], p1P.Coeffs[i], p2P.Coeffs[i], ringP.Modulus[i]-modDownParams[levelQ][i], ringP.Modulus[i], ringP.MredParams[i])
 	}
 

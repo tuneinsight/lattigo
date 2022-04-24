@@ -57,7 +57,7 @@ type polynomialVector struct {
 	SlotsIndex map[int][]int
 }
 
-// EvaluatePolyVector evaluates a vector of Polyomials on the input Ciphertext in ceil(log2(deg+1)) depth.
+// EvaluatePolyVector evaluates a vector of Polynomials on the input Ciphertext in ceil(log2(deg+1)) depth.
 // Inputs:
 // input: *Ciphertext or *PowerBasis.
 // pols: a slice of up to 'n' *Polynomial ('n' being the maximum number of slots), indexed from 0 to n-1. Returns an error if the polynomials do not all have the same degree.
@@ -74,7 +74,7 @@ func (eval *evaluator) EvaluatePolyVector(input interface{}, pols []*Polynomial,
 
 	for i := range pols {
 		if maxDeg != pols[i].MaxDeg {
-			return nil, fmt.Errorf("polynomial degree must all be the same")
+			return nil, fmt.Errorf("cannot EvaluatePolyVector: polynomial degree must all be the same")
 		}
 	}
 
@@ -84,7 +84,7 @@ func (eval *evaluator) EvaluatePolyVector(input interface{}, pols []*Polynomial,
 func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVector) (opOut *Ciphertext, err error) {
 
 	if pol.SlotsIndex != nil && pol.Encoder == nil {
-		return nil, fmt.Errorf("cannot EvaluatePolyVector, missing Encoder input")
+		return nil, fmt.Errorf("cannot evaluatePolyVector: missing Encoder input")
 	}
 
 	var powerBasis *PowerBasis
@@ -93,15 +93,15 @@ func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVecto
 		powerBasis = NewPowerBasis(input)
 	case *PowerBasis:
 		if input.Value[1] == nil {
-			return nil, fmt.Errorf("cannot EvaluatePolyVector, given PowerBasis[1] is empty")
+			return nil, fmt.Errorf("cannot evaluatePolyVector: given PowerBasis[1] is empty")
 		}
 		powerBasis = input
 	default:
-		return nil, fmt.Errorf("cannot EvaluatePolyVector, invalid input, must be either *Ciphertext or *PowerBasis")
+		return nil, fmt.Errorf("cannot evaluatePolyVector: invalid input, must be either *Ciphertext or *PowerBasis")
 	}
 
 	logDegree := bits.Len64(uint64(pol.Value[0].Degree()))
-	logSplit := (logDegree >> 1) //optimalSplit(logDegree) //
+	logSplit := (logDegree >> 1) //optimalSplit(logDegree)
 
 	var odd, even bool
 	for _, p := range pol.Value {
@@ -154,10 +154,10 @@ func (p *PowerBasis) GenPower(n int, eval Evaluator) {
 
 	if p.Value[n] == nil {
 
-		// Computes the index required to compute the asked ring evaluation
+		// Computes the index required to compute the required ring evaluation
 		var a, b int
 		if n&(n-1) == 0 {
-			a, b = n/2, n/2 //Necessary for optimal depth
+			a, b = n/2, n/2 // Necessary for optimal depth
 		} else {
 			// Maximize the number of odd terms
 			k := int(math.Ceil(math.Log2(float64(n)))) - 1
@@ -211,9 +211,9 @@ func (p *PowerBasis) UnmarshalBinary(data []byte) (err error) {
 	return
 }
 
+// splitCoeffs splits a polynomial p such that p = q*C^degree + r.
 func splitCoeffs(coeffs *Polynomial, split int) (coeffsq, coeffsr *Polynomial) {
 
-	// Splits a polynomial p such that p = q*C^degree + r.
 	coeffsr = &Polynomial{}
 	coeffsr.Coeffs = make([]uint64, split)
 	if coeffs.MaxDeg == coeffs.Degree() {
@@ -257,7 +257,7 @@ func (polyEval *polynomialEvaluator) recurse(pol polynomialVector) (res *Ciphert
 
 	logSplit := polyEval.logSplit
 
-	// Recursively computes the evaluation of the Chebyshev polynomial using a baby-set giant-step algorithm.
+	// Recursively computes the evaluation of the Chebyshev polynomial using a baby-step giant-step algorithm.
 	if pol.Value[0].Degree() < (1 << logSplit) {
 
 		if pol.Value[0].Lead && polyEval.logSplit > 1 && pol.Value[0].MaxDeg%(1<<(logSplit+1)) > (1<<(logSplit-1)) {
@@ -341,7 +341,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(pol polynomialVe
 			// Allocates the output ciphertext
 			res = NewCiphertextLvl(params, 1, level)
 
-			// Looks for non-zero coefficients among the degree 0 coefficients of the polynomials
+			// Looks for non-zero coefficients among the degree-0 coefficients of the polynomials
 			for i, p := range pol.Value {
 				if p.Coeffs[0] != 0 {
 					toEncode = true
@@ -351,7 +351,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(pol polynomialVe
 				}
 			}
 
-			// If a non-zero coefficient was found, encode the values, adds on the ciphertext, and returns
+			// If a non-zero coefficient was found, encodes the values, adds on the ciphertext, and returns
 			if toEncode {
 				polyEval.Encode(values, &Plaintext{&rlwe.Plaintext{Value: res.Value[0]}})
 			}
@@ -365,7 +365,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(pol polynomialVe
 		// Allocates a temporary plaintext to encode the values
 		pt := NewPlaintextAtLevelFromPoly(level, polyEval.Evaluator.BuffPt().Value)
 
-		// Looks for a non-zero coefficient among the degree zero coefficient of the polynomials
+		// Looks for a non-zero coefficient among the degree-0 coefficient of the polynomials
 		for i, p := range pol.Value {
 			if p.Coeffs[0] != 0 {
 				toEncode = true
@@ -375,7 +375,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(pol polynomialVe
 			}
 		}
 
-		// If a non-zero degre coefficient was found, encode and adds the values on the output
+		// If a non-zero degree coefficient was found, encodes and adds the values on the output
 		// ciphertext
 		if toEncode {
 			polyEval.Encode(values, pt)
@@ -383,7 +383,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(pol polynomialVe
 			toEncode = false
 		}
 
-		// Loops starting from the highest degree coefficient
+		// Loops starting from the highest-degree coefficient
 		for key := pol.Value[0].Degree(); key > 0; key-- {
 
 			var reset bool
@@ -394,8 +394,8 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(pol polynomialVe
 				if p.Coeffs[key] != 0 {
 					toEncode = true
 
-					// Resets the temporary array to zero
-					// is needed if a zero coefficient
+					// Resets the temporary array to zero.
+					// This is needed if a zero coefficient
 					// is at the place of a previous non-zero
 					// coefficient
 					if !reset {
@@ -413,7 +413,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(pol polynomialVe
 				}
 			}
 
-			// If a non-zero degre coefficient was found, encode and adds the values on the output
+			// If a non-zero degree coefficient was found, encodes and adds the values on the output
 			// ciphertext
 			if toEncode {
 				polyEval.EncodeMul(values, &PlaintextMul{pt.Plaintext})

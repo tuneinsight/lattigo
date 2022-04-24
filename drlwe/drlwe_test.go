@@ -362,7 +362,7 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 	t.Run(testString(params, "RotKeyGen"), func(t *testing.T) {
 
 		if params.PCount() == 0 {
-			t.Skip("method is unsuported when params.PCount() == 0")
+			t.Skip("method is unsupported when params.PCount() == 0")
 		}
 
 		rtg := make([]*RTGProtocol, nbParties)
@@ -524,7 +524,7 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 	t.Run(testString(params, "Marshalling/RKG"), func(t *testing.T) {
 
 		if params.PCount() == 0 {
-			t.Skip("method is unsuported when params.PCount() == 0")
+			t.Skip("method is unsupported when params.PCount() == 0")
 		}
 
 		//check RTGShare
@@ -561,7 +561,7 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 	t.Run(testString(params, "Marshalling/RTG"), func(t *testing.T) {
 
 		if params.PCount() == 0 {
-			t.Skip("method is unsuported when params.PCount() == 0")
+			t.Skip("method is unsupported when params.PCount() == 0")
 		}
 
 		//check RTGShare

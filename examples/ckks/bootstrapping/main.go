@@ -24,20 +24,25 @@ func main() {
 	var plaintext *ckks.Plaintext
 
 	// Bootstrapping parameters
-	// Four sets of parameters (index 0 to 3) ensuring 128 bit of security
-	// are available in github.com/tuneinsight/lattigo/v3/ckks/bootstrap_params
+	// Two sets of each of four parameters, DefaultParametersSparse and DefaultParametersDense,
+	// (each index 0 to 3) ensuring 128 bit of security are available in
+	// github.com/tuneinsight/lattigo/v3/ckks/bootstrapping/default_params.go
+	//
 	// LogSlots is hardcoded to 15 in the parameters, but can be changed from 1 to 15.
-	// When changing logSlots make sure that the number of levels allocated to CtS and StC is
-	// smaller or equal to logSlots.
-	ckksParams := bootstrapping.DefaultCKKSParameters[0]
-	btpParams := bootstrapping.DefaultParameters[0]
+	// When changing LogSlots make sure that the number of levels allocated to CtS and StC is
+	// smaller or equal to LogSlots.
+
+	paramSet := bootstrapping.DefaultParametersSparse[0] // bootstrapping.DefaultParametersDense[0]
+	ckksParams := paramSet.SchemeParams
+	btpParams := paramSet.BootstrappingParams
+
 	params, err := ckks.NewParametersFromLiteral(ckksParams)
 	if err != nil {
 		panic(err)
 	}
 
 	fmt.Println()
-	fmt.Printf("CKKS parameters: logN = %d, logSlots = %d, h = %d, logQP = %d, levels = %d, scale= 2^%f, sigma = %f \n", params.LogN(), params.LogSlots(), params.HammingWeight(), params.LogQP(), params.QCount(), math.Log2(params.DefaultScale()), params.Sigma())
+	fmt.Printf("CKKS parameters: logN = %d, logSlots = %d, H(%d; %d), logQP = %d, levels = %d, scale= 2^%f, sigma = %f \n", params.LogN(), params.LogSlots(), params.HammingWeight(), btpParams.EphemeralSecretDensity, params.LogQP(), params.QCount(), math.Log2(params.DefaultScale()), params.Sigma())
 
 	// Scheme context and keys
 	kgen = ckks.NewKeyGenerator(params)
@@ -50,13 +55,12 @@ func main() {
 
 	fmt.Println()
 	fmt.Println("Generating bootstrapping keys...")
-	rotations := btpParams.RotationsForBootstrapping(params.LogN(), params.LogSlots())
-	rotkeys := kgen.GenRotationKeysForRotations(rotations, true, sk)
-	rlk := kgen.GenRelinearizationKey(sk, 2)
-	if btp, err = bootstrapping.NewBootstrapper(params, btpParams, rlwe.EvaluationKey{Rlk: rlk, Rtks: rotkeys}); err != nil {
+	evk := bootstrapping.GenEvaluationKeys(btpParams, params, sk)
+	fmt.Println("Done")
+
+	if btp, err = bootstrapping.NewBootstrapper(params, btpParams, evk); err != nil {
 		panic(err)
 	}
-	fmt.Println("Done")
 
 	// Generate a random plaintext
 	valuesWant := make([]complex128, params.Slots())

@@ -1492,7 +1492,7 @@ func (eval *evaluator) permuteNTT(ct0 *Ciphertext, galEl uint64, ctOut *Cipherte
 }
 
 // RotateHoistedNoModDownNew takes a list of rotations `rotations`, a ciphertext (`c0`, RNSDecomp(c1) = `c1DecompQP`) and returns a map of [2]rlwe.PolyQP,
-// where the index of the map are the rotations, and the elements of the map are the rotated ciphertexts mod Q and mod P, with the messaged scaled by P.
+// where the rotations are the index of the map, and the elements of the map are the rotated ciphertexts mod Q and mod P, with the message scaled by P.
 func (eval *evaluator) RotateHoistedNoModDownNew(level int, rotations []int, c0 *ring.Poly, c1DecompQP []rlwe.PolyQP) (cOut map[int][2]rlwe.PolyQP) {
 	ringQ := eval.params.RingQ()
 	ringP := eval.params.RingP()
@@ -1544,8 +1544,8 @@ func (eval *evaluator) PermuteNTTHoistedNoModDown(level int, c0 *ring.Poly, c1De
 	ringQ.PermuteNTTWithIndexLvl(levelP, buff2P, index, ct0OutP)
 }
 
-// RotateHoistedNoModDownNew takes a list of rotations `rotations`, a ciphertext (`c0`, RNSDecomp(c1) = `c1DecompQP`) and returns
-// the polynomials of the rotated ciphertext Rotate(c0, c1) = (`cOut0`, `cOut1`).
+// PermuteNTTHoisted takes a rotation `k`, a ciphertext (`c0`, RNSDecomp(c1) = `c1DecompQP`) and returns
+// the polynomials of the rotated ciphertext mod Q Rotate(c0, c1) = (`cOut0`, `cOut1`).
 func (eval *evaluator) PermuteNTTHoisted(level int, c0, c1 *ring.Poly, c1DecompQP []rlwe.PolyQP, k int, cOut0, cOut1 *ring.Poly) {
 
 	if k == 0 {

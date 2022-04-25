@@ -93,8 +93,8 @@ type Evaluator interface {
 	// =================================================
 
 	GetKeySwitcher() *rlwe.KeySwitcher
-	PoolQMul() [3]*ring.Poly
-	CtxPool() *ckks.Ciphertext
+	BuffQ() [3]*ring.Poly
+	BuffCt() *ckks.Ciphertext
 	ShallowCopy() Evaluator
 	WithKey(rlwe.EvaluationKey) Evaluator
 }
@@ -151,7 +151,7 @@ func (eval *evaluator) CoeffsToSlots(ctIn *ckks.Ciphertext, ctsMatrices Encoding
 	if ctImag != nil {
 		tmp = ctImag
 	} else {
-		tmp = ckks.NewCiphertextAtLevelFromPoly(ctReal.Level(), [2]*ring.Poly{eval.CtxPool().Value[0], eval.CtxPool().Value[1]})
+		tmp = ckks.NewCiphertextAtLevelFromPoly(ctReal.Level(), [2]*ring.Poly{eval.BuffCt().Value[0], eval.BuffCt().Value[1]})
 	}
 
 	// Imag part

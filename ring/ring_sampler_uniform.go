@@ -33,28 +33,28 @@ func (uniformSampler *UniformSampler) Read(Pol *Poly) {
 
 		qi = uniformSampler.baseRing.Modulus[j]
 
-		// Start by computing the mask
+		// Starts by computing the mask
 		mask = uniformSampler.baseRing.Mask[j]
 
 		ptmp := Pol.Coeffs[j]
 
-		// Iterate for each modulus over each coefficient
+		// Iterates for each modulus over each coefficient
 		for i := 0; i < uniformSampler.baseRing.N; i++ {
 
-			// Sample an integer between [0, qi-1]
+			// Samples an integer between [0, qi-1]
 			for {
 
-				// Refill the pool if it runs empty
+				// Refills the buff if it runs empty
 				if ptr == uniformSampler.baseRing.N {
 					uniformSampler.prng.Clock(uniformSampler.randomBufferN)
 					ptr = 0
 				}
 
-				// Read bytes from the pool
+				// Reads bytes from the buff
 				randomUint = binary.BigEndian.Uint64(uniformSampler.randomBufferN[ptr:ptr+8]) & mask
 				ptr += 8
 
-				// If the integer is between [0, qi-1], break the loop
+				// If the integer is between [0, qi-1], breaks the loop
 				if randomUint < qi {
 					break
 				}
@@ -77,28 +77,28 @@ func (uniformSampler *UniformSampler) ReadLvl(level int, Pol *Poly) {
 
 		qi = uniformSampler.baseRing.Modulus[j]
 
-		// Start by computing the mask
+		// Starts by computing the mask
 		mask = uniformSampler.baseRing.Mask[j]
 
 		ptmp := Pol.Coeffs[j]
 
-		// Iterate for each modulus over each coefficient
+		// Iterates for each modulus over each coefficient
 		for i := 0; i < uniformSampler.baseRing.N; i++ {
 
-			// Sample an integer between [0, qi-1]
+			// Samples an integer between [0, qi-1]
 			for {
 
-				// Refill the pool if it runs empty
+				// Refills the buff if it runs empty
 				if ptr == uniformSampler.baseRing.N {
 					uniformSampler.prng.Clock(uniformSampler.randomBufferN)
 					ptr = 0
 				}
 
-				// Read bytes from the pool
+				// Reads bytes from the buff
 				randomUint = binary.BigEndian.Uint64(uniformSampler.randomBufferN[ptr:ptr+8]) & mask
 				ptr += 8
 
-				// If the integer is between [0, qi-1], break the loop
+				// If the integer is between [0, qi-1], breaks the loop
 				if randomUint < qi {
 					break
 				}

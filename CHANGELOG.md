@@ -2,7 +2,22 @@
 # Changelog
 All notable changes to this project will be documented in this file. 
 
-# [3.0.1] - 2022-02-21
+# [3.0.3] - UNREALEASED
+
+- BFV: added the `Evaluator.Rescale` and `Evaluator.RescaleTo` methods to switch BFV ciphertexts to lower levels.
+- BFV: all `Evaluator` methods on ciphertext support all arithmetic operations at lower levels, but require that operands are at the same level.
+- BFV: the plaintext modulus `T` can now equal to the level-zero modulus Q[0] (i.e., be a factor of the ciphertext modulus `Q`).
+- BFV: added the methods `NewCiphertextLvl`, `NewPlaintextLvl`, `NewPlaintextMulLvl`, `Evaluator.AddScalar` and `Evaluator.MulScalarAndAdd`. 
+- BFV: merged `[]uint64` and `[]int64` plaintext encoding methods (e.g. `EncodeUint` and `EncodeInt` are replaced by `Encode`) and added the respective `[...]New` methods.
+- BFV: added the methods `EvaluatePoly` and `EvaluatePolyVector` for homomorphic polynomial evaluation.
+- BFV/RING: moved `RNSScaler` from `ring` to `bfv`.
+- RING: removed deprecated `SimpleScaler`.
+
+## [3.0.2] - 2022-02-21
+
+- Fixed sparse ternary sampler to properly sample on non-zero poly.
+
+## [3.0.1] - 2022-02-21
 
 - RLWE/CKKS/BFV: added the `H` field and `HammingWeight` method in parameters-related structs, to specify distribution of all secrets in the schemes.
 - RLWE/DRLWE: all secrets in the ternary distribution are now sampled with a fixed hamming weight, according to the parameters.

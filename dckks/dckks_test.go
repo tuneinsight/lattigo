@@ -424,7 +424,7 @@ func testRotKeyGenConjugate(testCtx *testContext, t *testing.T) {
 		}
 		P0 := pcksParties[0]
 
-		// checks that ckks.RTGProtocol complies to the drlwe.RotationKeyGenerator interface
+		// Checks that ckks.RTGProtocol complies to the drlwe.RotationKeyGenerator interface
 		var _ drlwe.RotationKeyGenerator = P0.RTGProtocol
 
 		crp := P0.SampleCRP(testCtx.crs)
@@ -751,7 +751,7 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 		testCtx.uniformSampler.Read(ciphertext.Value[0])
 		testCtx.uniformSampler.Read(ciphertext.Value[1])
 
-		//testing refresh shares
+		// Testing refresh shares
 		refreshproto := NewRefreshProtocol(testCtx.params, logBound, 3.2)
 		refreshshare := refreshproto.AllocateShare(ciphertext.Level(), params.MaxLevel())
 
@@ -774,13 +774,13 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 
 		for i, r := range refreshshare.e2sShare.Value.Coeffs {
 			if !utils.EqualSliceUint64(resRefreshShare.e2sShare.Value.Coeffs[i], r) {
-				t.Fatal("Resulting of marshalling not the same as original : RefreshShare")
+				t.Fatal("Result of marshalling not the same as original : RefreshShare")
 			}
 
 		}
 		for i, r := range refreshshare.s2eShare.Value.Coeffs {
 			if !utils.EqualSliceUint64(resRefreshShare.s2eShare.Value.Coeffs[i], r) {
-				t.Fatal("Resulting of marshalling not the same as original : RefreshShare")
+				t.Fatal("Result of marshalling not the same as original : RefreshShare")
 			}
 
 		}

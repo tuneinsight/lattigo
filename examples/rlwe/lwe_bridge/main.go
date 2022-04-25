@@ -287,10 +287,10 @@ func Rotate(ctIn *rlwe.Ciphertext, galEl uint64, permuteNTTindex map[uint64][]ui
 	rtk, _ := rtks.GetRotationKey(galEl)
 	level := utils.MinInt(ctIn.Level(), ctOut.Level())
 	index := permuteNTTindex[galEl]
-	ks.SwitchKeysInPlace(level, ctIn.Value[1], rtk, ks.Pool[1].Q, ks.Pool[2].Q)
-	ringQ.AddLvl(level, ks.Pool[1].Q, ctIn.Value[0], ks.Pool[1].Q)
-	ringQ.PermuteNTTWithIndexLvl(level, ks.Pool[1].Q, index, ctOut.Value[0])
-	ringQ.PermuteNTTWithIndexLvl(level, ks.Pool[2].Q, index, ctOut.Value[1])
+	ks.SwitchKeysInPlace(level, ctIn.Value[1], rtk, ks.BuffQP[1].Q, ks.BuffQP[2].Q)
+	ringQ.AddLvl(level, ks.BuffQP[1].Q, ctIn.Value[0], ks.BuffQP[1].Q)
+	ringQ.PermuteNTTWithIndexLvl(level, ks.BuffQP[1].Q, index, ctOut.Value[0])
+	ringQ.PermuteNTTWithIndexLvl(level, ks.BuffQP[2].Q, index, ctOut.Value[1])
 }
 
 // DecryptAndPrint decrypts and prints the first N values.

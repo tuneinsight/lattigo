@@ -433,7 +433,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetScale floa
 		res = NewCiphertext(params, 1, X[minimumDegreeNonZeroCoefficient].Level(), ctScale)
 
 		// Allocates a temporary plaintext to encode the values
-		pt := NewPlaintextAtLevelFromPoly(X[minimumDegreeNonZeroCoefficient].Level(), polyEval.Evaluator.CtxPool().Value[0])
+		pt := NewPlaintextAtLevelFromPoly(X[minimumDegreeNonZeroCoefficient].Level(), polyEval.Evaluator.BuffCt().Value[0])
 
 		// Looks for a non-zero coefficient among the degree zero coefficient of the polynomials
 		for i, p := range pol.Value {

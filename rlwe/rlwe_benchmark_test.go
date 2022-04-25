@@ -51,14 +51,14 @@ func benchHoistedKeySwitch(kgen KeyGenerator, keySwitcher *KeySwitcher, b *testi
 	b.Run(testString(params, "DecomposeNTT/"), func(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			keySwitcher.DecomposeNTT(ciphertext.Level(), params.PCount()-1, params.PCount(), ciphertext.Value[1], keySwitcher.PoolDecompQP)
+			keySwitcher.DecomposeNTT(ciphertext.Level(), params.PCount()-1, params.PCount(), ciphertext.Value[1], keySwitcher.BuffDecompQP)
 		}
 	})
 
 	b.Run(testString(params, "KeySwitchHoisted/"), func(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			keySwitcher.KeyswitchHoisted(ciphertext.Level(), keySwitcher.PoolDecompQP, swk, ciphertext.Value[0], ciphertext.Value[1], keySwitcher.Pool[1].P, keySwitcher.Pool[2].P)
+			keySwitcher.KeyswitchHoisted(ciphertext.Level(), keySwitcher.BuffDecompQP, swk, ciphertext.Value[0], ciphertext.Value[1], keySwitcher.BuffQP[1].P, keySwitcher.BuffQP[2].P)
 		}
 	})
 }

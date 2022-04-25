@@ -149,13 +149,13 @@ func SwitchCiphertextRingDegreeNTT(ctIn *Ciphertext, ringQSmallDim, ringQLargeDi
 
 	if NIn > NOut {
 		gap := NIn / NOut
-		pool := make([]uint64, NIn)
+		buff := make([]uint64, NIn)
 		for i := range ctOut.Value {
 			for j := range ctOut.Value[i].Coeffs {
 				tmpIn, tmpOut := ctIn.Value[i].Coeffs[j], ctIn.Value[i].Coeffs[j]
-				ringQLargeDim.InvNTTSingle(j, tmpIn, pool)
+				ringQLargeDim.InvNTTSingle(j, tmpIn, buff)
 				for w0, w1 := 0, 0; w0 < NOut; w0, w1 = w0+1, w1+gap {
-					tmpOut[w0] = pool[w1]
+					tmpOut[w0] = buff[w1]
 				}
 				ringQSmallDim.NTTSingle(j, tmpOut, tmpOut)
 			}

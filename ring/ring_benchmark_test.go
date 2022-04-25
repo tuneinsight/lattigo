@@ -2,7 +2,6 @@ package ring
 
 import (
 	"fmt"
-	"math/big"
 	"math/bits"
 	"testing"
 )
@@ -38,7 +37,6 @@ func BenchmarkRing(b *testing.B) {
 		benchMulScalar(testContext, b)
 		benchExtendBasis(testContext, b)
 		benchDivByLastModulus(testContext, b)
-		benchDivByRNSBasis(testContext, b)
 		benchMRed(testContext, b)
 		benchBRed(testContext, b)
 		benchBRedAdd(testContext, b)
@@ -308,7 +306,7 @@ func benchDivByLastModulus(testContext *testParams, b *testing.B) {
 	p0 := testContext.uniformSamplerQ.ReadNew()
 	p1 := testContext.ringQ.NewPolyLvl(p0.Level() - 1)
 
-	pool := testContext.ringQ.NewPoly()
+	buff := testContext.ringQ.NewPoly()
 
 	b.Run(testString("DivByLastModulus/Floor/", testContext.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -318,7 +316,7 @@ func benchDivByLastModulus(testContext *testParams, b *testing.B) {
 
 	b.Run(testString("DivByLastModulus/FloorNTT/", testContext.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			testContext.ringQ.DivFloorByLastModulusNTTLvl(p0.Level(), p0, pool, p1)
+			testContext.ringQ.DivFloorByLastModulusNTTLvl(p0.Level(), p0, buff, p1)
 		}
 	})
 
@@ -330,67 +328,7 @@ func benchDivByLastModulus(testContext *testParams, b *testing.B) {
 
 	b.Run(testString("DivByLastModulus/RoundNTT/", testContext.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			testContext.ringQ.DivRoundByLastModulusNTTLvl(p0.Level(), p0, pool, p1)
-		}
-	})
-}
-
-func benchDivByRNSBasis(testContext *testParams, b *testing.B) {
-
-	b.Run(testString("DivByRNSBasis/Simple/DivByQOverTRounded/reconstructAndScale/", testContext.ringQ), func(b *testing.B) {
-
-		rescaler := NewSimpleScaler(T, testContext.ringQ)
-
-		coeffs := make([]*big.Int, testContext.ringQ.N)
-		for i := 0; i < testContext.ringQ.N; i++ {
-			coeffs[i] = RandInt(testContext.ringQ.ModulusBigint)
-		}
-
-		tmp0 := testContext.ringQ.NewPoly()
-		tmp1 := testContext.ringQ.NewPoly()
-
-		testContext.ringQ.SetCoefficientsBigint(coeffs, tmp0)
-
-		for i := 0; i < b.N; i++ {
-			rescaler.reconstructAndScale(tmp0, tmp1)
-		}
-	})
-
-	b.Run(testString("DivByRNSBasis/Simple/DivByQOverTRounded/reconstructThenScale/", testContext.ringQ), func(b *testing.B) {
-
-		rescaler := NewSimpleScaler(T, testContext.ringQ)
-
-		coeffs := make([]*big.Int, testContext.ringQ.N)
-		for i := 0; i < testContext.ringQ.N; i++ {
-			coeffs[i] = RandInt(testContext.ringQ.ModulusBigint)
-		}
-
-		tmp0 := testContext.ringQ.NewPoly()
-		tmp1 := testContext.ringQ.NewPoly()
-
-		testContext.ringQ.SetCoefficientsBigint(coeffs, tmp0)
-
-		for i := 0; i < b.N; i++ {
-			rescaler.reconstructThenScale(tmp0, tmp1)
-		}
-	})
-
-	b.Run(testString("DivByRNSBasis/RNS/DivByQOverTRounded/", testContext.ringQ), func(b *testing.B) {
-
-		coeffs := make([]*big.Int, testContext.ringQ.N)
-		for i := 0; i < testContext.ringQ.N; i++ {
-			coeffs[i] = RandInt(testContext.ringQ.ModulusBigint)
-		}
-
-		ringT, _ := NewRing(testContext.ringQ.N, []uint64{T})
-
-		scaler := NewRNSScaler(testContext.ringQ, ringT)
-		polyQ := testContext.ringQ.NewPoly()
-		polyT := NewPoly(testContext.ringQ.N, 1)
-		testContext.ringQ.SetCoefficientsBigint(coeffs, polyQ)
-
-		for i := 0; i < b.N; i++ {
-			scaler.DivByQOverTRounded(polyQ, polyT)
+			testContext.ringQ.DivRoundByLastModulusNTTLvl(p0.Level(), p0, buff, p1)
 		}
 	})
 }

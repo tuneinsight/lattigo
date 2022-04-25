@@ -122,7 +122,7 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, c1 *ring.Pol
 
 	if ringP != nil {
 		// P * a * (skIn - skOut) mod QP (mod P = 0)
-		ringQ.MulScalarBigintLvl(levelQ, shareOut.Value, ringP.ModulusBigint, shareOut.Value)
+		ringQ.MulScalarBigintLvl(levelQ, shareOut.Value, ringP.ModulusAtLevel[levelP], shareOut.Value)
 	}
 
 	if !c1.IsNTT {

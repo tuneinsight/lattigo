@@ -5,12 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"math/bits"
 
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
 var (
+
 	// PN12QP109 is a set of default parameters with logN=12 and logQP=109
 	PN12QP109 = ParametersLiteral{
 		LogN:  12,
@@ -130,16 +133,22 @@ type Parameters struct {
 // NewParameters instantiate a set of BFV parameters from the generic RLWE parameters and the BFV-specific ones.
 // It returns the empty parameters Parameters{} and a non-nil error if the specified parameters are invalid.
 func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err error) {
+
+	if utils.IsInSliceUint64(t, rlweParams.Q()) && rlweParams.Q()[0] != t {
+		return Parameters{}, fmt.Errorf("if t|Q then Q[0] must be t")
+	}
+
 	if rlweParams.Equals(rlwe.Parameters{}) {
 		return Parameters{}, fmt.Errorf("provided RLWE parameters are invalid")
 	}
+
 	if t > rlweParams.Q()[0] {
 		return Parameters{}, fmt.Errorf("t=%d is larger than Q[0]=%d", t, rlweParams.Q()[0])
 	}
 
 	var ringQMul, ringT *ring.Ring
 
-	nbQiMul := int(math.Ceil(float64(rlweParams.RingQ().ModulusBigint.BitLen()+rlweParams.LogN()) / 61.0))
+	nbQiMul := int(math.Ceil(float64(rlweParams.RingQ().ModulusAtLevel[rlweParams.MaxLevel()].BitLen()+rlweParams.LogN()) / 61.0))
 	if ringQMul, err = ring.NewRing(rlweParams.N(), ring.GenerateNTTPrimesP(61, 2*rlweParams.N(), nbQiMul)); err != nil {
 		return Parameters{}, err
 	}
@@ -163,17 +172,22 @@ func NewParametersFromLiteral(pl ParametersLiteral) (Parameters, error) {
 	return NewParameters(rlweParams, pl.T)
 }
 
-// RingQMul returns a pointer to the ring of the extended basis for multiplication
+// RingQMul returns a pointer to the ring of the extended basis for multiplication.
 func (p Parameters) RingQMul() *ring.Ring {
 	return p.ringQMul
 }
 
-// T returns the plaintext coefficient modulus t
+// T returns the plaintext coefficient modulus t.
 func (p Parameters) T() uint64 {
 	return p.ringT.Modulus[0]
 }
 
-// RingT returns a pointer to the plaintext ring
+// LogT returns log2(plaintext coefficient modulus).
+func (p Parameters) LogT() int {
+	return bits.Len64(p.T())
+}
+
+// RingT returns a pointer to the plaintext ring.
 func (p Parameters) RingT() *ring.Ring {
 	return p.ringT
 }
@@ -219,16 +233,18 @@ func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 	if err := p.Parameters.UnmarshalBinary(data); err != nil {
 		return err
 	}
-	dataBfv := data[len(data)-8:]
 
-	nbQiMul := int(math.Ceil(float64(p.RingQ().ModulusBigint.BitLen()+p.LogN()) / 61.0))
+	nbQiMul := int(math.Ceil(float64(p.RingQ().ModulusAtLevel[p.MaxLevel()].BitLen()+p.LogN()) / 61.0))
 	if p.ringQMul, err = ring.NewRing(p.N(), ring.GenerateNTTPrimesP(61, 2*p.N(), nbQiMul)); err != nil {
 		return err
 	}
 
-	if p.ringT, err = ring.NewRing(p.N(), []uint64{binary.BigEndian.Uint64(dataBfv)}); err != nil {
+	t := binary.BigEndian.Uint64(data[len(data)-8:])
+
+	if p.ringT, err = ring.NewRing(p.N(), []uint64{t}); err != nil {
 		return err
 	}
+
 	return nil
 }
 

@@ -101,11 +101,11 @@ All notable changes to this project will be documented in this file.
 - BFV/RING: moved `RNSScaler` from `ring` to `bfv`.
 - RING: removed deprecated `SimpleScaler`.
 
-# [3.0.2] - 2022-02-21
+## [3.0.2] - 2022-02-21
 
 - RING: fixed sparse ternary sampler to properly sample on non-zero poly.
 
-# [3.0.1] - 2022-02-21
+## [3.0.1] - 2022-02-21
 
 - RLWE/CKKS/BFV: added the `H` field and `HammingWeight` method in parameters-related structs, to specify distribution of all secrets in the schemes.
 - RLWE/DRLWE: all secrets in the ternary distribution are now sampled with a fixed hamming weight, according to the parameters.

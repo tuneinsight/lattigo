@@ -64,16 +64,16 @@ func TestBootstrap(t *testing.T) {
 
 	LogSlots := ckksParams.LogSlots
 	H := ckksParams.H
-	EphemeralSecretDensity := btpParams.EphemeralSecretDensity
+	EphemeralSecretWeight := btpParams.EphemeralSecretWeight
 
 	for _, testSet := range [][]bool{{false, false}, {true, false}, {false, true}, {true, true}} {
 
 		if testSet[0] {
-			ckksParams.H = EphemeralSecretDensity
-			btpParams.EphemeralSecretDensity = 0
+			ckksParams.H = EphemeralSecretWeight
+			btpParams.EphemeralSecretWeight = 0
 		} else {
 			ckksParams.H = H
-			btpParams.EphemeralSecretDensity = EphemeralSecretDensity
+			btpParams.EphemeralSecretWeight = EphemeralSecretWeight
 		}
 
 		if testSet[1] {

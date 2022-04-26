@@ -99,7 +99,7 @@ func GenEvaluationKeys(btpParams Parameters, ckksParams ckks.Parameters, sk *rlw
 // GenEncapsulationSwitchingKeys generates the low level encapsulation switching keys for the bootstrapping.
 func (p *Parameters) GenEncapsulationSwitchingKeys(params ckks.Parameters, skDense *rlwe.SecretKey) (swkDtS, swkStD *rlwe.SwitchingKey) {
 
-	if p.EphemeralSecretDensity == 0 {
+	if p.EphemeralSecretWeight == 0 {
 		return
 	}
 
@@ -111,7 +111,7 @@ func (p *Parameters) GenEncapsulationSwitchingKeys(params ckks.Parameters, skDen
 
 	kgenSparse := rlwe.NewKeyGenerator(paramsSparse)
 	kgenDense := rlwe.NewKeyGenerator(params.Parameters)
-	skSparse := kgenSparse.GenSecretKeyWithHammingWeight(p.EphemeralSecretDensity)
+	skSparse := kgenSparse.GenSecretKeyWithHammingWeight(p.EphemeralSecretWeight)
 
 	return kgenDense.GenSwitchingKey(skDense, skSparse), kgenDense.GenSwitchingKey(skSparse, skDense)
 }
@@ -137,11 +137,11 @@ func (bb *bootstrapperBase) CheckKeys(btpKeys EvaluationKeys) (err error) {
 		return fmt.Errorf("rotation key is nil")
 	}
 
-	if btpKeys.SwkDtS == nil && bb.Parameters.EphemeralSecretDensity != 0 {
+	if btpKeys.SwkDtS == nil && bb.Parameters.EphemeralSecretWeight != 0 {
 		return fmt.Errorf("switching key dense to sparse is nil")
 	}
 
-	if btpKeys.SwkStD == nil && bb.Parameters.EphemeralSecretDensity != 0 {
+	if btpKeys.SwkStD == nil && bb.Parameters.EphemeralSecretWeight != 0 {
 		return fmt.Errorf("switching key sparse to dense is nil")
 	}
 

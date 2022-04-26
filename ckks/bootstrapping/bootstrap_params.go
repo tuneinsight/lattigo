@@ -10,7 +10,7 @@ type Parameters struct {
 	SlotsToCoeffsParameters advanced.EncodingMatrixLiteral
 	EvalModParameters       advanced.EvalModLiteral
 	CoeffsToSlotsParameters advanced.EncodingMatrixLiteral
-	EphemeralSecretDensity  int // Hamming weight of the ephemeral secret. If 0, no ephemeral secret is used during the bootstrapping.
+	EphemeralSecretWeight   int // Hamming weight of the ephemeral secret. If 0, no ephemeral secret is used during the bootstrapping.
 }
 
 // MarshalBinary encode the target Parameters on a slice of bytes.
@@ -40,10 +40,10 @@ func (p *Parameters) MarshalBinary() (data []byte, err error) {
 	data = append(data, tmp...)
 
 	tmp = make([]byte, 4)
-	tmp[0] = uint8(p.EphemeralSecretDensity >> 24)
-	tmp[1] = uint8(p.EphemeralSecretDensity >> 16)
-	tmp[2] = uint8(p.EphemeralSecretDensity >> 8)
-	tmp[3] = uint8(p.EphemeralSecretDensity >> 0)
+	tmp[0] = uint8(p.EphemeralSecretWeight >> 24)
+	tmp[1] = uint8(p.EphemeralSecretWeight >> 16)
+	tmp[2] = uint8(p.EphemeralSecretWeight >> 8)
+	tmp[3] = uint8(p.EphemeralSecretWeight >> 0)
 	data = append(data, tmp...)
 	return
 }
@@ -78,7 +78,7 @@ func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 	pt++
 	dLen = int(data[pt])
 
-	p.EphemeralSecretDensity = int(data[pt])<<24 | int(data[pt+1])<<16 | int(data[pt+2])<<8 | int(data[pt+3])
+	p.EphemeralSecretWeight = int(data[pt])<<24 | int(data[pt+1])<<16 | int(data[pt+2])<<8 | int(data[pt+3])
 
 	return
 }

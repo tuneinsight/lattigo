@@ -71,7 +71,7 @@ var (
 		},
 
 		Parameters{
-			EphemeralSecretDensity: 32,
+			EphemeralSecretWeight: 32,
 			SlotsToCoeffsParameters: advanced.EncodingMatrixLiteral{
 				LinearTransformType: advanced.SlotsToCoeffs,
 				LevelStart:          12,
@@ -155,7 +155,7 @@ var (
 		},
 
 		Parameters{
-			EphemeralSecretDensity: 32,
+			EphemeralSecretWeight: 32,
 			SlotsToCoeffsParameters: advanced.EncodingMatrixLiteral{
 				LinearTransformType: advanced.SlotsToCoeffs,
 				LevelStart:          8,
@@ -238,7 +238,7 @@ var (
 		},
 
 		Parameters{
-			EphemeralSecretDensity: 32,
+			EphemeralSecretWeight: 32,
 			SlotsToCoeffsParameters: advanced.EncodingMatrixLiteral{
 				LinearTransformType: advanced.SlotsToCoeffs,
 				LevelStart:          9,
@@ -309,7 +309,7 @@ var (
 		},
 
 		Parameters{
-			EphemeralSecretDensity: 32,
+			EphemeralSecretWeight: 32,
 			SlotsToCoeffsParameters: advanced.EncodingMatrixLiteral{
 				LinearTransformType: advanced.SlotsToCoeffs,
 				LevelStart:          3,
@@ -396,7 +396,7 @@ var (
 		},
 
 		Parameters{
-			EphemeralSecretDensity: 32,
+			EphemeralSecretWeight: 32,
 			SlotsToCoeffsParameters: advanced.EncodingMatrixLiteral{
 				LinearTransformType: advanced.SlotsToCoeffs,
 				LevelStart:          16,
@@ -485,7 +485,7 @@ var (
 		},
 
 		Parameters{
-			EphemeralSecretDensity: 32,
+			EphemeralSecretWeight: 32,
 			SlotsToCoeffsParameters: advanced.EncodingMatrixLiteral{
 				LinearTransformType: advanced.SlotsToCoeffs,
 				LevelStart:          12,
@@ -572,7 +572,7 @@ var (
 		},
 
 		Parameters{
-			EphemeralSecretDensity: 32,
+			EphemeralSecretWeight: 32,
 			SlotsToCoeffsParameters: advanced.EncodingMatrixLiteral{
 				LinearTransformType: advanced.SlotsToCoeffs,
 				LevelStart:          13,
@@ -645,7 +645,7 @@ var (
 		},
 
 		Parameters{
-			EphemeralSecretDensity: 32,
+			EphemeralSecretWeight: 32,
 			SlotsToCoeffsParameters: advanced.EncodingMatrixLiteral{
 				LinearTransformType: advanced.SlotsToCoeffs,
 				LevelStart:          5,

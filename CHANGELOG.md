@@ -37,14 +37,15 @@ All notable changes to this project will be documented in this file.
 - ALL: added parameters for LogN=11 and LogN=10.
 - RING: fixed prime generation to not skip the first candidate.
 - RING: reworked marshalling of `ring.Poly` object. The new available methods are:
-    - `GetDataLen64` and `GetDataLen32`: get the length in bytes of a `ring.Poly` object in bytes.
-    - `WriteTo64` and `WriteTo32`: write a `ring.Poly` object on a pre-allocated slice of bytes.
-    - `WriteCoeffsTo64` and `WriteCoeffsTo32`: write a matrix of coefficients on pre-allocated slice of bytes.
-    - `DecodeCoeffs64` and `DecodeCoeffs32`: decode a byte array on a matrix of coefficients.
+    - `GetDataLen64` and `GetDataLen32`: get the length in bytes of an encoded `ring.Poly` object.
+    - `WriteTo64` and `WriteTo32`: encode a `ring.Poly` object on a pre-allocated slice of bytes.
+    - `WriteCoeffsTo64` and `WriteCoeffsTo32`: encode a matrix of coefficients on pre-allocated slice of bytes.
+    - `DecodeCoeffs64` and `DecodeCoeffs32`: decode a slice of bytes on a matrix of coefficients.
     - `DecodePoly64` and `DecodePoly32`: decode a slice of bytes on a a pre-allocated `ring.Poly` object.
     - `DecodePoly64New` and `DecodePoly32New`: decode a slice of bytes on a `ring.Poly` object.
-- RING: changed `ring.Poly.Degree()` method to `*ring.Poly.N()` for consistency with the other package API.
+- RING: changed `ring.Poly.Degree()` method to `ring.Poly.N()` for consistency with the other package API.
 - RING: removed `ring.Poly.LenModuli()` depreciated method.
+- RING: the method `ring.NewPoly` now takes the `level` as input instead of the number of moduli, for consistency with the other package API.
 - RLWE: refactored the package to enable better modularity and implementation of advanced features.
     - `rlwe/gadget`: a package that provides the type `gadget.Ciphertext`, a type of ciphertext used in the gadget product `POLY x GADGET -> RLWE`.
     - `rlwe/lut`: a package that provides tools for the evaluation of Look-Up-Tables (LUT) on `rlwe.Ciphertext`.
@@ -73,7 +74,7 @@ All notable changes to this project will be documented in this file.
 - RLWE: `rlwe.Parameters` can be instantiated without the modulus `P`.
 - RLWE: updated `rlwe.Encryptor` with the following functionalities: 
     - The methods `.Encrypt` now accept as input both `rlwe.Ciphertext` and `rgsw.Ciphertext`.
-    - Added the method `EncryptZeroSymetricQPNTT` which samples encryptions of zero.
+    - Added the method `EncryptZeroSymetricQPNTT` which samples encryptions of zero. This method can take as input a sampler to generate seeded encryption of zero.
     - Added the method `EncryptSeeded` which takes as an additional input a `ringqp.UniformSampler` to sample the public polynomials.
 - RLWE: added the type `SeededCiphertextBatch` which is a struct that can be used to store and marshal a list of `rlwe.Ciphertexts` whose degree-1 element is empty. Their degree-1 element can be reconstructed by calling `.Reconstruct`.
 - RLWE: `rlwe.KeyGenerator` now uses an `rlwe.Encryptor` to generate keys encryption keys and evaluation keys.
@@ -91,7 +92,6 @@ All notable changes to this project will be documented in this file.
 ## [3.0.4] - 2022-04-26
 
 - CKKS: updated the bootstrapping circuit to use the key-encapsulation mechanism of `Bootstrapping for Approximate Homomorphic Encryption with Negligible Failure-Probability by Using Sparse-Secret Encapsulation`. The previous bootstrapping circuit can be run by setting `EphemeralSecretDensity=0`.
-
 - BFV: added the `Evaluator.Rescale` and `Evaluator.RescaleTo` methods to switch BFV ciphertexts to lower levels.
 - BFV: all `Evaluator` methods on ciphertext support all arithmetic operations at lower levels, but require that operands are at the same level.
 - BFV: the plaintext modulus `T` can now equal to the level-zero modulus Q[0] (i.e., be a factor of the ciphertext modulus `Q`).

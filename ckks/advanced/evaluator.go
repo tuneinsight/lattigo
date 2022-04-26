@@ -204,7 +204,6 @@ func (eval *evaluator) SlotsToCoeffs(ctReal, ctImag *ckks.Ciphertext, stcMatrice
 }
 
 func (eval *evaluator) dft(ctIn *ckks.Ciphertext, plainVectors []ckks.LinearTransform, ctOut *ckks.Ciphertext) {
-
 	// Sequentially multiplies w with the provided dft matrices.
 	scale := ctIn.Scale
 	var in, out *ckks.Ciphertext

@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/tuneinsight/lattigo/v3/ckks"
-	"github.com/tuneinsight/lattigo/v3/rlwe"
 )
 
 func BenchmarkBootstrapp(b *testing.B) {
@@ -14,10 +13,9 @@ func BenchmarkBootstrapp(b *testing.B) {
 	var err error
 	var btp *Bootstrapper
 
-	paramSet := 0
-
-	ckksParams := DefaultCKKSParameters[paramSet]
-	btpParams := DefaultParameters[paramSet]
+	paramSet := DefaultParametersDense[0]
+	ckksParams := paramSet.SchemeParams
+	btpParams := paramSet.BootstrappingParams
 
 	params, err := ckks.NewParametersFromLiteral(ckksParams)
 	if err != nil {
@@ -26,12 +24,10 @@ func BenchmarkBootstrapp(b *testing.B) {
 
 	kgen := ckks.NewKeyGenerator(params)
 	sk := kgen.GenSecretKey()
-	rlk := kgen.GenRelinearizationKey(sk, 2)
 
-	rotations := btpParams.RotationsForBootstrapping(params.LogN(), params.LogSlots())
-	rotkeys := kgen.GenRotationKeysForRotations(rotations, true, sk)
+	evk := GenEvaluationKeys(btpParams, params, sk)
 
-	if btp, err = NewBootstrapper(params, btpParams, rlwe.EvaluationKey{Rlk: rlk, Rtks: rotkeys}); err != nil {
+	if btp, err = NewBootstrapper(params, btpParams, evk); err != nil {
 		panic(err)
 	}
 

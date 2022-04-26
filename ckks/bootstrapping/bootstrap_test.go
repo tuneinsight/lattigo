@@ -8,10 +8,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v3/ckks"
-	"github.com/tuneinsight/lattigo/v3/rlwe"
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
+
+var minPrec float64 = 12.0
 
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters + secure bootstrapping). Overrides -short and requires -timeout=0.")
 var testBootstrapping = flag.Bool("test-bootstrapping", false, "run the bootstrapping tests (memory intensive)")
@@ -29,7 +31,7 @@ func ParamsToString(params ckks.Parameters, opname string) string {
 }
 
 func TestBootstrapParametersMarshalling(t *testing.T) {
-	bootstrapParams := DefaultParameters[0]
+	bootstrapParams := DefaultParametersDense[0].BootstrappingParams
 	data, err := bootstrapParams.MarshalBinary()
 	assert.Nil(t, err)
 
@@ -50,10 +52,9 @@ func TestBootstrap(t *testing.T) {
 		t.Skip("skipping bootstrapping tests (add -test-bootstrapping to run the bootstrapping tests)")
 	}
 
-	paramSet := 0
-
-	ckksParams := DefaultCKKSParameters[paramSet]
-	bootstrapParams := DefaultParameters[paramSet]
+	paramSet := DefaultParametersSparse[0]
+	ckksParams := paramSet.SchemeParams
+	btpParams := paramSet.BootstrappingParams
 
 	// Insecure params for fast testing only
 	if !*flagLongTest {
@@ -61,48 +62,56 @@ func TestBootstrap(t *testing.T) {
 		ckksParams.LogSlots = 12
 	}
 
-	params, err := ckks.NewParametersFromLiteral(ckksParams)
-	if err != nil {
-		panic(err)
-	}
+	LogSlots := ckksParams.LogSlots
+	H := ckksParams.H
+	EphemeralSecretWeight := btpParams.EphemeralSecretWeight
 
-	for _, testSet := range []func(params ckks.Parameters, btpParams Parameters, t *testing.T){
-		testbootstrap,
-	} {
-		testSet(params, bootstrapParams, t)
-		runtime.GC()
-	}
+	for _, testSet := range [][]bool{{false, false}, {true, false}, {false, true}, {true, true}} {
 
-	ckksParams.LogSlots--
+		if testSet[0] {
+			ckksParams.H = EphemeralSecretWeight
+			btpParams.EphemeralSecretWeight = 0
+		} else {
+			ckksParams.H = H
+			btpParams.EphemeralSecretWeight = EphemeralSecretWeight
+		}
 
-	params, err = ckks.NewParametersFromLiteral(ckksParams)
-	if err != nil {
-		panic(err)
-	}
+		if testSet[1] {
+			ckksParams.LogSlots = LogSlots - 1
+		} else {
+			ckksParams.LogSlots = LogSlots
+		}
 
-	for _, testSet := range []func(params ckks.Parameters, btpParams Parameters, t *testing.T){
-		testbootstrap,
-	} {
-		testSet(params, bootstrapParams, t)
+		params, err := ckks.NewParametersFromLiteral(ckksParams)
+		if err != nil {
+			panic(err)
+		}
+
+		testbootstrap(params, testSet[0], btpParams, t)
 		runtime.GC()
 	}
 }
 
-func testbootstrap(params ckks.Parameters, btpParams Parameters, t *testing.T) {
+func testbootstrap(params ckks.Parameters, original bool, btpParams Parameters, t *testing.T) {
 
-	t.Run(ParamsToString(params, "Bootstrapping/FullCircuit/"), func(t *testing.T) {
+	btpType := "Encapsulation/"
+
+	if original {
+		btpType = "Original/"
+	}
+
+	t.Run(ParamsToString(params, "Bootstrapping/FullCircuit/"+btpType), func(t *testing.T) {
 
 		kgen := ckks.NewKeyGenerator(params)
 		sk := kgen.GenSecretKey()
-		rlk := kgen.GenRelinearizationKey(sk, 2)
+
 		encoder := ckks.NewEncoder(params)
 		encryptor := ckks.NewEncryptor(params, sk)
 		decryptor := ckks.NewDecryptor(params, sk)
 
-		rotations := btpParams.RotationsForBootstrapping(params.LogN(), params.LogSlots())
-		rotkeys := kgen.GenRotationKeysForRotations(rotations, true, sk)
+		evk := GenEvaluationKeys(btpParams, params, sk)
 
-		btp, err := NewBootstrapper(params, btpParams, rlwe.EvaluationKey{Rlk: rlk, Rtks: rotkeys})
+		btp, err := NewBootstrapper(params, btpParams, evk)
 		if err != nil {
 			panic(err)
 		}
@@ -155,4 +164,7 @@ func verifyTestVectors(params ckks.Parameters, encoder ckks.Encoder, decryptor c
 	if *printPrecisionStats {
 		t.Log(precStats.String())
 	}
+
+	require.GreaterOrEqual(t, precStats.MeanPrecision.Real, minPrec)
+	require.GreaterOrEqual(t, precStats.MeanPrecision.Imag, minPrec)
 }

@@ -15,7 +15,7 @@ func AddPolyToCiphertext(pt *ring.Poly, ct []Ciphertext, ringQP ringqp.Ring, log
 	levelP := ct[0].LevelP()
 
 	if levelP != -1 {
-		ringQ.MulScalarBigintLvl(levelQ, pt, ringQP.RingP.ModulusBigint[levelP], buff) // P * pt
+		ringQ.MulScalarBigintLvl(levelQ, pt, ringQP.RingP.ModulusAtLevel[levelP], buff) // P * pt
 	} else {
 		levelP = 0
 		if pt != buff {
@@ -73,7 +73,7 @@ func AddPolyToGadgetMatrix(pt *ring.Poly, gm [][]ringqp.Poly, ringQP ringqp.Ring
 	levelP := gm[0][0].LevelP()
 
 	if levelP != -1 {
-		ringQ.MulScalarBigintLvl(levelQ, pt, ringQP.RingP.ModulusBigint[levelP], buff) // P * pt
+		ringQ.MulScalarBigintLvl(levelQ, pt, ringQP.RingP.ModulusAtLevel[levelP], buff) // P * pt
 	} else {
 		levelP = 0
 		if pt != buff {

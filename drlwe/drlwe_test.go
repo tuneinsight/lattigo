@@ -340,19 +340,9 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 			}
 		}
 
-<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
-<<<<<<< dev_bfv_poly
-		// sOut * P
-<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
-		ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusAtLevel[levelP], skIn.Value.Q)
-=======
-		ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusBigint[levelP], skIn.Value.Q)
-=======
-=======
->>>>>>> rebased on dev_bfv_poly
 		if levelP != -1 {
 			// sOut * P
-			ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusBigint[levelP], skIn.Value.Q)
+			ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusAtLevel[levelP], skIn.Value.Q)
 		}
 
 		log2Bound := bits.Len64(uint64(params.N() * len(swk.Value) * len(swk.Value[0]) * (params.N()*3*int(math.Floor(rlwe.DefaultSigma*6)) + 2*3*int(math.Floor(rlwe.DefaultSigma*6)) + params.N()*3)))
@@ -365,11 +355,6 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 			// Worst error bound is N * floor(6*sigma) * #Keys
 			ringQP.InvNTTLvl(levelQ, levelP, swk.Value[0][i][0], swk.Value[0][i][0])
 			ringQP.InvMFormLvl(levelQ, levelP, swk.Value[0][i][0], swk.Value[0][i][0])
-<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
->>>>>>> First step for adding bit-decomp
->>>>>>> First step for adding bit-decomp
-=======
->>>>>>> rebased on dev_bfv_poly
 
 			// Worst bound of inner sum
 			// N*#Keys*(N * #Parties * floor(sigma*6) + #Parties * floor(sigma*6) + N * #Parties  +  #Parties * floor(6*sigma))
@@ -396,13 +381,7 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 
 	decompBIT := params.DecompBIT(levelQ, levelP)
 
-<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
-		if params.PCount() == 0 {
-			t.Skip("method is unsupported when params.PCount() == 0")
-		}
-=======
 	t.Run(testString(params, "RotKeyGen"), func(t *testing.T) {
->>>>>>> First step for adding bit-decomp
 
 		rtg := make([]*RTGProtocol, nbParties)
 		for i := range rtg {
@@ -464,25 +443,10 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 			}
 		}
 
-<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
-<<<<<<< dev_bfv_poly
-		// sOut * P
-<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
-		ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusAtLevel[levelP], skIn.Value.Q)
-=======
-		ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusBigint[levelP], skIn.Value.Q)
-=======
-=======
->>>>>>> rebased on dev_bfv_poly
 		if levelP != -1 {
 			// sOut * P
-			ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusBigint[levelP], skIn.Value.Q)
+			ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusAtLevel[levelP], skIn.Value.Q)
 		}
-<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
->>>>>>> First step for adding bit-decomp
->>>>>>> First step for adding bit-decomp
-=======
->>>>>>> rebased on dev_bfv_poly
 
 		log2Bound := bits.Len64(uint64(params.N() * len(swk.Value) * len(swk.Value[0]) * (params.N()*3*int(math.Floor(rlwe.DefaultSigma*6)) + 2*3*int(math.Floor(rlwe.DefaultSigma*6)) + params.N()*3)))
 		for i := 0; i < decompBIT; i++ {
@@ -595,15 +559,6 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 
 	t.Run(testString(params, "Marshalling/RKG"), func(t *testing.T) {
 
-<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
-		if params.PCount() == 0 {
-			t.Skip("method is unsupported when params.PCount() == 0")
-		}
-
-=======
->>>>>>> First step for adding bit-decomp
-		//check RTGShare
-
 		RKGProtocol := NewRKGProtocol(params)
 
 		ephSk0, share10, _ := RKGProtocol.AllocateShare()
@@ -639,15 +594,6 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 	})
 
 	t.Run(testString(params, "Marshalling/RTG"), func(t *testing.T) {
-
-<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
-		if params.PCount() == 0 {
-			t.Skip("method is unsupported when params.PCount() == 0")
-		}
-
-=======
->>>>>>> First step for adding bit-decomp
-		//check RTGShare
 
 		galEl := testCtx.params.GaloisElementForColumnRotationBy(64)
 

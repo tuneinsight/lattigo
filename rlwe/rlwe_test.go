@@ -232,7 +232,7 @@ func testSwitchKeyGen(kgen KeyGenerator, t *testing.T) {
 
 		// sOut * P * BIT
 		if levelP != -1 {
-			ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusBigint[levelP], skIn.Value.Q)
+			ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusAtLevel[levelP], skIn.Value.Q)
 		}
 
 		log2Bound := bits.Len64(uint64(math.Floor(DefaultSigma*6)) * uint64(params.N()*len(swk.Value)))

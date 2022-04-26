@@ -82,7 +82,7 @@ func NewBootstrapper(params ckks.Parameters, btpParams Parameters, btpKeys Evalu
 //	SwkStD: *rlwe.SwitchingKey
 func GenEvaluationKeys(btpParams Parameters, ckksParams ckks.Parameters, sk *rlwe.SecretKey) EvaluationKeys {
 	kgen := ckks.NewKeyGenerator(ckksParams)
-	rotations := btpParams.RotationsForBootstrapping(ckksParams.LogN(), ckksParams.LogSlots())
+	rotations := btpParams.RotationsForBootstrapping(ckksParams)
 	rlk := kgen.GenRelinearizationKey(sk, 1)
 	rotkeys := kgen.GenRotationKeysForRotations(rotations, true, sk)
 	swkDtS, swkStD := btpParams.GenEncapsulationSwitchingKeys(ckksParams, sk)
@@ -158,7 +158,7 @@ func (bb *bootstrapperBase) CheckKeys(btpKeys EvaluationKeys) (err error) {
 	}
 
 	for _, galEl := range bb.params.GaloisElementsForTrace(bb.params.LogSlots()) {
-		if _, generated := btpKey.Rtks.Keys[galEl]; !generated {
+		if _, generated := btpKeys.Rtks.Keys[galEl]; !generated {
 			rotMissing = append(rotMissing, int(galEl))
 		}
 	}

@@ -138,7 +138,7 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp RKGCRP, ephSkOu
 
 	if hasModulusP {
 		// Computes P * sk
-		ringQ.MulScalarBigintLvl(levelQ, sk.Value.Q, ringQP.RingP.ModulusBigint[levelP], ekg.tmpPoly1.Q)
+		ringQ.MulScalarBigintLvl(levelQ, sk.Value.Q, ringQP.RingP.ModulusAtLevel[levelP], ekg.tmpPoly1.Q)
 	} else {
 		levelP = 0
 		ring.CopyLvl(levelQ, sk.Value.Q, ekg.tmpPoly1.Q)

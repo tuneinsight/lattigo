@@ -409,11 +409,7 @@ func (ecd *encoderComplex128) Embed(values interface{}, logSlots int, scale floa
 		complexToFixedPointCRT(p.Level(), ecd.values[:slots], scale, ecd.params.RingQ(), p.Coeffs, isRingStandard)
 		NttAndMontgomeryLvl(p.Level(), logSlots, ecd.params.RingQ(), montgomery, p)
 	default:
-<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
-		panic("cannot Embed: invalid polyOut.(Type) must be rlwe.PolyQP or *ring.Poly")
-=======
 		panic("invalid polyOut.(Type) must be ringqp.Poly or *ring.Poly")
->>>>>>> [rlwe]: complete refactoring
 	}
 }
 

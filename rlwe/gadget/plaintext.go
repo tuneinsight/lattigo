@@ -43,7 +43,7 @@ func NewPlaintext(value interface{}, levelQ, levelP, logBase2, decompBIT int, ri
 	}
 
 	if levelP > -1 {
-		ringQ.MulScalarBigintLvl(levelQ, pt.Value[0], ringQP.RingP.ModulusBigint[levelP], pt.Value[0])
+		ringQ.MulScalarBigintLvl(levelQ, pt.Value[0], ringQP.RingP.ModulusAtLevel[levelP], pt.Value[0])
 	}
 
 	ringQ.NTTLvl(levelQ, pt.Value[0], pt.Value[0])

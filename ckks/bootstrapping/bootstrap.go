@@ -80,20 +80,10 @@ func (btp *Bootstrapper) Bootstrapp(ctIn *ckks.Ciphertext) (ctOut *ckks.Cipherte
 
 func (btp *Bootstrapper) modUpFromQ0(ct *ckks.Ciphertext) *ckks.Ciphertext {
 
-<<<<<<< btp_eprint
 	if btp.swkDtS != nil {
 		btp.SwitchKeys(ct, btp.swkDtS, ct)
 	}
 
-=======
-<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
-=======
-	btp.SwitchKeys(ct, btp.swkDtS, ct)
-
-	ks := btp.GetRLWEEvaluator()
-
->>>>>>> rebased onto btp_eprint
->>>>>>> rebased onto btp_eprint
 	ringQ := btp.params.RingQ()
 	ringP := btp.params.RingP()
 
@@ -138,7 +128,7 @@ func (btp *Bootstrapper) modUpFromQ0(ct *ckks.Ciphertext) *ckks.Ciphertext {
 
 	if btp.swkStD != nil {
 
-		ks := btp.GetKeySwitcher()
+		ks := btp.GetRLWEEvaluator()
 
 		// ModUp q->QP for ct[1] centered around q
 		for j := 0; j < btp.params.N(); j++ {
@@ -172,24 +162,13 @@ func (btp *Bootstrapper) modUpFromQ0(ct *ckks.Ciphertext) *ckks.Ciphertext {
 
 		ringQ.NTTLvl(levelQ, ct.Value[0], ct.Value[0])
 
-<<<<<<< btp_eprint
 		ks.KeyswitchHoisted(levelQ, ks.BuffDecompQP, btp.swkStD, ks.BuffQP[1].Q, ct.Value[1], ks.BuffQP[1].P, ks.BuffQP[2].P)
 		ringQ.AddLvl(levelQ, ct.Value[0], ks.BuffQP[1].Q, ct.Value[0])
-=======
-<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
-			for i := 1; i < btp.params.MaxLevel()+1; i++ {
-=======
-		for i := 0; i < levelQ+1; i++ {
-			tmp = ring.BRedAdd(coeff, Q[i], bredparamsQ[i])
-			ks.BuffDecompQP[0].Q.Coeffs[i][j] = tmp*pos + (Q[i]-tmp)*neg
->>>>>>> rebased onto btp_eprint
->>>>>>> rebased onto btp_eprint
 
 	} else {
 
 		for j := 0; j < btp.params.N(); j++ {
 
-<<<<<<< btp_eprint
 			coeff = ct.Value[1].Coeffs[0][j]
 			pos, neg = 1, 0
 			if coeff >= (q >> 1) {
@@ -200,14 +179,6 @@ func (btp *Bootstrapper) modUpFromQ0(ct *ckks.Ciphertext) *ckks.Ciphertext {
 			for i := 1; i < levelQ+1; i++ {
 				tmp = ring.BRedAdd(coeff, Q[i], bredparamsQ[i])
 				ct.Value[1].Coeffs[i][j] = tmp*pos + (Q[i]-tmp)*neg
-=======
-<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
-				if coeff > (Q >> 1) {
-					ct.Value[u].Coeffs[i][j] = qi - ring.BRedAdd(Q-coeff, qi, bredparams[i])
-				} else {
-					ct.Value[u].Coeffs[i][j] = ring.BRedAdd(coeff, qi, bredparams[i])
-				}
->>>>>>> rebased onto btp_eprint
 			}
 		}
 
@@ -215,26 +186,5 @@ func (btp *Bootstrapper) modUpFromQ0(ct *ckks.Ciphertext) *ckks.Ciphertext {
 		ringQ.NTTLvl(levelQ, ct.Value[1], ct.Value[1])
 	}
 
-=======
-		for i := 0; i < levelP+1; i++ {
-			tmp = ring.BRedAdd(coeff, P[i], bredparamsP[i])
-			ks.BuffDecompQP[0].P.Coeffs[i][j] = tmp*pos + (P[i]-tmp)*neg
-		}
-	}
-
-	for i := len(ks.BuffDecompQP) - 1; i >= 0; i-- {
-		ringQ.NTTLvl(levelQ, ks.BuffDecompQP[0].Q, ks.BuffDecompQP[i].Q)
-	}
-
-	for i := len(ks.BuffDecompQP) - 1; i >= 0; i-- {
-		ringP.NTTLvl(levelP, ks.BuffDecompQP[0].P, ks.BuffDecompQP[i].P)
-	}
-
-	ringQ.NTTLvl(levelQ, ct.Value[0], ct.Value[0])
-
-	ks.KeyswitchHoisted(levelQ, ks.BuffDecompQP, btp.swkStD, ks.BuffQP[1].Q, ct.Value[1], ks.BuffQP[1].P, ks.BuffQP[2].P)
-	ringQ.AddLvl(levelQ, ct.Value[0], ks.BuffQP[1].Q, ct.Value[0])
-
->>>>>>> rebased onto btp_eprint
 	return ct
 }

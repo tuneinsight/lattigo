@@ -298,16 +298,7 @@ func (eval *evaluator) MulScalarNew(ctIn *Ciphertext, scalar uint64) (ctOut *Cip
 	return
 }
 
-<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
-<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
 // Rescale divides the ciphertext by the last modulus.
-=======
-<<<<<<< btp_eprint
-<<<<<<< btp_eprint
-=======
->>>>>>> rebased onto btp_eprint
-// Rescale divides the ciphertext by the last moduli.
->>>>>>> [rlwe]: complete refactoring
 func (eval *evaluator) Rescale(ctIn, ctOut *Ciphertext) {
 	eval.RescaleTo(ctIn.Level()-1, ctIn, ctOut)
 }
@@ -642,57 +633,7 @@ func (eval *evaluator) SwitchKeysNew(ctIn *Ciphertext, switchkey *rlwe.Switching
 	return
 }
 
-<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
-// RotateColumns rotates the columns of ct0 by k positions to the left and returns the result in ctOut. As an additional input it requires a RotationKeys struct:
-//
-// - it must either store all the left and right power-of-2 rotations or the specific rotation that is requested.
-//
-// If only the power-of-two rotations are stored, the numbers k and n/2-k will be decomposed in base-2 and the rotation with the lowest
-// hamming weight will be chosen; then the specific rotation will be computed as a sum of powers of two rotations.
-<<<<<<< dev_bfv_poly
-<<<<<<< dev_bfv_poly
-func (eval *evaluator) RotateColumns(ctIn *Ciphertext, k int, ctOut *Ciphertext) {
-
-	if ctIn.Degree() != 1 || ctOut.Degree() != 1 {
-		panic("cannot RotateColumns: input and or output must be of degree 1")
-	}
-
-	eval.getElemAndCheckUnary(ctIn, ctOut, 1)
-
-	if k == 0 {
-
-		ctOut.Copy(ctIn.El())
-
-	} else {
-
-		galElL := eval.params.GaloisElementForColumnRotationBy(k)
-		// Looks in the rotation key if the corresponding rotation has been generated or if the input is a plaintext
-		if swk, inSet := eval.rtks.GetRotationKey(galElL); inSet {
-
-			eval.permuteLvl(ctIn.Level(), ctIn, galElL, swk, ctOut)
-
-		} else {
-			panic(fmt.Errorf("evaluator has no rotation key for rotation by %d", k))
-		}
-	}
-}
-
-// permuteLvl performs a column rotation on ctIn and returns the result in ctOut
-func (eval *evaluator) permuteLvl(level int, ctIn *Ciphertext, generator uint64, switchKey *rlwe.SwitchingKey, ctOut *Ciphertext) {
-<<<<<<< dev_bfv_poly
-	eval.SwitchKeysInPlace(level, ctIn.Value[1], switchKey, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
-	eval.ringQ.AddLvl(level, eval.BuffQP[1].Q, ctIn.Value[0], eval.BuffQP[1].Q)
-	eval.ringQ.PermuteLvl(level, eval.BuffQP[1].Q, generator, ctOut.Value[0])
-	eval.ringQ.PermuteLvl(level, eval.BuffQP[2].Q, generator, ctOut.Value[1])
-=======
-	eval.SwitchKeysInPlace(level, ctIn.Value[1], switchKey, eval.Pool[1].Q, eval.Pool[2].Q)
-	eval.ringQ.AddLvl(level, eval.Pool[1].Q, ctIn.Value[0], eval.Pool[1].Q)
-	eval.ringQ.PermuteLvl(level, eval.Pool[1].Q, generator, ctOut.Value[0])
-	eval.ringQ.PermuteLvl(level, eval.Pool[2].Q, generator, ctOut.Value[1])
-=======
-=======
 // RotateColumns rotates the columns of ct0 by k positions to the left and returns the result in ctOut. As an additional input it requires a RotationKeys struct.
->>>>>>> rebased on dev_bfv_poly
 func (eval *evaluator) RotateColumns(ct0 *Ciphertext, k int, ctOut *Ciphertext) {
 	eval.Automorphism(ct0.Ciphertext, eval.params.GaloisElementForColumnRotationBy(k), ctOut.Ciphertext)
 }

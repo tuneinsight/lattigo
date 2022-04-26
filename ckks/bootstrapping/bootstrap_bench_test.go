@@ -24,46 +24,8 @@ func BenchmarkBootstrapp(b *testing.B) {
 
 	kgen := ckks.NewKeyGenerator(params)
 	sk := kgen.GenSecretKey()
-<<<<<<< btp_eprint
-<<<<<<< btp_eprint
-=======
-	rlk := kgen.GenRelinearizationKey(sk, 2, 0)
->>>>>>> First step for adding bit-decomp
-=======
-	rlk := kgen.GenRelinearizationKey(sk, 1)
->>>>>>> all test passing
 
-<<<<<<< btp_eprint
 	evk := GenEvaluationKeys(btpParams, params, sk)
-=======
-	rotations := btpParams.RotationsForBootstrapping(params)
-	rotkeys := kgen.GenRotationKeysForRotations(rotations, true, sk)
-<<<<<<< btp_eprint
->>>>>>> [ckks/advanced]: better StC & CtS
-=======
-<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
-=======
-	swkDtS, swkStD := btpParams.GenEncapsulationSwitchingKeys(params, sk)
-<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
-=======
-	rotkeys := kgen.GenRotationKeysForRotations(rotations, true, sk, 0)
->>>>>>> First step for adding bit-decomp
-<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
->>>>>>> First step for adding bit-decomp
-<<<<<<< btp_eprint
->>>>>>> First step for adding bit-decomp
-=======
-=======
-=======
-	rotkeys := kgen.GenRotationKeysForRotations(rotations, true, sk)
->>>>>>> all test passing
->>>>>>> all test passing
-<<<<<<< btp_eprint
->>>>>>> all test passing
-=======
-=======
->>>>>>> rebased onto btp_eprint
->>>>>>> rebased onto btp_eprint
 
 	if btp, err = NewBootstrapper(params, btpParams, evk); err != nil {
 		panic(err)

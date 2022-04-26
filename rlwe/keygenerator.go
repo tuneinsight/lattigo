@@ -91,15 +91,7 @@ func (keygen *keyGenerator) GenKeyPair() (sk *SecretKey, pk *PublicKey) {
 }
 
 // GenRelinKey generates a new EvaluationKey that will be used to relinearize Ciphertexts during multiplication.
-<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
-func (keygen *keyGenerator) GenRelinearizationKey(sk *SecretKey, maxDegree, bitDecomp int) (evk *RelinearizationKey) {
-
-	if keygen.params.PCount() == 0 {
-		panic("cannot GenRelinearizationKey: modulus P is empty")
-	}
-=======
 func (keygen *keyGenerator) GenRelinearizationKey(sk *SecretKey, maxDegree int) (evk *RelinearizationKey) {
->>>>>>> wip
 
 	levelQ := keygen.params.QCount() - 1
 	levelP := keygen.params.PCount() - 1
@@ -272,89 +264,8 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *
 
 func (keygen *keyGenerator) genSwitchingKey(skIn *ring.Poly, skOut ringqp.Poly, swk *SwitchingKey) {
 
-<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
-<<<<<<< dev_bfv_poly
-<<<<<<< dev_bfv_poly
-	ringQP := keygen.params.RingQP()
-
-<<<<<<< dev_bfv_poly
-	levelQ := swk.Value[0][0][0].Q.Level()
-	hasModulusP := swk.Value[0][0][0].P != nil
-
-<<<<<<< dev_bfv_poly
-	// Computes P * skIn
-<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
-	ringQ.MulScalarBigintLvl(levelQ, skIn, ringQP.RingP.ModulusAtLevel[levelP], keygen.buffQ)
-=======
-<<<<<<< dev_bfv_poly
-	ringQ.MulScalarBigintLvl(levelQ, skIn, ringQP.RingP.ModulusBigint[levelP], keygen.buffQ)
-=======
-	ringQ.MulScalarBigintLvl(levelQ, skIn, ringQP.RingP.ModulusBigint[levelP], keygen.poolQ)
-=======
-	var levelP int
-	if hasModulusP {
-
-		levelP = swk.Value[0][0][0].P.Level()
-
-		var pBigInt *big.Int
-		if levelP == keygen.params.PCount()-1 {
-			pBigInt = keygen.params.RingP().ModulusBigint
-		} else {
-			P := keygen.params.RingP().Modulus
-			pBigInt = new(big.Int).SetUint64(P[0])
-			for i := 1; i < levelP+1; i++ {
-				pBigInt.Mul(pBigInt, ring.NewUint(P[i]))
-			}
-		}
-
-		// Computes P * skIn
-		ringQ.MulScalarBigintLvl(levelQ, skIn, pBigInt, keygen.poolQ)
-	} else {
-		levelP = 0
-		ring.CopyLvl(levelQ, skIn, keygen.poolQ)
-	}
->>>>>>> First step for adding bit-decomp
-<<<<<<< dev_bfv_poly
->>>>>>> First step for adding bit-decomp
-<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
->>>>>>> First step for adding bit-decomp
-=======
-=======
-=======
-=======
->>>>>>> [rlwe]: simplified KeyGenerator, which is now based on Encryptor.
 	levelQ := swk.LevelQ()
 	levelP := swk.LevelP()
->>>>>>> wip
->>>>>>> [rlwe]: complete refactoring
-<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
->>>>>>> [rlwe]: complete refactoring
-=======
-=======
-	levelQ := swk.LevelQ()
-	levelP := swk.LevelP()
->>>>>>> rebased on dev_bfv_poly
->>>>>>> rebased on dev_bfv_poly
-
-<<<<<<< dev_bfv_poly:rlwe/keygen.go
-<<<<<<< dev_bfv_poly
-	RNSDecomp := len(swk.Value)
-	BITDecomp := len(swk.Value[0])
-
-	for j := 0; j < BITDecomp; j++ {
-		for i := 0; i < RNSDecomp; i++ {
-
-			// (e, 0)
-			keygen.gaussianSamplerQ.ReadLvl(levelQ, swk.Value[i][j][0].Q)
-
-			if levelP != -1 {
-				ringQP.ExtendBasisSmallNormAndCenter(swk.Value[i][j][0].Q, levelP, nil, swk.Value[i][j][0].P)
-				keygen.uniformSamplerP.ReadLvl(levelP, swk.Value[i][j][1].P)
-			}
-=======
-	levelQ := swk.LevelQ()
-	levelP := swk.LevelP()
->>>>>>> rebased on dev_bfv_poly
 
 	// Samples an encryption of zero for each element of the switching-key.
 	for i := 0; i < len(swk.Value); i++ {

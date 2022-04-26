@@ -121,23 +121,9 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, s
 
 	ringQ.PermuteNTT(sk.Value.Q, galElInv, rtg.tmpPoly1.Q)
 
-<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
-<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
-	ringQ.MulScalarBigint(sk.Value.Q, ringP.ModulusAtLevel[levelP], rtg.tmpPoly0.Q)
-=======
-<<<<<<< dev_bfv_poly
-	ringQ.MulScalarBigint(sk.Value.Q, ringP.ModulusBigint[levelP], rtg.tmpPoly0.Q)
-=======
-	hasModulusP := sk.Value.P != nil
->>>>>>> First step for adding bit-decomp
->>>>>>> First step for adding bit-decomp
-
-	var levelP int
-=======
->>>>>>> rebased on dev_bfv_poly
 	if hasModulusP {
 		ringQP.RingP.PermuteNTT(sk.Value.P, galElInv, rtg.tmpPoly1.P)
-		ringQ.MulScalarBigint(sk.Value.Q, ringQP.RingP.ModulusBigint[levelP], rtg.tmpPoly0.Q)
+		ringQ.MulScalarBigint(sk.Value.Q, ringQP.RingP.ModulusAtLevel[levelP], rtg.tmpPoly0.Q)
 	} else {
 		levelP = 0
 		ring.CopyLvl(levelQ, sk.Value.Q, rtg.tmpPoly0.Q)

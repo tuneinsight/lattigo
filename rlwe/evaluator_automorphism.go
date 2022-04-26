@@ -109,7 +109,7 @@ func (eval *Evaluator) AutomorphismHoistedNoModDown(levelQ int, c0 *ring.Poly, c
 		ringQ.PermuteNTTWithIndexLvl(levelP, eval.BuffQP[1].P, index, ct1OutP)
 
 		if levelP > -1 {
-			ringQ.MulScalarBigintLvl(levelQ, c0, eval.params.RingP().ModulusBigint[levelP], eval.BuffQP[1].Q)
+			ringQ.MulScalarBigintLvl(levelQ, c0, eval.params.RingP().ModulusAtLevel[levelP], eval.BuffQP[1].Q)
 		}
 
 		ringQ.AddLvl(levelQ, eval.BuffQP[0].Q, eval.BuffQP[1].Q, eval.BuffQP[0].Q)
@@ -121,7 +121,7 @@ func (eval *Evaluator) AutomorphismHoistedNoModDown(levelQ int, c0 *ring.Poly, c
 		ringQ.PermuteLvl(levelP, eval.BuffQP[1].P, galEl, ct1OutP)
 
 		if levelP > -1 {
-			ringQ.MulScalarBigintLvl(levelQ, c0, eval.params.RingP().ModulusBigint[levelP], eval.BuffQP[1].Q)
+			ringQ.MulScalarBigintLvl(levelQ, c0, eval.params.RingP().ModulusAtLevel[levelP], eval.BuffQP[1].Q)
 		}
 
 		ringQ.AddLvl(levelQ, eval.BuffQP[0].Q, eval.BuffQP[1].Q, eval.BuffQP[0].Q)

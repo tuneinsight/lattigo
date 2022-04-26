@@ -20,25 +20,7 @@ var flagLongTest = flag.Bool("long", false, "run the long test suite (all parame
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 
 func testString(opname string, p Parameters, lvl int) string {
-<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
 	return fmt.Sprintf("%s/LogN=%d/logQP=%d/logT=%d/TIsQ0=%t/#Q=%d/#P=%d/lvl=%d", opname, p.LogN(), p.LogQP(), p.LogT(), p.T() == p.Q()[0], p.QCount(), p.PCount(), lvl)
-=======
-	return fmt.Sprintf("%s/LogN=%d/logQP=%d/logT=%d/T==Q0:%t/#Q=%d/#P=%d/lvl=%d", opname, p.LogN(), p.LogQP(), p.LogT(), p.T() == p.Q()[0], p.QCount(), p.PCount(), lvl)
-<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
-=======
-func testString(opname string, p Parameters) string {
-<<<<<<< dev_bfv_poly
-	return fmt.Sprintf("%s/LogN=%d/logQ=%d/alpha=%d/beta=%d", opname, p.LogN(), p.LogQP(), p.PCount(), p.DecompRNS())
->>>>>>> First step for adding bit-decomp
-<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
->>>>>>> First step for adding bit-decomp
-=======
-=======
-	return fmt.Sprintf("%s/LogN=%d/logQ=%d/alpha=%d/beta=%d", opname, p.LogN(), p.LogQP(), p.PCount(), p.DecompRNS(p.QCount()-1, p.PCount()-1))
->>>>>>> fixed bfv & ckks
->>>>>>> fixed bfv & ckks
-=======
->>>>>>> rebased on dev_bfv_poly
 }
 
 type testContext struct {
@@ -62,20 +44,24 @@ type testContext struct {
 var (
 	// TESTTDivQN2Q1P is a set of test parameters where T = Q[0].
 	TESTTDivQN2Q1P = ParametersLiteral{
-		LogN:  14,
-		T:     0x10001,
-		Q:     []uint64{0x10001, 0xffffffffffe8001, 0xffffffffffd8001, 0xffffffffffc0001, 0xffffffffff28001},
-		P:     []uint64{0x1fffffffffe10001, 0x1fffffffffe00001},
-		Sigma: rlwe.DefaultSigma,
+		ParametersLiteral: rlwe.ParametersLiteral{
+			LogN:  14,
+			Q:     []uint64{0x10001, 0xffffffffffe8001, 0xffffffffffd8001, 0xffffffffffc0001, 0xffffffffff28001},
+			P:     []uint64{0x1fffffffffe10001, 0x1fffffffffe00001},
+			Sigma: rlwe.DefaultSigma,
+		},
+		T: 0x10001,
 	}
 
 	// TESTTCPrimeQN2Q1P is a set of test parameters where T is coprime with Q.
 	TESTTCPrimeQN2Q1P = ParametersLiteral{
-		LogN:  14,
-		T:     0x10001,
-		Q:     []uint64{0xffffffffffe8001, 0xffffffffffd8001, 0xffffffffffc0001, 0xffffffffff28001},
-		P:     []uint64{0x1fffffffffe10001, 0x1fffffffffe00001},
-		Sigma: rlwe.DefaultSigma,
+		ParametersLiteral: rlwe.ParametersLiteral{
+			LogN:  14,
+			Q:     []uint64{0xffffffffffe8001, 0xffffffffffd8001, 0xffffffffffc0001, 0xffffffffff28001},
+			P:     []uint64{0x1fffffffffe10001, 0x1fffffffffe00001},
+			Sigma: rlwe.DefaultSigma,
+		},
+		T: 0x10001,
 	}
 
 	// TestParams is a set of test parameters for BFV ensuring 128 bit security in the classic setting.
@@ -698,23 +684,8 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		verifyTestVectors(tc, tc.decryptor, values1, ciphertext1, t)
 	})
 
-<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
-<<<<<<< 83ae36f5f9908381fe0d957ce0daa4f037d38e6f
-	t.Run(testString("Evaluator/RescaleTo/ThenMulRelin", tc.params, 1), func(t *testing.T) {
-=======
-<<<<<<< btp_eprint
-<<<<<<< btp_eprint
 	t.Run(testString("Evaluator/RescaleTo/MulRelin", tc.params, 1), func(t *testing.T) {
-=======
-<<<<<<< dev_bfv_poly
-=======
->>>>>>> rebased on dev_bfv_poly
-	t.Run(testString("Evaluator/QuantizeToLvl/MulRelin", tc.params, 1), func(t *testing.T) {
->>>>>>> fixed bfv & ckks
->>>>>>> fixed bfv & ckks
-=======
-	t.Run(testString("Evaluator/RescaleTo/MulRelin", tc.params, 1), func(t *testing.T) {
->>>>>>> rebased onto btp_eprint
+
 		values1, _, ciphertext1 := newTestVectorsRingQLvl(tc.params.MaxLevel(), tc, tc.encryptorPk, t)
 		values2, _, ciphertext2 := newTestVectorsRingQLvl(tc.params.MaxLevel(), tc, tc.encryptorPk, t)
 		tc.evaluator.RescaleTo(1, ciphertext1, ciphertext1)

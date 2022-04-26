@@ -2,11 +2,9 @@
 # Changelog
 All notable changes to this project will be documented in this file. 
 
-# [3.0.4] - UNREALEASED
+## [3.0.4] - 2022-04-26
 
-- CKKS: updated the bootstrapping circuit to use the key-encapsulation mechanism of `Bootstrapping for Approximate Homomorphic Encryption with Negligible Failure-Probability by Using Sparse-Secret Encapsulation`. The previous bootstrapping circuit can be run by setting `EphemeralSecretDensity=0`.
-
-# [3.0.3] - UNREALEASED
+- CKKS: updated the bootstrapping circuit to use the key-encapsulation mechanism of `Bootstrapping for Approximate Homomorphic Encryption with Negligible Failure-Probability by Using Sparse-Secret Encapsulation`. The previous bootstrapping circuit can be run by setting `EphemeralSecretWeight=0`.
 
 - BFV: added the `Evaluator.Rescale` and `Evaluator.RescaleTo` methods to switch BFV ciphertexts to lower levels.
 - BFV: all `Evaluator` methods on ciphertext support all arithmetic operations at lower levels, but require that operands are at the same level.

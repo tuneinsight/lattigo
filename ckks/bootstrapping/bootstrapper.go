@@ -33,7 +33,7 @@ type bootstrapperBase struct {
 	swkStD *rlwe.SwitchingKey
 }
 
-// EvaluationKeys is a type for a CKKS bootstrapping key, wich
+// EvaluationKeys is a type for a CKKS bootstrapping key, which
 // regroups the necessary public relinearization and rotation keys.
 type EvaluationKeys struct {
 	rlwe.EvaluationKey

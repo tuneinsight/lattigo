@@ -95,7 +95,7 @@ Please use the following BibTex entry for citing Lattigo:
 
 ## References
 
-1. Efficient Bootstrapping for ApproximateHomomorphic Encryption with Non-Sparse Keys
+1. Efficient Bootstrapping for Approximate Homomorphic Encryption with Non-Sparse Keys
    (<https://eprint.iacr.org/2020/1203>)
 1. Bootstrapping for Approximate Homomorphic Encryption with Negligible Failure-Probability by Using Sparse-Secret Encapsulation
    (<https://eprint.iacr.org/2022/024>)

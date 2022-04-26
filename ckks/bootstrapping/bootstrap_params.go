@@ -10,7 +10,7 @@ type Parameters struct {
 	SlotsToCoeffsParameters advanced.EncodingMatrixLiteral
 	EvalModParameters       advanced.EvalModLiteral
 	CoeffsToSlotsParameters advanced.EncodingMatrixLiteral
-	EphemeralSecretDensity  int // Hamming weight of the ephemeral secret
+	EphemeralSecretDensity  int // Hamming weight of the ephemeral secret. If 0, no ephemeral secret is used during the bootstrapping.
 }
 
 // MarshalBinary encode the target Parameters on a slice of bytes.

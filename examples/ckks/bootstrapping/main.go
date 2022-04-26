@@ -24,7 +24,7 @@ func main() {
 	var plaintext *ckks.Plaintext
 
 	// Bootstrapping parameters
-	// Two sets of each of four parameters, DefaultParametersSparse and DefaultParametersDense,
+	// Two sets of four parameters each, DefaultParametersSparse and DefaultParametersDense,
 	// (each index 0 to 3) ensuring 128 bit of security are available in
 	// github.com/tuneinsight/lattigo/v3/ckks/bootstrapping/default_params.go
 	//

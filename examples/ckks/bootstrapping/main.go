@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"math"
 
@@ -10,7 +11,11 @@ import (
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
+var flagShort = flag.Bool("short", false, "run the example with a smaller and insecure ring degree.")
+
 func main() {
+
+	flag.Parse()
 
 	var err error
 
@@ -34,6 +39,12 @@ func main() {
 
 	paramSet := bootstrapping.DefaultParametersSparse[0] // bootstrapping.DefaultParametersDense[0]
 	ckksParams := paramSet.SchemeParams
+
+	if *flagShort {
+		ckksParams.LogN = 13
+		ckksParams.LogSlots = 12
+	}
+
 	btpParams := paramSet.BootstrappingParams
 
 	params, err := ckks.NewParametersFromLiteral(ckksParams)

@@ -196,10 +196,3 @@ func (eval *Evaluator) Trace(ctIn *Ciphertext, logN int, ctOut *Ciphertext) {
 		}
 	}
 }
-
-// TraceNew maps X -> sum((-1)^i * X^{i*n+1}) for n <= i < N and returns the result on a new ciphertext.
-func (eval *Evaluator) TraceNew(ctIn *Ciphertext, logN int) (ctOut *Ciphertext) {
-	ctOut = NewCiphertext(eval.params, 1, ctIn.Level())
-	eval.Trace(ctIn, logN, ctOut)
-	return
-}

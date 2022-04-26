@@ -34,33 +34,78 @@ All notable changes to this project will be documented in this file.
 =======
 # [3.1.0] - UNREALEASED
 
+- ALL: added parameters for LogN=11 and LogN=10.
 - RING: fixed prime generation to not skip the first candidate.
+- RING: reworked marshalling of `ring.Poly` object. The new available methods are:
+    - `GetDataLen64` and `GetDataLen32`: get the length in bytes of a `ring.Poly` object in bytes.
+    - `WriteTo64` and `WriteTo32`: write a `ring.Poly` object on a pre-allocated slice of bytes.
+    - `WriteCoeffsTo64` and `WriteCoeffsTo32`: write a matrix of coefficients on pre-allocated slice of bytes.
+    - `DecodeCoeffs64` and `DecodeCoeffs32`: decode a byte array on a matrix of coefficients.
+    - `DecodePoly64` and `DecodePoly32`: decode a slice of bytes on a a pre-allocated `ring.Poly` object.
+    - `DecodePoly64New` and `DecodePoly32New`: decode a slice of bytes on a `ring.Poly` object.
+- RING: changed `ring.Poly.Degree()` method to `*ring.Poly.N()` for consistency with the other package API.
+- RING: removed `ring.Poly.LenModuli()` depreciated method.
 - RLWE: refactored the package to enable better modularity and implementation of advanced features.
-    - `rlwe/gadget`: a package that provides the type `gadget.Ciphertext`, a type of ciphertext on which are based all encryptions with RNS and bit decomposition, such as `rlwe.SwitchingKey` or `rgsw.Ciphertext`.
+    - `rlwe/gadget`: a package that provides the type `gadget.Ciphertext`, a type of ciphertext used in the gadget product `POLY x GADGET -> RLWE`.
     - `rlwe/lut`: a package that provides tools for the evaluation of Look-Up-Tables (LUT) on `rlwe.Ciphertext`.
     - `rlwe/rgsw`: a package that provides the type `rgsw.Ciphertext`, a type of ciphertext used in the external product `RLWE x RGSW -> RLWE`.
-    - `rlwe/ringp`: a package that provides the type `ringqp.Ring` and `ringqp.Poly`, replaces the types `rlwe.RingQP` and `rlwe.PolyQP`.
-- RLWE: added the type `rlwe.Evaluator`, which provides methods for automorphisms, key-switching, relinearization and external-product.
+    - `rlwe/ringqp`: a package that provides the type `ringqp.Ring` and `ringqp.Poly`, replaces the types `rlwe.RingQP` and `rlwe.PolyQP`.
+- RLWE: replaced the type `rlwe.KeySwitcher` by `rlwe.Evaluator`, which provides many new functionalities:
+    - `DecomposeNTT`: decomposes a polynomial modulo the special RNS basis and extends its basis from Q to QP.
+    - `DecomposeSingleNTT`: decomposes a polynomial modulo a single power of the special RNS basis and extends its basis from Q to QP.
+    - `ExpandRLWE`: extract each coefficient of a RLWE sample to the degree-0 coefficient of multiple RLWE samples.
+    - `MergeRLWE`: merge the degree-0 coefficient of multiple RLWE samples into a single RLWE samples.
+    - `GadgetProduct`: evaluates `ring.Poly x gadget.Ciphertext -> RLWE`, where `gadget.Ciphertext` is a matrix of RLWE samples encrypting scaled plaintext by the special RNS basis and a modulus P.
+    - `GadgetProductNoModDown`: evaluates `ring.Poly x gadget.Ciphertext -> RLWE` but without the division by P (result is given mod QP).
+    - `GadgetProductSinglePAndBitDecompNoModDown`: evaluates `ring.Poly x gadget.Ciphertext -> RLWE`, where `gadget.Ciphertext` is a matrix of RLWE samples encrypting scaled plaintext by the special RNS basis along with a base-2 basis and an optional prime P.
+    - `Relinearize`: reduces the degree of an `rlwe.Ciphertext` to one by homomorphically evaluating the decryption of the higher degree terms.
+    - `KeySwitch`: homomorphically re-encrypts an `rlwe.Ciphertext` under a new secret.
+    - `KeyswitchHoisted`: homomorphically re-encrypts an `rlwe.Ciphertext` under a series of new secrets, returning a new ciphertext for each secret.
+    - `KeyswitchHoistedNoModDown`: homomorphically re-encrypts an `rlwe.Ciphertext` under a series of new secrets, returning a new ciphertext for each secret, but without the division by P (result is given mod QP).
+    - `Automorphism`: homomorphically evaluates the map `X -> X^k`.
+    - `AutomorphismHoisted`: homomorphically evaluates multiples maps of the type `X -> X^k`, returning a new ciphertext for each map.
+    - `AutomorphismHoistedNoModDown`: homomorphically evaluates multiples maps of the type `X -> X^k`, returning a new ciphertext for each map, but without the division by P (result is given mod QP).
+    - `Trace`: homomorphically evaluates the map `X -> sum((-1)^i * X^{i*n+1}) for n <= i < N`.
+    - `ExternalProduct`: evaluates `rlwe.Ciphertext x rgsw.Ciphertext -> rlwe.Ciphertext`.
 - RLWE: re-enabled bit-decomposition, on top of RNS decomposition, for the inner-product between `rlwe.Ciphertext` and `gadget.Ciphertext`.
+    - This functionality can be enabled by setting `LogBase2` to the desired power of two basis.
+    - This functionality is disabled if `LogBase2` is set to zero (default value).
 - RLWE: `rlwe.Parameters` can be instantiated without the modulus `P`.
-- RLWE: updated `rlwe.Encryptor` to accept as input both `rlwe.Ciphertext` and `rgsw.Ciphertext`.
+- RLWE: updated `rlwe.Encryptor` with the following functionalities: 
+    - The methods `.Encrypt` now accept as input both `rlwe.Ciphertext` and `rgsw.Ciphertext`.
+    - Added the method `EncryptZeroSymetricQPNTT` which samples encryptions of zero.
+    - Added the method `EncryptSeeded` which takes as an additional input a `ringqp.UniformSampler` to sample the public polynomials.
+- RLWE: added the type `SeededCiphertextBatch` which is a struct that can be used to store and marshal a list of `rlwe.Ciphertexts` whose degree-1 element is empty. Their degree-1 element can be reconstructed by calling `.Reconstruct`.
 - RLWE: `rlwe.KeyGenerator` now uses an `rlwe.Encryptor` to generate keys encryption keys and evaluation keys.
 - BFV/CKKS: key-switching functionalities (such as rotations, relinearization and key-switching) are now all based on the `rlwe.Evaluator`.
 - BFV/CKKS: the parameters now are based on the sub-type `rlwe.Parameters`.
 - BFV: fixed a panic that was happening during the benchmark testing.
 - CKKS: fixed `MulAndAdd` correctness for non-identical inputs.
 - CKKS: fixed a panic that was happening during the benchmark testing.
+- CKKS: `advanced.EncodingMatrixLiteral` now takes a boolean `RepackImag2Real` to optionally repack the imaginary part into the right n real slots.
 - DCKKS: fixed `Refresh` correctness when the output scale was different from the input scale.
 - Added `examples/ckks/advanced/lut`, which is an example that does homomorphic decoding -> LUT -> homomorphic encoding on a `ckks.Ciphertext`.
 - Removed `examples/ckks/advanced/rlwe_lwe_bridge_LHHMQ20`, which is replaced `examples/ckks/advanced/lut`.
-- Removed `examples/rlwe/lwe_bridge` since the code of this example is now part of the `rlwe/lut` package and showcased in `examples/ckks/advanced/lut`.
+- Removed `examples/rlwe/lwe_bridge` since the code of this example is now part of `rlwe.Evaluator` and showcased in `examples/ckks/advanced/lut`.
+
+## [3.0.4] - 2022-04-26
+
+- CKKS: updated the bootstrapping circuit to use the key-encapsulation mechanism of `Bootstrapping for Approximate Homomorphic Encryption with Negligible Failure-Probability by Using Sparse-Secret Encapsulation`. The previous bootstrapping circuit can be run by setting `EphemeralSecretDensity=0`.
+
+- BFV: added the `Evaluator.Rescale` and `Evaluator.RescaleTo` methods to switch BFV ciphertexts to lower levels.
+- BFV: all `Evaluator` methods on ciphertext support all arithmetic operations at lower levels, but require that operands are at the same level.
+- BFV: the plaintext modulus `T` can now equal to the level-zero modulus Q[0] (i.e., be a factor of the ciphertext modulus `Q`).
+- BFV: added the methods `NewCiphertextLvl`, `NewPlaintextLvl`, `NewPlaintextMulLvl`, `Evaluator.AddScalar` and `Evaluator.MulScalarAndAdd`. 
+- BFV: merged `[]uint64` and `[]int64` plaintext encoding methods (e.g. `EncodeUint` and `EncodeInt` are replaced by `Encode`) and added the respective `[...]New` methods.
+- BFV: added the methods `EvaluatePoly` and `EvaluatePolyVector` for homomorphic polynomial evaluation.
+- BFV/RING: moved `RNSScaler` from `ring` to `bfv`.
+- RING: removed deprecated `SimpleScaler`.
 
 # [3.0.2] - 2022-02-21
 
 - RING: fixed sparse ternary sampler to properly sample on non-zero poly.
 
 # [3.0.1] - 2022-02-21
->>>>>>> updated CHANGELOG.md [ci skip]
 
 - RLWE/CKKS/BFV: added the `H` field and `HammingWeight` method in parameters-related structs, to specify distribution of all secrets in the schemes.
 - RLWE/DRLWE: all secrets in the ternary distribution are now sampled with a fixed hamming weight, according to the parameters.

@@ -11,24 +11,32 @@ import (
 
 func Benchmark_DBFV(b *testing.B) {
 
+	var err error
+
 	defaultParams := bfv.DefaultParams
 	if testing.Short() {
 		defaultParams = bfv.DefaultParams[:2]
 	}
 	if *flagParamString != "" {
 		var jsonParams bfv.ParametersLiteral
-		json.Unmarshal([]byte(*flagParamString), &jsonParams)
+		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
+			b.Error(err)
+			b.Fail()
+		}
 		defaultParams = []bfv.ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
 	for _, p := range defaultParams {
-		params, err := bfv.NewParametersFromLiteral(p)
-		if err != nil {
-			panic(err)
+		var params bfv.Parameters
+		if params, err = bfv.NewParametersFromLiteral(p); err != nil {
+			b.Error(err)
+			b.Fail()
 		}
+
 		var testCtx *testContext
 		if testCtx, err = gentestContext(params); err != nil {
-			panic(err)
+			b.Error(err)
+			b.Fail()
 		}
 
 		benchPublicKeyGen(testCtx, b)

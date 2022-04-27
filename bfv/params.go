@@ -278,7 +278,9 @@ func (p Parameters) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON reads a JSON representation of a parameter set into the receiver Parameter. See `Unmarshal` from the `encoding/json` package.
 func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 	var params ParametersLiteral
-	json.Unmarshal(data, &params)
+	if err = json.Unmarshal(data, &params); err != nil {
+		return
+	}
 	*p, err = NewParametersFromLiteral(params)
 	return
 }

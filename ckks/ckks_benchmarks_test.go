@@ -11,24 +11,32 @@ import (
 
 func BenchmarkCKKSScheme(b *testing.B) {
 
+	var err error
+
 	defaultParams := append(DefaultParams, DefaultConjugateInvariantParams...)
 	if testing.Short() {
 		defaultParams = DefaultParams[:2]
 	}
 	if *flagParamString != "" {
 		var jsonParams ParametersLiteral
-		json.Unmarshal([]byte(*flagParamString), &jsonParams)
+		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
+			b.Error(err)
+			b.Fail()
+		}
 		defaultParams = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
 	for _, defaultParams := range defaultParams {
-		params, err := NewParametersFromLiteral(defaultParams)
-		if err != nil {
-			panic(err)
+		var params Parameters
+		if params, err = NewParametersFromLiteral(defaultParams); err != nil {
+			b.Error(err)
+			b.Fail()
 		}
+
 		var tc *testContext
 		if tc, err = genTestParams(params); err != nil {
-			panic(err)
+			b.Error(err)
+			b.Fail()
 		}
 
 		benchEncoder(tc, b)

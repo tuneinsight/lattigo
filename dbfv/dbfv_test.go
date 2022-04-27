@@ -58,6 +58,8 @@ type testContext struct {
 
 func Test_DBFV(t *testing.T) {
 
+	var err error
+
 	defaultParams := bfv.DefaultParams // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	if testing.Short() {
 		defaultParams = bfv.DefaultParams[:2] // the short test suite runs for ring degree N=2^12, 2^13
@@ -67,19 +69,25 @@ func Test_DBFV(t *testing.T) {
 	}
 	if *flagParamString != "" {
 		var jsonParams bfv.ParametersLiteral
-		json.Unmarshal([]byte(*flagParamString), &jsonParams)
+		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
 		defaultParams = []bfv.ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
 	for _, p := range defaultParams {
 
-		params, err := bfv.NewParametersFromLiteral(p)
-		if err != nil {
-			panic(err)
+		var params bfv.Parameters
+		if params, err = bfv.NewParametersFromLiteral(p); err != nil {
+			t.Error(err)
+			t.Fail()
 		}
+
 		var tc *testContext
 		if tc, err = gentestContext(params); err != nil {
-			panic(err)
+			t.Error(err)
+			t.Fail()
 		}
 		for _, testSet := range []func(tc *testContext, t *testing.T){
 

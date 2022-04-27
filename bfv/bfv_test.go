@@ -70,6 +70,8 @@ var (
 
 func TestBFV(t *testing.T) {
 
+	var err error
+
 	var paramsLiterals []ParametersLiteral
 
 	paramsLiterals = append(TestParams, DefaultParams...) // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
@@ -84,17 +86,26 @@ func TestBFV(t *testing.T) {
 
 	if *flagParamString != "" {
 		var jsonParams ParametersLiteral
-		json.Unmarshal([]byte(*flagParamString), &jsonParams)
+		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
 		paramsLiterals = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
 	for _, p := range paramsLiterals[:] {
 
-		params, err := NewParametersFromLiteral(p)
-		assert.Nil(t, err)
+		var params Parameters
+		if params, err = NewParametersFromLiteral(p); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
 
-		tc, err := genTestParams(params)
-		assert.Nil(t, err)
+		var tc *testContext
+		if tc, err = genTestParams(params); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
 
 		for _, testSet := range []func(tc *testContext, t *testing.T){
 			testParameters,

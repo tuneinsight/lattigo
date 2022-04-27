@@ -172,17 +172,30 @@ func testPRNG(tc *testParams, t *testing.T) {
 
 	sum := make([]byte, tc.ringQ.N)
 	t.Run(testString("PRNG/", tc.ringQ), func(t *testing.T) {
-		prng1, err := utils.NewKeyedPRNG(nil)
-		if err != nil {
-			panic(err)
-		}
-		prng2, err := utils.NewKeyedPRNG(nil)
-		if err != nil {
-			panic(err)
+
+		var err error
+
+		var prng1, prng2 utils.PRNG
+
+		if prng1, err = utils.NewKeyedPRNG(nil); err != nil {
+			t.Error(err)
+			t.Fail()
 		}
 
-		prng1.SetClock(sum, 256)
-		prng2.SetClock(sum, 256)
+		if prng2, err = utils.NewKeyedPRNG(nil); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
+
+		if err = prng1.SetClock(sum, 256); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
+
+		if err = prng2.SetClock(sum, 256); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
 
 		crsGenerator1 := NewUniformSampler(prng1, tc.ringQ)
 		crsGenerator2 := NewUniformSampler(prng2, tc.ringQ)
@@ -301,10 +314,19 @@ func testMarshalBinary(tc *testParams, t *testing.T) {
 
 	t.Run(testString("MarshalBinary/Ring/", tc.ringQ), func(t *testing.T) {
 
-		data, _ := tc.ringQ.MarshalBinary()
+		var err error
+
+		var data []byte
+		if data, err = tc.ringQ.MarshalBinary(); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
 
 		ringQTest := new(Ring)
-		ringQTest.UnmarshalBinary(data)
+		if err = ringQTest.UnmarshalBinary(data); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
 
 		require.Equal(t, ringQTest.N, tc.ringQ.N)
 		require.Equal(t, ringQTest.Modulus, tc.ringQ.Modulus)
@@ -312,12 +334,21 @@ func testMarshalBinary(tc *testParams, t *testing.T) {
 
 	t.Run(testString("MarshalBinary/Poly/", tc.ringQ), func(t *testing.T) {
 
+		var err error
+
 		p := tc.uniformSamplerQ.ReadNew()
 		pTest := tc.ringQ.NewPoly()
 
-		data, _ := p.MarshalBinary()
+		var data []byte
+		if data, err = p.MarshalBinary(); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
 
-		_ = pTest.UnmarshalBinary(data)
+		if err = pTest.UnmarshalBinary(data); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
 
 		for i := range tc.ringQ.Modulus {
 			require.Equal(t, p.Coeffs[i][:tc.ringQ.N], pTest.Coeffs[i][:tc.ringQ.N])

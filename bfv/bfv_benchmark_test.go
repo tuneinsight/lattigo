@@ -9,6 +9,8 @@ import (
 
 func BenchmarkBFV(b *testing.B) {
 
+	var err error
+
 	defaultParams := DefaultParams
 	if testing.Short() {
 		defaultParams = DefaultParams[:2]
@@ -16,14 +18,16 @@ func BenchmarkBFV(b *testing.B) {
 
 	if *flagParamString != "" {
 		var jsonParams ParametersLiteral
-		json.Unmarshal([]byte(*flagParamString), &jsonParams)
+		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
+			b.Error(err)
+			b.Fail()
+		}
 		defaultParams = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
 	for _, p := range defaultParams {
 
 		var params Parameters
-		var err error
 		if params, err = NewParametersFromLiteral(p); err != nil {
 			b.Error(err)
 			b.Fail()

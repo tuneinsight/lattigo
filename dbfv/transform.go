@@ -59,11 +59,15 @@ func (share *MaskedTransformShare) MarshalBinary() ([]byte, error) {
 }
 
 // UnmarshalBinary decodes a marshaled RefreshShare on the target RefreshShare.
-func (share *MaskedTransformShare) UnmarshalBinary(data []byte) error {
+func (share *MaskedTransformShare) UnmarshalBinary(data []byte) (err error) {
 	shareLen := len(data) >> 1
-	share.e2sShare.UnmarshalBinary(data[:shareLen])
-	share.s2eShare.UnmarshalBinary(data[shareLen:])
-	return nil
+	if err = share.e2sShare.UnmarshalBinary(data[:shareLen]); err != nil {
+		return
+	}
+	if err = share.s2eShare.UnmarshalBinary(data[shareLen:]); err != nil {
+		return
+	}
+	return
 }
 
 // NewMaskedTransformProtocol creates a new instance of the PermuteProtocol.

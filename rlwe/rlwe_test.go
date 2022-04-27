@@ -34,6 +34,9 @@ func testString(params Parameters, opname string) string {
 }
 
 func TestRLWE(t *testing.T) {
+
+	var err error
+
 	defaultParams := TestParams // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	if testing.Short() {
 		defaultParams = TestParams[:2] // the short test suite runs for ring degree N=2^12, 2^13
@@ -41,14 +44,18 @@ func TestRLWE(t *testing.T) {
 
 	if *flagParamString != "" {
 		var jsonParams ParametersLiteral
-		json.Unmarshal([]byte(*flagParamString), &jsonParams)
+		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
 		defaultParams = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
 	for _, defaultParam := range defaultParams[:] {
-		params, err := NewParametersFromLiteral(defaultParam)
-		if err != nil {
-			panic(err)
+		var params Parameters
+		if params, err = NewParametersFromLiteral(defaultParam); err != nil {
+			t.Error(err)
+			t.Fail()
 		}
 
 		kgen := NewKeyGenerator(params)

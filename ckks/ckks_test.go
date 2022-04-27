@@ -53,11 +53,16 @@ type testContext struct {
 
 func TestCKKS(t *testing.T) {
 
+	var err error
+
 	var testParams []ParametersLiteral
 	switch {
 	case *flagParamString != "": // the custom test suite reads the parameters from the -params flag
 		testParams = append(testParams, ParametersLiteral{})
-		json.Unmarshal([]byte(*flagParamString), &testParams[0])
+		if err = json.Unmarshal([]byte(*flagParamString), &testParams[0]); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
 	case *flagLongTest:
 		for _, pls := range [][]ParametersLiteral{
 			DefaultParams,
@@ -78,13 +83,16 @@ func TestCKKS(t *testing.T) {
 
 	for _, paramsLiteral := range testParams[:] {
 
-		params, err := NewParametersFromLiteral(paramsLiteral)
-		if err != nil {
-			panic(err)
+		var params Parameters
+		if params, err = NewParametersFromLiteral(paramsLiteral); err != nil {
+			t.Error(err)
+			t.Fail()
 		}
+
 		var tc *testContext
 		if tc, err = genTestParams(params); err != nil {
-			panic(err)
+			t.Error(err)
+			t.Fail()
 		}
 
 		for _, testSet := range []func(tc *testContext, t *testing.T){
@@ -451,7 +459,10 @@ func testEvaluatorRescale(tc *testContext, t *testing.T) {
 
 		ciphertext.Scale *= float64(constant)
 
-		tc.evaluator.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext)
+		if err := tc.evaluator.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogSlots(), 0, t)
 	})
@@ -475,7 +486,10 @@ func testEvaluatorRescale(tc *testContext, t *testing.T) {
 			ciphertext.Scale *= float64(constant)
 		}
 
-		tc.evaluator.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext)
+		if err := tc.evaluator.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogSlots(), 0, t)
 	})
@@ -928,10 +942,14 @@ func testChebyshevInterpolator(tc *testContext, t *testing.T) {
 
 		eval.MultByConst(ciphertext, 2/(poly.B-poly.A), ciphertext)
 		eval.AddConst(ciphertext, (-poly.A-poly.B)/(poly.B-poly.A), ciphertext)
-		eval.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext)
+		if err = eval.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
 
 		if ciphertext, err = eval.EvaluatePoly(ciphertext, poly, ciphertext.Scale, tc.params.RingType() == ring.Standard); err != nil {
 			t.Error(err)
+			t.Fail()
 		}
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogSlots(), 0, t)
@@ -960,10 +978,14 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 
 		eval.MultByConst(ciphertext, 2/(poly.B-poly.A), ciphertext)
 		eval.AddConst(ciphertext, (-poly.A-poly.B)/(poly.B-poly.A), ciphertext)
-		eval.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext)
+		if err := eval.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
 
 		if ciphertext, err = eval.EvaluatePoly(ciphertext, poly, ciphertext.Scale, tc.params.RingType() == ring.Standard); err != nil {
 			t.Error(err)
+			t.Fail()
 		}
 
 		plaintext := tc.decryptor.DecryptNew(ciphertext)

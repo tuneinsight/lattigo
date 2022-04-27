@@ -69,6 +69,9 @@ func newTestContext(params rlwe.Parameters) testContext {
 }
 
 func TestDRLWE(t *testing.T) {
+
+	var err error
+
 	defaultParams := TestParams // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	if testing.Short() {
 		defaultParams = TestParams[:2] // the short test suite runs for ring degree N=2^12, 2^13
@@ -76,14 +79,18 @@ func TestDRLWE(t *testing.T) {
 
 	if *flagParamString != "" {
 		var jsonParams rlwe.ParametersLiteral
-		json.Unmarshal([]byte(*flagParamString), &jsonParams)
+		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
 		defaultParams = []rlwe.ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
 	for _, defaultParam := range defaultParams {
-		params, err := rlwe.NewParametersFromLiteral(defaultParam)
-		if err != nil {
-			panic(err)
+		var params rlwe.Parameters
+		if params, err = rlwe.NewParametersFromLiteral(defaultParam); err != nil {
+			t.Error(err)
+			t.Fail()
 		}
 
 		textCtx := newTestContext(params)

@@ -277,7 +277,7 @@ func testEncoder(tc *testContext, t *testing.T) {
 		meanprec /= float64(slots)
 
 		if *printPrecisionStats {
-			t.Log(fmt.Sprintf("\nMean    precision : %.2f \n", math.Log2(1/meanprec)))
+			t.Logf("\nMean    precision : %.2f \n", math.Log2(1/meanprec))
 		}
 
 		require.GreaterOrEqual(t, math.Log2(1/meanprec), minPrec)

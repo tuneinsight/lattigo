@@ -249,8 +249,6 @@ func (eval *evaluator) checkBinary(op0, op1, opOut Operand, opOutMinDegree int) 
 			panic("cannot evaluate: op1 must be in NTT")
 		}
 	}
-
-	return
 }
 
 func (eval *evaluator) newCiphertextBinary(op0, op1 Operand) (ctOut *Ciphertext) {

@@ -164,7 +164,7 @@ func NewEvaluators(params Parameters, evaluationKey rlwe.EvaluationKey, n int) [
 	if n <= 0 {
 		return []Evaluator{}
 	}
-	evas := make([]Evaluator, n, n)
+	evas := make([]Evaluator, n)
 	for i := range evas {
 		if i == 0 {
 			evas[0] = NewEvaluator(params, evaluationKey)

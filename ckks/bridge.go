@@ -39,9 +39,12 @@ func NewDomainSwitcher(params Parameters, comlexToRealSwk *SwkComplexToReal, Rea
 	}
 
 	stdParams, err := params.StandardParameters()
+	if err != nil {
+		return s, err
+	}
 	s.Evaluator = rlwe.NewEvaluator(stdParams.Parameters, nil)
 
-	s.permuteNTTIndex = s.stdRingQ.PermuteNTTIndex((uint64(s.stdRingQ.N) << 1) - 1)
+	s.permuteNTTIndex = s.stdRingQ.PermuteNTTIndex(s.stdRingQ.NthRoot - 1)
 	return s, nil
 }
 

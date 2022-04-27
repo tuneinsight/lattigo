@@ -589,47 +589,6 @@ func multiplyFFTMatrixWithNextFFTLevel(vec map[int][]complex128, logL, N, nextLe
 	return
 }
 
-func transposeDiagMatrix(mat map[int][]complex128, N int) {
-	for i := range mat {
-		if i < N>>1 {
-			mat[i], mat[N-i] = mat[N-i], mat[i]
-		}
-	}
-}
-
-func conjugateDiagMatrix(mat map[int][]complex128) {
-	for i := range mat {
-
-		for j := range mat[i] {
-			c := mat[i][j]
-			mat[i][j] = complex(real(c), -imag(c))
-		}
-	}
-}
-
-func genBitReverseDiagMatrix(logN int) (diagMat map[int][]complex128) {
-
-	var N, iRev, diff int
-
-	diagMat = make(map[int][]complex128)
-
-	N = 1 << logN
-
-	for i := 0; i < N; i++ {
-		iRev = int(utils.BitReverse64(uint64(i), uint64(logN)))
-
-		diff = (i - iRev) & (N - 1)
-
-		if diagMat[diff] == nil {
-			diagMat[diff] = make([]complex128, N)
-		}
-
-		diagMat[diff][iRev] = complex(1, 0)
-	}
-
-	return
-}
-
 func addToDiagMatrix(diagMat map[int][]complex128, index int, vec []complex128) {
 	if diagMat[index] == nil {
 		diagMat[index] = vec

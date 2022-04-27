@@ -17,8 +17,8 @@ type Parameters struct {
 // MarshalBinary encode the target Parameters on a slice of bytes.
 func (p *Parameters) MarshalBinary() (data []byte, err error) {
 	data = []byte{}
-	tmp := []byte{}
 
+	var tmp []byte
 	if tmp, err = p.SlotsToCoeffsParameters.MarshalBinary(); err != nil {
 		return nil, err
 	}
@@ -77,7 +77,6 @@ func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 
 	pt += dLen
 	pt++
-	dLen = int(data[pt])
 
 	p.EphemeralSecretWeight = int(data[pt])<<24 | int(data[pt+1])<<16 | int(data[pt+2])<<8 | int(data[pt+3])
 

@@ -36,8 +36,6 @@ type testContext struct {
 	ringQ *ring.Ring
 	ringP *ring.Ring
 
-	prng utils.PRNG
-
 	encoder bfv.Encoder
 
 	sk0Shards []*rlwe.SecretKey

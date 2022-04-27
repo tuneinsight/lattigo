@@ -103,6 +103,7 @@ func TestBFV(t *testing.T) {
 			testEvaluator,
 			testPolyEval,
 			testEvaluatorRotate,
+			testEvaluatorKeySwitch,
 			testMarshaller,
 		} {
 			testSet(tc, t)

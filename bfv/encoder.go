@@ -63,8 +63,6 @@ type encoder struct {
 	indexMatrix []uint64
 	scaler      Scaler
 
-	tInvModQ []uint64
-
 	tmpPoly *ring.Poly
 	tmpPtRt *PlaintextRingT
 }
@@ -72,38 +70,28 @@ type encoder struct {
 // NewEncoder creates a new encoder from the provided parameters.
 func NewEncoder(params Parameters) Encoder {
 
-	ringQ := params.RingQ()
-	ringT := params.RingT()
+	var N, logN, pow, pos uint64 = uint64(params.N()), uint64(params.LogN()), 1, 0
 
-	var m, pos, index1, index2 uint64
+	mask := 2*N - 1
 
-	slots := params.N()
+	indexMatrix := make([]uint64, N)
 
-	indexMatrix := make([]uint64, slots)
+	for i, j := 0, int(N>>1); i < int(N>>1); i, j = i+1, j+1 {
 
-	logN := uint64(params.LogN())
+		pos = utils.BitReverse64(pow>>1, logN)
 
-	rowSize := params.N() >> 1
-	m = uint64(params.N()) << 1
-	pos = 1
+		indexMatrix[i] = pos
+		indexMatrix[j] = N - pos - 1
 
-	for i := 0; i < rowSize; i++ {
-
-		index1 = (pos - 1) >> 1
-		index2 = (m - pos - 1) >> 1
-
-		indexMatrix[i] = utils.BitReverse64(index1, logN)
-		indexMatrix[i|rowSize] = utils.BitReverse64(index2, logN)
-
-		pos *= GaloisGen
-		pos &= (m - 1)
+		pow *= GaloisGen
+		pow &= mask
 	}
 
 	return &encoder{
 		params:      params,
 		indexMatrix: indexMatrix,
-		scaler:      NewRNSScaler(ringQ, ringT.Modulus[0]),
-		tmpPoly:     ringQ.NewPoly(),
+		scaler:      NewRNSScaler(params.RingQ(), params.T()),
+		tmpPoly:     params.RingQ().NewPoly(),
 		tmpPtRt:     NewPlaintextRingT(params),
 	}
 }

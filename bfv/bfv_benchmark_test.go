@@ -12,8 +12,6 @@ func BenchmarkBFV(b *testing.B) {
 	defaultParams := DefaultParams
 	if testing.Short() {
 		defaultParams = DefaultParams[:2]
-	} else {
-
 	}
 
 	if *flagParamString != "" {
@@ -24,10 +22,17 @@ func BenchmarkBFV(b *testing.B) {
 
 	for _, p := range defaultParams {
 
-		params, err := NewParametersFromLiteral(p)
+		var params Parameters
+		var err error
+		if params, err = NewParametersFromLiteral(p); err != nil {
+			b.Error(err)
+			b.Fail()
+		}
+
 		var tc *testContext
 		if tc, err = genTestParams(params); err != nil {
-			panic(err)
+			b.Error(err)
+			b.Fail()
 		}
 
 		benchEncoder(tc, b)

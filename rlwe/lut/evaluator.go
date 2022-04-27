@@ -15,7 +15,6 @@ type Evaluator struct {
 	*rlwe.Evaluator
 	paramsLUT rlwe.Parameters
 	paramsLWE rlwe.Parameters
-	rtks      *rlwe.RotationKeySet
 
 	xPowMinusOne []ringqp.Poly //X^n - 1 from 0 to 2N LWE
 
@@ -123,17 +122,6 @@ func NewEvaluator(paramsLUT, paramsLWE rlwe.Parameters, rtks *rlwe.RotationKeySe
 	eval.tmpRGSW = rgsw.NewCiphertextNTT(levelQ, levelP, decompRNS, decompBIT, *ringQP)
 
 	return
-}
-
-func (eval *Evaluator) permuteNTTIndexesForKey(rtks *rlwe.RotationKeySet) *map[uint64][]uint64 {
-	if rtks == nil {
-		return &map[uint64][]uint64{}
-	}
-	permuteNTTIndex := make(map[uint64][]uint64, len(rtks.Keys))
-	for galEl := range rtks.Keys {
-		permuteNTTIndex[galEl] = eval.paramsLUT.RingQ().PermuteNTTIndex(galEl)
-	}
-	return &permuteNTTIndex
 }
 
 // EvaluateAndRepack extracts on the fly LWE samples and evaluate the provided LUT on the LWE and repacks everything into a single rlwe.Ciphertext.

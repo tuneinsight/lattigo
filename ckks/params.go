@@ -548,7 +548,6 @@ func (p Parameters) RotationsForInnerSumLog(batch, n int) (rotations []int) {
 
 	rotIndex := make(map[int]bool)
 
-	rotations = []int{}
 	var k int
 	for i := 1; i < n; i <<= 1 {
 

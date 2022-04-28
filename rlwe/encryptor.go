@@ -11,9 +11,8 @@ import (
 // Encryptor a generic RLWE encryption interface.
 type Encryptor interface {
 	Encrypt(pt *Plaintext, ct interface{})
-	EncryptFromCRP(pt *Plaintext, crp *ring.Poly, ct *Ciphertext)
-	EncryptZeroSymetricQPNTT(levelQ, levelP int, sk ringqp.Poly, sampler *ringqp.UniformSampler, montgomery bool, ct interface{})
 	EncryptSeeded(pt *Plaintext, sampler ringqp.UniformSampler, ct interface{})
+	EncryptZeroSymetricQPNTT(levelQ, levelP int, sk ringqp.Poly, sampler *ringqp.UniformSampler, montgomery bool, ct interface{})
 	ShallowCopy() Encryptor
 	WithKey(key interface{}) Encryptor
 }
@@ -131,11 +130,6 @@ func (enc *pkEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
 
 }
 
-// EncryptFromCRP is not defined when using a public-key. This method will always panic.
-func (enc *pkEncryptor) EncryptFromCRP(pt *Plaintext, crp *ring.Poly, ct *Ciphertext) {
-	panic("Cannot encrypt with CRP using a public-key")
-}
-
 // EncryptSeeded is not defined when using a public-key. This method will panic.
 func (enc *pkEncryptor) EncryptSeeded(pt *Plaintext, sampler ringqp.UniformSampler, ct interface{}) {
 	panic("Cannot encrypt seeded using a public-key")
@@ -172,13 +166,6 @@ func (enc *skEncryptor) encrypt(pt *Plaintext, sampler *ringqp.UniformSampler, c
 	default:
 		panic("input ciphertext type unsuported (must be *rlwe.Ciphertext or *rgsw.Ciphertext)")
 	}
-}
-
-// EncryptFromCRP encrypts the input plaintext and writes the result on ct.
-// The encryption algorithm depends on the implementor.
-func (enc *skEncryptor) EncryptFromCRP(pt *Plaintext, crp *ring.Poly, ct *Ciphertext) {
-	ring.CopyValues(crp, ct.Value[1])
-	enc.encryptRLWE(pt, nil, ct)
 }
 
 func (enc *pkEncryptor) encryptRLWE(plaintext *Plaintext, ciphertext *Ciphertext) {

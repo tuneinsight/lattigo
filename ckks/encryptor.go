@@ -1,7 +1,6 @@
 package ckks
 
 import (
-	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
 )
 
@@ -9,8 +8,6 @@ import (
 type Encryptor interface {
 	Encrypt(plaintext *Plaintext, ciphertext *Ciphertext)
 	EncryptNew(plaintext *Plaintext) *Ciphertext
-	EncryptFromCRP(plaintext *Plaintext, crp *ring.Poly, ciphertext *Ciphertext)
-	EncryptFromCRPNew(plaintext *Plaintext, crp *ring.Poly) *Ciphertext
 	ShallowCopy() Encryptor
 	WithKey(key interface{}) Encryptor
 }
@@ -38,27 +35,6 @@ func (enc *encryptor) Encrypt(plaintext *Plaintext, ciphertext *Ciphertext) {
 func (enc *encryptor) EncryptNew(plaintext *Plaintext) (ciphertext *Ciphertext) {
 	ciphertext = NewCiphertext(enc.params, 1, plaintext.Level(), plaintext.Scale)
 	enc.Encryptor.Encrypt(plaintext.Plaintext, ciphertext.Ciphertext)
-	return
-}
-
-// EncryptFromCRP encrypts the input plaintext and writes the result in ciphertext.
-// This method of encryption only works if the encryptor has been instantiated with
-// a secret key.
-// The passed crp is always treated as being in the NTT domain and the level of the output ciphertext is
-// min(plaintext.Level(), ciphertext.Level()).
-func (enc *encryptor) EncryptFromCRP(plaintext *Plaintext, crp *ring.Poly, ciphertext *Ciphertext) {
-	enc.Encryptor.EncryptFromCRP(plaintext.Plaintext, crp, ciphertext.Ciphertext)
-	ciphertext.Scale = plaintext.Scale
-}
-
-// EncryptFromCRPNew encrypts the input plaintext and returns the result as a newly allocated ciphertext.
-// This method of encryption only works if the encryptor has been instantiated with
-// a secret key.
-// The passed crp is always treated as being in the NTT domain and the level of the output ciphertext is
-// min(plaintext.Level(), ciphertext.Level()).
-func (enc *encryptor) EncryptFromCRPNew(plaintext *Plaintext, crp *ring.Poly) (ciphertext *Ciphertext) {
-	ciphertext = NewCiphertext(enc.params, 1, plaintext.Level(), plaintext.Scale)
-	enc.Encryptor.EncryptFromCRP(plaintext.Plaintext, crp, ciphertext.Ciphertext)
 	return
 }
 

@@ -75,11 +75,12 @@ All notable changes to this project will be documented in this file.
 - RLWE: updated `rlwe.Encryptor` with the following functionalities: 
     - The methods `.Encrypt` now accept as input both `rlwe.Ciphertext` and `rgsw.Ciphertext`.
     - Added the method `EncryptZeroSymetricQPNTT` which samples encryptions of zero. This method can take as input a sampler to generate seeded encryption of zero.
-    - Added the method `EncryptSeeded` which takes as an additional input a `ringqp.UniformSampler` to sample the public polynomials.
+    - Added the method `EncryptSeeded` which replaces `EncryptFromCRP` and takes as an additional input a `ringqp.UniformSampler` to sample the public polynomials.
 - RLWE: added the type `SeededCiphertextBatch` which is a struct that can be used to store and marshal a list of `rlwe.Ciphertexts` whose degree-1 element is empty. Their degree-1 element can be reconstructed by calling `.Reconstruct`.
 - RLWE: `rlwe.KeyGenerator` now uses an `rlwe.Encryptor` to generate keys encryption keys and evaluation keys.
 - BFV/CKKS: key-switching functionalities (such as rotations, relinearization and key-switching) are now all based on the `rlwe.Evaluator`.
 - BFV/CKKS: the parameters now are based on the sub-type `rlwe.Parameters`.
+- BFV/CKKS: removed depreciated methods `EncryptFromCRP` and `EncryptFromCRPNew`.
 - BFV: fixed a panic that was happening during the benchmark testing.
 - CKKS: fixed `MulAndAdd` correctness for non-identical inputs.
 - CKKS: fixed a panic that was happening during the benchmark testing.

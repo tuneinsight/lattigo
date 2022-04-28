@@ -1,7 +1,6 @@
 package bfv
 
 import (
-	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
 )
 
@@ -9,8 +8,6 @@ import (
 type Encryptor interface {
 	Encrypt(plaintext *Plaintext, ciphertext *Ciphertext)
 	EncryptNew(plaintext *Plaintext) *Ciphertext
-	EncryptFromCRP(plaintext *Plaintext, crp *ring.Poly, ctOut *Ciphertext)
-	EncryptFromCRPNew(plaintext *Plaintext, crp *ring.Poly) *Ciphertext
 	ShallowCopy() Encryptor
 	WithKey(key interface{}) Encryptor
 }
@@ -35,24 +32,6 @@ func (enc *encryptor) Encrypt(plaintext *Plaintext, ctOut *Ciphertext) {
 func (enc *encryptor) EncryptNew(plaintext *Plaintext) *Ciphertext {
 	ct := NewCiphertext(enc.params, 1)
 	enc.Encryptor.Encrypt(plaintext.Plaintext, ct.Ciphertext)
-	return ct
-}
-
-// EncryptFromCRP encrypts the input plaintext and writes the result in ctOut.
-// This method of encryption only works if the encryptor has been instantiated with
-// a secret key.
-// The passed crp is always treated as being in the NTT domain.
-func (enc *encryptor) EncryptFromCRP(plaintext *Plaintext, crp *ring.Poly, ctOut *Ciphertext) {
-	enc.Encryptor.EncryptFromCRP(&rlwe.Plaintext{Value: plaintext.Value}, crp, &rlwe.Ciphertext{Value: ctOut.Value})
-}
-
-// EncryptFromCRPNew encrypts the input plaintext and returns the result as a newly allocated ciphertext.
-// This method of encryption only works if the encryptor has been instantiated with
-// a secret key.
-// The passed crp is always treated as being in the NTT domain.
-func (enc *encryptor) EncryptFromCRPNew(plaintext *Plaintext, crp *ring.Poly) *Ciphertext {
-	ct := NewCiphertext(enc.params, 1)
-	enc.Encryptor.EncryptFromCRP(&rlwe.Plaintext{Value: plaintext.Value}, crp, ct.Ciphertext)
 	return ct
 }
 

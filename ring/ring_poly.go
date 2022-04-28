@@ -164,7 +164,7 @@ func GetDataLen64(N, Level int, WithMetadata bool) (cnt int) {
 	cnt += N * (Level + 1) << 3
 
 	if WithMetadata {
-		cnt += 11
+		cnt += 7
 	}
 
 	return
@@ -189,18 +189,18 @@ func (pol *Poly) MarshalBinary() (data []byte, err error) {
 // Assumes each coefficient is encoded on 8 bytes.
 func (pol *Poly) UnmarshalBinary(data []byte) (err error) {
 
-	N := int(binary.BigEndian.Uint64(data))
-	Level := int(data[9])
+	N := int(binary.BigEndian.Uint32(data))
+	Level := int(data[4])
 
-	if data[10] == 1 {
+	if data[5] == 1 {
 		pol.IsNTT = true
 	}
 
-	if data[11] == 1 {
+	if data[6] == 1 {
 		pol.IsMForm = true
 	}
 
-	pointer := 11
+	pointer := 6
 
 	if ((len(data) - pointer) >> 3) != N*(Level+1) {
 		return errors.New("invalid polynomial encoding")
@@ -225,19 +225,19 @@ func (pol *Poly) WriteTo64(data []byte) (int, error) {
 		return 0, errors.New("data array is too small to write ring.Poly")
 	}
 
-	binary.BigEndian.PutUint64(data, uint64(N))
+	binary.BigEndian.PutUint32(data, uint32(N))
 
-	data[9] = uint8(Level)
+	data[4] = uint8(Level)
 
 	if pol.IsNTT {
-		data[10] = 1
+		data[5] = 1
 	}
 
 	if pol.IsMForm {
-		data[11] = 1
+		data[6] = 1
 	}
 
-	return WriteCoeffsTo64(11, N, Level, pol.Coeffs, data)
+	return WriteCoeffsTo64(7, N, Level, pol.Coeffs, data)
 }
 
 // WriteCoeffsTo64 converts a matrix of coefficients to a byte array, using 8 bytes per coefficient.
@@ -257,18 +257,18 @@ func WriteCoeffsTo64(pointer, N, Level int, coeffs [][]uint64, data []byte) (int
 // Assumes that each coefficient is encoded on 8 bytes.
 func (pol *Poly) DecodePoly64(data []byte) (pointer int, err error) {
 
-	N := int(binary.BigEndian.Uint64(data))
-	Level := int(data[9])
+	N := int(binary.BigEndian.Uint32(data))
+	Level := int(data[4])
 
-	if data[10] == 1 {
+	if data[5] == 1 {
 		pol.IsNTT = true
 	}
 
-	if data[11] == 1 {
+	if data[6] == 1 {
 		pol.IsMForm = true
 	}
 
-	pointer = 11
+	pointer = 7
 
 	if pointer, err = DecodeCoeffs64(pointer, N, Level, pol.Coeffs, data); err != nil {
 		return pointer, err
@@ -281,18 +281,18 @@ func (pol *Poly) DecodePoly64(data []byte) (pointer int, err error) {
 // Assumes that each coefficient is encoded on 8 bytes.
 func (pol *Poly) DecodePoly64New(data []byte) (pointer int, err error) {
 
-	N := int(binary.BigEndian.Uint64(data))
-	Level := int(data[9])
+	N := int(binary.BigEndian.Uint32(data))
+	Level := int(data[4])
 
-	if data[10] == 1 {
+	if data[5] == 1 {
 		pol.IsNTT = true
 	}
 
-	if data[11] == 1 {
+	if data[6] == 1 {
 		pol.IsMForm = true
 	}
 
-	pointer = 11
+	pointer = 7
 
 	if pol.Coeffs == nil {
 		pol.Coeffs = make([][]uint64, Level+1)
@@ -346,17 +346,17 @@ func (pol *Poly) WriteTo32(data []byte) (int, error) {
 		//The data is not big enough to write all the information
 		return 0, errors.New("data array is too small to write ring.Poly")
 	}
-	binary.BigEndian.PutUint64(data, uint64(N))
-	data[9] = uint8(Level)
+	binary.BigEndian.PutUint32(data, uint32(N))
+	data[4] = uint8(Level)
 	if pol.IsNTT {
-		data[10] = 1
+		data[5] = 1
 	}
 
 	if pol.IsMForm {
-		data[11] = 1
+		data[6] = 1
 	}
 
-	cnt, err := WriteCoeffsTo32(11, N, Level, pol.Coeffs, data)
+	cnt, err := WriteCoeffsTo32(7, N, Level, pol.Coeffs, data)
 
 	return cnt, err
 }
@@ -383,7 +383,7 @@ func GetPolyDataLen32(N, Level int, WithMetadata bool) (cnt int) {
 	cnt += N * (Level + 1) << 4
 
 	if WithMetadata {
-		cnt += 11
+		cnt += 7
 	}
 
 	return
@@ -401,18 +401,18 @@ func (pol *Poly) GetDataLen32(WithMetadata bool) (cnt int) {
 // Writes on pre-allocated coefficients.
 func (pol *Poly) DecodePoly32(data []byte) (pointer int, err error) {
 
-	N := int(binary.BigEndian.Uint64(data))
-	Level := int(data[9])
+	N := int(binary.BigEndian.Uint32(data))
+	Level := int(data[4])
 
-	if data[10] == 1 {
+	if data[5] == 1 {
 		pol.IsNTT = true
 	}
 
-	if data[11] == 1 {
+	if data[6] == 1 {
 		pol.IsMForm = true
 	}
 
-	pointer = 11
+	pointer = 7
 
 	if pointer, err = DecodeCoeffs32(pointer, N, Level, pol.Coeffs, data); err != nil {
 		return pointer, err
@@ -426,18 +426,18 @@ func (pol *Poly) DecodePoly32(data []byte) (pointer int, err error) {
 // Allocates the coefficients.
 func (pol *Poly) DecodePoly32New(data []byte) (pointer int, err error) {
 
-	N := int(binary.BigEndian.Uint64(data))
-	Level := int(data[9])
+	N := int(binary.BigEndian.Uint32(data))
+	Level := int(data[4])
 
-	if data[10] == 1 {
+	if data[5] == 1 {
 		pol.IsNTT = true
 	}
 
-	if data[11] == 1 {
+	if data[6] == 1 {
 		pol.IsMForm = true
 	}
 
-	pointer = 11
+	pointer = 7
 
 	if pol.Coeffs == nil {
 		pol.Coeffs = make([][]uint64, Level+1)

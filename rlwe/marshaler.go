@@ -290,7 +290,7 @@ func (rlk *RelinearizationKey) UnmarshalBinary(data []byte) (err error) {
 func (rtks *RotationKeySet) GetDataLen(WithMetaData bool) (dataLen int) {
 	for _, k := range rtks.Keys {
 		if WithMetaData {
-			dataLen += 4
+			dataLen += 8
 		}
 		dataLen += k.GetDataLen(WithMetaData)
 	}
@@ -306,8 +306,8 @@ func (rtks *RotationKeySet) MarshalBinary() (data []byte, err error) {
 
 	for galEL, key := range rtks.Keys {
 
-		binary.BigEndian.PutUint32(data[pointer:pointer+4], uint32(galEL))
-		pointer += 4
+		binary.BigEndian.PutUint64(data[pointer:pointer+8], galEL)
+		pointer += 8
 
 		if pointer, err = key.Encode(pointer, data); err != nil {
 			return nil, err
@@ -324,8 +324,8 @@ func (rtks *RotationKeySet) UnmarshalBinary(data []byte) (err error) {
 
 	for len(data) > 0 {
 
-		galEl := uint64(binary.BigEndian.Uint32(data))
-		data = data[4:]
+		galEl := binary.BigEndian.Uint64(data)
+		data = data[8:]
 
 		swk := new(SwitchingKey)
 		var inc int

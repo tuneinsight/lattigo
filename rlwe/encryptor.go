@@ -160,9 +160,9 @@ func (enc *skEncryptor) EncryptSeeded(pt *Plaintext, sampler ringqp.UniformSampl
 func (enc *skEncryptor) encrypt(pt *Plaintext, sampler *ringqp.UniformSampler, ct interface{}) {
 	switch el := ct.(type) {
 	case *Ciphertext:
-		enc.encryptRLWE(pt, &enc.uniformSampler, el)
+		enc.encryptRLWE(pt, sampler, el)
 	case *rgsw.Ciphertext:
-		enc.encryptRGSW(pt, &enc.uniformSampler, el)
+		enc.encryptRGSW(pt, sampler, el)
 	default:
 		panic("input ciphertext type unsuported (must be *rlwe.Ciphertext or *rgsw.Ciphertext)")
 	}
@@ -331,6 +331,7 @@ func (enc *skEncryptor) encryptRLWE(pt *Plaintext, sampler *ringqp.UniformSample
 		enc.uniformSampler.ReadLvl(utils.MinInt(pt.Level(), ct.Level()), -1, ringqp.Poly{Q: c0})
 	} else {
 		sampler.ReadLvl(utils.MinInt(pt.Level(), ct.Level()), -1, ringqp.Poly{Q: c0})
+
 	}
 
 	ringQ := enc.params.RingQ()

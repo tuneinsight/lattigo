@@ -172,7 +172,13 @@ func (enc *pkEncryptor) encryptRLWE(plaintext *Plaintext, ciphertext *Ciphertext
 	ringQ := enc.params.RingQ()
 	ringQP := enc.params.RingQP()
 
-	levelQ := utils.MinInt(plaintext.Level(), ciphertext.Level())
+	var levelQ int
+	if plaintext != nil {
+		levelQ = utils.MinInt(plaintext.Level(), ciphertext.Level())
+	} else {
+		levelQ = ciphertext.Level()
+	}
+
 	levelP := 0
 
 	buffQ0 := enc.buffQ[0]
@@ -252,7 +258,13 @@ func (enc *pkEncryptor) encryptRLWE(plaintext *Plaintext, ciphertext *Ciphertext
 }
 
 func (enc *pkEncryptor) encryptNoPRLWE(plaintext *Plaintext, ciphertext *Ciphertext) {
-	levelQ := utils.MinInt(plaintext.Level(), ciphertext.Level())
+
+	var levelQ int
+	if plaintext != nil {
+		levelQ = utils.MinInt(plaintext.Level(), ciphertext.Level())
+	} else {
+		levelQ = ciphertext.Level()
+	}
 
 	buffQ0 := enc.buffQ[0]
 
@@ -321,6 +333,13 @@ func (enc *skEncryptor) encryptRLWE(pt *Plaintext, sampler *ringqp.UniformSample
 
 	var c0 *ring.Poly
 
+	var levelQ int
+	if pt != nil {
+		levelQ = utils.MinInt(pt.Level(), ct.Level())
+	} else {
+		levelQ = ct.Level()
+	}
+
 	if ct.Degree() == 0 || ct.Value[1] == nil {
 		c0 = enc.buffQ[1]
 	} else {
@@ -330,13 +349,10 @@ func (enc *skEncryptor) encryptRLWE(pt *Plaintext, sampler *ringqp.UniformSample
 	if sampler == nil {
 		enc.uniformSampler.ReadLvl(utils.MinInt(pt.Level(), ct.Level()), -1, ringqp.Poly{Q: c0})
 	} else {
-		sampler.ReadLvl(utils.MinInt(pt.Level(), ct.Level()), -1, ringqp.Poly{Q: c0})
-
+		sampler.ReadLvl(levelQ, -1, ringqp.Poly{Q: c0})
 	}
 
 	ringQ := enc.params.RingQ()
-
-	levelQ := utils.MinInt(pt.Level(), ct.Level())
 
 	buffQ0 := enc.buffQ[0]
 
@@ -359,6 +375,9 @@ func (enc *skEncryptor) encryptRLWE(pt *Plaintext, sampler *ringqp.UniformSample
 				ringQ.NTTLvl(levelQ, buffQ0, buffQ0)
 				ringQ.AddLvl(levelQ, ct.Value[0], buffQ0, ct.Value[0])
 			}
+		} else {
+			ringQ.NTTLvl(levelQ, buffQ0, buffQ0)
+			ringQ.AddLvl(levelQ, ct.Value[0], buffQ0, ct.Value[0])
 		}
 	} else {
 		if pt != nil {
@@ -377,7 +396,6 @@ func (enc *skEncryptor) encryptRLWE(pt *Plaintext, sampler *ringqp.UniformSample
 		if c0 != enc.buffQ[1] {
 			ringQ.InvNTTLvl(levelQ, ct.Value[1], ct.Value[1])
 		}
-
 	}
 
 	if c0 != enc.buffQ[1] {

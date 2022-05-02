@@ -76,7 +76,6 @@ func TestRing(t *testing.T) {
 		testUniformSampler(tc, t)
 		testGaussianSampler(tc, t)
 		testTernarySampler(tc, t)
-		testGaloisShift(tc, t)
 		testModularReduction(tc, t)
 		testMForm(tc, t)
 		testMulScalarBigint(tc, t)
@@ -580,28 +579,6 @@ func testModularReduction(tc *testParams, t *testing.T) {
 			result.Mod(result, bigQ)
 
 			require.Equalf(t, MRed(x, MForm(y, q, bredParams), q, mredparams), result.Uint64(), "x = %v, y=%v", x, y)
-		}
-	})
-}
-
-func testGaloisShift(tc *testParams, t *testing.T) {
-
-	t.Run(testString("GaloisShift/", tc.ringQ), func(t *testing.T) {
-
-		pWant := tc.uniformSamplerQ.ReadNew()
-		pTest := pWant.CopyNew()
-
-		tc.ringQ.BitReverse(pTest, pTest)
-		tc.ringQ.InvNTT(pTest, pTest)
-		tc.ringQ.Rotate(pTest, 1, pTest)
-		tc.ringQ.NTT(pTest, pTest)
-		tc.ringQ.BitReverse(pTest, pTest)
-		tc.ringQ.Reduce(pTest, pTest)
-
-		tc.ringQ.Shift(pWant, 1, pWant)
-
-		for i := range tc.ringQ.Modulus {
-			require.Equal(t, pTest.Coeffs[i][:tc.ringQ.N], pWant.Coeffs[i][:tc.ringQ.N])
 		}
 	})
 }

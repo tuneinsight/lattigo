@@ -222,33 +222,18 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 	})
 
 	b.Run(testString("Evaluator/Relin", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
-
-		if tc.params.PCount() == 0 {
-			b.Skip("#Pi is empty")
-		}
-
 		for i := 0; i < b.N; i++ {
 			evaluator.Relinearize(receiver, ciphertext1)
 		}
 	})
 
 	b.Run(testString("Evaluator/RotateRows", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
-
-		if tc.params.PCount() == 0 {
-			b.Skip("#Pi is empty")
-		}
-
 		for i := 0; i < b.N; i++ {
 			evaluator.RotateRows(ciphertext1, ciphertext1)
 		}
 	})
 
 	b.Run(testString("Evaluator/RotateCols", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
-
-		if tc.params.PCount() == 0 {
-			b.Skip("#Pi is empty")
-		}
-
 		for i := 0; i < b.N; i++ {
 			evaluator.RotateColumns(ciphertext1, 1, ciphertext1)
 		}

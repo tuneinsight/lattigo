@@ -1004,15 +1004,9 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 
 func testSwitchKeys(tc *testContext, t *testing.T) {
 
-	var sk2 *rlwe.SecretKey
-	var decryptorSk2 Decryptor
-	var switchingKey *rlwe.SwitchingKey
-
-	if tc.params.PCount() != 0 {
-		sk2 = tc.kgen.GenSecretKey()
-		decryptorSk2 = NewDecryptor(tc.params, sk2)
-		switchingKey = tc.kgen.GenSwitchingKey(tc.sk, sk2)
-	}
+	sk2 := tc.kgen.GenSecretKey()
+	decryptorSk2 := NewDecryptor(tc.params, sk2)
+	switchingKey := tc.kgen.GenSwitchingKey(tc.sk, sk2)
 
 	t.Run(GetTestName(tc.params, "SwitchKeys"), func(t *testing.T) {
 

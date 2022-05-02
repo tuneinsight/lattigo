@@ -303,7 +303,7 @@ func (r *Ring) AddScalar(p1 *Poly, scalar uint64, p2 *Poly) {
 // AddScalarLvl adds a scalar to each coefficient of p1 and writes the result on p2.
 func (r *Ring) AddScalarLvl(level int, p1 *Poly, scalar uint64, p2 *Poly) {
 	for i := 0; i < level+1; i++ {
-		AddScalarVec(p1.Coeffs[i][:r.N], p1.Coeffs[i][:r.N], scalar, r.Modulus[i])
+		AddScalarVec(p1.Coeffs[i][:r.N], p2.Coeffs[i][:r.N], scalar, r.Modulus[i])
 	}
 }
 
@@ -316,7 +316,7 @@ func (r *Ring) AddScalarBigint(p1 *Poly, scalar *big.Int, p2 *Poly) {
 func (r *Ring) AddScalarBigintLvl(level int, p1 *Poly, scalar *big.Int, p2 *Poly) {
 	tmp := new(big.Int)
 	for i := 0; i < level+1; i++ {
-		AddScalarVec(p1.Coeffs[i][:r.N], p1.Coeffs[i][:r.N], tmp.Mod(scalar, NewUint(r.Modulus[i])).Uint64(), r.Modulus[i])
+		AddScalarVec(p1.Coeffs[i][:r.N], p2.Coeffs[i][:r.N], tmp.Mod(scalar, NewUint(r.Modulus[i])).Uint64(), r.Modulus[i])
 	}
 }
 
@@ -328,7 +328,7 @@ func (r *Ring) SubScalar(p1 *Poly, scalar uint64, p2 *Poly) {
 // SubScalarLvl subtracts a scalar from each coefficient of p1 and writes the result on p2.
 func (r *Ring) SubScalarLvl(level int, p1 *Poly, scalar uint64, p2 *Poly) {
 	for i := 0; i < level+1; i++ {
-		SubScalarVec(p1.Coeffs[i][:r.N], p1.Coeffs[i][:r.N], scalar, r.Modulus[i])
+		SubScalarVec(p1.Coeffs[i][:r.N], p2.Coeffs[i][:r.N], scalar, r.Modulus[i])
 	}
 }
 
@@ -341,7 +341,7 @@ func (r *Ring) SubScalarBigint(p1 *Poly, scalar *big.Int, p2 *Poly) {
 func (r *Ring) SubScalarBigintLvl(level int, p1 *Poly, scalar *big.Int, p2 *Poly) {
 	tmp := new(big.Int)
 	for i := 0; i < level+1; i++ {
-		SubScalarVec(p1.Coeffs[i][:r.N], p1.Coeffs[i][:r.N], tmp.Mod(scalar, NewUint(r.Modulus[i])).Uint64(), r.Modulus[i])
+		SubScalarVec(p1.Coeffs[i][:r.N], p2.Coeffs[i][:r.N], tmp.Mod(scalar, NewUint(r.Modulus[i])).Uint64(), r.Modulus[i])
 	}
 }
 
@@ -366,6 +366,18 @@ func (r *Ring) MulScalarAndAdd(p1 *Poly, scalar uint64, p2 *Poly) {
 func (r *Ring) MulScalarAndAddLvl(level int, p1 *Poly, scalar uint64, p2 *Poly) {
 	for i := 0; i < level+1; i++ {
 		MulScalarMontgomeryAndAddVec(p1.Coeffs[i][:r.N], p2.Coeffs[i][:r.N], MForm(BRedAdd(scalar, r.Modulus[i], r.BredParams[i]), r.Modulus[i], r.BredParams[i]), r.Modulus[i], r.MredParams[i])
+	}
+}
+
+// MulScalarAndSub multiplies each coefficient of p1 by a scalar and subtracts the result on p2.
+func (r *Ring) MulScalarAndSub(p1 *Poly, scalar uint64, p2 *Poly) {
+	r.MulScalarAndSubLvl(r.minLevelBinary(p1, p2), p1, scalar, p2)
+}
+
+// MulScalarAndSubLvl multiplies each coefficient of p1 by a scalar for the moduli from q_0 up to q_level and subtracts the result on p2.
+func (r *Ring) MulScalarAndSubLvl(level int, p1 *Poly, scalar uint64, p2 *Poly) {
+	for i := 0; i < level+1; i++ {
+		MulScalarMontgomeryAndAddVec(p1.Coeffs[i][:r.N], p2.Coeffs[i][:r.N], MForm(r.Modulus[i]-BRedAdd(scalar, r.Modulus[i], r.BredParams[i]), r.Modulus[i], r.BredParams[i]), r.Modulus[i], r.MredParams[i])
 	}
 }
 
@@ -567,37 +579,6 @@ func (r *Ring) BitReverse(p1, p2 *Poly) {
 					p2tmp[i], p2tmp[j] = p2tmp[j], p2tmp[i]
 				}
 			}
-		}
-	}
-}
-
-// Rotate applies a Galois automorphism on p1 in NTT form,
-// rotating the coefficients to the right by n positions, and writes the result on p2.
-// It requires the data to be permuted in bit-reversal order before applying the NTT.
-func (r *Ring) Rotate(p1 *Poly, n int, p2 *Poly) {
-
-	var root, gal uint64
-
-	n &= (1 << r.N) - 1
-
-	for i, qi := range r.Modulus {
-
-		mredParams := r.MredParams[i]
-
-		root = MRed(r.PsiMont[i], r.PsiMont[i], qi, mredParams)
-
-		root = ModexpMontgomery(root, n, qi, mredParams, r.BredParams[i])
-
-		gal = MForm(1, qi, r.BredParams[i])
-
-		p1tmp, p2tmp := p1.Coeffs[i][:r.N], p1.Coeffs[i][:r.N]
-
-		for j := 1; j < r.N; j++ {
-
-			gal = MRed(gal, root, qi, mredParams)
-
-			p2tmp[j] = MRed(p1tmp[j], gal, qi, mredParams)
-
 		}
 	}
 }

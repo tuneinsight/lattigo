@@ -101,11 +101,6 @@ func benchKeyGen(tc *testContext, b *testing.B) {
 	})
 
 	b.Run(testString("KeyGen/SwitchKeyGen", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
-
-		if tc.params.PCount() == 0 {
-			b.Skip("#Pi is empty")
-		}
-
 		for i := 0; i < b.N; i++ {
 			kgen.GenRelinearizationKey(sk, 1)
 		}

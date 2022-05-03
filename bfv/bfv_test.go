@@ -657,11 +657,6 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		}
 
 		t.Run(testString("Evaluator/Mul/Relinearize", tc.params, lvl), func(t *testing.T) {
-
-			if tc.params.PCount() == 0 {
-				t.Skip("#Pi is empty")
-			}
-
 			values1, _, ciphertext1 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
 			values2, _, ciphertext2 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
 			receiver := NewCiphertextLvl(tc.params, ciphertext1.Degree()+ciphertext2.Degree(), lvl)

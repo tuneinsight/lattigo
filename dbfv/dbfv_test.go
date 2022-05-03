@@ -634,7 +634,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 		for i, p := range RefreshParties {
 			p.GenShare(p.s, ciphertext.Value[1], crp, p.share)
 			if i > 0 {
-				P0.Aggregate(p.share, P0.share, P0.share)
+				P0.AggregateShare(p.share, P0.share, P0.share)
 			}
 
 		}
@@ -712,7 +712,7 @@ func testRefreshAndPermutation(tc *testContext, t *testing.T) {
 		for i, p := range RefreshParties {
 			p.GenShare(p.s, ciphertext.Value[1], crp, permute, p.share)
 			if i > 0 {
-				P0.Aggregate(P0.share, p.share, P0.share)
+				P0.AggregateShare(P0.share, p.share, P0.share)
 			}
 		}
 

@@ -200,7 +200,7 @@ func (pol *Poly) UnmarshalBinary(data []byte) (err error) {
 		pol.IsMForm = true
 	}
 
-	pointer := 6
+	pointer := 7
 
 	if ((len(data) - pointer) >> 3) != N*(Level+1) {
 		return errors.New("invalid polynomial encoding")

@@ -53,7 +53,7 @@ func (share *CKGShare) MarshalBinary() (data []byte, err error) {
 
 // UnmarshalBinary decodes a slice of bytes on the target element.
 func (share *CKGShare) UnmarshalBinary(data []byte) (err error) {
-	_, err = share.Value.DecodePoly64New(data)
+	_, err = share.Value.DecodePoly64(data)
 	return err
 }
 

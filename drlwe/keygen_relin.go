@@ -355,12 +355,12 @@ func (share *RKGShare) UnmarshalBinary(data []byte) (err error) {
 		share.Value[i] = make([][2]ringqp.Poly, data[1])
 		for j := range share.Value[i] {
 
-			if inc, err = share.Value[i][j][0].DecodePoly64New(data[ptr:]); err != nil {
+			if inc, err = share.Value[i][j][0].DecodePoly64(data[ptr:]); err != nil {
 				return err
 			}
 			ptr += inc
 
-			if inc, err = share.Value[i][j][1].DecodePoly64New(data[ptr:]); err != nil {
+			if inc, err = share.Value[i][j][1].DecodePoly64(data[ptr:]); err != nil {
 				return err
 			}
 			ptr += inc

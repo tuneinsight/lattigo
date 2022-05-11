@@ -61,7 +61,7 @@ func (ciphertext *Ciphertext) UnmarshalBinary(data []byte) (err error) {
 
 		ciphertext.Value[i] = new(ring.Poly)
 
-		if inc, err = ciphertext.Value[i].DecodePoly64New(data[pointer:]); err != nil {
+		if inc, err = ciphertext.Value[i].DecodePoly64(data[pointer:]); err != nil {
 			return err
 		}
 
@@ -148,7 +148,7 @@ func (ct *SeededCiphertextBatch) UnmarshalBinary(data []byte) (err error) {
 
 		for i := range ciphertext.Value {
 			ciphertext.Value[i] = new(ring.Poly)
-			if inc, err = ciphertext.Value[i].DecodePoly64New(data[ptr:]); err != nil {
+			if inc, err = ciphertext.Value[i].DecodePoly64(data[ptr:]); err != nil {
 				return err
 			}
 
@@ -182,7 +182,7 @@ func (sk *SecretKey) MarshalBinary() (data []byte, err error) {
 
 // UnmarshalBinary decodes a previously marshaled SecretKey in the target SecretKey.
 func (sk *SecretKey) UnmarshalBinary(data []byte) (err error) {
-	_, err = sk.Value.DecodePoly64New(data)
+	_, err = sk.Value.DecodePoly64(data)
 	return
 }
 
@@ -211,12 +211,12 @@ func (pk *PublicKey) MarshalBinary() (data []byte, err error) {
 func (pk *PublicKey) UnmarshalBinary(data []byte) (err error) {
 
 	var pt, inc int
-	if inc, err = pk.Value[0].DecodePoly64New(data[pt:]); err != nil {
+	if inc, err = pk.Value[0].DecodePoly64(data[pt:]); err != nil {
 		return
 	}
 	pt += inc
 
-	if _, err = pk.Value[1].DecodePoly64New(data[pt:]); err != nil {
+	if _, err = pk.Value[1].DecodePoly64(data[pt:]); err != nil {
 		return
 	}
 

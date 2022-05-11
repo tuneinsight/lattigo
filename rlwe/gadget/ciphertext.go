@@ -170,12 +170,12 @@ func (ct *Ciphertext) Decode(data []byte) (pointer int, err error) {
 
 		for j := range ct.Value[i] {
 
-			if inc, err = ct.Value[i][j][0].DecodePoly64New(data[pointer:]); err != nil {
+			if inc, err = ct.Value[i][j][0].DecodePoly64(data[pointer:]); err != nil {
 				return
 			}
 			pointer += inc
 
-			if inc, err = ct.Value[i][j][1].DecodePoly64New(data[pointer:]); err != nil {
+			if inc, err = ct.Value[i][j][1].DecodePoly64(data[pointer:]); err != nil {
 				return
 			}
 			pointer += inc

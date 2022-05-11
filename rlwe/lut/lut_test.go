@@ -2,12 +2,13 @@ package lut
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
-	"github.com/tuneinsight/lattigo/v3/ring"
-	"github.com/tuneinsight/lattigo/v3/rlwe"
 	"math"
 	"runtime"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/tuneinsight/lattigo/v3/ring"
+	"github.com/tuneinsight/lattigo/v3/rlwe"
 )
 
 func testString(params rlwe.Parameters, opname string) string {

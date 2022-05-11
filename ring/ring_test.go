@@ -66,6 +66,7 @@ func TestRing(t *testing.T) {
 		if tc, err = genTestParams(defaultParam); err != nil {
 			t.Error(err)
 		}
+
 		testNTTConjugateInvariant(tc, t)
 		testPRNG(tc, t)
 		testGenerateNTTPrimes(tc, t)
@@ -81,6 +82,7 @@ func TestRing(t *testing.T) {
 		testMulScalarBigint(tc, t)
 		testExtendBasis(tc, t)
 		testMultByMonomial(tc, t)
+
 	}
 }
 
@@ -94,11 +96,10 @@ func testNTTConjugateInvariant(tc *testParams, t *testing.T) {
 
 		sampler := NewUniformSampler(tc.prng, ringQ)
 		p1 := sampler.ReadNew()
-		p2 := p1.CopyNew()
+		p2 := ringQ2N.NewPoly()
 
 		for i, qi := range ringQ.Modulus {
-			p2.Coeffs[i] = append(p2.Coeffs[i], make([]uint64, ringQ.N)...)
-			p2.Coeffs[i][ringQ.N] = 0
+			copy(p2.Coeffs[i], p1.Coeffs[i])
 			for j := 1; j < ringQ.N; j++ {
 				p2.Coeffs[i][ringQ.N*2-j] = qi - p2.Coeffs[i][j]
 			}
@@ -336,7 +337,6 @@ func testMarshalBinary(tc *testParams, t *testing.T) {
 		var err error
 
 		p := tc.uniformSamplerQ.ReadNew()
-		pTest := tc.ringQ.NewPoly()
 
 		var data []byte
 		if data, err = p.MarshalBinary(); err != nil {
@@ -344,6 +344,7 @@ func testMarshalBinary(tc *testParams, t *testing.T) {
 			t.Fail()
 		}
 
+		pTest := new(Poly)
 		if err = pTest.UnmarshalBinary(data); err != nil {
 			t.Error(err)
 			t.Fail()

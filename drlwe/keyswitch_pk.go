@@ -209,13 +209,13 @@ func (share *PCKSShare) MarshalBinary() (data []byte, err error) {
 func (share *PCKSShare) UnmarshalBinary(data []byte) (err error) {
 	var pt, inc int
 	share.Value[0] = new(ring.Poly)
-	if inc, err = share.Value[0].DecodePoly64New(data[pt:]); err != nil {
+	if inc, err = share.Value[0].DecodePoly64(data[pt:]); err != nil {
 		return
 	}
 	pt += inc
 
 	share.Value[1] = new(ring.Poly)
-	if _, err = share.Value[1].DecodePoly64New(data[pt:]); err != nil {
+	if _, err = share.Value[1].DecodePoly64(data[pt:]); err != nil {
 		return
 	}
 	return

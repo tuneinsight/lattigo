@@ -51,15 +51,15 @@ func (p *Poly) Equals(other Poly) (v bool) {
 	return v
 }
 
-// CopyValues copies the coefficients of p1 on the target polynomial.
+// CopyValues copies the coefficients of other on the target polynomial.
 // This method simply calls the CopyValues method for each of its sub-polynomials.
 func (p *Poly) CopyValues(other Poly) {
 	if p.Q != nil {
-		p.Q.CopyValues(other.Q)
+		copy(p.Q.Buff, other.Q.Buff)
 	}
 
 	if p.P != nil {
-		p.P.CopyValues(other.P)
+		copy(p.P.Buff, other.P.Buff)
 	}
 }
 
@@ -428,6 +428,11 @@ func (p *Poly) DecodePoly64(data []byte) (pt int, err error) {
 	pt = 2
 
 	if data[0] == 1 {
+
+		if p.Q == nil {
+			p.Q = new(ring.Poly)
+		}
+
 		if inc, err = p.Q.DecodePoly64(data[pt:]); err != nil {
 			return
 		}
@@ -435,39 +440,12 @@ func (p *Poly) DecodePoly64(data []byte) (pt int, err error) {
 	}
 
 	if data[1] == 1 {
-		if inc, err = p.P.DecodePoly64(data[pt:]); err != nil {
-			return
-		}
-		pt += inc
-	}
 
-	return
-}
-
-// DecodePoly64New decodes the input bytes on the target Poly.
-// Allocates the coefficients.
-// Assumes that each coefficient is encoded on 8 bytes.
-func (p *Poly) DecodePoly64New(data []byte) (pt int, err error) {
-
-	var inc int
-	pt = 2
-
-	if data[0] == 1 {
-		if p.Q == nil {
-			p.Q = new(ring.Poly)
-		}
-
-		if inc, err = p.Q.DecodePoly64New(data[pt:]); err != nil {
-			return
-		}
-		pt += inc
-	}
-
-	if data[1] == 1 {
 		if p.P == nil {
 			p.P = new(ring.Poly)
 		}
-		if inc, err = p.P.DecodePoly64New(data[pt:]); err != nil {
+
+		if inc, err = p.P.DecodePoly64(data[pt:]); err != nil {
 			return
 		}
 		pt += inc

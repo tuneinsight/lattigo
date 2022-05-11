@@ -1,10 +1,11 @@
 package rlwe
 
 import (
+	"math"
+
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe/rgsw"
 	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
-	"math"
 )
 
 // ExternalProduct computes RLWE x RGSW -> RLWE

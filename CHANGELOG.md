@@ -37,12 +37,12 @@ All notable changes to this project will be documented in this file.
 - ALL: added parameters for LogN=11 and LogN=10.
 - RING: fixed prime generation to not skip the first candidate.
 - RING: reworked marshalling of `ring.Poly` object. The new available methods are:
+    - `ring.Poly` now have a `.Buff` 1-dimensional slice which is the only heavy allocation of a `ring.Poly`. The `.Coeffs` 2-dimensional slice is re-slicing of `.Buff`.
     - `GetDataLen64` and `GetDataLen32`: get the length in bytes of an encoded `ring.Poly` object.
     - `WriteTo64` and `WriteTo32`: encode a `ring.Poly` object on a pre-allocated slice of bytes.
-    - `WriteCoeffsTo64` and `WriteCoeffsTo32`: encode a matrix of coefficients on pre-allocated slice of bytes.
-    - `DecodeCoeffs64` and `DecodeCoeffs32`: decode a slice of bytes on a matrix of coefficients.
+    - `WriteCoeffsTo64` and `WriteCoeffsTo32`: encode a slice of coefficients on pre-allocated slice of bytes.
+    - `DecodeCoeffs64` and `DecodeCoeffs32`: decode a slice of bytes on a slice of coefficients.
     - `DecodePoly64` and `DecodePoly32`: decode a slice of bytes on a a pre-allocated `ring.Poly` object.
-    - `DecodePoly64New` and `DecodePoly32New`: decode a slice of bytes on a `ring.Poly` object.
 - RING: changed `ring.Poly.Degree()` method to `ring.Poly.N()` for consistency with the other package API.
 - RING: removed `ring.Poly.LenModuli()` depreciated method.
 - RING: the method `ring.NewPoly` now takes the `level` as input instead of the number of moduli, for consistency with the other package API.

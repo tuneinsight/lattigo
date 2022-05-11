@@ -370,26 +370,12 @@ func (r *Ring) UnmarshalBinary(data []byte) error {
 
 // NewPoly creates a new polynomial with all coefficients set to 0.
 func (r *Ring) NewPoly() *Poly {
-	p := new(Poly)
-
-	p.Coeffs = make([][]uint64, len(r.Modulus))
-	for i := 0; i < len(r.Modulus); i++ {
-		p.Coeffs[i] = make([]uint64, r.N)
-	}
-
-	return p
+	return NewPoly(r.N, len(r.Modulus)-1)
 }
 
 // NewPolyLvl creates a new polynomial with all coefficients set to 0.
 func (r *Ring) NewPolyLvl(level int) *Poly {
-	p := new(Poly)
-
-	p.Coeffs = make([][]uint64, level+1)
-	for i := 0; i < level+1; i++ {
-		p.Coeffs[i] = make([]uint64, r.N)
-	}
-
-	return p
+	return NewPoly(r.N, level)
 }
 
 // SetCoefficientsInt64 sets the coefficients of p1 from an int64 array.

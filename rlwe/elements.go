@@ -145,12 +145,8 @@ func (el *Ciphertext) Resize(params Parameters, degree int) {
 		el.Value = el.Value[:degree+1]
 	} else if el.Degree() < degree {
 		for el.Degree() < degree {
-			el.Value = append(el.Value, []*ring.Poly{new(ring.Poly)}...)
-			el.Value[el.Degree()].Coeffs = make([][]uint64, el.Level()+1)
-			for i := 0; i < el.Level()+1; i++ {
-				el.Value[el.Degree()].Coeffs[i] = make([]uint64, params.N())
-				el.Value[el.Degree()].IsNTT = el.Value[0].IsNTT
-			}
+			el.Value = append(el.Value, []*ring.Poly{params.RingQ().NewPolyLvl(el.Level())}...)
+			el.Value[el.Degree()].IsNTT = el.Value[0].IsNTT
 		}
 	}
 }

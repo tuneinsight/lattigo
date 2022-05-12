@@ -140,12 +140,19 @@ func (el *Ciphertext) Level() int {
 // Resize resizes the degree of the target element.
 // Sets the NTT flag of the added poly equal to the NTT flag
 // to the poly at degree zero.
-func (el *Ciphertext) Resize(params Parameters, degree int) {
+func (el *Ciphertext) Resize(degree, level int) {
+
+	if el.Level() != level {
+		for i := range el.Value {
+			el.Value[i].Resize(level)
+		}
+	}
+
 	if el.Degree() > degree {
 		el.Value = el.Value[:degree+1]
 	} else if el.Degree() < degree {
 		for el.Degree() < degree {
-			el.Value = append(el.Value, []*ring.Poly{params.RingQ().NewPolyLvl(el.Level())}...)
+			el.Value = append(el.Value, []*ring.Poly{ring.NewPoly(el.Value[0].N(), level)}...)
 			el.Value[el.Degree()].IsNTT = el.Value[0].IsNTT
 		}
 	}

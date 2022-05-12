@@ -344,7 +344,7 @@ func (eval *evaluator) evaluateInPlace(c0, c1, ctOut Operand, evaluate func(int,
 	minDegree := utils.MinInt(c0.Degree(), c1.Degree())
 
 	// Else resizes the receiver element
-	ctOut.El().Resize(eval.params.Parameters, maxDegree)
+	ctOut.El().Resize(maxDegree, ctOut.Level())
 
 	c0Scale := c0.ScalingFactor()
 	c1Scale := c1.ScalingFactor()
@@ -1171,7 +1171,7 @@ func (eval *evaluator) mulRelin(op0, op1 Operand, relin bool, ctOut *Ciphertext)
 
 		if !relin {
 			if ctOut.Degree() < 2 {
-				ctOut.El().Resize(eval.params.Parameters, 2)
+				ctOut.El().Resize(2, ctOut.Level())
 			}
 			c2 = ctOut.Value[2]
 		} else {
@@ -1294,7 +1294,7 @@ func (eval *evaluator) mulRelinAndAdd(op0, op1 Operand, relin bool, ctOut *Ciphe
 
 		if !relin {
 			if ctOut.Degree() < 2 {
-				ctOut.El().Resize(eval.params.Parameters, 2)
+				ctOut.El().Resize(2, ctOut.Level())
 			}
 			c2 = ctOut.Value[2]
 		} else {

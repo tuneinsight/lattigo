@@ -26,6 +26,24 @@ func NewPoly(N, Level int) (pol *Poly) {
 	return
 }
 
+// Resize resize the level of the target polynomial to the provided level.
+// If the provided level is larger than the current level, then allocates zero
+// coefficients, else dereferences the coefficients above the provided level.
+func (pol *Poly) Resize(level int) {
+	N := pol.N()
+	if pol.Level() > level {
+		pol.Buff = pol.Buff[:N*(level+1)]
+		pol.Coeffs = pol.Coeffs[:level+1]
+	} else if level > pol.Level() {
+		pol.Buff = append(pol.Buff, make([]uint64, N*(level-pol.Level()))...)
+		prevLevel := pol.Level()
+		pol.Coeffs = append(pol.Coeffs, make([][]uint64, level-pol.Level())...)
+		for i := prevLevel; i < level+1; i++ {
+			pol.Coeffs[i] = pol.Buff[i*N : (i+1)*N]
+		}
+	}
+}
+
 // N returns the number of coefficients of the polynomial, which equals the degree of the Ring cyclotomic polynomial.
 func (pol *Poly) N() int {
 	return len(pol.Coeffs[0])

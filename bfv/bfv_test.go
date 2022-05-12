@@ -566,7 +566,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 			values1, _, ciphertext1 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
 			values2, _, ciphertext2 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
 			values3, _, ciphertext3 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			ciphertext3.Resize(tc.params.Parameters, 2)
+			ciphertext3.Resize(2, ciphertext3.Level())
 			tc.evaluator.MulAndAdd(ciphertext1, ciphertext2, ciphertext3)
 			tc.ringT.MulCoeffs(values1, values2, values1)
 			tc.ringT.Add(values3, values1, values3)

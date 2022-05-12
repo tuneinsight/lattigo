@@ -61,6 +61,19 @@ func NewPlaintext(params Parameters, level int) *Plaintext {
 	return &Plaintext{Value: ring.NewPoly(params.N(), level)}
 }
 
+// NewPlaintextAtLevelFromPoly construct a new Plaintext at a specific level
+// where the message is set to the passed poly. No checks are performed on poly and
+// the returned Plaintext will share its backing array of coefficient.
+func NewPlaintextAtLevelFromPoly(level int, poly *ring.Poly) *Plaintext {
+	if len(poly.Coeffs) < level+1 {
+		panic("cannot NewPlaintextAtLevelFromPoly: provided ring.Poly level is too small")
+	}
+	v0 := new(ring.Poly)
+	v0.Coeffs = poly.Coeffs[:level+1]
+	v0.Buff = poly.Buff[:poly.N()*(level+1)]
+	return &Plaintext{Value: v0}
+}
+
 // Degree returns the degree of the target element.
 func (pt Plaintext) Degree() int {
 	return 0
@@ -105,13 +118,13 @@ func NewCiphertextNTT(params Parameters, degree, level int) *Ciphertext {
 	return el
 }
 
-// NewCiphertextNTTAtLevelFromPoly construct a new Ciphetext at a specific level
+// NewCiphertextAtLevelFromPoly construct a new Ciphetext at a specific level
 // where the message is set to the passed poly. No checks are performed on poly and
 // the returned Ciphertext will share its backing array of coefficient.
-func NewCiphertextNTTAtLevelFromPoly(level int, poly [2]*ring.Poly) *Ciphertext {
+func NewCiphertextAtLevelFromPoly(level int, poly [2]*ring.Poly) *Ciphertext {
 	v0, v1 := new(ring.Poly), new(ring.Poly)
-	v0.IsNTT, v1.IsNTT = true, true
 	v0.Coeffs, v1.Coeffs = poly[0].Coeffs[:level+1], poly[1].Coeffs[:level+1]
+	v0.Buff, v1.Buff = poly[0].Buff[:poly[0].N()*(level+1)], poly[1].Buff[:poly[1].N()*(level+1)]
 	return &Ciphertext{Value: []*ring.Poly{v0, v1}}
 }
 

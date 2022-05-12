@@ -538,25 +538,7 @@ func (r *Ring) PolyToBigintCenteredLvl(level int, p1 *Poly, gap int, coeffsBigin
 
 // Equal checks if p1 = p2 in the given Ring.
 func (r *Ring) Equal(p1, p2 *Poly) bool {
-
-	for i := 0; i < len(r.Modulus); i++ {
-		if len(p1.Coeffs[i]) != len(p2.Coeffs[i]) {
-			return false
-		}
-	}
-
-	r.Reduce(p1, p1)
-	r.Reduce(p2, p2)
-
-	for i := 0; i < len(r.Modulus); i++ {
-		for j := 0; j < r.N; j++ {
-			if p1.Coeffs[i][j] != p2.Coeffs[i][j] {
-				return false
-			}
-		}
-	}
-
-	return true
+	return r.EqualLvl(utils.MinInt(p1.Level(), p2.Level()), p1, p2)
 }
 
 // EqualLvl checks if p1 = p2 in the given Ring, up to a given level.

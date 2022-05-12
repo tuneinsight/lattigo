@@ -49,8 +49,7 @@ func (eval *Evaluator) Relinearize(ctIn *Ciphertext, ctOut *Ciphertext) {
 
 	ctOut.Value = ctOut.Value[:2]
 
-	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:level+1]
-	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:level+1]
+	ctOut.Resize(ctOut.Degree(), level)
 }
 
 // DecomposeNTT applies the full RNS basis decomposition for all q_alpha_i on c2.

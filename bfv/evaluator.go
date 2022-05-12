@@ -313,8 +313,7 @@ func (eval *evaluator) RescaleTo(level int, ctIn, ctOut *Ciphertext) {
 	eval.ringQ.DivRoundByLastModulusManyLvl(ctIn.Level(), ctIn.Level()-level, ctIn.Value[0], eval.buffQ[0][0], ctOut.Value[0])
 	eval.ringQ.DivRoundByLastModulusManyLvl(ctIn.Level(), ctIn.Level()-level, ctIn.Value[1], eval.buffQ[0][0], ctOut.Value[1])
 
-	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:level+1]
-	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:level+1]
+	ctOut.Resize(ctOut.Degree(), level)
 }
 
 // tensorAndRescale computes (ct0 x ct1) * (t/Q) and stores the result in ctOut.
@@ -324,8 +323,7 @@ func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *rlwe.Ciphertext) {
 
 	levelQMul := eval.levelQMul[level]
 
-	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:level+1]
-	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:level+1]
+	ctOut.Resize(ctOut.Degree(), level)
 
 	c0Q1 := eval.buffQ[0]
 	c0Q2 := eval.buffQMul[0]
@@ -548,8 +546,7 @@ func (eval *evaluator) mulPlaintextRingT(ctIn *Ciphertext, ptRt *PlaintextRingT,
 
 	level := utils.MinInt(ctIn.Level(), ctOut.Level())
 
-	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:level+1]
-	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:level+1]
+	ctOut.Resize(ctOut.Degree(), level)
 
 	ringQ := eval.ringQ
 
@@ -779,11 +776,7 @@ func (eval *evaluator) evaluateInPlaceBinary(el0, el1, elOut *rlwe.Ciphertext, e
 
 	level := utils.MinInt(utils.MinInt(el0.Level(), el1.Level()), elOut.Level())
 
-	if elOut.Level() > level {
-		for i := range elOut.Value {
-			elOut.Value[i].Coeffs = elOut.Value[i].Coeffs[:level+1]
-		}
-	}
+	elOut.Resize(elOut.Degree(), level)
 
 	for i := 0; i < smallest.Degree()+1; i++ {
 		evaluate(level, el0.Value[i], el1.Value[i], elOut.Value[i])
@@ -802,11 +795,7 @@ func evaluateInPlaceUnary(el0, elOut *rlwe.Ciphertext, evaluate func(int, *ring.
 
 	level := utils.MinInt(el0.Level(), elOut.Level())
 
-	if elOut.Level() > level {
-		for i := range elOut.Value {
-			elOut.Value[i].Coeffs = elOut.Value[i].Coeffs[:level+1]
-		}
-	}
+	elOut.Resize(elOut.Degree(), level)
 
 	for i := range el0.Value {
 		evaluate(level, el0.Value[i], elOut.Value[i])

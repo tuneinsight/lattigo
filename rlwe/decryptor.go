@@ -42,7 +42,7 @@ func (d *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) {
 
 	level := utils.MinInt(ciphertext.Level(), plaintext.Level())
 
-	plaintext.Value.Coeffs = plaintext.Value.Coeffs[:level+1]
+	plaintext.Value.Resize(level)
 
 	if ciphertext.Value[0].IsNTT {
 		ring.CopyValuesLvl(level, ciphertext.Value[ciphertext.Degree()], plaintext.Value)

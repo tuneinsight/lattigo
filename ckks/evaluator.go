@@ -1038,10 +1038,7 @@ func (eval *evaluator) DropLevelNew(ct0 *Ciphertext, levels int) (ctOut *Ciphert
 // DropLevel reduces the level of ct0 by levels and returns the result in ct0.
 // No rescaling is applied during this procedure.
 func (eval *evaluator) DropLevel(ct0 *Ciphertext, levels int) {
-	level := ct0.Level()
-	for i := range ct0.Value {
-		ct0.Value[i].Coeffs = ct0.Value[i].Coeffs[:level+1-levels]
-	}
+	ct0.Resize(ct0.Degree(), ct0.Level()-levels)
 }
 
 // RescaleNew divides ct0 by the last modulus in the moduli chain, and repeats this
@@ -1097,8 +1094,8 @@ func (eval *evaluator) Rescale(ctIn *Ciphertext, minScale float64, ctOut *Cipher
 		level := ctIn.Level()
 		for i := range ctOut.Value {
 			ringQ.DivRoundByLastModulusManyNTTLvl(level, nbRescales, ctIn.Value[i], eval.buffQ[0], ctOut.Value[i])
-			ctOut.Value[i].Coeffs = ctOut.Value[i].Coeffs[:level+1-nbRescales]
 		}
+		ctOut.Resize(ctOut.Degree(), level-nbRescales)
 	} else {
 		if ctIn != ctOut {
 			ctOut.Copy(ctIn)

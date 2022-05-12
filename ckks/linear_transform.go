@@ -507,8 +507,7 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 	levelQ := ctIn.Level()
 	levelP := len(ringP.Modulus) - 1
 
-	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:levelQ+1]
-	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:levelQ+1]
+	ctOut.Resize(ctOut.Degree(), levelQ)
 	ctOut.Scale = ctIn.Scale
 
 	if n == 1 {
@@ -630,8 +629,7 @@ func (eval *evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 	QiOverF := eval.params.QiOverflowMargin(levelQ) >> 1
 	PiOverF := eval.params.PiOverflowMargin(levelP) >> 1
 
-	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:levelQ+1]
-	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:levelQ+1]
+	ctOut.Resize(ctOut.Degree(), levelQ)
 	ctOut.Scale = ctIn.Scale
 
 	// If sum with only the first element, then returns the input
@@ -750,8 +748,7 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTrans
 	levelQ := utils.MinInt(ctOut.Level(), utils.MinInt(ctIn.Level(), matrix.Level))
 	levelP := len(ringP.Modulus) - 1
 
-	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:levelQ+1]
-	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:levelQ+1]
+	ctOut.Resize(ctOut.Degree(), levelQ)
 
 	QiOverF := eval.params.QiOverflowMargin(levelQ)
 	PiOverF := eval.params.PiOverflowMargin(levelP)
@@ -854,8 +851,7 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearT
 	levelQ := utils.MinInt(ctOut.Level(), utils.MinInt(ctIn.Level(), matrix.Level))
 	levelP := len(ringP.Modulus) - 1
 
-	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:levelQ+1]
-	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:levelQ+1]
+	ctOut.Resize(ctOut.Degree(), levelQ)
 
 	QiOverF := eval.params.QiOverflowMargin(levelQ) >> 1
 	PiOverF := eval.params.PiOverflowMargin(levelP) >> 1

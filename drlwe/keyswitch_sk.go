@@ -169,7 +169,7 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, c1 *ring.Pol
 		ringQ.NTTLvl(levelQ, shareOut.Value, shareOut.Value)
 	}
 
-	shareOut.Value.Coeffs = shareOut.Value.Coeffs[:levelQ+1]
+	shareOut.Value.Resize(levelQ)
 }
 
 // AggregateShare is the second part of the unique round of the CKSProtocol protocol. Upon receiving the j-1 elements each party computes :

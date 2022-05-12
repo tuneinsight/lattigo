@@ -253,8 +253,7 @@ func (enc *pkEncryptor) encryptRLWE(plaintext *Plaintext, ciphertext *Ciphertext
 	}
 
 	ciphertext.Value[1].IsNTT = ciphertext.Value[0].IsNTT
-	ciphertext.Value[0].Coeffs = ciphertext.Value[0].Coeffs[:levelQ+1]
-	ciphertext.Value[1].Coeffs = ciphertext.Value[1].Coeffs[:levelQ+1]
+	ciphertext.Resize(ciphertext.Degree(), levelQ)
 }
 
 func (enc *pkEncryptor) encryptNoPRLWE(plaintext *Plaintext, ciphertext *Ciphertext) {
@@ -325,8 +324,7 @@ func (enc *pkEncryptor) encryptNoPRLWE(plaintext *Plaintext, ciphertext *Ciphert
 	}
 
 	ciphertext.Value[1].IsNTT = ciphertext.Value[0].IsNTT
-	ciphertext.Value[0].Coeffs = ciphertext.Value[0].Coeffs[:levelQ+1]
-	ciphertext.Value[1].Coeffs = ciphertext.Value[1].Coeffs[:levelQ+1]
+	ciphertext.Resize(ciphertext.Degree(), levelQ)
 }
 
 func (enc *skEncryptor) encryptRLWE(pt *Plaintext, sampler *ringqp.UniformSampler, ct *Ciphertext) {
@@ -400,10 +398,10 @@ func (enc *skEncryptor) encryptRLWE(pt *Plaintext, sampler *ringqp.UniformSample
 
 	if c0 != enc.buffQ[1] {
 		ct.Value[1].IsNTT = ct.Value[0].IsNTT
-		ct.Value[1].Coeffs = ct.Value[1].Coeffs[:levelQ+1]
+		ct.Value[1].Resize(levelQ)
 	}
 
-	ct.Value[0].Coeffs = ct.Value[0].Coeffs[:levelQ+1]
+	ct.Value[0].Resize(levelQ)
 }
 
 func (enc *skEncryptor) encryptRGSW(pt *Plaintext, sampler *ringqp.UniformSampler, ct *rgsw.Ciphertext) {

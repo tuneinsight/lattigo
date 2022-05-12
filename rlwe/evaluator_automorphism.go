@@ -150,8 +150,7 @@ func (eval *Evaluator) Trace(ctIn *Ciphertext, logN int, ctOut *Ciphertext) {
 
 	levelQ := utils.MinInt(ctIn.Level(), ctOut.Level())
 
-	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:levelQ+1]
-	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:levelQ+1]
+	ctOut.Resize(ctOut.Degree(), levelQ)
 
 	gap := 1 << (eval.params.LogN() - logN - 1)
 

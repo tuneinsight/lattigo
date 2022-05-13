@@ -36,9 +36,8 @@ func (pol *Poly) Resize(level int) {
 		pol.Coeffs = pol.Coeffs[:level+1]
 	} else if level > pol.Level() {
 		pol.Buff = append(pol.Buff, make([]uint64, N*(level-pol.Level()))...)
-		prevLevel := pol.Level()
 		pol.Coeffs = append(pol.Coeffs, make([][]uint64, level-pol.Level())...)
-		for i := prevLevel; i < level+1; i++ {
+		for i := 0; i < level+1; i++ {
 			pol.Coeffs[i] = pol.Buff[i*N : (i+1)*N]
 		}
 	}

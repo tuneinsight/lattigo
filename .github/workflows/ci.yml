@@ -15,8 +15,9 @@ jobs:
         go-version: 1.17
     - name: Setup tools
       run: |
-      export PATH=${PATH}:`go env GOPATH`/bin
-      make get_tools
+        export PATH=${PATH}:`go env GOPATH`/bin
+        make get_tools
+
     - name: Run Makefile checks
       run: make static_check
 

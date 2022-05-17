@@ -10,13 +10,11 @@ jobs:
       with:
         fetch-depth: 1
     - name: Setup Go
-      uses: actions/setup-go@v1
+      uses: actions/setup-go@v3
       with:
         go-version: 1.17
     - name: Setup tools
-      run: |
-        export PATH=${PATH}:`go env GOPATH`/bin
-        make get_tools
+      run: make get_tools
 
     - name: Run Makefile checks
       run: make static_check
@@ -32,7 +30,7 @@ jobs:
       - uses: actions/checkout@v2
       
       - name: Setup Go
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ matrix.go }}
 

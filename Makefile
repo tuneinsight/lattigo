@@ -22,8 +22,8 @@ test_examples:
 	go build -o /dev/null ./examples/ckks/advanced/rlwe_lwe_bridge_LHHMQ20
 	@echo ok
 
-.PHONY: static_checks
-static_checks:
+.PHONY: static_check
+static_check:
 	@echo Checking correct formatting of files
 	out=`go fmt ./...`; echo "$$out"; [ -z "$$out" ]
 	go vet ./...

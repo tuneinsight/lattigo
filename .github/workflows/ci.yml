@@ -2,7 +2,7 @@ name: CI Checks
 on:
   push:
 jobs:
-  - ci:
+  ci:
     name: Go ${{ matrix.go }}
     runs-on: ubuntu-latest
     strategy:

@@ -28,6 +28,7 @@ static_check:
 	out=`go fmt ./...`; echo "$$out"; [ -z "$$out" ]
 	go vet ./...
 	out=`golint ./...`; echo "$$out"; [ -z "$$out" ]
+	out=`goimports -l .`; echo "$$out"; [ -z "$$out" ]
 	staticcheck -go 1.17 ./...
 	go mod tidy
 	out=`git status --porcelain`; echo "$$out"; [ -z "$$out" ]
@@ -41,4 +42,5 @@ ci_test: static_checks test_gotest test_examples
 .PHONY: get_tools
 get_tools:
 	go install golang.org/x/lint/golint@latest
+	go install golang.org/x/tools/cmd/goimports@latest
 	go install honnef.co/go/tools/cmd/staticcheck@2022.1.1

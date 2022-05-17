@@ -17,9 +17,9 @@ jobs:
     - uses: actions/cache@v3
       with:
         path: ~/go/pkg/mod
-        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        key: ${{ runner.os }}-go-tools-${{ hashFiles('**/go.sum') }}
         restore-keys: |
-          ${{ runner.os }}-go-
+          ${{ runner.os }}-go-tools
     
     - name: Setup tools
       run: make get_tools

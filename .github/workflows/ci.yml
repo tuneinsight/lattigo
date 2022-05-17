@@ -14,9 +14,9 @@ jobs:
       with:
         go-version: 1.17
     - name: Setup tools
-        run: make get_tools
+      run: make get_tools
     - name: Run Makefile checks
-        run: make static_checks
+      run: make static_checks
 
   tests:
     name: Run Go ${{ matrix.go }} tests

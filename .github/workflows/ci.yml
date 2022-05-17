@@ -38,4 +38,4 @@ jobs:
         run: go build ./...
 
       - name: Run Makefile checks
-        run: make ci_tests
+        run: make ci_test

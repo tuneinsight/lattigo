@@ -22,12 +22,13 @@ test_examples:
 	go build -o /dev/null ./examples/ckks/advanced/rlwe_lwe_bridge_LHHMQ20
 	@echo ok
 
-.PHONY: test_static_checks
-test_static_checks:
+.PHONY: static_checks
+static_checks:
 	@echo Checking correct formatting of files
 	out=`go fmt ./...`; echo "$$out"; [ -z "$$out" ]
 	go vet ./...
 	out=`golint ./...`; echo "$$out"; [ -z "$$out" ]
+	staticcheck -go 1.17 ./...
 	go mod tidy
 	out=`git status --porcelain`; echo "$$out"; [ -z "$$out" ]
 
@@ -35,4 +36,9 @@ test_static_checks:
 test: test_gotest test_examples
 
 .PHONY: ci_test
-ci_test: test_static_checks test_gotest test_examples
+ci_test: static_checks test_gotest test_examples
+
+.PHONY: get_tools
+get_tools:
+	go install golang.org/x/lint/golint@latest
+	go install honnef.co/go/tools/cmd/staticcheck@2022.1.1

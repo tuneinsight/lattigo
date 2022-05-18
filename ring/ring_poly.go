@@ -290,6 +290,7 @@ func (pol *Poly) WriteTo32(data []byte) (int, error) {
 		//The data is not big enough to write all the information
 		return 0, errors.New("data array is too small to write ring.Poly")
 	}
+
 	binary.BigEndian.PutUint32(data, uint32(N))
 	data[4] = uint8(Level)
 	if pol.IsNTT {
@@ -319,7 +320,7 @@ func WriteCoeffsTo32(pointer int, coeffs []uint64, data []byte) (int, error) {
 // Assumes that each coefficient will be encoded on 4 bytes.
 // It can take into account meta data if necessary.
 func GetPolyDataLen32(N, Level int, WithMetadata bool) (cnt int) {
-	cnt += N * (Level + 1) << 4
+	cnt += N * (Level + 1) << 2
 
 	if WithMetadata {
 		cnt += 7

@@ -272,11 +272,11 @@ func GetSmallestLargest(el0, el1 *Ciphertext) (smallest, largest *Ciphertext, sa
 }
 
 // Reconstruct reconstructs the degree 1 element of the batch of ciphertexts.
-func (scb *SeededCiphertextBatch) Reconstruct(params Parameters) {
-	prng, _ := utils.NewKeyedPRNG(scb.Seed)
+func (ct *SeededCiphertextBatch) Reconstruct(params Parameters) {
+	prng, _ := utils.NewKeyedPRNG(ct.Seed)
 	ringQ := params.RingQ()
 	sampler := ring.NewUniformSampler(prng, ringQ)
-	for _, ct := range scb.Value {
+	for _, ct := range ct.Value {
 		ct.Value[1] = ringQ.NewPoly()
 		sampler.Read(ct.Value[1])
 	}

@@ -1,3 +1,4 @@
+// Package ringqp is implements a wrapper for both the ringQ and ringP.
 package ringqp
 
 import (

@@ -1,3 +1,6 @@
+// Package rgsw implements R-LWE based RGSW ciphertexts. An RGSW ciphertext is a tuple of gadget ciphertexts (see package gadget), where
+// the first element is a gadget ciphertext encrypting the message and the second element a gadget ciphertext encryping the message times
+// the secret.
 package rgsw
 
 import (

@@ -1,3 +1,4 @@
+// Package advanced implement advanced operations for the CKKS scheme.
 package advanced
 
 // This is the Go implementation of the approximation polynomial algorithm from Han and Ki in

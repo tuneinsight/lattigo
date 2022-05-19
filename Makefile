@@ -2,9 +2,19 @@
 
 .PHONY: test_gotest
 test_gotest:
-	go test -v -timeout=0 ./utils ./ring ./bfv ./ckks ./dbfv ./dckks
+	go test -v -timeout=0 ./utils
+	go test -v -timeout=0 ./ring
+	go test -v -timeout=0 ./rlwe
+	go test -v -timeout=0 ./rlwe/ringqp
+	go test -v -timeout=0 ./rlwe/gadget
+	go test -v -timeout=0 ./rlwe/rgsw
+	go test -v -timeout=0 ./rlwe/lut
+	go test -v -timeout=0 ./bfv
+	go test -v -timeout=0 ./dbfv
+	go test -v -timeout=0 ./ckks
 	go test -v -timeout=0 ./ckks/advanced
 	go test -v -timeout=0 ./ckks/bootstrapping -test-bootstrapping -short
+	go test -v -timeout=0 ./dckks
 
 .PHONY: test_examples
 test_examples:
@@ -31,21 +41,6 @@ static_check: check_tools
 		echo $$FMTOUT;\
 		false;\
     fi
-.PHONY: test_gotest
-test_gotest:
-	go test -v -timeout=0 ./utils
-	go test -v -timeout=0 ./ring
-	go test -v -timeout=0 ./rlwe
-	go test -v -timeout=0 ./rlwe/ringqp
-	go test -v -timeout=0 ./rlwe/gadget
-	go test -v -timeout=0 ./rlwe/rgsw
-	go test -v -timeout=0 ./rlwe/lut
-	go test -v -timeout=0 ./bfv
-	go test -v -timeout=0 ./dbfv
-	go test -v -timeout=0 ./ckks
-	go test -v -timeout=0 ./ckks/advanced
-	go test -v -timeout=0 ./ckks/bootstrapping -test-bootstrapping -short
-	go test -v -timeout=0 ./dckks
 
 	@GOVETOUT=$$(go vet ./... 2>&1); \
 	if [ -z "$$GOVETOUT" ]; then\

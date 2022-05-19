@@ -1,3 +1,5 @@
+// Package gadget implements the R-LWE gadget ciphertexts. A gadget ciphertext is a matrix of ciphertexts encrypting plaintexts
+// decomposed in the RNS and power of two basis.
 package gadget
 
 import (

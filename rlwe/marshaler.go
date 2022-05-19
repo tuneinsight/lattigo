@@ -8,14 +8,14 @@ import (
 )
 
 // GetDataLen returns the length in bytes of the target Ciphertext.
-func (ciphertext *Ciphertext) GetDataLen(WithMetaData bool) (dataLen int) {
+func (el *Ciphertext) GetDataLen(WithMetaData bool) (dataLen int) {
 	// MetaData is :
 	// 1 byte : Degree
 	if WithMetaData {
 		dataLen++
 	}
 
-	for _, el := range ciphertext.Value {
+	for _, el := range el.Value {
 		dataLen += el.GetDataLen64(WithMetaData)
 	}
 
@@ -24,17 +24,17 @@ func (ciphertext *Ciphertext) GetDataLen(WithMetaData bool) (dataLen int) {
 
 // MarshalBinary encodes a Ciphertext on a byte slice. The total size
 // in byte is 4 + 8* N * numberModuliQ * (degree + 1).
-func (ciphertext *Ciphertext) MarshalBinary() (data []byte, err error) {
+func (el *Ciphertext) MarshalBinary() (data []byte, err error) {
 
-	data = make([]byte, ciphertext.GetDataLen(true))
+	data = make([]byte, el.GetDataLen(true))
 
-	data[0] = uint8(ciphertext.Degree() + 1)
+	data[0] = uint8(el.Degree() + 1)
 
 	var pointer, inc int
 
 	pointer = 1
 
-	for _, el := range ciphertext.Value {
+	for _, el := range el.Value {
 
 		if inc, err = el.WriteTo64(data[pointer:]); err != nil {
 			return nil, err
@@ -47,21 +47,21 @@ func (ciphertext *Ciphertext) MarshalBinary() (data []byte, err error) {
 }
 
 // UnmarshalBinary decodes a previously marshaled Ciphertext on the target Ciphertext.
-func (ciphertext *Ciphertext) UnmarshalBinary(data []byte) (err error) {
-	if len(data) < 10 { // cf. ciphertext.GetDataLen()
+func (el *Ciphertext) UnmarshalBinary(data []byte) (err error) {
+	if len(data) < 10 { // cf. Ciphertext.GetDataLen()
 		return errors.New("too small bytearray")
 	}
 
-	ciphertext.Value = make([]*ring.Poly, uint8(data[0]))
+	el.Value = make([]*ring.Poly, uint8(data[0]))
 
 	var pointer, inc int
 	pointer = 1
 
-	for i := range ciphertext.Value {
+	for i := range el.Value {
 
-		ciphertext.Value[i] = new(ring.Poly)
+		el.Value[i] = new(ring.Poly)
 
-		if inc, err = ciphertext.Value[i].DecodePoly64(data[pointer:]); err != nil {
+		if inc, err = el.Value[i].DecodePoly64(data[pointer:]); err != nil {
 			return err
 		}
 

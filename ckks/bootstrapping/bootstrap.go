@@ -1,3 +1,4 @@
+// Package bootstrapping implement the bootstrapping for the CKKS scheme.
 package bootstrapping
 
 import (

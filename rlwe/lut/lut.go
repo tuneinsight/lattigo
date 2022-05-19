@@ -1,3 +1,4 @@
+// Package lut implements look-up tables evaluation for R-LWE schemes.
 package lut
 
 import (

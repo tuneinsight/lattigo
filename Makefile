@@ -28,13 +28,22 @@ static_check: check_tools
 	
 	@FMTOUT=$$(go fmt ./...); \
 	if [ -z $$FMTOUT ]; then\
-        echo "gofmt: OK";\
+        echo "go fmt: OK";\
 	else \
-		echo "gofmt: problems in files:";\
+		echo "go fmt: problems in files:";\
 		echo $$FMTOUT;\
 		false;\
     fi
-	go vet ./...
+
+	@GOVETOUT=$$(go vet ./... 2>&1); \
+	if [ -z "$$GOVETOUT" ]; then\
+        echo "go vet: OK";\
+	else \
+		echo "go vet: problems in files:";\
+		echo "$$GOVETOUT";\
+		false;\
+    fi
+
 	@GOIMPORTSOUT=$$(goimports -l .); \
 	if [ -z "$$GOIMPORTSOUT" ]; then\
         echo "goimports: OK";\
@@ -43,7 +52,17 @@ static_check: check_tools
 		echo "$$GOIMPORTSOUT";\
 		false;\
     fi
-	staticcheck -go 1.17 -checks all ./...
+	
+	@STATICCHECKOUT=$$(staticcheck -go 1.17 -checks all ./...); \
+	if [ -z "$$STATICCHECKOUT" ]; then\
+        echo "staticcheck: OK";\
+	else \
+		echo "staticcheck: problems in files:";\
+		echo "$$STATICCHECKOUT";\
+		false;\
+    fi
+	
+	@echo Checking all local changes are committed
 	go mod tidy
 	out=`git status --porcelain`; echo "$$out"; [ -z "$$out" ]
 
@@ -58,6 +77,7 @@ EXECUTABLES = goimports staticcheck
 get_tools:
 	go install golang.org/x/tools/cmd/goimports@latest
 	go install honnef.co/go/tools/cmd/staticcheck@2022.1.1
+
 .PHONY: check_tools
 check_tools:
 	@$(foreach exec,$(EXECUTABLES),\

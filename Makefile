@@ -23,13 +23,27 @@ test_examples:
 	@echo ok
 
 .PHONY: static_check
-static_check:
+static_check: check_tools
 	@echo Checking correct formatting of files
-	out=`go fmt ./...`; echo "$$out"; [ -z "$$out" ]
+	
+	@FMTOUT=$$(go fmt ./...); \
+	if [ -z $$FMTOUT ]; then\
+        echo "gofmt: OK";\
+	else \
+		echo "gofmt: problems in files:";\
+		echo $$FMTOUT;\
+		false;\
+    fi
 	go vet ./...
-	out=`golint ./...`; echo "$$out"; [ -z "$$out" ]
-	out=`goimports -l .`; echo "$$out"; [ -z "$$out" ]
-	staticcheck -go 1.17 ./...
+	@GOIMPORTSOUT=$$(goimports -l .); \
+	if [ -z "$$GOIMPORTSOUT" ]; then\
+        echo "goimports: OK";\
+	else \
+		echo "goimports: problems in files:";\
+		echo "$$GOIMPORTSOUT";\
+		false;\
+    fi
+	staticcheck -go 1.17 -checks all ./...
 	go mod tidy
 	out=`git status --porcelain`; echo "$$out"; [ -z "$$out" ]
 
@@ -39,8 +53,12 @@ test: test_gotest test_examples
 .PHONY: ci_test
 ci_test: static_checks test_gotest test_examples
 
+EXECUTABLES = goimports staticcheck
 .PHONY: get_tools
 get_tools:
-	go install golang.org/x/lint/golint@latest
 	go install golang.org/x/tools/cmd/goimports@latest
 	go install honnef.co/go/tools/cmd/staticcheck@2022.1.1
+.PHONY: check_tools
+check_tools:
+	@$(foreach exec,$(EXECUTABLES),\
+		$(if $(shell which $(exec)),true,$(error "$(exec) not found in PATH, consider running `make get_tools`.")))

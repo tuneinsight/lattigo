@@ -35,8 +35,7 @@ static_check: check_tools
 		false;\
     fi
 
-	@GOVETOUT=$$(go vet ./... 2>&1); \
-	if [ -z "$$GOVETOUT" ]; then\
+	@if GOVETOUT=$$(go vet ./... 2>&1); then\
         echo "go vet: OK";\
 	else \
 		echo "go vet: problems in files:";\

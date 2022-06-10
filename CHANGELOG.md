@@ -2,6 +2,12 @@
 # Changelog
 All notable changes to this project will be documented in this file. 
 
+## UNRELEASED
+
+- CKKS: fix to the BSGS polynomial evaluation that wasn't setting the internal scales correctly.
+- CKKS: added `PowerBasis`, a struct to generate polynomial power basis.
+- CKKS: `EvaluatePoly` and `EvaluatePolyVector` now both accept `PowerBasis` as input in addition to `Ciphertext`.
+
 ## [3.0.4] - 2022-04-26
 
 - CKKS: updated the bootstrapping circuit to use the key-encapsulation mechanism of `Bootstrapping for Approximate Homomorphic Encryption with Negligible Failure-Probability by Using Sparse-Secret Encapsulation`. The previous bootstrapping circuit can be run by setting `EphemeralSecretWeight=0`.

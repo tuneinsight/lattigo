@@ -183,7 +183,7 @@ func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVecto
 	var odd, even bool = true, true
 	for _, p := range pol.Value {
 		tmp0, tmp1 := isOddOrEvenPolynomial(p.Coeffs)
-		odd, even = odd || tmp0, even || tmp1
+		odd, even = odd && tmp0, even && tmp1
 	}
 
 	isRingStandard := eval.params.RingType() == ring.Standard

@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 - CKKS: fix to the BSGS polynomial evaluation that wasn't setting the internal scales correctly.
 - CKKS: added `PowerBasis`, a struct to generate polynomial power basis.
 - CKKS: `EvaluatePoly` and `EvaluatePolyVector` now both accept `PowerBasis` as input in addition to `Ciphertext`.
+- CKKS: fixed correctness error and panic when a non-relinearized ciphertext and a plaintext were given to `Mul` and `MulAndAdd`.
 
 ## [3.0.4] - 2022-04-26
 

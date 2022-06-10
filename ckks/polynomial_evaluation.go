@@ -164,10 +164,10 @@ func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVecto
 	logDegree := bits.Len64(uint64(pol.Value[0].Degree()))
 	logSplit := (logDegree >> 1)
 
-	var odd, even bool
+	var odd, even bool = true, true
 	for _, p := range pol.Value {
 		tmp0, tmp1 := isOddOrEvenPolynomial(p.Coeffs)
-		odd, even = odd || tmp0, even || tmp1
+		odd, even = odd && tmp0, even && tmp1
 	}
 
 	for i := (1 << logSplit) - 1; i > 1; i-- {

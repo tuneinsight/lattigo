@@ -1167,8 +1167,8 @@ func (eval *evaluator) mulRelin(op0, op1 Operand, relin bool, ctOut *Ciphertext)
 		eval.DropLevel(ctOut, ctOut.Level()-level)
 	}
 
-	if op0.Degree() > 1 || op1.Degree() > 1 {
-		panic("cannot MulRelin: input elements must be of degree 0 or 1")
+	if op0.Degree()+op1.Degree() > 2 {
+		panic("cannot MulRelin: input elements total degree cannot be larger than 1")
 	}
 
 	ctOut.Scale = op0.ScalingFactor() * op1.ScalingFactor()
@@ -1178,7 +1178,7 @@ func (eval *evaluator) mulRelin(op0, op1 Operand, relin bool, ctOut *Ciphertext)
 	var c00, c01, c0, c1, c2 *ring.Poly
 
 	// Case Ciphertext (x) Ciphertext
-	if op0.Degree()+op1.Degree() == 2 {
+	if op0.Degree() == 1 && op1.Degree() == 1 {
 
 		c00 = eval.buffQ[0]
 		c01 = eval.buffQ[1]
@@ -1231,17 +1231,22 @@ func (eval *evaluator) mulRelin(op0, op1 Operand, relin bool, ctOut *Ciphertext)
 
 		var tmp0, tmp1 *rlwe.Ciphertext
 
-		if op0.Degree() == 1 {
-			tmp0, tmp1 = op1.El(), op0.El()
-		} else {
+		if op0.Degree() == 0 {
 			tmp0, tmp1 = op0.El(), op1.El()
+		} else {
+			tmp0, tmp1 = op1.El(), op0.El()
+		}
+
+		if ctOut.Degree() < tmp1.Degree() {
+			ctOut.El().Resize(eval.params.Parameters, tmp1.Degree())
 		}
 
 		c00 := eval.buffQ[0]
 
 		ringQ.MFormLvl(level, tmp0.Value[0], c00)
-		ringQ.MulCoeffsMontgomeryLvl(level, c00, tmp1.Value[0], ctOut.Value[0])
-		ringQ.MulCoeffsMontgomeryLvl(level, c00, tmp1.Value[1], ctOut.Value[1])
+		for i := range ctOut.Value {
+			ringQ.MulCoeffsMontgomeryLvl(level, c00, tmp1.Value[i], ctOut.Value[i])
+		}
 	}
 }
 
@@ -1276,8 +1281,8 @@ func (eval *evaluator) mulRelinAndAdd(op0, op1 Operand, relin bool, ctOut *Ciphe
 		eval.DropLevel(ctOut, ctOut.Level()-level)
 	}
 
-	if op0.Degree() > 1 || op1.Degree() > 1 {
-		panic("cannot MulRelinAndAdd: input elements must be of degree 0 or 1")
+	if op0.Degree()+op1.Degree() > 2 {
+		panic("cannot MulRelinAndAdd: input elements total degree cannot be larger than 1")
 	}
 
 	if op0.El() == ctOut.El() || op1.El() == ctOut.El() {
@@ -1296,7 +1301,7 @@ func (eval *evaluator) mulRelinAndAdd(op0, op1 Operand, relin bool, ctOut *Ciphe
 	var c00, c01, c0, c1, c2 *ring.Poly
 
 	// Case Ciphertext (x) Ciphertext
-	if op0.Degree()+op1.Degree() == 2 {
+	if op0.Degree() == 1 && op1.Degree() == 1 {
 
 		c00 = eval.buffQ[0]
 		c01 = eval.buffQ[1]
@@ -1337,17 +1342,22 @@ func (eval *evaluator) mulRelinAndAdd(op0, op1 Operand, relin bool, ctOut *Ciphe
 
 		var tmp0, tmp1 *rlwe.Ciphertext
 
-		if op0.Degree() == 1 {
-			tmp0, tmp1 = op1.El(), op0.El()
-		} else {
+		if op0.Degree() == 0 {
 			tmp0, tmp1 = op0.El(), op1.El()
+		} else {
+			tmp0, tmp1 = op1.El(), op0.El()
+		}
+
+		if ctOut.Degree() < tmp1.Degree() {
+			ctOut.Resize(eval.params.Parameters, tmp1.Degree())
 		}
 
 		c00 := eval.buffQ[0]
 
 		ringQ.MFormLvl(level, tmp0.Value[0], c00)
-		ringQ.MulCoeffsMontgomeryAndAddLvl(level, c00, tmp1.Value[0], ctOut.Value[0])
-		ringQ.MulCoeffsMontgomeryAndAddLvl(level, c00, tmp1.Value[1], ctOut.Value[1])
+		for i := range tmp1.Value {
+			ringQ.MulCoeffsMontgomeryAndAddLvl(level, c00, tmp1.Value[i], ctOut.Value[i])
+		}
 	}
 }
 

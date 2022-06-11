@@ -122,7 +122,7 @@ type polynomialVector struct {
 //
 // Example: if pols = []*Polynomial{pol0, pol1} and slotsIndex = map[int][]int:{0:[1, 2, 4, 5, 7], 1:[0, 3]},
 // then pol0 will be applied to slots [1, 2, 4, 5, 7], pol1 to slots [0, 3] and the slot 6 will be zero-ed.
-func (eval *evaluator) EvaluatePolyVector(input interface{}, pols []*Polynomial, encoder Encoder, slotsIndex map[int][]int, targetScale float64) (opOut *Ciphertext, err error) {
+func (eval *evaluator) EvaluatePolyVector(input interface{}, pols []*Polynomial, encoder Encoder, slotsIndex map[int][]int, targetScale float64, lazyPowerBasis bool) (opOut *Ciphertext, err error) {
 	var maxDeg int
 	var basis BasisType
 	for i := range pols {
@@ -140,7 +140,7 @@ func (eval *evaluator) EvaluatePolyVector(input interface{}, pols []*Polynomial,
 		}
 	}
 
-	return eval.evaluatePolyVector(input, polynomialVector{Encoder: encoder, Value: pols, SlotsIndex: slotsIndex}, targetScale)
+	return eval.evaluatePolyVector(input, polynomialVector{Encoder: encoder, Value: pols, SlotsIndex: slotsIndex}, targetScale, lazyPowerBasis)
 }
 
 func optimalSplit(logDegree int) (logSplit int) {
@@ -154,7 +154,7 @@ func optimalSplit(logDegree int) (logSplit int) {
 	return
 }
 
-func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVector, targetScale float64) (opOut *Ciphertext, err error) {
+func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVector, targetScale float64, lazy bool) (opOut *Ciphertext, err error) {
 
 	if pol.SlotsIndex != nil && pol.Encoder == nil {
 		return nil, fmt.Errorf("cannot EvaluatePolyVector: missing Encoder input")
@@ -296,23 +296,7 @@ func (p *PolynomialBasis) genPower(n int, lazy bool, scale float64, eval Evaluat
 		}
 
 		// Computes C[n] = C[a]*C[b]
-		if lazy {
-			if p.Value[a].Degree() == 2 {
-				eval.Relinearize(p.Value[a], p.Value[a])
-			}
-
-			if p.Value[b].Degree() == 2 {
-				eval.Relinearize(p.Value[b], p.Value[b])
-			}
-
-			if err = eval.Rescale(p.Value[a], scale, p.Value[a]); err != nil {
-				return err
-			}
-
-			if err = eval.Rescale(p.Value[b], scale, p.Value[b]); err != nil {
-				return err
-			}
-
+		if lazy && n == target {
 			p.Value[n] = eval.MulNew(p.Value[a], p.Value[b])
 
 		} else {
@@ -333,7 +317,7 @@ func (p *PolynomialBasis) genPower(n int, lazy bool, scale float64, eval Evaluat
 				eval.AddConst(p.Value[n], -1, p.Value[n])
 			} else {
 				// Since C[0] is not stored (but rather seen as the constant 1), only recurses on c if c!= 0
-				if err = p.GenPower(c, lazy, scale, eval); err != nil {
+				if err = p.genPower(target, c, lazy, scale, eval); err != nil {
 					return err
 				}
 				eval.Sub(p.Value[n], p.Value[c], p.Value[n])

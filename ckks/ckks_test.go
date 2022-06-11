@@ -872,7 +872,7 @@ func testEvaluatePoly(tc *testContext, t *testing.T) {
 			values[i] = cmplx.Exp(values[i])
 		}
 
-		if ciphertext, err = tc.evaluator.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {
+		if ciphertext, err = tc.evaluator.EvaluatePoly(ciphertext, poly, ciphertext.Scale, tc.params.RingType() == ring.Standard); err != nil {
 			t.Error(err)
 		}
 
@@ -917,7 +917,7 @@ func testEvaluatePoly(tc *testContext, t *testing.T) {
 			valuesWant[j] = cmplx.Exp(values[j])
 		}
 
-		if ciphertext, err = tc.evaluator.EvaluatePolyVector(ciphertext, []*Polynomial{poly}, tc.encoder, slotIndex, ciphertext.Scale); err != nil {
+		if ciphertext, err = tc.evaluator.EvaluatePolyVector(ciphertext, []*Polynomial{poly}, tc.encoder, slotIndex, ciphertext.Scale, tc.params.RingType() == ring.Standard); err != nil {
 			t.Error(err)
 		}
 
@@ -953,7 +953,7 @@ func testChebyshevInterpolator(tc *testContext, t *testing.T) {
 		eval.AddConst(ciphertext, (-poly.A-poly.B)/(poly.B-poly.A), ciphertext)
 		eval.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext)
 
-		if ciphertext, err = eval.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {
+		if ciphertext, err = eval.EvaluatePoly(ciphertext, poly, ciphertext.Scale, tc.params.RingType() == ring.Standard); err != nil {
 			t.Error(err)
 		}
 
@@ -989,7 +989,7 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 		eval.AddConst(ciphertext, (-poly.A-poly.B)/(poly.B-poly.A), ciphertext)
 		eval.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext)
 
-		if ciphertext, err = eval.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {
+		if ciphertext, err = eval.EvaluatePoly(ciphertext, poly, ciphertext.Scale, tc.params.RingType() == ring.Standard); err != nil {
 			t.Error(err)
 		}
 

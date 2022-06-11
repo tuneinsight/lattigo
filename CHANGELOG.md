@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
     - Fixed automatic-scale matching in BSGS that wasn't reliably ensuring that scales between to ciphertext to be added was the same.
     - Improved BSGSPEA with lazy relinearization and lazy rescaling.
     - Overall the precision of the BSGSPEA is greatly improved and its complexity is reduced.
+    - This change also improves the bootstrapping precisision by about 0.5 bit.
 
 ## [3.0.4] - 2022-04-26
 

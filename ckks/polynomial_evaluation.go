@@ -91,7 +91,8 @@ type polynomialEvaluator struct {
 // after the "splitCoeffs" polynomial decomposition).
 // input must be either *Ciphertext or *Powerbasis.
 // pol: a *Polynomial
-// targetScale: the desired output scale.
+// targetScale: the desired output scale. This value shouldn't differ too much from the original ciphertext scale. It can
+// for example be used to correct small deviation in the ciphertext scale and reset it to the default scale.
 // lazyPowerBasis: if true, the power basis is computed with lazy relinearization.
 func (eval *evaluator) EvaluatePoly(input interface{}, pol *Polynomial, targetScale float64, lazyPowerBasis bool) (opOut *Ciphertext, err error) {
 	return eval.evaluatePolyVector(input, polynomialVector{Value: []*Polynomial{pol}}, targetScale, lazyPowerBasis)
@@ -117,7 +118,8 @@ type polynomialVector struct {
 // pols: a slice of up to 'n' *Polynomial ('n' being the maximum number of slots), indexed from 0 to n-1.
 // encoder: an Encoder.
 // slotsIndex: a map[int][]int indexing as key the polynomial to evalute and as value the index of the slots on which to evaluate the polynomial indexed by the key.
-// targetScale: the desired output scale.
+// targetScale: the desired output scale. This value shouldn't differ too much from the original ciphertext scale. It can
+// for example be used to correct small deviation in the ciphertext scale and reset it to the default scale.
 // lazyPowerBasis: if true, the power basis is computed with lazy relinearization.
 //
 // Example: if pols = []*Polynomial{pol0, pol1} and slotsIndex = map[int][]int:{0:[1, 2, 4, 5, 7], 1:[0, 3]},
@@ -282,22 +284,39 @@ func (p *PowerBasis) genPower(target, n int, lazy bool, scale float64, eval Eval
 		}
 
 		// Recurses on the given indexes
-		if err = p.genPower(target, a, false, scale, eval); err != nil {
+		if err = p.genPower(target, a, lazy && !isPow2, scale, eval); err != nil {
 			return err
 		}
-		if err = p.genPower(target, b, false, scale, eval); err != nil {
+		if err = p.genPower(target, b, lazy && !isPow2, scale, eval); err != nil {
 			return err
 		}
 
 		// Computes C[n] = C[a]*C[b]
-		if lazy && n == target {
+		if lazy {
+			if p.Value[a].Degree() == 2 {
+				eval.Relinearize(p.Value[a], p.Value[a])
+			}
+
+			if p.Value[b].Degree() == 2 {
+				eval.Relinearize(p.Value[b], p.Value[b])
+			}
+
+			if err = eval.Rescale(p.Value[a], scale, p.Value[a]); err != nil {
+				return err
+			}
+
+			if err = eval.Rescale(p.Value[b], scale, p.Value[b]); err != nil {
+				return err
+			}
+
 			p.Value[n] = eval.MulNew(p.Value[a], p.Value[b])
+
 		} else {
 			p.Value[n] = eval.MulRelinNew(p.Value[a], p.Value[b])
-		}
 
-		if err = eval.Rescale(p.Value[n], scale, p.Value[n]); err != nil {
-			return
+			if err = eval.Rescale(p.Value[n], scale, p.Value[n]); err != nil {
+				return err
+			}
 		}
 
 		if p.Basis == ChebyshevBasis {
@@ -310,7 +329,7 @@ func (p *PowerBasis) genPower(target, n int, lazy bool, scale float64, eval Eval
 				eval.AddConst(p.Value[n], -1, p.Value[n])
 			} else {
 				// Since C[0] is not stored (but rather seen as the constant 1), only recurses on c if c!= 0
-				if err = p.genPower(target, c, lazy, scale, eval); err != nil {
+				if err = p.GenPower(c, lazy, scale, eval); err != nil {
 					return err
 				}
 				eval.Sub(p.Value[n], p.Value[c], p.Value[n])

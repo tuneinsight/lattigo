@@ -1168,7 +1168,7 @@ func (eval *evaluator) mulRelin(op0, op1 Operand, relin bool, ctOut *Ciphertext)
 	}
 
 	if op0.Degree()+op1.Degree() > 2 {
-		panic("cannot MulRelin: input elements total degree cannot be larger than 1")
+		panic("cannot MulRelin: input elements total degree cannot be larger than 2")
 	}
 
 	ctOut.Scale = op0.ScalingFactor() * op1.ScalingFactor()
@@ -1282,7 +1282,7 @@ func (eval *evaluator) mulRelinAndAdd(op0, op1 Operand, relin bool, ctOut *Ciphe
 	}
 
 	if op0.Degree()+op1.Degree() > 2 {
-		panic("cannot MulRelinAndAdd: input elements total degree cannot be larger than 1")
+		panic("cannot MulRelinAndAdd: input elements total degree cannot be larger than 2")
 	}
 
 	if op0.El() == ctOut.El() || op1.El() == ctOut.El() {

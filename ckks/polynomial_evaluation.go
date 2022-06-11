@@ -138,6 +138,17 @@ func (eval *evaluator) EvaluatePolyVector(input interface{}, pols []*Polynomial,
 	return eval.evaluatePolyVector(input, polynomialVector{Encoder: encoder, Value: pols, SlotsIndex: slotsIndex}, targetScale)
 }
 
+func optimalSplit(logDegree int) (logSplit int) {
+	logSplit = logDegree >> 1
+	a := (1 << logSplit) + (1 << (logDegree - logSplit)) + logDegree - logSplit - 3
+	b := (1 << (logSplit + 1)) + (1 << (logDegree - logSplit - 1)) + logDegree - logSplit - 4
+	if a > b {
+		logSplit++
+	}
+
+	return
+}
+
 func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVector, targetScale float64) (opOut *Ciphertext, err error) {
 
 	if pol.SlotsIndex != nil && pol.Encoder == nil {
@@ -162,7 +173,7 @@ func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVecto
 	}
 
 	logDegree := bits.Len64(uint64(pol.Value[0].Degree()))
-	logSplit := (logDegree >> 1)
+	logSplit := optimalSplit(logDegree)
 
 	var odd, even bool = true, true
 	for _, p := range pol.Value {
@@ -194,7 +205,15 @@ func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVecto
 	polyEval.isOdd = odd
 	polyEval.isEven = even
 
-	opOut, err = polyEval.recurse(targetScale, pol)
+	if opOut, err = polyEval.recurse(powerBasis.Value[1].Level()-logDegree+1, targetScale, pol); err != nil {
+		return nil, err
+	}
+
+	polyEval.Relinearize(opOut, opOut)
+
+	if err = polyEval.Rescale(opOut, targetScale, opOut); err != nil {
+		return nil, err
+	}
 
 	opOut.Scale = targetScale // solves float64 precision issues
 
@@ -398,7 +417,9 @@ func splitCoeffsPolyVector(poly polynomialVector, split int) (polyq, polyr polyn
 	return polynomialVector{Value: coeffsq}, polynomialVector{Value: coeffsr}
 }
 
-func (polyEval *polynomialEvaluator) recurse(targetScale float64, pol polynomialVector) (res *Ciphertext, err error) {
+func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale float64, pol polynomialVector) (res *Ciphertext, err error) {
+
+	params := polyEval.Evaluator.(*evaluator).params
 
 	logSplit := polyEval.logSplit
 
@@ -413,16 +434,21 @@ func (polyEval *polynomialEvaluator) recurse(targetScale float64, pol polynomial
 			polyEvalBis := new(polynomialEvaluator)
 			polyEvalBis.Evaluator = polyEval.Evaluator
 			polyEvalBis.Encoder = polyEval.Encoder
+			polyEvalBis.slotsIndex = polyEval.slotsIndex
 			polyEvalBis.logDegree = logDegree
 			polyEvalBis.logSplit = logSplit
 			polyEvalBis.powerBasis = polyEval.powerBasis
 			polyEvalBis.isOdd = polyEval.isOdd
 			polyEvalBis.isEven = polyEval.isEven
 
-			return polyEvalBis.recurse(targetScale, pol)
+			return polyEvalBis.recurse(targetLevel, targetScale, pol)
 		}
 
-		return polyEval.evaluatePolyFromPowerBasis(targetScale, pol)
+		if pol.Value[0].Lead {
+			targetScale *= params.QiFloat64(targetLevel)
+		}
+
+		return polyEval.evaluatePolyFromPowerBasis(targetScale, targetLevel, pol)
 	}
 
 	var nextPower = 1 << polyEval.logSplit
@@ -434,51 +460,42 @@ func (polyEval *polynomialEvaluator) recurse(targetScale float64, pol polynomial
 
 	XPow := polyEval.powerBasis.Value[nextPower]
 
-	level := XPow.Level()
+	level := targetLevel
 
-	if !pol.Value[0].Lead && logSplit != 1 {
-		level--
+	var currentQi float64
+	if pol.Value[0].Lead {
+		currentQi = params.QiFloat64(level)
+	} else {
+		currentQi = params.QiFloat64(level + 1)
 	}
 
-	currentQi := polyEval.Evaluator.(*evaluator).params.QiFloat64(level)
-
-	if res, err = polyEval.recurse(targetScale*currentQi/XPow.Scale, coeffsq); err != nil {
+	if res, err = polyEval.recurse(targetLevel+1, targetScale*currentQi/XPow.Scale, coeffsq); err != nil {
 		return nil, err
 	}
+
+	if res.Degree() == 2 {
+		polyEval.Relinearize(res, res)
+	}
+
+	if err = polyEval.Rescale(res, params.DefaultScale(), res); err != nil {
+		return nil, err
+	}
+
+	polyEval.Mul(res, XPow, res)
 
 	var tmp *Ciphertext
-	if tmp, err = polyEval.recurse(targetScale, coeffsr); err != nil {
+	if tmp, err = polyEval.recurse(res.Level(), res.Scale, coeffsr); err != nil {
 		return nil, err
 	}
 
-	if res.Level() > tmp.Level() {
-		for res.Level() != tmp.Level()+1 {
-			polyEval.DropLevel(res, 1)
-		}
-	}
-
-	polyEval.MulRelin(res, XPow, res)
-
-	if res.Level() > tmp.Level() {
-		if err = polyEval.Rescale(res, targetScale, res); err != nil {
-			return nil, err
-		}
-
-		polyEval.Add(res, tmp, res)
-	} else {
-
-		polyEval.Add(res, tmp, res)
-		if err = polyEval.Rescale(res, targetScale, res); err != nil {
-			return nil, err
-		}
-	}
+	polyEval.Add(res, tmp, res)
 
 	tmp = nil
 
 	return
 }
 
-func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetScale float64, pol polynomialVector) (res *Ciphertext, err error) {
+func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetScale float64, level int, pol polynomialVector) (res *Ciphertext, err error) {
 
 	X := polyEval.powerBasis.Value
 
@@ -511,7 +528,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetScale floa
 		if minimumDegreeNonZeroCoefficient == 0 {
 
 			// Allocates the output ciphertext
-			res = NewCiphertext(params, 1, X[1].Level(), targetScale)
+			res = NewCiphertext(params, 1, level, targetScale)
 
 			// Looks for non-zero coefficients among the degree 0 coefficients of the polynomials
 			for i, p := range pol.Value {
@@ -525,7 +542,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetScale floa
 
 			// If a non-zero coefficient was found, encode the values, adds on the ciphertext, and returns
 			if toEncode {
-				pt := NewPlaintextAtLevelFromPoly(X[1].Level(), res.Value[0])
+				pt := NewPlaintextAtLevelFromPoly(level, res.Value[0])
 				pt.Scale = res.Scale
 				polyEval.EncodeSlots(values, pt, params.LogSlots())
 			}
@@ -533,17 +550,11 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetScale floa
 			return
 		}
 
-		// Current modulus qi for the next rescale
-		currentQi := params.QiFloat64(X[(minimumDegreeNonZeroCoefficient)].Level())
-
-		// Target output scale before the rescaling, such that the rescaling does not change the ciphertext scale
-		ctScale := targetScale * currentQi
-
 		// Allocates the output ciphertext
-		res = NewCiphertext(params, maximumCiphertextDegree, X[minimumDegreeNonZeroCoefficient].Level(), ctScale)
+		res = NewCiphertext(params, maximumCiphertextDegree, level, targetScale)
 
 		// Allocates a temporary plaintext to encode the values
-		pt := NewPlaintextAtLevelFromPoly(X[minimumDegreeNonZeroCoefficient].Level(), polyEval.Evaluator.BuffCt().Value[0])
+		pt := NewPlaintextAtLevelFromPoly(level, polyEval.Evaluator.BuffCt().Value[0])
 
 		// Looks for a non-zero coefficient among the degree zero coefficient of the polynomials
 		for i, p := range pol.Value {
@@ -558,7 +569,6 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetScale floa
 		// If a non-zero degre coefficient was found, encode and adds the values on the output
 		// ciphertext
 		if toEncode {
-
 			pt.Scale = res.Scale
 			polyEval.EncodeSlots(values, pt, params.LogSlots())
 			polyEval.Add(res, pt, res)
@@ -598,7 +608,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetScale floa
 			// If a non-zero degre coefficient was found, encode and adds the values on the output
 			// ciphertext
 			if toEncode {
-				pt.Scale = targetScale * currentQi / X[key].Scale
+				pt.Scale = targetScale / X[key].Scale
 				polyEval.EncodeSlots(values, pt, params.LogSlots())
 				polyEval.MulAndAdd(X[key], pt, res)
 				toEncode = false
@@ -611,7 +621,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetScale floa
 
 		if minimumDegreeNonZeroCoefficient == 0 {
 
-			res = NewCiphertext(params, 1, X[1].Level(), targetScale)
+			res = NewCiphertext(params, 1, level, targetScale)
 
 			if isNotNegligible(c) {
 				polyEval.AddConst(res, c, res)
@@ -620,9 +630,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetScale floa
 			return
 		}
 
-		currentQi := params.QiFloat64(X[(minimumDegreeNonZeroCoefficient)].Level())
-		ctScale := targetScale * currentQi
-		res = NewCiphertext(params, maximumCiphertextDegree, X[minimumDegreeNonZeroCoefficient].Level(), ctScale)
+		res = NewCiphertext(params, maximumCiphertextDegree, level, targetScale)
 
 		if isNotNegligible(c) {
 			polyEval.AddConst(res, c, res)
@@ -639,7 +647,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetScale floa
 
 				cRealFlo.SetFloat64(real(c))
 				cImagFlo.SetFloat64(imag(c))
-				constScale.SetFloat64(targetScale * currentQi / X[key].Scale)
+				constScale.SetFloat64(targetScale / X[key].Scale)
 
 				// Target scale * rescale-scale / power basis scale
 				cRealFlo.Mul(cRealFlo, constScale)
@@ -663,14 +671,6 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetScale floa
 				polyEval.MultByGaussianIntegerAndAdd(X[key], cRealBig, cImagBig, res)
 			}
 		}
-	}
-
-	if res.Degree() == 2 {
-		polyEval.Relinearize(res, res)
-	}
-
-	if err = polyEval.Rescale(res, targetScale, res); err != nil {
-		return nil, err
 	}
 
 	return

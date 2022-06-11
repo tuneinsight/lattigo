@@ -52,8 +52,8 @@ type Evaluator interface {
 	PowerOf2(ctIn *ckks.Ciphertext, logPow2 int, ctOut *ckks.Ciphertext)
 	Power(ctIn *ckks.Ciphertext, degree int, ctOut *ckks.Ciphertext)
 	PowerNew(ctIn *ckks.Ciphertext, degree int) (ctOut *ckks.Ciphertext)
-	EvaluatePoly(input interface{}, pol *ckks.Polynomial, targetScale float64) (ctOut *ckks.Ciphertext, err error)
-	EvaluatePolyVector(input interface{}, pols []*ckks.Polynomial, encoder ckks.Encoder, slotIndex map[int][]int, targetScale float64) (ctOut *ckks.Ciphertext, err error)
+	EvaluatePoly(input interface{}, pol *ckks.Polynomial, targetScale float64, lazyPowerBasis bool) (ctOut *ckks.Ciphertext, err error)
+	EvaluatePolyVector(input interface{}, pols []*ckks.Polynomial, encoder ckks.Encoder, slotIndex map[int][]int, targetScale float64, lazyPowerBasis bool) (ctOut *ckks.Ciphertext, err error)
 	InverseNew(ctIn *ckks.Ciphertext, steps int) (ctOut *ckks.Ciphertext)
 	LinearTransformNew(ctIn *ckks.Ciphertext, linearTransform interface{}) (ctOut []*ckks.Ciphertext)
 	LinearTransform(ctIn *ckks.Ciphertext, linearTransform interface{}, ctOut []*ckks.Ciphertext)
@@ -267,7 +267,7 @@ func (eval *evaluator) EvalModNew(ct *ckks.Ciphertext, evalModPoly EvalModPoly) 
 	}
 
 	// Chebyshev evaluation
-	if ct, err = eval.EvaluatePoly(ct, evalModPoly.sinePoly, targetScale); err != nil {
+	if ct, err = eval.EvaluatePoly(ct, evalModPoly.sinePoly, targetScale, true); err != nil {
 		panic(err)
 	}
 
@@ -285,7 +285,7 @@ func (eval *evaluator) EvalModNew(ct *ckks.Ciphertext, evalModPoly EvalModPoly) 
 
 	// ArcSine
 	if evalModPoly.arcSinePoly != nil {
-		if ct, err = eval.EvaluatePoly(ct, evalModPoly.arcSinePoly, ct.Scale); err != nil {
+		if ct, err = eval.EvaluatePoly(ct, evalModPoly.arcSinePoly, ct.Scale, true); err != nil {
 			panic(err)
 		}
 	}

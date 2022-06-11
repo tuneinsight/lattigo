@@ -296,7 +296,23 @@ func (p *PolynomialBasis) genPower(n int, lazy bool, scale float64, eval Evaluat
 		}
 
 		// Computes C[n] = C[a]*C[b]
-		if lazy && n == target {
+		if lazy {
+			if p.Value[a].Degree() == 2 {
+				eval.Relinearize(p.Value[a], p.Value[a])
+			}
+
+			if p.Value[b].Degree() == 2 {
+				eval.Relinearize(p.Value[b], p.Value[b])
+			}
+
+			if err = eval.Rescale(p.Value[a], scale, p.Value[a]); err != nil {
+				return err
+			}
+
+			if err = eval.Rescale(p.Value[b], scale, p.Value[b]); err != nil {
+				return err
+			}
+
 			p.Value[n] = eval.MulNew(p.Value[a], p.Value[b])
 
 		} else {
@@ -317,7 +333,7 @@ func (p *PolynomialBasis) genPower(n int, lazy bool, scale float64, eval Evaluat
 				eval.AddConst(p.Value[n], -1, p.Value[n])
 			} else {
 				// Since C[0] is not stored (but rather seen as the constant 1), only recurses on c if c!= 0
-				if err = p.genPower(target, c, lazy, scale, eval); err != nil {
+				if err = p.GenPower(c, lazy, scale, eval); err != nil {
 					return err
 				}
 				eval.Sub(p.Value[n], p.Value[c], p.Value[n])

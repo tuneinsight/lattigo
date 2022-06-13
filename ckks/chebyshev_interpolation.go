@@ -31,7 +31,7 @@ func Approximate(function interface{}, a, b float64, degree int) (pol *Polynomia
 	pol.B = b
 	pol.MaxDeg = degree
 	pol.Lead = true
-	pol.Basis = ChebyshevBasis
+	pol.BasisType = Chebyshev
 
 	return
 }

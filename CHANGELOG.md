@@ -2,6 +2,17 @@
 # Changelog
 All notable changes to this project will be documented in this file. 
 
+## UNRELEASED
+
+- CKKS: Baby-Step Giant-Step Polynomial Evaluation Algorithm (BSGSPEA)
+    - Added `PolynomialBasis`, a struct to generate powers of monomials. This struct can be marshalled.
+    - Renamed former `PolynomialBasis` enumerated type to `BasisType`.
+    - `EvaluatePoly` and `EvaluatePolyVector` now both accept pre-computed `PolynomialBasis` as input in addition to `Ciphertext`.
+    - Fixed correctness error and panic when a non-relinearized ciphertext and a plaintext were given to `Mul` and `MulAndAdd`.
+    - Fixed automatic-scale matching in BSGS that wasn't reliably ensuring that scales between two ciphertext to be added was the same.
+    - Improved BSGSPEA with lazy relinearization and lazy rescaling.
+    - Overall the precision of the BSGSPEA is greatly improved and its complexity is reduced. This also improves the precision of the bootstrapping.
+
 ## [3.0.4] - 2022-04-26
 
 - CKKS: updated the bootstrapping circuit to use the key-encapsulation mechanism of `Bootstrapping for Approximate Homomorphic Encryption with Negligible Failure-Probability by Using Sparse-Secret Encapsulation`. The previous bootstrapping circuit can be run by setting `EphemeralSecretWeight=0`.

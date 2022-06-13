@@ -29,7 +29,7 @@ type BasisType int
 const (
 	// Monomial : x^(a+b) = x^a * x^b
 	Monomial = BasisType(0)
-	// Chebyshev : x^(a+b) = 2 * x^a *x^b - T^|a-b|
+	// Chebyshev : T_(a+b) = 2 * T_a * T_b - T_(|a-b|)
 	Chebyshev = BasisType(1)
 )
 

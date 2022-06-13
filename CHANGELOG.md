@@ -2,36 +2,6 @@
 # Changelog
 All notable changes to this project will be documented in this file. 
 
-## UNRELEASED
-
-- CKKS: Baby-Step Giant-Step Polynomial Evaluation Algorithm (BSGSPEA)
-    - Added `PolynomialBasis`, a struct to generate powers of monomials. This struct can be marshalled.
-    - Renamed former `PolynomialBasis` enumerated type to `BasisType`.
-    - `EvaluatePoly` and `EvaluatePolyVector` now both accept pre-computed `PolynomialBasis` as input in addition to `Ciphertext`.
-    - Fixed correctness error and panic when a non-relinearized ciphertext and a plaintext were given to `Mul` and `MulAndAdd`.
-    - Fixed automatic-scale matching in BSGS that wasn't reliably ensuring that scales between two ciphertext to be added was the same.
-    - Improved BSGSPEA with lazy relinearization and lazy rescaling.
-    - Overall the precision of the BSGSPEA is greatly improved and its complexity is reduced. This also improves the precision of the bootstrapping.
-
-## [3.0.4] - 2022-04-26
-
-- CKKS: updated the bootstrapping circuit to use the key-encapsulation mechanism of `Bootstrapping for Approximate Homomorphic Encryption with Negligible Failure-Probability by Using Sparse-Secret Encapsulation`. The previous bootstrapping circuit can be run by setting `EphemeralSecretWeight=0`.
-
-- BFV: added the `Evaluator.Rescale` and `Evaluator.RescaleTo` methods to switch BFV ciphertexts to lower levels.
-- BFV: all `Evaluator` methods on ciphertext support all arithmetic operations at lower levels, but require that operands are at the same level.
-- BFV: the plaintext modulus `T` can now equal to the level-zero modulus Q[0] (i.e., be a factor of the ciphertext modulus `Q`).
-- BFV: added the methods `NewCiphertextLvl`, `NewPlaintextLvl`, `NewPlaintextMulLvl`, `Evaluator.AddScalar` and `Evaluator.MulScalarAndAdd`. 
-- BFV: merged `[]uint64` and `[]int64` plaintext encoding methods (e.g. `EncodeUint` and `EncodeInt` are replaced by `Encode`) and added the respective `[...]New` methods.
-- BFV: added the methods `EvaluatePoly` and `EvaluatePolyVector` for homomorphic polynomial evaluation.
-- BFV/RING: moved `RNSScaler` from `ring` to `bfv`.
-- RING: removed deprecated `SimpleScaler`.
-
-## [3.0.2] - 2022-02-21
-
-- Fixed sparse ternary sampler to properly sample on non-zero poly.
-
-## [3.0.1] - 2022-02-21
-=======
 # [3.1.0] - UNREALEASED
 
 - ALL: added default parameters for LogN=11 and LogN=10.
@@ -88,6 +58,17 @@ All notable changes to this project will be documented in this file.
 - Examples: added `examples/ckks/advanced/lut`, which is an example that does homomorphic decoding -> LUT -> homomorphic encoding on a `ckks.Ciphertext`.
 - Examples: removed `examples/ckks/advanced/rlwe_lwe_bridge_LHHMQ20`, which is replaced `examples/ckks/advanced/lut`.
 - Examples: removed `examples/rlwe/lwe_bridge` since the code of this example is now part of `rlwe.Evaluator` and showcased in `examples/ckks/advanced/lut`.
+
+## [3.0.5]
+
+- CKKS: Baby-Step Giant-Step Polynomial Evaluation Algorithm (BSGSPEA)
+    - Added `PolynomialBasis`, a struct to generate powers of monomials. This struct can be marshalled.
+    - Renamed former `PolynomialBasis` enumerated type to `BasisType`.
+    - `EvaluatePoly` and `EvaluatePolyVector` now both accept pre-computed `PolynomialBasis` as input in addition to `Ciphertext`.
+    - Fixed correctness error and panic when a non-relinearized ciphertext and a plaintext were given to `Mul` and `MulAndAdd`.
+    - Fixed automatic-scale matching in BSGS that wasn't reliably ensuring that scales between two ciphertext to be added was the same.
+    - Improved BSGSPEA with lazy relinearization and lazy rescaling.
+    - Overall the precision of the BSGSPEA is greatly improved and its complexity is reduced. This also improves the precision of the bootstrapping.
 
 ## [3.0.4] - 2022-04-26
 

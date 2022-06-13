@@ -17,14 +17,14 @@ type Evaluator interface {
 	// === Original ckks.Evaluator methods ===
 	// =======================================
 
-	Add(op0, op1 ckks.Operand, ctOut *ckks.Ciphertext)
-	AddNoMod(op0, op1 ckks.Operand, ctOut *ckks.Ciphertext)
-	AddNew(op0, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
-	AddNoModNew(op0, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
-	Sub(op0, op1 ckks.Operand, ctOut *ckks.Ciphertext)
-	SubNoMod(op0, op1 ckks.Operand, ctOut *ckks.Ciphertext)
-	SubNew(op0, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
-	SubNoModNew(op0, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
+	Add(ctIn *ckks.Ciphertext, op1 ckks.Operand, ctOut *ckks.Ciphertext)
+	AddNoMod(ctIn *ckks.Ciphertext, op1 ckks.Operand, ctOut *ckks.Ciphertext)
+	AddNew(ctIn *ckks.Ciphertext, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
+	AddNoModNew(ctIn *ckks.Ciphertext, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
+	Sub(ctIn *ckks.Ciphertext, op1 ckks.Operand, ctOut *ckks.Ciphertext)
+	SubNoMod(ctIn *ckks.Ciphertext, op1 ckks.Operand, ctOut *ckks.Ciphertext)
+	SubNew(ctIn *ckks.Ciphertext, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
+	SubNoModNew(ctIn *ckks.Ciphertext, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
 	Neg(ctIn *ckks.Ciphertext, ctOut *ckks.Ciphertext)
 	NegNew(ctIn *ckks.Ciphertext) (ctOut *ckks.Ciphertext)
 	AddConstNew(ctIn *ckks.Ciphertext, constant interface{}) (ctOut *ckks.Ciphertext)
@@ -40,10 +40,10 @@ type Evaluator interface {
 	DivByi(ctIn *ckks.Ciphertext, ctOut *ckks.Ciphertext)
 	ConjugateNew(ctIn *ckks.Ciphertext) (ctOut *ckks.Ciphertext)
 	Conjugate(ctIn *ckks.Ciphertext, ctOut *ckks.Ciphertext)
-	Mul(op0, op1 ckks.Operand, ctOut *ckks.Ciphertext)
-	MulNew(op0, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
-	MulRelin(op0, op1 ckks.Operand, ctOut *ckks.Ciphertext)
-	MulRelinNew(op0, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
+	Mul(ctIn *ckks.Ciphertext, op1 ckks.Operand, ctOut *ckks.Ciphertext)
+	MulNew(ctIn *ckks.Ciphertext, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
+	MulRelin(ctIn *ckks.Ciphertext, op1 ckks.Operand, ctOut *ckks.Ciphertext)
+	MulRelinNew(ctIn *ckks.Ciphertext, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
 	RotateNew(ctIn *ckks.Ciphertext, k int) (ctOut *ckks.Ciphertext)
 	Rotate(ctIn *ckks.Ciphertext, k int, ctOut *ckks.Ciphertext)
 	RotateHoistedNew(ctIn *ckks.Ciphertext, rotations []int) (ctOut map[int]*ckks.Ciphertext)
@@ -53,8 +53,8 @@ type Evaluator interface {
 	PowerOf2(ctIn *ckks.Ciphertext, logPow2 int, ctOut *ckks.Ciphertext)
 	Power(ctIn *ckks.Ciphertext, degree int, ctOut *ckks.Ciphertext)
 	PowerNew(ctIn *ckks.Ciphertext, degree int) (ctOut *ckks.Ciphertext)
-	EvaluatePoly(input interface{}, pol *ckks.Polynomial, targetScale float64, lazyPowerBasis bool) (ctOut *ckks.Ciphertext, err error)
-	EvaluatePolyVector(input interface{}, pols []*ckks.Polynomial, encoder ckks.Encoder, slotIndex map[int][]int, targetScale float64, lazyPowerBasis bool) (ctOut *ckks.Ciphertext, err error)
+	EvaluatePoly(input interface{}, pol *ckks.Polynomial, targetScale float64) (ctOut *ckks.Ciphertext, err error)
+	EvaluatePolyVector(input interface{}, pols []*ckks.Polynomial, encoder ckks.Encoder, slotIndex map[int][]int, targetScale float64) (ctOut *ckks.Ciphertext, err error)
 	InverseNew(ctIn *ckks.Ciphertext, steps int) (ctOut *ckks.Ciphertext)
 	LinearTransformNew(ctIn *ckks.Ciphertext, linearTransform interface{}) (ctOut []*ckks.Ciphertext)
 	LinearTransform(ctIn *ckks.Ciphertext, linearTransform interface{}, ctOut []*ckks.Ciphertext)
@@ -271,7 +271,7 @@ func (eval *evaluator) EvalModNew(ct *ckks.Ciphertext, evalModPoly EvalModPoly) 
 	}
 
 	// Chebyshev evaluation
-	if ct, err = eval.EvaluatePoly(ct, evalModPoly.sinePoly, targetScale, true); err != nil {
+	if ct, err = eval.EvaluatePoly(ct, evalModPoly.sinePoly, targetScale); err != nil {
 		panic(err)
 	}
 
@@ -289,7 +289,7 @@ func (eval *evaluator) EvalModNew(ct *ckks.Ciphertext, evalModPoly EvalModPoly) 
 
 	// ArcSine
 	if evalModPoly.arcSinePoly != nil {
-		if ct, err = eval.EvaluatePoly(ct, evalModPoly.arcSinePoly, ct.Scale, true); err != nil {
+		if ct, err = eval.EvaluatePoly(ct, evalModPoly.arcSinePoly, ct.Scale); err != nil {
 			panic(err)
 		}
 	}

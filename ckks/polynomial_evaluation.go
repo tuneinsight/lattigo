@@ -122,7 +122,7 @@ type polynomialVector struct {
 //
 // Example: if pols = []*Polynomial{pol0, pol1} and slotsIndex = map[int][]int:{0:[1, 2, 4, 5, 7], 1:[0, 3]},
 // then pol0 will be applied to slots [1, 2, 4, 5, 7], pol1 to slots [0, 3] and the slot 6 will be zero-ed.
-func (eval *evaluator) EvaluatePolyVector(input interface{}, pols []*Polynomial, encoder Encoder, slotsIndex map[int][]int, targetScale float64, lazyPowerBasis bool) (opOut *Ciphertext, err error) {
+func (eval *evaluator) EvaluatePolyVector(input interface{}, pols []*Polynomial, encoder Encoder, slotsIndex map[int][]int, targetScale float64) (opOut *Ciphertext, err error) {
 	var maxDeg int
 	var basis BasisType
 	for i := range pols {
@@ -140,7 +140,7 @@ func (eval *evaluator) EvaluatePolyVector(input interface{}, pols []*Polynomial,
 		}
 	}
 
-	return eval.evaluatePolyVector(input, polynomialVector{Encoder: encoder, Value: pols, SlotsIndex: slotsIndex}, targetScale, lazyPowerBasis)
+	return eval.evaluatePolyVector(input, polynomialVector{Encoder: encoder, Value: pols, SlotsIndex: slotsIndex}, targetScale)
 }
 
 func optimalSplit(logDegree int) (logSplit int) {
@@ -154,7 +154,7 @@ func optimalSplit(logDegree int) (logSplit int) {
 	return
 }
 
-func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVector, targetScale float64, lazy bool) (opOut *Ciphertext, err error) {
+func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVector, targetScale float64) (opOut *Ciphertext, err error) {
 
 	if pol.SlotsIndex != nil && pol.Encoder == nil {
 		return nil, fmt.Errorf("cannot EvaluatePolyVector: missing Encoder input")
@@ -233,7 +233,6 @@ func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVecto
 type PolynomialBasis struct {
 	BasisType
 	Value map[int]*Ciphertext
-	lazy  bool
 }
 
 // NewPolynomialBasis creates a new PolynomialBasis. It takes as input a ciphertext

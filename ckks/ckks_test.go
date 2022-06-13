@@ -335,14 +335,6 @@ func testEvaluatorAdd(tc *testContext, t *testing.T) {
 		tc.evaluator.Add(ciphertext1, plaintext2, ciphertext1)
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
-
-		for i := range values1 {
-			values1[i] += values2[i]
-		}
-
-		tc.evaluator.Add(plaintext2, ciphertext1, ciphertext1)
-
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
 	})
 
 	t.Run(GetTestName(tc.params, "Evaluator/AddNew/CtPlain"), func(t *testing.T) {
@@ -355,10 +347,6 @@ func testEvaluatorAdd(tc *testContext, t *testing.T) {
 		}
 
 		ciphertext3 := tc.evaluator.AddNew(ciphertext1, plaintext2)
-
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext3, tc.params.LogSlots(), 0, t)
-
-		ciphertext3 = tc.evaluator.AddNew(plaintext2, ciphertext1)
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext3, tc.params.LogSlots(), 0, t)
 	})
@@ -408,14 +396,6 @@ func testEvaluatorSub(tc *testContext, t *testing.T) {
 		tc.evaluator.Sub(ciphertext1, plaintext2, ciphertext2)
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, valuesTest, ciphertext2, tc.params.LogSlots(), 0, t)
-
-		for i := range values1 {
-			valuesTest[i] = values2[i] - values1[i]
-		}
-
-		tc.evaluator.Sub(plaintext2, ciphertext1, ciphertext2)
-
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, valuesTest, ciphertext2, tc.params.LogSlots(), 0, t)
 	})
 
 	t.Run(GetTestName(tc.params, "Evaluator/SubNew/CtPlain"), func(t *testing.T) {
@@ -429,14 +409,6 @@ func testEvaluatorSub(tc *testContext, t *testing.T) {
 		}
 
 		ciphertext3 := tc.evaluator.SubNew(ciphertext1, plaintext2)
-
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, valuesTest, ciphertext3, tc.params.LogSlots(), 0, t)
-
-		for i := range values1 {
-			valuesTest[i] = values2[i] - values1[i]
-		}
-
-		ciphertext3 = tc.evaluator.SubNew(plaintext2, ciphertext1)
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, valuesTest, ciphertext3, tc.params.LogSlots(), 0, t)
 	})
@@ -871,7 +843,7 @@ func testEvaluatePoly(tc *testContext, t *testing.T) {
 			values[i] = cmplx.Exp(values[i])
 		}
 
-		if ciphertext, err = tc.evaluator.EvaluatePoly(ciphertext, poly, ciphertext.Scale, tc.params.RingType() == ring.Standard); err != nil {
+		if ciphertext, err = tc.evaluator.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {
 			t.Error(err)
 		}
 
@@ -912,7 +884,7 @@ func testEvaluatePoly(tc *testContext, t *testing.T) {
 			valuesWant[j] = cmplx.Exp(values[j])
 		}
 
-		if ciphertext, err = tc.evaluator.EvaluatePolyVector(ciphertext, []*Polynomial{poly}, tc.encoder, slotIndex, ciphertext.Scale, tc.params.RingType() == ring.Standard); err != nil {
+		if ciphertext, err = tc.evaluator.EvaluatePolyVector(ciphertext, []*Polynomial{poly}, tc.encoder, slotIndex, ciphertext.Scale); err != nil {
 			t.Error(err)
 		}
 
@@ -947,7 +919,7 @@ func testChebyshevInterpolator(tc *testContext, t *testing.T) {
 			t.Fail()
 		}
 
-		if ciphertext, err = eval.EvaluatePoly(ciphertext, poly, ciphertext.Scale, tc.params.RingType() == ring.Standard); err != nil {
+		if ciphertext, err = eval.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {
 			t.Error(err)
 			t.Fail()
 		}
@@ -983,7 +955,7 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 			t.Fail()
 		}
 
-		if ciphertext, err = eval.EvaluatePoly(ciphertext, poly, ciphertext.Scale, tc.params.RingType() == ring.Standard); err != nil {
+		if ciphertext, err = eval.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {
 			t.Error(err)
 			t.Fail()
 		}

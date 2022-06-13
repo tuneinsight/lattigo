@@ -95,7 +95,7 @@ func chebyshevinterpolation() {
 	}
 
 	// We evaluate the interpolated Chebyshev interpolant on the ciphertext
-	if ciphertext, err = evaluator.EvaluatePolyVector(ciphertext, []*ckks.Polynomial{approxF, approxG}, encoder, slotsIndex, ciphertext.Scale, true); err != nil {
+	if ciphertext, err = evaluator.EvaluatePolyVector(ciphertext, []*ckks.Polynomial{approxF, approxG}, encoder, slotsIndex, ciphertext.Scale); err != nil {
 		panic(err)
 	}
 

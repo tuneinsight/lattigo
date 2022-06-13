@@ -92,7 +92,7 @@ type polynomialEvaluator struct {
 // input must be either *Ciphertext or *Powerbasis.
 // pol: a *Polynomial
 // targetScale: the desired output scale. This value shouldn't differ too much from the original ciphertext scale. It can
-// for example be used to correct small deviation in the ciphertext scale and reset it to the default scale.
+// for example be used to correct small deviations in the ciphertext scale and reset it to the default scale.
 // lazyPowerBasis: if true, the power basis is computed with lazy relinearization.
 func (eval *evaluator) EvaluatePoly(input interface{}, pol *Polynomial, targetScale float64, lazyPowerBasis bool) (opOut *Ciphertext, err error) {
 	return eval.evaluatePolyVector(input, polynomialVector{Value: []*Polynomial{pol}}, targetScale, lazyPowerBasis)
@@ -117,9 +117,9 @@ type polynomialVector struct {
 // input: must be either *Ciphertext or *Powerbasis.
 // pols: a slice of up to 'n' *Polynomial ('n' being the maximum number of slots), indexed from 0 to n-1.
 // encoder: an Encoder.
-// slotsIndex: a map[int][]int indexing as key the polynomial to evalute and as value the index of the slots on which to evaluate the polynomial indexed by the key.
+// slotsIndex: a map[int][]int indexing as key the polynomial to evaluate and as value the index of the slots on which to evaluate the polynomial indexed by the key.
 // targetScale: the desired output scale. This value shouldn't differ too much from the original ciphertext scale. It can
-// for example be used to correct small deviation in the ciphertext scale and reset it to the default scale.
+// for example be used to correct small deviations in the ciphertext scale and reset it to the default scale.
 // lazyPowerBasis: if true, the power basis is computed with lazy relinearization.
 //
 // Example: if pols = []*Polynomial{pol0, pol1} and slotsIndex = map[int][]int:{0:[1, 2, 4, 5, 7], 1:[0, 3]},
@@ -159,7 +159,7 @@ func optimalSplit(logDegree int) (logSplit int) {
 func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVector, targetScale float64, lazy bool) (opOut *Ciphertext, err error) {
 
 	if pol.SlotsIndex != nil && pol.Encoder == nil {
-		return nil, fmt.Errorf("cannot EvaluatePolyVector, missing Encoder input")
+		return nil, fmt.Errorf("cannot EvaluatePolyVector: missing Encoder input")
 	}
 
 	var powerBasis *PowerBasis
@@ -245,7 +245,7 @@ func NewPowerBasis(ct *Ciphertext, Basis PolynomialBasis) (p *PowerBasis) {
 }
 
 // GenPower generates X^{n} in the power basis. If lazy = true, the final X^{n} will not be
-// relinearized. Scale sets the threshold for rescaling (ciphertext won't be resccaled if
+// relinearized. Scale sets the threshold for rescaling (ciphertext won't be rescaled if
 // the rescaling operation would make the scale go under this threshold).
 func (p *PowerBasis) GenPower(n int, lazy bool, scale float64, eval Evaluator) (err error) {
 

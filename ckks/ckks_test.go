@@ -970,7 +970,7 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 
 		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, complex(-1, 0), complex(1, 0), t)
 
-		poly := Approximate(cmplx.Sin, complex(-1.5, 0), complex(1.5, 0), 31)
+		poly := Approximate(cmplx.Sin, complex(-1.5, 0), complex(1.5, 0), 15)
 
 		for i := range values {
 			values[i] = cmplx.Sin(values[i])

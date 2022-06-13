@@ -1218,7 +1218,7 @@ func (eval *evaluator) mulRelin(op0, op1 Operand, relin bool, ctOut *Ciphertext)
 		}
 
 		if ctOut.Degree() < tmp1.Degree() {
-			ctOut.El().Resize(eval.params.Parameters, tmp1.Degree())
+			ctOut.El().Resize(tmp1.Degree(), tmp1.Level())
 		}
 
 		c00 := eval.buffQ[0]
@@ -1329,7 +1329,7 @@ func (eval *evaluator) mulRelinAndAdd(op0, op1 Operand, relin bool, ctOut *Ciphe
 		}
 
 		if ctOut.Degree() < tmp1.Degree() {
-			ctOut.Resize(eval.params.Parameters, tmp1.Degree())
+			ctOut.Resize(tmp1.Degree(), tmp1.Level())
 		}
 
 		c00 := eval.buffQ[0]

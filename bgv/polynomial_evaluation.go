@@ -122,7 +122,7 @@ func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVecto
 	logDegree := bits.Len64(uint64(pol.Value[0].Degree()))
 	logSplit := optimalSplit(logDegree)
 
-	var odd, even = true, true
+	var odd, even bool = true, true
 	for _, p := range pol.Value {
 		tmp0, tmp1 := isOddOrEvenPolynomial(p.Coeffs)
 		odd, even = odd && tmp0, even && tmp1
@@ -142,14 +142,6 @@ func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVecto
 		}
 	}
 
-	/*
-		for i := 0; i < 1<<logDegree; i++{
-			if p, ok := powerBasis.Value[i]; ok{
-				fmt.Println(i, p.Degree(), p.Level())
-			}
-		}
-	*/
-
 	polyEval := &polynomialEvaluator{}
 	polyEval.slotsIndex = pol.SlotsIndex
 	polyEval.Evaluator = eval
@@ -160,9 +152,7 @@ func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVecto
 	polyEval.isOdd = odd
 	polyEval.isEven = even
 
-	if opOut, err = polyEval.recurse(powerBasis.Value[1].Level()-logDegree+1, targetScale, pol); err != nil {
-		return
-	}
+	opOut, err = polyEval.recurse(powerBasis.Value[1].Level()-logDegree+1, targetScale, pol)
 
 	polyEval.Relinearize(opOut, opOut)
 
@@ -227,40 +217,44 @@ func (p *PowerBasis) genPower(target, n int, lazy, rescale bool, eval Evaluator)
 		var rescaleA, rescaleB bool
 
 		// Recurses on the given indexes
-		if rescaleA, err = p.genPower(target, a, lazy, rescale, eval); err != nil {
+		if rescaleA, err = p.genPower(target, a, lazy && !isPow2, rescale, eval); err != nil {
 			return false, err
 		}
 
-		if rescaleB, err = p.genPower(target, b, lazy, rescale, eval); err != nil {
+		if rescaleB, err = p.genPower(target, b, lazy && !isPow2, rescale, eval); err != nil {
 			return false, err
-		}
-
-		if p.Value[a].Degree() == 2 {
-			eval.Relinearize(p.Value[a], p.Value[a])
-		}
-
-		if p.Value[b].Degree() == 2 {
-			eval.Relinearize(p.Value[b], p.Value[b])
-		}
-
-		if rescaleA {
-			if err = eval.Rescale(p.Value[a], p.Value[a]); err != nil {
-				return false, err
-			}
-		}
-
-		if rescaleB {
-			if err = eval.Rescale(p.Value[b], p.Value[b]); err != nil {
-				return false, err
-			}
 		}
 
 		// Computes C[n] = C[a]*C[b]
-		if lazy && !isPow2 {
+		if lazy {
+
+			if p.Value[a].Degree() == 2 {
+				eval.Relinearize(p.Value[a], p.Value[a])
+			}
+
+			if p.Value[b].Degree() == 2 {
+				eval.Relinearize(p.Value[b], p.Value[b])
+			}
+
+			if rescaleA {
+				if err = eval.Rescale(p.Value[a], p.Value[a]); err != nil {
+					return false, err
+				}
+			}
+
+			if rescaleB {
+				if err = eval.Rescale(p.Value[b], p.Value[b]); err != nil {
+					return false, err
+				}
+			}
+
 			p.Value[n] = eval.MulNew(p.Value[a], p.Value[b])
+
 			return true, nil
+
 		} else {
 			p.Value[n] = eval.MulRelinNew(p.Value[a], p.Value[b])
+
 			if err = eval.Rescale(p.Value[n], p.Value[n]); err != nil {
 				return false, err
 			}

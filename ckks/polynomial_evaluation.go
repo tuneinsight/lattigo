@@ -20,17 +20,17 @@ type Polynomial struct {
 	Lead   bool
 	A      float64
 	B      float64
-	Basis  PolynomialBasis
+	Basis  BasisType
 }
 
-// PolynomialBasis is a type for the polynomials basis
-type PolynomialBasis int
+// BasisType is a type for the polynomials basis
+type BasisType int
 
 const (
 	// StandardBasis : x^(a+b) = x^a * x^b
-	StandardBasis = PolynomialBasis(0)
+	StandardBasis = BasisType(0)
 	// ChebyshevBasis : x^(a+b) = 2 * x^a *x^b - T^|a-b|
-	ChebyshevBasis = PolynomialBasis(1)
+	ChebyshevBasis = BasisType(1)
 )
 
 // IsNegligbleThreshold : threshold under which a coefficient
@@ -73,8 +73,8 @@ func checkEnoughLevels(levels, depth int, c complex128) (err error) {
 type polynomialEvaluator struct {
 	Evaluator
 	Encoder
+	MonomialBasis
 	slotsIndex map[int][]int
-	powerBasis *PowerBasis
 	logDegree  int
 	logSplit   int
 	isOdd      bool
@@ -89,13 +89,12 @@ type polynomialEvaluator struct {
 // Coefficients of the polynomial with an absolute value smaller than "IsNegligbleThreshold" will automatically be set to zero
 // if the polynomial is "even" or "odd" (to ensure that the even or odd property remains valid
 // after the "splitCoeffs" polynomial decomposition).
-// input must be either *Ciphertext or *Powerbasis.
+// input must be either *Ciphertext or *MonomialBasis.
 // pol: a *Polynomial
 // targetScale: the desired output scale. This value shouldn't differ too much from the original ciphertext scale. It can
 // for example be used to correct small deviations in the ciphertext scale and reset it to the default scale.
-// lazyPowerBasis: if true, the power basis is computed with lazy relinearization.
-func (eval *evaluator) EvaluatePoly(input interface{}, pol *Polynomial, targetScale float64, lazyPowerBasis bool) (opOut *Ciphertext, err error) {
-	return eval.evaluatePolyVector(input, polynomialVector{Value: []*Polynomial{pol}}, targetScale, lazyPowerBasis)
+func (eval *evaluator) EvaluatePoly(input interface{}, pol *Polynomial, targetScale float64) (opOut *Ciphertext, err error) {
+	return eval.evaluatePolyVector(input, polynomialVector{Value: []*Polynomial{pol}}, targetScale)
 }
 
 type polynomialVector struct {
@@ -104,8 +103,8 @@ type polynomialVector struct {
 	SlotsIndex map[int][]int
 }
 
-// EvaluatePolyVector evaluates a vector of Polyomials on the input Ciphertext in ceil(log2(deg+1)) levels.
-// Returns an error if the input ciphertext does not have enough level to carry out the full polynomial evaluation.
+// EvaluatePolyVector evaluates a vector of Polynomials on the input Ciphertext in ceil(log2(deg+1)) levels.
+// Returns an error if the input Ciphertext does not have enough level to carry out the full polynomial evaluation.
 // Returns an error if something is wrong with the scale.
 // Returns an error if polynomials are not all in the same basis.
 // Returns an error if polynomials do not all have the same degree.
@@ -114,19 +113,18 @@ type polynomialVector struct {
 // Coefficients of the polynomial with an absolute value smaller than "IsNegligbleThreshold" will automatically be set to zero
 // if the polynomial is "even" or "odd" (to ensure that the even or odd property remains valid
 // after the "splitCoeffs" polynomial decomposition).
-// input: must be either *Ciphertext or *Powerbasis.
+// input: must be either *Ciphertext or *MonomialBasis.
 // pols: a slice of up to 'n' *Polynomial ('n' being the maximum number of slots), indexed from 0 to n-1.
 // encoder: an Encoder.
 // slotsIndex: a map[int][]int indexing as key the polynomial to evaluate and as value the index of the slots on which to evaluate the polynomial indexed by the key.
 // targetScale: the desired output scale. This value shouldn't differ too much from the original ciphertext scale. It can
 // for example be used to correct small deviations in the ciphertext scale and reset it to the default scale.
-// lazyPowerBasis: if true, the power basis is computed with lazy relinearization.
 //
 // Example: if pols = []*Polynomial{pol0, pol1} and slotsIndex = map[int][]int:{0:[1, 2, 4, 5, 7], 1:[0, 3]},
 // then pol0 will be applied to slots [1, 2, 4, 5, 7], pol1 to slots [0, 3] and the slot 6 will be zero-ed.
-func (eval *evaluator) EvaluatePolyVector(input interface{}, pols []*Polynomial, encoder Encoder, slotsIndex map[int][]int, targetScale float64, lazyPowerBasis bool) (opOut *Ciphertext, err error) {
+func (eval *evaluator) EvaluatePolyVector(input interface{}, pols []*Polynomial, encoder Encoder, slotsIndex map[int][]int, targetScale float64) (opOut *Ciphertext, err error) {
 	var maxDeg int
-	var basis PolynomialBasis
+	var basis BasisType
 	for i := range pols {
 		maxDeg = utils.MaxInt(maxDeg, pols[i].MaxDeg)
 		basis = pols[i].Basis
@@ -142,7 +140,7 @@ func (eval *evaluator) EvaluatePolyVector(input interface{}, pols []*Polynomial,
 		}
 	}
 
-	return eval.evaluatePolyVector(input, polynomialVector{Encoder: encoder, Value: pols, SlotsIndex: slotsIndex}, targetScale, lazyPowerBasis)
+	return eval.evaluatePolyVector(input, polynomialVector{Encoder: encoder, Value: pols, SlotsIndex: slotsIndex}, targetScale)
 }
 
 func optimalSplit(logDegree int) (logSplit int) {
@@ -156,26 +154,26 @@ func optimalSplit(logDegree int) (logSplit int) {
 	return
 }
 
-func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVector, targetScale float64, lazy bool) (opOut *Ciphertext, err error) {
+func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVector, targetScale float64) (opOut *Ciphertext, err error) {
 
 	if pol.SlotsIndex != nil && pol.Encoder == nil {
 		return nil, fmt.Errorf("cannot EvaluatePolyVector: missing Encoder input")
 	}
 
-	var powerBasis *PowerBasis
+	var monomialBasis *MonomialBasis
 	switch input := input.(type) {
 	case *Ciphertext:
-		powerBasis = NewPowerBasis(input, pol.Value[0].Basis)
-	case *PowerBasis:
+		monomialBasis = NewMonomialBasis(input, pol.Value[0].Basis)
+	case *MonomialBasis:
 		if input.Value[1] == nil {
-			return nil, fmt.Errorf("cannot evaluatePolyVector: given PowerBasis[1] is empty")
+			return nil, fmt.Errorf("cannot evaluatePolyVector: given MonomialBasis.Value[1] is empty")
 		}
-		powerBasis = input
+		monomialBasis = input
 	default:
-		return nil, fmt.Errorf("cannot evaluatePolyVector: invalid input, must be either *Ciphertext or *PowerBasis")
+		return nil, fmt.Errorf("cannot evaluatePolyVector: invalid input, must be either *Ciphertext or *MonomialBasis")
 	}
 
-	if err := checkEnoughLevels(powerBasis.Value[1].Level(), pol.Value[0].Depth(), 1); err != nil {
+	if err := checkEnoughLevels(monomialBasis.Value[1].Level(), pol.Value[0].Depth(), 1); err != nil {
 		return nil, err
 	}
 
@@ -188,16 +186,18 @@ func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVecto
 		odd, even = odd && tmp0, even && tmp1
 	}
 
+	isRingStandard := eval.params.RingType() == ring.Standard
+
 	for i := (1 << logSplit) - 1; i > 1; i-- {
 		if !(even || odd) || (i&1 == 0 && even) || (i&1 == 1 && odd) {
-			if err = powerBasis.GenPower(i, lazy, targetScale, eval); err != nil {
+			if err = monomialBasis.GenPower(i, isRingStandard, targetScale, eval); err != nil {
 				return nil, err
 			}
 		}
 	}
 
 	for i := logSplit; i < logDegree; i++ {
-		if err = powerBasis.GenPower(1<<i, false, targetScale, eval); err != nil {
+		if err = monomialBasis.GenPower(1<<i, false, targetScale, eval); err != nil {
 			return nil, err
 		}
 	}
@@ -206,13 +206,13 @@ func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVecto
 	polyEval.slotsIndex = pol.SlotsIndex
 	polyEval.Evaluator = eval
 	polyEval.Encoder = pol.Encoder
-	polyEval.powerBasis = powerBasis
+	polyEval.MonomialBasis = *monomialBasis
 	polyEval.logDegree = logDegree
 	polyEval.logSplit = logSplit
 	polyEval.isOdd = odd
 	polyEval.isEven = even
 
-	if opOut, err = polyEval.recurse(powerBasis.Value[1].Level()-logDegree+1, targetScale, pol); err != nil {
+	if opOut, err = polyEval.recurse(monomialBasis.Value[1].Level()-logDegree+1, targetScale, pol); err != nil {
 		return nil, err
 	}
 
@@ -229,28 +229,32 @@ func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVecto
 	return opOut, err
 }
 
-// PowerBasis is a struct storing powers of a ciphertext.
-type PowerBasis struct {
+// MonomialBasis is a struct storing powers of a ciphertext.
+type MonomialBasis struct {
+	BasisType
 	Value map[int]*Ciphertext
-	Basis PolynomialBasis
+	lazy  bool
 }
 
-// NewPowerBasis creates a new PowerBasis.
-func NewPowerBasis(ct *Ciphertext, Basis PolynomialBasis) (p *PowerBasis) {
-	p = new(PowerBasis)
+// NewMonomialBasis creates a new MonomialBasis. It takes as input a ciphertext
+// and a basistype. The struct treates the input ciphertext as a monomial X and
+// can be used to generates power of this monomial X^{n} in the given BasisType.
+func NewMonomialBasis(ct *Ciphertext, basistype BasisType) (p *MonomialBasis) {
+	p = new(MonomialBasis)
 	p.Value = make(map[int]*Ciphertext)
 	p.Value[1] = ct.CopyNew()
-	p.Basis = Basis
+	p.BasisType = basistype
 	return
 }
 
-// GenPower generates X^{n} in the power basis. If lazy = true, the final X^{n} will not be
-// relinearized. Scale sets the threshold for rescaling (ciphertext won't be rescaled if
-// the rescaling operation would make the scale go under this threshold).
-func (p *PowerBasis) GenPower(n int, lazy bool, scale float64, eval Evaluator) (err error) {
+// GenPower recursively computes X^{n}.
+// If lazy = true, the final X^{n} will not be relinearized.
+// Previous non-relinearized X^{n} that are required to compute the target X^{n} are automatically relinearized.
+// Scale sets the threshold for rescaling (ciphertext won't be rescaled if the rescaling operation would make the scale go under this threshold).
+func (p *MonomialBasis) GenPower(n int, lazy bool, scale float64, eval Evaluator) (err error) {
 
 	if p.Value[n] == nil {
-		if err = p.genPower(n, n, lazy, scale, eval); err != nil {
+		if err = p.genPower(n, lazy, scale, eval); err != nil {
 			return
 		}
 
@@ -262,7 +266,7 @@ func (p *PowerBasis) GenPower(n int, lazy bool, scale float64, eval Evaluator) (
 	return nil
 }
 
-func (p *PowerBasis) genPower(target, n int, lazy bool, scale float64, eval Evaluator) (err error) {
+func (p *MonomialBasis) genPower(n int, lazy bool, scale float64, eval Evaluator) (err error) {
 	if p.Value[n] == nil {
 
 		isPow2 := n&(n-1) == 0
@@ -278,16 +282,16 @@ func (p *PowerBasis) genPower(target, n int, lazy bool, scale float64, eval Eval
 			a = (1 << k) - 1
 			b = n + 1 - (1 << k)
 
-			if p.Basis == ChebyshevBasis {
+			if p.BasisType == ChebyshevBasis {
 				c = int(math.Abs(float64(a) - float64(b))) // Cn = 2*Ca*Cb - Cc, n = a+b and c = abs(a-b)
 			}
 		}
 
 		// Recurses on the given indexes
-		if err = p.genPower(target, a, lazy && !isPow2, scale, eval); err != nil {
+		if err = p.genPower(a, lazy && !isPow2, scale, eval); err != nil {
 			return err
 		}
-		if err = p.genPower(target, b, lazy && !isPow2, scale, eval); err != nil {
+		if err = p.genPower(b, lazy && !isPow2, scale, eval); err != nil {
 			return err
 		}
 
@@ -319,7 +323,7 @@ func (p *PowerBasis) genPower(target, n int, lazy bool, scale float64, eval Eval
 			}
 		}
 
-		if p.Basis == ChebyshevBasis {
+		if p.BasisType == ChebyshevBasis {
 
 			// Computes C[n] = 2*C[a]*C[b]
 			eval.Add(p.Value[n], p.Value[n], p.Value[n])
@@ -340,7 +344,7 @@ func (p *PowerBasis) genPower(target, n int, lazy bool, scale float64, eval Eval
 }
 
 // MarshalBinary encodes the target on a slice of bytes.
-func (p *PowerBasis) MarshalBinary() (data []byte, err error) {
+func (p *MonomialBasis) MarshalBinary() (data []byte, err error) {
 	data = make([]byte, 16)
 	binary.LittleEndian.PutUint64(data[0:8], uint64(len(p.Value)))
 	binary.LittleEndian.PutUint64(data[8:16], uint64(p.Value[1].GetDataLen(true)))
@@ -358,7 +362,7 @@ func (p *PowerBasis) MarshalBinary() (data []byte, err error) {
 }
 
 // UnmarshalBinary decodes a slice of bytes on the target.
-func (p *PowerBasis) UnmarshalBinary(data []byte) (err error) {
+func (p *MonomialBasis) UnmarshalBinary(data []byte) (err error) {
 	p.Value = make(map[int]*Ciphertext)
 	nbct := int(binary.LittleEndian.Uint64(data[0:8]))
 	dtLen := int(binary.LittleEndian.Uint64(data[8:16]))
@@ -446,7 +450,7 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale float6
 			polyEvalBis.slotsIndex = polyEval.slotsIndex
 			polyEvalBis.logDegree = logDegree
 			polyEvalBis.logSplit = logSplit
-			polyEvalBis.powerBasis = polyEval.powerBasis
+			polyEvalBis.MonomialBasis = polyEval.MonomialBasis
 			polyEvalBis.isOdd = polyEval.isOdd
 			polyEvalBis.isEven = polyEval.isEven
 
@@ -457,7 +461,7 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale float6
 			targetScale *= params.QiFloat64(targetLevel)
 		}
 
-		return polyEval.evaluatePolyFromPowerBasis(targetScale, targetLevel, pol)
+		return polyEval.evaluatePolyFromMonomialBasis(targetScale, targetLevel, pol)
 	}
 
 	var nextPower = 1 << polyEval.logSplit
@@ -467,7 +471,7 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale float6
 
 	coeffsq, coeffsr := splitCoeffsPolyVector(pol, nextPower)
 
-	XPow := polyEval.powerBasis.Value[nextPower]
+	XPow := polyEval.MonomialBasis.Value[nextPower]
 
 	level := targetLevel
 
@@ -504,9 +508,9 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale float6
 	return
 }
 
-func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetScale float64, level int, pol polynomialVector) (res *Ciphertext, err error) {
+func (polyEval *polynomialEvaluator) evaluatePolyFromMonomialBasis(targetScale float64, level int, pol polynomialVector) (res *Ciphertext, err error) {
 
-	X := polyEval.powerBasis.Value
+	X := polyEval.MonomialBasis.Value
 
 	params := polyEval.Evaluator.(*evaluator).params
 	slotsIndex := polyEval.slotsIndex

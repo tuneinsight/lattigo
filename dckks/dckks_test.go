@@ -837,7 +837,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 		}
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.sIn, p.sOut, logBound, params.LogSlots(), ciphertext.Value[1], ciphertext.Scale, crp, transform, p.share)
+			p.GenShare(p.s, p.s, logBound, params.LogSlots(), ciphertext.Value[1], ciphertext.Scale, crp, permute, p.share)
 
 			if i > 0 {
 				P0.AggregateShare(p.share, P0.share, P0.share)
@@ -861,8 +861,115 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 	})
 }
 
-func testMarshalling(tc *testContext, t *testing.T) {
-	params := tc.params
+func testRefreshAndTransformSwitchParams(testCtx *testContext, t *testing.T) {
+
+	var err error
+
+	encryptorPk0 := testCtx.encryptorPk0
+	sk0Shards := testCtx.sk0Shards
+	params := testCtx.params
+
+	t.Run(testString("RefreshAndTransformAndSwitchParams", parties, params), func(t *testing.T) {
+
+		var minLevel, logBound int
+		var ok bool
+		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.DefaultScale(), parties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
+			t.Skip("Not enough levels to ensure correcness and 128 security")
+		}
+
+		type Party struct {
+			*MaskedTransformProtocol
+			sIn   *rlwe.SecretKey
+			sOut  *rlwe.SecretKey
+			share *MaskedTransformShare
+		}
+
+		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, -1, 1)
+
+		// Drops the ciphertext to the minimum level that ensures correctness and 128-bit security
+		testCtx.evaluator.DropLevel(ciphertext, ciphertext.Level()-minLevel-1)
+
+		levelIn := minLevel
+
+		// Target parameters
+		var paramsOut ckks.Parameters
+		paramsOut, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
+			ParametersLiteral: rlwe.ParametersLiteral{
+				LogN:     params.LogN() + 1,
+				LogQ:     []int{54, 49, 49, 49, 49, 49, 49},
+				LogP:     []int{52, 52},
+				RingType: params.RingType(),
+			},
+			LogSlots:     params.MaxLogSlots() + 1,
+			DefaultScale: 1 << 49,
+		})
+
+		require.Nil(t, err)
+
+		levelOut := paramsOut.MaxLevel()
+
+		RefreshParties := make([]*Party, parties)
+
+		kgenParamsOut := rlwe.NewKeyGenerator(paramsOut.Parameters)
+		skIdealOut := rlwe.NewSecretKey(paramsOut.Parameters)
+		for i := 0; i < parties; i++ {
+			p := new(Party)
+
+			if i == 0 {
+				if p.MaskedTransformProtocol, err = NewMaskedTransformProtocol(params, paramsOut, logBound, 3.2); err != nil {
+					t.Log(err)
+					t.Fail()
+				}
+			} else {
+				p.MaskedTransformProtocol = RefreshParties[0].MaskedTransformProtocol.ShallowCopy()
+			}
+
+			p.sIn = sk0Shards[i]
+
+			p.sOut = kgenParamsOut.GenSecretKey() // New shared secret key in target parameters
+			paramsOut.RingQ().Add(skIdealOut.Value.Q, p.sOut.Value.Q, skIdealOut.Value.Q)
+
+			p.share = p.AllocateShare(levelIn, levelOut)
+			RefreshParties[i] = p
+		}
+
+		P0 := RefreshParties[0]
+		crp := P0.SampleCRP(levelOut, testCtx.crs)
+
+		permute := func(coeffs []*ring.Complex) {
+			for i := range coeffs {
+				coeffs[i][0].Mul(coeffs[i][0], ring.NewFloat(0.9238795325112867, logBound))
+				coeffs[i][1].Mul(coeffs[i][1], ring.NewFloat(0.7071067811865476, logBound))
+			}
+		}
+
+		for i, p := range RefreshParties {
+			p.GenShare(p.sIn, p.sOut, logBound, params.LogSlots(), ciphertext.Value[1], ciphertext.Scale, crp, permute, p.share)
+
+			if i > 0 {
+				P0.AggregateShare(p.share, P0.share, P0.share)
+			}
+		}
+
+		P0.Transform(ciphertext, testCtx.params.LogSlots(), permute, crp, P0.share, ciphertext)
+
+		for i := range coeffs {
+			coeffs[i] = complex(real(coeffs[i])*0.9238795325112867, imag(coeffs[i])*0.7071067811865476)
+		}
+
+		precStats := ckks.GetPrecisionStats(paramsOut, ckks.NewEncoder(paramsOut), nil, coeffs, ckks.NewDecryptor(paramsOut, skIdealOut).DecryptNew(ciphertext), params.LogSlots(), 0)
+
+		if *printPrecisionStats {
+			t.Log(precStats.String())
+		}
+
+		require.GreaterOrEqual(t, precStats.MeanPrecision.Real, minPrec)
+		require.GreaterOrEqual(t, precStats.MeanPrecision.Imag, minPrec)
+	})
+}
+
+func testMarshalling(testCtx *testContext, t *testing.T) {
+	params := testCtx.params
 
 	t.Run(testString("Marshalling/Refresh", parties, params), func(t *testing.T) {
 

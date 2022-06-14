@@ -21,7 +21,8 @@ type RefreshShare struct {
 // precision : the log2 of decimal precision of the internal encoder.
 func NewRefreshProtocol(params ckks.Parameters, precision int, sigmaSmudging float64) (rfp *RefreshProtocol) {
 	rfp = new(RefreshProtocol)
-	rfp.MaskedTransformProtocol = *NewMaskedTransformProtocol(params, precision, sigmaSmudging)
+	mt, _ := NewMaskedTransformProtocol(params, params, precision, sigmaSmudging)
+	rfp.MaskedTransformProtocol = *mt
 	return
 }
 
@@ -47,7 +48,7 @@ func (rfp *RefreshProtocol) AllocateShare(inputLevel, outputLevel int) *RefreshS
 // The method "GetMinimumLevelForBootstrapping" should be used to get the minimum level at which the refresh can be called while still ensure 128-bits of security, as well as the
 // value for logBound.
 func (rfp *RefreshProtocol) GenShare(sk *rlwe.SecretKey, logBound, logSlots int, ct1 *ring.Poly, scale float64, crs drlwe.CKSCRP, shareOut *RefreshShare) {
-	rfp.MaskedTransformProtocol.GenShare(sk, logBound, logSlots, ct1, scale, crs, nil, &shareOut.MaskedTransformShare)
+	rfp.MaskedTransformProtocol.GenShare(sk, sk, logBound, logSlots, ct1, scale, crs, nil, &shareOut.MaskedTransformShare)
 }
 
 // AggregateShare aggregates two parties' shares in the Refresh protocol.

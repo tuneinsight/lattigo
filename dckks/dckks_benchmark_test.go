@@ -328,7 +328,7 @@ func benchMaskedTransform(testCtx *testContext, b *testing.B) {
 		ciphertext := ckks.NewCiphertext(params, 1, minLevel, params.DefaultScale())
 
 		p := new(Party)
-		p.MaskedTransformProtocol = NewMaskedTransformProtocol(params, logBound, 3.2)
+		p.MaskedTransformProtocol, _ = NewMaskedTransformProtocol(params, params, logBound, 3.2)
 		p.s = sk0Shards[0]
 		p.share = p.AllocateShare(ciphertext.Level(), params.MaxLevel())
 
@@ -344,7 +344,7 @@ func benchMaskedTransform(testCtx *testContext, b *testing.B) {
 		b.Run(testString("Refresh&Transform/Round1/Gen", parties, params), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
-				p.GenShare(p.s, logBound, params.LogSlots(), ciphertext.Value[1], ciphertext.Scale, crp, permute, p.share)
+				p.GenShare(p.s, p.s, logBound, params.LogSlots(), ciphertext.Value[1], ciphertext.Scale, crp, permute, p.share)
 			}
 		})
 

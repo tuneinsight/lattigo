@@ -13,13 +13,23 @@ import (
 )
 
 var (
+	// PN11QP54 is a set of default parameters with logN=11 and logQP=54
+	PN11QP54 = ParametersLiteral{
+		ParametersLiteral: rlwe.ParametersLiteral{
+			LogN:  11,
+			Q:     []uint64{0x3001, 0x15400000001}, // 13.5 + 40.4 bits
+			P:     []uint64{},
+			LogBase2: 6,
+		},
+		T: 0x3001,
+	}
+
 	// PN12QP109 is a set of default parameters with logN=12 and logQP=109
 	PN12QP109 = ParametersLiteral{
 		ParametersLiteral: rlwe.ParametersLiteral{
 			LogN:  12,
 			Q:     []uint64{0x7ffffec001, 0x8000016001}, // 39 + 39 bits
 			P:     []uint64{0x40002001},                 // 30 bits
-			Sigma: rlwe.DefaultSigma,
 		},
 		T: 65537,
 	}
@@ -29,7 +39,6 @@ var (
 			LogN:  13,
 			Q:     []uint64{0x3fffffffef8001, 0x4000000011c001, 0x40000000120001}, // 54 + 54 + 54 bits
 			P:     []uint64{0x7ffffffffb4001},                                     // 55 bits
-			Sigma: rlwe.DefaultSigma,
 		},
 		T: 65537,
 	}
@@ -41,7 +50,6 @@ var (
 			Q: []uint64{0x100000000060001, 0x80000000068001, 0x80000000080001,
 				0x3fffffffef8001, 0x40000000120001, 0x3fffffffeb8001}, // 56 + 55 + 55 + 54 + 54 + 54 bits
 			P:     []uint64{0x80000000130001, 0x7fffffffe90001}, // 55 + 55 bits
-			Sigma: rlwe.DefaultSigma,
 		},
 		T: 65537,
 	}
@@ -55,7 +63,7 @@ var (
 				0x3ffffffffc10001, 0x3ffffffffbe0001, 0x3ffffffffbd0001, // 58 + 58 + 58 bits
 				0x4000000004d0001, 0x400000000570001, 0x400000000660001}, // 58 + 58 + 58 bits
 			P:     []uint64{0xffffffffffc0001, 0x10000000001d0001, 0x10000000006e0001}, // 60 + 60 + 60 bits
-			Sigma: rlwe.DefaultSigma},
+		},
 		T: 65537,
 	}
 
@@ -65,7 +73,6 @@ var (
 			LogN:  12,
 			Q:     []uint64{0x800004001, 0x800008001}, // 2*35
 			P:     []uint64{0x80014001},               // 1*31
-			Sigma: rlwe.DefaultSigma,
 		},
 		T: 65537,
 	}
@@ -76,7 +83,6 @@ var (
 			LogN:  13,
 			Q:     []uint64{0x7fffffffe0001, 0x7fffffffcc001, 0x3ffffffffc001}, // 2*51 + 50
 			P:     []uint64{0x4000000024001},                                   // 50
-			Sigma: rlwe.DefaultSigma,
 		},
 		T: 65537,
 	}
@@ -87,7 +93,6 @@ var (
 			LogN:  14,
 			Q:     []uint64{0x7fffffffff18001, 0x8000000000f8001, 0x7ffffffffeb8001, 0x800000000158001, 0x7ffffffffe70001}, // 5*59
 			P:     []uint64{0x7ffffffffe10001, 0x400000000068001},                                                          // 59+58
-			Sigma: rlwe.DefaultSigma,
 		},
 		T: 65537,
 	}
@@ -100,14 +105,13 @@ var (
 				0x7ffffffffb00001, 0x800000000890001, 0x8000000009d0001, 0x7ffffffff630001, 0x800000000a70001,
 				0x7ffffffff510001}, // 11*59
 			P:     []uint64{0x800000000b80001, 0x800000000bb0001, 0xffffffffffc0001}, // 2*59+60
-			Sigma: rlwe.DefaultSigma,
 		},
 		T: 65537,
 	}
 )
 
 // DefaultParams is a set of default BFV parameters ensuring 128 bit security in the classic setting.
-var DefaultParams = []ParametersLiteral{PN12QP109, PN13QP218, PN14QP438, PN15QP880}
+var DefaultParams = []ParametersLiteral{PN11QP54, PN12QP109, PN13QP218, PN14QP438, PN15QP880}
 
 // DefaultPostQuantumParams is a set of default BFV parameters ensuring 128 bit security in the post-quantum setting.
 var DefaultPostQuantumParams = []ParametersLiteral{PN12QP101pq, PN13QP202pq, PN14QP411pq, PN15QP827pq}

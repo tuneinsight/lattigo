@@ -70,8 +70,7 @@ func Test_DBFV(t *testing.T) {
 	if *flagParamString != "" {
 		var jsonParams bfv.ParametersLiteral
 		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
-			t.Error(err)
-			t.Fail()
+			t.Fatal(err)
 		}
 		defaultParams = []bfv.ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
@@ -80,14 +79,12 @@ func Test_DBFV(t *testing.T) {
 
 		var params bfv.Parameters
 		if params, err = bfv.NewParametersFromLiteral(p); err != nil {
-			t.Error(err)
-			t.Fail()
+			t.Fatal(err)
 		}
 
 		var tc *testContext
 		if tc, err = gentestContext(params); err != nil {
-			t.Error(err)
-			t.Fail()
+			t.Fatal(err)
 		}
 		for _, testSet := range []func(tc *testContext, t *testing.T){
 

@@ -19,8 +19,7 @@ func BenchmarkBFV(b *testing.B) {
 	if *flagParamString != "" {
 		var jsonParams ParametersLiteral
 		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
-			b.Error(err)
-			b.Fail()
+			b.Fatal(err)
 		}
 		defaultParams = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
@@ -29,14 +28,12 @@ func BenchmarkBFV(b *testing.B) {
 
 		var params Parameters
 		if params, err = NewParametersFromLiteral(p); err != nil {
-			b.Error(err)
-			b.Fail()
+			b.Fatal(err)
 		}
 
 		var tc *testContext
 		if tc, err = genTestParams(params); err != nil {
-			b.Error(err)
-			b.Fail()
+			b.Fatal(err)
 		}
 
 		benchEncoder(tc, b)

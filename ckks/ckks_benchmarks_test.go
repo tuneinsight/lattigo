@@ -20,8 +20,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 	if *flagParamString != "" {
 		var jsonParams ParametersLiteral
 		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
-			b.Error(err)
-			b.Fail()
+			b.Fatal(err)
 		}
 		defaultParams = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
@@ -29,14 +28,12 @@ func BenchmarkCKKSScheme(b *testing.B) {
 	for _, defaultParams := range defaultParams {
 		var params Parameters
 		if params, err = NewParametersFromLiteral(defaultParams); err != nil {
-			b.Error(err)
-			b.Fail()
+			b.Fatal(err)
 		}
 
 		var tc *testContext
 		if tc, err = genTestParams(params); err != nil {
-			b.Error(err)
-			b.Fail()
+			b.Fatal(err)
 		}
 
 		benchEncoder(tc, b)

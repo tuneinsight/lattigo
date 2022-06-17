@@ -1,7 +1,6 @@
 package rlwe
 
 import (
-	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -45,8 +44,7 @@ func TestRLWE(t *testing.T) {
 	if *flagParamString != "" {
 		var jsonParams ParametersLiteral
 		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
-			t.Error(err)
-			t.Fail()
+			t.Fatal(err)
 		}
 		defaultParams = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
@@ -54,8 +52,7 @@ func TestRLWE(t *testing.T) {
 	for _, defaultParam := range defaultParams[:] {
 		var params Parameters
 		if params, err = NewParametersFromLiteral(defaultParam); err != nil {
-			t.Error(err)
-			t.Fail()
+			t.Fatal(err)
 		}
 
 		kgen := NewKeyGenerator(params)
@@ -704,43 +701,6 @@ func testMarshaller(kgen KeyGenerator, t *testing.T) {
 					require.True(t, params.RingQ().EqualLvl(ciphertextWant.Level(), ciphertextWant.Value[i], ciphertextTest.Value[i]))
 				}
 			})
-		}
-	})
-
-	t.Run(testString(params, "Marshaller/SeededCiphertextBatch"), func(t *testing.T) {
-
-		prng, _ := utils.NewPRNG()
-
-		value := []*Ciphertext{
-			NewCiphertextRandom(prng, params, 1, params.MaxLevel()),
-			NewCiphertextRandom(prng, params, 1, params.MaxLevel()),
-		}
-
-		seed := []byte{'L', 'a', 't', 't', 'i', 'g', 'o'}
-
-		ctBatch := SeededCiphertextBatch{
-			Seed:  seed,
-			Value: value,
-		}
-
-		marshalledCiphertext, err := ctBatch.MarshalBinary()
-		require.NoError(t, err)
-
-		ctBatchTest := SeededCiphertextBatch{}
-		require.NoError(t, ctBatchTest.UnmarshalBinary(marshalledCiphertext))
-
-		require.True(t, bytes.Equal(seed, ctBatchTest.Seed))
-
-		for i, ciphertextTest := range ctBatchTest.Value {
-
-			ciphertextWant := value[i]
-
-			require.Equal(t, ciphertextWant.Degree(), ciphertextTest.Degree())
-			require.Equal(t, ciphertextWant.Level(), ciphertextTest.Level())
-
-			for j := range ciphertextWant.Value {
-				require.True(t, params.RingQ().EqualLvl(ciphertextWant.Level(), ciphertextWant.Value[j], ciphertextTest.Value[j]))
-			}
 		}
 	})
 

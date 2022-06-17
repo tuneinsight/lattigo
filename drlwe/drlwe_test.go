@@ -80,8 +80,7 @@ func TestDRLWE(t *testing.T) {
 	if *flagParamString != "" {
 		var jsonParams rlwe.ParametersLiteral
 		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
-			t.Error(err)
-			t.Fail()
+			t.Fatal(err)
 		}
 		defaultParams = []rlwe.ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
@@ -89,8 +88,7 @@ func TestDRLWE(t *testing.T) {
 	for _, defaultParam := range defaultParams {
 		var params rlwe.Parameters
 		if params, err = rlwe.NewParametersFromLiteral(defaultParam); err != nil {
-			t.Error(err)
-			t.Fail()
+			t.Fatal(err)
 		}
 
 		textCtx := newTestContext(params)

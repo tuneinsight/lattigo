@@ -60,8 +60,7 @@ func TestCKKS(t *testing.T) {
 	case *flagParamString != "": // the custom test suite reads the parameters from the -params flag
 		testParams = append(testParams, ParametersLiteral{})
 		if err = json.Unmarshal([]byte(*flagParamString), &testParams[0]); err != nil {
-			t.Error(err)
-			t.Fail()
+			t.Fatal(err)
 		}
 	case *flagLongTest:
 		for _, pls := range [][]ParametersLiteral{
@@ -85,14 +84,12 @@ func TestCKKS(t *testing.T) {
 
 		var params Parameters
 		if params, err = NewParametersFromLiteral(paramsLiteral); err != nil {
-			t.Error(err)
-			t.Fail()
+			t.Fatal(err)
 		}
 
 		var tc *testContext
 		if tc, err = genTestParams(params); err != nil {
-			t.Error(err)
-			t.Fail()
+			t.Fatal(err)
 		}
 
 		for _, testSet := range []func(tc *testContext, t *testing.T){
@@ -433,7 +430,6 @@ func testEvaluatorRescale(tc *testContext, t *testing.T) {
 
 		if err := tc.evaluator.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
 			t.Error(err)
-			t.Fail()
 		}
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogSlots(), 0, t)
@@ -460,7 +456,6 @@ func testEvaluatorRescale(tc *testContext, t *testing.T) {
 
 		if err := tc.evaluator.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
 			t.Error(err)
-			t.Fail()
 		}
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogSlots(), 0, t)
@@ -916,12 +911,12 @@ func testChebyshevInterpolator(tc *testContext, t *testing.T) {
 		eval.AddConst(ciphertext, (-poly.A-poly.B)/(poly.B-poly.A), ciphertext)
 		if err = eval.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
 			t.Error(err)
-			t.Fail()
+			
 		}
 
 		if ciphertext, err = eval.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {
 			t.Error(err)
-			t.Fail()
+			
 		}
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogSlots(), 0, t)
@@ -952,12 +947,12 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 		eval.AddConst(ciphertext, (-poly.A-poly.B)/(poly.B-poly.A), ciphertext)
 		if err := eval.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
 			t.Error(err)
-			t.Fail()
+			
 		}
 
 		if ciphertext, err = eval.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {
 			t.Error(err)
-			t.Fail()
+			
 		}
 
 		plaintext := tc.decryptor.DecryptNew(ciphertext)

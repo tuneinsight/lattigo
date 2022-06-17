@@ -64,7 +64,7 @@ func TestRing(t *testing.T) {
 
 		var tc *testParams
 		if tc, err = genTestParams(defaultParam); err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 
 		testNTTConjugateInvariant(tc, t)
@@ -179,22 +179,18 @@ func testPRNG(tc *testParams, t *testing.T) {
 
 		if prng1, err = utils.NewKeyedPRNG(nil); err != nil {
 			t.Error(err)
-			t.Fail()
 		}
 
 		if prng2, err = utils.NewKeyedPRNG(nil); err != nil {
 			t.Error(err)
-			t.Fail()
 		}
 
 		if err = prng1.SetClock(sum, 256); err != nil {
 			t.Error(err)
-			t.Fail()
 		}
 
 		if err = prng2.SetClock(sum, 256); err != nil {
 			t.Error(err)
-			t.Fail()
 		}
 
 		crsGenerator1 := NewUniformSampler(prng1, tc.ringQ)
@@ -319,13 +315,11 @@ func testMarshalBinary(tc *testParams, t *testing.T) {
 		var data []byte
 		if data, err = tc.ringQ.MarshalBinary(); err != nil {
 			t.Error(err)
-			t.Fail()
 		}
 
 		ringQTest := new(Ring)
 		if err = ringQTest.UnmarshalBinary(data); err != nil {
 			t.Error(err)
-			t.Fail()
 		}
 
 		require.Equal(t, ringQTest.N, tc.ringQ.N)
@@ -341,13 +335,11 @@ func testMarshalBinary(tc *testParams, t *testing.T) {
 		var data []byte
 		if data, err = p.MarshalBinary(); err != nil {
 			t.Error(err)
-			t.Fail()
 		}
 
 		pTest := new(Poly)
 		if err = pTest.UnmarshalBinary(data); err != nil {
 			t.Error(err)
-			t.Fail()
 		}
 
 		for i := range tc.ringQ.Modulus {

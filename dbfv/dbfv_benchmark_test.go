@@ -20,8 +20,7 @@ func Benchmark_DBFV(b *testing.B) {
 	if *flagParamString != "" {
 		var jsonParams bfv.ParametersLiteral
 		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
-			b.Error(err)
-			b.Fail()
+			b.Fatal(err)
 		}
 		defaultParams = []bfv.ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
@@ -29,14 +28,12 @@ func Benchmark_DBFV(b *testing.B) {
 	for _, p := range defaultParams {
 		var params bfv.Parameters
 		if params, err = bfv.NewParametersFromLiteral(p); err != nil {
-			b.Error(err)
-			b.Fail()
+			b.Fatal(err)
 		}
 
 		var testCtx *testContext
 		if testCtx, err = gentestContext(params); err != nil {
-			b.Error(err)
-			b.Fail()
+			b.Fatal(err)
 		}
 
 		benchPublicKeyGen(testCtx, b)

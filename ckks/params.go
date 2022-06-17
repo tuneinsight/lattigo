@@ -24,10 +24,6 @@ var (
 			LogN:     12,
 			Q:        []uint64{0x200000e001, 0x100006001}, // 37 + 32},
 			P:        []uint64{0x3ffffea001},              // 38
-			LogBase2: 0,
-			Sigma:    rlwe.DefaultSigma,
-			H:        0,
-			RingType: ring.Standard,
 		},
 		LogSlots:     11,
 		DefaultScale: 1 << 32,
@@ -44,10 +40,6 @@ var (
 				0x40038001,
 				0x3ffc0001},
 			P:        []uint64{0x800004001}, // 35
-			LogBase2: 0,
-			H:        0,
-			Sigma:    rlwe.DefaultSigma,
-			RingType: ring.Standard,
 		},
 		LogSlots:     12,
 		DefaultScale: 1 << 30,
@@ -63,10 +55,6 @@ var (
 				0x400080001, 0x4000a8001,
 				0x400108001, 0x3ffeb8001},
 			P:        []uint64{0x7fffffd8001, 0x7fffffc8001}, // 43, 43
-			LogBase2: 0,
-			H:        0,
-			Sigma:    rlwe.DefaultSigma,
-			RingType: ring.Standard,
 		},
 		LogSlots:     13,
 		DefaultScale: 1 << 34,
@@ -83,10 +71,6 @@ var (
 				0xffff8a0001, 0xffff820001, 0xffff780001,
 				0x10000890001, 0xffff750001, 0x10000960001},
 			P:        []uint64{0x40000001b0001, 0x3ffffffdf0001, 0x4000000270001}, // 50, 50, 50
-			LogBase2: 0,
-			H:        0,
-			Sigma:    rlwe.DefaultSigma,
-			RingType: ring.Standard,
 		},
 		LogSlots:     14,
 		DefaultScale: 1 << 40,
@@ -105,10 +89,6 @@ var (
 				0x200001e80001, 0x1ffffe0c0001, 0x1ffffdee0001, 0x200002480001,
 				0x1ffffdb60001, 0x200002560001},
 			P:        []uint64{0x80000000440001, 0x7fffffffba0001, 0x80000000500001, 0x7fffffffaa0001}, // 4 x 55
-			LogBase2: 0,
-			H:        0,
-			Sigma:    rlwe.DefaultSigma,
-			RingType: ring.Standard,
 		},
 		LogSlots:     15,
 		DefaultScale: 1 << 45,
@@ -120,10 +100,7 @@ var (
 			LogN:     12,
 			Q:        []uint64{0x1ffffe0001, 0x100014001}, // 37 + 32
 			P:        []uint64{0x4000038001},              // 38
-			Sigma:    rlwe.DefaultSigma,
 			RingType: ring.ConjugateInvariant,
-			LogBase2: 0,
-			H:        0,
 		},
 		LogSlots:     12,
 		DefaultScale: 1 << 32,
@@ -140,9 +117,6 @@ var (
 				0x3ffc0001,
 				0x40080001},
 			P:        []uint64{0x800008001}, // 35
-			LogBase2: 0,
-			H:        0,
-			Sigma:    rlwe.DefaultSigma,
 			RingType: ring.ConjugateInvariant,
 		},
 		LogSlots:     13,
@@ -158,9 +132,6 @@ var (
 				0x3ffd20001, 0x400300001,
 				0x400360001, 0x4003e0001},
 			P:        []uint64{0x80000050001, 0x7ffffdb0001}, // 43, 43
-			LogBase2: 0,
-			H:        0,
-			Sigma:    rlwe.DefaultSigma,
 			RingType: ring.ConjugateInvariant,
 		},
 		LogSlots:     14,
@@ -179,9 +150,6 @@ var (
 				0xffff580001, 0x10000b60001, 0xffff480001,
 				0xffff420001, 0xffff340001},
 			P:        []uint64{0x3ffffffd20001, 0x4000000420001, 0x3ffffffb80001}, // 50, 50, 50
-			LogBase2: 0,
-			H:        0,
-			Sigma:    rlwe.DefaultSigma,
 			RingType: ring.ConjugateInvariant,
 		},
 		LogSlots:     15,
@@ -202,9 +170,6 @@ var (
 				0x200004700001, 0x1ffffb900001, 0x200004cc0001, 0x1ffffb240001,
 				0x200004e80001},
 			P:        []uint64{0x80000000440001, 0x80000000500001, 0x7fffffff380001, 0x80000000e00001}, // 4 x 55
-			LogBase2: 0,
-			H:        0,
-			Sigma:    rlwe.DefaultSigma,
 			RingType: ring.ConjugateInvariant,
 		},
 		LogSlots:     16,
@@ -217,10 +182,6 @@ var (
 			LogN:     12,
 			Q:        []uint64{0x800004001, 0x40002001}, // 35 + 30
 			P:        []uint64{0x1000002001},            // 36
-			LogBase2: 0,
-			H:        0,
-			Sigma:    rlwe.DefaultSigma,
-			RingType: ring.Standard,
 		},
 		LogSlots:     11,
 		DefaultScale: 1 << 30,
@@ -231,10 +192,6 @@ var (
 			LogN:     13,
 			Q:        []uint64{0x1fffec001, 0x8008001, 0x8020001, 0x802c001, 0x7fa8001, 0x7f74001}, // 33 + 5 x 27
 			P:        []uint64{0x400018001},                                                        // 34
-			LogBase2: 0,
-			H:        0,
-			Sigma:    rlwe.DefaultSigma,
-			RingType: ring.Standard,
 		},
 		LogSlots:     12,
 		DefaultScale: 1 << 27,
@@ -247,10 +204,6 @@ var (
 			Q: []uint64{0x10000048001, 0x200038001, 0x1fff90001, 0x200080001, 0x1fff60001,
 				0x2000b8001, 0x200100001, 0x1fff00001, 0x1ffef0001, 0x200128001}, // 40 + 9 x 33
 			P:        []uint64{0x1ffffe0001, 0x1ffffc0001}, // 37, 37
-			LogBase2: 0,
-			H:        0,
-			Sigma:    rlwe.DefaultSigma,
-			RingType: ring.Standard,
 		},
 		LogSlots:     13,
 		DefaultScale: 1 << 33,
@@ -265,10 +218,6 @@ var (
 				0x3fffb70001, 0x40004a0001, 0x3fffb20001, 0x4000510001, 0x3fffaf0001,
 				0x4000540001, 0x4000560001, 0x4000590001}, // 46 + 17 x 38
 			P:        []uint64{0x2000000a0001, 0x2000000e0001, 0x2000001d0001}, // 3 x 45
-			LogBase2: 0,
-			H:        0,
-			Sigma:    rlwe.DefaultSigma,
-			RingType: ring.Standard,
 		},
 		LogSlots:     14,
 		DefaultScale: 1 << 38,
@@ -285,10 +234,6 @@ var (
 				0x1ffffe640001, 0x200001a00001, 0x1ffffe520001, 0x200001e80001, 0x1ffffe0c0001,
 				0x1ffffdee0001, 0x200002480001}, // 55 + 31 x 45
 			P:        []uint64{0x7fffffffe0001, 0x80000001c0001, 0x80000002c0001, 0x7ffffffd20001}, // 4 x 51
-			LogBase2: 0,
-			H:        0,
-			Sigma:    rlwe.DefaultSigma,
-			RingType: ring.Standard,
 		},
 		LogSlots:     15,
 		DefaultScale: 1 << 45,
@@ -300,9 +245,6 @@ var (
 			LogN:     12,
 			Q:        []uint64{0x800004001, 0x3fff4001}, // 35 + 30
 			P:        []uint64{0xffffc4001},             // 36
-			LogBase2: 0,
-			H:        0,
-			Sigma:    rlwe.DefaultSigma,
 			RingType: ring.ConjugateInvariant,
 		},
 		LogSlots:     12,
@@ -314,9 +256,6 @@ var (
 			LogN:     13,
 			Q:        []uint64{0x1ffffe0001, 0x100050001, 0xfff88001, 0x100098001, 0x1000b0001}, // 37 + 4 x 32
 			P:        []uint64{0x1ffffc0001},                                                    // 37
-			LogBase2: 0,
-			H:        0,
-			Sigma:    rlwe.DefaultSigma,
 			RingType: ring.ConjugateInvariant,
 		},
 		LogSlots:     13,
@@ -333,9 +272,6 @@ var (
 				0x2002e0001}, // 40 + 9 x 33
 
 			P:        []uint64{0x1ffffe0001, 0x1ffffc0001}, // 37, 37
-			LogBase2: 0,
-			H:        0,
-			Sigma:    rlwe.DefaultSigma,
 			RingType: ring.ConjugateInvariant,
 		},
 		LogSlots:     14,
@@ -352,9 +288,6 @@ var (
 				0x40008a0001, 0x3fff6c0001, 0x40009e0001, 0x3fff300001,
 				0x3fff1c0001, 0x4000fc0001}, // 46 + 17 x 38
 			P:        []uint64{0x2000000a0001, 0x2000000e0001, 0x1fffffc20001}, // 3 x 45
-			LogBase2: 0,
-			H:        0,
-			Sigma:    rlwe.DefaultSigma,
 			RingType: ring.ConjugateInvariant,
 		},
 		LogSlots:     15,
@@ -373,9 +306,6 @@ var (
 				0x1ffffc200001, 0x1ffffc140001, 0x200004100001, 0x200004180001,
 				0x1ffffbc40001, 0x200004700001, 0x1ffffb900001, 0x200004cc0001}, // 55 + 31 x 45
 			P:        []uint64{0x80000001c0001, 0x80000002c0001, 0x8000000500001, 0x7ffffff9c0001}, // 4 x 51
-			LogBase2: 0,
-			H:        0,
-			Sigma:    rlwe.DefaultSigma,
 			RingType: ring.ConjugateInvariant,
 		},
 		LogSlots:     16,

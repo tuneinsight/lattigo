@@ -21,7 +21,7 @@ All notable changes to this project will be documented in this file.
     - `rlwe/gadget`: provides the type `gadget.Ciphertext`, a type of ciphertext used in the gadget product `POLY x GADGET -> RLWE`.
     - `rlwe/lut`: provides tools for the evaluation of Look-Up-Tables (LUT) on `rlwe.Ciphertext`.
     - `rlwe/rgsw`: provides the type `rgsw.Ciphertext`, a type of ciphertext used in the external product `RLWE x RGSW -> RLWE`.
-- RLWE: replaced the type `rlwe.KeySwitcher` by `rlwe.Evaluator`, which provides many new functionalities:
+- RLWE: Generalized `rlwe.KeySwitcher` into `rlwe.Evaluator`, which provides many new functionalities:
     - `DecomposeNTT`: decomposes a polynomial modulo the special RNS basis and extends its basis from Q to QP.
     - `DecomposeSingleNTT`: decomposes a polynomial modulo a single power of the special RNS basis and extends its basis from Q to QP.
     - `ExpandRLWE`: extracts each coefficient of a RLWE sample to the degree-0 coefficient of multiple RLWE samples.

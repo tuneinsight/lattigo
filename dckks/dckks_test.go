@@ -71,8 +71,7 @@ func TestDCKKS(t *testing.T) {
 	case *flagParamString != "": // the custom test suite reads the parameters from the -params flag
 		testParams = append(testParams, ckks.ParametersLiteral{})
 		if err = json.Unmarshal([]byte(*flagParamString), &testParams[0]); err != nil {
-			t.Error(err)
-			t.Fail()
+			t.Fatal(err)
 		}
 	case *flagLongTest:
 		for _, pls := range [][]ckks.ParametersLiteral{
@@ -96,14 +95,12 @@ func TestDCKKS(t *testing.T) {
 
 		var params ckks.Parameters
 		if params, err = ckks.NewParametersFromLiteral(paramsLiteral); err != nil {
-			t.Error(err)
-			t.Fail()
+			t.Fatal(err)
 		}
 
 		var tc *testContext
 		if tc, err = genTestParams(params); err != nil {
-			t.Error(err)
-			t.Fail()
+			t.Fatal(err)
 		}
 
 		for _, testSet := range []func(tc *testContext, t *testing.T){
@@ -280,7 +277,6 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 
 		if err := evaluator.Rescale(ciphertext, params.DefaultScale(), ciphertext); err != nil {
 			t.Error(err)
-			t.Fail()
 		}
 
 		require.Equal(t, ciphertext.Degree(), 1)

@@ -44,7 +44,6 @@ func TestHomomorphicMod(t *testing.T) {
 				0x1fffffffff500001, // Pi 61
 				0x1fffffffff420001, // Pi 61
 			},
-			LogBase2: 0,
 			H:        0,
 			Sigma:    rlwe.DefaultSigma,
 		},
@@ -134,7 +133,6 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 		eval.MultByConst(ciphertext, 1/(float64(evm.K)*evm.QDiff()), ciphertext)
 		if err := eval.Rescale(ciphertext, params.DefaultScale(), ciphertext); err != nil {
 			t.Error(err)
-			t.Fail()
 		}
 
 		// EvalMod
@@ -180,7 +178,6 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 		eval.MultByConst(ciphertext, 1/(float64(evm.K)*evm.QDiff()), ciphertext)
 		if err := eval.Rescale(ciphertext, params.DefaultScale(), ciphertext); err != nil {
 			t.Error(err)
-			t.Fail()
 		}
 
 		// EvalMod

@@ -25,12 +25,12 @@ type EncodingMatrix struct {
 // EncodingMatrixLiteral is a struct storing the parameters to generate the factorized DFT matrix.
 type EncodingMatrixLiteral struct {
 	LinearTransformType LinearTransformType
-	RepackImag2Real     bool    // Repack imag into the right n slots or reals.
-	LogN                int     // log(RingDegree)
-	LogSlots            int     // log(slots)
-	Scaling             float64 // constant by which the matrix is multiplied with
+	RepackImag2Real     bool    // If true, the repacks the imaginary part into the right n slots of the real part
+	LogN                int     // Log2(RingDegree)
+	LogSlots            int     // Log2(slots)
+	Scaling             float64 // Constant by which the matrix is multiplied with
 	LevelStart          int     // Encoding level
-	BitReversed         bool    // Flag for bit-reverseed input to the DFT (with bit-reversed output), by default false.
+	BitReversed         bool    // If true, then applies the transformation bit-reversed and expects bit-reverse inputs
 	BSGSRatio           float64 // n1/n2 ratio for the bsgs algo for matrix x vector eval
 	ScalingFactor       [][]float64
 }

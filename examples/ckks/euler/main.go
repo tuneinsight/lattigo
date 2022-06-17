@@ -22,7 +22,6 @@ func example() {
 				LogN:     14,
 				LogQ:     []int{55, 40, 40, 40, 40, 40, 40, 40},
 				LogP:     []int{45, 45},
-				LogBase2: 0,
 				H:        0,
 				Sigma:    rlwe.DefaultSigma},
 			LogSlots:     13,

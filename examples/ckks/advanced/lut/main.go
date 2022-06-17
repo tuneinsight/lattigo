@@ -61,7 +61,6 @@ func main() {
 			LogN:     LogN,
 			Q:        Q,
 			P:        P,
-			LogBase2: 0,
 			H:        0,
 			Sigma:    rlwe.DefaultSigma,
 			RingType: ring.Standard,
@@ -208,7 +207,7 @@ func main() {
 
 	fmt.Printf("Encrypting bits of skLWE in RGSW... ")
 	now = time.Now()
-	LUTKEY := lut.GenKey(paramsN12.Parameters, skN12, paramsN11.Parameters, skN11) // Generate RGSW(sk_i) for all coefficients of sk
+	LUTKEY := lut.GenEvaluationKey(paramsN12.Parameters, skN12, paramsN11.Parameters, skN11) // Generate RGSW(sk_i) for all coefficients of sk
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
 	// Generates the starting plaintext values.

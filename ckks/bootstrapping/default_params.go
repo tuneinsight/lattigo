@@ -33,7 +33,6 @@ var (
 				LogN:     16,
 				Sigma:    rlwe.DefaultSigma,
 				H:        192,
-				LogBase2: 0,
 				Q: []uint64{
 					0x10000000006e0001, // 60 Q0
 					0x10000140001,      // 40
@@ -125,7 +124,6 @@ var (
 				LogN:     16,
 				Sigma:    rlwe.DefaultSigma,
 				H:        192,
-				LogBase2: 0,
 				Q: []uint64{
 					0x10000000006e0001, // 60 Q0
 					0x2000000a0001,     // 45
@@ -215,7 +213,6 @@ var (
 				LogN:     16,
 				Sigma:    rlwe.DefaultSigma,
 				H:        192,
-				LogBase2: 0,
 				Q: []uint64{
 					0x80000000080001,   // 55 Q0
 					0xffffffffffc0001,  // 60
@@ -303,7 +300,6 @@ var (
 				LogN:     15,
 				Sigma:    rlwe.DefaultSigma,
 				H:        192,
-				LogBase2: 0,
 				Q: []uint64{
 					0x1fff90001,       // 32 Q0
 					0x4000000420001,   // 50
@@ -377,7 +373,6 @@ var (
 				LogN:     16,
 				Sigma:    rlwe.DefaultSigma,
 				H:        32768,
-				LogBase2: 0,
 				Q: []uint64{
 					0x10000000006e0001, // 60 Q0
 					0x10000140001,      // 40
@@ -474,7 +469,6 @@ var (
 				LogN:     16,
 				Sigma:    rlwe.DefaultSigma,
 				H:        32768,
-				LogBase2: 0,
 				Q: []uint64{
 					0x10000000006e0001, // 60 Q0
 					0x2000000a0001,     // 45
@@ -569,7 +563,6 @@ var (
 				LogN:     16,
 				Sigma:    rlwe.DefaultSigma,
 				H:        32768,
-				LogBase2: 0,
 				Q: []uint64{
 					0x80000000080001,   // 55 Q0
 					0xffffffffffc0001,  // 60
@@ -661,7 +654,6 @@ var (
 				LogN:     15,
 				Sigma:    rlwe.DefaultSigma,
 				H:        16384,
-				LogBase2: 0,
 				Q: []uint64{
 					0x10000140001,      // 40 Q0
 					0x7ffe0001,         // 31

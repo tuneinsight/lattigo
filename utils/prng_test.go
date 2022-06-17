@@ -21,12 +21,10 @@ func Test_PRNG(t *testing.T) {
 
 		if err := Ha.SetClock(sum0, 256); err != nil {
 			t.Error(err)
-			t.Fail()
 		}
 
 		if err := Hb.SetClock(sum1, 128); err != nil {
 			t.Error(err)
-			t.Fail()
 		}
 
 		for i := 0; i < 128; i++ {

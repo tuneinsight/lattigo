@@ -294,29 +294,28 @@ func (p *PolynomialBasis) genPower(n int, lazy bool, scale float64, eval Evaluat
 			return err
 		}
 
+		if p.Value[a].Degree() == 2 {
+			eval.Relinearize(p.Value[a], p.Value[a])
+		}
+
+		if p.Value[b].Degree() == 2 {
+			eval.Relinearize(p.Value[b], p.Value[b])
+		}
+
+		if err = eval.Rescale(p.Value[a], scale, p.Value[a]); err != nil {
+			return err
+		}
+
+		if err = eval.Rescale(p.Value[b], scale, p.Value[b]); err != nil {
+			return err
+		}
+
 		// Computes C[n] = C[a]*C[b]
 		if lazy {
-			if p.Value[a].Degree() == 2 {
-				eval.Relinearize(p.Value[a], p.Value[a])
-			}
-
-			if p.Value[b].Degree() == 2 {
-				eval.Relinearize(p.Value[b], p.Value[b])
-			}
-
-			if err = eval.Rescale(p.Value[a], scale, p.Value[a]); err != nil {
-				return err
-			}
-
-			if err = eval.Rescale(p.Value[b], scale, p.Value[b]); err != nil {
-				return err
-			}
-
 			p.Value[n] = eval.MulNew(p.Value[a], p.Value[b])
 
 		} else {
 			p.Value[n] = eval.MulRelinNew(p.Value[a], p.Value[b])
-
 			if err = eval.Rescale(p.Value[n], scale, p.Value[n]); err != nil {
 				return err
 			}
@@ -684,6 +683,8 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasis(targetScale
 			}
 		}
 	}
+
+	fmt.Println(maximumCiphertextDegree, res.Degree())
 
 	return
 }

@@ -226,6 +226,7 @@ func (eval *evaluator) PermuteNTTIndexesForKey(rtks *rlwe.RotationKeySet) *map[u
 }
 
 func (eval *evaluator) checkBinary(op0, op1, opOut Operand, opOutMinDegree int) {
+
 	if op0 == nil || op1 == nil || opOut == nil {
 		panic("cannot checkBinary: operands cannot be nil")
 	}
@@ -235,7 +236,7 @@ func (eval *evaluator) checkBinary(op0, op1, opOut Operand, opOutMinDegree int) 
 	}
 
 	if opOut.Degree() < opOutMinDegree {
-		panic("cannot checkBinary: receiver operand degree is too small")
+		opOut.El().Resize(opOutMinDegree, opOut.Level())
 	}
 
 	for _, pol := range op0.El().Value {

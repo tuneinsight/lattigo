@@ -4,6 +4,7 @@ import (
 	"math"
 	"runtime"
 	"testing"
+	"fmt"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/tuneinsight/lattigo/v3/ckks"
@@ -151,12 +152,12 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 		evm := EvalModLiteral{
 			Q:             0x80000000080001,
 			LevelStart:    12,
-			SineType:      Cos1,
+			SineType:      Cos2,
 			MessageRatio:  256.0,
-			K:             10,
-			SineDeg:       31,
-			DoubleAngle:   2,
-			ArcSineDeg:    7,
+			K:             325,
+			SineDeg:       255,
+			DoubleAngle:   4,
+			ArcSineDeg:    0,
 			ScalingFactor: 1 << 60,
 		}
 
@@ -178,13 +179,16 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 			t.Error(err)
 		}
 
+		fmt.Println(ciphertext.Level())
+
 		// EvalMod
 		ciphertext = eval.EvalModNew(ciphertext, EvalModPoly)
 
 		// PlaintextCircuit
 		//pi2r := 6.283185307179586/complex(math.Exp2(float64(evm.DoubleAngle)), 0)
 		for i := range values {
-			values[i] -= complex(evm.MessageRatio*evm.QDiff()*math.Round(real(values[i])/(evm.MessageRatio/evm.QDiff())), 0)
+			//values[i] -= complex(evm.MessageRatio*evm.QDiff()*math.Round(real(values[i])/(evm.MessageRatio/evm.QDiff())), 0)
+			values[i] = sin2pi2pi(values[i] / complex(evm.MessageRatio*evm.QDiff(), 0)) * complex(evm.MessageRatio*evm.QDiff(), 0) / 6.283185307179586
 		}
 
 		verifyTestVectors(params, encoder, decryptor, values, ciphertext, params.LogSlots(), 0, t)

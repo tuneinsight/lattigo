@@ -74,6 +74,11 @@ type Parameters struct {
 // error distribution parameter sigma. It returns the empty parameters Parameters{} and a non-nil error if the
 // specified parameters are invalid.
 func NewParameters(logn int, q, p []uint64, logBase2, h int, sigma float64, ringType ring.Type) (Parameters, error) {
+
+	if logBase2 != 0 && len(p) > 1{
+		return Parameters{}, fmt.Errorf("rlwe.NewParameters: invalid parameters, cannot have logbase2 > 0 if len(P) > 1")
+	}
+
 	var err error
 	if err = checkSizeParams(logn, len(q), len(p)); err != nil {
 		return Parameters{}, err
@@ -137,14 +142,14 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
 		case ring.ConjugateInvariant:
 			q, p, err = GenModuli(paramDef.LogN+1, paramDef.LogQ, paramDef.LogP)
 		default:
-			panic("invalid ring type")
+			return Parameters{}, fmt.Errorf("rlwe.NewParametersFromLiteral: invalid ring.Type, must be ring.ConjugateInvariant or ring.Standard")
 		}
 		if err != nil {
 			return Parameters{}, err
 		}
 		return NewParameters(paramDef.LogN, q, p, paramDef.LogBase2, paramDef.H, paramDef.Sigma, paramDef.RingType)
 	default:
-		return Parameters{}, fmt.Errorf("invalid parameter literal")
+		return Parameters{}, fmt.Errorf("rlwe.NewParametersFromLiteral: invalid parameter literal")
 	}
 }
 

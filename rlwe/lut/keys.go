@@ -8,14 +8,13 @@ import (
 
 // Key is a struct storing the encryption
 // of the bits of the LWE key.
-type Key struct {
+type EvaluationKey struct {
 	SkPos []*rgsw.Ciphertext
 	SkNeg []*rgsw.Ciphertext
-	One   *rgsw.Plaintext
 }
 
-// GenKey generates the LUT evaluation key
-func GenKey(paramsRLWE rlwe.Parameters, skRLWE *rlwe.SecretKey, paramsLWE rlwe.Parameters, skLWE *rlwe.SecretKey) (key Key) {
+// GenEvaluationKey generates the LUT evaluation key
+func GenEvaluationKey(paramsRLWE rlwe.Parameters, skRLWE *rlwe.SecretKey, paramsLWE rlwe.Parameters, skLWE *rlwe.SecretKey) (key EvaluationKey) {
 
 	skLWEInvNTT := paramsLWE.RingQ().NewPoly()
 
@@ -48,8 +47,8 @@ func GenKey(paramsRLWE rlwe.Parameters, skRLWE *rlwe.SecretKey, paramsLWE rlwe.P
 
 	for i, si := range skLWEInvNTT.Coeffs[0] {
 
-		skRGSWPos[i] = rgsw.NewCiphertextNTT(levelQ, levelP, decompRNS, decompBIT, ringQP)
-		skRGSWNeg[i] = rgsw.NewCiphertextNTT(levelQ, levelP, decompRNS, decompBIT, ringQP)
+		skRGSWPos[i] = rgsw.NewCiphertext(levelQ, levelP, decompRNS, decompBIT, ringQP)
+		skRGSWNeg[i] = rgsw.NewCiphertext(levelQ, levelP, decompRNS, decompBIT, ringQP)
 
 		// sk_i =  1 -> [RGSW(1), RGSW(0)]
 		if si == OneMForm {
@@ -66,5 +65,5 @@ func GenKey(paramsRLWE rlwe.Parameters, skRLWE *rlwe.SecretKey, paramsLWE rlwe.P
 		}
 	}
 
-	return Key{SkPos: skRGSWPos, SkNeg: skRGSWNeg, One: rgsw.NewPlaintext(uint64(1), levelQ, levelP, paramsRLWE.LogBase2(), decompBIT, ringQP)}
+	return EvaluationKey{SkPos: skRGSWPos, SkNeg: skRGSWNeg}
 }

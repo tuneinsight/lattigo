@@ -1,5 +1,5 @@
 // Package gadget implements the R-LWE gadget ciphertexts. A gadget ciphertext is a matrix of ciphertexts encrypting plaintexts
-// decomposed in the RNS and power of two basis.
+// decomposed in the RNS and optionally as well in the power of two basis.
 package gadget
 
 import (
@@ -12,8 +12,9 @@ type Ciphertext struct {
 	Value [][][2]ringqp.Poly
 }
 
-// NewCiphertextNTT returns a new Ciphertext key with pre-allocated zero-value
-func NewCiphertextNTT(levelQ, levelP, decompRNS, decompBIT int, ringQP ringqp.Ring) (ct *Ciphertext) {
+// NewCiphertext returns a new Ciphertext key with pre-allocated zero-value.
+// Ciphertext is always in the NTT domain.
+func NewCiphertext(levelQ, levelP, decompRNS, decompBIT int, ringQP ringqp.Ring) (ct *Ciphertext) {
 	ct = new(Ciphertext)
 	ct.Value = make([][][2]ringqp.Poly, decompRNS)
 	for i := 0; i < decompRNS; i++ {

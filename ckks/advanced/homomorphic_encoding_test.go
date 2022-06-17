@@ -36,9 +36,9 @@ func TestHomomorphicEncoding(t *testing.T) {
 				0x1fffffffffe00001, // Pi 61
 				0x1fffffffffc80001, // Pi 61
 			},
-			
-			H:        0,
-			Sigma:    rlwe.DefaultSigma,
+
+			H:     0,
+			Sigma: rlwe.DefaultSigma,
 		},
 		LogSlots:     12,
 		DefaultScale: 1 << 45,

@@ -60,7 +60,7 @@ func Test_DBFV(t *testing.T) {
 
 	var err error
 
-	defaultParams := bfv.DefaultParams // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
+	defaultParams := bfv.DefaultParams[1:] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	if testing.Short() {
 		defaultParams = bfv.DefaultParams[:2] // the short test suite runs for ring degree N=2^12, 2^13
 	}

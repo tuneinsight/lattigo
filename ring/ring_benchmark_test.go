@@ -23,7 +23,7 @@ func BenchmarkRing(b *testing.B) {
 		var testContext *testParams
 		if testContext, err = genTestParams(defaultParam); err != nil {
 			b.Fatal(err)
-			
+
 		}
 
 		benchGenRing(testContext, b)

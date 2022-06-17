@@ -45,9 +45,9 @@ var (
 	// TESTTDivQN2Q1P is a set of test parameters where T = Q[0].
 	TESTTDivQN2Q1P = ParametersLiteral{
 		ParametersLiteral: rlwe.ParametersLiteral{
-			LogN:  14,
-			Q:     []uint64{0x10001, 0xffffffffffe8001, 0xffffffffffd8001, 0xffffffffffc0001, 0xffffffffff28001},
-			P:     []uint64{0x1fffffffffe10001, 0x1fffffffffe00001},
+			LogN: 14,
+			Q:    []uint64{0x10001, 0xffffffffffe8001, 0xffffffffffd8001, 0xffffffffffc0001, 0xffffffffff28001},
+			P:    []uint64{0x1fffffffffe10001, 0x1fffffffffe00001},
 		},
 		T: 0x10001,
 	}
@@ -55,9 +55,9 @@ var (
 	// TESTTCPrimeQN2Q1P is a set of test parameters where T is coprime with Q.
 	TESTTCPrimeQN2Q1P = ParametersLiteral{
 		ParametersLiteral: rlwe.ParametersLiteral{
-			LogN:  14,
-			Q:     []uint64{0xffffffffffe8001, 0xffffffffffd8001, 0xffffffffffc0001, 0xffffffffff28001},
-			P:     []uint64{0x1fffffffffe10001, 0x1fffffffffe00001},
+			LogN: 14,
+			Q:    []uint64{0xffffffffffe8001, 0xffffffffffd8001, 0xffffffffffc0001, 0xffffffffff28001},
+			P:    []uint64{0x1fffffffffe10001, 0x1fffffffffe00001},
 		},
 		T: 0x10001,
 	}
@@ -749,7 +749,7 @@ func testPolyEval(tc *testContext, t *testing.T) {
 
 			var err error
 			if ciphertext, err = tc.evaluator.EvaluatePoly(ciphertext, poly); err != nil {
-				
+				t.Fatal(err)
 			}
 
 			verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
@@ -791,7 +791,7 @@ func testPolyEval(tc *testContext, t *testing.T) {
 
 			var err error
 			if ciphertext, err = tc.evaluator.EvaluatePolyVector(ciphertext, polyVec, tc.encoder, slotIndex); err != nil {
-				
+				t.Fatal(err)
 			}
 
 			verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)

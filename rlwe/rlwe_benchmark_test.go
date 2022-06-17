@@ -13,7 +13,7 @@ func BenchmarkRLWE(b *testing.B) {
 	}
 	if *flagParamString != "" {
 		var jsonParams ParametersLiteral
-		if err := json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil{
+		if err := json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
 			b.Fatal(err)
 		}
 		defaultParams = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag

@@ -44,8 +44,8 @@ func TestHomomorphicMod(t *testing.T) {
 				0x1fffffffff500001, // Pi 61
 				0x1fffffffff420001, // Pi 61
 			},
-			H:        0,
-			Sigma:    rlwe.DefaultSigma,
+			H:     0,
+			Sigma: rlwe.DefaultSigma,
 		},
 		LogSlots:     13,
 		DefaultScale: 1 << 45,

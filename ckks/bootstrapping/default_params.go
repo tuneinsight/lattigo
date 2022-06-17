@@ -30,9 +30,9 @@ var (
 	N16QP1546H192H32 = defaultParametersLiteral{
 		ckks.ParametersLiteral{
 			ParametersLiteral: rlwe.ParametersLiteral{
-				LogN:     16,
-				Sigma:    rlwe.DefaultSigma,
-				H:        192,
+				LogN:  16,
+				Sigma: rlwe.DefaultSigma,
+				H:     192,
 				Q: []uint64{
 					0x10000000006e0001, // 60 Q0
 					0x10000140001,      // 40
@@ -121,9 +121,9 @@ var (
 	N16QP1547H192H32 = defaultParametersLiteral{
 		ckks.ParametersLiteral{
 			ParametersLiteral: rlwe.ParametersLiteral{
-				LogN:     16,
-				Sigma:    rlwe.DefaultSigma,
-				H:        192,
+				LogN:  16,
+				Sigma: rlwe.DefaultSigma,
+				H:     192,
 				Q: []uint64{
 					0x10000000006e0001, // 60 Q0
 					0x2000000a0001,     // 45
@@ -210,9 +210,9 @@ var (
 	N16QP1553H192H32 = defaultParametersLiteral{
 		ckks.ParametersLiteral{
 			ParametersLiteral: rlwe.ParametersLiteral{
-				LogN:     16,
-				Sigma:    rlwe.DefaultSigma,
-				H:        192,
+				LogN:  16,
+				Sigma: rlwe.DefaultSigma,
+				H:     192,
 				Q: []uint64{
 					0x80000000080001,   // 55 Q0
 					0xffffffffffc0001,  // 60
@@ -297,9 +297,9 @@ var (
 	N15QP768H192H32 = defaultParametersLiteral{
 		ckks.ParametersLiteral{
 			ParametersLiteral: rlwe.ParametersLiteral{
-				LogN:     15,
-				Sigma:    rlwe.DefaultSigma,
-				H:        192,
+				LogN:  15,
+				Sigma: rlwe.DefaultSigma,
+				H:     192,
 				Q: []uint64{
 					0x1fff90001,       // 32 Q0
 					0x4000000420001,   // 50
@@ -370,9 +370,9 @@ var (
 	N16QP1767H32768H32 = defaultParametersLiteral{
 		ckks.ParametersLiteral{
 			ParametersLiteral: rlwe.ParametersLiteral{
-				LogN:     16,
-				Sigma:    rlwe.DefaultSigma,
-				H:        32768,
+				LogN:  16,
+				Sigma: rlwe.DefaultSigma,
+				H:     32768,
 				Q: []uint64{
 					0x10000000006e0001, // 60 Q0
 					0x10000140001,      // 40
@@ -466,9 +466,9 @@ var (
 	N16QP1788H32768H32 = defaultParametersLiteral{
 		ckks.ParametersLiteral{
 			ParametersLiteral: rlwe.ParametersLiteral{
-				LogN:     16,
-				Sigma:    rlwe.DefaultSigma,
-				H:        32768,
+				LogN:  16,
+				Sigma: rlwe.DefaultSigma,
+				H:     32768,
 				Q: []uint64{
 					0x10000000006e0001, // 60 Q0
 					0x2000000a0001,     // 45
@@ -560,9 +560,9 @@ var (
 	N16QP1793H32768H32 = defaultParametersLiteral{
 		ckks.ParametersLiteral{
 			ParametersLiteral: rlwe.ParametersLiteral{
-				LogN:     16,
-				Sigma:    rlwe.DefaultSigma,
-				H:        32768,
+				LogN:  16,
+				Sigma: rlwe.DefaultSigma,
+				H:     32768,
 				Q: []uint64{
 					0x80000000080001,   // 55 Q0
 					0xffffffffffc0001,  // 60
@@ -651,9 +651,9 @@ var (
 	N15QP880H16384H32 = defaultParametersLiteral{
 		ckks.ParametersLiteral{
 			ParametersLiteral: rlwe.ParametersLiteral{
-				LogN:     15,
-				Sigma:    rlwe.DefaultSigma,
-				H:        16384,
+				LogN:  15,
+				Sigma: rlwe.DefaultSigma,
+				H:     16384,
 				Q: []uint64{
 					0x10000140001,      // 40 Q0
 					0x7ffe0001,         // 31

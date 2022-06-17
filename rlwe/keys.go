@@ -110,7 +110,7 @@ func (rtks *RotationKeySet) GetRotationKey(galoisEl uint64) (*SwitchingKey, bool
 
 // NewSwitchingKey returns a new public switching key with pre-allocated zero-value
 func NewSwitchingKey(params Parameters, levelQ, levelP int) *SwitchingKey {
-	return &SwitchingKey{Ciphertext: *gadget.NewCiphertextNTT(
+	return &SwitchingKey{Ciphertext: *gadget.NewCiphertext(
 		levelQ,
 		levelP,
 		params.DecompRNS(levelQ, levelP),

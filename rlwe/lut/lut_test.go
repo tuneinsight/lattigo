@@ -31,6 +31,7 @@ func TestLUT(t *testing.T) {
 	}
 }
 
+// Function to evaluate
 func sign(x float64) float64 {
 	if x > 0 {
 		return 1
@@ -44,6 +45,7 @@ func sign(x float64) float64 {
 func testLUT(t *testing.T) {
 	var err error
 
+	// RLWE parameters of the LUT
 	// N=1024, Q=0x7fff801 -> 2^131
 	paramsLUT, err := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
 		LogN:     10,
@@ -55,6 +57,7 @@ func testLUT(t *testing.T) {
 
 	assert.Nil(t, err)
 
+	// RLWE parameters of the samples
 	// N=512, Q=0x3001 -> 2^135
 	paramsLWE, err := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
 		LogN:  9,
@@ -67,26 +70,37 @@ func testLUT(t *testing.T) {
 
 	t.Run(testString(paramsLUT, "LUT/"), func(t *testing.T) {
 
+		// Scale of the RLWE samples
 		scaleLWE := float64(paramsLWE.Q()[0]) / 4.0
+
+		// Scale of the test poly
 		scaleLUT := float64(paramsLUT.Q()[0]) / 4.0
 
+		// Number of values samples stored in the RLWE sample
 		slots := 16
 
+		// Test poly
 		LUTPoly := InitLUT(sign, scaleLUT, paramsLUT.RingQ(), -1, 1)
 
+		// Index map of which test poly to evaluate on which slot
 		lutPolyMap := make(map[int]*ring.Poly)
 		for i := 0; i < slots; i++ {
 			lutPolyMap[i] = LUTPoly
 		}
 
+		// RLWE secret for the samples
 		skLWE := rlwe.NewKeyGenerator(paramsLWE).GenSecretKey()
+
+		// RLWE encryptor for the samples
 		encryptorLWE := rlwe.NewEncryptor(paramsLWE, skLWE)
 
+		// Values to encrypt in the RLWE sample
 		values := make([]float64, slots)
 		for i := 0; i < slots; i++ {
 			values[i] = -1 + float64(2*i)/float64(slots)
 		}
 
+		// Encode multiples values in a single RLWE
 		ptLWE := rlwe.NewPlaintext(paramsLWE, paramsLWE.MaxLevel())
 		for i := range values {
 			if values[i] < 0 {
@@ -95,16 +109,25 @@ func testLUT(t *testing.T) {
 				ptLWE.Value.Coeffs[0][i] = uint64(values[i] * scaleLWE)
 			}
 		}
+
+		// Encrypt the multiples values in a single RLWE
 		ctLWE := rlwe.NewCiphertextNTT(paramsLWE, 1, paramsLWE.MaxLevel())
 		encryptorLWE.Encrypt(ptLWE, ctLWE)
 
+		// Evaluator for the LUT evaluation
 		eval := NewEvaluator(paramsLUT, paramsLWE, nil)
 
+		// Secret of the RGSW ciphertexts encrypting the bits of skLWE
 		skLUT := rlwe.NewKeyGenerator(paramsLUT).GenSecretKey()
-		LUTKEY := GenKey(paramsLUT, skLUT, paramsLWE, skLWE)
 
+		// Collection of RGSW ciphertexts encrypting the bits of skLWE under skLUT
+		LUTKEY := GenEvaluationKey(paramsLUT, skLUT, paramsLWE, skLWE)
+
+		// Evaluation of LUT(ctLWE)
+		// Returns one RLWE sample per slot in ctLWE
 		ctsLUT := eval.Evaluate(ctLWE, lutPolyMap, LUTKEY)
 
+		// Decrypts, decodes and compares
 		q := paramsLUT.Q()[0]
 		qHalf := q >> 1
 		decryptorLUT := rlwe.NewDecryptor(paramsLUT, skLUT)

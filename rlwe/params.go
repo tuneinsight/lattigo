@@ -75,7 +75,7 @@ type Parameters struct {
 // specified parameters are invalid.
 func NewParameters(logn int, q, p []uint64, logBase2, h int, sigma float64, ringType ring.Type) (Parameters, error) {
 
-	if logBase2 != 0 && len(p) > 1{
+	if logBase2 != 0 && len(p) > 1 {
 		return Parameters{}, fmt.Errorf("rlwe.NewParameters: invalid parameters, cannot have logbase2 > 0 if len(P) > 1")
 	}
 

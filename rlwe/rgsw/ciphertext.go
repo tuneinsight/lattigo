@@ -23,7 +23,7 @@ func (ct *Ciphertext) LevelP() int {
 	return ct.Value[0].LevelP()
 }
 
-// NewCiphertextNTT allocates a new RGSW ciphertext in the NTT domain.
+// NewCiphertext allocates a new RGSW ciphertext in the NTT domain.
 func NewCiphertext(levelQ, levelP, decompRNS, decompBit int, ringQP ringqp.Ring) (ct *Ciphertext) {
 	return &Ciphertext{
 		Value: [2]gadget.Ciphertext{

@@ -6,7 +6,7 @@ import (
 	"github.com/tuneinsight/lattigo/v3/rlwe/rgsw"
 )
 
-// Key is a struct storing the encryption
+// EvaluationKey is a struct storing the encryption
 // of the bits of the LWE key.
 type EvaluationKey struct {
 	SkPos []*rgsw.Ciphertext

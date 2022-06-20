@@ -213,7 +213,7 @@ func (ecd *encoder) RingTToMul(ptRt *PlaintextRingT, ptMul *PlaintextMul) {
 // MulToRingT transforms a PlaintextMul into PlaintextRingT by performing the inverse NTT transform of R_q and
 // putting the coefficients out of the Montgomery form.
 func (ecd *encoder) MulToRingT(pt *PlaintextMul, ptRt *PlaintextRingT) {
-	ecd.params.RingQ().InvNTTLvl(0, pt.Value, ptRt.Value)
+	ecd.params.RingQ().InvNTTLazyLvl(0, pt.Value, ptRt.Value)
 	ecd.params.RingQ().InvMFormLvl(0, ptRt.Value, ptRt.Value)
 }
 

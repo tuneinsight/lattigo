@@ -139,7 +139,7 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, c1 *ring.Pol
 		}
 
 		// InvNTT(P * a * (skIn - skOut) + e) mod QP (mod P = e)
-		ringQ.AddNoModLvl(levelQ, shareOut.Value, cks.tmpQP.Q, shareOut.Value)
+		ringQ.AddLvl(levelQ, shareOut.Value, cks.tmpQP.Q, shareOut.Value)
 
 		if ringP != nil {
 			// InvNTT(P * a * (skIn - skOut) + e) * (1/P) mod QP (mod P = e)
@@ -167,6 +167,7 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, c1 *ring.Pol
 		}
 
 		ringQ.NTTLvl(levelQ, shareOut.Value, shareOut.Value)
+
 	}
 
 	shareOut.Value.Resize(levelQ)

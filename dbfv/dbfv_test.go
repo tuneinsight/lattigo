@@ -19,7 +19,7 @@ import (
 
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters). Overrides -short and requires -timeout=0.")
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
-var parties int = 1
+var parties int = 3
 
 func testString(opname string, parties int, params bfv.Parameters) string {
 	return fmt.Sprintf("%s/LogN=%d/logQ=%d/parties=%d", opname, params.LogN(), params.LogQP(), parties)
@@ -520,7 +520,6 @@ func testEncToShares(tc *testContext, t *testing.T) {
 
 		rec := rlwe.NewAdditiveShare(params.Parameters)
 		for _, p := range P {
-			//fmt.Println("P[", i, "] share:", p.secretShare.Value.Coeffs[0][:see])
 			tc.ringT.Add(&rec.Value, &p.secretShare.Value, &rec.Value)
 		}
 
@@ -528,7 +527,6 @@ func testEncToShares(tc *testContext, t *testing.T) {
 		ptRt.Value.Copy(&rec.Value)
 
 		assert.True(t, utils.EqualSliceUint64(coeffs, tc.encoder.DecodeUintNew(ptRt)))
-
 	})
 
 	crp := P[0].e2s.SampleCRP(params.MaxLevel(), tc.crs)

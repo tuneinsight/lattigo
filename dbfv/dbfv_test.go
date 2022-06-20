@@ -19,7 +19,7 @@ import (
 
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters). Overrides -short and requires -timeout=0.")
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
-var parties int = 3
+var parties int = 1
 
 func testString(opname string, parties int, params bfv.Parameters) string {
 	return fmt.Sprintf("%s/LogN=%d/logQ=%d/parties=%d", opname, params.LogN(), params.LogQP(), parties)
@@ -60,7 +60,7 @@ func Test_DBFV(t *testing.T) {
 
 	var err error
 
-	defaultParams := bfv.DefaultParams[1:] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
+	defaultParams := bfv.DefaultParams[:] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	if testing.Short() {
 		defaultParams = bfv.DefaultParams[:2] // the short test suite runs for ring degree N=2^12, 2^13
 	}

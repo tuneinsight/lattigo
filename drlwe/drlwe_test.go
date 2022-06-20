@@ -474,7 +474,7 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 			}
 
 			// sOut * P * BIT
-			ringQ.MulScalar(skOut.Value.Q, 1<<params.LogBase2(), skOut.Value.Q)
+			ringQ.MulScalar(skIn.Value.Q, 1<<params.LogBase2(), skIn.Value.Q)
 		}
 	})
 }

@@ -28,8 +28,7 @@ type RTGCRP [][]ringqp.Poly
 // RTGProtocol is the structure storing the parameters for the collective rotation-keys generation.
 type RTGProtocol struct {
 	params           rlwe.Parameters
-	tmpPoly0         ringqp.Poly
-	tmpPoly1         ringqp.Poly
+	buff             [2]ringqp.Poly
 	gaussianSamplerQ *ring.GaussianSampler
 }
 
@@ -46,8 +45,7 @@ func (rtg *RTGProtocol) ShallowCopy() *RTGProtocol {
 
 	return &RTGProtocol{
 		params:           rtg.params,
-		tmpPoly0:         params.RingQP().NewPoly(),
-		tmpPoly1:         params.RingQP().NewPoly(),
+		buff:             [2]ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()},
 		gaussianSamplerQ: ring.NewGaussianSampler(prng, params.RingQ(), params.Sigma(), int(6*params.Sigma())),
 	}
 }
@@ -62,8 +60,7 @@ func NewRTGProtocol(params rlwe.Parameters) *RTGProtocol {
 		panic(err)
 	}
 	rtg.gaussianSamplerQ = ring.NewGaussianSampler(prng, params.RingQ(), params.Sigma(), int(6*params.Sigma()))
-	rtg.tmpPoly0 = params.RingQP().NewPoly()
-	rtg.tmpPoly1 = params.RingQP().NewPoly()
+	rtg.buff = [2]ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()}
 	return rtg
 }
 
@@ -119,14 +116,14 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, s
 
 	galElInv := ring.ModExp(galEl, ringQ.NthRoot-1, ringQ.NthRoot)
 
-	ringQ.PermuteNTT(sk.Value.Q, galElInv, rtg.tmpPoly1.Q)
+	ringQ.PermuteNTT(sk.Value.Q, galElInv, rtg.buff[1].Q)
 
 	if hasModulusP {
-		ringQP.RingP.PermuteNTT(sk.Value.P, galElInv, rtg.tmpPoly1.P)
-		ringQ.MulScalarBigint(sk.Value.Q, ringQP.RingP.ModulusAtLevel[levelP], rtg.tmpPoly0.Q)
+		ringQ.PermuteNTT(sk.Value.P, galElInv, rtg.buff[1].P)
+		ringQ.MulScalarBigint(sk.Value.Q, ringQP.RingP.ModulusAtLevel[levelP], rtg.buff[0].Q)
 	} else {
 		levelP = 0
-		ring.CopyLvl(levelQ, sk.Value.Q, rtg.tmpPoly0.Q)
+		ring.CopyLvl(levelQ, sk.Value.Q, rtg.buff[0].Q)
 	}
 
 	RNSDecomp := len(shareOut.Value)
@@ -160,7 +157,7 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, s
 				}
 
 				qi := ringQ.Modulus[index]
-				tmp0 := rtg.tmpPoly0.Q.Coeffs[index]
+				tmp0 := rtg.buff[0].Q.Coeffs[index]
 				tmp1 := shareOut.Value[i][j].Q.Coeffs[index]
 
 				for w := 0; w < ringQ.N; w++ {
@@ -169,8 +166,10 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, s
 			}
 
 			// sk_in * (qiBarre*qiStar) * 2^w - a*sk + e
-			ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, crp[i][j], rtg.tmpPoly1, shareOut.Value[i][j])
+			ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, crp[i][j], rtg.buff[1], shareOut.Value[i][j])
 		}
+
+		ringQ.MulScalar(rtg.buff[0].Q, 1<<rtg.params.LogBase2(), rtg.buff[0].Q)
 	}
 }
 

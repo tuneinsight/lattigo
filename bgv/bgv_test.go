@@ -28,7 +28,7 @@ var (
 	TestParams = []ParametersLiteral{TESTN14QP418}
 )
 
-func testString(opname string, p Parameters, lvl int) string {
+func GetTestName(opname string, p Parameters, lvl int) string {
 	return fmt.Sprintf("%s/LogN=%d/logQ=%d/logP=%d/logT=%d/#Q=%d/#P=%d/lvl=%d", opname, p.LogN(), p.LogQ(), p.LogP(), p.LogT(), p.QCount(), p.PCount(), lvl)
 }
 
@@ -166,14 +166,14 @@ func testParameters(tc *testContext, t *testing.T) {
 func testEncoder(tc *testContext, t *testing.T) {
 
 	for _, lvl := range tc.testLevel {
-		t.Run(testString("Encoder/Encode&Decode/Uint", tc.params, lvl), func(t *testing.T) {
+		t.Run(GetTestName("Encoder/Encode&Decode/Uint", tc.params, lvl), func(t *testing.T) {
 			values, plaintext, _ := newTestVectorsLvl(lvl, 1, tc, nil)
 			verifyTestVectors(tc, nil, values, plaintext, t)
 		})
 	}
 
 	for _, lvl := range tc.testLevel {
-		t.Run(testString("Encoder/Encode&Decode/Int", tc.params, lvl), func(t *testing.T) {
+		t.Run(GetTestName("Encoder/Encode&Decode/Int", tc.params, lvl), func(t *testing.T) {
 
 			T := tc.params.T()
 			THalf := T >> 1
@@ -198,14 +198,14 @@ func testEncoder(tc *testContext, t *testing.T) {
 func testEncryptor(tc *testContext, t *testing.T) {
 
 	for _, lvl := range tc.testLevel {
-		t.Run(testString("Encoder/EncryptorPk", tc.params, lvl), func(t *testing.T) {
+		t.Run(GetTestName("Encoder/EncryptorPk", tc.params, lvl), func(t *testing.T) {
 			values, _, ciphertext := newTestVectorsLvl(lvl, 1, tc, tc.encryptorPk)
 			verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
 		})
 	}
 
 	for _, lvl := range tc.testLevel {
-		t.Run(testString("Encoder/encryptorSk", tc.params, lvl), func(t *testing.T) {
+		t.Run(GetTestName("Encoder/encryptorSk", tc.params, lvl), func(t *testing.T) {
 			values, _, ciphertext := newTestVectorsLvl(lvl, 1, tc, tc.encryptorSk)
 			verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
 		})
@@ -217,7 +217,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 	t.Run("Evaluator", func(t *testing.T) {
 
 		for _, lvl := range tc.testLevel {
-			t.Run(testString("AddNew/op0=ct/op2=ct", tc.params, lvl), func(t *testing.T) {
+			t.Run(GetTestName("AddNew/op0=ct/op2=ct", tc.params, lvl), func(t *testing.T) {
 
 				values0, _, ciphertext0 := newTestVectorsLvl(lvl, 3, tc, tc.encryptorSk)
 				values1, _, ciphertext1 := newTestVectorsLvl(lvl, 7, tc, tc.encryptorSk)
@@ -233,7 +233,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		}
 
 		for _, lvl := range tc.testLevel {
-			t.Run(testString("Add/op0=ct/op2=ct", tc.params, lvl), func(t *testing.T) {
+			t.Run(GetTestName("Add/op0=ct/op2=ct", tc.params, lvl), func(t *testing.T) {
 
 				values0, _, ciphertext0 := newTestVectorsLvl(lvl, 3, tc, tc.encryptorSk)
 				values1, _, ciphertext1 := newTestVectorsLvl(lvl, 7, tc, tc.encryptorSk)
@@ -249,7 +249,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		}
 
 		for _, lvl := range tc.testLevel {
-			t.Run(testString("Add/op0=ct/op2=pt", tc.params, lvl), func(t *testing.T) {
+			t.Run(GetTestName("Add/op0=ct/op2=pt", tc.params, lvl), func(t *testing.T) {
 
 				values0, _, ciphertext0 := newTestVectorsLvl(lvl, 3, tc, tc.encryptorSk)
 				values1, plaintext, _ := newTestVectorsLvl(lvl, 7, tc, tc.encryptorSk)
@@ -265,7 +265,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		}
 
 		for _, lvl := range tc.testLevel {
-			t.Run(testString("Add/op0=ct/op2=ct", tc.params, lvl), func(t *testing.T) {
+			t.Run(GetTestName("Add/op0=ct/op2=ct", tc.params, lvl), func(t *testing.T) {
 
 				values0, _, ciphertext0 := newTestVectorsLvl(lvl, 3, tc, tc.encryptorSk)
 				values1, _, ciphertext1 := newTestVectorsLvl(lvl, 7, tc, tc.encryptorSk)
@@ -281,7 +281,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		}
 
 		for _, lvl := range tc.testLevel {
-			t.Run(testString("SubNew/op0=ct/op2=ct", tc.params, lvl), func(t *testing.T) {
+			t.Run(GetTestName("SubNew/op0=ct/op2=ct", tc.params, lvl), func(t *testing.T) {
 
 				values0, _, ciphertext0 := newTestVectorsLvl(lvl, 3, tc, tc.encryptorSk)
 				values1, _, ciphertext1 := newTestVectorsLvl(lvl, 7, tc, tc.encryptorSk)
@@ -297,7 +297,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		}
 
 		for _, lvl := range tc.testLevel {
-			t.Run(testString("Sub/op0=ct/op2=ct", tc.params, lvl), func(t *testing.T) {
+			t.Run(GetTestName("Sub/op0=ct/op2=ct", tc.params, lvl), func(t *testing.T) {
 
 				values0, _, ciphertext0 := newTestVectorsLvl(lvl, 3, tc, tc.encryptorSk)
 				values1, _, ciphertext1 := newTestVectorsLvl(lvl, 7, tc, tc.encryptorSk)
@@ -313,7 +313,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		}
 
 		for _, lvl := range tc.testLevel {
-			t.Run(testString("Sub/op0=ct/op2=pt", tc.params, lvl), func(t *testing.T) {
+			t.Run(GetTestName("Sub/op0=ct/op2=pt", tc.params, lvl), func(t *testing.T) {
 
 				values0, _, ciphertext0 := newTestVectorsLvl(lvl, 3, tc, tc.encryptorSk)
 				values1, plaintext, _ := newTestVectorsLvl(lvl, 7, tc, tc.encryptorSk)
@@ -329,7 +329,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		}
 
 		for _, lvl := range tc.testLevel {
-			t.Run(testString("Sub/op0=ct/op2=ct", tc.params, lvl), func(t *testing.T) {
+			t.Run(GetTestName("Sub/op0=ct/op2=ct", tc.params, lvl), func(t *testing.T) {
 
 				values0, _, ciphertext0 := newTestVectorsLvl(lvl, 3, tc, tc.encryptorSk)
 				values1, _, ciphertext1 := newTestVectorsLvl(lvl, 7, tc, tc.encryptorSk)
@@ -345,7 +345,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		}
 
 		for _, lvl := range tc.testLevel {
-			t.Run(testString("Neg/op0=ct", tc.params, lvl), func(t *testing.T) {
+			t.Run(GetTestName("Neg/op0=ct", tc.params, lvl), func(t *testing.T) {
 
 				values, _, ciphertext := newTestVectorsLvl(lvl, 1, tc, tc.encryptorSk)
 
@@ -359,7 +359,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		}
 
 		for _, lvl := range tc.testLevel {
-			t.Run(testString("NegNew/op0=ct", tc.params, lvl), func(t *testing.T) {
+			t.Run(GetTestName("NegNew/op0=ct", tc.params, lvl), func(t *testing.T) {
 
 				values, _, ciphertext := newTestVectorsLvl(lvl, 1, tc, tc.encryptorSk)
 
@@ -373,7 +373,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		}
 
 		for _, lvl := range tc.testLevel {
-			t.Run(testString("AddScalar/op0=ct", tc.params, lvl), func(t *testing.T) {
+			t.Run(GetTestName("AddScalar/op0=ct", tc.params, lvl), func(t *testing.T) {
 
 				values, _, ciphertext := newTestVectorsLvl(lvl, 1, tc, tc.encryptorSk)
 
@@ -388,7 +388,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		}
 
 		for _, lvl := range tc.testLevel {
-			t.Run(testString("AddScalarNew/op0=ct", tc.params, lvl), func(t *testing.T) {
+			t.Run(GetTestName("AddScalarNew/op0=ct", tc.params, lvl), func(t *testing.T) {
 
 				values, _, ciphertext := newTestVectorsLvl(lvl, 7, tc, tc.encryptorSk)
 
@@ -404,7 +404,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		}
 
 		for _, lvl := range tc.testLevel {
-			t.Run(testString("MulScalar/op0=ct", tc.params, lvl), func(t *testing.T) {
+			t.Run(GetTestName("MulScalar/op0=ct", tc.params, lvl), func(t *testing.T) {
 
 				if lvl == 0 {
 					t.Skip("Level = 0")
@@ -423,7 +423,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		}
 
 		for _, lvl := range tc.testLevel {
-			t.Run(testString("MulScalarNew/op0=ct", tc.params, lvl), func(t *testing.T) {
+			t.Run(GetTestName("MulScalarNew/op0=ct", tc.params, lvl), func(t *testing.T) {
 
 				if lvl == 0 {
 					t.Skip("Level = 0")
@@ -441,7 +441,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		}
 
 		for _, lvl := range tc.testLevel {
-			t.Run(testString("MulScalarAndAdd/op0=ct", tc.params, lvl), func(t *testing.T) {
+			t.Run(GetTestName("MulScalarAndAdd/op0=ct", tc.params, lvl), func(t *testing.T) {
 
 				if lvl == 0 {
 					t.Skip("Level = 0")
@@ -462,7 +462,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		}
 
 		for _, lvl := range tc.testLevel {
-			t.Run(testString("Mul/op0=ct/op2=ct", tc.params, lvl), func(t *testing.T) {
+			t.Run(GetTestName("Mul/op0=ct/op2=ct", tc.params, lvl), func(t *testing.T) {
 
 				if lvl == 0 {
 					t.Skip("Level = 0")
@@ -482,7 +482,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		}
 
 		for _, lvl := range tc.testLevel {
-			t.Run(testString("Square/op0=ct/op2=ct", tc.params, lvl), func(t *testing.T) {
+			t.Run(GetTestName("Square/op0=ct/op2=ct", tc.params, lvl), func(t *testing.T) {
 
 				if lvl == 0 {
 					t.Skip("Level = 0")
@@ -499,7 +499,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		}
 
 		for _, lvl := range tc.testLevel {
-			t.Run(testString("MulRelin/op0=ct/op2=ct", tc.params, lvl), func(t *testing.T) {
+			t.Run(GetTestName("MulRelin/op0=ct/op2=ct", tc.params, lvl), func(t *testing.T) {
 
 				if lvl == 0 {
 					t.Skip("Level = 0")
@@ -533,7 +533,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		}
 
 		for _, lvl := range tc.testLevel {
-			t.Run(testString("MulAndAdd/op0=ct/op2=ct", tc.params, lvl), func(t *testing.T) {
+			t.Run(GetTestName("MulAndAdd/op0=ct/op2=ct", tc.params, lvl), func(t *testing.T) {
 
 				if lvl == 0 {
 					t.Skip("Level = 0")
@@ -555,7 +555,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		}
 
 		for _, lvl := range tc.testLevel {
-			t.Run(testString("MulRelinAndAdd/op0=ct/op2=ct", tc.params, lvl), func(t *testing.T) {
+			t.Run(GetTestName("MulRelinAndAdd/op0=ct/op2=ct", tc.params, lvl), func(t *testing.T) {
 
 				if lvl == 0 {
 					t.Skip("Level = 0")
@@ -576,7 +576,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 			})
 		}
 
-		t.Run(testString("PolyEval/Single", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
+		t.Run(GetTestName("PolyEval/Single", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
 
 			if tc.params.MaxLevel() < 4 {
 				t.Skip("MaxLevel() to low")
@@ -609,7 +609,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 			verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
 		})
 
-		t.Run(testString("PolyEval/Vector", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
+		t.Run(GetTestName("PolyEval/Vector", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
 
 			if tc.params.MaxLevel() < 4 {
 				t.Skip("MaxLevel() to low")
@@ -656,7 +656,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		})
 
 		for _, lvl := range tc.testLevel[:] {
-			t.Run(testString("Rescale", tc.params, lvl), func(t *testing.T) {
+			t.Run(GetTestName("Rescale", tc.params, lvl), func(t *testing.T) {
 
 				ringT := tc.params.RingT()
 
@@ -714,7 +714,7 @@ func testRotate(tc *testContext, t *testing.T) {
 	evaluator := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotkey})
 
 	for _, lvl := range tc.testLevel {
-		t.Run(testString("Evaluator/RotateRows", tc.params, lvl), func(t *testing.T) {
+		t.Run(GetTestName("Evaluator/RotateRows", tc.params, lvl), func(t *testing.T) {
 			values, _, ciphertext := newTestVectorsLvl(lvl, 1, tc, tc.encryptorPk)
 			evaluator.RotateRows(ciphertext, ciphertext)
 			values.Coeffs[0] = append(values.Coeffs[0][tc.params.N()>>1:], values.Coeffs[0][:tc.params.N()>>1]...)
@@ -723,7 +723,7 @@ func testRotate(tc *testContext, t *testing.T) {
 	}
 
 	for _, lvl := range tc.testLevel {
-		t.Run(testString("Evaluator/RotateRowsNew", tc.params, lvl), func(t *testing.T) {
+		t.Run(GetTestName("Evaluator/RotateRowsNew", tc.params, lvl), func(t *testing.T) {
 			values, _, ciphertext := newTestVectorsLvl(lvl, 1, tc, tc.encryptorPk)
 			ciphertext = evaluator.RotateRowsNew(ciphertext)
 			values.Coeffs[0] = append(values.Coeffs[0][tc.params.N()>>1:], values.Coeffs[0][:tc.params.N()>>1]...)
@@ -732,7 +732,7 @@ func testRotate(tc *testContext, t *testing.T) {
 	}
 
 	for _, lvl := range tc.testLevel {
-		t.Run(testString("Evaluator/RotateColumns", tc.params, lvl), func(t *testing.T) {
+		t.Run(GetTestName("Evaluator/RotateColumns", tc.params, lvl), func(t *testing.T) {
 
 			values, _, ciphertext := newTestVectorsLvl(lvl, 1, tc, tc.encryptorPk)
 
@@ -748,7 +748,7 @@ func testRotate(tc *testContext, t *testing.T) {
 	}
 
 	for _, lvl := range tc.testLevel {
-		t.Run(testString("Evaluator/RotateColumnsNew", tc.params, lvl), func(t *testing.T) {
+		t.Run(GetTestName("Evaluator/RotateColumnsNew", tc.params, lvl), func(t *testing.T) {
 
 			values, _, ciphertext := newTestVectorsLvl(lvl, 1, tc, tc.encryptorPk)
 
@@ -765,7 +765,7 @@ func testRotate(tc *testContext, t *testing.T) {
 
 func testInnerSum(tc *testContext, t *testing.T) {
 
-	t.Run(testString("InnerSum", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
+	t.Run(GetTestName("InnerSum", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
 
 		batch := 128
 		n := tc.params.N() / (2 * batch)
@@ -796,7 +796,7 @@ func testSwitchKeys(tc *testContext, t *testing.T) {
 	switchingKey := tc.kgen.GenSwitchingKey(tc.sk, sk2)
 
 	for _, lvl := range tc.testLevel {
-		t.Run(testString("SwitchKeys", tc.params, lvl), func(t *testing.T) {
+		t.Run(GetTestName("SwitchKeys", tc.params, lvl), func(t *testing.T) {
 			values, _, ciphertext := newTestVectorsLvl(lvl, 1, tc, tc.encryptorPk)
 			tc.evaluator.SwitchKeys(ciphertext, switchingKey, ciphertext)
 			verifyTestVectors(tc, decryptorSk2, values, ciphertext, t)
@@ -804,7 +804,7 @@ func testSwitchKeys(tc *testContext, t *testing.T) {
 	}
 
 	for _, lvl := range tc.testLevel {
-		t.Run(testString("SwitchKeysNew", tc.params, lvl), func(t *testing.T) {
+		t.Run(GetTestName("SwitchKeysNew", tc.params, lvl), func(t *testing.T) {
 			values, _, ciphertext := newTestVectorsLvl(lvl, 1, tc, tc.encryptorPk)
 			ciphertext = tc.evaluator.SwitchKeysNew(ciphertext, switchingKey)
 			verifyTestVectors(tc, decryptorSk2, values, ciphertext, t)
@@ -814,7 +814,7 @@ func testSwitchKeys(tc *testContext, t *testing.T) {
 
 func testMarshalling(tc *testContext, t *testing.T) {
 	t.Run("Marshalling", func(t *testing.T) {
-		t.Run(testString("PowerBasis", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
+		t.Run(GetTestName("PowerBasis", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
 
 			if tc.params.MaxLevel() < 4 {
 				t.Skip("not enough levels")

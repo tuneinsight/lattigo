@@ -57,6 +57,7 @@ func TestBGV(t *testing.T) {
 			testEvaluator,
 			testRotate,
 			testInnerSum,
+			testLinearTransform,
 			testSwitchKeys,
 			testMarshalling,
 		} {
@@ -113,6 +114,9 @@ func genTestParams(params Parameters) (tc *testContext, err error) {
 
 func newTestVectorsLvl(level int, scale uint64, tc *testContext, encryptor Encryptor) (coeffs *ring.Poly, plaintext *Plaintext, ciphertext *Ciphertext) {
 	coeffs = tc.uSampler.ReadNew()
+	for i := range coeffs.Coeffs[0] {
+		coeffs.Coeffs[0][i] = uint64(i)
+	}
 	plaintext = NewPlaintext(tc.params, level, scale)
 	tc.encoder.Encode(coeffs.Coeffs[0], plaintext)
 	if encryptor != nil {
@@ -784,6 +788,105 @@ func testInnerSum(tc *testContext, t *testing.T) {
 		for i := 1; i < n; i++ {
 			ring.AddVec(values.Coeffs[0], utils.RotateUint64Slots(tmp, i*batch), values.Coeffs[0], T)
 		}
+
+		verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
+	})
+}
+
+func testLinearTransform(tc *testContext, t *testing.T) {
+
+	t.Run(GetTestName("LinearTransform/Naive", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
+
+		params := tc.params
+
+		values, _, ciphertext := newTestVectorsLvl(tc.params.MaxLevel(), 1, tc, tc.encryptorSk)
+
+		diagMatrix := make(map[int][]uint64)
+
+		diagMatrix[-1] = make([]uint64, params.N())
+		diagMatrix[0] = make([]uint64, params.N())
+		diagMatrix[1] = make([]uint64, params.N())
+
+		for i := 0; i < params.N(); i++ {
+			diagMatrix[-1][i] = 1
+			diagMatrix[0][i] = 1
+			diagMatrix[1][i] = 1
+		}
+
+		linTransf := GenLinearTransform(tc.encoder, diagMatrix, params.MaxLevel(), 1)
+
+		rots := linTransf.Rotations()
+
+		rotKey := tc.kgen.GenRotationKeysForRotations(rots, false, tc.sk)
+
+		eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
+
+		eval.LinearTransform(ciphertext, linTransf, []*Ciphertext{ciphertext})
+
+		tmp := make([]uint64, params.N())
+		copy(tmp, values.Coeffs[0])
+
+		T := tc.params.T()
+
+		ring.AddVec(values.Coeffs[0], utils.RotateUint64Slots(tmp, -1), values.Coeffs[0], T)
+		ring.AddVec(values.Coeffs[0], utils.RotateUint64Slots(tmp, 1), values.Coeffs[0], T)
+
+		verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
+	})
+
+	t.Run(GetTestName("LinearTransform/BSGS", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
+
+		params := tc.params
+
+		values, _, ciphertext := newTestVectorsLvl(tc.params.MaxLevel(), 1, tc, tc.encryptorSk)
+
+		diagMatrix := make(map[int][]uint64)
+
+		diagMatrix[-15] = make([]uint64, params.N())
+		diagMatrix[-4] = make([]uint64, params.N())
+		diagMatrix[-1] = make([]uint64, params.N())
+		diagMatrix[0] = make([]uint64, params.N())
+		diagMatrix[1] = make([]uint64, params.N())
+		diagMatrix[2] = make([]uint64, params.N())
+		diagMatrix[3] = make([]uint64, params.N())
+		diagMatrix[4] = make([]uint64, params.N())
+		diagMatrix[15] = make([]uint64, params.N())
+
+		for i := 0; i < params.N(); i++ {
+			diagMatrix[-15][i] = 1
+			diagMatrix[-4][i] = 1
+			diagMatrix[-1][i] = 1
+			diagMatrix[0][i] = 1
+			diagMatrix[1][i] = 1
+			diagMatrix[2][i] = 1
+			diagMatrix[3][i] = 1
+			diagMatrix[4][i] = 1
+			diagMatrix[15][i] = 1
+		}
+
+		linTransf := GenLinearTransformBSGS(tc.encoder, diagMatrix, params.MaxLevel(), 1, 1.0)
+
+		rots := linTransf.Rotations()
+
+		rotKey := tc.kgen.GenRotationKeysForRotations(rots, false, tc.sk)
+
+		eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
+
+		eval.LinearTransform(ciphertext, linTransf, []*Ciphertext{ciphertext})
+
+		tmp := make([]uint64, params.N())
+		copy(tmp, values.Coeffs[0])
+
+		T := tc.params.T()
+
+		ring.AddVec(values.Coeffs[0], utils.RotateUint64Slots(tmp, -15), values.Coeffs[0], T)
+		ring.AddVec(values.Coeffs[0], utils.RotateUint64Slots(tmp, -4), values.Coeffs[0], T)
+		ring.AddVec(values.Coeffs[0], utils.RotateUint64Slots(tmp, -1), values.Coeffs[0], T)
+		ring.AddVec(values.Coeffs[0], utils.RotateUint64Slots(tmp, 1), values.Coeffs[0], T)
+		ring.AddVec(values.Coeffs[0], utils.RotateUint64Slots(tmp, 2), values.Coeffs[0], T)
+		ring.AddVec(values.Coeffs[0], utils.RotateUint64Slots(tmp, 3), values.Coeffs[0], T)
+		ring.AddVec(values.Coeffs[0], utils.RotateUint64Slots(tmp, 4), values.Coeffs[0], T)
+		ring.AddVec(values.Coeffs[0], utils.RotateUint64Slots(tmp, 15), values.Coeffs[0], T)
 
 		verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
 	})

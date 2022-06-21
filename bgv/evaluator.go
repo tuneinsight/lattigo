@@ -929,9 +929,9 @@ func (eval *evaluator) matchScalesBinary(scale0, scale1 uint64) (r0, r1, e uint6
 		panic("invalid ciphertext scale: gcd(scale, t) != 1")
 	}
 
-	var a uint64 = ringT.Modulus[0]
+	var a = ringT.Modulus[0]
 	var b uint64 = 0
-	var A uint64 = ring.BRed(ring.ModExp(scale0, t-2, t), scale1, t, bredParams)
+	var A = ring.BRed(ring.ModExp(scale0, t-2, t), scale1, t, bredParams)
 	var B uint64 = 1
 
 	e = center(A, tHalf, t) + 1

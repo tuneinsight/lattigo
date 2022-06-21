@@ -122,7 +122,7 @@ func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVecto
 	logDegree := bits.Len64(uint64(pol.Value[0].Degree()))
 	logSplit := optimalSplit(logDegree)
 
-	var odd, even bool = true, true
+	var odd, even = true, true
 	for _, p := range pol.Value {
 		tmp0, tmp1 := isOddOrEvenPolynomial(p.Coeffs)
 		odd, even = odd && tmp0, even && tmp1
@@ -152,7 +152,9 @@ func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVecto
 	polyEval.isOdd = odd
 	polyEval.isEven = even
 
-	opOut, err = polyEval.recurse(powerBasis.Value[1].Level()-logDegree+1, targetScale, pol)
+	if opOut, err = polyEval.recurse(powerBasis.Value[1].Level()-logDegree+1, targetScale, pol); err != nil {
+		return
+	}
 
 	polyEval.Relinearize(opOut, opOut)
 

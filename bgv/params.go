@@ -194,6 +194,34 @@ func (p Parameters) Equals(other Parameters) bool {
 	return res
 }
 
+// RotationsForInnerSumLog generates the rotations that will be performed by the
+// `Evaluator.InnerSumLog` operation when performed with parameters `batch` and `n`.
+func (p Parameters) RotationsForInnerSumLog(batch, n int) (rotations []int) {
+
+	rotIndex := make(map[int]bool)
+
+	var k int
+	for i := 1; i < n; i <<= 1 {
+
+		k = i
+		k *= batch
+		rotIndex[k] = true
+
+		k = n - (n & ((i << 1) - 1))
+		k *= batch
+		rotIndex[k] = true
+	}
+
+	rotations = make([]int, len(rotIndex))
+	var i int
+	for j := range rotIndex {
+		rotations[i] = j
+		i++
+	}
+
+	return
+}
+
 // CopyNew makes a deep copy of the receiver and returns it.
 //
 // Deprecated: Parameter is now a read-only struct, except for the UnmarshalBinary method: deep copying should only be

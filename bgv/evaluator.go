@@ -6,6 +6,7 @@ import (
 
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
@@ -69,7 +70,7 @@ type Evaluator interface {
 	//LinearTransform(ctIn *Ciphertext, linearTransform interface{}, ctOut []*Ciphertext)
 	//MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTransform, c2DecompQP []ringqp.Poly, ctOut *Ciphertext)
 	//MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearTransform, c2DecompQP []ringqp.Poly, ctOut *Ciphertext)
-	//InnerSumLog(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
+	InnerSumLog(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
 	//InnerSum(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
 	//ReplicateLog(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
 	//Replicate(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
@@ -873,13 +874,50 @@ func (eval *evaluator) automorphism(ctIn *rlwe.Ciphertext, galEl uint64, ctOut *
 
 	ringQ.MulScalarBigintLvl(level, ctIn.Value[1], eval.tInvModQ[level], eval.buffQ[0])
 	eval.GadgetProduct(level, eval.buffQ[0], rtk.Ciphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
-
 	ringQ.MulScalarLvl(level, eval.BuffQP[1].Q, eval.params.T(), eval.BuffQP[1].Q)
 	ringQ.MulScalarLvl(level, eval.BuffQP[2].Q, eval.params.T(), eval.BuffQP[2].Q)
+
 	ringQ.AddLvl(level, eval.BuffQP[1].Q, ctIn.Value[0], eval.BuffQP[1].Q)
 
 	ringQ.PermuteNTTWithIndexLvl(level, eval.BuffQP[1].Q, eval.PermuteNTTIndex[galEl], ctOut.Value[0])
 	ringQ.PermuteNTTWithIndexLvl(level, eval.BuffQP[2].Q, eval.PermuteNTTIndex[galEl], ctOut.Value[1])
+
+	ctOut.Resize(ctOut.Degree(), level)
+}
+
+func (eval *evaluator) automorphismHoisted(level int, ctIn *Ciphertext, c1DecompQP []ringqp.Poly, galEl uint64, ctOut *Ciphertext) {
+
+	if ctIn.Degree() != 1 || ctOut.Degree() != 1 {
+		panic("cannot apply AutomorphismHoisted: input and output Ciphertext must be of degree 1")
+	}
+
+	if galEl == 1 {
+		if ctIn != ctOut {
+			ctOut.Copy(ctIn)
+		}
+		return
+	}
+
+	rtk, generated := eval.Rtks.GetRotationKey(galEl)
+	if !generated {
+		panic(fmt.Sprintf("galEl key 5^%d missing", eval.params.InverseGaloisElement(galEl)))
+	}
+
+	ringQ := eval.params.RingQ()
+
+	eval.KeyswitchHoisted(level, c1DecompQP, rtk, eval.BuffQP[0].Q, eval.BuffQP[1].Q, eval.BuffQP[0].P, eval.BuffQP[1].P)
+	ringQ.MulScalarLvl(level, eval.BuffQP[0].Q, eval.params.T(), eval.BuffQP[0].Q)
+	ringQ.MulScalarLvl(level, eval.BuffQP[1].Q, eval.params.T(), eval.BuffQP[1].Q)
+
+	ringQ.AddLvl(level, eval.BuffQP[0].Q, ctIn.Value[0], eval.BuffQP[0].Q)
+
+	if ctIn.Value[0].IsNTT {
+		ringQ.PermuteNTTWithIndexLvl(level, eval.BuffQP[0].Q, eval.PermuteNTTIndex[galEl], ctOut.Value[0])
+		ringQ.PermuteNTTWithIndexLvl(level, eval.BuffQP[1].Q, eval.PermuteNTTIndex[galEl], ctOut.Value[1])
+	} else {
+		ringQ.PermuteLvl(level, eval.BuffQP[0].Q, galEl, ctOut.Value[0])
+		ringQ.PermuteLvl(level, eval.BuffQP[1].Q, galEl, ctOut.Value[1])
+	}
 
 	ctOut.Resize(ctOut.Degree(), level)
 }

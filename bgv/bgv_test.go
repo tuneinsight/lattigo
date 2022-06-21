@@ -56,6 +56,7 @@ func TestBGV(t *testing.T) {
 			testEncryptor,
 			testEvaluator,
 			testRotate,
+			testInnerSum,
 			testSwitchKeys,
 			testMarshalling,
 		} {
@@ -98,10 +99,7 @@ func genTestParams(params Parameters) (tc *testContext, err error) {
 	tc.uSampler = ring.NewUniformSampler(tc.prng, tc.ringT)
 	tc.kgen = NewKeyGenerator(tc.params)
 	tc.sk, tc.pk = tc.kgen.GenKeyPair()
-	if params.PCount() != 0 {
-		tc.rlk = tc.kgen.GenRelinearizationKey(tc.sk, 1)
-	}
-
+	tc.rlk = tc.kgen.GenRelinearizationKey(tc.sk, 1)
 	tc.encoder = NewEncoder(tc.params)
 	tc.encryptorPk = NewEncryptor(tc.params, tc.pk)
 	tc.encryptorSk = NewEncryptor(tc.params, tc.sk)
@@ -115,7 +113,6 @@ func genTestParams(params Parameters) (tc *testContext, err error) {
 
 func newTestVectorsLvl(level int, scale uint64, tc *testContext, encryptor Encryptor) (coeffs *ring.Poly, plaintext *Plaintext, ciphertext *Ciphertext) {
 	coeffs = tc.uSampler.ReadNew()
-
 	plaintext = NewPlaintext(tc.params, level, scale)
 	tc.encoder.Encode(coeffs.Coeffs[0], plaintext)
 	if encryptor != nil {
@@ -764,6 +761,32 @@ func testRotate(tc *testContext, t *testing.T) {
 			}
 		})
 	}
+}
+
+func testInnerSum(tc *testContext, t *testing.T) {
+
+	t.Run(testString("InnerSum", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
+
+		batch := 128
+		n := tc.params.N() / (2 * batch)
+
+		rotKey := tc.kgen.GenRotationKeysForRotations(tc.params.RotationsForInnerSumLog(batch, n), false, tc.sk)
+		eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
+
+		values, _, ciphertext := newTestVectorsLvl(tc.params.MaxLevel(), 1, tc, tc.encryptorSk)
+
+		eval.InnerSumLog(ciphertext, batch, n, ciphertext)
+
+		tmp := make([]uint64, tc.params.N())
+		copy(tmp, values.Coeffs[0])
+
+		T := tc.params.T()
+		for i := 1; i < n; i++ {
+			ring.AddVec(values.Coeffs[0], utils.RotateUint64Slots(tmp, i*batch), values.Coeffs[0], T)
+		}
+
+		verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
+	})
 }
 
 func testSwitchKeys(tc *testContext, t *testing.T) {

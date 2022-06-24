@@ -12,13 +12,14 @@ import (
 type Encryptor interface {
 	Encrypt(pt *Plaintext, ct interface{})
 	//EncryptZero(ct interface{})
-	EncryptZeroSymetricQPNTT(levelQ, levelP int, sk ringqp.Poly, sampler *ringqp.UniformSampler, montgomery bool, ct interface{})
+
 	ShallowCopy() Encryptor
 	WithKey(key interface{}) Encryptor
 }
 
 type SymmetricEncryptor interface {
 	Encryptor
+	EncryptZeroQP(sampler *ringqp.UniformSampler, montgomery bool, ct interface{})
 	EncryptSeeded(pt *Plaintext, sampler ringqp.UniformSampler, ct interface{})
 	EncryptZeroSeeded(sampler ringqp.UniformSampler, ct interface{})
 }
@@ -254,8 +255,8 @@ func (enc *skEncryptor) encryptRGSW(pt *Plaintext, sampler *ringqp.UniformSample
 
 	for j := 0; j < decompBIT; j++ {
 		for i := 0; i < decompRNS; i++ {
-			enc.EncryptZeroSymetricQPNTT(levelQ, levelP, enc.sk.Value, sampler, true, ct.Value[0].Value[i][j])
-			enc.EncryptZeroSymetricQPNTT(levelQ, levelP, enc.sk.Value, sampler, true, ct.Value[1].Value[i][j])
+			enc.EncryptZeroQP(sampler, ct.Value[0].Value[i][j])
+			enc.EncryptZeroQP(sampler, ct.Value[1].Value[i][j])
 		}
 	}
 
@@ -412,13 +413,13 @@ func (enc *pkEncryptor) encryptRLWE(plaintext *Plaintext, ciphertext *Ciphertext
 	ciphertext.Resize(ciphertext.Degree(), levelQ)
 }
 
-// EncryptZeroSymetricQPNTT generates en encryption of zero under sk.
+// EncryptZeroQP generates en encryption of zero under sk.
 // levelQ : level of the modulus Q
 // levelP : level of the modulus P
 // sk     : secret key
 // sampler: uniform sampler, if `sampler` is nil, then will sample using the internal sampler.
 // montgomery: returns the result in the Montgomery domain.
-func (enc *encryptor) EncryptZeroSymetricQPNTT(levelQ, levelP int, sk ringqp.Poly, sampler *ringqp.UniformSampler, montgomery bool, ct interface{}) {
+func (enc *skEncryptor) EncryptZeroQP(sampler *ringqp.UniformSampler, ct interface{}) {
 
 	var c0, c1 ringqp.Poly
 	switch ct := ct.(type) {
@@ -435,6 +436,7 @@ func (enc *encryptor) EncryptZeroSymetricQPNTT(levelQ, levelP int, sk ringqp.Pol
 		panic("cannot EncryptZeroSymetricQPNTT: ct must be either [2]3ingqp.Poly or ringqp.Poly")
 	}
 
+	levelQ, levelP := c0.LevelQ(), c1.LevelP()
 	ringQP := enc.params.RingQP()
 
 	// ct = (e, 0)
@@ -444,13 +446,10 @@ func (enc *encryptor) EncryptZeroSymetricQPNTT(levelQ, levelP int, sk ringqp.Pol
 	}
 
 	ringQP.NTTLvl(levelQ, levelP, c0, c0)
-
-	// If montgomery, then ct[1] is assumed to be sampled in of the Montgomery domain,
+	// ct[1] is assumed to be sampled in of the Montgomery domain,
 	// thus -as will also be in the montgomery domain (s is by default), therefore 'e'
 	// must be switched to the montgomery domain.
-	if montgomery {
-		ringQP.MFormLvl(levelQ, levelP, c0, c0)
-	}
+	ringQP.MFormLvl(levelQ, levelP, c0, c0)
 
 	// ct = (e, a)
 	if sampler == nil {
@@ -460,7 +459,7 @@ func (enc *encryptor) EncryptZeroSymetricQPNTT(levelQ, levelP int, sk ringqp.Pol
 	}
 
 	// (-a*sk + e, a)
-	ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, c1, sk, c0)
+	ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, c1, enc.sk.Value, c0)
 }
 
 // ShallowCopy creates a shallow copy of this pkEncryptor in which all the read-only data-structures are

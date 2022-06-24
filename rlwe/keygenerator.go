@@ -79,8 +79,15 @@ func (keygen *keyGenerator) genSecretKeyFromSampler(sampler ring.Sampler) (sk *S
 
 // GenPublicKey generates a new public key from the provided SecretKey.
 func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
+	ringQP := keygen.params.RingQP()
+	levelQ := keygen.params.QCount() - 1
+	levelP := keygen.params.PCount() - 1
+
 	pk = NewPublicKey(keygen.params)
-	keygen.EncryptZeroSymetricQPNTT(pk.LevelQ(), pk.LevelP(), sk.Value, &keygen.uniformSampler, false, pk.Value)
+	skEnc := skEncryptor{keygen.encryptor, sk} // TODO validate sk
+	skEnc.EncryptZeroQP(&keygen.uniformSampler, pk.Value)
+	ringQP.InvMFormLvl(levelQ, levelP, pk.Value[1], pk.Value[1])
+	ringQP.InvMFormLvl(levelQ, levelP, pk.Value[0], pk.Value[0])
 	return
 }
 
@@ -264,13 +271,12 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *
 
 func (keygen *keyGenerator) genSwitchingKey(skIn *ring.Poly, skOut ringqp.Poly, swk *SwitchingKey) {
 
-	levelQ := swk.LevelQ()
-	levelP := swk.LevelP()
+	skEnc := skEncryptor{keygen.encryptor, &SecretKey{skOut}} // TODO validate sk
 
 	// Samples an encryption of zero for each element of the switching-key.
 	for i := 0; i < len(swk.Value); i++ {
 		for j := 0; j < len(swk.Value[0]); j++ {
-			keygen.EncryptZeroSymetricQPNTT(levelQ, levelP, skOut, &keygen.uniformSampler, true, swk.Value[i][j])
+			skEnc.EncryptZeroQP(&keygen.uniformSampler, swk.Value[i][j])
 		}
 	}
 

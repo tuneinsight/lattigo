@@ -4,6 +4,7 @@ import (
 	"math/big"
 
 	"github.com/tuneinsight/lattigo/v3/ring"
+	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
@@ -15,6 +16,10 @@ type Plaintext struct {
 // Ciphertext is a generic type for RLWE ciphertext.
 type Ciphertext struct {
 	Value []*ring.Poly
+}
+
+type CiphertextQP struct {
+	Value []*ringqp.Poly
 }
 
 // AdditiveShare is a type for storing additively shared values in Z_Q[X] (RNS domain)

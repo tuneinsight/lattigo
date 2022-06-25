@@ -85,7 +85,7 @@ func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 
 	pk = NewPublicKey(keygen.params)
 	skEnc := skEncryptor{keygen.encryptor, sk} // TODO validate sk
-	skEnc.EncryptZeroQP(&keygen.uniformSampler, pk.Value)
+	skEnc.EncryptZeroSeeded(&keygen.uniformSampler, CiphertextQP{pk.Value})
 	ringQP.InvMFormLvl(levelQ, levelP, pk.Value[1], pk.Value[1])
 	ringQP.InvMFormLvl(levelQ, levelP, pk.Value[0], pk.Value[0])
 	return
@@ -276,7 +276,7 @@ func (keygen *keyGenerator) genSwitchingKey(skIn *ring.Poly, skOut ringqp.Poly, 
 	// Samples an encryption of zero for each element of the switching-key.
 	for i := 0; i < len(swk.Value); i++ {
 		for j := 0; j < len(swk.Value[0]); j++ {
-			skEnc.EncryptZeroQP(&keygen.uniformSampler, swk.Value[i][j])
+			skEnc.EncryptZeroSeeded(&keygen.uniformSampler, CiphertextQP{swk.Value[i][j]})
 		}
 	}
 

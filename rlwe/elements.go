@@ -19,7 +19,7 @@ type Ciphertext struct {
 }
 
 type CiphertextQP struct {
-	Value []*ringqp.Poly
+	Value [2]ringqp.Poly
 }
 
 // AdditiveShare is a type for storing additively shared values in Z_Q[X] (RNS domain)

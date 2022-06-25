@@ -11,7 +11,7 @@ import (
 // Encryptor a generic RLWE encryption interface.
 type Encryptor interface {
 	Encrypt(pt *Plaintext, ct interface{})
-	//EncryptZero(ct interface{})
+	EncryptZero(ct interface{})
 
 	ShallowCopy() Encryptor
 	WithKey(key interface{}) Encryptor
@@ -19,7 +19,7 @@ type Encryptor interface {
 
 type SymmetricEncryptor interface {
 	Encryptor
-	EncryptZeroQP(sampler *ringqp.UniformSampler, montgomery bool, ct interface{})
+
 	EncryptSeeded(pt *Plaintext, sampler ringqp.UniformSampler, ct interface{})
 	EncryptZeroSeeded(sampler ringqp.UniformSampler, ct interface{})
 }
@@ -131,15 +131,24 @@ func newEncryptorBuffers(params Parameters) *encryptorBuffers {
 func (enc *pkEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
 	switch el := ct.(type) {
 	case *Ciphertext:
-		if enc.basisextender != nil {
+		if enc.params.PCount() > 0 {
 			enc.encryptRLWE(pt, el)
 		} else {
 			enc.encryptNoPRLWE(pt, el)
 		}
 	default:
-		panic("input ciphertext type unsuported (must be *rlwe.Ciphertext or *rgsw.Ciphertext)")
+		panic("input ciphertext type unsupported (must be *rlwe.Ciphertext or *rgsw.Ciphertext)")
 	}
 
+}
+
+func (enc *pkEncryptor) EncryptZero(ct interface{}) {
+	switch ct := ct.(type) {
+	case *Ciphertext:
+		enc.encryptZero(ct)
+	default:
+		panic("input ciphertext type unsupported")
+	}
 }
 
 // Encrypt encrypts the input plaintext using the stored public-key and writes the result on ct.
@@ -153,6 +162,10 @@ func (enc *skEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
 	enc.encrypt(pt, &enc.uniformSampler, ct)
 }
 
+func (enc *skEncryptor) EncryptZero(ct interface{}) {
+	// TODO implement
+}
+
 // EncryptSeeded encrypts a slice of plaintext on a pre-allocated slice of cts, using a seed
 // to generate a pseudo random public random polynomial.
 // The pre-allocated ciphertexts can either have their degree 1 element allocated or nil.
@@ -162,6 +175,17 @@ func (enc *skEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
 // using an ephemeral pseudo-random polynomial, which can later be reconstruceted using the seed.
 func (enc *skEncryptor) EncryptSeeded(pt *Plaintext, sampler ringqp.UniformSampler, ct interface{}) {
 	enc.encrypt(pt, &sampler, ct)
+}
+
+func (enc *skEncryptor) EncryptZeroSeeded(sampler *ringqp.UniformSampler, ct interface{}) {
+	switch ct := ct.(type) {
+	case *Ciphertext:
+		enc.encryptZeroSeeded(ct, sampler)
+	case CiphertextQP:
+		enc.encryptZeroSeededQP(sampler, ct)
+	default:
+		panic("input ciphertext type unsupported")
+	}
 }
 
 func (enc *skEncryptor) encrypt(pt *Plaintext, sampler *ringqp.UniformSampler, ct interface{}) {
@@ -175,7 +199,7 @@ func (enc *skEncryptor) encrypt(pt *Plaintext, sampler *ringqp.UniformSampler, c
 	}
 }
 
-func (enc *skEncryptor) encryptZero(ct *Ciphertext, sampler *ringqp.UniformSampler) {
+func (enc *skEncryptor) encryptZeroSeeded(ct *Ciphertext, sampler *ringqp.UniformSampler) {
 
 	ringQ := enc.params.RingQ()
 	levelQ := ct.Level()
@@ -199,6 +223,42 @@ func (enc *skEncryptor) encryptZero(ct *Ciphertext, sampler *ringqp.UniformSampl
 		ringQ.InvNTTLvl(levelQ, c1, c1)               // c1 = c1
 		enc.gaussianSampler.ReadAndAddLvl(levelQ, c0) // c0 = -sc1 + e
 	}
+}
+
+// EncryptZeroSeeded generates en encryption of zero under sk.
+// levelQ : level of the modulus Q
+// levelP : level of the modulus P
+// sk     : secret key
+// sampler: uniform sampler, if `sampler` is nil, then will sample using the internal sampler.
+// montgomery: returns the result in the Montgomery domain.
+func (enc *skEncryptor) encryptZeroSeededQP(sampler *ringqp.UniformSampler, ct CiphertextQP) {
+
+	c0, c1 := ct.Value[0], ct.Value[1]
+
+	levelQ, levelP := c0.LevelQ(), c1.LevelP()
+	ringQP := enc.params.RingQP()
+
+	// ct = (e, 0)
+	enc.gaussianSampler.ReadLvl(levelQ, c0.Q)
+	if levelP != -1 {
+		ringQP.ExtendBasisSmallNormAndCenter(c0.Q, levelP, nil, c0.P)
+	}
+
+	ringQP.NTTLvl(levelQ, levelP, c0, c0)
+	// ct[1] is assumed to be sampled in of the Montgomery domain,
+	// thus -as will also be in the montgomery domain (s is by default), therefore 'e'
+	// must be switched to the montgomery domain.
+	ringQP.MFormLvl(levelQ, levelP, c0, c0)
+
+	// ct = (e, a)
+	if sampler == nil {
+		enc.uniformSampler.ReadLvl(levelQ, levelP, c1)
+	} else {
+		sampler.ReadLvl(levelQ, levelP, c1)
+	}
+
+	// (-a*sk + e, a)
+	ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, c1, enc.sk.Value, c0)
 }
 
 func (enc *skEncryptor) encryptRLWE(pt *Plaintext, sampler *ringqp.UniformSampler, ct *Ciphertext) {
@@ -255,8 +315,8 @@ func (enc *skEncryptor) encryptRGSW(pt *Plaintext, sampler *ringqp.UniformSample
 
 	for j := 0; j < decompBIT; j++ {
 		for i := 0; i < decompRNS; i++ {
-			enc.EncryptZeroQP(sampler, ct.Value[0].Value[i][j])
-			enc.EncryptZeroQP(sampler, ct.Value[1].Value[i][j])
+			enc.EncryptZeroSeeded(sampler, CiphertextQP{ct.Value[0].Value[i][j]})
+			enc.EncryptZeroSeeded(sampler, CiphertextQP{ct.Value[1].Value[i][j]})
 		}
 	}
 
@@ -411,55 +471,6 @@ func (enc *pkEncryptor) encryptRLWE(plaintext *Plaintext, ciphertext *Ciphertext
 
 	c1.IsNTT = c0.IsNTT
 	ciphertext.Resize(ciphertext.Degree(), levelQ)
-}
-
-// EncryptZeroQP generates en encryption of zero under sk.
-// levelQ : level of the modulus Q
-// levelP : level of the modulus P
-// sk     : secret key
-// sampler: uniform sampler, if `sampler` is nil, then will sample using the internal sampler.
-// montgomery: returns the result in the Montgomery domain.
-func (enc *skEncryptor) EncryptZeroQP(sampler *ringqp.UniformSampler, ct interface{}) {
-
-	var c0, c1 ringqp.Poly
-	switch ct := ct.(type) {
-	case [2]ringqp.Poly:
-		c0, c1 = ct[0], ct[1]
-	case ringqp.Poly:
-
-		if sampler == nil {
-			panic("cannot EncryptZeroSymetricQPNTT: sampler cannot be nil if ct.(type) is ringqp.Poly")
-		}
-
-		c0, c1 = ct, enc.buffQP
-	default:
-		panic("cannot EncryptZeroSymetricQPNTT: ct must be either [2]3ingqp.Poly or ringqp.Poly")
-	}
-
-	levelQ, levelP := c0.LevelQ(), c1.LevelP()
-	ringQP := enc.params.RingQP()
-
-	// ct = (e, 0)
-	enc.gaussianSampler.ReadLvl(levelQ, c0.Q)
-	if levelP != -1 {
-		ringQP.ExtendBasisSmallNormAndCenter(c0.Q, levelP, nil, c0.P)
-	}
-
-	ringQP.NTTLvl(levelQ, levelP, c0, c0)
-	// ct[1] is assumed to be sampled in of the Montgomery domain,
-	// thus -as will also be in the montgomery domain (s is by default), therefore 'e'
-	// must be switched to the montgomery domain.
-	ringQP.MFormLvl(levelQ, levelP, c0, c0)
-
-	// ct = (e, a)
-	if sampler == nil {
-		enc.uniformSampler.ReadLvl(levelQ, levelP, c1)
-	} else {
-		sampler.ReadLvl(levelQ, levelP, c1)
-	}
-
-	// (-a*sk + e, a)
-	ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, c1, enc.sk.Value, c0)
 }
 
 // ShallowCopy creates a shallow copy of this pkEncryptor in which all the read-only data-structures are

@@ -25,14 +25,14 @@ type SymmetricEncryptor interface {
 }
 
 type encryptor struct {
-	*encryptorBase
+	params Parameters
 	*encryptorSamplers
 	*encryptorBuffers
 	basisextender *ring.BasisExtender
 }
 
 type pkEncryptor struct {
-	encryptor
+	*encryptor
 	pk *PublicKey
 }
 
@@ -61,20 +61,11 @@ func newEncryptor(params Parameters) encryptor {
 	}
 
 	return encryptor{
-		encryptorBase:     newEncryptorBase(params),
+		params:            params,
 		encryptorSamplers: newEncryptorSamplers(params),
 		encryptorBuffers:  newEncryptorBuffers(params),
 		basisextender:     bc,
 	}
-}
-
-// encryptorBase is a struct used to encrypt Plaintexts. It stores the public-key and/or secret-key.
-type encryptorBase struct {
-	params Parameters
-}
-
-func newEncryptorBase(params Parameters) *encryptorBase {
-	return &encryptorBase{params}
 }
 
 type encryptorSamplers struct {
@@ -477,7 +468,7 @@ func (enc *pkEncryptor) encryptRLWE(plaintext *Plaintext, ciphertext *Ciphertext
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // Encryptors can be used concurrently.
 func (enc *pkEncryptor) ShallowCopy() Encryptor {
-	return &pkEncryptor{*enc.encryptor.ShallowCopy(), enc.pk}
+	return &pkEncryptor{enc.encryptor.ShallowCopy(), enc.pk}
 }
 
 // ShallowCopy creates a shallow copy of this skEncryptor in which all the read-only data-structures are
@@ -498,7 +489,7 @@ func (enc *encryptor) ShallowCopy() *encryptor {
 	}
 
 	return &encryptor{
-		encryptorBase:     enc.encryptorBase,
+		params:            enc.params,
 		encryptorSamplers: newEncryptorSamplers(enc.params),
 		encryptorBuffers:  newEncryptorBuffers(enc.params),
 		basisextender:     bc,
@@ -518,7 +509,7 @@ func (enc *encryptor) setKey(key interface{}) Encryptor {
 		if key.Value[0].Q.N() != enc.params.N() || key.Value[1].Q.N() != enc.params.N() {
 			panic("cannot setKey: pk ring degree does not match params ring degree")
 		}
-		return &pkEncryptor{*enc, key}
+		return &pkEncryptor{enc, key}
 	case *SecretKey:
 		if key.Value.Q.N() != enc.params.N() {
 			panic("cannot setKey: sk ring degree does not match params ring degree")

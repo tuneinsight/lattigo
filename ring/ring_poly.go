@@ -3,8 +3,9 @@ package ring
 import (
 	"encoding/binary"
 	"errors"
-	"github.com/ldsec/lattigo/v2/utils"
 	"math/bits"
+
+	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
 // Poly is the structure that contains the coefficients of a polynomial.
@@ -41,11 +42,8 @@ func (pol *Poly) Level() int {
 
 // Zero sets all coefficients of the target polynomial to 0.
 func (pol *Poly) Zero() {
-	for i := range pol.Coeffs {
-		p0tmp := pol.Coeffs[i]
-		for j := range p0tmp {
-			p0tmp[j] = 0
-		}
+	for _, coeffs := range pol.Coeffs {
+		ZeroVec(coeffs)
 	}
 }
 

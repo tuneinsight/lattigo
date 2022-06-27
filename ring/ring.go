@@ -11,7 +11,7 @@ import (
 	"math/big"
 	"math/bits"
 
-	"github.com/ldsec/lattigo/v2/utils"
+	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
 // Type is the type of ring used by the cryptographic scheme
@@ -74,8 +74,8 @@ type Ring struct {
 	// Indicates whether NTT can be used with the current ring.
 	AllowsNTT bool
 
-	// Product of the Moduli
-	ModulusBigint *big.Int
+	// Product of the Moduli for each level
+	ModulusAtLevel []*big.Int
 
 	// Fast reduction parameters
 	BredParams [][]uint64
@@ -213,19 +213,20 @@ func (r *Ring) setParameters(N int, Modulus []uint64) error {
 		r.Mask[i] = (1 << uint64(bits.Len64(qi))) - 1
 	}
 
-	// Compute the bigQ
-	r.ModulusBigint = NewInt(1)
-	for _, qi := range r.Modulus {
-		r.ModulusBigint.Mul(r.ModulusBigint, NewUint(qi))
+	// Computes bigQ for all levels
+	r.ModulusAtLevel = make([]*big.Int, len(r.Modulus))
+	r.ModulusAtLevel[0] = NewUint(r.Modulus[0])
+	for i := 1; i < len(r.Modulus); i++ {
+		r.ModulusAtLevel[i] = new(big.Int).Mul(r.ModulusAtLevel[i-1], NewUint(r.Modulus[i]))
 	}
 
-	// Compute the fast reduction parameters
+	// Computes the fast reduction parameters
 	r.BredParams = make([][]uint64, len(r.Modulus))
 	r.MredParams = make([]uint64, len(r.Modulus))
 
 	for i, qi := range r.Modulus {
 
-		// Compute the fast modular reduction parameters for the Ring
+		// Computes the fast modular reduction parameters for the Ring
 		r.BredParams[i] = BRedParams(qi)
 
 		// If qi is not a power of 2, we can compute the MRedParams (otherwise, it
@@ -251,7 +252,7 @@ func (r *Ring) genNTTParams(NthRoot uint64) error {
 		panic("error : invalid r parameters (missing)")
 	}
 
-	// Check if each qi is prime and equal to 1 mod NthRoot
+	// Checks if each qi is prime and equal to 1 mod NthRoot
 	for i, qi := range r.Modulus {
 		if !IsPrime(qi) {
 			return fmt.Errorf("invalid modulus (Modulus[%d] is not prime)", i)
@@ -287,10 +288,10 @@ func (r *Ring) genNTTParams(NthRoot uint64) error {
 
 	for i, qi := range r.Modulus {
 
-		// 1.1 Compute N^(-1) mod Q in Montgomery form
+		// 1.1 Computes N^(-1) mod Q in Montgomery form
 		r.NttNInv[i] = MForm(ModExp(NthRoot>>1, qi-2, qi), qi, r.BredParams[i])
 
-		// 1.2 Compute Psi and PsiInv in Montgomery form
+		// 1.2 Computes Psi and PsiInv in Montgomery form
 		r.NttPsi[i] = make([]uint64, NthRoot>>1)
 		r.NttPsiInv[i] = make([]uint64, NthRoot>>1)
 
@@ -310,7 +311,7 @@ func (r *Ring) genNTTParams(NthRoot uint64) error {
 		r.NttPsi[i][0] = MForm(1, qi, r.BredParams[i])
 		r.NttPsiInv[i][0] = MForm(1, qi, r.BredParams[i])
 
-		// Compute nttPsi[j] = nttPsi[j-1]*Psi and nttPsiInv[j] = nttPsiInv[j-1]*PsiInv
+		// Computes nttPsi[j] = nttPsi[j-1]*Psi and nttPsiInv[j] = nttPsiInv[j-1]*PsiInv
 		for j := uint64(1); j < NthRoot>>1; j++ {
 
 			indexReversePrev := utils.BitReverse64(uint64(j-1), logNthRoot)
@@ -453,7 +454,7 @@ func (r *Ring) SetCoefficientsBigintLvl(level int, coeffs []*big.Int, p1 *Poly) 
 func (r *Ring) PolyToString(p1 *Poly) []string {
 
 	coeffsBigint := make([]*big.Int, r.N)
-	r.PolyToBigint(p1, coeffsBigint)
+	r.PolyToBigint(p1, 1, coeffsBigint)
 	coeffsString := make([]string, len(coeffsBigint))
 
 	for i := range coeffsBigint {
@@ -464,67 +465,62 @@ func (r *Ring) PolyToString(p1 *Poly) []string {
 }
 
 // PolyToBigint reconstructs p1 and returns the result in an array of Int.
-func (r *Ring) PolyToBigint(p1 *Poly, coeffsBigint []*big.Int) {
-	r.PolyToBigintLvl(p1.Level(), p1, coeffsBigint)
+// gap defines coefficients X^{i*gap} that will be reconstructed.
+// For example, if gap = 1, then all coefficients are reconstructed, while
+// if gap = 2 then only coefficients X^{2*i} are reconstructed.
+func (r *Ring) PolyToBigint(p1 *Poly, gap int, coeffsBigint []*big.Int) {
+	r.PolyToBigintLvl(p1.Level(), p1, gap, coeffsBigint)
 }
 
 // PolyToBigintLvl reconstructs p1 and returns the result in an array of Int.
-func (r *Ring) PolyToBigintLvl(level int, p1 *Poly, coeffsBigint []*big.Int) {
-	var qi uint64
+// gap defines coefficients X^{i*gap} that will be reconstructed.
+// For example, if gap = 1, then all coefficients are reconstructed, while
+// if gap = 2 then only coefficients X^{2*i} are reconstructed.
+func (r *Ring) PolyToBigintLvl(level int, p1 *Poly, gap int, coeffsBigint []*big.Int) {
 
 	crtReconstruction := make([]*big.Int, level+1)
 
 	QiB := new(big.Int)
 	tmp := new(big.Int)
-	modulusBigint := NewUint(1)
+	modulusBigint := r.ModulusAtLevel[level]
 
 	for i := 0; i < level+1; i++ {
-
-		qi = r.Modulus[i]
-		QiB.SetUint64(qi)
-
-		modulusBigint.Mul(modulusBigint, QiB)
-
-		crtReconstruction[i] = new(big.Int)
-		crtReconstruction[i].Quo(r.ModulusBigint, QiB)
+		QiB.SetUint64(r.Modulus[i])
+		crtReconstruction[i] = new(big.Int).Quo(modulusBigint, QiB)
 		tmp.ModInverse(crtReconstruction[i], QiB)
 		tmp.Mod(tmp, QiB)
 		crtReconstruction[i].Mul(crtReconstruction[i], tmp)
 	}
 
-	for x := 0; x < r.N; x++ {
+	for i, j := 0, 0; j < r.N; i, j = i+1, j+gap {
 
 		tmp.SetUint64(0)
-		coeffsBigint[x] = new(big.Int)
+		coeffsBigint[i] = new(big.Int)
 
-		for i := 0; i < level+1; i++ {
-			coeffsBigint[x].Add(coeffsBigint[x], tmp.Mul(NewUint(p1.Coeffs[i][x]), crtReconstruction[i]))
+		for k := 0; k < level+1; k++ {
+			coeffsBigint[i].Add(coeffsBigint[i], tmp.Mul(NewUint(p1.Coeffs[k][j]), crtReconstruction[k]))
 		}
 
-		coeffsBigint[x].Mod(coeffsBigint[x], modulusBigint)
+		coeffsBigint[i].Mod(coeffsBigint[i], modulusBigint)
 	}
 }
 
 // PolyToBigintCenteredLvl reconstructs p1 and returns the result in an array of Int.
 // Coefficients are centered around Q/2
-func (r *Ring) PolyToBigintCenteredLvl(level int, p1 *Poly, coeffsBigint []*big.Int) {
-	var qi uint64
+// gap defines coefficients X^{i*gap} that will be reconstructed.
+// For example, if gap = 1, then all coefficients are reconstructed, while
+// if gap = 2 then only coefficients X^{2*i} are reconstructed.
+func (r *Ring) PolyToBigintCenteredLvl(level int, p1 *Poly, gap int, coeffsBigint []*big.Int) {
 
 	crtReconstruction := make([]*big.Int, level+1)
 
 	QiB := new(big.Int)
 	tmp := new(big.Int)
-	modulusBigint := NewUint(1)
+	modulusBigint := r.ModulusAtLevel[level]
 
 	for i := 0; i < level+1; i++ {
-
-		qi = r.Modulus[i]
-		QiB.SetUint64(qi)
-
-		modulusBigint.Mul(modulusBigint, QiB)
-
-		crtReconstruction[i] = new(big.Int)
-		crtReconstruction[i].Quo(r.ModulusBigint, QiB)
+		QiB.SetUint64(r.Modulus[i])
+		crtReconstruction[i] = new(big.Int).Quo(modulusBigint, QiB)
 		tmp.ModInverse(crtReconstruction[i], QiB)
 		tmp.Mod(tmp, QiB)
 		crtReconstruction[i].Mul(crtReconstruction[i], tmp)
@@ -534,22 +530,22 @@ func (r *Ring) PolyToBigintCenteredLvl(level int, p1 *Poly, coeffsBigint []*big.
 	modulusBigintHalf.Rsh(modulusBigint, 1)
 
 	var sign int
-	for x := 0; x < r.N; x++ {
+	for i, j := 0, 0; j < r.N; i, j = i+1, j+gap {
 
 		tmp.SetUint64(0)
-		coeffsBigint[x].SetUint64(0)
+		coeffsBigint[i].SetUint64(0)
 
-		for i := 0; i < level+1; i++ {
-			coeffsBigint[x].Add(coeffsBigint[x], tmp.Mul(NewUint(p1.Coeffs[i][x]), crtReconstruction[i]))
+		for k := 0; k < level+1; k++ {
+			coeffsBigint[i].Add(coeffsBigint[i], tmp.Mul(NewUint(p1.Coeffs[k][j]), crtReconstruction[k]))
 		}
 
-		coeffsBigint[x].Mod(coeffsBigint[x], modulusBigint)
+		coeffsBigint[i].Mod(coeffsBigint[i], modulusBigint)
 
 		// Centers the coefficients
-		sign = coeffsBigint[x].Cmp(modulusBigintHalf)
+		sign = coeffsBigint[i].Cmp(modulusBigintHalf)
 
 		if sign == 1 || sign == 0 {
-			coeffsBigint[x].Sub(coeffsBigint[x], modulusBigint)
+			coeffsBigint[i].Sub(coeffsBigint[i], modulusBigint)
 		}
 	}
 }

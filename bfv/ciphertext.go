@@ -1,8 +1,8 @@
 package bfv
 
 import (
-	"github.com/ldsec/lattigo/v2/rlwe"
-	"github.com/ldsec/lattigo/v2/utils"
+	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
 // Ciphertext is a *ring.Poly array representing a polynomial of degree > 0 with coefficients in R_Q.
@@ -10,14 +10,24 @@ type Ciphertext struct {
 	*rlwe.Ciphertext
 }
 
-// NewCiphertext creates a new ciphertext parameterized by degree, level and scale.
+// NewCiphertext creates a new ciphertext parameterized by degree and at the max level.
 func NewCiphertext(params Parameters, degree int) (ciphertext *Ciphertext) {
 	return &Ciphertext{rlwe.NewCiphertext(params.Parameters, degree, params.MaxLevel())}
 }
 
-// NewCiphertextRandom generates a new uniformly distributed ciphertext of degree, level and scale.
+// NewCiphertextLvl creates a new ciphertext parameterized by degree and level.
+func NewCiphertextLvl(params Parameters, degree, level int) (ciphertext *Ciphertext) {
+	return &Ciphertext{rlwe.NewCiphertext(params.Parameters, degree, level)}
+}
+
+// NewCiphertextRandom generates a new uniformly distributed ciphertext of given degree at maximum level.
 func NewCiphertextRandom(prng utils.PRNG, params Parameters, degree int) (ciphertext *Ciphertext) {
 	return &Ciphertext{rlwe.NewCiphertextRandom(prng, params.Parameters, degree, params.MaxLevel())}
+}
+
+// NewCiphertextRandomLvl generates a new uniformly distributed ciphertext of given degree and level.
+func NewCiphertextRandomLvl(prng utils.PRNG, params Parameters, degree, level int) (ciphertext *Ciphertext) {
+	return &Ciphertext{rlwe.NewCiphertextRandom(prng, params.Parameters, degree, level)}
 }
 
 // CopyNew creates a deep copy of the receiver ciphertext and returns it.

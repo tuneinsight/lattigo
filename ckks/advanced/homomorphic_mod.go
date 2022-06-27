@@ -4,8 +4,8 @@ import (
 	"math"
 	"math/cmplx"
 
-	"github.com/ldsec/lattigo/v2/ckks"
-	"github.com/ldsec/lattigo/v2/utils"
+	"github.com/tuneinsight/lattigo/v3/ckks"
+	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
 // SineType is the type of function used during the bootstrapping
@@ -150,7 +150,7 @@ func NewEvalModPolyFromLiteral(evm EvalModLiteral) EvalModPoly {
 		sinePoly.A = float64(-evm.K) / scFac
 		sinePoly.B = float64(evm.K) / scFac
 		sinePoly.Lead = true
-		sinePoly.Basis = ckks.ChebyshevBasis
+		sinePoly.BasisType = ckks.Chebyshev
 
 	} else if evm.SineType == Cos2 {
 		sinePoly = ckks.Approximate(cos2pi, -float64(evm.K)/scFac, float64(evm.K)/scFac, evm.SineDeg)

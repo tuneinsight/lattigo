@@ -5,9 +5,9 @@ import (
 	"errors"
 	"math"
 
-	"github.com/ldsec/lattigo/v2/ring"
-	"github.com/ldsec/lattigo/v2/rlwe"
-	"github.com/ldsec/lattigo/v2/utils"
+	"github.com/tuneinsight/lattigo/v3/ring"
+	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
 // Ciphertext is *ring.Poly array representing a polynomial of degree > 0 with coefficients in R_Q.
@@ -28,7 +28,11 @@ func NewCiphertext(params Parameters, degree, level int, scale float64) (ciphert
 
 // NewCiphertextRandom generates a new uniformly distributed Ciphertext of degree, level and scale.
 func NewCiphertextRandom(prng utils.PRNG, params Parameters, degree, level int, scale float64) (ciphertext *Ciphertext) {
-	return &Ciphertext{rlwe.NewCiphertextRandom(prng, params.Parameters, degree, level), scale}
+	ciphertext = &Ciphertext{rlwe.NewCiphertextRandom(prng, params.Parameters, degree, level), scale}
+	for i := range ciphertext.Value {
+		ciphertext.Value[i].IsNTT = true
+	}
+	return
 }
 
 // NewCiphertextAtLevelFromPoly construct a new Ciphetext at a specific level

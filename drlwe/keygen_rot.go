@@ -3,20 +3,20 @@ package drlwe
 import (
 	"errors"
 
-	"github.com/ldsec/lattigo/v2/ring"
-	"github.com/ldsec/lattigo/v2/rlwe"
-	"github.com/ldsec/lattigo/v2/utils"
+	"github.com/tuneinsight/lattigo/v3/ring"
+	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
-// RotationKeyGenerator is an interface for the local operation in the generation of rotation keys
+// RotationKeyGenerator is an interface for the local operation in the generation of rotation keys.
 type RotationKeyGenerator interface {
-	AllocateShares() (rtgShare *RTGShare)
+	AllocateShare() (rtgShare *RTGShare)
 	GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, shareOut *RTGShare)
-	Aggregate(share1, share2, shareOut *RTGShare)
+	AggregateShare(share1, share2, shareOut *RTGShare)
 	GenRotationKey(share *RTGShare, crp RTGCRP, rotKey *rlwe.SwitchingKey)
 }
 
-// RTGShare is represent a Party's share in the RTG protocol
+// RTGShare is represent a Party's share in the RTG protocol.
 type RTGShare struct {
 	Value []rlwe.PolyQP
 }
@@ -32,7 +32,26 @@ type RTGProtocol struct {
 	gaussianSamplerQ *ring.GaussianSampler
 }
 
-// NewRTGProtocol creates a RTGProtocol instance
+// ShallowCopy creates a shallow copy of RTGProtocol in which all the read-only data-structures are
+// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+// RTGProtocol can be used concurrently.
+func (rtg *RTGProtocol) ShallowCopy() *RTGProtocol {
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+
+	params := rtg.params
+
+	return &RTGProtocol{
+		params:           rtg.params,
+		tmpPoly0:         params.RingQP().NewPoly(),
+		tmpPoly1:         params.RingQP().NewPoly(),
+		gaussianSamplerQ: ring.NewGaussianSampler(prng, params.RingQ(), params.Sigma(), int(6*params.Sigma())),
+	}
+}
+
+// NewRTGProtocol creates a RTGProtocol instance.
 func NewRTGProtocol(params rlwe.Parameters) *RTGProtocol {
 	rtg := new(RTGProtocol)
 	rtg.params = params
@@ -47,8 +66,8 @@ func NewRTGProtocol(params rlwe.Parameters) *RTGProtocol {
 	return rtg
 }
 
-// AllocateShares allocates a party's share in the RTG protocol
-func (rtg *RTGProtocol) AllocateShares() (rtgShare *RTGShare) {
+// AllocateShare allocates a party's share in the RTG protocol.
+func (rtg *RTGProtocol) AllocateShare() (rtgShare *RTGShare) {
 	rtgShare = new(RTGShare)
 	rtgShare.Value = make([]rlwe.PolyQP, rtg.params.Beta())
 	for i := range rtgShare.Value {
@@ -61,7 +80,7 @@ func (rtg *RTGProtocol) AllocateShares() (rtgShare *RTGShare) {
 // common reference string.
 func (rtg *RTGProtocol) SampleCRP(crs CRS) RTGCRP {
 	crp := make([]rlwe.PolyQP, rtg.params.Beta())
-	us := rlwe.NewUniformSamplerQP(rtg.params, crs, rtg.params.RingQP())
+	us := rlwe.NewUniformSamplerQP(rtg.params, crs)
 	for i := range crp {
 		crp[i] = rtg.params.RingQP().NewPoly()
 		us.Read(&crp[i])
@@ -69,7 +88,7 @@ func (rtg *RTGProtocol) SampleCRP(crs CRS) RTGCRP {
 	return RTGCRP(crp)
 }
 
-// GenShare generates a party's share in the RTG protocol
+// GenShare generates a party's share in the RTG protocol.
 func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, shareOut *RTGShare) {
 
 	ringQ := rtg.params.RingQ()
@@ -83,7 +102,7 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, s
 	ringQ.PermuteNTT(sk.Value.Q, galElInv, rtg.tmpPoly1.Q)
 	ringP.PermuteNTT(sk.Value.P, galElInv, rtg.tmpPoly1.P)
 
-	ringQ.MulScalarBigint(sk.Value.Q, ringP.ModulusBigint, rtg.tmpPoly0.Q)
+	ringQ.MulScalarBigint(sk.Value.Q, ringP.ModulusAtLevel[levelP], rtg.tmpPoly0.Q)
 
 	var index int
 
@@ -122,8 +141,8 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, s
 	}
 }
 
-// Aggregate aggregates two shares in the Rotation Key Generation protocol
-func (rtg *RTGProtocol) Aggregate(share1, share2, shareOut *RTGShare) {
+// AggregateShare aggregates two share in the Rotation Key Generation protocol.
+func (rtg *RTGProtocol) AggregateShare(share1, share2, shareOut *RTGShare) {
 	ringQP, levelQ, levelP := rtg.params.RingQP(), rtg.params.QCount()-1, rtg.params.PCount()-1
 	for i := 0; i < rtg.params.Beta(); i++ {
 		ringQP.AddLvl(levelQ, levelP, share1.Value[i], share2.Value[i], shareOut.Value[i])

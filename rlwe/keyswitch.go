@@ -3,23 +3,23 @@ package rlwe
 import (
 	"math"
 
-	"github.com/ldsec/lattigo/v2/ring"
+	"github.com/tuneinsight/lattigo/v3/ring"
 )
 
 // KeySwitcher is a struct for RLWE key-switching.
 type KeySwitcher struct {
 	*Parameters
 	*keySwitcherBuffer
-	Baseconverter *ring.FastBasisExtender
+	BasisExtender *ring.BasisExtender
 	Decomposer    *ring.Decomposer
 }
 
 type keySwitcherBuffer struct {
-	// PoolQ[0]/PoolP[0] : on the fly decomp(c2)
-	// PoolQ[1-5]/PoolP[1-5] : available
-	Pool         [6]PolyQP
-	PoolInvNTT   *ring.Poly
-	PoolDecompQP []PolyQP // Memory pool for the basis extension in hoisting
+	// BuffQ[0]/BuffP[0] : on the fly decomp(c2)
+	// BuffQ[1-5]/BuffP[1-5] : available
+	BuffQP       [6]PolyQP
+	BuffInvNTT   *ring.Poly
+	BuffDecompQP []PolyQP // Memory Buff for the basis extension in hoisting
 }
 
 func newKeySwitcherBuffer(params Parameters) *keySwitcherBuffer {
@@ -28,13 +28,13 @@ func newKeySwitcherBuffer(params Parameters) *keySwitcherBuffer {
 	beta := params.Beta()
 	ringQP := params.RingQP()
 
-	buff.Pool = [6]PolyQP{ringQP.NewPoly(), ringQP.NewPoly(), ringQP.NewPoly(), ringQP.NewPoly(), ringQP.NewPoly(), ringQP.NewPoly()}
+	buff.BuffQP = [6]PolyQP{ringQP.NewPoly(), ringQP.NewPoly(), ringQP.NewPoly(), ringQP.NewPoly(), ringQP.NewPoly(), ringQP.NewPoly()}
 
-	buff.PoolInvNTT = params.RingQ().NewPoly()
+	buff.BuffInvNTT = params.RingQ().NewPoly()
 
-	buff.PoolDecompQP = make([]PolyQP, beta)
+	buff.BuffDecompQP = make([]PolyQP, beta)
 	for i := 0; i < beta; i++ {
-		buff.PoolDecompQP[i] = ringQP.NewPoly()
+		buff.BuffDecompQP[i] = ringQP.NewPoly()
 	}
 
 	return buff
@@ -44,49 +44,49 @@ func newKeySwitcherBuffer(params Parameters) *keySwitcherBuffer {
 func NewKeySwitcher(params Parameters) *KeySwitcher {
 	ks := new(KeySwitcher)
 	ks.Parameters = &params
-	ks.Baseconverter = ring.NewFastBasisExtender(params.RingQ(), params.RingP())
+	ks.BasisExtender = ring.NewBasisExtender(params.RingQ(), params.RingP())
 	ks.Decomposer = ring.NewDecomposer(params.RingQ(), params.RingP())
 	ks.keySwitcherBuffer = newKeySwitcherBuffer(params)
 	return ks
 }
 
-// ShallowCopy creates a copy of a KeySwitcher, only reallocating the memory pool.
+// ShallowCopy creates a copy of a KeySwitcher, only reallocating the memory Buff.
 func (ks *KeySwitcher) ShallowCopy() *KeySwitcher {
 	return &KeySwitcher{
 		Parameters:        ks.Parameters,
 		Decomposer:        ks.Decomposer,
 		keySwitcherBuffer: newKeySwitcherBuffer(*ks.Parameters),
-		Baseconverter:     ks.Baseconverter.ShallowCopy(),
+		BasisExtender:     ks.BasisExtender.ShallowCopy(),
 	}
 }
 
 // SwitchKeysInPlace applies the general key-switching procedure of the form [c0 + cx*evakey[0], c1 + cx*evakey[1]]
 // Will return the result in the same NTT domain as the input cx.
 func (ks *KeySwitcher) SwitchKeysInPlace(levelQ int, cx *ring.Poly, evakey *SwitchingKey, p0, p1 *ring.Poly) {
-	ks.SwitchKeysInPlaceNoModDown(levelQ, cx, evakey, p0, ks.Pool[1].P, p1, ks.Pool[2].P)
+	ks.SwitchKeysInPlaceNoModDown(levelQ, cx, evakey, p0, ks.BuffQP[1].P, p1, ks.BuffQP[2].P)
 
 	levelP := len(evakey.Value[0][0].P.Coeffs) - 1
 
 	if cx.IsNTT {
-		ks.Baseconverter.ModDownQPtoQNTT(levelQ, levelP, p0, ks.Pool[1].P, p0)
-		ks.Baseconverter.ModDownQPtoQNTT(levelQ, levelP, p1, ks.Pool[2].P, p1)
+		ks.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, p0, ks.BuffQP[1].P, p0)
+		ks.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, p1, ks.BuffQP[2].P, p1)
 	} else {
 
 		ks.ringQ.InvNTTLazyLvl(levelQ, p0, p0)
 		ks.ringQ.InvNTTLazyLvl(levelQ, p1, p1)
-		ks.ringP.InvNTTLazyLvl(levelP, ks.Pool[1].P, ks.Pool[1].P)
-		ks.ringP.InvNTTLazyLvl(levelP, ks.Pool[2].P, ks.Pool[2].P)
+		ks.ringP.InvNTTLazyLvl(levelP, ks.BuffQP[1].P, ks.BuffQP[1].P)
+		ks.ringP.InvNTTLazyLvl(levelP, ks.BuffQP[2].P, ks.BuffQP[2].P)
 
-		ks.Baseconverter.ModDownQPtoQ(levelQ, levelP, p0, ks.Pool[1].P, p0)
-		ks.Baseconverter.ModDownQPtoQ(levelQ, levelP, p1, ks.Pool[2].P, p1)
+		ks.BasisExtender.ModDownQPtoQ(levelQ, levelP, p0, ks.BuffQP[1].P, p0)
+		ks.BasisExtender.ModDownQPtoQ(levelQ, levelP, p1, ks.BuffQP[2].P, p1)
 	}
 }
 
 // DecomposeNTT applies the full RNS basis decomposition for all q_alpha_i on c2.
 // Expects the IsNTT flag of c2 to correctly reflect the domain of c2.
-// PoolDecompQ and PoolDecompQ are vectors of polynomials (mod Q and mod P) that store the
+// BuffDecompQ and BuffDecompQ are vectors of polynomials (mod Q and mod P) that store the
 // special RNS decomposition of c2 (in the NTT domain)
-func (ks *KeySwitcher) DecomposeNTT(levelQ, levelP, alpha int, c2 *ring.Poly, PoolDecomp []PolyQP) {
+func (ks *KeySwitcher) DecomposeNTT(levelQ, levelP, alpha int, c2 *ring.Poly, BuffDecomp []PolyQP) {
 
 	ringQ := ks.RingQ()
 
@@ -94,10 +94,10 @@ func (ks *KeySwitcher) DecomposeNTT(levelQ, levelP, alpha int, c2 *ring.Poly, Po
 
 	if c2.IsNTT {
 		polyNTT = c2
-		polyInvNTT = ks.PoolInvNTT
+		polyInvNTT = ks.BuffInvNTT
 		ringQ.InvNTTLvl(levelQ, polyNTT, polyInvNTT)
 	} else {
-		polyNTT = ks.PoolInvNTT
+		polyNTT = ks.BuffInvNTT
 		polyInvNTT = c2
 		ringQ.NTTLvl(levelQ, polyInvNTT, polyNTT)
 	}
@@ -105,7 +105,7 @@ func (ks *KeySwitcher) DecomposeNTT(levelQ, levelP, alpha int, c2 *ring.Poly, Po
 	beta := int(math.Ceil(float64(levelQ+1) / float64(levelP+1)))
 
 	for i := 0; i < beta; i++ {
-		ks.DecomposeSingleNTT(levelQ, levelP, alpha, i, polyNTT, polyInvNTT, PoolDecomp[i].Q, PoolDecomp[i].P)
+		ks.DecomposeSingleNTT(levelQ, levelP, alpha, i, polyNTT, polyInvNTT, BuffDecomp[i].Q, BuffDecomp[i].P)
 	}
 }
 
@@ -136,8 +136,8 @@ func (ks *KeySwitcher) DecomposeSingleNTT(levelQ, levelP, alpha, beta int, c2NTT
 
 // SwitchKeysInPlaceNoModDown applies the key-switch to the polynomial cx :
 //
-// pool2 = dot(decomp(cx) * evakey[0]) mod QP (encrypted input is multiplied by P factor)
-// pool3 = dot(decomp(cx) * evakey[1]) mod QP (encrypted input is multiplied by P factor)
+// Buff2 = dot(decomp(cx) * evakey[0]) mod QP (encrypted input is multiplied by P factor)
+// Buff3 = dot(decomp(cx) * evakey[1]) mod QP (encrypted input is multiplied by P factor)
 //
 // Expects the flag IsNTT of cx to correctly reflect the domain of cx.
 func (ks *KeySwitcher) SwitchKeysInPlaceNoModDown(levelQ int, cx *ring.Poly, evakey *SwitchingKey, c0Q, c0P, c1Q, c1P *ring.Poly) {
@@ -148,15 +148,15 @@ func (ks *KeySwitcher) SwitchKeysInPlaceNoModDown(levelQ int, cx *ring.Poly, eva
 	ringP := ks.RingP()
 	ringQP := ks.RingQP()
 
-	c2QP := ks.Pool[0]
+	c2QP := ks.BuffQP[0]
 
 	var cxNTT, cxInvNTT *ring.Poly
 	if cx.IsNTT {
 		cxNTT = cx
-		cxInvNTT = ks.PoolInvNTT
+		cxInvNTT = ks.BuffInvNTT
 		ringQ.InvNTTLvl(levelQ, cxNTT, cxInvNTT)
 	} else {
-		cxNTT = ks.PoolInvNTT
+		cxNTT = ks.BuffInvNTT
 		cxInvNTT = cx
 		ringQ.NTTLvl(levelQ, cxInvNTT, cxNTT)
 	}
@@ -210,27 +210,27 @@ func (ks *KeySwitcher) SwitchKeysInPlaceNoModDown(levelQ int, cx *ring.Poly, eva
 	}
 }
 
-// KeyswitchHoisted applies the key-switch to the decomposed polynomial c2 mod QP (PoolDecompQ and PoolDecompP)
+// KeyswitchHoisted applies the key-switch to the decomposed polynomial c2 mod QP (BuffDecompQ and BuffDecompP)
 // and divides the result by P, reducing the basis from QP to Q.
 //
-// pool2 = dot(PoolDecompQ||PoolDecompP * evakey[0]) mod Q
-// pool3 = dot(PoolDecompQ||PoolDecompP * evakey[1]) mod Q
-func (ks *KeySwitcher) KeyswitchHoisted(levelQ int, PoolDecompQP []PolyQP, evakey *SwitchingKey, c0Q, c1Q, c0P, c1P *ring.Poly) {
+// Buff2 = dot(BuffDecompQ||BuffDecompP * evakey[0]) mod Q
+// Buff3 = dot(BuffDecompQ||BuffDecompP * evakey[1]) mod Q
+func (ks *KeySwitcher) KeyswitchHoisted(levelQ int, BuffDecompQP []PolyQP, evakey *SwitchingKey, c0Q, c1Q, c0P, c1P *ring.Poly) {
 
-	ks.KeyswitchHoistedNoModDown(levelQ, PoolDecompQP, evakey, c0Q, c1Q, c0P, c1P)
+	ks.KeyswitchHoistedNoModDown(levelQ, BuffDecompQP, evakey, c0Q, c1Q, c0P, c1P)
 
 	levelP := len(evakey.Value[0][0].P.Coeffs) - 1
 
 	// Computes c0Q = c0Q/c0P and c1Q = c1Q/c1P
-	ks.Baseconverter.ModDownQPtoQNTT(levelQ, levelP, c0Q, c0P, c0Q)
-	ks.Baseconverter.ModDownQPtoQNTT(levelQ, levelP, c1Q, c1P, c1Q)
+	ks.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, c0Q, c0P, c0Q)
+	ks.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, c1Q, c1P, c1Q)
 }
 
-// KeyswitchHoistedNoModDown applies the key-switch to the decomposed polynomial c2 mod QP (PoolDecompQ and PoolDecompP)
+// KeyswitchHoistedNoModDown applies the key-switch to the decomposed polynomial c2 mod QP (BuffDecompQ and BuffDecompP)
 //
-// pool2 = dot(PoolDecompQ||PoolDecompP * evakey[0]) mod QP
-// pool3 = dot(PoolDecompQ||PoolDecompP * evakey[1]) mod QP
-func (ks *KeySwitcher) KeyswitchHoistedNoModDown(levelQ int, PoolDecompQP []PolyQP, evakey *SwitchingKey, c0Q, c1Q, c0P, c1P *ring.Poly) {
+// Buff2 = dot(BuffDecompQ||BuffDecompP * evakey[0]) mod QP
+// Buff3 = dot(BuffDecompQ||BuffDecompP * evakey[1]) mod QP
+func (ks *KeySwitcher) KeyswitchHoistedNoModDown(levelQ int, BuffDecompQP []PolyQP, evakey *SwitchingKey, c0Q, c1Q, c0P, c1P *ring.Poly) {
 
 	ringQ := ks.RingQ()
 	ringP := ks.RingP()
@@ -251,11 +251,11 @@ func (ks *KeySwitcher) KeyswitchHoistedNoModDown(levelQ int, PoolDecompQP []Poly
 	for i := 0; i < beta; i++ {
 
 		if i == 0 {
-			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, evakey.Value[i][0], PoolDecompQP[i], c0QP)
-			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, evakey.Value[i][1], PoolDecompQP[i], c1QP)
+			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, evakey.Value[i][0], BuffDecompQP[i], c0QP)
+			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, evakey.Value[i][1], BuffDecompQP[i], c1QP)
 		} else {
-			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, evakey.Value[i][0], PoolDecompQP[i], c0QP)
-			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, evakey.Value[i][1], PoolDecompQP[i], c1QP)
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, evakey.Value[i][0], BuffDecompQP[i], c0QP)
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, evakey.Value[i][1], BuffDecompQP[i], c1QP)
 		}
 
 		if reduce%QiOverF == QiOverF-1 {

@@ -34,16 +34,24 @@ type Stats struct {
 }
 
 func (prec PrecisionStats) String() string {
-	return fmt.Sprintf("\n _________________________________\n") +
-		fmt.Sprintf("|    Log2 | REAL  | IMAG  | L2    |\n") +
-		fmt.Sprintf("|MIN Prec | %.2f | %.2f | %.2f |\n", prec.MinPrecision.Real, prec.MinPrecision.Imag, prec.MinPrecision.L2) +
-		fmt.Sprintf("|MAX Prec | %.2f | %.2f | %.2f |\n", prec.MaxPrecision.Real, prec.MaxPrecision.Imag, prec.MaxPrecision.L2) +
-		fmt.Sprintf("|AVG Prec | %.2f | %.2f | %.2f |\n", prec.MeanPrecision.Real, prec.MeanPrecision.Imag, prec.MeanPrecision.L2) +
-		fmt.Sprintf("|MED Prec | %.2f | %.2f | %.2f |\n", prec.MedianPrecision.Real, prec.MedianPrecision.Imag, prec.MedianPrecision.L2) +
-		fmt.Sprintf("===================================\n") +
-		fmt.Sprintf("Err STD Slots  : %5.2f Log2 \n", math.Log2(prec.STDFreq)) +
-		fmt.Sprintf("Err STD Coeffs : %5.2f Log2 \n", math.Log2(prec.STDTime))
-
+	return fmt.Sprintf(`
+┌─────────┬───────┬───────┬───────┐
+│    Log2 │ REAL  │ IMAG  │ L2    │
+├─────────┼───────┼───────┼───────┤
+│MIN Prec │ %5.2f │ %5.2f │ %5.2f │
+│MAX Prec │ %5.2f │ %5.2f │ %5.2f │
+│AVG Prec │ %5.2f │ %5.2f │ %5.2f │
+│MED Prec │ %5.2f │ %5.2f │ %5.2f │
+└─────────┴───────┴───────┴───────┘
+Err STD Slots  : %5.2f Log2
+Err STD Coeffs : %5.2f Log2
+`,
+		prec.MinPrecision.Real, prec.MinPrecision.Imag, prec.MinPrecision.L2,
+		prec.MaxPrecision.Real, prec.MaxPrecision.Imag, prec.MaxPrecision.L2,
+		prec.MeanPrecision.Real, prec.MeanPrecision.Imag, prec.MeanPrecision.L2,
+		prec.MedianPrecision.Real, prec.MedianPrecision.Imag, prec.MedianPrecision.L2,
+		math.Log2(prec.STDFreq),
+		math.Log2(prec.STDTime))
 }
 
 // GetPrecisionStats generates a PrecisionStats struct from the reference values and the decrypted values

@@ -3,7 +3,8 @@ package rlwe
 import (
 	"encoding/binary"
 	"errors"
-	"github.com/ldsec/lattigo/v2/ring"
+
+	"github.com/tuneinsight/lattigo/v3/ring"
 )
 
 // GetDataLen returns the length in bytes of the target Ciphertext.

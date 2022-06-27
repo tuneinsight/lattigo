@@ -9,11 +9,11 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/ldsec/lattigo/v2/ring"
-	"github.com/ldsec/lattigo/v2/rlwe"
-	"github.com/ldsec/lattigo/v2/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tuneinsight/lattigo/v3/ring"
+	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters + secure bootstrapping). Overrides -short and requires -timeout=0.")
@@ -83,7 +83,7 @@ func TestCKKS(t *testing.T) {
 			panic(err)
 		}
 		var tc *testContext
-		if tc, err = genTestParams(params, 0); err != nil {
+		if tc, err = genTestParams(params); err != nil {
 			panic(err)
 		}
 
@@ -116,7 +116,7 @@ func TestCKKS(t *testing.T) {
 	}
 }
 
-func genTestParams(defaultParam Parameters, hw int) (tc *testContext, err error) {
+func genTestParams(defaultParam Parameters) (tc *testContext, err error) {
 
 	tc = new(testContext)
 
@@ -124,11 +124,7 @@ func genTestParams(defaultParam Parameters, hw int) (tc *testContext, err error)
 
 	tc.kgen = NewKeyGenerator(tc.params)
 
-	if hw == 0 {
-		tc.sk, tc.pk = tc.kgen.GenKeyPair()
-	} else {
-		tc.sk, tc.pk = tc.kgen.GenKeyPairSparse(hw)
-	}
+	tc.sk, tc.pk = tc.kgen.GenKeyPair()
 
 	tc.ringQ = defaultParam.RingQ()
 	if tc.params.PCount() != 0 {
@@ -717,11 +713,30 @@ func testEvaluatorMulAndAdd(tc *testContext, t *testing.T) {
 
 		tc.evaluator.MulRelinAndAdd(ciphertext2, ciphertext2, ciphertext1)
 
-		//fmt.Println(ciphertext1.Value[2].Coeffs[0][:4])
-
 		require.Equal(t, ciphertext1.Degree(), 1)
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
+	})
+
+	t.Run(GetTestName(tc.params, "Evaluator/MulAndAdd/ct0*ct1->ct2"), func(t *testing.T) {
+
+		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
+		values2, _, ciphertext2 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
+
+		for i := range values1 {
+			values1[i] = values1[i] * values2[i]
+		}
+
+		ciphertext3 := NewCiphertext(tc.params, 2, ciphertext1.Level(), ciphertext1.Scale*ciphertext2.Scale)
+		tc.evaluator.MulAndAdd(ciphertext1, ciphertext2, ciphertext3)
+
+		require.Equal(t, ciphertext3.Degree(), 2)
+
+		tc.evaluator.Relinearize(ciphertext3, ciphertext3)
+
+		require.Equal(t, ciphertext3.Degree(), 1)
+
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext3, tc.params.LogSlots(), 0, t)
 	})
 
 	t.Run(GetTestName(tc.params, "Evaluator/MulAndAdd/ct1*ct1->ct0"), func(t *testing.T) {
@@ -956,7 +971,7 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 			t.Skip("method is unsuported when params.PCount() == 0")
 		}
 
-		if tc.params.MaxLevel() < 5 {
+		if tc.params.MaxLevel() < 6 {
 			t.Skip("skipping test for params max level < 5")
 		}
 
@@ -964,7 +979,7 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 
 		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, complex(-1, 0), complex(1, 0), t)
 
-		poly := Approximate(cmplx.Sin, complex(-1.5, 0), complex(1.5, 0), 15)
+		poly := Approximate(cmplx.Sin, complex(-1.5, 0), complex(1.5, 0), 31)
 
 		for i := range values {
 			values[i] = cmplx.Sin(values[i])
@@ -1440,6 +1455,7 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, testctx.params, p)
 		assert.Equal(t, testctx.params.RingQ(), p.RingQ())
+		assert.Equal(t, testctx.params.MarshalBinarySize(), len(bytes))
 	})
 
 	t.Run(GetTestName(testctx.params, "Marshaller/Parameters/JSON"), func(t *testing.T) {
@@ -1455,22 +1471,31 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 		assert.True(t, testctx.params.Equals(paramsRec))
 
 		// checks that ckks.Paramters can be unmarshalled with log-moduli definition without error
-		dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60],"Sigma":3.2,"T":65537}`, testctx.params.LogN()))
+		dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60]}`, testctx.params.LogN()))
 		var paramsWithLogModuli Parameters
 		err = json.Unmarshal(dataWithLogModuli, &paramsWithLogModuli)
 		assert.Nil(t, err)
 		assert.Equal(t, 2, paramsWithLogModuli.QCount())
 		assert.Equal(t, 1, paramsWithLogModuli.PCount())
-		assert.Equal(t, ring.Standard, paramsWithLogModuli.RingType()) // Omitting the RingType field should result in a standard instance
+		assert.Equal(t, ring.Standard, paramsWithLogModuli.RingType())  // Omitting the RingType field should result in a standard instance
+		assert.Equal(t, rlwe.DefaultSigma, paramsWithLogModuli.Sigma()) // Ommiting sigma should result in Default being used
 
 		// checks that ckks.Paramters can be unmarshalled with log-moduli definition with empty P without error
-		dataWithLogModuliNoP := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[],"Sigma":3.2,"T":65537, "RingType": "ConjugateInvariant"}`, testctx.params.LogN()))
+		dataWithLogModuliNoP := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[], "RingType": "ConjugateInvariant"}`, testctx.params.LogN()))
 		var paramsWithLogModuliNoP Parameters
 		err = json.Unmarshal(dataWithLogModuliNoP, &paramsWithLogModuliNoP)
 		assert.Nil(t, err)
 		assert.Equal(t, 2, paramsWithLogModuliNoP.QCount())
 		assert.Equal(t, 0, paramsWithLogModuliNoP.PCount())
 		assert.Equal(t, ring.ConjugateInvariant, paramsWithLogModuliNoP.RingType())
+
+		// checks that one can provide custom parameters for the secret-key and error distributions
+		dataWithCustomSecrets := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60], "H": 192, "Sigma": 6.6}`, testctx.params.LogN()))
+		var paramsWithCustomSecrets Parameters
+		err = json.Unmarshal(dataWithCustomSecrets, &paramsWithCustomSecrets)
+		assert.Nil(t, err)
+		assert.Equal(t, 6.6, paramsWithCustomSecrets.Sigma())
+		assert.Equal(t, 192, paramsWithCustomSecrets.HammingWeight())
 	})
 
 	t.Run("Marshaller/Ciphertext/", func(t *testing.T) {

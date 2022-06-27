@@ -2,18 +2,29 @@ package bfv
 
 import (
 	"fmt"
-	"github.com/ldsec/lattigo/v2/ring"
 	"math"
 	"math/big"
+
+	"github.com/tuneinsight/lattigo/v3/ring"
 )
 
 // DecryptAndPrintError decrypts a ciphertext and prints the log2 of the error.
 func DecryptAndPrintError(ptWant *Plaintext, cthave *Ciphertext, ringQ *ring.Ring, decryptor Decryptor) {
-	ringQ.Sub(cthave.Value[0], ptWant.Value, cthave.Value[0])
+
+	level := cthave.Level()
+
+	ringQ.SubLvl(level, cthave.Value[0], ptWant.Value, cthave.Value[0])
 	plaintext := decryptor.DecryptNew(cthave)
+
 	bigintCoeffs := make([]*big.Int, ringQ.N)
-	ringQ.PolyToBigint(plaintext.Value, bigintCoeffs)
-	center(bigintCoeffs, ringQ.ModulusBigint)
+	ringQ.PolyToBigintLvl(level, plaintext.Value, 1, bigintCoeffs)
+
+	Q := new(big.Int).SetUint64(1)
+	for i := 0; i < level+1; i++ {
+		Q.Mul(Q, new(big.Int).SetUint64(ringQ.Modulus[i]))
+	}
+
+	center(bigintCoeffs, Q)
 	stdErr, minErr, maxErr := errorStats(bigintCoeffs)
 	fmt.Printf("STD : %f - Min : %f - Max : %f\n", math.Log2(stdErr), math.Log2(minErr), math.Log2(maxErr))
 }

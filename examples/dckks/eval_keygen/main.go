@@ -11,11 +11,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ldsec/lattigo/v2/ckks"
-	"github.com/ldsec/lattigo/v2/drlwe"
-	"github.com/ldsec/lattigo/v2/ring"
-	"github.com/ldsec/lattigo/v2/rlwe"
-	"github.com/ldsec/lattigo/v2/utils"
+	"github.com/tuneinsight/lattigo/v3/ckks"
+	"github.com/tuneinsight/lattigo/v3/drlwe"
+	"github.com/tuneinsight/lattigo/v3/ring"
+	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
 type genTask struct {
@@ -82,7 +82,7 @@ func (p *party) Run(wg *sync.WaitGroup, params ckks.Parameters, N int, P []*part
 		}
 
 		for _, galEl := range task.galoisEls {
-			rtgShare := p.AllocateShares()
+			rtgShare := p.AllocateShare()
 
 			p.GenShare(sk, galEl, crp, rtgShare)
 			C.aggTaskQueue <- genTaskResult{galEl: galEl, rtgShare: rtgShare}
@@ -106,7 +106,7 @@ func (c *cloud) Run(galEls []uint64, params ckks.Parameters, t int) {
 		shares[galEl] = &struct {
 			share  *drlwe.RTGShare
 			needed int
-		}{c.AllocateShares(), t}
+		}{c.AllocateShare(), t}
 	}
 
 	var i int
@@ -115,7 +115,7 @@ func (c *cloud) Run(galEls []uint64, params ckks.Parameters, t int) {
 	for task := range c.aggTaskQueue {
 		start := time.Now()
 		acc := shares[task.galEl]
-		c.Aggregate(acc.share, task.rtgShare, acc.share)
+		c.AggregateShare(acc.share, task.rtgShare, acc.share)
 		acc.needed--
 		if acc.needed == 0 {
 			rtk := ckks.NewSwitchingKey(params)
@@ -355,7 +355,7 @@ func verifyKey(swk rlwe.SwitchingKey, galEl uint64, skIdeal *rlwe.SecretKey, par
 	}
 
 	// sOut * P
-	ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusBigint, skIn.Value.Q)
+	ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusAtLevel[len(ringP.Modulus)-1], skIn.Value.Q)
 
 	// P*s^i + sum(e) - P*s^i = sum(e)
 	ringQ.Sub(swk.Value[0][0].Q, skIn.Value.Q, swk.Value[0][0].Q)
@@ -419,7 +419,7 @@ func log2OfInnerSum(level int, ringQ *ring.Ring, poly *ring.Poly) (logSum int) {
 			modulusBigint.Mul(modulusBigint, QiB)
 
 			crtReconstruction = new(big.Int)
-			crtReconstruction.Quo(ringQ.ModulusBigint, QiB)
+			crtReconstruction.Quo(ringQ.ModulusAtLevel[len(ringQ.Modulus)-1], QiB)
 			tmp.ModInverse(crtReconstruction, QiB)
 			tmp.Mod(tmp, QiB)
 			crtReconstruction.Mul(crtReconstruction, tmp)

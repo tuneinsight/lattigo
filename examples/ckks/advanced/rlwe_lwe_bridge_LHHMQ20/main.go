@@ -5,11 +5,11 @@ import (
 	"math"
 	"time"
 
-	"github.com/ldsec/lattigo/v2/ckks"
-	ckksAdvanced "github.com/ldsec/lattigo/v2/ckks/advanced"
-	"github.com/ldsec/lattigo/v2/ring"
-	"github.com/ldsec/lattigo/v2/rlwe"
-	"github.com/ldsec/lattigo/v2/utils"
+	"github.com/tuneinsight/lattigo/v3/ckks"
+	ckksAdvanced "github.com/tuneinsight/lattigo/v3/ckks/advanced"
+	"github.com/tuneinsight/lattigo/v3/ring"
+	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
 // This example is an implementation of the RLWE -> LWE extraction followed by an LWE -> RLWE repacking
@@ -106,7 +106,7 @@ func main() {
 
 	// LWE Parameters
 	kgenLWE := ckks.NewKeyGenerator(paramsLWE)
-	skLWE := kgenLWE.GenSecretKeySparse(64)
+	skLWE := kgenLWE.GenSecretKeyWithHammingWeight(64)
 
 	// RLWE -> LWE Switching key
 	fmt.Printf("	RLWE -> LWE Switching Key... ")

@@ -2,16 +2,16 @@
 package drlwe
 
 import (
-	"github.com/ldsec/lattigo/v2/ring"
-	"github.com/ldsec/lattigo/v2/rlwe"
-	"github.com/ldsec/lattigo/v2/utils"
+	"github.com/tuneinsight/lattigo/v3/ring"
+	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
 // CollectivePublicKeyGenerator is an interface describing the local steps of a generic RLWE CKG protocol.
 type CollectivePublicKeyGenerator interface {
-	AllocateShares() *CKGShare
+	AllocateShare() *CKGShare
 	GenShare(sk *rlwe.SecretKey, crp CKGCRP, shareOut *CKGShare)
-	AggregateShares(share1, share2, shareOut *CKGShare)
+	AggregateShare(share1, share2, shareOut *CKGShare)
 	GenPublicKey(aggregatedShare *CKGShare, crp CKGCRP, pubkey *rlwe.PublicKey)
 }
 
@@ -19,6 +19,18 @@ type CollectivePublicKeyGenerator interface {
 type CKGProtocol struct {
 	params           rlwe.Parameters
 	gaussianSamplerQ *ring.GaussianSampler
+}
+
+// ShallowCopy creates a shallow copy of CKGProtocol in which all the read-only data-structures are
+// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+// CKGProtocol can be used concurrently.
+func (ckg *CKGProtocol) ShallowCopy() *CKGProtocol {
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+
+	return &CKGProtocol{ckg.params, ring.NewGaussianSampler(prng, ckg.params.RingQ(), ckg.params.Sigma(), int(6*ckg.params.Sigma()))}
 }
 
 // CKGShare is a struct storing the CKG protocol's share.
@@ -53,12 +65,12 @@ func NewCKGProtocol(params rlwe.Parameters) *CKGProtocol {
 	if err != nil {
 		panic(err)
 	}
-	ckg.gaussianSamplerQ = ring.NewGaussianSampler(prng, ckg.params.RingQ(), params.Sigma(), int(6*params.Sigma()))
+	ckg.gaussianSamplerQ = ring.NewGaussianSampler(prng, params.RingQ(), params.Sigma(), int(6*params.Sigma()))
 	return ckg
 }
 
-// AllocateShares allocates the share of the CKG protocol.
-func (ckg *CKGProtocol) AllocateShares() *CKGShare {
+// AllocateShare allocates the share of the CKG protocol.
+func (ckg *CKGProtocol) AllocateShare() *CKGShare {
 	return &CKGShare{ckg.params.RingQP().NewPoly()}
 }
 
@@ -66,7 +78,7 @@ func (ckg *CKGProtocol) AllocateShares() *CKGShare {
 // common reference string.
 func (ckg *CKGProtocol) SampleCRP(crs CRS) CKGCRP {
 	crp := ckg.params.RingQP().NewPoly()
-	rlwe.NewUniformSamplerQP(ckg.params, crs, ckg.params.RingQP()).Read(&crp)
+	rlwe.NewUniformSamplerQP(ckg.params, crs).Read(&crp)
 	return CKGCRP(crp)
 }
 
@@ -79,15 +91,19 @@ func (ckg *CKGProtocol) GenShare(sk *rlwe.SecretKey, crp CKGCRP, shareOut *CKGSh
 	ringQP := ckg.params.RingQP()
 
 	ckg.gaussianSamplerQ.Read(shareOut.Value.Q)
-	ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value.Q, ckg.params.PCount()-1, nil, shareOut.Value.P)
+
+	if ringQP.RingP != nil {
+		ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value.Q, ckg.params.PCount()-1, nil, shareOut.Value.P)
+	}
+
 	levelQ, levelP := ckg.params.QCount()-1, ckg.params.PCount()-1
 	ringQP.NTTLvl(levelQ, levelP, shareOut.Value, shareOut.Value)
 
 	ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, sk.Value, rlwe.PolyQP(crp), shareOut.Value)
 }
 
-// AggregateShares aggregates a new share to the aggregate key
-func (ckg *CKGProtocol) AggregateShares(share1, share2, shareOut *CKGShare) {
+// AggregateShare aggregates a new share to the aggregate key
+func (ckg *CKGProtocol) AggregateShare(share1, share2, shareOut *CKGShare) {
 	ckg.params.RingQP().AddLvl(ckg.params.QCount()-1, ckg.params.PCount()-1, share1.Value, share2.Value, shareOut.Value)
 }
 

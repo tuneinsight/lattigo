@@ -3,8 +3,8 @@ package rlwe
 import (
 	"math/big"
 
-	"github.com/ldsec/lattigo/v2/ring"
-	"github.com/ldsec/lattigo/v2/utils"
+	"github.com/tuneinsight/lattigo/v3/ring"
+	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
 // Plaintext is a common base type for RLWE plaintexts.
@@ -40,9 +40,9 @@ func NewAdditiveShareAtLevel(params Parameters, level int) *AdditiveShare {
 	return &AdditiveShare{Value: *ring.NewPoly(params.N(), level+1)}
 }
 
-// NewAdditiveShareBigint instantiate a new additive share struct composed of big.Int elements
-func NewAdditiveShareBigint(params Parameters) *AdditiveShareBigint {
-	v := make([]*big.Int, params.N())
+// NewAdditiveShareBigint instantiate a new additive share struct composed of "n" big.Int elements
+func NewAdditiveShareBigint(params Parameters, n int) *AdditiveShareBigint {
+	v := make([]*big.Int, n)
 	for i := range v {
 		v[i] = new(big.Int)
 	}
@@ -149,13 +149,13 @@ func SwitchCiphertextRingDegreeNTT(ctIn *Ciphertext, ringQSmallDim, ringQLargeDi
 
 	if NIn > NOut {
 		gap := NIn / NOut
-		pool := make([]uint64, NIn)
+		buff := make([]uint64, NIn)
 		for i := range ctOut.Value {
 			for j := range ctOut.Value[i].Coeffs {
 				tmpIn, tmpOut := ctIn.Value[i].Coeffs[j], ctIn.Value[i].Coeffs[j]
-				ringQLargeDim.InvNTTSingle(j, tmpIn, pool)
+				ringQLargeDim.InvNTTSingle(j, tmpIn, buff)
 				for w0, w1 := 0, 0; w0 < NOut; w0, w1 = w0+1, w1+gap {
-					tmpOut[w0] = pool[w1]
+					tmpOut[w0] = buff[w1]
 				}
 				ringQSmallDim.NTTSingle(j, tmpOut, tmpOut)
 			}

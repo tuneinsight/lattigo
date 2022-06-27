@@ -1,24 +1,22 @@
 package rlwe
 
 import (
-	"github.com/ldsec/lattigo/v2/ring"
-	"github.com/ldsec/lattigo/v2/utils"
+	"github.com/tuneinsight/lattigo/v3/ring"
+	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
 // Decryptor is an interface generic RLWE encryption.
 type Decryptor interface {
-	// Decrypt decrypts the ciphertext and write the result in ptOut.
-	// The level of the output plaintext is min(ciphertext.Level(), plaintext.Level())
-	// Output domain will match plaintext.Value.IsNTT value.
 	Decrypt(ciphertext *Ciphertext, plaintext *Plaintext)
+	ShallowCopy() Decryptor
+	WithKey(sk *SecretKey) Decryptor
 }
 
 // decryptor is a structure used to decrypt ciphertext. It stores the secret-key.
 type decryptor struct {
-	params Parameters
-	ringQ  *ring.Ring
-	pool   *ring.Poly
-	sk     *SecretKey
+	ringQ *ring.Ring
+	buff  *ring.Poly
+	sk    *SecretKey
 }
 
 // NewDecryptor instantiates a new generic RLWE Decryptor.
@@ -29,19 +27,18 @@ func NewDecryptor(params Parameters, sk *SecretKey) Decryptor {
 	}
 
 	return &decryptor{
-		params: params,
-		ringQ:  params.RingQ(),
-		pool:   params.RingQ().NewPoly(),
-		sk:     sk,
+		ringQ: params.RingQ(),
+		buff:  params.RingQ().NewPoly(),
+		sk:    sk,
 	}
 }
 
 // Decrypt decrypts the ciphertext and write the result in ptOut.
 // The level of the output plaintext is min(ciphertext.Level(), plaintext.Level())
 // Output domain will match plaintext.Value.IsNTT value.
-func (decryptor *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) {
+func (d *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) {
 
-	ringQ := decryptor.ringQ
+	ringQ := d.ringQ
 
 	level := utils.MinInt(ciphertext.Level(), plaintext.Level())
 
@@ -55,11 +52,11 @@ func (decryptor *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext
 
 	for i := ciphertext.Degree(); i > 0; i-- {
 
-		ringQ.MulCoeffsMontgomeryLvl(level, plaintext.Value, decryptor.sk.Value.Q, plaintext.Value)
+		ringQ.MulCoeffsMontgomeryLvl(level, plaintext.Value, d.sk.Value.Q, plaintext.Value)
 
 		if !ciphertext.Value[0].IsNTT {
-			ringQ.NTTLazyLvl(level, ciphertext.Value[i-1], decryptor.pool)
-			ringQ.AddLvl(level, plaintext.Value, decryptor.pool, plaintext.Value)
+			ringQ.NTTLazyLvl(level, ciphertext.Value[i-1], d.buff)
+			ringQ.AddLvl(level, plaintext.Value, d.buff, plaintext.Value)
 		} else {
 			ringQ.AddLvl(level, plaintext.Value, ciphertext.Value[i-1], plaintext.Value)
 		}
@@ -75,5 +72,27 @@ func (decryptor *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext
 
 	if !plaintext.Value.IsNTT {
 		ringQ.InvNTTLvl(level, plaintext.Value, plaintext.Value)
+	}
+}
+
+// ShallowCopy creates a shallow copy of Decryptor in which all the read-only data-structures are
+// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+// Decryptor can be used concurrently.
+func (d *decryptor) ShallowCopy() Decryptor {
+	return &decryptor{
+		ringQ: d.ringQ,
+		buff:  d.ringQ.NewPoly(),
+		sk:    d.sk,
+	}
+}
+
+// WithKey creates a shallow copy of Decryptor with a new decryption key, in which all the
+// read-only data-structures are shared with the receiver and the temporary buffers
+// are reallocated. The receiver and the returned Decryptor can be used concurrently.
+func (d *decryptor) WithKey(sk *SecretKey) Decryptor {
+	return &decryptor{
+		ringQ: d.ringQ,
+		buff:  d.ringQ.NewPoly(),
+		sk:    sk,
 	}
 }

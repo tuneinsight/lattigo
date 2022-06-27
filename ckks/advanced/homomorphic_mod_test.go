@@ -5,10 +5,10 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/ldsec/lattigo/v2/ckks"
-	"github.com/ldsec/lattigo/v2/rlwe"
-	"github.com/ldsec/lattigo/v2/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/tuneinsight/lattigo/v3/ckks"
+	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
 func TestHomomorphicMod(t *testing.T) {
@@ -87,9 +87,7 @@ func testEvalModMarshalling(t *testing.T) {
 			assert.Nil(t, err)
 		}
 		assert.Equal(t, evm, *evmNew)
-
 	})
-
 }
 
 func testEvalMod(params ckks.Parameters, t *testing.T) {
@@ -139,6 +137,7 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 		//pi2r := 6.283185307179586/complex(math.Exp2(float64(evm.DoubleAngle)), 0)
 		for i := range values {
 			values[i] -= complex(evm.MessageRatio*evm.QDiff()*math.Round(real(values[i])/(evm.MessageRatio/evm.QDiff())), 0)
+			//values[i] = sin2pi2pi(values[i] / complex(evm.MessageRatio*evm.QDiff(), 0)) * complex(evm.MessageRatio*evm.QDiff(), 0) / 6.283185307179586
 		}
 
 		verifyTestVectors(params, encoder, decryptor, values, ciphertext, params.LogSlots(), 0, t)

@@ -4,7 +4,7 @@ import (
 	"math/bits"
 	"unsafe"
 
-	"github.com/ldsec/lattigo/v2/utils"
+	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
 // GenGaloisParams generates the generators for the Galois endomorphisms.
@@ -112,9 +112,16 @@ func (r *Ring) PermuteNTTWithIndexAndAddNoModLvl(level int, polIn *Poly, index [
 }
 
 // Permute applies the Galois transform on a polynomial outside of the NTT domain.
-// It maps the coefficients x^i to x^(gen*i)
+// It maps the coefficients x^i to x^(gen*i).
 // It must be noted that the result cannot be in-place.
 func (r *Ring) Permute(polIn *Poly, gen uint64, polOut *Poly) {
+	r.PermuteLvl(utils.MinInt(polIn.Level(), polOut.Level()), polIn, gen, polOut)
+}
+
+// PermuteLvl applies the Galois transform on a polynomial outside of the NTT domain.
+// It maps the coefficients x^i to x^(gen*i).
+// It must be noted that the result cannot be in-place.
+func (r *Ring) PermuteLvl(level int, polIn *Poly, gen uint64, polOut *Poly) {
 
 	var mask, index, indexRaw, logN, tmp uint64
 
@@ -130,7 +137,7 @@ func (r *Ring) Permute(polIn *Poly, gen uint64, polOut *Poly) {
 
 		tmp = (indexRaw >> logN) & 1
 
-		for j, qi := range r.Modulus {
+		for j, qi := range r.Modulus[:level+1] {
 
 			polOut.Coeffs[j][index] = polIn.Coeffs[j][i]*(tmp^1) | (qi-polIn.Coeffs[j][i])*tmp
 		}

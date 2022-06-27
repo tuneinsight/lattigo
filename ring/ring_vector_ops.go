@@ -406,6 +406,24 @@ func AddVecNoModAndMulScalarMontgomeryVec(p1, p2, p3 []uint64, scalarMont, qi, m
 	}
 }
 
+// AddScalarNoModAndMulScalarMontgomeryVec returns p3 = (scalarMont0+p2)*scalarMont1 mod qi.
+func AddScalarNoModAndMulScalarMontgomeryVec(p1, p2 []uint64, scalar0, scalarMont1, qi, mredParams uint64) {
+	for j := 0; j < len(p1); j = j + 8 {
+
+		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
+		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
+
+		z[0] = MRed(x[0]+scalar0, scalarMont1, qi, mredParams)
+		z[1] = MRed(x[1]+scalar0, scalarMont1, qi, mredParams)
+		z[2] = MRed(x[2]+scalar0, scalarMont1, qi, mredParams)
+		z[3] = MRed(x[3]+scalar0, scalarMont1, qi, mredParams)
+		z[4] = MRed(x[4]+scalar0, scalarMont1, qi, mredParams)
+		z[5] = MRed(x[5]+scalar0, scalarMont1, qi, mredParams)
+		z[6] = MRed(x[6]+scalar0, scalarMont1, qi, mredParams)
+		z[7] = MRed(x[7]+scalar0, scalarMont1, qi, mredParams)
+	}
+}
+
 // AddScalarVec returns p2 = p1 + scalar mod qi.
 func AddScalarVec(p1, p2 []uint64, scalar, qi uint64) {
 	for j := 0; j < len(p1); j = j + 8 {
@@ -530,6 +548,24 @@ func MulScalarMontgomeryAndAddVec(p1, p2 []uint64, scalarMont, qi, mredParams ui
 	}
 }
 
+// MulScalarMontgomeryAndAddScalarVec returns p2 = scalar + p1*scalarMont mod qi.
+func MulScalarMontgomeryAndAddScalarVec(p1, p2 []uint64, scalar0, scalarMont1, qi, mredParams uint64) {
+	for j := 0; j < len(p1); j = j + 8 {
+
+		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
+		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
+
+		z[0] = CRed(MRed(x[0], scalarMont1, qi, mredParams)+scalar0, qi)
+		z[1] = CRed(MRed(x[1], scalarMont1, qi, mredParams)+scalar0, qi)
+		z[2] = CRed(MRed(x[2], scalarMont1, qi, mredParams)+scalar0, qi)
+		z[3] = CRed(MRed(x[3], scalarMont1, qi, mredParams)+scalar0, qi)
+		z[4] = CRed(MRed(x[4], scalarMont1, qi, mredParams)+scalar0, qi)
+		z[5] = CRed(MRed(x[5], scalarMont1, qi, mredParams)+scalar0, qi)
+		z[6] = CRed(MRed(x[6], scalarMont1, qi, mredParams)+scalar0, qi)
+		z[7] = CRed(MRed(x[7], scalarMont1, qi, mredParams)+scalar0, qi)
+	}
+}
+
 // SubVecAndMulScalarMontgomeryTwoQiVec returns p3 = (p1 + twoqi - p2) * scalarMont mod qi.
 func SubVecAndMulScalarMontgomeryTwoQiVec(p1, p2, p3 []uint64, scalarMont, qi, mredParams uint64) {
 	twoqi := qi << 1
@@ -618,5 +654,22 @@ func MulByPow2Vec(p1, p2 []uint64, pow2 int, qi, mredParams uint64) {
 		z[5] = PowerOf2(x[5], pow2, qi, mredParams)
 		z[6] = PowerOf2(x[6], pow2, qi, mredParams)
 		z[7] = PowerOf2(x[7], pow2, qi, mredParams)
+	}
+}
+
+// ZeroVec sets all values of p1 to zero.
+func ZeroVec(p1 []uint64) {
+	for j := 0; j < len(p1); j = j + 8 {
+
+		z := (*[8]uint64)(unsafe.Pointer(&p1[j]))
+
+		z[0] = 0
+		z[1] = 0
+		z[2] = 0
+		z[3] = 0
+		z[4] = 0
+		z[5] = 0
+		z[6] = 0
+		z[7] = 0
 	}
 }

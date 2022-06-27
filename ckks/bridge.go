@@ -3,9 +3,9 @@ package ckks
 import (
 	"fmt"
 
-	"github.com/ldsec/lattigo/v2/ring"
-	"github.com/ldsec/lattigo/v2/rlwe"
-	"github.com/ldsec/lattigo/v2/utils"
+	"github.com/tuneinsight/lattigo/v3/ring"
+	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
 // DomainSwitcher is a type for switching between the standard CKKS domain (which encrypts vectors of complex numbers)
@@ -65,11 +65,11 @@ func (switcher *DomainSwitcher) ComplexToReal(ctIn, ctOut *Ciphertext) {
 		panic("no SwkComplexToReal provided to this DomainSwitcher")
 	}
 
-	switcher.SwitchKeysInPlace(level, ctIn.Value[1], &switcher.SwkComplexToReal.SwitchingKey, switcher.Pool[1].Q, switcher.Pool[2].Q)
-	switcher.stdRingQ.Add(switcher.Pool[1].Q, ctIn.Value[0], switcher.Pool[1].Q)
+	switcher.SwitchKeysInPlace(level, ctIn.Value[1], &switcher.SwkComplexToReal.SwitchingKey, switcher.BuffQP[1].Q, switcher.BuffQP[2].Q)
+	switcher.stdRingQ.Add(switcher.BuffQP[1].Q, ctIn.Value[0], switcher.BuffQP[1].Q)
 
-	switcher.conjugateRingQ.FoldStandardToConjugateInvariant(level, switcher.Pool[1].Q, switcher.permuteNTTIndex, ctOut.Value[0])
-	switcher.conjugateRingQ.FoldStandardToConjugateInvariant(level, switcher.Pool[2].Q, switcher.permuteNTTIndex, ctOut.Value[1])
+	switcher.conjugateRingQ.FoldStandardToConjugateInvariant(level, switcher.BuffQP[1].Q, switcher.permuteNTTIndex, ctOut.Value[0])
+	switcher.conjugateRingQ.FoldStandardToConjugateInvariant(level, switcher.BuffQP[2].Q, switcher.permuteNTTIndex, ctOut.Value[1])
 	ctOut.Scale = 2 * ctIn.Scale
 }
 
@@ -96,7 +96,7 @@ func (switcher *DomainSwitcher) RealToComplex(ctIn, ctOut *Ciphertext) {
 	switcher.stdRingQ.UnfoldConjugateInvariantToStandard(level, ctIn.Value[1], ctOut.Value[1])
 
 	// Switches the RCKswitcher key [X+X^-1] to a CKswitcher key [X]
-	switcher.SwitchKeysInPlace(level, ctOut.Value[1], &switcher.SwkRealToComplex.SwitchingKey, switcher.Pool[1].Q, switcher.Pool[2].Q)
-	switcher.stdRingQ.Add(ctOut.Value[0], switcher.Pool[1].Q, ctOut.Value[0])
-	ring.CopyValues(switcher.Pool[2].Q, ctOut.Value[1])
+	switcher.SwitchKeysInPlace(level, ctOut.Value[1], &switcher.SwkRealToComplex.SwitchingKey, switcher.BuffQP[1].Q, switcher.BuffQP[2].Q)
+	switcher.stdRingQ.Add(ctOut.Value[0], switcher.BuffQP[1].Q, ctOut.Value[0])
+	ring.CopyValues(switcher.BuffQP[2].Q, ctOut.Value[1])
 }

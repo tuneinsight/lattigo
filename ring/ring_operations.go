@@ -4,7 +4,7 @@ import (
 	"math/big"
 	"math/bits"
 
-	"github.com/ldsec/lattigo/v2/utils"
+	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
 func (r *Ring) minLevelTernary(p1, p2, p3 *Poly) int {
@@ -354,6 +354,18 @@ func (r *Ring) MulScalar(p1 *Poly, scalar uint64, p2 *Poly) {
 func (r *Ring) MulScalarLvl(level int, p1 *Poly, scalar uint64, p2 *Poly) {
 	for i := 0; i < level+1; i++ {
 		MulScalarMontgomeryVec(p1.Coeffs[i][:r.N], p2.Coeffs[i][:r.N], MForm(BRedAdd(scalar, r.Modulus[i], r.BredParams[i]), r.Modulus[i], r.BredParams[i]), r.Modulus[i], r.MredParams[i])
+	}
+}
+
+// MulScalarAndAdd multiplies each coefficient of p1 by a scalar and adds the result on p2.
+func (r *Ring) MulScalarAndAdd(p1 *Poly, scalar uint64, p2 *Poly) {
+	r.MulScalarAndAddLvl(r.minLevelBinary(p1, p2), p1, scalar, p2)
+}
+
+// MulScalarAndAddLvl multiplies each coefficient of p1 by a scalar for the moduli from q_0 up to q_level and adds the result on p2.
+func (r *Ring) MulScalarAndAddLvl(level int, p1 *Poly, scalar uint64, p2 *Poly) {
+	for i := 0; i < level+1; i++ {
+		MulScalarMontgomeryAndAddVec(p1.Coeffs[i][:r.N], p2.Coeffs[i][:r.N], MForm(BRedAdd(scalar, r.Modulus[i], r.BredParams[i]), r.Modulus[i], r.BredParams[i]), r.Modulus[i], r.MredParams[i])
 	}
 }
 

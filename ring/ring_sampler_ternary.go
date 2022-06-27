@@ -4,7 +4,7 @@ import (
 	"math"
 	"math/bits"
 
-	"github.com/ldsec/lattigo/v2/utils"
+	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
 // TernarySampler keeps the state of a polynomial sampler in the ternary distribution.
@@ -36,10 +36,10 @@ func NewTernarySampler(prng utils.PRNG, baseRing *Ring, p float64, montgomery bo
 	return ternarySampler
 }
 
-// NewTernarySamplerSparse creates a new instance of a fixed-hamming-weight TernarySampler from a PRNG, the ring definition and the desired
+// NewTernarySamplerWithHammingWeight creates a new instance of a fixed-hamming-weight TernarySampler from a PRNG, the ring definition and the desired
 // hamming weight for the output polynomials. If "montgomery" is set to true, polynomials read from this sampler
 // are in Montgomery form.
-func NewTernarySamplerSparse(prng utils.PRNG, baseRing *Ring, hw int, montgomery bool) *TernarySampler {
+func NewTernarySamplerWithHammingWeight(prng utils.PRNG, baseRing *Ring, hw int, montgomery bool) *TernarySampler {
 	ternarySampler := new(TernarySampler)
 	ternarySampler.baseRing = baseRing
 	ternarySampler.prng = prng
@@ -212,6 +212,13 @@ func (ts *TernarySampler) sampleSparse(lvl int, pol *Poly) {
 			randomBytes = randomBytes[1:]
 			pointer = 0
 		}
+	}
+
+	for _, i := range index {
+		for k := 0; k < lvl+1; k++ {
+			pol.Coeffs[k][i] = 0
+		}
+
 	}
 }
 

@@ -287,10 +287,10 @@ func (p *PolynomialBasis) genPower(n int, lazy bool, scale float64, eval Evaluat
 		}
 
 		// Recurses on the given indexes
-		if err = p.genPower(a, lazy && !isPow2, scale, eval); err != nil {
+		if err = p.genPower(a, lazy, scale, eval); err != nil {
 			return err
 		}
-		if err = p.genPower(b, lazy && !isPow2, scale, eval); err != nil {
+		if err = p.genPower(b, lazy, scale, eval); err != nil {
 			return err
 		}
 
@@ -311,7 +311,7 @@ func (p *PolynomialBasis) genPower(n int, lazy bool, scale float64, eval Evaluat
 		}
 
 		// Computes C[n] = C[a]*C[b]
-		if lazy {
+		if lazy && !isPow2 {
 			p.Value[n] = eval.MulNew(p.Value[a], p.Value[b])
 
 		} else {
@@ -683,8 +683,6 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasis(targetScale
 			}
 		}
 	}
-
-	fmt.Println(maximumCiphertextDegree, res.Degree())
 
 	return
 }

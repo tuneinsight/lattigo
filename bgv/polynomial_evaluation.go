@@ -142,6 +142,14 @@ func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVecto
 		}
 	}
 
+	/*
+		for i := 0; i < 1<<logDegree; i++{
+			if p, ok := powerBasis.Value[i]; ok{
+				fmt.Println(i, p.Degree(), p.Level())
+			}
+		}
+	*/
+
 	polyEval := &polynomialEvaluator{}
 	polyEval.slotsIndex = pol.SlotsIndex
 	polyEval.Evaluator = eval
@@ -219,44 +227,40 @@ func (p *PowerBasis) genPower(target, n int, lazy, rescale bool, eval Evaluator)
 		var rescaleA, rescaleB bool
 
 		// Recurses on the given indexes
-		if rescaleA, err = p.genPower(target, a, lazy && !isPow2, rescale, eval); err != nil {
+		if rescaleA, err = p.genPower(target, a, lazy, rescale, eval); err != nil {
 			return false, err
 		}
 
-		if rescaleB, err = p.genPower(target, b, lazy && !isPow2, rescale, eval); err != nil {
+		if rescaleB, err = p.genPower(target, b, lazy, rescale, eval); err != nil {
 			return false, err
+		}
+
+		if p.Value[a].Degree() == 2 {
+			eval.Relinearize(p.Value[a], p.Value[a])
+		}
+
+		if p.Value[b].Degree() == 2 {
+			eval.Relinearize(p.Value[b], p.Value[b])
+		}
+
+		if rescaleA {
+			if err = eval.Rescale(p.Value[a], p.Value[a]); err != nil {
+				return false, err
+			}
+		}
+
+		if rescaleB {
+			if err = eval.Rescale(p.Value[b], p.Value[b]); err != nil {
+				return false, err
+			}
 		}
 
 		// Computes C[n] = C[a]*C[b]
-		if lazy {
-
-			if p.Value[a].Degree() == 2 {
-				eval.Relinearize(p.Value[a], p.Value[a])
-			}
-
-			if p.Value[b].Degree() == 2 {
-				eval.Relinearize(p.Value[b], p.Value[b])
-			}
-
-			if rescaleA {
-				if err = eval.Rescale(p.Value[a], p.Value[a]); err != nil {
-					return false, err
-				}
-			}
-
-			if rescaleB {
-				if err = eval.Rescale(p.Value[b], p.Value[b]); err != nil {
-					return false, err
-				}
-			}
-
+		if lazy && !isPow2 {
 			p.Value[n] = eval.MulNew(p.Value[a], p.Value[b])
-
 			return true, nil
-
 		} else {
 			p.Value[n] = eval.MulRelinNew(p.Value[a], p.Value[b])
-
 			if err = eval.Rescale(p.Value[n], p.Value[n]); err != nil {
 				return false, err
 			}

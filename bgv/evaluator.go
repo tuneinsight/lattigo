@@ -203,11 +203,11 @@ func (eval *evaluator) checkBinary(op0, op1, opOut Operand, opOutMinDegree int) 
 	}
 
 	if opOut.Degree() < opOutMinDegree {
-		panic("receiver operand degree is too small")
+		opOut.El().Resize(opOutMinDegree, opOut.Level())
 	}
 
-	if op0.Degree() > 6 || op1.Degree() > 6 || opOut.Degree() > 6 {
-		panic("operands degree cannot be larger than 6")
+	if op0.Degree() > 2 || op1.Degree() > 2 || opOut.Degree() > 2 {
+		panic("operands degree cannot be larger than 2")
 	}
 
 	for _, pol := range op0.El().Value {

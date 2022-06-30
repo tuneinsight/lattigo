@@ -152,6 +152,9 @@ func (enc *pkEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
 }
 
 // EncryptZero generates an encryption of zero under the stored public-key and writes the result in ct.
+// The encryption procedures depends on the parameters: If the auxiliary modulus P is defined, the
+// encryption of zero is sampled in QP before being rescaled by P; otherwise, it is directly sampled in Q.
+// The method accepts only *rlwe.Ciphertext as input.
 func (enc *pkEncryptor) EncryptZero(ct interface{}) {
 	switch ct := ct.(type) {
 	case *Ciphertext:
@@ -327,13 +330,8 @@ func (enc *pkEncryptor) encryptZeroNoP(ciphertext *Ciphertext) {
 	ciphertext.Resize(levelQ, levelQ)
 }
 
-// Encrypt encrypts the input plaintext using the stored public-key and writes the result on ct.
-// The encryption procedure first samples an new encryption of zero under the public-key and
-// then adds the plaintext.
-// The encryption procedures depends on the parameters. If the auxiliary modulus P is defined,
-// then the encryption of zero is sampled in QP before being rescaled by P; otherwise, it is directly
-// sampled in Q.
-// The method accepts only *rlwe.Ciphertext or *rgsw.Ciphertext as input and will panic otherwise.
+// Encrypt encrypts the input plaintext using the stored secret-key and writes the result on ct.
+// The method accepts only *rlwe.Ciphertext, *CiphertextCRP or *rgsw.Ciphertext as input and will panic otherwise.
 func (enc *skEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
 	switch el := ct.(type) {
 	case *Ciphertext:
@@ -349,6 +347,8 @@ func (enc *skEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
 	}
 }
 
+// EncryptZero generates an encryption of zero using the stored secret-key and writes the result on ct.
+// The method accepts only *rlwe.Ciphertext, *CiphertextCRP or *rgsw.Ciphertext as input and will panic otherwise.
 func (enc *skEncryptor) EncryptZero(ct interface{}) {
 	switch ct := ct.(type) {
 	case *Ciphertext:
@@ -357,8 +357,8 @@ func (enc *skEncryptor) EncryptZero(ct interface{}) {
 	case *CiphertextCRP:
 		enc.uniformSampler.ReadLvl(ct.Level(), -1, ringqp.Poly{Q: enc.buffQ[1]})
 		enc.encryptZero(ct.Value, enc.buffQ[1])
-	case CiphertextQP:
-		enc.encryptZeroQP(ct)
+	case *CiphertextQP:
+		enc.encryptZeroQP(*ct)
 	default:
 		panic("input ciphertext type unsupported")
 	}
@@ -472,8 +472,8 @@ func (enc *skEncryptor) encryptRGSW(pt *Plaintext, ct *rgsw.Ciphertext) {
 
 	for j := 0; j < decompBIT; j++ {
 		for i := 0; i < decompRNS; i++ {
-			enc.EncryptZero(CiphertextQP{ct.Value[0].Value[i][j]})
-			enc.EncryptZero(CiphertextQP{ct.Value[1].Value[i][j]})
+			enc.EncryptZero(&CiphertextQP{ct.Value[0].Value[i][j]})
+			enc.EncryptZero(&CiphertextQP{ct.Value[1].Value[i][j]})
 		}
 	}
 

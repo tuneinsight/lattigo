@@ -125,6 +125,10 @@ func (uniformSampler *UniformSampler) ReadLvlNew(level int) (Pol *Poly) {
 	return
 }
 
+func (uniformSampler *UniformSampler) WithPRNG(prng utils.PRNG) *UniformSampler {
+	return &UniformSampler{baseSampler: baseSampler{prng: prng, baseRing: uniformSampler.baseRing}, randomBufferN: uniformSampler.randomBufferN}
+}
+
 // RandUniform samples a uniform randomInt variable in the range [0, mask] until randomInt is in the range [0, v-1].
 // mask needs to be of the form 2^n -1.
 func RandUniform(prng utils.PRNG, v uint64, mask uint64) (randomInt uint64) {

@@ -28,14 +28,14 @@ type KeyGenerator interface {
 // KeyGenerator is a structure that stores the elements required to create new keys,
 // as well as a memory buffer for intermediate values.
 type keyGenerator struct {
-	encryptor
+	*skEncryptor
 }
 
 // NewKeyGenerator creates a new KeyGenerator, from which the secret and public keys, as well as the evaluation,
 // rotation and switching keys can be generated.
 func NewKeyGenerator(params Parameters) KeyGenerator {
 	return &keyGenerator{
-		encryptor: newEncryptor(params),
+		skEncryptor: newSkEncryptor(params, NewSecretKey(params)),
 	}
 }
 
@@ -84,8 +84,7 @@ func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 	levelP := keygen.params.PCount() - 1
 
 	pk = NewPublicKey(keygen.params)
-	skEnc := skEncryptor{keygen.encryptor, sk} // TODO validate sk
-	skEnc.EncryptZeroSeeded(&keygen.uniformSampler, CiphertextQP{pk.Value})
+	keygen.WithKey(sk).EncryptZero(CiphertextQP{pk.Value})
 	ringQP.InvMFormLvl(levelQ, levelP, pk.Value[1], pk.Value[1])
 	ringQP.InvMFormLvl(levelQ, levelP, pk.Value[0], pk.Value[0])
 	return
@@ -271,12 +270,10 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *
 
 func (keygen *keyGenerator) genSwitchingKey(skIn *ring.Poly, skOut ringqp.Poly, swk *SwitchingKey) {
 
-	skEnc := skEncryptor{keygen.encryptor, &SecretKey{skOut}} // TODO validate sk
-
 	// Samples an encryption of zero for each element of the switching-key.
 	for i := 0; i < len(swk.Value); i++ {
 		for j := 0; j < len(swk.Value[0]); j++ {
-			skEnc.EncryptZeroSeeded(&keygen.uniformSampler, CiphertextQP{swk.Value[i][j]})
+			keygen.WithKey(&SecretKey{skOut}).EncryptZero(CiphertextQP{swk.Value[i][j]})
 		}
 	}
 

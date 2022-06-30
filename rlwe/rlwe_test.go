@@ -303,7 +303,8 @@ func testEncryptor(kgen KeyGenerator, t *testing.T) {
 		require.True(t, pkEnc1.pk == pkEnc2.pk)
 		require.False(t, (pkEnc1.basisextender == pkEnc2.basisextender) && (pkEnc1.basisextender != nil) && (pkEnc2.basisextender != nil))
 		require.False(t, pkEnc1.encryptorBuffers == pkEnc2.encryptorBuffers)
-		require.False(t, pkEnc1.encryptorSamplers == pkEnc2.encryptorSamplers)
+		require.False(t, pkEnc1.ternarySampler == pkEnc2.ternarySampler)
+		require.False(t, pkEnc1.gaussianSampler == pkEnc2.gaussianSampler)
 	})
 
 	t.Run(testString(params, "Encrypt/Sk/MaxLevel"), func(t *testing.T) {
@@ -338,7 +339,8 @@ func testEncryptor(kgen KeyGenerator, t *testing.T) {
 		require.True(t, skEnc1.sk == skEnc2.sk)
 		require.False(t, (skEnc1.basisextender == skEnc2.basisextender) && (skEnc1.basisextender != nil) && (skEnc2.basisextender != nil))
 		require.False(t, skEnc1.encryptorBuffers == skEnc2.encryptorBuffers)
-		require.False(t, skEnc1.encryptorSamplers == skEnc2.encryptorSamplers)
+		require.False(t, skEnc1.ternarySampler == skEnc2.ternarySampler)
+		require.False(t, skEnc1.gaussianSampler == skEnc2.gaussianSampler)
 	})
 
 	t.Run(testString(params, "Encrypt/WithKey/Sk->Sk"), func(t *testing.T) {
@@ -347,20 +349,12 @@ func testEncryptor(kgen KeyGenerator, t *testing.T) {
 		enc2 := enc1.WithKey(sk2)
 		skEnc1, skEnc2 := enc1.(*skEncryptor), enc2.(*skEncryptor)
 		require.True(t, skEnc1.params.Equals(skEnc2.params))
-		require.False(t, skEnc1.sk == skEnc2.sk)
-		require.False(t, (skEnc1.basisextender == skEnc2.basisextender) && (skEnc1.basisextender != nil) && (skEnc2.basisextender != nil))
-		require.False(t, skEnc1.encryptorBuffers == skEnc2.encryptorBuffers)
-		require.False(t, skEnc1.encryptorSamplers == skEnc2.encryptorSamplers)
-	})
-
-	t.Run(testString(params, "Encrypt/WithKey/Sk->Pk"), func(t *testing.T) {
-		enc1 := NewEncryptor(params, sk)
-		enc2 := enc1.WithKey(pk)
-		skEnc1, pkEnc2 := enc1.(*skEncryptor), enc2.(*pkEncryptor)
-		require.True(t, skEnc1.params.Equals(pkEnc2.params))
-		require.False(t, (skEnc1.basisextender == pkEnc2.basisextender) && (skEnc1.basisextender != nil) && (pkEnc2.basisextender != nil))
-		require.False(t, skEnc1.encryptorBuffers == pkEnc2.encryptorBuffers)
-		require.False(t, skEnc1.encryptorSamplers == pkEnc2.encryptorSamplers)
+		require.True(t, skEnc1.sk.Value.Equals(sk.Value))
+		require.True(t, skEnc2.sk.Value.Equals(sk2.Value))
+		require.True(t, skEnc1.basisextender == skEnc2.basisextender)
+		require.True(t, skEnc1.encryptorBuffers == skEnc2.encryptorBuffers)
+		require.True(t, skEnc1.ternarySampler == skEnc2.ternarySampler)
+		require.True(t, skEnc1.gaussianSampler == skEnc2.gaussianSampler)
 	})
 }
 

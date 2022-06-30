@@ -496,5 +496,9 @@ func (s UniformSampler) ReadLvl(levelQ, levelP int, p Poly) {
 }
 
 func (s UniformSampler) WithPRNG(prng utils.PRNG) UniformSampler {
-	return UniformSampler{samplerQ: s.samplerQ.WithPRNG(prng), samplerP: s.samplerP.WithPRNG(prng)}
+	sp := UniformSampler{samplerQ: s.samplerQ.WithPRNG(prng)}
+	if s.samplerP != nil {
+		sp.samplerP = s.samplerP.WithPRNG(prng)
+	}
+	return sp
 }

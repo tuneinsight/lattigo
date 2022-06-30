@@ -19,10 +19,9 @@ type Encryptor interface {
 	WithKey(key interface{}) Encryptor
 }
 
-type SeededEncryptor interface {
+type PRNGEncryptor interface {
 	Encryptor
-
-	WithPRNG(prng utils.PRNG) SeededEncryptor
+	WithPRNG(prng utils.PRNG) PRNGEncryptor
 }
 
 type encryptor struct {
@@ -56,11 +55,11 @@ func NewEncryptor(params Parameters, key interface{}) Encryptor {
 	case *SecretKey:
 		return newSkEncryptor(params, key)
 	default:
-		panic("cannot setKey: key must be either *rlwe.PublicKey or *rlwe.SecretKey")
+		panic("key must be either *rlwe.PublicKey or *rlwe.SecretKey")
 	}
 }
 
-func NewSeededEncryptor(params Parameters, key *SecretKey) SeededEncryptor {
+func NewSeededEncryptor(params Parameters, key *SecretKey) PRNGEncryptor {
 	enc := NewEncryptor(params, key)
 	skEnc := enc.(*skEncryptor)
 	skEnc.uniformSampler = ringqp.NewUniformSampler(skEnc.prng, *params.RingQP())
@@ -91,7 +90,7 @@ func newEncryptor(params Parameters) *encryptor {
 
 func newSkEncryptor(params Parameters, key *SecretKey) *skEncryptor {
 	if key.Value.Q.N() != params.N() {
-		panic("cannot setKey: sk ring degree does not match params ring degree")
+		panic("sk ring degree does not match params ring degree")
 	}
 
 	prng, err := utils.NewPRNG()
@@ -103,7 +102,7 @@ func newSkEncryptor(params Parameters, key *SecretKey) *skEncryptor {
 
 func newPkEncryptor(params Parameters, key *PublicKey) *pkEncryptor {
 	if key.Value[0].Q.N() != params.N() || key.Value[1].Q.N() != params.N() {
-		panic("cannot setKey: pk ring degree does not match params ring degree")
+		panic("pk ring degree does not match params ring degree")
 	}
 	return &pkEncryptor{newEncryptor(params), key}
 }
@@ -309,8 +308,12 @@ func (enc *pkEncryptor) encryptRLWE(plaintext *Plaintext, ciphertext *Ciphertext
 // The method accepts only *rlwe.Ciphertext or *rgsw.Ciphertext as input and will panic otherwise.
 func (enc *skEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
 	switch el := ct.(type) {
+	case *CiphertextCRP:
+		enc.uniformSampler.ReadLvl(utils.MinInt(pt.Level(), el.Value.Level()), -1, ringqp.Poly{Q: enc.buffQ[1]})
+		enc.encryptRLWE(pt, el.Value, enc.buffQ[1])
 	case *Ciphertext:
-		enc.encryptRLWE(pt, el)
+		enc.uniformSampler.ReadLvl(utils.MinInt(pt.Level(), el.Level()), -1, ringqp.Poly{Q: el.Value[1]})
+		enc.encryptRLWE(pt, el.Value[0], el.Value[1])
 	case *rgsw.Ciphertext:
 		enc.encryptRGSW(pt, el)
 	default:
@@ -383,15 +386,12 @@ func (enc *skEncryptor) encryptZeroQP(ct CiphertextQP) {
 	ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, c1, enc.sk.Value, c0)
 }
 
-func (enc *skEncryptor) encryptRLWE(pt *Plaintext, ct *Ciphertext) {
+func (enc *skEncryptor) encryptRLWE(pt *Plaintext, c0, c1 *ring.Poly) {
 
 	ringQ := enc.params.RingQ()
-	levelQ := utils.MinInt(pt.Level(), ct.Level())
-	c0, c1 := ct.Value[0], ct.Value[1]
-	ctNTT := ct.Value[0].IsNTT
+	levelQ := utils.MinInt(pt.Level(), c0.Level())
+	ctNTT := c0.IsNTT
 	ptNTT := pt.Value.IsNTT
-
-	enc.uniformSampler.ReadLvl(utils.MinInt(pt.Level(), ct.Level()), -1, ringqp.Poly{Q: c1})
 
 	ringQ.MulCoeffsMontgomeryLvl(levelQ, c1, enc.sk.Value.Q, c0)
 	ringQ.NegLvl(levelQ, c0, c0)
@@ -411,13 +411,17 @@ func (enc *skEncryptor) encryptRLWE(pt *Plaintext, ct *Ciphertext) {
 	case !ctNTT && ptNTT:
 		ringQ.AddLvl(levelQ, c0, pt.Value, c0)
 		ringQ.InvNTTLvl(levelQ, c0, c0)
-		enc.gaussianSampler.ReadAndAddLvl(ct.Level(), c0)
-		ringQ.InvNTTLvl(levelQ, c1, c1)
+		enc.gaussianSampler.ReadAndAddLvl(c0.Level(), c0)
+		if c1 != enc.buffQ[0] {
+			ringQ.InvNTTLvl(levelQ, c1, c1)
+		}
 	case !ctNTT && !ptNTT:
 		ringQ.InvNTTLvl(levelQ, c0, c0)
 		ringQ.AddLvl(levelQ, c0, pt.Value, c0)
-		enc.gaussianSampler.ReadAndAddLvl(ct.Level(), c0)
-		ringQ.InvNTTLvl(levelQ, c1, c1)
+		enc.gaussianSampler.ReadAndAddLvl(c0.Level(), c0)
+		if c1 != enc.buffQ[0] {
+			ringQ.InvNTTLvl(levelQ, c1, c1)
+		}
 	}
 }
 
@@ -494,6 +498,6 @@ func (enc *pkEncryptor) WithKey(key interface{}) Encryptor {
 	}
 }
 
-func (enc skEncryptor) WithPRNG(prng utils.PRNG) SeededEncryptor {
+func (enc skEncryptor) WithPRNG(prng utils.PRNG) PRNGEncryptor {
 	return &skEncryptor{enc.encryptor, enc.sk, enc.uniformSampler.WithPRNG(prng)}
 }

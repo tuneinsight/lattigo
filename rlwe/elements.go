@@ -22,6 +22,10 @@ type CiphertextQP struct {
 	Value [2]ringqp.Poly
 }
 
+type CiphertextCRP struct {
+	Value *ring.Poly
+}
+
 // AdditiveShare is a type for storing additively shared values in Z_Q[X] (RNS domain)
 type AdditiveShare struct {
 	Value ring.Poly
@@ -113,6 +117,13 @@ func NewCiphertextNTT(params Parameters, degree, level int) *Ciphertext {
 		el.Value[i] = ring.NewPoly(params.N(), level)
 		el.Value[i].IsNTT = true
 	}
+	return el
+}
+
+func NewCiphertextCRP(params Parameters, degree, level int, ntt bool) *CiphertextCRP {
+	el := new(CiphertextCRP)
+	el.Value = ring.NewPoly(params.N(), level)
+	el.Value.IsNTT = true
 	return el
 }
 

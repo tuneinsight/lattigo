@@ -331,6 +331,27 @@ func testEncryptor(kgen KeyGenerator, t *testing.T) {
 		require.GreaterOrEqual(t, 5+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, ciphertext.Value[0]))
 	})
 
+	t.Run(testString(params, "Encrypt/Sk/PRNG"), func(t *testing.T) {
+		plaintext := NewPlaintext(params, params.MaxLevel())
+		plaintext.Value.IsNTT = true
+		encryptor := NewSeededEncryptor(params, sk)
+		ciphertextCRP := NewCiphertextCRP(params, 1, plaintext.Level(), true)
+
+		prng1, _ := utils.NewKeyedPRNG([]byte{'a', 'b', 'c'})
+		prng2, _ := utils.NewKeyedPRNG([]byte{'a', 'b', 'c'})
+
+		encryptor.WithPRNG(prng1).Encrypt(plaintext, ciphertextCRP)
+
+		samplerQ := ring.NewUniformSampler(prng2, params.ringQ)
+		c1 := samplerQ.ReadNew()
+		ciphertext := Ciphertext{Value: []*ring.Poly{ciphertextCRP.Value, c1}}
+
+		require.Equal(t, plaintext.Level(), ciphertext.Level())
+		ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], sk.Value.Q, ciphertext.Value[0])
+		ringQ.InvNTTLvl(ciphertext.Level(), ciphertext.Value[0], ciphertext.Value[0])
+		require.GreaterOrEqual(t, 5+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, ciphertext.Value[0]))
+	})
+
 	t.Run(testString(params, "Encrypt/Sk/ShallowCopy"), func(t *testing.T) {
 		enc1 := NewEncryptor(params, sk)
 		enc2 := enc1.ShallowCopy()

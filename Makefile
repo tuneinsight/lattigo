@@ -76,7 +76,7 @@ static_check: check_tools
 test: test_gotest test_examples
 
 .PHONY: ci_test
-ci_test: static_checks test_gotest test_examples
+ci_test: static_check test_gotest test_examples
 
 EXECUTABLES = goimports staticcheck
 .PHONY: get_tools

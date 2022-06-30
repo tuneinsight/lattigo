@@ -270,10 +270,11 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *
 
 func (keygen *keyGenerator) genSwitchingKey(skIn *ring.Poly, skOut ringqp.Poly, swk *SwitchingKey) {
 
+	enc := keygen.WithKey(&SecretKey{skOut})
 	// Samples an encryption of zero for each element of the switching-key.
 	for i := 0; i < len(swk.Value); i++ {
 		for j := 0; j < len(swk.Value[0]); j++ {
-			keygen.WithKey(&SecretKey{skOut}).EncryptZero(CiphertextQP{swk.Value[i][j]})
+			enc.EncryptZero(CiphertextQP{swk.Value[i][j]})
 		}
 	}
 

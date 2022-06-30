@@ -215,7 +215,6 @@ func (enc *pkEncryptor) encryptNoPRLWE(pt *Plaintext, ciphertext *Ciphertext) {
 	levelQ := utils.MinInt(pt.Level(), ciphertext.Level())
 
 	ctNTT := ciphertext.Value[0].IsNTT
-	ptNTT := pt.Value.IsNTT
 
 	buffQ0 := enc.buffQ[0]
 
@@ -231,26 +230,7 @@ func (enc *pkEncryptor) encryptNoPRLWE(pt *Plaintext, ciphertext *Ciphertext) {
 	ringQ.MulCoeffsMontgomeryLvl(levelQ, buffQ0, enc.pk.Value[1].Q, c1)
 
 	// c0
-	switch { // TODO, same as skEncryptor
-	case ctNTT && ptNTT:
-		enc.gaussianSampler.ReadLvl(levelQ, buffQ0)
-		ringQ.NTTLvl(levelQ, buffQ0, buffQ0)
-		ringQ.AddLvl(levelQ, c0, buffQ0, c0)
-		ringQ.AddLvl(levelQ, c0, pt.Value, c0)
-	case ctNTT && !ptNTT:
-		enc.gaussianSampler.ReadLvl(levelQ, buffQ0)
-		ringQ.AddLvl(levelQ, buffQ0, pt.Value, buffQ0)
-		ringQ.NTTLvl(levelQ, buffQ0, buffQ0)
-		ringQ.AddLvl(levelQ, c0, buffQ0, c0)
-	case !ctNTT && ptNTT:
-		ringQ.AddLvl(levelQ, c0, pt.Value, c0)
-		ringQ.InvNTTLvl(levelQ, c0, c0)
-		enc.gaussianSampler.ReadAndAddLvl(ciphertext.Level(), c0)
-	case !ctNTT && !ptNTT:
-		ringQ.InvNTTLvl(levelQ, c0, c0)
-		ringQ.AddLvl(levelQ, c0, pt.Value, c0)
-		enc.gaussianSampler.ReadAndAddLvl(ciphertext.Level(), c0)
-	}
+	enc.addPtErrorC0(pt, c0)
 
 	// c1
 	if ctNTT {
@@ -308,12 +288,12 @@ func (enc *pkEncryptor) encryptRLWE(plaintext *Plaintext, ciphertext *Ciphertext
 // The method accepts only *rlwe.Ciphertext or *rgsw.Ciphertext as input and will panic otherwise.
 func (enc *skEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
 	switch el := ct.(type) {
-	case *CiphertextCRP:
-		enc.uniformSampler.ReadLvl(utils.MinInt(pt.Level(), el.Value.Level()), -1, ringqp.Poly{Q: enc.buffQ[1]})
-		enc.encryptRLWE(pt, el.Value, enc.buffQ[1])
 	case *Ciphertext:
 		enc.uniformSampler.ReadLvl(utils.MinInt(pt.Level(), el.Level()), -1, ringqp.Poly{Q: el.Value[1]})
 		enc.encryptRLWE(pt, el.Value[0], el.Value[1])
+	case *CiphertextCRP:
+		enc.uniformSampler.ReadLvl(utils.MinInt(pt.Level(), el.Value.Level()), -1, ringqp.Poly{Q: enc.buffQ[1]})
+		enc.encryptRLWE(pt, el.Value, enc.buffQ[1])
 	case *rgsw.Ciphertext:
 		enc.encryptRGSW(pt, el)
 	default:
@@ -324,7 +304,11 @@ func (enc *skEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
 func (enc *skEncryptor) EncryptZero(ct interface{}) {
 	switch ct := ct.(type) {
 	case *Ciphertext:
-		enc.encryptZero(ct)
+		enc.uniformSampler.ReadLvl(ct.Level(), -1, ringqp.Poly{Q: ct.Value[1]})
+		enc.encryptZero(ct.Value[0], ct.Value[1])
+	case *CiphertextCRP:
+		enc.uniformSampler.ReadLvl(ct.Level(), -1, ringqp.Poly{Q: enc.buffQ[1]})
+		enc.encryptZero(ct.Value, enc.buffQ[1])
 	case CiphertextQP:
 		enc.encryptZeroQP(ct)
 	default:
@@ -332,18 +316,15 @@ func (enc *skEncryptor) EncryptZero(ct interface{}) {
 	}
 }
 
-func (enc *skEncryptor) encryptZero(ct *Ciphertext) {
+func (enc *skEncryptor) encryptZero(c0, c1 *ring.Poly) {
 
 	ringQ := enc.params.RingQ()
-	levelQ := ct.Level()
-	c0, c1 := ct.Value[0], ct.Value[1]
-
-	enc.uniformSampler.ReadLvl(levelQ, -1, ringqp.Poly{Q: c1})
+	levelQ := c0.Level()
 
 	ringQ.MulCoeffsMontgomeryLvl(levelQ, c1, enc.sk.Value.Q, c0) // c0 = NTT(sc1)
 	ringQ.NegLvl(levelQ, c0, c0)                                 // c0 = NTT(-sc1)
 
-	if ct.Value[0].IsNTT {
+	if c0.IsNTT {
 		enc.gaussianSampler.ReadLvl(levelQ, enc.buffQ[0]) // e
 		ringQ.NTTLvl(levelQ, enc.buffQ[0], enc.buffQ[0])  // NTT(e)
 		ringQ.AddLvl(levelQ, c0, enc.buffQ[0], c0)        // c0 = NTT(-sc1 + e)
@@ -391,12 +372,24 @@ func (enc *skEncryptor) encryptRLWE(pt *Plaintext, c0, c1 *ring.Poly) {
 	ringQ := enc.params.RingQ()
 	levelQ := utils.MinInt(pt.Level(), c0.Level())
 	ctNTT := c0.IsNTT
-	ptNTT := pt.Value.IsNTT
 
 	ringQ.MulCoeffsMontgomeryLvl(levelQ, c1, enc.sk.Value.Q, c0)
 	ringQ.NegLvl(levelQ, c0, c0)
 
+	enc.addPtErrorC0(pt, c0)
+
+	if !ctNTT && c1 != enc.buffQ[0] {
+		ringQ.InvNTTLvl(levelQ, c1, c1)
+	}
+}
+
+func (enc *encryptor) addPtErrorC0(pt *Plaintext, c0 *ring.Poly) {
+	ringQ := enc.params.RingQ()
+	levelQ := utils.MinInt(pt.Level(), c0.Level())
+	ctNTT := c0.IsNTT
+	ptNTT := pt.Value.IsNTT
 	buffQ0 := enc.buffQ[0]
+
 	switch {
 	case ctNTT && ptNTT:
 		enc.gaussianSampler.ReadLvl(levelQ, buffQ0)
@@ -412,16 +405,10 @@ func (enc *skEncryptor) encryptRLWE(pt *Plaintext, c0, c1 *ring.Poly) {
 		ringQ.AddLvl(levelQ, c0, pt.Value, c0)
 		ringQ.InvNTTLvl(levelQ, c0, c0)
 		enc.gaussianSampler.ReadAndAddLvl(c0.Level(), c0)
-		if c1 != enc.buffQ[0] {
-			ringQ.InvNTTLvl(levelQ, c1, c1)
-		}
 	case !ctNTT && !ptNTT:
 		ringQ.InvNTTLvl(levelQ, c0, c0)
 		ringQ.AddLvl(levelQ, c0, pt.Value, c0)
 		enc.gaussianSampler.ReadAndAddLvl(c0.Level(), c0)
-		if c1 != enc.buffQ[0] {
-			ringQ.InvNTTLvl(levelQ, c1, c1)
-		}
 	}
 }
 

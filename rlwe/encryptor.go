@@ -19,6 +19,9 @@ type Encryptor interface {
 	WithKey(key interface{}) Encryptor
 }
 
+// PRNGEncryptor is an interface for encrypting RLWE ciphertexts from a secret-key and
+// an pre-determined PRNG. An Encryptor constructed from a secret-key complies to this
+// interface.
 type PRNGEncryptor interface {
 	Encryptor
 	WithPRNG(prng utils.PRNG) PRNGEncryptor
@@ -59,11 +62,9 @@ func NewEncryptor(params Parameters, key interface{}) Encryptor {
 	}
 }
 
-func NewSeededEncryptor(params Parameters, key *SecretKey) PRNGEncryptor {
-	enc := NewEncryptor(params, key)
-	skEnc := enc.(*skEncryptor)
-	skEnc.uniformSampler = ringqp.NewUniformSampler(skEnc.prng, *params.RingQP())
-	return skEnc
+// NewPRNGEncryptor creates a new PRNGEncryptor instance.
+func NewPRNGEncryptor(params Parameters, key *SecretKey) PRNGEncryptor {
+	return newSkEncryptor(params, key)
 }
 
 func newEncryptor(params Parameters) *encryptor {
@@ -130,20 +131,19 @@ func newEncryptorBuffers(params Parameters) *encryptorBuffers {
 	}
 }
 
-// Encrypt encrypts the input plaintext using the stored public-key and writes the result on ct.
+// Encrypt encrypts the input plaintext using the stored public-key and writes the result in ct.
 // The encryption procedure first samples an new encryption of zero under the public-key and
 // then adds the plaintext.
-// The encryption procedures depends on the parameters. If the auxiliary modulus P is defined,
-// then the encryption of zero is sampled in QP before being rescaled by P; otherwise, it is directly
-// sampled in Q.
+// The encryption procedures depends on the parameters: If the auxiliary modulus P is defined, the
+// encryption of zero is sampled in QP before being rescaled by P; otherwise, it is directly sampled in Q.
 // The method accepts only *rlwe.Ciphertext as input.
 func (enc *pkEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
 	switch el := ct.(type) {
 	case *Ciphertext:
 		if enc.params.PCount() > 0 {
-			enc.encryptRLWE(pt, el)
+			enc.encrypt(pt, el)
 		} else {
-			enc.encryptNoPRLWE(pt, el)
+			enc.encryptNoP(pt, el)
 		}
 	default:
 		panic("input ciphertext type unsupported (must be *rlwe.Ciphertext or *rgsw.Ciphertext)")
@@ -151,13 +151,88 @@ func (enc *pkEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
 
 }
 
+// EncryptZero generates an encryption of zero under the stored public-key and writes the result in ct.
 func (enc *pkEncryptor) EncryptZero(ct interface{}) {
 	switch ct := ct.(type) {
 	case *Ciphertext:
-		enc.encryptZero(ct)
+		if enc.params.PCount() > 0 {
+			enc.encryptZero(ct)
+		} else {
+			enc.encryptZeroNoP(ct)
+		}
 	default:
 		panic("input ciphertext type unsupported")
 	}
+}
+
+func (enc *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Ciphertext) {
+	ringQ := enc.params.RingQ()
+	levelQ := utils.MinInt(plaintext.Level(), ciphertext.Level())
+	c0, c1 := ciphertext.Value[0], ciphertext.Value[1]
+	ctNTT := ciphertext.Value[0].IsNTT
+	ptNTT := plaintext.Value.IsNTT
+
+	buffQ0 := enc.buffQ[0]
+
+	enc.encryptZero(ciphertext)
+
+	switch {
+	case ctNTT && ptNTT:
+		ringQ.NTTLvl(levelQ, c0, c0)
+		ringQ.NTTLvl(levelQ, c1, c1)
+		ringQ.AddLvl(levelQ, c0, plaintext.Value, c0)
+	case ctNTT && !ptNTT:
+		ringQ.AddLvl(levelQ, c0, plaintext.Value, c0)
+		ringQ.NTTLvl(levelQ, c0, c0)
+		ringQ.NTTLvl(levelQ, c1, c1)
+	case !ctNTT && ptNTT:
+		ringQ.InvNTTLvl(levelQ, plaintext.Value, buffQ0)
+		ringQ.AddLvl(levelQ, c0, buffQ0, c0)
+	case !ctNTT && !ptNTT:
+		ringQ.AddLvl(levelQ, c0, plaintext.Value, c0)
+	}
+
+	c1.IsNTT = c0.IsNTT
+	ciphertext.Resize(ciphertext.Degree(), levelQ)
+}
+
+func (enc *pkEncryptor) encryptNoP(pt *Plaintext, ciphertext *Ciphertext) {
+
+	ringQ := enc.params.RingQ()
+	levelQ := utils.MinInt(pt.Level(), ciphertext.Level())
+
+	ctNTT := ciphertext.Value[0].IsNTT
+
+	buffQ0 := enc.buffQ[0]
+
+	enc.ternarySampler.ReadLvl(levelQ, buffQ0)
+	ringQ.NTTLvl(levelQ, buffQ0, buffQ0)
+	ringQ.MFormLvl(levelQ, buffQ0, buffQ0)
+
+	c0, c1 := ciphertext.Value[0], ciphertext.Value[1]
+
+	// ct0 = NTT(u*pk0)
+	ringQ.MulCoeffsMontgomeryLvl(levelQ, buffQ0, enc.pk.Value[0].Q, c0)
+	// ct1 = NTT(u*pk1)
+	ringQ.MulCoeffsMontgomeryLvl(levelQ, buffQ0, enc.pk.Value[1].Q, c1)
+
+	// c0
+	enc.addPtErrorC0(pt, c0)
+
+	// c1
+	if ctNTT {
+		enc.gaussianSampler.ReadLvl(levelQ, buffQ0)
+		ringQ.NTTLvl(levelQ, buffQ0, buffQ0)
+		ringQ.AddLvl(levelQ, c1, buffQ0, c1) // ct1 = u*pk1 + e1
+
+	} else {
+		ringQ.InvNTTLvl(levelQ, c1, c1)
+		// ct[1] = pk[1]*u + e1
+		enc.gaussianSampler.ReadAndAddLvl(ciphertext.Level(), c1)
+	}
+
+	c1.IsNTT = ciphertext.Value[0].IsNTT
+	ciphertext.Resize(ciphertext.Degree(), levelQ)
 }
 
 func (enc *pkEncryptor) encryptZero(ciphertext *Ciphertext) {
@@ -209,13 +284,11 @@ func (enc *pkEncryptor) encryptZero(ciphertext *Ciphertext) {
 	enc.basisextender.ModDownQPtoQ(levelQ, levelP, ct1QP.Q, ct1QP.P, ciphertext.Value[1])
 }
 
-func (enc *pkEncryptor) encryptNoPRLWE(pt *Plaintext, ciphertext *Ciphertext) {
+func (enc *pkEncryptor) encryptZeroNoP(ciphertext *Ciphertext) {
 
 	ringQ := enc.params.RingQ()
-	levelQ := utils.MinInt(pt.Level(), ciphertext.Level())
-
+	levelQ := ciphertext.Level()
 	ctNTT := ciphertext.Value[0].IsNTT
-
 	buffQ0 := enc.buffQ[0]
 
 	enc.ternarySampler.ReadLvl(levelQ, buffQ0)
@@ -230,53 +303,28 @@ func (enc *pkEncryptor) encryptNoPRLWE(pt *Plaintext, ciphertext *Ciphertext) {
 	ringQ.MulCoeffsMontgomeryLvl(levelQ, buffQ0, enc.pk.Value[1].Q, c1)
 
 	// c0
-	enc.addPtErrorC0(pt, c0)
+	if ctNTT {
+		enc.gaussianSampler.ReadLvl(levelQ, buffQ0)
+		ringQ.NTTLvl(levelQ, buffQ0, buffQ0)
+		ringQ.AddLvl(levelQ, c0, buffQ0, c0)
+	} else {
+		ringQ.InvNTTLvl(levelQ, c0, c0)
+		enc.gaussianSampler.ReadAndAddLvl(levelQ, c0)
+	}
 
 	// c1
 	if ctNTT {
 		enc.gaussianSampler.ReadLvl(levelQ, buffQ0)
 		ringQ.NTTLvl(levelQ, buffQ0, buffQ0)
-		ringQ.AddLvl(levelQ, c1, buffQ0, c1) // ct1 = u*pk1 + e1
+		ringQ.AddLvl(levelQ, c1, buffQ0, c1)
 
 	} else {
 		ringQ.InvNTTLvl(levelQ, c1, c1)
-		// ct[1] = pk[1]*u + e1
-		enc.gaussianSampler.ReadAndAddLvl(ciphertext.Level(), c1)
+		enc.gaussianSampler.ReadAndAddLvl(levelQ, c1)
 	}
 
 	c1.IsNTT = ciphertext.Value[0].IsNTT
-	ciphertext.Resize(ciphertext.Degree(), levelQ)
-}
-
-func (enc *pkEncryptor) encryptRLWE(plaintext *Plaintext, ciphertext *Ciphertext) {
-	ringQ := enc.params.RingQ()
-	levelQ := utils.MinInt(plaintext.Level(), ciphertext.Level())
-	c0, c1 := ciphertext.Value[0], ciphertext.Value[1]
-	ctNTT := ciphertext.Value[0].IsNTT
-	ptNTT := plaintext.Value.IsNTT
-
-	buffQ0 := enc.buffQ[0]
-
-	enc.encryptZero(ciphertext)
-
-	switch {
-	case ctNTT && ptNTT:
-		ringQ.NTTLvl(levelQ, c0, c0)
-		ringQ.NTTLvl(levelQ, c1, c1)
-		ringQ.AddLvl(levelQ, c0, plaintext.Value, c0)
-	case ctNTT && !ptNTT:
-		ringQ.AddLvl(levelQ, c0, plaintext.Value, c0)
-		ringQ.NTTLvl(levelQ, c0, c0)
-		ringQ.NTTLvl(levelQ, c1, c1)
-	case !ctNTT && ptNTT:
-		ringQ.InvNTTLvl(levelQ, plaintext.Value, buffQ0)
-		ringQ.AddLvl(levelQ, c0, buffQ0, c0)
-	case !ctNTT && !ptNTT:
-		ringQ.AddLvl(levelQ, c0, plaintext.Value, c0)
-	}
-
-	c1.IsNTT = c0.IsNTT
-	ciphertext.Resize(ciphertext.Degree(), levelQ)
+	ciphertext.Resize(levelQ, levelQ)
 }
 
 // Encrypt encrypts the input plaintext using the stored public-key and writes the result on ct.

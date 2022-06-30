@@ -334,7 +334,7 @@ func testEncryptor(kgen KeyGenerator, t *testing.T) {
 	t.Run(testString(params, "Encrypt/Sk/PRNG"), func(t *testing.T) {
 		plaintext := NewPlaintext(params, params.MaxLevel())
 		plaintext.Value.IsNTT = true
-		encryptor := NewSeededEncryptor(params, sk)
+		encryptor := NewPRNGEncryptor(params, sk)
 		ciphertextCRP := NewCiphertextCRP(params, 1, plaintext.Level(), true)
 
 		prng1, _ := utils.NewKeyedPRNG([]byte{'a', 'b', 'c'})

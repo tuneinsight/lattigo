@@ -62,7 +62,14 @@ func (sk *SecretKey) LevelP() int {
 
 // NewPublicKey returns a new PublicKey with zero values.
 func NewPublicKey(params Parameters) (pk *PublicKey) {
-	return &PublicKey{Value: [2]ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()}}
+	pk = &PublicKey{Value: [2]ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()}}
+	pk.Value[0].Q.IsNTT = true
+	pk.Value[1].Q.IsNTT = true
+	if params.PCount() > 0 {
+		pk.Value[0].P.IsNTT = true
+		pk.Value[1].P.IsNTT = true
+	}
+	return 
 }
 
 // LevelQ returns the level of the modulus Q of the target.

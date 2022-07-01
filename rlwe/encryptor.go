@@ -172,11 +172,17 @@ func (enc *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Ciphertext) {
 	ringQ := enc.params.RingQ()
 	levelQ := utils.MinInt(plaintext.Level(), ciphertext.Level())
 	c0, c1 := ciphertext.Value[0], ciphertext.Value[1]
-	ctNTT := ciphertext.Value[0].IsNTT
+	ctNTT := ciphertext.Value[0].IsNTT // Store the input NTT flag
 	ptNTT := plaintext.Value.IsNTT
 
 	buffQ0 := enc.buffQ[0]
 
+	// encryptZero checks the NTT flag, but
+	// we want the result to always be outside
+	// of the NTT domain, regardless of the NTT
+	// flag to be able to save one NTT after this
+	// step.
+	ciphertext.Value[0].IsNTT = false
 	enc.encryptZero(ciphertext)
 
 	switch {
@@ -195,7 +201,9 @@ func (enc *pkEncryptor) encrypt(plaintext *Plaintext, ciphertext *Ciphertext) {
 		ringQ.AddLvl(levelQ, c0, plaintext.Value, c0)
 	}
 
-	c1.IsNTT = c0.IsNTT
+	// Sets the correct NTT flat back
+	c0.IsNTT = ctNTT
+	c1.IsNTT = ctNTT
 	ciphertext.Resize(ciphertext.Degree(), levelQ)
 }
 
@@ -283,6 +291,11 @@ func (enc *pkEncryptor) encryptZero(ciphertext *Ciphertext) {
 
 	// ct1 = (u*pk1 + e1)/P
 	enc.basisextender.ModDownQPtoQ(levelQ, levelP, ct1QP.Q, ct1QP.P, ciphertext.Value[1])
+
+	if ciphertext.Value[0].IsNTT {
+		ringQP.RingQ.NTTLvl(levelQ, ciphertext.Value[0], ciphertext.Value[0])
+		ringQP.RingQ.NTTLvl(levelQ, ciphertext.Value[1], ciphertext.Value[1])
+	}
 }
 
 func (enc *pkEncryptor) encryptZeroNoP(ciphertext *Ciphertext) {
@@ -374,7 +387,7 @@ func (enc *skEncryptor) encryptZero(c0, c1 *ring.Poly) {
 		ringQ.NTTLvl(levelQ, enc.buffQ[0], enc.buffQ[0])  // NTT(e)
 		ringQ.AddLvl(levelQ, c0, enc.buffQ[0], c0)        // c0 = NTT(-sc1 + e)
 	} else {
-		ringQ.InvNTTLvl(levelQ, c0, c0)               // c0 = -sc1 + e
+		ringQ.InvNTTLvl(levelQ, c0, c0)               // c0 = -sc1
 		ringQ.InvNTTLvl(levelQ, c1, c1)               // c1 = c1
 		enc.gaussianSampler.ReadAndAddLvl(levelQ, c0) // c0 = -sc1 + e
 	}
@@ -410,6 +423,11 @@ func (enc *skEncryptor) encryptZeroQP(ct CiphertextQP) {
 
 	// (-a*sk + e, a)
 	ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, c1, enc.sk.Value, c0)
+
+	if !ct.Value[0].Q.IsNTT{
+		ringQP.InvNTTLvl(levelQ, levelP, c0, c0)
+		ringQP.InvNTTLvl(levelQ, levelP, c1, c1)
+	}
 }
 
 func (enc *skEncryptor) encryptRLWE(pt *Plaintext, c0, c1 *ring.Poly) {

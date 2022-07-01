@@ -343,7 +343,7 @@ func (p Parameters) MaxBit(levelQ, levelP int) (c int) {
 	return
 }
 
-// DecompPW2 returns ceil(p.MaxBitQ(levelQ, levelP)/bitDecomp).
+// DecompPw2 returns ceil(p.MaxBitQ(levelQ, levelP)/bitDecomp).
 func (p Parameters) DecompPw2(levelQ, levelP int) (c int) {
 	if p.pow2Base == 0 {
 		return 1

@@ -189,11 +189,11 @@ func (ct *GadgetCiphertext) Decode(data []byte) (pointer int, err error) {
 
 // AddPolyTimesGadgetVectorToGadgetCiphertext takes a plaintext polynomial and a list of Ciphertexts and adds the
 // plaintext times the RNS and BIT decomposition to the i-th element of the i-th Ciphertexts.
-func AddPolyTimesGadgetVectorToGadgetCiphertext(pt *ring.Poly, ct GadgetCiphertext, ringQP ringqp.Ring, logbase2 int, buff *ring.Poly) {
+func AddPolyTimesGadgetVectorToGadgetCiphertext(pt *ring.Poly, cts []GadgetCiphertext, ringQP ringqp.Ring, logbase2 int, buff *ring.Poly) {
 
 	ringQ := ringQP.RingQ
-	levelQ := ct.LevelQ()
-	levelP := ct.LevelP()
+	levelQ := cts[0].LevelQ()
+	levelP := cts[0].LevelP()
 
 	if levelP != -1 {
 		ringQ.MulScalarBigintLvl(levelQ, pt, ringQP.RingP.ModulusAtLevel[levelP], buff) // P * pt
@@ -204,8 +204,8 @@ func AddPolyTimesGadgetVectorToGadgetCiphertext(pt *ring.Poly, ct GadgetCipherte
 		}
 	}
 
-	RNSDecomp := len(ct.Value)
-	BITDecomp := len(ct.Value[0])
+	RNSDecomp := len(cts[0].Value)
+	BITDecomp := len(cts[0].Value[0])
 
 	var index int
 	for j := 0; j < BITDecomp; j++ {
@@ -230,10 +230,13 @@ func AddPolyTimesGadgetVectorToGadgetCiphertext(pt *ring.Poly, ct GadgetCipherte
 				qi := ringQ.Modulus[index]
 				p0tmp := buff.Coeffs[index]
 
-				p1tmp := ct.Value[i][j].Value[0].Q.Coeffs[index]
-				for w := 0; w < ringQ.N; w++ {
-					p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi)
+				for u, ct := range cts {
+					p1tmp := ct.Value[i][j].Value[u].Q.Coeffs[index] // TODO seems incorrect
+					for w := 0; w < ringQ.N; w++ {
+						p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi)
+					}
 				}
+
 			}
 		}
 

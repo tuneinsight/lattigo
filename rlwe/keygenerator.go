@@ -272,5 +272,5 @@ func (keygen *keyGenerator) genSwitchingKey(skIn *ring.Poly, skOut ringqp.Poly, 
 	}
 
 	// Adds the plaintext (input-key) to the switching-key.
-	AddPolyTimesGadgetVectorToGadgetCiphertext(skIn, swk.GadgetCiphertext, *keygen.params.RingQP(), keygen.params.LogBase2(), keygen.buffQ[0])
+	AddPolyTimesGadgetVectorToGadgetCiphertext(skIn, []GadgetCiphertext{swk.GadgetCiphertext}, *keygen.params.RingQP(), keygen.params.LogBase2(), keygen.buffQ[0])
 }

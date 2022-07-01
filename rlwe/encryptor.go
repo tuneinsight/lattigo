@@ -4,8 +4,6 @@ import (
 	"fmt"
 
 	"github.com/tuneinsight/lattigo/v3/ring"
-	"github.com/tuneinsight/lattigo/v3/rlwe/gadget"
-	"github.com/tuneinsight/lattigo/v3/rlwe/rgsw"
 	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
@@ -337,7 +335,7 @@ func (enc *skEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
 	case *CiphertextCRP:
 		enc.uniformSampler.ReadLvl(utils.MinInt(pt.Level(), el.Value.Level()), -1, ringqp.Poly{Q: enc.buffQ[1]})
 		enc.encryptRLWE(pt, el.Value, enc.buffQ[1])
-	case *rgsw.Ciphertext:
+	case *RGSWCiphertext:
 		enc.encryptRGSW(pt, el)
 	default:
 		panic("input ciphertext type unsuported (must be *rlwe.Ciphertext or *rgsw.Ciphertext)")
@@ -457,7 +455,7 @@ func (enc *encryptor) addPtErrorC0(pt *Plaintext, c0 *ring.Poly) {
 	}
 }
 
-func (enc *skEncryptor) encryptRGSW(pt *Plaintext, ct *rgsw.Ciphertext) {
+func (enc *skEncryptor) encryptRGSW(pt *Plaintext, ct *RGSWCiphertext) {
 
 	params := enc.params
 	ringQ := params.RingQ()
@@ -469,8 +467,8 @@ func (enc *skEncryptor) encryptRGSW(pt *Plaintext, ct *rgsw.Ciphertext) {
 
 	for j := 0; j < decompBIT; j++ {
 		for i := 0; i < decompRNS; i++ {
-			enc.EncryptZero(&CiphertextQP{ct.Value[0].Value[i][j]})
-			enc.EncryptZero(&CiphertextQP{ct.Value[1].Value[i][j]})
+			enc.EncryptZero(&ct.Value[0].Value[i][j])
+			enc.EncryptZero(&ct.Value[1].Value[i][j])
 		}
 	}
 
@@ -479,9 +477,9 @@ func (enc *skEncryptor) encryptRGSW(pt *Plaintext, ct *rgsw.Ciphertext) {
 		if !pt.Value.IsNTT {
 			ringQ.NTTLvl(levelQ, enc.buffQP.Q, enc.buffQP.Q)
 		}
-		gadget.AddPolyToCiphertext(
+		AddPolyTimesGadgetVectorToGadgetCiphertext(
 			enc.buffQP.Q,
-			[]gadget.GadgetCiphertext{ct.Value[0], ct.Value[1]},
+			[]GadgetCiphertext{ct.Value[0], ct.Value[1]},
 			*params.RingQP(),
 			params.LogBase2(),
 			enc.buffQP.Q)

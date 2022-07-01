@@ -30,7 +30,7 @@ const DefaultSigma = 3.2
 
 // GaloisGen is an integer of order N=2^d modulo M=2N and that spans Z_M with the integer -1.
 // The j-th ring automorphism takes the root zeta to zeta^(5j).
-const GaloisGen uint64 = 5
+const GaloisGen uint64 = ring.GaloisGen
 
 // ParametersLiteral is a literal representation of BFV parameters.  It has public
 // fields and is used to express unchecked user-defined parameters literally into

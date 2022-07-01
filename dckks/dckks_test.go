@@ -24,7 +24,7 @@ var minPrec float64 = 15.0
 var parties int = 3
 
 func testString(opname string, parties int, params ckks.Parameters) string {
-	return fmt.Sprintf("%s/RingType=%s/logN=%d/logSlots=%d/logQ=%d/levels=%d/alpha=%d/beta=%d/parties=%d",
+	return fmt.Sprintf("%s/RingType=%s/logN=%d/logSlots=%d/logQ=%d/levels=%d/#Pi=%d/Decomp=%d/parties=%d",
 		opname,
 		params.RingType(),
 		params.LogN(),

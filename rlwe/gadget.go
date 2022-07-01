@@ -213,11 +213,11 @@ func AddPolyTimesGadgetVectorToGadgetCiphertext(pt *ring.Poly, cts []GadgetCiphe
 
 			// e + (m * P * w^2j) * (q_star * q_tild) mod QP
 			//
-			// q_prod = prod(q[i*alpha+j])
+			// q_prod = prod(q[i*#Pi+j])
 			// q_star = Q/qprod
 			// q_tild = q_star^-1 mod q_prod
 			//
-			// Therefore : (pt * P * w^2j) * (q_star * q_tild) = pt*P*w^2j mod q[i*alpha+j], else 0
+			// Therefore : (pt * P * w^2j) * (q_star * q_tild) = pt*P*w^2j mod q[i*#Pi+j], else 0
 			for k := 0; k < levelP+1; k++ {
 
 				index = i*(levelP+1) + k
@@ -272,11 +272,11 @@ func AddPolyToGadgetMatrix(pt *ring.Poly, gm [][]ringqp.Poly, ringQP ringqp.Ring
 
 			// e + (m * P * w^2j) * (q_star * q_tild) mod QP
 			//
-			// q_prod = prod(q[i*alpha+j])
+			// q_prod = prod(q[i*#Pi+j])
 			// q_star = Q/qprod
 			// q_tild = q_star^-1 mod q_prod
 			//
-			// Therefore : (pt * P * w^2j) * (q_star * q_tild) = pt*P*w^2j mod q[i*alpha+j], else 0
+			// Therefore : (pt * P * w^2j) * (q_star * q_tild) = pt*P*w^2j mod q[i*#Pi+j], else 0
 			for k := 0; k < levelP+1; k++ {
 
 				index = i*(levelP+1) + k

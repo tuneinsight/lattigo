@@ -1,8 +1,6 @@
 package rgsw
 
 import (
-	"math"
-
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
 	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
@@ -170,8 +168,7 @@ func (eval *Evaluator) externalProductInPlaceMultipleP(levelQ, levelP int, ct0 *
 	c0QP := ringqp.Poly{Q: c0OutQ, P: c0OutP}
 	c1QP := ringqp.Poly{Q: c1OutQ, P: c1OutP}
 
-	alpha := levelP + 1
-	beta := int(math.Ceil(float64(levelQ+1) / float64(levelP+1)))
+	decompRNS := eval.params.DecompRNS(levelQ, levelP)
 
 	QiOverF := eval.params.QiOverflowMargin(levelQ) >> 1
 	PiOverF := eval.params.PiOverflowMargin(levelP) >> 1
@@ -191,9 +188,9 @@ func (eval *Evaluator) externalProductInPlaceMultipleP(levelQ, levelP int, ct0 *
 		}
 
 		// (a, b) + (c0 * rgsw[0][0], c0 * rgsw[0][1])
-		for i := 0; i < beta; i++ {
+		for i := 0; i < decompRNS; i++ {
 
-			eval.DecomposeSingleNTT(levelQ, levelP, alpha, i, c2NTT, c2InvNTT, c2QP.Q, c2QP.P)
+			eval.DecomposeSingleNTT(levelQ, levelP, levelP+1, i, c2NTT, c2InvNTT, c2QP.Q, c2QP.P)
 
 			if k == 0 && i == 0 {
 				ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, el.Value[i][0].Value[0], c2QP, c0QP)

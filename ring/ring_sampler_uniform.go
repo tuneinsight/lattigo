@@ -27,7 +27,7 @@ func (uniformSampler *UniformSampler) Read(Pol *Poly) {
 	var randomUint, mask, qi uint64
 	var ptr int
 
-	uniformSampler.prng.Clock(uniformSampler.randomBufferN)
+	uniformSampler.prng.Read(uniformSampler.randomBufferN)
 
 	for j := range uniformSampler.baseRing.Modulus[:len(Pol.Coeffs)] {
 
@@ -46,7 +46,7 @@ func (uniformSampler *UniformSampler) Read(Pol *Poly) {
 
 				// Refills the buff if it runs empty
 				if ptr == uniformSampler.baseRing.N {
-					uniformSampler.prng.Clock(uniformSampler.randomBufferN)
+					uniformSampler.prng.Read(uniformSampler.randomBufferN)
 					ptr = 0
 				}
 
@@ -71,7 +71,7 @@ func (uniformSampler *UniformSampler) ReadLvl(level int, Pol *Poly) {
 	var randomUint, mask, qi uint64
 	var ptr int
 
-	uniformSampler.prng.Clock(uniformSampler.randomBufferN)
+	uniformSampler.prng.Read(uniformSampler.randomBufferN)
 
 	for j := 0; j < level+1; j++ {
 
@@ -90,7 +90,7 @@ func (uniformSampler *UniformSampler) ReadLvl(level int, Pol *Poly) {
 
 				// Refills the buff if it runs empty
 				if ptr == uniformSampler.baseRing.N {
-					uniformSampler.prng.Clock(uniformSampler.randomBufferN)
+					uniformSampler.prng.Read(uniformSampler.randomBufferN)
 					ptr = 0
 				}
 
@@ -145,7 +145,7 @@ func randInt32(prng utils.PRNG, mask uint64) uint64 {
 
 	// generate random 4 bytes
 	randomBytes := make([]byte, 4)
-	prng.Clock(randomBytes)
+	prng.Read(randomBytes)
 
 	// convert 4 bytes to a uint32
 	randomUint32 := uint64(binary.BigEndian.Uint32(randomBytes))
@@ -159,7 +159,7 @@ func randInt64(prng utils.PRNG, mask uint64) uint64 {
 
 	// generate random 8 bytes
 	randomBytes := make([]byte, 8)
-	prng.Clock(randomBytes)
+	prng.Read(randomBytes)
 
 	// convert 8 bytes to a uint64
 	randomUint64 := binary.BigEndian.Uint64(randomBytes)

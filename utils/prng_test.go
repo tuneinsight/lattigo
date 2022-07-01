@@ -19,20 +19,14 @@ func Test_PRNG(t *testing.T) {
 		sum0 := make([]byte, 512)
 		sum1 := make([]byte, 512)
 
-		if err := Ha.SetClock(sum0, 256); err != nil {
-			t.Error(err)
-		}
-
-		if err := Hb.SetClock(sum1, 128); err != nil {
-			t.Error(err)
-		}
-
 		for i := 0; i < 128; i++ {
-			Hb.Clock(sum1)
+			Hb.Read(sum1)
 		}
 
-		Ha.Clock(sum0)
-		Hb.Clock(sum1)
+		Hb.Reset()
+
+		Ha.Read(sum0)
+		Hb.Read(sum1)
 
 		require.Equal(t, sum0, sum1)
 	})

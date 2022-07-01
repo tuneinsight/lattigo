@@ -170,7 +170,6 @@ func testNewRing(t *testing.T) {
 
 func testPRNG(tc *testParams, t *testing.T) {
 
-	sum := make([]byte, tc.ringQ.N)
 	t.Run(testString("PRNG/", tc.ringQ), func(t *testing.T) {
 
 		var err error
@@ -182,14 +181,6 @@ func testPRNG(tc *testParams, t *testing.T) {
 		}
 
 		if prng2, err = utils.NewKeyedPRNG(nil); err != nil {
-			t.Error(err)
-		}
-
-		if err = prng1.SetClock(sum, 256); err != nil {
-			t.Error(err)
-		}
-
-		if err = prng2.SetClock(sum, 256); err != nil {
 			t.Error(err)
 		}
 

@@ -15,97 +15,79 @@ import (
 var (
 	// PN11QP54 is a set of default parameters with logN=11 and logQP=54
 	PN11QP54 = ParametersLiteral{
-		ParametersLiteral: rlwe.ParametersLiteral{
-			LogN:     11,
-			Q:        []uint64{0x3001, 0x15400000001}, // 13.5 + 40.4 bits
-			P:        []uint64{},
-			LogBase2: 6,
-		},
-		T: 0x3001,
+		LogN:     11,
+		Q:        []uint64{0x3001, 0x15400000001}, // 13.5 + 40.4 bits
+		P:        []uint64{},
+		LogBase2: 6,
+		T:        0x3001,
 	}
 
 	// PN12QP109 is a set of default parameters with logN=12 and logQP=109
 	PN12QP109 = ParametersLiteral{
-		ParametersLiteral: rlwe.ParametersLiteral{
-			LogN: 12,
-			Q:    []uint64{0x7ffffec001, 0x8000016001}, // 39 + 39 bits
-			P:    []uint64{0x40002001},                 // 30 bits
-		},
-		T: 65537,
+		LogN: 12,
+		Q:    []uint64{0x7ffffec001, 0x8000016001}, // 39 + 39 bits
+		P:    []uint64{0x40002001},                 // 30 bits
+		T:    65537,
 	}
 	// PN13QP218 is a set of default parameters with logN=13 and logQP=218
 	PN13QP218 = ParametersLiteral{
-		ParametersLiteral: rlwe.ParametersLiteral{
-			LogN: 13,
-			Q:    []uint64{0x3fffffffef8001, 0x4000000011c001, 0x40000000120001}, // 54 + 54 + 54 bits
-			P:    []uint64{0x7ffffffffb4001},                                     // 55 bits
-		},
-		T: 65537,
+		LogN: 13,
+		Q:    []uint64{0x3fffffffef8001, 0x4000000011c001, 0x40000000120001}, // 54 + 54 + 54 bits
+		P:    []uint64{0x7ffffffffb4001},                                     // 55 bits
+		T:    65537,
 	}
 
 	// PN14QP438 is a set of default parameters with logN=14 and logQP=438
 	PN14QP438 = ParametersLiteral{
-		ParametersLiteral: rlwe.ParametersLiteral{
-			LogN: 14,
-			Q: []uint64{0x100000000060001, 0x80000000068001, 0x80000000080001,
-				0x3fffffffef8001, 0x40000000120001, 0x3fffffffeb8001}, // 56 + 55 + 55 + 54 + 54 + 54 bits
-			P: []uint64{0x80000000130001, 0x7fffffffe90001}, // 55 + 55 bits
-		},
+		LogN: 14,
+		Q: []uint64{0x100000000060001, 0x80000000068001, 0x80000000080001,
+			0x3fffffffef8001, 0x40000000120001, 0x3fffffffeb8001}, // 56 + 55 + 55 + 54 + 54 + 54 bits
+		P: []uint64{0x80000000130001, 0x7fffffffe90001}, // 55 + 55 bits
 		T: 65537,
 	}
 
 	// PN15QP880 is a set of default parameters with logN=15 and logQP=880
 	PN15QP880 = ParametersLiteral{
-		ParametersLiteral: rlwe.ParametersLiteral{
-			LogN: 15,
-			Q: []uint64{0x7ffffffffe70001, 0x7ffffffffe10001, 0x7ffffffffcc0001, // 59 + 59 + 59 bits
-				0x400000000270001, 0x400000000350001, 0x400000000360001, // 58 + 58 + 58 bits
-				0x3ffffffffc10001, 0x3ffffffffbe0001, 0x3ffffffffbd0001, // 58 + 58 + 58 bits
-				0x4000000004d0001, 0x400000000570001, 0x400000000660001}, // 58 + 58 + 58 bits
-			P: []uint64{0xffffffffffc0001, 0x10000000001d0001, 0x10000000006e0001}, // 60 + 60 + 60 bits
-		},
+		LogN: 15,
+		Q: []uint64{0x7ffffffffe70001, 0x7ffffffffe10001, 0x7ffffffffcc0001, // 59 + 59 + 59 bits
+			0x400000000270001, 0x400000000350001, 0x400000000360001, // 58 + 58 + 58 bits
+			0x3ffffffffc10001, 0x3ffffffffbe0001, 0x3ffffffffbd0001, // 58 + 58 + 58 bits
+			0x4000000004d0001, 0x400000000570001, 0x400000000660001}, // 58 + 58 + 58 bits
+		P: []uint64{0xffffffffffc0001, 0x10000000001d0001, 0x10000000006e0001}, // 60 + 60 + 60 bits
 		T: 65537,
 	}
 
 	// PN12QP101pq is a set of default (post quantum) parameters with logN=12 and logQP=101
 	PN12QP101pq = ParametersLiteral{ // LogQP = 101.00005709794536
-		ParametersLiteral: rlwe.ParametersLiteral{
-			LogN: 12,
-			Q:    []uint64{0x800004001, 0x800008001}, // 2*35
-			P:    []uint64{0x80014001},               // 1*31
-		},
-		T: 65537,
+		LogN: 12,
+		Q:    []uint64{0x800004001, 0x800008001}, // 2*35
+		P:    []uint64{0x80014001},               // 1*31
+		T:    65537,
 	}
 
 	// PN13QP202pq is a set of default (post quantum) parameters with logN=13 and logQP=202
 	PN13QP202pq = ParametersLiteral{ // LogQP = 201.99999999994753
-		ParametersLiteral: rlwe.ParametersLiteral{
-			LogN: 13,
-			Q:    []uint64{0x7fffffffe0001, 0x7fffffffcc001, 0x3ffffffffc001}, // 2*51 + 50
-			P:    []uint64{0x4000000024001},                                   // 50
-		},
-		T: 65537,
+		LogN: 13,
+		Q:    []uint64{0x7fffffffe0001, 0x7fffffffcc001, 0x3ffffffffc001}, // 2*51 + 50
+		P:    []uint64{0x4000000024001},                                   // 50,
+		T:    65537,
 	}
 
 	// PN14QP411pq is a set of default (post quantum) parameters with logN=14 and logQP=411
 	PN14QP411pq = ParametersLiteral{ // LogQP = 410.9999999999886
-		ParametersLiteral: rlwe.ParametersLiteral{
-			LogN: 14,
-			Q:    []uint64{0x7fffffffff18001, 0x8000000000f8001, 0x7ffffffffeb8001, 0x800000000158001, 0x7ffffffffe70001}, // 5*59
-			P:    []uint64{0x7ffffffffe10001, 0x400000000068001},                                                          // 59+58
-		},
-		T: 65537,
+		LogN: 14,
+		Q:    []uint64{0x7fffffffff18001, 0x8000000000f8001, 0x7ffffffffeb8001, 0x800000000158001, 0x7ffffffffe70001}, // 5*59
+		P:    []uint64{0x7ffffffffe10001, 0x400000000068001},                                                          // 59+58
+		T:    65537,
 	}
 
 	// PN15QP827pq is a set of default (post quantum) parameters with logN=15 and logQP=827
 	PN15QP827pq = ParametersLiteral{ // LogQP = 826.9999999999509
-		ParametersLiteral: rlwe.ParametersLiteral{
-			LogN: 15,
-			Q: []uint64{0x7ffffffffe70001, 0x7ffffffffe10001, 0x7ffffffffcc0001, 0x7ffffffffba0001, 0x8000000004a0001,
-				0x7ffffffffb00001, 0x800000000890001, 0x8000000009d0001, 0x7ffffffff630001, 0x800000000a70001,
-				0x7ffffffff510001}, // 11*59
-			P: []uint64{0x800000000b80001, 0x800000000bb0001, 0xffffffffffc0001}, // 2*59+60
-		},
+		LogN: 15,
+		Q: []uint64{0x7ffffffffe70001, 0x7ffffffffe10001, 0x7ffffffffcc0001, 0x7ffffffffba0001, 0x8000000004a0001,
+			0x7ffffffffb00001, 0x800000000890001, 0x8000000009d0001, 0x7ffffffff630001, 0x800000000a70001,
+			0x7ffffffff510001}, // 11*59
+		P: []uint64{0x800000000b80001, 0x800000000bb0001, 0xffffffffffc0001}, // 2*59+60
 		T: 65537,
 	}
 )
@@ -130,8 +112,30 @@ var DefaultPostQuantumParams = []ParametersLiteral{PN12QP101pq, PN13QP202pq, PN1
 // unset, standard default values for these field are substituted at parameter creation (see
 // NewParametersFromLiteral).
 type ParametersLiteral struct {
-	rlwe.ParametersLiteral
-	T uint64 // Plaintext modulus
+	LogN     int
+	Q        []uint64
+	P        []uint64
+	LogQ     []int `json:",omitempty"`
+	LogP     []int `json:",omitempty"`
+	LogBase2 int
+	Sigma    float64
+	H        int
+	T        uint64 // Plaintext modulus
+}
+
+// RLWEParameters returns the rlwe.ParamtersLiteral from the target bfv.ParametersLiteral.
+func (p ParametersLiteral) RLWEParameters() rlwe.ParametersLiteral {
+	return rlwe.ParametersLiteral{
+		LogN:     p.LogN,
+		Q:        p.Q,
+		P:        p.P,
+		LogQ:     p.LogQ,
+		LogP:     p.LogP,
+		LogBase2: p.LogBase2,
+		Sigma:    p.Sigma,
+		H:        p.H,
+		RingType: ring.Standard,
+	}
 }
 
 // Parameters represents a parameter set for the BFV cryptosystem. Its fields are private and
@@ -177,7 +181,7 @@ func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err erro
 //
 // See `rlwe.NewParametersFromLiteral` for default values of the optional fields.
 func NewParametersFromLiteral(pl ParametersLiteral) (Parameters, error) {
-	rlweParams, err := rlwe.NewParametersFromLiteral(pl.ParametersLiteral)
+	rlweParams, err := rlwe.NewParametersFromLiteral(pl.RLWEParameters())
 	if err != nil {
 		return Parameters{}, err
 	}
@@ -268,14 +272,12 @@ func (p Parameters) MarshalBinarySize() int {
 // MarshalJSON returns a JSON representation of this parameter set. See `Marshal` from the `encoding/json` package.
 func (p Parameters) MarshalJSON() ([]byte, error) {
 	return json.Marshal(ParametersLiteral{
-		ParametersLiteral: rlwe.ParametersLiteral{
-			LogN:  p.LogN(),
-			Q:     p.Q(),
-			P:     p.P(),
-			H:     p.HammingWeight(),
-			Sigma: p.Sigma(),
-		},
-		T: p.T(),
+		LogN:  p.LogN(),
+		Q:     p.Q(),
+		P:     p.P(),
+		H:     p.HammingWeight(),
+		Sigma: p.Sigma(),
+		T:     p.T(),
 	})
 }
 

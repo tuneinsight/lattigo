@@ -18,12 +18,9 @@ func example() {
 	// Schemes parameters are created from scratch
 	params, err := ckks.NewParametersFromLiteral(
 		ckks.ParametersLiteral{
-			ParametersLiteral: rlwe.ParametersLiteral{
-				LogN:  14,
-				LogQ:  []int{55, 40, 40, 40, 40, 40, 40, 40},
-				LogP:  []int{45, 45},
-				H:     0,
-				Sigma: rlwe.DefaultSigma},
+			LogN:         14,
+			LogQ:         []int{55, 40, 40, 40, 40, 40, 40, 40},
+			LogP:         []int{45, 45},
 			LogSlots:     13,
 			DefaultScale: 1 << 40,
 		})

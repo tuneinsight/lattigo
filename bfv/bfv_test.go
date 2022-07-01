@@ -44,22 +44,18 @@ type testContext struct {
 var (
 	// TESTTDivQN2Q1P is a set of test parameters where T = Q[0].
 	TESTTDivQN2Q1P = ParametersLiteral{
-		ParametersLiteral: rlwe.ParametersLiteral{
-			LogN: 14,
-			Q:    []uint64{0x10001, 0xffffffffffe8001, 0xffffffffffd8001, 0xffffffffffc0001, 0xffffffffff28001},
-			P:    []uint64{0x1fffffffffe10001, 0x1fffffffffe00001},
-		},
-		T: 0x10001,
+		LogN: 14,
+		Q:    []uint64{0x10001, 0xffffffffffe8001, 0xffffffffffd8001, 0xffffffffffc0001, 0xffffffffff28001},
+		P:    []uint64{0x1fffffffffe10001, 0x1fffffffffe00001},
+		T:    0x10001,
 	}
 
 	// TESTTCPrimeQN2Q1P is a set of test parameters where T is coprime with Q.
 	TESTTCPrimeQN2Q1P = ParametersLiteral{
-		ParametersLiteral: rlwe.ParametersLiteral{
-			LogN: 14,
-			Q:    []uint64{0xffffffffffe8001, 0xffffffffffd8001, 0xffffffffffc0001, 0xffffffffff28001},
-			P:    []uint64{0x1fffffffffe10001, 0x1fffffffffe00001},
-		},
-		T: 0x10001,
+		LogN: 14,
+		Q:    []uint64{0xffffffffffe8001, 0xffffffffffd8001, 0xffffffffffc0001, 0xffffffffff28001},
+		P:    []uint64{0x1fffffffffe10001, 0x1fffffffffe00001},
+		T:    0x10001,
 	}
 
 	// TestParams is a set of test parameters for BFV ensuring 128 bit security in the classic setting.

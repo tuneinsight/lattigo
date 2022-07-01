@@ -57,14 +57,9 @@ func main() {
 	// LogN = 12 & LogQP = ~103 -> >128-bit secure.
 	var paramsN12 ckks.Parameters
 	if paramsN12, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
-		ParametersLiteral: rlwe.ParametersLiteral{
-			LogN:     LogN,
-			Q:        Q,
-			P:        P,
-			H:        0,
-			Sigma:    rlwe.DefaultSigma,
-			RingType: ring.Standard,
-		},
+		LogN:         LogN,
+		Q:            Q,
+		P:            P,
 		LogSlots:     4,
 		DefaultScale: 1 << 32,
 	}); err != nil {
@@ -75,17 +70,10 @@ func main() {
 	// LogN = 12 & LogQP = ~54 -> >>>128-bit secure.
 	var paramsN12ToN11 ckks.Parameters
 	if paramsN12ToN11, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
-		ParametersLiteral: rlwe.ParametersLiteral{
-			LogN:     LogN,
-			Q:        Q[:1],
-			P:        []uint64{0x42001},
-			LogBase2: 16,
-			H:        0,
-			Sigma:    rlwe.DefaultSigma,
-			RingType: ring.Standard,
-		},
-		LogSlots:     0,
-		DefaultScale: 0,
+		LogN:     LogN,
+		Q:        Q[:1],
+		P:        []uint64{0x42001},
+		LogBase2: 16,
 	}); err != nil {
 		panic(err)
 	}
@@ -95,17 +83,10 @@ func main() {
 	// LogN = 11 & LogQP = ~54 -> 128-bit secure.
 	var paramsN11 ckks.Parameters
 	if paramsN11, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
-		ParametersLiteral: rlwe.ParametersLiteral{
-			LogN:     LogN - 1,
-			Q:        Q[:1],
-			P:        []uint64{0x42001},
-			LogBase2: 12,
-			H:        0,
-			Sigma:    rlwe.DefaultSigma,
-			RingType: ring.Standard,
-		},
-		LogSlots:     0,
-		DefaultScale: 0,
+		LogN:     LogN - 1,
+		Q:        Q[:1],
+		P:        []uint64{0x42001},
+		LogBase2: 12,
 	}); err != nil {
 		panic(err)
 	}

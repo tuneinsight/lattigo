@@ -7,9 +7,9 @@ import (
 
 	"github.com/tuneinsight/lattigo/v3/ckks"
 	ckksAdvanced "github.com/tuneinsight/lattigo/v3/ckks/advanced"
+	"github.com/tuneinsight/lattigo/v3/rgsw/lut"
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
-	"github.com/tuneinsight/lattigo/v3/rlwe/lut"
 )
 
 // This examples showcases how lookup tables can complement the CKKS scheme to compute non-linear functions

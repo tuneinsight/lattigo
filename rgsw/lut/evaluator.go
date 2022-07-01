@@ -3,9 +3,9 @@ package lut
 import (
 	"math/big"
 
+	"github.com/tuneinsight/lattigo/v3/rgsw"
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
-	"github.com/tuneinsight/lattigo/v3/rlwe/rgsw"
 	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 )
 

@@ -16,7 +16,6 @@ import (
 var minPrec float64 = 12.0
 
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters + secure bootstrapping). Overrides -short and requires -timeout=0.")
-var testBootstrapping = flag.Bool("test-bootstrapping", false, "run the bootstrapping tests (memory intensive)")
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
 
 func ParamsToString(params ckks.Parameters, opname string) string {
@@ -46,10 +45,6 @@ func TestBootstrap(t *testing.T) {
 
 	if runtime.GOARCH == "wasm" {
 		t.Skip("skipping bootstrapping tests for GOARCH=wasm")
-	}
-
-	if !*testBootstrapping {
-		t.Skip("skipping bootstrapping tests (add -test-bootstrapping to run the bootstrapping tests)")
 	}
 
 	paramSet := DefaultParametersSparse[0]

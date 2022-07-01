@@ -2,7 +2,6 @@
 package bootstrapping
 
 import (
-	"fmt"
 	"math"
 
 	"github.com/tuneinsight/lattigo/v3/ckks"
@@ -95,8 +94,6 @@ func (btp *Bootstrapper) modUpFromQ0(ct *ckks.Ciphertext) *ckks.Ciphertext {
 
 	// Extend the ciphertext with zero polynomials.
 	ct.Resize(ct.Degree(), btp.params.MaxLevel())
-
-	fmt.Println(ct.Degree(), ct.Level())
 
 	levelQ := btp.params.QCount() - 1
 	levelP := btp.params.PCount() - 1

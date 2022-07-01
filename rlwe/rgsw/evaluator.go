@@ -1,11 +1,22 @@
-package rlwe
+package rgsw
 
 import (
 	"math"
 
 	"github.com/tuneinsight/lattigo/v3/ring"
+	"github.com/tuneinsight/lattigo/v3/rlwe"
 	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 )
+
+type Evaluator struct {
+	rlwe.Evaluator
+
+	params rlwe.Parameters
+}
+
+func NewEvaluator(params rlwe.Parameters, evk *rlwe.EvaluationKey) *Evaluator {
+	return &Evaluator{*rlwe.NewEvaluator(params, evk), params}
+}
 
 // ExternalProduct computes RLWE x RGSW -> RLWE
 // RLWE : (-as + m + e, a)
@@ -13,7 +24,7 @@ import (
 // RGSW : [(-as + P*w*m1 + e, a), (-bs + e, b + P*w*m1)]
 //  =
 // RLWE : (<RLWE, RGSW[0]>, <RLWE, RGSW[1]>)
-func (eval *Evaluator) ExternalProduct(op0 *Ciphertext, op1 *RGSWCiphertext, op2 *Ciphertext) {
+func (eval *Evaluator) ExternalProduct(op0 *rlwe.Ciphertext, op1 *Ciphertext, op2 *rlwe.Ciphertext) {
 
 	levelQ, levelP := op1.LevelQ(), op1.LevelP()
 
@@ -52,7 +63,7 @@ func (eval *Evaluator) ExternalProduct(op0 *Ciphertext, op1 *RGSWCiphertext, op2
 	}
 }
 
-func (eval *Evaluator) externalProduct32Bit(ct0 *Ciphertext, rgsw *RGSWCiphertext, c0, c1 *ring.Poly) {
+func (eval *Evaluator) externalProduct32Bit(ct0 *rlwe.Ciphertext, rgsw *Ciphertext, c0, c1 *ring.Poly) {
 
 	// rgsw = [(-as + P*w*m1 + e, a), (-bs + e, b + P*w*m1)]
 	// ct = [-cs + m0 + e, c]
@@ -86,7 +97,7 @@ func (eval *Evaluator) externalProduct32Bit(ct0 *Ciphertext, rgsw *RGSWCiphertex
 	}
 }
 
-func (eval *Evaluator) externalProductInPlaceSinglePAndBitDecomp(ct0 *Ciphertext, rgsw *RGSWCiphertext, c0QP, c1QP ringqp.Poly) {
+func (eval *Evaluator) externalProductInPlaceSinglePAndBitDecomp(ct0 *rlwe.Ciphertext, rgsw *Ciphertext, c0QP, c1QP ringqp.Poly) {
 
 	// rgsw = [(-as + P*w*m1 + e, a), (-bs + e, b + P*w*m1)]
 	// ct = [-cs + m0 + e, c]
@@ -147,7 +158,7 @@ func (eval *Evaluator) externalProductInPlaceSinglePAndBitDecomp(ct0 *Ciphertext
 	}
 }
 
-func (eval *Evaluator) externalProductInPlaceMultipleP(levelQ, levelP int, ct0 *Ciphertext, rgsw *RGSWCiphertext, c0OutQ, c0OutP, c1OutQ, c1OutP *ring.Poly) {
+func (eval *Evaluator) externalProductInPlaceMultipleP(levelQ, levelP int, ct0 *rlwe.Ciphertext, rgsw *Ciphertext, c0OutQ, c0OutP, c1OutQ, c1OutP *ring.Poly) {
 	var reduce int
 
 	ringQ := eval.params.RingQ()
@@ -214,5 +225,79 @@ func (eval *Evaluator) externalProductInPlaceMultipleP(levelQ, levelP int, ct0 *
 	if reduce%PiOverF != 0 {
 		ringP.ReduceLvl(levelP, c0QP.P, c0QP.P)
 		ringP.ReduceLvl(levelP, c1QP.P, c1QP.P)
+	}
+}
+
+// AddNoModLvl adds op to ctOut, without modular reduction.
+func AddNoModLvl(levelQ, levelP int, op interface{}, ringQP ringqp.Ring, ctOut *Ciphertext) {
+	switch el := op.(type) {
+	case *Plaintext:
+
+		nQ := levelQ + 1
+		nP := levelP + 1
+
+		if nP == 0 {
+			nP = 1
+		}
+
+		for i := range ctOut.Value[0].Value {
+			for j := range ctOut.Value[0].Value[i] {
+				start, end := i*nP, (i+1)*nP
+				if end > nQ {
+					end = nQ
+				}
+				for k := start; k < end; k++ {
+					ring.AddVecNoMod(ctOut.Value[0].Value[i][j].Value[0].Q.Coeffs[k], el.Value[j].Coeffs[k], ctOut.Value[0].Value[i][j].Value[0].Q.Coeffs[k])
+					ring.AddVecNoMod(ctOut.Value[1].Value[i][j].Value[1].Q.Coeffs[k], el.Value[j].Coeffs[k], ctOut.Value[1].Value[i][j].Value[1].Q.Coeffs[k])
+				}
+			}
+		}
+	case *Ciphertext:
+		for i := range el.Value[0].Value {
+			for j := range el.Value[0].Value[i] {
+				ringQP.AddNoModLvl(levelQ, levelP, ctOut.Value[0].Value[i][j].Value[0], el.Value[0].Value[i][j].Value[0], ctOut.Value[0].Value[i][j].Value[0])
+				ringQP.AddNoModLvl(levelQ, levelP, ctOut.Value[0].Value[i][j].Value[1], el.Value[0].Value[i][j].Value[1], ctOut.Value[0].Value[i][j].Value[1])
+				ringQP.AddNoModLvl(levelQ, levelP, ctOut.Value[1].Value[i][j].Value[0], el.Value[1].Value[i][j].Value[0], ctOut.Value[1].Value[i][j].Value[0])
+				ringQP.AddNoModLvl(levelQ, levelP, ctOut.Value[1].Value[i][j].Value[1], el.Value[1].Value[i][j].Value[1], ctOut.Value[1].Value[i][j].Value[1])
+			}
+		}
+	default:
+		panic("unsuported op.(type), must be either *rgsw.Plaintext or *rgsw.Ciphertext")
+	}
+}
+
+// ReduceLvl applies the modular reduction on ctIn and returns the result on ctOut.
+func ReduceLvl(levelQ, levelP int, ctIn *Ciphertext, ringQP ringqp.Ring, ctOut *Ciphertext) {
+	for i := range ctIn.Value[0].Value {
+		for j := range ctIn.Value[0].Value[i] {
+			ringQP.ReduceLvl(levelQ, levelP, ctIn.Value[0].Value[i][j].Value[0], ctOut.Value[0].Value[i][j].Value[0])
+			ringQP.ReduceLvl(levelQ, levelP, ctIn.Value[0].Value[i][j].Value[1], ctOut.Value[0].Value[i][j].Value[1])
+			ringQP.ReduceLvl(levelQ, levelP, ctIn.Value[1].Value[i][j].Value[0], ctOut.Value[1].Value[i][j].Value[0])
+			ringQP.ReduceLvl(levelQ, levelP, ctIn.Value[1].Value[i][j].Value[1], ctOut.Value[1].Value[i][j].Value[1])
+		}
+	}
+}
+
+// MulByXPowAlphaMinusOneConstantLvl multiplies ctOut by (X^alpha - 1) and returns the result on ctOut.
+func MulByXPowAlphaMinusOneConstantLvl(levelQ, levelP int, ctIn *Ciphertext, powXMinusOne ringqp.Poly, ringQP ringqp.Ring, ctOut *Ciphertext) {
+	for i := range ctIn.Value[0].Value {
+		for j := range ctIn.Value[0].Value[i] {
+			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, ctIn.Value[0].Value[i][j].Value[0], powXMinusOne, ctOut.Value[0].Value[i][j].Value[0])
+			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, ctIn.Value[0].Value[i][j].Value[1], powXMinusOne, ctOut.Value[0].Value[i][j].Value[1])
+			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, ctIn.Value[1].Value[i][j].Value[0], powXMinusOne, ctOut.Value[1].Value[i][j].Value[0])
+			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, ctIn.Value[1].Value[i][j].Value[1], powXMinusOne, ctOut.Value[1].Value[i][j].Value[1])
+		}
+	}
+}
+
+// MulByXPowAlphaMinusOneAndAddNoModLvl multiplies ctOut by (X^alpha - 1) and adds the result on ctOut.
+func MulByXPowAlphaMinusOneAndAddNoModLvl(levelQ, levelP int, ctIn *Ciphertext, powXMinusOne ringqp.Poly, ringQP ringqp.Ring, ctOut *Ciphertext) {
+	for i := range ctIn.Value[0].Value {
+		for j := range ctIn.Value[0].Value[i] {
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, ctIn.Value[0].Value[i][j].Value[0], powXMinusOne, ctOut.Value[0].Value[i][j].Value[0])
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, ctIn.Value[0].Value[i][j].Value[1], powXMinusOne, ctOut.Value[0].Value[i][j].Value[1])
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, ctIn.Value[1].Value[i][j].Value[0], powXMinusOne, ctOut.Value[1].Value[i][j].Value[0])
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, ctIn.Value[1].Value[i][j].Value[1], powXMinusOne, ctOut.Value[1].Value[i][j].Value[1])
+		}
 	}
 }

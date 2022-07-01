@@ -5,6 +5,7 @@ import (
 
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v3/rlwe/rgsw"
 	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 )
 
@@ -12,7 +13,7 @@ import (
 // data to handle LWE <-> RLWE conversion and
 // LUT evaluation.
 type Evaluator struct {
-	*rlwe.Evaluator
+	*rgsw.Evaluator
 	paramsLUT rlwe.Parameters
 	paramsLWE rlwe.Parameters
 
@@ -23,15 +24,15 @@ type Evaluator struct {
 	accumulator *rlwe.Ciphertext
 	Sk          *rlwe.SecretKey
 
-	tmpRGSW *rlwe.RGSWCiphertext
+	tmpRGSW *rgsw.Ciphertext
 
-	one *rlwe.RGSWPlaintext
+	one *rgsw.Plaintext
 }
 
 // NewEvaluator creates a new Handler
 func NewEvaluator(paramsLUT, paramsLWE rlwe.Parameters, rtks *rlwe.RotationKeySet) (eval *Evaluator) {
 	eval = new(Evaluator)
-	eval.Evaluator = rlwe.NewEvaluator(paramsLUT, &rlwe.EvaluationKey{Rtks: rtks})
+	eval.Evaluator = rgsw.NewEvaluator(paramsLUT, &rlwe.EvaluationKey{Rtks: rtks})
 	eval.paramsLUT = paramsLUT
 	eval.paramsLWE = paramsLWE
 
@@ -121,9 +122,9 @@ func NewEvaluator(paramsLUT, paramsLWE rlwe.Parameters, rtks *rlwe.RotationKeySe
 	decompRNS := paramsLUT.DecompRNS(levelQ, levelP)
 	decompBIT := paramsLUT.DecompBIT(levelQ, levelP)
 	ringQP := paramsLUT.RingQP()
-	eval.tmpRGSW = rlwe.NewRGSWCiphertext(levelQ, levelP, decompRNS, decompBIT, *ringQP)
+	eval.tmpRGSW = rgsw.NewCiphertext(levelQ, levelP, decompRNS, decompBIT, *ringQP)
 
-	eval.one = rlwe.NewRGSWPlaintext(uint64(1), levelQ, levelP, paramsLUT.LogBase2(), decompBIT, *ringQP)
+	eval.one = rgsw.NewPlaintext(uint64(1), levelQ, levelP, paramsLUT.LogBase2(), decompBIT, *ringQP)
 
 	return
 }
@@ -207,9 +208,9 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWihtSlotIndex map[in
 
 			for j := 0; j < ringQLWE.N; j++ {
 				// RGSW[(X^{a} - 1) * sk_{j}[0] + (X^{-a} - 1) * sk_{j}[1] + 1]
-				rlwe.MulByXPowAlphaMinusOneConstantLvl(levelQ, levelP, key.SkPos[j], eval.xPowMinusOne[a[j]], ringQPLUT, eval.tmpRGSW)
-				rlwe.MulByXPowAlphaMinusOneAndAddNoModLvl(levelQ, levelP, key.SkNeg[j], eval.xPowMinusOne[-a[j]&mask], ringQPLUT, eval.tmpRGSW)
-				rlwe.AddNoModLvl(levelQ, levelP, eval.one, ringQPLUT, eval.tmpRGSW)
+				rgsw.MulByXPowAlphaMinusOneConstantLvl(levelQ, levelP, key.SkPos[j], eval.xPowMinusOne[a[j]], ringQPLUT, eval.tmpRGSW)
+				rgsw.MulByXPowAlphaMinusOneAndAddNoModLvl(levelQ, levelP, key.SkNeg[j], eval.xPowMinusOne[-a[j]&mask], ringQPLUT, eval.tmpRGSW)
+				rgsw.AddNoModLvl(levelQ, levelP, eval.one, ringQPLUT, eval.tmpRGSW)
 
 				// LUT[RLWE] = LUT[RLWE] x RGSW[(X^{a} - 1) * sk_{j}[0] + (X^{-a} - 1) * sk_{j}[1] + 1]
 				eval.ExternalProduct(acc, eval.tmpRGSW, acc)

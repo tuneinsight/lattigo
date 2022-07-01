@@ -348,8 +348,6 @@ func (enc *skEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
 	case *CiphertextCRP:
 		enc.uniformSampler.ReadLvl(utils.MinInt(pt.Level(), el.Value.Level()), -1, ringqp.Poly{Q: enc.buffQ[1]})
 		enc.encryptRLWE(pt, el.Value, enc.buffQ[1])
-	case *RGSWCiphertext:
-		enc.encryptRGSW(pt, el)
 	default:
 		panic("input ciphertext type unsuported (must be *rlwe.Ciphertext or *rgsw.Ciphertext)")
 	}
@@ -470,37 +468,6 @@ func (enc *encryptor) addPtErrorC0(pt *Plaintext, c0 *ring.Poly) {
 		ringQ.InvNTTLvl(levelQ, c0, c0)
 		ringQ.AddLvl(levelQ, c0, pt.Value, c0)
 		enc.gaussianSampler.ReadAndAddLvl(c0.Level(), c0)
-	}
-}
-
-func (enc *skEncryptor) encryptRGSW(pt *Plaintext, ct *RGSWCiphertext) {
-
-	params := enc.params
-	ringQ := params.RingQ()
-	levelQ := ct.LevelQ()
-	levelP := ct.LevelP()
-
-	decompRNS := params.DecompRNS(levelQ, levelP)
-	decompBIT := params.DecompBIT(levelQ, levelP)
-
-	for j := 0; j < decompBIT; j++ {
-		for i := 0; i < decompRNS; i++ {
-			enc.EncryptZero(&ct.Value[0].Value[i][j])
-			enc.EncryptZero(&ct.Value[1].Value[i][j])
-		}
-	}
-
-	if pt != nil {
-		ringQ.MFormLvl(levelQ, pt.Value, enc.buffQP.Q)
-		if !pt.Value.IsNTT {
-			ringQ.NTTLvl(levelQ, enc.buffQP.Q, enc.buffQP.Q)
-		}
-		AddPolyTimesGadgetVectorToGadgetCiphertext(
-			enc.buffQP.Q,
-			[]GadgetCiphertext{ct.Value[0], ct.Value[1]},
-			*params.RingQP(),
-			params.LogBase2(),
-			enc.buffQP.Q)
 	}
 }
 

@@ -68,7 +68,7 @@ func NewPublicKey(params Parameters) (pk *PublicKey) {
 		pk.Value[0].P.IsNTT = true
 		pk.Value[1].P.IsNTT = true
 	}
-	return 
+	return
 }
 
 // LevelQ returns the level of the modulus Q of the target.

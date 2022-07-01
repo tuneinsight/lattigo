@@ -422,7 +422,7 @@ func (enc *skEncryptor) encryptZeroQP(ct CiphertextQP) {
 	// (-a*sk + e, a)
 	ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, c1, enc.sk.Value, c0)
 
-	if !ct.Value[0].Q.IsNTT{
+	if !ct.Value[0].Q.IsNTT {
 		ringQP.InvNTTLvl(levelQ, levelP, c0, c0)
 		ringQP.InvNTTLvl(levelQ, levelP, c1, c1)
 	}

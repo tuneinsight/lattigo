@@ -8,6 +8,8 @@ import (
 type Encryptor interface {
 	Encrypt(plaintext *Plaintext, ciphertext *Ciphertext)
 	EncryptNew(plaintext *Plaintext) *Ciphertext
+	EncryptZero(ciphertext *Ciphertext)
+	EncryptZeroNew() *Ciphertext
 	ShallowCopy() Encryptor
 	WithKey(key interface{}) Encryptor
 }
@@ -23,7 +25,7 @@ func NewEncryptor(params Parameters, key interface{}) Encryptor {
 	return &encryptor{rlwe.NewEncryptor(params.Parameters, key), params}
 }
 
-// Encrypt encrypts the input plaintext and write the result on ctOut.
+// Encrypt encrypts the input plaintext and writes the result on ctOut.
 func (enc *encryptor) Encrypt(plaintext *Plaintext, ctOut *Ciphertext) {
 	enc.Encryptor.Encrypt(&rlwe.Plaintext{Value: plaintext.Value}, &rlwe.Ciphertext{Value: ctOut.Value})
 }
@@ -32,6 +34,18 @@ func (enc *encryptor) Encrypt(plaintext *Plaintext, ctOut *Ciphertext) {
 func (enc *encryptor) EncryptNew(plaintext *Plaintext) *Ciphertext {
 	ct := NewCiphertext(enc.params, 1)
 	enc.Encryptor.Encrypt(plaintext.Plaintext, ct.Ciphertext)
+	return ct
+}
+
+// EncryptZero generates an encryption of zero and writes the result on ctOut.
+func (enc *encryptor) EncryptZero(ciphertext *Ciphertext) {
+	enc.Encryptor.EncryptZero(ciphertext.Ciphertext)
+}
+
+// EncryptZero generates an encryption of zero and returns the result as a newly allocated ciphertext.
+func (enc *encryptor) EncryptZeroNew() *Ciphertext {
+	ct := NewCiphertext(enc.params, 1)
+	enc.Encryptor.EncryptZero(ct.Ciphertext)
 	return ct
 }
 

@@ -8,6 +8,8 @@ import (
 type Encryptor interface {
 	Encrypt(plaintext *Plaintext, ciphertext *Ciphertext)
 	EncryptNew(plaintext *Plaintext) *Ciphertext
+	EncryptZero(ciphertext *Ciphertext)
+	EncryptZeroNew(level int, scale float64) *Ciphertext
 	ShallowCopy() Encryptor
 	WithKey(key interface{}) Encryptor
 }
@@ -36,6 +38,21 @@ func (enc *encryptor) EncryptNew(plaintext *Plaintext) (ciphertext *Ciphertext) 
 	ciphertext = NewCiphertext(enc.params, 1, plaintext.Level(), plaintext.Scale)
 	enc.Encryptor.Encrypt(plaintext.Plaintext, ciphertext.Ciphertext)
 	return
+}
+
+// EncryptZero generates an encryption of zero at the level and scale of ct, and writes the result on ctOut.
+// Note that the Scale field of an encryption of zero can be changed arbitrarily, without requiring a Rescale.
+func (enc *encryptor) EncryptZero(ciphertext *Ciphertext) {
+	enc.Encryptor.EncryptZero(ciphertext.Ciphertext)
+}
+
+// EncryptZero generates an encryption of zero at the given level and scale and returns the
+// result as a newly allocated ciphertext.
+// Note that the Scale field of an encryption of zero can be changed arbitrarily, without requiring a Rescale.
+func (enc *encryptor) EncryptZeroNew(level int, scale float64) *Ciphertext {
+	ct := NewCiphertext(enc.params, 1, level, scale)
+	enc.Encryptor.EncryptZero(ct.Ciphertext)
+	return ct
 }
 
 // ShallowCopy creates a shallow copy of this encryptor in which all the read-only data-structures are

@@ -41,7 +41,9 @@ const GaloisGen uint64 = ring.GaloisGen
 // the Q and P fields to the desired moduli chain, or by setting the LogQ and LogP fields to
 // the desired moduli sizes.
 //
-// Optionally, users may specify the error variance (Sigma) and secrets' density (H) and the ring
+// Optionally, users may specify
+// - the base 2 decomposition for the gadget ciphertexts
+// - the error variance (Sigma) and secrets' density (H) and the ring
 // type (RingType). If left unset, standard default values for these field are substituted at
 // parameter creation (see NewParametersFromLiteral).
 type ParametersLiteral struct {
@@ -50,7 +52,7 @@ type ParametersLiteral struct {
 	P        []uint64
 	LogQ     []int `json:",omitempty"`
 	LogP     []int `json:",omitempty"`
-	LogBase2 int
+	Pow2Base int
 	Sigma    float64
 	H        int
 	RingType ring.Type
@@ -62,7 +64,7 @@ type Parameters struct {
 	logN     int
 	qi       []uint64
 	pi       []uint64
-	logbase2 int
+	pow2Base int
 	sigma    float64
 	h        int
 	ringQ    *ring.Ring
@@ -73,22 +75,27 @@ type Parameters struct {
 // NewParameters returns a new set of generic RLWE parameters from the given ring degree logn, moduli q and p, and
 // error distribution parameter sigma. It returns the empty parameters Parameters{} and a non-nil error if the
 // specified parameters are invalid.
-func NewParameters(logn int, q, p []uint64, logBase2, h int, sigma float64, ringType ring.Type) (Parameters, error) {
+func NewParameters(logn int, q, p []uint64, pow2Base, h int, sigma float64, ringType ring.Type) (Parameters, error) {
 
-	if logBase2 != 0 && len(p) > 1 {
-		return Parameters{}, fmt.Errorf("rlwe.NewParameters: invalid parameters, cannot have logbase2 > 0 if len(P) > 1")
+	if pow2Base != 0 && len(p) > 1 {
+		return Parameters{}, fmt.Errorf("rlwe.NewParameters: invalid parameters, cannot have pow2Base > 0 if len(P) > 1")
+	}
+
+	var lenP int
+	if p != nil {
+		lenP = len(p)
 	}
 
 	var err error
-	if err = checkSizeParams(logn, len(q), len(p)); err != nil {
+	if err = checkSizeParams(logn, len(q), lenP); err != nil {
 		return Parameters{}, err
 	}
 
 	params := Parameters{
 		logN:     logn,
-		pi:       make([]uint64, len(p)),
 		qi:       make([]uint64, len(q)),
-		logbase2: logBase2,
+		pi:       make([]uint64, lenP),
+		pow2Base: pow2Base,
 		h:        h,
 		sigma:    sigma,
 		ringType: ringType,
@@ -101,7 +108,10 @@ func NewParameters(logn int, q, p []uint64, logBase2, h int, sigma float64, ring
 	}
 
 	copy(params.qi, q)
-	copy(params.pi, p)
+
+	if p != nil {
+		copy(params.pi, p)
+	}
 
 	return params, params.initRings()
 }
@@ -131,9 +141,9 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
 	}
 
 	switch {
-	case paramDef.Q != nil && paramDef.LogQ == nil && paramDef.P != nil && paramDef.LogP == nil:
-		return NewParameters(paramDef.LogN, paramDef.Q, paramDef.P, paramDef.LogBase2, paramDef.H, paramDef.Sigma, paramDef.RingType)
-	case paramDef.LogQ != nil && paramDef.Q == nil && paramDef.LogP != nil && paramDef.P == nil:
+	case paramDef.Q != nil && paramDef.LogQ == nil:
+		return NewParameters(paramDef.LogN, paramDef.Q, paramDef.P, paramDef.Pow2Base, paramDef.H, paramDef.Sigma, paramDef.RingType)
+	case paramDef.LogQ != nil && paramDef.Q == nil:
 		var q, p []uint64
 		var err error
 		switch paramDef.RingType {
@@ -147,7 +157,7 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
 		if err != nil {
 			return Parameters{}, err
 		}
-		return NewParameters(paramDef.LogN, q, p, paramDef.LogBase2, paramDef.H, paramDef.Sigma, paramDef.RingType)
+		return NewParameters(paramDef.LogN, q, p, paramDef.Pow2Base, paramDef.H, paramDef.Sigma, paramDef.RingType)
 	default:
 		return Parameters{}, fmt.Errorf("rlwe.NewParametersFromLiteral: invalid parameter literal")
 	}
@@ -315,10 +325,10 @@ func (p Parameters) LogQP() int {
 	return tmp.BitLen()
 }
 
-// LogBase2 returns the base 2 decomposition used for the key-switching keys.
-// Returns 0 if not binary decomposition is used.
-func (p Parameters) LogBase2() int {
-	return p.logbase2
+// Pow2Base returns the base 2^x decomposition used for the key-switching keys.
+// Returns 0 if no decomposition is used (the case where x = 0).
+func (p Parameters) Pow2Base() int {
+	return p.pow2Base
 }
 
 // MaxBit returns max(max(bitLen(Q[:levelQ+1])), max(bitLen(P[:levelP+1])).
@@ -333,13 +343,13 @@ func (p Parameters) MaxBit(levelQ, levelP int) (c int) {
 	return
 }
 
-// DecompBIT returns ceil(MaxBitQ(levelQ, levelP)/bitDecomp).
-func (p Parameters) DecompBIT(levelQ, levelP int) (c int) {
-	if p.logbase2 == 0 {
+// DecompPW2 returns ceil(p.MaxBitQ(levelQ, levelP)/bitDecomp).
+func (p Parameters) DecompPW2(levelQ, levelP int) (c int) {
+	if p.pow2Base == 0 {
 		return 1
 	}
 
-	return (p.MaxBit(levelQ, levelP) + p.logbase2 - 1) / p.logbase2
+	return (p.MaxBit(levelQ, levelP) + p.pow2Base - 1) / p.pow2Base
 }
 
 // DecompRNS returns the number of element in the RNS decomposition basis: Ceil(lenQi / lenPi)
@@ -494,7 +504,7 @@ func (p Parameters) MarshalBinary() ([]byte, error) {
 	b.WriteUint8(uint8(p.logN))
 	b.WriteUint8(uint8(len(p.qi)))
 	b.WriteUint8(uint8(len(p.pi)))
-	b.WriteUint8(uint8(p.logbase2))
+	b.WriteUint8(uint8(p.pow2Base))
 	b.WriteUint64(uint64(p.h))
 	b.WriteUint64(math.Float64bits(p.sigma))
 	b.WriteUint8(uint8(p.ringType))
@@ -538,7 +548,7 @@ func (p Parameters) MarshalBinarySize() int {
 
 // MarshalJSON returns a JSON representation of this parameter set. See `Marshal` from the `encoding/json` package.
 func (p Parameters) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&ParametersLiteral{LogN: p.logN, Q: p.qi, P: p.pi, LogBase2: p.logbase2, H: p.h, Sigma: p.sigma})
+	return json.Marshal(&ParametersLiteral{LogN: p.logN, Q: p.qi, P: p.pi, Pow2Base: p.pow2Base, H: p.h, Sigma: p.sigma})
 }
 
 // UnmarshalJSON reads a JSON representation of a parameter set into the receiver Parameter. See `Unmarshal` from the `encoding/json` package.
@@ -558,19 +568,9 @@ func CheckModuli(q, p []uint64) error {
 		return fmt.Errorf("#Qi is larger than %d", MaxModuliCount)
 	}
 
-	if len(p) > MaxModuliCount {
-		return fmt.Errorf("#Pi is larger than %d", MaxModuliCount)
-	}
-
 	for i, qi := range q {
 		if uint64(bits.Len64(qi)-1) > MaxModuliSize+1 {
 			return fmt.Errorf("a Qi bit-size (i=%d) is larger than %d", i, MaxModuliSize)
-		}
-	}
-
-	for i, pi := range p {
-		if uint64(bits.Len64(pi)-1) > MaxModuliSize+2 {
-			return fmt.Errorf("a Pi bit-size (i=%d) is larger than %d", i, MaxModuliSize)
 		}
 	}
 
@@ -580,9 +580,21 @@ func CheckModuli(q, p []uint64) error {
 		}
 	}
 
-	for i, pi := range p {
-		if !ring.IsPrime(pi) {
-			return fmt.Errorf("a Pi (i=%d) is not a prime", i)
+	if p != nil {
+		if len(p) > MaxModuliCount {
+			return fmt.Errorf("#Pi is larger than %d", MaxModuliCount)
+		}
+
+		for i, pi := range p {
+			if uint64(bits.Len64(pi)-1) > MaxModuliSize+2 {
+				return fmt.Errorf("a Pi bit-size (i=%d) is larger than %d", i, MaxModuliSize)
+			}
+		}
+
+		for i, pi := range p {
+			if !ring.IsPrime(pi) {
+				return fmt.Errorf("a Pi (i=%d) is not a prime", i)
+			}
 		}
 	}
 

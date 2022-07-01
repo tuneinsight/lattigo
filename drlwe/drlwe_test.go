@@ -278,7 +278,7 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 	ringQP := params.RingQP()
 	levelQ, levelP := params.QCount()-1, params.PCount()-1
 
-	decompBIT := params.DecompBIT(levelQ, levelP)
+	decompPW2 := params.DecompPW2(levelQ, levelP)
 
 	t.Run(testString(params, "RelinKeyGen"), func(t *testing.T) {
 
@@ -337,10 +337,10 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 		}
 
 		// Sums all basis together (equivalent to multiplying with CRT decomposition of 1)
-		// sum([1]_w * [RNS*BIT*P*sOut + e]) = BIT*P*sOut + sum(e)
+		// sum([1]_w * [RNS*PW2*P*sOut + e]) = PW2*P*sOut + sum(e)
 		for i := range swk.Value { // RNS decomp
 			if i > 0 {
-				for j := range swk.Value[i] { // BIT decomp
+				for j := range swk.Value[i] { // PW2 decomp
 					ringQP.AddLvl(levelQ, levelP, swk.Value[0][j].Value[0], swk.Value[i][j].Value[0], swk.Value[0][j].Value[0])
 				}
 			}
@@ -352,7 +352,7 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 		}
 
 		log2Bound := bits.Len64(uint64(params.N() * len(swk.Value) * len(swk.Value[0]) * (params.N()*3*int(math.Floor(rlwe.DefaultSigma*6)) + 2*3*int(math.Floor(rlwe.DefaultSigma*6)) + params.N()*3)))
-		for i := 0; i < decompBIT; i++ {
+		for i := 0; i < decompPW2; i++ {
 
 			// P*s^i + sum(e) - P*s^i = sum(e)
 			ringQ.Sub(swk.Value[0][i].Value[0].Q, skIn.Value.Q, swk.Value[0][i].Value[0].Q)
@@ -371,8 +371,8 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 				require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelP, ringP, swk.Value[0][i].Value[0].P))
 			}
 
-			// sOut * P * BIT
-			ringQ.MulScalar(skIn.Value.Q, 1<<params.LogBase2(), skIn.Value.Q)
+			// sOut * P * PW2
+			ringQ.MulScalar(skIn.Value.Q, 1<<params.Pow2Base(), skIn.Value.Q)
 		}
 	})
 }
@@ -385,7 +385,7 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 	ringQP := params.RingQP()
 	levelQ, levelP := params.QCount()-1, params.PCount()-1
 
-	decompBIT := params.DecompBIT(levelQ, levelP)
+	decompPW2 := params.DecompPW2(levelQ, levelP)
 
 	t.Run(testString(params, "RotKeyGen"), func(t *testing.T) {
 
@@ -440,10 +440,10 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 		}
 
 		// Sums all basis together (equivalent to multiplying with CRT decomposition of 1)
-		// sum([1]_w * [RNS*BIT*P*sOut + e]) = BIT*P*sOut + sum(e)
+		// sum([1]_w * [RNS*PW2*P*sOut + e]) = PWw*P*sOut + sum(e)
 		for i := range swk.Value { // RNS decomp
 			if i > 0 {
-				for j := range swk.Value[i] { // BIT decomp
+				for j := range swk.Value[i] { // PW2 decomp
 					ringQP.AddLvl(levelQ, levelP, swk.Value[0][j].Value[0], swk.Value[i][j].Value[0], swk.Value[0][j].Value[0])
 				}
 			}
@@ -455,7 +455,7 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 		}
 
 		log2Bound := bits.Len64(uint64(params.N() * len(swk.Value) * len(swk.Value[0]) * (params.N()*3*int(math.Floor(rlwe.DefaultSigma*6)) + 2*3*int(math.Floor(rlwe.DefaultSigma*6)) + params.N()*3)))
-		for i := 0; i < decompBIT; i++ {
+		for i := 0; i < decompPW2; i++ {
 
 			// P*s^i + sum(e) - P*s^i = sum(e)
 			ringQ.Sub(swk.Value[0][i].Value[0].Q, skIn.Value.Q, swk.Value[0][i].Value[0].Q)
@@ -474,8 +474,8 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 				require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelP, ringP, swk.Value[0][i].Value[0].P))
 			}
 
-			// sOut * P * BIT
-			ringQ.MulScalar(skIn.Value.Q, 1<<params.LogBase2(), skIn.Value.Q)
+			// sOut * P * PW2
+			ringQ.MulScalar(skIn.Value.Q, 1<<params.Pow2Base(), skIn.Value.Q)
 		}
 	})
 }

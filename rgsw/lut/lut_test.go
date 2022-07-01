@@ -50,9 +50,7 @@ func testLUT(t *testing.T) {
 	paramsLUT, err := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
 		LogN:     10,
 		Q:        []uint64{0x7fff801},
-		P:        []uint64{},
-		Sigma:    rlwe.DefaultSigma,
-		LogBase2: 6,
+		Pow2Base: 6,
 	})
 
 	assert.Nil(t, err)
@@ -60,10 +58,8 @@ func testLUT(t *testing.T) {
 	// RLWE parameters of the samples
 	// N=512, Q=0x3001 -> 2^135
 	paramsLWE, err := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
-		LogN:  9,
-		Q:     []uint64{0x3001},
-		P:     []uint64{},
-		Sigma: rlwe.DefaultSigma,
+		LogN: 9,
+		Q:    []uint64{0x3001},
 	})
 
 	assert.Nil(t, err)

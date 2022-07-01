@@ -6,8 +6,7 @@ var (
 	TestPN10QP27 = ParametersLiteral{
 		LogN:     10,
 		Q:        []uint64{0x7fff801}, // 27 bits
-		P:        []uint64{},
-		LogBase2: 2,
+		Pow2Base: 2,
 	}
 
 	// TestPN11QP54 is a set of default parameters with logN=11 and logQP=54
@@ -15,14 +14,14 @@ var (
 		LogN:     11,
 		Q:        []uint64{0x15400000001}, // 40 bits
 		P:        []uint64{0x3001},        // 14 bits
-		LogBase2: 14,
+		Pow2Base: 14,
 	}
 	// TestPN12QP109 is a set of default parameters with logN=12 and logQP=109
 	TestPN12QP109 = ParametersLiteral{
 		LogN:     12,
 		Q:        []uint64{0x7ffffffec001, 0x400000008001}, // 47 + 46 bits
 		P:        []uint64{0xa001},                         // 15 bits
-		LogBase2: 16,
+		Pow2Base: 16,
 	}
 	// TestPN13QP218 is a set of default parameters with logN=13 and logQP=218
 	TestPN13QP218 = ParametersLiteral{
@@ -48,6 +47,7 @@ var (
 			0x4000000004d0001, 0x400000000570001, 0x400000000660001}, // 58 + 58 + 58 bits
 		P: []uint64{0xffffffffffc0001, 0x10000000001d0001, 0x10000000006e0001}, // 60 + 60 + 60 bits
 	}
+
 	// TestPN16QP240 is a set of default parameters with logN=16 and logQP=240
 	TestPN16QP240 = ParametersLiteral{
 		LogN: 16,

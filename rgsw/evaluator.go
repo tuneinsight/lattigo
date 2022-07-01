@@ -69,8 +69,8 @@ func (eval *Evaluator) externalProduct32Bit(ct0 *rlwe.Ciphertext, rgsw *Cipherte
 	// ct = [-cs + m0 + e, c]
 	// ctOut = [<ct, rgsw[0]>, <ct, rgsw[1]>] = [ct[0] * rgsw[0][0] + ct[1] * rgsw[0][1], ct[0] * rgsw[1][0] + ct[1] * rgsw[1][1]]
 	ringQ := eval.params.RingQ()
-	lb2 := eval.params.LogBase2()
-	mask := uint64(((1 << lb2) - 1))
+	pw2 := eval.params.Pow2Base()
+	mask := uint64(((1 << pw2) - 1))
 
 	cw := eval.BuffQP[0].Q.Coeffs[0]
 	cwNTT := eval.BuffBitDecomp
@@ -83,7 +83,7 @@ func (eval *Evaluator) externalProduct32Bit(ct0 *rlwe.Ciphertext, rgsw *Cipherte
 	for i, el := range rgsw.Value {
 		ringQ.InvNTTLvl(0, ct0.Value[i], eval.BuffInvNTT)
 		for j := range el.Value[0] {
-			ring.MaskVec(eval.BuffInvNTT.Coeffs[0], cw, j*lb2, mask)
+			ring.MaskVec(eval.BuffInvNTT.Coeffs[0], cw, j*pw2, mask)
 			if j == 0 && i == 0 {
 				ringQ.NTTSingleLazy(0, cw, cwNTT)
 				ring.MulCoeffsNoModVec(el.Value[0][j].Value[0].Q.Coeffs[0], cwNTT, acc0)
@@ -108,14 +108,14 @@ func (eval *Evaluator) externalProductInPlaceSinglePAndBitDecomp(ct0 *rlwe.Ciphe
 	levelQ := rgsw.LevelQ()
 	levelP := rgsw.LevelP()
 
-	lb2 := eval.params.LogBase2()
-	mask := uint64(((1 << lb2) - 1))
+	pw2 := eval.params.Pow2Base()
+	mask := uint64(((1 << pw2) - 1))
 	if mask == 0 {
 		mask = 0xFFFFFFFFFFFFFFFF
 	}
 
 	decompRNS := eval.params.DecompRNS(levelQ, levelP)
-	decompBIT := eval.params.DecompBIT(levelQ, levelP)
+	decompPW2 := eval.params.DecompPW2(levelQ, levelP)
 
 	// (a, b) + (c0 * rgsw[k][0], c0 * rgsw[k][1])
 	for k, el := range rgsw.Value {
@@ -123,8 +123,8 @@ func (eval *Evaluator) externalProductInPlaceSinglePAndBitDecomp(ct0 *rlwe.Ciphe
 		cw := eval.BuffQP[0].Q.Coeffs[0]
 		cwNTT := eval.BuffBitDecomp
 		for i := 0; i < decompRNS; i++ {
-			for j := 0; j < decompBIT; j++ {
-				ring.MaskVec(eval.BuffInvNTT.Coeffs[i], cw, j*lb2, mask)
+			for j := 0; j < decompPW2; j++ {
+				ring.MaskVec(eval.BuffInvNTT.Coeffs[i], cw, j*pw2, mask)
 				if k == 0 && i == 0 && j == 0 {
 
 					for u := 0; u < levelQ+1; u++ {

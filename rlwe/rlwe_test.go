@@ -212,7 +212,7 @@ func testSwitchKeyGen(kgen KeyGenerator, t *testing.T) {
 		skIn := kgen.GenSecretKey()
 		skOut := kgen.GenSecretKey()
 		levelQ, levelP := params.QCount()-1, params.PCount()-1
-		decompBIT := params.DecompBIT(levelQ, levelP)
+		decompPW2 := params.DecompPW2(levelQ, levelP)
 
 		// Generates Decomp([-asIn + w*P*sOut + e, a])
 		swk := NewSwitchingKey(params, params.QCount()-1, params.PCount()-1)
@@ -227,10 +227,10 @@ func testSwitchKeyGen(kgen KeyGenerator, t *testing.T) {
 		}
 
 		// Sums all basis together (equivalent to multiplying with CRT decomposition of 1)
-		// sum([1]_w * [RNS*BIT*P*sOut + e]) = BIT*P*sOut + sum(e)
+		// sum([1]_w * [RNS*PW2*P*sOut + e]) = PW2*P*sOut + sum(e)
 		for i := range swk.Value { // RNS decomp
 			if i > 0 {
-				for j := range swk.Value[i] { // BIT decomp
+				for j := range swk.Value[i] { // PW2 decomp
 					ringQP.AddLvl(levelQ, levelP, swk.Value[0][j].Value[0], swk.Value[i][j].Value[0], swk.Value[0][j].Value[0])
 				}
 			}
@@ -242,7 +242,7 @@ func testSwitchKeyGen(kgen KeyGenerator, t *testing.T) {
 		}
 
 		log2Bound := bits.Len64(uint64(math.Floor(DefaultSigma*6)) * uint64(params.N()*len(swk.Value)))
-		for i := 0; i < decompBIT; i++ {
+		for i := 0; i < decompPW2; i++ {
 
 			// P*s^i + sum(e) - P*s^i = sum(e)
 			ringQ.Sub(swk.Value[0][i].Value[0].Q, skIn.Value.Q, swk.Value[0][i].Value[0].Q)
@@ -259,8 +259,8 @@ func testSwitchKeyGen(kgen KeyGenerator, t *testing.T) {
 				require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelP, ringP, swk.Value[0][i].Value[0].P))
 			}
 
-			// sOut * P * BIT
-			ringQ.MulScalar(skIn.Value.Q, 1<<params.logbase2, skIn.Value.Q)
+			// sOut * P * PW2
+			ringQ.MulScalar(skIn.Value.Q, 1<<params.Pow2Base(), skIn.Value.Q)
 		}
 	})
 }

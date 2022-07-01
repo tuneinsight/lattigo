@@ -73,7 +73,7 @@ func main() {
 		LogN:     LogN,
 		Q:        Q[:1],
 		P:        []uint64{0x42001},
-		LogBase2: 16,
+		Pow2Base: 16,
 	}); err != nil {
 		panic(err)
 	}
@@ -86,7 +86,7 @@ func main() {
 		LogN:     LogN - 1,
 		Q:        Q[:1],
 		P:        []uint64{0x42001},
-		LogBase2: 12,
+		Pow2Base: 12,
 	}); err != nil {
 		panic(err)
 	}

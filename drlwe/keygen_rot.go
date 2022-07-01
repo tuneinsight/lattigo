@@ -70,13 +70,13 @@ func (rtg *RTGProtocol) AllocateShare() (rtgShare *RTGShare) {
 
 	params := rtg.params
 	decompRNS := rtg.params.DecompRNS(params.QCount()-1, params.PCount()-1)
-	decompBIT := rtg.params.DecompBIT(params.QCount()-1, params.PCount()-1)
+	decompPW2 := rtg.params.DecompPW2(params.QCount()-1, params.PCount()-1)
 
 	rtgShare.Value = make([][]ringqp.Poly, decompRNS)
 
 	for i := 0; i < decompRNS; i++ {
-		rtgShare.Value[i] = make([]ringqp.Poly, decompBIT)
-		for j := 0; j < decompBIT; j++ {
+		rtgShare.Value[i] = make([]ringqp.Poly, decompPW2)
+		for j := 0; j < decompPW2; j++ {
 			rtgShare.Value[i][j] = rtg.params.RingQP().NewPoly()
 		}
 	}
@@ -89,13 +89,13 @@ func (rtg *RTGProtocol) SampleCRP(crs CRS) RTGCRP {
 
 	params := rtg.params
 	decompRNS := rtg.params.DecompRNS(params.QCount()-1, params.PCount()-1)
-	decompBIT := rtg.params.DecompBIT(params.QCount()-1, params.PCount()-1)
+	decompPW2 := rtg.params.DecompPW2(params.QCount()-1, params.PCount()-1)
 
 	crp := make([][]ringqp.Poly, decompRNS)
 	us := ringqp.NewUniformSampler(crs, *params.RingQP())
 	for i := 0; i < decompRNS; i++ {
-		crp[i] = make([]ringqp.Poly, decompBIT)
-		for j := 0; j < decompBIT; j++ {
+		crp[i] = make([]ringqp.Poly, decompPW2)
+		for j := 0; j < decompPW2; j++ {
 			crp[i][j] = rtg.params.RingQP().NewPoly()
 			us.Read(crp[i][j])
 		}
@@ -169,7 +169,7 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, s
 			ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, crp[i][j], rtg.buff[1], shareOut.Value[i][j])
 		}
 
-		ringQ.MulScalar(rtg.buff[0].Q, 1<<rtg.params.LogBase2(), rtg.buff[0].Q)
+		ringQ.MulScalar(rtg.buff[0].Q, 1<<rtg.params.Pow2Base(), rtg.buff[0].Q)
 	}
 }
 

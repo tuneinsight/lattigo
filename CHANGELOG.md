@@ -39,8 +39,9 @@ All notable changes to this project will be documented in this file.
     - `Trace`: homomorphically evaluates the map `X -> sum((-1)^i * X^{i*n+1}) for n <= i < N`.
     - `ExternalProduct`: evaluates `rlwe.Ciphertext x rgsw.Ciphertext -> rlwe.Ciphertext`.
 - RLWE: re-enabled bit-decomposition, on top of RNS decomposition, for the inner-product between `rlwe.Ciphertext` and `gadget.Ciphertext`.
-    - This functionality can be enabled by setting `LogBase2` to the desired power of two basis.
-    - This functionality is disabled if `LogBase2` is set to zero (default value).
+    - This functionality can be enabled by setting `Pow2Base` to the desired power of two basis.
+    - This functionality can be composed with the RNS hybrid decomposition (with a modulus `P`), but only when `P` is composed of a single prime.
+    - This functionality is disabled if `Pow2Base` is set to zero (default value).
 - RLWE: enabled instantiation of `rlwe.Parameters` without the modulus `P`.
 - RLWE: updated `rlwe.Encryptor` with the following functionalities: 
     - The methods `.Encrypt` now accept as input both `rlwe.Ciphertext` and `rgsw.Ciphertext`.
@@ -54,9 +55,10 @@ All notable changes to this project will be documented in this file.
 - BFV/CKKS: fixed a panic that was happening during the benchmark testing.
 - CKKS: fixed `MulAndAdd` correctness for non-identical inputs.
 - CKKS: added `advanced.EncodingMatrixLiteral.RepackImag2Real` optional field to repack the imaginary part into the right n real slots.
+- CKKS: `Trace` now only takes as input the `logSlots` of the encrypted plaintext.
 - DCKKS: fixed `dckks.RefreshProtocol` correctness when the output scale is different from the input scale.
 - Examples: added `examples/ckks/advanced/lut`, which is an example that does homomorphic decoding -> LUT -> homomorphic encoding on a `ckks.Ciphertext`.
-- Examples: removed `examples/ckks/advanced/rlwe_lwe_bridge_LHHMQ20`, which is replaced `examples/ckks/advanced/lut`.
+- Examples: removed `examples/ckks/advanced/rlwe_lwe_bridge_LHHMQ20`, which is replaced by `examples/ckks/advanced/lut`.
 - Examples: removed `examples/rlwe/lwe_bridge` since the code of this example is now part of `rlwe.Evaluator` and showcased in `examples/ckks/advanced/lut`.
 
 ## [3.0.5]

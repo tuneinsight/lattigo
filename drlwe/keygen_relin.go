@@ -83,15 +83,15 @@ func (ekg *RKGProtocol) AllocateShare() (ephSk *rlwe.SecretKey, r1 *RKGShare, r2
 	r1, r2 = new(RKGShare), new(RKGShare)
 
 	decompRNS := params.DecompRNS(params.QCount()-1, params.PCount()-1)
-	decompBIT := params.DecompBIT(params.QCount()-1, params.PCount()-1)
+	decompPW2 := params.DecompPW2(params.QCount()-1, params.PCount()-1)
 
 	r1.Value = make([][][2]ringqp.Poly, decompRNS)
 	r2.Value = make([][][2]ringqp.Poly, decompRNS)
 
 	for i := 0; i < decompRNS; i++ {
-		r1.Value[i] = make([][2]ringqp.Poly, decompBIT)
-		r2.Value[i] = make([][2]ringqp.Poly, decompBIT)
-		for j := 0; j < decompBIT; j++ {
+		r1.Value[i] = make([][2]ringqp.Poly, decompPW2)
+		r2.Value[i] = make([][2]ringqp.Poly, decompPW2)
+		for j := 0; j < decompPW2; j++ {
 			r1.Value[i][j][0] = ekg.params.RingQP().NewPoly()
 			r1.Value[i][j][1] = ekg.params.RingQP().NewPoly()
 			r2.Value[i][j][0] = ekg.params.RingQP().NewPoly()
@@ -106,12 +106,12 @@ func (ekg *RKGProtocol) AllocateShare() (ephSk *rlwe.SecretKey, r1 *RKGShare, r2
 func (ekg *RKGProtocol) SampleCRP(crs CRS) RKGCRP {
 	params := ekg.params
 	decompRNS := params.DecompRNS(params.QCount()-1, params.PCount()-1)
-	decompBIT := params.DecompBIT(params.QCount()-1, params.PCount()-1)
+	decompPW2 := params.DecompPW2(params.QCount()-1, params.PCount()-1)
 
 	crp := make([][]ringqp.Poly, decompRNS)
 	us := ringqp.NewUniformSampler(crs, *params.RingQP())
 	for i := range crp {
-		crp[i] = make([]ringqp.Poly, decompBIT)
+		crp[i] = make([]ringqp.Poly, decompPW2)
 		for j := range crp[i] {
 			crp[i][j] = params.RingQP().NewPoly()
 			us.Read(crp[i][j])
@@ -204,7 +204,7 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp RKGCRP, ephSkOu
 			ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, sk.Value, crp[i][j], shareOut.Value[i][j][1])
 		}
 
-		ringQ.MulScalar(ekg.tmpPoly1.Q, 1<<ekg.params.LogBase2(), ekg.tmpPoly1.Q)
+		ringQ.MulScalar(ekg.tmpPoly1.Q, 1<<ekg.params.Pow2Base(), ekg.tmpPoly1.Q)
 	}
 }
 

@@ -1,3 +1,4 @@
+// Package advanced implements advanced operations for the CKKS scheme.
 package advanced
 
 import (

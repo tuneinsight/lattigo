@@ -290,7 +290,7 @@ type ParametersLiteral struct {
 	P            []uint64
 	LogQ         []int `json:",omitempty"`
 	LogP         []int `json:",omitempty"`
-	LogBase2     int
+	Pow2Base     int
 	Sigma        float64
 	H            int
 	RingType     ring.Type
@@ -306,7 +306,7 @@ func (p ParametersLiteral) RLWEParameters() rlwe.ParametersLiteral {
 		P:        p.P,
 		LogQ:     p.LogQ,
 		LogP:     p.LogP,
-		LogBase2: p.LogBase2,
+		Pow2Base: p.Pow2Base,
 		Sigma:    p.Sigma,
 		H:        p.H,
 		RingType: p.RingType,
@@ -570,7 +570,7 @@ func (p Parameters) MarshalJSON() ([]byte, error) {
 		LogN:         p.LogN(),
 		Q:            p.Q(),
 		P:            p.P(),
-		LogBase2:     p.LogBase2(),
+		Pow2Base:     p.Pow2Base(),
 		H:            p.HammingWeight(),
 		Sigma:        p.Sigma(),
 		RingType:     p.RingType(),

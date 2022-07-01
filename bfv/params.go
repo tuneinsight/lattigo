@@ -17,8 +17,7 @@ var (
 	PN11QP54 = ParametersLiteral{
 		LogN:     11,
 		Q:        []uint64{0x3001, 0x15400000001}, // 13.5 + 40.4 bits
-		P:        []uint64{},
-		LogBase2: 6,
+		Pow2Base: 6,
 		T:        0x3001,
 	}
 
@@ -117,7 +116,7 @@ type ParametersLiteral struct {
 	P        []uint64
 	LogQ     []int `json:",omitempty"`
 	LogP     []int `json:",omitempty"`
-	LogBase2 int
+	Pow2Base int
 	Sigma    float64
 	H        int
 	T        uint64 // Plaintext modulus
@@ -131,7 +130,7 @@ func (p ParametersLiteral) RLWEParameters() rlwe.ParametersLiteral {
 		P:        p.P,
 		LogQ:     p.LogQ,
 		LogP:     p.LogP,
-		LogBase2: p.LogBase2,
+		Pow2Base: p.Pow2Base,
 		Sigma:    p.Sigma,
 		H:        p.H,
 		RingType: ring.Standard,

@@ -30,9 +30,9 @@ func (enc *Encryptor) Encrypt(pt *rlwe.Plaintext, ct interface{}) {
 	levelP := rgswCt.LevelP()
 
 	decompRNS := params.DecompRNS(levelQ, levelP)
-	decompBIT := params.DecompBIT(levelQ, levelP)
+	decompPW2 := params.DecompPW2(levelQ, levelP)
 
-	for j := 0; j < decompBIT; j++ {
+	for j := 0; j < decompPW2; j++ {
 		for i := 0; i < decompRNS; i++ {
 			enc.EncryptZero(&rgswCt.Value[0].Value[i][j])
 			enc.EncryptZero(&rgswCt.Value[1].Value[i][j])
@@ -48,7 +48,7 @@ func (enc *Encryptor) Encrypt(pt *rlwe.Plaintext, ct interface{}) {
 			enc.buffQP.Q,
 			[]rlwe.GadgetCiphertext{rgswCt.Value[0], rgswCt.Value[1]},
 			*params.RingQP(),
-			params.LogBase2(),
+			params.Pow2Base(),
 			enc.buffQP.Q)
 	}
 }

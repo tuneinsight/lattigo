@@ -19,7 +19,7 @@ func (eval *Evaluator) SwitchKeys(ctIn *Ciphertext, switchingKey *SwitchingKey, 
 	level := utils.MinInt(ctIn.Level(), ctOut.Level())
 	ringQ := eval.params.RingQ()
 
-	eval.GadgetProduct(level, ctIn.Value[1], switchingKey.Ciphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
+	eval.GadgetProduct(level, ctIn.Value[1], switchingKey.GadgetCiphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
 
 	ringQ.AddLvl(level, ctIn.Value[0], eval.BuffQP[1].Q, ctOut.Value[0])
 	ring.CopyValuesLvl(level, eval.BuffQP[2].Q, ctOut.Value[1])
@@ -37,12 +37,12 @@ func (eval *Evaluator) Relinearize(ctIn *Ciphertext, ctOut *Ciphertext) {
 
 	ringQ := eval.params.RingQ()
 
-	eval.GadgetProduct(level, ctIn.Value[2], eval.Rlk.Keys[0].Ciphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
+	eval.GadgetProduct(level, ctIn.Value[2], eval.Rlk.Keys[0].GadgetCiphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
 	ringQ.AddLvl(level, ctIn.Value[0], eval.BuffQP[1].Q, ctOut.Value[0])
 	ringQ.AddLvl(level, ctIn.Value[1], eval.BuffQP[2].Q, ctOut.Value[1])
 
 	for deg := ctIn.Degree() - 1; deg > 1; deg-- {
-		eval.GadgetProduct(level, ctIn.Value[deg], eval.Rlk.Keys[deg-2].Ciphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
+		eval.GadgetProduct(level, ctIn.Value[deg], eval.Rlk.Keys[deg-2].GadgetCiphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
 		ringQ.AddLvl(level, ctOut.Value[0], eval.BuffQP[1].Q, ctOut.Value[0])
 		ringQ.AddLvl(level, ctOut.Value[1], eval.BuffQP[2].Q, ctOut.Value[1])
 	}
@@ -116,7 +116,7 @@ func (eval *Evaluator) KeyswitchHoisted(levelQ int, BuffQPDecompQP []ringqp.Poly
 
 	eval.KeyswitchHoistedNoModDown(levelQ, BuffQPDecompQP, evakey, c0Q, c1Q, c0P, c1P)
 
-	levelP := evakey.Value[0][0][0].P.Level()
+	levelP := evakey.Value[0][0].Value[0].P.Level()
 
 	// Computes c0Q = c0Q/c0P and c1Q = c1Q/c1P
 	eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, c0Q, c0P, c0Q)
@@ -136,7 +136,7 @@ func (eval *Evaluator) KeyswitchHoistedNoModDown(levelQ int, BuffQPDecompQP []ri
 	c0QP := ringqp.Poly{Q: c0Q, P: c0P}
 	c1QP := ringqp.Poly{Q: c1Q, P: c1P}
 
-	levelP := evakey.Value[0][0][0].P.Level()
+	levelP := evakey.Value[0][0].Value[0].P.Level()
 	decompRNS := (levelQ + 1 + levelP) / (levelP + 1)
 
 	QiOverF := eval.params.QiOverflowMargin(levelQ) >> 1
@@ -147,11 +147,11 @@ func (eval *Evaluator) KeyswitchHoistedNoModDown(levelQ int, BuffQPDecompQP []ri
 	for i := 0; i < decompRNS; i++ {
 
 		if i == 0 {
-			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, evakey.Value[i][0][0], BuffQPDecompQP[i], c0QP)
-			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, evakey.Value[i][0][1], BuffQPDecompQP[i], c1QP)
+			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, evakey.Value[i][0].Value[0], BuffQPDecompQP[i], c0QP)
+			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, evakey.Value[i][0].Value[1], BuffQPDecompQP[i], c1QP)
 		} else {
-			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, evakey.Value[i][0][0], BuffQPDecompQP[i], c0QP)
-			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, evakey.Value[i][0][1], BuffQPDecompQP[i], c1QP)
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, evakey.Value[i][0].Value[0], BuffQPDecompQP[i], c0QP)
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, evakey.Value[i][0].Value[1], BuffQPDecompQP[i], c1QP)
 		}
 
 		if reduce%QiOverF == QiOverF-1 {

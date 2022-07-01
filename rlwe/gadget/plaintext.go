@@ -5,18 +5,18 @@ import (
 	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 )
 
-// Plaintext stores an RGSW plaintext value.
-type Plaintext struct {
+// GadgetPlaintext stores an RGSW plaintext value.
+type GadgetPlaintext struct {
 	Value []*ring.Poly
 }
 
-// NewPlaintext creates a new gadget plaintext from value, which can be either uint64, int64 or *ring.Poly.
+// NewGadgetPlaintext creates a new gadget plaintext from value, which can be either uint64, int64 or *ring.Poly.
 // Plaintext is returned in the NTT and Mongtomery domain.
-func NewPlaintext(value interface{}, levelQ, levelP, logBase2, decompBIT int, ringQP ringqp.Ring) (pt *Plaintext) {
+func NewGadgetPlaintext(value interface{}, levelQ, levelP, logBase2, decompBIT int, ringQP ringqp.Ring) (pt *GadgetPlaintext) {
 
 	ringQ := ringQP.RingQ
 
-	pt = new(Plaintext)
+	pt = new(GadgetPlaintext)
 	pt.Value = make([]*ring.Poly, decompBIT)
 
 	switch el := value.(type) {

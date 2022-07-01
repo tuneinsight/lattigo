@@ -6,16 +6,16 @@ import (
 	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 )
 
-// Ciphertext is a struct for storing an encrypted
+// GadgetCiphertext is a struct for storing an encrypted
 // plaintext times the gadget power matrix.
-type Ciphertext struct {
+type GadgetCiphertext struct {
 	Value [][][2]ringqp.Poly
 }
 
-// NewCiphertext returns a new Ciphertext key with pre-allocated zero-value.
+// NewGadgetCiphertext returns a new Ciphertext key with pre-allocated zero-value.
 // Ciphertext is always in the NTT domain.
-func NewCiphertext(levelQ, levelP, decompRNS, decompBIT int, ringQP ringqp.Ring) (ct *Ciphertext) {
-	ct = new(Ciphertext)
+func NewGadgetCiphertext(levelQ, levelP, decompRNS, decompBIT int, ringQP ringqp.Ring) (ct *GadgetCiphertext) {
+	ct = new(GadgetCiphertext)
 	ct.Value = make([][][2]ringqp.Poly, decompRNS)
 	for i := 0; i < decompRNS; i++ {
 		ct.Value[i] = make([][2]ringqp.Poly, decompBIT)
@@ -37,12 +37,12 @@ func NewCiphertext(levelQ, levelP, decompRNS, decompBIT int, ringQP ringqp.Ring)
 }
 
 // LevelQ returns the level of the modulus Q of the target Ciphertext.
-func (ct *Ciphertext) LevelQ() int {
+func (ct *GadgetCiphertext) LevelQ() int {
 	return ct.Value[0][0][0].Q.Level()
 }
 
 // LevelP returns the level of the modulus P of the target Ciphertext.
-func (ct *Ciphertext) LevelP() int {
+func (ct *GadgetCiphertext) LevelP() int {
 	if ct.Value[0][0][0].P != nil {
 		return ct.Value[0][0][0].P.Level()
 	}
@@ -51,7 +51,7 @@ func (ct *Ciphertext) LevelP() int {
 }
 
 // Equals checks two Ciphertexts for equality.
-func (ct *Ciphertext) Equals(other *Ciphertext) bool {
+func (ct *GadgetCiphertext) Equals(other *GadgetCiphertext) bool {
 	if ct == other {
 		return true
 	}
@@ -77,7 +77,7 @@ func (ct *Ciphertext) Equals(other *Ciphertext) bool {
 }
 
 // CopyNew creates a deep copy of the receiver Ciphertext and returns it.
-func (ct *Ciphertext) CopyNew() (ctCopy *Ciphertext) {
+func (ct *GadgetCiphertext) CopyNew() (ctCopy *GadgetCiphertext) {
 	if ct == nil || len(ct.Value) == 0 {
 		return nil
 	}
@@ -87,11 +87,11 @@ func (ct *Ciphertext) CopyNew() (ctCopy *Ciphertext) {
 			Value[i][j] = [2]ringqp.Poly{el[0].CopyNew(), el[1].CopyNew()}
 		}
 	}
-	return &Ciphertext{Value: Value}
+	return &GadgetCiphertext{Value: Value}
 }
 
 // GetDataLen returns the length in bytes of the target Ciphertext.
-func (ct *Ciphertext) GetDataLen(WithMetadata bool) (dataLen int) {
+func (ct *GadgetCiphertext) GetDataLen(WithMetadata bool) (dataLen int) {
 
 	if WithMetadata {
 		dataLen += 2
@@ -108,7 +108,7 @@ func (ct *Ciphertext) GetDataLen(WithMetadata bool) (dataLen int) {
 }
 
 // MarshalBinary encodes the target Ciphertext on a slice of bytes.
-func (ct *Ciphertext) MarshalBinary() (data []byte, err error) {
+func (ct *GadgetCiphertext) MarshalBinary() (data []byte, err error) {
 	data = make([]byte, ct.GetDataLen(true))
 	if _, err = ct.Encode(0, data); err != nil {
 		return
@@ -118,7 +118,7 @@ func (ct *Ciphertext) MarshalBinary() (data []byte, err error) {
 }
 
 // UnmarshalBinary decode a slice of bytes on the target Ciphertext.
-func (ct *Ciphertext) UnmarshalBinary(data []byte) (err error) {
+func (ct *GadgetCiphertext) UnmarshalBinary(data []byte) (err error) {
 	if _, err = ct.Decode(data); err != nil {
 		return
 	}
@@ -127,7 +127,7 @@ func (ct *Ciphertext) UnmarshalBinary(data []byte) (err error) {
 }
 
 // Encode encodes the target ciphertext on a pre-allocated slice of bytes.
-func (ct *Ciphertext) Encode(pointer int, data []byte) (int, error) {
+func (ct *GadgetCiphertext) Encode(pointer int, data []byte) (int, error) {
 
 	var err error
 	var inc int
@@ -156,7 +156,7 @@ func (ct *Ciphertext) Encode(pointer int, data []byte) (int, error) {
 }
 
 // Decode decodes a slice of bytes on the target ciphertext.
-func (ct *Ciphertext) Decode(data []byte) (pointer int, err error) {
+func (ct *GadgetCiphertext) Decode(data []byte) (pointer int, err error) {
 
 	decompRNS := int(data[0])
 	decompBIT := int(data[1])

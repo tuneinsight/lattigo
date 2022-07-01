@@ -2,7 +2,6 @@ package rlwe
 
 import (
 	"github.com/tuneinsight/lattigo/v3/ring"
-	"github.com/tuneinsight/lattigo/v3/rlwe/gadget"
 	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 )
 
@@ -12,17 +11,17 @@ import (
 // p1 = dot(decomp(cx) * gadget[1]) mod Q
 //
 // Expects the flag IsNTT of cx to correctly reflect the domain of cx.
-func (eval *Evaluator) GadgetProduct(levelQ int, cx *ring.Poly, gadget gadget.Ciphertext, p0, p1 *ring.Poly) {
+func (eval *Evaluator) GadgetProduct(levelQ int, cx *ring.Poly, gadgetCt GadgetCiphertext, p0, p1 *ring.Poly) {
 
-	levelP := gadget.LevelP()
+	levelP := gadgetCt.LevelP()
 
 	p0QP := ringqp.Poly{Q: p0, P: eval.BuffQP[1].P}
 	p1QP := ringqp.Poly{Q: p1, P: eval.BuffQP[2].P}
 
 	if levelP > 0 {
-		eval.GadgetProductNoModDown(levelQ, cx, gadget, p0QP, p1QP)
+		eval.GadgetProductNoModDown(levelQ, cx, gadgetCt, p0QP, p1QP)
 	} else {
-		eval.GadgetProductSinglePAndBitDecompNoModDown(levelQ, cx, gadget, p0QP, p1QP)
+		eval.GadgetProductSinglePAndBitDecompNoModDown(levelQ, cx, gadgetCt, p0QP, p1QP)
 	}
 
 	if cx.IsNTT && levelP != -1 {
@@ -47,7 +46,7 @@ func (eval *Evaluator) GadgetProduct(levelQ int, cx *ring.Poly, gadget gadget.Ci
 // p1QP = dot(decomp(cx) * gadget[1]) mod QP (encrypted input is multiplied by P factor)
 //
 // Expects the flag IsNTT of cx to correctly reflect the domain of cx.
-func (eval *Evaluator) GadgetProductNoModDown(levelQ int, cx *ring.Poly, gadget gadget.Ciphertext, p0QP, p1QP ringqp.Poly) {
+func (eval *Evaluator) GadgetProductNoModDown(levelQ int, cx *ring.Poly, gadgetCt GadgetCiphertext, p0QP, p1QP ringqp.Poly) {
 
 	ringQ := eval.params.RingQ()
 	ringP := eval.params.RingP()
@@ -66,14 +65,14 @@ func (eval *Evaluator) GadgetProductNoModDown(levelQ int, cx *ring.Poly, gadget 
 		ringQ.NTTLvl(levelQ, cxInvNTT, cxNTT)
 	}
 
-	levelP := gadget.LevelP()
+	levelP := gadgetCt.LevelP()
 
 	decompRNS := eval.params.DecompRNS(levelQ, levelP)
 
 	QiOverF := eval.params.QiOverflowMargin(levelQ) >> 1
 	PiOverF := eval.params.PiOverflowMargin(levelP) >> 1
 
-	el := gadget.Value
+	el := gadgetCt.Value
 
 	// Key switching with CRT decomposition for the Qi
 	var reduce int
@@ -82,11 +81,11 @@ func (eval *Evaluator) GadgetProductNoModDown(levelQ int, cx *ring.Poly, gadget 
 		eval.DecomposeSingleNTT(levelQ, levelP, levelP+1, i, cxNTT, cxInvNTT, c2QP.Q, c2QP.P)
 
 		if i == 0 {
-			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, el[i][0][0], c2QP, p0QP)
-			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, el[i][0][1], c2QP, p1QP)
+			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, el[i][0].Value[0], c2QP, p0QP)
+			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, el[i][0].Value[1], c2QP, p1QP)
 		} else {
-			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, el[i][0][0], c2QP, p0QP)
-			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, el[i][0][1], c2QP, p1QP)
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, el[i][0].Value[0], c2QP, p0QP)
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, el[i][0].Value[1], c2QP, p1QP)
 		}
 
 		if reduce%QiOverF == QiOverF-1 {
@@ -119,7 +118,7 @@ func (eval *Evaluator) GadgetProductNoModDown(levelQ int, cx *ring.Poly, gadget 
 // p1QP = dot(decomp(cx) * evakey[1]) mod QP (encrypted input is multiplied by P factor)
 //
 // Expects the flag IsNTT of cx to correctly reflect the domain of cx.
-func (eval *Evaluator) GadgetProductSinglePAndBitDecompNoModDown(levelQ int, cx *ring.Poly, gadget gadget.Ciphertext, p0QP, p1QP ringqp.Poly) {
+func (eval *Evaluator) GadgetProductSinglePAndBitDecompNoModDown(levelQ int, cx *ring.Poly, gadgetCt GadgetCiphertext, p0QP, p1QP ringqp.Poly) {
 
 	ringQ := eval.params.RingQ()
 	ringP := eval.params.RingP()
@@ -132,7 +131,7 @@ func (eval *Evaluator) GadgetProductSinglePAndBitDecompNoModDown(levelQ int, cx 
 		cxInvNTT = cx
 	}
 
-	levelP := gadget.LevelP()
+	levelP := gadgetCt.LevelP()
 
 	decompRNS := eval.params.DecompRNS(levelQ, levelP)
 	decompBIT := eval.params.DecompBIT(levelQ, levelP)
@@ -151,7 +150,7 @@ func (eval *Evaluator) GadgetProductSinglePAndBitDecompNoModDown(levelQ int, cx 
 	QiOverF := eval.params.QiOverflowMargin(levelQ) >> 1
 	PiOverF := eval.params.PiOverflowMargin(levelP) >> 1
 
-	el := gadget.Value
+	el := gadgetCt.Value
 
 	// Key switching with CRT decomposition for the Qi
 	var reduce int
@@ -163,26 +162,26 @@ func (eval *Evaluator) GadgetProductSinglePAndBitDecompNoModDown(levelQ int, cx 
 			if i == 0 && j == 0 {
 				for u := 0; u < levelQ+1; u++ {
 					ringQ.NTTSingleLazy(u, cw, cwNTT)
-					ring.MulCoeffsMontgomeryConstantVec(el[i][j][0].Q.Coeffs[u], cwNTT, p0QP.Q.Coeffs[u], ringQ.Modulus[u], ringQ.MredParams[u])
-					ring.MulCoeffsMontgomeryConstantVec(el[i][j][1].Q.Coeffs[u], cwNTT, p1QP.Q.Coeffs[u], ringQ.Modulus[u], ringQ.MredParams[u])
+					ring.MulCoeffsMontgomeryConstantVec(el[i][j].Value[0].Q.Coeffs[u], cwNTT, p0QP.Q.Coeffs[u], ringQ.Modulus[u], ringQ.MredParams[u])
+					ring.MulCoeffsMontgomeryConstantVec(el[i][j].Value[1].Q.Coeffs[u], cwNTT, p1QP.Q.Coeffs[u], ringQ.Modulus[u], ringQ.MredParams[u])
 				}
 
 				for u := 0; u < levelP+1; u++ {
 					ringP.NTTSingleLazy(u, cw, cwNTT)
-					ring.MulCoeffsMontgomeryConstantVec(el[i][j][0].P.Coeffs[u], cwNTT, p0QP.P.Coeffs[u], ringP.Modulus[u], ringP.MredParams[u])
-					ring.MulCoeffsMontgomeryConstantVec(el[i][j][1].P.Coeffs[u], cwNTT, p1QP.P.Coeffs[u], ringP.Modulus[u], ringP.MredParams[u])
+					ring.MulCoeffsMontgomeryConstantVec(el[i][j].Value[0].P.Coeffs[u], cwNTT, p0QP.P.Coeffs[u], ringP.Modulus[u], ringP.MredParams[u])
+					ring.MulCoeffsMontgomeryConstantVec(el[i][j].Value[1].P.Coeffs[u], cwNTT, p1QP.P.Coeffs[u], ringP.Modulus[u], ringP.MredParams[u])
 				}
 			} else {
 				for u := 0; u < levelQ+1; u++ {
 					ringQ.NTTSingleLazy(u, cw, cwNTT)
-					ring.MulCoeffsMontgomeryConstantAndAddNoModVec(el[i][j][0].Q.Coeffs[u], cwNTT, p0QP.Q.Coeffs[u], ringQ.Modulus[u], ringQ.MredParams[u])
-					ring.MulCoeffsMontgomeryConstantAndAddNoModVec(el[i][j][1].Q.Coeffs[u], cwNTT, p1QP.Q.Coeffs[u], ringQ.Modulus[u], ringQ.MredParams[u])
+					ring.MulCoeffsMontgomeryConstantAndAddNoModVec(el[i][j].Value[0].Q.Coeffs[u], cwNTT, p0QP.Q.Coeffs[u], ringQ.Modulus[u], ringQ.MredParams[u])
+					ring.MulCoeffsMontgomeryConstantAndAddNoModVec(el[i][j].Value[1].Q.Coeffs[u], cwNTT, p1QP.Q.Coeffs[u], ringQ.Modulus[u], ringQ.MredParams[u])
 				}
 
 				for u := 0; u < levelP+1; u++ {
 					ringP.NTTSingleLazy(u, cw, cwNTT)
-					ring.MulCoeffsMontgomeryConstantAndAddNoModVec(el[i][j][0].P.Coeffs[u], cwNTT, p0QP.P.Coeffs[u], ringP.Modulus[u], ringP.MredParams[u])
-					ring.MulCoeffsMontgomeryConstantAndAddNoModVec(el[i][j][1].P.Coeffs[u], cwNTT, p1QP.P.Coeffs[u], ringP.Modulus[u], ringP.MredParams[u])
+					ring.MulCoeffsMontgomeryConstantAndAddNoModVec(el[i][j].Value[0].P.Coeffs[u], cwNTT, p0QP.P.Coeffs[u], ringP.Modulus[u], ringP.MredParams[u])
+					ring.MulCoeffsMontgomeryConstantAndAddNoModVec(el[i][j].Value[1].P.Coeffs[u], cwNTT, p1QP.P.Coeffs[u], ringP.Modulus[u], ringP.MredParams[u])
 				}
 			}
 

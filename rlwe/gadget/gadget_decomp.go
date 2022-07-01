@@ -7,7 +7,7 @@ import (
 
 // AddPolyToCiphertext takes a plaintext polynomial and a list of Ciphertexts and adds the
 // plaintext times the RNS and BIT decomposition to the i-th element of the i-th Ciphertexts.
-func AddPolyToCiphertext(pt *ring.Poly, ct []Ciphertext, ringQP ringqp.Ring, logbase2 int, buff *ring.Poly) {
+func AddPolyToCiphertext(pt *ring.Poly, ct []GadgetCiphertext, ringQP ringqp.Ring, logbase2 int, buff *ring.Poly) {
 
 	ringQ := ringQP.RingQ
 

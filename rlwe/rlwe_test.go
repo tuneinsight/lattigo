@@ -222,7 +222,7 @@ func testSwitchKeyGen(kgen KeyGenerator, t *testing.T) {
 		// [-asIn + w*P*sOut + e, a] + [asIn]
 		for i := range swk.Value {
 			for _, el := range swk.Value[i] {
-				ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, el[1], skOut.Value, el[0])
+				ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, el.Value[1], skOut.Value, el.Value[0])
 			}
 		}
 
@@ -231,7 +231,7 @@ func testSwitchKeyGen(kgen KeyGenerator, t *testing.T) {
 		for i := range swk.Value { // RNS decomp
 			if i > 0 {
 				for j := range swk.Value[i] { // BIT decomp
-					ringQP.AddLvl(levelQ, levelP, swk.Value[0][j][0], swk.Value[i][j][0], swk.Value[0][j][0])
+					ringQP.AddLvl(levelQ, levelP, swk.Value[0][j].Value[0], swk.Value[i][j].Value[0], swk.Value[0][j].Value[0])
 				}
 			}
 		}
@@ -245,18 +245,18 @@ func testSwitchKeyGen(kgen KeyGenerator, t *testing.T) {
 		for i := 0; i < decompBIT; i++ {
 
 			// P*s^i + sum(e) - P*s^i = sum(e)
-			ringQ.Sub(swk.Value[0][i][0].Q, skIn.Value.Q, swk.Value[0][i][0].Q)
+			ringQ.Sub(swk.Value[0][i].Value[0].Q, skIn.Value.Q, swk.Value[0][i].Value[0].Q)
 
 			// Checks that the error is below the bound
 			// Worst error bound is N * floor(6*sigma) * #Keys
 
-			ringQP.InvNTTLvl(levelQ, levelP, swk.Value[0][i][0], swk.Value[0][i][0])
-			ringQP.InvMFormLvl(levelQ, levelP, swk.Value[0][i][0], swk.Value[0][i][0])
+			ringQP.InvNTTLvl(levelQ, levelP, swk.Value[0][i].Value[0], swk.Value[0][i].Value[0])
+			ringQP.InvMFormLvl(levelQ, levelP, swk.Value[0][i].Value[0], swk.Value[0][i].Value[0])
 
-			require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelQ, ringQ, swk.Value[0][i][0].Q))
+			require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelQ, ringQ, swk.Value[0][i].Value[0].Q))
 
 			if levelP != -1 {
-				require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelP, ringP, swk.Value[0][i][0].P))
+				require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelP, ringP, swk.Value[0][i].Value[0].P))
 			}
 
 			// sOut * P * BIT
@@ -433,7 +433,7 @@ func testKeySwitcher(kgen KeyGenerator, t *testing.T) {
 
 		// Test that Dec(KS(Enc(ct, sk), skOut), skOut) has a small norm
 		swk := kgen.GenSwitchingKey(sk, skOut)
-		eval.GadgetProduct(ciphertext.Value[1].Level(), ciphertext.Value[1], swk.Ciphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
+		eval.GadgetProduct(ciphertext.Value[1].Level(), ciphertext.Value[1], swk.GadgetCiphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
 		ringQ.Add(ciphertext.Value[0], eval.BuffQP[1].Q, ciphertext.Value[0])
 		ring.CopyValues(eval.BuffQP[2].Q, ciphertext.Value[1])
 		ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], skOut.Value.Q, ciphertext.Value[0])
@@ -491,7 +491,7 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 			encryptor.Encrypt(plaintext, ctLargeDim)
 
 			eval := NewEvaluator(paramsLargeDim, nil)
-			eval.GadgetProduct(paramsSmallDim.MaxLevel(), ctLargeDim.Value[1], swk.Ciphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
+			eval.GadgetProduct(paramsSmallDim.MaxLevel(), ctLargeDim.Value[1], swk.GadgetCiphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
 			ringQLargeDim.AddLvl(paramsSmallDim.MaxLevel(), ctLargeDim.Value[0], eval.BuffQP[1].Q, ctLargeDim.Value[0])
 			ring.CopyValues(eval.BuffQP[2].Q, ctLargeDim.Value[1])
 
@@ -530,7 +530,7 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 			SwitchCiphertextRingDegreeNTT(ctSmallDim, nil, nil, ctLargeDim)
 
 			eval := NewEvaluator(paramsLargeDim, nil)
-			eval.GadgetProduct(ctLargeDim.Value[1].Level(), ctLargeDim.Value[1], swk.Ciphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
+			eval.GadgetProduct(ctLargeDim.Value[1].Level(), ctLargeDim.Value[1], swk.GadgetCiphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
 			ringQLargeDim.Add(ctLargeDim.Value[0], eval.BuffQP[1].Q, ctLargeDim.Value[0])
 			ring.CopyValues(eval.BuffQP[2].Q, ctLargeDim.Value[1])
 

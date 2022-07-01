@@ -1196,7 +1196,7 @@ func (eval *evaluator) mulRelin(ctIn *Ciphertext, op1 Operand, relin bool, ctOut
 
 		if relin {
 			c2.IsNTT = true
-			eval.GadgetProduct(level, c2, eval.Rlk.Keys[0].Ciphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
+			eval.GadgetProduct(level, c2, eval.Rlk.Keys[0].GadgetCiphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
 			ringQ.AddLvl(level, c0, eval.BuffQP[1].Q, ctOut.Value[0])
 			ringQ.AddLvl(level, c1, eval.BuffQP[2].Q, ctOut.Value[1])
 		}
@@ -1294,7 +1294,7 @@ func (eval *evaluator) mulRelinAndAdd(ctIn *Ciphertext, op1 Operand, relin bool,
 		if relin {
 			c2.IsNTT = true
 			ringQ.MulCoeffsMontgomeryLvl(level, c01, tmp1.Value[1], c2) // c2 += c[1]*c[1]
-			eval.GadgetProduct(level, c2, eval.Rlk.Keys[0].Ciphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
+			eval.GadgetProduct(level, c2, eval.Rlk.Keys[0].GadgetCiphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
 			ringQ.AddLvl(level, c0, eval.BuffQP[1].Q, c0)
 			ringQ.AddLvl(level, c1, eval.BuffQP[2].Q, c1)
 		} else {

@@ -10,7 +10,7 @@ import (
 
 // Ciphertext is a generic type for RGSW ciphertext.
 type Ciphertext struct {
-	Value [2]gadget.Ciphertext
+	Value [2]gadget.GadgetCiphertext
 }
 
 // LevelQ returns the level of the modulus Q of the target.
@@ -26,9 +26,9 @@ func (ct *Ciphertext) LevelP() int {
 // NewCiphertext allocates a new RGSW ciphertext in the NTT domain.
 func NewCiphertext(levelQ, levelP, decompRNS, decompBit int, ringQP ringqp.Ring) (ct *Ciphertext) {
 	return &Ciphertext{
-		Value: [2]gadget.Ciphertext{
-			*gadget.NewCiphertext(levelQ, levelP, decompRNS, decompBit, ringQP),
-			*gadget.NewCiphertext(levelQ, levelP, decompRNS, decompBit, ringQP),
+		Value: [2]gadget.GadgetCiphertext{
+			*gadget.NewGadgetCiphertext(levelQ, levelP, decompRNS, decompBit, ringQP),
+			*gadget.NewGadgetCiphertext(levelQ, levelP, decompRNS, decompBit, ringQP),
 		},
 	}
 }

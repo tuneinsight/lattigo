@@ -300,10 +300,10 @@ func (ekg *RKGProtocol) GenRelinearizationKey(round1 *RKGShare, round2 *RKGShare
 	BITDecomp := len(round1.Value[0])
 	for i := 0; i < RNSDecomp; i++ {
 		for j := 0; j < BITDecomp; j++ {
-			ringQP.AddLvl(levelQ, levelP, round2.Value[i][j][0], round2.Value[i][j][1], evalKeyOut.Keys[0].Value[i][j][0])
-			evalKeyOut.Keys[0].Value[i][j][1].Copy(round1.Value[i][j][1])
-			ringQP.MFormLvl(levelQ, levelP, evalKeyOut.Keys[0].Value[i][j][0], evalKeyOut.Keys[0].Value[i][j][0])
-			ringQP.MFormLvl(levelQ, levelP, evalKeyOut.Keys[0].Value[i][j][1], evalKeyOut.Keys[0].Value[i][j][1])
+			ringQP.AddLvl(levelQ, levelP, round2.Value[i][j][0], round2.Value[i][j][1], evalKeyOut.Keys[0].Value[i][j].Value[0])
+			evalKeyOut.Keys[0].Value[i][j].Value[1].Copy(round1.Value[i][j][1])
+			ringQP.MFormLvl(levelQ, levelP, evalKeyOut.Keys[0].Value[i][j].Value[0], evalKeyOut.Keys[0].Value[i][j].Value[0])
+			ringQP.MFormLvl(levelQ, levelP, evalKeyOut.Keys[0].Value[i][j].Value[1], evalKeyOut.Keys[0].Value[i][j].Value[1])
 		}
 	}
 }

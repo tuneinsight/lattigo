@@ -481,7 +481,7 @@ func (enc *skEncryptor) encryptRGSW(pt *Plaintext, ct *rgsw.Ciphertext) {
 		}
 		gadget.AddPolyToCiphertext(
 			enc.buffQP.Q,
-			[]gadget.Ciphertext{ct.Value[0], ct.Value[1]},
+			[]gadget.GadgetCiphertext{ct.Value[0], ct.Value[1]},
 			*params.RingQP(),
 			params.LogBase2(),
 			enc.buffQP.Q)

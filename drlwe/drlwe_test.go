@@ -278,7 +278,7 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 	ringQP := params.RingQP()
 	levelQ, levelP := params.QCount()-1, params.PCount()-1
 
-	decompPW2 := params.DecompPW2(levelQ, levelP)
+	decompPw2 := params.DecompPw2(levelQ, levelP)
 
 	t.Run(testString(params, "RelinKeyGen"), func(t *testing.T) {
 
@@ -352,7 +352,7 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 		}
 
 		log2Bound := bits.Len64(uint64(params.N() * len(swk.Value) * len(swk.Value[0]) * (params.N()*3*int(math.Floor(rlwe.DefaultSigma*6)) + 2*3*int(math.Floor(rlwe.DefaultSigma*6)) + params.N()*3)))
-		for i := 0; i < decompPW2; i++ {
+		for i := 0; i < decompPw2; i++ {
 
 			// P*s^i + sum(e) - P*s^i = sum(e)
 			ringQ.Sub(swk.Value[0][i].Value[0].Q, skIn.Value.Q, swk.Value[0][i].Value[0].Q)
@@ -385,7 +385,7 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 	ringQP := params.RingQP()
 	levelQ, levelP := params.QCount()-1, params.PCount()-1
 
-	decompPW2 := params.DecompPW2(levelQ, levelP)
+	decompPw2 := params.DecompPw2(levelQ, levelP)
 
 	t.Run(testString(params, "RotKeyGen"), func(t *testing.T) {
 
@@ -455,7 +455,7 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 		}
 
 		log2Bound := bits.Len64(uint64(params.N() * len(swk.Value) * len(swk.Value[0]) * (params.N()*3*int(math.Floor(rlwe.DefaultSigma*6)) + 2*3*int(math.Floor(rlwe.DefaultSigma*6)) + params.N()*3)))
-		for i := 0; i < decompPW2; i++ {
+		for i := 0; i < decompPw2; i++ {
 
 			// P*s^i + sum(e) - P*s^i = sum(e)
 			ringQ.Sub(swk.Value[0][i].Value[0].Q, skIn.Value.Q, swk.Value[0][i].Value[0].Q)

@@ -120,11 +120,11 @@ func NewEvaluator(paramsLUT, paramsLWE rlwe.Parameters, rtks *rlwe.RotationKeySe
 	levelQ := paramsLUT.QCount() - 1
 	levelP := paramsLUT.PCount() - 1
 	decompRNS := paramsLUT.DecompRNS(levelQ, levelP)
-	decompPW2 := paramsLUT.DecompPW2(levelQ, levelP)
+	decompPw2 := paramsLUT.DecompPw2(levelQ, levelP)
 	ringQP := paramsLUT.RingQP()
-	eval.tmpRGSW = rgsw.NewCiphertext(levelQ, levelP, decompRNS, decompPW2, *ringQP)
+	eval.tmpRGSW = rgsw.NewCiphertext(levelQ, levelP, decompRNS, decompPw2, *ringQP)
 
-	eval.one = rgsw.NewPlaintext(uint64(1), levelQ, levelP, paramsLUT.Pow2Base(), decompPW2, *ringQP)
+	eval.one = rgsw.NewPlaintext(uint64(1), levelQ, levelP, paramsLUT.Pow2Base(), decompPw2, *ringQP)
 
 	return
 }

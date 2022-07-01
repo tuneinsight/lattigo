@@ -212,7 +212,7 @@ func testSwitchKeyGen(kgen KeyGenerator, t *testing.T) {
 		skIn := kgen.GenSecretKey()
 		skOut := kgen.GenSecretKey()
 		levelQ, levelP := params.QCount()-1, params.PCount()-1
-		decompPW2 := params.DecompPW2(levelQ, levelP)
+		decompPW2 := params.DecompPw2(levelQ, levelP)
 
 		// Generates Decomp([-asIn + w*P*sOut + e, a])
 		swk := NewSwitchingKey(params, params.QCount()-1, params.PCount()-1)

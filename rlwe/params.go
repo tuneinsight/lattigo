@@ -344,7 +344,7 @@ func (p Parameters) MaxBit(levelQ, levelP int) (c int) {
 }
 
 // DecompPW2 returns ceil(p.MaxBitQ(levelQ, levelP)/bitDecomp).
-func (p Parameters) DecompPW2(levelQ, levelP int) (c int) {
+func (p Parameters) DecompPw2(levelQ, levelP int) (c int) {
 	if p.pow2Base == 0 {
 		return 1
 	}
@@ -495,6 +495,7 @@ func (p Parameters) MarshalBinary() ([]byte, error) {
 	// 1 byte : logN
 	// 1 byte : #Q
 	// 1 byte : #P
+	// 1 byte : pow2Base
 	// 8 byte : H
 	// 8 byte : sigma
 	// 1 byte : ringType

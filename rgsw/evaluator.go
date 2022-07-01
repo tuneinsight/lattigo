@@ -115,7 +115,7 @@ func (eval *Evaluator) externalProductInPlaceSinglePAndBitDecomp(ct0 *rlwe.Ciphe
 	}
 
 	decompRNS := eval.params.DecompRNS(levelQ, levelP)
-	decompPW2 := eval.params.DecompPW2(levelQ, levelP)
+	decompPw2 := eval.params.DecompPw2(levelQ, levelP)
 
 	// (a, b) + (c0 * rgsw[k][0], c0 * rgsw[k][1])
 	for k, el := range rgsw.Value {
@@ -123,7 +123,7 @@ func (eval *Evaluator) externalProductInPlaceSinglePAndBitDecomp(ct0 *rlwe.Ciphe
 		cw := eval.BuffQP[0].Q.Coeffs[0]
 		cwNTT := eval.BuffBitDecomp
 		for i := 0; i < decompRNS; i++ {
-			for j := 0; j < decompPW2; j++ {
+			for j := 0; j < decompPw2; j++ {
 				ring.MaskVec(eval.BuffInvNTT.Coeffs[i], cw, j*pw2, mask)
 				if k == 0 && i == 0 && j == 0 {
 

@@ -134,7 +134,7 @@ func (eval *Evaluator) GadgetProductSinglePAndBitDecompNoModDown(levelQ int, cx 
 	levelP := gadgetCt.LevelP()
 
 	decompRNS := eval.params.DecompRNS(levelQ, levelP)
-	decompPW2 := eval.params.DecompPW2(levelQ, levelP)
+	decompPw2 := eval.params.DecompPw2(levelQ, levelP)
 
 	pw2 := eval.params.pow2Base
 
@@ -155,7 +155,7 @@ func (eval *Evaluator) GadgetProductSinglePAndBitDecompNoModDown(levelQ int, cx 
 	// Key switching with CRT decomposition for the Qi
 	var reduce int
 	for i := 0; i < decompRNS; i++ {
-		for j := 0; j < decompPW2; j++ {
+		for j := 0; j < decompPw2; j++ {
 
 			ring.MaskVec(cxInvNTT.Coeffs[i], cw, j*pw2, mask)
 

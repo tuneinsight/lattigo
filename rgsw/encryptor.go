@@ -30,9 +30,9 @@ func (enc *Encryptor) Encrypt(pt *rlwe.Plaintext, ct interface{}) {
 	levelP := rgswCt.LevelP()
 
 	decompRNS := params.DecompRNS(levelQ, levelP)
-	decompPW2 := params.DecompPW2(levelQ, levelP)
+	decompPw2 := params.DecompPw2(levelQ, levelP)
 
-	for j := 0; j < decompPW2; j++ {
+	for j := 0; j < decompPw2; j++ {
 		for i := 0; i < decompRNS; i++ {
 			enc.EncryptZero(&rgswCt.Value[0].Value[i][j])
 			enc.EncryptZero(&rgswCt.Value[1].Value[i][j])

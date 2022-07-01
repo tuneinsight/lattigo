@@ -120,7 +120,7 @@ func NewSwitchingKey(params Parameters, levelQ, levelP int) *SwitchingKey {
 		levelQ,
 		levelP,
 		params.DecompRNS(levelQ, levelP),
-		params.DecompPW2(levelQ, levelP),
+		params.DecompPw2(levelQ, levelP),
 		*params.RingQP())}
 }
 

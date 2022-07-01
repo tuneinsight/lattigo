@@ -149,6 +149,7 @@ func testPublicKeyGen(testCtx testContext, t *testing.T) {
 		// [-as + e] + [as]
 		ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, testCtx.skIdeal.Value, pk.Value[1], pk.Value[0])
 		ringQP.InvNTTLvl(levelQ, levelP, pk.Value[0], pk.Value[0])
+		ringQP.InvMFormLvl(levelQ, levelP, pk.Value[0], pk.Value[0])
 
 		log2Bound := bits.Len64(3 * uint64(math.Floor(rlwe.DefaultSigma*6)) * uint64(params.N()))
 		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(pk.Value[0].Q.Level(), ringQ, pk.Value[0].Q))

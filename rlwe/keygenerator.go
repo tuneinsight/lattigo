@@ -79,14 +79,8 @@ func (keygen *keyGenerator) genSecretKeyFromSampler(sampler ring.Sampler) (sk *S
 
 // GenPublicKey generates a new public key from the provided SecretKey.
 func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
-	ringQP := keygen.params.RingQP()
-	levelQ := keygen.params.QCount() - 1
-	levelP := keygen.params.PCount() - 1
-
 	pk = NewPublicKey(keygen.params)
 	keygen.WithKey(sk).EncryptZero(&CiphertextQP{pk.Value})
-	ringQP.InvMFormLvl(levelQ, levelP, pk.Value[1], pk.Value[1])
-	ringQP.InvMFormLvl(levelQ, levelP, pk.Value[0], pk.Value[0])
 	return
 }
 

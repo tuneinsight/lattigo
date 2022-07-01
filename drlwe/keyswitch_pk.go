@@ -115,7 +115,6 @@ func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct1 *
 		ringQP.ExtendBasisSmallNormAndCenter(pcks.tmpQP.Q, levelP, nil, pcks.tmpQP.P)
 	}
 
-	ringQP.MFormLvl(levelQ, levelP, pcks.tmpQP, pcks.tmpQP)
 	ringQP.NTTLvl(levelQ, levelP, pcks.tmpQP, pcks.tmpQP)
 
 	shareOutQP0 := ringqp.Poly{Q: shareOut.Value[0], P: pcks.tmpP[0]}

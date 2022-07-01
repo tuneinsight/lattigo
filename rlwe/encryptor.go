@@ -210,7 +210,6 @@ func (enc *pkEncryptor) encryptNoP(pt *Plaintext, ciphertext *Ciphertext) {
 
 	enc.ternarySampler.ReadLvl(levelQ, buffQ0)
 	ringQ.NTTLvl(levelQ, buffQ0, buffQ0)
-	ringQ.MFormLvl(levelQ, buffQ0, buffQ0)
 
 	c0, c1 := ciphertext.Value[0], ciphertext.Value[1]
 
@@ -256,7 +255,6 @@ func (enc *pkEncryptor) encryptZero(ciphertext *Ciphertext) {
 
 	// (#Q + #P) NTT
 	ringQP.NTTLvl(levelQ, levelP, u, u)
-	ringQP.MFormLvl(levelQ, levelP, u, u)
 
 	ct0QP := ringqp.Poly{Q: ciphertext.Value[0], P: buffP0}
 	ct1QP := ringqp.Poly{Q: ciphertext.Value[1], P: buffP1}
@@ -296,7 +294,6 @@ func (enc *pkEncryptor) encryptZeroNoP(ciphertext *Ciphertext) {
 
 	enc.ternarySampler.ReadLvl(levelQ, buffQ0)
 	ringQ.NTTLvl(levelQ, buffQ0, buffQ0)
-	ringQ.MFormLvl(levelQ, buffQ0, buffQ0)
 
 	c0, c1 := ciphertext.Value[0], ciphertext.Value[1]
 

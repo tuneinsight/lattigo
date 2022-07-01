@@ -177,6 +177,7 @@ func testGenKeyPair(kgen KeyGenerator, t *testing.T) {
 
 			params.RingQP().MulCoeffsMontgomeryAndAddLvl(sk.Value.Q.Level(), sk.Value.P.Level(), sk.Value, pk.Value[1], pk.Value[0])
 			params.RingQP().InvNTTLvl(sk.Value.Q.Level(), sk.Value.P.Level(), pk.Value[0], pk.Value[0])
+			params.RingQP().InvMFormLvl(sk.Value.Q.Level(), sk.Value.P.Level(), pk.Value[0], pk.Value[0])
 
 			log2Bound := bits.Len64(uint64(math.Floor(DefaultSigma*6)) * uint64(params.N()))
 			require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(pk.Value[0].Q.Level(), params.RingQ(), pk.Value[0].Q))
@@ -184,6 +185,7 @@ func testGenKeyPair(kgen KeyGenerator, t *testing.T) {
 		} else {
 			params.RingQ().MulCoeffsMontgomeryAndAdd(sk.Value.Q, pk.Value[1].Q, pk.Value[0].Q)
 			params.RingQ().InvNTT(pk.Value[0].Q, pk.Value[0].Q)
+			params.RingQ().InvMForm(pk.Value[0].Q, pk.Value[0].Q)
 
 			log2Bound := bits.Len64(uint64(math.Floor(DefaultSigma*6)) * uint64(params.N()))
 			require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(pk.Value[0].Q.Level(), params.RingQ(), pk.Value[0].Q))

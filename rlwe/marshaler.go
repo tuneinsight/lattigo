@@ -135,12 +135,12 @@ func (pk *PublicKey) UnmarshalBinary(data []byte) (err error) {
 
 // MarshalBinary encodes the target SwitchingKey on a slice of bytes.
 func (swk *SwitchingKey) MarshalBinary() (data []byte, err error) {
-	return swk.Ciphertext.MarshalBinary()
+	return swk.GadgetCiphertext.MarshalBinary()
 }
 
 // UnmarshalBinary decodes a slice of bytes on the target SwitchingKey.
 func (swk *SwitchingKey) UnmarshalBinary(data []byte) (err error) {
-	return swk.Ciphertext.UnmarshalBinary(data)
+	return swk.GadgetCiphertext.UnmarshalBinary(data)
 }
 
 // GetDataLen returns the length in bytes of the target EvaluationKey.

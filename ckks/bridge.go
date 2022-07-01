@@ -68,7 +68,7 @@ func (switcher *DomainSwitcher) ComplexToReal(ctIn, ctOut *Ciphertext) {
 		panic("no SwkComplexToReal provided to this DomainSwitcher")
 	}
 
-	switcher.GadgetProduct(level, ctIn.Value[1], switcher.SwkComplexToReal.Ciphertext, switcher.BuffQP[1].Q, switcher.BuffQP[2].Q)
+	switcher.GadgetProduct(level, ctIn.Value[1], switcher.SwkComplexToReal.GadgetCiphertext, switcher.BuffQP[1].Q, switcher.BuffQP[2].Q)
 	switcher.stdRingQ.Add(switcher.BuffQP[1].Q, ctIn.Value[0], switcher.BuffQP[1].Q)
 
 	switcher.conjugateRingQ.FoldStandardToConjugateInvariant(level, switcher.BuffQP[1].Q, switcher.permuteNTTIndex, ctOut.Value[0])
@@ -99,7 +99,7 @@ func (switcher *DomainSwitcher) RealToComplex(ctIn, ctOut *Ciphertext) {
 	switcher.stdRingQ.UnfoldConjugateInvariantToStandard(level, ctIn.Value[1], ctOut.Value[1])
 
 	// Switches the RCKswitcher key [X+X^-1] to a CKswitcher key [X]
-	switcher.GadgetProduct(level, ctOut.Value[1], switcher.SwkRealToComplex.Ciphertext, switcher.BuffQP[1].Q, switcher.BuffQP[2].Q)
+	switcher.GadgetProduct(level, ctOut.Value[1], switcher.SwkRealToComplex.GadgetCiphertext, switcher.BuffQP[1].Q, switcher.BuffQP[2].Q)
 	switcher.stdRingQ.Add(ctOut.Value[0], switcher.BuffQP[1].Q, ctOut.Value[0])
 	ring.CopyValues(switcher.BuffQP[2].Q, ctOut.Value[1])
 }

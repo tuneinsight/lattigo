@@ -1,7 +1,6 @@
 package rlwe
 
 import (
-	"github.com/tuneinsight/lattigo/v3/rlwe/gadget"
 	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 )
 
@@ -17,7 +16,7 @@ type PublicKey struct {
 
 // SwitchingKey is a type for generic RLWE public switching keys.
 type SwitchingKey struct {
-	gadget.Ciphertext
+	GadgetCiphertext
 }
 
 // RelinearizationKey is a type for generic RLWE public relinearization keys. It stores a slice with a
@@ -117,7 +116,7 @@ func (rtks *RotationKeySet) GetRotationKey(galoisEl uint64) (*SwitchingKey, bool
 
 // NewSwitchingKey returns a new public switching key with pre-allocated zero-value
 func NewSwitchingKey(params Parameters, levelQ, levelP int) *SwitchingKey {
-	return &SwitchingKey{Ciphertext: *gadget.NewCiphertext(
+	return &SwitchingKey{GadgetCiphertext: *NewGadgetCiphertext(
 		levelQ,
 		levelP,
 		params.DecompRNS(levelQ, levelP),
@@ -127,12 +126,12 @@ func NewSwitchingKey(params Parameters, levelQ, levelP int) *SwitchingKey {
 
 // Equals checks two SwitchingKeys for equality.
 func (swk *SwitchingKey) Equals(other *SwitchingKey) bool {
-	return swk.Ciphertext.Equals(&other.Ciphertext)
+	return swk.GadgetCiphertext.Equals(&other.GadgetCiphertext)
 }
 
 // CopyNew creates a deep copy of the target SwitchingKey and returns it.
 func (swk *SwitchingKey) CopyNew() *SwitchingKey {
-	return &SwitchingKey{Ciphertext: *swk.Ciphertext.CopyNew()}
+	return &SwitchingKey{GadgetCiphertext: *swk.GadgetCiphertext.CopyNew()}
 }
 
 // NewRelinKey creates a new EvaluationKey with zero values.
@@ -205,7 +204,7 @@ func (rtks *RotationKeySet) Equals(other *RotationKeySet) bool {
 		return false
 	}
 	for galEl, otherKey := range other.Keys {
-		if key, inSet := rtks.Keys[galEl]; !inSet || !otherKey.Ciphertext.Equals(&key.Ciphertext) {
+		if key, inSet := rtks.Keys[galEl]; !inSet || !otherKey.GadgetCiphertext.Equals(&key.GadgetCiphertext) {
 			return false
 		}
 	}

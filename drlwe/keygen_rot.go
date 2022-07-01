@@ -198,8 +198,8 @@ func (rtg *RTGProtocol) GenRotationKey(share *RTGShare, crp RTGCRP, rotKey *rlwe
 	BITDecomp := len(share.Value[0])
 	for i := 0; i < RNSDecomp; i++ {
 		for j := 0; j < BITDecomp; j++ {
-			rotKey.Value[i][j][0].CopyValues(share.Value[i][j])
-			rotKey.Value[i][j][1].CopyValues(crp[i][j])
+			rotKey.Value[i][j].Value[0].CopyValues(share.Value[i][j])
+			rotKey.Value[i][j].Value[1].CopyValues(crp[i][j])
 		}
 	}
 }

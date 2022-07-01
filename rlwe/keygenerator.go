@@ -2,7 +2,6 @@ package rlwe
 
 import (
 	"github.com/tuneinsight/lattigo/v3/ring"
-	"github.com/tuneinsight/lattigo/v3/rlwe/gadget"
 	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 )
 
@@ -268,10 +267,10 @@ func (keygen *keyGenerator) genSwitchingKey(skIn *ring.Poly, skOut ringqp.Poly, 
 	// Samples an encryption of zero for each element of the switching-key.
 	for i := 0; i < len(swk.Value); i++ {
 		for j := 0; j < len(swk.Value[0]); j++ {
-			enc.EncryptZero(&CiphertextQP{swk.Value[i][j]})
+			enc.EncryptZero(&swk.Value[i][j])
 		}
 	}
 
 	// Adds the plaintext (input-key) to the switching-key.
-	gadget.AddPolyToCiphertext(skIn, []gadget.Ciphertext{swk.Ciphertext}, *keygen.params.RingQP(), keygen.params.LogBase2(), keygen.buffQ[0])
+	AddPolyTimesGadgetVectorToGadgetCiphertext(skIn, []GadgetCiphertext{swk.GadgetCiphertext}, *keygen.params.RingQP(), keygen.params.LogBase2(), keygen.buffQ[0])
 }

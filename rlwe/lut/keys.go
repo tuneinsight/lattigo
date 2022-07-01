@@ -3,14 +3,13 @@ package lut
 import (
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
-	"github.com/tuneinsight/lattigo/v3/rlwe/rgsw"
 )
 
 // EvaluationKey is a struct storing the encryption
 // of the bits of the LWE key.
 type EvaluationKey struct {
-	SkPos []*rgsw.Ciphertext
-	SkNeg []*rgsw.Ciphertext
+	SkPos []*rlwe.RGSWCiphertext
+	SkNeg []*rlwe.RGSWCiphertext
 }
 
 // GenEvaluationKey generates the LUT evaluation key
@@ -33,8 +32,8 @@ func GenEvaluationKey(paramsRLWE rlwe.Parameters, skRLWE *rlwe.SecretKey, params
 	levelQ := paramsRLWE.QCount() - 1
 	levelP := paramsRLWE.PCount() - 1
 
-	skRGSWPos := make([]*rgsw.Ciphertext, paramsLWE.N())
-	skRGSWNeg := make([]*rgsw.Ciphertext, paramsLWE.N())
+	skRGSWPos := make([]*rlwe.RGSWCiphertext, paramsLWE.N())
+	skRGSWNeg := make([]*rlwe.RGSWCiphertext, paramsLWE.N())
 
 	ringQ := paramsLWE.RingQ()
 	Q := ringQ.Modulus[0]
@@ -47,8 +46,8 @@ func GenEvaluationKey(paramsRLWE rlwe.Parameters, skRLWE *rlwe.SecretKey, params
 
 	for i, si := range skLWEInvNTT.Coeffs[0] {
 
-		skRGSWPos[i] = rgsw.NewCiphertext(levelQ, levelP, decompRNS, decompBIT, ringQP)
-		skRGSWNeg[i] = rgsw.NewCiphertext(levelQ, levelP, decompRNS, decompBIT, ringQP)
+		skRGSWPos[i] = rlwe.NewRGSWCiphertext(levelQ, levelP, decompRNS, decompBIT, ringQP)
+		skRGSWNeg[i] = rlwe.NewRGSWCiphertext(levelQ, levelP, decompRNS, decompBIT, ringQP)
 
 		// sk_i =  1 -> [RGSW(1), RGSW(0)]
 		if si == OneMForm {

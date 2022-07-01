@@ -332,7 +332,7 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 		// [-asIn + w*P*sOut + e, a] + [asIn]
 		for i := range swk.Value {
 			for j := range swk.Value[i] {
-				ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, swk.Value[i][j][1], skOut.Value, swk.Value[i][j][0])
+				ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, swk.Value[i][j].Value[1], skOut.Value, swk.Value[i][j].Value[0])
 			}
 		}
 
@@ -341,7 +341,7 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 		for i := range swk.Value { // RNS decomp
 			if i > 0 {
 				for j := range swk.Value[i] { // BIT decomp
-					ringQP.AddLvl(levelQ, levelP, swk.Value[0][j][0], swk.Value[i][j][0], swk.Value[0][j][0])
+					ringQP.AddLvl(levelQ, levelP, swk.Value[0][j].Value[0], swk.Value[i][j].Value[0], swk.Value[0][j].Value[0])
 				}
 			}
 		}
@@ -355,20 +355,20 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 		for i := 0; i < decompBIT; i++ {
 
 			// P*s^i + sum(e) - P*s^i = sum(e)
-			ringQ.Sub(swk.Value[0][i][0].Q, skIn.Value.Q, swk.Value[0][i][0].Q)
+			ringQ.Sub(swk.Value[0][i].Value[0].Q, skIn.Value.Q, swk.Value[0][i].Value[0].Q)
 
 			// Checks that the error is below the bound
 			// Worst error bound is N * floor(6*sigma) * #Keys
-			ringQP.InvNTTLvl(levelQ, levelP, swk.Value[0][i][0], swk.Value[0][i][0])
-			ringQP.InvMFormLvl(levelQ, levelP, swk.Value[0][i][0], swk.Value[0][i][0])
+			ringQP.InvNTTLvl(levelQ, levelP, swk.Value[0][i].Value[0], swk.Value[0][i].Value[0])
+			ringQP.InvMFormLvl(levelQ, levelP, swk.Value[0][i].Value[0], swk.Value[0][i].Value[0])
 
 			// Worst bound of inner sum
 			// N*#Keys*(N * #Parties * floor(sigma*6) + #Parties * floor(sigma*6) + N * #Parties  +  #Parties * floor(6*sigma))
 
-			require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelQ, ringQ, swk.Value[0][i][0].Q))
+			require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelQ, ringQ, swk.Value[0][i].Value[0].Q))
 
 			if levelP != -1 {
-				require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelP, ringP, swk.Value[0][i][0].P))
+				require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelP, ringP, swk.Value[0][i].Value[0].P))
 			}
 
 			// sOut * P * BIT
@@ -435,7 +435,7 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 		// [-asIn + w*P*sOut + e, a] + [asIn]
 		for i := range swk.Value {
 			for j := range swk.Value[i] {
-				ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, swk.Value[i][j][1], skOut.Value, swk.Value[i][j][0])
+				ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, swk.Value[i][j].Value[1], skOut.Value, swk.Value[i][j].Value[0])
 			}
 		}
 
@@ -444,7 +444,7 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 		for i := range swk.Value { // RNS decomp
 			if i > 0 {
 				for j := range swk.Value[i] { // BIT decomp
-					ringQP.AddLvl(levelQ, levelP, swk.Value[0][j][0], swk.Value[i][j][0], swk.Value[0][j][0])
+					ringQP.AddLvl(levelQ, levelP, swk.Value[0][j].Value[0], swk.Value[i][j].Value[0], swk.Value[0][j].Value[0])
 				}
 			}
 		}
@@ -458,20 +458,20 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 		for i := 0; i < decompBIT; i++ {
 
 			// P*s^i + sum(e) - P*s^i = sum(e)
-			ringQ.Sub(swk.Value[0][i][0].Q, skIn.Value.Q, swk.Value[0][i][0].Q)
+			ringQ.Sub(swk.Value[0][i].Value[0].Q, skIn.Value.Q, swk.Value[0][i].Value[0].Q)
 
 			// Checks that the error is below the bound
 			// Worst error bound is N * floor(6*sigma) * #Keys
-			ringQP.InvNTTLvl(levelQ, levelP, swk.Value[0][i][0], swk.Value[0][i][0])
-			ringQP.InvMFormLvl(levelQ, levelP, swk.Value[0][i][0], swk.Value[0][i][0])
+			ringQP.InvNTTLvl(levelQ, levelP, swk.Value[0][i].Value[0], swk.Value[0][i].Value[0])
+			ringQP.InvMFormLvl(levelQ, levelP, swk.Value[0][i].Value[0], swk.Value[0][i].Value[0])
 
 			// Worst bound of inner sum
 			// N*#Keys*(N * #Parties * floor(sigma*6) + #Parties * floor(sigma*6) + N * #Parties  +  #Parties * floor(6*sigma))
 
-			require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelQ, ringQ, swk.Value[0][i][0].Q))
+			require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelQ, ringQ, swk.Value[0][i].Value[0].Q))
 
 			if levelP != -1 {
-				require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelP, ringP, swk.Value[0][i][0].P))
+				require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelP, ringP, swk.Value[0][i].Value[0].P))
 			}
 
 			// sOut * P * BIT

@@ -44,7 +44,7 @@ func NewPRNG() (*KeyedPRNG, error) {
 	return prng, err
 }
 
-// Clock reads bytes from the KeyedPRNG on sum.
+// Read reads bytes from the KeyedPRNG on sum.
 func (prng *KeyedPRNG) Read(sum []byte) (n int, err error) {
 	if n, err = prng.xof.Read(sum); err != nil {
 		panic(err)

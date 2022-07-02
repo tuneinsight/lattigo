@@ -988,12 +988,10 @@ func testRefreshAndTransformSwitchParams(testCtx *testContext, t *testing.T) {
 		// Target parameters
 		var paramsOut ckks.Parameters
 		paramsOut, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
-			ParametersLiteral: rlwe.ParametersLiteral{
-				LogN:     params.LogN() + 1,
-				LogQ:     []int{54, 49, 49, 49, 49, 49, 49},
-				LogP:     []int{52, 52},
-				RingType: params.RingType(),
-			},
+			LogN:         params.LogN() + 1,
+			LogQ:         []int{54, 49, 49, 49, 49, 49, 49},
+			LogP:         []int{52, 52},
+			RingType:     params.RingType(),
 			LogSlots:     params.MaxLogSlots() + 1,
 			DefaultScale: 1 << 49,
 		})

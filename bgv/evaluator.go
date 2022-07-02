@@ -501,7 +501,7 @@ func (eval *evaluator) mulRelin(ctIn *Ciphertext, op1 Operand, relin bool, ctOut
 			// Yup...
 			ringQ.MulScalarBigintLvl(level, c2, eval.tInvModQ[level], c2)
 
-			eval.GadgetProduct(level, c2, eval.Rlk.Keys[0].Ciphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
+			eval.GadgetProduct(level, c2, eval.Rlk.Keys[0].GadgetCiphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
 
 			// It works >.>
 			ringQ.MulScalarAndAddLvl(level, eval.BuffQP[1].Q, eval.params.T(), ctOut.Value[0])
@@ -605,7 +605,7 @@ func (eval *evaluator) mulRelinAndAdd(ctIn *Ciphertext, op1 Operand, relin bool,
 
 			ringQ.MulScalarBigintLvl(level, c2, eval.tInvModQ[level], c2)
 
-			eval.GadgetProduct(level, c2, eval.Rlk.Keys[0].Ciphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
+			eval.GadgetProduct(level, c2, eval.Rlk.Keys[0].GadgetCiphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
 
 			ringQ.MulScalarAndAddLvl(level, eval.BuffQP[1].Q, eval.params.T(), c0)
 			ringQ.MulScalarAndAddLvl(level, eval.BuffQP[2].Q, eval.params.T(), c1)
@@ -757,7 +757,7 @@ func (eval *evaluator) Relinearize(ctIn *Ciphertext, ctOut *Ciphertext) {
 	ringQ := eval.params.RingQ()
 
 	ringQ.MulScalarBigintLvl(level, ctIn.Value[2], eval.tInvModQ[level], eval.buffQ[0])
-	eval.GadgetProduct(level, eval.buffQ[0], eval.Rlk.Keys[0].Ciphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
+	eval.GadgetProduct(level, eval.buffQ[0], eval.Rlk.Keys[0].GadgetCiphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
 
 	if ctIn != ctOut {
 		ring.CopyValues(ctIn.Value[0], ctOut.Value[0])
@@ -770,7 +770,7 @@ func (eval *evaluator) Relinearize(ctIn *Ciphertext, ctOut *Ciphertext) {
 
 	for deg := ctIn.Degree() - 1; deg > 1; deg-- {
 		ringQ.MulScalarBigintLvl(level, ctIn.Value[deg], eval.tInvModQ[level], eval.buffQ[0])
-		eval.GadgetProduct(level, eval.buffQ[0], eval.Rlk.Keys[deg-2].Ciphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
+		eval.GadgetProduct(level, eval.buffQ[0], eval.Rlk.Keys[deg-2].GadgetCiphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
 		ringQ.MulScalarAndAddLvl(level, eval.BuffQP[1].Q, T, ctOut.Value[0])
 		ringQ.MulScalarAndAddLvl(level, eval.BuffQP[2].Q, T, ctOut.Value[1])
 	}
@@ -804,7 +804,7 @@ func (eval *evaluator) SwitchKeys(ctIn *Ciphertext, swk *rlwe.SwitchingKey, ctOu
 	ringQ := eval.params.RingQ()
 
 	ringQ.MulScalarBigintLvl(level, ctIn.Value[1], eval.tInvModQ[level], eval.buffQ[0])
-	eval.GadgetProduct(level, eval.buffQ[0], swk.Ciphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
+	eval.GadgetProduct(level, eval.buffQ[0], swk.GadgetCiphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
 
 	if ctOut == ctIn {
 		ringQ.MulScalarAndAddLvl(level, eval.BuffQP[1].Q, eval.params.T(), ctOut.Value[0])
@@ -875,7 +875,7 @@ func (eval *evaluator) automorphism(ctIn *rlwe.Ciphertext, galEl uint64, ctOut *
 	ringQ := eval.params.RingQ()
 
 	ringQ.MulScalarBigintLvl(level, ctIn.Value[1], eval.tInvModQ[level], eval.buffQ[0])
-	eval.GadgetProduct(level, eval.buffQ[0], rtk.Ciphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
+	eval.GadgetProduct(level, eval.buffQ[0], rtk.GadgetCiphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
 	ringQ.MulScalarLvl(level, eval.BuffQP[1].Q, eval.params.T(), eval.BuffQP[1].Q)
 	ringQ.MulScalarLvl(level, eval.BuffQP[2].Q, eval.params.T(), eval.BuffQP[2].Q)
 

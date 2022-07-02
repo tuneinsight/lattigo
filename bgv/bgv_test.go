@@ -15,13 +15,10 @@ import (
 var (
 	// TESTN13QP218 is a of 128-bit secure test parameters set with a 32-bit plaintext and depth 4.
 	TESTN14QP418 = ParametersLiteral{
-		ParametersLiteral: rlwe.ParametersLiteral{
-			LogN:  13,
-			Q:     []uint64{0xffffc4001, 0x1000090001, 0x10000c8001, 0x10000f0001, 0xffff00001},
-			P:     []uint64{0x1ffffe0001},
-			Sigma: rlwe.DefaultSigma,
-		},
-		T: 0xffc001,
+		LogN: 13,
+		Q:    []uint64{0xffffc4001, 0x1000090001, 0x10000c8001, 0x10000f0001, 0xffff00001},
+		P:    []uint64{0x1ffffe0001},
+		T:    0xffc001,
 	}
 
 	// TestParams is a set of test parameters for BGV ensuring 128 bit security in the classic setting.
@@ -146,12 +143,10 @@ func testParameters(tc *testContext, t *testing.T) {
 
 	t.Run("Parameters/NewParameters", func(t *testing.T) {
 		params, err := NewParametersFromLiteral(ParametersLiteral{
-			ParametersLiteral: rlwe.ParametersLiteral{
-				LogN: 4,
-				LogQ: []int{60, 60},
-				LogP: []int{60},
-			},
-			T: 0x10001,
+			LogN: 4,
+			LogQ: []int{60, 60},
+			LogP: []int{60},
+			T:    0x10001,
 		})
 		require.NoError(t, err)
 		require.Equal(t, ring.Standard, params.RingType())  // Default ring type should be standard

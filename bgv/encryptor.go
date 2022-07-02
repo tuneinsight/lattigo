@@ -27,7 +27,7 @@ func NewEncryptor(params Parameters, key interface{}) Encryptor {
 
 // Encrypt encrypts the input plaintext and write the result on ciphertext.
 func (enc *encryptor) Encrypt(pt *Plaintext, ct *Ciphertext) {
-	enc.Encryptor.Encrypt(nil, &rlwe.Ciphertext{Value: ct.Value})
+	enc.Encryptor.EncryptZero(ct.Ciphertext)
 	ringQ := enc.params.RingQ()
 	level := ct.Level()
 	ringQ.MulScalarLvl(level, ct.Value[0], enc.params.T(), ct.Value[0])
@@ -40,7 +40,7 @@ func (enc *encryptor) Encrypt(pt *Plaintext, ct *Ciphertext) {
 func (enc *encryptor) EncryptNew(pt *Plaintext) *Ciphertext {
 	level := pt.Level()
 	ct := NewCiphertext(enc.params, 1, level, pt.Scale)
-	enc.Encryptor.Encrypt(nil, ct.Ciphertext)
+	enc.Encryptor.EncryptZero(ct.Ciphertext)
 	ringQ := enc.params.RingQ()
 	ringQ.MulScalarLvl(level, ct.Value[0], enc.params.T(), ct.Value[0])
 	ringQ.MulScalarLvl(level, ct.Value[1], enc.params.T(), ct.Value[1])

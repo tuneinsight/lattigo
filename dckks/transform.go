@@ -75,7 +75,15 @@ func (rfp *MaskedTransformProtocol) WithParams(paramsOut ckks.Parameters) *Maske
 // Masked Transform Protocol.
 // The function is called with a vector of *ring.Complex modulo ckks.Parameters.Slots() as input, and must write
 // its output on the same buffer.
-type MaskedTransformFunc func(coeffs []*ring.Complex)
+// Transform can be the identity.
+// Decode: if true, then the masked CKKS plaintext will be decoded before applying Transform.
+// Recode: if true, then the masked CKKS plaintext will be recoded after applying Transform.
+// i.e. : Decode (true/false) -> Transform -> Recode (true/false).
+type MaskedTransformFunc struct {
+	Decode bool
+	Func   func(coeffs []*ring.Complex)
+	Encode bool
+}
 
 // MaskedTransformShare is a struct storing the decryption and recryption shares.
 type MaskedTransformShare struct {
@@ -167,7 +175,7 @@ func (rfp *MaskedTransformProtocol) SampleCRP(level int, crs utils.PRNG) drlwe.C
 // scale    : the scale of the ciphertext when entering the refresh.
 // The method "GetMinimumLevelForBootstrapping" should be used to get the minimum level at which the masked transform can be called while still ensure 128-bits of security, as well as the
 // value for logBound.
-func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, logBound, logSlots int, ct1 *ring.Poly, scale float64, crs drlwe.CKSCRP, transform MaskedTransformFunc, shareOut *MaskedTransformShare) {
+func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, logBound, logSlots int, ct1 *ring.Poly, scale float64, crs drlwe.CKSCRP, transform *MaskedTransformFunc, shareOut *MaskedTransformShare) {
 
 	ringQ := rfp.s2e.params.RingQ()
 
@@ -217,14 +225,18 @@ func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, logBou
 			panic("invalid ring type")
 		}
 
-		// Decodes
-		rfp.encoder.FFT(bigComplex, 1<<logSlots)
+		// Decodes if asked to
+		if transform.Decode {
+			rfp.encoder.FFT(bigComplex, 1<<logSlots)
+		}
 
 		// Applies the linear transform
-		transform(bigComplex)
+		transform.Func(bigComplex)
 
-		// Recodes
-		rfp.encoder.InvFFT(bigComplex, 1<<logSlots)
+		// Recodes if asked to
+		if transform.Encode {
+			rfp.encoder.InvFFT(bigComplex, 1<<logSlots)
+		}
 
 		// Puts the coefficient back
 		for i := 0; i < slots; i++ {
@@ -269,7 +281,7 @@ func (rfp *MaskedTransformProtocol) AggregateShare(share1, share2, shareOut *Mas
 
 // Transform applies Decrypt, Recode and Recrypt on the input ciphertext.
 // The ciphertext scale is reset to the default scale.
-func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, logSlots int, transform MaskedTransformFunc, crs drlwe.CKSCRP, share *MaskedTransformShare, ciphertextOut *ckks.Ciphertext) {
+func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, logSlots int, transform *MaskedTransformFunc, crs drlwe.CKSCRP, share *MaskedTransformShare, ciphertextOut *ckks.Ciphertext) {
 
 	if ct.Level() < share.e2sShare.Value.Level() {
 		panic("input ciphertext level must be at least equal to e2s level")
@@ -321,14 +333,18 @@ func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, logSlots int,
 			panic("invalid ring type")
 		}
 
-		// Decodes
-		rfp.encoder.FFT(bigComplex, 1<<logSlots)
+		// Decodes if asked to
+		if transform.Decode {
+			rfp.encoder.FFT(bigComplex, 1<<logSlots)
+		}
 
 		// Applies the linear transform
-		transform(bigComplex)
+		transform.Func(bigComplex)
 
-		// Recodes
-		rfp.encoder.InvFFT(bigComplex, 1<<logSlots)
+		// Recodes if asked to
+		if transform.Encode {
+			rfp.encoder.InvFFT(bigComplex, 1<<logSlots)
+		}
 
 		// Puts the coefficient back
 		for i := 0; i < slots; i++ {

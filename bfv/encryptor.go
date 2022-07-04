@@ -2,6 +2,7 @@ package bfv
 
 import (
 	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
 // Encryptor an encryption interface for the BFV scheme.
@@ -12,6 +13,14 @@ type Encryptor interface {
 	EncryptZeroNew() *Ciphertext
 	ShallowCopy() Encryptor
 	WithKey(key interface{}) Encryptor
+}
+
+// PRNGEncryptor is an interface for encrypting BFV ciphertexts from a secret-key and
+// an pre-determined PRNG. An Encryptor constructed from a secret-key complies to this
+// interface.
+type PRNGEncryptor interface {
+	Encryptor
+	WithPRNG(prng utils.PRNG) PRNGEncryptor
 }
 
 type encryptor struct {
@@ -25,6 +34,13 @@ func NewEncryptor(params Parameters, key interface{}) Encryptor {
 	return &encryptor{rlwe.NewEncryptor(params.Parameters, key), params}
 }
 
+// NewPRNGEncryptor creates a new PRNGEncryptor instance that encrypts BFV ciphertexts from a secret-key and
+// an PRNG.
+func NewPRNGEncryptor(params Parameters, key *rlwe.SecretKey) PRNGEncryptor {
+	enc := rlwe.NewPRNGEncryptor(params.Parameters, key)
+	return &encryptor{enc, params}
+}
+
 // Encrypt encrypts the input plaintext and writes the result on ctOut.
 func (enc *encryptor) Encrypt(plaintext *Plaintext, ctOut *Ciphertext) {
 	enc.Encryptor.Encrypt(&rlwe.Plaintext{Value: plaintext.Value}, &rlwe.Ciphertext{Value: ctOut.Value})
@@ -32,7 +48,7 @@ func (enc *encryptor) Encrypt(plaintext *Plaintext, ctOut *Ciphertext) {
 
 // EncryptNew encrypts the input plaintext returns the result as a newly allocated ciphertext.
 func (enc *encryptor) EncryptNew(plaintext *Plaintext) *Ciphertext {
-	ct := NewCiphertext(enc.params, 1)
+	ct := NewCiphertextLvl(enc.params, 1, plaintext.Level())
 	enc.Encryptor.Encrypt(plaintext.Plaintext, ct.Ciphertext)
 	return ct
 }
@@ -62,4 +78,11 @@ func (enc *encryptor) ShallowCopy() Encryptor {
 // Key can be *rlwe.PublicKey or *rlwe.SecretKey.
 func (enc *encryptor) WithKey(key interface{}) Encryptor {
 	return &encryptor{enc.Encryptor.WithKey(key), enc.params}
+}
+
+func (enc *encryptor) WithPRNG(prng utils.PRNG) PRNGEncryptor {
+	if prngEnc, ok := enc.Encryptor.(rlwe.PRNGEncryptor); ok {
+		return &encryptor{prngEnc.WithPRNG(prng), enc.params}
+	}
+	return nil
 }

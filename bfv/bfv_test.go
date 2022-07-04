@@ -102,6 +102,7 @@ func TestBFV(t *testing.T) {
 			testParameters,
 			testScaler,
 			testEncoder,
+			testEncryptor,
 			testEvaluator,
 			testPolyEval,
 			testEvaluatorRotate,
@@ -138,13 +139,16 @@ func genTestParams(params Parameters) (tc *testContext, err error) {
 	tc.decryptor = NewDecryptor(tc.params, tc.sk)
 	tc.evaluator = NewEvaluator(tc.params, rlwe.EvaluationKey{Rlk: tc.rlk})
 
+	tc.testLevel = []int{params.MaxLevel()}
 	if params.T() == params.Q()[0] {
-		tc.testLevel = []int{1, params.MaxLevel()}
+		if params.MaxLevel() != 1 {
+			tc.testLevel = append(tc.testLevel, 1)
+		}
 	} else {
-		tc.testLevel = []int{0, params.MaxLevel()}
-
-		if 2*bits.Len64(params.T())+params.LogN() > bits.Len64(params.Q()[0]) {
-			tc.testLevel[0]++
+		if 2*bits.Len64(params.T())+params.LogN() > bits.Len64(params.Q()[0]) && params.MaxLevel() != 1 {
+			tc.testLevel = append(tc.testLevel, 1)
+		} else {
+			tc.testLevel = append(tc.testLevel, 0)
 		}
 	}
 
@@ -322,6 +326,51 @@ func testEncoder(tc *testContext, t *testing.T) {
 			verifyTestVectors(tc, nil, values, plaintext, t)
 		})
 	}
+}
+
+func testEncryptor(tc *testContext, t *testing.T) {
+	for _, lvl := range tc.testLevel {
+		t.Run(testString("Encryptor/Encrypt/key=pk", tc.params, lvl), func(t *testing.T) {
+			values1, _, ciphertext1 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
+			verifyTestVectors(tc, tc.decryptor, values1, ciphertext1, t)
+		})
+	}
+	for _, lvl := range tc.testLevel {
+		t.Run(testString("Encryptor/Encrypt/key=sk", tc.params, lvl), func(t *testing.T) {
+			values1, _, ciphertext1 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorSk, t)
+			verifyTestVectors(tc, tc.decryptor, values1, ciphertext1, t)
+		})
+	}
+
+	zero := tc.ringT.NewPoly()
+	for _, lvl := range tc.testLevel {
+		t.Run(testString("Encryptor/EncryptZero/key=pk", tc.params, lvl), func(t *testing.T) {
+			ct := tc.encryptorPk.EncryptZeroNew()
+			verifyTestVectors(tc, tc.decryptor, zero, ct, t)
+		})
+	}
+	for _, lvl := range tc.testLevel {
+		t.Run(testString("Encryptor/EncryptZero/key=sk", tc.params, lvl), func(t *testing.T) {
+			ct := tc.encryptorSk.EncryptZeroNew()
+			verifyTestVectors(tc, tc.decryptor, zero, ct, t)
+		})
+	}
+
+	for _, lvl := range tc.testLevel {
+		t.Run(testString("Encryptor/WithPRNG/Encrypt", tc.params, lvl), func(t *testing.T) {
+			enc := NewPRNGEncryptor(tc.params, tc.sk)
+			prng1, _ := utils.NewKeyedPRNG([]byte{'l'})
+			prng2, _ := utils.NewKeyedPRNG([]byte{'l'})
+			sampler := ring.NewUniformSampler(prng2, tc.ringQ)
+			values1, pt, _ := newTestVectorsRingQLvl(lvl, tc, nil, t)
+			ciphertext := enc.WithPRNG(prng1).EncryptNew(pt)
+			c1Want := sampler.ReadLvlNew(lvl)
+			tc.params.RingQ().InvNTTLvl(lvl, c1Want, c1Want)
+			assert.True(t, c1Want.Equals(ciphertext.Value[1]))
+			verifyTestVectors(tc, tc.decryptor, values1, ciphertext, t)
+		})
+	}
+
 }
 
 func testEvaluator(tc *testContext, t *testing.T) {

@@ -95,6 +95,7 @@ func TestCKKS(t *testing.T) {
 		for _, testSet := range []func(tc *testContext, t *testing.T){
 			testParameters,
 			testEncoder,
+			testEncryptor,
 			testEvaluatorAdd,
 			testEvaluatorSub,
 			testEvaluatorRescale,
@@ -284,6 +285,33 @@ func testEncoder(tc *testContext, t *testing.T) {
 		}
 
 		require.GreaterOrEqual(t, math.Log2(1/meanprec), minPrec)
+	})
+
+}
+
+func testEncryptor(tc *testContext, t *testing.T) {
+
+	t.Run(GetTestName(tc.params, "Encryptor/Encrypt/key=pk"), func(t *testing.T) {
+		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorPk, complex(-1, -1), complex(1, 1), t)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
+	})
+
+	t.Run(GetTestName(tc.params, "Encryptor/Encrypt/key=sk"), func(t *testing.T) {
+		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
+	})
+
+	t.Run(GetTestName(tc.params, "Encryptor/WithPRNG/Encrypt"), func(t *testing.T) {
+		lvl := tc.params.MaxLevel()
+		enc := NewPRNGEncryptor(tc.params, tc.sk)
+		prng1, _ := utils.NewKeyedPRNG([]byte{'l'})
+		prng2, _ := utils.NewKeyedPRNG([]byte{'l'})
+		sampler := ring.NewUniformSampler(prng2, tc.ringQ)
+		values1, pt, _ := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
+		ciphertext := enc.WithPRNG(prng1).EncryptNew(pt)
+		c1Want := sampler.ReadLvlNew(lvl)
+		assert.True(t, c1Want.Equals(ciphertext.Value[1]))
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext, tc.params.LogSlots(), 0, t)
 	})
 
 }

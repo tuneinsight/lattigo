@@ -710,7 +710,7 @@ func testRefreshAndTransform(tc *testContext, t *testing.T) {
 		}
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.s, p.s, ciphertext.Value[1], crp, transform, p.share)
+			p.GenShare(p.s, ciphertext.Value[1], crp, transform, p.share)
 			if i > 0 {
 				P0.AggregateShare(P0.share, p.share, P0.share)
 			}

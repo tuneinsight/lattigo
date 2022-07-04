@@ -145,10 +145,14 @@ func genTestParams(params Parameters) (tc *testContext, err error) {
 			tc.testLevel = append(tc.testLevel, 1)
 		}
 	} else {
-		if 2*bits.Len64(params.T())+params.LogN() > bits.Len64(params.Q()[0]) && params.MaxLevel() != 1 {
-			tc.testLevel = append(tc.testLevel, 1)
+		if 2*bits.Len64(params.T())+params.LogN() > bits.Len64(params.Q()[0]) {
+			if params.MaxLevel() != 1 {
+				tc.testLevel = append(tc.testLevel, 1)
+			}
 		} else {
-			tc.testLevel = append(tc.testLevel, 0)
+			if params.MaxLevel() != 0 {
+				tc.testLevel = append(tc.testLevel, 0)
+			}
 		}
 	}
 

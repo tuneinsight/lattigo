@@ -723,22 +723,26 @@ func testRefreshAndTransform(testCtx *testContext, t *testing.T) {
 		P0 := RefreshParties[0]
 		crp := P0.SampleCRP(levelOut, testCtx.crs)
 
-		permute := func(coeffs []*ring.Complex) {
-			for i := range coeffs {
-				coeffs[i][0].Mul(coeffs[i][0], ring.NewFloat(0.9238795325112867, logBound))
-				coeffs[i][1].Mul(coeffs[i][1], ring.NewFloat(0.7071067811865476, logBound))
-			}
+		transform := &MaskedTransformFunc{
+			Decode: true,
+			Func: func(coeffs []*ring.Complex) {
+				for i := range coeffs {
+					coeffs[i][0].Mul(coeffs[i][0], ring.NewFloat(0.9238795325112867, logBound))
+					coeffs[i][1].Mul(coeffs[i][1], ring.NewFloat(0.7071067811865476, logBound))
+				}
+			},
+			Encode: true,
 		}
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.s, p.s, logBound, params.LogSlots(), ciphertext.Value[1], ciphertext.Scale, crp, permute, p.share)
+			p.GenShare(p.s, p.s, logBound, params.LogSlots(), ciphertext.Value[1], ciphertext.Scale, crp, transform, p.share)
 
 			if i > 0 {
 				P0.AggregateShare(p.share, P0.share, P0.share)
 			}
 		}
 
-		P0.Transform(ciphertext, testCtx.params.LogSlots(), permute, crp, P0.share, ciphertext)
+		P0.Transform(ciphertext, testCtx.params.LogSlots(), transform, crp, P0.share, ciphertext)
 
 		for i := range coeffs {
 			coeffs[i] = complex(real(coeffs[i])*0.9238795325112867, imag(coeffs[i])*0.7071067811865476)
@@ -821,22 +825,26 @@ func testRefreshAndTransformSwitchParams(testCtx *testContext, t *testing.T) {
 		P0 := RefreshParties[0]
 		crp := P0.SampleCRP(levelOut, testCtx.crs)
 
-		permute := func(coeffs []*ring.Complex) {
-			for i := range coeffs {
-				coeffs[i][0].Mul(coeffs[i][0], ring.NewFloat(0.9238795325112867, logBound))
-				coeffs[i][1].Mul(coeffs[i][1], ring.NewFloat(0.7071067811865476, logBound))
-			}
+		transform := &MaskedTransformFunc{
+			Decode: true,
+			Func: func(coeffs []*ring.Complex) {
+				for i := range coeffs {
+					coeffs[i][0].Mul(coeffs[i][0], ring.NewFloat(0.9238795325112867, logBound))
+					coeffs[i][1].Mul(coeffs[i][1], ring.NewFloat(0.7071067811865476, logBound))
+				}
+			},
+			Encode: true,
 		}
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.sIn, p.sOut, logBound, params.LogSlots(), ciphertext.Value[1], ciphertext.Scale, crp, permute, p.share)
+			p.GenShare(p.sIn, p.sOut, logBound, params.LogSlots(), ciphertext.Value[1], ciphertext.Scale, crp, transform, p.share)
 
 			if i > 0 {
 				P0.AggregateShare(p.share, P0.share, P0.share)
 			}
 		}
 
-		P0.Transform(ciphertext, testCtx.params.LogSlots(), permute, crp, P0.share, ciphertext)
+		P0.Transform(ciphertext, testCtx.params.LogSlots(), transform, crp, P0.share, ciphertext)
 
 		for i := range coeffs {
 			coeffs[i] = complex(real(coeffs[i])*0.9238795325112867, imag(coeffs[i])*0.7071067811865476)

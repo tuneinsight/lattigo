@@ -42,12 +42,13 @@ type Encoder interface {
 	EncodeMul(coeffs interface{}, pt *PlaintextMul)
 	EncodeMulNew(coeffs interface{}, level int) (pt *PlaintextMul)
 
-	ScaleUp(*PlaintextRingT, *Plaintext)
+	SwitchToRingT(pt interface{}, ptRt *PlaintextRingT)
+	DecodeRingT(ptRt *PlaintextRingT, coeffs []uint64)
+	ScaleUp(ptRt *PlaintextRingT, pt *Plaintext)
 	ScaleDown(pt *Plaintext, ptRt *PlaintextRingT)
 	RingTToMul(ptRt *PlaintextRingT, ptmul *PlaintextMul)
 	MulToRingT(pt *PlaintextMul, ptRt *PlaintextRingT)
 
-	DecodeRingT(pt interface{}, ptRt *PlaintextRingT)
 	DecodeUint(pt interface{}, coeffs []uint64)
 	DecodeInt(pt interface{}, coeffs []int64)
 	DecodeUintNew(pt interface{}) (coeffs []uint64)
@@ -218,7 +219,7 @@ func (ecd *encoder) MulToRingT(pt *PlaintextMul, ptRt *PlaintextRingT) {
 }
 
 // DecodeRingT decodes any plaintext type into a PlaintextRingT. It panics if p is not PlaintextRingT, Plaintext or PlaintextMul.
-func (ecd *encoder) DecodeRingT(p interface{}, ptRt *PlaintextRingT) {
+func (ecd *encoder) SwitchToRingT(p interface{}, ptRt *PlaintextRingT) {
 	switch pt := p.(type) {
 	case *Plaintext:
 		ecd.ScaleDown(pt, ptRt)
@@ -237,14 +238,20 @@ func (ecd *encoder) DecodeUint(p interface{}, coeffs []uint64) {
 	var ptRt *PlaintextRingT
 	var isInRingT bool
 	if ptRt, isInRingT = p.(*PlaintextRingT); !isInRingT {
-		ecd.DecodeRingT(p, ecd.tmpPtRt)
+		ecd.SwitchToRingT(p, ecd.tmpPtRt)
 		ptRt = ecd.tmpPtRt
 	}
 
-	ecd.params.RingT().NTT(ptRt.Value, ecd.tmpPoly)
+	ecd.DecodeRingT(ptRt, coeffs)
+}
 
+// DecodeRingT decodes a PlaintextRingT on a slice of uint64.
+func (ecd *encoder) DecodeRingT(ptT *PlaintextRingT, coeffs []uint64) {
+	ecd.params.RingT().NTT(ptT.Value, ecd.tmpPoly)
+	pos := ecd.indexMatrix
+	tmp := ecd.tmpPoly.Coeffs[0]
 	for i := 0; i < ecd.params.RingQ().N; i++ {
-		coeffs[i] = ecd.tmpPoly.Coeffs[0][ecd.indexMatrix[i]]
+		coeffs[i] = tmp[pos[i]]
 	}
 }
 
@@ -260,7 +267,7 @@ func (ecd *encoder) DecodeUintNew(p interface{}) (coeffs []uint64) {
 // modulus (by centering the values around the plaintext). It panics if p is not PlaintextRingT, Plaintext or PlaintextMul.
 func (ecd *encoder) DecodeInt(p interface{}, coeffs []int64) {
 
-	ecd.DecodeRingT(p, ecd.tmpPtRt)
+	ecd.SwitchToRingT(p, ecd.tmpPtRt)
 
 	ecd.params.RingT().NTT(ecd.tmpPtRt.Value, ecd.tmpPoly)
 

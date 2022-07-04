@@ -696,22 +696,26 @@ func testRefreshAndPermutation(tc *testContext, t *testing.T) {
 			permutation[i] = ring.RandUniform(prng, N, N-1)
 		}
 
-		permute := func(coeffs []uint64) {
-			coeffsPerm := make([]uint64, len(coeffs))
-			for i := range coeffs {
-				coeffsPerm[i] = coeffs[permutation[i]]
-			}
-			copy(coeffs, coeffsPerm)
+		transform := &MaskedTransformFunc{
+			Decode: true,
+			Func: func(coeffs []uint64) {
+				coeffsPerm := make([]uint64, len(coeffs))
+				for i := range coeffs {
+					coeffsPerm[i] = coeffs[permutation[i]]
+				}
+				copy(coeffs, coeffsPerm)
+			},
+			Encode: true,
 		}
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.s, ciphertext.Value[1], crp, permute, p.share)
+			p.GenShare(p.s, ciphertext.Value[1], crp, transform, p.share)
 			if i > 0 {
 				P0.AggregateShare(P0.share, p.share, P0.share)
 			}
 		}
 
-		P0.Transform(ciphertext, permute, crp, P0.share, ciphertext)
+		P0.Transform(ciphertext, transform, crp, P0.share, ciphertext)
 
 		coeffsPermute := make([]uint64, len(coeffs))
 		for i := range coeffsPermute {

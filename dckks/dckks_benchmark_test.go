@@ -334,17 +334,21 @@ func benchMaskedTransform(testCtx *testContext, b *testing.B) {
 
 		crp := p.SampleCRP(params.MaxLevel(), testCtx.crs)
 
-		permute := func(coeffs []*ring.Complex) {
-			for i := range coeffs {
-				coeffs[i][0].Mul(coeffs[i][0], ring.NewFloat(0.9238795325112867, logBound))
-				coeffs[i][1].Mul(coeffs[i][1], ring.NewFloat(0.7071067811865476, logBound))
-			}
+		transform := &MaskedTransformFunc{
+			Decode: true,
+			Func: func(coeffs []*ring.Complex) {
+				for i := range coeffs {
+					coeffs[i][0].Mul(coeffs[i][0], ring.NewFloat(0.9238795325112867, logBound))
+					coeffs[i][1].Mul(coeffs[i][1], ring.NewFloat(0.7071067811865476, logBound))
+				}
+			},
+			Encode: true,
 		}
 
 		b.Run(testString("Refresh&Transform/Round1/Gen", parties, params), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
-				p.GenShare(p.s, p.s, logBound, params.LogSlots(), ciphertext.Value[1], ciphertext.Scale, crp, permute, p.share)
+				p.GenShare(p.s, p.s, logBound, params.LogSlots(), ciphertext.Value[1], ciphertext.Scale, crp, transform, p.share)
 			}
 		})
 
@@ -358,7 +362,7 @@ func benchMaskedTransform(testCtx *testContext, b *testing.B) {
 		b.Run(testString("Refresh&Transform/Transform", parties, params), func(b *testing.B) {
 			ctOut := ckks.NewCiphertext(params, 1, params.MaxLevel(), params.DefaultScale())
 			for i := 0; i < b.N; i++ {
-				p.Transform(ciphertext, params.LogSlots(), permute, crp, p.share, ctOut)
+				p.Transform(ciphertext, params.LogSlots(), transform, crp, p.share, ctOut)
 			}
 		})
 

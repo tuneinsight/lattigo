@@ -836,30 +836,23 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 			}
 		}
 
-		P0.Transform(ciphertext, testCtx.params.LogSlots(), transform, crp, P0.share, ciphertext)
+		P0.Transform(ciphertext, tc.params.LogSlots(), transform, crp, P0.share, ciphertext)
 
 		for i := range coeffs {
 			coeffs[i] = complex(real(coeffs[i])*0.9238795325112867, imag(coeffs[i])*0.7071067811865476)
 		}
 
-		precStats := ckks.GetPrecisionStats(paramsOut, ckks.NewEncoder(paramsOut), nil, coeffs, ckks.NewDecryptor(paramsOut, skIdealOut).DecryptNew(ciphertext), params.LogSlots(), 0)
-
-		if *printPrecisionStats {
-			t.Log(precStats.String())
-		}
-
-		require.GreaterOrEqual(t, precStats.MeanPrecision.Real, minPrec)
-		require.GreaterOrEqual(t, precStats.MeanPrecision.Imag, minPrec)
+		verifyTestVectors(tc, decryptorSk0, coeffs, ciphertext, t)
 	})
 }
 
-func testRefreshAndTransformSwitchParams(testCtx *testContext, t *testing.T) {
+func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 
 	var err error
 
-	encryptorPk0 := testCtx.encryptorPk0
-	sk0Shards := testCtx.sk0Shards
-	params := testCtx.params
+	encryptorPk0 := tc.encryptorPk0
+	sk0Shards := tc.sk0Shards
+	params := tc.params
 
 	t.Run(testString("RefreshAndTransformAndSwitchParams", parties, params), func(t *testing.T) {
 
@@ -876,10 +869,10 @@ func testRefreshAndTransformSwitchParams(testCtx *testContext, t *testing.T) {
 			share *MaskedTransformShare
 		}
 
-		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, -1, 1)
+		coeffs, _, ciphertext := newTestVectors(tc, encryptorPk0, -1, 1)
 
 		// Drops the ciphertext to the minimum level that ensures correctness and 128-bit security
-		testCtx.evaluator.DropLevel(ciphertext, ciphertext.Level()-minLevel-1)
+		tc.evaluator.DropLevel(ciphertext, ciphertext.Level()-minLevel-1)
 
 		levelIn := minLevel
 
@@ -924,7 +917,7 @@ func testRefreshAndTransformSwitchParams(testCtx *testContext, t *testing.T) {
 		}
 
 		P0 := RefreshParties[0]
-		crp := P0.SampleCRP(levelOut, testCtx.crs)
+		crp := P0.SampleCRP(levelOut, tc.crs)
 
 		transform := &MaskedTransformFunc{
 			Decode: true,
@@ -945,7 +938,7 @@ func testRefreshAndTransformSwitchParams(testCtx *testContext, t *testing.T) {
 			}
 		}
 
-		P0.Transform(ciphertext, testCtx.params.LogSlots(), transform, crp, P0.share, ciphertext)
+		P0.Transform(ciphertext, tc.params.LogSlots(), transform, crp, P0.share, ciphertext)
 
 		for i := range coeffs {
 			coeffs[i] = complex(real(coeffs[i])*0.9238795325112867, imag(coeffs[i])*0.7071067811865476)
@@ -962,8 +955,8 @@ func testRefreshAndTransformSwitchParams(testCtx *testContext, t *testing.T) {
 	})
 }
 
-func testMarshalling(testCtx *testContext, t *testing.T) {
-	params := testCtx.params
+func testMarshalling(tc *testContext, t *testing.T) {
+	params := tc.params
 
 	t.Run(testString("Marshalling/Refresh", parties, params), func(t *testing.T) {
 

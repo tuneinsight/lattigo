@@ -250,7 +250,7 @@ func (ecd *encoder) DecodeRingT(ptT *PlaintextRingT, coeffs []uint64) {
 	ecd.params.RingT().NTT(ptT.Value, ecd.tmpPoly)
 	pos := ecd.indexMatrix
 	tmp := ecd.tmpPoly.Coeffs[0]
-	for i := 0; i < ecd.params.RingQ().N; i++ {
+	for i := 0; i < ecd.params.RingT().N; i++ {
 		coeffs[i] = tmp[pos[i]]
 	}
 }

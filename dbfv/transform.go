@@ -79,22 +79,23 @@ func (share *MaskedTransformShare) UnmarshalBinary(data []byte) (err error) {
 }
 
 // NewMaskedTransformProtocol creates a new instance of the PermuteProtocol.
-func NewMaskedTransformProtocol(params bfv.Parameters, sigmaSmudging float64) (rfp *MaskedTransformProtocol) {
+func NewMaskedTransformProtocol(paramsIn, paramsOut bfv.Parameters, sigmaSmudging float64) (rfp *MaskedTransformProtocol) {
 
 	rfp = new(MaskedTransformProtocol)
-	rfp.e2s = *NewE2SProtocol(params, sigmaSmudging)
-	rfp.s2e = *NewS2EProtocol(params, sigmaSmudging)
 
-	rfp.tmpPt = *bfv.NewPlaintext(params)
-	rfp.tmpMask = params.RingT().NewPoly()
-	rfp.tmpMaskPerm = params.RingT().NewPoly()
+	rfp.e2s = *NewE2SProtocol(paramsIn, sigmaSmudging)
+	rfp.s2e = *NewS2EProtocol(paramsOut, sigmaSmudging)
+
+	rfp.tmpPt = *bfv.NewPlaintext(paramsOut)
+	rfp.tmpMask = paramsIn.RingT().NewPoly()
+	rfp.tmpMaskPerm = paramsIn.RingT().NewPoly()
 	return
 }
 
 // SampleCRP samples a common random polynomial to be used in the Masked-Transform protocol from the provided
 // common reference string.
 func (rfp *MaskedTransformProtocol) SampleCRP(level int, crs utils.PRNG) drlwe.CKSCRP {
-	return rfp.e2s.SampleCRP(level, crs)
+	return rfp.s2e.SampleCRP(level, crs)
 }
 
 // AllocateShare allocates the shares of the PermuteProtocol.
@@ -104,8 +105,10 @@ func (rfp *MaskedTransformProtocol) AllocateShare() *MaskedTransformShare {
 
 // GenShare generates the shares of the PermuteProtocol.
 // ct1 is the degree 1 element of a bfv.Ciphertext, i.e. bfv.Ciphertext.Value[1].
-func (rfp *MaskedTransformProtocol) GenShare(sk *rlwe.SecretKey, c1 *ring.Poly, crs drlwe.CKSCRP, transform *MaskedTransformFunc, shareOut *MaskedTransformShare) {
-	rfp.e2s.GenShare(sk, c1, &rlwe.AdditiveShare{Value: *rfp.tmpMask}, &shareOut.e2sShare)
+func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, c1 *ring.Poly, crs drlwe.CKSCRP, transform *MaskedTransformFunc, shareOut *MaskedTransformShare) {
+
+	rfp.e2s.GenShare(skIn, c1, &rlwe.AdditiveShare{Value: *rfp.tmpMask}, &shareOut.e2sShare)
+
 	mask := rfp.tmpMask
 	if transform != nil {
 		coeffs := make([]uint64, rfp.e2s.params.N())
@@ -128,19 +131,23 @@ func (rfp *MaskedTransformProtocol) GenShare(sk *rlwe.SecretKey, c1 *ring.Poly, 
 
 		mask = rfp.tmpMaskPerm
 	}
-	rfp.s2e.GenShare(sk, crs, &rlwe.AdditiveShare{Value: *mask}, &shareOut.s2eShare)
+
+	rfp.s2e.GenShare(skOut, crs, &rlwe.AdditiveShare{Value: *mask}, &shareOut.s2eShare)
 }
 
 // AggregateShare sums share1 and share2 on shareOut.
 func (rfp *MaskedTransformProtocol) AggregateShare(share1, share2, shareOut *MaskedTransformShare) {
 	rfp.e2s.params.RingQ().Add(share1.e2sShare.Value, share2.e2sShare.Value, shareOut.e2sShare.Value)
-	rfp.e2s.params.RingQ().Add(share1.s2eShare.Value, share2.s2eShare.Value, shareOut.s2eShare.Value)
+	rfp.s2e.params.RingQ().Add(share1.s2eShare.Value, share2.s2eShare.Value, shareOut.s2eShare.Value)
 }
 
 // Transform applies Decrypt, Recode and Recrypt on the input ciphertext.
 func (rfp *MaskedTransformProtocol) Transform(ciphertext *bfv.Ciphertext, transform *MaskedTransformFunc, crs drlwe.CKSCRP, share *MaskedTransformShare, ciphertextOut *bfv.Ciphertext) {
+
 	rfp.e2s.GetShare(nil, &share.e2sShare, ciphertext, &rlwe.AdditiveShare{Value: *rfp.tmpMask}) // tmpMask RingT(m - sum M_i)
+
 	mask := rfp.tmpMask
+
 	if transform != nil {
 		coeffs := make([]uint64, rfp.e2s.params.N())
 		ecd := rfp.e2s.encoder
@@ -162,7 +169,9 @@ func (rfp *MaskedTransformProtocol) Transform(ciphertext *bfv.Ciphertext, transf
 
 		mask = rfp.tmpMaskPerm
 	}
-	rfp.e2s.encoder.ScaleUp(&bfv.PlaintextRingT{Plaintext: &rlwe.Plaintext{Value: mask}}, &rfp.tmpPt)
-	rfp.e2s.params.RingQ().Add(rfp.tmpPt.Value, share.s2eShare.Value, ciphertextOut.Value[0])
+
+	ciphertextOut.Resize(1, rfp.s2e.params.MaxLevel())
+	rfp.s2e.encoder.ScaleUp(&bfv.PlaintextRingT{Plaintext: &rlwe.Plaintext{Value: mask}}, &rfp.tmpPt)
+	rfp.s2e.params.RingQ().Add(rfp.tmpPt.Value, share.s2eShare.Value, ciphertextOut.Value[0])
 	rfp.s2e.GetEncryption(&drlwe.CKSShare{Value: ciphertextOut.Value[0]}, crs, ciphertextOut)
 }

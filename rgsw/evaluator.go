@@ -6,12 +6,17 @@ import (
 	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 )
 
+// Evaluator is a type for evaluating homomorphic operations involving RGSW ciphertexts.
+// It currently supports the external product between a RLWE and a RGSW ciphertext (see
+// Evaluator.ExternalProduct).
 type Evaluator struct {
 	rlwe.Evaluator
 
 	params rlwe.Parameters
 }
 
+// NewEvaluator creates a new Evaluator type supporting RGSW operations in addition
+// to rlwe.Evaluator operations.
 func NewEvaluator(params rlwe.Parameters, evk *rlwe.EvaluationKey) *Evaluator {
 	return &Evaluator{*rlwe.NewEvaluator(params, evk), params}
 }

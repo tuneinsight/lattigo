@@ -23,9 +23,10 @@ type CiphertextQP struct {
 	Value [2]ringqp.Poly
 }
 
-// CiphertextCRP is a type for RLWE ciphertext of the form (c0, c1) and for
-// which c1 is sampled from a known PRNG.
-type CiphertextCRP struct {
+// CiphertextC0 is a type for RLWE ciphertext of the form (c0, c1) and for
+// which c1 is considered to be known and is not stored (e.g., generated from
+// a known keyed PRNG).
+type CiphertextC0 struct {
 	Value *ring.Poly
 }
 
@@ -123,10 +124,10 @@ func NewCiphertextNTT(params Parameters, degree, level int) *Ciphertext {
 	return el
 }
 
-// NewCiphertextCRP creates a new CiphertextCRP with zero values at the given degree and levels.
+// NewCiphertextC0 creates a new CiphertextC0 with zero values at the given degree and levels.
 // It sets the NTT flags to `ntt`.
-func NewCiphertextCRP(params Parameters, degree, level int, ntt bool) *CiphertextCRP {
-	el := new(CiphertextCRP)
+func NewCiphertextC0(params Parameters, degree, level int, ntt bool) *CiphertextC0 {
+	el := new(CiphertextC0)
 	el.Value = ring.NewPoly(params.N(), level)
 	el.Value.IsNTT = true
 	return el
@@ -272,7 +273,7 @@ func (el *Ciphertext) RLWEElement() *Ciphertext {
 	return el
 }
 
-func (ct *CiphertextCRP) Level() int {
+func (ct *CiphertextC0) Level() int {
 	return ct.Value.Level()
 }
 

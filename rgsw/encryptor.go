@@ -5,6 +5,9 @@ import (
 	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 )
 
+// Encryptor is a type for encrypting RGSW ciphertexts. It implements the rlwe.Encryptor
+// interface overriding the `Encrypt` and `EncryptZero` methods to accept rgsw.Ciphertext
+// types in addition to ciphertexts types in the rlwe package.
 type Encryptor struct {
 	rlwe.Encryptor
 
@@ -12,32 +15,27 @@ type Encryptor struct {
 	buffQP ringqp.Poly
 }
 
+// NewEncryptor creates a new Encryptor type. Note that only secret-key encryption is
+// supported at the moment.
 func NewEncryptor(params rlwe.Parameters, sk *rlwe.SecretKey) *Encryptor {
 	return &Encryptor{rlwe.NewEncryptor(params, sk), params, params.RingQP().NewPoly()}
 }
 
+// Encrypt encrypts a plaintext pt into a ciphertext ct, which can be a rgsw.Ciphertext
+// or any of the `rlwe` cipheretxt types.
 func (enc *Encryptor) Encrypt(pt *rlwe.Plaintext, ct interface{}) {
 
 	var rgswCt *Ciphertext
 	var isRGSW bool
 	if rgswCt, isRGSW = ct.(*Ciphertext); !isRGSW {
 		enc.Encryptor.Encrypt(pt, ct)
+		return
 	}
 
-	params := enc.params
-	ringQ := params.RingQ()
+	enc.EncryptZero(rgswCt)
+
+	ringQ := enc.params.RingQ()
 	levelQ := rgswCt.LevelQ()
-	levelP := rgswCt.LevelP()
-
-	decompRNS := params.DecompRNS(levelQ, levelP)
-	decompPw2 := params.DecompPw2(levelQ, levelP)
-
-	for j := 0; j < decompPw2; j++ {
-		for i := 0; i < decompRNS; i++ {
-			enc.EncryptZero(&rgswCt.Value[0].Value[i][j])
-			enc.EncryptZero(&rgswCt.Value[1].Value[i][j])
-		}
-	}
 
 	if pt != nil {
 		ringQ.MFormLvl(levelQ, pt.Value, enc.buffQP.Q)
@@ -47,8 +45,36 @@ func (enc *Encryptor) Encrypt(pt *rlwe.Plaintext, ct interface{}) {
 		rlwe.AddPolyTimesGadgetVectorToGadgetCiphertext(
 			enc.buffQP.Q,
 			[]rlwe.GadgetCiphertext{rgswCt.Value[0], rgswCt.Value[1]},
-			*params.RingQP(),
-			params.Pow2Base(),
+			*enc.params.RingQP(),
+			enc.params.Pow2Base(),
 			enc.buffQP.Q)
 	}
+}
+
+// EncryptZero generates an encryption of zero into a ciphertext ct, which can be a rgsw.Ciphertext
+// or any of the `rlwe` cipheretxt types.
+func (enc *Encryptor) EncryptZero(ct interface{}) {
+
+	var rgswCt *Ciphertext
+	var isRGSW bool
+	if rgswCt, isRGSW = ct.(*Ciphertext); !isRGSW {
+		enc.Encryptor.EncryptZero(ct)
+		return
+	}
+
+	levelQ := rgswCt.LevelQ()
+	levelP := rgswCt.LevelP()
+	decompRNS := enc.params.DecompRNS(levelQ, levelP)
+	decompPw2 := enc.params.DecompPw2(levelQ, levelP)
+
+	for j := 0; j < decompPw2; j++ {
+		for i := 0; i < decompRNS; i++ {
+			enc.Encryptor.EncryptZero(&rgswCt.Value[0].Value[i][j])
+			enc.Encryptor.EncryptZero(&rgswCt.Value[1].Value[i][j])
+		}
+	}
+}
+
+func (enc *Encryptor) ShallowCopy() *Encryptor {
+	return &Encryptor{Encryptor: enc.Encryptor.ShallowCopy(), params: enc.params, buffQP: enc.params.RingQP().NewPoly()}
 }

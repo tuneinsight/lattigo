@@ -25,7 +25,7 @@ type PRNGEncryptor interface {
 	WithPRNG(prng utils.PRNG) PRNGEncryptor
 }
 
-type encryptor struct {
+type encryptorBase struct {
 	params Parameters
 	*encryptorBuffers
 
@@ -36,12 +36,12 @@ type encryptor struct {
 }
 
 type pkEncryptor struct {
-	*encryptor
+	*encryptorBase
 	pk *PublicKey
 }
 
 type skEncryptor struct {
-	encryptor
+	encryptorBase
 	sk *SecretKey
 
 	uniformSampler ringqp.UniformSampler
@@ -51,9 +51,9 @@ type skEncryptor struct {
 // Accepts either a secret-key or a public-key.
 func NewEncryptor(params Parameters, key interface{}) Encryptor {
 	switch key := key.(type) {
-	case *PublicKey:
+	case *PublicKey, PublicKey:
 		return newPkEncryptor(params, key)
-	case *SecretKey:
+	case *SecretKey, SecretKey:
 		return newSkEncryptor(params, key)
 	default:
 		panic("key must be either *rlwe.PublicKey or *rlwe.SecretKey")
@@ -65,7 +65,7 @@ func NewPRNGEncryptor(params Parameters, key *SecretKey) PRNGEncryptor {
 	return newSkEncryptor(params, key)
 }
 
-func newEncryptor(params Parameters) *encryptor {
+func newEncryptorBase(params Parameters) *encryptorBase {
 
 	prng, err := utils.NewPRNG()
 	if err != nil {
@@ -77,7 +77,7 @@ func newEncryptor(params Parameters) *encryptor {
 		bc = ring.NewBasisExtender(params.RingQ(), params.RingP())
 	}
 
-	return &encryptor{
+	return &encryptorBase{
 		params:           params,
 		prng:             prng,
 		gaussianSampler:  ring.NewGaussianSampler(prng, params.RingQ(), params.Sigma(), int(6*params.Sigma())),
@@ -87,23 +87,29 @@ func newEncryptor(params Parameters) *encryptor {
 	}
 }
 
-func newSkEncryptor(params Parameters, key *SecretKey) *skEncryptor {
-	if key.Value.Q.N() != params.N() {
-		panic("sk ring degree does not match params ring degree")
-	}
+func newSkEncryptor(params Parameters, key interface{}) (enc *skEncryptor) {
 
 	prng, err := utils.NewPRNG()
 	if err != nil {
 		panic(fmt.Errorf("could not create PRNG for symmetric encryptor: %s", err))
 	}
-	return &skEncryptor{*newEncryptor(params), key, ringqp.NewUniformSampler(prng, *params.RingQP())}
+
+	enc = &skEncryptor{*newEncryptorBase(params), nil, ringqp.NewUniformSampler(prng, *params.RingQP())}
+	if enc.sk, err = enc.checkSk(key); err != nil {
+		panic(err)
+	}
+
+	return enc
 }
 
-func newPkEncryptor(params Parameters, key *PublicKey) *pkEncryptor {
-	if key.Value[0].Q.N() != params.N() || key.Value[1].Q.N() != params.N() {
-		panic("pk ring degree does not match params ring degree")
+func newPkEncryptor(params Parameters, key interface{}) (enc *pkEncryptor) {
+	var err error
+	enc = &pkEncryptor{newEncryptorBase(params), nil}
+	enc.pk, err = enc.checkPk(key)
+	if err != nil {
+		panic(err)
 	}
-	return &pkEncryptor{newEncryptor(params), key}
+	return enc
 }
 
 type encryptorBuffers struct {
@@ -339,13 +345,13 @@ func (enc *pkEncryptor) encryptZeroNoP(ciphertext *Ciphertext) {
 }
 
 // Encrypt encrypts the input plaintext using the stored secret-key and writes the result on ct.
-// The method accepts only *rlwe.Ciphertext, *CiphertextCRP or *rgsw.Ciphertext as input and will panic otherwise.
+// The method accepts only *rlwe.Ciphertext, *CiphertextC0 or *rgsw.Ciphertext as input and will panic otherwise.
 func (enc *skEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
 	switch el := ct.(type) {
 	case *Ciphertext:
 		enc.uniformSampler.ReadLvl(utils.MinInt(pt.Level(), el.Level()), -1, ringqp.Poly{Q: el.Value[1]})
 		enc.encryptRLWE(pt, el.Value[0], el.Value[1])
-	case *CiphertextCRP:
+	case *CiphertextC0:
 		enc.uniformSampler.ReadLvl(utils.MinInt(pt.Level(), el.Value.Level()), -1, ringqp.Poly{Q: enc.buffQ[1]})
 		enc.encryptRLWE(pt, el.Value, enc.buffQ[1])
 	default:
@@ -354,13 +360,13 @@ func (enc *skEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
 }
 
 // EncryptZero generates an encryption of zero using the stored secret-key and writes the result on ct.
-// The method accepts only *rlwe.Ciphertext, *CiphertextCRP or *rgsw.Ciphertext as input and will panic otherwise.
+// The method accepts only *rlwe.Ciphertext, *CiphertextC0 or *rgsw.Ciphertext as input and will panic otherwise.
 func (enc *skEncryptor) EncryptZero(ct interface{}) {
 	switch ct := ct.(type) {
 	case *Ciphertext:
 		enc.uniformSampler.ReadLvl(ct.Level(), -1, ringqp.Poly{Q: ct.Value[1]})
 		enc.encryptZero(ct.Value[0], ct.Value[1])
-	case *CiphertextCRP:
+	case *CiphertextC0:
 		enc.uniformSampler.ReadLvl(ct.Level(), -1, ringqp.Poly{Q: enc.buffQ[1]})
 		enc.encryptZero(ct.Value, enc.buffQ[1])
 	case *CiphertextQP:
@@ -442,7 +448,7 @@ func (enc *skEncryptor) encryptRLWE(pt *Plaintext, c0, c1 *ring.Poly) {
 	}
 }
 
-func (enc *encryptor) addPtErrorC0(pt *Plaintext, c0 *ring.Poly) {
+func (enc *encryptorBase) addPtErrorC0(pt *Plaintext, c0 *ring.Poly) {
 	ringQ := enc.params.RingQ()
 	levelQ := utils.MinInt(pt.Level(), c0.Level())
 	ctNTT := c0.IsNTT
@@ -487,32 +493,62 @@ func (enc *skEncryptor) ShallowCopy() Encryptor {
 
 // WithKey returns this encryptor with a new key .
 func (enc *skEncryptor) WithKey(key interface{}) Encryptor {
-	switch sk := key.(type) {
-	case SecretKey:
-		// TODO validate
-		return &skEncryptor{enc.encryptor, &sk, enc.uniformSampler}
-	case *SecretKey:
-		// TODO validate
-		return &skEncryptor{enc.encryptor, sk, enc.uniformSampler}
-	default:
-		panic("")
+	skPtr, err := enc.checkSk(key)
+	if err != nil {
+		panic(err)
 	}
+	return &skEncryptor{enc.encryptorBase, skPtr, enc.uniformSampler}
 }
 
 // WithKey returns this encryptor with a new key .
 func (enc *pkEncryptor) WithKey(key interface{}) Encryptor {
-	switch pk := key.(type) {
-	case PublicKey:
-		// TODO validate
-		return &pkEncryptor{enc.encryptor, &pk}
-	case *PublicKey:
-		// TODO validate
-		return &pkEncryptor{enc.encryptor, pk}
-	default:
-		panic("")
+	pkPtr, err := enc.checkPk(key)
+	if err != nil {
+		panic(err)
 	}
+	return &pkEncryptor{enc.encryptorBase, pkPtr}
 }
 
+// WithPRNG returns this encrpytor with prng as its source of randomness for the uniform
+// element c1.
 func (enc skEncryptor) WithPRNG(prng utils.PRNG) PRNGEncryptor {
-	return &skEncryptor{enc.encryptor, enc.sk, enc.uniformSampler.WithPRNG(prng)}
+	return &skEncryptor{enc.encryptorBase, enc.sk, enc.uniformSampler.WithPRNG(prng)}
+}
+
+// checkPk checks that a given pk is correct for the parameters.
+func (enc encryptorBase) checkPk(key interface{}) (pk *PublicKey, err error) {
+
+	switch key := key.(type) {
+	case PublicKey:
+		pk = &key
+	case *PublicKey:
+		pk = key
+	default:
+		return nil, fmt.Errorf("key is not a valid public key type %T", key)
+	}
+
+	if pk.Value[0].Q.N() != enc.params.N() || pk.Value[1].Q.N() != enc.params.N() {
+		return nil, fmt.Errorf("pk ring degree does not match params ring degree")
+	}
+
+	return pk, nil
+}
+
+// checkPk checks that a given pk is correct for the parameters.
+func (enc encryptorBase) checkSk(key interface{}) (sk *SecretKey, err error) {
+
+	switch key := key.(type) {
+	case SecretKey:
+		sk = &key
+	case *SecretKey:
+		sk = key
+	default:
+		return nil, fmt.Errorf("key is not a valid public key type %T", key)
+	}
+
+	if sk.Value.Q.N() != enc.params.N() {
+		panic("sk ring degree does not match params ring degree")
+	}
+
+	return sk, nil
 }

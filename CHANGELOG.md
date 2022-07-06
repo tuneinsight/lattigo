@@ -16,12 +16,13 @@ All notable changes to this project will be documented in this file.
 - RING: renamed `ring.Poly.Degree()` to `ring.Poly.N()` for consistency.
 - RING: removed `ring.Poly.LenModuli()` depreciated method.
 - RING: changed `ring.NewPoly` to take the `level` as argument instead of the number of moduli, for consistency.
-- RLWE: restructured the package into several sub-packages:
-    - `rlwe/ringqp`: extracts the former `rlwe.RingQP` and `rlwe.PolyQP` types into a generic package that provides the `ringqp.Ring` and `ringqp.Poly` types,
-    - `rlwe/gadget`: provides the type `gadget.Ciphertext`, a type of ciphertext used in the gadget product `POLY x GADGET -> RLWE`.
-    - `rlwe/lut`: provides tools for the evaluation of Look-Up-Tables (LUT) on `rlwe.Ciphertext`.
-    - `rlwe/rgsw`: provides the type `rgsw.Ciphertext`, a type of ciphertext used in the external product `RLWE x RGSW -> RLWE`.
-- RLWE: Generalized `rlwe.KeySwitcher` into `rlwe.Evaluator`, which provides many new functionalities:
+- RLWE: added several types of ciphertexts:
+    - `rlwe.CiphertextQP` represents a ciphertext that is encrypted in the extended ring R_QP.
+    - `rlwe.GadgetCiphertext` represents an encryption in the extended ring R_QP of a plaintext that is decomposed in the CRT and power-of-two basis (e.g., plublic switching keys).
+    - `rlwe.CiphertextC0` type to represent ciphertext of the form (c0, c1) for which only the c0 element is stored (e.g., c1 can be reconstructed from a known PRNG).
+- RLWE: changed representation of `rlwe.PublicKey` types which are now stored in montgomerry form, consistently with all other key types.
+- RLWE: changed `rlwe.SwitchingKey` type to use `rlwe.GadgetCiphertext` internally.
+- RLWE: generalized `rlwe.KeySwitcher` into `rlwe.Evaluator`, which provides many new functionalities:
     - `DecomposeNTT`: decomposes a polynomial modulo the special RNS basis and extends its basis from Q to QP.
     - `DecomposeSingleNTT`: decomposes a polynomial modulo a single power of the special RNS basis and extends its basis from Q to QP.
     - `ExpandRLWE`: extracts each coefficient of a RLWE sample to the degree-0 coefficient of multiple RLWE samples.
@@ -43,12 +44,16 @@ All notable changes to this project will be documented in this file.
     - This functionality can be composed with the RNS hybrid decomposition (with a modulus `P`), but only when `P` is composed of a single prime.
     - This functionality is disabled if `Pow2Base` is set to zero (default value).
 - RLWE: enabled instantiation of `rlwe.Parameters` without the modulus `P`.
-- RLWE: updated `rlwe.Encryptor` with the following functionalities: 
-    - The methods `.Encrypt` now accept as input both `rlwe.Ciphertext` and `rgsw.Ciphertext`.
-    - Added the `EncryptZeroSymetricQPNTT` method which samples encryptions of zero. This method can take as input a sampler to generate seeded encryption of zero.
-    - Added the `EncryptSeeded` method which replaces `EncryptFromCRP` and takes as an additional input a `ringqp.UniformSampler` to sample the public polynomials.
-- RLWE: added the `SeededCiphertextBatch` struct type which stores and marshal a list of `rlwe.Ciphertexts` for which the degree-1 element is empty. Their degree-1 element can be reconstructed by calling `.Reconstruct`.
+- RLWE: revamped  the `rlwe.Encryptor` interface and implementing structs:
+    - Added the `.EncryptZero` method to generate encryptions of zeros
+    - The `.Encrypt` and `.EncryptZero` now accept `ct interface{}` as their ciphertext arguement and determine the type of encryption to be performed according to the runtime type of `ct`.
+- RLWE: added the `PRNGEncryptor` type, which supports secret-key encryption from a user-specified PRNG.
 - RLWE: `rlwe.KeyGenerator` now uses an `rlwe.Encryptor` internally, to generate keys encryption keys and evaluation keys.
+- RLWE: extracted the `rlwe/ringqp` sub-package which provides the `ringqp.Ring` and `ringqp.Poly` types to replace former types `rlwe.RingQP` and `rlwe.PolyQP`.
+- RGSW: added package `rgsw`, which provides a partial implementation of the RLWE-based RGSW encryption scheme. This incluides:
+    -  `rgsw.Encryptor` and the `rgsw.Ciphertext` types.
+    -  `rgsw.Evaluator` to support the external product `RLWE x RGSW -> RLWE`.
+    -  `rgsw/lut` sub-package that provides evaluation of Look-Up-Tables (LUT) on `rlwe.Ciphertext` types.
 - BFV/CKKS: key-switching functionalities (such as rotations, relinearization and key-switching) are now all based on the `rlwe.Evaluator`.
 - BFV/CKKS: the parameters now are based on the sub-type `rlwe.Parameters`.
 - BFV/CKKS: removed depreciated methods `EncryptFromCRP` and `EncryptFromCRPNew`.
@@ -60,6 +65,7 @@ All notable changes to this project will be documented in this file.
 - Examples: added `examples/ckks/advanced/lut`, which is an example that does homomorphic decoding -> LUT -> homomorphic encoding on a `ckks.Ciphertext`.
 - Examples: removed `examples/ckks/advanced/rlwe_lwe_bridge_LHHMQ20`, which is replaced by `examples/ckks/advanced/lut`.
 - Examples: removed `examples/rlwe/lwe_bridge` since the code of this example is now part of `rlwe.Evaluator` and showcased in `examples/ckks/advanced/lut`.
+- CI: revamped Makefile to no longer require github.com/dedis/coding and integrated linting/vet checks.
 
 ## [3.0.5]
 

@@ -56,7 +56,7 @@ All notable changes to this project will be documented in this file.
     -  `rgsw/lut` sub-package that provides evaluation of Look-Up-Tables (LUT) on `rlwe.Ciphertext` types.
 - BFV/CKKS: key-switching functionalities (such as rotations, relinearization and key-switching) are now all based on the `rlwe.Evaluator`.
 - BFV/CKKS: the parameters now are based on the sub-type `rlwe.Parameters`.
-- BFV/CKKS: removed depreciated methods `EncryptFromCRP` and `EncryptFromCRPNew`.
+- BFV/CKKS: removed depreciated methods `EncryptFromCRP` and `EncryptFromCRPNew`, users should now use the `PRNGEncryptor` interface.
 - BFV/CKKS: fixed a panic that was happening during the benchmark testing.
 - CKKS: fixed `MulAndAdd` correctness for non-identical inputs.
 - CKKS: added `advanced.EncodingMatrixLiteral.RepackImag2Real` optional field to repack the imaginary part into the right n real slots.

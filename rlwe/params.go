@@ -1,4 +1,4 @@
-// Package rlwe implements the general R-LWE arithmetic common to the schemes implemented in this library.
+// Package rlwe implements the generic operations that are common to R-LWE schemes. The other implemented schemes extend this package with their specific operations and structures.
 package rlwe
 
 import (

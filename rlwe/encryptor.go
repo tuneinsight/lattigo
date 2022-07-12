@@ -137,7 +137,7 @@ func newEncryptorBuffers(params Parameters) *encryptorBuffers {
 
 // Encrypt encrypts the input plaintext using the stored public-key and writes the result in ct.
 // The encryption procedure first samples an new encryption of zero under the public-key and
-// then adds the pt.
+// then adds the plaintext.
 // The encryption procedures depends on the parameters: If the auxiliary modulus P is defined, the
 // encryption of zero is sampled in QP before being rescaled by P; otherwise, it is directly sampled in Q.
 // The method accepts only *rlwe.Ciphertext as input.

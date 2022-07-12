@@ -188,12 +188,17 @@ func (ct *GadgetCiphertext) Decode(data []byte) (pointer int, err error) {
 }
 
 // AddPolyTimesGadgetVectorToGadgetCiphertext takes a plaintext polynomial and a list of Ciphertexts and adds the
-// plaintext times the RNS and BIT decomposition to the i-th element of the i-th Ciphertexts.
+// plaintext times the RNS and BIT decomposition to the i-th element of the i-th Ciphertexts. This method panics if
+// len(cts) > 2.
 func AddPolyTimesGadgetVectorToGadgetCiphertext(pt *ring.Poly, cts []GadgetCiphertext, ringQP ringqp.Ring, logbase2 int, buff *ring.Poly) {
 
 	ringQ := ringQP.RingQ
 	levelQ := cts[0].LevelQ()
 	levelP := cts[0].LevelP()
+
+	if len(cts) > 2 {
+		panic("len(cts) should be <= 2")
+	}
 
 	if levelP != -1 {
 		ringQ.MulScalarBigintLvl(levelQ, pt, ringQP.RingP.ModulusAtLevel[levelP], buff) // P * pt
@@ -231,7 +236,7 @@ func AddPolyTimesGadgetVectorToGadgetCiphertext(pt *ring.Poly, cts []GadgetCiphe
 				p0tmp := buff.Coeffs[index]
 
 				for u, ct := range cts {
-					p1tmp := ct.Value[i][j].Value[u].Q.Coeffs[index] // TODO seems incorrect
+					p1tmp := ct.Value[i][j].Value[u].Q.Coeffs[index]
 					for w := 0; w < ringQ.N; w++ {
 						p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi)
 					}

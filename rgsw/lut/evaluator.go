@@ -204,7 +204,7 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWihtSlotIndex map[in
 			// LUT = LUT * X^{-as + m + e}
 			ringQLUT.MulCoeffsMontgomery(lut, eval.xPowMinusOne[b].Q, acc.Value[0])
 			ringQLUT.Add(acc.Value[0], lut, acc.Value[0])
-			acc.Value[1].Zero() // TODO remove
+			acc.Value[1].Zero()
 
 			for j := 0; j < ringQLWE.N; j++ {
 				// RGSW[(X^{a} - 1) * sk_{j}[0] + (X^{-a} - 1) * sk_{j}[1] + 1]

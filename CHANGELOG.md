@@ -19,7 +19,6 @@ All notable changes to this project will be documented in this file.
 - RLWE: added several types of ciphertexts:
     - `rlwe.CiphertextQP` represents a ciphertext that is encrypted in the extended ring R_QP.
     - `rlwe.GadgetCiphertext` represents an encryption in the extended ring R_QP of a plaintext that is decomposed in the CRT and power-of-two basis (e.g., plublic switching keys).
-    - `rlwe.CiphertextC0` type to represent ciphertext of the form (c0, c1) for which only the c0 element is stored (e.g., c1 can be reconstructed from a known PRNG).
 - RLWE: changed representation of `rlwe.PublicKey` types which are now stored in montgomerry form, consistently with all other key types.
 - RLWE: changed `rlwe.SwitchingKey` type to use `rlwe.GadgetCiphertext` internally.
 - RLWE: generalized `rlwe.KeySwitcher` into `rlwe.Evaluator`, which provides many new functionalities:

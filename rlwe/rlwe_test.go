@@ -337,7 +337,8 @@ func testEncryptor(kgen KeyGenerator, t *testing.T) {
 		plaintext := NewPlaintext(params, params.MaxLevel())
 		plaintext.Value.IsNTT = true
 		encryptor := NewPRNGEncryptor(params, sk)
-		ciphertextCRP := NewCiphertextC0(params, 1, plaintext.Level(), true)
+		ciphertextCRP := params.RingQ().NewPolyLvl(plaintext.Level())
+		ciphertextCRP.IsNTT = true
 
 		prng1, _ := utils.NewKeyedPRNG([]byte{'a', 'b', 'c'})
 		prng2, _ := utils.NewKeyedPRNG([]byte{'a', 'b', 'c'})
@@ -346,7 +347,7 @@ func testEncryptor(kgen KeyGenerator, t *testing.T) {
 
 		samplerQ := ring.NewUniformSampler(prng2, params.ringQ)
 		c1 := samplerQ.ReadNew()
-		ciphertext := Ciphertext{Value: []*ring.Poly{ciphertextCRP.Value, c1}}
+		ciphertext := Ciphertext{Value: []*ring.Poly{ciphertextCRP, c1}}
 
 		require.Equal(t, plaintext.Level(), ciphertext.Level())
 		ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], sk.Value.Q, ciphertext.Value[0])

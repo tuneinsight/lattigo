@@ -357,9 +357,9 @@ func (enc *skEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
 		case *Ciphertext:
 			enc.uniformSampler.ReadLvl(utils.MinInt(pt.Level(), el.Level()), -1, ringqp.Poly{Q: el.Value[1]})
 			enc.encryptRLWE(pt, el.Value[0], el.Value[1])
-		case *CiphertextC0:
-			enc.uniformSampler.ReadLvl(utils.MinInt(pt.Level(), el.Value.Level()), -1, ringqp.Poly{Q: enc.buffQ[1]})
-			enc.encryptRLWE(pt, el.Value, enc.buffQ[1])
+		case *ring.Poly:
+			enc.uniformSampler.ReadLvl(utils.MinInt(pt.Level(), el.Level()), -1, ringqp.Poly{Q: enc.buffQ[1]})
+			enc.encryptRLWE(pt, el, enc.buffQ[1])
 		default:
 			panic("input ciphertext type unsuported (must be *rlwe.Ciphertext or *rgsw.Ciphertext)")
 		}
@@ -370,15 +370,15 @@ func (enc *skEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
 // EncryptZero generates an encryption of zero using the stored secret-key and writes the result on ct.
 // The method accepts only *rlwe.Ciphertext, *CiphertextC0 or *rgsw.Ciphertext as input and will panic otherwise.
 func (enc *skEncryptor) EncryptZero(ct interface{}) {
-	switch ct := ct.(type) {
+	switch el := ct.(type) {
 	case *Ciphertext:
-		enc.uniformSampler.ReadLvl(ct.Level(), -1, ringqp.Poly{Q: ct.Value[1]})
-		enc.encryptZero(ct.Value[0], ct.Value[1])
-	case *CiphertextC0:
-		enc.uniformSampler.ReadLvl(ct.Level(), -1, ringqp.Poly{Q: enc.buffQ[1]})
-		enc.encryptZero(ct.Value, enc.buffQ[1])
+		enc.uniformSampler.ReadLvl(el.Level(), -1, ringqp.Poly{Q: el.Value[1]})
+		enc.encryptZero(el.Value[0], el.Value[1])
+	case *ring.Poly:
+		enc.uniformSampler.ReadLvl(el.Level(), -1, ringqp.Poly{Q: enc.buffQ[1]})
+		enc.encryptZero(el, enc.buffQ[1])
 	case *CiphertextQP:
-		enc.encryptZeroQP(*ct)
+		enc.encryptZeroQP(*el)
 	default:
 		panic("input ciphertext type unsupported")
 	}

@@ -23,13 +23,6 @@ type CiphertextQP struct {
 	Value [2]ringqp.Poly
 }
 
-// CiphertextC0 is a type for RLWE ciphertext of the form (c0, c1) and for
-// which c1 is considered to be known and is not stored (e.g., generated from
-// a known keyed PRNG).
-type CiphertextC0 struct {
-	Value *ring.Poly
-}
-
 // AdditiveShare is a type for storing additively shared values in Z_Q[X] (RNS domain)
 type AdditiveShare struct {
 	Value ring.Poly
@@ -121,15 +114,6 @@ func NewCiphertextNTT(params Parameters, degree, level int) *Ciphertext {
 		el.Value[i] = ring.NewPoly(params.N(), level)
 		el.Value[i].IsNTT = true
 	}
-	return el
-}
-
-// NewCiphertextC0 creates a new CiphertextC0 with zero values at the given degree and levels.
-// It sets the NTT flags to `ntt`.
-func NewCiphertextC0(params Parameters, degree, level int, ntt bool) *CiphertextC0 {
-	el := new(CiphertextC0)
-	el.Value = ring.NewPoly(params.N(), level)
-	el.Value.IsNTT = true
 	return el
 }
 
@@ -271,10 +255,6 @@ func (el *Ciphertext) El() *Ciphertext {
 // RLWEElement returns a pointer to this Element
 func (el *Ciphertext) RLWEElement() *Ciphertext {
 	return el
-}
-
-func (ct *CiphertextC0) Level() int {
-	return ct.Value.Level()
 }
 
 // GetSmallestLargest returns the provided element that has the smallest degree as a first

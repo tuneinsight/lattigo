@@ -87,7 +87,7 @@ func (p *party) Run(wg *sync.WaitGroup, params ckks.Parameters, N int, P []*part
 			p.GenShare(sk, galEl, crp, rtgShare)
 			C.aggTaskQueue <- genTaskResult{galEl: galEl, rtgShare: rtgShare}
 			nShares++
-			byteSent += len(rtgShare.Value) * rtgShare.Value[0].GetDataLen(false)
+			byteSent += len(rtgShare.Value) * len(rtgShare.Value[0]) * rtgShare.Value[0][0].GetDataLen64(false)
 		}
 		nTasks++
 		cpuTime += time.Since(start)
@@ -127,7 +127,7 @@ func (c *cloud) Run(galEls []uint64, params ckks.Parameters, t int) {
 		}
 		i++
 		cpuTime += time.Since(start)
-		byteRecv += len(acc.share.Value) * acc.share.Value[0].GetDataLen(false)
+		byteRecv += len(acc.share.Value) * len(acc.share.Value[0]) * acc.share.Value[0][0].GetDataLen64(false)
 	}
 	close(c.finDone)
 	fmt.Printf("\tCloud finished aggregating %d shares in %s, received %s\n", i, cpuTime, byteCountSI(byteRecv))
@@ -335,41 +335,63 @@ func verifyKey(swk rlwe.SwitchingKey, galEl uint64, skIdeal *rlwe.SecretKey, par
 	galElInv := ring.ModExp(galEl, uint64(4*params.N()-1), uint64(4*params.N()))
 	levelQ, levelP := params.QCount()-1, params.PCount()-1
 	ringQ, ringP, ringQP := params.RingQ(), params.RingP(), params.RingQP()
+	decompPw2 := params.DecompPw2(levelQ, levelP)
 
 	ringQ.PermuteNTT(skIdeal.Value.Q, galElInv, skOut.Value.Q)
 	ringP.PermuteNTT(skIdeal.Value.P, galElInv, skOut.Value.P)
 
 	// Decrypts
 	// [-asIn + w*P*sOut + e, a] + [asIn]
-	for j := range swk.Value {
-		ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, swk.Value[j][1], skOut.Value, swk.Value[j][0])
-
-	}
-
-	// Sums all basis together (equivalent to multiplying with CRT decomposition of 1)
-	// sum([1]_w * [w*P*sOut + e]) = P*sOut + sum(e)
-	for j := range swk.Value {
-		if j > 0 {
-			ringQP.AddLvl(levelQ, levelP, swk.Value[0][0], swk.Value[j][0], swk.Value[0][0])
+	for i := range swk.Value {
+		for j := range swk.Value[i] {
+			ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, swk.Value[i][j].Value[1], skOut.Value, swk.Value[i][j].Value[0])
 		}
 	}
 
-	// sOut * P
-	ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusAtLevel[len(ringP.Modulus)-1], skIn.Value.Q)
+	// Sums all basis together (equivalent to multiplying with CRT decomposition of 1)
+	// sum([1]_w * [RNS*PW2*P*sOut + e]) = PWw*P*sOut + sum(e)
+	for i := range swk.Value { // RNS decomp
+		if i > 0 {
+			for j := range swk.Value[i] { // PW2 decomp
+				ringQP.AddLvl(levelQ, levelP, swk.Value[0][j].Value[0], swk.Value[i][j].Value[0], swk.Value[0][j].Value[0])
+			}
+		}
+	}
 
-	// P*s^i + sum(e) - P*s^i = sum(e)
-	ringQ.Sub(swk.Value[0][0].Q, skIn.Value.Q, swk.Value[0][0].Q)
+	if levelP != -1 {
+		// sOut * P
+		ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusAtLevel[levelP], skIn.Value.Q)
+	}
 
-	// Checks that the error is below the bound
-	// Worst error bound is N * floor(6*sigma) * #Keys
-	ringQP.InvNTTLvl(levelQ, levelP, swk.Value[0][0], swk.Value[0][0])
-	ringQP.InvMFormLvl(levelQ, levelP, swk.Value[0][0], swk.Value[0][0])
+	log2Bound := bits.Len64(uint64(params.N() * len(swk.Value) * len(swk.Value[0]) * (params.N()*3*int(math.Floor(rlwe.DefaultSigma*6)) + 2*3*int(math.Floor(rlwe.DefaultSigma*6)) + params.N()*3)))
+	for i := 0; i < decompPw2; i++ {
 
-	// Worst bound of inner sum
-	// N*#Keys*(N * #Parties * floor(sigma*6) + #Parties * floor(sigma*6) + N * #Parties  +  #Parties * floor(6*sigma))
-	log2Bound := bits.Len64(uint64(params.N() * len(swk.Value) * (params.N()*3*int(math.Floor(rlwe.DefaultSigma*6)) + 2*3*int(math.Floor(rlwe.DefaultSigma*6)) + params.N()*3)))
-	have := log2OfInnerSum(len(ringQ.Modulus)-1, ringQ, swk.Value[0][0].Q)
-	return log2Bound >= have
+		// P*s^i + sum(e) - P*s^i = sum(e)
+		ringQ.Sub(swk.Value[0][i].Value[0].Q, skIn.Value.Q, swk.Value[0][i].Value[0].Q)
+
+		// Checks that the error is below the bound
+		// Worst error bound is N * floor(6*sigma) * #Keys
+		ringQP.InvNTTLvl(levelQ, levelP, swk.Value[0][i].Value[0], swk.Value[0][i].Value[0])
+		ringQP.InvMFormLvl(levelQ, levelP, swk.Value[0][i].Value[0], swk.Value[0][i].Value[0])
+
+		// Worst bound of inner sum
+		// N*#Keys*(N * #Parties * floor(sigma*6) + #Parties * floor(sigma*6) + N * #Parties  +  #Parties * floor(6*sigma))
+
+		if log2Bound < log2OfInnerSum(levelQ, ringQ, swk.Value[0][i].Value[0].Q) {
+			return false
+		}
+
+		if levelP != -1 {
+			if log2Bound < log2OfInnerSum(levelP, ringP, swk.Value[0][i].Value[0].P) {
+				return false
+			}
+		}
+
+		// sOut * P * PW2
+		ringQ.MulScalar(skIn.Value.Q, 1<<params.Pow2Base(), skIn.Value.Q)
+	}
+
+	return true
 }
 
 // Returns the ceil(log2) of the sum of the absolute value of all the coefficients

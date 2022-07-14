@@ -133,9 +133,9 @@ func (ts *TernarySampler) sampleProba(lvl int, pol *Poly) {
 		randomBytesCoeffs := make([]byte, ts.baseRing.N>>3)
 		randomBytesSign := make([]byte, ts.baseRing.N>>3)
 
-		ts.prng.Clock(randomBytesCoeffs)
+		ts.prng.Read(randomBytesCoeffs)
 
-		ts.prng.Clock(randomBytesSign)
+		ts.prng.Read(randomBytesSign)
 
 		for i := 0; i < ts.baseRing.N; i++ {
 			coeff = uint64(uint8(randomBytesCoeffs[i>>3])>>(i&7)) & 1
@@ -155,7 +155,7 @@ func (ts *TernarySampler) sampleProba(lvl int, pol *Poly) {
 		pointer := uint8(0)
 		var bytePointer int
 
-		ts.prng.Clock(randomBytes)
+		ts.prng.Read(randomBytes)
 
 		for i := 0; i < ts.baseRing.N; i++ {
 
@@ -187,7 +187,7 @@ func (ts *TernarySampler) sampleSparse(lvl int, pol *Poly) {
 	randomBytes := make([]byte, (uint64(math.Ceil(float64(ts.hw) / 8.0)))) // We sample ceil(hw/8) bytes
 	pointer := uint8(0)
 
-	ts.prng.Clock(randomBytes)
+	ts.prng.Read(randomBytes)
 
 	for i := 0; i < ts.hw; i++ {
 		mask = (1 << uint64(bits.Len64(uint64(ts.baseRing.N-i)))) - 1 // rejection sampling of a random variable between [0, len(index)]
@@ -258,7 +258,7 @@ func (ts *TernarySampler) kysampling(prng utils.PRNG, randomBytes []byte, pointe
 
 						if bytePointer >= byteLength {
 							bytePointer = 0
-							prng.Clock(randomBytes)
+							prng.Read(randomBytes)
 						}
 
 						sign = uint8(randomBytes[bytePointer]) & 1
@@ -283,7 +283,7 @@ func (ts *TernarySampler) kysampling(prng utils.PRNG, randomBytes []byte, pointe
 
 		if bytePointer >= byteLength {
 			bytePointer = 0
-			prng.Clock(randomBytes)
+			prng.Read(randomBytes)
 		}
 
 	}

@@ -37,8 +37,6 @@ type testContext struct {
 	ringQ *ring.Ring
 	ringP *ring.Ring
 
-	prng utils.PRNG
-
 	encoder bfv.Encoder
 
 	sk0Shards []*rlwe.SecretKey
@@ -61,7 +59,9 @@ type testContext struct {
 
 func Test_DBFV(t *testing.T) {
 
-	defaultParams := bfv.DefaultParams // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
+	var err error
+
+	defaultParams := bfv.DefaultParams[:] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	if testing.Short() {
 		defaultParams = bfv.DefaultParams[:2] // the short test suite runs for ring degree N=2^12, 2^13
 	}
@@ -70,20 +70,23 @@ func Test_DBFV(t *testing.T) {
 	}
 	if *flagParamString != "" {
 		var jsonParams bfv.ParametersLiteral
-		json.Unmarshal([]byte(*flagParamString), &jsonParams)
+		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
+			t.Fatal(err)
+		}
 		defaultParams = []bfv.ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
 	for _, p := range defaultParams {
 
-		params, err := bfv.NewParametersFromLiteral(p)
-		if err != nil {
-			panic(err)
+		var params bfv.Parameters
+		if params, err = bfv.NewParametersFromLiteral(p); err != nil {
+			t.Fatal(err)
 		}
+
 		var tc *testContext
 		N := 3
 		if tc, err = gentestContext(params, N); err != nil {
-			panic(err)
+			t.Fatal(err)
 		}
 		for _, testSet := range []func(tc *testContext, t *testing.T){
 
@@ -529,7 +532,6 @@ func testEncToShares(tc *testContext, t *testing.T) {
 
 		rec := rlwe.NewAdditiveShare(params.Parameters)
 		for _, p := range P {
-			//fmt.Println("P[", i, "] share:", p.secretShare.Value.Coeffs[0][:see])
 			tc.ringT.Add(&rec.Value, &p.secretShare.Value, &rec.Value)
 		}
 
@@ -537,7 +539,6 @@ func testEncToShares(tc *testContext, t *testing.T) {
 		ptRt.Value.Copy(&rec.Value)
 
 		assert.True(t, utils.EqualSliceUint64(coeffs, tc.encoder.DecodeUintNew(ptRt)))
-
 	})
 
 	crp := P[0].e2s.SampleCRP(params.MaxLevel(), tc.crs)
@@ -566,7 +567,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 
 	kgen := bfv.NewKeyGenerator(tc.params)
 
-	rlk := kgen.GenRelinearizationKey(tc.sk0, 2)
+	rlk := kgen.GenRelinearizationKey(tc.sk0, 1)
 
 	t.Run(testString("Refresh", tc.NParties, tc.params), func(t *testing.T) {
 
@@ -639,7 +640,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 		for i, p := range RefreshParties {
 			p.GenShare(p.s, ciphertext.Value[1], crp, p.share)
 			if i > 0 {
-				P0.Aggregate(p.share, P0.share, P0.share)
+				P0.AggregateShare(p.share, P0.share, P0.share)
 			}
 
 		}
@@ -717,7 +718,7 @@ func testRefreshAndPermutation(tc *testContext, t *testing.T) {
 		for i, p := range RefreshParties {
 			p.GenShare(p.s, ciphertext.Value[1], crp, permute, p.share)
 			if i > 0 {
-				P0.Aggregate(P0.share, p.share, P0.share)
+				P0.AggregateShare(P0.share, p.share, P0.share)
 			}
 		}
 
@@ -890,7 +891,9 @@ func testThreshold(tc *testContext, t *testing.T) {
 			pi.CachedCombiner.GenAdditiveShare(activeShamirPks, pi.tpk, pi.tsks, pi.tsk)
 			//the cached and non-cached combiners should yield the same results
 			require.True(t, tc.ringQ.Equal(tsk.Q, pi.tsk.Value.Q))
-			require.True(t, tc.ringP.Equal(tsk.P, pi.tsk.Value.P))
+			if tc.ringP != nil {
+				require.True(t, tc.ringP.Equal(tsk.P, pi.tsk.Value.P))
+			}
 		}
 
 		//Clearing caches

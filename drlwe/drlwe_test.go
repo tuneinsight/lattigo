@@ -31,7 +31,15 @@ func testString(opname string, params rlwe.Parameters) string {
 }
 
 // TestParams is a set of test parameters for the correctness of the rlwe pacakge.
-var TestParams = []rlwe.ParametersLiteral{rlwe.TestPN12QP109, rlwe.TestPN13QP218, rlwe.TestPN14QP438, rlwe.TestPN15QP880, rlwe.TestPN16QP240, rlwe.TestPN17QP360}
+var TestParams = []rlwe.ParametersLiteral{
+	rlwe.TestPN10QP27,
+	rlwe.TestPN11QP54,
+	rlwe.TestPN12QP109,
+	rlwe.TestPN13QP218,
+	rlwe.TestPN14QP438,
+	rlwe.TestPN15QP880,
+	rlwe.TestPN16QP240,
+	rlwe.TestPN17QP360}
 
 type testContext struct {
 	params         rlwe.Parameters
@@ -61,6 +69,9 @@ func newTestContext(params rlwe.Parameters) testContext {
 }
 
 func TestDRLWE(t *testing.T) {
+
+	var err error
+
 	defaultParams := TestParams // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	if testing.Short() {
 		defaultParams = TestParams[:2] // the short test suite runs for ring degree N=2^12, 2^13
@@ -68,14 +79,16 @@ func TestDRLWE(t *testing.T) {
 
 	if *flagParamString != "" {
 		var jsonParams rlwe.ParametersLiteral
-		json.Unmarshal([]byte(*flagParamString), &jsonParams)
+		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
+			t.Fatal(err)
+		}
 		defaultParams = []rlwe.ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
 	for _, defaultParam := range defaultParams {
-		params, err := rlwe.NewParametersFromLiteral(defaultParam)
-		if err != nil {
-			panic(err)
+		var params rlwe.Parameters
+		if params, err = rlwe.NewParametersFromLiteral(defaultParam); err != nil {
+			t.Fatal(err)
 		}
 
 		textCtx := newTestContext(params)
@@ -136,6 +149,7 @@ func testPublicKeyGen(testCtx testContext, t *testing.T) {
 		// [-as + e] + [as]
 		ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, testCtx.skIdeal.Value, pk.Value[1], pk.Value[0])
 		ringQP.InvNTTLvl(levelQ, levelP, pk.Value[0], pk.Value[0])
+		ringQP.InvMFormLvl(levelQ, levelP, pk.Value[0], pk.Value[0])
 
 		log2Bound := bits.Len64(3 * uint64(math.Floor(rlwe.DefaultSigma*6)) * uint64(params.N()))
 		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(pk.Value[0].Q.Level(), ringQ, pk.Value[0].Q))
@@ -264,11 +278,9 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 	ringQP := params.RingQP()
 	levelQ, levelP := params.QCount()-1, params.PCount()-1
 
-	t.Run(testString("RelinKeyGen", params), func(t *testing.T) {
+	decompPw2 := params.DecompPw2(levelQ, levelP)
 
-		if params.PCount() == 0 {
-			t.Skip("method is unsuported when params.PCount() == 0")
-		}
+	t.Run(testString("RelinKeyGen", params), func(t *testing.T) {
 
 		rkg := make([]*RKGProtocol, nbParties)
 
@@ -318,36 +330,50 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 
 		// Decrypts
 		// [-asIn + w*P*sOut + e, a] + [asIn]
-		for j := range swk.Value {
-			ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, swk.Value[j][1], skOut.Value, swk.Value[j][0])
-		}
-
-		poly := swk.Value[0][0]
-
-		// Sums all basis together (equivalent to multiplying with CRT decomposition of 1)
-		// sum([1]_w * [w*P*sOut + e]) = P*sOut + sum(e)
-		for j := range swk.Value {
-			if j > 0 {
-				ringQP.AddLvl(levelQ, levelP, poly, swk.Value[j][0], poly)
+		for i := range swk.Value {
+			for j := range swk.Value[i] {
+				ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, swk.Value[i][j].Value[1], skOut.Value, swk.Value[i][j].Value[0])
 			}
 		}
 
-		// sOut * P
-		ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusAtLevel[levelP], skIn.Value.Q)
+		// Sums all basis together (equivalent to multiplying with CRT decomposition of 1)
+		// sum([1]_w * [RNS*PW2*P*sOut + e]) = PW2*P*sOut + sum(e)
+		for i := range swk.Value { // RNS decomp
+			if i > 0 {
+				for j := range swk.Value[i] { // PW2 decomp
+					ringQP.AddLvl(levelQ, levelP, swk.Value[0][j].Value[0], swk.Value[i][j].Value[0], swk.Value[0][j].Value[0])
+				}
+			}
+		}
 
-		// P*s^i + sum(e) - P*s^i = sum(e)
-		ringQ.Sub(swk.Value[0][0].Q, skIn.Value.Q, swk.Value[0][0].Q)
+		if levelP != -1 {
+			// sOut * P
+			ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusAtLevel[levelP], skIn.Value.Q)
+		}
 
-		// Checks that the error is below the bound
-		// Worst error bound is N * floor(6*sigma) * #Keys
-		ringQP.InvNTTLvl(levelQ, levelP, poly, poly)
-		ringQP.InvMFormLvl(levelQ, levelP, poly, poly)
+		log2Bound := bits.Len64(uint64(params.N() * len(swk.Value) * len(swk.Value[0]) * (params.N()*3*int(math.Floor(rlwe.DefaultSigma*6)) + 2*3*int(math.Floor(rlwe.DefaultSigma*6)) + params.N()*3)))
+		for i := 0; i < decompPw2; i++ {
 
-		// Worst bound of inner sum
-		// N*#Keys*(N * #Parties * floor(sigma*6) + #Parties * floor(sigma*6) + N * #Parties  +  #Parties * floor(6*sigma))
-		log2Bound := bits.Len64(uint64(params.N() * len(swk.Value) * (params.N()*3*int(math.Floor(rlwe.DefaultSigma*6)) + 2*3*int(math.Floor(rlwe.DefaultSigma*6)) + params.N()*3)))
-		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelQ, ringQ, swk.Value[0][0].Q))
-		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelP, ringP, swk.Value[0][0].P))
+			// P*s^i + sum(e) - P*s^i = sum(e)
+			ringQ.Sub(swk.Value[0][i].Value[0].Q, skIn.Value.Q, swk.Value[0][i].Value[0].Q)
+
+			// Checks that the error is below the bound
+			// Worst error bound is N * floor(6*sigma) * #Keys
+			ringQP.InvNTTLvl(levelQ, levelP, swk.Value[0][i].Value[0], swk.Value[0][i].Value[0])
+			ringQP.InvMFormLvl(levelQ, levelP, swk.Value[0][i].Value[0], swk.Value[0][i].Value[0])
+
+			// Worst bound of inner sum
+			// N*#Keys*(N * #Parties * floor(sigma*6) + #Parties * floor(sigma*6) + N * #Parties  +  #Parties * floor(6*sigma))
+
+			require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelQ, ringQ, swk.Value[0][i].Value[0].Q))
+
+			if levelP != -1 {
+				require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelP, ringP, swk.Value[0][i].Value[0].P))
+			}
+
+			// sOut * P * PW2
+			ringQ.MulScalar(skIn.Value.Q, 1<<params.Pow2Base(), skIn.Value.Q)
+		}
 	})
 }
 
@@ -359,11 +385,9 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 	ringQP := params.RingQP()
 	levelQ, levelP := params.QCount()-1, params.PCount()-1
 
-	t.Run(testString("RotKeyGen", params), func(t *testing.T) {
+	decompPw2 := params.DecompPw2(levelQ, levelP)
 
-		if params.PCount() == 0 {
-			t.Skip("method is unsupported when params.PCount() == 0")
-		}
+	t.Run(testString("RotKeyGen", params), func(t *testing.T) {
 
 		rtg := make([]*RTGProtocol, nbParties)
 		for i := range rtg {
@@ -400,41 +424,59 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 		skOut := testCtx.skIdeal.CopyNew()
 		galElInv := ring.ModExp(galEl, uint64(2*params.N()-1), uint64(2*params.N()))
 		ringQ.PermuteNTT(testCtx.skIdeal.Value.Q, galElInv, skOut.Value.Q)
-		ringP.PermuteNTT(testCtx.skIdeal.Value.P, galElInv, skOut.Value.P)
+
+		if levelP != -1 {
+			ringP.PermuteNTT(testCtx.skIdeal.Value.P, galElInv, skOut.Value.P)
+		}
 
 		swk := rotKeySet.Keys[galEl]
 
 		// Decrypts
 		// [-asIn + w*P*sOut + e, a] + [asIn]
-		for j := range swk.Value {
-			ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, swk.Value[j][1], skOut.Value, swk.Value[j][0])
-
-		}
-
-		// Sums all basis together (equivalent to multiplying with CRT decomposition of 1)
-		// sum([1]_w * [w*P*sOut + e]) = P*sOut + sum(e)
-		for j := range swk.Value {
-			if j > 0 {
-				ringQP.AddLvl(levelQ, levelP, swk.Value[0][0], swk.Value[j][0], swk.Value[0][0])
+		for i := range swk.Value {
+			for j := range swk.Value[i] {
+				ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, swk.Value[i][j].Value[1], skOut.Value, swk.Value[i][j].Value[0])
 			}
 		}
 
-		// sOut * P
-		ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusAtLevel[levelP], skIn.Value.Q)
+		// Sums all basis together (equivalent to multiplying with CRT decomposition of 1)
+		// sum([1]_w * [RNS*PW2*P*sOut + e]) = PWw*P*sOut + sum(e)
+		for i := range swk.Value { // RNS decomp
+			if i > 0 {
+				for j := range swk.Value[i] { // PW2 decomp
+					ringQP.AddLvl(levelQ, levelP, swk.Value[0][j].Value[0], swk.Value[i][j].Value[0], swk.Value[0][j].Value[0])
+				}
+			}
+		}
 
-		// P*s^i + sum(e) - P*s^i = sum(e)
-		ringQ.Sub(swk.Value[0][0].Q, skIn.Value.Q, swk.Value[0][0].Q)
+		if levelP != -1 {
+			// sOut * P
+			ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusAtLevel[levelP], skIn.Value.Q)
+		}
 
-		// Checks that the error is below the bound
-		// Worst error bound is N * floor(6*sigma) * #Keys
-		ringQP.InvNTTLvl(levelQ, levelP, swk.Value[0][0], swk.Value[0][0])
-		ringQP.InvMFormLvl(levelQ, levelP, swk.Value[0][0], swk.Value[0][0])
+		log2Bound := bits.Len64(uint64(params.N() * len(swk.Value) * len(swk.Value[0]) * (params.N()*3*int(math.Floor(rlwe.DefaultSigma*6)) + 2*3*int(math.Floor(rlwe.DefaultSigma*6)) + params.N()*3)))
+		for i := 0; i < decompPw2; i++ {
 
-		// Worst bound of inner sum
-		// N*#Keys*(N * #Parties * floor(sigma*6) + #Parties * floor(sigma*6) + N * #Parties  +  #Parties * floor(6*sigma))
-		log2Bound := bits.Len64(3 * uint64(math.Floor(rlwe.DefaultSigma*6)) * uint64(params.N()))
-		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelQ, ringQ, swk.Value[0][0].Q))
-		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelP, ringP, swk.Value[0][0].P))
+			// P*s^i + sum(e) - P*s^i = sum(e)
+			ringQ.Sub(swk.Value[0][i].Value[0].Q, skIn.Value.Q, swk.Value[0][i].Value[0].Q)
+
+			// Checks that the error is below the bound
+			// Worst error bound is N * floor(6*sigma) * #Keys
+			ringQP.InvNTTLvl(levelQ, levelP, swk.Value[0][i].Value[0], swk.Value[0][i].Value[0])
+			ringQP.InvMFormLvl(levelQ, levelP, swk.Value[0][i].Value[0], swk.Value[0][i].Value[0])
+
+			// Worst bound of inner sum
+			// N*#Keys*(N * #Parties * floor(sigma*6) + #Parties * floor(sigma*6) + N * #Parties  +  #Parties * floor(6*sigma))
+
+			require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelQ, ringQ, swk.Value[0][i].Value[0].Q))
+
+			if levelP != -1 {
+				require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelP, ringP, swk.Value[0][i].Value[0].P))
+			}
+
+			// sOut * P * PW2
+			ringQ.MulScalar(skIn.Value.Q, 1<<params.Pow2Base(), skIn.Value.Q)
+		}
 	})
 }
 
@@ -466,13 +508,13 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 		}
 
 		//comparing the results
-		require.Equal(t, KeyGenShareBefore.Value.Q.Degree(), KeyGenShareAfter.Value.Q.Degree())
-		require.Equal(t, KeyGenShareBefore.Value.Q.LenModuli(), KeyGenShareAfter.Value.Q.LenModuli())
+		require.Equal(t, KeyGenShareBefore.Value.Q.N(), KeyGenShareAfter.Value.Q.N())
+		require.Equal(t, KeyGenShareBefore.Value.Q.Level(), KeyGenShareAfter.Value.Q.Level())
 		require.Equal(t, KeyGenShareAfter.Value.Q.Coeffs, KeyGenShareBefore.Value.Q.Coeffs)
 
 		if params.RingP() != nil {
-			require.Equal(t, KeyGenShareBefore.Value.P.Degree(), KeyGenShareAfter.Value.P.Degree())
-			require.Equal(t, KeyGenShareBefore.Value.P.LenModuli(), KeyGenShareAfter.Value.P.LenModuli())
+			require.Equal(t, KeyGenShareBefore.Value.P.N(), KeyGenShareAfter.Value.P.N())
+			require.Equal(t, KeyGenShareBefore.Value.P.Level(), KeyGenShareAfter.Value.P.Level())
 			require.Equal(t, KeyGenShareAfter.Value.P.Coeffs, KeyGenShareBefore.Value.P.Coeffs)
 		}
 	})
@@ -492,10 +534,10 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 		err = SwitchShareReceiver.UnmarshalBinary(data)
 		require.NoError(t, err)
 
-		require.Equal(t, SwitchShare.Value[0].Degree(), SwitchShareReceiver.Value[0].Degree())
-		require.Equal(t, SwitchShare.Value[1].Degree(), SwitchShareReceiver.Value[1].Degree())
-		require.Equal(t, SwitchShare.Value[0].LenModuli(), SwitchShareReceiver.Value[0].LenModuli())
-		require.Equal(t, SwitchShare.Value[1].LenModuli(), SwitchShareReceiver.Value[1].LenModuli())
+		require.Equal(t, SwitchShare.Value[0].N(), SwitchShareReceiver.Value[0].N())
+		require.Equal(t, SwitchShare.Value[1].N(), SwitchShareReceiver.Value[1].N())
+		require.Equal(t, SwitchShare.Value[0].Level(), SwitchShareReceiver.Value[0].Level())
+		require.Equal(t, SwitchShare.Value[1].Level(), SwitchShareReceiver.Value[1].Level())
 		require.Equal(t, SwitchShare.Value[0].Coeffs, SwitchShareReceiver.Value[0].Coeffs)
 		require.Equal(t, SwitchShare.Value[1].Coeffs, SwitchShareReceiver.Value[1].Coeffs)
 	})
@@ -515,19 +557,13 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 
 		//now compare both shares.
 
-		require.Equal(t, cksshare.Value.Degree(), cksshareAfter.Value.Degree())
-		require.Equal(t, cksshare.Value.LenModuli(), cksshareAfter.Value.LenModuli())
+		require.Equal(t, cksshare.Value.N(), cksshareAfter.Value.N())
+		require.Equal(t, cksshare.Value.Level(), cksshareAfter.Value.Level())
 
 		require.Equal(t, cksshare.Value.Coeffs, cksshareAfter.Value.Coeffs)
 	})
 
 	t.Run(testString("Marshalling/RKG", params), func(t *testing.T) {
-
-		if params.PCount() == 0 {
-			t.Skip("method is unsupported when params.PCount() == 0")
-		}
-
-		//check RTGShare
 
 		RKGProtocol := NewRKGProtocol(params)
 
@@ -545,26 +581,25 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 		require.NoError(t, err)
 
 		require.Equal(t, len(rkgShare.Value), len(share10.Value))
-		for i, val := range share10.Value {
-			require.Equal(t, len(rkgShare.Value[i][0].Q.Coeffs), len(val[0].Q.Coeffs))
-			require.Equal(t, len(rkgShare.Value[i][0].P.Coeffs), len(val[0].P.Coeffs))
-			require.Equal(t, rkgShare.Value[i][0].Q.Coeffs, val[0].Q.Coeffs)
-			require.Equal(t, rkgShare.Value[i][0].P.Coeffs, val[0].P.Coeffs)
+		for i := range share10.Value {
+			for j, val := range share10.Value[i] {
 
-			require.Equal(t, len(rkgShare.Value[i][1].Q.Coeffs), len(val[1].Q.Coeffs))
-			require.Equal(t, len(rkgShare.Value[i][1].P.Coeffs), len(val[1].P.Coeffs))
-			require.Equal(t, rkgShare.Value[i][1].Q.Coeffs, val[1].Q.Coeffs)
-			require.Equal(t, rkgShare.Value[i][1].P.Coeffs, val[1].P.Coeffs)
+				require.Equal(t, len(rkgShare.Value[i][j][0].Q.Coeffs), len(val[0].Q.Coeffs))
+				require.Equal(t, rkgShare.Value[i][j][0].Q.Coeffs, val[0].Q.Coeffs)
+				require.Equal(t, len(rkgShare.Value[i][j][1].Q.Coeffs), len(val[1].Q.Coeffs))
+				require.Equal(t, rkgShare.Value[i][j][1].Q.Coeffs, val[1].Q.Coeffs)
+
+				if params.PCount() != 0 {
+					require.Equal(t, len(rkgShare.Value[i][j][0].P.Coeffs), len(val[0].P.Coeffs))
+					require.Equal(t, rkgShare.Value[i][j][0].P.Coeffs, val[0].P.Coeffs)
+					require.Equal(t, len(rkgShare.Value[i][j][1].P.Coeffs), len(val[1].P.Coeffs))
+					require.Equal(t, rkgShare.Value[i][j][1].P.Coeffs, val[1].P.Coeffs)
+				}
+			}
 		}
 	})
 
 	t.Run(testString("Marshalling/RTG", params), func(t *testing.T) {
-
-		if params.PCount() == 0 {
-			t.Skip("method is unsupported when params.PCount() == 0")
-		}
-
-		//check RTGShare
 
 		galEl := testCtx.params.GaloisElementForColumnRotationBy(64)
 
@@ -584,11 +619,16 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 
 		require.Equal(t, len(resRTGShare.Value), len(rtgShare.Value))
 
-		for i, val := range rtgShare.Value {
-			require.Equal(t, len(resRTGShare.Value[i].Q.Coeffs), len(val.Q.Coeffs))
-			require.Equal(t, resRTGShare.Value[i].Q.Coeffs, val.Q.Coeffs)
-			require.Equal(t, len(resRTGShare.Value[i].P.Coeffs), len(val.P.Coeffs))
-			require.Equal(t, resRTGShare.Value[i].P.Coeffs, val.P.Coeffs)
+		for i := range rtgShare.Value {
+			for j, val := range rtgShare.Value[i] {
+				require.Equal(t, len(resRTGShare.Value[i][j].Q.Coeffs), len(val.Q.Coeffs))
+				require.Equal(t, resRTGShare.Value[i][j].Q.Coeffs, val.Q.Coeffs)
+
+				if params.PCount() != 0 {
+					require.Equal(t, len(resRTGShare.Value[i][j].P.Coeffs), len(val.P.Coeffs))
+					require.Equal(t, resRTGShare.Value[i][j].P.Coeffs, val.P.Coeffs)
+				}
+			}
 		}
 	})
 }

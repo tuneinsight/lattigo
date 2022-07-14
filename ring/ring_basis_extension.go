@@ -338,9 +338,7 @@ func NewDecomposer(ringQ, ringP *Ring) (decomposer *Decomposer) {
 					Qi[k] = Q[i*alpha+k]
 				}
 
-				for k := 0; k < len(Q); k++ {
-					Pi[k] = Q[k]
-				}
+				copy(Pi, Q)
 
 				for k := len(Q); k < len(Q)+len(P); k++ {
 					Pi[k] = P[k-len(Q)]

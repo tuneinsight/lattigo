@@ -1,3 +1,4 @@
+// Package advanced implements advanced operations for the CKKS scheme.
 package advanced
 
 import (
@@ -6,6 +7,7 @@ import (
 	"github.com/tuneinsight/lattigo/v3/ckks"
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 )
 
 // Evaluator is an interface embeding the ckks.Evaluator interface with
@@ -16,14 +18,14 @@ type Evaluator interface {
 	// === Original ckks.Evaluator methods ===
 	// =======================================
 
-	Add(op0, op1 ckks.Operand, ctOut *ckks.Ciphertext)
-	AddNoMod(op0, op1 ckks.Operand, ctOut *ckks.Ciphertext)
-	AddNew(op0, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
-	AddNoModNew(op0, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
-	Sub(op0, op1 ckks.Operand, ctOut *ckks.Ciphertext)
-	SubNoMod(op0, op1 ckks.Operand, ctOut *ckks.Ciphertext)
-	SubNew(op0, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
-	SubNoModNew(op0, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
+	Add(ctIn *ckks.Ciphertext, op1 ckks.Operand, ctOut *ckks.Ciphertext)
+	AddNoMod(ctIn *ckks.Ciphertext, op1 ckks.Operand, ctOut *ckks.Ciphertext)
+	AddNew(ctIn *ckks.Ciphertext, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
+	AddNoModNew(ctIn *ckks.Ciphertext, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
+	Sub(ctIn *ckks.Ciphertext, op1 ckks.Operand, ctOut *ckks.Ciphertext)
+	SubNoMod(ctIn *ckks.Ciphertext, op1 ckks.Operand, ctOut *ckks.Ciphertext)
+	SubNew(ctIn *ckks.Ciphertext, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
+	SubNoModNew(ctIn *ckks.Ciphertext, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
 	Neg(ctIn *ckks.Ciphertext, ctOut *ckks.Ciphertext)
 	NegNew(ctIn *ckks.Ciphertext) (ctOut *ckks.Ciphertext)
 	AddConstNew(ctIn *ckks.Ciphertext, constant interface{}) (ctOut *ckks.Ciphertext)
@@ -39,10 +41,10 @@ type Evaluator interface {
 	DivByi(ctIn *ckks.Ciphertext, ctOut *ckks.Ciphertext)
 	ConjugateNew(ctIn *ckks.Ciphertext) (ctOut *ckks.Ciphertext)
 	Conjugate(ctIn *ckks.Ciphertext, ctOut *ckks.Ciphertext)
-	Mul(op0, op1 ckks.Operand, ctOut *ckks.Ciphertext)
-	MulNew(op0, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
-	MulRelin(op0, op1 ckks.Operand, ctOut *ckks.Ciphertext)
-	MulRelinNew(op0, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
+	Mul(ctIn *ckks.Ciphertext, op1 ckks.Operand, ctOut *ckks.Ciphertext)
+	MulNew(ctIn *ckks.Ciphertext, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
+	MulRelin(ctIn *ckks.Ciphertext, op1 ckks.Operand, ctOut *ckks.Ciphertext)
+	MulRelinNew(ctIn *ckks.Ciphertext, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
 	RotateNew(ctIn *ckks.Ciphertext, k int) (ctOut *ckks.Ciphertext)
 	Rotate(ctIn *ckks.Ciphertext, k int, ctOut *ckks.Ciphertext)
 	RotateHoistedNew(ctIn *ckks.Ciphertext, rotations []int) (ctOut map[int]*ckks.Ciphertext)
@@ -57,14 +59,14 @@ type Evaluator interface {
 	InverseNew(ctIn *ckks.Ciphertext, steps int) (ctOut *ckks.Ciphertext)
 	LinearTransformNew(ctIn *ckks.Ciphertext, linearTransform interface{}) (ctOut []*ckks.Ciphertext)
 	LinearTransform(ctIn *ckks.Ciphertext, linearTransform interface{}, ctOut []*ckks.Ciphertext)
-	MultiplyByDiagMatrix(ctIn *ckks.Ciphertext, matrix ckks.LinearTransform, c2DecompQP []rlwe.PolyQP, ctOut *ckks.Ciphertext)
-	MultiplyByDiagMatrixBSGS(ctIn *ckks.Ciphertext, matrix ckks.LinearTransform, c2DecompQP []rlwe.PolyQP, ctOut *ckks.Ciphertext)
+	MultiplyByDiagMatrix(ctIn *ckks.Ciphertext, matrix ckks.LinearTransform, c2DecompQP []ringqp.Poly, ctOut *ckks.Ciphertext)
+	MultiplyByDiagMatrixBSGS(ctIn *ckks.Ciphertext, matrix ckks.LinearTransform, c2DecompQP []ringqp.Poly, ctOut *ckks.Ciphertext)
 	InnerSumLog(ctIn *ckks.Ciphertext, batch, n int, ctOut *ckks.Ciphertext)
 	InnerSum(ctIn *ckks.Ciphertext, batch, n int, ctOut *ckks.Ciphertext)
 	ReplicateLog(ctIn *ckks.Ciphertext, batch, n int, ctOut *ckks.Ciphertext)
 	Replicate(ctIn *ckks.Ciphertext, batch, n int, ctOut *ckks.Ciphertext)
-	TraceNew(ctIn *ckks.Ciphertext, logSlotsStart, logSlotsEnd int) *ckks.Ciphertext
-	Trace(ctIn *ckks.Ciphertext, logSlotsStart, logSlotsEnd int, ctOut *ckks.Ciphertext)
+	TraceNew(ctIn *ckks.Ciphertext, logSlots int) *ckks.Ciphertext
+	Trace(ctIn *ckks.Ciphertext, logSlots int, ctOut *ckks.Ciphertext)
 	SwitchKeysNew(ctIn *ckks.Ciphertext, switchingKey *rlwe.SwitchingKey) (ctOut *ckks.Ciphertext)
 	SwitchKeys(ctIn *ckks.Ciphertext, switchingKey *rlwe.SwitchingKey, ctOut *ckks.Ciphertext)
 	RelinearizeNew(ctIn *ckks.Ciphertext) (ctOut *ckks.Ciphertext)
@@ -92,7 +94,7 @@ type Evaluator interface {
 	// === original ckks.Evaluator redefined methods ===
 	// =================================================
 
-	GetKeySwitcher() *rlwe.KeySwitcher
+	GetRLWEEvaluator() *rlwe.Evaluator
 	BuffQ() [3]*ring.Poly
 	BuffCt() *ckks.Ciphertext
 	ShallowCopy() Evaluator
@@ -142,32 +144,39 @@ func (eval *evaluator) CoeffsToSlotsNew(ctIn *ckks.Ciphertext, ctsMatrices Encod
 // If the packing is sparse (n < N/2), then returns ctReal = Ecd(vReal || vImag) and ctImag = nil.
 // If the packing is dense (n == N/2), then returns ctReal = Ecd(vReal) and ctImag = Ecd(vImag).
 func (eval *evaluator) CoeffsToSlots(ctIn *ckks.Ciphertext, ctsMatrices EncodingMatrix, ctReal, ctImag *ckks.Ciphertext) {
-	zV := ctIn.CopyNew()
-	eval.dft(ctIn, ctsMatrices.matrices, zV)
 
-	eval.Conjugate(zV, ctReal)
+	if ctsMatrices.RepackImag2Real {
 
-	var tmp *ckks.Ciphertext
-	if ctImag != nil {
-		tmp = ctImag
+		zV := ctIn.CopyNew()
+
+		eval.dft(ctIn, ctsMatrices.matrices, zV)
+
+		eval.Conjugate(zV, ctReal)
+
+		var tmp *ckks.Ciphertext
+		if ctImag != nil {
+			tmp = ctImag
+		} else {
+			tmp = ckks.NewCiphertextAtLevelFromPoly(ctReal.Level(), [2]*ring.Poly{eval.BuffCt().Value[0], eval.BuffCt().Value[1]})
+		}
+
+		// Imag part
+		eval.Sub(zV, ctReal, tmp)
+		eval.DivByi(tmp, tmp)
+
+		// Real part
+		eval.Add(ctReal, zV, ctReal)
+
+		// If repacking, then ct0 and ct1 right n/2 slots are zero.
+		if eval.params.LogSlots() < eval.params.LogN()-1 {
+			eval.Rotate(tmp, eval.params.Slots(), tmp)
+			eval.Add(ctReal, tmp, ctReal)
+		}
+
+		zV = nil
 	} else {
-		tmp = ckks.NewCiphertextAtLevelFromPoly(ctReal.Level(), [2]*ring.Poly{eval.BuffCt().Value[0], eval.BuffCt().Value[1]})
+		eval.dft(ctIn, ctsMatrices.matrices, ctReal)
 	}
-
-	// Imag part
-	eval.Sub(zV, ctReal, tmp)
-	eval.DivByi(tmp, tmp)
-
-	// Real part
-	eval.Add(ctReal, zV, ctReal)
-
-	// If repacking, then ct0 and ct1 right n/2 slots are zero.
-	if eval.params.LogSlots() < eval.params.LogN()-1 {
-		eval.Rotate(tmp, eval.params.Slots(), tmp)
-		eval.Add(ctReal, tmp, ctReal)
-	}
-
-	zV = nil
 }
 
 // SlotsToCoeffsNew applies the homomorphic decoding and returns the result on a new ciphertext.
@@ -199,8 +208,6 @@ func (eval *evaluator) SlotsToCoeffs(ctReal, ctImag *ckks.Ciphertext, stcMatrice
 	} else {
 		eval.dft(ctReal, stcMatrices.matrices, ctOut)
 	}
-
-	return
 }
 
 func (eval *evaluator) dft(ctIn *ckks.Ciphertext, plainVectors []ckks.LinearTransform, ctOut *ckks.Ciphertext) {
@@ -217,8 +224,6 @@ func (eval *evaluator) dft(ctIn *ckks.Ciphertext, plainVectors []ckks.LinearTran
 			panic(err)
 		}
 	}
-
-	return
 }
 
 // EvalModNew applies a homomorphic mod Q on a vector scaled by Delta, scaled down to mod 1 :

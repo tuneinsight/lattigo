@@ -5,6 +5,7 @@ import (
 
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
@@ -13,12 +14,12 @@ type ShamirPublicKey uint64
 
 // ShamirPolynomial is a type for a share-generating polynomial.
 type ShamirPolynomial struct {
-	coeffs []rlwe.PolyQP
+	coeffs []ringqp.Poly
 }
 
 // ShamirSecretShare is a type for a share of a secret key in a thresholdizer.
 type ShamirSecretShare struct {
-	rlwe.PolyQP
+	ringqp.Poly
 }
 
 // ThresholdizerProtocol is an interface describing the local steps of a generic
@@ -40,10 +41,11 @@ type Combiner interface {
 
 //Thresholdizer is the structure containing the parameters for a thresholdizer.
 type Thresholdizer struct {
-	params   *rlwe.Parameters
-	ringQP   *rlwe.RingQP
-	samplerQ *ring.UniformSampler
-	samplerP *ring.UniformSampler
+	params *rlwe.Parameters
+	ringQP *ringqp.Ring
+	//samplerQ *ring.UniformSampler
+	//samplerP *ring.UniformSampler
+	usampler ringqp.UniformSampler
 }
 
 // NewThresholdizer creates a new Thresholdizer instance from parameters.
@@ -58,8 +60,7 @@ func NewThresholdizer(params rlwe.Parameters) *Thresholdizer {
 		panic("Error in Thresholdizer initalization : error in PRNG generation")
 	}
 
-	thresholdizer.samplerQ = ring.NewUniformSampler(prng, params.RingQ())
-	thresholdizer.samplerP = ring.NewUniformSampler(prng, params.RingP())
+	thresholdizer.usampler = ringqp.NewUniformSampler(prng, *params.RingQP())
 
 	return thresholdizer
 }
@@ -70,11 +71,11 @@ func (thresholdizer *Thresholdizer) GenShamirPolynomial(threshold int, sk *rlwe.
 	if threshold < 1 {
 		return nil, fmt.Errorf("threshold should be >= 1")
 	}
-	gen := &ShamirPolynomial{coeffs: make([]rlwe.PolyQP, int(threshold))}
+	gen := &ShamirPolynomial{coeffs: make([]ringqp.Poly, int(threshold))}
 	gen.coeffs[0] = sk.Value // using the sk Poly directly since gen.coeffs is private and never modified internally.
 	for i := 1; i < threshold; i++ {
-		gen.coeffs[i].Q = thresholdizer.samplerQ.ReadNew()
-		gen.coeffs[i].P = thresholdizer.samplerP.ReadNew()
+		gen.coeffs[i] = thresholdizer.ringQP.NewPoly()
+		thresholdizer.usampler.Read(gen.coeffs[i])
 	}
 	return gen, nil
 }
@@ -88,20 +89,20 @@ func (thresholdizer *Thresholdizer) AllocateThresholdSecretShare() *ShamirSecret
 // Stores the result in share_out. This result should be sent to the given
 // threshold public key's owner.
 func (thresholdizer *Thresholdizer) GenShamirSecretShare(recipient ShamirPublicKey, secretPoly *ShamirPolynomial, shareOut *ShamirSecretShare) {
-	thresholdizer.ringQP.EvalPolMontgomeryScalarNTT(secretPoly.coeffs, uint64(recipient), shareOut.PolyQP)
+	thresholdizer.ringQP.EvalPolMontgomeryScalarNTT(secretPoly.coeffs, uint64(recipient), shareOut.Poly)
 }
 
 // AggregateShares aggregates two secret shares(by adding them), and stores them
 // in outShare.
 func (thresholdizer *Thresholdizer) AggregateShares(share1, share2, outShare *ShamirSecretShare) {
 	lvlQ, lvlP := thresholdizer.params.QCount()-1, thresholdizer.params.PCount()-1
-	thresholdizer.ringQP.AddLvl(lvlQ, lvlP, share1.PolyQP, share2.PolyQP, outShare.PolyQP)
+	thresholdizer.ringQP.AddLvl(lvlQ, lvlP, share1.Poly, share2.Poly, outShare.Poly)
 }
 
 // baseCombiner is a structure that holds the parameters for the combining phase of
 // a threshold secret sharing protocol.
 type baseCombiner struct {
-	ringQP     *rlwe.RingQP
+	ringQP     *ringqp.Ring
 	threshold  int
 	tmp1, tmp2 []uint64
 	one        ring.RNSScalar
@@ -119,9 +120,12 @@ func NewCombiner(params rlwe.Parameters, threshold int) Combiner {
 	for i, qi := range cmb.ringQP.RingQ.Modulus {
 		cmb.one[i] = ring.MForm(cmb.one[i], qi, cmb.ringQP.RingQ.BredParams[i])
 	}
-	for i, pi := range cmb.ringQP.RingP.Modulus {
-		cmb.one[i+qlen] = ring.MForm(cmb.one[i+qlen], pi, cmb.ringQP.RingP.BredParams[i])
+	if cmb.ringQP.RingP != nil {
+		for i, pi := range cmb.ringQP.RingP.Modulus {
+			cmb.one[i+qlen] = ring.MForm(cmb.one[i+qlen], pi, cmb.ringQP.RingP.BredParams[i])
+		}
 	}
+
 	return cmb
 }
 
@@ -145,7 +149,7 @@ func (cmb *baseCombiner) GenAdditiveShare(actives []ShamirPublicKey, ownPublic S
 		}
 	}
 
-	cmb.ringQP.MulScalarCRT(ownSecret.PolyQP, prod, skOut.Value)
+	cmb.ringQP.MulScalarCRT(ownSecret.Poly, prod, skOut.Value)
 }
 
 // lagrangeCoeff computes the difference between the two given keys and stores

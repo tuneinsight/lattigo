@@ -59,11 +59,15 @@ func (share *MaskedTransformShare) MarshalBinary() ([]byte, error) {
 }
 
 // UnmarshalBinary decodes a marshaled RefreshShare on the target RefreshShare.
-func (share *MaskedTransformShare) UnmarshalBinary(data []byte) error {
+func (share *MaskedTransformShare) UnmarshalBinary(data []byte) (err error) {
 	shareLen := len(data) >> 1
-	share.e2sShare.UnmarshalBinary(data[:shareLen])
-	share.s2eShare.UnmarshalBinary(data[shareLen:])
-	return nil
+	if err = share.e2sShare.UnmarshalBinary(data[:shareLen]); err != nil {
+		return
+	}
+	if err = share.s2eShare.UnmarshalBinary(data[shareLen:]); err != nil {
+		return
+	}
+	return
 }
 
 // NewMaskedTransformProtocol creates a new instance of the PermuteProtocol.
@@ -104,8 +108,8 @@ func (rfp *MaskedTransformProtocol) GenShare(sk *rlwe.SecretKey, c1 *ring.Poly, 
 	rfp.s2e.GenShare(sk, crs, &rlwe.AdditiveShare{Value: *mask}, &shareOut.s2eShare)
 }
 
-// Aggregate sums share1 and share2 on shareOut.
-func (rfp *MaskedTransformProtocol) Aggregate(share1, share2, shareOut *MaskedTransformShare) {
+// AggregateShare sums share1 and share2 on shareOut.
+func (rfp *MaskedTransformProtocol) AggregateShare(share1, share2, shareOut *MaskedTransformShare) {
 	rfp.e2s.params.RingQ().Add(share1.e2sShare.Value, share2.e2sShare.Value, shareOut.e2sShare.Value)
 	rfp.e2s.params.RingQ().Add(share1.s2eShare.Value, share2.s2eShare.Value, shareOut.s2eShare.Value)
 }

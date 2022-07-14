@@ -64,8 +64,9 @@ func TestRing(t *testing.T) {
 
 		var tc *testParams
 		if tc, err = genTestParams(defaultParam); err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
+
 		testNTTConjugateInvariant(tc, t)
 		testPRNG(tc, t)
 		testGenerateNTTPrimes(tc, t)
@@ -76,12 +77,12 @@ func TestRing(t *testing.T) {
 		testUniformSampler(tc, t)
 		testGaussianSampler(tc, t)
 		testTernarySampler(tc, t)
-		testGaloisShift(tc, t)
 		testModularReduction(tc, t)
 		testMForm(tc, t)
 		testMulScalarBigint(tc, t)
 		testExtendBasis(tc, t)
 		testMultByMonomial(tc, t)
+
 	}
 }
 
@@ -95,11 +96,10 @@ func testNTTConjugateInvariant(tc *testParams, t *testing.T) {
 
 		sampler := NewUniformSampler(tc.prng, ringQ)
 		p1 := sampler.ReadNew()
-		p2 := p1.CopyNew()
+		p2 := ringQ2N.NewPoly()
 
 		for i, qi := range ringQ.Modulus {
-			p2.Coeffs[i] = append(p2.Coeffs[i], make([]uint64, ringQ.N)...)
-			p2.Coeffs[i][ringQ.N] = 0
+			copy(p2.Coeffs[i], p1.Coeffs[i])
 			for j := 1; j < ringQ.N; j++ {
 				p2.Coeffs[i][ringQ.N*2-j] = qi - p2.Coeffs[i][j]
 			}
@@ -170,19 +170,19 @@ func testNewRing(t *testing.T) {
 
 func testPRNG(tc *testParams, t *testing.T) {
 
-	sum := make([]byte, tc.ringQ.N)
 	t.Run(testString("PRNG/", tc.ringQ), func(t *testing.T) {
-		prng1, err := utils.NewKeyedPRNG(nil)
-		if err != nil {
-			panic(err)
-		}
-		prng2, err := utils.NewKeyedPRNG(nil)
-		if err != nil {
-			panic(err)
+
+		var err error
+
+		var prng1, prng2 utils.PRNG
+
+		if prng1, err = utils.NewKeyedPRNG(nil); err != nil {
+			t.Error(err)
 		}
 
-		prng1.SetClock(sum, 256)
-		prng2.SetClock(sum, 256)
+		if prng2, err = utils.NewKeyedPRNG(nil); err != nil {
+			t.Error(err)
+		}
 
 		crsGenerator1 := NewUniformSampler(prng1, tc.ringQ)
 		crsGenerator2 := NewUniformSampler(prng2, tc.ringQ)
@@ -301,10 +301,17 @@ func testMarshalBinary(tc *testParams, t *testing.T) {
 
 	t.Run(testString("MarshalBinary/Ring/", tc.ringQ), func(t *testing.T) {
 
-		data, _ := tc.ringQ.MarshalBinary()
+		var err error
+
+		var data []byte
+		if data, err = tc.ringQ.MarshalBinary(); err != nil {
+			t.Error(err)
+		}
 
 		ringQTest := new(Ring)
-		ringQTest.UnmarshalBinary(data)
+		if err = ringQTest.UnmarshalBinary(data); err != nil {
+			t.Error(err)
+		}
 
 		require.Equal(t, ringQTest.N, tc.ringQ.N)
 		require.Equal(t, ringQTest.Modulus, tc.ringQ.Modulus)
@@ -312,12 +319,19 @@ func testMarshalBinary(tc *testParams, t *testing.T) {
 
 	t.Run(testString("MarshalBinary/Poly/", tc.ringQ), func(t *testing.T) {
 
+		var err error
+
 		p := tc.uniformSamplerQ.ReadNew()
-		pTest := tc.ringQ.NewPoly()
 
-		data, _ := p.MarshalBinary()
+		var data []byte
+		if data, err = p.MarshalBinary(); err != nil {
+			t.Error(err)
+		}
 
-		_ = pTest.UnmarshalBinary(data)
+		pTest := new(Poly)
+		if err = pTest.UnmarshalBinary(data); err != nil {
+			t.Error(err)
+		}
 
 		for i := range tc.ringQ.Modulus {
 			require.Equal(t, p.Coeffs[i][:tc.ringQ.N], pTest.Coeffs[i][:tc.ringQ.N])
@@ -549,28 +563,6 @@ func testModularReduction(tc *testParams, t *testing.T) {
 			result.Mod(result, bigQ)
 
 			require.Equalf(t, MRed(x, MForm(y, q, bredParams), q, mredparams), result.Uint64(), "x = %v, y=%v", x, y)
-		}
-	})
-}
-
-func testGaloisShift(tc *testParams, t *testing.T) {
-
-	t.Run(testString("GaloisShift/", tc.ringQ), func(t *testing.T) {
-
-		pWant := tc.uniformSamplerQ.ReadNew()
-		pTest := pWant.CopyNew()
-
-		tc.ringQ.BitReverse(pTest, pTest)
-		tc.ringQ.InvNTT(pTest, pTest)
-		tc.ringQ.Rotate(pTest, 1, pTest)
-		tc.ringQ.NTT(pTest, pTest)
-		tc.ringQ.BitReverse(pTest, pTest)
-		tc.ringQ.Reduce(pTest, pTest)
-
-		tc.ringQ.Shift(pWant, 1, pWant)
-
-		for i := range tc.ringQ.Modulus {
-			require.Equal(t, pTest.Coeffs[i][:tc.ringQ.N], pWant.Coeffs[i][:tc.ringQ.N])
 		}
 	})
 }

@@ -44,20 +44,18 @@ type testContext struct {
 var (
 	// TESTTDivQN2Q1P is a set of test parameters where T = Q[0].
 	TESTTDivQN2Q1P = ParametersLiteral{
-		LogN:  14,
-		T:     0x10001,
-		Q:     []uint64{0x10001, 0xffffffffffe8001, 0xffffffffffd8001, 0xffffffffffc0001, 0xffffffffff28001},
-		P:     []uint64{0x1fffffffffe10001, 0x1fffffffffe00001},
-		Sigma: rlwe.DefaultSigma,
+		LogN: 14,
+		Q:    []uint64{0x10001, 0xffffffffffe8001, 0xffffffffffd8001, 0xffffffffffc0001, 0xffffffffff28001},
+		P:    []uint64{0x1fffffffffe10001, 0x1fffffffffe00001},
+		T:    0x10001,
 	}
 
 	// TESTTCPrimeQN2Q1P is a set of test parameters where T is coprime with Q.
 	TESTTCPrimeQN2Q1P = ParametersLiteral{
-		LogN:  14,
-		T:     0x10001,
-		Q:     []uint64{0xffffffffffe8001, 0xffffffffffd8001, 0xffffffffffc0001, 0xffffffffff28001},
-		P:     []uint64{0x1fffffffffe10001, 0x1fffffffffe00001},
-		Sigma: rlwe.DefaultSigma,
+		LogN: 14,
+		Q:    []uint64{0xffffffffffe8001, 0xffffffffffd8001, 0xffffffffffc0001, 0xffffffffff28001},
+		P:    []uint64{0x1fffffffffe10001, 0x1fffffffffe00001},
+		T:    0x10001,
 	}
 
 	// TestParams is a set of test parameters for BFV ensuring 128 bit security in the classic setting.
@@ -65,6 +63,8 @@ var (
 )
 
 func TestBFV(t *testing.T) {
+
+	var err error
 
 	var paramsLiterals []ParametersLiteral
 
@@ -80,26 +80,33 @@ func TestBFV(t *testing.T) {
 
 	if *flagParamString != "" {
 		var jsonParams ParametersLiteral
-		json.Unmarshal([]byte(*flagParamString), &jsonParams)
+		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
+			t.Fatal(err)
+		}
 		paramsLiterals = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
 	for _, p := range paramsLiterals[:] {
 
-		params, err := NewParametersFromLiteral(p)
-		assert.Nil(t, err)
+		var params Parameters
+		if params, err = NewParametersFromLiteral(p); err != nil {
+			t.Fatal(err)
+		}
 
-		tc, err := genTestParams(params)
-		assert.Nil(t, err)
+		var tc *testContext
+		if tc, err = genTestParams(params); err != nil {
+			t.Fatal(err)
+		}
 
 		for _, testSet := range []func(tc *testContext, t *testing.T){
 			testParameters,
 			testScaler,
 			testEncoder,
+			testEncryptor,
 			testEvaluator,
 			testPolyEval,
-			testEvaluatorKeySwitch,
 			testEvaluatorRotate,
+			testEvaluatorKeySwitch,
 			testMarshaller,
 		} {
 			testSet(tc, t)
@@ -123,9 +130,8 @@ func genTestParams(params Parameters) (tc *testContext, err error) {
 	tc.uSampler = ring.NewUniformSampler(tc.prng, tc.ringT)
 	tc.kgen = NewKeyGenerator(tc.params)
 	tc.sk, tc.pk = tc.kgen.GenKeyPair()
-	if params.PCount() != 0 {
-		tc.rlk = tc.kgen.GenRelinearizationKey(tc.sk, 1)
-	}
+
+	tc.rlk = tc.kgen.GenRelinearizationKey(tc.sk, 1)
 
 	tc.encoder = NewEncoder(tc.params)
 	tc.encryptorPk = NewEncryptor(tc.params, tc.pk)
@@ -133,13 +139,20 @@ func genTestParams(params Parameters) (tc *testContext, err error) {
 	tc.decryptor = NewDecryptor(tc.params, tc.sk)
 	tc.evaluator = NewEvaluator(tc.params, rlwe.EvaluationKey{Rlk: tc.rlk})
 
+	tc.testLevel = []int{params.MaxLevel()}
 	if params.T() == params.Q()[0] {
-		tc.testLevel = []int{1, params.MaxLevel()}
+		if params.MaxLevel() != 1 {
+			tc.testLevel = append(tc.testLevel, 1)
+		}
 	} else {
-		tc.testLevel = []int{0, params.MaxLevel()}
-
 		if 2*bits.Len64(params.T())+params.LogN() > bits.Len64(params.Q()[0]) {
-			tc.testLevel[0]++
+			if params.MaxLevel() != 1 {
+				tc.testLevel = append(tc.testLevel, 1)
+			}
+		} else {
+			if params.MaxLevel() != 0 {
+				tc.testLevel = append(tc.testLevel, 0)
+			}
 		}
 	}
 
@@ -317,6 +330,51 @@ func testEncoder(tc *testContext, t *testing.T) {
 			verifyTestVectors(tc, nil, values, plaintext, t)
 		})
 	}
+}
+
+func testEncryptor(tc *testContext, t *testing.T) {
+	for _, lvl := range tc.testLevel {
+		t.Run(testString("Encryptor/Encrypt/key=pk", tc.params, lvl), func(t *testing.T) {
+			values1, _, ciphertext1 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
+			verifyTestVectors(tc, tc.decryptor, values1, ciphertext1, t)
+		})
+	}
+	for _, lvl := range tc.testLevel {
+		t.Run(testString("Encryptor/Encrypt/key=sk", tc.params, lvl), func(t *testing.T) {
+			values1, _, ciphertext1 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorSk, t)
+			verifyTestVectors(tc, tc.decryptor, values1, ciphertext1, t)
+		})
+	}
+
+	zero := tc.ringT.NewPoly()
+	for _, lvl := range tc.testLevel {
+		t.Run(testString("Encryptor/EncryptZero/key=pk", tc.params, lvl), func(t *testing.T) {
+			ct := tc.encryptorPk.EncryptZeroNew()
+			verifyTestVectors(tc, tc.decryptor, zero, ct, t)
+		})
+	}
+	for _, lvl := range tc.testLevel {
+		t.Run(testString("Encryptor/EncryptZero/key=sk", tc.params, lvl), func(t *testing.T) {
+			ct := tc.encryptorSk.EncryptZeroNew()
+			verifyTestVectors(tc, tc.decryptor, zero, ct, t)
+		})
+	}
+
+	for _, lvl := range tc.testLevel {
+		t.Run(testString("Encryptor/WithPRNG/Encrypt", tc.params, lvl), func(t *testing.T) {
+			enc := NewPRNGEncryptor(tc.params, tc.sk)
+			prng1, _ := utils.NewKeyedPRNG([]byte{'l'})
+			prng2, _ := utils.NewKeyedPRNG([]byte{'l'})
+			sampler := ring.NewUniformSampler(prng2, tc.ringQ)
+			values1, pt, _ := newTestVectorsRingQLvl(lvl, tc, nil, t)
+			ciphertext := enc.WithPRNG(prng1).EncryptNew(pt)
+			c1Want := sampler.ReadLvlNew(lvl)
+			tc.params.RingQ().InvNTTLvl(lvl, c1Want, c1Want)
+			assert.True(t, c1Want.Equals(ciphertext.Value[1]))
+			verifyTestVectors(tc, tc.decryptor, values1, ciphertext, t)
+		})
+	}
+
 }
 
 func testEvaluator(tc *testContext, t *testing.T) {
@@ -551,7 +609,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 			values1, _, ciphertext1 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
 			values2, _, ciphertext2 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
 			values3, _, ciphertext3 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			ciphertext3.Resize(tc.params.Parameters, 2)
+			ciphertext3.Resize(2, ciphertext3.Level())
 			tc.evaluator.MulAndAdd(ciphertext1, ciphertext2, ciphertext3)
 			tc.ringT.MulCoeffs(values1, values2, values1)
 			tc.ringT.Add(values3, values1, values3)
@@ -642,11 +700,6 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		}
 
 		t.Run(testString("Evaluator/Mul/Relinearize", tc.params, lvl), func(t *testing.T) {
-
-			if tc.params.PCount() == 0 {
-				t.Skip("#Pi is empty")
-			}
-
 			values1, _, ciphertext1 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
 			values2, _, ciphertext2 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
 			receiver := NewCiphertextLvl(tc.params, ciphertext1.Degree()+ciphertext2.Degree(), lvl)
@@ -681,7 +734,8 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		verifyTestVectors(tc, tc.decryptor, values1, ciphertext1, t)
 	})
 
-	t.Run(testString("Evaluator/RescaleTo/ThenMulRelin", tc.params, 1), func(t *testing.T) {
+	t.Run(testString("Evaluator/RescaleTo/MulRelin", tc.params, 1), func(t *testing.T) {
+
 		values1, _, ciphertext1 := newTestVectorsRingQLvl(tc.params.MaxLevel(), tc, tc.encryptorPk, t)
 		values2, _, ciphertext2 := newTestVectorsRingQLvl(tc.params.MaxLevel(), tc, tc.encryptorPk, t)
 		tc.evaluator.RescaleTo(1, ciphertext1, ciphertext1)
@@ -726,9 +780,6 @@ func testPolyEval(tc *testContext, t *testing.T) {
 
 	for _, lvl := range []int{tc.params.MaxLevel(), tc.params.MaxLevel() - 1} {
 		t.Run(testString("PolyEval/Single", tc.params, lvl), func(t *testing.T) {
-			if tc.params.PCount() == 0 {
-				t.Skip("#Pi is empty")
-			}
 
 			if (tc.params.LogQ()-tc.params.LogT())/(tc.params.LogT()+tc.params.LogN()) < 5 {
 				t.Skip("Homomorphic Capacity Too Low")
@@ -747,7 +798,7 @@ func testPolyEval(tc *testContext, t *testing.T) {
 
 			var err error
 			if ciphertext, err = tc.evaluator.EvaluatePoly(ciphertext, poly); err != nil {
-				t.Fail()
+				t.Fatal(err)
 			}
 
 			verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
@@ -757,11 +808,8 @@ func testPolyEval(tc *testContext, t *testing.T) {
 	for _, lvl := range []int{tc.params.MaxLevel(), tc.params.MaxLevel() - 1} {
 		t.Run(testString("PolyEval/Vector", tc.params, lvl), func(t *testing.T) {
 
-			if tc.params.PCount() == 0 {
-				t.Skip("#Pi is empty")
-			}
-
 			if (tc.params.LogQ()-tc.params.LogT()-tc.params.LogN())/(tc.params.LogT()+tc.params.LogN()) < 5 {
+
 				t.Skip("Homomorphic Capacity Too Low")
 			}
 
@@ -792,7 +840,7 @@ func testPolyEval(tc *testContext, t *testing.T) {
 
 			var err error
 			if ciphertext, err = tc.evaluator.EvaluatePolyVector(ciphertext, polyVec, tc.encoder, slotIndex); err != nil {
-				t.Fail()
+				t.Fatal(err)
 			}
 
 			verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
@@ -808,11 +856,6 @@ func testEvaluatorKeySwitch(tc *testContext, t *testing.T) {
 
 	for _, lvl := range tc.testLevel {
 		t.Run(testString("Evaluator/KeySwitch/InPlace", tc.params, lvl), func(t *testing.T) {
-
-			if tc.params.PCount() == 0 {
-				t.Skip("#Pi is empty")
-			}
-
 			values, _, ciphertext := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
 			tc.evaluator.SwitchKeys(ciphertext, switchKey, ciphertext)
 			verifyTestVectors(tc, decryptorSk2, values, ciphertext, t)
@@ -821,11 +864,6 @@ func testEvaluatorKeySwitch(tc *testContext, t *testing.T) {
 
 	for _, lvl := range tc.testLevel {
 		t.Run(testString("Evaluator/KeySwitch/New", tc.params, lvl), func(t *testing.T) {
-
-			if tc.params.PCount() == 0 {
-				t.Skip("#Pi is empty")
-			}
-
 			values, _, ciphertext := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
 			ciphertext = tc.evaluator.SwitchKeysNew(ciphertext, switchKey)
 			verifyTestVectors(tc, decryptorSk2, values, ciphertext, t)
@@ -835,10 +873,6 @@ func testEvaluatorKeySwitch(tc *testContext, t *testing.T) {
 }
 
 func testEvaluatorRotate(tc *testContext, t *testing.T) {
-
-	if tc.params.PCount() == 0 {
-		t.Skip("#Pi is empty")
-	}
 
 	rots := []int{1, -1, 4, -4, 63, -63}
 	rotkey := tc.kgen.GenRotationKeysForRotations(rots, true, tc.sk)

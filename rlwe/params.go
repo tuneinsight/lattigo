@@ -1,3 +1,4 @@
+// Package rlwe implements the generic operations that are common to R-LWE schemes. The other implemented schemes extend this package with their specific operations and structures.
 package rlwe
 
 import (
@@ -8,6 +9,7 @@ import (
 	"math/bits"
 
 	"github.com/tuneinsight/lattigo/v3/ring"
+	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
@@ -28,7 +30,7 @@ const DefaultSigma = 3.2
 
 // GaloisGen is an integer of order N=2^d modulo M=2N and that spans Z_M with the integer -1.
 // The j-th ring automorphism takes the root zeta to zeta^(5j).
-const GaloisGen uint64 = 5
+const GaloisGen uint64 = ring.GaloisGen
 
 // ParametersLiteral is a literal representation of BFV parameters.  It has public
 // fields and is used to express unchecked user-defined parameters literally into
@@ -39,7 +41,9 @@ const GaloisGen uint64 = 5
 // the Q and P fields to the desired moduli chain, or by setting the LogQ and LogP fields to
 // the desired moduli sizes.
 //
-// Optionally, users may specify the error variance (Sigma) and secrets' density (H) and the ring
+// Optionally, users may specify
+// - the base 2 decomposition for the gadget ciphertexts
+// - the error variance (Sigma) and secrets' density (H) and the ring
 // type (RingType). If left unset, standard default values for these field are substituted at
 // parameter creation (see NewParametersFromLiteral).
 type ParametersLiteral struct {
@@ -48,6 +52,7 @@ type ParametersLiteral struct {
 	P        []uint64
 	LogQ     []int `json:",omitempty"`
 	LogP     []int `json:",omitempty"`
+	Pow2Base int
 	Sigma    float64
 	H        int
 	RingType ring.Type
@@ -59,6 +64,7 @@ type Parameters struct {
 	logN     int
 	qi       []uint64
 	pi       []uint64
+	pow2Base int
 	sigma    float64
 	h        int
 	ringQ    *ring.Ring
@@ -69,16 +75,27 @@ type Parameters struct {
 // NewParameters returns a new set of generic RLWE parameters from the given ring degree logn, moduli q and p, and
 // error distribution parameter sigma. It returns the empty parameters Parameters{} and a non-nil error if the
 // specified parameters are invalid.
-func NewParameters(logn int, q, p []uint64, h int, sigma float64, ringType ring.Type) (Parameters, error) {
+func NewParameters(logn int, q, p []uint64, pow2Base, h int, sigma float64, ringType ring.Type) (Parameters, error) {
+
+	if pow2Base != 0 && len(p) > 1 {
+		return Parameters{}, fmt.Errorf("rlwe.NewParameters: invalid parameters, cannot have pow2Base > 0 if len(P) > 1")
+	}
+
+	var lenP int
+	if p != nil {
+		lenP = len(p)
+	}
+
 	var err error
-	if err = checkSizeParams(logn, len(q), len(p)); err != nil {
+	if err = checkSizeParams(logn, len(q), lenP); err != nil {
 		return Parameters{}, err
 	}
 
 	params := Parameters{
 		logN:     logn,
-		pi:       make([]uint64, len(p)),
 		qi:       make([]uint64, len(q)),
+		pi:       make([]uint64, lenP),
+		pow2Base: pow2Base,
 		h:        h,
 		sigma:    sigma,
 		ringType: ringType,
@@ -91,7 +108,10 @@ func NewParameters(logn int, q, p []uint64, h int, sigma float64, ringType ring.
 	}
 
 	copy(params.qi, q)
-	copy(params.pi, p)
+
+	if p != nil {
+		copy(params.pi, p)
+	}
 
 	return params, params.initRings()
 }
@@ -121,9 +141,9 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
 	}
 
 	switch {
-	case paramDef.Q != nil && paramDef.LogQ == nil && paramDef.P != nil && paramDef.LogP == nil:
-		return NewParameters(paramDef.LogN, paramDef.Q, paramDef.P, paramDef.H, paramDef.Sigma, paramDef.RingType)
-	case paramDef.LogQ != nil && paramDef.Q == nil && paramDef.LogP != nil && paramDef.P == nil:
+	case paramDef.Q != nil && paramDef.LogQ == nil:
+		return NewParameters(paramDef.LogN, paramDef.Q, paramDef.P, paramDef.Pow2Base, paramDef.H, paramDef.Sigma, paramDef.RingType)
+	case paramDef.LogQ != nil && paramDef.Q == nil:
 		var q, p []uint64
 		var err error
 		switch paramDef.RingType {
@@ -132,14 +152,14 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
 		case ring.ConjugateInvariant:
 			q, p, err = GenModuli(paramDef.LogN+1, paramDef.LogQ, paramDef.LogP)
 		default:
-			panic("invalid ring type")
+			return Parameters{}, fmt.Errorf("rlwe.NewParametersFromLiteral: invalid ring.Type, must be ring.ConjugateInvariant or ring.Standard")
 		}
 		if err != nil {
 			return Parameters{}, err
 		}
-		return NewParameters(paramDef.LogN, q, p, paramDef.H, paramDef.Sigma, paramDef.RingType)
+		return NewParameters(paramDef.LogN, q, p, paramDef.Pow2Base, paramDef.H, paramDef.Sigma, paramDef.RingType)
 	default:
-		return Parameters{}, fmt.Errorf("invalid parameter literal")
+		return Parameters{}, fmt.Errorf("rlwe.NewParametersFromLiteral: invalid parameter literal")
 	}
 }
 
@@ -184,8 +204,8 @@ func (p Parameters) RingP() *ring.Ring {
 }
 
 // RingQP returns a pointer to ringQP
-func (p Parameters) RingQP() *RingQP {
-	return &RingQP{p.ringQ, p.ringP}
+func (p Parameters) RingQP() *ringqp.Ring {
+	return &ringqp.Ring{RingQ: p.ringQ, RingP: p.ringP}
 }
 
 // HammingWeight returns the number of non-zero coefficients in secret-keys.
@@ -305,18 +325,41 @@ func (p Parameters) LogQP() int {
 	return tmp.BitLen()
 }
 
-// Alpha returns the number of moduli in in P
-func (p Parameters) Alpha() int {
-	return p.PCount()
+// Pow2Base returns the base 2^x decomposition used for the key-switching keys.
+// Returns 0 if no decomposition is used (the case where x = 0).
+func (p Parameters) Pow2Base() int {
+	return p.pow2Base
 }
 
-// Beta returns the number of element in the RNS decomposition basis: Ceil(lenQi / lenPi)
-func (p Parameters) Beta() int {
-	if p.Alpha() != 0 {
-		return int(math.Ceil(float64(p.QCount()) / float64(p.Alpha())))
+// MaxBit returns max(max(bitLen(Q[:levelQ+1])), max(bitLen(P[:levelP+1])).
+func (p Parameters) MaxBit(levelQ, levelP int) (c int) {
+	for _, qi := range p.Q()[:levelQ+1] {
+		c = utils.MaxInt(c, bits.Len64(qi))
 	}
 
-	return 1
+	for _, pi := range p.P()[:levelP+1] {
+		c = utils.MaxInt(c, bits.Len64(pi))
+	}
+	return
+}
+
+// DecompPw2 returns ceil(p.MaxBitQ(levelQ, levelP)/bitDecomp).
+func (p Parameters) DecompPw2(levelQ, levelP int) (c int) {
+	if p.pow2Base == 0 {
+		return 1
+	}
+
+	return (p.MaxBit(levelQ, levelP) + p.pow2Base - 1) / p.pow2Base
+}
+
+// DecompRNS returns the number of element in the RNS decomposition basis: Ceil(lenQi / lenPi)
+func (p Parameters) DecompRNS(levelQ, levelP int) int {
+
+	if levelP == -1 {
+		return levelQ + 1
+	}
+
+	return (levelQ + levelP + 1) / (levelP + 1)
 }
 
 // QiOverflowMargin returns floor(2^64 / max(Qi)), i.e. the number of times elements of Z_max{Qi} can
@@ -347,6 +390,29 @@ func (p Parameters) GaloisElementForRowRotation() uint64 {
 	return p.ringQ.NthRoot - 1
 }
 
+// GaloisElementsForTrace generates the galois elements for the Trace evaluation.
+// Trace maps X -> sum((-1)^i * X^{i*n+1}) for 2^{LogN} <= i < N.
+func (p Parameters) GaloisElementsForTrace(logN int) (galEls []uint64) {
+
+	galEls = []uint64{}
+	for i, j := logN, 0; i < p.LogN()-1; i, j = i+1, j+1 {
+		galEls = append(galEls, p.GaloisElementForColumnRotationBy(1<<i))
+	}
+
+	if logN == 0 {
+		switch p.ringType {
+		case ring.Standard:
+			galEls = append(galEls, p.GaloisElementForRowRotation())
+		case ring.ConjugateInvariant:
+			panic("galois element 5^-1 is undefined in ConjugateInvariant Ring")
+		default:
+			panic("invalid ring type")
+		}
+	}
+
+	return
+}
+
 // GaloisElementsForRowInnerSum returns a list of all galois elements required to
 // perform an InnerSum operation. This corresponds to all the left rotations by
 // k-positions where k is a power of two and the row-rotation element.
@@ -366,6 +432,24 @@ func (p Parameters) GaloisElementsForRowInnerSum() (galEls []uint64) {
 	}
 
 	return galEls
+}
+
+// GaloisElementForExpandRLWE returns the list of galois elements required
+// to perform the ExpandRLWE operation.
+func (p Parameters) GaloisElementForExpandRLWE(logN int) (galEls []uint64) {
+	galEls = make([]uint64, logN)
+
+	for i := 0; i < logN; i++ {
+		galEls[i] = uint64(p.N()/(1<<i) + 1)
+	}
+
+	return
+}
+
+// GaloisElementsForMergeRLWE returns the list of galois elements required
+// to perform the MergeRLWE operation.
+func (p Parameters) GaloisElementsForMergeRLWE() (galEls []uint64) {
+	return p.GaloisElementsForRowInnerSum()
 }
 
 // InverseGaloisElement takes a galois element and returns the galois element
@@ -411,6 +495,7 @@ func (p Parameters) MarshalBinary() ([]byte, error) {
 	// 1 byte : logN
 	// 1 byte : #Q
 	// 1 byte : #P
+	// 1 byte : pow2Base
 	// 8 byte : H
 	// 8 byte : sigma
 	// 1 byte : ringType
@@ -420,6 +505,7 @@ func (p Parameters) MarshalBinary() ([]byte, error) {
 	b.WriteUint8(uint8(p.logN))
 	b.WriteUint8(uint8(len(p.qi)))
 	b.WriteUint8(uint8(len(p.pi)))
+	b.WriteUint8(uint8(p.pow2Base))
 	b.WriteUint64(uint64(p.h))
 	b.WriteUint64(math.Float64bits(p.sigma))
 	b.WriteUint8(uint8(p.ringType))
@@ -437,6 +523,7 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	logN := int(b.ReadUint8())
 	lenQ := int(b.ReadUint8())
 	lenP := int(b.ReadUint8())
+	logbase2 := int(b.ReadUint8())
 	h := int(b.ReadUint64())
 	sigma := math.Float64frombits(b.ReadUint64())
 	ringType := ring.Type(b.ReadUint8())
@@ -451,18 +538,18 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	b.ReadUint64Slice(pi)
 
 	var err error
-	*p, err = NewParameters(logN, qi, pi, h, sigma, ringType)
+	*p, err = NewParameters(logN, qi, pi, logbase2, h, sigma, ringType)
 	return err
 }
 
 // MarshalBinarySize returns the length of the []byte encoding of the reciever.
 func (p Parameters) MarshalBinarySize() int {
-	return 20 + (len(p.qi)+len(p.pi))<<3
+	return 21 + (len(p.qi)+len(p.pi))<<3
 }
 
 // MarshalJSON returns a JSON representation of this parameter set. See `Marshal` from the `encoding/json` package.
 func (p Parameters) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&ParametersLiteral{LogN: p.logN, Q: p.qi, P: p.pi, H: p.h, Sigma: p.sigma})
+	return json.Marshal(&ParametersLiteral{LogN: p.logN, Q: p.qi, P: p.pi, Pow2Base: p.pow2Base, H: p.h, Sigma: p.sigma})
 }
 
 // UnmarshalJSON reads a JSON representation of a parameter set into the receiver Parameter. See `Unmarshal` from the `encoding/json` package.
@@ -482,19 +569,9 @@ func CheckModuli(q, p []uint64) error {
 		return fmt.Errorf("#Qi is larger than %d", MaxModuliCount)
 	}
 
-	if len(p) > MaxModuliCount {
-		return fmt.Errorf("#Pi is larger than %d", MaxModuliCount)
-	}
-
 	for i, qi := range q {
 		if uint64(bits.Len64(qi)-1) > MaxModuliSize+1 {
 			return fmt.Errorf("a Qi bit-size (i=%d) is larger than %d", i, MaxModuliSize)
-		}
-	}
-
-	for i, pi := range p {
-		if uint64(bits.Len64(pi)-1) > MaxModuliSize+2 {
-			return fmt.Errorf("a Pi bit-size (i=%d) is larger than %d", i, MaxModuliSize)
 		}
 	}
 
@@ -504,9 +581,21 @@ func CheckModuli(q, p []uint64) error {
 		}
 	}
 
-	for i, pi := range p {
-		if !ring.IsPrime(pi) {
-			return fmt.Errorf("a Pi (i=%d) is not a prime", i)
+	if p != nil {
+		if len(p) > MaxModuliCount {
+			return fmt.Errorf("#Pi is larger than %d", MaxModuliCount)
+		}
+
+		for i, pi := range p {
+			if uint64(bits.Len64(pi)-1) > MaxModuliSize+2 {
+				return fmt.Errorf("a Pi bit-size (i=%d) is larger than %d", i, MaxModuliSize)
+			}
+		}
+
+		for i, pi := range p {
+			if !ring.IsPrime(pi) {
+				return fmt.Errorf("a Pi (i=%d) is not a prime", i)
+			}
 		}
 	}
 

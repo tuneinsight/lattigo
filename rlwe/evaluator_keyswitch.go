@@ -88,7 +88,7 @@ func (eval *Evaluator) DecomposeSingleNTT(levelQ, levelP, nbPi, decompRNS int, c
 	eval.Decomposer.DecomposeAndSplit(levelQ, levelP, nbPi, decompRNS, c2InvNTT, c2QiQ, c2QiP)
 
 	p0idxst := decompRNS * nbPi
-	p0idxed := p0idxst + 1
+	p0idxed := p0idxst + nbPi
 
 	// c2_qi = cx mod qi mod qi
 	for x := 0; x < levelQ+1; x++ {

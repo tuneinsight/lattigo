@@ -11,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/tuneinsight/lattigo/v3/ckks"
 	"github.com/tuneinsight/lattigo/v3/drlwe"
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
@@ -59,7 +58,7 @@ type cloud struct {
 
 var crp drlwe.RTGCRP
 
-func (p *party) Run(wg *sync.WaitGroup, params ckks.Parameters, N int, P []*party, C *cloud) {
+func (p *party) Run(wg *sync.WaitGroup, params rlwe.Parameters, N int, P []*party, C *cloud) {
 
 	var nShares, nTasks int
 	var start time.Time
@@ -77,7 +76,7 @@ func (p *party) Run(wg *sync.WaitGroup, params ckks.Parameters, N int, P []*part
 			for _, pi := range task.group {
 				activePk = append(activePk, pi.shamirPk)
 			}
-			sk = ckks.NewSecretKey(params)
+			sk = rlwe.NewSecretKey(params)
 			p.GenAdditiveShare(activePk, p.shamirPk, p.tsk, sk)
 		}
 
@@ -96,7 +95,7 @@ func (p *party) Run(wg *sync.WaitGroup, params ckks.Parameters, N int, P []*part
 	fmt.Printf("\tParty %d finished generating %d shares of %d tasks in %s, sent %s\n", p.i, nShares, nTasks, cpuTime, byteCountSI(byteSent))
 }
 
-func (c *cloud) Run(galEls []uint64, params ckks.Parameters, t int) {
+func (c *cloud) Run(galEls []uint64, params rlwe.Parameters, t int) {
 
 	shares := make(map[uint64]*struct {
 		share  *drlwe.RTGShare
@@ -118,7 +117,7 @@ func (c *cloud) Run(galEls []uint64, params ckks.Parameters, t int) {
 		c.AggregateShare(acc.share, task.rtgShare, acc.share)
 		acc.needed--
 		if acc.needed == 0 {
-			rtk := ckks.NewSwitchingKey(params)
+			rtk := rlwe.NewSwitchingKey(params, params.MaxLevel(), params.PCount()-1)
 			c.GenRotationKey(acc.share, crp, rtk)
 			c.finDone <- struct {
 				galEl uint64
@@ -184,11 +183,11 @@ func main() {
 
 	flag.Parse()
 
-	if *flagDefaultParams >= len(ckks.DefaultParams) {
+	if *flagDefaultParams >= len(rlwe.DefaultParams) {
 		panic("invalid default parameter set")
 	}
 
-	paramsDef := ckks.DefaultParams[*flagDefaultParams]
+	paramsDef := rlwe.DefaultParams[*flagDefaultParams]
 
 	if *flagJSONParams != "" {
 		if err := json.Unmarshal([]byte(*flagJSONParams), &paramsDef); err != nil {
@@ -196,7 +195,7 @@ func main() {
 		}
 	}
 
-	params, err := ckks.NewParametersFromLiteral(paramsDef)
+	params, err := rlwe.NewParametersFromLiteral(paramsDef)
 	if err != nil {
 		panic(err)
 	}
@@ -229,9 +228,9 @@ func main() {
 	}
 
 	fmt.Printf("Starting for N=%d, t=%d\n", N, t)
-	fmt.Printf("LogN=%d, LogQP=%d, L=%d, LogSlot=%d, k=%d\n", params.LogN(), params.LogQP(), params.QPCount(), params.LogSlots(), k)
+	fmt.Printf("LogN=%d, LogQP=%d, L=%d, k=%d\n", params.LogN(), params.LogQP(), params.QPCount(), k)
 
-	kg := ckks.NewKeyGenerator(params)
+	kg := rlwe.NewKeyGenerator(params)
 
 	crs, err := utils.NewPRNG()
 	if err != nil {
@@ -240,7 +239,7 @@ func main() {
 
 	wg := new(sync.WaitGroup)
 	C := &cloud{
-		RTGProtocol:  drlwe.NewRTGProtocol(params.Parameters),
+		RTGProtocol:  drlwe.NewRTGProtocol(params),
 		aggTaskQueue: make(chan genTaskResult, len(galEls)*N),
 		finDone: make(chan struct {
 			galEl uint64
@@ -248,12 +247,12 @@ func main() {
 		}, len(galEls)),
 	}
 	P := make([]*party, N)
-	skIdeal := ckks.NewSecretKey(params)
+	skIdeal := rlwe.NewSecretKey(params)
 	for i := range P {
 		pi := new(party)
-		pi.RTGProtocol = drlwe.NewRTGProtocol(params.Parameters)
-		pi.Thresholdizer = drlwe.NewThresholdizer(params.Parameters)
-		pi.Combiner = drlwe.NewCombiner(params.Parameters, t)
+		pi.RTGProtocol = drlwe.NewRTGProtocol(params)
+		pi.Thresholdizer = drlwe.NewThresholdizer(params)
+		pi.Combiner = drlwe.NewCombiner(params, t)
 		pi.i = i
 		pi.sk = kg.GenSecretKey()
 		params.RingQP().AddLvl(params.QCount()-1, params.PCount()-1, skIdeal.Value, pi.sk.Value, skIdeal.Value)
@@ -321,7 +320,7 @@ func main() {
 
 	fmt.Printf("Checking the keys... ")
 	for galEl, rtk := range rtks {
-		if !verifyKey(rtk, galEl, skIdeal, params.Parameters) {
+		if !verifyKey(rtk, galEl, skIdeal, params) {
 			fmt.Printf("invalid key for galEl=%d\n", galEl)
 			os.Exit(1)
 		}
@@ -338,7 +337,9 @@ func verifyKey(swk rlwe.SwitchingKey, galEl uint64, skIdeal *rlwe.SecretKey, par
 	decompPw2 := params.DecompPw2(levelQ, levelP)
 
 	ringQ.PermuteNTT(skIdeal.Value.Q, galElInv, skOut.Value.Q)
-	ringP.PermuteNTT(skIdeal.Value.P, galElInv, skOut.Value.P)
+	if ringP != nil {
+		ringP.PermuteNTT(skIdeal.Value.P, galElInv, skOut.Value.P)
+	}
 
 	// Decrypts
 	// [-asIn + w*P*sOut + e, a] + [asIn]

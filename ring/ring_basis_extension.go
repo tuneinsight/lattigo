@@ -385,6 +385,10 @@ func (decomposer *Decomposer) DecomposeAndSplit(levelQ, levelP, nbPi, decompRNS 
 		p0idxst := decompRNS * nbPi
 		p0idxed := p0idxst + nbPi
 
+		if p0idxed > levelQ+1 {
+			p0idxed = levelQ + 1
+		}
+
 		params := decomposer.modUpParams[nbPi-2][decompRNS][decompLvl]
 
 		var v [8]uint64

@@ -837,8 +837,6 @@ func testFunctions(tc *testContext, t *testing.T) {
 
 func testEvaluatePoly(tc *testContext, t *testing.T) {
 
-	var err error
-
 	t.Run(GetTestName(tc.params, "EvaluatePoly/PolySingle/Exp"), func(t *testing.T) {
 
 		if tc.params.MaxLevel() < 3 {
@@ -858,7 +856,8 @@ func testEvaluatePoly(tc *testContext, t *testing.T) {
 			complex(1.0/5040, 0),
 		}
 
-		poly := NewPoly(coeffs)
+		poly, err := NewPolynomial(Monomial, coeffs, nil)
+		require.Nil(t, err)
 
 		for i := range values {
 			values[i] = cmplx.Exp(values[i])
@@ -890,8 +889,6 @@ func testEvaluatePoly(tc *testContext, t *testing.T) {
 			complex(1.0/5040, 0),
 		}
 
-		poly := NewPoly(coeffs)
-
 		slotsIndex := make(map[int][]int)
 		idx := make([]int, tc.params.Slots()>>1)
 		for i := 0; i < tc.params.Slots()>>1; i++ {
@@ -905,13 +902,10 @@ func testEvaluatePoly(tc *testContext, t *testing.T) {
 			valuesWant[j] = cmplx.Exp(values[j])
 		}
 
-		polyVec := PolynomialVector{
-			Value:      []Polynomial{poly},
-			Encoder:    tc.encoder,
-			SlotsIndex: slotsIndex,
-		}
+		poly, err := NewPolynomial(Monomial, coeffs, slotsIndex)
+		require.Nil(t, err)
 
-		if ciphertext, err = tc.evaluator.EvaluatePoly(ciphertext, polyVec, ciphertext.Scale); err != nil {
+		if ciphertext, err = tc.evaluator.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {
 			t.Error(err)
 		}
 
@@ -920,8 +914,6 @@ func testEvaluatePoly(tc *testContext, t *testing.T) {
 }
 
 func testChebyshevInterpolator(tc *testContext, t *testing.T) {
-
-	var err error
 
 	t.Run(GetTestName(tc.params, "ChebyshevInterpolator/Sin"), func(t *testing.T) {
 
@@ -933,22 +925,25 @@ func testChebyshevInterpolator(tc *testContext, t *testing.T) {
 
 		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, complex(-1, 0), complex(1, 0), t)
 
-		poly := Approximate(cmplx.Sin, complex(-1.5, 0), complex(1.5, 0), 15)
+		a, b := -1.5, 1.5
+
+		coeffs := Approximate(cmplx.Sin, a, b, 15)
+
+		poly, err := NewPolynomial(Chebyshev, coeffs, nil)
+		require.Nil(t, err)
 
 		for i := range values {
 			values[i] = cmplx.Sin(values[i])
 		}
 
-		eval.MultByConst(ciphertext, 2/(poly.B-poly.A), ciphertext)
-		eval.AddConst(ciphertext, (-poly.A-poly.B)/(poly.B-poly.A), ciphertext)
+		eval.MultByConst(ciphertext, 2/(b-a), ciphertext)
+		eval.AddConst(ciphertext, (-a-b)/(b-a), ciphertext)
 		if err = eval.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
 			t.Error(err)
-
 		}
 
 		if ciphertext, err = eval.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {
 			t.Error(err)
-
 		}
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogSlots(), 0, t)
@@ -956,8 +951,6 @@ func testChebyshevInterpolator(tc *testContext, t *testing.T) {
 }
 
 func testDecryptPublic(tc *testContext, t *testing.T) {
-
-	var err error
 
 	t.Run(GetTestName(tc.params, "DecryptPublic/Sin"), func(t *testing.T) {
 
@@ -969,22 +962,25 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 
 		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, complex(-1, 0), complex(1, 0), t)
 
-		poly := Approximate(cmplx.Sin, complex(-1.5, 0), complex(1.5, 0), 15)
+		a, b := -1.5, 1.5
+
+		coeffs := Approximate(cmplx.Sin, a, b, 15)
+
+		poly, err := NewPolynomial(Chebyshev, coeffs, nil)
+		require.Nil(t, err)
 
 		for i := range values {
 			values[i] = cmplx.Sin(values[i])
 		}
 
-		eval.MultByConst(ciphertext, 2/(poly.B-poly.A), ciphertext)
-		eval.AddConst(ciphertext, (-poly.A-poly.B)/(poly.B-poly.A), ciphertext)
+		eval.MultByConst(ciphertext, 2/(b-a), ciphertext)
+		eval.AddConst(ciphertext, (-a-b)/(b-a), ciphertext)
 		if err := eval.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
 			t.Error(err)
-
 		}
 
 		if ciphertext, err = eval.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {
 			t.Error(err)
-
 		}
 
 		plaintext := tc.decryptor.DecryptNew(ciphertext)

@@ -94,14 +94,13 @@ func chebyshevinterpolation() {
 		panic(err)
 	}
 
-	polyVec := ckks.PolynomialVector{
-		Value:      []ckks.Polynomial{approxF, approxG},
-		Encoder:    encoder,
-		SlotsIndex: slotsIndex,
+	poly, err := ckks.NewPolynomial(ckks.Chebyshev, [][]complex128{approxF, approxG}, slotsIndex)
+	if err != nil {
+		panic(err)
 	}
 
 	// We evaluate the interpolated Chebyshev interpolant on the ciphertext
-	if ciphertext, err = evaluator.EvaluatePoly(ciphertext, polyVec, ciphertext.Scale); err != nil {
+	if ciphertext, err = evaluator.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {
 		panic(err)
 	}
 

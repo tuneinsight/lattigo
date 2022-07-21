@@ -54,7 +54,7 @@ type Evaluator interface {
 	PowerOf2(ctIn *ckks.Ciphertext, logPow2 int, ctOut *ckks.Ciphertext)
 	Power(ctIn *ckks.Ciphertext, degree int, ctOut *ckks.Ciphertext)
 	PowerNew(ctIn *ckks.Ciphertext, degree int) (ctOut *ckks.Ciphertext)
-	EvaluatePoly(input interface{}, pol interface{}, targetScale float64) (ctOut *ckks.Ciphertext, err error)
+	EvaluatePoly(input interface{}, pol ckks.Polynomial, targetScale float64) (ctOut *ckks.Ciphertext, err error)
 	InverseNew(ctIn *ckks.Ciphertext, steps int) (ctOut *ckks.Ciphertext)
 	LinearTransformNew(ctIn *ckks.Ciphertext, linearTransform interface{}) (ctOut []*ckks.Ciphertext)
 	LinearTransform(ctIn *ckks.Ciphertext, linearTransform interface{}, ctOut []*ckks.Ciphertext)
@@ -253,7 +253,7 @@ func (eval *evaluator) EvalModNew(ct *ckks.Ciphertext, evalModPoly EvalModPoly) 
 	prevScaleCt := ct.Scale
 
 	// Normalize the modular reduction to mod by 1 (division by Q)
-	ct.Scale = evalModPoly.scalingFactor
+	ct.Scale = evalModPoly.ScalingFactor()
 
 	var err error
 
@@ -267,7 +267,7 @@ func (eval *evaluator) EvalModNew(ct *ckks.Ciphertext, evalModPoly EvalModPoly) 
 
 	// Division by 1/2^r and change of variable for the Chebysehev evaluation
 	if evalModPoly.sineType == Cos1 || evalModPoly.sineType == Cos2 {
-		eval.AddConst(ct, -0.5/(evalModPoly.scFac*(evalModPoly.sinePoly.B-evalModPoly.sinePoly.A)), ct)
+		eval.AddConst(ct, -0.25/evalModPoly.K(), ct)
 	}
 
 	// Chebyshev evaluation
@@ -288,8 +288,8 @@ func (eval *evaluator) EvalModNew(ct *ckks.Ciphertext, evalModPoly EvalModPoly) 
 	}
 
 	// ArcSine
-	if evalModPoly.arcSinePoly.Coeffs != nil {
-		if ct, err = eval.EvaluatePoly(ct, evalModPoly.arcSinePoly, ct.Scale); err != nil {
+	if evalModPoly.arcSinePoly != nil {
+		if ct, err = eval.EvaluatePoly(ct, *evalModPoly.arcSinePoly, ct.Scale); err != nil {
 			panic(err)
 		}
 	}

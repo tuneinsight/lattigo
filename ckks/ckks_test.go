@@ -893,20 +893,26 @@ func testEvaluatePoly(tc *testContext, t *testing.T) {
 
 		poly := NewPoly(coeffs)
 
-		slotIndex := make(map[int][]int)
+		slotsIndex := make(map[int][]int)
 		idx := make([]int, tc.params.Slots()>>1)
 		for i := 0; i < tc.params.Slots()>>1; i++ {
 			idx[i] = 2 * i
 		}
 
-		slotIndex[0] = idx
+		slotsIndex[0] = idx
 
 		valuesWant := make([]complex128, tc.params.Slots())
 		for _, j := range idx {
 			valuesWant[j] = cmplx.Exp(values[j])
 		}
 
-		if ciphertext, err = tc.evaluator.EvaluatePolyVector(ciphertext, []*Polynomial{poly}, tc.encoder, slotIndex, ciphertext.scale); err != nil {
+		polyVec := PolynomialVector{
+			Value:[]Polynomial{poly}, 
+			Encoder: tc.encoder, 
+			SlotsIndex: slotsIndex,
+		}
+
+		if ciphertext, err = tc.evaluator.EvaluatePoly(ciphertext, polyVec, ciphertext.Scale); err != nil {
 			t.Error(err)
 		}
 

@@ -58,8 +58,8 @@ type EvalModPoly struct {
 	qDiff         float64
 	scFac         float64
 	sqrt2Pi       float64
-	sinePoly      *ckks.Polynomial
-	arcSinePoly   *ckks.Polynomial
+	sinePoly      ckks.Polynomial
+	arcSinePoly   ckks.Polynomial
 }
 
 // LevelStart returns the starting level of the EvalMod.
@@ -106,8 +106,8 @@ func (evp *EvalModPoly) QDiff() float64 {
 // NewEvalModPolyFromLiteral generates an EvalModPoly fromt the EvalModLiteral.
 func NewEvalModPolyFromLiteral(evm EvalModLiteral) EvalModPoly {
 
-	var arcSinePoly *ckks.Polynomial
-	var sinePoly *ckks.Polynomial
+	var arcSinePoly ckks.Polynomial
+	var sinePoly ckks.Polynomial
 	var sqrt2pi float64
 
 	scFac := math.Exp2(float64(evm.DoubleAngle))
@@ -144,14 +144,16 @@ func NewEvalModPolyFromLiteral(evm EvalModLiteral) EvalModPoly {
 
 	} else if evm.SineType == Cos1 {
 
-		sinePoly = new(ckks.Polynomial)
-		sinePoly.Coeffs = ApproximateCos(evm.K, evm.SineDeg, evm.MessageRatio, int(evm.DoubleAngle))
-		sinePoly.MaxDeg = sinePoly.Degree()
-		sinePoly.A = float64(-evm.K) / scFac
-		sinePoly.B = float64(evm.K) / scFac
-		sinePoly.Lead = true
-		sinePoly.BasisType = ckks.Chebyshev
-
+		coeffs := ApproximateCos(evm.K, evm.SineDeg, evm.MessageRatio, int(evm.DoubleAngle))
+		sinePoly = ckks.Polynomial{
+			Coeffs: coeffs,
+			MaxDeg: len(coeffs)-1,
+			A: float64(-evm.K) / scFac,
+			B: float64(evm.K) / scFac,
+			Lead: true,
+			BasisType: ckks.Chebyshev,
+		}
+		
 	} else if evm.SineType == Cos2 {
 		sinePoly = ckks.Approximate(cos2pi, -float64(evm.K)/scFac, float64(evm.K)/scFac, evm.SineDeg)
 	} else {

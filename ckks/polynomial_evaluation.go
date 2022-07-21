@@ -48,10 +48,22 @@ func (p *Polynomial) Degree() int {
 }
 
 // NewPoly creates a new Poly from the input coefficients
-func NewPoly(coeffs []complex128) (p *Polynomial) {
-	c := make([]complex128, len(coeffs))
-	copy(c, coeffs)
-	return &Polynomial{Coeffs: c, MaxDeg: len(c) - 1, Lead: true}
+func NewPoly(coeffs interface{}) (p Polynomial) {
+	var c []complex128
+	switch coeffs := coeffs.(type){
+	case []complex128:
+		c = make([]complex128, len(coeffs))
+		copy(c, coeffs)
+	case []float64:
+		c = make([]complex128, len(coeffs))
+		for i := range coeffs{
+			c[i] = complex(coeffs[i], 0)
+		}
+	default:
+		panic("NewPoly: invalid coeffs.(type)")
+	}
+	
+	return Polynomial{Coeffs: c, MaxDeg: len(c) - 1, Lead: true}
 }
 
 // checkEnoughLevels checks that enough levels are available to evaluate the polynomial.
@@ -90,58 +102,59 @@ type polynomialEvaluator struct {
 // if the polynomial is "even" or "odd" (to ensure that the even or odd property remains valid
 // after the "splitCoeffs" polynomial decomposition).
 // input must be either *Ciphertext or *PolynomialBasis.
-// pol: a *Polynomial
+// pol: a Polynomial or PolynomialVector
 // targetScale: the desired output scale. This value shouldn't differ too much from the original ciphertext scale. It can
 // for example be used to correct small deviations in the ciphertext scale and reset it to the default scale.
-func (eval *evaluator) EvaluatePoly(input interface{}, pol *Polynomial, targetScale float64) (opOut *Ciphertext, err error) {
-	return eval.evaluatePolyVector(input, polynomialVector{Value: []*Polynomial{pol}}, targetScale)
+func (eval *evaluator) EvaluatePoly(input interface{}, pol interface{}, targetScale float64) (opOut *Ciphertext, err error) {
+
+	var polyVec PolynomialVector
+
+	switch pol := pol.(type){
+	case Polynomial:
+		polyVec = PolynomialVector{Value: []Polynomial{pol}}
+	case PolynomialVector:
+
+		var maxDeg int
+		var basis BasisType
+		for _, poly := range pol.Value {
+			maxDeg = utils.MaxInt(maxDeg, poly.MaxDeg)
+			basis = poly.BasisType
+		}
+
+		for _, poly := range pol.Value {
+			if basis != poly.BasisType {
+				return nil, fmt.Errorf("polynomial basis must be the same for all polynomials in a polynomial vector")
+			}
+
+			if maxDeg != poly.MaxDeg {
+				return nil, fmt.Errorf("polynomial degree must all be the same")
+			}
+		}
+
+		polyVec = pol
+
+	default:
+		return nil, fmt.Errorf("EvaluatePoly: invalide pol.(type)")
+	}
+
+	return eval.evaluatePolyVector(input, polyVec, targetScale)
 }
 
-type polynomialVector struct {
+
+// PolynomialVector is a struct to store multiple polynomials
+// than can be evaluated slot-wise one a ciphertext.
+// Value: a slice of up to 'n' *Polynomial ('n' being the maximum number of slots), indexed from 0 to n-1.
+// Encoder: an Encoder.
+// SlotsIndex: a map[int][]int indexing as key the polynomial to evaluate and as value the index of the slots on which to evaluate the polynomial indexed by the key.
+//
+// Example: if pols = []*Polynomial{pol0, pol1} and SlotsIndex = map[int][]int:{0:[1, 2, 4, 5, 7], 1:[0, 3]},
+// then pol0 will be applied to slots [1, 2, 4, 5, 7], pol1 to slots [0, 3] and the slot 6 will be zero-ed.
+type PolynomialVector struct {
 	Encoder    Encoder
-	Value      []*Polynomial
+	Value      []Polynomial
 	SlotsIndex map[int][]int
 }
 
-// EvaluatePolyVector evaluates a vector of Polynomials on the input Ciphertext in ceil(log2(deg+1)) levels.
-// Returns an error if the input Ciphertext does not have enough level to carry out the full polynomial evaluation.
-// Returns an error if something is wrong with the scale.
-// Returns an error if polynomials are not all in the same basis.
-// Returns an error if polynomials do not all have the same degree.
-// If the polynomials are given in Chebyshev basis, then a change of basis ct' = (2/(b-a)) * (ct + (-a-b)/(b-a))
-// is necessary before the polynomial evaluation to ensure correctness.
-// Coefficients of the polynomial with an absolute value smaller than "IsNegligbleThreshold" will automatically be set to zero
-// if the polynomial is "even" or "odd" (to ensure that the even or odd property remains valid
-// after the "splitCoeffs" polynomial decomposition).
-// input: must be either *Ciphertext or *PolynomialBasis.
-// pols: a slice of up to 'n' *Polynomial ('n' being the maximum number of slots), indexed from 0 to n-1.
-// encoder: an Encoder.
-// slotsIndex: a map[int][]int indexing as key the polynomial to evaluate and as value the index of the slots on which to evaluate the polynomial indexed by the key.
-// targetScale: the desired output scale. This value shouldn't differ too much from the original ciphertext scale. It can
-// for example be used to correct small deviations in the ciphertext scale and reset it to the default scale.
-//
-// Example: if pols = []*Polynomial{pol0, pol1} and slotsIndex = map[int][]int:{0:[1, 2, 4, 5, 7], 1:[0, 3]},
-// then pol0 will be applied to slots [1, 2, 4, 5, 7], pol1 to slots [0, 3] and the slot 6 will be zero-ed.
-func (eval *evaluator) EvaluatePolyVector(input interface{}, pols []*Polynomial, encoder Encoder, slotsIndex map[int][]int, targetScale float64) (opOut *Ciphertext, err error) {
-	var maxDeg int
-	var basis BasisType
-	for i := range pols {
-		maxDeg = utils.MaxInt(maxDeg, pols[i].MaxDeg)
-		basis = pols[i].BasisType
-	}
-
-	for i := range pols {
-		if basis != pols[i].BasisType {
-			return nil, fmt.Errorf("polynomial basis must be the same for all polynomials in a polynomial vector")
-		}
-
-		if maxDeg != pols[i].MaxDeg {
-			return nil, fmt.Errorf("polynomial degree must all be the same")
-		}
-	}
-
-	return eval.evaluatePolyVector(input, polynomialVector{Encoder: encoder, Value: pols, SlotsIndex: slotsIndex}, targetScale)
-}
 
 func optimalSplit(logDegree int) (logSplit int) {
 	logSplit = logDegree >> 1
@@ -154,7 +167,7 @@ func optimalSplit(logDegree int) (logSplit int) {
 	return
 }
 
-func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVector, targetScale float64) (opOut *Ciphertext, err error) {
+func (eval *evaluator) evaluatePolyVector(input interface{}, pol PolynomialVector, targetScale float64) (opOut *Ciphertext, err error) {
 
 	if pol.SlotsIndex != nil && pol.Encoder == nil {
 		return nil, fmt.Errorf("cannot EvaluatePolyVector: missing Encoder input")
@@ -377,10 +390,10 @@ func (p *PolynomialBasis) UnmarshalBinary(data []byte) (err error) {
 	return
 }
 
-func splitCoeffs(coeffs *Polynomial, split int) (coeffsq, coeffsr *Polynomial) {
+func splitCoeffs(coeffs Polynomial, split int) (coeffsq, coeffsr Polynomial) {
 
 	// Splits a polynomial p such that p = q*C^degree + r.
-	coeffsr = &Polynomial{}
+	coeffsr = Polynomial{}
 	coeffsr.Coeffs = make([]complex128, split)
 	if coeffs.MaxDeg == coeffs.Degree() {
 		coeffsr.MaxDeg = split - 1
@@ -392,7 +405,7 @@ func splitCoeffs(coeffs *Polynomial, split int) (coeffsq, coeffsr *Polynomial) {
 		coeffsr.Coeffs[i] = coeffs.Coeffs[i]
 	}
 
-	coeffsq = &Polynomial{}
+	coeffsq = Polynomial{}
 	coeffsq.Coeffs = make([]complex128, coeffs.Degree()-split+1)
 	coeffsq.MaxDeg = coeffs.MaxDeg
 
@@ -418,17 +431,17 @@ func splitCoeffs(coeffs *Polynomial, split int) (coeffsq, coeffsr *Polynomial) {
 	return
 }
 
-func splitCoeffsPolyVector(poly polynomialVector, split int) (polyq, polyr polynomialVector) {
-	coeffsq := make([]*Polynomial, len(poly.Value))
-	coeffsr := make([]*Polynomial, len(poly.Value))
+func splitCoeffsPolyVector(poly PolynomialVector, split int) (polyq, polyr PolynomialVector) {
+	coeffsq := make([]Polynomial, len(poly.Value))
+	coeffsr := make([]Polynomial, len(poly.Value))
 	for i, p := range poly.Value {
 		coeffsq[i], coeffsr[i] = splitCoeffs(p, split)
 	}
 
-	return polynomialVector{Value: coeffsq}, polynomialVector{Value: coeffsr}
+	return PolynomialVector{Value: coeffsq}, PolynomialVector{Value: coeffsr}
 }
 
-func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale float64, pol polynomialVector) (res *Ciphertext, err error) {
+func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale float64, pol PolynomialVector) (res *Ciphertext, err error) {
 
 	params := polyEval.Evaluator.(*evaluator).params
 
@@ -506,7 +519,7 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale float6
 	return
 }
 
-func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasis(targetScale float64, level int, pol polynomialVector) (res *Ciphertext, err error) {
+func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasis(targetScale float64, level int, pol PolynomialVector) (res *Ciphertext, err error) {
 
 	X := polyEval.PolynomialBasis.Value
 

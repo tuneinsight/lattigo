@@ -59,7 +59,8 @@ type EvalModPoly struct {
 	scFac         float64
 	sqrt2Pi       float64
 	sinePoly      ckks.Polynomial
-	arcSinePoly   ckks.Polynomial
+	arcSinePoly   *ckks.Polynomial
+	k             float64
 }
 
 // LevelStart returns the starting level of the EvalMod.
@@ -82,19 +83,9 @@ func (evp *EvalModPoly) MessageRatio() float64 {
 	return evp.messageRatio
 }
 
-// A returns the left bound of the sine approximation (scaled by 1/2^r).
-func (evp *EvalModPoly) A() float64 {
-	return evp.sinePoly.A
-}
-
-// B returns the right bound of the sine approximation (scaled by 1/2^r).
-func (evp *EvalModPoly) B() float64 {
-	return evp.sinePoly.B
-}
-
 // K return the sine approximation range.
 func (evp *EvalModPoly) K() float64 {
-	return evp.sinePoly.B * evp.scFac
+	return evp.k * evp.scFac
 }
 
 // QDiff return Q/ClosestedPow2
@@ -106,11 +97,13 @@ func (evp *EvalModPoly) QDiff() float64 {
 // NewEvalModPolyFromLiteral generates an EvalModPoly fromt the EvalModLiteral.
 func NewEvalModPolyFromLiteral(evm EvalModLiteral) EvalModPoly {
 
-	var arcSinePoly ckks.Polynomial
+	var arcSinePoly *ckks.Polynomial
 	var sinePoly ckks.Polynomial
 	var sqrt2pi float64
 
 	scFac := math.Exp2(float64(evm.DoubleAngle))
+
+	K := float64(evm.K) / scFac
 
 	qDiff := evm.QDiff()
 
@@ -123,16 +116,18 @@ func NewEvalModPolyFromLiteral(evm EvalModLiteral) EvalModPoly {
 		coeffs[1] = 0.15915494309189535 * complex(qDiff, 0)
 
 		for i := 3; i < evm.ArcSineDeg+1; i += 2 {
-
 			coeffs[i] = coeffs[i-2] * complex(float64(i*i-4*i+4)/float64(i*i-i), 0)
-
 		}
 
-		arcSinePoly = ckks.NewPoly(coeffs)
+		poly, _ := ckks.NewPolynomial(ckks.Monomial, coeffs, nil)
+
+		arcSinePoly = &poly
 
 	} else {
 		sqrt2pi = math.Pow(0.15915494309189535*qDiff, 1.0/scFac)
 	}
+
+	var coeffsSinePoly []complex128
 
 	if evm.SineType == Sin {
 
@@ -140,29 +135,25 @@ func NewEvalModPolyFromLiteral(evm EvalModLiteral) EvalModPoly {
 			panic("cannot user double angle with SineType == Sin")
 		}
 
-		sinePoly = ckks.Approximate(sin2pi2pi, -float64(evm.K), float64(evm.K), evm.SineDeg)
+		coeffsSinePoly = ckks.Approximate(sin2pi2pi, -K, K, evm.SineDeg)
 
 	} else if evm.SineType == Cos1 {
 
-		coeffs := ApproximateCos(evm.K, evm.SineDeg, evm.MessageRatio, int(evm.DoubleAngle))
-		sinePoly = ckks.Polynomial{
-			Coeffs:    coeffs,
-			MaxDeg:    len(coeffs) - 1,
-			A:         float64(-evm.K) / scFac,
-			B:         float64(evm.K) / scFac,
-			Lead:      true,
-			BasisType: ckks.Chebyshev,
-		}
+		coeffsSinePoly = ApproximateCos(evm.K, evm.SineDeg, evm.MessageRatio, int(evm.DoubleAngle))
 
 	} else if evm.SineType == Cos2 {
-		sinePoly = ckks.Approximate(cos2pi, -float64(evm.K)/scFac, float64(evm.K)/scFac, evm.SineDeg)
+
+		coeffsSinePoly = ckks.Approximate(cos2pi, -K, K, evm.SineDeg)
+
 	} else {
 		panic("invalid SineType")
 	}
 
-	for i := range sinePoly.Coeffs {
-		sinePoly.Coeffs[i] *= complex(sqrt2pi, 0)
+	for i := range coeffsSinePoly {
+		coeffsSinePoly[i] *= complex(sqrt2pi, 0)
 	}
+
+	sinePoly, _ = ckks.NewPolynomial(ckks.Chebyshev, coeffsSinePoly, nil)
 
 	return EvalModPoly{
 		levelStart:    evm.LevelStart,
@@ -174,7 +165,9 @@ func NewEvalModPolyFromLiteral(evm EvalModLiteral) EvalModPoly {
 		scFac:         scFac,
 		sqrt2Pi:       sqrt2pi,
 		arcSinePoly:   arcSinePoly,
-		sinePoly:      sinePoly}
+		sinePoly:      sinePoly,
+		k:             K,
+	}
 }
 
 // Depth returns the depth of the SineEval. If true, then also

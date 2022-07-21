@@ -62,7 +62,6 @@ func TestHomomorphicMod(t *testing.T) {
 		testSet(params, t)
 		runtime.GC()
 	}
-
 }
 
 func testEvalModMarshalling(t *testing.T) {

@@ -148,7 +148,10 @@ func example() {
 		complex(1.0/5040, 0),
 	}
 
-	poly := ckks.NewPoly(coeffs)
+	poly, err := ckks.NewPolynomial(ckks.Monomial, coeffs, nil)
+	if err != nil {
+		panic(err)
+	}
 
 	if ciphertext, err = evaluator.EvaluatePoly(ciphertext, poly, ciphertext.Scale()); err != nil {
 		panic(err)

@@ -1,7 +1,6 @@
 package advanced
 
 import (
-	"fmt"
 	"math"
 	"runtime"
 	"testing"
@@ -178,8 +177,6 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 		if err := eval.Rescale(ciphertext, params.DefaultScale(), ciphertext); err != nil {
 			t.Error(err)
 		}
-
-		fmt.Println(ciphertext.Level())
 
 		// EvalMod
 		ciphertext = eval.EvalModNew(ciphertext, EvalModPoly)

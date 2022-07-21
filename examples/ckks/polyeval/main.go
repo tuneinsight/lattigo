@@ -95,8 +95,8 @@ func chebyshevinterpolation() {
 	}
 
 	polyVec := ckks.PolynomialVector{
-		Value:[]ckks.Polynomial{approxF, approxG}, 
-		Encoder: encoder, 
+		Value:      []ckks.Polynomial{approxF, approxG},
+		Encoder:    encoder,
 		SlotsIndex: slotsIndex,
 	}
 

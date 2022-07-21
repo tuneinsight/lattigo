@@ -344,15 +344,11 @@ func (eval *evaluator) evaluateInPlace(c0, c1, ctOut Operand, evaluate func(int,
 	minDegree := utils.MinInt(c0.Degree(), c1.Degree())
 
 	// Else resizes the receiver element
-	ctOut.El().Resize(maxDegree, ctOut.Level())
+	ctOut.El().Resize(maxDegree, level)
 
 	c0Scale := c0.ScalingFactor()
 	c1Scale := c1.ScalingFactor()
 	ctOutScale := ctOut.ScalingFactor()
-
-	if ctOut.Level() > level {
-		eval.DropLevel(&Ciphertext{ctOut.El(), ctOutScale}, ctOut.Level()-utils.MinInt(c0.Level(), c1.Level()))
-	}
 
 	// Checks whether or not the receiver element is the same as one of the input elements
 	// and acts accordingly to avoid unnecessary element creation or element overwriting,

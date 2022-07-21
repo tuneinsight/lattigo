@@ -906,8 +906,8 @@ func testEvaluatePoly(tc *testContext, t *testing.T) {
 		}
 
 		polyVec := PolynomialVector{
-			Value:[]Polynomial{poly}, 
-			Encoder: tc.encoder, 
+			Value:      []Polynomial{poly},
+			Encoder:    tc.encoder,
 			SlotsIndex: slotsIndex,
 		}
 

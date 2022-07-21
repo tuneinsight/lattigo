@@ -50,19 +50,19 @@ func (p *Polynomial) Degree() int {
 // NewPoly creates a new Poly from the input coefficients
 func NewPoly(coeffs interface{}) (p Polynomial) {
 	var c []complex128
-	switch coeffs := coeffs.(type){
+	switch coeffs := coeffs.(type) {
 	case []complex128:
 		c = make([]complex128, len(coeffs))
 		copy(c, coeffs)
 	case []float64:
 		c = make([]complex128, len(coeffs))
-		for i := range coeffs{
+		for i := range coeffs {
 			c[i] = complex(coeffs[i], 0)
 		}
 	default:
 		panic("NewPoly: invalid coeffs.(type)")
 	}
-	
+
 	return Polynomial{Coeffs: c, MaxDeg: len(c) - 1, Lead: true}
 }
 
@@ -109,7 +109,7 @@ func (eval *evaluator) EvaluatePoly(input interface{}, pol interface{}, targetSc
 
 	var polyVec PolynomialVector
 
-	switch pol := pol.(type){
+	switch pol := pol.(type) {
 	case Polynomial:
 		polyVec = PolynomialVector{Value: []Polynomial{pol}}
 	case PolynomialVector:
@@ -140,7 +140,6 @@ func (eval *evaluator) EvaluatePoly(input interface{}, pol interface{}, targetSc
 	return eval.evaluatePolyVector(input, polyVec, targetScale)
 }
 
-
 // PolynomialVector is a struct to store multiple polynomials
 // than can be evaluated slot-wise one a ciphertext.
 // Value: a slice of up to 'n' *Polynomial ('n' being the maximum number of slots), indexed from 0 to n-1.
@@ -154,7 +153,6 @@ type PolynomialVector struct {
 	Value      []Polynomial
 	SlotsIndex map[int][]int
 }
-
 
 func optimalSplit(logDegree int) (logSplit int) {
 	logSplit = logDegree >> 1
@@ -343,10 +341,12 @@ func (p *PolynomialBasis) genPower(n int, lazy bool, scale float64, eval Evaluat
 			if c == 0 {
 				eval.AddConst(p.Value[n], -1, p.Value[n])
 			} else {
+
 				// Since C[0] is not stored (but rather seen as the constant 1), only recurses on c if c!= 0
 				if err = p.GenPower(c, lazy, scale, eval); err != nil {
 					return err
 				}
+
 				eval.Sub(p.Value[n], p.Value[c], p.Value[n])
 			}
 		}
@@ -504,7 +504,6 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale float6
 	if err = polyEval.Rescale(res, params.DefaultScale(), res); err != nil {
 		return nil, err
 	}
-
 	polyEval.Mul(res, XPow, res)
 
 	var tmp *Ciphertext

@@ -146,14 +146,14 @@ func NewEvalModPolyFromLiteral(evm EvalModLiteral) EvalModPoly {
 
 		coeffs := ApproximateCos(evm.K, evm.SineDeg, evm.MessageRatio, int(evm.DoubleAngle))
 		sinePoly = ckks.Polynomial{
-			Coeffs: coeffs,
-			MaxDeg: len(coeffs)-1,
-			A: float64(-evm.K) / scFac,
-			B: float64(evm.K) / scFac,
-			Lead: true,
+			Coeffs:    coeffs,
+			MaxDeg:    len(coeffs) - 1,
+			A:         float64(-evm.K) / scFac,
+			B:         float64(evm.K) / scFac,
+			Lead:      true,
 			BasisType: ckks.Chebyshev,
 		}
-		
+
 	} else if evm.SineType == Cos2 {
 		sinePoly = ckks.Approximate(cos2pi, -float64(evm.K)/scFac, float64(evm.K)/scFac, evm.SineDeg)
 	} else {

@@ -19,7 +19,7 @@ import (
 // if the polynomial is "even" or "odd" (to ensure that the even or odd property remains valid
 // after the "splitCoeffs" polynomial decomposition).
 // input must be either *Ciphertext or *PolynomialBasis.
-// pol: a Polynomial or PolynomialVector
+// pol: a Polynomial
 // targetScale: the desired output scale. This value shouldn't differ too much from the original ciphertext scale. It can
 // for example be used to correct small deviations in the ciphertext scale and reset it to the default scale.
 func (eval *evaluator) EvaluatePoly(input interface{}, pol Polynomial, targetScale float64) (opOut *Ciphertext, err error) {
@@ -50,60 +50,15 @@ type polynomialEvaluator struct {
 	Evaluator
 	Encoder
 	PolynomialBasis
-	logDegree int
-	logSplit  int
-	isOdd     bool
-	isEven    bool
-}
-
-func optimalSplit(logDegree int) (logSplit int) {
-	logSplit = logDegree >> 1
-	a := (1 << logSplit) + (1 << (logDegree - logSplit)) + logDegree - logSplit - 3
-	b := (1 << (logSplit + 1)) + (1 << (logDegree - logSplit - 1)) + logDegree - logSplit - 4
-	if a > b {
-		logSplit++
-	}
-
-	return
+	giant int
+	baby  int
 }
 
 func (eval *evaluator) evaluatePolyVector(input interface{}, pol *coefficientsComplex128, targetScale float64) (opOut *Ciphertext, err error) {
+
 	var monomialBasis *PolynomialBasis
-	switch input := input.(type) {
-	case *Ciphertext:
-		monomialBasis = NewPolynomialBasis(input, pol.basis)
-	case *PolynomialBasis:
-		if input.Value[1] == nil {
-			return nil, fmt.Errorf("cannot evaluatePolyVector: given PolynomialBasis.Value[1] is empty")
-		}
-		monomialBasis = input
-	default:
-		return nil, fmt.Errorf("cannot evaluatePolyVector: invalid input, must be either *Ciphertext or *PolynomialBasis")
-	}
-
-	if err := checkEnoughLevels(monomialBasis.Value[1].Level(), pol.Depth(), 1); err != nil {
-		return nil, err
-	}
-
-	logDegree := pol.Depth()
-	logSplit := optimalSplit(logDegree)
-
-	odd, even := pol.odd, pol.even
-
-	isRingStandard := eval.params.RingType() == ring.Standard
-
-	for i := (1 << logSplit) - 1; i > 1; i-- {
-		if !(even || odd) || (i&1 == 0 && even) || (i&1 == 1 && odd) {
-			if err = monomialBasis.GenPower(i, isRingStandard, targetScale, eval); err != nil {
-				return nil, err
-			}
-		}
-	}
-
-	for i := logSplit; i < logDegree; i++ {
-		if err = monomialBasis.GenPower(1<<i, false, targetScale, eval); err != nil {
-			return nil, err
-		}
+	if monomialBasis, err = eval.genPolynomialBasis(input, pol); err != nil {
+		return
 	}
 
 	polyEval := &polynomialEvaluator{}
@@ -112,10 +67,9 @@ func (eval *evaluator) evaluatePolyVector(input interface{}, pol *coefficientsCo
 		polyEval.Encoder = NewEncoder(eval.params)
 	}
 	polyEval.PolynomialBasis = *monomialBasis
-	polyEval.logDegree = logDegree
-	polyEval.logSplit = logSplit
+	polyEval.giant, polyEval.baby = pol.BSGSSplit()
 
-	if opOut, err = polyEval.recurse(monomialBasis.Value[1].Level()-logDegree+1, targetScale, *pol); err != nil {
+	if opOut, err = polyEval.recurse(monomialBasis.Value[1].Level()-polyEval.giant+1, targetScale, *pol); err != nil {
 		return nil, err
 	}
 
@@ -136,21 +90,21 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale float6
 
 	params := polyEval.Evaluator.(*evaluator).params
 
-	logSplit := polyEval.logSplit
+	baby := polyEval.baby
 
 	// Recursively computes the evaluation of the Chebyshev polynomial using a baby-set giant-step algorithm.
-	if pol.Degree() < (1 << logSplit) {
+	if pol.Degree() < (1 << baby) {
 
-		if pol.lead && polyEval.logSplit > 1 && pol.maxDeg%(1<<(logSplit+1)) > (1<<(logSplit-1)) {
+		if pol.lead && polyEval.baby > 1 && pol.maxDeg%(1<<(baby+1)) > (1<<(baby-1)) {
 
-			logDegree := int(bits.Len64(uint64(pol.Degree())))
-			logSplit := logDegree >> 1
+			giant := int(bits.Len64(uint64(pol.Degree())))
+			baby := giant >> 1
 
 			polyEvalBis := new(polynomialEvaluator)
 			polyEvalBis.Evaluator = polyEval.Evaluator
 			polyEvalBis.Encoder = polyEval.Encoder
-			polyEvalBis.logDegree = logDegree
-			polyEvalBis.logSplit = logSplit
+			polyEvalBis.giant = giant
+			polyEvalBis.baby = baby
 			polyEvalBis.PolynomialBasis = polyEval.PolynomialBasis
 
 			return polyEvalBis.recurse(targetLevel, targetScale, pol)
@@ -163,7 +117,7 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale float6
 		return polyEval.evaluatePolyFromPolynomialBasis(targetScale, targetLevel, pol)
 	}
 
-	var nextPower = 1 << polyEval.logSplit
+	var nextPower = 1 << polyEval.baby
 	for nextPower < (pol.Degree()>>1)+1 {
 		nextPower <<= 1
 	}

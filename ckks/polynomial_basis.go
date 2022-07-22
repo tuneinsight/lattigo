@@ -2,7 +2,10 @@ package ckks
 
 import (
 	"encoding/binary"
+	"fmt"
 	"math"
+
+	"github.com/tuneinsight/lattigo/v3/ring"
 )
 
 // PolynomialBasis is a struct storing powers of a ciphertext.
@@ -152,5 +155,45 @@ func (p *PolynomialBasis) UnmarshalBinary(data []byte) (err error) {
 		}
 		ptr += dtLen
 	}
+	return
+}
+
+func (eval *evaluator) genPolynomialBasis(input interface{}, pol coefficients) (monomialBasis *PolynomialBasis, err error) {
+	switch input := input.(type) {
+	case *Ciphertext:
+		monomialBasis = NewPolynomialBasis(input, pol.Basis())
+	case *PolynomialBasis:
+		if input.Value[1] == nil {
+			return nil, fmt.Errorf("cannot evaluatePolyVector: given PolynomialBasis.Value[1] is empty")
+		}
+		monomialBasis = input
+	default:
+		return nil, fmt.Errorf("cannot evaluatePolyVector: invalid input, must be either *Ciphertext or *PolynomialBasis")
+	}
+
+	if err := checkEnoughLevels(monomialBasis.Value[1].Level(), pol.Depth(), 1); err != nil {
+		return nil, err
+	}
+
+	giant, baby := pol.BSGSSplit()
+
+	odd, even := pol.OddEven()
+
+	isRingStandard := eval.params.RingType() == ring.Standard
+
+	for i := (1 << baby) - 1; i > 1; i-- {
+		if !(even || odd) || (i&1 == 0 && even) || (i&1 == 1 && odd) {
+			if err = monomialBasis.GenPower(i, isRingStandard, eval.params.DefaultScale(), eval); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	for i := baby; i < giant; i++ {
+		if err = monomialBasis.GenPower(1<<i, false, eval.params.DefaultScale(), eval); err != nil {
+			return nil, err
+		}
+	}
+
 	return
 }

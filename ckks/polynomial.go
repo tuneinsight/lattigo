@@ -366,8 +366,19 @@ func (c *coefficientsBSGSComplex128) SplitBSGS(split int) (q, r coefficients) {
 	polyq.slotsIndex = c.slotsIndex
 	polyr.slotsIndex = c.slotsIndex
 
-	polyq.coeffs = c.coeffs[split:]
-	polyr.coeffs = c.coeffs[:split]
+	var deg, n int
+	for i := range c.coeffs {
+
+		if deg >= split {
+			break
+		}
+
+		deg += len(c.coeffs[i])
+		n++
+	}
+
+	polyq.coeffs = c.coeffs[n:]
+	polyr.coeffs = c.coeffs[:n]
 
 	return polyq, polyr
 }
@@ -390,13 +401,10 @@ func (c *coefficientsBSGSPlaintext) Depth() int {
 }
 
 func (c *coefficientsBSGSPlaintext) Degree() int {
+
 	var deg int
 	for _, ci := range c.coeffs {
 		deg += len(ci)
-	}
-
-	for i := range c.coeffs {
-		fmt.Println(c.coeffs[i])
 	}
 
 	return deg - 1
@@ -419,8 +427,19 @@ func (c *coefficientsBSGSPlaintext) SplitBSGS(split int) (q, r coefficients) {
 	polyq.basis = c.basis
 	polyr.basis = c.basis
 
-	polyq.coeffs = c.coeffs[split:]
-	polyr.coeffs = c.coeffs[:split]
+	var deg, n int
+	for i := range c.coeffs {
+
+		if deg >= split {
+			break
+		}
+
+		deg += len(c.coeffs[i])
+		n++
+	}
+
+	polyq.coeffs = c.coeffs[n:]
+	polyr.coeffs = c.coeffs[:n]
 
 	return polyq, polyr
 }
@@ -467,8 +486,19 @@ func (c *coefficientsBSGSCiphertext) SplitBSGS(split int) (q, r coefficients) {
 	polyq.basis = c.basis
 	polyr.basis = c.basis
 
-	polyq.coeffs = c.coeffs[split:]
-	polyr.coeffs = c.coeffs[:split]
+	var deg, n int
+	for i := range c.coeffs {
+
+		if deg >= split {
+			break
+		}
+
+		deg += len(c.coeffs[i])
+		n++
+	}
+
+	polyq.coeffs = c.coeffs[n:]
+	polyr.coeffs = c.coeffs[:n]
 
 	return polyq, polyr
 }
@@ -713,7 +743,7 @@ func (polyEval *dummyPolynomialEvaluator) evaluatePolyFromPolynomialBasisPlainte
 		}
 	}
 
-	polOut.coeffs = append(polOut.coeffs, pt)
+	polOut.coeffs = append([][]*Plaintext{pt}, polOut.coeffs...)
 
 	return &dummyCiphertext{level, targetScale}
 }
@@ -736,8 +766,14 @@ func (polyEval *dummyPolynomialEvaluator) evaluatePolyFromPolynomialBasisCiphert
 	//[#poly][coefficients]
 	ct := make([]*Ciphertext, degree+1)
 
-	values := make([]complex128, params.Slots())
-	pt := NewPlaintext(params, level, 0)
+	var values []complex128
+	var pt *Plaintext
+	if slotsIndex != nil {
+		values = make([]complex128, params.Slots())
+		pt = NewPlaintext(params, level, 0)
+	} else {
+		values = make([]complex128, 1)
+	}
 
 	var toEncrypt bool
 
@@ -749,17 +785,25 @@ func (polyEval *dummyPolynomialEvaluator) evaluatePolyFromPolynomialBasisCiphert
 
 			toEncrypt = true
 
-			for _, j := range slotsIndex[i] {
-				values[j] = c
+			if slotsIndex != nil {
+				for _, j := range slotsIndex[i] {
+					values[j] = c
+				}
+			} else {
+				values[0] = c
 			}
 		}
 	}
 
 	if toEncrypt {
-
-		pt.Scale = targetScale
-		ecd.Encode(values, pt, params.LogSlots())
-		ct[0] = enc.EncryptNew(pt)
+		if slotsIndex != nil {
+			pt.Scale = targetScale
+			ecd.Encode(values, pt, params.LogSlots())
+			ct[0] = enc.EncryptNew(pt)
+		} else {
+			ct[0] = enc.EncryptZeroNew(level, targetScale)
+			addConst(params, ct[0], values[0], ct[0])
+		}
 
 		for i := range values {
 			values[i] = 0
@@ -778,17 +822,27 @@ func (polyEval *dummyPolynomialEvaluator) evaluatePolyFromPolynomialBasisCiphert
 
 				toEncrypt = true
 
-				for _, k := range slotsIndex[j] {
-					values[k] = c
+				if slotsIndex != nil {
+					for _, k := range slotsIndex[j] {
+						values[k] = c
+					}
+				} else {
+					values[0] = c
 				}
+
 			}
 		}
 
 		if toEncrypt {
 
-			pt.Scale = targetScale / X[i].Scale
-			ecd.Encode(values, pt, params.LogSlots())
-			ct[i] = enc.EncryptNew(pt)
+			if slotsIndex != nil {
+				pt.Scale = targetScale / X[i].Scale
+				ecd.Encode(values, pt, params.LogSlots())
+				ct[i] = enc.EncryptNew(pt)
+			} else {
+				ct[i] = enc.EncryptZeroNew(level, targetScale/X[i].Scale)
+				addConst(params, ct[i], values[0], ct[i])
+			}
 
 			for i := range values {
 				values[i] = 0
@@ -798,7 +852,7 @@ func (polyEval *dummyPolynomialEvaluator) evaluatePolyFromPolynomialBasisCiphert
 		}
 	}
 
-	polOut.coeffs = append(polOut.coeffs, ct)
+	polOut.coeffs = append([][]*Ciphertext{ct}, polOut.coeffs...)
 
 	return &dummyCiphertext{level, targetScale}
 }

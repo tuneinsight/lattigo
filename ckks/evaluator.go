@@ -473,7 +473,7 @@ func (eval *evaluator) AddConstNew(ct0 *Ciphertext, constant interface{}) (ctOut
 	return ctOut
 }
 
-func (eval *evaluator) getConstAndScale(level int, constant interface{}) (cReal, cImag, scale float64) {
+func getConstAndScale(params Parameters, level int, constant interface{}) (cReal, cImag, scale float64) {
 
 	// Converts to float64 and determines if a scaling is required (which is the case if either real or imag have a rational part)
 	scale = 1
@@ -487,7 +487,7 @@ func (eval *evaluator) getConstAndScale(level int, constant interface{}) (cReal,
 			valueFloat := cReal - float64(valueInt)
 
 			if valueFloat != 0 {
-				scale = float64(eval.params.RingQ().Modulus[level])
+				scale = float64(params.RingQ().Modulus[level])
 			}
 		}
 
@@ -496,7 +496,7 @@ func (eval *evaluator) getConstAndScale(level int, constant interface{}) (cReal,
 			valueFloat := cImag - float64(valueInt)
 
 			if valueFloat != 0 {
-				scale = float64(eval.params.RingQ().Modulus[level])
+				scale = float64(params.RingQ().Modulus[level])
 			}
 		}
 
@@ -509,7 +509,7 @@ func (eval *evaluator) getConstAndScale(level int, constant interface{}) (cReal,
 			valueFloat := cReal - float64(valueInt)
 
 			if valueFloat != 0 {
-				scale = float64(eval.params.RingQ().Modulus[level])
+				scale = float64(params.RingQ().Modulus[level])
 			}
 		}
 
@@ -526,7 +526,7 @@ func (eval *evaluator) getConstAndScale(level int, constant interface{}) (cReal,
 		cImag = float64(0)
 	}
 
-	if eval.params.RingType() == ring.ConjugateInvariant {
+	if params.RingType() == ring.ConjugateInvariant {
 		cImag = float64(0)
 	}
 
@@ -535,13 +535,17 @@ func (eval *evaluator) getConstAndScale(level int, constant interface{}) (cReal,
 
 // AddConst adds the input constant (which can be a uint64, int64, float64 or complex128) to ct0 and returns the result in ctOut.
 func (eval *evaluator) AddConst(ct0 *Ciphertext, constant interface{}, ctOut *Ciphertext) {
+	addConst(eval.params, ct0, constant, ctOut)
+}
+
+func addConst(params Parameters, ct0 *Ciphertext, constant interface{}, ctOut *Ciphertext) {
 
 	var level = utils.MinInt(ct0.Level(), ctOut.Level())
 	var scaledConst, scaledConstReal, scaledConstImag, qi uint64
 
-	cReal, cImag, _ := eval.getConstAndScale(level, constant)
+	cReal, cImag, _ := getConstAndScale(params, level, constant)
 
-	ringQ := eval.params.RingQ()
+	ringQ := params.RingQ()
 
 	ctOut.scale = ct0.scale
 
@@ -590,7 +594,7 @@ func (eval *evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interface{}, 
 		eval.DropLevel(ctOut, ctOut.Level()-level)
 	}
 
-	cReal, cImag, scale := eval.getConstAndScale(level, constant)
+	cReal, cImag, scale := getConstAndScale(eval.params, level, constant)
 
 	var scaledConst, scaledConstReal, scaledConstImag uint64
 
@@ -698,7 +702,7 @@ func (eval *evaluator) MultByConst(ct0 *Ciphertext, constant interface{}, ctOut 
 
 	var level = utils.MinInt(ct0.Level(), ctOut.Level())
 
-	cReal, cImag, scale := eval.getConstAndScale(level, constant)
+	cReal, cImag, scale := getConstAndScale(eval.params, level, constant)
 
 	// Component wise multiplication of the following vector with the ciphertext:
 	// [a + b*psi_qi^2, ....., a + b*psi_qi^2, a - b*psi_qi^2, ...., a - b*psi_qi^2] mod Qi

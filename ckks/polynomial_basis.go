@@ -158,7 +158,7 @@ func (p *PolynomialBasis) UnmarshalBinary(data []byte) (err error) {
 	return
 }
 
-func (eval *evaluator) genPolynomialBasis(input interface{}, pol coefficients) (monomialBasis *PolynomialBasis, err error) {
+func (eval *evaluator) genPolynomialBasis(input interface{}, pol Polynomial) (monomialBasis *PolynomialBasis, err error) {
 	switch input := input.(type) {
 	case *Ciphertext:
 		monomialBasis = NewPolynomialBasis(input, pol.Basis())
@@ -179,7 +179,13 @@ func (eval *evaluator) genPolynomialBasis(input interface{}, pol coefficients) (
 
 	odd, even := pol.OddEven()
 
-	isRingStandard := eval.params.RingType() == ring.Standard
+	var isRingStandard bool
+	switch pol.coefficients.(type) {
+	case *coefficientsBSGSCiphertext:
+		isRingStandard = false
+	default:
+		isRingStandard = eval.params.RingType() == ring.Standard
+	}
 
 	for i := (1 << baby) - 1; i > 1; i-- {
 		if !(even || odd) || (i&1 == 0 && even) || (i&1 == 1 && odd) {

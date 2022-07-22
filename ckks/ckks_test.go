@@ -107,7 +107,6 @@ func TestCKKS(t *testing.T) {
 			testFunctions,
 			testDecryptPublic,
 			testPolynomial,
-			testEvaluatePoly,
 			testChebyshevInterpolator,
 			testSwitchKeys,
 			testBridge,
@@ -837,6 +836,82 @@ func testFunctions(tc *testContext, t *testing.T) {
 }
 
 func testPolynomial(tc *testContext, t *testing.T) {
+
+	t.Run(GetTestName(tc.params, "Polynomial/Complex128/Single"), func(t *testing.T) {
+
+		if tc.params.MaxLevel() < 3 {
+			t.Skip("skipping test for params max level < 3")
+		}
+
+		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, complex(-1, 0), complex(1, 0), t)
+
+		coeffs := []complex128{
+			complex(1.0, 0),
+			complex(1.0, 0),
+			complex(1.0/2, 0),
+			complex(1.0/6, 0),
+			complex(1.0/24, 0),
+			complex(1.0/120, 0),
+			complex(1.0/720, 0),
+			complex(1.0/5040, 0),
+		}
+
+		poly, err := NewPolynomial(Monomial, coeffs, nil)
+		require.Nil(t, err)
+
+		for i := range values {
+			values[i] = cmplx.Exp(values[i])
+		}
+
+		if ciphertext, err = tc.evaluator.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {
+			t.Error(err)
+		}
+
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogSlots(), 0, t)
+	})
+
+	t.Run(GetTestName(tc.params, "Polynomial/Complex128/Vector"), func(t *testing.T) {
+
+		if tc.params.MaxLevel() < 3 {
+			t.Skip("skipping test for params max level < 3")
+		}
+
+		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, complex(-1, 0), complex(1, 0), t)
+
+		coeffs := []complex128{
+			complex(1.0, 0),
+			complex(1.0, 0),
+			complex(1.0/2, 0),
+			complex(1.0/6, 0),
+			complex(1.0/24, 0),
+			complex(1.0/120, 0),
+			complex(1.0/720, 0),
+			complex(1.0/5040, 0),
+		}
+
+		slotsIndex := make(map[int][]int)
+		idx := make([]int, tc.params.Slots()>>1)
+		for i := 0; i < tc.params.Slots()>>1; i++ {
+			idx[i] = 2 * i
+		}
+
+		slotsIndex[0] = idx
+
+		valuesWant := make([]complex128, tc.params.Slots())
+		for _, j := range idx {
+			valuesWant[j] = cmplx.Exp(values[j])
+		}
+
+		poly, err := NewPolynomial(Monomial, coeffs, slotsIndex)
+		require.Nil(t, err)
+
+		if ciphertext, err = tc.evaluator.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {
+			t.Error(err)
+		}
+
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, valuesWant, ciphertext, tc.params.LogSlots(), 0, t)
+	})
+
 	t.Run(GetTestName(tc.params, "Polynomial/Plaintext"), func(t *testing.T) {
 
 		if tc.params.MaxLevel() < 3 {
@@ -872,24 +947,17 @@ func testPolynomial(tc *testContext, t *testing.T) {
 		poly, err := NewPolynomial(Monomial, coeffs, slotsIndex)
 		require.Nil(t, err)
 
-		/*
-			polyPt, err := poly.Encode(tc.encoder, ciphertext.Level(), ciphertext.Scale, tc.params.DefaultScale())
-			require.Nil(t, err)
+		polyPt, err := poly.Encode(tc.encoder, ciphertext.Level(), ciphertext.Scale, tc.params.DefaultScale())
+		require.Nil(t, err)
 
-			fmt.Println(polyPt.Degree())
-		*/
-
-		if ciphertext, err = tc.evaluator.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {
+		if ciphertext, err = tc.evaluator.EvaluatePoly(ciphertext, polyPt, ciphertext.Scale); err != nil {
 			t.Error(err)
 		}
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, valuesWant, ciphertext, tc.params.LogSlots(), 0, t)
 	})
-}
 
-func testEvaluatePoly(tc *testContext, t *testing.T) {
-
-	t.Run(GetTestName(tc.params, "EvaluatePoly/PolySingle/Exp"), func(t *testing.T) {
+	t.Run(GetTestName(tc.params, "Polynomial/Ciphertext/Single"), func(t *testing.T) {
 
 		if tc.params.MaxLevel() < 3 {
 			t.Skip("skipping test for params max level < 3")
@@ -908,21 +976,24 @@ func testEvaluatePoly(tc *testContext, t *testing.T) {
 			complex(1.0/5040, 0),
 		}
 
-		poly, err := NewPolynomial(Monomial, coeffs, nil)
-		require.Nil(t, err)
-
 		for i := range values {
 			values[i] = cmplx.Exp(values[i])
 		}
 
-		if ciphertext, err = tc.evaluator.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {
+		poly, err := NewPolynomial(Monomial, coeffs, nil)
+		require.Nil(t, err)
+
+		polyCt, err := poly.Encrypt(tc.encoder, tc.encryptorSk, ciphertext.Level(), ciphertext.Scale, tc.params.DefaultScale())
+		require.Nil(t, err)
+
+		if ciphertext, err = tc.evaluator.EvaluatePoly(ciphertext, polyCt, ciphertext.Scale); err != nil {
 			t.Error(err)
 		}
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogSlots(), 0, t)
 	})
 
-	t.Run(GetTestName(tc.params, "EvaluatePoly/PolyVector/Exp"), func(t *testing.T) {
+	t.Run(GetTestName(tc.params, "Polynomial/Ciphertext/Vector"), func(t *testing.T) {
 
 		if tc.params.MaxLevel() < 3 {
 			t.Skip("skipping test for params max level < 3")
@@ -957,7 +1028,10 @@ func testEvaluatePoly(tc *testContext, t *testing.T) {
 		poly, err := NewPolynomial(Monomial, coeffs, slotsIndex)
 		require.Nil(t, err)
 
-		if ciphertext, err = tc.evaluator.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {
+		polyCt, err := poly.Encrypt(tc.encoder, tc.encryptorSk, ciphertext.Level(), ciphertext.Scale, tc.params.DefaultScale())
+		require.Nil(t, err)
+
+		if ciphertext, err = tc.evaluator.EvaluatePoly(ciphertext, polyCt, ciphertext.Scale); err != nil {
 			t.Error(err)
 		}
 

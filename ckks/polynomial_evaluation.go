@@ -7,6 +7,7 @@ import (
 	"runtime"
 
 	"github.com/tuneinsight/lattigo/v3/ring"
+	"github.com/tuneinsight/lattigo/v3/rlwe"
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
@@ -132,11 +133,12 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale float6
 		case *coefficientsComplex128:
 			return polyEval.evaluatePolyFromPolynomialBasisComplex128(targetScale, targetLevel, poly)
 		case *coefficientsBSGSComplex128:
+			//fmt.Println(poly)
 			//return polyEval.evaluatePolyFromPolynomialBasisComplex128(targetScale, targetLevel, poly)
 		case *coefficientsBSGSPlaintext:
-			//return polyEval.evaluatePolyFromPolynomialBasisPlaintext(targetScale, targetLevel, pol, poly)
+			return polyEval.evaluatePolyFromPlaintext(poly.coeffs[0])
 		case *coefficientsBSGSCiphertext:
-			//return polyEval.evaluatePolyFromPolynomialBasisCiphertext(targetScale, targetLevel, pol, poly)
+			return polyEval.evaluatePolyFromCiphertext(poly.coeffs[0])
 		}
 	}
 
@@ -160,23 +162,70 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale float6
 		return nil, err
 	}
 
-	if res.Degree() == 2 {
-		polyEval.Relinearize(res, res)
-	}
+	if res != nil {
+		if res.Degree() == 2 {
+			polyEval.Relinearize(res, res)
+		}
 
-	if err = polyEval.Rescale(res, params.DefaultScale(), res); err != nil {
-		return nil, err
+		if err = polyEval.Rescale(res, params.DefaultScale(), res); err != nil {
+			return nil, err
+		}
+
+		polyEval.Mul(res, XPow, res)
 	}
-	polyEval.Mul(res, XPow, res)
 
 	var tmp *Ciphertext
 	if tmp, err = polyEval.recurse(res.Level(), res.Scale, coeffsr); err != nil {
 		return nil, err
 	}
 
-	polyEval.Add(res, tmp, res)
+	if res != nil {
+		polyEval.Add(res, tmp, res)
+	} else {
+		res = tmp
+	}
 
-	tmp = nil
+	return
+}
+
+func (polyEval *polynomialEvaluator) evaluatePolyFromPlaintext(pt []*Plaintext) (res *Ciphertext, err error) {
+
+	X := polyEval.PolynomialBasis.Value
+
+	if pt[0] != nil {
+		res = &Ciphertext{Ciphertext: &rlwe.Ciphertext{Value: []*ring.Poly{pt[0].Value.CopyNew()}}, Scale: pt[0].Scale}
+	}
+
+	for i := 1; i < len(pt); i++ {
+		if pt[i] != nil {
+			if res == nil {
+				res = polyEval.MulNew(X[i], pt[i])
+			} else {
+				polyEval.MulAndAdd(X[i], pt[i], res)
+			}
+		}
+	}
+
+	return
+}
+
+func (polyEval *polynomialEvaluator) evaluatePolyFromCiphertext(ct []*Ciphertext) (res *Ciphertext, err error) {
+
+	X := polyEval.PolynomialBasis.Value
+
+	if ct[0] != nil {
+		res = ct[0].CopyNew()
+	}
+
+	for i := 1; i < len(ct); i++ {
+		if ct[i] != nil {
+			if res == nil {
+				res = polyEval.MulNew(X[i], ct[i])
+			} else {
+				polyEval.MulAndAdd(X[i], ct[i], res)
+			}
+		}
+	}
 
 	return
 }

@@ -106,6 +106,7 @@ func TestCKKS(t *testing.T) {
 			testEvaluatorMulAndAdd,
 			testFunctions,
 			testDecryptPublic,
+			testPolynomial,
 			testEvaluatePoly,
 			testChebyshevInterpolator,
 			testSwitchKeys,
@@ -832,6 +833,57 @@ func testFunctions(tc *testContext, t *testing.T) {
 		ciphertext = tc.evaluator.InverseNew(ciphertext, n)
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogSlots(), 0, t)
+	})
+}
+
+func testPolynomial(tc *testContext, t *testing.T) {
+	t.Run(GetTestName(tc.params, "Polynomial/Plaintext"), func(t *testing.T) {
+
+		if tc.params.MaxLevel() < 3 {
+			t.Skip("skipping test for params max level < 3")
+		}
+
+		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, complex(-1, 0), complex(1, 0), t)
+
+		coeffs := []complex128{
+			complex(1.0, 0),
+			complex(1.0, 0),
+			complex(1.0/2, 0),
+			complex(1.0/6, 0),
+			complex(1.0/24, 0),
+			complex(1.0/120, 0),
+			complex(1.0/720, 0),
+			complex(1.0/5040, 0),
+		}
+
+		slotsIndex := make(map[int][]int)
+		idx := make([]int, tc.params.Slots()>>1)
+		for i := 0; i < tc.params.Slots()>>1; i++ {
+			idx[i] = 2 * i
+		}
+
+		slotsIndex[0] = idx
+
+		valuesWant := make([]complex128, tc.params.Slots())
+		for _, j := range idx {
+			valuesWant[j] = cmplx.Exp(values[j])
+		}
+
+		poly, err := NewPolynomial(Monomial, coeffs, slotsIndex)
+		require.Nil(t, err)
+
+		/*
+			polyPt, err := poly.Encode(tc.encoder, ciphertext.Level(), ciphertext.Scale, tc.params.DefaultScale())
+			require.Nil(t, err)
+
+			fmt.Println(polyPt.Degree())
+		*/
+
+		if ciphertext, err = tc.evaluator.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {
+			t.Error(err)
+		}
+
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, valuesWant, ciphertext, tc.params.LogSlots(), 0, t)
 	})
 }
 

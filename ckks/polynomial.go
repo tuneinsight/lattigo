@@ -163,19 +163,66 @@ func NewPolynomial(basisType BasisType, coeffs interface{}, slotsIndex map[int][
 	}, nil
 }
 
-func (p *Polynomial) Encode(ecd Encoder, level int, inputScale, outputScale float64) (err error) {
+func (p *Polynomial) Encode(ecd Encoder, level int, inputScale, outputScale float64) (ptPoly *Polynomial, err error) {
 
-	//params := ecd.(*encoderComplex128).params
+	params := ecd.(*encoderComplex128).params
+
+	ptCoeffs := &coefficientsBSGSPlaintext{}
 
 	switch coeffInterface := p.coefficients.(type) {
 	case *coefficientsComplex128:
-		_ = coeffInterface
-	case *coefficientsBSGSComplex128:
+
+		ptCoeffs.basis = coeffInterface.basis
+		ptCoeffs.odd = coeffInterface.odd
+		ptCoeffs.even = coeffInterface.even
+
+		getScaledBSGSCoefficients(params, ecd, nil, level, inputScale, coeffInterface, outputScale, ptCoeffs)
+
 	default:
-		return fmt.Errorf("Polynomial.Encode(*): underlying polynomial is already encoded or encrypted")
+		return nil, fmt.Errorf("Polynomial.Encode(*): underlying polynomial is already encoded or encrypted")
 	}
 
-	return
+	return &Polynomial{ptCoeffs}, nil
+}
+
+func (p *Polynomial) Encrypt(ecd Encoder, enc Encryptor, level int, inputScale, outputScale float64) (ctPoly *Polynomial, err error) {
+
+	params := ecd.(*encoderComplex128).params
+
+	ctCoeffs := &coefficientsBSGSCiphertext{}
+
+	switch coeffInterface := p.coefficients.(type) {
+	case *coefficientsComplex128:
+
+		ctCoeffs.basis = coeffInterface.basis
+		ctCoeffs.odd = coeffInterface.odd
+		ctCoeffs.even = coeffInterface.even
+
+		getScaledBSGSCoefficients(params, ecd, enc, level, inputScale, coeffInterface, outputScale, ctCoeffs)
+
+	case *coefficientsBSGSPlaintext:
+
+		ctCoeffs.basis = coeffInterface.basis
+		ctCoeffs.odd = coeffInterface.odd
+		ctCoeffs.even = coeffInterface.even
+
+		pt := coeffInterface.coeffs
+		ct := make([][]*Ciphertext, len(pt))
+		for i := range ct {
+			ct[i] = make([]*Ciphertext, len(pt[i]))
+
+			for j := range ct[i] {
+				if pt[i][j] != nil {
+					ct[i][j] = enc.EncryptNew(pt[i][j])
+				}
+			}
+		}
+
+	default:
+		return nil, fmt.Errorf("Polynomial.Encrypt(*): underlying polynomial is already encrypted")
+	}
+
+	return &Polynomial{ctCoeffs}, nil
 }
 
 // coefficients is an interface to manage different types
@@ -393,14 +440,14 @@ func (c *coefficientsBSGSCiphertext) BSGSSplit() (giant, baby int) {
 type dummyPolynomialEvaluator struct {
 	dummyPolynomialBasis
 	params          Parameters
+	ecd             Encoder
+	enc             Encryptor
 	giant           int
 	baby            int
-	isOdd           bool
-	isEven          bool
 	coeffsInterface coefficients
 }
 
-func getScaledBSGSCoefficients(params Parameters, level int, scale float64, polIn *coefficientsComplex128, targetScale float64, polOut coefficients) {
+func getScaledBSGSCoefficients(params Parameters, ecd Encoder, enc Encryptor, level int, scale float64, polIn *coefficientsComplex128, targetScale float64, polOut coefficients) {
 
 	dummbpb := newDummyPolynomialBasis(params, &dummyCiphertext{level, scale})
 
@@ -422,17 +469,34 @@ func getScaledBSGSCoefficients(params Parameters, level int, scale float64, polI
 
 	polyEval := &dummyPolynomialEvaluator{}
 	polyEval.params = params
+	polyEval.ecd = ecd
+	polyEval.enc = enc
 	polyEval.dummyPolynomialBasis = *dummbpb
 	polyEval.giant = giant
 	polyEval.baby = baby
 
-	switch coeffsInterface := polOut.(type) {
+	switch c := polOut.(type) {
 	case *coefficientsBSGSComplex128:
-		polyEval.coeffsInterface = coeffsInterface
+
+		c.basis = polIn.basis
+		c.even, c.odd = polIn.OddEven()
+		c.slotsIndex = polIn.slotsIndex
+
+		polyEval.coeffsInterface = c
+
 	case *coefficientsBSGSPlaintext:
-		polyEval.coeffsInterface = coeffsInterface
+
+		c.basis = polIn.basis
+		c.even, c.odd = polIn.OddEven()
+
+		polyEval.coeffsInterface = c
+
 	case *coefficientsBSGSCiphertext:
-		polyEval.coeffsInterface = coeffsInterface
+
+		c.basis = polIn.basis
+		c.even, c.odd = polIn.OddEven()
+
+		polyEval.coeffsInterface = c
 	}
 
 	polyEval.recurse(dummbpb.Value[1].Level-giant+1, targetScale, *polIn)
@@ -453,7 +517,9 @@ func (polyEval *dummyPolynomialEvaluator) recurse(targetLevel int, targetScale f
 			baby := giant >> 1
 
 			polyEvalBis := new(dummyPolynomialEvaluator)
-			polyEvalBis.params = params
+			polyEvalBis.params = polyEval.params
+			polyEvalBis.ecd = polyEval.ecd
+			polyEvalBis.enc = polyEval.enc
 			polyEvalBis.giant = giant
 			polyEvalBis.baby = baby
 			polyEvalBis.dummyPolynomialBasis = polyEval.dummyPolynomialBasis
@@ -535,24 +601,75 @@ func (polyEval *dummyPolynomialEvaluator) evaluatePolyFromPolynomialBasisComplex
 
 func (polyEval *dummyPolynomialEvaluator) evaluatePolyFromPolynomialBasisPlaintext(targetScale float64, level int, polIn coefficientsComplex128, polOut *coefficientsBSGSPlaintext) (res *dummyCiphertext) {
 
+	params := polyEval.params
+	ecd := polyEval.ecd
+
+	slotsIndex := polIn.slotsIndex
+
 	X := polyEval.dummyPolynomialBasis.Value
 
-	values := make([][]complex128, polIn.Degree()+1)
-	for i := range values {
-		values[i] = make([]complex128, len(polIn.coeffs))
-	}
+	polys := polIn.coeffs
 
-	for i, c := range polIn.coeffs {
-		if isNotNegligible(c[0]) {
-			values[0][i] = c[0] * complex(targetScale, 0)
+	degree := polIn.Degree()
+	nbPoly := len(polys)
+
+	//[#poly][coefficients]
+	pt := make([]*Plaintext, degree+1)
+
+	values := make([]complex128, params.Slots())
+
+	var toEncode bool
+
+	for i := 0; i < nbPoly; i++ {
+
+		c := polys[i][0] // [poly][coeff]
+
+		if c != 0 {
+
+			toEncode = true
+
+			for _, j := range slotsIndex[i] {
+				values[j] = c
+			}
 		}
 	}
 
-	for i := 1; i < polIn.Degree(); i++ {
-		for j, c := range polIn.coeffs {
-			if isNotNegligible(c[i]) {
-				values[i][j] = c[i] * complex(targetScale/X[i].Scale, 0)
+	if toEncode {
+
+		pt[0] = ecd.EncodeNew(values, level, targetScale, params.LogSlots())
+
+		for i := range values {
+			values[i] = 0
+		}
+
+		toEncode = false
+	}
+
+	for i := 1; i < degree+1; i++ {
+
+		for j := 0; j < nbPoly; j++ {
+
+			c := polys[j][i] // [poly][coeff]
+
+			if c != 0 {
+
+				toEncode = true
+
+				for _, k := range slotsIndex[j] {
+					values[k] = c
+				}
 			}
+		}
+
+		if toEncode {
+
+			pt[i] = ecd.EncodeNew(values, level, targetScale/X[i].Scale, params.LogSlots())
+
+			for i := range values {
+				values[i] = 0
+			}
+
+			toEncode = false
 		}
 	}
 
@@ -561,24 +678,81 @@ func (polyEval *dummyPolynomialEvaluator) evaluatePolyFromPolynomialBasisPlainte
 
 func (polyEval *dummyPolynomialEvaluator) evaluatePolyFromPolynomialBasisCiphertext(targetScale float64, level int, polIn coefficientsComplex128, polOut *coefficientsBSGSCiphertext) (res *dummyCiphertext) {
 
+	params := polyEval.params
+	ecd := polyEval.ecd
+	enc := polyEval.enc
+
+	slotsIndex := polIn.slotsIndex
+
 	X := polyEval.dummyPolynomialBasis.Value
 
-	values := make([][]complex128, polIn.Degree()+1)
-	for i := range values {
-		values[i] = make([]complex128, len(polIn.coeffs))
-	}
+	polys := polIn.coeffs
 
-	for i, c := range polIn.coeffs {
-		if isNotNegligible(c[0]) {
-			values[0][i] = c[0] * complex(targetScale, 0)
+	degree := polIn.Degree()
+	nbPoly := len(polys)
+
+	//[#poly][coefficients]
+	ct := make([]*Ciphertext, degree+1)
+
+	values := make([]complex128, params.Slots())
+	pt := NewPlaintext(params, level, 0)
+
+	var toEncrypt bool
+
+	for i := 0; i < nbPoly; i++ {
+
+		c := polys[i][0] // [poly][coeff]
+
+		if c != 0 {
+
+			toEncrypt = true
+
+			for _, j := range slotsIndex[i] {
+				values[j] = c
+			}
 		}
 	}
 
-	for i := 1; i < polIn.Degree(); i++ {
-		for j, c := range polIn.coeffs {
-			if isNotNegligible(c[i]) {
-				values[i][j] = c[i] * complex(targetScale/X[i].Scale, 0)
+	if toEncrypt {
+
+		pt.Scale = targetScale
+		ecd.Encode(values, pt, params.LogSlots())
+		ct[0] = enc.EncryptNew(pt)
+
+		for i := range values {
+			values[i] = 0
+		}
+
+		toEncrypt = false
+	}
+
+	for i := 1; i < degree+1; i++ {
+
+		for j := 0; j < nbPoly; j++ {
+
+			c := polys[j][i] // [poly][coeff]
+
+			if c != 0 {
+
+				toEncrypt = true
+
+				for _, k := range slotsIndex[j] {
+					values[k] = c
+				}
 			}
+		}
+
+		if toEncrypt {
+
+			pt.Scale = targetScale / X[i].Scale
+			ecd.Encode(values, pt, params.LogSlots())
+			ct[i] = enc.EncryptNew(pt)
+
+			for i := range values {
+				values[i] = 0
+			}
+
+			toEncrypt = false
 		}
 	}
 

@@ -859,6 +859,14 @@ func testPolynomial(tc *testContext, t *testing.T) {
 		poly, err := NewPolynomial(Monomial, coeffs, nil)
 		require.Nil(t, err)
 
+		polyData, err := poly.MarshalBinary()
+		require.Nil(t, err)
+
+		newPoly := Polynomial{}
+		require.Nil(t, newPoly.UnmarshalBinary(polyData))
+
+		require.Equal(t, poly, newPoly)
+
 		for i := range values {
 			values[i] = cmplx.Exp(values[i])
 		}
@@ -889,21 +897,26 @@ func testPolynomial(tc *testContext, t *testing.T) {
 			complex(1.0/5040, 0),
 		}
 
-		slotsIndex := make(map[int][]int)
 		idx := make([]int, tc.params.Slots()>>1)
 		for i := 0; i < tc.params.Slots()>>1; i++ {
 			idx[i] = 2 * i
 		}
-
-		slotsIndex[0] = idx
 
 		valuesWant := make([]complex128, tc.params.Slots())
 		for _, j := range idx {
 			valuesWant[j] = cmplx.Exp(values[j])
 		}
 
-		poly, err := NewPolynomial(Monomial, coeffs, slotsIndex)
+		poly, err := NewPolynomial(Monomial, coeffs, [][]int{idx})
 		require.Nil(t, err)
+
+		polyData, err := poly.MarshalBinary()
+		require.Nil(t, err)
+
+		newPoly := Polynomial{}
+		require.Nil(t, newPoly.UnmarshalBinary(polyData))
+
+		require.Equal(t, poly, newPoly)
 
 		if ciphertext, err = tc.evaluator.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {
 			t.Error(err)
@@ -931,20 +944,17 @@ func testPolynomial(tc *testContext, t *testing.T) {
 			complex(1.0/5040, 0),
 		}
 
-		slotsIndex := make(map[int][]int)
 		idx := make([]int, tc.params.Slots()>>1)
 		for i := 0; i < tc.params.Slots()>>1; i++ {
 			idx[i] = 2 * i
 		}
-
-		slotsIndex[0] = idx
 
 		valuesWant := make([]complex128, tc.params.Slots())
 		for _, j := range idx {
 			valuesWant[j] = cmplx.Exp(values[j])
 		}
 
-		poly, err := NewPolynomial(Monomial, coeffs, slotsIndex)
+		poly, err := NewPolynomial(Monomial, coeffs, [][]int{idx})
 		require.Nil(t, err)
 
 		polyPt, err := poly.Encode(tc.encoder, ciphertext.Level(), ciphertext.Scale, tc.params.DefaultScale())
@@ -986,7 +996,13 @@ func testPolynomial(tc *testContext, t *testing.T) {
 		polyCt, err := poly.Encrypt(tc.encoder, tc.encryptorSk, ciphertext.Level(), ciphertext.Scale, tc.params.DefaultScale())
 		require.Nil(t, err)
 
-		if ciphertext, err = tc.evaluator.EvaluatePoly(ciphertext, polyCt, ciphertext.Scale); err != nil {
+		polyData, err := polyCt.MarshalBinary()
+		require.Nil(t, err)
+
+		newPolyCt := Polynomial{}
+		require.Nil(t, newPolyCt.UnmarshalBinary(polyData))
+
+		if ciphertext, err = tc.evaluator.EvaluatePoly(ciphertext, newPolyCt, ciphertext.Scale); err != nil {
 			t.Error(err)
 		}
 
@@ -1012,26 +1028,29 @@ func testPolynomial(tc *testContext, t *testing.T) {
 			complex(1.0/5040, 0),
 		}
 
-		slotsIndex := make(map[int][]int)
 		idx := make([]int, tc.params.Slots()>>1)
 		for i := 0; i < tc.params.Slots()>>1; i++ {
 			idx[i] = 2 * i
 		}
-
-		slotsIndex[0] = idx
 
 		valuesWant := make([]complex128, tc.params.Slots())
 		for _, j := range idx {
 			valuesWant[j] = cmplx.Exp(values[j])
 		}
 
-		poly, err := NewPolynomial(Monomial, coeffs, slotsIndex)
+		poly, err := NewPolynomial(Monomial, coeffs, [][]int{idx})
 		require.Nil(t, err)
 
 		polyCt, err := poly.Encrypt(tc.encoder, tc.encryptorSk, ciphertext.Level(), ciphertext.Scale, tc.params.DefaultScale())
 		require.Nil(t, err)
 
-		if ciphertext, err = tc.evaluator.EvaluatePoly(ciphertext, polyCt, ciphertext.Scale); err != nil {
+		polyData, err := polyCt.MarshalBinary()
+		require.Nil(t, err)
+
+		newPolyCt := Polynomial{}
+		require.Nil(t, newPolyCt.UnmarshalBinary(polyData))
+
+		if ciphertext, err = tc.evaluator.EvaluatePoly(ciphertext, newPolyCt, ciphertext.Scale); err != nil {
 			t.Error(err)
 		}
 

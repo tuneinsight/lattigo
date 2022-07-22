@@ -35,7 +35,7 @@ func (eval *evaluator) EvaluatePoly(input interface{}, pol Polynomial, targetSca
 	polyEval.PolynomialBasis = *monomialBasis
 	polyEval.giant, polyEval.baby = pol.BSGSSplit()
 
-	if opOut, err = polyEval.recurse(monomialBasis.Value[1].Level()-polyEval.giant+1, targetScale, evalPoly{pol, true, pol.Degree()}); err != nil {
+	if opOut, err = polyEval.recurse(monomialBasis.Value[1].Level()-polyEval.giant+1, targetScale, evalPoly{&pol, true, pol.Degree()}); err != nil {
 		return nil, err
 	}
 

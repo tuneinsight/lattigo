@@ -74,9 +74,6 @@ func chebyshevinterpolation() {
 	approxF := ckks.Approximate(f, a, b, deg)
 	approxG := ckks.Approximate(g, a, b, deg)
 
-	// Map storing which polynomial has to be applied to which slot.
-	slotsIndex := make(map[int][]int)
-
 	idxF := make([]int, params.Slots()>>1)
 	idxG := make([]int, params.Slots()>>1)
 	for i := 0; i < params.Slots()>>1; i++ {
@@ -84,8 +81,10 @@ func chebyshevinterpolation() {
 		idxG[i] = i*2 + 1 // Index with all odd slots
 	}
 
-	slotsIndex[0] = idxF // Assigns index of all even slots to poly[0] = f(x)
-	slotsIndex[1] = idxG // Assigns index of all odd slots to poly[1] = g(x)
+	// Map storing which polynomial has to be applied to which slot.
+	// Assigns index of all even slots to poly[0] = f(x)
+	// Assigns index of all odd slots to poly[1] = g(x)
+	slotsIndex := [][]int{idxF, idxG}
 
 	// Change of variable
 	evaluator.MultByConst(ciphertext, 2/(b-a), ciphertext)

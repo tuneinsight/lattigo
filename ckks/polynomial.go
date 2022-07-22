@@ -1,6 +1,7 @@
 package ckks
 
 import (
+	"encoding/binary"
 	"fmt"
 	"math"
 	"math/bits"
@@ -29,6 +30,44 @@ type Polynomial struct {
 	coefficients
 }
 
+func (p *Polynomial) MarshalBinary() (data []byte, err error) {
+
+	if data, err = p.coefficients.MarshalBinary(); err != nil {
+		return nil, err
+	}
+
+	data = append([]byte{0}, data...)
+
+	switch p.coefficients.(type) {
+	case *coefficientsComplex128:
+		data[0] = 0
+	case *coefficientsBSGSComplex128:
+		data[0] = 1
+	case *coefficientsBSGSPlaintext:
+		data[0] = 2
+	case *coefficientsBSGSCiphertext:
+		data[0] = 3
+	}
+
+	return
+}
+
+func (p *Polynomial) UnmarshalBinary(data []byte) (err error) {
+
+	switch data[0] {
+	case 0:
+		p.coefficients = new(coefficientsComplex128)
+	case 1:
+		p.coefficients = new(coefficientsBSGSComplex128)
+	case 2:
+		p.coefficients = new(coefficientsBSGSPlaintext)
+	case 3:
+		p.coefficients = new(coefficientsBSGSCiphertext)
+	}
+
+	return p.coefficients.UnmarshalBinary(data[1:])
+}
+
 // NewPolynomial creates a new polynomial from:
 //
 // basisType: ckks.Monomial or ckks.Chebyshev
@@ -43,7 +82,7 @@ type Polynomial struct {
 //             specific slots (instead of all), resulting in zero values in slots where the polynomial isn't evaluated.
 //
 // The struct Polynomial can then be given to the ckks.Evaluator to evaluate the polynomial on a *ckks.Ciphertext.
-func NewPolynomial(basisType BasisType, coeffs interface{}, slotsIndex map[int][]int) (poly Polynomial, err error) {
+func NewPolynomial(basisType BasisType, coeffs interface{}, slotsIndex [][]int) (poly Polynomial, err error) {
 
 	var coeffsInterface coefficients
 	var odd, even bool = true, true
@@ -232,6 +271,8 @@ type coefficients interface {
 	OddEven() (odd, even bool)
 	BSGSSplit() (giant, baby int)
 	SplitBSGS(split int) (coeffq, coeffsr coefficients)
+	MarshalBinary() (data []byte, err error)
+	UnmarshalBinary(data []byte) (err error)
 }
 
 func optimalSplit(giant int) (baby int) {
@@ -250,8 +291,120 @@ func optimalSplit(giant int) (baby int) {
 type coefficientsComplex128 struct {
 	basis      BasisType
 	coeffs     [][]complex128
-	slotsIndex map[int][]int
+	slotsIndex [][]int
 	odd, even  bool
+}
+
+func (c *coefficientsComplex128) MarshalBinary() (data []byte, err error) {
+	data = make([]byte, 3+4)
+
+	data[0] = uint8(c.basis)
+
+	if c.odd {
+		data[1] = 1
+	}
+
+	if c.even {
+		data[2] = 1
+	}
+
+	if c.slotsIndex != nil {
+
+		var ptr int
+		binary.LittleEndian.PutUint32(data[3:], uint32(len(c.slotsIndex)))
+
+		for _, slots := range c.slotsIndex {
+
+			dataSlots := make([]byte, 4+len(slots)<<2)
+
+			binary.LittleEndian.PutUint32(dataSlots, uint32(len(slots)))
+
+			ptr += 4
+			for _, j := range slots {
+				binary.LittleEndian.PutUint32(dataSlots[ptr:], uint32(j))
+				ptr += 4
+			}
+
+			data = append(data, dataSlots...)
+		}
+	}
+
+	data = append(data, make([]byte, 4)...)
+	binary.LittleEndian.PutUint32(data[len(data)-4:], uint32(len(c.coeffs)))
+
+	var ptr int
+	for _, coeffs := range c.coeffs {
+
+		dataCoeffs := make([]byte, 4+len(coeffs)<<5)
+
+		binary.LittleEndian.PutUint32(dataCoeffs, uint32(len(coeffs)))
+		ptr += 4
+
+		for _, coeff := range coeffs {
+			binary.LittleEndian.PutUint64(dataCoeffs[ptr:], math.Float64bits(real(coeff)))
+			ptr += 8
+			binary.LittleEndian.PutUint64(dataCoeffs[ptr:], math.Float64bits(imag(coeff)))
+			ptr += 8
+		}
+
+		data = append(data, dataCoeffs...)
+	}
+
+	return
+}
+
+//
+func (c *coefficientsComplex128) UnmarshalBinary(data []byte) (err error) {
+
+	c.basis = BasisType(int(data[0]))
+
+	c.odd = data[1] == 1
+	c.even = data[2] == 1
+
+	nbSlotIndex := int(binary.LittleEndian.Uint32(data[3:]))
+
+	var ptr int
+	ptr += 7
+
+	if nbSlotIndex != 0 {
+
+		c.slotsIndex = make([][]int, nbSlotIndex)
+
+		for i := 0; i < nbSlotIndex; i++ {
+
+			nbSlots := binary.LittleEndian.Uint32(data[ptr:])
+			ptr += 4
+
+			slots := make([]int, nbSlots)
+
+			for i := range slots {
+				slots[i] = int(binary.LittleEndian.Uint32(data[ptr:]))
+				ptr += 4
+			}
+
+			c.slotsIndex[i] = slots
+		}
+	}
+
+	c.coeffs = make([][]complex128, int(binary.LittleEndian.Uint32(data[ptr:])))
+	ptr += 4
+
+	for i := range c.coeffs {
+
+		c.coeffs[i] = make([]complex128, int(binary.LittleEndian.Uint32(data[ptr:])))
+		ptr += 4
+
+		for j := range c.coeffs[i] {
+			real := math.Float64frombits(binary.LittleEndian.Uint64(data[ptr:]))
+			ptr += 8
+			imag := math.Float64frombits(binary.LittleEndian.Uint64(data[ptr:]))
+			ptr += 8
+
+			c.coeffs[i][j] = complex(real, imag)
+		}
+	}
+
+	return
 }
 
 func (c *coefficientsComplex128) Basis() BasisType {
@@ -326,8 +479,16 @@ func splitCoeffsBSGS(coeffs []complex128, split int, basis BasisType) (coeffsq, 
 type coefficientsBSGSComplex128 struct {
 	basis      BasisType
 	coeffs     [][][]complex128
-	slotsIndex map[int][]int
+	slotsIndex [][]int
 	odd, even  bool
+}
+
+func (c *coefficientsBSGSComplex128) MarshalBinary() (data []byte, err error) {
+	return nil, fmt.Errorf("unsupported method")
+}
+
+func (c *coefficientsBSGSComplex128) UnmarshalBinary(data []byte) (err error) {
+	return fmt.Errorf("unsupported method")
 }
 
 func (c *coefficientsBSGSComplex128) Basis() BasisType {
@@ -392,6 +553,15 @@ type coefficientsBSGSPlaintext struct {
 	odd, even bool
 }
 
+func (c *coefficientsBSGSPlaintext) MarshalBinary() (data []byte, err error) {
+	return nil, fmt.Errorf("unsupported method")
+
+}
+
+func (c *coefficientsBSGSPlaintext) UnmarshalBinary(data []byte) (err error) {
+	return fmt.Errorf("unsupported method")
+}
+
 func (c *coefficientsBSGSPlaintext) Basis() BasisType {
 	return c.basis
 }
@@ -451,6 +621,90 @@ type coefficientsBSGSCiphertext struct {
 	basis     BasisType
 	coeffs    [][]*Ciphertext
 	odd, even bool
+}
+
+func (c *coefficientsBSGSCiphertext) MarshalBinary() (data []byte, err error) {
+	data = make([]byte, 3+4)
+
+	data[0] = uint8(c.basis)
+	if c.odd {
+		data[1] = 1
+	}
+	if c.even {
+		data[1] = 1
+	}
+
+	ct := c.coeffs
+
+	binary.LittleEndian.PutUint32(data[3:], uint32(len(ct)))
+
+	for i := range ct {
+
+		deg := make([]byte, 4)
+
+		binary.LittleEndian.PutUint32(deg, uint32(len(ct[i])))
+
+		data = append(data, deg...)
+
+		for j := range c.coeffs[i] {
+
+			if ct[i][j] != nil {
+
+				var dataCt []byte
+				if dataCt, err = ct[i][j].MarshalBinary(); err != nil {
+					return nil, err
+				}
+
+				data = append(data, 1)
+
+				ctLen := make([]byte, 4)
+				binary.LittleEndian.PutUint32(ctLen, uint32(len(dataCt)))
+				data = append(data, ctLen...)
+				data = append(data, dataCt...)
+
+			} else {
+				data = append(data, 0)
+			}
+		}
+	}
+
+	return
+}
+
+func (c *coefficientsBSGSCiphertext) UnmarshalBinary(data []byte) (err error) {
+
+	c.basis = BasisType(data[0])
+	c.odd = data[1] == 1
+	c.even = data[2] == 1
+
+	ct := make([][]*Ciphertext, binary.LittleEndian.Uint32(data[3:]))
+
+	var ptr = 7
+	for i := range ct {
+
+		ct[i] = make([]*Ciphertext, binary.LittleEndian.Uint32(data[ptr:]))
+		ptr += 4
+
+		for j := range ct[i] {
+
+			ptr++
+
+			if data[ptr-1] == 1 {
+
+				ctLen := int(binary.LittleEndian.Uint32(data[ptr:]))
+				ptr += 4
+
+				ct[i][j] = new(Ciphertext)
+				if err = ct[i][j].UnmarshalBinary(data[ptr : ptr+ctLen]); err != nil {
+					return
+				}
+				ptr += ctLen
+			}
+		}
+	}
+
+	c.coeffs = ct
+	return
 }
 
 func (c *coefficientsBSGSCiphertext) Basis() BasisType {

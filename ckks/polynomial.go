@@ -554,12 +554,12 @@ type coefficientsBSGSPlaintext struct {
 }
 
 func (c *coefficientsBSGSPlaintext) MarshalBinary() (data []byte, err error) {
-	return nil, fmt.Errorf("unsupported method")
+	return nil, fmt.Errorf("unsupported method: there is no reason to do that (instead marshal non-encoded coefficients)")
 
 }
 
 func (c *coefficientsBSGSPlaintext) UnmarshalBinary(data []byte) (err error) {
-	return fmt.Errorf("unsupported method")
+	return fmt.Errorf("unsupported method: there is no reason to do that (instead unmarshal non-encoded coefficients)")
 }
 
 func (c *coefficientsBSGSPlaintext) Basis() BasisType {

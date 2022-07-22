@@ -29,6 +29,20 @@ type Polynomial struct {
 	coefficients
 }
 
+// NewPolynomial creates a new polynomial from:
+//
+// basisType: ckks.Monomial or ckks.Chebyshev
+//
+// coeffs:
+//		- singe polynomial    : [coeffs]complex128 or [coeffs]float64
+//      - multiple polynomials: [poly][coeffs]complex128 or [poly][coeffs]float64
+//
+// slotsIndex: in the case of multiple polynomials a map[poly]slot must be provided so that the evaluator will
+//             know which polynomial to evaluate on each slot (which can also be no polynomial). A slotIndex map
+//             can also be provided in the context of single polynomial, to only evaluate the polynomial on
+//             specific slots (instead of all), resulting in zero values in slots where the polynomial isn't evaluated.
+//
+// The struct Polynomial can then be given to the ckks.Evaluator to evaluate the polynomial on a *ckks.Ciphertext.
 func NewPolynomial(basisType BasisType, coeffs interface{}, slotsIndex map[int][]int) (poly Polynomial, err error) {
 
 	var coeffsInterface coefficients
@@ -149,12 +163,35 @@ func NewPolynomial(basisType BasisType, coeffs interface{}, slotsIndex map[int][
 	}, nil
 }
 
+// coefficients is an interface to manage different types
+// of coefficient representation.
+//
+//There four types currently:
+// coefficientsComplex128
+// coefficientsBSGSComplex128
+// coefficientsBSGSPlaintext
+// coefficientsBSGSCiphertext
 type coefficients interface {
 	Basis() BasisType
-	Depth() int
-	Degree() int
+	Depth() (depth int)
+	Degree() (degree int)
+	OddEven() (odd, even bool)
+	BSGSSplit() (giant, baby int)
 }
 
+func optimalSplit(logDegree int) (logSplit int) {
+	logSplit = logDegree >> 1
+	a := (1 << logSplit) + (1 << (logDegree - logSplit)) + logDegree - logSplit - 3
+	b := (1 << (logSplit + 1)) + (1 << (logDegree - logSplit - 1)) + logDegree - logSplit - 4
+	if a > b {
+		logSplit++
+	}
+
+	return
+}
+
+// coefficientsComplex128: regular coefficients in complex128
+// can store multiple polynomials: [#poly][coefficients]
 type coefficientsComplex128 struct {
 	basis      BasisType
 	coeffs     [][]complex128
@@ -168,12 +205,20 @@ func (c *coefficientsComplex128) Basis() BasisType {
 	return c.basis
 }
 
-func (c *coefficientsComplex128) Depth() int {
+func (c *coefficientsComplex128) Depth() (depth int) {
 	return bits.Len64(uint64(c.Degree()))
 }
 
-func (c *coefficientsComplex128) Degree() int {
+func (c *coefficientsComplex128) Degree() (degree int) {
 	return len(c.coeffs[0]) - 1
+}
+
+func (c *coefficientsComplex128) OddEven() (odd, even bool) {
+	return c.odd, c.even
+}
+
+func (c *coefficientsComplex128) BSGSSplit() (giant, baby int) {
+	return c.Depth(), optimalSplit(c.Depth())
 }
 
 func (c *coefficientsComplex128) splitBSGS(split int) (polyq, polyr coefficientsComplex128) {
@@ -231,10 +276,13 @@ func splitCoeffsBSGS(coeffs []complex128, split int, basis BasisType) (coeffsq, 
 	return
 }
 
+// coefficientsBSGSComplex128: coefficients in baby-step giant-step format
+// can store multiple polynomials: [#poly][giant-step][baby-step]
 type coefficientsBSGSComplex128 struct {
 	basis      BasisType
 	coeffs     [][][]complex128
 	slotsIndex map[int][]int
+	odd, even  bool
 }
 
 func (c *coefficientsBSGSComplex128) Basis() BasisType {
@@ -253,9 +301,21 @@ func (c *coefficientsBSGSComplex128) Degree() int {
 	return deg - 1
 }
 
+func (c *coefficientsBSGSComplex128) OddEven() (odd, even bool) {
+	return c.odd, c.even
+}
+
+func (c *coefficientsBSGSComplex128) BSGSSplit() (giant, baby int) {
+	return c.Depth(), optimalSplit(c.Depth())
+}
+
+// coefficientsBSGSPlaintext: coefficients in baby-step giant-step format
+// and encoded in plaintext.
+// can store multiple polynomials: [giant-step][baby-step]*Plaintext{#poly}
 type coefficientsBSGSPlaintext struct {
-	basis  BasisType
-	coeffs [][]*Plaintext
+	basis     BasisType
+	coeffs    [][]*Plaintext
+	odd, even bool
 }
 
 func (c *coefficientsBSGSPlaintext) Basis() BasisType {
@@ -274,9 +334,21 @@ func (c *coefficientsBSGSPlaintext) Degree() int {
 	return deg - 1
 }
 
+func (c *coefficientsBSGSPlaintext) OddEven() (odd, even bool) {
+	return c.odd, c.even
+}
+
+func (c *coefficientsBSGSPlaintext) BSGSSplit() (giant, baby int) {
+	return c.Depth(), optimalSplit(c.Depth())
+}
+
+// coefficientsBSGSPlaintext: coefficients in baby-step giant-step format
+// and encrypted.
+// can store multiple polynomials: [giant-step][baby-step]*Ciphertext{#poly}
 type coefficientsBSGSCiphertext struct {
-	basis  BasisType
-	coeffs [][]*Ciphertext
+	basis     BasisType
+	coeffs    [][]*Ciphertext
+	odd, even bool
 }
 
 func (c *coefficientsBSGSCiphertext) Basis() BasisType {
@@ -293,6 +365,14 @@ func (c *coefficientsBSGSCiphertext) Degree() int {
 		deg += len(ci)
 	}
 	return deg - 1
+}
+
+func (c *coefficientsBSGSCiphertext) OddEven() (odd, even bool) {
+	return c.odd, c.even
+}
+
+func (c *coefficientsBSGSCiphertext) BSGSSplit() (giant, baby int) {
+	return c.Depth(), optimalSplit(c.Depth())
 }
 
 func (p *Polynomial) Encode(level int, ecd Encoder, inputScale, outputScale float64) (err error) {

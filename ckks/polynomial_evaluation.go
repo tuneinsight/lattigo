@@ -195,7 +195,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasis(targetScale
 
 			// Looks for non-zero coefficients among the degree 0 coefficients of the polynomials
 			for i, c := range pol.coeffs {
-				if isNotNegligible(c[0]) {
+				if c[0] != 0 {
 					toEncode = true
 					for _, j := range slotsIndex[i] {
 						values[j] = c[0]

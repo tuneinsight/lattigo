@@ -163,6 +163,21 @@ func NewPolynomial(basisType BasisType, coeffs interface{}, slotsIndex map[int][
 	}, nil
 }
 
+func (p *Polynomial) Encode(ecd Encoder, level int, inputScale, outputScale float64) (err error) {
+
+	//params := ecd.(*encoderComplex128).params
+
+	switch coeffInterface := p.coefficients.(type) {
+	case *coefficientsComplex128:
+		_ = coeffInterface
+	case *coefficientsBSGSComplex128:
+	default:
+		return fmt.Errorf("Polynomial.Encode(*): underlying polynomial is already encoded or encrypted")
+	}
+
+	return
+}
+
 // coefficients is an interface to manage different types
 // of coefficient representation.
 //
@@ -179,12 +194,12 @@ type coefficients interface {
 	BSGSSplit() (giant, baby int)
 }
 
-func optimalSplit(logDegree int) (logSplit int) {
-	logSplit = logDegree >> 1
-	a := (1 << logSplit) + (1 << (logDegree - logSplit)) + logDegree - logSplit - 3
-	b := (1 << (logSplit + 1)) + (1 << (logDegree - logSplit - 1)) + logDegree - logSplit - 4
+func optimalSplit(giant int) (baby int) {
+	baby = giant >> 1
+	a := (1 << baby) + (1 << (giant - baby)) + giant - baby - 3
+	b := (1 << (baby + 1)) + (1 << (giant - baby - 1)) + giant - baby - 4
 	if a > b {
-		logSplit++
+		baby++
 	}
 
 	return
@@ -277,7 +292,7 @@ func splitCoeffsBSGS(coeffs []complex128, split int, basis BasisType) (coeffsq, 
 }
 
 // coefficientsBSGSComplex128: coefficients in baby-step giant-step format
-// can store multiple polynomials: [#poly][giant-step][baby-step]
+// can store multiple polynomials: [giant-step][baby-step][#poly]
 type coefficientsBSGSComplex128 struct {
 	basis      BasisType
 	coeffs     [][][]complex128
@@ -306,7 +321,7 @@ func (c *coefficientsBSGSComplex128) OddEven() (odd, even bool) {
 }
 
 func (c *coefficientsBSGSComplex128) BSGSSplit() (giant, baby int) {
-	return c.Depth(), optimalSplit(c.Depth())
+	return len(c.coeffs[0]), len(c.coeffs[0][0])
 }
 
 // coefficientsBSGSPlaintext: coefficients in baby-step giant-step format
@@ -339,7 +354,7 @@ func (c *coefficientsBSGSPlaintext) OddEven() (odd, even bool) {
 }
 
 func (c *coefficientsBSGSPlaintext) BSGSSplit() (giant, baby int) {
-	return c.Depth(), optimalSplit(c.Depth())
+	return len(c.coeffs), len(c.coeffs[0])
 }
 
 // coefficientsBSGSPlaintext: coefficients in baby-step giant-step format
@@ -372,83 +387,77 @@ func (c *coefficientsBSGSCiphertext) OddEven() (odd, even bool) {
 }
 
 func (c *coefficientsBSGSCiphertext) BSGSSplit() (giant, baby int) {
-	return c.Depth(), optimalSplit(c.Depth())
+	return len(c.coeffs), len(c.coeffs[0])
 }
 
-func (p *Polynomial) Encode(level int, ecd Encoder, inputScale, outputScale float64) (err error) {
-
-	params := ecd.(*encoderComplex128).params
-
-	var coeffs [][][]complex128
-	switch coeffInterface := p.coefficients.(type) {
-	case *coefficientsComplex128:
-		coeffs = getScaledBSGSCoefficients(params, level, inputScale, coeffInterface, outputScale)
-	default:
-		return fmt.Errorf("Polynomial.Encode(*): underlying polynomial coefficient must be *coefficientsComplex128")
-	}
-
-	_ = coeffs
-
-	return
+type dummyPolynomialEvaluator struct {
+	dummyPolynomialBasis
+	params          Parameters
+	giant           int
+	baby            int
+	isOdd           bool
+	isEven          bool
+	coeffsInterface coefficients
 }
 
-func getScaledBSGSCoefficients(params Parameters, level int, scale float64, pol *coefficientsComplex128, targetScale float64) (coeffs [][][]complex128) {
+func getScaledBSGSCoefficients(params Parameters, level int, scale float64, polIn *coefficientsComplex128, targetScale float64, polOut coefficients) {
 
 	dummbpb := newDummyPolynomialBasis(params, &dummyCiphertext{level, scale})
 
-	logDegree := bits.Len64(uint64(pol.Degree()))
-	logSplit := optimalSplit(logDegree)
+	giant, baby := polIn.BSGSSplit()
 
 	isRingStandard := params.RingType() == ring.Standard
 
-	odd, even := pol.odd, pol.even
+	odd, even := polIn.OddEven()
 
-	for i := (1 << logSplit) - 1; i > 1; i-- {
+	for i := (1 << baby) - 1; i > 1; i-- {
 		if !(even || odd) || (i&1 == 0 && even) || (i&1 == 1 && odd) {
 			dummbpb.GenPower(i, isRingStandard, targetScale)
 		}
 	}
 
-	for i := logSplit; i < logDegree; i++ {
+	for i := baby; i < giant; i++ {
 		dummbpb.GenPower(1<<i, false, targetScale)
 	}
 
 	polyEval := &dummyPolynomialEvaluator{}
 	polyEval.params = params
 	polyEval.dummyPolynomialBasis = *dummbpb
-	polyEval.logDegree = logDegree
-	polyEval.logSplit = logSplit
-	polyEval.isOdd = odd
-	polyEval.isEven = even
-	polyEval.bsgsCoeffs = make([][][]complex128, len(pol.coeffs))
+	polyEval.giant = giant
+	polyEval.baby = baby
 
-	polyEval.recurse(dummbpb.Value[1].Level-logDegree+1, targetScale, *pol)
+	switch coeffsInterface := polOut.(type) {
+	case *coefficientsBSGSComplex128:
+		polyEval.coeffsInterface = coeffsInterface
+	case *coefficientsBSGSPlaintext:
+		polyEval.coeffsInterface = coeffsInterface
+	case *coefficientsBSGSCiphertext:
+		polyEval.coeffsInterface = coeffsInterface
+	}
 
-	return polyEval.bsgsCoeffs
+	polyEval.recurse(dummbpb.Value[1].Level-giant+1, targetScale, *polIn)
 }
 
 func (polyEval *dummyPolynomialEvaluator) recurse(targetLevel int, targetScale float64, pol coefficientsComplex128) (res *dummyCiphertext) {
 
 	params := polyEval.params
 
-	logSplit := polyEval.logSplit
+	baby := polyEval.baby
 
 	// Recursively computes the evaluation of the Chebyshev polynomial using a baby-set giant-step algorithm.
-	if pol.Degree() < (1 << logSplit) {
+	if pol.Degree() < (1 << baby) {
 
-		if pol.lead && polyEval.logSplit > 1 && pol.maxDeg%(1<<(logSplit+1)) > (1<<(logSplit-1)) {
+		if pol.lead && polyEval.baby > 1 && pol.maxDeg%(1<<(baby+1)) > (1<<(baby-1)) {
 
-			logDegree := int(bits.Len64(uint64(pol.Degree())))
-			logSplit := logDegree >> 1
+			giant := int(bits.Len64(uint64(pol.Degree())))
+			baby := giant >> 1
 
 			polyEvalBis := new(dummyPolynomialEvaluator)
 			polyEvalBis.params = params
-			polyEvalBis.logDegree = logDegree
-			polyEvalBis.logSplit = logSplit
+			polyEvalBis.giant = giant
+			polyEvalBis.baby = baby
 			polyEvalBis.dummyPolynomialBasis = polyEval.dummyPolynomialBasis
-			polyEvalBis.isOdd = polyEval.isOdd
-			polyEvalBis.isEven = polyEval.isEven
-			polyEvalBis.bsgsCoeffs = polyEval.bsgsCoeffs
+			polyEvalBis.coeffsInterface = polyEval.coeffsInterface
 
 			return polyEvalBis.recurse(targetLevel, targetScale, pol)
 		}
@@ -457,10 +466,17 @@ func (polyEval *dummyPolynomialEvaluator) recurse(targetLevel int, targetScale f
 			targetScale *= params.QiFloat64(targetLevel)
 		}
 
-		return polyEval.evaluatePolyFromPolynomialBasis(targetScale, targetLevel, pol)
+		switch coeffsInterface := polyEval.coeffsInterface.(type) {
+		case *coefficientsBSGSComplex128:
+			return polyEval.evaluatePolyFromPolynomialBasisComplex128(targetScale, targetLevel, pol, coeffsInterface)
+		case *coefficientsBSGSPlaintext:
+			return polyEval.evaluatePolyFromPolynomialBasisPlaintext(targetScale, targetLevel, pol, coeffsInterface)
+		case *coefficientsBSGSCiphertext:
+			return polyEval.evaluatePolyFromPolynomialBasisCiphertext(targetScale, targetLevel, pol, coeffsInterface)
+		}
 	}
 
-	var nextPower = 1 << polyEval.logSplit
+	var nextPower = 1 << polyEval.baby
 	for nextPower < (pol.Degree()>>1)+1 {
 		nextPower <<= 1
 	}
@@ -491,30 +507,80 @@ func (polyEval *dummyPolynomialEvaluator) recurse(targetLevel int, targetScale f
 	return
 }
 
-func (polyEval *dummyPolynomialEvaluator) evaluatePolyFromPolynomialBasis(targetScale float64, level int, pol coefficientsComplex128) (res *dummyCiphertext) {
+func (polyEval *dummyPolynomialEvaluator) evaluatePolyFromPolynomialBasisComplex128(targetScale float64, level int, polIn coefficientsComplex128, polOut *coefficientsBSGSComplex128) (res *dummyCiphertext) {
 
 	X := polyEval.dummyPolynomialBasis.Value
 
-	values := make([][]complex128, pol.Degree()+1)
+	values := make([][]complex128, polIn.Degree()+1)
 	for i := range values {
-		values[i] = make([]complex128, len(pol.coeffs))
+		values[i] = make([]complex128, len(polIn.coeffs))
 	}
 
-	for i, c := range pol.coeffs {
+	for i, c := range polIn.coeffs {
 		if isNotNegligible(c[0]) {
 			values[0][i] = c[0] * complex(targetScale, 0)
 		}
 	}
 
-	for i := 1; i < pol.Degree(); i++ {
-		for j, c := range pol.coeffs {
+	for i := 1; i < polIn.Degree(); i++ {
+		for j, c := range polIn.coeffs {
 			if isNotNegligible(c[i]) {
 				values[i][j] = c[i] * complex(targetScale/X[i].Scale, 0)
 			}
 		}
 	}
 
-	polyEval.bsgsCoeffs = append([][][]complex128{values}, polyEval.bsgsCoeffs...)
+	return &dummyCiphertext{level, targetScale}
+}
+
+func (polyEval *dummyPolynomialEvaluator) evaluatePolyFromPolynomialBasisPlaintext(targetScale float64, level int, polIn coefficientsComplex128, polOut *coefficientsBSGSPlaintext) (res *dummyCiphertext) {
+
+	X := polyEval.dummyPolynomialBasis.Value
+
+	values := make([][]complex128, polIn.Degree()+1)
+	for i := range values {
+		values[i] = make([]complex128, len(polIn.coeffs))
+	}
+
+	for i, c := range polIn.coeffs {
+		if isNotNegligible(c[0]) {
+			values[0][i] = c[0] * complex(targetScale, 0)
+		}
+	}
+
+	for i := 1; i < polIn.Degree(); i++ {
+		for j, c := range polIn.coeffs {
+			if isNotNegligible(c[i]) {
+				values[i][j] = c[i] * complex(targetScale/X[i].Scale, 0)
+			}
+		}
+	}
+
+	return &dummyCiphertext{level, targetScale}
+}
+
+func (polyEval *dummyPolynomialEvaluator) evaluatePolyFromPolynomialBasisCiphertext(targetScale float64, level int, polIn coefficientsComplex128, polOut *coefficientsBSGSCiphertext) (res *dummyCiphertext) {
+
+	X := polyEval.dummyPolynomialBasis.Value
+
+	values := make([][]complex128, polIn.Degree()+1)
+	for i := range values {
+		values[i] = make([]complex128, len(polIn.coeffs))
+	}
+
+	for i, c := range polIn.coeffs {
+		if isNotNegligible(c[0]) {
+			values[0][i] = c[0] * complex(targetScale, 0)
+		}
+	}
+
+	for i := 1; i < polIn.Degree(); i++ {
+		for j, c := range polIn.coeffs {
+			if isNotNegligible(c[i]) {
+				values[i][j] = c[i] * complex(targetScale/X[i].Scale, 0)
+			}
+		}
+	}
 
 	return &dummyCiphertext{level, targetScale}
 }
@@ -589,16 +655,6 @@ func (p *dummyPolynomialBasis) genPower(n int, lazy bool, scale float64) (err er
 		}
 	}
 	return
-}
-
-type dummyPolynomialEvaluator struct {
-	dummyPolynomialBasis
-	params     Parameters
-	logDegree  int
-	logSplit   int
-	isOdd      bool
-	isEven     bool
-	bsgsCoeffs [][][]complex128
 }
 
 func isNotNegligible(c complex128) bool {

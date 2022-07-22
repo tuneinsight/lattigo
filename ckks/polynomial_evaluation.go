@@ -23,11 +23,32 @@ import (
 // targetScale: the desired output scale. This value shouldn't differ too much from the original ciphertext scale. It can
 // for example be used to correct small deviations in the ciphertext scale and reset it to the default scale.
 func (eval *evaluator) EvaluatePoly(input interface{}, pol Polynomial, targetScale float64) (opOut *Ciphertext, err error) {
-	switch coeffsInterface := pol.coefficients.(type) {
-	case *coefficientsComplex128:
-		return eval.evaluatePolyVector(input, coeffsInterface, targetScale)
+
+	var monomialBasis *PolynomialBasis
+	if monomialBasis, err = eval.genPolynomialBasis(input, pol); err != nil {
+		return
 	}
-	return
+
+	polyEval := &polynomialEvaluator{}
+	polyEval.Evaluator = eval
+	polyEval.PolynomialBasis = *monomialBasis
+	polyEval.giant, polyEval.baby = pol.BSGSSplit()
+
+	if opOut, err = polyEval.recurse(monomialBasis.Value[1].Level()-polyEval.giant+1, targetScale, evalPoly{pol, true, pol.Degree()}); err != nil {
+		return nil, err
+	}
+
+	polyEval.Relinearize(opOut, opOut)
+
+	if err = polyEval.Rescale(opOut, targetScale, opOut); err != nil {
+		return nil, err
+	}
+
+	opOut.Scale = targetScale // solves float64 precision issues
+
+	polyEval = nil
+	runtime.GC()
+	return opOut, err
 }
 
 // checkEnoughLevels checks that enough levels are available to evaluate the polynomial.
@@ -54,39 +75,32 @@ type polynomialEvaluator struct {
 	baby  int
 }
 
-func (eval *evaluator) evaluatePolyVector(input interface{}, pol *coefficientsComplex128, targetScale float64) (opOut *Ciphertext, err error) {
-
-	var monomialBasis *PolynomialBasis
-	if monomialBasis, err = eval.genPolynomialBasis(input, pol); err != nil {
-		return
-	}
-
-	polyEval := &polynomialEvaluator{}
-	polyEval.Evaluator = eval
-	if pol.slotsIndex != nil {
-		polyEval.Encoder = NewEncoder(eval.params)
-	}
-	polyEval.PolynomialBasis = *monomialBasis
-	polyEval.giant, polyEval.baby = pol.BSGSSplit()
-
-	if opOut, err = polyEval.recurse(monomialBasis.Value[1].Level()-polyEval.giant+1, targetScale, *pol); err != nil {
-		return nil, err
-	}
-
-	polyEval.Relinearize(opOut, opOut)
-
-	if err = polyEval.Rescale(opOut, targetScale, opOut); err != nil {
-		return nil, err
-	}
-
-	opOut.scale = targetScale // solves float64 precision issues
-
-	polyEval = nil
-	runtime.GC()
-	return opOut, err
+type evalPoly struct {
+	coefficients
+	lead   bool
+	maxDeg int
 }
 
-func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale float64, pol coefficientsComplex128) (res *Ciphertext, err error) {
+func (p *evalPoly) splitBSGS(split int) (polyq, polyr evalPoly) {
+
+	polyq = evalPoly{}
+	polyr = evalPoly{}
+
+	polyq.coefficients, polyr.coefficients = p.coefficients.SplitBSGS(split)
+
+	polyq.lead = p.lead
+	polyq.maxDeg = p.maxDeg
+
+	if p.maxDeg == p.Degree() {
+		polyr.maxDeg = split - 1
+	} else {
+		polyr.maxDeg = p.maxDeg - (p.Degree() - split + 1)
+	}
+
+	return
+}
+
+func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale float64, pol evalPoly) (res *Ciphertext, err error) {
 
 	params := polyEval.Evaluator.(*evaluator).params
 
@@ -114,7 +128,16 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale float6
 			targetScale *= params.QiFloat64(targetLevel)
 		}
 
-		return polyEval.evaluatePolyFromPolynomialBasis(targetScale, targetLevel, pol)
+		switch poly := pol.coefficients.(type) {
+		case *coefficientsComplex128:
+			return polyEval.evaluatePolyFromPolynomialBasisComplex128(targetScale, targetLevel, poly)
+		case *coefficientsBSGSComplex128:
+			//return polyEval.evaluatePolyFromPolynomialBasisComplex128(targetScale, targetLevel, poly)
+		case *coefficientsBSGSPlaintext:
+			//return polyEval.evaluatePolyFromPolynomialBasisPlaintext(targetScale, targetLevel, pol, poly)
+		case *coefficientsBSGSCiphertext:
+			//return polyEval.evaluatePolyFromPolynomialBasisCiphertext(targetScale, targetLevel, pol, poly)
+		}
 	}
 
 	var nextPower = 1 << polyEval.baby
@@ -158,7 +181,7 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale float6
 	return
 }
 
-func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasis(targetScale float64, level int, pol coefficientsComplex128) (res *Ciphertext, err error) {
+func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasisComplex128(targetScale float64, level int, pol *coefficientsComplex128) (res *Ciphertext, err error) {
 
 	X := polyEval.PolynomialBasis.Value
 
@@ -181,6 +204,10 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasis(targetScale
 
 	// If an index slot is given (either multiply polynomials or masking)
 	if slotsIndex != nil {
+
+		if polyEval.Encoder == nil {
+			polyEval.Encoder = NewEncoder(params)
+		}
 
 		var toEncode bool
 

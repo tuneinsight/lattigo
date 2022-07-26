@@ -19,8 +19,13 @@ func NewGadgetCiphertext(levelQ, levelP, decompRNS, decompBIT int, ringQP ringqp
 	for i := 0; i < decompRNS; i++ {
 		ct.Value[i] = make([]CiphertextQP, decompBIT)
 		for j := 0; j < decompBIT; j++ {
-			ct.Value[i][j].Value[0] = ringQP.NewPolyLvl(levelQ, levelP)
-			ct.Value[i][j].Value[1] = ringQP.NewPolyLvl(levelQ, levelP)
+
+			ct.Value[i][j] = CiphertextQP{
+				Value: []ringqp.Poly{
+					ringQP.NewPolyLvl(levelQ, levelP),
+					ringQP.NewPolyLvl(levelQ, levelP),
+				},
+			}
 
 			ct.Value[i][j].Value[0].Q.IsNTT = true
 			ct.Value[i][j].Value[1].Q.IsNTT = true
@@ -172,6 +177,8 @@ func (ct *GadgetCiphertext) Decode(data []byte) (pointer int, err error) {
 		ct.Value[i] = make([]CiphertextQP, decompBIT)
 
 		for j := range ct.Value[i] {
+
+			ct.Value[i][j] = CiphertextQP{Value: make([]ringqp.Poly, 2)}
 
 			if inc, err = ct.Value[i][j].Value[0].DecodePoly64(data[pointer:]); err != nil {
 				return

@@ -80,7 +80,7 @@ func (keygen *keyGenerator) genSecretKeyFromSampler(sampler ring.Sampler) (sk *S
 // GenPublicKey generates a new public key from the provided SecretKey.
 func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 	pk = NewPublicKey(keygen.params)
-	keygen.WithKey(sk).EncryptZero(&CiphertextQP{pk.Value})
+	keygen.WithKey(sk).EncryptZero(&CiphertextQP{Value: []ringqp.Poly{pk.Value[0], pk.Value[1]}})
 	return
 }
 

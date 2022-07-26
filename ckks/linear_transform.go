@@ -4,6 +4,7 @@ import (
 	"runtime"
 
 	"github.com/tuneinsight/lattigo/v3/ring"
+	"github.com/tuneinsight/lattigo/v3/rlwe"
 	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
@@ -65,18 +66,24 @@ func (eval *evaluator) RotateHoisted(ctIn *Ciphertext, rotations []int, ctOut ma
 // It stores a plaintext matrix diagonalized in diagonal form and
 // can be evaluated on a ciphertext by using the evaluator.LinearTransform method.
 type LinearTransform struct {
-	LogSlots int                 // Log of the number of slots of the plaintext (needed to compute the appropriate rotation keys)
-	N1       int                 // N1 is the number of inner loops of the baby-step giant-step algorithm used in the evaluation (if N1 == 0, BSGS is not used).
-	Level    int                 // Level is the level at which the matrix is encoded (can be circuit dependent)
-	Scale    float64             // Scale is the scale at which the matrix is encoded (can be circuit dependent)
-	Vec      map[int]ringqp.Poly // Vec is the matrix, in diagonal form, where each entry of vec is an indexed non-zero diagonal.
+	LogSlots int               // Log of the number of slots of the plaintext (needed to compute the appropriate rotation keys)
+	N1       int               // N1 is the number of inner loops of the baby-step giant-step algorithm used in the evaluation (if N1 == 0, BSGS is not used).
+	Level    int               // Level is the level at which the matrix is encoded (can be circuit dependent)
+	Scale    float64           // Scale is the scale at which the matrix is encoded (can be circuit dependent)
+	Vec      map[int]OperandQP // Vec is the matrix, in diagonal form, where each entry of vec is an indexed non-zero diagonal.
+}
+
+type OperandQP interface {
+	Degree() (deg int)
+	Level() (levelQ, levelP int)
+	El() rlwe.CiphertextQP
 }
 
 // NewLinearTransform allocates a new LinearTransform with zero plaintexts at the specified level.
 // If BSGSRatio == 0, the LinearTransform is set to not use the BSGS approach.
 // Method will panic if BSGSRatio < 0.
 func NewLinearTransform(params Parameters, nonZeroDiags []int, level, logSlots int, BSGSRatio float64) LinearTransform {
-	vec := make(map[int]ringqp.Poly)
+	vec := make(map[int]OperandQP)
 	slots := 1 << logSlots
 	levelQ := level
 	levelP := params.PCount() - 1
@@ -88,14 +95,14 @@ func NewLinearTransform(params Parameters, nonZeroDiags []int, level, logSlots i
 			if idx < 0 {
 				idx += slots
 			}
-			vec[idx] = params.RingQP().NewPolyLvl(levelQ, levelP)
+			vec[idx] = &rlwe.PlaintextQP{Value: params.RingQP().NewPolyLvl(levelQ, levelP)}
 		}
 	} else if BSGSRatio > 0 {
 		N1 = FindBestBSGSSplit(nonZeroDiags, slots, BSGSRatio)
 		index, _, _ := BsgsIndex(nonZeroDiags, slots, N1)
 		for j := range index {
 			for _, i := range index[j] {
-				vec[j+i] = params.RingQP().NewPolyLvl(levelQ, levelP)
+				vec[j+i] = &rlwe.PlaintextQP{Value: params.RingQP().NewPolyLvl(levelQ, levelP)}
 			}
 		}
 	} else {
@@ -172,7 +179,7 @@ func (LT *LinearTransform) Encode(encoder Encoder, value interface{}, scale floa
 				panic("error encoding on LinearTransform: input does not match the same non-zero diagonals")
 			}
 
-			enc.Embed(dMat[i], LT.LogSlots, scale, true, LT.Vec[idx])
+			enc.Embed(dMat[i], LT.LogSlots, scale, true, LT.Vec[idx].El().Value[0])
 		}
 	} else {
 		index, _, _ := BsgsIndex(value, slots, N1)
@@ -189,7 +196,7 @@ func (LT *LinearTransform) Encode(encoder Encoder, value interface{}, scale floa
 					panic("error encoding on LinearTransform BSGS: input does not match the same non-zero diagonals")
 				}
 
-				enc.Embed(utils.RotateSlice(v, -j), LT.LogSlots, scale, true, LT.Vec[j+i])
+				enc.Embed(utils.RotateSlice(v, -j), LT.LogSlots, scale, true, LT.Vec[j+i].El().Value[0])
 			}
 		}
 	}
@@ -212,7 +219,7 @@ func GenLinearTransform(encoder Encoder, value interface{}, level int, scale flo
 
 	params := enc.params
 	dMat := interfaceMapToMapOfInterface(value)
-	vec := make(map[int]ringqp.Poly)
+	vec := make(map[int]OperandQP)
 	slots := 1 << logslots
 	levelQ := level
 	levelP := params.PCount() - 1
@@ -222,8 +229,8 @@ func GenLinearTransform(encoder Encoder, value interface{}, level int, scale flo
 		if idx < 0 {
 			idx += slots
 		}
-		vec[idx] = params.RingQP().NewPolyLvl(levelQ, levelP)
-		enc.Embed(dMat[i], logslots, scale, true, vec[idx])
+		vec[idx] = &rlwe.PlaintextQP{Value: params.RingQP().NewPolyLvl(levelQ, levelP)}
+		enc.Embed(dMat[i], logslots, scale, true, vec[idx].El().Value[0])
 	}
 
 	return LinearTransform{LogSlots: logslots, N1: 0, Vec: vec, Level: level, Scale: scale}
@@ -253,7 +260,7 @@ func GenLinearTransformBSGS(encoder Encoder, value interface{}, level int, scale
 
 	index, _, _ := BsgsIndex(value, slots, N1)
 
-	vec := make(map[int]ringqp.Poly)
+	vec := make(map[int]OperandQP)
 
 	dMat := interfaceMapToMapOfInterface(value)
 	levelQ := level
@@ -267,8 +274,8 @@ func GenLinearTransformBSGS(encoder Encoder, value interface{}, level int, scale
 			if !ok {
 				v = dMat[j+i-slots]
 			}
-			vec[j+i] = params.RingQP().NewPolyLvl(levelQ, levelP)
-			enc.Embed(utils.RotateSlice(v, -j), logSlots, scale, true, vec[j+i])
+			vec[j+i] = &rlwe.PlaintextQP{Value: params.RingQP().NewPolyLvl(levelQ, levelP)}
+			enc.Embed(utils.RotateSlice(v, -j), logSlots, scale, true, vec[j+i].El().Value[0])
 		}
 	}
 
@@ -310,8 +317,31 @@ func BsgsIndex(el interface{}, slots, N1 int) (index map[int][]int, rotN1, rotN2
 			nonZeroDiags[i] = key
 			i++
 		}
+	case map[int]*rlwe.PlaintextQP:
+		nonZeroDiags = make([]int, len(element))
+		var i int
+		for key := range element {
+			nonZeroDiags[i] = key
+			i++
+		}
+	case map[int]*rlwe.CiphertextQP:
+		nonZeroDiags = make([]int, len(element))
+		var i int
+		for key := range element {
+			nonZeroDiags[i] = key
+			i++
+		}
+	case map[int]OperandQP:
+		nonZeroDiags = make([]int, len(element))
+		var i int
+		for key := range element {
+			nonZeroDiags[i] = key
+			i++
+		}
 	case []int:
 		nonZeroDiags = element
+	default:
+		panic("BsgsIndex: invalid el.(type)")
 	}
 
 	for _, rot := range nonZeroDiags {
@@ -794,12 +824,12 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTrans
 
 			if cnt == 0 {
 				// keyswitch(c1_Q) = (d0_QP, d1_QP)
-				ringQP.MulCoeffsMontgomeryLvl(levelQ, levelP, matrix.Vec[k], tmp0QP, c0OutQP)
-				ringQP.MulCoeffsMontgomeryLvl(levelQ, levelP, matrix.Vec[k], tmp1QP, c1OutQP)
+				ringQP.MulCoeffsMontgomeryLvl(levelQ, levelP, matrix.Vec[k].El().Value[0], tmp0QP, c0OutQP)
+				ringQP.MulCoeffsMontgomeryLvl(levelQ, levelP, matrix.Vec[k].El().Value[0], tmp1QP, c1OutQP)
 			} else {
 				// keyswitch(c1_Q) = (d0_QP, d1_QP)
-				ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, matrix.Vec[k], tmp0QP, c0OutQP)
-				ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, matrix.Vec[k], tmp1QP, c1OutQP)
+				ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, matrix.Vec[k].El().Value[0], tmp0QP, c0OutQP)
+				ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, matrix.Vec[k].El().Value[0], tmp1QP, c1OutQP)
 			}
 
 			if cnt%QiOverF == QiOverF-1 {
@@ -830,8 +860,8 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTrans
 	eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, c1OutQP.Q, c1OutQP.P, c1OutQP.Q) // sum(phi(d1_QP))/P
 
 	if state { // Rotation by zero
-		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, matrix.Vec[0].Q, ctInTmp0, c0OutQP.Q) // ctOut += c0_Q * plaintext
-		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, matrix.Vec[0].Q, ctInTmp1, c1OutQP.Q) // ctOut += c1_Q * plaintext
+		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, matrix.Vec[0].El().Value[0].Q, ctInTmp0, c0OutQP.Q) // ctOut += c0_Q * plaintext
+		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, matrix.Vec[0].El().Value[0].Q, ctInTmp1, c1OutQP.Q) // ctOut += c1_Q * plaintext
 	}
 
 	ctOut.Scale = matrix.Scale * ctIn.Scale
@@ -890,21 +920,21 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearT
 		for _, i := range index[j] {
 			if i == 0 {
 				if cnt1 == 0 {
-					ringQ.MulCoeffsMontgomeryConstantLvl(levelQ, matrix.Vec[j].Q, ctInTmp0, tmp0QP.Q)
-					ringQ.MulCoeffsMontgomeryConstantLvl(levelQ, matrix.Vec[j].Q, ctInTmp1, tmp1QP.Q)
+					ringQ.MulCoeffsMontgomeryConstantLvl(levelQ, matrix.Vec[j].El().Value[0].Q, ctInTmp0, tmp0QP.Q)
+					ringQ.MulCoeffsMontgomeryConstantLvl(levelQ, matrix.Vec[j].El().Value[0].Q, ctInTmp1, tmp1QP.Q)
 					tmp0QP.P.Zero()
 					tmp1QP.P.Zero()
 				} else {
-					ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, matrix.Vec[j].Q, ctInTmp0, tmp0QP.Q)
-					ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, matrix.Vec[j].Q, ctInTmp1, tmp1QP.Q)
+					ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, matrix.Vec[j].El().Value[0].Q, ctInTmp0, tmp0QP.Q)
+					ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, matrix.Vec[j].El().Value[0].Q, ctInTmp1, tmp1QP.Q)
 				}
 			} else {
 				if cnt1 == 0 {
-					ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, matrix.Vec[j+i], ctInRotQP[i][0], tmp0QP)
-					ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, matrix.Vec[j+i], ctInRotQP[i][1], tmp1QP)
+					ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, matrix.Vec[j+i].El().Value[0], ctInRotQP[i][0], tmp0QP)
+					ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, matrix.Vec[j+i].El().Value[0], ctInRotQP[i][1], tmp1QP)
 				} else {
-					ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, matrix.Vec[j+i], ctInRotQP[i][0], tmp0QP)
-					ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, matrix.Vec[j+i], ctInRotQP[i][1], tmp1QP)
+					ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, matrix.Vec[j+i].El().Value[0], ctInRotQP[i][0], tmp0QP)
+					ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, matrix.Vec[j+i].El().Value[0], ctInRotQP[i][1], tmp1QP)
 				}
 			}
 

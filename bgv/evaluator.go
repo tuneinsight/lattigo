@@ -3,6 +3,7 @@ package bgv
 import (
 	"fmt"
 	"math/big"
+	"math/bits"
 
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
@@ -80,6 +81,9 @@ type Evaluator interface {
 	// Key-Switching
 	SwitchKeysNew(ctIn *Ciphertext, swk *rlwe.SwitchingKey) (ctOut *Ciphertext)
 	SwitchKeys(ctIn *Ciphertext, swk *rlwe.SwitchingKey, ctOut *Ciphertext)
+	Automorphism(ctIn *Ciphertext, galEl uint64, ctOut *Ciphertext)
+	AutomorphismHoisted(level int, ctIn *Ciphertext, c1DecompQP []ringqp.Poly, galEl uint64, ctOut *Ciphertext)
+	Merge(ctIn map[int]*Ciphertext) (ctOut *Ciphertext)
 
 	// Others
 	GetRLWEEvaluator() *rlwe.Evaluator
@@ -831,7 +835,7 @@ func (eval *evaluator) RotateColumnsNew(ctIn *Ciphertext, k int) (ctOut *Ciphert
 // The procedure will panic if the corresponding Galois key has not been generated and attributed to the evaluator.
 // The procedure will panic if either ctIn.Degree() or ctOut.Degree() != 1.
 func (eval *evaluator) RotateColumns(ctIn *Ciphertext, k int, ctOut *Ciphertext) {
-	eval.automorphism(ctIn.Ciphertext, eval.params.GaloisElementForColumnRotationBy(k), ctOut.Ciphertext)
+	eval.Automorphism(ctIn, eval.params.GaloisElementForColumnRotationBy(k), ctOut)
 	ctOut.Scale = ctIn.Scale
 }
 
@@ -848,11 +852,11 @@ func (eval *evaluator) RotateRowsNew(ctIn *Ciphertext) (ctOut *Ciphertext) {
 // The procedure will panic if the corresponding Galois key has not been generated and attributed to the evaluator.
 // The procedure will panic if either ctIn.Degree() or ctOut.Degree() != 1.
 func (eval *evaluator) RotateRows(ctIn *Ciphertext, ctOut *Ciphertext) {
-	eval.automorphism(ctIn.Ciphertext, eval.params.GaloisElementForRowRotation(), ctOut.Ciphertext)
+	eval.Automorphism(ctIn, eval.params.GaloisElementForRowRotation(), ctOut)
 	ctOut.Scale = ctIn.Scale
 }
 
-func (eval *evaluator) automorphism(ctIn *rlwe.Ciphertext, galEl uint64, ctOut *rlwe.Ciphertext) {
+func (eval *evaluator) Automorphism(ctIn *Ciphertext, galEl uint64, ctOut *Ciphertext) {
 
 	if ctIn.Degree() != 1 || ctOut.Degree() != 1 {
 		panic("cannot apply Automorphism: input and output Ciphertext must be of degree 1")
@@ -887,7 +891,7 @@ func (eval *evaluator) automorphism(ctIn *rlwe.Ciphertext, galEl uint64, ctOut *
 	ctOut.Resize(ctOut.Degree(), level)
 }
 
-func (eval *evaluator) automorphismHoisted(level int, ctIn *Ciphertext, c1DecompQP []ringqp.Poly, galEl uint64, ctOut *Ciphertext) {
+func (eval *evaluator) AutomorphismHoisted(level int, ctIn *Ciphertext, c1DecompQP []ringqp.Poly, galEl uint64, ctOut *Ciphertext) {
 
 	if ctIn.Degree() != 1 || ctOut.Degree() != 1 {
 		panic("cannot apply AutomorphismHoisted: input and output Ciphertext must be of degree 1")
@@ -1012,4 +1016,184 @@ func center(x, thalf, t uint64) uint64 {
 		return t - x
 	}
 	return x
+}
+
+// MergeE merges a batch of Ciphertexts, packing the first coefficient of each Ciphertext into a single Ciphertext.
+// The operation will require N/gap + log(gap) key-switches, where gap is the minimum gap between
+// two non-zero coefficients of the final ciphertext.
+// The method takes as input a map of Ciphertexts, indexing in which coefficient, of the final
+// ciphertext, the first coefficient of each ciphertext of the map must be packed.
+// The method will update the scale of all the Ciphertexts in the map to match the scale
+// of the Ciphertext with the smallest index
+func (eval *evaluator) Merge(ctIn map[int]*Ciphertext) (ctOut *Ciphertext) {
+
+	params := eval.params
+	ringQ := params.RingQ()
+
+	var levelQ int
+	for i := range ctIn {
+		levelQ = ctIn[i].Level()
+		break
+	}
+
+	xPow2 := genXPow2(ringQ, levelQ, params.LogN(), false)
+
+	NInv := ringQ.NttNInv
+	Q := ringQ.Modulus
+	mredParams := ringQ.MredParams
+
+	// Multiplies by (Slots * N) ^-1 mod Q
+	for i := range ctIn {
+		if ctIn[i] != nil {
+			v0, v1 := ctIn[i].Value[0], ctIn[i].Value[1]
+			for j := 0; j < levelQ+1; j++ {
+				ring.MulScalarMontgomeryVec(v0.Coeffs[j], v0.Coeffs[j], NInv[j], Q[j], mredParams[j])
+				ring.MulScalarMontgomeryVec(v1.Coeffs[j], v1.Coeffs[j], NInv[j], Q[j], mredParams[j])
+			}
+		}
+	}
+
+	ciphertextslist := make([]*Ciphertext, ringQ.N)
+
+	for i := range ctIn {
+		ciphertextslist[i] = ctIn[i]
+	}
+
+	var scale0 uint64
+
+	// Fetch the scale of the first ct
+	for _, ct := range ciphertextslist {
+		if ct != nil {
+			scale0 = ct.Scale
+			break
+		}
+	}
+
+	t := params.T()
+	bredParams := params.RingT().BredParams[0]
+	for _, ct := range ciphertextslist {
+
+		if ct != nil {
+			if scale1 := ct.Scale; scale1 != scale0 {
+
+				update := ring.BRed(ring.ModExp(scale0, t-2, t), scale1, t, bredParams)
+
+				ringQ.MulScalarLvl(ct.Level(), ct.Value[0], update, ct.Value[0])
+				ringQ.MulScalarLvl(ct.Level(), ct.Value[1], update, ct.Value[1])
+
+				ct.Scale = scale0
+			}
+		}
+	}
+
+	if ciphertextslist[0] == nil {
+		ciphertextslist[0] = NewCiphertext(params, 1, levelQ, scale0)
+	}
+
+	return eval.mergeRLWERecurse(ciphertextslist, xPow2)
+}
+
+func (eval *evaluator) mergeRLWERecurse(ciphertexts []*Ciphertext, xPow []*ring.Poly) *Ciphertext {
+
+	ringQ := eval.params.RingQ()
+
+	L := bits.Len64(uint64(len(ciphertexts))) - 1
+
+	if L == 0 {
+		return ciphertexts[0]
+	}
+
+	odd := make([]*Ciphertext, len(ciphertexts)>>1)
+	even := make([]*Ciphertext, len(ciphertexts)>>1)
+
+	for i := 0; i < len(ciphertexts)>>1; i++ {
+		odd[i] = ciphertexts[2*i]
+		even[i] = ciphertexts[2*i+1]
+	}
+
+	ctEven := eval.mergeRLWERecurse(odd, xPow)
+	ctOdd := eval.mergeRLWERecurse(even, xPow)
+
+	if ctEven == nil && ctOdd == nil {
+		return nil
+	}
+
+	var tmpEven *Ciphertext
+	if ctEven != nil {
+		tmpEven = ctEven.CopyNew()
+	}
+
+	// ctOdd * X^(N/2^L)
+	if ctOdd != nil {
+
+		level := ctOdd.Level()
+
+		//X^(N/2^L)
+		ringQ.MulCoeffsMontgomeryLvl(level, ctOdd.Value[0], xPow[len(xPow)-L], ctOdd.Value[0])
+		ringQ.MulCoeffsMontgomeryLvl(level, ctOdd.Value[1], xPow[len(xPow)-L], ctOdd.Value[1])
+
+		if ctEven != nil {
+			// ctEven + ctOdd * X^(N/2^L)
+			ringQ.AddLvl(level, ctEven.Value[0], ctOdd.Value[0], ctEven.Value[0])
+			ringQ.AddLvl(level, ctEven.Value[1], ctOdd.Value[1], ctEven.Value[1])
+
+			// phi(ctEven - ctOdd * X^(N/2^L), 2^(L-2))
+			ringQ.SubLvl(level, tmpEven.Value[0], ctOdd.Value[0], tmpEven.Value[0])
+			ringQ.SubLvl(level, tmpEven.Value[1], ctOdd.Value[1], tmpEven.Value[1])
+		}
+	}
+
+	if ctEven != nil {
+
+		level := ctEven.Level()
+
+		// if L-2 == -1, then gal = -1
+		if L == 1 {
+			eval.Automorphism(tmpEven, uint64(2*ringQ.N-1), tmpEven)
+		} else {
+			eval.Automorphism(tmpEven, eval.params.GaloisElementForColumnRotationBy(1<<(L-2)), tmpEven)
+		}
+
+		// ctEven + ctOdd * X^(N/2^L) + phi(ctEven - ctOdd * X^(N/2^L), 2^(L-2))
+		ringQ.AddLvl(level, ctEven.Value[0], tmpEven.Value[0], ctEven.Value[0])
+		ringQ.AddLvl(level, ctEven.Value[1], tmpEven.Value[1], ctEven.Value[1])
+	}
+
+	return ctEven
+}
+
+func genXPow2(r *ring.Ring, levelQ, logN int, div bool) (xPow []*ring.Poly) {
+
+	// Compute X^{-n} from 0 to LogN
+	xPow = make([]*ring.Poly, logN)
+
+	var idx int
+	for i := 0; i < logN; i++ {
+
+		idx = 1 << i
+
+		if div {
+			idx = r.N - idx
+		}
+
+		xPow[i] = r.NewPoly()
+
+		if i == 0 {
+
+			for j := 0; j < levelQ+1; j++ {
+				xPow[i].Coeffs[j][idx] = ring.MForm(1, r.Modulus[j], r.BredParams[j])
+			}
+
+			r.NTTLvl(levelQ, xPow[i], xPow[i])
+
+		} else {
+			r.MulCoeffsMontgomeryLvl(levelQ, xPow[i-1], xPow[i-1], xPow[i]) // X^{n} = X^{1} * X^{n-1}
+		}
+	}
+
+	if div {
+		r.NegLvl(levelQ, xPow[0], xPow[0])
+	}
+
+	return
 }

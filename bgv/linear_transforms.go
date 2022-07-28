@@ -120,12 +120,12 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 			if !state {
 				rot := eval.params.GaloisElementForColumnRotationBy((1 << i) * batchSize)
 				if i == 0 {
-					eval.automorphismHoisted(levelQ, ctIn, eval.BuffDecompQP, rot, tmpct)
+					eval.AutomorphismHoisted(levelQ, ctIn, eval.BuffDecompQP, rot, tmpct)
 					ringQ.AddLvl(levelQ, tmpc0, ctIn.Value[0], tmpc0)
 					ringQ.AddLvl(levelQ, tmpc1, ctIn.Value[1], tmpc1)
 				} else {
 					// (tmpc0, tmpc1) = Rotate((tmpc0, tmpc1), 2^i)
-					eval.automorphismHoisted(levelQ, tmpct, eval.BuffDecompQP, rot, ctqp)
+					eval.AutomorphismHoisted(levelQ, tmpct, eval.BuffDecompQP, rot, ctqp)
 					ringQ.AddLvl(levelQ, tmpc0, c0QP.Q, tmpc0)
 					ringQ.AddLvl(levelQ, tmpc1, c1QP.Q, tmpc1)
 				}

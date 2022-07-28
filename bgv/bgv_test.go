@@ -15,7 +15,7 @@ import (
 var (
 	// TESTN13QP218 is a of 128-bit secure test parameters set with a 32-bit plaintext and depth 4.
 	TESTN14QP418 = ParametersLiteral{
-		LogN: 13,
+		LogN: 6,
 		Q:    []uint64{0x3fffffa8001, 0x1000090001, 0x10000c8001, 0x10000f0001, 0xffff00001},
 		P:    []uint64{0x7fffffd8001},
 		T:    0xffc001,
@@ -55,6 +55,7 @@ func TestBGV(t *testing.T) {
 			testRotate,
 			testInnerSum,
 			testLinearTransform,
+			testMerge,
 			testSwitchKeys,
 			testMarshalling,
 		} {
@@ -884,6 +885,51 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 		ring.AddVec(values.Coeffs[0], utils.RotateUint64Slots(tmp, 15), values.Coeffs[0], T)
 
 		verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
+	})
+}
+
+func testMerge(tc *testContext, t *testing.T) {
+
+	params := tc.params
+
+	t.Run(GetTestName("Merge", params, params.MaxLevel()), func(t *testing.T) {
+
+		values := make([]uint64, params.N())
+		for i := range values {
+			values[i] = uint64(i)
+		}
+
+		n := 16
+
+		ciphertexts := make(map[int]*Ciphertext)
+		slotIndex := make(map[int]bool)
+
+		pt := NewPlaintext(params, params.MaxLevel(), 1)
+		for i := 0; i < params.N(); i += params.N() / n {
+
+			tc.encoder.EncodeCoeffs(append(values[i:], values[i:]...), pt)
+
+			ciphertexts[i] = tc.encryptorSk.EncryptNew(pt)
+			slotIndex[i] = true
+		}
+
+		// Rotation Keys
+		galEls := params.GaloisElementsForMergeRLWE()
+		rtks := tc.kgen.GenRotationKeys(galEls, tc.sk)
+
+		eval := NewEvaluator(params, rlwe.EvaluationKey{Rtks: rtks})
+
+		ciphertext := eval.Merge(ciphertexts)
+
+		valuesHave := tc.encoder.DecodeCoeffsNew(tc.decryptor.DecryptNew(ciphertext))
+
+		for i := range values {
+			if _, ok := slotIndex[i]; ok {
+				require.Equal(t, valuesHave[i], values[i])
+			} else {
+				require.Equal(t, valuesHave[i], uint64(0))
+			}
+		}
 	})
 }
 

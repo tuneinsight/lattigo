@@ -18,6 +18,8 @@ const GaloisGen uint64 = 5
 type Encoder interface {
 	Encode(values interface{}, pt *Plaintext)
 	EncodeNew(values interface{}, level int, scale uint64) (pt *Plaintext)
+	EncodeCoeffs(values []uint64, pt *Plaintext)
+	EncodeCoeffsNew(values []uint64, level int, scale uint64) (pt *Plaintext)
 
 	RingT2Q(level int, pT, pQ *ring.Poly)
 	RingQ2T(level int, pQ, pT *ring.Poly)
@@ -29,6 +31,8 @@ type Encoder interface {
 	DecodeInt(pt *Plaintext, values []int64)
 	DecodeUintNew(pt *Plaintext) (values []uint64)
 	DecodeIntNew(pt *Plaintext) (values []int64)
+	DecodeCoeffs(pt *Plaintext, values []uint64)
+	DecodeCoeffsNew(pt *Plaintext) (values []uint64)
 
 	ShallowCopy() Encoder
 }
@@ -103,6 +107,30 @@ func (ecd *encoder) Encode(values interface{}, pt *Plaintext) {
 	ecd.EncodeRingT(values, pt.Scale, ecd.buffT)
 	ecd.RingT2Q(pt.Level(), ecd.buffT, pt.Value)
 	ecd.params.RingQ().NTTLvl(pt.Level(), pt.Value, pt.Value)
+}
+
+// EncodeCoeffs encodes a slice of []uint64 of size at most N on a pre-allocated plaintext.
+// The encoding is done coefficient wise, i.e. [1, 2, 3, 4] -> 1 + 2X + 3X^2 + 4X^3.
+func (ecd *encoder) EncodeCoeffs(values []uint64, pt *Plaintext) {
+	copy(ecd.buffT.Coeffs[0], values)
+
+	for i := len(values); i < len(ecd.buffT.Coeffs[0]); i++ {
+		ecd.buffT.Coeffs[0][i] = 0
+	}
+
+	ringT := ecd.params.RingT()
+
+	ringT.MulScalar(ecd.buffT, pt.Scale, ecd.buffT)
+	ecd.RingT2Q(pt.Level(), ecd.buffT, pt.Value)
+	ecd.params.RingQ().NTTLvl(pt.Level(), pt.Value, pt.Value)
+}
+
+// EncodeCoeffsNew encodes a slice of []uint64 of size at most N on a newly allocated plaintext.
+// The encoding is done coefficient wise, i.e. [1, 2, 3, 4] -> 1 + 2X + 3X^2 + 4X^3.}
+func (ecd *encoder) EncodeCoeffsNew(values []uint64, level int, scale uint64) (pt *Plaintext) {
+	pt = NewPlaintext(ecd.params, level, scale)
+	ecd.EncodeCoeffs(values, pt)
+	return
 }
 
 // EncodeRingT encodes a slice of []uint64 or []int64 on a polynomial in basis T.
@@ -226,6 +254,20 @@ func (ecd *encoder) DecodeInt(pt *Plaintext, values []int64) {
 func (ecd *encoder) DecodeIntNew(pt *Plaintext) (values []int64) {
 	values = make([]int64, ecd.params.RingQ().N)
 	ecd.DecodeInt(pt, values)
+	return
+}
+
+func (ecd *encoder) DecodeCoeffs(pt *Plaintext, values []uint64) {
+	ecd.params.RingQ().InvNTTLvl(pt.Level(), pt.Value, ecd.buffQ)
+	ecd.RingQ2T(pt.Level(), ecd.buffQ, ecd.buffT)
+	ringT := ecd.params.RingT()
+	ringT.MulScalar(ecd.buffT, ring.ModExp(pt.Scale, ringT.Modulus[0]-2, ringT.Modulus[0]), ecd.buffT)
+	copy(values, ecd.buffT.Coeffs[0])
+}
+
+func (ecd *encoder) DecodeCoeffsNew(pt *Plaintext) (values []uint64) {
+	values = make([]uint64, ecd.params.N())
+	ecd.DecodeCoeffs(pt, values)
 	return
 }
 

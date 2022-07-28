@@ -65,11 +65,21 @@ on Lattigo:
 
 The current version of Lattigo, (v3.x.x) is fast-evolving and in constant development. Consequently,
 there will still be backward-incompatible changes within this major version, in addition to many bug
-fixes and new features. Hence, we encourage all Lattigo users to update to the latest Lattigo
-version.
- 
+fixes and new features. Hence, we encourage all Lattigo users to update to the latest Lattigo version.
+
 
 See CHANGELOG.md for the current and past versions.
+
+## Stability
+
+To keep a comprehensive history, we prioritize rebases over merges for branches other than `main`.
+Branches with the prefix `dev_` are a branches in active development and will be frequently rebased.
+
+## Support and Issues
+
+The github issues should be prioritized for bug report and question directly related to the use or inner working of the library. Any issue opened regarding an unexpected behavior of the library or one of its package must be accompanied by a self contained `main.go` reproducing the unwanted behavior.
+
+Question related issues will be closed after 7 days of inactivity since the last response from our side.
 
 ## License
 
@@ -77,7 +87,7 @@ Lattigo is licensed under the Apache 2.0 License. See LICENSE.
 
 ## Contact
 
-If you want to contribute to Lattigo or you have any suggestion, do not hesitate to contact us at
+If you want to contribute to Lattigo or you have any question or suggestion, do not hesitate to contact us at
 [lattigo@tuneinsight.com](mailto:lattigo@tuneinsight.com).
 
 ## Citing

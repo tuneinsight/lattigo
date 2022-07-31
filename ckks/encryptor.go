@@ -11,6 +11,7 @@ type Encryptor interface {
 	EncryptNew(plaintext *Plaintext) *Ciphertext
 	EncryptZero(ciphertext *Ciphertext)
 	EncryptZeroNew(level int, scale float64) *Ciphertext
+	GetRLWEEncryptor() rlwe.Encryptor
 	ShallowCopy() Encryptor
 	WithKey(key interface{}) Encryptor
 }
@@ -91,4 +92,8 @@ func (enc *encryptor) WithPRNG(prng utils.PRNG) PRNGEncryptor {
 		return &encryptor{prngEnc.WithPRNG(prng), enc.params}
 	}
 	return nil
+}
+
+func (enc *encryptor) GetRLWEEncryptor() rlwe.Encryptor {
+	return enc.Encryptor
 }

@@ -80,7 +80,7 @@ func TestCKKS(t *testing.T) {
 		testParams = append(DefaultParams[:4], DefaultConjugateInvariantParams[:4]...)
 	}
 
-	for _, paramsLiteral := range testParams[:] {
+	for _, paramsLiteral := range testParams[2:3] {
 
 		var params Parameters
 		if params, err = NewParametersFromLiteral(paramsLiteral); err != nil {
@@ -1444,7 +1444,7 @@ func testReplicate(tc *testContext, t *testing.T) {
 
 func testLinearTransform(tc *testContext, t *testing.T) {
 
-	t.Run(GetTestName(tc.params, "LinearTransform/BSGS"), func(t *testing.T) {
+	t.Run(GetTestName(tc.params, "LinearTransform/BSGS/Pt"), func(t *testing.T) {
 
 		params := tc.params
 
@@ -1501,7 +1501,66 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
 	})
 
-	t.Run(GetTestName(tc.params, "LinearTransform/Naive"), func(t *testing.T) {
+	t.Run(GetTestName(tc.params, "LinearTransform/BSGS/Ct"), func(t *testing.T) {
+
+		params := tc.params
+
+		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
+
+		diagMatrix := make(map[int][]complex128)
+
+		diagMatrix[-15] = make([]complex128, params.Slots())
+		diagMatrix[-4] = make([]complex128, params.Slots())
+		diagMatrix[-1] = make([]complex128, params.Slots())
+		diagMatrix[0] = make([]complex128, params.Slots())
+		diagMatrix[1] = make([]complex128, params.Slots())
+		diagMatrix[2] = make([]complex128, params.Slots())
+		diagMatrix[3] = make([]complex128, params.Slots())
+		diagMatrix[4] = make([]complex128, params.Slots())
+		diagMatrix[15] = make([]complex128, params.Slots())
+
+		for i := 0; i < params.Slots(); i++ {
+			diagMatrix[-15][i] = complex(1, 0)
+			diagMatrix[-4][i] = complex(1, 0)
+			diagMatrix[-1][i] = complex(1, 0)
+			diagMatrix[0][i] = complex(1, 0)
+			diagMatrix[1][i] = complex(1, 0)
+			diagMatrix[2][i] = complex(1, 0)
+			diagMatrix[3][i] = complex(1, 0)
+			diagMatrix[4][i] = complex(1, 0)
+			diagMatrix[15][i] = complex(1, 0)
+		}
+
+		linTransf := GenLinearTransformBSGSEncrypted(tc.encoder, tc.encryptorSk, diagMatrix, params.MaxLevel(), params.DefaultScale(), 1.0, params.logSlots)
+
+		rots := linTransf.Rotations()
+
+		rotKey := tc.kgen.GenRotationKeysForRotations(rots, false, tc.sk)
+
+		eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
+
+		eval.LinearTransform(ciphertext1, linTransf, []*Ciphertext{ciphertext1})
+
+		t.Log(ciphertext1.Degree())
+
+		tmp := make([]complex128, params.Slots())
+		copy(tmp, values1)
+
+		for i := 0; i < params.Slots(); i++ {
+			values1[i] += tmp[(i-15+params.Slots())%params.Slots()]
+			values1[i] += tmp[(i-4+params.Slots())%params.Slots()]
+			values1[i] += tmp[(i-1+params.Slots())%params.Slots()]
+			values1[i] += tmp[(i+1)%params.Slots()]
+			values1[i] += tmp[(i+2)%params.Slots()]
+			values1[i] += tmp[(i+3)%params.Slots()]
+			values1[i] += tmp[(i+4)%params.Slots()]
+			values1[i] += tmp[(i+15)%params.Slots()]
+		}
+
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
+	})
+
+	t.Run(GetTestName(tc.params, "LinearTransform/Naive/Plaintext"), func(t *testing.T) {
 
 		params := tc.params
 

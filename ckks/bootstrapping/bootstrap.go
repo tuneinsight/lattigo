@@ -6,6 +6,7 @@ import (
 
 	"github.com/tuneinsight/lattigo/v3/ckks"
 	"github.com/tuneinsight/lattigo/v3/ring"
+	"github.com/tuneinsight/lattigo/v3/rlwe"
 )
 
 // Bootstrapp re-encrypt a ciphertext at lvl Q0 to a ciphertext at MaxLevel-k where k is the depth of the bootstrapping circuit.
@@ -158,7 +159,7 @@ func (btp *Bootstrapper) modUpFromQ0(ct *ckks.Ciphertext) *ckks.Ciphertext {
 
 		ringQ.NTTLvl(levelQ, ct.Value[0], ct.Value[0])
 
-		ks.KeyswitchHoisted(levelQ, ks.BuffDecompQP, btp.swkStD, ks.BuffQP[1].Q, ct.Value[1], ks.BuffQP[1].P, ks.BuffQP[2].P)
+		ks.GadgetProductHoisted(levelQ, ks.BuffDecompQP, btp.swkStD.GadgetCiphertext, rlwe.Ciphertext{Value: []*ring.Poly{ks.BuffQP[1].Q, ct.Value[1]}})
 		ringQ.AddLvl(levelQ, ct.Value[0], ks.BuffQP[1].Q, ct.Value[0])
 
 	} else {

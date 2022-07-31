@@ -134,6 +134,59 @@ func (eval *Evaluator) WithKey(evaluationKey *EvaluationKey) *Evaluator {
 	}
 }
 
+// DecomposeNTT applies the full RNS basis decomposition on c2.
+// Expects the IsNTT flag of c2 to correctly reflect the domain of c2.
+// BuffQPDecompQ and BuffQPDecompQ are vectors of polynomials (mod Q and mod P) that store the
+// special RNS decomposition of c2 (in the NTT domain)
+func (eval *Evaluator) DecomposeNTT(levelQ, levelP, nbPi int, c2 *ring.Poly, BuffDecompQP []ringqp.Poly) {
+
+	ringQ := eval.params.RingQ()
+
+	var polyNTT, polyInvNTT *ring.Poly
+
+	if c2.IsNTT {
+		polyNTT = c2
+		polyInvNTT = eval.BuffInvNTT
+		ringQ.InvNTTLvl(levelQ, polyNTT, polyInvNTT)
+	} else {
+		polyNTT = eval.BuffInvNTT
+		polyInvNTT = c2
+		ringQ.NTTLvl(levelQ, polyInvNTT, polyNTT)
+	}
+
+	decompRNS := eval.params.DecompRNS(levelQ, levelP)
+	for i := 0; i < decompRNS; i++ {
+		eval.DecomposeSingleNTT(levelQ, levelP, nbPi, i, polyNTT, polyInvNTT, BuffDecompQP[i].Q, BuffDecompQP[i].P)
+	}
+}
+
+// DecomposeSingleNTT takes the input polynomial c2 (c2NTT and c2InvNTT, respectively in the NTT and out of the NTT domain)
+// modulo the RNS basis, and returns the result on c2QiQ are c2QiP the receiver polynomials respectively mod Q and mod P (in the NTT domain)
+func (eval *Evaluator) DecomposeSingleNTT(levelQ, levelP, nbPi, decompRNS int, c2NTT, c2InvNTT, c2QiQ, c2QiP *ring.Poly) {
+
+	ringQ := eval.params.RingQ()
+	ringP := eval.params.RingP()
+
+	eval.Decomposer.DecomposeAndSplit(levelQ, levelP, nbPi, decompRNS, c2InvNTT, c2QiQ, c2QiP)
+
+	p0idxst := decompRNS * nbPi
+	p0idxed := p0idxst + nbPi
+
+	// c2_qi = cx mod qi mod qi
+	for x := 0; x < levelQ+1; x++ {
+		if p0idxst <= x && x < p0idxed {
+			copy(c2QiQ.Coeffs[x], c2NTT.Coeffs[x])
+		} else {
+			ringQ.NTTSingle(x, c2QiQ.Coeffs[x], c2QiQ.Coeffs[x])
+		}
+	}
+
+	if ringP != nil {
+		// c2QiP = c2 mod qi mod pj
+		ringP.NTTLvl(levelP, c2QiP, c2QiP)
+	}
+}
+
 // ExpandRLWE expands a RLWE ciphertext encrypting sum ai * X^i to 2^logN ciphertexts,
 // each encrypting ai * X^0 for 0 <= i < 2^LogN. That is, it extracts the first 2^logN
 // coefficients of ctIn and returns a RLWE ciphetext for each coefficient extracted.

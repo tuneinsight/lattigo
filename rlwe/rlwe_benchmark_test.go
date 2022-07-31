@@ -29,7 +29,7 @@ func BenchmarkRLWE(b *testing.B) {
 		eval := NewEvaluator(params, nil)
 
 		for _, testSet := range []func(kgen KeyGenerator, eval *Evaluator, b *testing.B){
-			benchHoistedKeySwitch,
+			benchGadgetProductHoisted,
 		} {
 			testSet(kgen, eval, b)
 			runtime.GC()
@@ -37,7 +37,7 @@ func BenchmarkRLWE(b *testing.B) {
 	}
 }
 
-func benchHoistedKeySwitch(kgen KeyGenerator, eval *Evaluator, b *testing.B) {
+func benchGadgetProductHoisted(kgen KeyGenerator, eval *Evaluator, b *testing.B) {
 
 	params := kgen.(*keyGenerator).params
 	skIn := kgen.GenSecretKey()
@@ -57,10 +57,10 @@ func benchHoistedKeySwitch(kgen KeyGenerator, eval *Evaluator, b *testing.B) {
 		}
 	})
 
-	b.Run(testString(params, "KeySwitchHoisted/"), func(b *testing.B) {
+	b.Run(testString(params, "GadgetProductHoisted/"), func(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			eval.KeyswitchHoisted(ciphertext.Level(), eval.BuffDecompQP, swk, ciphertext.Value[0], ciphertext.Value[1], eval.BuffQP[1].P, eval.BuffQP[2].P)
+			eval.GadgetProductHoisted(ciphertext.Level(), eval.BuffDecompQP, swk.GadgetCiphertext, *ciphertext)
 		}
 	})
 }

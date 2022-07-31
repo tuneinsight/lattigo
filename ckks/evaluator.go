@@ -78,7 +78,7 @@ type Evaluator interface {
 	Rotate(ctIn *Ciphertext, k int, ctOut *Ciphertext)
 	RotateHoistedNew(ctIn *Ciphertext, rotations []int) (ctOut map[int]*Ciphertext)
 	RotateHoisted(ctIn *Ciphertext, rotations []int, ctOut map[int]*Ciphertext)
-	RotateHoistedNoModDownNew(level int, rotations []int, c0 *ring.Poly, c2DecompQP []ringqp.Poly) (cOut map[int][2]ringqp.Poly)
+	RotateHoistedNoModDownNew(level int, rotations []int, c0 *ring.Poly, c2DecompQP []ringqp.Poly) (cOut map[int]rlwe.CiphertextQP)
 
 	// ===========================
 	// === Advanced Arithmetic ===
@@ -1196,7 +1196,7 @@ func (eval *evaluator) mulRelin(ctIn *Ciphertext, op1 Operand, relin bool, ctOut
 
 		if relin {
 			c2.IsNTT = true
-			eval.GadgetProduct(level, c2, eval.Rlk.Keys[0].GadgetCiphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
+			eval.GadgetProduct(level, c2, eval.Rlk.Keys[0].GadgetCiphertext, rlwe.Ciphertext{Value: []*ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}})
 			ringQ.AddLvl(level, c0, eval.BuffQP[1].Q, ctOut.Value[0])
 			ringQ.AddLvl(level, c1, eval.BuffQP[2].Q, ctOut.Value[1])
 		}
@@ -1294,7 +1294,7 @@ func (eval *evaluator) mulRelinAndAdd(ctIn *Ciphertext, op1 Operand, relin bool,
 		if relin {
 			c2.IsNTT = true
 			ringQ.MulCoeffsMontgomeryLvl(level, c01, tmp1.Value[1], c2) // c2 += c[1]*c[1]
-			eval.GadgetProduct(level, c2, eval.Rlk.Keys[0].GadgetCiphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
+			eval.GadgetProduct(level, c2, eval.Rlk.Keys[0].GadgetCiphertext, rlwe.Ciphertext{Value: []*ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}})
 			ringQ.AddLvl(level, c0, eval.BuffQP[1].Q, c0)
 			ringQ.AddLvl(level, c1, eval.BuffQP[2].Q, c1)
 		} else {
@@ -1389,14 +1389,14 @@ func (eval *evaluator) Conjugate(ct0 *Ciphertext, ctOut *Ciphertext) {
 	ctOut.Scale = ct0.Scale
 }
 
-func (eval *evaluator) RotateHoistedNoModDownNew(level int, rotations []int, c0 *ring.Poly, c2DecompQP []ringqp.Poly) (cOut map[int][2]ringqp.Poly) {
+func (eval *evaluator) RotateHoistedNoModDownNew(level int, rotations []int, c0 *ring.Poly, c2DecompQP []ringqp.Poly) (cOut map[int]rlwe.CiphertextQP) {
 	ringQ := eval.params.RingQ()
 	ringP := eval.params.RingP()
-	cOut = make(map[int][2]ringqp.Poly)
+	cOut = make(map[int]rlwe.CiphertextQP)
 	for _, i := range rotations {
 		if i != 0 {
-			cOut[i] = [2]ringqp.Poly{{Q: ringQ.NewPolyLvl(level), P: ringP.NewPoly()}, {Q: ringQ.NewPolyLvl(level), P: ringP.NewPoly()}}
-			eval.AutomorphismHoistedNoModDown(level, c0, c2DecompQP, eval.params.GaloisElementForColumnRotationBy(i), cOut[i][0].Q, cOut[i][1].Q, cOut[i][0].P, cOut[i][1].P)
+			cOut[i] = rlwe.CiphertextQP{Value: []ringqp.Poly{{Q: ringQ.NewPolyLvl(level), P: ringP.NewPoly()}, {Q: ringQ.NewPolyLvl(level), P: ringP.NewPoly()}}}
+			eval.AutomorphismHoistedNoModDown(level, c0, c2DecompQP, eval.params.GaloisElementForColumnRotationBy(i), cOut[i])
 		}
 	}
 

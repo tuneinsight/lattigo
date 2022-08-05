@@ -14,7 +14,7 @@ func (eval *Evaluator) GadgetProduct(levelQ int, cx *ring.Poly, gadgetCt GadgetC
 
 	levelP := gadgetCt.LevelP()
 
-	ctOutQP := CiphertextQP{Value: []ringqp.Poly{{Q: ctOut.Value[0], P: eval.BuffQP[1].P}, {Q: ctOut.Value[1], P: eval.BuffQP[2].P}}}
+	ctOutQP := CiphertextQP{Value: []ringqp.Poly{{Q: ctOut.Value[0], P: eval.BuffQP[0].P}, {Q: ctOut.Value[1], P: eval.BuffQP[1].P}}}
 
 	if levelP > 0 {
 		eval.GadgetProductNoModDown(levelQ, cx, gadgetCt, ctOutQP)
@@ -50,7 +50,7 @@ func (eval *Evaluator) GadgetProductNoModDown(levelQ int, cx *ring.Poly, gadgetC
 	ringP := eval.params.RingP()
 	ringQP := eval.params.RingQP()
 
-	c2QP := eval.BuffQP[0]
+	c2QP := eval.BuffDecompQP[0]
 
 	var cxNTT, cxInvNTT *ring.Poly
 	if cx.IsNTT {
@@ -116,7 +116,7 @@ func (eval *Evaluator) GadgetProductNoModDown(levelQ int, cx *ring.Poly, gadgetC
 // ctOut = [P^-1 * <BuffQPDecompQP, evakey[0]>, P^-1 * <BuffQPDecompQP, evakey[1]>] mod Q
 func (eval *Evaluator) GadgetProductHoisted(levelQ int, BuffQPDecompQP []ringqp.Poly, gadgetCt GadgetCiphertext, ctOut Ciphertext) {
 
-	ctOutQP := CiphertextQP{Value: []ringqp.Poly{{Q: ctOut.Value[0], P: eval.BuffQP[1].P}, {Q: ctOut.Value[1], P: eval.BuffQP[2].P}}}
+	ctOutQP := CiphertextQP{Value: []ringqp.Poly{{Q: ctOut.Value[0], P: eval.BuffQP[0].P}, {Q: ctOut.Value[1], P: eval.BuffQP[1].P}}}
 
 	eval.GadgetProductHoistedNoModDown(levelQ, BuffQPDecompQP, gadgetCt, ctOutQP)
 
@@ -211,7 +211,7 @@ func (eval *Evaluator) GadgetProductSinglePAndBitDecompNoModDown(levelQ int, cx 
 		mask = 0xFFFFFFFFFFFFFFFF
 	}
 
-	cw := eval.BuffQP[0].Q.Coeffs[0]
+	cw := eval.BuffDecompQP[0].Q.Coeffs[0]
 	cwNTT := eval.BuffBitDecomp
 
 	QiOverF := eval.params.QiOverflowMargin(levelQ) >> 1

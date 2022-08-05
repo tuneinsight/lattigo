@@ -674,7 +674,7 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 		tmpc0.IsNTT = true
 		tmpc1.IsNTT = true
 		tmpct := NewCiphertextAtLevelFromPoly(levelQ, [2]*ring.Poly{tmpc0, tmpc1})
-		c0OutQP := eval.BuffQP[0]
+		c0OutQP := eval.BuffQP[2]
 		c1OutQP := eval.BuffQP[3]
 
 		accQP := rlwe.CiphertextQP{Value: []ringqp.Poly{eval.BuffQP[4], eval.BuffQP[5]}}
@@ -905,9 +905,9 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTrans
 	c0OutQP := ringqp.Poly{Q: ctOut.Value[0], P: eval.BuffQP[5].Q}
 	c1OutQP := ringqp.Poly{Q: ctOut.Value[1], P: eval.BuffQP[5].P}
 
-	ct0TimesP := eval.BuffQP[0].Q // ct0 * P mod Q
-	ksRes0QP := eval.BuffQP[1]
-	ksRes1QP := eval.BuffQP[2]
+	ksRes0QP := eval.BuffQP[0]
+	ksRes1QP := eval.BuffQP[1]
+	ct0TimesP := eval.BuffQP[2].Q // ct0 * P mod Q
 	tmp0QP := eval.BuffQP[3]
 	tmp1QP := eval.BuffQP[4]
 
@@ -1009,7 +1009,7 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearT
 	isPlaintext := matrix.IsPlaintext()
 
 	// Accumulator inner loop
-	accInLoop := rlwe.CiphertextQP{Value: []ringqp.Poly{eval.BuffQP[1], eval.BuffQP[2]}}
+	accInLoop := rlwe.CiphertextQP{Value: []ringqp.Poly{eval.BuffQP[2], eval.BuffQP[3]}}
 
 	// Available & Used Buffers:
 	// Evaluator CKKS:
@@ -1020,16 +1020,16 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearT
 	// Evaluator RLWE:
 	//		BuffQ        [0]ringqp.Poly -> c2QP.Q (rlwe.Evaluator)
 	//		BuffP        [0]ringqp.Poly -> c2QP.P (rlwe.Evaluator)
-	//		BuffQ        [1]ringqp.Poly -> accInLoop.Value[0].Q
-	//		BuffP        [1]ringqp.Poly -> accInLoop.Value[0].P
-	//		BuffQ        [2]ringqp.Poly -> accInLoop.Value[1].Q
-	//		BuffP        [2]ringqp.Poly -> accInLoop.Value[1].P
-	//		BuffQ        [3]ringqp.Poly -> accOutLoopQP.Value[0].P
-	//		BuffP        [3]ringqp.Poly -> accOutLoopQP.Value[1].P
-	//		BuffQ        [4]ringqp.Poly -> ctBuffQP.Value[0].Q
-	//		BuffP        [4]ringqp.Poly -> ctBuffQP.Value[0].Q
-	//		BuffQ        [5]ringqp.Poly -> ctBuffQP.Value[1].P
-	//		BuffP        [5]ringqp.Poly -> ctBuffQP.Value[1].P
+	//		BuffQ        [0]ringqp.Poly -> ctBuffQP.Value[0].Q
+	//		BuffP        [0]ringqp.Poly -> ctBuffQP.Value[0].Q
+	//		BuffQ        [1]ringqp.Poly -> ctBuffQP.Value[1].P
+	//		BuffP        [1]ringqp.Poly -> ctBuffQP.Value[1].P
+	//		BuffQ        [2]ringqp.Poly -> accInLoop.Value[0].Q
+	//		BuffP        [2]ringqp.Poly -> accInLoop.Value[0].P
+	//		BuffQ        [3]ringqp.Poly -> accInLoop.Value[1].Q
+	//		BuffP        [3]ringqp.Poly -> accInLoop.Value[1].P
+	//		BuffQ        [4]ringqp.Poly -> accOutLoopQP.Value[0].P
+	//		BuffP        [4]ringqp.Poly -> accOutLoopQP.Value[1].P
 	//		BuffInvNTT    *ring.Poly    -> cxInvNTT (rlwe.Evaluator)
 	//		BuffDecompQP  []ringqp.Poly
 	//
@@ -1039,10 +1039,10 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearT
 	}
 
 	// Result in QP
-	accOutLoopQP := &rlwe.CiphertextQP{Value: []ringqp.Poly{ringqp.Poly{Q: ctOut.Value[0], P: eval.BuffQP[3].Q}, ringqp.Poly{Q: ctOut.Value[1], P: eval.BuffQP[3].P}}}
+	accOutLoopQP := &rlwe.CiphertextQP{Value: []ringqp.Poly{ringqp.Poly{Q: ctOut.Value[0], P: eval.BuffQP[4].Q}, ringqp.Poly{Q: ctOut.Value[1], P: eval.BuffQP[4].P}}}
 
 	// Ciphertext buffer mod QP for gadget products without mod down
-	ctBuffQP := rlwe.CiphertextQP{Value: []ringqp.Poly{eval.BuffQP[4], eval.BuffQP[5]}}
+	ctBuffQP := rlwe.CiphertextQP{Value: []ringqp.Poly{eval.BuffQP[0], eval.BuffQP[1]}}
 
 	// Computes the N2 rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giang-step algorithm
 	index, _, rotN2 := BsgsIndex(matrix.Vec, 1<<matrix.LogSlots, matrix.N1)

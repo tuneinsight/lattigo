@@ -33,15 +33,15 @@ func (eval *Evaluator) Automorphism(ctIn *Ciphertext, galEl uint64, ctOut *Ciphe
 
 	ringQ := eval.params.RingQ()
 
-	eval.GadgetProduct(level, ctIn.Value[1], rtk.GadgetCiphertext, Ciphertext{Value: []*ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}})
-	ringQ.AddLvl(level, eval.BuffQP[1].Q, ctIn.Value[0], eval.BuffQP[1].Q)
+	eval.GadgetProduct(level, ctIn.Value[1], rtk.GadgetCiphertext, Ciphertext{Value: []*ring.Poly{eval.BuffQP[0].Q, eval.BuffQP[1].Q}})
+	ringQ.AddLvl(level, eval.BuffQP[0].Q, ctIn.Value[0], eval.BuffQP[0].Q)
 
 	if ctIn.Value[0].IsNTT {
-		ringQ.PermuteNTTWithIndexLvl(level, eval.BuffQP[1].Q, eval.PermuteNTTIndex[galEl], ctOut.Value[0])
-		ringQ.PermuteNTTWithIndexLvl(level, eval.BuffQP[2].Q, eval.PermuteNTTIndex[galEl], ctOut.Value[1])
+		ringQ.PermuteNTTWithIndexLvl(level, eval.BuffQP[0].Q, eval.PermuteNTTIndex[galEl], ctOut.Value[0])
+		ringQ.PermuteNTTWithIndexLvl(level, eval.BuffQP[1].Q, eval.PermuteNTTIndex[galEl], ctOut.Value[1])
 	} else {
-		ringQ.PermuteLvl(level, eval.BuffQP[1].Q, galEl, ctOut.Value[0])
-		ringQ.PermuteLvl(level, eval.BuffQP[2].Q, galEl, ctOut.Value[1])
+		ringQ.PermuteLvl(level, eval.BuffQP[0].Q, galEl, ctOut.Value[0])
+		ringQ.PermuteLvl(level, eval.BuffQP[1].Q, galEl, ctOut.Value[1])
 	}
 
 	ctOut.Resize(ctOut.Degree(), level)
@@ -71,15 +71,15 @@ func (eval *Evaluator) AutomorphismHoisted(level int, ctIn *Ciphertext, c1Decomp
 
 	ringQ := eval.params.RingQ()
 
-	eval.GadgetProductHoisted(level, c1DecompQP, rtk.GadgetCiphertext, Ciphertext{Value: []*ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}})
-	ringQ.AddLvl(level, eval.BuffQP[1].Q, ctIn.Value[0], eval.BuffQP[1].Q)
+	eval.GadgetProductHoisted(level, c1DecompQP, rtk.GadgetCiphertext, Ciphertext{Value: []*ring.Poly{eval.BuffQP[0].Q, eval.BuffQP[1].Q}})
+	ringQ.AddLvl(level, eval.BuffQP[0].Q, ctIn.Value[0], eval.BuffQP[0].Q)
 
 	if ctIn.Value[0].IsNTT {
-		ringQ.PermuteNTTWithIndexLvl(level, eval.BuffQP[1].Q, eval.PermuteNTTIndex[galEl], ctOut.Value[0])
-		ringQ.PermuteNTTWithIndexLvl(level, eval.BuffQP[2].Q, eval.PermuteNTTIndex[galEl], ctOut.Value[1])
+		ringQ.PermuteNTTWithIndexLvl(level, eval.BuffQP[0].Q, eval.PermuteNTTIndex[galEl], ctOut.Value[0])
+		ringQ.PermuteNTTWithIndexLvl(level, eval.BuffQP[1].Q, eval.PermuteNTTIndex[galEl], ctOut.Value[1])
 	} else {
-		ringQ.PermuteLvl(level, eval.BuffQP[1].Q, galEl, ctOut.Value[0])
-		ringQ.PermuteLvl(level, eval.BuffQP[2].Q, galEl, ctOut.Value[1])
+		ringQ.PermuteLvl(level, eval.BuffQP[0].Q, galEl, ctOut.Value[0])
+		ringQ.PermuteLvl(level, eval.BuffQP[1].Q, galEl, ctOut.Value[1])
 	}
 
 	ctOut.Resize(ctOut.Degree(), level)
@@ -96,7 +96,7 @@ func (eval *Evaluator) AutomorphismHoistedNoModDown(levelQ int, c0 *ring.Poly, c
 
 	levelP := rtk.LevelP()
 
-	eval.GadgetProductHoistedNoModDown(levelQ, c1DecompQP, rtk.GadgetCiphertext, CiphertextQP{Value: []ringqp.Poly{eval.BuffQP[1], eval.BuffQP[2]}})
+	eval.GadgetProductHoistedNoModDown(levelQ, c1DecompQP, rtk.GadgetCiphertext, CiphertextQP{Value: []ringqp.Poly{eval.BuffQP[0], eval.BuffQP[1]}})
 
 	ringQ := eval.params.RingQ()
 
@@ -104,29 +104,29 @@ func (eval *Evaluator) AutomorphismHoistedNoModDown(levelQ int, c0 *ring.Poly, c
 
 		index := eval.PermuteNTTIndex[galEl]
 
-		ringQ.PermuteNTTWithIndexLvl(levelQ, eval.BuffQP[2].Q, index, ctOut.Value[1].Q)
-		ringQ.PermuteNTTWithIndexLvl(levelP, eval.BuffQP[2].P, index, ctOut.Value[1].P)
+		ringQ.PermuteNTTWithIndexLvl(levelQ, eval.BuffQP[1].Q, index, ctOut.Value[1].Q)
+		ringQ.PermuteNTTWithIndexLvl(levelP, eval.BuffQP[1].P, index, ctOut.Value[1].P)
 
 		if levelP > -1 {
-			ringQ.MulScalarBigintLvl(levelQ, c0, eval.params.RingP().ModulusAtLevel[levelP], eval.BuffQP[2].Q)
+			ringQ.MulScalarBigintLvl(levelQ, c0, eval.params.RingP().ModulusAtLevel[levelP], eval.BuffQP[1].Q)
 		}
 
-		ringQ.AddLvl(levelQ, eval.BuffQP[1].Q, eval.BuffQP[2].Q, eval.BuffQP[1].Q)
+		ringQ.AddLvl(levelQ, eval.BuffQP[0].Q, eval.BuffQP[1].Q, eval.BuffQP[0].Q)
 
-		ringQ.PermuteNTTWithIndexLvl(levelQ, eval.BuffQP[1].Q, index, ctOut.Value[0].Q)
-		ringQ.PermuteNTTWithIndexLvl(levelP, eval.BuffQP[1].P, index, ctOut.Value[0].P)
+		ringQ.PermuteNTTWithIndexLvl(levelQ, eval.BuffQP[0].Q, index, ctOut.Value[0].Q)
+		ringQ.PermuteNTTWithIndexLvl(levelP, eval.BuffQP[0].P, index, ctOut.Value[0].P)
 	} else {
-		ringQ.PermuteLvl(levelQ, eval.BuffQP[2].Q, galEl, ctOut.Value[1].Q)
-		ringQ.PermuteLvl(levelP, eval.BuffQP[2].P, galEl, ctOut.Value[1].P)
-
-		if levelP > -1 {
-			ringQ.MulScalarBigintLvl(levelQ, c0, eval.params.RingP().ModulusAtLevel[levelP], eval.BuffQP[2].Q)
-		}
-
-		ringQ.AddLvl(levelQ, eval.BuffQP[1].Q, eval.BuffQP[2].Q, eval.BuffQP[1].Q)
-
 		ringQ.PermuteLvl(levelQ, eval.BuffQP[1].Q, galEl, ctOut.Value[1].Q)
 		ringQ.PermuteLvl(levelP, eval.BuffQP[1].P, galEl, ctOut.Value[1].P)
+
+		if levelP > -1 {
+			ringQ.MulScalarBigintLvl(levelQ, c0, eval.params.RingP().ModulusAtLevel[levelP], eval.BuffQP[1].Q)
+		}
+
+		ringQ.AddLvl(levelQ, eval.BuffQP[0].Q, eval.BuffQP[1].Q, eval.BuffQP[0].Q)
+
+		ringQ.PermuteLvl(levelQ, eval.BuffQP[0].Q, galEl, ctOut.Value[1].Q)
+		ringQ.PermuteLvl(levelP, eval.BuffQP[0].P, galEl, ctOut.Value[1].P)
 	}
 }
 

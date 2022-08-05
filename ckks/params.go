@@ -486,11 +486,15 @@ func (p Parameters) RotationsForInnerSumLog(batch, n int) (rotations []int) {
 
 		k = i
 		k *= batch
-		rotIndex[k] = true
+		if k&(p.Slots()-1) != 0 {
+			rotIndex[k] = true
+		}
 
 		k = n - (n & ((i << 1) - 1))
 		k *= batch
-		rotIndex[k] = true
+		if k&(p.Slots()-1) != 0 {
+			rotIndex[k] = true
+		}
 	}
 
 	rotations = make([]int, len(rotIndex))

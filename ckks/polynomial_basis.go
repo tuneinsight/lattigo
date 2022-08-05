@@ -66,10 +66,10 @@ func (p *PolynomialBasis) genPower(n int, lazy bool, scale float64, eval Evaluat
 		}
 
 		// Recurses on the given indexes
-		if err = p.genPower(a, lazy, scale, eval); err != nil {
+		if err = p.genPower(a, lazy && !isPow2, scale, eval); err != nil {
 			return err
 		}
-		if err = p.genPower(b, lazy, scale, eval); err != nil {
+		if err = p.genPower(b, lazy && !isPow2, scale, eval); err != nil {
 			return err
 		}
 
@@ -90,7 +90,7 @@ func (p *PolynomialBasis) genPower(n int, lazy bool, scale float64, eval Evaluat
 		}
 
 		// Computes C[n] = C[a]*C[b]
-		if lazy && !isPow2 {
+		if lazy {
 			p.Value[n] = eval.MulNew(p.Value[a], p.Value[b])
 
 		} else {
@@ -109,12 +109,10 @@ func (p *PolynomialBasis) genPower(n int, lazy bool, scale float64, eval Evaluat
 			if c == 0 {
 				eval.AddConst(p.Value[n], -1, p.Value[n])
 			} else {
-
 				// Since C[0] is not stored (but rather seen as the constant 1), only recurses on c if c!= 0
 				if err = p.GenPower(c, lazy, scale, eval); err != nil {
 					return err
 				}
-
 				eval.Sub(p.Value[n], p.Value[c], p.Value[n])
 			}
 		}

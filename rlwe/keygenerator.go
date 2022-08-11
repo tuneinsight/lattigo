@@ -3,6 +3,7 @@ package rlwe
 import (
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
+	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
 // KeyGenerator is an interface implementing the methods of the KeyGenerator.
@@ -195,23 +196,63 @@ func (keygen *keyGenerator) GenSwitchingKeysForRingSwap(skStd, skConjugateInvari
 // must be mapped Y^{N/n} using SwitchCiphertextRingDegreeNTT(ctLargeDim, ringQLargeDim, ctSmallDim).
 func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *SwitchingKey) {
 
-	levelP := skOutput.LevelP()
-
-	// Allocates the switching-key.
-	swk = NewSwitchingKey(keygen.params, skOutput.Value.Q.Level(), levelP)
-
 	// N -> n (swk is to switch to a smaller dimension).
 	if len(skInput.Value.Q.Coeffs[0]) > len(skOutput.Value.Q.Coeffs[0]) {
 
+		levelP := skInput.LevelP()
+
+		// Allocates the switching-key.
+		swk = NewSwitchingKey(keygen.params, skOutput.Value.Q.Level(), levelP)
+
 		// Maps the smaller key to the largest with Y = X^{N/n}.
 		ring.MapSmallDimensionToLargerDimensionNTT(skOutput.Value.Q, keygen.buffQP.Q)
+
+		// Extends the modulus P of skOutput to the one of skInput
 		if levelP != -1 {
-			ring.MapSmallDimensionToLargerDimensionNTT(skOutput.Value.P, keygen.buffQP.P)
+
+			ringQ := keygen.params.RingQ()
+			ringP := keygen.params.RingP()
+
+			// Switches Q[0] out of the NTT and Montgomery domain.
+			ringQ.InvNTTLvl(0, keygen.buffQP.Q, keygen.buffQ[0])
+			ringQ.InvMFormLvl(0, keygen.buffQ[0], keygen.buffQ[0])
+
+			// Reconstruct P from Q
+			Q := ringQ.Modulus[0]
+			QHalf := Q >> 1
+
+			P := ringP.Modulus
+
+			polQ := keygen.buffQ[0]
+			polP := keygen.buffQP.P
+			var sign uint64
+			for j := 0; j < ringQ.N; j++ {
+
+				coeff := polQ.Coeffs[0][j]
+
+				sign = 1
+				if coeff > QHalf {
+					coeff = Q - coeff
+					sign = 0
+				}
+
+				for i := 0; i < levelP+1; i++ {
+					polP.Coeffs[i][j] = (coeff * sign) | (P[i]-coeff)*(sign^1)
+				}
+			}
+
+			ringP.NTTLvl(levelP, keygen.buffQP.P, keygen.buffQP.P)
+			ringP.MFormLvl(levelP, keygen.buffQP.P, keygen.buffQP.P)
 		}
 
 		keygen.genSwitchingKey(skInput.Value.Q, keygen.buffQP, swk)
 
 	} else { // N -> N or n -> N (swk switch to the same or a larger dimension)
+
+		levelP := utils.MinInt(skOutput.LevelP(), keygen.params.PCount()-1)
+
+		// Allocates the switching-key.
+		swk = NewSwitchingKey(keygen.params, skOutput.Value.Q.Level(), levelP)
 
 		// Maps the smaller key to the largest dimension with Y = X^{N/n}.
 		ring.MapSmallDimensionToLargerDimensionNTT(skInput.Value.Q, keygen.buffQ[0])

@@ -456,17 +456,10 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 			Q = paramsLargeDim.Q()
 		}
 
-		var P []uint64
-		if len(paramsLargeDim.P()) != 0 {
-			P = paramsLargeDim.P()[:1]
-		} else {
-			P = []uint64{}
-		}
-
 		paramsSmallDim, err := NewParametersFromLiteral(ParametersLiteral{
 			LogN:     paramsLargeDim.LogN() - 1,
 			Q:        Q,
-			P:        P,
+			P:        []uint64{0x1ffffffff6c80001, 0x1ffffffff6140001}, // some other P to test that the modulus is correctly extended in the keygen
 			Sigma:    DefaultSigma,
 			RingType: paramsLargeDim.RingType(),
 		})

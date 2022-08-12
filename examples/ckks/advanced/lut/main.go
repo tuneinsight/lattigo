@@ -12,10 +12,10 @@ import (
 	"github.com/tuneinsight/lattigo/v3/rlwe"
 )
 
-// This examples showcases how lookup tables can complement the CKKS scheme to compute non-linear functions
-// such as sign. The examples starts by homomorphically decoding the CKKS ciphertext from the canonical embeding
+// This example showcases how lookup tables can complement the CKKS scheme to compute non-linear functions
+// such as sign. The example starts by homomorphically decoding the CKKS ciphertext from the canonical embeding
 // to the coefficient embeding. It then evaluates the Look-Up-Table (LUT) on each coefficient and repacks the
-// outputs of each LUT in a single RLWE ciphertext. Finally it homomorphically encodes the RLWE ciphertext back
+// outputs of each LUT in a single RLWE ciphertext. Finally, it homomorphically encodes the RLWE ciphertext back
 // to the canonical embeding of the CKKS scheme.
 
 // ==============================

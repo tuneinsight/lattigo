@@ -10,7 +10,7 @@ import (
 
 // Trace maps X -> sum((-1)^i * X^{i*n+1}) for 0 <= i < N
 // For log(n) = logSlots.
-// Monomial X^k vanishes if k is not divisible by (N/n), else it is multiplied by (N/n).
+// Monomial X^k vanishes if k is not divisible by (N/n), otherwise it is multiplied by (N/n).
 // Ciphertext is pre-multiplied by (N/n)^-1 to remove the (N/n) factor.
 // Examples of full Trace for [0 + 1X + 2X^2 + 3X^3 + 4X^4 + 5X^5 + 6X^6 + 7X^7]
 //
@@ -154,7 +154,7 @@ func (LT *LinearTransform) Encode(encoder Encoder, value interface{}, scale floa
 
 	enc, ok := encoder.(*encoderComplex128)
 	if !ok {
-		panic("encoder should be an encoderComplex128")
+		panic("cannot Encode: encoder should be an encoderComplex128")
 	}
 
 	dMat := interfaceMapToMapOfInterface(value)
@@ -169,7 +169,7 @@ func (LT *LinearTransform) Encode(encoder Encoder, value interface{}, scale floa
 			}
 
 			if _, ok := LT.Vec[idx]; !ok {
-				panic("error encoding on LinearTransform: input does not match the same non-zero diagonals")
+				panic("cannot Encode: error encoding on LinearTransform: input does not match the same non-zero diagonals")
 			}
 
 			enc.Embed(dMat[i], LT.LogSlots, scale, true, LT.Vec[idx])
@@ -186,7 +186,7 @@ func (LT *LinearTransform) Encode(encoder Encoder, value interface{}, scale floa
 				}
 
 				if _, ok := LT.Vec[j+i]; !ok {
-					panic("error encoding on LinearTransform BSGS: input does not match the same non-zero diagonals")
+					panic("cannot Encode: error encoding on LinearTransform BSGS: input does not match the same non-zero diagonals")
 				}
 
 				enc.Embed(utils.RotateSlice(v, -j), LT.LogSlots, scale, true, LT.Vec[j+i])
@@ -207,7 +207,7 @@ func GenLinearTransform(encoder Encoder, value interface{}, level int, scale flo
 
 	enc, ok := encoder.(*encoderComplex128)
 	if !ok {
-		panic("encoder should be an encoderComplex128")
+		panic("cannot GenLinearTransform: encoder should be an encoderComplex128")
 	}
 
 	params := enc.params

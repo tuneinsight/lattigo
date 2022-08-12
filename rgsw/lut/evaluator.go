@@ -9,7 +9,7 @@ import (
 	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 )
 
-// Evaluator is a struct that stores necessary
+// Evaluator is a struct that stores the necessary
 // data to handle LWE <-> RLWE conversion and
 // LUT evaluation.
 type Evaluator struct {
@@ -129,7 +129,7 @@ func NewEvaluator(paramsLUT, paramsLWE rlwe.Parameters, rtks *rlwe.RotationKeySe
 	return
 }
 
-// EvaluateAndRepack extracts on the fly LWE samples and evaluate the provided LUT on the LWE and repacks everything into a single rlwe.Ciphertext.
+// EvaluateAndRepack extracts on the fly LWE samples, evaluates the provided LUT on the LWE and repacks everything into a single rlwe.Ciphertext.
 // ct : a rlwe Ciphertext with coefficient encoded values at level 0
 // lutPolyWihtSlotIndex : a map with [slot_index] -> LUT
 // repackIndex : a map with [slot_index_have] -> slot_index_want
@@ -147,7 +147,7 @@ func (eval *Evaluator) EvaluateAndRepack(ct *rlwe.Ciphertext, lutPolyWihtSlotInd
 	return eval.MergeRLWE(ciphertexts)
 }
 
-// Evaluate extracts on the fly LWE samples and evaluate the provided LUT on the LWE.
+// Evaluate extracts on the fly LWE samples and evaluates the provided LUT on the LWE.
 // ct : a rlwe Ciphertext with coefficient encoded values at level 0
 // lutPolyWihtSlotIndex : a map with [slot_index] -> LUT
 // lutKey : lut.Key
@@ -225,7 +225,7 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWihtSlotIndex map[in
 	return
 }
 
-// ModSwitchRLWETo2NLvl applys round(x * 2N / Q) to the coefficients of polQ and returns the result on pol2N.
+// ModSwitchRLWETo2NLvl applies round(x * 2N / Q) to the coefficients of polQ and returns the result on pol2N.
 func (eval *Evaluator) ModSwitchRLWETo2NLvl(level int, polQ *ring.Poly, pol2N *ring.Poly) {
 	coeffsBigint := make([]*big.Int, len(polQ.Coeffs[0]))
 

@@ -277,7 +277,7 @@ func AddNoModLvl(levelQ, levelP int, op interface{}, ringQP ringqp.Ring, ctOut *
 			}
 		}
 	default:
-		panic("unsuported op.(type), must be either *rgsw.Plaintext or *rgsw.Ciphertext")
+		panic("cannot AddNoModLvl: unsuported op.(type), must be either *rgsw.Plaintext or *rgsw.Ciphertext")
 	}
 }
 

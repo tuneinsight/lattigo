@@ -7,7 +7,7 @@ import (
 )
 
 // SwitchKeys re-encrypts ctIn under a different key and returns the result in ctOut.
-// It requires a SwitchingKey, which is computed from the key under which the Ciphertext is currently encrypted,
+// It requires a SwitchingKey, which is computed from the key under which the Ciphertext is currently encrypted
 // and the key under which the Ciphertext will be re-encrypted.
 // The method will panic if either ctIn or ctOut degree isn't 1.
 func (eval *Evaluator) SwitchKeys(ctIn *Ciphertext, switchingKey *SwitchingKey, ctOut *Ciphertext) {
@@ -79,7 +79,7 @@ func (eval *Evaluator) DecomposeNTT(levelQ, levelP, nbPi int, c2 *ring.Poly, Buf
 }
 
 // DecomposeSingleNTT takes the input polynomial c2 (c2NTT and c2InvNTT, respectively in the NTT and out of the NTT domain)
-// modulo the RNS basis, and returns the result on c2QiQ are c2QiP the receiver polynomials respectively mod Q and mod P (in the NTT domain)
+// modulo the RNS basis, and returns the result on c2QiQ and c2QiP, the receiver polynomials respectively mod Q and mod P (in the NTT domain)
 func (eval *Evaluator) DecomposeSingleNTT(levelQ, levelP, nbPi, decompRNS int, c2NTT, c2InvNTT, c2QiQ, c2QiP *ring.Poly) {
 
 	ringQ := eval.params.RingQ()

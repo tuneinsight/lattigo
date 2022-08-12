@@ -86,7 +86,7 @@ func NewEvaluator(params Parameters, evaluationKey *EvaluationKey) (eval *Evalua
 	return
 }
 
-// permuteNTTIndexesForKey generates pemutation indexes for automorphisms for ciphertext
+// permuteNTTIndexesForKey generates pemutation indexes for automorphisms for ciphertexts
 // that are given in the NTT domain.
 func (eval *Evaluator) permuteNTTIndexesForKey(rtks *RotationKeySet) *map[uint64][]uint64 {
 	if rtks == nil {
@@ -199,8 +199,8 @@ func (eval *Evaluator) ExpandRLWE(ctIn *Ciphertext, logN int) (ctOut []*Cipherte
 // MergeRLWE merges a batch of RLWE, packing the first coefficient of each RLWE into a single RLWE.
 // The operation will require N/gap + log(gap) key-switches, where gap is the minimum gap between
 // two non-zero coefficients of the final ciphertext.
-// The method takes as input a map of Ciphertexts, indexing in which coefficient, of the final
-// ciphertext, the first coefficient of each ciphertext of the map must be packed.
+// The method takes as input a map of Ciphertexts, indexing in which coefficient of the final
+// ciphertext the first coefficient of each ciphertext of the map must be packed.
 func (eval *Evaluator) MergeRLWE(ctIn map[int]*Ciphertext) (ctOut *Ciphertext) {
 
 	params := eval.params

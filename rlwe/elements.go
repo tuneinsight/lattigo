@@ -13,12 +13,12 @@ type Plaintext struct {
 	Value *ring.Poly
 }
 
-// Ciphertext is a generic type for RLWE ciphertext.
+// Ciphertext is a generic type for RLWE ciphertexts.
 type Ciphertext struct {
 	Value []*ring.Poly
 }
 
-// CiphertextQP is a generic type for RLWE ciphertext in R_qp.
+// CiphertextQP is a generic type for RLWE ciphertexts in R_qp.
 type CiphertextQP struct {
 	Value [2]ringqp.Poly
 }
@@ -34,19 +34,19 @@ type AdditiveShareBigint struct {
 	Value []*big.Int
 }
 
-// NewAdditiveShare instantiate a new additive share struct for the ring defined
+// NewAdditiveShare instantiates a new additive share struct for the ring defined
 // by the given parameters at maximum level.
 func NewAdditiveShare(params Parameters) *AdditiveShare {
 	return &AdditiveShare{Value: *ring.NewPoly(params.N(), 0)}
 }
 
-// NewAdditiveShareAtLevel instantiate a new additive share struct for the ring defined
+// NewAdditiveShareAtLevel instantiates a new additive share struct for the ring defined
 // by the given parameters at level `level`.
 func NewAdditiveShareAtLevel(params Parameters, level int) *AdditiveShare {
 	return &AdditiveShare{Value: *ring.NewPoly(params.N(), level)}
 }
 
-// NewAdditiveShareBigint instantiate a new additive share struct composed of "n" big.Int elements
+// NewAdditiveShareBigint instantiates a new additive share struct composed of "n" big.Int elements
 func NewAdditiveShareBigint(params Parameters, n int) *AdditiveShareBigint {
 	v := make([]*big.Int, n)
 	for i := range v {
@@ -60,9 +60,9 @@ func NewPlaintext(params Parameters, level int) *Plaintext {
 	return &Plaintext{Value: ring.NewPoly(params.N(), level)}
 }
 
-// NewPlaintextAtLevelFromPoly construct a new Plaintext at a specific level
+// NewPlaintextAtLevelFromPoly constructs a new Plaintext at a specific level
 // where the message is set to the passed poly. No checks are performed on poly and
-// the returned Plaintext will share its backing array of coefficient.
+// the returned Plaintext will share its backing array of coefficients.
 func NewPlaintextAtLevelFromPoly(level int, poly *ring.Poly) *Plaintext {
 	if len(poly.Coeffs) < level+1 {
 		panic("cannot NewPlaintextAtLevelFromPoly: provided ring.Poly level is too small")
@@ -117,7 +117,7 @@ func NewCiphertextNTT(params Parameters, degree, level int) *Ciphertext {
 	return el
 }
 
-// NewCiphertextAtLevelFromPoly construct a new Ciphetext at a specific level
+// NewCiphertextAtLevelFromPoly constructs a new Ciphetext at a specific level
 // where the message is set to the passed poly. No checks are performed on poly and
 // the returned Ciphertext will share its backing array of coefficient.
 func NewCiphertextAtLevelFromPoly(level int, poly [2]*ring.Poly) *Ciphertext {

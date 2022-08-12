@@ -52,7 +52,7 @@ func (prng *KeyedPRNG) Read(sum []byte) (n int, err error) {
 	return n, nil
 }
 
-// Reset reset the PRNG to its initial state.
+// Reset resets the PRNG to its initial state.
 func (prng *KeyedPRNG) Reset() {
 	prng.xof.Reset()
 }

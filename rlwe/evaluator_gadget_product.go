@@ -40,7 +40,7 @@ func (eval *Evaluator) GadgetProduct(levelQ int, cx *ring.Poly, gadgetCt GadgetC
 	}
 }
 
-// GadgetProductNoModDown applies the gadget prodcut to the polynomial cx :
+// GadgetProductNoModDown applies the gadget prodcut to the polynomial cx:
 //
 // p0QP = dot(decomp(cx) * gadget[0]) mod QP (encrypted input is multiplied by P factor)
 // p1QP = dot(decomp(cx) * gadget[1]) mod QP (encrypted input is multiplied by P factor)
@@ -112,7 +112,7 @@ func (eval *Evaluator) GadgetProductNoModDown(levelQ int, cx *ring.Poly, gadgetC
 	}
 }
 
-// GadgetProductSinglePAndBitDecompNoModDown applies the key-switch to the polynomial cx :
+// GadgetProductSinglePAndBitDecompNoModDown applies the key-switch to the polynomial cx:
 //
 // p0QP = dot(decomp(cx) * evakey[0]) mod QP (encrypted input is multiplied by P factor)
 // p1QP = dot(decomp(cx) * evakey[1]) mod QP (encrypted input is multiplied by P factor)

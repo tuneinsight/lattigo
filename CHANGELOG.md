@@ -2,7 +2,7 @@
 # Changelog
 All notable changes to this library are documented in this file. 
 
-# [3.1.0] - UNREALEASED
+# [4.0.0]
 
 - ALL: added default parameters for LogN=11 and LogN=10.
 - RING: prime generation no longer skips the first candidate.

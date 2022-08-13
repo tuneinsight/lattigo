@@ -95,9 +95,9 @@ If you want to contribute to Lattigo or you have any question or suggestion, do 
 Please use the following BibTex entry for citing Lattigo:
 
     @misc{lattigo,
-	    title = {Lattigo v3},
+	    title = {Lattigo v4},
 	    howpublished = {Online: \url{https://github.com/tuneinsight/lattigo}},
-	    month = Apr,
+	    month = Aug,
 	    year = 2022,
 	    note = {EPFL-LDS, Tune Insight SA}
     }

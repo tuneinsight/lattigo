@@ -77,7 +77,9 @@ Branches with the prefix `dev_` are a branches in active development and will be
 
 ## Support and Issues
 
-The github issues should be prioritized for bug report and question directly related to the use or inner working of the library. Any issue opened regarding an unexpected behavior of the library or one of its package must be accompanied by a self contained `main.go` reproducing the unwanted behavior.
+The github issues should be prioritized for bug reports and questions directly related to the use or inner working of the library. 
+Any issue opened regarding an unexpected behavior of the library or one of its packages must be accompanied 
+by a self contained `main.go` reproducing the unwanted behavior.
 
 Question related issues will be closed after 7 days of inactivity since the last response from our side.
 

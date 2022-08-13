@@ -14,10 +14,6 @@ import (
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
-// GaloisGen is an integer of order N/2 modulo M that spans Z_M with the integer -1.
-// The j-th ring automorphism takes the root zeta to zeta^(5j).
-const GaloisGen uint64 = 5
-
 // Type is the type of ring used by the cryptographic scheme
 type Type int
 
@@ -374,12 +370,26 @@ func (r *Ring) UnmarshalBinary(data []byte) error {
 
 // NewPoly creates a new polynomial with all coefficients set to 0.
 func (r *Ring) NewPoly() *Poly {
-	return NewPoly(r.N, len(r.Modulus)-1)
+	p := new(Poly)
+
+	p.Coeffs = make([][]uint64, len(r.Modulus))
+	for i := 0; i < len(r.Modulus); i++ {
+		p.Coeffs[i] = make([]uint64, r.N)
+	}
+
+	return p
 }
 
 // NewPolyLvl creates a new polynomial with all coefficients set to 0.
 func (r *Ring) NewPolyLvl(level int) *Poly {
-	return NewPoly(r.N, level)
+	p := new(Poly)
+
+	p.Coeffs = make([][]uint64, level+1)
+	for i := 0; i < level+1; i++ {
+		p.Coeffs[i] = make([]uint64, r.N)
+	}
+
+	return p
 }
 
 // SetCoefficientsInt64 sets the coefficients of p1 from an int64 array.
@@ -542,7 +552,25 @@ func (r *Ring) PolyToBigintCenteredLvl(level int, p1 *Poly, gap int, coeffsBigin
 
 // Equal checks if p1 = p2 in the given Ring.
 func (r *Ring) Equal(p1, p2 *Poly) bool {
-	return r.EqualLvl(utils.MinInt(p1.Level(), p2.Level()), p1, p2)
+
+	for i := 0; i < len(r.Modulus); i++ {
+		if len(p1.Coeffs[i]) != len(p2.Coeffs[i]) {
+			return false
+		}
+	}
+
+	r.Reduce(p1, p1)
+	r.Reduce(p2, p2)
+
+	for i := 0; i < len(r.Modulus); i++ {
+		for j := 0; j < r.N; j++ {
+			if p1.Coeffs[i][j] != p2.Coeffs[i][j] {
+				return false
+			}
+		}
+	}
+
+	return true
 }
 
 // EqualLvl checks if p1 = p2 in the given Ring, up to a given level.

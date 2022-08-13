@@ -4,7 +4,6 @@ package drlwe
 import (
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
-	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
@@ -36,16 +35,16 @@ func (ckg *CKGProtocol) ShallowCopy() *CKGProtocol {
 
 // CKGShare is a struct storing the CKG protocol's share.
 type CKGShare struct {
-	Value ringqp.Poly
+	Value rlwe.PolyQP
 }
 
 // CKGCRP is a type for common reference polynomials in the CKG protocol.
-type CKGCRP ringqp.Poly
+type CKGCRP rlwe.PolyQP
 
 // MarshalBinary encodes the target element on a slice of bytes.
 func (share *CKGShare) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, share.Value.GetDataLen64(true))
-	if _, err = share.Value.WriteTo64(data); err != nil {
+	data = make([]byte, share.Value.GetDataLen(true))
+	if _, err = share.Value.WriteTo(data); err != nil {
 		return nil, err
 	}
 	return
@@ -53,7 +52,7 @@ func (share *CKGShare) MarshalBinary() (data []byte, err error) {
 
 // UnmarshalBinary decodes a slice of bytes on the target element.
 func (share *CKGShare) UnmarshalBinary(data []byte) (err error) {
-	_, err = share.Value.DecodePoly64(data)
+	_, err = share.Value.DecodePolyNew(data)
 	return err
 }
 
@@ -79,7 +78,7 @@ func (ckg *CKGProtocol) AllocateShare() *CKGShare {
 // common reference string.
 func (ckg *CKGProtocol) SampleCRP(crs CRS) CKGCRP {
 	crp := ckg.params.RingQP().NewPoly()
-	ringqp.NewUniformSampler(crs, *ckg.params.RingQP()).Read(crp)
+	rlwe.NewUniformSamplerQP(ckg.params, crs).Read(&crp)
 	return CKGCRP(crp)
 }
 
@@ -99,9 +98,8 @@ func (ckg *CKGProtocol) GenShare(sk *rlwe.SecretKey, crp CKGCRP, shareOut *CKGSh
 
 	levelQ, levelP := ckg.params.QCount()-1, ckg.params.PCount()-1
 	ringQP.NTTLvl(levelQ, levelP, shareOut.Value, shareOut.Value)
-	ringQP.MFormLvl(levelQ, levelP, shareOut.Value, shareOut.Value)
 
-	ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, sk.Value, ringqp.Poly(crp), shareOut.Value)
+	ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, sk.Value, rlwe.PolyQP(crp), shareOut.Value)
 }
 
 // AggregateShare aggregates a new share to the aggregate key
@@ -112,5 +110,5 @@ func (ckg *CKGProtocol) AggregateShare(share1, share2, shareOut *CKGShare) {
 // GenPublicKey return the current aggregation of the received shares as a bfv.PublicKey.
 func (ckg *CKGProtocol) GenPublicKey(roundShare *CKGShare, crp CKGCRP, pubkey *rlwe.PublicKey) {
 	pubkey.Value[0].Copy(roundShare.Value)
-	pubkey.Value[1].Copy(ringqp.Poly(crp))
+	pubkey.Value[1].Copy(rlwe.PolyQP(crp))
 }

@@ -16,6 +16,7 @@ import (
 var minPrec float64 = 12.0
 
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters + secure bootstrapping). Overrides -short and requires -timeout=0.")
+var testBootstrapping = flag.Bool("test-bootstrapping", false, "run the bootstrapping tests (memory intensive)")
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
 
 func ParamsToString(params ckks.Parameters, opname string) string {
@@ -26,7 +27,7 @@ func ParamsToString(params ckks.Parameters, opname string) string {
 		params.LogQP(),
 		params.MaxLevel()+1,
 		params.PCount(),
-		params.DecompRNS(params.QCount()-1, params.PCount()-1))
+		params.Beta())
 }
 
 func TestBootstrapParametersMarshalling(t *testing.T) {
@@ -45,6 +46,10 @@ func TestBootstrap(t *testing.T) {
 
 	if runtime.GOARCH == "wasm" {
 		t.Skip("skipping bootstrapping tests for GOARCH=wasm")
+	}
+
+	if !*testBootstrapping {
+		t.Skip("skipping bootstrapping tests (add -test-bootstrapping to run the bootstrapping tests)")
 	}
 
 	paramSet := DefaultParametersSparse[0]
@@ -99,6 +104,7 @@ func testbootstrap(params ckks.Parameters, original bool, btpParams Parameters, 
 
 		kgen := ckks.NewKeyGenerator(params)
 		sk := kgen.GenSecretKey()
+
 		encoder := ckks.NewEncoder(params)
 		encryptor := ckks.NewEncryptor(params, sk)
 		decryptor := ckks.NewDecryptor(params, sk)
@@ -127,11 +133,13 @@ func testbootstrap(params ckks.Parameters, original bool, btpParams Parameters, 
 
 		ciphertexts := make([]*ckks.Ciphertext, 2)
 		bootstrappers := make([]*Bootstrapper, 2)
-		bootstrappers[0] = btp
-		ciphertexts[0] = encryptor.EncryptNew(plaintext)
-		for i := 1; i < len(ciphertexts); i++ {
+		for i := range ciphertexts {
 			ciphertexts[i] = encryptor.EncryptNew(plaintext)
-			bootstrappers[i] = bootstrappers[0].ShallowCopy()
+			if i == 0 {
+				bootstrappers[i] = btp
+			} else {
+				bootstrappers[i] = bootstrappers[0].ShallowCopy()
+			}
 		}
 
 		var wg sync.WaitGroup

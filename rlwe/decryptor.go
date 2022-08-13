@@ -22,7 +22,7 @@ type decryptor struct {
 // NewDecryptor instantiates a new generic RLWE Decryptor.
 func NewDecryptor(params Parameters, sk *SecretKey) Decryptor {
 
-	if sk.Value.Q.N() != params.N() {
+	if sk.Value.Q.Degree() != params.N() {
 		panic("secret_key is invalid for the provided parameters")
 	}
 
@@ -42,7 +42,7 @@ func (d *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) {
 
 	level := utils.MinInt(ciphertext.Level(), plaintext.Level())
 
-	plaintext.Value.Resize(level)
+	plaintext.Value.Coeffs = plaintext.Value.Coeffs[:level+1]
 
 	if ciphertext.Value[0].IsNTT {
 		ring.CopyValuesLvl(level, ciphertext.Value[ciphertext.Degree()], plaintext.Value)

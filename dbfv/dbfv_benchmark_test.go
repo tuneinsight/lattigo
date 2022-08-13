@@ -11,29 +11,24 @@ import (
 
 func Benchmark_DBFV(b *testing.B) {
 
-	var err error
-
 	defaultParams := bfv.DefaultParams
 	if testing.Short() {
 		defaultParams = bfv.DefaultParams[:2]
 	}
 	if *flagParamString != "" {
 		var jsonParams bfv.ParametersLiteral
-		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
-			b.Fatal(err)
-		}
+		json.Unmarshal([]byte(*flagParamString), &jsonParams)
 		defaultParams = []bfv.ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
 	for _, p := range defaultParams {
-		var params bfv.Parameters
-		if params, err = bfv.NewParametersFromLiteral(p); err != nil {
-			b.Fatal(err)
+		params, err := bfv.NewParametersFromLiteral(p)
+		if err != nil {
+			panic(err)
 		}
-
 		var testCtx *testContext
 		if testCtx, err = gentestContext(params); err != nil {
-			b.Fatal(err)
+			panic(err)
 		}
 
 		benchPublicKeyGen(testCtx, b)
@@ -289,7 +284,7 @@ func benchRefresh(testCtx *testContext, b *testing.B) {
 	b.Run(testString("Refresh/Round1/Agg", parties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.AggregateShare(p.share, p.share, p.share)
+			p.Aggregate(p.share, p.share, p.share)
 		}
 	})
 

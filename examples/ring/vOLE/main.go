@@ -289,7 +289,7 @@ func main() {
 
 			// rhoAlice = NTT(skBob * u)  + NTT(a*skBob*skAlice - a*sigmaAlice) * (P/Q)
 			ringQ.DivRoundByLastModulusManyNTTLvl(qlevel, qlevel-plevel, rhoAlice[i], buff, rhoAlice[i])
-			rhoAlice[i].Resize(plevel)
+			rhoAlice[i].Coeffs = rhoAlice[i].Coeffs[:plevel+1]
 		}
 
 		elapsed = time.Since(start)
@@ -307,7 +307,7 @@ func main() {
 
 			// rhoBob = NTT(a * sigmaBob * (P/Q))
 			ringQ.DivRoundByLastModulusManyNTTLvl(qlevel, qlevel-plevel, rhoBob[i], buff, rhoBob[i])
-			rhoBob[i].Resize(plevel)
+			rhoBob[i].Coeffs = rhoBob[i].Coeffs[:plevel+1]
 
 			// rhoBob = NTT(-a * sigmaBob) * (P/Q)
 			ringQ.NegLvl(plevel, rhoBob[i], rhoBob[i])
@@ -399,7 +399,7 @@ func main() {
 			// 		= (M/P) * u * (v * (P/M) + e + a'*skAlice) - a'*-a*sigmaBob * (M/Q)
 			//		= u*v + a'*skAlice*u*(M/P) + a'*a*sigmaBob * (M/Q)
 			ringQ.DivRoundByLastModulusManyLvl(plevel, plevel-mlevel, beta[i], buff, beta[i])
-			beta[i].Resize(mlevel)
+			beta[i].Coeffs = beta[i].Coeffs[:mlevel+1]
 		}
 
 		elapsed = time.Since(start)
@@ -419,7 +419,7 @@ func main() {
 			// alpha = (a'*skAlice*u + (a'*a*skBob*skAlice - a'*a*sigmaAlice) * (P/Q)) * (M/P)
 			//		 = a'*skAlice*u*(M/P) + a'*a*skBob*skAlice*(M/Q) - a'*a*sigmaAlice*(M/Q)
 			ringQ.DivRoundByLastModulusManyLvl(plevel, plevel-mlevel, alpha[i], buff, alpha[i])
-			alpha[i].Resize(mlevel)
+			alpha[i].Coeffs = alpha[i].Coeffs[:mlevel+1]
 
 			// alpha = - a'*skAlice*u*(M/P) - a'*a*skBob*skAlice*(M/Q) + a'*a*sigmaAlice*(M/Q)
 			// 	 	 = - a'*skAlice*u*(M/P) - a'*a*skBob*skAlice*(M/Q) + a'*a*(skBob*skAlice - sigmaBob)*(M/Q)

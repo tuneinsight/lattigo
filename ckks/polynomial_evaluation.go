@@ -233,6 +233,7 @@ func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVecto
 type PolynomialBasis struct {
 	BasisType
 	Value map[int]*Ciphertext
+	lazy  bool
 }
 
 // NewPolynomialBasis creates a new PolynomialBasis. It takes as input a ciphertext

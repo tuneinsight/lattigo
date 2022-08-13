@@ -11,29 +11,24 @@ import (
 
 func BenchmarkCKKSScheme(b *testing.B) {
 
-	var err error
-
 	defaultParams := append(DefaultParams, DefaultConjugateInvariantParams...)
 	if testing.Short() {
 		defaultParams = DefaultParams[:2]
 	}
 	if *flagParamString != "" {
 		var jsonParams ParametersLiteral
-		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
-			b.Fatal(err)
-		}
+		json.Unmarshal([]byte(*flagParamString), &jsonParams)
 		defaultParams = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
 	for _, defaultParams := range defaultParams {
-		var params Parameters
-		if params, err = NewParametersFromLiteral(defaultParams); err != nil {
-			b.Fatal(err)
+		params, err := NewParametersFromLiteral(defaultParams)
+		if err != nil {
+			panic(err)
 		}
-
 		var tc *testContext
 		if tc, err = genTestParams(params); err != nil {
-			b.Fatal(err)
+			panic(err)
 		}
 
 		benchEncoder(tc, b)
@@ -92,8 +87,13 @@ func benchKeyGen(tc *testContext, b *testing.B) {
 	})
 
 	b.Run(GetTestName(tc.params, "KeyGen/SwitchKeyGen"), func(b *testing.B) {
+
+		if tc.params.PCount() == 0 {
+			b.Skip("#Pi is empty")
+		}
+
 		for i := 0; i < b.N; i++ {
-			kgen.GenRelinearizationKey(sk, 1)
+			kgen.GenRelinearizationKey(sk, 2)
 		}
 	})
 }
@@ -143,7 +143,7 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 	var rlk *rlwe.RelinearizationKey
 	var rotkey *rlwe.RotationKeySet
 	if tc.params.PCount() != 0 {
-		rlk = tc.kgen.GenRelinearizationKey(tc.sk, 1)
+		rlk = tc.kgen.GenRelinearizationKey(tc.sk, 2)
 		rotkey = tc.kgen.GenRotationKeysForRotations([]int{1}, tc.params.RingType() == ring.Standard, tc.sk)
 	}
 
@@ -186,6 +186,11 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 	})
 
 	b.Run(GetTestName(tc.params, "Evaluator/Rescale"), func(b *testing.B) {
+
+		if tc.params.PCount() == 0 {
+			b.Skip("#Pi is empty")
+		}
+
 		ciphertext1.Scale = tc.params.DefaultScale() * tc.params.DefaultScale()
 
 		for i := 0; i < b.N; i++ {
@@ -196,26 +201,50 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 	})
 
 	b.Run(GetTestName(tc.params, "Evaluator/PermuteNTTWithIndexLvl"), func(b *testing.B) {
+
+		if tc.params.PCount() == 0 {
+			b.Skip("#Pi is empty")
+		}
+
 		galEL := tc.params.GaloisElementForColumnRotationBy(1)
 		for i := 0; i < b.N; i++ {
-			tc.params.RingQ().PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.Value[0], eval.(*evaluator).PermuteNTTIndex[galEL], ciphertext1.Value[0])
-			tc.params.RingQ().PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.Value[1], eval.(*evaluator).PermuteNTTIndex[galEL], ciphertext1.Value[1])
+			tc.params.RingQ().PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.Value[0], eval.(*evaluator).permuteNTTIndex[galEL], ciphertext1.Value[0])
+			tc.params.RingQ().PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.Value[1], eval.(*evaluator).permuteNTTIndex[galEL], ciphertext1.Value[1])
 		}
 	})
 
 	b.Run(GetTestName(tc.params, "Evaluator/Conjugate"), func(b *testing.B) {
+
+		if tc.params.RingType() != ring.Standard {
+			b.Skip("#Pi is empty")
+		}
+
+		if tc.params.PCount() == 0 {
+			b.Skip("#Pi is empty")
+		}
+
 		for i := 0; i < b.N; i++ {
 			eval.Conjugate(ciphertext1, ciphertext1)
 		}
 	})
 
 	b.Run(GetTestName(tc.params, "Evaluator/Relin"), func(b *testing.B) {
+
+		if tc.params.PCount() == 0 {
+			b.Skip("#Pi is empty")
+		}
+
 		for i := 0; i < b.N; i++ {
 			eval.Relinearize(receiver, ciphertext1)
 		}
 	})
 
 	b.Run(GetTestName(tc.params, "Evaluator/Rotate"), func(b *testing.B) {
+
+		if tc.params.PCount() == 0 {
+			b.Skip("#Pi is empty")
+		}
+
 		for i := 0; i < b.N; i++ {
 			eval.Rotate(ciphertext1, 1, ciphertext1)
 		}
@@ -230,6 +259,11 @@ func benchInnerSum(tc *testContext, b *testing.B) {
 	n := 4
 
 	b.Run(GetTestName(tc.params, "InnerSum"), func(b *testing.B) {
+
+		if tc.params.PCount() == 0 {
+			b.Skip("#Pi is empty")
+		}
+
 		rotKey := tc.kgen.GenRotationKeysForRotations(tc.params.RotationsForInnerSum(batch, n), false, tc.sk)
 		eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
 
@@ -241,6 +275,11 @@ func benchInnerSum(tc *testContext, b *testing.B) {
 	})
 
 	b.Run(GetTestName(tc.params, "InnerSumLog"), func(b *testing.B) {
+
+		if tc.params.PCount() == 0 {
+			b.Skip("#Pi is empty")
+		}
+
 		rotKey := tc.kgen.GenRotationKeysForRotations(tc.params.RotationsForInnerSumLog(batch, n), false, tc.sk)
 		eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
 

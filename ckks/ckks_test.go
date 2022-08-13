@@ -24,7 +24,7 @@ var printPrecisionStats = flag.Bool("print-precision", false, "print precision s
 var minPrec float64 = 15.0
 
 func GetTestName(params Parameters, opname string) string {
-	return fmt.Sprintf("%s/RingType=%s/logN=%d/logQP=%d/LogSlots=%d/levels=%d/#Pi=%d/Decomp=%d",
+	return fmt.Sprintf("%s/RingType=%s/logN=%d/logQP=%d/LogSlots=%d/levels=%d/alpha=%d/beta=%d",
 		opname,
 		params.RingType(),
 		params.LogN(),
@@ -32,7 +32,7 @@ func GetTestName(params Parameters, opname string) string {
 		params.LogSlots(),
 		params.MaxLevel()+1,
 		params.PCount(),
-		params.DecompRNS(params.QCount()-1, params.PCount()-1))
+		params.Beta())
 }
 
 type testContext struct {
@@ -53,15 +53,11 @@ type testContext struct {
 
 func TestCKKS(t *testing.T) {
 
-	var err error
-
 	var testParams []ParametersLiteral
 	switch {
 	case *flagParamString != "": // the custom test suite reads the parameters from the -params flag
 		testParams = append(testParams, ParametersLiteral{})
-		if err = json.Unmarshal([]byte(*flagParamString), &testParams[0]); err != nil {
-			t.Fatal(err)
-		}
+		json.Unmarshal([]byte(*flagParamString), &testParams[0])
 	case *flagLongTest:
 		for _, pls := range [][]ParametersLiteral{
 			DefaultParams,
@@ -82,20 +78,18 @@ func TestCKKS(t *testing.T) {
 
 	for _, paramsLiteral := range testParams[:] {
 
-		var params Parameters
-		if params, err = NewParametersFromLiteral(paramsLiteral); err != nil {
-			t.Fatal(err)
+		params, err := NewParametersFromLiteral(paramsLiteral)
+		if err != nil {
+			panic(err)
 		}
-
 		var tc *testContext
 		if tc, err = genTestParams(params); err != nil {
-			t.Fatal(err)
+			panic(err)
 		}
 
 		for _, testSet := range []func(tc *testContext, t *testing.T){
 			testParameters,
 			testEncoder,
-			testEncryptor,
 			testEvaluatorAdd,
 			testEvaluatorSub,
 			testEvaluatorRescale,
@@ -135,7 +129,7 @@ func genTestParams(defaultParam Parameters) (tc *testContext, err error) {
 	tc.ringQ = defaultParam.RingQ()
 	if tc.params.PCount() != 0 {
 		tc.ringP = defaultParam.RingP()
-		tc.rlk = tc.kgen.GenRelinearizationKey(tc.sk, 1)
+		tc.rlk = tc.kgen.GenRelinearizationKey(tc.sk, 2)
 	}
 
 	if tc.prng, err = utils.NewPRNG(); err != nil {
@@ -211,11 +205,7 @@ func verifyTestVectors(params Parameters, encoder Encoder, decryptor Decryptor, 
 func testParameters(tc *testContext, t *testing.T) {
 
 	t.Run(GetTestName(tc.params, "Parameters/NewParameters"), func(t *testing.T) {
-		params, err := NewParametersFromLiteral(ParametersLiteral{
-			LogN: 4,
-			LogQ: []int{60, 60},
-			LogP: []int{60},
-		})
+		params, err := NewParametersFromLiteral(ParametersLiteral{LogN: 4, LogQ: []int{60, 60}, LogP: []int{60}})
 		require.NoError(t, err)
 		require.Equal(t, ring.Standard, params.RingType())   // Default ring type should be standard
 		require.Equal(t, rlwe.DefaultSigma, params.Sigma())  // Default error std should be rlwe.DefaultSigma
@@ -281,37 +271,10 @@ func testEncoder(tc *testContext, t *testing.T) {
 		meanprec /= float64(slots)
 
 		if *printPrecisionStats {
-			t.Logf("\nMean    precision : %.2f \n", math.Log2(1/meanprec))
+			t.Log(fmt.Sprintf("\nMean    precision : %.2f \n", math.Log2(1/meanprec)))
 		}
 
 		require.GreaterOrEqual(t, math.Log2(1/meanprec), minPrec)
-	})
-
-}
-
-func testEncryptor(tc *testContext, t *testing.T) {
-
-	t.Run(GetTestName(tc.params, "Encryptor/Encrypt/key=pk"), func(t *testing.T) {
-		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorPk, complex(-1, -1), complex(1, 1), t)
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
-	})
-
-	t.Run(GetTestName(tc.params, "Encryptor/Encrypt/key=sk"), func(t *testing.T) {
-		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
-	})
-
-	t.Run(GetTestName(tc.params, "Encryptor/WithPRNG/Encrypt"), func(t *testing.T) {
-		lvl := tc.params.MaxLevel()
-		enc := NewPRNGEncryptor(tc.params, tc.sk)
-		prng1, _ := utils.NewKeyedPRNG([]byte{'l'})
-		prng2, _ := utils.NewKeyedPRNG([]byte{'l'})
-		sampler := ring.NewUniformSampler(prng2, tc.ringQ)
-		values1, pt, _ := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
-		ciphertext := enc.WithPRNG(prng1).EncryptNew(pt)
-		c1Want := sampler.ReadLvlNew(lvl)
-		assert.True(t, c1Want.Equals(ciphertext.Value[1]))
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext, tc.params.LogSlots(), 0, t)
 	})
 
 }
@@ -358,6 +321,14 @@ func testEvaluatorAdd(tc *testContext, t *testing.T) {
 		tc.evaluator.Add(ciphertext1, plaintext2, ciphertext1)
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
+
+		for i := range values1 {
+			values1[i] += values2[i]
+		}
+
+		tc.evaluator.Add(plaintext2, ciphertext1, ciphertext1)
+
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
 	})
 
 	t.Run(GetTestName(tc.params, "Evaluator/AddNew/CtPlain"), func(t *testing.T) {
@@ -370,6 +341,10 @@ func testEvaluatorAdd(tc *testContext, t *testing.T) {
 		}
 
 		ciphertext3 := tc.evaluator.AddNew(ciphertext1, plaintext2)
+
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext3, tc.params.LogSlots(), 0, t)
+
+		ciphertext3 = tc.evaluator.AddNew(plaintext2, ciphertext1)
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext3, tc.params.LogSlots(), 0, t)
 	})
@@ -419,6 +394,14 @@ func testEvaluatorSub(tc *testContext, t *testing.T) {
 		tc.evaluator.Sub(ciphertext1, plaintext2, ciphertext2)
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, valuesTest, ciphertext2, tc.params.LogSlots(), 0, t)
+
+		for i := range values1 {
+			valuesTest[i] = values2[i] - values1[i]
+		}
+
+		tc.evaluator.Sub(plaintext2, ciphertext1, ciphertext2)
+
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, valuesTest, ciphertext2, tc.params.LogSlots(), 0, t)
 	})
 
 	t.Run(GetTestName(tc.params, "Evaluator/SubNew/CtPlain"), func(t *testing.T) {
@@ -434,6 +417,14 @@ func testEvaluatorSub(tc *testContext, t *testing.T) {
 		ciphertext3 := tc.evaluator.SubNew(ciphertext1, plaintext2)
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, valuesTest, ciphertext3, tc.params.LogSlots(), 0, t)
+
+		for i := range values1 {
+			valuesTest[i] = values2[i] - values1[i]
+		}
+
+		ciphertext3 = tc.evaluator.SubNew(plaintext2, ciphertext1)
+
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, valuesTest, ciphertext3, tc.params.LogSlots(), 0, t)
 	})
 
 }
@@ -442,8 +433,8 @@ func testEvaluatorRescale(tc *testContext, t *testing.T) {
 
 	t.Run(GetTestName(tc.params, "Evaluator/Rescale/Single"), func(t *testing.T) {
 
-		if tc.params.MaxLevel() < 2 {
-			t.Skip("skipping test for params max level < 2")
+		if tc.params.PCount() == 0 {
+			t.Skip("method is unsuported when params.PCount() == 0")
 		}
 
 		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
@@ -454,17 +445,15 @@ func testEvaluatorRescale(tc *testContext, t *testing.T) {
 
 		ciphertext.Scale *= float64(constant)
 
-		if err := tc.evaluator.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
-			t.Error(err)
-		}
+		tc.evaluator.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext)
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogSlots(), 0, t)
 	})
 
 	t.Run(GetTestName(tc.params, "Evaluator/Rescale/Many"), func(t *testing.T) {
 
-		if tc.params.MaxLevel() < 2 {
-			t.Skip("skipping test for params max level < 2")
+		if tc.params.PCount() == 0 {
+			t.Skip("method is unsuported when params.PCount() == 0")
 		}
 
 		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
@@ -480,9 +469,7 @@ func testEvaluatorRescale(tc *testContext, t *testing.T) {
 			ciphertext.Scale *= float64(constant)
 		}
 
-		if err := tc.evaluator.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
-			t.Error(err)
-		}
+		tc.evaluator.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext)
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogSlots(), 0, t)
 	})
@@ -547,148 +534,153 @@ func testEvaluatorMultByConstAndAdd(tc *testContext, t *testing.T) {
 
 func testEvaluatorMul(tc *testContext, t *testing.T) {
 
-	t.Run("Evaluator/Mul", func(t *testing.T) {
+	t.Run(GetTestName(tc.params, "Evaluator/Mul/ct0*pt->ct0"), func(t *testing.T) {
 
-		t.Run(GetTestName(tc.params, "ct0*pt->ct0"), func(t *testing.T) {
+		values1, plaintext1, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-			values1, plaintext1, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
+		for i := range values1 {
+			values1[i] *= values1[i]
+		}
 
-			for i := range values1 {
-				values1[i] *= values1[i]
-			}
+		tc.evaluator.MulRelin(ciphertext1, plaintext1, ciphertext1)
 
-			tc.evaluator.MulRelin(ciphertext1, plaintext1, ciphertext1)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
+	})
 
-			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
-		})
+	t.Run(GetTestName(tc.params, "Evaluator/Mul/pt*ct0->ct0"), func(t *testing.T) {
 
-		t.Run(GetTestName(tc.params, "pt*ct0->ct0"), func(t *testing.T) {
+		values1, plaintext1, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-			values1, plaintext1, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
+		for i := range values1 {
+			values1[i] *= values1[i]
+		}
 
-			for i := range values1 {
-				values1[i] *= values1[i]
-			}
+		tc.evaluator.MulRelin(ciphertext1, plaintext1, ciphertext1)
 
-			tc.evaluator.MulRelin(ciphertext1, plaintext1, ciphertext1)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
+	})
 
-			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
-		})
+	t.Run(GetTestName(tc.params, "Evaluator/Mul/ct0*pt->ct1"), func(t *testing.T) {
 
-		t.Run(GetTestName(tc.params, "ct0*pt->ct1"), func(t *testing.T) {
+		values1, plaintext1, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-			values1, plaintext1, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
+		for i := range values1 {
+			values1[i] *= values1[i]
+		}
 
-			for i := range values1 {
-				values1[i] *= values1[i]
-			}
+		ciphertext2 := tc.evaluator.MulRelinNew(ciphertext1, plaintext1)
 
-			ciphertext2 := tc.evaluator.MulRelinNew(ciphertext1, plaintext1)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext2, tc.params.LogSlots(), 0, t)
+	})
 
-			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext2, tc.params.LogSlots(), 0, t)
-		})
+	t.Run(GetTestName(tc.params, "Evaluator/Mul/ct0*ct1->ct0"), func(t *testing.T) {
 
-		t.Run(GetTestName(tc.params, "ct0*ct1->ct0"), func(t *testing.T) {
+		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
+		values2, _, ciphertext2 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-			values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
-			values2, _, ciphertext2 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
+		for i := range values1 {
+			values2[i] *= values1[i]
+		}
 
-			for i := range values1 {
-				values2[i] *= values1[i]
-			}
+		tc.evaluator.MulRelin(ciphertext1, ciphertext2, ciphertext1)
 
-			tc.evaluator.MulRelin(ciphertext1, ciphertext2, ciphertext1)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values2, ciphertext1, tc.params.LogSlots(), 0, t)
+	})
 
-			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values2, ciphertext1, tc.params.LogSlots(), 0, t)
-		})
+	t.Run(GetTestName(tc.params, "Evaluator/Mul/ct0*ct1->ct1"), func(t *testing.T) {
 
-		t.Run(GetTestName(tc.params, "ct0*ct1->ct1"), func(t *testing.T) {
+		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
+		values2, _, ciphertext2 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-			values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
-			values2, _, ciphertext2 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
+		for i := range values1 {
+			values2[i] *= values1[i]
+		}
 
-			for i := range values1 {
-				values2[i] *= values1[i]
-			}
+		tc.evaluator.MulRelin(ciphertext1, ciphertext2, ciphertext2)
 
-			tc.evaluator.MulRelin(ciphertext1, ciphertext2, ciphertext2)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values2, ciphertext2, tc.params.LogSlots(), 0, t)
+	})
 
-			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values2, ciphertext2, tc.params.LogSlots(), 0, t)
-		})
+	t.Run(GetTestName(tc.params, "Evaluator/Mul/ct0*ct1->ct2"), func(t *testing.T) {
 
-		t.Run(GetTestName(tc.params, "ct0*ct1->ct2"), func(t *testing.T) {
+		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
+		values2, _, ciphertext2 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-			values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
-			values2, _, ciphertext2 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
+		for i := range values1 {
+			values2[i] *= values1[i]
+		}
 
-			for i := range values1 {
-				values2[i] *= values1[i]
-			}
+		ciphertext3 := tc.evaluator.MulRelinNew(ciphertext1, ciphertext2)
 
-			ciphertext3 := tc.evaluator.MulRelinNew(ciphertext1, ciphertext2)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values2, ciphertext3, tc.params.LogSlots(), 0, t)
+	})
 
-			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values2, ciphertext3, tc.params.LogSlots(), 0, t)
-		})
+	t.Run(GetTestName(tc.params, "Evaluator/Mul/ct0*ct0->ct0"), func(t *testing.T) {
 
-		t.Run(GetTestName(tc.params, "ct0*ct0->ct0"), func(t *testing.T) {
+		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-			values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
+		for i := range values1 {
+			values1[i] *= values1[i]
+		}
 
-			for i := range values1 {
-				values1[i] *= values1[i]
-			}
+		tc.evaluator.MulRelin(ciphertext1, ciphertext1, ciphertext1)
 
-			tc.evaluator.MulRelin(ciphertext1, ciphertext1, ciphertext1)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
+	})
 
-			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
-		})
+	t.Run(GetTestName(tc.params, "Evaluator/Mul/ct0*ct0->ct1"), func(t *testing.T) {
 
-		t.Run(GetTestName(tc.params, "ct0*ct0->ct1"), func(t *testing.T) {
+		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-			values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
+		for i := range values1 {
+			values1[i] *= values1[i]
+		}
 
-			for i := range values1 {
-				values1[i] *= values1[i]
-			}
+		ciphertext2 := tc.evaluator.MulRelinNew(ciphertext1, ciphertext1)
 
-			ciphertext2 := tc.evaluator.MulRelinNew(ciphertext1, ciphertext1)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext2, tc.params.LogSlots(), 0, t)
+	})
 
-			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext2, tc.params.LogSlots(), 0, t)
-		})
+	t.Run(GetTestName(tc.params, "Evaluator/Mul/Relinearize(ct0*ct1->ct0)"), func(t *testing.T) {
 
-		t.Run(GetTestName(tc.params, "Relinearize(ct0*ct1->ct0)"), func(t *testing.T) {
+		if tc.params.PCount() == 0 {
+			t.Skip("method is unsuported when params.PCount() == 0")
+		}
 
-			values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
-			values2, _, ciphertext2 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
+		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
+		values2, _, ciphertext2 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-			for i := range values1 {
-				values1[i] *= values2[i]
-			}
+		for i := range values1 {
+			values1[i] *= values2[i]
+		}
 
-			tc.evaluator.Mul(ciphertext1, ciphertext2, ciphertext1)
-			require.Equal(t, ciphertext1.Degree(), 2)
-			tc.evaluator.Relinearize(ciphertext1, ciphertext1)
-			require.Equal(t, ciphertext1.Degree(), 1)
+		tc.evaluator.Mul(ciphertext1, ciphertext2, ciphertext1)
+		require.Equal(t, ciphertext1.Degree(), 2)
+		tc.evaluator.Relinearize(ciphertext1, ciphertext1)
+		require.Equal(t, ciphertext1.Degree(), 1)
 
-			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
-		})
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
+	})
 
-		t.Run(GetTestName(tc.params, "Relinearize(ct0*ct1->ct1)"), func(t *testing.T) {
+	t.Run(GetTestName(tc.params, "Evaluator/Mul/Relinearize(ct0*ct1->ct1)"), func(t *testing.T) {
 
-			values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
-			values2, _, ciphertext2 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
+		if tc.params.PCount() == 0 {
+			t.Skip("method is unsuported when params.PCount() == 0")
+		}
 
-			for i := range values1 {
-				values2[i] *= values1[i]
-			}
+		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
+		values2, _, ciphertext2 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-			tc.evaluator.Mul(ciphertext1, ciphertext2, ciphertext2)
-			require.Equal(t, ciphertext2.Degree(), 2)
-			tc.evaluator.Relinearize(ciphertext2, ciphertext2)
-			require.Equal(t, ciphertext2.Degree(), 1)
+		for i := range values1 {
+			values2[i] *= values1[i]
+		}
 
-			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values2, ciphertext2, tc.params.LogSlots(), 0, t)
-		})
+		tc.evaluator.Mul(ciphertext1, ciphertext2, ciphertext2)
+		require.Equal(t, ciphertext2.Degree(), 2)
+		tc.evaluator.Relinearize(ciphertext2, ciphertext2)
+		require.Equal(t, ciphertext2.Degree(), 1)
+
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values2, ciphertext2, tc.params.LogSlots(), 0, t)
 	})
 }
 
@@ -772,6 +764,10 @@ func testFunctions(tc *testContext, t *testing.T) {
 
 	t.Run(GetTestName(tc.params, "Evaluator/PowerOf2"), func(t *testing.T) {
 
+		if tc.params.PCount() == 0 {
+			t.Skip("method is unsuported when params.PCount() == 0")
+		}
+
 		if tc.params.MaxLevel() < 3 {
 			t.Skip("skipping test for params max level < 3")
 		}
@@ -798,6 +794,10 @@ func testFunctions(tc *testContext, t *testing.T) {
 
 	t.Run(GetTestName(tc.params, "Evaluator/Power"), func(t *testing.T) {
 
+		if tc.params.PCount() == 0 {
+			t.Skip("method is unsuported when params.PCount() == 0")
+		}
+
 		if tc.params.MaxLevel() < 4 {
 			t.Skip("skipping test for params max level < 4")
 		}
@@ -816,6 +816,10 @@ func testFunctions(tc *testContext, t *testing.T) {
 	})
 
 	t.Run(GetTestName(tc.params, "Evaluator/Inverse"), func(t *testing.T) {
+
+		if tc.params.PCount() == 0 {
+			t.Skip("method is unsuported when params.PCount() == 0")
+		}
 
 		if tc.params.MaxLevel() < 7 {
 			t.Skip("skipping test for params max level < 7")
@@ -840,6 +844,10 @@ func testEvaluatePoly(tc *testContext, t *testing.T) {
 	var err error
 
 	t.Run(GetTestName(tc.params, "EvaluatePoly/PolySingle/Exp"), func(t *testing.T) {
+
+		if tc.params.PCount() == 0 {
+			t.Skip("method is unsuported when params.PCount() == 0")
+		}
 
 		if tc.params.MaxLevel() < 3 {
 			t.Skip("skipping test for params max level < 3")
@@ -872,6 +880,10 @@ func testEvaluatePoly(tc *testContext, t *testing.T) {
 	})
 
 	t.Run(GetTestName(tc.params, "EvaluatePoly/PolyVector/Exp"), func(t *testing.T) {
+
+		if tc.params.PCount() == 0 {
+			t.Skip("method is unsuported when params.PCount() == 0")
+		}
 
 		if tc.params.MaxLevel() < 3 {
 			t.Skip("skipping test for params max level < 3")
@@ -919,6 +931,10 @@ func testChebyshevInterpolator(tc *testContext, t *testing.T) {
 
 	t.Run(GetTestName(tc.params, "ChebyshevInterpolator/Sin"), func(t *testing.T) {
 
+		if tc.params.PCount() == 0 {
+			t.Skip("method is unsuported when params.PCount() == 0")
+		}
+
 		if tc.params.MaxLevel() < 5 {
 			t.Skip("skipping test for params max level < 5")
 		}
@@ -935,14 +951,10 @@ func testChebyshevInterpolator(tc *testContext, t *testing.T) {
 
 		eval.MultByConst(ciphertext, 2/(poly.B-poly.A), ciphertext)
 		eval.AddConst(ciphertext, (-poly.A-poly.B)/(poly.B-poly.A), ciphertext)
-		if err = eval.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
-			t.Error(err)
-
-		}
+		eval.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext)
 
 		if ciphertext, err = eval.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {
 			t.Error(err)
-
 		}
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogSlots(), 0, t)
@@ -955,7 +967,11 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 
 	t.Run(GetTestName(tc.params, "DecryptPublic/Sin"), func(t *testing.T) {
 
-		if tc.params.MaxLevel() < 5 {
+		if tc.params.PCount() == 0 {
+			t.Skip("method is unsuported when params.PCount() == 0")
+		}
+
+		if tc.params.MaxLevel() < 6 {
 			t.Skip("skipping test for params max level < 5")
 		}
 
@@ -963,7 +979,7 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 
 		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, complex(-1, 0), complex(1, 0), t)
 
-		poly := Approximate(cmplx.Sin, complex(-1.5, 0), complex(1.5, 0), 15)
+		poly := Approximate(cmplx.Sin, complex(-1.5, 0), complex(1.5, 0), 31)
 
 		for i := range values {
 			values[i] = cmplx.Sin(values[i])
@@ -971,14 +987,10 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 
 		eval.MultByConst(ciphertext, 2/(poly.B-poly.A), ciphertext)
 		eval.AddConst(ciphertext, (-poly.A-poly.B)/(poly.B-poly.A), ciphertext)
-		if err := eval.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
-			t.Error(err)
-
-		}
+		eval.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext)
 
 		if ciphertext, err = eval.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {
 			t.Error(err)
-
 		}
 
 		plaintext := tc.decryptor.DecryptNew(ciphertext)
@@ -997,11 +1009,21 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 
 func testSwitchKeys(tc *testContext, t *testing.T) {
 
-	sk2 := tc.kgen.GenSecretKey()
-	decryptorSk2 := NewDecryptor(tc.params, sk2)
-	switchingKey := tc.kgen.GenSwitchingKey(tc.sk, sk2)
+	var sk2 *rlwe.SecretKey
+	var decryptorSk2 Decryptor
+	var switchingKey *rlwe.SwitchingKey
+
+	if tc.params.PCount() != 0 {
+		sk2 = tc.kgen.GenSecretKey()
+		decryptorSk2 = NewDecryptor(tc.params, sk2)
+		switchingKey = tc.kgen.GenSwitchingKey(tc.sk, sk2)
+	}
 
 	t.Run(GetTestName(tc.params, "SwitchKeys"), func(t *testing.T) {
+
+		if tc.params.PCount() == 0 {
+			t.Skip("method is unsuported when params.PCount() == 0")
+		}
 
 		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
@@ -1011,6 +1033,10 @@ func testSwitchKeys(tc *testContext, t *testing.T) {
 	})
 
 	t.Run(GetTestName(tc.params, "SwitchKeysNew"), func(t *testing.T) {
+
+		if tc.params.PCount() == 0 {
+			t.Skip("method is unsuported when params.PCount() == 0")
+		}
 
 		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
@@ -1081,6 +1107,10 @@ func testAutomorphisms(tc *testContext, t *testing.T) {
 
 	t.Run(GetTestName(params, "Conjugate"), func(t *testing.T) {
 
+		if params.PCount() == 0 {
+			t.Skip("method is unsuported when params.PCount() == 0")
+		}
+
 		if params.RingType() != ring.Standard {
 			t.Skip("Conjugate not defined in real-CKKS")
 		}
@@ -1097,6 +1127,10 @@ func testAutomorphisms(tc *testContext, t *testing.T) {
 	})
 
 	t.Run(GetTestName(params, "ConjugateNew"), func(t *testing.T) {
+
+		if params.PCount() == 0 {
+			t.Skip("method is unsuported when params.PCount() == 0")
+		}
 
 		if params.RingType() != ring.Standard {
 			t.Skip("Conjugate not defined in real-CKKS")
@@ -1151,6 +1185,10 @@ func testInnerSum(tc *testContext, t *testing.T) {
 
 	t.Run(GetTestName(tc.params, "InnerSum"), func(t *testing.T) {
 
+		if tc.params.PCount() == 0 {
+			t.Skip("method is unsuported when params.PCount() == 0")
+		}
+
 		batch := 7
 		n := 35
 
@@ -1177,6 +1215,10 @@ func testInnerSum(tc *testContext, t *testing.T) {
 	})
 
 	t.Run(GetTestName(tc.params, "InnerSumLog"), func(t *testing.T) {
+
+		if tc.params.PCount() == 0 {
+			t.Skip("method is unsuported when params.PCount() == 0")
+		}
 
 		batch := 512
 		n := tc.params.Slots() / batch
@@ -1205,6 +1247,10 @@ func testInnerSum(tc *testContext, t *testing.T) {
 	})
 
 	t.Run(GetTestName(tc.params, "Average"), func(t *testing.T) {
+
+		if tc.params.PCount() == 0 {
+			t.Skip("method is unsuported when params.PCount() == 0")
+		}
 
 		logBatch := 9
 		batch := 1 << logBatch
@@ -1239,6 +1285,10 @@ func testInnerSum(tc *testContext, t *testing.T) {
 }
 
 func testReplicate(tc *testContext, t *testing.T) {
+
+	if tc.params.PCount() == 0 {
+		t.Skip("method is unsuported when params.PCount() == 0")
+	}
 
 	t.Run(GetTestName(tc.params, "Replicate"), func(t *testing.T) {
 		batch := 2
@@ -1296,6 +1346,10 @@ func testReplicate(tc *testContext, t *testing.T) {
 }
 
 func testLinearTransform(tc *testContext, t *testing.T) {
+
+	if tc.params.PCount() == 0 {
+		t.Skip("method is unsuported when params.PCount() == 0")
+	}
 
 	t.Run(GetTestName(tc.params, "LinearTransform/BSGS"), func(t *testing.T) {
 

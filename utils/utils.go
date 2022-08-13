@@ -155,7 +155,7 @@ func RotateUint64Slice(s []uint64, k int) []uint64 {
 	if r < 0 {
 		r = r + len(s)
 	}
-	ret := make([]uint64, len(s))
+	ret := make([]uint64, len(s), len(s))
 	copy(ret[:len(s)-r], s[r:])
 	copy(ret[len(s)-r:], s[:r])
 	return ret
@@ -170,7 +170,7 @@ func RotateInt64Slice(s []int64, k int) []int64 {
 	if r < 0 {
 		r = r + len(s)
 	}
-	ret := make([]int64, len(s))
+	ret := make([]int64, len(s), len(s))
 	copy(ret[:len(s)-r], s[r:])
 	copy(ret[len(s)-r:], s[:r])
 	return ret
@@ -179,7 +179,7 @@ func RotateInt64Slice(s []int64, k int) []int64 {
 // RotateUint64Slots returns a new slice corresponding to s where each half of the slice
 // have been rotated by k positions to the left.
 func RotateUint64Slots(s []uint64, k int) []uint64 {
-	ret := make([]uint64, len(s))
+	ret := make([]uint64, len(s), len(s))
 	slots := len(s) >> 1
 	copy(ret[:slots], RotateUint64Slice(s[:slots], k))
 	copy(ret[slots:], RotateUint64Slice(s[slots:], k))
@@ -195,7 +195,7 @@ func RotateComplex128Slice(s []complex128, k int) []complex128 {
 	if r < 0 {
 		r = r + len(s)
 	}
-	ret := make([]complex128, len(s))
+	ret := make([]complex128, len(s), len(s))
 	copy(ret[:len(s)-r], s[r:])
 	copy(ret[len(s)-r:], s[:r])
 	return ret
@@ -210,7 +210,7 @@ func RotateFloat64Slice(s []float64, k int) []float64 {
 	if r < 0 {
 		r = r + len(s)
 	}
-	ret := make([]float64, len(s))
+	ret := make([]float64, len(s), len(s))
 	copy(ret[:len(s)-r], s[r:])
 	copy(ret[len(s)-r:], s[:r])
 	return ret

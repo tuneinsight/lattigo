@@ -26,7 +26,7 @@ func (r *Ring) DivFloorByLastModulusManyNTTLvl(level, nbRescales int, p0, buff, 
 	if nbRescales == 0 {
 
 		if p0 != p1 {
-			copy(p1.Buff, p0.Buff)
+			CopyValuesLvl(level, p0, p1)
 		}
 
 	} else {
@@ -48,7 +48,7 @@ func (r *Ring) DivFloorByLastModulusManyLvl(level, nbRescales int, p0, buff, p1 
 	if nbRescales == 0 {
 
 		if p0 != p1 {
-			copy(p1.Buff, p0.Buff)
+			CopyValuesLvl(level, p0, p1)
 		}
 
 	} else {
@@ -115,7 +115,7 @@ func (r *Ring) DivRoundByLastModulusManyNTTLvl(level, nbRescales int, p0, buff, 
 	if nbRescales == 0 {
 
 		if p0 != p1 {
-			copy(p1.Buff, p0.Buff)
+			CopyValuesLvl(level, p0, p1)
 		}
 
 	} else {
@@ -141,7 +141,7 @@ func (r *Ring) DivRoundByLastModulusManyLvl(level, nbRescales int, p0, buff, p1 
 	if nbRescales == 0 {
 
 		if p0 != p1 {
-			copy(p1.Buff, p0.Buff)
+			CopyValuesLvl(level, p0, p1)
 		}
 
 	} else {

@@ -53,7 +53,7 @@ func NewSwitchingKey(params Parameters) *rlwe.SwitchingKey {
 
 // NewRelinearizationKey returns an allocated CKKS public relinearization key with zero value.
 func NewRelinearizationKey(params Parameters) *rlwe.RelinearizationKey {
-	return rlwe.NewRelinKey(params.Parameters, 1)
+	return rlwe.NewRelinKey(params.Parameters, 2)
 }
 
 // NewRotationKeySet returns an allocated set of CKKS public rotation keys with zero values for each galois element

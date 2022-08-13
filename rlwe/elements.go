@@ -4,7 +4,6 @@ import (
 	"math/big"
 
 	"github.com/tuneinsight/lattigo/v3/ring"
-	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
@@ -13,14 +12,9 @@ type Plaintext struct {
 	Value *ring.Poly
 }
 
-// Ciphertext is a generic type for RLWE ciphertexts.
+// Ciphertext is a generic type for RLWE ciphertext.
 type Ciphertext struct {
 	Value []*ring.Poly
-}
-
-// CiphertextQP is a generic type for RLWE ciphertexts in R_qp.
-type CiphertextQP struct {
-	Value [2]ringqp.Poly
 }
 
 // AdditiveShare is a type for storing additively shared values in Z_Q[X] (RNS domain)
@@ -34,19 +28,19 @@ type AdditiveShareBigint struct {
 	Value []*big.Int
 }
 
-// NewAdditiveShare instantiates a new additive share struct for the ring defined
+// NewAdditiveShare instantiate a new additive share struct for the ring defined
 // by the given parameters at maximum level.
 func NewAdditiveShare(params Parameters) *AdditiveShare {
-	return &AdditiveShare{Value: *ring.NewPoly(params.N(), 0)}
+	return &AdditiveShare{Value: *ring.NewPoly(params.N(), 1)}
 }
 
-// NewAdditiveShareAtLevel instantiates a new additive share struct for the ring defined
+// NewAdditiveShareAtLevel instantiate a new additive share struct for the ring defined
 // by the given parameters at level `level`.
 func NewAdditiveShareAtLevel(params Parameters, level int) *AdditiveShare {
-	return &AdditiveShare{Value: *ring.NewPoly(params.N(), level)}
+	return &AdditiveShare{Value: *ring.NewPoly(params.N(), level+1)}
 }
 
-// NewAdditiveShareBigint instantiates a new additive share struct composed of "n" big.Int elements
+// NewAdditiveShareBigint instantiate a new additive share struct composed of "n" big.Int elements
 func NewAdditiveShareBigint(params Parameters, n int) *AdditiveShareBigint {
 	v := make([]*big.Int, n)
 	for i := range v {
@@ -57,20 +51,7 @@ func NewAdditiveShareBigint(params Parameters, n int) *AdditiveShareBigint {
 
 // NewPlaintext creates a new Plaintext at level `level` from the parameters.
 func NewPlaintext(params Parameters, level int) *Plaintext {
-	return &Plaintext{Value: ring.NewPoly(params.N(), level)}
-}
-
-// NewPlaintextAtLevelFromPoly constructs a new Plaintext at a specific level
-// where the message is set to the passed poly. No checks are performed on poly and
-// the returned Plaintext will share its backing array of coefficients.
-func NewPlaintextAtLevelFromPoly(level int, poly *ring.Poly) *Plaintext {
-	if len(poly.Coeffs) < level+1 {
-		panic("cannot NewPlaintextAtLevelFromPoly: provided ring.Poly level is too small")
-	}
-	v0 := new(ring.Poly)
-	v0.Coeffs = poly.Coeffs[:level+1]
-	v0.Buff = poly.Buff[:poly.N()*(level+1)]
-	return &Plaintext{Value: v0}
+	return &Plaintext{Value: ring.NewPoly(params.N(), level+1)}
 }
 
 // Degree returns the degree of the target element.
@@ -101,7 +82,7 @@ func NewCiphertext(params Parameters, degree, level int) *Ciphertext {
 	el := new(Ciphertext)
 	el.Value = make([]*ring.Poly, degree+1)
 	for i := 0; i < degree+1; i++ {
-		el.Value[i] = ring.NewPoly(params.N(), level)
+		el.Value[i] = ring.NewPoly(params.N(), level+1)
 	}
 	return el
 }
@@ -111,23 +92,13 @@ func NewCiphertextNTT(params Parameters, degree, level int) *Ciphertext {
 	el := new(Ciphertext)
 	el.Value = make([]*ring.Poly, degree+1)
 	for i := 0; i < degree+1; i++ {
-		el.Value[i] = ring.NewPoly(params.N(), level)
+		el.Value[i] = ring.NewPoly(params.N(), level+1)
 		el.Value[i].IsNTT = true
 	}
 	return el
 }
 
-// NewCiphertextAtLevelFromPoly constructs a new Ciphetext at a specific level
-// where the message is set to the passed poly. No checks are performed on poly and
-// the returned Ciphertext will share its backing array of coefficient.
-func NewCiphertextAtLevelFromPoly(level int, poly [2]*ring.Poly) *Ciphertext {
-	v0, v1 := new(ring.Poly), new(ring.Poly)
-	v0.Coeffs, v1.Coeffs = poly[0].Coeffs[:level+1], poly[1].Coeffs[:level+1]
-	v0.Buff, v1.Buff = poly[0].Buff[:poly[0].N()*(level+1)], poly[1].Buff[:poly[1].N()*(level+1)]
-	return &Ciphertext{Value: []*ring.Poly{v0, v1}}
-}
-
-// NewCiphertextRandom generates a new uniformly distributed Ciphertext of degree, level.
+// NewCiphertextRandom generates a new uniformly distributed Ciphertext of degree, level and scale.
 func NewCiphertextRandom(prng utils.PRNG, params Parameters, degree, level int) (ciphertext *Ciphertext) {
 	ciphertext = NewCiphertext(params, degree, level)
 	PopulateElementRandom(prng, params, ciphertext)
@@ -152,20 +123,17 @@ func (el *Ciphertext) Level() int {
 // Resize resizes the degree of the target element.
 // Sets the NTT flag of the added poly equal to the NTT flag
 // to the poly at degree zero.
-func (el *Ciphertext) Resize(degree, level int) {
-
-	if el.Level() != level {
-		for i := range el.Value {
-			el.Value[i].Resize(level)
-		}
-	}
-
+func (el *Ciphertext) Resize(params Parameters, degree int) {
 	if el.Degree() > degree {
 		el.Value = el.Value[:degree+1]
 	} else if el.Degree() < degree {
 		for el.Degree() < degree {
-			el.Value = append(el.Value, []*ring.Poly{ring.NewPoly(el.Value[0].N(), level)}...)
-			el.Value[el.Degree()].IsNTT = el.Value[0].IsNTT
+			el.Value = append(el.Value, []*ring.Poly{new(ring.Poly)}...)
+			el.Value[el.Degree()].Coeffs = make([][]uint64, el.Level()+1)
+			for i := 0; i < el.Level()+1; i++ {
+				el.Value[el.Degree()].Coeffs[i] = make([]uint64, params.N())
+				el.Value[el.Degree()].IsNTT = el.Value[0].IsNTT
+			}
 		}
 	}
 }
@@ -184,16 +152,14 @@ func SwitchCiphertextRingDegreeNTT(ctIn *Ciphertext, ringQSmallDim, ringQLargeDi
 		buff := make([]uint64, NIn)
 		for i := range ctOut.Value {
 			for j := range ctOut.Value[i].Coeffs {
-				tmpIn, tmpOut := ctIn.Value[i].Coeffs[j], ctOut.Value[i].Coeffs[j]
+				tmpIn, tmpOut := ctIn.Value[i].Coeffs[j], ctIn.Value[i].Coeffs[j]
 				ringQLargeDim.InvNTTSingle(j, tmpIn, buff)
 				for w0, w1 := 0, 0; w0 < NOut; w0, w1 = w0+1, w1+gap {
 					tmpOut[w0] = buff[w1]
 				}
-
 				ringQSmallDim.NTTSingle(j, tmpOut, tmpOut)
 			}
 		}
-
 	} else {
 		for i := range ctOut.Value {
 			ring.MapSmallDimensionToLargerDimensionNTT(ctIn.Value[i], ctOut.Value[i])

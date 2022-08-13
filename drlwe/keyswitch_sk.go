@@ -3,7 +3,6 @@ package drlwe
 import (
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
-	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
@@ -21,7 +20,7 @@ type CKSProtocol struct {
 	sigmaSmudging   float64
 	gaussianSampler *ring.GaussianSampler
 	basisExtender   *ring.BasisExtender
-	tmpQP           ringqp.Poly
+	tmpQP           rlwe.PolyQP
 	tmpDelta        *ring.Poly
 }
 
@@ -139,7 +138,7 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, c1 *ring.Pol
 		}
 
 		// InvNTT(P * a * (skIn - skOut) + e) mod QP (mod P = e)
-		ringQ.AddLvl(levelQ, shareOut.Value, cks.tmpQP.Q, shareOut.Value)
+		ringQ.AddNoModLvl(levelQ, shareOut.Value, cks.tmpQP.Q, shareOut.Value)
 
 		if ringP != nil {
 			// InvNTT(P * a * (skIn - skOut) + e) * (1/P) mod QP (mod P = e)
@@ -167,10 +166,9 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, c1 *ring.Pol
 		}
 
 		ringQ.NTTLvl(levelQ, shareOut.Value, shareOut.Value)
-
 	}
 
-	shareOut.Value.Resize(levelQ)
+	shareOut.Value.Coeffs = shareOut.Value.Coeffs[:levelQ+1]
 }
 
 // AggregateShare is the second part of the unique round of the CKSProtocol protocol. Upon receiving the j-1 elements each party computes :

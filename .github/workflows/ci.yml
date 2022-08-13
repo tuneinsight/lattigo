@@ -1,34 +1,9 @@
-name: CI Checks
+name: Go tests
 on:
   push:
 jobs:
-  checks:
-    name: Run static checks
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v1
-      with:
-        fetch-depth: 1
-    - name: Setup Go
-      uses: actions/setup-go@v3
-      with:
-        go-version: 1.17
-
-    - uses: actions/cache@v3
-      with:
-        path: ~/go/pkg/mod
-        key: ${{ runner.os }}-go-tools-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-go-tools
-    
-    - name: Setup tools
-      run: make get_tools
-
-    - name: Run Makefile checks
-      run: make static_check
-
-  tests:
-    name: Run Go ${{ matrix.go }} tests
+  ci:
+    name: Go ${{ matrix.go }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -36,23 +11,20 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      
-      - name: Setup Go
-        uses: actions/setup-go@v3
+      - name: Setup go
+        uses: actions/setup-go@v1
         with:
           go-version: ${{ matrix.go }}
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v2
         with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ matrix.go }}-build-${{ hashFiles('**/go.sum') }}
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
-            ${{ runner.os }}-go-${{ matrix.go }}-build-
+            ${{ runner.os }}-go-
 
       - name: Build
         run: go build ./...
 
-      - name: Run Makefile tests
-        run: make test
+      - name: Run tests
+        run: make ci_test

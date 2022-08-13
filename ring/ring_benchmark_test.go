@@ -22,8 +22,7 @@ func BenchmarkRing(b *testing.B) {
 
 		var testContext *testParams
 		if testContext, err = genTestParams(defaultParam); err != nil {
-			b.Fatal(err)
-
+			panic(err)
 		}
 
 		benchGenRing(testContext, b)
@@ -48,37 +47,26 @@ func benchGenRing(testContext *testParams, b *testing.B) {
 
 	b.Run(testString("GenRing/", testContext.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			if _, err := NewRing(testContext.ringQ.N, testContext.ringQ.Modulus); err != nil {
-				b.Error(err)
-			}
+			NewRing(testContext.ringQ.N, testContext.ringQ.Modulus)
 		}
 	})
 }
 
 func benchMarshalling(testContext *testParams, b *testing.B) {
 
-	var err error
-
 	p := testContext.uniformSamplerQ.ReadNew()
 
 	b.Run(testString("Marshalling/MarshalPoly/", testContext.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			if _, err = p.MarshalBinary(); err != nil {
-				b.Error(err)
-			}
+			p.MarshalBinary()
 		}
 	})
 
-	var data []byte
-	if data, err = p.MarshalBinary(); err != nil {
-		b.Error(err)
-	}
+	data, _ := p.MarshalBinary()
 
 	b.Run(testString("Marshalling/UnmarshalPoly/", testContext.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			if err = p.UnmarshalBinary(data); err != nil {
-				b.Error(err)
-			}
+			p.UnmarshalBinary(data)
 		}
 	})
 }

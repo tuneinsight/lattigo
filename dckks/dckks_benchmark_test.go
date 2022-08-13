@@ -12,30 +12,26 @@ import (
 
 func BenchmarkDCKKS(b *testing.B) {
 
-	var err error
-
 	defaultParams := ckks.DefaultParams
 	if testing.Short() {
 		defaultParams = ckks.DefaultParams[:2]
 	}
 	if *flagParamString != "" {
 		var jsonParams ckks.ParametersLiteral
-		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
-			b.Fatal(err)
-		}
+		json.Unmarshal([]byte(*flagParamString), &jsonParams)
 		defaultParams = []ckks.ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
 	for _, p := range defaultParams {
 
-		var params ckks.Parameters
-		if params, err = ckks.NewParametersFromLiteral(p); err != nil {
-			b.Fatal(err)
+		params, err := ckks.NewParametersFromLiteral(p)
+		if err != nil {
+			panic(err)
 		}
 
 		var testCtx *testContext
 		if testCtx, err = genTestParams(params); err != nil {
-			b.Fatal(err)
+			panic(err)
 		}
 
 		benchPublicKeyGen(testCtx, b)

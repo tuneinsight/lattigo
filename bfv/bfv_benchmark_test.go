@@ -9,31 +9,25 @@ import (
 
 func BenchmarkBFV(b *testing.B) {
 
-	var err error
-
 	defaultParams := DefaultParams
 	if testing.Short() {
 		defaultParams = DefaultParams[:2]
+	} else {
+
 	}
 
 	if *flagParamString != "" {
 		var jsonParams ParametersLiteral
-		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
-			b.Fatal(err)
-		}
+		json.Unmarshal([]byte(*flagParamString), &jsonParams)
 		defaultParams = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
 	for _, p := range defaultParams {
 
-		var params Parameters
-		if params, err = NewParametersFromLiteral(p); err != nil {
-			b.Fatal(err)
-		}
-
+		params, err := NewParametersFromLiteral(p)
 		var tc *testContext
 		if tc, err = genTestParams(params); err != nil {
-			b.Fatal(err)
+			panic(err)
 		}
 
 		benchEncoder(tc, b)
@@ -98,6 +92,11 @@ func benchKeyGen(tc *testContext, b *testing.B) {
 	})
 
 	b.Run(testString("KeyGen/SwitchKeyGen", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
+
+		if tc.params.PCount() == 0 {
+			b.Skip("#Pi is empty")
+		}
+
 		for i := 0; i < b.N; i++ {
 			kgen.GenRelinearizationKey(sk, 1)
 		}
@@ -155,8 +154,10 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 	ciphertext2 := NewCiphertextRandom(tc.prng, tc.params, 1)
 	receiver := NewCiphertextRandom(tc.prng, tc.params, 2)
 
-	rotkey := tc.kgen.GenRotationKeysForRotations([]int{1}, true, tc.sk)
-
+	var rotkey *rlwe.RotationKeySet
+	if tc.params.PCount() != 0 {
+		rotkey = tc.kgen.GenRotationKeysForRotations([]int{1}, true, tc.sk)
+	}
 	evaluator := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotkey})
 
 	b.Run(testString("Evaluator/Add/Ct", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
@@ -214,18 +215,33 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 	})
 
 	b.Run(testString("Evaluator/Relin", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
+
+		if tc.params.PCount() == 0 {
+			b.Skip("#Pi is empty")
+		}
+
 		for i := 0; i < b.N; i++ {
 			evaluator.Relinearize(receiver, ciphertext1)
 		}
 	})
 
 	b.Run(testString("Evaluator/RotateRows", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
+
+		if tc.params.PCount() == 0 {
+			b.Skip("#Pi is empty")
+		}
+
 		for i := 0; i < b.N; i++ {
 			evaluator.RotateRows(ciphertext1, ciphertext1)
 		}
 	})
 
 	b.Run(testString("Evaluator/RotateCols", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
+
+		if tc.params.PCount() == 0 {
+			b.Skip("#Pi is empty")
+		}
+
 		for i := 0; i < b.N; i++ {
 			evaluator.RotateColumns(ciphertext1, 1, ciphertext1)
 		}

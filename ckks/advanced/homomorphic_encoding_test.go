@@ -24,22 +24,21 @@ func TestHomomorphicEncoding(t *testing.T) {
 	}
 
 	ParametersLiteral := ckks.ParametersLiteral{
-		LogN: 13,
+		LogN:         13,
+		LogSlots:     12,
+		DefaultScale: 1 << 45,
+		Sigma:        rlwe.DefaultSigma,
 		Q: []uint64{
 			0x10000000006e0001, // 60 Q0
 			0x2000000a0001,     // 45
 			0x2000000e0001,     // 45
 			0x1fffffc20001,     // 45
+
 		},
 		P: []uint64{
 			0x1fffffffffe00001, // Pi 61
 			0x1fffffffffc80001, // Pi 61
 		},
-
-		H:            192,
-		Sigma:        rlwe.DefaultSigma,
-		LogSlots:     12,
-		DefaultScale: 1 << 45,
 	}
 
 	testEncodingMatrixLiteralMarshalling(t)
@@ -130,7 +129,6 @@ func testCoeffsToSlots(params ckks.Parameters, t *testing.T) {
 			LogSlots:            params.LogSlots(),
 			Scaling:             1.0 / float64(2*params.Slots()),
 			LinearTransformType: CoeffsToSlots,
-			RepackImag2Real:     true,
 			LevelStart:          params.MaxLevel(),
 			BSGSRatio:           16.0,
 			BitReversed:         false,
@@ -151,7 +149,7 @@ func testCoeffsToSlots(params ckks.Parameters, t *testing.T) {
 		CoeffsToSlotMatrices := NewHomomorphicEncodingMatrixFromLiteral(CoeffsToSlotsParametersLiteral, encoder)
 
 		// Gets the rotations indexes for CoeffsToSlots
-		rotations := CoeffsToSlotsParametersLiteral.Rotations()
+		rotations := CoeffsToSlotsParametersLiteral.Rotations(params.LogN(), params.LogSlots())
 
 		// Generates the rotation keys
 		rotKey := kgen.GenRotationKeysForRotations(rotations, true, sk)
@@ -247,7 +245,6 @@ func testSlotsToCoeffs(params ckks.Parameters, t *testing.T) {
 			LogSlots:            params.LogSlots(),
 			Scaling:             1.0,
 			LinearTransformType: SlotsToCoeffs,
-			RepackImag2Real:     true,
 			LevelStart:          params.MaxLevel(),
 			BSGSRatio:           16.0,
 			BitReversed:         false,
@@ -268,7 +265,7 @@ func testSlotsToCoeffs(params ckks.Parameters, t *testing.T) {
 		SlotsToCoeffsMatrix := NewHomomorphicEncodingMatrixFromLiteral(SlotsToCoeffsParametersLiteral, encoder)
 
 		// Gets the rotations indexes for SlotsToCoeffs
-		rotations := SlotsToCoeffsParametersLiteral.Rotations()
+		rotations := SlotsToCoeffsParametersLiteral.Rotations(params.LogN(), params.LogSlots())
 
 		// Generates the rotation keys
 		rotKey := kgen.GenRotationKeysForRotations(rotations, true, sk)

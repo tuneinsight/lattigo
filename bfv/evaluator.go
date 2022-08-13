@@ -64,7 +64,10 @@ type Evaluator interface {
 type evaluator struct {
 	*evaluatorBase
 	*evaluatorBuffers
-	*rlwe.Evaluator
+	*rlwe.KeySwitcher
+
+	rlk  *rlwe.RelinearizationKey
+	rtks *rlwe.RotationKeySet
 
 	basisExtenderQ1toQ2 *ring.BasisExtender
 }
@@ -154,8 +157,11 @@ func NewEvaluator(params Parameters, evaluationKey rlwe.EvaluationKey) Evaluator
 	}
 
 	ev.basisExtenderQ1toQ2 = ring.NewBasisExtender(ev.ringQ, ev.ringQMul)
-	ev.Evaluator = rlwe.NewEvaluator(params.Parameters, &evaluationKey)
-
+	if params.PCount() != 0 {
+		ev.KeySwitcher = rlwe.NewKeySwitcher(params.Parameters)
+	}
+	ev.rlk = evaluationKey.Rlk
+	ev.rtks = evaluationKey.Rtks
 	return ev
 }
 
@@ -164,7 +170,7 @@ func NewEvaluators(params Parameters, evaluationKey rlwe.EvaluationKey, n int) [
 	if n <= 0 {
 		return []Evaluator{}
 	}
-	evas := make([]Evaluator, n)
+	evas := make([]Evaluator, n, n)
 	for i := range evas {
 		if i == 0 {
 			evas[0] = NewEvaluator(params, evaluationKey)
@@ -313,7 +319,8 @@ func (eval *evaluator) RescaleTo(level int, ctIn, ctOut *Ciphertext) {
 	eval.ringQ.DivRoundByLastModulusManyLvl(ctIn.Level(), ctIn.Level()-level, ctIn.Value[0], eval.buffQ[0][0], ctOut.Value[0])
 	eval.ringQ.DivRoundByLastModulusManyLvl(ctIn.Level(), ctIn.Level()-level, ctIn.Value[1], eval.buffQ[0][0], ctOut.Value[1])
 
-	ctOut.Resize(ctOut.Degree(), level)
+	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:level+1]
+	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:level+1]
 }
 
 // tensorAndRescale computes (ct0 x ct1) * (t/Q) and stores the result in ctOut.
@@ -323,7 +330,8 @@ func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *rlwe.Ciphertext) {
 
 	levelQMul := eval.levelQMul[level]
 
-	ctOut.Resize(ctOut.Degree(), level)
+	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:level+1]
+	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:level+1]
 
 	c0Q1 := eval.buffQ[0]
 	c0Q2 := eval.buffQMul[0]
@@ -546,7 +554,8 @@ func (eval *evaluator) mulPlaintextRingT(ctIn *Ciphertext, ptRt *PlaintextRingT,
 
 	level := utils.MinInt(ctIn.Level(), ctOut.Level())
 
-	ctOut.Resize(ctOut.Degree(), level)
+	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:level+1]
+	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:level+1]
 
 	ringQ := eval.ringQ
 
@@ -590,6 +599,28 @@ func (eval *evaluator) MulNew(ctIn *Ciphertext, op1 Operand) (ctOut *Ciphertext)
 	return
 }
 
+// relinearize is a method common to Relinearize and RelinearizeNew. It switches ctIn to the NTT domain, applies the keyswitch, and returns the result out of the NTT domain.
+func (eval *evaluator) relinearize(ctIn *Ciphertext, ctOut *Ciphertext) {
+
+	level := utils.MinInt(ctIn.Level(), ctOut.Level())
+
+	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:level+1]
+	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:level+1]
+
+	if ctOut != ctIn {
+		ring.CopyValues(ctIn.Value[0], ctOut.Value[0])
+		ring.CopyValues(ctIn.Value[1], ctOut.Value[1])
+	}
+
+	for deg := uint64(ctIn.Degree()); deg > 1; deg-- {
+		eval.SwitchKeysInPlace(level, ctIn.Value[deg], eval.rlk.Keys[deg-2], eval.BuffQP[1].Q, eval.BuffQP[2].Q)
+		eval.ringQ.AddLvl(level, ctOut.Value[0], eval.BuffQP[1].Q, ctOut.Value[0])
+		eval.ringQ.AddLvl(level, ctOut.Value[1], eval.BuffQP[2].Q, ctOut.Value[1])
+	}
+
+	ctOut.SetValue(ctOut.Value[:2])
+}
+
 // Relinearize relinearizes the ciphertext ctIn of degree > 1 until it is of degree 1, and returns the result in cOut.
 //
 // It requires a correct evaluation key as additional input:
@@ -598,8 +629,25 @@ func (eval *evaluator) MulNew(ctIn *Ciphertext, op1 Operand) (ctOut *Ciphertext)
 //
 // - it must be of degree high enough to relinearize the input ciphertext to degree 1 (e.g., a ciphertext
 // of degree 3 will require that the evaluation key stores the keys for both degree 3 and degree 2 ciphertexts).
-func (eval *evaluator) Relinearize(ct0 *Ciphertext, ctOut *Ciphertext) {
-	eval.Evaluator.Relinearize(ct0.Ciphertext, ctOut.Ciphertext)
+func (eval *evaluator) Relinearize(ctIn *Ciphertext, ctOut *Ciphertext) {
+
+	if eval.rlk == nil {
+		panic("evaluator has no relinearization key")
+	}
+
+	if ctIn.Degree()-1 > len(eval.rlk.Keys) {
+		panic("input ciphertext degree is too large to allow relinearization with the evluator's relinearization key")
+	}
+
+	eval.getElemAndCheckUnary(ctIn, ctOut, 1)
+
+	if ctIn.Degree() < 2 {
+		if ctIn != ctOut {
+			ctOut.Copy(ctIn.El())
+		}
+	} else {
+		eval.relinearize(ctIn, ctOut)
+	}
 }
 
 // RelinearizeNew relinearizes the ciphertext ctIn of degree > 1 until it is of degree 1, and creates a new ciphertext to store the result.
@@ -618,8 +666,18 @@ func (eval *evaluator) RelinearizeNew(ctIn *Ciphertext) (ctOut *Ciphertext) {
 
 // SwitchKeys applies the key-switching procedure to the ciphertext ct0 and returns the result in ctOut. It requires as an additional input a valid switching-key:
 // it must encrypt the target key under the public key under which ct0 is currently encrypted.
-func (eval *evaluator) SwitchKeys(ct0 *Ciphertext, switchKey *rlwe.SwitchingKey, ctOut *Ciphertext) {
-	eval.Evaluator.SwitchKeys(ct0.Ciphertext, switchKey, ctOut.Ciphertext)
+func (eval *evaluator) SwitchKeys(ctIn *Ciphertext, switchKey *rlwe.SwitchingKey, ctOut *Ciphertext) {
+
+	if ctIn.Degree() != 1 || ctOut.Degree() != 1 {
+		panic("cannot SwitchKeys: input and output must be of degree 1 to allow key switching")
+	}
+
+	eval.getElemAndCheckUnary(ctIn, ctOut, 1)
+
+	level := utils.MinInt(ctIn.Level(), ctOut.Level())
+	eval.SwitchKeysInPlace(level, ctIn.Value[1], switchKey, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
+	eval.ringQ.AddLvl(level, ctIn.Value[0], eval.BuffQP[1].Q, ctOut.Value[0])
+	ring.CopyValues(eval.BuffQP[2].Q, ctOut.Value[1])
 }
 
 // SwitchKeysNew applies the key-switching procedure to the ciphertext ct0 and creates a new ciphertext to store the result. It requires as an additional input a valid switching-key:
@@ -630,9 +688,44 @@ func (eval *evaluator) SwitchKeysNew(ctIn *Ciphertext, switchkey *rlwe.Switching
 	return
 }
 
-// RotateColumns rotates the columns of ct0 by k positions to the left and returns the result in ctOut. As an additional input it requires a RotationKeys struct.
-func (eval *evaluator) RotateColumns(ct0 *Ciphertext, k int, ctOut *Ciphertext) {
-	eval.Automorphism(ct0.Ciphertext, eval.params.GaloisElementForColumnRotationBy(k), ctOut.Ciphertext)
+// RotateColumns rotates the columns of ct0 by k positions to the left and returns the result in ctOut. As an additional input it requires a RotationKeys struct:
+//
+// - it must either store all the left and right power-of-2 rotations or the specific rotation that is requested.
+//
+// If only the power-of-two rotations are stored, the numbers k and n/2-k will be decomposed in base-2 and the rotation with the lowest
+// hamming weight will be chosen; then the specific rotation will be computed as a sum of powers of two rotations.
+func (eval *evaluator) RotateColumns(ctIn *Ciphertext, k int, ctOut *Ciphertext) {
+
+	if ctIn.Degree() != 1 || ctOut.Degree() != 1 {
+		panic("cannot RotateColumns: input and or output must be of degree 1")
+	}
+
+	eval.getElemAndCheckUnary(ctIn, ctOut, 1)
+
+	if k == 0 {
+
+		ctOut.Copy(ctIn.El())
+
+	} else {
+
+		galElL := eval.params.GaloisElementForColumnRotationBy(k)
+		// Looks in the rotation key if the corresponding rotation has been generated or if the input is a plaintext
+		if swk, inSet := eval.rtks.GetRotationKey(galElL); inSet {
+
+			eval.permuteLvl(ctIn.Level(), ctIn, galElL, swk, ctOut)
+
+		} else {
+			panic(fmt.Errorf("evaluator has no rotation key for rotation by %d", k))
+		}
+	}
+}
+
+// permuteLvl performs a column rotation on ctIn and returns the result in ctOut
+func (eval *evaluator) permuteLvl(level int, ctIn *Ciphertext, generator uint64, switchKey *rlwe.SwitchingKey, ctOut *Ciphertext) {
+	eval.SwitchKeysInPlace(level, ctIn.Value[1], switchKey, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
+	eval.ringQ.AddLvl(level, eval.BuffQP[1].Q, ctIn.Value[0], eval.BuffQP[1].Q)
+	eval.ringQ.PermuteLvl(level, eval.BuffQP[1].Q, generator, ctOut.Value[0])
+	eval.ringQ.PermuteLvl(level, eval.BuffQP[2].Q, generator, ctOut.Value[1])
 }
 
 // RotateColumnsNew applies RotateColumns and returns the result in a new Ciphertext.
@@ -642,9 +735,22 @@ func (eval *evaluator) RotateColumnsNew(ctIn *Ciphertext, k int) (ctOut *Ciphert
 	return
 }
 
-// RotateRows rotates the rows of ct0 and returns the result in ctOut.
-func (eval *evaluator) RotateRows(ct0 *Ciphertext, ctOut *Ciphertext) {
-	eval.Automorphism(ct0.Ciphertext, eval.params.GaloisElementForRowRotation(), ctOut.Ciphertext)
+// RotateRows rotates the rows of ctIn and returns the result in ctOut.
+func (eval *evaluator) RotateRows(ctIn *Ciphertext, ctOut *Ciphertext) {
+
+	if ctIn.Degree() != 1 || ctOut.Degree() != 1 {
+		panic("cannot RotateRows: input and/or output must be of degree 1")
+	}
+
+	eval.getElemAndCheckUnary(ctIn, ctOut, 1)
+
+	galEl := eval.params.GaloisElementForRowRotation()
+
+	if key, inSet := eval.rtks.GetRotationKey(galEl); inSet {
+		eval.permuteLvl(ctIn.Level(), ctIn, galEl, key, ctOut)
+	} else {
+		panic("evaluator has no rotation key for row rotation")
+	}
 }
 
 // RotateRowsNew rotates the rows of ctIn and returns the result a new Ciphertext.
@@ -657,10 +763,13 @@ func (eval *evaluator) RotateRowsNew(ctIn *Ciphertext) (ctOut *Ciphertext) {
 // InnerSum computes the inner sum of ctIn and returns the result in ctOut. It requires a rotation key that stores all the left powers of two rotations.
 // The resulting vector will be of the form [sum, sum, .., sum, sum].
 func (eval *evaluator) InnerSum(ctIn *Ciphertext, ctOut *Ciphertext) {
+
 	if ctIn.Degree() != 1 || ctOut.Degree() != 1 {
 		panic("cannot InnerSum: input and output must be of degree 1")
 	}
+
 	cTmp := NewCiphertextLvl(eval.params, 1, ctIn.Level())
+
 	ctOut.Copy(ctIn.El())
 
 	for i := 1; i < int(eval.ringQ.N>>1); i <<= 1 {
@@ -677,9 +786,11 @@ func (eval *evaluator) InnerSum(ctIn *Ciphertext, ctOut *Ciphertext) {
 func (eval *evaluator) ShallowCopy() Evaluator {
 	return &evaluator{
 		evaluatorBase:       eval.evaluatorBase,
-		Evaluator:           eval.Evaluator.ShallowCopy(),
+		KeySwitcher:         eval.KeySwitcher.ShallowCopy(),
 		evaluatorBuffers:    newEvaluatorBuffer(eval.evaluatorBase),
 		basisExtenderQ1toQ2: eval.basisExtenderQ1toQ2.ShallowCopy(),
+		rlk:                 eval.rlk,
+		rtks:                eval.rtks,
 	}
 }
 
@@ -688,9 +799,11 @@ func (eval *evaluator) ShallowCopy() Evaluator {
 func (eval *evaluator) WithKey(evaluationKey rlwe.EvaluationKey) Evaluator {
 	return &evaluator{
 		evaluatorBase:       eval.evaluatorBase,
-		Evaluator:           eval.Evaluator.WithKey(&evaluationKey),
+		KeySwitcher:         eval.KeySwitcher,
 		evaluatorBuffers:    eval.evaluatorBuffers,
 		basisExtenderQ1toQ2: eval.basisExtenderQ1toQ2,
+		rlk:                 evaluationKey.Rlk,
+		rtks:                evaluationKey.Rtks,
 	}
 }
 
@@ -776,7 +889,11 @@ func (eval *evaluator) evaluateInPlaceBinary(el0, el1, elOut *rlwe.Ciphertext, e
 
 	level := utils.MinInt(utils.MinInt(el0.Level(), el1.Level()), elOut.Level())
 
-	elOut.Resize(elOut.Degree(), level)
+	if elOut.Level() > level {
+		for i := range elOut.Value {
+			elOut.Value[i].Coeffs = elOut.Value[i].Coeffs[:level+1]
+		}
+	}
 
 	for i := 0; i < smallest.Degree()+1; i++ {
 		evaluate(level, el0.Value[i], el1.Value[i], elOut.Value[i])
@@ -795,7 +912,11 @@ func evaluateInPlaceUnary(el0, elOut *rlwe.Ciphertext, evaluate func(int, *ring.
 
 	level := utils.MinInt(el0.Level(), elOut.Level())
 
-	elOut.Resize(elOut.Degree(), level)
+	if elOut.Level() > level {
+		for i := range elOut.Value {
+			elOut.Value[i].Coeffs = elOut.Value[i].Coeffs[:level+1]
+		}
+	}
 
 	for i := range el0.Value {
 		evaluate(level, el0.Value[i], elOut.Value[i])

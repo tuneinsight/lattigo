@@ -310,35 +310,37 @@ func NewDecomposer(ringQ, ringP *Ring) (decomposer *Decomposer) {
 
 		P := ringP.Modulus[:lvlP+2]
 
-		nbPi := len(P)
-		decompRNS := int(math.Ceil(float64(len(Q)) / float64(nbPi)))
+		alpha := len(P)
+		beta := int(math.Ceil(float64(len(Q)) / float64(alpha)))
 
-		xnbPi := make([]int, decompRNS)
-		for i := range xnbPi {
-			xnbPi[i] = nbPi
+		xalpha := make([]int, beta)
+		for i := range xalpha {
+			xalpha[i] = alpha
 		}
 
-		if len(Q)%nbPi != 0 {
-			xnbPi[decompRNS-1] = len(Q) % nbPi
+		if len(Q)%alpha != 0 {
+			xalpha[beta-1] = len(Q) % alpha
 		}
 
-		decomposer.modUpParams[lvlP] = make([][]ModupParams, decompRNS)
+		decomposer.modUpParams[lvlP] = make([][]ModupParams, beta)
 
-		// Create modUpParams for each possible combination of [Qi,Pj] according to xnbPi
-		for i := 0; i < decompRNS; i++ {
+		// Create modUpParams for each possible combination of [Qi,Pj] according to xalpha
+		for i := 0; i < beta; i++ {
 
-			decomposer.modUpParams[lvlP][i] = make([]ModupParams, xnbPi[i]-1)
+			decomposer.modUpParams[lvlP][i] = make([]ModupParams, xalpha[i]-1)
 
-			for j := 0; j < xnbPi[i]-1; j++ {
+			for j := 0; j < xalpha[i]-1; j++ {
 
 				Qi := make([]uint64, j+2)
 				Pi := make([]uint64, len(Q)+len(P))
 
 				for k := 0; k < j+2; k++ {
-					Qi[k] = Q[i*nbPi+k]
+					Qi[k] = Q[i*alpha+k]
 				}
 
-				copy(Pi, Q)
+				for k := 0; k < len(Q); k++ {
+					Pi[k] = Q[k]
+				}
 
 				for k := len(Q); k < len(Q)+len(P); k++ {
 					Pi[k] = P[k-len(Q)]
@@ -354,18 +356,18 @@ func NewDecomposer(ringQ, ringP *Ring) (decomposer *Decomposer) {
 
 // DecomposeAndSplit decomposes a polynomial p(x) in basis Q, reduces it modulo qi, and returns
 // the result in basis QP separately.
-func (decomposer *Decomposer) DecomposeAndSplit(levelQ, levelP, nbPi, decompRNS int, p0Q, p1Q, p1P *Poly) {
+func (decomposer *Decomposer) DecomposeAndSplit(levelQ, levelP, alpha, beta int, p0Q, p1Q, p1P *Poly) {
 
 	ringQ := decomposer.ringQ
 	ringP := decomposer.ringP
 
-	lvlQStart := decompRNS * nbPi
+	lvlQStart := beta * alpha
 
 	var decompLvl int
-	if levelQ > nbPi*(decompRNS+1)-1 {
-		decompLvl = nbPi - 2
+	if levelQ > alpha*(beta+1)-1 {
+		decompLvl = alpha - 2
 	} else {
-		decompLvl = (levelQ % nbPi) - 1
+		decompLvl = (levelQ % alpha) - 1
 	}
 
 	// First we check if the vector can simply by coping and rearranging elements (the case where no reconstruction is needed)
@@ -382,14 +384,7 @@ func (decomposer *Decomposer) DecomposeAndSplit(levelQ, levelP, nbPi, decompRNS 
 		// Otherwise, we apply a fast exact base conversion for the reconstruction
 	} else {
 
-		p0idxst := decompRNS * nbPi
-		p0idxed := p0idxst + nbPi
-
-		if p0idxed > levelQ+1 {
-			p0idxed = levelQ + 1
-		}
-
-		params := decomposer.modUpParams[nbPi-2][decompRNS][decompLvl]
+		params := decomposer.modUpParams[alpha-2][beta][decompLvl]
 
 		var v [8]uint64
 		var vi [8]float64
@@ -453,12 +448,12 @@ func (decomposer *Decomposer) DecomposeAndSplit(levelQ, levelP, nbPi, decompRNS 
 			v[7] = uint64(vi[7])
 
 			// Coefficients of index smaller than the ones to be decomposed
-			for j := 0; j < p0idxst; j++ {
+			for j := 0; j < lvlQStart; j++ {
 				multSum((*[8]uint64)(unsafe.Pointer(&p1Q.Coeffs[j][x])), &v, &y0, &y1, &y2, &y3, &y4, &y5, &y6, &y7, decompLvl+2, Q[j], mredParamsQ[j], vtimesqmodp[j], qoverqimodp[j])
 			}
 
 			// Coefficients of index greater than the ones to be decomposed
-			for j := p0idxed; j < levelQ+1; j++ {
+			for j := alpha * beta; j < levelQ+1; j = j + 1 {
 				multSum((*[8]uint64)(unsafe.Pointer(&p1Q.Coeffs[j][x])), &v, &y0, &y1, &y2, &y3, &y4, &y5, &y6, &y7, decompLvl+2, Q[j], mredParamsQ[j], vtimesqmodp[j], qoverqimodp[j])
 			}
 
@@ -466,11 +461,6 @@ func (decomposer *Decomposer) DecomposeAndSplit(levelQ, levelP, nbPi, decompRNS 
 			for j, u := 0, len(ringQ.Modulus); j < levelP+1; j, u = j+1, u+1 {
 				multSum((*[8]uint64)(unsafe.Pointer(&p1P.Coeffs[j][x])), &v, &y0, &y1, &y2, &y3, &y4, &y5, &y6, &y7, decompLvl+2, P[j], mredParamsP[j], vtimesqmodp[u], qoverqimodp[u])
 			}
-		}
-
-		// Copies the coefficients of polynomials mod the RNS decomposition
-		for i := p0idxst; i < p0idxed; i++ {
-			copy(p1Q.Coeffs[i], p0Q.Coeffs[i])
 		}
 	}
 }
@@ -520,13 +510,13 @@ func reconstructRNS(index, x int, p [][]uint64, v *[8]uint64, y0, y1, y2, y3, y4
 }
 
 // Caution, returns the values in [0, 2q-1]
-func multSum(res, v *[8]uint64, y0, y1, y2, y3, y4, y5, y6, y7 *[32]uint64, nbPi int, pj, qInv uint64, vtimesqmodp, qoverqimodp []uint64) {
+func multSum(res, v *[8]uint64, y0, y1, y2, y3, y4, y5, y6, y7 *[32]uint64, alpha int, pj, qInv uint64, vtimesqmodp, qoverqimodp []uint64) {
 
 	var rlo, rhi [8]uint64
 	var mhi, mlo, c, hhi uint64
 
 	// Accumulates the sum on uint128 and does a lazy montgomery reduction at the end
-	for i := 0; i < nbPi; i++ {
+	for i := 0; i < alpha; i++ {
 
 		mhi, mlo = bits.Mul64(y0[i], qoverqimodp[i])
 		rlo[0], c = bits.Add64(rlo[0], mlo, 0)

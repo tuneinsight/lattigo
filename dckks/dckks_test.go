@@ -24,7 +24,7 @@ var minPrec float64 = 15.0
 var parties int = 3
 
 func testString(opname string, parties int, params ckks.Parameters) string {
-	return fmt.Sprintf("%s/RingType=%s/logN=%d/logSlots=%d/logQ=%d/levels=%d/alpha=%d/beta=%d/parties=%d",
+	return fmt.Sprintf("%s/RingType=%s/logN=%d/logSlots=%d/logQ=%d/levels=%d/#Pi=%d/Decomp=%d/parties=%d",
 		opname,
 		params.RingType(),
 		params.LogN(),
@@ -32,7 +32,7 @@ func testString(opname string, parties int, params ckks.Parameters) string {
 		params.LogQP(),
 		params.MaxLevel()+1,
 		params.PCount(),
-		params.Beta(),
+		params.DecompRNS(params.QCount()-1, params.PCount()-1),
 		parties)
 }
 
@@ -64,11 +64,15 @@ type testContext struct {
 
 func TestDCKKS(t *testing.T) {
 
+	var err error
+
 	var testParams []ckks.ParametersLiteral
 	switch {
 	case *flagParamString != "": // the custom test suite reads the parameters from the -params flag
 		testParams = append(testParams, ckks.ParametersLiteral{})
-		json.Unmarshal([]byte(*flagParamString), &testParams[0])
+		if err = json.Unmarshal([]byte(*flagParamString), &testParams[0]); err != nil {
+			t.Fatal(err)
+		}
 	case *flagLongTest:
 		for _, pls := range [][]ckks.ParametersLiteral{
 			ckks.DefaultParams,
@@ -89,13 +93,14 @@ func TestDCKKS(t *testing.T) {
 
 	for _, paramsLiteral := range testParams {
 
-		params, err := ckks.NewParametersFromLiteral(paramsLiteral)
-		if err != nil {
-			panic(err)
+		var params ckks.Parameters
+		if params, err = ckks.NewParametersFromLiteral(paramsLiteral); err != nil {
+			t.Fatal(err)
 		}
+
 		var tc *testContext
 		if tc, err = genTestParams(params); err != nil {
-			panic(err)
+			t.Fatal(err)
 		}
 
 		for _, testSet := range []func(tc *testContext, t *testing.T){
@@ -270,7 +275,9 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 		evaluator := testCtx.evaluator.WithKey(rlwe.EvaluationKey{Rlk: rlk, Rtks: nil})
 		evaluator.MulRelin(ciphertext, ciphertext, ciphertext)
 
-		evaluator.Rescale(ciphertext, params.DefaultScale(), ciphertext)
+		if err := evaluator.Rescale(ciphertext, params.DefaultScale(), ciphertext); err != nil {
+			t.Error(err)
+		}
 
 		require.Equal(t, ciphertext.Degree(), 1)
 

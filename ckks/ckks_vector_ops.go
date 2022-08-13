@@ -58,6 +58,7 @@ func SpecialFFTUL8Vec(values []complex128, N, M int, rotGroup []int, roots []com
 	logM := int(bits.Len64(uint64(M))) - 1
 
 	for loglen := 1; loglen <= logN; loglen++ {
+
 		len := 1 << loglen
 		lenh := len >> 1
 		lenq := len << 2
@@ -219,6 +220,7 @@ func SpecialiFFTUL8Vec(values []complex128, N, M int, rotGroup []int, roots []co
 	logM := int(bits.Len64(uint64(M))) - 1
 
 	for loglen := logN; loglen > 0; loglen-- {
+
 		len := 1 << loglen
 		lenh := len >> 1
 		lenq := len << 2

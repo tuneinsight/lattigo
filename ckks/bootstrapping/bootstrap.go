@@ -1,3 +1,4 @@
+// Package bootstrapping implement the bootstrapping for the CKKS scheme.
 package bootstrapping
 
 import (
@@ -7,7 +8,7 @@ import (
 	"github.com/tuneinsight/lattigo/v3/ring"
 )
 
-// Bootstrapp re-encrypt a ciphertext at lvl Q0 to a ciphertext at MaxLevel-k where k is the depth of the bootstrapping circuit.
+// Bootstrapp re-encrypts a ciphertext at lvl Q0 to a ciphertext at MaxLevel-k where k is the depth of the bootstrapping circuit.
 // If the input ciphertext level is zero, the input scale must be an exact power of two smaller or equal to round(Q0/2^{10}).
 // If the input ciphertext is at level one or more, the input scale does not need to be an exact power of two as one level
 // can be used to do a scale matching.
@@ -35,7 +36,7 @@ func (btp *Bootstrapper) Bootstrapp(ctIn *ckks.Ciphertext) (ctOut *ckks.Cipherte
 
 		// Does an integer constant mult by round((Q0/Delta_m)/ctscle)
 		if btp.q0OverMessageRatio < ctOut.Scale {
-			panic("ciphetext scale > q/||m||)")
+			panic("Cannot bootstrap: ciphetext scale > q/||m||)")
 		}
 
 		btp.ScaleUp(ctOut, math.Round(btp.q0OverMessageRatio/ctOut.Scale), ctOut)
@@ -55,7 +56,7 @@ func (btp *Bootstrapper) Bootstrapp(ctIn *ckks.Ciphertext) (ctOut *ckks.Cipherte
 	}
 
 	//SubSum X -> (N/dslots) * Y^dslots
-	btp.Trace(ctOut, btp.params.LogSlots(), btp.params.LogN()-1, ctOut)
+	btp.Trace(ctOut, btp.params.LogSlots(), ctOut)
 
 	// Step 2 : CoeffsToSlots (Homomorphic encoding)
 	ctReal, ctImag := btp.CoeffsToSlotsNew(ctOut, btp.ctsMatrices)
@@ -92,12 +93,7 @@ func (btp *Bootstrapper) modUpFromQ0(ct *ckks.Ciphertext) *ckks.Ciphertext {
 	}
 
 	// Extend the ciphertext with zero polynomials.
-	for u := range ct.Value {
-		ct.Value[u].Coeffs = append(ct.Value[u].Coeffs, make([][]uint64, btp.params.MaxLevel())...)
-		for i := 1; i < btp.params.MaxLevel()+1; i++ {
-			ct.Value[u].Coeffs[i] = make([]uint64, btp.params.N())
-		}
-	}
+	ct.Resize(ct.Degree(), btp.params.MaxLevel())
 
 	levelQ := btp.params.QCount() - 1
 	levelP := btp.params.PCount() - 1
@@ -128,7 +124,7 @@ func (btp *Bootstrapper) modUpFromQ0(ct *ckks.Ciphertext) *ckks.Ciphertext {
 
 	if btp.swkStD != nil {
 
-		ks := btp.GetKeySwitcher()
+		ks := btp.GetRLWEEvaluator()
 
 		// ModUp q->QP for ct[1] centered around q
 		for j := 0; j < btp.params.N(); j++ {

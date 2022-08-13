@@ -13,29 +13,31 @@ func BenchmarkRLWE(b *testing.B) {
 	}
 	if *flagParamString != "" {
 		var jsonParams ParametersLiteral
-		json.Unmarshal([]byte(*flagParamString), &jsonParams)
+		if err := json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
+			b.Fatal(err)
+		}
 		defaultParams = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
 	for _, defaultParam := range defaultParams {
 		params, err := NewParametersFromLiteral(defaultParam)
 		if err != nil {
-			panic(err)
+			b.Fatal(err)
 		}
 
 		kgen := NewKeyGenerator(params)
-		keySwitcher := NewKeySwitcher(params)
+		eval := NewEvaluator(params, nil)
 
-		for _, testSet := range []func(kgen KeyGenerator, keySwitcher *KeySwitcher, b *testing.B){
+		for _, testSet := range []func(kgen KeyGenerator, eval *Evaluator, b *testing.B){
 			benchHoistedKeySwitch,
 		} {
-			testSet(kgen, keySwitcher, b)
+			testSet(kgen, eval, b)
 			runtime.GC()
 		}
 	}
 }
 
-func benchHoistedKeySwitch(kgen KeyGenerator, keySwitcher *KeySwitcher, b *testing.B) {
+func benchHoistedKeySwitch(kgen KeyGenerator, eval *Evaluator, b *testing.B) {
 
 	params := kgen.(*keyGenerator).params
 	skIn := kgen.GenSecretKey()
@@ -51,14 +53,14 @@ func benchHoistedKeySwitch(kgen KeyGenerator, keySwitcher *KeySwitcher, b *testi
 	b.Run(testString(params, "DecomposeNTT/"), func(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			keySwitcher.DecomposeNTT(ciphertext.Level(), params.PCount()-1, params.PCount(), ciphertext.Value[1], keySwitcher.BuffDecompQP)
+			eval.DecomposeNTT(ciphertext.Level(), params.PCount()-1, params.PCount(), ciphertext.Value[1], eval.BuffDecompQP)
 		}
 	})
 
 	b.Run(testString(params, "KeySwitchHoisted/"), func(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			keySwitcher.KeyswitchHoisted(ciphertext.Level(), keySwitcher.BuffDecompQP, swk, ciphertext.Value[0], ciphertext.Value[1], keySwitcher.BuffQP[1].P, keySwitcher.BuffQP[2].P)
+			eval.KeyswitchHoisted(ciphertext.Level(), eval.BuffDecompQP, swk, ciphertext.Value[0], ciphertext.Value[1], eval.BuffQP[1].P, eval.BuffQP[2].P)
 		}
 	})
 }

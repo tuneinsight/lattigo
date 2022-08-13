@@ -146,6 +146,44 @@ func ModVec(p1, p2 []uint64, m uint64, bredParams []uint64) {
 	}
 }
 
+// MulCoeffsNoModVec returns p3 = p1*p2.
+func MulCoeffsNoModVec(p1, p2, p3 []uint64) {
+	for j := 0; j < len(p1); j = j + 8 {
+
+		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
+		y := (*[8]uint64)(unsafe.Pointer(&p2[j]))
+		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
+
+		z[0] = x[0] * y[0]
+		z[1] = x[1] * y[1]
+		z[2] = x[2] * y[2]
+		z[3] = x[3] * y[3]
+		z[4] = x[4] * y[4]
+		z[5] = x[5] * y[5]
+		z[6] = x[6] * y[6]
+		z[7] = x[7] * y[7]
+	}
+}
+
+// MulCoeffsNoModAndAddNoModVec returns p3 += p1*p2.
+func MulCoeffsNoModAndAddNoModVec(p1, p2, p3 []uint64) {
+	for j := 0; j < len(p1); j = j + 8 {
+
+		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
+		y := (*[8]uint64)(unsafe.Pointer(&p2[j]))
+		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
+
+		z[0] += x[0] * y[0]
+		z[1] += x[1] * y[1]
+		z[2] += x[2] * y[2]
+		z[3] += x[3] * y[3]
+		z[4] += x[4] * y[4]
+		z[5] += x[5] * y[5]
+		z[6] += x[6] * y[6]
+		z[7] += x[7] * y[7]
+	}
+}
+
 // MulCoeffsVec returns p3 = p1*p2 mod qi.
 func MulCoeffsVec(p1, p2, p3 []uint64, qi uint64, bredParams []uint64) {
 	for j := 0; j < len(p1); j = j + 8 {
@@ -671,5 +709,23 @@ func ZeroVec(p1 []uint64) {
 		z[5] = 0
 		z[6] = 0
 		z[7] = 0
+	}
+}
+
+// MaskVec returns p2 = (p1>>w) & mask
+func MaskVec(p1, p2 []uint64, w int, mask uint64) {
+	for j := 0; j < len(p1); j = j + 8 {
+
+		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
+		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
+
+		z[0] = (x[0] >> w) & mask
+		z[1] = (x[1] >> w) & mask
+		z[2] = (x[2] >> w) & mask
+		z[3] = (x[3] >> w) & mask
+		z[4] = (x[4] >> w) & mask
+		z[5] = (x[5] >> w) & mask
+		z[6] = (x[6] >> w) & mask
+		z[7] = (x[7] >> w) & mask
 	}
 }

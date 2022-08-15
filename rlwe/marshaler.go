@@ -98,38 +98,19 @@ func (sk *SecretKey) UnmarshalBinary(data []byte) (err error) {
 
 // GetDataLen64 returns the length in bytes of the target PublicKey.
 func (pk *PublicKey) GetDataLen64(WithMetadata bool) (dataLen int) {
-	return pk.Value[0].GetDataLen64(WithMetadata) + pk.Value[1].GetDataLen64(WithMetadata)
+	return pk.CiphertextQP.GetDataLen64(WithMetadata)
 }
 
 // MarshalBinary encodes a PublicKey in a byte slice.
 func (pk *PublicKey) MarshalBinary() (data []byte, err error) {
 	data = make([]byte, pk.GetDataLen64(true))
-	var inc, pt int
-	if inc, err = pk.Value[0].WriteTo64(data[pt:]); err != nil {
-		return nil, err
-	}
-	pt += inc
-
-	if _, err = pk.Value[1].WriteTo64(data[pt:]); err != nil {
-		return nil, err
-	}
-
+	_, err = pk.CiphertextQP.WriteTo64(data)
 	return
 }
 
 // UnmarshalBinary decodes a previously marshaled PublicKey in the target PublicKey.
 func (pk *PublicKey) UnmarshalBinary(data []byte) (err error) {
-
-	var pt, inc int
-	if inc, err = pk.Value[0].DecodePoly64(data[pt:]); err != nil {
-		return
-	}
-	pt += inc
-
-	if _, err = pk.Value[1].DecodePoly64(data[pt:]); err != nil {
-		return
-	}
-
+	_, err = pk.CiphertextQP.Decode64(data)
 	return
 }
 

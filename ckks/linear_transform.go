@@ -507,7 +507,7 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 	if ctIn.Degree() != 1 || ctOut.Degree() != 1 {
 		panic("ctIn.Degree() != 1 or ctOut.Degree() != 1")
 	}
-	
+
 	ringQ := eval.params.RingQ()
 	ringP := eval.params.RingP()
 	ringQP := eval.params.RingQP()

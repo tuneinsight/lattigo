@@ -50,7 +50,7 @@ func NewDomainSwitcher(params Parameters, comlexToRealSwk *SwkComplexToReal, Rea
 // The method panics if the DomainSwitcher was not initialized with a SwkComplexToReal key.
 func (switcher *DomainSwitcher) ComplexToReal(eval *rlwe.Evaluator, ctIn, ctOut *Ciphertext) {
 
-	if eval.Parameters().RingType() != ring.Standard{
+	if eval.Parameters().RingType() != ring.Standard {
 		panic("cannot ComplexToReal: provided evaluator is not instantiated with RingType ring.Standard")
 	}
 
@@ -81,8 +81,8 @@ func (switcher *DomainSwitcher) ComplexToReal(eval *rlwe.Evaluator, ctIn, ctOut 
 // The method panics if the DomainSwitcher was not initialized with a SwkRealToComplex key.
 func (switcher *DomainSwitcher) RealToComplex(eval *rlwe.Evaluator, ctIn, ctOut *Ciphertext) {
 
-	if eval.Parameters().RingType() != ring.Standard{
-		panic("cannot ComplexToReal: provided evaluator is not instantiated with RingType ring.Standard")
+	if eval.Parameters().RingType() != ring.Standard {
+		panic("cannot RealToComplex: provided evaluator is not instantiated with RingType ring.Standard")
 	}
 
 	level := utils.MinInt(ctIn.Level(), ctOut.Level())

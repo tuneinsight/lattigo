@@ -212,10 +212,10 @@ func testParameters(tc *testContext, t *testing.T) {
 
 	t.Run(GetTestName(tc.params, "Parameters/NewParameters"), func(t *testing.T) {
 		params, err := NewParametersFromLiteral(ParametersLiteral{
-			LogN: 4,
-			LogQ: []int{60, 60},
-			LogP: []int{60},
-			DefaultScale:1.0,
+			LogN:         4,
+			LogQ:         []int{60, 60},
+			LogP:         []int{60},
+			DefaultScale: 1.0,
 		})
 		require.NoError(t, err)
 		require.Equal(t, ring.Standard, params.RingType())   // Default ring type should be standard
@@ -1030,11 +1030,19 @@ func testBridge(tc *testContext, t *testing.T) {
 		}
 
 		ciParams := tc.params
-		var stdParams Parameters
 		var err error
-		if stdParams, err = ciParams.StandardParameters(); err != nil {
+		if _, err = ciParams.StandardParameters(); err != nil {
 			t.Errorf("all Conjugate Invariant parameters should have a standard counterpart but got: %f", err)
 		}
+
+		// Create equivalent parameters with RingStandard ring type and different auxiliary modulus P
+		stdParamsLit := ciParams.ParametersLiteral()
+		stdParamsLit.LogN = ciParams.LogN() + 1
+		stdParamsLit.P = []uint64{0x1ffffffff6c80001, 0x1ffffffff6140001} // Assignes new P to ensure that independance from auxiliary P is tested
+		stdParamsLit.RingType = ring.Standard
+
+		stdParams, err := NewParametersFromLiteral(stdParamsLit)
+		require.Nil(t, err)
 
 		stdKeyGen := NewKeyGenerator(stdParams)
 		stdSK := stdKeyGen.GenSecretKey()

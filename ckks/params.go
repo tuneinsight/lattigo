@@ -344,7 +344,7 @@ func NewParameters(rlweParams rlwe.Parameters, logSlots int, defaultScale float6
 		return Parameters{}, fmt.Errorf("logSlot=%d is larger than the logN-1=%d or smaller than %d", logSlots, maxLogSlots, minLogSlots)
 	}
 
-	if defaultScale <= 0{
+	if defaultScale <= 0 {
 		return Parameters{}, fmt.Errorf("defaultScale cannot be zero or negative")
 	}
 
@@ -386,6 +386,24 @@ func (p Parameters) StandardParameters() (pckks Parameters, err error) {
 	pckks = p
 	pckks.Parameters, err = pckks.Parameters.StandardParameters()
 	return
+}
+
+// ParametersLiteral returns the ParametersLiteral of the target Parameters.
+func (p Parameters) ParametersLiteral() (pLit ParametersLiteral) {
+
+	pRLWELit := p.Parameters.ParametersLiteral()
+
+	return ParametersLiteral{
+		LogN:         pRLWELit.LogN,
+		Q:            pRLWELit.Q,
+		P:            pRLWELit.P,
+		Pow2Base:     pRLWELit.Pow2Base,
+		Sigma:        pRLWELit.Sigma,
+		H:            pRLWELit.H,
+		RingType:     pRLWELit.RingType,
+		LogSlots:     p.LogSlots(),
+		DefaultScale: p.DefaultScale(),
+	}
 }
 
 // LogSlots returns the log of the number of slots

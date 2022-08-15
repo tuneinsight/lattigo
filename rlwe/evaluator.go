@@ -86,6 +86,11 @@ func NewEvaluator(params Parameters, evaluationKey *EvaluationKey) (eval *Evalua
 	return
 }
 
+// Parameters returns the parameters used to instantiate the target evaluator.
+func (eval *Evaluator) Parameters() Parameters {
+	return eval.params
+}
+
 // permuteNTTIndexesForKey generates pemutation indexes for automorphisms for ciphertexts
 // that are given in the NTT domain.
 func (eval *Evaluator) permuteNTTIndexesForKey(rtks *RotationKeySet) *map[uint64][]uint64 {

@@ -148,6 +148,10 @@ func (eval *Evaluator) AutomorphismHoistedNoModDown(levelQ int, c0 *ring.Poly, c
 //       = [8 + 0X + 0X^2 - 0X^3 + 0X^4 + 0X^5 + 0X^6 - 0X^7]
 func (eval *Evaluator) Trace(ctIn *Ciphertext, logN int, ctOut *Ciphertext) {
 
+	if ctIn.Degree() != 1 || ctOut.Degree() != 1 {
+		panic("ctIn.Degree() != 1 or ctOut.Degree() != 1")
+	}
+
 	levelQ := utils.MinInt(ctIn.Level(), ctOut.Level())
 
 	ctOut.Resize(ctOut.Degree(), levelQ)

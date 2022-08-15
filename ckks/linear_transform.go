@@ -469,6 +469,10 @@ func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfa
 // Required rotation keys can be generated with 'RotationsForInnerSumLog(batchSize, SlotCount/batchSize)''
 func (eval *evaluator) Average(ctIn *Ciphertext, logBatchSize int, ctOut *Ciphertext) {
 
+	if ctIn.Degree() != 1 || ctOut.Degree() != 1 {
+		panic("ctIn.Degree() != 1 or ctOut.Degree() != 1")
+	}
+
 	if logBatchSize > eval.params.LogSlots() {
 		panic("cannot Average: batchSize must be smaller or equal to the number of slots")
 	}
@@ -500,6 +504,10 @@ func (eval *evaluator) Average(ctIn *Ciphertext, logBatchSize int, ctOut *Cipher
 // This method is faster than InnerSum when the number of rotations is large and uses log2(n) + HW(n) instead of 'n' keys.
 func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
 
+	if ctIn.Degree() != 1 || ctOut.Degree() != 1 {
+		panic("ctIn.Degree() != 1 or ctOut.Degree() != 1")
+	}
+	
 	ringQ := eval.params.RingQ()
 	ringP := eval.params.RingP()
 	ringQP := eval.params.RingQP()
@@ -618,6 +626,10 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 // It outputs in ctOut a ciphertext for which the "leftmost" sub-vector of each group is equal to the sum of the group.
 // This method is faster than InnerSumLog when the number of rotations is small but uses 'n' keys instead of log(n) + HW(n).
 func (eval *evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
+
+	if ctIn.Degree() != 1 || ctOut.Degree() != 1 {
+		panic("ctIn.Degree() != 1 or ctOut.Degree() != 1")
+	}
 
 	ringQ := eval.params.RingQ()
 	ringP := eval.params.RingP()

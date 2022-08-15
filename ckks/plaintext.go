@@ -32,8 +32,7 @@ func (p *Plaintext) SetScalingFactor(scale float64) {
 // where the message is set to the passed poly. No checks are performed on poly and
 // the returned Plaintext will share its backing array of coefficient.
 func NewPlaintextAtLevelFromPoly(level int, poly *ring.Poly) *Plaintext {
-	v0 := new(ring.Poly)
-	v0.IsNTT = true
-	v0.Coeffs = poly.Coeffs[:level+1]
-	return &Plaintext{Plaintext: &rlwe.Plaintext{Value: v0}, Scale: 0}
+	pt := rlwe.NewPlaintextAtLevelFromPoly(level, poly)
+	pt.Value.IsNTT = true
+	return &Plaintext{Plaintext: pt, Scale: 0}
 }

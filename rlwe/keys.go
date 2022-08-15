@@ -1,22 +1,22 @@
 package rlwe
 
 import (
-	"math"
+	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 )
 
 // SecretKey is a type for generic RLWE secret keys.
 type SecretKey struct {
-	Value PolyQP
+	Value ringqp.Poly
 }
 
 // PublicKey is a type for generic RLWE public keys.
 type PublicKey struct {
-	Value [2]PolyQP
+	Value [2]ringqp.Poly
 }
 
 // SwitchingKey is a type for generic RLWE public switching keys.
 type SwitchingKey struct {
-	Value [][2]PolyQP
+	GadgetCiphertext
 }
 
 // RelinearizationKey is a type for generic RLWE public relinearization keys. It stores a slice with a
@@ -44,9 +44,46 @@ func NewSecretKey(params Parameters) *SecretKey {
 	return &SecretKey{Value: params.RingQP().NewPoly()}
 }
 
+// LevelQ returns the level of the modulus Q of the target.
+func (sk *SecretKey) LevelQ() int {
+	return sk.Value.Q.Level()
+}
+
+// LevelP returns the level of the modulus P of the target.
+// Returns -1 if P is absent.
+func (sk *SecretKey) LevelP() int {
+	if sk.Value.P != nil {
+		return sk.Value.P.Level()
+	}
+
+	return -1
+}
+
 // NewPublicKey returns a new PublicKey with zero values.
 func NewPublicKey(params Parameters) (pk *PublicKey) {
-	return &PublicKey{Value: [2]PolyQP{params.RingQP().NewPoly(), params.RingQP().NewPoly()}}
+	pk = &PublicKey{Value: [2]ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()}}
+	pk.Value[0].Q.IsNTT = true
+	pk.Value[1].Q.IsNTT = true
+	if params.PCount() > 0 {
+		pk.Value[0].P.IsNTT = true
+		pk.Value[1].P.IsNTT = true
+	}
+	return
+}
+
+// LevelQ returns the level of the modulus Q of the target.
+func (pk *PublicKey) LevelQ() int {
+	return pk.Value[0].Q.Level()
+}
+
+// LevelP returns the level of the modulus P of the target.
+// Returns -1 if P is absent.
+func (pk *PublicKey) LevelP() int {
+	if pk.Value[0].P != nil {
+		return pk.Value[0].P.Level()
+	}
+
+	return -1
 }
 
 // Equals checks two PublicKey struct for equality.
@@ -79,24 +116,28 @@ func (rtks *RotationKeySet) GetRotationKey(galoisEl uint64) (*SwitchingKey, bool
 
 // NewSwitchingKey returns a new public switching key with pre-allocated zero-value
 func NewSwitchingKey(params Parameters, levelQ, levelP int) *SwitchingKey {
-	decompSize := int(math.Ceil(float64(levelQ+1) / float64(levelP+1)))
-	swk := new(SwitchingKey)
-	swk.Value = make([][2]PolyQP, int(decompSize))
-	for i := 0; i < decompSize; i++ {
-		swk.Value[i][0] = params.RingQP().NewPolyLvl(levelQ, levelP)
-		swk.Value[i][1] = params.RingQP().NewPolyLvl(levelQ, levelP)
-	}
+	return &SwitchingKey{GadgetCiphertext: *NewGadgetCiphertext(
+		levelQ,
+		levelP,
+		params.DecompRNS(levelQ, levelP),
+		params.DecompPw2(levelQ, levelP),
+		*params.RingQP())}
+}
 
-	return swk
+// Equals checks two SwitchingKeys for equality.
+func (swk *SwitchingKey) Equals(other *SwitchingKey) bool {
+	return swk.GadgetCiphertext.Equals(&other.GadgetCiphertext)
+}
+
+// CopyNew creates a deep copy of the target SwitchingKey and returns it.
+func (swk *SwitchingKey) CopyNew() *SwitchingKey {
+	return &SwitchingKey{GadgetCiphertext: *swk.GadgetCiphertext.CopyNew()}
 }
 
 // NewRelinKey creates a new EvaluationKey with zero values.
 func NewRelinKey(params Parameters, maxRelinDegree int) (evakey *RelinearizationKey) {
-
 	evakey = new(RelinearizationKey)
-
 	evakey.Keys = make([]*SwitchingKey, maxRelinDegree)
-
 	for d := 0; d < maxRelinDegree; d++ {
 		evakey.Keys[d] = NewSwitchingKey(params, params.QCount()-1, params.PCount()-1)
 	}
@@ -117,7 +158,7 @@ func (pk *PublicKey) CopyNew() *PublicKey {
 	if pk == nil {
 		return nil
 	}
-	return &PublicKey{[2]PolyQP{pk.Value[0].CopyNew(), pk.Value[1].CopyNew()}}
+	return &PublicKey{[2]ringqp.Poly{pk.Value[0].CopyNew(), pk.Value[1].CopyNew()}}
 }
 
 // Equals checks two RelinearizationKeys for equality.
@@ -151,37 +192,6 @@ func (rlk *RelinearizationKey) CopyNew() *RelinearizationKey {
 	return rlkb
 }
 
-// Equals checks two SwitchingKeys for equality.
-func (swk *SwitchingKey) Equals(other *SwitchingKey) bool {
-	if swk == other {
-		return true
-	}
-	if (swk == nil) != (other == nil) {
-		return false
-	}
-	if len(swk.Value) != len(other.Value) {
-		return false
-	}
-	for i := range swk.Value {
-		if !((&PublicKey{Value: swk.Value[i]}).Equals(&PublicKey{Value: other.Value[i]})) {
-			return false
-		}
-	}
-	return true
-}
-
-// CopyNew creates a deep copy of the receiver SwitchingKey and returns it.
-func (swk *SwitchingKey) CopyNew() *SwitchingKey {
-	if swk == nil || len(swk.Value) == 0 {
-		return nil
-	}
-	swkb := &SwitchingKey{Value: make([][2]PolyQP, len(swk.Value))}
-	for i, el := range swk.Value {
-		swkb.Value[i] = [2]PolyQP{el[0].CopyNew(), el[1].CopyNew()}
-	}
-	return swkb
-}
-
 // Equals checks to RotationKeySets for equality.
 func (rtks *RotationKeySet) Equals(other *RotationKeySet) bool {
 	if rtks == other {
@@ -194,7 +204,7 @@ func (rtks *RotationKeySet) Equals(other *RotationKeySet) bool {
 		return false
 	}
 	for galEl, otherKey := range other.Keys {
-		if key, inSet := rtks.Keys[galEl]; !inSet || !otherKey.Equals(key) {
+		if key, inSet := rtks.Keys[galEl]; !inSet || !otherKey.GadgetCiphertext.Equals(&key.GadgetCiphertext) {
 			return false
 		}
 	}

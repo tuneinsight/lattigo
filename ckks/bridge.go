@@ -11,7 +11,7 @@ import (
 // DomainSwitcher is a type for switching between the standard CKKS domain (which encrypts vectors of complex numbers)
 // and the conjugate invariant variant of CKKS (which encrypts vectors of real numbers).
 type DomainSwitcher struct {
-	rlwe.KeySwitcher
+	*rlwe.Evaluator
 
 	stdRingQ, conjugateRingQ *ring.Ring
 
@@ -39,9 +39,12 @@ func NewDomainSwitcher(params Parameters, comlexToRealSwk *SwkComplexToReal, Rea
 	}
 
 	stdParams, err := params.StandardParameters()
-	s.KeySwitcher = *rlwe.NewKeySwitcher(stdParams.Parameters)
+	if err != nil {
+		return s, err
+	}
+	s.Evaluator = rlwe.NewEvaluator(stdParams.Parameters, nil)
 
-	s.permuteNTTIndex = s.stdRingQ.PermuteNTTIndex((uint64(s.stdRingQ.N) << 1) - 1)
+	s.permuteNTTIndex = s.stdRingQ.PermuteNTTIndex(s.stdRingQ.NthRoot - 1)
 	return s, nil
 }
 
@@ -58,14 +61,14 @@ func (switcher *DomainSwitcher) ComplexToReal(ctIn, ctOut *Ciphertext) {
 	level := utils.MinInt(ctIn.Level(), ctOut.Level())
 
 	if len(ctIn.Value[0].Coeffs[0]) != 2*len(ctOut.Value[0].Coeffs[0]) {
-		panic("ctIn ring degree must be twice ctOut ring degree")
+		panic("cannot ComplesToReal: ctIn ring degree must be twice ctOut ring degree")
 	}
 
 	if switcher.SwkComplexToReal == nil {
-		panic("no SwkComplexToReal provided to this DomainSwitcher")
+		panic("cannot ComplesToReal: no SwkComplexToReal provided to this DomainSwitcher")
 	}
 
-	switcher.SwitchKeysInPlace(level, ctIn.Value[1], &switcher.SwkComplexToReal.SwitchingKey, switcher.BuffQP[1].Q, switcher.BuffQP[2].Q)
+	switcher.GadgetProduct(level, ctIn.Value[1], switcher.SwkComplexToReal.GadgetCiphertext, switcher.BuffQP[1].Q, switcher.BuffQP[2].Q)
 	switcher.stdRingQ.Add(switcher.BuffQP[1].Q, ctIn.Value[0], switcher.BuffQP[1].Q)
 
 	switcher.conjugateRingQ.FoldStandardToConjugateInvariant(level, switcher.BuffQP[1].Q, switcher.permuteNTTIndex, ctOut.Value[0])
@@ -85,18 +88,18 @@ func (switcher *DomainSwitcher) RealToComplex(ctIn, ctOut *Ciphertext) {
 	level := utils.MinInt(ctIn.Level(), ctOut.Level())
 
 	if 2*len(ctIn.Value[0].Coeffs[0]) != len(ctOut.Value[0].Coeffs[0]) {
-		panic("ctOut ring degree must be twice ctIn ring degree")
+		panic("cannot RealToComplex: ctOut ring degree must be twice ctIn ring degree")
 	}
 
 	if switcher.SwkRealToComplex == nil {
-		panic("no SwkRealToComplex provided to this DomainSwitcher")
+		panic("cannot RealToComplex: no SwkRealToComplex provided to this DomainSwitcher")
 	}
 
 	switcher.stdRingQ.UnfoldConjugateInvariantToStandard(level, ctIn.Value[0], ctOut.Value[0])
 	switcher.stdRingQ.UnfoldConjugateInvariantToStandard(level, ctIn.Value[1], ctOut.Value[1])
 
 	// Switches the RCKswitcher key [X+X^-1] to a CKswitcher key [X]
-	switcher.SwitchKeysInPlace(level, ctOut.Value[1], &switcher.SwkRealToComplex.SwitchingKey, switcher.BuffQP[1].Q, switcher.BuffQP[2].Q)
+	switcher.GadgetProduct(level, ctOut.Value[1], switcher.SwkRealToComplex.GadgetCiphertext, switcher.BuffQP[1].Q, switcher.BuffQP[2].Q)
 	switcher.stdRingQ.Add(ctOut.Value[0], switcher.BuffQP[1].Q, ctOut.Value[0])
 	ring.CopyValues(switcher.BuffQP[2].Q, ctOut.Value[1])
 }

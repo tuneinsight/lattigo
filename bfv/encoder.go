@@ -10,7 +10,7 @@ import (
 
 // GaloisGen is an integer of order N=2^d modulo M=2N and that spans Z_M with the integer -1.
 // The j-th ring automorphism takes the root zeta to zeta^(5j).
-const GaloisGen uint64 = 5
+const GaloisGen uint64 = ring.GaloisGen
 
 // Encoder is an interface for plaintext encoding and decoding operations. It provides methods to embed []uint64 and []int64 types into
 // the various plaintext types and the inverse operations. It also provides methodes to convert between the different plaintext types.
@@ -63,8 +63,6 @@ type encoder struct {
 	indexMatrix []uint64
 	scaler      Scaler
 
-	tInvModQ []uint64
-
 	tmpPoly *ring.Poly
 	tmpPtRt *PlaintextRingT
 }
@@ -72,38 +70,28 @@ type encoder struct {
 // NewEncoder creates a new encoder from the provided parameters.
 func NewEncoder(params Parameters) Encoder {
 
-	ringQ := params.RingQ()
-	ringT := params.RingT()
+	var N, logN, pow, pos uint64 = uint64(params.N()), uint64(params.LogN()), 1, 0
 
-	var m, pos, index1, index2 uint64
+	mask := 2*N - 1
 
-	slots := params.N()
+	indexMatrix := make([]uint64, N)
 
-	indexMatrix := make([]uint64, slots)
+	for i, j := 0, int(N>>1); i < int(N>>1); i, j = i+1, j+1 {
 
-	logN := uint64(params.LogN())
+		pos = utils.BitReverse64(pow>>1, logN)
 
-	rowSize := params.N() >> 1
-	m = uint64(params.N()) << 1
-	pos = 1
+		indexMatrix[i] = pos
+		indexMatrix[j] = N - pos - 1
 
-	for i := 0; i < rowSize; i++ {
-
-		index1 = (pos - 1) >> 1
-		index2 = (m - pos - 1) >> 1
-
-		indexMatrix[i] = utils.BitReverse64(index1, logN)
-		indexMatrix[i|rowSize] = utils.BitReverse64(index2, logN)
-
-		pos *= GaloisGen
-		pos &= (m - 1)
+		pow *= GaloisGen
+		pow &= mask
 	}
 
 	return &encoder{
 		params:      params,
 		indexMatrix: indexMatrix,
-		scaler:      NewRNSScaler(ringQ, ringT.Modulus[0]),
-		tmpPoly:     ringQ.NewPoly(),
+		scaler:      NewRNSScaler(params.RingQ(), params.T()),
+		tmpPoly:     params.RingQ().NewPoly(),
 		tmpPtRt:     NewPlaintextRingT(params),
 	}
 }
@@ -225,7 +213,7 @@ func (ecd *encoder) RingTToMul(ptRt *PlaintextRingT, ptMul *PlaintextMul) {
 // MulToRingT transforms a PlaintextMul into PlaintextRingT by performing the inverse NTT transform of R_q and
 // putting the coefficients out of the Montgomery form.
 func (ecd *encoder) MulToRingT(pt *PlaintextMul, ptRt *PlaintextRingT) {
-	ecd.params.RingQ().InvNTTLvl(0, pt.Value, ptRt.Value)
+	ecd.params.RingQ().InvNTTLazyLvl(0, pt.Value, ptRt.Value)
 	ecd.params.RingQ().InvMFormLvl(0, ptRt.Value, ptRt.Value)
 }
 

@@ -1,23 +1,42 @@
-package rlwe
+// Package ringqp is implements a wrapper for both the ringQ and ringP.
+package ringqp
 
 import (
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
-// PolyQP represents a polynomial in the ring of polynomial modulo Q*P.
+// Poly represents a polynomial in the ring of polynomial modulo Q*P.
 // This type is simply the union type between two ring.Poly, each one
 // containing the modulus Q and P coefficients of that polynomial.
 // The modulus Q represent the ciphertext modulus and the modulus P
 // the special primes for the RNS decomposition during homomorphic
 // operations involving keys.
-type PolyQP struct {
+type Poly struct {
 	Q, P *ring.Poly
 }
 
-// Equals returns true if the receiver PolyQP is equal to the provided other PolyQP.
+// LevelQ returns the level of the polynomial modulo Q.
+// Returns -1 if the modulus Q is absent.
+func (p *Poly) LevelQ() int {
+	if p.Q != nil {
+		return p.Q.Level()
+	}
+	return -1
+}
+
+// LevelP returns the level of the polynomial modulo P.
+// Returns -1 if the modulus P is absent.
+func (p *Poly) LevelP() int {
+	if p.P != nil {
+		return p.P.Level()
+	}
+	return -1
+}
+
+// Equals returns true if the receiver Poly is equal to the provided other Poly.
 // This method checks for equality of its two sub-polynomials.
-func (p *PolyQP) Equals(other PolyQP) (v bool) {
+func (p *Poly) Equals(other Poly) (v bool) {
 
 	if p == &other {
 		return true
@@ -33,22 +52,22 @@ func (p *PolyQP) Equals(other PolyQP) (v bool) {
 	return v
 }
 
-// CopyValues copies the coefficients of p1 on the target polynomial.
+// CopyValues copies the coefficients of other on the target polynomial.
 // This method simply calls the CopyValues method for each of its sub-polynomials.
-func (p *PolyQP) CopyValues(other PolyQP) {
+func (p *Poly) CopyValues(other Poly) {
 	if p.Q != nil {
-		p.Q.CopyValues(other.Q)
+		copy(p.Q.Buff, other.Q.Buff)
 	}
 
 	if p.P != nil {
-		p.P.CopyValues(other.P)
+		copy(p.P.Buff, other.P.Buff)
 	}
 }
 
 // CopyNew creates an exact copy of the target polynomial.
-func (p *PolyQP) CopyNew() PolyQP {
+func (p *Poly) CopyNew() Poly {
 	if p == nil {
-		return PolyQP{}
+		return Poly{}
 	}
 
 	var Q, P *ring.Poly
@@ -60,18 +79,18 @@ func (p *PolyQP) CopyNew() PolyQP {
 		P = p.P.CopyNew()
 	}
 
-	return PolyQP{Q, P}
+	return Poly{Q, P}
 }
 
-// RingQP is a structure that implements the operation in the ring R_QP.
+// Ring is a structure that implements the operation in the ring R_QP.
 // This type is simply a union type between the two Ring types representing
 // R_Q and R_P.
-type RingQP struct {
+type Ring struct {
 	RingQ, RingP *ring.Ring
 }
 
 // NewPoly creates a new polynomial with all coefficients set to 0.
-func (r *RingQP) NewPoly() PolyQP {
+func (r *Ring) NewPoly() Poly {
 	var Q, P *ring.Poly
 	if r.RingQ != nil {
 		Q = r.RingQ.NewPoly()
@@ -80,11 +99,11 @@ func (r *RingQP) NewPoly() PolyQP {
 	if r.RingP != nil {
 		P = r.RingP.NewPoly()
 	}
-	return PolyQP{Q, P}
+	return Poly{Q, P}
 }
 
 // NewPolyLvl creates a new polynomial with all coefficients set to 0.
-func (r *RingQP) NewPolyLvl(levelQ, levelP int) PolyQP {
+func (r *Ring) NewPolyLvl(levelQ, levelP int) Poly {
 
 	var Q, P *ring.Poly
 	if r.RingQ != nil {
@@ -94,101 +113,112 @@ func (r *RingQP) NewPolyLvl(levelQ, levelP int) PolyQP {
 	if r.RingP != nil {
 		P = r.RingP.NewPolyLvl(levelP)
 	}
-	return PolyQP{Q, P}
+	return Poly{Q, P}
 }
 
 // AddLvl adds p1 to p2 coefficient-wise and writes the result on p3.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
-func (r *RingQP) AddLvl(levelQ, levelP int, p1, p2, pOut PolyQP) {
+func (r *Ring) AddLvl(levelQ, levelP int, p1, p2, p3 Poly) {
 	if r.RingQ != nil {
-		r.RingQ.AddLvl(levelQ, p1.Q, p2.Q, pOut.Q)
+		r.RingQ.AddLvl(levelQ, p1.Q, p2.Q, p3.Q)
 	}
 	if r.RingP != nil {
-		r.RingP.AddLvl(levelP, p1.P, p2.P, pOut.P)
+		r.RingP.AddLvl(levelP, p1.P, p2.P, p3.P)
 	}
 }
 
 // AddNoModLvl adds p1 to p2 coefficient-wise and writes the result on p3 without modular reduction.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
-func (r *RingQP) AddNoModLvl(levelQ, levelP int, p1, p2, pOut PolyQP) {
+func (r *Ring) AddNoModLvl(levelQ, levelP int, p1, p2, p3 Poly) {
 	if r.RingQ != nil {
-		r.RingQ.AddNoModLvl(levelQ, p1.Q, p2.Q, pOut.Q)
+		r.RingQ.AddNoModLvl(levelQ, p1.Q, p2.Q, p3.Q)
 	}
 	if r.RingP != nil {
-		r.RingP.AddNoModLvl(levelP, p1.P, p2.P, pOut.P)
+		r.RingP.AddNoModLvl(levelP, p1.P, p2.P, p3.P)
 	}
 }
 
 // SubLvl subtracts p2 to p1 coefficient-wise and writes the result on p3.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
-func (r *RingQP) SubLvl(levelQ, levelP int, p1, p2, pOut PolyQP) {
+func (r *Ring) SubLvl(levelQ, levelP int, p1, p2, p3 Poly) {
 	if r.RingQ != nil {
-		r.RingQ.SubLvl(levelQ, p1.Q, p2.Q, pOut.Q)
+		r.RingQ.SubLvl(levelQ, p1.Q, p2.Q, p3.Q)
 	}
 	if r.RingP != nil {
-		r.RingP.SubLvl(levelP, p1.P, p2.P, pOut.P)
+		r.RingP.SubLvl(levelP, p1.P, p2.P, p3.P)
+	}
+}
+
+// NegLvl negates p1 coefficient-wise and writes the result on p2.
+// The operation is performed at levelQ for the ringQ and levelP for the ringP.
+func (r *Ring) NegLvl(levelQ, levelP int, p1, p2 Poly) {
+	if r.RingQ != nil {
+		r.RingQ.NegLvl(levelQ, p1.Q, p2.Q)
+	}
+	if r.RingP != nil {
+		r.RingP.NegLvl(levelP, p1.P, p2.P)
 	}
 }
 
 // NTTLvl computes the NTT of p1 and returns the result on p2.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
-func (r *RingQP) NTTLvl(levelQ, levelP int, p, pOut PolyQP) {
+func (r *Ring) NTTLvl(levelQ, levelP int, p1, p2 Poly) {
 	if r.RingQ != nil {
-		r.RingQ.NTTLvl(levelQ, p.Q, pOut.Q)
+		r.RingQ.NTTLvl(levelQ, p1.Q, p2.Q)
 	}
 	if r.RingP != nil {
-		r.RingP.NTTLvl(levelP, p.P, pOut.P)
+		r.RingP.NTTLvl(levelP, p1.P, p2.P)
 	}
 }
 
 // InvNTTLvl computes the inverse-NTT of p1 and returns the result on p2.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
-func (r *RingQP) InvNTTLvl(levelQ, levelP int, p, pOut PolyQP) {
+func (r *Ring) InvNTTLvl(levelQ, levelP int, p1, p2 Poly) {
 	if r.RingQ != nil {
-		r.RingQ.InvNTTLvl(levelQ, p.Q, pOut.Q)
+		r.RingQ.InvNTTLvl(levelQ, p1.Q, p2.Q)
 	}
 	if r.RingP != nil {
-		r.RingP.InvNTTLvl(levelP, p.P, pOut.P)
+		r.RingP.InvNTTLvl(levelP, p1.P, p2.P)
 	}
 }
 
 // NTTLazyLvl computes the NTT of p1 and returns the result on p2.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
 // Output values are in the range [0, 2q-1].
-func (r *RingQP) NTTLazyLvl(levelQ, levelP int, p, pOut PolyQP) {
+func (r *Ring) NTTLazyLvl(levelQ, levelP int, p1, p2 Poly) {
 	if r.RingQ != nil {
-		r.RingQ.NTTLazyLvl(levelQ, p.Q, pOut.Q)
+		r.RingQ.NTTLazyLvl(levelQ, p1.Q, p2.Q)
 	}
 	if r.RingP != nil {
-		r.RingP.NTTLazyLvl(levelP, p.P, pOut.P)
+		r.RingP.NTTLazyLvl(levelP, p1.P, p2.P)
 	}
 }
 
 // MFormLvl switches p1 to the Montgomery domain and writes the result on p2.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
-func (r *RingQP) MFormLvl(levelQ, levelP int, p, pOut PolyQP) {
+func (r *Ring) MFormLvl(levelQ, levelP int, p1, p2 Poly) {
 	if r.RingQ != nil {
-		r.RingQ.MFormLvl(levelQ, p.Q, pOut.Q)
+		r.RingQ.MFormLvl(levelQ, p1.Q, p2.Q)
 	}
 	if r.RingP != nil {
-		r.RingP.MFormLvl(levelP, p.P, pOut.P)
+		r.RingP.MFormLvl(levelP, p1.P, p2.P)
 	}
 }
 
 // InvMFormLvl switches back p1 from the Montgomery domain to the conventional domain and writes the result on p2.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
-func (r *RingQP) InvMFormLvl(levelQ, levelP int, p, pOut PolyQP) {
+func (r *Ring) InvMFormLvl(levelQ, levelP int, p1, p2 Poly) {
 	if r.RingQ != nil {
-		r.RingQ.InvMFormLvl(levelQ, p.Q, pOut.Q)
+		r.RingQ.InvMFormLvl(levelQ, p1.Q, p2.Q)
 	}
 	if r.RingP != nil {
-		r.RingP.InvMFormLvl(levelP, p.P, pOut.P)
+		r.RingP.InvMFormLvl(levelP, p1.P, p2.P)
 	}
 }
 
 // MulCoeffsMontgomeryLvl multiplies p1 by p2 coefficient-wise with a Montgomery modular reduction.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
-func (r *RingQP) MulCoeffsMontgomeryLvl(levelQ, levelP int, p1, p2, p3 PolyQP) {
+func (r *Ring) MulCoeffsMontgomeryLvl(levelQ, levelP int, p1, p2, p3 Poly) {
 	if r.RingQ != nil {
 		r.RingQ.MulCoeffsMontgomeryLvl(levelQ, p1.Q, p2.Q, p3.Q)
 	}
@@ -200,7 +230,7 @@ func (r *RingQP) MulCoeffsMontgomeryLvl(levelQ, levelP int, p1, p2, p3 PolyQP) {
 // MulCoeffsMontgomeryConstantLvl multiplies p1 by p2 coefficient-wise with a constant-time Montgomery modular reduction.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
 // Result is within [0, 2q-1].
-func (r *RingQP) MulCoeffsMontgomeryConstantLvl(levelQ, levelP int, p1, p2, p3 PolyQP) {
+func (r *Ring) MulCoeffsMontgomeryConstantLvl(levelQ, levelP int, p1, p2, p3 Poly) {
 	if r.RingQ != nil {
 		r.RingQ.MulCoeffsMontgomeryConstantLvl(levelQ, p1.Q, p2.Q, p3.Q)
 	}
@@ -212,7 +242,7 @@ func (r *RingQP) MulCoeffsMontgomeryConstantLvl(levelQ, levelP int, p1, p2, p3 P
 // MulCoeffsMontgomeryConstantAndAddNoModLvl multiplies p1 by p2 coefficient-wise with a
 // constant-time Montgomery modular reduction and adds the result on p3.
 // Result is within [0, 2q-1]
-func (r *RingQP) MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP int, p1, p2, p3 PolyQP) {
+func (r *Ring) MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP int, p1, p2, p3 Poly) {
 	if r.RingQ != nil {
 		r.RingQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, p1.Q, p2.Q, p3.Q)
 	}
@@ -224,7 +254,7 @@ func (r *RingQP) MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP int, p
 // MulCoeffsMontgomeryAndSubLvl multiplies p1 by p2 coefficient-wise with
 // a Montgomery modular reduction and subtracts the result from p3.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
-func (r *RingQP) MulCoeffsMontgomeryAndSubLvl(levelQ, levelP int, p1, p2, p3 PolyQP) {
+func (r *Ring) MulCoeffsMontgomeryAndSubLvl(levelQ, levelP int, p1, p2, p3 Poly) {
 	if r.RingQ != nil {
 		r.RingQ.MulCoeffsMontgomeryAndSubLvl(levelQ, p1.Q, p2.Q, p3.Q)
 	}
@@ -236,7 +266,7 @@ func (r *RingQP) MulCoeffsMontgomeryAndSubLvl(levelQ, levelP int, p1, p2, p3 Pol
 // MulCoeffsMontgomeryConstantAndSubNoModLvl multiplies p1 by p2 coefficient-wise with
 // a Montgomery modular reduction and subtracts the result from p3.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
-func (r *RingQP) MulCoeffsMontgomeryConstantAndSubNoModLvl(levelQ, levelP int, p1, p2, p3 PolyQP) {
+func (r *Ring) MulCoeffsMontgomeryConstantAndSubNoModLvl(levelQ, levelP int, p1, p2, p3 Poly) {
 	if r.RingQ != nil {
 		r.RingQ.MulCoeffsMontgomeryConstantAndSubNoModLvl(levelQ, p1.Q, p2.Q, p3.Q)
 	}
@@ -248,7 +278,7 @@ func (r *RingQP) MulCoeffsMontgomeryConstantAndSubNoModLvl(levelQ, levelP int, p
 // MulCoeffsMontgomeryAndAddLvl multiplies p1 by p2 coefficient-wise with a
 // Montgomery modular reduction and adds the result to p3.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
-func (r *RingQP) MulCoeffsMontgomeryAndAddLvl(levelQ, levelP int, p1, p2, p3 PolyQP) {
+func (r *Ring) MulCoeffsMontgomeryAndAddLvl(levelQ, levelP int, p1, p2, p3 Poly) {
 	if r.RingQ != nil {
 		r.RingQ.MulCoeffsMontgomeryAndAddLvl(levelQ, p1.Q, p2.Q, p3.Q)
 	}
@@ -257,11 +287,22 @@ func (r *RingQP) MulCoeffsMontgomeryAndAddLvl(levelQ, levelP int, p1, p2, p3 Pol
 	}
 }
 
+// ReduceLvl applies the modular reduction on the coefficients of p1 and returns the result on p2.
+// The operation is performed at levelQ for the ringQ and levelP for the ringP.
+func (r *Ring) ReduceLvl(levelQ, levelP int, p1, p2 Poly) {
+	if r.RingQ != nil {
+		r.RingQ.ReduceLvl(levelQ, p1.Q, p2.Q)
+	}
+	if r.RingP != nil {
+		r.RingP.ReduceLvl(levelP, p1.P, p2.P)
+	}
+}
+
 // PermuteNTTWithIndexLvl applies the automorphism X^{5^j} on p1 and writes the result on p2.
 // Index of automorphism must be provided.
 // Method is not in place.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
-func (r *RingQP) PermuteNTTWithIndexLvl(levelQ, levelP int, p1 PolyQP, index []uint64, p2 PolyQP) {
+func (r *Ring) PermuteNTTWithIndexLvl(levelQ, levelP int, p1 Poly, index []uint64, p2 Poly) {
 	if r.RingQ != nil {
 		r.RingQ.PermuteNTTWithIndexLvl(levelQ, p1.Q, index, p2.Q)
 	}
@@ -274,7 +315,7 @@ func (r *RingQP) PermuteNTTWithIndexLvl(levelQ, levelP int, p1 PolyQP, index []u
 // Index of automorphism must be provided.
 // Method is not in place.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
-func (r *RingQP) PermuteNTTWithIndexAndAddNoModLvl(levelQ, levelP int, p1 PolyQP, index []uint64, p2 PolyQP) {
+func (r *Ring) PermuteNTTWithIndexAndAddNoModLvl(levelQ, levelP int, p1 Poly, index []uint64, p2 Poly) {
 	if r.RingQ != nil {
 		r.RingQ.PermuteNTTWithIndexAndAddNoModLvl(levelQ, p1.Q, index, p2.Q)
 	}
@@ -285,7 +326,7 @@ func (r *RingQP) PermuteNTTWithIndexAndAddNoModLvl(levelQ, levelP int, p1 PolyQP
 
 // CopyValuesLvl copies the values of p1 on p2.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
-func (r *RingQP) CopyValuesLvl(levelQ, levelP int, p1, p2 PolyQP) {
+func (r *Ring) CopyValuesLvl(levelQ, levelP int, p1, p2 Poly) {
 	if r.RingQ != nil {
 		ring.CopyValuesLvl(levelQ, p1.Q, p2.Q)
 	}
@@ -296,7 +337,7 @@ func (r *RingQP) CopyValuesLvl(levelQ, levelP int, p1, p2 PolyQP) {
 
 // ExtendBasisSmallNormAndCenter extends a small-norm polynomial polQ in R_Q to a polynomial
 // polQP in R_QP.
-func (r *RingQP) ExtendBasisSmallNormAndCenter(polyInQ *ring.Poly, levelP int, polyOutQ, polyOutP *ring.Poly) {
+func (r *Ring) ExtendBasisSmallNormAndCenter(polyInQ *ring.Poly, levelP int, polyOutQ, polyOutP *ring.Poly) {
 	var coeff, Q, QHalf, sign uint64
 	Q = r.RingQ.Modulus[0]
 	QHalf = Q >> 1
@@ -321,8 +362,8 @@ func (r *RingQP) ExtendBasisSmallNormAndCenter(polyInQ *ring.Poly, levelP int, p
 	}
 }
 
-// Copy copies the input polyQP on the target polyQP.
-func (p *PolyQP) Copy(polFrom PolyQP) {
+// Copy copies the input Poly on the target Poly.
+func (p *Poly) Copy(polFrom Poly) {
 	if polFrom.Q != nil {
 		p.Q.Copy(polFrom.Q)
 	}
@@ -331,23 +372,25 @@ func (p *PolyQP) Copy(polFrom PolyQP) {
 	}
 }
 
-// GetDataLen returns the length in byte of the target PolyQP
-func (p *PolyQP) GetDataLen(WithMetadata bool) (dataLen int) {
+// GetDataLen64 returns the length in byte of the target Poly.
+// Assumes that each coefficient uses 8 bytes.
+func (p *Poly) GetDataLen64(WithMetadata bool) (dataLen int) {
 	if WithMetadata {
 		dataLen = 2
 	}
 	if p.Q != nil {
-		dataLen += p.Q.GetDataLen(WithMetadata)
+		dataLen += p.Q.GetDataLen64(WithMetadata)
 	}
 	if p.P != nil {
-		dataLen += p.P.GetDataLen(WithMetadata)
+		dataLen += p.P.GetDataLen64(WithMetadata)
 	}
 
 	return
 }
 
-// WriteTo writes a polyQP on the inpute data.
-func (p *PolyQP) WriteTo(data []byte) (pt int, err error) {
+// WriteTo64 writes a Poly on the inpute data.
+// Encodes each coefficient on 8 bytes.
+func (p *Poly) WriteTo64(data []byte) (pt int, err error) {
 	var inc int
 
 	if p.Q != nil {
@@ -361,14 +404,14 @@ func (p *PolyQP) WriteTo(data []byte) (pt int, err error) {
 	pt = 2
 
 	if data[0] == 1 {
-		if inc, err = p.Q.WriteTo(data[pt:]); err != nil {
+		if inc, err = p.Q.WriteTo64(data[pt:]); err != nil {
 			return
 		}
 		pt += inc
 	}
 
 	if data[1] == 1 {
-		if inc, err = p.P.WriteTo(data[pt:]); err != nil {
+		if inc, err = p.P.WriteTo64(data[pt:]); err != nil {
 			return
 		}
 		pt += inc
@@ -377,23 +420,33 @@ func (p *PolyQP) WriteTo(data []byte) (pt int, err error) {
 	return
 }
 
-// DecodePolyNew decodes the input bytes on the target polyQP.
-func (p *PolyQP) DecodePolyNew(data []byte) (pt int, err error) {
+// DecodePoly64 decodes the input bytes on the target Poly.
+// Writes on pre-allocated coefficients.
+// Assumes that each coefficient is encoded on 8 bytes.
+func (p *Poly) DecodePoly64(data []byte) (pt int, err error) {
 
 	var inc int
 	pt = 2
 
 	if data[0] == 1 {
-		p.Q = new(ring.Poly)
-		if inc, err = p.Q.DecodePolyNew(data[pt:]); err != nil {
+
+		if p.Q == nil {
+			p.Q = new(ring.Poly)
+		}
+
+		if inc, err = p.Q.DecodePoly64(data[pt:]); err != nil {
 			return
 		}
 		pt += inc
 	}
 
 	if data[1] == 1 {
-		p.P = new(ring.Poly)
-		if inc, err = p.P.DecodePolyNew(data[pt:]); err != nil {
+
+		if p.P == nil {
+			p.P = new(ring.Poly)
+		}
+
+		if inc, err = p.P.DecodePoly64(data[pt:]); err != nil {
 			return
 		}
 		pt += inc
@@ -402,26 +455,26 @@ func (p *PolyQP) DecodePolyNew(data []byte) (pt int, err error) {
 	return
 }
 
-// UniformSamplerQP is a type for sampling polynomials in RingQP.
-type UniformSamplerQP struct {
+// UniformSampler is a type for sampling polynomials in Ring.
+type UniformSampler struct {
 	samplerQ, samplerP *ring.UniformSampler
 }
 
-// NewUniformSamplerQP instantiates a new UniformSamplerQP from a given PRNG.
-func NewUniformSamplerQP(params Parameters, prng utils.PRNG) (s UniformSamplerQP) {
-	if params.RingQ() != nil {
-		s.samplerQ = ring.NewUniformSampler(prng, params.RingQ())
+// NewUniformSampler instantiates a new UniformSampler from a given PRNG.
+func NewUniformSampler(prng utils.PRNG, r Ring) (s UniformSampler) {
+	if r.RingQ != nil {
+		s.samplerQ = ring.NewUniformSampler(prng, r.RingQ)
 	}
 
-	if params.RingP() != nil {
-		s.samplerP = ring.NewUniformSampler(prng, params.RingP())
+	if r.RingP != nil {
+		s.samplerP = ring.NewUniformSampler(prng, r.RingP)
 	}
 
 	return s
 }
 
-// Read samples a new polynomial in RingQP and stores it into p.
-func (s UniformSamplerQP) Read(p *PolyQP) {
+// Read samples a new polynomial in Ring and stores it into p.
+func (s UniformSampler) Read(p Poly) {
 	if p.Q != nil && s.samplerQ != nil {
 		s.samplerQ.Read(p.Q)
 	}
@@ -429,4 +482,23 @@ func (s UniformSamplerQP) Read(p *PolyQP) {
 	if p.P != nil && s.samplerP != nil {
 		s.samplerP.Read(p.P)
 	}
+}
+
+// ReadLvl samples a new polynomial in Ring and stores it into p.
+func (s UniformSampler) ReadLvl(levelQ, levelP int, p Poly) {
+	if p.Q != nil && s.samplerQ != nil {
+		s.samplerQ.ReadLvl(levelQ, p.Q)
+	}
+
+	if p.P != nil && s.samplerP != nil {
+		s.samplerP.ReadLvl(levelP, p.P)
+	}
+}
+
+func (s UniformSampler) WithPRNG(prng utils.PRNG) UniformSampler {
+	sp := UniformSampler{samplerQ: s.samplerQ.WithPRNG(prng)}
+	if s.samplerP != nil {
+		sp.samplerP = s.samplerP.WithPRNG(prng)
+	}
+	return sp
 }

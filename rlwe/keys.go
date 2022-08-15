@@ -11,7 +11,7 @@ type SecretKey struct {
 
 // PublicKey is a type for generic RLWE public keys.
 type PublicKey struct {
-	Value [2]ringqp.Poly
+	CiphertextQP
 }
 
 // SwitchingKey is a type for generic RLWE public switching keys.
@@ -61,7 +61,7 @@ func (sk *SecretKey) LevelP() int {
 
 // NewPublicKey returns a new PublicKey with zero values.
 func NewPublicKey(params Parameters) (pk *PublicKey) {
-	pk = &PublicKey{Value: [2]ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()}}
+	pk = &PublicKey{CiphertextQP{[]ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()}}}
 	pk.Value[0].Q.IsNTT = true
 	pk.Value[1].Q.IsNTT = true
 	if params.PCount() > 0 {
@@ -158,7 +158,7 @@ func (pk *PublicKey) CopyNew() *PublicKey {
 	if pk == nil {
 		return nil
 	}
-	return &PublicKey{[2]ringqp.Poly{pk.Value[0].CopyNew(), pk.Value[1].CopyNew()}}
+	return &PublicKey{CiphertextQP{[]ringqp.Poly{pk.Value[0].CopyNew(), pk.Value[1].CopyNew()}}}
 }
 
 // Equals checks two RelinearizationKeys for equality.

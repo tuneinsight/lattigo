@@ -157,6 +157,9 @@ func GetDataLen64(N, Level int, WithMetadata bool) (cnt int) {
 // Assumes that each coefficient takes 8 bytes.
 // It can take into account meta data if necessary.
 func (pol *Poly) GetDataLen64(WithMetadata bool) (cnt int) {
+	if pol == nil {
+		return 0
+	}
 	return GetDataLen64(pol.N(), pol.Level(), WithMetadata)
 }
 
@@ -333,6 +336,9 @@ func GetPolyDataLen32(N, Level int, WithMetadata bool) (cnt int) {
 // Assumes that each coefficient is encoded on 4 bytes.
 // It can take into account meta data if necessary.
 func (pol *Poly) GetDataLen32(WithMetadata bool) (cnt int) {
+	if pol == nil {
+		return 0
+	}
 	return GetPolyDataLen32(pol.N(), pol.Level(), WithMetadata)
 }
 

@@ -502,7 +502,7 @@ func (p *Poly) WriteTo64(data []byte) (pt int, err error) {
 }
 
 // DecodePoly64 decodes the input bytes on the target Poly.
-// Writes on pre-allocated coefficients.
+// Allocates the coefficients if they are not pre-allocated.
 // Assumes that each coefficient is encoded on 8 bytes.
 func (p *Poly) DecodePoly64(data []byte) (pt int, err error) {
 

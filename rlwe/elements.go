@@ -4,7 +4,6 @@ import (
 	"math/big"
 
 	"github.com/tuneinsight/lattigo/v3/ring"
-	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
@@ -16,16 +15,6 @@ type Plaintext struct {
 // Ciphertext is a generic type for RLWE ciphertexts.
 type Ciphertext struct {
 	Value []*ring.Poly
-}
-
-// PlaintextQP is a generic type for RLWE plaintext in R_qp.
-type PlaintextQP struct {
-	Value ringqp.Poly
-}
-
-// CiphertextQP is a generic type for RLWE ciphertext in R_qp.
-type CiphertextQP struct {
-	Value []ringqp.Poly
 }
 
 // AdditiveShare is a type for storing additively shared values in Z_Q[X] (RNS domain)
@@ -285,28 +274,4 @@ func PopulateElementRandom(prng utils.PRNG, params Parameters, el *Ciphertext) {
 	for i := range el.Value {
 		sampler.Read(el.Value[i])
 	}
-}
-
-func (el *PlaintextQP) El() CiphertextQP {
-	return CiphertextQP{Value: []ringqp.Poly{el.Value}}
-}
-
-func (el *PlaintextQP) Level() (int, int) {
-	return el.Value.Q.Level(), el.Value.P.Level()
-}
-
-func (el *PlaintextQP) Degree() int {
-	return 0
-}
-
-func (el *CiphertextQP) Level() (int, int) {
-	return el.Value[0].Q.Level(), el.Value[0].P.Level()
-}
-
-func (el *CiphertextQP) Degree() int {
-	return len(el.Value)
-}
-
-func (el *CiphertextQP) El() CiphertextQP {
-	return *el
 }

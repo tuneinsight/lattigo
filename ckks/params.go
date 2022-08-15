@@ -344,6 +344,10 @@ func NewParameters(rlweParams rlwe.Parameters, logSlots int, defaultScale float6
 		return Parameters{}, fmt.Errorf("logSlot=%d is larger than the logN-1=%d or smaller than %d", logSlots, maxLogSlots, minLogSlots)
 	}
 
+	if defaultScale <= 0{
+		return Parameters{}, fmt.Errorf("defaultScale cannot be zero or negative")
+	}
+
 	return Parameters{rlweParams, logSlots, defaultScale}, nil
 }
 

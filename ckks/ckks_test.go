@@ -1476,6 +1476,14 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		linTransf := GenLinearTransformBSGS(tc.encoder, diagMatrix, params.MaxLevel(), params.DefaultScale(), 1.0, params.logSlots)
 
+		data, err := linTransf.MarshalBinary()
+		require.Nil(t, err)
+
+		newLinTransf := LinearTransform{}
+		require.Nil(t, newLinTransf.UnmarshalBinary(data))
+
+		require.Equal(t, linTransf, newLinTransf)
+
 		rots := linTransf.Rotations()
 
 		rotKey := tc.kgen.GenRotationKeysForRotations(rots, false, tc.sk)
@@ -1532,6 +1540,14 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 		}
 
 		linTransf := GenLinearTransformBSGSEncrypted(tc.encoder, tc.encryptorSk, diagMatrix, params.MaxLevel(), params.DefaultScale(), 1.0, params.logSlots)
+
+		data, err := linTransf.MarshalBinary()
+		require.Nil(t, err)
+
+		newLinTransf := LinearTransform{}
+		require.Nil(t, newLinTransf.UnmarshalBinary(data))
+
+		require.Equal(t, linTransf, newLinTransf)
 
 		rots := linTransf.Rotations()
 

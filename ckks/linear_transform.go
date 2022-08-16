@@ -1,6 +1,9 @@
 package ckks
 
 import (
+	"encoding/binary"
+	"fmt"
+	"math"
 	"runtime"
 
 	"github.com/tuneinsight/lattigo/v3/ring"
@@ -89,6 +92,110 @@ type OperandQP interface {
 	Degree() (deg int)
 	Level() (levelQ, levelP int)
 	El() rlwe.CiphertextQP
+	GetDataLen64(WithMetaData bool) (dataLen int)
+	WriteTo64(data []byte) (ptr int, err error)
+	Decode64(data []byte) (ptr int, err error)
+}
+
+// GetDataLen64 returns the size in bytes of the target LinearTransform when
+// encoded on a slice of bytes using MarshalBinary.
+func (LT *LinearTransform) GetDataLen64(WithMetaData bool) (dataLen int) {
+	dataLen += 4*8 + 1
+
+	var opQPLen int
+	for i := range LT.Vec {
+		opQPLen = LT.Vec[i].GetDataLen64(WithMetaData)
+		break
+	}
+
+	return dataLen + len(LT.Vec)*(opQPLen+8)
+}
+
+// MarshalBinary encodes the target LinearTransform on a slice of bytes.
+func (LT *LinearTransform) MarshalBinary() (data []byte, err error) {
+
+	data = make([]byte, LT.GetDataLen64(true))
+
+	var ptr int
+
+	binary.LittleEndian.PutUint64(data[ptr:], uint64(LT.LogSlots))
+	ptr += 8
+	binary.LittleEndian.PutUint64(data[ptr:], uint64(LT.N1))
+	ptr += 8
+	binary.LittleEndian.PutUint64(data[ptr:], uint64(LT.Level))
+	ptr += 8
+	binary.LittleEndian.PutUint64(data[ptr:], math.Float64bits(LT.Scale))
+	ptr += 8
+
+	for _, diag := range LT.Vec {
+		if diag.Degree() > 0 {
+			data[ptr] = 1
+		}
+		break
+	}
+	ptr++
+
+	var inc int
+	for rot, diag := range LT.Vec {
+
+		binary.BigEndian.PutUint64(data[ptr:], uint64(rot))
+		ptr += 8
+
+		if inc, err = diag.WriteTo64(data[ptr:]); err != nil {
+			return nil, err
+		}
+
+		ptr += inc
+	}
+
+	return
+}
+
+// UnmarshalBinary decodes the input slice of bytes on the target LinearTransform.
+func (LT *LinearTransform) UnmarshalBinary(data []byte) (err error) {
+
+	var ptr int
+
+	LT.LogSlots = int(binary.LittleEndian.Uint64(data[ptr:]))
+	ptr += 8
+	LT.N1 = int(binary.LittleEndian.Uint64(data[ptr:]))
+	ptr += 8
+	LT.Level = int(binary.LittleEndian.Uint64(data[ptr:]))
+	ptr += 8
+	LT.Scale = math.Float64frombits(binary.LittleEndian.Uint64(data[ptr:]))
+	ptr += 8
+
+	LT.Vec = make(map[int]OperandQP)
+
+	encrypted := data[ptr] == 1
+	ptr++
+
+	var inc int
+	for ptr < len(data) {
+
+		rot := int(binary.BigEndian.Uint64(data[ptr:]))
+		ptr += 8
+
+		var diag OperandQP
+		if encrypted {
+			diag = &rlwe.CiphertextQP{}
+		} else {
+			diag = &rlwe.PlaintextQP{}
+		}
+
+		if inc, err = diag.Decode64(data[ptr:]); err != nil {
+			return
+		}
+		ptr += inc
+
+		LT.Vec[rot] = diag
+	}
+
+	if ptr != len(data) {
+		return fmt.Errorf("remaining unparsed data")
+	}
+
+	return
 }
 
 // NewLinearTransform allocates a new LinearTransform with zero plaintexts at the specified level.

@@ -30,17 +30,17 @@ func (el *Ciphertext) MarshalBinary() (data []byte, err error) {
 
 	data[0] = uint8(el.Degree() + 1)
 
-	var pointer, inc int
+	var ptr, inc int
 
-	pointer = 1
+	ptr = 1
 
 	for _, el := range el.Value {
 
-		if inc, err = el.WriteTo64(data[pointer:]); err != nil {
+		if inc, err = el.WriteTo64(data[ptr:]); err != nil {
 			return nil, err
 		}
 
-		pointer += inc
+		ptr += inc
 	}
 
 	return data, nil
@@ -54,21 +54,21 @@ func (el *Ciphertext) UnmarshalBinary(data []byte) (err error) {
 
 	el.Value = make([]*ring.Poly, uint8(data[0]))
 
-	var pointer, inc int
-	pointer = 1
+	var ptr, inc int
+	ptr = 1
 
 	for i := range el.Value {
 
 		el.Value[i] = new(ring.Poly)
 
-		if inc, err = el.Value[i].DecodePoly64(data[pointer:]); err != nil {
+		if inc, err = el.Value[i].DecodePoly64(data[ptr:]); err != nil {
 			return err
 		}
 
-		pointer += inc
+		ptr += inc
 	}
 
-	if pointer != len(data) {
+	if ptr != len(data) {
 		return errors.New("remaining unparsed data")
 	}
 
@@ -137,7 +137,7 @@ func (rlk *RelinearizationKey) GetDataLen(WithMetadata bool) (dataLen int) {
 // MarshalBinary encodes an EvaluationKey key in a byte slice.
 func (rlk *RelinearizationKey) MarshalBinary() (data []byte, err error) {
 
-	var pointer int
+	var ptr int
 
 	dataLen := rlk.GetDataLen(true)
 
@@ -145,13 +145,16 @@ func (rlk *RelinearizationKey) MarshalBinary() (data []byte, err error) {
 
 	data[0] = uint8(len(rlk.Keys))
 
-	pointer++
+	ptr++
 
+	var inc int
 	for _, evakey := range rlk.Keys {
 
-		if pointer, err = evakey.Encode(pointer, data); err != nil {
+		if inc, err = evakey.GadgetCiphertext.WriteTo64(data[ptr:]); err != nil {
 			return nil, err
 		}
+
+		ptr += inc
 	}
 
 	return data, nil
@@ -164,14 +167,14 @@ func (rlk *RelinearizationKey) UnmarshalBinary(data []byte) (err error) {
 
 	rlk.Keys = make([]*SwitchingKey, deg)
 
-	pointer := 1
+	ptr := 1
 	var inc int
 	for i := 0; i < deg; i++ {
 		rlk.Keys[i] = new(SwitchingKey)
-		if inc, err = rlk.Keys[i].Decode(data[pointer:]); err != nil {
+		if inc, err = rlk.Keys[i].Decode64(data[ptr:]); err != nil {
 			return err
 		}
-		pointer += inc
+		ptr += inc
 	}
 
 	return nil
@@ -193,16 +196,19 @@ func (rtks *RotationKeySet) MarshalBinary() (data []byte, err error) {
 
 	data = make([]byte, rtks.GetDataLen(true))
 
-	pointer := int(0)
+	ptr := int(0)
 
+	var inc int
 	for galEL, key := range rtks.Keys {
 
-		binary.BigEndian.PutUint64(data[pointer:pointer+8], galEL)
-		pointer += 8
+		binary.BigEndian.PutUint64(data[ptr:ptr+8], galEL)
+		ptr += 8
 
-		if pointer, err = key.Encode(pointer, data); err != nil {
+		if inc, err = key.WriteTo64(data[ptr:]); err != nil {
 			return nil, err
 		}
+
+		ptr += inc
 	}
 
 	return data, nil
@@ -220,7 +226,7 @@ func (rtks *RotationKeySet) UnmarshalBinary(data []byte) (err error) {
 
 		swk := new(SwitchingKey)
 		var inc int
-		if inc, err = swk.Decode(data); err != nil {
+		if inc, err = swk.Decode64(data); err != nil {
 			return err
 		}
 		data = data[inc:]

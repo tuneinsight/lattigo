@@ -51,7 +51,7 @@ func (el *CiphertextQP) Level() (int, int) {
 }
 
 func (el *CiphertextQP) Degree() int {
-	return len(el.Value)
+	return len(el.Value) - 1
 }
 
 func (el *CiphertextQP) El() CiphertextQP {
@@ -98,10 +98,11 @@ func (el *CiphertextQP) WriteTo64(data []byte) (ptr int, err error) {
 // and returns the pointer (index) of the cursor in the byte slice.
 // Assumes that each coefficient is encode on 8 bytes.
 func (el *CiphertextQP) Decode64(data []byte) (ptr int, err error) {
-	if pad := int(uint8(data[0])) - len(el.Value); pad > 0 {
+
+	if pad := int(uint8(data[0])) + 1 - len(el.Value); pad > 0 {
 		el.Value = append(el.Value, make([]ringqp.Poly, pad)...)
 	} else {
-		el.Value = el.Value[:len(el.Value)+pad]
+		el.Value = el.Value[:uint8(data[0])+1]
 	}
 
 	ptr++

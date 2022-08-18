@@ -73,22 +73,21 @@ See CHANGELOG.md for the current and past versions.
 ## Stability
 
 To keep a comprehensive history, we prioritize rebases over merges for branches other than `main`.
-Branches with the prefix `dev_` are a branches in active development and will be frequently rebased.
+Branches with the prefix `dev_` are branches in active development and will be frequently rebased.
 
 ## Pull Requests
 
-External pull requests should only be used to propose new functionalities that are substantial and would require a fair amount of work if done on our side. If you plan to open such pull request, please contact us before doing so to make sure that the proposed change are
+External pull requests should only be used to propose new functionalities that are substantial and would require a fair amount of work if done on our side. If you plan to open such a pull request, please contact us before doing so to make sure that the proposed changes are
 aligned with our development roadmap.
 
-External pull requests only proposing small or trivial changes will be closed and converted to an issue.
+External pull requests only proposing small or trivial changes will be converted to an issue and closed.
 
 ## Support and Issues
 
-The github issues should be prioritized for bug reports and questions directly related to the use or inner working of the library. 
-Any issue opened regarding an unexpected behavior of the library or one of its packages must be accompanied 
-by a self contained `main.go` reproducing the unwanted behavior.
-
-Question related issues will be closed after 7 days of inactivity since the last response from our side.
+The GitHub issues should be only used for bug reports and questions directly related to the use or the implementation of the library.
+Any other issue will be closed, and for this we recommend the use of GitHub discussions or other topic-specific forums instead.
+Any new issue regarding an unexpected behavior of the library or one of its packages must be accompanied 
+by a self-contained `main.go` reproducing the unwanted behavior.
 
 ## License
 
@@ -96,7 +95,7 @@ Lattigo is licensed under the Apache 2.0 License. See LICENSE.
 
 ## Contact
 
-If you want to contribute to Lattigo or you have any question or suggestion, do not hesitate to contact us at
+If you want to contribute to Lattigo or you have any questions or suggestions, do not hesitate to contact us at
 [lattigo@tuneinsight.com](mailto:lattigo@tuneinsight.com).
 
 ## Citing

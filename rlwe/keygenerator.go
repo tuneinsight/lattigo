@@ -193,9 +193,9 @@ func (keygen *keyGenerator) GenSwitchingKeysForRingSwap(skStd, skConjugateInvari
 // If the ringDegree(skOutput) < ringDegree(skInput),  generates [-a*skOut_{Y^{N/n}} + w*P*skIn + e_{N}, a_{N}] in X^{N}.
 // Else generates [-a*skOut + w*P*skIn + e, a] in X^{N}.
 // The output switching key is always given in max(N, n) and in the moduli of the output switching key.
-// When key-switching a ciphertext from Y^{N/n} to X^{N}, the ciphertext must first be mapped to X^{N}
+// When key-switching a Ciphertext from Y^{N/n} to X^{N}, the Ciphertext must first be mapped to X^{N}
 // using SwitchCiphertextRingDegreeNTT(ctSmallDim, nil, ctLargeDim).
-// When key-switching a ciphertext from X^{N} to Y^{N/n}, the output of the key-switch is in still X^{N} and
+// When key-switching a Ciphertext from X^{N} to Y^{N/n}, the output of the key-switch is in still X^{N} and
 // must be mapped Y^{N/n} using SwitchCiphertextRingDegreeNTT(ctLargeDim, ringQLargeDim, ctSmallDim).
 func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *SwitchingKey) {
 

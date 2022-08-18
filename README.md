@@ -91,7 +91,7 @@ by a self-contained `main.go` reproducing the unwanted behavior.
 
 ## License
 
-Lattigo is licensed under the Apache 2.0 License. See LICENSE.
+Lattigo is licensed under the Apache 2.0 License. See [LICENSE](https://github.com/tuneinsight/lattigo/blob/master/LICENSE).
 
 ## Contact
 

@@ -141,9 +141,9 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
 	}
 
 	switch {
-	case paramDef.Q != nil && paramDef.LogQ == nil:
+	case (paramDef.Q != nil && paramDef.LogQ == nil) && paramDef.LogP == nil:
 		return NewParameters(paramDef.LogN, paramDef.Q, paramDef.P, paramDef.Pow2Base, paramDef.H, paramDef.Sigma, paramDef.RingType)
-	case paramDef.LogQ != nil && paramDef.Q == nil:
+	case (paramDef.LogQ != nil && paramDef.Q == nil) && paramDef.P == nil:
 		var q, p []uint64
 		var err error
 		switch paramDef.RingType {
@@ -159,7 +159,7 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
 		}
 		return NewParameters(paramDef.LogN, q, p, paramDef.Pow2Base, paramDef.H, paramDef.Sigma, paramDef.RingType)
 	default:
-		return Parameters{}, fmt.Errorf("rlwe.NewParametersFromLiteral: invalid parameter literal")
+		return Parameters{}, fmt.Errorf("rlwe.NewParametersFromLiteral: invalid parameter literal. Make sure to give either Q and P or LogQ and LogP, but not a mix of both")
 	}
 }
 

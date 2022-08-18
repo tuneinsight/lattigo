@@ -64,6 +64,7 @@ type Encoder interface {
 	Embed(values interface{}, logSlots int, scale float64, montgomery bool, polyOut interface{})
 	GetErrSTDCoeffDomain(valuesWant, valuesHave []complex128, scale float64) (std float64)
 	GetErrSTDSlotDomain(valuesWant, valuesHave []complex128, scale float64) (std float64)
+	Parameters() Parameters
 	ShallowCopy() Encoder
 }
 
@@ -107,6 +108,11 @@ func (ecd *encoder) ShallowCopy() *encoder {
 		rotGroup:        ecd.rotGroup,
 		gaussianSampler: ring.NewGaussianSampler(prng, ecd.params.RingQ(), ecd.params.Sigma(), int(6*ecd.params.Sigma())),
 	}
+}
+
+// Parameters returns the Parameters used by the target encoder.
+func (ecd *encoder) Parameters() Parameters {
+	return ecd.params
 }
 
 func newEncoder(params Parameters) encoder {

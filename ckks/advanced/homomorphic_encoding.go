@@ -51,19 +51,6 @@ func (mParams *EncodingMatrixLiteral) Depth(actual bool) (depth int) {
 	return
 }
 
-// Levels returns the index of the Qi used int CoeffsToSlots.
-func (mParams *EncodingMatrixLiteral) Levels() (levels []int) {
-	levels = []int{}
-	trueDepth := mParams.Depth(true)
-	for i := range mParams.ScalingFactor {
-		for range mParams.ScalingFactor[trueDepth-1-i] {
-			levels = append(levels, mParams.LevelStart-i)
-		}
-	}
-
-	return
-}
-
 // Rotations returns the list of rotations performed during the CoeffsToSlot operation.
 func (mParams *EncodingMatrixLiteral) Rotations() (rotations []int) {
 	rotations = []int{}
@@ -101,18 +88,24 @@ func NewHomomorphicEncodingMatrixFromLiteral(mParams EncodingMatrixLiteral, enco
 		logdSlots++
 	}
 
-	ctsLevels := mParams.Levels()
+	params := encoder.Parameters()
 
 	// CoeffsToSlots vectors
-	matrices := make([]ckks.LinearTransform, len(ctsLevels))
+	matrices := []ckks.LinearTransform{}
 	pVecDFT := mParams.computeDFTMatrices()
-	cnt := 0
-	trueDepth := mParams.Depth(true)
-	for i := range mParams.ScalingFactor {
-		for j := range mParams.ScalingFactor[trueDepth-i-1] {
-			matrices[cnt] = ckks.GenLinearTransformBSGS(encoder, pVecDFT[cnt], ctsLevels[cnt], mParams.ScalingFactor[trueDepth-i-1][j], mParams.BSGSRatio, logdSlots)
-			cnt++
+
+	level := mParams.LevelStart
+	var idx int
+	for i := 0; i < len(mParams.ScalingFactor); i++ {
+
+		scale := math.Pow(params.QiFloat64(level), 1.0/float64(len(mParams.ScalingFactor[i])))
+
+		for j := 0; j < len(mParams.ScalingFactor[i]); j++ {
+			matrices = append(matrices, ckks.GenLinearTransformBSGS(encoder, pVecDFT[idx], level, scale, mParams.BSGSRatio, logdSlots))
+			idx++
 		}
+
+		level--
 	}
 
 	return EncodingMatrix{EncodingMatrixLiteral: mParams, matrices: matrices}

@@ -14,6 +14,11 @@ type Parameters struct {
 	EphemeralSecretWeight   int // Hamming weight of the ephemeral secret. If 0, no ephemeral secret is used during the bootstrapping.
 }
 
+// Depth returns the depth of the bootstrapping circuit.
+func (p *Parameters) Depth() (depth int) {
+	return p.SlotsToCoeffsParameters.Depth(true) + p.EvalModParameters.Depth() + p.CoeffsToSlotsParameters.Depth(true)
+}
+
 // MarshalBinary encode the target Parameters on a slice of bytes.
 func (p *Parameters) MarshalBinary() (data []byte, err error) {
 	data = []byte{}

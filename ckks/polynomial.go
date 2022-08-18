@@ -276,14 +276,16 @@ type coefficients interface {
 }
 
 func optimalSplit(giant int) (baby int) {
-	baby = giant >> 1
-	a := (1 << baby) + (1 << (giant - baby)) + giant - baby - 3
-	b := (1 << (baby + 1)) + (1 << (giant - baby - 1)) + giant - baby - 4
-	if a > b {
-		baby++
-	}
+	/*
+		baby = giant >> 1
+		a := (1 << baby) + (1 << (giant - baby)) + giant - baby - 3
+		b := (1 << (baby + 1)) + (1 << (giant - baby - 1)) + giant - baby - 4
+		if a > b {
+			baby++
+		}
+	*/
 
-	return
+	return giant >> 1
 }
 
 // coefficientsComplex128: regular coefficients in complex128

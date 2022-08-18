@@ -182,7 +182,7 @@ func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey Ev
 		bb.logdslots++
 	}
 
-	bb.evalModPoly = advanced.NewEvalModPolyFromLiteral(btpParams.EvalModParameters)
+	bb.evalModPoly = advanced.NewEvalModPolyFromLiteral(params, btpParams.EvalModParameters)
 
 	scFac := bb.evalModPoly.ScFac()
 	K := bb.evalModPoly.K() / scFac

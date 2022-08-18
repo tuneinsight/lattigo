@@ -47,7 +47,7 @@ func TestBootstrap(t *testing.T) {
 		t.Skip("skipping bootstrapping tests for GOARCH=wasm")
 	}
 
-	paramSet := DefaultParametersSparse[0]
+	paramSet := DefaultParametersDense[0]
 	ckksParams := paramSet.SchemeParams
 	btpParams := paramSet.BootstrappingParams
 

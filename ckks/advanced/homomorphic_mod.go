@@ -30,7 +30,6 @@ const (
 // EvalModLiteral a struct for the paramters of the EvalMod step
 // of the bootstrapping
 type EvalModLiteral struct {
-	Q             uint64   // Q to reduce by during EvalMod
 	LevelStart    int      // Starting level of EvalMod
 	ScalingFactor float64  // Scaling factor used during EvalMod
 	SineType      SineType // Chose betwenn [Sin(2*pi*x)] or [cos(2*pi*x/r) with double angle formula]
@@ -39,12 +38,6 @@ type EvalModLiteral struct {
 	SineDeg       int      // Degree of the interpolation
 	DoubleAngle   int      // Number of rescale and double angle formula (only applies for cos)
 	ArcSineDeg    int      // Degree of the Taylor arcsine composed with f(2*pi*x) (if zero then not used)
-}
-
-// QDiff return Q/ClosestedPow2
-// This is the error introduced by the approximate division by Q
-func (evm *EvalModLiteral) QDiff() float64 {
-	return float64(evm.Q) / math.Exp2(math.Round(math.Log2(float64(evm.Q))))
 }
 
 // EvalModPoly is a struct storing the EvalModLiteral with
@@ -95,7 +88,7 @@ func (evp *EvalModPoly) QDiff() float64 {
 }
 
 // NewEvalModPolyFromLiteral generates an EvalModPoly fromt the EvalModLiteral.
-func NewEvalModPolyFromLiteral(evm EvalModLiteral) EvalModPoly {
+func NewEvalModPolyFromLiteral(params ckks.Parameters, evm EvalModLiteral) EvalModPoly {
 
 	var arcSinePoly *ckks.Polynomial
 	var sinePoly ckks.Polynomial
@@ -105,7 +98,8 @@ func NewEvalModPolyFromLiteral(evm EvalModLiteral) EvalModPoly {
 
 	K := float64(evm.K) / scFac
 
-	qDiff := evm.QDiff()
+	Q := params.Q()[0]
+	qDiff := float64(Q) / math.Exp2(math.Round(math.Log2(float64(Q))))
 
 	if evm.ArcSineDeg > 0 {
 

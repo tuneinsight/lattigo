@@ -68,13 +68,11 @@ func testEvalModMarshalling(t *testing.T) {
 	t.Run("Marshalling", func(t *testing.T) {
 
 		evm := EvalModLiteral{
-			Q:             0x80000000080001,
 			LevelStart:    12,
 			SineType:      Sin,
 			MessageRatio:  256.0,
 			K:             14,
 			SineDeg:       127,
-			DoubleAngle:   0,
 			ArcSineDeg:    7,
 			ScalingFactor: 1 << 60,
 		}
@@ -103,22 +101,20 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 	t.Run("SineChebyshevWithArcSine", func(t *testing.T) {
 
 		evm := EvalModLiteral{
-			Q:             0x80000000080001,
 			LevelStart:    12,
 			SineType:      Sin,
 			MessageRatio:  256.0,
 			K:             14,
 			SineDeg:       127,
-			DoubleAngle:   0,
 			ArcSineDeg:    7,
 			ScalingFactor: 1 << 60,
 		}
 
-		EvalModPoly := NewEvalModPolyFromLiteral(evm)
+		EvalModPoly := NewEvalModPolyFromLiteral(params, evm)
 
 		values, _, ciphertext := newTestVectorsEvalMod(params, encryptor, encoder, evm, t)
 
-		scale := math.Exp2(math.Round(math.Log2(float64(evm.Q) / evm.MessageRatio)))
+		scale := math.Exp2(math.Round(math.Log2(float64(params.Q()[0]) / evm.MessageRatio)))
 
 		// Scale the message to Delta = Q/MessageRatio
 		eval.ScaleUp(ciphertext, math.Round(scale/ciphertext.Scale), ciphertext)
@@ -127,7 +123,7 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 		eval.ScaleUp(ciphertext, math.Round((evm.ScalingFactor/evm.MessageRatio)/ciphertext.Scale), ciphertext)
 
 		// Normalization
-		eval.MultByConst(ciphertext, 1/(float64(evm.K)*evm.QDiff()), ciphertext)
+		eval.MultByConst(ciphertext, 1/(float64(evm.K)*EvalModPoly.QDiff()), ciphertext)
 		if err := eval.Rescale(ciphertext, params.DefaultScale(), ciphertext); err != nil {
 			t.Error(err)
 		}
@@ -138,7 +134,7 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 		// PlaintextCircuit
 		//pi2r := 6.283185307179586/complex(math.Exp2(float64(evm.DoubleAngle)), 0)
 		for i := range values {
-			values[i] -= complex(evm.MessageRatio*evm.QDiff()*math.Round(real(values[i])/(evm.MessageRatio/evm.QDiff())), 0)
+			values[i] -= complex(evm.MessageRatio*EvalModPoly.QDiff()*math.Round(real(values[i])/(evm.MessageRatio/EvalModPoly.QDiff())), 0)
 			//values[i] = sin2pi2pi(values[i] / complex(evm.MessageRatio*evm.QDiff(), 0)) * complex(evm.MessageRatio*evm.QDiff(), 0) / 6.283185307179586
 		}
 
@@ -148,22 +144,20 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 	t.Run("CosOptimizedChebyshevWithArcSine", func(t *testing.T) {
 
 		evm := EvalModLiteral{
-			Q:             0x80000000080001,
 			LevelStart:    12,
 			SineType:      Cos2,
 			MessageRatio:  256.0,
 			K:             325,
 			SineDeg:       255,
 			DoubleAngle:   4,
-			ArcSineDeg:    0,
 			ScalingFactor: 1 << 60,
 		}
 
-		EvalModPoly := NewEvalModPolyFromLiteral(evm)
+		EvalModPoly := NewEvalModPolyFromLiteral(params, evm)
 
 		values, _, ciphertext := newTestVectorsEvalMod(params, encryptor, encoder, evm, t)
 
-		scale := math.Exp2(math.Round(math.Log2(float64(evm.Q) / evm.MessageRatio)))
+		scale := math.Exp2(math.Round(math.Log2(float64(params.Q()[0]) / evm.MessageRatio)))
 
 		// Scale the message to Delta = Q/MessageRatio
 		eval.ScaleUp(ciphertext, math.Round(scale/ciphertext.Scale), ciphertext)
@@ -172,7 +166,7 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 		eval.ScaleUp(ciphertext, math.Round((evm.ScalingFactor/evm.MessageRatio)/ciphertext.Scale), ciphertext)
 
 		// Normalization
-		eval.MultByConst(ciphertext, 1/(float64(evm.K)*evm.QDiff()), ciphertext)
+		eval.MultByConst(ciphertext, 1/(float64(evm.K)*EvalModPoly.QDiff()), ciphertext)
 		if err := eval.Rescale(ciphertext, params.DefaultScale(), ciphertext); err != nil {
 			t.Error(err)
 		}
@@ -184,7 +178,7 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 		//pi2r := 6.283185307179586/complex(math.Exp2(float64(evm.DoubleAngle)), 0)
 		for i := range values {
 			//values[i] -= complex(evm.MessageRatio*evm.QDiff()*math.Round(real(values[i])/(evm.MessageRatio/evm.QDiff())), 0)
-			values[i] = sin2pi2pi(values[i]/complex(evm.MessageRatio*evm.QDiff(), 0)) * complex(evm.MessageRatio*evm.QDiff(), 0) / 6.283185307179586
+			values[i] = sin2pi2pi(values[i]/complex(evm.MessageRatio*EvalModPoly.QDiff(), 0)) * complex(evm.MessageRatio*EvalModPoly.QDiff(), 0) / 6.283185307179586
 		}
 
 		verifyTestVectors(params, encoder, decryptor, values, ciphertext, params.LogSlots(), 0, t)
@@ -198,7 +192,7 @@ func newTestVectorsEvalMod(params ckks.Parameters, encryptor ckks.Encryptor, enc
 	values = make([]complex128, 1<<logSlots)
 
 	K := float64(evm.K - 1)
-	Q := float64(evm.Q) / math.Exp2(math.Round(math.Log2(float64(evm.Q)))) * evm.MessageRatio
+	Q := float64(params.Q()[0]) / math.Exp2(math.Round(math.Log2(float64(params.Q()[0])))) * evm.MessageRatio
 
 	for i := uint64(0); i < 1<<logSlots; i++ {
 		values[i] = complex(math.Round(utils.RandFloat64(-K, K))*Q+utils.RandFloat64(-1, 1), 0)

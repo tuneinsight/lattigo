@@ -73,7 +73,7 @@ See CHANGELOG.md for the current and past versions.
 ## Stability
 
 To keep a comprehensive history, we prioritize rebases over merges for branches other than `main`.
-Branches with the prefix `dev_` are branches in active development and will be frequently rebased.
+Branches with the prefix `dev_` are branches in active development and will be frequently rebased. Hence, we don't recommend depending on them.
 
 ## Pull Requests
 

@@ -186,7 +186,7 @@ func (pcks *PCKSProtocol) AggregateShare(share1, share2, shareOut *PCKSShare) {
 func (pcks *PCKSProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined *PCKSShare, ctOut *rlwe.Ciphertext) {
 	level := utils.MinInt(utils.MinInt(ctIn.Level(), ctOut.Level()), combined.Value[0].Level())
 	pcks.params.RingQ().AddLvl(level, ctIn.Value[0], combined.Value[0], ctOut.Value[0])
-	if ctIn != ctOut{
+	if ctIn != ctOut {
 		ring.CopyValuesLvl(level, combined.Value[1], ctOut.Value[1])
 	}
 	ctOut.Resize(ctOut.Degree(), level)

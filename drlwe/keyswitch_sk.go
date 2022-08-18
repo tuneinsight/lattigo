@@ -184,7 +184,7 @@ func (cks *CKSProtocol) AggregateShare(share1, share2, shareOut *CKSShare) {
 func (cks *CKSProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined *CKSShare, ctOut *rlwe.Ciphertext) {
 	level := utils.MinInt(utils.MinInt(ctIn.Level(), ctOut.Level()), combined.Value.Level())
 	cks.params.RingQ().AddLvl(level, ctIn.Value[0], combined.Value, ctOut.Value[0])
-	if ctIn != ctOut{
+	if ctIn != ctOut {
 		ring.CopyValuesLvl(level, ctIn.Value[1], ctOut.Value[1])
 	}
 	ctOut.Resize(ctOut.Degree(), level)

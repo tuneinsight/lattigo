@@ -85,7 +85,7 @@ External pull requests only proposing small or trivial changes will be converted
 ## Support and Issues
 
 The GitHub issues should be only used for bug reports and questions directly related to the use or the implementation of the library.
-Any other issue will be closed, and for this we recommend the use of GitHub discussions or other topic-specific forums instead.
+Any other issue will be closed, and for this we recommend the use of [GitHub discussions](https://github.com/tuneinsight/lattigo/discussions) or other topic-specific forums instead.
 Any new issue regarding an unexpected behavior of the library or one of its packages must be accompanied 
 by a self-contained `main.go` reproducing the unwanted behavior.
 

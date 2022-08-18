@@ -173,7 +173,7 @@ func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct1 *
 //
 // [ctx[0] + sum(s_i * ctx[0] + u_i * pk[0] + e_0i), sum(u_i * pk[1] + e_1i)]
 func (pcks *PCKSProtocol) AggregateShare(share1, share2, shareOut *PCKSShare) {
-	levelQ1, levelQ2 := len(share1.Value[0].Coeffs)-1, len(share2.Value[1].Coeffs)-1
+	levelQ1, levelQ2 := share1.Value[0].Level(), share1.Value[1].Level()
 	if levelQ1 != levelQ2 {
 		panic("cannot aggreate two shares at different levelQs.")
 	}
@@ -184,9 +184,12 @@ func (pcks *PCKSProtocol) AggregateShare(share1, share2, shareOut *PCKSShare) {
 
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
 func (pcks *PCKSProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined *PCKSShare, ctOut *rlwe.Ciphertext) {
-	level := utils.MinInt(ctIn.Level(), ctOut.Level())
+	level := utils.MinInt(utils.MinInt(ctIn.Level(), ctOut.Level()), combined.Value[0].Level())
 	pcks.params.RingQ().AddLvl(level, ctIn.Value[0], combined.Value[0], ctOut.Value[0])
-	ring.CopyValuesLvl(level, combined.Value[1], ctOut.Value[1])
+	if ctIn != ctOut{
+		ring.CopyValuesLvl(level, combined.Value[1], ctOut.Value[1])
+	}
+	ctOut.Resize(ctOut.Degree(), level)
 }
 
 // MarshalBinary encodes a PCKS share on a slice of bytes.

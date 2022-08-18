@@ -8,11 +8,11 @@ import (
 	"github.com/tuneinsight/lattigo/v3/ring"
 )
 
-// Bootstrapp re-encrypts a ciphertext at lvl Q0 to a ciphertext at MaxLevel-k where k is the depth of the bootstrapping circuit.
+// Bootstrap re-encrypts a ciphertext at lvl Q0 to a ciphertext at MaxLevel-k where k is the depth of the bootstrapping circuit.
 // If the input ciphertext level is zero, the input scale must be an exact power of two smaller or equal to round(Q0/2^{10}).
 // If the input ciphertext is at level one or more, the input scale does not need to be an exact power of two as one level
 // can be used to do a scale matching.
-func (btp *Bootstrapper) Bootstrapp(ctIn *ckks.Ciphertext) (ctOut *ckks.Ciphertext) {
+func (btp *Bootstrapper) Bootstrap(ctIn *ckks.Ciphertext) (ctOut *ckks.Ciphertext) {
 
 	ctOut = ctIn.CopyNew()
 

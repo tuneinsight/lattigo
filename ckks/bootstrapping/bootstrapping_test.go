@@ -138,7 +138,7 @@ func testbootstrap(params ckks.Parameters, original bool, btpParams Parameters, 
 		wg.Add(2)
 		for i := range ciphertexts {
 			go func(index int) {
-				ciphertexts[index] = bootstrappers[index].Bootstrapp(ciphertexts[index])
+				ciphertexts[index] = bootstrappers[index].Bootstrap(ciphertexts[index])
 				//btp.SetScale(ciphertexts[index], params.Scale())
 				wg.Done()
 			}(i)

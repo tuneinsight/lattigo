@@ -60,6 +60,7 @@ All notable changes to this library are documented in this file.
 - CKKS: fixed `MulAndAdd` correctness for non-identical inputs.
 - CKKS: added `advanced.EncodingMatrixLiteral.RepackImag2Real` optional field to repack the imaginary part into the right n real slots.
 - CKKS: `Trace` now only takes as input the `logSlots` of the encrypted plaintext.
+- CKKS/bootstrapping: renamed method `Bootstrapp` to `Bootstrap`.
 - DCKKS: fixed `dckks.RefreshProtocol` correctness when the output scale is different from the input scale.
 - Examples: added `examples/ckks/advanced/lut`, which is an example that performs homomorphic decoding -> LUT -> homomorphic encoding on a `ckks.Ciphertext`.
 - Examples: removed `examples/ckks/advanced/rlwe_lwe_bridge_LHHMQ20`, which is replaced by `examples/ckks/advanced/lut`.

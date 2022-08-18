@@ -75,6 +75,13 @@ See CHANGELOG.md for the current and past versions.
 To keep a comprehensive history, we prioritize rebases over merges for branches other than `main`.
 Branches with the prefix `dev_` are a branches in active development and will be frequently rebased.
 
+## Pull Requests
+
+External pull requests should only be used to propose new functionalities that are substantial and would require a fair amount of work if done on our side. If you plan to open such pull request, please contact us before doing so to make sure that the proposed change are
+aligned with our development roadmap.
+
+External pull requests only proposing small or trivial changes will be closed and converted to an issue.
+
 ## Support and Issues
 
 The github issues should be prioritized for bug reports and questions directly related to the use or inner working of the library. 

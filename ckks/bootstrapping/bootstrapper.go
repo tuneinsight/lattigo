@@ -44,12 +44,12 @@ type EvaluationKeys struct {
 // NewBootstrapper creates a new Bootstrapper.
 func NewBootstrapper(params ckks.Parameters, btpParams Parameters, btpKeys EvaluationKeys) (btp *Bootstrapper, err error) {
 
-	if btpParams.EvalModParameters.SineType == advanced.Sin && btpParams.EvalModParameters.DoubleAngle != 0 {
+	if btpParams.EvalModParameters.SineType == advanced.SinContinuous && btpParams.EvalModParameters.DoubleAngle != 0 {
 		return nil, fmt.Errorf("cannot use double angle formul for SineType = Sin -> must use SineType = Cos")
 	}
 
-	if btpParams.EvalModParameters.SineType == advanced.Cos1 && btpParams.EvalModParameters.SineDeg < 2*(btpParams.EvalModParameters.K-1) {
-		return nil, fmt.Errorf("SineType 'advanced.Cos1' uses a minimum degree of 2*(K-1) but EvalMod degree is smaller")
+	if btpParams.EvalModParameters.SineType == advanced.CosDiscret && btpParams.EvalModParameters.SineDeg < 2*(btpParams.EvalModParameters.K-1) {
+		return nil, fmt.Errorf("SineType 'advanced.CosDiscret' uses a minimum degree of 2*(K-1) but EvalMod degree is smaller")
 	}
 
 	if btpParams.CoeffsToSlotsParameters.LevelStart-btpParams.CoeffsToSlotsParameters.Depth(true) != btpParams.EvalModParameters.LevelStart {

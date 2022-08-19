@@ -43,10 +43,10 @@ func TestHomomorphicMod(t *testing.T) {
 			0x1fffffffff500001, // Pi 61
 			0x1fffffffff420001, // Pi 61
 		},
-		H:            192,
-		Sigma:        rlwe.DefaultSigma,
-		LogSlots:     13,
-		DefaultScale: 1 << 45,
+		H:               192,
+		Sigma:           rlwe.DefaultSigma,
+		LogSlots:        13,
+		LogDefaultScale: 45,
 	}
 
 	testEvalModMarshalling(t)
@@ -69,7 +69,7 @@ func testEvalModMarshalling(t *testing.T) {
 
 		evm := EvalModLiteral{
 			LevelStart:    12,
-			SineType:      Sin,
+			SineType:      SinContinuous,
 			MessageRatio:  256.0,
 			K:             14,
 			SineDeg:       127,
@@ -102,7 +102,7 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 
 		evm := EvalModLiteral{
 			LevelStart:    12,
-			SineType:      Sin,
+			SineType:      SinContinuous,
 			MessageRatio:  256.0,
 			K:             14,
 			SineDeg:       127,
@@ -145,7 +145,7 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 
 		evm := EvalModLiteral{
 			LevelStart:    12,
-			SineType:      Cos2,
+			SineType:      CosContinuous,
 			MessageRatio:  256.0,
 			K:             325,
 			SineDeg:       255,

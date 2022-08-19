@@ -22,9 +22,9 @@ func cos2pi(x complex128) complex128 {
 
 // Sin and Cos are the two proposed functions for SineType
 const (
-	Sin  = SineType(0) // Standard Chebyshev approximation of (1/2pi) * sin(2pix)
-	Cos1 = SineType(1) // Special approximation (Han and Ki) of pow((1/2pi), 1/2^r) * cos(2pi(x-0.25)/2^r); this method requires a minimum degree of 2*(K-1).
-	Cos2 = SineType(2) // Standard Chebyshev approximation of pow((1/2pi), 1/2^r) * cos(2pi(x-0.25)/2^r)
+	CosDiscret    = SineType(0) // Special approximation (Han and Ki) of pow((1/2pi), 1/2^r) * cos(2pi(x-0.25)/2^r); this method requires a minimum degree of 2*(K-1).
+	SinContinuous = SineType(1) // Standard Chebyshev approximation of (1/2pi) * sin(2pix) on the full interval
+	CosContinuous = SineType(2) // Standard Chebyshev approximation of pow((1/2pi), 1/2^r) * cos(2pi(x-0.25)/2^r) on the full interval
 )
 
 // EvalModLiteral a struct for the paramters of the EvalMod step
@@ -123,19 +123,19 @@ func NewEvalModPolyFromLiteral(params ckks.Parameters, evm EvalModLiteral) EvalM
 
 	var coeffsSinePoly []complex128
 
-	if evm.SineType == Sin {
+	if evm.SineType == SinContinuous {
 
 		if evm.DoubleAngle != 0 {
-			panic("cannot user double angle with SineType == Sin")
+			panic("cannot user double angle with SineType == SinContinuous")
 		}
 
 		coeffsSinePoly = ckks.Approximate(sin2pi2pi, -K, K, evm.SineDeg)
 
-	} else if evm.SineType == Cos1 {
+	} else if evm.SineType == CosDiscret {
 
 		coeffsSinePoly = ApproximateCos(evm.K, evm.SineDeg, evm.MessageRatio, int(evm.DoubleAngle))
 
-	} else if evm.SineType == Cos2 {
+	} else if evm.SineType == CosContinuous {
 
 		coeffsSinePoly = ckks.Approximate(cos2pi, -K, K, evm.SineDeg)
 
@@ -168,7 +168,7 @@ func NewEvalModPolyFromLiteral(params ckks.Parameters, evm EvalModLiteral) EvalM
 // counts the double angle formula.
 func (evm *EvalModLiteral) Depth() (depth int) {
 
-	if evm.SineType == Cos1 { // this method requires a minimum degree of 2*K-1.
+	if evm.SineType == CosDiscret { // this method requires a minimum degree of 2*K-1.
 		depth += int(math.Ceil(math.Log2(float64(utils.MaxInt(evm.SineDeg, 2*evm.K-1) + 1))))
 	} else {
 		depth += int(math.Ceil(math.Log2(float64(evm.SineDeg + 1))))

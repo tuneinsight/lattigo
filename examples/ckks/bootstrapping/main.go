@@ -38,16 +38,18 @@ func main() {
 	// smaller or equal to LogSlots.
 
 	paramSet := bootstrapping.DefaultParametersSparse[0] // bootstrapping.DefaultParametersDense[0]
-	ckksParams := paramSet.SchemeParams
 
-	if *flagShort {
-		ckksParams.LogN = 13
-		ckksParams.LogSlots = 12
+	ckksParamsLit, btpParams, err := bootstrapping.NewParametersFromLiteral(paramSet.SchemeParams, paramSet.BootstrappingParams)
+	if err != nil {
+		panic(err)
 	}
 
-	btpParams := paramSet.BootstrappingParams
+	if *flagShort {
+		ckksParamsLit.LogN = 13
+		ckksParamsLit.LogSlots = 12
+	}
 
-	params, err := ckks.NewParametersFromLiteral(ckksParams)
+	params, err := ckks.NewParametersFromLiteral(ckksParamsLit)
 	if err != nil {
 		panic(err)
 	}

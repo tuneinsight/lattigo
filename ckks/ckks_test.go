@@ -80,7 +80,7 @@ func TestCKKS(t *testing.T) {
 		testParams = append(DefaultParams[:4], DefaultConjugateInvariantParams[:4]...)
 	}
 
-	for _, paramsLiteral := range testParams[2:3] {
+	for _, paramsLiteral := range testParams[:] {
 
 		var params Parameters
 		if params, err = NewParametersFromLiteral(paramsLiteral); err != nil {

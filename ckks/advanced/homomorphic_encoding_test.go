@@ -36,10 +36,10 @@ func TestHomomorphicEncoding(t *testing.T) {
 			0x1fffffffffc80001, // Pi 61
 		},
 
-		H:            192,
-		Sigma:        rlwe.DefaultSigma,
-		LogSlots:     12,
-		DefaultScale: 1 << 45,
+		H:               192,
+		Sigma:           rlwe.DefaultSigma,
+		LogSlots:        12,
+		LogDefaultScale: 45,
 	}
 
 	testEncodingMatrixLiteralMarshalling(t)

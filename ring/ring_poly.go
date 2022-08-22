@@ -26,9 +26,9 @@ func NewPoly(N, Level int) (pol *Poly) {
 	return
 }
 
-// Resize resize the level of the target polynomial to the provided level.
+// Resize resizes the level of the target polynomial to the provided level.
 // If the provided level is larger than the current level, then allocates zero
-// coefficients, else dereferences the coefficients above the provided level.
+// coefficients, otherwise dereferences the coefficients above the provided level.
 func (pol *Poly) Resize(level int) {
 	N := pol.N()
 	if pol.Level() > level {
@@ -232,9 +232,9 @@ func WriteCoeffsTo64(pointer int, coeffs []uint64, data []byte) (int, error) {
 	return pointer + len(coeffs)*8, nil
 }
 
-// DecodePoly64 decodes a slice of bytes in the target polynomial returns the number of bytes decoded.
+// DecodePoly64 decodes a slice of bytes in the target polynomial and returns the number of bytes decoded.
 // The method will first try to write on the buffer. If this step fails, either because the buffer isn't
-// allocated or of the wrong size, the method will allocate the correct buffer.
+// allocated or because it is of the wrong size, the method will allocate the correct buffer.
 // Assumes that each coefficient is encoded on 8 bytes.
 func (pol *Poly) DecodePoly64(data []byte) (pointer int, err error) {
 
@@ -338,7 +338,7 @@ func (pol *Poly) GetDataLen32(WithMetadata bool) (cnt int) {
 
 // DecodePoly32 decodes a slice of bytes in the target polynomial returns the number of bytes decoded.
 // The method will first try to write on the buffer. If this step fails, either because the buffer isn't
-// allocated or of the wrong size, the method will allocate the correct buffer.
+// allocated or because it is of the wrong size, the method will allocate the correct buffer.
 // Assumes that each coefficient is encoded on 8 bytes.
 func (pol *Poly) DecodePoly32(data []byte) (pointer int, err error) {
 

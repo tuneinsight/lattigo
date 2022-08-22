@@ -116,7 +116,7 @@ func (ct *GadgetCiphertext) MarshalBinary() (data []byte, err error) {
 	return
 }
 
-// UnmarshalBinary decode a slice of bytes on the target Ciphertext.
+// UnmarshalBinary decodes a slice of bytes on the target Ciphertext.
 func (ct *GadgetCiphertext) UnmarshalBinary(data []byte) (err error) {
 	if _, err = ct.Decode(data); err != nil {
 		return
@@ -197,7 +197,7 @@ func AddPolyTimesGadgetVectorToGadgetCiphertext(pt *ring.Poly, cts []GadgetCiphe
 	levelP := cts[0].LevelP()
 
 	if len(cts) > 2 {
-		panic("len(cts) should be <= 2")
+		panic("cannot AddPolyTimesGadgetVectorToGadgetCiphertext: len(cts) should be <= 2")
 	}
 
 	if levelP != -1 {
@@ -250,7 +250,7 @@ func AddPolyTimesGadgetVectorToGadgetCiphertext(pt *ring.Poly, cts []GadgetCiphe
 	}
 }
 
-// AddPolyToGadgetMatrix takes a plaintext polynomial and a list of ringqp.Poly adds the
+// AddPolyToGadgetMatrix takes a plaintext polynomial and a list of ringqp.Poly and adds the
 // plaintext times the RNS and BIT decomposition to the list of ringqp.Poly.
 func AddPolyToGadgetMatrix(pt *ring.Poly, gm [][]ringqp.Poly, ringQP ringqp.Ring, logbase2 int, buff *ring.Poly) {
 
@@ -306,7 +306,7 @@ func AddPolyToGadgetMatrix(pt *ring.Poly, gm [][]ringqp.Poly, ringQP ringqp.Ring
 	}
 }
 
-// GadgetPlaintext stores an RGSW plaintext value.
+// GadgetPlaintext stores a RGSW plaintext value.
 type GadgetPlaintext struct {
 	Value []*ring.Poly
 }
@@ -340,7 +340,7 @@ func NewGadgetPlaintext(value interface{}, levelQ, levelP, logBase2, decompBIT i
 	case *ring.Poly:
 		pt.Value[0] = el.CopyNew()
 	default:
-		panic("unsupported type, must be wither uint64 or *ring.Poly")
+		panic("cannot NewGadgetPlaintext: unsupported type, must be wither uint64 or *ring.Poly")
 	}
 
 	if levelP > -1 {

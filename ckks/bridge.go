@@ -61,11 +61,11 @@ func (switcher *DomainSwitcher) ComplexToReal(ctIn, ctOut *Ciphertext) {
 	level := utils.MinInt(ctIn.Level(), ctOut.Level())
 
 	if len(ctIn.Value[0].Coeffs[0]) != 2*len(ctOut.Value[0].Coeffs[0]) {
-		panic("ctIn ring degree must be twice ctOut ring degree")
+		panic("cannot ComplesToReal: ctIn ring degree must be twice ctOut ring degree")
 	}
 
 	if switcher.SwkComplexToReal == nil {
-		panic("no SwkComplexToReal provided to this DomainSwitcher")
+		panic("cannot ComplesToReal: no SwkComplexToReal provided to this DomainSwitcher")
 	}
 
 	switcher.GadgetProduct(level, ctIn.Value[1], switcher.SwkComplexToReal.GadgetCiphertext, switcher.BuffQP[1].Q, switcher.BuffQP[2].Q)
@@ -88,11 +88,11 @@ func (switcher *DomainSwitcher) RealToComplex(ctIn, ctOut *Ciphertext) {
 	level := utils.MinInt(ctIn.Level(), ctOut.Level())
 
 	if 2*len(ctIn.Value[0].Coeffs[0]) != len(ctOut.Value[0].Coeffs[0]) {
-		panic("ctOut ring degree must be twice ctIn ring degree")
+		panic("cannot RealToComplex: ctOut ring degree must be twice ctIn ring degree")
 	}
 
 	if switcher.SwkRealToComplex == nil {
-		panic("no SwkRealToComplex provided to this DomainSwitcher")
+		panic("cannot RealToComplex: no SwkRealToComplex provided to this DomainSwitcher")
 	}
 
 	switcher.stdRingQ.UnfoldConjugateInvariantToStandard(level, ctIn.Value[0], ctOut.Value[0])

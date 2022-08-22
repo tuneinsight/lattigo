@@ -49,7 +49,7 @@ func (eval *Evaluator) Automorphism(ctIn *Ciphertext, galEl uint64, ctOut *Ciphe
 
 // AutomorphismHoisted is similar to Automorphism, except that it takes as input ctIn and c1DecompQP, where c1DecompQP is the RNS
 // decomposition of its element of degree 1. This decomposition can be obtained with DecomposeNTT.
-// The method requires that the corresponding RotationKey  has been added to the Evaluator.
+// The method requires that the corresponding RotationKey has been added to the Evaluator.
 // The method will panic if either ctIn or ctOut degree is not equal to 1.
 func (eval *Evaluator) AutomorphismHoisted(level int, ctIn *Ciphertext, c1DecompQP []ringqp.Poly, galEl uint64, ctOut *Ciphertext) {
 
@@ -91,7 +91,7 @@ func (eval *Evaluator) AutomorphismHoistedNoModDown(levelQ int, c0 *ring.Poly, c
 
 	rtk, generated := eval.Rtks.GetRotationKey(galEl)
 	if !generated {
-		panic(fmt.Sprintf("galEl key 5^%d missing", eval.params.InverseGaloisElement(galEl)))
+		panic(fmt.Sprintf("cannot AutomorphismHoistedNoModDown: galEl key 5^%d missing", eval.params.InverseGaloisElement(galEl)))
 	}
 
 	levelP := rtk.LevelP()
@@ -131,7 +131,7 @@ func (eval *Evaluator) AutomorphismHoistedNoModDown(levelQ int, c0 *ring.Poly, c
 }
 
 // Trace maps X -> sum((-1)^i * X^{i*n+1}) for n <= i < N
-// Monomial X^k vanishes if k is not divisible by (N/n), else it is multiplied by (N/n).
+// Monomial X^k vanishes if k is not divisible by (N/n), otherwise it is multiplied by (N/n).
 // Ciphertext is pre-multiplied by (N/n)^-1 to remove the (N/n) factor.
 // Examples of full Trace for [0 + 1X + 2X^2 + 3X^3 + 4X^4 + 5X^5 + 6X^6 + 7X^7]
 //

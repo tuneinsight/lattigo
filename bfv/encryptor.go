@@ -16,7 +16,7 @@ type Encryptor interface {
 }
 
 // PRNGEncryptor is an interface for encrypting BFV ciphertexts from a secret-key and
-// an pre-determined PRNG. An Encryptor constructed from a secret-key complies to this
+// a pre-determined PRNG. An Encryptor constructed from a secret-key complies to this
 // interface.
 type PRNGEncryptor interface {
 	Encryptor
@@ -35,7 +35,7 @@ func NewEncryptor(params Parameters, key interface{}) Encryptor {
 }
 
 // NewPRNGEncryptor creates a new PRNGEncryptor instance that encrypts BFV ciphertexts from a secret-key and
-// an PRNG.
+// a PRNG.
 func NewPRNGEncryptor(params Parameters, key *rlwe.SecretKey) PRNGEncryptor {
 	enc := rlwe.NewPRNGEncryptor(params.Parameters, key)
 	return &encryptor{enc, params}

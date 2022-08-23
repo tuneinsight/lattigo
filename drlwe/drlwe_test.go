@@ -512,7 +512,7 @@ func testThreshold(tc *testContext, t *testing.T) {
 
 			type Party struct {
 				*Thresholdizer
-				Combiner
+				*Combiner
 				gen  *ShamirPolynomial
 				sk   *rlwe.SecretKey
 				tsks *ShamirSecretShare
@@ -521,15 +521,20 @@ func testThreshold(tc *testContext, t *testing.T) {
 			}
 
 			P := make([]*Party, tc.nParties())
+			shamirPks := make([]ShamirPublicKey, tc.nParties())
 			for i := 0; i < tc.nParties(); i++ {
 				p := new(Party)
 				p.Thresholdizer = NewThresholdizer(tc.params)
-				p.Combiner = NewCombiner(tc.params, threshold)
 				p.sk = sk0Shards[i]
 				p.tsk = rlwe.NewSecretKey(tc.params)
 				p.tpk = ShamirPublicKey(i + 1)
 				p.tsks = p.Thresholdizer.AllocateThresholdSecretShare()
 				P[i] = p
+				shamirPks[i] = p.tpk
+			}
+
+			for _, pi := range P {
+				pi.Combiner = NewCombiner(tc.params, pi.tpk, shamirPks, threshold)
 			}
 
 			shares := make(map[*Party]map[*Party]*ShamirSecretShare, tc.nParties())
@@ -578,5 +583,4 @@ func testThreshold(tc *testContext, t *testing.T) {
 			require.True(t, tc.skIdeal.Value.Equals(recSk.Value)) // reconstructed key should match the ideal sk
 		})
 	}
-
 }

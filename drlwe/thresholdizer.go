@@ -22,13 +22,6 @@ type ShamirSecretShare struct {
 	ringqp.Poly
 }
 
-// Combiner is an interface for the combining phase of a RLWE threshold secret sharing protocol.
-type Combiner interface {
-	GenAdditiveShare(activePk []ShamirPublicKey, tpk ShamirPublicKey, tsks *ShamirSecretShare, tsk *rlwe.SecretKey)
-}
-
-//--------------------------------THRESHOLDIZING--------------------------------
-
 //Thresholdizer is the structure containing the parameters for a thresholdizer.
 type Thresholdizer struct {
 	params   *rlwe.Parameters
@@ -87,21 +80,22 @@ func (thresholdizer *Thresholdizer) AggregateShares(share1, share2, outShare *Sh
 	thresholdizer.ringQP.AddLvl(lvlQ, lvlP, share1.Poly, share2.Poly, outShare.Poly)
 }
 
-// baseCombiner is a structure that holds the parameters for the combining phase of
+// Combiner is a structure that holds the parameters for the combining phase of
 // a threshold secret sharing protocol.
-type baseCombiner struct {
-	ringQP     *ringqp.Ring
-	threshold  int
-	tmp1, tmp2 []uint64
-	one        ring.RNSScalar
+type Combiner struct {
+	ringQP         *ringqp.Ring
+	threshold      int
+	tmp1, tmp2     []uint64
+	one            ring.RNSScalar
+	lagrangeCoeffs map[ShamirPublicKey]ring.RNSScalar
 }
 
 //NewCombiner creates a new Combiner.
-func NewCombiner(params rlwe.Parameters, threshold int) Combiner {
-	cmb := new(baseCombiner)
+func NewCombiner(params rlwe.Parameters, own ShamirPublicKey, others []ShamirPublicKey, threshold int) *Combiner {
+	cmb := new(Combiner)
 	cmb.ringQP = params.RingQP()
 	cmb.threshold = threshold
-	cmb.tmp1, cmb.tmp2 = make([]uint64, params.QPCount()), make([]uint64, params.QPCount())
+	cmb.tmp1, cmb.tmp2 = cmb.ringQP.NewScalar(), cmb.ringQP.NewScalar()
 	cmb.one = cmb.ringQP.NewScalarFromUInt64(1)
 
 	qlen := len(cmb.ringQP.RingQ.Modulus)
@@ -114,13 +108,22 @@ func NewCombiner(params rlwe.Parameters, threshold int) Combiner {
 		}
 	}
 
+	// precomputes lagrange coefficient factors
+	cmb.lagrangeCoeffs = make(map[ShamirPublicKey]ring.RNSScalar)
+	for _, spk := range others {
+		if spk != own {
+			cmb.lagrangeCoeffs[spk] = cmb.ringQP.NewScalar()
+			cmb.lagrangeCoeff(own, spk, cmb.lagrangeCoeffs[spk])
+		}
+	}
+
 	return cmb
 }
 
 // GenAdditiveShare generates an additive share of a cohort's secret key from a slice con-
 // taining all active player's threshold public keys and a party's public and
 // secret keys. Stores the result in out_key.
-func (cmb *baseCombiner) GenAdditiveShare(actives []ShamirPublicKey, ownPublic ShamirPublicKey, ownSecret *ShamirSecretShare, skOut *rlwe.SecretKey) {
+func (cmb *Combiner) GenAdditiveShare(actives []ShamirPublicKey, ownPublic ShamirPublicKey, ownSecret *ShamirSecretShare, skOut *rlwe.SecretKey) {
 
 	if len(actives) < cmb.threshold {
 		panic("Not enough active players to combine threshold shares.")
@@ -132,7 +135,7 @@ func (cmb *baseCombiner) GenAdditiveShare(actives []ShamirPublicKey, ownPublic S
 	for _, active := range actives[:cmb.threshold] {
 		//Lagrange Interpolation with the public threshold key of other active players
 		if active != ownPublic {
-			cmb.lagrangeCoeff(ownPublic, active, cmb.tmp1)
+			cmb.tmp1 = cmb.lagrangeCoeffs[active]
 			cmb.ringQP.MulRNSScalar(prod, cmb.tmp1, prod)
 		}
 	}
@@ -142,7 +145,7 @@ func (cmb *baseCombiner) GenAdditiveShare(actives []ShamirPublicKey, ownPublic S
 
 // lagrangeCoeff computes the difference between the two given keys and stores
 // its multiplicative inverse in pol_out, caching it as well.
-func (cmb *baseCombiner) lagrangeCoeff(thisKey ShamirPublicKey, thatKey ShamirPublicKey, lagCoeff []uint64) {
+func (cmb *Combiner) lagrangeCoeff(thisKey ShamirPublicKey, thatKey ShamirPublicKey, lagCoeff []uint64) {
 
 	this := cmb.ringQP.NewScalarFromUInt64(uint64(thisKey))
 	that := cmb.ringQP.NewScalarFromUInt64(uint64(thatKey))
@@ -152,69 +155,4 @@ func (cmb *baseCombiner) lagrangeCoeff(thisKey ShamirPublicKey, thatKey ShamirPu
 	cmb.ringQP.InverseCRT(lagCoeff)
 
 	cmb.ringQP.MulRNSScalar(lagCoeff, that, lagCoeff)
-}
-
-// CachedCombiner is a structure that holds the parameters for the combining phase of
-// a threshold secret sharing protocol, augmented with a stateful cache.
-type CachedCombiner struct {
-	*baseCombiner
-	lagrangeCoeffs map[ShamirPublicKey]ring.RNSScalar
-}
-
-// NewCachedCombiner creates a new combiner with cache from parameters.
-func NewCachedCombiner(params rlwe.Parameters, threshold int) *CachedCombiner {
-	ccmb := new(CachedCombiner)
-	ccmb.baseCombiner = NewCombiner(params, threshold).(*baseCombiner)
-	ccmb.lagrangeCoeffs = make(map[ShamirPublicKey]ring.RNSScalar)
-	return ccmb
-}
-
-// // GenAdditiveShare generates an additive share of a cohort's secret key from the values
-// // in the cache and a party's secret keys. Assumes the inverse corresponding
-// // to every active's party is in the cache. Stores the result in out_key.
-// func (cmb *CachedCombiner) GenAdditiveShare(actives []ShamirPublicKey, ownPublic ShamirPublicKey, ownSecret *ShamirSecretShare, skOut *rlwe.SecretKey) {
-
-// 	prod := cmb.tmp2
-// 	for i, qi := range cmb.ringQP.Modulus {
-// 		prod[i] = ring.MForm(1, qi, cmb.ringQP.BredParams[i])
-// 	}
-
-// 	for _, active := range actives[:cmb.threshold] {
-// 		//Lagrange Interpolation with the public threshold key of other active players
-// 		if active != ownPublic {
-// 			lagCoeff := cmb.lagrangeCoeff(ownPublic, active)
-// 			for i, qi := range cmb.ringQP.Modulus {
-// 				prod[i] = ring.MRedConstant(prod[i], lagCoeff[i], qi, cmb.ringQP.MredParams[i])
-// 			}
-// 		}
-// 	}
-
-// 	cmb.ringQP.MulScalarCRT(ownSecret.Poly, prod, skOut.Value)
-// }
-
-// ClearCache replaces the cache of a combiner by an empty one.
-func (cmb *CachedCombiner) ClearCache() {
-	cmb.lagrangeCoeffs = make(map[ShamirPublicKey]ring.RNSScalar)
-}
-
-// Precompute caches the inverses of the differences between tpk and each of
-// pks (as needed for Lagrange interpolation)
-func (cmb *CachedCombiner) Precompute(others []ShamirPublicKey, own ShamirPublicKey) {
-	for _, key := range others {
-		if own != key {
-			_ = cmb.lagrangeCoeff(own, key)
-		}
-	}
-}
-
-// lagrangeCoeff computes the difference between the two given keys and stores
-// its multiplicative inverse in pol_out, caching it as well.
-func (cmb *CachedCombiner) lagrangeCoeff(thisKey ShamirPublicKey, thatKey ShamirPublicKey) (lagCoeff []uint64) {
-	_, found := cmb.lagrangeCoeffs[thatKey]
-	if !found {
-		//Inverse not in the cache, we have to compute it
-		cmb.lagrangeCoeffs[thatKey] = cmb.ringQP.NewScalar()
-		cmb.baseCombiner.lagrangeCoeff(thisKey, thatKey, cmb.lagrangeCoeffs[thatKey])
-	}
-	return cmb.lagrangeCoeffs[thatKey]
 }

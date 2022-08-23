@@ -28,7 +28,7 @@ type genTaskResult struct {
 type party struct {
 	*drlwe.RTGProtocol
 	*drlwe.Thresholdizer
-	drlwe.Combiner
+	*drlwe.Combiner
 
 	i        int
 	sk       *rlwe.SecretKey
@@ -245,11 +245,11 @@ func main() {
 	}
 	P := make([]*party, N)
 	skIdeal := rlwe.NewSecretKey(params)
+	shamirPks := make([]drlwe.ShamirPublicKey, 0)
 	for i := range P {
 		pi := new(party)
 		pi.RTGProtocol = drlwe.NewRTGProtocol(params)
 		pi.Thresholdizer = drlwe.NewThresholdizer(params)
-		pi.Combiner = drlwe.NewCombiner(params, t)
 		pi.i = i
 		pi.sk = kg.GenSecretKey()
 		params.RingQP().AddLvl(params.QCount()-1, params.PCount()-1, skIdeal.Value, pi.sk.Value, skIdeal.Value)
@@ -259,8 +259,13 @@ func main() {
 			panic(err)
 		}
 		pi.shamirPk = drlwe.ShamirPublicKey(i + 1)
+		shamirPks = append(shamirPks, pi.shamirPk)
 		pi.genTaskQueue = make(chan genTask, k)
 		P[i] = pi
+	}
+
+	for _, pi := range P {
+		pi.Combiner = drlwe.NewCombiner(params, pi.shamirPk, shamirPks, t)
 	}
 
 	if t < N {

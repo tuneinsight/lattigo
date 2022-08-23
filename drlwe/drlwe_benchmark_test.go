@@ -147,8 +147,7 @@ func benchThreshold(params rlwe.Parameters, t int, b *testing.B) {
 
 	type Party struct {
 		*Thresholdizer
-		Combiner
-		*CachedCombiner
+		*Combiner
 		gen *ShamirPolynomial
 		s   *rlwe.SecretKey
 		sk  *rlwe.SecretKey
@@ -187,20 +186,11 @@ func benchThreshold(params rlwe.Parameters, t int, b *testing.B) {
 		}
 	})
 
-	p.Combiner = NewCombiner(params, t)
-	p.CachedCombiner = NewCachedCombiner(params, t)
-
-	p.CachedCombiner.Precompute(shamirPks, shamirPks[0])
+	p.Combiner = NewCombiner(params, shamirPks[0], shamirPks, t)
 
 	b.Run(benchString("Combiner/GenAdditiveShare", params)+fmt.Sprintf("/threshold=%d", t), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			p.Combiner.GenAdditiveShare(shamirPks, shamirPks[0], p.tsk, p.sk)
-		}
-	})
-
-	b.Run(benchString("CombinerCached/GenAdditiveShare", params)+fmt.Sprintf("/threshold=%d", t), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			p.CachedCombiner.GenAdditiveShare(shamirPks, shamirPks[0], p.tsk, p.sk)
 		}
 	})
 }

@@ -22,16 +22,6 @@ type ShamirSecretShare struct {
 	ringqp.Poly
 }
 
-// ThresholdizerProtocol is an interface describing the local steps of a generic
-// RLWE thresholdizer.
-type ThresholdizerProtocol interface {
-	GenShamirPolynomial(threshold int, sk *rlwe.SecretKey) (*ShamirPolynomial, error)
-
-	AllocateShamirSecretShare() *ShamirSecretShare
-	GenShamirSecretShare(recipient ShamirPublicKey, secretPoly *ShamirPolynomial, shareOut *ShamirSecretShare)
-	AggregateShares(share1, share2, outShare *ShamirSecretShare)
-}
-
 // Combiner is an interface for the combining phase of a RLWE threshold secret sharing protocol.
 type Combiner interface {
 	GenAdditiveShare(activePk []ShamirPublicKey, tpk ShamirPublicKey, tsks *ShamirSecretShare, tsk *rlwe.SecretKey)
@@ -41,10 +31,8 @@ type Combiner interface {
 
 //Thresholdizer is the structure containing the parameters for a thresholdizer.
 type Thresholdizer struct {
-	params *rlwe.Parameters
-	ringQP *ringqp.Ring
-	//samplerQ *ring.UniformSampler
-	//samplerP *ring.UniformSampler
+	params   *rlwe.Parameters
+	ringQP   *ringqp.Ring
 	usampler ringqp.UniformSampler
 }
 

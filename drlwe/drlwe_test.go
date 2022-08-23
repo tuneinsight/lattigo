@@ -15,18 +15,12 @@ import (
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
-var nbParties = int(3)
+var nbParties = int(10)
 
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 
-func testString(opname string, params rlwe.Parameters) string {
-	return fmt.Sprintf("%slogN=%d/logQ=%d/logP=%d/#Qi=%d/#Pi=%d",
-		opname,
-		params.LogN(),
-		params.LogQ(),
-		params.LogP(),
-		params.QCount(),
-		params.PCount())
+func testString(opname string, tc *testContext) string {
+	return fmt.Sprintf("%s/LogN=%d/logQP=%d/parties=%d", opname, tc.params.LogN(), tc.params.LogQP(), tc.nParties())
 }
 
 // TestParams is a set of test parameters for the correctness of the rlwe pacakge.
@@ -49,7 +43,7 @@ type testContext struct {
 	crs            utils.PRNG
 }
 
-func newTestContext(params rlwe.Parameters) testContext {
+func newTestContext(params rlwe.Parameters) *testContext {
 
 	levelQ, levelP := params.QCount()-1, params.PCount()-1
 
@@ -64,7 +58,11 @@ func newTestContext(params rlwe.Parameters) testContext {
 	prng, _ := utils.NewKeyedPRNG([]byte{'t', 'e', 's', 't'})
 	unifSampler := ring.NewUniformSampler(prng, params.RingQ())
 
-	return testContext{params, kgen, skShares, skIdeal, unifSampler, prng}
+	return &testContext{params, kgen, skShares, skIdeal, unifSampler, prng}
+}
+
+func (tc testContext) nParties() int {
+	return len(tc.skShares)
 }
 
 func TestDRLWE(t *testing.T) {
@@ -90,27 +88,28 @@ func TestDRLWE(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		textCtx := newTestContext(params)
+		testCtx := newTestContext(params)
 
-		for _, testSet := range []func(textCtx testContext, t *testing.T){
+		for _, testSet := range []func(tc *testContext, t *testing.T){
 			testPublicKeyGen,
 			testRelinKeyGen,
 			testRotKeyGen,
 			testKeySwitching,
 			testPublicKeySwitching,
 			testMarshalling,
+			testThreshold,
 		} {
-			testSet(textCtx, t)
+			testSet(testCtx, t)
 			runtime.GC()
 		}
 	}
 }
 
-func testPublicKeyGen(testCtx testContext, t *testing.T) {
+func testPublicKeyGen(testCtx *testContext, t *testing.T) {
 
 	params := testCtx.params
 
-	t.Run(testString("PublicKeyGen", params), func(t *testing.T) {
+	t.Run(testString("PublicKeyGen", testCtx), func(t *testing.T) {
 
 		ckg := make([]*CKGProtocol, nbParties)
 		for i := range ckg {
@@ -144,13 +143,13 @@ func testPublicKeyGen(testCtx testContext, t *testing.T) {
 	})
 }
 
-func testKeySwitching(testCtx testContext, t *testing.T) {
+func testKeySwitching(testCtx *testContext, t *testing.T) {
 
 	params := testCtx.params
 	ringQ := params.RingQ()
 	ringQP := params.RingQP()
 	levelQ, levelP := params.QCount()-1, params.PCount()-1
-	t.Run(testString("KeySwitching", params), func(t *testing.T) {
+	t.Run(testString("KeySwitching", testCtx), func(t *testing.T) {
 
 		cks := make([]*CKSProtocol, nbParties)
 
@@ -201,12 +200,12 @@ func testKeySwitching(testCtx testContext, t *testing.T) {
 	})
 }
 
-func testPublicKeySwitching(testCtx testContext, t *testing.T) {
+func testPublicKeySwitching(testCtx *testContext, t *testing.T) {
 
 	params := testCtx.params
 	ringQ := params.RingQ()
 
-	t.Run(testString("PublicKeySwitching", params), func(t *testing.T) {
+	t.Run(testString("PublicKeySwitching", testCtx), func(t *testing.T) {
 
 		skOut, pkOut := testCtx.kgen.GenKeyPair()
 
@@ -251,12 +250,12 @@ func testPublicKeySwitching(testCtx testContext, t *testing.T) {
 	})
 }
 
-func testRelinKeyGen(testCtx testContext, t *testing.T) {
+func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 	params := testCtx.params
 	ringQP := params.RingQP()
 	levelQ, levelP := params.QCount()-1, params.PCount()-1
 
-	t.Run(testString("RelinKeyGen", params), func(t *testing.T) {
+	t.Run(testString("RelinKeyGen", testCtx), func(t *testing.T) {
 
 		rkg := make([]*RKGProtocol, nbParties)
 
@@ -309,12 +308,12 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 	})
 }
 
-func testRotKeyGen(testCtx testContext, t *testing.T) {
+func testRotKeyGen(testCtx *testContext, t *testing.T) {
 
 	params := testCtx.params
 	levelQ, levelP := params.QCount()-1, params.PCount()-1
 
-	t.Run(testString("RotKeyGen", params), func(t *testing.T) {
+	t.Run(testString("RotKeyGen", testCtx), func(t *testing.T) {
 
 		rtg := make([]*RTGProtocol, nbParties)
 		for i := range rtg {
@@ -352,7 +351,7 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 	})
 }
 
-func testMarshalling(testCtx testContext, t *testing.T) {
+func testMarshalling(testCtx *testContext, t *testing.T) {
 
 	params := testCtx.params
 
@@ -360,7 +359,7 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 	testCtx.uniformSampler.Read(ciphertext.Value[0])
 	testCtx.uniformSampler.Read(ciphertext.Value[1])
 
-	t.Run(testString("Marshalling/CKG", params), func(t *testing.T) {
+	t.Run(testString("Marshalling/CKG", testCtx), func(t *testing.T) {
 		ckg := NewCKGProtocol(testCtx.params)
 		KeyGenShareBefore := ckg.AllocateShare()
 		crs := ckg.SampleCRP(testCtx.crs)
@@ -391,7 +390,7 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 		}
 	})
 
-	t.Run(testString("Marshalling/PCKS", params), func(t *testing.T) {
+	t.Run(testString("Marshalling/PCKS", testCtx), func(t *testing.T) {
 		//Check marshalling for the PCKS
 
 		KeySwitchProtocol := NewPCKSProtocol(testCtx.params, testCtx.params.Sigma())
@@ -414,7 +413,7 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 		require.Equal(t, SwitchShare.Value[1].Coeffs, SwitchShareReceiver.Value[1].Coeffs)
 	})
 
-	t.Run(testString("Marshalling/CKS", params), func(t *testing.T) {
+	t.Run(testString("Marshalling/CKS", testCtx), func(t *testing.T) {
 
 		//Now for CKSShare ~ its similar to PKSShare
 		cksp := NewCKSProtocol(testCtx.params, testCtx.params.Sigma())
@@ -435,7 +434,7 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 		require.Equal(t, cksshare.Value.Coeffs, cksshareAfter.Value.Coeffs)
 	})
 
-	t.Run(testString("Marshalling/RKG", params), func(t *testing.T) {
+	t.Run(testString("Marshalling/RKG", testCtx), func(t *testing.T) {
 
 		RKGProtocol := NewRKGProtocol(params)
 
@@ -471,7 +470,7 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 		}
 	})
 
-	t.Run(testString("Marshalling/RTG", params), func(t *testing.T) {
+	t.Run(testString("Marshalling/RTG", testCtx), func(t *testing.T) {
 
 		galEl := testCtx.params.GaloisElementForColumnRotationBy(64)
 
@@ -503,4 +502,81 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 			}
 		}
 	})
+}
+
+func testThreshold(tc *testContext, t *testing.T) {
+	sk0Shards := tc.skShares
+
+	for _, threshold := range []int{tc.nParties() / 4, tc.nParties() / 2, tc.nParties() - 1} {
+		t.Run(testString("Threshold", tc)+fmt.Sprintf("/threshold=%d", threshold), func(t *testing.T) {
+
+			type Party struct {
+				*Thresholdizer
+				Combiner
+				gen  *ShamirPolynomial
+				sk   *rlwe.SecretKey
+				tsks *ShamirSecretShare
+				tsk  *rlwe.SecretKey
+				tpk  ShamirPublicKey
+			}
+
+			P := make([]*Party, tc.nParties())
+			for i := 0; i < tc.nParties(); i++ {
+				p := new(Party)
+				p.Thresholdizer = NewThresholdizer(tc.params)
+				p.Combiner = NewCombiner(tc.params, threshold)
+				p.sk = sk0Shards[i]
+				p.tsk = rlwe.NewSecretKey(tc.params)
+				p.tpk = ShamirPublicKey(i + 1)
+				p.tsks = p.Thresholdizer.AllocateThresholdSecretShare()
+				P[i] = p
+			}
+
+			shares := make(map[*Party]map[*Party]*ShamirSecretShare, tc.nParties())
+			var err error
+			// Every party generates a share for every other party
+			for _, pi := range P {
+
+				pi.gen, err = pi.Thresholdizer.GenShamirPolynomial(threshold, pi.sk)
+				if err != nil {
+					t.Error(err)
+				}
+
+				shares[pi] = make(map[*Party]*ShamirSecretShare)
+				for _, pj := range P {
+					shares[pi][pj] = pi.Thresholdizer.AllocateThresholdSecretShare()
+					pi.Thresholdizer.GenShamirSecretShare(pj.tpk, pi.gen, shares[pi][pj])
+				}
+			}
+
+			//Each party aggregates what it has received into a secret key
+			for _, pi := range P {
+				for _, pj := range P {
+					pi.Thresholdizer.AggregateShares(pi.tsks, shares[pj][pi], pi.tsks)
+				}
+			}
+
+			// Determining which parties are active. In a distributed context, a party
+			// would receive the ids of active players and retrieve (or compute) the corresponding keys.
+			activeParties := P[:threshold]
+			activeShamirPks := make([]ShamirPublicKey, threshold)
+			for i, p := range activeParties {
+				activeShamirPks[i] = p.tpk
+			}
+
+			// Combining
+			// Slow because each party has to generate its public key on-the-fly. In
+			// practice the public key could be precomputed from an id by parties during setup
+			ringQP := tc.params.RingQP()
+			levelQ, levelP := tc.params.QCount()-1, tc.params.PCount()-1
+			recSk := rlwe.NewSecretKey(tc.params)
+			for _, pi := range activeParties {
+				pi.Combiner.GenAdditiveShare(activeShamirPks, pi.tpk, pi.tsks, pi.tsk)
+				ringQP.AddLvl(levelQ, levelP, pi.tsk.Value, recSk.Value, recSk.Value)
+			}
+
+			require.True(t, tc.skIdeal.Value.Equals(recSk.Value)) // reconstructed key should match the ideal sk
+		})
+	}
+
 }

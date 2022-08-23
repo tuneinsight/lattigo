@@ -62,12 +62,12 @@ type ParametersLiteral struct {
 	EvalModLogScale int
 
 	// Optional fields:
-	EphemeralSecretWeight int               // Default: 32
+	EphemeralSecretWeight int               // Default: 32 | set to -1 not use sparse-secret encapsulation
 	SineType              advanced.SineType // Default: advanced.CosDiscret
-	LogMsgRatio           int               // Default: 8
-	K                     int               // Default: 16
+	LogMsgRatio           int               // Default: 8  | set to -1 to set to 0
+	K                     int               // Default: 16 | set to -1 to set 0
 	SineDeg               int               // Default: 30
-	DoubleAngle           int               // Default: 3
+	DoubleAngle           int               // Default: 3  | set to -1 to not use double angle
 	ArcSineDeg            int               // Default: 0
 }
 

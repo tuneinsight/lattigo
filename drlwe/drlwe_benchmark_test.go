@@ -6,12 +6,13 @@ import (
 	"testing"
 
 	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
-func Benchmark_DRLWE(b *testing.B) {
+func BenchmarkDRLWE(b *testing.B) {
 
 	defaultParams := []rlwe.ParametersLiteral{rlwe.TestPN12QP109, rlwe.TestPN13QP218, rlwe.TestPN14QP438, rlwe.TestPN15QP880}
-	thresholdInc := 1
+	thresholdInc := 5
 
 	if testing.Short() {
 		defaultParams = defaultParams[:2]
@@ -30,12 +31,112 @@ func Benchmark_DRLWE(b *testing.B) {
 			panic(err)
 		}
 
+		benchPublicKeyGen(params, b)
+		benchRelinKeyGen(params, b)
+		benchRotKeyGen(params, b)
+
 		// Varying t
 		for t := 2; t <= 19; t += thresholdInc {
 			benchThreshold(params, t, b)
 		}
 
 	}
+}
+
+func benchPublicKeyGen(params rlwe.Parameters, b *testing.B) {
+
+	ckg := NewCKGProtocol(params)
+	sk := rlwe.NewKeyGenerator(params).GenSecretKey()
+	s1 := ckg.AllocateShare()
+	crs, _ := utils.NewPRNG()
+
+	crp := ckg.SampleCRP(crs)
+
+	b.Run(testString("PublicKeyGen/Round1/Gen", params), func(b *testing.B) {
+
+		for i := 0; i < b.N; i++ {
+			ckg.GenShare(sk, crp, s1)
+		}
+	})
+
+	b.Run(testString("PublicKeyGen/Round1/Agg", params), func(b *testing.B) {
+
+		for i := 0; i < b.N; i++ {
+			ckg.AggregateShare(s1, s1, s1)
+		}
+	})
+
+	pk := rlwe.NewPublicKey(params)
+	b.Run(testString("PublicKeyGen/Finalize", params), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			ckg.GenPublicKey(s1, crp, pk)
+		}
+	})
+}
+
+func benchRelinKeyGen(params rlwe.Parameters, b *testing.B) {
+
+	rkg := NewRKGProtocol(params)
+	sk := rlwe.NewKeyGenerator(params).GenSecretKey()
+	ephSk, share1, share2 := rkg.AllocateShare()
+	rlk := rlwe.NewRelinKey(params, 2)
+	crs, _ := utils.NewPRNG()
+
+	crp := rkg.SampleCRP(crs)
+
+	b.Run(testString("RelinKeyGen/GenRound1", params), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			rkg.GenShareRoundOne(sk, crp, ephSk, share1)
+		}
+	})
+
+	b.Run(testString("RelinKeyGen/GenRound2", params), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			rkg.GenShareRoundTwo(ephSk, sk, share1, share2)
+		}
+	})
+
+	b.Run(testString("RelinKeyGen/Agg", params), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			rkg.AggregateShare(share1, share1, share1)
+		}
+	})
+
+	b.Run(testString("RelinKeyGen/Finalize", params), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			rkg.GenRelinearizationKey(share1, share2, rlk)
+		}
+	})
+}
+
+func benchRotKeyGen(params rlwe.Parameters, b *testing.B) {
+
+	rtg := NewRTGProtocol(params)
+	sk := rlwe.NewKeyGenerator(params).GenSecretKey()
+	share := rtg.AllocateShare()
+	crs, _ := utils.NewPRNG()
+	crp := rtg.SampleCRP(crs)
+
+	b.Run(testString("RotKeyGen/Round1/Gen", params), func(b *testing.B) {
+
+		for i := 0; i < b.N; i++ {
+			rtg.GenShare(sk, params.GaloisElementForRowRotation(), crp, share)
+		}
+	})
+
+	b.Run(testString("RotKeyGen/Round1/Agg", params), func(b *testing.B) {
+
+		for i := 0; i < b.N; i++ {
+			rtg.AggregateShare(share, share, share)
+		}
+	})
+
+	rotKey := rlwe.NewSwitchingKey(params, params.QCount()-1, params.PCount()-1)
+	b.Run(testString("RotKeyGen/Finalize", params), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			rtg.GenRotationKey(share, crp, rotKey)
+		}
+	})
 }
 
 func benchThreshold(params rlwe.Parameters, t int, b *testing.B) {

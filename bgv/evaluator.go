@@ -72,11 +72,7 @@ type Evaluator interface {
 	MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTransform, c2DecompQP []ringqp.Poly, ctOut *Ciphertext)
 	MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearTransform, c2DecompQP []ringqp.Poly, ctOut *Ciphertext)
 	InnerSumLog(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
-	//InnerSum(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
-	//ReplicateLog(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
-	//Replicate(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
-	//Trace(ctIn *Ciphertext, logSlots int, ctOut *Ciphertext)
-	//TraceNew(ctIn *Ciphertext, logSlots int) (ctOut *Ciphertext)
+	ReplicateLog(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
 
 	// Key-Switching
 	SwitchKeysNew(ctIn *Ciphertext, swk *rlwe.SwitchingKey) (ctOut *Ciphertext)

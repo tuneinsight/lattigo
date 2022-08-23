@@ -134,6 +134,17 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 	}
 }
 
+// ReplicateLog applies an optimized replication on the ciphertext (log2(n) + HW(n) rotations with double hoisting).
+// It acts as the inverse of a inner sum (summing elements from left to right).
+// The replication is parameterized by the size of the sub-vectors to replicate "batchSize" and
+// the number of time "n" they need to be replicated.
+// To ensure correctness, a gap of zero values of size batchSize * (n-1) must exist between
+// two consecutive sub-vectors to replicate.
+// This method is faster than Replicate when the number of rotations is large and uses log2(n) + HW(n) instead of 'n'.
+func (eval *evaluator) ReplicateLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
+	eval.InnerSumLog(ctIn, -batchSize, n, ctOut)
+}
+
 // LinearTransform is a type for linear transformations on ciphertexts.
 // It stores a plaintext matrix diagonalized in diagonal form and
 // can be evaluated on a ciphertext by using the evaluator.LinearTransform method.

@@ -40,99 +40,11 @@ func BenchmarkDCKKS(b *testing.B) {
 			b.Fatal(err)
 		}
 
-		benchPublicKeyGen(testCtx, b)
-		benchRelinKeyGen(testCtx, b)
 		benchKeySwitching(testCtx, b)
 		benchPublicKeySwitching(testCtx, b)
-		benchRotKeyGen(testCtx, b)
 		benchRefresh(testCtx, b)
 		benchMaskedTransform(testCtx, b)
 	}
-}
-
-func benchPublicKeyGen(testCtx *testContext, b *testing.B) {
-
-	sk0Shards := testCtx.sk0Shards
-	params := testCtx.params
-
-	type Party struct {
-		*CKGProtocol
-		s  *rlwe.SecretKey
-		s1 *drlwe.CKGShare
-	}
-
-	p := new(Party)
-	p.CKGProtocol = NewCKGProtocol(params)
-	p.s = sk0Shards[0]
-	p.s1 = p.AllocateShare()
-
-	crp := p.SampleCRP(testCtx.crs)
-
-	b.Run(testString("PublicKeyGen/Gen", testCtx.NParties, params), func(b *testing.B) {
-
-		// Each party creates a new CKGProtocol instance
-		for i := 0; i < b.N; i++ {
-			p.GenShare(p.s, crp, p.s1)
-		}
-	})
-
-	b.Run(testString("PublicKeyGen/Agg", testCtx.NParties, params), func(b *testing.B) {
-
-		for i := 0; i < b.N; i++ {
-			p.AggregateShare(p.s1, p.s1, p.s1)
-		}
-	})
-
-}
-
-func benchRelinKeyGen(testCtx *testContext, b *testing.B) {
-
-	sk0Shards := testCtx.sk0Shards
-	params := testCtx.params
-
-	type Party struct {
-		*RKGProtocol
-		ephSk  *rlwe.SecretKey
-		sk     *rlwe.SecretKey
-		share1 *drlwe.RKGShare
-		share2 *drlwe.RKGShare
-	}
-
-	p := new(Party)
-	p.RKGProtocol = NewRKGProtocol(params)
-	p.sk = sk0Shards[0]
-	p.ephSk, p.share1, p.share2 = p.RKGProtocol.AllocateShare()
-
-	crp := p.SampleCRP(testCtx.crs)
-
-	b.Run(testString("RelinKeyGen/Round1Gen", testCtx.NParties, params), func(b *testing.B) {
-
-		for i := 0; i < b.N; i++ {
-			p.GenShareRoundOne(p.sk, crp, p.ephSk, p.share1)
-		}
-	})
-
-	b.Run(testString("RelinKeyGen/Round1Agg", testCtx.NParties, params), func(b *testing.B) {
-
-		for i := 0; i < b.N; i++ {
-			p.AggregateShare(p.share1, p.share1, p.share1)
-		}
-	})
-
-	b.Run(testString("RelinKeyGen/Round2Gen", testCtx.NParties, params), func(b *testing.B) {
-
-		for i := 0; i < b.N; i++ {
-			p.GenShareRoundTwo(p.ephSk, p.sk, p.share1, p.share2)
-		}
-	})
-
-	b.Run(testString("RelinKeyGen/Round2Agg", testCtx.NParties, params), func(b *testing.B) {
-
-		for i := 0; i < b.N; i++ {
-			p.AggregateShare(p.share2, p.share2, p.share2)
-		}
-	})
-
 }
 
 func benchKeySwitching(testCtx *testContext, b *testing.B) {
@@ -215,47 +127,6 @@ func benchPublicKeySwitching(testCtx *testContext, b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			p.KeySwitch(ciphertext, p.share, ciphertext)
-		}
-	})
-}
-
-func benchRotKeyGen(testCtx *testContext, b *testing.B) {
-
-	sk0Shards := testCtx.sk0Shards
-	params := testCtx.params
-
-	type Party struct {
-		*RTGProtocol
-		s     *rlwe.SecretKey
-		share *drlwe.RTGShare
-	}
-
-	p := new(Party)
-	p.RTGProtocol = NewRotKGProtocol(params)
-	p.s = sk0Shards[0]
-	p.share = p.AllocateShare()
-
-	crp := p.SampleCRP(testCtx.crs)
-
-	galEl := params.GaloisElementForRowRotation()
-	b.Run(testString("RotKeyGen/Round1/Gen", testCtx.NParties, params), func(b *testing.B) {
-
-		for i := 0; i < b.N; i++ {
-			p.GenShare(p.s, galEl, crp, p.share)
-		}
-	})
-
-	b.Run(testString("RotKeyGen/Round1/Agg", testCtx.NParties, params), func(b *testing.B) {
-
-		for i := 0; i < b.N; i++ {
-			p.AggregateShare(p.share, p.share, p.share)
-		}
-	})
-
-	rotKey := ckks.NewSwitchingKey(params)
-	b.Run(testString("RotKeyGen/Finalize", testCtx.NParties, params), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			p.GenRotationKey(p.share, crp, rotKey)
 		}
 	})
 }

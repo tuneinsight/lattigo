@@ -57,7 +57,7 @@ type testContext struct {
 	uniformSampler *ring.UniformSampler
 }
 
-func Test_DBFV(t *testing.T) {
+func TestDBFV(t *testing.T) {
 
 	var err error
 
@@ -90,12 +90,8 @@ func Test_DBFV(t *testing.T) {
 		}
 		for _, testSet := range []func(tc *testContext, t *testing.T){
 
-			testPublicKeyGen,
-			testRelinKeyGen,
 			testKeyswitching,
 			testPublicKeySwitching,
-			testRotKeyGenRotRows,
-			testRotKeyGenRotCols,
 			testEncToShares,
 			testRefresh,
 			testRefreshAndPermutation,
@@ -164,125 +160,6 @@ func gentestContext(params bfv.Parameters, parties int) (tc *testContext, err er
 	return
 }
 
-func testPublicKeyGen(tc *testContext, t *testing.T) {
-
-	sk0Shards := tc.sk0Shards
-	decryptorSk0 := tc.decryptorSk0
-
-	t.Run(testString("PublicKeyGen", tc.NParties, tc.params), func(t *testing.T) {
-
-		type Party struct {
-			*CKGProtocol
-			s  *rlwe.SecretKey
-			s1 *drlwe.CKGShare
-		}
-
-		ckgParties := make([]*Party, tc.NParties)
-		for i := 0; i < tc.NParties; i++ {
-			p := new(Party)
-			p.CKGProtocol = NewCKGProtocol(tc.params)
-			p.s = sk0Shards[i]
-			p.s1 = p.AllocateShare()
-			ckgParties[i] = p
-		}
-		P0 := ckgParties[0]
-
-		crp := P0.SampleCRP(tc.crs)
-
-		// Checks that dbfv.CKGProtocol complies to the drlwe.CollectivePublicKeyGenerator interface
-		var _ drlwe.CollectivePublicKeyGenerator = P0.CKGProtocol
-
-		// Each party creates a new CKGProtocol instance
-		for i, p := range ckgParties {
-			p.GenShare(p.s, crp, p.s1)
-			if i > 0 {
-				P0.AggregateShare(p.s1, P0.s1, P0.s1)
-			}
-		}
-
-		pk := bfv.NewPublicKey(tc.params)
-		P0.GenPublicKey(P0.s1, crp, pk)
-
-		// Verifies that decrypt((encryptp(collectiveSk, m), collectivePk) = m
-		encryptorTest := bfv.NewEncryptor(tc.params, pk)
-
-		coeffs, _, ciphertext := newTestVectors(tc, encryptorTest, t)
-
-		verifyTestVectors(tc, decryptorSk0, coeffs, ciphertext, t)
-	})
-}
-
-func testRelinKeyGen(tc *testContext, t *testing.T) {
-
-	sk0Shards := tc.sk0Shards
-	encryptorPk0 := tc.encryptorPk0
-	decryptorSk0 := tc.decryptorSk0
-
-	t.Run(testString("RelinKeyGen", tc.NParties, tc.params), func(t *testing.T) {
-
-		type Party struct {
-			*RKGProtocol
-			ephSk  *rlwe.SecretKey
-			sk     *rlwe.SecretKey
-			share1 *drlwe.RKGShare
-			share2 *drlwe.RKGShare
-		}
-
-		rkgParties := make([]*Party, tc.NParties)
-
-		for i := range rkgParties {
-			p := new(Party)
-			p.RKGProtocol = NewRKGProtocol(tc.params)
-			p.sk = sk0Shards[i]
-			p.ephSk, p.share1, p.share2 = p.AllocateShare()
-			rkgParties[i] = p
-		}
-
-		P0 := rkgParties[0]
-
-		// Checks that bfv.RKGProtocol complies to the drlwe.RelinearizationKeyGenerator interface
-		var _ drlwe.RelinearizationKeyGenerator = P0.RKGProtocol
-
-		crp := P0.SampleCRP(tc.crs)
-
-		// ROUND 1
-		for i, p := range rkgParties {
-			p.GenShareRoundOne(p.sk, crp, p.ephSk, p.share1)
-			if i > 0 {
-				P0.AggregateShare(p.share1, P0.share1, P0.share1)
-			}
-		}
-
-		//ROUND 2
-		for i, p := range rkgParties {
-			p.GenShareRoundTwo(p.ephSk, p.sk, P0.share1, p.share2)
-			if i > 0 {
-				P0.AggregateShare(p.share2, P0.share2, P0.share2)
-			}
-		}
-
-		evk := bfv.NewRelinearizationKey(tc.params, 1)
-		P0.GenRelinearizationKey(P0.share1, P0.share2, evk)
-
-		evaluator := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: evk, Rtks: nil})
-
-		coeffs, _, ciphertext := newTestVectors(tc, encryptorPk0, t)
-		for i := range coeffs {
-			coeffs[i] *= coeffs[i]
-			coeffs[i] %= tc.ringT.Modulus[0]
-		}
-
-		ciphertextMul := bfv.NewCiphertext(tc.params, ciphertext.Degree()*2)
-		evaluator.Mul(ciphertext, ciphertext, ciphertextMul)
-
-		res := bfv.NewCiphertext(tc.params, 1)
-		evaluator.Relinearize(ciphertextMul, res)
-
-		verifyTestVectors(tc, decryptorSk0, coeffs, res, t)
-	})
-
-}
-
 func testKeyswitching(tc *testContext, t *testing.T) {
 
 	sk0Shards := tc.sk0Shards
@@ -311,9 +188,6 @@ func testKeyswitching(tc *testContext, t *testing.T) {
 			cksParties[i] = p
 		}
 		P0 := cksParties[0]
-
-		// Checks that the protocol complies to the drlwe.PublicKeySwitchingProtocol interface
-		var _ drlwe.KeySwitchingProtocol = &P0.cks.CKSProtocol
 
 		// Each party creates its CKSProtocol instance with tmp = si-si'
 		for i, p := range cksParties {
@@ -360,9 +234,6 @@ func testPublicKeySwitching(tc *testContext, t *testing.T) {
 		}
 		P0 := pcksParties[0]
 
-		// Checks that the protocol complies to the drlwe.PublicKeySwitchingProtocol interface
-		var _ drlwe.PublicKeySwitchingProtocol = &P0.PCKSProtocol.PCKSProtocol
-
 		coeffs, _, ciphertext := newTestVectors(tc, encryptorPk0, t)
 
 		ciphertextSwitched := bfv.NewCiphertext(tc.params, 1)
@@ -377,114 +248,6 @@ func testPublicKeySwitching(tc *testContext, t *testing.T) {
 		P0.KeySwitch(ciphertext, P0.share, ciphertextSwitched)
 
 		verifyTestVectors(tc, decryptorSk1, coeffs, ciphertextSwitched, t)
-	})
-}
-
-func testRotKeyGenRotRows(tc *testContext, t *testing.T) {
-
-	encryptorPk0 := tc.encryptorPk0
-	decryptorSk0 := tc.decryptorSk0
-	sk0Shards := tc.sk0Shards
-
-	t.Run(testString("RotKeyGenRotRows", tc.NParties, tc.params), func(t *testing.T) {
-
-		type Party struct {
-			*RTGProtocol
-			s     *rlwe.SecretKey
-			share *drlwe.RTGShare
-		}
-
-		pcksParties := make([]*Party, tc.NParties)
-		for i := 0; i < tc.NParties; i++ {
-			p := new(Party)
-			p.RTGProtocol = NewRotKGProtocol(tc.params)
-			p.s = sk0Shards[i]
-			p.share = p.AllocateShare()
-			pcksParties[i] = p
-		}
-		P0 := pcksParties[0]
-
-		// Checks that bfv.RTGProtocol complies to the drlwe.RotationKeyGenerator interface
-		var _ drlwe.RotationKeyGenerator = P0.RTGProtocol
-
-		crp := P0.SampleCRP(tc.crs)
-
-		galEl := tc.params.GaloisElementForRowRotation()
-		rotKeySet := bfv.NewRotationKeySet(tc.params, []uint64{galEl})
-
-		for i, p := range pcksParties {
-			p.GenShare(p.s, galEl, crp, p.share)
-			if i > 0 {
-				P0.AggregateShare(p.share, P0.share, P0.share)
-			}
-		}
-
-		P0.GenRotationKey(P0.share, crp, rotKeySet.Keys[galEl])
-
-		coeffs, _, ciphertext := newTestVectors(tc, encryptorPk0, t)
-
-		evaluator := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: nil, Rtks: rotKeySet})
-		result := evaluator.RotateRowsNew(ciphertext)
-		coeffsWant := append(coeffs[tc.params.N()>>1:], coeffs[:tc.params.N()>>1]...)
-
-		verifyTestVectors(tc, decryptorSk0, coeffsWant, result, t)
-
-	})
-}
-
-func testRotKeyGenRotCols(tc *testContext, t *testing.T) {
-
-	encryptorPk0 := tc.encryptorPk0
-	decryptorSk0 := tc.decryptorSk0
-	sk0Shards := tc.sk0Shards
-
-	t.Run(testString("RotKeyGenRotCols", tc.NParties, tc.params), func(t *testing.T) {
-
-		type Party struct {
-			*RTGProtocol
-			s     *rlwe.SecretKey
-			share *drlwe.RTGShare
-		}
-
-		pcksParties := make([]*Party, tc.NParties)
-		for i := 0; i < tc.NParties; i++ {
-			p := new(Party)
-			p.RTGProtocol = NewRotKGProtocol(tc.params)
-			p.s = sk0Shards[i]
-			p.share = p.AllocateShare()
-			pcksParties[i] = p
-		}
-
-		P0 := pcksParties[0]
-
-		// Checks that bfv.RTGProtocol complies to the drlwe.RotationKeyGenerator interface
-		var _ drlwe.RotationKeyGenerator = P0.RTGProtocol
-
-		crp := P0.SampleCRP(tc.crs)
-
-		coeffs, _, ciphertext := newTestVectors(tc, encryptorPk0, t)
-
-		galEls := tc.params.GaloisElementsForRowInnerSum()
-		rotKeySet := bfv.NewRotationKeySet(tc.params, galEls)
-
-		for _, galEl := range galEls {
-
-			for i, p := range pcksParties {
-				p.GenShare(p.s, galEl, crp, p.share)
-				if i > 0 {
-					P0.AggregateShare(p.share, P0.share, P0.share)
-				}
-			}
-
-			P0.GenRotationKey(P0.share, crp, rotKeySet.Keys[galEl])
-		}
-
-		evaluator := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: nil, Rtks: rotKeySet})
-		for k := 1; k < tc.params.N()>>1; k <<= 1 {
-			result := evaluator.RotateColumnsNew(ciphertext, int(k))
-			coeffsWant := utils.RotateUint64Slots(coeffs, int(k))
-			verifyTestVectors(tc, decryptorSk0, coeffsWant, result, t)
-		}
 	})
 }
 

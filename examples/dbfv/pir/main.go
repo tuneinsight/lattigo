@@ -330,7 +330,7 @@ func rtkphase(params bfv.Parameters, crs utils.PRNG, P []*party) *rlwe.RotationK
 
 	l.Println("> RTG Phase")
 
-	rtg := dbfv.NewRotKGProtocol(params) // Rotation keys generation
+	rtg := dbfv.NewRTGProtocol(params) // Rotation keys generation
 
 	for _, pi := range P {
 		pi.rtgShare = rtg.AllocateShare()

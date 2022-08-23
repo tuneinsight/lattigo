@@ -126,8 +126,6 @@ func testPublicKeyGen(testCtx testContext, t *testing.T) {
 			}
 		}
 
-		var _ CollectivePublicKeyGenerator = ckg[0]
-
 		shares := make([]*CKGShare, nbParties)
 		for i := range shares {
 			shares[i] = ckg[i].AllocateShare()
@@ -177,8 +175,6 @@ func testKeySwitching(testCtx testContext, t *testing.T) {
 				cks[i] = cks[0].ShallowCopy()
 			}
 		}
-
-		var _ KeySwitchingProtocol = cks[0]
 
 		skout := make([]*rlwe.SecretKey, nbParties)
 		skOutIdeal := rlwe.NewSecretKey(params)
@@ -237,8 +233,6 @@ func testPublicKeySwitching(testCtx testContext, t *testing.T) {
 			}
 		}
 
-		var _ PublicKeySwitchingProtocol = pcks[0]
-
 		ciphertext := &rlwe.Ciphertext{Value: []*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly()}}
 		testCtx.uniformSampler.Read(ciphertext.Value[1])
 		ringQ.MulCoeffsMontgomeryAndSub(ciphertext.Value[1], testCtx.skIdeal.Value.Q, ciphertext.Value[0])
@@ -291,8 +285,6 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 				rkg[i] = rkg[0].ShallowCopy()
 			}
 		}
-
-		var _ RelinearizationKeyGenerator = rkg[0]
 
 		ephSk := make([]*rlwe.SecretKey, nbParties)
 		share1 := make([]*RKGShare, nbParties)
@@ -397,8 +389,6 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 				rtg[i] = rtg[0].ShallowCopy()
 			}
 		}
-
-		var _ RotationKeyGenerator = rtg[0]
 
 		shares := make([]*RTGShare, nbParties)
 		for i := range shares {

@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"math"
-	"math/big"
 	"math/bits"
 	"runtime"
 	"testing"
@@ -95,10 +94,10 @@ func TestDRLWE(t *testing.T) {
 
 		for _, testSet := range []func(textCtx testContext, t *testing.T){
 			testPublicKeyGen,
-			testKeySwitching,
-			testPublicKeySwitching,
 			testRelinKeyGen,
 			testRotKeyGen,
+			testKeySwitching,
+			testPublicKeySwitching,
 			testMarshalling,
 		} {
 			testSet(textCtx, t)
@@ -110,10 +109,6 @@ func TestDRLWE(t *testing.T) {
 func testPublicKeyGen(testCtx testContext, t *testing.T) {
 
 	params := testCtx.params
-	ringQ := params.RingQ()
-	ringP := params.RingP()
-	ringQP := params.RingQP()
-	levelQ, levelP := params.QCount()-1, params.PCount()-1
 
 	t.Run(testString("PublicKeyGen", params), func(t *testing.T) {
 
@@ -144,17 +139,8 @@ func testPublicKeyGen(testCtx testContext, t *testing.T) {
 		pk := rlwe.NewPublicKey(params)
 		ckg[0].GenPublicKey(shares[0], crp, pk)
 
-		// [-as + e] + [as]
-		ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, testCtx.skIdeal.Value, pk.Value[1], pk.Value[0])
-		ringQP.InvNTTLvl(levelQ, levelP, pk.Value[0], pk.Value[0])
-		ringQP.InvMFormLvl(levelQ, levelP, pk.Value[0], pk.Value[0])
-
-		log2Bound := bits.Len64(3 * uint64(math.Floor(rlwe.DefaultSigma*6)) * uint64(params.N()))
-		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(pk.Value[0].Q.Level(), ringQ, pk.Value[0].Q))
-
-		if ringP != nil {
-			require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(pk.Value[0].P.Level(), ringP, pk.Value[0].P))
-		}
+		log2Bound := bits.Len64(3 * params.NoiseBound() * uint64(params.N()))
+		require.True(t, rlwe.PublicKeyIsCorrect(pk, testCtx.skIdeal, params, log2Bound))
 	})
 }
 
@@ -210,7 +196,7 @@ func testKeySwitching(testCtx testContext, t *testing.T) {
 		ringQ.MulCoeffsMontgomeryAndAdd(ksCiphertext.Value[1], skOutIdeal.Value.Q, ksCiphertext.Value[0])
 		ringQ.InvNTT(ksCiphertext.Value[0], ksCiphertext.Value[0])
 		log2Bound := bits.Len64(3 * uint64(math.Floor(rlwe.DefaultSigma*6)) * uint64(params.N()))
-		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(ksCiphertext.Value[0].Level(), ringQ, ksCiphertext.Value[0]))
+		require.GreaterOrEqual(t, log2Bound, ringQ.Log2OfInnerSum(ksCiphertext.Value[0].Level(), ksCiphertext.Value[0]))
 
 	})
 }
@@ -260,19 +246,15 @@ func testPublicKeySwitching(testCtx testContext, t *testing.T) {
 		ringQ.MulCoeffsMontgomeryAndAdd(ksCiphertext.Value[1], skOut.Value.Q, ksCiphertext.Value[0])
 		ringQ.InvNTT(ksCiphertext.Value[0], ksCiphertext.Value[0])
 		log2Bound := bits.Len64(3 * uint64(math.Floor(rlwe.DefaultSigma*6)) * uint64(params.N()))
-		require.GreaterOrEqual(t, log2Bound+5, log2OfInnerSum(ksCiphertext.Value[0].Level(), ringQ, ksCiphertext.Value[0]))
+		require.GreaterOrEqual(t, log2Bound+5, ringQ.Log2OfInnerSum(ksCiphertext.Value[0].Level(), ksCiphertext.Value[0]))
 
 	})
 }
 
 func testRelinKeyGen(testCtx testContext, t *testing.T) {
 	params := testCtx.params
-	ringQ := params.RingQ()
-	ringP := params.RingP()
 	ringQP := params.RingQP()
 	levelQ, levelP := params.QCount()-1, params.PCount()-1
-
-	decompPw2 := params.DecompPw2(levelQ, levelP)
 
 	t.Run(testString("RelinKeyGen", params), func(t *testing.T) {
 
@@ -320,64 +302,17 @@ func testRelinKeyGen(testCtx testContext, t *testing.T) {
 
 		swk := rlk.Keys[0]
 
-		// Decrypts
-		// [-asIn + w*P*sOut + e, a] + [asIn]
-		for i := range swk.Value {
-			for j := range swk.Value[i] {
-				ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, swk.Value[i][j].Value[1], skOut.Value, swk.Value[i][j].Value[0])
-			}
-		}
+		decompSize := params.DecompPw2(levelQ, levelP) * params.DecompRNS(levelQ, levelP)
+		log2Bound := bits.Len64(uint64(params.N() * decompSize * (params.N()*3*int(params.NoiseBound()) + 2*3*int(params.NoiseBound()) + params.N()*3)))
 
-		// Sums all basis together (equivalent to multiplying with CRT decomposition of 1)
-		// sum([1]_w * [RNS*PW2*P*sOut + e]) = PW2*P*sOut + sum(e)
-		for i := range swk.Value { // RNS decomp
-			if i > 0 {
-				for j := range swk.Value[i] { // PW2 decomp
-					ringQP.AddLvl(levelQ, levelP, swk.Value[0][j].Value[0], swk.Value[i][j].Value[0], swk.Value[0][j].Value[0])
-				}
-			}
-		}
-
-		if levelP != -1 {
-			// sOut * P
-			ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusAtLevel[levelP], skIn.Value.Q)
-		}
-
-		log2Bound := bits.Len64(uint64(params.N() * len(swk.Value) * len(swk.Value[0]) * (params.N()*3*int(math.Floor(rlwe.DefaultSigma*6)) + 2*3*int(math.Floor(rlwe.DefaultSigma*6)) + params.N()*3)))
-		for i := 0; i < decompPw2; i++ {
-
-			// P*s^i + sum(e) - P*s^i = sum(e)
-			ringQ.Sub(swk.Value[0][i].Value[0].Q, skIn.Value.Q, swk.Value[0][i].Value[0].Q)
-
-			// Checks that the error is below the bound
-			// Worst error bound is N * floor(6*sigma) * #Keys
-			ringQP.InvNTTLvl(levelQ, levelP, swk.Value[0][i].Value[0], swk.Value[0][i].Value[0])
-			ringQP.InvMFormLvl(levelQ, levelP, swk.Value[0][i].Value[0], swk.Value[0][i].Value[0])
-
-			// Worst bound of inner sum
-			// N*#Keys*(N * #Parties * floor(sigma*6) + #Parties * floor(sigma*6) + N * #Parties  +  #Parties * floor(6*sigma))
-
-			require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelQ, ringQ, swk.Value[0][i].Value[0].Q))
-
-			if levelP != -1 {
-				require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelP, ringP, swk.Value[0][i].Value[0].P))
-			}
-
-			// sOut * P * PW2
-			ringQ.MulScalar(skIn.Value.Q, 1<<params.Pow2Base(), skIn.Value.Q)
-		}
+		require.True(t, rlwe.SwitchingKeyIsCorrect(swk, skIn, skOut, params, log2Bound))
 	})
 }
 
 func testRotKeyGen(testCtx testContext, t *testing.T) {
 
 	params := testCtx.params
-	ringQ := params.RingQ()
-	ringP := params.RingP()
-	ringQP := params.RingQP()
 	levelQ, levelP := params.QCount()-1, params.PCount()-1
-
-	decompPw2 := params.DecompPw2(levelQ, levelP)
 
 	t.Run(testString("RotKeyGen", params), func(t *testing.T) {
 
@@ -410,63 +345,10 @@ func testRotKeyGen(testCtx testContext, t *testing.T) {
 		rotKeySet := rlwe.NewRotationKeySet(params, []uint64{galEl})
 		rtg[0].GenRotationKey(shares[0], crp, rotKeySet.Keys[galEl])
 
-		skIn := testCtx.skIdeal.CopyNew()
-		skOut := testCtx.skIdeal.CopyNew()
-		galElInv := ring.ModExp(galEl, uint64(2*params.N()-1), uint64(2*params.N()))
-		ringQ.PermuteNTT(testCtx.skIdeal.Value.Q, galElInv, skOut.Value.Q)
+		decompSize := params.DecompPw2(levelQ, levelP) * params.DecompRNS(levelQ, levelP)
+		log2Bound := bits.Len64(uint64(params.N() * decompSize * (params.N()*3*int(params.NoiseBound()) + 2*3*int(params.NoiseBound()) + params.N()*3)))
 
-		if levelP != -1 {
-			ringP.PermuteNTT(testCtx.skIdeal.Value.P, galElInv, skOut.Value.P)
-		}
-
-		swk := rotKeySet.Keys[galEl]
-
-		// Decrypts
-		// [-asIn + w*P*sOut + e, a] + [asIn]
-		for i := range swk.Value {
-			for j := range swk.Value[i] {
-				ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, swk.Value[i][j].Value[1], skOut.Value, swk.Value[i][j].Value[0])
-			}
-		}
-
-		// Sums all basis together (equivalent to multiplying with CRT decomposition of 1)
-		// sum([1]_w * [RNS*PW2*P*sOut + e]) = PWw*P*sOut + sum(e)
-		for i := range swk.Value { // RNS decomp
-			if i > 0 {
-				for j := range swk.Value[i] { // PW2 decomp
-					ringQP.AddLvl(levelQ, levelP, swk.Value[0][j].Value[0], swk.Value[i][j].Value[0], swk.Value[0][j].Value[0])
-				}
-			}
-		}
-
-		if levelP != -1 {
-			// sOut * P
-			ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusAtLevel[levelP], skIn.Value.Q)
-		}
-
-		log2Bound := bits.Len64(uint64(params.N() * len(swk.Value) * len(swk.Value[0]) * (params.N()*3*int(math.Floor(rlwe.DefaultSigma*6)) + 2*3*int(math.Floor(rlwe.DefaultSigma*6)) + params.N()*3)))
-		for i := 0; i < decompPw2; i++ {
-
-			// P*s^i + sum(e) - P*s^i = sum(e)
-			ringQ.Sub(swk.Value[0][i].Value[0].Q, skIn.Value.Q, swk.Value[0][i].Value[0].Q)
-
-			// Checks that the error is below the bound
-			// Worst error bound is N * floor(6*sigma) * #Keys
-			ringQP.InvNTTLvl(levelQ, levelP, swk.Value[0][i].Value[0], swk.Value[0][i].Value[0])
-			ringQP.InvMFormLvl(levelQ, levelP, swk.Value[0][i].Value[0], swk.Value[0][i].Value[0])
-
-			// Worst bound of inner sum
-			// N*#Keys*(N * #Parties * floor(sigma*6) + #Parties * floor(sigma*6) + N * #Parties  +  #Parties * floor(6*sigma))
-
-			require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelQ, ringQ, swk.Value[0][i].Value[0].Q))
-
-			if levelP != -1 {
-				require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelP, ringP, swk.Value[0][i].Value[0].P))
-			}
-
-			// sOut * P * PW2
-			ringQ.MulScalar(skIn.Value.Q, 1<<params.Pow2Base(), skIn.Value.Q)
-		}
+		require.True(t, rlwe.RotationKeyIsCorrect(rotKeySet.Keys[galEl], galEl, testCtx.skIdeal, params, log2Bound))
 	})
 }
 
@@ -621,61 +503,4 @@ func testMarshalling(testCtx testContext, t *testing.T) {
 			}
 		}
 	})
-}
-
-// Returns the ceil(log2) of the sum of the absolute value of all the coefficients
-func log2OfInnerSum(level int, ringQ *ring.Ring, poly *ring.Poly) (logSum int) {
-	sumRNS := make([]uint64, level+1)
-	var sum uint64
-	for i := 0; i < level+1; i++ {
-
-		qi := ringQ.Modulus[i]
-		qiHalf := qi >> 1
-		coeffs := poly.Coeffs[i]
-		sum = 0
-
-		for j := 0; j < ringQ.N; j++ {
-
-			v := coeffs[j]
-
-			if v >= qiHalf {
-				sum = ring.CRed(sum+qi-v, qi)
-			} else {
-				sum = ring.CRed(sum+v, qi)
-			}
-		}
-
-		sumRNS[i] = sum
-	}
-
-	var smallNorm = true
-	for i := 1; i < level+1; i++ {
-		smallNorm = smallNorm && (sumRNS[0] == sumRNS[i])
-	}
-
-	if !smallNorm {
-		var crtReconstruction *big.Int
-
-		sumBigInt := ring.NewUint(0)
-		QiB := new(big.Int)
-		tmp := new(big.Int)
-		modulusBigint := ringQ.ModulusAtLevel[level]
-
-		for i := 0; i < level+1; i++ {
-			QiB.SetUint64(ringQ.Modulus[i])
-			crtReconstruction = new(big.Int).Quo(modulusBigint, QiB)
-			tmp.ModInverse(crtReconstruction, QiB)
-			tmp.Mod(tmp, QiB)
-			crtReconstruction.Mul(crtReconstruction, tmp)
-			sumBigInt.Add(sumBigInt, tmp.Mul(ring.NewUint(sumRNS[i]), crtReconstruction))
-		}
-
-		sumBigInt.Mod(sumBigInt, modulusBigint)
-
-		logSum = sumBigInt.BitLen()
-	} else {
-		logSum = bits.Len64(sumRNS[0])
-	}
-
-	return
 }

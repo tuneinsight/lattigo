@@ -4,15 +4,12 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"math"
-	"math/big"
 	"math/bits"
 	"os"
 	"sync"
 	"time"
 
 	"github.com/tuneinsight/lattigo/v3/drlwe"
-	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
@@ -319,145 +316,17 @@ func main() {
 	fmt.Printf("Generation of %d keys completed in %s\n", len(rtks), time.Since(start))
 
 	fmt.Printf("Checking the keys... ")
+
+	levelQ, levelP := len(params.RingQ().Modulus)-1, len(params.RingP().Modulus)-1
+	decompSize := params.DecompPw2(levelQ, levelP) * params.DecompRNS(levelQ, levelP)
+	log2bound := bits.Len64(uint64(params.N() * decompSize * (params.N()*3*int(params.NoiseBound()) + 2*3*int(params.NoiseBound()) + params.N()*3)))
 	for galEl, rtk := range rtks {
-		if !verifyKey(rtk, galEl, skIdeal, params) {
+		if !rlwe.RotationKeyIsCorrect(&rtk, galEl, skIdeal, params, log2bound) {
 			fmt.Printf("invalid key for galEl=%d\n", galEl)
 			os.Exit(1)
 		}
 	}
 	fmt.Println("done")
-}
-
-func verifyKey(swk rlwe.SwitchingKey, galEl uint64, skIdeal *rlwe.SecretKey, params rlwe.Parameters) bool {
-	skIn := skIdeal.CopyNew()
-	skOut := skIdeal.CopyNew()
-	galElInv := ring.ModExp(galEl, uint64(4*params.N()-1), uint64(4*params.N()))
-	levelQ, levelP := params.QCount()-1, params.PCount()-1
-	ringQ, ringP, ringQP := params.RingQ(), params.RingP(), params.RingQP()
-	decompPw2 := params.DecompPw2(levelQ, levelP)
-
-	ringQ.PermuteNTT(skIdeal.Value.Q, galElInv, skOut.Value.Q)
-	if ringP != nil {
-		ringP.PermuteNTT(skIdeal.Value.P, galElInv, skOut.Value.P)
-	}
-
-	// Decrypts
-	// [-asIn + w*P*sOut + e, a] + [asIn]
-	for i := range swk.Value {
-		for j := range swk.Value[i] {
-			ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, swk.Value[i][j].Value[1], skOut.Value, swk.Value[i][j].Value[0])
-		}
-	}
-
-	// Sums all basis together (equivalent to multiplying with CRT decomposition of 1)
-	// sum([1]_w * [RNS*PW2*P*sOut + e]) = PWw*P*sOut + sum(e)
-	for i := range swk.Value { // RNS decomp
-		if i > 0 {
-			for j := range swk.Value[i] { // PW2 decomp
-				ringQP.AddLvl(levelQ, levelP, swk.Value[0][j].Value[0], swk.Value[i][j].Value[0], swk.Value[0][j].Value[0])
-			}
-		}
-	}
-
-	if levelP != -1 {
-		// sOut * P
-		ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusAtLevel[levelP], skIn.Value.Q)
-	}
-
-	log2Bound := bits.Len64(uint64(params.N() * len(swk.Value) * len(swk.Value[0]) * (params.N()*3*int(math.Floor(rlwe.DefaultSigma*6)) + 2*3*int(math.Floor(rlwe.DefaultSigma*6)) + params.N()*3)))
-	for i := 0; i < decompPw2; i++ {
-
-		// P*s^i + sum(e) - P*s^i = sum(e)
-		ringQ.Sub(swk.Value[0][i].Value[0].Q, skIn.Value.Q, swk.Value[0][i].Value[0].Q)
-
-		// Checks that the error is below the bound
-		// Worst error bound is N * floor(6*sigma) * #Keys
-		ringQP.InvNTTLvl(levelQ, levelP, swk.Value[0][i].Value[0], swk.Value[0][i].Value[0])
-		ringQP.InvMFormLvl(levelQ, levelP, swk.Value[0][i].Value[0], swk.Value[0][i].Value[0])
-
-		// Worst bound of inner sum
-		// N*#Keys*(N * #Parties * floor(sigma*6) + #Parties * floor(sigma*6) + N * #Parties  +  #Parties * floor(6*sigma))
-
-		if log2Bound < log2OfInnerSum(levelQ, ringQ, swk.Value[0][i].Value[0].Q) {
-			return false
-		}
-
-		if levelP != -1 {
-			if log2Bound < log2OfInnerSum(levelP, ringP, swk.Value[0][i].Value[0].P) {
-				return false
-			}
-		}
-
-		// sOut * P * PW2
-		ringQ.MulScalar(skIn.Value.Q, 1<<params.Pow2Base(), skIn.Value.Q)
-	}
-
-	return true
-}
-
-// Returns the ceil(log2) of the sum of the absolute value of all the coefficients
-func log2OfInnerSum(level int, ringQ *ring.Ring, poly *ring.Poly) (logSum int) {
-	sumRNS := make([]uint64, level+1)
-	var sum uint64
-	for i := 0; i < level+1; i++ {
-
-		qi := ringQ.Modulus[i]
-		qiHalf := qi >> 1
-		coeffs := poly.Coeffs[i]
-		sum = 0
-
-		for j := 0; j < ringQ.N; j++ {
-
-			v := coeffs[j]
-
-			if v >= qiHalf {
-				sum = ring.CRed(sum+qi-v, qi)
-			} else {
-				sum = ring.CRed(sum+v, qi)
-			}
-		}
-
-		sumRNS[i] = sum
-	}
-
-	var smallNorm = true
-	for i := 1; i < level+1; i++ {
-		smallNorm = smallNorm && (sumRNS[0] == sumRNS[i])
-	}
-
-	if !smallNorm {
-		var qi uint64
-		var crtReconstruction *big.Int
-
-		sumBigInt := ring.NewUint(0)
-		QiB := new(big.Int)
-		tmp := new(big.Int)
-		modulusBigint := ring.NewUint(1)
-
-		for i := 0; i < level+1; i++ {
-
-			qi = ringQ.Modulus[i]
-			QiB.SetUint64(qi)
-
-			modulusBigint.Mul(modulusBigint, QiB)
-
-			crtReconstruction = new(big.Int)
-			crtReconstruction.Quo(ringQ.ModulusAtLevel[len(ringQ.Modulus)-1], QiB)
-			tmp.ModInverse(crtReconstruction, QiB)
-			tmp.Mod(tmp, QiB)
-			crtReconstruction.Mul(crtReconstruction, tmp)
-
-			sumBigInt.Add(sumBigInt, tmp.Mul(ring.NewUint(sumRNS[i]), crtReconstruction))
-		}
-
-		sumBigInt.Mod(sumBigInt, modulusBigint)
-
-		logSum = sumBigInt.BitLen()
-	} else {
-		logSum = bits.Len64(sumRNS[0])
-	}
-
-	return
 }
 
 func byteCountSI(b int) string {

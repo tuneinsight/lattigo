@@ -80,13 +80,14 @@ func (ct *GadgetCiphertext) CopyNew() (ctCopy *GadgetCiphertext) {
 	if ct == nil || len(ct.Value) == 0 {
 		return nil
 	}
-	Value := make([][]CiphertextQP, len(ct.Value))
+	v := make([][]CiphertextQP, len(ct.Value))
 	for i := range ct.Value {
+		v[i] = make([]CiphertextQP, len(ct.Value[0]))
 		for j, el := range ct.Value[i] {
-			Value[i][j] = CiphertextQP{Value: [2]ringqp.Poly{el.Value[0].CopyNew(), el.Value[1].CopyNew()}}
+			v[i][j] = *el.CopyNew()
 		}
 	}
-	return &GadgetCiphertext{Value: Value}
+	return &GadgetCiphertext{Value: v}
 }
 
 // GetDataLen returns the length in bytes of the target Ciphertext.

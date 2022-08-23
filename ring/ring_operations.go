@@ -600,3 +600,60 @@ func (r *Ring) BitReverse(p1, p2 *Poly) {
 		}
 	}
 }
+
+// Log2OfInnerSum returns the bit-size of the sum of all the coefficients (in absolute value) of a Poly.
+func (r *Ring) Log2OfInnerSum(level int, poly *Poly) (logSum int) {
+	sumRNS := make([]uint64, level+1)
+	var sum uint64
+	for i := 0; i < level+1; i++ {
+
+		qi := r.Modulus[i]
+		qiHalf := qi >> 1
+		coeffs := poly.Coeffs[i]
+		sum = 0
+
+		for j := 0; j < r.N; j++ {
+
+			v := coeffs[j]
+
+			if v >= qiHalf {
+				sum = CRed(sum+qi-v, qi)
+			} else {
+				sum = CRed(sum+v, qi)
+			}
+		}
+
+		sumRNS[i] = sum
+	}
+
+	var smallNorm = true
+	for i := 1; i < level+1; i++ {
+		smallNorm = smallNorm && (sumRNS[0] == sumRNS[i])
+	}
+
+	if !smallNorm {
+		var crtReconstruction *big.Int
+
+		sumBigInt := NewUint(0)
+		QiB := new(big.Int)
+		tmp := new(big.Int)
+		modulusBigint := r.ModulusAtLevel[level]
+
+		for i := 0; i < level+1; i++ {
+			QiB.SetUint64(r.Modulus[i])
+			crtReconstruction = new(big.Int).Quo(modulusBigint, QiB)
+			tmp.ModInverse(crtReconstruction, QiB)
+			tmp.Mod(tmp, QiB)
+			crtReconstruction.Mul(crtReconstruction, tmp)
+			sumBigInt.Add(sumBigInt, tmp.Mul(NewUint(sumRNS[i]), crtReconstruction))
+		}
+
+		sumBigInt.Mod(sumBigInt, modulusBigint)
+
+		logSum = sumBigInt.BitLen()
+	} else {
+		logSum = bits.Len64(sumRNS[0])
+	}
+
+	return
+}

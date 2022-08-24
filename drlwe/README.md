@@ -33,20 +33,24 @@ An execution of the MHE-based MPC protocol has two phase, the Setup and the Eval
    1. Input (Encryption)
    2. Circuit Evaluation
    3. Output phase  (Decryption)
-      1. _[if t < N]_ Threshold Combine Phase  
       2. Collective Key-Switching
       3. Local Decryption
 
 
 ## MHE-MPC Protocol Steps Description
 This section provides a description for each sub-protocol composing the MHE-MPC protocol and provide pointers to the relevant Lattigo types and methods.
-For actual code examples, see the `example/dbfv` and `example/drlwe` folders.
+This description is a first draft and is meant to be improved in the future.
+For concrete code examples, see the `example/dbfv` and `example/drlwe` folders.
 For a more formal exposition, see ["Multiparty Homomorphic Encryption from Ring-Learning-with-Errors"](https://eprint.iacr.org/2020/304.pdf) and [An Efficient Threshold Access-Structure for RLWE-Based Multiparty Homomorphic Encryption](https://eprint.iacr.org/2022/780).
 
 The system model is abstracted by considering that the parties have access to a common public authenticated channel.
 In the cloud-assisted setting, this public channel can be the helper cloud-server.
 In the peer-to-peer setting , it could be a public broadcast channel.
 We also assume that parties can communicate over private authenticated channels.
+
+Several protocols require the parties to have access to common uniformly random polynomials (CRP), which are sampled from a common random string (CRS).
+This CRS is implemented as an interface type `drlwe.CRS` that can be read from the parties as a part of the protocols (see below).
+The `drlwe.CRS` can be implemented by a `utils.KeyedPRNG` type for which all parties use the same key.
 
 ### 1. Setup
 In this phase, the parties generate the various keys that are required by the Evaluation phase.
@@ -61,7 +65,7 @@ See [rlwe/keygen.go](../rlwe/keygen.go) further information on key-generation.
 The _ideal secret-key_ is implicitly defined as the sum of all secret-keys.
 Hence, this secret-key enforces an _N-out-N_ access structure which requires all the parties to collaborate in a ciphertext decryption (hence, tolerates N-1 dishonest parties).
 
-#### 1.ii _[OPTIONAL]_ Threshold Secret-Key Generation
+#### 1.ii _[if t < N]_ Threshold Secret-Key Generation
 For settings where an _N-out-N_ access structure is too restrictive (e.g., from an availability point of view), an optional Threshold Secret-Key Generation Protocol can be performed to enable _t-out-of-N_ access-structures (hence tolerating t-1 dishonest parties).
 The idea of this protocol is to apply Shamir Secret Sharing to the _ideal secret-key_ in such a way that any group of _t_ parties can reconstruct it.
 This is achieved by a single-round protocol where each party applies Shamir Secret-Sharing to its own share of the _ideal secret-key_.
@@ -73,40 +77,39 @@ This protocol is implemented by the `drlwe.Thresholdizer` type and its steps are
 - Each party privately sends the respective `ShamirSecretShare` to each of the other parties. 
 - Each party aggregates the all `ShamirSecretShare`s it receives using the `Thresholdizer.AggregateShares` method.
 
-Each party stores its aggregated `ShamirSecretShare` for later use in the Combining step output protocol.
+Each party stores its aggregated `ShamirSecretShare` for later use.
 
 #### 1.iii Public Key Generation
 The parties execute the collective public encryption-key generation protocol to obtain an encryption-key for the _ideal secret-key_.
 
 The protocol is implemented by the `drlwe.CKGProtocol` type and its steps are as follows:
-- Each party generates a share (`drlwe.CKGShare`) from their secret-key, by using the `CKGProtocol.GenShare` method.
+- Each party samples a common random polynomial (`drlwe.CKGCRP`) from the CRS by using the `CKGProtocol.SampleCRP` method.
+- _[if t < N]_ Each party uses the `drlwe.Combiner.GenAdditiveShare` to obtain a t-out-of-t sharing and use the result as their secret-key in the next step.
+- Each party generates a share (`drlwe.CKGShare`) from the CRP  and their secret-key, by using the `CKGProtocol.GenShare` method.
 - Each party discloses its share over the public channel. The shares are aggregated with the `CKGProtocol.AggregateShare` method.
 - Each party can derive the public encryption-key (`rlwe.PublicKey`) by using the `CKGProtocol.GenPublicKey` method.
-
-Note that the `GenShare` requires a polynomial that is uniformly random and common to all parties (`crs`).
 
 #### 1.iv Relinearization Key Generation
 This protocol provides the parties with a public relinearization-key (`rlwe.RelinearizationKey`) for the _ideal secret-key_. This public-key enables compact multiplications in RLWE schemes. This protocol is the only one that has two rounds.
 
 The protocol is implemented by the  `drlwe.RKGProtocol` type and its steps are as follows:
+- Each party samples a common random polynomial matrix (`drlwe.RKGCRP`) from the CRS by using the `RKGProtocol.SampleCRP` method.
+- _[if t < N]_ Each party uses the `drlwe.Combiner.GenAdditiveShare` to obtain a t-out-of-t sharing and use the result as their secret-key in the next steps.
 - Each party generates a share (`drlwe.RGKShare`) for the first protocol round by using the `RKGProtocol.GenShareRoundOne` method. This method also provides the party with an ephemeral secret-key (`rlwe.SecretKey`) that is required for the second round.
 - Each party discloses its share for the first round over the public channel. The shares are aggregated with the `RKGProtocol.AggregateShare` method.
 - Each party generates a share (also a `drlwe.RGKShare`) for the second protocol round by using the `RKGProtocol.GenShareRoundTwo` method.
 - Each party discloses its share for the second round over the public channel. The shares are aggregated with the `RKGProtocol.AggregateShare` method.
 - Each party can derive the public relinearization-key (`rlwe.RelinearizationKey`) by using the `RKGProtocol.GenRelinearizationKey` method.
 
-Note that, similar to the CKG protocol, the RKG protocol requires a matrix of polynomials that are uniformly random and common to all parties (`crs`).
-
 #### 1.v Rotation Key Generation
 This protocol provides the parties with a public rotation-key (stored as `rlwe.SwitchingKey` types) for the _ideal secret-key_. One rotation-key enables one specific rotation on the ciphertexts' slots. The protocol can be repeated to generate the keys for multiple rotations.
 
 The protocol is implemented by the  `drlwe.RTGProtocol` type and its steps are as follows:
+- Each party samples a common random polynomial matrix (`drlwe.RTGCRP`) from the CRS by using the `RTGProtocol.SampleCRP` method.
+- _[if t < N]_ Each party uses the `drlwe.Combiner.GenAdditiveShare` to obtain a t-out-of-t sharing and use the result as their secret-key in the next step.
 - Each party generates a share (`drlwe.RTGShare`) by using `RTGProtocol.GenShare`. 
 - Each party discloses its `drlwe.RTGShare` over the public channel. The shares are aggregated with the `RTGProtocol.AggregateShare` method.
 - Each party can derive the public rotation-key (`rlwe.SwitchingKey`) from the final `RTGShare` by using the `RTGProtocol.AggregateShare` method.
-
-Note that, similar to the CKG and RKG protocols, the RKG protocol requires a matrix of polynomials that are uniformly random and common to all parties (`crs`).
-
 
 ### 2 Evaluation Phase 
 
@@ -130,12 +133,7 @@ It is a two-steps process with an optional pre-processing step in case of the t-
 In the first step, Collective Key-Switching the parties re-encrypt the desired ciphertext under the receiver's secret-key.
 The second step is the local decryption of this re-encrypted ciphertext by the receiver.
 
-#### 2.iii.a _[if t < N]_Combining Step
-If not all parties are online during the Output phase, but a Threshold Key-Generation step was performed, the parties can perform a Combining step to compute a new sharing of the _ideal secret-key_ with only _t_ parts. This step is local to all parties and does not require interaction once the set of online parties is known.
-
-This step is implemented by the `drlwe.Combiner` interface, which simply provides `GenAdditiveShare` method that computes the party's new share of the _ideal secret-key_ given the list of `ShamirPublicPoint` of the active parties and the party's `ShamirSecretShare`. The result is stored in a `rlwe.SecretKey` that can be used in place of the _N-out-of-N_ one during the next phase performed among _t_ parties.
-
-#### 2.iii.b Collective Key-Switching
+#### 2.iii.a Collective Key-Switching
 The parties perform a re-encryption of the desired ciphertext(s) from being encrypted under the _ideal secret-key_ to being encrypted under the receiver's secret-key.
 There are two instantiation of the Collective Key-Switching protocol:
 - Collective Key-Switching (CKS), implemented as the `drlwe.CKSProtocol` interface, enables the parties to switch from their _ideal secret-key_ _s_ to another _ideal secret-key_ _s'_ when s' is collectively known to the parties. In the case where _s' = 0_, this is equivalent to a decryption protocol which can be used when the receiver is one of the input-parties. 

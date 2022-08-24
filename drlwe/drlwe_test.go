@@ -517,17 +517,17 @@ func testThreshold(tc *testContext, t *testing.T) {
 				sk   *rlwe.SecretKey
 				tsks *ShamirSecretShare
 				tsk  *rlwe.SecretKey
-				tpk  ShamirPublicKey
+				tpk  ShamirPublicPoint
 			}
 
 			P := make([]*Party, tc.nParties())
-			shamirPks := make([]ShamirPublicKey, tc.nParties())
+			shamirPks := make([]ShamirPublicPoint, tc.nParties())
 			for i := 0; i < tc.nParties(); i++ {
 				p := new(Party)
 				p.Thresholdizer = NewThresholdizer(tc.params)
 				p.sk = sk0Shards[i]
 				p.tsk = rlwe.NewSecretKey(tc.params)
-				p.tpk = ShamirPublicKey(i + 1)
+				p.tpk = ShamirPublicPoint(i + 1)
 				p.tsks = p.Thresholdizer.AllocateThresholdSecretShare()
 				P[i] = p
 				shamirPks[i] = p.tpk
@@ -564,7 +564,7 @@ func testThreshold(tc *testContext, t *testing.T) {
 			// Determining which parties are active. In a distributed context, a party
 			// would receive the ids of active players and retrieve (or compute) the corresponding keys.
 			activeParties := P[:threshold]
-			activeShamirPks := make([]ShamirPublicKey, threshold)
+			activeShamirPks := make([]ShamirPublicPoint, threshold)
 			for i, p := range activeParties {
 				activeShamirPks[i] = p.tpk
 			}

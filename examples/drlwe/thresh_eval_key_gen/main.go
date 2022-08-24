@@ -34,7 +34,7 @@ type party struct {
 	sk       *rlwe.SecretKey
 	tsk      *drlwe.ShamirSecretShare
 	ssp      *drlwe.ShamirPolynomial
-	shamirPk drlwe.ShamirPublicKey
+	shamirPk drlwe.ShamirPublicPoint
 
 	genTaskQueue chan genTask
 }
@@ -69,7 +69,7 @@ func (p *party) Run(wg *sync.WaitGroup, params rlwe.Parameters, N int, P []*part
 		if t == N {
 			sk = p.sk
 		} else {
-			activePk := make([]drlwe.ShamirPublicKey, 0)
+			activePk := make([]drlwe.ShamirPublicPoint, 0)
 			for _, pi := range task.group {
 				activePk = append(activePk, pi.shamirPk)
 			}
@@ -245,7 +245,7 @@ func main() {
 	}
 	P := make([]*party, N)
 	skIdeal := rlwe.NewSecretKey(params)
-	shamirPks := make([]drlwe.ShamirPublicKey, 0)
+	shamirPks := make([]drlwe.ShamirPublicPoint, 0)
 	for i := range P {
 		pi := new(party)
 		pi.RTGProtocol = drlwe.NewRTGProtocol(params)
@@ -258,7 +258,7 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		pi.shamirPk = drlwe.ShamirPublicKey(i + 1)
+		pi.shamirPk = drlwe.ShamirPublicPoint(i + 1)
 		shamirPks = append(shamirPks, pi.shamirPk)
 		pi.genTaskQueue = make(chan genTask, k)
 		P[i] = pi

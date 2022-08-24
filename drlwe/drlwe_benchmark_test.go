@@ -154,9 +154,9 @@ func benchThreshold(params rlwe.Parameters, t int, b *testing.B) {
 		tsk *ShamirSecretShare
 	}
 
-	shamirPks := make([]ShamirPublicKey, t)
+	shamirPks := make([]ShamirPublicPoint, t)
 	for i := range shamirPks {
-		shamirPks[i] = ShamirPublicKey(i + 1)
+		shamirPks[i] = ShamirPublicPoint(i + 1)
 	}
 
 	p := new(Party)

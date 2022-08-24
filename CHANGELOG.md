@@ -60,6 +60,8 @@ All notable changes to this library are documented in this file.
 - CKKS: fixed `MulAndAdd` correctness for non-identical inputs.
 - CKKS: added `advanced.EncodingMatrixLiteral.RepackImag2Real` optional field to repack the imaginary part into the right n real slots.
 - CKKS: `Trace` now only takes as input the `logSlots` of the encrypted plaintext.
+- DRLWE: added the `Thresholdizer` and `Combiner` types for t-out-of-N-threshold schemes through Shamir secret-sharing.
+- DRLWE: added a `README.md` providing package overview and usage instructions.
 - DRLWE: removed the obsolete `CollectivePublicKeyGenerator`, `RelinearizationKeyGenerator`, `RotationKeyGenerator`, `PublicKeySwitchingProtocol` and `KeySwitchingProtocol` interfaces.
 - DBFV/DCKKS: removed the `dbfv/dckks.CKGProtocol`, `dbfv/dckks.RKGProtocol` and `dbfv/dckks.RTGProtocol` types. Users should use the corresponding `drlwe` types instead.
 - DCKKS: fixed `dckks.RefreshProtocol` correctness when the output scale is different from the input scale.

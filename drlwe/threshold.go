@@ -9,89 +9,104 @@ import (
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
-// ShamirPublicKey is a type for Shamir public keys in a thresholdizer.
-type ShamirPublicKey uint64
-
-// ShamirPolynomial is a type for a share-generating polynomial.
-type ShamirPolynomial struct {
-	coeffs []ringqp.Poly
-}
-
-// ShamirSecretShare is a type for a share of a secret key in a thresholdizer.
-type ShamirSecretShare struct {
-	ringqp.Poly
-}
-
-//Thresholdizer is the structure containing the parameters for a thresholdizer.
+// Thresholdizer is a type for generating secret-shares of ringqp.Poly types such that
+// the resulting sharing has a t-out-of-N-threshold access-structure. It implements the
+// `Thresholdize` operation as presented in "An Efficient Threshold Access-Structure
+// for RLWE-Based Multiparty Homomorphic Encryption" (2022) by Mouchet, C., Bertrand, E.,
+// and Hubaux, J. P. (https://eprint.iacr.org/2022/780).
+//
+// See the `drlwe` package README.md.
 type Thresholdizer struct {
 	params   *rlwe.Parameters
 	ringQP   *ringqp.Ring
 	usampler ringqp.UniformSampler
 }
 
-// NewThresholdizer creates a new Thresholdizer instance from parameters.
-func NewThresholdizer(params rlwe.Parameters) *Thresholdizer {
-
-	thresholdizer := new(Thresholdizer)
-	thresholdizer.params = &params
-	thresholdizer.ringQP = params.RingQP()
-
-	prng, err := utils.NewPRNG()
-	if err != nil {
-		panic("Error in Thresholdizer initalization : error in PRNG generation")
-	}
-
-	thresholdizer.usampler = ringqp.NewUniformSampler(prng, *params.RingQP())
-
-	return thresholdizer
-}
-
-// GenShamirPolynomial initiates a ShareGenPoly by sampling a random polynomial of
-// degree threshold-1 with a constant term equal to the given secret key's value.
-func (thresholdizer *Thresholdizer) GenShamirPolynomial(threshold int, sk *rlwe.SecretKey) (*ShamirPolynomial, error) {
-	if threshold < 1 {
-		return nil, fmt.Errorf("threshold should be >= 1")
-	}
-	gen := &ShamirPolynomial{coeffs: make([]ringqp.Poly, int(threshold))}
-	gen.coeffs[0] = sk.Value // using the sk Poly directly since gen.coeffs is private and never modified internally.
-	for i := 1; i < threshold; i++ {
-		gen.coeffs[i] = thresholdizer.ringQP.NewPoly()
-		thresholdizer.usampler.Read(gen.coeffs[i])
-	}
-	return gen, nil
-}
-
-// AllocateThresholdSecretShare allocates a Threshold secret share.
-func (thresholdizer *Thresholdizer) AllocateThresholdSecretShare() *ShamirSecretShare {
-	return &ShamirSecretShare{thresholdizer.ringQP.NewPoly()}
-}
-
-// GenShamirSecretShare generates a secret share for a given threshold public key.
-// Stores the result in share_out. This result should be sent to the given
-// threshold public key's owner.
-func (thresholdizer *Thresholdizer) GenShamirSecretShare(recipient ShamirPublicKey, secretPoly *ShamirPolynomial, shareOut *ShamirSecretShare) {
-	thresholdizer.ringQP.EvalPolMontgomeryScalarNTT(secretPoly.coeffs, uint64(recipient), shareOut.Poly)
-}
-
-// AggregateShares aggregates two secret shares(by adding them), and stores them
-// in outShare.
-func (thresholdizer *Thresholdizer) AggregateShares(share1, share2, outShare *ShamirSecretShare) {
-	lvlQ, lvlP := thresholdizer.params.QCount()-1, thresholdizer.params.PCount()-1
-	thresholdizer.ringQP.AddLvl(lvlQ, lvlP, share1.Poly, share2.Poly, outShare.Poly)
-}
-
-// Combiner is a structure that holds the parameters for the combining phase of
-// a threshold secret sharing protocol.
+// Combiner is a type for generating t-out-of-t additive shares from local t-out-of-N
+// shares. It implements the `Combine` operation as presented in "An Efficient Threshold
+// Access-Structure for RLWE-Based Multiparty Homomorphic Encryption" (2022) by Mouchet, C.,
+// Bertrand, E., and Hubaux, J. P. (https://eprint.iacr.org/2022/780).
 type Combiner struct {
 	ringQP         *ringqp.Ring
 	threshold      int
 	tmp1, tmp2     []uint64
 	one            ring.RNSScalar
-	lagrangeCoeffs map[ShamirPublicKey]ring.RNSScalar
+	lagrangeCoeffs map[ShamirPublicPoint]ring.RNSScalar
 }
 
-//NewCombiner creates a new Combiner.
-func NewCombiner(params rlwe.Parameters, own ShamirPublicKey, others []ShamirPublicKey, threshold int) *Combiner {
+// ShamirPublicPoint is a type for Shamir public point associated with a party identity within
+// the t-out-of-N-threshold scheme.
+//
+// See Thresholdizer and Combiner types.
+type ShamirPublicPoint uint64
+
+// ShamirPolynomial represents a polynomial with ringqp.Poly coefficients. It is used by the
+// Thresholdizer type to produce t-out-of-N-threshold shares of an ringqp.Poly.
+//
+// See Thresholdizer type.
+type ShamirPolynomial struct {
+	coeffs []ringqp.Poly
+}
+
+// ShamirSecretShare represents a t-out-of-N-threshold secret-share.
+//
+// See Thresholdizer and Combiner types.
+type ShamirSecretShare struct {
+	ringqp.Poly
+}
+
+// NewThresholdizer creates a new Thresholdizer instance from parameters.
+func NewThresholdizer(params rlwe.Parameters) *Thresholdizer {
+
+	thr := new(Thresholdizer)
+	thr.params = &params
+	thr.ringQP = params.RingQP()
+
+	prng, err := utils.NewPRNG()
+	if err != nil {
+		panic(fmt.Errorf("could not initialize PRNG: %s", err))
+	}
+
+	thr.usampler = ringqp.NewUniformSampler(prng, *params.RingQP())
+
+	return thr
+}
+
+// GenShamirPolynomial generates a new secret ShamirPolynomial to be used in the Thresholdizer.GenShamirSecretShare method.
+// It does so by sampling a random polynomial of degree threshold - 1 and with its constant term equal to secret.
+func (thr *Thresholdizer) GenShamirPolynomial(threshold int, secret *rlwe.SecretKey) (*ShamirPolynomial, error) {
+	if threshold < 1 {
+		return nil, fmt.Errorf("threshold should be >= 1")
+	}
+	gen := &ShamirPolynomial{coeffs: make([]ringqp.Poly, int(threshold))}
+	gen.coeffs[0] = secret.Value.CopyNew()
+	for i := 1; i < threshold; i++ {
+		gen.coeffs[i] = thr.ringQP.NewPoly()
+		thr.usampler.Read(gen.coeffs[i])
+	}
+	return gen, nil
+}
+
+// AllocateThresholdSecretShare allocates a ShamirSecretShare struct.
+func (thresholdizer *Thresholdizer) AllocateThresholdSecretShare() *ShamirSecretShare {
+	return &ShamirSecretShare{thresholdizer.ringQP.NewPoly()}
+}
+
+// GenShamirSecretShare generates a secret share for the given recipient, identified by its ShamirPublicPoint.
+// The result is stored in ShareOut and should be sent to this party.
+func (thresholdizer *Thresholdizer) GenShamirSecretShare(recipient ShamirPublicPoint, secretPoly *ShamirPolynomial, shareOut *ShamirSecretShare) {
+	thresholdizer.ringQP.EvalPolMontgomeryScalarNTT(secretPoly.coeffs, uint64(recipient), shareOut.Poly)
+}
+
+// AggregateShares aggregates two ShamirSecretShare and stores the result in outShare.
+func (thresholdizer *Thresholdizer) AggregateShares(share1, share2, outShare *ShamirSecretShare) {
+	lvlQ, lvlP := thresholdizer.params.QCount()-1, thresholdizer.params.PCount()-1
+	thresholdizer.ringQP.AddLvl(lvlQ, lvlP, share1.Poly, share2.Poly, outShare.Poly)
+}
+
+// NewCombiner creates a new Combiner struct from the parameters and the set of ShamirPublicPoints. Note that the other
+// parameter may contain the instanciator's own ShamirPublicPoint.
+func NewCombiner(params rlwe.Parameters, own ShamirPublicPoint, others []ShamirPublicPoint, threshold int) *Combiner {
 	cmb := new(Combiner)
 	cmb.ringQP = params.RingQP()
 	cmb.threshold = threshold
@@ -109,7 +124,7 @@ func NewCombiner(params rlwe.Parameters, own ShamirPublicKey, others []ShamirPub
 	}
 
 	// precomputes lagrange coefficient factors
-	cmb.lagrangeCoeffs = make(map[ShamirPublicKey]ring.RNSScalar)
+	cmb.lagrangeCoeffs = make(map[ShamirPublicPoint]ring.RNSScalar)
 	for _, spk := range others {
 		if spk != own {
 			cmb.lagrangeCoeffs[spk] = cmb.ringQP.NewScalar()
@@ -120,32 +135,29 @@ func NewCombiner(params rlwe.Parameters, own ShamirPublicKey, others []ShamirPub
 	return cmb
 }
 
-// GenAdditiveShare generates an additive share of a cohort's secret key from a slice con-
-// taining all active player's threshold public keys and a party's public and
-// secret keys. Stores the result in out_key.
-func (cmb *Combiner) GenAdditiveShare(actives []ShamirPublicKey, ownPublic ShamirPublicKey, ownSecret *ShamirSecretShare, skOut *rlwe.SecretKey) {
+// GenAdditiveShare generates a t-out-of-t additive share of the secret from a local aggregated share ownSecret and the set of active identities, identified
+// by their ShamirPublicPoint. It stores the resulting additive share in skOut.
+func (cmb *Combiner) GenAdditiveShare(activesPoints []ShamirPublicPoint, ownPoint ShamirPublicPoint, ownShare *ShamirSecretShare, skOut *rlwe.SecretKey) {
 
-	if len(actives) < cmb.threshold {
+	if len(activesPoints) < cmb.threshold {
 		panic("Not enough active players to combine threshold shares.")
 	}
 
 	prod := cmb.tmp2
 	copy(prod, cmb.one)
 
-	for _, active := range actives[:cmb.threshold] {
+	for _, active := range activesPoints[:cmb.threshold] {
 		//Lagrange Interpolation with the public threshold key of other active players
-		if active != ownPublic {
+		if active != ownPoint {
 			cmb.tmp1 = cmb.lagrangeCoeffs[active]
 			cmb.ringQP.MulRNSScalar(prod, cmb.tmp1, prod)
 		}
 	}
 
-	cmb.ringQP.MulScalarCRT(ownSecret.Poly, prod, skOut.Value)
+	cmb.ringQP.MulScalarCRT(ownShare.Poly, prod, skOut.Value)
 }
 
-// lagrangeCoeff computes the difference between the two given keys and stores
-// its multiplicative inverse in pol_out, caching it as well.
-func (cmb *Combiner) lagrangeCoeff(thisKey ShamirPublicKey, thatKey ShamirPublicKey, lagCoeff []uint64) {
+func (cmb *Combiner) lagrangeCoeff(thisKey ShamirPublicPoint, thatKey ShamirPublicPoint, lagCoeff []uint64) {
 
 	this := cmb.ringQP.NewScalarFromUInt64(uint64(thisKey))
 	that := cmb.ringQP.NewScalarFromUInt64(uint64(thatKey))

@@ -89,7 +89,7 @@ func (p *party) Run(wg *sync.WaitGroup, params rlwe.Parameters, N int, P []*part
 		cpuTime += time.Since(start)
 	}
 	wg.Done()
-	fmt.Printf("\tParty %d finished generating %d shares of %d tasks in %s, sent %s\n", p.i, nShares, nTasks, cpuTime, byteCountSI(byteSent))
+	fmt.Printf("\tParty %d finished generating %d shares of %d tasks in %s, sent %s\n", p.i, nShares, nTasks, cpuTime, formatByteSize(byteSent))
 }
 
 func (c *cloud) Run(galEls []uint64, params rlwe.Parameters, t int) {
@@ -126,7 +126,7 @@ func (c *cloud) Run(galEls []uint64, params rlwe.Parameters, t int) {
 		byteRecv += len(acc.share.Value) * len(acc.share.Value[0]) * acc.share.Value[0][0].GetDataLen64(false)
 	}
 	close(c.finDone)
-	fmt.Printf("\tCloud finished aggregating %d shares in %s, received %s\n", i, cpuTime, byteCountSI(byteRecv))
+	fmt.Printf("\tCloud finished aggregating %d shares in %s, received %s\n", i, cpuTime, formatByteSize(byteRecv))
 
 }
 
@@ -334,7 +334,7 @@ func main() {
 	fmt.Println("done")
 }
 
-func byteCountSI(b int) string {
+func formatByteSize(b int) string {
 	const unit = 1000
 	if b < unit {
 		return fmt.Sprintf("%d B", b)

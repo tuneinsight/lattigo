@@ -37,18 +37,8 @@ func (r *Ring) MulRNSScalar(s1, s2, sout RNSScalar) {
 
 // InverseCRT computes the modular inverse of a scalar a expressed in a CRT decomposition.
 // The inversion is done in-place and assumes that a is in Montgomery form.
-func (r *Ring) InverseCRT(a []uint64) {
+func (r *Ring) InverseCRT(a RNSScalar) {
 	for i, qi := range r.Modulus {
 		a[i] = ModexpMontgomery(a[i], int(qi-2), qi, r.MredParams[i], r.BredParams[i])
 	}
-}
-
-// EvalPolMontgomeryScalarNTT evaluate the polynomial pol at pk and writes the result in p3
-func (r *Ring) EvalPolMontgomeryScalarNTT(pol []*Poly, pk uint64, p3 *Poly) {
-	p3.Copy(pol[len(pol)-1])
-	for i := len(pol) - 1; i > 0; i-- {
-		r.MulScalar(p3, pk, p3)
-		r.AddNoMod(p3, pol[i-1], p3)
-	}
-	r.Reduce(p3, p3)
 }

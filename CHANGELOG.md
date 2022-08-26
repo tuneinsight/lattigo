@@ -2,13 +2,12 @@
 # Changelog
 All notable changes to this library are documented in this file. 
 
-# 3.1.1 - UNREALEASED
+# UNRELEASED
+- Added BGV/DBGV schemes.
 - BFV: renamed `Encoder.DecodeRingT` to `Encoder.SwitchToRingT` to better reflect purpose of the method.
 - BFV: added `Encoder.DecodeRingT` which provide a decoding from `PlaintextRingT` to `[]uint64`.
 - DBFV/DCKKS: `MaskedTransformFunc` is now a struct and takes as additional input to the linear transform two boolean flags to parameterize if the decoding/encoding process must be done before/after the linear transform.
 - DBFV/DCKKS: `refresh` and `maskedTransform` protocols now allow the user to specify the output parameters, enabling parameter switching.
-
-# [3.1.0] - UNREALEASED
 - ALL: added default parameters for LogN=11 and LogN=10.
 - RING: prime generation no longer skips the first candidate.
 - RING: reworked marshalling of `ring.Poly` object. The new available methods are:

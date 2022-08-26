@@ -12,7 +12,6 @@ import (
 type Decryptor interface {
 	DecryptNew(ciphertext *Ciphertext) (plaintext *Plaintext)
 	Decrypt(ciphertext *Ciphertext, plaintext *Plaintext)
-	Noise(ciphertext *Ciphertext) (std, min, max float64)
 	ShallowCopy() Decryptor
 	WithKey(sk *rlwe.SecretKey) Decryptor
 }
@@ -29,23 +28,6 @@ func NewDecryptor(params Parameters, sk *rlwe.SecretKey) Decryptor {
 	buffQ.IsNTT = true
 
 	return &decryptor{rlwe.NewDecryptor(params.Parameters, sk), params, buffQ}
-}
-
-// Noise returns the log2 of the standard deviation, minimum and maximum absolute noise
-// from the input ciphertext.
-func (dec *decryptor) Noise(ct *Ciphertext) (std, min, max float64) {
-
-	coeffsBigint := make([]*big.Int, dec.params.N())
-	for i := range coeffsBigint {
-		coeffsBigint[i] = new(big.Int)
-	}
-
-	pt := NewPlaintextAtLevelFromPoly(ct.Level(), dec.buffQ).Plaintext
-	dec.Decryptor.Decrypt(ct.El(), pt)
-	dec.params.RingQ().InvNTTLvl(ct.Level(), dec.buffQ, dec.buffQ)
-	dec.params.RingQ().PolyToBigintCenteredLvl(ct.Level(), dec.buffQ, 1, coeffsBigint)
-
-	return errorStats(coeffsBigint)
 }
 
 // Decrypt decrypts the ciphertext and write the result in ptOut.

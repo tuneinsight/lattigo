@@ -10,7 +10,7 @@ import (
 
 // GaloisGen is an integer of order N=2^d modulo M=2N and that spans Z_M with the integer -1.
 // The j-th ring automorphism takes the root zeta to zeta^(5j).
-const GaloisGen uint64 = 5
+const GaloisGen uint64 = ring.GaloisGen
 
 // Encoder is an interface for plaintext encoding and decoding operations.
 // It provides methods to embed []uint64 and []int64 types into plaintext

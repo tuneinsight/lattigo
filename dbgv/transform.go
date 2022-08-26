@@ -35,11 +35,19 @@ func (rfp *MaskedTransformProtocol) ShallowCopy() *MaskedTransformProtocol {
 	}
 }
 
-// MaskedTransformFunc represents a user-defined in-place function that can be applied to masked bgv plaintexts, as a part of the
+// MaskedTransformFunc is a struct containing a user-defined in-place function that can be applied to masked bgv plaintexts, as a part of the
 // Masked Transform Protocol.
 // The function is called with a vector of integers modulo bgv.Parameters.T() of size bgv.Parameters.N() as input, and must write
 // its output on the same buffer.
-type MaskedTransformFunc func(coeffs []uint64)
+// Transform can be the identity.
+// Decode: if true, then the masked BFV plaintext will be decoded before applying Transform.
+// Recode: if true, then the masked BFV plaintext will be recoded after applying Transform.
+// i.e. : Decode (true/false) -> Transform -> Recode (true/false).
+type MaskedTransformFunc struct {
+	Decode bool
+	Func   func(coeffs []uint64)
+	Encode bool
+}
 
 // MaskedTransformShare is a struct storing the decryption and recryption shares.
 type MaskedTransformShare struct {
@@ -103,7 +111,7 @@ func (rfp *MaskedTransformProtocol) AllocateShare(levelDecrypt, levelRecrypt int
 
 // GenShare generates the shares of the PermuteProtocol.
 // ct1 is the degree 1 element of a bgv.Ciphertext, i.e. bgv.Ciphertext.Value[1].
-func (rfp *MaskedTransformProtocol) GenShare(sk *rlwe.SecretKey, ct1 *ring.Poly, scale uint64, crs drlwe.CKSCRP, transform MaskedTransformFunc, shareOut *MaskedTransformShare) {
+func (rfp *MaskedTransformProtocol) GenShare(sk *rlwe.SecretKey, ct1 *ring.Poly, scale uint64, crs drlwe.CKSCRP, transform *MaskedTransformFunc, shareOut *MaskedTransformShare) {
 
 	if ct1.Level() < shareOut.e2sShare.Value.Level() {
 		panic("ct[1] level must be at least equal to e2sShare level")
@@ -117,9 +125,21 @@ func (rfp *MaskedTransformProtocol) GenShare(sk *rlwe.SecretKey, ct1 *ring.Poly,
 	mask := rfp.tmpMask
 	if transform != nil {
 		coeffs := make([]uint64, len(mask.Coeffs[0]))
-		rfp.e2s.encoder.DecodeRingT(mask, scale, coeffs)
-		transform(coeffs)
-		rfp.e2s.encoder.EncodeRingT(coeffs, scale, rfp.tmpMaskPerm)
+
+		if transform.Decode {
+			rfp.e2s.encoder.DecodeRingT(mask, scale, coeffs)
+		} else {
+			copy(coeffs, mask.Coeffs[0])
+		}
+
+		transform.Func(coeffs)
+
+		if transform.Encode {
+			rfp.e2s.encoder.EncodeRingT(coeffs, scale, rfp.tmpMaskPerm)
+		} else {
+			copy(rfp.tmpMaskPerm.Coeffs[0], coeffs)
+		}
+
 		mask = rfp.tmpMaskPerm
 	}
 	rfp.s2e.GenShare(sk, crs, &rlwe.AdditiveShare{Value: *mask}, &shareOut.s2eShare)
@@ -141,7 +161,7 @@ func (rfp *MaskedTransformProtocol) AggregateShare(share1, share2, shareOut *Mas
 }
 
 // Transform applies Decrypt, Recode and Recrypt on the input ciphertext.
-func (rfp *MaskedTransformProtocol) Transform(ct *bgv.Ciphertext, transform MaskedTransformFunc, crs drlwe.CKSCRP, share *MaskedTransformShare, ciphertextOut *bgv.Ciphertext) {
+func (rfp *MaskedTransformProtocol) Transform(ct *bgv.Ciphertext, transform *MaskedTransformFunc, crs drlwe.CKSCRP, share *MaskedTransformShare, ciphertextOut *bgv.Ciphertext) {
 
 	if ct.Level() < share.e2sShare.Value.Level() {
 		panic("input ciphertext level must be at least equal to e2s level")
@@ -157,9 +177,21 @@ func (rfp *MaskedTransformProtocol) Transform(ct *bgv.Ciphertext, transform Mask
 	mask := rfp.tmpMask
 	if transform != nil {
 		coeffs := make([]uint64, len(mask.Coeffs[0]))
-		rfp.e2s.encoder.DecodeRingT(mask, ct.Scale, coeffs)
-		transform(coeffs)
-		rfp.e2s.encoder.EncodeRingT(coeffs, ciphertextOut.Scale, rfp.tmpMaskPerm)
+
+		if transform.Decode {
+			rfp.e2s.encoder.DecodeRingT(mask, ciphertextOut.Scale, coeffs)
+		} else {
+			copy(coeffs, mask.Coeffs[0])
+		}
+
+		transform.Func(coeffs)
+
+		if transform.Encode {
+			rfp.e2s.encoder.EncodeRingT(coeffs, ciphertextOut.Scale, rfp.tmpMaskPerm)
+		} else {
+			copy(rfp.tmpMaskPerm.Coeffs[0], coeffs)
+		}
+
 		mask = rfp.tmpMaskPerm
 	}
 

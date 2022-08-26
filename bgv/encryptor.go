@@ -30,6 +30,11 @@ func (enc *encryptor) Encrypt(pt *Plaintext, ct *Ciphertext) {
 	enc.Encryptor.EncryptZero(ct.Ciphertext)
 	ringQ := enc.params.RingQ()
 	level := ct.Level()
+
+	// The returned encryption of zero (as well as the public key) are
+	// regular R-LWE encryptions of zero: (-as + e, a).
+	// BGV operates with LSB plaintext, so we must scale the encryption of
+	// zero by T: (-as + e, a) * T = (-bs + e*T, b) before adding the plaintext.
 	ringQ.MulScalarLvl(level, ct.Value[0], enc.params.T(), ct.Value[0])
 	ringQ.MulScalarLvl(level, ct.Value[1], enc.params.T(), ct.Value[1])
 	ringQ.AddLvl(level, ct.Value[0], pt.Value, ct.Value[0])
@@ -37,15 +42,10 @@ func (enc *encryptor) Encrypt(pt *Plaintext, ct *Ciphertext) {
 }
 
 // EncryptNew encrypts the input plaintext returns the result as a newly allocated ct.
-func (enc *encryptor) EncryptNew(pt *Plaintext) *Ciphertext {
-	level := pt.Level()
-	ct := NewCiphertext(enc.params, 1, level, pt.Scale)
-	enc.Encryptor.EncryptZero(ct.Ciphertext)
-	ringQ := enc.params.RingQ()
-	ringQ.MulScalarLvl(level, ct.Value[0], enc.params.T(), ct.Value[0])
-	ringQ.MulScalarLvl(level, ct.Value[1], enc.params.T(), ct.Value[1])
-	ringQ.AddLvl(level, ct.Value[0], pt.Value, ct.Value[0])
-	return ct
+func (enc *encryptor) EncryptNew(pt *Plaintext) (ct *Ciphertext) {
+	ct = NewCiphertext(enc.params, 1, pt.Level(), pt.Scale)
+	enc.Encrypt(pt, ct)
+	return
 }
 
 // ShallowCopy creates a shallow copy of this encryptor in which all the read-only data-structures are

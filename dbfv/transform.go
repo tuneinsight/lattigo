@@ -33,7 +33,7 @@ func (rfp *MaskedTransformProtocol) ShallowCopy() *MaskedTransformProtocol {
 	}
 }
 
-// MaskedTransformFunc represents a struct containing user devined in-place function that can be applied to masked BFV plaintexts, as a part of the
+// MaskedTransformFunc is struct containing user defined in-place function that can be applied to masked BFV plaintexts, as a part of the
 // Masked Transform Protocol.
 // Transform is a function called with a vector of integers modulo bfv.Parameters.T() of size bfv.Parameters.N() as input, and must write
 // its output on the same buffer.

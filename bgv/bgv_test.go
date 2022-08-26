@@ -603,7 +603,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 
 			require.True(t, ciphertext.Scale == targetScale)
 
-			std, min, max := tc.decryptor.Noise(ciphertext)
+			std, min, max := Norm(ciphertext, tc.decryptor)
 			t.Logf("Noise -> (std: %f, min: %f, max=%f)\n", std, min, max)
 
 			verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
@@ -649,7 +649,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 
 			require.True(t, ciphertext.Scale == targetScale)
 
-			std, min, max := tc.decryptor.Noise(ciphertext)
+			std, min, max := Norm(ciphertext, tc.decryptor)
 			t.Logf("Noise -> (std: %f, min: %f, max=%f)\n", std, min, max)
 
 			verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
@@ -666,14 +666,14 @@ func testEvaluator(tc *testContext, t *testing.T) {
 
 					values1, _, ciphertext1 := newTestVectorsLvl(lvl, 1, tc, tc.encryptorSk)
 
-					stdErrFresh, _, _ := tc.decryptor.Noise(ciphertext0)
+					stdErrFresh, _, _ := Norm(ciphertext0, tc.decryptor)
 
 					t.Logf("STDErr 0x: %f\n", stdErrFresh)
 
 					for i := 0; i < lvl; i++ {
 						tc.evaluator.MulRelin(ciphertext0, ciphertext1, ciphertext0)
 
-						vartmp, _, _ := tc.decryptor.Noise(ciphertext0)
+						vartmp, _, _ := Norm(ciphertext0, tc.decryptor)
 
 						t.Logf("STDErr %dx: %f\n", i+1, vartmp)
 
@@ -682,7 +682,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 
 					verifyTestVectors(tc, tc.decryptor, values0, ciphertext0, t)
 
-					stdErrMul, _, _ := tc.decryptor.Noise(ciphertext0)
+					stdErrMul, _, _ := Norm(ciphertext0, tc.decryptor)
 
 					ciphertext1 = ciphertext0.CopyNew()
 
@@ -692,8 +692,8 @@ func testEvaluator(tc *testContext, t *testing.T) {
 					verifyTestVectors(tc, tc.decryptor, values0, ciphertext0, t)
 					verifyTestVectors(tc, tc.decryptor, values0, ciphertext1, t)
 
-					stdErrNewRescale, _, _ := tc.decryptor.Noise(ciphertext0)
-					stdErrOldRescale, _, _ := tc.decryptor.Noise(ciphertext1)
+					stdErrNewRescale, _, _ := Norm(ciphertext0, tc.decryptor)
+					stdErrOldRescale, _, _ := Norm(ciphertext1, tc.decryptor)
 
 					t.Logf("STDErr (mul): %f\n", stdErrMul)
 					t.Logf("STDErr (t(div(xt^-1)): %f\n", stdErrNewRescale)

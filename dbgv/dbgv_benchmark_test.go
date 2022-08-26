@@ -1,6 +1,7 @@
 package dbgv
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/tuneinsight/lattigo/v3/bgv"
@@ -8,10 +9,23 @@ import (
 	"github.com/tuneinsight/lattigo/v3/rlwe"
 )
 
-func Benchmark_Dbgv(b *testing.B) {
+func BenchmarkDBGV(b *testing.B) {
 
 	var err error
-	for _, p := range TestParams[:] {
+
+	defaultParams := bgv.DefaultParams
+	if testing.Short() {
+		defaultParams = bgv.DefaultParams[:2]
+	}
+	if *flagParamString != "" {
+		var jsonParams bgv.ParametersLiteral
+		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
+			b.Fatal(err)
+		}
+		defaultParams = []bgv.ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
+	}
+
+	for _, p := range defaultParams {
 		var params bgv.Parameters
 		if params, err = bgv.NewParametersFromLiteral(p); err != nil {
 			b.Fatal(err)
@@ -22,105 +36,11 @@ func Benchmark_Dbgv(b *testing.B) {
 			b.Fatal(err)
 		}
 
-		benchPublicKeyGen(tc, b)
-		benchRelinKeyGen(tc, b)
 		benchKeyswitching(tc, b)
 		benchPublicKeySwitching(tc, b)
 		benchRotKeyGen(tc, b)
 		benchRefresh(tc, b)
 	}
-}
-
-func benchPublicKeyGen(tc *testContext, b *testing.B) {
-
-	sk0Shards := tc.sk0Shards
-
-	type Party struct {
-		*CKGProtocol
-		s  *rlwe.SecretKey
-		s1 *drlwe.CKGShare
-	}
-
-	p := new(Party)
-	p.CKGProtocol = NewCKGProtocol(tc.params)
-	p.s = sk0Shards[0]
-	p.s1 = p.AllocateShare()
-
-	crp := p.SampleCRP(tc.crs)
-
-	b.Run(testString("PublicKeyGen/Round1/Gen", parties, tc.params), func(b *testing.B) {
-
-		for i := 0; i < b.N; i++ {
-			p.GenShare(p.s, crp, p.s1)
-		}
-	})
-
-	b.Run(testString("PublicKeyGen/Round1/Agg", parties, tc.params), func(b *testing.B) {
-
-		for i := 0; i < b.N; i++ {
-			p.AggregateShare(p.s1, p.s1, p.s1)
-		}
-	})
-
-	pk := bgv.NewPublicKey(tc.params)
-	b.Run(testString("PublicKeyGen/Finalize", parties, tc.params), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			p.GenPublicKey(p.s1, crp, pk)
-		}
-	})
-}
-
-func benchRelinKeyGen(tc *testContext, b *testing.B) {
-
-	sk0Shards := tc.sk0Shards
-
-	type Party struct {
-		*RKGProtocol
-		ephSk  *rlwe.SecretKey
-		sk     *rlwe.SecretKey
-		share1 *drlwe.RKGShare
-		share2 *drlwe.RKGShare
-
-		rlk *rlwe.RelinearizationKey
-	}
-
-	p := new(Party)
-	p.RKGProtocol = NewRKGProtocol(tc.params)
-	p.sk = sk0Shards[0]
-	p.ephSk, p.share1, p.share2 = p.RKGProtocol.AllocateShare()
-	p.rlk = bgv.NewRelinearizationKey(tc.params, 2)
-
-	crp := p.SampleCRP(tc.crs)
-
-	b.Run(testString("RelinKeyGen/Round1/Gen", parties, tc.params), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			p.GenShareRoundOne(p.sk, crp, p.ephSk, p.share1)
-		}
-	})
-
-	b.Run(testString("RelinKeyGen/Round1/Agg", parties, tc.params), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			p.AggregateShare(p.share1, p.share1, p.share1)
-		}
-	})
-
-	b.Run(testString("RelinKeyGen/Round2/Gen", parties, tc.params), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			p.GenShareRoundTwo(p.ephSk, p.sk, p.share1, p.share2)
-		}
-	})
-
-	b.Run(testString("RelinKeyGen/Round2/Agg", parties, tc.params), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			p.AggregateShare(p.share2, p.share2, p.share2)
-		}
-	})
-
-	b.Run(testString("RelinKeyGen/Finalize", parties, tc.params), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			p.GenRelinearizationKey(p.share1, p.share2, p.rlk)
-		}
-	})
 }
 
 func benchKeyswitching(tc *testContext, b *testing.B) {

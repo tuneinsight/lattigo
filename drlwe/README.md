@@ -4,7 +4,7 @@ It provides generic interfaces for the local steps of the MHE-based Secure Multi
 The `dbfv` and `dckks` packages import the `drlwe` and provide scheme-specific functionalities (e.g., collective bootstrapping/refresh).
 
 This package implements local operations only, hence does not assume nor provide any network-layer protocol implementation.
-However, it provides a serialization methods for all relevant structures that implement the standard `encoding.BinaryMarshaller` and `encoding.BinaryUnmarshaller` interfaces (see [https://pkg.go.dev/encoding](https://pkg.go.dev/encoding)).
+However, it provides serialization methods for all relevant structures that implement the standard `encoding.BinaryMarshaller` and `encoding.BinaryUnmarshaller` interfaces (see [https://pkg.go.dev/encoding](https://pkg.go.dev/encoding)).
 
 The MHE-MPC protocol implemented in Lattigo is based on the constructions described in ["Multiparty Homomorphic Encryption from Ring-Learning-with-Errors"](https://eprint.iacr.org/2020/304.pdf) by Mouchet et al. (2021), which is an RLWE instantiation of the MPC protocol described in ["Multiparty computation with low communication, computation and interaction via threshold FHE"](https://eprint.iacr.org/2011/613.pdf) by Asharov et al. (2012).
 
@@ -21,7 +21,7 @@ The protocol is generic and covers several system- and adversary-models:
 
 **Passive vs Active Adversaries**. The implemented MHE-MPC protocol is secure against passive adversaries, and can in theory be extended to active security by requiring the parties to produce proofs that their shares are correctly computed for every round. Note that those proof are not implemented in Lattigo.
 
-An execution of the MHE-based MPC protocol has two phase, the Setup and the Evaluation phases, each of which comprises a number of sub-protocols as depicted below (the details of each protocols are provided later).
+An execution of the MHE-based MPC protocol has two phases, the Setup and the Evaluation phases, each of which comprises a number of sub-protocols as depicted below (the details of each protocols are provided later).
 
 1. Setup Phase
     1. Secret Keys Generation        
@@ -39,7 +39,7 @@ An execution of the MHE-based MPC protocol has two phase, the Setup and the Eval
 
 
 ## MHE-MPC Protocol Steps Description
-This section provides a description for each sub-protocol composing the MHE-MPC protocol and provide pointers to the relevant Lattigo types and methods.
+This section provides a description for each sub-protocol composing the MHE-MPC protocol and provides pointers to the relevant Lattigo types and methods.
 This description is a first draft and is meant to be improved in the future.
 For concrete code examples, see the `example/dbfv` and `example/drlwe` folders.
 For a more formal exposition, see ["Multiparty Homomorphic Encryption from Ring-Learning-with-Errors"](https://eprint.iacr.org/2020/304.pdf) and [An Efficient Threshold Access-Structure for RLWE-Based Multiparty Homomorphic Encryption](https://eprint.iacr.org/2022/780).
@@ -61,7 +61,7 @@ However, unlike LSSS-based MPC, the setup produces public-key material that can 
 
 #### 1.i Secret Keys Generation
 The parties generate their individual secret-keys locally by using a `rlwe.KeyGenerator`; this provides them with a `rlwe.SecretKey` type.
-See [rlwe/keygen.go](../rlwe/keygen.go) further information on key-generation.
+See [rlwe/keygen.go](../rlwe/keygen.go) for further information on key-generation.
 
 The _ideal secret-key_ is implicitly defined as the sum of all secret-keys.
 Hence, this secret-key enforces an _N-out-N_ access structure which requires all the parties to collaborate in a ciphertext decryption (hence, tolerates N-1 dishonest parties).
@@ -147,7 +147,7 @@ There are two instantiations of the Collective Key-Switching protocol:
 - Collective Key-Switching (CKS), implemented as the `drlwe.CKSProtocol` interface, enables the parties to switch from their _ideal secret-key_ _s_ to another _ideal secret-key_ _s'_ when s' is collectively known to the parties. In the case where _s' = 0_, this is equivalent to a decryption protocol which can be used when the receiver is one of the input-parties. 
 - Collective Public-Key Switching (PCKS), implemented as the `drlwe.PCKSProtocol` interface, enables parties to switch from their _ideal secret-key_ _s_ to an arbitrary key _s'_ when provided with a public encryption-key for _s'_. Hence, this enables key-switching to a secret-key that is not known to the input parties, which further enables external receivers.
 
-While both protocol variants have slightly different local operation, their steps are the same and as follows:
+While both protocol variants have slightly different local operations, their steps are the same and as follows:
 - Each party generates a share (of type `drlwe.CKSShare` or `drlwe.PCKSShare`) with the `drlwe.(P)CKSProtocol.GenShare` method. This requires its own secret-key (a `rlwe.SecretKey`) as well as the destination key: its own share of the destination key (a `rlwe.SecretKey`) in CKS or the destination public-key (a `rlwe.PublicKey`) in PCKS.
 - Each party discloses its `drlwe.CKSShare` over the public channel. The shares are aggregated with the `(P)CKSProtocol.AggregateShares` method.
 - From the aggregated `drlwe.CKSShare`, any party can derive the ciphertext re-encrypted under _s'_ by using the `(P)CKSProtocol.KeySwitch` method.

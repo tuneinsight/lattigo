@@ -88,20 +88,20 @@ func (thr *Thresholdizer) GenShamirPolynomial(threshold int, secret *rlwe.Secret
 }
 
 // AllocateThresholdSecretShare allocates a ShamirSecretShare struct.
-func (thresholdizer *Thresholdizer) AllocateThresholdSecretShare() *ShamirSecretShare {
-	return &ShamirSecretShare{thresholdizer.ringQP.NewPoly()}
+func (thr *Thresholdizer) AllocateThresholdSecretShare() *ShamirSecretShare {
+	return &ShamirSecretShare{thr.ringQP.NewPoly()}
 }
 
 // GenShamirSecretShare generates a secret share for the given recipient, identified by its ShamirPublicPoint.
 // The result is stored in ShareOut and should be sent to this party.
-func (thresholdizer *Thresholdizer) GenShamirSecretShare(recipient ShamirPublicPoint, secretPoly *ShamirPolynomial, shareOut *ShamirSecretShare) {
-	thresholdizer.ringQP.EvalPolyScalarMontgomery(secretPoly.coeffs, uint64(recipient), shareOut.Poly)
+func (thr *Thresholdizer) GenShamirSecretShare(recipient ShamirPublicPoint, secretPoly *ShamirPolynomial, shareOut *ShamirSecretShare) {
+	thr.ringQP.EvalPolyScalarMontgomery(secretPoly.coeffs, uint64(recipient), shareOut.Poly)
 }
 
 // AggregateShares aggregates two ShamirSecretShare and stores the result in outShare.
-func (thresholdizer *Thresholdizer) AggregateShares(share1, share2, outShare *ShamirSecretShare) {
-	lvlQ, lvlP := thresholdizer.params.QCount()-1, thresholdizer.params.PCount()-1
-	thresholdizer.ringQP.AddLvl(lvlQ, lvlP, share1.Poly, share2.Poly, outShare.Poly)
+func (thr *Thresholdizer) AggregateShares(share1, share2, outShare *ShamirSecretShare) {
+	lvlQ, lvlP := thr.params.QCount()-1, thr.params.PCount()-1
+	thr.ringQP.AddLvl(lvlQ, lvlP, share1.Poly, share2.Poly, outShare.Poly)
 }
 
 // NewCombiner creates a new Combiner struct from the parameters and the set of ShamirPublicPoints. Note that the other

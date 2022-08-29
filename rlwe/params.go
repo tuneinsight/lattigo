@@ -183,6 +183,26 @@ func (p Parameters) StandardParameters() (pci Parameters, err error) {
 	return
 }
 
+// ParametersLiteral returns the ParametersLiteral of the target Parameters.
+func (p Parameters) ParametersLiteral() ParametersLiteral {
+
+	Q := make([]uint64, len(p.qi))
+	copy(Q, p.qi)
+
+	P := make([]uint64, len(p.pi))
+	copy(P, p.pi)
+
+	return ParametersLiteral{
+		LogN:     p.logN,
+		Q:        Q,
+		P:        P,
+		Pow2Base: p.pow2Base,
+		Sigma:    p.sigma,
+		H:        p.h,
+		RingType: p.ringType,
+	}
+}
+
 // N returns the ring degree
 func (p Parameters) N() int {
 	return 1 << p.logN

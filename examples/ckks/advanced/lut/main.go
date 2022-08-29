@@ -70,10 +70,11 @@ func main() {
 	// LogN = 12 & LogQP = ~54 -> >>>128-bit secure.
 	var paramsN12ToN11 ckks.Parameters
 	if paramsN12ToN11, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
-		LogN:     LogN,
-		Q:        Q[:1],
-		P:        []uint64{0x42001},
-		Pow2Base: 16,
+		LogN:         LogN,
+		Q:            Q[:1],
+		P:            []uint64{0x42001},
+		Pow2Base:     16,
+		DefaultScale: 1.0,
 	}); err != nil {
 		panic(err)
 	}
@@ -83,10 +84,11 @@ func main() {
 	// LogN = 11 & LogQP = ~54 -> 128-bit secure.
 	var paramsN11 ckks.Parameters
 	if paramsN11, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
-		LogN:     LogN - 1,
-		Q:        Q[:1],
-		P:        []uint64{0x42001},
-		Pow2Base: 12,
+		LogN:         LogN - 1,
+		Q:            Q[:1],
+		P:            []uint64{0x42001},
+		Pow2Base:     12,
+		DefaultScale: 1.0,
 	}); err != nil {
 		panic(err)
 	}

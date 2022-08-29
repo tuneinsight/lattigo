@@ -212,9 +212,10 @@ func testParameters(tc *testContext, t *testing.T) {
 
 	t.Run(GetTestName(tc.params, "Parameters/NewParameters"), func(t *testing.T) {
 		params, err := NewParametersFromLiteral(ParametersLiteral{
-			LogN: 4,
-			LogQ: []int{60, 60},
-			LogP: []int{60},
+			LogN:         4,
+			LogQ:         []int{60, 60},
+			LogP:         []int{60},
+			DefaultScale: 1.0,
 		})
 		require.NoError(t, err)
 		require.Equal(t, ring.Standard, params.RingType())   // Default ring type should be standard
@@ -1029,11 +1030,19 @@ func testBridge(tc *testContext, t *testing.T) {
 		}
 
 		ciParams := tc.params
-		var stdParams Parameters
 		var err error
-		if stdParams, err = ciParams.StandardParameters(); err != nil {
+		if _, err = ciParams.StandardParameters(); err != nil {
 			t.Errorf("all Conjugate Invariant parameters should have a standard counterpart but got: %f", err)
 		}
+
+		// Create equivalent parameters with RingStandard ring type and different auxiliary modulus P
+		stdParamsLit := ciParams.ParametersLiteral()
+		stdParamsLit.LogN = ciParams.LogN() + 1
+		stdParamsLit.P = []uint64{0x1ffffffff6c80001, 0x1ffffffff6140001} // Assignes new P to ensure that independance from auxiliary P is tested
+		stdParamsLit.RingType = ring.Standard
+
+		stdParams, err := NewParametersFromLiteral(stdParamsLit)
+		require.Nil(t, err)
 
 		stdKeyGen := NewKeyGenerator(stdParams)
 		stdSK := stdKeyGen.GenSecretKey()
@@ -1048,11 +1057,13 @@ func testBridge(tc *testContext, t *testing.T) {
 			t.Error(err)
 		}
 
+		eval := rlwe.NewEvaluator(stdParams.Parameters, nil)
+
 		values, _, ctCI := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
 		stdCTHave := NewCiphertext(stdParams, ctCI.Degree(), ctCI.Level(), ctCI.Scale)
 
-		switcher.RealToComplex(ctCI, stdCTHave)
+		switcher.RealToComplex(eval, ctCI, stdCTHave)
 
 		verifyTestVectors(stdParams, stdEncoder, stdDecryptor, values, stdCTHave, stdParams.LogSlots(), 0, t)
 
@@ -1060,7 +1071,7 @@ func testBridge(tc *testContext, t *testing.T) {
 		stdEvaluator.Add(stdCTHave, stdCTImag, stdCTHave)
 
 		ciCTHave := NewCiphertext(ciParams, 1, stdCTHave.Level(), stdCTHave.Scale)
-		switcher.ComplexToReal(stdCTHave, ciCTHave)
+		switcher.ComplexToReal(eval, stdCTHave, ciCTHave)
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciCTHave, ciParams.LogSlots(), 0, t)
 	})
@@ -1417,7 +1428,7 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 		assert.True(t, testctx.params.Equals(paramsRec))
 
 		// checks that ckks.Paramters can be unmarshalled with log-moduli definition without error
-		dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60]}`, testctx.params.LogN()))
+		dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60], "DefaultScale":1.0}`, testctx.params.LogN()))
 		var paramsWithLogModuli Parameters
 		err = json.Unmarshal(dataWithLogModuli, &paramsWithLogModuli)
 		assert.Nil(t, err)
@@ -1427,7 +1438,7 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 		assert.Equal(t, rlwe.DefaultSigma, paramsWithLogModuli.Sigma()) // Ommiting sigma should result in Default being used
 
 		// checks that ckks.Paramters can be unmarshalled with log-moduli definition with empty P without error
-		dataWithLogModuliNoP := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[], "RingType": "ConjugateInvariant"}`, testctx.params.LogN()))
+		dataWithLogModuliNoP := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[],"DefaultScale":1.0,"RingType": "ConjugateInvariant"}`, testctx.params.LogN()))
 		var paramsWithLogModuliNoP Parameters
 		err = json.Unmarshal(dataWithLogModuliNoP, &paramsWithLogModuliNoP)
 		assert.Nil(t, err)
@@ -1436,7 +1447,7 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 		assert.Equal(t, ring.ConjugateInvariant, paramsWithLogModuliNoP.RingType())
 
 		// checks that one can provide custom parameters for the secret-key and error distributions
-		dataWithCustomSecrets := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60], "H": 192, "Sigma": 6.6}`, testctx.params.LogN()))
+		dataWithCustomSecrets := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60],"DefaultScale":1.0,"H": 192, "Sigma": 6.6}`, testctx.params.LogN()))
 		var paramsWithCustomSecrets Parameters
 		err = json.Unmarshal(dataWithCustomSecrets, &paramsWithCustomSecrets)
 		assert.Nil(t, err)

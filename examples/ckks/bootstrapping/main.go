@@ -96,7 +96,7 @@ func main() {
 	// To equalize the scale, the function evaluator.SetScale(ciphertext, parameters.Scale) can be used at the expense of one level.
 	fmt.Println()
 	fmt.Println("Bootstrapping...")
-	ciphertext2 := btp.Bootstrapp(ciphertext1)
+	ciphertext2 := btp.Bootstrap(ciphertext1)
 	fmt.Println("Done")
 
 	// Decrypt, print and compare with the plaintext values

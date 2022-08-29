@@ -95,7 +95,7 @@ func (thresholdizer *Thresholdizer) AllocateThresholdSecretShare() *ShamirSecret
 // GenShamirSecretShare generates a secret share for the given recipient, identified by its ShamirPublicPoint.
 // The result is stored in ShareOut and should be sent to this party.
 func (thresholdizer *Thresholdizer) GenShamirSecretShare(recipient ShamirPublicPoint, secretPoly *ShamirPolynomial, shareOut *ShamirSecretShare) {
-	thresholdizer.ringQP.EvalPolMontgomeryScalarNTT(secretPoly.coeffs, uint64(recipient), shareOut.Poly)
+	thresholdizer.ringQP.EvalPolyScalarMontgomery(secretPoly.coeffs, uint64(recipient), shareOut.Poly)
 }
 
 // AggregateShares aggregates two ShamirSecretShare and stores the result in outShare.
@@ -110,8 +110,8 @@ func NewCombiner(params rlwe.Parameters, own ShamirPublicPoint, others []ShamirP
 	cmb := new(Combiner)
 	cmb.ringQP = params.RingQP()
 	cmb.threshold = threshold
-	cmb.tmp1, cmb.tmp2 = cmb.ringQP.NewScalar(), cmb.ringQP.NewScalar()
-	cmb.one = cmb.ringQP.NewScalarFromUInt64(1)
+	cmb.tmp1, cmb.tmp2 = cmb.ringQP.NewRNSScalar(), cmb.ringQP.NewRNSScalar()
+	cmb.one = cmb.ringQP.NewRNSScalarFromUInt64(1)
 
 	qlen := len(cmb.ringQP.RingQ.Modulus)
 	for i, qi := range cmb.ringQP.RingQ.Modulus {
@@ -127,7 +127,7 @@ func NewCombiner(params rlwe.Parameters, own ShamirPublicPoint, others []ShamirP
 	cmb.lagrangeCoeffs = make(map[ShamirPublicPoint]ring.RNSScalar)
 	for _, spk := range others {
 		if spk != own {
-			cmb.lagrangeCoeffs[spk] = cmb.ringQP.NewScalar()
+			cmb.lagrangeCoeffs[spk] = cmb.ringQP.NewRNSScalar()
 			cmb.lagrangeCoeff(own, spk, cmb.lagrangeCoeffs[spk])
 		}
 	}
@@ -154,17 +154,17 @@ func (cmb *Combiner) GenAdditiveShare(activesPoints []ShamirPublicPoint, ownPoin
 		}
 	}
 
-	cmb.ringQP.MulScalarCRT(ownShare.Poly, prod, skOut.Value)
+	cmb.ringQP.MulRNSScalarMontgomery(ownShare.Poly, prod, skOut.Value)
 }
 
 func (cmb *Combiner) lagrangeCoeff(thisKey ShamirPublicPoint, thatKey ShamirPublicPoint, lagCoeff []uint64) {
 
-	this := cmb.ringQP.NewScalarFromUInt64(uint64(thisKey))
-	that := cmb.ringQP.NewScalarFromUInt64(uint64(thatKey))
+	this := cmb.ringQP.NewRNSScalarFromUInt64(uint64(thisKey))
+	that := cmb.ringQP.NewRNSScalarFromUInt64(uint64(thatKey))
 
 	cmb.ringQP.SubRNSScalar(that, this, lagCoeff)
 
-	cmb.ringQP.InverseCRT(lagCoeff)
+	cmb.ringQP.Inverse(lagCoeff)
 
 	cmb.ringQP.MulRNSScalar(lagCoeff, that, lagCoeff)
 }

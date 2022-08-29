@@ -35,9 +35,9 @@ func (r *Ring) MulRNSScalar(s1, s2, sout RNSScalar) {
 	}
 }
 
-// InverseCRT computes the modular inverse of a scalar a expressed in a CRT decomposition.
+// Inverse computes the modular inverse of a scalar a expressed in a CRT decomposition.
 // The inversion is done in-place and assumes that a is in Montgomery form.
-func (r *Ring) InverseCRT(a RNSScalar) {
+func (r *Ring) Inverse(a RNSScalar) {
 	for i, qi := range r.Modulus {
 		a[i] = ModexpMontgomery(a[i], int(qi-2), qi, r.MredParams[i], r.BredParams[i])
 	}

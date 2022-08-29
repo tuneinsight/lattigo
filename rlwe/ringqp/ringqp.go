@@ -160,8 +160,8 @@ func (r *Ring) NegLvl(levelQ, levelP int, p1, p2 Poly) {
 	}
 }
 
-// NewScalar creates a new Scalar value (i.e., a degree-0 polynomial) in the RingQP.
-func (r *Ring) NewScalar() ring.RNSScalar {
+// NewRNSScalar creates a new Scalar value (i.e., a degree-0 polynomial) in the RingQP.
+func (r *Ring) NewRNSScalar() ring.RNSScalar {
 	modlen := len(r.RingQ.Modulus)
 	if r.RingP != nil {
 		modlen += len(r.RingP.Modulus)
@@ -169,8 +169,8 @@ func (r *Ring) NewScalar() ring.RNSScalar {
 	return make(ring.RNSScalar, modlen)
 }
 
-// NewScalarFromUInt64 creates a new Scalar in the RingQP initialized with value v.
-func (r *Ring) NewScalarFromUInt64(v uint64) ring.RNSScalar {
+// NewRNSScalarFromUInt64 creates a new Scalar in the RingQP initialized with value v.
+func (r *Ring) NewRNSScalarFromUInt64(v uint64) ring.RNSScalar {
 	var scalarQ, scalarP []uint64
 	if r.RingQ != nil {
 		scalarQ = r.RingQ.NewRNSScalarFromUInt64(v)
@@ -204,16 +204,16 @@ func (r *Ring) MulRNSScalar(s1, s2, sout ring.RNSScalar) {
 	}
 }
 
-// EvalPolMontgomeryScalarNTT evaluate the polynomial pol at pt and writes the result in p3
-func (r *Ring) EvalPolMontgomeryScalarNTT(pol []Poly, pt uint64, p3 Poly) {
+// EvalPolyScalarMontgomery evaluate the polynomial pol at pt and writes the result in p3
+func (r *Ring) EvalPolyScalarMontgomery(pol []Poly, pt uint64, p3 Poly) {
 	polQ, polP := make([]*ring.Poly, len(pol)), make([]*ring.Poly, len(pol))
 	for i, coeff := range pol {
 		polQ[i] = coeff.Q
 		polP[i] = coeff.P
 	}
-	r.RingQ.EvalPolMontgomeryScalarNTT(polQ, pt, p3.Q)
+	r.RingQ.EvalPolScalarMontgomery(polQ, pt, p3.Q)
 	if r.RingP != nil {
-		r.RingP.EvalPolMontgomeryScalarNTT(polP, pt, p3.P)
+		r.RingP.EvalPolScalarMontgomery(polP, pt, p3.P)
 	}
 }
 
@@ -344,27 +344,27 @@ func (r *Ring) MulCoeffsMontgomeryAndAddLvl(levelQ, levelP int, p1, p2, p3 Poly)
 	}
 }
 
-// MulScalarCRT multiplies p with a scalar value expressed in the CRT decomposition.
+// MulRNSScalarMontgomery multiplies p with a scalar value expressed in the CRT decomposition.
 // It asssumes the scalar decomposition to be in Montgomerry form.
-func (r *Ring) MulScalarCRT(p Poly, scalar []uint64, pOut Poly) {
+func (r *Ring) MulRNSScalarMontgomery(p Poly, scalar []uint64, pOut Poly) {
 	scalarQ, scalarP := scalar[:len(r.RingQ.Modulus)], scalar[len(r.RingQ.Modulus):]
 	if r.RingQ != nil {
-		r.RingQ.MulScalarRNSScalar(p.Q, scalarQ, pOut.Q)
+		r.RingQ.MulRNSScalarMontgomery(p.Q, scalarQ, pOut.Q)
 	}
 	if r.RingP != nil {
-		r.RingP.MulScalarRNSScalar(p.P, scalarP, pOut.P)
+		r.RingP.MulRNSScalarMontgomery(p.P, scalarP, pOut.P)
 	}
 }
 
-// InverseCRT computes the modular inverse of a scalar a expressed in a CRT decomposition.
+// Inverse computes the modular inverse of a scalar a expressed in a CRT decomposition.
 // The inversion is done in-place and assumes that a is in Montgomery form.
-func (r *Ring) InverseCRT(scalar []uint64) {
+func (r *Ring) Inverse(scalar ring.RNSScalar) {
 	scalarQ, scalarP := scalar[:len(r.RingQ.Modulus)], scalar[len(r.RingQ.Modulus):]
 	if r.RingQ != nil {
-		r.RingQ.InverseCRT(scalarQ)
+		r.RingQ.Inverse(scalarQ)
 	}
 	if r.RingP != nil {
-		r.RingP.InverseCRT(scalarP)
+		r.RingP.Inverse(scalarP)
 	}
 }
 

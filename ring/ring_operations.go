@@ -369,15 +369,15 @@ func (r *Ring) MulScalarAndAddLvl(level int, p1 *Poly, scalar uint64, p2 *Poly) 
 	}
 }
 
-// MulScalarRNSScalar multiplies p with a scalar value expressed in the CRT decomposition.
-// It asssumes the scalar decomposition to be in Montgomerry form.
-func (r *Ring) MulScalarRNSScalar(p *Poly, scalar RNSScalar, pOut *Poly) {
-	r.MulScalarRNSScalarLvl(r.minLevelBinary(p, pOut), p, scalar, pOut)
+// MulRNSScalarMontgomery multiplies p with a scalar value expressed in the RNS representation.
+// It asssumes the scalar to be decomposed in the RNS basis of the ring r and its coefficients to be in Montgomerry form.
+func (r *Ring) MulRNSScalarMontgomery(p *Poly, scalar RNSScalar, pOut *Poly) {
+	r.MulRNSScalarMontgomeryLvl(r.minLevelBinary(p, pOut), p, scalar, pOut)
 }
 
-// MulScalarRNSScalarLvl multiplies p with a scalar value expressed in the CRT decomposition at a given level.
+// MulRNSScalarMontgomeryLvl multiplies p with a scalar value expressed in the CRT decomposition at a given level.
 // It asssumes the scalar decomposition to be in Montgomerry form.
-func (r *Ring) MulScalarRNSScalarLvl(level int, p *Poly, scalar RNSScalar, pOut *Poly) {
+func (r *Ring) MulRNSScalarMontgomeryLvl(level int, p *Poly, scalar RNSScalar, pOut *Poly) {
 	for i := 0; i < level+1; i++ {
 		Qi := r.Modulus[i]
 		scalar := scalar[i]
@@ -414,14 +414,14 @@ func (r *Ring) MulScalarBigintLvl(level int, p1 *Poly, scalar *big.Int, p2 *Poly
 	}
 }
 
-// EvalPolMontgomeryScalarNTT evaluate the polynomial pol at pk and writes the result in p3
-func (r *Ring) EvalPolMontgomeryScalarNTT(pol []*Poly, pk uint64, p3 *Poly) {
-	p3.Copy(pol[len(pol)-1])
+// EvalPolScalarMontgomery evaluate the polynomial pol at pk and writes the result in p3
+func (r *Ring) EvalPolScalarMontgomery(pol []*Poly, scalar uint64, pOut *Poly) {
+	pOut.Copy(pol[len(pol)-1])
 	for i := len(pol) - 1; i > 0; i-- {
-		r.MulScalar(p3, pk, p3)
-		r.AddNoMod(p3, pol[i-1], p3)
+		r.MulScalar(pOut, scalar, pOut)
+		r.AddNoMod(pOut, pol[i-1], pOut)
 	}
-	r.Reduce(p3, p3)
+	r.Reduce(pOut, pOut)
 }
 
 // Shift circulary shifts the coefficients of the polynomial p1 by n positions to the left and writes the result on p2.

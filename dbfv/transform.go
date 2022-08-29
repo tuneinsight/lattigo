@@ -116,7 +116,7 @@ func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, c1 *ri
 		ptT := &bfv.PlaintextRingT{Plaintext: &rlwe.Plaintext{Value: mask}}
 
 		if transform.Decode {
-			ecd.DecodeRingT(ptT, coeffs)
+			ecd.Decode(ptT, coeffs)
 		} else {
 			copy(coeffs, ptT.Value.Coeffs[0])
 		}
@@ -154,7 +154,7 @@ func (rfp *MaskedTransformProtocol) Transform(ciphertext *bfv.Ciphertext, transf
 		ptT := &bfv.PlaintextRingT{Plaintext: &rlwe.Plaintext{Value: mask}}
 
 		if transform.Decode {
-			ecd.DecodeRingT(ptT, coeffs)
+			ecd.Decode(ptT, coeffs)
 		} else {
 			copy(coeffs, ptT.Value.Coeffs[0])
 		}

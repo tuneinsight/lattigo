@@ -7,14 +7,6 @@ import (
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
-// KeySwitchingProtocol is an interface describing the local steps of a generic RLWE CKS protocol
-type KeySwitchingProtocol interface {
-	AllocateShare(level int) *CKSShare
-	GenShare(skInput, skOutput *rlwe.SecretKey, c1 *ring.Poly, shareOut *CKSShare)
-	AggregateShare(share1, share2, shareOut *CKSShare)
-	KeySwitch(ctIn *rlwe.Ciphertext, combined *CKSShare, ctOut *rlwe.Ciphertext)
-}
-
 // CKSProtocol is the structure storing the parameters and and precomputations for the collective key-switching protocol.
 type CKSProtocol struct {
 	params          rlwe.Parameters

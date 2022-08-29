@@ -369,6 +369,24 @@ func (r *Ring) MulScalarAndAddLvl(level int, p1 *Poly, scalar uint64, p2 *Poly) 
 	}
 }
 
+// MulRNSScalarMontgomery multiplies p with a scalar value expressed in the RNS representation.
+// It asssumes the scalar to be decomposed in the RNS basis of the ring r and its coefficients to be in Montgomerry form.
+func (r *Ring) MulRNSScalarMontgomery(p *Poly, scalar RNSScalar, pOut *Poly) {
+	r.MulRNSScalarMontgomeryLvl(r.minLevelBinary(p, pOut), p, scalar, pOut)
+}
+
+// MulRNSScalarMontgomeryLvl multiplies p with a scalar value expressed in the CRT decomposition at a given level.
+// It asssumes the scalar decomposition to be in Montgomerry form.
+func (r *Ring) MulRNSScalarMontgomeryLvl(level int, p *Poly, scalar RNSScalar, pOut *Poly) {
+	for i := 0; i < level+1; i++ {
+		Qi := r.Modulus[i]
+		scalar := scalar[i]
+		p1tmp, p2tmp := p.Coeffs[i], pOut.Coeffs[i]
+		mredParams := r.MredParams[i]
+		MulScalarMontgomeryVec(p1tmp, p2tmp, scalar, Qi, mredParams)
+	}
+}
+
 // MulScalarAndSub multiplies each coefficient of p1 by a scalar and subtracts the result on p2.
 func (r *Ring) MulScalarAndSub(p1 *Poly, scalar uint64, p2 *Poly) {
 	r.MulScalarAndSubLvl(r.minLevelBinary(p1, p2), p1, scalar, p2)
@@ -393,6 +411,15 @@ func (r *Ring) MulScalarBigintLvl(level int, p1 *Poly, scalar *big.Int, p2 *Poly
 	for i := 0; i < level+1; i++ {
 		scalarQi.Mod(scalar, NewUint(r.Modulus[i]))
 		MulScalarMontgomeryVec(p1.Coeffs[i][:r.N], p2.Coeffs[i][:r.N], MForm(BRedAdd(scalarQi.Uint64(), r.Modulus[i], r.BredParams[i]), r.Modulus[i], r.BredParams[i]), r.Modulus[i], r.MredParams[i])
+	}
+}
+
+// EvalPolyScalar evaluate the polynomial pol at pk and writes the result in p3
+func (r *Ring) EvalPolyScalar(pol []*Poly, scalar uint64, pOut *Poly) {
+	pOut.Copy(pol[len(pol)-1])
+	for i := len(pol) - 1; i > 0; i-- {
+		r.MulScalar(pOut, scalar, pOut)
+		r.Add(pOut, pol[i-1], pOut)
 	}
 }
 
@@ -581,4 +608,61 @@ func (r *Ring) BitReverse(p1, p2 *Poly) {
 			}
 		}
 	}
+}
+
+// Log2OfInnerSum returns the bit-size of the sum of all the coefficients (in absolute value) of a Poly.
+func (r *Ring) Log2OfInnerSum(level int, poly *Poly) (logSum int) {
+	sumRNS := make([]uint64, level+1)
+	var sum uint64
+	for i := 0; i < level+1; i++ {
+
+		qi := r.Modulus[i]
+		qiHalf := qi >> 1
+		coeffs := poly.Coeffs[i]
+		sum = 0
+
+		for j := 0; j < r.N; j++ {
+
+			v := coeffs[j]
+
+			if v >= qiHalf {
+				sum = CRed(sum+qi-v, qi)
+			} else {
+				sum = CRed(sum+v, qi)
+			}
+		}
+
+		sumRNS[i] = sum
+	}
+
+	var smallNorm = true
+	for i := 1; i < level+1; i++ {
+		smallNorm = smallNorm && (sumRNS[0] == sumRNS[i])
+	}
+
+	if !smallNorm {
+		var crtReconstruction *big.Int
+
+		sumBigInt := NewUint(0)
+		QiB := new(big.Int)
+		tmp := new(big.Int)
+		modulusBigint := r.ModulusAtLevel[level]
+
+		for i := 0; i < level+1; i++ {
+			QiB.SetUint64(r.Modulus[i])
+			crtReconstruction = new(big.Int).Quo(modulusBigint, QiB)
+			tmp.ModInverse(crtReconstruction, QiB)
+			tmp.Mod(tmp, QiB)
+			crtReconstruction.Mul(crtReconstruction, tmp)
+			sumBigInt.Add(sumBigInt, tmp.Mul(NewUint(sumRNS[i]), crtReconstruction))
+		}
+
+		sumBigInt.Mod(sumBigInt, modulusBigint)
+
+		logSum = sumBigInt.BitLen()
+	} else {
+		logSum = bits.Len64(sumRNS[0])
+	}
+
+	return
 }

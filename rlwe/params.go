@@ -238,6 +238,11 @@ func (p Parameters) Sigma() float64 {
 	return p.sigma
 }
 
+// NoiseBound returns truncation bound for the noise distribution.
+func (p Parameters) NoiseBound() uint64 {
+	return uint64(math.Floor(p.sigma * 6))
+}
+
 // RingType returns the type of the underlying ring.
 func (p Parameters) RingType() ring.Type {
 	return p.ringType

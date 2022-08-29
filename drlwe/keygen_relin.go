@@ -9,15 +9,6 @@ import (
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
-// RelinearizationKeyGenerator is an interface describing the local steps of a generic RLWE RKG protocol.
-type RelinearizationKeyGenerator interface {
-	AllocateShare() (ephKey *rlwe.SecretKey, r1 *RKGShare, r2 *RKGShare)
-	GenShareRoundOne(sk *rlwe.SecretKey, crp RKGCRP, ephKeyOut *rlwe.SecretKey, shareOut *RKGShare)
-	GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGShare, shareOut *RKGShare)
-	AggregateShare(share1, share2, shareOut *RKGShare)
-	GenRelinearizationKey(round1 *RKGShare, round2 *RKGShare, relinKeyOut *rlwe.RelinearizationKey)
-}
-
 // RKGProtocol is the structure storing the parameters and and precomputations for the collective relinearization key generation protocol.
 type RKGProtocol struct {
 	params rlwe.Parameters

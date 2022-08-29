@@ -7,14 +7,6 @@ import (
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
-// PublicKeySwitchingProtocol is an interface describing the local steps of a generic RLWE PCKS protocol.
-type PublicKeySwitchingProtocol interface {
-	AllocateShare(levelQ int) *PCKSShare
-	GenShare(skInput *rlwe.SecretKey, pkOutput *rlwe.PublicKey, c1 *ring.Poly, shareOut *PCKSShare)
-	AggregateShare(share1, share2, shareOut *PCKSShare)
-	KeySwitch(ctIn *rlwe.Ciphertext, combined *PCKSShare, ctOut *rlwe.Ciphertext)
-}
-
 // PCKSShare represents a party's share in the PCKS protocol.
 type PCKSShare struct {
 	Value [2]*ring.Poly

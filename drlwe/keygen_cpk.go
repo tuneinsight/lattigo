@@ -8,14 +8,6 @@ import (
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
-// CollectivePublicKeyGenerator is an interface describing the local steps of a generic RLWE CKG protocol.
-type CollectivePublicKeyGenerator interface {
-	AllocateShare() *CKGShare
-	GenShare(sk *rlwe.SecretKey, crp CKGCRP, shareOut *CKGShare)
-	AggregateShare(share1, share2, shareOut *CKGShare)
-	GenPublicKey(aggregatedShare *CKGShare, crp CKGCRP, pubkey *rlwe.PublicKey)
-}
-
 // CKGProtocol is the structure storing the parameters and and precomputations for the collective key generation protocol.
 type CKGProtocol struct {
 	params           rlwe.Parameters

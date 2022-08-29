@@ -62,7 +62,7 @@ func benchEncoder(tc *testContext, b *testing.B) {
 
 	b.Run(testString("Encoder/DecodeUint/pt=Plaintext", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			encoder.DecodeUint(plaintext, coeffsOut)
+			encoder.Decode(plaintext, coeffsOut)
 		}
 	})
 
@@ -74,7 +74,7 @@ func benchEncoder(tc *testContext, b *testing.B) {
 
 	b.Run(testString("Encoder/DecodeUint/pt=PlaintextRingT", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			encoder.DecodeUint(plaintextRingT, coeffsOut)
+			encoder.Decode(plaintextRingT, coeffsOut)
 		}
 	})
 

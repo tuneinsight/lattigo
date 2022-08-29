@@ -66,8 +66,8 @@ func ModexpMontgomery(x uint64, e int, q, qInv uint64, bredParams []uint64) (res
 	return result
 }
 
-// gcd computes the greatest common divisor gcd(a,b) for a,b uint64 variables
-func gcd(a, b uint64) uint64 {
+// GCD computes the greatest common divisor gcd(a,b) for a,b uint64 variables
+func GCD(a, b uint64) uint64 {
 	if a == 0 || b == 0 {
 		return 0
 	}
@@ -132,7 +132,7 @@ func factorizationPollardsRho(m uint64) (d uint64) {
 				x, y = y, x
 			}
 
-			d = gcd(x-y, m)
+			d = GCD(x-y, m)
 
 			if d > 1 {
 				return d

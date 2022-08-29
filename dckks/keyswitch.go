@@ -20,7 +20,7 @@ func NewCKSProtocol(params ckks.Parameters, sigmaSmudging float64) (cks *CKSProt
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
 func (cks *CKSProtocol) KeySwitch(ctIn *ckks.Ciphertext, combined *drlwe.CKSShare, ctOut *ckks.Ciphertext) {
 	cks.CKSProtocol.KeySwitch(ctIn.Ciphertext, combined, ctOut.Ciphertext)
-	ctOut.Scale = ctIn.Scale
+	ctOut.SetScale(ctIn.Scale())
 }
 
 // ShallowCopy creates a shallow copy of CKSProtocol in which all the read-only data-structures are
@@ -44,7 +44,7 @@ func NewPCKSProtocol(params ckks.Parameters, sigmaSmudging float64) *PCKSProtoco
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut.
 func (pcks *PCKSProtocol) KeySwitch(ctIn *ckks.Ciphertext, combined *drlwe.PCKSShare, ctOut *ckks.Ciphertext) {
 	pcks.PCKSProtocol.KeySwitch(ctIn.Ciphertext, combined, ctOut.Ciphertext)
-	ctOut.Scale = ctIn.Scale
+	ctOut.SetScale(ctIn.Scale())
 }
 
 // ShallowCopy creates a shallow copy of PCKSProtocol in which all the read-only data-structures are

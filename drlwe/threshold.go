@@ -45,7 +45,7 @@ type ShamirPublicPoint uint64
 //
 // See Thresholdizer type.
 type ShamirPolynomial struct {
-	coeffs []ringqp.Poly
+	Coeffs []ringqp.Poly
 }
 
 // ShamirSecretShare represents a t-out-of-N-threshold secret-share.
@@ -78,11 +78,11 @@ func (thr *Thresholdizer) GenShamirPolynomial(threshold int, secret *rlwe.Secret
 	if threshold < 1 {
 		return nil, fmt.Errorf("threshold should be >= 1")
 	}
-	gen := &ShamirPolynomial{coeffs: make([]ringqp.Poly, int(threshold))}
-	gen.coeffs[0] = secret.Value.CopyNew()
+	gen := &ShamirPolynomial{Coeffs: make([]ringqp.Poly, int(threshold))}
+	gen.Coeffs[0] = secret.Value.CopyNew()
 	for i := 1; i < threshold; i++ {
-		gen.coeffs[i] = thr.ringQP.NewPoly()
-		thr.usampler.Read(gen.coeffs[i])
+		gen.Coeffs[i] = thr.ringQP.NewPoly()
+		thr.usampler.Read(gen.Coeffs[i])
 	}
 	return gen, nil
 }
@@ -95,7 +95,7 @@ func (thr *Thresholdizer) AllocateThresholdSecretShare() *ShamirSecretShare {
 // GenShamirSecretShare generates a secret share for the given recipient, identified by its ShamirPublicPoint.
 // The result is stored in ShareOut and should be sent to this party.
 func (thr *Thresholdizer) GenShamirSecretShare(recipient ShamirPublicPoint, secretPoly *ShamirPolynomial, shareOut *ShamirSecretShare) {
-	thr.ringQP.EvalPolyScalarMontgomery(secretPoly.coeffs, uint64(recipient), shareOut.Poly)
+	thr.ringQP.EvalPolyScalar(secretPoly.Coeffs, uint64(recipient), shareOut.Poly)
 }
 
 // AggregateShares aggregates two ShamirSecretShare and stores the result in outShare.

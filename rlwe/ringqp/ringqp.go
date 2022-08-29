@@ -204,16 +204,16 @@ func (r *Ring) MulRNSScalar(s1, s2, sout ring.RNSScalar) {
 	}
 }
 
-// EvalPolyScalarMontgomery evaluate the polynomial pol at pt and writes the result in p3
-func (r *Ring) EvalPolyScalarMontgomery(pol []Poly, pt uint64, p3 Poly) {
+// EvalPolyScalar evaluate the polynomial pol at pt and writes the result in p3
+func (r *Ring) EvalPolyScalar(pol []Poly, pt uint64, p3 Poly) {
 	polQ, polP := make([]*ring.Poly, len(pol)), make([]*ring.Poly, len(pol))
 	for i, coeff := range pol {
 		polQ[i] = coeff.Q
 		polP[i] = coeff.P
 	}
-	r.RingQ.EvalPolScalarMontgomery(polQ, pt, p3.Q)
+	r.RingQ.EvalPolyScalar(polQ, pt, p3.Q)
 	if r.RingP != nil {
-		r.RingP.EvalPolScalarMontgomery(polP, pt, p3.P)
+		r.RingP.EvalPolyScalar(polP, pt, p3.P)
 	}
 }
 

@@ -414,14 +414,13 @@ func (r *Ring) MulScalarBigintLvl(level int, p1 *Poly, scalar *big.Int, p2 *Poly
 	}
 }
 
-// EvalPolScalarMontgomery evaluate the polynomial pol at pk and writes the result in p3
-func (r *Ring) EvalPolScalarMontgomery(pol []*Poly, scalar uint64, pOut *Poly) {
+// EvalPolyScalar evaluate the polynomial pol at pk and writes the result in p3
+func (r *Ring) EvalPolyScalar(pol []*Poly, scalar uint64, pOut *Poly) {
 	pOut.Copy(pol[len(pol)-1])
 	for i := len(pol) - 1; i > 0; i-- {
 		r.MulScalar(pOut, scalar, pOut)
-		r.AddNoMod(pOut, pol[i-1], pOut)
+		r.Add(pOut, pol[i-1], pOut)
 	}
-	r.Reduce(pOut, pOut)
 }
 
 // Shift circulary shifts the coefficients of the polynomial p1 by n positions to the left and writes the result on p2.

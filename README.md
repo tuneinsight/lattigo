@@ -95,8 +95,7 @@ Lattigo is licensed under the Apache 2.0 License. See [LICENSE](https://github.c
 
 ## Contact
 
-If you want to contribute to Lattigo or you have any questions or suggestions, do not hesitate to contact us at
-[lattigo@tuneinsight.com](mailto:lattigo@tuneinsight.com).
+If you want to contribute to Lattigo, to contact us directly or to report a security issue, please do so using the following email: [lattigo@tuneinsight.com](mailto:lattigo@tuneinsight.com).
 
 ## Citing
 

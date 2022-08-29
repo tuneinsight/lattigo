@@ -45,13 +45,13 @@ func NewPRNGEncryptor(params Parameters, key *rlwe.SecretKey) PRNGEncryptor {
 // The level of the output ciphertext is min(plaintext.Level(), ciphertext.Level()).
 func (enc *encryptor) Encrypt(plaintext *Plaintext, ciphertext *Ciphertext) {
 	enc.Encryptor.Encrypt(plaintext.Plaintext, ciphertext.Ciphertext)
-	ciphertext.Scale = plaintext.Scale
+	ciphertext.scale = plaintext.scale
 }
 
 // EncryptNew encrypts the input plaintext returns the result as a newly allocated ciphertext.
 // The level of the output ciphertext is min(plaintext.Level(), ciphertext.Level()).
 func (enc *encryptor) EncryptNew(plaintext *Plaintext) (ciphertext *Ciphertext) {
-	ciphertext = NewCiphertext(enc.params, 1, plaintext.Level(), plaintext.Scale)
+	ciphertext = NewCiphertext(enc.params, 1, plaintext.Level(), plaintext.scale)
 	enc.Encryptor.Encrypt(plaintext.Plaintext, ciphertext.Ciphertext)
 	return
 }

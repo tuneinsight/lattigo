@@ -104,7 +104,7 @@ func (ecd *encoder) EncodeNew(values interface{}, level int, scale uint64) (pt *
 
 // Encode encodes a slice of integers of type []uint64 or []int64 of size at most N into a pre-allocated plaintext.
 func (ecd *encoder) Encode(values interface{}, pt *Plaintext) {
-	ecd.EncodeRingT(values, pt.Scale, ecd.buffT)
+	ecd.EncodeRingT(values, pt.scale, ecd.buffT)
 	ecd.RingT2Q(pt.Level(), ecd.buffT, pt.Value)
 	ecd.params.RingQ().NTTLvl(pt.Level(), pt.Value, pt.Value)
 }
@@ -120,7 +120,7 @@ func (ecd *encoder) EncodeCoeffs(values []uint64, pt *Plaintext) {
 
 	ringT := ecd.params.RingT()
 
-	ringT.MulScalar(ecd.buffT, pt.Scale, ecd.buffT)
+	ringT.MulScalar(ecd.buffT, pt.scale, ecd.buffT)
 	ecd.RingT2Q(pt.Level(), ecd.buffT, pt.Value)
 	ecd.params.RingQ().NTTLvl(pt.Level(), pt.Value, pt.Value)
 }
@@ -231,7 +231,7 @@ func (ecd *encoder) RingQ2T(level int, pQ, pT *ring.Poly) {
 func (ecd *encoder) DecodeUint(pt *Plaintext, values []uint64) {
 	ecd.params.RingQ().InvNTTLvl(pt.Level(), pt.Value, ecd.buffQ)
 	ecd.RingQ2T(pt.Level(), ecd.buffQ, ecd.buffT)
-	ecd.DecodeRingT(ecd.buffT, pt.Scale, values)
+	ecd.DecodeRingT(ecd.buffT, pt.scale, values)
 }
 
 // DecodeUintNew decodes any plaintext type and returns the coefficients on a new []uint64 slice.
@@ -246,7 +246,7 @@ func (ecd *encoder) DecodeUintNew(pt *Plaintext) (values []uint64) {
 func (ecd *encoder) DecodeInt(pt *Plaintext, values []int64) {
 	ecd.params.RingQ().InvNTTLvl(pt.Level(), pt.Value, ecd.buffQ)
 	ecd.RingQ2T(pt.Level(), ecd.buffQ, ecd.buffT)
-	ecd.DecodeRingT(ecd.buffT, pt.Scale, values)
+	ecd.DecodeRingT(ecd.buffT, pt.scale, values)
 }
 
 // DecodeInt decodes a any plaintext type and write the coefficients on an new int64 slice.
@@ -261,7 +261,7 @@ func (ecd *encoder) DecodeCoeffs(pt *Plaintext, values []uint64) {
 	ecd.params.RingQ().InvNTTLvl(pt.Level(), pt.Value, ecd.buffQ)
 	ecd.RingQ2T(pt.Level(), ecd.buffQ, ecd.buffT)
 	ringT := ecd.params.RingT()
-	ringT.MulScalar(ecd.buffT, ring.ModExp(pt.Scale, ringT.Modulus[0]-2, ringT.Modulus[0]), ecd.buffT)
+	ringT.MulScalar(ecd.buffT, ring.ModExp(pt.scale, ringT.Modulus[0]-2, ringT.Modulus[0]), ecd.buffT)
 	copy(values, ecd.buffT.Coeffs[0])
 }
 

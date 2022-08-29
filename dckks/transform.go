@@ -360,7 +360,7 @@ func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, logSlots int,
 
 	// Returns LT(-sum(M_i) + x) * diffscale
 	inputScaleInt := new(big.Int)
-	ring.NewFloat(ct.Scale, 256).Int(inputScaleInt)
+	ring.NewFloat(ct.Scale(), 256).Int(inputScaleInt)
 
 	// Scales the mask by the ratio between the two scales
 	for i := 0; i < dslots; i++ {
@@ -390,5 +390,5 @@ func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, logSlots int,
 	// Copies the result on the out ciphertext
 	rfp.s2e.GetEncryption(&drlwe.CKSShare{Value: ciphertextOut.Value[0]}, crs, ciphertextOut)
 
-	ciphertextOut.Scale = rfp.s2e.params.DefaultScale()
+	ciphertextOut.SetScale(rfp.s2e.params.DefaultScale())
 }

@@ -147,7 +147,7 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 
 	for _, lvl := range tc.testLevel {
 		ciphertext0 := NewCiphertextRandom(tc.prng, tc.params, 1, lvl, 1)
-		plaintext1 := &Plaintext{Plaintext: &rlwe.Plaintext{Value: NewCiphertextRandom(tc.prng, tc.params, 0, lvl, 1).Value[0]}, Scale: 1}
+		plaintext1 := &Plaintext{Plaintext: &rlwe.Plaintext{Value: NewCiphertextRandom(tc.prng, tc.params, 0, lvl, 1).Value[0]}, scale: 1}
 		b.Run(GetTestName("Evaluator/Add/op0=ct/op1=pt", tc.params, lvl), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				eval.Add(ciphertext0, plaintext1, ciphertext0)
@@ -199,7 +199,7 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 
 	for _, lvl := range tc.testLevel {
 		ciphertext0 := NewCiphertextRandom(tc.prng, tc.params, 1, lvl, 1)
-		plaintext1 := &Plaintext{Plaintext: &rlwe.Plaintext{Value: NewCiphertextRandom(tc.prng, tc.params, 0, lvl, 1).Value[0]}, Scale: 1}
+		plaintext1 := &Plaintext{Plaintext: &rlwe.Plaintext{Value: NewCiphertextRandom(tc.prng, tc.params, 0, lvl, 1).Value[0]}, scale: 1}
 		b.Run(GetTestName("Evaluator/Mul/op0=ct/op1=pt", tc.params, lvl), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				eval.Mul(ciphertext0, plaintext1, ciphertext0)

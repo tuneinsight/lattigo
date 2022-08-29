@@ -12,7 +12,7 @@ import (
 // Ciphertext is *ring.Poly array representing a polynomial of degree > 0 with coefficients in R_Q.
 type Ciphertext struct {
 	*rlwe.Ciphertext
-	Scale uint64
+	scale uint64
 }
 
 // NewCiphertext creates a new Ciphertext parameterized by degree, level and scale.
@@ -21,13 +21,18 @@ func NewCiphertext(params Parameters, degree, level int, scale uint64) (cipherte
 	for _, pol := range ciphertext.Value {
 		pol.IsNTT = true
 	}
-	ciphertext.Scale = scale
+	ciphertext.scale = scale
 	return ciphertext
 }
 
-// ScalingFactor returns the scaling factor of the target ciphertext.
-func (ct *Ciphertext) ScalingFactor() uint64 {
-	return ct.Scale
+// Scale returns the scaling factor of the target ciphertext.
+func (ct *Ciphertext) Scale() uint64 {
+	return ct.scale
+}
+
+// SetScale sets the scale of the target ciphertext.
+func (ct *Ciphertext) SetScale(scale uint64) {
+	ct.scale = scale
 }
 
 // NewCiphertextRandom generates a new uniformly distributed Ciphertext of degree, level and scale.
@@ -45,25 +50,25 @@ func NewCiphertextRandom(prng utils.PRNG, params Parameters, degree, level int, 
 func NewCiphertextAtLevelFromPoly(level int, poly [2]*ring.Poly) *Ciphertext {
 	ct := rlwe.NewCiphertextAtLevelFromPoly(level, poly)
 	ct.Value[0].IsNTT, ct.Value[1].IsNTT = true, true
-	return &Ciphertext{Ciphertext: ct, Scale: 0}
+	return &Ciphertext{Ciphertext: ct, scale: 0}
 }
 
 // Copy copies the given ciphertext ctp into the receiver ciphertext.
 func (ct *Ciphertext) Copy(ctp *Ciphertext) {
 	ct.Ciphertext.Copy(ctp.Ciphertext)
-	ct.Scale = ctp.Scale
+	ct.scale = ctp.scale
 }
 
 // CopyNew makes a deep copy of the receiver ciphertext and returns it.
 func (ct *Ciphertext) CopyNew() (ctc *Ciphertext) {
-	ctc = &Ciphertext{Ciphertext: ct.Ciphertext.CopyNew(), Scale: ct.Scale}
+	ctc = &Ciphertext{Ciphertext: ct.Ciphertext.CopyNew(), scale: ct.scale}
 	return
 }
 
 // GetDataLen returns the length in bytes of the target Ciphertext.
 func (ct *Ciphertext) GetDataLen(WithMetaData bool) (dataLen int) {
 	// MetaData is :
-	// 8 byte : Scale
+	// 8 byte : scale
 	if WithMetaData {
 		dataLen += 8
 	}
@@ -79,7 +84,7 @@ func (ct *Ciphertext) MarshalBinary() (data []byte, err error) {
 
 	dataScale := make([]byte, 8)
 
-	binary.LittleEndian.PutUint64(dataScale, ct.Scale)
+	binary.LittleEndian.PutUint64(dataScale, ct.scale)
 
 	var dataCt []byte
 	if dataCt, err = ct.Ciphertext.MarshalBinary(); err != nil {
@@ -95,7 +100,7 @@ func (ct *Ciphertext) UnmarshalBinary(data []byte) (err error) {
 		return errors.New("too small bytearray")
 	}
 
-	ct.Scale = binary.LittleEndian.Uint64(data[0:8])
+	ct.scale = binary.LittleEndian.Uint64(data[0:8])
 	ct.Ciphertext = new(rlwe.Ciphertext)
 	return ct.Ciphertext.UnmarshalBinary(data[8:])
 }

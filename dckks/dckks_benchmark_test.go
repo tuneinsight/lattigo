@@ -286,7 +286,7 @@ func benchRefresh(testCtx *testContext, b *testing.B) {
 		b.Run(testString("Refresh/Round1/Gen", parties, params), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
-				p.GenShare(p.s, logBound, params.LogSlots(), ciphertext.Value[1], ciphertext.Scale, crp, p.share)
+				p.GenShare(p.s, logBound, params.LogSlots(), ciphertext.Value[1], ciphertext.Scale(), crp, p.share)
 			}
 		})
 
@@ -348,7 +348,7 @@ func benchMaskedTransform(testCtx *testContext, b *testing.B) {
 		b.Run(testString("Refresh&Transform/Round1/Gen", parties, params), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
-				p.GenShare(p.s, p.s, logBound, params.LogSlots(), ciphertext.Value[1], ciphertext.Scale, crp, transform, p.share)
+				p.GenShare(p.s, p.s, logBound, params.LogSlots(), ciphertext.Value[1], ciphertext.Scale(), crp, transform, p.share)
 			}
 		})
 

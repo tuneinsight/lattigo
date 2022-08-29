@@ -27,13 +27,13 @@ import (
 //       = [8 + 0X + 0X^2 - 0X^3 + 0X^4 + 0X^5 + 0X^6 - 0X^7]
 func (eval *evaluator) Trace(ctIn *Ciphertext, logSlots int, ctOut *Ciphertext) {
 	eval.Evaluator.Trace(ctIn.Ciphertext, logSlots, ctOut.Ciphertext)
-	ctOut.Scale = ctIn.Scale
+	ctOut.scale = ctIn.scale
 }
 
 // TraceNew maps X -> sum((-1)^i * X^{i*n+1}) for 0 <= i < N and returns the result on a new ciphertext.
 // For log(n) = logSlots.
 func (eval *evaluator) TraceNew(ctIn *Ciphertext, logSlots int) (ctOut *Ciphertext) {
-	ctOut = NewCiphertext(eval.params, 1, ctIn.Level(), ctIn.Scale)
+	ctOut = NewCiphertext(eval.params, 1, ctIn.Level(), ctIn.scale)
 	eval.Trace(ctIn, logSlots, ctOut)
 	return
 }
@@ -43,7 +43,7 @@ func (eval *evaluator) TraceNew(ctIn *Ciphertext, logSlots int) (ctOut *Cipherte
 func (eval *evaluator) RotateHoistedNew(ctIn *Ciphertext, rotations []int) (ctOut map[int]*Ciphertext) {
 	ctOut = make(map[int]*Ciphertext)
 	for _, i := range rotations {
-		ctOut[i] = NewCiphertext(eval.params, 1, ctIn.Level(), ctIn.Scale)
+		ctOut[i] = NewCiphertext(eval.params, 1, ctIn.Level(), ctIn.scale)
 	}
 	eval.RotateHoisted(ctIn, rotations, ctOut)
 	return
@@ -57,7 +57,7 @@ func (eval *evaluator) RotateHoisted(ctIn *Ciphertext, rotations []int, ctOut ma
 	eval.DecomposeNTT(levelQ, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], eval.BuffDecompQP)
 	for _, i := range rotations {
 		eval.AutomorphismHoisted(levelQ, ctIn.Ciphertext, eval.BuffDecompQP, eval.params.GaloisElementForColumnRotationBy(i), ctOut[i].Ciphertext)
-		ctOut[i].Scale = ctIn.Scale
+		ctOut[i].scale = ctIn.scale
 	}
 }
 
@@ -399,7 +399,7 @@ func (eval *evaluator) LinearTransformNew(ctIn *Ciphertext, linearTransform inte
 		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], eval.BuffDecompQP)
 
 		for i, LT := range LTs {
-			ctOut[i] = NewCiphertext(eval.params, 1, minLevel, ctIn.Scale)
+			ctOut[i] = NewCiphertext(eval.params, 1, minLevel, ctIn.scale)
 
 			if LT.N1 == 0 {
 				eval.MultiplyByDiagMatrix(ctIn, LT, eval.BuffDecompQP, ctOut[i])
@@ -413,7 +413,7 @@ func (eval *evaluator) LinearTransformNew(ctIn *Ciphertext, linearTransform inte
 		minLevel := utils.MinInt(LTs.Level, ctIn.Level())
 		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], eval.BuffDecompQP)
 
-		ctOut = []*Ciphertext{NewCiphertext(eval.params, 1, minLevel, ctIn.Scale)}
+		ctOut = []*Ciphertext{NewCiphertext(eval.params, 1, minLevel, ctIn.scale)}
 
 		if LTs.N1 == 0 {
 			eval.MultiplyByDiagMatrix(ctIn, LTs, eval.BuffDecompQP, ctOut[0])
@@ -508,7 +508,7 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 	levelP := len(ringP.Modulus) - 1
 
 	ctOut.Resize(ctOut.Degree(), levelQ)
-	ctOut.Scale = ctIn.Scale
+	ctOut.scale = ctIn.scale
 
 	if n == 1 {
 		if ctIn != ctOut {
@@ -630,7 +630,7 @@ func (eval *evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 	PiOverF := eval.params.PiOverflowMargin(levelP) >> 1
 
 	ctOut.Resize(ctOut.Degree(), levelQ)
-	ctOut.Scale = ctIn.Scale
+	ctOut.scale = ctIn.scale
 
 	// If sum with only the first element, then returns the input
 	if n == 1 {
@@ -834,7 +834,7 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTrans
 		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, matrix.Vec[0].Q, ctInTmp1, c1OutQP.Q) // ctOut += c1_Q * plaintext
 	}
 
-	ctOut.Scale = matrix.Scale * ctIn.Scale
+	ctOut.scale = matrix.Scale * ctIn.scale
 }
 
 // MultiplyByDiagMatrixBSGS multiplies the ciphertext "ctIn" by the plaintext matrix "matrix" and returns the result on the ciphertext
@@ -996,9 +996,8 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearT
 	eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, ctOut.Value[0], c0OutQP.P, ctOut.Value[0]) // sum(phi(c0 * P + d0_QP))/P
 	eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, ctOut.Value[1], c1OutQP.P, ctOut.Value[1]) // sum(phi(d1_QP))/P
 
-	ctOut.Scale = matrix.Scale * ctIn.Scale
+	ctOut.scale = matrix.Scale * ctIn.scale
 
 	ctInRotQP = nil
 	runtime.GC()
-
 }

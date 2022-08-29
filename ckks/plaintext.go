@@ -8,24 +8,24 @@ import (
 // Plaintext is is a Element with only one Poly.
 type Plaintext struct {
 	*rlwe.Plaintext
-	Scale float64
+	scale float64
 }
 
 // NewPlaintext creates a new Plaintext of level level and scale scale.
 func NewPlaintext(params Parameters, level int, scale float64) *Plaintext {
-	pt := &Plaintext{Plaintext: rlwe.NewPlaintext(params.Parameters, level), Scale: scale}
+	pt := &Plaintext{Plaintext: rlwe.NewPlaintext(params.Parameters, level), scale: scale}
 	pt.Value.IsNTT = true
 	return pt
 }
 
-// ScalingFactor returns the scaling factor of the plaintext
-func (p *Plaintext) ScalingFactor() float64 {
-	return p.Scale
+// Scale returns the scaling factor of the plaintext
+func (p *Plaintext) Scale() float64 {
+	return p.scale
 }
 
-// SetScalingFactor sets the scaling factor of the target plaintext
-func (p *Plaintext) SetScalingFactor(scale float64) {
-	p.Scale = scale
+// SetScale sets the scaling factor of the target plaintext
+func (p *Plaintext) SetScale(scale float64) {
+	p.scale = scale
 }
 
 // NewPlaintextAtLevelFromPoly construct a new Plaintext at a specific level
@@ -34,5 +34,5 @@ func (p *Plaintext) SetScalingFactor(scale float64) {
 func NewPlaintextAtLevelFromPoly(level int, poly *ring.Poly) *Plaintext {
 	pt := rlwe.NewPlaintextAtLevelFromPoly(level, poly)
 	pt.Value.IsNTT = true
-	return &Plaintext{Plaintext: pt, Scale: 0}
+	return &Plaintext{Plaintext: pt, scale: 0}
 }

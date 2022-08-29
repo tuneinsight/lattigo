@@ -222,7 +222,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				values0, _, ciphertext0 := newTestVectorsLvl(lvl, 3, tc, tc.encryptorSk)
 				values1, _, ciphertext1 := newTestVectorsLvl(lvl, 7, tc, tc.encryptorSk)
 
-				require.NotEqual(t, ciphertext0.Scale, ciphertext1.Scale)
+				require.NotEqual(t, ciphertext0.Scale(), ciphertext1.Scale())
 
 				ciphertext2 := tc.evaluator.AddNew(ciphertext0, ciphertext1)
 				tc.ringT.Add(values0, values1, values0)
@@ -238,7 +238,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				values0, _, ciphertext0 := newTestVectorsLvl(lvl, 3, tc, tc.encryptorSk)
 				values1, _, ciphertext1 := newTestVectorsLvl(lvl, 7, tc, tc.encryptorSk)
 
-				require.NotEqual(t, ciphertext0.Scale, ciphertext1.Scale)
+				require.NotEqual(t, ciphertext0.Scale(), ciphertext1.Scale())
 
 				tc.evaluator.Add(ciphertext0, ciphertext1, ciphertext0)
 				tc.ringT.Add(values0, values1, values0)
@@ -254,7 +254,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				values0, _, ciphertext0 := newTestVectorsLvl(lvl, 3, tc, tc.encryptorSk)
 				values1, plaintext, _ := newTestVectorsLvl(lvl, 7, tc, tc.encryptorSk)
 
-				require.NotEqual(t, ciphertext0.Scale, plaintext.Scale)
+				require.NotEqual(t, ciphertext0.Scale(), plaintext.Scale())
 
 				tc.evaluator.Add(ciphertext0, plaintext, ciphertext0)
 				tc.ringT.Add(values0, values1, values0)
@@ -270,7 +270,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				values0, _, ciphertext0 := newTestVectorsLvl(lvl, 3, tc, tc.encryptorSk)
 				values1, _, ciphertext1 := newTestVectorsLvl(lvl, 7, tc, tc.encryptorSk)
 
-				require.NotEqual(t, ciphertext0.Scale, ciphertext1.Scale)
+				require.NotEqual(t, ciphertext0.Scale(), ciphertext1.Scale())
 
 				tc.evaluator.Add(ciphertext0, ciphertext1, ciphertext0)
 				tc.ringT.Add(values0, values1, values0)
@@ -286,7 +286,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				values0, _, ciphertext0 := newTestVectorsLvl(lvl, 3, tc, tc.encryptorSk)
 				values1, _, ciphertext1 := newTestVectorsLvl(lvl, 7, tc, tc.encryptorSk)
 
-				require.NotEqual(t, ciphertext0.Scale, ciphertext1.Scale)
+				require.NotEqual(t, ciphertext0.Scale(), ciphertext1.Scale())
 
 				ciphertext0 = tc.evaluator.SubNew(ciphertext0, ciphertext1)
 				tc.ringT.Sub(values0, values1, values0)
@@ -302,7 +302,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				values0, _, ciphertext0 := newTestVectorsLvl(lvl, 3, tc, tc.encryptorSk)
 				values1, _, ciphertext1 := newTestVectorsLvl(lvl, 7, tc, tc.encryptorSk)
 
-				require.NotEqual(t, ciphertext0.Scale, ciphertext1.Scale)
+				require.NotEqual(t, ciphertext0.Scale(), ciphertext1.Scale())
 
 				tc.evaluator.Sub(ciphertext0, ciphertext1, ciphertext0)
 				tc.ringT.Sub(values0, values1, values0)
@@ -318,7 +318,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				values0, _, ciphertext0 := newTestVectorsLvl(lvl, 3, tc, tc.encryptorSk)
 				values1, plaintext, _ := newTestVectorsLvl(lvl, 7, tc, tc.encryptorSk)
 
-				require.NotEqual(t, ciphertext0.Scale, plaintext.Scale)
+				require.NotEqual(t, ciphertext0.Scale(), plaintext.Scale())
 
 				tc.evaluator.Sub(ciphertext0, plaintext, ciphertext0)
 				tc.ringT.Sub(values0, values1, values0)
@@ -334,7 +334,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				values0, _, ciphertext0 := newTestVectorsLvl(lvl, 3, tc, tc.encryptorSk)
 				values1, _, ciphertext1 := newTestVectorsLvl(lvl, 7, tc, tc.encryptorSk)
 
-				require.NotEqual(t, ciphertext0.Scale, ciphertext1.Scale)
+				require.NotEqual(t, ciphertext0.Scale(), ciphertext1.Scale())
 
 				tc.evaluator.Sub(ciphertext0, ciphertext1, ciphertext0)
 				tc.ringT.Sub(values0, values1, values0)
@@ -392,7 +392,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 
 				values, _, ciphertext := newTestVectorsLvl(lvl, 7, tc, tc.encryptorSk)
 
-				require.NotEqual(t, ciphertext.Scale, 1)
+				require.NotEqual(t, ciphertext.Scale(), 1)
 
 				scalar := tc.params.T() >> 1
 
@@ -450,7 +450,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				values0, _, ciphertext0 := newTestVectorsLvl(lvl, 7, tc, tc.encryptorSk)
 				values1, _, ciphertext1 := newTestVectorsLvl(lvl, 3, tc, tc.encryptorSk)
 
-				require.NotEqual(t, ciphertext0.Scale, ciphertext1.Scale)
+				require.NotEqual(t, ciphertext0.Scale(), ciphertext1.Scale())
 
 				scalar := tc.params.T() >> 1
 
@@ -471,7 +471,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				values0, _, ciphertext0 := newTestVectorsLvl(lvl, 3, tc, tc.encryptorSk)
 				values1, _, ciphertext1 := newTestVectorsLvl(lvl, 7, tc, tc.encryptorSk)
 
-				require.NotEqual(t, ciphertext0.Scale, ciphertext1.Scale)
+				require.NotEqual(t, ciphertext0.Scale(), ciphertext1.Scale())
 
 				tc.evaluator.Mul(ciphertext0, ciphertext1, ciphertext0)
 				tc.ringT.MulCoeffs(values0, values1, values0)
@@ -509,7 +509,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				values1, _, ciphertext1 := newTestVectorsLvl(lvl, 7, tc, tc.encryptorSk)
 				tc.ringT.MulCoeffs(values0, values1, values0)
 
-				require.NotEqual(t, ciphertext0.Scale, ciphertext1.Scale)
+				require.NotEqual(t, ciphertext0.Scale(), ciphertext1.Scale())
 
 				receiver := NewCiphertext(tc.params, 1, lvl, 1)
 
@@ -543,8 +543,8 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				values1, _, ciphertext1 := newTestVectorsLvl(lvl, 2, tc, tc.encryptorSk)
 				values2, _, ciphertext2 := newTestVectorsLvl(lvl, 7, tc, tc.encryptorSk)
 
-				require.NotEqual(t, ciphertext0.Scale, ciphertext1.Scale)
-				require.NotEqual(t, ciphertext0.Scale, ciphertext2.Scale)
+				require.NotEqual(t, ciphertext0.Scale(), ciphertext1.Scale())
+				require.NotEqual(t, ciphertext0.Scale(), ciphertext2.Scale())
 
 				tc.evaluator.MulAndAdd(ciphertext0, ciphertext1, ciphertext2)
 				tc.ringT.MulCoeffsAndAdd(values0, values1, values2)
@@ -565,8 +565,8 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				values1, _, ciphertext1 := newTestVectorsLvl(lvl, 2, tc, tc.encryptorSk)
 				values2, _, ciphertext2 := newTestVectorsLvl(lvl, 7, tc, tc.encryptorSk)
 
-				require.NotEqual(t, ciphertext0.Scale, ciphertext1.Scale)
-				require.NotEqual(t, ciphertext0.Scale, ciphertext2.Scale)
+				require.NotEqual(t, ciphertext0.Scale(), ciphertext1.Scale())
+				require.NotEqual(t, ciphertext0.Scale(), ciphertext2.Scale())
 
 				tc.evaluator.MulRelinAndAdd(ciphertext0, ciphertext1, ciphertext2)
 				tc.ringT.MulCoeffsAndAdd(values0, values1, values2)
@@ -601,7 +601,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				t.Fatal()
 			}
 
-			require.True(t, ciphertext.Scale == targetScale)
+			require.True(t, ciphertext.Scale() == targetScale)
 
 			std, min, max := Norm(ciphertext, tc.decryptor)
 			t.Logf("Noise -> (std: %f, min: %f, max=%f)\n", std, min, max)
@@ -647,7 +647,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				t.Fail()
 			}
 
-			require.True(t, ciphertext.Scale == targetScale)
+			require.True(t, ciphertext.Scale() == targetScale)
 
 			std, min, max := Norm(ciphertext, tc.decryptor)
 			t.Logf("Noise -> (std: %f, min: %f, max=%f)\n", std, min, max)

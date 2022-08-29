@@ -22,7 +22,7 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 	levelP := len(ringP.Modulus) - 1
 
 	ctOut.Resize(ctOut.Degree(), levelQ)
-	ctOut.Scale = ctIn.Scale
+	ctOut.SetScale(ctIn.Scale())
 
 	if n == 1 {
 		if ctIn != ctOut {
@@ -505,7 +505,7 @@ func (eval *evaluator) LinearTransformNew(ctIn *Ciphertext, linearTransform inte
 		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), eval.buffQ[0], eval.BuffDecompQP)
 
 		for i, LT := range LTs {
-			ctOut[i] = NewCiphertext(eval.params, 1, minLevel, ctIn.Scale)
+			ctOut[i] = NewCiphertext(eval.params, 1, minLevel, ctIn.Scale())
 
 			if LT.N1 == 0 {
 				eval.MultiplyByDiagMatrix(ctIn, LT, eval.BuffDecompQP, ctOut[i])
@@ -520,7 +520,7 @@ func (eval *evaluator) LinearTransformNew(ctIn *Ciphertext, linearTransform inte
 		eval.params.RingQ().MulScalarBigintLvl(minLevel, ctIn.Value[1], eval.tInvModQ[minLevel], eval.buffQ[0])
 		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), eval.buffQ[0], eval.BuffDecompQP)
 
-		ctOut = []*Ciphertext{NewCiphertext(eval.params, 1, minLevel, ctIn.Scale)}
+		ctOut = []*Ciphertext{NewCiphertext(eval.params, 1, minLevel, ctIn.Scale())}
 
 		if LTs.N1 == 0 {
 			eval.MultiplyByDiagMatrix(ctIn, LTs, eval.BuffDecompQP, ctOut[0])
@@ -673,7 +673,7 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTrans
 		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, matrix.Vec[0].Q, ctInTmp1, c1OutQP.Q) // ctOut += c1_Q * plaintext
 	}
 
-	ctOut.Scale = matrix.Scale * ctIn.Scale
+	ctOut.SetScale(matrix.Scale * ctIn.Scale())
 }
 
 // MultiplyByDiagMatrixBSGS multiplies the ciphertext "ctIn" by the plaintext matrix "matrix" and returns the result on the ciphertext
@@ -845,7 +845,7 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearT
 	ringQ.MulScalarLvl(levelQ, ctOut.Value[0], eval.params.T(), ctOut.Value[0])
 	ringQ.MulScalarLvl(levelQ, ctOut.Value[1], eval.params.T(), ctOut.Value[1])
 
-	ctOut.Scale = matrix.Scale * ctIn.Scale
+	ctOut.SetScale(matrix.Scale * ctIn.Scale())
 
 	ctInRotQP = nil
 	runtime.GC()

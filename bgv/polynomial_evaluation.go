@@ -408,7 +408,7 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale uint64
 
 	// ts = targetScale*currentQi/XPow.Scale
 	ts := ring.BRed(targetScale, currentQi, t, bredParams)
-	xPowScaleInv := ring.ModExp(XPow.Scale, t-2, t)
+	xPowScaleInv := ring.ModExp(XPow.Scale(), t-2, t)
 	ts = ring.BRed(ts, xPowScaleInv, t, bredParams)
 
 	if res, err = polyEval.recurse(targetLevel+1, ts, coeffsq); err != nil {
@@ -426,7 +426,7 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale uint64
 	polyEval.Mul(res, XPow, res)
 
 	var tmp *Ciphertext
-	if tmp, err = polyEval.recurse(res.Level(), res.Scale, coeffsr); err != nil {
+	if tmp, err = polyEval.recurse(res.Level(), res.Scale(), coeffsr); err != nil {
 		return nil, err
 	}
 
@@ -488,7 +488,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetLevel int,
 			// If a non-zero coefficient was found, encode the values, adds on the ciphertext, and returns
 			if toEncode {
 				pt := NewPlaintextAtLevelFromPoly(targetLevel, res.Value[0])
-				pt.Scale = res.Scale
+				pt.SetScale(res.Scale())
 				polyEval.Encode(values, pt)
 			}
 
@@ -516,7 +516,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetLevel int,
 		if toEncode {
 			// Add would actually scale the plaintext accordingly,
 			// but encoding with the correct scale is slightly faster
-			pt.Scale = res.Scale
+			pt.SetScale(res.Scale())
 			polyEval.Encode(values, pt)
 			polyEval.Add(res, pt, res)
 			toEncode = false
@@ -558,7 +558,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetLevel int,
 
 				// MulAndAdd would actually scale the plaintext accordingly,
 				// but encoding with the correct scale is slightly faster
-				pt.Scale = ring.BRed(targetScale, ring.ModExp(X[key].Scale, t-2, t), t, bredParams)
+				pt.SetScale(ring.BRed(targetScale, ring.ModExp(X[key].Scale(), t-2, t), t, bredParams))
 				polyEval.Encode(values, pt)
 				polyEval.MulAndAdd(X[key], pt, res)
 				toEncode = false

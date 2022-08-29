@@ -189,7 +189,7 @@ func (eval *evaluator) SlotsToCoeffsNew(ctReal, ctImag *ckks.Ciphertext, stcMatr
 		panic("ctReal.Level() or ctImag.Level() < EncodingMatrix.LevelStart")
 	}
 
-	ctOut = ckks.NewCiphertext(eval.params, 1, stcMatrices.LevelStart, ctReal.Scale)
+	ctOut = ckks.NewCiphertext(eval.params, 1, stcMatrices.LevelStart, ctReal.Scale())
 	eval.SlotsToCoeffs(ctReal, ctImag, stcMatrices, ctOut)
 	return
 
@@ -212,7 +212,7 @@ func (eval *evaluator) SlotsToCoeffs(ctReal, ctImag *ckks.Ciphertext, stcMatrice
 
 func (eval *evaluator) dft(ctIn *ckks.Ciphertext, plainVectors []ckks.LinearTransform, ctOut *ckks.Ciphertext) {
 	// Sequentially multiplies w with the provided dft matrices.
-	scale := ctIn.Scale
+	scale := ctIn.Scale()
 	var in, out *ckks.Ciphertext
 	for i, plainVector := range plainVectors {
 		in, out = ctOut, ctOut
@@ -251,17 +251,17 @@ func (eval *evaluator) EvalModNew(ct *ckks.Ciphertext, evalModPoly EvalModPoly) 
 	}
 
 	// Stores default scales
-	prevScaleCt := ct.Scale
+	prevScaleCt := ct.Scale()
 
 	// Normalize the modular reduction to mod by 1 (division by Q)
-	ct.Scale = evalModPoly.scalingFactor
+	ct.SetScale(evalModPoly.scalingFactor)
 
 	var err error
 
 	// Compute the scales that the ciphertext should have before the double angle
 	// formula such that after it it has the scale it had before the polynomial
 	// evaluation
-	targetScale := ct.Scale
+	targetScale := ct.Scale()
 	for i := 0; i < evalModPoly.doubleAngle; i++ {
 		targetScale = math.Sqrt(targetScale * eval.params.QiFloat64(evalModPoly.levelStart-evalModPoly.sinePoly.Depth()-evalModPoly.doubleAngle+i+1))
 	}
@@ -290,12 +290,12 @@ func (eval *evaluator) EvalModNew(ct *ckks.Ciphertext, evalModPoly EvalModPoly) 
 
 	// ArcSine
 	if evalModPoly.arcSinePoly != nil {
-		if ct, err = eval.EvaluatePoly(ct, evalModPoly.arcSinePoly, ct.Scale); err != nil {
+		if ct, err = eval.EvaluatePoly(ct, evalModPoly.arcSinePoly, ct.Scale()); err != nil {
 			panic(err)
 		}
 	}
 
 	// Multiplies back by q
-	ct.Scale = prevScaleCt
+	ct.SetScale(prevScaleCt)
 	return ct
 }

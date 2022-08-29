@@ -228,7 +228,7 @@ func testPublicKeySwitching(tc *testContext, t *testing.T) {
 		// Checks that the protocol complies to the drlwe.PublicKeySwitchingProtocol interface
 		var _ drlwe.PublicKeySwitchingProtocol = &P0.PCKSProtocol.PCKSProtocol
 
-		ciphertextSwitched := bgv.NewCiphertext(tc.params, 1, ciphertext.Level(), ciphertext.Scale)
+		ciphertextSwitched := bgv.NewCiphertext(tc.params, 1, ciphertext.Level(), ciphertext.Scale())
 
 		for i, p := range pcksParties {
 			p.GenShare(p.s, pk1, ciphertext.Value[1], p.share)
@@ -294,7 +294,7 @@ func testEncToShares(tc *testContext, t *testing.T) {
 		ptRt.Copy(&rec.Value)
 		values := make([]uint64, len(coeffs))
 
-		tc.encoder.DecodeRingT(ptRt, ciphertext.Scale, values)
+		tc.encoder.DecodeRingT(ptRt, ciphertext.Scale(), values)
 		assert.True(t, utils.EqualSliceUint64(coeffs, values))
 	})
 
@@ -309,7 +309,7 @@ func testEncToShares(tc *testContext, t *testing.T) {
 			}
 		}
 
-		ctRec := bgv.NewCiphertext(tc.params, 1, tc.params.MaxLevel(), ciphertext.Scale)
+		ctRec := bgv.NewCiphertext(tc.params, 1, tc.params.MaxLevel(), ciphertext.Scale())
 		P[0].s2e.GetEncryption(P[0].publicShare, crp, ctRec)
 
 		verifyTestVectors(tc, tc.decryptorSk0, coeffs, ctRec, t)
@@ -356,7 +356,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 		ciphertext.Resize(ciphertext.Degree(), minLevel)
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.s, ciphertext.Value[1], ciphertext.Scale, crp, p.share)
+			p.GenShare(p.s, ciphertext.Value[1], ciphertext.Scale(), crp, p.share)
 			if i > 0 {
 				P0.AggregateShare(p.share, P0.share, P0.share)
 			}
@@ -432,7 +432,7 @@ func testRefreshAndPermutation(tc *testContext, t *testing.T) {
 		}
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.s, ciphertext.Value[1], ciphertext.Scale, crp, maskedTransform, p.share)
+			p.GenShare(p.s, ciphertext.Value[1], ciphertext.Scale(), crp, maskedTransform, p.share)
 			if i > 0 {
 				P0.AggregateShare(P0.share, p.share, P0.share)
 			}
@@ -489,7 +489,7 @@ func testMarshalling(tc *testContext, t *testing.T) {
 
 		crp := refreshproto.SampleCRP(maxLevel, tc.crs)
 
-		refreshproto.GenShare(tc.sk0, ciphertext.Value[1], ciphertext.Scale, crp, refreshshare)
+		refreshproto.GenShare(tc.sk0, ciphertext.Value[1], ciphertext.Scale(), crp, refreshshare)
 
 		data, err := refreshshare.MarshalBinary()
 		if err != nil {

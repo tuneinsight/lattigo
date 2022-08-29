@@ -334,7 +334,7 @@ func testKeyswitching(tc *testContext, t *testing.T) {
 					}
 				}
 
-				ksCiphertext := ckks.NewCiphertext(params, 1, ciphertext.Level(), ciphertext.Scale/2)
+				ksCiphertext := ckks.NewCiphertext(params, 1, ciphertext.Level(), ciphertext.Scale()/2)
 
 				P0.cks.KeySwitch(ciphertext, P0.share, ksCiphertext)
 
@@ -385,7 +385,7 @@ func testPublicKeySwitching(tc *testContext, t *testing.T) {
 				// Checks that the protocol complies to the drlwe.KeySwitchingProtocol interface
 				var _ drlwe.PublicKeySwitchingProtocol = &P0.PCKSProtocol.PCKSProtocol
 
-				ciphertextSwitched := ckks.NewCiphertext(params, 1, ciphertext.Level(), ciphertext.Scale)
+				ciphertextSwitched := ckks.NewCiphertext(params, 1, ciphertext.Level(), ciphertext.Scale())
 
 				for i, p := range pcksParties {
 					p.GenShare(p.s, pk1, ciphertext.Value[1], p.share)
@@ -495,7 +495,7 @@ func testRotKeyGenCols(tc *testContext, t *testing.T) {
 
 		coeffs, _, ciphertext := newTestVectors(tc, encryptorPk0, -1, 1)
 
-		receiver := ckks.NewCiphertext(params, ciphertext.Degree(), ciphertext.Level(), ciphertext.Scale)
+		receiver := ckks.NewCiphertext(params, ciphertext.Degree(), ciphertext.Level(), ciphertext.Scale())
 
 		galEls := params.GaloisElementsForRowInnerSum()
 		rotKeySet := ckks.NewRotationKeySet(params, galEls)
@@ -582,7 +582,7 @@ func testE2SProtocol(tc *testContext, t *testing.T) {
 			}
 		}
 
-		pt := ckks.NewPlaintext(params, ciphertext.Level(), ciphertext.Scale)
+		pt := ckks.NewPlaintext(params, ciphertext.Level(), ciphertext.Scale())
 		pt.Value.IsNTT = false
 		tc.ringQ.SetCoefficientsBigintLvl(pt.Level(), rec.Value, pt.Value)
 
@@ -597,7 +597,7 @@ func testE2SProtocol(tc *testContext, t *testing.T) {
 			}
 		}
 
-		ctRec := ckks.NewCiphertext(params, 1, params.Parameters.MaxLevel(), ciphertext.Scale)
+		ctRec := ckks.NewCiphertext(params, 1, params.Parameters.MaxLevel(), ciphertext.Scale())
 		P[0].s2e.GetEncryption(P[0].publicShareS2E, crp, ctRec)
 
 		verifyTestVectors(tc, tc.decryptorSk0, coeffs, ctRec, t)
@@ -656,7 +656,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 
 				for i, p := range RefreshParties {
 
-					p.GenShare(p.s, logBound, params.LogSlots(), ciphertext.Value[1], ciphertext.Scale, crp, p.share)
+					p.GenShare(p.s, logBound, params.LogSlots(), ciphertext.Value[1], ciphertext.Scale(), crp, p.share)
 
 					if i > 0 {
 						P0.AggregateShare(p.share, P0.share, P0.share)
@@ -735,7 +735,7 @@ func testRefreshAndTransform(tc *testContext, t *testing.T) {
 		}
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.s, p.s, logBound, params.LogSlots(), ciphertext.Value[1], ciphertext.Scale, crp, transform, p.share)
+			p.GenShare(p.s, p.s, logBound, params.LogSlots(), ciphertext.Value[1], ciphertext.Scale(), crp, transform, p.share)
 
 			if i > 0 {
 				P0.AggregateShare(p.share, P0.share, P0.share)
@@ -837,7 +837,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 		}
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.sIn, p.sOut, logBound, params.LogSlots(), ciphertext.Value[1], ciphertext.Scale, crp, transform, p.share)
+			p.GenShare(p.sIn, p.sOut, logBound, params.LogSlots(), ciphertext.Value[1], ciphertext.Scale(), crp, transform, p.share)
 
 			if i > 0 {
 				P0.AggregateShare(p.share, P0.share, P0.share)
@@ -882,7 +882,7 @@ func testMarshalling(tc *testContext, t *testing.T) {
 
 		crp := refreshproto.SampleCRP(params.MaxLevel(), tc.crs)
 
-		refreshproto.GenShare(tc.sk0, logBound, params.LogSlots(), ciphertext.Value[1], ciphertext.Scale, crp, refreshshare)
+		refreshproto.GenShare(tc.sk0, logBound, params.LogSlots(), ciphertext.Value[1], ciphertext.Scale(), crp, refreshshare)
 
 		data, err := refreshshare.MarshalBinary()
 

@@ -4,6 +4,11 @@ All notable changes to this library are documented in this file.
 
 # UNRELEASED
 
+# UNRELEASED
+- Added BGV/DBGV schemes.
+- BFV: renamed `Encoder.DecodeRingT` to `Encoder.SwitchToRingT` to better reflect purpose of the method.
+- DBFV/DCKKS: `MaskedTransformFunc` is now a struct and takes as additional input to the linear transform two boolean flags to parameterize if the decoding/encoding process must be done before/after the linear transform.
+- DBFV/DCKKS: `refresh` and `maskedTransform` protocols now allow the user to specify the output parameters, enabling parameter switching.
 - ALL: added default parameters for LogN=11 and LogN=10.
 - RING: prime generation no longer skips the first candidate.
 - RING: reworked marshalling of `ring.Poly` object. The new available methods are:
@@ -65,6 +70,8 @@ All notable changes to this library are documented in this file.
 - DRLWE: added a `README.md` providing package overview and usage instructions.
 - DRLWE: removed the obsolete `CollectivePublicKeyGenerator`, `RelinearizationKeyGenerator`, `RotationKeyGenerator`, `PublicKeySwitchingProtocol` and `KeySwitchingProtocol` interfaces.
 - DBFV/DCKKS: removed the `dbfv/dckks.CKGProtocol`, `dbfv/dckks.RKGProtocol` and `dbfv/dckks.RTGProtocol` types. Users should use the corresponding `drlwe` types instead.
+- CKKS: replaced the public variable `.Scale` with `.scale`, it can not be accessed with `.Scale()` and set to a new value with `.SetScale()`.
+- CKKS: renamed the methods `ScalingFactor` and `SetScalingFactor` of the interface `Operand` to `Scale` and `SetScale` respectively.
 - DCKKS: fixed `dckks.RefreshProtocol` correctness when the output scale is different from the input scale.
 - Examples: added `examples/ckks/advanced/lut`, which is an example that performs homomorphic decoding -> LUT -> homomorphic encoding on a `ckks.Ciphertext`.
 - Examples: removed `examples/ckks/advanced/rlwe_lwe_bridge_LHHMQ20`, which is replaced by `examples/ckks/advanced/lut`.

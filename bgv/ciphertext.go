@@ -1,9 +1,8 @@
-package ckks
+package bgv
 
 import (
 	"encoding/binary"
 	"errors"
-	"math"
 
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
@@ -13,11 +12,11 @@ import (
 // Ciphertext is *ring.Poly array representing a polynomial of degree > 0 with coefficients in R_Q.
 type Ciphertext struct {
 	*rlwe.Ciphertext
-	scale float64
+	scale uint64
 }
 
 // NewCiphertext creates a new Ciphertext parameterized by degree, level and scale.
-func NewCiphertext(params Parameters, degree, level int, scale float64) (ciphertext *Ciphertext) {
+func NewCiphertext(params Parameters, degree, level int, scale uint64) (ciphertext *Ciphertext) {
 	ciphertext = &Ciphertext{Ciphertext: rlwe.NewCiphertext(params.Parameters, degree, level)}
 	for _, pol := range ciphertext.Value {
 		pol.IsNTT = true
@@ -26,8 +25,18 @@ func NewCiphertext(params Parameters, degree, level int, scale float64) (ciphert
 	return ciphertext
 }
 
+// Scale returns the scaling factor of the target ciphertext.
+func (ct *Ciphertext) Scale() uint64 {
+	return ct.scale
+}
+
+// SetScale sets the scale of the target ciphertext.
+func (ct *Ciphertext) SetScale(scale uint64) {
+	ct.scale = scale
+}
+
 // NewCiphertextRandom generates a new uniformly distributed Ciphertext of degree, level and scale.
-func NewCiphertextRandom(prng utils.PRNG, params Parameters, degree, level int, scale float64) (ciphertext *Ciphertext) {
+func NewCiphertextRandom(prng utils.PRNG, params Parameters, degree, level int, scale uint64) (ciphertext *Ciphertext) {
 	ciphertext = &Ciphertext{rlwe.NewCiphertextRandom(prng, params.Parameters, degree, level), scale}
 	for i := range ciphertext.Value {
 		ciphertext.Value[i].IsNTT = true
@@ -42,16 +51,6 @@ func NewCiphertextAtLevelFromPoly(level int, poly [2]*ring.Poly) *Ciphertext {
 	ct := rlwe.NewCiphertextAtLevelFromPoly(level, poly)
 	ct.Value[0].IsNTT, ct.Value[1].IsNTT = true, true
 	return &Ciphertext{Ciphertext: ct, scale: 0}
-}
-
-// Scale returns the scaling factor of the ciphertext
-func (ct *Ciphertext) Scale() float64 {
-	return ct.scale
-}
-
-// SetScale sets the scaling factor of the ciphertext
-func (ct *Ciphertext) SetScale(scale float64) {
-	ct.scale = scale
 }
 
 // Copy copies the given ciphertext ctp into the receiver ciphertext.
@@ -85,7 +84,7 @@ func (ct *Ciphertext) MarshalBinary() (data []byte, err error) {
 
 	dataScale := make([]byte, 8)
 
-	binary.LittleEndian.PutUint64(dataScale, math.Float64bits(ct.scale))
+	binary.LittleEndian.PutUint64(dataScale, ct.scale)
 
 	var dataCt []byte
 	if dataCt, err = ct.Ciphertext.MarshalBinary(); err != nil {
@@ -101,7 +100,7 @@ func (ct *Ciphertext) UnmarshalBinary(data []byte) (err error) {
 		return errors.New("too small bytearray")
 	}
 
-	ct.scale = math.Float64frombits(binary.LittleEndian.Uint64(data[0:8]))
+	ct.scale = binary.LittleEndian.Uint64(data[0:8])
 	ct.Ciphertext = new(rlwe.Ciphertext)
 	return ct.Ciphertext.UnmarshalBinary(data[8:])
 }

@@ -92,8 +92,8 @@ func main() {
 	// Bootstrap the ciphertext (homomorphic re-encryption)
 	// It takes a ciphertext at level 0 (if not at level 0, then it will reduce it to level 0)
 	// and returns a ciphertext at level MaxLevel - k, where k is the depth of the bootstrapping circuit.
-	// CAUTION: the scale of the ciphertext MUST be equal (or very close) to params.Scale
-	// To equalize the scale, the function evaluator.SetScale(ciphertext, parameters.Scale) can be used at the expense of one level.
+	// CAUTION: the scale of the ciphertext MUST be equal (or very close) to params.DefaultScale()
+	// To equalize the scale, the function evaluator.SetScale(ciphertext, parameters.DefaultScale()) can be used at the expense of one level.
 	fmt.Println()
 	fmt.Println("Bootstrapping...")
 	ciphertext2 := btp.Bootstrap(ciphertext1)
@@ -111,7 +111,7 @@ func printDebug(params ckks.Parameters, ciphertext *ckks.Ciphertext, valuesWant 
 
 	fmt.Println()
 	fmt.Printf("Level: %d (logQ = %d)\n", ciphertext.Level(), params.LogQLvl(ciphertext.Level()))
-	fmt.Printf("Scale: 2^%f\n", math.Log2(ciphertext.Scale))
+	fmt.Printf("Scale: 2^%f\n", math.Log2(ciphertext.Scale()))
 	fmt.Printf("ValuesTest: %6.10f %6.10f %6.10f %6.10f...\n", valuesTest[0], valuesTest[1], valuesTest[2], valuesTest[3])
 	fmt.Printf("ValuesWant: %6.10f %6.10f %6.10f %6.10f...\n", valuesWant[0], valuesWant[1], valuesWant[2], valuesWant[3])
 

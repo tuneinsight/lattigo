@@ -23,7 +23,7 @@ func NewDecryptor(params Parameters, sk *rlwe.SecretKey) Decryptor {
 
 // Decrypt decrypts the ciphertext and write the result in ptOut.
 func (dec *decryptor) DecryptNew(ciphertext *Ciphertext) (plaintext *Plaintext) {
-	pt := NewPlaintext(dec.params, ciphertext.Level(), ciphertext.Scale)
+	pt := NewPlaintext(dec.params, ciphertext.Level(), ciphertext.scale)
 	dec.Decryptor.Decrypt(ciphertext.Ciphertext, pt.Plaintext)
 	return pt
 }
@@ -31,7 +31,7 @@ func (dec *decryptor) DecryptNew(ciphertext *Ciphertext) (plaintext *Plaintext) 
 // DecryptNew decrypts the ciphertext and returns the result in a newly allocated Plaintext.
 func (dec *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) {
 	dec.Decryptor.Decrypt(&rlwe.Ciphertext{Value: ciphertext.Value}, &rlwe.Plaintext{Value: plaintext.Value})
-	plaintext.Scale = ciphertext.Scale
+	plaintext.scale = ciphertext.scale
 }
 
 // ShallowCopy creates a shallow copy of Decryptor in which all the read-only data-structures are

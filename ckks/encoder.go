@@ -170,7 +170,7 @@ func NewEncoder(params Parameters) Encoder {
 // The imaginary part of []complex128 will be discarded if ringType == ring.ConjugateInvariant.
 // Returned plaintext is always in the NTT domain.
 func (ecd *encoderComplex128) Encode(values interface{}, plaintext *Plaintext, logSlots int) {
-	ecd.Embed(values, logSlots, plaintext.Scale, false, plaintext.Value)
+	ecd.Embed(values, logSlots, plaintext.scale, false, plaintext.Value)
 }
 
 // EncodeNew encodes a set of values on a new plaintext.
@@ -242,7 +242,7 @@ func (ecd *encoderComplex128) EncodeCoeffs(values []float64, plaintext *Plaintex
 	if len(values) > ecd.params.N() {
 		panic("cannot EncodeCoeffs : too many values (maximum is N)")
 	}
-	floatToFixedPointCRT(plaintext.Level(), values, plaintext.Scale, ecd.params.RingQ(), plaintext.Value.Coeffs)
+	floatToFixedPointCRT(plaintext.Level(), values, plaintext.scale, ecd.params.RingQ(), plaintext.Value.Coeffs)
 	ecd.params.RingQ().NTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
 	plaintext.Value.IsNTT = true
 }
@@ -514,7 +514,7 @@ func (ecd *encoderComplex128) decodePublic(plaintext *Plaintext, logSlots int, s
 		ecd.gaussianSampler.ReadAndAddFromDistLvl(plaintext.Level(), ecd.buff, ecd.params.RingQ(), sigma, int(2.5066282746310002*sigma))
 	}
 
-	ecd.plaintextToComplex(plaintext.Level(), plaintext.Scale, logSlots, ecd.buff, ecd.values)
+	ecd.plaintextToComplex(plaintext.Level(), plaintext.scale, logSlots, ecd.buff, ecd.values)
 
 	if logSlots < 3 {
 		SpecialFFTVec(ecd.values, 1<<logSlots, ecd.m, ecd.rotGroup, ecd.roots)
@@ -565,7 +565,7 @@ func (ecd *encoderComplex128) decodeCoeffsPublic(plaintext *Plaintext, sigma flo
 				ecd.bigintCoeffs[i].Sub(ecd.bigintCoeffs[i], Q)
 			}
 
-			res[i] = scaleDown(ecd.bigintCoeffs[i], plaintext.Scale)
+			res[i] = scaleDown(ecd.bigintCoeffs[i], plaintext.scale)
 		}
 		// We can directly get the coefficients
 	} else {
@@ -581,7 +581,7 @@ func (ecd *encoderComplex128) decodeCoeffsPublic(plaintext *Plaintext, sigma flo
 				res[i] = float64(coeffs[i])
 			}
 
-			res[i] /= plaintext.Scale
+			res[i] /= plaintext.scale
 		}
 	}
 
@@ -688,7 +688,7 @@ func (ecd *encoderBigComplex) Encode(values []*ring.Complex, plaintext *Plaintex
 		ecd.valuesfloat[jdx].Set(ecd.values[i].Imag())
 	}
 
-	scaleUpVecExactBigFloat(ecd.valuesfloat, plaintext.Scale, ecd.params.RingQ().Modulus[:plaintext.Level()+1], plaintext.Value.Coeffs)
+	scaleUpVecExactBigFloat(ecd.valuesfloat, plaintext.scale, ecd.params.RingQ().Modulus[:plaintext.Level()+1], plaintext.Value.Coeffs)
 
 	for i := 0; i < (ecd.params.RingQ().N >> 1); i++ {
 		ecd.values[i].Real().Set(ecd.zero)
@@ -825,7 +825,7 @@ func (ecd *encoderBigComplex) decodePublic(plaintext *Plaintext, logSlots int, s
 
 	maxSlots := ecd.params.RingQ().N >> 1
 
-	scaleFlo := ring.NewFloat(plaintext.Scale, ecd.logPrecision)
+	scaleFlo := ring.NewFloat(plaintext.scale, ecd.logPrecision)
 
 	ecd.qHalf.Set(Q)
 	ecd.qHalf.Rsh(ecd.qHalf, 1)

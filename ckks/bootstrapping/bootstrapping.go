@@ -35,24 +35,24 @@ func (btp *Bootstrapper) Bootstrap(ctIn *ckks.Ciphertext) (ctOut *ckks.Ciphertex
 	} else {
 
 		// Does an integer constant mult by round((Q0/Delta_m)/ctscle)
-		if btp.q0OverMessageRatio < ctOut.Scale {
+		if btp.q0OverMessageRatio < ctOut.Scale() {
 			panic("Cannot bootstrap: ciphetext scale > q/||m||)")
 		}
 
-		btp.ScaleUp(ctOut, math.Round(btp.q0OverMessageRatio/ctOut.Scale), ctOut)
+		btp.ScaleUp(ctOut, math.Round(btp.q0OverMessageRatio/ctOut.Scale()), ctOut)
 	}
 
 	// Scales the message to Q0/|m|, which is the maximum possible before ModRaise to avoid plaintext overflow.
-	if math.Round((btp.params.QiFloat64(0)/btp.evalModPoly.MessageRatio())/ctOut.Scale) > 1 {
-		btp.ScaleUp(ctOut, math.Round((btp.params.QiFloat64(0)/btp.evalModPoly.MessageRatio())/ctOut.Scale), ctOut)
+	if math.Round((btp.params.QiFloat64(0)/btp.evalModPoly.MessageRatio())/ctOut.Scale()) > 1 {
+		btp.ScaleUp(ctOut, math.Round((btp.params.QiFloat64(0)/btp.evalModPoly.MessageRatio())/ctOut.Scale()), ctOut)
 	}
 
 	// Step 1 : Extend the basis from q to Q
 	ctOut = btp.modUpFromQ0(ctOut)
 
 	// Scale the message from Q0/|m| to QL/|m|, where QL is the largest modulus used during the bootstrapping.
-	if (btp.evalModPoly.ScalingFactor()/btp.evalModPoly.MessageRatio())/ctOut.Scale > 1 {
-		btp.ScaleUp(ctOut, math.Round((btp.evalModPoly.ScalingFactor()/btp.evalModPoly.MessageRatio())/ctOut.Scale), ctOut)
+	if (btp.evalModPoly.ScalingFactor()/btp.evalModPoly.MessageRatio())/ctOut.Scale() > 1 {
+		btp.ScaleUp(ctOut, math.Round((btp.evalModPoly.ScalingFactor()/btp.evalModPoly.MessageRatio())/ctOut.Scale()), ctOut)
 	}
 
 	//SubSum X -> (N/dslots) * Y^dslots
@@ -66,11 +66,11 @@ func (btp *Bootstrapper) Bootstrap(ctIn *ckks.Ciphertext) (ctOut *ckks.Ciphertex
 	// ctImag = Ecd(imag)
 	// If n < N/2 then ctReal = Ecd(real|imag)
 	ctReal = btp.EvalModNew(ctReal, btp.evalModPoly)
-	ctReal.Scale = btp.params.DefaultScale()
+	ctReal.SetScale(btp.params.DefaultScale())
 
 	if ctImag != nil {
 		ctImag = btp.EvalModNew(ctImag, btp.evalModPoly)
-		ctImag.Scale = btp.params.DefaultScale()
+		ctImag.SetScale(btp.params.DefaultScale())
 	}
 
 	// Step 4 : SlotsToCoeffs (Homomorphic decoding)

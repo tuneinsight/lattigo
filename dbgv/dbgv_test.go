@@ -1,16 +1,15 @@
-package dbfv
+package dbgv
 
 import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"math/big"
 	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tuneinsight/lattigo/v3/bfv"
+	"github.com/tuneinsight/lattigo/v3/bgv"
 	"github.com/tuneinsight/lattigo/v3/drlwe"
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
@@ -20,13 +19,14 @@ import (
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters). Overrides -short and requires -timeout=0.")
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 
-func testString(opname string, parties int, params bfv.Parameters) string {
+func testString(opname string, parties int, params bgv.Parameters) string {
 	return fmt.Sprintf("%s/LogN=%d/logQ=%d/parties=%d", opname, params.LogN(), params.LogQP(), parties)
 }
 
 type testContext struct {
-	params bfv.Parameters
+	params bgv.Parameters
 
+	// Number of parties
 	NParties int
 
 	// Polynomial degree
@@ -37,7 +37,7 @@ type testContext struct {
 	ringQ *ring.Ring
 	ringP *ring.Ring
 
-	encoder bfv.Encoder
+	encoder bgv.Encoder
 
 	sk0Shards []*rlwe.SecretKey
 	sk0       *rlwe.SecretKey
@@ -48,70 +48,68 @@ type testContext struct {
 	pk0 *rlwe.PublicKey
 	pk1 *rlwe.PublicKey
 
-	encryptorPk0 bfv.Encryptor
-	decryptorSk0 bfv.Decryptor
-	decryptorSk1 bfv.Decryptor
-	evaluator    bfv.Evaluator
+	encryptorPk0 bgv.Encryptor
+	decryptorSk0 bgv.Decryptor
+	decryptorSk1 bgv.Decryptor
+	evaluator    bgv.Evaluator
 
 	crs            drlwe.CRS
 	uniformSampler *ring.UniformSampler
 }
 
-func TestDBFV(t *testing.T) {
+func TestDBGV(t *testing.T) {
 
 	var err error
 
-	defaultParams := bfv.DefaultParams[:] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
+	defaultParams := bgv.DefaultParams[:] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
 	if testing.Short() {
-		defaultParams = bfv.DefaultParams[:2] // the short test suite runs for ring degree N=2^12, 2^13
+		defaultParams = bgv.DefaultParams[:2] // the short test suite runs for ring degree N=2^12, 2^13
 	}
 	if *flagLongTest {
-		defaultParams = append(defaultParams, bfv.DefaultPostQuantumParams...) // the long test suite runs for all default parameters
+		defaultParams = append(defaultParams, bgv.DefaultPostQuantumParams...) // the long test suite runs for all default parameters
 	}
 	if *flagParamString != "" {
-		var jsonParams bfv.ParametersLiteral
+		var jsonParams bgv.ParametersLiteral
 		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
 			t.Fatal(err)
 		}
-		defaultParams = []bfv.ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
+		defaultParams = []bgv.ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
 	for _, p := range defaultParams {
 
-		var params bfv.Parameters
-		if params, err = bfv.NewParametersFromLiteral(p); err != nil {
+		var params bgv.Parameters
+		if params, err = bgv.NewParametersFromLiteral(p); err != nil {
 			t.Fatal(err)
 		}
 
+		nParties := 3
+
 		var tc *testContext
-		N := 3
-		if tc, err = gentestContext(params, N); err != nil {
+		if tc, err = gentestContext(nParties, params); err != nil {
 			t.Fatal(err)
 		}
 		for _, testSet := range []func(tc *testContext, t *testing.T){
-
 			testKeyswitching,
 			testPublicKeySwitching,
 			testEncToShares,
 			testRefresh,
-			testRefreshAndTransform,
-			testRefreshAndTransformSwitchParams,
+			testRefreshAndPermutation,
 			testMarshalling,
 		} {
 			testSet(tc, t)
 			runtime.GC()
 		}
-
 	}
 }
 
-func gentestContext(params bfv.Parameters, parties int) (tc *testContext, err error) {
+func gentestContext(nParties int, params bgv.Parameters) (tc *testContext, err error) {
 
 	tc = new(testContext)
 
 	tc.params = params
 
-	tc.NParties = parties
+	tc.NParties = nParties
 
 	tc.n = params.N()
 
@@ -123,20 +121,20 @@ func gentestContext(params bfv.Parameters, parties int) (tc *testContext, err er
 	tc.crs = prng
 	tc.uniformSampler = ring.NewUniformSampler(prng, params.RingQ())
 
-	tc.encoder = bfv.NewEncoder(tc.params)
-	tc.evaluator = bfv.NewEvaluator(tc.params, rlwe.EvaluationKey{})
+	tc.encoder = bgv.NewEncoder(tc.params)
+	tc.evaluator = bgv.NewEvaluator(tc.params, rlwe.EvaluationKey{})
 
-	kgen := bfv.NewKeyGenerator(tc.params)
+	kgen := bgv.NewKeyGenerator(tc.params)
 
 	// SecretKeys
-	tc.sk0Shards = make([]*rlwe.SecretKey, parties)
-	tc.sk1Shards = make([]*rlwe.SecretKey, parties)
+	tc.sk0Shards = make([]*rlwe.SecretKey, nParties)
+	tc.sk1Shards = make([]*rlwe.SecretKey, nParties)
 
-	tc.sk0 = bfv.NewSecretKey(tc.params)
-	tc.sk1 = bfv.NewSecretKey(tc.params)
+	tc.sk0 = bgv.NewSecretKey(tc.params)
+	tc.sk1 = bgv.NewSecretKey(tc.params)
 
 	ringQP, levelQ, levelP := params.RingQP(), params.QCount()-1, params.PCount()-1
-	for j := 0; j < parties; j++ {
+	for j := 0; j < nParties; j++ {
 		tc.sk0Shards[j] = kgen.GenSecretKey()
 		tc.sk1Shards[j] = kgen.GenSecretKey()
 		ringQP.AddLvl(levelQ, levelP, tc.sk0.Value, tc.sk0Shards[j].Value, tc.sk0.Value)
@@ -147,9 +145,9 @@ func gentestContext(params bfv.Parameters, parties int) (tc *testContext, err er
 	tc.pk0 = kgen.GenPublicKey(tc.sk0)
 	tc.pk1 = kgen.GenPublicKey(tc.sk1)
 
-	tc.encryptorPk0 = bfv.NewEncryptor(tc.params, tc.pk0)
-	tc.decryptorSk0 = bfv.NewDecryptor(tc.params, tc.sk0)
-	tc.decryptorSk1 = bfv.NewDecryptor(tc.params, tc.sk1)
+	tc.encryptorPk0 = bgv.NewEncryptor(tc.params, tc.pk0)
+	tc.decryptorSk0 = bgv.NewDecryptor(tc.params, tc.sk0)
+	tc.decryptorSk1 = bgv.NewDecryptor(tc.params, tc.sk1)
 
 	return
 }
@@ -161,7 +159,7 @@ func testKeyswitching(tc *testContext, t *testing.T) {
 	encryptorPk0 := tc.encryptorPk0
 	decryptorSk1 := tc.decryptorSk1
 
-	t.Run(testString("Keyswitching", tc.NParties, tc.params), func(t *testing.T) {
+	t.Run(testString("KeySwitching", tc.NParties, tc.params), func(t *testing.T) {
 
 		coeffs, _, ciphertext := newTestVectors(tc, encryptorPk0, t)
 
@@ -178,7 +176,7 @@ func testKeyswitching(tc *testContext, t *testing.T) {
 			p.cks = NewCKSProtocol(tc.params, 6.36)
 			p.s0 = sk0Shards[i]
 			p.s1 = sk1Shards[i]
-			p.share = p.cks.AllocateShare()
+			p.share = p.cks.AllocateShare(ciphertext.Level())
 			cksParties[i] = p
 		}
 		P0 := cksParties[0]
@@ -191,7 +189,7 @@ func testKeyswitching(tc *testContext, t *testing.T) {
 			}
 		}
 
-		ksCiphertext := bfv.NewCiphertext(tc.params, 1)
+		ksCiphertext := bgv.NewCiphertext(tc.params, 1, ciphertext.Level(), 1)
 		P0.cks.KeySwitch(ciphertext, P0.share, ksCiphertext)
 
 		verifyTestVectors(tc, decryptorSk1, coeffs, ksCiphertext, t)
@@ -218,19 +216,19 @@ func testPublicKeySwitching(tc *testContext, t *testing.T) {
 			share *drlwe.PCKSShare
 		}
 
+		coeffs, _, ciphertext := newTestVectors(tc, encryptorPk0, t)
+
 		pcksParties := make([]*Party, tc.NParties)
 		for i := 0; i < tc.NParties; i++ {
 			p := new(Party)
 			p.PCKSProtocol = NewPCKSProtocol(tc.params, 6.36)
 			p.s = sk0Shards[i]
-			p.share = p.AllocateShare()
+			p.share = p.AllocateShare(ciphertext.Level())
 			pcksParties[i] = p
 		}
 		P0 := pcksParties[0]
 
-		coeffs, _, ciphertext := newTestVectors(tc, encryptorPk0, t)
-
-		ciphertextSwitched := bfv.NewCiphertext(tc.params, 1)
+		ciphertextSwitched := bgv.NewCiphertext(tc.params, 1, ciphertext.Level(), ciphertext.Scale())
 
 		for i, p := range pcksParties {
 			p.GenShare(p.s, pk1, ciphertext.Value[1], p.share)
@@ -270,13 +268,12 @@ func testEncToShares(tc *testContext, t *testing.T) {
 		}
 
 		P[i].sk = tc.sk0Shards[i]
-		P[i].publicShare = P[i].e2s.AllocateShare()
+		P[i].publicShare = P[i].e2s.AllocateShare(ciphertext.Level())
 		P[i].secretShare = rlwe.NewAdditiveShare(params.Parameters)
 	}
 
 	// The E2S protocol is run in all tests, as a setup to the S2E test.
 	for i, p := range P {
-
 		p.e2s.GenShare(p.sk, ciphertext.Value[1], p.secretShare, p.publicShare)
 		if i > 0 {
 			p.e2s.AggregateShare(P[0].publicShare, p.publicShare, P[0].publicShare)
@@ -292,15 +289,19 @@ func testEncToShares(tc *testContext, t *testing.T) {
 			tc.ringT.Add(&rec.Value, &p.secretShare.Value, &rec.Value)
 		}
 
-		ptRt := bfv.NewPlaintextRingT(tc.params)
-		ptRt.Value.Copy(&rec.Value)
+		ptRt := tc.params.RingT().NewPoly()
+		ptRt.IsNTT = true
+		ptRt.Copy(&rec.Value)
+		values := make([]uint64, len(coeffs))
 
-		assert.True(t, utils.EqualSliceUint64(coeffs, tc.encoder.DecodeUintNew(ptRt)))
+		tc.encoder.DecodeRingT(ptRt, ciphertext.Scale(), values)
+		assert.True(t, utils.EqualSliceUint64(coeffs, values))
 	})
 
 	crp := P[0].e2s.SampleCRP(params.MaxLevel(), tc.crs)
 
 	t.Run(testString("S2EProtocol", tc.NParties, tc.params), func(t *testing.T) {
+
 		for i, p := range P {
 			p.s2e.GenShare(p.sk, crp, p.secretShare, p.publicShare)
 			if i > 0 {
@@ -308,7 +309,7 @@ func testEncToShares(tc *testContext, t *testing.T) {
 			}
 		}
 
-		ctRec := bfv.NewCiphertext(tc.params, 1)
+		ctRec := bgv.NewCiphertext(tc.params, 1, tc.params.MaxLevel(), ciphertext.Scale())
 		P[0].s2e.GetEncryption(P[0].publicShare, crp, ctRec)
 
 		verifyTestVectors(tc, tc.decryptorSk0, coeffs, ctRec, t)
@@ -322,17 +323,15 @@ func testRefresh(tc *testContext, t *testing.T) {
 	encoder := tc.encoder
 	decryptorSk0 := tc.decryptorSk0
 
-	kgen := bfv.NewKeyGenerator(tc.params)
-
-	rlk := kgen.GenRelinearizationKey(tc.sk0, 1)
+	minLevel := 0
+	maxLevel := tc.params.MaxLevel()
 
 	t.Run(testString("Refresh", tc.NParties, tc.params), func(t *testing.T) {
 
 		type Party struct {
 			*RefreshProtocol
-			s       *rlwe.SecretKey
-			share   *RefreshShare
-			ptShare *bfv.Plaintext
+			s     *rlwe.SecretKey
+			share *RefreshShare
 		}
 
 		RefreshParties := make([]*Party, tc.NParties)
@@ -345,117 +344,71 @@ func testRefresh(tc *testContext, t *testing.T) {
 			}
 
 			p.s = sk0Shards[i]
-			p.share = p.AllocateShare()
-			p.ptShare = bfv.NewPlaintext(tc.params)
+			p.share = p.AllocateShare(minLevel, maxLevel)
 			RefreshParties[i] = p
 		}
 
 		P0 := RefreshParties[0]
 
-		crp := P0.SampleCRP(tc.params.MaxLevel(), tc.crs)
+		crp := P0.SampleCRP(maxLevel, tc.crs)
 
 		coeffs, _, ciphertext := newTestVectors(tc, encryptorPk0, t)
-
-		maxDepth := 0
-
-		ciphertextTmp := ciphertext.CopyNew()
-		coeffsTmp := make([]uint64, len(coeffs))
-
-		copy(coeffsTmp, coeffs)
-
-		evaluator := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: rlk, Rtks: nil})
-		// Finds the maximum multiplicative depth
-		for {
-
-			evaluator.Relinearize(tc.evaluator.MulNew(ciphertextTmp, ciphertextTmp), ciphertextTmp)
-
-			for j := range coeffsTmp {
-				coeffsTmp[j] = ring.BRed(coeffsTmp[j], coeffsTmp[j], tc.ringT.Modulus[0], tc.ringT.BredParams[0])
-			}
-
-			if utils.EqualSliceUint64(coeffsTmp, encoder.DecodeUintNew(decryptorSk0.DecryptNew(ciphertextTmp))) {
-				maxDepth++
-			} else {
-				break
-			}
-		}
-
-		// Simulated added error of size Q/(T^2) and add it to the fresh ciphertext
-		coeffsBigint := make([]*big.Int, tc.params.N())
-		tc.ringQ.PolyToBigint(ciphertext.Value[0], 1, coeffsBigint)
-
-		errorRange := new(big.Int).Set(tc.ringQ.ModulusAtLevel[tc.params.MaxLevel()])
-		errorRange.Quo(errorRange, tc.ringT.ModulusAtLevel[0])
-		errorRange.Quo(errorRange, tc.ringT.ModulusAtLevel[0])
-
-		for i := 0; i < tc.params.N(); i++ {
-			coeffsBigint[i].Add(coeffsBigint[i], ring.RandInt(errorRange))
-		}
-
-		tc.ringQ.SetCoefficientsBigint(coeffsBigint, ciphertext.Value[0])
+		ciphertext.Resize(ciphertext.Degree(), minLevel)
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.s, ciphertext.Value[1], crp, p.share)
+			p.GenShare(p.s, ciphertext.Value[1], ciphertext.Scale(), crp, p.share)
 			if i > 0 {
 				P0.AggregateShare(p.share, P0.share, P0.share)
 			}
 
 		}
 
-		ctRes := bfv.NewCiphertext(tc.params, 1)
-		P0.Finalize(ciphertext, crp, P0.share, ctRes)
-
-		// Squares the refreshed ciphertext up to the maximum depth-1
-		for i := 0; i < maxDepth-1; i++ {
-
-			evaluator.Relinearize(tc.evaluator.MulNew(ctRes, ctRes), ctRes)
-
-			for j := range coeffs {
-				coeffs[j] = ring.BRed(coeffs[j], coeffs[j], tc.ringT.Modulus[0], tc.ringT.BredParams[0])
-			}
-		}
+		P0.Finalize(ciphertext, crp, P0.share, ciphertext)
 
 		//Decrypts and compare
-		require.True(t, utils.EqualSliceUint64(coeffs, encoder.DecodeUintNew(decryptorSk0.DecryptNew(ctRes))))
+		require.True(t, ciphertext.Level() == maxLevel)
+		require.True(t, utils.EqualSliceUint64(coeffs, encoder.DecodeUintNew(decryptorSk0.DecryptNew(ciphertext))))
 	})
 }
 
-func testRefreshAndTransform(tc *testContext, t *testing.T) {
+func testRefreshAndPermutation(tc *testContext, t *testing.T) {
 
 	encryptorPk0 := tc.encryptorPk0
 	sk0Shards := tc.sk0Shards
 	encoder := tc.encoder
 	decryptorSk0 := tc.decryptorSk0
 
+	minLevel := 0
+	maxLevel := tc.params.MaxLevel()
+
 	t.Run(testString("RefreshAndPermutation", tc.NParties, tc.params), func(t *testing.T) {
 
 		type Party struct {
 			*MaskedTransformProtocol
-			s       *rlwe.SecretKey
-			share   *MaskedTransformShare
-			ptShare *bfv.Plaintext
+			s     *rlwe.SecretKey
+			share *MaskedTransformShare
 		}
 
 		RefreshParties := make([]*Party, tc.NParties)
 		for i := 0; i < tc.NParties; i++ {
 			p := new(Party)
 			if i == 0 {
-				p.MaskedTransformProtocol = NewMaskedTransformProtocol(tc.params, tc.params, 3.2)
+				p.MaskedTransformProtocol = NewMaskedTransformProtocol(tc.params, 3.2)
 			} else {
-				p.MaskedTransformProtocol = NewMaskedTransformProtocol(tc.params, tc.params, 3.2)
+				p.MaskedTransformProtocol = NewMaskedTransformProtocol(tc.params, 3.2)
 			}
 
 			p.s = sk0Shards[i]
-			p.share = p.AllocateShare()
-			p.ptShare = bfv.NewPlaintext(tc.params)
+			p.share = p.AllocateShare(minLevel, maxLevel)
 			RefreshParties[i] = p
 		}
 
 		P0 := RefreshParties[0]
 
-		crp := P0.SampleCRP(tc.params.MaxLevel(), tc.crs)
+		crp := P0.SampleCRP(maxLevel, tc.crs)
 
 		coeffs, _, ciphertext := newTestVectors(tc, encryptorPk0, t)
+		ciphertext.Resize(ciphertext.Degree(), minLevel)
 
 		permutation := make([]uint64, len(coeffs))
 		N := uint64(tc.params.N())
@@ -464,26 +417,28 @@ func testRefreshAndTransform(tc *testContext, t *testing.T) {
 			permutation[i] = ring.RandUniform(prng, N, N-1)
 		}
 
-		transform := &MaskedTransformFunc{
+		permute := func(coeffs []uint64) {
+			coeffsPerm := make([]uint64, len(coeffs))
+			for i := range coeffs {
+				coeffsPerm[i] = coeffs[permutation[i]]
+			}
+			copy(coeffs, coeffsPerm)
+		}
+
+		maskedTransform := &MaskedTransformFunc{
 			Decode: true,
-			Func: func(coeffs []uint64) {
-				coeffsPerm := make([]uint64, len(coeffs))
-				for i := range coeffs {
-					coeffsPerm[i] = coeffs[permutation[i]]
-				}
-				copy(coeffs, coeffsPerm)
-			},
+			Func:   permute,
 			Encode: true,
 		}
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.s, p.s, ciphertext.Value[1], crp, transform, p.share)
+			p.GenShare(p.s, ciphertext.Value[1], ciphertext.Scale(), crp, maskedTransform, p.share)
 			if i > 0 {
 				P0.AggregateShare(P0.share, p.share, P0.share)
 			}
 		}
 
-		P0.Transform(ciphertext, transform, crp, P0.share, ciphertext)
+		P0.Transform(ciphertext, maskedTransform, crp, P0.share, ciphertext)
 
 		coeffsPermute := make([]uint64, len(coeffs))
 		for i := range coeffsPermute {
@@ -493,138 +448,48 @@ func testRefreshAndTransform(tc *testContext, t *testing.T) {
 		coeffsHave := encoder.DecodeUintNew(decryptorSk0.DecryptNew(ciphertext))
 
 		//Decrypts and compares
+		require.True(t, ciphertext.Level() == maxLevel)
 		require.True(t, utils.EqualSliceUint64(coeffsPermute, coeffsHave))
 	})
 }
 
-func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
-
-	encryptorPk0 := tc.encryptorPk0
-	sk0Shards := tc.sk0Shards
-	paramsIn := tc.params
-
-	t.Run(testString("RefreshAndTransformSwitchparams", tc.NParties, tc.params), func(t *testing.T) {
-
-		// Checks that T is also a valid modulus for the next ring degree
-		if paramsIn.T()&uint64(4*paramsIn.N()-1) != 1 {
-			t.Skip("modulus T is not congruent to 1 mod 4N")
-		}
-
-		var paramsOut bfv.Parameters
-		var err error
-		paramsOut, err = bfv.NewParametersFromLiteral(bfv.ParametersLiteral{
-			LogN: paramsIn.LogN(),
-			LogQ: []int{54, 49, 49, 49},
-			LogP: []int{52, 52},
-			T:    paramsIn.T(),
-		})
-
-		//paramsOut = paramsIn
-
-		require.Nil(t, err)
-
-		type Party struct {
-			*MaskedTransformProtocol
-			sIn     *rlwe.SecretKey
-			sOut    *rlwe.SecretKey
-			share   *MaskedTransformShare
-			ptShare *bfv.Plaintext
-		}
-
-		RefreshParties := make([]*Party, tc.NParties)
-		kgenParamsOut := rlwe.NewKeyGenerator(paramsOut.Parameters)
-		skIdealOut := rlwe.NewSecretKey(paramsOut.Parameters)
-		for i := 0; i < tc.NParties; i++ {
-			p := new(Party)
-			if i == 0 {
-				p.MaskedTransformProtocol = NewMaskedTransformProtocol(paramsIn, paramsOut, 3.2)
-			} else {
-				p.MaskedTransformProtocol = NewMaskedTransformProtocol(paramsIn, paramsOut, 3.2)
-			}
-
-			p.sIn = sk0Shards[i]
-
-			p.sOut = kgenParamsOut.GenSecretKey() // New shared secret key in target parameters
-			paramsOut.RingQ().Add(skIdealOut.Value.Q, p.sOut.Value.Q, skIdealOut.Value.Q)
-
-			p.share = p.AllocateShare()
-
-			p.ptShare = bfv.NewPlaintext(tc.params)
-			RefreshParties[i] = p
-		}
-
-		P0 := RefreshParties[0]
-
-		crp := P0.SampleCRP(paramsOut.MaxLevel(), tc.crs)
-
-		coeffs, _, ciphertext := newTestVectors(tc, encryptorPk0, t)
-
-		permutation := make([]uint64, len(coeffs))
-		N := uint64(tc.params.N())
-		prng, _ := utils.NewPRNG()
-		for i := range permutation {
-			permutation[i] = ring.RandUniform(prng, N, N-1)
-		}
-
-		transform := &MaskedTransformFunc{
-			Decode: true,
-			Func: func(coeffs []uint64) {
-				coeffsPerm := make([]uint64, len(coeffs))
-				for i := range coeffs {
-					coeffsPerm[i] = coeffs[permutation[i]]
-				}
-				copy(coeffs, coeffsPerm)
-			},
-			Encode: true,
-		}
-
-		for i, p := range RefreshParties {
-			p.GenShare(p.sIn, p.sOut, ciphertext.Value[1], crp, transform, p.share)
-			if i > 0 {
-				P0.AggregateShare(P0.share, p.share, P0.share)
-			}
-		}
-
-		P0.Transform(ciphertext, transform, crp, P0.share, ciphertext)
-
-		transform.Func(coeffs)
-
-		coeffsHave := bfv.NewEncoder(paramsOut).DecodeUintNew(bfv.NewDecryptor(paramsOut, skIdealOut).DecryptNew(ciphertext))
-
-		//Decrypts and compares
-		require.True(t, utils.EqualSliceUint64(coeffs, coeffsHave))
-	})
-}
-
-func newTestVectors(tc *testContext, encryptor bfv.Encryptor, t *testing.T) (coeffs []uint64, plaintext *bfv.Plaintext, ciphertext *bfv.Ciphertext) {
+func newTestVectors(tc *testContext, encryptor bgv.Encryptor, t *testing.T) (coeffs []uint64, plaintext *bgv.Plaintext, ciphertext *bgv.Ciphertext) {
 
 	prng, _ := utils.NewPRNG()
 	uniformSampler := ring.NewUniformSampler(prng, tc.ringT)
 	coeffsPol := uniformSampler.ReadNew()
-	plaintext = bfv.NewPlaintext(tc.params)
+
+	for i := range coeffsPol.Coeffs[0] {
+		coeffsPol.Coeffs[0][i] = uint64(1)
+	}
+
+	plaintext = bgv.NewPlaintext(tc.params, tc.params.MaxLevel(), 2)
 	tc.encoder.Encode(coeffsPol.Coeffs[0], plaintext)
 	ciphertext = encryptor.EncryptNew(plaintext)
 	return coeffsPol.Coeffs[0], plaintext, ciphertext
 }
 
-func verifyTestVectors(tc *testContext, decryptor bfv.Decryptor, coeffs []uint64, ciphertext *bfv.Ciphertext, t *testing.T) {
+func verifyTestVectors(tc *testContext, decryptor bgv.Decryptor, coeffs []uint64, ciphertext *bgv.Ciphertext, t *testing.T) {
 	require.True(t, utils.EqualSliceUint64(coeffs, tc.encoder.DecodeUintNew(decryptor.DecryptNew(ciphertext))))
 }
 
 func testMarshalling(tc *testContext, t *testing.T) {
-	ciphertext := bfv.NewCiphertext(tc.params, 1)
+	ciphertext := bgv.NewCiphertext(tc.params, 1, tc.params.MaxLevel(), 1)
 	tc.uniformSampler.Read(ciphertext.Value[0])
 	tc.uniformSampler.Read(ciphertext.Value[1])
+
+	minLevel := 0
+	maxLevel := tc.params.MaxLevel()
 
 	t.Run(testString("MarshallingRefresh", tc.NParties, tc.params), func(t *testing.T) {
 
 		// Testing refresh shares
 		refreshproto := NewRefreshProtocol(tc.params, 3.2)
-		refreshshare := refreshproto.AllocateShare()
+		refreshshare := refreshproto.AllocateShare(minLevel, maxLevel)
 
-		crp := refreshproto.SampleCRP(tc.params.MaxLevel(), tc.crs)
+		crp := refreshproto.SampleCRP(maxLevel, tc.crs)
 
-		refreshproto.GenShare(tc.sk0, ciphertext.Value[1], crp, refreshshare)
+		refreshproto.GenShare(tc.sk0, ciphertext.Value[1], ciphertext.Scale(), crp, refreshshare)
 
 		data, err := refreshshare.MarshalBinary()
 		if err != nil {

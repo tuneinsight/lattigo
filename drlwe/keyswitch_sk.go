@@ -165,10 +165,10 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, c1 *ring.Pol
 	shareOut.Value.Resize(levelQ)
 }
 
-// AggregateShare is the second part of the unique round of the CKSProtocol protocol. Upon receiving the j-1 elements each party computes :
+// AggregateShares is the second part of the unique round of the CKSProtocol protocol. Upon receiving the j-1 elements each party computes :
 //
 // [ctx[0] + sum((skInput_i - skOutput_i) * ctx[0] + e_i), ctx[1]]
-func (cks *CKSProtocol) AggregateShare(share1, share2, shareOut *CKSShare) {
+func (cks *CKSProtocol) AggregateShares(share1, share2, shareOut *CKSShare) {
 	cks.params.RingQ().AddLvl(share1.Value.Level(), share1.Value, share2.Value, shareOut.Value)
 }
 

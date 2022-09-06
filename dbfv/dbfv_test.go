@@ -187,7 +187,7 @@ func testKeyswitching(tc *testContext, t *testing.T) {
 		for i, p := range cksParties {
 			p.cks.GenShare(p.s0, p.s1, ciphertext.Value[1], p.share)
 			if i > 0 {
-				P0.cks.AggregateShare(p.share, P0.share, P0.share)
+				P0.cks.AggregateShares(p.share, P0.share, P0.share)
 			}
 		}
 
@@ -235,7 +235,7 @@ func testPublicKeySwitching(tc *testContext, t *testing.T) {
 		for i, p := range pcksParties {
 			p.GenShare(p.s, pk1, ciphertext.Value[1], p.share)
 			if i > 0 {
-				P0.AggregateShare(p.share, P0.share, P0.share)
+				P0.AggregateShares(p.share, P0.share, P0.share)
 			}
 		}
 
@@ -279,7 +279,7 @@ func testEncToShares(tc *testContext, t *testing.T) {
 
 		p.e2s.GenShare(p.sk, ciphertext.Value[1], p.secretShare, p.publicShare)
 		if i > 0 {
-			p.e2s.AggregateShare(P[0].publicShare, p.publicShare, P[0].publicShare)
+			p.e2s.AggregateShares(P[0].publicShare, p.publicShare, P[0].publicShare)
 		}
 	}
 
@@ -304,7 +304,7 @@ func testEncToShares(tc *testContext, t *testing.T) {
 		for i, p := range P {
 			p.s2e.GenShare(p.sk, crp, p.secretShare, p.publicShare)
 			if i > 0 {
-				p.s2e.AggregateShare(P[0].publicShare, p.publicShare, P[0].publicShare)
+				p.s2e.AggregateShares(P[0].publicShare, p.publicShare, P[0].publicShare)
 			}
 		}
 
@@ -397,7 +397,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 		for i, p := range RefreshParties {
 			p.GenShare(p.s, ciphertext.Value[1], crp, p.share)
 			if i > 0 {
-				P0.AggregateShare(p.share, P0.share, P0.share)
+				P0.AggregateShares(p.share, P0.share, P0.share)
 			}
 
 		}
@@ -479,7 +479,7 @@ func testRefreshAndTransform(tc *testContext, t *testing.T) {
 		for i, p := range RefreshParties {
 			p.GenShare(p.s, p.s, ciphertext.Value[1], crp, transform, p.share)
 			if i > 0 {
-				P0.AggregateShare(P0.share, p.share, P0.share)
+				P0.AggregateShares(P0.share, p.share, P0.share)
 			}
 		}
 
@@ -581,7 +581,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 		for i, p := range RefreshParties {
 			p.GenShare(p.sIn, p.sOut, ciphertext.Value[1], crp, transform, p.share)
 			if i > 0 {
-				P0.AggregateShare(P0.share, p.share, P0.share)
+				P0.AggregateShares(P0.share, p.share, P0.share)
 			}
 		}
 

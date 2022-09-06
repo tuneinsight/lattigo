@@ -257,8 +257,8 @@ func (ekg *RKGProtocol) GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGS
 	}
 }
 
-// AggregateShare combines two RKG shares into a single one.
-func (ekg *RKGProtocol) AggregateShare(share1, share2, shareOut *RKGShare) {
+// AggregateShares combines two RKG shares into a single one.
+func (ekg *RKGProtocol) AggregateShares(share1, share2, shareOut *RKGShare) {
 	ringQP := ekg.params.RingQP()
 	levelQ := share1.Value[0][0][0].Q.Level()
 

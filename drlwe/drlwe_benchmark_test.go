@@ -66,7 +66,7 @@ func benchPublicKeyGen(params rlwe.Parameters, b *testing.B) {
 	b.Run(benchString("PublicKeyGen/Round1/Agg", params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			ckg.AggregateShare(s1, s1, s1)
+			ckg.AggregateShares(s1, s1, s1)
 		}
 	})
 
@@ -102,7 +102,7 @@ func benchRelinKeyGen(params rlwe.Parameters, b *testing.B) {
 
 	b.Run(benchString("RelinKeyGen/Agg", params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			rkg.AggregateShare(share1, share1, share1)
+			rkg.AggregateShares(share1, share1, share1)
 		}
 	})
 
@@ -131,7 +131,7 @@ func benchRotKeyGen(params rlwe.Parameters, b *testing.B) {
 	b.Run(benchString("RotKeyGen/Round1/Agg", params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			rtg.AggregateShare(share, share, share)
+			rtg.AggregateShares(share, share, share)
 		}
 	})
 

@@ -536,6 +536,17 @@ func (p *Poly) DecodePoly64(data []byte) (pt int, err error) {
 	return
 }
 
+func (p *Poly) MarshalBinary() ([]byte, error) {
+	b := make([]byte, p.GetDataLen64(true))
+	_, err := p.WriteTo64(b)
+	return b, err
+}
+
+func (p *Poly) UnmarshalBinary(b []byte) error {
+	_, err := p.DecodePoly64(b)
+	return err
+}
+
 // UniformSampler is a type for sampling polynomials in Ring.
 type UniformSampler struct {
 	samplerQ, samplerP *ring.UniformSampler

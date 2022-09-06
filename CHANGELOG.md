@@ -52,6 +52,7 @@ All notable changes to this library are documented in this file.
 - DRLWE: added the `Thresholdizer` and `Combiner` types for t-out-of-N-threshold schemes through Shamir secret-sharing.
 - DRLWE: added a `README.md` providing package overview and usage instructions.
 - DRLWE: removed the obsolete `CollectivePublicKeyGenerator`, `RelinearizationKeyGenerator`, `RotationKeyGenerator`, `PublicKeySwitchingProtocol` and `KeySwitchingProtocol` interfaces.
+- DRLWE: renamed `AggregateShare` methods to `AggregateShares`.
 - RGSW: added package `rgsw`, which provides a partial implementation of the RLWE-based RGSW encryption scheme. This incluides:
     -  `rgsw.Encryptor` and the `rgsw.Ciphertext` types.
     -  `rgsw.Evaluator` to support the external product `RLWE x RGSW -> RLWE`.

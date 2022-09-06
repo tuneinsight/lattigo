@@ -126,7 +126,7 @@ func (c *cloud) Run(galEls []uint64, params rlwe.Parameters, t int) {
 	for task := range c.aggTaskQueue {
 		start := time.Now()
 		acc := shares[task.galEl]
-		c.AggregateShare(acc.share, task.rtgShare, acc.share)
+		c.RTGProtocol.AggregateShares(acc.share, task.rtgShare, acc.share)
 		acc.needed--
 		if acc.needed == 0 {
 			rtk := rlwe.NewSwitchingKey(params, params.MaxLevel(), params.PCount()-1)
@@ -270,7 +270,7 @@ func main() {
 
 		for _, pi := range P {
 			for _, pj := range P {
-				pi.AggregateShares(pi.tsk, shares[pj][pi], pi.tsk)
+				pi.Thresholdizer.AggregateShares(pi.tsk, shares[pj][pi], pi.tsk)
 			}
 		}
 	}

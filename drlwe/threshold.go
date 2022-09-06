@@ -168,3 +168,11 @@ func (cmb *Combiner) lagrangeCoeff(thisKey ShamirPublicPoint, thatKey ShamirPubl
 
 	cmb.ringQP.MulRNSScalar(lagCoeff, that, lagCoeff)
 }
+
+func (s *ShamirSecretShare) MarshalBinary() ([]byte, error) {
+	return s.Poly.MarshalBinary()
+}
+
+func (s *ShamirSecretShare) UnmarshalBinary(b []byte) error {
+	return s.Poly.UnmarshalBinary(b)
+}

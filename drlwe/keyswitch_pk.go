@@ -160,11 +160,11 @@ func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct1 *
 	}
 }
 
-// AggregateShare is the second part of the first and unique round of the PCKSProtocol protocol. Each party uppon receiving the j-1 elements from the
+// AggregateShares is the second part of the first and unique round of the PCKSProtocol protocol. Each party uppon receiving the j-1 elements from the
 // other parties computes :
 //
 // [ctx[0] + sum(s_i * ctx[0] + u_i * pk[0] + e_0i), sum(u_i * pk[1] + e_1i)]
-func (pcks *PCKSProtocol) AggregateShare(share1, share2, shareOut *PCKSShare) {
+func (pcks *PCKSProtocol) AggregateShares(share1, share2, shareOut *PCKSShare) {
 	levelQ1, levelQ2 := share1.Value[0].Level(), share1.Value[1].Level()
 	if levelQ1 != levelQ2 {
 		panic("cannot aggreate two shares at different levelQs.")

@@ -43,9 +43,9 @@ func (rfp *RefreshProtocol) GenShare(sk *rlwe.SecretKey, ct1 *ring.Poly, crp drl
 	rfp.MaskedTransformProtocol.GenShare(sk, sk, ct1, crp, nil, &shareOut.MaskedTransformShare)
 }
 
-// AggregateShare aggregates two parties' shares in the Refresh protocol.
-func (rfp *RefreshProtocol) AggregateShare(share1, share2, shareOut *RefreshShare) {
-	rfp.MaskedTransformProtocol.AggregateShare(&share1.MaskedTransformShare, &share2.MaskedTransformShare, &shareOut.MaskedTransformShare)
+// AggregateShares aggregates two parties' shares in the Refresh protocol.
+func (rfp *RefreshProtocol) AggregateShares(share1, share2, shareOut *RefreshShare) {
+	rfp.MaskedTransformProtocol.AggregateShares(&share1.MaskedTransformShare, &share2.MaskedTransformShare, &shareOut.MaskedTransformShare)
 }
 
 // Finalize applies Decrypt, Recode and Recrypt on the input ciphertext.

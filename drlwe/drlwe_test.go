@@ -132,7 +132,7 @@ func testPublicKeyGen(testCtx *testContext, t *testing.T) {
 		}
 
 		for i := 1; i < nbParties; i++ {
-			ckg[0].AggregateShare(shares[0], shares[i], shares[0])
+			ckg[0].AggregateShares(shares[0], shares[i], shares[0])
 		}
 
 		pk := rlwe.NewPublicKey(params)
@@ -184,7 +184,7 @@ func testKeySwitching(testCtx *testContext, t *testing.T) {
 		}
 
 		for i := 1; i < nbParties; i++ {
-			cks[i].AggregateShare(shares[0], shares[i], shares[0])
+			cks[i].AggregateShares(shares[0], shares[i], shares[0])
 		}
 
 		ksCiphertext := &rlwe.Ciphertext{Value: []*ring.Poly{params.RingQ().NewPoly(), params.RingQ().NewPoly()}}
@@ -234,7 +234,7 @@ func testPublicKeySwitching(testCtx *testContext, t *testing.T) {
 		}
 
 		for i := 1; i < nbParties; i++ {
-			pcks[0].AggregateShare(shares[0], shares[i], shares[0])
+			pcks[0].AggregateShares(shares[0], shares[i], shares[0])
 		}
 
 		ksCiphertext := &rlwe.Ciphertext{Value: []*ring.Poly{params.RingQ().NewPoly(), params.RingQ().NewPoly()}}
@@ -281,7 +281,7 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 		}
 
 		for i := 1; i < nbParties; i++ {
-			rkg[0].AggregateShare(share1[0], share1[i], share1[0])
+			rkg[0].AggregateShares(share1[0], share1[i], share1[0])
 		}
 
 		for i := range rkg {
@@ -289,7 +289,7 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 		}
 
 		for i := 1; i < nbParties; i++ {
-			rkg[0].AggregateShare(share2[0], share2[i], share2[0])
+			rkg[0].AggregateShares(share2[0], share2[i], share2[0])
 		}
 
 		rlk := rlwe.NewRelinKey(params, 2)
@@ -338,7 +338,7 @@ func testRotKeyGen(testCtx *testContext, t *testing.T) {
 		}
 
 		for i := 1; i < nbParties; i++ {
-			rtg[0].AggregateShare(shares[0], shares[i], shares[0])
+			rtg[0].AggregateShares(shares[0], shares[i], shares[0])
 		}
 
 		rotKeySet := rlwe.NewRotationKeySet(params, []uint64{galEl})

@@ -78,7 +78,7 @@ func benchKeySwitching(testCtx *testContext, b *testing.B) {
 	b.Run(testString("KeySwitching/Agg", testCtx.NParties, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.AggregateShare(p.share, p.share, p.share)
+			p.AggregateShares(p.share, p.share, p.share)
 		}
 	})
 
@@ -119,7 +119,7 @@ func benchPublicKeySwitching(testCtx *testContext, b *testing.B) {
 	b.Run(testString("PublicKeySwitching/Agg", testCtx.NParties, params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.AggregateShare(p.share, p.share, p.share)
+			p.AggregateShares(p.share, p.share, p.share)
 		}
 	})
 
@@ -166,7 +166,7 @@ func benchRefresh(testCtx *testContext, b *testing.B) {
 		b.Run(testString("Refresh/Round1/Agg", testCtx.NParties, params), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
-				p.AggregateShare(p.share, p.share, p.share)
+				p.AggregateShares(p.share, p.share, p.share)
 			}
 		})
 
@@ -228,7 +228,7 @@ func benchMaskedTransform(testCtx *testContext, b *testing.B) {
 		b.Run(testString("Refresh&Transform/Round1/Agg", testCtx.NParties, params), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
-				p.AggregateShare(p.share, p.share, p.share)
+				p.AggregateShares(p.share, p.share, p.share)
 			}
 		})
 

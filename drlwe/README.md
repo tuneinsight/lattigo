@@ -87,7 +87,7 @@ The protocol is implemented by the `drlwe.CKGProtocol` type and its steps are as
 - Each party samples a common random polynomial (`drlwe.CKGCRP`) from the CRS by using the `CKGProtocol.SampleCRP` method.
 - _[if t < N]_ Each party uses the `drlwe.Combiner.GenAdditiveShare` to obtain a t-out-of-t sharing and use the result as their secret-key in the next step.
 - Each party generates a share (`drlwe.CKGShare`) from the CRP and their secret-key, by using the `CKGProtocol.GenShare` method.
-- Each party discloses its share over the public channel. The shares are aggregated with the `CKGProtocol.AggregateShare` method.
+- Each party discloses its share over the public channel. The shares are aggregated with the `CKGProtocol.AggregateShares` method.
 - Each party can derive the public encryption-key (`rlwe.PublicKey`) by using the `CKGProtocol.GenPublicKey` method.
 
 After the execution of this protocol, the parties have access to the collective public encryption-key, hence can provide their inputs to computations. 
@@ -104,9 +104,9 @@ The protocol is implemented by the  `drlwe.RKGProtocol` type and its steps are a
 - Each party samples a common random polynomial matrix (`drlwe.RKGCRP`) from the CRS by using the `RKGProtocol.SampleCRP` method.
 - _[if t < N]_ Each party uses the `drlwe.Combiner.GenAdditiveShare` to obtain a t-out-of-t sharing and use the result as their secret-key in the next steps.
 - Each party generates a share (`drlwe.RGKShare`) for the first protocol round by using the `RKGProtocol.GenShareRoundOne` method. This method also provides the party with an ephemeral secret-key (`rlwe.SecretKey`) that is required for the second round.
-- Each party discloses its share for the first round over the public channel. The shares are aggregated with the `RKGProtocol.AggregateShare` method.
+- Each party discloses its share for the first round over the public channel. The shares are aggregated with the `RKGProtocol.AggregateShares` method.
 - Each party generates a share (also a `drlwe.RGKShare`) for the second protocol round by using the `RKGProtocol.GenShareRoundTwo` method.
-- Each party discloses its share for the second round over the public channel. The shares are aggregated with the `RKGProtocol.AggregateShare` method.
+- Each party discloses its share for the second round over the public channel. The shares are aggregated with the `RKGProtocol.AggregateShares` method.
 - Each party can derive the public relinearization-key (`rlwe.RelinearizationKey`) by using the `RKGProtocol.GenRelinearizationKey` method.
 
 #### 1.iv.b Rotation-keys and other Automorphisms
@@ -116,8 +116,8 @@ The protocol is implemented by the  `drlwe.RTGProtocol` type and its steps are a
 - Each party samples a common random polynomial matrix (`drlwe.RTGCRP`) from the CRS by using the `RTGProtocol.SampleCRP` method.
 - _[if t < N]_ Each party uses the `drlwe.Combiner.GenAdditiveShare` to obtain a t-out-of-t sharing and use the result as their secret-key in the next step.
 - Each party generates a share (`drlwe.RTGShare`) by using `RTGProtocol.GenShare`. 
-- Each party discloses its `drlwe.RTGShare` over the public channel. The shares are aggregated with the `RTGProtocol.AggregateShare` method.
-- Each party can derive the public rotation-key (`rlwe.SwitchingKey`) from the final `RTGShare` by using the `RTGProtocol.AggregateShare` method.
+- Each party discloses its `drlwe.RTGShare` over the public channel. The shares are aggregated with the `RTGProtocol.AggregateShares` method.
+- Each party can derive the public rotation-key (`rlwe.SwitchingKey`) from the final `RTGShare` by using the `RTGProtocol.AggregateShares` method.
 
 ### 2 Evaluation Phase 
 
@@ -149,7 +149,7 @@ There are two instantiations of the Collective Key-Switching protocol:
 
 While both protocol variants have slightly different local operations, their steps are the same and as follows:
 - Each party generates a share (of type `drlwe.CKSShare` or `drlwe.PCKSShare`) with the `drlwe.(P)CKSProtocol.GenShare` method. This requires its own secret-key (a `rlwe.SecretKey`) as well as the destination key: its own share of the destination key (a `rlwe.SecretKey`) in CKS or the destination public-key (a `rlwe.PublicKey`) in PCKS.
-- Each party discloses its `drlwe.CKSShare` over the public channel. The shares are aggregated with the `(P)CKSProtocol.AggregateShares` method.
+- Each party discloses its `drlwe.CKSShare` over the public channel. The shares are aggregated with the `(P)CKSProtocol.AggregateSharess` method.
 - From the aggregated `drlwe.CKSShare`, any party can derive the ciphertext re-encrypted under _s'_ by using the `(P)CKSProtocol.KeySwitch` method.
 
 #### 2.iii.c Decryption

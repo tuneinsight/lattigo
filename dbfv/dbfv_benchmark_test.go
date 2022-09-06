@@ -74,7 +74,7 @@ func benchKeyswitching(testCtx *testContext, b *testing.B) {
 	b.Run(testString("Keyswitching/Round1/Agg/", testCtx.NParties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.AggregateShare(p.share, p.share, p.share)
+			p.AggregateShares(p.share, p.share, p.share)
 		}
 	})
 
@@ -115,7 +115,7 @@ func benchPublicKeySwitching(testCtx *testContext, b *testing.B) {
 	b.Run(testString("PublicKeySwitching/Round1/Agg/", testCtx.NParties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.AggregateShare(p.share, p.share, p.share)
+			p.AggregateShares(p.share, p.share, p.share)
 		}
 	})
 
@@ -156,7 +156,7 @@ func benchRefresh(testCtx *testContext, b *testing.B) {
 	b.Run(testString("Refresh/Round1/Agg/", testCtx.NParties, testCtx.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.AggregateShare(p.share, p.share, p.share)
+			p.AggregateShares(p.share, p.share, p.share)
 		}
 	})
 

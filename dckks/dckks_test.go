@@ -202,7 +202,7 @@ func testKeyswitching(tc *testContext, t *testing.T) {
 				for i, p := range cksParties {
 					p.cks.GenShare(p.s0, p.s1, ciphertext.Value[1], p.share)
 					if i > 0 {
-						P0.cks.AggregateShare(p.share, P0.share, P0.share)
+						P0.cks.AggregateShares(p.share, P0.share, P0.share)
 					}
 				}
 
@@ -259,7 +259,7 @@ func testPublicKeySwitching(tc *testContext, t *testing.T) {
 				for i, p := range pcksParties {
 					p.GenShare(p.s, pk1, ciphertext.Value[1], p.share)
 					if i > 0 {
-						P0.AggregateShare(p.share, P0.share, P0.share)
+						P0.AggregateShares(p.share, P0.share, P0.share)
 					}
 				}
 
@@ -314,7 +314,7 @@ func testE2SProtocol(tc *testContext, t *testing.T) {
 
 			if i > 0 {
 				// Enc(sum(-M_i))
-				p.e2s.AggregateShare(P[0].publicShareE2S, p.publicShareE2S, P[0].publicShareE2S)
+				p.e2s.AggregateShares(P[0].publicShareE2S, p.publicShareE2S, P[0].publicShareE2S)
 			}
 		}
 
@@ -343,7 +343,7 @@ func testE2SProtocol(tc *testContext, t *testing.T) {
 		for i, p := range P {
 			p.s2e.GenShare(p.sk, crp, params.LogSlots(), p.secretShare, p.publicShareS2E)
 			if i > 0 {
-				p.s2e.AggregateShare(P[0].publicShareS2E, p.publicShareS2E, P[0].publicShareS2E)
+				p.s2e.AggregateShares(P[0].publicShareS2E, p.publicShareS2E, P[0].publicShareS2E)
 			}
 		}
 
@@ -409,7 +409,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 					p.GenShare(p.s, logBound, params.LogSlots(), ciphertext.Value[1], ciphertext.Scale(), crp, p.share)
 
 					if i > 0 {
-						P0.AggregateShare(p.share, P0.share, P0.share)
+						P0.AggregateShares(p.share, P0.share, P0.share)
 					}
 				}
 
@@ -488,7 +488,7 @@ func testRefreshAndTransform(tc *testContext, t *testing.T) {
 			p.GenShare(p.s, p.s, logBound, params.LogSlots(), ciphertext.Value[1], ciphertext.Scale(), crp, transform, p.share)
 
 			if i > 0 {
-				P0.AggregateShare(p.share, P0.share, P0.share)
+				P0.AggregateShares(p.share, P0.share, P0.share)
 			}
 		}
 
@@ -590,7 +590,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 			p.GenShare(p.sIn, p.sOut, logBound, params.LogSlots(), ciphertext.Value[1], ciphertext.Scale(), crp, transform, p.share)
 
 			if i > 0 {
-				P0.AggregateShare(p.share, P0.share, P0.share)
+				P0.AggregateShares(p.share, P0.share, P0.share)
 			}
 		}
 

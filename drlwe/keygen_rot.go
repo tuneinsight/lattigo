@@ -165,8 +165,8 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, s
 	}
 }
 
-// AggregateShare aggregates two share in the Rotation Key Generation protocol.
-func (rtg *RTGProtocol) AggregateShare(share1, share2, shareOut *RTGShare) {
+// AggregateShares aggregates two share in the Rotation Key Generation protocol.
+func (rtg *RTGProtocol) AggregateShares(share1, share2, shareOut *RTGShare) {
 	ringQP := rtg.params.RingQP()
 	levelQ := share1.Value[0][0].Q.Level()
 

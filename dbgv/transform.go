@@ -145,8 +145,8 @@ func (rfp *MaskedTransformProtocol) GenShare(sk *rlwe.SecretKey, ct1 *ring.Poly,
 	rfp.s2e.GenShare(sk, crs, &rlwe.AdditiveShare{Value: *mask}, &shareOut.s2eShare)
 }
 
-// AggregateShare sums share1 and share2 on shareOut.
-func (rfp *MaskedTransformProtocol) AggregateShare(share1, share2, shareOut *MaskedTransformShare) {
+// AggregateShares sums share1 and share2 on shareOut.
+func (rfp *MaskedTransformProtocol) AggregateShares(share1, share2, shareOut *MaskedTransformShare) {
 
 	if share1.e2sShare.Value.Level() != share2.e2sShare.Value.Level() || share1.e2sShare.Value.Level() != shareOut.e2sShare.Value.Level() {
 		panic("all e2s shares must be at the same level")

@@ -252,7 +252,6 @@ func testPublicKeySwitching(testCtx *testContext, t *testing.T) {
 
 func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 	params := testCtx.params
-	ringQP := params.RingQP()
 	levelQ, levelP := params.QCount()-1, params.PCount()-1
 
 	t.Run(testString("RelinKeyGen", testCtx), func(t *testing.T) {
@@ -294,17 +293,12 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 
 		rlk := rlwe.NewRelinKey(params, 2)
 		rkg[0].GenRelinearizationKey(share1[0], share2[0], rlk)
-
-		skIn := testCtx.skIdeal.CopyNew()
-		skOut := testCtx.skIdeal.CopyNew()
-		ringQP.MulCoeffsMontgomeryLvl(levelQ, levelP, skIn.Value, skIn.Value, skIn.Value)
-
 		swk := rlk.Keys[0]
 
 		decompSize := params.DecompPw2(levelQ, levelP) * params.DecompRNS(levelQ, levelP)
 		log2Bound := bits.Len64(uint64(params.N() * decompSize * (params.N()*3*int(params.NoiseBound()) + 2*3*int(params.NoiseBound()) + params.N()*3)))
 
-		require.True(t, rlwe.SwitchingKeyIsCorrect(swk, skIn, skOut, params, log2Bound))
+		require.True(t, rlwe.RelinearizationKeyIsCorrect(swk, testCtx.skIdeal, params, log2Bound))
 	})
 }
 

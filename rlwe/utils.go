@@ -27,6 +27,15 @@ func PublicKeyIsCorrect(pk *PublicKey, sk *SecretKey, params Parameters, log2Bou
 	return true
 }
 
+// RelinearizationKeyIsCorrect returns true if swk is a correct RLWE relinearization-key for secret-key sk and parameters params.
+func RelinearizationKeyIsCorrect(rlk *SwitchingKey, skIdeal *SecretKey, params Parameters, log2Bound int) bool {
+	levelQ, levelP := params.QCount()-1, params.PCount()-1
+	skIn := skIdeal.CopyNew()
+	skOut := skIdeal.CopyNew()
+	params.RingQP().MulCoeffsMontgomeryLvl(levelQ, levelP, skIn.Value, skIn.Value, skIn.Value)
+	return SwitchingKeyIsCorrect(rlk, skIn, skOut, params, log2Bound)
+}
+
 // RotationKeyIsCorrect returns true if swk is a correct RLWE switching-key for galois element galEl, secret-key sk and parameters params.
 func RotationKeyIsCorrect(swk *SwitchingKey, galEl uint64, skIdeal *SecretKey, params Parameters, log2Bound int) bool {
 	swk = swk.CopyNew()

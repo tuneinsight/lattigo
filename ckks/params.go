@@ -519,21 +519,6 @@ func (p Parameters) RotationsForReplicateLog(batch, n int) (rotations []int) {
 	return p.RotationsForInnerSumLog(-batch, n)
 }
 
-// RotationsForLinearTransform generates the list of rotations needed for the evaluation of a linear transform
-// with the provided list of non-zero diagonals, logSlots encoding and BSGSratio.
-// If BSGSratio == 0, then provides the rotations needed for an evaluation without the BSGS approach.
-func (p Parameters) RotationsForLinearTransform(nonZeroDiags interface{}, logSlots int, BSGSratio float64) (rotations []int) {
-	slots := 1 << logSlots
-	if BSGSratio == 0 {
-		_, _, rotN2 := BsgsIndex(nonZeroDiags, slots, slots)
-		return rotN2
-	}
-
-	N1 := FindBestBSGSSplit(nonZeroDiags, slots, BSGSratio)
-	_, rotN1, rotN2 := BsgsIndex(nonZeroDiags, slots, N1)
-	return append(rotN1, rotN2...)
-}
-
 // Equals compares two sets of parameters for equality.
 func (p Parameters) Equals(other Parameters) bool {
 	res := p.Parameters.Equals(other.Parameters)

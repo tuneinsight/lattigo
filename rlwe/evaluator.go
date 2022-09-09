@@ -26,6 +26,7 @@ type evaluatorBase struct {
 }
 
 type evaluatorBuffers struct {
+	BuffCt Ciphertext
 	// BuffQP[0-0]: Key-Switch on the fly decomp(c2)
 	// BuffQP[1-2]: Key-Switch output
 	// BuffQP[3-5]: Available
@@ -46,6 +47,8 @@ func newEvaluatorBuffers(params Parameters) *evaluatorBuffers {
 	buff := new(evaluatorBuffers)
 	decompRNS := params.DecompRNS(params.QCount()-1, params.PCount()-1)
 	ringQP := params.RingQP()
+
+	buff.BuffCt = Ciphertext{Value: []*ring.Poly{ringQP.RingQ.NewPoly(), ringQP.RingQ.NewPoly()}}
 
 	buff.BuffQP = [6]ringqp.Poly{ringQP.NewPoly(), ringQP.NewPoly(), ringQP.NewPoly(), ringQP.NewPoly(), ringQP.NewPoly(), ringQP.NewPoly()}
 

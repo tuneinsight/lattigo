@@ -4,6 +4,15 @@ import (
 	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 )
 
+type OperandQP interface {
+	Degree() (deg int)
+	Level() (levelQ, levelP int)
+	El() CiphertextQP
+	GetDataLen64(WithMetaData bool) (dataLen int)
+	WriteTo64(data []byte) (ptr int, err error)
+	Decode64(data []byte) (ptr int, err error)
+}
+
 // PlaintextQP is a generic type for RLWE plaintext in R_qp.
 type PlaintextQP struct {
 	Value ringqp.Poly
@@ -44,6 +53,15 @@ func (el *PlaintextQP) Decode64(data []byte) (ptr int, err error) {
 // CiphertextQP is a generic type for RLWE ciphertext in R_qp.
 type CiphertextQP struct {
 	Value []ringqp.Poly
+}
+
+func NewCiphertextQP(params Parameters, degree, levelQ, levelP int) (ctQP CiphertextQP) {
+	ctQP = CiphertextQP{}
+	ctQP.Value = make([]ringqp.Poly, degree+1)
+	for i := range ctQP.Value {
+		ctQP.Value[i] = params.RingQP().NewPolyLvl(levelQ, levelP)
+	}
+	return
 }
 
 func (el *CiphertextQP) Level() (int, int) {

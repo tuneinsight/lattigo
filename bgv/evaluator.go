@@ -68,11 +68,8 @@ type Evaluator interface {
 	EvaluatePolyVector(input interface{}, pols []*Polynomial, encoder Encoder, slotIndex map[int][]int, targetScale uint64) (ctOut *Ciphertext, err error)
 
 	// Linear Transformations
-	RotateHoistedNoModDownNew(level int, rotations []int, c0 *ring.Poly, c2DecompQP []ringqp.Poly) (cOut map[int]rlwe.CiphertextQP)
 	LinearTransformNew(ctIn *Ciphertext, linearTransform interface{}) (ctOut []*Ciphertext)
 	LinearTransform(ctIn *Ciphertext, linearTransform interface{}, ctOut []*Ciphertext)
-	MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTransform, c2DecompQP []ringqp.Poly, ctOut *Ciphertext)
-	MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearTransform, c2DecompQP []ringqp.Poly, ctOut *Ciphertext)
 	InnerSumLog(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
 	ReplicateLog(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
 
@@ -924,20 +921,6 @@ func (eval *evaluator) AutomorphismHoisted(level int, ctIn *Ciphertext, c1Decomp
 	}
 
 	ctOut.Resize(ctOut.Degree(), level)
-}
-
-func (eval *evaluator) RotateHoistedNoModDownNew(level int, rotations []int, c0 *ring.Poly, c2DecompQP []ringqp.Poly) (cOut map[int]rlwe.CiphertextQP) {
-	ringQ := eval.params.RingQ()
-	ringP := eval.params.RingP()
-	cOut = make(map[int]rlwe.CiphertextQP)
-	for _, i := range rotations {
-		if i != 0 {
-			cOut[i] = rlwe.CiphertextQP{Value: []ringqp.Poly{{Q: ringQ.NewPolyLvl(level), P: ringP.NewPoly()}, {Q: ringQ.NewPolyLvl(level), P: ringP.NewPoly()}}}
-			eval.AutomorphismHoistedNoModDown(level, c0, c2DecompQP, eval.params.GaloisElementForColumnRotationBy(i), cOut[i])
-		}
-	}
-
-	return
 }
 
 // MatchScales updates the both input ciphertexts to ensures that their scale matches.

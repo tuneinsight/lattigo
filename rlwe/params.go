@@ -477,6 +477,59 @@ func (p Parameters) GaloisElementsForMergeRLWE() (galEls []uint64) {
 	return p.GaloisElementsForRowInnerSum()
 }
 
+// GaloisElementsForLinearTransform generates the list of Galois elements needed for the evaluation of a linear transform
+// of dimension 2^LogDimension, with the provided list of non-zero diagonals and BSGSratio.
+// If BSGSratio == 0, then provides the Galois elements needed for an evaluation without the BSGS approach.
+func (p Parameters) GaloisElementsForLinearTransform(NonZeroDiags interface{}, LogDimension int, BSGSratio float64) (galEls []uint64) {
+	dimension := 1 << LogDimension
+	if BSGSratio == 0 {
+		_, _, rotN2 := BsgsIndex(NonZeroDiags, dimension, dimension)
+
+		galEls = make([]uint64, len(rotN2))
+		for i := range galEls {
+			galEls[i] = p.GaloisElementForColumnRotationBy(rotN2[i])
+		}
+
+		return
+	}
+
+	N1 := FindBestBSGSSplit(NonZeroDiags, dimension, BSGSratio)
+	_, rotN1, rotN2 := BsgsIndex(NonZeroDiags, dimension, N1)
+
+	galEls = make([]uint64, len(rotN1)+len(rotN2))
+
+	for i := range rotN1 {
+		galEls[i] = p.GaloisElementForColumnRotationBy(rotN1[i])
+	}
+
+	for j := range rotN2 {
+		galEls[j+len(rotN1)] = p.GaloisElementForColumnRotationBy(rotN2[j])
+	}
+
+	return
+}
+
+// FindBestBSGSSplit finds the best N1*N2 = N for the baby-step giant-step algorithm for matrix multiplication.
+func FindBestBSGSSplit(diagMatrix interface{}, maxN int, maxBSGSratio float64) (minN int) {
+
+	for N1 := 1; N1 < maxN; N1 <<= 1 {
+
+		_, rotN1, rotN2 := BsgsIndex(diagMatrix, maxN, N1)
+
+		nbN1, nbN2 := len(rotN1)-1, len(rotN2)-1
+
+		if float64(nbN2)/float64(nbN1) == maxBSGSratio {
+			return N1
+		}
+
+		if float64(nbN2)/float64(nbN1) > maxBSGSratio {
+			return N1 / 2
+		}
+	}
+
+	return 1
+}
+
 // InverseGaloisElement takes a Galois element and returns the Galois element
 //  corresponding to the inverse automorphism
 func (p Parameters) InverseGaloisElement(galEl uint64) uint64 {

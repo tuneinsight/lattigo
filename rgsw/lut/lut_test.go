@@ -132,7 +132,7 @@ func testLUT(t *testing.T) {
 
 			decryptorLUT.Decrypt(ctsLUT[i], ptLUT)
 
-			c := ptLUT.Value.Coeffs[0][i]
+			c := ptLUT.Value.Coeffs[0][0]
 
 			var a float64
 			if c >= qHalf {

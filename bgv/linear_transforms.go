@@ -4,6 +4,7 @@ import (
 	"runtime"
 
 	"github.com/tuneinsight/lattigo/v3/ring"
+	"github.com/tuneinsight/lattigo/v3/rlwe"
 	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
@@ -41,6 +42,8 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 		c0QP := eval.BuffQP[4]
 		c1QP := eval.BuffQP[5]
 
+		cQP := rlwe.CiphertextQP{Value: []ringqp.Poly{c0QP, c1QP}}
+
 		tmpc0.IsNTT = true
 		tmpc1.IsNTT = true
 		c0QP.Q.IsNTT = true
@@ -76,9 +79,9 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 
 					// Rotate((tmpc0, tmpc1), k)
 					if i == 0 {
-						eval.AutomorphismHoistedNoModDown(levelQ, ctIn.Value[0], eval.BuffDecompQP, eval.params.GaloisElementForColumnRotationBy(k), c0QP.Q, c1QP.Q, c0QP.P, c1QP.P)
+						eval.AutomorphismHoistedNoModDown(levelQ, ctIn.Value[0], eval.BuffDecompQP, eval.params.GaloisElementForColumnRotationBy(k), cQP)
 					} else {
-						eval.AutomorphismHoistedNoModDown(levelQ, tmpc0, eval.BuffDecompQP, eval.params.GaloisElementForColumnRotationBy(k), c0QP.Q, c1QP.Q, c0QP.P, c1QP.P)
+						eval.AutomorphismHoistedNoModDown(levelQ, tmpc0, eval.BuffDecompQP, eval.params.GaloisElementForColumnRotationBy(k), cQP)
 					}
 
 					// ctOut += Rotate((tmpc0, tmpc1), k)
@@ -145,22 +148,43 @@ func (eval *evaluator) ReplicateLog(ctIn *Ciphertext, batchSize, n int, ctOut *C
 	eval.InnerSumLog(ctIn, -batchSize, n, ctOut)
 }
 
+type OperandQP interface {
+	Degree() (deg int)
+	Level() (levelQ, levelP int)
+	El() rlwe.CiphertextQP
+	GetDataLen64(WithMetaData bool) (dataLen int)
+	WriteTo64(data []byte) (ptr int, err error)
+	Decode64(data []byte) (ptr int, err error)
+}
+
 // LinearTransform is a type for linear transformations on ciphertexts.
 // It stores a plaintext matrix diagonalized in diagonal form and
 // can be evaluated on a ciphertext by using the evaluator.LinearTransform method.
 type LinearTransform struct {
 	LogSlots int
-	N1       int                 // N1 is the number of inner loops of the baby-step giant-step algorithm used in the evaluation (if N1 == 0, BSGS is not used).
-	Level    int                 // Level is the level at which the matrix is encoded (can be circuit dependent)
-	Scale    uint64              // Scale is the scale at which the matrix is encoded (can be circuit dependent)
-	Vec      map[int]ringqp.Poly // Vec is the matrix, in diagonal form, where each entry of vec is an indexed non-zero diagonal.
+	N1       int               // N1 is the number of inner loops of the baby-step giant-step algorithm used in the evaluation (if N1 == 0, BSGS is not used).
+	Level    int               // Level is the level at which the matrix is encoded (can be circuit dependent)
+	Scale    uint64            // Scale is the scale at which the matrix is encoded (can be circuit dependent)
+	Vec      map[int]OperandQP // Vec is the matrix, in diagonal form, where each entry of vec is an indexed non-zero diagonal.
+}
+
+func (LT *LinearTransform) IsPlaintext() bool {
+	for _, el := range LT.Vec {
+		switch el.(type) {
+		case *rlwe.PlaintextQP:
+			return true
+		default:
+			return false
+		}
+	}
+	return false
 }
 
 // NewLinearTransform allocates a new LinearTransform with zero plaintexts at the specified level.
 // If BSGSRatio == 0, the LinearTransform is set to not use the BSGS approach.
 // Method will panic if BSGSRatio < 0.
 func NewLinearTransform(params Parameters, nonZeroDiags []int, level int, BSGSRatio float64) LinearTransform {
-	vec := make(map[int]ringqp.Poly)
+	vec := make(map[int]OperandQP)
 	slots := params.N() >> 1
 	levelQ := level
 	levelP := params.PCount() - 1
@@ -172,14 +196,14 @@ func NewLinearTransform(params Parameters, nonZeroDiags []int, level int, BSGSRa
 			if idx < 0 {
 				idx += slots
 			}
-			vec[idx] = params.RingQP().NewPolyLvl(levelQ, levelP)
+			vec[idx] = &rlwe.PlaintextQP{Value: params.RingQP().NewPolyLvl(levelQ, levelP)}
 		}
 	} else if BSGSRatio > 0 {
 		N1 = FindBestBSGSSplit(nonZeroDiags, slots, BSGSRatio)
 		index, _, _ := BsgsIndex(nonZeroDiags, slots, N1)
 		for j := range index {
 			for _, i := range index[j] {
-				vec[j+i] = params.RingQP().NewPolyLvl(levelQ, levelP)
+				vec[j+i] = &rlwe.PlaintextQP{Value: params.RingQP().NewPolyLvl(levelQ, levelP)}
 			}
 		}
 	} else {
@@ -263,11 +287,11 @@ func (LT *LinearTransform) Encode(ecd Encoder, dMat map[int][]uint64, scale uint
 			}
 
 			enc.EncodeRingT(dMat[i], scale, buffT)
-			enc.RingT2Q(levelQ, buffT, LT.Vec[idx].Q)
-			enc.RingT2Q(levelP, buffT, LT.Vec[idx].P)
+			enc.RingT2Q(levelQ, buffT, LT.Vec[idx].El().Value[0].Q)
+			enc.RingT2Q(levelP, buffT, LT.Vec[idx].El().Value[0].P)
 
-			ringQP.NTTLvl(levelQ, levelP, LT.Vec[idx], LT.Vec[idx])
-			ringQP.MFormLvl(levelQ, levelP, LT.Vec[idx], LT.Vec[idx])
+			ringQP.NTTLvl(levelQ, levelP, LT.Vec[idx].El().Value[0], LT.Vec[idx].El().Value[0])
+			ringQP.MFormLvl(levelQ, levelP, LT.Vec[idx].El().Value[0], LT.Vec[idx].El().Value[0])
 		}
 	} else {
 		index, _, _ := BsgsIndex(dMat, slots, N1)
@@ -285,11 +309,11 @@ func (LT *LinearTransform) Encode(ecd Encoder, dMat map[int][]uint64, scale uint
 				}
 
 				enc.EncodeRingT(utils.RotateUint64Slots(v, -j), scale, buffT)
-				enc.RingT2Q(levelQ, buffT, LT.Vec[j+i].Q)
-				enc.RingT2Q(levelP, buffT, LT.Vec[j+i].P)
+				enc.RingT2Q(levelQ, buffT, LT.Vec[j+i].El().Value[0].Q)
+				enc.RingT2Q(levelP, buffT, LT.Vec[j+i].El().Value[0].P)
 
-				ringQP.NTTLvl(levelQ, levelP, LT.Vec[j+i], LT.Vec[j+i])
-				ringQP.MFormLvl(levelQ, levelP, LT.Vec[j+i], LT.Vec[j+i])
+				ringQP.NTTLvl(levelQ, levelP, LT.Vec[j+i].El().Value[0], LT.Vec[j+i].El().Value[0])
+				ringQP.MFormLvl(levelQ, levelP, LT.Vec[j+i].El().Value[0], LT.Vec[j+i].El().Value[0])
 			}
 		}
 	}
@@ -311,7 +335,7 @@ func GenLinearTransform(ecd Encoder, dMat map[int][]uint64, level int, scale uin
 	}
 
 	params := enc.params
-	vec := make(map[int]ringqp.Poly)
+	vec := make(map[int]OperandQP)
 	slots := params.N() >> 1
 	levelQ := level
 	levelP := params.PCount() - 1
@@ -323,14 +347,14 @@ func GenLinearTransform(ecd Encoder, dMat map[int][]uint64, level int, scale uin
 		if idx < 0 {
 			idx += slots
 		}
-		vec[idx] = params.RingQP().NewPolyLvl(levelQ, levelP)
+		vec[idx] = &rlwe.PlaintextQP{Value: params.RingQP().NewPolyLvl(levelQ, levelP)}
 
 		enc.EncodeRingT(dMat[i], scale, buffT)
-		enc.RingT2Q(levelQ, buffT, vec[idx].Q)
-		enc.RingT2Q(levelP, buffT, vec[idx].P)
+		enc.RingT2Q(levelQ, buffT, vec[idx].El().Value[0].Q)
+		enc.RingT2Q(levelP, buffT, vec[idx].El().Value[0].P)
 
-		ringQP.NTTLvl(levelQ, levelP, vec[idx], vec[idx])
-		ringQP.MFormLvl(levelQ, levelP, vec[idx], vec[idx])
+		ringQP.NTTLvl(levelQ, levelP, vec[idx].El().Value[0], vec[idx].El().Value[0])
+		ringQP.MFormLvl(levelQ, levelP, vec[idx].El().Value[0], vec[idx].El().Value[0])
 	}
 
 	return LinearTransform{LogSlots: params.LogN() - 1, N1: 0, Vec: vec, Level: level, Scale: scale}
@@ -360,7 +384,7 @@ func GenLinearTransformBSGS(ecd Encoder, dMat map[int][]uint64, level int, scale
 
 	index, _, _ := BsgsIndex(dMat, slots, N1)
 
-	vec := make(map[int]ringqp.Poly)
+	vec := make(map[int]OperandQP)
 
 	levelQ := level
 	levelP := params.PCount() - 1
@@ -377,14 +401,14 @@ func GenLinearTransformBSGS(ecd Encoder, dMat map[int][]uint64, level int, scale
 			if !ok {
 				v = dMat[j+i-slots]
 			}
-			vec[j+i] = params.RingQP().NewPolyLvl(levelQ, levelP)
+			vec[j+i] = &rlwe.PlaintextQP{Value: params.RingQP().NewPolyLvl(levelQ, levelP)}
 
 			enc.EncodeRingT(utils.RotateUint64Slots(v, -j), scale, buffT)
-			enc.RingT2Q(levelQ, buffT, vec[j+i].Q)
-			enc.RingT2Q(levelP, buffT, vec[j+i].P)
+			enc.RingT2Q(levelQ, buffT, vec[j+i].El().Value[0].Q)
+			enc.RingT2Q(levelP, buffT, vec[j+i].El().Value[0].P)
 
-			ringQP.NTTLvl(levelQ, levelP, vec[j+i], vec[j+i])
-			ringQP.MFormLvl(levelQ, levelP, vec[j+i], vec[j+i])
+			ringQP.NTTLvl(levelQ, levelP, vec[j+i].El().Value[0], vec[j+i].El().Value[0])
+			ringQP.MFormLvl(levelQ, levelP, vec[j+i].El().Value[0], vec[j+i].El().Value[0])
 		}
 	}
 
@@ -427,6 +451,27 @@ func BsgsIndex(el interface{}, slots, N1 int) (index map[int][]int, rotN1, rotN2
 			i++
 		}
 	case map[int]ringqp.Poly:
+		nonZeroDiags = make([]int, len(element))
+		var i int
+		for key := range element {
+			nonZeroDiags[i] = key
+			i++
+		}
+	case map[int]*rlwe.PlaintextQP:
+		nonZeroDiags = make([]int, len(element))
+		var i int
+		for key := range element {
+			nonZeroDiags[i] = key
+			i++
+		}
+	case map[int]*rlwe.CiphertextQP:
+		nonZeroDiags = make([]int, len(element))
+		var i int
+		for key := range element {
+			nonZeroDiags[i] = key
+			i++
+		}
+	case map[int]OperandQP:
 		nonZeroDiags = make([]int, len(element))
 		var i int
 		for key := range element {
@@ -596,6 +641,7 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTrans
 	tmp1QP := eval.BuffQP[2]
 	ksRes0QP := eval.BuffQP[3]
 	ksRes1QP := eval.BuffQP[4]
+	ksResQP := rlwe.CiphertextQP{Value: []ringqp.Poly{ksRes0QP, ksRes1QP}}
 
 	ring.CopyValuesLvl(levelQ, ctIn.Value[0], eval.buffCt.Value[0])
 	ring.CopyValuesLvl(levelQ, ctIn.Value[1], eval.buffCt.Value[1])
@@ -623,19 +669,19 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTrans
 
 			index := eval.PermuteNTTIndex[galEl]
 
-			eval.KeyswitchHoistedNoModDown(levelQ, BuffDecompQP, rtk, ksRes0QP.Q, ksRes1QP.Q, ksRes0QP.P, ksRes1QP.P)
+			eval.GadgetProductHoistedNoModDown(levelQ, BuffDecompQP, rtk.GadgetCiphertext, ksResQP)
 			ringQ.AddLvl(levelQ, ksRes0QP.Q, ct0TimesP, ksRes0QP.Q)
 			ringQP.PermuteNTTWithIndexLvl(levelQ, levelP, ksRes0QP, index, tmp0QP)
 			ringQP.PermuteNTTWithIndexLvl(levelQ, levelP, ksRes1QP, index, tmp1QP)
 
 			if cnt == 0 {
 				// keyswitch(c1_Q) = (d0_QP, d1_QP)
-				ringQP.MulCoeffsMontgomeryLvl(levelQ, levelP, matrix.Vec[k], tmp0QP, c0OutQP)
-				ringQP.MulCoeffsMontgomeryLvl(levelQ, levelP, matrix.Vec[k], tmp1QP, c1OutQP)
+				ringQP.MulCoeffsMontgomeryLvl(levelQ, levelP, matrix.Vec[k].El().Value[0], tmp0QP, c0OutQP)
+				ringQP.MulCoeffsMontgomeryLvl(levelQ, levelP, matrix.Vec[k].El().Value[0], tmp1QP, c1OutQP)
 			} else {
 				// keyswitch(c1_Q) = (d0_QP, d1_QP)
-				ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, matrix.Vec[k], tmp0QP, c0OutQP)
-				ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, matrix.Vec[k], tmp1QP, c1OutQP)
+				ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, matrix.Vec[k].El().Value[0], tmp0QP, c0OutQP)
+				ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, matrix.Vec[k].El().Value[0], tmp1QP, c1OutQP)
 			}
 
 			if cnt%QiOverF == QiOverF-1 {
@@ -669,8 +715,8 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTrans
 	ringQ.MulScalarLvl(levelQ, c1OutQP.Q, eval.params.T(), c1OutQP.Q)
 
 	if state { // Rotation by zero
-		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, matrix.Vec[0].Q, ctInTmp0, c0OutQP.Q) // ctOut += c0_Q * plaintext
-		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, matrix.Vec[0].Q, ctInTmp1, c1OutQP.Q) // ctOut += c1_Q * plaintext
+		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, matrix.Vec[0].El().Value[0].Q, ctInTmp0, c0OutQP.Q) // ctOut += c0_Q * plaintext
+		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, matrix.Vec[0].El().Value[0].Q, ctInTmp1, c1OutQP.Q) // ctOut += c1_Q * plaintext
 	}
 
 	ctOut.SetScale(matrix.Scale * ctIn.Scale())
@@ -695,91 +741,86 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearT
 	QiOverF := eval.params.QiOverflowMargin(levelQ) >> 1
 	PiOverF := eval.params.PiOverflowMargin(levelP) >> 1
 
+	isPlaintext := matrix.IsPlaintext()
+
+	// Accumulator inner loop
+	accInLoop := rlwe.CiphertextQP{Value: []ringqp.Poly{eval.BuffQP[2], eval.BuffQP[3]}}
+
+	// Available & Used Buffers:
+	// Evaluator CKKS:
+	//		buffQ[0] -> accInLoop.Value[2].Q
+	//		buffQ[1] -> accInLoop.Value[2].Q
+	//		buffQ[2]
+	//		buffCt   -> ctInMulP
+	// Evaluator RLWE:
+	//		BuffQ        [0]ringqp.Poly -> c2QP.Q (rlwe.Evaluator)
+	//		BuffP        [0]ringqp.Poly -> c2QP.P (rlwe.Evaluator)
+	//		BuffQ        [0]ringqp.Poly -> ctBuffQP.Value[0].Q
+	//		BuffP        [0]ringqp.Poly -> ctBuffQP.Value[0].Q
+	//		BuffQ        [1]ringqp.Poly -> ctBuffQP.Value[1].P
+	//		BuffP        [1]ringqp.Poly -> ctBuffQP.Value[1].P
+	//		BuffQ        [2]ringqp.Poly -> accInLoop.Value[0].Q
+	//		BuffP        [2]ringqp.Poly -> accInLoop.Value[0].P
+	//		BuffQ        [3]ringqp.Poly -> accInLoop.Value[1].Q
+	//		BuffP        [3]ringqp.Poly -> accInLoop.Value[1].P
+	//		BuffQ        [4]ringqp.Poly -> accOutLoopQP.Value[0].P
+	//		BuffP        [4]ringqp.Poly -> accOutLoopQP.Value[1].P
+	//		BuffInvNTT    *ring.Poly    -> cxInvNTT (rlwe.Evaluator)
+	//		BuffDecompQP  []ringqp.Poly
+	//
+
+	if !isPlaintext {
+		accInLoop.Value = append(accInLoop.Value, ringqp.Poly{Q: eval.buffQ[0], P: eval.buffQ[1]})
+	}
+
+	// Result in QP
+	accOutLoopQP := &rlwe.CiphertextQP{Value: []ringqp.Poly{ringqp.Poly{Q: ctOut.Value[0], P: eval.BuffQP[4].Q}, ringqp.Poly{Q: ctOut.Value[1], P: eval.BuffQP[4].P}}}
+
+	// Ciphertext buffer mod QP for gadget products without mod down
+	ctBuffQP := rlwe.CiphertextQP{Value: []ringqp.Poly{eval.BuffQP[0], eval.BuffQP[1]}}
+
 	// Computes the N2 rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giang-step algorithm
 	index, _, rotN2 := BsgsIndex(matrix.Vec, 1<<matrix.LogSlots, matrix.N1)
 
-	ring.CopyValuesLvl(levelQ, ctIn.Value[0], eval.buffCt.Value[0])
-	ring.CopyValuesLvl(levelQ, ctIn.Value[1], eval.buffCt.Value[1])
+	ctInMulP := eval.buffCt
 
-	ctInTmp0, ctInTmp1 := eval.buffCt.Value[0], eval.buffCt.Value[1]
-
-	ringQ.MulScalarBigintLvl(levelQ, ctInTmp0, eval.tInvModQ[levelQ], ctInTmp0)
-	ringQ.MulScalarBigintLvl(levelQ, ctInTmp1, eval.tInvModQ[levelQ], ctInTmp1)
+	ringQ.MulScalarBigintLvl(levelQ, ctIn.Value[0], eval.tInvModQ[levelQ], ctInMulP.Value[0])
+	ringQ.MulScalarBigintLvl(levelQ, ctIn.Value[1], eval.tInvModQ[levelQ], ctInMulP.Value[1])
 
 	// Pre-rotates ciphertext for the baby-step giant-step algorithm, does not divide by P yet
-	ctInRotQP := eval.rotateHoistedNoModDownNew(levelQ, rotN2, ctInTmp0, eval.BuffDecompQP)
+	ctInRotQP := eval.RotateHoistedNoModDownNew(levelQ, rotN2, ctInMulP.Value[0], PoolDecompQP)
 
-	// Accumulator inner loop
-	tmp0QP := eval.BuffQP[1]
-	tmp1QP := eval.BuffQP[2]
-
-	// Accumulator outer loop
-	c0QP := eval.BuffQP[3]
-	c1QP := eval.BuffQP[4]
-
-	// Result in QP
-	c0OutQP := ringqp.Poly{Q: ctOut.Value[0], P: eval.BuffQP[5].Q}
-	c1OutQP := ringqp.Poly{Q: ctOut.Value[1], P: eval.BuffQP[5].P}
-
-	ringQ.MulScalarBigintLvl(levelQ, ctInTmp0, ringP.ModulusAtLevel[levelP], ctInTmp0) // P*c0
-	ringQ.MulScalarBigintLvl(levelQ, ctInTmp1, ringP.ModulusAtLevel[levelP], ctInTmp1) // P*c1
+	// Rotation by 0 -> pre-multiplies by P
+	ringQ.MulScalarBigintLvl(levelQ, ctInMulP.Value[0], ringP.ModulusAtLevel[levelP], ctInMulP.Value[0]) // P*c0
+	ringQ.MulScalarBigintLvl(levelQ, ctInMulP.Value[1], ringP.ModulusAtLevel[levelP], ctInMulP.Value[1]) // P*c1
 
 	// OUTER LOOP
 	var cnt0 int
 	for j := range index {
 
 		// INNER LOOP
-		var cnt1 int
-		for _, i := range index[j] {
-			if i == 0 {
-				if cnt1 == 0 {
-					ringQ.MulCoeffsMontgomeryConstantLvl(levelQ, matrix.Vec[j].Q, ctInTmp0, tmp0QP.Q)
-					ringQ.MulCoeffsMontgomeryConstantLvl(levelQ, matrix.Vec[j].Q, ctInTmp1, tmp1QP.Q)
-					tmp0QP.P.Zero()
-					tmp1QP.P.Zero()
-				} else {
-					ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, matrix.Vec[j].Q, ctInTmp0, tmp0QP.Q)
-					ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, matrix.Vec[j].Q, ctInTmp1, tmp1QP.Q)
-				}
-			} else {
-				if cnt1 == 0 {
-					ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, matrix.Vec[j+i], ctInRotQP[i][0], tmp0QP)
-					ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, matrix.Vec[j+i], ctInRotQP[i][1], tmp1QP)
-				} else {
-					ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, matrix.Vec[j+i], ctInRotQP[i][0], tmp0QP)
-					ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, matrix.Vec[j+i], ctInRotQP[i][1], tmp1QP)
-				}
-			}
+		if isPlaintext {
+			innerLoopBSGSDegree1(j, index[j], levelQ, levelP, *ringQP, matrix.Vec, ctInMulP, ctInRotQP, accInLoop, QiOverF, PiOverF)
+		} else {
+			innerLoopBSGSDegree2(j, index[j], levelQ, levelP, *ringQP, matrix.Vec, ctInMulP, ctInRotQP, accInLoop, QiOverF, PiOverF)
 
-			if cnt1%QiOverF == QiOverF-1 {
-				ringQ.ReduceLvl(levelQ, tmp0QP.Q, tmp0QP.Q)
-				ringQ.ReduceLvl(levelQ, tmp1QP.Q, tmp1QP.Q)
-			}
+			// acc[2] mod QP -> acc[2]/P mod Q
+			eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, accInLoop.Value[2].Q, accInLoop.Value[2].P, accInLoop.Value[2].Q)
 
-			if cnt1%PiOverF == PiOverF-1 {
-				ringP.ReduceLvl(levelP, tmp0QP.P, tmp0QP.P)
-				ringP.ReduceLvl(levelP, tmp1QP.P, tmp1QP.P)
-			}
+			// Relinearize
+			accInLoop.Value[2].Q.IsNTT = true
+			eval.GadgetProductNoModDown(levelQ, accInLoop.Value[2].Q, eval.Rlk.Keys[0].GadgetCiphertext, ctBuffQP)
 
-			cnt1++
-		}
-
-		if cnt1%QiOverF != 0 {
-			ringQ.ReduceLvl(levelQ, tmp0QP.Q, tmp0QP.Q)
-			ringQ.ReduceLvl(levelQ, tmp1QP.Q, tmp1QP.Q)
-		}
-
-		if cnt1%PiOverF != 0 {
-			ringP.ReduceLvl(levelP, tmp0QP.P, tmp0QP.P)
-			ringP.ReduceLvl(levelP, tmp1QP.P, tmp1QP.P)
+			// [acc[0] + buffRelin[0], acc[1] + buffRelin[1]] mod QP
+			ringQP.AddLvl(levelQ, levelP, accInLoop.Value[0], ctBuffQP.Value[0], accInLoop.Value[0])
+			ringQP.AddLvl(levelQ, levelP, accInLoop.Value[1], ctBuffQP.Value[1], accInLoop.Value[1])
 		}
 
 		// If j != 0, then rotates ((tmp0QP.Q, tmp0QP.P), (tmp1QP.Q, tmp1QP.P)) by N1*j and adds the result on ((c0QP.Q, c0QP.P), (c1QP.Q, c1QP.P))
 		if j != 0 {
 
 			// Hoisting of the ModDown of sum(sum(phi(d1) * plaintext))
-			eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, tmp1QP.Q, tmp1QP.P, tmp1QP.Q) // c1 * plaintext + sum(phi(d1) * plaintext) + phi(c1) * plaintext mod Q
-			ringQ.MulScalarLvl(levelQ, tmp1QP.Q, eval.params.T(), tmp1QP.Q)
+			eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, accInLoop.Value[1].Q, accInLoop.Value[1].P, accInLoop.Value[1].Q) // c1 * plaintext + sum(phi(d1) * plaintext) + phi(c1) * plaintext mod Q
 
 			galEl := eval.params.GaloisElementForColumnRotationBy(j)
 
@@ -790,29 +831,28 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearT
 
 			rotIndex := eval.PermuteNTTIndex[galEl]
 
-			tmp1QP.Q.IsNTT = true
-			ringQ.MulScalarBigintLvl(levelQ, tmp1QP.Q, eval.tInvModQ[levelQ], tmp1QP.Q)
-			eval.GadgetProductNoModDown(levelQ, tmp1QP.Q, rtk.GadgetCiphertext, c0QP, c1QP) // Switchkey(P*phi(tmpRes_1)) = (d0, d1) in base QP
-			ringQP.AddLvl(levelQ, levelP, c0QP, tmp0QP, c0QP)
+			accInLoop.Value[1].Q.IsNTT = true
+			eval.GadgetProductNoModDown(levelQ, accInLoop.Value[1].Q, rtk.GadgetCiphertext, ctBuffQP) // Switchkey(P*phi(tmpRes_1)) = (d0, d1) in base QP
+			ringQP.AddLvl(levelQ, levelP, ctBuffQP.Value[0], accInLoop.Value[0], ctBuffQP.Value[0])
 
 			// Outer loop rotations
 			if cnt0 == 0 {
-
-				ringQP.PermuteNTTWithIndexLvl(levelQ, levelP, c0QP, rotIndex, c0OutQP)
-				ringQP.PermuteNTTWithIndexLvl(levelQ, levelP, c1QP, rotIndex, c1OutQP)
+				ringQP.PermuteNTTWithIndexLvl(levelQ, levelP, ctBuffQP.Value[0], rotIndex, accOutLoopQP.Value[0])
+				ringQP.PermuteNTTWithIndexLvl(levelQ, levelP, ctBuffQP.Value[1], rotIndex, accOutLoopQP.Value[1])
 			} else {
-				ringQP.PermuteNTTWithIndexAndAddNoModLvl(levelQ, levelP, c0QP, rotIndex, c0OutQP)
-				ringQP.PermuteNTTWithIndexAndAddNoModLvl(levelQ, levelP, c1QP, rotIndex, c1OutQP)
+				ringQP.PermuteNTTWithIndexAndAddNoModLvl(levelQ, levelP, ctBuffQP.Value[0], rotIndex, accOutLoopQP.Value[0])
+				ringQP.PermuteNTTWithIndexAndAddNoModLvl(levelQ, levelP, ctBuffQP.Value[1], rotIndex, accOutLoopQP.Value[1])
 			}
 
-			// Else directly adds on ((c0QP.Q, c0QP.P), (c1QP.Q, c1QP.P))
+			// Else directly adds on accOutLoopQP
 		} else {
+
 			if cnt0 == 0 {
-				ringQP.CopyValuesLvl(levelQ, levelP, tmp0QP, c0OutQP)
-				ringQP.CopyValuesLvl(levelQ, levelP, tmp1QP, c1OutQP)
+				ringQP.CopyValuesLvl(levelQ, levelP, accInLoop.Value[0], accOutLoopQP.Value[0])
+				ringQP.CopyValuesLvl(levelQ, levelP, accInLoop.Value[1], accOutLoopQP.Value[1])
 			} else {
-				ringQP.AddNoModLvl(levelQ, levelP, c0OutQP, tmp0QP, c0OutQP)
-				ringQP.AddNoModLvl(levelQ, levelP, c1OutQP, tmp1QP, c1OutQP)
+				ringQP.AddNoModLvl(levelQ, levelP, accOutLoopQP.Value[0], accInLoop.Value[0], accOutLoopQP.Value[0])
+				ringQP.AddNoModLvl(levelQ, levelP, accOutLoopQP.Value[1], accInLoop.Value[1], accOutLoopQP.Value[1])
 			}
 		}
 
@@ -822,8 +862,8 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearT
 		}
 
 		if cnt0%PiOverF == PiOverF-1 {
-			ringP.ReduceLvl(levelP, c0OutQP.P, c0OutQP.P)
-			ringP.ReduceLvl(levelP, c1OutQP.P, c1OutQP.P)
+			ringP.ReduceLvl(levelP, accOutLoopQP.Value[0].P, accOutLoopQP.Value[0].P)
+			ringP.ReduceLvl(levelP, accOutLoopQP.Value[1].P, accOutLoopQP.Value[1].P)
 		}
 
 		cnt0++
@@ -835,12 +875,12 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearT
 	}
 
 	if cnt0%PiOverF != 0 {
-		ringP.ReduceLvl(levelP, c0OutQP.P, c0OutQP.P)
-		ringP.ReduceLvl(levelP, c1OutQP.P, c1OutQP.P)
+		ringP.ReduceLvl(levelP, accOutLoopQP.Value[0].P, accOutLoopQP.Value[0].P)
+		ringP.ReduceLvl(levelP, accOutLoopQP.Value[1].P, accOutLoopQP.Value[1].P)
 	}
 
-	eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, ctOut.Value[0], c0OutQP.P, ctOut.Value[0]) // sum(phi(c0 * P + d0_QP))/P
-	eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, ctOut.Value[1], c1OutQP.P, ctOut.Value[1]) // sum(phi(d1_QP))/P
+	eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, ctOut.Value[0], accOutLoopQP.Value[0].P, ctOut.Value[0]) // sum(phi(c0 * P + d0_QP))/P
+	eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, ctOut.Value[1], accOutLoopQP.Value[1].P, ctOut.Value[1]) // sum(phi(d1_QP))/P
 
 	ringQ.MulScalarLvl(levelQ, ctOut.Value[0], eval.params.T(), ctOut.Value[0])
 	ringQ.MulScalarLvl(levelQ, ctOut.Value[1], eval.params.T(), ctOut.Value[1])
@@ -849,4 +889,137 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearT
 
 	ctInRotQP = nil
 	runtime.GC()
+}
+
+func innerLoopBSGSDegree1(j int, index []int, levelQ, levelP int, ringQP ringqp.Ring, diagMatrix map[int]OperandQP, ctInMulP *Ciphertext, ctInRotQP map[int]rlwe.CiphertextQP, accInLoop rlwe.CiphertextQP, qiOverFlow, piOverFlow int) {
+
+	var reduce int
+
+	ringQ := ringQP.RingQ
+	ringP := ringQP.RingP
+
+	for _, i := range index {
+		if i == 0 {
+			if reduce == 0 {
+				ringQ.MulCoeffsMontgomeryConstantLvl(levelQ, diagMatrix[j].El().Value[0].Q, ctInMulP.Value[0], accInLoop.Value[0].Q)
+				ringQ.MulCoeffsMontgomeryConstantLvl(levelQ, diagMatrix[j].El().Value[0].Q, ctInMulP.Value[1], accInLoop.Value[1].Q)
+				accInLoop.Value[0].P.Zero()
+				accInLoop.Value[1].P.Zero()
+			} else {
+				ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, diagMatrix[j].El().Value[0].Q, ctInMulP.Value[0], accInLoop.Value[0].Q)
+				ringQ.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, diagMatrix[j].El().Value[0].Q, ctInMulP.Value[1], accInLoop.Value[1].Q)
+			}
+		} else {
+			if reduce == 0 {
+				ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, diagMatrix[j+i].El().Value[0], ctInRotQP[i].Value[0], accInLoop.Value[0])
+				ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, diagMatrix[j+i].El().Value[0], ctInRotQP[i].Value[1], accInLoop.Value[1])
+			} else {
+				ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, diagMatrix[j+i].El().Value[0], ctInRotQP[i].Value[0], accInLoop.Value[0])
+				ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, diagMatrix[j+i].El().Value[0], ctInRotQP[i].Value[1], accInLoop.Value[1])
+			}
+		}
+
+		if reduce%qiOverFlow == qiOverFlow-1 {
+			ringQ.ReduceLvl(levelQ, accInLoop.Value[0].Q, accInLoop.Value[0].Q)
+			ringQ.ReduceLvl(levelQ, accInLoop.Value[1].Q, accInLoop.Value[1].Q)
+		}
+
+		if reduce%piOverFlow == piOverFlow-1 {
+			ringP.ReduceLvl(levelP, accInLoop.Value[0].P, accInLoop.Value[0].P)
+			ringP.ReduceLvl(levelP, accInLoop.Value[1].P, accInLoop.Value[1].P)
+		}
+
+		reduce++
+	}
+
+	if reduce%qiOverFlow != 0 {
+		ringQ.ReduceLvl(levelQ, accInLoop.Value[0].Q, accInLoop.Value[0].Q)
+		ringQ.ReduceLvl(levelQ, accInLoop.Value[1].Q, accInLoop.Value[1].Q)
+	}
+
+	if reduce%piOverFlow != 0 {
+		ringP.ReduceLvl(levelP, accInLoop.Value[0].P, accInLoop.Value[0].P)
+		ringP.ReduceLvl(levelP, accInLoop.Value[1].P, accInLoop.Value[1].P)
+	}
+}
+
+func innerLoopBSGSDegree2(j int, index []int, levelQ, levelP int, ringQP ringqp.Ring, diagMatrix map[int]OperandQP, ctInMulP *Ciphertext, ctInRotQP map[int]rlwe.CiphertextQP, accInLoop rlwe.CiphertextQP, qiOverFlow, piOverFlow int) {
+
+	var reduce int
+
+	ringQ := ringQP.RingQ
+	ringP := ringQP.RingP
+
+	for _, i := range index {
+		if i == 0 {
+			if reduce == 0 {
+				tensorDegree2Q(levelQ, ringQ, diagMatrix[j].El().Value, ctInMulP.Value, accInLoop.Value)
+			} else {
+				tensorDegree2AndAddQ(levelQ, ringQ, diagMatrix[j].El().Value, ctInMulP.Value, accInLoop.Value)
+			}
+		} else {
+			if reduce == 0 {
+				tensorDegree2QP(levelQ, levelP, ringQP, diagMatrix[j+i].El().Value, ctInRotQP[i].Value, accInLoop.Value)
+			} else {
+				tensorDegree2AndAddQP(levelQ, levelP, ringQP, diagMatrix[j+i].El().Value, ctInRotQP[i].Value, accInLoop.Value)
+			}
+		}
+
+		if reduce%qiOverFlow == qiOverFlow-1 {
+			ringQ.ReduceLvl(levelQ, accInLoop.Value[0].Q, accInLoop.Value[0].Q)
+			ringQ.ReduceLvl(levelQ, accInLoop.Value[1].Q, accInLoop.Value[1].Q)
+			ringQ.ReduceLvl(levelQ, accInLoop.Value[2].Q, accInLoop.Value[2].Q)
+		}
+
+		if reduce%piOverFlow == piOverFlow-1 {
+			ringP.ReduceLvl(levelP, accInLoop.Value[0].P, accInLoop.Value[0].P)
+			ringP.ReduceLvl(levelP, accInLoop.Value[1].P, accInLoop.Value[1].P)
+			ringP.ReduceLvl(levelP, accInLoop.Value[2].P, accInLoop.Value[2].P)
+		}
+
+		reduce++
+	}
+
+	if reduce%qiOverFlow != 0 {
+		ringQ.ReduceLvl(levelQ, accInLoop.Value[0].Q, accInLoop.Value[0].Q)
+		ringQ.ReduceLvl(levelQ, accInLoop.Value[1].Q, accInLoop.Value[1].Q)
+		ringQ.ReduceLvl(levelQ, accInLoop.Value[2].Q, accInLoop.Value[2].Q)
+	}
+
+	if reduce%piOverFlow != 0 {
+		ringP.ReduceLvl(levelP, accInLoop.Value[0].P, accInLoop.Value[0].P)
+		ringP.ReduceLvl(levelP, accInLoop.Value[1].P, accInLoop.Value[1].P)
+		ringP.ReduceLvl(levelP, accInLoop.Value[2].P, accInLoop.Value[2].P)
+	}
+}
+
+func tensorDegree2Q(level int, r *ring.Ring, op0 []ringqp.Poly, op1 []*ring.Poly, op2 []ringqp.Poly) {
+	r.MulCoeffsMontgomeryLvl(level, op0[0].Q, op1[0], op2[0].Q)
+	r.MulCoeffsMontgomeryLvl(level, op0[0].Q, op1[1], op2[1].Q)
+	r.MulCoeffsMontgomeryAndAddLvl(level, op0[1].Q, op1[0], op2[1].Q)
+	r.MulCoeffsMontgomeryLvl(level, op0[1].Q, op1[1], op2[2].Q)
+	op2[0].P.Zero()
+	op2[1].P.Zero()
+	op2[2].P.Zero()
+}
+
+func tensorDegree2AndAddQ(level int, r *ring.Ring, op0 []ringqp.Poly, op1 []*ring.Poly, op2 []ringqp.Poly) {
+	r.MulCoeffsMontgomeryAndAddLvl(level, op0[0].Q, op1[0], op2[0].Q)
+	r.MulCoeffsMontgomeryAndAddLvl(level, op0[0].Q, op1[1], op2[1].Q)
+	r.MulCoeffsMontgomeryAndAddLvl(level, op0[1].Q, op1[0], op2[1].Q)
+	r.MulCoeffsMontgomeryAndAddLvl(level, op0[1].Q, op1[1], op2[2].Q)
+}
+
+func tensorDegree2QP(levelQ, levelP int, r ringqp.Ring, op0, op1, op2 []ringqp.Poly) {
+	r.MulCoeffsMontgomeryLvl(levelQ, levelP, op0[0], op1[0], op2[0])
+	r.MulCoeffsMontgomeryLvl(levelQ, levelP, op0[0], op1[1], op2[1])
+	r.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, op0[1], op1[0], op2[1])
+	r.MulCoeffsMontgomeryLvl(levelQ, levelP, op0[1], op1[1], op2[2])
+}
+
+func tensorDegree2AndAddQP(levelQ, levelP int, r ringqp.Ring, op0, op1, op2 []ringqp.Poly) {
+	r.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, op0[0], op1[0], op2[0])
+	r.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, op0[0], op1[1], op2[1])
+	r.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, op0[1], op1[0], op2[1])
+	r.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, op0[1], op1[1], op2[2])
 }

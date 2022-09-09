@@ -251,10 +251,6 @@ func (el *Ciphertext) RLWEElement() *Ciphertext {
 	return el
 }
 
-func (el *CiphertextQP) CopyNew() *CiphertextQP {
-	return &CiphertextQP{Value: [2]ringqp.Poly{el.Value[0].CopyNew(), el.Value[1].CopyNew()}}
-}
-
 // GetSmallestLargest returns the provided element that has the smallest degree as a first
 // returned value and the largest degree as second return value. If the degree match, the
 // order is the same as for the input.

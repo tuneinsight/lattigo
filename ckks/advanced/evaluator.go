@@ -289,7 +289,7 @@ func (eval *evaluator) EvalModNew(ct *ckks.Ciphertext, evalModPoly EvalModPoly) 
 
 	// ArcSine
 	if evalModPoly.arcSinePoly != nil {
-		if ct, err = eval.EvaluatePoly(ct, evalModPoly.arcSinePoly, ct.Scale()); err != nil {
+		if ct, err = eval.EvaluatePoly(ct, *evalModPoly.arcSinePoly, ct.Scale()); err != nil {
 			panic(err)
 		}
 	}

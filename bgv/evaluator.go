@@ -67,7 +67,8 @@ type Evaluator interface {
 	EvaluatePoly(input interface{}, pol *Polynomial, targetScale uint64) (ctOut *Ciphertext, err error)
 	EvaluatePolyVector(input interface{}, pols []*Polynomial, encoder Encoder, slotIndex map[int][]int, targetScale uint64) (ctOut *Ciphertext, err error)
 
-	// TODO
+	// Linear Transformations
+	RotateHoistedNoModDownNew(level int, rotations []int, c0 *ring.Poly, c2DecompQP []ringqp.Poly) (cOut map[int]rlwe.CiphertextQP)
 	LinearTransformNew(ctIn *Ciphertext, linearTransform interface{}) (ctOut []*Ciphertext)
 	LinearTransform(ctIn *Ciphertext, linearTransform interface{}, ctOut []*Ciphertext)
 	MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTransform, c2DecompQP []ringqp.Poly, ctOut *Ciphertext)
@@ -502,7 +503,7 @@ func (eval *evaluator) mulRelin(ctIn *Ciphertext, op1 Operand, relin bool, ctOut
 			// Yup...
 			ringQ.MulScalarBigintLvl(level, c2, eval.tInvModQ[level], c2)
 
-			eval.GadgetProduct(level, c2, eval.Rlk.Keys[0].GadgetCiphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
+			eval.GadgetProduct(level, c2, eval.Rlk.Keys[0].GadgetCiphertext, rlwe.Ciphertext{Value: []*ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}})
 
 			// It works >.>
 			ringQ.MulScalarAndAddLvl(level, eval.BuffQP[1].Q, eval.params.T(), ctOut.Value[0])
@@ -606,7 +607,7 @@ func (eval *evaluator) mulRelinAndAdd(ctIn *Ciphertext, op1 Operand, relin bool,
 
 			ringQ.MulScalarBigintLvl(level, c2, eval.tInvModQ[level], c2)
 
-			eval.GadgetProduct(level, c2, eval.Rlk.Keys[0].GadgetCiphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
+			eval.GadgetProduct(level, c2, eval.Rlk.Keys[0].GadgetCiphertext, rlwe.Ciphertext{Value: []*ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}})
 
 			ringQ.MulScalarAndAddLvl(level, eval.BuffQP[1].Q, eval.params.T(), c0)
 			ringQ.MulScalarAndAddLvl(level, eval.BuffQP[2].Q, eval.params.T(), c1)
@@ -758,7 +759,7 @@ func (eval *evaluator) Relinearize(ctIn *Ciphertext, ctOut *Ciphertext) {
 	ringQ := eval.params.RingQ()
 
 	ringQ.MulScalarBigintLvl(level, ctIn.Value[2], eval.tInvModQ[level], eval.buffQ[0])
-	eval.GadgetProduct(level, eval.buffQ[0], eval.Rlk.Keys[0].GadgetCiphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
+	eval.GadgetProduct(level, eval.buffQ[0], eval.Rlk.Keys[0].GadgetCiphertext, rlwe.Ciphertext{Value: []*ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}})
 
 	if ctIn != ctOut {
 		ring.CopyValues(ctIn.Value[0], ctOut.Value[0])
@@ -771,7 +772,7 @@ func (eval *evaluator) Relinearize(ctIn *Ciphertext, ctOut *Ciphertext) {
 
 	for deg := ctIn.Degree() - 1; deg > 1; deg-- {
 		ringQ.MulScalarBigintLvl(level, ctIn.Value[deg], eval.tInvModQ[level], eval.buffQ[0])
-		eval.GadgetProduct(level, eval.buffQ[0], eval.Rlk.Keys[deg-2].GadgetCiphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
+		eval.GadgetProduct(level, eval.buffQ[0], eval.Rlk.Keys[deg-2].GadgetCiphertext, rlwe.Ciphertext{Value: []*ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}})
 		ringQ.MulScalarAndAddLvl(level, eval.BuffQP[1].Q, T, ctOut.Value[0])
 		ringQ.MulScalarAndAddLvl(level, eval.BuffQP[2].Q, T, ctOut.Value[1])
 	}
@@ -805,7 +806,7 @@ func (eval *evaluator) SwitchKeys(ctIn *Ciphertext, swk *rlwe.SwitchingKey, ctOu
 	ringQ := eval.params.RingQ()
 
 	ringQ.MulScalarBigintLvl(level, ctIn.Value[1], eval.tInvModQ[level], eval.buffQ[0])
-	eval.GadgetProduct(level, eval.buffQ[0], swk.GadgetCiphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
+	eval.GadgetProduct(level, eval.buffQ[0], swk.GadgetCiphertext, rlwe.Ciphertext{Value: []*ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}})
 
 	if ctOut == ctIn {
 		ringQ.MulScalarAndAddLvl(level, eval.BuffQP[1].Q, eval.params.T(), ctOut.Value[0])
@@ -876,7 +877,7 @@ func (eval *evaluator) Automorphism(ctIn *Ciphertext, galEl uint64, ctOut *Ciphe
 	ringQ := eval.params.RingQ()
 
 	ringQ.MulScalarBigintLvl(level, ctIn.Value[1], eval.tInvModQ[level], eval.buffQ[0])
-	eval.GadgetProduct(level, eval.buffQ[0], rtk.GadgetCiphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
+	eval.GadgetProduct(level, eval.buffQ[0], rtk.GadgetCiphertext, rlwe.Ciphertext{Value: []*ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}})
 	ringQ.MulScalarLvl(level, eval.BuffQP[1].Q, eval.params.T(), eval.BuffQP[1].Q)
 	ringQ.MulScalarLvl(level, eval.BuffQP[2].Q, eval.params.T(), eval.BuffQP[2].Q)
 
@@ -908,7 +909,7 @@ func (eval *evaluator) AutomorphismHoisted(level int, ctIn *Ciphertext, c1Decomp
 
 	ringQ := eval.params.RingQ()
 
-	eval.KeyswitchHoisted(level, c1DecompQP, rtk, eval.BuffQP[0].Q, eval.BuffQP[1].Q, eval.BuffQP[0].P, eval.BuffQP[1].P)
+	eval.GadgetProductHoisted(level, c1DecompQP, rtk.GadgetCiphertext, rlwe.Ciphertext{Value: []*ring.Poly{eval.BuffQP[0].Q, eval.BuffQP[1].Q}})
 	ringQ.MulScalarLvl(level, eval.BuffQP[0].Q, eval.params.T(), eval.BuffQP[0].Q)
 	ringQ.MulScalarLvl(level, eval.BuffQP[1].Q, eval.params.T(), eval.BuffQP[1].Q)
 
@@ -925,14 +926,14 @@ func (eval *evaluator) AutomorphismHoisted(level int, ctIn *Ciphertext, c1Decomp
 	ctOut.Resize(ctOut.Degree(), level)
 }
 
-func (eval *evaluator) rotateHoistedNoModDownNew(level int, rotations []int, c0 *ring.Poly, c2DecompQP []ringqp.Poly) (cOut map[int][2]ringqp.Poly) {
+func (eval *evaluator) RotateHoistedNoModDownNew(level int, rotations []int, c0 *ring.Poly, c2DecompQP []ringqp.Poly) (cOut map[int]rlwe.CiphertextQP) {
 	ringQ := eval.params.RingQ()
 	ringP := eval.params.RingP()
-	cOut = make(map[int][2]ringqp.Poly)
+	cOut = make(map[int]rlwe.CiphertextQP)
 	for _, i := range rotations {
 		if i != 0 {
-			cOut[i] = [2]ringqp.Poly{{Q: ringQ.NewPolyLvl(level), P: ringP.NewPoly()}, {Q: ringQ.NewPolyLvl(level), P: ringP.NewPoly()}}
-			eval.AutomorphismHoistedNoModDown(level, c0, c2DecompQP, eval.params.GaloisElementForColumnRotationBy(i), cOut[i][0].Q, cOut[i][1].Q, cOut[i][0].P, cOut[i][1].P)
+			cOut[i] = rlwe.CiphertextQP{Value: []ringqp.Poly{{Q: ringQ.NewPolyLvl(level), P: ringP.NewPoly()}, {Q: ringQ.NewPolyLvl(level), P: ringP.NewPoly()}}}
+			eval.AutomorphismHoistedNoModDown(level, c0, c2DecompQP, eval.params.GaloisElementForColumnRotationBy(i), cOut[i])
 		}
 	}
 

@@ -58,6 +58,15 @@ func (el *CiphertextQP) El() CiphertextQP {
 	return *el
 }
 
+func (el *CiphertextQP) CopyNew() *CiphertextQP {
+	copy := &CiphertextQP{}
+	copy.Value = make([]ringqp.Poly, el.Degree()+1)
+	for i := range copy.Value {
+		copy.Value[i] = el.Value[i].CopyNew()
+	}
+	return copy
+}
+
 // GetDataLen64 returns the number of bytes that encoding the target
 // would require.
 func (el *CiphertextQP) GetDataLen64(WithMetaData bool) (dataLen int) {

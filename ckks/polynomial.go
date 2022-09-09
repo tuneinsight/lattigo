@@ -1051,7 +1051,7 @@ func (polyEval *dummyPolynomialEvaluator) evaluatePolyFromPolynomialBasisCiphert
 
 	if toEncrypt {
 		if slotsIndex != nil {
-			pt.Scale = targetScale
+			pt.SetScale(targetScale)
 			ecd.Encode(values, pt, params.LogSlots())
 			ct[0] = enc.EncryptNew(pt)
 		} else {
@@ -1090,7 +1090,7 @@ func (polyEval *dummyPolynomialEvaluator) evaluatePolyFromPolynomialBasisCiphert
 		if toEncrypt {
 
 			if slotsIndex != nil {
-				pt.Scale = targetScale / X[i].Scale
+				pt.SetScale(targetScale / X[i].Scale)
 				ecd.Encode(values, pt, params.LogSlots())
 				ct[i] = enc.EncryptNew(pt)
 			} else {

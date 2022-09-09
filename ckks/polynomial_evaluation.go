@@ -45,7 +45,7 @@ func (eval *evaluator) EvaluatePoly(input interface{}, pol Polynomial, targetSca
 		return nil, err
 	}
 
-	opOut.Scale = targetScale // solves float64 precision issues
+	opOut.SetScale(targetScale) // solves float64 precision issues
 
 	polyEval = nil
 	runtime.GC()
@@ -193,7 +193,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPlaintext(pt []*Plaintext) 
 	X := polyEval.PolynomialBasis.Value
 
 	if pt[0] != nil {
-		res = &Ciphertext{Ciphertext: &rlwe.Ciphertext{Value: []*ring.Poly{pt[0].Value.CopyNew()}}, Scale: pt[0].Scale}
+		res = &Ciphertext{Ciphertext: &rlwe.Ciphertext{Value: []*ring.Poly{pt[0].Value.CopyNew()}}, scale: pt[0].scale}
 	}
 
 	for i := 1; i < len(pt); i++ {

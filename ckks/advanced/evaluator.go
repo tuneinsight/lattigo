@@ -7,7 +7,6 @@ import (
 	"github.com/tuneinsight/lattigo/v3/ckks"
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
-	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 )
 
 // Evaluator is an interface embeding the ckks.Evaluator interface with
@@ -58,8 +57,6 @@ type Evaluator interface {
 	InverseNew(ctIn *ckks.Ciphertext, steps int) (ctOut *ckks.Ciphertext)
 	LinearTransformNew(ctIn *ckks.Ciphertext, linearTransform interface{}) (ctOut []*ckks.Ciphertext)
 	LinearTransform(ctIn *ckks.Ciphertext, linearTransform interface{}, ctOut []*ckks.Ciphertext)
-	MultiplyByDiagMatrix(ctIn *ckks.Ciphertext, matrix ckks.LinearTransform, c2DecompQP []ringqp.Poly, ctOut *ckks.Ciphertext)
-	MultiplyByDiagMatrixBSGS(ctIn *ckks.Ciphertext, matrix ckks.LinearTransform, c2DecompQP []ringqp.Poly, ctOut *ckks.Ciphertext)
 	InnerSumLog(ctIn *ckks.Ciphertext, batch, n int, ctOut *ckks.Ciphertext)
 	InnerSum(ctIn *ckks.Ciphertext, batch, n int, ctOut *ckks.Ciphertext)
 	ReplicateLog(ctIn *ckks.Ciphertext, batch, n int, ctOut *ckks.Ciphertext)

@@ -12,6 +12,7 @@ type Encryptor interface {
 	EncryptNew(pt *Plaintext) *Ciphertext
 	ShallowCopy() Encryptor
 	WithKey(key interface{}) Encryptor
+	GetRLWEEncryptor() rlwe.Encryptor
 }
 
 type encryptor struct {
@@ -23,6 +24,11 @@ type encryptor struct {
 // be *rlwe.PublicKey, *rlwe.SecretKey or nil.
 func NewEncryptor(params Parameters, key interface{}) Encryptor {
 	return &encryptor{rlwe.NewEncryptor(params.Parameters, key), params}
+}
+
+// GetRLWEEncryptor returns the underlying rlwe.Encryptor of the target encryptor.
+func (enc *encryptor) GetRLWEEncryptor() rlwe.Encryptor {
+	return enc.Encryptor
 }
 
 // Encrypt encrypts the input plaintext and write the result on ciphertext.

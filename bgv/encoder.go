@@ -35,6 +35,7 @@ type Encoder interface {
 	DecodeCoeffsNew(pt *Plaintext) (values []uint64)
 
 	ShallowCopy() Encoder
+	Parameters() Parameters
 }
 
 // encoder is a structure that stores the parameters to encode values on a plaintext in a SIMD (Single-Instruction Multiple-Data) fashion.
@@ -283,4 +284,9 @@ func (ecd *encoder) ShallowCopy() Encoder {
 		paramsQP:    ecd.paramsQP,
 		qHalf:       ecd.qHalf,
 	}
+}
+
+// Parameters returns the underlying Parameters of the target encoder.
+func (ecd *encoder) Parameters() Parameters {
+	return ecd.params
 }

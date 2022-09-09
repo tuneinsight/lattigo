@@ -509,27 +509,6 @@ func (p Parameters) GaloisElementsForLinearTransform(NonZeroDiags interface{}, L
 	return
 }
 
-// FindBestBSGSSplit finds the best N1*N2 = N for the baby-step giant-step algorithm for matrix multiplication.
-func FindBestBSGSSplit(diagMatrix interface{}, maxN int, maxBSGSratio float64) (minN int) {
-
-	for N1 := 1; N1 < maxN; N1 <<= 1 {
-
-		_, rotN1, rotN2 := BsgsIndex(diagMatrix, maxN, N1)
-
-		nbN1, nbN2 := len(rotN1)-1, len(rotN2)-1
-
-		if float64(nbN2)/float64(nbN1) == maxBSGSratio {
-			return N1
-		}
-
-		if float64(nbN2)/float64(nbN1) > maxBSGSratio {
-			return N1 / 2
-		}
-	}
-
-	return 1
-}
-
 // InverseGaloisElement takes a Galois element and returns the Galois element
 //  corresponding to the inverse automorphism
 func (p Parameters) InverseGaloisElement(galEl uint64) uint64 {

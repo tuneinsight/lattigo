@@ -809,11 +809,11 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 			diagMatrix[1][i] = 1
 		}
 
-		linTransf := GenLinearTransform(tc.encoder, diagMatrix, params.MaxLevel(), 1)
+		linTransf := GenLinearTransform(tc.encoder, nil, diagMatrix, params.MaxLevel(), 1, 0.0)
 
-		rots := linTransf.Rotations()
+		galEls := linTransf.GaloisElements(params.Parameters)
 
-		rotKey := tc.kgen.GenRotationKeysForRotations(rots, false, tc.sk)
+		rotKey := tc.kgen.GenRotationKeys(galEls, tc.sk)
 
 		eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
 
@@ -860,11 +860,11 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 			diagMatrix[15][i] = 1
 		}
 
-		linTransf := GenLinearTransformBSGS(tc.encoder, diagMatrix, params.MaxLevel(), 1, 1.0)
+		linTransf := GenLinearTransform(tc.encoder, nil, diagMatrix, params.MaxLevel(), 1, 2.0)
 
-		rots := linTransf.Rotations()
+		galEls := linTransf.GaloisElements(params.Parameters)
 
-		rotKey := tc.kgen.GenRotationKeysForRotations(rots, false, tc.sk)
+		rotKey := tc.kgen.GenRotationKeys(galEls, tc.sk)
 
 		eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
 

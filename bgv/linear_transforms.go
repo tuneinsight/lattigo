@@ -1,6 +1,8 @@
 package bgv
 
 import (
+	"encoding/binary"
+
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
 	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
@@ -151,83 +153,32 @@ type LinearTransform struct {
 	Scale uint64 // Scale is the scale at which the matrix is encoded (can be circuit dependent)
 }
 
+// MarshalBinary encodes the target LinearTransform on a slice of bytes.
+func (LT *LinearTransform) MarshalBinary() (data []byte, err error) {
+
+	if data, err = LT.LinearTransform.MarshalBinary(); err != nil {
+		return
+	}
+
+	data = append(make([]byte, 8), data...)
+	binary.LittleEndian.PutUint64(data, LT.Scale)
+
+	return
+}
+
+// UnmarshalBinary decodes the input slice of bytes on the target LinearTransform.
+func (LT *LinearTransform) UnmarshalBinary(data []byte) (err error) {
+	LT.Scale = binary.LittleEndian.Uint64(data)
+	return LT.LinearTransform.UnmarshalBinary(data[8:])
+}
+
 // NewLinearTransform allocates a new LinearTransform with zero plaintexts at the specified level.
 // If BSGSRatio == 0, the LinearTransform is set to not use the BSGS approach.
 // Method will panic if BSGSRatio < 0.
 func NewLinearTransform(params Parameters, nonZeroDiags []int, level int, BSGSRatio float64) LinearTransform {
-	vec := make(map[int]rlwe.OperandQP)
-	slots := params.N() >> 1
-	levelQ := level
-	levelP := params.PCount() - 1
-	var N1 int
-	if BSGSRatio == 0 {
-		N1 = 0
-		for _, i := range nonZeroDiags {
-			idx := i
-			if idx < 0 {
-				idx += slots
-			}
-			vec[idx] = &rlwe.PlaintextQP{Value: params.RingQP().NewPolyLvl(levelQ, levelP)}
-		}
-	} else if BSGSRatio > 0 {
-		N1 = FindBestBSGSSplit(nonZeroDiags, slots, BSGSRatio)
-		index, _, _ := rlwe.BsgsIndex(nonZeroDiags, slots, N1)
-		for j := range index {
-			for _, i := range index[j] {
-				vec[j+i] = &rlwe.PlaintextQP{Value: params.RingQP().NewPolyLvl(levelQ, levelP)}
-			}
-		}
-	} else {
-		panic("BSGS ratio cannot be negative")
-	}
-
 	return LinearTransform{
-		LinearTransform: rlwe.LinearTransform{
-			LogSlots: params.LogN() - 1,
-			N1:       N1,
-			Level:    level,
-			Vec:      vec,
-		},
+		LinearTransform: rlwe.NewLinearTransform(params.Parameters, nonZeroDiags, level, params.LogN()-1, BSGSRatio),
 	}
-}
-
-// Rotations returns the list of rotations needed for the evaluation
-// of the linear transform.
-func (LT *LinearTransform) Rotations() (rotations []int) {
-	slots := 1 << LT.LogSlots
-
-	rotIndex := make(map[int]bool)
-
-	var index int
-
-	N1 := LT.N1
-
-	if LT.N1 == 0 {
-
-		for j := range LT.Vec {
-			rotIndex[j] = true
-		}
-
-	} else {
-
-		for j := range LT.Vec {
-
-			index = ((j / N1) * N1) & (slots - 1)
-			rotIndex[index] = true
-
-			index = j & (N1 - 1)
-			rotIndex[index] = true
-		}
-	}
-
-	rotations = make([]int, len(rotIndex))
-	var i int
-	for j := range rotIndex {
-		rotations[i] = j
-		i++
-	}
-
-	return rotations
 }
 
 // Encode encodes on a pre-allocated LinearTransform the linear transforms' matrix in diagonal form `value`.
@@ -238,112 +189,35 @@ func (LT *LinearTransform) Rotations() (rotations []int) {
 // Faster if there is only a few non-zero diagonals but uses more keys.
 func (LT *LinearTransform) Encode(ecd Encoder, dMat map[int][]uint64, scale uint64) {
 
-	enc, ok := ecd.(*encoder)
-	if !ok {
-		panic("encoder should be an encoderComplex128")
-	}
-
-	ringQP := enc.params.RingQP()
+	params := ecd.Parameters()
+	ringQP := params.RingQP()
 
 	levelQ := LT.Level
-	levelP := enc.params.PCount() - 1
+	levelP := params.PCount() - 1
 
-	slots := 1 << LT.LogSlots
-	N1 := LT.N1
+	buffT := params.RingT().NewPoly()
 
-	buffT := enc.params.RingT().NewPoly()
+	encode := func(value interface{}, opQP rlwe.OperandQP) {
 
-	if N1 == 0 {
-		for i := range dMat {
-			idx := i
-			if idx < 0 {
-				idx += slots
-			}
+		ecd.EncodeRingT(value, scale, buffT)
+		ecd.RingT2Q(levelQ, buffT, opQP.El().Value[0].Q)
+		ecd.RingT2Q(levelP, buffT, opQP.El().Value[0].P)
 
-			if _, ok := LT.Vec[idx]; !ok {
-				panic("error encoding on LinearTransform: input does not match the same non-zero diagonals")
-			}
-
-			enc.EncodeRingT(dMat[i], scale, buffT)
-			enc.RingT2Q(levelQ, buffT, LT.Vec[idx].El().Value[0].Q)
-			enc.RingT2Q(levelP, buffT, LT.Vec[idx].El().Value[0].P)
-
-			ringQP.NTTLvl(levelQ, levelP, LT.Vec[idx].El().Value[0], LT.Vec[idx].El().Value[0])
-			ringQP.MFormLvl(levelQ, levelP, LT.Vec[idx].El().Value[0], LT.Vec[idx].El().Value[0])
-		}
-	} else {
-		index, _, _ := rlwe.BsgsIndex(dMat, slots, N1)
-
-		for j := range index {
-			for _, i := range index[j] {
-				// manages inputs that have rotation between 0 and slots-1 or between -slots/2 and slots/2-1
-				v, ok := dMat[j+i]
-				if !ok {
-					v = dMat[j+i-slots]
-				}
-
-				if _, ok := LT.Vec[j+i]; !ok {
-					panic("error encoding on LinearTransform BSGS: input does not match the same non-zero diagonals")
-				}
-
-				enc.EncodeRingT(utils.RotateUint64Slots(v, -j), scale, buffT)
-				enc.RingT2Q(levelQ, buffT, LT.Vec[j+i].El().Value[0].Q)
-				enc.RingT2Q(levelP, buffT, LT.Vec[j+i].El().Value[0].P)
-
-				ringQP.NTTLvl(levelQ, levelP, LT.Vec[j+i].El().Value[0], LT.Vec[j+i].El().Value[0])
-				ringQP.MFormLvl(levelQ, levelP, LT.Vec[j+i].El().Value[0], LT.Vec[j+i].El().Value[0])
-			}
-		}
+		ringQP.NTTLvl(levelQ, levelP, opQP.El().Value[0], opQP.El().Value[0])
+		ringQP.MFormLvl(levelQ, levelP, opQP.El().Value[0], opQP.El().Value[0])
 	}
+
+	LT.LinearTransform.Encode(encode, mapUint64ToMapOfInterface(dMat))
 
 	LT.Scale = scale
 }
 
-// GenLinearTransform allocates and encode a new LinearTransform struct from the linear transforms' matrix in diagonal form `value`.
-// values.(type) can be either map[int][]complex128 or map[int][]float64.
-// User must ensure that 1 <= len([]complex128\[]float64) <= 2^logSlots < 2^logN.
-// It can then be evaluated on a ciphertext using evaluator.LinearTransform.
-// Evaluation will use the naive approach (single hoisting and no baby-step giant-step).
-// Faster if there is only a few non-zero diagonals but uses more keys.
-func GenLinearTransform(ecd Encoder, dMat map[int][]uint64, level int, scale uint64) LinearTransform {
-
-	enc, ok := ecd.(*encoder)
-	if !ok {
-		panic("encoder should be an encoderComplex128")
+func mapUint64ToMapOfInterface(m map[int][]uint64) map[int]interface{} {
+	d := make(map[int]interface{})
+	for i := range m {
+		d[i] = m[i]
 	}
-
-	params := enc.params
-	vec := make(map[int]rlwe.OperandQP)
-	slots := params.N() >> 1
-	levelQ := level
-	levelP := params.PCount() - 1
-	ringQP := params.RingQP()
-	buffT := params.RingT().NewPoly()
-	for i := range dMat {
-
-		idx := i
-		if idx < 0 {
-			idx += slots
-		}
-		vec[idx] = &rlwe.PlaintextQP{Value: params.RingQP().NewPolyLvl(levelQ, levelP)}
-
-		enc.EncodeRingT(dMat[i], scale, buffT)
-		enc.RingT2Q(levelQ, buffT, vec[idx].El().Value[0].Q)
-		enc.RingT2Q(levelP, buffT, vec[idx].El().Value[0].P)
-
-		ringQP.NTTLvl(levelQ, levelP, vec[idx].El().Value[0], vec[idx].El().Value[0])
-		ringQP.MFormLvl(levelQ, levelP, vec[idx].El().Value[0], vec[idx].El().Value[0])
-	}
-
-	return LinearTransform{
-		LinearTransform: rlwe.LinearTransform{
-			LogSlots: params.LogN() - 1,
-			N1:       0,
-			Vec:      vec,
-			Level:    level,
-		},
-		Scale: scale,
-	}
+	return d
 }
 
 // GenLinearTransformBSGS allocates and encodes a new LinearTransform struct from the linear transforms' matrix in diagonal form `value` for evaluation with a baby-step giant-step approach.
@@ -354,80 +228,73 @@ func GenLinearTransform(ecd Encoder, dMat map[int][]uint64, level int, scale uin
 // Faster if there is more than a few non-zero diagonals.
 // BSGSRatio is the maximum ratio between the inner and outer loop of the baby-step giant-step algorithm used in evaluator.LinearTransform.
 // Optimal BSGSRatio value is between 4 and 16 depending on the sparsity of the matrix.
-func GenLinearTransformBSGS(ecd Encoder, dMat map[int][]uint64, level int, scale uint64, BSGSRatio float64) (LT LinearTransform) {
+func GenLinearTransform(ecd Encoder, enc Encryptor, dMat map[int][]uint64, level int, scale uint64, BSGSRatio float64) (LT LinearTransform) {
 
-	enc, ok := ecd.(*encoder)
-	if !ok {
-		panic("cannot GenLinearTransformBSGS: encoder should be an encoderComplex128")
+	if ecd == nil {
+		panic("GenLinearTransformBSGS: ecd cannot be nil")
 	}
 
-	params := enc.params
-
-	slots := params.N() >> 1
-
-	// N1*N2 = N
-	N1 := FindBestBSGSSplit(dMat, slots, BSGSRatio)
-
-	index, _, _ := rlwe.BsgsIndex(dMat, slots, N1)
-
-	vec := make(map[int]rlwe.OperandQP)
-
+	params := ecd.Parameters()
+	ringQP := params.RingQP()
 	levelQ := level
 	levelP := params.PCount() - 1
-	ringQP := params.RingQP()
+
+	var embed func(value interface{}) (opQP rlwe.OperandQP)
 
 	buffT := params.RingT().NewPoly()
 
-	for j := range index {
+	if enc != nil {
 
-		for _, i := range index[j] {
+		pt := &rlwe.PlaintextQP{Value: params.RingQP().NewPolyLvl(levelQ, levelP)}
 
-			// manages inputs that have rotation between 0 and slots-1 or between -slots/2 and slots/2-1
-			v, ok := dMat[j+i]
-			if !ok {
-				v = dMat[j+i-slots]
+		embed = func(value interface{}) (opQP rlwe.OperandQP) {
+
+			ct := &rlwe.CiphertextQP{
+				Value: []ringqp.Poly{
+					params.RingQP().NewPolyLvl(levelQ, levelP),
+					params.RingQP().NewPolyLvl(levelQ, levelP),
+				},
 			}
-			vec[j+i] = &rlwe.PlaintextQP{Value: params.RingQP().NewPolyLvl(levelQ, levelP)}
 
-			enc.EncodeRingT(utils.RotateUint64Slots(v, -j), scale, buffT)
-			enc.RingT2Q(levelQ, buffT, vec[j+i].El().Value[0].Q)
-			enc.RingT2Q(levelP, buffT, vec[j+i].El().Value[0].P)
+			ct.Value[0].Q.IsNTT = true
+			ct.Value[0].P.IsNTT = true
+			ct.Value[1].Q.IsNTT = true
+			ct.Value[1].P.IsNTT = true
 
-			ringQP.NTTLvl(levelQ, levelP, vec[j+i].El().Value[0], vec[j+i].El().Value[0])
-			ringQP.MFormLvl(levelQ, levelP, vec[j+i].El().Value[0], vec[j+i].El().Value[0])
+			enc.GetRLWEEncryptor().EncryptZero(ct)
+
+			ecd.EncodeRingT(value, scale, buffT)
+			ecd.RingT2Q(levelQ, buffT, pt.Value.Q)
+			ecd.RingT2Q(levelP, buffT, pt.Value.P)
+
+			ringQP.NTTLvl(levelQ, levelP, pt.Value, pt.Value)
+			ringQP.MFormLvl(levelQ, levelP, pt.Value, pt.Value)
+
+			params.RingQP().AddLvl(levelQ, levelP, ct.Value[0], pt.Value, ct.Value[0])
+
+			return ct
+		}
+
+	} else {
+		embed = func(value interface{}) (opQP rlwe.OperandQP) {
+
+			pt := &rlwe.PlaintextQP{Value: params.RingQP().NewPolyLvl(levelQ, levelP)}
+
+			ecd.EncodeRingT(value, scale, buffT)
+			ecd.RingT2Q(levelQ, buffT, pt.Value.Q)
+			ecd.RingT2Q(levelP, buffT, pt.Value.P)
+
+			ringQP.NTTLvl(levelQ, levelP, pt.Value, pt.Value)
+			ringQP.MFormLvl(levelQ, levelP, pt.Value, pt.Value)
+
+			return pt
 		}
 	}
 
 	return LinearTransform{
-		LinearTransform: rlwe.LinearTransform{
-			LogSlots: params.LogN() - 1,
-			N1:       N1,
-			Vec:      vec,
-			Level:    level,
-		},
-		Scale: scale,
+		LinearTransform: rlwe.GenLinearTransform(embed, mapUint64ToMapOfInterface(dMat), BSGSRatio, params.LogN()-1),
+		Scale:           scale,
 	}
-}
-
-// FindBestBSGSSplit finds the best N1*N2 = N for the baby-step giant-step algorithm for matrix multiplication.
-func FindBestBSGSSplit(diagMatrix interface{}, maxN int, maxRatio float64) (minN int) {
-
-	for N1 := 1; N1 < maxN; N1 <<= 1 {
-
-		_, rotN1, rotN2 := rlwe.BsgsIndex(diagMatrix, maxN, N1)
-
-		nbN1, nbN2 := len(rotN1)-1, len(rotN2)-1
-
-		if float64(nbN2)/float64(nbN1) == maxRatio {
-			return N1
-		}
-
-		if float64(nbN2)/float64(nbN1) > maxRatio {
-			return N1 / 2
-		}
-	}
-
-	return 1
 }
 
 // LinearTransformNew evaluates a linear transform on the ciphertext and returns the result on a new ciphertext.

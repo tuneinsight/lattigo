@@ -65,6 +65,7 @@ type Encoder interface {
 	GetErrSTDCoeffDomain(valuesWant, valuesHave []complex128, scale float64) (std float64)
 	GetErrSTDSlotDomain(valuesWant, valuesHave []complex128, scale float64) (std float64)
 	ShallowCopy() Encoder
+	Parameters() Parameters
 }
 
 // encoder is a struct storing the necessary parameters to encode a slice of complex number on a Plaintext.
@@ -107,6 +108,11 @@ func (ecd *encoder) ShallowCopy() *encoder {
 		rotGroup:        ecd.rotGroup,
 		gaussianSampler: ring.NewGaussianSampler(prng, ecd.params.RingQ(), ecd.params.Sigma(), int(6*ecd.params.Sigma())),
 	}
+}
+
+// Parameters returns the underlying parameters of the target encoder.
+func (ecd *encoder) Parameters() Parameters {
+	return ecd.params
 }
 
 func newEncoder(params Parameters) encoder {

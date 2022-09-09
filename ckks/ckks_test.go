@@ -1485,7 +1485,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 			diagMatrix[15][i] = complex(1, 0)
 		}
 
-		linTransf := GenLinearTransformBSGS(tc.encoder, diagMatrix, params.MaxLevel(), params.DefaultScale(), 1.0, params.logSlots)
+		linTransf := GenLinearTransform(tc.encoder, nil, diagMatrix, params.MaxLevel(), params.DefaultScale(), 2.0, params.logSlots)
 
 		data, err := linTransf.MarshalBinary()
 		require.Nil(t, err)
@@ -1495,9 +1495,9 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		require.Equal(t, linTransf, newLinTransf)
 
-		rots := linTransf.Rotations()
+		galEls := linTransf.GaloisElements(params.Parameters)
 
-		rotKey := tc.kgen.GenRotationKeysForRotations(rots, false, tc.sk)
+		rotKey := tc.kgen.GenRotationKeys(galEls, tc.sk)
 
 		eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
 
@@ -1550,7 +1550,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 			diagMatrix[15][i] = complex(1, 0)
 		}
 
-		linTransf := GenLinearTransformBSGSEncrypted(tc.encoder, tc.encryptorSk, diagMatrix, params.MaxLevel(), params.DefaultScale(), 1.0, params.logSlots)
+		linTransf := GenLinearTransform(tc.encoder, tc.encryptorSk, diagMatrix, params.MaxLevel(), params.DefaultScale(), 2.0, params.logSlots)
 
 		data, err := linTransf.MarshalBinary()
 		require.Nil(t, err)
@@ -1560,15 +1560,13 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		require.Equal(t, linTransf, newLinTransf)
 
-		rots := linTransf.Rotations()
+		galEls := linTransf.GaloisElements(params.Parameters)
 
-		rotKey := tc.kgen.GenRotationKeysForRotations(rots, false, tc.sk)
+		rotKey := tc.kgen.GenRotationKeys(galEls, tc.sk)
 
 		eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
 
 		eval.LinearTransform(ciphertext1, linTransf, []*Ciphertext{ciphertext1})
-
-		t.Log(ciphertext1.Degree())
 
 		tmp := make([]complex128, params.Slots())
 		copy(tmp, values1)
@@ -1603,11 +1601,11 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 			diagMatrix[0][i] = complex(1, 0)
 		}
 
-		linTransf := GenLinearTransform(tc.encoder, diagMatrix, params.MaxLevel(), params.DefaultScale(), params.LogSlots())
+		linTransf := GenLinearTransform(tc.encoder, nil, diagMatrix, params.MaxLevel(), params.DefaultScale(), 0.0, params.LogSlots())
 
-		rots := linTransf.Rotations()
+		galEls := linTransf.GaloisElements(params.Parameters)
 
-		rotKey := tc.kgen.GenRotationKeysForRotations(rots, false, tc.sk)
+		rotKey := tc.kgen.GenRotationKeys(galEls, tc.sk)
 
 		eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
 

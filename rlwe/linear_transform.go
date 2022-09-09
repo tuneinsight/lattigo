@@ -1,6 +1,8 @@
 package rlwe
 
 import (
+	"encoding/binary"
+	"fmt"
 	"runtime"
 
 	"github.com/tuneinsight/lattigo/v3/ring"
@@ -12,10 +14,10 @@ import (
 // It stores a plaintext matrix diagonalized in diagonal form and
 // can be evaluated on a ciphertext by using the evaluator.LinearTransform method.
 type LinearTransform struct {
-	LogSlots int               // Log of the number of slots of the plaintext (needed to compute the appropriate rotation keys)
-	N1       int               // N1 is the number of inner loops of the baby-step giant-step algorithm used in the evaluation (if N1 == 0, BSGS is not used).
-	Level    int               // Level is the level at which the matrix is encoded (can be circuit dependent)
-	Vec      map[int]OperandQP // Vec is the matrix, in diagonal form, where each entry of vec is an indexed non-zero diagonal.
+	LogDimension int               // Log of the dimension of the linear transform (needed to compute the appropriate rotation keys)
+	N1           int               // N1 is the number of inner loops of the baby-step giant-step algorithm used in the evaluation (if N1 == 0, BSGS is not used).
+	Level        int               // Level is the level at which the matrix is encoded (can be circuit dependent)
+	Vec          map[int]OperandQP // Vec is the matrix, in diagonal form, where each entry of vec is an indexed non-zero diagonal.
 }
 
 func (LT *LinearTransform) IsPlaintext() bool {
@@ -28,6 +30,205 @@ func (LT *LinearTransform) IsPlaintext() bool {
 		}
 	}
 	return false
+}
+
+// NewLinearTransform allocates a new LinearTransform with zero plaintexts at the specified level.
+// If BSGSRatio == 0, the LinearTransform is set to not use the BSGS approach.
+// Method will panic if BSGSRatio < 0.
+func NewLinearTransform(params Parameters, nonZeroDiags []int, level, LogDimension int, BSGSRatio float64) LinearTransform {
+	vec := make(map[int]OperandQP)
+	dimension := 1 << LogDimension
+	levelQ := level
+	levelP := params.PCount() - 1
+	var N1 int
+	if BSGSRatio == 0 {
+		N1 = 0
+		for _, i := range nonZeroDiags {
+			idx := i
+			if idx < 0 {
+				idx += dimension
+			}
+			vec[idx] = &PlaintextQP{Value: params.RingQP().NewPolyLvl(levelQ, levelP)}
+		}
+	} else if BSGSRatio > 0 {
+		N1 = FindBestBSGSSplit(nonZeroDiags, dimension, BSGSRatio)
+		index, _, _ := BsgsIndex(nonZeroDiags, dimension, N1)
+		for j := range index {
+			for _, i := range index[j] {
+				vec[j+i] = &PlaintextQP{Value: params.RingQP().NewPolyLvl(levelQ, levelP)}
+			}
+		}
+	} else {
+		panic("BSGS ratio cannot be negative")
+	}
+
+	return LinearTransform{
+		LogDimension: dimension,
+		N1:           N1,
+		Vec:          vec,
+		Level:        level,
+	}
+}
+
+// Encode encodes on a pre-allocated LinearTransform the linear transforms' matrix in diagonal form `value`.
+// values.(type) can be either map[int][]complex128 or map[int][]float64.
+// User must ensure that 1 <= len([]complex128\[]float64) <= 2^logSlots < 2^logN.
+// It can then be evaluated on a ciphertext using evaluator.LinearTransform.
+// Evaluation will use the naive approach (single hoisting and no baby-step giant-step).
+// Faster if there is only a few non-zero diagonals but uses more keys.
+func (LT *LinearTransform) Encode(encode func(value interface{}, opQP OperandQP), dMat map[int]interface{}) {
+
+	slots := 1 << LT.LogDimension
+	N1 := LT.N1
+
+	if N1 == 0 {
+		for i := range dMat {
+			idx := i
+			if idx < 0 {
+				idx += slots
+			}
+
+			if _, ok := LT.Vec[idx]; !ok {
+				panic("cannot Encode: error encoding on LinearTransform: input does not match the same non-zero diagonals")
+			}
+
+			encode(dMat[i], LT.Vec[idx])
+		}
+	} else {
+		index, _, _ := BsgsIndex(dMat, slots, N1)
+
+		for j := range index {
+			for _, i := range index[j] {
+				// manages inputs that have rotation between 0 and slots-1 or between -slots/2 and slots/2-1
+				v, ok := dMat[j+i]
+				if !ok {
+					v = dMat[j+i-slots]
+				}
+
+				if _, ok := LT.Vec[j+i]; !ok {
+					panic("cannot Encode: error encoding on LinearTransform BSGS: input does not match the same non-zero diagonals")
+				}
+
+				encode(utils.RotateSlice(v, -j), LT.Vec[j+i])
+			}
+		}
+	}
+}
+
+// GenLinearTransform allocates and encodes a new LinearTransform struct from the linear transforms' matrix in diagonal form `value` for evaluation.
+// LinearTransform types can be be evaluated on a ciphertext using evaluator.LinearTransform.
+// BSGSRatio is the maximum ratio between the inner and outer loop of the baby-step giant-step algorithm used in evaluator.LinearTransform.
+// If BSGSRation = 0, then the baby-step giant-step approach will not be used.
+// Optimal BSGSRatio value is between 2 and 16 depending on the sparsity of the matrix.
+func GenLinearTransform(encode func(value interface{}) (opQP OperandQP), dMat map[int]interface{}, BSGSRatio float64, LogDimension int) (LT LinearTransform) {
+
+	dimension := 1 << LogDimension
+
+	vec := make(map[int]OperandQP)
+
+	var N1 int
+	if BSGSRatio == 0 {
+		for i := range dMat {
+			idx := i
+			if idx < 0 {
+				idx += dimension
+			}
+			vec[idx] = encode(dMat[i])
+		}
+	} else {
+
+		// N1*N2 = N
+		N1 = FindBestBSGSSplit(dMat, dimension, BSGSRatio)
+
+		index, _, _ := BsgsIndex(dMat, dimension, N1)
+
+		for j := range index {
+
+			for _, i := range index[j] {
+
+				// manages inputs that have rotation between 0 and slots-1 or between -slots/2 and slots/2-1
+				v, ok := dMat[j+i]
+				if !ok {
+					v = dMat[j+i-dimension]
+				}
+
+				vec[j+i] = encode(utils.RotateSlice(v, -j))
+			}
+		}
+	}
+
+	var level int
+	for i := range vec {
+		level, _ = vec[i].Level()
+		break
+	}
+
+	return LinearTransform{
+		LogDimension: LogDimension,
+		N1:           N1,
+		Vec:          vec,
+		Level:        level,
+	}
+}
+
+// GaloisElements returns the list of Galois elements needed for the evaluation
+// of the linear transform.
+func (LT *LinearTransform) GaloisElements(p Parameters) (galEls []uint64) {
+	dimension := 1 << LT.LogDimension
+
+	rotIndex := make(map[int]bool)
+
+	var index int
+
+	N1 := LT.N1
+
+	if LT.N1 == 0 {
+
+		for j := range LT.Vec {
+			rotIndex[j] = true
+		}
+
+	} else {
+
+		for j := range LT.Vec {
+
+			index = ((j / N1) * N1) & (dimension - 1)
+			rotIndex[index] = true
+
+			index = j & (N1 - 1)
+			rotIndex[index] = true
+		}
+	}
+
+	galEls = make([]uint64, len(rotIndex))
+	var i int
+	for j := range rotIndex {
+		galEls[i] = p.GaloisElementForColumnRotationBy(j)
+		i++
+	}
+
+	return
+}
+
+// FindBestBSGSSplit finds the best N1*N2 = N for the baby-step giant-step algorithm for matrix multiplication.
+func FindBestBSGSSplit(diagMatrix interface{}, maxN int, maxBSGSratio float64) (minN int) {
+
+	for N1 := 1; N1 < maxN; N1 <<= 1 {
+
+		_, rotN1, rotN2 := BsgsIndex(diagMatrix, maxN, N1)
+
+		nbN1, nbN2 := len(rotN1)-1, len(rotN2)-1
+
+		if float64(nbN2)/float64(nbN1) == maxBSGSratio {
+			return N1
+		}
+
+		if float64(nbN2)/float64(nbN1) > maxBSGSratio {
+			return N1 / 2
+		}
+	}
+
+	return 1
 }
 
 // BsgsIndex returns the index map and needed rotation for the BSGS matrix-vector multiplication algorithm.
@@ -93,8 +294,17 @@ func BsgsIndex(el interface{}, slots, N1 int) (index map[int][]int, rotN1, rotN2
 			nonZeroDiags[i] = key
 			i++
 		}
+	case map[int]interface{}:
+		nonZeroDiags = make([]int, len(element))
+		var i int
+		for key := range element {
+			nonZeroDiags[i] = key
+			i++
+		}
 	case []int:
 		nonZeroDiags = element
+	default:
+		panic("BsgsIndex: invalid input")
 	}
 
 	for _, rot := range nonZeroDiags {
@@ -283,7 +493,7 @@ func (eval *Evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearT
 	ctBuffQP := CiphertextQP{Value: []ringqp.Poly{eval.BuffQP[0], eval.BuffQP[1]}}
 
 	// Computes the N2 rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giang-step algorithm
-	index, _, rotN2 := BsgsIndex(matrix.Vec, 1<<matrix.LogSlots, matrix.N1)
+	index, _, rotN2 := BsgsIndex(matrix.Vec, 1<<matrix.LogDimension, matrix.N1)
 
 	// Pre-rotates ciphertext for the baby-step giant-step algorithm, does not divide by P yet
 	ctInRotQP := make(map[int]CiphertextQP)
@@ -522,4 +732,101 @@ func tensorDegree2AndAddQP(levelQ, levelP int, r ringqp.Ring, op0, op1, op2 []ri
 	r.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, op0[0], op1[1], op2[1])
 	r.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, op0[1], op1[0], op2[1])
 	r.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, op0[1], op1[1], op2[2])
+}
+
+// GetDataLen64 returns the size in bytes of the target LinearTransform when
+// encoded on a slice of bytes using MarshalBinary.
+func (LT *LinearTransform) GetDataLen64(WithMetaData bool) (dataLen int) {
+	dataLen += 3*8 + 1
+
+	var opQPLen int
+	for i := range LT.Vec {
+		opQPLen = LT.Vec[i].GetDataLen64(WithMetaData)
+		break
+	}
+
+	return dataLen + len(LT.Vec)*(opQPLen+8)
+}
+
+// MarshalBinary encodes the target LinearTransform on a slice of bytes.
+func (LT *LinearTransform) MarshalBinary() (data []byte, err error) {
+
+	data = make([]byte, LT.GetDataLen64(true))
+
+	var ptr int
+
+	binary.LittleEndian.PutUint64(data[ptr:], uint64(LT.LogDimension))
+	ptr += 8
+	binary.LittleEndian.PutUint64(data[ptr:], uint64(LT.N1))
+	ptr += 8
+	binary.LittleEndian.PutUint64(data[ptr:], uint64(LT.Level))
+	ptr += 8
+
+	for _, diag := range LT.Vec {
+		if diag.Degree() > 0 {
+			data[ptr] = 1
+		}
+		break
+	}
+	ptr++
+
+	var inc int
+	for rot, diag := range LT.Vec {
+
+		binary.BigEndian.PutUint64(data[ptr:], uint64(rot))
+		ptr += 8
+
+		if inc, err = diag.WriteTo64(data[ptr:]); err != nil {
+			return nil, err
+		}
+
+		ptr += inc
+	}
+
+	return
+}
+
+// UnmarshalBinary decodes the input slice of bytes on the target LinearTransform.
+func (LT *LinearTransform) UnmarshalBinary(data []byte) (err error) {
+
+	var ptr int
+
+	LT.LogDimension = int(binary.LittleEndian.Uint64(data[ptr:]))
+	ptr += 8
+	LT.N1 = int(binary.LittleEndian.Uint64(data[ptr:]))
+	ptr += 8
+	LT.Level = int(binary.LittleEndian.Uint64(data[ptr:]))
+	ptr += 8
+
+	LT.Vec = make(map[int]OperandQP)
+
+	encrypted := data[ptr] == 1
+	ptr++
+
+	var inc int
+	for ptr < len(data) {
+
+		rot := int(binary.BigEndian.Uint64(data[ptr:]))
+		ptr += 8
+
+		var diag OperandQP
+		if encrypted {
+			diag = &CiphertextQP{}
+		} else {
+			diag = &PlaintextQP{}
+		}
+
+		if inc, err = diag.Decode64(data[ptr:]); err != nil {
+			return
+		}
+		ptr += inc
+
+		LT.Vec[rot] = diag
+	}
+
+	if ptr != len(data) {
+		return fmt.Errorf("remaining unparsed data")
+	}
+
+	return
 }

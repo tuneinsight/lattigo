@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"github.com/tuneinsight/lattigo/v3/ckks"
+	"github.com/tuneinsight/lattigo/v3/rlwe"
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
@@ -83,7 +84,7 @@ func (mParams *EncodingMatrixLiteral) Rotations() (rotations []int) {
 
 	// Coeffs to Slots rotations
 	for i, pVec := range indexCtS {
-		N1 := ckks.FindBestBSGSSplit(pVec, dslots, mParams.BSGSRatio)
+		N1 := rlwe.FindBestBSGSSplit(pVec, dslots, mParams.BSGSRatio)
 		rotations = addMatrixRotToList(pVec, rotations, N1, slots, mParams.LinearTransformType == SlotsToCoeffs && logSlots < logN-1 && i == 0 && mParams.RepackImag2Real)
 	}
 
@@ -110,7 +111,7 @@ func NewHomomorphicEncodingMatrixFromLiteral(mParams EncodingMatrixLiteral, enco
 	trueDepth := mParams.Depth(true)
 	for i := range mParams.ScalingFactor {
 		for j := range mParams.ScalingFactor[trueDepth-i-1] {
-			matrices[cnt] = ckks.GenLinearTransformBSGS(encoder, pVecDFT[cnt], ctsLevels[cnt], mParams.ScalingFactor[trueDepth-i-1][j], mParams.BSGSRatio, logdSlots)
+			matrices[cnt] = ckks.GenLinearTransform(encoder, nil, pVecDFT[cnt], ctsLevels[cnt], mParams.ScalingFactor[trueDepth-i-1][j], mParams.BSGSRatio, logdSlots)
 			cnt++
 		}
 	}

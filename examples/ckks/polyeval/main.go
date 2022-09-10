@@ -50,7 +50,7 @@ func chebyshevinterpolation() {
 	}
 
 	fmt.Printf("CKKS parameters: logN = %d, logQ = %d, levels = %d, scale= %f, sigma = %f \n",
-		params.LogN(), params.LogQP(), params.MaxLevel()+1, params.DefaultScale(), params.Sigma())
+		params.LogN(), params.LogQP(), params.MaxLevel()+1, params.DefaultScale().Value, params.Sigma())
 
 	fmt.Println()
 	fmt.Printf("Values     : %6f %6f %6f %6f...\n",
@@ -58,7 +58,7 @@ func chebyshevinterpolation() {
 	fmt.Println()
 
 	// Plaintext creation and encoding process
-	plaintext := encoder.EncodeNew(values, params.MaxLevel(), params.DefaultScale(), params.LogSlots())
+	plaintext := encoder.EncodeNew(values, params.MaxLevel(), params.DefaultScale().Value, params.LogSlots())
 
 	// Encryption process
 	var ciphertext *ckks.Ciphertext
@@ -89,7 +89,7 @@ func chebyshevinterpolation() {
 	// Change of variable
 	evaluator.MultByConst(ciphertext, 2/(b-a), ciphertext)
 	evaluator.AddConst(ciphertext, (-a-b)/(b-a), ciphertext)
-	if err := evaluator.Rescale(ciphertext, params.DefaultScale(), ciphertext); err != nil {
+	if err := evaluator.Rescale(ciphertext, params.DefaultScale().Value, ciphertext); err != nil {
 		panic(err)
 	}
 

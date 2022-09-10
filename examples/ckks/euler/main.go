@@ -53,7 +53,7 @@ func example() {
 	fmt.Printf("Done in %s \n", time.Since(start))
 
 	fmt.Println()
-	fmt.Printf("CKKS parameters: logN = %d, logSlots = %d, logQP = %d, levels = %d, scale= %f, sigma = %f \n", params.LogN(), params.LogSlots(), params.LogQP(), params.MaxLevel()+1, params.DefaultScale(), params.Sigma())
+	fmt.Printf("CKKS parameters: logN = %d, logSlots = %d, logQP = %d, levels = %d, scale= %f, sigma = %f \n", params.LogN(), params.LogSlots(), params.LogQP(), params.MaxLevel()+1, params.DefaultScale().Value, params.Sigma())
 
 	fmt.Println()
 	fmt.Println("=========================================")
@@ -74,7 +74,7 @@ func example() {
 		values[i] = complex(2*pi, 0)
 	}
 
-	plaintext := ckks.NewPlaintext(params, params.MaxLevel(), params.DefaultScale()/r)
+	plaintext := ckks.NewPlaintext(params, params.MaxLevel(), &ckks.Scale{Value: params.DefaultScale().Value / r})
 	encoder.Encode(values, plaintext, params.LogSlots())
 
 	fmt.Printf("Done in %s \n", time.Since(start))
@@ -119,7 +119,7 @@ func example() {
 
 	start = time.Now()
 
-	ciphertext.SetScale(ciphertext.Scale() * r)
+	ciphertext.Ciphertext.Scale = &ckks.Scale{Value: ciphertext.Scale() * r}
 
 	fmt.Printf("Done in %s \n", time.Since(start))
 

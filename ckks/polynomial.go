@@ -886,7 +886,7 @@ func (polyEval *dummyPolynomialEvaluator) recurse(targetLevel int, targetScale f
 
 	res = polyEval.recurse(targetLevel+1, targetScale*currentQi/XPow.Scale, coeffsq)
 
-	res.rescale(params, params.DefaultScale())
+	res.rescale(params, params.DefaultScale().Value)
 
 	res.Scale *= XPow.Scale
 
@@ -1024,7 +1024,7 @@ func (polyEval *dummyPolynomialEvaluator) evaluatePolyFromPolynomialBasisCiphert
 	var pt *Plaintext
 	if slotsIndex != nil {
 		values = make([]complex128, params.Slots())
-		pt = NewPlaintext(params, level, 0)
+		pt = NewPlaintext(params, level, &Scale{})
 	} else {
 		values = make([]complex128, 1)
 	}
@@ -1051,11 +1051,11 @@ func (polyEval *dummyPolynomialEvaluator) evaluatePolyFromPolynomialBasisCiphert
 
 	if toEncrypt {
 		if slotsIndex != nil {
-			pt.SetScale(targetScale)
+			pt.Plaintext.Scale = &Scale{targetScale}
 			ecd.Encode(values, pt, params.LogSlots())
 			ct[0] = enc.EncryptNew(pt)
 		} else {
-			ct[0] = enc.EncryptZeroNew(level, targetScale)
+			ct[0] = enc.EncryptZeroNew(level, &Scale{targetScale})
 			addConst(params, ct[0], values[0], ct[0])
 		}
 
@@ -1090,11 +1090,11 @@ func (polyEval *dummyPolynomialEvaluator) evaluatePolyFromPolynomialBasisCiphert
 		if toEncrypt {
 
 			if slotsIndex != nil {
-				pt.SetScale(targetScale / X[i].Scale)
+				pt.Plaintext.Scale = &Scale{targetScale / X[i].Scale}
 				ecd.Encode(values, pt, params.LogSlots())
 				ct[i] = enc.EncryptNew(pt)
 			} else {
-				ct[i] = enc.EncryptZeroNew(level, targetScale/X[i].Scale)
+				ct[i] = enc.EncryptZeroNew(level, &Scale{targetScale / X[i].Scale})
 				addConst(params, ct[i], values[0], ct[i])
 			}
 

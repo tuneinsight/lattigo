@@ -100,7 +100,7 @@ func main() {
 	// LUT inputs and change of scale to ensure that upperbound on the homomorphic
 	// decryption of LWE during the LUT evaluation X^{dec(lwe)} is smaller than N
 	// to avoid negacyclic wrapping of X^{dec(lwe)}.
-	diffScale := paramsN11.QiFloat64(0) / (4.0 * paramsN12.DefaultScale())
+	diffScale := paramsN11.QiFloat64(0) / (4.0 * paramsN12.DefaultScale().Value)
 	normalization := 2.0 / (b - a) // all inputs are normalized before the LUT evaluation.
 
 	// SlotsToCoeffsParameters homomorphic encoding parameters
@@ -136,7 +136,7 @@ func main() {
 	fmt.Printf("Generating LUT... ")
 	now := time.Now()
 	// Generate LUT, provide function, outputscale, ring and interval.
-	LUTPoly := lut.InitLUT(sign, paramsN12.DefaultScale(), paramsN12.RingQ(), a, b)
+	LUTPoly := lut.InitLUT(sign, paramsN12.DefaultScale().Value, paramsN12.RingQ(), a, b)
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
 	// Index of the LUT poly and repacking after evaluating the LUT.
@@ -208,12 +208,12 @@ func main() {
 	now = time.Now()
 	// Homomorphic Decoding: [(a+bi), (c+di)] -> [a, c, b, d]
 	ctN12 = evalCKKS.SlotsToCoeffsNew(ctN12, nil, SlotsToCoeffsMatrix)
-	ctN12.SetScale(paramsN11.QiFloat64(0) / 4.0)
+	ctN12.Ciphertext.Scale = &ckks.Scale{Value: paramsN11.QiFloat64(0) / 4.0}
 
 	// Key-Switch from LogN = 12 to LogN = 10
 	evalCKKS.DropLevel(ctN12, ctN12.Level())                    // drop to LUT level
 	ctTmp := evalCKKSN12ToN11.SwitchKeysNew(ctN12, swkN12ToN11) // key-switch to LWE degree
-	ctN11 := ckks.NewCiphertext(paramsN11, 1, paramsN11.MaxLevel(), ctTmp.Scale())
+	ctN11 := ckks.NewCiphertext(paramsN11, 1, paramsN11.MaxLevel(), &ckks.Scale{Value: ctTmp.Scale()})
 	rlwe.SwitchCiphertextRingDegreeNTT(ctTmp.Ciphertext, paramsN11.RingQ(), paramsN12.RingQ(), ctN11.Ciphertext)
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
@@ -225,7 +225,7 @@ func main() {
 	now = time.Now()
 	// Extracts & EvalLUT(LWEs, indexLUT) on the fly -> Repack(LWEs, indexRepack) -> RLWE
 	ctN12.Ciphertext = evalLUT.EvaluateAndRepack(ctN11.Ciphertext, lutPolyMap, repackIndex, LUTKEY)
-	ctN12.SetScale(paramsN12.DefaultScale())
+	ctN12.Ciphertext.Scale = &ckks.Scale{Value: paramsN12.DefaultScale().Value}
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
 	//for i, v := range encoderN12.DecodeCoeffs(decryptorN12.DecryptNew(ctN12)){

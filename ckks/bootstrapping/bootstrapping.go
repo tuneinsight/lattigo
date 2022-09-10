@@ -67,11 +67,11 @@ func (btp *Bootstrapper) Bootstrap(ctIn *ckks.Ciphertext) (ctOut *ckks.Ciphertex
 	// ctImag = Ecd(imag)
 	// If n < N/2 then ctReal = Ecd(real|imag)
 	ctReal = btp.EvalModNew(ctReal, btp.evalModPoly)
-	ctReal.SetScale(btp.params.DefaultScale())
+	ctReal.Ciphertext.Scale = &ckks.Scale{Value: btp.params.DefaultScale().Value}
 
 	if ctImag != nil {
 		ctImag = btp.EvalModNew(ctImag, btp.evalModPoly)
-		ctImag.SetScale(btp.params.DefaultScale())
+		ctImag.Ciphertext.Scale = &ckks.Scale{Value: btp.params.DefaultScale().Value}
 	}
 
 	// Step 4 : SlotsToCoeffs (Homomorphic decoding)

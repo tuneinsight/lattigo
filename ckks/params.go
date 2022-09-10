@@ -330,7 +330,7 @@ var DefaultPostQuantumConjugateInvariantParams = []ParametersLiteral{PN12QP101CI
 type Parameters struct {
 	rlwe.Parameters
 	logSlots     int
-	defaultScale float64
+	defaultScale *Scale
 }
 
 // NewParameters instantiate a set of CKKS parameters from the generic RLWE parameters and the CKKS-specific ones.
@@ -348,7 +348,7 @@ func NewParameters(rlweParams rlwe.Parameters, logSlots int, defaultScale float6
 		return Parameters{}, fmt.Errorf("defaultScale cannot be zero or negative")
 	}
 
-	return Parameters{rlweParams, logSlots, defaultScale}, nil
+	return Parameters{rlweParams, logSlots, &Scale{defaultScale}}, nil
 }
 
 // NewParametersFromLiteral instantiate a set of CKKS parameters from a ParametersLiteral specification.
@@ -402,7 +402,7 @@ func (p Parameters) ParametersLiteral() (pLit ParametersLiteral) {
 		H:            pRLWELit.H,
 		RingType:     pRLWELit.RingType,
 		LogSlots:     p.LogSlots(),
-		DefaultScale: p.DefaultScale(),
+		DefaultScale: p.DefaultScale().Value,
 	}
 }
 
@@ -446,8 +446,8 @@ func (p Parameters) MaxLogSlots() int {
 }
 
 // DefaultScale returns the default plaintext/ciphertext scale
-func (p Parameters) DefaultScale() float64 {
-	return p.defaultScale
+func (p Parameters) DefaultScale() *Scale {
+	return p.defaultScale.CopyNew().(*Scale)
 }
 
 // LogQLvl returns the size of the modulus Q in bits at a specific level
@@ -523,7 +523,7 @@ func (p Parameters) RotationsForReplicateLog(batch, n int) (rotations []int) {
 func (p Parameters) Equals(other Parameters) bool {
 	res := p.Parameters.Equals(other.Parameters)
 	res = res && (p.logSlots == other.LogSlots())
-	res = res && (p.defaultScale == other.DefaultScale())
+	res = res && (p.defaultScale.Value == other.DefaultScale().Value)
 	return res
 }
 
@@ -554,7 +554,7 @@ func (p Parameters) MarshalBinary() ([]byte, error) {
 	b := utils.NewBuffer(make([]byte, 0, p.MarshalBinarySize()))
 	b.WriteUint8Slice(rlweBytes)
 	b.WriteUint8(uint8(p.logSlots))
-	b.WriteUint64(math.Float64bits(p.defaultScale))
+	b.WriteUint64(math.Float64bits(p.defaultScale.Value))
 	return b.Bytes(), nil
 }
 
@@ -586,7 +586,7 @@ func (p Parameters) MarshalJSON() ([]byte, error) {
 		Sigma:        p.Sigma(),
 		RingType:     p.RingType(),
 		LogSlots:     p.logSlots,
-		DefaultScale: p.defaultScale,
+		DefaultScale: p.defaultScale.Value,
 	},
 	)
 }

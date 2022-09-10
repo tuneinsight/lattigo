@@ -226,9 +226,9 @@ func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey Ev
 	bb.SlotsToCoeffsParameters.LogSlots = params.LogSlots()
 
 	if bb.SlotsToCoeffsParameters.Scaling == 0 {
-		bb.SlotsToCoeffsParameters.Scaling = bb.params.DefaultScale() / (bb.evalModPoly.ScalingFactor() / bb.evalModPoly.MessageRatio())
+		bb.SlotsToCoeffsParameters.Scaling = bb.params.DefaultScale().Value / (bb.evalModPoly.ScalingFactor() / bb.evalModPoly.MessageRatio())
 	} else {
-		bb.SlotsToCoeffsParameters.Scaling *= bb.params.DefaultScale() / (bb.evalModPoly.ScalingFactor() / bb.evalModPoly.MessageRatio())
+		bb.SlotsToCoeffsParameters.Scaling *= bb.params.DefaultScale().Value / (bb.evalModPoly.ScalingFactor() / bb.evalModPoly.MessageRatio())
 	}
 
 	bb.stcMatrices = advanced.NewHomomorphicEncodingMatrixFromLiteral(bb.SlotsToCoeffsParameters, encoder)

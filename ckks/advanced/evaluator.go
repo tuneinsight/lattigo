@@ -125,10 +125,10 @@ func (eval *evaluator) WithKey(evaluationKey rlwe.EvaluationKey) Evaluator {
 // If the packing is sparse (n < N/2), then returns ctReal = Ecd(vReal || vImag) and ctImag = nil.
 // If the packing is dense (n == N/2), then returns ctReal = Ecd(vReal) and ctImag = Ecd(vImag).
 func (eval *evaluator) CoeffsToSlotsNew(ctIn *ckks.Ciphertext, ctsMatrices EncodingMatrix) (ctReal, ctImag *ckks.Ciphertext) {
-	ctReal = ckks.NewCiphertext(eval.params, 1, ctsMatrices.LevelStart, 0)
+	ctReal = ckks.NewCiphertext(eval.params, 1, ctsMatrices.LevelStart, &ckks.Scale{})
 
 	if eval.params.LogSlots() == eval.params.LogN()-1 {
-		ctImag = ckks.NewCiphertext(eval.params, 1, ctsMatrices.LevelStart, 0)
+		ctImag = ckks.NewCiphertext(eval.params, 1, ctsMatrices.LevelStart, &ckks.Scale{})
 	}
 
 	eval.CoeffsToSlots(ctIn, ctsMatrices, ctReal, ctImag)
@@ -154,6 +154,7 @@ func (eval *evaluator) CoeffsToSlots(ctIn *ckks.Ciphertext, ctsMatrices Encoding
 			tmp = ctImag
 		} else {
 			tmp = ckks.NewCiphertextAtLevelFromPoly(ctReal.Level(), [2]*ring.Poly{eval.BuffCt().Value[0], eval.BuffCt().Value[1]})
+			tmp.Ciphertext.Scale = &ckks.Scale{}
 		}
 
 		// Imag part
@@ -185,7 +186,7 @@ func (eval *evaluator) SlotsToCoeffsNew(ctReal, ctImag *ckks.Ciphertext, stcMatr
 		panic("ctReal.Level() or ctImag.Level() < EncodingMatrix.LevelStart")
 	}
 
-	ctOut = ckks.NewCiphertext(eval.params, 1, stcMatrices.LevelStart, ctReal.Scale())
+	ctOut = ckks.NewCiphertext(eval.params, 1, stcMatrices.LevelStart, &ckks.Scale{Value: ctReal.Scale()})
 	eval.SlotsToCoeffs(ctReal, ctImag, stcMatrices, ctOut)
 	return
 
@@ -250,7 +251,7 @@ func (eval *evaluator) EvalModNew(ct *ckks.Ciphertext, evalModPoly EvalModPoly) 
 	prevScaleCt := ct.Scale()
 
 	// Normalize the modular reduction to mod by 1 (division by Q)
-	ct.SetScale(evalModPoly.scalingFactor)
+	ct.Ciphertext.Scale = &ckks.Scale{Value: evalModPoly.scalingFactor}
 
 	var err error
 
@@ -292,6 +293,6 @@ func (eval *evaluator) EvalModNew(ct *ckks.Ciphertext, evalModPoly EvalModPoly) 
 	}
 
 	// Multiplies back by q
-	ct.SetScale(prevScaleCt)
+	ct.Ciphertext.Scale = &ckks.Scale{Value: prevScaleCt}
 	return ct
 }

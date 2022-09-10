@@ -186,10 +186,10 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 	})
 
 	b.Run(GetTestName(tc.params, "Evaluator/Rescale"), func(b *testing.B) {
-		ciphertext1.scale = tc.params.DefaultScale() * tc.params.DefaultScale()
+		ciphertext1.Ciphertext.Scale = &Scale{tc.params.DefaultScale().Value * tc.params.DefaultScale().Value}
 
 		for i := 0; i < b.N; i++ {
-			if err := eval.Rescale(ciphertext1, tc.params.DefaultScale(), ciphertext2); err != nil {
+			if err := eval.Rescale(ciphertext1, tc.params.DefaultScale().Value, ciphertext2); err != nil {
 				panic(err)
 			}
 		}

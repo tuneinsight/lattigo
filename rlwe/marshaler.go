@@ -19,20 +19,22 @@ func (el *Ciphertext) GetDataLen(WithMetaData bool) (dataLen int) {
 		dataLen += el.GetDataLen64(WithMetaData)
 	}
 
-	return dataLen
+	return dataLen + el.Scale.GetDataLen()
 }
 
 // MarshalBinary encodes a Ciphertext on a byte slice. The total size
 // in byte is 4 + 8* N * numberModuliQ * (degree + 1).
 func (el *Ciphertext) MarshalBinary() (data []byte, err error) {
 
-	data = make([]byte, el.GetDataLen(true))
-
-	data[0] = uint8(el.Degree() + 1)
-
 	var ptr, inc int
 
-	ptr = 1
+	data = make([]byte, el.GetDataLen(true))
+
+	el.Scale.Encode(data)
+	ptr += el.Scale.GetDataLen()
+
+	data[ptr] = uint8(el.Degree() + 1)
+	ptr++
 
 	for _, el := range el.Value {
 
@@ -52,10 +54,13 @@ func (el *Ciphertext) UnmarshalBinary(data []byte) (err error) {
 		return errors.New("too small bytearray")
 	}
 
-	el.Value = make([]*ring.Poly, uint8(data[0]))
-
 	var ptr, inc int
-	ptr = 1
+
+	el.Scale.Decode(data)
+	ptr += 8
+
+	el.Value = make([]*ring.Poly, uint8(data[ptr]))
+	ptr++
 
 	for i := range el.Value {
 

@@ -53,7 +53,7 @@ func main() {
 	}
 
 	fmt.Println()
-	fmt.Printf("CKKS parameters: logN = %d, logSlots = %d, H(%d; %d), logQP = %d, levels = %d, scale= 2^%f, sigma = %f \n", params.LogN(), params.LogSlots(), params.HammingWeight(), btpParams.EphemeralSecretWeight, params.LogQP(), params.QCount(), math.Log2(params.DefaultScale()), params.Sigma())
+	fmt.Printf("CKKS parameters: logN = %d, logSlots = %d, H(%d; %d), logQP = %d, levels = %d, scale= 2^%f, sigma = %f \n", params.LogN(), params.LogSlots(), params.HammingWeight(), btpParams.EphemeralSecretWeight, params.LogQP(), params.QCount(), math.Log2(params.DefaultScale().Value), params.Sigma())
 
 	// Scheme context and keys
 	kgen = ckks.NewKeyGenerator(params)
@@ -79,7 +79,7 @@ func main() {
 		valuesWant[i] = utils.RandComplex128(-1, 1)
 	}
 
-	plaintext = encoder.EncodeNew(valuesWant, params.MaxLevel(), params.DefaultScale(), params.LogSlots())
+	plaintext = encoder.EncodeNew(valuesWant, params.MaxLevel(), params.DefaultScale().Value, params.LogSlots())
 
 	// Encrypt
 	ciphertext1 := encryptor.EncryptNew(plaintext)

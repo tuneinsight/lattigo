@@ -10,7 +10,7 @@ type Encryptor interface {
 	Encrypt(plaintext *Plaintext, ciphertext *Ciphertext)
 	EncryptNew(plaintext *Plaintext) *Ciphertext
 	EncryptZero(ciphertext *Ciphertext)
-	EncryptZeroNew(level int, scale float64) *Ciphertext
+	EncryptZeroNew(level int, scale rlwe.Scale) *Ciphertext
 	GetRLWEEncryptor() rlwe.Encryptor
 	ShallowCopy() Encryptor
 	WithKey(key interface{}) Encryptor
@@ -46,13 +46,12 @@ func NewPRNGEncryptor(params Parameters, key *rlwe.SecretKey) PRNGEncryptor {
 // The level of the output ciphertext is min(plaintext.Level(), ciphertext.Level()).
 func (enc *encryptor) Encrypt(plaintext *Plaintext, ciphertext *Ciphertext) {
 	enc.Encryptor.Encrypt(plaintext.Plaintext, ciphertext.Ciphertext)
-	ciphertext.scale = plaintext.scale
 }
 
 // EncryptNew encrypts the input plaintext returns the result as a newly allocated ciphertext.
 // The level of the output ciphertext is min(plaintext.Level(), ciphertext.Level()).
 func (enc *encryptor) EncryptNew(plaintext *Plaintext) (ciphertext *Ciphertext) {
-	ciphertext = NewCiphertext(enc.params, 1, plaintext.Level(), plaintext.scale)
+	ciphertext = NewCiphertext(enc.params, 1, plaintext.Level(), plaintext.Plaintext.Scale)
 	enc.Encryptor.Encrypt(plaintext.Plaintext, ciphertext.Ciphertext)
 	return
 }
@@ -66,10 +65,10 @@ func (enc *encryptor) EncryptZero(ciphertext *Ciphertext) {
 // EncryptZero generates an encryption of zero at the given level and scale and returns the
 // result as a newly allocated ciphertext.
 // Note that the Scale field of an encryption of zero can be changed arbitrarily, without requiring a Rescale.
-func (enc *encryptor) EncryptZeroNew(level int, scale float64) *Ciphertext {
-	ct := NewCiphertext(enc.params, 1, level, scale)
+func (enc *encryptor) EncryptZeroNew(level int, scale rlwe.Scale) (ct *Ciphertext) {
+	ct = NewCiphertext(enc.params, 1, level, scale)
 	enc.Encryptor.EncryptZero(ct.Ciphertext)
-	return ct
+	return
 }
 
 // ShallowCopy creates a shallow copy of this encryptor in which all the read-only data-structures are

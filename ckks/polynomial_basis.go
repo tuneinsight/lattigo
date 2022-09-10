@@ -187,14 +187,14 @@ func (eval *evaluator) genPolynomialBasis(input interface{}, pol Polynomial) (mo
 
 	for i := (1 << baby) - 1; i > 1; i-- {
 		if !(even || odd) || (i&1 == 0 && even) || (i&1 == 1 && odd) {
-			if err = monomialBasis.GenPower(i, isRingStandard, eval.params.DefaultScale(), eval); err != nil {
+			if err = monomialBasis.GenPower(i, isRingStandard, eval.params.DefaultScale().Value, eval); err != nil {
 				return nil, err
 			}
 		}
 	}
 
 	for i := baby; i < giant; i++ {
-		if err = monomialBasis.GenPower(1<<i, false, eval.params.DefaultScale(), eval); err != nil {
+		if err = monomialBasis.GenPower(1<<i, false, eval.params.DefaultScale().Value, eval); err != nil {
 			return nil, err
 		}
 	}

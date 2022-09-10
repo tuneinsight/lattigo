@@ -18,7 +18,7 @@ func (eval *evaluator) PowerOf2(op *Ciphertext, logPow2 int, opOut *Ciphertext) 
 
 		eval.MulRelin(op, op, opOut)
 
-		if err := eval.Rescale(opOut, op.scale, opOut); err != nil {
+		if err := eval.Rescale(opOut, op.Scale(), opOut); err != nil {
 			panic(err)
 		}
 
@@ -26,7 +26,7 @@ func (eval *evaluator) PowerOf2(op *Ciphertext, logPow2 int, opOut *Ciphertext) 
 
 			eval.MulRelin(opOut, opOut, opOut)
 
-			if err := eval.Rescale(opOut, op.scale, opOut); err != nil {
+			if err := eval.Rescale(opOut, op.Scale(), opOut); err != nil {
 				panic(err)
 			}
 		}
@@ -36,7 +36,7 @@ func (eval *evaluator) PowerOf2(op *Ciphertext, logPow2 int, opOut *Ciphertext) 
 // PowerNew computes op^degree, consuming log(degree) levels, and returns the result on a new element. Providing an evaluation
 // key is necessary when degree > 2.
 func (eval *evaluator) PowerNew(op *Ciphertext, degree int) (opOut *Ciphertext) {
-	opOut = NewCiphertext(eval.params, 1, op.Level(), op.scale)
+	opOut = NewCiphertext(eval.params, 1, op.Level(), op.Ciphertext.Scale)
 	eval.Power(op, degree, opOut)
 	return
 }
@@ -65,13 +65,13 @@ func (eval *evaluator) Power(op *Ciphertext, degree int, opOut *Ciphertext) {
 		logDegree = bits.Len64(uint64(degree)) - 1
 		po2Degree = 1 << logDegree
 
-		tmp := NewCiphertext(eval.params, 1, tmpct0.Level(), tmpct0.scale)
+		tmp := NewCiphertext(eval.params, 1, tmpct0.Level(), tmpct0.Ciphertext.Scale)
 
 		eval.PowerOf2(tmpct0, logDegree, tmp)
 
 		eval.MulRelin(opOut, tmp, opOut)
 
-		if err := eval.Rescale(opOut, op.scale, opOut); err != nil {
+		if err := eval.Rescale(opOut, op.Scale(), opOut); err != nil {
 			panic(err)
 		}
 
@@ -94,7 +94,7 @@ func (eval *evaluator) InverseNew(op *Ciphertext, steps int) (opOut *Ciphertext)
 
 		eval.MulRelin(cbar, cbar, cbar)
 
-		if err := eval.Rescale(cbar, op.scale, cbar); err != nil {
+		if err := eval.Rescale(cbar, op.Scale(), cbar); err != nil {
 			panic(err)
 		}
 
@@ -102,7 +102,7 @@ func (eval *evaluator) InverseNew(op *Ciphertext, steps int) (opOut *Ciphertext)
 
 		eval.MulRelin(tmp, opOut, tmp)
 
-		if err := eval.Rescale(tmp, op.scale, tmp); err != nil {
+		if err := eval.Rescale(tmp, op.Scale(), tmp); err != nil {
 			panic(err)
 		}
 

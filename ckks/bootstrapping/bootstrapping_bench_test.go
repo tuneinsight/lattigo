@@ -37,7 +37,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 			bootstrappingScale := math.Exp2(math.Round(math.Log2(btp.params.QiFloat64(0) / btp.evalModPoly.MessageRatio())))
 
 			b.StopTimer()
-			ct := ckks.NewCiphertext(params, 1, 0, bootstrappingScale)
+			ct := ckks.NewCiphertext(params, 1, 0, &ckks.Scale{Value: bootstrappingScale})
 			b.StartTimer()
 
 			var t time.Time
@@ -61,18 +61,18 @@ func BenchmarkBootstrapp(b *testing.B) {
 			// Part 2 : SineEval
 			t = time.Now()
 			ct0 = btp.EvalModNew(ct0, btp.evalModPoly)
-			ct0.SetScale(btp.params.DefaultScale())
+			ct0.Ciphertext.Scale = &ckks.Scale{Value: btp.params.DefaultScale().Value}
 
 			if ct1 != nil {
 				ct1 = btp.EvalModNew(ct1, btp.evalModPoly)
-				ct1.SetScale(btp.params.DefaultScale())
+				ct1.Ciphertext.Scale = &ckks.Scale{Value: btp.params.DefaultScale().Value}
 			}
 			b.Log("After Sine   :", time.Since(t), ct0.Level(), ct0.Scale())
 
 			// Part 3 : Slots to coeffs
 			t = time.Now()
 			ct0 = btp.SlotsToCoeffsNew(ct0, ct1, btp.stcMatrices)
-			ct0.SetScale(math.Exp2(math.Round(math.Log2(ct0.Scale()))))
+			ct0.Ciphertext.Scale = &ckks.Scale{Value: math.Exp2(math.Round(math.Log2(ct0.Scale())))}
 			b.Log("After StC    :", time.Since(t), ct0.Level(), ct0.Scale())
 		}
 	})

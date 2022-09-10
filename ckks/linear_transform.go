@@ -29,13 +29,13 @@ import (
 //       = [8 + 0X + 0X^2 - 0X^3 + 0X^4 + 0X^5 + 0X^6 - 0X^7]
 func (eval *evaluator) Trace(ctIn *Ciphertext, logSlots int, ctOut *Ciphertext) {
 	eval.Evaluator.Trace(ctIn.Ciphertext, logSlots, ctOut.Ciphertext)
-	ctOut.scale = ctIn.scale
+	ctOut.Ciphertext.Scale = &Scale{ctIn.Scale()}
 }
 
 // TraceNew maps X -> sum((-1)^i * X^{i*n+1}) for 0 <= i < N and returns the result on a new ciphertext.
 // For log(n) = logSlots.
 func (eval *evaluator) TraceNew(ctIn *Ciphertext, logSlots int) (ctOut *Ciphertext) {
-	ctOut = NewCiphertext(eval.params, 1, ctIn.Level(), ctIn.scale)
+	ctOut = NewCiphertext(eval.params, 1, ctIn.Level(), ctIn.Ciphertext.Scale)
 	eval.Trace(ctIn, logSlots, ctOut)
 	return
 }
@@ -45,7 +45,7 @@ func (eval *evaluator) TraceNew(ctIn *Ciphertext, logSlots int) (ctOut *Cipherte
 func (eval *evaluator) RotateHoistedNew(ctIn *Ciphertext, rotations []int) (ctOut map[int]*Ciphertext) {
 	ctOut = make(map[int]*Ciphertext)
 	for _, i := range rotations {
-		ctOut[i] = NewCiphertext(eval.params, 1, ctIn.Level(), ctIn.scale)
+		ctOut[i] = NewCiphertext(eval.params, 1, ctIn.Level(), ctIn.Ciphertext.Scale)
 	}
 	eval.RotateHoisted(ctIn, rotations, ctOut)
 	return
@@ -59,7 +59,7 @@ func (eval *evaluator) RotateHoisted(ctIn *Ciphertext, rotations []int, ctOut ma
 	eval.DecomposeNTT(levelQ, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], eval.BuffDecompQP)
 	for _, i := range rotations {
 		eval.AutomorphismHoisted(levelQ, ctIn.Ciphertext, eval.BuffDecompQP, eval.params.GaloisElementForColumnRotationBy(i), ctOut[i].Ciphertext)
-		ctOut[i].scale = ctIn.scale
+		ctOut[i].Ciphertext.Scale = &Scale{ctIn.Scale()}
 	}
 }
 
@@ -220,11 +220,11 @@ func (eval *evaluator) LinearTransformNew(ctIn *Ciphertext, linearTransform inte
 		minLevel := utils.MinInt(maxLevel, ctIn.Level())
 
 		for i := range LTs {
-			ctOut[i] = NewCiphertext(eval.params, 1, minLevel, ctIn.scale)
+			ctOut[i] = NewCiphertext(eval.params, 1, minLevel, ctIn.Ciphertext.Scale)
 		}
 
 	case LinearTransform:
-		ctOut = []*Ciphertext{NewCiphertext(eval.params, 1, utils.MinInt(LTs.Level, ctIn.Level()), ctIn.scale)}
+		ctOut = []*Ciphertext{NewCiphertext(eval.params, 1, utils.MinInt(LTs.Level, ctIn.Level()), ctIn.Ciphertext.Scale)}
 	}
 
 	eval.LinearTransform(ctIn, linearTransform, ctOut)
@@ -257,7 +257,7 @@ func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfa
 				eval.MultiplyByDiagMatrixBSGS(ctIn.Ciphertext, LT.LinearTransform, eval.BuffDecompQP, ctOut[i].Ciphertext)
 			}
 
-			ctOut[i].SetScale(ctOut[i].Scale() * LT.Scale)
+			ctOut[i].Ciphertext.Scale = &Scale{ctOut[i].Scale() * LT.Scale}
 		}
 
 	case LinearTransform:
@@ -269,7 +269,7 @@ func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfa
 			eval.MultiplyByDiagMatrixBSGS(ctIn.Ciphertext, LTs.LinearTransform, eval.BuffDecompQP, ctOut[0].Ciphertext)
 		}
 
-		ctOut[0].SetScale(ctOut[0].Scale() * LTs.Scale)
+		ctOut[0].Ciphertext.Scale = &Scale{ctOut[0].Scale() * LTs.Scale}
 	}
 }
 
@@ -328,7 +328,7 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 	levelP := len(ringP.Modulus) - 1
 
 	ctOut.Resize(ctOut.Degree(), levelQ)
-	ctOut.scale = ctIn.scale
+	ctOut.Ciphertext.Scale = &Scale{ctIn.Scale()}
 
 	if n == 1 {
 		if ctIn != ctOut {
@@ -452,7 +452,7 @@ func (eval *evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 	PiOverF := eval.params.PiOverflowMargin(levelP) >> 1
 
 	ctOut.Resize(ctOut.Degree(), levelQ)
-	ctOut.scale = ctIn.scale
+	ctOut.Ciphertext.Scale = &Scale{ctIn.Scale()}
 
 	// If sum with only the first element, then returns the input
 	if n == 1 {

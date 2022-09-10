@@ -128,7 +128,7 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 
 		// Normalization
 		eval.MultByConst(ciphertext, 1/(float64(evm.K)*evm.QDiff()), ciphertext)
-		if err := eval.Rescale(ciphertext, params.DefaultScale(), ciphertext); err != nil {
+		if err := eval.Rescale(ciphertext, params.DefaultScale().Value, ciphertext); err != nil {
 			t.Error(err)
 		}
 
@@ -173,7 +173,7 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 
 		// Normalization
 		eval.MultByConst(ciphertext, 1/(float64(evm.K)*evm.QDiff()), ciphertext)
-		if err := eval.Rescale(ciphertext, params.DefaultScale(), ciphertext); err != nil {
+		if err := eval.Rescale(ciphertext, params.DefaultScale().Value, ciphertext); err != nil {
 			t.Error(err)
 		}
 

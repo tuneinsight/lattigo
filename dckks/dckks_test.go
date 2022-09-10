@@ -206,7 +206,7 @@ func testKeyswitching(tc *testContext, t *testing.T) {
 					}
 				}
 
-				ksCiphertext := ckks.NewCiphertext(params, 1, ciphertext.Level(), ciphertext.Scale()/2)
+				ksCiphertext := ckks.NewCiphertext(params, 1, ciphertext.Level(), &ckks.Scale{Value: ciphertext.Scale() / 2})
 
 				P0.cks.KeySwitch(ciphertext, P0.share, ksCiphertext)
 
@@ -254,7 +254,7 @@ func testPublicKeySwitching(tc *testContext, t *testing.T) {
 				}
 				P0 := pcksParties[0]
 
-				ciphertextSwitched := ckks.NewCiphertext(params, 1, ciphertext.Level(), ciphertext.Scale())
+				ciphertextSwitched := ckks.NewCiphertext(params, 1, ciphertext.Level(), &ckks.Scale{Value: ciphertext.Scale()})
 
 				for i, p := range pcksParties {
 					p.GenShare(p.s, pk1, ciphertext.Value[1], p.share)
@@ -280,7 +280,7 @@ func testE2SProtocol(tc *testContext, t *testing.T) {
 
 		var minLevel, logBound int
 		var ok bool
-		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.DefaultScale(), tc.NParties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
+		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.DefaultScale().Value, tc.NParties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
 			t.Skip("Not enough levels to ensure correcness and 128 security")
 		}
 
@@ -332,7 +332,7 @@ func testE2SProtocol(tc *testContext, t *testing.T) {
 			}
 		}
 
-		pt := ckks.NewPlaintext(params, ciphertext.Level(), ciphertext.Scale())
+		pt := ckks.NewPlaintext(params, ciphertext.Level(), &ckks.Scale{Value: ciphertext.Scale()})
 		pt.Value.IsNTT = false
 		tc.ringQ.SetCoefficientsBigintLvl(pt.Level(), rec.Value, pt.Value)
 
@@ -347,7 +347,7 @@ func testE2SProtocol(tc *testContext, t *testing.T) {
 			}
 		}
 
-		ctRec := ckks.NewCiphertext(params, 1, params.Parameters.MaxLevel(), ciphertext.Scale())
+		ctRec := ckks.NewCiphertext(params, 1, params.Parameters.MaxLevel(), &ckks.Scale{Value: ciphertext.Scale()})
 		P[0].s2e.GetEncryption(P[0].publicShareS2E, crp, ctRec)
 
 		verifyTestVectors(tc, tc.decryptorSk0, coeffs, ctRec, t)
@@ -366,7 +366,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 
 		var minLevel, logBound int
 		var ok bool
-		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.DefaultScale(), tc.NParties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
+		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.DefaultScale().Value, tc.NParties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
 			t.Skip("Not enough levels to ensure correcness and 128 security")
 		}
 
@@ -395,7 +395,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 
 		P0 := RefreshParties[0]
 
-		for _, scale := range []float64{params.DefaultScale(), params.DefaultScale() * 128} {
+		for _, scale := range []float64{params.DefaultScale().Value, params.DefaultScale().Value * 128} {
 			t.Run(fmt.Sprintf("atScale=%f", scale), func(t *testing.T) {
 				coeffs, _, ciphertext := newTestVectorsAtScale(tc, encryptorPk0, -1, 1, scale)
 
@@ -434,7 +434,7 @@ func testRefreshAndTransform(tc *testContext, t *testing.T) {
 
 		var minLevel, logBound int
 		var ok bool
-		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.DefaultScale(), tc.NParties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
+		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.DefaultScale().Value, tc.NParties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
 			t.Skip("Not enough levels to ensure correcness and 128 security")
 		}
 
@@ -514,7 +514,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 
 		var minLevel, logBound int
 		var ok bool
-		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.DefaultScale(), tc.NParties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
+		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.DefaultScale().Value, tc.NParties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
 			t.Skip("Not enough levels to ensure correcness and 128 security")
 		}
 
@@ -618,7 +618,7 @@ func testMarshalling(tc *testContext, t *testing.T) {
 
 		var minLevel, logBound int
 		var ok bool
-		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.DefaultScale(), tc.NParties, params.Q()); ok != true {
+		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.DefaultScale().Value, tc.NParties, params.Q()); ok != true {
 			t.Skip("Not enough levels to ensure correcness and 128 security")
 		}
 
@@ -663,7 +663,7 @@ func testMarshalling(tc *testContext, t *testing.T) {
 }
 
 func newTestVectors(testContext *testContext, encryptor ckks.Encryptor, a, b complex128) (values []complex128, plaintext *ckks.Plaintext, ciphertext *ckks.Ciphertext) {
-	return newTestVectorsAtScale(testContext, encryptor, a, b, testContext.params.DefaultScale())
+	return newTestVectorsAtScale(testContext, encryptor, a, b, testContext.params.DefaultScale().Value)
 }
 
 func newTestVectorsAtScale(testContext *testContext, encryptor ckks.Encryptor, a, b complex128, scale float64) (values []complex128, plaintext *ckks.Plaintext, ciphertext *ckks.Ciphertext) {

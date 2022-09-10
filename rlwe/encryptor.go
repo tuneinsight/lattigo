@@ -145,13 +145,18 @@ func (enc *pkEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
 	if pt == nil {
 		enc.EncryptZero(ct)
 	} else {
-		switch el := ct.(type) {
+		switch ct := ct.(type) {
 		case *Ciphertext:
 			if enc.params.PCount() > 0 {
-				enc.encrypt(pt, el)
+				enc.encrypt(pt, ct)
 			} else {
-				enc.encryptNoP(pt, el)
+				enc.encryptNoP(pt, ct)
 			}
+
+			if pt.Scale != nil {
+				ct.Scale = pt.Scale.CopyNew()
+			}
+
 		default:
 			panic("cannot Encrypt: input ciphertext type unsupported (must be *rlwe.Ciphertext or *rgsw.Ciphertext)")
 		}
@@ -353,13 +358,18 @@ func (enc *skEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
 	if pt == nil {
 		enc.EncryptZero(ct)
 	} else {
-		switch el := ct.(type) {
+		switch ct := ct.(type) {
 		case *Ciphertext:
-			enc.uniformSampler.ReadLvl(utils.MinInt(pt.Level(), el.Level()), -1, ringqp.Poly{Q: el.Value[1]})
-			enc.encryptRLWE(pt, el.Value[0], el.Value[1])
+			enc.uniformSampler.ReadLvl(utils.MinInt(pt.Level(), ct.Level()), -1, ringqp.Poly{Q: ct.Value[1]})
+			enc.encryptRLWE(pt, ct.Value[0], ct.Value[1])
+
+			if pt.Scale != nil {
+				ct.Scale = pt.Scale.CopyNew()
+			}
+
 		case *ring.Poly:
-			enc.uniformSampler.ReadLvl(utils.MinInt(pt.Level(), el.Level()), -1, ringqp.Poly{Q: enc.buffQ[1]})
-			enc.encryptRLWE(pt, el, enc.buffQ[1])
+			enc.uniformSampler.ReadLvl(utils.MinInt(pt.Level(), ct.Level()), -1, ringqp.Poly{Q: enc.buffQ[1]})
+			enc.encryptRLWE(pt, ct, enc.buffQ[1])
 		default:
 			panic("cannot Encrypt: input ciphertext type unsuported (must be *rlwe.Ciphertext or *rgsw.Ciphertext)")
 		}

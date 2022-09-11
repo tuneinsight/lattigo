@@ -18,6 +18,7 @@ type LinearTransform struct {
 	N1           int               // N1 is the number of inner loops of the baby-step giant-step algorithm used in the evaluation (if N1 == 0, BSGS is not used).
 	Level        int               // Level is the level at which the matrix is encoded (can be circuit dependent)
 	Vec          map[int]OperandQP // Vec is the matrix, in diagonal form, where each entry of vec is an indexed non-zero diagonal.
+	Scale        Scale
 }
 
 func (LT *LinearTransform) IsPlaintext() bool {
@@ -349,6 +350,10 @@ func (eval *Evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTrans
 
 	ctOut.Resize(ctOut.Degree(), levelQ)
 
+	if ctIn.Scale != nil{
+		ctOut.Scale = ctIn.Scale.CopyNew()
+	}
+
 	QiOverF := eval.params.QiOverflowMargin(levelQ)
 	PiOverF := eval.params.PiOverflowMargin(levelP)
 
@@ -450,6 +455,10 @@ func (eval *Evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearT
 	levelP := len(ringP.Modulus) - 1
 
 	ctOut.Resize(ctOut.Degree(), levelQ)
+
+	if ctIn.Scale != nil{
+		ctOut.Scale = ctIn.Scale.CopyNew()
+	}
 
 	QiOverF := eval.params.QiOverflowMargin(levelQ) >> 1
 	PiOverF := eval.params.PiOverflowMargin(levelP) >> 1

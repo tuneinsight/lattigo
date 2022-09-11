@@ -12,24 +12,25 @@ type Ciphertext struct {
 }
 
 // NewCiphertext returns a new Element with zero values.
-func NewCiphertext(params Parameters, degree, level int) *Ciphertext {
-	el := new(Ciphertext)
+func NewCiphertext(params Parameters, degree, level int) (el *Ciphertext) {
+	el = new(Ciphertext)
 	el.Value = make([]*ring.Poly, degree+1)
 	for i := 0; i < degree+1; i++ {
 		el.Value[i] = ring.NewPoly(params.N(), level)
 	}
-	return el
+	return
 }
 
 // NewCiphertextNTT returns a new Element with zero values and the NTT flags set.
-func NewCiphertextNTT(params Parameters, degree, level int) *Ciphertext {
-	el := new(Ciphertext)
+func NewCiphertextNTT(params Parameters, degree, level int) (el *Ciphertext) {
+	el = new(Ciphertext)
 	el.Value = make([]*ring.Poly, degree+1)
 	for i := 0; i < degree+1; i++ {
 		el.Value[i] = ring.NewPoly(params.N(), level)
 		el.Value[i].IsNTT = true
 	}
-	return el
+
+	return
 }
 
 // NewCiphertextAtLevelFromPoly constructs a new Ciphetext at a specific level
@@ -114,6 +115,10 @@ func SwitchCiphertextRingDegreeNTT(ctIn *Ciphertext, ringQSmallDim, ringQLargeDi
 			ring.MapSmallDimensionToLargerDimensionNTT(ctIn.Value[i], ctOut.Value[i])
 		}
 	}
+
+	if ctIn.Scale != nil{
+		ctOut.Scale = ctIn.Scale.CopyNew()
+	}
 }
 
 // SwitchCiphertextRingDegree changes the ring degree of ctIn to the one of ctOut.
@@ -137,6 +142,10 @@ func SwitchCiphertextRingDegree(ctIn *Ciphertext, ctOut *Ciphertext) {
 			}
 		}
 	}
+
+	if ctIn.Scale != nil{
+		ctOut.Scale = ctIn.Scale.CopyNew()
+	}
 }
 
 // CopyNew creates a new element as a copy of the target element.
@@ -149,8 +158,10 @@ func (el *Ciphertext) CopyNew() *Ciphertext {
 		ctxCopy.Value[i] = el.Value[i].CopyNew()
 	}
 	
-	ctxCopy.Scale = el.Scale.CopyNew()
-
+	if el.Scale != nil{
+		ctxCopy.Scale = el.Scale.CopyNew()
+	}
+	
 	return ctxCopy
 }
 
@@ -161,7 +172,9 @@ func (el *Ciphertext) Copy(ctxCopy *Ciphertext) {
 			el.Value[i].Copy(ctxCopy.Value[i])
 		}
 
-		el.Scale = ctxCopy.Scale.CopyNew()
+		if el.Scale != nil{
+			el.Scale = ctxCopy.Scale.CopyNew()
+		}	
 	}
 }
 

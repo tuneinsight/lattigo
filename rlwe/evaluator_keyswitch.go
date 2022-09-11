@@ -22,6 +22,10 @@ func (eval *Evaluator) SwitchKeys(ctIn *Ciphertext, switchingKey *SwitchingKey, 
 
 	ringQ.AddLvl(level, ctIn.Value[0], eval.BuffQP[1].Q, ctOut.Value[0])
 	ring.CopyValuesLvl(level, eval.BuffQP[2].Q, ctOut.Value[1])
+
+	if ctIn.Scale != nil{
+		ctOut.Scale = ctIn.Scale.CopyNew()
+	}
 }
 
 // Relinearize applies the relinearization procedure on ct0 and returns the result in ctOut.
@@ -49,4 +53,8 @@ func (eval *Evaluator) Relinearize(ctIn *Ciphertext, ctOut *Ciphertext) {
 	ctOut.Value = ctOut.Value[:2]
 
 	ctOut.Resize(ctOut.Degree(), level)
+
+	if ctIn.Scale != nil{
+		ctOut.Scale = ctIn.Scale.CopyNew()
+	}
 }

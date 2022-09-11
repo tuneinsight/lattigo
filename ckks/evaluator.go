@@ -439,12 +439,12 @@ func (eval *evaluator) Neg(ct0 *Ciphertext, ctOut *Ciphertext) {
 		eval.params.RingQ().NegLvl(level, ct0.Value[i], ctOut.Value[i])
 	}
 
-	ctOut.Ciphertext.Scale.Set(ct0.Scale())
+	ctOut.Scale().Set(ct0.Scale())
 }
 
 // NegNew negates ct0 and returns the result in a newly created element.
 func (eval *evaluator) NegNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
-	ctOut = NewCiphertext(eval.params, ct0.Degree(), ct0.Level(), ct0.Ciphertext.Scale)
+	ctOut = NewCiphertext(eval.params, ct0.Degree(), ct0.Level(), ct0.Scale())
 	eval.Neg(ct0, ctOut)
 	return
 }
@@ -530,7 +530,7 @@ func addConst(params Parameters, ct0 *Ciphertext, constant interface{}, ctOut *C
 
 	ringQ := params.RingQ()
 
-	ctOut.Ciphertext.Scale.Set(ct0.Scale())
+	ctOut.Scale().Set(ct0.Scale())
 
 	scale := CheckScaleType(ctOut.Scale()).Value
 
@@ -679,7 +679,7 @@ func (eval *evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interface{}, 
 // The scale of the output element will depend on the scale of the input element and the constant (if the constant
 // needs to be scaled (its rational part is not zero)). The constant can be a uint64, int64, float64 or complex128.
 func (eval *evaluator) MultByConstNew(ct0 *Ciphertext, constant interface{}) (ctOut *Ciphertext) {
-	ctOut = NewCiphertext(eval.params, ct0.Degree(), ct0.Level(), ct0.Ciphertext.Scale)
+	ctOut = NewCiphertext(eval.params, ct0.Degree(), ct0.Level(), ct0.Scale())
 	eval.MultByConst(ct0, constant, ctOut)
 	return
 }
@@ -852,7 +852,7 @@ func (eval *evaluator) MultByiNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 		panic("method MultByi is not supported when params.RingType() == ring.ConjugateInvariant")
 	}
 
-	ctOut = NewCiphertext(eval.params, 1, ct0.Level(), ct0.Ciphertext.Scale)
+	ctOut = NewCiphertext(eval.params, 1, ct0.Level(), ct0.Scale())
 	eval.MultByi(ct0, ctOut)
 	return ctOut
 }
@@ -904,7 +904,7 @@ func (eval *evaluator) DivByiNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 		panic("method DivByi is not supported when params.RingType() == ring.ConjugateInvariant")
 	}
 
-	ctOut = NewCiphertext(eval.params, 1, ct0.Level(), ct0.Ciphertext.Scale)
+	ctOut = NewCiphertext(eval.params, 1, ct0.Level(), ct0.Scale())
 	eval.DivByi(ct0, ctOut)
 	return
 }
@@ -1000,7 +1000,7 @@ func (eval *evaluator) DropLevel(ct0 *Ciphertext, levels int) {
 // Returns an error if "threshold <= 0", ct.scale = 0, ct.Level() = 0, ct.IsNTT() != true
 func (eval *evaluator) RescaleNew(ct0 *Ciphertext, minScale rlwe.Scale) (ctOut *Ciphertext, err error) {
 
-	ctOut = NewCiphertext(eval.params, ct0.Degree(), ct0.Level(), ct0.Ciphertext.Scale)
+	ctOut = NewCiphertext(eval.params, ct0.Degree(), ct0.Level(), ct0.Scale())
 
 	return ctOut, eval.Rescale(ct0, minScale, ctOut)
 }
@@ -1274,7 +1274,7 @@ func (eval *evaluator) mulRelinAndAdd(ctIn *Ciphertext, op1 Operand, relin bool,
 // RelinearizeNew applies the relinearization procedure on ct0 and returns the result in a newly
 // created Ciphertext. The input Ciphertext must be of degree two.
 func (eval *evaluator) RelinearizeNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
-	ctOut = NewCiphertext(eval.params, 1, ct0.Level(), ct0.Ciphertext.Scale)
+	ctOut = NewCiphertext(eval.params, 1, ct0.Level(), ct0.Scale())
 	eval.Relinearize(ct0, ctOut)
 	return
 }
@@ -1282,14 +1282,13 @@ func (eval *evaluator) RelinearizeNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 // Relinearize applies the relinearization procedure on ct0 and returns the result in ctOut. The input Ciphertext must be of degree two.
 func (eval *evaluator) Relinearize(ct0 *Ciphertext, ctOut *Ciphertext) {
 	eval.Evaluator.Relinearize(ct0.Ciphertext, ctOut.Ciphertext)
-	ctOut.Scale().Set(ct0.Scale())
 }
 
 // SwitchKeysNew re-encrypts ct0 under a different key and returns the result in a newly created element.
 // It requires a SwitchingKey, which is computed from the key under which the Ciphertext is currently encrypted,
 // and the key under which the Ciphertext will be re-encrypted.
 func (eval *evaluator) SwitchKeysNew(ct0 *Ciphertext, switchingKey *rlwe.SwitchingKey) (ctOut *Ciphertext) {
-	ctOut = NewCiphertext(eval.params, ct0.Degree(), ct0.Level(), ct0.Ciphertext.Scale)
+	ctOut = NewCiphertext(eval.params, ct0.Degree(), ct0.Level(), ct0.Scale())
 	eval.SwitchKeys(ct0, switchingKey, ctOut)
 	return
 }
@@ -1299,13 +1298,12 @@ func (eval *evaluator) SwitchKeysNew(ct0 *Ciphertext, switchingKey *rlwe.Switchi
 // and the key under which the Ciphertext will be re-encrypted.
 func (eval *evaluator) SwitchKeys(ctIn *Ciphertext, switchingKey *rlwe.SwitchingKey, ctOut *Ciphertext) {
 	eval.Evaluator.SwitchKeys(ctIn.Ciphertext, switchingKey, ctOut.Ciphertext)
-	ctOut.Scale().Set(ctIn.Scale())
 }
 
 // RotateNew rotates the columns of ct0 by k positions to the left, and returns the result in a newly created element.
 // If the provided element is a Ciphertext, a key-switching operation is necessary and a rotation key for the specific rotation needs to be provided.
 func (eval *evaluator) RotateNew(ct0 *Ciphertext, k int) (ctOut *Ciphertext) {
-	ctOut = NewCiphertext(eval.params, ct0.Degree(), ct0.Level(), ct0.Ciphertext.Scale)
+	ctOut = NewCiphertext(eval.params, ct0.Degree(), ct0.Level(), ct0.Scale())
 	eval.Rotate(ct0, k, ctOut)
 	return
 }
@@ -1314,7 +1312,6 @@ func (eval *evaluator) RotateNew(ct0 *Ciphertext, k int) (ctOut *Ciphertext) {
 // If the provided element is a Ciphertext, a key-switching operation is necessary and a rotation key for the specific rotation needs to be provided.
 func (eval *evaluator) Rotate(ct0 *Ciphertext, k int, ctOut *Ciphertext) {
 	eval.Automorphism(ct0.Ciphertext, eval.params.GaloisElementForColumnRotationBy(k), ctOut.Ciphertext)
-	ctOut.Scale().Set(ct0.Scale())
 }
 
 // ConjugateNew conjugates ct0 (which is equivalent to a row rotation) and returns the result in a newly
@@ -1326,7 +1323,7 @@ func (eval *evaluator) ConjugateNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 		panic("cannot ConjugateNew: method is not supported when params.RingType() == ring.ConjugateInvariant")
 	}
 
-	ctOut = NewCiphertext(eval.params, ct0.Degree(), ct0.Level(), ct0.Ciphertext.Scale)
+	ctOut = NewCiphertext(eval.params, ct0.Degree(), ct0.Level(), ct0.Scale())
 	eval.Conjugate(ct0, ctOut)
 	return
 }
@@ -1340,7 +1337,6 @@ func (eval *evaluator) Conjugate(ct0 *Ciphertext, ctOut *Ciphertext) {
 	}
 
 	eval.Automorphism(ct0.Ciphertext, eval.params.GaloisElementForRowRotation(), ctOut.Ciphertext)
-	ctOut.Scale().Set(ct0.Scale())
 }
 
 func (eval *evaluator) RotateHoistedNoModDownNew(level int, rotations []int, c0 *ring.Poly, c2DecompQP []ringqp.Poly) (cOut map[int]rlwe.CiphertextQP) {

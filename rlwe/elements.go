@@ -11,6 +11,10 @@ type Scale interface {
 	Mul(scale interface{})
 	Div(scale interface{})
 	Get() interface{}
+	Max(scale interface{}) (max Scale)
+	Min(scale interface{}) (min Scale)
+	Equal(scale interface{}) (cmp bool)
+	Compare(scale interface{}) (cmp int)
 	CopyNew() Scale
 	GetDataLen() int
 	Encode(data []byte)

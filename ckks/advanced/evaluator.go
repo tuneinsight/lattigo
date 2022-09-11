@@ -18,13 +18,9 @@ type Evaluator interface {
 	// =======================================
 
 	Add(ctIn *ckks.Ciphertext, op1 ckks.Operand, ctOut *ckks.Ciphertext)
-	AddNoMod(ctIn *ckks.Ciphertext, op1 ckks.Operand, ctOut *ckks.Ciphertext)
 	AddNew(ctIn *ckks.Ciphertext, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
-	AddNoModNew(ctIn *ckks.Ciphertext, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
 	Sub(ctIn *ckks.Ciphertext, op1 ckks.Operand, ctOut *ckks.Ciphertext)
-	SubNoMod(ctIn *ckks.Ciphertext, op1 ckks.Operand, ctOut *ckks.Ciphertext)
 	SubNew(ctIn *ckks.Ciphertext, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
-	SubNoModNew(ctIn *ckks.Ciphertext, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
 	Neg(ctIn *ckks.Ciphertext, ctOut *ckks.Ciphertext)
 	NegNew(ctIn *ckks.Ciphertext) (ctOut *ckks.Ciphertext)
 	AddConstNew(ctIn *ckks.Ciphertext, constant interface{}) (ctOut *ckks.Ciphertext)
@@ -48,8 +44,6 @@ type Evaluator interface {
 	Rotate(ctIn *ckks.Ciphertext, k int, ctOut *ckks.Ciphertext)
 	RotateHoistedNew(ctIn *ckks.Ciphertext, rotations []int) (ctOut map[int]*ckks.Ciphertext)
 	RotateHoisted(ctIn *ckks.Ciphertext, rotations []int, ctOut map[int]*ckks.Ciphertext)
-	MulByPow2New(ctIn *ckks.Ciphertext, pow2 int) (ctOut *ckks.Ciphertext)
-	MulByPow2(ctIn *ckks.Ciphertext, pow2 int, ctOut *ckks.Ciphertext)
 	PowerOf2(ctIn *ckks.Ciphertext, logPow2 int, ctOut *ckks.Ciphertext)
 	Power(ctIn *ckks.Ciphertext, degree int, ctOut *ckks.Ciphertext)
 	PowerNew(ctIn *ckks.Ciphertext, degree int) (ctOut *ckks.Ciphertext)
@@ -73,8 +67,6 @@ type Evaluator interface {
 	Rescale(ctIn *ckks.Ciphertext, minScale rlwe.Scale, ctOut *ckks.Ciphertext) (err error)
 	DropLevelNew(ctIn *ckks.Ciphertext, levels int) (ctOut *ckks.Ciphertext)
 	DropLevel(ctIn *ckks.Ciphertext, levels int)
-	ReduceNew(ctIn *ckks.Ciphertext) (ctOut *ckks.Ciphertext)
-	Reduce(ctIn *ckks.Ciphertext, ctOut *ckks.Ciphertext) error
 
 	// ======================================
 	// === advanced.Evaluator new methods ===
@@ -209,7 +201,7 @@ func (eval *evaluator) SlotsToCoeffs(ctReal, ctImag *ckks.Ciphertext, stcMatrice
 
 func (eval *evaluator) dft(ctIn *ckks.Ciphertext, plainVectors []ckks.LinearTransform, ctOut *ckks.Ciphertext) {
 	// Sequentially multiplies w with the provided dft matrices.
-	scale := ctIn.Scale()
+	scale := ctIn.Scale().CopyNew()
 	var in, out *ckks.Ciphertext
 	for i, plainVector := range plainVectors {
 		in, out = ctOut, ctOut
@@ -269,7 +261,7 @@ func (eval *evaluator) EvalModNew(ct *ckks.Ciphertext, evalModPoly EvalModPoly) 
 	}
 
 	// Chebyshev evaluation
-	if ct, err = eval.EvaluatePoly(ct, evalModPoly.sinePoly, &ckks.Scale{targetScale}); err != nil {
+	if ct, err = eval.EvaluatePoly(ct, evalModPoly.sinePoly, &ckks.Scale{Value:targetScale}); err != nil {
 		panic(err)
 	}
 
@@ -280,7 +272,7 @@ func (eval *evaluator) EvalModNew(ct *ckks.Ciphertext, evalModPoly EvalModPoly) 
 		eval.MulRelin(ct, ct, ct)
 		eval.Add(ct, ct, ct)
 		eval.AddConst(ct, -sqrt2pi, ct)
-		if err := eval.Rescale(ct, &ckks.Scale{targetScale}, ct); err != nil {
+		if err := eval.Rescale(ct, &ckks.Scale{Value:targetScale}, ct); err != nil {
 			panic(err)
 		}
 	}

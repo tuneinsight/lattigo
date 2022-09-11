@@ -453,7 +453,7 @@ func testEvaluatorRescale(tc *testContext, t *testing.T) {
 
 		tc.evaluator.MultByConst(ciphertext, constant, ciphertext)
 
-		ciphertext.Ciphertext.Scale = &Scale{ciphertext.Scale().(*Scale).Value * float64(constant)}
+		ciphertext.Scale().Mul(float64(constant))
 
 		if err := tc.evaluator.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
 			t.Error(err)
@@ -478,7 +478,7 @@ func testEvaluatorRescale(tc *testContext, t *testing.T) {
 		for i := 0; i < nbRescales; i++ {
 			constant := tc.ringQ.Modulus[ciphertext.Level()-i]
 			tc.evaluator.MultByConst(ciphertext, constant, ciphertext)
-			ciphertext.Ciphertext.Scale = &Scale{ciphertext.Scale().(*Scale).Value * float64(constant)}
+			ciphertext.Scale().Mul(float64(constant))
 		}
 
 		if err := tc.evaluator.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
@@ -736,7 +736,8 @@ func testEvaluatorMulAndAdd(tc *testContext, t *testing.T) {
 			values1[i] = values1[i] * values2[i]
 		}
 
-		ciphertext3 := NewCiphertext(tc.params, 2, ciphertext1.Level(), &Scale{ciphertext1.Scale().(*Scale).Value * ciphertext2.Scale().(*Scale).Value})
+		ciphertext3 := NewCiphertext(tc.params, 2, ciphertext1.Level(), ciphertext1.Scale())
+		ciphertext3.Scale().Mul(ciphertext2.Scale())
 		tc.evaluator.MulAndAdd(ciphertext1, ciphertext2, ciphertext3)
 
 		require.Equal(t, ciphertext3.Degree(), 2)
@@ -1208,7 +1209,7 @@ func testBridge(tc *testContext, t *testing.T) {
 
 		values, _, ctCI := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-		stdCTHave := NewCiphertext(stdParams, ctCI.Degree(), ctCI.Level(), &Scale{ctCI.Scale().(*Scale).Value})
+		stdCTHave := NewCiphertext(stdParams, ctCI.Degree(), ctCI.Level(), ctCI.Scale())
 
 		switcher.RealToComplex(eval, ctCI, stdCTHave)
 
@@ -1217,7 +1218,7 @@ func testBridge(tc *testContext, t *testing.T) {
 		stdCTImag := stdEvaluator.MultByiNew(stdCTHave)
 		stdEvaluator.Add(stdCTHave, stdCTImag, stdCTHave)
 
-		ciCTHave := NewCiphertext(ciParams, 1, stdCTHave.Level(), &Scale{stdCTHave.Scale().(*Scale).Value})
+		ciCTHave := NewCiphertext(ciParams, 1, stdCTHave.Level(), stdCTHave.Scale())
 		switcher.ComplexToReal(eval, stdCTHave, ciCTHave)
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciCTHave, ciParams.LogSlots(), 0, t)
@@ -1275,7 +1276,7 @@ func testAutomorphisms(tc *testContext, t *testing.T) {
 
 		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-		ciphertext2 := NewCiphertext(tc.params, ciphertext1.Degree(), ciphertext1.Level(), &Scale{ciphertext1.Scale().(*Scale).Value})
+		ciphertext2 := NewCiphertext(tc.params, ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.Scale())
 
 		for _, n := range rots {
 			evaluator.Rotate(ciphertext1, n, ciphertext2)
@@ -1708,7 +1709,7 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 
 			require.Equal(t, ciphertext.Degree(), 0)
 			require.Equal(t, ciphertext.Level(), testctx.params.MaxLevel())
-			require.Equal(t, ciphertext.Scale().(*Scale).Value, testctx.params.DefaultScale().(*Scale).Value)
+			require.True(t, ciphertext.Scale().Equal(testctx.params.DefaultScale()))
 			require.Equal(t, len(ciphertext.Value), 1)
 		})
 	})

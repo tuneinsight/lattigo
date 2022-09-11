@@ -29,7 +29,7 @@ import (
 //       = [8 + 0X + 0X^2 - 0X^3 + 0X^4 + 0X^5 + 0X^6 - 0X^7]
 func (eval *evaluator) Trace(ctIn *Ciphertext, logSlots int, ctOut *Ciphertext) {
 	eval.Evaluator.Trace(ctIn.Ciphertext, logSlots, ctOut.Ciphertext)
-	ctOut.Ciphertext.Scale = &Scale{ctIn.Scale().(*Scale).Value}
+	ctOut.Scale().Set(ctIn.Scale())
 }
 
 // TraceNew maps X -> sum((-1)^i * X^{i*n+1}) for 0 <= i < N and returns the result on a new ciphertext.
@@ -59,7 +59,7 @@ func (eval *evaluator) RotateHoisted(ctIn *Ciphertext, rotations []int, ctOut ma
 	eval.DecomposeNTT(levelQ, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], eval.BuffDecompQP)
 	for _, i := range rotations {
 		eval.AutomorphismHoisted(levelQ, ctIn.Ciphertext, eval.BuffDecompQP, eval.params.GaloisElementForColumnRotationBy(i), ctOut[i].Ciphertext)
-		ctOut[i].Ciphertext.Scale = &Scale{ctIn.Scale().(*Scale).Value}
+		ctOut[i].Scale().Set(ctIn.Scale())
 	}
 }
 
@@ -220,7 +220,7 @@ func (eval *evaluator) LinearTransformNew(ctIn *Ciphertext, linearTransform inte
 		minLevel := utils.MinInt(maxLevel, ctIn.Level())
 
 		for i := range LTs {
-			ctOut[i] = NewCiphertext(eval.params, 1, minLevel, ctIn.Ciphertext.Scale)
+			ctOut[i] = NewCiphertext(eval.params, 1, minLevel, ctIn.Scale())
 		}
 
 	case LinearTransform:
@@ -257,7 +257,8 @@ func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfa
 				eval.MultiplyByDiagMatrixBSGS(ctIn.Ciphertext, LT.LinearTransform, eval.BuffDecompQP, ctOut[i].Ciphertext)
 			}
 
-			ctOut[i].Ciphertext.Scale = &Scale{ctOut[i].Scale().(*Scale).Value * LT.Scale}
+			ctOut[i].Scale().Set(ctIn.Scale())
+			ctOut[i].Scale().Mul(LT.Scale)
 		}
 
 	case LinearTransform:
@@ -269,7 +270,9 @@ func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfa
 			eval.MultiplyByDiagMatrixBSGS(ctIn.Ciphertext, LTs.LinearTransform, eval.BuffDecompQP, ctOut[0].Ciphertext)
 		}
 
-		ctOut[0].Ciphertext.Scale = &Scale{ctOut[0].Scale().(*Scale).Value * LTs.Scale}
+		//ctOut[0].Ciphertext.Scale = &Scale{ctIn.Scale().(*Scale).Value * LTs.Scale}
+		ctOut[0].Scale().Set(ctIn.Scale())
+		ctOut[0].Scale().Mul(LTs.Scale)
 	}
 }
 

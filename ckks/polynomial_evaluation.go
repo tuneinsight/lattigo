@@ -7,8 +7,8 @@ import (
 	"runtime"
 
 	"github.com/tuneinsight/lattigo/v3/ring"
-	"github.com/tuneinsight/lattigo/v3/utils"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
 // EvaluatePoly evaluates a polynomial in standard basis on the input Ciphertext in ceil(log2(deg+1)) levels.
@@ -35,7 +35,7 @@ func (eval *evaluator) EvaluatePoly(input interface{}, pol Polynomial, targetSca
 	polyEval.PolynomialBasis = *monomialBasis
 	polyEval.giant, polyEval.baby = pol.BSGSSplit()
 
-	if opOut, err = polyEval.recurse(monomialBasis.Value[1].Level()-polyEval.giant+1, targetScale.(*Scale).Value, evalPoly{&pol, true, pol.Degree()}); err != nil {
+	if opOut, err = polyEval.recurse(monomialBasis.Value[1].Level()-polyEval.giant+1, targetScale, evalPoly{&pol, true, pol.Degree()}); err != nil {
 		return nil, err
 	}
 
@@ -45,7 +45,7 @@ func (eval *evaluator) EvaluatePoly(input interface{}, pol Polynomial, targetSca
 		return nil, err
 	}
 
-	opOut.Ciphertext.Scale = &Scale{targetScale.(*Scale).Value} // solves float64 precision issues
+	opOut.Scale().Set(targetScale) // solves float64 precision issues
 
 	polyEval = nil
 	runtime.GC()
@@ -101,7 +101,7 @@ func (p *evalPoly) splitBSGS(split int) (polyq, polyr evalPoly) {
 	return
 }
 
-func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale float64, pol evalPoly) (res *Ciphertext, err error) {
+func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale rlwe.Scale, pol evalPoly) (res *Ciphertext, err error) {
 
 	params := polyEval.Evaluator.(*evaluator).params
 
@@ -126,7 +126,7 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale float6
 		}
 
 		if pol.lead {
-			targetScale *= params.QiFloat64(targetLevel)
+			targetScale.Mul(params.QiFloat64(targetLevel))
 		}
 
 		switch poly := pol.coefficients.(type) {
@@ -158,7 +158,11 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale float6
 		currentQi = params.QiFloat64(targetLevel + 1)
 	}
 
-	if res, err = polyEval.recurse(targetLevel+1, targetScale*currentQi/XPow.Scale().(*Scale).Value, coeffsq); err != nil {
+	newScale := targetScale.CopyNew()
+	newScale.Mul(currentQi)
+	newScale.Div(XPow.Scale())
+
+	if res, err = polyEval.recurse(targetLevel+1, newScale, coeffsq); err != nil {
 		return nil, err
 	}
 
@@ -175,7 +179,7 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale float6
 	}
 
 	var tmp *Ciphertext
-	if tmp, err = polyEval.recurse(res.Level(), res.Scale().(*Scale).Value, coeffsr); err != nil {
+	if tmp, err = polyEval.recurse(res.Level(), res.Scale(), coeffsr); err != nil {
 		return nil, err
 	}
 
@@ -230,7 +234,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromCiphertext(ct []*Ciphertext
 	return
 }
 
-func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasisComplex128(targetScale float64, level int, pol *coefficientsComplex128) (res *Ciphertext, err error) {
+func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasisComplex128(targetScale rlwe.Scale, level int, pol *coefficientsComplex128) (res *Ciphertext, err error) {
 
 	X := polyEval.PolynomialBasis.Value
 
@@ -267,7 +271,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasisComplex128(t
 		if minimumDegreeNonZeroCoefficient == 0 {
 
 			// Allocates the output ciphertext
-			res = NewCiphertext(params, 1, level, &Scale{targetScale})
+			res = NewCiphertext(params, 1, level, targetScale)
 
 			// Looks for non-zero coefficients among the degree 0 coefficients of the polynomials
 			for i, c := range pol.coeffs {
@@ -282,7 +286,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasisComplex128(t
 			// If a non-zero coefficient was found, encode the values, adds on the ciphertext, and returns
 			if toEncode {
 				pt := NewPlaintextAtLevelFromPoly(level, res.Value[0])
-				pt.Plaintext.Scale = &Scale{res.Scale().(*Scale).Value}
+				pt.Plaintext.Scale = res.Scale().CopyNew()
 				polyEval.EncodeSlots(values, pt, params.LogSlots())
 			}
 
@@ -290,10 +294,11 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasisComplex128(t
 		}
 
 		// Allocates the output ciphertext
-		res = NewCiphertext(params, maximumCiphertextDegree, level, &Scale{targetScale})
+		res = NewCiphertext(params, maximumCiphertextDegree, level, targetScale)
 
 		// Allocates a temporary plaintext to encode the values
 		pt := NewPlaintextAtLevelFromPoly(level, polyEval.Evaluator.BuffCt().Value[0])
+		pt.Plaintext.Scale = NewScale()
 
 		// Looks for a non-zero coefficient among the degree zero coefficient of the polynomials
 		for i, c := range pol.coeffs {
@@ -308,7 +313,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasisComplex128(t
 		// If a non-zero degre coefficient was found, encode and adds the values on the output
 		// ciphertext
 		if toEncode {
-			pt.Plaintext.Scale = &Scale{res.Scale().(*Scale).Value}
+			pt.Scale().Set(res.Scale())
 			polyEval.EncodeSlots(values, pt, params.LogSlots())
 			polyEval.Add(res, pt, res)
 			toEncode = false
@@ -347,7 +352,8 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasisComplex128(t
 			// If a non-zero degre coefficient was found, encode and adds the values on the output
 			// ciphertext
 			if toEncode {
-				pt.Plaintext.Scale = &Scale{targetScale / X[key].Scale().(*Scale).Value}
+				pt.Scale().Set(targetScale)
+				pt.Scale().Div(X[key].Scale())
 				polyEval.EncodeSlots(values, pt, params.LogSlots())
 				polyEval.MulAndAdd(X[key], pt, res)
 				toEncode = false
@@ -360,7 +366,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasisComplex128(t
 
 		if minimumDegreeNonZeroCoefficient == 0 {
 
-			res = NewCiphertext(params, 1, level, &Scale{targetScale})
+			res = NewCiphertext(params, 1, level, targetScale)
 
 			if isNotNegligible(c) {
 				polyEval.AddConst(res, c, res)
@@ -369,7 +375,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasisComplex128(t
 			return
 		}
 
-		res = NewCiphertext(params, maximumCiphertextDegree, level, &Scale{targetScale})
+		res = NewCiphertext(params, maximumCiphertextDegree, level, targetScale)
 
 		if c != 0 {
 			polyEval.AddConst(res, c, res)
@@ -386,7 +392,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasisComplex128(t
 
 				cRealFlo.SetFloat64(real(c))
 				cImagFlo.SetFloat64(imag(c))
-				constScale.SetFloat64(targetScale / X[key].Scale().(*Scale).Value)
+				constScale.SetFloat64(targetScale.(*Scale).Value / X[key].Scale().(*Scale).Value)
 
 				// Target scale * rescale-scale / power basis scale
 				cRealFlo.Mul(cRealFlo, constScale)

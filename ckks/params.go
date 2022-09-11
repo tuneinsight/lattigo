@@ -523,7 +523,7 @@ func (p Parameters) RotationsForReplicateLog(batch, n int) (rotations []int) {
 func (p Parameters) Equals(other Parameters) bool {
 	res := p.Parameters.Equals(other.Parameters)
 	res = res && (p.logSlots == other.LogSlots())
-	res = res && (p.defaultScale.Value == other.DefaultScale().(*Scale).Value)
+	res = res && (p.defaultScale.Equal(other.DefaultScale()))
 	return res
 }
 

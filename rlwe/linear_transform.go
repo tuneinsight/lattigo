@@ -36,7 +36,7 @@ func (LT *LinearTransform) IsPlaintext() bool {
 // NewLinearTransform allocates a new LinearTransform with zero plaintexts at the specified level.
 // If BSGSRatio == 0, the LinearTransform is set to not use the BSGS approach.
 // Method will panic if BSGSRatio < 0.
-func NewLinearTransform(params Parameters, nonZeroDiags []int, level, LogDimension int, BSGSRatio float64) LinearTransform {
+func NewLinearTransform(params Parameters, nonZeroDiags []int, level int, LogDimension int, BSGSRatio float64) LinearTransform {
 	vec := make(map[int]OperandQP)
 	dimension := 1 << LogDimension
 	levelQ := level
@@ -350,8 +350,9 @@ func (eval *Evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTrans
 
 	ctOut.Resize(ctOut.Degree(), levelQ)
 
-	if ctIn.Scale != nil{
+	if ctIn.Scale != nil {
 		ctOut.Scale = ctIn.Scale.CopyNew()
+		ctOut.Scale.Mul(matrix.Scale)
 	}
 
 	QiOverF := eval.params.QiOverflowMargin(levelQ)
@@ -456,8 +457,12 @@ func (eval *Evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearT
 
 	ctOut.Resize(ctOut.Degree(), levelQ)
 
-	if ctIn.Scale != nil{
+	if ctIn.Scale != nil {
+		if matrix.Scale == nil {
+			panic("MultiplyByDiagMatrixBSGS(*): rlwe.LinearTransform field `Scale` is `nil` but input Ciphertext isn't")
+		}
 		ctOut.Scale = ctIn.Scale.CopyNew()
+		ctOut.Scale.Mul(matrix.Scale)
 	}
 
 	QiOverF := eval.params.QiOverflowMargin(levelQ) >> 1
@@ -475,8 +480,6 @@ func (eval *Evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearT
 	//		buffQ[2]
 	//		BuffCt   -> ctInMulP
 	// Evaluator RLWE:
-	//		BuffQ        [0]ringqp.Poly -> c2QP.Q (rlwe.Evaluator)
-	//		BuffP        [0]ringqp.Poly -> c2QP.P (rlwe.Evaluator)
 	//		BuffQ        [0]ringqp.Poly -> ctBuffQP.Value[0].Q
 	//		BuffP        [0]ringqp.Poly -> ctBuffQP.Value[0].Q
 	//		BuffQ        [1]ringqp.Poly -> ctBuffQP.Value[1].P
@@ -746,7 +749,11 @@ func tensorDegree2AndAddQP(levelQ, levelP int, r ringqp.Ring, op0, op1, op2 []ri
 // GetDataLen64 returns the size in bytes of the target LinearTransform when
 // encoded on a slice of bytes using MarshalBinary.
 func (LT *LinearTransform) GetDataLen64(WithMetaData bool) (dataLen int) {
-	dataLen += 3*8 + 1
+	dataLen += 3*8 + 2
+
+	if LT.Scale != nil {
+		dataLen += LT.Scale.GetDataLen()
+	}
 
 	var opQPLen int
 	for i := range LT.Vec {
@@ -770,6 +777,13 @@ func (LT *LinearTransform) MarshalBinary() (data []byte, err error) {
 	ptr += 8
 	binary.LittleEndian.PutUint64(data[ptr:], uint64(LT.Level))
 	ptr += 8
+
+	if LT.Scale != nil {
+		data[ptr] = 1
+		ptr++
+		LT.Scale.Encode(data[ptr:])
+		ptr += LT.Scale.GetDataLen()
+	}
 
 	for _, diag := range LT.Vec {
 		if diag.Degree() > 0 {
@@ -806,6 +820,16 @@ func (LT *LinearTransform) UnmarshalBinary(data []byte) (err error) {
 	ptr += 8
 	LT.Level = int(binary.LittleEndian.Uint64(data[ptr:]))
 	ptr += 8
+
+	if ptr++; data[ptr-1] == 1 {
+
+		if LT.Scale == nil {
+			return fmt.Errorf("LinearTransform.UnmarshalBinary(*): input data contains information about scale but the associated field `Scale` is `nil`")
+		}
+
+		LT.Scale.Decode(data[ptr:])
+		ptr += LT.Scale.GetDataLen()
+	}
 
 	LT.Vec = make(map[int]OperandQP)
 

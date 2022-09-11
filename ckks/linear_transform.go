@@ -1,9 +1,6 @@
 package ckks
 
 import (
-	"encoding/binary"
-	"math"
-
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
 	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
@@ -68,44 +65,12 @@ func (eval *evaluator) RotateHoisted(ctIn *Ciphertext, rotations []int, ctOut ma
 // can be evaluated on a ciphertext by using the evaluator.LinearTransform method.
 type LinearTransform struct {
 	rlwe.LinearTransform
-	Scale float64 // Scale is the scale at which the matrix is encoded (can be circuit dependent)
-}
-
-func (LT *LinearTransform) IsPlaintext() bool {
-	for _, el := range LT.Vec {
-		switch el.(type) {
-		case *rlwe.PlaintextQP:
-			return true
-		default:
-			return false
-		}
-	}
-	return false
-}
-
-// MarshalBinary encodes the target LinearTransform on a slice of bytes.
-func (LT *LinearTransform) MarshalBinary() (data []byte, err error) {
-
-	if data, err = LT.LinearTransform.MarshalBinary(); err != nil {
-		return
-	}
-
-	data = append(make([]byte, 8), data...)
-	binary.LittleEndian.PutUint64(data, math.Float64bits(LT.Scale))
-
-	return
-}
-
-// UnmarshalBinary decodes the input slice of bytes on the target LinearTransform.
-func (LT *LinearTransform) UnmarshalBinary(data []byte) (err error) {
-	LT.Scale = math.Float64frombits(binary.LittleEndian.Uint64(data))
-	return LT.LinearTransform.UnmarshalBinary(data[8:])
 }
 
 func NewLinearTransform(params Parameters, nonZeroDiags []int, level, logSlots int, BSGSRatio float64) LinearTransform {
-	return LinearTransform{
-		LinearTransform: rlwe.NewLinearTransform(params.Parameters, nonZeroDiags, level, logSlots, BSGSRatio),
-	}
+	LT := rlwe.NewLinearTransform(params.Parameters, nonZeroDiags, level, logSlots, BSGSRatio)
+	LT.Scale = NewScale()
+	return LinearTransform{LinearTransform: LT}
 }
 
 // Encode encodes on a pre-allocated LinearTransform the linear transforms' matrix in diagonal form `value`.
@@ -121,8 +86,17 @@ func (LT *LinearTransform) Encode(ecd Encoder, value interface{}, scale rlwe.Sca
 	}
 
 	LT.LinearTransform.Encode(encode, interfaceMapToMapOfInterface(value))
+	LT.Scale.Set(scale)
+}
 
-	LT.Scale = scale.(*Scale).Value
+func (LT *LinearTransform) MarshalBinary() (data []byte, err error) {
+	return LT.LinearTransform.MarshalBinary()
+}
+
+func (LT *LinearTransform) UnmarshalBinary(data []byte) (err error) {
+	LT.LinearTransform = rlwe.LinearTransform{}
+	LT.Scale = NewScale()
+	return LT.LinearTransform.UnmarshalBinary(data)
 }
 
 // GenLinearTransform allocates and encrypts a new LinearTransform struct from the linear transforms' matrix in diagonal form `value` for evaluation with a baby-step giant-step approach.
@@ -133,7 +107,7 @@ func (LT *LinearTransform) Encode(ecd Encoder, value interface{}, scale rlwe.Sca
 // Faster if there is more than a few non-zero diagonals.
 // BSGSRatio is the maximum ratio between the inner and outer loop of the baby-step giant-step algorithm used in evaluator.LinearTransform.
 // Optimal BSGSRatio value is between 4 and 16 depending on the sparsity of the matrix.
-func GenLinearTransform(ecd Encoder, enc Encryptor, value interface{}, level int, scale rlwe.Scale, BSGSRatio float64, logSlots int) (LT LinearTransform) {
+func GenLinearTransform(ecd Encoder, enc Encryptor, value interface{}, level int, scale rlwe.Scale, BSGSRatio float64, logSlots int) LinearTransform {
 
 	if ecd == nil {
 		panic("GenLinearTransformBSGS: ecd cannot be nil")
@@ -178,10 +152,10 @@ func GenLinearTransform(ecd Encoder, enc Encryptor, value interface{}, level int
 		}
 	}
 
-	return LinearTransform{
-		LinearTransform: rlwe.GenLinearTransform(embed, interfaceMapToMapOfInterface(value), BSGSRatio, logSlots),
-		Scale:           scale.(*Scale).Value,
-	}
+	LT := rlwe.GenLinearTransform(embed, interfaceMapToMapOfInterface(value), BSGSRatio, logSlots)
+	LT.Scale = scale.CopyNew()
+
+	return LinearTransform{LinearTransform: LT}
 }
 
 func interfaceMapToMapOfInterface(m interface{}) map[int]interface{} {
@@ -256,9 +230,6 @@ func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfa
 			} else {
 				eval.MultiplyByDiagMatrixBSGS(ctIn.Ciphertext, LT.LinearTransform, eval.BuffDecompQP, ctOut[i].Ciphertext)
 			}
-
-			ctOut[i].Scale().Set(ctIn.Scale())
-			ctOut[i].Scale().Mul(LT.Scale)
 		}
 
 	case LinearTransform:
@@ -269,10 +240,6 @@ func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfa
 		} else {
 			eval.MultiplyByDiagMatrixBSGS(ctIn.Ciphertext, LTs.LinearTransform, eval.BuffDecompQP, ctOut[0].Ciphertext)
 		}
-
-		//ctOut[0].Ciphertext.Scale = &Scale{ctIn.Scale().(*Scale).Value * LTs.Scale}
-		ctOut[0].Scale().Set(ctIn.Scale())
-		ctOut[0].Scale().Mul(LTs.Scale)
 	}
 }
 

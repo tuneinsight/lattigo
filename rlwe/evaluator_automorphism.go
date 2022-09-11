@@ -46,7 +46,7 @@ func (eval *Evaluator) Automorphism(ctIn *Ciphertext, galEl uint64, ctOut *Ciphe
 
 	ctOut.Resize(ctOut.Degree(), level)
 
-	if ctIn.Scale != nil{
+	if ctIn.Scale != nil {
 		ctOut.Scale = ctIn.Scale.CopyNew()
 	}
 }
@@ -87,7 +87,7 @@ func (eval *Evaluator) AutomorphismHoisted(level int, ctIn *Ciphertext, c1Decomp
 	}
 
 	ctOut.Resize(ctOut.Degree(), level)
-	if ctIn.Scale != nil{
+	if ctIn.Scale != nil {
 		ctOut.Scale = ctIn.Scale.CopyNew()
 	}
 }
@@ -165,7 +165,7 @@ func (eval *Evaluator) Trace(ctIn *Ciphertext, logN int, ctOut *Ciphertext) {
 
 	gap := 1 << (eval.params.LogN() - logN - 1)
 
-	if ctIn.Scale != nil{
+	if ctIn.Scale != nil {
 		ctOut.Scale = ctIn.Scale.CopyNew()
 	}
 

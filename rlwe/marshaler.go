@@ -3,6 +3,7 @@ package rlwe
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 
 	"github.com/tuneinsight/lattigo/v3/ring"
 )
@@ -19,7 +20,12 @@ func (el *Ciphertext) GetDataLen(WithMetaData bool) (dataLen int) {
 		dataLen += el.GetDataLen64(WithMetaData)
 	}
 
-	return dataLen + el.Scale.GetDataLen()
+	dataLen++
+	if el.Scale != nil {
+		dataLen += el.Scale.GetDataLen()
+	}
+
+	return dataLen
 }
 
 // MarshalBinary encodes a Ciphertext on a byte slice. The total size
@@ -30,8 +36,11 @@ func (el *Ciphertext) MarshalBinary() (data []byte, err error) {
 
 	data = make([]byte, el.GetDataLen(true))
 
-	el.Scale.Encode(data)
-	ptr += el.Scale.GetDataLen()
+	if ptr++; el.Scale != nil {
+		data[ptr-1] = 1
+		el.Scale.Encode(data)
+		ptr += el.Scale.GetDataLen()
+	}
 
 	data[ptr] = uint8(el.Degree() + 1)
 	ptr++
@@ -56,8 +65,15 @@ func (el *Ciphertext) UnmarshalBinary(data []byte) (err error) {
 
 	var ptr, inc int
 
-	el.Scale.Decode(data)
-	ptr += 8
+	if ptr++; data[ptr-1] == 1 {
+
+		if el.Scale == nil {
+			return fmt.Errorf("Ciphertext.UnmarshalBinary(*): data contains information about `Scale` but associated field is `nil`")
+		}
+
+		el.Scale.Decode(data)
+		ptr += el.Scale.GetDataLen()
+	}
 
 	el.Value = make([]*ring.Poly, uint8(data[ptr]))
 	ptr++

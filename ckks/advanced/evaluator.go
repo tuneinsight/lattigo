@@ -261,7 +261,7 @@ func (eval *evaluator) EvalModNew(ct *ckks.Ciphertext, evalModPoly EvalModPoly) 
 	}
 
 	// Chebyshev evaluation
-	if ct, err = eval.EvaluatePoly(ct, evalModPoly.sinePoly, &ckks.Scale{Value:targetScale}); err != nil {
+	if ct, err = eval.EvaluatePoly(ct, evalModPoly.sinePoly, &ckks.Scale{Value: targetScale}); err != nil {
 		panic(err)
 	}
 
@@ -272,7 +272,7 @@ func (eval *evaluator) EvalModNew(ct *ckks.Ciphertext, evalModPoly EvalModPoly) 
 		eval.MulRelin(ct, ct, ct)
 		eval.Add(ct, ct, ct)
 		eval.AddConst(ct, -sqrt2pi, ct)
-		if err := eval.Rescale(ct, &ckks.Scale{Value:targetScale}, ct); err != nil {
+		if err := eval.Rescale(ct, &ckks.Scale{Value: targetScale}, ct); err != nil {
 			panic(err)
 		}
 	}

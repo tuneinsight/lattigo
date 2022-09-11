@@ -768,7 +768,7 @@ func testInnerSum(tc *testContext, t *testing.T) {
 	t.Run(GetTestName("InnerSum", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
 
 		batch := 128
-		n := tc.params.N() / (2 * batch)
+		n := 47
 
 		rotKey := tc.kgen.GenRotationKeysForRotations(tc.params.RotationsForInnerSumLog(batch, n), false, tc.sk)
 		eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})

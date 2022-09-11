@@ -116,7 +116,7 @@ func SwitchCiphertextRingDegreeNTT(ctIn *Ciphertext, ringQSmallDim, ringQLargeDi
 		}
 	}
 
-	if ctIn.Scale != nil{
+	if ctIn.Scale != nil {
 		ctOut.Scale = ctIn.Scale.CopyNew()
 	}
 }
@@ -143,7 +143,7 @@ func SwitchCiphertextRingDegree(ctIn *Ciphertext, ctOut *Ciphertext) {
 		}
 	}
 
-	if ctIn.Scale != nil{
+	if ctIn.Scale != nil {
 		ctOut.Scale = ctIn.Scale.CopyNew()
 	}
 }
@@ -157,11 +157,11 @@ func (el *Ciphertext) CopyNew() *Ciphertext {
 	for i := range el.Value {
 		ctxCopy.Value[i] = el.Value[i].CopyNew()
 	}
-	
-	if el.Scale != nil{
+
+	if el.Scale != nil {
 		ctxCopy.Scale = el.Scale.CopyNew()
 	}
-	
+
 	return ctxCopy
 }
 
@@ -172,9 +172,9 @@ func (el *Ciphertext) Copy(ctxCopy *Ciphertext) {
 			el.Value[i].Copy(ctxCopy.Value[i])
 		}
 
-		if el.Scale != nil{
+		if el.Scale != nil {
 			el.Scale = ctxCopy.Scale.CopyNew()
-		}	
+		}
 	}
 }
 

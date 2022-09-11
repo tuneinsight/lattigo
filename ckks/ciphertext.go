@@ -28,8 +28,8 @@ func NewCiphertextRandom(prng utils.PRNG, params Parameters, degree, level int, 
 	return
 }
 
-func (ct *Ciphertext) Scale() float64 {
-	return ct.Ciphertext.Scale.(*Scale).Value
+func (ct *Ciphertext) Scale() rlwe.Scale {
+	return ct.Ciphertext.Scale
 }
 
 // CopyNew creates a fresh copy of the target ciphertext.

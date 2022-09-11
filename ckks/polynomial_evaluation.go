@@ -8,6 +8,7 @@ import (
 
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/utils"
+	"github.com/tuneinsight/lattigo/v3/rlwe"
 )
 
 // EvaluatePoly evaluates a polynomial in standard basis on the input Ciphertext in ceil(log2(deg+1)) levels.
@@ -22,7 +23,7 @@ import (
 // pol: a Polynomial
 // targetScale: the desired output scale. This value shouldn't differ too much from the original ciphertext scale. It can
 // for example be used to correct small deviations in the ciphertext scale and reset it to the default scale.
-func (eval *evaluator) EvaluatePoly(input interface{}, pol Polynomial, targetScale float64) (opOut *Ciphertext, err error) {
+func (eval *evaluator) EvaluatePoly(input interface{}, pol Polynomial, targetScale rlwe.Scale) (opOut *Ciphertext, err error) {
 
 	var monomialBasis *PolynomialBasis
 	if monomialBasis, err = eval.genPolynomialBasis(input, pol); err != nil {
@@ -34,7 +35,7 @@ func (eval *evaluator) EvaluatePoly(input interface{}, pol Polynomial, targetSca
 	polyEval.PolynomialBasis = *monomialBasis
 	polyEval.giant, polyEval.baby = pol.BSGSSplit()
 
-	if opOut, err = polyEval.recurse(monomialBasis.Value[1].Level()-polyEval.giant+1, targetScale, evalPoly{&pol, true, pol.Degree()}); err != nil {
+	if opOut, err = polyEval.recurse(monomialBasis.Value[1].Level()-polyEval.giant+1, targetScale.(*Scale).Value, evalPoly{&pol, true, pol.Degree()}); err != nil {
 		return nil, err
 	}
 
@@ -44,7 +45,7 @@ func (eval *evaluator) EvaluatePoly(input interface{}, pol Polynomial, targetSca
 		return nil, err
 	}
 
-	opOut.Ciphertext.Scale = &Scale{targetScale} // solves float64 precision issues
+	opOut.Ciphertext.Scale = &Scale{targetScale.(*Scale).Value} // solves float64 precision issues
 
 	polyEval = nil
 	runtime.GC()
@@ -157,7 +158,7 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale float6
 		currentQi = params.QiFloat64(targetLevel + 1)
 	}
 
-	if res, err = polyEval.recurse(targetLevel+1, targetScale*currentQi/XPow.Scale(), coeffsq); err != nil {
+	if res, err = polyEval.recurse(targetLevel+1, targetScale*currentQi/XPow.Scale().(*Scale).Value, coeffsq); err != nil {
 		return nil, err
 	}
 
@@ -166,7 +167,7 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale float6
 			polyEval.Relinearize(res, res)
 		}
 
-		if err = polyEval.Rescale(res, params.DefaultScale().Value, res); err != nil {
+		if err = polyEval.Rescale(res, params.DefaultScale(), res); err != nil {
 			return nil, err
 		}
 
@@ -174,7 +175,7 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale float6
 	}
 
 	var tmp *Ciphertext
-	if tmp, err = polyEval.recurse(res.Level(), res.Scale(), coeffsr); err != nil {
+	if tmp, err = polyEval.recurse(res.Level(), res.Scale().(*Scale).Value, coeffsr); err != nil {
 		return nil, err
 	}
 
@@ -281,7 +282,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasisComplex128(t
 			// If a non-zero coefficient was found, encode the values, adds on the ciphertext, and returns
 			if toEncode {
 				pt := NewPlaintextAtLevelFromPoly(level, res.Value[0])
-				pt.Plaintext.Scale = &Scale{res.Scale()}
+				pt.Plaintext.Scale = &Scale{res.Scale().(*Scale).Value}
 				polyEval.EncodeSlots(values, pt, params.LogSlots())
 			}
 
@@ -307,7 +308,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasisComplex128(t
 		// If a non-zero degre coefficient was found, encode and adds the values on the output
 		// ciphertext
 		if toEncode {
-			pt.Plaintext.Scale = &Scale{res.Scale()}
+			pt.Plaintext.Scale = &Scale{res.Scale().(*Scale).Value}
 			polyEval.EncodeSlots(values, pt, params.LogSlots())
 			polyEval.Add(res, pt, res)
 			toEncode = false
@@ -346,7 +347,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasisComplex128(t
 			// If a non-zero degre coefficient was found, encode and adds the values on the output
 			// ciphertext
 			if toEncode {
-				pt.Plaintext.Scale = &Scale{targetScale / X[key].Scale()}
+				pt.Plaintext.Scale = &Scale{targetScale / X[key].Scale().(*Scale).Value}
 				polyEval.EncodeSlots(values, pt, params.LogSlots())
 				polyEval.MulAndAdd(X[key], pt, res)
 				toEncode = false
@@ -385,7 +386,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasisComplex128(t
 
 				cRealFlo.SetFloat64(real(c))
 				cImagFlo.SetFloat64(imag(c))
-				constScale.SetFloat64(targetScale / X[key].Scale())
+				constScale.SetFloat64(targetScale / X[key].Scale().(*Scale).Value)
 
 				// Target scale * rescale-scale / power basis scale
 				cRealFlo.Mul(cRealFlo, constScale)

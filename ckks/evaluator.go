@@ -13,7 +13,7 @@ import (
 // Operand is a common interface for Ciphertext and Plaintext types.
 type Operand interface {
 	rlwe.Operand
-	Scale() float64
+	Scale() rlwe.Scale
 }
 
 // Evaluator is an interface implementing the methods to conduct homomorphic operations between ciphertext and/or plaintexts.
@@ -91,7 +91,7 @@ type Evaluator interface {
 	PowerNew(ctIn *Ciphertext, degree int) (ctOut *Ciphertext)
 
 	// Polynomial evaluation
-	EvaluatePoly(input interface{}, pol Polynomial, targetScale float64) (ctOut *Ciphertext, err error)
+	EvaluatePoly(input interface{}, pol Polynomial, targetScale rlwe.Scale) (ctOut *Ciphertext, err error)
 
 	// Inversion
 	InverseNew(ctIn *Ciphertext, steps int) (ctOut *Ciphertext)
@@ -128,8 +128,8 @@ type Evaluator interface {
 	// Scale Management
 	ScaleUpNew(ctIn *Ciphertext, scale float64) (ctOut *Ciphertext)
 	ScaleUp(ctIn *Ciphertext, scale float64, ctOut *Ciphertext)
-	SetScale(ctIn *Ciphertext, scale float64)
-	Rescale(ctIn *Ciphertext, minScale float64, ctOut *Ciphertext) (err error)
+	SetScale(ctIn *Ciphertext, scale rlwe.Scale)
+	Rescale(ctIn *Ciphertext, minScale rlwe.Scale, ctOut *Ciphertext) (err error)
 
 	// Level Management
 	DropLevelNew(ctIn *Ciphertext, levels int) (ctOut *Ciphertext)
@@ -249,7 +249,7 @@ func (eval *evaluator) checkBinary(op0, op1, opOut Operand, opOutMinDegree int) 
 func (eval *evaluator) newCiphertextBinary(op0, op1 Operand) (ctOut *Ciphertext) {
 
 	maxDegree := utils.MaxInt(op0.Degree(), op1.Degree())
-	maxScale := utils.MaxFloat64(op0.Scale(), op1.Scale())
+	maxScale := utils.MaxFloat64(op0.Scale().(*Scale).Value, op1.Scale().(*Scale).Value)
 	minLevel := utils.MinInt(op0.Level(), op1.Level())
 
 	return NewCiphertext(eval.params, maxDegree, minLevel, &Scale{maxScale})
@@ -341,9 +341,9 @@ func (eval *evaluator) evaluateInPlace(c0 *Ciphertext, c1 Operand, ctOut *Cipher
 	// Else resizes the receiver element
 	ctOut.El().Resize(maxDegree, level)
 
-	c0Scale := c0.Scale()
-	c1Scale := c1.Scale()
-	ctOutScale := ctOut.Scale()
+	c0Scale := c0.Scale().(*Scale).Value
+	c1Scale := c1.Scale().(*Scale).Value
+	ctOutScale := ctOut.Scale().(*Scale).Value
 
 	// Checks whether or not the receiver element is the same as one of the input elements
 	// and acts accordingly to avoid unnecessary element creation or element overwriting,
@@ -548,6 +548,8 @@ func addConst(params Parameters, ct0 *Ciphertext, constant interface{}, ctOut *C
 
 	ctOut.Ciphertext.Scale.Set(ct0.Scale())
 
+	scale := ctOut.Scale().(*Scale).Value
+
 	// Component wise addition of the following vector to the ciphertext:
 	// [a + b*psi_qi^2, ....., a + b*psi_qi^2, a - b*psi_qi^2, ...., a - b*psi_qi^2] mod Qi
 	// [{                  N/2                }{                N/2               }]
@@ -557,12 +559,12 @@ func addConst(params Parameters, ct0 *Ciphertext, constant interface{}, ctOut *C
 		qi = ringQ.Modulus[i]
 
 		if cReal != 0 {
-			scaledConstReal = scaleUpExact(cReal, ctOut.Scale(), qi)
+			scaledConstReal = scaleUpExact(cReal, scale, qi)
 			scaledConst = scaledConstReal
 		}
 
 		if cImag != 0 {
-			scaledConstImag = ring.MRed(scaleUpExact(cImag, ctOut.Scale(), qi), ringQ.NttPsi[i][1], qi, ringQ.MredParams[i])
+			scaledConstImag = ring.MRed(scaleUpExact(cImag, scale, qi), ringQ.NttPsi[i][1], qi, ringQ.MredParams[i])
 			scaledConst = ring.CRed(scaledConst+scaledConstImag, qi)
 		}
 
@@ -599,43 +601,46 @@ func (eval *evaluator) MultByConstAndAdd(ct0 *Ciphertext, constant interface{}, 
 
 	ringQ := eval.params.RingQ()
 
+	ct0Scale := ct0.Scale().(*Scale).Value
+	ctOutScale := ctOut.Scale().(*Scale).Value
+
 	// If a scaling would be required to multiply by the constant,
 	// it equalizes scales such that the scales match in the end.
 	if scale != 1 {
 
 		// If ctOut scaling is smaller than ct0's scale + the default scaling,
 		// then brings ctOut scale to ct0's scale.
-		if ctOut.Scale() < ct0.Scale()*scale {
+		if ctOutScale < ct0Scale*scale {
 
-			if scale := math.Floor((scale * ct0.Scale()) / ctOut.Scale()); scale > 1 {
+			if scale := math.Floor((scale * ct0Scale) / ctOutScale); scale > 1 {
 
 				eval.MultByConst(ctOut, scale, ctOut)
 
 			}
 
-			ctOut.Ciphertext.Scale = &Scale{scale * ct0.Scale()}
+			ctOut.Ciphertext.Scale = &Scale{scale * ct0Scale}
 
 			// If ctOut.scale > ((a+bi)*scale)*ct0(x), then it sets the scale to
 			// bring c(x)*scale to the level of ctOut(x) scale
-		} else if ctOut.Scale() > ct0.Scale()*scale {
-			scale = ctOut.Scale() / ct0.Scale()
+		} else if ctOutScale > ct0Scale*scale {
+			scale = ctOutScale / ct0Scale
 		}
 
 		// If no scaling is required, then it sets the appropriate scale such that
 		// ct0(x)*scale matches ctOut(x) scale without modifying ct0(x) scale.
 	} else {
 
-		if ctOut.Scale() > ct0.Scale() {
+		if ctOutScale > ct0Scale {
 
-			scale = ctOut.Scale() / ct0.Scale()
+			scale = ctOutScale / ct0Scale
 
-		} else if ct0.Scale() > ctOut.Scale() {
+		} else if ct0Scale > ctOutScale {
 
-			if scale := math.Floor(ct0.Scale() / ctOut.Scale()); scale > 1 {
+			if scale := math.Floor(ct0Scale / ctOutScale); scale > 1 {
 				eval.MultByConst(ctOut, scale, ctOut)
 			}
 
-			ctOut.Ciphertext.Scale = &Scale{ct0.Scale()}
+			ctOut.Ciphertext.Scale = &Scale{ct0Scale}
 		}
 	}
 
@@ -750,7 +755,7 @@ func (eval *evaluator) MultByConst(ct0 *Ciphertext, constant interface{}, ctOut 
 		}
 	}
 
-	ctOut.Ciphertext.Scale = &Scale{ct0.Scale() * scale}
+	ctOut.Ciphertext.Scale = &Scale{ct0.Scale().(*Scale).Value * scale}
 }
 
 // MultByGaussianInteger multiples the ct0 by the gaussian integer cReal + i*cImag and returns the result on ctOut.
@@ -762,7 +767,7 @@ func (eval *evaluator) MultByGaussianInteger(ct0 *Ciphertext, cReal, cImag inter
 	level := utils.MinInt(ct0.Level(), ctOut.Level())
 	var scaledConst, scaledConstReal, scaledConstImag uint64
 
-	ctOut.Ciphertext.Scale = &Scale{ct0.Scale()}
+	ctOut.Ciphertext.Scale = &Scale{ct0.Scale().(*Scale).Value}
 
 	for i := 0; i < level+1; i++ {
 
@@ -875,7 +880,7 @@ func (eval *evaluator) MultByi(ct0 *Ciphertext, ctOut *Ciphertext) {
 	}
 
 	var level = utils.MinInt(ct0.Level(), ctOut.Level())
-	ctOut.Ciphertext.Scale = &Scale{ct0.Scale()}
+	ctOut.Ciphertext.Scale = &Scale{ct0.Scale().(*Scale).Value}
 
 	ringQ := eval.params.RingQ()
 
@@ -930,7 +935,7 @@ func (eval *evaluator) DivByi(ct0 *Ciphertext, ctOut *Ciphertext) {
 
 	ringQ := eval.params.RingQ()
 
-	ctOut.Ciphertext.Scale = &Scale{ct0.Scale()}
+	ctOut.Ciphertext.Scale = &Scale{ct0.Scale().(*Scale).Value}
 
 	var imag uint64
 
@@ -970,16 +975,16 @@ func (eval *evaluator) ScaleUpNew(ct0 *Ciphertext, scale float64) (ctOut *Cipher
 // plus 2^n. It returns the result in ctOut.
 func (eval *evaluator) ScaleUp(ct0 *Ciphertext, scale float64, ctOut *Ciphertext) {
 	eval.MultByConst(ct0, uint64(scale), ctOut)
-	ctOut.Ciphertext.Scale = &Scale{ct0.Scale() * scale}
+	ctOut.Ciphertext.Scale = &Scale{ct0.Scale().(*Scale).Value * scale}
 }
 
 // SetScale sets the scale of the ciphertext to the input scale (consumes a level)
-func (eval *evaluator) SetScale(ct *Ciphertext, scale float64) {
-	eval.MultByConst(ct, scale/ct.Scale(), ct)
+func (eval *evaluator) SetScale(ct *Ciphertext, scale rlwe.Scale) {
+	eval.MultByConst(ct, scale.(*Scale).Value/ct.Scale().(*Scale).Value, ct)
 	if err := eval.Rescale(ct, scale, ct); err != nil {
 		panic(err)
 	}
-	ct.Ciphertext.Scale = &Scale{scale}
+	ct.Ciphertext.Scale = &Scale{scale.(*Scale).Value}
 }
 
 // MulByPow2New multiplies ct0 by 2^pow2 and returns the result in a newly created element.
@@ -992,7 +997,7 @@ func (eval *evaluator) MulByPow2New(ct0 *Ciphertext, pow2 int) (ctOut *Ciphertex
 // MulByPow2 multiplies ct0 by 2^pow2 and returns the result in ctOut.
 func (eval *evaluator) MulByPow2(ct0 *Ciphertext, pow2 int, ctOut *Ciphertext) {
 	var level = utils.MinInt(ct0.Level(), ctOut.Level())
-	ctOut.Ciphertext.Scale = &Scale{ct0.Scale()}
+	ctOut.Ciphertext.Scale = &Scale{ct0.Scale().(*Scale).Value}
 	for i := range ctOut.Value {
 		eval.params.RingQ().MulByPow2Lvl(level, ct0.Value[i], pow2, ctOut.Value[i])
 	}
@@ -1021,7 +1026,7 @@ func (eval *evaluator) Reduce(ct0 *Ciphertext, ctOut *Ciphertext) error {
 		eval.params.RingQ().ReduceLvl(utils.MinInt(ct0.Level(), ctOut.Level()), ct0.Value[i], ctOut.Value[i])
 	}
 
-	ctOut.Ciphertext.Scale = &Scale{ct0.Scale()}
+	ctOut.Ciphertext.Scale = &Scale{ct0.Scale().(*Scale).Value}
 
 	return nil
 }
@@ -1046,11 +1051,11 @@ func (eval *evaluator) DropLevel(ct0 *Ciphertext, levels int) {
 // original scale, this procedure is equivalent to dividing the input element by the scale and adding
 // some error.
 // Returns an error if "threshold <= 0", ct.scale = 0, ct.Level() = 0, ct.IsNTT() != true
-func (eval *evaluator) RescaleNew(ct0 *Ciphertext, threshold float64) (ctOut *Ciphertext, err error) {
+func (eval *evaluator) RescaleNew(ct0 *Ciphertext, minScale rlwe.Scale) (ctOut *Ciphertext, err error) {
 
 	ctOut = NewCiphertext(eval.params, ct0.Degree(), ct0.Level(), ct0.Ciphertext.Scale)
 
-	return ctOut, eval.Rescale(ct0, threshold, ctOut)
+	return ctOut, eval.Rescale(ct0, minScale, ctOut)
 }
 
 // Rescale divides ct0 by the last modulus in the moduli chain, and repeats this
@@ -1059,15 +1064,15 @@ func (eval *evaluator) RescaleNew(ct0 *Ciphertext, threshold float64) (ctOut *Ci
 // original scale, this procedure is equivalent to dividing the input element by the scale and adding
 // some error.
 // Returns an error if "minScale <= 0", ct.scale = 0, ct.Level() = 0, ct.IsNTT() != true or if ct.Leve() != ctOut.Level()
-func (eval *evaluator) Rescale(ctIn *Ciphertext, minScale float64, ctOut *Ciphertext) (err error) {
+func (eval *evaluator) Rescale(ctIn *Ciphertext, minScale rlwe.Scale, ctOut *Ciphertext) (err error) {
 
 	ringQ := eval.params.RingQ()
 
-	if minScale <= 0 {
+	if minScale.(*Scale).Value <= 0 {
 		return errors.New("cannot Rescale: minScale is 0")
 	}
 
-	if ctIn.Scale() == 0 {
+	if ctIn.Scale().(*Scale).Value == 0 {
 		return errors.New("cannot Rescale: ciphertext scale is 0")
 	}
 
@@ -1079,12 +1084,12 @@ func (eval *evaluator) Rescale(ctIn *Ciphertext, minScale float64, ctOut *Cipher
 		return errors.New("cannot Rescale: ctIn.Degree() != ctOut.Degree()")
 	}
 
-	scale := ctIn.Scale()
+	scale := ctIn.Scale().(*Scale).Value
 
 	var nbRescales int
 	// Divides the scale by each moduli of the modulus chain as long as the scale isn't smaller than minScale/2
 	// or until the output Level() would be zero
-	for ctIn.Level()-nbRescales >= 0 && scale/float64(ringQ.Modulus[ctIn.Level()-nbRescales]) >= minScale/2 {
+	for ctIn.Level()-nbRescales >= 0 && scale/float64(ringQ.Modulus[ctIn.Level()-nbRescales]) >= minScale.(*Scale).Value/2 {
 		scale /= (float64(ringQ.Modulus[ctIn.Level()-nbRescales]))
 		nbRescales++
 	}
@@ -1148,7 +1153,7 @@ func (eval *evaluator) mulRelin(ctIn *Ciphertext, op1 Operand, relin bool, ctOut
 		panic("cannot MulRelin: the sum of the input elements' total degree cannot be larger than 2")
 	}
 
-	ctOut.Ciphertext.Scale = &Scale{ctIn.Scale() * op1.Scale()}
+	ctOut.Ciphertext.Scale = &Scale{ctIn.Scale().(*Scale).Value * op1.Scale().(*Scale).Value}
 
 	ringQ := eval.params.RingQ()
 
@@ -1255,10 +1260,10 @@ func (eval *evaluator) mulRelinAndAdd(ctIn *Ciphertext, op1 Operand, relin bool,
 		panic("cannot MulRelinAndAdd: ctOut must be different from op0 and op1")
 	}
 
-	resScale := ctIn.Scale() * op1.Scale()
+	resScale := ctIn.Scale().(*Scale).Value * op1.Scale().(*Scale).Value
 
-	if ctOut.Scale() < resScale {
-		eval.MultByConst(ctOut, math.Round(resScale/ctOut.Scale()), ctOut)
+	if ctOut.Scale().(*Scale).Value < resScale {
+		eval.MultByConst(ctOut, math.Round(resScale/ctOut.Scale().(*Scale).Value), ctOut)
 		ctOut.Ciphertext.Scale = &Scale{resScale}
 	}
 
@@ -1329,7 +1334,7 @@ func (eval *evaluator) RelinearizeNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 // Relinearize applies the relinearization procedure on ct0 and returns the result in ctOut. The input Ciphertext must be of degree two.
 func (eval *evaluator) Relinearize(ct0 *Ciphertext, ctOut *Ciphertext) {
 	eval.Evaluator.Relinearize(ct0.Ciphertext, ctOut.Ciphertext)
-	ctOut.Ciphertext.Scale = &Scale{ct0.Scale()}
+	ctOut.Ciphertext.Scale = &Scale{ct0.Scale().(*Scale).Value}
 }
 
 // SwitchKeysNew re-encrypts ct0 under a different key and returns the result in a newly created element.
@@ -1346,7 +1351,7 @@ func (eval *evaluator) SwitchKeysNew(ct0 *Ciphertext, switchingKey *rlwe.Switchi
 // and the key under which the Ciphertext will be re-encrypted.
 func (eval *evaluator) SwitchKeys(ctIn *Ciphertext, switchingKey *rlwe.SwitchingKey, ctOut *Ciphertext) {
 	eval.Evaluator.SwitchKeys(ctIn.Ciphertext, switchingKey, ctOut.Ciphertext)
-	ctOut.Ciphertext.Scale = &Scale{ctIn.Scale()}
+	ctOut.Ciphertext.Scale = &Scale{ctIn.Scale().(*Scale).Value}
 }
 
 // RotateNew rotates the columns of ct0 by k positions to the left, and returns the result in a newly created element.
@@ -1361,7 +1366,7 @@ func (eval *evaluator) RotateNew(ct0 *Ciphertext, k int) (ctOut *Ciphertext) {
 // If the provided element is a Ciphertext, a key-switching operation is necessary and a rotation key for the specific rotation needs to be provided.
 func (eval *evaluator) Rotate(ct0 *Ciphertext, k int, ctOut *Ciphertext) {
 	eval.Automorphism(ct0.Ciphertext, eval.params.GaloisElementForColumnRotationBy(k), ctOut.Ciphertext)
-	ctOut.Ciphertext.Scale = &Scale{ct0.Scale()}
+	ctOut.Ciphertext.Scale = &Scale{ct0.Scale().(*Scale).Value}
 }
 
 // ConjugateNew conjugates ct0 (which is equivalent to a row rotation) and returns the result in a newly
@@ -1387,7 +1392,7 @@ func (eval *evaluator) Conjugate(ct0 *Ciphertext, ctOut *Ciphertext) {
 	}
 
 	eval.Automorphism(ct0.Ciphertext, eval.params.GaloisElementForRowRotation(), ctOut.Ciphertext)
-	ctOut.Ciphertext.Scale = &Scale{ct0.Scale()}
+	ctOut.Ciphertext.Scale = &Scale{ct0.Scale().(*Scale).Value}
 }
 
 func (eval *evaluator) RotateHoistedNoModDownNew(level int, rotations []int, c0 *ring.Poly, c2DecompQP []ringqp.Poly) (cOut map[int]rlwe.CiphertextQP) {

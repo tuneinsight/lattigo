@@ -29,7 +29,7 @@ import (
 //       = [8 + 0X + 0X^2 - 0X^3 + 0X^4 + 0X^5 + 0X^6 - 0X^7]
 func (eval *evaluator) Trace(ctIn *Ciphertext, logSlots int, ctOut *Ciphertext) {
 	eval.Evaluator.Trace(ctIn.Ciphertext, logSlots, ctOut.Ciphertext)
-	ctOut.Ciphertext.Scale = &Scale{ctIn.Scale()}
+	ctOut.Ciphertext.Scale = &Scale{ctIn.Scale().(*Scale).Value}
 }
 
 // TraceNew maps X -> sum((-1)^i * X^{i*n+1}) for 0 <= i < N and returns the result on a new ciphertext.
@@ -59,7 +59,7 @@ func (eval *evaluator) RotateHoisted(ctIn *Ciphertext, rotations []int, ctOut ma
 	eval.DecomposeNTT(levelQ, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], eval.BuffDecompQP)
 	for _, i := range rotations {
 		eval.AutomorphismHoisted(levelQ, ctIn.Ciphertext, eval.BuffDecompQP, eval.params.GaloisElementForColumnRotationBy(i), ctOut[i].Ciphertext)
-		ctOut[i].Ciphertext.Scale = &Scale{ctIn.Scale()}
+		ctOut[i].Ciphertext.Scale = &Scale{ctIn.Scale().(*Scale).Value}
 	}
 }
 
@@ -114,7 +114,7 @@ func NewLinearTransform(params Parameters, nonZeroDiags []int, level, logSlots i
 // It can then be evaluated on a ciphertext using evaluator.LinearTransform.
 // Evaluation will use the naive approach (single hoisting and no baby-step giant-step).
 // Faster if there is only a few non-zero diagonals but uses more keys.
-func (LT *LinearTransform) Encode(ecd Encoder, value interface{}, scale float64) {
+func (LT *LinearTransform) Encode(ecd Encoder, value interface{}, scale rlwe.Scale) {
 
 	encode := func(value interface{}, opQP rlwe.OperandQP) {
 		ecd.Embed(value, LT.LogDimension, scale, true, opQP.El().Value[0])
@@ -122,7 +122,7 @@ func (LT *LinearTransform) Encode(ecd Encoder, value interface{}, scale float64)
 
 	LT.LinearTransform.Encode(encode, interfaceMapToMapOfInterface(value))
 
-	LT.Scale = scale
+	LT.Scale = scale.(*Scale).Value
 }
 
 // GenLinearTransform allocates and encrypts a new LinearTransform struct from the linear transforms' matrix in diagonal form `value` for evaluation with a baby-step giant-step approach.
@@ -133,7 +133,7 @@ func (LT *LinearTransform) Encode(ecd Encoder, value interface{}, scale float64)
 // Faster if there is more than a few non-zero diagonals.
 // BSGSRatio is the maximum ratio between the inner and outer loop of the baby-step giant-step algorithm used in evaluator.LinearTransform.
 // Optimal BSGSRatio value is between 4 and 16 depending on the sparsity of the matrix.
-func GenLinearTransform(ecd Encoder, enc Encryptor, value interface{}, level int, scale, BSGSRatio float64, logSlots int) (LT LinearTransform) {
+func GenLinearTransform(ecd Encoder, enc Encryptor, value interface{}, level int, scale rlwe.Scale, BSGSRatio float64, logSlots int) (LT LinearTransform) {
 
 	if ecd == nil {
 		panic("GenLinearTransformBSGS: ecd cannot be nil")
@@ -180,7 +180,7 @@ func GenLinearTransform(ecd Encoder, enc Encryptor, value interface{}, level int
 
 	return LinearTransform{
 		LinearTransform: rlwe.GenLinearTransform(embed, interfaceMapToMapOfInterface(value), BSGSRatio, logSlots),
-		Scale:           scale,
+		Scale:           scale.(*Scale).Value,
 	}
 }
 
@@ -257,7 +257,7 @@ func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfa
 				eval.MultiplyByDiagMatrixBSGS(ctIn.Ciphertext, LT.LinearTransform, eval.BuffDecompQP, ctOut[i].Ciphertext)
 			}
 
-			ctOut[i].Ciphertext.Scale = &Scale{ctOut[i].Scale() * LT.Scale}
+			ctOut[i].Ciphertext.Scale = &Scale{ctOut[i].Scale().(*Scale).Value * LT.Scale}
 		}
 
 	case LinearTransform:
@@ -269,7 +269,7 @@ func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfa
 			eval.MultiplyByDiagMatrixBSGS(ctIn.Ciphertext, LTs.LinearTransform, eval.BuffDecompQP, ctOut[0].Ciphertext)
 		}
 
-		ctOut[0].Ciphertext.Scale = &Scale{ctOut[0].Scale() * LTs.Scale}
+		ctOut[0].Ciphertext.Scale = &Scale{ctOut[0].Scale().(*Scale).Value * LTs.Scale}
 	}
 }
 
@@ -328,7 +328,7 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 	levelP := len(ringP.Modulus) - 1
 
 	ctOut.Resize(ctOut.Degree(), levelQ)
-	ctOut.Ciphertext.Scale = &Scale{ctIn.Scale()}
+	ctOut.Ciphertext.Scale = &Scale{ctIn.Scale().(*Scale).Value}
 
 	if n == 1 {
 		if ctIn != ctOut {
@@ -452,7 +452,7 @@ func (eval *evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 	PiOverF := eval.params.PiOverflowMargin(levelP) >> 1
 
 	ctOut.Resize(ctOut.Degree(), levelQ)
-	ctOut.Ciphertext.Scale = &Scale{ctIn.Scale()}
+	ctOut.Ciphertext.Scale = &Scale{ctIn.Scale().(*Scale).Value}
 
 	// If sum with only the first element, then returns the input
 	if n == 1 {

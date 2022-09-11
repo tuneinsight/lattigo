@@ -148,7 +148,7 @@ func (el *Ciphertext) CopyNew() *Ciphertext {
 	for i := range el.Value {
 		ctxCopy.Value[i] = el.Value[i].CopyNew()
 	}
-
+	
 	ctxCopy.Scale = el.Scale.CopyNew()
 
 	return ctxCopy

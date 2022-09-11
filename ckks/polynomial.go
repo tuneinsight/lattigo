@@ -7,6 +7,7 @@ import (
 	"math/bits"
 
 	"github.com/tuneinsight/lattigo/v3/ring"
+	"github.com/tuneinsight/lattigo/v3/rlwe"
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
@@ -194,7 +195,7 @@ func NewPolynomial(basisType BasisType, coeffs interface{}, slotsIndex [][]int) 
 	}, nil
 }
 
-func (p *Polynomial) Encode(ecd Encoder, level int, inputScale, outputScale float64) (ptPoly Polynomial, err error) {
+func (p *Polynomial) Encode(ecd Encoder, level int, inputScale, outputScale rlwe.Scale) (ptPoly Polynomial, err error) {
 
 	params := ecd.(*encoderComplex128).params
 
@@ -216,7 +217,7 @@ func (p *Polynomial) Encode(ecd Encoder, level int, inputScale, outputScale floa
 	return Polynomial{ptCoeffs}, nil
 }
 
-func (p *Polynomial) Encrypt(ecd Encoder, enc Encryptor, level int, inputScale, outputScale float64) (ctPoly Polynomial, err error) {
+func (p *Polynomial) Encrypt(ecd Encoder, enc Encryptor, level int, inputScale, outputScale rlwe.Scale) (ctPoly Polynomial, err error) {
 
 	params := ecd.(*encoderComplex128).params
 
@@ -767,9 +768,9 @@ type dummyPolynomialEvaluator struct {
 	coeffsInterface coefficients
 }
 
-func getScaledBSGSCoefficients(params Parameters, ecd Encoder, enc Encryptor, level int, scale float64, polIn coefficientsComplex128, targetScale float64, polOut coefficients) {
+func getScaledBSGSCoefficients(params Parameters, ecd Encoder, enc Encryptor, level int, scale rlwe.Scale, polIn coefficientsComplex128, targetScale rlwe.Scale, polOut coefficients) {
 
-	dummbpb := newDummyPolynomialBasis(params, &dummyCiphertext{level, scale})
+	dummbpb := newDummyPolynomialBasis(params, &dummyCiphertext{level, &Scale{scale.(*Scale).Value}})
 
 	giant, baby := polIn.BSGSSplit()
 
@@ -826,7 +827,7 @@ func getScaledBSGSCoefficients(params Parameters, ecd Encoder, enc Encryptor, le
 	polyEval.recurse(dummbpb.Value[1].Level-giant+1, targetScale, evalPoly{&polIn, true, polIn.Degree()})
 }
 
-func (polyEval *dummyPolynomialEvaluator) recurse(targetLevel int, targetScale float64, pol evalPoly) (res *dummyCiphertext) {
+func (polyEval *dummyPolynomialEvaluator) recurse(targetLevel int, targetScale rlwe.Scale, pol evalPoly) (res *dummyCiphertext) {
 
 	params := polyEval.params
 
@@ -853,7 +854,7 @@ func (polyEval *dummyPolynomialEvaluator) recurse(targetLevel int, targetScale f
 		}
 
 		if pol.lead {
-			targetScale *= params.QiFloat64(targetLevel)
+			targetScale.(*Scale).Value *= params.QiFloat64(targetLevel)
 		}
 
 		switch coeffsInterface := polyEval.coeffsInterface.(type) {
@@ -884,11 +885,11 @@ func (polyEval *dummyPolynomialEvaluator) recurse(targetLevel int, targetScale f
 		currentQi = params.QiFloat64(level + 1)
 	}
 
-	res = polyEval.recurse(targetLevel+1, targetScale*currentQi/XPow.Scale, coeffsq)
+	res = polyEval.recurse(targetLevel+1, &Scale{targetScale.(*Scale).Value*currentQi/XPow.Scale.(*Scale).Value}, coeffsq)
 
-	res.rescale(params, params.DefaultScale().Value)
+	res.rescale(params, params.DefaultScale())
 
-	res.Scale *= XPow.Scale
+	res.Scale.(*Scale).Value *= XPow.Scale.(*Scale).Value
 
 	tmp := polyEval.recurse(res.Level, res.Scale, coeffsr)
 
@@ -897,9 +898,11 @@ func (polyEval *dummyPolynomialEvaluator) recurse(targetLevel int, targetScale f
 	return
 }
 
-func (polyEval *dummyPolynomialEvaluator) evaluatePolyFromPolynomialBasisComplex128(targetScale float64, level int, polIn *coefficientsComplex128, polOut *coefficientsBSGSComplex128) (res *dummyCiphertext) {
+func (polyEval *dummyPolynomialEvaluator) evaluatePolyFromPolynomialBasisComplex128(targetScale rlwe.Scale, level int, polIn *coefficientsComplex128, polOut *coefficientsBSGSComplex128) (res *dummyCiphertext) {
 
 	X := polyEval.dummyPolynomialBasis.Value
+
+	scale := targetScale.(*Scale).Value
 
 	values := make([][]complex128, polIn.Degree()+1)
 	for i := range values {
@@ -908,22 +911,25 @@ func (polyEval *dummyPolynomialEvaluator) evaluatePolyFromPolynomialBasisComplex
 
 	for i, c := range polIn.coeffs {
 		if isNotNegligible(c[0]) {
-			values[0][i] = c[0] * complex(targetScale, 0)
+			values[0][i] = c[0] * complex(scale, 0)
 		}
 	}
 
 	for i := 1; i < polIn.Degree(); i++ {
+
+		 tscale := scale / X[i].Scale.(*Scale).Value
+
 		for j, c := range polIn.coeffs {
 			if isNotNegligible(c[i]) {
-				values[i][j] = c[i] * complex(targetScale/X[i].Scale, 0)
+				values[i][j] = c[i] * complex(tscale, 0)
 			}
 		}
 	}
 
-	return &dummyCiphertext{level, targetScale}
+	return &dummyCiphertext{level, &Scale{scale}}
 }
 
-func (polyEval *dummyPolynomialEvaluator) evaluatePolyFromPolynomialBasisPlaintext(targetScale float64, level int, polIn *coefficientsComplex128, polOut *coefficientsBSGSPlaintext) (res *dummyCiphertext) {
+func (polyEval *dummyPolynomialEvaluator) evaluatePolyFromPolynomialBasisPlaintext(targetScale rlwe.Scale, level int, polIn *coefficientsComplex128, polOut *coefficientsBSGSPlaintext) (res *dummyCiphertext) {
 
 	params := polyEval.params
 	ecd := polyEval.ecd
@@ -987,7 +993,7 @@ func (polyEval *dummyPolynomialEvaluator) evaluatePolyFromPolynomialBasisPlainte
 
 		if toEncode {
 
-			pt[i] = ecd.EncodeNew(values, level, targetScale/X[i].Scale, params.LogSlots())
+			pt[i] = ecd.EncodeNew(values, level, &Scale{targetScale.(*Scale).Value/X[i].Scale.(*Scale).Value}, params.LogSlots())
 
 			for i := range values {
 				values[i] = 0
@@ -999,10 +1005,10 @@ func (polyEval *dummyPolynomialEvaluator) evaluatePolyFromPolynomialBasisPlainte
 
 	polOut.coeffs = append([][]*Plaintext{pt}, polOut.coeffs...)
 
-	return &dummyCiphertext{level, targetScale}
+	return &dummyCiphertext{level, &Scale{targetScale.(*Scale).Value}}
 }
 
-func (polyEval *dummyPolynomialEvaluator) evaluatePolyFromPolynomialBasisCiphertext(targetScale float64, level int, polIn *coefficientsComplex128, polOut *coefficientsBSGSCiphertext) (res *dummyCiphertext) {
+func (polyEval *dummyPolynomialEvaluator) evaluatePolyFromPolynomialBasisCiphertext(targetScale rlwe.Scale, level int, polIn *coefficientsComplex128, polOut *coefficientsBSGSCiphertext) (res *dummyCiphertext) {
 
 	params := polyEval.params
 	ecd := polyEval.ecd
@@ -1051,11 +1057,11 @@ func (polyEval *dummyPolynomialEvaluator) evaluatePolyFromPolynomialBasisCiphert
 
 	if toEncrypt {
 		if slotsIndex != nil {
-			pt.Plaintext.Scale = &Scale{targetScale}
+			pt.Plaintext.Scale = &Scale{targetScale.(*Scale).Value}
 			ecd.Encode(values, pt, params.LogSlots())
 			ct[0] = enc.EncryptNew(pt)
 		} else {
-			ct[0] = enc.EncryptZeroNew(level, &Scale{targetScale})
+			ct[0] = enc.EncryptZeroNew(level, &Scale{targetScale.(*Scale).Value})
 			addConst(params, ct[0], values[0], ct[0])
 		}
 
@@ -1090,11 +1096,11 @@ func (polyEval *dummyPolynomialEvaluator) evaluatePolyFromPolynomialBasisCiphert
 		if toEncrypt {
 
 			if slotsIndex != nil {
-				pt.Plaintext.Scale = &Scale{targetScale / X[i].Scale}
+				pt.Plaintext.Scale = &Scale{targetScale.(*Scale).Value / X[i].Scale.(*Scale).Value}
 				ecd.Encode(values, pt, params.LogSlots())
 				ct[i] = enc.EncryptNew(pt)
 			} else {
-				ct[i] = enc.EncryptZeroNew(level, &Scale{targetScale / X[i].Scale})
+				ct[i] = enc.EncryptZeroNew(level, &Scale{targetScale.(*Scale).Value / X[i].Scale.(*Scale).Value})
 				addConst(params, ct[i], values[0], ct[i])
 			}
 
@@ -1113,13 +1119,13 @@ func (polyEval *dummyPolynomialEvaluator) evaluatePolyFromPolynomialBasisCiphert
 
 type dummyCiphertext struct {
 	Level int
-	Scale float64
+	Scale rlwe.Scale
 }
 
-func (d *dummyCiphertext) rescale(params Parameters, minScale float64) {
+func (d *dummyCiphertext) rescale(params Parameters, minScale rlwe.Scale) {
 	var nbRescales int
-	for d.Level-nbRescales >= 0 && d.Scale/float64(params.Q()[d.Level-nbRescales]) >= minScale/2 {
-		d.Scale /= (float64(params.Q()[d.Level-nbRescales]))
+	for d.Level-nbRescales >= 0 && d.Scale.(*Scale).Value/float64(params.Q()[d.Level-nbRescales]) >= minScale.(*Scale).Value/2 {
+		d.Scale.(*Scale).Value /= (float64(params.Q()[d.Level-nbRescales]))
 		nbRescales++
 	}
 
@@ -1139,14 +1145,14 @@ func newDummyPolynomialBasis(params Parameters, ct *dummyCiphertext) (p *dummyPo
 	return
 }
 
-func (p *dummyPolynomialBasis) GenPower(n int, lazy bool, scale float64) {
+func (p *dummyPolynomialBasis) GenPower(n int, lazy bool, scale rlwe.Scale) {
 	if p.Value[n] == nil {
 		p.genPower(n, lazy, scale)
 		p.Value[n].rescale(p.params, scale)
 	}
 }
 
-func (p *dummyPolynomialBasis) genPower(n int, lazy bool, scale float64) (err error) {
+func (p *dummyPolynomialBasis) genPower(n int, lazy bool, scale rlwe.Scale) (err error) {
 	if p.Value[n] == nil {
 
 		isPow2 := n&(n-1) == 0
@@ -1173,10 +1179,11 @@ func (p *dummyPolynomialBasis) genPower(n int, lazy bool, scale float64) (err er
 		// Computes C[n] = C[a]*C[b]
 		p.Value[n] = new(dummyCiphertext)
 		p.Value[n].Level = utils.MinInt(p.Value[a].Level, p.Value[b].Level)
+		p.Value[n].Scale = NewScale()
 		if lazy && !isPow2 {
-			p.Value[n].Scale = p.Value[a].Scale * p.Value[b].Scale
+			p.Value[n].Scale.(*Scale).Value = p.Value[a].Scale.(*Scale).Value * p.Value[b].Scale.(*Scale).Value
 		} else {
-			p.Value[n].Scale = p.Value[a].Scale * p.Value[b].Scale
+			p.Value[n].Scale.(*Scale).Value = p.Value[a].Scale.(*Scale).Value * p.Value[b].Scale.(*Scale).Value
 			p.Value[n].rescale(p.params, scale)
 		}
 	}

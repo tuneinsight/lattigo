@@ -29,18 +29,18 @@ func NewPlaintextAtLevelFromPoly(level int, poly *ring.Poly) *Plaintext {
 }
 
 // Degree returns the degree of the target element.
-func (pt Plaintext) Degree() int {
+func (pt *Plaintext) Degree() int {
 	return 0
 }
 
 // Level returns the level of the target element.
-func (pt Plaintext) Level() int {
+func (pt *Plaintext) Level() int {
 	return len(pt.Value.Coeffs) - 1
 }
 
 // El returns the plaintext as a new `Element` for which the value points
 // to the receiver `Value` field.
-func (pt Plaintext) El() *Ciphertext {
+func (pt *Plaintext) El() *Ciphertext {
 	return &Ciphertext{Value: []*ring.Poly{pt.Value}, Scale: pt.Scale}
 }
 

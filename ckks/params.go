@@ -402,7 +402,7 @@ func (p Parameters) ParametersLiteral() (pLit ParametersLiteral) {
 		H:            pRLWELit.H,
 		RingType:     pRLWELit.RingType,
 		LogSlots:     p.LogSlots(),
-		DefaultScale: p.DefaultScale().Value,
+		DefaultScale: p.DefaultScale().(*Scale).Value,
 	}
 }
 
@@ -446,8 +446,8 @@ func (p Parameters) MaxLogSlots() int {
 }
 
 // DefaultScale returns the default plaintext/ciphertext scale
-func (p Parameters) DefaultScale() *Scale {
-	return p.defaultScale.CopyNew().(*Scale)
+func (p Parameters) DefaultScale() rlwe.Scale {
+	return p.defaultScale.CopyNew()
 }
 
 // LogQLvl returns the size of the modulus Q in bits at a specific level
@@ -523,7 +523,7 @@ func (p Parameters) RotationsForReplicateLog(batch, n int) (rotations []int) {
 func (p Parameters) Equals(other Parameters) bool {
 	res := p.Parameters.Equals(other.Parameters)
 	res = res && (p.logSlots == other.LogSlots())
-	res = res && (p.defaultScale.Value == other.DefaultScale().Value)
+	res = res && (p.defaultScale.Value == other.DefaultScale().(*Scale).Value)
 	return res
 }
 

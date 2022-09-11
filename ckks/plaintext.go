@@ -27,6 +27,6 @@ func NewPlaintextAtLevelFromPoly(level int, poly *ring.Poly) *Plaintext {
 	return &Plaintext{Plaintext: pt}
 }
 
-func (pt *Plaintext) Scale() float64 {
-	return pt.Plaintext.Scale.(*Scale).Value
+func (pt *Plaintext) Scale() rlwe.Scale {
+	return pt.Plaintext.Scale
 }

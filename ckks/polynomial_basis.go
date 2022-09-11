@@ -6,6 +6,7 @@ import (
 	"math"
 
 	"github.com/tuneinsight/lattigo/v3/ring"
+	"github.com/tuneinsight/lattigo/v3/rlwe"
 )
 
 // PolynomialBasis is a struct storing powers of a ciphertext.
@@ -29,7 +30,7 @@ func NewPolynomialBasis(ct *Ciphertext, basistype BasisType) (p *PolynomialBasis
 // If lazy = true, the final X^{n} will not be relinearized.
 // Previous non-relinearized X^{n} that are required to compute the target X^{n} are automatically relinearized.
 // Scale sets the threshold for rescaling (ciphertext won't be rescaled if the rescaling operation would make the scale go under this threshold).
-func (p *PolynomialBasis) GenPower(n int, lazy bool, scale float64, eval Evaluator) (err error) {
+func (p *PolynomialBasis) GenPower(n int, lazy bool, scale rlwe.Scale, eval Evaluator) (err error) {
 
 	if p.Value[n] == nil {
 		if err = p.genPower(n, lazy, scale, eval); err != nil {
@@ -44,7 +45,7 @@ func (p *PolynomialBasis) GenPower(n int, lazy bool, scale float64, eval Evaluat
 	return nil
 }
 
-func (p *PolynomialBasis) genPower(n int, lazy bool, scale float64, eval Evaluator) (err error) {
+func (p *PolynomialBasis) genPower(n int, lazy bool, scale rlwe.Scale, eval Evaluator) (err error) {
 	if p.Value[n] == nil {
 
 		isPow2 := n&(n-1) == 0
@@ -187,14 +188,14 @@ func (eval *evaluator) genPolynomialBasis(input interface{}, pol Polynomial) (mo
 
 	for i := (1 << baby) - 1; i > 1; i-- {
 		if !(even || odd) || (i&1 == 0 && even) || (i&1 == 1 && odd) {
-			if err = monomialBasis.GenPower(i, isRingStandard, eval.params.DefaultScale().Value, eval); err != nil {
+			if err = monomialBasis.GenPower(i, isRingStandard, eval.params.DefaultScale(), eval); err != nil {
 				return nil, err
 			}
 		}
 	}
 
 	for i := baby; i < giant; i++ {
-		if err = monomialBasis.GenPower(1<<i, false, eval.params.DefaultScale().Value, eval); err != nil {
+		if err = monomialBasis.GenPower(1<<i, false, eval.params.DefaultScale(), eval); err != nil {
 			return nil, err
 		}
 	}

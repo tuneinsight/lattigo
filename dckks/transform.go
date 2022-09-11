@@ -142,7 +142,7 @@ func NewMaskedTransformProtocol(paramsIn, paramsOut ckks.Parameters, precision i
 	rfp.precision = precision
 
 	rfp.defaultScale = new(big.Int)
-	ring.NewFloat(paramsOut.DefaultScale().Value, precision).Int(rfp.defaultScale)
+	ring.NewFloat(paramsOut.DefaultScale().(*ckks.Scale).Value, precision).Int(rfp.defaultScale)
 
 	rfp.tmpMask = make([]*big.Int, paramsIn.N())
 	for i := range rfp.tmpMask {
@@ -360,7 +360,7 @@ func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, logSlots int,
 
 	// Returns LT(-sum(M_i) + x) * diffscale
 	inputScaleInt := new(big.Int)
-	ring.NewFloat(ct.Scale(), 256).Int(inputScaleInt)
+	ring.NewFloat(ct.Scale().(*ckks.Scale).Value, 256).Int(inputScaleInt)
 
 	// Scales the mask by the ratio between the two scales
 	for i := 0; i < dslots; i++ {
@@ -390,5 +390,5 @@ func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, logSlots int,
 	// Copies the result on the out ciphertext
 	rfp.s2e.GetEncryption(&drlwe.CKSShare{Value: ciphertextOut.Value[0]}, crs, ciphertextOut)
 
-	ciphertextOut.Ciphertext.Scale = &ckks.Scale{Value: rfp.s2e.params.DefaultScale().Value}
+	ciphertextOut.Ciphertext.Scale = &ckks.Scale{Value: rfp.s2e.params.DefaultScale().(*ckks.Scale).Value}
 }

@@ -53,7 +53,7 @@ type Evaluator interface {
 	PowerOf2(ctIn *ckks.Ciphertext, logPow2 int, ctOut *ckks.Ciphertext)
 	Power(ctIn *ckks.Ciphertext, degree int, ctOut *ckks.Ciphertext)
 	PowerNew(ctIn *ckks.Ciphertext, degree int) (ctOut *ckks.Ciphertext)
-	EvaluatePoly(input interface{}, pol ckks.Polynomial, targetScale float64) (ctOut *ckks.Ciphertext, err error)
+	EvaluatePoly(input interface{}, pol ckks.Polynomial, targetScale rlwe.Scale) (ctOut *ckks.Ciphertext, err error)
 	InverseNew(ctIn *ckks.Ciphertext, steps int) (ctOut *ckks.Ciphertext)
 	LinearTransformNew(ctIn *ckks.Ciphertext, linearTransform interface{}) (ctOut []*ckks.Ciphertext)
 	LinearTransform(ctIn *ckks.Ciphertext, linearTransform interface{}, ctOut []*ckks.Ciphertext)
@@ -69,8 +69,8 @@ type Evaluator interface {
 	Relinearize(ctIn *ckks.Ciphertext, ctOut *ckks.Ciphertext)
 	ScaleUpNew(ctIn *ckks.Ciphertext, scale float64) (ctOut *ckks.Ciphertext)
 	ScaleUp(ctIn *ckks.Ciphertext, scale float64, ctOut *ckks.Ciphertext)
-	SetScale(ctIn *ckks.Ciphertext, scale float64)
-	Rescale(ctIn *ckks.Ciphertext, minScale float64, ctOut *ckks.Ciphertext) (err error)
+	SetScale(ctIn *ckks.Ciphertext, scale rlwe.Scale)
+	Rescale(ctIn *ckks.Ciphertext, minScale rlwe.Scale, ctOut *ckks.Ciphertext) (err error)
 	DropLevelNew(ctIn *ckks.Ciphertext, levels int) (ctOut *ckks.Ciphertext)
 	DropLevel(ctIn *ckks.Ciphertext, levels int)
 	ReduceNew(ctIn *ckks.Ciphertext) (ctOut *ckks.Ciphertext)
@@ -186,7 +186,7 @@ func (eval *evaluator) SlotsToCoeffsNew(ctReal, ctImag *ckks.Ciphertext, stcMatr
 		panic("ctReal.Level() or ctImag.Level() < EncodingMatrix.LevelStart")
 	}
 
-	ctOut = ckks.NewCiphertext(eval.params, 1, stcMatrices.LevelStart, &ckks.Scale{Value: ctReal.Scale()})
+	ctOut = ckks.NewCiphertext(eval.params, 1, stcMatrices.LevelStart, &ckks.Scale{Value: ctReal.Scale().(*ckks.Scale).Value})
 	eval.SlotsToCoeffs(ctReal, ctImag, stcMatrices, ctOut)
 	return
 
@@ -248,7 +248,7 @@ func (eval *evaluator) EvalModNew(ct *ckks.Ciphertext, evalModPoly EvalModPoly) 
 	}
 
 	// Stores default scales
-	prevScaleCt := ct.Scale()
+	prevScaleCt := ct.Scale().(*ckks.Scale).Value
 
 	// Normalize the modular reduction to mod by 1 (division by Q)
 	ct.Ciphertext.Scale = &ckks.Scale{Value: evalModPoly.scalingFactor}
@@ -258,7 +258,7 @@ func (eval *evaluator) EvalModNew(ct *ckks.Ciphertext, evalModPoly EvalModPoly) 
 	// Compute the scales that the ciphertext should have before the double angle
 	// formula such that after it it has the scale it had before the polynomial
 	// evaluation
-	targetScale := ct.Scale()
+	targetScale := ct.Scale().(*ckks.Scale).Value
 	for i := 0; i < evalModPoly.doubleAngle; i++ {
 		targetScale = math.Sqrt(targetScale * eval.params.QiFloat64(evalModPoly.levelStart-evalModPoly.sinePoly.Depth()-evalModPoly.doubleAngle+i+1))
 	}
@@ -269,7 +269,7 @@ func (eval *evaluator) EvalModNew(ct *ckks.Ciphertext, evalModPoly EvalModPoly) 
 	}
 
 	// Chebyshev evaluation
-	if ct, err = eval.EvaluatePoly(ct, evalModPoly.sinePoly, targetScale); err != nil {
+	if ct, err = eval.EvaluatePoly(ct, evalModPoly.sinePoly, &ckks.Scale{targetScale}); err != nil {
 		panic(err)
 	}
 
@@ -280,7 +280,7 @@ func (eval *evaluator) EvalModNew(ct *ckks.Ciphertext, evalModPoly EvalModPoly) 
 		eval.MulRelin(ct, ct, ct)
 		eval.Add(ct, ct, ct)
 		eval.AddConst(ct, -sqrt2pi, ct)
-		if err := eval.Rescale(ct, targetScale, ct); err != nil {
+		if err := eval.Rescale(ct, &ckks.Scale{targetScale}, ct); err != nil {
 			panic(err)
 		}
 	}

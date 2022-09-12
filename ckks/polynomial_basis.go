@@ -11,18 +11,18 @@ import (
 
 // PolynomialBasis is a struct storing powers of a ciphertext.
 type PolynomialBasis struct {
-	BasisType
+	rlwe.PolynomialBasisType
 	Value map[int]*Ciphertext
 }
 
 // NewPolynomialBasis creates a new PolynomialBasis. It takes as input a ciphertext
 // and a basistype. The struct treates the input ciphertext as a monomial X and
 // can be used to generates power of this monomial X^{n} in the given BasisType.
-func NewPolynomialBasis(ct *Ciphertext, basistype BasisType) (p *PolynomialBasis) {
+func NewPolynomialBasis(ct *Ciphertext, basistype rlwe.PolynomialBasisType) (p *PolynomialBasis) {
 	p = new(PolynomialBasis)
 	p.Value = make(map[int]*Ciphertext)
 	p.Value[1] = ct.CopyNew()
-	p.BasisType = basistype
+	p.PolynomialBasisType = basistype
 	return
 }
 
@@ -61,7 +61,7 @@ func (p *PolynomialBasis) genPower(n int, lazy bool, scale rlwe.Scale, eval Eval
 			a = (1 << k) - 1
 			b = n + 1 - (1 << k)
 
-			if p.BasisType == Chebyshev {
+			if p.PolynomialBasisType == rlwe.Chebyshev {
 				c = int(math.Abs(float64(a) - float64(b))) // Cn = 2*Ca*Cb - Cc, n = a+b and c = abs(a-b)
 			}
 		}
@@ -101,7 +101,7 @@ func (p *PolynomialBasis) genPower(n int, lazy bool, scale rlwe.Scale, eval Eval
 			}
 		}
 
-		if p.BasisType == Chebyshev {
+		if p.PolynomialBasisType == rlwe.Chebyshev {
 
 			// Computes C[n] = 2*C[a]*C[b]
 			eval.Add(p.Value[n], p.Value[n], p.Value[n])
@@ -157,10 +157,10 @@ func (p *PolynomialBasis) UnmarshalBinary(data []byte) (err error) {
 	return
 }
 
-func (eval *evaluator) genPolynomialBasis(input interface{}, pol Polynomial) (monomialBasis *PolynomialBasis, err error) {
+func (eval *evaluator) genPolynomialBasis(input interface{}, pol rlwe.Polynomial) (monomialBasis *PolynomialBasis, err error) {
 	switch input := input.(type) {
 	case *Ciphertext:
-		monomialBasis = NewPolynomialBasis(input, pol.Basis())
+		monomialBasis = NewPolynomialBasis(input, pol.BasisType())
 	case *PolynomialBasis:
 		if input.Value[1] == nil {
 			return nil, fmt.Errorf("cannot evaluatePolyVector: given PolynomialBasis.Value[1] is empty")
@@ -178,13 +178,7 @@ func (eval *evaluator) genPolynomialBasis(input interface{}, pol Polynomial) (mo
 
 	odd, even := pol.OddEven()
 
-	var isRingStandard bool
-	switch pol.coefficients.(type) {
-	case *coefficientsBSGSCiphertext:
-		isRingStandard = false
-	default:
-		isRingStandard = eval.params.RingType() == ring.Standard
-	}
+	isRingStandard := (eval.params.RingType() == ring.Standard) && !pol.IsEncrypted()
 
 	for i := (1 << baby) - 1; i > 1; i-- {
 		if !(even || odd) || (i&1 == 0 && even) || (i&1 == 1 && odd) {

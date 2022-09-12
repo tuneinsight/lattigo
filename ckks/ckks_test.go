@@ -858,13 +858,13 @@ func testPolynomial(tc *testContext, t *testing.T) {
 			complex(1.0/5040, 0),
 		}
 
-		poly, err := NewPolynomial(Monomial, coeffs, nil)
+		poly, err := NewPolynomial(rlwe.Monomial, coeffs, nil)
 		require.Nil(t, err)
 
 		polyData, err := poly.MarshalBinary()
 		require.Nil(t, err)
 
-		newPoly := Polynomial{}
+		newPoly := &Polynomial{}
 		require.Nil(t, newPoly.UnmarshalBinary(polyData))
 
 		require.Equal(t, poly, newPoly)
@@ -909,13 +909,13 @@ func testPolynomial(tc *testContext, t *testing.T) {
 			valuesWant[j] = cmplx.Exp(values[j])
 		}
 
-		poly, err := NewPolynomial(Monomial, coeffs, [][]int{idx})
+		poly, err := NewPolynomial(rlwe.Monomial, coeffs, [][]int{idx})
 		require.Nil(t, err)
 
 		polyData, err := poly.MarshalBinary()
 		require.Nil(t, err)
 
-		newPoly := Polynomial{}
+		newPoly := &Polynomial{}
 		require.Nil(t, newPoly.UnmarshalBinary(polyData))
 
 		require.Equal(t, poly, newPoly)
@@ -956,7 +956,7 @@ func testPolynomial(tc *testContext, t *testing.T) {
 			valuesWant[j] = cmplx.Exp(values[j])
 		}
 
-		poly, err := NewPolynomial(Monomial, coeffs, [][]int{idx})
+		poly, err := NewPolynomial(rlwe.Monomial, coeffs, [][]int{idx})
 		require.Nil(t, err)
 
 		polyPt, err := poly.Encode(tc.encoder, ciphertext.Level(), ciphertext.Scale(), tc.params.DefaultScale())
@@ -992,7 +992,7 @@ func testPolynomial(tc *testContext, t *testing.T) {
 			values[i] = cmplx.Exp(values[i])
 		}
 
-		poly, err := NewPolynomial(Monomial, coeffs, nil)
+		poly, err := NewPolynomial(rlwe.Monomial, coeffs, nil)
 		require.Nil(t, err)
 
 		polyCt, err := poly.Encrypt(tc.encoder, tc.encryptorSk, ciphertext.Level(), ciphertext.Scale(), tc.params.DefaultScale())
@@ -1001,7 +1001,7 @@ func testPolynomial(tc *testContext, t *testing.T) {
 		polyData, err := polyCt.MarshalBinary()
 		require.Nil(t, err)
 
-		newPolyCt := Polynomial{}
+		newPolyCt := &Polynomial{}
 		require.Nil(t, newPolyCt.UnmarshalBinary(polyData))
 
 		if ciphertext, err = tc.evaluator.EvaluatePoly(ciphertext, newPolyCt, ciphertext.Scale()); err != nil {
@@ -1040,7 +1040,7 @@ func testPolynomial(tc *testContext, t *testing.T) {
 			valuesWant[j] = cmplx.Exp(values[j])
 		}
 
-		poly, err := NewPolynomial(Monomial, coeffs, [][]int{idx})
+		poly, err := NewPolynomial(rlwe.Monomial, coeffs, [][]int{idx})
 		require.Nil(t, err)
 
 		polyCt, err := poly.Encrypt(tc.encoder, tc.encryptorSk, ciphertext.Level(), ciphertext.Scale(), tc.params.DefaultScale())
@@ -1049,7 +1049,7 @@ func testPolynomial(tc *testContext, t *testing.T) {
 		polyData, err := polyCt.MarshalBinary()
 		require.Nil(t, err)
 
-		newPolyCt := Polynomial{}
+		newPolyCt := &Polynomial{}
 		require.Nil(t, newPolyCt.UnmarshalBinary(polyData))
 
 		if ciphertext, err = tc.evaluator.EvaluatePoly(ciphertext, newPolyCt, ciphertext.Scale()); err != nil {
@@ -1076,7 +1076,7 @@ func testChebyshevInterpolator(tc *testContext, t *testing.T) {
 
 		coeffs := Approximate(cmplx.Sin, a, b, 15)
 
-		poly, err := NewPolynomial(Chebyshev, coeffs, nil)
+		poly, err := NewPolynomial(rlwe.Chebyshev, coeffs, nil)
 		require.Nil(t, err)
 
 		for i := range values {
@@ -1113,7 +1113,7 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 
 		coeffs := Approximate(cmplx.Sin, a, b, 15)
 
-		poly, err := NewPolynomial(Chebyshev, coeffs, nil)
+		poly, err := NewPolynomial(rlwe.Chebyshev, coeffs, nil)
 		require.Nil(t, err)
 
 		for i := range values {
@@ -1335,41 +1335,13 @@ func testInnerSum(tc *testContext, t *testing.T) {
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
 	})
 
-	t.Run(GetTestName(tc.params, "InnerSumLog"), func(t *testing.T) {
-
-		batch := 512
-		n := tc.params.Slots() / batch
-
-		rotKey := tc.kgen.GenRotationKeysForRotations(tc.params.RotationsForInnerSumLog(batch, n), false, tc.sk)
-		eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
-
-		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
-
-		eval.InnerSumLog(ciphertext1, batch, n, ciphertext1)
-
-		tmp0 := make([]complex128, len(values1))
-		copy(tmp0, values1)
-
-		for i := 1; i < n; i++ {
-
-			tmp1 := utils.RotateComplex128Slice(tmp0, i*batch)
-
-			for j := range values1 {
-				values1[j] += tmp1[j]
-			}
-		}
-
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
-
-	})
-
 	t.Run(GetTestName(tc.params, "Average"), func(t *testing.T) {
 
 		logBatch := 9
 		batch := 1 << logBatch
 		n := tc.params.Slots() / batch
 
-		rotKey := tc.kgen.GenRotationKeysForRotations(tc.params.RotationsForInnerSumLog(batch, n), false, tc.sk)
+		rotKey := tc.kgen.GenRotationKeysForRotations(tc.params.RotationsForInnerSum(batch, n), false, tc.sk)
 		eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
 
 		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
@@ -1423,34 +1395,6 @@ func testReplicate(tc *testContext, t *testing.T) {
 		}
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
-	})
-
-	t.Run(GetTestName(tc.params, "ReplicateLog"), func(t *testing.T) {
-
-		batch := 3
-		n := 15
-
-		rotKey := tc.kgen.GenRotationKeysForRotations(tc.params.RotationsForReplicateLog(batch, n), false, tc.sk)
-		eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
-
-		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
-
-		eval.ReplicateLog(ciphertext1, batch, n, ciphertext1)
-
-		tmp0 := make([]complex128, len(values1))
-		copy(tmp0, values1)
-
-		for i := 1; i < n; i++ {
-
-			tmp1 := utils.RotateComplex128Slice(tmp0, i*-batch)
-
-			for j := range values1 {
-				values1[j] += tmp1[j]
-			}
-		}
-
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
-
 	})
 }
 

@@ -148,7 +148,7 @@ func example() {
 		complex(1.0/5040, 0),
 	}
 
-	poly, err := ckks.NewPolynomial(ckks.Monomial, coeffs, nil)
+	poly, err := ckks.NewPolynomial(rlwe.Monomial, coeffs, nil)
 	if err != nil {
 		panic(err)
 	}

@@ -226,8 +226,8 @@ func benchInnerSum(tc *testContext, b *testing.B) {
 
 	ciphertext1 := NewCiphertextRandom(tc.prng, tc.params, 1, tc.params.MaxLevel())
 
-	batch := 1
-	n := 4
+	batch := 3
+	n := 27
 
 	b.Run(GetTestName(tc.params, "InnerSum"), func(b *testing.B) {
 		rotKey := tc.kgen.GenRotationKeysForRotations(tc.params.RotationsForInnerSum(batch, n), false, tc.sk)
@@ -239,16 +239,4 @@ func benchInnerSum(tc *testContext, b *testing.B) {
 			eval.InnerSum(ciphertext1, batch, n, ciphertext1)
 		}
 	})
-
-	b.Run(GetTestName(tc.params, "InnerSumLog"), func(b *testing.B) {
-		rotKey := tc.kgen.GenRotationKeysForRotations(tc.params.RotationsForInnerSumLog(batch, n), false, tc.sk)
-		eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
-
-		b.ResetTimer()
-
-		for i := 0; i < b.N; i++ {
-			eval.InnerSumLog(ciphertext1, batch, n, ciphertext1)
-		}
-	})
-
 }

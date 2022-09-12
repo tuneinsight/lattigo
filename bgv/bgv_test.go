@@ -770,12 +770,12 @@ func testInnerSum(tc *testContext, t *testing.T) {
 		batch := 128
 		n := 47
 
-		rotKey := tc.kgen.GenRotationKeysForRotations(tc.params.RotationsForInnerSumLog(batch, n), false, tc.sk)
+		rotKey := tc.kgen.GenRotationKeysForRotations(tc.params.RotationsForInnerSum(batch, n), false, tc.sk)
 		eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
 
 		values, _, ciphertext := newTestVectorsLvl(tc.params.MaxLevel(), 1, tc, tc.encryptorSk)
 
-		eval.InnerSumLog(ciphertext, batch, n, ciphertext)
+		eval.InnerSum(ciphertext, batch, n, ciphertext)
 
 		tmp := make([]uint64, tc.params.N())
 		copy(tmp, values.Coeffs[0])

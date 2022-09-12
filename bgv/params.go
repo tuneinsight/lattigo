@@ -193,9 +193,9 @@ func (p Parameters) Equals(other Parameters) bool {
 	return res
 }
 
-// RotationsForInnerSumLog generates the rotations that will be performed by the
-// `Evaluator.InnerSumLog` operation when performed with parameters `batch` and `n`.
-func (p Parameters) RotationsForInnerSumLog(batch, n int) (rotations []int) {
+// RotationsForInnerSum generates the rotations that will be performed by the
+// `Evaluator.InnerSum` operation when performed with parameters `batch` and `n`.
+func (p Parameters) RotationsForInnerSum(batch, n int) (rotations []int) {
 
 	rotIndex := make(map[int]bool)
 

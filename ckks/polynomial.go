@@ -11,35 +11,23 @@ import (
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
-// BasisType is a type for the polynomials basis
-type BasisType int
-
-const (
-	// Monomial : x^(a+b) = x^a * x^b
-	Monomial = BasisType(0)
-	// Chebyshev : T_(a+b) = 2 * T_a * T_b - T_(|a-b|)
-	Chebyshev = BasisType(1)
-)
-
 // IsNegligbleThreshold : threshold under which a coefficient
 // of a polynomial is ignored.
 const IsNegligbleThreshold float64 = 1e-14
 
-// Polynomial is a struct storing the coefficients of a polynomial
-// that then can be evaluated on the ciphertext
 type Polynomial struct {
-	coefficients
+	rlwe.Polynomial
 }
 
 func (p *Polynomial) MarshalBinary() (data []byte, err error) {
 
-	if data, err = p.coefficients.MarshalBinary(); err != nil {
+	if data, err = p.Polynomial.MarshalBinary(); err != nil {
 		return nil, err
 	}
 
 	data = append([]byte{0}, data...)
 
-	switch p.coefficients.(type) {
+	switch p.Polynomial.(type) {
 	case *coefficientsComplex128:
 		data[0] = 0
 	case *coefficientsBSGSComplex128:
@@ -57,21 +45,21 @@ func (p *Polynomial) UnmarshalBinary(data []byte) (err error) {
 
 	switch data[0] {
 	case 0:
-		p.coefficients = new(coefficientsComplex128)
+		p.Polynomial = new(coefficientsComplex128)
 	case 1:
-		p.coefficients = new(coefficientsBSGSComplex128)
+		p.Polynomial = new(coefficientsBSGSComplex128)
 	case 2:
-		p.coefficients = new(coefficientsBSGSPlaintext)
+		p.Polynomial = new(coefficientsBSGSPlaintext)
 	case 3:
-		p.coefficients = new(coefficientsBSGSCiphertext)
+		p.Polynomial = new(coefficientsBSGSCiphertext)
 	}
 
-	return p.coefficients.UnmarshalBinary(data[1:])
+	return p.Polynomial.UnmarshalBinary(data[1:])
 }
 
 // NewPolynomial creates a new polynomial from:
 //
-// basisType: ckks.Monomial or ckks.Chebyshev
+// rlwe.PolynomialBasis: ckks.Monomial or ckks.Chebyshev
 //
 // coeffs:
 //		- singe polynomial    : [coeffs]complex128 or [coeffs]float64
@@ -83,10 +71,11 @@ func (p *Polynomial) UnmarshalBinary(data []byte) (err error) {
 //             specific slots (instead of all), resulting in zero values in slots where the polynomial isn't evaluated.
 //
 // The struct Polynomial can then be given to the ckks.Evaluator to evaluate the polynomial on a *ckks.Ciphertext.
-func NewPolynomial(basisType BasisType, coeffs interface{}, slotsIndex [][]int) (poly Polynomial, err error) {
+func NewPolynomial(polynomialBasis rlwe.PolynomialBasisType, coeffs interface{}, slotsIndex [][]int) (*Polynomial, error) {
 
-	var coeffsInterface coefficients
 	var odd, even bool = true, true
+
+	var poly rlwe.Polynomial
 
 	switch coeffs := coeffs.(type) {
 	case []complex128:
@@ -97,12 +86,12 @@ func NewPolynomial(basisType BasisType, coeffs interface{}, slotsIndex [][]int) 
 		tmp0, tmp1 := isOddOrEvenPolynomial(c)
 		odd, even = odd && tmp0, even && tmp1
 
-		coeffsInterface = &coefficientsComplex128{
+		poly = &coefficientsComplex128{
 			coeffs:     [][]complex128{c},
 			slotsIndex: slotsIndex,
 			odd:        odd,
 			even:       even,
-			basis:      basisType,
+			basis:      polynomialBasis,
 		}
 
 	case []float64:
@@ -115,19 +104,19 @@ func NewPolynomial(basisType BasisType, coeffs interface{}, slotsIndex [][]int) 
 		tmp0, tmp1 := isOddOrEvenPolynomial(c)
 		odd, even = odd && tmp0, even && tmp1
 
-		coeffsInterface = &coefficientsComplex128{
+		poly = &coefficientsComplex128{
 			coeffs:     [][]complex128{c},
 			slotsIndex: slotsIndex,
 			odd:        odd,
 			even:       even,
-			basis:      basisType,
+			basis:      polynomialBasis,
 		}
 
 	case [][]complex128:
 		{
 
 			if slotsIndex == nil {
-				return poly, fmt.Errorf("NewPolynomial: cannot have slotsIndex == nil if coeffs == [][]complex128")
+				return nil, fmt.Errorf("NewPolynomial: cannot have slotsIndex == nil if coeffs == [][]complex128")
 			}
 
 			var maxDeg int
@@ -144,19 +133,19 @@ func NewPolynomial(basisType BasisType, coeffs interface{}, slotsIndex [][]int) 
 				odd, even = odd && tmp0, even && tmp1
 			}
 
-			coeffsInterface = &coefficientsComplex128{
+			poly = &coefficientsComplex128{
 				coeffs:     c,
 				slotsIndex: slotsIndex,
 				odd:        odd,
 				even:       even,
-				basis:      basisType,
+				basis:      polynomialBasis,
 			}
 		}
 
 	case [][]float64:
 		{
 			if slotsIndex == nil {
-				return poly, fmt.Errorf("NewPolynomial: cannot have slotsIndex == nil if coeffs == [][]float64")
+				return nil, fmt.Errorf("NewPolynomial: cannot have slotsIndex == nil if coeffs == [][]float64")
 			}
 
 			var maxDeg int
@@ -177,68 +166,66 @@ func NewPolynomial(basisType BasisType, coeffs interface{}, slotsIndex [][]int) 
 				odd, even = odd && tmp0, even && tmp1
 			}
 
-			coeffsInterface = &coefficientsComplex128{
+			poly = &coefficientsComplex128{
 				coeffs:     c,
 				slotsIndex: slotsIndex,
 				odd:        odd,
 				even:       even,
-				basis:      basisType,
+				basis:      polynomialBasis,
 			}
 		}
 
 	default:
-		return poly, fmt.Errorf("NewPolynomial: invalid coeffs.(type)")
+		return nil, fmt.Errorf("NewPolynomial: invalid coeffs.(type)")
 	}
 
-	return Polynomial{
-		coefficients: coeffsInterface,
-	}, nil
+	return &Polynomial{poly}, nil
 }
 
-func (p *Polynomial) Encode(ecd Encoder, level int, inputScale, outputScale rlwe.Scale) (ptPoly Polynomial, err error) {
+func (p *Polynomial) Encode(ecd Encoder, level int, inputScale, outputScale rlwe.Scale) (*Polynomial, error) {
 
 	params := ecd.(*encoderComplex128).params
 
-	ptCoeffs := &coefficientsBSGSPlaintext{}
+	ptPoly := &coefficientsBSGSPlaintext{}
 
-	switch coeffInterface := p.coefficients.(type) {
+	switch poly := p.Polynomial.(type) {
 	case *coefficientsComplex128:
 
-		ptCoeffs.basis = coeffInterface.basis
-		ptCoeffs.odd = coeffInterface.odd
-		ptCoeffs.even = coeffInterface.even
+		ptPoly.basis = poly.basis
+		ptPoly.odd = poly.odd
+		ptPoly.even = poly.even
 
-		getScaledBSGSCoefficients(params, ecd, nil, level, inputScale, *coeffInterface, outputScale, ptCoeffs)
+		getScaledBSGSCoefficients(params, ecd, nil, level, inputScale, *poly, outputScale, ptPoly)
 
 	default:
-		return ptPoly, fmt.Errorf("Polynomial.Encode(*): underlying polynomial is already encoded or encrypted")
+		return nil, fmt.Errorf("Polynomial.Encode(*): underlying polynomial is already encoded or encrypted")
 	}
 
-	return Polynomial{ptCoeffs}, nil
+	return &Polynomial{ptPoly}, nil
 }
 
-func (p *Polynomial) Encrypt(ecd Encoder, enc Encryptor, level int, inputScale, outputScale rlwe.Scale) (ctPoly Polynomial, err error) {
+func (p *Polynomial) Encrypt(ecd Encoder, enc Encryptor, level int, inputScale, outputScale rlwe.Scale) (*Polynomial, error) {
 
 	params := ecd.(*encoderComplex128).params
 
-	ctCoeffs := &coefficientsBSGSCiphertext{}
+	ctPoly := &coefficientsBSGSCiphertext{}
 
-	switch coeffInterface := p.coefficients.(type) {
+	switch poly := p.Polynomial.(type) {
 	case *coefficientsComplex128:
 
-		ctCoeffs.basis = coeffInterface.basis
-		ctCoeffs.odd = coeffInterface.odd
-		ctCoeffs.even = coeffInterface.even
+		ctPoly.basis = poly.basis
+		ctPoly.odd = poly.odd
+		ctPoly.even = poly.even
 
-		getScaledBSGSCoefficients(params, ecd, enc, level, inputScale, *coeffInterface, outputScale, ctCoeffs)
+		getScaledBSGSCoefficients(params, ecd, enc, level, inputScale, *poly, outputScale, ctPoly)
 
 	case *coefficientsBSGSPlaintext:
 
-		ctCoeffs.basis = coeffInterface.basis
-		ctCoeffs.odd = coeffInterface.odd
-		ctCoeffs.even = coeffInterface.even
+		ctPoly.basis = poly.basis
+		ctPoly.odd = poly.odd
+		ctPoly.even = poly.even
 
-		pt := coeffInterface.coeffs
+		pt := poly.coeffs
 		ct := make([][]*Ciphertext, len(pt))
 		for i := range ct {
 			ct[i] = make([]*Ciphertext, len(pt[i]))
@@ -251,29 +238,10 @@ func (p *Polynomial) Encrypt(ecd Encoder, enc Encryptor, level int, inputScale, 
 		}
 
 	default:
-		return ctPoly, fmt.Errorf("Polynomial.Encrypt(*): underlying polynomial is already encrypted")
+		return nil, fmt.Errorf("Polynomial.Encrypt(*): underlying polynomial is already encrypted")
 	}
 
-	return Polynomial{ctCoeffs}, nil
-}
-
-// coefficients is an interface to manage different types
-// of coefficient representation.
-//
-//There four types currently:
-// coefficientsComplex128
-// coefficientsBSGSComplex128
-// coefficientsBSGSPlaintext
-// coefficientsBSGSCiphertext
-type coefficients interface {
-	Basis() BasisType
-	Depth() (depth int)
-	Degree() (degree int)
-	OddEven() (odd, even bool)
-	BSGSSplit() (giant, baby int)
-	SplitBSGS(split int) (coeffq, coeffsr coefficients)
-	MarshalBinary() (data []byte, err error)
-	UnmarshalBinary(data []byte) (err error)
+	return &Polynomial{ctPoly}, nil
 }
 
 func optimalSplit(giant int) (baby int) {
@@ -290,7 +258,7 @@ func optimalSplit(giant int) (baby int) {
 // coefficientsComplex128: regular coefficients in complex128
 // can store multiple polynomials: [#poly][coefficients]
 type coefficientsComplex128 struct {
-	basis      BasisType
+	basis      rlwe.PolynomialBasisType
 	coeffs     [][]complex128
 	slotsIndex [][]int
 	odd, even  bool
@@ -357,7 +325,7 @@ func (c *coefficientsComplex128) MarshalBinary() (data []byte, err error) {
 //
 func (c *coefficientsComplex128) UnmarshalBinary(data []byte) (err error) {
 
-	c.basis = BasisType(int(data[0]))
+	c.basis = rlwe.PolynomialBasisType(int(data[0]))
 
 	c.odd = data[1] == 1
 	c.even = data[2] == 1
@@ -408,7 +376,11 @@ func (c *coefficientsComplex128) UnmarshalBinary(data []byte) (err error) {
 	return
 }
 
-func (c *coefficientsComplex128) Basis() BasisType {
+func (c *coefficientsComplex128) IsEncrypted() bool {
+	return false
+}
+
+func (c *coefficientsComplex128) BasisType() rlwe.PolynomialBasisType {
 	return c.basis
 }
 
@@ -429,7 +401,7 @@ func (c *coefficientsComplex128) BSGSSplit() (giant, baby int) {
 	return depth, optimalSplit(depth)
 }
 
-func (c *coefficientsComplex128) SplitBSGS(split int) (q, r coefficients) {
+func (c *coefficientsComplex128) SplitBSGS(split int) (q, r rlwe.Polynomial) {
 
 	polyq := &coefficientsComplex128{}
 	polyr := &coefficientsComplex128{}
@@ -450,7 +422,7 @@ func (c *coefficientsComplex128) SplitBSGS(split int) (q, r coefficients) {
 	return polyq, polyr
 }
 
-func splitCoeffsBSGS(coeffs []complex128, split int, basis BasisType) (coeffsq, coeffsr []complex128) {
+func splitCoeffsBSGS(coeffs []complex128, split int, basis rlwe.PolynomialBasisType) (coeffsq, coeffsr []complex128) {
 
 	// Splits a polynomial p such that p = q*C^degree + r.
 	coeffsr = make([]complex128, split)
@@ -461,11 +433,11 @@ func splitCoeffsBSGS(coeffs []complex128, split int, basis BasisType) (coeffsq, 
 		coeffsr[i] = coeffs[i]
 	}
 
-	if basis == Monomial {
+	if basis == rlwe.Monomial {
 		for i := split + 1; i < len(coeffs); i++ {
 			coeffsq[i-split] = coeffs[i]
 		}
-	} else if basis == Chebyshev {
+	} else if basis == rlwe.Chebyshev {
 		for i, j := split+1, 1; i < len(coeffs); i, j = i+1, j+1 {
 			coeffsq[i-split] = 2 * coeffs[i]
 			coeffsr[split-j] -= coeffs[i]
@@ -478,7 +450,7 @@ func splitCoeffsBSGS(coeffs []complex128, split int, basis BasisType) (coeffsq, 
 // coefficientsBSGSComplex128: coefficients in baby-step giant-step format
 // can store multiple polynomials: [giant-step][baby-step][#poly]
 type coefficientsBSGSComplex128 struct {
-	basis      BasisType
+	basis      rlwe.PolynomialBasisType
 	coeffs     [][][]complex128
 	slotsIndex [][]int
 	odd, even  bool
@@ -492,7 +464,11 @@ func (c *coefficientsBSGSComplex128) UnmarshalBinary(data []byte) (err error) {
 	return fmt.Errorf("unsupported method")
 }
 
-func (c *coefficientsBSGSComplex128) Basis() BasisType {
+func (c *coefficientsBSGSComplex128) IsEncrypted() bool {
+	return false
+}
+
+func (c *coefficientsBSGSComplex128) BasisType() rlwe.PolynomialBasisType {
 	return c.basis
 }
 
@@ -517,7 +493,7 @@ func (c *coefficientsBSGSComplex128) BSGSSplit() (giant, baby int) {
 	return depth, optimalSplit(depth)
 }
 
-func (c *coefficientsBSGSComplex128) SplitBSGS(split int) (q, r coefficients) {
+func (c *coefficientsBSGSComplex128) SplitBSGS(split int) (q, r rlwe.Polynomial) {
 
 	polyq := &coefficientsBSGSComplex128{}
 	polyr := &coefficientsBSGSComplex128{}
@@ -549,7 +525,7 @@ func (c *coefficientsBSGSComplex128) SplitBSGS(split int) (q, r coefficients) {
 // and encoded in plaintext.
 // can store multiple polynomials: [giant-step][baby-step]*Plaintext{#poly}
 type coefficientsBSGSPlaintext struct {
-	basis     BasisType
+	basis     rlwe.PolynomialBasisType
 	coeffs    [][]*Plaintext
 	odd, even bool
 }
@@ -563,7 +539,11 @@ func (c *coefficientsBSGSPlaintext) UnmarshalBinary(data []byte) (err error) {
 	return fmt.Errorf("unsupported method: there is no reason to do that (instead unmarshal non-encoded coefficients)")
 }
 
-func (c *coefficientsBSGSPlaintext) Basis() BasisType {
+func (c *coefficientsBSGSPlaintext) IsEncrypted() bool {
+	return false
+}
+
+func (c *coefficientsBSGSPlaintext) BasisType() rlwe.PolynomialBasisType {
 	return c.basis
 }
 
@@ -590,7 +570,7 @@ func (c *coefficientsBSGSPlaintext) BSGSSplit() (giant, baby int) {
 	return depth, optimalSplit(depth)
 }
 
-func (c *coefficientsBSGSPlaintext) SplitBSGS(split int) (q, r coefficients) {
+func (c *coefficientsBSGSPlaintext) SplitBSGS(split int) (q, r rlwe.Polynomial) {
 
 	polyq := &coefficientsBSGSPlaintext{}
 	polyr := &coefficientsBSGSPlaintext{}
@@ -619,7 +599,7 @@ func (c *coefficientsBSGSPlaintext) SplitBSGS(split int) (q, r coefficients) {
 // and encrypted.
 // can store multiple polynomials: [giant-step][baby-step]*Ciphertext{#poly}
 type coefficientsBSGSCiphertext struct {
-	basis     BasisType
+	basis     rlwe.PolynomialBasisType
 	coeffs    [][]*Ciphertext
 	odd, even bool
 }
@@ -674,7 +654,7 @@ func (c *coefficientsBSGSCiphertext) MarshalBinary() (data []byte, err error) {
 
 func (c *coefficientsBSGSCiphertext) UnmarshalBinary(data []byte) (err error) {
 
-	c.basis = BasisType(data[0])
+	c.basis = rlwe.PolynomialBasisType(data[0])
 	c.odd = data[1] == 1
 	c.even = data[2] == 1
 
@@ -708,7 +688,11 @@ func (c *coefficientsBSGSCiphertext) UnmarshalBinary(data []byte) (err error) {
 	return
 }
 
-func (c *coefficientsBSGSCiphertext) Basis() BasisType {
+func (c *coefficientsBSGSCiphertext) IsEncrypted() bool {
+	return true
+}
+
+func (c *coefficientsBSGSCiphertext) BasisType() rlwe.PolynomialBasisType {
 	return c.basis
 }
 
@@ -733,7 +717,7 @@ func (c *coefficientsBSGSCiphertext) BSGSSplit() (giant, baby int) {
 	return depth, optimalSplit(depth)
 }
 
-func (c *coefficientsBSGSCiphertext) SplitBSGS(split int) (q, r coefficients) {
+func (c *coefficientsBSGSCiphertext) SplitBSGS(split int) (q, r rlwe.Polynomial) {
 
 	polyq := &coefficientsBSGSCiphertext{}
 	polyr := &coefficientsBSGSCiphertext{}
@@ -760,15 +744,15 @@ func (c *coefficientsBSGSCiphertext) SplitBSGS(split int) (q, r coefficients) {
 
 type dummyPolynomialEvaluator struct {
 	dummyPolynomialBasis
-	params          Parameters
-	ecd             Encoder
-	enc             Encryptor
-	giant           int
-	baby            int
-	coeffsInterface coefficients
+	params Parameters
+	ecd    Encoder
+	enc    Encryptor
+	giant  int
+	baby   int
+	poly   rlwe.Polynomial
 }
 
-func getScaledBSGSCoefficients(params Parameters, ecd Encoder, enc Encryptor, level int, scale rlwe.Scale, polIn coefficientsComplex128, targetScale rlwe.Scale, polOut coefficients) {
+func getScaledBSGSCoefficients(params Parameters, ecd Encoder, enc Encryptor, level int, scale rlwe.Scale, polIn coefficientsComplex128, targetScale rlwe.Scale, polOut rlwe.Polynomial) {
 
 	dummbpb := newDummyPolynomialBasis(params, &dummyCiphertext{level, scale.CopyNew()})
 
@@ -803,7 +787,7 @@ func getScaledBSGSCoefficients(params Parameters, ecd Encoder, enc Encryptor, le
 		c.even, c.odd = polIn.OddEven()
 		c.slotsIndex = polIn.slotsIndex
 
-		polyEval.coeffsInterface = c
+		polyEval.poly = c
 
 	case *coefficientsBSGSPlaintext:
 
@@ -812,7 +796,7 @@ func getScaledBSGSCoefficients(params Parameters, ecd Encoder, enc Encryptor, le
 
 		c.coeffs = [][]*Plaintext{}
 
-		polyEval.coeffsInterface = c
+		polyEval.poly = c
 
 	case *coefficientsBSGSCiphertext:
 
@@ -821,7 +805,7 @@ func getScaledBSGSCoefficients(params Parameters, ecd Encoder, enc Encryptor, le
 
 		c.coeffs = [][]*Ciphertext{}
 
-		polyEval.coeffsInterface = c
+		polyEval.poly = c
 	}
 
 	polyEval.recurse(dummbpb.Value[1].Level-giant+1, targetScale, evalPoly{&polIn, true, polIn.Degree()})
@@ -848,7 +832,7 @@ func (polyEval *dummyPolynomialEvaluator) recurse(targetLevel int, targetScale r
 			polyEvalBis.giant = giant
 			polyEvalBis.baby = baby
 			polyEvalBis.dummyPolynomialBasis = polyEval.dummyPolynomialBasis
-			polyEvalBis.coeffsInterface = polyEval.coeffsInterface
+			polyEvalBis.poly = polyEval.poly
 
 			return polyEvalBis.recurse(targetLevel, targetScale, pol)
 		}
@@ -857,13 +841,13 @@ func (polyEval *dummyPolynomialEvaluator) recurse(targetLevel int, targetScale r
 			targetScale.Mul(params.QiFloat64(targetLevel))
 		}
 
-		switch coeffsInterface := polyEval.coeffsInterface.(type) {
+		switch poly := polyEval.poly.(type) {
 		case *coefficientsBSGSComplex128:
-			return polyEval.evaluatePolyFromPolynomialBasisComplex128(targetScale, targetLevel, pol.coefficients.(*coefficientsComplex128), coeffsInterface)
+			return polyEval.evaluatePolyFromPolynomialBasisComplex128(targetScale, targetLevel, pol.Polynomial.(*coefficientsComplex128), poly)
 		case *coefficientsBSGSPlaintext:
-			return polyEval.evaluatePolyFromPolynomialBasisPlaintext(targetScale, targetLevel, pol.coefficients.(*coefficientsComplex128), coeffsInterface)
+			return polyEval.evaluatePolyFromPolynomialBasisPlaintext(targetScale, targetLevel, pol.Polynomial.(*coefficientsComplex128), poly)
 		case *coefficientsBSGSCiphertext:
-			return polyEval.evaluatePolyFromPolynomialBasisCiphertext(targetScale, targetLevel, pol.coefficients.(*coefficientsComplex128), coeffsInterface)
+			return polyEval.evaluatePolyFromPolynomialBasisCiphertext(targetScale, targetLevel, pol.Polynomial.(*coefficientsComplex128), poly)
 		}
 	}
 

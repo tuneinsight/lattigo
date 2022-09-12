@@ -11,7 +11,7 @@ import (
 // The operation assumes that `ctIn` encrypts SlotCount/`batchSize` sub-vectors of size `batchSize` which it adds together (in parallel) by groups of `n`.
 // It outputs in ctOut a ciphertext for which the "leftmost" sub-vector of each group is equal to the sum of the group.
 // This method is faster than InnerSum when the number of rotations is large and uses log2(n) + HW(n) instead of 'n' keys.
-func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
+func (eval *evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
 
 	ringQ := eval.params.RingQ()
 	levelQ := utils.MinInt(ctIn.Level(), ctOut.Level())
@@ -23,7 +23,7 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 	ringQ.MulScalarBigintLvl(levelQ, ctIn.Value[0], eval.tInvModQ[levelQ], ct1.Value[0])
 	ringQ.MulScalarBigintLvl(levelQ, ctIn.Value[1], eval.tInvModQ[levelQ], ct1.Value[1])
 
-	eval.Evaluator.InnerSumLog(ct1, batchSize, n, ctOut.Ciphertext)
+	eval.Evaluator.InnerSum(ct1, batchSize, n, ctOut.Ciphertext)
 
 	ringQ.MulScalarLvl(levelQ, ctOut.Value[0], eval.params.T(), ctOut.Value[0])
 	ringQ.MulScalarLvl(levelQ, ctOut.Value[1], eval.params.T(), ctOut.Value[1])
@@ -36,8 +36,8 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 // To ensure correctness, a gap of zero values of size batchSize * (n-1) must exist between
 // two consecutive sub-vectors to replicate.
 // This method is faster than Replicate when the number of rotations is large and uses log2(n) + HW(n) instead of 'n'.
-func (eval *evaluator) ReplicateLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
-	eval.InnerSumLog(ctIn, -batchSize, n, ctOut)
+func (eval *evaluator) Replicate(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
+	eval.InnerSum(ctIn, -batchSize, n, ctOut)
 }
 
 type LinearTransform struct {

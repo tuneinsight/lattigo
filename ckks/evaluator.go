@@ -83,7 +83,7 @@ type Evaluator interface {
 	PowerNew(ctIn *Ciphertext, degree int) (ctOut *Ciphertext)
 
 	// Polynomial evaluation
-	EvaluatePoly(input interface{}, pol Polynomial, targetScale rlwe.Scale) (ctOut *Ciphertext, err error)
+	EvaluatePoly(input interface{}, pol rlwe.Polynomial, targetScale rlwe.Scale) (ctOut *Ciphertext, err error)
 
 	// Inversion
 	InverseNew(ctIn *Ciphertext, steps int) (ctOut *Ciphertext)
@@ -93,12 +93,10 @@ type Evaluator interface {
 	LinearTransform(ctIn *Ciphertext, linearTransform interface{}, ctOut []*Ciphertext)
 
 	// Inner sum
-	InnerSumLog(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
 	InnerSum(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
 	Average(ctIn *Ciphertext, batch int, ctOut *Ciphertext)
 
 	// Replication (inverse of Inner sum)
-	ReplicateLog(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
 	Replicate(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
 
 	// Trace

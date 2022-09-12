@@ -468,16 +468,6 @@ func (p Parameters) QLvl(level int) *big.Int {
 // RotationsForInnerSum generates the rotations that will be performed by the
 // `Evaluator.InnerSum` operation when performed with parameters `batch` and `n`.
 func (p Parameters) RotationsForInnerSum(batch, n int) (rotations []int) {
-	rotations = []int{}
-	for i := 1; i < n; i++ {
-		rotations = append(rotations, i*batch)
-	}
-	return
-}
-
-// RotationsForInnerSumLog generates the rotations that will be performed by the
-// `Evaluator.InnerSumLog` operation when performed with parameters `batch` and `n`.
-func (p Parameters) RotationsForInnerSumLog(batch, n int) (rotations []int) {
 
 	rotIndex := make(map[int]bool)
 
@@ -511,12 +501,6 @@ func (p Parameters) RotationsForInnerSumLog(batch, n int) (rotations []int) {
 // `Evaluator.Replicate` operation when performed with parameters `batch` and `n`.
 func (p Parameters) RotationsForReplicate(batch, n int) (rotations []int) {
 	return p.RotationsForInnerSum(-batch, n)
-}
-
-// RotationsForReplicateLog generates the rotations that will be performed by the
-// `Evaluator.ReplicateLog` operation when performed with parameters `batch` and `n`.
-func (p Parameters) RotationsForReplicateLog(batch, n int) (rotations []int) {
-	return p.RotationsForInnerSumLog(-batch, n)
 }
 
 // Equals compares two sets of parameters for equality.

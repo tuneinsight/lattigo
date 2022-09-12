@@ -5,6 +5,7 @@ import (
 	"math/cmplx"
 
 	"github.com/tuneinsight/lattigo/v3/ckks"
+	"github.com/tuneinsight/lattigo/v3/rlwe"
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
@@ -58,7 +59,7 @@ type EvalModPoly struct {
 	qDiff         float64
 	scFac         float64
 	sqrt2Pi       float64
-	sinePoly      ckks.Polynomial
+	sinePoly      *ckks.Polynomial
 	arcSinePoly   *ckks.Polynomial
 	k             float64
 }
@@ -98,7 +99,7 @@ func (evp *EvalModPoly) QDiff() float64 {
 func NewEvalModPolyFromLiteral(evm EvalModLiteral) EvalModPoly {
 
 	var arcSinePoly *ckks.Polynomial
-	var sinePoly ckks.Polynomial
+	var sinePoly *ckks.Polynomial
 	var sqrt2pi float64
 
 	scFac := math.Exp2(float64(evm.DoubleAngle))
@@ -119,9 +120,9 @@ func NewEvalModPolyFromLiteral(evm EvalModLiteral) EvalModPoly {
 			coeffs[i] = coeffs[i-2] * complex(float64(i*i-4*i+4)/float64(i*i-i), 0)
 		}
 
-		poly, _ := ckks.NewPolynomial(ckks.Monomial, coeffs, nil)
+		poly, _ := ckks.NewPolynomial(rlwe.Monomial, coeffs, nil)
 
-		arcSinePoly = &poly
+		arcSinePoly = poly
 
 	} else {
 		sqrt2pi = math.Pow(0.15915494309189535*qDiff, 1.0/scFac)
@@ -153,7 +154,7 @@ func NewEvalModPolyFromLiteral(evm EvalModLiteral) EvalModPoly {
 		coeffsSinePoly[i] *= complex(sqrt2pi, 0)
 	}
 
-	sinePoly, _ = ckks.NewPolynomial(ckks.Chebyshev, coeffsSinePoly, nil)
+	sinePoly, _ = ckks.NewPolynomial(rlwe.Chebyshev, coeffsSinePoly, nil)
 
 	return EvalModPoly{
 		levelStart:    evm.LevelStart,

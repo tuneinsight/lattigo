@@ -93,7 +93,7 @@ func chebyshevinterpolation() {
 		panic(err)
 	}
 
-	poly, err := ckks.NewPolynomial(ckks.Chebyshev, [][]complex128{approxF, approxG}, slotsIndex)
+	poly, err := ckks.NewPolynomial(rlwe.Chebyshev, [][]complex128{approxF, approxG}, slotsIndex)
 	if err != nil {
 		panic(err)
 	}

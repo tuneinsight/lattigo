@@ -67,8 +67,8 @@ type Evaluator interface {
 	// Linear Transformations
 	LinearTransformNew(ctIn *Ciphertext, linearTransform interface{}) (ctOut []*Ciphertext)
 	LinearTransform(ctIn *Ciphertext, linearTransform interface{}, ctOut []*Ciphertext)
-	InnerSumLog(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
-	ReplicateLog(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
+	InnerSum(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
+	Replicate(ctIn *Ciphertext, batch, n int, ctOut *Ciphertext)
 
 	// Key-Switching
 	SwitchKeysNew(ctIn *Ciphertext, swk *rlwe.SwitchingKey) (ctOut *Ciphertext)

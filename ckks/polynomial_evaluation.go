@@ -23,7 +23,7 @@ import (
 // pol: a Polynomial
 // targetScale: the desired output scale. This value shouldn't differ too much from the original ciphertext scale. It can
 // for example be used to correct small deviations in the ciphertext scale and reset it to the default scale.
-func (eval *evaluator) EvaluatePoly(input interface{}, pol Polynomial, targetScale rlwe.Scale) (opOut *Ciphertext, err error) {
+func (eval *evaluator) EvaluatePoly(input interface{}, pol rlwe.Polynomial, targetScale rlwe.Scale) (opOut *Ciphertext, err error) {
 
 	var monomialBasis *PolynomialBasis
 	if monomialBasis, err = eval.genPolynomialBasis(input, pol); err != nil {
@@ -35,7 +35,7 @@ func (eval *evaluator) EvaluatePoly(input interface{}, pol Polynomial, targetSca
 	polyEval.PolynomialBasis = *monomialBasis
 	polyEval.giant, polyEval.baby = pol.BSGSSplit()
 
-	if opOut, err = polyEval.recurse(monomialBasis.Value[1].Level()-polyEval.giant+1, targetScale, evalPoly{&pol, true, pol.Degree()}); err != nil {
+	if opOut, err = polyEval.recurse(monomialBasis.Value[1].Level()-polyEval.giant+1, targetScale, evalPoly{pol, true, pol.Degree()}); err != nil {
 		return nil, err
 	}
 
@@ -77,7 +77,7 @@ type polynomialEvaluator struct {
 }
 
 type evalPoly struct {
-	coefficients
+	rlwe.Polynomial
 	lead   bool
 	maxDeg int
 }
@@ -87,7 +87,7 @@ func (p *evalPoly) splitBSGS(split int) (polyq, polyr evalPoly) {
 	polyq = evalPoly{}
 	polyr = evalPoly{}
 
-	polyq.coefficients, polyr.coefficients = p.coefficients.SplitBSGS(split)
+	polyq.Polynomial, polyr.Polynomial = p.Polynomial.SplitBSGS(split)
 
 	polyq.lead = p.lead
 	polyq.maxDeg = p.maxDeg
@@ -129,7 +129,7 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale rlwe.S
 			targetScale.Mul(params.QiFloat64(targetLevel))
 		}
 
-		switch poly := pol.coefficients.(type) {
+		switch poly := pol.Polynomial.(type) {
 		case *coefficientsComplex128:
 			return polyEval.evaluatePolyFromPolynomialBasisComplex128(targetScale, targetLevel, poly)
 		case *coefficientsBSGSComplex128:

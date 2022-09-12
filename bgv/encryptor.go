@@ -44,12 +44,11 @@ func (enc *encryptor) Encrypt(pt *Plaintext, ct *Ciphertext) {
 	ringQ.MulScalarLvl(level, ct.Value[0], enc.params.T(), ct.Value[0])
 	ringQ.MulScalarLvl(level, ct.Value[1], enc.params.T(), ct.Value[1])
 	ringQ.AddLvl(level, ct.Value[0], pt.Value, ct.Value[0])
-	ct.scale = pt.scale
 }
 
 // EncryptNew encrypts the input plaintext returns the result as a newly allocated ct.
 func (enc *encryptor) EncryptNew(pt *Plaintext) (ct *Ciphertext) {
-	ct = NewCiphertext(enc.params, 1, pt.Level(), pt.scale)
+	ct = NewCiphertext(enc.params, 1, pt.Level(), pt.Scale())
 	enc.Encrypt(pt, ct)
 	return
 }

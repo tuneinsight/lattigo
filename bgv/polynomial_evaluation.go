@@ -8,6 +8,7 @@ import (
 	"runtime"
 
 	"github.com/tuneinsight/lattigo/v3/ring"
+	"github.com/tuneinsight/lattigo/v3/rlwe"
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
@@ -49,7 +50,7 @@ type polynomialEvaluator struct {
 
 // EvaluatePoly evaluates a polynomial in standard basis on the input Ciphertext in ceil(log2(deg+1)) depth.
 // input must be either *Ciphertext or *Powerbasis.
-func (eval *evaluator) EvaluatePoly(input interface{}, pol *Polynomial, targetScale uint64) (opOut *Ciphertext, err error) {
+func (eval *evaluator) EvaluatePoly(input interface{}, pol *Polynomial, targetScale rlwe.Scale) (opOut *Ciphertext, err error) {
 	return eval.evaluatePolyVector(input, polynomialVector{Value: []*Polynomial{pol}}, targetScale)
 }
 
@@ -68,7 +69,7 @@ type polynomialVector struct {
 //
 // Example: if pols = []*Polynomial{pol0, pol1} and slotsIndex = map[int][]int:{0:[1, 2, 4, 5, 7], 1:[0, 3]},
 // then pol0 will be applied to slots [1, 2, 4, 5, 7], pol1 to slots [0, 3] and the slot 6 will be zero-ed.
-func (eval *evaluator) EvaluatePolyVector(input interface{}, pols []*Polynomial, encoder Encoder, slotsIndex map[int][]int, targetScale uint64) (opOut *Ciphertext, err error) {
+func (eval *evaluator) EvaluatePolyVector(input interface{}, pols []*Polynomial, encoder Encoder, slotsIndex map[int][]int, targetScale rlwe.Scale) (opOut *Ciphertext, err error) {
 	var maxDeg int
 	for i := range pols {
 		maxDeg = utils.MaxInt(maxDeg, pols[i].MaxDeg)
@@ -94,7 +95,7 @@ func optimalSplit(logDegree int) (logSplit int) {
 	return
 }
 
-func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVector, targetScale uint64) (opOut *Ciphertext, err error) {
+func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVector, targetScale rlwe.Scale) (opOut *Ciphertext, err error) {
 
 	if pol.SlotsIndex != nil && pol.Encoder == nil {
 		return nil, fmt.Errorf("cannot evaluatePolyVector: missing Encoder input")
@@ -351,14 +352,11 @@ func splitCoeffsPolyVector(poly polynomialVector, split int) (polyq, polyr polyn
 	return polynomialVector{Value: coeffsq}, polynomialVector{Value: coeffsr}
 }
 
-func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale uint64, pol polynomialVector) (res *Ciphertext, err error) {
+func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale rlwe.Scale, pol polynomialVector) (res *Ciphertext, err error) {
 
 	logSplit := polyEval.logSplit
 
 	params := polyEval.Evaluator.(*evaluator).params
-	ringT := params.RingT()
-	t := ringT.Modulus[0]
-	bredParams := ringT.BredParams[0]
 
 	// Recursively computes the evaluation of the Chebyshev polynomial using a baby-set giant-step algorithm.
 	if pol.Value[0].Degree() < (1 << logSplit) {
@@ -382,7 +380,7 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale uint64
 		}
 
 		if pol.Value[0].Lead {
-			targetScale = ring.BRed(targetScale, params.Q()[targetLevel], t, bredParams)
+			targetScale.Mul(params.Q()[targetLevel])
 		}
 
 		return polyEval.evaluatePolyFromPowerBasis(targetLevel, targetScale, pol)
@@ -406,12 +404,12 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale uint64
 		currentQi = params.Q()[level+1]
 	}
 
-	// ts = targetScale*currentQi/XPow.Scale
-	ts := ring.BRed(targetScale, currentQi, t, bredParams)
-	xPowScaleInv := ring.ModExp(XPow.Scale(), t-2, t)
-	ts = ring.BRed(ts, xPowScaleInv, t, bredParams)
+	// newTargetScale = targetScale*currentQi/XPow.Scale
+	newTargetScale := targetScale.CopyNew()
+	newTargetScale.Mul(currentQi)
+	newTargetScale.Div(XPow.Scale())
 
-	if res, err = polyEval.recurse(targetLevel+1, ts, coeffsq); err != nil {
+	if res, err = polyEval.recurse(targetLevel+1, newTargetScale, coeffsq); err != nil {
 		return nil, err
 	}
 
@@ -437,13 +435,11 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale uint64
 	return
 }
 
-func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetLevel int, targetScale uint64, pol polynomialVector) (res *Ciphertext, err error) {
+func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetLevel int, targetScale rlwe.Scale, pol polynomialVector) (res *Ciphertext, err error) {
 
 	X := polyEval.powerBasis
 
 	params := polyEval.Evaluator.(*evaluator).params
-	t := params.T()
-	bredParams := params.RingT().BredParams[0]
 
 	slotsIndex := polyEval.slotsIndex
 
@@ -488,7 +484,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetLevel int,
 			// If a non-zero coefficient was found, encode the values, adds on the ciphertext, and returns
 			if toEncode {
 				pt := NewPlaintextAtLevelFromPoly(targetLevel, res.Value[0])
-				pt.SetScale(res.Scale())
+				pt.Scale().Set(res.Scale())
 				polyEval.Encode(values, pt)
 			}
 
@@ -516,7 +512,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetLevel int,
 		if toEncode {
 			// Add would actually scale the plaintext accordingly,
 			// but encoding with the correct scale is slightly faster
-			pt.SetScale(res.Scale())
+			pt.Scale().Set(res.Scale())
 			polyEval.Encode(values, pt)
 			polyEval.Add(res, pt, res)
 			toEncode = false
@@ -558,7 +554,8 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetLevel int,
 
 				// MulAndAdd would actually scale the plaintext accordingly,
 				// but encoding with the correct scale is slightly faster
-				pt.SetScale(ring.BRed(targetScale, ring.ModExp(X[key].Scale(), t-2, t), t, bredParams))
+				pt.Scale().Set(targetScale)
+				pt.Scale().Div(X[key].Scale())
 				polyEval.Encode(values, pt)
 				polyEval.MulAndAdd(X[key], pt, res)
 				toEncode = false

@@ -15,7 +15,7 @@ func Norm(ct *Ciphertext, dec Decryptor) (std, min, max float64) {
 		coeffsBigint[i] = new(big.Int)
 	}
 
-	buffQ := dec.(*decryptor).buffQ
+	buffQ := params.RingQ().NewPoly()
 	pt := NewPlaintextAtLevelFromPoly(ct.Level(), buffQ).Plaintext
 	dec.(*decryptor).Decryptor.Decrypt(ct.El(), pt)
 	params.RingQ().InvNTTLvl(ct.Level(), buffQ, buffQ)

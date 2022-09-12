@@ -44,26 +44,18 @@ func (eval *evaluator) ReplicateLog(ctIn *Ciphertext, batchSize, n int, ctOut *C
 
 type LinearTransform struct {
 	rlwe.LinearTransform
-	Scale uint64 // Scale is the scale at which the matrix is encoded (can be circuit dependent)
 }
 
 // MarshalBinary encodes the target LinearTransform on a slice of bytes.
 func (LT *LinearTransform) MarshalBinary() (data []byte, err error) {
-
-	if data, err = LT.LinearTransform.MarshalBinary(); err != nil {
-		return
-	}
-
-	data = append(make([]byte, 8), data...)
-	binary.LittleEndian.PutUint64(data, LT.Scale)
-
-	return
+	return LT.LinearTransform.MarshalBinary()
 }
 
 // UnmarshalBinary decodes the input slice of bytes on the target LinearTransform.
 func (LT *LinearTransform) UnmarshalBinary(data []byte) (err error) {
-	LT.Scale = binary.LittleEndian.Uint64(data)
-	return LT.LinearTransform.UnmarshalBinary(data[8:])
+	LT.LinearTransform = rlwe.LinearTransform{}
+	LT.Scale = NewScale(0)
+	return LT.LinearTransform.UnmarshalBinary(data)
 }
 
 // NewLinearTransform allocates a new LinearTransform with zero plaintexts at the specified level.
@@ -81,7 +73,7 @@ func NewLinearTransform(params Parameters, nonZeroDiags []int, level int, BSGSRa
 // It can then be evaluated on a ciphertext using evaluator.LinearTransform.
 // Evaluation will use the naive approach (single hoisting and no baby-step giant-step).
 // Faster if there is only a few non-zero diagonals but uses more keys.
-func (LT *LinearTransform) Encode(ecd Encoder, dMat map[int][]uint64, scale uint64) {
+func (LT *LinearTransform) Encode(ecd Encoder, dMat map[int][]uint64, scale rlwe.Scale) {
 
 	params := ecd.Parameters()
 	ringQP := params.RingQP()
@@ -102,8 +94,7 @@ func (LT *LinearTransform) Encode(ecd Encoder, dMat map[int][]uint64, scale uint
 	}
 
 	LT.LinearTransform.Encode(encode, mapUint64ToMapOfInterface(dMat))
-
-	LT.Scale = scale
+	LT.Scale = scale.CopyNew()
 }
 
 func mapUint64ToMapOfInterface(m map[int][]uint64) map[int]interface{} {
@@ -122,7 +113,7 @@ func mapUint64ToMapOfInterface(m map[int][]uint64) map[int]interface{} {
 // Faster if there is more than a few non-zero diagonals.
 // BSGSRatio is the maximum ratio between the inner and outer loop of the baby-step giant-step algorithm used in evaluator.LinearTransform.
 // Optimal BSGSRatio value is between 4 and 16 depending on the sparsity of the matrix.
-func GenLinearTransform(ecd Encoder, enc Encryptor, dMat map[int][]uint64, level int, scale uint64, BSGSRatio float64) (LT LinearTransform) {
+func GenLinearTransform(ecd Encoder, enc Encryptor, dMat map[int][]uint64, level int, scale rlwe.Scale, BSGSRatio float64) LinearTransform {
 
 	if ecd == nil {
 		panic("GenLinearTransformBSGS: ecd cannot be nil")
@@ -185,9 +176,11 @@ func GenLinearTransform(ecd Encoder, enc Encryptor, dMat map[int][]uint64, level
 		}
 	}
 
+	LT := rlwe.GenLinearTransform(embed, mapUint64ToMapOfInterface(dMat), BSGSRatio, params.LogN()-1)
+	LT.Scale = scale.CopyNew()
+
 	return LinearTransform{
-		LinearTransform: rlwe.GenLinearTransform(embed, mapUint64ToMapOfInterface(dMat), BSGSRatio, params.LogN()-1),
-		Scale:           scale,
+		LinearTransform: LT,
 	}
 }
 
@@ -210,11 +203,11 @@ func (eval *evaluator) LinearTransformNew(ctIn *Ciphertext, linearTransform inte
 		minLevel := utils.MinInt(maxLevel, ctIn.Level())
 
 		for i := range LTs {
-			ctOut[i] = NewCiphertext(eval.params, 1, minLevel, 0)
+			ctOut[i] = NewCiphertext(eval.params, 1, minLevel, NewScale(0))
 		}
 
 	case LinearTransform:
-		ctOut = []*Ciphertext{NewCiphertext(eval.params, 1, utils.MinInt(LTs.Level, ctIn.Level()), 0)}
+		ctOut = []*Ciphertext{NewCiphertext(eval.params, 1, utils.MinInt(LTs.Level, ctIn.Level()), NewScale(0))}
 
 	}
 
@@ -258,7 +251,8 @@ func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfa
 			ringQ.MulScalarLvl(minLevel, ctOut[i].Value[0], eval.params.T(), ctOut[i].Value[0])
 			ringQ.MulScalarLvl(minLevel, ctOut[i].Value[1], eval.params.T(), ctOut[i].Value[1])
 
-			ctOut[i].SetScale(ctIn.Scale() * LT.Scale)
+			ctOut[i].Scale().Set(ctIn.Scale())
+			ctOut[i].Scale().Mul(LT.Scale)
 		}
 
 	case LinearTransform:
@@ -279,7 +273,8 @@ func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfa
 		ringQ.MulScalarLvl(minLevel, ctOut[0].Value[0], eval.params.T(), ctOut[0].Value[0])
 		ringQ.MulScalarLvl(minLevel, ctOut[0].Value[1], eval.params.T(), ctOut[0].Value[1])
 
-		ctOut[0].SetScale(ctIn.Scale() * LTs.Scale)
+		ctOut[0].Scale().Set(ctIn.Scale())
+		ctOut[0].Scale().Mul(LTs.Scale)
 	}
 	return
 }

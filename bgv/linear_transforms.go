@@ -103,7 +103,7 @@ func mapUint64ToMapOfInterface(m map[int][]uint64) map[int]interface{} {
 	return d
 }
 
-// GenLinearTransformBSGS allocates and encodes a new LinearTransform struct from the linear transforms' matrix in diagonal form `value` for evaluation with a baby-step giant-step approach.
+// GenLinearTransform allocates and encodes a new LinearTransform struct from the linear transforms' matrix in diagonal form `value` for evaluation with a baby-step giant-step approach.
 // values.(type) can be either map[int][]complex128 or map[int][]float64.
 // User must ensure that 1 <= len([]complex128\[]float64) <= 2^logSlots < 2^logN.
 // LinearTransform types can be be evaluated on a ciphertext using evaluator.LinearTransform.
@@ -114,7 +114,7 @@ func mapUint64ToMapOfInterface(m map[int][]uint64) map[int]interface{} {
 func GenLinearTransform(ecd Encoder, enc Encryptor, dMat map[int][]uint64, level int, scale rlwe.Scale, BSGSRatio float64) LinearTransform {
 
 	if ecd == nil {
-		panic("GenLinearTransformBSGS: ecd cannot be nil")
+		panic("GenLinearTransform: ecd cannot be nil")
 	}
 
 	params := ecd.Parameters()
@@ -274,5 +274,4 @@ func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfa
 		ctOut[0].Scale().Set(ctIn.Scale())
 		ctOut[0].Scale().Mul(LTs.Scale)
 	}
-	return
 }

@@ -32,7 +32,7 @@ func (eval *evaluator) Trace(ctIn *Ciphertext, logSlots int, ctOut *Ciphertext) 
 // TraceNew maps X -> sum((-1)^i * X^{i*n+1}) for 0 <= i < N and returns the result on a new ciphertext.
 // For log(n) = logSlots.
 func (eval *evaluator) TraceNew(ctIn *Ciphertext, logSlots int) (ctOut *Ciphertext) {
-	ctOut = NewCiphertext(eval.params, 1, ctIn.Level(), ctIn.Ciphertext.Scale)
+	ctOut = NewCiphertext(eval.params, 1, ctIn.Level())
 	eval.Trace(ctIn, logSlots, ctOut)
 	return
 }
@@ -42,7 +42,7 @@ func (eval *evaluator) TraceNew(ctIn *Ciphertext, logSlots int) (ctOut *Cipherte
 func (eval *evaluator) RotateHoistedNew(ctIn *Ciphertext, rotations []int) (ctOut map[int]*Ciphertext) {
 	ctOut = make(map[int]*Ciphertext)
 	for _, i := range rotations {
-		ctOut[i] = NewCiphertext(eval.params, 1, ctIn.Level(), ctIn.Ciphertext.Scale)
+		ctOut[i] = NewCiphertext(eval.params, 1, ctIn.Level())
 	}
 	eval.RotateHoisted(ctIn, rotations, ctOut)
 	return
@@ -69,7 +69,7 @@ type LinearTransform struct {
 
 func NewLinearTransform(params Parameters, nonZeroDiags []int, level, logSlots int, BSGSRatio float64) LinearTransform {
 	LT := rlwe.NewLinearTransform(params.Parameters, nonZeroDiags, level, logSlots, BSGSRatio)
-	LT.Scale = NewScale()
+	LT.Scale = NewScale(0)
 	return LinearTransform{LinearTransform: LT}
 }
 
@@ -95,7 +95,7 @@ func (LT *LinearTransform) MarshalBinary() (data []byte, err error) {
 
 func (LT *LinearTransform) UnmarshalBinary(data []byte) (err error) {
 	LT.LinearTransform = rlwe.LinearTransform{}
-	LT.Scale = NewScale()
+	LT.Scale = NewScale(0)
 	return LT.LinearTransform.UnmarshalBinary(data)
 }
 
@@ -194,11 +194,11 @@ func (eval *evaluator) LinearTransformNew(ctIn *Ciphertext, linearTransform inte
 		minLevel := utils.MinInt(maxLevel, ctIn.Level())
 
 		for i := range LTs {
-			ctOut[i] = NewCiphertext(eval.params, 1, minLevel, ctIn.Scale())
+			ctOut[i] = NewCiphertext(eval.params, 1, minLevel)
 		}
 
 	case LinearTransform:
-		ctOut = []*Ciphertext{NewCiphertext(eval.params, 1, utils.MinInt(LTs.Level, ctIn.Level()), ctIn.Ciphertext.Scale)}
+		ctOut = []*Ciphertext{NewCiphertext(eval.params, 1, utils.MinInt(LTs.Level, ctIn.Level()))}
 	}
 
 	eval.LinearTransform(ctIn, linearTransform, ctOut)

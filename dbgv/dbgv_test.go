@@ -189,7 +189,7 @@ func testKeyswitching(tc *testContext, t *testing.T) {
 			}
 		}
 
-		ksCiphertext := bgv.NewCiphertext(tc.params, 1, ciphertext.Level(), 1)
+		ksCiphertext := bgv.NewCiphertext(tc.params, 1, ciphertext.Level())
 		P0.cks.KeySwitch(ciphertext, P0.share, ksCiphertext)
 
 		verifyTestVectors(tc, decryptorSk1, coeffs, ksCiphertext, t)
@@ -228,7 +228,7 @@ func testPublicKeySwitching(tc *testContext, t *testing.T) {
 		}
 		P0 := pcksParties[0]
 
-		ciphertextSwitched := bgv.NewCiphertext(tc.params, 1, ciphertext.Level(), ciphertext.Scale())
+		ciphertextSwitched := bgv.NewCiphertext(tc.params, 1, ciphertext.Level())
 
 		for i, p := range pcksParties {
 			p.GenShare(p.s, pk1, ciphertext.Value[1], p.share)
@@ -309,7 +309,7 @@ func testEncToShares(tc *testContext, t *testing.T) {
 			}
 		}
 
-		ctRec := bgv.NewCiphertext(tc.params, 1, tc.params.MaxLevel(), ciphertext.Scale())
+		ctRec := bgv.NewCiphertext(tc.params, 1, tc.params.MaxLevel())
 		P[0].s2e.GetEncryption(P[0].publicShare, crp, ctRec)
 
 		verifyTestVectors(tc, tc.decryptorSk0, coeffs, ctRec, t)
@@ -463,7 +463,7 @@ func newTestVectors(tc *testContext, encryptor bgv.Encryptor, t *testing.T) (coe
 		coeffsPol.Coeffs[0][i] = uint64(1)
 	}
 
-	plaintext = bgv.NewPlaintext(tc.params, tc.params.MaxLevel(), 2)
+	plaintext = bgv.NewPlaintext(tc.params, tc.params.MaxLevel(), bgv.NewScale(tc.params, 1))
 	tc.encoder.Encode(coeffsPol.Coeffs[0], plaintext)
 	ciphertext = encryptor.EncryptNew(plaintext)
 	return coeffsPol.Coeffs[0], plaintext, ciphertext
@@ -474,7 +474,7 @@ func verifyTestVectors(tc *testContext, decryptor bgv.Decryptor, coeffs []uint64
 }
 
 func testMarshalling(tc *testContext, t *testing.T) {
-	ciphertext := bgv.NewCiphertext(tc.params, 1, tc.params.MaxLevel(), 1)
+	ciphertext := bgv.NewCiphertext(tc.params, 1, tc.params.MaxLevel())
 	tc.uniformSampler.Read(ciphertext.Value[0])
 	tc.uniformSampler.Read(ciphertext.Value[1])
 

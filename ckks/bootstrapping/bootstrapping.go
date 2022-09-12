@@ -26,7 +26,7 @@ func (btp *Bootstrapper) Bootstrap(ctIn *ckks.Ciphertext) (ctOut *ckks.Ciphertex
 	if ctOut.Level() == 1 {
 
 		// If one level is available, then uses it to match the scale
-		btp.SetScale(ctOut, &ckks.Scale{btp.q0OverMessageRatio})
+		btp.SetScale(ctOut, &ckks.Scale{Value: btp.q0OverMessageRatio})
 
 		// Then drops to level 0
 		for ctOut.Level() != 0 {

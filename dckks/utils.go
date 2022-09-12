@@ -15,8 +15,8 @@ import (
 // minLevel : the minimum level at which the collective refresh must be called to ensure correctness
 // logBound : the bit length of the masks to be sampled to mask the plaintext and ensure 128-bits of statistical indistinguishability
 // ok 		: a boolean flag, which is set to false if no such instance exist
-func GetMinimumLevelForBootstrapping(lambda int, scale float64, nParties int, moduli []uint64) (minLevel, logBound int, ok bool) {
-	logBound = lambda + int(math.Ceil(math.Log2(scale)))
+func GetMinimumLevelForBootstrapping(lambda int, scale rlwe.Scale, nParties int, moduli []uint64) (minLevel, logBound int, ok bool) {
+	logBound = lambda + int(math.Ceil(math.Log2(scale.(*ckks.Scale).Value)))
 	maxBound := logBound + bits.Len64(uint64(nParties))
 	minLevel = -1
 	logQ := 0

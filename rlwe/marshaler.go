@@ -38,7 +38,7 @@ func (el *Ciphertext) MarshalBinary() (data []byte, err error) {
 
 	if ptr++; el.Scale != nil {
 		data[ptr-1] = 1
-		el.Scale.Encode(data)
+		el.Scale.Encode(data[ptr:])
 		ptr += el.Scale.GetDataLen()
 	}
 
@@ -71,7 +71,7 @@ func (el *Ciphertext) UnmarshalBinary(data []byte) (err error) {
 			return fmt.Errorf("Ciphertext.UnmarshalBinary(*): data contains information about `Scale` but associated field is `nil`")
 		}
 
-		el.Scale.Decode(data)
+		el.Scale.Decode(data[ptr:])
 		ptr += el.Scale.GetDataLen()
 	}
 

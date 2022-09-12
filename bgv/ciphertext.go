@@ -1,9 +1,6 @@
 package bgv
 
 import (
-	"encoding/binary"
-	"errors"
-
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
 	"github.com/tuneinsight/lattigo/v3/utils"
@@ -15,16 +12,16 @@ type Ciphertext struct {
 }
 
 // NewCiphertext creates a new Ciphertext parameterized by degree, level and scale.
-func NewCiphertext(params Parameters, degree, level int, scale rlwe.Scale) (ciphertext *Ciphertext) {
+func NewCiphertext(params Parameters, degree, level int) (ciphertext *Ciphertext) {
 	ciphertext = &Ciphertext{Ciphertext: rlwe.NewCiphertextNTT(params.Parameters, degree, level)}
-	ciphertext.Ciphertext.Scale = CheckScaleType(scale).CopyNew()
+	ciphertext.Ciphertext.Scale = NewScale(params, 1)
 	return
 }
 
 // NewCiphertextRandom generates a new uniformly distributed Ciphertext of degree, level and scale.
-func NewCiphertextRandom(prng utils.PRNG, params Parameters, degree, level int, scale rlwe.Scale) (ciphertext *Ciphertext) {
+func NewCiphertextRandom(prng utils.PRNG, params Parameters, degree, level int) (ciphertext *Ciphertext) {
 	ciphertext = &Ciphertext{rlwe.NewCiphertextRandom(prng, params.Parameters, degree, level)}
-	ciphertext.Ciphertext.Scale = CheckScaleType(scale).CopyNew()
+	ciphertext.Ciphertext.Scale = NewScale(params, 1)
 	for i := range ciphertext.Value {
 		ciphertext.Value[i].IsNTT = true
 	}
@@ -46,7 +43,7 @@ func (ct *Ciphertext) Copy(input *Ciphertext) {
 }
 
 func (ct *Ciphertext) UnmarshalBinary(data []byte) (err error) {
-	ct.Ciphertext = &rlwe.Ciphertext{Scale: NewScale(0)}
+	ct.Ciphertext = &rlwe.Ciphertext{Scale: &Scale{}}
 	return ct.Ciphertext.UnmarshalBinary(data)
 }
 

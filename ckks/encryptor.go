@@ -51,7 +51,7 @@ func (enc *encryptor) Encrypt(plaintext *Plaintext, ciphertext *Ciphertext) {
 // EncryptNew encrypts the input plaintext returns the result as a newly allocated ciphertext.
 // The level of the output ciphertext is min(plaintext.Level(), ciphertext.Level()).
 func (enc *encryptor) EncryptNew(plaintext *Plaintext) (ciphertext *Ciphertext) {
-	ciphertext = NewCiphertext(enc.params, 1, plaintext.Level(), plaintext.Plaintext.Scale)
+	ciphertext = NewCiphertext(enc.params, 1, plaintext.Level())
 	enc.Encryptor.Encrypt(plaintext.Plaintext, ciphertext.Ciphertext)
 	return
 }
@@ -66,7 +66,8 @@ func (enc *encryptor) EncryptZero(ciphertext *Ciphertext) {
 // result as a newly allocated ciphertext.
 // Note that the Scale field of an encryption of zero can be changed arbitrarily, without requiring a Rescale.
 func (enc *encryptor) EncryptZeroNew(level int, scale rlwe.Scale) (ct *Ciphertext) {
-	ct = NewCiphertext(enc.params, 1, level, scale)
+	ct = NewCiphertext(enc.params, 1, level)
+	ct.Scale().Set(scale)
 	enc.Encryptor.EncryptZero(ct.Ciphertext)
 	return
 }

@@ -34,10 +34,9 @@ func BenchmarkBootstrapp(b *testing.B) {
 	b.Run(ParamsToString(params, "Bootstrapp/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 
-			bootstrappingScale := math.Exp2(math.Round(math.Log2(btp.params.QiFloat64(0) / btp.evalModPoly.MessageRatio())))
-
 			b.StopTimer()
-			ct := ckks.NewCiphertext(params, 1, 0, &ckks.Scale{Value: bootstrappingScale})
+			ct := ckks.NewCiphertext(params, 1, 0)
+			ct.Scale().Set(ckks.NewScale(math.Exp2(math.Round(math.Log2(btp.params.QiFloat64(0) / btp.evalModPoly.MessageRatio())))))
 			b.StartTimer()
 
 			var t time.Time

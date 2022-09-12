@@ -111,7 +111,7 @@ func NewHomomorphicEncodingMatrixFromLiteral(mParams EncodingMatrixLiteral, enco
 	trueDepth := mParams.Depth(true)
 	for i := range mParams.ScalingFactor {
 		for j := range mParams.ScalingFactor[trueDepth-i-1] {
-			matrices[cnt] = ckks.GenLinearTransform(encoder, nil, pVecDFT[cnt], ctsLevels[cnt], &ckks.Scale{mParams.ScalingFactor[trueDepth-i-1][j]}, mParams.BSGSRatio, logdSlots)
+			matrices[cnt] = ckks.GenLinearTransform(encoder, nil, pVecDFT[cnt], ctsLevels[cnt], &ckks.Scale{Value: mParams.ScalingFactor[trueDepth-i-1][j]}, mParams.BSGSRatio, logdSlots)
 			cnt++
 		}
 	}

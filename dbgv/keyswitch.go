@@ -54,7 +54,6 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct1 *ring.Po
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
 func (cks *CKSProtocol) KeySwitch(ctIn *bgv.Ciphertext, combined *drlwe.CKSShare, ctOut *bgv.Ciphertext) {
 	cks.CKSProtocol.KeySwitch(ctIn.Ciphertext, combined, ctOut.Ciphertext)
-	ctOut.SetScale(ctIn.Scale())
 }
 
 // ShallowCopy creates a shallow copy of CKSProtocol in which all the read-only data-structures are
@@ -118,7 +117,6 @@ func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct1 *
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut.
 func (pcks *PCKSProtocol) KeySwitch(ctIn *bgv.Ciphertext, combined *drlwe.PCKSShare, ctOut *bgv.Ciphertext) {
 	pcks.PCKSProtocol.KeySwitch(ctIn.Ciphertext, combined, ctOut.Ciphertext)
-	ctOut.SetScale(ctIn.Scale())
 }
 
 // ShallowCopy creates a shallow copy of PCKSProtocol in which all the read-only data-structures are

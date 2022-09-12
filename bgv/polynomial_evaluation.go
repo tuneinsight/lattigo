@@ -7,7 +7,6 @@ import (
 	"math/bits"
 	"runtime"
 
-	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
@@ -161,7 +160,7 @@ func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVecto
 	polyEval.isOdd = odd
 	polyEval.isEven = even
 
-	if opOut, err = polyEval.recurse(powerBasis.Value[1].Level()-logDegree+1, targetScale, pol); err != nil {
+	if opOut, err = polyEval.recurse(powerBasis.Value[1].Level()-logDegree+1, targetScale.CopyNew(), pol); err != nil {
 		return
 	}
 
@@ -376,14 +375,18 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale rlwe.S
 			polyEvalBis.isOdd = polyEval.isOdd
 			polyEvalBis.isEven = polyEval.isEven
 
-			return polyEvalBis.recurse(targetLevel, targetScale, pol)
+			res, err = polyEvalBis.recurse(targetLevel, targetScale.CopyNew(), pol)
+
+			return
 		}
 
 		if pol.Value[0].Lead {
 			targetScale.Mul(params.Q()[targetLevel])
 		}
 
-		return polyEval.evaluatePolyFromPowerBasis(targetLevel, targetScale, pol)
+		res, err = polyEval.evaluatePolyFromPowerBasis(targetLevel, targetScale, pol)
+
+		return
 	}
 
 	var nextPower = 1 << polyEval.logSplit
@@ -424,7 +427,7 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale rlwe.S
 	polyEval.Mul(res, XPow, res)
 
 	var tmp *Ciphertext
-	if tmp, err = polyEval.recurse(res.Level(), res.Scale(), coeffsr); err != nil {
+	if tmp, err = polyEval.recurse(res.Level(), res.Scale().CopyNew(), coeffsr); err != nil {
 		return nil, err
 	}
 
@@ -469,7 +472,8 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetLevel int,
 		if minimumDegreeNonZeroCoefficient == 0 {
 
 			// Allocates the output ciphertext
-			res = NewCiphertext(params, 1, targetLevel, targetScale)
+			res = NewCiphertext(params, 1, targetLevel)
+			res.Scale().Set(targetScale)
 
 			// Looks for non-zero coefficients among the degree 0 coefficients of the polynomials
 			for i, p := range pol.Value {
@@ -492,7 +496,8 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetLevel int,
 		}
 
 		// Allocates the output ciphertext
-		res = NewCiphertext(params, maximumCiphertextDegree, targetLevel, targetScale)
+		res = NewCiphertext(params, maximumCiphertextDegree, targetLevel)
+		res.Scale().Set(targetScale)
 
 		// Allocates a temporary plaintext to encode the values
 		pt := NewPlaintextAtLevelFromPoly(targetLevel, polyEval.Evaluator.BuffQ()[0]) // buffQ[0] is safe in this case
@@ -568,7 +573,8 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetLevel int,
 
 		if minimumDegreeNonZeroCoefficient == 0 {
 
-			res = NewCiphertext(params, 1, targetLevel, targetScale)
+			res = NewCiphertext(params, 1, targetLevel)
+			res.Scale().Set(targetScale)
 
 			if c != 0 {
 				polyEval.AddScalar(res, c, res)
@@ -577,7 +583,8 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetLevel int,
 			return
 		}
 
-		res = NewCiphertext(params, maximumCiphertextDegree, targetLevel, targetScale)
+		res = NewCiphertext(params, maximumCiphertextDegree, targetLevel)
+		res.Scale().Set(targetScale)
 
 		if c != 0 {
 			polyEval.AddScalar(res, c, res)

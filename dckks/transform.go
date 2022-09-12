@@ -175,7 +175,7 @@ func (rfp *MaskedTransformProtocol) SampleCRP(level int, crs utils.PRNG) drlwe.C
 // scale    : the scale of the ciphertext when entering the refresh.
 // The method "GetMinimumLevelForBootstrapping" should be used to get the minimum level at which the masked transform can be called while still ensure 128-bits of security, as well as the
 // value for logBound.
-func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, logBound, logSlots int, ct1 *ring.Poly, scale float64, crs drlwe.CKSCRP, transform *MaskedTransformFunc, shareOut *MaskedTransformShare) {
+func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, logBound, logSlots int, ct1 *ring.Poly, scale rlwe.Scale, crs drlwe.CKSCRP, transform *MaskedTransformFunc, shareOut *MaskedTransformShare) {
 
 	ringQ := rfp.s2e.params.RingQ()
 
@@ -252,7 +252,7 @@ func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, logBou
 
 	// Applies LT(M_i) * diffscale
 	inputScaleInt := new(big.Int)
-	ring.NewFloat(scale, 256).Int(inputScaleInt)
+	ring.NewFloat(scale.(*ckks.Scale).Value, 256).Int(inputScaleInt)
 
 	// Scales the mask by the ratio between the two scales
 	for i := 0; i < dslots; i++ {

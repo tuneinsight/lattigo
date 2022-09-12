@@ -213,7 +213,7 @@ func main() {
 	// Key-Switch from LogN = 12 to LogN = 10
 	evalCKKS.DropLevel(ctN12, ctN12.Level())                    // drop to LUT level
 	ctTmp := evalCKKSN12ToN11.SwitchKeysNew(ctN12, swkN12ToN11) // key-switch to LWE degree
-	ctN11 := ckks.NewCiphertext(paramsN11, 1, paramsN11.MaxLevel(), &ckks.Scale{Value: ctTmp.Scale().(*ckks.Scale).Value})
+	ctN11 := ckks.NewCiphertext(paramsN11, 1, paramsN11.MaxLevel())
 	rlwe.SwitchCiphertextRingDegreeNTT(ctTmp.Ciphertext, paramsN11.RingQ(), paramsN12.RingQ(), ctN11.Ciphertext)
 	fmt.Printf("Done (%s)\n", time.Since(now))
 

@@ -57,7 +57,7 @@ func benchKeyswitching(tc *testContext, b *testing.B) {
 		share *drlwe.CKSShare
 	}
 
-	ciphertext := bgv.NewCiphertext(tc.params, 1, tc.params.MaxLevel(), 1)
+	ciphertext := bgv.NewCiphertext(tc.params, 1, tc.params.MaxLevel())
 
 	p := new(Party)
 	p.CKSProtocol = NewCKSProtocol(tc.params, 6.36)
@@ -92,7 +92,7 @@ func benchPublicKeySwitching(tc *testContext, b *testing.B) {
 	sk0Shards := tc.sk0Shards
 	pk1 := tc.pk1
 
-	ciphertext := bgv.NewCiphertext(tc.params, 1, tc.params.MaxLevel(), 1)
+	ciphertext := bgv.NewCiphertext(tc.params, 1, tc.params.MaxLevel())
 
 	type Party struct {
 		*PCKSProtocol
@@ -186,7 +186,7 @@ func benchRefresh(tc *testContext, b *testing.B) {
 	p.s = sk0Shards[0]
 	p.share = p.AllocateShare(minLevel, maxLevel)
 
-	ciphertext := bgv.NewCiphertext(tc.params, 1, minLevel, 1)
+	ciphertext := bgv.NewCiphertext(tc.params, 1, minLevel)
 
 	crp := p.SampleCRP(maxLevel, tc.crs)
 
@@ -205,7 +205,7 @@ func benchRefresh(tc *testContext, b *testing.B) {
 	})
 
 	b.Run(testString("Refresh/Finalize", tc.NParties, tc.params), func(b *testing.B) {
-		ctOut := bgv.NewCiphertext(tc.params, 1, maxLevel, 1)
+		ctOut := bgv.NewCiphertext(tc.params, 1, maxLevel)
 		for i := 0; i < b.N; i++ {
 			p.Finalize(ciphertext, crp, p.share, ctOut)
 		}

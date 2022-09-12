@@ -39,7 +39,7 @@ func (rfp *RefreshProtocol) AllocateShare(inputLevel, outputLevel int) *RefreshS
 
 // GenShare generates a share for the Refresh protocol.
 // ct1 is degree 1 element of a bgv.Ciphertext, i.e. bgv.Ciphertext.Value[1].
-func (rfp *RefreshProtocol) GenShare(sk *rlwe.SecretKey, ct1 *ring.Poly, scale uint64, crp drlwe.CKSCRP, shareOut *RefreshShare) {
+func (rfp *RefreshProtocol) GenShare(sk *rlwe.SecretKey, ct1 *ring.Poly, scale rlwe.Scale, crp drlwe.CKSCRP, shareOut *RefreshShare) {
 	rfp.MaskedTransformProtocol.GenShare(sk, ct1, scale, crp, nil, &shareOut.MaskedTransformShare)
 }
 

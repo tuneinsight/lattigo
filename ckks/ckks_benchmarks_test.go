@@ -104,7 +104,7 @@ func benchEncrypt(tc *testContext, b *testing.B) {
 	encryptorSk := tc.encryptorSk
 
 	plaintext := NewPlaintext(tc.params, tc.params.MaxLevel(), tc.params.DefaultScale())
-	ciphertext := NewCiphertext(tc.params, 1, tc.params.MaxLevel(), tc.params.DefaultScale())
+	ciphertext := NewCiphertext(tc.params, 1, tc.params.MaxLevel())
 
 	b.Run(GetTestName(tc.params, "Encrypt/key=Pk"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -124,7 +124,7 @@ func benchDecrypt(tc *testContext, b *testing.B) {
 	decryptor := tc.decryptor
 
 	plaintext := NewPlaintext(tc.params, tc.params.MaxLevel(), tc.params.DefaultScale())
-	ciphertext := NewCiphertextRandom(tc.prng, tc.params, 1, tc.params.MaxLevel(), tc.params.DefaultScale())
+	ciphertext := NewCiphertextRandom(tc.prng, tc.params, 1, tc.params.MaxLevel())
 
 	b.Run(GetTestName(tc.params, "Decrypt"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -136,9 +136,9 @@ func benchDecrypt(tc *testContext, b *testing.B) {
 func benchEvaluator(tc *testContext, b *testing.B) {
 
 	plaintext := NewPlaintext(tc.params, tc.params.MaxLevel(), tc.params.DefaultScale())
-	ciphertext1 := NewCiphertextRandom(tc.prng, tc.params, 1, tc.params.MaxLevel(), tc.params.DefaultScale())
-	ciphertext2 := NewCiphertextRandom(tc.prng, tc.params, 1, tc.params.MaxLevel(), tc.params.DefaultScale())
-	receiver := NewCiphertextRandom(tc.prng, tc.params, 2, tc.params.MaxLevel(), tc.params.DefaultScale())
+	ciphertext1 := NewCiphertextRandom(tc.prng, tc.params, 1, tc.params.MaxLevel())
+	ciphertext2 := NewCiphertextRandom(tc.prng, tc.params, 1, tc.params.MaxLevel())
+	receiver := NewCiphertextRandom(tc.prng, tc.params, 2, tc.params.MaxLevel())
 
 	var rlk *rlwe.RelinearizationKey
 	var rotkey *rlwe.RotationKeySet
@@ -224,7 +224,7 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 
 func benchInnerSum(tc *testContext, b *testing.B) {
 
-	ciphertext1 := NewCiphertextRandom(tc.prng, tc.params, 1, tc.params.MaxLevel(), tc.params.DefaultScale())
+	ciphertext1 := NewCiphertextRandom(tc.prng, tc.params, 1, tc.params.MaxLevel())
 
 	batch := 1
 	n := 4

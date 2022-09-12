@@ -182,6 +182,10 @@ func (pcks *PCKSProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined *PCKSShare, 
 		ring.CopyValuesLvl(level, combined.Value[1], ctOut.Value[1])
 	}
 	ctOut.Resize(ctOut.Degree(), level)
+
+	if ctIn.Scale != nil {
+		ctOut.Scale.Set(ctIn.Scale)
+	}
 }
 
 // MarshalBinary encodes a PCKS share on a slice of bytes.

@@ -7,7 +7,7 @@ import (
 )
 
 type Scale interface {
-	Set(scale interface{})
+	Set(scale Scale)
 	Mul(scale interface{})
 	Div(scale interface{})
 	Get() interface{}

@@ -11,8 +11,8 @@ type Scale struct {
 	Value float64
 }
 
-func NewScale() *Scale {
-	return &Scale{Value: 0.0}
+func NewScale(scale float64) *Scale {
+	return &Scale{Value: scale}
 }
 
 func CheckScaleType(scale rlwe.Scale) *Scale {
@@ -20,18 +20,16 @@ func CheckScaleType(scale rlwe.Scale) *Scale {
 	case *Scale:
 		return scale
 	default:
-		panic("NewCiphertext: invalid scale.(type), must be ckks.Scale")
+		panic("CheckScaleType: invalid scale.(type), must be *ckks.Scale")
 	}
 }
 
-func (s *Scale) Set(scale interface{}) {
+func (s *Scale) Set(scale rlwe.Scale) {
 	switch scale := scale.(type) {
-	case float64:
-		s.Value = scale
 	case *Scale:
-		s.Set(scale.Value)
+		s.Value = scale.Value
 	default:
-		panic("ckks.Scale.Set: invalid input type, must be float64, *big.Float or *ckks.Scale")
+		panic("ckks.Scale.Set: invalid input type, must be ckks.Scale")
 	}
 }
 
@@ -42,7 +40,7 @@ func (s *Scale) Div(scale interface{}) {
 	case *Scale:
 		s.Div(scale.Value)
 	default:
-		panic("ckks.Scale.Div: invalid input type, must be float64, *big.Float or *ckks.Scale")
+		panic("ckks.Scale.Div: invalid input type, must be float64 or *ckks.Scale")
 	}
 }
 
@@ -53,7 +51,7 @@ func (s *Scale) Mul(scale interface{}) {
 	case *Scale:
 		s.Mul(scale.Value)
 	default:
-		panic("ckks.Scale.Mul: invalid input type, must be float64, *big.Float or *ckks.Scale")
+		panic("ckks.Scale.Mul: invalid input type, must be float64 or *ckks.Scale")
 	}
 }
 
@@ -69,7 +67,7 @@ func (s *Scale) Max(scale interface{}) (max rlwe.Scale) {
 	case rlwe.Scale:
 		return s.Max(scale.(*Scale).Value)
 	default:
-		panic("ckks.Scale.Compare: invalid input type, must be float64, *big.Float or *ckks.Scale")
+		panic("ckks.Scale.Compare: invalid input type, must be float64 or *ckks.Scale")
 	}
 }
 
@@ -85,7 +83,7 @@ func (s *Scale) Min(scale interface{}) (min rlwe.Scale) {
 	case rlwe.Scale:
 		return s.Min(scale.(*Scale).Value)
 	default:
-		panic("ckks.Scale.Compare: invalid input type, must be float64, *big.Float or *ckks.Scale")
+		panic("ckks.Scale.Compare: invalid input type, must be float64 or *ckks.Scale")
 	}
 }
 
@@ -106,7 +104,7 @@ func (s *Scale) Compare(scale interface{}) (cmp int) {
 	case *Scale:
 		s.Compare(scale.Value)
 	default:
-		panic("ckks.Scale.Compare: invalid input type, must be float64, *big.Float or *ckks.Scale")
+		panic("ckks.Scale.Compare: invalid input type, must be float64 or *ckks.Scale")
 	}
 	return
 }
@@ -120,7 +118,7 @@ func (s *Scale) Equal(scale interface{}) (cmp bool) {
 	case rlwe.Scale:
 		return s.Equal(scale.(*Scale).Value)
 	default:
-		panic("ckks.Scale.Compare: invalid input type, must be float64, *big.Float or *ckks.Scale")
+		panic("ckks.Scale.Compare: invalid input type, must be float64 or *ckks.Scale")
 	}
 	return
 }

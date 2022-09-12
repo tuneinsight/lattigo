@@ -1,8 +1,6 @@
 package bgv
 
 import (
-	"encoding/binary"
-
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
 	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
@@ -54,7 +52,7 @@ func (LT *LinearTransform) MarshalBinary() (data []byte, err error) {
 // UnmarshalBinary decodes the input slice of bytes on the target LinearTransform.
 func (LT *LinearTransform) UnmarshalBinary(data []byte) (err error) {
 	LT.LinearTransform = rlwe.LinearTransform{}
-	LT.Scale = NewScale(0)
+	LT.Scale = &Scale{}
 	return LT.LinearTransform.UnmarshalBinary(data)
 }
 
@@ -203,11 +201,11 @@ func (eval *evaluator) LinearTransformNew(ctIn *Ciphertext, linearTransform inte
 		minLevel := utils.MinInt(maxLevel, ctIn.Level())
 
 		for i := range LTs {
-			ctOut[i] = NewCiphertext(eval.params, 1, minLevel, NewScale(0))
+			ctOut[i] = NewCiphertext(eval.params, 1, minLevel)
 		}
 
 	case LinearTransform:
-		ctOut = []*Ciphertext{NewCiphertext(eval.params, 1, utils.MinInt(LTs.Level, ctIn.Level()), NewScale(0))}
+		ctOut = []*Ciphertext{NewCiphertext(eval.params, 1, utils.MinInt(LTs.Level, ctIn.Level()))}
 
 	}
 

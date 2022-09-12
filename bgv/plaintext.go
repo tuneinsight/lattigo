@@ -24,7 +24,7 @@ func NewPlaintext(params Parameters, level int, scale rlwe.Scale) *Plaintext {
 func NewPlaintextAtLevelFromPoly(level int, poly *ring.Poly) *Plaintext {
 	pt := rlwe.NewPlaintextAtLevelFromPoly(level, poly)
 	pt.Value.IsNTT = true
-	pt.Scale = NewScale(0)
+	pt.Scale = &Scale{}
 	return &Plaintext{Plaintext: pt}
 }
 

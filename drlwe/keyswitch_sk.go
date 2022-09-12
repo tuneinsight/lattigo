@@ -180,4 +180,7 @@ func (cks *CKSProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined *CKSShare, ctO
 		ring.CopyValuesLvl(level, ctIn.Value[1], ctOut.Value[1])
 	}
 	ctOut.Resize(ctOut.Degree(), level)
+	if ctIn.Scale != nil {
+		ctOut.Scale.Set(ctIn.Scale)
+	}
 }

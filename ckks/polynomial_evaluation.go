@@ -271,7 +271,8 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasisComplex128(t
 		if minimumDegreeNonZeroCoefficient == 0 {
 
 			// Allocates the output ciphertext
-			res = NewCiphertext(params, 1, level, targetScale)
+			res = NewCiphertext(params, 1, level)
+			res.Scale().Set(targetScale)
 
 			// Looks for non-zero coefficients among the degree 0 coefficients of the polynomials
 			for i, c := range pol.coeffs {
@@ -294,11 +295,12 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasisComplex128(t
 		}
 
 		// Allocates the output ciphertext
-		res = NewCiphertext(params, maximumCiphertextDegree, level, targetScale)
+		res = NewCiphertext(params, maximumCiphertextDegree, level)
+		res.Scale().Set(targetScale)
 
 		// Allocates a temporary plaintext to encode the values
 		pt := NewPlaintextAtLevelFromPoly(level, polyEval.Evaluator.BuffCt().Value[0])
-		pt.Plaintext.Scale = NewScale()
+		pt.Plaintext.Scale = NewScale(0)
 
 		// Looks for a non-zero coefficient among the degree zero coefficient of the polynomials
 		for i, c := range pol.coeffs {
@@ -366,7 +368,8 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasisComplex128(t
 
 		if minimumDegreeNonZeroCoefficient == 0 {
 
-			res = NewCiphertext(params, 1, level, targetScale)
+			res = NewCiphertext(params, 1, level)
+			res.Scale().Set(targetScale)
 
 			if isNotNegligible(c) {
 				polyEval.AddConst(res, c, res)
@@ -375,7 +378,8 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasisComplex128(t
 			return
 		}
 
-		res = NewCiphertext(params, maximumCiphertextDegree, level, targetScale)
+		res = NewCiphertext(params, maximumCiphertextDegree, level)
+		res.Scale().Set(targetScale)
 
 		if c != 0 {
 			polyEval.AddConst(res, c, res)

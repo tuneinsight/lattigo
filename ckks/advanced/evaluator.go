@@ -117,10 +117,10 @@ func (eval *evaluator) WithKey(evaluationKey rlwe.EvaluationKey) Evaluator {
 // If the packing is sparse (n < N/2), then returns ctReal = Ecd(vReal || vImag) and ctImag = nil.
 // If the packing is dense (n == N/2), then returns ctReal = Ecd(vReal) and ctImag = Ecd(vImag).
 func (eval *evaluator) CoeffsToSlotsNew(ctIn *ckks.Ciphertext, ctsMatrices EncodingMatrix) (ctReal, ctImag *ckks.Ciphertext) {
-	ctReal = ckks.NewCiphertext(eval.params, 1, ctsMatrices.LevelStart, &ckks.Scale{})
+	ctReal = ckks.NewCiphertext(eval.params, 1, ctsMatrices.LevelStart)
 
 	if eval.params.LogSlots() == eval.params.LogN()-1 {
-		ctImag = ckks.NewCiphertext(eval.params, 1, ctsMatrices.LevelStart, &ckks.Scale{})
+		ctImag = ckks.NewCiphertext(eval.params, 1, ctsMatrices.LevelStart)
 	}
 
 	eval.CoeffsToSlots(ctIn, ctsMatrices, ctReal, ctImag)
@@ -178,7 +178,7 @@ func (eval *evaluator) SlotsToCoeffsNew(ctReal, ctImag *ckks.Ciphertext, stcMatr
 		panic("ctReal.Level() or ctImag.Level() < EncodingMatrix.LevelStart")
 	}
 
-	ctOut = ckks.NewCiphertext(eval.params, 1, stcMatrices.LevelStart, &ckks.Scale{Value: ctReal.Scale().(*ckks.Scale).Value})
+	ctOut = ckks.NewCiphertext(eval.params, 1, stcMatrices.LevelStart)
 	eval.SlotsToCoeffs(ctReal, ctImag, stcMatrices, ctOut)
 	return
 

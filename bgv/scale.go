@@ -13,8 +13,8 @@ type Scale struct {
 	Value      uint64
 }
 
-func NewScale(T uint64) *Scale {
-	return &Scale{T: T, BredParams: ring.BRedParams(T), Value: 0}
+func NewScale(params Parameters, scale uint64) *Scale {
+	return &Scale{T: params.T(), BredParams: ring.BRedParams(params.T()), Value: scale}
 }
 
 func CheckScaleType(scale rlwe.Scale) *Scale {
@@ -22,18 +22,18 @@ func CheckScaleType(scale rlwe.Scale) *Scale {
 	case *Scale:
 		return scale
 	default:
-		panic("NewCiphertext: invalid scale.(type), must be ckks.Scale")
+		panic("CheckScaleType: invalid scale.(type), must be bgv.Scale")
 	}
 }
 
-func (s *Scale) Set(scale interface{}) {
+func (s *Scale) Set(scale rlwe.Scale) {
 	switch scale := scale.(type) {
-	case uint64:
-		s.Value = scale
 	case *Scale:
-		s.Set(scale.Value)
+		s.T = scale.T
+		s.BredParams = scale.BredParams[:]
+		s.Value = scale.Value
 	default:
-		panic("ckks.Scale.Set: invalid input type, must be uint64")
+		panic("bgv.Scale.Set: invalid input type, must be uint64")
 	}
 }
 
@@ -44,18 +44,19 @@ func (s *Scale) Div(scale interface{}) {
 	case *Scale:
 		s.Div(scale.Value)
 	default:
-		panic("ckks.Scale.Div: invalid input type, must be uint64")
+		panic("bgv.Scale.Div: invalid input type, must be uint64")
 	}
 }
 
 func (s *Scale) Mul(scale interface{}) {
 	switch scale := scale.(type) {
 	case uint64:
+
 		s.Value = ring.BRed(s.Value, scale, s.T, s.BredParams)
 	case *Scale:
 		s.Mul(scale.Value)
 	default:
-		panic("ckks.Scale.Mul: invalid input type, must be uint64")
+		panic("bgv.Scale.Mul: invalid input type, must be uint64")
 	}
 }
 
@@ -77,6 +78,8 @@ func (s *Scale) Compare(scale interface{}) (cmp int) {
 
 func (s *Scale) Equal(scale interface{}) (cmp bool) {
 	switch scale := scale.(type) {
+	case int:
+		return s.Equal(uint64(scale))
 	case uint64:
 		cmp = s.Value == scale
 	case *Scale:
@@ -84,7 +87,7 @@ func (s *Scale) Equal(scale interface{}) (cmp bool) {
 	case rlwe.Scale:
 		return s.Equal(scale.(*Scale).Value)
 	default:
-		panic("ckks.Scale.Compare: invalid input type, must be uint64")
+		panic("bgv.Scale.Compare: invalid input type, must be either int, uint64, *bgv.Scale or rlwe.Scale")
 	}
 	return
 }
@@ -94,17 +97,22 @@ func (s *Scale) Get() interface{} {
 }
 
 func (s *Scale) CopyNew() rlwe.Scale {
-	return &Scale{Value: s.Value}
+	return &Scale{T: s.T, BredParams: s.BredParams[:], Value: s.Value}
 }
 
 func (s *Scale) GetDataLen() int {
-	return 8
+	return 32
 }
 
 func (s *Scale) Encode(data []byte) {
-	binary.LittleEndian.PutUint64(data, s.Value)
+	binary.LittleEndian.PutUint64(data[0:], s.T)
+	binary.LittleEndian.PutUint64(data[8:], s.BredParams[0])
+	binary.LittleEndian.PutUint64(data[16:], s.BredParams[1])
+	binary.LittleEndian.PutUint64(data[24:], s.Value)
 }
 
 func (s *Scale) Decode(data []byte) {
-	s.Value = binary.LittleEndian.Uint64(data)
+	s.T = binary.LittleEndian.Uint64(data[0:])
+	s.BredParams = []uint64{binary.LittleEndian.Uint64(data[8:]), binary.LittleEndian.Uint64(data[16:])}
+	s.Value = binary.LittleEndian.Uint64(data[24:])
 }

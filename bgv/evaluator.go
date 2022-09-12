@@ -153,7 +153,7 @@ func newEvaluatorBuffer(eval *evaluatorBase) *evaluatorBuffers {
 	}
 	return &evaluatorBuffers{
 		buffQ:  buffQ,
-		buffCt: NewCiphertext(eval.params, 2, eval.params.MaxLevel(), NewScale(1)),
+		buffCt: NewCiphertext(eval.params, 2, eval.params.MaxLevel()),
 	}
 }
 
@@ -260,14 +260,15 @@ func (eval *evaluator) matchScaleThenEvaluateInPlace(el0, el1, elOut *Ciphertext
 }
 
 func (eval *evaluator) newCiphertextBinary(op0, op1 Operand) (ctOut *Ciphertext) {
-	return NewCiphertext(eval.params, utils.MaxInt(op0.Degree(), op1.Degree()), utils.MinInt(op0.Level(), op1.Level()), NewScale(1))
+	return NewCiphertext(eval.params, utils.MaxInt(op0.Degree(), op1.Degree()), utils.MinInt(op0.Level(), op1.Level()))
 }
 
 // Add adds op1 to ctIn and returns the result in ctOut.
 func (eval *evaluator) Add(ctIn *Ciphertext, op1 Operand, ctOut *Ciphertext) {
+
 	eval.checkBinary(ctIn, op1, ctOut, utils.MaxInt(ctIn.Degree(), op1.Degree()))
 
-	if ctIn.Scale() == op1.Scale() {
+	if ctIn.Scale().Equal(op1.Scale()) {
 		eval.evaluateInPlace(ctIn, &Ciphertext{op1.El()}, ctOut, eval.params.RingQ().AddLvl)
 	} else {
 		eval.matchScaleThenEvaluateInPlace(ctIn, &Ciphertext{op1.El()}, ctOut, eval.params.RingQ().MulScalarAndAddLvl)
@@ -285,7 +286,7 @@ func (eval *evaluator) AddNew(ctIn *Ciphertext, op1 Operand) (ctOut *Ciphertext)
 func (eval *evaluator) Sub(ctIn *Ciphertext, op1 Operand, ctOut *Ciphertext) {
 	eval.checkBinary(ctIn, op1, ctOut, utils.MaxInt(ctIn.Degree(), op1.Degree()))
 
-	if ctIn.Scale() == op1.Scale() {
+	if ctIn.Scale().Equal(op1.Scale()) {
 		eval.evaluateInPlace(ctIn, &Ciphertext{op1.El()}, ctOut, eval.params.RingQ().SubLvl)
 	} else {
 		eval.matchScaleThenEvaluateInPlace(ctIn, &Ciphertext{op1.El()}, ctOut, eval.params.RingQ().MulScalarAndSubLvl)
@@ -317,7 +318,7 @@ func (eval *evaluator) Neg(ctIn *Ciphertext, ctOut *Ciphertext) {
 
 // NegNew negates ctIn and returns the result in a new ctOut.
 func (eval *evaluator) NegNew(ctIn *Ciphertext) (ctOut *Ciphertext) {
-	ctOut = NewCiphertext(eval.params, ctIn.Degree(), ctIn.Level(), ctIn.Scale())
+	ctOut = NewCiphertext(eval.params, ctIn.Degree(), ctIn.Level())
 	eval.Neg(ctIn, ctOut)
 	return
 }
@@ -345,7 +346,7 @@ func (eval *evaluator) AddScalar(ctIn *Ciphertext, scalar uint64, ctOut *Ciphert
 
 // AddScalarNew adds a scalar to ctIn and returns the result in a new ctOut.
 func (eval *evaluator) AddScalarNew(ctIn *Ciphertext, scalar uint64) (ctOut *Ciphertext) {
-	ctOut = NewCiphertext(eval.params, ctIn.Degree(), ctIn.Level(), ctIn.Scale())
+	ctOut = NewCiphertext(eval.params, ctIn.Degree(), ctIn.Level())
 	eval.AddScalar(ctIn, scalar, ctOut)
 	return
 }
@@ -360,7 +361,7 @@ func (eval *evaluator) MulScalar(ctIn *Ciphertext, scalar uint64, ctOut *Ciphert
 
 // MulScalarNew multiplies ctIn with a scalar and returns the result in a new ctOut.
 func (eval *evaluator) MulScalarNew(ctIn *Ciphertext, scalar uint64) (ctOut *Ciphertext) {
-	ctOut = NewCiphertext(eval.params, ctIn.Degree(), ctIn.Level(), ctIn.Scale())
+	ctOut = NewCiphertext(eval.params, ctIn.Degree(), ctIn.Level())
 	eval.MulScalar(ctIn, scalar, ctOut)
 	return
 }
@@ -406,7 +407,7 @@ func (eval *evaluator) Mul(ctIn *Ciphertext, op1 Operand, ctOut *Ciphertext) {
 // MulNew multiplies ctIn with op1 without relinearization and returns the result in a new ctOut.
 // The procedure will panic if either ctIn.Degree or op1.Degree > 1.
 func (eval *evaluator) MulNew(ctIn *Ciphertext, op1 Operand) (ctOut *Ciphertext) {
-	ctOut = NewCiphertext(eval.params, ctIn.Degree()+op1.Degree(), utils.MinInt(ctIn.Level(), op1.Level()), NewScale(0))
+	ctOut = NewCiphertext(eval.params, ctIn.Degree()+op1.Degree(), utils.MinInt(ctIn.Level(), op1.Level()))
 	eval.mulRelin(ctIn, op1, false, ctOut)
 	return
 }
@@ -415,7 +416,7 @@ func (eval *evaluator) MulNew(ctIn *Ciphertext, op1 Operand) (ctOut *Ciphertext)
 // The procedure will panic if either ctIn.Degree or op1.Degree > 1.
 // The procedure will panic if the evaluator was not created with an relinearization key.
 func (eval *evaluator) MulRelinNew(ctIn *Ciphertext, op1 Operand) (ctOut *Ciphertext) {
-	ctOut = NewCiphertext(eval.params, 1, utils.MinInt(ctIn.Level(), op1.Level()), NewScale(0))
+	ctOut = NewCiphertext(eval.params, 1, utils.MinInt(ctIn.Level(), op1.Level()))
 	eval.mulRelin(ctIn, op1, true, ctOut)
 	return
 }
@@ -572,7 +573,7 @@ func (eval *evaluator) mulRelinAndAdd(ctIn *Ciphertext, op1 Operand, relin bool,
 		tmp0, tmp1 := ctIn.El(), op1.El()
 
 		var r0 uint64 = 1
-		if targetScale := ring.BRed(ctIn.Scale().(*Scale).Value, op1.Scale().(*Scale).Value, ringT.Modulus[0], ringT.BredParams[0]);  !ctOut.Scale().Equal(targetScale) {
+		if targetScale := ring.BRed(ctIn.Scale().(*Scale).Value, op1.Scale().(*Scale).Value, ringT.Modulus[0], ringT.BredParams[0]); !ctOut.Scale().Equal(targetScale) {
 			var r1 uint64
 			r0, r1, _ = eval.matchScalesBinary(targetScale, ctOut.Scale().(*Scale).Value)
 
@@ -733,7 +734,7 @@ func (eval *evaluator) Rescale(ctIn, ctOut *Ciphertext) (err error) {
 
 // RelinearizeNew applies the relinearization procedure on ctIn and returns the result in a new ctOut.
 func (eval *evaluator) RelinearizeNew(ctIn *Ciphertext) (ctOut *Ciphertext) {
-	ctOut = NewCiphertext(eval.params, 1, ctIn.Level(), ctIn.Scale())
+	ctOut = NewCiphertext(eval.params, 1, ctIn.Level())
 	eval.Relinearize(ctIn, ctOut)
 	return
 }
@@ -780,7 +781,7 @@ func (eval *evaluator) Relinearize(ctIn *Ciphertext, ctOut *Ciphertext) {
 // and the key under which the Ciphertext will be re-encrypted.
 // The procedure will panic if either ctIn.Degree() or ctOut.Degree() != 1.
 func (eval *evaluator) SwitchKeysNew(ctIn *Ciphertext, swk *rlwe.SwitchingKey) (ctOut *Ciphertext) {
-	ctOut = NewCiphertext(eval.params, ctIn.Degree(), ctIn.Level(), ctIn.Scale())
+	ctOut = NewCiphertext(eval.params, ctIn.Degree(), ctIn.Level())
 	eval.SwitchKeys(ctIn, swk, ctOut)
 	return
 }
@@ -817,7 +818,7 @@ func (eval *evaluator) SwitchKeys(ctIn *Ciphertext, swk *rlwe.SwitchingKey, ctOu
 // The procedure will panic if the corresponding Galois key has not been generated and attributed to the evaluator.
 // The procedure will panic if ctIn.Degree() != 1.
 func (eval *evaluator) RotateColumnsNew(ctIn *Ciphertext, k int) (ctOut *Ciphertext) {
-	ctOut = NewCiphertext(eval.params, ctIn.Degree(), ctIn.Level(), ctIn.Scale())
+	ctOut = NewCiphertext(eval.params, ctIn.Degree(), ctIn.Level())
 	eval.RotateColumns(ctIn, k, ctOut)
 	return
 }
@@ -833,7 +834,7 @@ func (eval *evaluator) RotateColumns(ctIn *Ciphertext, k int, ctOut *Ciphertext)
 // The procedure will panic if the corresponding Galois key has not been generated and attributed to the evaluator.
 // The procedure will panic if ctIn.Degree() != 1.
 func (eval *evaluator) RotateRowsNew(ctIn *Ciphertext) (ctOut *Ciphertext) {
-	ctOut = NewCiphertext(eval.params, ctIn.Degree(), ctIn.Level(), ctIn.Scale())
+	ctOut = NewCiphertext(eval.params, ctIn.Degree(), ctIn.Level())
 	eval.RotateRows(ctIn, ctOut)
 	return
 }
@@ -1056,13 +1057,14 @@ func (eval *evaluator) Merge(ctIn map[int]*Ciphertext) (ctOut *Ciphertext) {
 				ringQ.MulScalarLvl(ct.Level(), ct.Value[0], update, ct.Value[0])
 				ringQ.MulScalarLvl(ct.Level(), ct.Value[1], update, ct.Value[1])
 
-				ct.Scale().Set(scale0)
+				ct.Scale().Set(NewScale(params, scale0))
 			}
 		}
 	}
 
 	if ciphertextslist[0] == nil {
-		ciphertextslist[0] = NewCiphertext(params, 1, levelQ, NewScale(scale0))
+		ciphertextslist[0] = NewCiphertext(params, 1, levelQ)
+		ciphertextslist[0].Scale().Set(NewScale(params, scale0))
 	}
 
 	return eval.mergeRLWERecurse(ciphertextslist, xPow2)

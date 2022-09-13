@@ -83,7 +83,7 @@ type Evaluator interface {
 	PowerNew(ctIn *Ciphertext, degree int) (ctOut *Ciphertext)
 
 	// Polynomial evaluation
-	EvaluatePoly(input interface{}, pol rlwe.Polynomial, targetScale rlwe.Scale) (ctOut *Ciphertext, err error)
+	EvaluatePoly(input interface{}, pol Polynomial, targetScale rlwe.Scale) (ctOut *Ciphertext, err error)
 
 	// Inversion
 	InverseNew(ctIn *Ciphertext, steps int) (ctOut *Ciphertext)

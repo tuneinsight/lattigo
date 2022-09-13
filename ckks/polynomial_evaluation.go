@@ -23,10 +23,10 @@ import (
 // pol: a Polynomial
 // targetScale: the desired output scale. This value shouldn't differ too much from the original ciphertext scale. It can
 // for example be used to correct small deviations in the ciphertext scale and reset it to the default scale.
-func (eval *evaluator) EvaluatePoly(input interface{}, pol rlwe.Polynomial, targetScale rlwe.Scale) (opOut *Ciphertext, err error) {
+func (eval *evaluator) EvaluatePoly(input interface{}, pol Polynomial, targetScale rlwe.Scale) (opOut *Ciphertext, err error) {
 
 	var monomialBasis *PolynomialBasis
-	if monomialBasis, err = eval.genPolynomialBasis(input, pol); err != nil {
+	if monomialBasis, err = eval.genPolynomialBasis(input, pol.Polynomial); err != nil {
 		return
 	}
 
@@ -35,7 +35,7 @@ func (eval *evaluator) EvaluatePoly(input interface{}, pol rlwe.Polynomial, targ
 	polyEval.PolynomialBasis = *monomialBasis
 	polyEval.giant, polyEval.baby = pol.BSGSSplit()
 
-	if opOut, err = polyEval.recurse(monomialBasis.Value[1].Level()-polyEval.giant+1, targetScale, evalPoly{pol, true, pol.Degree()}); err != nil {
+	if opOut, err = polyEval.recurse(monomialBasis.Value[1].Level()-polyEval.giant+1, targetScale, evalPoly{pol.Polynomial, true, pol.Degree()}); err != nil {
 		return nil, err
 	}
 
@@ -110,7 +110,7 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale rlwe.S
 	// Recursively computes the evaluation of the Chebyshev polynomial using a baby-set giant-step algorithm.
 	if pol.Degree() < (1 << baby) {
 
-		if pol.lead && polyEval.baby > 1 && pol.maxDeg%(1<<(baby+1)) > (1<<(baby-1)) {
+		if pol.lead && baby > 1 && pol.maxDeg%(1<<(baby+1)) > (1<<(baby-1)) {
 
 			giant := int(bits.Len64(uint64(pol.Degree())))
 			baby := giant >> 1
@@ -129,16 +129,13 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale rlwe.S
 			targetScale.Mul(params.QiFloat64(targetLevel))
 		}
 
-		switch poly := pol.Polynomial.(type) {
-		case *coefficientsComplex128:
-			return polyEval.evaluatePolyFromPolynomialBasisComplex128(targetScale, targetLevel, poly)
-		case *coefficientsBSGSComplex128:
-			//fmt.Println(poly)
-			//return polyEval.evaluatePolyFromPolynomialBasisComplex128(targetScale, targetLevel, poly)
-		case *coefficientsBSGSPlaintext:
-			return polyEval.evaluatePolyFromPlaintext(poly.coeffs[0])
-		case *coefficientsBSGSCiphertext:
-			return polyEval.evaluatePolyFromCiphertext(poly.coeffs[0])
+		switch poly := pol.Polynomial.Coefficients.Value.(type) {
+		case [][]complex128:
+			return polyEval.evaluatePolyFromPolynomialBasisComplex128(targetScale, targetLevel, pol.Polynomial)
+		case [][]*rlwe.Plaintext:
+			return polyEval.evaluatePolyFromPlaintext(poly[0])
+		case [][]*rlwe.Ciphertext:
+			return polyEval.evaluatePolyFromCiphertext(poly[0])
 		}
 	}
 
@@ -192,7 +189,7 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale rlwe.S
 	return
 }
 
-func (polyEval *polynomialEvaluator) evaluatePolyFromPlaintext(pt []*Plaintext) (res *Ciphertext, err error) {
+func (polyEval *polynomialEvaluator) evaluatePolyFromPlaintext(pt []*rlwe.Plaintext) (res *Ciphertext, err error) {
 
 	X := polyEval.PolynomialBasis.Value
 
@@ -203,9 +200,9 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPlaintext(pt []*Plaintext) 
 	for i := 1; i < len(pt); i++ {
 		if pt[i] != nil {
 			if res == nil {
-				res = polyEval.MulNew(X[i], pt[i])
+				res = polyEval.MulNew(X[i], &Plaintext{pt[i]})
 			} else {
-				polyEval.MulAndAdd(X[i], pt[i], res)
+				polyEval.MulAndAdd(X[i], &Plaintext{pt[i]}, res)
 			}
 		}
 	}
@@ -213,20 +210,20 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPlaintext(pt []*Plaintext) 
 	return
 }
 
-func (polyEval *polynomialEvaluator) evaluatePolyFromCiphertext(ct []*Ciphertext) (res *Ciphertext, err error) {
+func (polyEval *polynomialEvaluator) evaluatePolyFromCiphertext(ct []*rlwe.Ciphertext) (res *Ciphertext, err error) {
 
 	X := polyEval.PolynomialBasis.Value
 
 	if ct[0] != nil {
-		res = ct[0].CopyNew()
+		res = &Ciphertext{ct[0].CopyNew()}
 	}
 
 	for i := 1; i < len(ct); i++ {
 		if ct[i] != nil {
 			if res == nil {
-				res = polyEval.MulNew(X[i], ct[i])
+				res = polyEval.MulNew(X[i], &Ciphertext{ct[i]})
 			} else {
-				polyEval.MulAndAdd(X[i], ct[i], res)
+				polyEval.MulAndAdd(X[i], &Ciphertext{ct[i]}, res)
 			}
 		}
 	}
@@ -234,16 +231,16 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromCiphertext(ct []*Ciphertext
 	return
 }
 
-func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasisComplex128(targetScale rlwe.Scale, level int, pol *coefficientsComplex128) (res *Ciphertext, err error) {
+func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasisComplex128(targetScale rlwe.Scale, level int, pol rlwe.Polynomial) (res *Ciphertext, err error) {
 
 	X := polyEval.PolynomialBasis.Value
 
 	params := polyEval.Evaluator.(*evaluator).params
-	slotsIndex := pol.slotsIndex
+	slotsIndex := pol.SlotsIndex
 
 	minimumDegreeNonZeroCoefficient := pol.Degree()
 
-	if pol.even {
+	if pol.Even {
 		minimumDegreeNonZeroCoefficient--
 	}
 
@@ -254,6 +251,8 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasisComplex128(t
 			maximumCiphertextDegree = utils.MaxInt(maximumCiphertextDegree, x.Degree())
 		}
 	}
+
+	coeffs := pol.Coefficients.Value.([][]complex128)
 
 	// If an index slot is given (either multiply polynomials or masking)
 	if slotsIndex != nil {
@@ -275,7 +274,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasisComplex128(t
 			res.Scale().Set(targetScale)
 
 			// Looks for non-zero coefficients among the degree 0 coefficients of the polynomials
-			for i, c := range pol.coeffs {
+			for i, c := range coeffs {
 				if c[0] != 0 {
 					toEncode = true
 					for _, j := range slotsIndex[i] {
@@ -303,7 +302,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasisComplex128(t
 		pt.Plaintext.Scale = NewScale(0)
 
 		// Looks for a non-zero coefficient among the degree zero coefficient of the polynomials
-		for i, c := range pol.coeffs {
+		for i, c := range coeffs {
 			if c[0] != 0 {
 				toEncode = true
 				for _, j := range slotsIndex[i] {
@@ -326,7 +325,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasisComplex128(t
 
 			var reset bool
 			// Loops over the polynomials
-			for i, c := range pol.coeffs {
+			for i, c := range coeffs {
 
 				// Looks for a non-zero coefficient
 				if c[key] != 0 {
@@ -364,14 +363,14 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasisComplex128(t
 
 	} else {
 
-		c := pol.coeffs[0][0]
+		c := coeffs[0][0]
 
 		if minimumDegreeNonZeroCoefficient == 0 {
 
 			res = NewCiphertext(params, 1, level)
 			res.Scale().Set(targetScale)
 
-			if isNotNegligible(c) {
+			if rlwe.IsNotNegligible(c) {
 				polyEval.AddConst(res, c, res)
 			}
 
@@ -390,7 +389,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasisComplex128(t
 
 		for key := pol.Degree(); key > 0; key-- {
 
-			c = pol.coeffs[0][key]
+			c = coeffs[0][key]
 
 			if key != 0 && c != 0 {
 

@@ -1,7 +1,6 @@
 package ckks
 
 import (
-	"fmt"
 	"math/big"
 	"math/bits"
 	"runtime"
@@ -25,8 +24,16 @@ import (
 // for example be used to correct small deviations in the ciphertext scale and reset it to the default scale.
 func (eval *evaluator) EvaluatePoly(input interface{}, pol Polynomial, targetScale rlwe.Scale) (opOut *Ciphertext, err error) {
 
-	var monomialBasis *PolynomialBasis
-	if monomialBasis, err = eval.genPolynomialBasis(input, pol.Polynomial); err != nil {
+	var monomialBasis *rlwe.PolynomialBasis
+
+	switch input := input.(type) {
+	case *Ciphertext:
+		monomialBasis = rlwe.NewPolynomialBasis(input.Ciphertext, pol.Basis)
+	case *rlwe.PolynomialBasis:
+		monomialBasis = input
+	}
+
+	if err = monomialBasis.GenPowersFromPolynomial(pol.Polynomial, &EvaluatorInterface{eval, monomialBasis.Value[1].Scale.CopyNew()}); err != nil {
 		return
 	}
 
@@ -52,53 +59,12 @@ func (eval *evaluator) EvaluatePoly(input interface{}, pol Polynomial, targetSca
 	return opOut, err
 }
 
-// checkEnoughLevels checks that enough levels are available to evaluate the polynomial.
-// Also checks if c is a Gaussian integer or not. If not, then one more level is needed
-// to evaluate the polynomial.
-func checkEnoughLevels(levels, depth int, c complex128) (err error) {
-
-	if real(c) != float64(int64(real(c))) || imag(c) != float64(int64(imag(c))) {
-		depth++
-	}
-
-	if levels < depth {
-		return fmt.Errorf("%d levels < %d log(d) -> cannot evaluate", levels, depth)
-	}
-
-	return nil
-}
-
 type polynomialEvaluator struct {
 	Evaluator
 	Encoder
-	PolynomialBasis
+	rlwe.PolynomialBasis
 	giant int
 	baby  int
-}
-
-type evalPoly struct {
-	rlwe.Polynomial
-	lead   bool
-	maxDeg int
-}
-
-func (p *evalPoly) splitBSGS(split int) (polyq, polyr evalPoly) {
-
-	polyq = evalPoly{}
-	polyr = evalPoly{}
-
-	polyq.Polynomial, polyr.Polynomial = p.Polynomial.SplitBSGS(split)
-
-	polyq.lead = p.lead
-	polyq.maxDeg = p.maxDeg
-
-	if p.maxDeg == p.Degree() {
-		polyr.maxDeg = split - 1
-	} else {
-		polyr.maxDeg = p.maxDeg - (p.Degree() - split + 1)
-	}
-
-	return
 }
 
 func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale rlwe.Scale, pol evalPoly) (res *Ciphertext, err error) {
@@ -155,7 +121,7 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale rlwe.S
 
 	newScale := targetScale.CopyNew()
 	newScale.Mul(currentQi)
-	newScale.Div(XPow.Scale())
+	newScale.Div(XPow.Scale)
 
 	if res, err = polyEval.recurse(targetLevel+1, newScale, coeffsq); err != nil {
 		return nil, err
@@ -170,7 +136,7 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale rlwe.S
 			return nil, err
 		}
 
-		polyEval.Mul(res, XPow, res)
+		polyEval.Mul(res, &Ciphertext{XPow}, res)
 	}
 
 	var tmp *Ciphertext
@@ -198,9 +164,9 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromOperand(ops []rlwe.Operand)
 	for i := 1; i < len(ops); i++ {
 		if ops[i] != nil {
 			if res == nil {
-				res = polyEval.MulNew(X[i], &Ciphertext{ops[i].El()})
+				res = polyEval.MulNew(&Ciphertext{X[i]}, &Ciphertext{ops[i].El()})
 			} else {
-				polyEval.MulAndAdd(X[i], &Ciphertext{ops[i].El()}, res)
+				polyEval.MulAndAdd(&Ciphertext{X[i]}, &Ciphertext{ops[i].El()}, res)
 			}
 		}
 	}
@@ -331,9 +297,9 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromCmplx128(targetScale rlwe.S
 			// ciphertext
 			if toEncode {
 				pt.Scale().Set(targetScale)
-				pt.Scale().Div(X[key].Scale())
+				pt.Scale().Div(X[key].Scale)
 				polyEval.EncodeSlots(values, pt, params.LogSlots())
-				polyEval.MulAndAdd(X[key], pt, res)
+				polyEval.MulAndAdd(&Ciphertext{X[key]}, pt, res)
 				toEncode = false
 			}
 		}
@@ -372,7 +338,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromCmplx128(targetScale rlwe.S
 
 				cRealFlo.SetFloat64(real(c))
 				cImagFlo.SetFloat64(imag(c))
-				constScale.SetFloat64(targetScale.(*Scale).Value / X[key].Scale().(*Scale).Value)
+				constScale.SetFloat64(targetScale.(*Scale).Value / X[key].Scale.(*Scale).Value)
 
 				// Target scale * rescale-scale / power basis scale
 				cRealFlo.Mul(cRealFlo, constScale)
@@ -393,7 +359,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromCmplx128(targetScale rlwe.S
 				cRealFlo.Int(cRealBig)
 				cImagFlo.Int(cImagBig)
 
-				polyEval.MultByGaussianIntegerAndAdd(X[key], cRealBig, cImagBig, res)
+				polyEval.MultByGaussianIntegerAndAdd(&Ciphertext{X[key]}, cRealBig, cImagBig, res)
 			}
 		}
 	}

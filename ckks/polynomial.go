@@ -14,13 +14,13 @@ type Polynomial struct {
 	rlwe.Polynomial
 }
 
-func NewPolynomial(polynomialBasis rlwe.PolynomialBasisType, coeffs interface{}, slotsIndex [][]int) (Polynomial, error) {
+func NewPolynomial(polynomialBasis rlwe.PolynomialBasisType, coeffs interface{}, slotsIndex [][]int) (*Polynomial, error) {
 	pol, err := rlwe.NewPolynomial(polynomialBasis, coeffs, slotsIndex)
 	if err != nil {
-		return Polynomial{}, err
+		return nil, err
 	}
 	pol.Scale = &Scale{}
-	return Polynomial{pol}, nil
+	return &Polynomial{pol}, nil
 }
 
 func (p *Polynomial) MarshalBinary() (data []byte, err error) {
@@ -34,7 +34,7 @@ func (p *Polynomial) UnmarshalBinary(data []byte) (err error) {
 	return p.Polynomial.UnmarshalBinary(data)
 }
 
-func (p *Polynomial) Encode(ecd Encoder, level int, inputScale, outputScale rlwe.Scale) (Polynomial, error) {
+func (p *Polynomial) Encode(ecd Encoder, level int, inputScale, outputScale rlwe.Scale) (*Polynomial, error) {
 
 	params := ecd.(*encoderComplex128).params
 
@@ -48,16 +48,17 @@ func (p *Polynomial) Encode(ecd Encoder, level int, inputScale, outputScale rlwe
 		ptPoly.Odd = p.Odd
 		ptPoly.Even = p.Even
 		ptPoly.SlotsIndex = p.SlotsIndex
+		ptPoly.Scale = &Scale{}
 
-		embed := func(values interface{}, level int, scale rlwe.Scale) (op rlwe.Operand){
+		embed := func(values interface{}, level int, scale rlwe.Scale) (op rlwe.Operand) {
 
 			v := values.([]complex128)
 
 			var pt *rlwe.Plaintext
-			if len(v) == 1{
+			if len(v) == 1 {
 				pt = rlwe.NewPlaintext(params.Parameters, level)
 				addConst(params, &Ciphertext{pt.El()}, v[0], &Ciphertext{pt.El()})
-			}else{
+			} else {
 				pt = ecd.EncodeNew(v, level, scale, params.LogSlots()).Plaintext
 			}
 
@@ -69,13 +70,13 @@ func (p *Polynomial) Encode(ecd Encoder, level int, inputScale, outputScale rlwe
 		getScaledBSGSCoefficients(params, embed, level, inputScale, p.Polynomial, outputScale, &ptPoly)
 
 	default:
-		return Polynomial{}, fmt.Errorf("Polynomial.Encode(*): underlying polynomial is already encoded or encrypted")
+		return nil, fmt.Errorf("Polynomial.Encode(*): underlying polynomial is already encoded or encrypted")
 	}
 
-	return Polynomial{ptPoly}, nil
+	return &Polynomial{ptPoly}, nil
 }
 
-func (p *Polynomial) Encrypt(ecd Encoder, enc Encryptor, level int, inputScale, outputScale rlwe.Scale) (Polynomial, error) {
+func (p *Polynomial) Encrypt(ecd Encoder, enc Encryptor, level int, inputScale, outputScale rlwe.Scale) (*Polynomial, error) {
 
 	params := ecd.(*encoderComplex128).params
 
@@ -89,18 +90,19 @@ func (p *Polynomial) Encrypt(ecd Encoder, enc Encryptor, level int, inputScale, 
 		ctPoly.Odd = p.Odd
 		ctPoly.Even = p.Even
 		ctPoly.SlotsIndex = p.SlotsIndex
+		ctPoly.Scale = &Scale{}
 
 		buff := params.RingQ().NewPolyLvl(level)
 
-		embed := func(values interface{}, level int, scale rlwe.Scale) (op rlwe.Operand){
+		embed := func(values interface{}, level int, scale rlwe.Scale) (op rlwe.Operand) {
 
 			v := values.([]complex128)
 
 			var ct *Ciphertext
-			if len(v) == 1{
+			if len(v) == 1 {
 				ct = enc.EncryptZeroNew(level, scale)
 				addConst(params, ct, v[0], ct)
-			}else{
+			} else {
 				pt := NewPlaintextAtLevelFromPoly(level, buff)
 				pt.Plaintext.Scale = scale.CopyNew()
 				ecd.Encode(values, pt, params.LogSlots())
@@ -113,21 +115,44 @@ func (p *Polynomial) Encrypt(ecd Encoder, enc Encryptor, level int, inputScale, 
 		getScaledBSGSCoefficients(params, embed, level, inputScale, p.Polynomial, outputScale, &ctPoly)
 
 	default:
-		return Polynomial{}, fmt.Errorf("Polynomial.Encrypt(*): underlying polynomial is already encrypted")
+		return nil, fmt.Errorf("Polynomial.Encrypt(*): underlying polynomial is already encrypted")
 	}
 
-	return Polynomial{ctPoly}, nil
+	return &Polynomial{ctPoly}, nil
 }
 
 type dummyPolynomialEvaluator struct {
 	dummyPolynomialBasis
 	embed  func(values interface{}, level int, scale rlwe.Scale) (op rlwe.Operand)
 	params Parameters
-	ecd    Encoder
-	enc    Encryptor
 	giant  int
 	baby   int
 	poly   *rlwe.Polynomial
+}
+
+type evalPoly struct {
+	rlwe.Polynomial
+	lead   bool
+	maxDeg int
+}
+
+func (p *evalPoly) splitBSGS(split int) (polyq, polyr evalPoly) {
+
+	polyq = evalPoly{}
+	polyr = evalPoly{}
+
+	polyq.Polynomial, polyr.Polynomial = p.Polynomial.SplitBSGS(split)
+
+	polyq.lead = p.lead
+	polyq.maxDeg = p.maxDeg
+
+	if p.maxDeg == p.Degree() {
+		polyr.maxDeg = split - 1
+	} else {
+		polyr.maxDeg = p.maxDeg - (p.Degree() - split + 1)
+	}
+
+	return
 }
 
 func getScaledBSGSCoefficients(params Parameters, embed func(values interface{}, level int, scale rlwe.Scale) (op rlwe.Operand), level int, scale rlwe.Scale, polIn rlwe.Polynomial, targetScale rlwe.Scale, polOut *rlwe.Polynomial) {
@@ -274,7 +299,7 @@ func (polyEval *dummyPolynomialEvaluator) embedPoly(targetScale rlwe.Scale, leve
 
 	if toEmbed {
 
-		ops[0] = embed(values, level, targetScale) 
+		ops[0] = embed(values, level, targetScale)
 
 		for i := range values {
 			values[i] = 0
@@ -308,7 +333,7 @@ func (polyEval *dummyPolynomialEvaluator) embedPoly(targetScale rlwe.Scale, leve
 			scale := targetScale.CopyNew()
 			scale.Div(X[i].Scale)
 
-			ops[i] = embed(values, level, targetScale) 
+			ops[i] = embed(values, level, scale)
 
 			for i := range values {
 				values[i] = 0

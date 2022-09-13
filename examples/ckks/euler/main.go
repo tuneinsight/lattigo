@@ -153,7 +153,7 @@ func example() {
 		panic(err)
 	}
 
-	if ciphertext, err = evaluator.EvaluatePoly(ciphertext, poly, ciphertext.Scale()); err != nil {
+	if ciphertext, err = evaluator.EvaluatePoly(ciphertext, *poly, ciphertext.Scale()); err != nil {
 		panic(err)
 	}
 

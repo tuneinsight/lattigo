@@ -133,6 +133,7 @@ type Evaluator interface {
 	BuffCt() *Ciphertext
 	ShallowCopy() Evaluator
 	WithKey(rlwe.EvaluationKey) Evaluator
+	Parameters() Parameters
 }
 
 // evaluator is a struct that holds the necessary elements to execute the homomorphic operations between Ciphertexts and/or Plaintexts.
@@ -192,6 +193,10 @@ func NewEvaluator(params Parameters, evaluationKey rlwe.EvaluationKey) Evaluator
 // GetRLWEEvaluator returns the underlying *rlwe.Evaluator.
 func (eval *evaluator) GetRLWEEvaluator() *rlwe.Evaluator {
 	return eval.Evaluator
+}
+
+func (eval *evaluator) Parameters() Parameters {
+	return eval.params
 }
 
 func (eval *evaluator) PermuteNTTIndexesForKey(rtks *rlwe.RotationKeySet) *map[uint64][]uint64 {

@@ -44,7 +44,7 @@ type Polynomial struct {
 // The struct Polynomial can then be given to the ckks.Evaluator to evaluate the polynomial on a *ckks.Ciphertext.
 func NewPolynomial(polynomialBasis PolynomialBasisType, coeffs interface{}, slotsIndex [][]int) (Polynomial, error) {
 
-	var odd, even bool = true, true
+	var odd, even bool
 
 	var poly Polynomial
 
@@ -154,9 +154,21 @@ func NewPolynomial(polynomialBasis PolynomialBasisType, coeffs interface{}, slot
 }
 
 func (p *Polynomial) IsEncrypted() bool {
-	switch p.Coefficients.Value.(type) {
-	case [][]*Ciphertext:
-		return true
+	switch coeffs := p.Coefficients.Value.(type) {
+	case [][]Operand:
+		for i := range coeffs {
+			for j := range coeffs[i] {
+				if coeffs[i][j] != nil {
+
+					if coeffs[i][j].El().Degree() == 1 {
+						return true
+					} else {
+						return false
+					}
+				}
+			}
+		}
+		return false
 	default:
 		return false
 	}
@@ -369,43 +381,46 @@ func (c *Coefficients) MarshalBinary() (data []byte, err error) {
 
 		return
 
-	case [][]*Plaintext:
-		return nil, fmt.Errorf("unsupported method: there is no reason to do that (instead marshal non-encoded coefficients)")
+	case [][]Operand:
 
-	case [][]*Ciphertext:
+		switch Value[0][0].(type) {
+		case *Plaintext:
+			return nil, fmt.Errorf("unsupported method: there is no reason to do that (instead marshal non-encoded coefficients)")
+		case *Ciphertext:
 
-		data[0] = 2
+			data[0] = 2
 
-		ct := Value
+			ct := Value
 
-		binary.LittleEndian.PutUint32(data[1:], uint32(len(ct)))
+			binary.LittleEndian.PutUint32(data[1:], uint32(len(ct)))
 
-		for i := range ct {
+			for i := range ct {
 
-			deg := make([]byte, 4)
+				deg := make([]byte, 4)
 
-			binary.LittleEndian.PutUint32(deg, uint32(len(ct[i])))
+				binary.LittleEndian.PutUint32(deg, uint32(len(ct[i])))
 
-			data = append(data, deg...)
+				data = append(data, deg...)
 
-			for j := range ct[i] {
+				for j := range ct[i] {
 
-				if ct[i][j] != nil {
+					if ct[i][j] != nil {
 
-					var dataCt []byte
-					if dataCt, err = ct[i][j].MarshalBinary(); err != nil {
-						return nil, err
+						var dataCt []byte
+						if dataCt, err = ct[i][j].El().MarshalBinary(); err != nil {
+							return nil, err
+						}
+
+						data = append(data, 1)
+
+						ctLen := make([]byte, 4)
+						binary.LittleEndian.PutUint32(ctLen, uint32(len(dataCt)))
+						data = append(data, ctLen...)
+						data = append(data, dataCt...)
+
+					} else {
+						data = append(data, 0)
 					}
-
-					data = append(data, 1)
-
-					ctLen := make([]byte, 4)
-					binary.LittleEndian.PutUint32(ctLen, uint32(len(dataCt)))
-					data = append(data, ctLen...)
-					data = append(data, dataCt...)
-
-				} else {
-					data = append(data, 0)
 				}
 			}
 		}
@@ -466,15 +481,15 @@ func (c *Coefficients) UnmarshalBinary(data []byte) (err error) {
 		return
 	case 2:
 
-		ct := make([][]*Ciphertext, binary.LittleEndian.Uint32(data[ptr:]))
+		cts := make([][]Operand, binary.LittleEndian.Uint32(data[ptr:]))
 
 		ptr += 4
-		for i := range ct {
+		for i := range cts {
 
-			ct[i] = make([]*Ciphertext, binary.LittleEndian.Uint32(data[ptr:]))
+			cts[i] = make([]Operand, binary.LittleEndian.Uint32(data[ptr:]))
 			ptr += 4
 
-			for j := range ct[i] {
+			for j := range cts[i] {
 
 				ptr++
 
@@ -483,17 +498,20 @@ func (c *Coefficients) UnmarshalBinary(data []byte) (err error) {
 					ctLen := int(binary.LittleEndian.Uint32(data[ptr:]))
 					ptr += 4
 
-					ct[i][j] = new(Ciphertext)
-					ct[i][j].Scale = c.Scale.CopyNew()
-					if err = ct[i][j].UnmarshalBinary(data[ptr : ptr+ctLen]); err != nil {
+					ct := new(Ciphertext)
+					ct.Scale = c.Scale.CopyNew()
+					if err = ct.UnmarshalBinary(data[ptr : ptr+ctLen]); err != nil {
 						return
 					}
+
+					cts[i][j] = ct
+
 					ptr += ctLen
 				}
 			}
 		}
 
-		c.Value = ct
+		c.Value = cts
 
 	default:
 		return

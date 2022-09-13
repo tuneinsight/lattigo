@@ -1,198 +1,50 @@
 package ckks
 
 import (
-	"encoding/binary"
-	"fmt"
-	"math"
-
-	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
 )
 
-// PolynomialBasis is a struct storing powers of a ciphertext.
-type PolynomialBasis struct {
-	rlwe.PolynomialBasisType
-	Value map[int]*Ciphertext
+type EvaluatorInterface struct {
+	Evaluator
+	scale rlwe.Scale
 }
 
-// NewPolynomialBasis creates a new PolynomialBasis. It takes as input a ciphertext
-// and a basistype. The struct treates the input ciphertext as a monomial X and
-// can be used to generates power of this monomial X^{n} in the given BasisType.
-func NewPolynomialBasis(ct *Ciphertext, basistype rlwe.PolynomialBasisType) (p *PolynomialBasis) {
-	p = new(PolynomialBasis)
-	p.Value = make(map[int]*Ciphertext)
-	p.Value[1] = ct.CopyNew()
-	p.PolynomialBasisType = basistype
-	return
+func (eval *EvaluatorInterface) Add(op0, op1, op2 *rlwe.Ciphertext) {
+	eval.Evaluator.Add(&Ciphertext{op0}, &Ciphertext{op1}, &Ciphertext{op2})
 }
 
-// GenPower recursively computes X^{n}.
-// If lazy = true, the final X^{n} will not be relinearized.
-// Previous non-relinearized X^{n} that are required to compute the target X^{n} are automatically relinearized.
-// Scale sets the threshold for rescaling (ciphertext won't be rescaled if the rescaling operation would make the scale go under this threshold).
-func (p *PolynomialBasis) GenPower(n int, lazy bool, scale rlwe.Scale, eval Evaluator) (err error) {
-
-	if p.Value[n] == nil {
-		if err = p.genPower(n, lazy, scale, eval); err != nil {
-			return
-		}
-
-		if err = eval.Rescale(p.Value[n], scale, p.Value[n]); err != nil {
-			return
-		}
-	}
-
-	return nil
+func (eval *EvaluatorInterface) Sub(op0, op1, op2 *rlwe.Ciphertext) {
+	eval.Evaluator.Sub(&Ciphertext{op0}, &Ciphertext{op1}, &Ciphertext{op2})
 }
 
-func (p *PolynomialBasis) genPower(n int, lazy bool, scale rlwe.Scale, eval Evaluator) (err error) {
-	if p.Value[n] == nil {
-
-		isPow2 := n&(n-1) == 0
-
-		// Computes the index required to compute the asked ring evaluation
-		var a, b, c int
-		if isPow2 {
-			a, b = n/2, n/2 //Necessary for optimal depth
-		} else {
-			// [Lee et al. 2020] : High-Precision and Low-Complexity Approximate Homomorphic Encryption by Error Variance Minimization
-			// Maximize the number of odd terms of Chebyshev basis
-			k := int(math.Ceil(math.Log2(float64(n)))) - 1
-			a = (1 << k) - 1
-			b = n + 1 - (1 << k)
-
-			if p.PolynomialBasisType == rlwe.Chebyshev {
-				c = int(math.Abs(float64(a) - float64(b))) // Cn = 2*Ca*Cb - Cc, n = a+b and c = abs(a-b)
-			}
-		}
-
-		// Recurses on the given indexes
-		if err = p.genPower(a, lazy && !isPow2, scale, eval); err != nil {
-			return err
-		}
-		if err = p.genPower(b, lazy && !isPow2, scale, eval); err != nil {
-			return err
-		}
-
-		if p.Value[a].Degree() == 2 {
-			eval.Relinearize(p.Value[a], p.Value[a])
-		}
-
-		if p.Value[b].Degree() == 2 {
-			eval.Relinearize(p.Value[b], p.Value[b])
-		}
-
-		if err = eval.Rescale(p.Value[a], scale, p.Value[a]); err != nil {
-			return err
-		}
-
-		if err = eval.Rescale(p.Value[b], scale, p.Value[b]); err != nil {
-			return err
-		}
-
-		// Computes C[n] = C[a]*C[b]
-		if lazy {
-			p.Value[n] = eval.MulNew(p.Value[a], p.Value[b])
-
-		} else {
-			p.Value[n] = eval.MulRelinNew(p.Value[a], p.Value[b])
-			if err = eval.Rescale(p.Value[n], scale, p.Value[n]); err != nil {
-				return err
-			}
-		}
-
-		if p.PolynomialBasisType == rlwe.Chebyshev {
-
-			// Computes C[n] = 2*C[a]*C[b]
-			eval.Add(p.Value[n], p.Value[n], p.Value[n])
-
-			// Computes C[n] = 2*C[a]*C[b] - C[c]
-			if c == 0 {
-				eval.AddConst(p.Value[n], -1, p.Value[n])
-			} else {
-				// Since C[0] is not stored (but rather seen as the constant 1), only recurses on c if c!= 0
-				if err = p.GenPower(c, lazy, scale, eval); err != nil {
-					return err
-				}
-				eval.Sub(p.Value[n], p.Value[c], p.Value[n])
-			}
-		}
-	}
-	return
+func (eval *EvaluatorInterface) AddConst(op1 *rlwe.Ciphertext, constant interface{}, op2 *rlwe.Ciphertext) {
+	eval.Evaluator.AddConst(&Ciphertext{op1}, constant, &Ciphertext{op2})
 }
 
-// MarshalBinary encodes the target on a slice of bytes.
-func (p *PolynomialBasis) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, 16)
-	binary.LittleEndian.PutUint64(data[0:8], uint64(len(p.Value)))
-	binary.LittleEndian.PutUint64(data[8:16], uint64(p.Value[1].GetDataLen(true)))
-	for key, ct := range p.Value {
-		keyBytes := make([]byte, 8)
-		binary.LittleEndian.PutUint64(keyBytes, uint64(key))
-		data = append(data, keyBytes...)
-		ctBytes, err := ct.MarshalBinary()
-		if err != nil {
-			return []byte{}, err
-		}
-		data = append(data, ctBytes...)
-	}
-	return
+func (eval *EvaluatorInterface) Mul(op0, op1, op2 *rlwe.Ciphertext) {
+	eval.Evaluator.Mul(&Ciphertext{op0}, &Ciphertext{op1}, &Ciphertext{op2})
 }
 
-// UnmarshalBinary decodes a slice of bytes on the target.
-func (p *PolynomialBasis) UnmarshalBinary(data []byte) (err error) {
-	p.Value = make(map[int]*Ciphertext)
-	nbct := int(binary.LittleEndian.Uint64(data[0:8]))
-	dtLen := int(binary.LittleEndian.Uint64(data[8:16]))
-	ptr := 16
-	for i := 0; i < nbct; i++ {
-		idx := int(binary.LittleEndian.Uint64(data[ptr : ptr+8]))
-		ptr += 8
-		p.Value[idx] = new(Ciphertext)
-		if err = p.Value[idx].UnmarshalBinary(data[ptr : ptr+dtLen]); err != nil {
-			return
-		}
-		ptr += dtLen
-	}
-	return
+func (eval *EvaluatorInterface) MulNew(op0, op1 *rlwe.Ciphertext) (op2 *rlwe.Ciphertext) {
+	return eval.Evaluator.MulNew(&Ciphertext{op0}, &Ciphertext{op1}).Ciphertext
 }
 
-func (eval *evaluator) genPolynomialBasis(input interface{}, pol rlwe.Polynomial) (monomialBasis *PolynomialBasis, err error) {
-	switch input := input.(type) {
-	case *Ciphertext:
-		monomialBasis = NewPolynomialBasis(input, pol.BasisType())
-	case *PolynomialBasis:
-		if input.Value[1] == nil {
-			return nil, fmt.Errorf("cannot evaluatePolyVector: given PolynomialBasis.Value[1] is empty")
-		}
-		monomialBasis = input
-	default:
-		return nil, fmt.Errorf("cannot evaluatePolyVector: invalid input, must be either *Ciphertext or *PolynomialBasis")
-	}
+func (eval *EvaluatorInterface) MulAndAdd(op0, op1, op2 *rlwe.Ciphertext) {
+	eval.Evaluator.MulAndAdd(&Ciphertext{op0}, &Ciphertext{op1}, &Ciphertext{op2})
+}
 
-	if err := checkEnoughLevels(monomialBasis.Value[1].Level(), pol.Depth(), 1); err != nil {
-		return nil, err
-	}
+func (eval *EvaluatorInterface) MulRelinNew(op0, op1 *rlwe.Ciphertext) (op2 *rlwe.Ciphertext) {
+	return eval.Evaluator.MulRelinNew(&Ciphertext{op0}, &Ciphertext{op1}).Ciphertext
+}
 
-	giant, baby := pol.BSGSSplit()
+func (eval *EvaluatorInterface) Rescale(op0, op1 *rlwe.Ciphertext) (err error) {
+	return eval.Evaluator.Rescale(&Ciphertext{op0}, eval.scale, &Ciphertext{op1})
+}
 
-	odd, even := pol.OddEven()
+func (eval *EvaluatorInterface) Relinearize(op0, op1 *rlwe.Ciphertext) {
+	eval.Evaluator.Relinearize(&Ciphertext{op0}, &Ciphertext{op1})
+}
 
-	isRingStandard := (eval.params.RingType() == ring.Standard) && !pol.IsEncrypted()
-
-	for i := (1 << baby) - 1; i > 1; i-- {
-		if !(even || odd) || (i&1 == 0 && even) || (i&1 == 1 && odd) {
-			if err = monomialBasis.GenPower(i, isRingStandard, eval.params.DefaultScale(), eval); err != nil {
-				return nil, err
-			}
-		}
-	}
-
-	for i := baby; i < giant; i++ {
-		if err = monomialBasis.GenPower(1<<i, false, eval.params.DefaultScale(), eval); err != nil {
-			return nil, err
-		}
-	}
-
-	return
+func (eval *EvaluatorInterface) Parameters() rlwe.Parameters {
+	return eval.Evaluator.Parameters().Parameters
 }

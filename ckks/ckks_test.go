@@ -1004,6 +1004,9 @@ func testPolynomial(tc *testContext, t *testing.T) {
 		newPolyCt := Polynomial{}
 		require.Nil(t, newPolyCt.UnmarshalBinary(polyData))
 
+		fmt.Println(polyCt)
+		fmt.Println(newPolyCt)
+
 		if ciphertext, err = tc.evaluator.EvaluatePoly(ciphertext, newPolyCt, ciphertext.Scale()); err != nil {
 			t.Error(err)
 		}

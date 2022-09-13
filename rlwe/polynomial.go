@@ -179,11 +179,7 @@ func (p *Polynomial) Degree() int {
 		deg = len(coeffs[0])
 	case [][]uint64:
 		deg = len(coeffs[0])
-	case [][]*Plaintext:
-		for _, ci := range coeffs {
-			deg += len(ci)
-		}
-	case [][]*Ciphertext:
+	case [][]Operand:
 		for _, ci := range coeffs {
 			deg += len(ci)
 		}
@@ -222,16 +218,14 @@ func (p *Polynomial) SplitBSGS(split int) (coeffsq, coeffsr Polynomial) {
 		coeffsq.Coefficients.Value, coeffsr.Coefficients.Value = splitBSGS(coeffs, split, p.Basis)
 	case [][]complex128:
 		coeffsq.Coefficients.Value, coeffsr.Coefficients.Value = splitBSGS(coeffs, split, p.Basis)
-	case [][]*Plaintext:
-		coeffsq.Coefficients.Value, coeffsr.Coefficients.Value = splitBSGSRLWE(coeffs, split)
-	case [][]*Ciphertext:
+	case [][]Operand:
 		coeffsq.Coefficients.Value, coeffsr.Coefficients.Value = splitBSGSRLWE(coeffs, split)
 	}
 
 	return
 }
 
-func splitBSGSRLWE[T *Plaintext | *Ciphertext](coeffs [][]T, split int) (coeffsq, coeffsr [][]T) {
+func splitBSGSRLWE(coeffs [][]Operand, split int) (coeffsq, coeffsr [][]Operand) {
 
 	var deg, n int
 	for i := range coeffs {

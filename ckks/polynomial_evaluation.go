@@ -131,11 +131,9 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale rlwe.S
 
 		switch poly := pol.Polynomial.Coefficients.Value.(type) {
 		case [][]complex128:
-			return polyEval.evaluatePolyFromPolynomialBasisComplex128(targetScale, targetLevel, pol.Polynomial)
-		case [][]*rlwe.Plaintext:
-			return polyEval.evaluatePolyFromPlaintext(poly[0])
-		case [][]*rlwe.Ciphertext:
-			return polyEval.evaluatePolyFromCiphertext(poly[0])
+			return polyEval.evaluatePolyFromCmplx128(targetScale, targetLevel, pol.Polynomial)
+		case [][]rlwe.Operand:
+			return polyEval.evaluatePolyFromOperand(poly[0])
 		}
 	}
 
@@ -189,20 +187,20 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale rlwe.S
 	return
 }
 
-func (polyEval *polynomialEvaluator) evaluatePolyFromPlaintext(pt []*rlwe.Plaintext) (res *Ciphertext, err error) {
+func (polyEval *polynomialEvaluator) evaluatePolyFromOperand(ops []rlwe.Operand) (res *Ciphertext, err error) {
 
 	X := polyEval.PolynomialBasis.Value
 
-	if pt[0] != nil {
-		res = &Ciphertext{pt[0].El()}
+	if ops[0] != nil {
+		res = &Ciphertext{ops[0].El().CopyNew()}
 	}
 
-	for i := 1; i < len(pt); i++ {
-		if pt[i] != nil {
+	for i := 1; i < len(ops); i++ {
+		if ops[i] != nil {
 			if res == nil {
-				res = polyEval.MulNew(X[i], &Plaintext{pt[i]})
+				res = polyEval.MulNew(X[i], &Ciphertext{ops[i].El()})
 			} else {
-				polyEval.MulAndAdd(X[i], &Plaintext{pt[i]}, res)
+				polyEval.MulAndAdd(X[i], &Ciphertext{ops[i].El()}, res)
 			}
 		}
 	}
@@ -210,28 +208,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPlaintext(pt []*rlwe.Plaint
 	return
 }
 
-func (polyEval *polynomialEvaluator) evaluatePolyFromCiphertext(ct []*rlwe.Ciphertext) (res *Ciphertext, err error) {
-
-	X := polyEval.PolynomialBasis.Value
-
-	if ct[0] != nil {
-		res = &Ciphertext{ct[0].CopyNew()}
-	}
-
-	for i := 1; i < len(ct); i++ {
-		if ct[i] != nil {
-			if res == nil {
-				res = polyEval.MulNew(X[i], &Ciphertext{ct[i]})
-			} else {
-				polyEval.MulAndAdd(X[i], &Ciphertext{ct[i]}, res)
-			}
-		}
-	}
-
-	return
-}
-
-func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasisComplex128(targetScale rlwe.Scale, level int, pol rlwe.Polynomial) (res *Ciphertext, err error) {
+func (polyEval *polynomialEvaluator) evaluatePolyFromCmplx128(targetScale rlwe.Scale, level int, pol rlwe.Polynomial) (res *Ciphertext, err error) {
 
 	X := polyEval.PolynomialBasis.Value
 

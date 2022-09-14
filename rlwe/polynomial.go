@@ -195,6 +195,8 @@ func (p *Polynomial) Degree() int {
 		for _, ci := range coeffs {
 			deg += len(ci)
 		}
+	default:
+		panic("invalid type")
 	}
 
 	return deg - 1

@@ -50,19 +50,21 @@ func (p *Polynomial) Encode(ecd Encoder, level int, inputScale, outputScale rlwe
 		ptPoly.SlotsIndex = p.SlotsIndex
 		ptPoly.Scale = &Scale{}
 
-		embed := func(values interface{}, level int, scale rlwe.Scale) (op rlwe.Operand) {
+		embed := func(allZero bool, values interface{}, level int, scale rlwe.Scale) (op rlwe.Operand) {
 
 			v := values.([]complex128)
 
 			var pt *rlwe.Plaintext
-			if len(v) == 1 {
-				pt = rlwe.NewPlaintext(params.Parameters, level)
-				addConst(params, &Ciphertext{pt.El()}, v[0], &Ciphertext{pt.El()})
-			} else {
-				pt = ecd.EncodeNew(v, level, scale, params.LogSlots()).Plaintext
-			}
+			if !allZero{
+				if len(v) == 1 {
+					pt = rlwe.NewPlaintext(params.Parameters, level)
+					addConst(params, &Ciphertext{pt.El()}, v[0], &Ciphertext{pt.El()})
+				} else {
+					pt = ecd.EncodeNew(v, level, scale, params.LogSlots()).Plaintext
+				}
 
-			pt.Scale = scale.CopyNew()
+				pt.Scale = scale.CopyNew()
+			}
 
 			return pt
 		}
@@ -94,21 +96,25 @@ func (p *Polynomial) Encrypt(ecd Encoder, enc Encryptor, level int, inputScale, 
 
 		buff := params.RingQ().NewPolyLvl(level)
 
-		embed := func(values interface{}, level int, scale rlwe.Scale) (op rlwe.Operand) {
+		embed := func(allZero bool, values interface{}, level int, scale rlwe.Scale) (op rlwe.Operand) {
 
 			v := values.([]complex128)
 
 			var ct *Ciphertext
-			if len(v) == 1 {
+			if allZero{
 				ct = enc.EncryptZeroNew(level, scale)
-				addConst(params, ct, v[0], ct)
-			} else {
-				pt := NewPlaintextAtLevelFromPoly(level, buff)
-				pt.Plaintext.Scale = scale.CopyNew()
-				ecd.Encode(values, pt, params.LogSlots())
-				ct = enc.EncryptNew(pt)
+			}else{
+				if len(v) == 1 {
+					ct = enc.EncryptZeroNew(level, scale)
+					addConst(params, ct, v[0], ct)
+				} else {
+					pt := NewPlaintextAtLevelFromPoly(level, buff)
+					pt.Plaintext.Scale = scale.CopyNew()
+					ecd.Encode(values, pt, params.LogSlots())
+					ct = enc.EncryptNew(pt)
+				}
 			}
-
+			
 			return ct.Ciphertext
 		}
 
@@ -123,7 +129,7 @@ func (p *Polynomial) Encrypt(ecd Encoder, enc Encryptor, level int, inputScale, 
 
 type dummyPolynomialEvaluator struct {
 	dummyPolynomialBasis
-	embed  func(values interface{}, level int, scale rlwe.Scale) (op rlwe.Operand)
+	embed  func(allZero bool, values interface{}, level int, scale rlwe.Scale) (op rlwe.Operand)
 	params Parameters
 	giant  int
 	baby   int
@@ -155,7 +161,7 @@ func (p *evalPoly) splitBSGS(split int) (polyq, polyr evalPoly) {
 	return
 }
 
-func getScaledBSGSCoefficients(params Parameters, embed func(values interface{}, level int, scale rlwe.Scale) (op rlwe.Operand), level int, scale rlwe.Scale, polIn rlwe.Polynomial, targetScale rlwe.Scale, polOut *rlwe.Polynomial) {
+func getScaledBSGSCoefficients(params Parameters, embed func(allZero bool, values interface{}, level int, scale rlwe.Scale) (op rlwe.Operand), level int, scale rlwe.Scale, polIn rlwe.Polynomial, targetScale rlwe.Scale, polOut *rlwe.Polynomial) {
 
 	dummbpb := newDummyPolynomialBasis(params, &dummyCiphertext{level, scale.CopyNew()})
 
@@ -277,7 +283,7 @@ func (polyEval *dummyPolynomialEvaluator) embedPoly(targetScale rlwe.Scale, leve
 		values = make([]complex128, 1)
 	}
 
-	var toEmbed bool
+	var allZero bool = true
 
 	for i := 0; i < nbPoly; i++ {
 
@@ -285,7 +291,7 @@ func (polyEval *dummyPolynomialEvaluator) embedPoly(targetScale rlwe.Scale, leve
 
 		if c != 0 {
 
-			toEmbed = true
+			allZero = false
 
 			if slotsIndex != nil {
 				for _, j := range slotsIndex[i] {
@@ -297,16 +303,16 @@ func (polyEval *dummyPolynomialEvaluator) embedPoly(targetScale rlwe.Scale, leve
 		}
 	}
 
-	if toEmbed {
 
-		ops[0] = embed(values, level, targetScale)
+	ops[0] = embed(allZero, values, level, targetScale)
 
+	if !allZero{
 		for i := range values {
 			values[i] = 0
 		}
-
-		toEmbed = false
 	}
+	
+	allZero = true
 
 	for i := 1; i < degree+1; i++ {
 
@@ -316,7 +322,7 @@ func (polyEval *dummyPolynomialEvaluator) embedPoly(targetScale rlwe.Scale, leve
 
 			if c != 0 {
 
-				toEmbed = true
+				allZero = false
 
 				if slotsIndex != nil {
 					for _, k := range slotsIndex[j] {
@@ -328,19 +334,18 @@ func (polyEval *dummyPolynomialEvaluator) embedPoly(targetScale rlwe.Scale, leve
 			}
 		}
 
-		if toEmbed {
+		scale := targetScale.CopyNew()
+		scale.Div(X[i].Scale)
 
-			scale := targetScale.CopyNew()
-			scale.Div(X[i].Scale)
+		ops[i] = embed(allZero, values, level, scale)
 
-			ops[i] = embed(values, level, scale)
-
+		if !allZero{
 			for i := range values {
 				values[i] = 0
 			}
-
-			toEmbed = false
 		}
+		
+		allZero = true
 	}
 
 	polOut.Coefficients.Value = append([][]rlwe.Operand{ops}, polOut.Coefficients.Value.([][]rlwe.Operand)...)

@@ -27,7 +27,8 @@ type RefreshShare struct {
 // NewRefreshProtocol creates a new Refresh protocol instance.
 func NewRefreshProtocol(params bfv.Parameters, sigmaSmudging float64) (rfp *RefreshProtocol) {
 	rfp = new(RefreshProtocol)
-	rfp.MaskedTransformProtocol = *NewMaskedTransformProtocol(params, params, sigmaSmudging)
+	mt, _ := NewMaskedTransformProtocol(params, params, sigmaSmudging)
+	rfp.MaskedTransformProtocol = *mt
 	return
 }
 

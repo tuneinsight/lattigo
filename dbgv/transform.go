@@ -2,6 +2,7 @@ package dbgv
 
 import (
 	"encoding/binary"
+	"fmt"
 
 	"github.com/tuneinsight/lattigo/v3/bgv"
 	"github.com/tuneinsight/lattigo/v3/drlwe"
@@ -86,22 +87,26 @@ func (share *MaskedTransformShare) UnmarshalBinary(data []byte) error {
 }
 
 // NewMaskedTransformProtocol creates a new instance of the PermuteProtocol.
-func NewMaskedTransformProtocol(params bgv.Parameters, sigmaSmudging float64) (rfp *MaskedTransformProtocol) {
+func NewMaskedTransformProtocol(paramsIn, paramsOut bgv.Parameters, sigmaSmudging float64) (rfp *MaskedTransformProtocol, err error) {
+
+	if paramsIn.N() > paramsOut.N() {
+		return nil, fmt.Errorf("newMaskedTransformProtocol: paramsIn.N() != paramsOut.N()")
+	}
 
 	rfp = new(MaskedTransformProtocol)
-	rfp.e2s = *NewE2SProtocol(params, sigmaSmudging)
-	rfp.s2e = *NewS2EProtocol(params, sigmaSmudging)
+	rfp.e2s = *NewE2SProtocol(paramsIn, sigmaSmudging)
+	rfp.s2e = *NewS2EProtocol(paramsOut, sigmaSmudging)
 
-	rfp.tmpPt = params.RingQ().NewPoly()
-	rfp.tmpMask = params.RingT().NewPoly()
-	rfp.tmpMaskPerm = params.RingT().NewPoly()
+	rfp.tmpPt = paramsOut.RingQ().NewPoly()
+	rfp.tmpMask = paramsIn.RingT().NewPoly()
+	rfp.tmpMaskPerm = paramsIn.RingT().NewPoly()
 	return
 }
 
 // SampleCRP samples a common random polynomial to be used in the Masked-Transform protocol from the provided
 // common reference string.
 func (rfp *MaskedTransformProtocol) SampleCRP(level int, crs utils.PRNG) drlwe.CKSCRP {
-	return rfp.e2s.SampleCRP(level, crs)
+	return rfp.s2e.SampleCRP(level, crs)
 }
 
 // AllocateShare allocates the shares of the PermuteProtocol
@@ -111,7 +116,7 @@ func (rfp *MaskedTransformProtocol) AllocateShare(levelDecrypt, levelRecrypt int
 
 // GenShare generates the shares of the PermuteProtocol.
 // ct1 is the degree 1 element of a bgv.Ciphertext, i.e. bgv.Ciphertext.Value[1].
-func (rfp *MaskedTransformProtocol) GenShare(sk *rlwe.SecretKey, ct1 *ring.Poly, scale uint64, crs drlwe.CKSCRP, transform *MaskedTransformFunc, shareOut *MaskedTransformShare) {
+func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, ct1 *ring.Poly, scale uint64, crs drlwe.CKSCRP, transform *MaskedTransformFunc, shareOut *MaskedTransformShare) {
 
 	if ct1.Level() < shareOut.e2sShare.Value.Level() {
 		panic("ct[1] level must be at least equal to e2sShare level")
@@ -121,7 +126,7 @@ func (rfp *MaskedTransformProtocol) GenShare(sk *rlwe.SecretKey, ct1 *ring.Poly,
 		panic("crs level must be equal to s2eShare")
 	}
 
-	rfp.e2s.GenShare(sk, ct1, &rlwe.AdditiveShare{Value: *rfp.tmpMask}, &shareOut.e2sShare)
+	rfp.e2s.GenShare(skIn, ct1, &rlwe.AdditiveShare{Value: *rfp.tmpMask}, &shareOut.e2sShare)
 	mask := rfp.tmpMask
 	if transform != nil {
 		coeffs := make([]uint64, len(mask.Coeffs[0]))
@@ -135,14 +140,14 @@ func (rfp *MaskedTransformProtocol) GenShare(sk *rlwe.SecretKey, ct1 *ring.Poly,
 		transform.Func(coeffs)
 
 		if transform.Encode {
-			rfp.e2s.encoder.EncodeRingT(coeffs, scale, rfp.tmpMaskPerm)
+			rfp.s2e.encoder.EncodeRingT(coeffs, scale, rfp.tmpMaskPerm)
 		} else {
 			copy(rfp.tmpMaskPerm.Coeffs[0], coeffs)
 		}
 
 		mask = rfp.tmpMaskPerm
 	}
-	rfp.s2e.GenShare(sk, crs, &rlwe.AdditiveShare{Value: *mask}, &shareOut.s2eShare)
+	rfp.s2e.GenShare(skOut, crs, &rlwe.AdditiveShare{Value: *mask}, &shareOut.s2eShare)
 }
 
 // AggregateShares sums share1 and share2 on shareOut.
@@ -157,7 +162,7 @@ func (rfp *MaskedTransformProtocol) AggregateShares(share1, share2, shareOut *Ma
 	}
 
 	rfp.e2s.params.RingQ().AddLvl(share1.e2sShare.Value.Level(), share1.e2sShare.Value, share2.e2sShare.Value, shareOut.e2sShare.Value)
-	rfp.e2s.params.RingQ().AddLvl(share1.s2eShare.Value.Level(), share1.s2eShare.Value, share2.s2eShare.Value, shareOut.s2eShare.Value)
+	rfp.s2e.params.RingQ().AddLvl(share1.s2eShare.Value.Level(), share1.s2eShare.Value, share2.s2eShare.Value, shareOut.s2eShare.Value)
 }
 
 // Transform applies Decrypt, Recode and Recrypt on the input ciphertext.
@@ -187,7 +192,7 @@ func (rfp *MaskedTransformProtocol) Transform(ct *bgv.Ciphertext, transform *Mas
 		transform.Func(coeffs)
 
 		if transform.Encode {
-			rfp.e2s.encoder.EncodeRingT(coeffs, ciphertextOut.Scale(), rfp.tmpMaskPerm)
+			rfp.s2e.encoder.EncodeRingT(coeffs, ciphertextOut.Scale(), rfp.tmpMaskPerm)
 		} else {
 			copy(rfp.tmpMaskPerm.Coeffs[0], coeffs)
 		}
@@ -197,8 +202,8 @@ func (rfp *MaskedTransformProtocol) Transform(ct *bgv.Ciphertext, transform *Mas
 
 	ciphertextOut.Resize(ciphertextOut.Degree(), maxLevel)
 
-	rfp.e2s.encoder.RingT2Q(maxLevel, mask, rfp.tmpPt)
-	rfp.e2s.params.RingQ().NTTLvl(maxLevel, rfp.tmpPt, rfp.tmpPt)
-	rfp.e2s.params.RingQ().AddLvl(maxLevel, rfp.tmpPt, share.s2eShare.Value, ciphertextOut.Value[0])
+	rfp.s2e.encoder.RingT2Q(maxLevel, mask, rfp.tmpPt)
+	rfp.s2e.params.RingQ().NTTLvl(maxLevel, rfp.tmpPt, rfp.tmpPt)
+	rfp.s2e.params.RingQ().AddLvl(maxLevel, rfp.tmpPt, share.s2eShare.Value, ciphertextOut.Value[0])
 	rfp.s2e.GetEncryption(&drlwe.CKSShare{Value: ciphertextOut.Value[0]}, crs, ciphertextOut)
 }

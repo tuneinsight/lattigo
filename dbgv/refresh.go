@@ -27,7 +27,8 @@ type RefreshShare struct {
 // NewRefreshProtocol creates a new Refresh protocol instance.
 func NewRefreshProtocol(params bgv.Parameters, sigmaSmudging float64) (rfp *RefreshProtocol) {
 	rfp = new(RefreshProtocol)
-	rfp.MaskedTransformProtocol = *NewMaskedTransformProtocol(params, sigmaSmudging)
+	mt, _ := NewMaskedTransformProtocol(params, params, sigmaSmudging)
+	rfp.MaskedTransformProtocol = *mt
 	return
 }
 
@@ -40,7 +41,7 @@ func (rfp *RefreshProtocol) AllocateShare(inputLevel, outputLevel int) *RefreshS
 // GenShare generates a share for the Refresh protocol.
 // ct1 is degree 1 element of a bgv.Ciphertext, i.e. bgv.Ciphertext.Value[1].
 func (rfp *RefreshProtocol) GenShare(sk *rlwe.SecretKey, ct1 *ring.Poly, scale uint64, crp drlwe.CKSCRP, shareOut *RefreshShare) {
-	rfp.MaskedTransformProtocol.GenShare(sk, ct1, scale, crp, nil, &shareOut.MaskedTransformShare)
+	rfp.MaskedTransformProtocol.GenShare(sk, sk, ct1, scale, crp, nil, &shareOut.MaskedTransformShare)
 }
 
 // AggregateShares aggregates two parties' shares in the Refresh protocol.

@@ -1,6 +1,8 @@
 package dbfv
 
 import (
+	"fmt"
+
 	"github.com/tuneinsight/lattigo/v3/bfv"
 	"github.com/tuneinsight/lattigo/v3/drlwe"
 	"github.com/tuneinsight/lattigo/v3/ring"
@@ -79,7 +81,11 @@ func (share *MaskedTransformShare) UnmarshalBinary(data []byte) (err error) {
 }
 
 // NewMaskedTransformProtocol creates a new instance of the PermuteProtocol.
-func NewMaskedTransformProtocol(paramsIn, paramsOut bfv.Parameters, sigmaSmudging float64) (rfp *MaskedTransformProtocol) {
+func NewMaskedTransformProtocol(paramsIn, paramsOut bfv.Parameters, sigmaSmudging float64) (rfp *MaskedTransformProtocol, err error) {
+
+	if paramsIn.N() > paramsOut.N() {
+		return nil, fmt.Errorf("newMaskedTransformProtocol: paramsIn.N() != paramsOut.N()")
+	}
 
 	rfp = new(MaskedTransformProtocol)
 

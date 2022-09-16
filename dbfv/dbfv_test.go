@@ -429,6 +429,8 @@ func testRefreshAndTransform(tc *testContext, t *testing.T) {
 
 	t.Run(testString("RefreshAndPermutation", tc.NParties, tc.params), func(t *testing.T) {
 
+		var err error
+
 		type Party struct {
 			*MaskedTransformProtocol
 			s       *rlwe.SecretKey
@@ -440,9 +442,13 @@ func testRefreshAndTransform(tc *testContext, t *testing.T) {
 		for i := 0; i < tc.NParties; i++ {
 			p := new(Party)
 			if i == 0 {
-				p.MaskedTransformProtocol = NewMaskedTransformProtocol(tc.params, tc.params, 3.2)
+				if p.MaskedTransformProtocol, err = NewMaskedTransformProtocol(tc.params, tc.params, 3.2); err != nil {
+					t.Fatal(err)
+				}
 			} else {
-				p.MaskedTransformProtocol = NewMaskedTransformProtocol(tc.params, tc.params, 3.2)
+				if p.MaskedTransformProtocol, err = NewMaskedTransformProtocol(tc.params, tc.params, 3.2); err != nil {
+					t.Fatal(err)
+				}
 			}
 
 			p.s = sk0Shards[i]
@@ -537,9 +543,13 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 		for i := 0; i < tc.NParties; i++ {
 			p := new(Party)
 			if i == 0 {
-				p.MaskedTransformProtocol = NewMaskedTransformProtocol(paramsIn, paramsOut, 3.2)
+				if p.MaskedTransformProtocol, err = NewMaskedTransformProtocol(paramsIn, paramsOut, 3.2); err != nil {
+					t.Fatal(err)
+				}
 			} else {
-				p.MaskedTransformProtocol = NewMaskedTransformProtocol(paramsIn, paramsOut, 3.2)
+				if p.MaskedTransformProtocol, err = NewMaskedTransformProtocol(paramsIn, paramsOut, 3.2); err != nil {
+					t.Fatal(err)
+				}
 			}
 
 			p.sIn = sk0Shards[i]

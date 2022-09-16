@@ -95,6 +95,7 @@ func TestDBGV(t *testing.T) {
 			testEncToShares,
 			testRefresh,
 			testRefreshAndPermutation,
+			testRefreshAndTransformSwitchParams,
 			testMarshalling,
 		} {
 			testSet(tc, t)
@@ -377,6 +378,7 @@ func testRefreshAndPermutation(tc *testContext, t *testing.T) {
 	sk0Shards := tc.sk0Shards
 	encoder := tc.encoder
 	decryptorSk0 := tc.decryptorSk0
+	var err error
 
 	minLevel := 0
 	maxLevel := tc.params.MaxLevel()
@@ -393,9 +395,13 @@ func testRefreshAndPermutation(tc *testContext, t *testing.T) {
 		for i := 0; i < tc.NParties; i++ {
 			p := new(Party)
 			if i == 0 {
-				p.MaskedTransformProtocol = NewMaskedTransformProtocol(tc.params, 3.2)
+				if p.MaskedTransformProtocol, err = NewMaskedTransformProtocol(tc.params, tc.params, 3.2); err != nil {
+					t.Fatal(err)
+				}
 			} else {
-				p.MaskedTransformProtocol = NewMaskedTransformProtocol(tc.params, 3.2)
+				if p.MaskedTransformProtocol, err = NewMaskedTransformProtocol(tc.params, tc.params, 3.2); err != nil {
+					t.Fatal(err)
+				}
 			}
 
 			p.s = sk0Shards[i]
@@ -432,7 +438,7 @@ func testRefreshAndPermutation(tc *testContext, t *testing.T) {
 		}
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.s, ciphertext.Value[1], ciphertext.Scale(), crp, maskedTransform, p.share)
+			p.GenShare(p.s, p.s, ciphertext.Value[1], ciphertext.Scale(), crp, maskedTransform, p.share)
 			if i > 0 {
 				P0.AggregateShares(P0.share, p.share, P0.share)
 			}
@@ -450,6 +456,106 @@ func testRefreshAndPermutation(tc *testContext, t *testing.T) {
 		//Decrypts and compares
 		require.True(t, ciphertext.Level() == maxLevel)
 		require.True(t, utils.EqualSliceUint64(coeffsPermute, coeffsHave))
+	})
+}
+
+func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
+
+	encryptorPk0 := tc.encryptorPk0
+	sk0Shards := tc.sk0Shards
+	paramsIn := tc.params
+
+	t.Run(testString("RefreshAndTransformSwitchparams", tc.NParties, tc.params), func(t *testing.T) {
+
+		var paramsOut bgv.Parameters
+		var err error
+		paramsOut, err = bgv.NewParametersFromLiteral(bgv.ParametersLiteral{
+			LogN: paramsIn.LogN(),
+			LogQ: []int{54, 49, 49, 49},
+			LogP: []int{52, 52},
+			T:    paramsIn.T(),
+		})
+
+		minLevel := 0
+		maxLevel := paramsOut.MaxLevel()
+
+		require.Nil(t, err)
+
+		type Party struct {
+			*MaskedTransformProtocol
+			sIn     *rlwe.SecretKey
+			sOut    *rlwe.SecretKey
+			share   *MaskedTransformShare
+			ptShare *bgv.Plaintext
+		}
+
+		RefreshParties := make([]*Party, tc.NParties)
+		kgenParamsOut := rlwe.NewKeyGenerator(paramsOut.Parameters)
+		skIdealOut := rlwe.NewSecretKey(paramsOut.Parameters)
+		for i := 0; i < tc.NParties; i++ {
+			p := new(Party)
+			if i == 0 {
+				if p.MaskedTransformProtocol, err = NewMaskedTransformProtocol(paramsIn, paramsOut, 3.2); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				if p.MaskedTransformProtocol, err = NewMaskedTransformProtocol(paramsIn, paramsOut, 3.2); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			p.sIn = sk0Shards[i]
+
+			p.sOut = kgenParamsOut.GenSecretKey() // New shared secret key in target parameters
+			paramsOut.RingQ().Add(skIdealOut.Value.Q, p.sOut.Value.Q, skIdealOut.Value.Q)
+
+			p.share = p.AllocateShare(minLevel, maxLevel)
+
+			p.ptShare = bgv.NewPlaintext(tc.params, maxLevel, 1)
+			RefreshParties[i] = p
+		}
+
+		P0 := RefreshParties[0]
+
+		crp := P0.SampleCRP(paramsOut.MaxLevel(), tc.crs)
+
+		coeffs, _, ciphertext := newTestVectors(tc, encryptorPk0, t)
+
+		permutation := make([]uint64, len(coeffs))
+		N := uint64(tc.params.N())
+		prng, _ := utils.NewPRNG()
+		for i := range permutation {
+			permutation[i] = ring.RandUniform(prng, N, N-1)
+		}
+
+		transform := &MaskedTransformFunc{
+			Decode: true,
+			Func: func(coeffs []uint64) {
+				coeffsPerm := make([]uint64, len(coeffs))
+				for i := range coeffs {
+					coeffsPerm[i] = coeffs[permutation[i]]
+				}
+				copy(coeffs, coeffsPerm)
+			},
+			Encode: true,
+		}
+
+		for i, p := range RefreshParties {
+			p.GenShare(p.sIn, p.sOut, ciphertext.Value[1], 1, crp, transform, p.share)
+			if i > 0 {
+				P0.AggregateShares(P0.share, p.share, P0.share)
+			}
+		}
+
+		P0.Transform(ciphertext, transform, crp, P0.share, ciphertext)
+
+		transform.Func(coeffs)
+
+		coeffsHave := bgv.NewEncoder(paramsOut).DecodeUintNew(bgv.NewDecryptor(paramsOut, skIdealOut).DecryptNew(ciphertext))
+
+		//Decrypts and compares
+		require.True(t, ciphertext.Level() == maxLevel)
+		require.True(t, utils.EqualSliceUint64(coeffs, coeffsHave))
 	})
 }
 

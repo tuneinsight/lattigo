@@ -1,23 +1,36 @@
 package bfv
 
 import (
-	"fmt"
 	"math"
 	"math/big"
 
-	"github.com/tuneinsight/lattigo/v3/ring"
+	"github.com/tuneinsight/lattigo/v3/rlwe"
 )
 
-// DecryptAndPrintError decrypts a ciphertext and prints the log2 of the error.
-func DecryptAndPrintError(ptWant *Plaintext, cthave *Ciphertext, ringQ *ring.Ring, decryptor Decryptor) {
+// Noise decrypts a ciphertext and returns the log2
+// of the standard deviation, minimum and maximum norm of the noise
+func Noise(cthave *Ciphertext, dec Decryptor) (std, min, max float64) {
 
 	level := cthave.Level()
 
-	ringQ.SubLvl(level, cthave.Value[0], ptWant.Value, cthave.Value[0])
-	plaintext := decryptor.DecryptNew(cthave)
+	params := dec.(*decryptor).params
+	ringQ := params.RingQ()
+
+	ecd := NewEncoder(params).(*encoder)
+
+	pt := &Plaintext{Plaintext: &rlwe.Plaintext{Value: ecd.tmpPoly}}
+
+	dec.Decrypt(cthave, pt)
+
+	ecd.ScaleDown(pt, ecd.tmpPtRt)
+	ecd.ScaleUp(ecd.tmpPtRt, pt)
+
+	ringQ.SubLvl(level, cthave.Value[0], pt.Value, cthave.Value[0])
+
+	dec.Decrypt(cthave, pt)
 
 	bigintCoeffs := make([]*big.Int, ringQ.N)
-	ringQ.PolyToBigintLvl(level, plaintext.Value, 1, bigintCoeffs)
+	ringQ.PolyToBigintLvl(level, pt.Value, 1, bigintCoeffs)
 
 	Q := new(big.Int).SetUint64(1)
 	for i := 0; i < level+1; i++ {
@@ -26,7 +39,7 @@ func DecryptAndPrintError(ptWant *Plaintext, cthave *Ciphertext, ringQ *ring.Rin
 
 	center(bigintCoeffs, Q)
 	stdErr, minErr, maxErr := errorStats(bigintCoeffs)
-	fmt.Printf("STD : %f - Min : %f - Max : %f\n", math.Log2(stdErr), math.Log2(minErr), math.Log2(maxErr))
+	return math.Log2(stdErr), math.Log2(minErr), math.Log2(maxErr)
 }
 
 func errorStats(vec []*big.Int) (float64, float64, float64) {

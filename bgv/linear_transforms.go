@@ -272,7 +272,12 @@ func (LT *LinearTransform) Encode(ecd Encoder, dMat map[int][]uint64, scale uint
 	} else {
 		index, _, _ := BsgsIndex(dMat, slots, N1)
 
+		values := make([]uint64, slots<<1)
+
 		for j := range index {
+
+			rot := -j & (slots - 1)
+
 			for _, i := range index[j] {
 				// manages inputs that have rotation between 0 and slots-1 or between -slots/2 and slots/2-1
 				v, ok := dMat[j+i]
@@ -284,7 +289,13 @@ func (LT *LinearTransform) Encode(ecd Encoder, dMat map[int][]uint64, scale uint
 					panic("error encoding on LinearTransform BSGS: input does not match the same non-zero diagonals")
 				}
 
-				enc.EncodeRingT(utils.RotateUint64Slots(v, -j), scale, buffT)
+				if len(v) > slots {
+					rotateAndCopyInplace(values[slots:], v[slots:], rot)
+				}
+
+				rotateAndCopyInplace(values[:slots], v, rot)
+
+				enc.EncodeRingT(values, scale, buffT)
 				enc.RingT2Q(levelQ, buffT, LT.Vec[j+i].Q)
 				enc.RingT2Q(levelP, buffT, LT.Vec[j+i].P)
 
@@ -368,7 +379,11 @@ func GenLinearTransformBSGS(ecd Encoder, dMat map[int][]uint64, level int, scale
 
 	buffT := params.RingT().NewPoly()
 
+	values := make([]uint64, slots<<1)
+
 	for j := range index {
+
+		rot := -j & (slots - 1)
 
 		for _, i := range index[j] {
 
@@ -379,7 +394,13 @@ func GenLinearTransformBSGS(ecd Encoder, dMat map[int][]uint64, level int, scale
 			}
 			vec[j+i] = params.RingQP().NewPolyLvl(levelQ, levelP)
 
-			enc.EncodeRingT(utils.RotateUint64Slots(v, -j), scale, buffT)
+			if len(v) > slots {
+				rotateAndCopyInplace(values[slots:], v[slots:], rot)
+			}
+
+			rotateAndCopyInplace(values[:slots], v, rot)
+
+			enc.EncodeRingT(values, scale, buffT)
 			enc.RingT2Q(levelQ, buffT, vec[j+i].Q)
 			enc.RingT2Q(levelP, buffT, vec[j+i].P)
 
@@ -389,6 +410,16 @@ func GenLinearTransformBSGS(ecd Encoder, dMat map[int][]uint64, level int, scale
 	}
 
 	return LinearTransform{LogSlots: params.LogN() - 1, N1: N1, Vec: vec, Level: level, Scale: scale}
+}
+
+func rotateAndCopyInplace(values, v []uint64, rot int) {
+	n := len(values)
+	if len(v) > rot {
+		copy(values[:n-rot], v[rot:])
+		copy(values[n-rot:], v[:rot])
+	} else {
+		copy(values[n-rot:], v)
+	}
 }
 
 // BsgsIndex returns the index map and needed rotation for the BSGS matrix-vector multiplication algorithm.

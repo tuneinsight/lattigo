@@ -175,9 +175,21 @@ func (LT *LinearTransform) Encode(encoder Encoder, value interface{}, scale floa
 			enc.Embed(dMat[i], LT.LogSlots, scale, true, LT.Vec[idx])
 		}
 	} else {
+
 		index, _, _ := BsgsIndex(value, slots, N1)
 
+		var values interface{}
+		switch value.(type) {
+		case map[int][]complex128:
+			values = make([]complex128, slots)
+		case map[int][]float64:
+			values = make([]float64, slots)
+		}
+
 		for j := range index {
+
+			rot := -j & (slots - 1)
+
 			for _, i := range index[j] {
 				// manages inputs that have rotation between 0 and slots-1 or between -slots/2 and slots/2-1
 				v, ok := dMat[j+i]
@@ -189,7 +201,9 @@ func (LT *LinearTransform) Encode(encoder Encoder, value interface{}, scale floa
 					panic("cannot Encode: error encoding on LinearTransform BSGS: input does not match the same non-zero diagonals")
 				}
 
-				enc.Embed(utils.RotateSlice(v, -j), LT.LogSlots, scale, true, LT.Vec[j+i])
+				copyRotInterface(values, v, rot)
+
+				enc.Embed(values, LT.LogSlots, scale, true, LT.Vec[j+i])
 			}
 		}
 	}
@@ -258,7 +272,18 @@ func GenLinearTransformBSGS(encoder Encoder, value interface{}, level int, scale
 	dMat := interfaceMapToMapOfInterface(value)
 	levelQ := level
 	levelP := params.PCount() - 1
+
+	var values interface{}
+	switch value.(type) {
+	case map[int][]complex128:
+		values = make([]complex128, slots)
+	case map[int][]float64:
+		values = make([]float64, slots)
+	}
+
 	for j := range index {
+
+		rot := -j & (slots - 1)
 
 		for _, i := range index[j] {
 
@@ -268,11 +293,45 @@ func GenLinearTransformBSGS(encoder Encoder, value interface{}, level int, scale
 				v = dMat[j+i-slots]
 			}
 			vec[j+i] = params.RingQP().NewPolyLvl(levelQ, levelP)
-			enc.Embed(utils.RotateSlice(v, -j), logSlots, scale, true, vec[j+i])
+
+			copyRotInterface(values, v, rot)
+
+			enc.Embed(values, logSlots, scale, true, vec[j+i])
 		}
 	}
 
 	return LinearTransform{LogSlots: logSlots, N1: N1, Vec: vec, Level: level, Scale: scale}
+}
+
+func copyRotInterface(a, b interface{}, rot int) {
+	switch a.(type) {
+	case []complex128:
+
+		ac128 := a.([]complex128)
+		bc128 := b.([]complex128)
+
+		n := len(ac128)
+
+		if len(bc128) >= rot {
+			copy(ac128[:n-rot], bc128[rot:])
+			copy(ac128[n-rot:], bc128[:rot])
+		} else {
+			copy(ac128[n-rot:], bc128)
+		}
+	case []float64:
+
+		af64 := a.([]float64)
+		bf64 := b.([]float64)
+
+		n := len(af64)
+
+		if len(bf64) >= rot {
+			copy(af64[:n-rot], bf64[rot:])
+			copy(af64[n-rot:], bf64[:rot])
+		} else {
+			copy(af64[n-rot:], bf64)
+		}
+	}
 }
 
 // BsgsIndex returns the index map and needed rotation for the BSGS matrix-vector multiplication algorithm.

@@ -271,6 +271,28 @@ func SliceBitReverseInPlaceComplex128(slice []complex128, N int) {
 	}
 }
 
+// SliceBitReverseInPlaceFloat64 applies an in-place bit-reverse permuation on the input slice.
+func SliceBitReverseInPlaceFloat64(slice []float64, N int) {
+
+	var bit, j int
+
+	for i := 1; i < N; i++ {
+
+		bit = N >> 1
+
+		for j >= bit {
+			j -= bit
+			bit >>= 1
+		}
+
+		j += bit
+
+		if i < j {
+			slice[i], slice[j] = slice[j], slice[i]
+		}
+	}
+}
+
 // SliceBitReverseInPlaceRingComplex applies an in-place bit-reverse permuation on the input slice.
 func SliceBitReverseInPlaceRingComplex(slice []*ring.Complex, N int) {
 

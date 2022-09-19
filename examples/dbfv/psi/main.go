@@ -169,7 +169,7 @@ func encPhase(params bfv.Parameters, P []*party, pk *rlwe.PublicKey, encoder bfv
 	pt := bfv.NewPlaintext(params)
 	elapsedEncryptParty = runTimedParty(func() {
 		for i, pi := range P {
-			encoder.EncodeUint(pi.input, pt)
+			encoder.Encode(pi.input, pt)
 			encryptor.Encrypt(pt, encInputs[i])
 		}
 	}, len(P))

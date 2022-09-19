@@ -178,7 +178,7 @@ func main() {
 
 		// ********* 1. SETUP *********
 
-		pool := ringQ.NewPoly()
+		buff := ringQ.NewPoly()
 
 		// NTT(MForm(skBob))
 		skBob := ternarySamplerMontgomeryQ.ReadNew()
@@ -288,8 +288,8 @@ func main() {
 			ringQ.MulCoeffsMontgomeryAndSub(a[i], sigmaAlice, rhoAlice[i])
 
 			// rhoAlice = NTT(skBob * u)  + NTT(a*skBob*skAlice - a*sigmaAlice) * (P/Q)
-			ringQ.DivRoundByLastModulusManyNTTLvl(qlevel, qlevel-plevel, rhoAlice[i], pool, rhoAlice[i])
-			rhoAlice[i].Coeffs = rhoAlice[i].Coeffs[:plevel+1]
+			ringQ.DivRoundByLastModulusManyNTTLvl(qlevel, qlevel-plevel, rhoAlice[i], buff, rhoAlice[i])
+			rhoAlice[i].Resize(plevel)
 		}
 
 		elapsed = time.Since(start)
@@ -306,8 +306,8 @@ func main() {
 			ringQ.MulCoeffsMontgomery(a[i], sigmaBob, rhoBob[i])
 
 			// rhoBob = NTT(a * sigmaBob * (P/Q))
-			ringQ.DivRoundByLastModulusManyNTTLvl(qlevel, qlevel-plevel, rhoBob[i], pool, rhoBob[i])
-			rhoBob[i].Coeffs = rhoBob[i].Coeffs[:plevel+1]
+			ringQ.DivRoundByLastModulusManyNTTLvl(qlevel, qlevel-plevel, rhoBob[i], buff, rhoBob[i])
+			rhoBob[i].Resize(plevel)
 
 			// rhoBob = NTT(-a * sigmaBob) * (P/Q)
 			ringQ.NegLvl(plevel, rhoBob[i], rhoBob[i])
@@ -398,8 +398,8 @@ func main() {
 			// beta = (u*(v * (P/M) + e + a'*skAlice) * u -  a'*-a*sigmaBob * (P/Q)) * (M/P)
 			// 		= (M/P) * u * (v * (P/M) + e + a'*skAlice) - a'*-a*sigmaBob * (M/Q)
 			//		= u*v + a'*skAlice*u*(M/P) + a'*a*sigmaBob * (M/Q)
-			ringQ.DivRoundByLastModulusManyLvl(plevel, plevel-mlevel, beta[i], pool, beta[i])
-			beta[i].Coeffs = beta[i].Coeffs[:mlevel+1]
+			ringQ.DivRoundByLastModulusManyLvl(plevel, plevel-mlevel, beta[i], buff, beta[i])
+			beta[i].Resize(mlevel)
 		}
 
 		elapsed = time.Since(start)
@@ -418,8 +418,8 @@ func main() {
 
 			// alpha = (a'*skAlice*u + (a'*a*skBob*skAlice - a'*a*sigmaAlice) * (P/Q)) * (M/P)
 			//		 = a'*skAlice*u*(M/P) + a'*a*skBob*skAlice*(M/Q) - a'*a*sigmaAlice*(M/Q)
-			ringQ.DivRoundByLastModulusManyLvl(plevel, plevel-mlevel, alpha[i], pool, alpha[i])
-			alpha[i].Coeffs = alpha[i].Coeffs[:mlevel+1]
+			ringQ.DivRoundByLastModulusManyLvl(plevel, plevel-mlevel, alpha[i], buff, alpha[i])
+			alpha[i].Resize(mlevel)
 
 			// alpha = - a'*skAlice*u*(M/P) - a'*a*skBob*skAlice*(M/Q) + a'*a*sigmaAlice*(M/Q)
 			// 	 	 = - a'*skAlice*u*(M/P) - a'*a*skBob*skAlice*(M/Q) + a'*a*(skBob*skAlice - sigmaBob)*(M/Q)

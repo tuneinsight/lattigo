@@ -97,8 +97,6 @@ func GenerateNTTPrimesQ(logQ, NthRoot, levels int) (primes []uint64) {
 
 			} else {
 
-				nextPrime += uint64(NthRoot)
-
 				if IsPrime(nextPrime) {
 
 					primes = append(primes, nextPrime)
@@ -107,6 +105,8 @@ func GenerateNTTPrimesQ(logQ, NthRoot, levels int) (primes []uint64) {
 						return
 					}
 				}
+
+				nextPrime += uint64(NthRoot)
 			}
 		}
 
@@ -129,7 +129,6 @@ func GenerateNTTPrimesQ(logQ, NthRoot, levels int) (primes []uint64) {
 					}
 				}
 			}
-
 		}
 	}
 }

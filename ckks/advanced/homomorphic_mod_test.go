@@ -19,10 +19,7 @@ func TestHomomorphicMod(t *testing.T) {
 	}
 
 	ParametersLiteral := ckks.ParametersLiteral{
-		LogN:         14,
-		LogSlots:     13,
-		DefaultScale: 1 << 45,
-		Sigma:        rlwe.DefaultSigma,
+		LogN: 14,
 		Q: []uint64{
 			0x80000000080001,   // 55 Q0
 			0xffffffffffc0001,  // 60
@@ -46,6 +43,10 @@ func TestHomomorphicMod(t *testing.T) {
 			0x1fffffffff500001, // Pi 61
 			0x1fffffffff420001, // Pi 61
 		},
+		H:            192,
+		Sigma:        rlwe.DefaultSigma,
+		LogSlots:     13,
+		DefaultScale: 1 << 45,
 	}
 
 	testEvalModMarshalling(t)
@@ -87,16 +88,14 @@ func testEvalModMarshalling(t *testing.T) {
 			assert.Nil(t, err)
 		}
 		assert.Equal(t, evm, *evmNew)
-
 	})
-
 }
 
 func testEvalMod(params ckks.Parameters, t *testing.T) {
 
 	kgen := ckks.NewKeyGenerator(params)
 	sk := kgen.GenSecretKey()
-	rlk := kgen.GenRelinearizationKey(sk, 2)
+	rlk := kgen.GenRelinearizationKey(sk, 1)
 	encoder := ckks.NewEncoder(params)
 	encryptor := ckks.NewEncryptor(params, sk)
 	decryptor := ckks.NewDecryptor(params, sk)
@@ -130,7 +129,9 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 
 		// Normalization
 		eval.MultByConst(ciphertext, 1/(float64(evm.K)*evm.QDiff()), ciphertext)
-		eval.Rescale(ciphertext, params.DefaultScale(), ciphertext)
+		if err := eval.Rescale(ciphertext, params.DefaultScale(), ciphertext); err != nil {
+			t.Error(err)
+		}
 
 		// EvalMod
 		ciphertext = eval.EvalModNew(ciphertext, EvalModPoly)
@@ -139,6 +140,7 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 		//pi2r := 6.283185307179586/complex(math.Exp2(float64(evm.DoubleAngle)), 0)
 		for i := range values {
 			values[i] -= complex(evm.MessageRatio*evm.QDiff()*math.Round(real(values[i])/(evm.MessageRatio/evm.QDiff())), 0)
+			//values[i] = sin2pi2pi(values[i] / complex(evm.MessageRatio*evm.QDiff(), 0)) * complex(evm.MessageRatio*evm.QDiff(), 0) / 6.283185307179586
 		}
 
 		verifyTestVectors(params, encoder, decryptor, values, ciphertext, params.LogSlots(), 0, t)
@@ -172,7 +174,9 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 
 		// Normalization
 		eval.MultByConst(ciphertext, 1/(float64(evm.K)*evm.QDiff()), ciphertext)
-		eval.Rescale(ciphertext, params.DefaultScale(), ciphertext)
+		if err := eval.Rescale(ciphertext, params.DefaultScale(), ciphertext); err != nil {
+			t.Error(err)
+		}
 
 		// EvalMod
 		ciphertext = eval.EvalModNew(ciphertext, EvalModPoly)

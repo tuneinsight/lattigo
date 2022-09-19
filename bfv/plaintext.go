@@ -1,6 +1,7 @@
 package bfv
 
 import (
+	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
 )
 
@@ -31,6 +32,23 @@ func NewPlaintext(params Parameters) *Plaintext {
 	return plaintext
 }
 
+// NewPlaintextLvl creates and allocates a new plaintext in RingQ (multiple moduli of Q).
+// The plaintext is allocated with level+1 moduli.
+// The plaintext will be in RingQ and scaled by Q/t.
+// Slower encoding and larger plaintext size
+func NewPlaintextLvl(params Parameters, level int) *Plaintext {
+	plaintext := &Plaintext{rlwe.NewPlaintext(params.Parameters, level)}
+	return plaintext
+}
+
+// NewPlaintextAtLevelFromPoly construct a new Plaintext at a specific level
+// where the message is set to the passed poly. No checks are performed on poly and
+// the returned Plaintext will share its backing array of coefficient.
+func NewPlaintextAtLevelFromPoly(level int, poly *ring.Poly) *Plaintext {
+	pt := rlwe.NewPlaintextAtLevelFromPoly(level, poly)
+	return &Plaintext{Plaintext: pt}
+}
+
 // NewPlaintextRingT creates and allocates a new plaintext in RingT (single modulus T).
 // The plaintext will be in RingT.
 func NewPlaintextRingT(params Parameters) *PlaintextRingT {
@@ -42,5 +60,13 @@ func NewPlaintextRingT(params Parameters) *PlaintextRingT {
 // The plaintext will be in the NTT and Montgomery domain of RingQ and not scaled by Q/t.
 func NewPlaintextMul(params Parameters) *PlaintextMul {
 	plaintext := &PlaintextMul{rlwe.NewPlaintext(params.Parameters, params.MaxLevel())}
+	return plaintext
+}
+
+// NewPlaintextMulLvl creates and allocates a new plaintext optimized for ciphertext x plaintext multiplication.
+// The plaintext is allocated with level+1 moduli.
+// The plaintext will be in the NTT and Montgomery domain of RingQ and not scaled by Q/t.
+func NewPlaintextMulLvl(params Parameters, level int) *PlaintextMul {
+	plaintext := &PlaintextMul{rlwe.NewPlaintext(params.Parameters, level)}
 	return plaintext
 }

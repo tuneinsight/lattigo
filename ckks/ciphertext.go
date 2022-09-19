@@ -28,17 +28,20 @@ func NewCiphertext(params Parameters, degree, level int, scale float64) (ciphert
 
 // NewCiphertextRandom generates a new uniformly distributed Ciphertext of degree, level and scale.
 func NewCiphertextRandom(prng utils.PRNG, params Parameters, degree, level int, scale float64) (ciphertext *Ciphertext) {
-	return &Ciphertext{rlwe.NewCiphertextRandom(prng, params.Parameters, degree, level), scale}
+	ciphertext = &Ciphertext{rlwe.NewCiphertextRandom(prng, params.Parameters, degree, level), scale}
+	for i := range ciphertext.Value {
+		ciphertext.Value[i].IsNTT = true
+	}
+	return
 }
 
 // NewCiphertextAtLevelFromPoly construct a new Ciphetext at a specific level
 // where the message is set to the passed poly. No checks are performed on poly and
 // the returned Ciphertext will share its backing array of coefficient.
 func NewCiphertextAtLevelFromPoly(level int, poly [2]*ring.Poly) *Ciphertext {
-	v0, v1 := new(ring.Poly), new(ring.Poly)
-	v0.IsNTT, v1.IsNTT = true, true
-	v0.Coeffs, v1.Coeffs = poly[0].Coeffs[:level+1], poly[1].Coeffs[:level+1]
-	return &Ciphertext{Ciphertext: &rlwe.Ciphertext{Value: []*ring.Poly{v0, v1}}, Scale: 0}
+	ct := rlwe.NewCiphertextAtLevelFromPoly(level, poly)
+	ct.Value[0].IsNTT, ct.Value[1].IsNTT = true, true
+	return &Ciphertext{Ciphertext: ct, Scale: 0}
 }
 
 // ScalingFactor returns the scaling factor of the ciphertext

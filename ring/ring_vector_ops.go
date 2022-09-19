@@ -146,6 +146,44 @@ func ModVec(p1, p2 []uint64, m uint64, bredParams []uint64) {
 	}
 }
 
+// MulCoeffsNoModVec returns p3 = p1*p2.
+func MulCoeffsNoModVec(p1, p2, p3 []uint64) {
+	for j := 0; j < len(p1); j = j + 8 {
+
+		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
+		y := (*[8]uint64)(unsafe.Pointer(&p2[j]))
+		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
+
+		z[0] = x[0] * y[0]
+		z[1] = x[1] * y[1]
+		z[2] = x[2] * y[2]
+		z[3] = x[3] * y[3]
+		z[4] = x[4] * y[4]
+		z[5] = x[5] * y[5]
+		z[6] = x[6] * y[6]
+		z[7] = x[7] * y[7]
+	}
+}
+
+// MulCoeffsNoModAndAddNoModVec returns p3 += p1*p2.
+func MulCoeffsNoModAndAddNoModVec(p1, p2, p3 []uint64) {
+	for j := 0; j < len(p1); j = j + 8 {
+
+		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
+		y := (*[8]uint64)(unsafe.Pointer(&p2[j]))
+		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
+
+		z[0] += x[0] * y[0]
+		z[1] += x[1] * y[1]
+		z[2] += x[2] * y[2]
+		z[3] += x[3] * y[3]
+		z[4] += x[4] * y[4]
+		z[5] += x[5] * y[5]
+		z[6] += x[6] * y[6]
+		z[7] += x[7] * y[7]
+	}
+}
+
 // MulCoeffsVec returns p3 = p1*p2 mod qi.
 func MulCoeffsVec(p1, p2, p3 []uint64, qi uint64, bredParams []uint64) {
 	for j := 0; j < len(p1); j = j + 8 {
@@ -406,6 +444,24 @@ func AddVecNoModAndMulScalarMontgomeryVec(p1, p2, p3 []uint64, scalarMont, qi, m
 	}
 }
 
+// AddScalarNoModAndMulScalarMontgomeryVec returns p3 = (scalarMont0+p2)*scalarMont1 mod qi.
+func AddScalarNoModAndMulScalarMontgomeryVec(p1, p2 []uint64, scalar0, scalarMont1, qi, mredParams uint64) {
+	for j := 0; j < len(p1); j = j + 8 {
+
+		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
+		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
+
+		z[0] = MRed(x[0]+scalar0, scalarMont1, qi, mredParams)
+		z[1] = MRed(x[1]+scalar0, scalarMont1, qi, mredParams)
+		z[2] = MRed(x[2]+scalar0, scalarMont1, qi, mredParams)
+		z[3] = MRed(x[3]+scalar0, scalarMont1, qi, mredParams)
+		z[4] = MRed(x[4]+scalar0, scalarMont1, qi, mredParams)
+		z[5] = MRed(x[5]+scalar0, scalarMont1, qi, mredParams)
+		z[6] = MRed(x[6]+scalar0, scalarMont1, qi, mredParams)
+		z[7] = MRed(x[7]+scalar0, scalarMont1, qi, mredParams)
+	}
+}
+
 // AddScalarVec returns p2 = p1 + scalar mod qi.
 func AddScalarVec(p1, p2 []uint64, scalar, qi uint64) {
 	for j := 0; j < len(p1); j = j + 8 {
@@ -530,6 +586,24 @@ func MulScalarMontgomeryAndAddVec(p1, p2 []uint64, scalarMont, qi, mredParams ui
 	}
 }
 
+// MulScalarMontgomeryAndAddScalarVec returns p2 = scalar + p1*scalarMont mod qi.
+func MulScalarMontgomeryAndAddScalarVec(p1, p2 []uint64, scalar0, scalarMont1, qi, mredParams uint64) {
+	for j := 0; j < len(p1); j = j + 8 {
+
+		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
+		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
+
+		z[0] = CRed(MRed(x[0], scalarMont1, qi, mredParams)+scalar0, qi)
+		z[1] = CRed(MRed(x[1], scalarMont1, qi, mredParams)+scalar0, qi)
+		z[2] = CRed(MRed(x[2], scalarMont1, qi, mredParams)+scalar0, qi)
+		z[3] = CRed(MRed(x[3], scalarMont1, qi, mredParams)+scalar0, qi)
+		z[4] = CRed(MRed(x[4], scalarMont1, qi, mredParams)+scalar0, qi)
+		z[5] = CRed(MRed(x[5], scalarMont1, qi, mredParams)+scalar0, qi)
+		z[6] = CRed(MRed(x[6], scalarMont1, qi, mredParams)+scalar0, qi)
+		z[7] = CRed(MRed(x[7], scalarMont1, qi, mredParams)+scalar0, qi)
+	}
+}
+
 // SubVecAndMulScalarMontgomeryTwoQiVec returns p3 = (p1 + twoqi - p2) * scalarMont mod qi.
 func SubVecAndMulScalarMontgomeryTwoQiVec(p1, p2, p3 []uint64, scalarMont, qi, mredParams uint64) {
 	twoqi := qi << 1
@@ -618,5 +692,40 @@ func MulByPow2Vec(p1, p2 []uint64, pow2 int, qi, mredParams uint64) {
 		z[5] = PowerOf2(x[5], pow2, qi, mredParams)
 		z[6] = PowerOf2(x[6], pow2, qi, mredParams)
 		z[7] = PowerOf2(x[7], pow2, qi, mredParams)
+	}
+}
+
+// ZeroVec sets all values of p1 to zero.
+func ZeroVec(p1 []uint64) {
+	for j := 0; j < len(p1); j = j + 8 {
+
+		z := (*[8]uint64)(unsafe.Pointer(&p1[j]))
+
+		z[0] = 0
+		z[1] = 0
+		z[2] = 0
+		z[3] = 0
+		z[4] = 0
+		z[5] = 0
+		z[6] = 0
+		z[7] = 0
+	}
+}
+
+// MaskVec returns p2 = (p1>>w) & mask
+func MaskVec(p1, p2 []uint64, w int, mask uint64) {
+	for j := 0; j < len(p1); j = j + 8 {
+
+		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
+		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
+
+		z[0] = (x[0] >> w) & mask
+		z[1] = (x[1] >> w) & mask
+		z[2] = (x[2] >> w) & mask
+		z[3] = (x[3] >> w) & mask
+		z[4] = (x[4] >> w) & mask
+		z[5] = (x[5] >> w) & mask
+		z[6] = (x[6] >> w) & mask
+		z[7] = (x[7] >> w) & mask
 	}
 }

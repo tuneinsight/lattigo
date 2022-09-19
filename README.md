@@ -85,9 +85,9 @@ If you want to contribute to Lattigo or you have any suggestion, do not hesitate
 Please use the following BibTex entry for citing Lattigo:
 
     @misc{lattigo,
-	    title = {Lattigo v3.0.1},
+	    title = {Lattigo v3},
 	    howpublished = {Online: \url{https://github.com/tuneinsight/lattigo}},
-	    month = Feb,
+	    month = Apr,
 	    year = 2022,
 	    note = {EPFL-LDS, Tune Insight SA}
     }
@@ -95,8 +95,10 @@ Please use the following BibTex entry for citing Lattigo:
 
 ## References
 
-1. Efficient Bootstrapping for ApproximateHomomorphic Encryption with Non-Sparse Keys
+1. Efficient Bootstrapping for Approximate Homomorphic Encryption with Non-Sparse Keys
    (<https://eprint.iacr.org/2020/1203>)
+1. Bootstrapping for Approximate Homomorphic Encryption with Negligible Failure-Probability by Using Sparse-Secret Encapsulation
+   (<https://eprint.iacr.org/2022/024>)
 1. Somewhat Practical Fully Homomorphic Encryption (<https://eprint.iacr.org/2012/144>)
 1. Multiparty Homomorphic Encryption: From Theory to Practice (<https://eprint.iacr.org/2020/304>)
 1. A Full RNS Variant of FV Like Somewhat Homomorphic Encryption Schemes
@@ -107,7 +109,7 @@ Please use the following BibTex entry for citing Lattigo:
 1. A Full RNS Variant of Approximate Homomorphic Encryption (<https://eprint.iacr.org/2018/931>)
 1. Improved Bootstrapping for Approximate Homomorphic Encryption
    (<https://eprint.iacr.org/2018/1043>)
-1. Better Bootstrapping for Approximate Homomorphic Encryption (<https://epring.iacr.org/2019/688>)
+1. Better Bootstrapping for Approximate Homomorphic Encryption (<https://eprint.iacr.org/2019/688>)
 1. Post-quantum key exchange - a new hope (<https://eprint.iacr.org/2015/1092>)
 1. Faster arithmetic for number-theoretic transforms (<https://arxiv.org/abs/1205.2926>)
 1. Speeding up the Number Theoretic Transform for Faster Ideal Lattice-Based Cryptography

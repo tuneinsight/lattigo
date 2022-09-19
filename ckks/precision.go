@@ -38,10 +38,10 @@ func (prec PrecisionStats) String() string {
 ┌─────────┬───────┬───────┬───────┐
 │    Log2 │ REAL  │ IMAG  │ L2    │
 ├─────────┼───────┼───────┼───────┤
-│MIN Prec │ %.2f │ %.2f │ %.2f │
-│MAX Prec │ %.2f │ %.2f │ %.2f │
-│AVG Prec │ %.2f │ %.2f │ %.2f │
-│MED Prec │ %.2f │ %.2f │ %.2f │
+│MIN Prec │ %5.2f │ %5.2f │ %5.2f │
+│MAX Prec │ %5.2f │ %5.2f │ %5.2f │
+│AVG Prec │ %5.2f │ %5.2f │ %5.2f │
+│MED Prec │ %5.2f │ %5.2f │ %5.2f │
 └─────────┴───────┴───────┴───────┘
 Err STD Slots  : %5.2f Log2
 Err STD Coeffs : %5.2f Log2

@@ -9,8 +9,8 @@ import (
 	"github.com/tuneinsight/lattigo/v3/rlwe"
 )
 
-// Bootstrapper is a struct to stores a memory pool the plaintext matrices
-// the polynomial approximation and the keys for the bootstrapping.
+// Bootstrapper is a struct to store a memory buffer with the plaintext matrices,
+// the polynomial approximation, and the keys for the bootstrapping.
 type Bootstrapper struct {
 	advanced.Evaluator
 	*bootstrapperBase
@@ -28,10 +28,21 @@ type bootstrapperBase struct {
 	ctsMatrices advanced.EncodingMatrix
 
 	q0OverMessageRatio float64
+
+	swkDtS *rlwe.SwitchingKey
+	swkStD *rlwe.SwitchingKey
+}
+
+// EvaluationKeys is a type for a CKKS bootstrapping key, which
+// regroups the necessary public relinearization and rotation keys.
+type EvaluationKeys struct {
+	rlwe.EvaluationKey
+	SwkDtS *rlwe.SwitchingKey
+	SwkStD *rlwe.SwitchingKey
 }
 
 // NewBootstrapper creates a new Bootstrapper.
-func NewBootstrapper(params ckks.Parameters, btpParams Parameters, btpKey rlwe.EvaluationKey) (btp *Bootstrapper, err error) {
+func NewBootstrapper(params ckks.Parameters, btpParams Parameters, btpKeys EvaluationKeys) (btp *Bootstrapper, err error) {
 
 	if btpParams.EvalModParameters.SineType == advanced.Sin && btpParams.EvalModParameters.DoubleAngle != 0 {
 		return nil, fmt.Errorf("cannot use double angle formul for SineType = Sin -> must use SineType = Cos")
@@ -50,15 +61,59 @@ func NewBootstrapper(params ckks.Parameters, btpParams Parameters, btpKey rlwe.E
 	}
 
 	btp = new(Bootstrapper)
-	btp.bootstrapperBase = newBootstrapperBase(params, btpParams, btpKey)
+	btp.bootstrapperBase = newBootstrapperBase(params, btpParams, btpKeys)
 
-	if err = btp.bootstrapperBase.CheckKeys(btpKey); err != nil {
+	if err = btp.bootstrapperBase.CheckKeys(btpKeys); err != nil {
 		return nil, fmt.Errorf("invalid bootstrapping key: %w", err)
 	}
 
-	btp.Evaluator = advanced.NewEvaluator(params, btpKey)
+	btp.bootstrapperBase.swkDtS = btpKeys.SwkDtS
+	btp.bootstrapperBase.swkStD = btpKeys.SwkStD
+
+	btp.Evaluator = advanced.NewEvaluator(params, btpKeys.EvaluationKey)
 
 	return
+}
+
+// GenEvaluationKeys generates the bootstrapping EvaluationKeys, which contain:
+//	Rlk: *rlwe.RelinearizationKey
+//	Rtks: *rlwe.RotationKeySet
+//	SwkDtS: *rlwe.SwitchingKey
+//	SwkStD: *rlwe.SwitchingKey
+func GenEvaluationKeys(btpParams Parameters, ckksParams ckks.Parameters, sk *rlwe.SecretKey) EvaluationKeys {
+	kgen := ckks.NewKeyGenerator(ckksParams)
+	rotations := btpParams.RotationsForBootstrapping(ckksParams)
+	rlk := kgen.GenRelinearizationKey(sk, 1)
+	rotkeys := kgen.GenRotationKeysForRotations(rotations, true, sk)
+	swkDtS, swkStD := btpParams.GenEncapsulationSwitchingKeys(ckksParams, sk)
+
+	return EvaluationKeys{
+		EvaluationKey: rlwe.EvaluationKey{
+			Rlk:  rlk,
+			Rtks: rotkeys},
+		SwkDtS: swkDtS,
+		SwkStD: swkStD,
+	}
+}
+
+// GenEncapsulationSwitchingKeys generates the low level encapsulation switching keys for the bootstrapping.
+func (p *Parameters) GenEncapsulationSwitchingKeys(params ckks.Parameters, skDense *rlwe.SecretKey) (swkDtS, swkStD *rlwe.SwitchingKey) {
+
+	if p.EphemeralSecretWeight == 0 {
+		return
+	}
+
+	paramsSparse, _ := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
+		LogN: params.LogN(),
+		Q:    params.Q()[:1],
+		P:    params.P()[:1],
+	})
+
+	kgenSparse := rlwe.NewKeyGenerator(paramsSparse)
+	kgenDense := rlwe.NewKeyGenerator(params.Parameters)
+	skSparse := kgenSparse.GenSecretKeyWithHammingWeight(p.EphemeralSecretWeight)
+
+	return kgenDense.GenSwitchingKey(skDense, skSparse), kgenDense.GenSwitchingKey(skSparse, skDense)
 }
 
 // ShallowCopy creates a shallow copy of this Bootstrapper in which all the read-only data-structures are
@@ -72,26 +127,39 @@ func (btp *Bootstrapper) ShallowCopy() *Bootstrapper {
 }
 
 // CheckKeys checks if all the necessary keys are present in the instantiated Bootstrapper
-func (bb *bootstrapperBase) CheckKeys(btpKey rlwe.EvaluationKey) (err error) {
+func (bb *bootstrapperBase) CheckKeys(btpKeys EvaluationKeys) (err error) {
 
-	if btpKey.Rlk == nil {
+	if btpKeys.Rlk == nil {
 		return fmt.Errorf("relinearization key is nil")
 	}
 
-	if btpKey.Rtks == nil {
+	if btpKeys.Rtks == nil {
 		return fmt.Errorf("rotation key is nil")
 	}
 
+	if btpKeys.SwkDtS == nil && bb.Parameters.EphemeralSecretWeight != 0 {
+		return fmt.Errorf("switching key dense to sparse is nil")
+	}
+
+	if btpKeys.SwkStD == nil && bb.Parameters.EphemeralSecretWeight != 0 {
+		return fmt.Errorf("switching key sparse to dense is nil")
+	}
+
 	rotKeyIndex := []int{}
-	rotKeyIndex = append(rotKeyIndex, bb.params.RotationsForTrace(bb.params.LogSlots(), bb.params.MaxLogSlots())...)
-	rotKeyIndex = append(rotKeyIndex, bb.CoeffsToSlotsParameters.Rotations(bb.params.LogN(), bb.params.LogSlots())...)
-	rotKeyIndex = append(rotKeyIndex, bb.SlotsToCoeffsParameters.Rotations(bb.params.LogN(), bb.params.LogSlots())...)
+	rotKeyIndex = append(rotKeyIndex, bb.CoeffsToSlotsParameters.Rotations()...)
+	rotKeyIndex = append(rotKeyIndex, bb.SlotsToCoeffsParameters.Rotations()...)
 
 	rotMissing := []int{}
 	for _, i := range rotKeyIndex {
 		galEl := bb.params.GaloisElementForColumnRotationBy(int(i))
-		if _, generated := btpKey.Rtks.Keys[galEl]; !generated {
+		if _, generated := btpKeys.Rtks.Keys[galEl]; !generated {
 			rotMissing = append(rotMissing, i)
+		}
+	}
+
+	for _, galEl := range bb.params.GaloisElementsForTrace(bb.params.LogSlots()) {
+		if _, generated := btpKeys.Rtks.Keys[galEl]; !generated {
+			rotMissing = append(rotMissing, int(galEl))
 		}
 	}
 
@@ -102,7 +170,7 @@ func (bb *bootstrapperBase) CheckKeys(btpKey rlwe.EvaluationKey) (err error) {
 	return nil
 }
 
-func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey rlwe.EvaluationKey) (bb *bootstrapperBase) {
+func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey EvaluationKeys) (bb *bootstrapperBase) {
 	bb = new(bootstrapperBase)
 	bb.params = params
 	bb.Parameters = btpParams

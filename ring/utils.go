@@ -4,6 +4,18 @@ import (
 	"math/bits"
 )
 
+// EvalPolyModP evaluates y = sum poly[i] * x^{i} mod p.
+func EvalPolyModP(x uint64, poly []uint64, p uint64) (y uint64) {
+	bredParams := BRedParams(p)
+	y = poly[len(poly)-1]
+	for i := len(poly) - 2; i >= 0; i-- {
+		y = BRed(y, x, p, bredParams)
+		y = CRed(y+poly[i], p)
+	}
+
+	return
+}
+
 // Min returns the minimum between to int
 func Min(x, y int) int {
 	if x > y {

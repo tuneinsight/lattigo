@@ -1,8 +1,99 @@
 
 # Changelog
-All notable changes to this project will be documented in this file. 
+All notable changes to this library are documented in this file. 
 
-# [3.0.1] - 2022-02-21
+# [3.1.0] - UNREALEASED
+
+- ALL: added default parameters for LogN=11 and LogN=10.
+- RING: prime generation no longer skips the first candidate.
+- RING: reworked marshalling of `ring.Poly` object. The new available methods are:
+    - `ring.Poly` now has a `.Buff` 1-dimensional slice which is the only heavy allocation of a `ring.Poly`. The `.Coeffs` 2-dimensional slice is a re-slicing of `.Buff`.
+    - `GetDataLen64` and `GetDataLen32`: gets the length in bytes of an encoded `ring.Poly` object.
+    - `WriteTo64` and `WriteTo32`: encodes a `ring.Poly` object on a pre-allocated slice of bytes.
+    - `WriteCoeffsTo64` and `WriteCoeffsTo32`: encodes a slice of coefficients on a pre-allocated slice of bytes.
+    - `DecodeCoeffs64` and `DecodeCoeffs32`: decodes a slice of bytes on a slice of coefficients.
+    - `DecodePoly64` and `DecodePoly32`: decodes a slice of bytes on a pre-allocated `ring.Poly` object.
+- RING: renamed `ring.Poly.Degree()` to `ring.Poly.N()` for consistency.
+- RING: removed `ring.Poly.LenModuli()` deprecated method.
+- RING: changed `ring.NewPoly` to take the `level` as argument instead of the number of moduli, for consistency.
+- RLWE: added several types of ciphertexts:
+    - `rlwe.CiphertextQP` represents a ciphertext that is encrypted in the extended ring R_QP.
+    - `rlwe.GadgetCiphertext` represents an encryption in the extended ring R_QP of a plaintext that is decomposed in the CRT and power-of-two basis (e.g., plublic switching keys).
+- RLWE: changed representation of `rlwe.PublicKey` types which are now stored in Montgomerry form, consistently with all other key types.
+- RLWE: changed `rlwe.SwitchingKey` type to use `rlwe.GadgetCiphertext` internally.
+- RLWE: generalized `rlwe.KeySwitcher` into `rlwe.Evaluator`, which provides new functionalities:
+    - `DecomposeNTT`: decomposes a polynomial modulo the special RNS basis and extends its basis from Q to QP.
+    - `DecomposeSingleNTT`: decomposes a polynomial modulo a single power of the special RNS basis and extends its basis from Q to QP.
+    - `ExpandRLWE`: extracts each coefficient of a RLWE sample to the degree-0 coefficient of multiple RLWE samples.
+    - `MergeRLWE`: merges the degree-0 coefficient of multiple RLWE samples into a single RLWE sample.
+    - `GadgetProduct`: evaluates `ring.Poly x gadget.Ciphertext -> RLWE`, where `gadget.Ciphertext` is a matrix of RLWE samples encrypting scaled plaintext by the special RNS basis and a modulus P.
+    - `GadgetProductNoModDown`: evaluates `ring.Poly x gadget.Ciphertext -> RLWE` but without the division by P (the result is given mod QP).
+    - `GadgetProductSinglePAndBitDecompNoModDown`: evaluates `ring.Poly x gadget.Ciphertext -> RLWE`, where `gadget.Ciphertext` is a matrix of RLWE samples encrypting scaled plaintext by the special RNS basis along with a base-2 basis and an optional prime P.
+    - `Relinearize`: reduces the degree of a `rlwe.Ciphertext` to one by homomorphically evaluating the decryption of the higher-degree terms.
+    - `KeySwitch`: homomorphically re-encrypts a `rlwe.Ciphertext` under a new secret.
+    - `KeyswitchHoisted`: homomorphically re-encrypts a `rlwe.Ciphertext` under a series of new secrets, returning a new ciphertext for each secret.
+    - `KeyswitchHoistedNoModDown`: homomorphically re-encrypts a `rlwe.Ciphertext` under a series of new secrets, returning a new ciphertext for each secret, but without the division by P (the result is given mod QP).
+    - `Automorphism`: homomorphically evaluates the map `X -> X^k`.
+    - `AutomorphismHoisted`: homomorphically evaluates multiple maps of the type `X -> X^k`, returning a new ciphertext for each map.
+    - `AutomorphismHoistedNoModDown`: homomorphically evaluates multiple maps of the type `X -> X^k`, returning a new ciphertext for each map, but without the division by P (result is given mod QP).
+    - `Trace`: homomorphically evaluates the map `X -> sum((-1)^i * X^{i*n+1}) for n <= i < N`.
+    - `ExternalProduct`: evaluates `rlwe.Ciphertext x rgsw.Ciphertext -> rlwe.Ciphertext`.
+- RLWE: re-enabled bit-decomposition, on top of RNS decomposition, for the inner-product between `rlwe.Ciphertext` and `gadget.Ciphertext`.
+    - This functionality can be enabled by setting `Pow2Base` to the desired power of two basis.
+    - This functionality can be used in conjunction with the RNS hybrid decomposition (with a modulus `P`) only when `P` is composed of a single prime.
+    - This functionality is disabled if `Pow2Base` is set to zero (default value).
+- RLWE: enabled instantiation of `rlwe.Parameters` without the modulus `P`.
+- RLWE: revamped the `rlwe.Encryptor` interface and implementing structs:
+    - Added the `.EncryptZero` method to generate encryptions of zeros.
+    - The `.Encrypt` and `.EncryptZero` now accept `ct interface{}` as their ciphertext argument and determine the type of encryption to be performed according to the runtime type of `ct`.
+- RLWE: added the `PRNGEncryptor` type, which supports secret-key encryption from a user-specified PRNG.
+- RLWE: `rlwe.KeyGenerator` now uses an `rlwe.Encryptor` internally, to generate secret keys, encryption keys and evaluation keys.
+- RLWE: extracted the `rlwe/ringqp` sub-package which provides the `ringqp.Ring` and `ringqp.Poly` types to respectively replace the former types `rlwe.RingQP` and `rlwe.PolyQP`.
+- RGSW: added package `rgsw`, which provides a partial implementation of the RLWE-based RGSW encryption scheme. This incluides:
+    -  `rgsw.Encryptor` and the `rgsw.Ciphertext` types.
+    -  `rgsw.Evaluator` to support the external product `RLWE x RGSW -> RLWE`.
+    -  `rgsw/lut` sub-package that provides evaluation of Look-Up-Tables (LUT) on `rlwe.Ciphertext` types.
+- BFV/CKKS: key-switching functionalities (such as rotations, relinearization and key-switching) are now all based on the `rlwe.Evaluator`.
+- BFV/CKKS: the parameters now are based on the sub-type `rlwe.Parameters`.
+- BFV/CKKS: removed deprecated methods `EncryptFromCRP` and `EncryptFromCRPNew`, users should now use the `PRNGEncryptor` interface.
+- BFV/CKKS: fixed a panic happening during the benchmark testing.
+- CKKS: fixed `MulAndAdd` correctness for non-identical inputs.
+- CKKS: added `advanced.EncodingMatrixLiteral.RepackImag2Real` optional field to repack the imaginary part into the right n real slots.
+- CKKS: `Trace` now only takes as input the `logSlots` of the encrypted plaintext.
+- DCKKS: fixed `dckks.RefreshProtocol` correctness when the output scale is different from the input scale.
+- Examples: added `examples/ckks/advanced/lut`, which is an example that performs homomorphic decoding -> LUT -> homomorphic encoding on a `ckks.Ciphertext`.
+- Examples: removed `examples/ckks/advanced/rlwe_lwe_bridge_LHHMQ20`, which is replaced by `examples/ckks/advanced/lut`.
+- Examples: removed `examples/rlwe/lwe_bridge` since the code of this example is now part of `rlwe.Evaluator` and showcased in `examples/ckks/advanced/lut`.
+- CI: revamped Makefile to no longer require github.com/dedis/coding and integrated linting/vet checks.
+
+## [3.0.5]
+
+- CKKS: Baby-Step Giant-Step Polynomial Evaluation Algorithm (BSGSPEA)
+    - Added `PolynomialBasis`, a struct to generate powers of monomials. This struct can be marshalled.
+    - Renamed former `PolynomialBasis` enumerated type to `BasisType`.
+    - `EvaluatePoly` and `EvaluatePolyVector` now both accept pre-computed `PolynomialBasis` as input in addition to `Ciphertext`.
+    - Fixed correctness error and panic when a non-relinearized ciphertext and a plaintext were given to `Mul` and `MulAndAdd`.
+    - Fixed automatic-scale matching in BSGS that wasn't reliably ensuring that scales between two ciphertext to be added was the same.
+    - Improved BSGSPEA with lazy relinearization and lazy rescaling.
+    - Overall the precision of the BSGSPEA is greatly improved and its complexity is reduced. This also improves the precision of the bootstrapping.
+
+## [3.0.4] - 2022-04-26
+
+- CKKS: updated the bootstrapping circuit to use the key-encapsulation mechanism of `Bootstrapping for Approximate Homomorphic Encryption with Negligible Failure-Probability by Using Sparse-Secret Encapsulation`. The previous bootstrapping circuit can be run by setting `EphemeralSecretWeight=0`.
+- BFV: added the `Evaluator.Rescale` and `Evaluator.RescaleTo` methods to switch BFV ciphertexts to lower levels.
+- BFV: all `Evaluator` methods on ciphertext support all arithmetic operations at lower levels, but require that operands are at the same level.
+- BFV: the plaintext modulus `T` can now equal to the level-zero modulus Q[0] (i.e., be a factor of the ciphertext modulus `Q`).
+- BFV: added the methods `NewCiphertextLvl`, `NewPlaintextLvl`, `NewPlaintextMulLvl`, `Evaluator.AddScalar` and `Evaluator.MulScalarAndAdd`. 
+- BFV: merged `[]uint64` and `[]int64` plaintext encoding methods (e.g. `EncodeUint` and `EncodeInt` are replaced by `Encode`) and added the respective `[...]New` methods.
+- BFV: added the methods `EvaluatePoly` and `EvaluatePolyVector` for homomorphic polynomial evaluation.
+- BFV/RING: moved `RNSScaler` from `ring` to `bfv`.
+- RING: removed deprecated `SimpleScaler`.
+
+## [3.0.2] - 2022-02-21
+
+- RING: fixed sparse ternary sampler to properly sample on non-zero poly.
+
+## [3.0.1] - 2022-02-21
 
 - RLWE/CKKS/BFV: added the `H` field and `HammingWeight` method in parameters-related structs, to specify distribution of all secrets in the schemes.
 - RLWE/DRLWE: all secrets in the ternary distribution are now sampled with a fixed hamming weight, according to the parameters.

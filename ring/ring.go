@@ -14,6 +14,10 @@ import (
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
+// GaloisGen is an integer of order N/2 modulo M that spans Z_M with the integer -1.
+// The j-th ring automorphism takes the root zeta to zeta^(5j).
+const GaloisGen uint64 = 5
+
 // Type is the type of ring used by the cryptographic scheme
 type Type int
 
@@ -74,8 +78,8 @@ type Ring struct {
 	// Indicates whether NTT can be used with the current ring.
 	AllowsNTT bool
 
-	// Product of the Moduli
-	ModulusBigint *big.Int
+	// Product of the Moduli for each level
+	ModulusAtLevel []*big.Int
 
 	// Fast reduction parameters
 	BredParams [][]uint64
@@ -213,19 +217,20 @@ func (r *Ring) setParameters(N int, Modulus []uint64) error {
 		r.Mask[i] = (1 << uint64(bits.Len64(qi))) - 1
 	}
 
-	// Compute the bigQ
-	r.ModulusBigint = NewInt(1)
-	for _, qi := range r.Modulus {
-		r.ModulusBigint.Mul(r.ModulusBigint, NewUint(qi))
+	// Computes bigQ for all levels
+	r.ModulusAtLevel = make([]*big.Int, len(r.Modulus))
+	r.ModulusAtLevel[0] = NewUint(r.Modulus[0])
+	for i := 1; i < len(r.Modulus); i++ {
+		r.ModulusAtLevel[i] = new(big.Int).Mul(r.ModulusAtLevel[i-1], NewUint(r.Modulus[i]))
 	}
 
-	// Compute the fast reduction parameters
+	// Computes the fast reduction parameters
 	r.BredParams = make([][]uint64, len(r.Modulus))
 	r.MredParams = make([]uint64, len(r.Modulus))
 
 	for i, qi := range r.Modulus {
 
-		// Compute the fast modular reduction parameters for the Ring
+		// Computes the fast modular reduction parameters for the Ring
 		r.BredParams[i] = BRedParams(qi)
 
 		// If qi is not a power of 2, we can compute the MRedParams (otherwise, it
@@ -251,7 +256,7 @@ func (r *Ring) genNTTParams(NthRoot uint64) error {
 		panic("error : invalid r parameters (missing)")
 	}
 
-	// Check if each qi is prime and equal to 1 mod NthRoot
+	// Checks if each qi is prime and equal to 1 mod NthRoot
 	for i, qi := range r.Modulus {
 		if !IsPrime(qi) {
 			return fmt.Errorf("invalid modulus (Modulus[%d] is not prime)", i)
@@ -287,10 +292,10 @@ func (r *Ring) genNTTParams(NthRoot uint64) error {
 
 	for i, qi := range r.Modulus {
 
-		// 1.1 Compute N^(-1) mod Q in Montgomery form
+		// 1.1 Computes N^(-1) mod Q in Montgomery form
 		r.NttNInv[i] = MForm(ModExp(NthRoot>>1, qi-2, qi), qi, r.BredParams[i])
 
-		// 1.2 Compute Psi and PsiInv in Montgomery form
+		// 1.2 Computes Psi and PsiInv in Montgomery form
 		r.NttPsi[i] = make([]uint64, NthRoot>>1)
 		r.NttPsiInv[i] = make([]uint64, NthRoot>>1)
 
@@ -310,7 +315,7 @@ func (r *Ring) genNTTParams(NthRoot uint64) error {
 		r.NttPsi[i][0] = MForm(1, qi, r.BredParams[i])
 		r.NttPsiInv[i][0] = MForm(1, qi, r.BredParams[i])
 
-		// Compute nttPsi[j] = nttPsi[j-1]*Psi and nttPsiInv[j] = nttPsiInv[j-1]*PsiInv
+		// Computes nttPsi[j] = nttPsi[j-1]*Psi and nttPsiInv[j] = nttPsiInv[j-1]*PsiInv
 		for j := uint64(1); j < NthRoot>>1; j++ {
 
 			indexReversePrev := utils.BitReverse64(uint64(j-1), logNthRoot)
@@ -369,26 +374,12 @@ func (r *Ring) UnmarshalBinary(data []byte) error {
 
 // NewPoly creates a new polynomial with all coefficients set to 0.
 func (r *Ring) NewPoly() *Poly {
-	p := new(Poly)
-
-	p.Coeffs = make([][]uint64, len(r.Modulus))
-	for i := 0; i < len(r.Modulus); i++ {
-		p.Coeffs[i] = make([]uint64, r.N)
-	}
-
-	return p
+	return NewPoly(r.N, len(r.Modulus)-1)
 }
 
 // NewPolyLvl creates a new polynomial with all coefficients set to 0.
 func (r *Ring) NewPolyLvl(level int) *Poly {
-	p := new(Poly)
-
-	p.Coeffs = make([][]uint64, level+1)
-	for i := 0; i < level+1; i++ {
-		p.Coeffs[i] = make([]uint64, r.N)
-	}
-
-	return p
+	return NewPoly(r.N, level)
 }
 
 // SetCoefficientsInt64 sets the coefficients of p1 from an int64 array.
@@ -476,23 +467,16 @@ func (r *Ring) PolyToBigint(p1 *Poly, gap int, coeffsBigint []*big.Int) {
 // For example, if gap = 1, then all coefficients are reconstructed, while
 // if gap = 2 then only coefficients X^{2*i} are reconstructed.
 func (r *Ring) PolyToBigintLvl(level int, p1 *Poly, gap int, coeffsBigint []*big.Int) {
-	var qi uint64
 
 	crtReconstruction := make([]*big.Int, level+1)
 
 	QiB := new(big.Int)
 	tmp := new(big.Int)
-	modulusBigint := NewUint(1)
+	modulusBigint := r.ModulusAtLevel[level]
 
 	for i := 0; i < level+1; i++ {
-
-		qi = r.Modulus[i]
-		QiB.SetUint64(qi)
-
-		modulusBigint.Mul(modulusBigint, QiB)
-
-		crtReconstruction[i] = new(big.Int)
-		crtReconstruction[i].Quo(r.ModulusBigint, QiB)
+		QiB.SetUint64(r.Modulus[i])
+		crtReconstruction[i] = new(big.Int).Quo(modulusBigint, QiB)
 		tmp.ModInverse(crtReconstruction[i], QiB)
 		tmp.Mod(tmp, QiB)
 		crtReconstruction[i].Mul(crtReconstruction[i], tmp)
@@ -517,23 +501,16 @@ func (r *Ring) PolyToBigintLvl(level int, p1 *Poly, gap int, coeffsBigint []*big
 // For example, if gap = 1, then all coefficients are reconstructed, while
 // if gap = 2 then only coefficients X^{2*i} are reconstructed.
 func (r *Ring) PolyToBigintCenteredLvl(level int, p1 *Poly, gap int, coeffsBigint []*big.Int) {
-	var qi uint64
 
 	crtReconstruction := make([]*big.Int, level+1)
 
 	QiB := new(big.Int)
 	tmp := new(big.Int)
-	modulusBigint := NewUint(1)
+	modulusBigint := r.ModulusAtLevel[level]
 
 	for i := 0; i < level+1; i++ {
-
-		qi = r.Modulus[i]
-		QiB.SetUint64(qi)
-
-		modulusBigint.Mul(modulusBigint, QiB)
-
-		crtReconstruction[i] = new(big.Int)
-		crtReconstruction[i].Quo(r.ModulusBigint, QiB)
+		QiB.SetUint64(r.Modulus[i])
+		crtReconstruction[i] = new(big.Int).Quo(modulusBigint, QiB)
 		tmp.ModInverse(crtReconstruction[i], QiB)
 		tmp.Mod(tmp, QiB)
 		crtReconstruction[i].Mul(crtReconstruction[i], tmp)
@@ -565,25 +542,7 @@ func (r *Ring) PolyToBigintCenteredLvl(level int, p1 *Poly, gap int, coeffsBigin
 
 // Equal checks if p1 = p2 in the given Ring.
 func (r *Ring) Equal(p1, p2 *Poly) bool {
-
-	for i := 0; i < len(r.Modulus); i++ {
-		if len(p1.Coeffs[i]) != len(p2.Coeffs[i]) {
-			return false
-		}
-	}
-
-	r.Reduce(p1, p1)
-	r.Reduce(p2, p2)
-
-	for i := 0; i < len(r.Modulus); i++ {
-		for j := 0; j < r.N; j++ {
-			if p1.Coeffs[i][j] != p2.Coeffs[i][j] {
-				return false
-			}
-		}
-	}
-
-	return true
+	return r.EqualLvl(utils.MinInt(p1.Level(), p2.Level()), p1, p2)
 }
 
 // EqualLvl checks if p1 = p2 in the given Ring, up to a given level.

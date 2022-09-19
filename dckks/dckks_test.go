@@ -24,7 +24,7 @@ var minPrec float64 = 15.0
 var parties int = 3
 
 func testString(opname string, parties int, params ckks.Parameters) string {
-	return fmt.Sprintf("%s/RingType=%s/logN=%d/logSlots=%d/logQ=%d/levels=%d/alpha=%d/beta=%d/parties=%d",
+	return fmt.Sprintf("%s/RingType=%s/logN=%d/logSlots=%d/logQ=%d/levels=%d/#Pi=%d/Decomp=%d/parties=%d",
 		opname,
 		params.RingType(),
 		params.LogN(),
@@ -32,7 +32,7 @@ func testString(opname string, parties int, params ckks.Parameters) string {
 		params.LogQP(),
 		params.MaxLevel()+1,
 		params.PCount(),
-		params.Beta(),
+		params.DecompRNS(params.QCount()-1, params.PCount()-1),
 		parties)
 }
 
@@ -64,11 +64,15 @@ type testContext struct {
 
 func TestDCKKS(t *testing.T) {
 
+	var err error
+
 	var testParams []ckks.ParametersLiteral
 	switch {
 	case *flagParamString != "": // the custom test suite reads the parameters from the -params flag
 		testParams = append(testParams, ckks.ParametersLiteral{})
-		json.Unmarshal([]byte(*flagParamString), &testParams[0])
+		if err = json.Unmarshal([]byte(*flagParamString), &testParams[0]); err != nil {
+			t.Fatal(err)
+		}
 	case *flagLongTest:
 		for _, pls := range [][]ckks.ParametersLiteral{
 			ckks.DefaultParams,
@@ -89,13 +93,14 @@ func TestDCKKS(t *testing.T) {
 
 	for _, paramsLiteral := range testParams {
 
-		params, err := ckks.NewParametersFromLiteral(paramsLiteral)
-		if err != nil {
-			panic(err)
+		var params ckks.Parameters
+		if params, err = ckks.NewParametersFromLiteral(paramsLiteral); err != nil {
+			t.Fatal(err)
 		}
+
 		var tc *testContext
 		if tc, err = genTestParams(params); err != nil {
-			panic(err)
+			t.Fatal(err)
 		}
 
 		for _, testSet := range []func(tc *testContext, t *testing.T){
@@ -201,7 +206,7 @@ func testPublicKeyGen(testCtx *testContext, t *testing.T) {
 		// Verifies that decrypt((encryptp(collectiveSk, m), collectivePk) = m
 		encryptorTest := ckks.NewEncryptor(params, pk)
 
-		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorTest, -1, 1, t)
+		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorTest, -1, 1)
 
 		verifyTestVectors(testCtx, decryptorSk0, coeffs, ciphertext, t)
 	})
@@ -261,7 +266,7 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 		rlk := ckks.NewRelinearizationKey(params)
 		P0.GenRelinearizationKey(P0.share1, P0.share2, rlk)
 
-		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, -1, 1, t)
+		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, -1, 1)
 
 		for i := range coeffs {
 			coeffs[i] *= coeffs[i]
@@ -270,7 +275,9 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 		evaluator := testCtx.evaluator.WithKey(rlwe.EvaluationKey{Rlk: rlk, Rtks: nil})
 		evaluator.MulRelin(ciphertext, ciphertext, ciphertext)
 
-		evaluator.Rescale(ciphertext, params.DefaultScale(), ciphertext)
+		if err := evaluator.Rescale(ciphertext, params.DefaultScale(), ciphertext); err != nil {
+			t.Error(err)
+		}
 
 		require.Equal(t, ciphertext.Degree(), 1)
 
@@ -290,7 +297,7 @@ func testKeyswitching(testCtx *testContext, t *testing.T) {
 
 	t.Run(testString("Keyswitching", parties, params), func(t *testing.T) {
 
-		coeffs, _, ciphertextFullLevels := newTestVectors(testCtx, encryptorPk0, -1, 1, t)
+		coeffs, _, ciphertextFullLevels := newTestVectors(testCtx, encryptorPk0, -1, 1)
 
 		for _, dropped := range []int{0, ciphertextFullLevels.Level()} { // runs the test for full and level zero
 			ciphertext := testCtx.evaluator.DropLevelNew(ciphertextFullLevels, dropped)
@@ -351,7 +358,7 @@ func testPublicKeySwitching(testCtx *testContext, t *testing.T) {
 
 	t.Run(testString("PublicKeySwitching", parties, params), func(t *testing.T) {
 
-		coeffs, _, ciphertextFullLevels := newTestVectors(testCtx, encryptorPk0, -1, 1, t)
+		coeffs, _, ciphertextFullLevels := newTestVectors(testCtx, encryptorPk0, -1, 1)
 
 		for _, dropped := range []int{0, ciphertextFullLevels.Level()} { // runs the test for full and level zero
 			ciphertext := testCtx.evaluator.DropLevelNew(ciphertextFullLevels, dropped)
@@ -424,7 +431,7 @@ func testRotKeyGenConjugate(testCtx *testContext, t *testing.T) {
 		}
 		P0 := pcksParties[0]
 
-		// checks that ckks.RTGProtocol complies to the drlwe.RotationKeyGenerator interface
+		// Checks that ckks.RTGProtocol complies to the drlwe.RotationKeyGenerator interface
 		var _ drlwe.RotationKeyGenerator = P0.RTGProtocol
 
 		crp := P0.SampleCRP(testCtx.crs)
@@ -441,7 +448,7 @@ func testRotKeyGenConjugate(testCtx *testContext, t *testing.T) {
 
 		P0.GenRotationKey(P0.share, crp, rotKeySet.Keys[galEl])
 
-		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, -1, 1, t)
+		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, -1, 1)
 
 		evaluator := testCtx.evaluator.WithKey(rlwe.EvaluationKey{Rlk: nil, Rtks: rotKeySet})
 		evaluator.Conjugate(ciphertext, ciphertext)
@@ -485,7 +492,7 @@ func testRotKeyGenCols(testCtx *testContext, t *testing.T) {
 
 		crp := P0.SampleCRP(testCtx.crs)
 
-		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, -1, 1, t)
+		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, -1, 1)
 
 		receiver := ckks.NewCiphertext(params, ciphertext.Degree(), ciphertext.Level(), ciphertext.Scale)
 
@@ -535,7 +542,7 @@ func testE2SProtocol(testCtx *testContext, t *testing.T) {
 			secretShare    *rlwe.AdditiveShareBigint
 		}
 
-		coeffs, _, ciphertext := newTestVectors(testCtx, testCtx.encryptorPk0, -1, 1, t)
+		coeffs, _, ciphertext := newTestVectors(testCtx, testCtx.encryptorPk0, -1, 1)
 
 		testCtx.evaluator.DropLevel(ciphertext, ciphertext.Level()-minLevel-1)
 
@@ -618,11 +625,6 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 			share *RefreshShare
 		}
 
-		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, -1, 1, t)
-
-		// Brings ciphertext to minLevel + 1
-		testCtx.evaluator.DropLevel(ciphertext, ciphertext.Level()-minLevel-1)
-
 		levelIn := minLevel
 		levelOut := params.MaxLevel()
 
@@ -642,20 +644,30 @@ func testRefresh(testCtx *testContext, t *testing.T) {
 
 		P0 := RefreshParties[0]
 
-		crp := P0.SampleCRP(levelOut, testCtx.crs)
+		for _, scale := range []float64{params.DefaultScale(), params.DefaultScale() * 128} {
+			t.Run(fmt.Sprintf("atScale=%f", scale), func(t *testing.T) {
+				coeffs, _, ciphertext := newTestVectorsAtScale(testCtx, encryptorPk0, -1, 1, scale)
 
-		for i, p := range RefreshParties {
+				// Brings ciphertext to minLevel + 1
+				testCtx.evaluator.DropLevel(ciphertext, ciphertext.Level()-minLevel-1)
 
-			p.GenShare(p.s, logBound, params.LogSlots(), ciphertext.Value[1], ciphertext.Scale, crp, p.share)
+				crp := P0.SampleCRP(levelOut, testCtx.crs)
 
-			if i > 0 {
-				P0.AggregateShare(p.share, P0.share, P0.share)
-			}
+				for i, p := range RefreshParties {
+
+					p.GenShare(p.s, logBound, params.LogSlots(), ciphertext.Value[1], ciphertext.Scale, crp, p.share)
+
+					if i > 0 {
+						P0.AggregateShare(p.share, P0.share, P0.share)
+					}
+				}
+
+				P0.Finalize(ciphertext, params.LogSlots(), crp, P0.share, ciphertext)
+
+				verifyTestVectors(testCtx, decryptorSk0, coeffs, ciphertext, t)
+			})
 		}
 
-		P0.Finalize(ciphertext, params.LogSlots(), crp, P0.share, ciphertext)
-
-		verifyTestVectors(testCtx, decryptorSk0, coeffs, ciphertext, t)
 	})
 }
 
@@ -680,7 +692,7 @@ func testRefreshAndTransform(testCtx *testContext, t *testing.T) {
 			share *MaskedTransformShare
 		}
 
-		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, -1, 1, t)
+		coeffs, _, ciphertext := newTestVectors(testCtx, encryptorPk0, -1, 1)
 
 		// Drops the ciphertext to the minimum level that ensures correctness and 128-bit security
 		testCtx.evaluator.DropLevel(ciphertext, ciphertext.Level()-minLevel-1)
@@ -746,7 +758,7 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 		testCtx.uniformSampler.Read(ciphertext.Value[0])
 		testCtx.uniformSampler.Read(ciphertext.Value[1])
 
-		//testing refresh shares
+		// Testing refresh shares
 		refreshproto := NewRefreshProtocol(testCtx.params, logBound, 3.2)
 		refreshshare := refreshproto.AllocateShare(ciphertext.Level(), params.MaxLevel())
 
@@ -769,20 +781,24 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 
 		for i, r := range refreshshare.e2sShare.Value.Coeffs {
 			if !utils.EqualSliceUint64(resRefreshShare.e2sShare.Value.Coeffs[i], r) {
-				t.Fatal("Resulting of marshalling not the same as original : RefreshShare")
+				t.Fatal("Result of marshalling not the same as original : RefreshShare")
 			}
 
 		}
 		for i, r := range refreshshare.s2eShare.Value.Coeffs {
 			if !utils.EqualSliceUint64(resRefreshShare.s2eShare.Value.Coeffs[i], r) {
-				t.Fatal("Resulting of marshalling not the same as original : RefreshShare")
+				t.Fatal("Result of marshalling not the same as original : RefreshShare")
 			}
 
 		}
 	})
 }
 
-func newTestVectors(testContext *testContext, encryptor ckks.Encryptor, a, b complex128, t *testing.T) (values []complex128, plaintext *ckks.Plaintext, ciphertext *ckks.Ciphertext) {
+func newTestVectors(testContext *testContext, encryptor ckks.Encryptor, a, b complex128) (values []complex128, plaintext *ckks.Plaintext, ciphertext *ckks.Ciphertext) {
+	return newTestVectorsAtScale(testContext, encryptor, a, b, testContext.params.DefaultScale())
+}
+
+func newTestVectorsAtScale(testContext *testContext, encryptor ckks.Encryptor, a, b complex128, scale float64) (values []complex128, plaintext *ckks.Plaintext, ciphertext *ckks.Ciphertext) {
 
 	params := testContext.params
 
@@ -794,7 +810,7 @@ func newTestVectors(testContext *testContext, encryptor ckks.Encryptor, a, b com
 		values[i] = complex(utils.RandFloat64(real(a), real(b)), utils.RandFloat64(imag(a), imag(b)))
 	}
 
-	plaintext = testContext.encoder.EncodeNew(values, params.MaxLevel(), params.DefaultScale(), params.LogSlots())
+	plaintext = testContext.encoder.EncodeNew(values, params.MaxLevel(), scale, params.LogSlots())
 
 	if encryptor != nil {
 		ciphertext = encryptor.EncryptNew(plaintext)

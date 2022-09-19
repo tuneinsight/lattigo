@@ -69,7 +69,7 @@ func (gaussianSampler *GaussianSampler) ReadAndAddFromDistLvl(level int, pol *Po
 	var coeffFlo float64
 	var coeffInt, sign uint64
 
-	gaussianSampler.prng.Clock(gaussianSampler.randomBufferN)
+	gaussianSampler.prng.Read(gaussianSampler.randomBufferN)
 
 	modulus := ring.Modulus[:level+1]
 
@@ -94,7 +94,7 @@ func (gaussianSampler *GaussianSampler) readLvl(level int, pol *Poly, ring *Ring
 	var coeffInt uint64
 	var sign uint64
 
-	gaussianSampler.prng.Clock(gaussianSampler.randomBufferN)
+	gaussianSampler.prng.Read(gaussianSampler.randomBufferN)
 
 	modulus := ring.Modulus[:level+1]
 
@@ -133,7 +133,7 @@ func (gaussianSampler *GaussianSampler) normFloat64() (float64, uint64) {
 	for {
 
 		if gaussianSampler.ptr == uint64(len(gaussianSampler.randomBufferN)) {
-			gaussianSampler.prng.Clock(gaussianSampler.randomBufferN)
+			gaussianSampler.prng.Read(gaussianSampler.randomBufferN)
 			gaussianSampler.ptr = 0
 		}
 
@@ -161,7 +161,7 @@ func (gaussianSampler *GaussianSampler) normFloat64() (float64, uint64) {
 			for {
 
 				if gaussianSampler.ptr == uint64(len(gaussianSampler.randomBufferN)) {
-					gaussianSampler.prng.Clock(gaussianSampler.randomBufferN)
+					gaussianSampler.prng.Read(gaussianSampler.randomBufferN)
 					gaussianSampler.ptr = 0
 				}
 
@@ -169,7 +169,7 @@ func (gaussianSampler *GaussianSampler) normFloat64() (float64, uint64) {
 				gaussianSampler.ptr += 8
 
 				if gaussianSampler.ptr == uint64(len(gaussianSampler.randomBufferN)) {
-					gaussianSampler.prng.Clock(gaussianSampler.randomBufferN)
+					gaussianSampler.prng.Read(gaussianSampler.randomBufferN)
 					gaussianSampler.ptr = 0
 				}
 
@@ -185,7 +185,7 @@ func (gaussianSampler *GaussianSampler) normFloat64() (float64, uint64) {
 		}
 
 		if gaussianSampler.ptr == uint64(len(gaussianSampler.randomBufferN)) {
-			gaussianSampler.prng.Clock(gaussianSampler.randomBufferN)
+			gaussianSampler.prng.Read(gaussianSampler.randomBufferN)
 			gaussianSampler.ptr = 0
 		}
 

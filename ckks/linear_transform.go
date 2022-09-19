@@ -4,13 +4,13 @@ import (
 	"runtime"
 
 	"github.com/tuneinsight/lattigo/v3/ring"
-	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
 // Trace maps X -> sum((-1)^i * X^{i*n+1}) for 0 <= i < N
-// For log(n) = logSlotStart and log(N/2) = logSlotsEnd
-// Monomial X^k vanishes if k is not divisible by (N/n), else it is multiplied by (N/n).
+// For log(n) = logSlots.
+// Monomial X^k vanishes if k is not divisible by (N/n), otherwise it is multiplied by (N/n).
 // Ciphertext is pre-multiplied by (N/n)^-1 to remove the (N/n) factor.
 // Examples of full Trace for [0 + 1X + 2X^2 + 3X^3 + 4X^4 + 5X^5 + 6X^6 + 7X^7]
 //
@@ -25,50 +25,16 @@ import (
 // 3)      [4 + 0X + 0X^2 - 0X^3 +20X^4 + 0X^5 + 0X^6 - 0X^7]
 //       + [4 + 4X + 0X^2 - 0X^3 -20X^4 + 0X^5 + 0X^6 - 0X^7]  {X-> X^(i * -1)}
 //       = [8 + 0X + 0X^2 - 0X^3 + 0X^4 + 0X^5 + 0X^6 - 0X^7]
-func (eval *evaluator) Trace(ctIn *Ciphertext, logSlotsStart, logSlotsEnd int, ctOut *Ciphertext) {
-
-	levelQ := utils.MinInt(ctIn.Level(), ctOut.Level())
-
-	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:levelQ+1]
-	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:levelQ+1]
+func (eval *evaluator) Trace(ctIn *Ciphertext, logSlots int, ctOut *Ciphertext) {
+	eval.Evaluator.Trace(ctIn.Ciphertext, logSlots, ctOut.Ciphertext)
 	ctOut.Scale = ctIn.Scale
-
-	n := 1 << (logSlotsEnd - logSlotsStart)
-
-	if n > 1 {
-
-		ringQ := eval.params.RingQ()
-
-		// pre-multiplication by (N/n)^-1
-		for i := 0; i < levelQ+1; i++ {
-			Q := ringQ.Modulus[i]
-			bredParams := ringQ.BredParams[i]
-			mredparams := ringQ.MredParams[i]
-			invN := ring.ModExp(uint64(n), Q-2, Q)
-			invN = ring.MForm(invN, Q, bredParams)
-
-			ring.MulScalarMontgomeryVec(ctIn.Value[0].Coeffs[i], ctOut.Value[0].Coeffs[i], invN, Q, mredparams)
-			ring.MulScalarMontgomeryVec(ctIn.Value[1].Coeffs[i], ctOut.Value[1].Coeffs[i], invN, Q, mredparams)
-		}
-
-		for i := logSlotsStart; i < logSlotsEnd; i++ {
-			eval.permuteNTT(ctOut, eval.params.GaloisElementForColumnRotationBy(1<<i), eval.ctxpool)
-			ctPool := &Ciphertext{Ciphertext: eval.ctxpool.Ciphertext, Scale: ctOut.Scale}
-			ctPool.Value = ctPool.Value[:2]
-			eval.Add(ctOut, ctPool, ctOut)
-		}
-	} else {
-		if ctIn != ctOut {
-			ctOut.Copy(ctIn)
-		}
-	}
 }
 
 // TraceNew maps X -> sum((-1)^i * X^{i*n+1}) for 0 <= i < N and returns the result on a new ciphertext.
-// For log(n) = logSlotStart and log(N/2) = logSlotsEnd
-func (eval *evaluator) TraceNew(ctIn *Ciphertext, logSlotsStart, logSlotsEnd int) (ctOut *Ciphertext) {
+// For log(n) = logSlots.
+func (eval *evaluator) TraceNew(ctIn *Ciphertext, logSlots int) (ctOut *Ciphertext) {
 	ctOut = NewCiphertext(eval.params, 1, ctIn.Level(), ctIn.Scale)
-	eval.Trace(ctIn, logSlotsStart, logSlotsEnd, ctOut)
+	eval.Trace(ctIn, logSlots, ctOut)
 	return
 }
 
@@ -88,16 +54,10 @@ func (eval *evaluator) RotateHoistedNew(ctIn *Ciphertext, rotations []int) (ctOu
 // It is much faster than sequential calls to Rotate.
 func (eval *evaluator) RotateHoisted(ctIn *Ciphertext, rotations []int, ctOut map[int]*Ciphertext) {
 	levelQ := ctIn.Level()
-	eval.DecomposeNTT(levelQ, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], eval.PoolDecompQP)
+	eval.DecomposeNTT(levelQ, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], eval.BuffDecompQP)
 	for _, i := range rotations {
-		ctOut[i].Value[0].Coeffs = ctOut[i].Value[0].Coeffs[:levelQ+1]
-		ctOut[i].Value[1].Coeffs = ctOut[i].Value[1].Coeffs[:levelQ+1]
+		eval.AutomorphismHoisted(levelQ, ctIn.Ciphertext, eval.BuffDecompQP, eval.params.GaloisElementForColumnRotationBy(i), ctOut[i].Ciphertext)
 		ctOut[i].Scale = ctIn.Scale
-		if i == 0 {
-			ctOut[i].Copy(ctIn)
-		} else {
-			eval.PermuteNTTHoisted(levelQ, ctIn.Value[0], ctIn.Value[1], eval.PoolDecompQP, i, ctOut[i].Value[0], ctOut[i].Value[1])
-		}
 	}
 }
 
@@ -109,14 +69,14 @@ type LinearTransform struct {
 	N1       int                 // N1 is the number of inner loops of the baby-step giant-step algorithm used in the evaluation (if N1 == 0, BSGS is not used).
 	Level    int                 // Level is the level at which the matrix is encoded (can be circuit dependent)
 	Scale    float64             // Scale is the scale at which the matrix is encoded (can be circuit dependent)
-	Vec      map[int]rlwe.PolyQP // Vec is the matrix, in diagonal form, where each entry of vec is an indexed non-zero diagonal.
+	Vec      map[int]ringqp.Poly // Vec is the matrix, in diagonal form, where each entry of vec is an indexed non-zero diagonal.
 }
 
 // NewLinearTransform allocates a new LinearTransform with zero plaintexts at the specified level.
 // If BSGSRatio == 0, the LinearTransform is set to not use the BSGS approach.
 // Method will panic if BSGSRatio < 0.
 func NewLinearTransform(params Parameters, nonZeroDiags []int, level, logSlots int, BSGSRatio float64) LinearTransform {
-	vec := make(map[int]rlwe.PolyQP)
+	vec := make(map[int]ringqp.Poly)
 	slots := 1 << logSlots
 	levelQ := level
 	levelP := params.PCount() - 1
@@ -194,7 +154,7 @@ func (LT *LinearTransform) Encode(encoder Encoder, value interface{}, scale floa
 
 	enc, ok := encoder.(*encoderComplex128)
 	if !ok {
-		panic("encoder should be an encoderComplex128")
+		panic("cannot Encode: encoder should be an encoderComplex128")
 	}
 
 	dMat := interfaceMapToMapOfInterface(value)
@@ -209,7 +169,7 @@ func (LT *LinearTransform) Encode(encoder Encoder, value interface{}, scale floa
 			}
 
 			if _, ok := LT.Vec[idx]; !ok {
-				panic("error encoding on LinearTransform: input does not match the same non-zero diagonals")
+				panic("cannot Encode: error encoding on LinearTransform: input does not match the same non-zero diagonals")
 			}
 
 			enc.Embed(dMat[i], LT.LogSlots, scale, true, LT.Vec[idx])
@@ -226,7 +186,7 @@ func (LT *LinearTransform) Encode(encoder Encoder, value interface{}, scale floa
 				}
 
 				if _, ok := LT.Vec[j+i]; !ok {
-					panic("error encoding on LinearTransform BSGS: input does not match the same non-zero diagonals")
+					panic("cannot Encode: error encoding on LinearTransform BSGS: input does not match the same non-zero diagonals")
 				}
 
 				enc.Embed(utils.RotateSlice(v, -j), LT.LogSlots, scale, true, LT.Vec[j+i])
@@ -247,12 +207,12 @@ func GenLinearTransform(encoder Encoder, value interface{}, level int, scale flo
 
 	enc, ok := encoder.(*encoderComplex128)
 	if !ok {
-		panic("encoder should be an encoderComplex128")
+		panic("cannot GenLinearTransform: encoder should be an encoderComplex128")
 	}
 
 	params := enc.params
 	dMat := interfaceMapToMapOfInterface(value)
-	vec := make(map[int]rlwe.PolyQP)
+	vec := make(map[int]ringqp.Poly)
 	slots := 1 << logslots
 	levelQ := level
 	levelP := params.PCount() - 1
@@ -281,7 +241,7 @@ func GenLinearTransformBSGS(encoder Encoder, value interface{}, level int, scale
 
 	enc, ok := encoder.(*encoderComplex128)
 	if !ok {
-		panic("encoder should be an encoderComplex128")
+		panic("cannot GenLinearTransformBSGS: encoder should be an encoderComplex128")
 	}
 
 	params := enc.params
@@ -293,7 +253,7 @@ func GenLinearTransformBSGS(encoder Encoder, value interface{}, level int, scale
 
 	index, _, _ := BsgsIndex(value, slots, N1)
 
-	vec := make(map[int]rlwe.PolyQP)
+	vec := make(map[int]ringqp.Poly)
 
 	dMat := interfaceMapToMapOfInterface(value)
 	levelQ := level
@@ -343,7 +303,7 @@ func BsgsIndex(el interface{}, slots, N1 int) (index map[int][]int, rotN1, rotN2
 			nonZeroDiags[i] = key
 			i++
 		}
-	case map[int]rlwe.PolyQP:
+	case map[int]ringqp.Poly:
 		nonZeroDiags = make([]int, len(element))
 		var i int
 		for key := range element {
@@ -392,7 +352,7 @@ func interfaceMapToMapOfInterface(m interface{}) map[int]interface{} {
 			d[i] = el[i]
 		}
 	default:
-		panic("invalid input, must be map[int][]complex128 or map[int][]float64")
+		panic("cannot interfaceMapToMapOfInterface: invalid input, must be map[int][]complex128 or map[int][]float64")
 	}
 	return d
 }
@@ -436,29 +396,29 @@ func (eval *evaluator) LinearTransformNew(ctIn *Ciphertext, linearTransform inte
 
 		minLevel := utils.MinInt(maxLevel, ctIn.Level())
 
-		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], eval.PoolDecompQP)
+		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], eval.BuffDecompQP)
 
 		for i, LT := range LTs {
 			ctOut[i] = NewCiphertext(eval.params, 1, minLevel, ctIn.Scale)
 
 			if LT.N1 == 0 {
-				eval.MultiplyByDiagMatrix(ctIn, LT, eval.PoolDecompQP, ctOut[i])
+				eval.MultiplyByDiagMatrix(ctIn, LT, eval.BuffDecompQP, ctOut[i])
 			} else {
-				eval.MultiplyByDiagMatrixBSGS(ctIn, LT, eval.PoolDecompQP, ctOut[i])
+				eval.MultiplyByDiagMatrixBSGS(ctIn, LT, eval.BuffDecompQP, ctOut[i])
 			}
 		}
 
 	case LinearTransform:
 
 		minLevel := utils.MinInt(LTs.Level, ctIn.Level())
-		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], eval.PoolDecompQP)
+		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], eval.BuffDecompQP)
 
 		ctOut = []*Ciphertext{NewCiphertext(eval.params, 1, minLevel, ctIn.Scale)}
 
 		if LTs.N1 == 0 {
-			eval.MultiplyByDiagMatrix(ctIn, LTs, eval.PoolDecompQP, ctOut[0])
+			eval.MultiplyByDiagMatrix(ctIn, LTs, eval.BuffDecompQP, ctOut[0])
 		} else {
-			eval.MultiplyByDiagMatrixBSGS(ctIn, LTs, eval.PoolDecompQP, ctOut[0])
+			eval.MultiplyByDiagMatrixBSGS(ctIn, LTs, eval.BuffDecompQP, ctOut[0])
 		}
 	}
 	return
@@ -480,23 +440,23 @@ func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfa
 
 		minLevel := utils.MinInt(maxLevel, ctIn.Level())
 
-		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], eval.PoolDecompQP)
+		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], eval.BuffDecompQP)
 
 		for i, LT := range LTs {
 			if LT.N1 == 0 {
-				eval.MultiplyByDiagMatrix(ctIn, LT, eval.PoolDecompQP, ctOut[i])
+				eval.MultiplyByDiagMatrix(ctIn, LT, eval.BuffDecompQP, ctOut[i])
 			} else {
-				eval.MultiplyByDiagMatrixBSGS(ctIn, LT, eval.PoolDecompQP, ctOut[i])
+				eval.MultiplyByDiagMatrixBSGS(ctIn, LT, eval.BuffDecompQP, ctOut[i])
 			}
 		}
 
 	case LinearTransform:
 		minLevel := utils.MinInt(LTs.Level, ctIn.Level())
-		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], eval.PoolDecompQP)
+		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], eval.BuffDecompQP)
 		if LTs.N1 == 0 {
-			eval.MultiplyByDiagMatrix(ctIn, LTs, eval.PoolDecompQP, ctOut[0])
+			eval.MultiplyByDiagMatrix(ctIn, LTs, eval.BuffDecompQP, ctOut[0])
 		} else {
-			eval.MultiplyByDiagMatrixBSGS(ctIn, LTs, eval.PoolDecompQP, ctOut[0])
+			eval.MultiplyByDiagMatrixBSGS(ctIn, LTs, eval.BuffDecompQP, ctOut[0])
 		}
 	}
 }
@@ -510,7 +470,7 @@ func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfa
 func (eval *evaluator) Average(ctIn *Ciphertext, logBatchSize int, ctOut *Ciphertext) {
 
 	if logBatchSize > eval.params.LogSlots() {
-		panic("batchSize must be smaller or equal to the number of slots")
+		panic("cannot Average: batchSize must be smaller or equal to the number of slots")
 	}
 
 	ringQ := eval.params.RingQ()
@@ -542,13 +502,12 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 
 	ringQ := eval.params.RingQ()
 	ringP := eval.params.RingP()
-	ringQP := rlwe.RingQP{RingQ: ringQ, RingP: ringP}
+	ringQP := eval.params.RingQP()
 
 	levelQ := ctIn.Level()
 	levelP := len(ringP.Modulus) - 1
 
-	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:levelQ+1]
-	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:levelQ+1]
+	ctOut.Resize(ctOut.Degree(), levelQ)
 	ctOut.Scale = ctIn.Scale
 
 	if n == 1 {
@@ -558,16 +517,22 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 		}
 	} else {
 
-		// Memory pool for ctIn = ctIn + rot(ctIn, 2^i) in Q
-		tmpc0 := eval.poolQMul[0] // unused memory pool from evaluator
-		tmpc1 := eval.poolQMul[1] // unused memory pool from evaluator
+		// Memory buffer for ctIn = ctIn + rot(ctIn, 2^i) in Q
+		tmpc0 := eval.buffQ[0] // unused memory buffer from evaluator
+		tmpc1 := eval.buffQ[1] // unused memory buffer from evaluator
 
+		c0OutQP := eval.BuffQP[2]
+		c1OutQP := eval.BuffQP[3]
+		c0QP := eval.BuffQP[4]
+		c1QP := eval.BuffQP[5]
+
+		tmpc0.IsNTT = true
 		tmpc1.IsNTT = true
+		c0QP.Q.IsNTT = true
+		c1QP.Q.IsNTT = true
 
-		c0OutQP := eval.Pool[2]
-		c1OutQP := eval.Pool[3]
-		c0QP := eval.Pool[4]
-		c1QP := eval.Pool[5]
+		tmpct := NewCiphertextAtLevelFromPoly(levelQ, [2]*ring.Poly{tmpc0, tmpc1})
+		ctqp := NewCiphertextAtLevelFromPoly(levelQ, [2]*ring.Poly{c0QP.Q, c1QP.Q})
 
 		state := false
 		copy := true
@@ -577,10 +542,10 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 			// Starts by decomposing the input ciphertext
 			if i == 0 {
 				// If first iteration, then copies directly from the input ciphertext that hasn't been rotated
-				eval.DecomposeNTT(levelQ, levelP, levelP+1, ctIn.Value[1], eval.PoolDecompQP)
+				eval.DecomposeNTT(levelQ, levelP, levelP+1, ctIn.Value[1], eval.BuffDecompQP)
 			} else {
 				// Else copies from the rotated input ciphertext
-				eval.DecomposeNTT(levelQ, levelP, levelP+1, tmpc1, eval.PoolDecompQP)
+				eval.DecomposeNTT(levelQ, levelP, levelP+1, tmpc1, eval.BuffDecompQP)
 			}
 
 			// If the binary reading scans a 1
@@ -594,9 +559,9 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 
 					// Rotate((tmpc0, tmpc1), k)
 					if i == 0 {
-						eval.PermuteNTTHoistedNoModDown(levelQ, ctIn.Value[0], eval.PoolDecompQP, k, c0QP.Q, c1QP.Q, c0QP.P, c1QP.P)
+						eval.AutomorphismHoistedNoModDown(levelQ, ctIn.Value[0], eval.BuffDecompQP, eval.params.GaloisElementForColumnRotationBy(k), c0QP.Q, c1QP.Q, c0QP.P, c1QP.P)
 					} else {
-						eval.PermuteNTTHoistedNoModDown(levelQ, tmpc0, eval.PoolDecompQP, k, c0QP.Q, c1QP.Q, c0QP.P, c1QP.P)
+						eval.AutomorphismHoistedNoModDown(levelQ, tmpc0, eval.BuffDecompQP, eval.params.GaloisElementForColumnRotationBy(k), c0QP.Q, c1QP.Q, c0QP.P, c1QP.P)
 					}
 
 					// ctOut += Rotate((tmpc0, tmpc1), k)
@@ -631,13 +596,15 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 			}
 
 			if !state {
+
+				rot := eval.params.GaloisElementForColumnRotationBy((1 << i) * batchSize)
 				if i == 0 {
-					eval.PermuteNTTHoisted(levelQ, ctIn.Value[0], ctIn.Value[1], eval.PoolDecompQP, (1<<i)*batchSize, tmpc0, tmpc1)
+					eval.AutomorphismHoisted(levelQ, ctIn.Ciphertext, eval.BuffDecompQP, rot, tmpct.Ciphertext)
 					ringQ.AddLvl(levelQ, tmpc0, ctIn.Value[0], tmpc0)
 					ringQ.AddLvl(levelQ, tmpc1, ctIn.Value[1], tmpc1)
 				} else {
 					// (tmpc0, tmpc1) = Rotate((tmpc0, tmpc1), 2^i)
-					eval.PermuteNTTHoisted(levelQ, tmpc0, tmpc1, eval.PoolDecompQP, (1<<i)*batchSize, c0QP.Q, c1QP.Q)
+					eval.AutomorphismHoisted(levelQ, tmpct.Ciphertext, eval.BuffDecompQP, rot, ctqp.Ciphertext)
 					ringQ.AddLvl(levelQ, tmpc0, c0QP.Q, tmpc0)
 					ringQ.AddLvl(levelQ, tmpc1, c1QP.Q, tmpc1)
 				}
@@ -654,7 +621,7 @@ func (eval *evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 
 	ringQ := eval.params.RingQ()
 	ringP := eval.params.RingP()
-	ringQP := rlwe.RingQP{RingQ: ringQ, RingP: ringP}
+	ringQP := eval.params.RingQP()
 
 	levelQ := ctIn.Level()
 	levelP := len(ringP.Modulus) - 1
@@ -662,8 +629,7 @@ func (eval *evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 	QiOverF := eval.params.QiOverflowMargin(levelQ) >> 1
 	PiOverF := eval.params.PiOverflowMargin(levelP) >> 1
 
-	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:levelQ+1]
-	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:levelQ+1]
+	ctOut.Resize(ctOut.Degree(), levelQ)
 	ctOut.Scale = ctIn.Scale
 
 	// If sum with only the first element, then returns the input
@@ -683,19 +649,19 @@ func (eval *evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 			rotations = append(rotations, i*batchSize)
 		}
 
-		// Memory pool
-		tmp0QP := eval.Pool[1]
-		tmp1QP := eval.Pool[2]
+		// Memory buffer
+		tmp0QP := eval.BuffQP[1]
+		tmp1QP := eval.BuffQP[2]
 
 		// Basis decomposition
-		eval.DecomposeNTT(levelQ, levelP, levelP+1, ctIn.Value[1], eval.PoolDecompQP)
+		eval.DecomposeNTT(levelQ, levelP, levelP+1, ctIn.Value[1], eval.BuffDecompQP)
 
 		// Pre-rotates all [1, ..., n-1] rotations
 		// Hoisted rotation without division by P
-		ctInRotQP := eval.RotateHoistedNoModDownNew(levelQ, rotations, ctIn.Value[0], eval.PoolDecompQP)
+		ctInRotQP := eval.RotateHoistedNoModDownNew(levelQ, rotations, ctIn.Value[0], eval.BuffDecompQP)
 
 		// P*c0 -> tmp0QP.Q
-		ringQ.MulScalarBigintLvl(levelQ, ctIn.Value[0], ringP.ModulusBigint, tmp0QP.Q)
+		ringQ.MulScalarBigintLvl(levelQ, ctIn.Value[0], ringP.ModulusAtLevel[levelP], tmp0QP.Q)
 
 		// Adds phi_k(P*c0) on each of the vecRotQ
 		// Does not need to add on the vecRotP because mod P === 0
@@ -769,39 +735,38 @@ func (eval *evaluator) Replicate(ctIn *Ciphertext, batchSize, n int, ctOut *Ciph
 }
 
 // MultiplyByDiagMatrix multiplies the ciphertext "ctIn" by the plaintext matrix "matrix" and returns the result on the ciphertext
-// "ctOut". Memory pools for the decomposed ciphertext PoolDecompQ, PoolDecompP must be provided, those are list of poly of ringQ and ringP
-// respectively, each of size params.Beta().
+// "ctOut". Memory buffers for the decomposed ciphertext BuffDecompQP, BuffDecompQP must be provided, those are list of poly of ringQ and ringP
+// respectively, each of size params.DecompRNS(params.QCount()-1, params.PCount()-1)).
 // The naive approach is used (single hoisting and no baby-step giant-step), which is faster than MultiplyByDiagMatrixBSGS
 // for matrix of only a few non-zero diagonals but uses more keys.
-func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTransform, PoolDecompQP []rlwe.PolyQP, ctOut *Ciphertext) {
+func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTransform, BuffDecompQP []ringqp.Poly, ctOut *Ciphertext) {
 
 	ringQ := eval.params.RingQ()
 	ringP := eval.params.RingP()
-	ringQP := rlwe.RingQP{RingQ: ringQ, RingP: ringP}
+	ringQP := eval.params.RingQP()
 
 	levelQ := utils.MinInt(ctOut.Level(), utils.MinInt(ctIn.Level(), matrix.Level))
 	levelP := len(ringP.Modulus) - 1
 
-	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:levelQ+1]
-	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:levelQ+1]
+	ctOut.Resize(ctOut.Degree(), levelQ)
 
 	QiOverF := eval.params.QiOverflowMargin(levelQ)
 	PiOverF := eval.params.PiOverflowMargin(levelP)
 
-	c0OutQP := rlwe.PolyQP{Q: ctOut.Value[0], P: eval.Pool[5].Q}
-	c1OutQP := rlwe.PolyQP{Q: ctOut.Value[1], P: eval.Pool[5].P}
+	c0OutQP := ringqp.Poly{Q: ctOut.Value[0], P: eval.BuffQP[5].Q}
+	c1OutQP := ringqp.Poly{Q: ctOut.Value[1], P: eval.BuffQP[5].P}
 
-	ct0TimesP := eval.Pool[0].Q // ct0 * P mod Q
-	tmp0QP := eval.Pool[1]
-	tmp1QP := eval.Pool[2]
-	ksRes0QP := eval.Pool[3]
-	ksRes1QP := eval.Pool[4]
+	ct0TimesP := eval.BuffQP[0].Q // ct0 * P mod Q
+	tmp0QP := eval.BuffQP[1]
+	tmp1QP := eval.BuffQP[2]
+	ksRes0QP := eval.BuffQP[3]
+	ksRes1QP := eval.BuffQP[4]
 
-	ring.CopyValuesLvl(levelQ, ctIn.Value[0], eval.ctxpool.Value[0])
-	ring.CopyValuesLvl(levelQ, ctIn.Value[1], eval.ctxpool.Value[1])
-	ctInTmp0, ctInTmp1 := eval.ctxpool.Value[0], eval.ctxpool.Value[1]
+	ring.CopyValuesLvl(levelQ, ctIn.Value[0], eval.buffCt.Value[0])
+	ring.CopyValuesLvl(levelQ, ctIn.Value[1], eval.buffCt.Value[1])
+	ctInTmp0, ctInTmp1 := eval.buffCt.Value[0], eval.buffCt.Value[1]
 
-	ringQ.MulScalarBigintLvl(levelQ, ctInTmp0, ringP.ModulusBigint, ct0TimesP) // P*c0
+	ringQ.MulScalarBigintLvl(levelQ, ctInTmp0, ringP.ModulusAtLevel[levelP], ct0TimesP) // P*c0
 
 	var state bool
 	var cnt int
@@ -815,14 +780,14 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTrans
 
 			galEl := eval.params.GaloisElementForColumnRotationBy(k)
 
-			rtk, generated := eval.rtks.Keys[galEl]
+			rtk, generated := eval.Rtks.Keys[galEl]
 			if !generated {
-				panic("switching key not available")
+				panic("cannot MultiplyByDiagMatrix: switching key not available")
 			}
 
-			index := eval.permuteNTTIndex[galEl]
+			index := eval.PermuteNTTIndex[galEl]
 
-			eval.KeyswitchHoistedNoModDown(levelQ, PoolDecompQP, rtk, ksRes0QP.Q, ksRes1QP.Q, ksRes0QP.P, ksRes1QP.P)
+			eval.KeyswitchHoistedNoModDown(levelQ, BuffDecompQP, rtk, ksRes0QP.Q, ksRes1QP.Q, ksRes0QP.P, ksRes1QP.P)
 			ringQ.AddLvl(levelQ, ksRes0QP.Q, ct0TimesP, ksRes0QP.Q)
 			ringQP.PermuteNTTWithIndexLvl(levelQ, levelP, ksRes0QP, index, tmp0QP)
 			ringQP.PermuteNTTWithIndexLvl(levelQ, levelP, ksRes1QP, index, tmp1QP)
@@ -873,21 +838,20 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTrans
 }
 
 // MultiplyByDiagMatrixBSGS multiplies the ciphertext "ctIn" by the plaintext matrix "matrix" and returns the result on the ciphertext
-// "ctOut". Memory pools for the decomposed ciphertext PoolDecompQ, PoolDecompP must be provided, those are list of poly of ringQ and ringP
-// respectively, each of size params.Beta().
+// "ctOut". Memory buffers for the decomposed ciphertext BuffDecompQP, BuffDecompQP must be provided, those are list of poly of ringQ and ringP
+// respectively, each of size params.DecompRNS(params.QCount()-1, params.PCount()-1)).
 // The BSGS approach is used (double hoisting with baby-step giant-step), which is faster than MultiplyByDiagMatrix
 // for matrix with more than a few non-zero diagonals and uses much less keys.
-func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearTransform, PoolDecompQP []rlwe.PolyQP, ctOut *Ciphertext) {
+func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearTransform, PoolDecompQP []ringqp.Poly, ctOut *Ciphertext) {
 
 	ringQ := eval.params.RingQ()
 	ringP := eval.params.RingP()
-	ringQP := rlwe.RingQP{RingQ: ringQ, RingP: ringP}
+	ringQP := eval.params.RingQP()
 
 	levelQ := utils.MinInt(ctOut.Level(), utils.MinInt(ctIn.Level(), matrix.Level))
 	levelP := len(ringP.Modulus) - 1
 
-	ctOut.Value[0].Coeffs = ctOut.Value[0].Coeffs[:levelQ+1]
-	ctOut.Value[1].Coeffs = ctOut.Value[1].Coeffs[:levelQ+1]
+	ctOut.Resize(ctOut.Degree(), levelQ)
 
 	QiOverF := eval.params.QiOverflowMargin(levelQ) >> 1
 	PiOverF := eval.params.PiOverflowMargin(levelP) >> 1
@@ -896,27 +860,27 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearT
 
 	index, _, rotN2 := BsgsIndex(matrix.Vec, 1<<matrix.LogSlots, matrix.N1)
 
-	ring.CopyValuesLvl(levelQ, ctIn.Value[0], eval.ctxpool.Value[0])
-	ring.CopyValuesLvl(levelQ, ctIn.Value[1], eval.ctxpool.Value[1])
-	ctInTmp0, ctInTmp1 := eval.ctxpool.Value[0], eval.ctxpool.Value[1]
+	ring.CopyValuesLvl(levelQ, ctIn.Value[0], eval.buffCt.Value[0])
+	ring.CopyValuesLvl(levelQ, ctIn.Value[1], eval.buffCt.Value[1])
+	ctInTmp0, ctInTmp1 := eval.buffCt.Value[0], eval.buffCt.Value[1]
 
 	// Pre-rotates ciphertext for the baby-step giant-step algorithm, does not divide by P yet
-	ctInRotQP := eval.RotateHoistedNoModDownNew(levelQ, rotN2, ctInTmp0, eval.PoolDecompQP)
+	ctInRotQP := eval.RotateHoistedNoModDownNew(levelQ, rotN2, ctInTmp0, eval.BuffDecompQP)
 
 	// Accumulator inner loop
-	tmp0QP := eval.Pool[1]
-	tmp1QP := eval.Pool[2]
+	tmp0QP := eval.BuffQP[1]
+	tmp1QP := eval.BuffQP[2]
 
 	// Accumulator outer loop
-	c0QP := eval.Pool[3]
-	c1QP := eval.Pool[4]
+	c0QP := eval.BuffQP[3]
+	c1QP := eval.BuffQP[4]
 
 	// Result in QP
-	c0OutQP := rlwe.PolyQP{Q: ctOut.Value[0], P: eval.Pool[5].Q}
-	c1OutQP := rlwe.PolyQP{Q: ctOut.Value[1], P: eval.Pool[5].P}
+	c0OutQP := ringqp.Poly{Q: ctOut.Value[0], P: eval.BuffQP[5].Q}
+	c1OutQP := ringqp.Poly{Q: ctOut.Value[1], P: eval.BuffQP[5].P}
 
-	ringQ.MulScalarBigintLvl(levelQ, ctInTmp0, ringP.ModulusBigint, ctInTmp0) // P*c0
-	ringQ.MulScalarBigintLvl(levelQ, ctInTmp1, ringP.ModulusBigint, ctInTmp1) // P*c1
+	ringQ.MulScalarBigintLvl(levelQ, ctInTmp0, ringP.ModulusAtLevel[levelP], ctInTmp0) // P*c0
+	ringQ.MulScalarBigintLvl(levelQ, ctInTmp1, ringP.ModulusAtLevel[levelP], ctInTmp1) // P*c1
 
 	// OUTER LOOP
 	var cnt0 int
@@ -975,15 +939,15 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearT
 
 			galEl := eval.params.GaloisElementForColumnRotationBy(j)
 
-			rtk, generated := eval.rtks.Keys[galEl]
+			rtk, generated := eval.Rtks.Keys[galEl]
 			if !generated {
-				panic("switching key not available")
+				panic("cannot MultiplyByDiagMatrixBSGS: switching key not available")
 			}
 
-			rotIndex := eval.permuteNTTIndex[galEl]
+			rotIndex := eval.PermuteNTTIndex[galEl]
 
 			tmp1QP.Q.IsNTT = true
-			eval.SwitchKeysInPlaceNoModDown(levelQ, tmp1QP.Q, rtk, c0QP.Q, c0QP.P, c1QP.Q, c1QP.P) // Switchkey(P*phi(tmpRes_1)) = (d0, d1) in base QP
+			eval.GadgetProductNoModDown(levelQ, tmp1QP.Q, rtk.GadgetCiphertext, c0QP, c1QP) // Switchkey(P*phi(tmpRes_1)) = (d0, d1) in base QP
 			ringQP.AddLvl(levelQ, levelP, c0QP, tmp0QP, c0QP)
 
 			// Outer loop rotations

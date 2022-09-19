@@ -311,23 +311,13 @@ func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, logSlots int,
 	ring.NewFloat(ct.Scale, 256).Int(inputScaleInt)
 
 	// Scales the mask by the ratio between the two scales
-	for i := 0; i < slots; i++ {
+	for i := 0; i < dslots; i++ {
 		rfp.tmpMask[i].Mul(rfp.tmpMask[i], rfp.defaultScale)
 		rfp.tmpMask[i].Quo(rfp.tmpMask[i], inputScaleInt)
 	}
 
 	// Extend the levels of the ciphertext for future allocation
-	for ciphertextOut.Level() != maxLevel {
-		level := ciphertextOut.Level() + 1
-
-		ciphertextOut.Value[0].Coeffs = append(ciphertextOut.Value[0].Coeffs, make([][]uint64, 1)...)
-		ciphertextOut.Value[0].Coeffs[level] = make([]uint64, ringQ.N)
-
-		ciphertextOut.Value[1].Coeffs = append(ciphertextOut.Value[1].Coeffs, make([][]uint64, 1)...)
-		ciphertextOut.Value[1].Coeffs[level] = make([]uint64, ringQ.N)
-	}
-
-	ciphertextOut.Value[0].Zero()
+	ciphertextOut.Resize(ciphertextOut.Degree(), maxLevel)
 
 	// Sets LT(-sum(M_i) + x) * diffscale in the RNS domain
 	ringQ.SetCoefficientsBigintLvl(maxLevel, rfp.tmpMask[:dslots], ciphertextOut.Value[0])

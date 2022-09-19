@@ -3,6 +3,7 @@ package drlwe
 import (
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
@@ -24,7 +25,7 @@ type PCKSProtocol struct {
 	params        rlwe.Parameters
 	sigmaSmudging float64
 
-	tmpQP rlwe.PolyQP
+	tmpQP ringqp.Poly
 	tmpP  [2]*ring.Poly
 
 	basisExtender             *ring.BasisExtender
@@ -114,11 +115,10 @@ func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct1 *
 		ringQP.ExtendBasisSmallNormAndCenter(pcks.tmpQP.Q, levelP, nil, pcks.tmpQP.P)
 	}
 
-	ringQP.MFormLvl(levelQ, levelP, pcks.tmpQP, pcks.tmpQP)
 	ringQP.NTTLvl(levelQ, levelP, pcks.tmpQP, pcks.tmpQP)
 
-	shareOutQP0 := rlwe.PolyQP{Q: shareOut.Value[0], P: pcks.tmpP[0]}
-	shareOutQP1 := rlwe.PolyQP{Q: shareOut.Value[1], P: pcks.tmpP[1]}
+	shareOutQP0 := ringqp.Poly{Q: shareOut.Value[0], P: pcks.tmpP[0]}
+	shareOutQP1 := ringqp.Poly{Q: shareOut.Value[1], P: pcks.tmpP[1]}
 
 	// h_0 = u_i * pk_0
 	// h_1 = u_i * pk_1
@@ -191,14 +191,14 @@ func (pcks *PCKSProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined *PCKSShare, 
 
 // MarshalBinary encodes a PCKS share on a slice of bytes.
 func (share *PCKSShare) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, share.Value[0].GetDataLen(true)+share.Value[1].GetDataLen(true))
+	data = make([]byte, share.Value[0].GetDataLen64(true)+share.Value[1].GetDataLen64(true))
 	var inc, pt int
-	if inc, err = share.Value[0].WriteTo(data[pt:]); err != nil {
+	if inc, err = share.Value[0].WriteTo64(data[pt:]); err != nil {
 		return nil, err
 	}
 	pt += inc
 
-	if _, err = share.Value[1].WriteTo(data[pt:]); err != nil {
+	if _, err = share.Value[1].WriteTo64(data[pt:]); err != nil {
 		return nil, err
 	}
 	return
@@ -208,13 +208,13 @@ func (share *PCKSShare) MarshalBinary() (data []byte, err error) {
 func (share *PCKSShare) UnmarshalBinary(data []byte) (err error) {
 	var pt, inc int
 	share.Value[0] = new(ring.Poly)
-	if inc, err = share.Value[0].DecodePolyNew(data[pt:]); err != nil {
+	if inc, err = share.Value[0].DecodePoly64(data[pt:]); err != nil {
 		return
 	}
 	pt += inc
 
 	share.Value[1] = new(ring.Poly)
-	if _, err = share.Value[1].DecodePolyNew(data[pt:]); err != nil {
+	if _, err = share.Value[1].DecodePoly64(data[pt:]); err != nil {
 		return
 	}
 	return

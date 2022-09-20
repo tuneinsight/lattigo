@@ -176,12 +176,12 @@ func (pcks *PCKSProtocol) AggregateShares(share1, share2, shareOut *PCKSShare) {
 
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
 func (pcks *PCKSProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined *PCKSShare, ctOut *rlwe.Ciphertext) {
-	level := utils.MinInt(utils.MinInt(ctIn.Level(), ctOut.Level()), combined.Value[0].Level())
+	level := ctIn.Level()
+	ctOut.Resize(ctIn.Degree(), level)
 	pcks.params.RingQ().AddLvl(level, ctIn.Value[0], combined.Value[0], ctOut.Value[0])
 	if ctIn != ctOut {
 		ring.CopyValuesLvl(level, combined.Value[1], ctOut.Value[1])
 	}
-	ctOut.Resize(ctOut.Degree(), level)
 }
 
 // MarshalBinary encodes a PCKS share on a slice of bytes.

@@ -980,7 +980,7 @@ func (eval *evaluator) matchScalesBinary(scale0, scale1 uint64) (r0, r1, e uint6
 	tHalf := t >> 1
 	bredParams := ringT.BredParams[0]
 
-	if ring.GCD(scale0, t) != 1 {
+	if utils.GCD(scale0, t) != 1 {
 		panic("invalid ciphertext scale: gcd(scale, t) != 1")
 	}
 
@@ -996,7 +996,7 @@ func (eval *evaluator) matchScalesBinary(scale0, scale1 uint64) (r0, r1, e uint6
 		a, A = A, a%A
 		b, B = B, ring.CRed(t+b-ring.BRed(B, q, t, bredParams), t)
 
-		if A != 0 && ring.GCD(A, t) == 1 {
+		if A != 0 && utils.GCD(A, t) == 1 {
 			tmp := center(A, tHalf, t) + center(B, tHalf, t)
 			if tmp < e {
 				e = tmp

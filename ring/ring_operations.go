@@ -423,11 +423,10 @@ func (r *Ring) EvalPolyScalar(pol []*Poly, scalar uint64, pOut *Poly) {
 	}
 }
 
-// Shift circulary shifts the coefficients of the polynomial p1 by n positions to the left and writes the result on p2.
-func (r *Ring) Shift(p1 *Poly, n int, p2 *Poly) {
-	mask := (1 << r.N) - 1
-	for i := range r.Modulus {
-		p2.Coeffs[i] = append(p1.Coeffs[i][(n&mask):], p1.Coeffs[i][:(n&mask)]...)
+// Shift circulary shifts the coefficients of the polynomial p1 by k positions to the left and writes the result on p2.
+func (r *Ring) Shift(p1 *Poly, k int, p2 *Poly) {
+	for i := range p1.Coeffs {
+		utils.RotateUint64SliceAllocFree(p1.Coeffs[i], k, p2.Coeffs[i])
 	}
 }
 

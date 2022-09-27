@@ -22,7 +22,7 @@ func NewDecryptor(params Parameters, sk *rlwe.SecretKey) Decryptor {
 	return &decryptor{rlwe.NewDecryptor(params.Parameters, sk), params}
 }
 
-// Decrypt decrypts the ciphertext and write the result in ptOut.
+// Decrypt decrypts the ciphertext and writes the result in ptOut.
 func (dec *decryptor) Decrypt(ct *Ciphertext, ptOut *Plaintext) {
 	dec.Decryptor.Decrypt(&rlwe.Ciphertext{Value: ct.Value}, &rlwe.Plaintext{Value: ptOut.Value})
 }

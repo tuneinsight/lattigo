@@ -57,11 +57,11 @@ All notable changes to this library are documented in this file.
     -  `rgsw.Encryptor` and the `rgsw.Ciphertext` types.
     -  `rgsw.Evaluator` to support the external product `RLWE x RGSW -> RLWE`.
     -  `rgsw/lut` sub-package that provides evaluation of Look-Up-Tables (LUT) on `rlwe.Ciphertext` types.
-- BFV: renamed `Encoder.DecodeRingT` to `Encoder.SwitchToRingT` to better reflect purpose of the method.
+- BFV: renamed `Encoder.DecodeRingT` to `Encoder.SwitchToRingT` to better reflect the purpose of the method.
 - CKKS: fixed `MulAndAdd` correctness for non-identical inputs.
 - CKKS: added `advanced.EncodingMatrixLiteral.RepackImag2Real` optional field to repack the imaginary part into the right n real slots.
 - CKKS: `Trace` now only takes as input the `logSlots` of the encrypted plaintext.
-- CKKS: replaced the public variable `.Scale` with `.scale`, it can not be accessed with `.Scale()` and set to a new value with `.SetScale()`.
+- CKKS: replaced the public variable `.Scale` with `.scale`, it can now be accessed with `.Scale()` and set to a new value with `.SetScale()`.
 - CKKS: renamed the methods `ScalingFactor` and `SetScalingFactor` of the interface `Operand` to `Scale` and `SetScale` respectively.
 - CKKS/bootstrapping: renamed method `Bootstrapp` to `Bootstrap`.
 - BFV/CKKS: key-switching functionalities (such as rotations, relinearization and key-switching) are now all based on the `rlwe.Evaluator`.
@@ -69,7 +69,7 @@ All notable changes to this library are documented in this file.
 - BFV/CKKS: removed deprecated methods `EncryptFromCRP` and `EncryptFromCRPNew`, users should now use the `PRNGEncryptor` interface.
 - BFV/CKKS: fixed a panic happening during the benchmark testing.
 - DBFV/DCKKS: removed the `dbfv/dckks.CKGProtocol`, `dbfv/dckks.RKGProtocol` and `dbfv/dckks.RTGProtocol` types. Users should use the corresponding `drlwe` types instead.
-- DBFV/DCKKS: `MaskedTransformFunc` is now a struct and takes as additional input to the linear transform two boolean flags to parameterize if the decoding/encoding process must be done before/after the linear transform.
+- DBFV/DCKKS: `MaskedTransformFunc` is now a struct and takes as additional input to the linear transform two Boolean flags to parameterize if the decoding/encoding process must be done before/after the linear transform.
 - DBFV/DCKKS: `refresh` and `maskedTransform` protocols now allow the user to specify the output parameters, enabling parameter switching.
 - DCKKS: fixed `dckks.RefreshProtocol` correctness when the output scale is different from the input scale.
 - Examples: added `examples/ckks/advanced/lut`, which is an example that performs homomorphic decoding -> LUT -> homomorphic encoding on a `ckks.Ciphertext`.

@@ -75,18 +75,20 @@ See CHANGELOG.md for the current and past versions.
 ## Stability
 
 To keep a comprehensive history, we prioritize rebases over merges for branches other than `main`.
-Branches with the prefix `dev_` are branches in active development and will be frequently rebased. Hence, we don't recommend depending on them.
+Branches with the prefix `dev_` are branches in active development and will be frequently rebased.
+Hence, we don't recommend depending on them.
 
 ## Pull Requests
 
-External pull requests should only be used to propose new functionalities that are substantial and would require a fair amount of work if done on our side. If you plan to open such a pull request, please contact us before doing so to make sure that the proposed changes are
-aligned with our development roadmap.
+External pull requests should only be used to propose new functionalities that are substantial and would
+require a fair amount of work if done on our side. If you plan to open such a pull request, please contact
+us before doing so to make sure that the proposed changes are aligned with our development roadmap.
 
 External pull requests only proposing small or trivial changes will be converted to an issue and closed.
 
 ## Support and Issues
 
-The GitHub issues should be only used for bug reports and questions directly related to the use or the implementation of the library.
+The GitHub issues should only be used for bug reports and questions directly related to the use or the implementation of the library.
 Any other issue will be closed, and for this we recommend the use of [GitHub discussions](https://github.com/tuneinsight/lattigo/discussions) or other topic-specific forums instead.
 Any new issue regarding an unexpected behavior of the library or one of its packages must be accompanied 
 by a self-contained `main.go` reproducing the unwanted behavior.

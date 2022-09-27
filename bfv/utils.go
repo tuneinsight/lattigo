@@ -9,6 +9,8 @@ import (
 
 // Noise decrypts a ciphertext and returns the log2
 // of the standard deviation, minimum and maximum norm of the noise
+// assuming the decryption is correct.
+// This function is used for testing/profiling/evaluation purposes
 func Noise(cthave *Ciphertext, dec Decryptor) (std, min, max float64) {
 
 	level := cthave.Level()

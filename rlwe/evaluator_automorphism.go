@@ -3,9 +3,9 @@ package rlwe
 import (
 	"fmt"
 
-	"github.com/tuneinsight/lattigo/v3/ring"
-	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
-	"github.com/tuneinsight/lattigo/v3/utils"
+	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 // Automorphism computes phi(ct), where phi is the map X -> X^galEl. The method requires

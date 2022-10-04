@@ -4,7 +4,7 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
 // Noise decrypts a ciphertext and returns the log2

@@ -1,8 +1,8 @@
 package rlwe
 
 import (
-	"github.com/tuneinsight/lattigo/v3/ring"
-	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
+	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 )
 
 // GadgetProduct evaluates poly x Gadget -> RLWE where

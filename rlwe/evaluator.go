@@ -3,8 +3,8 @@ package rlwe
 import (
 	"math/bits"
 
-	"github.com/tuneinsight/lattigo/v3/ring"
-	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
+	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 )
 
 // Evaluator is a struct that holds the necessary elements to execute general homomorphic

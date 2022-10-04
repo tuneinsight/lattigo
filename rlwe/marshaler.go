@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 
-	"github.com/tuneinsight/lattigo/v3/ring"
+	"github.com/tuneinsight/lattigo/v4/ring"
 )
 
 // GetDataLen returns the length in bytes of the target Ciphertext.

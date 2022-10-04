@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/tuneinsight/lattigo/v3/ckks"
-	"github.com/tuneinsight/lattigo/v3/ckks/bootstrapping"
-	"github.com/tuneinsight/lattigo/v3/rlwe"
-	"github.com/tuneinsight/lattigo/v3/utils"
+	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/ckks/bootstrapping"
+	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 var flagShort = flag.Bool("short", false, "run the example with a smaller and insecure ring degree.")
@@ -31,7 +31,7 @@ func main() {
 	// Bootstrapping parameters
 	// Two sets of four parameters each, DefaultParametersSparse and DefaultParametersDense,
 	// (each index 0 to 3) ensuring 128 bit of security are available in
-	// github.com/tuneinsight/lattigo/v3/ckks/bootstrapping/default_params.go
+	// github.com/tuneinsight/lattigo/v4/ckks/bootstrapping/default_params.go
 	//
 	// LogSlots is hardcoded to 15 in the parameters, but can be changed from 1 to 15.
 	// When changing LogSlots make sure that the number of levels allocated to CtS and StC is

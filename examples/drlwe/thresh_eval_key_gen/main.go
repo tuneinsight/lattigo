@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/tuneinsight/lattigo/v3/drlwe"
-	"github.com/tuneinsight/lattigo/v3/rlwe"
-	"github.com/tuneinsight/lattigo/v3/utils"
+	"github.com/tuneinsight/lattigo/v4/drlwe"
+	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 // This example showcases the use of the drlwe package to generate an evaluation key in a multiparty setting.

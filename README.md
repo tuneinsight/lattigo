@@ -57,15 +57,15 @@ Starting with the release of version 3.0.0, Lattigo is maintained and supported 
 SA](https://tuneinsight.com).
 
 Also starting with from version 3.0.0, the module name has changed to
-github.com/tuneinsight/lattigo/v3, and the official repository has been moved to
+`github.com/tuneinsight/lattigo/v[X]`, and the official repository has been moved to
 https://github.com/tuneinsight/lattigo. This has the following implications for modules that depend
 on Lattigo:
 - Modules that require `github.com/ldsec/lattigo/v2` will still build correctly.
-- To upgrade to a version >= 3.0.0, depending modules must require `github.com/tuneinsight/lattigo/v3/`,
-  for example by changing the imports to `github.com/tuneinsight/lattigo/v3/[package]` and by
+- To upgrade to a version X.y.z >= 3.0.0, depending modules must require `github.com/tuneinsight/lattigo/v[X]/`,
+  for example by changing the imports to `github.com/tuneinsight/lattigo/v[X]/[package]` and by
   running `go mod tidy`.
 
-The current version of Lattigo, (v3.x.x) is fast-evolving and in constant development. Consequently,
+The current version of Lattigo, (v4.x.x) is fast-evolving and in constant development. Consequently,
 there will still be backward-incompatible changes within this major version, in addition to many bug
 fixes and new features. Hence, we encourage all Lattigo users to update to the latest Lattigo version.
 

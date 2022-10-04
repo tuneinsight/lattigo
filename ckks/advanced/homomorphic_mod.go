@@ -4,8 +4,8 @@ import (
 	"math"
 	"math/cmplx"
 
-	"github.com/tuneinsight/lattigo/v3/ckks"
-	"github.com/tuneinsight/lattigo/v3/utils"
+	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 // SineType is the type of function used during the bootstrapping

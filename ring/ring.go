@@ -11,7 +11,7 @@ import (
 	"math/big"
 	"math/bits"
 
-	"github.com/tuneinsight/lattigo/v3/utils"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 // GaloisGen is an integer of order N/2 modulo M that spans Z_M with the integer -1.

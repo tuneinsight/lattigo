@@ -4,7 +4,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
 func BenchmarkBGV(b *testing.B) {

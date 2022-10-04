@@ -3,7 +3,7 @@ package ring
 import (
 	"math/bits"
 
-	"github.com/tuneinsight/lattigo/v3/utils"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 // EvalPolyModP evaluates y = sum poly[i] * x^{i} mod p.

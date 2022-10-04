@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tuneinsight/lattigo/v3/ckks"
+	"github.com/tuneinsight/lattigo/v4/ckks"
 )
 
 func BenchmarkBootstrap(b *testing.B) {

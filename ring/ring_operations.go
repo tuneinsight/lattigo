@@ -4,7 +4,7 @@ import (
 	"math/big"
 	"math/bits"
 
-	"github.com/tuneinsight/lattigo/v3/utils"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 func (r *Ring) minLevelTernary(p1, p2, p3 *Poly) int {

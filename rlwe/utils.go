@@ -1,7 +1,7 @@
 package rlwe
 
 import (
-	"github.com/tuneinsight/lattigo/v3/ring"
+	"github.com/tuneinsight/lattigo/v4/ring"
 )
 
 // PublicKeyIsCorrect returns true if pk is a correct RLWE public-key for secret-key sk and parameters params.

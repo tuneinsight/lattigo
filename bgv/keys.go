@@ -1,6 +1,6 @@
 package bgv
 
-import "github.com/tuneinsight/lattigo/v3/rlwe"
+import "github.com/tuneinsight/lattigo/v4/rlwe"
 
 // NewKeyGenerator creates a rlwe.KeyGenerator instance from the BGV parameters.
 func NewKeyGenerator(params Parameters) rlwe.KeyGenerator {

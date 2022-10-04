@@ -1,7 +1,7 @@
 package bgv
 
 import (
-	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
 // Encryptor is an interface wrapping a rlwe.Encryptor, and modified

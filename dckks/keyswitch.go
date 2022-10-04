@@ -2,8 +2,8 @@
 package dckks
 
 import (
-	"github.com/tuneinsight/lattigo/v3/ckks"
-	"github.com/tuneinsight/lattigo/v3/drlwe"
+	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/drlwe"
 )
 
 // CKSProtocol is a structure storing the parameters for the collective key-switching protocol.

@@ -2,8 +2,8 @@
 package dbgv
 
 import (
-	"github.com/tuneinsight/lattigo/v3/bgv"
-	"github.com/tuneinsight/lattigo/v3/drlwe"
+	"github.com/tuneinsight/lattigo/v4/bgv"
+	"github.com/tuneinsight/lattigo/v4/drlwe"
 )
 
 // CKGProtocol is the structure storing the parameters and state for a party in the collective key generation protocol.

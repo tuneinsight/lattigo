@@ -853,6 +853,9 @@ func (eval *evaluator) RotateRows(ctIn *Ciphertext, ctOut *Ciphertext) {
 	ctOut.scale = ctIn.scale
 }
 
+// Automorphism applies the automorphism X -> X^galEl mod X^N + 1 to ctIn and writes the result on ctOut.
+// The procedure will panic if the corresponding Galois key has not been generated and attributed to the evaluator.
+// The procedure will panic if ctIn.Degree() != 1.
 func (eval *evaluator) Automorphism(ctIn *Ciphertext, galEl uint64, ctOut *Ciphertext) {
 
 	if ctIn.Degree() != 1 || ctOut.Degree() != 1 {
@@ -888,6 +891,10 @@ func (eval *evaluator) Automorphism(ctIn *Ciphertext, galEl uint64, ctOut *Ciphe
 	ctOut.Resize(ctOut.Degree(), level)
 }
 
+// Automorphism applies the automorphism X -> X^galEl mod X^N + 1 to ctIn and writes the result on ctOut.
+// The procedure also requires the decomposition of ctIn, given as c1DecompQP and which can be computed with rlwe.Evaluator.DecomposeNTT(*).
+// The procedure will panic if the corresponding Galois key has not been generated and attributed to the evaluator.
+// The procedure will panic if ctIn.Degree() != 1.
 func (eval *evaluator) AutomorphismHoisted(level int, ctIn *Ciphertext, c1DecompQP []ringqp.Poly, galEl uint64, ctOut *Ciphertext) {
 
 	if ctIn.Degree() != 1 || ctOut.Degree() != 1 {

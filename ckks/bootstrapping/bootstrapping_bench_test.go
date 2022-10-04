@@ -8,7 +8,7 @@ import (
 	"github.com/tuneinsight/lattigo/v3/ckks"
 )
 
-func BenchmarkBootstrapp(b *testing.B) {
+func BenchmarkBootstrap(b *testing.B) {
 
 	var err error
 	var btp *Bootstrapper
@@ -31,7 +31,7 @@ func BenchmarkBootstrapp(b *testing.B) {
 		panic(err)
 	}
 
-	b.Run(ParamsToString(params, "Bootstrapp/"), func(b *testing.B) {
+	b.Run(ParamsToString(params, "Bootstrap/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 
 			bootstrappingScale := math.Exp2(math.Round(math.Log2(btp.params.QiFloat64(0) / btp.evalModPoly.MessageRatio())))

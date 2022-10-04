@@ -1,19 +1,11 @@
 package drlwe
 
 import (
-	"github.com/tuneinsight/lattigo/v3/ring"
-	"github.com/tuneinsight/lattigo/v3/rlwe"
-	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
-	"github.com/tuneinsight/lattigo/v3/utils"
+	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
-
-// PublicKeySwitchingProtocol is an interface describing the local steps of a generic RLWE PCKS protocol.
-type PublicKeySwitchingProtocol interface {
-	AllocateShare(levelQ int) *PCKSShare
-	GenShare(skInput *rlwe.SecretKey, pkOutput *rlwe.PublicKey, c1 *ring.Poly, shareOut *PCKSShare)
-	AggregateShare(share1, share2, shareOut *PCKSShare)
-	KeySwitch(ctIn *rlwe.Ciphertext, combined *PCKSShare, ctOut *rlwe.Ciphertext)
-}
 
 // PCKSShare represents a party's share in the PCKS protocol.
 type PCKSShare struct {
@@ -168,14 +160,14 @@ func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct1 *
 	}
 }
 
-// AggregateShare is the second part of the first and unique round of the PCKSProtocol protocol. Each party uppon receiving the j-1 elements from the
+// AggregateShares is the second part of the first and unique round of the PCKSProtocol protocol. Each party uppon receiving the j-1 elements from the
 // other parties computes :
 //
 // [ctx[0] + sum(s_i * ctx[0] + u_i * pk[0] + e_0i), sum(u_i * pk[1] + e_1i)]
-func (pcks *PCKSProtocol) AggregateShare(share1, share2, shareOut *PCKSShare) {
-	levelQ1, levelQ2 := len(share1.Value[0].Coeffs)-1, len(share2.Value[1].Coeffs)-1
+func (pcks *PCKSProtocol) AggregateShares(share1, share2, shareOut *PCKSShare) {
+	levelQ1, levelQ2 := share1.Value[0].Level(), share1.Value[1].Level()
 	if levelQ1 != levelQ2 {
-		panic("cannot aggreate two shares at different levelQs.")
+		panic("cannot AggregateShares: the two shares are at different levelQ.")
 	}
 	pcks.params.RingQ().AddLvl(levelQ1, share1.Value[0], share2.Value[0], shareOut.Value[0])
 	pcks.params.RingQ().AddLvl(levelQ1, share1.Value[1], share2.Value[1], shareOut.Value[1])
@@ -184,9 +176,12 @@ func (pcks *PCKSProtocol) AggregateShare(share1, share2, shareOut *PCKSShare) {
 
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
 func (pcks *PCKSProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined *PCKSShare, ctOut *rlwe.Ciphertext) {
-	level := utils.MinInt(ctIn.Level(), ctOut.Level())
+	level := ctIn.Level()
+	ctOut.Resize(ctIn.Degree(), level)
 	pcks.params.RingQ().AddLvl(level, ctIn.Value[0], combined.Value[0], ctOut.Value[0])
-	ring.CopyValuesLvl(level, combined.Value[1], ctOut.Value[1])
+	if ctIn != ctOut {
+		ring.CopyValuesLvl(level, combined.Value[1], ctOut.Value[1])
+	}
 }
 
 // MarshalBinary encodes a PCKS share on a slice of bytes.

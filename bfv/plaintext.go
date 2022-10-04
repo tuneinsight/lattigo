@@ -1,8 +1,8 @@
 package bfv
 
 import (
-	"github.com/tuneinsight/lattigo/v3/ring"
-	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
 // Plaintext is a Element with only one Poly. It represents a Plaintext element in R_q that is the

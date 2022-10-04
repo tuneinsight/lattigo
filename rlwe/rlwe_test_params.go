@@ -61,4 +61,6 @@ var (
 		LogQ: []int{60, 60, 60, 60},
 		LogP: []int{60, 60},
 	}
+
+	DefaultParams = []ParametersLiteral{TestPN10QP27, TestPN11QP54, TestPN12QP109, TestPN13QP218, TestPN14QP438, TestPN15QP880, TestPN16QP240, TestPN17QP360}
 )

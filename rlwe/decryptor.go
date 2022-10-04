@@ -1,8 +1,8 @@
 package rlwe
 
 import (
-	"github.com/tuneinsight/lattigo/v3/ring"
-	"github.com/tuneinsight/lattigo/v3/utils"
+	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 // Decryptor is an interface generic RLWE encryption.
@@ -33,7 +33,7 @@ func NewDecryptor(params Parameters, sk *SecretKey) Decryptor {
 	}
 }
 
-// Decrypt decrypts the ciphertext and write the result in ptOut.
+// Decrypt decrypts the ciphertext and writes the result in ptOut.
 // The level of the output plaintext is min(ciphertext.Level(), plaintext.Level())
 // Output domain will match plaintext.Value.IsNTT value.
 func (d *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) {

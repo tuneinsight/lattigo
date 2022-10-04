@@ -8,9 +8,9 @@ import (
 	"math/big"
 	"math/bits"
 
-	"github.com/tuneinsight/lattigo/v3/ring"
-	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
-	"github.com/tuneinsight/lattigo/v3/utils"
+	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 // MaxLogN is the log2 of the largest supported polynomial modulus degree.
@@ -183,6 +183,26 @@ func (p Parameters) StandardParameters() (pci Parameters, err error) {
 	return
 }
 
+// ParametersLiteral returns the ParametersLiteral of the target Parameters.
+func (p Parameters) ParametersLiteral() ParametersLiteral {
+
+	Q := make([]uint64, len(p.qi))
+	copy(Q, p.qi)
+
+	P := make([]uint64, len(p.pi))
+	copy(P, p.pi)
+
+	return ParametersLiteral{
+		LogN:     p.logN,
+		Q:        Q,
+		P:        P,
+		Pow2Base: p.pow2Base,
+		Sigma:    p.sigma,
+		H:        p.h,
+		RingType: p.ringType,
+	}
+}
+
 // N returns the ring degree
 func (p Parameters) N() int {
 	return 1 << p.logN
@@ -216,6 +236,11 @@ func (p Parameters) HammingWeight() int {
 // Sigma returns standard deviation of the noise distribution
 func (p Parameters) Sigma() float64 {
 	return p.sigma
+}
+
+// NoiseBound returns truncation bound for the noise distribution.
+func (p Parameters) NoiseBound() uint64 {
+	return uint64(math.Floor(p.sigma * 6))
 }
 
 // RingType returns the type of the underlying ring.

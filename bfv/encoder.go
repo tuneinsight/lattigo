@@ -4,8 +4,8 @@ package bfv
 import (
 	"fmt"
 
-	"github.com/tuneinsight/lattigo/v3/ring"
-	"github.com/tuneinsight/lattigo/v3/utils"
+	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 // GaloisGen is an integer of order N=2^d modulo M=2N and that spans Z_M with the integer -1.
@@ -43,14 +43,13 @@ type Encoder interface {
 	EncodeMul(coeffs interface{}, pt *PlaintextMul)
 	EncodeMulNew(coeffs interface{}, level int) (pt *PlaintextMul)
 
-	ScaleUp(*PlaintextRingT, *Plaintext)
+	SwitchToRingT(pt interface{}, ptRt *PlaintextRingT)
+	ScaleUp(ptRt *PlaintextRingT, pt *Plaintext)
 	ScaleDown(pt *Plaintext, ptRt *PlaintextRingT)
 	RingTToMul(ptRt *PlaintextRingT, ptmul *PlaintextMul)
 	MulToRingT(pt *PlaintextMul, ptRt *PlaintextRingT)
 
-	DecodeRingT(pt interface{}, ptRt *PlaintextRingT)
-	DecodeUint(pt interface{}, coeffs []uint64)
-	DecodeInt(pt interface{}, coeffs []int64)
+	Decode(pt interface{}, coeffs interface{})
 	DecodeUintNew(pt interface{}) (coeffs []uint64)
 	DecodeIntNew(pt interface{}) (coeffs []int64)
 
@@ -218,8 +217,8 @@ func (ecd *encoder) MulToRingT(pt *PlaintextMul, ptRt *PlaintextRingT) {
 	ecd.params.RingQ().InvMFormLvl(0, ptRt.Value, ptRt.Value)
 }
 
-// DecodeRingT decodes any plaintext type into a PlaintextRingT. It panics if p is not PlaintextRingT, Plaintext or PlaintextMul.
-func (ecd *encoder) DecodeRingT(p interface{}, ptRt *PlaintextRingT) {
+// SwitchToRingT decodes any plaintext type into a PlaintextRingT. It panics if p is not PlaintextRingT, Plaintext or PlaintextMul.
+func (ecd *encoder) SwitchToRingT(p interface{}, ptRt *PlaintextRingT) {
 	switch pt := p.(type) {
 	case *Plaintext:
 		ecd.ScaleDown(pt, ptRt)
@@ -228,24 +227,44 @@ func (ecd *encoder) DecodeRingT(p interface{}, ptRt *PlaintextRingT) {
 	case *PlaintextRingT:
 		ptRt.Copy(pt.Plaintext)
 	default:
-		panic(fmt.Errorf("cannot DecodeRingT: unsupported plaintext type (%T)", pt))
+		panic(fmt.Errorf("cannot SwitchToRingT: unsupported plaintext type (%T)", pt))
 	}
 }
 
-// DecodeUint decodes a any plaintext type and write the coefficients in coeffs. It panics if p is not PlaintextRingT, Plaintext or PlaintextMul.
-func (ecd *encoder) DecodeUint(p interface{}, coeffs []uint64) {
+// Decode decodes a any plaintext type and write the coefficients in coeffs.
+// It panics if p is not PlaintextRingT, Plaintext or PlaintextMul or if coeffs is not []uint64 or []int64.
+func (ecd *encoder) Decode(p interface{}, coeffs interface{}) {
 
 	var ptRt *PlaintextRingT
 	var isInRingT bool
 	if ptRt, isInRingT = p.(*PlaintextRingT); !isInRingT {
-		ecd.DecodeRingT(p, ecd.tmpPtRt)
+		ecd.SwitchToRingT(p, ecd.tmpPtRt)
 		ptRt = ecd.tmpPtRt
 	}
 
 	ecd.params.RingT().NTT(ptRt.Value, ecd.tmpPoly)
 
-	for i := 0; i < ecd.params.RingQ().N; i++ {
-		coeffs[i] = ecd.tmpPoly.Coeffs[0][ecd.indexMatrix[i]]
+	pos := ecd.indexMatrix
+	tmp := ecd.tmpPoly.Coeffs[0]
+
+	switch coeffs := coeffs.(type) {
+	case []uint64:
+		for i := 0; i < ecd.params.RingT().N; i++ {
+			coeffs[i] = tmp[pos[i]]
+		}
+	case []int64:
+		modulus := int64(ecd.params.T())
+		modulusHalf := modulus >> 1
+		var value int64
+		for i := 0; i < ecd.params.RingQ().N; i++ {
+			value = int64(ecd.tmpPoly.Coeffs[0][ecd.indexMatrix[i]])
+			coeffs[i] = value
+			if value >= modulusHalf {
+				coeffs[i] -= modulus
+			}
+		}
+	default:
+		panic("cannot Decode: coeffs.(type) must be either []uint64 or []int64")
 	}
 }
 
@@ -253,36 +272,15 @@ func (ecd *encoder) DecodeUint(p interface{}, coeffs []uint64) {
 // It panics if p is not PlaintextRingT, Plaintext or PlaintextMul.
 func (ecd *encoder) DecodeUintNew(p interface{}) (coeffs []uint64) {
 	coeffs = make([]uint64, ecd.params.RingQ().N)
-	ecd.DecodeUint(p, coeffs)
+	ecd.Decode(p, coeffs)
 	return
-}
-
-// DecodeInt decodes a any plaintext type and writes the coefficients in coeffs. It also decodes the sign
-// modulus (by centering the values around the plaintext). It panics if p is not PlaintextRingT, Plaintext or PlaintextMul.
-func (ecd *encoder) DecodeInt(p interface{}, coeffs []int64) {
-
-	ecd.DecodeRingT(p, ecd.tmpPtRt)
-
-	ecd.params.RingT().NTT(ecd.tmpPtRt.Value, ecd.tmpPoly)
-
-	modulus := int64(ecd.params.T())
-	modulusHalf := modulus >> 1
-	var value int64
-	for i := 0; i < ecd.params.RingQ().N; i++ {
-
-		value = int64(ecd.tmpPoly.Coeffs[0][ecd.indexMatrix[i]])
-		coeffs[i] = value
-		if value >= modulusHalf {
-			coeffs[i] -= modulus
-		}
-	}
 }
 
 // DecodeIntNew decodes any plaintext type and returns the coefficients in a new []int64. It also decodes the sign
 // modulus (by centering the values around the plaintext). It panics if p is not PlaintextRingT, Plaintext or PlaintextMul.
 func (ecd *encoder) DecodeIntNew(p interface{}) (coeffs []int64) {
 	coeffs = make([]int64, ecd.params.RingQ().N)
-	ecd.DecodeInt(p, coeffs)
+	ecd.Decode(p, coeffs)
 	return
 }
 

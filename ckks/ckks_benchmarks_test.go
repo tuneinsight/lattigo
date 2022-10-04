@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/tuneinsight/lattigo/v3/ring"
-	"github.com/tuneinsight/lattigo/v3/rlwe"
-	"github.com/tuneinsight/lattigo/v3/utils"
+	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 func BenchmarkCKKSScheme(b *testing.B) {
@@ -186,7 +186,7 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 	})
 
 	b.Run(GetTestName(tc.params, "Evaluator/Rescale"), func(b *testing.B) {
-		ciphertext1.Scale = tc.params.DefaultScale() * tc.params.DefaultScale()
+		ciphertext1.scale = tc.params.DefaultScale() * tc.params.DefaultScale()
 
 		for i := 0; i < b.N; i++ {
 			if err := eval.Rescale(ciphertext1, tc.params.DefaultScale(), ciphertext2); err != nil {

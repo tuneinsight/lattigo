@@ -2,8 +2,8 @@
 package ringqp
 
 import (
-	"github.com/tuneinsight/lattigo/v3/ring"
-	"github.com/tuneinsight/lattigo/v3/utils"
+	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 // Poly represents a polynomial in the ring of polynomial modulo Q*P.
@@ -160,6 +160,63 @@ func (r *Ring) NegLvl(levelQ, levelP int, p1, p2 Poly) {
 	}
 }
 
+// NewRNSScalar creates a new Scalar value (i.e., a degree-0 polynomial) in the RingQP.
+func (r *Ring) NewRNSScalar() ring.RNSScalar {
+	modlen := len(r.RingQ.Modulus)
+	if r.RingP != nil {
+		modlen += len(r.RingP.Modulus)
+	}
+	return make(ring.RNSScalar, modlen)
+}
+
+// NewRNSScalarFromUInt64 creates a new Scalar in the RingQP initialized with value v.
+func (r *Ring) NewRNSScalarFromUInt64(v uint64) ring.RNSScalar {
+	var scalarQ, scalarP []uint64
+	if r.RingQ != nil {
+		scalarQ = r.RingQ.NewRNSScalarFromUInt64(v)
+	}
+	if r.RingP != nil {
+		scalarP = r.RingP.NewRNSScalarFromUInt64(v)
+	}
+	return append(scalarQ, scalarP...)
+}
+
+// SubRNSScalar subtracts s2 to s1 and stores the result in sout.
+func (r *Ring) SubRNSScalar(s1, s2, sout ring.RNSScalar) {
+	qlen := len(r.RingQ.Modulus)
+	if r.RingQ != nil {
+		r.RingQ.SubRNSScalar(s1[:qlen], s2[:qlen], sout[:qlen])
+	}
+	if r.RingP != nil {
+		r.RingP.SubRNSScalar(s1[qlen:], s2[qlen:], sout[qlen:])
+
+	}
+}
+
+// MulRNSScalar multiplies s1 and s2 and stores the result in sout.
+func (r *Ring) MulRNSScalar(s1, s2, sout ring.RNSScalar) {
+	qlen := len(r.RingQ.Modulus)
+	if r.RingQ != nil {
+		r.RingQ.MulRNSScalar(s1[:qlen], s2[:qlen], sout[:qlen])
+	}
+	if r.RingP != nil {
+		r.RingP.MulRNSScalar(s1[qlen:], s2[qlen:], sout[qlen:])
+	}
+}
+
+// EvalPolyScalar evaluate the polynomial pol at pt and writes the result in p3
+func (r *Ring) EvalPolyScalar(pol []Poly, pt uint64, p3 Poly) {
+	polQ, polP := make([]*ring.Poly, len(pol)), make([]*ring.Poly, len(pol))
+	for i, coeff := range pol {
+		polQ[i] = coeff.Q
+		polP[i] = coeff.P
+	}
+	r.RingQ.EvalPolyScalar(polQ, pt, p3.Q)
+	if r.RingP != nil {
+		r.RingP.EvalPolyScalar(polP, pt, p3.P)
+	}
+}
+
 // NTTLvl computes the NTT of p1 and returns the result on p2.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
 func (r *Ring) NTTLvl(levelQ, levelP int, p1, p2 Poly) {
@@ -287,6 +344,30 @@ func (r *Ring) MulCoeffsMontgomeryAndAddLvl(levelQ, levelP int, p1, p2, p3 Poly)
 	}
 }
 
+// MulRNSScalarMontgomery multiplies p with a scalar value expressed in the CRT decomposition.
+// It assumes the scalar decomposition to be in Montgomery form.
+func (r *Ring) MulRNSScalarMontgomery(p Poly, scalar []uint64, pOut Poly) {
+	scalarQ, scalarP := scalar[:len(r.RingQ.Modulus)], scalar[len(r.RingQ.Modulus):]
+	if r.RingQ != nil {
+		r.RingQ.MulRNSScalarMontgomery(p.Q, scalarQ, pOut.Q)
+	}
+	if r.RingP != nil {
+		r.RingP.MulRNSScalarMontgomery(p.P, scalarP, pOut.P)
+	}
+}
+
+// Inverse computes the modular inverse of a scalar a expressed in a CRT decomposition.
+// The inversion is done in-place and assumes that a is in Montgomery form.
+func (r *Ring) Inverse(scalar ring.RNSScalar) {
+	scalarQ, scalarP := scalar[:len(r.RingQ.Modulus)], scalar[len(r.RingQ.Modulus):]
+	if r.RingQ != nil {
+		r.RingQ.Inverse(scalarQ)
+	}
+	if r.RingP != nil {
+		r.RingP.Inverse(scalarP)
+	}
+}
+
 // ReduceLvl applies the modular reduction on the coefficients of p1 and returns the result on p2.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
 func (r *Ring) ReduceLvl(levelQ, levelP int, p1, p2 Poly) {
@@ -388,7 +469,7 @@ func (p *Poly) GetDataLen64(WithMetadata bool) (dataLen int) {
 	return
 }
 
-// WriteTo64 writes a Poly on the inpute data.
+// WriteTo64 writes a Poly on the input data.
 // Encodes each coefficient on 8 bytes.
 func (p *Poly) WriteTo64(data []byte) (pt int, err error) {
 	var inc int
@@ -453,6 +534,17 @@ func (p *Poly) DecodePoly64(data []byte) (pt int, err error) {
 	}
 
 	return
+}
+
+func (p *Poly) MarshalBinary() ([]byte, error) {
+	b := make([]byte, p.GetDataLen64(true))
+	_, err := p.WriteTo64(b)
+	return b, err
+}
+
+func (p *Poly) UnmarshalBinary(b []byte) error {
+	_, err := p.DecodePoly64(b)
+	return err
 }
 
 // UniformSampler is a type for sampling polynomials in Ring.

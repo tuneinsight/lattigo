@@ -7,9 +7,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tuneinsight/lattigo/v3/ckks"
-	"github.com/tuneinsight/lattigo/v3/rlwe"
-	"github.com/tuneinsight/lattigo/v3/utils"
+	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")

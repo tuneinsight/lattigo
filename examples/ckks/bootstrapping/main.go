@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/tuneinsight/lattigo/v3/ckks"
-	"github.com/tuneinsight/lattigo/v3/ckks/bootstrapping"
-	"github.com/tuneinsight/lattigo/v3/rlwe"
-	"github.com/tuneinsight/lattigo/v3/utils"
+	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/ckks/bootstrapping"
+	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 var flagShort = flag.Bool("short", false, "run the example with a smaller and insecure ring degree.")
@@ -31,7 +31,7 @@ func main() {
 	// Bootstrapping parameters
 	// Two sets of four parameters each, DefaultParametersSparse and DefaultParametersDense,
 	// (each index 0 to 3) ensuring 128 bit of security are available in
-	// github.com/tuneinsight/lattigo/v3/ckks/bootstrapping/default_params.go
+	// github.com/tuneinsight/lattigo/v4/ckks/bootstrapping/default_params.go
 	//
 	// LogSlots is hardcoded to 15 in the parameters, but can be changed from 1 to 15.
 	// When changing LogSlots make sure that the number of levels allocated to CtS and StC is
@@ -92,11 +92,11 @@ func main() {
 	// Bootstrap the ciphertext (homomorphic re-encryption)
 	// It takes a ciphertext at level 0 (if not at level 0, then it will reduce it to level 0)
 	// and returns a ciphertext at level MaxLevel - k, where k is the depth of the bootstrapping circuit.
-	// CAUTION: the scale of the ciphertext MUST be equal (or very close) to params.Scale
-	// To equalize the scale, the function evaluator.SetScale(ciphertext, parameters.Scale) can be used at the expense of one level.
+	// CAUTION: the scale of the ciphertext MUST be equal (or very close) to params.DefaultScale()
+	// To equalize the scale, the function evaluator.SetScale(ciphertext, parameters.DefaultScale()) can be used at the expense of one level.
 	fmt.Println()
 	fmt.Println("Bootstrapping...")
-	ciphertext2 := btp.Bootstrapp(ciphertext1)
+	ciphertext2 := btp.Bootstrap(ciphertext1)
 	fmt.Println("Done")
 
 	// Decrypt, print and compare with the plaintext values
@@ -111,7 +111,7 @@ func printDebug(params ckks.Parameters, ciphertext *ckks.Ciphertext, valuesWant 
 
 	fmt.Println()
 	fmt.Printf("Level: %d (logQ = %d)\n", ciphertext.Level(), params.LogQLvl(ciphertext.Level()))
-	fmt.Printf("Scale: 2^%f\n", math.Log2(ciphertext.Scale))
+	fmt.Printf("Scale: 2^%f\n", math.Log2(ciphertext.Scale()))
 	fmt.Printf("ValuesTest: %6.10f %6.10f %6.10f %6.10f...\n", valuesTest[0], valuesTest[1], valuesTest[2], valuesTest[3])
 	fmt.Printf("ValuesWant: %6.10f %6.10f %6.10f %6.10f...\n", valuesWant[0], valuesWant[1], valuesWant[2], valuesWant[3])
 

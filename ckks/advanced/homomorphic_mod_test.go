@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/tuneinsight/lattigo/v3/ckks"
-	"github.com/tuneinsight/lattigo/v3/rlwe"
-	"github.com/tuneinsight/lattigo/v3/utils"
+	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 func TestHomomorphicMod(t *testing.T) {
@@ -122,10 +122,10 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 		scale := math.Exp2(math.Round(math.Log2(float64(evm.Q) / evm.MessageRatio)))
 
 		// Scale the message to Delta = Q/MessageRatio
-		eval.ScaleUp(ciphertext, math.Round(scale/ciphertext.Scale), ciphertext)
+		eval.ScaleUp(ciphertext, math.Round(scale/ciphertext.Scale()), ciphertext)
 
 		// Scale the message up to Sine/MessageRatio
-		eval.ScaleUp(ciphertext, math.Round((evm.ScalingFactor/evm.MessageRatio)/ciphertext.Scale), ciphertext)
+		eval.ScaleUp(ciphertext, math.Round((evm.ScalingFactor/evm.MessageRatio)/ciphertext.Scale()), ciphertext)
 
 		// Normalization
 		eval.MultByConst(ciphertext, 1/(float64(evm.K)*evm.QDiff()), ciphertext)
@@ -167,10 +167,10 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 		scale := math.Exp2(math.Round(math.Log2(float64(evm.Q) / evm.MessageRatio)))
 
 		// Scale the message to Delta = Q/MessageRatio
-		eval.ScaleUp(ciphertext, math.Round(scale/ciphertext.Scale), ciphertext)
+		eval.ScaleUp(ciphertext, math.Round(scale/ciphertext.Scale()), ciphertext)
 
 		// Scale the message up to Sine/MessageRatio
-		eval.ScaleUp(ciphertext, math.Round((evm.ScalingFactor/evm.MessageRatio)/ciphertext.Scale), ciphertext)
+		eval.ScaleUp(ciphertext, math.Round((evm.ScalingFactor/evm.MessageRatio)/ciphertext.Scale()), ciphertext)
 
 		// Normalization
 		eval.MultByConst(ciphertext, 1/(float64(evm.K)*evm.QDiff()), ciphertext)

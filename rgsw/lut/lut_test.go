@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/tuneinsight/lattigo/v3/ring"
-	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
 func testString(params rlwe.Parameters, opname string) string {
@@ -132,7 +132,7 @@ func testLUT(t *testing.T) {
 
 			decryptorLUT.Decrypt(ctsLUT[i], ptLUT)
 
-			c := ptLUT.Value.Coeffs[0][i]
+			c := ptLUT.Value.Coeffs[0][0]
 
 			var a float64
 			if c >= qHalf {
@@ -142,7 +142,7 @@ func testLUT(t *testing.T) {
 			}
 
 			if values[i] != 0 {
-				fmt.Printf("%7.4f - %7.4f - %7.4f\n", math.Round(a*32)/32, math.Round(a*8)/8, values[i])
+				//fmt.Printf("%7.4f - %7.4f - %7.4f\n", math.Round(a*32)/32, math.Round(a*8)/8, values[i])
 				assert.Equal(t, sign(values[i]), math.Round(a*8)/8)
 			}
 		}

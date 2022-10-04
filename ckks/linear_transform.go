@@ -3,9 +3,9 @@ package ckks
 import (
 	"runtime"
 
-	"github.com/tuneinsight/lattigo/v3/ring"
-	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
-	"github.com/tuneinsight/lattigo/v3/utils"
+	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 // Trace maps X -> sum((-1)^i * X^{i*n+1}) for 0 <= i < N
@@ -33,13 +33,13 @@ import (
 //	= [8 + 0X + 0X^2 - 0X^3 + 0X^4 + 0X^5 + 0X^6 - 0X^7]
 func (eval *evaluator) Trace(ctIn *Ciphertext, logSlots int, ctOut *Ciphertext) {
 	eval.Evaluator.Trace(ctIn.Ciphertext, logSlots, ctOut.Ciphertext)
-	ctOut.Scale = ctIn.Scale
+	ctOut.scale = ctIn.scale
 }
 
 // TraceNew maps X -> sum((-1)^i * X^{i*n+1}) for 0 <= i < N and returns the result on a new ciphertext.
 // For log(n) = logSlots.
 func (eval *evaluator) TraceNew(ctIn *Ciphertext, logSlots int) (ctOut *Ciphertext) {
-	ctOut = NewCiphertext(eval.params, 1, ctIn.Level(), ctIn.Scale)
+	ctOut = NewCiphertext(eval.params, 1, ctIn.Level(), ctIn.scale)
 	eval.Trace(ctIn, logSlots, ctOut)
 	return
 }
@@ -49,7 +49,7 @@ func (eval *evaluator) TraceNew(ctIn *Ciphertext, logSlots int) (ctOut *Cipherte
 func (eval *evaluator) RotateHoistedNew(ctIn *Ciphertext, rotations []int) (ctOut map[int]*Ciphertext) {
 	ctOut = make(map[int]*Ciphertext)
 	for _, i := range rotations {
-		ctOut[i] = NewCiphertext(eval.params, 1, ctIn.Level(), ctIn.Scale)
+		ctOut[i] = NewCiphertext(eval.params, 1, ctIn.Level(), ctIn.scale)
 	}
 	eval.RotateHoisted(ctIn, rotations, ctOut)
 	return
@@ -63,7 +63,7 @@ func (eval *evaluator) RotateHoisted(ctIn *Ciphertext, rotations []int, ctOut ma
 	eval.DecomposeNTT(levelQ, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], eval.BuffDecompQP)
 	for _, i := range rotations {
 		eval.AutomorphismHoisted(levelQ, ctIn.Ciphertext, eval.BuffDecompQP, eval.params.GaloisElementForColumnRotationBy(i), ctOut[i].Ciphertext)
-		ctOut[i].Scale = ctIn.Scale
+		ctOut[i].scale = ctIn.scale
 	}
 }
 
@@ -181,9 +181,21 @@ func (LT *LinearTransform) Encode(encoder Encoder, value interface{}, scale floa
 			enc.Embed(dMat[i], LT.LogSlots, scale, true, LT.Vec[idx])
 		}
 	} else {
+
 		index, _, _ := BsgsIndex(value, slots, N1)
 
+		var values interface{}
+		switch value.(type) {
+		case map[int][]complex128:
+			values = make([]complex128, slots)
+		case map[int][]float64:
+			values = make([]float64, slots)
+		}
+
 		for j := range index {
+
+			rot := -j & (slots - 1)
+
 			for _, i := range index[j] {
 				// manages inputs that have rotation between 0 and slots-1 or between -slots/2 and slots/2-1
 				v, ok := dMat[j+i]
@@ -195,7 +207,9 @@ func (LT *LinearTransform) Encode(encoder Encoder, value interface{}, scale floa
 					panic("cannot Encode: error encoding on LinearTransform BSGS: input does not match the same non-zero diagonals")
 				}
 
-				enc.Embed(utils.RotateSlice(v, -j), LT.LogSlots, scale, true, LT.Vec[j+i])
+				copyRotInterface(values, v, rot)
+
+				enc.Embed(values, LT.LogSlots, scale, true, LT.Vec[j+i])
 			}
 		}
 	}
@@ -264,7 +278,18 @@ func GenLinearTransformBSGS(encoder Encoder, value interface{}, level int, scale
 	dMat := interfaceMapToMapOfInterface(value)
 	levelQ := level
 	levelP := params.PCount() - 1
+
+	var values interface{}
+	switch value.(type) {
+	case map[int][]complex128:
+		values = make([]complex128, slots)
+	case map[int][]float64:
+		values = make([]float64, slots)
+	}
+
 	for j := range index {
+
+		rot := -j & (slots - 1)
 
 		for _, i := range index[j] {
 
@@ -274,11 +299,45 @@ func GenLinearTransformBSGS(encoder Encoder, value interface{}, level int, scale
 				v = dMat[j+i-slots]
 			}
 			vec[j+i] = params.RingQP().NewPolyLvl(levelQ, levelP)
-			enc.Embed(utils.RotateSlice(v, -j), logSlots, scale, true, vec[j+i])
+
+			copyRotInterface(values, v, rot)
+
+			enc.Embed(values, logSlots, scale, true, vec[j+i])
 		}
 	}
 
 	return LinearTransform{LogSlots: logSlots, N1: N1, Vec: vec, Level: level, Scale: scale}
+}
+
+func copyRotInterface(a, b interface{}, rot int) {
+	switch a.(type) {
+	case []complex128:
+
+		ac128 := a.([]complex128)
+		bc128 := b.([]complex128)
+
+		n := len(ac128)
+
+		if len(bc128) >= rot {
+			copy(ac128[:n-rot], bc128[rot:])
+			copy(ac128[n-rot:], bc128[:rot])
+		} else {
+			copy(ac128[n-rot:], bc128)
+		}
+	case []float64:
+
+		af64 := a.([]float64)
+		bf64 := b.([]float64)
+
+		n := len(af64)
+
+		if len(bf64) >= rot {
+			copy(af64[:n-rot], bf64[rot:])
+			copy(af64[n-rot:], bf64[:rot])
+		} else {
+			copy(af64[n-rot:], bf64)
+		}
+	}
 }
 
 // BsgsIndex returns the index map and needed rotation for the BSGS matrix-vector multiplication algorithm.
@@ -405,7 +464,7 @@ func (eval *evaluator) LinearTransformNew(ctIn *Ciphertext, linearTransform inte
 		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], eval.BuffDecompQP)
 
 		for i, LT := range LTs {
-			ctOut[i] = NewCiphertext(eval.params, 1, minLevel, ctIn.Scale)
+			ctOut[i] = NewCiphertext(eval.params, 1, minLevel, ctIn.scale)
 
 			if LT.N1 == 0 {
 				eval.MultiplyByDiagMatrix(ctIn, LT, eval.BuffDecompQP, ctOut[i])
@@ -419,7 +478,7 @@ func (eval *evaluator) LinearTransformNew(ctIn *Ciphertext, linearTransform inte
 		minLevel := utils.MinInt(LTs.Level, ctIn.Level())
 		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], eval.BuffDecompQP)
 
-		ctOut = []*Ciphertext{NewCiphertext(eval.params, 1, minLevel, ctIn.Scale)}
+		ctOut = []*Ciphertext{NewCiphertext(eval.params, 1, minLevel, ctIn.scale)}
 
 		if LTs.N1 == 0 {
 			eval.MultiplyByDiagMatrix(ctIn, LTs, eval.BuffDecompQP, ctOut[0])
@@ -475,6 +534,10 @@ func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfa
 // Required rotation keys can be generated with 'RotationsForInnerSumLog(batchSize, SlotCount/batchSize)”
 func (eval *evaluator) Average(ctIn *Ciphertext, logBatchSize int, ctOut *Ciphertext) {
 
+	if ctIn.Degree() != 1 || ctOut.Degree() != 1 {
+		panic("ctIn.Degree() != 1 or ctOut.Degree() != 1")
+	}
+
 	if logBatchSize > eval.params.LogSlots() {
 		panic("cannot Average: batchSize must be smaller or equal to the number of slots")
 	}
@@ -506,6 +569,10 @@ func (eval *evaluator) Average(ctIn *Ciphertext, logBatchSize int, ctOut *Cipher
 // This method is faster than InnerSum when the number of rotations is large and uses log2(n) + HW(n) instead of 'n' keys.
 func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
 
+	if ctIn.Degree() != 1 || ctOut.Degree() != 1 {
+		panic("ctIn.Degree() != 1 or ctOut.Degree() != 1")
+	}
+
 	ringQ := eval.params.RingQ()
 	ringP := eval.params.RingP()
 	ringQP := eval.params.RingQP()
@@ -514,7 +581,7 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 	levelP := len(ringP.Modulus) - 1
 
 	ctOut.Resize(ctOut.Degree(), levelQ)
-	ctOut.Scale = ctIn.Scale
+	ctOut.scale = ctIn.scale
 
 	if n == 1 {
 		if ctIn != ctOut {
@@ -625,6 +692,10 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 // This method is faster than InnerSumLog when the number of rotations is small but uses 'n' keys instead of log(n) + HW(n).
 func (eval *evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
 
+	if ctIn.Degree() != 1 || ctOut.Degree() != 1 {
+		panic("ctIn.Degree() != 1 or ctOut.Degree() != 1")
+	}
+
 	ringQ := eval.params.RingQ()
 	ringP := eval.params.RingP()
 	ringQP := eval.params.RingQP()
@@ -636,7 +707,7 @@ func (eval *evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 	PiOverF := eval.params.PiOverflowMargin(levelP) >> 1
 
 	ctOut.Resize(ctOut.Degree(), levelQ)
-	ctOut.Scale = ctIn.Scale
+	ctOut.scale = ctIn.scale
 
 	// If sum with only the first element, then returns the input
 	if n == 1 {
@@ -840,7 +911,7 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTrans
 		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, matrix.Vec[0].Q, ctInTmp1, c1OutQP.Q) // ctOut += c1_Q * plaintext
 	}
 
-	ctOut.Scale = matrix.Scale * ctIn.Scale
+	ctOut.scale = matrix.Scale * ctIn.scale
 }
 
 // MultiplyByDiagMatrixBSGS multiplies the ciphertext "ctIn" by the plaintext matrix "matrix" and returns the result on the ciphertext
@@ -1002,9 +1073,8 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearT
 	eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, ctOut.Value[0], c0OutQP.P, ctOut.Value[0]) // sum(phi(c0 * P + d0_QP))/P
 	eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, ctOut.Value[1], c1OutQP.P, ctOut.Value[1]) // sum(phi(d1_QP))/P
 
-	ctOut.Scale = matrix.Scale * ctIn.Scale
+	ctOut.scale = matrix.Scale * ctIn.scale
 
 	ctInRotQP = nil
 	runtime.GC()
-
 }

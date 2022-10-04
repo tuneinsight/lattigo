@@ -69,7 +69,7 @@ func SwitchingKeyIsCorrect(swk *SwitchingKey, skIn, skOut *SecretKey, params Par
 		}
 	}
 
-	// Sums all basis together (equivalent to multiplying with CRT decomposition of 1)
+	// Sums all bases together (equivalent to multiplying with CRT decomposition of 1)
 	// sum([1]_w * [RNS*PW2*P*sOut + e]) = PWw*P*sOut + sum(e)
 	for i := range swk.Value { // RNS decomp
 		if i > 0 {

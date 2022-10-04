@@ -51,7 +51,7 @@ func (rfp *MaskedTransformProtocol) ShallowCopy() *MaskedTransformProtocol {
 }
 
 // WithParams creates a shallow copy of the target MaskedTransformProtocol but with new output parameters.
-// The expected input parameters remain unchnaged.
+// The expected input parameters remain unchanged.
 func (rfp *MaskedTransformProtocol) WithParams(paramsOut ckks.Parameters) *MaskedTransformProtocol {
 
 	precision := rfp.precision
@@ -180,11 +180,11 @@ func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, logBou
 	ringQ := rfp.s2e.params.RingQ()
 
 	if ct1.Level() < shareOut.e2sShare.Value.Level() {
-		panic("ct[1] level must be at least equal to e2sShare level")
+		panic("cannot GenShare: ct[1] level must be at least equal to e2sShare level")
 	}
 
 	if (*ring.Poly)(&crs).Level() != shareOut.s2eShare.Value.Level() {
-		panic("crs level must be equal to s2eShare")
+		panic("cannot GenShare: crs level must be equal to s2eShare")
 	}
 
 	slots := 1 << logSlots
@@ -222,7 +222,7 @@ func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, logBou
 				bigComplex[i][1].Neg(bigComplex[slots-i][0])
 			}
 		default:
-			panic("invalid ring type")
+			panic("cannot GenShare: invalid ring type")
 		}
 
 		// Decodes if asked to
@@ -268,11 +268,11 @@ func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, logBou
 func (rfp *MaskedTransformProtocol) AggregateShares(share1, share2, shareOut *MaskedTransformShare) {
 
 	if share1.e2sShare.Value.Level() != share2.e2sShare.Value.Level() || share1.e2sShare.Value.Level() != shareOut.e2sShare.Value.Level() {
-		panic("all e2s shares must be at the same level")
+		panic("cannot AggregateShares: all e2s shares must be at the same level")
 	}
 
 	if share1.s2eShare.Value.Level() != share2.s2eShare.Value.Level() || share1.s2eShare.Value.Level() != shareOut.s2eShare.Value.Level() {
-		panic("all s2e shares must be at the same level")
+		panic("cannot AggregateShares: all s2e shares must be at the same level")
 	}
 
 	rfp.e2s.params.RingQ().AddLvl(share1.e2sShare.Value.Level(), share1.e2sShare.Value, share2.e2sShare.Value, shareOut.e2sShare.Value)
@@ -284,13 +284,13 @@ func (rfp *MaskedTransformProtocol) AggregateShares(share1, share2, shareOut *Ma
 func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, logSlots int, transform *MaskedTransformFunc, crs drlwe.CKSCRP, share *MaskedTransformShare, ciphertextOut *ckks.Ciphertext) {
 
 	if ct.Level() < share.e2sShare.Value.Level() {
-		panic("input ciphertext level must be at least equal to e2s level")
+		panic("cannot Transform: input ciphertext level must be at least equal to e2s level")
 	}
 
 	maxLevel := (*ring.Poly)(&crs).Level()
 
 	if maxLevel != share.s2eShare.Value.Level() {
-		panic("crs level and s2e level must be the same")
+		panic("cannot Transform: crs level and s2e level must be the same")
 	}
 
 	ringQ := rfp.s2e.params.RingQ()
@@ -330,7 +330,7 @@ func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, logSlots int,
 				bigComplex[i][1].Neg(bigComplex[slots-i][0])
 			}
 		default:
-			panic("invalid ring type")
+			panic("cannot Transform: invalid ring type")
 		}
 
 		// Decodes if asked to

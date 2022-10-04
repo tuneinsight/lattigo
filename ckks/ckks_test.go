@@ -1038,7 +1038,7 @@ func testBridge(tc *testContext, t *testing.T) {
 		// Create equivalent parameters with RingStandard ring type and different auxiliary modulus P
 		stdParamsLit := ciParams.ParametersLiteral()
 		stdParamsLit.LogN = ciParams.LogN() + 1
-		stdParamsLit.P = []uint64{0x1ffffffff6c80001, 0x1ffffffff6140001} // Assignes new P to ensure that independance from auxiliary P is tested
+		stdParamsLit.P = []uint64{0x1ffffffff6c80001, 0x1ffffffff6140001} // Assigns new P to ensure that independence from auxiliary P is tested
 		stdParamsLit.RingType = ring.Standard
 
 		stdParams, err := NewParametersFromLiteral(stdParamsLit)
@@ -1435,7 +1435,7 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 		assert.Equal(t, 2, paramsWithLogModuli.QCount())
 		assert.Equal(t, 1, paramsWithLogModuli.PCount())
 		assert.Equal(t, ring.Standard, paramsWithLogModuli.RingType())  // Omitting the RingType field should result in a standard instance
-		assert.Equal(t, rlwe.DefaultSigma, paramsWithLogModuli.Sigma()) // Ommiting sigma should result in Default being used
+		assert.Equal(t, rlwe.DefaultSigma, paramsWithLogModuli.Sigma()) // Omitting sigma should result in Default being used
 
 		// checks that ckks.Paramters can be unmarshalled with log-moduli definition with empty P without error
 		dataWithLogModuliNoP := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[],"DefaultScale":1.0,"RingType": "ConjugateInvariant"}`, testctx.params.LogN()))

@@ -133,10 +133,10 @@ func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crp drlwe.CKSCRP, secretSha
 }
 
 // GetEncryption computes the final encryption of the secret-shared message when provided with the aggregation `c0Agg` of the parties'
-// share in the protocol and with the common, CRS-sampled polynomial `crp`.
+// shares in the protocol and with the common, CRS-sampled polynomial `crp`.
 func (s2e *S2EProtocol) GetEncryption(c0Agg *drlwe.CKSShare, crp drlwe.CKSCRP, ctOut *bfv.Ciphertext) {
 	if ctOut.Degree() != 1 {
-		panic("ctOut must have degree 1.")
+		panic("cannot GetEncryption: ctOut must have degree 1.")
 	}
 	ctOut.Value[0].Copy(c0Agg.Value)
 	ctOut.Value[1].Copy((*ring.Poly)(&crp))

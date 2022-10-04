@@ -859,7 +859,7 @@ func (eval *evaluator) MultByGaussianIntegerAndAdd(ct0 *Ciphertext, cReal, cImag
 func (eval *evaluator) MultByiNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 
 	if eval.params.RingType() == ring.ConjugateInvariant {
-		panic("method MultByi is not supported when params.RingType() == ring.ConjugateInvariant")
+		panic("cannot MultByiNew: method not supported when params.RingType() == ring.ConjugateInvariant")
 	}
 
 	ctOut = NewCiphertext(eval.params, 1, ct0.Level(), ct0.scale)
@@ -872,7 +872,7 @@ func (eval *evaluator) MultByiNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 func (eval *evaluator) MultByi(ct0 *Ciphertext, ctOut *Ciphertext) {
 
 	if eval.params.RingType() == ring.ConjugateInvariant {
-		panic("method MultByi is not supported when params.RingType() == ring.ConjugateInvariant")
+		panic("cannot MultByi: method not supported when params.RingType() == ring.ConjugateInvariant")
 	}
 
 	var level = utils.MinInt(ct0.Level(), ctOut.Level())
@@ -911,7 +911,7 @@ func (eval *evaluator) MultByi(ct0 *Ciphertext, ctOut *Ciphertext) {
 func (eval *evaluator) DivByiNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 
 	if eval.params.RingType() == ring.ConjugateInvariant {
-		panic("method DivByi is not supported when params.RingType() == ring.ConjugateInvariant")
+		panic("cannot DivByiNew: method not supported when params.RingType() == ring.ConjugateInvariant")
 	}
 
 	ctOut = NewCiphertext(eval.params, 1, ct0.Level(), ct0.scale)
@@ -924,7 +924,7 @@ func (eval *evaluator) DivByiNew(ct0 *Ciphertext) (ctOut *Ciphertext) {
 func (eval *evaluator) DivByi(ct0 *Ciphertext, ctOut *Ciphertext) {
 
 	if eval.params.RingType() == ring.ConjugateInvariant {
-		panic("method DivByi is not supported when params.RingType() == ring.ConjugateInvariant")
+		panic("cannot DivByi: method not supported when params.RingType() == ring.ConjugateInvariant")
 	}
 
 	var level = utils.MinInt(ct0.Level(), ctOut.Level())

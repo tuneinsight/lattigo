@@ -23,7 +23,7 @@ func testString(opname string, tc *testContext) string {
 	return fmt.Sprintf("%s/LogN=%d/logQP=%d/parties=%d", opname, tc.params.LogN(), tc.params.LogQP(), tc.nParties())
 }
 
-// TestParams is a set of test parameters for the correctness of the rlwe pacakge.
+// TestParams is a set of test parameters for the correctness of the rlwe package.
 var TestParams = []rlwe.ParametersLiteral{
 	rlwe.TestPN10QP27,
 	rlwe.TestPN11QP54,

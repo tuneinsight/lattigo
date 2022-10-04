@@ -20,7 +20,7 @@ type Operand interface {
 	SetScale(uint64)
 }
 
-// Evaluator is an interface implementing the public methodes of the eval.
+// Evaluator is an interface implementing the public methods of the eval.
 type Evaluator interface {
 
 	// Add, Sub, Neg ct-ct & ct-pt
@@ -196,11 +196,11 @@ func (eval *evaluator) WithKey(evaluationKey rlwe.EvaluationKey) Evaluator {
 
 func (eval *evaluator) checkBinary(op0, op1, opOut Operand, opOutMinDegree int) {
 	if op0 == nil || op1 == nil || opOut == nil {
-		panic("operands cannot be nil")
+		panic("cannot checkBinary: operands cannot be nil")
 	}
 
 	if op0.Degree()+op1.Degree() == 0 {
-		panic("operands cannot be both plaintext")
+		panic("cannot checkBinary: operands cannot be both plaintext")
 	}
 
 	if opOut.Degree() < opOutMinDegree {
@@ -208,18 +208,18 @@ func (eval *evaluator) checkBinary(op0, op1, opOut Operand, opOutMinDegree int) 
 	}
 
 	if op0.Degree() > 2 || op1.Degree() > 2 || opOut.Degree() > 2 {
-		panic("operands degree cannot be larger than 2")
+		panic("cannot checkBinary: operands degree cannot be larger than 2")
 	}
 
 	for _, pol := range op0.El().Value {
 		if !pol.IsNTT {
-			panic("cannot evaluate: op0 must be in NTT")
+			panic("cannot checkBinary: op0 must be in NTT")
 		}
 	}
 
 	for _, pol := range op1.El().Value {
 		if !pol.IsNTT {
-			panic("cannot evaluate: op1 must be in NTT")
+			panic("cannot checkBinary: op1 must be in NTT")
 		}
 	}
 }
@@ -525,7 +525,7 @@ func (eval *evaluator) mulRelin(ctIn *Ciphertext, op1 Operand, relin bool, ctOut
 	}
 }
 
-// MulAndAdd multiplies ctIn with op1 (wihtout relinearization)^and adds the result on ctOut.
+// MulAndAdd multiplies ctIn with op1 (without relinearization)^and adds the result on ctOut.
 // The procedure will panic if either ctIn.Degree() or op1.Degree() > 1.
 // The procedure will panic if either ctIn == ctOut or op1 == ctOut.
 func (eval *evaluator) MulAndAdd(ctIn *Ciphertext, op1 Operand, ctOut *Ciphertext) {
@@ -550,7 +550,7 @@ func (eval *evaluator) mulRelinAndAdd(ctIn *Ciphertext, op1 Operand, relin bool,
 	}
 
 	if ctIn.El() == ctOut.El() || op1.El() == ctOut.El() {
-		panic("ctOut must be different from ctIn and op1")
+		panic("cannot MulRelinAndAdd: ctOut must be different from ctIn and op1")
 	}
 
 	ringQ := eval.params.RingQ()
@@ -685,7 +685,7 @@ func (eval *evaluator) rescaleOriginal(ctIn, ctOut *Ciphertext) (err error) {
 }
 
 // Rescale divides (rounded) ctIn by the last modulus of the moduli chain and returns the result on ctOut.
-// This procesure divides the error by the last modulus of the moduli chain while preserving
+// This procedure divides the error by the last modulus of the moduli chain while preserving
 // the LSB-plaintext bits.
 // The procedure will return an error if:
 //     1) ctIn.Level() == 0 (the input ciphertext is already at the last modulus)
@@ -819,7 +819,7 @@ func (eval *evaluator) SwitchKeys(ctIn *Ciphertext, swk *rlwe.SwitchingKey, ctOu
 	ctOut.scale = ctIn.scale
 }
 
-// RotateColumnsNew RotateColumnss the columns of ctIn by k positions to the left, and returns the result in a newly created element.
+// RotateColumnsNew rotates the columns of ctIn by k positions to the left, and returns the result in a newly created element.
 // The procedure will panic if the corresponding Galois key has not been generated and attributed to the evaluator.
 // The procedure will panic if ctIn.Degree() != 1.
 func (eval *evaluator) RotateColumnsNew(ctIn *Ciphertext, k int) (ctOut *Ciphertext) {
@@ -828,7 +828,7 @@ func (eval *evaluator) RotateColumnsNew(ctIn *Ciphertext, k int) (ctOut *Ciphert
 	return
 }
 
-// RotateColumns RotateColumnss the columns of ctIn by k positions to the left and returns the result in ctOut.
+// RotateColumns rotates the columns of ctIn by k positions to the left and returns the result in ctOut.
 // The procedure will panic if the corresponding Galois key has not been generated and attributed to the evaluator.
 // The procedure will panic if either ctIn.Degree() or ctOut.Degree() != 1.
 func (eval *evaluator) RotateColumns(ctIn *Ciphertext, k int, ctOut *Ciphertext) {
@@ -868,7 +868,7 @@ func (eval *evaluator) Automorphism(ctIn *Ciphertext, galEl uint64, ctOut *Ciphe
 
 	rtk, generated := eval.Rtks.GetRotationKey(galEl)
 	if !generated {
-		panic(fmt.Sprintf("galEl key 5^%d missing", eval.params.InverseGaloisElement(galEl)))
+		panic(fmt.Sprintf("cannot apply Automorphism: galEl key 5^%d missing", eval.params.InverseGaloisElement(galEl)))
 	}
 
 	level := utils.MinInt(ctIn.Level(), ctOut.Level())
@@ -903,7 +903,7 @@ func (eval *evaluator) AutomorphismHoisted(level int, ctIn *Ciphertext, c1Decomp
 
 	rtk, generated := eval.Rtks.GetRotationKey(galEl)
 	if !generated {
-		panic(fmt.Sprintf("galEl key 5^%d missing", eval.params.InverseGaloisElement(galEl)))
+		panic(fmt.Sprintf("cannot apply AutomorphismHoisted: galEl key 5^%d missing", eval.params.InverseGaloisElement(galEl)))
 	}
 
 	ringQ := eval.params.RingQ()
@@ -981,7 +981,7 @@ func (eval *evaluator) matchScalesBinary(scale0, scale1 uint64) (r0, r1, e uint6
 	bredParams := ringT.BredParams[0]
 
 	if utils.GCD(scale0, t) != 1 {
-		panic("invalid ciphertext scale: gcd(scale, t) != 1")
+		panic("cannot matchScalesBinary: invalid ciphertext scale: gcd(scale, t) != 1")
 	}
 
 	var a = ringT.Modulus[0]
@@ -1018,8 +1018,8 @@ func center(x, thalf, t uint64) uint64 {
 // MergeE merges a batch of Ciphertexts, packing the first coefficient of each Ciphertext into a single Ciphertext.
 // The operation will require N/gap + log(gap) key-switches, where gap is the minimum gap between
 // two non-zero coefficients of the final ciphertext.
-// The method takes as input a map of Ciphertexts, indexing in which coefficient, of the final
-// ciphertext, the first coefficient of each ciphertext of the map must be packed.
+// The method takes as input a map of Ciphertexts, indexing in which coefficient of the final
+// Ciphertext the first coefficient of each Ciphertext of the map must be packed.
 // The method will update the scale of all the Ciphertexts in the map to match the scale
 // of the Ciphertext with the smallest index
 func (eval *evaluator) Merge(ctIn map[int]*Ciphertext) (ctOut *Ciphertext) {

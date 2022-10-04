@@ -51,7 +51,7 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct1 *ring.Po
 	cks.params.RingQ().MulScalarLvl(level, shareOut.Value, cks.params.T(), shareOut.Value)
 }
 
-// KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
+// KeySwitch performs the actual keyswitching operation on a Ciphertext ct and stores the result in ctOut
 func (cks *CKSProtocol) KeySwitch(ctIn *bgv.Ciphertext, combined *drlwe.CKSShare, ctOut *bgv.Ciphertext) {
 	cks.CKSProtocol.KeySwitch(ctIn.Ciphertext, combined, ctOut.Ciphertext)
 	ctOut.SetScale(ctIn.Scale())
@@ -79,7 +79,7 @@ type PCKSProtocol struct {
 	tInvModQ []*big.Int
 }
 
-// NewPCKSProtocol creates a new PCKSProtocol object and will be used to re-encrypt a ciphertext ctx encrypted under a secret-shared key mong j parties under a new
+// NewPCKSProtocol creates a new PCKSProtocol object and will be used to re-encrypt a Ciphertext ctx encrypted under a key secret-shared among j parties under a new
 // collective public-key.
 func NewPCKSProtocol(params bgv.Parameters, sigmaSmudging float64) *PCKSProtocol {
 	ringQ := params.RingQ()

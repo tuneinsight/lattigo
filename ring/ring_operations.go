@@ -370,13 +370,13 @@ func (r *Ring) MulScalarAndAddLvl(level int, p1 *Poly, scalar uint64, p2 *Poly) 
 }
 
 // MulRNSScalarMontgomery multiplies p with a scalar value expressed in the RNS representation.
-// It asssumes the scalar to be decomposed in the RNS basis of the ring r and its coefficients to be in Montgomerry form.
+// It assumes the scalar to be decomposed in the RNS basis of the ring r and its coefficients to be in Montgomery form.
 func (r *Ring) MulRNSScalarMontgomery(p *Poly, scalar RNSScalar, pOut *Poly) {
 	r.MulRNSScalarMontgomeryLvl(r.minLevelBinary(p, pOut), p, scalar, pOut)
 }
 
 // MulRNSScalarMontgomeryLvl multiplies p with a scalar value expressed in the CRT decomposition at a given level.
-// It asssumes the scalar decomposition to be in Montgomerry form.
+// It assumes the scalar decomposition to be in Montgomery form.
 func (r *Ring) MulRNSScalarMontgomeryLvl(level int, p *Poly, scalar RNSScalar, pOut *Poly) {
 	for i := 0; i < level+1; i++ {
 		Qi := r.Modulus[i]
@@ -423,7 +423,7 @@ func (r *Ring) EvalPolyScalar(pol []*Poly, scalar uint64, pOut *Poly) {
 	}
 }
 
-// Shift circulary shifts the coefficients of the polynomial p1 by k positions to the left and writes the result on p2.
+// Shift circularly shifts the coefficients of the polynomial p1 by k positions to the left and writes the result on p2.
 func (r *Ring) Shift(p1 *Poly, k int, p2 *Poly) {
 	for i := range p1.Coeffs {
 		utils.RotateUint64SliceAllocFree(p1.Coeffs[i], k, p2.Coeffs[i])

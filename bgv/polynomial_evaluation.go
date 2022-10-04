@@ -47,8 +47,8 @@ type polynomialEvaluator struct {
 	isEven     bool
 }
 
-// EvaluatePoly evaluates a polynomial in standard basis on the input Ciphertext in ceil(log2(deg+1)) depth.
-// input must be either *Ciphertext or *Powerbasis.
+// EvaluatePoly evaluates a Polynomial in standard basis on the input Ciphertext in ceil(log2(deg+1)) depth.
+// input must be either *Ciphertext or *PowerBasis.
 func (eval *evaluator) EvaluatePoly(input interface{}, pol *Polynomial, targetScale uint64) (opOut *Ciphertext, err error) {
 	return eval.evaluatePolyVector(input, polynomialVector{Value: []*Polynomial{pol}}, targetScale)
 }
@@ -64,7 +64,7 @@ type polynomialVector struct {
 // input: *Ciphertext or *PowerBasis.
 // pols: a slice of up to 'n' *Polynomial ('n' being the maximum number of slots), indexed from 0 to n-1. Returns an error if the polynomials do not all have the same degree.
 // encoder: an Encoder.
-// slotsIndex: a map[int][]int indexing as key the polynomial to evalute and as value the index of the slots on which to evaluate the polynomial indexed by the key.
+// slotsIndex: a map[int][]int indexing as key the polynomial to evaluate and as value the index of the slots on which to evaluate the Polynomial indexed by the key.
 //
 // Example: if pols = []*Polynomial{pol0, pol1} and slotsIndex = map[int][]int:{0:[1, 2, 4, 5, 7], 1:[0, 3]},
 // then pol0 will be applied to slots [1, 2, 4, 5, 7], pol1 to slots [0, 3] and the slot 6 will be zero-ed.
@@ -141,14 +141,6 @@ func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVecto
 			return nil, err
 		}
 	}
-
-	/*
-		for i := 0; i < 1<<logDegree; i++{
-			if p, ok := powerBasis.Value[i]; ok{
-				fmt.Println(i, p.Degree(), p.Level())
-			}
-		}
-	*/
 
 	polyEval := &polynomialEvaluator{}
 	polyEval.slotsIndex = pol.SlotsIndex
@@ -511,7 +503,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetLevel int,
 			}
 		}
 
-		// If a non-zero degre coefficient was found, encode and adds the values on the output
+		// If a non-zero degree coefficient was found, encode and adds the values on the output
 		// ciphertext
 		if toEncode {
 			// Add would actually scale the plaintext accordingly,
@@ -552,7 +544,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetLevel int,
 				}
 			}
 
-			// If a non-zero degre coefficient was found, encode and adds the values on the output
+			// If a non-zero degree coefficient was found, encode and adds the values on the output
 			// ciphertext
 			if toEncode {
 

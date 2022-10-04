@@ -146,7 +146,7 @@ func (eval *evaluator) ReplicateLog(ctIn *Ciphertext, batchSize, n int, ctOut *C
 }
 
 // LinearTransform is a type for linear transformations on ciphertexts.
-// It stores a plaintext matrix diagonalized in diagonal form and
+// It stores a plaintext matrix in diagonal form and
 // can be evaluated on a ciphertext by using the evaluator.LinearTransform method.
 type LinearTransform struct {
 	LogSlots int
@@ -183,7 +183,7 @@ func NewLinearTransform(params Parameters, nonZeroDiags []int, level int, BSGSRa
 			}
 		}
 	} else {
-		panic("BSGS ratio cannot be negative")
+		panic("cannot NewLinearTransform: BSGS ratio cannot be negative")
 	}
 
 	return LinearTransform{LogSlots: params.LogN() - 1, N1: N1, Level: level, Vec: vec}
@@ -230,15 +230,15 @@ func (LT *LinearTransform) Rotations() (rotations []int) {
 
 // Encode encodes on a pre-allocated LinearTransform the linear transforms' matrix in diagonal form `value`.
 // values.(type) can be either map[int][]complex128 or map[int][]float64.
-// User must ensure that 1 <= len([]complex128\[]float64) <= 2^logSlots < 2^logN.
+// The user must ensure that 1 <= len([]complex128\[]float64) <= 2^logSlots < 2^logN.
 // It can then be evaluated on a ciphertext using evaluator.LinearTransform.
 // Evaluation will use the naive approach (single hoisting and no baby-step giant-step).
-// Faster if there is only a few non-zero diagonals but uses more keys.
+// This method is faster if there is only a few non-zero diagonals but uses more keys.
 func (LT *LinearTransform) Encode(ecd Encoder, dMat map[int][]uint64, scale uint64) {
 
 	enc, ok := ecd.(*encoder)
 	if !ok {
-		panic("encoder should be an encoderComplex128")
+		panic("cannot Encode: encoder should be an encoderComplex128")
 	}
 
 	ringQP := enc.params.RingQP()
@@ -259,7 +259,7 @@ func (LT *LinearTransform) Encode(ecd Encoder, dMat map[int][]uint64, scale uint
 			}
 
 			if _, ok := LT.Vec[idx]; !ok {
-				panic("error encoding on LinearTransform: input does not match the same non-zero diagonals")
+				panic("cannot Encode: error encoding on LinearTransform: input does not match the same non-zero diagonals")
 			}
 
 			enc.EncodeRingT(dMat[i], scale, buffT)
@@ -286,7 +286,7 @@ func (LT *LinearTransform) Encode(ecd Encoder, dMat map[int][]uint64, scale uint
 				}
 
 				if _, ok := LT.Vec[j+i]; !ok {
-					panic("error encoding on LinearTransform BSGS: input does not match the same non-zero diagonals")
+					panic("cannot Encode: error encoding on LinearTransform BSGS: input does not match the same non-zero diagonals")
 				}
 
 				if len(v) > slots {
@@ -308,17 +308,17 @@ func (LT *LinearTransform) Encode(ecd Encoder, dMat map[int][]uint64, scale uint
 	LT.Scale = scale
 }
 
-// GenLinearTransform allocates and encode a new LinearTransform struct from the linear transforms' matrix in diagonal form `value`.
+// GenLinearTransform allocates and encodes a new LinearTransform struct from the linear transforms' matrix in diagonal form `value`.
 // values.(type) can be either map[int][]complex128 or map[int][]float64.
-// User must ensure that 1 <= len([]complex128\[]float64) <= 2^logSlots < 2^logN.
+// The user must ensure that 1 <= len([]complex128\[]float64) <= 2^logSlots < 2^logN.
 // It can then be evaluated on a ciphertext using evaluator.LinearTransform.
 // Evaluation will use the naive approach (single hoisting and no baby-step giant-step).
-// Faster if there is only a few non-zero diagonals but uses more keys.
+// This method is faster if there is only a few non-zero diagonals but uses more keys.
 func GenLinearTransform(ecd Encoder, dMat map[int][]uint64, level int, scale uint64) LinearTransform {
 
 	enc, ok := ecd.(*encoder)
 	if !ok {
-		panic("encoder should be an encoderComplex128")
+		panic("cannot GenLinearTransform: encoder should be an encoderComplex128")
 	}
 
 	params := enc.params
@@ -349,12 +349,12 @@ func GenLinearTransform(ecd Encoder, dMat map[int][]uint64, level int, scale uin
 
 // GenLinearTransformBSGS allocates and encodes a new LinearTransform struct from the linear transforms' matrix in diagonal form `value` for evaluation with a baby-step giant-step approach.
 // values.(type) can be either map[int][]complex128 or map[int][]float64.
-// User must ensure that 1 <= len([]complex128\[]float64) <= 2^logSlots < 2^logN.
+// The user must ensure that 1 <= len([]complex128\[]float64) <= 2^logSlots < 2^logN.
 // LinearTransform types can be be evaluated on a ciphertext using evaluator.LinearTransform.
 // Evaluation will use the optimized approach (double hoisting and baby-step giant-step).
-// Faster if there is more than a few non-zero diagonals.
+// This method is faster if there is more than a few non-zero diagonals.
 // BSGSRatio is the maximum ratio between the inner and outer loop of the baby-step giant-step algorithm used in evaluator.LinearTransform.
-// Optimal BSGSRatio value is between 4 and 16 depending on the sparsity of the matrix.
+// The optimal BSGSRatio value is between 4 and 16 depending on the sparsity of the matrix.
 func GenLinearTransformBSGS(ecd Encoder, dMat map[int][]uint64, level int, scale uint64, BSGSRatio float64) (LT LinearTransform) {
 
 	enc, ok := ecd.(*encoder)
@@ -515,10 +515,10 @@ func FindBestBSGSSplit(diagMatrix interface{}, maxN int, maxRatio float64) (minN
 	return 1
 }
 
-// LinearTransformNew evaluates a linear transform on the ciphertext and returns the result on a new ciphertext.
+// LinearTransformNew evaluates a linear transform on the Ciphertext "ctIn" and returns the result on a new Ciphertext.
 // The linearTransform can either be an (ordered) list of PtDiagMatrix or a single PtDiagMatrix.
-// In either case a list of ciphertext is returned (the second case returning a list of
-// containing a single ciphertext. A PtDiagMatrix is a diagonalized plaintext matrix constructed with an Encoder using
+// In either case, a list of Ciphertext is returned (the second case returning a list
+// containing a single Ciphertext). A PtDiagMatrix is a diagonalized plaintext matrix constructed with an Encoder using
 // the method encoder.EncodeDiagMatrixAtLvl(*).
 func (eval *evaluator) LinearTransformNew(ctIn *Ciphertext, linearTransform interface{}) (ctOut []*Ciphertext) {
 
@@ -562,10 +562,10 @@ func (eval *evaluator) LinearTransformNew(ctIn *Ciphertext, linearTransform inte
 	return
 }
 
-// LinearTransformNew evaluates a linear transform on the pre-allocated ciphertexts.
+// LinearTransformNew evaluates a linear transform on the pre-allocated Ciphertexts.
 // The linearTransform can either be an (ordered) list of PtDiagMatrix or a single PtDiagMatrix.
-// In either case a list of ciphertext is returned (the second case returning a list of
-// containing a single ciphertext. A PtDiagMatrix is a diagonalized plaintext matrix constructed with an Encoder using
+// In either case a list of Ciphertext is returned (the second case returning a list
+// containing a single Ciphertext). A PtDiagMatrix is a diagonalized plaintext matrix constructed with an Encoder using
 // the method encoder.EncodeDiagMatrixAtLvl(*).
 func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interface{}, ctOut []*Ciphertext) {
 
@@ -600,7 +600,7 @@ func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfa
 	}
 }
 
-// MultiplyByDiagMatrix multiplies the ciphertext "ctIn" by the plaintext matrix "matrix" and returns the result on the ciphertext
+// MultiplyByDiagMatrix multiplies the Ciphertext "ctIn" by the plaintext matrix "matrix" and returns the result on the Ciphertext
 // "ctOut". Memory buffers for the decomposed ciphertext BuffDecompQP, BuffDecompQP must be provided, those are list of poly of ringQ and ringP
 // respectively, each of size params.Beta().
 // The naive approach is used (single hoisting and no baby-step giant-step), which is faster than MultiplyByDiagMatrixBSGS
@@ -707,11 +707,11 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTrans
 	ctOut.SetScale(matrix.Scale * ctIn.Scale())
 }
 
-// MultiplyByDiagMatrixBSGS multiplies the ciphertext "ctIn" by the plaintext matrix "matrix" and returns the result on the ciphertext
-// "ctOut". Memory buffers for the decomposed ciphertext BuffDecompQP, BuffDecompQP must be provided, those are list of poly of ringQ and ringP
+// MultiplyByDiagMatrixBSGS multiplies the Ciphertext "ctIn" by the plaintext matrix "matrix" and returns the result on the Ciphertext
+// "ctOut". Memory buffers for the decomposed Ciphertext BuffDecompQP, BuffDecompQP must be provided, those are list of poly of ringQ and ringP
 // respectively, each of size params.Beta().
 // The BSGS approach is used (double hoisting with baby-step giant-step), which is faster than MultiplyByDiagMatrix
-// for matrix with more than a few non-zero diagonals and uses much less keys.
+// for matrix with more than a few non-zero diagonals and uses significantly less keys.
 func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearTransform, PoolDecompQP []ringqp.Poly, ctOut *Ciphertext) {
 
 	ringQ := eval.params.RingQ()
@@ -726,7 +726,7 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearT
 	QiOverF := eval.params.QiOverflowMargin(levelQ) >> 1
 	PiOverF := eval.params.PiOverflowMargin(levelP) >> 1
 
-	// Computes the N2 rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giang-step algorithm
+	// Computes the N2 rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giant-step algorithm
 	index, _, rotN2 := BsgsIndex(matrix.Vec, 1<<matrix.LogSlots, matrix.N1)
 
 	ring.CopyValuesLvl(levelQ, ctIn.Value[0], eval.buffCt.Value[0])

@@ -14,7 +14,7 @@ const GaloisGen uint64 = ring.GaloisGen
 
 // Encoder is an interface for plaintext encoding and decoding operations.
 // It provides methods to embed []uint64 and []int64 types into plaintext
-// polynmials and the inverse operations.
+// polynomials and the inverse operations.
 type Encoder interface {
 	Encode(values interface{}, pt *Plaintext)
 	EncodeNew(values interface{}, level int, scale uint64) (pt *Plaintext)

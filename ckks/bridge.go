@@ -57,11 +57,11 @@ func (switcher *DomainSwitcher) ComplexToReal(eval *rlwe.Evaluator, ctIn, ctOut 
 	level := utils.MinInt(ctIn.Level(), ctOut.Level())
 
 	if len(ctIn.Value[0].Coeffs[0]) != 2*len(ctOut.Value[0].Coeffs[0]) {
-		panic("cannot ComplesToReal: ctIn ring degree must be twice ctOut ring degree")
+		panic("cannot ComplexToReal: ctIn ring degree must be twice ctOut ring degree")
 	}
 
 	if switcher.SwkComplexToReal == nil {
-		panic("cannot ComplesToReal: no SwkComplexToReal provided to this DomainSwitcher")
+		panic("cannot ComplexToReal: no SwkComplexToReal provided to this DomainSwitcher")
 	}
 
 	eval.GadgetProduct(level, ctIn.Value[1], switcher.SwkComplexToReal.GadgetCiphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)

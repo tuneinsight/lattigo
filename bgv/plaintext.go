@@ -18,8 +18,8 @@ func NewPlaintext(params Parameters, level int, scale uint64) *Plaintext {
 	return pt
 }
 
-// NewPlaintextAtLevelFromPoly construct a new Plaintext at a specific level
-// where the message is set to the passed poly. No checks are performed on poly and
+// NewPlaintextAtLevelFromPoly constructs a new Plaintext at a specific level
+// where the message is set to the passed Poly. No checks are performed on poly and
 // the returned Plaintext will share its backing array of coefficient.
 func NewPlaintextAtLevelFromPoly(level int, poly *ring.Poly) *Plaintext {
 	pt := rlwe.NewPlaintextAtLevelFromPoly(level, poly)
@@ -27,12 +27,12 @@ func NewPlaintextAtLevelFromPoly(level int, poly *ring.Poly) *Plaintext {
 	return &Plaintext{Plaintext: pt, scale: 1}
 }
 
-// Scale returns the scaling factor of the target plaintext.
+// Scale returns the scaling factor of the target Plaintext.
 func (p *Plaintext) Scale() uint64 {
 	return p.scale
 }
 
-// SetScale sets the scaling factor of the target plaintext.
+// SetScale sets the scaling factor of the target Plaintext.
 func (p *Plaintext) SetScale(scale uint64) {
 	p.scale = scale
 }

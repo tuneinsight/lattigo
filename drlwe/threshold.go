@@ -105,7 +105,7 @@ func (thr *Thresholdizer) AggregateShares(share1, share2, outShare *ShamirSecret
 }
 
 // NewCombiner creates a new Combiner struct from the parameters and the set of ShamirPublicPoints. Note that the other
-// parameter may contain the instanciator's own ShamirPublicPoint.
+// parameter may contain the instantiator's own ShamirPublicPoint.
 func NewCombiner(params rlwe.Parameters, own ShamirPublicPoint, others []ShamirPublicPoint, threshold int) *Combiner {
 	cmb := new(Combiner)
 	cmb.ringQP = params.RingQP()
@@ -140,7 +140,7 @@ func NewCombiner(params rlwe.Parameters, own ShamirPublicPoint, others []ShamirP
 func (cmb *Combiner) GenAdditiveShare(activesPoints []ShamirPublicPoint, ownPoint ShamirPublicPoint, ownShare *ShamirSecretShare, skOut *rlwe.SecretKey) {
 
 	if len(activesPoints) < cmb.threshold {
-		panic("Not enough active players to combine threshold shares.")
+		panic("cannot GenAdditiveShare: Not enough active players to combine threshold shares.")
 	}
 
 	prod := cmb.tmp2

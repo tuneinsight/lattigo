@@ -5,7 +5,7 @@ import (
 )
 
 // Encryptor is an interface wrapping a rlwe.Encryptor, and modified
-// to accomodate for the BGV encryption by scaling the encryptions
+// to accommodate for the BGV encryption by scaling the encryptions
 // of zero by the plaintext modulus before adding the plaintext.
 type Encryptor interface {
 	Encrypt(pt *Plaintext, ct *Ciphertext)

@@ -345,7 +345,7 @@ func (r *Ring) MulCoeffsMontgomeryAndAddLvl(levelQ, levelP int, p1, p2, p3 Poly)
 }
 
 // MulRNSScalarMontgomery multiplies p with a scalar value expressed in the CRT decomposition.
-// It asssumes the scalar decomposition to be in Montgomerry form.
+// It assumes the scalar decomposition to be in Montgomery form.
 func (r *Ring) MulRNSScalarMontgomery(p Poly, scalar []uint64, pOut Poly) {
 	scalarQ, scalarP := scalar[:len(r.RingQ.Modulus)], scalar[len(r.RingQ.Modulus):]
 	if r.RingQ != nil {
@@ -469,7 +469,7 @@ func (p *Poly) GetDataLen64(WithMetadata bool) (dataLen int) {
 	return
 }
 
-// WriteTo64 writes a Poly on the inpute data.
+// WriteTo64 writes a Poly on the input data.
 // Encodes each coefficient on 8 bytes.
 func (p *Poly) WriteTo64(data []byte) (pt int, err error) {
 	var inc int

@@ -9,7 +9,7 @@ import (
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
-// Ciphertext is *ring.Poly array representing a polynomial of degree > 0 with coefficients in R_Q.
+// Ciphertext is a *ring.Poly array representing a polynomial of degree > 0 with coefficients in R_Q.
 type Ciphertext struct {
 	*rlwe.Ciphertext
 	scale uint64
@@ -44,9 +44,9 @@ func NewCiphertextRandom(prng utils.PRNG, params Parameters, degree, level int, 
 	return
 }
 
-// NewCiphertextAtLevelFromPoly construct a new Ciphetext at a specific level
+// NewCiphertextAtLevelFromPoly constructs a new Ciphertext at a specific level
 // where the message is set to the passed poly. No checks are performed on poly and
-// the returned Ciphertext will share its backing array of coefficient.
+// the returned Ciphertext will share its backing array of coefficients.
 func NewCiphertextAtLevelFromPoly(level int, poly [2]*ring.Poly) *Ciphertext {
 	ct := rlwe.NewCiphertextAtLevelFromPoly(level, poly)
 	ct.Value[0].IsNTT, ct.Value[1].IsNTT = true, true

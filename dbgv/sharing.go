@@ -149,7 +149,7 @@ func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crp drlwe.CKSCRP, secretSha
 	c1 := ring.Poly(crp)
 
 	if c1.Level() != c0ShareOut.Value.Level() {
-		panic("c1 and c0ShareOut level must be equal")
+		panic("cannot GenShare: c1 and c0ShareOut level must be equal")
 	}
 
 	s2e.CKSProtocol.GenShare(s2e.zero, sk, &c1, c0ShareOut)
@@ -159,10 +159,10 @@ func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crp drlwe.CKSCRP, secretSha
 }
 
 // GetEncryption computes the final encryption of the secret-shared message when provided with the aggregation `c0Agg` of the parties'
-// share in the protocol and with the common, CRS-sampled polynomial `crp`.
+// shares in the protocol and with the common, CRS-sampled polynomial `crp`.
 func (s2e *S2EProtocol) GetEncryption(c0Agg *drlwe.CKSShare, crp drlwe.CKSCRP, ctOut *bgv.Ciphertext) {
 	if ctOut.Degree() != 1 {
-		panic("ctOut must have degree 1.")
+		panic("cannot GetEncryption: ctOut must have degree 1.")
 	}
 	ctOut.Value[0].Copy(c0Agg.Value)
 	ctOut.Value[1].Copy((*ring.Poly)(&crp))

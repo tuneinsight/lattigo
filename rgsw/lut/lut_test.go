@@ -142,7 +142,7 @@ func testLUT(t *testing.T) {
 			}
 
 			if values[i] != 0 {
-				fmt.Printf("%7.4f - %7.4f - %7.4f\n", math.Round(a*32)/32, math.Round(a*8)/8, values[i])
+				//fmt.Printf("%7.4f - %7.4f - %7.4f\n", math.Round(a*32)/32, math.Round(a*8)/8, values[i])
 				assert.Equal(t, sign(values[i]), math.Round(a*8)/8)
 			}
 		}

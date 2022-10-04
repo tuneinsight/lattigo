@@ -2,8 +2,9 @@
 # Changelog
 All notable changes to this library are documented in this file. 
 
-# [3.1.0] - UNREALEASED
+## - [4.0.0] 2022-10-04
 
+- Added BGV/DBGV schemes.
 - ALL: added default parameters for LogN=11 and LogN=10.
 - RING: prime generation no longer skips the first candidate.
 - RING: reworked marshalling of `ring.Poly` object. The new available methods are:
@@ -49,17 +50,28 @@ All notable changes to this library are documented in this file.
 - RLWE: added the `PRNGEncryptor` type, which supports secret-key encryption from a user-specified PRNG.
 - RLWE: `rlwe.KeyGenerator` now uses an `rlwe.Encryptor` internally, to generate secret keys, encryption keys and evaluation keys.
 - RLWE: extracted the `rlwe/ringqp` sub-package which provides the `ringqp.Ring` and `ringqp.Poly` types to respectively replace the former types `rlwe.RingQP` and `rlwe.PolyQP`.
+- DRLWE: added the `Thresholdizer` and `Combiner` types for t-out-of-N-threshold schemes through Shamir secret-sharing.
+- DRLWE: added a `README.md` providing package overview and usage instructions.
+- DRLWE: removed the obsolete `CollectivePublicKeyGenerator`, `RelinearizationKeyGenerator`, `RotationKeyGenerator`, `PublicKeySwitchingProtocol` and `KeySwitchingProtocol` interfaces.
+- DRLWE: renamed `AggregateShare` methods to `AggregateShares`.
 - RGSW: added package `rgsw`, which provides a partial implementation of the RLWE-based RGSW encryption scheme. This incluides:
     -  `rgsw.Encryptor` and the `rgsw.Ciphertext` types.
     -  `rgsw.Evaluator` to support the external product `RLWE x RGSW -> RLWE`.
     -  `rgsw/lut` sub-package that provides evaluation of Look-Up-Tables (LUT) on `rlwe.Ciphertext` types.
+- BFV: renamed `Encoder.DecodeRingT` to `Encoder.SwitchToRingT` to better reflect the purpose of the method.
+- CKKS: fixed `MulAndAdd` correctness for non-identical inputs.
+- CKKS: added `advanced.EncodingMatrixLiteral.RepackImag2Real` optional field to repack the imaginary part into the right n real slots.
+- CKKS: `Trace` now only takes as input the `logSlots` of the encrypted plaintext.
+- CKKS: replaced the public variable `.Scale` with `.scale`, it can now be accessed with `.Scale()` and set to a new value with `.SetScale()`.
+- CKKS: renamed the methods `ScalingFactor` and `SetScalingFactor` of the interface `Operand` to `Scale` and `SetScale` respectively.
+- CKKS/bootstrapping: renamed method `Bootstrapp` to `Bootstrap`.
 - BFV/CKKS: key-switching functionalities (such as rotations, relinearization and key-switching) are now all based on the `rlwe.Evaluator`.
 - BFV/CKKS: the parameters now are based on the sub-type `rlwe.Parameters`.
 - BFV/CKKS: removed deprecated methods `EncryptFromCRP` and `EncryptFromCRPNew`, users should now use the `PRNGEncryptor` interface.
 - BFV/CKKS: fixed a panic happening during the benchmark testing.
-- CKKS: fixed `MulAndAdd` correctness for non-identical inputs.
-- CKKS: added `advanced.EncodingMatrixLiteral.RepackImag2Real` optional field to repack the imaginary part into the right n real slots.
-- CKKS: `Trace` now only takes as input the `logSlots` of the encrypted plaintext.
+- DBFV/DCKKS: removed the `dbfv/dckks.CKGProtocol`, `dbfv/dckks.RKGProtocol` and `dbfv/dckks.RTGProtocol` types. Users should use the corresponding `drlwe` types instead.
+- DBFV/DCKKS: `MaskedTransformFunc` is now a struct and takes as additional input to the linear transform two Boolean flags to parameterize if the decoding/encoding process must be done before/after the linear transform.
+- DBFV/DCKKS: `refresh` and `maskedTransform` protocols now allow the user to specify the output parameters, enabling parameter switching.
 - DCKKS: fixed `dckks.RefreshProtocol` correctness when the output scale is different from the input scale.
 - Examples: added `examples/ckks/advanced/lut`, which is an example that performs homomorphic decoding -> LUT -> homomorphic encoding on a `ckks.Ciphertext`.
 - Examples: removed `examples/ckks/advanced/rlwe_lwe_bridge_LHHMQ20`, which is replaced by `examples/ckks/advanced/lut`.

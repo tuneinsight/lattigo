@@ -3,27 +3,18 @@ package drlwe
 import (
 	"errors"
 
-	"github.com/tuneinsight/lattigo/v3/ring"
-	"github.com/tuneinsight/lattigo/v3/rlwe"
-	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
-	"github.com/tuneinsight/lattigo/v3/utils"
+	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
-
-// RelinearizationKeyGenerator is an interface describing the local steps of a generic RLWE RKG protocol.
-type RelinearizationKeyGenerator interface {
-	AllocateShare() (ephKey *rlwe.SecretKey, r1 *RKGShare, r2 *RKGShare)
-	GenShareRoundOne(sk *rlwe.SecretKey, crp RKGCRP, ephKeyOut *rlwe.SecretKey, shareOut *RKGShare)
-	GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGShare, shareOut *RKGShare)
-	AggregateShare(share1, share2, shareOut *RKGShare)
-	GenRelinearizationKey(round1 *RKGShare, round2 *RKGShare, relinKeyOut *rlwe.RelinearizationKey)
-}
 
 // RKGProtocol is the structure storing the parameters and and precomputations for the collective relinearization key generation protocol.
 type RKGProtocol struct {
 	params rlwe.Parameters
 
 	gaussianSamplerQ *ring.GaussianSampler
-	ternarySamplerQ  *ring.TernarySampler // sampling in Montgomerry form
+	ternarySamplerQ  *ring.TernarySampler // sampling in Montgomery form
 
 	tmpPoly1 ringqp.Poly
 	tmpPoly2 ringqp.Poly
@@ -266,8 +257,8 @@ func (ekg *RKGProtocol) GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGS
 	}
 }
 
-// AggregateShare combines two RKG shares into a single one.
-func (ekg *RKGProtocol) AggregateShare(share1, share2, shareOut *RKGShare) {
+// AggregateShares combines two RKG shares into a single one.
+func (ekg *RKGProtocol) AggregateShares(share1, share2, shareOut *RKGShare) {
 	ringQP := ekg.params.RingQP()
 	levelQ := share1.Value[0][0][0].Q.Level()
 

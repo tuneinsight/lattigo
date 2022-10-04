@@ -1,9 +1,9 @@
 package rlwe
 
 import (
-	"github.com/tuneinsight/lattigo/v3/ring"
-	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
-	"github.com/tuneinsight/lattigo/v3/utils"
+	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 // KeyGenerator is an interface implementing the methods of the KeyGenerator.
@@ -178,7 +178,10 @@ func (keygen *keyGenerator) GenSwitchingKeysForRingSwap(skStd, skConjugateInvari
 
 	skCIMappedToStandard := &SecretKey{Value: keygen.buffQP}
 	keygen.params.RingQ().UnfoldConjugateInvariantToStandard(skConjugateInvariant.Value.Q.Level(), skConjugateInvariant.Value.Q, skCIMappedToStandard.Value.Q)
-	keygen.params.RingQ().UnfoldConjugateInvariantToStandard(skConjugateInvariant.Value.P.Level(), skConjugateInvariant.Value.P, skCIMappedToStandard.Value.P)
+
+	if keygen.params.PCount() != 0 {
+		keygen.extendQ2P(keygen.params.PCount()-1, skCIMappedToStandard.Value.Q, keygen.buffQ[0], skCIMappedToStandard.Value.P)
+	}
 
 	swkConjugateInvariantToStd = keygen.GenSwitchingKey(skCIMappedToStandard, skStd)
 	swkStdToConjugateInvariant = keygen.GenSwitchingKey(skStd, skCIMappedToStandard)
@@ -190,9 +193,9 @@ func (keygen *keyGenerator) GenSwitchingKeysForRingSwap(skStd, skConjugateInvari
 // If the ringDegree(skOutput) < ringDegree(skInput),  generates [-a*skOut_{Y^{N/n}} + w*P*skIn + e_{N}, a_{N}] in X^{N}.
 // Else generates [-a*skOut + w*P*skIn + e, a] in X^{N}.
 // The output switching key is always given in max(N, n) and in the moduli of the output switching key.
-// When key-switching a ciphertext from Y^{N/n} to X^{N}, the ciphertext must first be mapped to X^{N}
+// When key-switching a Ciphertext from Y^{N/n} to X^{N}, the Ciphertext must first be mapped to X^{N}
 // using SwitchCiphertextRingDegreeNTT(ctSmallDim, nil, ctLargeDim).
-// When key-switching a ciphertext from X^{N} to Y^{N/n}, the output of the key-switch is in still X^{N} and
+// When key-switching a Ciphertext from X^{N} to Y^{N/n}, the output of the key-switch is in still X^{N} and
 // must be mapped Y^{N/n} using SwitchCiphertextRingDegreeNTT(ctLargeDim, ringQLargeDim, ctSmallDim).
 func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *SwitchingKey) {
 
@@ -209,40 +212,7 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *
 
 		// Extends the modulus P of skOutput to the one of skInput
 		if levelP != -1 {
-
-			ringQ := keygen.params.RingQ()
-			ringP := keygen.params.RingP()
-
-			// Switches Q[0] out of the NTT and Montgomery domain.
-			ringQ.InvNTTLvl(0, keygen.buffQP.Q, keygen.buffQ[0])
-			ringQ.InvMFormLvl(0, keygen.buffQ[0], keygen.buffQ[0])
-
-			// Reconstruct P from Q
-			Q := ringQ.Modulus[0]
-			QHalf := Q >> 1
-
-			P := ringP.Modulus
-
-			polQ := keygen.buffQ[0]
-			polP := keygen.buffQP.P
-			var sign uint64
-			for j := 0; j < ringQ.N; j++ {
-
-				coeff := polQ.Coeffs[0][j]
-
-				sign = 1
-				if coeff > QHalf {
-					coeff = Q - coeff
-					sign = 0
-				}
-
-				for i := 0; i < levelP+1; i++ {
-					polP.Coeffs[i][j] = (coeff * sign) | (P[i]-coeff)*(sign^1)
-				}
-			}
-
-			ringP.NTTLvl(levelP, keygen.buffQP.P, keygen.buffQP.P)
-			ringP.MFormLvl(levelP, keygen.buffQP.P, keygen.buffQP.P)
+			keygen.extendQ2P(levelP, keygen.buffQP.Q, keygen.buffQ[0], keygen.buffQP.P)
 		}
 
 		keygen.genSwitchingKey(skInput.Value.Q, keygen.buffQP, swk)
@@ -300,6 +270,40 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *
 	}
 
 	return
+}
+
+func (keygen *keyGenerator) extendQ2P(levelP int, polQ, buff, polP *ring.Poly) {
+	ringQ := keygen.params.RingQ()
+	ringP := keygen.params.RingP()
+
+	// Switches Q[0] out of the NTT and Montgomery domain.
+	ringQ.InvNTTLvl(0, polQ, buff)
+	ringQ.InvMFormLvl(0, buff, buff)
+
+	// Reconstruct P from Q
+	Q := ringQ.Modulus[0]
+	QHalf := Q >> 1
+
+	P := ringP.Modulus
+
+	var sign uint64
+	for j := 0; j < ringQ.N; j++ {
+
+		coeff := buff.Coeffs[0][j]
+
+		sign = 1
+		if coeff > QHalf {
+			coeff = Q - coeff
+			sign = 0
+		}
+
+		for i := 0; i < levelP+1; i++ {
+			polP.Coeffs[i][j] = (coeff * sign) | (P[i]-coeff)*(sign^1)
+		}
+	}
+
+	ringP.NTTLvl(levelP, polP, polP)
+	ringP.MFormLvl(levelP, polP, polP)
 }
 
 func (keygen *keyGenerator) genSwitchingKey(skIn *ring.Poly, skOut ringqp.Poly, swk *SwitchingKey) {

@@ -3,11 +3,11 @@ package dckks
 import (
 	"math/big"
 
-	"github.com/tuneinsight/lattigo/v3/ckks"
-	"github.com/tuneinsight/lattigo/v3/drlwe"
-	"github.com/tuneinsight/lattigo/v3/ring"
-	"github.com/tuneinsight/lattigo/v3/rlwe"
-	"github.com/tuneinsight/lattigo/v3/utils"
+	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/drlwe"
+	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 // E2SProtocol is the structure storing the parameters and temporary buffers
@@ -66,7 +66,7 @@ func (e2s *E2SProtocol) AllocateShare(level int) (share *drlwe.CKSShare) {
 // This protocol requires additional inputs which are :
 // logBound : the bit length of the masks
 // logSlots : the bit length of the number of slots
-// ct1      : the degree 1 element the ciphertext to share, i.e. ct1 = ckk.Ciphetext.Value[1].
+// ct1      : the degree 1 element the ciphertext to share, i.e. ct1 = ckk.Ciphertext.Value[1].
 // The method "GetMinimumLevelForBootstrapping" should be used to get the minimum level at which E2S can be called while still ensure 128-bits of security, as well as the
 // value for logBound.
 func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound, logSlots int, ct1 *ring.Poly, secretShareOut *rlwe.AdditiveShareBigint, publicShareOut *drlwe.CKSShare) {
@@ -90,7 +90,7 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound, logSlots int, ct1
 	sign = bound.Cmp(boundMax)
 
 	if sign == 1 || bound.Cmp(boundMax) == 1 {
-		panic("ciphertext level is not large enough for refresh correctness")
+		panic("cannot GenShare: ciphertext level is not large enough for refresh correctness")
 	}
 
 	boundHalf := new(big.Int).Rsh(bound, 1)
@@ -116,9 +116,11 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound, logSlots int, ct1
 	e2s.CKSProtocol.GenShare(sk, e2s.zero, ct1, publicShareOut)
 
 	ringQ.SetCoefficientsBigintLvl(levelQ, secretShareOut.Value[:dslots], e2s.buff)
+
+	// Maps Y^{N/n} -> X^{N} in Montgomery and NTT
 	ckks.NttAndMontgomeryLvl(levelQ, logSlots, ringQ, false, e2s.buff)
 
-	// Substracts the mask to the encryption of zero
+	// Subtracts the mask to the encryption of zero
 	ringQ.SubLvl(levelQ, publicShareOut.Value, e2s.buff, publicShareOut.Value)
 }
 
@@ -149,7 +151,7 @@ func (e2s *E2SProtocol) GetShare(secretShare *rlwe.AdditiveShareBigint, aggregat
 	// Switches the LSSS RNS ciphertext outside of the RNS domain
 	ringQ.PolyToBigintCenteredLvl(levelQ, e2s.buff, gap, e2s.maskBigint)
 
-	// Substracts the last mask
+	// Subtracts the last mask
 	if secretShare != nil {
 		a := secretShareOut.Value
 		b := e2s.maskBigint
@@ -216,7 +218,7 @@ func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.CKSCRP, logSlots 
 	c1 := ring.Poly(crs)
 
 	if c1.Level() != c0ShareOut.Value.Level() {
-		panic("c1 and c0ShareOut level must be equal")
+		panic("cannot GenShare: c1 and c0ShareOut level must be equal")
 	}
 
 	// Generates an encryption share
@@ -229,6 +231,8 @@ func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.CKSCRP, logSlots 
 	}
 
 	ringQ.SetCoefficientsBigintLvl(c1.Level(), secretShare.Value[:dslots], s2e.tmp)
+
+	// Maps Y^{N/n} -> X^{N} in Montgomery and NTT
 	ckks.NttAndMontgomeryLvl(c1.Level(), logSlots, ringQ, false, s2e.tmp)
 
 	ringQ.AddLvl(c1.Level(), c0ShareOut.Value, s2e.tmp, c0ShareOut.Value)
@@ -239,17 +243,17 @@ func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.CKSCRP, logSlots 
 func (s2e *S2EProtocol) GetEncryption(c0Agg *drlwe.CKSShare, crs drlwe.CKSCRP, ctOut *ckks.Ciphertext) {
 
 	if ctOut.Degree() != 1 {
-		panic("ctOut must have degree 1.")
+		panic("cannot GetEncryption: ctOut must have degree 1.")
 	}
 
 	c1 := ring.Poly(crs)
 
 	if c0Agg.Value.Level() != c1.Level() {
-		panic("c0Agg level must be equal to c1 level")
+		panic("cannot GetEncryption: c0Agg level must be equal to c1 level")
 	}
 
 	if ctOut.Level() != c1.Level() {
-		panic("ctOut level must be equal to c1 level")
+		panic("cannot GetEncryption: ctOut level must be equal to c1 level")
 	}
 
 	ctOut.Value[0].Copy(c0Agg.Value)

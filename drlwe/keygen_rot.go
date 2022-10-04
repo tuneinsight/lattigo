@@ -3,19 +3,11 @@ package drlwe
 import (
 	"errors"
 
-	"github.com/tuneinsight/lattigo/v3/ring"
-	"github.com/tuneinsight/lattigo/v3/rlwe"
-	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
-	"github.com/tuneinsight/lattigo/v3/utils"
+	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
-
-// RotationKeyGenerator is an interface for the local operation in the generation of rotation keys.
-type RotationKeyGenerator interface {
-	AllocateShare() (rtgShare *RTGShare)
-	GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, shareOut *RTGShare)
-	AggregateShare(share1, share2, shareOut *RTGShare)
-	GenRotationKey(share *RTGShare, crp RTGCRP, rotKey *rlwe.SwitchingKey)
-}
 
 // RTGShare is represent a Party's share in the RTG protocol.
 type RTGShare struct {
@@ -173,8 +165,8 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, s
 	}
 }
 
-// AggregateShare aggregates two share in the Rotation Key Generation protocol.
-func (rtg *RTGProtocol) AggregateShare(share1, share2, shareOut *RTGShare) {
+// AggregateShares aggregates two share in the Rotation Key Generation protocol.
+func (rtg *RTGProtocol) AggregateShares(share1, share2, shareOut *RTGShare) {
 	ringQP := rtg.params.RingQP()
 	levelQ := share1.Value[0][0].Q.Level()
 

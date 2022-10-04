@@ -2,6 +2,8 @@ package ring
 
 import (
 	"math/bits"
+
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 // EvalPolyModP evaluates y = sum poly[i] * x^{i} mod p.
@@ -66,17 +68,6 @@ func ModexpMontgomery(x uint64, e int, q, qInv uint64, bredParams []uint64) (res
 	return result
 }
 
-// gcd computes the greatest common divisor gcd(a,b) for a,b uint64 variables
-func gcd(a, b uint64) uint64 {
-	if a == 0 || b == 0 {
-		return 0
-	}
-	for b != 0 {
-		a, b = b, a%b
-	}
-	return a
-}
-
 // primitiveRoot computes one primitive root (the smallest) of for the given prime q
 func primitiveRoot(q uint64) (g uint64) {
 	var tmp uint64
@@ -132,7 +123,7 @@ func factorizationPollardsRho(m uint64) (d uint64) {
 				x, y = y, x
 			}
 
-			d = gcd(x-y, m)
+			d = utils.GCD(x-y, m)
 
 			if d > 1 {
 				return d

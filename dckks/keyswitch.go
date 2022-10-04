@@ -1,8 +1,9 @@
+//Package dckks implements a distributed (or threshold) version of the CKKS scheme that enables secure multiparty computation solutions with secret-shared secret keys.
 package dckks
 
 import (
-	"github.com/tuneinsight/lattigo/v3/ckks"
-	"github.com/tuneinsight/lattigo/v3/drlwe"
+	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/drlwe"
 )
 
 // CKSProtocol is a structure storing the parameters for the collective key-switching protocol.
@@ -20,7 +21,7 @@ func NewCKSProtocol(params ckks.Parameters, sigmaSmudging float64) (cks *CKSProt
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
 func (cks *CKSProtocol) KeySwitch(ctIn *ckks.Ciphertext, combined *drlwe.CKSShare, ctOut *ckks.Ciphertext) {
 	cks.CKSProtocol.KeySwitch(ctIn.Ciphertext, combined, ctOut.Ciphertext)
-	ctOut.Scale = ctIn.Scale
+	ctOut.SetScale(ctIn.Scale())
 }
 
 // ShallowCopy creates a shallow copy of CKSProtocol in which all the read-only data-structures are
@@ -35,7 +36,7 @@ type PCKSProtocol struct {
 	drlwe.PCKSProtocol
 }
 
-// NewPCKSProtocol creates a new PCKSProtocol object and will be used to re-encrypt a ciphertext ctx encrypted under a secret-shared key mong j parties under a new
+// NewPCKSProtocol creates a new PCKSProtocol object and will be used to re-encrypt a Ciphertext ctx encrypted under a secret-shared key mong j parties under a new
 // collective public-key.
 func NewPCKSProtocol(params ckks.Parameters, sigmaSmudging float64) *PCKSProtocol {
 	return &PCKSProtocol{*drlwe.NewPCKSProtocol(params.Parameters, sigmaSmudging)}
@@ -44,7 +45,7 @@ func NewPCKSProtocol(params ckks.Parameters, sigmaSmudging float64) *PCKSProtoco
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut.
 func (pcks *PCKSProtocol) KeySwitch(ctIn *ckks.Ciphertext, combined *drlwe.PCKSShare, ctOut *ckks.Ciphertext) {
 	pcks.PCKSProtocol.KeySwitch(ctIn.Ciphertext, combined, ctOut.Ciphertext)
-	ctOut.Scale = ctIn.Scale
+	ctOut.SetScale(ctIn.Scale())
 }
 
 // ShallowCopy creates a shallow copy of PCKSProtocol in which all the read-only data-structures are

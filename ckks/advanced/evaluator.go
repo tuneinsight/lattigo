@@ -4,13 +4,13 @@ package advanced
 import (
 	"math"
 
-	"github.com/tuneinsight/lattigo/v3/ckks"
-	"github.com/tuneinsight/lattigo/v3/ring"
-	"github.com/tuneinsight/lattigo/v3/rlwe"
-	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
+	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 )
 
-// Evaluator is an interface embeding the ckks.Evaluator interface with
+// Evaluator is an interface embedding the ckks.Evaluator interface with
 // additional advanced arithmetic features.
 type Evaluator interface {
 
@@ -189,7 +189,7 @@ func (eval *evaluator) SlotsToCoeffsNew(ctReal, ctImag *ckks.Ciphertext, stcMatr
 		panic("ctReal.Level() or ctImag.Level() < EncodingMatrix.LevelStart")
 	}
 
-	ctOut = ckks.NewCiphertext(eval.params, 1, stcMatrices.LevelStart, ctReal.Scale)
+	ctOut = ckks.NewCiphertext(eval.params, 1, stcMatrices.LevelStart, ctReal.Scale())
 	eval.SlotsToCoeffs(ctReal, ctImag, stcMatrices, ctOut)
 	return
 
@@ -212,7 +212,7 @@ func (eval *evaluator) SlotsToCoeffs(ctReal, ctImag *ckks.Ciphertext, stcMatrice
 
 func (eval *evaluator) dft(ctIn *ckks.Ciphertext, plainVectors []ckks.LinearTransform, ctOut *ckks.Ciphertext) {
 	// Sequentially multiplies w with the provided dft matrices.
-	scale := ctIn.Scale
+	scale := ctIn.Scale()
 	var in, out *ckks.Ciphertext
 	for i, plainVector := range plainVectors {
 		in, out = ctOut, ctOut
@@ -228,10 +228,10 @@ func (eval *evaluator) dft(ctIn *ckks.Ciphertext, plainVectors []ckks.LinearTran
 
 // EvalModNew applies a homomorphic mod Q on a vector scaled by Delta, scaled down to mod 1 :
 //
-//	1) Delta * (Q/Delta * I(X) + m(X)) (Delta = scaling factor, I(X) integer poly, m(X) message)
-//	2) Delta * (I(X) + Delta/Q * m(X)) (divide by Q/Delta)
-//	3) Delta * (Delta/Q * m(X)) (x mod 1)
-//	4) Delta * (m(X)) (multiply back by Q/Delta)
+//  1. Delta * (Q/Delta * I(X) + m(X)) (Delta = scaling factor, I(X) integer poly, m(X) message)
+//  2. Delta * (I(X) + Delta/Q * m(X)) (divide by Q/Delta)
+//  3. Delta * (Delta/Q * m(X)) (x mod 1)
+//  4. Delta * (m(X)) (multiply back by Q/Delta)
 //
 // Since Q is not a power of two, but Delta is, then does an approximate division by the closest
 // power of two to Q instead. Hence, it assumes that the input plaintext is already scaled by
@@ -251,22 +251,22 @@ func (eval *evaluator) EvalModNew(ct *ckks.Ciphertext, evalModPoly EvalModPoly) 
 	}
 
 	// Stores default scales
-	prevScaleCt := ct.Scale
+	prevScaleCt := ct.Scale()
 
 	// Normalize the modular reduction to mod by 1 (division by Q)
-	ct.Scale = evalModPoly.scalingFactor
+	ct.SetScale(evalModPoly.scalingFactor)
 
 	var err error
 
 	// Compute the scales that the ciphertext should have before the double angle
 	// formula such that after it it has the scale it had before the polynomial
 	// evaluation
-	targetScale := ct.Scale
+	targetScale := ct.Scale()
 	for i := 0; i < evalModPoly.doubleAngle; i++ {
 		targetScale = math.Sqrt(targetScale * eval.params.QiFloat64(evalModPoly.levelStart-evalModPoly.sinePoly.Depth()-evalModPoly.doubleAngle+i+1))
 	}
 
-	// Division by 1/2^r and change of variable for the Chebysehev evaluation
+	// Division by 1/2^r and change of variable for the Chebyshev evaluation
 	if evalModPoly.sineType == Cos1 || evalModPoly.sineType == Cos2 {
 		eval.AddConst(ct, -0.5/(evalModPoly.scFac*(evalModPoly.sinePoly.B-evalModPoly.sinePoly.A)), ct)
 	}
@@ -290,12 +290,12 @@ func (eval *evaluator) EvalModNew(ct *ckks.Ciphertext, evalModPoly EvalModPoly) 
 
 	// ArcSine
 	if evalModPoly.arcSinePoly != nil {
-		if ct, err = eval.EvaluatePoly(ct, evalModPoly.arcSinePoly, ct.Scale); err != nil {
+		if ct, err = eval.EvaluatePoly(ct, evalModPoly.arcSinePoly, ct.Scale()); err != nil {
 			panic(err)
 		}
 	}
 
 	// Multiplies back by q
-	ct.Scale = prevScaleCt
+	ct.SetScale(prevScaleCt)
 	return ct
 }

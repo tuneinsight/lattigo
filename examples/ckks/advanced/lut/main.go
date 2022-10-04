@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/tuneinsight/lattigo/v3/ckks"
-	ckksAdvanced "github.com/tuneinsight/lattigo/v3/ckks/advanced"
-	"github.com/tuneinsight/lattigo/v3/rgsw/lut"
-	"github.com/tuneinsight/lattigo/v3/ring"
-	"github.com/tuneinsight/lattigo/v3/rlwe"
+	"github.com/tuneinsight/lattigo/v4/ckks"
+	ckksAdvanced "github.com/tuneinsight/lattigo/v4/ckks/advanced"
+	"github.com/tuneinsight/lattigo/v4/rgsw/lut"
+	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
 // This example showcases how lookup tables can complement the CKKS scheme to compute non-linear functions
@@ -70,10 +70,11 @@ func main() {
 	// LogN = 12 & LogQP = ~54 -> >>>128-bit secure.
 	var paramsN12ToN11 ckks.Parameters
 	if paramsN12ToN11, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
-		LogN:     LogN,
-		Q:        Q[:1],
-		P:        []uint64{0x42001},
-		Pow2Base: 16,
+		LogN:         LogN,
+		Q:            Q[:1],
+		P:            []uint64{0x42001},
+		Pow2Base:     16,
+		DefaultScale: 1.0,
 	}); err != nil {
 		panic(err)
 	}
@@ -83,10 +84,11 @@ func main() {
 	// LogN = 11 & LogQP = ~54 -> 128-bit secure.
 	var paramsN11 ckks.Parameters
 	if paramsN11, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
-		LogN:     LogN - 1,
-		Q:        Q[:1],
-		P:        []uint64{0x42001},
-		Pow2Base: 12,
+		LogN:         LogN - 1,
+		Q:            Q[:1],
+		P:            []uint64{0x42001},
+		Pow2Base:     12,
+		DefaultScale: 1.0,
 	}); err != nil {
 		panic(err)
 	}
@@ -206,12 +208,12 @@ func main() {
 	now = time.Now()
 	// Homomorphic Decoding: [(a+bi), (c+di)] -> [a, c, b, d]
 	ctN12 = evalCKKS.SlotsToCoeffsNew(ctN12, nil, SlotsToCoeffsMatrix)
-	ctN12.Scale = paramsN11.QiFloat64(0) / 4.0
+	ctN12.SetScale(paramsN11.QiFloat64(0) / 4.0)
 
 	// Key-Switch from LogN = 12 to LogN = 10
 	evalCKKS.DropLevel(ctN12, ctN12.Level())                    // drop to LUT level
 	ctTmp := evalCKKSN12ToN11.SwitchKeysNew(ctN12, swkN12ToN11) // key-switch to LWE degree
-	ctN11 := ckks.NewCiphertext(paramsN11, 1, paramsN11.MaxLevel(), ctTmp.Scale)
+	ctN11 := ckks.NewCiphertext(paramsN11, 1, paramsN11.MaxLevel(), ctTmp.Scale())
 	rlwe.SwitchCiphertextRingDegreeNTT(ctTmp.Ciphertext, paramsN11.RingQ(), paramsN12.RingQ(), ctN11.Ciphertext)
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
@@ -223,7 +225,7 @@ func main() {
 	now = time.Now()
 	// Extracts & EvalLUT(LWEs, indexLUT) on the fly -> Repack(LWEs, indexRepack) -> RLWE
 	ctN12.Ciphertext = evalLUT.EvaluateAndRepack(ctN11.Ciphertext, lutPolyMap, repackIndex, LUTKEY)
-	ctN12.Scale = paramsN12.DefaultScale()
+	ctN12.SetScale(paramsN12.DefaultScale())
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
 	//for i, v := range encoderN12.DecodeCoeffs(decryptorN12.DecryptNew(ctN12)){

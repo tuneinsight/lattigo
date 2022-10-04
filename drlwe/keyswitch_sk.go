@@ -1,19 +1,11 @@
 package drlwe
 
 import (
-	"github.com/tuneinsight/lattigo/v3/ring"
-	"github.com/tuneinsight/lattigo/v3/rlwe"
-	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
-	"github.com/tuneinsight/lattigo/v3/utils"
+	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
-
-// KeySwitchingProtocol is an interface describing the local steps of a generic RLWE CKS protocol
-type KeySwitchingProtocol interface {
-	AllocateShare(level int) *CKSShare
-	GenShare(skInput, skOutput *rlwe.SecretKey, c1 *ring.Poly, shareOut *CKSShare)
-	AggregateShare(share1, share2, shareOut *CKSShare)
-	KeySwitch(ctIn *rlwe.Ciphertext, combined *CKSShare, ctOut *rlwe.Ciphertext)
-}
 
 // CKSProtocol is the structure storing the parameters and and precomputations for the collective key-switching protocol.
 type CKSProtocol struct {
@@ -173,16 +165,19 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, c1 *ring.Pol
 	shareOut.Value.Resize(levelQ)
 }
 
-// AggregateShare is the second part of the unique round of the CKSProtocol protocol. Upon receiving the j-1 elements each party computes :
+// AggregateShares is the second part of the unique round of the CKSProtocol protocol. Upon receiving the j-1 elements each party computes :
 //
 // [ctx[0] + sum((skInput_i - skOutput_i) * ctx[0] + e_i), ctx[1]]
-func (cks *CKSProtocol) AggregateShare(share1, share2, shareOut *CKSShare) {
+func (cks *CKSProtocol) AggregateShares(share1, share2, shareOut *CKSShare) {
 	cks.params.RingQ().AddLvl(share1.Value.Level(), share1.Value, share2.Value, shareOut.Value)
 }
 
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
 func (cks *CKSProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined *CKSShare, ctOut *rlwe.Ciphertext) {
-	level := utils.MinInt(ctIn.Level(), ctOut.Level())
+	level := ctIn.Level()
+	ctOut.Resize(ctIn.Degree(), level)
 	cks.params.RingQ().AddLvl(level, ctIn.Value[0], combined.Value, ctOut.Value[0])
-	ring.CopyValuesLvl(level, ctIn.Value[1], ctOut.Value[1])
+	if ctIn != ctOut {
+		ring.CopyValuesLvl(level, ctIn.Value[1], ctOut.Value[1])
+	}
 }

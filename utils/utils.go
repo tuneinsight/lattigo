@@ -6,7 +6,7 @@ import (
 	"math/bits"
 )
 
-// RandUint64 return a random value between 0 and 0xFFFFFFFFFFFFFFFF
+// RandUint64 return a random value between 0 and 0xFFFFFFFFFFFFFFFF.
 func RandUint64() uint64 {
 	b := []byte{0, 0, 0, 0, 0, 0, 0, 0}
 	if _, err := rand.Read(b); err != nil {
@@ -15,7 +15,7 @@ func RandUint64() uint64 {
 	return binary.BigEndian.Uint64(b)
 }
 
-// RandFloat64 returns a random float between min and max
+// RandFloat64 returns a random float between min and max.
 func RandFloat64(min, max float64) float64 {
 	b := []byte{0, 0, 0, 0, 0, 0, 0, 0}
 	if _, err := rand.Read(b); err != nil {
@@ -25,7 +25,7 @@ func RandFloat64(min, max float64) float64 {
 	return min + f*(max-min)
 }
 
-// RandComplex128 returns a random complex with the real and imaginary part between min and max
+// RandComplex128 returns a random complex with the real and imaginary part between min and max.
 func RandComplex128(min, max float64) complex128 {
 	return complex(RandFloat64(min, max), RandFloat64(min, max))
 }
@@ -146,19 +146,74 @@ func AllDistinct(s []uint64) bool {
 	return true
 }
 
+// GCD computes the greatest common divisor gcd(a,b) for a,b uint64 variables.
+func GCD(a, b uint64) uint64 {
+	if a == 0 || b == 0 {
+		return 0
+	}
+	for b != 0 {
+		a, b = b, a%b
+	}
+	return a
+}
+
 // RotateUint64Slice returns a new slice corresponding to s rotated by k positions to the left.
 func RotateUint64Slice(s []uint64, k int) []uint64 {
-	if k == 0 || len(s) == 0 {
-		return s
-	}
-	r := k % len(s)
-	if r < 0 {
-		r = r + len(s)
-	}
 	ret := make([]uint64, len(s))
-	copy(ret[:len(s)-r], s[r:])
-	copy(ret[len(s)-r:], s[:r])
+	RotateUint64SliceAllocFree(s, k, ret)
 	return ret
+}
+
+// RotateUint64SliceAllocFree rotates slice s by k positions to the left and writes the result in sout.
+// without allocating new memory.
+func RotateUint64SliceAllocFree(s []uint64, k int, sout []uint64) {
+
+	if len(s) != len(sout) {
+		panic("cannot RotateUint64SliceAllocFree: s and sout of different lengths")
+	}
+
+	if len(s) == 0 {
+		return
+	}
+
+	k = k % len(s)
+	if k < 0 {
+		k = k + len(s)
+	}
+
+	if &s[0] == &sout[0] { // checks if the two slice share the same backing array
+		RotateUint64SliceInPlace(s, k)
+		return
+	}
+
+	copy(sout[:len(s)-k], s[k:])
+	copy(sout[len(s)-k:], s[:k])
+}
+
+// RotateUint64SliceInPlace rotates slice s in place by k positions to the left.
+func RotateUint64SliceInPlace(s []uint64, k int) {
+	n := len(s)
+	k = k % len(s)
+	if k < 0 {
+		k = k + len(s)
+	}
+	gcd := GCD(uint64(k), uint64(n))
+	for i := 0; i < int(gcd); i++ {
+		tmp := s[i]
+		j := i
+		for {
+			x := j + k
+			if x >= n {
+				x = x - n
+			}
+			if x == i {
+				break
+			}
+			s[j] = s[x]
+			j = x
+		}
+		s[j] = tmp
+	}
 }
 
 // RotateInt64Slice returns a new slice corresponding to s rotated by k positions to the left.

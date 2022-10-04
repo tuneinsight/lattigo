@@ -3,8 +3,8 @@ package rlwe
 import (
 	"math/bits"
 
-	"github.com/tuneinsight/lattigo/v3/ring"
-	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
+	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 )
 
 // Evaluator is a struct that holds the necessary elements to execute general homomorphic
@@ -86,7 +86,12 @@ func NewEvaluator(params Parameters, evaluationKey *EvaluationKey) (eval *Evalua
 	return
 }
 
-// permuteNTTIndexesForKey generates pemutation indexes for automorphisms for ciphertexts
+// Parameters returns the parameters used to instantiate the target evaluator.
+func (eval *Evaluator) Parameters() Parameters {
+	return eval.params
+}
+
+// permuteNTTIndexesForKey generates permutation indexes for automorphisms for ciphertexts
 // that are given in the NTT domain.
 func (eval *Evaluator) permuteNTTIndexesForKey(rtks *RotationKeySet) *map[uint64][]uint64 {
 	if rtks == nil {
@@ -198,9 +203,9 @@ func (eval *Evaluator) ExpandRLWE(ctIn *Ciphertext, logN int) (ctOut []*Cipherte
 
 // MergeRLWE merges a batch of RLWE, packing the first coefficient of each RLWE into a single RLWE.
 // The operation will require N/gap + log(gap) key-switches, where gap is the minimum gap between
-// two non-zero coefficients of the final ciphertext.
-// The method takes as input a map of Ciphertexts, indexing in which coefficient of the final
-// ciphertext the first coefficient of each ciphertext of the map must be packed.
+// two non-zero coefficients of the final Ciphertext.
+// The method takes as input a map of Ciphertext, indexing in which coefficient of the final
+// Ciphertext the first coefficient of each Ciphertext of the map must be packed.
 func (eval *Evaluator) MergeRLWE(ctIn map[int]*Ciphertext) (ctOut *Ciphertext) {
 
 	params := eval.params

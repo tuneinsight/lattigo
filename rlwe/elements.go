@@ -3,9 +3,9 @@ package rlwe
 import (
 	"math/big"
 
-	"github.com/tuneinsight/lattigo/v3/ring"
-	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
-	"github.com/tuneinsight/lattigo/v3/utils"
+	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 // Plaintext is a common base type for RLWE plaintexts.
@@ -255,6 +255,10 @@ func (el *Ciphertext) El() *Ciphertext {
 // RLWEElement returns a pointer to this Element
 func (el *Ciphertext) RLWEElement() *Ciphertext {
 	return el
+}
+
+func (el *CiphertextQP) CopyNew() *CiphertextQP {
+	return &CiphertextQP{Value: [2]ringqp.Poly{el.Value[0].CopyNew(), el.Value[1].CopyNew()}}
 }
 
 // GetSmallestLargest returns the provided element that has the smallest degree as a first

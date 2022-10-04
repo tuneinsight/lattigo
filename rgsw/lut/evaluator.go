@@ -3,10 +3,10 @@ package lut
 import (
 	"math/big"
 
-	"github.com/tuneinsight/lattigo/v3/rgsw"
-	"github.com/tuneinsight/lattigo/v3/ring"
-	"github.com/tuneinsight/lattigo/v3/rlwe"
-	"github.com/tuneinsight/lattigo/v3/rlwe/ringqp"
+	"github.com/tuneinsight/lattigo/v4/rgsw"
+	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 )
 
 // Evaluator is a struct that stores the necessary

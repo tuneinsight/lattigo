@@ -6,7 +6,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/tuneinsight/lattigo/v3/utils"
+	"github.com/tuneinsight/lattigo/v4/utils"
 
 	"github.com/stretchr/testify/require"
 )
@@ -60,6 +60,7 @@ func TestRing(t *testing.T) {
 	}
 
 	testNewRing(t)
+	testShift(t)
 	for _, defaultParam := range defaultParams[:] {
 
 		var tc *testParams
@@ -703,4 +704,18 @@ func testMultByMonomial(tc *testParams, t *testing.T) {
 
 		require.Equal(t, p3Want.Coeffs[0][:tc.ringQ.N], p3Test.Coeffs[0][:tc.ringQ.N])
 	})
+}
+
+func testShift(t *testing.T) {
+
+	r, _ := NewRing(16, []uint64{97})
+	p1, p2 := r.NewPoly(), r.NewPoly()
+
+	for i := range p1.Coeffs[0] {
+		p1.Coeffs[0][i] = uint64(i)
+	}
+
+	r.Shift(p1, 3, p2)
+	require.Equal(t, p2.Coeffs[0], []uint64{3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2})
+
 }

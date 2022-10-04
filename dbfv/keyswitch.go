@@ -1,8 +1,9 @@
+//Package dbfv implements a distributed (or threshold) version of the BFV scheme that enables secure multiparty computation solutions with secret-shared secret keys.
 package dbfv
 
 import (
-	"github.com/tuneinsight/lattigo/v3/bfv"
-	"github.com/tuneinsight/lattigo/v3/drlwe"
+	"github.com/tuneinsight/lattigo/v4/bfv"
+	"github.com/tuneinsight/lattigo/v4/drlwe"
 )
 
 // CKSProtocol is a structure storing the parameters for the collective key-switching protocol.
@@ -41,7 +42,7 @@ type PCKSProtocol struct {
 	maxLevel int
 }
 
-// NewPCKSProtocol creates a new PCKSProtocol object and will be used to re-encrypt a ciphertext ctx encrypted under a secret-shared key among j parties under a new
+// NewPCKSProtocol creates a new PCKSProtocol object and will be used to re-encrypt a Ciphertext ctx encrypted under a secret-shared key among j parties under a new
 // collective public-key.
 func NewPCKSProtocol(params bfv.Parameters, sigmaSmudging float64) *PCKSProtocol {
 	return &PCKSProtocol{*drlwe.NewPCKSProtocol(params.Parameters, sigmaSmudging), params.MaxLevel()}

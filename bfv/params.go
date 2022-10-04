@@ -7,9 +7,9 @@ import (
 	"math"
 	"math/bits"
 
-	"github.com/tuneinsight/lattigo/v3/ring"
-	"github.com/tuneinsight/lattigo/v3/rlwe"
-	"github.com/tuneinsight/lattigo/v3/utils"
+	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 var (
@@ -122,7 +122,7 @@ type ParametersLiteral struct {
 	T        uint64 // Plaintext modulus
 }
 
-// RLWEParameters returns the rlwe.ParamtersLiteral from the target bfv.ParametersLiteral.
+// RLWEParameters returns the rlwe.ParametersLiteral from the target bfv.ParametersLiteral.
 func (p ParametersLiteral) RLWEParameters() rlwe.ParametersLiteral {
 	return rlwe.ParametersLiteral{
 		LogN:     p.LogN,

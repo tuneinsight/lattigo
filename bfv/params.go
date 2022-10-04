@@ -122,7 +122,7 @@ type ParametersLiteral struct {
 	T        uint64 // Plaintext modulus
 }
 
-// RLWEParameters returns the rlwe.ParamtersLiteral from the target bfv.ParametersLiteral.
+// RLWEParameters returns the rlwe.ParametersLiteral from the target bfv.ParametersLiteral.
 func (p ParametersLiteral) RLWEParameters() rlwe.ParametersLiteral {
 	return rlwe.ParametersLiteral{
 		LogN:     p.LogN,

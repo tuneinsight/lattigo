@@ -152,6 +152,6 @@ While both protocol variants have slightly different local operations, their ste
 - Each party discloses its `drlwe.CKSShare` over the public channel. The shares are aggregated with the `(P)CKSProtocol.AggregateShares` method.
 - From the aggregated `drlwe.CKSShare`, any party can derive the ciphertext re-encrypted under _s'_ by using the `(P)CKSProtocol.KeySwitch` method.
 
-#### 2.iii.c Decryption
+#### 2.iii.b Decryption
 Once the receivers have obtained the ciphertext re-encrypted under their respective keys, they can use the usual decryption algorithm of the single-party scheme to obtain the plaintext result (see [bfv.Decryptor](../bfv/decryptor.go) and [ckks.Decryptor](../ckks/decryptor.go)).
 

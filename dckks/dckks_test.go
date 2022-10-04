@@ -281,7 +281,7 @@ func testE2SProtocol(tc *testContext, t *testing.T) {
 		var minLevel, logBound int
 		var ok bool
 		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.DefaultScale(), tc.NParties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
-			t.Skip("Not enough levels to ensure correcness and 128 security")
+			t.Skip("Not enough levels to ensure correctness and 128 security")
 		}
 
 		type Party struct {
@@ -367,7 +367,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 		var minLevel, logBound int
 		var ok bool
 		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.DefaultScale(), tc.NParties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
-			t.Skip("Not enough levels to ensure correcness and 128 security")
+			t.Skip("Not enough levels to ensure correctness and 128 security")
 		}
 
 		type Party struct {
@@ -435,7 +435,7 @@ func testRefreshAndTransform(tc *testContext, t *testing.T) {
 		var minLevel, logBound int
 		var ok bool
 		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.DefaultScale(), tc.NParties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
-			t.Skip("Not enough levels to ensure correcness and 128 security")
+			t.Skip("Not enough levels to ensure correctness and 128 security")
 		}
 
 		type Party struct {
@@ -515,7 +515,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 		var minLevel, logBound int
 		var ok bool
 		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.DefaultScale(), tc.NParties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
-			t.Skip("Not enough levels to ensure correcness and 128 security")
+			t.Skip("Not enough levels to ensure correctness and 128 security")
 		}
 
 		type Party struct {
@@ -619,7 +619,7 @@ func testMarshalling(tc *testContext, t *testing.T) {
 		var minLevel, logBound int
 		var ok bool
 		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.DefaultScale(), tc.NParties, params.Q()); ok != true {
-			t.Skip("Not enough levels to ensure correcness and 128 security")
+			t.Skip("Not enough levels to ensure correctness and 128 security")
 		}
 
 		ciphertext := ckks.NewCiphertext(params, 1, minLevel, params.DefaultScale())

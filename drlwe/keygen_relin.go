@@ -14,7 +14,7 @@ type RKGProtocol struct {
 	params rlwe.Parameters
 
 	gaussianSamplerQ *ring.GaussianSampler
-	ternarySamplerQ  *ring.TernarySampler // sampling in Montgomerry form
+	ternarySamplerQ  *ring.TernarySampler // sampling in Montgomery form
 
 	tmpPoly1 ringqp.Poly
 	tmpPoly2 ringqp.Poly

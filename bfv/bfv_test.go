@@ -986,7 +986,7 @@ func testMarshaller(tc *testContext, t *testing.T) {
 		assert.Nil(t, err)
 		assert.True(t, tc.params.Equals(paramsRec))
 
-		// checks that bfv.Paramters can be unmarshalled with log-moduli definition without error
+		// checks that bfv.Parameters can be unmarshalled with log-moduli definition without error
 		dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60], "T":65537}`, tc.params.LogN()))
 		var paramsWithLogModuli Parameters
 		err = json.Unmarshal(dataWithLogModuli, &paramsWithLogModuli)
@@ -995,7 +995,7 @@ func testMarshaller(tc *testContext, t *testing.T) {
 		assert.Equal(t, 1, paramsWithLogModuli.PCount())
 		assert.Equal(t, rlwe.DefaultSigma, paramsWithLogModuli.Sigma()) // ommiting sigma should result in Default being used
 
-		// checks that bfv.Paramters can be unmarshalled with log-moduli definition with empty P without error
+		// checks that bfv.Parameters can be unmarshalled with log-moduli definition with empty P without error
 		dataWithLogModuliNoP := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[],"T":65537}`, tc.params.LogN()))
 		var paramsWithLogModuliNoP Parameters
 		err = json.Unmarshal(dataWithLogModuliNoP, &paramsWithLogModuliNoP)

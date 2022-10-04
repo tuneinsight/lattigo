@@ -1427,7 +1427,7 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 		assert.Nil(t, err)
 		assert.True(t, testctx.params.Equals(paramsRec))
 
-		// checks that ckks.Paramters can be unmarshalled with log-moduli definition without error
+		// checks that ckks.Parameters can be unmarshalled with log-moduli definition without error
 		dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60], "DefaultScale":1.0}`, testctx.params.LogN()))
 		var paramsWithLogModuli Parameters
 		err = json.Unmarshal(dataWithLogModuli, &paramsWithLogModuli)
@@ -1437,7 +1437,7 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 		assert.Equal(t, ring.Standard, paramsWithLogModuli.RingType())  // Omitting the RingType field should result in a standard instance
 		assert.Equal(t, rlwe.DefaultSigma, paramsWithLogModuli.Sigma()) // Omitting sigma should result in Default being used
 
-		// checks that ckks.Paramters can be unmarshalled with log-moduli definition with empty P without error
+		// checks that ckks.Parameters can be unmarshalled with log-moduli definition with empty P without error
 		dataWithLogModuliNoP := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[],"DefaultScale":1.0,"RingType": "ConjugateInvariant"}`, testctx.params.LogN()))
 		var paramsWithLogModuliNoP Parameters
 		err = json.Unmarshal(dataWithLogModuliNoP, &paramsWithLogModuliNoP)

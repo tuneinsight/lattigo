@@ -33,9 +33,9 @@ const (
 	Chebyshev = BasisType(1)
 )
 
-// IsNegligbleThreshold : threshold under which a coefficient
+// IsNegligibleThreshold : threshold under which a coefficient
 // of a polynomial is ignored.
-const IsNegligbleThreshold float64 = 1e-14
+const IsNegligibleThreshold float64 = 1e-14
 
 // Depth returns the number of levels needed to evaluate the polynomial.
 func (p *Polynomial) Depth() int {
@@ -86,7 +86,7 @@ type polynomialEvaluator struct {
 // Returns an error if something is wrong with the scale.
 // If the polynomial is given in Chebyshev basis, then a change of basis ct' = (2/(b-a)) * (ct + (-a-b)/(b-a))
 // is necessary before the polynomial evaluation to ensure correctness.
-// Coefficients of the polynomial with an absolute value smaller than "IsNegligbleThreshold" will automatically be set to zero
+// Coefficients of the polynomial with an absolute value smaller than "IsNegligibleThreshold" will automatically be set to zero
 // if the polynomial is "even" or "odd" (to ensure that the even or odd property remains valid
 // after the "splitCoeffs" polynomial decomposition).
 // input must be either *Ciphertext or *PolynomialBasis.
@@ -110,7 +110,7 @@ type polynomialVector struct {
 // Returns an error if polynomials do not all have the same degree.
 // If the polynomials are given in Chebyshev basis, then a change of basis ct' = (2/(b-a)) * (ct + (-a-b)/(b-a))
 // is necessary before the polynomial evaluation to ensure correctness.
-// Coefficients of the polynomial with an absolute value smaller than "IsNegligbleThreshold" will automatically be set to zero
+// Coefficients of the polynomial with an absolute value smaller than "IsNegligibleThreshold" will automatically be set to zero
 // if the polynomial is "even" or "odd" (to ensure that the even or odd property remains valid
 // after the "splitCoeffs" polynomial decomposition).
 // input: must be either *Ciphertext or *PolynomialBasis.
@@ -236,7 +236,7 @@ type PolynomialBasis struct {
 }
 
 // NewPolynomialBasis creates a new PolynomialBasis. It takes as input a ciphertext
-// and a basistype. The struct treates the input ciphertext as a monomial X and
+// and a basistype. The struct treats the input ciphertext as a monomial X and
 // can be used to generates power of this monomial X^{n} in the given BasisType.
 func NewPolynomialBasis(ct *Ciphertext, basistype BasisType) (p *PolynomialBasis) {
 	p = new(PolynomialBasis)
@@ -689,7 +689,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasis(targetScale
 }
 
 func isNotNegligible(c complex128) bool {
-	return (math.Abs(real(c)) > IsNegligbleThreshold || math.Abs(imag(c)) > IsNegligbleThreshold)
+	return (math.Abs(real(c)) > IsNegligibleThreshold || math.Abs(imag(c)) > IsNegligibleThreshold)
 }
 
 func isOddOrEvenPolynomial(coeffs []complex128) (odd, even bool) {

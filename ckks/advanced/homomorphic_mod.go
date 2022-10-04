@@ -27,13 +27,13 @@ const (
 	Cos2 = SineType(2) // Standard Chebyshev approximation of pow((1/2pi), 1/2^r) * cos(2pi(x-0.25)/2^r)
 )
 
-// EvalModLiteral a struct for the paramters of the EvalMod step
+// EvalModLiteral a struct for the parameters of the EvalMod step
 // of the bootstrapping
 type EvalModLiteral struct {
 	Q             uint64   // Q to reduce by during EvalMod
 	LevelStart    int      // Starting level of EvalMod
 	ScalingFactor float64  // Scaling factor used during EvalMod
-	SineType      SineType // Chose betwenn [Sin(2*pi*x)] or [cos(2*pi*x/r) with double angle formula]
+	SineType      SineType // Chose between [Sin(2*pi*x)] or [cos(2*pi*x/r) with double angle formula]
 	MessageRatio  float64  // Ratio between Q0 and m, i.e. Q[0]/|m|
 	K             int      // K parameter (interpolation in the range -K to K)
 	SineDeg       int      // Degree of the interpolation
@@ -103,7 +103,7 @@ func (evp *EvalModPoly) QDiff() float64 {
 	return evp.qDiff
 }
 
-// NewEvalModPolyFromLiteral generates an EvalModPoly fromt the EvalModLiteral.
+// NewEvalModPolyFromLiteral generates an EvalModPoly from the EvalModLiteral.
 func NewEvalModPolyFromLiteral(evm EvalModLiteral) EvalModPoly {
 
 	var arcSinePoly *ckks.Polynomial

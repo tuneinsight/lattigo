@@ -35,11 +35,12 @@ func (eval *Evaluator) WithKey(evaluationKey *rlwe.EvaluationKey) *Evaluator {
 }
 
 // ExternalProduct computes RLWE x RGSW -> RLWE
-// RLWE : (-as + m + e, a)
-//  x
-// RGSW : [(-as + P*w*m1 + e, a), (-bs + e, b + P*w*m1)]
-//  =
-// RLWE : (<RLWE, RGSW[0]>, <RLWE, RGSW[1]>)
+//
+//	RLWE : (-as + m + e, a)
+//	x
+//	RGSW : [(-as + P*w*m1 + e, a), (-bs + e, b + P*w*m1)]
+//	=
+//	RLWE : (<RLWE, RGSW[0]>, <RLWE, RGSW[1]>)
 func (eval *Evaluator) ExternalProduct(op0 *rlwe.Ciphertext, op1 *Ciphertext, op2 *rlwe.Ciphertext) {
 
 	levelQ, levelP := op1.LevelQ(), op1.LevelP()

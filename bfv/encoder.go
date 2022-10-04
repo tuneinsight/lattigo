@@ -13,27 +13,28 @@ import (
 const GaloisGen uint64 = ring.GaloisGen
 
 // Encoder is an interface for plaintext encoding and decoding operations. It provides methods to embed []uint64 and []int64 types into
-// the various plaintext types and the inverse operations. It also provides methodes to convert between the different plaintext types.
+// the various plaintext types and the inverse operations. It also provides methods to convert between the different plaintext types.
 // The different plaintext types represent different embeddings of the message in the polynomial space. This relation is illustrated in
 // the figure below:
-//                   ┌-> Encoder.Encode(.) -----------------------------------------------------┐
-// []uint64/[]int64 -┼-> Encoder.EncodeRingT(.) ---> PlaintextRingT -┬-> Encoder.ScaleUp(.) ----┴-> Plaintext
-//                   |                                               └-> Encoder.RingTToMul(.) -┬-> PlaintextMul
-//                   └-> Encoder.EncodeMul(.) --------------------------------------------------┘
 //
-// The different plaintext types have different efficiency-related caracteristics that we summarize in the Table below. For more information
+//	                  ┌-> Encoder.Encode(.) -----------------------------------------------------┐
+//	[]uint64/[]int64 -┼-> Encoder.EncodeRingT(.) ---> PlaintextRingT -┬-> Encoder.ScaleUp(.) ----┴-> Plaintext
+//	                  |                                               └-> Encoder.RingTToMul(.) -┬-> PlaintextMul
+//	                  └-> Encoder.EncodeMul(.) --------------------------------------------------┘
+//
+// The different plaintext types have different efficiency-related characteristics that we summarize in the Table below. For more information
 // about the different plaintext types, see plaintext.go.
 //
 // Relative efficiency of operations
-//  -------------------------------------------------------------------------
-// |                      |  PlaintextRingT  |  Plaintext  | PlaintextMul    |
-//  -------------------------------------------------------------------------
-// | Encoding/Decoding    |    Faster        |    Slower   |    Slower       |
-// | Memory size          |    Smaller       |    Larger   |    Larger       |
-// | Ct-Pt Add / Sub      |    Slower        |    Faster   |    N/A          |
-// | Ct-Pt Mul            |    Faster        |    Slower   |    Much Faster  |
-//  -------------------------------------------------------------------------
 //
+//	 -------------------------------------------------------------------------
+//	|                      |  PlaintextRingT  |  Plaintext  | PlaintextMul    |
+//	 -------------------------------------------------------------------------
+//	| Encoding/Decoding    |    Faster        |    Slower   |    Slower       |
+//	| Memory size          |    Smaller       |    Larger   |    Larger       |
+//	| Ct-Pt Add / Sub      |    Slower        |    Faster   |    N/A          |
+//	| Ct-Pt Mul            |    Faster        |    Slower   |    Much Faster  |
+//	 -------------------------------------------------------------------------
 type Encoder interface {
 	Encode(coeffs interface{}, pt *Plaintext)
 	EncodeNew(coeffs interface{}, level int) (pt *Plaintext)

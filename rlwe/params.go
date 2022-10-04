@@ -453,7 +453,8 @@ func (p Parameters) GaloisElementsForMergeRLWE() (galEls []uint64) {
 }
 
 // InverseGaloisElement takes a Galois element and returns the Galois element
-//  corresponding to the inverse automorphism
+//
+//	corresponding to the inverse automorphism
 func (p Parameters) InverseGaloisElement(galEl uint64) uint64 {
 	return ring.ModExp(galEl, p.ringQ.NthRoot-1, p.ringQ.NthRoot)
 }

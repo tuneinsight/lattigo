@@ -228,10 +228,10 @@ func (eval *evaluator) dft(ctIn *ckks.Ciphertext, plainVectors []ckks.LinearTran
 
 // EvalModNew applies a homomorphic mod Q on a vector scaled by Delta, scaled down to mod 1 :
 //
-//	1) Delta * (Q/Delta * I(X) + m(X)) (Delta = scaling factor, I(X) integer poly, m(X) message)
-//	2) Delta * (I(X) + Delta/Q * m(X)) (divide by Q/Delta)
-//	3) Delta * (Delta/Q * m(X)) (x mod 1)
-//	4) Delta * (m(X)) (multiply back by Q/Delta)
+//  1. Delta * (Q/Delta * I(X) + m(X)) (Delta = scaling factor, I(X) integer poly, m(X) message)
+//  2. Delta * (I(X) + Delta/Q * m(X)) (divide by Q/Delta)
+//  3. Delta * (Delta/Q * m(X)) (x mod 1)
+//  4. Delta * (m(X)) (multiply back by Q/Delta)
 //
 // Since Q is not a power of two, but Delta is, then does an approximate division by the closest
 // power of two to Q instead. Hence, it assumes that the input plaintext is already scaled by

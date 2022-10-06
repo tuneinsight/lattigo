@@ -322,18 +322,15 @@ func (ecd *encoderComplex128) ShallowCopy() Encoder {
 
 // Embed is a generic method to encode a set of values on the target polyOut interface.
 // This method it as the core of the slot encoding.
-// values: values.(type) can be either []complex128 of []float64.
 //
-//	The imaginary part of []complex128 will be discarded if ringType == ring.ConjugateInvariant.
-//
-// logslots: user must ensure that 1 <= len(values) <= 2^logSlots < 2^logN and that logSlots >= 3.
-// scale: the scaling factor used do discretize float64 to fixed point integers.
-// montgomery: if true then the value written on polyOut are put in the Montgomery domain.
-// polyOut: polyOut.(type) can be either ringqp.Poly or *ring.Poly.
-//
-//	The encoding encoding is done at the level of polyOut.
-//
-// Values written on  polyOut are always in the NTT domain.
+//	values: values.(type) can be either []complex128 of []float64.
+//		The imaginary part of []complex128 will be discarded if ringType == ring.ConjugateInvariant.
+//	logslots: user must ensure that 1 <= len(values) <= 2^logSlots < 2^logN and that logSlots >= 3.
+//	scale: the scaling factor used do discretize float64 to fixed point integers.
+//	montgomery: if true then the value written on polyOut are put in the Montgomery domain.
+//	polyOut: polyOut.(type) can be either ringqp.Poly or *ring.Poly.
+//		 The encoding encoding is done at the level of polyOut.
+//		 Values written on polyOut are always in the NTT domain.
 func (ecd *encoderComplex128) Embed(values interface{}, logSlots int, scale float64, montgomery bool, polyOut interface{}) {
 
 	if logSlots < minLogSlots || logSlots > ecd.params.MaxLogSlots() {

@@ -16,9 +16,9 @@ func NewUint(v uint64) *big.Int {
 }
 
 // NewIntFromString creates a new Int from a string.
-// A prefix of “0x” or “0X” selects base 16;
-// the “0” prefix selects base 8, and
-// a “0b” or “0B” prefix selects base 2.
+// A prefix of "0x" or "0X" selects base 16;
+// the "0" prefix selects base 8, and
+// a "0b" or "0B" prefix selects base 2.
 // Otherwise, the selected base is 10.
 func NewIntFromString(s string) *big.Int {
 	i, _ := new(big.Int).SetString(s, 0)

@@ -2,7 +2,7 @@
 
 .PHONY: test_gotest
 test_gotest:
-	go test -v -timeout=0 ./...
+	go test -timeout=0 ./...
 
 .PHONY: test_examples
 test_examples:

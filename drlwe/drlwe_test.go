@@ -15,7 +15,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
-var nbParties = int(10)
+var nbParties = int(5)
 
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 
@@ -153,9 +153,11 @@ func testKeySwitching(testCtx *testContext, t *testing.T) {
 
 		cks := make([]*CKSProtocol, nbParties)
 
+		sigmaSmudging := 8 * rlwe.DefaultSigma
+
 		for i := range cks {
 			if i == 0 {
-				cks[i] = NewCKSProtocol(params, rlwe.DefaultSigma)
+				cks[i] = NewCKSProtocol(params, sigmaSmudging)
 			} else {
 				cks[i] = cks[0].ShallowCopy()
 			}
@@ -194,7 +196,8 @@ func testKeySwitching(testCtx *testContext, t *testing.T) {
 		// [-as + e] + [as]
 		ringQ.MulCoeffsMontgomeryAndAdd(ksCiphertext.Value[1], skOutIdeal.Value.Q, ksCiphertext.Value[0])
 		ringQ.InvNTT(ksCiphertext.Value[0], ksCiphertext.Value[0])
-		log2Bound := bits.Len64(3 * uint64(math.Floor(rlwe.DefaultSigma*6)) * uint64(params.N()))
+
+		log2Bound := bits.Len64(uint64(nbParties) * uint64(math.Floor(sigmaSmudging*6)) * uint64(params.N()))
 		require.GreaterOrEqual(t, log2Bound, ringQ.Log2OfInnerSum(ksCiphertext.Value[0].Level(), ksCiphertext.Value[0]))
 
 	})
@@ -209,10 +212,12 @@ func testPublicKeySwitching(testCtx *testContext, t *testing.T) {
 
 		skOut, pkOut := testCtx.kgen.GenKeyPair()
 
+		sigmaSmudging := 8 * rlwe.DefaultSigma
+
 		pcks := make([]*PCKSProtocol, nbParties)
 		for i := range pcks {
 			if i == 0 {
-				pcks[i] = NewPCKSProtocol(params, rlwe.DefaultSigma)
+				pcks[i] = NewPCKSProtocol(params, sigmaSmudging)
 			} else {
 				pcks[i] = pcks[0].ShallowCopy()
 			}
@@ -244,7 +249,9 @@ func testPublicKeySwitching(testCtx *testContext, t *testing.T) {
 		// [-as + e] + [as]
 		ringQ.MulCoeffsMontgomeryAndAdd(ksCiphertext.Value[1], skOut.Value.Q, ksCiphertext.Value[0])
 		ringQ.InvNTT(ksCiphertext.Value[0], ksCiphertext.Value[0])
-		log2Bound := bits.Len64(3 * uint64(math.Floor(rlwe.DefaultSigma*6)) * uint64(params.N()))
+
+		log2Bound := bits.Len64(uint64(nbParties) * uint64(math.Floor(sigmaSmudging*6)) * uint64(params.N()))
+
 		require.GreaterOrEqual(t, log2Bound+5, ringQ.Log2OfInnerSum(ksCiphertext.Value[0].Level(), ksCiphertext.Value[0]))
 
 	})

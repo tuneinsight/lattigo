@@ -47,7 +47,7 @@ static_check: check_tools
 		false;\
     fi
 	
-	@STATICCHECKOUT=$$(staticcheck -go 1.17 -checks all ./...); \
+	@STATICCHECKOUT=$$(staticcheck -go 1.19 -checks all ./...); \
 	if [ -z "$$STATICCHECKOUT" ]; then\
         echo "staticcheck: OK";\
 	else \

@@ -688,8 +688,8 @@ func (eval *evaluator) rescaleOriginal(ctIn, ctOut *Ciphertext) (err error) {
 // This procedure divides the error by the last modulus of the moduli chain while preserving
 // the LSB-plaintext bits.
 // The procedure will return an error if:
-//     1) ctIn.Level() == 0 (the input ciphertext is already at the last modulus)
-//     2) ctOut.Level() < ctIn.Level() - 1 (not enough space to store the result)
+//  1. ctIn.Level() == 0 (the input ciphertext is already at the last modulus)
+//  2. ctOut.Level() < ctIn.Level() - 1 (not enough space to store the result)
 func (eval *evaluator) Rescale(ctIn, ctOut *Ciphertext) (err error) {
 
 	if ctIn.Level() == 0 {

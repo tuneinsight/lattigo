@@ -188,17 +188,19 @@ func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVecto
 
 	isRingStandard := eval.params.RingType() == ring.Standard
 
-	for i := (1 << logSplit) - 1; i > 1; i-- {
+	// Computes all the powers of two with relinearization
+	for i := 2; i < logDegree; i++ {
+		if err = monomialBasis.GenPower(1<<i, false, targetScale, eval); err != nil {
+			return nil, err
+		}
+	}
+
+	// Computes the intermediate powers, starting from the largest, without relinearization if possible
+	for i := (1 << logSplit) - 1; i > 2; i-- {
 		if !(even || odd) || (i&1 == 0 && even) || (i&1 == 1 && odd) {
 			if err = monomialBasis.GenPower(i, isRingStandard, targetScale, eval); err != nil {
 				return nil, err
 			}
-		}
-	}
-
-	for i := logSplit; i < logDegree; i++ {
-		if err = monomialBasis.GenPower(1<<i, false, targetScale, eval); err != nil {
-			return nil, err
 		}
 	}
 

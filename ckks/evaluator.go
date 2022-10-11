@@ -1139,8 +1139,6 @@ func (eval *evaluator) MulRelin(ctIn *Ciphertext, op1 Operand, ctOut *Ciphertext
 
 func (eval *evaluator) mulRelin(ctIn *Ciphertext, op1 Operand, relin bool, ctOut *Ciphertext) {
 
-	eval.checkBinary(ctIn, op1, ctOut, utils.MaxInt(ctIn.Degree(), op1.Degree()))
-
 	level := utils.MinInt(utils.MinInt(ctIn.Level(), op1.Level()), ctOut.Level())
 
 	if ctIn.Degree()+op1.Degree() > 2 {
@@ -1169,6 +1167,8 @@ func (eval *evaluator) mulRelin(ctIn *Ciphertext, op1 Operand, relin bool, ctOut
 			ctOut.El().Resize(1, level)
 			c2 = eval.buffQ[2]
 		}
+
+		eval.checkBinary(ctIn, op1, ctOut, ctOut.Degree())
 
 		// Avoid overwriting if the second input is the output
 		var tmp0, tmp1 *rlwe.Ciphertext
@@ -1204,17 +1204,25 @@ func (eval *evaluator) mulRelin(ctIn *Ciphertext, op1 Operand, relin bool, ctOut
 		// Case Plaintext (x) Ciphertext or Ciphertext (x) Plaintext
 	} else {
 
-		if ctOut.Degree() < ctIn.Degree() {
-			ctOut.El().Resize(ctIn.Degree(), level)
+		eval.checkBinary(ctIn, op1, ctOut, ctOut.Degree())
+
+		var c0 *ring.Poly
+		var c1 []*ring.Poly
+		if ctIn.Degree() == 0 {
+			c0 = eval.buffQ[0]
+			ringQ.MFormLvl(level, ctIn.Value[0], c0)
+			c1 = op1.El().Value
+
 		} else {
-			ctOut.El().Resize(ctOut.Degree(), level)
+			c0 = eval.buffQ[0]
+			ringQ.MFormLvl(level, op1.El().Value[0], c0)
+			c1 = ctIn.Value
 		}
 
-		c00 := eval.buffQ[0]
+		ctOut.El().Resize(ctIn.Degree()+op1.Degree(), level)
 
-		ringQ.MFormLvl(level, op1.El().Value[0], c00)
-		for i := range ctIn.Value {
-			ringQ.MulCoeffsMontgomeryLvl(level, ctIn.Value[i], c00, ctOut.Value[i])
+		for i := range c1 {
+			ringQ.MulCoeffsMontgomeryLvl(level, c0, c1[i], ctOut.Value[i])
 		}
 	}
 }

@@ -603,6 +603,22 @@ func testEvaluatorMul(tc *testContext, t *testing.T) {
 			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values2, ciphertext1, tc.params.LogSlots(), 0, t)
 		})
 
+		t.Run(GetTestName(tc.params, "ct0*ct1->ct0 (degree 0)"), func(t *testing.T) {
+
+			values1, plaintext1, _ := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
+			values2, _, ciphertext2 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
+
+			for i := range values1 {
+				values2[i] *= values1[i]
+			}
+
+			ciphertext1 := &Ciphertext{Ciphertext: &rlwe.Ciphertext{Value: []*ring.Poly{plaintext1.Value}}, scale: plaintext1.scale}
+
+			tc.evaluator.MulRelin(ciphertext1, ciphertext2, ciphertext1)
+
+			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values2, ciphertext1, tc.params.LogSlots(), 0, t)
+		})
+
 		t.Run(GetTestName(tc.params, "ct0*ct1->ct1"), func(t *testing.T) {
 
 			values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)

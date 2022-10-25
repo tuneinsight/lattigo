@@ -180,38 +180,38 @@ func testParameters(tc *testContext, t *testing.T) {
 	})
 }
 
-func newTestVectorsRingQLvl(level int, tc *testContext, encryptor Encryptor, t *testing.T) (coeffs *ring.Poly, plaintext *Plaintext, ciphertext *Ciphertext) {
+func newTestVectorsRingQLvl(level int, tc *testContext, encryptor Encryptor, t *testing.T) (coeffs *ring.Poly, pt *rlwe.Plaintext, ct *rlwe.Ciphertext) {
 	coeffs = tc.uSampler.ReadNew()
-	plaintext = NewPlaintextLvl(tc.params, level)
-	tc.encoder.Encode(coeffs.Coeffs[0], plaintext)
+	pt = rlwe.NewPlaintext(tc.params.Parameters, level)
+	tc.encoder.Encode(coeffs.Coeffs[0], pt)
 	if encryptor != nil {
-		ciphertext = encryptor.EncryptNew(plaintext)
+		ct = encryptor.EncryptNew(pt)
 	}
-	return coeffs, plaintext, ciphertext
+	return
 }
 
-func newTestVectorsRingT(tc *testContext, t *testing.T) (coeffs *ring.Poly, plaintext *PlaintextRingT) {
+func newTestVectorsRingT(tc *testContext, t *testing.T) (coeffs *ring.Poly, pt *PlaintextRingT) {
 	coeffs = tc.uSampler.ReadNew()
-	plaintext = NewPlaintextRingT(tc.params)
-	tc.encoder.EncodeRingT(coeffs.Coeffs[0], plaintext)
-	return coeffs, plaintext
+	pt = NewPlaintextRingT(tc.params)
+	tc.encoder.EncodeRingT(coeffs.Coeffs[0], pt)
+	return
 }
 
-func newTestVectorsMulLvl(level int, tc *testContext, t *testing.T) (coeffs *ring.Poly, plaintext *PlaintextMul) {
+func newTestVectorsMulLvl(level int, tc *testContext, t *testing.T) (coeffs *ring.Poly, pt *PlaintextMul) {
 	coeffs = tc.uSampler.ReadNew()
-	plaintext = NewPlaintextMulLvl(tc.params, level)
-	tc.encoder.EncodeMul(coeffs.Coeffs[0], plaintext)
-	return coeffs, plaintext
+	pt = NewPlaintextMul(tc.params, level)
+	tc.encoder.EncodeMul(coeffs.Coeffs[0], pt)
+	return
 }
 
-func verifyTestVectors(tc *testContext, decryptor Decryptor, coeffs *ring.Poly, element Operand, t *testing.T) {
+func verifyTestVectors(tc *testContext, decryptor Decryptor, coeffs *ring.Poly, element rlwe.Operand, t *testing.T) {
 
 	var coeffsTest []uint64
 
 	switch el := element.(type) {
-	case *Plaintext, *PlaintextMul, *PlaintextRingT:
+	case *rlwe.Plaintext, *PlaintextMul, *PlaintextRingT:
 		coeffsTest = tc.encoder.DecodeUintNew(el)
-	case *Ciphertext:
+	case *rlwe.Ciphertext:
 		coeffsTest = tc.encoder.DecodeUintNew(decryptor.DecryptNew(el))
 	default:
 		t.Error("invalid test object to verify")
@@ -318,7 +318,7 @@ func testEncoder(tc *testContext, t *testing.T) {
 				}
 			}
 
-			plaintext := NewPlaintextLvl(tc.params, lvl)
+			plaintext := NewPlaintext(tc.params, lvl)
 			tc.encoder.Encode(coeffsInt, plaintext)
 			require.True(t, utils.EqualSliceInt64(coeffsInt, tc.encoder.DecodeIntNew(plaintext)))
 		})
@@ -425,7 +425,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		t.Run(testString("Evaluator/Add/op1=Ciphertext/op2=PlaintextRingT", tc.params, lvl), func(t *testing.T) {
 			values1, plaintextRingT := newTestVectorsRingT(tc, t)
 			values2, _, ciphertext := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			ciphertextOut := NewCiphertextLvl(tc.params, 1, lvl)
+			ciphertextOut := NewCiphertext(tc.params, 1, lvl)
 			tc.evaluator.Add(ciphertext, plaintextRingT, ciphertextOut)
 			tc.ringT.Add(values1, values2, values2)
 			verifyTestVectors(tc, tc.decryptor, values2, ciphertextOut, t)
@@ -477,7 +477,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		t.Run(testString("Evaluator/Sub/op1=Ciphertext/op2=PlaintextRingT", tc.params, lvl), func(t *testing.T) {
 			values1, plaintextRingT := newTestVectorsRingT(tc, t)
 			values2, _, ciphertext := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			ciphertextOut := NewCiphertextLvl(tc.params, 1, lvl)
+			ciphertextOut := NewCiphertext(tc.params, 1, lvl)
 			plaintextWant := NewPlaintextRingT(tc.params)
 			tc.evaluator.Sub(ciphertext, plaintextRingT, ciphertextOut)
 			tc.ringT.Sub(values2, values1, plaintextWant.Value)
@@ -575,7 +575,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		t.Run(testString("Evaluator/Mul/op1=Ciphertext/op2=Ciphertext", tc.params, lvl), func(t *testing.T) {
 			values1, _, ciphertext1 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
 			values2, _, ciphertext2 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			receiver := NewCiphertextLvl(tc.params, ciphertext1.Degree()+ciphertext2.Degree(), lvl)
+			receiver := NewCiphertext(tc.params, ciphertext1.Degree()+ciphertext2.Degree(), lvl)
 			tc.evaluator.Mul(ciphertext1, ciphertext2, receiver)
 			tc.ringT.MulCoeffs(values1, values2, values1)
 			verifyTestVectors(tc, tc.decryptor, values1, receiver, t)
@@ -640,7 +640,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 
 		t.Run(testString("Evaluator/MulSquare/op1=Ciphertext/op2=Ciphertext", tc.params, lvl), func(t *testing.T) {
 			values1, _, ciphertext1 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			receiver := NewCiphertextLvl(tc.params, ciphertext1.Degree()+ciphertext1.Degree(), lvl)
+			receiver := NewCiphertext(tc.params, ciphertext1.Degree()+ciphertext1.Degree(), lvl)
 			tc.evaluator.Mul(ciphertext1, ciphertext1, receiver)
 			tc.ringT.MulCoeffs(values1, values1, values1)
 			verifyTestVectors(tc, tc.decryptor, values1, receiver, t)
@@ -671,7 +671,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		t.Run(testString("Evaluator/Mul/op1=Ciphertext/op2=PlaintextRingT", tc.params, lvl), func(t *testing.T) {
 			values1, plaintextRingT := newTestVectorsRingT(tc, t)
 			values2, _, ciphertext := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			ciphertextOut := NewCiphertextLvl(tc.params, 1, lvl)
+			ciphertextOut := NewCiphertext(tc.params, 1, lvl)
 			tc.evaluator.Mul(ciphertext, plaintextRingT, ciphertextOut)
 			tc.ringT.MulCoeffs(values1, values2, values1)
 			verifyTestVectors(tc, tc.decryptor, values1, ciphertextOut, t)
@@ -702,7 +702,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		t.Run(testString("Evaluator/Mul/Relinearize", tc.params, lvl), func(t *testing.T) {
 			values1, _, ciphertext1 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
 			values2, _, ciphertext2 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			receiver := NewCiphertextLvl(tc.params, ciphertext1.Degree()+ciphertext2.Degree(), lvl)
+			receiver := NewCiphertext(tc.params, ciphertext1.Degree()+ciphertext2.Degree(), lvl)
 			tc.evaluator.Mul(ciphertext1, ciphertext2, receiver)
 			tc.ringT.MulCoeffs(values1, values2, values1)
 			receiver2 := tc.evaluator.RelinearizeNew(receiver)
@@ -742,7 +742,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		tc.evaluator.RescaleTo(1, ciphertext2, ciphertext2)
 		assert.True(t, ciphertext1.Level() == 1)
 		assert.True(t, ciphertext2.Level() == 1)
-		receiver := NewCiphertextLvl(tc.params, ciphertext1.Degree()+ciphertext2.Degree(), ciphertext2.Level())
+		receiver := NewCiphertext(tc.params, ciphertext1.Degree()+ciphertext2.Degree(), ciphertext2.Level())
 		tc.evaluator.Mul(ciphertext1, ciphertext2, receiver)
 		tc.ringT.MulCoeffs(values1, values2, values1)
 		verifyTestVectors(tc, tc.decryptor, values1, receiver, t)
@@ -901,7 +901,7 @@ func testEvaluatorRotate(tc *testContext, t *testing.T) {
 
 			values, _, ciphertext := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
 
-			receiver := NewCiphertextLvl(tc.params, 1, lvl)
+			receiver := NewCiphertext(tc.params, 1, lvl)
 			for _, n := range rots {
 
 				evaluator.RotateColumns(ciphertext, n, receiver)
@@ -1011,21 +1011,5 @@ func testMarshaller(tc *testContext, t *testing.T) {
 		assert.Equal(t, 6.6, paramsWithCustomSecrets.Sigma())
 		assert.Equal(t, 192, paramsWithCustomSecrets.HammingWeight())
 
-	})
-
-	t.Run(testString("Marshaller/Ciphertext", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
-
-		ciphertextWant := NewCiphertextRandom(tc.prng, tc.params, 2)
-
-		marshalledCiphertext, err := ciphertextWant.MarshalBinary()
-		require.NoError(t, err)
-
-		ciphertextTest := new(Ciphertext)
-		err = ciphertextTest.UnmarshalBinary(marshalledCiphertext)
-		require.NoError(t, err)
-
-		for i := range ciphertextWant.Value {
-			require.True(t, tc.ringQ.Equal(ciphertextWant.Value[i], ciphertextTest.Value[i]))
-		}
 	})
 }

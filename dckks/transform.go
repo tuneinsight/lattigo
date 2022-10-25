@@ -141,8 +141,9 @@ func NewMaskedTransformProtocol(paramsIn, paramsOut ckks.Parameters, precision i
 
 	rfp.precision = precision
 
-	rfp.defaultScale = new(big.Int)
-	ring.NewFloat(paramsOut.DefaultScale(), precision).Int(rfp.defaultScale)
+	scale := paramsOut.DefaultScale().Value
+
+	rfp.defaultScale, _ = new(big.Float).SetPrec(256).Set(&scale).Int(nil)
 
 	rfp.tmpMask = make([]*big.Int, paramsIn.N())
 	for i := range rfp.tmpMask {
@@ -251,8 +252,7 @@ func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, logBou
 	}
 
 	// Applies LT(M_i) * diffscale
-	inputScaleInt := new(big.Int)
-	ring.NewFloat(scale, 256).Int(inputScaleInt)
+	inputScaleInt, _ := new(big.Float).SetPrec(256).SetFloat64(scale).Int(nil)
 
 	// Scales the mask by the ratio between the two scales
 	for i := 0; i < dslots; i++ {
@@ -281,7 +281,7 @@ func (rfp *MaskedTransformProtocol) AggregateShares(share1, share2, shareOut *Ma
 
 // Transform applies Decrypt, Recode and Recrypt on the input ciphertext.
 // The ciphertext scale is reset to the default scale.
-func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, logSlots int, transform *MaskedTransformFunc, crs drlwe.CKSCRP, share *MaskedTransformShare, ciphertextOut *ckks.Ciphertext) {
+func (rfp *MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, logSlots int, transform *MaskedTransformFunc, crs drlwe.CKSCRP, share *MaskedTransformShare, ciphertextOut *rlwe.Ciphertext) {
 
 	if ct.Level() < share.e2sShare.Value.Level() {
 		panic("cannot Transform: input ciphertext level must be at least equal to e2s level")
@@ -358,9 +358,10 @@ func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, logSlots int,
 		}
 	}
 
+	scale := ct.Scale.Value
+
 	// Returns LT(-sum(M_i) + x) * diffscale
-	inputScaleInt := new(big.Int)
-	ring.NewFloat(ct.Scale(), 256).Int(inputScaleInt)
+	inputScaleInt, _ := new(big.Float).Set(&scale).Int(nil)
 
 	// Scales the mask by the ratio between the two scales
 	for i := 0; i < dslots; i++ {
@@ -390,5 +391,5 @@ func (rfp *MaskedTransformProtocol) Transform(ct *ckks.Ciphertext, logSlots int,
 	// Copies the result on the out ciphertext
 	rfp.s2e.GetEncryption(&drlwe.CKSShare{Value: ciphertextOut.Value[0]}, crs, ciphertextOut)
 
-	ciphertextOut.SetScale(rfp.s2e.params.DefaultScale())
+	ciphertextOut.Scale = rfp.s2e.params.DefaultScale()
 }

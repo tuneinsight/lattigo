@@ -217,6 +217,15 @@ func (r *Ring) EvalPolyScalar(pol []Poly, pt uint64, p3 Poly) {
 	}
 }
 
+func (r *Ring) MulScalarLvl(levelQ, levelP int, p1 Poly, scalar uint64, p2 Poly) {
+	if r.RingQ != nil {
+		r.RingQ.MulScalarLvl(levelQ, p1.Q, scalar, p2.Q)
+	}
+	if r.RingP != nil {
+		r.RingP.MulScalarLvl(levelP, p1.P, scalar, p2.P)
+	}
+}
+
 // NTTLvl computes the NTT of p1 and returns the result on p2.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
 func (r *Ring) NTTLvl(levelQ, levelP int, p1, p2 Poly) {
@@ -469,9 +478,9 @@ func (p *Poly) GetDataLen64(WithMetadata bool) (dataLen int) {
 	return
 }
 
-// WriteTo64 writes a Poly on the input data.
+// Encode64 writes a Poly on the input data.
 // Encodes each coefficient on 8 bytes.
-func (p *Poly) WriteTo64(data []byte) (pt int, err error) {
+func (p *Poly) Encode64(data []byte) (pt int, err error) {
 	var inc int
 
 	if p.Q != nil {
@@ -485,14 +494,14 @@ func (p *Poly) WriteTo64(data []byte) (pt int, err error) {
 	pt = 2
 
 	if data[0] == 1 {
-		if inc, err = p.Q.WriteTo64(data[pt:]); err != nil {
+		if inc, err = p.Q.Encode64(data[pt:]); err != nil {
 			return
 		}
 		pt += inc
 	}
 
 	if data[1] == 1 {
-		if inc, err = p.P.WriteTo64(data[pt:]); err != nil {
+		if inc, err = p.P.Encode64(data[pt:]); err != nil {
 			return
 		}
 		pt += inc
@@ -501,10 +510,10 @@ func (p *Poly) WriteTo64(data []byte) (pt int, err error) {
 	return
 }
 
-// DecodePoly64 decodes the input bytes on the target Poly.
+// Decode64 decodes the input bytes on the target Poly.
 // Writes on pre-allocated coefficients.
 // Assumes that each coefficient is encoded on 8 bytes.
-func (p *Poly) DecodePoly64(data []byte) (pt int, err error) {
+func (p *Poly) Decode64(data []byte) (pt int, err error) {
 
 	var inc int
 	pt = 2
@@ -515,7 +524,7 @@ func (p *Poly) DecodePoly64(data []byte) (pt int, err error) {
 			p.Q = new(ring.Poly)
 		}
 
-		if inc, err = p.Q.DecodePoly64(data[pt:]); err != nil {
+		if inc, err = p.Q.Decode64(data[pt:]); err != nil {
 			return
 		}
 		pt += inc
@@ -527,7 +536,7 @@ func (p *Poly) DecodePoly64(data []byte) (pt int, err error) {
 			p.P = new(ring.Poly)
 		}
 
-		if inc, err = p.P.DecodePoly64(data[pt:]); err != nil {
+		if inc, err = p.P.Decode64(data[pt:]); err != nil {
 			return
 		}
 		pt += inc
@@ -538,12 +547,12 @@ func (p *Poly) DecodePoly64(data []byte) (pt int, err error) {
 
 func (p *Poly) MarshalBinary() ([]byte, error) {
 	b := make([]byte, p.GetDataLen64(true))
-	_, err := p.WriteTo64(b)
+	_, err := p.Encode64(b)
 	return b, err
 }
 
 func (p *Poly) UnmarshalBinary(b []byte) error {
-	_, err := p.DecodePoly64(b)
+	_, err := p.Decode64(b)
 	return err
 }
 

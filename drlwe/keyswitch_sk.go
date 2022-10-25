@@ -174,10 +174,21 @@ func (cks *CKSProtocol) AggregateShares(share1, share2, shareOut *CKSShare) {
 
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
 func (cks *CKSProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined *CKSShare, ctOut *rlwe.Ciphertext) {
+
 	level := ctIn.Level()
-	ctOut.Resize(ctIn.Degree(), level)
-	cks.params.RingQ().AddLvl(level, ctIn.Value[0], combined.Value, ctOut.Value[0])
+
 	if ctIn != ctOut {
+
+		ctOut.Resize(ctIn.Degree(), level)
+
 		ring.CopyValuesLvl(level, ctIn.Value[1], ctOut.Value[1])
+
+		for i := range ctOut.Value {
+			ctOut.Value[i].IsNTT = ctIn.Value[i].IsNTT
+		}
+
+		ctOut.Scale = ctIn.Scale
 	}
+
+	cks.params.RingQ().AddLvl(level, ctIn.Value[0], combined.Value, ctOut.Value[0])
 }

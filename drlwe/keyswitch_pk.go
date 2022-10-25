@@ -176,24 +176,36 @@ func (pcks *PCKSProtocol) AggregateShares(share1, share2, shareOut *PCKSShare) {
 
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
 func (pcks *PCKSProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined *PCKSShare, ctOut *rlwe.Ciphertext) {
+
 	level := ctIn.Level()
-	ctOut.Resize(ctIn.Degree(), level)
-	pcks.params.RingQ().AddLvl(level, ctIn.Value[0], combined.Value[0], ctOut.Value[0])
+
 	if ctIn != ctOut {
-		ring.CopyValuesLvl(level, combined.Value[1], ctOut.Value[1])
+
+		ctOut.Resize(ctIn.Degree(), level)
+
+		for i := range ctOut.Value {
+			ctOut.Value[i].IsNTT = ctIn.Value[i].IsNTT
+		}
+
+		ctOut.Scale = ctIn.Scale
+
 	}
+
+	pcks.params.RingQ().AddLvl(level, ctIn.Value[0], combined.Value[0], ctOut.Value[0])
+
+	ring.CopyValuesLvl(level, combined.Value[1], ctOut.Value[1])
 }
 
 // MarshalBinary encodes a PCKS share on a slice of bytes.
 func (share *PCKSShare) MarshalBinary() (data []byte, err error) {
 	data = make([]byte, share.Value[0].GetDataLen64(true)+share.Value[1].GetDataLen64(true))
 	var inc, pt int
-	if inc, err = share.Value[0].WriteTo64(data[pt:]); err != nil {
+	if inc, err = share.Value[0].Encode64(data[pt:]); err != nil {
 		return nil, err
 	}
 	pt += inc
 
-	if _, err = share.Value[1].WriteTo64(data[pt:]); err != nil {
+	if _, err = share.Value[1].Encode64(data[pt:]); err != nil {
 		return nil, err
 	}
 	return
@@ -203,13 +215,13 @@ func (share *PCKSShare) MarshalBinary() (data []byte, err error) {
 func (share *PCKSShare) UnmarshalBinary(data []byte) (err error) {
 	var pt, inc int
 	share.Value[0] = new(ring.Poly)
-	if inc, err = share.Value[0].DecodePoly64(data[pt:]); err != nil {
+	if inc, err = share.Value[0].Decode64(data[pt:]); err != nil {
 		return
 	}
 	pt += inc
 
 	share.Value[1] = new(ring.Poly)
-	if _, err = share.Value[1].DecodePoly64(data[pt:]); err != nil {
+	if _, err = share.Value[1].Decode64(data[pt:]); err != nil {
 		return
 	}
 	return

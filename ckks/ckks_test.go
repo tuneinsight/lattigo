@@ -154,7 +154,7 @@ func genTestParams(defaultParam Parameters) (tc *testContext, err error) {
 
 }
 
-func newTestVectors(tc *testContext, encryptor Encryptor, a, b complex128, t *testing.T) (values []complex128, plaintext *Plaintext, ciphertext *Ciphertext) {
+func newTestVectors(tc *testContext, encryptor Encryptor, a, b complex128, t *testing.T) (values []complex128, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
 
 	logSlots := tc.params.LogSlots()
 
@@ -221,15 +221,6 @@ func testParameters(tc *testContext, t *testing.T) {
 		require.Equal(t, ring.Standard, params.RingType())   // Default ring type should be standard
 		require.Equal(t, rlwe.DefaultSigma, params.Sigma())  // Default error std should be rlwe.DefaultSigma
 		require.Equal(t, params.LogN()-1, params.LogSlots()) // Default number of slots should be N/2
-	})
-
-	t.Run(GetTestName(tc.params, "Parameters/CopyNew"), func(t *testing.T) {
-		params1, params2 := tc.params.CopyNew(), tc.params.CopyNew()
-		assert.True(t, params1.Equals(tc.params) && params2.Equals(tc.params))
-		params1.logSlots = 7
-		params1.defaultScale = 3.14
-		assert.False(t, params1.Equals(tc.params))
-		assert.True(t, params2.Equals(tc.params))
 	})
 
 	t.Run(GetTestName(tc.params, "Parameters/StandardRing"), func(t *testing.T) {
@@ -453,7 +444,7 @@ func testEvaluatorRescale(tc *testContext, t *testing.T) {
 
 		tc.evaluator.MultByConst(ciphertext, constant, ciphertext)
 
-		ciphertext.scale *= float64(constant)
+		ciphertext.Scale = ciphertext.Scale.Mul(constant, nil)
 
 		if err := tc.evaluator.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
 			t.Error(err)
@@ -478,7 +469,7 @@ func testEvaluatorRescale(tc *testContext, t *testing.T) {
 		for i := 0; i < nbRescales; i++ {
 			constant := tc.ringQ.Modulus[ciphertext.Level()-i]
 			tc.evaluator.MultByConst(ciphertext, constant, ciphertext)
-			ciphertext.scale *= float64(constant)
+			ciphertext.Scale = ciphertext.Scale.Mul(constant, nil)
 		}
 
 		if err := tc.evaluator.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
@@ -612,7 +603,7 @@ func testEvaluatorMul(tc *testContext, t *testing.T) {
 				values2[i] *= values1[i]
 			}
 
-			ciphertext1 := &Ciphertext{Ciphertext: &rlwe.Ciphertext{Value: []*ring.Poly{plaintext1.Value}}, scale: plaintext1.scale}
+			ciphertext1 := &rlwe.Ciphertext{Value: []*ring.Poly{plaintext1.Value}, Scale: plaintext1.Scale}
 
 			tc.evaluator.MulRelin(ciphertext1, ciphertext2, ciphertext1)
 
@@ -752,7 +743,10 @@ func testEvaluatorMulAndAdd(tc *testContext, t *testing.T) {
 			values1[i] = values1[i] * values2[i]
 		}
 
-		ciphertext3 := NewCiphertext(tc.params, 2, ciphertext1.Level(), ciphertext1.scale*ciphertext2.scale)
+		ciphertext3 := NewCiphertext(tc.params, 2, ciphertext1.Level())
+
+		ciphertext3.Scale = ciphertext1.Scale.Mul(ciphertext2.Scale, nil)
+
 		tc.evaluator.MulAndAdd(ciphertext1, ciphertext2, ciphertext3)
 
 		require.Equal(t, ciphertext3.Degree(), 2)
@@ -787,51 +781,6 @@ func testEvaluatorMulAndAdd(tc *testContext, t *testing.T) {
 
 func testFunctions(tc *testContext, t *testing.T) {
 
-	t.Run(GetTestName(tc.params, "Evaluator/PowerOf2"), func(t *testing.T) {
-
-		if tc.params.MaxLevel() < 3 {
-			t.Skip("skipping test for params max level < 3")
-		}
-
-		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
-
-		n := 2
-
-		valuesWant := make([]complex128, len(values))
-		for i := 0; i < len(valuesWant); i++ {
-			valuesWant[i] = values[i]
-		}
-
-		for i := 0; i < n; i++ {
-			for j := 0; j < len(valuesWant); j++ {
-				valuesWant[j] *= valuesWant[j]
-			}
-		}
-
-		tc.evaluator.PowerOf2(ciphertext, n, ciphertext)
-
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, valuesWant, ciphertext, tc.params.LogSlots(), 0, t)
-	})
-
-	t.Run(GetTestName(tc.params, "Evaluator/Power"), func(t *testing.T) {
-
-		if tc.params.MaxLevel() < 4 {
-			t.Skip("skipping test for params max level < 4")
-		}
-
-		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
-
-		n := 3
-
-		for i := range values {
-			values[i] = cmplx.Pow(values[i], complex(float64(n), 0))
-		}
-
-		tc.evaluator.Power(ciphertext, n, ciphertext)
-
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogSlots(), 0, t)
-	})
-
 	t.Run(GetTestName(tc.params, "Evaluator/Inverse"), func(t *testing.T) {
 
 		if tc.params.MaxLevel() < 7 {
@@ -846,7 +795,10 @@ func testFunctions(tc *testContext, t *testing.T) {
 			values[i] = 1.0 / values[i]
 		}
 
-		ciphertext = tc.evaluator.InverseNew(ciphertext, n)
+		var err error
+		if ciphertext, err = tc.evaluator.InverseNew(ciphertext, n); err != nil {
+			t.Fatal(err)
+		}
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogSlots(), 0, t)
 	})
@@ -881,7 +833,7 @@ func testEvaluatePoly(tc *testContext, t *testing.T) {
 			values[i] = cmplx.Exp(values[i])
 		}
 
-		if ciphertext, err = tc.evaluator.EvaluatePoly(ciphertext, poly, ciphertext.scale); err != nil {
+		if ciphertext, err = tc.evaluator.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {
 			t.Error(err)
 		}
 
@@ -922,7 +874,7 @@ func testEvaluatePoly(tc *testContext, t *testing.T) {
 			valuesWant[j] = cmplx.Exp(values[j])
 		}
 
-		if ciphertext, err = tc.evaluator.EvaluatePolyVector(ciphertext, []*Polynomial{poly}, tc.encoder, slotIndex, ciphertext.scale); err != nil {
+		if ciphertext, err = tc.evaluator.EvaluatePolyVector(ciphertext, []*Polynomial{poly}, tc.encoder, slotIndex, ciphertext.Scale); err != nil {
 			t.Error(err)
 		}
 
@@ -957,7 +909,7 @@ func testChebyshevInterpolator(tc *testContext, t *testing.T) {
 
 		}
 
-		if ciphertext, err = eval.EvaluatePoly(ciphertext, poly, ciphertext.scale); err != nil {
+		if ciphertext, err = eval.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {
 			t.Error(err)
 
 		}
@@ -993,7 +945,7 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 
 		}
 
-		if ciphertext, err = eval.EvaluatePoly(ciphertext, poly, ciphertext.scale); err != nil {
+		if ciphertext, err = eval.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {
 			t.Error(err)
 
 		}
@@ -1004,7 +956,7 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 
 		verifyTestVectors(tc.params, tc.encoder, nil, values, valuesHave, tc.params.LogSlots(), 0, t)
 
-		sigma := tc.encoder.GetErrSTDCoeffDomain(values, valuesHave, plaintext.scale)
+		sigma := tc.encoder.GetErrSTDCoeffDomain(values, valuesHave, plaintext.Scale)
 
 		valuesHave = tc.encoder.DecodePublic(plaintext, tc.params.LogSlots(), sigma)
 
@@ -1077,7 +1029,7 @@ func testBridge(tc *testContext, t *testing.T) {
 
 		values, _, ctCI := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-		stdCTHave := NewCiphertext(stdParams, ctCI.Degree(), ctCI.Level(), ctCI.scale)
+		stdCTHave := NewCiphertext(stdParams, ctCI.Degree(), ctCI.Level())
 
 		switcher.RealToComplex(eval, ctCI, stdCTHave)
 
@@ -1086,7 +1038,7 @@ func testBridge(tc *testContext, t *testing.T) {
 		stdCTImag := stdEvaluator.MultByiNew(stdCTHave)
 		stdEvaluator.Add(stdCTHave, stdCTImag, stdCTHave)
 
-		ciCTHave := NewCiphertext(ciParams, 1, stdCTHave.Level(), stdCTHave.Scale())
+		ciCTHave := NewCiphertext(ciParams, 1, stdCTHave.Level())
 		switcher.ComplexToReal(eval, stdCTHave, ciCTHave)
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciCTHave, ciParams.LogSlots(), 0, t)
@@ -1144,7 +1096,7 @@ func testAutomorphisms(tc *testContext, t *testing.T) {
 
 		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-		ciphertext2 := NewCiphertext(tc.params, ciphertext1.Degree(), ciphertext1.Level(), ciphertext1.scale)
+		ciphertext2 := NewCiphertext(tc.params, ciphertext1.Degree(), ciphertext1.Level())
 
 		for _, n := range rots {
 			evaluator.Rotate(ciphertext1, n, ciphertext2)
@@ -1354,7 +1306,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 			diagMatrix[15][i] = complex(1, 0)
 		}
 
-		linTransf := GenLinearTransformBSGS(tc.encoder, diagMatrix, params.MaxLevel(), params.DefaultScale(), 1.0, params.logSlots)
+		linTransf := GenLinearTransformBSGS(tc.encoder, diagMatrix, params.MaxLevel(), rlwe.NewScale(params.Q()[params.MaxLevel()]), 2.0, params.logSlots)
 
 		rots := linTransf.Rotations()
 
@@ -1362,7 +1314,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
 
-		eval.LinearTransform(ciphertext1, linTransf, []*Ciphertext{ciphertext1})
+		eval.LinearTransform(ciphertext1, linTransf, []*rlwe.Ciphertext{ciphertext1})
 
 		tmp := make([]complex128, params.Slots())
 		copy(tmp, values1)
@@ -1397,7 +1349,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 			diagMatrix[0][i] = complex(1, 0)
 		}
 
-		linTransf := GenLinearTransform(tc.encoder, diagMatrix, params.MaxLevel(), params.DefaultScale(), params.LogSlots())
+		linTransf := GenLinearTransform(tc.encoder, diagMatrix, params.MaxLevel(), rlwe.NewScale(params.Q()[params.MaxLevel()]), params.LogSlots())
 
 		rots := linTransf.Rotations()
 
@@ -1405,7 +1357,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
 
-		eval.LinearTransform(ciphertext1, linTransf, []*Ciphertext{ciphertext1})
+		eval.LinearTransform(ciphertext1, linTransf, []*rlwe.Ciphertext{ciphertext1})
 
 		tmp := make([]complex128, params.Slots())
 		copy(tmp, values1)
@@ -1418,22 +1370,22 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 	})
 }
 
-func testMarshaller(testctx *testContext, t *testing.T) {
+func testMarshaller(tc *testContext, t *testing.T) {
 
-	t.Run(GetTestName(testctx.params, "Marshaller/Parameters/Binary"), func(t *testing.T) {
-		bytes, err := testctx.params.MarshalBinary()
+	t.Run(GetTestName(tc.params, "Marshaller/Parameters/Binary"), func(t *testing.T) {
+		bytes, err := tc.params.MarshalBinary()
 		assert.Nil(t, err)
 		var p Parameters
 		err = p.UnmarshalBinary(bytes)
 		assert.Nil(t, err)
-		assert.Equal(t, testctx.params, p)
-		assert.Equal(t, testctx.params.RingQ(), p.RingQ())
-		assert.Equal(t, testctx.params.MarshalBinarySize(), len(bytes))
+		assert.Equal(t, tc.params, p)
+		assert.Equal(t, tc.params.RingQ(), p.RingQ())
+		assert.Equal(t, tc.params.MarshalBinarySize(), len(bytes))
 	})
 
-	t.Run(GetTestName(testctx.params, "Marshaller/Parameters/JSON"), func(t *testing.T) {
+	t.Run(GetTestName(tc.params, "Marshaller/Parameters/JSON"), func(t *testing.T) {
 		// checks that parameters can be marshalled without error
-		data, err := json.Marshal(testctx.params)
+		data, err := json.Marshal(tc.params)
 		assert.Nil(t, err)
 		assert.NotNil(t, data)
 
@@ -1441,10 +1393,10 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 		var paramsRec Parameters
 		err = json.Unmarshal(data, &paramsRec)
 		assert.Nil(t, err)
-		assert.True(t, testctx.params.Equals(paramsRec))
+		assert.True(t, tc.params.Equals(paramsRec))
 
 		// checks that ckks.Parameters can be unmarshalled with log-moduli definition without error
-		dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60], "DefaultScale":1.0}`, testctx.params.LogN()))
+		dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60], "DefaultScale":1.0}`, tc.params.LogN()))
 		var paramsWithLogModuli Parameters
 		err = json.Unmarshal(dataWithLogModuli, &paramsWithLogModuli)
 		assert.Nil(t, err)
@@ -1454,7 +1406,7 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 		assert.Equal(t, rlwe.DefaultSigma, paramsWithLogModuli.Sigma()) // Omitting sigma should result in Default being used
 
 		// checks that ckks.Parameters can be unmarshalled with log-moduli definition with empty P without error
-		dataWithLogModuliNoP := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[],"DefaultScale":1.0,"RingType": "ConjugateInvariant"}`, testctx.params.LogN()))
+		dataWithLogModuliNoP := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[],"DefaultScale":1.0,"RingType": "ConjugateInvariant"}`, tc.params.LogN()))
 		var paramsWithLogModuliNoP Parameters
 		err = json.Unmarshal(dataWithLogModuliNoP, &paramsWithLogModuliNoP)
 		assert.Nil(t, err)
@@ -1463,49 +1415,11 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 		assert.Equal(t, ring.ConjugateInvariant, paramsWithLogModuliNoP.RingType())
 
 		// checks that one can provide custom parameters for the secret-key and error distributions
-		dataWithCustomSecrets := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60],"DefaultScale":1.0,"H": 192, "Sigma": 6.6}`, testctx.params.LogN()))
+		dataWithCustomSecrets := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60],"DefaultScale":1.0,"H": 192, "Sigma": 6.6}`, tc.params.LogN()))
 		var paramsWithCustomSecrets Parameters
 		err = json.Unmarshal(dataWithCustomSecrets, &paramsWithCustomSecrets)
 		assert.Nil(t, err)
 		assert.Equal(t, 6.6, paramsWithCustomSecrets.Sigma())
 		assert.Equal(t, 192, paramsWithCustomSecrets.HammingWeight())
-	})
-
-	t.Run("Marshaller/Ciphertext/", func(t *testing.T) {
-		t.Run(GetTestName(testctx.params, "EndToEnd"), func(t *testing.T) {
-
-			ciphertextWant := NewCiphertextRandom(testctx.prng, testctx.params, 2, testctx.params.MaxLevel(), testctx.params.DefaultScale())
-
-			marshalledCiphertext, err := ciphertextWant.MarshalBinary()
-			require.NoError(t, err)
-
-			ciphertextTest := new(Ciphertext)
-			require.NoError(t, ciphertextTest.UnmarshalBinary(marshalledCiphertext))
-
-			require.Equal(t, ciphertextWant.Degree(), ciphertextTest.Degree())
-			require.Equal(t, ciphertextWant.Level(), ciphertextTest.Level())
-			require.Equal(t, ciphertextWant.scale, ciphertextTest.scale)
-
-			for i := range ciphertextWant.Value {
-				require.True(t, testctx.ringQ.EqualLvl(ciphertextWant.Level(), ciphertextWant.Value[i], ciphertextTest.Value[i]))
-			}
-		})
-
-		t.Run(GetTestName(testctx.params, "Minimal"), func(t *testing.T) {
-
-			ciphertext := NewCiphertextRandom(testctx.prng, testctx.params, 0, testctx.params.MaxLevel(), testctx.params.DefaultScale())
-
-			marshalledCiphertext, err := ciphertext.MarshalBinary()
-			require.NoError(t, err)
-
-			ciphertextTest := new(Ciphertext)
-			require.Error(t, ciphertextTest.UnmarshalBinary(nil))
-			require.NoError(t, ciphertextTest.UnmarshalBinary(marshalledCiphertext))
-
-			require.Equal(t, ciphertext.Degree(), 0)
-			require.Equal(t, ciphertext.Level(), testctx.params.MaxLevel())
-			require.Equal(t, ciphertext.scale, testctx.params.DefaultScale())
-			require.Equal(t, len(ciphertext.Value), 1)
-		})
 	})
 }

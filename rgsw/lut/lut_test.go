@@ -76,7 +76,7 @@ func testLUT(t *testing.T) {
 		slots := 16
 
 		// Test poly
-		LUTPoly := InitLUT(sign, scaleLUT, paramsLUT.RingQ(), -1, 1)
+		LUTPoly := InitLUT(sign, rlwe.NewScale(scaleLUT), paramsLUT.RingQ(), -1, 1)
 
 		// Index map of which test poly to evaluate on which slot
 		lutPolyMap := make(map[int]*ring.Poly)

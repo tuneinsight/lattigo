@@ -73,6 +73,8 @@ func (d *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) {
 	if !plaintext.Value.IsNTT {
 		ringQ.InvNTTLvl(level, plaintext.Value, plaintext.Value)
 	}
+
+	plaintext.Scale = ciphertext.Scale
 }
 
 // ShallowCopy creates a shallow copy of Decryptor in which all the read-only data-structures are

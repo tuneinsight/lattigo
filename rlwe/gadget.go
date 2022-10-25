@@ -140,12 +140,12 @@ func (ct *GadgetCiphertext) Encode(pointer int, data []byte) (int, error) {
 	for i := range ct.Value {
 		for _, el := range ct.Value[i] {
 
-			if inc, err = el.Value[0].WriteTo64(data[pointer:]); err != nil {
+			if inc, err = el.Value[0].Encode64(data[pointer:]); err != nil {
 				return pointer, err
 			}
 			pointer += inc
 
-			if inc, err = el.Value[1].WriteTo64(data[pointer:]); err != nil {
+			if inc, err = el.Value[1].Encode64(data[pointer:]); err != nil {
 				return pointer, err
 			}
 			pointer += inc
@@ -173,12 +173,12 @@ func (ct *GadgetCiphertext) Decode(data []byte) (pointer int, err error) {
 
 		for j := range ct.Value[i] {
 
-			if inc, err = ct.Value[i][j].Value[0].DecodePoly64(data[pointer:]); err != nil {
+			if inc, err = ct.Value[i][j].Value[0].Decode64(data[pointer:]); err != nil {
 				return
 			}
 			pointer += inc
 
-			if inc, err = ct.Value[i][j].Value[1].DecodePoly64(data[pointer:]); err != nil {
+			if inc, err = ct.Value[i][j].Value[1].Decode64(data[pointer:]); err != nil {
 				return
 			}
 			pointer += inc

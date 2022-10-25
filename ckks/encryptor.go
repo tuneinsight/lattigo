@@ -7,10 +7,10 @@ import (
 
 // Encryptor an encryption interface for the CKKS scheme.
 type Encryptor interface {
-	Encrypt(plaintext *Plaintext, ciphertext *Ciphertext)
-	EncryptNew(plaintext *Plaintext) *Ciphertext
-	EncryptZero(ciphertext *Ciphertext)
-	EncryptZeroNew(level int, scale float64) *Ciphertext
+	Encrypt(pt *rlwe.Plaintext, ct *rlwe.Ciphertext)
+	EncryptNew(pt *rlwe.Plaintext) (ct *rlwe.Ciphertext)
+	EncryptZero(ct *rlwe.Ciphertext)
+	EncryptZeroNew(level int) (ct *rlwe.Ciphertext)
 	ShallowCopy() Encryptor
 	WithKey(key interface{}) Encryptor
 }
@@ -42,33 +42,31 @@ func NewPRNGEncryptor(params Parameters, key *rlwe.SecretKey) PRNGEncryptor {
 }
 
 // Encrypt encrypts the input plaintext and write the result on ciphertext.
-// The level of the output ciphertext is min(plaintext.Level(), ciphertext.Level()).
-func (enc *encryptor) Encrypt(plaintext *Plaintext, ciphertext *Ciphertext) {
-	enc.Encryptor.Encrypt(plaintext.Plaintext, ciphertext.Ciphertext)
-	ciphertext.scale = plaintext.scale
+// The level of the output ciphertext is min(plaintext.Level(), ct.Level()).
+func (enc *encryptor) Encrypt(pt *rlwe.Plaintext, ct *rlwe.Ciphertext) {
+	enc.Encryptor.Encrypt(pt, ct)
 }
 
 // EncryptNew encrypts the input plaintext returns the result as a newly allocated ciphertext.
-// The level of the output ciphertext is min(plaintext.Level(), ciphertext.Level()).
-func (enc *encryptor) EncryptNew(plaintext *Plaintext) (ciphertext *Ciphertext) {
-	ciphertext = NewCiphertext(enc.params, 1, plaintext.Level(), plaintext.scale)
-	enc.Encryptor.Encrypt(plaintext.Plaintext, ciphertext.Ciphertext)
+func (enc *encryptor) EncryptNew(pt *rlwe.Plaintext) (ct *rlwe.Ciphertext) {
+	ct = rlwe.NewCiphertextNTT(enc.params.Parameters, 1, pt.Level())
+	enc.Encryptor.Encrypt(pt, ct)
 	return
 }
 
 // EncryptZero generates an encryption of zero at the level and scale of ct, and writes the result on ctOut.
 // Note that the Scale field of an encryption of zero can be changed arbitrarily, without requiring a Rescale.
-func (enc *encryptor) EncryptZero(ciphertext *Ciphertext) {
-	enc.Encryptor.EncryptZero(ciphertext.Ciphertext)
+func (enc *encryptor) EncryptZero(ct *rlwe.Ciphertext) {
+	enc.Encryptor.EncryptZero(ct)
 }
 
 // EncryptZero generates an encryption of zero at the given level and scale and returns the
 // result as a newly allocated ciphertext.
 // Note that the Scale field of an encryption of zero can be changed arbitrarily, without requiring a Rescale.
-func (enc *encryptor) EncryptZeroNew(level int, scale float64) *Ciphertext {
-	ct := NewCiphertext(enc.params, 1, level, scale)
-	enc.Encryptor.EncryptZero(ct.Ciphertext)
-	return ct
+func (enc *encryptor) EncryptZeroNew(level int) (ct *rlwe.Ciphertext) {
+	ct = rlwe.NewCiphertextNTT(enc.params.Parameters, 1, level)
+	enc.Encryptor.EncryptZero(ct)
+	return
 }
 
 // ShallowCopy creates a shallow copy of this encryptor in which all the read-only data-structures are

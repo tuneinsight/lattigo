@@ -164,7 +164,7 @@ func (pol *Poly) GetDataLen64(WithMetadata bool) (cnt int) {
 // Encodes each coefficient on 8 bytes.
 func (pol *Poly) MarshalBinary() (data []byte, err error) {
 	data = make([]byte, pol.GetDataLen64(true))
-	_, err = pol.WriteTo64(data)
+	_, err = pol.Encode64(data)
 	return
 }
 
@@ -183,22 +183,22 @@ func (pol *Poly) UnmarshalBinary(data []byte) (err error) {
 		pol.IsMForm = true
 	}
 
-	pointer := 7
+	ptr := 7
 
-	if ((len(data) - pointer) >> 3) != N*(Level+1) {
+	if ((len(data) - ptr) >> 3) != N*(Level+1) {
 		return errors.New("invalid polynomial encoding")
 	}
 
-	if _, err = pol.DecodePoly64(data); err != nil {
+	if _, err = pol.Decode64(data); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-// WriteTo64 writes the given poly to the data array, using 8 bytes per coefficient.
+// Encode64 writes the given poly to the data array, using 8 bytes per coefficient.
 // It returns the number of written bytes, and the corresponding error, if it occurred.
-func (pol *Poly) WriteTo64(data []byte) (int, error) {
+func (pol *Poly) Encode64(data []byte) (int, error) {
 
 	N := pol.N()
 	Level := pol.Level()
@@ -220,23 +220,23 @@ func (pol *Poly) WriteTo64(data []byte) (int, error) {
 		data[6] = 1
 	}
 
-	return WriteCoeffsTo64(7, pol.Buff, data)
+	return Encode64(7, pol.Buff, data)
 }
 
-// WriteCoeffsTo64 converts a matrix of coefficients to a byte array, using 8 bytes per coefficient.
-func WriteCoeffsTo64(pointer int, coeffs []uint64, data []byte) (int, error) {
-	for i, j := 0, pointer; i < len(coeffs); i, j = i+1, j+8 {
+// Encode64 converts a matrix of coefficients to a byte array, using 8 bytes per coefficient.
+func Encode64(ptr int, coeffs []uint64, data []byte) (int, error) {
+	for i, j := 0, ptr; i < len(coeffs); i, j = i+1, j+8 {
 		binary.BigEndian.PutUint64(data[j:], coeffs[i])
 	}
 
-	return pointer + len(coeffs)*8, nil
+	return ptr + len(coeffs)*8, nil
 }
 
-// DecodePoly64 decodes a slice of bytes in the target polynomial and returns the number of bytes decoded.
+// Decode64 decodes a slice of bytes in the target polynomial and returns the number of bytes decoded.
 // The method will first try to write on the buffer. If this step fails, either because the buffer isn't
 // allocated or because it is of the wrong size, the method will allocate the correct buffer.
 // Assumes that each coefficient is encoded on 8 bytes.
-func (pol *Poly) DecodePoly64(data []byte) (pointer int, err error) {
+func (pol *Poly) Decode64(data []byte) (ptr int, err error) {
 
 	N := int(binary.BigEndian.Uint32(data))
 	Level := int(data[4])
@@ -249,14 +249,14 @@ func (pol *Poly) DecodePoly64(data []byte) (pointer int, err error) {
 		pol.IsMForm = true
 	}
 
-	pointer = 7
+	ptr = 7
 
 	if pol.Buff == nil || len(pol.Buff) != N*(Level+1) {
 		pol.Buff = make([]uint64, N*(Level+1))
 	}
 
-	if pointer, err = DecodeCoeffs64(pointer, pol.Buff, data); err != nil {
-		return pointer, err
+	if ptr, err = Decode64(ptr, pol.Buff, data); err != nil {
+		return ptr, err
 	}
 
 	// Reslice
@@ -265,23 +265,23 @@ func (pol *Poly) DecodePoly64(data []byte) (pointer int, err error) {
 		pol.Coeffs[i] = pol.Buff[i*N : (i+1)*N]
 	}
 
-	return pointer, nil
+	return ptr, nil
 }
 
-// DecodeCoeffs64 converts a byte array to a matrix of coefficients.
+// Decode64 converts a byte array to a matrix of coefficients.
 // Assumes that each coefficient is encoded on 8 bytes.
-func DecodeCoeffs64(pointer int, coeffs []uint64, data []byte) (int, error) {
-	for i, j := 0, pointer; i < len(coeffs); i, j = i+1, j+8 {
+func Decode64(ptr int, coeffs []uint64, data []byte) (int, error) {
+	for i, j := 0, ptr; i < len(coeffs); i, j = i+1, j+8 {
 		coeffs[i] = binary.BigEndian.Uint64(data[j:])
 	}
 
-	return pointer + len(coeffs)*8, nil
+	return ptr + len(coeffs)*8, nil
 }
 
-// WriteTo32 writes the given poly to the data array.
+// Encode32 writes the given poly to the data array.
 // Encodes each coefficient on 4 bytes.
 // It returns the number of written bytes, and the corresponding error, if it occurred.
-func (pol *Poly) WriteTo32(data []byte) (int, error) {
+func (pol *Poly) Encode32(data []byte) (int, error) {
 
 	N := pol.N()
 	Level := pol.Level()
@@ -301,18 +301,18 @@ func (pol *Poly) WriteTo32(data []byte) (int, error) {
 		data[6] = 1
 	}
 
-	cnt, err := WriteCoeffsTo32(7, pol.Buff, data)
+	cnt, err := Encode32(7, pol.Buff, data)
 
 	return cnt, err
 }
 
-// WriteCoeffsTo32 converts a matrix of coefficients to a byte array, using 4 bytes per coefficient.
-func WriteCoeffsTo32(pointer int, coeffs []uint64, data []byte) (int, error) {
-	for i, j := 0, pointer; i < len(coeffs); i, j = i+1, j+4 {
+// Encode32 converts a matrix of coefficients to a byte array, using 4 bytes per coefficient.
+func Encode32(ptr int, coeffs []uint64, data []byte) (int, error) {
+	for i, j := 0, ptr; i < len(coeffs); i, j = i+1, j+4 {
 		binary.BigEndian.PutUint32(data[j:], uint32(coeffs[i]))
 	}
 
-	return pointer + len(coeffs)*4, nil
+	return ptr + len(coeffs)*4, nil
 }
 
 // GetPolyDataLen32 returns the number of bytes a polynomial of N coefficients
@@ -336,11 +336,11 @@ func (pol *Poly) GetDataLen32(WithMetadata bool) (cnt int) {
 	return GetPolyDataLen32(pol.N(), pol.Level(), WithMetadata)
 }
 
-// DecodePoly32 decodes a slice of bytes in the target polynomial returns the number of bytes decoded.
+// Decode32 decodes a slice of bytes in the target polynomial returns the number of bytes decoded.
 // The method will first try to write on the buffer. If this step fails, either because the buffer isn't
 // allocated or because it is of the wrong size, the method will allocate the correct buffer.
 // Assumes that each coefficient is encoded on 8 bytes.
-func (pol *Poly) DecodePoly32(data []byte) (pointer int, err error) {
+func (pol *Poly) Decode32(data []byte) (ptr int, err error) {
 
 	N := int(binary.BigEndian.Uint32(data))
 	Level := int(data[4])
@@ -353,14 +353,14 @@ func (pol *Poly) DecodePoly32(data []byte) (pointer int, err error) {
 		pol.IsMForm = true
 	}
 
-	pointer = 7
+	ptr = 7
 
 	if pol.Buff == nil || len(pol.Buff) != N*(Level+1) {
 		pol.Buff = make([]uint64, N*(Level+1))
 	}
 
-	if pointer, err = DecodeCoeffs32(pointer, pol.Buff, data); err != nil {
-		return pointer, err
+	if ptr, err = Decode32(ptr, pol.Buff, data); err != nil {
+		return ptr, err
 	}
 
 	pol.Coeffs = make([][]uint64, Level+1)
@@ -369,15 +369,15 @@ func (pol *Poly) DecodePoly32(data []byte) (pointer int, err error) {
 		pol.Coeffs[i] = pol.Buff[i*N : (i+1)*N]
 	}
 
-	return pointer, nil
+	return ptr, nil
 }
 
-// DecodeCoeffs32 converts a byte array to a matrix of coefficients.
+// Decode32 converts a byte array to a matrix of coefficients.
 // Assumes that each coefficient is encoded on 4 bytes.
-func DecodeCoeffs32(pointer int, coeffs []uint64, data []byte) (int, error) {
-	for i, j := 0, pointer; i < len(coeffs); i, j = i+1, j+4 {
+func Decode32(ptr int, coeffs []uint64, data []byte) (int, error) {
+	for i, j := 0, ptr; i < len(coeffs); i, j = i+1, j+4 {
 		coeffs[i] = uint64(binary.BigEndian.Uint32(data[j:]))
 	}
 
-	return pointer + len(coeffs)*4, nil
+	return ptr + len(coeffs)*4, nil
 }

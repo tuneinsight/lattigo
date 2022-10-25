@@ -1,10 +1,8 @@
 package ckks
 
 import (
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"math"
 	"math/big"
 	"math/bits"
 
@@ -301,15 +299,16 @@ type ParametersLiteral struct {
 // RLWEParameters returns the rlwe.ParametersLiteral from the target ckks.ParameterLiteral.
 func (p ParametersLiteral) RLWEParameters() rlwe.ParametersLiteral {
 	return rlwe.ParametersLiteral{
-		LogN:     p.LogN,
-		Q:        p.Q,
-		P:        p.P,
-		LogQ:     p.LogQ,
-		LogP:     p.LogP,
-		Pow2Base: p.Pow2Base,
-		Sigma:    p.Sigma,
-		H:        p.H,
-		RingType: p.RingType,
+		LogN:         p.LogN,
+		Q:            p.Q,
+		P:            p.P,
+		LogQ:         p.LogQ,
+		LogP:         p.LogP,
+		Pow2Base:     p.Pow2Base,
+		Sigma:        p.Sigma,
+		H:            p.H,
+		RingType:     p.RingType,
+		DefaultScale: rlwe.NewScale(p.DefaultScale),
 	}
 }
 
@@ -329,13 +328,12 @@ var DefaultPostQuantumConjugateInvariantParams = []ParametersLiteral{PN12QP101CI
 // immutable. See ParametersLiteral for user-specified parameters.
 type Parameters struct {
 	rlwe.Parameters
-	logSlots     int
-	defaultScale float64
+	logSlots int
 }
 
 // NewParameters instantiate a set of CKKS parameters from the generic RLWE parameters and the CKKS-specific ones.
 // It returns the empty parameters Parameters{} and a non-nil error if the specified parameters are invalid.
-func NewParameters(rlweParams rlwe.Parameters, logSlots int, defaultScale float64) (p Parameters, err error) {
+func NewParameters(rlweParams rlwe.Parameters, logSlots int) (p Parameters, err error) {
 	if rlweParams.Equals(rlwe.Parameters{}) {
 		return Parameters{}, fmt.Errorf("provided RLWE parameters are invalid")
 	}
@@ -344,11 +342,7 @@ func NewParameters(rlweParams rlwe.Parameters, logSlots int, defaultScale float6
 		return Parameters{}, fmt.Errorf("logSlot=%d is larger than the logN-1=%d or smaller than %d", logSlots, maxLogSlots, minLogSlots)
 	}
 
-	if defaultScale <= 0 {
-		return Parameters{}, fmt.Errorf("defaultScale cannot be zero or negative")
-	}
-
-	return Parameters{rlweParams, logSlots, defaultScale}, nil
+	return Parameters{rlweParams, logSlots}, nil
 }
 
 // NewParametersFromLiteral instantiate a set of CKKS parameters from a ParametersLiteral specification.
@@ -373,7 +367,7 @@ func NewParametersFromLiteral(pl ParametersLiteral) (Parameters, error) {
 		}
 	}
 
-	return NewParameters(rlweParams, pl.LogSlots, pl.DefaultScale)
+	return NewParameters(rlweParams, pl.LogSlots)
 }
 
 // StandardParameters returns the CKKS parameters corresponding to the receiver
@@ -401,8 +395,8 @@ func (p Parameters) ParametersLiteral() (pLit ParametersLiteral) {
 		Sigma:        pRLWELit.Sigma,
 		H:            pRLWELit.H,
 		RingType:     pRLWELit.RingType,
+		DefaultScale: pRLWELit.DefaultScale.Float64(),
 		LogSlots:     p.LogSlots(),
-		DefaultScale: p.DefaultScale(),
 	}
 }
 
@@ -443,11 +437,6 @@ func (p Parameters) MaxLogSlots() int {
 	default:
 		panic("invalid ring type")
 	}
-}
-
-// DefaultScale returns the default plaintext/ciphertext scale
-func (p Parameters) DefaultScale() float64 {
-	return p.defaultScale
 }
 
 // LogQLvl returns the size of the modulus Q in bits at a specific level
@@ -534,18 +523,7 @@ func (p Parameters) RotationsForLinearTransform(nonZeroDiags interface{}, logSlo
 func (p Parameters) Equals(other Parameters) bool {
 	res := p.Parameters.Equals(other.Parameters)
 	res = res && (p.logSlots == other.LogSlots())
-	res = res && (p.defaultScale == other.DefaultScale())
 	return res
-}
-
-// CopyNew makes a deep copy of the receiver and returns it.
-//
-// Deprecated: Parameter is now a read-only struct, except for the UnmarshalBinary method: deep copying should only be
-// required to save a Parameter struct before calling its UnmarshalBinary method and it will be deprecated when
-// transitioning to a immutable serialization interface.
-func (p Parameters) CopyNew() Parameters {
-	p.Parameters = p.Parameters.CopyNew()
-	return p
 }
 
 // MarshalBinary returns a []byte representation of the parameter set.
@@ -565,7 +543,6 @@ func (p Parameters) MarshalBinary() ([]byte, error) {
 	b := utils.NewBuffer(make([]byte, 0, p.MarshalBinarySize()))
 	b.WriteUint8Slice(rlweBytes)
 	b.WriteUint8(uint8(p.logSlots))
-	b.WriteUint64(math.Float64bits(p.defaultScale))
 	return b.Bytes(), nil
 }
 
@@ -575,19 +552,18 @@ func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 	if err := rlweParams.UnmarshalBinary(data); err != nil {
 		return err
 	}
-	logSlots := int(data[len(data)-9])
-	scale := math.Float64frombits(binary.BigEndian.Uint64(data[len(data)-8:]))
-	*p, err = NewParameters(rlweParams, logSlots, scale)
-	return err
+	*p, err = NewParameters(rlweParams, int(data[len(data)-1]))
+	return
 }
 
 // MarshalBinarySize returns the length of the []byte encoding of the receiver.
 func (p Parameters) MarshalBinarySize() int {
-	return p.Parameters.MarshalBinarySize() + 9
+	return p.Parameters.MarshalBinarySize() + 1
 }
 
 // MarshalJSON returns a JSON representation of this parameter set. See `Marshal` from the `encoding/json` package.
 func (p Parameters) MarshalJSON() ([]byte, error) {
+
 	return json.Marshal(ParametersLiteral{
 		LogN:         p.LogN(),
 		Q:            p.Q(),
@@ -597,7 +573,7 @@ func (p Parameters) MarshalJSON() ([]byte, error) {
 		Sigma:        p.Sigma(),
 		RingType:     p.RingType(),
 		LogSlots:     p.logSlots,
-		DefaultScale: p.defaultScale,
+		DefaultScale: p.DefaultScale().Float64(),
 	},
 	)
 }

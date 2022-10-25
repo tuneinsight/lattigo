@@ -2,78 +2,7 @@ package rlwe
 
 import (
 	"encoding/binary"
-	"errors"
-
-	"github.com/tuneinsight/lattigo/v4/ring"
 )
-
-// GetDataLen returns the length in bytes of the target Ciphertext.
-func (el *Ciphertext) GetDataLen(WithMetaData bool) (dataLen int) {
-	// MetaData is :
-	// 1 byte : Degree
-	if WithMetaData {
-		dataLen++
-	}
-
-	for _, el := range el.Value {
-		dataLen += el.GetDataLen64(WithMetaData)
-	}
-
-	return dataLen
-}
-
-// MarshalBinary encodes a Ciphertext on a byte slice. The total size
-// in byte is 4 + 8* N * numberModuliQ * (degree + 1).
-func (el *Ciphertext) MarshalBinary() (data []byte, err error) {
-
-	data = make([]byte, el.GetDataLen(true))
-
-	data[0] = uint8(el.Degree() + 1)
-
-	var pointer, inc int
-
-	pointer = 1
-
-	for _, el := range el.Value {
-
-		if inc, err = el.WriteTo64(data[pointer:]); err != nil {
-			return nil, err
-		}
-
-		pointer += inc
-	}
-
-	return data, nil
-}
-
-// UnmarshalBinary decodes a previously marshaled Ciphertext on the target Ciphertext.
-func (el *Ciphertext) UnmarshalBinary(data []byte) (err error) {
-	if len(data) < 10 { // cf. Ciphertext.GetDataLen()
-		return errors.New("too small bytearray")
-	}
-
-	el.Value = make([]*ring.Poly, uint8(data[0]))
-
-	var pointer, inc int
-	pointer = 1
-
-	for i := range el.Value {
-
-		el.Value[i] = new(ring.Poly)
-
-		if inc, err = el.Value[i].DecodePoly64(data[pointer:]); err != nil {
-			return err
-		}
-
-		pointer += inc
-	}
-
-	if pointer != len(data) {
-		return errors.New("remaining unparsed data")
-	}
-
-	return nil
-}
 
 // GetDataLen64 returns the length in bytes of the target SecretKey.
 // Assumes that each coefficient uses 8 bytes.
@@ -84,7 +13,7 @@ func (sk *SecretKey) GetDataLen64(WithMetadata bool) (dataLen int) {
 // MarshalBinary encodes a secret key in a byte slice.
 func (sk *SecretKey) MarshalBinary() (data []byte, err error) {
 	data = make([]byte, sk.GetDataLen64(true))
-	if _, err = sk.Value.WriteTo64(data); err != nil {
+	if _, err = sk.Value.Encode64(data); err != nil {
 		return nil, err
 	}
 	return
@@ -92,7 +21,7 @@ func (sk *SecretKey) MarshalBinary() (data []byte, err error) {
 
 // UnmarshalBinary decodes a previously marshaled SecretKey in the target SecretKey.
 func (sk *SecretKey) UnmarshalBinary(data []byte) (err error) {
-	_, err = sk.Value.DecodePoly64(data)
+	_, err = sk.Value.Decode64(data)
 	return
 }
 
@@ -105,12 +34,12 @@ func (pk *PublicKey) GetDataLen64(WithMetadata bool) (dataLen int) {
 func (pk *PublicKey) MarshalBinary() (data []byte, err error) {
 	data = make([]byte, pk.GetDataLen64(true))
 	var inc, pt int
-	if inc, err = pk.Value[0].WriteTo64(data[pt:]); err != nil {
+	if inc, err = pk.Value[0].Encode64(data[pt:]); err != nil {
 		return nil, err
 	}
 	pt += inc
 
-	if _, err = pk.Value[1].WriteTo64(data[pt:]); err != nil {
+	if _, err = pk.Value[1].Encode64(data[pt:]); err != nil {
 		return nil, err
 	}
 
@@ -121,12 +50,12 @@ func (pk *PublicKey) MarshalBinary() (data []byte, err error) {
 func (pk *PublicKey) UnmarshalBinary(data []byte) (err error) {
 
 	var pt, inc int
-	if inc, err = pk.Value[0].DecodePoly64(data[pt:]); err != nil {
+	if inc, err = pk.Value[0].Decode64(data[pt:]); err != nil {
 		return
 	}
 	pt += inc
 
-	if _, err = pk.Value[1].DecodePoly64(data[pt:]); err != nil {
+	if _, err = pk.Value[1].Decode64(data[pt:]); err != nil {
 		return
 	}
 

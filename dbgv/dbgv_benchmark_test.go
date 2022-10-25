@@ -40,7 +40,6 @@ func BenchmarkDBGV(b *testing.B) {
 
 		benchKeyswitching(tc, b)
 		benchPublicKeySwitching(tc, b)
-		benchRotKeyGen(tc, b)
 		benchRefresh(tc, b)
 	}
 }
@@ -57,7 +56,7 @@ func benchKeyswitching(tc *testContext, b *testing.B) {
 		share *drlwe.CKSShare
 	}
 
-	ciphertext := bgv.NewCiphertext(tc.params, 1, tc.params.MaxLevel(), 1)
+	ciphertext := bgv.NewCiphertext(tc.params, 1, tc.params.MaxLevel())
 
 	p := new(Party)
 	p.CKSProtocol = NewCKSProtocol(tc.params, 6.36)
@@ -92,7 +91,7 @@ func benchPublicKeySwitching(tc *testContext, b *testing.B) {
 	sk0Shards := tc.sk0Shards
 	pk1 := tc.pk1
 
-	ciphertext := bgv.NewCiphertext(tc.params, 1, tc.params.MaxLevel(), 1)
+	ciphertext := bgv.NewCiphertext(tc.params, 1, tc.params.MaxLevel())
 
 	type Party struct {
 		*PCKSProtocol
@@ -128,46 +127,6 @@ func benchPublicKeySwitching(tc *testContext, b *testing.B) {
 	})
 }
 
-func benchRotKeyGen(tc *testContext, b *testing.B) {
-
-	sk0Shards := tc.sk0Shards
-
-	type Party struct {
-		*RTGProtocol
-		s     *rlwe.SecretKey
-		share *drlwe.RTGShare
-	}
-
-	p := new(Party)
-	p.RTGProtocol = NewRotKGProtocol(tc.params)
-	p.s = sk0Shards[0]
-	p.share = p.AllocateShare()
-
-	crp := p.SampleCRP(tc.crs)
-
-	b.Run(testString("RotKeyGen/Round1/Gen", tc.NParties, tc.params), func(b *testing.B) {
-
-		for i := 0; i < b.N; i++ {
-			p.GenShare(p.s, tc.params.GaloisElementForRowRotation(), crp, p.share)
-		}
-	})
-
-	b.Run(testString("RotKeyGen/Round1/Agg", tc.NParties, tc.params), func(b *testing.B) {
-
-		for i := 0; i < b.N; i++ {
-			p.AggregateShares(p.share, p.share, p.share)
-		}
-	})
-
-	rotKey := bgv.NewSwitchingKey(tc.params)
-	b.Run(testString("RotKeyGen/Finalize", tc.NParties, tc.params), func(b *testing.B) {
-
-		for i := 0; i < b.N; i++ {
-			p.GenRotationKey(p.share, crp, rotKey)
-		}
-	})
-}
-
 func benchRefresh(tc *testContext, b *testing.B) {
 
 	sk0Shards := tc.sk0Shards
@@ -186,14 +145,14 @@ func benchRefresh(tc *testContext, b *testing.B) {
 	p.s = sk0Shards[0]
 	p.share = p.AllocateShare(minLevel, maxLevel)
 
-	ciphertext := bgv.NewCiphertext(tc.params, 1, minLevel, 1)
+	ciphertext := bgv.NewCiphertext(tc.params, 1, minLevel)
 
 	crp := p.SampleCRP(maxLevel, tc.crs)
 
 	b.Run(testString("Refresh/Round1/Gen", tc.NParties, tc.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.GenShare(p.s, ciphertext.Value[1], ciphertext.Scale(), crp, p.share)
+			p.GenShare(p.s, ciphertext.Value[1], ciphertext.Scale, crp, p.share)
 		}
 	})
 
@@ -205,7 +164,7 @@ func benchRefresh(tc *testContext, b *testing.B) {
 	})
 
 	b.Run(testString("Refresh/Finalize", tc.NParties, tc.params), func(b *testing.B) {
-		ctOut := bgv.NewCiphertext(tc.params, 1, maxLevel, 1)
+		ctOut := bgv.NewCiphertext(tc.params, 1, maxLevel)
 		for i := 0; i < b.N; i++ {
 			p.Finalize(ciphertext, crp, p.share, ctOut)
 		}

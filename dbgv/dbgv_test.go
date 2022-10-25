@@ -190,7 +190,7 @@ func testKeyswitching(tc *testContext, t *testing.T) {
 			}
 		}
 
-		ksCiphertext := bgv.NewCiphertext(tc.params, 1, ciphertext.Level(), 1)
+		ksCiphertext := bgv.NewCiphertext(tc.params, 1, ciphertext.Level())
 		P0.cks.KeySwitch(ciphertext, P0.share, ksCiphertext)
 
 		verifyTestVectors(tc, decryptorSk1, coeffs, ksCiphertext, t)
@@ -229,7 +229,7 @@ func testPublicKeySwitching(tc *testContext, t *testing.T) {
 		}
 		P0 := pcksParties[0]
 
-		ciphertextSwitched := bgv.NewCiphertext(tc.params, 1, ciphertext.Level(), ciphertext.Scale())
+		ciphertextSwitched := bgv.NewCiphertext(tc.params, 1, ciphertext.Level())
 
 		for i, p := range pcksParties {
 			p.GenShare(p.s, pk1, ciphertext.Value[1], p.share)
@@ -295,7 +295,7 @@ func testEncToShares(tc *testContext, t *testing.T) {
 		ptRt.Copy(&rec.Value)
 		values := make([]uint64, len(coeffs))
 
-		tc.encoder.DecodeRingT(ptRt, ciphertext.Scale(), values)
+		tc.encoder.DecodeRingT(ptRt, ciphertext.Scale, values)
 		assert.True(t, utils.EqualSliceUint64(coeffs, values))
 	})
 
@@ -310,7 +310,8 @@ func testEncToShares(tc *testContext, t *testing.T) {
 			}
 		}
 
-		ctRec := bgv.NewCiphertext(tc.params, 1, tc.params.MaxLevel(), ciphertext.Scale())
+		ctRec := bgv.NewCiphertext(tc.params, 1, tc.params.MaxLevel())
+		ctRec.Scale = ciphertext.Scale
 		P[0].s2e.GetEncryption(P[0].publicShare, crp, ctRec)
 
 		verifyTestVectors(tc, tc.decryptorSk0, coeffs, ctRec, t)
@@ -357,7 +358,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 		ciphertext.Resize(ciphertext.Degree(), minLevel)
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.s, ciphertext.Value[1], ciphertext.Scale(), crp, p.share)
+			p.GenShare(p.s, ciphertext.Value[1], ciphertext.Scale, crp, p.share)
 			if i > 0 {
 				P0.AggregateShares(p.share, P0.share, P0.share)
 			}
@@ -438,7 +439,7 @@ func testRefreshAndPermutation(tc *testContext, t *testing.T) {
 		}
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.s, p.s, ciphertext.Value[1], ciphertext.Scale(), crp, maskedTransform, p.share)
+			p.GenShare(p.s, p.s, ciphertext.Value[1], ciphertext.Scale, crp, maskedTransform, p.share)
 			if i > 0 {
 				P0.AggregateShares(P0.share, p.share, P0.share)
 			}
@@ -483,10 +484,9 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 
 		type Party struct {
 			*MaskedTransformProtocol
-			sIn     *rlwe.SecretKey
-			sOut    *rlwe.SecretKey
-			share   *MaskedTransformShare
-			ptShare *bgv.Plaintext
+			sIn   *rlwe.SecretKey
+			sOut  *rlwe.SecretKey
+			share *MaskedTransformShare
 		}
 
 		RefreshParties := make([]*Party, tc.NParties)
@@ -511,7 +511,6 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 
 			p.share = p.AllocateShare(minLevel, maxLevel)
 
-			p.ptShare = bgv.NewPlaintext(tc.params, maxLevel, 1)
 			RefreshParties[i] = p
 		}
 
@@ -541,7 +540,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 		}
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.sIn, p.sOut, ciphertext.Value[1], 1, crp, transform, p.share)
+			p.GenShare(p.sIn, p.sOut, ciphertext.Value[1], ciphertext.Scale, crp, transform, p.share)
 			if i > 0 {
 				P0.AggregateShares(P0.share, p.share, P0.share)
 			}
@@ -559,7 +558,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 	})
 }
 
-func newTestVectors(tc *testContext, encryptor bgv.Encryptor, t *testing.T) (coeffs []uint64, plaintext *bgv.Plaintext, ciphertext *bgv.Ciphertext) {
+func newTestVectors(tc *testContext, encryptor bgv.Encryptor, t *testing.T) (coeffs []uint64, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
 
 	prng, _ := utils.NewPRNG()
 	uniformSampler := ring.NewUniformSampler(prng, tc.ringT)
@@ -569,18 +568,19 @@ func newTestVectors(tc *testContext, encryptor bgv.Encryptor, t *testing.T) (coe
 		coeffsPol.Coeffs[0][i] = uint64(1)
 	}
 
-	plaintext = bgv.NewPlaintext(tc.params, tc.params.MaxLevel(), 2)
+	plaintext = bgv.NewPlaintext(tc.params, tc.params.MaxLevel())
+	plaintext.Scale = rlwe.NewScale(2)
 	tc.encoder.Encode(coeffsPol.Coeffs[0], plaintext)
 	ciphertext = encryptor.EncryptNew(plaintext)
 	return coeffsPol.Coeffs[0], plaintext, ciphertext
 }
 
-func verifyTestVectors(tc *testContext, decryptor bgv.Decryptor, coeffs []uint64, ciphertext *bgv.Ciphertext, t *testing.T) {
+func verifyTestVectors(tc *testContext, decryptor bgv.Decryptor, coeffs []uint64, ciphertext *rlwe.Ciphertext, t *testing.T) {
 	require.True(t, utils.EqualSliceUint64(coeffs, tc.encoder.DecodeUintNew(decryptor.DecryptNew(ciphertext))))
 }
 
 func testMarshalling(tc *testContext, t *testing.T) {
-	ciphertext := bgv.NewCiphertext(tc.params, 1, tc.params.MaxLevel(), 1)
+	ciphertext := bgv.NewCiphertext(tc.params, 1, tc.params.MaxLevel())
 	tc.uniformSampler.Read(ciphertext.Value[0])
 	tc.uniformSampler.Read(ciphertext.Value[1])
 
@@ -595,7 +595,7 @@ func testMarshalling(tc *testContext, t *testing.T) {
 
 		crp := refreshproto.SampleCRP(maxLevel, tc.crs)
 
-		refreshproto.GenShare(tc.sk0, ciphertext.Value[1], ciphertext.Scale(), crp, refreshshare)
+		refreshproto.GenShare(tc.sk0, ciphertext.Value[1], ciphertext.Scale, crp, refreshshare)
 
 		data, err := refreshshare.MarshalBinary()
 		if err != nil {

@@ -7,6 +7,15 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 )
 
+// Operand is a common interface for Ciphertext and Plaintext types.
+type Operand interface {
+	El() *Ciphertext
+	Degree() int
+	Level() int
+	GetScale() Scale
+	SetScale(Scale)
+}
+
 // Evaluator is a struct that holds the necessary elements to execute general homomorphic
 // operation on RLWE ciphertexts, such as automorphisms, key-switching and relinearization.
 type Evaluator struct {

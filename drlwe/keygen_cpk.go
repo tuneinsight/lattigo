@@ -37,7 +37,7 @@ type CKGCRP ringqp.Poly
 // MarshalBinary encodes the target element on a slice of bytes.
 func (share *CKGShare) MarshalBinary() (data []byte, err error) {
 	data = make([]byte, share.Value.GetDataLen64(true))
-	if _, err = share.Value.WriteTo64(data); err != nil {
+	if _, err = share.Value.Encode64(data); err != nil {
 		return nil, err
 	}
 	return
@@ -45,7 +45,7 @@ func (share *CKGShare) MarshalBinary() (data []byte, err error) {
 
 // UnmarshalBinary decodes a slice of bytes on the target element.
 func (share *CKGShare) UnmarshalBinary(data []byte) (err error) {
-	_, err = share.Value.DecodePoly64(data)
+	_, err = share.Value.Decode64(data)
 	return err
 }
 

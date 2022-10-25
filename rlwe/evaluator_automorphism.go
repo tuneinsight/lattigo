@@ -45,6 +45,8 @@ func (eval *Evaluator) Automorphism(ctIn *Ciphertext, galEl uint64, ctOut *Ciphe
 	}
 
 	ctOut.Resize(ctOut.Degree(), level)
+
+	ctOut.Scale = ctIn.Scale
 }
 
 // AutomorphismHoisted is similar to Automorphism, except that it takes as input ctIn and c1DecompQP, where c1DecompQP is the RNS
@@ -83,6 +85,8 @@ func (eval *Evaluator) AutomorphismHoisted(level int, ctIn *Ciphertext, c1Decomp
 	}
 
 	ctOut.Resize(ctOut.Degree(), level)
+
+	ctOut.Scale = ctIn.Scale
 }
 
 // AutomorphismHoistedNoModDown is similar to AutomorphismHoisted, except that it returns a ciphertext modulo QP and scaled by P.
@@ -161,6 +165,8 @@ func (eval *Evaluator) Trace(ctIn *Ciphertext, logN int, ctOut *Ciphertext) {
 	levelQ := utils.MinInt(ctIn.Level(), ctOut.Level())
 
 	ctOut.Resize(ctOut.Degree(), levelQ)
+
+	ctOut.Scale = ctIn.Scale
 
 	gap := 1 << (eval.params.LogN() - logN - 1)
 

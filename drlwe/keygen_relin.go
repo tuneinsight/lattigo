@@ -322,12 +322,12 @@ func (share *RKGShare) MarshalBinary() ([]byte, error) {
 	for i := range share.Value {
 		for _, el := range share.Value[i] {
 
-			if inc, err = el[0].WriteTo64(data[ptr:]); err != nil {
+			if inc, err = el[0].Encode64(data[ptr:]); err != nil {
 				return []byte{}, err
 			}
 			ptr += inc
 
-			if inc, err = el[1].WriteTo64(data[ptr:]); err != nil {
+			if inc, err = el[1].Encode64(data[ptr:]); err != nil {
 				return []byte{}, err
 			}
 			ptr += inc
@@ -346,12 +346,12 @@ func (share *RKGShare) UnmarshalBinary(data []byte) (err error) {
 		share.Value[i] = make([][2]ringqp.Poly, data[1])
 		for j := range share.Value[i] {
 
-			if inc, err = share.Value[i][j][0].DecodePoly64(data[ptr:]); err != nil {
+			if inc, err = share.Value[i][j][0].Decode64(data[ptr:]); err != nil {
 				return err
 			}
 			ptr += inc
 
-			if inc, err = share.Value[i][j][1].DecodePoly64(data[ptr:]); err != nil {
+			if inc, err = share.Value[i][j][1].Decode64(data[ptr:]); err != nil {
 				return err
 			}
 			ptr += inc

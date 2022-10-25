@@ -86,7 +86,7 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, ct1 *ring.Poly, secretShare
 // If the caller is not secret-key-share holder (i.e., didn't generate a decryption share), `secretShare` can be set to nil.
 // Therefore, in order to obtain an additive sharing of the message, only one party should call this method, and the other parties should use
 // the secretShareOut output of the GenShare method.
-func (e2s *E2SProtocol) GetShare(secretShare *rlwe.AdditiveShare, aggregatePublicShare *drlwe.CKSShare, ct *bgv.Ciphertext, secretShareOut *rlwe.AdditiveShare) {
+func (e2s *E2SProtocol) GetShare(secretShare *rlwe.AdditiveShare, aggregatePublicShare *drlwe.CKSShare, ct *rlwe.Ciphertext, secretShareOut *rlwe.AdditiveShare) {
 	level := utils.MinInt(ct.Level(), aggregatePublicShare.Value.Level())
 	e2s.params.RingQ().AddLvl(level, aggregatePublicShare.Value, ct.Value[0], e2s.tmpPlaintextRingQ)
 	e2s.params.RingQ().InvNTTLvl(level, e2s.tmpPlaintextRingQ, e2s.tmpPlaintextRingQ)
@@ -160,7 +160,7 @@ func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crp drlwe.CKSCRP, secretSha
 
 // GetEncryption computes the final encryption of the secret-shared message when provided with the aggregation `c0Agg` of the parties'
 // shares in the protocol and with the common, CRS-sampled polynomial `crp`.
-func (s2e *S2EProtocol) GetEncryption(c0Agg *drlwe.CKSShare, crp drlwe.CKSCRP, ctOut *bgv.Ciphertext) {
+func (s2e *S2EProtocol) GetEncryption(c0Agg *drlwe.CKSShare, crp drlwe.CKSCRP, ctOut *rlwe.Ciphertext) {
 	if ctOut.Degree() != 1 {
 		panic("cannot GetEncryption: ctOut must have degree 1.")
 	}

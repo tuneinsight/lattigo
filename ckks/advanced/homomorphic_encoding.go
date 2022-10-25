@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
@@ -110,7 +111,7 @@ func NewHomomorphicEncodingMatrixFromLiteral(mParams EncodingMatrixLiteral, enco
 	trueDepth := mParams.Depth(true)
 	for i := range mParams.ScalingFactor {
 		for j := range mParams.ScalingFactor[trueDepth-i-1] {
-			matrices[cnt] = ckks.GenLinearTransformBSGS(encoder, pVecDFT[cnt], ctsLevels[cnt], mParams.ScalingFactor[trueDepth-i-1][j], mParams.BSGSRatio, logdSlots)
+			matrices[cnt] = ckks.GenLinearTransformBSGS(encoder, pVecDFT[cnt], ctsLevels[cnt], rlwe.NewScale(mParams.ScalingFactor[trueDepth-i-1][j]), mParams.BSGSRatio, logdSlots)
 			cnt++
 		}
 	}

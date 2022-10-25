@@ -1,0 +1,44 @@
+package bfv
+
+import (
+	"github.com/tuneinsight/lattigo/v4/rlwe"
+)
+
+// NewCiphertext creates and allocates a new ciphertext.
+func NewCiphertext(params Parameters, degree, level int) *rlwe.Ciphertext {
+	return rlwe.NewCiphertext(params.Parameters, degree, level)
+}
+
+// PlaintextRingT represents a plaintext element in R_t.
+// This is the most compact representation of a plaintext, but performing operations have the extra-cost of performing
+// the scaling up by Q/t. See bfv/encoder.go for more information on plaintext types.
+type PlaintextRingT struct {
+	*rlwe.Plaintext
+}
+
+// PlaintextMul represents a plaintext element in R_q, in NTT and Montgomery form, but without scale up by Q/t.
+// A PlaintextMul is a special-purpose plaintext for efficient Ciphertext-Plaintext multiplication. However,
+// other operations on plaintexts are not supported. See bfv/encoder.go for more information on plaintext types.
+type PlaintextMul struct {
+	*rlwe.Plaintext
+}
+
+// NewPlaintext creates and allocates a new plaintext in RingQ (multiple moduli of Q).
+// The plaintext will be in RingQ and scaled by Q/t.
+// Slower encoding and larger plaintext size
+func NewPlaintext(params Parameters, level int) *rlwe.Plaintext {
+	return rlwe.NewPlaintext(params.Parameters, level)
+}
+
+// NewPlaintextRingT creates and allocates a new plaintext in RingT (single modulus T).
+// The plaintext will be in RingT.
+func NewPlaintextRingT(params Parameters) *PlaintextRingT {
+	return &PlaintextRingT{rlwe.NewPlaintext(params.Parameters, 0)}
+}
+
+// NewPlaintextMul creates and allocates a new plaintext optimized for ciphertext x plaintext multiplication.
+// The plaintext is allocated with level+1 moduli.
+// The plaintext will be in the NTT and Montgomery domain of RingQ and not scaled by Q/t.
+func NewPlaintextMul(params Parameters, level int) *PlaintextMul {
+	return &PlaintextMul{rlwe.NewPlaintext(params.Parameters, level)}
+}

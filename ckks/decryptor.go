@@ -6,8 +6,8 @@ import (
 
 // Decryptor is an interface wrapping a rlwe.Decryptor.
 type Decryptor interface {
-	DecryptNew(ciphertext *Ciphertext) (plaintext *Plaintext)
-	Decrypt(ciphertext *Ciphertext, plaintext *Plaintext)
+	Decrypt(ct *rlwe.Ciphertext, pt *rlwe.Plaintext)
+	DecryptNew(ct *rlwe.Ciphertext) (pt *rlwe.Plaintext)
 	ShallowCopy() Decryptor
 	WithKey(sk *rlwe.SecretKey) Decryptor
 }
@@ -21,17 +21,16 @@ func NewDecryptor(params Parameters, sk *rlwe.SecretKey) Decryptor {
 	return &decryptor{rlwe.NewDecryptor(params.Parameters, sk), params}
 }
 
-// Decrypt decrypts the ciphertext and writes the result in ptOut.
-func (dec *decryptor) DecryptNew(ciphertext *Ciphertext) (plaintext *Plaintext) {
-	pt := NewPlaintext(dec.params, ciphertext.Level(), ciphertext.scale)
-	dec.Decryptor.Decrypt(ciphertext.Ciphertext, pt.Plaintext)
-	return pt
+// DecryptNew decrypts the ciphertext and returns the result in a newly allocated Plaintext.
+func (dec *decryptor) DecryptNew(ct *rlwe.Ciphertext) (pt *rlwe.Plaintext) {
+	pt = rlwe.NewPlaintextNTT(dec.params.Parameters, ct.Level())
+	dec.Decrypt(ct, pt)
+	return
 }
 
-// DecryptNew decrypts the ciphertext and returns the result in a newly allocated Plaintext.
-func (dec *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) {
-	dec.Decryptor.Decrypt(&rlwe.Ciphertext{Value: ciphertext.Value}, &rlwe.Plaintext{Value: plaintext.Value})
-	plaintext.scale = ciphertext.scale
+// Decrypt decrypts the ciphertext and writes the result in pt.
+func (dec *decryptor) Decrypt(ct *rlwe.Ciphertext, pt *rlwe.Plaintext) {
+	dec.Decryptor.Decrypt(ct, pt)
 }
 
 // ShallowCopy creates a shallow copy of Decryptor in which all the read-only data-structures are

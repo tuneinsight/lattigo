@@ -57,7 +57,7 @@ func benchEncoder(tc *testContext, b *testing.B) {
 			values[i] = utils.RandComplex128(-1, 1)
 		}
 
-		plaintext := NewPlaintext(tc.params, tc.params.MaxLevel(), tc.params.DefaultScale())
+		plaintext := NewPlaintext(tc.params, tc.params.MaxLevel())
 
 		for i := 0; i < b.N; i++ {
 			encoder.Encode(values, plaintext, logSlots)
@@ -71,7 +71,7 @@ func benchEncoder(tc *testContext, b *testing.B) {
 			values[i] = utils.RandComplex128(-1, 1)
 		}
 
-		plaintext := NewPlaintext(tc.params, tc.params.MaxLevel(), tc.params.DefaultScale())
+		plaintext := NewPlaintext(tc.params, tc.params.MaxLevel())
 		encoder.Encode(values, plaintext, logSlots)
 
 		for i := 0; i < b.N; i++ {
@@ -103,8 +103,8 @@ func benchEncrypt(tc *testContext, b *testing.B) {
 	encryptorPk := tc.encryptorPk
 	encryptorSk := tc.encryptorSk
 
-	plaintext := NewPlaintext(tc.params, tc.params.MaxLevel(), tc.params.DefaultScale())
-	ciphertext := NewCiphertext(tc.params, 1, tc.params.MaxLevel(), tc.params.DefaultScale())
+	plaintext := NewPlaintext(tc.params, tc.params.MaxLevel())
+	ciphertext := NewCiphertext(tc.params, 1, tc.params.MaxLevel())
 
 	b.Run(GetTestName(tc.params, "Encrypt/key=Pk"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -123,8 +123,8 @@ func benchDecrypt(tc *testContext, b *testing.B) {
 
 	decryptor := tc.decryptor
 
-	plaintext := NewPlaintext(tc.params, tc.params.MaxLevel(), tc.params.DefaultScale())
-	ciphertext := NewCiphertextRandom(tc.prng, tc.params, 1, tc.params.MaxLevel(), tc.params.DefaultScale())
+	plaintext := NewPlaintext(tc.params, tc.params.MaxLevel())
+	ciphertext := rlwe.NewCiphertextRandomNTT(tc.prng, tc.params.Parameters, 1, tc.params.MaxLevel())
 
 	b.Run(GetTestName(tc.params, "Decrypt"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -135,10 +135,10 @@ func benchDecrypt(tc *testContext, b *testing.B) {
 
 func benchEvaluator(tc *testContext, b *testing.B) {
 
-	plaintext := NewPlaintext(tc.params, tc.params.MaxLevel(), tc.params.DefaultScale())
-	ciphertext1 := NewCiphertextRandom(tc.prng, tc.params, 1, tc.params.MaxLevel(), tc.params.DefaultScale())
-	ciphertext2 := NewCiphertextRandom(tc.prng, tc.params, 1, tc.params.MaxLevel(), tc.params.DefaultScale())
-	receiver := NewCiphertextRandom(tc.prng, tc.params, 2, tc.params.MaxLevel(), tc.params.DefaultScale())
+	plaintext := NewPlaintext(tc.params, tc.params.MaxLevel())
+	ciphertext1 := rlwe.NewCiphertextRandomNTT(tc.prng, tc.params.Parameters, 1, tc.params.MaxLevel())
+	ciphertext2 := rlwe.NewCiphertextRandomNTT(tc.prng, tc.params.Parameters, 1, tc.params.MaxLevel())
+	receiver := rlwe.NewCiphertextRandomNTT(tc.prng, tc.params.Parameters, 2, tc.params.MaxLevel())
 
 	var rlk *rlwe.RelinearizationKey
 	var rotkey *rlwe.RotationKeySet
@@ -186,7 +186,7 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 	})
 
 	b.Run(GetTestName(tc.params, "Evaluator/Rescale"), func(b *testing.B) {
-		ciphertext1.scale = tc.params.DefaultScale() * tc.params.DefaultScale()
+		ciphertext1.Scale = tc.params.DefaultScale().Mul(tc.params.DefaultScale(), nil)
 
 		for i := 0; i < b.N; i++ {
 			if err := eval.Rescale(ciphertext1, tc.params.DefaultScale(), ciphertext2); err != nil {
@@ -224,7 +224,7 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 
 func benchInnerSum(tc *testContext, b *testing.B) {
 
-	ciphertext1 := NewCiphertextRandom(tc.prng, tc.params, 1, tc.params.MaxLevel(), tc.params.DefaultScale())
+	ciphertext1 := rlwe.NewCiphertextRandomNTT(tc.prng, tc.params.Parameters, 1, tc.params.MaxLevel())
 
 	batch := 1
 	n := 4

@@ -7,10 +7,10 @@ import (
 
 // Encryptor an encryption interface for the BFV scheme.
 type Encryptor interface {
-	Encrypt(plaintext *Plaintext, ciphertext *Ciphertext)
-	EncryptNew(plaintext *Plaintext) *Ciphertext
-	EncryptZero(ciphertext *Ciphertext)
-	EncryptZeroNew() *Ciphertext
+	Encrypt(pt *rlwe.Plaintext, ct *rlwe.Ciphertext)
+	EncryptNew(pt *rlwe.Plaintext) (ct *rlwe.Ciphertext)
+	EncryptZero(ct *rlwe.Ciphertext)
+	EncryptZeroNew() (ct *rlwe.Ciphertext)
 	ShallowCopy() Encryptor
 	WithKey(key interface{}) Encryptor
 }
@@ -42,27 +42,27 @@ func NewPRNGEncryptor(params Parameters, key *rlwe.SecretKey) PRNGEncryptor {
 }
 
 // Encrypt encrypts the input plaintext and writes the result on ctOut.
-func (enc *encryptor) Encrypt(plaintext *Plaintext, ctOut *Ciphertext) {
-	enc.Encryptor.Encrypt(&rlwe.Plaintext{Value: plaintext.Value}, &rlwe.Ciphertext{Value: ctOut.Value})
+func (enc *encryptor) Encrypt(pt *rlwe.Plaintext, ct *rlwe.Ciphertext) {
+	enc.Encryptor.Encrypt(pt, ct)
 }
 
 // EncryptNew encrypts the input plaintext returns the result as a newly allocated ciphertext.
-func (enc *encryptor) EncryptNew(plaintext *Plaintext) *Ciphertext {
-	ct := NewCiphertextLvl(enc.params, 1, plaintext.Level())
-	enc.Encryptor.Encrypt(plaintext.Plaintext, ct.Ciphertext)
-	return ct
+func (enc *encryptor) EncryptNew(pt *rlwe.Plaintext) (ct *rlwe.Ciphertext) {
+	ct = NewCiphertext(enc.params, 1, pt.Level())
+	enc.Encryptor.Encrypt(pt, ct)
+	return
 }
 
 // EncryptZero generates an encryption of zero and writes the result on ctOut.
-func (enc *encryptor) EncryptZero(ciphertext *Ciphertext) {
-	enc.Encryptor.EncryptZero(ciphertext.Ciphertext)
+func (enc *encryptor) EncryptZero(ct *rlwe.Ciphertext) {
+	enc.Encryptor.EncryptZero(ct)
 }
 
 // EncryptZero generates an encryption of zero and returns the result as a newly allocated ciphertext.
-func (enc *encryptor) EncryptZeroNew() *Ciphertext {
-	ct := NewCiphertext(enc.params, 1)
-	enc.Encryptor.EncryptZero(ct.Ciphertext)
-	return ct
+func (enc *encryptor) EncryptZeroNew() (ct *rlwe.Ciphertext) {
+	ct = NewCiphertext(enc.params, 1, enc.params.MaxLevel())
+	enc.Encryptor.EncryptZero(ct)
+	return
 }
 
 // ShallowCopy creates a shallow copy of this encryptor in which all the read-only data-structures are

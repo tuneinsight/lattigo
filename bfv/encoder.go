@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
@@ -18,7 +19,7 @@ const GaloisGen uint64 = ring.GaloisGen
 // the figure below:
 //
 //	                  ┌-> Encoder.Encode(.) -----------------------------------------------------┐
-//	[]uint64/[]int64 -┼-> Encoder.EncodeRingT(.) ---> PlaintextRingT -┬-> Encoder.ScaleUp(.) ----┴-> Plaintext
+//	[]uint64/[]int64 -┼-> Encoder.EncodeRingT(.) ---> PlaintextRingT -┬-> Encoder.ScaleUp(.) ----┴-> rlwe.Plaintext
 //	                  |                                               └-> Encoder.RingTToMul(.) -┬-> PlaintextMul
 //	                  └-> Encoder.EncodeMul(.) --------------------------------------------------┘
 //
@@ -36,16 +37,16 @@ const GaloisGen uint64 = ring.GaloisGen
 //	| Ct-Pt Mul            |    Faster        |    Slower   |    Much Faster  |
 //	 -------------------------------------------------------------------------
 type Encoder interface {
-	Encode(coeffs interface{}, pt *Plaintext)
-	EncodeNew(coeffs interface{}, level int) (pt *Plaintext)
+	Encode(coeffs interface{}, pt *rlwe.Plaintext)
+	EncodeNew(coeffs interface{}, level int) (pt *rlwe.Plaintext)
 	EncodeRingT(coeffs interface{}, pt *PlaintextRingT)
 	EncodeRingTNew(coeffs interface{}) (pt *PlaintextRingT)
 	EncodeMul(coeffs interface{}, pt *PlaintextMul)
 	EncodeMulNew(coeffs interface{}, level int) (pt *PlaintextMul)
 
 	SwitchToRingT(pt interface{}, ptRt *PlaintextRingT)
-	ScaleUp(ptRt *PlaintextRingT, pt *Plaintext)
-	ScaleDown(pt *Plaintext, ptRt *PlaintextRingT)
+	ScaleUp(ptRt *PlaintextRingT, pt *rlwe.Plaintext)
+	ScaleDown(pt *rlwe.Plaintext, ptRt *PlaintextRingT)
 	RingTToMul(ptRt *PlaintextRingT, ptmul *PlaintextMul)
 	MulToRingT(pt *PlaintextMul, ptRt *PlaintextRingT)
 
@@ -97,15 +98,15 @@ func NewEncoder(params Parameters) Encoder {
 }
 
 // EncodeNew encodes a slice of integers of type []uint64 or []int64 of size at most N on a newly allocated plaintext.
-func (ecd *encoder) EncodeNew(values interface{}, level int) (pt *Plaintext) {
-	pt = NewPlaintextLvl(ecd.params, level)
+func (ecd *encoder) EncodeNew(values interface{}, level int) (pt *rlwe.Plaintext) {
+	pt = rlwe.NewPlaintext(ecd.params.Parameters, level)
 	ecd.Encode(values, pt)
 	return
 }
 
 // Encode encodes a slice of integers of type []uint64 or []int64 of size at most N into a pre-allocated plaintext.
-func (ecd *encoder) Encode(values interface{}, pt *Plaintext) {
-	ptRt := &PlaintextRingT{pt.Plaintext}
+func (ecd *encoder) Encode(values interface{}, pt *rlwe.Plaintext) {
+	ptRt := &PlaintextRingT{pt}
 
 	// Encodes the values in RingT
 	ecd.EncodeRingT(values, ptRt)
@@ -166,7 +167,7 @@ func (ecd *encoder) EncodeRingT(values interface{}, ptOut *PlaintextRingT) {
 
 // EncodeMulNew encodes a slice of integers of type []uint64 or []int64 of size at most N into a newly allocated PlaintextMul (optimized for ciphertext-plaintext multiplication).
 func (ecd *encoder) EncodeMulNew(coeffs interface{}, level int) (pt *PlaintextMul) {
-	pt = NewPlaintextMulLvl(ecd.params, level)
+	pt = NewPlaintextMul(ecd.params, level)
 	ecd.EncodeMul(coeffs, pt)
 	return
 }
@@ -184,12 +185,12 @@ func (ecd *encoder) EncodeMul(coeffs interface{}, pt *PlaintextMul) {
 }
 
 // ScaleUp transforms a PlaintextRingT (R_t) into a Plaintext (R_q) by scaling up the coefficient by Q/t.
-func (ecd *encoder) ScaleUp(ptRt *PlaintextRingT, pt *Plaintext) {
+func (ecd *encoder) ScaleUp(ptRt *PlaintextRingT, pt *rlwe.Plaintext) {
 	ecd.scaler.ScaleUpByQOverTLvl(pt.Level(), ptRt.Value, pt.Value)
 }
 
 // ScaleDown transforms a Plaintext (R_q) into a PlaintextRingT (R_t) by scaling down the coefficient by t/Q and rounding.
-func (ecd *encoder) ScaleDown(pt *Plaintext, ptRt *PlaintextRingT) {
+func (ecd *encoder) ScaleDown(pt *rlwe.Plaintext, ptRt *PlaintextRingT) {
 	ecd.scaler.DivByQOverTRoundedLvl(pt.Level(), pt.Value, ptRt.Value)
 }
 
@@ -220,7 +221,7 @@ func (ecd *encoder) MulToRingT(pt *PlaintextMul, ptRt *PlaintextRingT) {
 // SwitchToRingT decodes any plaintext type into a PlaintextRingT. It panics if p is not PlaintextRingT, Plaintext or PlaintextMul.
 func (ecd *encoder) SwitchToRingT(p interface{}, ptRt *PlaintextRingT) {
 	switch pt := p.(type) {
-	case *Plaintext:
+	case *rlwe.Plaintext:
 		ecd.ScaleDown(pt, ptRt)
 	case *PlaintextMul:
 		ecd.MulToRingT(pt, ptRt)

@@ -108,7 +108,7 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 			LevelStart:    12,
 			SineType:      Sin,
 			MessageRatio:  256.0,
-			K:             14,
+			K:             8,
 			SineDeg:       127,
 			DoubleAngle:   0,
 			ArcSineDeg:    7,
@@ -122,10 +122,10 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 		scale := math.Exp2(math.Round(math.Log2(float64(evm.Q) / evm.MessageRatio)))
 
 		// Scale the message to Delta = Q/MessageRatio
-		eval.ScaleUp(ciphertext, math.Round(scale/ciphertext.Scale()), ciphertext)
+		eval.ScaleUp(ciphertext, rlwe.NewScale(math.Round(scale/ciphertext.Scale.Float64())), ciphertext)
 
 		// Scale the message up to Sine/MessageRatio
-		eval.ScaleUp(ciphertext, math.Round((evm.ScalingFactor/evm.MessageRatio)/ciphertext.Scale()), ciphertext)
+		eval.ScaleUp(ciphertext, rlwe.NewScale(math.Round((evm.ScalingFactor/evm.MessageRatio)/ciphertext.Scale.Float64())), ciphertext)
 
 		// Normalization
 		eval.MultByConst(ciphertext, 1/(float64(evm.K)*evm.QDiff()), ciphertext)
@@ -167,10 +167,10 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 		scale := math.Exp2(math.Round(math.Log2(float64(evm.Q) / evm.MessageRatio)))
 
 		// Scale the message to Delta = Q/MessageRatio
-		eval.ScaleUp(ciphertext, math.Round(scale/ciphertext.Scale()), ciphertext)
+		eval.ScaleUp(ciphertext, rlwe.NewScale(math.Round(scale/ciphertext.Scale.Float64())), ciphertext)
 
 		// Scale the message up to Sine/MessageRatio
-		eval.ScaleUp(ciphertext, math.Round((evm.ScalingFactor/evm.MessageRatio)/ciphertext.Scale()), ciphertext)
+		eval.ScaleUp(ciphertext, rlwe.NewScale(math.Round((evm.ScalingFactor/evm.MessageRatio)/ciphertext.Scale.Float64())), ciphertext)
 
 		// Normalization
 		eval.MultByConst(ciphertext, 1/(float64(evm.K)*evm.QDiff()), ciphertext)
@@ -191,7 +191,7 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 	})
 }
 
-func newTestVectorsEvalMod(params ckks.Parameters, encryptor ckks.Encryptor, encoder ckks.Encoder, evm EvalModLiteral, t *testing.T) (values []complex128, plaintext *ckks.Plaintext, ciphertext *ckks.Ciphertext) {
+func newTestVectorsEvalMod(params ckks.Parameters, encryptor ckks.Encryptor, encoder ckks.Encoder, evm EvalModLiteral, t *testing.T) (values []complex128, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
 
 	logSlots := params.LogSlots()
 
@@ -206,7 +206,7 @@ func newTestVectorsEvalMod(params ckks.Parameters, encryptor ckks.Encryptor, enc
 
 	values[0] = complex(K*Q+0.5, 0)
 
-	plaintext = ckks.NewPlaintext(params, params.MaxLevel(), params.DefaultScale())
+	plaintext = ckks.NewPlaintext(params, params.MaxLevel())
 
 	encoder.Encode(values, plaintext, logSlots)
 

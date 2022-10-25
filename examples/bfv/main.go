@@ -102,18 +102,18 @@ func obliviousRiding() {
 		Rider[(i<<1)+1] = riderPosY
 	}
 
-	riderPlaintext := bfv.NewPlaintext(params)
+	riderPlaintext := bfv.NewPlaintext(params, params.MaxLevel())
 	encoder.Encode(Rider, riderPlaintext)
 
 	// driversData coordinates [0, 0, ..., x, y, ..., 0, 0]
 	driversData := make([][]uint64, nbDrivers)
 
-	driversPlaintexts := make([]*bfv.Plaintext, nbDrivers)
+	driversPlaintexts := make([]*rlwe.Plaintext, nbDrivers)
 	for i := 0; i < nbDrivers; i++ {
 		driversData[i] = make([]uint64, 1<<params.LogN())
 		driversData[i][(i << 1)] = ring.RandUniform(prng, maxvalue, mask)
 		driversData[i][(i<<1)+1] = ring.RandUniform(prng, maxvalue, mask)
-		driversPlaintexts[i] = bfv.NewPlaintext(params)
+		driversPlaintexts[i] = bfv.NewPlaintext(params, params.MaxLevel())
 		encoder.Encode(driversData[i], driversPlaintexts[i])
 	}
 
@@ -123,7 +123,7 @@ func obliviousRiding() {
 
 	RiderCiphertext := encryptorRiderSk.EncryptNew(riderPlaintext)
 
-	DriversCiphertexts := make([]*bfv.Ciphertext, nbDrivers)
+	DriversCiphertexts := make([]*rlwe.Ciphertext, nbDrivers)
 	for i := 0; i < nbDrivers; i++ {
 		DriversCiphertexts[i] = encryptorRiderPk.EncryptNew(driversPlaintexts[i])
 	}

@@ -208,7 +208,7 @@ func (share *RTGShare) MarshalBinary() (data []byte, err error) {
 	var inc int
 	for i := range share.Value {
 		for _, el := range share.Value[i] {
-			if inc, err = el.WriteTo64(data[ptr:]); err != nil {
+			if inc, err = el.Encode64(data[ptr:]); err != nil {
 				return []byte{}, err
 			}
 			ptr += inc
@@ -226,7 +226,7 @@ func (share *RTGShare) UnmarshalBinary(data []byte) (err error) {
 	for i := range share.Value {
 		share.Value[i] = make([]ringqp.Poly, data[1])
 		for j := range share.Value[i] {
-			if inc, err = share.Value[i][j].DecodePoly64(data[ptr:]); err != nil {
+			if inc, err = share.Value[i][j].Decode64(data[ptr:]); err != nil {
 				return err
 			}
 			ptr += inc

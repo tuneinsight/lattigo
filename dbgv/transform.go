@@ -116,7 +116,7 @@ func (rfp *MaskedTransformProtocol) AllocateShare(levelDecrypt, levelRecrypt int
 
 // GenShare generates the shares of the PermuteProtocol.
 // ct1 is the degree 1 element of a bgv.Ciphertext, i.e. bgv.Ciphertext.Value[1].
-func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, ct1 *ring.Poly, scale uint64, crs drlwe.CKSCRP, transform *MaskedTransformFunc, shareOut *MaskedTransformShare) {
+func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, ct1 *ring.Poly, scale rlwe.Scale, crs drlwe.CKSCRP, transform *MaskedTransformFunc, shareOut *MaskedTransformShare) {
 
 	if ct1.Level() < shareOut.e2sShare.Value.Level() {
 		panic("cannot GenShare: ct[1] level must be at least equal to e2sShare level")
@@ -166,7 +166,7 @@ func (rfp *MaskedTransformProtocol) AggregateShares(share1, share2, shareOut *Ma
 }
 
 // Transform applies Decrypt, Recode and Recrypt on the input ciphertext.
-func (rfp *MaskedTransformProtocol) Transform(ct *bgv.Ciphertext, transform *MaskedTransformFunc, crs drlwe.CKSCRP, share *MaskedTransformShare, ciphertextOut *bgv.Ciphertext) {
+func (rfp *MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, transform *MaskedTransformFunc, crs drlwe.CKSCRP, share *MaskedTransformShare, ciphertextOut *rlwe.Ciphertext) {
 
 	if ct.Level() < share.e2sShare.Value.Level() {
 		panic("cannot Transform: input ciphertext level must be at least equal to e2s level")
@@ -184,7 +184,7 @@ func (rfp *MaskedTransformProtocol) Transform(ct *bgv.Ciphertext, transform *Mas
 		coeffs := make([]uint64, len(mask.Coeffs[0]))
 
 		if transform.Decode {
-			rfp.e2s.encoder.DecodeRingT(mask, ciphertextOut.Scale(), coeffs)
+			rfp.e2s.encoder.DecodeRingT(mask, ciphertextOut.Scale, coeffs)
 		} else {
 			copy(coeffs, mask.Coeffs[0])
 		}
@@ -192,7 +192,7 @@ func (rfp *MaskedTransformProtocol) Transform(ct *bgv.Ciphertext, transform *Mas
 		transform.Func(coeffs)
 
 		if transform.Encode {
-			rfp.s2e.encoder.EncodeRingT(coeffs, ciphertextOut.Scale(), rfp.tmpMaskPerm)
+			rfp.s2e.encoder.EncodeRingT(coeffs, ciphertextOut.Scale, rfp.tmpMaskPerm)
 		} else {
 			copy(rfp.tmpMaskPerm.Coeffs[0], coeffs)
 		}

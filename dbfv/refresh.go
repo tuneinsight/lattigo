@@ -33,8 +33,8 @@ func NewRefreshProtocol(params bfv.Parameters, sigmaSmudging float64) (rfp *Refr
 }
 
 // AllocateShare allocates the shares of the PermuteProtocol
-func (rfp *RefreshProtocol) AllocateShare() *RefreshShare {
-	share := rfp.MaskedTransformProtocol.AllocateShare()
+func (rfp *RefreshProtocol) AllocateShare(levelIn, levelOut int) *RefreshShare {
+	share := rfp.MaskedTransformProtocol.AllocateShare(levelIn, levelOut)
 	return &RefreshShare{*share}
 }
 
@@ -50,6 +50,6 @@ func (rfp *RefreshProtocol) AggregateShares(share1, share2, shareOut *RefreshSha
 }
 
 // Finalize applies Decrypt, Recode and Recrypt on the input ciphertext.
-func (rfp *RefreshProtocol) Finalize(ctIn *bfv.Ciphertext, crp drlwe.CKSCRP, share *RefreshShare, ctOut *bfv.Ciphertext) {
+func (rfp *RefreshProtocol) Finalize(ctIn *rlwe.Ciphertext, crp drlwe.CKSCRP, share *RefreshShare, ctOut *rlwe.Ciphertext) {
 	rfp.MaskedTransformProtocol.Transform(ctIn, nil, crp, &share.MaskedTransformShare, ctOut)
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
@@ -122,10 +123,10 @@ func testbootstrap(params ckks.Parameters, original bool, btpParams Parameters, 
 			values[3] = complex(0.9238795325112867, 0.3826834323650898)
 		}
 
-		plaintext := ckks.NewPlaintext(params, 0, params.DefaultScale())
+		plaintext := ckks.NewPlaintext(params, 0)
 		encoder.Encode(values, plaintext, params.LogSlots())
 
-		ciphertexts := make([]*ckks.Ciphertext, 2)
+		ciphertexts := make([]*rlwe.Ciphertext, 2)
 		bootstrappers := make([]*Bootstrapper, 2)
 		bootstrappers[0] = btp
 		ciphertexts[0] = encryptor.EncryptNew(plaintext)

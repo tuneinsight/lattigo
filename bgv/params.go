@@ -176,6 +176,11 @@ func (p Parameters) T() uint64 {
 	return p.ringT.Modulus[0]
 }
 
+// DefaultScale returns the default scale, which is 1.
+func (p Parameters) DefaultScale() rlwe.Scale {
+	return rlwe.NewScale(1)
+}
+
 // LogT returns log2(plaintext coefficient modulus).
 func (p Parameters) LogT() int {
 	return bits.Len64(p.T())

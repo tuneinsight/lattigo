@@ -152,6 +152,9 @@ func (enc *pkEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
 			} else {
 				enc.encryptNoP(pt, el)
 			}
+
+			el.Scale = pt.Scale
+
 		default:
 			panic("cannot Encrypt: input ciphertext type unsupported (must be *rlwe.Ciphertext or *rgsw.Ciphertext)")
 		}
@@ -357,6 +360,9 @@ func (enc *skEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
 		case *Ciphertext:
 			enc.uniformSampler.ReadLvl(utils.MinInt(pt.Level(), el.Level()), -1, ringqp.Poly{Q: el.Value[1]})
 			enc.encryptRLWE(pt, el.Value[0], el.Value[1])
+
+			el.Scale = pt.Scale
+
 		case *ring.Poly:
 			enc.uniformSampler.ReadLvl(utils.MinInt(pt.Level(), el.Level()), -1, ringqp.Poly{Q: enc.buffQ[1]})
 			enc.encryptRLWE(pt, el, enc.buffQ[1])

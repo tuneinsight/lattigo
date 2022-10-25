@@ -2,8 +2,18 @@
 # Changelog
 All notable changes to this library are documented in this file. 
 
-## - [4.0.0] 2022-10-04
+# UNRELEASED 
+- RLWE: added the type `rlwe.Scale`, which is now a field in the `rlwe.Parameters`.
+- RLWE: moved the storage of scaling factor from scheme specific ciphetexts to `rlwe.Ciphertext`.
+- CKKS/BGV: abstracted the scaling factor, using `rlwe.Scale`.
+- All: all scheme specific ciphertexts and plaintexts are replaced by `rlwe.Ciphertext` and `rlwe.Plaintext`.
+- All: if applicable, removed the following depreciated methods 
+    - `AddNoMod`, `AddNoModNew`, `SubNoMod`, `SubNoModNew`, `Reduce` and `ReduceNew`
+    - `PowerOf2`, `Power` and `PowerNew` which are replaced by `PolynomialBasis` and `GenPower`.
+- All: renamed `WriteTo<32/64>` to `Encode<32/64>` and `DecodePoly<32/64>` to `Decode<32/64>`, added similar method to `rlwe.Ciphertext`.
+- BFV: the level of the plaintext and ciphertext must now be specified when creating them.
 
+## - [4.0.0] 2022-10-04
 - Added BGV/DBGV schemes.
 - ALL: added default parameters for LogN=11 and LogN=10.
 - RING: prime generation no longer skips the first candidate.

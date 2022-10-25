@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math"
 	"sort"
+
+	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
 // PrecisionStats is a struct storing statistic about the precision of a CKKS plaintext
@@ -62,9 +64,9 @@ func GetPrecisionStats(params Parameters, encoder Encoder, decryptor Decryptor, 
 	var valuesTest []complex128
 
 	switch element := element.(type) {
-	case *Ciphertext:
+	case *rlwe.Ciphertext:
 		valuesTest = encoder.DecodePublic(decryptor.DecryptNew(element), logSlots, sigma)
-	case *Plaintext:
+	case *rlwe.Plaintext:
 		valuesTest = encoder.DecodePublic(element, logSlots, sigma)
 	case []complex128:
 		valuesTest = element

@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/tuneinsight/lattigo/v4/bfv"
-	"github.com/tuneinsight/lattigo/v4/dbfv"
 	"github.com/tuneinsight/lattigo/v4/drlwe"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
@@ -45,9 +44,9 @@ type party struct {
 }
 type multTask struct {
 	wg              *sync.WaitGroup
-	op1             *bfv.Ciphertext
-	op2             *bfv.Ciphertext
-	res             *bfv.Ciphertext
+	op1             *rlwe.Ciphertext
+	op2             *rlwe.Ciphertext
+	res             *rlwe.Ciphertext
 	elapsedmultTask time.Duration
 }
 
@@ -131,7 +130,7 @@ func main() {
 	// Decrypt the result with the target secret key
 	l.Println("> Result:")
 	decryptor := bfv.NewDecryptor(params, tsk)
-	ptres := bfv.NewPlaintext(params)
+	ptres := bfv.NewPlaintext(params, params.MaxLevel())
 	elapsedDecParty := runTimed(func() {
 		decryptor.Decrypt(encOut, ptres)
 	})
@@ -153,20 +152,20 @@ func main() {
 
 }
 
-func encPhase(params bfv.Parameters, P []*party, pk *rlwe.PublicKey, encoder bfv.Encoder) (encInputs []*bfv.Ciphertext) {
+func encPhase(params bfv.Parameters, P []*party, pk *rlwe.PublicKey, encoder bfv.Encoder) (encInputs []*rlwe.Ciphertext) {
 
 	l := log.New(os.Stderr, "", 0)
 
-	encInputs = make([]*bfv.Ciphertext, len(P))
+	encInputs = make([]*rlwe.Ciphertext, len(P))
 	for i := range encInputs {
-		encInputs[i] = bfv.NewCiphertext(params, 1)
+		encInputs[i] = bfv.NewCiphertext(params, 1, params.MaxLevel())
 	}
 
 	// Each party encrypts its input vector
 	l.Println("> Encrypt Phase")
 	encryptor := bfv.NewEncryptor(params, pk)
 
-	pt := bfv.NewPlaintext(params)
+	pt := bfv.NewPlaintext(params, params.MaxLevel())
 	elapsedEncryptParty = runTimedParty(func() {
 		for i, pi := range P {
 			encoder.Encode(pi.input, pt)
@@ -180,16 +179,16 @@ func encPhase(params bfv.Parameters, P []*party, pk *rlwe.PublicKey, encoder bfv
 	return
 }
 
-func evalPhase(params bfv.Parameters, NGoRoutine int, encInputs []*bfv.Ciphertext, rlk *rlwe.RelinearizationKey) (encRes *bfv.Ciphertext) {
+func evalPhase(params bfv.Parameters, NGoRoutine int, encInputs []*rlwe.Ciphertext, rlk *rlwe.RelinearizationKey) (encRes *rlwe.Ciphertext) {
 
 	l := log.New(os.Stderr, "", 0)
 
-	encLvls := make([][]*bfv.Ciphertext, 0)
+	encLvls := make([][]*rlwe.Ciphertext, 0)
 	encLvls = append(encLvls, encInputs)
 	for nLvl := len(encInputs) / 2; nLvl > 0; nLvl = nLvl >> 1 {
-		encLvl := make([]*bfv.Ciphertext, nLvl)
+		encLvl := make([]*rlwe.Ciphertext, nLvl)
 		for i := range encLvl {
-			encLvl[i] = bfv.NewCiphertext(params, 2)
+			encLvl[i] = bfv.NewCiphertext(params, 2, params.MaxLevel())
 		}
 		encLvls = append(encLvls, encLvl)
 	}
@@ -287,17 +286,17 @@ func genInputs(params bfv.Parameters, P []*party) (expRes []uint64) {
 	return
 }
 
-func pcksPhase(params bfv.Parameters, tpk *rlwe.PublicKey, encRes *bfv.Ciphertext, P []*party) (encOut *bfv.Ciphertext) {
+func pcksPhase(params bfv.Parameters, tpk *rlwe.PublicKey, encRes *rlwe.Ciphertext, P []*party) (encOut *rlwe.Ciphertext) {
 
 	l := log.New(os.Stderr, "", 0)
 
 	// Collective key switching from the collective secret key to
 	// the target public key
 
-	pcks := dbfv.NewPCKSProtocol(params, 3.19)
+	pcks := drlwe.NewPCKSProtocol(params.Parameters, 3.19)
 
 	for _, pi := range P {
-		pi.pcksShare = pcks.AllocateShare()
+		pi.pcksShare = pcks.AllocateShare(params.MaxLevel())
 	}
 
 	l.Println("> PCKS Phase")
@@ -307,8 +306,8 @@ func pcksPhase(params bfv.Parameters, tpk *rlwe.PublicKey, encRes *bfv.Ciphertex
 		}
 	}, len(P))
 
-	pcksCombined := pcks.AllocateShare()
-	encOut = bfv.NewCiphertext(params, 1)
+	pcksCombined := pcks.AllocateShare(params.MaxLevel())
+	encOut = bfv.NewCiphertext(params, 1, params.MaxLevel())
 	elapsedPCKSCloud = runTimed(func() {
 		for _, pi := range P {
 			pcks.AggregateShares(pi.pcksShare, pcksCombined, pcksCombined)
@@ -319,7 +318,6 @@ func pcksPhase(params bfv.Parameters, tpk *rlwe.PublicKey, encRes *bfv.Ciphertex
 	l.Printf("\tdone (cloud: %s, party: %s)\n", elapsedPCKSCloud, elapsedPCKSParty)
 
 	return
-
 }
 
 func rkgphase(params bfv.Parameters, crs utils.PRNG, P []*party) *rlwe.RelinearizationKey {
@@ -327,7 +325,7 @@ func rkgphase(params bfv.Parameters, crs utils.PRNG, P []*party) *rlwe.Relineari
 
 	l.Println("> RKG Phase")
 
-	rkg := dbfv.NewRKGProtocol(params) // Relineariation key generation
+	rkg := drlwe.NewRKGProtocol(params.Parameters) // Relineariation key generation
 	_, rkgCombined1, rkgCombined2 := rkg.AllocateShare()
 
 	for _, pi := range P {
@@ -373,7 +371,7 @@ func ckgphase(params bfv.Parameters, crs utils.PRNG, P []*party) *rlwe.PublicKey
 
 	l.Println("> CKG Phase")
 
-	ckg := dbfv.NewCKGProtocol(params) // Public key generation
+	ckg := drlwe.NewCKGProtocol(params.Parameters) // Public key generation
 	ckgCombined := ckg.AllocateShare()
 	for _, pi := range P {
 		pi.ckgShare = ckg.AllocateShare()

@@ -5,10 +5,10 @@ import (
 	"math/big"
 )
 
-// NewFloat creates a new big.Float element with "logPrecision" bits of precision
-func NewFloat(x float64, logPrecision int) (y *big.Float) {
+// NewFloat creates a new big.Float element with "prec" bits of precision
+func NewFloat(x float64, prec uint) (y *big.Float) {
 	y = new(big.Float)
-	y.SetPrec(uint(logPrecision)) // decimal precision
+	y.SetPrec(prec) // decimal precision
 	y.SetFloat64(x)
 	return
 }
@@ -19,7 +19,7 @@ func NewFloat(x float64, logPrecision int) (y *big.Float) {
 func Cos(x *big.Float) (cosx *big.Float) {
 	tmp := new(big.Float)
 
-	prec := int(x.Prec())
+	prec := x.Prec()
 
 	k := int(math.Ceil(float64(x.Prec()) / (3.3219280948873626 * 0.60206))) // number of iterations : ceil( prec(log2) / (log10* 0.60206))
 

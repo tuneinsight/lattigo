@@ -18,10 +18,10 @@ type RefreshShare struct {
 }
 
 // NewRefreshProtocol creates a new Refresh protocol instance.
-// precision : the log2 of decimal precision of the internal encoder.
-func NewRefreshProtocol(params ckks.Parameters, precision int, sigmaSmudging float64) (rfp *RefreshProtocol) {
+// prec : the log2 of decimal precision of the internal encoder.
+func NewRefreshProtocol(params ckks.Parameters, prec uint, sigmaSmudging float64) (rfp *RefreshProtocol) {
 	rfp = new(RefreshProtocol)
-	mt, _ := NewMaskedTransformProtocol(params, params, precision, sigmaSmudging)
+	mt, _ := NewMaskedTransformProtocol(params, params, prec, sigmaSmudging)
 	rfp.MaskedTransformProtocol = *mt
 	return
 }
@@ -47,7 +47,7 @@ func (rfp *RefreshProtocol) AllocateShare(inputLevel, outputLevel int) *RefreshS
 // scale    : the scale of the ciphertext entering the refresh.
 // The method "GetMinimumLevelForBootstrapping" should be used to get the minimum level at which the refresh can be called while still ensure 128-bits of security, as well as the
 // value for logBound.
-func (rfp *RefreshProtocol) GenShare(sk *rlwe.SecretKey, logBound, logSlots int, ct1 *ring.Poly, scale float64, crs drlwe.CKSCRP, shareOut *RefreshShare) {
+func (rfp *RefreshProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, logSlots int, ct1 *ring.Poly, scale float64, crs drlwe.CKSCRP, shareOut *RefreshShare) {
 	rfp.MaskedTransformProtocol.GenShare(sk, sk, logBound, logSlots, ct1, scale, crs, nil, &shareOut.MaskedTransformShare)
 }
 

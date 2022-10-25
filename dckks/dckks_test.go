@@ -278,7 +278,8 @@ func testE2SProtocol(tc *testContext, t *testing.T) {
 
 	t.Run(testString("E2SProtocol", tc.NParties, params), func(t *testing.T) {
 
-		var minLevel, logBound int
+		var minLevel int
+		var logBound uint
 		var ok bool
 		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.DefaultScale(), tc.NParties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
 			t.Skip("Not enough levels to ensure correctness and 128 security")
@@ -364,7 +365,8 @@ func testRefresh(tc *testContext, t *testing.T) {
 
 	t.Run(testString("Refresh", tc.NParties, params), func(t *testing.T) {
 
-		var minLevel, logBound int
+		var minLevel int
+		var logBound uint
 		var ok bool
 		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.DefaultScale(), tc.NParties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
 			t.Skip("Not enough levels to ensure correctness and 128 security")
@@ -432,7 +434,8 @@ func testRefreshAndTransform(tc *testContext, t *testing.T) {
 
 	t.Run(testString("RefreshAndTransform", tc.NParties, params), func(t *testing.T) {
 
-		var minLevel, logBound int
+		var minLevel int
+		var logBound uint
 		var ok bool
 		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.DefaultScale(), tc.NParties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
 			t.Skip("Not enough levels to ensure correctness and 128 security")
@@ -512,7 +515,8 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 
 	t.Run(testString("RefreshAndTransformAndSwitchParams", tc.NParties, params), func(t *testing.T) {
 
-		var minLevel, logBound int
+		var minLevel int
+		var logBound uint
 		var ok bool
 		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.DefaultScale(), tc.NParties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
 			t.Skip("Not enough levels to ensure correctness and 128 security")
@@ -616,7 +620,8 @@ func testMarshalling(tc *testContext, t *testing.T) {
 
 	t.Run(testString("Marshalling/Refresh", tc.NParties, params), func(t *testing.T) {
 
-		var minLevel, logBound int
+		var minLevel int
+		var logBound uint
 		var ok bool
 		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.DefaultScale(), tc.NParties, params.Q()); ok != true {
 			t.Skip("Not enough levels to ensure correctness and 128 security")

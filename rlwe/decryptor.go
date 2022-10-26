@@ -85,6 +85,10 @@ func (d *decryptor) Decrypt(ct *Ciphertext, pt *Plaintext) {
 	if (ct.Degree())&7 != 7 {
 		ringQ.ReduceLvl(level, pt.Value, pt.Value)
 	}
+
+	if !ct.IsNTT {
+		ringQ.InvNTTLvl(level, pt.Value, pt.Value)
+	}
 }
 
 // ShallowCopy creates a shallow copy of Decryptor in which all the read-only data-structures are

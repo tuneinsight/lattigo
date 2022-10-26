@@ -51,7 +51,7 @@ func newTestContext(params rlwe.Parameters) *testContext {
 	skIdeal := rlwe.NewSecretKey(params)
 	for i := range skShares {
 		skShares[i] = kgen.GenSecretKey()
-		params.RingQP().AddLvl(levelQ, levelP, skIdeal.Value, skShares[i].Value, skIdeal.Value)
+		params.RingQP().AddLvl(levelQ, levelP, skIdeal.Poly, skShares[i].Poly, skIdeal.Poly)
 	}
 
 	prng, _ := utils.NewKeyedPRNG([]byte{'t', 'e', 's', 't'})
@@ -81,7 +81,8 @@ func TestDRLWE(t *testing.T) {
 		defaultParams = []rlwe.ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
-	for _, defaultParam := range defaultParams {
+	for _, defaultParam := range defaultParams[:] {
+
 		var params rlwe.Parameters
 		if params, err = rlwe.NewParametersFromLiteral(defaultParam); err != nil {
 			t.Fatal(err)
@@ -166,10 +167,10 @@ func testKeySwitching(tc *testContext, t *testing.T) {
 		skOutIdeal := rlwe.NewSecretKey(params)
 		for i := range skout {
 			skout[i] = tc.kgen.GenSecretKey()
-			ringQP.AddLvl(levelQ, levelP, skOutIdeal.Value, skout[i].Value, skOutIdeal.Value)
+			ringQP.AddLvl(levelQ, levelP, skOutIdeal.Poly, skout[i].Poly, skOutIdeal.Poly)
 		}
 
-		ct := rlwe.NewCiphertextNTT(params, 1, params.MaxLevel())
+		ct := rlwe.NewCiphertext(params, 1, params.MaxLevel())
 		rlwe.NewEncryptor(params, tc.skIdeal).EncryptZero(ct)
 
 		shares := make([]*CKSShare, nbParties)
@@ -178,20 +179,22 @@ func testKeySwitching(tc *testContext, t *testing.T) {
 		}
 
 		for i := range shares {
-			cks[i].GenShare(tc.skShares[i], skout[i], ct.Value[1], shares[i])
-		}
-
-		for i := 1; i < nbParties; i++ {
-			cks[i].AggregateShares(shares[0], shares[i], shares[0])
+			cks[i].GenShare(tc.skShares[i], skout[i], ct.Value[1], ct.MetaData, shares[i])
+			if i > 0 {
+				cks[0].AggregateShares(shares[0], shares[i], shares[0])
+			}
 		}
 
 		ksCt := rlwe.NewCiphertext(params, 1, params.MaxLevel())
+
 		dec := rlwe.NewDecryptor(params, skOutIdeal)
+
 		log2Bound := bits.Len64(3 * params.NoiseBound() * uint64(params.N()))
 
 		cks[0].KeySwitch(ct, shares[0], ksCt)
 
 		pt := rlwe.NewPlaintext(params, ct.Level())
+
 		dec.Decrypt(ksCt, pt)
 		require.GreaterOrEqual(t, log2Bound+5, ringQ.Log2OfInnerSum(pt.Level(), pt.Value))
 
@@ -223,7 +226,7 @@ func testPublicKeySwitching(tc *testContext, t *testing.T) {
 			}
 		}
 
-		ct := rlwe.NewCiphertextNTT(params, 1, params.MaxLevel())
+		ct := rlwe.NewCiphertext(params, 1, params.MaxLevel())
 
 		rlwe.NewEncryptor(params, tc.skIdeal).EncryptZero(ct)
 
@@ -233,7 +236,7 @@ func testPublicKeySwitching(tc *testContext, t *testing.T) {
 		}
 
 		for i := range shares {
-			pcks[i].GenShare(tc.skShares[i], pkOut, ct.Value[1], shares[i])
+			pcks[i].GenShare(tc.skShares[i], pkOut, ct.Value[1], ct.MetaData, shares[i])
 		}
 
 		for i := 1; i < nbParties; i++ {
@@ -397,7 +400,7 @@ func testMarshalling(tc *testContext, t *testing.T) {
 		KeySwitchProtocol := NewPCKSProtocol(tc.params, tc.params.Sigma())
 		SwitchShare := KeySwitchProtocol.AllocateShare(ciphertext.Level())
 		_, pkOut := tc.kgen.GenKeyPair()
-		KeySwitchProtocol.GenShare(tc.skShares[0], pkOut, ciphertext.Value[1], SwitchShare)
+		KeySwitchProtocol.GenShare(tc.skShares[0], pkOut, ciphertext.Value[1], ciphertext.MetaData, SwitchShare)
 
 		data, err := SwitchShare.MarshalBinary()
 		require.NoError(t, err)
@@ -419,7 +422,7 @@ func testMarshalling(tc *testContext, t *testing.T) {
 		//Now for CKSShare ~ its similar to PKSShare
 		cksp := NewCKSProtocol(tc.params, tc.params.Sigma())
 		cksshare := cksp.AllocateShare(ciphertext.Level())
-		cksp.GenShare(tc.skShares[0], tc.skShares[1], ciphertext.Value[1], cksshare)
+		cksp.GenShare(tc.skShares[0], tc.skShares[1], ciphertext.Value[1], ciphertext.MetaData, cksshare)
 
 		data, err := cksshare.MarshalBinary()
 		require.NoError(t, err)
@@ -578,10 +581,10 @@ func testThreshold(tc *testContext, t *testing.T) {
 			recSk := rlwe.NewSecretKey(tc.params)
 			for _, pi := range activeParties {
 				pi.Combiner.GenAdditiveShare(activeShamirPks, pi.tpk, pi.tsks, pi.tsk)
-				ringQP.AddLvl(levelQ, levelP, pi.tsk.Value, recSk.Value, recSk.Value)
+				ringQP.AddLvl(levelQ, levelP, pi.tsk.Poly, recSk.Poly, recSk.Poly)
 			}
 
-			require.True(t, tc.skIdeal.Value.Equals(recSk.Value)) // reconstructed key should match the ideal sk
+			require.True(t, tc.skIdeal.Poly.Equals(recSk.Poly)) // reconstructed key should match the ideal sk
 		})
 	}
 }

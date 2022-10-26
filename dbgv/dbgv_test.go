@@ -90,6 +90,8 @@ func TestDBGV(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, testSet := range []func(tc *testContext, t *testing.T){
+			testKeyswitching,
+			testPublicKeySwitching,
 			testEncToShares,
 			testRefresh,
 			testRefreshAndPermutation,
@@ -149,6 +151,97 @@ func gentestContext(nParties int, params bgv.Parameters) (tc *testContext, err e
 	tc.decryptorSk1 = rlwe.NewDecryptor(tc.params.Parameters, tc.sk1)
 
 	return
+}
+
+func testKeyswitching(tc *testContext, t *testing.T) {
+
+	sk0Shards := tc.sk0Shards
+	sk1Shards := tc.sk1Shards
+	encryptorPk0 := tc.encryptorPk0
+	decryptorSk1 := tc.decryptorSk1
+
+	t.Run(testString("KeySwitching", tc.NParties, tc.params), func(t *testing.T) {
+
+		coeffs, _, ciphertext := newTestVectors(tc, encryptorPk0, t)
+
+		type Party struct {
+			cks   *CKSProtocol
+			s0    *rlwe.SecretKey
+			s1    *rlwe.SecretKey
+			share *drlwe.CKSShare
+		}
+
+		cksParties := make([]*Party, tc.NParties)
+		for i := 0; i < tc.NParties; i++ {
+			p := new(Party)
+			p.cks = NewCKSProtocol(tc.params, 6.36)
+			p.s0 = sk0Shards[i]
+			p.s1 = sk1Shards[i]
+			p.share = p.cks.AllocateShare(ciphertext.Level())
+			cksParties[i] = p
+		}
+		P0 := cksParties[0]
+
+		// Each party creates its CKSProtocol instance with tmp = si-si'
+		for i, p := range cksParties {
+			p.cks.GenShare(p.s0, p.s1, ciphertext.Value[1], ciphertext.MetaData, p.share)
+			if i > 0 {
+				P0.cks.AggregateShares(p.share, P0.share, P0.share)
+			}
+		}
+
+		ksCiphertext := rlwe.NewCiphertext(tc.params.Parameters, 1, ciphertext.Level())
+		P0.cks.KeySwitch(ciphertext, P0.share, ksCiphertext)
+
+		verifyTestVectors(tc, decryptorSk1, coeffs, ksCiphertext, t)
+
+		P0.cks.KeySwitch(ciphertext, P0.share, ciphertext)
+
+		verifyTestVectors(tc, decryptorSk1, coeffs, ciphertext, t)
+
+	})
+}
+
+func testPublicKeySwitching(tc *testContext, t *testing.T) {
+
+	sk0Shards := tc.sk0Shards
+	pk1 := tc.pk1
+	encryptorPk0 := tc.encryptorPk0
+	decryptorSk1 := tc.decryptorSk1
+
+	t.Run(testString("PublicKeySwitching", tc.NParties, tc.params), func(t *testing.T) {
+
+		type Party struct {
+			*PCKSProtocol
+			s     *rlwe.SecretKey
+			share *drlwe.PCKSShare
+		}
+
+		coeffs, _, ciphertext := newTestVectors(tc, encryptorPk0, t)
+
+		pcksParties := make([]*Party, tc.NParties)
+		for i := 0; i < tc.NParties; i++ {
+			p := new(Party)
+			p.PCKSProtocol = NewPCKSProtocol(tc.params, 6.36)
+			p.s = sk0Shards[i]
+			p.share = p.AllocateShare(ciphertext.Level())
+			pcksParties[i] = p
+		}
+		P0 := pcksParties[0]
+
+		ciphertextSwitched := rlwe.NewCiphertext(tc.params.Parameters, 1, ciphertext.Level())
+
+		for i, p := range pcksParties {
+			p.GenShare(p.s, pk1, ciphertext.Value[1], ciphertext.MetaData, p.share)
+			if i > 0 {
+				P0.AggregateShares(p.share, P0.share, P0.share)
+			}
+		}
+
+		P0.KeySwitch(ciphertext, P0.share, ciphertextSwitched)
+
+		verifyTestVectors(tc, decryptorSk1, coeffs, ciphertextSwitched, t)
+	})
 }
 
 func testEncToShares(tc *testContext, t *testing.T) {

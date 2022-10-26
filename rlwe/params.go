@@ -241,6 +241,11 @@ func (p Parameters) DefaultScale() Scale {
 	return p.defaultScale
 }
 
+// DefaultMetaData returns the default MetaData.
+func (p Parameters) DefaultMetaData() MetaData {
+	return MetaData{Scale: p.DefaultScale()}
+}
+
 // HammingWeight returns the number of non-zero coefficients in secret-keys.
 func (p Parameters) HammingWeight() int {
 	return p.h
@@ -614,7 +619,8 @@ func (p Parameters) MarshalBinarySize() int {
 
 // MarshalJSON returns a JSON representation of this parameter set. See `Marshal` from the `encoding/json` package.
 func (p Parameters) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&ParametersLiteral{LogN: p.logN, Q: p.qi, P: p.pi, Pow2Base: p.pow2Base, H: p.h, Sigma: p.sigma})
+	paramsLit := p.ParametersLiteral()
+	return json.Marshal(&paramsLit)
 }
 
 // UnmarshalJSON reads a JSON representation of a parameter set into the receiver Parameter. See `Unmarshal` from the `encoding/json` package.

@@ -21,14 +21,7 @@ func NewGadgetCiphertext(levelQ, levelP, decompRNS, decompBIT int, ringQP ringqp
 		for j := 0; j < decompBIT; j++ {
 			ct.Value[i][j].Value[0] = ringQP.NewPolyLvl(levelQ, levelP)
 			ct.Value[i][j].Value[1] = ringQP.NewPolyLvl(levelQ, levelP)
-
-			ct.Value[i][j].Value[0].Q.IsNTT = true
-			ct.Value[i][j].Value[1].Q.IsNTT = true
-
-			if levelP != -1 {
-				ct.Value[i][j].Value[0].P.IsNTT = true
-				ct.Value[i][j].Value[1].P.IsNTT = true
-			}
+			ct.Value[i][j].IsNTT = true
 		}
 	}
 
@@ -90,17 +83,15 @@ func (ct *GadgetCiphertext) CopyNew() (ctCopy *GadgetCiphertext) {
 	return &GadgetCiphertext{Value: v}
 }
 
-// GetDataLen returns the length in bytes of the target Ciphertext.
-func (ct *GadgetCiphertext) GetDataLen(WithMetadata bool) (dataLen int) {
+// MarshalBinarySize returns the length in bytes of the target GadgetCiphertext.
+func (ct *GadgetCiphertext) MarshalBinarySize() (dataLen int) {
 
-	if WithMetadata {
-		dataLen += 2
-	}
+	dataLen = 2
 
 	for i := range ct.Value {
 		for _, el := range ct.Value[i] {
-			dataLen += el.Value[0].GetDataLen64(WithMetadata)
-			dataLen += el.Value[1].GetDataLen64(WithMetadata)
+			dataLen += el.Value[0].MarshalBinarySize64()
+			dataLen += el.Value[1].MarshalBinarySize64()
 		}
 	}
 
@@ -109,7 +100,7 @@ func (ct *GadgetCiphertext) GetDataLen(WithMetadata bool) (dataLen int) {
 
 // MarshalBinary encodes the target Ciphertext on a slice of bytes.
 func (ct *GadgetCiphertext) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, ct.GetDataLen(true))
+	data = make([]byte, ct.MarshalBinarySize())
 	if _, err = ct.Encode(0, data); err != nil {
 		return
 	}

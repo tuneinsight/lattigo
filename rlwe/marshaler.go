@@ -4,42 +4,65 @@ import (
 	"encoding/binary"
 )
 
-// GetDataLen64 returns the length in bytes of the target SecretKey.
-// Assumes that each coefficient uses 8 bytes.
-func (sk *SecretKey) GetDataLen64(WithMetadata bool) (dataLen int) {
-	return sk.Value.GetDataLen64(WithMetadata)
+// MarshalBinarySize returns the length in bytes of the target SecretKey.
+func (sk *SecretKey) MarshalBinarySize() (dataLen int) {
+	return sk.Poly.MarshalBinarySize64() + sk.MetaData.MarshalBinarySize()
 }
 
 // MarshalBinary encodes a secret key in a byte slice.
 func (sk *SecretKey) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, sk.GetDataLen64(true))
-	if _, err = sk.Value.Encode64(data); err != nil {
+	data = make([]byte, sk.MarshalBinarySize())
+
+	var ptr int
+	if ptr, err = sk.MetaData.Encode64(data[ptr:]); err != nil {
 		return nil, err
 	}
+
+	if _, err = sk.Poly.Encode64(data[ptr:]); err != nil {
+		return nil, err
+	}
+
 	return
 }
 
 // UnmarshalBinary decodes a previously marshaled SecretKey in the target SecretKey.
 func (sk *SecretKey) UnmarshalBinary(data []byte) (err error) {
-	_, err = sk.Value.Decode64(data)
+
+	var ptr int
+	if ptr, err = sk.MetaData.Decode64(data[ptr:]); err != nil {
+		return
+	}
+
+	if _, err = sk.Poly.Decode64(data[ptr:]); err != nil {
+		return
+	}
+
 	return
 }
 
-// GetDataLen64 returns the length in bytes of the target PublicKey.
-func (pk *PublicKey) GetDataLen64(WithMetadata bool) (dataLen int) {
-	return pk.Value[0].GetDataLen64(WithMetadata) + pk.Value[1].GetDataLen64(WithMetadata)
+// MarshalBinarySize returns the length in bytes of the target PublicKey.
+func (pk *PublicKey) MarshalBinarySize() (dataLen int) {
+	return pk.Value[0].MarshalBinarySize64() + pk.Value[1].MarshalBinarySize64() + pk.MetaData.MarshalBinarySize()
 }
 
 // MarshalBinary encodes a PublicKey in a byte slice.
 func (pk *PublicKey) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, pk.GetDataLen64(true))
-	var inc, pt int
-	if inc, err = pk.Value[0].Encode64(data[pt:]); err != nil {
+	data = make([]byte, pk.MarshalBinarySize())
+	var inc, ptr int
+
+	if inc, err = pk.MetaData.Encode64(data[ptr:]); err != nil {
 		return nil, err
 	}
-	pt += inc
 
-	if _, err = pk.Value[1].Encode64(data[pt:]); err != nil {
+	ptr += inc
+
+	if inc, err = pk.Value[0].Encode64(data[ptr:]); err != nil {
+		return nil, err
+	}
+
+	ptr += inc
+
+	if _, err = pk.Value[1].Encode64(data[ptr:]); err != nil {
 		return nil, err
 	}
 
@@ -49,13 +72,21 @@ func (pk *PublicKey) MarshalBinary() (data []byte, err error) {
 // UnmarshalBinary decodes a previously marshaled PublicKey in the target PublicKey.
 func (pk *PublicKey) UnmarshalBinary(data []byte) (err error) {
 
-	var pt, inc int
-	if inc, err = pk.Value[0].Decode64(data[pt:]); err != nil {
+	var ptr, inc int
+
+	if inc, err = pk.MetaData.Decode64(data[ptr:]); err != nil {
 		return
 	}
-	pt += inc
 
-	if _, err = pk.Value[1].Decode64(data[pt:]); err != nil {
+	ptr += inc
+
+	if inc, err = pk.Value[0].Decode64(data[ptr:]); err != nil {
+		return
+	}
+
+	ptr += inc
+
+	if _, err = pk.Value[1].Decode64(data[ptr:]); err != nil {
 		return
 	}
 
@@ -72,32 +103,25 @@ func (swk *SwitchingKey) UnmarshalBinary(data []byte) (err error) {
 	return swk.GadgetCiphertext.UnmarshalBinary(data)
 }
 
-// GetDataLen returns the length in bytes of the target EvaluationKey.
-func (rlk *RelinearizationKey) GetDataLen(WithMetadata bool) (dataLen int) {
-
-	if WithMetadata {
-		dataLen++
-	}
-
-	return dataLen + len(rlk.Keys)*rlk.Keys[0].GetDataLen(WithMetadata)
+// MarshalBinarySize returns the length in bytes of the target EvaluationKey.
+func (rlk *RelinearizationKey) MarshalBinarySize() (dataLen int) {
+	return 1 + len(rlk.Keys)*rlk.Keys[0].MarshalBinarySize()
 }
 
 // MarshalBinary encodes an EvaluationKey key in a byte slice.
 func (rlk *RelinearizationKey) MarshalBinary() (data []byte, err error) {
 
-	var pointer int
+	data = make([]byte, rlk.MarshalBinarySize())
 
-	dataLen := rlk.GetDataLen(true)
-
-	data = make([]byte, dataLen)
+	var ptr int
 
 	data[0] = uint8(len(rlk.Keys))
 
-	pointer++
+	ptr++
 
 	for _, evakey := range rlk.Keys {
 
-		if pointer, err = evakey.Encode(pointer, data); err != nil {
+		if ptr, err = evakey.Encode(ptr, data); err != nil {
 			return nil, err
 		}
 	}
@@ -125,13 +149,10 @@ func (rlk *RelinearizationKey) UnmarshalBinary(data []byte) (err error) {
 	return nil
 }
 
-// GetDataLen returns the length in bytes of the target RotationKeys.
-func (rtks *RotationKeySet) GetDataLen(WithMetaData bool) (dataLen int) {
+// MarshalBinarySize returns the length in bytes of the target RotationKeys.
+func (rtks *RotationKeySet) MarshalBinarySize() (dataLen int) {
 	for _, k := range rtks.Keys {
-		if WithMetaData {
-			dataLen += 8
-		}
-		dataLen += k.GetDataLen(WithMetaData)
+		dataLen += 8 + k.MarshalBinarySize()
 	}
 	return
 }
@@ -139,7 +160,7 @@ func (rtks *RotationKeySet) GetDataLen(WithMetaData bool) (dataLen int) {
 // MarshalBinary encodes a RotationKeys struct in a byte slice.
 func (rtks *RotationKeySet) MarshalBinary() (data []byte, err error) {
 
-	data = make([]byte, rtks.GetDataLen(true))
+	data = make([]byte, rtks.MarshalBinarySize())
 
 	pointer := int(0)
 

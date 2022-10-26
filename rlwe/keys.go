@@ -6,11 +6,13 @@ import (
 
 // SecretKey is a type for generic RLWE secret keys.
 type SecretKey struct {
-	Value ringqp.Poly
+	MetaData
+	ringqp.Poly
 }
 
 // PublicKey is a type for generic RLWE public keys.
 type PublicKey struct {
+	MetaData
 	Value [2]ringqp.Poly
 }
 
@@ -41,19 +43,19 @@ type EvaluationKey struct {
 
 // NewSecretKey generates a new SecretKey with zero values.
 func NewSecretKey(params Parameters) *SecretKey {
-	return &SecretKey{Value: params.RingQP().NewPoly()}
+	return &SecretKey{Poly: params.RingQP().NewPoly(), MetaData: MetaData{IsNTT: true, IsMontgomery: true}}
 }
 
 // LevelQ returns the level of the modulus Q of the target.
 func (sk *SecretKey) LevelQ() int {
-	return sk.Value.Q.Level()
+	return sk.Q.Level()
 }
 
 // LevelP returns the level of the modulus P of the target.
 // Returns -1 if P is absent.
 func (sk *SecretKey) LevelP() int {
-	if sk.Value.P != nil {
-		return sk.Value.P.Level()
+	if sk.P != nil {
+		return sk.P.Level()
 	}
 
 	return -1
@@ -61,14 +63,7 @@ func (sk *SecretKey) LevelP() int {
 
 // NewPublicKey returns a new PublicKey with zero values.
 func NewPublicKey(params Parameters) (pk *PublicKey) {
-	pk = &PublicKey{Value: [2]ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()}}
-	pk.Value[0].Q.IsNTT = true
-	pk.Value[1].Q.IsNTT = true
-	if params.PCount() > 0 {
-		pk.Value[0].P.IsNTT = true
-		pk.Value[1].P.IsNTT = true
-	}
-	return
+	return &PublicKey{Value: [2]ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()}, MetaData: MetaData{IsNTT: true, IsMontgomery: true}}
 }
 
 // LevelQ returns the level of the modulus Q of the target.
@@ -150,7 +145,7 @@ func (sk *SecretKey) CopyNew() *SecretKey {
 	if sk == nil {
 		return nil
 	}
-	return &SecretKey{sk.Value.CopyNew()}
+	return &SecretKey{sk.MetaData, sk.Poly.CopyNew()}
 }
 
 // CopyNew creates a deep copy of the receiver PublicKey and returns it.
@@ -158,7 +153,7 @@ func (pk *PublicKey) CopyNew() *PublicKey {
 	if pk == nil {
 		return nil
 	}
-	return &PublicKey{[2]ringqp.Poly{pk.Value[0].CopyNew(), pk.Value[1].CopyNew()}}
+	return &PublicKey{pk.MetaData, [2]ringqp.Poly{pk.Value[0].CopyNew(), pk.Value[1].CopyNew()}}
 }
 
 // Equals checks two RelinearizationKeys for equality.

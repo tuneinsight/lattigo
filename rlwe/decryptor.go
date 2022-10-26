@@ -22,7 +22,7 @@ type decryptor struct {
 // NewDecryptor instantiates a new generic RLWE Decryptor.
 func NewDecryptor(params Parameters, sk *SecretKey) Decryptor {
 
-	if sk.Value.Q.N() != params.N() {
+	if sk.Q.N() != params.N() {
 		panic("secret_key is invalid for the provided parameters")
 	}
 
@@ -35,46 +35,42 @@ func NewDecryptor(params Parameters, sk *SecretKey) Decryptor {
 
 // Decrypt decrypts the ciphertext and writes the result in ptOut.
 // The level of the output plaintext is min(ciphertext.Level(), plaintext.Level())
-// Output domain will match plaintext.Value.IsNTT value.
-func (d *decryptor) Decrypt(ciphertext *Ciphertext, plaintext *Plaintext) {
+// Output pt MetaData will match the input ct MetaData.
+func (d *decryptor) Decrypt(ct *Ciphertext, pt *Plaintext) {
 
 	ringQ := d.ringQ
 
-	level := utils.MinInt(ciphertext.Level(), plaintext.Level())
+	level := utils.MinInt(ct.Level(), pt.Level())
 
-	plaintext.Value.Resize(level)
+	pt.Value.Resize(level)
 
-	if ciphertext.Value[0].IsNTT {
-		ring.CopyValuesLvl(level, ciphertext.Value[ciphertext.Degree()], plaintext.Value)
+	pt.MetaData = ct.MetaData
+
+	if ct.IsNTT {
+		ring.CopyLvl(level, ct.Value[ct.Degree()], pt.Value)
 	} else {
-		ringQ.NTTLazyLvl(level, ciphertext.Value[ciphertext.Degree()], plaintext.Value)
+		ringQ.NTTLazyLvl(level, ct.Value[ct.Degree()], pt.Value)
 	}
 
-	for i := ciphertext.Degree(); i > 0; i-- {
+	for i := ct.Degree(); i > 0; i-- {
 
-		ringQ.MulCoeffsMontgomeryLvl(level, plaintext.Value, d.sk.Value.Q, plaintext.Value)
+		ringQ.MulCoeffsMontgomeryLvl(level, pt.Value, d.sk.Q, pt.Value)
 
-		if !ciphertext.Value[0].IsNTT {
-			ringQ.NTTLazyLvl(level, ciphertext.Value[i-1], d.buff)
-			ringQ.AddLvl(level, plaintext.Value, d.buff, plaintext.Value)
+		if !ct.IsNTT {
+			ringQ.NTTLazyLvl(level, ct.Value[i-1], d.buff)
+			ringQ.AddLvl(level, pt.Value, d.buff, pt.Value)
 		} else {
-			ringQ.AddLvl(level, plaintext.Value, ciphertext.Value[i-1], plaintext.Value)
+			ringQ.AddLvl(level, pt.Value, ct.Value[i-1], pt.Value)
 		}
 
 		if i&7 == 7 {
-			ringQ.ReduceLvl(level, plaintext.Value, plaintext.Value)
+			ringQ.ReduceLvl(level, pt.Value, pt.Value)
 		}
 	}
 
-	if (ciphertext.Degree())&7 != 7 {
-		ringQ.ReduceLvl(level, plaintext.Value, plaintext.Value)
+	if (ct.Degree())&7 != 7 {
+		ringQ.ReduceLvl(level, pt.Value, pt.Value)
 	}
-
-	if !plaintext.Value.IsNTT {
-		ringQ.InvNTTLvl(level, plaintext.Value, plaintext.Value)
-	}
-
-	plaintext.Scale = ciphertext.Scale
 }
 
 // ShallowCopy creates a shallow copy of Decryptor in which all the read-only data-structures are

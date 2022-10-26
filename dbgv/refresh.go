@@ -1,3 +1,4 @@
+// Package dbgv implements a distributed (or threshold) version of the BGV scheme that enables secure multiparty computation solutions with secret-shared secret keys.
 package dbgv
 
 import (

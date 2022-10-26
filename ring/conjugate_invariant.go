@@ -41,8 +41,7 @@ func (r *Ring) FoldStandardToConjugateInvariant(level int, polyStandard *Poly, p
 }
 
 // PadDefaultRingToConjuateInvariant converts a polynomial in Z[X]/(X^N +1) to a polynomial in Z[X+X^-1]/(X^2N+1).
-// Conversion will check the .IsNTT flag of the polynomial p1.
-func PadDefaultRingToConjuateInvariant(p1 *Poly, ringQ *Ring, p2 *Poly) {
+func PadDefaultRingToConjuateInvariant(p1 *Poly, ringQ *Ring, IsNTT bool, p2 *Poly) {
 
 	if p1 == p2 {
 		panic("p1 == p2 but method cannot be used in place")
@@ -61,7 +60,7 @@ func PadDefaultRingToConjuateInvariant(p1 *Poly, ringQ *Ring, p2 *Poly) {
 		copy(p2.Coeffs[i], p1.Coeffs[i])
 
 		tmp := p2.Coeffs[i]
-		if p1.IsNTT {
+		if IsNTT {
 			for j := 0; j < n; j++ {
 				tmp[n-j-1] = tmp[j]
 			}
@@ -72,6 +71,4 @@ func PadDefaultRingToConjuateInvariant(p1 *Poly, ringQ *Ring, p2 *Poly) {
 			}
 		}
 	}
-
-	p2.IsNTT = p1.IsNTT
 }

@@ -63,16 +63,19 @@ func (keygen *keyGenerator) GenSecretKeyWithHammingWeight(hw int) (sk *SecretKey
 func (keygen *keyGenerator) genSecretKeyFromSampler(sampler ring.Sampler) (sk *SecretKey) {
 	sk = new(SecretKey)
 	ringQP := keygen.params.RingQP()
-	sk.Value = ringQP.NewPoly()
+	sk.Poly = ringQP.NewPoly()
 	levelQ, levelP := sk.LevelQ(), sk.LevelP()
-	sampler.Read(sk.Value.Q)
+	sampler.Read(sk.Q)
 
 	if levelP > -1 {
-		ringQP.ExtendBasisSmallNormAndCenter(sk.Value.Q, levelP, nil, sk.Value.P)
+		ringQP.ExtendBasisSmallNormAndCenter(sk.Q, levelP, nil, sk.P)
 	}
 
-	ringQP.NTTLvl(levelQ, levelP, sk.Value, sk.Value)
-	ringQP.MFormLvl(levelQ, levelP, sk.Value, sk.Value)
+	ringQP.NTTLvl(levelQ, levelP, sk.Poly, sk.Poly)
+	ringQP.MFormLvl(levelQ, levelP, sk.Poly, sk.Poly)
+
+	sk.IsNTT = true
+	sk.IsMontgomery = true
 
 	return
 }
@@ -80,7 +83,9 @@ func (keygen *keyGenerator) genSecretKeyFromSampler(sampler ring.Sampler) (sk *S
 // GenPublicKey generates a new public key from the provided SecretKey.
 func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 	pk = NewPublicKey(keygen.params)
-	keygen.WithKey(sk).EncryptZero(&CiphertextQP{pk.Value})
+	pk.IsNTT = true
+	pk.IsMontgomery = true
+	keygen.WithKey(sk).EncryptZero(&CiphertextQP{Value: pk.Value, MetaData: pk.MetaData})
 	return
 }
 
@@ -102,11 +107,11 @@ func (keygen *keyGenerator) GenRelinearizationKey(sk *SecretKey, maxDegree int) 
 		evk.Keys[i] = NewSwitchingKey(keygen.params, levelQ, levelP)
 	}
 
-	keygen.buffQP.Q.CopyValues(sk.Value.Q)
+	keygen.buffQP.Q.CopyValues(sk.Poly.Q)
 	ringQ := keygen.params.RingQ()
 	for i := 0; i < maxDegree; i++ {
-		ringQ.MulCoeffsMontgomery(keygen.buffQP.Q, sk.Value.Q, keygen.buffQP.Q)
-		keygen.genSwitchingKey(keygen.buffQP.Q, sk.Value, evk.Keys[i])
+		ringQ.MulCoeffsMontgomery(keygen.buffQP.Q, sk.Poly.Q, keygen.buffQP.Q)
+		keygen.genSwitchingKey(keygen.buffQP.Q, sk, evk.Keys[i])
 	}
 
 	return
@@ -117,7 +122,7 @@ func (keygen *keyGenerator) GenRelinearizationKey(sk *SecretKey, maxDegree int) 
 func (keygen *keyGenerator) GenRotationKeys(galEls []uint64, sk *SecretKey) (rks *RotationKeySet) {
 	rks = NewRotationKeySet(keygen.params, galEls)
 	for _, galEl := range galEls {
-		keygen.genrotKey(sk.Value, keygen.params.InverseGaloisElement(galEl), rks.Keys[galEl])
+		keygen.genrotKey(sk.Poly, keygen.params.InverseGaloisElement(galEl), rks.Keys[galEl])
 	}
 	return rks
 }
@@ -125,7 +130,7 @@ func (keygen *keyGenerator) GenRotationKeys(galEls []uint64, sk *SecretKey) (rks
 func (keygen *keyGenerator) GenSwitchingKeyForRotationBy(k int, sk *SecretKey) (swk *SwitchingKey) {
 	swk = NewSwitchingKey(keygen.params, keygen.params.QCount()-1, keygen.params.PCount()-1)
 	galElInv := keygen.params.GaloisElementForColumnRotationBy(-int(k))
-	keygen.genrotKey(sk.Value, galElInv, swk)
+	keygen.genrotKey(sk.Poly, galElInv, swk)
 	return
 }
 
@@ -145,13 +150,13 @@ func (keygen *keyGenerator) GenRotationKeysForRotations(ks []int, includeConjuga
 
 func (keygen *keyGenerator) GenSwitchingKeyForRowRotation(sk *SecretKey) (swk *SwitchingKey) {
 	swk = NewSwitchingKey(keygen.params, keygen.params.QCount()-1, keygen.params.PCount()-1)
-	keygen.genrotKey(sk.Value, keygen.params.GaloisElementForRowRotation(), swk)
+	keygen.genrotKey(sk.Poly, keygen.params.GaloisElementForRowRotation(), swk)
 	return
 }
 
 func (keygen *keyGenerator) GenSwitchingKeyForGalois(galoisEl uint64, sk *SecretKey) (swk *SwitchingKey) {
 	swk = NewSwitchingKey(keygen.params, keygen.params.QCount()-1, keygen.params.PCount()-1)
-	keygen.genrotKey(sk.Value, keygen.params.InverseGaloisElement(galoisEl), swk)
+	keygen.genrotKey(sk.Poly, keygen.params.InverseGaloisElement(galoisEl), swk)
 	return
 }
 
@@ -170,17 +175,17 @@ func (keygen *keyGenerator) genrotKey(sk ringqp.Poly, galEl uint64, swk *Switchi
 	ringQ.PermuteNTTWithIndexLvl(keygen.params.QCount()-1, skIn.Q, index, skOut.Q)
 	ringQ.PermuteNTTWithIndexLvl(keygen.params.PCount()-1, skIn.P, index, skOut.P)
 
-	keygen.genSwitchingKey(skIn.Q, skOut, swk)
+	keygen.genSwitchingKey(skIn.Q, &SecretKey{Poly: skOut}, swk)
 }
 
 // GenSwitchingKeysForRingSwap generates the necessary switching keys to switch from a standard ring to to a conjugate invariant ring and vice-versa.
 func (keygen *keyGenerator) GenSwitchingKeysForRingSwap(skStd, skConjugateInvariant *SecretKey) (swkStdToConjugateInvariant, swkConjugateInvariantToStd *SwitchingKey) {
 
-	skCIMappedToStandard := &SecretKey{Value: keygen.buffQP}
-	keygen.params.RingQ().UnfoldConjugateInvariantToStandard(skConjugateInvariant.Value.Q.Level(), skConjugateInvariant.Value.Q, skCIMappedToStandard.Value.Q)
+	skCIMappedToStandard := &SecretKey{Poly: keygen.buffQP}
+	keygen.params.RingQ().UnfoldConjugateInvariantToStandard(skConjugateInvariant.Q.Level(), skConjugateInvariant.Q, skCIMappedToStandard.Q)
 
 	if keygen.params.PCount() != 0 {
-		keygen.extendQ2P(keygen.params.PCount()-1, skCIMappedToStandard.Value.Q, keygen.buffQ[0], skCIMappedToStandard.Value.P)
+		keygen.extendQ2P(keygen.params.PCount()-1, skCIMappedToStandard.Q, keygen.buffQ[0], skCIMappedToStandard.P)
 	}
 
 	swkConjugateInvariantToStd = keygen.GenSwitchingKey(skCIMappedToStandard, skStd)
@@ -200,36 +205,36 @@ func (keygen *keyGenerator) GenSwitchingKeysForRingSwap(skStd, skConjugateInvari
 func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *SwitchingKey) {
 
 	// N -> n (swk is to switch to a smaller dimension).
-	if len(skInput.Value.Q.Coeffs[0]) > len(skOutput.Value.Q.Coeffs[0]) {
+	if len(skInput.Q.Coeffs[0]) > len(skOutput.Q.Coeffs[0]) {
 
 		levelP := skInput.LevelP()
 
 		// Allocates the switching-key.
-		swk = NewSwitchingKey(keygen.params, skOutput.Value.Q.Level(), levelP)
+		swk = NewSwitchingKey(keygen.params, skOutput.Q.Level(), levelP)
 
 		// Maps the smaller key to the largest with Y = X^{N/n}.
-		ring.MapSmallDimensionToLargerDimensionNTT(skOutput.Value.Q, keygen.buffQP.Q)
+		ring.MapSmallDimensionToLargerDimensionNTT(skOutput.Q, keygen.buffQP.Q)
 
 		// Extends the modulus P of skOutput to the one of skInput
 		if levelP != -1 {
 			keygen.extendQ2P(levelP, keygen.buffQP.Q, keygen.buffQ[0], keygen.buffQP.P)
 		}
 
-		keygen.genSwitchingKey(skInput.Value.Q, keygen.buffQP, swk)
+		keygen.genSwitchingKey(skInput.Q, &SecretKey{Poly: keygen.buffQP}, swk)
 
 	} else { // N -> N or n -> N (swk switch to the same or a larger dimension)
 
 		levelP := utils.MinInt(skOutput.LevelP(), keygen.params.PCount()-1)
 
 		// Allocates the switching-key.
-		swk = NewSwitchingKey(keygen.params, skOutput.Value.Q.Level(), levelP)
+		swk = NewSwitchingKey(keygen.params, skOutput.Q.Level(), levelP)
 
 		// Maps the smaller key to the largest dimension with Y = X^{N/n}.
-		ring.MapSmallDimensionToLargerDimensionNTT(skInput.Value.Q, keygen.buffQ[0])
+		ring.MapSmallDimensionToLargerDimensionNTT(skInput.Q, keygen.buffQ[0])
 
 		// Extends the modulus of the input key to the one of the output key
 		// if the former is smaller.
-		if skInput.Value.Q.Level() < skOutput.Value.Q.Level() {
+		if skInput.Q.Level() < skOutput.Q.Level() {
 
 			ringQ := keygen.params.RingQ()
 
@@ -260,13 +265,13 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *
 			}
 
 			// Switches back to the NTT and Montgomery domain.
-			for i := skInput.Value.Q.Level() + 1; i < skOutput.Value.Q.Level()+1; i++ {
+			for i := skInput.Q.Level() + 1; i < skOutput.Q.Level()+1; i++ {
 				ringQ.NTTSingle(i, polP.Coeffs[i], polP.Coeffs[i])
 				ring.MFormVec(polP.Coeffs[i], polP.Coeffs[i], ringQ.Modulus[i], ringQ.BredParams[i])
 			}
 		}
 
-		keygen.genSwitchingKey(keygen.buffQ[0], skOutput.Value, swk)
+		keygen.genSwitchingKey(keygen.buffQ[0], skOutput, swk)
 	}
 
 	return
@@ -306,9 +311,9 @@ func (keygen *keyGenerator) extendQ2P(levelP int, polQ, buff, polP *ring.Poly) {
 	ringP.MFormLvl(levelP, polP, polP)
 }
 
-func (keygen *keyGenerator) genSwitchingKey(skIn *ring.Poly, skOut ringqp.Poly, swk *SwitchingKey) {
+func (keygen *keyGenerator) genSwitchingKey(skIn *ring.Poly, skOut *SecretKey, swk *SwitchingKey) {
 
-	enc := keygen.WithKey(&SecretKey{skOut})
+	enc := keygen.WithKey(skOut)
 	// Samples an encryption of zero for each element of the switching-key.
 	for i := 0; i < len(swk.Value); i++ {
 		for j := 0; j < len(swk.Value[0]); j++ {

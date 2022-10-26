@@ -9,42 +9,39 @@ import (
 )
 
 // CiphertextQP is a generic type for RLWE ciphertexts in R_qp.
+// It contains no MetaData.
 type CiphertextQP struct {
+	MetaData
 	Value [2]ringqp.Poly
 }
 
+// CopyNew returns a copy of the target CiphertextQP.
 func (ct *CiphertextQP) CopyNew() *CiphertextQP {
-	return &CiphertextQP{Value: [2]ringqp.Poly{ct.Value[0].CopyNew(), ct.Value[1].CopyNew()}}
+	return &CiphertextQP{Value: [2]ringqp.Poly{ct.Value[0].CopyNew(), ct.Value[1].CopyNew()}, MetaData: ct.MetaData}
 }
 
 // Ciphertext is a generic type for RLWE ciphertexts.
 type Ciphertext struct {
+	MetaData
 	Value []*ring.Poly
-	Scale
 }
 
-// NewCiphertext returns a new Element with zero values.
+// NewCiphertext returns a new Ciphertext with zero values and an associated
+// MetaData set to the Parameters default value.
 func NewCiphertext(params Parameters, degree, level int) (ct *Ciphertext) {
 	ct = new(Ciphertext)
 	ct.Value = make([]*ring.Poly, degree+1)
 	for i := 0; i < degree+1; i++ {
 		ct.Value[i] = ring.NewPoly(params.N(), level)
 	}
-	return ct
-}
-
-// NewCiphertextNTT returns a new Element with zero values and the NTT flags set.
-func NewCiphertextNTT(params Parameters, degree, level int) (ct *Ciphertext) {
-	ct = NewCiphertext(params, degree, level)
-	for i := 0; i < degree+1; i++ {
-		ct.Value[i].IsNTT = true
-	}
+	ct.MetaData = params.DefaultMetaData()
 	return
 }
 
 // NewCiphertextAtLevelFromPoly constructs a new Ciphetext at a specific level
 // where the message is set to the passed poly. No checks are performed on poly and
 // the returned Ciphertext will share its backing array of coefficient.
+// Returned ciphertext's MetaData is empty.
 func NewCiphertextAtLevelFromPoly(level int, poly [2]*ring.Poly) (ct *Ciphertext) {
 	v0, v1 := new(ring.Poly), new(ring.Poly)
 	v0.Coeffs, v1.Coeffs = poly[0].Coeffs[:level+1], poly[1].Coeffs[:level+1]
@@ -52,28 +49,9 @@ func NewCiphertextAtLevelFromPoly(level int, poly [2]*ring.Poly) (ct *Ciphertext
 	return &Ciphertext{Value: []*ring.Poly{v0, v1}}
 }
 
-// NewCiphertextNTTAtLevelFromPoly constructs a new Ciphetext at a specific level
-// where the message is set to the passed poly. No checks are performed on poly and
-// the returned Ciphertext will share its backing array of coefficient.
-// Sets the NTT flags of returned ciphertext.
-func NewCiphertextNTTAtLevelFromPoly(level int, poly [2]*ring.Poly) (ct *Ciphertext) {
-	ct = NewCiphertextAtLevelFromPoly(level, poly)
-	for i := range ct.Value {
-		ct.Value[i].IsNTT = true
-	}
-	return
-}
-
 // NewCiphertextRandom generates a new uniformly distributed Ciphertext of degree, level.
 func NewCiphertextRandom(prng utils.PRNG, params Parameters, degree, level int) (ciphertext *Ciphertext) {
 	ciphertext = NewCiphertext(params, degree, level)
-	PopulateElementRandom(prng, params, ciphertext)
-	return
-}
-
-// NewCiphertextRandomNTT generates a new uniformly distributed Ciphertext of degree, level.
-func NewCiphertextRandomNTT(prng utils.PRNG, params Parameters, degree, level int) (ciphertext *Ciphertext) {
-	ciphertext = NewCiphertextNTT(params, degree, level)
 	PopulateElementRandom(prng, params, ciphertext)
 	return
 }
@@ -114,7 +92,6 @@ func (ct *Ciphertext) Resize(degree, level int) {
 	} else if ct.Degree() < degree {
 		for ct.Degree() < degree {
 			ct.Value = append(ct.Value, []*ring.Poly{ring.NewPoly(ct.Value[0].N(), level)}...)
-			ct.Value[ct.Degree()].IsNTT = ct.Value[0].IsNTT
 		}
 	}
 }
@@ -149,7 +126,7 @@ func SwitchCiphertextRingDegreeNTT(ctIn *Ciphertext, ringQSmallDim, ringQLargeDi
 		}
 	}
 
-	ctOut.Scale = ctIn.Scale
+	ctOut.MetaData = ctIn.MetaData
 
 }
 
@@ -175,7 +152,7 @@ func SwitchCiphertextRingDegree(ctIn *Ciphertext, ctOut *Ciphertext) {
 		}
 	}
 
-	ctOut.Scale = ctIn.Scale
+	ctOut.MetaData = ctIn.MetaData
 }
 
 // CopyNew creates a new element as a copy of the target element.
@@ -188,7 +165,7 @@ func (ct *Ciphertext) CopyNew() *Ciphertext {
 		ctxCopy.Value[i] = ct.Value[i].CopyNew()
 	}
 
-	ctxCopy.Scale = ct.Scale
+	ctxCopy.MetaData = ct.MetaData
 
 	return ctxCopy
 }
@@ -201,13 +178,13 @@ func (ct *Ciphertext) Copy(ctxCopy *Ciphertext) {
 			ct.Value[i].Copy(ctxCopy.Value[i])
 		}
 
-		ct.Scale = ctxCopy.Scale
+		ct.MetaData = ctxCopy.MetaData
 	}
 }
 
 // El returns a pointer to this Element
-func (el *Ciphertext) El() *Ciphertext {
-	return el
+func (ct *Ciphertext) El() *Ciphertext {
+	return ct
 }
 
 // GetSmallestLargest returns the provided element that has the smallest degree as a first
@@ -231,19 +208,17 @@ func PopulateElementRandom(prng utils.PRNG, params Parameters, ct *Ciphertext) {
 	}
 }
 
-// GetDataLen returns the length in bytes of the target Ciphertext.
-func (ct *Ciphertext) GetDataLen(WithMetaData bool) (dataLen int) {
-	// MetaData is :
+// MarshalBinarySize returns the length in bytes of the target Ciphertext.
+func (ct *Ciphertext) MarshalBinarySize() (dataLen int) {
+
 	// 1 byte : Degree
-	if WithMetaData {
-		dataLen++
-	}
+	dataLen++
 
 	for _, ct := range ct.Value {
-		dataLen += ct.GetDataLen64(WithMetaData)
+		dataLen += ct.MarshalBinarySize64()
 	}
 
-	dataLen += ct.Scale.GetDataLen()
+	dataLen += ct.MetaData.MarshalBinarySize()
 
 	return dataLen
 }
@@ -251,7 +226,7 @@ func (ct *Ciphertext) GetDataLen(WithMetaData bool) (dataLen int) {
 // MarshalBinary encodes a Ciphertext on a byte slice. The total size
 // in byte is 4 + 8* N * numberModuliQ * (degree + 1).
 func (ct *Ciphertext) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, ct.GetDataLen(true))
+	data = make([]byte, ct.MarshalBinarySize())
 	_, err = ct.Encode64(data)
 	return
 }
@@ -260,14 +235,13 @@ func (ct *Ciphertext) MarshalBinary() (data []byte, err error) {
 // It returns the number of written bytes, and the corresponding error, if it occurred.
 func (ct *Ciphertext) Encode64(data []byte) (ptr int, err error) {
 
-	if len(data) < ct.GetDataLen(true) {
-		return 0, fmt.Errorf("WriteTo: len(data) is too small")
+	if len(data) < ct.MarshalBinarySize() {
+		return 0, fmt.Errorf("Encode64: len(data) is too small")
 	}
 
-	if err = ct.Scale.Encode(data[ptr:]); err != nil {
+	if ptr, err = ct.MetaData.Encode64(data); err != nil {
 		return
 	}
-	ptr += ct.Scale.GetDataLen()
 
 	data[ptr] = uint8(ct.Degree() + 1)
 	ptr++
@@ -292,7 +266,7 @@ func (ct *Ciphertext) UnmarshalBinary(data []byte) (err error) {
 		return
 	}
 
-	if ct.GetDataLen(true) != len(data) {
+	if ct.MarshalBinarySize() != len(data) {
 		return fmt.Errorf("remaining unparsed data")
 	}
 
@@ -305,11 +279,9 @@ func (ct *Ciphertext) UnmarshalBinary(data []byte) (err error) {
 // Assumes that each coefficient is encoded on 8 bytes.
 func (ct *Ciphertext) Decode64(data []byte) (ptr int, err error) {
 
-	if err = ct.Scale.Decode(data[ptr:]); err != nil {
+	if ptr, err = ct.MetaData.Decode64(data); err != nil {
 		return
 	}
-
-	ptr += ct.Scale.GetDataLen()
 
 	if degree := int(data[ptr]); ct.Value == nil {
 		ct.Value = make([]*ring.Poly, degree)

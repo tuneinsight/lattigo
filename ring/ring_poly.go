@@ -7,10 +7,8 @@ import (
 
 // Poly is the structure that contains the coefficients of a polynomial.
 type Poly struct {
-	Coeffs  [][]uint64 // Dimension-2 slice of coefficients (re-slice of Buff)
-	Buff    []uint64   // Dimension-1 slice of coefficient
-	IsNTT   bool
-	IsMForm bool
+	Coeffs [][]uint64 // Dimension-2 slice of coefficients (re-slice of Buff)
+	Buff   []uint64   // Dimension-1 slice of coefficient
 }
 
 // NewPoly creates a new polynomial with N coefficients set to zero and Level+1 moduli.
@@ -62,47 +60,25 @@ func (pol *Poly) Zero() {
 func (pol *Poly) CopyNew() (p1 *Poly) {
 	p1 = NewPoly(pol.N(), pol.Level())
 	copy(p1.Buff, pol.Buff)
-	p1.IsNTT = pol.IsNTT
-	p1.IsMForm = pol.IsMForm
-
 	return
-}
-
-// CopyValues copies the coefficients of p0 on p1 within the given Ring. It requires p1 to be at least as big p0.
-// Expects the degree of both polynomials to be identical.
-// Does not transfer the IsNTT and IsMForm flags.
-func CopyValues(p0, p1 *Poly) {
-	copy(p1.Buff, p0.Buff)
-}
-
-// CopyValuesLvl copies the values of p0 on p1, up to level+1 moduli.
-func CopyValuesLvl(level int, p0, p1 *Poly) {
-	copy(p1.Buff[:p1.N()*(level+1)], p0.Buff)
 }
 
 // Copy copies the coefficients of p0 on p1 within the given Ring. It requires p1 to be at least as big p0.
 // Expects the degree of both polynomials to be identical.
-// Transfers the IsNTT and IsMForm flags.
 func Copy(p0, p1 *Poly) {
-	CopyValues(p0, p1)
-	p1.IsNTT = p0.IsNTT
-	p1.IsMForm = p0.IsMForm
+	copy(p1.Buff, p0.Buff)
 }
 
 // CopyLvl copies the coefficients of p0 on p1 within the given Ring.
 // Copies for up to level+1 moduli.
 // Expects the degree of both polynomials to be identical.
-// Transfers the IsNTT and IsMForm flags.
 func CopyLvl(level int, p0, p1 *Poly) {
-	CopyValuesLvl(level, p0, p1)
-	p1.IsNTT = p0.IsNTT
-	p1.IsMForm = p0.IsMForm
+	copy(p1.Buff[:p1.N()*(level+1)], p0.Buff)
 }
 
 // CopyValues copies the coefficients of p1 on the target polynomial.
 // Onyl copies minLevel(pol, p1) levels.
 // Expects the degree of both polynomials to be identical.
-// Does not transfer the IsNTT and IsMForm flags.
 func (pol *Poly) CopyValues(p1 *Poly) {
 	if pol != p1 {
 		copy(pol.Buff, p1.Buff)
@@ -111,18 +87,14 @@ func (pol *Poly) CopyValues(p1 *Poly) {
 
 // Copy copies the coefficients of p1 on the target polynomial.
 // Onyl copies minLevel(pol, p1) levels.
-// Transfers the IsNTT and IsMForm flags.
 func (pol *Poly) Copy(p1 *Poly) {
 	pol.CopyValues(p1)
-	pol.IsNTT = p1.IsNTT
-	pol.IsMForm = p1.IsMForm
 }
 
 // Equals returns true if the receiver Poly is equal to the provided other Poly.
 // This function checks for strict equality between the polynomial coefficients
 // (i.e., it does not consider congruence as equality within the ring like
 // `Ring.Equals` does).
-// Will not check if IsNTT and IsMForm flags are equal
 func (pol *Poly) Equals(other *Poly) bool {
 	if pol == other {
 		return true
@@ -139,31 +111,23 @@ func (pol *Poly) Equals(other *Poly) bool {
 	return false
 }
 
-// GetDataLen64 returns the number of bytes a polynomial of N coefficients
+// MarshalBinarySize64 returns the number of bytes a polynomial of N coefficients
 // with Level+1 moduli will take when converted to a slice of bytes.
 // Assumes that each coefficient will be encoded on 8 bytes.
-// It can take into account meta data if necessary.
-func GetDataLen64(N, Level int, WithMetadata bool) (cnt int) {
-	cnt += N * (Level + 1) << 3
-
-	if WithMetadata {
-		cnt += 7
-	}
-
-	return
+func MarshalBinarySize64(N, Level int) (cnt int) {
+	return 5 + N*(Level+1)<<3
 }
 
-// GetDataLen64 returns the number of bytes the polynomial will take when written to data.
+// MarshalBinarySize64 returns the number of bytes the polynomial will take when written to data.
 // Assumes that each coefficient takes 8 bytes.
-// It can take into account meta data if necessary.
-func (pol *Poly) GetDataLen64(WithMetadata bool) (cnt int) {
-	return GetDataLen64(pol.N(), pol.Level(), WithMetadata)
+func (pol *Poly) MarshalBinarySize64() (cnt int) {
+	return MarshalBinarySize64(pol.N(), pol.Level())
 }
 
 // MarshalBinary encodes the target polynomial on a slice of bytes.
 // Encodes each coefficient on 8 bytes.
 func (pol *Poly) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, pol.GetDataLen64(true))
+	data = make([]byte, pol.MarshalBinarySize64())
 	_, err = pol.Encode64(data)
 	return
 }
@@ -175,15 +139,7 @@ func (pol *Poly) UnmarshalBinary(data []byte) (err error) {
 	N := int(binary.BigEndian.Uint32(data))
 	Level := int(data[4])
 
-	if data[5] == 1 {
-		pol.IsNTT = true
-	}
-
-	if data[6] == 1 {
-		pol.IsMForm = true
-	}
-
-	ptr := 7
+	ptr := 5
 
 	if ((len(data) - ptr) >> 3) != N*(Level+1) {
 		return errors.New("invalid polynomial encoding")
@@ -203,7 +159,7 @@ func (pol *Poly) Encode64(data []byte) (int, error) {
 	N := pol.N()
 	Level := pol.Level()
 
-	if len(data) < pol.GetDataLen64(true) {
+	if len(data) < pol.MarshalBinarySize64() {
 		// The data is not big enough to write all the information
 		return 0, errors.New("data array is too small to write ring.Poly")
 	}
@@ -212,15 +168,7 @@ func (pol *Poly) Encode64(data []byte) (int, error) {
 
 	data[4] = uint8(Level)
 
-	if pol.IsNTT {
-		data[5] = 1
-	}
-
-	if pol.IsMForm {
-		data[6] = 1
-	}
-
-	return Encode64(7, pol.Buff, data)
+	return Encode64(5, pol.Buff, data)
 }
 
 // Encode64 converts a matrix of coefficients to a byte array, using 8 bytes per coefficient.
@@ -241,15 +189,7 @@ func (pol *Poly) Decode64(data []byte) (ptr int, err error) {
 	N := int(binary.BigEndian.Uint32(data))
 	Level := int(data[4])
 
-	if data[5] == 1 {
-		pol.IsNTT = true
-	}
-
-	if data[6] == 1 {
-		pol.IsMForm = true
-	}
-
-	ptr = 7
+	ptr = 5
 
 	if pol.Buff == nil || len(pol.Buff) != N*(Level+1) {
 		pol.Buff = make([]uint64, N*(Level+1))
@@ -286,24 +226,15 @@ func (pol *Poly) Encode32(data []byte) (int, error) {
 	N := pol.N()
 	Level := pol.Level()
 
-	if len(data) < pol.GetDataLen32(true) {
+	if len(data) < pol.MarshalBinarySize32() {
 		//The data is not big enough to write all the information
 		return 0, errors.New("data array is too small to write ring.Poly")
 	}
 
 	binary.BigEndian.PutUint32(data, uint32(N))
 	data[4] = uint8(Level)
-	if pol.IsNTT {
-		data[5] = 1
-	}
 
-	if pol.IsMForm {
-		data[6] = 1
-	}
-
-	cnt, err := Encode32(7, pol.Buff, data)
-
-	return cnt, err
+	return Encode32(5, pol.Buff, data)
 }
 
 // Encode32 converts a matrix of coefficients to a byte array, using 4 bytes per coefficient.
@@ -315,25 +246,17 @@ func Encode32(ptr int, coeffs []uint64, data []byte) (int, error) {
 	return ptr + len(coeffs)*4, nil
 }
 
-// GetPolyDataLen32 returns the number of bytes a polynomial of N coefficients
+// MarshalBinarySize32 returns the number of bytes a polynomial of N coefficients
 // with Level+1 moduli will take when converted to a slice of bytes.
 // Assumes that each coefficient will be encoded on 4 bytes.
-// It can take into account meta data if necessary.
-func GetPolyDataLen32(N, Level int, WithMetadata bool) (cnt int) {
-	cnt += N * (Level + 1) << 2
-
-	if WithMetadata {
-		cnt += 7
-	}
-
-	return
+func MarshalBinarySize32(N, Level int) (cnt int) {
+	return 5 + N*(Level+1)<<2
 }
 
-// GetDataLen32 returns the number of bytes the polynomial will take when written to data.
+// MarshalBinarySize32 returns the number of bytes the polynomial will take when written to data.
 // Assumes that each coefficient is encoded on 4 bytes.
-// It can take into account meta data if necessary.
-func (pol *Poly) GetDataLen32(WithMetadata bool) (cnt int) {
-	return GetPolyDataLen32(pol.N(), pol.Level(), WithMetadata)
+func (pol *Poly) MarshalBinarySize32() (cnt int) {
+	return MarshalBinarySize32(pol.N(), pol.Level())
 }
 
 // Decode32 decodes a slice of bytes in the target polynomial returns the number of bytes decoded.
@@ -345,15 +268,7 @@ func (pol *Poly) Decode32(data []byte) (ptr int, err error) {
 	N := int(binary.BigEndian.Uint32(data))
 	Level := int(data[4])
 
-	if data[5] == 1 {
-		pol.IsNTT = true
-	}
-
-	if data[6] == 1 {
-		pol.IsMForm = true
-	}
-
-	ptr = 7
+	ptr = 5
 
 	if pol.Buff == nil || len(pol.Buff) != N*(Level+1) {
 		pol.Buff = make([]uint64, N*(Level+1))

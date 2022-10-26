@@ -19,12 +19,16 @@ func (eval *Evaluator) SwitchKeys(ctIn *Ciphertext, switchingKey *SwitchingKey, 
 	level := utils.MinInt(ctIn.Level(), ctOut.Level())
 	ringQ := eval.params.RingQ()
 
-	eval.GadgetProduct(level, ctIn.Value[1], switchingKey.GadgetCiphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
+	ctTmp := &Ciphertext{}
+	ctTmp.Value = []*ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}
+	ctTmp.IsNTT = ctIn.IsNTT
 
-	ringQ.AddLvl(level, ctIn.Value[0], eval.BuffQP[1].Q, ctOut.Value[0])
-	ring.CopyValuesLvl(level, eval.BuffQP[2].Q, ctOut.Value[1])
+	eval.GadgetProduct(level, ctIn.Value[1], switchingKey.GadgetCiphertext, ctTmp)
 
-	ctOut.Scale = ctIn.Scale
+	ringQ.AddLvl(level, ctIn.Value[0], ctTmp.Value[0], ctOut.Value[0])
+	ring.CopyLvl(level, ctTmp.Value[1], ctOut.Value[1])
+
+	ctOut.MetaData = ctIn.MetaData
 }
 
 // Relinearize applies the relinearization procedure on ct0 and returns the result in ctOut.
@@ -39,34 +43,36 @@ func (eval *Evaluator) Relinearize(ctIn *Ciphertext, ctOut *Ciphertext) {
 
 	ringQ := eval.params.RingQ()
 
-	eval.GadgetProduct(level, ctIn.Value[2], eval.Rlk.Keys[0].GadgetCiphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
-	ringQ.AddLvl(level, ctIn.Value[0], eval.BuffQP[1].Q, ctOut.Value[0])
-	ringQ.AddLvl(level, ctIn.Value[1], eval.BuffQP[2].Q, ctOut.Value[1])
+	ctTmp := &Ciphertext{}
+	ctTmp.Value = []*ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}
+	ctTmp.IsNTT = ctIn.IsNTT
+
+	eval.GadgetProduct(level, ctIn.Value[2], eval.Rlk.Keys[0].GadgetCiphertext, ctTmp)
+	ringQ.AddLvl(level, ctIn.Value[0], ctTmp.Value[0], ctOut.Value[0])
+	ringQ.AddLvl(level, ctIn.Value[1], ctTmp.Value[1], ctOut.Value[1])
 
 	for deg := ctIn.Degree() - 1; deg > 1; deg-- {
-		eval.GadgetProduct(level, ctIn.Value[deg], eval.Rlk.Keys[deg-2].GadgetCiphertext, eval.BuffQP[1].Q, eval.BuffQP[2].Q)
-		ringQ.AddLvl(level, ctOut.Value[0], eval.BuffQP[1].Q, ctOut.Value[0])
-		ringQ.AddLvl(level, ctOut.Value[1], eval.BuffQP[2].Q, ctOut.Value[1])
+		eval.GadgetProduct(level, ctIn.Value[deg], eval.Rlk.Keys[deg-2].GadgetCiphertext, ctTmp)
+		ringQ.AddLvl(level, ctOut.Value[0], ctTmp.Value[0], ctOut.Value[0])
+		ringQ.AddLvl(level, ctOut.Value[1], ctTmp.Value[1], ctOut.Value[1])
 	}
 
-	ctOut.Value = ctOut.Value[:2]
+	ctOut.Resize(1, level)
 
-	ctOut.Resize(ctOut.Degree(), level)
-
-	ctOut.Scale = ctIn.Scale
+	ctOut.MetaData = ctIn.MetaData
 }
 
 // DecomposeNTT applies the full RNS basis decomposition on c2.
 // Expects the IsNTT flag of c2 to correctly reflect the domain of c2.
 // BuffQPDecompQ and BuffQPDecompQ are vectors of polynomials (mod Q and mod P) that store the
 // special RNS decomposition of c2 (in the NTT domain)
-func (eval *Evaluator) DecomposeNTT(levelQ, levelP, nbPi int, c2 *ring.Poly, BuffDecompQP []ringqp.Poly) {
+func (eval *Evaluator) DecomposeNTT(levelQ, levelP, nbPi int, c2 *ring.Poly, c2IsNTT bool, BuffDecompQP []ringqp.Poly) {
 
 	ringQ := eval.params.RingQ()
 
 	var polyNTT, polyInvNTT *ring.Poly
 
-	if c2.IsNTT {
+	if c2IsNTT {
 		polyNTT = c2
 		polyInvNTT = eval.BuffInvNTT
 		ringQ.InvNTTLvl(levelQ, polyNTT, polyInvNTT)

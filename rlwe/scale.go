@@ -7,6 +7,7 @@ import (
 )
 
 const (
+	// ScalePrecision is the default precision of the scale.
 	ScalePrecision = uint(128)
 )
 

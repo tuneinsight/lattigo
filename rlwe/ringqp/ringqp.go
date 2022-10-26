@@ -52,15 +52,26 @@ func (p *Poly) Equals(other Poly) (v bool) {
 	return v
 }
 
-// CopyValues copies the coefficients of other on the target polynomial.
-// This method simply calls the CopyValues method for each of its sub-polynomials.
-func (p *Poly) CopyValues(other Poly) {
+// Copy copies the coefficients of other on the target polynomial.
+// This method simply calls the Copy method for each of its sub-polynomials.
+func (p *Poly) Copy(other Poly) {
 	if p.Q != nil {
 		copy(p.Q.Buff, other.Q.Buff)
 	}
 
 	if p.P != nil {
 		copy(p.P.Buff, other.P.Buff)
+	}
+}
+
+// CopyLvl copies the values of p1 on p2.
+// The operation is performed at levelQ for the ringQ and levelP for the ringP.
+func (r *Ring) CopyLvl(levelQ, levelP int, p1, p2 Poly) {
+	if r.RingQ != nil {
+		ring.CopyLvl(levelQ, p1.Q, p2.Q)
+	}
+	if r.RingP != nil {
+		ring.CopyLvl(levelP, p1.P, p2.P)
 	}
 }
 
@@ -217,6 +228,7 @@ func (r *Ring) EvalPolyScalar(pol []Poly, pt uint64, p3 Poly) {
 	}
 }
 
+// MulScalarLvl multiplies p1 by the scalar and returns the result in p2.
 func (r *Ring) MulScalarLvl(levelQ, levelP int, p1 Poly, scalar uint64, p2 Poly) {
 	if r.RingQ != nil {
 		r.RingQ.MulScalarLvl(levelQ, p1.Q, scalar, p2.Q)
@@ -414,17 +426,6 @@ func (r *Ring) PermuteNTTWithIndexAndAddNoModLvl(levelQ, levelP int, p1 Poly, in
 	}
 }
 
-// CopyValuesLvl copies the values of p1 on p2.
-// The operation is performed at levelQ for the ringQ and levelP for the ringP.
-func (r *Ring) CopyValuesLvl(levelQ, levelP int, p1, p2 Poly) {
-	if r.RingQ != nil {
-		ring.CopyValuesLvl(levelQ, p1.Q, p2.Q)
-	}
-	if r.RingP != nil {
-		ring.CopyValuesLvl(levelP, p1.P, p2.P)
-	}
-}
-
 // ExtendBasisSmallNormAndCenter extends a small-norm polynomial polQ in R_Q to a polynomial
 // polQP in R_QP.
 func (r *Ring) ExtendBasisSmallNormAndCenter(polyInQ *ring.Poly, levelP int, polyOutQ, polyOutP *ring.Poly) {
@@ -452,27 +453,17 @@ func (r *Ring) ExtendBasisSmallNormAndCenter(polyInQ *ring.Poly, levelP int, pol
 	}
 }
 
-// Copy copies the input Poly on the target Poly.
-func (p *Poly) Copy(polFrom Poly) {
-	if polFrom.Q != nil {
-		p.Q.Copy(polFrom.Q)
-	}
-	if polFrom.P != nil {
-		p.P.Copy(polFrom.P)
-	}
-}
-
 // GetDataLen64 returns the length in byte of the target Poly.
 // Assumes that each coefficient uses 8 bytes.
-func (p *Poly) GetDataLen64(WithMetadata bool) (dataLen int) {
-	if WithMetadata {
-		dataLen = 2
-	}
+func (p *Poly) MarshalBinarySize64() (dataLen int) {
+
+	dataLen = 2
+
 	if p.Q != nil {
-		dataLen += p.Q.GetDataLen64(WithMetadata)
+		dataLen += p.Q.MarshalBinarySize64()
 	}
 	if p.P != nil {
-		dataLen += p.P.GetDataLen64(WithMetadata)
+		dataLen += p.P.MarshalBinarySize64()
 	}
 
 	return
@@ -546,7 +537,7 @@ func (p *Poly) Decode64(data []byte) (pt int, err error) {
 }
 
 func (p *Poly) MarshalBinary() ([]byte, error) {
-	b := make([]byte, p.GetDataLen64(true))
+	b := make([]byte, p.MarshalBinarySize64())
 	_, err := p.Encode64(b)
 	return b, err
 }

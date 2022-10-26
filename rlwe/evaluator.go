@@ -151,7 +151,12 @@ func (eval *Evaluator) WithKey(evaluationKey *EvaluationKey) *Evaluator {
 // ExpandRLWE expands a RLWE ciphertext encrypting sum ai * X^i to 2^logN ciphertexts,
 // each encrypting ai * X^0 for 0 <= i < 2^LogN. That is, it extracts the first 2^logN
 // coefficients of ctIn and returns a RLWE ciphetext for each coefficient extracted.
+// The input ciphertext must be in the NTT domain, else the method will panic.
 func (eval *Evaluator) ExpandRLWE(ctIn *Ciphertext, logN int) (ctOut []*Ciphertext) {
+
+	if !ctIn.IsNTT {
+		panic("ctIn must be in the NTT domain")
+	}
 
 	params := eval.params
 	ringQ := params.RingQ()
@@ -176,7 +181,8 @@ func (eval *Evaluator) ExpandRLWE(ctIn *Ciphertext, logN int) (ctOut []*Cipherte
 		ring.MulScalarMontgomeryVec(v1.Coeffs[i], v1.Coeffs[i], NInv, Q[i], mredParams[i])
 	}
 
-	tmp := NewCiphertextNTT(params, 1, levelQ)
+	tmp := NewCiphertext(params, 1, levelQ)
+	tmp.IsNTT = true
 
 	for i := 0; i < logN; i++ {
 
@@ -215,6 +221,7 @@ func (eval *Evaluator) ExpandRLWE(ctIn *Ciphertext, logN int) (ctOut []*Cipherte
 // two non-zero coefficients of the final Ciphertext.
 // The method takes as input a map of Ciphertext, indexing in which coefficient of the final
 // Ciphertext the first coefficient of each Ciphertext of the map must be packed.
+// All input ciphertexts must be in the NTT domain, else the method will panic.
 func (eval *Evaluator) MergeRLWE(ctIn map[int]*Ciphertext) (ctOut *Ciphertext) {
 
 	params := eval.params
@@ -235,6 +242,11 @@ func (eval *Evaluator) MergeRLWE(ctIn map[int]*Ciphertext) (ctOut *Ciphertext) {
 	// Multiplies by (Slots * N) ^-1 mod Q
 	for i := range ctIn {
 		if ctIn[i] != nil {
+
+			if !ctIn[i].IsNTT {
+				panic("all ctIn must be in the NTT domain")
+			}
+
 			v0, v1 := ctIn[i].Value[0], ctIn[i].Value[1]
 			for j := 0; j < levelQ+1; j++ {
 				ring.MulScalarMontgomeryVec(v0.Coeffs[j], v0.Coeffs[j], NInv[j], Q[j], mredParams[j])
@@ -250,7 +262,8 @@ func (eval *Evaluator) MergeRLWE(ctIn map[int]*Ciphertext) (ctOut *Ciphertext) {
 	}
 
 	if ciphertextslist[0] == nil {
-		ciphertextslist[0] = NewCiphertextNTT(params, 1, levelQ)
+		ciphertextslist[0] = NewCiphertext(params, 1, levelQ)
+		ciphertextslist[0].IsNTT = true
 	}
 
 	return eval.mergeRLWERecurse(ciphertextslist, xPow2)

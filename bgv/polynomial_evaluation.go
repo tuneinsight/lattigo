@@ -251,12 +251,13 @@ func (p *PowerBasis) genPower(target, n int, lazy, rescale bool, eval Evaluator)
 		if lazy && !isPow2 {
 			p.Value[n] = eval.MulNew(p.Value[a], p.Value[b])
 			return true, nil
-		} else {
-			p.Value[n] = eval.MulRelinNew(p.Value[a], p.Value[b])
-			if err = eval.Rescale(p.Value[n], p.Value[n]); err != nil {
-				return false, err
-			}
 		}
+
+		p.Value[n] = eval.MulRelinNew(p.Value[a], p.Value[b])
+		if err = eval.Rescale(p.Value[n], p.Value[n]); err != nil {
+			return false, err
+		}
+
 	}
 
 	return false, nil

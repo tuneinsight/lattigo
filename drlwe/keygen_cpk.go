@@ -36,7 +36,7 @@ type CKGCRP ringqp.Poly
 
 // MarshalBinary encodes the target element on a slice of bytes.
 func (share *CKGShare) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, share.Value.GetDataLen64(true))
+	data = make([]byte, share.Value.MarshalBinarySize64())
 	if _, err = share.Value.Encode64(data); err != nil {
 		return nil, err
 	}
@@ -93,7 +93,7 @@ func (ckg *CKGProtocol) GenShare(sk *rlwe.SecretKey, crp CKGCRP, shareOut *CKGSh
 	ringQP.NTTLvl(levelQ, levelP, shareOut.Value, shareOut.Value)
 	ringQP.MFormLvl(levelQ, levelP, shareOut.Value, shareOut.Value)
 
-	ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, sk.Value, ringqp.Poly(crp), shareOut.Value)
+	ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, sk.Poly, ringqp.Poly(crp), shareOut.Value)
 }
 
 // AggregateShares aggregates a new share to the aggregate key

@@ -32,7 +32,6 @@ func NewCKSProtocol(params bgv.Parameters, sigmaSmudging float64) (cks *CKSProto
 	}
 
 	buffQ := params.RingQ().NewPoly()
-	buffQ.IsNTT = true
 
 	return &CKSProtocol{
 		CKSProtocol: *drlwe.NewCKSProtocol(params.Parameters, sigmaSmudging),
@@ -44,10 +43,10 @@ func NewCKSProtocol(params bgv.Parameters, sigmaSmudging float64) (cks *CKSProto
 
 // GenShare computes a party's share in the CKS protocol.
 // ct1 is the degree 1 element of the rlwe.Ciphertext to keyswitch, i.e. ct1 = rlwe.Ciphertext.Value[1].
-func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct1 *ring.Poly, shareOut *drlwe.CKSShare) {
+func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct1 *ring.Poly, metadata rlwe.MetaData, shareOut *drlwe.CKSShare) {
 	level := utils.MinInt(ct1.Level(), shareOut.Value.Level())
 	cks.params.RingQ().MulScalarBigintLvl(level, ct1, cks.tInvModQ[level], cks.buffQ)
-	cks.CKSProtocol.GenShare(skInput, skOutput, cks.buffQ, shareOut)
+	cks.CKSProtocol.GenShare(skInput, skOutput, cks.buffQ, metadata, shareOut)
 	cks.params.RingQ().MulScalarLvl(level, shareOut.Value, cks.params.T(), shareOut.Value)
 }
 
@@ -60,13 +59,11 @@ func (cks *CKSProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined *drlwe.CKSShar
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // CKSProtocol can be used concurrently.
 func (cks *CKSProtocol) ShallowCopy() *CKSProtocol {
-	buffQ := cks.params.RingQ().NewPoly()
-	buffQ.IsNTT = true
 	return &CKSProtocol{
 		CKSProtocol: *cks.CKSProtocol.ShallowCopy(),
 		params:      cks.params,
 		tInvModQ:    cks.tInvModQ,
-		buffQ:       buffQ,
+		buffQ:       cks.params.RingQ().NewPoly(),
 	}
 }
 
@@ -89,13 +86,10 @@ func NewPCKSProtocol(params bgv.Parameters, sigmaSmudging float64) *PCKSProtocol
 		tInvModQ[i].ModInverse(tInvModQ[i], ringQ.ModulusAtLevel[i])
 	}
 
-	buffQ := params.RingQ().NewPoly()
-	buffQ.IsNTT = true
-
 	return &PCKSProtocol{
 		params:       params,
 		PCKSProtocol: *drlwe.NewPCKSProtocol(params.Parameters, sigmaSmudging),
-		buffQ:        buffQ,
+		buffQ:        params.RingQ().NewPoly(),
 		tInvModQ:     tInvModQ,
 	}
 }
@@ -106,10 +100,10 @@ func NewPCKSProtocol(params bgv.Parameters, sigmaSmudging float64) *PCKSProtocol
 //
 // and broadcasts the result to the other j-1 parties.
 // ct1 is the degree 1 element of the rlwe.Ciphertext to keyswitch, i.e. ct1 = rlwe.Ciphertext.Value[1].
-func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct1 *ring.Poly, shareOut *drlwe.PCKSShare) {
+func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct1 *ring.Poly, metadata rlwe.MetaData, shareOut *drlwe.PCKSShare) {
 	level := utils.MinInt(ct1.Level(), shareOut.Value[0].Level())
 	pcks.params.RingQ().MulScalarBigintLvl(level, ct1, pcks.tInvModQ[level], pcks.buffQ)
-	pcks.PCKSProtocol.GenShare(sk, pk, pcks.buffQ, shareOut)
+	pcks.PCKSProtocol.GenShare(sk, pk, pcks.buffQ, metadata, shareOut)
 	pcks.params.RingQ().MulScalarLvl(level, shareOut.Value[0], pcks.params.T(), shareOut.Value[0])
 	pcks.params.RingQ().MulScalarLvl(level, shareOut.Value[1], pcks.params.T(), shareOut.Value[1])
 }
@@ -123,14 +117,10 @@ func (pcks *PCKSProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined *drlwe.PCKSS
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // PCKSProtocol can be used concurrently.
 func (pcks *PCKSProtocol) ShallowCopy() *PCKSProtocol {
-
-	buffQ := pcks.params.RingQ().NewPoly()
-	buffQ.IsNTT = true
-
 	return &PCKSProtocol{
 		PCKSProtocol: *pcks.PCKSProtocol.ShallowCopy(),
 		params:       pcks.params,
-		buffQ:        buffQ,
+		buffQ:        pcks.params.RingQ().NewPoly(),
 		tInvModQ:     pcks.tInvModQ,
 	}
 }

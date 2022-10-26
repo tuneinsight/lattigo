@@ -88,7 +88,7 @@ func (pcks *PCKSProtocol) AllocateShare(levelQ int) (s *PCKSShare) {
 // and broadcasts the result to the other j-1 parties.
 // ct1 is the degree 1 element of the rlwe.Ciphertext to keyswitch, i.e. ct1 = rlwe.Ciphertext.Value[1].
 // NTT flag for ct1 is expected to be set correctly.
-func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct1 *ring.Poly, shareOut *PCKSShare) {
+func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct1 *ring.Poly, metadata rlwe.MetaData, shareOut *PCKSShare) {
 
 	ringQ := pcks.params.RingQ()
 	ringP := pcks.params.RingP()
@@ -145,14 +145,14 @@ func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct1 *
 	}
 
 	// h_0 = s_i*c_1 + (u_i * pk_0 + e0)/P
-	if ct1.IsNTT {
+	if metadata.IsNTT {
 		ringQ.NTTLvl(levelQ, shareOut.Value[0], shareOut.Value[0])
 		ringQ.NTTLvl(levelQ, shareOut.Value[1], shareOut.Value[1])
-		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, ct1, sk.Value.Q, shareOut.Value[0])
+		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, ct1, sk.Q, shareOut.Value[0])
 	} else {
 		// tmp = s_i*c_1
 		ringQ.NTTLazyLvl(levelQ, ct1, pcks.tmpQP.Q)
-		ringQ.MulCoeffsMontgomeryConstantLvl(levelQ, pcks.tmpQP.Q, sk.Value.Q, pcks.tmpQP.Q)
+		ringQ.MulCoeffsMontgomeryConstantLvl(levelQ, pcks.tmpQP.Q, sk.Q, pcks.tmpQP.Q)
 		ringQ.InvNTTLvl(levelQ, pcks.tmpQP.Q, pcks.tmpQP.Q)
 
 		// h_0 = s_i*c_1 + (u_i * pk_0 + e0)/P
@@ -180,25 +180,18 @@ func (pcks *PCKSProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined *PCKSShare, 
 	level := ctIn.Level()
 
 	if ctIn != ctOut {
-
 		ctOut.Resize(ctIn.Degree(), level)
-
-		for i := range ctOut.Value {
-			ctOut.Value[i].IsNTT = ctIn.Value[i].IsNTT
-		}
-
-		ctOut.Scale = ctIn.Scale
-
+		ctOut.MetaData = ctIn.MetaData
 	}
 
 	pcks.params.RingQ().AddLvl(level, ctIn.Value[0], combined.Value[0], ctOut.Value[0])
 
-	ring.CopyValuesLvl(level, combined.Value[1], ctOut.Value[1])
+	ring.CopyLvl(level, combined.Value[1], ctOut.Value[1])
 }
 
 // MarshalBinary encodes a PCKS share on a slice of bytes.
 func (share *PCKSShare) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, share.Value[0].GetDataLen64(true)+share.Value[1].GetDataLen64(true))
+	data = make([]byte, share.Value[0].MarshalBinarySize64()+share.Value[1].MarshalBinarySize64())
 	var inc, pt int
 	if inc, err = share.Value[0].Encode64(data[pt:]); err != nil {
 		return nil, err

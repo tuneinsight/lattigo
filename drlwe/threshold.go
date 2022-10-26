@@ -79,7 +79,7 @@ func (thr *Thresholdizer) GenShamirPolynomial(threshold int, secret *rlwe.Secret
 		return nil, fmt.Errorf("threshold should be >= 1")
 	}
 	gen := &ShamirPolynomial{Coeffs: make([]ringqp.Poly, int(threshold))}
-	gen.Coeffs[0] = secret.Value.CopyNew()
+	gen.Coeffs[0] = secret.Poly.CopyNew()
 	for i := 1; i < threshold; i++ {
 		gen.Coeffs[i] = thr.ringQP.NewPoly()
 		thr.usampler.Read(gen.Coeffs[i])
@@ -154,7 +154,7 @@ func (cmb *Combiner) GenAdditiveShare(activesPoints []ShamirPublicPoint, ownPoin
 		}
 	}
 
-	cmb.ringQP.MulRNSScalarMontgomery(ownShare.Poly, prod, skOut.Value)
+	cmb.ringQP.MulRNSScalarMontgomery(ownShare.Poly, prod, skOut.Poly)
 }
 
 func (cmb *Combiner) lagrangeCoeff(thisKey ShamirPublicPoint, thatKey ShamirPublicPoint, lagCoeff []uint64) {

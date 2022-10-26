@@ -98,7 +98,7 @@ func NewEncoder(params Parameters) Encoder {
 
 // EncodeNew encodes a slice of integers of type []uint64 or []int64 of size at most N on a newly allocated plaintext.
 func (ecd *encoder) EncodeNew(values interface{}, level int, scale rlwe.Scale) (pt *rlwe.Plaintext) {
-	pt = NewPlaintext(ecd.params, level)
+	pt = rlwe.NewPlaintext(ecd.params.Parameters, level)
 	pt.Scale = scale
 	ecd.Encode(values, pt)
 	return
@@ -130,7 +130,7 @@ func (ecd *encoder) EncodeCoeffs(values []uint64, pt *rlwe.Plaintext) {
 // EncodeCoeffsNew encodes a slice of []uint64 of size at most N on a newly allocated plaintext.
 // The encoding is done coefficient wise, i.e. [1, 2, 3, 4] -> 1 + 2X + 3X^2 + 4X^3.}
 func (ecd *encoder) EncodeCoeffsNew(values []uint64, level int, scale rlwe.Scale) (pt *rlwe.Plaintext) {
-	pt = NewPlaintext(ecd.params, level)
+	pt = rlwe.NewPlaintext(ecd.params.Parameters, level)
 	pt.Scale = scale
 	ecd.EncodeCoeffs(values, pt)
 	return

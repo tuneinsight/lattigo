@@ -23,7 +23,7 @@ func (m *MetaData) Equal(other MetaData) (res bool) {
 
 // MarshalBinarySize returns the length in bytes of the target MetaData.
 func (m *MetaData) MarshalBinarySize() int {
-	return 10 + m.Scale.GetDataLen()
+	return 10 + m.Scale.MarshalBinarySize()
 }
 
 // MarshalBinary encodes a MetaData on a byte slice.
@@ -51,7 +51,7 @@ func (m *MetaData) Encode64(data []byte) (ptr int, err error) {
 		return
 	}
 
-	ptr += m.Scale.GetDataLen()
+	ptr += m.Scale.MarshalBinarySize()
 
 	if m.IsNTT {
 		data[ptr] = 1
@@ -85,7 +85,7 @@ func (m *MetaData) Decode64(data []byte) (ptr int, err error) {
 		return
 	}
 
-	ptr += m.Scale.GetDataLen()
+	ptr += m.Scale.MarshalBinarySize()
 
 	m.IsNTT = data[ptr] == 1
 	ptr++

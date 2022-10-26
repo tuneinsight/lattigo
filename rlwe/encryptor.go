@@ -14,6 +14,8 @@ type Encryptor interface {
 	Encrypt(pt *Plaintext, ct interface{})
 	EncryptZero(ct interface{})
 
+	EncryptNew(pt *Plaintext) (ct *Ciphertext)
+
 	ShallowCopy() Encryptor
 	WithKey(key interface{}) Encryptor
 }
@@ -136,7 +138,7 @@ func newEncryptorBuffers(params Parameters) *encryptorBuffers {
 	}
 }
 
-// Encrypt encrypts the input plaintext using the stored public-key and writes the result on ct.
+// Encrypt encrypts the input plaintext using the stored public-key and writes the result on ciphertext.
 // The encryption procedure first samples a new encryption of zero under the public-key and
 // then adds the plaintext.
 // The encryption procedure depends on the parameters: If the auxiliary modulus P is defined, the
@@ -161,6 +163,18 @@ func (enc *pkEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
 			panic(fmt.Sprintf("cannot Encrypt: input ciphertext type %s is not unsuported", reflect.TypeOf(ct)))
 		}
 	}
+}
+
+// EncryptNew encrypts the input plaintext using the stored public-key and returns the result on a new ciphertext.
+// The encryption procedure first samples a new encryption of zero under the public-key and
+// then adds the plaintext.
+// The encryption procedure depends on the parameters: If the auxiliary modulus P is defined, the
+// encryption of zero is sampled in QP before being rescaled by P; otherwise, it is directly sampled in Q.
+// If a plaintext is given, then the output ciphertext MetaData will match the plaintext MetaData.
+func (enc *pkEncryptor) EncryptNew(pt *Plaintext) (ct *Ciphertext) {
+	ct = NewCiphertext(enc.params, 1, pt.Level())
+	enc.Encrypt(pt, ct)
+	return
 }
 
 // EncryptZero generates an encryption of zero under the stored public-key and writes the result on ct.
@@ -300,7 +314,14 @@ func (enc *skEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
 			panic(fmt.Sprintf("cannot Encrypt: input ciphertext type %s is not unsuported", reflect.TypeOf(ct)))
 		}
 	}
+}
 
+// Encrypt encrypts the input plaintext using the stored secret-key and returns the result on a new ciphertext.
+// MetaData will match the given plaintext MetaData.
+func (enc *skEncryptor) EncryptNew(pt *Plaintext) (ct *Ciphertext) {
+	ct = NewCiphertext(enc.params, 1, pt.Level())
+	enc.Encrypt(pt, ct)
+	return
 }
 
 // EncryptZero generates an encryption of zero using the stored secret-key and writes the result on ct.

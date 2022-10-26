@@ -116,15 +116,18 @@ type ParametersLiteral struct {
 // RLWEParameters returns the rlwe.ParametersLiteral from the target bfv.ParametersLiteral.
 func (p ParametersLiteral) RLWEParameters() rlwe.ParametersLiteral {
 	return rlwe.ParametersLiteral{
-		LogN:     p.LogN,
-		Q:        p.Q,
-		P:        p.P,
-		LogQ:     p.LogQ,
-		LogP:     p.LogP,
-		Pow2Base: p.Pow2Base,
-		Sigma:    p.Sigma,
-		H:        p.H,
-		RingType: ring.Standard,
+		LogN:           p.LogN,
+		Q:              p.Q,
+		P:              p.P,
+		LogQ:           p.LogQ,
+		LogP:           p.LogP,
+		Pow2Base:       p.Pow2Base,
+		Sigma:          p.Sigma,
+		H:              p.H,
+		RingType:       ring.Standard,
+		ErrorScale:     p.T,
+		DefaultScale:   rlwe.NewScale(1),
+		DefaultNTTFlag: true,
 	}
 }
 
@@ -174,11 +177,6 @@ func NewParametersFromLiteral(pl ParametersLiteral) (Parameters, error) {
 // T returns the plaintext coefficient modulus t.
 func (p Parameters) T() uint64 {
 	return p.ringT.Modulus[0]
-}
-
-// DefaultScale returns the default scale, which is 1.
-func (p Parameters) DefaultScale() rlwe.Scale {
-	return rlwe.NewScale(1)
 }
 
 // LogT returns log2(plaintext coefficient modulus).

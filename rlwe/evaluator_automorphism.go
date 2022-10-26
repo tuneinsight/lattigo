@@ -96,7 +96,7 @@ func (eval *Evaluator) AutomorphismHoisted(level int, ctIn *Ciphertext, c1Decomp
 // AutomorphismHoistedNoModDown is similar to AutomorphismHoisted, except that it returns a ciphertext modulo QP and scaled by P.
 // The method requires that the corresponding RotationKey has been added to the Evaluator.
 // Requires that the NTT domain of c0 and ctQP are the same.
-func (eval *Evaluator) AutomorphismHoistedNoModDown(levelQ int, c0 *ring.Poly, IsNTT bool, c1DecompQP []ringqp.Poly, galEl uint64, ctQP CiphertextQP) {
+func (eval *Evaluator) AutomorphismHoistedNoModDown(levelQ int, c0 *ring.Poly, c1DecompQP []ringqp.Poly, galEl uint64, ctQP CiphertextQP) {
 
 	rtk, generated := eval.Rtks.GetRotationKey(galEl)
 	if !generated {
@@ -124,12 +124,7 @@ func (eval *Evaluator) AutomorphismHoistedNoModDown(levelQ int, c0 *ring.Poly, I
 
 		ringQ.PermuteNTTWithIndexLvl(levelQ, eval.BuffQP[0].Q, index, ctQP.Value[0].Q)
 		ringQ.PermuteNTTWithIndexLvl(levelP, eval.BuffQP[0].P, index, ctQP.Value[0].P)
-
 	} else {
-
-		eval.params.RingQP().InvNTTLvl(levelQ, levelP, eval.BuffQP[0], eval.BuffQP[0])
-		eval.params.RingQP().InvNTTLvl(levelQ, levelP, eval.BuffQP[1], eval.BuffQP[1])
-
 		ringQ.PermuteLvl(levelQ, eval.BuffQP[1].Q, galEl, ctQP.Value[1].Q)
 		ringQ.PermuteLvl(levelP, eval.BuffQP[1].P, galEl, ctQP.Value[1].P)
 

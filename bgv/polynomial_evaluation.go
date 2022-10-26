@@ -271,7 +271,7 @@ func (p *PowerBasis) MarshalBinary() (data []byte, err error) {
 
 		header := make([]byte, 16)
 		binary.LittleEndian.PutUint64(header[0:], uint64(key))
-		binary.LittleEndian.PutUint64(header[8:], uint64(ct.GetDataLen(true)))
+		binary.LittleEndian.PutUint64(header[8:], uint64(ct.MarshalBinarySize()))
 
 		data = append(data, header...)
 		ctBytes, err := ct.MarshalBinary()
@@ -295,6 +295,7 @@ func (p *PowerBasis) UnmarshalBinary(data []byte) (err error) {
 		ptr += 8
 		p.Value[idx] = &rlwe.Ciphertext{}
 		if err = p.Value[idx].UnmarshalBinary(data[ptr : ptr+dtLen]); err != nil {
+			fmt.Println(123)
 			return
 		}
 		ptr += dtLen
@@ -464,7 +465,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetLevel int,
 		if minimumDegreeNonZeroCoefficient == 0 {
 
 			// Allocates the output ciphertext
-			res = NewCiphertext(params, 1, targetLevel)
+			res = rlwe.NewCiphertext(params.Parameters, 1, targetLevel)
 			res.Scale = targetScale
 
 			// Looks for non-zero coefficients among the degree 0 coefficients of the polynomials
@@ -479,8 +480,9 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetLevel int,
 
 			// If a non-zero coefficient was found, encode the values, adds on the ciphertext, and returns
 			if toEncode {
-				pt := rlwe.NewPlaintextNTTAtLevelFromPoly(targetLevel, res.Value[0])
+				pt := rlwe.NewPlaintextAtLevelFromPoly(targetLevel, res.Value[0])
 				pt.Scale = res.Scale
+				pt.IsNTT = true
 				polyEval.Encode(values, pt)
 			}
 
@@ -488,12 +490,13 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetLevel int,
 		}
 
 		// Allocates the output ciphertext
-		res = NewCiphertext(params, maximumCiphertextDegree, targetLevel)
+		res = rlwe.NewCiphertext(params.Parameters, maximumCiphertextDegree, targetLevel)
 		res.Scale = targetScale
 
 		// Allocates a temporary plaintext to encode the values
-		pt := rlwe.NewPlaintextNTTAtLevelFromPoly(targetLevel, polyEval.Evaluator.BuffQ()[0]) // buffQ[0] is safe in this case
+		pt := rlwe.NewPlaintextAtLevelFromPoly(targetLevel, polyEval.Evaluator.BuffQ()[0]) // buffQ[0] is safe in this case
 		pt.Scale = targetScale
+		pt.IsNTT = true
 
 		// Looks for a non-zero coefficient among the degree zero coefficient of the polynomials
 		for i, p := range pol.Value {
@@ -565,7 +568,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetLevel int,
 
 		if minimumDegreeNonZeroCoefficient == 0 {
 
-			res = NewCiphertext(params, 1, targetLevel)
+			res = rlwe.NewCiphertext(params.Parameters, 1, targetLevel)
 			res.Scale = targetScale
 
 			if c != 0 {
@@ -575,7 +578,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetLevel int,
 			return
 		}
 
-		res = NewCiphertext(params, maximumCiphertextDegree, targetLevel)
+		res = rlwe.NewCiphertext(params.Parameters, maximumCiphertextDegree, targetLevel)
 		res.Scale = targetScale
 
 		if c != 0 {

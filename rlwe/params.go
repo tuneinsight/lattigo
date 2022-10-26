@@ -47,37 +47,39 @@ const GaloisGen uint64 = ring.GaloisGen
 // type (RingType). If left unset, standard default values for these field are substituted at
 // parameter creation (see NewParametersFromLiteral).
 type ParametersLiteral struct {
-	LogN         int
-	Q            []uint64
-	P            []uint64
-	LogQ         []int `json:",omitempty"`
-	LogP         []int `json:",omitempty"`
-	Pow2Base     int
-	Sigma        float64
-	H            int
-	RingType     ring.Type
-	DefaultScale Scale
+	LogN           int
+	Q              []uint64
+	P              []uint64
+	LogQ           []int `json:",omitempty"`
+	LogP           []int `json:",omitempty"`
+	Pow2Base       int
+	Sigma          float64
+	H              int
+	RingType       ring.Type
+	DefaultScale   Scale
+	ErrorScale     uint64
+	DefaultNTTFlag bool
 }
 
 // Parameters represents a set of generic RLWE parameters. Its fields are private and
 // immutable. See ParametersLiteral for user-specified parameters.
 type Parameters struct {
-	logN         int
-	qi           []uint64
-	pi           []uint64
-	pow2Base     int
-	sigma        float64
-	h            int
-	ringQ        *ring.Ring
-	ringP        *ring.Ring
-	ringType     ring.Type
-	defaultScale Scale
+	logN     int
+	qi       []uint64
+	pi       []uint64
+	pow2Base int
+	sigma    float64
+	h        int
+	ringQ    *ring.Ring
+	ringP    *ring.Ring
+	ringType ring.Type
+	metadata MetaData
 }
 
 // NewParameters returns a new set of generic RLWE parameters from the given ring degree logn, moduli q and p, and
 // error distribution parameter sigma. It returns the empty parameters Parameters{} and a non-nil error if the
 // specified parameters are invalid.
-func NewParameters(logn int, q, p []uint64, pow2Base, h int, sigma float64, ringType ring.Type, defaultScale Scale) (Parameters, error) {
+func NewParameters(logn int, q, p []uint64, pow2Base, h int, sigma float64, ringType ring.Type, defaultScale Scale, errorScale uint64, defaultNTTFlag bool) (Parameters, error) {
 
 	if pow2Base != 0 && len(p) > 1 {
 		return Parameters{}, fmt.Errorf("rlwe.NewParameters: invalid parameters, cannot have pow2Base > 0 if len(P) > 1")
@@ -94,14 +96,18 @@ func NewParameters(logn int, q, p []uint64, pow2Base, h int, sigma float64, ring
 	}
 
 	params := Parameters{
-		logN:         logn,
-		qi:           make([]uint64, len(q)),
-		pi:           make([]uint64, lenP),
-		pow2Base:     pow2Base,
-		h:            h,
-		sigma:        sigma,
-		ringType:     ringType,
-		defaultScale: NewScale(defaultScale), // even if scale is 0, ensures that the precision is 128-big
+		logN:     logn,
+		qi:       make([]uint64, len(q)),
+		pi:       make([]uint64, lenP),
+		pow2Base: pow2Base,
+		h:        h,
+		sigma:    sigma,
+		ringType: ringType,
+		metadata: MetaData{
+			Scale:      NewScale(defaultScale),
+			IsNTT:      defaultNTTFlag,
+			ErrorScale: errorScale,
+		},
 	}
 
 	// pre-check that moduli chain is of valid size and that all factors are prime.
@@ -149,7 +155,7 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
 
 	switch {
 	case paramDef.Q != nil && paramDef.LogQ == nil:
-		return NewParameters(paramDef.LogN, paramDef.Q, paramDef.P, paramDef.Pow2Base, paramDef.H, paramDef.Sigma, paramDef.RingType, paramDef.DefaultScale)
+		return NewParameters(paramDef.LogN, paramDef.Q, paramDef.P, paramDef.Pow2Base, paramDef.H, paramDef.Sigma, paramDef.RingType, paramDef.DefaultScale, paramDef.ErrorScale, paramDef.DefaultNTTFlag)
 	case paramDef.LogQ != nil && paramDef.Q == nil:
 		var q, p []uint64
 		var err error
@@ -164,7 +170,7 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
 		if err != nil {
 			return Parameters{}, err
 		}
-		return NewParameters(paramDef.LogN, q, p, paramDef.Pow2Base, paramDef.H, paramDef.Sigma, paramDef.RingType, paramDef.DefaultScale)
+		return NewParameters(paramDef.LogN, q, p, paramDef.Pow2Base, paramDef.H, paramDef.Sigma, paramDef.RingType, paramDef.DefaultScale, paramDef.ErrorScale, paramDef.DefaultNTTFlag)
 	default:
 		return Parameters{}, fmt.Errorf("rlwe.NewParametersFromLiteral: invalid parameter literal")
 	}
@@ -200,14 +206,16 @@ func (p Parameters) ParametersLiteral() ParametersLiteral {
 	copy(P, p.pi)
 
 	return ParametersLiteral{
-		LogN:         p.logN,
-		Q:            Q,
-		P:            P,
-		Pow2Base:     p.pow2Base,
-		Sigma:        p.sigma,
-		H:            p.h,
-		RingType:     p.ringType,
-		DefaultScale: p.defaultScale,
+		LogN:           p.logN,
+		Q:              Q,
+		P:              P,
+		Pow2Base:       p.pow2Base,
+		Sigma:          p.sigma,
+		H:              p.h,
+		RingType:       p.ringType,
+		DefaultScale:   p.metadata.Scale,
+		DefaultNTTFlag: p.metadata.IsNTT,
+		ErrorScale:     p.metadata.ErrorScale,
 	}
 }
 
@@ -238,12 +246,12 @@ func (p Parameters) RingQP() *ringqp.Ring {
 
 // DefaultScale returns the default scale, if any.
 func (p Parameters) DefaultScale() Scale {
-	return p.defaultScale
+	return p.metadata.Scale
 }
 
 // DefaultMetaData returns the default MetaData.
 func (p Parameters) DefaultMetaData() MetaData {
-	return MetaData{Scale: p.DefaultScale()}
+	return p.metadata
 }
 
 // HammingWeight returns the number of non-zero coefficients in secret-keys.
@@ -509,7 +517,7 @@ func (p Parameters) Equals(other Parameters) bool {
 	res = res && (p.h == other.h)
 	res = res && (p.sigma == other.sigma)
 	res = res && (p.ringType == other.ringType)
-	res = res && (p.defaultScale.Cmp(other.defaultScale) == 0)
+	res = res && p.metadata.Equal(other.metadata)
 	return res
 }
 
@@ -543,7 +551,7 @@ func (p Parameters) MarshalBinary() ([]byte, error) {
 	// 8 byte : H
 	// 8 byte : sigma
 	// 1 byte : ringType
-	// 41byte : scale
+	// 50 bytes: metadata
 	// 8 * (#Q) : Q
 	// 8 * (#P) : P
 	b := utils.NewBuffer(make([]byte, 0, p.MarshalBinarySize()))
@@ -555,15 +563,15 @@ func (p Parameters) MarshalBinary() ([]byte, error) {
 	b.WriteUint64(math.Float64bits(p.sigma))
 	b.WriteUint8(uint8(p.ringType))
 
-	dataScale := make([]byte, p.defaultScale.GetDataLen())
-	b.WriteUint8(uint8(len(dataScale)))
+	data := make([]byte, p.metadata.MarshalBinarySize())
+	b.WriteUint8(uint8(len(data)))
 
-	if err := p.defaultScale.Encode(dataScale); err != nil {
+	if err := p.metadata.Encode(data); err != nil {
 		return []byte{}, err
 	}
 
-	for i := range dataScale {
-		b.WriteUint8(dataScale[i])
+	for i := range data {
+		b.WriteUint8(data[i])
 	}
 
 	b.WriteUint64Slice(p.qi)
@@ -587,14 +595,14 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 
 	lenDataScale := b.ReadUint8()
 
-	dataScale := make([]byte, lenDataScale)
+	dataMeta := make([]byte, lenDataScale)
 
-	for i := range dataScale {
-		dataScale[i] = b.ReadUint8()
+	for i := range dataMeta {
+		dataMeta[i] = b.ReadUint8()
 	}
 
-	scale := &Scale{}
-	if err := scale.Decode(dataScale); err != nil {
+	metadata := &MetaData{}
+	if err := metadata.Decode(dataMeta); err != nil {
 		return err
 	}
 
@@ -608,7 +616,7 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	b.ReadUint64Slice(pi)
 
 	var err error
-	*p, err = NewParameters(logN, qi, pi, logbase2, h, sigma, ringType, *scale)
+	*p, err = NewParameters(logN, qi, pi, logbase2, h, sigma, ringType, metadata.Scale, metadata.ErrorScale, metadata.IsNTT)
 	return err
 }
 

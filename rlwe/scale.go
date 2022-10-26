@@ -120,22 +120,22 @@ func (s Scale) Min(s1 interface{}) (max Scale) {
 	return NewScale(s)
 }
 
-// GetDataLen returns the size in bytes required to
+// MarshalBinarySize returns the size in bytes required to
 // encode the target scale.
-func (s Scale) GetDataLen() int {
+func (s Scale) MarshalBinarySize() int {
 	return 40
 }
 
 // Encode encode the target scale on the input slice of bytes.
 // If the slice of bytes given as input is smaller than the
-// value of .GetDataLen(), the method will return an error.
+// value of .MarshalBinarySize(), the method will return an error.
 func (s Scale) Encode(data []byte) (err error) {
 	var sBytes []byte
 	if sBytes, err = s.Value.MarshalText(); err != nil {
 		return
 	}
 
-	b := make([]byte, s.GetDataLen())
+	b := make([]byte, s.MarshalBinarySize())
 
 	if len(data) < len(b) {
 		return fmt.Errorf("len(data) < %d", len(b))
@@ -152,7 +152,7 @@ func (s Scale) Encode(data []byte) (err error) {
 // the method will return an error.
 func (s *Scale) Decode(data []byte) (err error) {
 
-	if dLen := s.GetDataLen(); len(data) < dLen {
+	if dLen := s.MarshalBinarySize(); len(data) < dLen {
 		return fmt.Errorf("len(data) < %d", dLen)
 	}
 

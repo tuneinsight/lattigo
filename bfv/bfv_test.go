@@ -182,7 +182,7 @@ func testParameters(tc *testContext, t *testing.T) {
 
 func newTestVectorsRingQLvl(level int, tc *testContext, encryptor rlwe.Encryptor, t *testing.T) (coeffs *ring.Poly, pt *rlwe.Plaintext, ct *rlwe.Ciphertext) {
 	coeffs = tc.uSampler.ReadNew()
-	pt = rlwe.NewPlaintext(tc.params.Parameters, level)
+	pt = NewPlaintext(tc.params, level)
 	tc.encoder.Encode(coeffs.Coeffs[0], pt)
 	if encryptor != nil {
 		ct = encryptor.EncryptNew(pt)

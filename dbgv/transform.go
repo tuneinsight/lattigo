@@ -116,7 +116,7 @@ func (rfp *MaskedTransformProtocol) AllocateShare(levelDecrypt, levelRecrypt int
 
 // GenShare generates the shares of the PermuteProtocol.
 // ct1 is the degree 1 element of a bgv.Ciphertext, i.e. bgv.Ciphertext.Value[1].
-func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, ct1 *ring.Poly, metadata rlwe.MetaData, crs drlwe.CKSCRP, transform *MaskedTransformFunc, shareOut *MaskedTransformShare) {
+func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, ct1 *ring.Poly, scale rlwe.Scale, crs drlwe.CKSCRP, transform *MaskedTransformFunc, shareOut *MaskedTransformShare) {
 
 	if ct1.Level() < shareOut.e2sShare.Value.Level() {
 		panic("cannot GenShare: ct[1] level must be at least equal to e2sShare level")
@@ -126,13 +126,13 @@ func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, ct1 *r
 		panic("cannot GenShare: crs level must be equal to s2eShare")
 	}
 
-	rfp.e2s.GenShare(skIn, ct1, metadata, &rlwe.AdditiveShare{Value: *rfp.tmpMask}, &shareOut.e2sShare)
+	rfp.e2s.GenShare(skIn, ct1, &rlwe.AdditiveShare{Value: *rfp.tmpMask}, &shareOut.e2sShare)
 	mask := rfp.tmpMask
 	if transform != nil {
 		coeffs := make([]uint64, len(mask.Coeffs[0]))
 
 		if transform.Decode {
-			rfp.e2s.encoder.DecodeRingT(mask, metadata.Scale, coeffs)
+			rfp.e2s.encoder.DecodeRingT(mask, scale, coeffs)
 		} else {
 			copy(coeffs, mask.Coeffs[0])
 		}
@@ -140,14 +140,14 @@ func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, ct1 *r
 		transform.Func(coeffs)
 
 		if transform.Encode {
-			rfp.s2e.encoder.EncodeRingT(coeffs, metadata.Scale, rfp.tmpMaskPerm)
+			rfp.s2e.encoder.EncodeRingT(coeffs, scale, rfp.tmpMaskPerm)
 		} else {
 			copy(rfp.tmpMaskPerm.Coeffs[0], coeffs)
 		}
 
 		mask = rfp.tmpMaskPerm
 	}
-	rfp.s2e.GenShare(skOut, crs, metadata, &rlwe.AdditiveShare{Value: *mask}, &shareOut.s2eShare)
+	rfp.s2e.GenShare(skOut, crs, &rlwe.AdditiveShare{Value: *mask}, &shareOut.s2eShare)
 }
 
 // AggregateShares sums share1 and share2 on shareOut.

@@ -166,7 +166,7 @@ func newEvaluatorBuffers(evalBase *evaluatorBase) *evaluatorBuffers {
 	params := evalBase.params
 	ringQ := params.RingQ()
 	buff.buffQ = [3]*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly(), ringQ.NewPoly()}
-	buff.buffCt = rlwe.NewCiphertext(params.Parameters, 2, params.MaxLevel())
+	buff.buffCt = NewCiphertext(params, 2, params.MaxLevel())
 	return buff
 }
 
@@ -225,7 +225,7 @@ func (eval *evaluator) newCiphertextBinary(op0, op1 rlwe.Operand) (ctOut *rlwe.C
 	maxDegree := utils.MaxInt(op0.Degree(), op1.Degree())
 	minLevel := utils.MinInt(op0.Level(), op1.Level())
 
-	return rlwe.NewCiphertext(eval.params.Parameters, maxDegree, minLevel)
+	return NewCiphertext(eval.params, maxDegree, minLevel)
 }
 
 // Add adds op1 to ctIn and returns the result in ctOut.
@@ -399,7 +399,7 @@ func (eval *evaluator) Neg(ct0 *rlwe.Ciphertext, ctOut *rlwe.Ciphertext) {
 
 // NegNew negates ct0 and returns the result in a newly created element.
 func (eval *evaluator) NegNew(ct0 *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext) {
-	ctOut = rlwe.NewCiphertext(eval.params.Parameters, ct0.Degree(), ct0.Level())
+	ctOut = NewCiphertext(eval.params, ct0.Degree(), ct0.Level())
 	eval.Neg(ct0, ctOut)
 	return
 }
@@ -633,7 +633,7 @@ func (eval *evaluator) MultByConstAndAdd(ct0 *rlwe.Ciphertext, constant interfac
 // The scale of the output element will depend on the scale of the input element and the constant (if the constant
 // needs to be scaled (its rational part is not zero)). The constant can be a uint64, int64, float64 or complex128.
 func (eval *evaluator) MultByConstNew(ct0 *rlwe.Ciphertext, constant interface{}) (ctOut *rlwe.Ciphertext) {
-	ctOut = rlwe.NewCiphertext(eval.params.Parameters, ct0.Degree(), ct0.Level())
+	ctOut = NewCiphertext(eval.params, ct0.Degree(), ct0.Level())
 	eval.MultByConst(ct0, constant, ctOut)
 	return
 }
@@ -805,7 +805,7 @@ func (eval *evaluator) MultByiNew(ct0 *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext)
 		panic("cannot MultByiNew: method not supported when params.RingType() == ring.ConjugateInvariant")
 	}
 
-	ctOut = rlwe.NewCiphertext(eval.params.Parameters, 1, ct0.Level())
+	ctOut = NewCiphertext(eval.params, 1, ct0.Level())
 	eval.MultByi(ct0, ctOut)
 	return ctOut
 }
@@ -857,7 +857,7 @@ func (eval *evaluator) DivByiNew(ct0 *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext) 
 		panic("cannot DivByiNew: method not supported when params.RingType() == ring.ConjugateInvariant")
 	}
 
-	ctOut = rlwe.NewCiphertext(eval.params.Parameters, 1, ct0.Level())
+	ctOut = NewCiphertext(eval.params, 1, ct0.Level())
 	eval.DivByi(ct0, ctOut)
 	return
 }
@@ -905,7 +905,7 @@ func (eval *evaluator) DivByi(ct0 *rlwe.Ciphertext, ctOut *rlwe.Ciphertext) {
 // ScaleUpNew multiplies ct0 by 2^scale and sets its scale to its previous scale
 // plus 2^n. It returns the result in a newly created element.
 func (eval *evaluator) ScaleUpNew(ct0 *rlwe.Ciphertext, scale rlwe.Scale) (ctOut *rlwe.Ciphertext) {
-	ctOut = rlwe.NewCiphertext(eval.params.Parameters, ct0.Degree(), ct0.Level())
+	ctOut = NewCiphertext(eval.params, ct0.Degree(), ct0.Level())
 	eval.ScaleUp(ct0, scale, ctOut)
 	return
 }
@@ -949,7 +949,7 @@ func (eval *evaluator) DropLevel(ct0 *rlwe.Ciphertext, levels int) {
 // Returns an error if "threshold <= 0", ct.scale = 0, ct.Level() = 0, ct.IsNTT() != true
 func (eval *evaluator) RescaleNew(ct0 *rlwe.Ciphertext, minScale rlwe.Scale) (ctOut *rlwe.Ciphertext, err error) {
 
-	ctOut = rlwe.NewCiphertext(eval.params.Parameters, ct0.Degree(), ct0.Level())
+	ctOut = NewCiphertext(eval.params, ct0.Degree(), ct0.Level())
 
 	return ctOut, eval.Rescale(ct0, minScale, ctOut)
 }
@@ -1012,7 +1012,7 @@ func (eval *evaluator) Rescale(ctIn *rlwe.Ciphertext, minScale rlwe.Scale, ctOut
 // MulNew multiplies ctIn with op1 without relinearization and returns the result in a newly created element.
 // The procedure will panic if either ctIn.Degree or op1.Degree > 1.
 func (eval *evaluator) MulNew(ctIn *rlwe.Ciphertext, op1 rlwe.Operand) (ctOut *rlwe.Ciphertext) {
-	ctOut = rlwe.NewCiphertext(eval.params.Parameters, ctIn.Degree()+op1.Degree(), utils.MinInt(ctIn.Level(), op1.Level()))
+	ctOut = NewCiphertext(eval.params, ctIn.Degree()+op1.Degree(), utils.MinInt(ctIn.Level(), op1.Level()))
 	eval.mulRelin(ctIn, op1, false, ctOut)
 	return
 }
@@ -1028,7 +1028,7 @@ func (eval *evaluator) Mul(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.
 // The procedure will panic if either ctIn.Degree or op1.Degree > 1.
 // The procedure will panic if the evaluator was not created with an relinearization key.
 func (eval *evaluator) MulRelinNew(ctIn *rlwe.Ciphertext, op1 rlwe.Operand) (ctOut *rlwe.Ciphertext) {
-	ctOut = rlwe.NewCiphertext(eval.params.Parameters, 1, utils.MinInt(ctIn.Level(), op1.Level()))
+	ctOut = NewCiphertext(eval.params, 1, utils.MinInt(ctIn.Level(), op1.Level()))
 	eval.mulRelin(ctIn, op1, true, ctOut)
 	return
 }
@@ -1243,7 +1243,7 @@ func (eval *evaluator) mulRelinAndAdd(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, r
 // RelinearizeNew applies the relinearization procedure on ct0 and returns the result in a newly
 // created Ciphertext. The input Ciphertext must be of degree two.
 func (eval *evaluator) RelinearizeNew(ct0 *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext) {
-	ctOut = rlwe.NewCiphertext(eval.params.Parameters, 1, ct0.Level())
+	ctOut = NewCiphertext(eval.params, 1, ct0.Level())
 	eval.Relinearize(ct0, ctOut)
 	return
 }
@@ -1252,7 +1252,7 @@ func (eval *evaluator) RelinearizeNew(ct0 *rlwe.Ciphertext) (ctOut *rlwe.Ciphert
 // It requires a SwitchingKey, which is computed from the key under which the Ciphertext is currently encrypted,
 // and the key under which the Ciphertext will be re-encrypted.
 func (eval *evaluator) SwitchKeysNew(ct0 *rlwe.Ciphertext, switchingKey *rlwe.SwitchingKey) (ctOut *rlwe.Ciphertext) {
-	ctOut = rlwe.NewCiphertext(eval.params.Parameters, ct0.Degree(), ct0.Level())
+	ctOut = NewCiphertext(eval.params, ct0.Degree(), ct0.Level())
 	eval.SwitchKeys(ct0, switchingKey, ctOut)
 	return
 }
@@ -1260,7 +1260,7 @@ func (eval *evaluator) SwitchKeysNew(ct0 *rlwe.Ciphertext, switchingKey *rlwe.Sw
 // RotateNew rotates the columns of ct0 by k positions to the left, and returns the result in a newly created element.
 // If the provided element is a Ciphertext, a key-switching operation is necessary and a rotation key for the specific rotation needs to be provided.
 func (eval *evaluator) RotateNew(ct0 *rlwe.Ciphertext, k int) (ctOut *rlwe.Ciphertext) {
-	ctOut = rlwe.NewCiphertext(eval.params.Parameters, ct0.Degree(), ct0.Level())
+	ctOut = NewCiphertext(eval.params, ct0.Degree(), ct0.Level())
 	eval.Rotate(ct0, k, ctOut)
 	return
 }
@@ -1280,7 +1280,7 @@ func (eval *evaluator) ConjugateNew(ct0 *rlwe.Ciphertext) (ctOut *rlwe.Ciphertex
 		panic("cannot ConjugateNew: method is not supported when params.RingType() == ring.ConjugateInvariant")
 	}
 
-	ctOut = rlwe.NewCiphertext(eval.params.Parameters, ct0.Degree(), ct0.Level())
+	ctOut = NewCiphertext(eval.params, ct0.Degree(), ct0.Level())
 	eval.Conjugate(ct0, ctOut)
 	return
 }

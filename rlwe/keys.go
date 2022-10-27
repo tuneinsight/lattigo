@@ -139,8 +139,8 @@ func (swk *SwitchingKey) CopyNew() *SwitchingKey {
 	return &SwitchingKey{GadgetCiphertext: *swk.GadgetCiphertext.CopyNew()}
 }
 
-// NewRelinKey creates a new EvaluationKey with zero values.
-func NewRelinKey(params Parameters, maxRelinDegree int) (evakey *RelinearizationKey) {
+// NewRelinearizationKey creates a new EvaluationKey with zero values.
+func NewRelinearizationKey(params Parameters, maxRelinDegree int) (evakey *RelinearizationKey) {
 	evakey = new(RelinearizationKey)
 	evakey.Keys = make([]*SwitchingKey, maxRelinDegree)
 	for d := 0; d < maxRelinDegree; d++ {

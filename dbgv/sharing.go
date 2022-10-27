@@ -70,9 +70,9 @@ func (e2s *E2SProtocol) AllocateShare(level int) (share *drlwe.CKSShare) {
 // GenShare generates a party's share in the encryption-to-shares protocol. This share consist in the additive secret-share of the party
 // which is written in secretShareOut and in the public masked-decryption share written in publicShareOut.
 // ct1 is degree 1 element of a bgv.Ciphertext, i.e. bgv.Ciphertext.Value[1].
-func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, ct1 *ring.Poly, metadata rlwe.MetaData, secretShareOut *rlwe.AdditiveShare, publicShareOut *drlwe.CKSShare) {
+func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, ct1 *ring.Poly, secretShareOut *rlwe.AdditiveShare, publicShareOut *drlwe.CKSShare) {
 	level := utils.MinInt(ct1.Level(), publicShareOut.Value.Level())
-	e2s.CKSProtocol.GenShare(sk, e2s.zero, ct1, metadata, publicShareOut)
+	e2s.CKSProtocol.GenShare(sk, e2s.zero, ct1, true, publicShareOut)
 	e2s.maskSampler.Read(&secretShareOut.Value)
 	e2s.encoder.RingT2Q(level, &secretShareOut.Value, e2s.tmpPlaintextRingQ)
 	e2s.encoder.ScaleUp(level, e2s.tmpPlaintextRingQ, e2s.tmpPlaintextRingQ)
@@ -142,7 +142,7 @@ func (s2e *S2EProtocol) ShallowCopy() *S2EProtocol {
 
 // GenShare generates a party's in the shares-to-encryption protocol given the party's secret-key share `sk`, a common
 // polynomial sampled from the CRS `crp` and the party's secret share of the message.
-func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crp drlwe.CKSCRP, metadata rlwe.MetaData, secretShare *rlwe.AdditiveShare, c0ShareOut *drlwe.CKSShare) {
+func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crp drlwe.CKSCRP, secretShare *rlwe.AdditiveShare, c0ShareOut *drlwe.CKSShare) {
 
 	c1 := ring.Poly(crp)
 
@@ -150,7 +150,7 @@ func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crp drlwe.CKSCRP, metadata 
 		panic("cannot GenShare: c1 and c0ShareOut level must be equal")
 	}
 
-	s2e.CKSProtocol.GenShare(s2e.zero, sk, &c1, metadata, c0ShareOut)
+	s2e.CKSProtocol.GenShare(s2e.zero, sk, &c1, true, c0ShareOut)
 	s2e.encoder.RingT2Q(c1.Level(), &secretShare.Value, s2e.tmpPlaintextRingQ)
 	s2e.encoder.ScaleUp(c1.Level(), s2e.tmpPlaintextRingQ, s2e.tmpPlaintextRingQ)
 	s2e.params.RingQ().NTTLvl(c1.Level(), s2e.tmpPlaintextRingQ, s2e.tmpPlaintextRingQ)

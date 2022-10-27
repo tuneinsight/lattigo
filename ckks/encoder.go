@@ -181,7 +181,7 @@ func (ecd *encoderComplex128) Encode(values interface{}, plaintext *rlwe.Plainte
 // The imaginary part of []complex128 will be discarded if ringType == ring.ConjugateInvariant.
 // Returned plaintext is always in the NTT domain.
 func (ecd *encoderComplex128) EncodeNew(values interface{}, level int, scale rlwe.Scale, logSlots int) (plaintext *rlwe.Plaintext) {
-	plaintext = rlwe.NewPlaintext(ecd.params.Parameters, level)
+	plaintext = NewPlaintext(ecd.params, level)
 	plaintext.Scale = scale
 	ecd.Encode(values, plaintext, logSlots)
 	return
@@ -252,7 +252,7 @@ func (ecd *encoderComplex128) EncodeCoeffs(values []float64, plaintext *rlwe.Pla
 // Encoding is done at the provided level and with the provided scale.
 // User must ensure that 1<= len(values) <= 2^LogN
 func (ecd *encoderComplex128) EncodeCoeffsNew(values []float64, level int, scale rlwe.Scale) (plaintext *rlwe.Plaintext) {
-	plaintext = rlwe.NewPlaintext(ecd.params.Parameters, level)
+	plaintext = NewPlaintext(ecd.params, level)
 	plaintext.Scale = scale
 	ecd.EncodeCoeffs(values, plaintext)
 	return
@@ -717,7 +717,7 @@ func (ecd *encoderBigComplex) Encode(values []*ring.Complex, plaintext *rlwe.Pla
 // Encoding is done at the provided level and with the provided scale.
 // User must ensure that 1 <= len(values) <= 2^logSlots < 2^LogN.
 func (ecd *encoderBigComplex) EncodeNew(values []*ring.Complex, level int, scale rlwe.Scale, logSlots int) (plaintext *rlwe.Plaintext) {
-	plaintext = rlwe.NewPlaintext(ecd.params.Parameters, level)
+	plaintext = NewPlaintext(ecd.params, level)
 	plaintext.Scale = scale
 	ecd.Encode(values, plaintext, logSlots)
 	return

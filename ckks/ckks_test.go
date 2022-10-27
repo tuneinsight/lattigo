@@ -80,7 +80,7 @@ func TestCKKS(t *testing.T) {
 		testParams = append(DefaultParams[:4], DefaultConjugateInvariantParams[:4]...)
 	}
 
-	for _, paramsLiteral := range testParams[:] {
+	for _, paramsLiteral := range testParams[5:6] {
 
 		var params Parameters
 		if params, err = NewParametersFromLiteral(paramsLiteral); err != nil {
@@ -128,7 +128,7 @@ func genTestParams(defaultParam Parameters) (tc *testContext, err error) {
 
 	tc.params = defaultParam
 
-	tc.kgen = rlwe.NewKeyGenerator(tc.params.Parameters)
+	tc.kgen = NewKeyGenerator(tc.params)
 
 	tc.sk, tc.pk = tc.kgen.GenKeyPair()
 
@@ -144,9 +144,9 @@ func genTestParams(defaultParam Parameters) (tc *testContext, err error) {
 
 	tc.encoder = NewEncoder(tc.params)
 
-	tc.encryptorPk = rlwe.NewEncryptor(tc.params.Parameters, tc.pk)
-	tc.encryptorSk = rlwe.NewEncryptor(tc.params.Parameters, tc.sk)
-	tc.decryptor = rlwe.NewDecryptor(tc.params.Parameters, tc.sk)
+	tc.encryptorPk = NewEncryptor(tc.params, tc.pk)
+	tc.encryptorSk = NewEncryptor(tc.params, tc.sk)
+	tc.decryptor = NewDecryptor(tc.params, tc.sk)
 
 	tc.evaluator = NewEvaluator(tc.params, rlwe.EvaluationKey{Rlk: tc.rlk})
 
@@ -295,7 +295,7 @@ func testEncryptor(tc *testContext, t *testing.T) {
 
 	t.Run(GetTestName(tc.params, "Encryptor/WithPRNG/Encrypt"), func(t *testing.T) {
 		lvl := tc.params.MaxLevel()
-		enc := rlwe.NewPRNGEncryptor(tc.params.Parameters, tc.sk)
+		enc := NewPRNGEncryptor(tc.params, tc.sk)
 		prng1, _ := utils.NewKeyedPRNG([]byte{'l'})
 		prng2, _ := utils.NewKeyedPRNG([]byte{'l'})
 		sampler := ring.NewUniformSampler(prng2, tc.ringQ)
@@ -743,7 +743,7 @@ func testEvaluatorMulAndAdd(tc *testContext, t *testing.T) {
 			values1[i] = values1[i] * values2[i]
 		}
 
-		ciphertext3 := rlwe.NewCiphertext(tc.params.Parameters, 2, ciphertext1.Level())
+		ciphertext3 := NewCiphertext(tc.params, 2, ciphertext1.Level())
 
 		ciphertext3.Scale = ciphertext1.Scale.Mul(ciphertext2.Scale, nil)
 
@@ -967,7 +967,7 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 func testSwitchKeys(tc *testContext, t *testing.T) {
 
 	sk2 := tc.kgen.GenSecretKey()
-	decryptorSk2 := rlwe.NewDecryptor(tc.params.Parameters, sk2)
+	decryptorSk2 := NewDecryptor(tc.params, sk2)
 	switchingKey := tc.kgen.GenSwitchingKey(tc.sk, sk2)
 
 	t.Run(GetTestName(tc.params, "SwitchKeys"), func(t *testing.T) {
@@ -1012,9 +1012,9 @@ func testBridge(tc *testContext, t *testing.T) {
 		stdParams, err := NewParametersFromLiteral(stdParamsLit)
 		require.Nil(t, err)
 
-		stdKeyGen := rlwe.NewKeyGenerator(stdParams.Parameters)
+		stdKeyGen := NewKeyGenerator(stdParams)
 		stdSK := stdKeyGen.GenSecretKey()
-		stdDecryptor := rlwe.NewDecryptor(stdParams.Parameters, stdSK)
+		stdDecryptor := NewDecryptor(stdParams, stdSK)
 		stdEncoder := NewEncoder(stdParams)
 		stdEvaluator := NewEvaluator(stdParams, rlwe.EvaluationKey{Rlk: nil, Rtks: nil})
 
@@ -1025,21 +1025,21 @@ func testBridge(tc *testContext, t *testing.T) {
 			t.Error(err)
 		}
 
-		eval := rlwe.NewEvaluator(stdParams.Parameters, nil)
+		evalStandar := NewEvaluator(stdParams, rlwe.EvaluationKey{})
 
 		values, _, ctCI := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-		stdCTHave := rlwe.NewCiphertext(stdParams.Parameters, ctCI.Degree(), ctCI.Level())
+		stdCTHave := NewCiphertext(stdParams, ctCI.Degree(), ctCI.Level())
 
-		switcher.RealToComplex(eval, ctCI, stdCTHave)
+		switcher.RealToComplex(evalStandar, ctCI, stdCTHave)
 
 		verifyTestVectors(stdParams, stdEncoder, stdDecryptor, values, stdCTHave, stdParams.LogSlots(), 0, t)
 
 		stdCTImag := stdEvaluator.MultByiNew(stdCTHave)
 		stdEvaluator.Add(stdCTHave, stdCTImag, stdCTHave)
 
-		ciCTHave := rlwe.NewCiphertext(ciParams.Parameters, 1, stdCTHave.Level())
-		switcher.ComplexToReal(eval, stdCTHave, ciCTHave)
+		ciCTHave := NewCiphertext(ciParams, 1, stdCTHave.Level())
+		switcher.ComplexToReal(evalStandar, stdCTHave, ciCTHave)
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciCTHave, ciParams.LogSlots(), 0, t)
 	})
@@ -1096,7 +1096,7 @@ func testAutomorphisms(tc *testContext, t *testing.T) {
 
 		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-		ciphertext2 := rlwe.NewCiphertext(tc.params.Parameters, ciphertext1.Degree(), ciphertext1.Level())
+		ciphertext2 := NewCiphertext(tc.params, ciphertext1.Degree(), ciphertext1.Level())
 
 		for _, n := range rots {
 			evaluator.Rotate(ciphertext1, n, ciphertext2)
@@ -1324,9 +1324,6 @@ func testMarshaller(tc *testContext, t *testing.T) {
 		assert.Nil(t, err)
 		var p Parameters
 		err = p.UnmarshalBinary(bytes)
-
-		fmt.Println(p)
-
 		assert.Nil(t, err)
 		assert.Equal(t, tc.params, p)
 		assert.Equal(t, tc.params.RingQ(), p.RingQ())

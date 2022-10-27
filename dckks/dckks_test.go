@@ -228,7 +228,7 @@ func testE2SProtocol(tc *testContext, t *testing.T) {
 
 		verifyTestVectors(tc, nil, coeffs, pt, t)
 
-		crp := P[0].s2e.SampleCRP(params.Parameters.MaxLevel(), tc.crs)
+		crp := P[0].s2e.SampleCRP(params.MaxLevel(), tc.crs)
 
 		for i, p := range P {
 			p.s2e.GenShare(p.sk, crp, params.LogSlots(), p.secretShare, p.publicShareS2E)
@@ -237,7 +237,7 @@ func testE2SProtocol(tc *testContext, t *testing.T) {
 			}
 		}
 
-		ctRec := ckks.NewCiphertext(params, 1, params.Parameters.MaxLevel())
+		ctRec := ckks.NewCiphertext(params, 1, params.MaxLevel())
 		ctRec.Scale = params.DefaultScale()
 		P[0].s2e.GetEncryption(P[0].publicShareS2E, crp, ctRec)
 

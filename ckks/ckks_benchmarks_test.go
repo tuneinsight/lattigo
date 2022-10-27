@@ -57,7 +57,7 @@ func benchEncoder(tc *testContext, b *testing.B) {
 			values[i] = utils.RandComplex128(-1, 1)
 		}
 
-		plaintext := rlwe.NewPlaintext(tc.params.Parameters, tc.params.MaxLevel())
+		plaintext := NewPlaintext(tc.params, tc.params.MaxLevel())
 
 		for i := 0; i < b.N; i++ {
 			encoder.Encode(values, plaintext, logSlots)
@@ -71,7 +71,7 @@ func benchEncoder(tc *testContext, b *testing.B) {
 			values[i] = utils.RandComplex128(-1, 1)
 		}
 
-		plaintext := rlwe.NewPlaintext(tc.params.Parameters, tc.params.MaxLevel())
+		plaintext := NewPlaintext(tc.params, tc.params.MaxLevel())
 		encoder.Encode(values, plaintext, logSlots)
 
 		for i := 0; i < b.N; i++ {
@@ -103,8 +103,8 @@ func benchEncrypt(tc *testContext, b *testing.B) {
 	encryptorPk := tc.encryptorPk
 	encryptorSk := tc.encryptorSk
 
-	plaintext := rlwe.NewPlaintext(tc.params.Parameters, tc.params.MaxLevel())
-	ciphertext := rlwe.NewCiphertext(tc.params.Parameters, 1, tc.params.MaxLevel())
+	plaintext := NewPlaintext(tc.params, tc.params.MaxLevel())
+	ciphertext := NewCiphertext(tc.params, 1, tc.params.MaxLevel())
 
 	b.Run(GetTestName(tc.params, "Encrypt/key=Pk"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -123,7 +123,7 @@ func benchDecrypt(tc *testContext, b *testing.B) {
 
 	decryptor := tc.decryptor
 
-	plaintext := rlwe.NewPlaintext(tc.params.Parameters, tc.params.MaxLevel())
+	plaintext := NewPlaintext(tc.params, tc.params.MaxLevel())
 	ciphertext := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, tc.params.MaxLevel())
 
 	b.Run(GetTestName(tc.params, "Decrypt"), func(b *testing.B) {
@@ -135,7 +135,7 @@ func benchDecrypt(tc *testContext, b *testing.B) {
 
 func benchEvaluator(tc *testContext, b *testing.B) {
 
-	plaintext := rlwe.NewPlaintext(tc.params.Parameters, tc.params.MaxLevel())
+	plaintext := NewPlaintext(tc.params, tc.params.MaxLevel())
 	ciphertext1 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, tc.params.MaxLevel())
 	ciphertext2 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, tc.params.MaxLevel())
 	receiver := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 2, tc.params.MaxLevel())

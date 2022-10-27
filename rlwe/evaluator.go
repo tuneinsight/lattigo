@@ -493,7 +493,7 @@ func (eval *Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 	}
 }
 
-// ReplicateLog applies an optimized replication on the ciphertext (log2(n) + HW(n) rotations with double hoisting).
+// Replicate applies an optimized replication on the ciphertext (log2(n) + HW(n) rotations with double hoisting).
 // It acts as the inverse of a inner sum (summing elements from left to right).
 // The replication is parameterized by the size of the sub-vectors to replicate "batchSize" and
 // the number of time "n" they need to be replicated.

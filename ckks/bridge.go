@@ -48,9 +48,11 @@ func NewDomainSwitcher(params Parameters, comlexToRealSwk *rlwe.SwkStandardToCon
 // Requires the ring degree of ctOut to be half the ring degree of ctIn.
 // The security is changed from Z[X]/(X^N+1) to Z[X]/(X^N/2+1).
 // The method panics if the DomainSwitcher was not initialized with a SwkComplexToReal key.
-func (switcher *DomainSwitcher) ComplexToReal(eval *rlwe.Evaluator, ctIn, ctOut *rlwe.Ciphertext) {
+func (switcher *DomainSwitcher) ComplexToReal(eval Evaluator, ctIn, ctOut *rlwe.Ciphertext) {
 
-	if eval.Parameters().RingType() != ring.Standard {
+	evalRLWE := eval.GetRLWEEvaluator()
+
+	if evalRLWE.Parameters().RingType() != ring.Standard {
 		panic("cannot ComplexToReal: provided evaluator is not instantiated with RingType ring.Standard")
 	}
 
@@ -66,14 +68,14 @@ func (switcher *DomainSwitcher) ComplexToReal(eval *rlwe.Evaluator, ctIn, ctOut 
 		panic("cannot ComplexToReal: no SwkStandardToConjugateInvariant provided to this DomainSwitcher")
 	}
 
-	ctTmp := &rlwe.Ciphertext{Value: []*ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}}
+	ctTmp := &rlwe.Ciphertext{Value: []*ring.Poly{evalRLWE.BuffQP[1].Q, evalRLWE.BuffQP[2].Q}}
 	ctTmp.MetaData = ctIn.MetaData
 
-	eval.GadgetProduct(level, ctIn.Value[1], switcher.SwkStandardToConjugateInvariant.GadgetCiphertext, ctTmp)
-	switcher.stdRingQ.AddLvl(level, eval.BuffQP[1].Q, ctIn.Value[0], eval.BuffQP[1].Q)
+	evalRLWE.GadgetProduct(level, ctIn.Value[1], switcher.SwkStandardToConjugateInvariant.GadgetCiphertext, ctTmp)
+	switcher.stdRingQ.AddLvl(level, evalRLWE.BuffQP[1].Q, ctIn.Value[0], evalRLWE.BuffQP[1].Q)
 
-	switcher.conjugateRingQ.FoldStandardToConjugateInvariant(level, eval.BuffQP[1].Q, switcher.permuteNTTIndex, ctOut.Value[0])
-	switcher.conjugateRingQ.FoldStandardToConjugateInvariant(level, eval.BuffQP[2].Q, switcher.permuteNTTIndex, ctOut.Value[1])
+	switcher.conjugateRingQ.FoldStandardToConjugateInvariant(level, evalRLWE.BuffQP[1].Q, switcher.permuteNTTIndex, ctOut.Value[0])
+	switcher.conjugateRingQ.FoldStandardToConjugateInvariant(level, evalRLWE.BuffQP[2].Q, switcher.permuteNTTIndex, ctOut.Value[1])
 	ctOut.MetaData = ctIn.MetaData
 	ctOut.Scale = ctIn.Scale.Mul(2, nil)
 }
@@ -85,9 +87,11 @@ func (switcher *DomainSwitcher) ComplexToReal(eval *rlwe.Evaluator, ctIn, ctOut 
 // Requires the ring degree of ctOut to be twice the ring degree of ctIn.
 // The security is changed from Z[X]/(X^N+1) to Z[X]/(X^2N+1).
 // The method panics if the DomainSwitcher was not initialized with a SwkRealToComplex key.
-func (switcher *DomainSwitcher) RealToComplex(eval *rlwe.Evaluator, ctIn, ctOut *rlwe.Ciphertext) {
+func (switcher *DomainSwitcher) RealToComplex(eval Evaluator, ctIn, ctOut *rlwe.Ciphertext) {
 
-	if eval.Parameters().RingType() != ring.Standard {
+	evalRLWE := eval.GetRLWEEvaluator()
+
+	if evalRLWE.Parameters().RingType() != ring.Standard {
 		panic("cannot RealToComplex: provided evaluator is not instantiated with RingType ring.Standard")
 	}
 
@@ -106,12 +110,12 @@ func (switcher *DomainSwitcher) RealToComplex(eval *rlwe.Evaluator, ctIn, ctOut 
 	switcher.stdRingQ.UnfoldConjugateInvariantToStandard(level, ctIn.Value[0], ctOut.Value[0])
 	switcher.stdRingQ.UnfoldConjugateInvariantToStandard(level, ctIn.Value[1], ctOut.Value[1])
 
-	ctTmp := &rlwe.Ciphertext{Value: []*ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}}
+	ctTmp := &rlwe.Ciphertext{Value: []*ring.Poly{evalRLWE.BuffQP[1].Q, evalRLWE.BuffQP[2].Q}}
 	ctTmp.MetaData = ctIn.MetaData
 
 	// Switches the RCKswitcher key [X+X^-1] to a CKswitcher key [X]
-	eval.GadgetProduct(level, ctOut.Value[1], switcher.SwkConjugateInvariantToStandard.GadgetCiphertext, ctTmp)
-	switcher.stdRingQ.AddLvl(level, ctOut.Value[0], eval.BuffQP[1].Q, ctOut.Value[0])
-	ring.CopyLvl(level, eval.BuffQP[2].Q, ctOut.Value[1])
+	evalRLWE.GadgetProduct(level, ctOut.Value[1], switcher.SwkConjugateInvariantToStandard.GadgetCiphertext, ctTmp)
+	switcher.stdRingQ.AddLvl(level, ctOut.Value[0], evalRLWE.BuffQP[1].Q, ctOut.Value[0])
+	ring.CopyLvl(level, evalRLWE.BuffQP[2].Q, ctOut.Value[1])
 	ctOut.MetaData = ctIn.MetaData
 }

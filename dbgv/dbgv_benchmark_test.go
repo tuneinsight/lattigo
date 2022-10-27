@@ -59,14 +59,14 @@ func benchRefresh(tc *testContext, b *testing.B) {
 	p.s = sk0Shards[0]
 	p.share = p.AllocateShare(minLevel, maxLevel)
 
-	ciphertext := rlwe.NewCiphertext(tc.params.Parameters, 1, minLevel)
+	ciphertext := bgv.NewCiphertext(tc.params, 1, minLevel)
 
 	crp := p.SampleCRP(maxLevel, tc.crs)
 
 	b.Run(testString("Refresh/Round1/Gen", tc.NParties, tc.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.GenShare(p.s, ciphertext.Value[1], ciphertext.MetaData, crp, p.share)
+			p.GenShare(p.s, ciphertext.Value[1], ciphertext.Scale, crp, p.share)
 		}
 	})
 
@@ -78,7 +78,7 @@ func benchRefresh(tc *testContext, b *testing.B) {
 	})
 
 	b.Run(testString("Refresh/Finalize", tc.NParties, tc.params), func(b *testing.B) {
-		ctOut := rlwe.NewCiphertext(tc.params.Parameters, 1, maxLevel)
+		ctOut := bgv.NewCiphertext(tc.params, 1, maxLevel)
 		for i := 0; i < b.N; i++ {
 			p.Finalize(ciphertext, crp, p.share, ctOut)
 		}

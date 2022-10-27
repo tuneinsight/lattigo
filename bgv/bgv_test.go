@@ -98,13 +98,13 @@ func genTestParams(params Parameters) (tc *testContext, err error) {
 	tc.ringT = params.RingT()
 
 	tc.uSampler = ring.NewUniformSampler(tc.prng, tc.ringT)
-	tc.kgen = rlwe.NewKeyGenerator(tc.params.Parameters)
+	tc.kgen = NewKeyGenerator(tc.params)
 	tc.sk, tc.pk = tc.kgen.GenKeyPair()
 	tc.rlk = tc.kgen.GenRelinearizationKey(tc.sk, 1)
 	tc.encoder = NewEncoder(tc.params)
-	tc.encryptorPk = rlwe.NewEncryptor(tc.params.Parameters, tc.pk)
-	tc.encryptorSk = rlwe.NewEncryptor(tc.params.Parameters, tc.sk)
-	tc.decryptor = rlwe.NewDecryptor(tc.params.Parameters, tc.sk)
+	tc.encryptorPk = NewEncryptor(tc.params, tc.pk)
+	tc.encryptorSk = NewEncryptor(tc.params, tc.sk)
+	tc.decryptor = NewDecryptor(tc.params, tc.sk)
 	tc.evaluator = NewEvaluator(tc.params, rlwe.EvaluationKey{Rlk: tc.rlk})
 
 	tc.testLevel = []int{0, params.MaxLevel()}
@@ -117,7 +117,7 @@ func newTestVectorsLvl(level int, scale rlwe.Scale, tc *testContext, encryptor r
 	for i := range coeffs.Coeffs[0] {
 		coeffs.Coeffs[0][i] = uint64(i)
 	}
-	plaintext = rlwe.NewPlaintext(tc.params.Parameters, level)
+	plaintext = NewPlaintext(tc.params, level)
 	plaintext.Scale = scale
 	tc.encoder.Encode(coeffs.Coeffs[0], plaintext)
 	if encryptor != nil {
@@ -191,7 +191,7 @@ func testEncoder(tc *testContext, t *testing.T) {
 				}
 			}
 
-			plaintext := rlwe.NewPlaintext(tc.params.Parameters, lvl)
+			plaintext := NewPlaintext(tc.params, lvl)
 			tc.encoder.Encode(coeffsInt, plaintext)
 			require.True(t, utils.EqualSliceInt64(coeffsInt, tc.encoder.DecodeIntNew(plaintext)))
 		})
@@ -537,13 +537,11 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				values0, _, ciphertext0 := newTestVectorsLvl(lvl, rlwe.NewScale(3), tc, tc.encryptorSk)
 				values1, _, ciphertext1 := newTestVectorsLvl(lvl, rlwe.NewScale(7), tc, tc.encryptorSk)
 
-				verifyTestVectors(tc, tc.decryptor, values0, ciphertext0, t)
-
 				tc.ringT.MulCoeffs(values0, values1, values0)
 
 				require.True(t, ciphertext0.Scale.Cmp(ciphertext1.Scale) != 0)
 
-				receiver := rlwe.NewCiphertext(tc.params.Parameters, 1, lvl)
+				receiver := NewCiphertext(tc.params, 1, lvl)
 
 				tc.evaluator.Mul(ciphertext0, ciphertext1, receiver)
 
@@ -556,11 +554,6 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				require.Equal(t, receiver.Degree(), 1)
 
 				verifyTestVectors(tc, tc.decryptor, values0, receiver, t)
-
-				//ringQ.MulScalarBigintLvl(lvl, ciphertext0.Value[0], tInvModQ, ciphertext0.Value[0])
-				//ringQ.MulScalarBigintLvl(lvl, ciphertext0.Value[1], tInvModQ, ciphertext0.Value[1])
-				//ringQ.MulScalarBigintLvl(lvl, ciphertext1.Value[0], tInvModQ, ciphertext1.Value[0])
-				//ringQ.MulScalarBigintLvl(lvl, ciphertext1.Value[1], tInvModQ, ciphertext1.Value[1])
 
 				tc.evaluator.MulRelin(ciphertext0, ciphertext1, receiver)
 
@@ -787,7 +780,7 @@ func testRotate(tc *testContext, t *testing.T) {
 
 			values, _, ciphertext := newTestVectorsLvl(lvl, tc.params.DefaultScale(), tc, tc.encryptorPk)
 
-			receiver := rlwe.NewCiphertext(tc.params.Parameters, 1, lvl)
+			receiver := NewCiphertext(tc.params, 1, lvl)
 			for _, n := range rots {
 
 				evaluator.RotateColumns(ciphertext, n, receiver)
@@ -955,7 +948,7 @@ func testMerge(tc *testContext, t *testing.T) {
 		ciphertexts := make(map[int]*rlwe.Ciphertext)
 		slotIndex := make(map[int]bool)
 
-		pt := rlwe.NewPlaintext(params.Parameters, params.MaxLevel())
+		pt := NewPlaintext(params, params.MaxLevel())
 		for i := 0; i < params.N(); i += params.N() / n {
 
 			tc.encoder.EncodeCoeffs(append(values[i:], values[i:]...), pt)
@@ -987,7 +980,7 @@ func testMerge(tc *testContext, t *testing.T) {
 func testSwitchKeys(tc *testContext, t *testing.T) {
 
 	sk2 := tc.kgen.GenSecretKey()
-	decryptorSk2 := rlwe.NewDecryptor(tc.params.Parameters, sk2)
+	decryptorSk2 := NewDecryptor(tc.params, sk2)
 	switchingKey := tc.kgen.GenSwitchingKey(tc.sk, sk2)
 
 	for _, lvl := range tc.testLevel {

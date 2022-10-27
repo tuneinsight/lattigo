@@ -188,7 +188,7 @@ func (keygen *keyGenerator) GenSwitchingKeysForRingSwap(skStd, skConjugateInvari
 		keygen.extendQ2P(keygen.params.PCount()-1, skCIMappedToStandard.Q, keygen.buffQ[0], skCIMappedToStandard.P)
 	}
 
-	return &SwkStandardToConjugateInvariant{*keygen.GenSwitchingKey(skCIMappedToStandard, skStd)}, &SwkConjugateInvariantToStandard{*keygen.GenSwitchingKey(skStd, skCIMappedToStandard)}
+	return &SwkStandardToConjugateInvariant{*keygen.GenSwitchingKey(skStd, skCIMappedToStandard)}, &SwkConjugateInvariantToStandard{*keygen.GenSwitchingKey(skCIMappedToStandard, skStd)}
 }
 
 // GenSwitchingKey generates a new key-switching key, that will re-encrypt a Ciphertext encrypted under the input key into the output key.

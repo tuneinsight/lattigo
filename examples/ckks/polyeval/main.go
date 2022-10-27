@@ -124,7 +124,7 @@ func round(x float64) float64 {
 	return math.Round(x*100000000) / 100000000
 }
 
-func printDebug(params ckks.Parameters, ciphertext *rlwe.Ciphertext, valuesWant []float64, decryptor ckks.Decryptor, encoder ckks.Encoder) (valuesTest []float64) {
+func printDebug(params ckks.Parameters, ciphertext *rlwe.Ciphertext, valuesWant []float64, decryptor rlwe.Decryptor, encoder ckks.Encoder) (valuesTest []float64) {
 
 	tmp := encoder.Decode(decryptor.DecryptNew(ciphertext), params.LogSlots())
 

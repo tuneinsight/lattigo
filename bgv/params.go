@@ -145,7 +145,7 @@ type Parameters struct {
 // It returns the empty parameters Parameters{} and a non-nil error if the specified parameters are invalid.
 func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err error) {
 
-	if rlweParams.DefaultNTTFlag() != DefaultNTTFlag {
+	if !rlweParams.DefaultNTTFlag() {
 		return Parameters{}, fmt.Errorf("provided RLWE are invalid for BGV scheme (DefaultNTTFlag must be true)")
 	}
 

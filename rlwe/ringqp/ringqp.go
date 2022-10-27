@@ -453,7 +453,7 @@ func (r *Ring) ExtendBasisSmallNormAndCenter(polyInQ *ring.Poly, levelP int, pol
 	}
 }
 
-// GetDataLen64 returns the length in byte of the target Poly.
+// MarshalBinarySize64 returns the length in byte of the target Poly.
 // Assumes that each coefficient uses 8 bytes.
 func (p *Poly) MarshalBinarySize64() (dataLen int) {
 

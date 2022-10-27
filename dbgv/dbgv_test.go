@@ -123,7 +123,7 @@ func gentestContext(nParties int, params bgv.Parameters) (tc *testContext, err e
 	tc.encoder = bgv.NewEncoder(tc.params)
 	tc.evaluator = bgv.NewEvaluator(tc.params, rlwe.EvaluationKey{})
 
-	kgen := rlwe.NewKeyGenerator(tc.params.Parameters)
+	kgen := bgv.NewKeyGenerator(tc.params)
 
 	// SecretKeys
 	tc.sk0Shards = make([]*rlwe.SecretKey, nParties)
@@ -144,9 +144,9 @@ func gentestContext(nParties int, params bgv.Parameters) (tc *testContext, err e
 	tc.pk0 = kgen.GenPublicKey(tc.sk0)
 	tc.pk1 = kgen.GenPublicKey(tc.sk1)
 
-	tc.encryptorPk0 = rlwe.NewEncryptor(tc.params.Parameters, tc.pk0)
-	tc.decryptorSk0 = rlwe.NewDecryptor(tc.params.Parameters, tc.sk0)
-	tc.decryptorSk1 = rlwe.NewDecryptor(tc.params.Parameters, tc.sk1)
+	tc.encryptorPk0 = bgv.NewEncryptor(tc.params, tc.pk0)
+	tc.decryptorSk0 = bgv.NewDecryptor(tc.params, tc.sk0)
+	tc.decryptorSk1 = bgv.NewDecryptor(tc.params, tc.sk1)
 
 	return
 }
@@ -182,7 +182,7 @@ func testEncToShares(tc *testContext, t *testing.T) {
 
 	// The E2S protocol is run in all tests, as a setup to the S2E test.
 	for i, p := range P {
-		p.e2s.GenShare(p.sk, ciphertext.Value[1], ciphertext.MetaData, p.secretShare, p.publicShare)
+		p.e2s.GenShare(p.sk, ciphertext.Value[1], p.secretShare, p.publicShare)
 		if i > 0 {
 			p.e2s.AggregateShares(P[0].publicShare, p.publicShare, P[0].publicShare)
 		}
@@ -211,13 +211,13 @@ func testEncToShares(tc *testContext, t *testing.T) {
 	t.Run(testString("S2EProtocol", tc.NParties, tc.params), func(t *testing.T) {
 
 		for i, p := range P {
-			p.s2e.GenShare(p.sk, crp, ciphertext.MetaData, p.secretShare, p.publicShare)
+			p.s2e.GenShare(p.sk, crp, p.secretShare, p.publicShare)
 			if i > 0 {
 				p.s2e.AggregateShares(P[0].publicShare, p.publicShare, P[0].publicShare)
 			}
 		}
 
-		ctRec := rlwe.NewCiphertext(tc.params.Parameters, 1, tc.params.MaxLevel())
+		ctRec := bgv.NewCiphertext(tc.params, 1, tc.params.MaxLevel())
 		ctRec.MetaData = ciphertext.MetaData
 		P[0].s2e.GetEncryption(P[0].publicShare, crp, ctRec)
 
@@ -265,7 +265,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 		ciphertext.Resize(ciphertext.Degree(), minLevel)
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.s, ciphertext.Value[1], ciphertext.MetaData, crp, p.share)
+			p.GenShare(p.s, ciphertext.Value[1], ciphertext.Scale, crp, p.share)
 			if i > 0 {
 				P0.AggregateShares(p.share, P0.share, P0.share)
 			}
@@ -346,7 +346,7 @@ func testRefreshAndPermutation(tc *testContext, t *testing.T) {
 		}
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.s, p.s, ciphertext.Value[1], ciphertext.MetaData, crp, maskedTransform, p.share)
+			p.GenShare(p.s, p.s, ciphertext.Value[1], ciphertext.Scale, crp, maskedTransform, p.share)
 			if i > 0 {
 				P0.AggregateShares(P0.share, p.share, P0.share)
 			}
@@ -447,7 +447,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 		}
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.sIn, p.sOut, ciphertext.Value[1], ciphertext.MetaData, crp, transform, p.share)
+			p.GenShare(p.sIn, p.sOut, ciphertext.Value[1], ciphertext.Scale, crp, transform, p.share)
 			if i > 0 {
 				P0.AggregateShares(P0.share, p.share, P0.share)
 			}
@@ -475,7 +475,7 @@ func newTestVectors(tc *testContext, encryptor rlwe.Encryptor, t *testing.T) (co
 		coeffsPol.Coeffs[0][i] = uint64(1)
 	}
 
-	plaintext = rlwe.NewPlaintext(tc.params.Parameters, tc.params.MaxLevel())
+	plaintext = bgv.NewPlaintext(tc.params, tc.params.MaxLevel())
 	plaintext.Scale = rlwe.NewScale(2)
 	tc.encoder.Encode(coeffsPol.Coeffs[0], plaintext)
 	ciphertext = encryptor.EncryptNew(plaintext)
@@ -487,7 +487,7 @@ func verifyTestVectors(tc *testContext, decryptor rlwe.Decryptor, coeffs []uint6
 }
 
 func testMarshalling(tc *testContext, t *testing.T) {
-	ciphertext := rlwe.NewCiphertext(tc.params.Parameters, 1, tc.params.MaxLevel())
+	ciphertext := bgv.NewCiphertext(tc.params, 1, tc.params.MaxLevel())
 	tc.uniformSampler.Read(ciphertext.Value[0])
 	tc.uniformSampler.Read(ciphertext.Value[1])
 
@@ -502,7 +502,7 @@ func testMarshalling(tc *testContext, t *testing.T) {
 
 		crp := refreshproto.SampleCRP(maxLevel, tc.crs)
 
-		refreshproto.GenShare(tc.sk0, ciphertext.Value[1], ciphertext.MetaData, crp, refreshshare)
+		refreshproto.GenShare(tc.sk0, ciphertext.Value[1], ciphertext.Scale, crp, refreshshare)
 
 		data, err := refreshshare.MarshalBinary()
 		if err != nil {

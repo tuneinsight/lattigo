@@ -12,7 +12,7 @@ import (
 // TraceNew maps X -> sum((-1)^i * X^{i*n+1}) for 0 <= i < N and returns the result on a new ciphertext.
 // For log(n) = logSlots.
 func (eval *evaluator) TraceNew(ctIn *rlwe.Ciphertext, logSlots int) (ctOut *rlwe.Ciphertext) {
-	ctOut = rlwe.NewCiphertext(eval.params.Parameters, 1, ctIn.Level())
+	ctOut = NewCiphertext(eval.params, 1, ctIn.Level())
 	eval.Trace(ctIn, logSlots, ctOut)
 	return
 }
@@ -59,7 +59,7 @@ func (eval *evaluator) Average(ctIn *rlwe.Ciphertext, logBatchSize int, ctOut *r
 func (eval *evaluator) RotateHoistedNew(ctIn *rlwe.Ciphertext, rotations []int) (ctOut map[int]*rlwe.Ciphertext) {
 	ctOut = make(map[int]*rlwe.Ciphertext)
 	for _, i := range rotations {
-		ctOut[i] = rlwe.NewCiphertext(eval.params.Parameters, 1, ctIn.Level())
+		ctOut[i] = NewCiphertext(eval.params, 1, ctIn.Level())
 	}
 	eval.RotateHoisted(ctIn, rotations, ctOut)
 	return
@@ -472,7 +472,7 @@ func (eval *evaluator) LinearTransformNew(ctIn *rlwe.Ciphertext, linearTransform
 		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], ctIn.IsNTT, eval.BuffDecompQP)
 
 		for i, LT := range LTs {
-			ctOut[i] = rlwe.NewCiphertext(eval.params.Parameters, 1, minLevel)
+			ctOut[i] = NewCiphertext(eval.params, 1, minLevel)
 
 			if LT.N1 == 0 {
 				eval.MultiplyByDiagMatrix(ctIn, LT, eval.BuffDecompQP, ctOut[i])
@@ -489,7 +489,7 @@ func (eval *evaluator) LinearTransformNew(ctIn *rlwe.Ciphertext, linearTransform
 		minLevel := utils.MinInt(LTs.Level, ctIn.Level())
 		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], ctIn.IsNTT, eval.BuffDecompQP)
 
-		ctOut = []*rlwe.Ciphertext{rlwe.NewCiphertext(eval.params.Parameters, 1, minLevel)}
+		ctOut = []*rlwe.Ciphertext{NewCiphertext(eval.params, 1, minLevel)}
 
 		if LTs.N1 == 0 {
 			eval.MultiplyByDiagMatrix(ctIn, LTs, eval.BuffDecompQP, ctOut[0])

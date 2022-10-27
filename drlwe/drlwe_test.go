@@ -301,7 +301,7 @@ func testRelinKeyGen(tc *testContext, t *testing.T) {
 			rkg[0].AggregateShares(share2[0], share2[i], share2[0])
 		}
 
-		rlk := rlwe.NewRelinKey(params, 2)
+		rlk := rlwe.NewRelinearizationKey(params, 2)
 		rkg[0].GenRelinearizationKey(share1[0], share2[0], rlk)
 		swk := rlk.Keys[0]
 

@@ -53,7 +53,7 @@ func benchEncoder(tc *testContext, b *testing.B) {
 	encoder := tc.encoder
 
 	for _, lvl := range tc.testLevel {
-		plaintext := rlwe.NewPlaintext(tc.params.Parameters, lvl)
+		plaintext := NewPlaintext(tc.params, lvl)
 		b.Run(GetTestName("Encoder/Encode/Uint", tc.params, lvl), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				encoder.Encode(coeffsUint64, plaintext)
@@ -62,7 +62,7 @@ func benchEncoder(tc *testContext, b *testing.B) {
 	}
 
 	for _, lvl := range tc.testLevel {
-		plaintext := rlwe.NewPlaintext(tc.params.Parameters, lvl)
+		plaintext := NewPlaintext(tc.params, lvl)
 		b.Run(GetTestName("Encoder/Encode/Int", tc.params, lvl), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				encoder.Encode(coeffsInt64, plaintext)
@@ -71,7 +71,7 @@ func benchEncoder(tc *testContext, b *testing.B) {
 	}
 
 	for _, lvl := range tc.testLevel {
-		plaintext := rlwe.NewPlaintext(tc.params.Parameters, lvl)
+		plaintext := NewPlaintext(tc.params, lvl)
 		b.Run(GetTestName("Encoder/Decode/Uint", tc.params, lvl), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				encoder.DecodeUint(plaintext, coeffsUint64)
@@ -80,7 +80,7 @@ func benchEncoder(tc *testContext, b *testing.B) {
 	}
 
 	for _, lvl := range tc.testLevel {
-		plaintext := rlwe.NewPlaintext(tc.params.Parameters, lvl)
+		plaintext := NewPlaintext(tc.params, lvl)
 		b.Run(GetTestName("Encoder/Decode/Int", tc.params, lvl), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				encoder.DecodeInt(plaintext, coeffsInt64)
@@ -111,8 +111,8 @@ func benchEncryptor(tc *testContext, b *testing.B) {
 
 	for _, lvl := range tc.testLevel {
 		b.Run(GetTestName("Encrypt/key=Pk", tc.params, lvl), func(b *testing.B) {
-			plaintext := rlwe.NewPlaintext(tc.params.Parameters, lvl)
-			ciphertext := rlwe.NewCiphertext(tc.params.Parameters, 1, lvl)
+			plaintext := NewPlaintext(tc.params, lvl)
+			ciphertext := NewCiphertext(tc.params, 1, lvl)
 			encryptorPk := tc.encryptorPk
 			for i := 0; i < b.N; i++ {
 				encryptorPk.Encrypt(plaintext, ciphertext)
@@ -122,8 +122,8 @@ func benchEncryptor(tc *testContext, b *testing.B) {
 
 	for _, lvl := range tc.testLevel {
 		b.Run(GetTestName("Encrypt/key=Sk", tc.params, lvl), func(b *testing.B) {
-			plaintext := rlwe.NewPlaintext(tc.params.Parameters, lvl)
-			ciphertext := rlwe.NewCiphertext(tc.params.Parameters, 1, lvl)
+			plaintext := NewPlaintext(tc.params, lvl)
+			ciphertext := NewCiphertext(tc.params, 1, lvl)
 			encryptorSk := tc.encryptorSk
 			for i := 0; i < b.N; i++ {
 				encryptorSk.Encrypt(plaintext, ciphertext)
@@ -193,7 +193,7 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 	for _, lvl := range tc.testLevel {
 		ciphertext0 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, lvl)
 		ciphertext1 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, lvl)
-		receiver := rlwe.NewCiphertext(tc.params.Parameters, 2, lvl)
+		receiver := NewCiphertext(tc.params, 2, lvl)
 		b.Run(GetTestName("Evaluator/Mul/op0=ct/op1=ct", tc.params, lvl), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				eval.Mul(ciphertext0, ciphertext1, receiver)
@@ -235,7 +235,7 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 
 	for _, lvl := range tc.testLevel[1:] {
 		ciphertext0 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, lvl)
-		receiver := rlwe.NewCiphertext(tc.params.Parameters, 1, lvl-1)
+		receiver := NewCiphertext(tc.params, 1, lvl-1)
 		b.Run(GetTestName("Evaluator/Rescale/op0=ct", tc.params, lvl), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				if err := eval.Rescale(ciphertext0, receiver); err != nil {
@@ -248,7 +248,7 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 
 	for _, lvl := range tc.testLevel {
 		ciphertext0 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 2, lvl)
-		receiver := rlwe.NewCiphertext(tc.params.Parameters, 1, lvl)
+		receiver := NewCiphertext(tc.params, 1, lvl)
 		b.Run(GetTestName("Evaluator/Relin/op0=ct", tc.params, lvl), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				eval.Relinearize(ciphertext0, receiver)

@@ -297,7 +297,7 @@ func (polyEval *polynomialEvaluator) recurse(pol polynomialVector) (res *rlwe.Ci
 		return nil, err
 	}
 
-	res2 := rlwe.NewCiphertext(polyEval.Evaluator.(*evaluator).params.Parameters, 2, res.Level())
+	res2 := NewCiphertext(polyEval.Evaluator.(*evaluator).params, 2, res.Level())
 	polyEval.Mul(res, XPow, res2)
 	polyEval.Relinearize(res2, res)
 	polyEval.Add(res, tmp, res)
@@ -339,7 +339,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(pol polynomialVe
 		if minimumDegreeNonZeroCoefficient == 0 {
 
 			// Allocates the output ciphertext
-			res = rlwe.NewCiphertext(params.Parameters, 1, level)
+			res = NewCiphertext(params, 1, level)
 
 			// Looks for non-zero coefficients among the degree-0 coefficients of the polynomials
 			for i, p := range pol.Value {
@@ -360,7 +360,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(pol polynomialVe
 		}
 
 		// Allocates the output ciphertext
-		res = rlwe.NewCiphertext(params.Parameters, 1, level)
+		res = NewCiphertext(params, 1, level)
 
 		// Allocates a temporary plaintext to encode the values
 		pt := rlwe.NewPlaintextAtLevelFromPoly(level, polyEval.Evaluator.BuffPt().Value)
@@ -428,7 +428,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(pol polynomialVe
 
 		if minimumDegreeNonZeroCoefficient == 0 {
 
-			res = rlwe.NewCiphertext(params.Parameters, 1, level)
+			res = NewCiphertext(params, 1, level)
 
 			if c != 0 {
 				polyEval.AddScalar(res, c, res)
@@ -437,7 +437,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(pol polynomialVe
 			return
 		}
 
-		res = rlwe.NewCiphertext(params.Parameters, 1, level)
+		res = NewCiphertext(params, 1, level)
 
 		if c != 0 {
 			polyEval.AddScalar(res, c, res)

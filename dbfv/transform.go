@@ -29,7 +29,7 @@ func (rfp *MaskedTransformProtocol) ShallowCopy() *MaskedTransformProtocol {
 	return &MaskedTransformProtocol{
 		e2s:         *rfp.e2s.ShallowCopy(),
 		s2e:         *rfp.s2e.ShallowCopy(),
-		tmpPt:       rlwe.NewPlaintext(params.Parameters, params.MaxLevel()),
+		tmpPt:       bfv.NewPlaintext(params, params.MaxLevel()),
 		tmpMask:     params.RingT().NewPoly(),
 		tmpMaskPerm: params.RingT().NewPoly(),
 	}

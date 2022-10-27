@@ -401,7 +401,7 @@ func (eval *evaluator) LinearTransformNew(ctIn *rlwe.Ciphertext, linearTransform
 		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], ctIn.IsNTT, eval.BuffDecompQP)
 
 		for i, LT := range LTs {
-			ctOut[i] = rlwe.NewCiphertext(eval.params.Parameters, 1, minLevel)
+			ctOut[i] = NewCiphertext(eval.params, 1, minLevel)
 
 			if LT.N1 == 0 {
 				eval.MultiplyByDiagMatrix(ctIn, LT, eval.BuffDecompQP, ctOut[i])
@@ -418,7 +418,7 @@ func (eval *evaluator) LinearTransformNew(ctIn *rlwe.Ciphertext, linearTransform
 		minLevel := utils.MinInt(LTs.Level, ctIn.Level())
 		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], ctIn.IsNTT, eval.BuffDecompQP)
 
-		ctOut = []*rlwe.Ciphertext{rlwe.NewCiphertext(eval.params.Parameters, 1, minLevel)}
+		ctOut = []*rlwe.Ciphertext{NewCiphertext(eval.params, 1, minLevel)}
 
 		if LTs.N1 == 0 {
 			eval.MultiplyByDiagMatrix(ctIn, LTs, eval.BuffDecompQP, ctOut[0])

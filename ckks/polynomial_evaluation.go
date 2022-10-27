@@ -546,7 +546,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasis(targetScale
 		if minimumDegreeNonZeroCoefficient == 0 {
 
 			// Allocates the output ciphertext
-			res = rlwe.NewCiphertext(params.Parameters, 1, level)
+			res = NewCiphertext(params, 1, level)
 			res.Scale = targetScale
 
 			// Looks for non-zero coefficients among the degree 0 coefficients of the polynomials
@@ -571,7 +571,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasis(targetScale
 		}
 
 		// Allocates the output ciphertext
-		res = rlwe.NewCiphertext(params.Parameters, maximumCiphertextDegree, level)
+		res = NewCiphertext(params, maximumCiphertextDegree, level)
 		res.Scale = targetScale
 
 		// Allocates a temporary plaintext to encode the values
@@ -643,7 +643,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasis(targetScale
 
 		if minimumDegreeNonZeroCoefficient == 0 {
 
-			res = rlwe.NewCiphertext(params.Parameters, 1, level)
+			res = NewCiphertext(params, 1, level)
 			res.Scale = targetScale
 
 			if isNotNegligible(c) {
@@ -653,7 +653,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasis(targetScale
 			return
 		}
 
-		res = rlwe.NewCiphertext(params.Parameters, maximumCiphertextDegree, level)
+		res = NewCiphertext(params, maximumCiphertextDegree, level)
 		res.Scale = targetScale
 
 		if isNotNegligible(c) {

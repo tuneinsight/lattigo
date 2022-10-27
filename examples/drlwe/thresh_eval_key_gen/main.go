@@ -91,7 +91,7 @@ func (p *party) Run(wg *sync.WaitGroup, params rlwe.Parameters, N int, P []*part
 			p.GenShare(sk, galEl, crp[galEl], rtgShare)
 			C.aggTaskQueue <- genTaskResult{galEl: galEl, rtgShare: rtgShare}
 			nShares++
-			byteSent += len(rtgShare.Value) * len(rtgShare.Value[0]) * rtgShare.Value[0][0].GetDataLen64(false)
+			byteSent += len(rtgShare.Value) * len(rtgShare.Value[0]) * rtgShare.Value[0][0].MarshalBinarySize64()
 		}
 		nTasks++
 		cpuTime += time.Since(start)
@@ -138,7 +138,7 @@ func (c *cloud) Run(galEls []uint64, params rlwe.Parameters, t int) {
 		}
 		i++
 		cpuTime += time.Since(start)
-		byteRecv += len(acc.share.Value) * len(acc.share.Value[0]) * acc.share.Value[0][0].GetDataLen64(false)
+		byteRecv += len(acc.share.Value) * len(acc.share.Value[0]) * acc.share.Value[0][0].MarshalBinarySize64()
 	}
 	close(c.finDone)
 	fmt.Printf("\tCloud finished aggregating %d shares in %s, received %s\n", i, cpuTime, formatByteSize(byteRecv))
@@ -245,7 +245,7 @@ func main() {
 		P[i] = pi
 
 		// computes the ideal sk for the sake of the example
-		params.RingQP().AddLvl(params.QCount()-1, params.PCount()-1, skIdeal.Value, pi.sk.Value, skIdeal.Value)
+		params.RingQP().AddLvl(params.QCount()-1, params.PCount()-1, skIdeal.Poly, pi.sk.Poly, skIdeal.Poly)
 
 		shamirPks = append(shamirPks, pi.shamirPk)
 	}

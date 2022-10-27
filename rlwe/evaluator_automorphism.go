@@ -36,7 +36,7 @@ func (eval *Evaluator) Automorphism(ctIn *Ciphertext, galEl uint64, ctOut *Ciphe
 	ringQ := eval.params.RingQ()
 
 	ctTmp := &Ciphertext{Value: []*ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}}
-	ctTmp.IsNTT = true
+	ctTmp.IsNTT = ctIn.IsNTT
 
 	eval.GadgetProduct(level, ctIn.Value[1], rtk.GadgetCiphertext, ctTmp)
 
@@ -196,7 +196,7 @@ func (eval *Evaluator) Trace(ctIn *Ciphertext, logN int, ctOut *Ciphertext) {
 		}
 
 		buff := NewCiphertextAtLevelFromPoly(levelQ, [2]*ring.Poly{eval.BuffQP[3].Q, eval.BuffQP[4].Q})
-		buff.IsNTT = true
+		buff.IsNTT = ctIn.IsNTT
 
 		for i := logN; i < eval.params.LogN()-1; i++ {
 			eval.Automorphism(ctOut, eval.params.GaloisElementForColumnRotationBy(1<<i), buff)

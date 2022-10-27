@@ -48,9 +48,9 @@ type testContext struct {
 	pk0 *rlwe.PublicKey
 	pk1 *rlwe.PublicKey
 
-	encryptorPk0 bfv.Encryptor
-	decryptorSk0 bfv.Decryptor
-	decryptorSk1 bfv.Decryptor
+	encryptorPk0 rlwe.Encryptor
+	decryptorSk0 rlwe.Decryptor
+	decryptorSk1 rlwe.Decryptor
 	evaluator    bfv.Evaluator
 
 	crs            drlwe.CRS
@@ -129,15 +129,15 @@ func gentestContext(params bfv.Parameters, parties int) (tc *testContext, err er
 	tc.sk0Shards = make([]*rlwe.SecretKey, parties)
 	tc.sk1Shards = make([]*rlwe.SecretKey, parties)
 
-	tc.sk0 = bfv.NewSecretKey(tc.params)
-	tc.sk1 = bfv.NewSecretKey(tc.params)
+	tc.sk0 = rlwe.NewSecretKey(tc.params.Parameters)
+	tc.sk1 = rlwe.NewSecretKey(tc.params.Parameters)
 
 	ringQP, levelQ, levelP := params.RingQP(), params.QCount()-1, params.PCount()-1
 	for j := 0; j < parties; j++ {
 		tc.sk0Shards[j] = kgen.GenSecretKey()
 		tc.sk1Shards[j] = kgen.GenSecretKey()
-		ringQP.AddLvl(levelQ, levelP, tc.sk0.Value, tc.sk0Shards[j].Value, tc.sk0.Value)
-		ringQP.AddLvl(levelQ, levelP, tc.sk1.Value, tc.sk1Shards[j].Value, tc.sk1.Value)
+		ringQP.AddLvl(levelQ, levelP, tc.sk0.Poly, tc.sk0Shards[j].Poly, tc.sk0.Poly)
+		ringQP.AddLvl(levelQ, levelP, tc.sk1.Poly, tc.sk1Shards[j].Poly, tc.sk1.Poly)
 	}
 
 	// Publickeys
@@ -456,7 +456,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 			p.sIn = sk0Shards[i]
 
 			p.sOut = kgenParamsOut.GenSecretKey() // New shared secret key in target parameters
-			paramsOut.RingQ().Add(skIdealOut.Value.Q, p.sOut.Value.Q, skIdealOut.Value.Q)
+			paramsOut.RingQ().Add(skIdealOut.Q, p.sOut.Q, skIdealOut.Q)
 
 			p.share = p.AllocateShare(ciphertext.Level(), paramsOut.MaxLevel())
 
@@ -504,7 +504,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 	})
 }
 
-func newTestVectors(tc *testContext, encryptor bfv.Encryptor, t *testing.T) (coeffs []uint64, pt *rlwe.Plaintext, ct *rlwe.Ciphertext) {
+func newTestVectors(tc *testContext, encryptor rlwe.Encryptor, t *testing.T) (coeffs []uint64, pt *rlwe.Plaintext, ct *rlwe.Ciphertext) {
 
 	prng, _ := utils.NewPRNG()
 	uniformSampler := ring.NewUniformSampler(prng, tc.ringT)
@@ -514,7 +514,7 @@ func newTestVectors(tc *testContext, encryptor bfv.Encryptor, t *testing.T) (coe
 	return coeffsPol.Coeffs[0], pt, encryptor.EncryptNew(pt)
 }
 
-func verifyTestVectors(tc *testContext, decryptor bfv.Decryptor, coeffs []uint64, ct *rlwe.Ciphertext, t *testing.T) {
+func verifyTestVectors(tc *testContext, decryptor rlwe.Decryptor, coeffs []uint64, ct *rlwe.Ciphertext, t *testing.T) {
 	require.True(t, utils.EqualSliceUint64(coeffs, tc.encoder.DecodeUintNew(decryptor.DecryptNew(ct))))
 }
 

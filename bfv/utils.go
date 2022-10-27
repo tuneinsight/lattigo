@@ -11,11 +11,10 @@ import (
 // of the standard deviation, minimum and maximum norm of the noise
 // assuming the decryption is correct.
 // This function is used for testing/profiling/evaluation purposes
-func Noise(ct *rlwe.Ciphertext, dec Decryptor) (std, min, max float64) {
+func Noise(params Parameters, ct *rlwe.Ciphertext, dec rlwe.Decryptor) (std, min, max float64) {
 
 	level := ct.Level()
 
-	params := dec.(*decryptor).params
 	ringQ := params.RingQ()
 
 	ecd := NewEncoder(params).(*encoder)

@@ -23,3 +23,7 @@ func NewDecryptor(params Parameters, key *rlwe.SecretKey) rlwe.Decryptor {
 func NewKeyGenerator(params Parameters) rlwe.KeyGenerator {
 	return rlwe.NewKeyGenerator(params.Parameters)
 }
+
+func NewPRNGEncryptor(params Parameters, key *rlwe.SecretKey) rlwe.PRNGEncryptor {
+	return rlwe.NewPRNGEncryptor(params.Parameters, key)
+}

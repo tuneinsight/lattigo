@@ -34,9 +34,9 @@ type testContext struct {
 	sk          *rlwe.SecretKey
 	pk          *rlwe.PublicKey
 	rlk         *rlwe.RelinearizationKey
-	encryptorPk Encryptor
-	encryptorSk Encryptor
-	decryptor   Decryptor
+	encryptorPk rlwe.Encryptor
+	encryptorSk rlwe.Encryptor
+	decryptor   rlwe.Decryptor
 	evaluator   Evaluator
 	testLevel   []int
 }
@@ -86,7 +86,7 @@ func TestBFV(t *testing.T) {
 		paramsLiterals = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
-	for _, p := range paramsLiterals[:] {
+	for _, p := range paramsLiterals[:1] {
 
 		var params Parameters
 		if params, err = NewParametersFromLiteral(p); err != nil {
@@ -180,7 +180,7 @@ func testParameters(tc *testContext, t *testing.T) {
 	})
 }
 
-func newTestVectorsRingQLvl(level int, tc *testContext, encryptor Encryptor, t *testing.T) (coeffs *ring.Poly, pt *rlwe.Plaintext, ct *rlwe.Ciphertext) {
+func newTestVectorsRingQLvl(level int, tc *testContext, encryptor rlwe.Encryptor, t *testing.T) (coeffs *ring.Poly, pt *rlwe.Plaintext, ct *rlwe.Ciphertext) {
 	coeffs = tc.uSampler.ReadNew()
 	pt = rlwe.NewPlaintext(tc.params.Parameters, level)
 	tc.encoder.Encode(coeffs.Coeffs[0], pt)
@@ -204,7 +204,7 @@ func newTestVectorsMulLvl(level int, tc *testContext, t *testing.T) (coeffs *rin
 	return
 }
 
-func verifyTestVectors(tc *testContext, decryptor Decryptor, coeffs *ring.Poly, element rlwe.Operand, t *testing.T) {
+func verifyTestVectors(tc *testContext, decryptor rlwe.Decryptor, coeffs *ring.Poly, element rlwe.Operand, t *testing.T) {
 
 	var coeffsTest []uint64
 
@@ -349,13 +349,13 @@ func testEncryptor(tc *testContext, t *testing.T) {
 	zero := tc.ringT.NewPoly()
 	for _, lvl := range tc.testLevel {
 		t.Run(testString("Encryptor/EncryptZero/key=pk", tc.params, lvl), func(t *testing.T) {
-			ct := tc.encryptorPk.EncryptZeroNew()
+			ct := tc.encryptorPk.EncryptZeroNew(tc.params.MaxLevel())
 			verifyTestVectors(tc, tc.decryptor, zero, ct, t)
 		})
 	}
 	for _, lvl := range tc.testLevel {
 		t.Run(testString("Encryptor/EncryptZero/key=sk", tc.params, lvl), func(t *testing.T) {
-			ct := tc.encryptorSk.EncryptZeroNew()
+			ct := tc.encryptorSk.EncryptZeroNew(tc.params.MaxLevel())
 			verifyTestVectors(tc, tc.decryptor, zero, ct, t)
 		})
 	}

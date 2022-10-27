@@ -4,9 +4,11 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
-// NewCiphertext creates and allocates a new ciphertext.
-func NewCiphertext(params Parameters, degree, level int) *rlwe.Ciphertext {
-	return rlwe.NewCiphertext(params.Parameters, degree, level)
+// NewPlaintext creates and allocates a new plaintext in RingQ (multiple moduli of Q).
+// The plaintext will be in RingQ and scaled by Q/t.
+// Slower encoding and larger plaintext size
+func NewPlaintext(params Parameters, level int) (pt *rlwe.Plaintext) {
+	return rlwe.NewPlaintext(params.Parameters, level)
 }
 
 // PlaintextRingT represents a plaintext element in R_t.
@@ -23,13 +25,6 @@ type PlaintextMul struct {
 	*rlwe.Plaintext
 }
 
-// NewPlaintext creates and allocates a new plaintext in RingQ (multiple moduli of Q).
-// The plaintext will be in RingQ and scaled by Q/t.
-// Slower encoding and larger plaintext size
-func NewPlaintext(params Parameters, level int) *rlwe.Plaintext {
-	return rlwe.NewPlaintext(params.Parameters, level)
-}
-
 // NewPlaintextRingT creates and allocates a new plaintext in RingT (single modulus T).
 // The plaintext will be in RingT.
 func NewPlaintextRingT(params Parameters) *PlaintextRingT {
@@ -41,4 +36,24 @@ func NewPlaintextRingT(params Parameters) *PlaintextRingT {
 // The plaintext will be in the NTT and Montgomery domain of RingQ and not scaled by Q/t.
 func NewPlaintextMul(params Parameters, level int) *PlaintextMul {
 	return &PlaintextMul{rlwe.NewPlaintext(params.Parameters, level)}
+}
+
+func NewCiphertext(params Parameters, degree, level int) (ct *rlwe.Ciphertext) {
+	return rlwe.NewCiphertext(params.Parameters, degree, level)
+}
+
+func NewEncryptor(params Parameters, key interface{}) rlwe.Encryptor {
+	return rlwe.NewEncryptor(params.Parameters, key)
+}
+
+func NewDecryptor(params Parameters, key *rlwe.SecretKey) rlwe.Decryptor {
+	return rlwe.NewDecryptor(params.Parameters, key)
+}
+
+func NewKeyGenerator(params Parameters) rlwe.KeyGenerator {
+	return rlwe.NewKeyGenerator(params.Parameters)
+}
+
+func NewPRNGEncryptor(params Parameters, key *rlwe.SecretKey) rlwe.PRNGEncryptor {
+	return rlwe.NewPRNGEncryptor(params.Parameters, key)
 }

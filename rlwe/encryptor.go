@@ -14,6 +14,7 @@ type Encryptor interface {
 	Encrypt(pt *Plaintext, ct interface{})
 	EncryptZero(ct interface{})
 
+	EncryptZeroNew(level int) (ct *Ciphertext)
 	EncryptNew(pt *Plaintext) (ct *Ciphertext)
 
 	ShallowCopy() Encryptor
@@ -177,7 +178,18 @@ func (enc *pkEncryptor) EncryptNew(pt *Plaintext) (ct *Ciphertext) {
 	return
 }
 
-// EncryptZero generates an encryption of zero under the stored public-key and writes the result on ct.
+// EncryptZeroNew generates an encryption of zero under the stored public-key and returns it on a new ciphertext.
+// The encryption procedure depends on the parameters: If the auxiliary modulus P is defined, the
+// encryption of zero is sampled in QP before being rescaled by P; otherwise, it is directly sampled in Q.
+// The method accepts only *rlwe.Ciphertext as input.
+// The zero encryption is generated according to the given ciphertext MetaData.
+func (enc *pkEncryptor) EncryptZeroNew(level int) (ct *Ciphertext) {
+	ct = NewCiphertext(enc.params, 1, level)
+	enc.EncryptZero(ct)
+	return
+}
+
+// EncryptZero generates an encryption of zero under the stored public-key and writes the result on ciphertext.
 // The encryption procedure depends on the parameters: If the auxiliary modulus P is defined, the
 // encryption of zero is sampled in QP before being rescaled by P; otherwise, it is directly sampled in Q.
 // The method accepts only *rlwe.Ciphertext as input.
@@ -314,7 +326,7 @@ func (enc *skEncryptor) EncryptNew(pt *Plaintext) (ct *Ciphertext) {
 	return
 }
 
-// EncryptZero generates an encryption of zero using the stored secret-key and writes the result on ct.
+// EncryptZero generates an encryption of zero using the stored secret-key and writes the result on ciphertext.
 // The method accepts only *rlwe.Ciphertext or *rgsw.Ciphertext as input and will panic otherwise.
 // The zero encryption is generated according to the given ciphertext MetaData.
 func (enc *skEncryptor) EncryptZero(ct interface{}) {
@@ -335,6 +347,15 @@ func (enc *skEncryptor) EncryptZero(ct interface{}) {
 	default:
 		panic(fmt.Sprintf("cannot Encrypt: input ciphertext type %s is not unsuported", reflect.TypeOf(ct)))
 	}
+}
+
+// EncryptZeroNew generates an encryption of zero using the stored secret-key and writes the result on ciphertext.
+// The method accepts only *rlwe.Ciphertext or *rgsw.Ciphertext as input and will panic otherwise.
+// The zero encryption is generated according to the given ciphertext MetaData.
+func (enc *skEncryptor) EncryptZeroNew(level int) (ct *Ciphertext) {
+	ct = NewCiphertext(enc.params, 1, level)
+	enc.EncryptZero(ct)
+	return
 }
 
 func (enc *skEncryptor) encryptZero(ct *Ciphertext, c1 *ring.Poly) {

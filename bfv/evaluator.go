@@ -176,7 +176,7 @@ func (eval *evaluator) Add(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.
 
 // AddNew adds ctIn to op1 and creates a new element ctOut to store the result.
 func (eval *evaluator) AddNew(ctIn *rlwe.Ciphertext, op1 rlwe.Operand) (ctOut *rlwe.Ciphertext) {
-	ctOut = rlwe.NewCiphertext(eval.params.Parameters, utils.MaxInt(ctIn.Degree(), op1.Degree()), ctIn.Level())
+	ctOut = NewCiphertext(eval.params, utils.MaxInt(ctIn.Degree(), op1.Degree()), ctIn.Level())
 	eval.Add(ctIn, op1, ctOut)
 	return
 }
@@ -189,7 +189,7 @@ func (eval *evaluator) AddNoMod(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *
 
 // AddNoModNew adds ctIn to op1 without modular reduction and creates a new element ctOut to store the result.
 func (eval *evaluator) AddNoModNew(ctIn *rlwe.Ciphertext, op1 rlwe.Operand) (ctOut *rlwe.Ciphertext) {
-	ctOut = rlwe.NewCiphertext(eval.params.Parameters, utils.MaxInt(ctIn.Degree(), op1.Degree()), ctIn.Level())
+	ctOut = NewCiphertext(eval.params, utils.MaxInt(ctIn.Degree(), op1.Degree()), ctIn.Level())
 	eval.AddNoMod(ctIn, op1, ctOut)
 	return
 }
@@ -208,7 +208,7 @@ func (eval *evaluator) Sub(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.
 
 // SubNew subtracts op1 from ctIn and creates a new element ctOut to store the result.
 func (eval *evaluator) SubNew(ctIn *rlwe.Ciphertext, op1 rlwe.Operand) (ctOut *rlwe.Ciphertext) {
-	ctOut = rlwe.NewCiphertext(eval.params.Parameters, utils.MaxInt(ctIn.Degree(), op1.Degree()), ctIn.Level())
+	ctOut = NewCiphertext(eval.params, utils.MaxInt(ctIn.Degree(), op1.Degree()), ctIn.Level())
 	eval.Sub(ctIn, op1, ctOut)
 	return
 }
@@ -228,7 +228,7 @@ func (eval *evaluator) SubNoMod(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *
 
 // SubNoModNew subtracts op1 from ctIn without modular reduction and creates a new element ctOut to store the result.
 func (eval *evaluator) SubNoModNew(ctIn *rlwe.Ciphertext, op1 rlwe.Operand) (ctOut *rlwe.Ciphertext) {
-	ctOut = rlwe.NewCiphertext(eval.params.Parameters, utils.MaxInt(ctIn.Degree(), op1.Degree()), ctIn.Level())
+	ctOut = NewCiphertext(eval.params, utils.MaxInt(ctIn.Degree(), op1.Degree()), ctIn.Level())
 	eval.SubNoMod(ctIn, op1, ctOut)
 	return
 }
@@ -241,7 +241,7 @@ func (eval *evaluator) Neg(ctIn, ctOut *rlwe.Ciphertext) {
 
 // NegNew negates ctIn and creates a new element to store the result.
 func (eval *evaluator) NegNew(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext) {
-	ctOut = rlwe.NewCiphertext(eval.params.Parameters, ctIn.Degree(), ctIn.Level())
+	ctOut = NewCiphertext(eval.params, ctIn.Degree(), ctIn.Level())
 	eval.Neg(ctIn, ctOut)
 	return ctOut
 }
@@ -254,7 +254,7 @@ func (eval *evaluator) Reduce(ctIn *rlwe.Ciphertext, ctOut *rlwe.Ciphertext) {
 
 // ReduceNew applies a modular reduction to ctIn and creates a new element ctOut to store the result.
 func (eval *evaluator) ReduceNew(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext) {
-	ctOut = rlwe.NewCiphertext(eval.params.Parameters, ctIn.Degree(), ctIn.Level())
+	ctOut = NewCiphertext(eval.params, ctIn.Degree(), ctIn.Level())
 	eval.Reduce(ctIn, ctOut)
 	return ctOut
 }
@@ -286,7 +286,7 @@ func (eval *evaluator) AddScalar(ctIn *rlwe.Ciphertext, scalar uint64, ctOut *rl
 
 // MulScalarNew multiplies ctIn by a uint64 scalar and creates a new element ctOut to store the result.
 func (eval *evaluator) MulScalarNew(ctIn *rlwe.Ciphertext, scalar uint64) (ctOut *rlwe.Ciphertext) {
-	ctOut = rlwe.NewCiphertext(eval.params.Parameters, ctIn.Degree(), ctIn.Level())
+	ctOut = NewCiphertext(eval.params, ctIn.Degree(), ctIn.Level())
 	eval.MulScalar(ctIn, scalar, ctOut)
 	return
 }
@@ -578,14 +578,14 @@ func (eval *evaluator) mulPlaintextRingT(ctIn *rlwe.Ciphertext, ptRt *PlaintextR
 
 // MulNew multiplies ctIn by op1 and creates a new element ctOut to store the result.
 func (eval *evaluator) MulNew(ctIn *rlwe.Ciphertext, op1 rlwe.Operand) (ctOut *rlwe.Ciphertext) {
-	ctOut = rlwe.NewCiphertext(eval.params.Parameters, ctIn.Degree()+op1.Degree(), ctIn.Level())
+	ctOut = NewCiphertext(eval.params, ctIn.Degree()+op1.Degree(), ctIn.Level())
 	eval.Mul(ctIn, op1, ctOut)
 	return
 }
 
 // RelinearizeNew relinearizes the ciphertext ctIn of degree > 1 until it is of degree 1, and creates a new ciphertext to store the result.
 func (eval *evaluator) RelinearizeNew(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext) {
-	ctOut = rlwe.NewCiphertext(eval.params.Parameters, 1, ctIn.Level())
+	ctOut = NewCiphertext(eval.params, 1, ctIn.Level())
 	eval.Relinearize(ctIn, ctOut)
 	return
 }
@@ -593,7 +593,7 @@ func (eval *evaluator) RelinearizeNew(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Cipher
 // SwitchKeysNew applies the key-switching procedure to the ciphertext ct0 and creates a new ciphertext to store the result. It requires as an additional input a valid switching-key:
 // it must encrypt the target key under the public key under which ct0 is currently encrypted.
 func (eval *evaluator) SwitchKeysNew(ctIn *rlwe.Ciphertext, switchkey *rlwe.SwitchingKey) (ctOut *rlwe.Ciphertext) {
-	ctOut = rlwe.NewCiphertext(eval.params.Parameters, 1, ctIn.Level())
+	ctOut = NewCiphertext(eval.params, 1, ctIn.Level())
 	eval.SwitchKeys(ctIn, switchkey, ctOut)
 	return
 }
@@ -605,7 +605,7 @@ func (eval *evaluator) RotateColumns(ct0 *rlwe.Ciphertext, k int, ctOut *rlwe.Ci
 
 // RotateColumnsNew applies RotateColumns and returns the result in a new Ciphertext.
 func (eval *evaluator) RotateColumnsNew(ctIn *rlwe.Ciphertext, k int) (ctOut *rlwe.Ciphertext) {
-	ctOut = rlwe.NewCiphertext(eval.params.Parameters, 1, ctIn.Level())
+	ctOut = NewCiphertext(eval.params, 1, ctIn.Level())
 	eval.RotateColumns(ctIn, k, ctOut)
 	return
 }
@@ -617,7 +617,7 @@ func (eval *evaluator) RotateRows(ct0 *rlwe.Ciphertext, ctOut *rlwe.Ciphertext) 
 
 // RotateRowsNew rotates the rows of ctIn and returns the result a new Ciphertext.
 func (eval *evaluator) RotateRowsNew(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext) {
-	ctOut = rlwe.NewCiphertext(eval.params.Parameters, 1, ctIn.Level())
+	ctOut = NewCiphertext(eval.params, 1, ctIn.Level())
 	eval.RotateRows(ctIn, ctOut)
 	return
 }
@@ -628,7 +628,7 @@ func (eval *evaluator) InnerSum(ctIn *rlwe.Ciphertext, ctOut *rlwe.Ciphertext) {
 	if ctIn.Degree() != 1 || ctOut.Degree() != 1 {
 		panic("cannot InnerSum: input and output must be of degree 1")
 	}
-	cTmp := rlwe.NewCiphertext(eval.params.Parameters, 1, ctIn.Level())
+	cTmp := NewCiphertext(eval.params, 1, ctIn.Level())
 	ctOut.Copy(ctIn.El())
 
 	for i := 1; i < int(eval.ringQ.N>>1); i <<= 1 {

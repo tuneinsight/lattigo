@@ -12,6 +12,10 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
+const (
+	DefaultNTTFlag = false
+)
+
 var (
 	// PN11QP54 is a set of default parameters with logN=11 and logQP=54
 	PN11QP54 = ParametersLiteral{
@@ -125,15 +129,16 @@ type ParametersLiteral struct {
 // RLWEParameters returns the rlwe.ParametersLiteral from the target bfv.ParametersLiteral.
 func (p ParametersLiteral) RLWEParameters() rlwe.ParametersLiteral {
 	return rlwe.ParametersLiteral{
-		LogN:     p.LogN,
-		Q:        p.Q,
-		P:        p.P,
-		LogQ:     p.LogQ,
-		LogP:     p.LogP,
-		Pow2Base: p.Pow2Base,
-		Sigma:    p.Sigma,
-		H:        p.H,
-		RingType: ring.Standard,
+		LogN:           p.LogN,
+		Q:              p.Q,
+		P:              p.P,
+		LogQ:           p.LogQ,
+		LogP:           p.LogP,
+		Pow2Base:       p.Pow2Base,
+		Sigma:          p.Sigma,
+		H:              p.H,
+		RingType:       ring.Standard,
+		DefaultNTTFlag: DefaultNTTFlag,
 	}
 }
 
@@ -187,14 +192,15 @@ func NewParametersFromLiteral(pl ParametersLiteral) (Parameters, error) {
 	return NewParameters(rlweParams, pl.T)
 }
 
-func (p Parameters) ParametersLiteral() {
+func (p Parameters) ParametersLiteral() ParametersLiteral {
 	return ParametersLiteral{
-		LogN:  p.LogN(),
-		Q:     p.Q(),
-		P:     p.P(),
-		H:     p.HammingWeight(),
-		Sigma: p.Sigma(),
-		T:     p.T(),
+		LogN:     p.LogN(),
+		Q:        p.Q(),
+		P:        p.P(),
+		Pow2Base: p.Pow2Base(),
+		Sigma:    p.Sigma(),
+		H:        p.HammingWeight(),
+		T:        p.T(),
 	}
 }
 

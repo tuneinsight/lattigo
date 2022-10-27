@@ -18,10 +18,10 @@ func GenEvaluationKey(paramsRLWE rlwe.Parameters, skRLWE *rlwe.SecretKey, params
 
 	skLWEInvNTT := paramsLWE.RingQ().NewPoly()
 
-	paramsLWE.RingQ().InvNTT(skLWE.Value.Q, skLWEInvNTT)
+	paramsLWE.RingQ().InvNTT(skLWE.Q, skLWEInvNTT)
 
 	plaintextRGSWOne := rlwe.NewPlaintext(paramsRLWE, paramsRLWE.MaxLevel())
-	plaintextRGSWOne.Value.IsNTT = true
+	plaintextRGSWOne.IsNTT = true
 	for j := 0; j < paramsRLWE.QCount(); j++ {
 		for i := 0; i < paramsRLWE.N(); i++ {
 			plaintextRGSWOne.Value.Coeffs[j][i] = 1

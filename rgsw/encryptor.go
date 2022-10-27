@@ -39,7 +39,7 @@ func (enc *Encryptor) Encrypt(pt *rlwe.Plaintext, ct interface{}) {
 
 	if pt != nil {
 		ringQ.MFormLvl(levelQ, pt.Value, enc.buffQP.Q)
-		if !pt.Value.IsNTT {
+		if !pt.IsNTT {
 			ringQ.NTTLvl(levelQ, enc.buffQP.Q, enc.buffQP.Q)
 		}
 		rlwe.AddPolyTimesGadgetVectorToGadgetCiphertext(

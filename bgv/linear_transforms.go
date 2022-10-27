@@ -398,8 +398,7 @@ func (eval *evaluator) LinearTransformNew(ctIn *rlwe.Ciphertext, linearTransform
 		}
 
 		minLevel := utils.MinInt(maxLevel, ctIn.Level())
-		eval.params.RingQ().MulScalarBigintLvl(minLevel, ctIn.Value[1], eval.tInvModQ[minLevel], eval.buffQ[0])
-		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), eval.buffQ[0], true, eval.BuffDecompQP)
+		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], ctIn.IsNTT, eval.BuffDecompQP)
 
 		for i, LT := range LTs {
 			ctOut[i] = rlwe.NewCiphertext(eval.params.Parameters, 1, minLevel)
@@ -409,13 +408,15 @@ func (eval *evaluator) LinearTransformNew(ctIn *rlwe.Ciphertext, linearTransform
 			} else {
 				eval.MultiplyByDiagMatrixBSGS(ctIn, LT, eval.BuffDecompQP, ctOut[i])
 			}
+
+			ctOut[i].MetaData = ctIn.MetaData
+			ctOut[i].Scale = ctIn.Scale.Mul(LT.Scale, eval.params.T())
 		}
 
 	case LinearTransform:
 
 		minLevel := utils.MinInt(LTs.Level, ctIn.Level())
-		eval.params.RingQ().MulScalarBigintLvl(minLevel, ctIn.Value[1], eval.tInvModQ[minLevel], eval.buffQ[0])
-		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), eval.buffQ[0], true, eval.BuffDecompQP)
+		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], ctIn.IsNTT, eval.BuffDecompQP)
 
 		ctOut = []*rlwe.Ciphertext{rlwe.NewCiphertext(eval.params.Parameters, 1, minLevel)}
 
@@ -424,6 +425,9 @@ func (eval *evaluator) LinearTransformNew(ctIn *rlwe.Ciphertext, linearTransform
 		} else {
 			eval.MultiplyByDiagMatrixBSGS(ctIn, LTs, eval.BuffDecompQP, ctOut[0])
 		}
+
+		ctOut[0].MetaData = ctIn.MetaData
+		ctOut[0].Scale = ctIn.Scale.Mul(LTs.Scale, eval.params.T())
 	}
 	return
 }
@@ -443,8 +447,7 @@ func (eval *evaluator) LinearTransform(ctIn *rlwe.Ciphertext, linearTransform in
 		}
 
 		minLevel := utils.MinInt(maxLevel, ctIn.Level())
-		eval.params.RingQ().MulScalarBigintLvl(minLevel, ctIn.Value[1], eval.tInvModQ[minLevel], eval.buffQ[0])
-		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), eval.buffQ[0], true, eval.BuffDecompQP)
+		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], true, eval.BuffDecompQP)
 
 		for i, LT := range LTs {
 			if LT.N1 == 0 {
@@ -452,17 +455,22 @@ func (eval *evaluator) LinearTransform(ctIn *rlwe.Ciphertext, linearTransform in
 			} else {
 				eval.MultiplyByDiagMatrixBSGS(ctIn, LT, eval.BuffDecompQP, ctOut[i])
 			}
+
+			ctOut[i].MetaData = ctIn.MetaData
+			ctOut[i].Scale = ctIn.Scale.Mul(LT.Scale, eval.params.T())
 		}
 
 	case LinearTransform:
 		minLevel := utils.MinInt(LTs.Level, ctIn.Level())
-		eval.params.RingQ().MulScalarBigintLvl(minLevel, ctIn.Value[1], eval.tInvModQ[minLevel], eval.buffQ[0])
-		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), eval.buffQ[0], true, eval.BuffDecompQP)
+		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], true, eval.BuffDecompQP)
 		if LTs.N1 == 0 {
 			eval.MultiplyByDiagMatrix(ctIn, LTs, eval.BuffDecompQP, ctOut[0])
 		} else {
 			eval.MultiplyByDiagMatrixBSGS(ctIn, LTs, eval.BuffDecompQP, ctOut[0])
 		}
+
+		ctOut[0].MetaData = ctIn.MetaData
+		ctOut[0].Scale = ctIn.Scale.Mul(LTs.Scale, eval.params.T())
 	}
 }
 
@@ -499,7 +507,6 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix Linear
 	ctInTmp0, ctInTmp1 := eval.buffCt.Value[0], eval.buffCt.Value[1]
 
 	ringQ.MulScalarBigintLvl(levelQ, ctInTmp0, ringP.ModulusAtLevel[levelP], ct0TimesP) // P*c0
-	ringQ.MulScalarBigintLvl(levelQ, ct0TimesP, eval.tInvModQ[levelQ], ct0TimesP)
 
 	var state bool
 	var cnt int
@@ -562,15 +569,10 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix Linear
 	eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, c0OutQP.Q, c0OutQP.P, c0OutQP.Q) // sum(phi(c0 * P + d0_QP))/P
 	eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, c1OutQP.Q, c1OutQP.P, c1OutQP.Q) // sum(phi(d1_QP))/P
 
-	ringQ.MulScalarLvl(levelQ, c0OutQP.Q, eval.params.T(), c0OutQP.Q)
-	ringQ.MulScalarLvl(levelQ, c1OutQP.Q, eval.params.T(), c1OutQP.Q)
-
 	if state { // Rotation by zero
 		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, matrix.Vec[0].Q, ctInTmp0, c0OutQP.Q) // ctOut += c0_Q * plaintext
 		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, matrix.Vec[0].Q, ctInTmp1, c1OutQP.Q) // ctOut += c1_Q * plaintext
 	}
-
-	ctOut.Scale = ctIn.Scale.Mul(matrix.Scale, eval.params.T())
 }
 
 // MultiplyByDiagMatrixBSGS multiplies the Ciphertext "ctIn" by the plaintext matrix "matrix" and returns the result on the Ciphertext
@@ -599,9 +601,6 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Li
 	ring.CopyLvl(levelQ, ctIn.Value[1], eval.buffCt.Value[1])
 
 	ctInTmp0, ctInTmp1 := eval.buffCt.Value[0], eval.buffCt.Value[1]
-
-	ringQ.MulScalarBigintLvl(levelQ, ctInTmp0, eval.tInvModQ[levelQ], ctInTmp0)
-	ringQ.MulScalarBigintLvl(levelQ, ctInTmp1, eval.tInvModQ[levelQ], ctInTmp1)
 
 	// Pre-rotates ciphertext for the baby-step giant-step algorithm, does not divide by P yet
 	ctInRotQP := eval.RotateHoistedNoModDownNew(levelQ, rotN2, ctInTmp0, eval.BuffDecompQP)
@@ -676,7 +675,6 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Li
 
 			// Hoisting of the ModDown of sum(sum(phi(d1) * plaintext))
 			eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, tmp1QP.Q, tmp1QP.P, tmp1QP.Q) // c1 * plaintext + sum(phi(d1) * plaintext) + phi(c1) * plaintext mod Q
-			ringQ.MulScalarLvl(levelQ, tmp1QP.Q, eval.params.T(), tmp1QP.Q)
 
 			galEl := eval.params.GaloisElementForColumnRotationBy(j)
 
@@ -687,7 +685,6 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Li
 
 			rotIndex := eval.PermuteNTTIndex[galEl]
 
-			ringQ.MulScalarBigintLvl(levelQ, tmp1QP.Q, eval.tInvModQ[levelQ], tmp1QP.Q)
 			eval.GadgetProductNoModDown(levelQ, tmp1QP.Q, rtk.GadgetCiphertext, cQP) // Switchkey(P*phi(tmpRes_1)) = (d0, d1) in base QP
 			ringQP.AddLvl(levelQ, levelP, cQP.Value[0], tmp0QP, cQP.Value[0])
 
@@ -737,11 +734,6 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Li
 
 	eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, ctOut.Value[0], c0OutQP.P, ctOut.Value[0]) // sum(phi(c0 * P + d0_QP))/P
 	eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, ctOut.Value[1], c1OutQP.P, ctOut.Value[1]) // sum(phi(d1_QP))/P
-
-	ringQ.MulScalarLvl(levelQ, ctOut.Value[0], eval.params.T(), ctOut.Value[0])
-	ringQ.MulScalarLvl(levelQ, ctOut.Value[1], eval.params.T(), ctOut.Value[1])
-
-	ctOut.Scale = ctIn.Scale.Mul(matrix.Scale, eval.params.T())
 
 	ctInRotQP = nil
 	runtime.GC()

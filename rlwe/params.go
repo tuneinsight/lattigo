@@ -251,6 +251,11 @@ func (p Parameters) DefaultMetaData() MetaData {
 	return p.metadata
 }
 
+// DefaultNTTFlag returns the default NTT flag.
+func (p Parameters) DefaultNTTFlag() bool {
+	return p.metadata.IsNTT
+}
+
 // HammingWeight returns the number of non-zero coefficients in secret-keys.
 func (p Parameters) HammingWeight() int {
 	return p.h
@@ -461,6 +466,40 @@ func (p Parameters) GaloisElementsForTrace(logN int) (galEls []uint64) {
 	return
 }
 
+// RotationsForReplicate generates the rotations that will be performed by the
+// `Evaluator.Replicate` operation when performed with parameters `batch` and `n`.
+func (p Parameters) RotationsForReplicate(batch, n int) (rotations []int) {
+	return p.RotationsForInnerSum(-batch, n)
+}
+
+// RotationsForInnerSum generates the rotations that will be performed by the
+// `Evaluator.RotationsForInnerSum` operation when performed with parameters `batch` and `n`.
+func (p Parameters) RotationsForInnerSum(batch, n int) (rotations []int) {
+
+	rotIndex := make(map[int]bool)
+
+	var k int
+	for i := 1; i < n; i <<= 1 {
+
+		k = i
+		k *= batch
+		rotIndex[k] = true
+
+		k = n - (n & ((i << 1) - 1))
+		k *= batch
+		rotIndex[k] = true
+	}
+
+	rotations = make([]int, len(rotIndex))
+	var i int
+	for j := range rotIndex {
+		rotations[i] = j
+		i++
+	}
+
+	return
+}
+
 // GaloisElementsForRowInnerSum returns a list of all Galois elements required to
 // perform an InnerSum operation. This corresponds to all the left rotations by
 // k-positions where k is a power of two and the row-rotation element.
@@ -548,7 +587,7 @@ func (p Parameters) MarshalBinary() ([]byte, error) {
 	// 8 byte : H
 	// 8 byte : sigma
 	// 1 byte : ringType
-	// 50 bytes: metadata
+	// 42 bytes: metadata
 	// 8 * (#Q) : Q
 	// 8 * (#P) : P
 	b := utils.NewBuffer(make([]byte, 0, p.MarshalBinarySize()))
@@ -561,9 +600,8 @@ func (p Parameters) MarshalBinary() ([]byte, error) {
 	b.WriteUint8(uint8(p.ringType))
 
 	data := make([]byte, p.metadata.MarshalBinarySize())
-	b.WriteUint8(uint8(len(data)))
 
-	if err := p.metadata.Encode(data); err != nil {
+	if _, err := p.metadata.Encode64(data); err != nil {
 		return []byte{}, err
 	}
 
@@ -573,6 +611,7 @@ func (p Parameters) MarshalBinary() ([]byte, error) {
 
 	b.WriteUint64Slice(p.qi)
 	b.WriteUint64Slice(p.pi)
+
 	return b.Bytes(), nil
 }
 
@@ -590,16 +629,15 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	sigma := math.Float64frombits(b.ReadUint64())
 	ringType := ring.Type(b.ReadUint8())
 
-	lenDataScale := b.ReadUint8()
+	metadata := &MetaData{}
 
-	dataMeta := make([]byte, lenDataScale)
+	dataMeta := make([]byte, metadata.MarshalBinarySize())
 
 	for i := range dataMeta {
 		dataMeta[i] = b.ReadUint8()
 	}
 
-	metadata := &MetaData{}
-	if err := metadata.Decode(dataMeta); err != nil {
+	if _, err := metadata.Decode64(dataMeta); err != nil {
 		return err
 	}
 
@@ -619,7 +657,7 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 
 // MarshalBinarySize returns the length of the []byte encoding of the reciever.
 func (p Parameters) MarshalBinarySize() int {
-	return 21 + 41 + (len(p.qi)+len(p.pi))<<3
+	return 21 + 42 + (len(p.qi)+len(p.pi))<<3
 }
 
 // MarshalJSON returns a JSON representation of this parameter set. See `Marshal` from the `encoding/json` package.

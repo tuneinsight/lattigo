@@ -1,6 +1,7 @@
 package bgv
 
 import (
+	"encoding/json"
 	"fmt"
 	"runtime"
 	"testing"
@@ -9,6 +10,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -819,7 +821,7 @@ func testInnerSum(tc *testContext, t *testing.T) {
 		batch := 128
 		n := tc.params.N() / (2 * batch)
 
-		rotKey := tc.kgen.GenRotationKeysForRotations(tc.params.RotationsForInnerSumLog(batch, n), false, tc.sk)
+		rotKey := tc.kgen.GenRotationKeysForRotations(tc.params.RotationsForInnerSum(batch, n), false, tc.sk)
 		eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
 
 		values, _, ciphertext := newTestVectorsLvl(tc.params.MaxLevel(), tc.params.DefaultScale(), tc, tc.encryptorSk)
@@ -1007,6 +1009,49 @@ func testSwitchKeys(tc *testContext, t *testing.T) {
 
 func testMarshalling(tc *testContext, t *testing.T) {
 	t.Run("Marshalling", func(t *testing.T) {
+
+		t.Run("Parameters/Binary", func(t *testing.T) {
+
+			bytes, err := tc.params.MarshalBinary()
+			assert.Nil(t, err)
+			var p Parameters
+			err = p.UnmarshalBinary(bytes)
+			assert.Nil(t, err)
+			assert.Equal(t, tc.params, p)
+			assert.Equal(t, tc.params.RingQ(), p.RingQ())
+			assert.Equal(t, tc.params.MarshalBinarySize(), len(bytes))
+		})
+
+		t.Run("Parameters/JSON", func(t *testing.T) {
+			// checks that parameters can be marshalled without error
+			data, err := json.Marshal(tc.params)
+			assert.Nil(t, err)
+			assert.NotNil(t, data)
+
+			// checks that ckks.Parameters can be unmarshalled without error
+			var paramsRec Parameters
+			err = json.Unmarshal(data, &paramsRec)
+			assert.Nil(t, err)
+			assert.True(t, tc.params.Equals(paramsRec))
+
+			// checks that ckks.Parameters can be unmarshalled with log-moduli definition without error
+			dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60], "T":65537}`, tc.params.LogN()))
+			var paramsWithLogModuli Parameters
+			err = json.Unmarshal(dataWithLogModuli, &paramsWithLogModuli)
+			assert.Nil(t, err)
+			assert.Equal(t, 2, paramsWithLogModuli.QCount())
+			assert.Equal(t, 1, paramsWithLogModuli.PCount())
+			assert.Equal(t, rlwe.DefaultSigma, paramsWithLogModuli.Sigma()) // Omitting sigma should result in Default being used
+
+			// checks that one can provide custom parameters for the secret-key and error distributions
+			dataWithCustomSecrets := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60],"H": 192, "Sigma": 6.6, "T":65537}`, tc.params.LogN()))
+			var paramsWithCustomSecrets Parameters
+			err = json.Unmarshal(dataWithCustomSecrets, &paramsWithCustomSecrets)
+			assert.Nil(t, err)
+			assert.Equal(t, 6.6, paramsWithCustomSecrets.Sigma())
+			assert.Equal(t, 192, paramsWithCustomSecrets.HammingWeight())
+		})
+
 		t.Run(GetTestName("PowerBasis", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
 
 			if tc.params.MaxLevel() < 4 {

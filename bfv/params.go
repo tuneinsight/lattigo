@@ -187,6 +187,17 @@ func NewParametersFromLiteral(pl ParametersLiteral) (Parameters, error) {
 	return NewParameters(rlweParams, pl.T)
 }
 
+func (p Parameters) ParametersLiteral() {
+	return ParametersLiteral{
+		LogN:  p.LogN(),
+		Q:     p.Q(),
+		P:     p.P(),
+		H:     p.HammingWeight(),
+		Sigma: p.Sigma(),
+		T:     p.T(),
+	}
+}
+
 // RingQMul returns a pointer to the ring of the extended basis for multiplication.
 func (p Parameters) RingQMul() *ring.Ring {
 	return p.ringQMul
@@ -270,14 +281,7 @@ func (p Parameters) MarshalBinarySize() int {
 
 // MarshalJSON returns a JSON representation of this parameter set. See `Marshal` from the `encoding/json` package.
 func (p Parameters) MarshalJSON() ([]byte, error) {
-	return json.Marshal(ParametersLiteral{
-		LogN:  p.LogN(),
-		Q:     p.Q(),
-		P:     p.P(),
-		H:     p.HammingWeight(),
-		Sigma: p.Sigma(),
-		T:     p.T(),
-	})
+	return json.Marshal(p.ParametersLiteral())
 }
 
 // UnmarshalJSON reads a JSON representation of a parameter set into the receiver Parameter. See `Unmarshal` from the `encoding/json` package.

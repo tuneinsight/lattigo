@@ -22,7 +22,7 @@ type KeyGenerator interface {
 	GenRotationKeysForRotations(ks []int, inclueSwapRows bool, sk *SecretKey) (rks *RotationKeySet)
 	GenSwitchingKeyForRowRotation(sk *SecretKey) (swk *SwitchingKey)
 	GenRotationKeysForInnerSum(sk *SecretKey) (rks *RotationKeySet)
-	GenSwitchingKeysForRingSwap(skCKKS, skCI *SecretKey) (swkStdToConjugateInvariant, swkConjugateInvariantToStd *SwitchingKey)
+	GenSwitchingKeysForRingSwap(skCKKS, skCI *SecretKey) (*SwkStandardToConjugateInvariant, *SwkConjugateInvariantToStandard)
 }
 
 // KeyGenerator is a structure that stores the elements required to create new keys,
@@ -179,7 +179,7 @@ func (keygen *keyGenerator) genrotKey(sk ringqp.Poly, galEl uint64, swk *Switchi
 }
 
 // GenSwitchingKeysForRingSwap generates the necessary switching keys to switch from a standard ring to to a conjugate invariant ring and vice-versa.
-func (keygen *keyGenerator) GenSwitchingKeysForRingSwap(skStd, skConjugateInvariant *SecretKey) (swkStdToConjugateInvariant, swkConjugateInvariantToStd *SwitchingKey) {
+func (keygen *keyGenerator) GenSwitchingKeysForRingSwap(skStd, skConjugateInvariant *SecretKey) (*SwkStandardToConjugateInvariant, *SwkConjugateInvariantToStandard) {
 
 	skCIMappedToStandard := &SecretKey{Poly: keygen.buffQP}
 	keygen.params.RingQ().UnfoldConjugateInvariantToStandard(skConjugateInvariant.Q.Level(), skConjugateInvariant.Q, skCIMappedToStandard.Q)
@@ -188,9 +188,7 @@ func (keygen *keyGenerator) GenSwitchingKeysForRingSwap(skStd, skConjugateInvari
 		keygen.extendQ2P(keygen.params.PCount()-1, skCIMappedToStandard.Q, keygen.buffQ[0], skCIMappedToStandard.P)
 	}
 
-	swkConjugateInvariantToStd = keygen.GenSwitchingKey(skCIMappedToStandard, skStd)
-	swkStdToConjugateInvariant = keygen.GenSwitchingKey(skStd, skCIMappedToStandard)
-	return
+	return &SwkStandardToConjugateInvariant{*keygen.GenSwitchingKey(skCIMappedToStandard, skStd)}, &SwkConjugateInvariantToStandard{*keygen.GenSwitchingKey(skStd, skCIMappedToStandard)}
 }
 
 // GenSwitchingKey generates a new key-switching key, that will re-encrypt a Ciphertext encrypted under the input key into the output key.

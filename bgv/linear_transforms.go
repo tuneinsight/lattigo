@@ -9,38 +9,6 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
-// InnerSumLog applies an optimized inner sum on the ciphertext (log2(n) + HW(n) rotations with double hoisting).
-// The operation assumes that `ctIn` encrypts SlotCount/`batchSize` sub-vectors of size `batchSize` which it adds together (in parallel) by groups of `n`.
-// It outputs in ctOut a ciphertext for which the "leftmost" sub-vector of each group is equal to the sum of the group.
-// This method is faster than InnerSum when the number of rotations is large and uses log2(n) + HW(n) instead of 'n' keys.
-func (eval *evaluator) InnerSumLog(ctIn *rlwe.Ciphertext, batchSize, n int, ctOut *rlwe.Ciphertext) {
-
-	ringQ := eval.params.RingQ()
-	levelQ := utils.MinInt(ctIn.Level(), ctOut.Level())
-
-	ct1 := rlwe.NewCiphertextAtLevelFromPoly(levelQ, [2]*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly()})
-	ct1.MetaData = ctIn.MetaData
-
-	ringQ.MulScalarBigintLvl(levelQ, ctIn.Value[0], eval.tInvModQ[levelQ], ct1.Value[0])
-	ringQ.MulScalarBigintLvl(levelQ, ctIn.Value[1], eval.tInvModQ[levelQ], ct1.Value[1])
-
-	eval.Evaluator.InnerSum(ct1, batchSize, n, ctOut)
-
-	ringQ.MulScalarLvl(levelQ, ctOut.Value[0], eval.params.T(), ctOut.Value[0])
-	ringQ.MulScalarLvl(levelQ, ctOut.Value[1], eval.params.T(), ctOut.Value[1])
-}
-
-// ReplicateLog applies an optimized replication on the ciphertext (log2(n) + HW(n) rotations with double hoisting).
-// It acts as the inverse of a inner sum (summing elements from left to right).
-// The replication is parameterized by the size of the sub-vectors to replicate "batchSize" and
-// the number of time "n" they need to be replicated.
-// To ensure correctness, a gap of zero values of size batchSize * (n-1) must exist between
-// two consecutive sub-vectors to replicate.
-// This method is faster than Replicate when the number of rotations is large and uses log2(n) + HW(n) instead of 'n'.
-func (eval *evaluator) ReplicateLog(ctIn *rlwe.Ciphertext, batchSize, n int, ctOut *rlwe.Ciphertext) {
-	eval.InnerSumLog(ctIn, -batchSize, n, ctOut)
-}
-
 // LinearTransform is a type for linear transformations on ciphertexts.
 // It stores a plaintext matrix in diagonal form and
 // can be evaluated on a ciphertext by using the evaluator.LinearTransform method.
@@ -636,7 +604,7 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Li
 	ringQ.MulScalarBigintLvl(levelQ, ctInTmp1, eval.tInvModQ[levelQ], ctInTmp1)
 
 	// Pre-rotates ciphertext for the baby-step giant-step algorithm, does not divide by P yet
-	ctInRotQP := eval.rotateHoistedNoModDownNew(levelQ, rotN2, ctInTmp0, eval.BuffDecompQP)
+	ctInRotQP := eval.RotateHoistedNoModDownNew(levelQ, rotN2, ctInTmp0, eval.BuffDecompQP)
 
 	// Accumulator inner loop
 	tmp0QP := eval.BuffQP[1]

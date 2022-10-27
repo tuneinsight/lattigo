@@ -46,9 +46,9 @@ type evaluatorBuffers struct {
 }
 
 func newEvaluatorBase(params Parameters) *evaluatorBase {
-	ev := new(evaluatorBase)
-	ev.params = params
-	return ev
+	return &evaluatorBase{
+		params: params,
+	}
 }
 
 func newEvaluatorBuffers(params Parameters) *evaluatorBuffers {
@@ -151,11 +151,11 @@ func (eval *Evaluator) WithKey(evaluationKey *EvaluationKey) *Evaluator {
 	}
 }
 
-// ExpandRLWE expands a RLWE ciphertext encrypting sum ai * X^i to 2^logN ciphertexts,
+// Expand expands a RLWE ciphertext encrypting sum ai * X^i to 2^logN ciphertexts,
 // each encrypting ai * X^0 for 0 <= i < 2^LogN. That is, it extracts the first 2^logN
 // coefficients of ctIn and returns a RLWE ciphetext for each coefficient extracted.
 // The input ciphertext must be in the NTT domain, else the method will panic.
-func (eval *Evaluator) ExpandRLWE(ctIn *Ciphertext, logN int) (ctOut []*Ciphertext) {
+func (eval *Evaluator) Expand(ctIn *Ciphertext, logN int) (ctOut []*Ciphertext) {
 
 	if !ctIn.IsNTT {
 		panic("ctIn must be in the NTT domain")
@@ -219,13 +219,13 @@ func (eval *Evaluator) ExpandRLWE(ctIn *Ciphertext, logN int) (ctOut []*Cipherte
 	return
 }
 
-// MergeRLWE merges a batch of RLWE, packing the first coefficient of each RLWE into a single RLWE.
+// Merge merges a batch of RLWE, packing the first coefficient of each RLWE into a single RLWE.
 // The operation will require N/gap + log(gap) key-switches, where gap is the minimum gap between
 // two non-zero coefficients of the final Ciphertext.
 // The method takes as input a map of Ciphertext, indexing in which coefficient of the final
 // Ciphertext the first coefficient of each Ciphertext of the map must be packed.
 // All input ciphertexts must be in the NTT domain, else the method will panic.
-func (eval *Evaluator) MergeRLWE(ctIn map[int]*Ciphertext) (ctOut *Ciphertext) {
+func (eval *Evaluator) Merge(ctIn map[int]*Ciphertext) (ctOut *Ciphertext) {
 
 	params := eval.params
 	ringQ := params.RingQ()
@@ -491,4 +491,15 @@ func (eval *Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 			}
 		}
 	}
+}
+
+// ReplicateLog applies an optimized replication on the ciphertext (log2(n) + HW(n) rotations with double hoisting).
+// It acts as the inverse of a inner sum (summing elements from left to right).
+// The replication is parameterized by the size of the sub-vectors to replicate "batchSize" and
+// the number of time "n" they need to be replicated.
+// To ensure correctness, a gap of zero values of size batchSize * (n-1) must exist between
+// two consecutive sub-vectors to replicate.
+// This method is faster than Replicate when the number of rotations is large and uses log2(n) + HW(n) instead of 'n'.
+func (eval *Evaluator) Replicate(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
+	eval.InnerSum(ctIn, -batchSize, n, ctOut)
 }

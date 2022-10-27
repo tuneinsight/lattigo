@@ -134,10 +134,10 @@ func Norm(ct *Ciphertext, dec Decryptor) (std, min, max float64) {
 
 	params.RingQ().PolyToBigintCenteredLvl(ct.Level(), pt.Value, 1, coeffsBigint)
 
-	return normStats(coeffsBigint)
+	return NormStats(coeffsBigint)
 }
 
-func normStats(vec []*big.Int) (float64, float64, float64) {
+func NormStats(vec []*big.Int) (float64, float64, float64) {
 
 	vecfloat := make([]*big.Float, len(vec))
 	minErr := new(big.Float).SetFloat64(0)

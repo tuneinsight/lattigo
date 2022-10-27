@@ -63,8 +63,8 @@ func TestRLWE(t *testing.T) {
 			testDecryptor,
 			testKeySwitcher,
 			testKeySwitchDimension,
-			testMergeRLWE,
-			testExpandRLWE,
+			testMerge,
+			testExpand,
 			testMarshaller,
 		} {
 			testSet(kgen, t)
@@ -471,11 +471,11 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 	})
 }
 
-func testMergeRLWE(kgen KeyGenerator, t *testing.T) {
+func testMerge(kgen KeyGenerator, t *testing.T) {
 
 	params := kgen.(*keyGenerator).params
 
-	t.Run(testString(params, "MergeRLWE"), func(t *testing.T) {
+	t.Run(testString(params, "Merge"), func(t *testing.T) {
 
 		kgen := NewKeyGenerator(params)
 		sk := kgen.GenSecretKey()
@@ -501,12 +501,12 @@ func testMergeRLWE(kgen KeyGenerator, t *testing.T) {
 		}
 
 		// Rotation Keys
-		galEls := params.GaloisElementsForMergeRLWE()
+		galEls := params.GaloisElementsForMerge()
 		rtks := kgen.GenRotationKeys(galEls, sk)
 
 		eval := NewEvaluator(params, &EvaluationKey{Rtks: rtks})
 
-		ciphertext := eval.MergeRLWE(ciphertexts)
+		ciphertext := eval.Merge(ciphertexts)
 
 		decryptor.Decrypt(ciphertext, pt)
 
@@ -537,11 +537,11 @@ func testMergeRLWE(kgen KeyGenerator, t *testing.T) {
 	})
 }
 
-func testExpandRLWE(kgen KeyGenerator, t *testing.T) {
+func testExpand(kgen KeyGenerator, t *testing.T) {
 
 	params := kgen.(*keyGenerator).params
 
-	t.Run(testString(params, "ExpandRLWE"), func(t *testing.T) {
+	t.Run(testString(params, "Expand"), func(t *testing.T) {
 
 		kgen := NewKeyGenerator(params)
 		sk := kgen.GenSecretKey()
@@ -570,13 +570,13 @@ func testExpandRLWE(kgen KeyGenerator, t *testing.T) {
 		encryptor.Encrypt(pt, ctIn)
 
 		// Rotation Keys
-		galEls := params.GaloisElementForExpandRLWE(logN)
+		galEls := params.GaloisElementForExpand(logN)
 
 		rtks := kgen.GenRotationKeys(galEls, sk)
 
 		eval := NewEvaluator(params, &EvaluationKey{Rtks: rtks})
 
-		ciphertexts := eval.ExpandRLWE(ctIn, logN)
+		ciphertexts := eval.Expand(ctIn, logN)
 
 		bound := uint64(params.N() * params.N())
 
@@ -640,7 +640,7 @@ func testMarshaller(kgen KeyGenerator, t *testing.T) {
 	})
 
 	t.Run("Marshaller/MetaData", func(t *testing.T) {
-		m := MetaData{Scale: NewScale(1), ErrorScale: 2, IsNTT: true, IsMontgomery: true}
+		m := MetaData{Scale: NewScale(1), IsNTT: true, IsMontgomery: true}
 
 		data, err := m.MarshalBinary()
 		assert.Nil(t, err)

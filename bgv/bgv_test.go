@@ -483,6 +483,26 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		}
 
 		for _, lvl := range tc.testLevel {
+			t.Run(GetTestName("Mul/op0=ct/op2=pt", tc.params, lvl), func(t *testing.T) {
+
+				if lvl == 0 {
+					t.Skip("Level = 0")
+				}
+
+				values0, _, ciphertext0 := newTestVectorsLvl(lvl, rlwe.NewScale(3), tc, tc.encryptorSk)
+				values1, plaintext, _ := newTestVectorsLvl(lvl, rlwe.NewScale(7), tc, tc.encryptorSk)
+
+				require.True(t, ciphertext0.Scale.Cmp(plaintext.Scale) != 0)
+
+				tc.evaluator.Mul(ciphertext0, plaintext, ciphertext0)
+				tc.ringT.MulCoeffs(values0, values1, values0)
+
+				verifyTestVectors(tc, tc.decryptor, values0, ciphertext0, t)
+
+			})
+		}
+
+		for _, lvl := range tc.testLevel {
 			t.Run(GetTestName("Square/op0=ct/op2=ct", tc.params, lvl), func(t *testing.T) {
 
 				if lvl == 0 {
@@ -502,12 +522,21 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		for _, lvl := range tc.testLevel {
 			t.Run(GetTestName("MulRelin/op0=ct/op2=ct", tc.params, lvl), func(t *testing.T) {
 
+				//params := tc.params
+				//ringQ := params.RingQ()
+
+				//tInvModQ := ring.NewUint(params.T())
+				//tInvModQ.ModInverse(tInvModQ, params.RingQ().ModulusAtLevel[lvl])
+
 				if lvl == 0 {
 					t.Skip("Level = 0")
 				}
 
 				values0, _, ciphertext0 := newTestVectorsLvl(lvl, rlwe.NewScale(3), tc, tc.encryptorSk)
 				values1, _, ciphertext1 := newTestVectorsLvl(lvl, rlwe.NewScale(7), tc, tc.encryptorSk)
+
+				verifyTestVectors(tc, tc.decryptor, values0, ciphertext0, t)
+
 				tc.ringT.MulCoeffs(values0, values1, values0)
 
 				require.True(t, ciphertext0.Scale.Cmp(ciphertext1.Scale) != 0)
@@ -526,7 +555,14 @@ func testEvaluator(tc *testContext, t *testing.T) {
 
 				verifyTestVectors(tc, tc.decryptor, values0, receiver, t)
 
+				//ringQ.MulScalarBigintLvl(lvl, ciphertext0.Value[0], tInvModQ, ciphertext0.Value[0])
+				//ringQ.MulScalarBigintLvl(lvl, ciphertext0.Value[1], tInvModQ, ciphertext0.Value[1])
+				//ringQ.MulScalarBigintLvl(lvl, ciphertext1.Value[0], tInvModQ, ciphertext1.Value[0])
+				//ringQ.MulScalarBigintLvl(lvl, ciphertext1.Value[1], tInvModQ, ciphertext1.Value[1])
+
 				tc.evaluator.MulRelin(ciphertext0, ciphertext1, receiver)
+
+				tc.evaluator.Rescale(receiver, receiver)
 
 				verifyTestVectors(tc, tc.decryptor, values0, receiver, t)
 
@@ -570,6 +606,28 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				require.True(t, ciphertext0.Scale.Cmp(ciphertext2.Scale) != 0)
 
 				tc.evaluator.MulRelinAndAdd(ciphertext0, ciphertext1, ciphertext2)
+				tc.ringT.MulCoeffsAndAdd(values0, values1, values2)
+
+				verifyTestVectors(tc, tc.decryptor, values2, ciphertext2, t)
+
+			})
+		}
+
+		for _, lvl := range tc.testLevel {
+			t.Run(GetTestName("MulAndAdd/op0=ct/op1=pt", tc.params, lvl), func(t *testing.T) {
+
+				if lvl == 0 {
+					t.Skip("Level = 0")
+				}
+
+				values0, _, ciphertext0 := newTestVectorsLvl(lvl, tc.params.DefaultScale(), tc, tc.encryptorSk)
+				values1, plaintext1, _ := newTestVectorsLvl(lvl, rlwe.NewScale(2), tc, tc.encryptorSk)
+				values2, _, ciphertext2 := newTestVectorsLvl(lvl, rlwe.NewScale(7), tc, tc.encryptorSk)
+
+				require.True(t, ciphertext0.Scale.Cmp(plaintext1.Scale) != 0)
+				require.True(t, ciphertext0.Scale.Cmp(ciphertext2.Scale) != 0)
+
+				tc.evaluator.MulAndAdd(ciphertext0, plaintext1, ciphertext2)
 				tc.ringT.MulCoeffsAndAdd(values0, values1, values2)
 
 				verifyTestVectors(tc, tc.decryptor, values2, ciphertext2, t)
@@ -681,20 +739,14 @@ func testEvaluator(tc *testContext, t *testing.T) {
 
 					stdErrMul, _, _ := rlwe.Norm(ciphertext0, tc.decryptor)
 
-					ciphertext1 = ciphertext0.CopyNew()
-
 					require.Nil(t, tc.evaluator.Rescale(ciphertext0, ciphertext0))
-					require.Nil(t, tc.evaluator.(*evaluator).rescaleOriginal(ciphertext1, ciphertext1))
 
 					verifyTestVectors(tc, tc.decryptor, values0, ciphertext0, t)
-					verifyTestVectors(tc, tc.decryptor, values0, ciphertext1, t)
 
-					stdErrNewRescale, _, _ := rlwe.Norm(ciphertext0, tc.decryptor)
-					stdErrOldRescale, _, _ := rlwe.Norm(ciphertext1, tc.decryptor)
+					stdErr, _, _ := rlwe.Norm(ciphertext0, tc.decryptor)
 
 					t.Logf("STDErr (mul): %f\n", stdErrMul)
-					t.Logf("STDErr (t(div(xt^-1)): %f\n", stdErrNewRescale)
-					t.Logf("STDErr (modswitch(x)): %f\n", stdErrOldRescale)
+					t.Logf("STDErr (t(div(xt^-1)): %f\n", stdErr)
 
 				} else {
 					require.NotNil(t, tc.evaluator.Rescale(ciphertext0, ciphertext0))
@@ -772,7 +824,7 @@ func testInnerSum(tc *testContext, t *testing.T) {
 
 		values, _, ciphertext := newTestVectorsLvl(tc.params.MaxLevel(), tc.params.DefaultScale(), tc, tc.encryptorSk)
 
-		eval.InnerSumLog(ciphertext, batch, n, ciphertext)
+		eval.InnerSum(ciphertext, batch, n, ciphertext)
 
 		tmp := make([]uint64, tc.params.N())
 		copy(tmp, values.Coeffs[0])
@@ -911,7 +963,7 @@ func testMerge(tc *testContext, t *testing.T) {
 		}
 
 		// Rotation Keys
-		galEls := params.GaloisElementsForMergeRLWE()
+		galEls := params.GaloisElementsForMerge()
 		rtks := tc.kgen.GenRotationKeys(galEls, tc.sk)
 
 		eval := NewEvaluator(params, rlwe.EvaluationKey{Rtks: rtks})

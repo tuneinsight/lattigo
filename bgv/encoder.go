@@ -25,6 +25,9 @@ type Encoder interface {
 	RingT2Q(level int, pT, pQ *ring.Poly)
 	RingQ2T(level int, pQ, pT *ring.Poly)
 
+	ScaleUp(level int, pIn, pOut *ring.Poly)
+	ScaleDown(level int, pIn, pOut *ring.Poly)
+
 	EncodeRingT(values interface{}, scale rlwe.Scale, pT *ring.Poly)
 	DecodeRingT(pT *ring.Poly, scale rlwe.Scale, values interface{})
 
@@ -49,6 +52,8 @@ type encoder struct {
 
 	paramsQP []ring.ModupParams
 	qHalf    []*big.Int
+
+	tInvModQ []*big.Int
 }
 
 // NewEncoder creates a new encoder from the provided parameters.
@@ -79,11 +84,15 @@ func NewEncoder(params Parameters) Encoder {
 	qHalf := make([]*big.Int, len(ringQ.Modulus))
 
 	for i := 1; i < len(ringQ.Modulus); i++ {
-
 		paramsQP[i] = ring.GenModUpParams(ringQ.Modulus[:i+1], ringT.Modulus)
-
 		qHalf[i] = new(big.Int).Set(ringQ.ModulusAtLevel[i])
 		qHalf[i].Rsh(qHalf[i], 1)
+	}
+
+	tInvModQ := make([]*big.Int, len(ringQ.Modulus))
+	for i := range ringQ.Modulus {
+		tInvModQ[i] = ring.NewUint(params.T())
+		tInvModQ[i].ModInverse(tInvModQ[i], ringQ.ModulusAtLevel[i])
 	}
 
 	return &encoder{
@@ -93,6 +102,7 @@ func NewEncoder(params Parameters) Encoder {
 		buffT:       ringT.NewPoly(),
 		paramsQP:    paramsQP,
 		qHalf:       qHalf,
+		tInvModQ:    tInvModQ,
 	}
 }
 
@@ -109,6 +119,7 @@ func (ecd *encoder) Encode(values interface{}, pt *rlwe.Plaintext) {
 	ecd.EncodeRingT(values, pt.Scale, ecd.buffT)
 	ecd.RingT2Q(pt.Level(), ecd.buffT, pt.Value)
 	ecd.params.RingQ().NTTLvl(pt.Level(), pt.Value, pt.Value)
+	ecd.ScaleUp(pt.Level(), pt.Value, pt.Value)
 }
 
 // EncodeCoeffs encodes a slice of []uint64 of size at most N on a pre-allocated plaintext.
@@ -125,6 +136,7 @@ func (ecd *encoder) EncodeCoeffs(values []uint64, pt *rlwe.Plaintext) {
 	ringT.MulScalar(ecd.buffT, pt.Scale.Uint64(), ecd.buffT)
 	ecd.RingT2Q(pt.Level(), ecd.buffT, pt.Value)
 	ecd.params.RingQ().NTTLvl(pt.Level(), pt.Value, pt.Value)
+	ecd.ScaleUp(pt.Level(), pt.Value, pt.Value)
 }
 
 // EncodeCoeffsNew encodes a slice of []uint64 of size at most N on a newly allocated plaintext.
@@ -176,7 +188,6 @@ func (ecd *encoder) EncodeRingT(values interface{}, scale rlwe.Scale, pT *ring.P
 	}
 
 	ringT.InvNTT(pT, pT)
-
 	ringT.MulScalar(pT, scale.Uint64(), pT)
 }
 
@@ -214,6 +225,11 @@ func (ecd *encoder) RingT2Q(level int, pT, pQ *ring.Poly) {
 	}
 }
 
+// ScaleUp scales pIn up T^1 mod Q and returns the result in pOut.
+func (ecd *encoder) ScaleUp(level int, pIn, pOut *ring.Poly) {
+	ecd.params.RingQ().MulScalarBigintLvl(level, pIn, ecd.tInvModQ[level], pOut)
+}
+
 // RingQ2T takes pQ in base Q and returns it in base T on pT.
 func (ecd *encoder) RingQ2T(level int, pQ, pT *ring.Poly) {
 
@@ -231,9 +247,15 @@ func (ecd *encoder) RingQ2T(level int, pQ, pT *ring.Poly) {
 	}
 }
 
+// ScaleDown scales pIn down by T and returns the result in pOut.
+func (ecd *encoder) ScaleDown(level int, pIn, pOut *ring.Poly) {
+	ecd.params.RingQ().MulScalarLvl(level, pIn, ecd.params.T(), pOut)
+}
+
 // DecodeUint decodes a any plaintext type and write the coefficients on an pre-allocated uint64 slice.
 func (ecd *encoder) DecodeUint(pt *rlwe.Plaintext, values []uint64) {
 	ecd.params.RingQ().InvNTTLvl(pt.Level(), pt.Value, ecd.buffQ)
+	ecd.ScaleDown(pt.Level(), ecd.buffQ, ecd.buffQ)
 	ecd.RingQ2T(pt.Level(), ecd.buffQ, ecd.buffT)
 	ecd.DecodeRingT(ecd.buffT, pt.Scale, values)
 }
@@ -249,6 +271,7 @@ func (ecd *encoder) DecodeUintNew(pt *rlwe.Plaintext) (values []uint64) {
 // Values are centered between [t/2, t/2).
 func (ecd *encoder) DecodeInt(pt *rlwe.Plaintext, values []int64) {
 	ecd.params.RingQ().InvNTTLvl(pt.Level(), pt.Value, ecd.buffQ)
+	ecd.ScaleDown(pt.Level(), ecd.buffQ, ecd.buffQ)
 	ecd.RingQ2T(pt.Level(), ecd.buffQ, ecd.buffT)
 	ecd.DecodeRingT(ecd.buffT, pt.Scale, values)
 }
@@ -263,6 +286,7 @@ func (ecd *encoder) DecodeIntNew(pt *rlwe.Plaintext) (values []int64) {
 
 func (ecd *encoder) DecodeCoeffs(pt *rlwe.Plaintext, values []uint64) {
 	ecd.params.RingQ().InvNTTLvl(pt.Level(), pt.Value, ecd.buffQ)
+	ecd.ScaleDown(pt.Level(), ecd.buffQ, ecd.buffQ)
 	ecd.RingQ2T(pt.Level(), ecd.buffQ, ecd.buffT)
 	ringT := ecd.params.RingT()
 	ringT.MulScalar(ecd.buffT, ring.ModExp(pt.Scale.Uint64(), ringT.Modulus[0]-2, ringT.Modulus[0]), ecd.buffT)
@@ -286,5 +310,6 @@ func (ecd *encoder) ShallowCopy() Encoder {
 		buffT:       ecd.params.RingT().NewPoly(),
 		paramsQP:    ecd.paramsQP,
 		qHalf:       ecd.qHalf,
+		tInvModQ:    ecd.tInvModQ,
 	}
 }

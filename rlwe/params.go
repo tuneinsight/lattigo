@@ -57,7 +57,6 @@ type ParametersLiteral struct {
 	H              int
 	RingType       ring.Type
 	DefaultScale   Scale
-	ErrorScale     uint64
 	DefaultNTTFlag bool
 }
 
@@ -79,7 +78,7 @@ type Parameters struct {
 // NewParameters returns a new set of generic RLWE parameters from the given ring degree logn, moduli q and p, and
 // error distribution parameter sigma. It returns the empty parameters Parameters{} and a non-nil error if the
 // specified parameters are invalid.
-func NewParameters(logn int, q, p []uint64, pow2Base, h int, sigma float64, ringType ring.Type, defaultScale Scale, errorScale uint64, defaultNTTFlag bool) (Parameters, error) {
+func NewParameters(logn int, q, p []uint64, pow2Base, h int, sigma float64, ringType ring.Type, defaultScale Scale, defaultNTTFlag bool) (Parameters, error) {
 
 	if pow2Base != 0 && len(p) > 1 {
 		return Parameters{}, fmt.Errorf("rlwe.NewParameters: invalid parameters, cannot have pow2Base > 0 if len(P) > 1")
@@ -104,9 +103,8 @@ func NewParameters(logn int, q, p []uint64, pow2Base, h int, sigma float64, ring
 		sigma:    sigma,
 		ringType: ringType,
 		metadata: MetaData{
-			Scale:      NewScale(defaultScale),
-			IsNTT:      defaultNTTFlag,
-			ErrorScale: errorScale,
+			Scale: NewScale(defaultScale),
+			IsNTT: defaultNTTFlag,
 		},
 	}
 
@@ -155,7 +153,7 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
 
 	switch {
 	case paramDef.Q != nil && paramDef.LogQ == nil:
-		return NewParameters(paramDef.LogN, paramDef.Q, paramDef.P, paramDef.Pow2Base, paramDef.H, paramDef.Sigma, paramDef.RingType, paramDef.DefaultScale, paramDef.ErrorScale, paramDef.DefaultNTTFlag)
+		return NewParameters(paramDef.LogN, paramDef.Q, paramDef.P, paramDef.Pow2Base, paramDef.H, paramDef.Sigma, paramDef.RingType, paramDef.DefaultScale, paramDef.DefaultNTTFlag)
 	case paramDef.LogQ != nil && paramDef.Q == nil:
 		var q, p []uint64
 		var err error
@@ -170,7 +168,7 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
 		if err != nil {
 			return Parameters{}, err
 		}
-		return NewParameters(paramDef.LogN, q, p, paramDef.Pow2Base, paramDef.H, paramDef.Sigma, paramDef.RingType, paramDef.DefaultScale, paramDef.ErrorScale, paramDef.DefaultNTTFlag)
+		return NewParameters(paramDef.LogN, q, p, paramDef.Pow2Base, paramDef.H, paramDef.Sigma, paramDef.RingType, paramDef.DefaultScale, paramDef.DefaultNTTFlag)
 	default:
 		return Parameters{}, fmt.Errorf("rlwe.NewParametersFromLiteral: invalid parameter literal")
 	}
@@ -215,7 +213,6 @@ func (p Parameters) ParametersLiteral() ParametersLiteral {
 		RingType:       p.ringType,
 		DefaultScale:   p.metadata.Scale,
 		DefaultNTTFlag: p.metadata.IsNTT,
-		ErrorScale:     p.metadata.ErrorScale,
 	}
 }
 
@@ -485,9 +482,9 @@ func (p Parameters) GaloisElementsForRowInnerSum() (galEls []uint64) {
 	return galEls
 }
 
-// GaloisElementForExpandRLWE returns the list of Galois elements required
-// to perform the ExpandRLWE operation.
-func (p Parameters) GaloisElementForExpandRLWE(logN int) (galEls []uint64) {
+// GaloisElementForExpand returns the list of Galois elements required
+// to perform the Expand operation.
+func (p Parameters) GaloisElementForExpand(logN int) (galEls []uint64) {
 	galEls = make([]uint64, logN)
 
 	for i := 0; i < logN; i++ {
@@ -497,9 +494,9 @@ func (p Parameters) GaloisElementForExpandRLWE(logN int) (galEls []uint64) {
 	return
 }
 
-// GaloisElementsForMergeRLWE returns the list of Galois elements required
-// to perform the MergeRLWE operation.
-func (p Parameters) GaloisElementsForMergeRLWE() (galEls []uint64) {
+// GaloisElementsForMerge returns the list of Galois elements required
+// to perform the Merge operation.
+func (p Parameters) GaloisElementsForMerge() (galEls []uint64) {
 	return p.GaloisElementsForRowInnerSum()
 }
 
@@ -616,7 +613,7 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	b.ReadUint64Slice(pi)
 
 	var err error
-	*p, err = NewParameters(logN, qi, pi, logbase2, h, sigma, ringType, metadata.Scale, metadata.ErrorScale, metadata.IsNTT)
+	*p, err = NewParameters(logN, qi, pi, logbase2, h, sigma, ringType, metadata.Scale, metadata.IsNTT)
 	return err
 }
 

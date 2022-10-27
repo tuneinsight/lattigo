@@ -246,11 +246,6 @@ func (enc *pkEncryptor) encryptZero(ct *Ciphertext) {
 		ringQP.RingQ.NTTLvl(levelQ, ct.Value[0], ct.Value[0])
 		ringQP.RingQ.NTTLvl(levelQ, ct.Value[1], ct.Value[1])
 	}
-
-	if ct.ErrorScale != 0 {
-		ringQP.RingQ.MulScalarLvl(levelQ, ct.Value[0], ct.ErrorScale, ct.Value[0])
-		ringQP.RingQ.MulScalarLvl(levelQ, ct.Value[1], ct.ErrorScale, ct.Value[1])
-	}
 }
 
 func (enc *pkEncryptor) encryptZeroNoP(ct *Ciphertext) {
@@ -288,11 +283,6 @@ func (enc *pkEncryptor) encryptZeroNoP(ct *Ciphertext) {
 	} else {
 		ringQ.InvNTTLvl(levelQ, c1, c1)
 		enc.gaussianSampler.ReadAndAddLvl(levelQ, c1)
-	}
-
-	if ct.ErrorScale != 0 {
-		ringQ.MulScalarLvl(levelQ, ct.Value[0], ct.ErrorScale, ct.Value[0])
-		ringQ.MulScalarLvl(levelQ, ct.Value[1], ct.ErrorScale, ct.Value[1])
 	}
 }
 
@@ -369,13 +359,6 @@ func (enc *skEncryptor) encryptZero(ct *Ciphertext, c1 *ring.Poly) {
 
 		enc.gaussianSampler.ReadAndAddLvl(levelQ, c0) // c0 = -sc1 + e
 	}
-
-	if ct.ErrorScale != 0 {
-		ringQ.MulScalarLvl(levelQ, c0, ct.ErrorScale, c0)
-		if ct.Degree() == 1 {
-			ringQ.MulScalarLvl(levelQ, c1, ct.ErrorScale, c1)
-		}
-	}
 }
 
 // EncryptZeroSeeded generates en encryption of zero under sk.
@@ -412,11 +395,6 @@ func (enc *skEncryptor) encryptZeroQP(ct CiphertextQP) {
 	if !ct.IsNTT {
 		ringQP.InvNTTLvl(levelQ, levelP, c0, c0)
 		ringQP.InvNTTLvl(levelQ, levelP, c1, c1)
-	}
-
-	if ct.ErrorScale != 0 {
-		ringQP.MulScalarLvl(levelQ, levelP, c0, ct.ErrorScale, c0)
-		ringQP.MulScalarLvl(levelQ, levelP, c1, ct.ErrorScale, c1)
 	}
 }
 

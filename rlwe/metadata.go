@@ -1,7 +1,6 @@
 package rlwe
 
 import (
-	"encoding/binary"
 	"fmt"
 )
 
@@ -10,7 +9,6 @@ type MetaData struct {
 	Scale
 	IsNTT        bool
 	IsMontgomery bool
-	ErrorScale   uint64
 }
 
 // Equal returns true if two MetaData structs are identical.
@@ -18,12 +16,12 @@ func (m *MetaData) Equal(other MetaData) (res bool) {
 	res = m.Scale.Cmp(other.Scale) == 0
 	res = res && m.IsNTT == other.IsNTT
 	res = res && m.IsMontgomery == other.IsMontgomery
-	return res && m.ErrorScale == other.ErrorScale
+	return
 }
 
 // MarshalBinarySize returns the length in bytes of the target MetaData.
 func (m *MetaData) MarshalBinarySize() int {
-	return 10 + m.Scale.MarshalBinarySize()
+	return 2 + m.Scale.MarshalBinarySize()
 }
 
 // MarshalBinary encodes a MetaData on a byte slice.
@@ -65,9 +63,6 @@ func (m *MetaData) Encode64(data []byte) (ptr int, err error) {
 
 	ptr++
 
-	binary.LittleEndian.PutUint64(data[ptr:], m.ErrorScale)
-	ptr += 8
-
 	return
 }
 
@@ -92,9 +87,6 @@ func (m *MetaData) Decode64(data []byte) (ptr int, err error) {
 
 	m.IsMontgomery = data[ptr] == 1
 	ptr++
-
-	m.ErrorScale = binary.LittleEndian.Uint64(data[ptr:])
-	ptr += 8
 
 	return
 }

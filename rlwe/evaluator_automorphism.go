@@ -35,11 +35,11 @@ func (eval *Evaluator) Automorphism(ctIn *Ciphertext, galEl uint64, ctOut *Ciphe
 
 	ringQ := eval.params.RingQ()
 
-	ctTmp := &Ciphertext{}
-	ctTmp.Value = []*ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}
-	ctTmp.IsNTT = ctIn.IsNTT
+	ctTmp := &Ciphertext{Value: []*ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}}
+	ctTmp.IsNTT = true
 
 	eval.GadgetProduct(level, ctIn.Value[1], rtk.GadgetCiphertext, ctTmp)
+
 	ringQ.AddLvl(level, eval.BuffQP[1].Q, ctIn.Value[0], eval.BuffQP[1].Q)
 
 	if ctIn.IsNTT {

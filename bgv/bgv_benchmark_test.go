@@ -246,19 +246,6 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 		})
 	}
 
-	for _, lvl := range tc.testLevel[1:] {
-		ciphertext0 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, lvl)
-		receiver := rlwe.NewCiphertext(tc.params.Parameters, 1, lvl-1)
-		b.Run(GetTestName("Evaluator/Rescale(OLD)/op0=ct", tc.params, lvl), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				if err := eval.(*evaluator).rescaleOriginal(ciphertext0, receiver); err != nil {
-					b.Log(err)
-					b.Fail()
-				}
-			}
-		})
-	}
-
 	for _, lvl := range tc.testLevel {
 		ciphertext0 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 2, lvl)
 		receiver := rlwe.NewCiphertext(tc.params.Parameters, 1, lvl)

@@ -93,7 +93,7 @@ func (cks *CKSProtocol) SampleCRP(level int, crs CRS) CKSCRP {
 // GenShare computes a party's share in the CKS protocol.
 // ct1 is the degree 1 element of the rlwe.Ciphertext to keyswitch, i.e. ct1 = rlwe.Ciphertext.Value[1].
 // NTT flag for ct1 is expected to be set correctly.
-func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, c1 *ring.Poly, metadata rlwe.MetaData, shareOut *CKSShare) {
+func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, c1 *ring.Poly, isNTT bool, shareOut *CKSShare) {
 
 	ringQ := cks.params.RingQ()
 	ringP := cks.params.RingP()
@@ -105,7 +105,7 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, c1 *ring.Pol
 	ringQ.SubLvl(levelQ, skInput.Q, skOutput.Q, cks.tmpDelta)
 
 	ct1 := c1
-	if !metadata.IsNTT {
+	if !isNTT {
 		ringQ.NTTLazyLvl(levelQ, c1, cks.tmpQP.Q)
 		ct1 = cks.tmpQP.Q
 	}
@@ -118,7 +118,7 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, c1 *ring.Pol
 		ringQ.MulScalarBigintLvl(levelQ, shareOut.Value, ringP.ModulusAtLevel[levelP], shareOut.Value)
 	}
 
-	if !metadata.IsNTT {
+	if !isNTT {
 		// InvNTT(P * a * (skIn - skOut)) mod QP (mod P = 0)
 		ringQ.InvNTTLazyLvl(levelQ, shareOut.Value, shareOut.Value)
 

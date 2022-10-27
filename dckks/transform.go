@@ -161,9 +161,7 @@ func (rfp *MaskedTransformProtocol) AllocateShare(levelDecrypt, levelRecrypt int
 // SampleCRP samples a common random polynomial to be used in the Masked-Transform protocol from the provided
 // common reference string. The CRP is considered to be in the NTT domain.
 func (rfp *MaskedTransformProtocol) SampleCRP(level int, crs utils.PRNG) drlwe.CKSCRP {
-	crp := rfp.s2e.SampleCRP(level, crs)
-	crp.IsNTT = true
-	return crp
+	return rfp.s2e.SampleCRP(level, crs)
 }
 
 // GenShare generates the shares of the PermuteProtocol
@@ -372,9 +370,7 @@ func (rfp *MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, logSlots int,
 	// Extend the levels of the ciphertext for future allocation
 	if ciphertextOut.Value[0].N() != ringQ.N {
 		for i := range ciphertextOut.Value {
-			isNTT := ciphertextOut.Value[i].IsNTT
 			ciphertextOut.Value[i] = ringQ.NewPolyLvl(maxLevel)
-			ciphertextOut.Value[i].IsNTT = isNTT
 		}
 	} else {
 		ciphertextOut.Resize(ciphertextOut.Degree(), maxLevel)
@@ -391,5 +387,6 @@ func (rfp *MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, logSlots int,
 	// Copies the result on the out ciphertext
 	rfp.s2e.GetEncryption(&drlwe.CKSShare{Value: ciphertextOut.Value[0]}, crs, ciphertextOut)
 
+	ciphertextOut.MetaData = ct.MetaData
 	ciphertextOut.Scale = rfp.s2e.params.DefaultScale()
 }

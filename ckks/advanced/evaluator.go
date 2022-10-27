@@ -52,9 +52,7 @@ type Evaluator interface {
 	LinearTransform(ctIn *rlwe.Ciphertext, linearTransform interface{}, ctOut []*rlwe.Ciphertext)
 	MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix ckks.LinearTransform, c2DecompQP []ringqp.Poly, ctOut *rlwe.Ciphertext)
 	MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix ckks.LinearTransform, c2DecompQP []ringqp.Poly, ctOut *rlwe.Ciphertext)
-	InnerSumLog(ctIn *rlwe.Ciphertext, batch, n int, ctOut *rlwe.Ciphertext)
 	InnerSum(ctIn *rlwe.Ciphertext, batch, n int, ctOut *rlwe.Ciphertext)
-	ReplicateLog(ctIn *rlwe.Ciphertext, batch, n int, ctOut *rlwe.Ciphertext)
 	Replicate(ctIn *rlwe.Ciphertext, batch, n int, ctOut *rlwe.Ciphertext)
 	TraceNew(ctIn *rlwe.Ciphertext, logSlots int) *rlwe.Ciphertext
 	Trace(ctIn *rlwe.Ciphertext, logSlots int, ctOut *rlwe.Ciphertext)
@@ -146,7 +144,8 @@ func (eval *evaluator) CoeffsToSlots(ctIn *rlwe.Ciphertext, ctsMatrices Encoding
 		if ctImag != nil {
 			tmp = ctImag
 		} else {
-			tmp = rlwe.NewCiphertextNTTAtLevelFromPoly(ctReal.Level(), [2]*ring.Poly{eval.BuffCt().Value[0], eval.BuffCt().Value[1]})
+			tmp = rlwe.NewCiphertextAtLevelFromPoly(ctReal.Level(), [2]*ring.Poly{eval.BuffCt().Value[0], eval.BuffCt().Value[1]})
+			tmp.IsNTT = true
 		}
 
 		// Imag part

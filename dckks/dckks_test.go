@@ -45,9 +45,9 @@ type testContext struct {
 	encoder   ckks.Encoder
 	evaluator ckks.Evaluator
 
-	encryptorPk0 ckks.Encryptor
-	decryptorSk0 ckks.Decryptor
-	decryptorSk1 ckks.Decryptor
+	encryptorPk0 rlwe.Encryptor
+	decryptorSk0 rlwe.Decryptor
+	decryptorSk1 rlwe.Decryptor
 
 	pk0 *rlwe.PublicKey
 	pk1 *rlwe.PublicKey
@@ -91,7 +91,7 @@ func TestDCKKS(t *testing.T) {
 		testParams = append(ckks.DefaultParams[:4], ckks.DefaultConjugateInvariantParams[:4]...)
 	}
 
-	for _, paramsLiteral := range testParams {
+	for _, paramsLiteral := range testParams[:] {
 
 		var params ckks.Parameters
 		if params, err = ckks.NewParametersFromLiteral(paramsLiteral); err != nil {
@@ -139,15 +139,15 @@ func genTestParams(params ckks.Parameters, NParties int) (tc *testContext, err e
 	// SecretKeys
 	tc.sk0Shards = make([]*rlwe.SecretKey, NParties)
 	tc.sk1Shards = make([]*rlwe.SecretKey, NParties)
-	tc.sk0 = ckks.NewSecretKey(tc.params)
-	tc.sk1 = ckks.NewSecretKey(tc.params)
+	tc.sk0 = rlwe.NewSecretKey(tc.params.Parameters)
+	tc.sk1 = rlwe.NewSecretKey(tc.params.Parameters)
 
 	ringQP, levelQ, levelP := params.RingQP(), params.QCount()-1, params.PCount()-1
 	for j := 0; j < NParties; j++ {
 		tc.sk0Shards[j] = kgen.GenSecretKey()
 		tc.sk1Shards[j] = kgen.GenSecretKey()
-		ringQP.AddLvl(levelQ, levelP, tc.sk0.Value, tc.sk0Shards[j].Value, tc.sk0.Value)
-		ringQP.AddLvl(levelQ, levelP, tc.sk1.Value, tc.sk1Shards[j].Value, tc.sk1.Value)
+		ringQP.AddLvl(levelQ, levelP, tc.sk0.Poly, tc.sk0Shards[j].Poly, tc.sk0.Poly)
+		ringQP.AddLvl(levelQ, levelP, tc.sk1.Poly, tc.sk1Shards[j].Poly, tc.sk1.Poly)
 	}
 
 	// Publickeys
@@ -222,8 +222,8 @@ func testE2SProtocol(tc *testContext, t *testing.T) {
 		}
 
 		pt := ckks.NewPlaintext(params, ciphertext.Level())
+		pt.IsNTT = false
 		pt.Scale = ciphertext.Scale
-		pt.Value.IsNTT = false
 		tc.ringQ.SetCoefficientsBigintLvl(pt.Level(), rec.Value, pt.Value)
 
 		verifyTestVectors(tc, nil, coeffs, pt, t)
@@ -457,7 +457,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 			p.sIn = sk0Shards[i]
 
 			p.sOut = kgenParamsOut.GenSecretKey() // New shared secret key in target parameters
-			paramsOut.RingQ().Add(skIdealOut.Value.Q, p.sOut.Value.Q, skIdealOut.Value.Q)
+			paramsOut.RingQ().Add(skIdealOut.Q, p.sOut.Q, skIdealOut.Q)
 
 			p.share = p.AllocateShare(levelIn, levelOut)
 			RefreshParties[i] = p
@@ -554,11 +554,11 @@ func testMarshalling(tc *testContext, t *testing.T) {
 	})
 }
 
-func newTestVectors(testContext *testContext, encryptor ckks.Encryptor, a, b complex128) (values []complex128, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
+func newTestVectors(testContext *testContext, encryptor rlwe.Encryptor, a, b complex128) (values []complex128, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
 	return newTestVectorsAtScale(testContext, encryptor, a, b, testContext.params.DefaultScale())
 }
 
-func newTestVectorsAtScale(testContext *testContext, encryptor ckks.Encryptor, a, b complex128, scale rlwe.Scale) (values []complex128, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
+func newTestVectorsAtScale(testContext *testContext, encryptor rlwe.Encryptor, a, b complex128, scale rlwe.Scale) (values []complex128, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
 
 	params := testContext.params
 
@@ -579,7 +579,7 @@ func newTestVectorsAtScale(testContext *testContext, encryptor ckks.Encryptor, a
 	return values, plaintext, ciphertext
 }
 
-func verifyTestVectors(tc *testContext, decryptor ckks.Decryptor, valuesWant []complex128, element interface{}, t *testing.T) {
+func verifyTestVectors(tc *testContext, decryptor rlwe.Decryptor, valuesWant []complex128, element interface{}, t *testing.T) {
 
 	precStats := ckks.GetPrecisionStats(tc.params, tc.encoder, decryptor, valuesWant, element, tc.params.LogSlots(), 0)
 

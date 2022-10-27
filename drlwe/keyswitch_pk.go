@@ -88,7 +88,7 @@ func (pcks *PCKSProtocol) AllocateShare(levelQ int) (s *PCKSShare) {
 // and broadcasts the result to the other j-1 parties.
 // ct1 is the degree 1 element of the rlwe.Ciphertext to keyswitch, i.e. ct1 = rlwe.Ciphertext.Value[1].
 // NTT flag for ct1 is expected to be set correctly.
-func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct1 *ring.Poly, metadata rlwe.MetaData, shareOut *PCKSShare) {
+func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct1 *ring.Poly, isNTT bool, shareOut *PCKSShare) {
 
 	ringQ := pcks.params.RingQ()
 	ringP := pcks.params.RingP()
@@ -145,7 +145,7 @@ func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct1 *
 	}
 
 	// h_0 = s_i*c_1 + (u_i * pk_0 + e0)/P
-	if metadata.IsNTT {
+	if isNTT {
 		ringQ.NTTLvl(levelQ, shareOut.Value[0], shareOut.Value[0])
 		ringQ.NTTLvl(levelQ, shareOut.Value[1], shareOut.Value[1])
 		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, ct1, sk.Q, shareOut.Value[0])

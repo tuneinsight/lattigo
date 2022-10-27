@@ -57,9 +57,7 @@ func NewE2SProtocol(params ckks.Parameters, sigmaSmudging float64) *E2SProtocol 
 
 // AllocateShare allocates a share of the E2S protocol
 func (e2s *E2SProtocol) AllocateShare(level int) (share *drlwe.CKSShare) {
-	share = e2s.CKSProtocol.AllocateShare(level)
-	share.Value.IsNTT = true
-	return
+	return e2s.CKSProtocol.AllocateShare(level)
 }
 
 // GenShare generates a party's share in the encryption-to-shares protocol. This share consist in the additive secret-share of the party
@@ -114,7 +112,7 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound, logSlots int, ct1
 
 	// Encrypt the mask
 	// Generates an encryption of zero and subtracts the mask
-	e2s.CKSProtocol.GenShare(sk, e2s.zero, ct1, publicShareOut)
+	e2s.CKSProtocol.GenShare(sk, e2s.zero, ct1, true, publicShareOut)
 
 	ringQ.SetCoefficientsBigintLvl(levelQ, secretShareOut.Value[:dslots], e2s.buff)
 
@@ -205,9 +203,7 @@ func NewS2EProtocol(params ckks.Parameters, sigmaSmudging float64) *S2EProtocol 
 
 // AllocateShare allocates a share of the S2E protocol
 func (s2e S2EProtocol) AllocateShare(level int) (share *drlwe.CKSShare) {
-	share = s2e.CKSProtocol.AllocateShare(level)
-	share.Value.IsNTT = true
-	return
+	return s2e.CKSProtocol.AllocateShare(level)
 }
 
 // GenShare generates a party's in the shares-to-encryption protocol given the party's secret-key share `sk`, a common
@@ -223,8 +219,7 @@ func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.CKSCRP, logSlots 
 	}
 
 	// Generates an encryption share
-	c1.IsNTT = true
-	s2e.CKSProtocol.GenShare(s2e.zero, sk, &c1, c0ShareOut)
+	s2e.CKSProtocol.GenShare(s2e.zero, sk, &c1, true, c0ShareOut)
 
 	dslots := 1 << logSlots
 	if ringQ.Type() == ring.Standard {

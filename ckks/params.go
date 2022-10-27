@@ -10,7 +10,10 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
-var minLogSlots = 0
+const (
+	minLogSlots    = 0
+	DefaultNTTFlag = true
+)
 
 // Name of the different default parameter sets
 var (
@@ -307,7 +310,7 @@ func (p ParametersLiteral) RLWEParameters() rlwe.ParametersLiteral {
 		Sigma:          p.Sigma,
 		H:              p.H,
 		RingType:       p.RingType,
-		DefaultNTTFlag: true,
+		DefaultNTTFlag: DefaultNTTFlag,
 		DefaultScale:   rlwe.NewScale(p.DefaultScale),
 	}
 }

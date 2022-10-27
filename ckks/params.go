@@ -337,6 +337,11 @@ type Parameters struct {
 // NewParameters instantiate a set of CKKS parameters from the generic RLWE parameters and the CKKS-specific ones.
 // It returns the empty parameters Parameters{} and a non-nil error if the specified parameters are invalid.
 func NewParameters(rlweParams rlwe.Parameters, logSlots int) (p Parameters, err error) {
+
+	if !rlweParams.DefaultNTTFlag() {
+		return Parameters{}, fmt.Errorf("provided RLWE are invalid for CKKS scheme (DefaultNTTFlag must be true)")
+	}
+
 	if rlweParams.Equals(rlwe.Parameters{}) {
 		return Parameters{}, fmt.Errorf("provided RLWE parameters are invalid")
 	}

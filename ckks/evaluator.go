@@ -365,6 +365,7 @@ func (eval *evaluator) evaluateInPlace(c0 *rlwe.Ciphertext, c1 rlwe.Operand, ctO
 		evaluate(level, tmp0.Value[i], tmp1.Value[i], ctOut.El().Value[i])
 	}
 
+	ctOut.MetaData = c0.MetaData
 	ctOut.Scale = c0.Scale.Max(c1.GetScale())
 
 	// If the inputs degrees differ, it copies the remaining degree on the receiver.
@@ -394,7 +395,7 @@ func (eval *evaluator) Neg(ct0 *rlwe.Ciphertext, ctOut *rlwe.Ciphertext) {
 		eval.params.RingQ().NegLvl(level, ct0.Value[i], ctOut.Value[i])
 	}
 
-	ctOut.Scale = ct0.Scale
+	ctOut.MetaData = ct0.MetaData
 }
 
 // NegNew negates ct0 and returns the result in a newly created element.
@@ -487,7 +488,7 @@ func (eval *evaluator) AddConst(ct0 *rlwe.Ciphertext, constant interface{}, ctOu
 
 	cf64 := ctOut.Scale.Float64()
 
-	ctOut.Scale = ct0.Scale
+	ctOut.MetaData = ct0.MetaData
 
 	// Component wise addition of the following vector to the ciphertext:
 	// [a + b*psi_qi^2, ....., a + b*psi_qi^2, a - b*psi_qi^2, ...., a - b*psi_qi^2] mod Qi
@@ -557,6 +558,7 @@ func (eval *evaluator) MultByConstAndAdd(ct0 *rlwe.Ciphertext, constant interfac
 
 			}
 
+			ctOut.MetaData = ct0.MetaData
 			ctOut.Scale = ct0.Scale.Mul(scale, nil)
 
 			// If ctOut.scale > ((a+bi)*scale)*ct0(x), then it sets the scale to
@@ -579,6 +581,7 @@ func (eval *evaluator) MultByConstAndAdd(ct0 *rlwe.Ciphertext, constant interfac
 				eval.MultByConst(ctOut, scale, ctOut)
 			}
 
+			ctOut.MetaData = ct0.MetaData
 			ctOut.Scale = ct0.Scale
 		}
 	}
@@ -694,6 +697,7 @@ func (eval *evaluator) MultByConst(ct0 *rlwe.Ciphertext, constant interface{}, c
 		}
 	}
 
+	ctOut.MetaData = ct0.MetaData
 	ctOut.Scale = ct0.Scale.Mul(scale, nil)
 }
 
@@ -706,7 +710,7 @@ func (eval *evaluator) MultByGaussianInteger(ct0 *rlwe.Ciphertext, cReal, cImag 
 	level := utils.MinInt(ct0.Level(), ctOut.Level())
 	var scaledConst, scaledConstReal, scaledConstImag uint64
 
-	ctOut.Scale = ct0.Scale
+	ctOut.MetaData = ct0.MetaData
 
 	for i := 0; i < level+1; i++ {
 
@@ -819,7 +823,7 @@ func (eval *evaluator) MultByi(ct0 *rlwe.Ciphertext, ctOut *rlwe.Ciphertext) {
 	}
 
 	var level = utils.MinInt(ct0.Level(), ctOut.Level())
-	ctOut.Scale = ct0.Scale
+	ctOut.MetaData = ct0.MetaData
 
 	ringQ := eval.params.RingQ()
 
@@ -874,7 +878,7 @@ func (eval *evaluator) DivByi(ct0 *rlwe.Ciphertext, ctOut *rlwe.Ciphertext) {
 
 	ringQ := eval.params.RingQ()
 
-	ctOut.Scale = ct0.Scale
+	ctOut.MetaData = ct0.MetaData
 
 	var imag uint64
 
@@ -914,6 +918,7 @@ func (eval *evaluator) ScaleUpNew(ct0 *rlwe.Ciphertext, scale rlwe.Scale) (ctOut
 // plus 2^n. It returns the result in ctOut.
 func (eval *evaluator) ScaleUp(ct0 *rlwe.Ciphertext, scale rlwe.Scale, ctOut *rlwe.Ciphertext) {
 	eval.MultByConst(ct0, scale.Uint64(), ctOut)
+	ctOut.MetaData = ct0.MetaData
 	ctOut.Scale = ct0.Scale.Mul(scale, nil)
 }
 
@@ -992,6 +997,7 @@ func (eval *evaluator) Rescale(ctIn *rlwe.Ciphertext, minScale rlwe.Scale, ctOut
 		nbRescales++
 	}
 
+	ctOut.MetaData = ctIn.MetaData
 	ctOut.Scale = rlwe.NewScale(scale)
 
 	if nbRescales > 0 {

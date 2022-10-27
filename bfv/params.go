@@ -154,6 +154,10 @@ type Parameters struct {
 // It returns the empty parameters Parameters{} and a non-nil error if the specified parameters are invalid.
 func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err error) {
 
+	if rlweParams.DefaultNTTFlag() {
+		return Parameters{}, fmt.Errorf("provided RLWE are invalid for BFV scheme (DefaultNTTFlag must be false)")
+	}
+
 	if utils.IsInSliceUint64(t, rlweParams.Q()) && rlweParams.Q()[0] != t {
 		return Parameters{}, fmt.Errorf("if t|Q then Q[0] must be t")
 	}

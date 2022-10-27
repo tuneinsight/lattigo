@@ -211,7 +211,7 @@ func (eval *evaluator) evaluateInPlace(el0, el1, elOut *rlwe.Ciphertext, evaluat
 		}
 	}
 
-	elOut.Scale = el0.Scale
+	elOut.MetaData = el0.MetaData
 }
 
 func (eval *evaluator) matchScaleThenEvaluateInPlace(el0, el1, elOut *rlwe.Ciphertext, evaluate func(int, *ring.Poly, uint64, *ring.Poly)) {
@@ -228,6 +228,7 @@ func (eval *evaluator) matchScaleThenEvaluateInPlace(el0, el1, elOut *rlwe.Ciphe
 		evaluate(level, el1.Value[i], r1, elOut.Value[i])
 	}
 
+	elOut.MetaData = el0.MetaData
 	elOut.Scale = el0.Scale.Mul(r0, eval.params.T())
 }
 
@@ -284,7 +285,7 @@ func (eval *evaluator) Neg(ctIn *rlwe.Ciphertext, ctOut *rlwe.Ciphertext) {
 		eval.params.RingQ().NegLvl(level, ctIn.Value[i], ctOut.Value[i])
 	}
 
-	ctOut.Scale = ctIn.Scale
+	ctOut.MetaData = ctIn.MetaData
 }
 
 // NegNew negates ctIn and returns the result in a new ctOut.
@@ -334,7 +335,7 @@ func (eval *evaluator) MulScalar(ctIn *rlwe.Ciphertext, scalar uint64, ctOut *rl
 	for i := 0; i < ctIn.Degree()+1; i++ {
 		ringQ.MulScalarLvl(utils.MinInt(ctIn.Level(), ctOut.Level()), ctIn.Value[i], scalar, ctOut.Value[i])
 	}
-	ctOut.Scale = ctIn.Scale
+	ctOut.MetaData = ctIn.MetaData
 }
 
 // MulScalarNew multiplies ctIn with a scalar and returns the result in a new ctOut.

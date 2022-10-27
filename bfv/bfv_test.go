@@ -86,7 +86,7 @@ func TestBFV(t *testing.T) {
 		paramsLiterals = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
-	for _, p := range paramsLiterals[:1] {
+	for _, p := range paramsLiterals[:] {
 
 		var params Parameters
 		if params, err = NewParametersFromLiteral(p); err != nil {

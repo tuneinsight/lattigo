@@ -4,9 +4,13 @@ All notable changes to this library are documented in this file.
 
 # UNRELEASED 
 - RLWE: added the type `rlwe.Scale`, which is now a field in the `rlwe.Parameters`.
-- RLWE: moved the storage of scaling factor from scheme specific ciphetexts to `rlwe.Ciphertext`.
-- CKKS/BGV: abstracted the scaling factor, using `rlwe.Scale`.
+- RLWE: added the struct `MedaData` which stores the `Scale`, and booleans flags `IsNTT` and `IsMontgomery`.
+- RLWE: added the field `MetaData` to the `rlwe.Plaintext`, `rlwe.Ciphertext`, `rlwe.CiphertextQP`, `rlwe.SecretKey` and `rlwe.PublicKey`.
+- RLWE: added `DefaultScale` and `DefaultNTTFlag` to the `rlwe.ParametersLiteral` struct. These are optional fields that are automatically set by the respective schemes.
+- All: further improved the generalization of the code accross schemes through the `rlwe` package.
+- CKKS/BGV: abstracted the scaling factor, using `rlwe.Scale`. See the description of the struct for more information.
 - All: all scheme specific ciphertexts and plaintexts are replaced by `rlwe.Ciphertext` and `rlwe.Plaintext`.
+- All: scheme specific `KeyGenerator`, `Encryptor` and `Decryptor` have been replaced by `rlwe.KeyGenerator`, `rlwe.Encryptor` and `rlwe.Decryptor` respectively.
 - All: if applicable, removed the following depreciated methods 
     - `AddNoMod`, `AddNoModNew`, `SubNoMod`, `SubNoModNew`, `Reduce` and `ReduceNew`
     - `PowerOf2`, `Power` and `PowerNew` which are replaced by `PolynomialBasis` and `GenPower`.

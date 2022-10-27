@@ -22,6 +22,7 @@ func NewGadgetCiphertext(levelQ, levelP, decompRNS, decompBIT int, ringQP ringqp
 			ct.Value[i][j].Value[0] = ringQP.NewPolyLvl(levelQ, levelP)
 			ct.Value[i][j].Value[1] = ringQP.NewPolyLvl(levelQ, levelP)
 			ct.Value[i][j].IsNTT = true
+			ct.Value[i][j].IsMontgomery = true
 		}
 	}
 
@@ -90,8 +91,7 @@ func (ct *GadgetCiphertext) MarshalBinarySize() (dataLen int) {
 
 	for i := range ct.Value {
 		for _, el := range ct.Value[i] {
-			dataLen += el.Value[0].MarshalBinarySize64()
-			dataLen += el.Value[1].MarshalBinarySize64()
+			dataLen += el.MarshalBinarySize()
 		}
 	}
 
@@ -101,7 +101,7 @@ func (ct *GadgetCiphertext) MarshalBinarySize() (dataLen int) {
 // MarshalBinary encodes the target Ciphertext on a slice of bytes.
 func (ct *GadgetCiphertext) MarshalBinary() (data []byte, err error) {
 	data = make([]byte, ct.MarshalBinarySize())
-	if _, err = ct.Encode(0, data); err != nil {
+	if _, err = ct.Encode(data); err != nil {
 		return
 	}
 
@@ -118,41 +118,35 @@ func (ct *GadgetCiphertext) UnmarshalBinary(data []byte) (err error) {
 }
 
 // Encode encodes the target ciphertext on a pre-allocated slice of bytes.
-func (ct *GadgetCiphertext) Encode(pointer int, data []byte) (int, error) {
+func (ct *GadgetCiphertext) Encode(data []byte) (ptr int, err error) {
 
-	var err error
 	var inc int
 
-	data[pointer] = uint8(len(ct.Value))
-	pointer++
-	data[pointer] = uint8(len(ct.Value[0]))
-	pointer++
+	data[ptr] = uint8(len(ct.Value))
+	ptr++
+	data[ptr] = uint8(len(ct.Value[0]))
+	ptr++
 
 	for i := range ct.Value {
 		for _, el := range ct.Value[i] {
 
-			if inc, err = el.Value[0].Encode64(data[pointer:]); err != nil {
-				return pointer, err
+			if inc, err = el.Encode64(data[ptr:]); err != nil {
+				return ptr, err
 			}
-			pointer += inc
-
-			if inc, err = el.Value[1].Encode64(data[pointer:]); err != nil {
-				return pointer, err
-			}
-			pointer += inc
+			ptr += inc
 		}
 	}
 
-	return pointer, nil
+	return
 }
 
 // Decode decodes a slice of bytes on the target ciphertext.
-func (ct *GadgetCiphertext) Decode(data []byte) (pointer int, err error) {
+func (ct *GadgetCiphertext) Decode(data []byte) (ptr int, err error) {
 
 	decompRNS := int(data[0])
 	decompBIT := int(data[1])
 
-	pointer = 2
+	ptr = 2
 
 	ct.Value = make([][]CiphertextQP, decompRNS)
 
@@ -164,15 +158,10 @@ func (ct *GadgetCiphertext) Decode(data []byte) (pointer int, err error) {
 
 		for j := range ct.Value[i] {
 
-			if inc, err = ct.Value[i][j].Value[0].Decode64(data[pointer:]); err != nil {
+			if inc, err = ct.Value[i][j].Decode64(data[ptr:]); err != nil {
 				return
 			}
-			pointer += inc
-
-			if inc, err = ct.Value[i][j].Value[1].Decode64(data[pointer:]); err != nil {
-				return
-			}
-			pointer += inc
+			ptr += inc
 		}
 	}
 

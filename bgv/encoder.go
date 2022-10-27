@@ -122,7 +122,7 @@ func (ecd *encoder) Encode(values interface{}, pt *rlwe.Plaintext) {
 	if pt.IsNTT {
 		ecd.params.RingQ().NTTLvl(pt.Level(), pt.Value, pt.Value)
 	}
-	
+
 	ecd.ScaleUp(pt.Level(), pt.Value, pt.Value)
 }
 
@@ -140,10 +140,10 @@ func (ecd *encoder) EncodeCoeffs(values []uint64, pt *rlwe.Plaintext) {
 	ringT.MulScalar(ecd.buffT, pt.Scale.Uint64(), ecd.buffT)
 	ecd.RingT2Q(pt.Level(), ecd.buffT, pt.Value)
 
-	if pt.IsNTT{
+	if pt.IsNTT {
 		ecd.params.RingQ().NTTLvl(pt.Level(), pt.Value, pt.Value)
 	}
-	
+
 	ecd.ScaleUp(pt.Level(), pt.Value, pt.Value)
 }
 
@@ -263,10 +263,10 @@ func (ecd *encoder) ScaleDown(level int, pIn, pOut *ring.Poly) {
 // DecodeUint decodes a any plaintext type and write the coefficients on an pre-allocated uint64 slice.
 func (ecd *encoder) DecodeUint(pt *rlwe.Plaintext, values []uint64) {
 
-	if pt.IsNTT{
+	if pt.IsNTT {
 		ecd.params.RingQ().InvNTTLvl(pt.Level(), pt.Value, ecd.buffQ)
 		ecd.ScaleDown(pt.Level(), ecd.buffQ, ecd.buffQ)
-	}else{
+	} else {
 		ecd.ScaleDown(pt.Level(), pt.Value, ecd.buffQ)
 	}
 
@@ -285,10 +285,10 @@ func (ecd *encoder) DecodeUintNew(pt *rlwe.Plaintext) (values []uint64) {
 // Values are centered between [t/2, t/2).
 func (ecd *encoder) DecodeInt(pt *rlwe.Plaintext, values []int64) {
 
-	if pt.IsNTT{
+	if pt.IsNTT {
 		ecd.params.RingQ().InvNTTLvl(pt.Level(), pt.Value, ecd.buffQ)
 		ecd.ScaleDown(pt.Level(), ecd.buffQ, ecd.buffQ)
-	}else{
+	} else {
 		ecd.ScaleDown(pt.Level(), pt.Value, ecd.buffQ)
 	}
 
@@ -305,11 +305,11 @@ func (ecd *encoder) DecodeIntNew(pt *rlwe.Plaintext) (values []int64) {
 }
 
 func (ecd *encoder) DecodeCoeffs(pt *rlwe.Plaintext, values []uint64) {
-	
-	if pt.IsNTT{
+
+	if pt.IsNTT {
 		ecd.params.RingQ().InvNTTLvl(pt.Level(), pt.Value, ecd.buffQ)
 		ecd.ScaleDown(pt.Level(), ecd.buffQ, ecd.buffQ)
-	}else{
+	} else {
 		ecd.ScaleDown(pt.Level(), pt.Value, ecd.buffQ)
 	}
 

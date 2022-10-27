@@ -158,10 +158,14 @@ func (s *Scale) Decode(data []byte) (err error) {
 
 	bLen := data[0]
 
-	v := new(big.Float).SetPrec(ScalePrecision)
+	v := new(big.Float)
 
-	if err = v.UnmarshalText(data[1 : bLen+1]); err != nil {
-		return
+	if data[1] != 0x30 || bLen > 1 { // 0x30 indicates an empty big.Float
+		if err = v.UnmarshalText(data[1 : bLen+1]); err != nil {
+			return
+		}
+
+		v.SetPrec(ScalePrecision)
 	}
 
 	s.Value = *v

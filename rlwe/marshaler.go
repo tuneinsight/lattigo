@@ -119,11 +119,13 @@ func (rlk *RelinearizationKey) MarshalBinary() (data []byte, err error) {
 
 	ptr++
 
+	var inc int
 	for _, evakey := range rlk.Keys {
 
-		if ptr, err = evakey.Encode(ptr, data); err != nil {
+		if inc, err = evakey.Encode(data[ptr:]); err != nil {
 			return nil, err
 		}
+		ptr += inc
 	}
 
 	return data, nil
@@ -162,16 +164,19 @@ func (rtks *RotationKeySet) MarshalBinary() (data []byte, err error) {
 
 	data = make([]byte, rtks.MarshalBinarySize())
 
-	pointer := int(0)
+	ptr := int(0)
 
+	var inc int
 	for galEL, key := range rtks.Keys {
 
-		binary.BigEndian.PutUint64(data[pointer:pointer+8], galEL)
-		pointer += 8
+		binary.BigEndian.PutUint64(data[ptr:], galEL)
+		ptr += 8
 
-		if pointer, err = key.Encode(pointer, data); err != nil {
+		if inc, err = key.Encode(data[ptr:]); err != nil {
 			return nil, err
 		}
+
+		ptr += inc
 	}
 
 	return data, nil

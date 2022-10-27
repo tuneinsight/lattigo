@@ -4,21 +4,8 @@ import (
 	"fmt"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
-
-// CiphertextQP is a generic type for RLWE ciphertexts in R_qp.
-// It contains no MetaData.
-type CiphertextQP struct {
-	MetaData
-	Value [2]ringqp.Poly
-}
-
-// CopyNew returns a copy of the target CiphertextQP.
-func (ct *CiphertextQP) CopyNew() *CiphertextQP {
-	return &CiphertextQP{Value: [2]ringqp.Poly{ct.Value[0].CopyNew(), ct.Value[1].CopyNew()}, MetaData: ct.MetaData}
-}
 
 // Ciphertext is a generic type for RLWE ciphertexts.
 type Ciphertext struct {

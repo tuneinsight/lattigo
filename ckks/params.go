@@ -8,7 +8,6 @@ import (
 
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
-	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 var minLogSlots = 0
@@ -299,16 +298,17 @@ type ParametersLiteral struct {
 // RLWEParameters returns the rlwe.ParametersLiteral from the target ckks.ParameterLiteral.
 func (p ParametersLiteral) RLWEParameters() rlwe.ParametersLiteral {
 	return rlwe.ParametersLiteral{
-		LogN:         p.LogN,
-		Q:            p.Q,
-		P:            p.P,
-		LogQ:         p.LogQ,
-		LogP:         p.LogP,
-		Pow2Base:     p.Pow2Base,
-		Sigma:        p.Sigma,
-		H:            p.H,
-		RingType:     p.RingType,
-		DefaultScale: rlwe.NewScale(p.DefaultScale),
+		LogN:           p.LogN,
+		Q:              p.Q,
+		P:              p.P,
+		LogQ:           p.LogQ,
+		LogP:           p.LogP,
+		Pow2Base:       p.Pow2Base,
+		Sigma:          p.Sigma,
+		H:              p.H,
+		RingType:       p.RingType,
+		DefaultNTTFlag: true,
+		DefaultScale:   rlwe.NewScale(p.DefaultScale),
 	}
 }
 
@@ -384,18 +384,15 @@ func (p Parameters) StandardParameters() (pckks Parameters, err error) {
 
 // ParametersLiteral returns the ParametersLiteral of the target Parameters.
 func (p Parameters) ParametersLiteral() (pLit ParametersLiteral) {
-
-	pRLWELit := p.Parameters.ParametersLiteral()
-
 	return ParametersLiteral{
-		LogN:         pRLWELit.LogN,
-		Q:            pRLWELit.Q,
-		P:            pRLWELit.P,
-		Pow2Base:     pRLWELit.Pow2Base,
-		Sigma:        pRLWELit.Sigma,
-		H:            pRLWELit.H,
-		RingType:     pRLWELit.RingType,
-		DefaultScale: pRLWELit.DefaultScale.Float64(),
+		LogN:         p.LogN(),
+		Q:            p.Q(),
+		P:            p.P(),
+		Pow2Base:     p.Pow2Base(),
+		Sigma:        p.Sigma(),
+		H:            p.HammingWeight(),
+		RingType:     p.RingType(),
+		DefaultScale: p.DefaultScale().Float64(),
 		LogSlots:     p.LogSlots(),
 	}
 }
@@ -454,56 +451,6 @@ func (p Parameters) QLvl(level int) *big.Int {
 	return tmp
 }
 
-// RotationsForInnerSum generates the rotations that will be performed by the
-// `Evaluator.InnerSum` operation when performed with parameters `batch` and `n`.
-func (p Parameters) RotationsForInnerSum(batch, n int) (rotations []int) {
-	rotations = []int{}
-	for i := 1; i < n; i++ {
-		rotations = append(rotations, i*batch)
-	}
-	return
-}
-
-// RotationsForInnerSumLog generates the rotations that will be performed by the
-// `Evaluator.InnerSumLog` operation when performed with parameters `batch` and `n`.
-func (p Parameters) RotationsForInnerSumLog(batch, n int) (rotations []int) {
-
-	rotIndex := make(map[int]bool)
-
-	var k int
-	for i := 1; i < n; i <<= 1 {
-
-		k = i
-		k *= batch
-		rotIndex[k] = true
-
-		k = n - (n & ((i << 1) - 1))
-		k *= batch
-		rotIndex[k] = true
-	}
-
-	rotations = make([]int, len(rotIndex))
-	var i int
-	for j := range rotIndex {
-		rotations[i] = j
-		i++
-	}
-
-	return
-}
-
-// RotationsForReplicate generates the rotations that will be performed by the
-// `Evaluator.Replicate` operation when performed with parameters `batch` and `n`.
-func (p Parameters) RotationsForReplicate(batch, n int) (rotations []int) {
-	return p.RotationsForInnerSum(-batch, n)
-}
-
-// RotationsForReplicateLog generates the rotations that will be performed by the
-// `Evaluator.ReplicateLog` operation when performed with parameters `batch` and `n`.
-func (p Parameters) RotationsForReplicateLog(batch, n int) (rotations []int) {
-	return p.RotationsForInnerSumLog(-batch, n)
-}
-
 // RotationsForLinearTransform generates the list of rotations needed for the evaluation of a linear transform
 // with the provided list of non-zero diagonals, logSlots encoding and BSGSratio.
 // If BSGSratio == 0, then provides the rotations needed for an evaluation without the BSGS approach.
@@ -537,13 +484,8 @@ func (p Parameters) MarshalBinary() ([]byte, error) {
 		return nil, err
 	}
 
-	// len(rlweBytes) : RLWE parameters
-	// 1 byte : logSlots
-	// 8 byte : defaultScale
-	b := utils.NewBuffer(make([]byte, 0, p.MarshalBinarySize()))
-	b.WriteUint8Slice(rlweBytes)
-	b.WriteUint8(uint8(p.logSlots))
-	return b.Bytes(), nil
+	data := append(rlweBytes, uint8(p.logSlots))
+	return data, nil
 }
 
 // UnmarshalBinary decodes a []byte into a parameter set struct
@@ -563,25 +505,15 @@ func (p Parameters) MarshalBinarySize() int {
 
 // MarshalJSON returns a JSON representation of this parameter set. See `Marshal` from the `encoding/json` package.
 func (p Parameters) MarshalJSON() ([]byte, error) {
-
-	return json.Marshal(ParametersLiteral{
-		LogN:         p.LogN(),
-		Q:            p.Q(),
-		P:            p.P(),
-		Pow2Base:     p.Pow2Base(),
-		H:            p.HammingWeight(),
-		Sigma:        p.Sigma(),
-		RingType:     p.RingType(),
-		LogSlots:     p.logSlots,
-		DefaultScale: p.DefaultScale().Float64(),
-	},
-	)
+	return json.Marshal(p.ParametersLiteral())
 }
 
 // UnmarshalJSON reads a JSON representation of a parameter set into the receiver Parameter. See `Unmarshal` from the `encoding/json` package.
 func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 	var params ParametersLiteral
-	json.Unmarshal(data, &params)
+	if err = json.Unmarshal(data, &params); err != nil {
+		return
+	}
 	*p, err = NewParametersFromLiteral(params)
 	return
 }

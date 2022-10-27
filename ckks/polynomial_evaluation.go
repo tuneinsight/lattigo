@@ -349,7 +349,7 @@ func (p *PolynomialBasis) genPower(n int, lazy bool, scale rlwe.Scale, eval Eval
 func (p *PolynomialBasis) MarshalBinary() (data []byte, err error) {
 	data = make([]byte, 16)
 	binary.LittleEndian.PutUint64(data[0:8], uint64(len(p.Value)))
-	binary.LittleEndian.PutUint64(data[8:16], uint64(p.Value[1].GetDataLen(true)))
+	binary.LittleEndian.PutUint64(data[8:16], uint64(p.Value[1].MarshalBinarySize()))
 	for key, ct := range p.Value {
 		keyBytes := make([]byte, 8)
 		binary.LittleEndian.PutUint64(keyBytes, uint64(key))
@@ -546,7 +546,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasis(targetScale
 		if minimumDegreeNonZeroCoefficient == 0 {
 
 			// Allocates the output ciphertext
-			res = NewCiphertext(params, 1, level)
+			res = rlwe.NewCiphertext(params.Parameters, 1, level)
 			res.Scale = targetScale
 
 			// Looks for non-zero coefficients among the degree 0 coefficients of the polynomials
@@ -561,7 +561,8 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasis(targetScale
 
 			// If a non-zero coefficient was found, encode the values, adds on the ciphertext, and returns
 			if toEncode {
-				pt := rlwe.NewPlaintextNTTAtLevelFromPoly(level, res.Value[0])
+				pt := rlwe.NewPlaintextAtLevelFromPoly(level, res.Value[0])
+				pt.IsNTT = true
 				pt.Scale = targetScale
 				polyEval.EncodeSlots(values, pt, params.LogSlots())
 			}
@@ -570,11 +571,12 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasis(targetScale
 		}
 
 		// Allocates the output ciphertext
-		res = NewCiphertext(params, maximumCiphertextDegree, level)
+		res = rlwe.NewCiphertext(params.Parameters, maximumCiphertextDegree, level)
 		res.Scale = targetScale
 
 		// Allocates a temporary plaintext to encode the values
-		pt := rlwe.NewPlaintextNTTAtLevelFromPoly(level, polyEval.Evaluator.BuffCt().Value[0])
+		pt := rlwe.NewPlaintextAtLevelFromPoly(level, polyEval.Evaluator.BuffCt().Value[0])
+		pt.IsNTT = true
 
 		// Looks for a non-zero coefficient among the degree zero coefficient of the polynomials
 		for i, p := range pol.Value {
@@ -641,7 +643,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasis(targetScale
 
 		if minimumDegreeNonZeroCoefficient == 0 {
 
-			res = NewCiphertext(params, 1, level)
+			res = rlwe.NewCiphertext(params.Parameters, 1, level)
 			res.Scale = targetScale
 
 			if isNotNegligible(c) {
@@ -651,7 +653,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasis(targetScale
 			return
 		}
 
-		res = NewCiphertext(params, maximumCiphertextDegree, level)
+		res = rlwe.NewCiphertext(params.Parameters, maximumCiphertextDegree, level)
 		res.Scale = targetScale
 
 		if isNotNegligible(c) {

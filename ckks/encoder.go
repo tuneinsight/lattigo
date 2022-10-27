@@ -181,7 +181,7 @@ func (ecd *encoderComplex128) Encode(values interface{}, plaintext *rlwe.Plainte
 // The imaginary part of []complex128 will be discarded if ringType == ring.ConjugateInvariant.
 // Returned plaintext is always in the NTT domain.
 func (ecd *encoderComplex128) EncodeNew(values interface{}, level int, scale rlwe.Scale, logSlots int) (plaintext *rlwe.Plaintext) {
-	plaintext = NewPlaintext(ecd.params, level)
+	plaintext = rlwe.NewPlaintext(ecd.params.Parameters, level)
 	plaintext.Scale = scale
 	ecd.Encode(values, plaintext, logSlots)
 	return
@@ -246,14 +246,13 @@ func (ecd *encoderComplex128) EncodeCoeffs(values []float64, plaintext *rlwe.Pla
 
 	floatToFixedPointCRT(plaintext.Level(), values, plaintext.Scale.Float64(), ecd.params.RingQ(), plaintext.Value.Coeffs)
 	ecd.params.RingQ().NTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
-	plaintext.Value.IsNTT = true
 }
 
 // EncodeCoeffsNew encodes the values on the coefficient of a new plaintext.
 // Encoding is done at the provided level and with the provided scale.
 // User must ensure that 1<= len(values) <= 2^LogN
 func (ecd *encoderComplex128) EncodeCoeffsNew(values []float64, level int, scale rlwe.Scale) (plaintext *rlwe.Plaintext) {
-	plaintext = NewPlaintext(ecd.params, level)
+	plaintext = rlwe.NewPlaintext(ecd.params.Parameters, level)
 	plaintext.Scale = scale
 	ecd.EncodeCoeffs(values, plaintext)
 	return
@@ -513,10 +512,10 @@ func (ecd *encoderComplex128) decodePublic(plaintext *rlwe.Plaintext, logSlots i
 		panic(fmt.Sprintf("cannot Decode: ensure that %d <= logSlots (%d) <= %d", minLogSlots, logSlots, ecd.params.MaxLogSlots()))
 	}
 
-	if plaintext.Value.IsNTT {
+	if plaintext.IsNTT {
 		ecd.params.RingQ().InvNTTLvl(plaintext.Level(), plaintext.Value, ecd.buff)
 	} else {
-		ring.CopyValuesLvl(plaintext.Level(), plaintext.Value, ecd.buff)
+		ring.CopyLvl(plaintext.Level(), plaintext.Value, ecd.buff)
 	}
 
 	// B = floor(sigma * sqrt(2*pi))
@@ -540,10 +539,10 @@ func (ecd *encoderComplex128) decodePublic(plaintext *rlwe.Plaintext, logSlots i
 
 func (ecd *encoderComplex128) decodeCoeffsPublic(plaintext *rlwe.Plaintext, sigma float64) (res []float64) {
 
-	if plaintext.Value.IsNTT {
+	if plaintext.IsNTT {
 		ecd.params.RingQ().InvNTTLvl(plaintext.Level(), plaintext.Value, ecd.buff)
 	} else {
-		ring.CopyValuesLvl(plaintext.Level(), plaintext.Value, ecd.buff)
+		ring.CopyLvl(plaintext.Level(), plaintext.Value, ecd.buff)
 	}
 
 	if sigma != 0 {
@@ -712,14 +711,13 @@ func (ecd *encoderBigComplex) Encode(values []*ring.Complex, plaintext *rlwe.Pla
 	}
 
 	ecd.params.RingQ().NTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
-	plaintext.Value.IsNTT = true
 }
 
 // EncodeNew encodes a set of values on a new plaintext.
 // Encoding is done at the provided level and with the provided scale.
 // User must ensure that 1 <= len(values) <= 2^logSlots < 2^LogN.
 func (ecd *encoderBigComplex) EncodeNew(values []*ring.Complex, level int, scale rlwe.Scale, logSlots int) (plaintext *rlwe.Plaintext) {
-	plaintext = NewPlaintext(ecd.params, level)
+	plaintext = rlwe.NewPlaintext(ecd.params.Parameters, level)
 	plaintext.Scale = scale
 	ecd.Encode(values, plaintext, logSlots)
 	return

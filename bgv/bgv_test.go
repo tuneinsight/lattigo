@@ -712,36 +712,35 @@ func testEvaluator(tc *testContext, t *testing.T) {
 
 				values0, _, ciphertext0 := newTestVectorsLvl(lvl, tc.params.DefaultScale(), tc, tc.encryptorPk)
 
+				printNoise := func(msg string, values []uint64, ct *rlwe.Ciphertext) {
+					pt := NewPlaintext(tc.params, ct.Level())
+					pt.MetaData = ciphertext0.MetaData
+					tc.encoder.Encode(values0.Coeffs[0], pt)
+					vartmp, _, _ := rlwe.Norm(tc.evaluator.SubNew(ct, pt), tc.decryptor)
+					t.Logf("STDErr %s: %f\n", msg, vartmp)
+				}
+
 				if lvl != 0 {
 
 					values1, _, ciphertext1 := newTestVectorsLvl(lvl, tc.params.DefaultScale(), tc, tc.encryptorSk)
 
-					stdErrFresh, _, _ := rlwe.Norm(ciphertext0, tc.decryptor)
-
-					t.Logf("STDErr 0x: %f\n", stdErrFresh)
+					printNoise(fmt.Sprintf("0x"), values0.Coeffs[0], ciphertext0)
 
 					for i := 0; i < lvl; i++ {
 						tc.evaluator.MulRelin(ciphertext0, ciphertext1, ciphertext0)
 
-						vartmp, _, _ := rlwe.Norm(ciphertext0, tc.decryptor)
-
-						t.Logf("STDErr %dx: %f\n", i+1, vartmp)
-
 						ringT.MulCoeffs(values0, values1, values0)
+
+						printNoise(fmt.Sprintf("%dx", i+1), values0.Coeffs[0], ciphertext0)
 					}
 
 					verifyTestVectors(tc, tc.decryptor, values0, ciphertext0, t)
-
-					stdErrMul, _, _ := rlwe.Norm(ciphertext0, tc.decryptor)
 
 					require.Nil(t, tc.evaluator.Rescale(ciphertext0, ciphertext0))
 
 					verifyTestVectors(tc, tc.decryptor, values0, ciphertext0, t)
 
-					stdErr, _, _ := rlwe.Norm(ciphertext0, tc.decryptor)
-
-					t.Logf("STDErr (mul): %f\n", stdErrMul)
-					t.Logf("STDErr (t(div(xt^-1)): %f\n", stdErr)
+					printNoise(fmt.Sprintf("(t(div(xt^-1))"), values0.Coeffs[0], ciphertext0)
 
 				} else {
 					require.NotNil(t, tc.evaluator.Rescale(ciphertext0, ciphertext0))

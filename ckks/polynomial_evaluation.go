@@ -190,10 +190,9 @@ func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVecto
 	isRingStandard := eval.params.RingType() == ring.Standard
 
 	// Computes all the powers of two with relinearization
-	for i := 2; i < logDegree; i++ {
-		if err = monomialBasis.GenPower(1<<i, false, targetScale, eval); err != nil {
-			return nil, err
-		}
+	// This will recursively compute and store all powers of two up to 2^logDegree
+	if err = monomialBasis.GenPower(1<<logDegree, false, targetScale, eval); err != nil {
+		return nil, err
 	}
 
 	// Computes the intermediate powers, starting from the largest, without relinearization if possible
@@ -318,11 +317,16 @@ func (p *PolynomialBasis) genPower(n int, lazy bool, scale rlwe.Scale, eval Eval
 			p.Value[n] = eval.MulNew(p.Value[a], p.Value[b])
 
 		} else {
-			p.Value[n] = eval.MulRelinNew(p.Value[a], p.Value[b])
 
-			if err = eval.Rescale(p.Value[n], scale, p.Value[n]); err != nil {
+			if err = eval.Rescale(p.Value[a], scale, p.Value[a]); err != nil {
 				return err
 			}
+
+			if err = eval.Rescale(p.Value[b], scale, p.Value[b]); err != nil {
+				return err
+			}
+
+			p.Value[n] = eval.MulRelinNew(p.Value[a], p.Value[b])
 		}
 
 		if p.BasisType == Chebyshev {

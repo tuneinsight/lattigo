@@ -4,11 +4,14 @@ All notable changes to this library are documented in this file.
 
 # UNRELEASED 
 - RLWE: added the type `rlwe.Scale`, which is now a field in the `rlwe.Parameters`.
-- RLWE: added the struct `MedaData` which stores the `Scale`, and boolean flags `IsNTT` and `IsMontgomery`.
+- RLWE: added the struct `MedaData` which stores the `Scale`, and boolean flags `IsNTT` and `IsMontgomery`. 
+- BFV/BGV/CKKS: added scheme specific global constant `DefaultNTTFlag`.
 - RLWE: added the field `MetaData` to the `rlwe.Plaintext`, `rlwe.Ciphertext`, `rlwe.CiphertextQP`, `rlwe.SecretKey` and `rlwe.PublicKey`.
-- RLWE: added `DefaultScale` and `DefaultNTTFlag` to the `rlwe.ParametersLiteral` struct. These are optional fields that are automatically set by the respective schemes.
+- RLWE: added `DefaultScale` and `DefaultNTTFlag` to the `rlwe.ParametersLiteral` struct. These are optional fields which are automatically set by the respective schemes.
+- RLWE: elements from `rlwe.NewPlaintext(*)` and `rlwe.NewCiphertext(*)` are given default `IsNTT` and `Scale` values taken from the `rlwe.Parameters`. These value can be overwritten/modified manually.
 - All: further improved the generalization of the code across schemes through the `rlwe` package.
 - CKKS/BGV: abstracted the scaling factor, using `rlwe.Scale`. See the description of the struct for more information.
+- BFV/BGV: added the flag `-print-noise` to print the residual noise, after decryption, during the tests.
 - All: all scheme specific ciphertexts and plaintexts are replaced by `rlwe.Ciphertext` and `rlwe.Plaintext`.
 - All: scheme specific `KeyGenerator`, `Encryptor` and `Decryptor` have been replaced by `rlwe.KeyGenerator`, `rlwe.Encryptor` and `rlwe.Decryptor` respectively.
 - All: if applicable, removed the following depreciated methods 

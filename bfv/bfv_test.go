@@ -18,6 +18,7 @@ import (
 
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters). Overrides -short and requires -timeout=0.")
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
+var flagPrintNoise = flag.Bool("print-noise", false, "print the residual noise")
 
 func testString(opname string, p Parameters, lvl int) string {
 	return fmt.Sprintf("%s/LogN=%d/logQP=%d/logT=%d/TIsQ0=%t/#Q=%d/#P=%d/lvl=%d", opname, p.LogN(), p.LogQP(), p.LogT(), p.T() == p.Q()[0], p.QCount(), p.PCount(), lvl)
@@ -212,7 +213,15 @@ func verifyTestVectors(tc *testContext, decryptor rlwe.Decryptor, coeffs *ring.P
 	case *rlwe.Plaintext, *PlaintextMul, *PlaintextRingT:
 		coeffsTest = tc.encoder.DecodeUintNew(el)
 	case *rlwe.Ciphertext:
-		coeffsTest = tc.encoder.DecodeUintNew(decryptor.DecryptNew(el))
+		pt := decryptor.DecryptNew(el)
+
+		coeffsTest = tc.encoder.DecodeUintNew(pt)
+
+		if *flagPrintNoise {
+			tc.encoder.Encode(coeffsTest, pt)
+			vartmp, _, _ := rlwe.Norm(tc.evaluator.SubNew(el, pt), decryptor)
+			t.Logf("STD(noise): %f\n", vartmp)
+		}
 	default:
 		t.Error("invalid test object to verify")
 	}

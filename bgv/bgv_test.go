@@ -2,6 +2,7 @@ package bgv
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"runtime"
 	"testing"
@@ -13,6 +14,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+var flagPrintNoise = flag.Bool("print-noise", false, "print the residual noise")
 
 var (
 	// TESTN13QP218 is a of 128-bit secure test parameters set with a 32-bit plaintext and depth 4.
@@ -135,7 +138,17 @@ func verifyTestVectors(tc *testContext, decryptor rlwe.Decryptor, coeffs *ring.P
 	case *rlwe.Plaintext:
 		coeffsTest = tc.encoder.DecodeUintNew(el)
 	case *rlwe.Ciphertext:
-		coeffsTest = tc.encoder.DecodeUintNew(decryptor.DecryptNew(el))
+
+		pt := decryptor.DecryptNew(el)
+
+		coeffsTest = tc.encoder.DecodeUintNew(pt)
+
+		if *flagPrintNoise {
+			tc.encoder.Encode(coeffsTest, pt)
+			vartmp, _, _ := rlwe.Norm(tc.evaluator.SubNew(el, pt), decryptor)
+			t.Logf("STD(noise): %f\n", vartmp)
+		}
+
 	default:
 		t.Error("invalid test object to verify")
 	}
@@ -717,7 +730,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 					pt.MetaData = ciphertext0.MetaData
 					tc.encoder.Encode(values0.Coeffs[0], pt)
 					vartmp, _, _ := rlwe.Norm(tc.evaluator.SubNew(ct, pt), tc.decryptor)
-					t.Logf("STDErr %s: %f\n", msg, vartmp)
+					t.Logf("STD(noise) %s: %f\n", msg, vartmp)
 				}
 
 				if lvl != 0 {
@@ -739,8 +752,6 @@ func testEvaluator(tc *testContext, t *testing.T) {
 					require.Nil(t, tc.evaluator.Rescale(ciphertext0, ciphertext0))
 
 					verifyTestVectors(tc, tc.decryptor, values0, ciphertext0, t)
-
-					printNoise(fmt.Sprintf("(t(div(xt^-1))"), values0.Coeffs[0], ciphertext0)
 
 				} else {
 					require.NotNil(t, tc.evaluator.Rescale(ciphertext0, ciphertext0))

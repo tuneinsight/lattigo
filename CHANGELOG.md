@@ -1,6 +1,12 @@
 
 # Changelog
-All notable changes to this library are documented in this file. 
+All notable changes to this library are documented in this file.
+
+
+## UNRELEASED 2022-10-25
+
+- CKKS: significantly reduced the pre-computation time of the roots, especially for the arbitrary precision encoder.
+- ALL: uniformized the `prec` type to `uint` for `*big.Float` types.
 
 # UNRELEASED 
 - RLWE: added the type `rlwe.Scale`, which is now a field in the `rlwe.Parameters`.

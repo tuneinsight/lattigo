@@ -4,7 +4,6 @@ package ckks
 
 import (
 	"fmt"
-	"math"
 	"math/big"
 	"math/bits"
 
@@ -145,18 +144,9 @@ func NewEncoder(params Parameters) Encoder {
 
 	ecd := newEncoder(params)
 
-	var angle float64
-	roots := make([]complex128, ecd.m+1)
-	for i := 0; i < ecd.m; i++ {
-		angle = 2 * 3.141592653589793 * float64(i) / float64(ecd.m)
-
-		roots[i] = complex(math.Cos(angle), math.Sin(angle))
-	}
-	roots[ecd.m] = roots[0]
-
 	return &encoderComplex128{
 		encoder:     ecd,
-		roots:       roots,
+		roots:       GetRootsFloat64(ecd.m),
 		values:      make([]complex128, ecd.m>>2),
 		valuesFloat: make([]float64, ecd.m>>1),
 	}
@@ -612,62 +602,37 @@ type EncoderBigComplex interface {
 
 type encoderBigComplex struct {
 	encoder
-	zero         *big.Float
-	cMul         *ring.ComplexMultiplier
-	logPrecision int
-	values       []*ring.Complex
-	valuesfloat  []*big.Float
-	roots        []*ring.Complex
+	zero        *big.Float
+	cMul        *ring.ComplexMultiplier
+	prec        uint
+	values      []*ring.Complex
+	valuesfloat []*big.Float
+	roots       []*ring.Complex
 }
 
 // NewEncoderBigComplex creates a new encoder using arbitrary precision complex arithmetic.
-func NewEncoderBigComplex(params Parameters, logPrecision int) EncoderBigComplex {
+func NewEncoderBigComplex(params Parameters, prec uint) EncoderBigComplex {
+
 	ecd := newEncoder(params)
-
-	var PI = new(big.Float)
-	PI.SetPrec(uint(logPrecision))
-	PI.SetString(pi)
-
-	var PIHalf = new(big.Float)
-	PIHalf.SetPrec(uint(logPrecision))
-	PIHalf.SetString(pi)
-	PIHalf.Quo(PIHalf, ring.NewFloat(2, logPrecision))
-
-	var angle *big.Float
-	roots := make([]*ring.Complex, ecd.m+1)
-	for i := 0; i < ecd.m; i++ {
-		angle = ring.NewFloat(2, logPrecision)
-		angle.Mul(angle, PI)
-		angle.Mul(angle, ring.NewFloat(float64(i), logPrecision))
-		angle.Quo(angle, ring.NewFloat(float64(ecd.m), logPrecision))
-
-		real := ring.Cos(angle)
-		angle.Sub(PIHalf, angle)
-		imag := ring.Cos(angle)
-
-		roots[i] = ring.NewComplex(real, imag)
-	}
-
-	roots[ecd.m] = roots[0].Copy()
 
 	values := make([]*ring.Complex, ecd.m>>2)
 	valuesfloat := make([]*big.Float, ecd.m>>1)
 
 	for i := 0; i < ecd.m>>2; i++ {
 
-		values[i] = ring.NewComplex(ring.NewFloat(0, logPrecision), ring.NewFloat(0, logPrecision))
-		valuesfloat[i*2] = ring.NewFloat(0, logPrecision)
-		valuesfloat[(i*2)+1] = ring.NewFloat(0, logPrecision)
+		values[i] = ring.NewComplex(ring.NewFloat(0, prec), ring.NewFloat(0, prec))
+		valuesfloat[i*2] = ring.NewFloat(0, prec)
+		valuesfloat[(i*2)+1] = ring.NewFloat(0, prec)
 	}
 
 	return &encoderBigComplex{
-		encoder:      ecd,
-		zero:         ring.NewFloat(0, logPrecision),
-		cMul:         ring.NewComplexMultiplier(),
-		logPrecision: logPrecision,
-		roots:        roots,
-		values:       values,
-		valuesfloat:  valuesfloat,
+		encoder:     ecd,
+		zero:        ring.NewFloat(0, prec),
+		cMul:        ring.NewComplexMultiplier(),
+		prec:        prec,
+		roots:       GetRootsbigFloat(ecd.m, prec),
+		values:      values,
+		valuesfloat: valuesfloat,
 	}
 }
 
@@ -782,7 +747,7 @@ func (ecd *encoderBigComplex) InvFFT(values []*ring.Complex, N int) {
 		}
 	}
 
-	NBig := ring.NewFloat(float64(N), ecd.logPrecision)
+	NBig := ring.NewFloat(float64(N), ecd.prec)
 	for i := range values {
 		values[i][0].Quo(values[i][0], NBig)
 		values[i][1].Quo(values[i][1], NBig)
@@ -801,19 +766,19 @@ func (ecd *encoderBigComplex) ShallowCopy() EncoderBigComplex {
 
 	for i := 0; i < ecd.m>>2; i++ {
 
-		values[i] = ring.NewComplex(ring.NewFloat(0, ecd.logPrecision), ring.NewFloat(0, ecd.logPrecision))
-		valuesfloat[i*2] = ring.NewFloat(0, ecd.logPrecision)
-		valuesfloat[(i*2)+1] = ring.NewFloat(0, ecd.logPrecision)
+		values[i] = ring.NewComplex(ring.NewFloat(0, ecd.prec), ring.NewFloat(0, ecd.prec))
+		valuesfloat[i*2] = ring.NewFloat(0, ecd.prec)
+		valuesfloat[(i*2)+1] = ring.NewFloat(0, ecd.prec)
 	}
 
 	return &encoderBigComplex{
-		encoder:      *ecd.encoder.ShallowCopy(),
-		zero:         ring.NewFloat(0, ecd.logPrecision),
-		cMul:         ring.NewComplexMultiplier(),
-		logPrecision: ecd.logPrecision,
-		values:       values,
-		valuesfloat:  valuesfloat,
-		roots:        ecd.roots,
+		encoder:     *ecd.encoder.ShallowCopy(),
+		zero:        ring.NewFloat(0, ecd.prec),
+		cMul:        ring.NewComplexMultiplier(),
+		prec:        ecd.prec,
+		values:      values,
+		valuesfloat: valuesfloat,
+		roots:       ecd.roots,
 	}
 }
 

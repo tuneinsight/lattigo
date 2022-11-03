@@ -80,7 +80,6 @@ func testGenKeyPair(kgen KeyGenerator, t *testing.T) {
 	sk, pk := kgen.GenKeyPair()
 
 	t.Run("CheckMetaData", func(t *testing.T) {
-		require.True(t, sk.MetaData.Equal(MetaData{IsNTT: true, IsMontgomery: true}))
 		require.True(t, pk.MetaData.Equal(MetaData{IsNTT: true, IsMontgomery: true}))
 	})
 

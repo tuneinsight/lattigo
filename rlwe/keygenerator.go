@@ -74,9 +74,6 @@ func (keygen *keyGenerator) genSecretKeyFromSampler(sampler ring.Sampler) (sk *S
 	ringQP.NTTLvl(levelQ, levelP, sk.Value, sk.Value)
 	ringQP.MFormLvl(levelQ, levelP, sk.Value, sk.Value)
 
-	sk.IsNTT = true
-	sk.IsMontgomery = true
-
 	return
 }
 

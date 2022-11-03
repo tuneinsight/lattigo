@@ -5,17 +5,19 @@ import (
 )
 
 // SecretKey is a type for generic RLWE secret keys.
+// The Value field stores the polynomial in NTT and Montgomery form.
 type SecretKey struct {
-	MetaData
 	Value ringqp.Poly
 }
 
 // PublicKey is a type for generic RLWE public keys.
+// The Value field stores the polynomials in NTT and Montgomery form.
 type PublicKey struct {
 	CiphertextQP
 }
 
 // SwitchingKey is a type for generic RLWE public switching keys.
+// The Value field stores the polynomials in NTT and Montgomery form.
 type SwitchingKey struct {
 	GadgetCiphertext
 }
@@ -52,7 +54,7 @@ type EvaluationKey struct {
 
 // NewSecretKey generates a new SecretKey with zero values.
 func NewSecretKey(params Parameters) *SecretKey {
-	return &SecretKey{Value: params.RingQP().NewPoly(), MetaData: MetaData{IsNTT: true, IsMontgomery: true}}
+	return &SecretKey{Value: params.RingQP().NewPoly()}
 }
 
 // LevelQ returns the level of the modulus Q of the target.
@@ -154,7 +156,7 @@ func (sk *SecretKey) CopyNew() *SecretKey {
 	if sk == nil {
 		return nil
 	}
-	return &SecretKey{sk.MetaData, sk.Value.CopyNew()}
+	return &SecretKey{sk.Value.CopyNew()}
 }
 
 // CopyNew creates a deep copy of the receiver PublicKey and returns it.

@@ -464,7 +464,7 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale rlwe.S
 		}
 
 		if pol.Value[0].Lead {
-			targetScale = targetScale.Mul(params.QiFloat64(targetLevel), nil)
+			targetScale = targetScale.Mul(rlwe.NewScale(params.QiFloat64(targetLevel)))
 		}
 
 		return polyEval.evaluatePolyFromPolynomialBasis(targetScale, targetLevel, pol)
@@ -488,8 +488,8 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale rlwe.S
 		currentQi = params.QiFloat64(level + 1)
 	}
 
-	targetScale = targetScale.Mul(currentQi, nil)
-	targetScale = targetScale.Div(XPow.Scale, nil)
+	targetScale = targetScale.Mul(rlwe.NewScale(currentQi))
+	targetScale = targetScale.Div(XPow.Scale)
 
 	if res, err = polyEval.recurse(targetLevel+1, targetScale, coeffsq); err != nil {
 		return nil, err
@@ -634,7 +634,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasis(targetScale
 			// If a non-zero degre coefficient was found, encode and adds the values on the output
 			// ciphertext
 			if toEncode {
-				pt.Scale = targetScale.Div(X[key].Scale, nil)
+				pt.Scale = targetScale.Div(X[key].Scale)
 				polyEval.EncodeSlots(values, pt, params.LogSlots())
 				polyEval.MulAndAdd(X[key], pt, res)
 				toEncode = false

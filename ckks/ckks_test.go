@@ -444,7 +444,7 @@ func testEvaluatorRescale(tc *testContext, t *testing.T) {
 
 		tc.evaluator.MultByConst(ciphertext, constant, ciphertext)
 
-		ciphertext.Scale = ciphertext.Scale.Mul(constant, nil)
+		ciphertext.Scale = ciphertext.Scale.Mul(rlwe.NewScale(constant))
 
 		if err := tc.evaluator.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
 			t.Error(err)
@@ -469,7 +469,7 @@ func testEvaluatorRescale(tc *testContext, t *testing.T) {
 		for i := 0; i < nbRescales; i++ {
 			constant := tc.ringQ.Modulus[ciphertext.Level()-i]
 			tc.evaluator.MultByConst(ciphertext, constant, ciphertext)
-			ciphertext.Scale = ciphertext.Scale.Mul(constant, nil)
+			ciphertext.Scale = ciphertext.Scale.Mul(rlwe.NewScale(constant))
 		}
 
 		if err := tc.evaluator.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
@@ -745,7 +745,7 @@ func testEvaluatorMulAndAdd(tc *testContext, t *testing.T) {
 
 		ciphertext3 := NewCiphertext(tc.params, 2, ciphertext1.Level())
 
-		ciphertext3.Scale = ciphertext1.Scale.Mul(ciphertext2.Scale, nil)
+		ciphertext3.Scale = ciphertext1.Scale.Mul(ciphertext2.Scale)
 
 		tc.evaluator.MulAndAdd(ciphertext1, ciphertext2, ciphertext3)
 

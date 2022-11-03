@@ -75,7 +75,7 @@ func example() {
 	}
 
 	plaintext := ckks.NewPlaintext(params, params.MaxLevel())
-	plaintext.Scale = plaintext.Scale.Div(r, nil)
+	plaintext.Scale = plaintext.Scale.Div(rlwe.NewScale(r))
 	encoder.Encode(values, plaintext, params.LogSlots())
 
 	fmt.Printf("Done in %s \n", time.Since(start))
@@ -120,7 +120,7 @@ func example() {
 
 	start = time.Now()
 
-	ciphertext.Scale = ciphertext.Mul(r, nil)
+	ciphertext.Scale = ciphertext.Mul(rlwe.NewScale(r))
 
 	fmt.Printf("Done in %s \n", time.Since(start))
 

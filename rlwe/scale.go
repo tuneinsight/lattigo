@@ -37,47 +37,41 @@ func (s Scale) Uint64() uint64 {
 	return u64
 }
 
-// Mul multiplies s1 with s2, stores the result on the target scale
-// and returns the target scale.
-func (s Scale) Mul(s1, T interface{}) Scale {
+// Mul multiplies the target s with s2, returning the result in
+// a new Scale struct. If mod is specified, performs the multiplication
+// modulo mod.
+func (s Scale) Mul(s1 Scale, mod ...uint64) Scale {
 
 	res := new(big.Float)
 
-	if T == nil {
+	si, _ := s.Value.Int(nil)
+	s1i, _ := s1.Value.Int(nil)
+	s1i.Mul(si, s1i)
 
-		res.Mul(scaleToBigFloat(s), scaleToBigFloat(s1))
-
-	} else {
-
-		s1i, _ := scaleToBigFloat(s).Int(nil)
-		s2i, _ := scaleToBigFloat(s1).Int(nil)
-		T, _ := scaleToBigFloat(T).Int(nil)
-
-		s2i.Mul(s1i, s2i)
-		s2i.Mod(s2i, T)
-
-		res.SetPrec(ScalePrecision)
-		res.SetInt(s2i)
+	if len(mod) > 0 && mod[0] > 0 {
+		T := big.NewInt(0).SetUint64(mod[0])
+		s1i.Mod(s1i, T)
 	}
+
+	res.SetPrec(ScalePrecision)
+	res.SetInt(s1i)
 
 	return Scale{Value: *res}
 }
 
-// Div multiplies s1 with s2^-1, stores the result on the target scale
-// and returns the target scale.
-func (s Scale) Div(s1, T interface{}) Scale {
+// Div multiplies the target s with s1^-1, returning the result in
+// a new Scale struct. If mod is specified, performs the multiplication
+// modulo t with the multiplicative inverse of s1. Otherwise, performs
+// the quotient operation.
+func (s Scale) Div(s1 Scale, mod ...uint64) Scale {
 
 	res := new(big.Float)
 
-	if T == nil {
+	if len(mod) > 0 && mod[0] > 0 {
+		s1i, _ := s.Value.Int(nil)
+		s2i, _ := s1.Value.Int(nil)
 
-		res.Quo(scaleToBigFloat(s), scaleToBigFloat(s1))
-
-	} else {
-		s1i, _ := scaleToBigFloat(s).Int(nil)
-		s2i, _ := scaleToBigFloat(s1).Int(nil)
-		T, _ := scaleToBigFloat(T).Int(nil)
-
+		T := big.NewInt(0).SetUint64(mod[0])
 		s2i.ModInverse(s2i, T)
 
 		s1i.Mul(s1i, s2i)
@@ -85,6 +79,8 @@ func (s Scale) Div(s1, T interface{}) Scale {
 
 		res.SetPrec(ScalePrecision)
 		res.SetInt(s1i)
+	} else {
+		res.Quo(&s.Value, &s1.Value)
 	}
 
 	return Scale{Value: *res}
@@ -94,13 +90,13 @@ func (s Scale) Div(s1, T interface{}) Scale {
 // Returns 0 if the scales are equal, 1 if
 // the target scale is greater and -1 if
 // the target scale is smaller.
-func (s Scale) Cmp(s1 interface{}) (cmp int) {
-	return s.Value.Cmp(scaleToBigFloat(s1))
+func (s Scale) Cmp(s1 Scale) (cmp int) {
+	return s.Value.Cmp(&s1.Value)
 }
 
 // Max returns the a new scale which is the maximum
 // between the target scale and s1.
-func (s Scale) Max(s1 interface{}) (max Scale) {
+func (s Scale) Max(s1 Scale) (max Scale) {
 
 	if s.Cmp(s1) < 0 {
 		return NewScale(s1)
@@ -111,7 +107,7 @@ func (s Scale) Max(s1 interface{}) (max Scale) {
 
 // Min returns the a new scale which is the minimum
 // between the target scale and s1.
-func (s Scale) Min(s1 interface{}) (max Scale) {
+func (s Scale) Min(s1 Scale) (max Scale) {
 
 	if s.Cmp(s1) > 0 {
 		return NewScale(s1)

@@ -77,7 +77,7 @@ func (switcher *DomainSwitcher) ComplexToReal(eval Evaluator, ctIn, ctOut *rlwe.
 	switcher.conjugateRingQ.FoldStandardToConjugateInvariant(level, evalRLWE.BuffQP[1].Q, switcher.permuteNTTIndex, ctOut.Value[0])
 	switcher.conjugateRingQ.FoldStandardToConjugateInvariant(level, evalRLWE.BuffQP[2].Q, switcher.permuteNTTIndex, ctOut.Value[1])
 	ctOut.MetaData = ctIn.MetaData
-	ctOut.Scale = ctIn.Scale.Mul(2, nil)
+	ctOut.Scale = ctIn.Scale.Mul(rlwe.NewScale(2))
 }
 
 // RealToComplex switches the provided ciphertext `ctIn` from the conjugate invariant domain to the

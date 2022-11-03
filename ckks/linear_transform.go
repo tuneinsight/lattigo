@@ -481,7 +481,7 @@ func (eval *evaluator) LinearTransformNew(ctIn *rlwe.Ciphertext, linearTransform
 			}
 
 			ctOut[i].MetaData = ctIn.MetaData
-			ctOut[i].Scale = ctIn.Scale.Mul(LT.Scale, nil)
+			ctOut[i].Scale = ctIn.Scale.Mul(LT.Scale)
 		}
 
 	case LinearTransform:
@@ -498,7 +498,7 @@ func (eval *evaluator) LinearTransformNew(ctIn *rlwe.Ciphertext, linearTransform
 		}
 
 		ctOut[0].MetaData = ctIn.MetaData
-		ctOut[0].Scale = ctIn.Scale.Mul(LTs.Scale, nil)
+		ctOut[0].Scale = ctIn.Scale.Mul(LTs.Scale)
 	}
 	return
 }
@@ -528,7 +528,7 @@ func (eval *evaluator) LinearTransform(ctIn *rlwe.Ciphertext, linearTransform in
 			}
 
 			ctOut[i].MetaData = ctIn.MetaData
-			ctOut[i].Scale = ctIn.Scale.Mul(LT.Scale, nil)
+			ctOut[i].Scale = ctIn.Scale.Mul(LT.Scale)
 		}
 
 	case LinearTransform:
@@ -541,7 +541,7 @@ func (eval *evaluator) LinearTransform(ctIn *rlwe.Ciphertext, linearTransform in
 		}
 
 		ctOut[0].MetaData = ctIn.MetaData
-		ctOut[0].Scale = ctIn.Scale.Mul(LTs.Scale, nil)
+		ctOut[0].Scale = ctIn.Scale.Mul(LTs.Scale)
 	}
 }
 

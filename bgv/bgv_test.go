@@ -408,7 +408,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 
 				values, _, ciphertext := newTestVectorsLvl(lvl, rlwe.NewScale(7), tc, tc.encryptorSk)
 
-				require.True(t, ciphertext.Scale.Cmp(1) != 0)
+				require.True(t, ciphertext.Scale.Cmp(rlwe.NewScale(1)) != 0)
 
 				scalar := tc.params.T() >> 1
 

@@ -559,7 +559,7 @@ func (eval *evaluator) MultByConstAndAdd(ct0 *rlwe.Ciphertext, constant interfac
 			}
 
 			ctOut.MetaData = ct0.MetaData
-			ctOut.Scale = ct0.Scale.Mul(scale, nil)
+			ctOut.Scale = ct0.Scale.Mul(rlwe.NewScale(scale))
 
 			// If ctOut.scale > ((a+bi)*scale)*ct0(x), then it sets the scale to
 			// bring c(x)*scale to the level of ctOut(x) scale
@@ -698,7 +698,7 @@ func (eval *evaluator) MultByConst(ct0 *rlwe.Ciphertext, constant interface{}, c
 	}
 
 	ctOut.MetaData = ct0.MetaData
-	ctOut.Scale = ct0.Scale.Mul(scale, nil)
+	ctOut.Scale = ct0.Scale.Mul(rlwe.NewScale(scale))
 }
 
 // MultByGaussianInteger multiples the ct0 by the gaussian integer cReal + i*cImag and returns the result on ctOut.
@@ -919,7 +919,7 @@ func (eval *evaluator) ScaleUpNew(ct0 *rlwe.Ciphertext, scale rlwe.Scale) (ctOut
 func (eval *evaluator) ScaleUp(ct0 *rlwe.Ciphertext, scale rlwe.Scale, ctOut *rlwe.Ciphertext) {
 	eval.MultByConst(ct0, scale.Uint64(), ctOut)
 	ctOut.MetaData = ct0.MetaData
-	ctOut.Scale = ct0.Scale.Mul(scale, nil)
+	ctOut.Scale = ct0.Scale.Mul(scale)
 }
 
 // SetScale sets the scale of the ciphertext to the input scale (consumes a level)
@@ -1056,7 +1056,7 @@ func (eval *evaluator) mulRelin(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, relin b
 	}
 
 	ctOut.MetaData = ctIn.MetaData
-	ctOut.Scale = ctIn.Scale.Mul(op1.GetScale(), nil)
+	ctOut.Scale = ctIn.Scale.Mul(op1.GetScale())
 
 	ringQ := eval.params.RingQ()
 

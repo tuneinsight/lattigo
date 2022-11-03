@@ -22,7 +22,7 @@ type KeyGenerator interface {
 	GenRotationKeysForRotations(ks []int, inclueSwapRows bool, sk *SecretKey) (rks *RotationKeySet)
 	GenSwitchingKeyForRowRotation(sk *SecretKey) (swk *SwitchingKey)
 	GenRotationKeysForInnerSum(sk *SecretKey) (rks *RotationKeySet)
-	GenSwitchingKeysForRingSwap(skCKKS, skCI *SecretKey) (*SwkStandardToConjugateInvariant, *SwkConjugateInvariantToStandard)
+	GenSwitchingKeysForRingSwap(skCKKS, skCI *SecretKey) (stdToci, ciToStd *SwitchingKey)
 }
 
 // KeyGenerator is a structure that stores the elements required to create new keys,
@@ -176,7 +176,7 @@ func (keygen *keyGenerator) genrotKey(sk ringqp.Poly, galEl uint64, swk *Switchi
 }
 
 // GenSwitchingKeysForRingSwap generates the necessary switching keys to switch from a standard ring to to a conjugate invariant ring and vice-versa.
-func (keygen *keyGenerator) GenSwitchingKeysForRingSwap(skStd, skConjugateInvariant *SecretKey) (*SwkStandardToConjugateInvariant, *SwkConjugateInvariantToStandard) {
+func (keygen *keyGenerator) GenSwitchingKeysForRingSwap(skStd, skConjugateInvariant *SecretKey) (stdToci, ciToStd *SwitchingKey) {
 
 	skCIMappedToStandard := &SecretKey{Value: keygen.buffQP}
 	keygen.params.RingQ().UnfoldConjugateInvariantToStandard(skConjugateInvariant.Value.Q.Level(), skConjugateInvariant.Value.Q, skCIMappedToStandard.Value.Q)
@@ -185,7 +185,7 @@ func (keygen *keyGenerator) GenSwitchingKeysForRingSwap(skStd, skConjugateInvari
 		keygen.extendQ2P(keygen.params.PCount()-1, skCIMappedToStandard.Value.Q, keygen.buffQ[0], skCIMappedToStandard.Value.P)
 	}
 
-	return &SwkStandardToConjugateInvariant{*keygen.GenSwitchingKey(skStd, skCIMappedToStandard)}, &SwkConjugateInvariantToStandard{*keygen.GenSwitchingKey(skCIMappedToStandard, skStd)}
+	return keygen.GenSwitchingKey(skStd, skCIMappedToStandard), keygen.GenSwitchingKey(skCIMappedToStandard, skStd)
 }
 
 // GenSwitchingKey generates a new key-switching key, that will re-encrypt a Ciphertext encrypted under the input key into the output key.

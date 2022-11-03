@@ -13,20 +13,18 @@ import (
 type DomainSwitcher struct {
 	stdRingQ, conjugateRingQ *ring.Ring
 
-	*rlwe.SwkStandardToConjugateInvariant
-	*rlwe.SwkConjugateInvariantToStandard
-
-	permuteNTTIndex []uint64
+	stdToci, ciToStd *rlwe.SwitchingKey
+	permuteNTTIndex  []uint64
 }
 
 // NewDomainSwitcher instantiate a new DomainSwitcher type. It may be instantiated from parameters from either RingType.
 // The method returns an error if the parameters cannot support the switching (e.g., the NTTs are undefined for
 // either of the two ring types).
-func NewDomainSwitcher(params Parameters, comlexToRealSwk *rlwe.SwkStandardToConjugateInvariant, RealToComplexSwk *rlwe.SwkConjugateInvariantToStandard) (DomainSwitcher, error) {
+func NewDomainSwitcher(params Parameters, comlexToRealSwk, RealToComplexSwk *rlwe.SwitchingKey) (DomainSwitcher, error) {
 
 	s := DomainSwitcher{
-		SwkStandardToConjugateInvariant: comlexToRealSwk,
-		SwkConjugateInvariantToStandard: RealToComplexSwk,
+		stdToci: comlexToRealSwk,
+		ciToStd: RealToComplexSwk,
 	}
 	var err error
 	if s.stdRingQ, err = params.RingQ().StandardRing(); err != nil {
@@ -64,14 +62,14 @@ func (switcher *DomainSwitcher) ComplexToReal(eval Evaluator, ctIn, ctOut *rlwe.
 
 	ctOut.Resize(1, level)
 
-	if switcher.SwkStandardToConjugateInvariant == nil {
+	if switcher.stdToci == nil {
 		panic("cannot ComplexToReal: no SwkStandardToConjugateInvariant provided to this DomainSwitcher")
 	}
 
 	ctTmp := &rlwe.Ciphertext{Value: []*ring.Poly{evalRLWE.BuffQP[1].Q, evalRLWE.BuffQP[2].Q}}
 	ctTmp.MetaData = ctIn.MetaData
 
-	evalRLWE.GadgetProduct(level, ctIn.Value[1], switcher.SwkStandardToConjugateInvariant.GadgetCiphertext, ctTmp)
+	evalRLWE.GadgetProduct(level, ctIn.Value[1], switcher.stdToci.GadgetCiphertext, ctTmp)
 	switcher.stdRingQ.AddLvl(level, evalRLWE.BuffQP[1].Q, ctIn.Value[0], evalRLWE.BuffQP[1].Q)
 
 	switcher.conjugateRingQ.FoldStandardToConjugateInvariant(level, evalRLWE.BuffQP[1].Q, switcher.permuteNTTIndex, ctOut.Value[0])
@@ -103,7 +101,7 @@ func (switcher *DomainSwitcher) RealToComplex(eval Evaluator, ctIn, ctOut *rlwe.
 
 	ctOut.Resize(1, level)
 
-	if switcher.SwkConjugateInvariantToStandard == nil {
+	if switcher.ciToStd == nil {
 		panic("cannot RealToComplex: no SwkConjugateInvariantToStandard provided to this DomainSwitcher")
 	}
 
@@ -114,7 +112,7 @@ func (switcher *DomainSwitcher) RealToComplex(eval Evaluator, ctIn, ctOut *rlwe.
 	ctTmp.MetaData = ctIn.MetaData
 
 	// Switches the RCKswitcher key [X+X^-1] to a CKswitcher key [X]
-	evalRLWE.GadgetProduct(level, ctOut.Value[1], switcher.SwkConjugateInvariantToStandard.GadgetCiphertext, ctTmp)
+	evalRLWE.GadgetProduct(level, ctOut.Value[1], switcher.ciToStd.GadgetCiphertext, ctTmp)
 	switcher.stdRingQ.AddLvl(level, ctOut.Value[0], evalRLWE.BuffQP[1].Q, ctOut.Value[0])
 	ring.CopyLvl(level, evalRLWE.BuffQP[2].Q, ctOut.Value[1])
 	ctOut.MetaData = ctIn.MetaData

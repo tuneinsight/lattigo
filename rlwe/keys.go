@@ -22,16 +22,6 @@ type SwitchingKey struct {
 	GadgetCiphertext
 }
 
-// SwkStandardToConjugateInvariant is a SwitchingKey to switch from the standard ring to the conjugate invariant ring.
-type SwkStandardToConjugateInvariant struct {
-	SwitchingKey
-}
-
-// SwkConjugateInvariantToStandard is a SwitchingKey to switch from the conjugate invariant ring to the standard ring.
-type SwkConjugateInvariantToStandard struct {
-	SwitchingKey
-}
-
 // RelinearizationKey is a type for generic RLWE public relinearization keys. It stores a slice with a
 // switching key per relinearizable degree. The switching key at index i is used to relinearize a degree
 // i+2 ciphertexts back to a degree i + 1 one.

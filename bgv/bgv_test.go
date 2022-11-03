@@ -537,12 +537,6 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		for _, lvl := range tc.testLevel {
 			t.Run(GetTestName("MulRelin/op0=ct/op2=ct", tc.params, lvl), func(t *testing.T) {
 
-				//params := tc.params
-				//ringQ := params.RingQ()
-
-				//tInvModQ := ring.NewUint(params.T())
-				//tInvModQ.ModInverse(tInvModQ, params.RingQ().ModulusAtLevel[lvl])
-
 				if lvl == 0 {
 					t.Skip("Level = 0")
 				}

@@ -737,7 +737,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 
 					values1, _, ciphertext1 := newTestVectorsLvl(lvl, tc.params.DefaultScale(), tc, tc.encryptorSk)
 
-					printNoise(fmt.Sprintf("0x"), values0.Coeffs[0], ciphertext0)
+					printNoise("0x", values0.Coeffs[0], ciphertext0)
 
 					for i := 0; i < lvl; i++ {
 						tc.evaluator.MulRelin(ciphertext0, ciphertext1, ciphertext0)

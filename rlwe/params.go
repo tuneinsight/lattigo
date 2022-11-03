@@ -545,6 +545,30 @@ func (p Parameters) InverseGaloisElement(galEl uint64) uint64 {
 	return ring.ModExp(galEl, p.ringQ.NthRoot-1, p.ringQ.NthRoot)
 }
 
+// RotationFromGaloisElement returns the corresponding rotation
+// from the Galois element, i.e. computes k given 5^k = galEl mod NthRoot.
+func (p Parameters) RotationFromGaloisElement(galEl uint64) (k uint64) {
+
+	fmt.Println(galEl, p.ringQ.NthRoot)
+	N := p.ringQ.NthRoot
+
+	x := N >> 3
+
+	for {
+
+		if ring.ModExpPow2(GaloisGen, k, N) != ring.ModExpPow2(galEl, x, N) {
+			k |= N >> 3
+		}
+
+		if x == 1 {
+			return
+		}
+
+		x >>= 1
+		k >>= 1
+	}
+}
+
 // Equals checks two Parameter structs for equality.
 func (p Parameters) Equals(other Parameters) bool {
 	res := p.logN == other.logN

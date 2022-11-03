@@ -53,6 +53,20 @@ func ModExp(x, e, p uint64) (result uint64) {
 	return result
 }
 
+// ModExpPow2 performs the modular exponentiation x^e mod p, where p is a power of two,
+// x and p are required to be at most 64 bits to avoid an overflow.
+func ModExpPow2(x, e, p uint64) (result uint64) {
+
+	result = 1
+	for i := e; i > 0; i >>= 1 {
+		if i&1 == 1 {
+			result *= x
+		}
+		x *= x
+	}
+	return result & (p - 1)
+}
+
 // ModexpMontgomery performs the modular exponentiation x^e mod p,
 // where x is in Montgomery form, and returns x^e in Montgomery form.
 func ModexpMontgomery(x uint64, e int, q, qInv uint64, bredParams []uint64) (result uint64) {

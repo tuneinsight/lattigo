@@ -26,7 +26,7 @@ func (eval *Evaluator) Automorphism(ctIn *Ciphertext, galEl uint64, ctOut *Ciphe
 
 	rtk, generated := eval.Rtks.GetRotationKey(galEl)
 	if !generated {
-		panic(fmt.Sprintf("galEl key 5^%d missing", eval.params.InverseGaloisElement(galEl)))
+		panic(fmt.Sprintf("cannot apply Automorphism: galEl key 5^%d missing", eval.params.RotationFromGaloisElement(eval.params.InverseGaloisElement(galEl))))
 	}
 
 	level := utils.MinInt(ctIn.Level(), ctOut.Level())
@@ -72,7 +72,7 @@ func (eval *Evaluator) AutomorphismHoisted(level int, ctIn *Ciphertext, c1Decomp
 
 	rtk, generated := eval.Rtks.GetRotationKey(galEl)
 	if !generated {
-		panic(fmt.Sprintf("galEl key 5^%d missing", eval.params.InverseGaloisElement(galEl)))
+		panic(fmt.Sprintf("cannot apply AutomorphismHoisted: galEl key 5^%d missing", eval.params.RotationFromGaloisElement(eval.params.InverseGaloisElement(galEl))))
 	}
 
 	ringQ := eval.params.RingQ()
@@ -100,7 +100,7 @@ func (eval *Evaluator) AutomorphismHoistedNoModDown(levelQ int, c0 *ring.Poly, c
 
 	rtk, generated := eval.Rtks.GetRotationKey(galEl)
 	if !generated {
-		panic(fmt.Sprintf("cannot AutomorphismHoistedNoModDown: galEl key 5^%d missing", eval.params.InverseGaloisElement(galEl)))
+		panic(fmt.Sprintf("cannot AutomorphismHoistedNoModDown: galEl key 5^%d missing", eval.params.RotationFromGaloisElement(eval.params.InverseGaloisElement(galEl))))
 	}
 
 	levelP := rtk.LevelP()

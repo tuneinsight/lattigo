@@ -51,7 +51,7 @@ func newTestContext(params rlwe.Parameters) *testContext {
 	skIdeal := rlwe.NewSecretKey(params)
 	for i := range skShares {
 		skShares[i] = kgen.GenSecretKey()
-		params.RingQP().AddLvl(levelQ, levelP, skIdeal.Poly, skShares[i].Poly, skIdeal.Poly)
+		params.RingQP().AddLvl(levelQ, levelP, skIdeal.Value, skShares[i].Value, skIdeal.Value)
 	}
 
 	prng, _ := utils.NewKeyedPRNG([]byte{'t', 'e', 's', 't'})
@@ -167,7 +167,7 @@ func testKeySwitching(tc *testContext, t *testing.T) {
 		skOutIdeal := rlwe.NewSecretKey(params)
 		for i := range skout {
 			skout[i] = tc.kgen.GenSecretKey()
-			ringQP.AddLvl(levelQ, levelP, skOutIdeal.Poly, skout[i].Poly, skOutIdeal.Poly)
+			ringQP.AddLvl(levelQ, levelP, skOutIdeal.Value, skout[i].Value, skOutIdeal.Value)
 		}
 
 		ct := rlwe.NewCiphertext(params, 1, params.MaxLevel())
@@ -581,10 +581,10 @@ func testThreshold(tc *testContext, t *testing.T) {
 			recSk := rlwe.NewSecretKey(tc.params)
 			for _, pi := range activeParties {
 				pi.Combiner.GenAdditiveShare(activeShamirPks, pi.tpk, pi.tsks, pi.tsk)
-				ringQP.AddLvl(levelQ, levelP, pi.tsk.Poly, recSk.Poly, recSk.Poly)
+				ringQP.AddLvl(levelQ, levelP, pi.tsk.Value, recSk.Value, recSk.Value)
 			}
 
-			require.True(t, tc.skIdeal.Poly.Equals(recSk.Poly)) // reconstructed key should match the ideal sk
+			require.True(t, tc.skIdeal.Value.Equals(recSk.Value)) // reconstructed key should match the ideal sk
 		})
 	}
 }

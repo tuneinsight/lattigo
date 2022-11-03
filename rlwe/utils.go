@@ -12,7 +12,7 @@ func PublicKeyIsCorrect(pk *PublicKey, sk *SecretKey, params Parameters, log2Bou
 	levelQ, levelP := params.QCount()-1, params.PCount()-1
 
 	// [-as + e] + [as]
-	ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, sk.Poly, pk.Value[1], pk.Value[0])
+	ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, sk.Value, pk.Value[1], pk.Value[0])
 	ringQP.InvNTTLvl(levelQ, levelP, pk.Value[0], pk.Value[0])
 	ringQP.InvMFormLvl(levelQ, levelP, pk.Value[0], pk.Value[0])
 
@@ -32,7 +32,7 @@ func RelinearizationKeyIsCorrect(rlk *SwitchingKey, skIdeal *SecretKey, params P
 	levelQ, levelP := params.QCount()-1, params.PCount()-1
 	skIn := skIdeal.CopyNew()
 	skOut := skIdeal.CopyNew()
-	params.RingQP().MulCoeffsMontgomeryLvl(levelQ, levelP, skIn.Poly, skIn.Poly, skIn.Poly)
+	params.RingQP().MulCoeffsMontgomeryLvl(levelQ, levelP, skIn.Value, skIn.Value, skIn.Value)
 	return SwitchingKeyIsCorrect(rlk, skIn, skOut, params, log2Bound)
 }
 
@@ -44,9 +44,9 @@ func RotationKeyIsCorrect(swk *SwitchingKey, galEl uint64, skIdeal *SecretKey, p
 	galElInv := ring.ModExp(galEl, uint64(4*params.N()-1), uint64(4*params.N()))
 	ringQ, ringP := params.RingQ(), params.RingP()
 
-	ringQ.PermuteNTT(skIdeal.Q, galElInv, skOut.Q)
+	ringQ.PermuteNTT(skIdeal.Value.Q, galElInv, skOut.Value.Q)
 	if ringP != nil {
-		ringP.PermuteNTT(skIdeal.P, galElInv, skOut.P)
+		ringP.PermuteNTT(skIdeal.Value.P, galElInv, skOut.Value.P)
 	}
 
 	return SwitchingKeyIsCorrect(swk, skIn, skOut, params, log2Bound)
@@ -65,7 +65,7 @@ func SwitchingKeyIsCorrect(swk *SwitchingKey, skIn, skOut *SecretKey, params Par
 	// [-asIn + w*P*sOut + e, a] + [asIn]
 	for i := range swk.Value {
 		for j := range swk.Value[i] {
-			ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, swk.Value[i][j].Value[1], skOut.Poly, swk.Value[i][j].Value[0])
+			ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, swk.Value[i][j].Value[1], skOut.Value, swk.Value[i][j].Value[0])
 		}
 	}
 
@@ -81,13 +81,13 @@ func SwitchingKeyIsCorrect(swk *SwitchingKey, skIn, skOut *SecretKey, params Par
 
 	if levelP != -1 {
 		// sOut * P
-		ringQ.MulScalarBigint(skIn.Q, ringP.ModulusAtLevel[levelP], skIn.Q)
+		ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusAtLevel[levelP], skIn.Value.Q)
 	}
 
 	for i := 0; i < decompPw2; i++ {
 
 		// P*s^i + sum(e) - P*s^i = sum(e)
-		ringQ.Sub(swk.Value[0][i].Value[0].Q, skIn.Q, swk.Value[0][i].Value[0].Q)
+		ringQ.Sub(swk.Value[0][i].Value[0].Q, skIn.Value.Q, swk.Value[0][i].Value[0].Q)
 
 		// Checks that the error is below the bound
 		// Worst error bound is N * floor(6*sigma) * #Keys
@@ -108,7 +108,7 @@ func SwitchingKeyIsCorrect(swk *SwitchingKey, skIn, skOut *SecretKey, params Par
 		}
 
 		// sOut * P * PW2
-		ringQ.MulScalar(skIn.Q, 1<<params.Pow2Base(), skIn.Q)
+		ringQ.MulScalar(skIn.Value.Q, 1<<params.Pow2Base(), skIn.Value.Q)
 	}
 
 	return true

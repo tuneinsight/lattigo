@@ -18,7 +18,7 @@ func GenEvaluationKey(paramsRLWE rlwe.Parameters, skRLWE *rlwe.SecretKey, params
 
 	skLWEInvNTT := paramsLWE.RingQ().NewPoly()
 
-	paramsLWE.RingQ().InvNTT(skLWE.Q, skLWEInvNTT)
+	paramsLWE.RingQ().InvNTT(skLWE.Value.Q, skLWEInvNTT)
 
 	plaintextRGSWOne := rlwe.NewPlaintext(paramsRLWE, paramsRLWE.MaxLevel())
 	plaintextRGSWOne.IsNTT = true

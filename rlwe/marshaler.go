@@ -6,7 +6,7 @@ import (
 
 // MarshalBinarySize returns the length in bytes of the target SecretKey.
 func (sk *SecretKey) MarshalBinarySize() (dataLen int) {
-	return sk.Poly.MarshalBinarySize64() + sk.MetaData.MarshalBinarySize()
+	return sk.Value.MarshalBinarySize64() + sk.MetaData.MarshalBinarySize()
 }
 
 // MarshalBinary encodes a secret key in a byte slice.
@@ -18,7 +18,7 @@ func (sk *SecretKey) MarshalBinary() (data []byte, err error) {
 		return nil, err
 	}
 
-	if _, err = sk.Poly.Encode64(data[ptr:]); err != nil {
+	if _, err = sk.Value.Encode64(data[ptr:]); err != nil {
 		return nil, err
 	}
 
@@ -33,7 +33,7 @@ func (sk *SecretKey) UnmarshalBinary(data []byte) (err error) {
 		return
 	}
 
-	if _, err = sk.Poly.Decode64(data[ptr:]); err != nil {
+	if _, err = sk.Value.Decode64(data[ptr:]); err != nil {
 		return
 	}
 

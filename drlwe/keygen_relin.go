@@ -129,21 +129,21 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp RKGCRP, ephSkOu
 
 	if hasModulusP {
 		// Computes P * sk
-		ringQ.MulScalarBigintLvl(levelQ, sk.Q, ringQP.RingP.ModulusAtLevel[levelP], ekg.tmpPoly1.Q)
+		ringQ.MulScalarBigintLvl(levelQ, sk.Value.Q, ringQP.RingP.ModulusAtLevel[levelP], ekg.tmpPoly1.Q)
 	} else {
 		levelP = 0
-		ring.CopyLvl(levelQ, sk.Q, ekg.tmpPoly1.Q)
+		ring.CopyLvl(levelQ, sk.Value.Q, ekg.tmpPoly1.Q)
 	}
 
 	ringQ.InvMForm(ekg.tmpPoly1.Q, ekg.tmpPoly1.Q)
 
 	// u
-	ekg.ternarySamplerQ.Read(ephSkOut.Q)
+	ekg.ternarySamplerQ.Read(ephSkOut.Value.Q)
 	if hasModulusP {
-		ringQP.ExtendBasisSmallNormAndCenter(ephSkOut.Q, levelP, nil, ephSkOut.P)
+		ringQP.ExtendBasisSmallNormAndCenter(ephSkOut.Value.Q, levelP, nil, ephSkOut.Value.P)
 	}
-	ringQP.NTTLvl(levelQ, levelP, ephSkOut.Poly, ephSkOut.Poly)
-	ringQP.MFormLvl(levelQ, levelP, ephSkOut.Poly, ephSkOut.Poly)
+	ringQP.NTTLvl(levelQ, levelP, ephSkOut.Value, ephSkOut.Value)
+	ringQP.MFormLvl(levelQ, levelP, ephSkOut.Value, ephSkOut.Value)
 
 	RNSDecomp := len(shareOut.Value)
 	BITDecomp := len(shareOut.Value[0])
@@ -180,7 +180,7 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp RKGCRP, ephSkOu
 			}
 
 			// h = sk*CrtBaseDecompQi + -u*a + e
-			ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, ephSkOut.Poly, crp[i][j], shareOut.Value[i][j][0])
+			ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, ephSkOut.Value, crp[i][j], shareOut.Value[i][j][0])
 
 			// Second Element
 			// e_2i
@@ -192,7 +192,7 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp RKGCRP, ephSkOu
 
 			ringQP.NTTLvl(levelQ, levelP, shareOut.Value[i][j][1], shareOut.Value[i][j][1])
 			// s*a + e_2i
-			ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, sk.Poly, crp[i][j], shareOut.Value[i][j][1])
+			ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, sk.Value, crp[i][j], shareOut.Value[i][j][1])
 		}
 
 		ringQ.MulScalar(ekg.tmpPoly1.Q, 1<<ekg.params.Pow2Base(), ekg.tmpPoly1.Q)
@@ -211,14 +211,14 @@ func (ekg *RKGProtocol) GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGS
 	ringQP := ekg.params.RingQP()
 	levelQ := sk.LevelQ()
 
-	hasModulusP := sk.P != nil
+	hasModulusP := sk.Value.P != nil
 	var levelP int
 	if hasModulusP {
 		levelP = sk.LevelP()
 	}
 
 	// (u_i - s_i)
-	ringQP.SubLvl(levelQ, levelP, ephSk.Poly, sk.Poly, ekg.tmpPoly1)
+	ringQP.SubLvl(levelQ, levelP, ephSk.Value, sk.Value, ekg.tmpPoly1)
 
 	RNSDecomp := len(shareOut.Value)
 	BITDecomp := len(shareOut.Value[0])
@@ -231,7 +231,7 @@ func (ekg *RKGProtocol) GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGS
 			// Computes [(sum samples)*sk + e_1i, sk*a + e_2i]
 
 			// (AggregateShareRoundTwo samples) * sk
-			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, round1.Value[i][j][0], sk.Poly, shareOut.Value[i][j][0])
+			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, round1.Value[i][j][0], sk.Value, shareOut.Value[i][j][0])
 
 			// (AggregateShareRoundTwo samples) * sk + e_1i
 			ekg.gaussianSamplerQ.Read(ekg.tmpPoly2.Q)

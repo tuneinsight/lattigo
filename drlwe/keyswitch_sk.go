@@ -102,7 +102,7 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, c1 *ring.Pol
 	levelQ := utils.MinInt(shareOut.Value.Level(), c1.Level())
 	levelP := cks.params.PCount() - 1
 
-	ringQ.SubLvl(levelQ, skInput.Q, skOutput.Q, cks.tmpDelta)
+	ringQ.SubLvl(levelQ, skInput.Value.Q, skOutput.Value.Q, cks.tmpDelta)
 
 	ct1 := c1
 	if !isNTT {

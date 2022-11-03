@@ -148,11 +148,11 @@ func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct1 *
 	if isNTT {
 		ringQ.NTTLvl(levelQ, shareOut.Value[0], shareOut.Value[0])
 		ringQ.NTTLvl(levelQ, shareOut.Value[1], shareOut.Value[1])
-		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, ct1, sk.Q, shareOut.Value[0])
+		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, ct1, sk.Value.Q, shareOut.Value[0])
 	} else {
 		// tmp = s_i*c_1
 		ringQ.NTTLazyLvl(levelQ, ct1, pcks.tmpQP.Q)
-		ringQ.MulCoeffsMontgomeryConstantLvl(levelQ, pcks.tmpQP.Q, sk.Q, pcks.tmpQP.Q)
+		ringQ.MulCoeffsMontgomeryConstantLvl(levelQ, pcks.tmpQP.Q, sk.Value.Q, pcks.tmpQP.Q)
 		ringQ.InvNTTLvl(levelQ, pcks.tmpQP.Q, pcks.tmpQP.Q)
 
 		// h_0 = s_i*c_1 + (u_i * pk_0 + e0)/P

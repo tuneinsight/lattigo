@@ -365,8 +365,8 @@ func (enc *skEncryptor) encryptZero(ct *Ciphertext, c1 *ring.Poly) {
 
 	c0 := ct.Value[0]
 
-	ringQ.MulCoeffsMontgomeryLvl(levelQ, c1, enc.sk.Q, c0) // c0 = NTT(sc1)
-	ringQ.NegLvl(levelQ, c0, c0)                           // c0 = NTT(-sc1)
+	ringQ.MulCoeffsMontgomeryLvl(levelQ, c1, enc.sk.Value.Q, c0) // c0 = NTT(sc1)
+	ringQ.NegLvl(levelQ, c0, c0)                                 // c0 = NTT(-sc1)
 
 	if ct.IsNTT {
 		enc.gaussianSampler.ReadLvl(levelQ, enc.buffQ[0]) // e
@@ -411,7 +411,7 @@ func (enc *skEncryptor) encryptZeroQP(ct CiphertextQP) {
 	enc.uniformSampler.ReadLvl(levelQ, levelP, c1)
 
 	// (-a*sk + e, a)
-	ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, c1, enc.sk.Poly, c0)
+	ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, c1, enc.sk.Value, c0)
 
 	if !ct.IsNTT {
 		ringQP.InvNTTLvl(levelQ, levelP, c0, c0)
@@ -488,7 +488,7 @@ func (enc encryptorBase) checkSk(key interface{}) (sk *SecretKey, err error) {
 		return nil, fmt.Errorf("key is not a valid public key type %T", key)
 	}
 
-	if sk.Q.N() != enc.params.N() {
+	if sk.Value.Q.N() != enc.params.N() {
 		panic("cannot checkSk: sk ring degree does not match params ring degree")
 	}
 

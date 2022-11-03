@@ -7,7 +7,7 @@ import (
 // SecretKey is a type for generic RLWE secret keys.
 type SecretKey struct {
 	MetaData
-	ringqp.Poly
+	Value ringqp.Poly
 }
 
 // PublicKey is a type for generic RLWE public keys.
@@ -52,19 +52,19 @@ type EvaluationKey struct {
 
 // NewSecretKey generates a new SecretKey with zero values.
 func NewSecretKey(params Parameters) *SecretKey {
-	return &SecretKey{Poly: params.RingQP().NewPoly(), MetaData: MetaData{IsNTT: true, IsMontgomery: true}}
+	return &SecretKey{Value: params.RingQP().NewPoly(), MetaData: MetaData{IsNTT: true, IsMontgomery: true}}
 }
 
 // LevelQ returns the level of the modulus Q of the target.
 func (sk *SecretKey) LevelQ() int {
-	return sk.Q.Level()
+	return sk.Value.Q.Level()
 }
 
 // LevelP returns the level of the modulus P of the target.
 // Returns -1 if P is absent.
 func (sk *SecretKey) LevelP() int {
-	if sk.P != nil {
-		return sk.P.Level()
+	if sk.Value.P != nil {
+		return sk.Value.P.Level()
 	}
 
 	return -1
@@ -154,7 +154,7 @@ func (sk *SecretKey) CopyNew() *SecretKey {
 	if sk == nil {
 		return nil
 	}
-	return &SecretKey{sk.MetaData, sk.Poly.CopyNew()}
+	return &SecretKey{sk.MetaData, sk.Value.CopyNew()}
 }
 
 // CopyNew creates a deep copy of the receiver PublicKey and returns it.

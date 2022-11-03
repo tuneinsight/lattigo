@@ -108,14 +108,14 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, s
 
 	galElInv := ring.ModExp(galEl, ringQ.NthRoot-1, ringQ.NthRoot)
 
-	ringQ.PermuteNTT(sk.Q, galElInv, rtg.buff[1].Q)
+	ringQ.PermuteNTT(sk.Value.Q, galElInv, rtg.buff[1].Q)
 
 	if hasModulusP {
-		ringQ.PermuteNTT(sk.P, galElInv, rtg.buff[1].P)
-		ringQ.MulScalarBigint(sk.Q, ringQP.RingP.ModulusAtLevel[levelP], rtg.buff[0].Q)
+		ringQ.PermuteNTT(sk.Value.P, galElInv, rtg.buff[1].P)
+		ringQ.MulScalarBigint(sk.Value.Q, ringQP.RingP.ModulusAtLevel[levelP], rtg.buff[0].Q)
 	} else {
 		levelP = 0
-		ring.CopyLvl(levelQ, sk.Q, rtg.buff[0].Q)
+		ring.CopyLvl(levelQ, sk.Value.Q, rtg.buff[0].Q)
 	}
 
 	RNSDecomp := len(shareOut.Value)

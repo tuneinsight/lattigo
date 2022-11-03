@@ -146,8 +146,8 @@ func genTestParams(params ckks.Parameters, NParties int) (tc *testContext, err e
 	for j := 0; j < NParties; j++ {
 		tc.sk0Shards[j] = kgen.GenSecretKey()
 		tc.sk1Shards[j] = kgen.GenSecretKey()
-		ringQP.AddLvl(levelQ, levelP, tc.sk0.Poly, tc.sk0Shards[j].Poly, tc.sk0.Poly)
-		ringQP.AddLvl(levelQ, levelP, tc.sk1.Poly, tc.sk1Shards[j].Poly, tc.sk1.Poly)
+		ringQP.AddLvl(levelQ, levelP, tc.sk0.Value, tc.sk0Shards[j].Value, tc.sk0.Value)
+		ringQP.AddLvl(levelQ, levelP, tc.sk1.Value, tc.sk1Shards[j].Value, tc.sk1.Value)
 	}
 
 	// Publickeys
@@ -461,7 +461,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 			p.sIn = sk0Shards[i]
 
 			p.sOut = kgenParamsOut.GenSecretKey() // New shared secret key in target parameters
-			paramsOut.RingQ().Add(skIdealOut.Q, p.sOut.Q, skIdealOut.Q)
+			paramsOut.RingQ().Add(skIdealOut.Value.Q, p.sOut.Value.Q, skIdealOut.Value.Q)
 
 			p.share = p.AllocateShare(levelIn, levelOut)
 			RefreshParties[i] = p

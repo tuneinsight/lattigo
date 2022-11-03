@@ -476,13 +476,15 @@ func (eval *evaluator) mulRelin(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, relin b
 
 		if relin {
 
-			// Yup...
+			if eval.Rlk == nil {
+				panic("cannot MulRelin: relinerization key is missing")
+			}
+
 			tmpCt := &rlwe.Ciphertext{Value: []*ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}}
 			tmpCt.IsNTT = true
 
 			eval.GadgetProduct(level, c2, eval.Rlk.Keys[0].GadgetCiphertext, tmpCt)
 
-			// It works >.>
 			ringQ.AddLvl(level, ctOut.Value[0], tmpCt.Value[0], ctOut.Value[0])
 			ringQ.AddLvl(level, ctOut.Value[1], tmpCt.Value[1], ctOut.Value[1])
 		}
@@ -584,6 +586,11 @@ func (eval *evaluator) mulRelinAndAdd(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, r
 		ringQ.MulCoeffsMontgomeryAndAddLvl(level, c01, tmp1.Value[0], c1) // c1 += c[1]*c[0]
 
 		if relin {
+
+			if eval.Rlk == nil {
+				panic("cannot MulRelinAndAdd: relinerization key is missing")
+			}
+
 			ringQ.MulCoeffsMontgomeryLvl(level, c01, tmp1.Value[1], c2) // c2 += c[1]*c[1]
 
 			tmpCt := &rlwe.Ciphertext{Value: []*ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}}

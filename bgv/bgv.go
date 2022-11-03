@@ -1,3 +1,4 @@
+// Package bgv implements a RNS-accelerated BGV homomorphic encryption scheme. It provides modular arithmetic over the integers.
 package bgv
 
 import (

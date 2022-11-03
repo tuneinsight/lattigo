@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/tuneinsight/lattigo/v4/bfv"
+	"github.com/tuneinsight/lattigo/v4/dbfv"
 	"github.com/tuneinsight/lattigo/v4/drlwe"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
@@ -293,7 +294,7 @@ func pcksPhase(params bfv.Parameters, tpk *rlwe.PublicKey, encRes *rlwe.Cipherte
 	// Collective key switching from the collective secret key to
 	// the target public key
 
-	pcks := drlwe.NewPCKSProtocol(params.Parameters, 3.19)
+	pcks := dbfv.NewPCKSProtocol(params, 3.19)
 
 	for _, pi := range P {
 		pi.pcksShare = pcks.AllocateShare(params.MaxLevel())
@@ -325,7 +326,7 @@ func rkgphase(params bfv.Parameters, crs utils.PRNG, P []*party) *rlwe.Relineari
 
 	l.Println("> RKG Phase")
 
-	rkg := drlwe.NewRKGProtocol(params.Parameters) // Relineariation key generation
+	rkg := dbfv.NewRKGProtocol(params) // Relineariation key generation
 	_, rkgCombined1, rkgCombined2 := rkg.AllocateShare()
 
 	for _, pi := range P {
@@ -371,7 +372,7 @@ func ckgphase(params bfv.Parameters, crs utils.PRNG, P []*party) *rlwe.PublicKey
 
 	l.Println("> CKG Phase")
 
-	ckg := drlwe.NewCKGProtocol(params.Parameters) // Public key generation
+	ckg := dbfv.NewCKGProtocol(params) // Public key generation
 	ckgCombined := ckg.AllocateShare()
 	for _, pi := range P {
 		pi.ckgShare = ckg.AllocateShare()

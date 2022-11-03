@@ -1,4 +1,3 @@
-// Package dbfv implements a distributed (or threshold) version of the BFV scheme that enables secure multiparty computation solutions with secret-shared secret keys.
 package dbfv
 
 import (

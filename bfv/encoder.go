@@ -1,4 +1,3 @@
-// Package bfv implements a RNS-accelerated Fan-Vercauteren version of Brakerski's scale invariant homomorphic encryption scheme. It provides modular arithmetic over the integers.
 package bfv
 
 import (

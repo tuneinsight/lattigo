@@ -21,7 +21,7 @@ func NewCiphertext(params Parameters, degree, level int) (ct *Ciphertext) {
 	for i := 0; i < degree+1; i++ {
 		ct.Value[i] = ring.NewPoly(params.N(), level)
 	}
-	ct.MetaData = params.DefaultMetaData()
+	ct.MetaData = MetaData{Scale: params.defaultScale, IsNTT: params.defaultNTTFlag}
 	return
 }
 

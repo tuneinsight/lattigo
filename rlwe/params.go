@@ -63,16 +63,17 @@ type ParametersLiteral struct {
 // Parameters represents a set of generic RLWE parameters. Its fields are private and
 // immutable. See ParametersLiteral for user-specified parameters.
 type Parameters struct {
-	logN     int
-	qi       []uint64
-	pi       []uint64
-	pow2Base int
-	sigma    float64
-	h        int
-	ringQ    *ring.Ring
-	ringP    *ring.Ring
-	ringType ring.Type
-	metadata MetaData
+	logN           int
+	qi             []uint64
+	pi             []uint64
+	pow2Base       int
+	sigma          float64
+	h              int
+	ringQ          *ring.Ring
+	ringP          *ring.Ring
+	ringType       ring.Type
+	defaultScale   Scale
+	defaultNTTFlag bool
 }
 
 // NewParameters returns a new set of generic RLWE parameters from the given ring degree logn, moduli q and p, and
@@ -95,17 +96,15 @@ func NewParameters(logn int, q, p []uint64, pow2Base, h int, sigma float64, ring
 	}
 
 	params := Parameters{
-		logN:     logn,
-		qi:       make([]uint64, len(q)),
-		pi:       make([]uint64, lenP),
-		pow2Base: pow2Base,
-		h:        h,
-		sigma:    sigma,
-		ringType: ringType,
-		metadata: MetaData{
-			Scale: NewScale(defaultScale),
-			IsNTT: defaultNTTFlag,
-		},
+		logN:           logn,
+		qi:             make([]uint64, len(q)),
+		pi:             make([]uint64, lenP),
+		pow2Base:       pow2Base,
+		h:              h,
+		sigma:          sigma,
+		ringType:       ringType,
+		defaultScale:   NewScale(defaultScale),
+		defaultNTTFlag: defaultNTTFlag,
 	}
 
 	// pre-check that moduli chain is of valid size and that all factors are prime.
@@ -211,8 +210,8 @@ func (p Parameters) ParametersLiteral() ParametersLiteral {
 		Sigma:          p.sigma,
 		H:              p.h,
 		RingType:       p.ringType,
-		DefaultScale:   p.metadata.Scale,
-		DefaultNTTFlag: p.metadata.IsNTT,
+		DefaultScale:   p.defaultScale,
+		DefaultNTTFlag: p.defaultNTTFlag,
 	}
 }
 
@@ -243,17 +242,12 @@ func (p Parameters) RingQP() *ringqp.Ring {
 
 // DefaultScale returns the default scale, if any.
 func (p Parameters) DefaultScale() Scale {
-	return p.metadata.Scale
-}
-
-// DefaultMetaData returns the default MetaData.
-func (p Parameters) DefaultMetaData() MetaData {
-	return p.metadata
+	return p.defaultScale
 }
 
 // DefaultNTTFlag returns the default NTT flag.
 func (p Parameters) DefaultNTTFlag() bool {
-	return p.metadata.IsNTT
+	return p.defaultNTTFlag
 }
 
 // HammingWeight returns the number of non-zero coefficients in secret-keys.
@@ -577,7 +571,8 @@ func (p Parameters) Equals(other Parameters) bool {
 	res = res && (p.h == other.h)
 	res = res && (p.sigma == other.sigma)
 	res = res && (p.ringType == other.ringType)
-	res = res && p.metadata.Equal(other.metadata)
+	res = res && (p.defaultScale.Cmp(other.defaultScale) == 0)
+	res = res && (p.defaultNTTFlag == other.defaultNTTFlag)
 	return res
 }
 
@@ -611,7 +606,8 @@ func (p Parameters) MarshalBinary() ([]byte, error) {
 	// 8 byte : H
 	// 8 byte : sigma
 	// 1 byte : ringType
-	// 42 bytes: metadata
+	// 1 byte defaultNTTFlag
+	// 40 bytes: defaultScale
 	// 8 * (#Q) : Q
 	// 8 * (#P) : P
 	b := utils.NewBuffer(make([]byte, 0, p.MarshalBinarySize()))
@@ -622,13 +618,17 @@ func (p Parameters) MarshalBinary() ([]byte, error) {
 	b.WriteUint64(uint64(p.h))
 	b.WriteUint64(math.Float64bits(p.sigma))
 	b.WriteUint8(uint8(p.ringType))
-
-	data := make([]byte, p.metadata.MarshalBinarySize())
-
-	if _, err := p.metadata.Encode64(data); err != nil {
-		return []byte{}, err
+	if p.defaultNTTFlag {
+		b.WriteUint8(1)
+	} else {
+		b.WriteUint8(0)
 	}
 
+	data := make([]byte, p.defaultScale.MarshalBinarySize())
+	err := p.defaultScale.Encode(data)
+	if err != nil {
+		return nil, err
+	}
 	for i := range data {
 		b.WriteUint8(data[i])
 	}
@@ -652,18 +652,15 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	h := int(b.ReadUint64())
 	sigma := math.Float64frombits(b.ReadUint64())
 	ringType := ring.Type(b.ReadUint8())
-
-	metadata := &MetaData{}
-
-	dataMeta := make([]byte, metadata.MarshalBinarySize())
-
-	for i := range dataMeta {
-		dataMeta[i] = b.ReadUint8()
+	var defaultNTTFlag bool
+	if b.ReadUint8() == 1 {
+		defaultNTTFlag = true
 	}
 
-	if _, err := metadata.Decode64(dataMeta); err != nil {
-		return err
-	}
+	var defaultScale Scale
+	dataScale := make([]uint8, defaultScale.MarshalBinarySize())
+	b.ReadUint8Slice(dataScale)
+	defaultScale.Decode(dataScale)
 
 	if err := checkSizeParams(logN, lenQ, lenP); err != nil {
 		return err
@@ -675,13 +672,13 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	b.ReadUint64Slice(pi)
 
 	var err error
-	*p, err = NewParameters(logN, qi, pi, logbase2, h, sigma, ringType, metadata.Scale, metadata.IsNTT)
+	*p, err = NewParameters(logN, qi, pi, logbase2, h, sigma, ringType, defaultScale, defaultNTTFlag)
 	return err
 }
 
 // MarshalBinarySize returns the length of the []byte encoding of the reciever.
 func (p Parameters) MarshalBinarySize() int {
-	return 21 + 42 + (len(p.qi)+len(p.pi))<<3
+	return 22 + 40 + (len(p.qi)+len(p.pi))<<3
 }
 
 // MarshalJSON returns a JSON representation of this parameter set. See `Marshal` from the `encoding/json` package.

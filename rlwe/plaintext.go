@@ -12,7 +12,7 @@ type Plaintext struct {
 
 // NewPlaintext creates a new Plaintext at level `level` from the parameters.
 func NewPlaintext(params Parameters, level int) (pt *Plaintext) {
-	return &Plaintext{Value: ring.NewPoly(params.N(), level), MetaData: params.DefaultMetaData()}
+	return &Plaintext{Value: ring.NewPoly(params.N(), level), MetaData: MetaData{Scale: params.defaultScale, IsNTT: params.defaultNTTFlag}}
 }
 
 // NewPlaintextAtLevelFromPoly constructs a new Plaintext at a specific level

@@ -8,16 +8,16 @@ All notable changes to this library are documented in this file.
 - All: renamed `WriteTo<32/64>` to `Encode<32/64>` and `DecodePoly<32/64>` to `Decode<32/64>`, added similar method to `rlwe.Ciphertext`.
 - RLWE: added the type `rlwe.Scale`, which is now a field in the `rlwe.Parameters`.
 - RLWE: added the struct `MedaData` which stores the `Scale`, and boolean flags `IsNTT` and `IsMontgomery`. 
-- RLWE: added the field `MetaData` to the `rlwe.Plaintext`, `rlwe.Ciphertext`, `rlwe.CiphertextQP`, `rlwe.SecretKey` and `rlwe.PublicKey`.
+- RLWE: added the field `MetaData` to the `rlwe.Plaintext`, `rlwe.Ciphertext`, `rlwe.CiphertextQP`.
 - RLWE: added `DefaultScale` and `DefaultNTTFlag` to the `rlwe.ParametersLiteral` struct. These are optional fields which are automatically set by the respective schemes.
-- RLWE: elements from `rlwe.NewPlaintext(*)` and `rlwe.NewCiphertext(*)` are given default `IsNTT` and `Scale` values taken from the `rlwe.Parameters`. These value can be overwritten/modified manually.
+- RLWE: elements from `rlwe.NewPlaintext(*)` and `rlwe.NewCiphertext(*)` are given default `IsNTT` and `Scale` values taken from the `rlwe.Parameters`, which depend on the scheme used. These value can be overwritten/modified manually.
 - BFV: the level of the plaintext and ciphertext must now be specified when creating them.
 - CKKS: significantly reduced the pre-computation time of the roots, especially for the arbitrary precision encoder.
 - CKKS/BGV: abstracted the scaling factor, using `rlwe.Scale`. See the description of the struct for more information.
 - BFV/BGV: added the flag `-print-noise` to print the residual noise, after decryption, during the tests.
 - BFV/BGV/CKKS: added scheme specific global constant `DefaultNTTFlag`.
 - BFV/BGV/CKKS: removed scheme-specific ciphertexts and plaintexts types, they are replaced by generic `rlwe.Ciphertext` and `rlwe.Plaintext`.
-- BFV/BGV/CKKS: removed scheme-specific `KeyGenerator`, `Encryptor` and `Decryptor`, they have been replaced by `rlwe.KeyGenerator`, `rlwe.Encryptor` and `rlwe.Decryptor`.
+- BFV/BGV/CKKS: removed scheme-specific `KeyGenerator`, `Encryptor` and `Decryptor`, they have been replaced by `rlwe.KeyGenerator`, `rlwe.Encryptor` and `rlwe.Decryptor`. The API go instantiate those struct from the scheme specific API, e.g. `bgv.NewEncryptor`, is still available but will return its corresponding `rlwe` struct.
 - BFV/BGV/CKKS: if applicable, removed the following depreciated methods 
     - `AddNoMod`, `AddNoModNew`, `SubNoMod`, `SubNoModNew`, `Reduce` and `ReduceNew`
     - `PowerOf2`, `Power` and `PowerNew` which are replaced by `PolynomialBasis` and `GenPower`.

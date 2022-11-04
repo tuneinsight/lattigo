@@ -144,7 +144,7 @@ func (s Scale) Encode(data []byte) (err error) {
 }
 
 // Decode decodes the input slice of bytes on the target scale.
-// If the input slice of bytes is smaller than .GetDataLen(),
+// If the input slice of bytes is smaller than .MarshalBinarySize(),
 // the method will return an error.
 func (s *Scale) Decode(data []byte) (err error) {
 

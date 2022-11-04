@@ -206,7 +206,7 @@ func cksphase(params bfv.Parameters, P []*party, result *rlwe.Ciphertext) *rlwe.
 	cksCombined := cks.AllocateShare(params.MaxLevel())
 	elapsedPCKSParty = runTimedParty(func() {
 		for _, pi := range P[1:] {
-			cks.GenShare(pi.sk, zero, result.Value[1], result.IsNTT, pi.cksShare)
+			cks.GenShare(pi.sk, zero, result, pi.cksShare)
 		}
 	}, len(P)-1)
 

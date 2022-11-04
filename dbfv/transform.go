@@ -111,9 +111,9 @@ func (rfp *MaskedTransformProtocol) AllocateShare(levelIn, levelOut int) *Masked
 
 // GenShare generates the shares of the PermuteProtocol.
 // ct1 is the degree 1 element of a bfv.Ciphertext, i.e. bfv.Ciphertext.Value[1].
-func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, c1 *ring.Poly, crs drlwe.CKSCRP, transform *MaskedTransformFunc, shareOut *MaskedTransformShare) {
+func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, ct *rlwe.Ciphertext, crs drlwe.CKSCRP, transform *MaskedTransformFunc, shareOut *MaskedTransformShare) {
 
-	rfp.e2s.GenShare(skIn, c1, &rlwe.AdditiveShare{Value: *rfp.tmpMask}, &shareOut.e2sShare)
+	rfp.e2s.GenShare(skIn, ct, &rlwe.AdditiveShare{Value: *rfp.tmpMask}, &shareOut.e2sShare)
 
 	mask := rfp.tmpMask
 	if transform != nil {

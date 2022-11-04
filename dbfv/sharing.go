@@ -65,8 +65,8 @@ func NewE2SProtocol(params bfv.Parameters, sigmaSmudging float64) *E2SProtocol {
 // GenShare generates a party's share in the encryption-to-shares protocol. This share consist in the additive secret-share of the party
 // which is written in secretShareOut and in the public masked-decryption share written in publicShareOut.
 // ct1 is degree 1 element of a bfv.Ciphertext, i.e. bfv.Ciphertext.Value[1].
-func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, ct1 *ring.Poly, secretShareOut *rlwe.AdditiveShare, publicShareOut *drlwe.CKSShare) {
-	e2s.CKSProtocol.GenShare(sk, e2s.zero, ct1, false, publicShareOut)
+func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, ct *rlwe.Ciphertext, secretShareOut *rlwe.AdditiveShare, publicShareOut *drlwe.CKSShare) {
+	e2s.CKSProtocol.GenShare(sk, e2s.zero, ct, publicShareOut)
 	e2s.maskSampler.Read(&secretShareOut.Value)
 	e2s.encoder.ScaleUp(&bfv.PlaintextRingT{Plaintext: &rlwe.Plaintext{Value: &secretShareOut.Value}}, e2s.tmpPlaintext)
 	e2s.params.RingQ().Sub(publicShareOut.Value, e2s.tmpPlaintext.Value, publicShareOut.Value)
@@ -128,7 +128,7 @@ func (s2e *S2EProtocol) ShallowCopy() *S2EProtocol {
 // polynomial sampled from the CRS `crp` and the party's secret share of the message.
 func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crp drlwe.CKSCRP, secretShare *rlwe.AdditiveShare, c0ShareOut *drlwe.CKSShare) {
 	s2e.encoder.ScaleUp(&bfv.PlaintextRingT{Plaintext: &rlwe.Plaintext{Value: &secretShare.Value}}, s2e.tmpPlaintext)
-	s2e.CKSProtocol.GenShare(s2e.zero, sk, (*ring.Poly)(&crp), false, c0ShareOut)
+	s2e.CKSProtocol.GenShare(s2e.zero, sk, &rlwe.Ciphertext{Value: []*ring.Poly{nil, (*ring.Poly)(&crp)}, MetaData: rlwe.MetaData{IsNTT: false}}, c0ShareOut)
 	s2e.params.RingQ().Add(c0ShareOut.Value, s2e.tmpPlaintext.Value, c0ShareOut.Value)
 }
 

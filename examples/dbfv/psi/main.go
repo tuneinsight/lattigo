@@ -303,7 +303,7 @@ func pcksPhase(params bfv.Parameters, tpk *rlwe.PublicKey, encRes *rlwe.Cipherte
 	l.Println("> PCKS Phase")
 	elapsedPCKSParty = runTimedParty(func() {
 		for _, pi := range P {
-			pcks.GenShare(pi.sk, tpk, encRes.Value[1], encRes.IsNTT, pi.pcksShare)
+			pcks.GenShare(pi.sk, tpk, encRes, pi.pcksShare)
 		}
 	}, len(P))
 

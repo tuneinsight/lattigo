@@ -3,7 +3,6 @@ package dbfv
 import (
 	"github.com/tuneinsight/lattigo/v4/bfv"
 	"github.com/tuneinsight/lattigo/v4/drlwe"
-	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
@@ -40,8 +39,8 @@ func (rfp *RefreshProtocol) AllocateShare(levelIn, levelOut int) *RefreshShare {
 
 // GenShare generates a share for the Refresh protocol.
 // ct1 is degree 1 element of a bfv.Ciphertext, i.e. bfv.Ciphertext.Value[1].
-func (rfp *RefreshProtocol) GenShare(sk *rlwe.SecretKey, ct1 *ring.Poly, crp drlwe.CKSCRP, shareOut *RefreshShare) {
-	rfp.MaskedTransformProtocol.GenShare(sk, sk, ct1, crp, nil, &shareOut.MaskedTransformShare)
+func (rfp *RefreshProtocol) GenShare(sk *rlwe.SecretKey, ct *rlwe.Ciphertext, crp drlwe.CKSCRP, shareOut *RefreshShare) {
+	rfp.MaskedTransformProtocol.GenShare(sk, sk, ct, crp, nil, &shareOut.MaskedTransformShare)
 }
 
 // AggregateShares aggregates two parties' shares in the Refresh protocol.

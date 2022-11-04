@@ -171,9 +171,11 @@ func (rfp *MaskedTransformProtocol) SampleCRP(level int, crs utils.PRNG) drlwe.C
 // scale    : the scale of the ciphertext when entering the refresh.
 // The method "GetMinimumLevelForBootstrapping" should be used to get the minimum level at which the masked transform can be called while still ensure 128-bits of security, as well as the
 // value for logBound.
-func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, logBound uint, logSlots int, ct1 *ring.Poly, scale rlwe.Scale, crs drlwe.CKSCRP, transform *MaskedTransformFunc, shareOut *MaskedTransformShare) {
+func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, logBound uint, logSlots int, ct *rlwe.Ciphertext, crs drlwe.CKSCRP, transform *MaskedTransformFunc, shareOut *MaskedTransformShare) {
 
 	ringQ := rfp.s2e.params.RingQ()
+
+	ct1 := ct.Value[1]
 
 	if ct1.Level() < shareOut.e2sShare.Value.Level() {
 		panic("cannot GenShare: ct[1] level must be at least equal to e2sShare level")
@@ -192,7 +194,7 @@ func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, logBou
 
 	// Generates the decryption share
 	// Returns [M_i] on rfp.tmpMask and [a*s_i -M_i + e] on e2sShare
-	rfp.e2s.GenShare(skIn, logBound, logSlots, ct1, &rlwe.AdditiveShareBigint{Value: rfp.tmpMask}, &shareOut.e2sShare)
+	rfp.e2s.GenShare(skIn, logBound, logSlots, ct, &rlwe.AdditiveShareBigint{Value: rfp.tmpMask}, &shareOut.e2sShare)
 
 	// Applies LT(M_i)
 	if transform != nil {
@@ -247,7 +249,7 @@ func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, logBou
 	}
 
 	// Applies LT(M_i) * diffscale
-	inputScaleInt, _ := new(big.Float).SetPrec(256).Set(&scale.Value).Int(nil)
+	inputScaleInt, _ := new(big.Float).SetPrec(256).Set(&ct.Scale.Value).Int(nil)
 
 	// Scales the mask by the ratio between the two scales
 	for i := 0; i < dslots; i++ {

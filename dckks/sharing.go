@@ -68,9 +68,11 @@ func (e2s *E2SProtocol) AllocateShare(level int) (share *drlwe.CKSShare) {
 // ct1      : the degree 1 element the ciphertext to share, i.e. ct1 = ckk.Ciphertext.Value[1].
 // The method "GetMinimumLevelForBootstrapping" should be used to get the minimum level at which E2S can be called while still ensure 128-bits of security, as well as the
 // value for logBound.
-func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, logSlots int, ct1 *ring.Poly, secretShareOut *rlwe.AdditiveShareBigint, publicShareOut *drlwe.CKSShare) {
+func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, logSlots int, ct *rlwe.Ciphertext, secretShareOut *rlwe.AdditiveShareBigint, publicShareOut *drlwe.CKSShare) {
 
 	ringQ := e2s.params.RingQ()
+
+	ct1 := ct.Value[1]
 
 	levelQ := utils.MinInt(ct1.Level(), publicShareOut.Value.Level())
 
@@ -112,7 +114,7 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, logSlots int
 
 	// Encrypt the mask
 	// Generates an encryption of zero and subtracts the mask
-	e2s.CKSProtocol.GenShare(sk, e2s.zero, ct1, true, publicShareOut)
+	e2s.CKSProtocol.GenShare(sk, e2s.zero, ct, publicShareOut)
 
 	ringQ.SetCoefficientsBigintLvl(levelQ, secretShareOut.Value[:dslots], e2s.buff)
 
@@ -219,7 +221,7 @@ func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.CKSCRP, logSlots 
 	}
 
 	// Generates an encryption share
-	s2e.CKSProtocol.GenShare(s2e.zero, sk, &c1, true, c0ShareOut)
+	s2e.CKSProtocol.GenShare(s2e.zero, sk, &rlwe.Ciphertext{Value: []*ring.Poly{nil, &c1}, MetaData: rlwe.MetaData{IsNTT: true}}, c0ShareOut)
 
 	dslots := 1 << logSlots
 	if ringQ.Type() == ring.Standard {

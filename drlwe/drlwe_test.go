@@ -179,7 +179,7 @@ func testKeySwitching(tc *testContext, t *testing.T) {
 		}
 
 		for i := range shares {
-			cks[i].GenShare(tc.skShares[i], skout[i], ct.Value[1], ct.IsNTT, shares[i])
+			cks[i].GenShare(tc.skShares[i], skout[i], ct, shares[i])
 			if i > 0 {
 				cks[0].AggregateShares(shares[0], shares[i], shares[0])
 			}
@@ -236,7 +236,7 @@ func testPublicKeySwitching(tc *testContext, t *testing.T) {
 		}
 
 		for i := range shares {
-			pcks[i].GenShare(tc.skShares[i], pkOut, ct.Value[1], ct.IsNTT, shares[i])
+			pcks[i].GenShare(tc.skShares[i], pkOut, ct, shares[i])
 		}
 
 		for i := 1; i < nbParties; i++ {
@@ -400,7 +400,7 @@ func testMarshalling(tc *testContext, t *testing.T) {
 		KeySwitchProtocol := NewPCKSProtocol(tc.params, tc.params.Sigma())
 		SwitchShare := KeySwitchProtocol.AllocateShare(ciphertext.Level())
 		_, pkOut := tc.kgen.GenKeyPair()
-		KeySwitchProtocol.GenShare(tc.skShares[0], pkOut, ciphertext.Value[1], ciphertext.IsNTT, SwitchShare)
+		KeySwitchProtocol.GenShare(tc.skShares[0], pkOut, ciphertext, SwitchShare)
 
 		data, err := SwitchShare.MarshalBinary()
 		require.NoError(t, err)
@@ -422,7 +422,7 @@ func testMarshalling(tc *testContext, t *testing.T) {
 		//Now for CKSShare ~ its similar to PKSShare
 		cksp := NewCKSProtocol(tc.params, tc.params.Sigma())
 		cksshare := cksp.AllocateShare(ciphertext.Level())
-		cksp.GenShare(tc.skShares[0], tc.skShares[1], ciphertext.Value[1], ciphertext.IsNTT, cksshare)
+		cksp.GenShare(tc.skShares[0], tc.skShares[1], ciphertext, cksshare)
 
 		data, err := cksshare.MarshalBinary()
 		require.NoError(t, err)

@@ -81,18 +81,15 @@ func (pcks *PCKSProtocol) AllocateShare(levelQ int) (s *PCKSShare) {
 	return &PCKSShare{[2]*ring.Poly{pcks.params.RingQ().NewPolyLvl(levelQ), pcks.params.RingQ().NewPolyLvl(levelQ)}}
 }
 
-// GenShare is the first part of the unique round of the PCKSProtocol protocol. Each party computes the following :
-//
-// [s_i * ct[1] + (u_i * pk[0] + e_0i)/P, (u_i * pk[1] + e_1i)/P]
-//
-// and broadcasts the result to the other j-1 parties.
-// ct1 is the degree 1 element of the rlwe.Ciphertext to keyswitch, i.e. ct1 = rlwe.Ciphertext.Value[1].
-// NTT flag for ct1 is expected to be set correctly.
-func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct1 *ring.Poly, isNTT bool, shareOut *PCKSShare) {
+// GenShare computes a party's share in the PCKS protocol from secret-key sk to public-key pk.
+// ct is the rlwe.Ciphertext to keyswitch. Note that ct.Value[0] is not used by the function and can be nil/zero.
+func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct *rlwe.Ciphertext, shareOut *PCKSShare) {
 
 	ringQ := pcks.params.RingQ()
 	ringP := pcks.params.RingP()
 	ringQP := pcks.params.RingQP()
+
+	ct1 := ct.Value[1]
 
 	levelQ := utils.MinInt(shareOut.Value[0].Level(), ct1.Level())
 	var levelP int
@@ -145,7 +142,7 @@ func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct1 *
 	}
 
 	// h_0 = s_i*c_1 + (u_i * pk_0 + e0)/P
-	if isNTT {
+	if ct.IsNTT {
 		ringQ.NTTLvl(levelQ, shareOut.Value[0], shareOut.Value[0])
 		ringQ.NTTLvl(levelQ, shareOut.Value[1], shareOut.Value[1])
 		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, ct1, sk.Value.Q, shareOut.Value[0])

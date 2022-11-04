@@ -200,7 +200,7 @@ func testE2SProtocol(tc *testContext, t *testing.T) {
 
 		for i, p := range P {
 			// Enc(-M_i)
-			p.e2s.GenShare(p.sk, logBound, params.LogSlots(), ciphertext.Value[1], p.secretShare, p.publicShareE2S)
+			p.e2s.GenShare(p.sk, logBound, params.LogSlots(), ciphertext, p.secretShare, p.publicShareE2S)
 
 			if i > 0 {
 				// Enc(sum(-M_i))
@@ -299,7 +299,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 
 				for i, p := range RefreshParties {
 
-					p.GenShare(p.s, logBound, params.LogSlots(), ciphertext.Value[1], ciphertext.Scale, crp, p.share)
+					p.GenShare(p.s, logBound, params.LogSlots(), ciphertext, crp, p.share)
 
 					if i > 0 {
 						P0.AggregateShares(p.share, P0.share, P0.share)
@@ -379,7 +379,7 @@ func testRefreshAndTransform(tc *testContext, t *testing.T) {
 		}
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.s, p.s, logBound, params.LogSlots(), ciphertext.Value[1], ciphertext.Scale, crp, transform, p.share)
+			p.GenShare(p.s, p.s, logBound, params.LogSlots(), ciphertext, crp, transform, p.share)
 
 			if i > 0 {
 				P0.AggregateShares(p.share, P0.share, P0.share)
@@ -482,7 +482,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 		}
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.sIn, p.sOut, logBound, params.LogSlots(), ciphertext.Value[1], ciphertext.Scale, crp, transform, p.share)
+			p.GenShare(p.sIn, p.sOut, logBound, params.LogSlots(), ciphertext, crp, transform, p.share)
 
 			if i > 0 {
 				P0.AggregateShares(p.share, P0.share, P0.share)
@@ -529,7 +529,7 @@ func testMarshalling(tc *testContext, t *testing.T) {
 
 		crp := refreshproto.SampleCRP(params.MaxLevel(), tc.crs)
 
-		refreshproto.GenShare(tc.sk0, logBound, params.LogSlots(), ciphertext.Value[1], ciphertext.Scale, crp, refreshshare)
+		refreshproto.GenShare(tc.sk0, logBound, params.LogSlots(), ciphertext, crp, refreshshare)
 
 		data, err := refreshshare.MarshalBinary()
 

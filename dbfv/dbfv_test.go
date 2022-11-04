@@ -183,7 +183,7 @@ func testEncToShares(tc *testContext, t *testing.T) {
 	// The E2S protocol is run in all tests, as a setup to the S2E test.
 	for i, p := range P {
 
-		p.e2s.GenShare(p.sk, ciphertext.Value[1], p.secretShare, p.publicShare)
+		p.e2s.GenShare(p.sk, ciphertext, p.secretShare, p.publicShare)
 		if i > 0 {
 			p.e2s.AggregateShares(P[0].publicShare, p.publicShare, P[0].publicShare)
 		}
@@ -299,7 +299,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 		tc.ringQ.SetCoefficientsBigint(coeffsBigint, ciphertext.Value[0])
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.s, ciphertext.Value[1], crp, p.share)
+			p.GenShare(p.s, ciphertext, crp, p.share)
 			if i > 0 {
 				P0.AggregateShares(p.share, P0.share, P0.share)
 			}
@@ -385,7 +385,7 @@ func testRefreshAndTransform(tc *testContext, t *testing.T) {
 		}
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.s, p.s, ciphertext.Value[1], crp, transform, p.share)
+			p.GenShare(p.s, p.s, ciphertext, crp, transform, p.share)
 			if i > 0 {
 				P0.AggregateShares(P0.share, p.share, P0.share)
 			}
@@ -487,7 +487,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 		}
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.sIn, p.sOut, ciphertext.Value[1], crp, transform, p.share)
+			p.GenShare(p.sIn, p.sOut, ciphertext, crp, transform, p.share)
 			if i > 0 {
 				P0.AggregateShares(P0.share, p.share, P0.share)
 			}
@@ -531,7 +531,7 @@ func testMarshalling(tc *testContext, t *testing.T) {
 
 		crp := refreshproto.SampleCRP(tc.params.MaxLevel(), tc.crs)
 
-		refreshproto.GenShare(tc.sk0, ciphertext.Value[1], crp, refreshshare)
+		refreshproto.GenShare(tc.sk0, ciphertext, crp, refreshshare)
 
 		data, err := refreshshare.MarshalBinary()
 		if err != nil {

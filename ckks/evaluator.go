@@ -969,15 +969,13 @@ func (eval *evaluator) Rescale(ctIn *rlwe.Ciphertext, minScale rlwe.Scale, ctOut
 
 	ringQ := eval.params.RingQ()
 
-	scale := ctIn.Scale.Float64()
-
-	minScalef64 := minScale.Float64()
-
-	if minScalef64 <= 0 {
+	if minScale.Cmp(rlwe.NewScale(0)) != 1 {
 		return errors.New("cannot Rescale: minScale is <0")
 	}
 
-	if scale <= 0 {
+	minScale = minScale.Div(rlwe.NewScale(2))
+
+	if ctIn.Scale.Cmp(rlwe.NewScale(0)) != 1 {
 		return errors.New("cannot Rescale: ciphertext scale is <0")
 	}
 
@@ -989,16 +987,26 @@ func (eval *evaluator) Rescale(ctIn *rlwe.Ciphertext, minScale rlwe.Scale, ctOut
 		return errors.New("cannot Rescale: ctIn.Degree() != ctOut.Degree()")
 	}
 
-	var nbRescales int
+	ctOut.MetaData = ctIn.MetaData
+
+	currentLevel := ctIn.Level()
+
 	// Divides the scale by each moduli of the modulus chain as long as the scale isn't smaller than minScale/2
 	// or until the output Level() would be zero
-	for ctIn.Level()-nbRescales >= 0 && scale/float64(ringQ.Modulus[ctIn.Level()-nbRescales]) >= minScalef64/2 {
-		scale /= (float64(ringQ.Modulus[ctIn.Level()-nbRescales]))
-		nbRescales++
-	}
+	var nbRescales int
+	for currentLevel >= 0 {
 
-	ctOut.MetaData = ctIn.MetaData
-	ctOut.Scale = rlwe.NewScale(scale)
+		scale := ctOut.Scale.Div(rlwe.NewScale(ringQ.Modulus[currentLevel]))
+
+		if scale.Cmp(minScale) == -1 {
+			break
+		}
+
+		ctOut.Scale = scale
+
+		nbRescales++
+		currentLevel--
+	}
 
 	if nbRescales > 0 {
 		level := ctIn.Level()

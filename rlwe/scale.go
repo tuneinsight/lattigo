@@ -58,16 +58,16 @@ func (s Scale) Mul(s1 Scale) Scale {
 
 	res := new(big.Float)
 
-	si, _ := s.Value.Int(nil)
-	s1i, _ := s1.Value.Int(nil)
-	s1i.Mul(si, s1i)
-
 	if s.Mod != nil {
+		si, _ := s.Value.Int(nil)
+		s1i, _ := s1.Value.Int(nil)
+		s1i.Mul(si, s1i)
 		s1i.Mod(s1i, s.Mod)
+		res.SetPrec(ScalePrecision)
+		res.SetInt(s1i)
+	} else {
+		res.Mul(&s.Value, &s1.Value)
 	}
-
-	res.SetPrec(ScalePrecision)
-	res.SetInt(s1i)
 
 	return Scale{Value: *res, Mod: s.Mod}
 }

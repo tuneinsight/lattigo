@@ -215,6 +215,13 @@ func (p Parameters) ParametersLiteral() ParametersLiteral {
 	}
 }
 
+// NewScale creates a new scale using the stored default scale as template.
+func (p Parameters) NewScale(scale interface{}) Scale {
+	newScale := NewScale(scale)
+	newScale.Mod = p.defaultScale.Mod
+	return newScale
+}
+
 // N returns the ring degree
 func (p Parameters) N() int {
 	return 1 << p.logN

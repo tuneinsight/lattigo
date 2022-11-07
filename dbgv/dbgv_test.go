@@ -476,7 +476,7 @@ func newTestVectors(tc *testContext, encryptor rlwe.Encryptor, t *testing.T) (co
 	}
 
 	plaintext = bgv.NewPlaintext(tc.params, tc.params.MaxLevel())
-	plaintext.Scale = rlwe.NewScaleModT(2, tc.params.T())
+	plaintext.Scale = tc.params.NewScale(2)
 	tc.encoder.Encode(coeffsPol.Coeffs[0], plaintext)
 	ciphertext = encryptor.EncryptNew(plaintext)
 	return coeffsPol.Coeffs[0], plaintext, ciphertext

@@ -375,7 +375,7 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale rlwe.S
 		}
 
 		if pol.Value[0].Lead {
-			targetScale = targetScale.Mul(rlwe.NewScaleModT(params.Q()[targetLevel], params.T()))
+			targetScale = targetScale.Mul(params.NewScale(params.Q()[targetLevel]))
 		}
 
 		res, err = polyEval.evaluatePolyFromPowerBasis(targetLevel, targetScale, pol)
@@ -402,7 +402,7 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale rlwe.S
 	}
 
 	// targetScale = targetScale*currentQi/XPow.Scale
-	targetScale = targetScale.Mul(rlwe.NewScaleModT(currentQi, params.T()))
+	targetScale = targetScale.Mul(params.NewScale(currentQi))
 	targetScale = targetScale.Div(XPow.Scale)
 
 	if res, err = polyEval.recurse(targetLevel+1, targetScale, coeffsq); err != nil {

@@ -375,7 +375,7 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale rlwe.S
 		}
 
 		if pol.Value[0].Lead {
-			targetScale = targetScale.Mul(rlwe.NewScale(params.Q()[targetLevel]), params.T())
+			targetScale = targetScale.Mul(rlwe.NewScaleModT(params.Q()[targetLevel], params.T()))
 		}
 
 		res, err = polyEval.evaluatePolyFromPowerBasis(targetLevel, targetScale, pol)
@@ -402,8 +402,8 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale rlwe.S
 	}
 
 	// targetScale = targetScale*currentQi/XPow.Scale
-	targetScale = targetScale.Mul(rlwe.NewScale(currentQi), params.T())
-	targetScale = targetScale.Div(XPow.Scale, params.T())
+	targetScale = targetScale.Mul(rlwe.NewScaleModT(currentQi, params.T()))
+	targetScale = targetScale.Div(XPow.Scale)
 
 	if res, err = polyEval.recurse(targetLevel+1, targetScale, coeffsq); err != nil {
 		return nil, err
@@ -555,7 +555,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetLevel int,
 
 				// MulAndAdd would actually scale the plaintext accordingly,
 				// but encoding with the correct scale is slightly faster
-				pt.Scale = targetScale.Div(X[key].Scale, params.T())
+				pt.Scale = targetScale.Div(X[key].Scale)
 				polyEval.Encode(values, pt)
 				polyEval.MulAndAdd(X[key], pt, res)
 				toEncode = false

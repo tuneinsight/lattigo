@@ -13,16 +13,30 @@ const (
 
 // Scale is a struct used to track the scaling factor
 // of Plaintext and Ciphertext structs.
-// The scale is managed as an 128-bit precision real.
+// The scale is managed as an 128-bit precision real and can
+// be either a floating point value or a mod T
+// prime integer, which is determined at instantiation.
 type Scale struct {
 	Value big.Float
+	Mod   *big.Int
 }
 
-// NewScale instantiates a new Scale.
-// Accepted types are int, int64, uint64, float64, *big.Int, *big.Float and *Scale.
+// NewScale instantiates a new floating point Scale.
+// Accepted types for s are int, int64, uint64, float64, *big.Int, *big.Float and *Scale.
 // If the input type is not an accepted type, returns an error.
-func NewScale(s1 interface{}) (s2 Scale) {
-	return Scale{Value: *scaleToBigFloat(s1)}
+func NewScale(s interface{}) Scale {
+	return Scale{Value: *scaleToBigFloat(s)}
+}
+
+// NewScaleModT instantiates a new integer mod T Scale.
+// Accepted types for s are int, int64, uint64, float64, *big.Int, *big.Float and *Scale.
+// If the input type is not an accepted type, returns an error.
+func NewScaleModT(s interface{}, mod uint64) Scale {
+	scale := NewScale(s)
+	if mod != 0 {
+		scale.Mod = big.NewInt(0).SetUint64(mod)
+	}
+	return scale
 }
 
 // Float64 returns the underlying scale as a float64 value.
@@ -40,7 +54,7 @@ func (s Scale) Uint64() uint64 {
 // Mul multiplies the target s with s2, returning the result in
 // a new Scale struct. If mod is specified, performs the multiplication
 // modulo mod.
-func (s Scale) Mul(s1 Scale, mod ...uint64) Scale {
+func (s Scale) Mul(s1 Scale) Scale {
 
 	res := new(big.Float)
 
@@ -48,34 +62,32 @@ func (s Scale) Mul(s1 Scale, mod ...uint64) Scale {
 	s1i, _ := s1.Value.Int(nil)
 	s1i.Mul(si, s1i)
 
-	if len(mod) > 0 && mod[0] > 0 {
-		T := big.NewInt(0).SetUint64(mod[0])
-		s1i.Mod(s1i, T)
+	if s.Mod != nil {
+		s1i.Mod(s1i, s.Mod)
 	}
 
 	res.SetPrec(ScalePrecision)
 	res.SetInt(s1i)
 
-	return Scale{Value: *res}
+	return Scale{Value: *res, Mod: s.Mod}
 }
 
 // Div multiplies the target s with s1^-1, returning the result in
 // a new Scale struct. If mod is specified, performs the multiplication
 // modulo t with the multiplicative inverse of s1. Otherwise, performs
 // the quotient operation.
-func (s Scale) Div(s1 Scale, mod ...uint64) Scale {
+func (s Scale) Div(s1 Scale) Scale {
 
 	res := new(big.Float)
 
-	if len(mod) > 0 && mod[0] > 0 {
+	if s.Mod != nil {
 		s1i, _ := s.Value.Int(nil)
 		s2i, _ := s1.Value.Int(nil)
 
-		T := big.NewInt(0).SetUint64(mod[0])
-		s2i.ModInverse(s2i, T)
+		s2i.ModInverse(s2i, s.Mod)
 
 		s1i.Mul(s1i, s2i)
-		s1i.Mod(s1i, T)
+		s1i.Mod(s1i, s.Mod)
 
 		res.SetPrec(ScalePrecision)
 		res.SetInt(s1i)
@@ -83,7 +95,7 @@ func (s Scale) Div(s1 Scale, mod ...uint64) Scale {
 		res.Quo(&s.Value, &s1.Value)
 	}
 
-	return Scale{Value: *res}
+	return Scale{Value: *res, Mod: s.Mod}
 }
 
 // Cmp compares the target scale with s1.
@@ -99,10 +111,10 @@ func (s Scale) Cmp(s1 Scale) (cmp int) {
 func (s Scale) Max(s1 Scale) (max Scale) {
 
 	if s.Cmp(s1) < 0 {
-		return NewScale(s1)
+		return s1
 	}
 
-	return NewScale(s)
+	return s
 }
 
 // Min returns the a new scale which is the minimum
@@ -110,10 +122,10 @@ func (s Scale) Max(s1 Scale) (max Scale) {
 func (s Scale) Min(s1 Scale) (max Scale) {
 
 	if s.Cmp(s1) > 0 {
-		return NewScale(s1)
+		return s1
 	}
 
-	return NewScale(s)
+	return s
 }
 
 // MarshalBinarySize returns the size in bytes required to

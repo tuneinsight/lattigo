@@ -129,7 +129,7 @@ func (p ParametersLiteral) RLWEParameters() rlwe.ParametersLiteral {
 		Sigma:          p.Sigma,
 		H:              p.H,
 		RingType:       ring.Standard,
-		DefaultScale:   rlwe.NewScale(1),
+		DefaultScale:   rlwe.NewScaleModT(1, p.T),
 		DefaultNTTFlag: DefaultNTTFlag,
 	}
 }

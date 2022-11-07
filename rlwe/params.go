@@ -103,7 +103,7 @@ func NewParameters(logn int, q, p []uint64, pow2Base, h int, sigma float64, ring
 		h:              h,
 		sigma:          sigma,
 		ringType:       ringType,
-		defaultScale:   NewScale(defaultScale),
+		defaultScale:   defaultScale,
 		defaultNTTFlag: defaultNTTFlag,
 	}
 
@@ -608,6 +608,7 @@ func (p Parameters) MarshalBinary() ([]byte, error) {
 	// 1 byte : ringType
 	// 1 byte defaultNTTFlag
 	// 40 bytes: defaultScale
+	// 8 bytes: scaleMod
 	// 8 * (#Q) : Q
 	// 8 * (#P) : P
 	b := utils.NewBuffer(make([]byte, 0, p.MarshalBinarySize()))
@@ -631,6 +632,11 @@ func (p Parameters) MarshalBinary() ([]byte, error) {
 	}
 	for i := range data {
 		b.WriteUint8(data[i])
+	}
+	if p.defaultScale.Mod != nil {
+		b.WriteUint64(p.defaultScale.Mod.Uint64())
+	} else {
+		b.WriteUint64(0)
 	}
 
 	b.WriteUint64Slice(p.qi)
@@ -661,6 +667,10 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	dataScale := make([]uint8, defaultScale.MarshalBinarySize())
 	b.ReadUint8Slice(dataScale)
 	defaultScale.Decode(dataScale)
+	scaleMod := b.ReadUint64()
+	if scaleMod != 0 {
+		defaultScale.Mod = big.NewInt(0).SetUint64(scaleMod)
+	}
 
 	if err := checkSizeParams(logN, lenQ, lenP); err != nil {
 		return err
@@ -678,7 +688,7 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 
 // MarshalBinarySize returns the length of the []byte encoding of the reciever.
 func (p Parameters) MarshalBinarySize() int {
-	return 22 + 40 + (len(p.qi)+len(p.pi))<<3
+	return 22 + 48 + (len(p.qi)+len(p.pi))<<3
 }
 
 // MarshalJSON returns a JSON representation of this parameter set. See `Marshal` from the `encoding/json` package.

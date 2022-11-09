@@ -550,7 +550,6 @@ func (p Parameters) InverseGaloisElement(galEl uint64) uint64 {
 // from the Galois element, i.e. computes k given 5^k = galEl mod NthRoot.
 func (p Parameters) RotationFromGaloisElement(galEl uint64) (k uint64) {
 
-	fmt.Println(galEl, p.ringQ.NthRoot)
 	N := p.ringQ.NthRoot
 
 	x := N >> 3

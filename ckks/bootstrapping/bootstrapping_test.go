@@ -30,7 +30,8 @@ func ParamsToString(params ckks.Parameters, opname string) string {
 }
 
 func TestBootstrapParametersMarshalling(t *testing.T) {
-	bootstrapParams := DefaultParametersDense[0].BootstrappingParams
+	paramSet := MakeFrontendParameters(16, 40, 10, 26).GetDefaultParametersSparse()
+	bootstrapParams := paramSet.BootstrappingParams
 	data, err := bootstrapParams.MarshalBinary()
 	assert.Nil(t, err)
 

@@ -13,7 +13,7 @@ func BenchmarkBootstrap(b *testing.B) {
 	var err error
 	var btp *Bootstrapper
 
-	paramSet := DefaultParametersDense[0]
+	paramSet := MakeFrontendParameters(16, 40, 10, 26).GetDefaultParametersSparse()
 	ckksParams := paramSet.SchemeParams
 	btpParams := paramSet.BootstrappingParams
 

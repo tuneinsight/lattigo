@@ -11,6 +11,7 @@ All notable changes to this library are documented in this file.
 - RLWE: added the field `MetaData` to the `rlwe.Plaintext`, `rlwe.Ciphertext`, `rlwe.CiphertextQP`.
 - RLWE: added `DefaultScale` and `DefaultNTTFlag` to the `rlwe.ParametersLiteral` struct. These are optional fields which are automatically set by the respective schemes.
 - RLWE: elements from `rlwe.NewPlaintext(*)` and `rlwe.NewCiphertext(*)` are given default `IsNTT` and `Scale` values taken from the `rlwe.Parameters`, which depend on the scheme used. These value can be overwritten/modified manually.
+- RLWE: added `logGap` parameter to `Evaluator.Expand`, which enables to extract only coefficients whose degree is a multiples of `2^logGap`.
 - BFV: the level of the plaintext and ciphertext must now be specified when creating them.
 - CKKS: significantly reduced the pre-computation time of the roots, especially for the arbitrary precision encoder.
 - CKKS/BGV: abstracted the scaling factor, using `rlwe.Scale`. See the description of the struct for more information.

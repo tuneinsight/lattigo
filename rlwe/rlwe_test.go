@@ -548,13 +548,15 @@ func testExpand(kgen KeyGenerator, t *testing.T) {
 		decryptor := NewDecryptor(params, sk)
 		pt := NewPlaintext(params, params.MaxLevel())
 
-		logN := 3
+		logN := 4
+		logGap := 1
+		gap := 1 << logGap
 
 		values := make([]uint64, params.N())
 
 		scale := 1 << 22
 
-		for i := 0; i < 1<<logN; i++ {
+		for i := 0; i < 1<<logN; i++ { // embeds even coefficients only
 			values[i] = uint64(scale * i)
 		}
 
@@ -575,7 +577,7 @@ func testExpand(kgen KeyGenerator, t *testing.T) {
 
 		eval := NewEvaluator(params, &EvaluationKey{Rtks: rtks})
 
-		ciphertexts := eval.Expand(ctIn, logN)
+		ciphertexts := eval.Expand(ctIn, logN, logGap)
 
 		bound := uint64(params.N() * params.N())
 
@@ -601,7 +603,7 @@ func testExpand(kgen KeyGenerator, t *testing.T) {
 					if k != 0 {
 						require.Greater(t, bound, c)
 					} else {
-						require.InDelta(t, 0, math.Abs(float64(values[i])-float64(c))/float64(scale), 0.01)
+						require.InDelta(t, 0, math.Abs(float64(values[i*gap])-float64(c))/float64(scale), 0.01)
 					}
 				}
 			}

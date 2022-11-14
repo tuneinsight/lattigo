@@ -153,12 +153,12 @@ func (eval *Evaluator) WithKey(evaluationKey *EvaluationKey) *Evaluator {
 
 // Expand expands a RLWE ciphertext encrypting sum ai * X^i to 2^logN ciphertexts,
 // each encrypting ai * X^0 for 0 <= i < 2^LogN. That is, it extracts the first 2^logN
-// coefficients of ctIn and returns a RLWE ciphetext for each coefficient extracted.
-// The input ciphertext must be in the NTT domain, else the method will panic.
-func (eval *Evaluator) Expand(ctIn *Ciphertext, logN int) (ctOut []*Ciphertext) {
+// coefficients, whose degree is a multiple of 2^logGap, of ctIn and returns an RLWE
+// ciphetext for each coefficient extracted.
+func (eval *Evaluator) Expand(ctIn *Ciphertext, logN, logGap int) (ctOut []*Ciphertext) {
 
-	if !ctIn.IsNTT {
-		panic("ctIn must be in the NTT domain")
+	if ctIn.Degree() != 1 {
+		panic("ctIn.Degree() != 1")
 	}
 
 	params := eval.params
@@ -169,7 +169,7 @@ func (eval *Evaluator) Expand(ctIn *Ciphertext, logN int) (ctOut []*Ciphertext) 
 	// Compute X^{-2^{i}} from 1 to LogN
 	xPow2 := genXPow2(ringQ, levelQ, logN, true)
 
-	ctOut = make([]*Ciphertext, 1<<logN)
+	ctOut = make([]*Ciphertext, 1<<(logN-logGap))
 	ctOut[0] = ctIn.CopyNew()
 
 	Q := ringQ.Modulus
@@ -184,16 +184,17 @@ func (eval *Evaluator) Expand(ctIn *Ciphertext, logN int) (ctOut []*Ciphertext) 
 		ring.MulScalarMontgomeryVec(v1.Coeffs[i], v1.Coeffs[i], NInv, Q[i], mredParams[i])
 	}
 
+	gap := 1 << logGap
+
 	tmp := NewCiphertext(params, 1, levelQ)
-	tmp.IsNTT = true
 
 	for i := 0; i < logN; i++ {
 
 		galEl := uint64(ringQ.N/(1<<i) + 1)
 
-		for j := 0; j < (1 << i); j++ {
+		for j := 0; j < (1 << i); j += gap {
 
-			c0 := ctOut[j]
+			c0 := ctOut[j/gap]
 
 			// X -> X^{N/2^{i} + 1}
 			eval.Automorphism(c0, galEl, tmp)
@@ -204,15 +205,18 @@ func (eval *Evaluator) Expand(ctIn *Ciphertext, logN int) (ctOut []*Ciphertext) 
 			ringQ.AddLvl(levelQ, c0.Value[0], tmp.Value[0], c0.Value[0])
 			ringQ.AddLvl(levelQ, c0.Value[1], tmp.Value[1], c0.Value[1])
 
-			// Zeroes even coeffs: [a, b, c, d] -> [0, 2b, 0, 2d]
-			ringQ.SubLvl(levelQ, c1.Value[0], tmp.Value[0], c1.Value[0])
-			ringQ.SubLvl(levelQ, c1.Value[1], tmp.Value[1], c1.Value[1])
+			if (j+(1<<i))/gap > 0 {
 
-			// c1 * X^{-2^{i}}: [0, 2b, 0, 2d] -> [2b, 0, 2d, 0]
-			ringQ.MulCoeffsMontgomeryLvl(levelQ, c1.Value[0], xPow2[i], c1.Value[0])
-			ringQ.MulCoeffsMontgomeryLvl(levelQ, c1.Value[1], xPow2[i], c1.Value[1])
+				// Zeroes even coeffs: [a, b, c, d] -> [0, 2b, 0, 2d]
+				ringQ.SubLvl(levelQ, c1.Value[0], tmp.Value[0], c1.Value[0])
+				ringQ.SubLvl(levelQ, c1.Value[1], tmp.Value[1], c1.Value[1])
 
-			ctOut[j+(1<<i)] = c1
+				// c1 * X^{-2^{i}}: [0, 2b, 0, 2d] -> [2b, 0, 2d, 0]
+				ringQ.MulCoeffsMontgomeryLvl(levelQ, c1.Value[0], xPow2[i], c1.Value[0])
+				ringQ.MulCoeffsMontgomeryLvl(levelQ, c1.Value[1], xPow2[i], c1.Value[1])
+
+				ctOut[(j+(1<<i))/gap] = c1
+			}
 		}
 	}
 
@@ -248,6 +252,10 @@ func (eval *Evaluator) Merge(ctIn map[int]*Ciphertext) (ctOut *Ciphertext) {
 
 			if !ctIn[i].IsNTT {
 				panic("all ctIn must be in the NTT domain")
+			}
+
+			if ctIn[i].Degree() != 1 {
+				panic("ctIn.Degree() != 1")
 			}
 
 			v0, v1 := ctIn[i].Value[0], ctIn[i].Value[1]

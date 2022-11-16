@@ -1,6 +1,7 @@
 package rlwe
 
 import (
+	"encoding/binary"
 	"fmt"
 	"math/big"
 	"reflect"
@@ -131,7 +132,7 @@ func (s Scale) Min(s1 Scale) (max Scale) {
 // MarshalBinarySize returns the size in bytes required to
 // encode the target scale.
 func (s Scale) MarshalBinarySize() int {
-	return 40
+	return 48
 }
 
 // Encode encode the target scale on the input slice of bytes.
@@ -152,6 +153,11 @@ func (s Scale) Encode(data []byte) (err error) {
 	b[0] = uint8(len(sBytes))
 	copy(b[1:], sBytes)
 	copy(data, b)
+
+	if s.Mod != nil {
+		binary.LittleEndian.PutUint64(data[40:], s.Mod.Uint64())
+	}
+
 	return
 }
 
@@ -176,7 +182,13 @@ func (s *Scale) Decode(data []byte) (err error) {
 		v.SetPrec(ScalePrecision)
 	}
 
+	mod := binary.LittleEndian.Uint64(data[40:])
+
 	s.Value = *v
+
+	if mod != 0 {
+		s.Mod = big.NewInt(0).SetUint64(mod)
+	}
 
 	return
 }

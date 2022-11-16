@@ -641,7 +641,7 @@ func testMarshaller(kgen KeyGenerator, t *testing.T) {
 	})
 
 	t.Run("Marshaller/MetaData", func(t *testing.T) {
-		m := MetaData{Scale: NewScale(1), IsNTT: true, IsMontgomery: true}
+		m := MetaData{Scale: NewScaleModT(1, 65537), IsNTT: true, IsMontgomery: true}
 
 		data, err := m.MarshalBinary()
 		assert.Nil(t, err)

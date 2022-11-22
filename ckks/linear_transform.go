@@ -114,7 +114,7 @@ func NewLinearTransform(params Parameters, nonZeroDiags []int, level, logSlots i
 			}
 		}
 	} else {
-		panic("BSGS ratio cannot be negative")
+		panic("cannot NewLinearTransform: BSGS ratio cannot be negative")
 	}
 
 	return LinearTransform{LogSlots: logSlots, N1: N1, Level: level, Vec: vec}
@@ -503,7 +503,7 @@ func (eval *evaluator) LinearTransformNew(ctIn *rlwe.Ciphertext, linearTransform
 	return
 }
 
-// LinearTransformNew evaluates a linear transform on the pre-allocated Ciphertexts.
+// LinearTransform evaluates a linear transform on the pre-allocated Ciphertexts.
 // The linearTransform can either be an (ordered) list of PtDiagMatrix or a single PtDiagMatrix.
 // In either case a list of Ciphertext is returned (the second case returning a list
 // containing a single Ciphertext). A PtDiagMatrix is a diagonalized plaintext matrix constructed with an Encoder using

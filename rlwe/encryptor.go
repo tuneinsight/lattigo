@@ -139,13 +139,13 @@ func newEncryptorBuffers(params Parameters) *encryptorBuffers {
 	}
 }
 
-// Encrypt encrypts the input plaintext using the stored public-key and writes the result on ciphertext.
+// Encrypt encrypts the input plaintext using the stored public-key and writes the result on ct.
 // The encryption procedure first samples a new encryption of zero under the public-key and
-// then adds the plaintext.
+// then adds the Plaintext.
 // The encryption procedure depends on the parameters: If the auxiliary modulus P is defined, the
 // encryption of zero is sampled in QP before being rescaled by P; otherwise, it is directly sampled in Q.
 // The method accepts only *rlwe.Ciphertext as input.
-// If a plaintext is given, then the output ciphertext MetaData will match the plaintext MetaData.
+// If a Plaintext is given, then the output Ciphertext MetaData will match the Plaintext MetaData.
 func (enc *pkEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
 
 	if pt == nil {
@@ -161,39 +161,39 @@ func (enc *pkEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
 			enc.params.RingQ().AddLvl(ct.Level(), ct.Value[0], pt.Value, ct.Value[0])
 
 		default:
-			panic(fmt.Sprintf("cannot Encrypt: input ciphertext type %s is not unsuported", reflect.TypeOf(ct)))
+			panic(fmt.Sprintf("cannot Encrypt: input ciphertext type %s is not supported", reflect.TypeOf(ct)))
 		}
 	}
 }
 
-// EncryptNew encrypts the input plaintext using the stored public-key and returns the result on a new ciphertext.
+// EncryptNew encrypts the input plaintext using the stored public-key and returns the result on a new Ciphertext.
 // The encryption procedure first samples a new encryption of zero under the public-key and
-// then adds the plaintext.
+// then adds the Plaintext.
 // The encryption procedure depends on the parameters: If the auxiliary modulus P is defined, the
 // encryption of zero is sampled in QP before being rescaled by P; otherwise, it is directly sampled in Q.
-// If a plaintext is given, then the output ciphertext MetaData will match the plaintext MetaData.
+// If a Plaintext is given, then the output ciphertext MetaData will match the Plaintext MetaData.
 func (enc *pkEncryptor) EncryptNew(pt *Plaintext) (ct *Ciphertext) {
 	ct = NewCiphertext(enc.params, 1, pt.Level())
 	enc.Encrypt(pt, ct)
 	return
 }
 
-// EncryptZeroNew generates an encryption of zero under the stored public-key and returns it on a new ciphertext.
+// EncryptZeroNew generates an encryption of zero under the stored public-key and returns it on a new Ciphertext.
 // The encryption procedure depends on the parameters: If the auxiliary modulus P is defined, the
 // encryption of zero is sampled in QP before being rescaled by P; otherwise, it is directly sampled in Q.
 // The method accepts only *rlwe.Ciphertext as input.
-// The zero encryption is generated according to the given ciphertext MetaData.
+// The zero encryption is generated according to the given Ciphertext MetaData.
 func (enc *pkEncryptor) EncryptZeroNew(level int) (ct *Ciphertext) {
 	ct = NewCiphertext(enc.params, 1, level)
 	enc.EncryptZero(ct)
 	return
 }
 
-// EncryptZero generates an encryption of zero under the stored public-key and writes the result on ciphertext.
+// EncryptZero generates an encryption of zero under the stored public-key and writes the result on ct.
 // The encryption procedure depends on the parameters: If the auxiliary modulus P is defined, the
 // encryption of zero is sampled in QP before being rescaled by P; otherwise, it is directly sampled in Q.
 // The method accepts only *rlwe.Ciphertext as input.
-// The zero encryption is generated according to the given ciphertext MetaData.
+// The zero encryption is generated according to the given Ciphertext MetaData.
 func (enc *pkEncryptor) EncryptZero(ct interface{}) {
 	switch ct := ct.(type) {
 	case *Ciphertext:
@@ -203,7 +203,7 @@ func (enc *pkEncryptor) EncryptZero(ct interface{}) {
 			enc.encryptZeroNoP(ct)
 		}
 	default:
-		panic(fmt.Sprintf("cannot Encrypt: input ciphertext type %s is not unsuported", reflect.TypeOf(ct)))
+		panic(fmt.Sprintf("cannot Encrypt: input ciphertext type %s is not supported", reflect.TypeOf(ct)))
 	}
 }
 
@@ -219,7 +219,7 @@ func (enc *pkEncryptor) encryptZero(ct *Ciphertext) {
 
 	u := ringqp.Poly{Q: buffQ0, P: buffP2}
 
-	// We sample a R-WLE instance (encryption of zero) over the extended ring (ciphertext ring + special prime)
+	// We sample a RLWE instance (encryption of zero) over the extended ring (ciphertext ring + special prime)
 	enc.ternarySampler.ReadLvl(levelQ, u.Q)
 	ringQP.ExtendBasisSmallNormAndCenter(u.Q, levelP, nil, u.P)
 
@@ -300,8 +300,8 @@ func (enc *pkEncryptor) encryptZeroNoP(ct *Ciphertext) {
 
 // Encrypt encrypts the input plaintext using the stored secret-key and writes the result on ct.
 // The method accepts only *rlwe.Ciphertext or *rgsw.Ciphertext as input and will panic otherwise.
-// If a plaintext is given, the encryptor only accepts *rlwe.Ciphertext, and the generated ciphertext
-// MetaData will match the given plaintext MetaData.
+// If a plaintext is given, the encryptor only accepts *rlwe.Ciphertext, and the generated Ciphertext
+// MetaData will match the given Plaintext MetaData.
 func (enc *skEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
 	if pt == nil {
 		enc.EncryptZero(ct)
@@ -313,22 +313,22 @@ func (enc *skEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
 			enc.EncryptZero(ct)
 			enc.params.RingQ().AddLvl(ct.Level(), ct.Value[0], pt.Value, ct.Value[0])
 		default:
-			panic(fmt.Sprintf("cannot Encrypt: input ciphertext type %s is not unsuported", reflect.TypeOf(ct)))
+			panic(fmt.Sprintf("cannot Encrypt: input ciphertext type %s is not supported", reflect.TypeOf(ct)))
 		}
 	}
 }
 
-// Encrypt encrypts the input plaintext using the stored secret-key and returns the result on a new ciphertext.
-// MetaData will match the given plaintext MetaData.
+// Encrypt encrypts the input plaintext using the stored secret-key and returns the result on a new Ciphertext.
+// MetaData will match the given Plaintext MetaData.
 func (enc *skEncryptor) EncryptNew(pt *Plaintext) (ct *Ciphertext) {
 	ct = NewCiphertext(enc.params, 1, pt.Level())
 	enc.Encrypt(pt, ct)
 	return
 }
 
-// EncryptZero generates an encryption of zero using the stored secret-key and writes the result on ciphertext.
+// EncryptZero generates an encryption of zero using the stored secret-key and writes the result on ct.
 // The method accepts only *rlwe.Ciphertext or *rgsw.Ciphertext as input and will panic otherwise.
-// The zero encryption is generated according to the given ciphertext MetaData.
+// The zero encryption is generated according to the given Ciphertext MetaData.
 func (enc *skEncryptor) EncryptZero(ct interface{}) {
 	switch ct := ct.(type) {
 	case *Ciphertext:
@@ -345,13 +345,13 @@ func (enc *skEncryptor) EncryptZero(ct interface{}) {
 	case *CiphertextQP:
 		enc.encryptZeroQP(*ct)
 	default:
-		panic(fmt.Sprintf("cannot Encrypt: input ciphertext type %s is not unsuported", reflect.TypeOf(ct)))
+		panic(fmt.Sprintf("cannot Encrypt: input ciphertext type %s is not supported", reflect.TypeOf(ct)))
 	}
 }
 
-// EncryptZeroNew generates an encryption of zero using the stored secret-key and writes the result on ciphertext.
+// EncryptZeroNew generates an encryption of zero using the stored secret-key and writes the result on ct.
 // The method accepts only *rlwe.Ciphertext or *rgsw.Ciphertext as input and will panic otherwise.
-// The zero encryption is generated according to the given ciphertext MetaData.
+// The zero encryption is generated according to the given Ciphertext MetaData.
 func (enc *skEncryptor) EncryptZeroNew(level int) (ct *Ciphertext) {
 	ct = NewCiphertext(enc.params, 1, level)
 	enc.EncryptZero(ct)
@@ -386,7 +386,7 @@ func (enc *skEncryptor) encryptZero(ct *Ciphertext, c1 *ring.Poly) {
 // levelQ : level of the modulus Q
 // levelP : level of the modulus P
 // sk     : secret key
-// sampler: uniform sampler; if `sampler` is nil, then will sample using the internal sampler.
+// sampler: uniform sampler; if `sampler` is nil, then the internal sampler will be used.
 // montgomery: returns the result in the Montgomery domain.
 func (enc *skEncryptor) encryptZeroQP(ct CiphertextQP) {
 
@@ -451,7 +451,7 @@ func (enc *pkEncryptor) WithKey(key interface{}) Encryptor {
 	return &pkEncryptor{enc.encryptorBase, pkPtr}
 }
 
-// WithPRNG returns this encrpytor with prng as its source of randomness for the uniform
+// WithPRNG returns this encryptor with prng as its source of randomness for the uniform
 // element c1.
 func (enc skEncryptor) WithPRNG(prng utils.PRNG) PRNGEncryptor {
 	return &skEncryptor{enc.encryptorBase, enc.sk, enc.uniformSampler.WithPRNG(prng)}

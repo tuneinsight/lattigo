@@ -339,7 +339,7 @@ type Parameters struct {
 func NewParameters(rlweParams rlwe.Parameters, logSlots int) (p Parameters, err error) {
 
 	if !rlweParams.DefaultNTTFlag() {
-		return Parameters{}, fmt.Errorf("provided RLWE are invalid for CKKS scheme (DefaultNTTFlag must be true)")
+		return Parameters{}, fmt.Errorf("provided RLWE parameters are invalid for CKKS scheme (DefaultNTTFlag must be true)")
 	}
 
 	if rlweParams.Equals(rlwe.Parameters{}) {
@@ -428,7 +428,7 @@ func (p Parameters) MaxSlots() int {
 	case ring.ConjugateInvariant:
 		return p.N()
 	default:
-		panic("invalid ring type")
+		panic("cannot MaxSlots: invalid ring type")
 	}
 }
 
@@ -440,7 +440,7 @@ func (p Parameters) MaxLogSlots() int {
 	case ring.ConjugateInvariant:
 		return p.LogN()
 	default:
-		panic("invalid ring type")
+		panic("cannot MaxLogSlots: invalid ring type")
 	}
 }
 

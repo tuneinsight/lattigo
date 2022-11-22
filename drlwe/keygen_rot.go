@@ -200,7 +200,7 @@ func (rtg *RTGProtocol) GenRotationKey(share *RTGShare, crp RTGCRP, rotKey *rlwe
 func (share *RTGShare) MarshalBinary() (data []byte, err error) {
 	data = make([]byte, 2+share.Value[0][0].MarshalBinarySize64()*len(share.Value)*len(share.Value[0]))
 	if len(share.Value) > 0xFF {
-		return []byte{}, errors.New("RKGShare : uint8 overflow on length")
+		return []byte{}, errors.New("RKGShare: uint8 overflow on length")
 	}
 	data[0] = uint8(len(share.Value))
 	data[1] = uint8(len(share.Value[0]))

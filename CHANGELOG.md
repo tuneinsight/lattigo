@@ -10,16 +10,16 @@ All notable changes to this library are documented in this file.
 - RLWE: added the struct `MedaData` which stores the `Scale`, and boolean flags `IsNTT` and `IsMontgomery`. 
 - RLWE: added the field `MetaData` to the `rlwe.Plaintext`, `rlwe.Ciphertext`, `rlwe.CiphertextQP`.
 - RLWE: added `DefaultScale` and `DefaultNTTFlag` to the `rlwe.ParametersLiteral` struct. These are optional fields which are automatically set by the respective schemes.
-- RLWE: elements from `rlwe.NewPlaintext(*)` and `rlwe.NewCiphertext(*)` are given default `IsNTT` and `Scale` values taken from the `rlwe.Parameters`, which depend on the scheme used. These value can be overwritten/modified manually.
-- RLWE: added `logGap` parameter to `Evaluator.Expand`, which enables to extract only coefficients whose degree is a multiples of `2^logGap`.
+- RLWE: elements from `rlwe.NewPlaintext(*)` and `rlwe.NewCiphertext(*)` are given default `IsNTT` and `Scale` values taken from the `rlwe.Parameters`, which depend on the scheme used. These values can be overwritten/modified manually.
+- RLWE: added `logGap` parameter to `Evaluator.Expand`, which enables to extract only coefficients whose degree is a multiple of `2^logGap`.
 - BFV: the level of the plaintext and ciphertext must now be specified when creating them.
 - CKKS: significantly reduced the pre-computation time of the roots, especially for the arbitrary precision encoder.
 - CKKS/BGV: abstracted the scaling factor, using `rlwe.Scale`. See the description of the struct for more information.
 - BFV/BGV: added the flag `-print-noise` to print the residual noise, after decryption, during the tests.
 - BFV/BGV/CKKS: added scheme specific global constant `DefaultNTTFlag`.
-- BFV/BGV/CKKS: removed scheme-specific ciphertexts and plaintexts types, they are replaced by generic `rlwe.Ciphertext` and `rlwe.Plaintext`.
-- BFV/BGV/CKKS: removed scheme-specific `KeyGenerator`, `Encryptor` and `Decryptor`, they have been replaced by `rlwe.KeyGenerator`, `rlwe.Encryptor` and `rlwe.Decryptor`. The API go instantiate those struct from the scheme specific API, e.g. `bgv.NewEncryptor`, is still available but will return its corresponding `rlwe` struct.
-- BFV/BGV/CKKS: if applicable, removed the following depreciated methods 
+- BFV/BGV/CKKS: removed scheme-specific ciphertexts and plaintexts types. They are replaced by generic `rlwe.Ciphertext` and `rlwe.Plaintext`.
+- BFV/BGV/CKKS: removed scheme-specific `KeyGenerator`, `Encryptor` and `Decryptor`. They have been replaced by `rlwe.KeyGenerator`, `rlwe.Encryptor` and `rlwe.Decryptor`. The API go instantiate those struct from the scheme specific API, e.g. `bgv.NewEncryptor`, is still available but will return its corresponding `rlwe` struct.
+- BFV/BGV/CKKS: removed the following deprecated methods, when applicable
     - `AddNoMod`, `AddNoModNew`, `SubNoMod`, `SubNoModNew`, `Reduce` and `ReduceNew`
     - `PowerOf2`, `Power` and `PowerNew` which are replaced by `PolynomialBasis` and `GenPower`.
 - BFV/BGV/CKKS: the naive method algorithms for `InnerSum` and `Replicate` have been removed. The method names `InnerSumLog` and `ReplicateLog` have been replaced by `InnerSum` and `Replicate` respectively.
@@ -40,8 +40,8 @@ All notable changes to this library are documented in this file.
 - RING: changed `ring.NewPoly` to take the `level` as argument instead of the number of moduli, for consistency.
 - RLWE: added several types of ciphertexts:
     - `rlwe.CiphertextQP` represents a ciphertext that is encrypted in the extended ring R_QP.
-    - `rlwe.GadgetCiphertext` represents an encryption in the extended ring R_QP of a plaintext that is decomposed in the CRT and power-of-two basis (e.g., plublic switching keys).
-- RLWE: changed representation of `rlwe.PublicKey` types which are now stored in Montgomerry form, consistently with all other key types.
+    - `rlwe.GadgetCiphertext` represents an encryption in the extended ring R_QP of a plaintext that is decomposed in the CRT and power-of-two basis (e.g., public switching keys).
+- RLWE: changed representation of `rlwe.PublicKey` types which are now stored in Montgomery form, consistently with all other key types.
 - RLWE: changed `rlwe.SwitchingKey` type to use `rlwe.GadgetCiphertext` internally.
 - RLWE: generalized `rlwe.KeySwitcher` into `rlwe.Evaluator`, which provides new functionalities:
     - `DecomposeNTT`: decomposes a polynomial modulo the special RNS basis and extends its basis from Q to QP.
@@ -75,7 +75,7 @@ All notable changes to this library are documented in this file.
 - DRLWE: added a `README.md` providing package overview and usage instructions.
 - DRLWE: removed the obsolete `CollectivePublicKeyGenerator`, `RelinearizationKeyGenerator`, `RotationKeyGenerator`, `PublicKeySwitchingProtocol` and `KeySwitchingProtocol` interfaces.
 - DRLWE: renamed `AggregateShare` methods to `AggregateShares`.
-- RGSW: added package `rgsw`, which provides a partial implementation of the RLWE-based RGSW encryption scheme. This incluides:
+- RGSW: added package `rgsw`, which provides a partial implementation of the RLWE-based RGSW encryption scheme. This includes:
     -  `rgsw.Encryptor` and the `rgsw.Ciphertext` types.
     -  `rgsw.Evaluator` to support the external product `RLWE x RGSW -> RLWE`.
     -  `rgsw/lut` sub-package that provides evaluation of Look-Up-Tables (LUT) on `rlwe.Ciphertext` types.
@@ -166,7 +166,7 @@ All notable changes to this library are documented in this file.
 - CKKS: improved `Encoder` implementation; it is now much faster when encoding sparse plaintexts.
 - CKKS: changed the approximation intervals from `complex128` to `float64`.
 - CKKS: renamed `PtDiagMatrix` to `LinearTransform`.
-- CKKS: added `LinearTransform.Rotations()` to get the required rotation for the reciever plaintext linear tranform.
+- CKKS: added `LinearTransform.Rotations()` to get the required rotation for the receiver plaintext linear tranform.
 - CKKS: added `Parameters.RotationsForLinearTransform` to get the required rotation for the given plaintext linear tranform.
 - CKKS: added `NewLinearTransform`, `EncodeNewLinearTransform`, `GenLinearTransform` and `GenLinearTransformBSGS` to allocate and initialize plaintext linear transforms.
 - CKKS: removed plaintext linear transforms (old `PtDiagMatrix`) constructors and initializers from `Encoder`.

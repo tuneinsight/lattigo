@@ -505,7 +505,7 @@ func (eval *evaluator) Mul(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.
 	case *rlwe.Plaintext, *rlwe.Ciphertext:
 		eval.tensorAndRescale(el0, el1, elOut)
 	default:
-		panic(fmt.Errorf("invalid rlwe.Operand type for Mul: %T", op1))
+		panic(fmt.Errorf("cannot Mul: invalid rlwe.Operand type for Mul: %T", op1))
 	}
 }
 

@@ -20,7 +20,7 @@ type PlaintextRingT struct {
 }
 
 // PlaintextMul represents a plaintext element in R_q, in NTT and Montgomery form, but without scale up by Q/t.
-// A PlaintextMul is a special-purpose plaintext for efficient Ciphertext-Plaintext multiplication. However,
+// A PlaintextMul is a special-purpose plaintext for efficient Ciphertext x Plaintext multiplication. However,
 // other operations on plaintexts are not supported. See bfv/encoder.go for more information on plaintext types.
 type PlaintextMul struct {
 	*rlwe.Plaintext
@@ -32,9 +32,9 @@ func NewPlaintextRingT(params Parameters) *PlaintextRingT {
 	return &PlaintextRingT{rlwe.NewPlaintext(params.Parameters, 0)}
 }
 
-// NewPlaintextMul creates and allocates a new plaintext optimized for ciphertext x plaintext multiplication.
-// The plaintext is allocated with level+1 moduli.
-// The plaintext will be in the NTT and Montgomery domain of RingQ and not scaled by Q/t.
+// NewPlaintextMul creates and allocates a new plaintext optimized for Ciphertext x Plaintext multiplication.
+// The Plaintext is allocated with level+1 moduli.
+// The Plaintext will be in the NTT and Montgomery domain of RingQ and not scaled by Q/t.
 func NewPlaintextMul(params Parameters, level int) *PlaintextMul {
 	return &PlaintextMul{rlwe.NewPlaintext(params.Parameters, level)}
 }

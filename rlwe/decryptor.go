@@ -5,7 +5,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
-// Decryptor is an interface generic RLWE encryption.
+// Decryptor is an RLWE decryption interface.
 type Decryptor interface {
 	Decrypt(ct *Ciphertext, pt *Plaintext)
 	DecryptNew(ct *Ciphertext) (pt *Plaintext)
@@ -13,7 +13,7 @@ type Decryptor interface {
 	WithKey(sk *SecretKey) Decryptor
 }
 
-// decryptor is a structure used to decrypt ciphertext. It stores the secret-key.
+// decryptor is a structure used to decrypt Ciphertext. It stores the secret-key.
 type decryptor struct {
 	params Parameters
 	ringQ  *ring.Ring
@@ -25,7 +25,7 @@ type decryptor struct {
 func NewDecryptor(params Parameters, sk *SecretKey) Decryptor {
 
 	if sk.Value.Q.N() != params.N() {
-		panic("secret_key is invalid for the provided parameters")
+		panic("cannot NewDecryptor: secret_key is invalid for the provided parameters")
 	}
 
 	return &decryptor{
@@ -36,7 +36,7 @@ func NewDecryptor(params Parameters, sk *SecretKey) Decryptor {
 	}
 }
 
-// Decrypt decrypts the ciphertext and returns the result in a new plaintext.
+// Decrypt decrypts the Ciphertext and returns the result in a new Plaintext.
 // Output pt MetaData will match the input ct MetaData.
 func (d *decryptor) DecryptNew(ct *Ciphertext) (pt *Plaintext) {
 	pt = NewPlaintext(d.params, ct.Level())
@@ -44,8 +44,8 @@ func (d *decryptor) DecryptNew(ct *Ciphertext) (pt *Plaintext) {
 	return
 }
 
-// Decrypt decrypts the ciphertext and writes the result in pt.
-// The level of the output plaintext is min(ct.Level(), pt.Level())
+// Decrypt decrypts the Ciphertext and writes the result in pt.
+// The level of the output Plaintext is min(ct.Level(), pt.Level())
 // Output pt MetaData will match the input ct MetaData.
 func (d *decryptor) Decrypt(ct *Ciphertext, pt *Plaintext) {
 

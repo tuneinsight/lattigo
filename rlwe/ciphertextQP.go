@@ -13,10 +13,13 @@ type CiphertextQP struct {
 	Value [2]ringqp.Poly
 }
 
+// MarshalBinarySize returns the length in bytes of the target CiphertextQP.
 func (ct *CiphertextQP) MarshalBinarySize() int {
 	return ct.MetaData.MarshalBinarySize() + 2*ct.Value[0].MarshalBinarySize64()
 }
 
+// Encode64 encodes the target CiphertextQP on a byte array, using 8 bytes per coefficient.
+// It returns the number of written bytes, and the corresponding error, if it occurred.
 func (ct *CiphertextQP) Encode64(data []byte) (ptr int, err error) {
 
 	if len(data) < ct.MarshalBinarySize() {
@@ -44,6 +47,10 @@ func (ct *CiphertextQP) Encode64(data []byte) (ptr int, err error) {
 	return
 }
 
+// Decode64 decodes a slice of bytes in the target CiphertextQP and returns the number of bytes decoded.
+// The method will first try to write on the buffer. If this step fails, either because the buffer isn't
+// allocated or because it has the wrong size, the method will allocate the correct buffer.
+// Assumes that each coefficient is encoded on 8 bytes.
 func (ct *CiphertextQP) Decode64(data []byte) (ptr int, err error) {
 
 	if ptr, err = ct.MetaData.Decode64(data); err != nil {

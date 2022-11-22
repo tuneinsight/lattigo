@@ -25,10 +25,10 @@ func NewCiphertext(params Parameters, degree, level int) (ct *Ciphertext) {
 	return
 }
 
-// NewCiphertextAtLevelFromPoly constructs a new Ciphetext at a specific level
+// NewCiphertextAtLevelFromPoly constructs a new Ciphertext at a specific level
 // where the message is set to the passed poly. No checks are performed on poly and
-// the returned Ciphertext will share its backing array of coefficient.
-// Returned ciphertext's MetaData is empty.
+// the returned Ciphertext will share its backing array of coefficients.
+// Returned Ciphertext's MetaData is empty.
 func NewCiphertextAtLevelFromPoly(level int, poly [2]*ring.Poly) (ct *Ciphertext) {
 	v0, v1 := new(ring.Poly), new(ring.Poly)
 	v0.Coeffs, v1.Coeffs = poly[0].Coeffs[:level+1], poly[1].Coeffs[:level+1]
@@ -86,7 +86,7 @@ func (ct *Ciphertext) Resize(degree, level int) {
 // SwitchCiphertextRingDegreeNTT changes the ring degree of ctIn to the one of ctOut.
 // Maps Y^{N/n} -> X^{N} or X^{N} -> Y^{N/n}.
 // If the ring degree of ctOut is larger than the one of ctIn, then the ringQ of ctIn
-// must be provided (else a nil pointer).
+// must be provided (otherwise, a nil pointer).
 // The ctIn must be in the NTT domain and ctOut will be in the NTT domain.
 func SwitchCiphertextRingDegreeNTT(ctIn *Ciphertext, ringQSmallDim, ringQLargeDim *ring.Ring, ctOut *Ciphertext) {
 
@@ -120,7 +120,7 @@ func SwitchCiphertextRingDegreeNTT(ctIn *Ciphertext, ringQSmallDim, ringQLargeDi
 // SwitchCiphertextRingDegree changes the ring degree of ctIn to the one of ctOut.
 // Maps Y^{N/n} -> X^{N} or X^{N} -> Y^{N/n}.
 // If the ring degree of ctOut is larger than the one of ctIn, then the ringQ of ctIn
-// must be provided (else a nil pointer).
+// must be provided (otherwise, a nil pointer).
 func SwitchCiphertextRingDegree(ctIn *Ciphertext, ctOut *Ciphertext) {
 
 	NIn, NOut := len(ctIn.Value[0].Coeffs[0]), len(ctOut.Value[0].Coeffs[0])
@@ -187,7 +187,7 @@ func GetSmallestLargest(el0, el1 *Ciphertext) (smallest, largest *Ciphertext, sa
 	return el0, el1, true
 }
 
-// PopulateElementRandom creates a new rlwe.Element with random coefficients
+// PopulateElementRandom creates a new rlwe.Element with random coefficients.
 func PopulateElementRandom(prng utils.PRNG, params Parameters, ct *Ciphertext) {
 	sampler := ring.NewUniformSampler(prng, params.RingQ())
 	for i := range ct.Value {
@@ -211,14 +211,14 @@ func (ct *Ciphertext) MarshalBinarySize() (dataLen int) {
 }
 
 // MarshalBinary encodes a Ciphertext on a byte slice. The total size
-// in byte is 4 + 8* N * numberModuliQ * (degree + 1).
+// in bytes is 4 + 8* N * numberModuliQ * (degree + 1).
 func (ct *Ciphertext) MarshalBinary() (data []byte, err error) {
 	data = make([]byte, ct.MarshalBinarySize())
 	_, err = ct.Encode64(data)
 	return
 }
 
-// Encode64 encodes the target ciphertext on a byte array, using 8 bytes per coefficient.
+// Encode64 encodes the target Ciphertext on a byte array, using 8 bytes per coefficient.
 // It returns the number of written bytes, and the corresponding error, if it occurred.
 func (ct *Ciphertext) Encode64(data []byte) (ptr int, err error) {
 
@@ -260,9 +260,9 @@ func (ct *Ciphertext) UnmarshalBinary(data []byte) (err error) {
 	return nil
 }
 
-// Decode64 decodes a slice of bytes in the target ciphertext and returns the number of bytes decoded.
+// Decode64 decodes a slice of bytes in the target Ciphertext and returns the number of bytes decoded.
 // The method will first try to write on the buffer. If this step fails, either because the buffer isn't
-// allocated or because it is of the wrong size, the method will allocate the correct buffer.
+// allocated or because it has the wrong size, the method will allocate the correct buffer.
 // Assumes that each coefficient is encoded on 8 bytes.
 func (ct *Ciphertext) Decode64(data []byte) (ptr int, err error) {
 

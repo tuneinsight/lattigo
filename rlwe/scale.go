@@ -52,7 +52,7 @@ func (s Scale) Uint64() uint64 {
 	return u64
 }
 
-// Mul multiplies the target s with s2, returning the result in
+// Mul multiplies the target s with s1, returning the result in
 // a new Scale struct. If mod is specified, performs the multiplication
 // modulo mod.
 func (s Scale) Mul(s1 Scale) Scale {

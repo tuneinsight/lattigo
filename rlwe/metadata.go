@@ -37,7 +37,7 @@ func (m *MetaData) UnmarshalBinary(data []byte) (err error) {
 	return
 }
 
-// Encode64 encodes the target ciphertext on a byte array, using 8 bytes per coefficient.
+// Encode64 encodes the target MetaData on a byte array, using 8 bytes per coefficient.
 // It returns the number of written bytes, and the corresponding error, if it occurred.
 func (m *MetaData) Encode64(data []byte) (ptr int, err error) {
 
@@ -68,7 +68,7 @@ func (m *MetaData) Encode64(data []byte) (ptr int, err error) {
 
 // Decode64 decodes a slice of bytes in the target MetaData and returns the number of bytes decoded.
 // The method will first try to write on the buffer. If this step fails, either because the buffer isn't
-// allocated or because it is of the wrong size, the method will allocate the correct buffer.
+// allocated or because it has the wrong size, the method will allocate the correct buffer.
 // Assumes that each coefficient is encoded on 8 bytes.
 func (m *MetaData) Decode64(data []byte) (ptr int, err error) {
 

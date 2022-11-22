@@ -229,7 +229,7 @@ func (ecd *encoderComplex128) DecodeSlotsPublic(plaintext *rlwe.Plaintext, logSl
 func (ecd *encoderComplex128) EncodeCoeffs(values []float64, plaintext *rlwe.Plaintext) {
 
 	if len(values) > ecd.params.N() {
-		panic("cannot EncodeCoeffs : too many values (maximum is N)")
+		panic("cannot EncodeCoeffs: too many values (maximum is N)")
 	}
 
 	floatToFixedPointCRT(plaintext.Level(), values, plaintext.Scale.Float64(), ecd.params.RingQ(), plaintext.Value.Coeffs)

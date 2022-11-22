@@ -55,7 +55,7 @@ func (pt *Plaintext) El() *Ciphertext {
 	return &Ciphertext{Value: []*ring.Poly{pt.Value}, MetaData: pt.MetaData}
 }
 
-// Copy copies the `other` plaintext value into the reciever plaintext.
+// Copy copies the `other` plaintext value into the receiver plaintext.
 func (pt *Plaintext) Copy(other *Plaintext) {
 	if other != nil && other.Value != nil {
 		pt.Value.Copy(other.Value)

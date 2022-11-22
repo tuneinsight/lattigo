@@ -118,7 +118,7 @@ func SwitchingKeyIsCorrect(swk *SwitchingKey, skIn, skOut *SecretKey, params Par
 }
 
 // Norm returns the log2 of the standard deviation, minimum and maximum absolute norm of
-// the decrypted ciphertext, before the decoding (i.e. including the error).
+// the decrypted Ciphertext, before the decoding (i.e. including the error).
 func Norm(ct *Ciphertext, dec Decryptor) (std, min, max float64) {
 
 	params := dec.(*decryptor).params

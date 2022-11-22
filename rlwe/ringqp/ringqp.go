@@ -228,7 +228,7 @@ func (r *Ring) EvalPolyScalar(pol []Poly, pt uint64, p3 Poly) {
 	}
 }
 
-// MulScalarLvl multiplies p1 by the scalar and returns the result in p2.
+// MulScalarLvl multiplies p1 by scalar and returns the result in p2.
 func (r *Ring) MulScalarLvl(levelQ, levelP int, p1 Poly, scalar uint64, p2 Poly) {
 	if r.RingQ != nil {
 		r.RingQ.MulScalarLvl(levelQ, p1.Q, scalar, p2.Q)

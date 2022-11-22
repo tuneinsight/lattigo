@@ -151,10 +151,10 @@ func (eval *Evaluator) WithKey(evaluationKey *EvaluationKey) *Evaluator {
 	}
 }
 
-// Expand expands a RLWE ciphertext encrypting sum ai * X^i to 2^logN ciphertexts,
+// Expand expands a RLWE Ciphertext encrypting sum ai * X^i to 2^logN ciphertexts,
 // each encrypting ai * X^0 for 0 <= i < 2^LogN. That is, it extracts the first 2^logN
 // coefficients, whose degree is a multiple of 2^logGap, of ctIn and returns an RLWE
-// ciphetext for each coefficient extracted.
+// Ciphertext for each coefficient extracted.
 func (eval *Evaluator) Expand(ctIn *Ciphertext, logN, logGap int) (ctOut []*Ciphertext) {
 
 	if ctIn.Degree() != 1 {
@@ -228,7 +228,7 @@ func (eval *Evaluator) Expand(ctIn *Ciphertext, logN, logGap int) (ctOut []*Ciph
 // two non-zero coefficients of the final Ciphertext.
 // The method takes as input a map of Ciphertext, indexing in which coefficient of the final
 // Ciphertext the first coefficient of each Ciphertext of the map must be packed.
-// All input ciphertexts must be in the NTT domain, else the method will panic.
+// All input ciphertexts must be in the NTT domain; otherwise, the method will panic.
 func (eval *Evaluator) Merge(ctIn map[int]*Ciphertext) (ctOut *Ciphertext) {
 
 	params := eval.params
@@ -251,11 +251,11 @@ func (eval *Evaluator) Merge(ctIn map[int]*Ciphertext) (ctOut *Ciphertext) {
 		if ctIn[i] != nil {
 
 			if !ctIn[i].IsNTT {
-				panic("all ctIn must be in the NTT domain")
+				panic("canot Merge: all ctIn must be in the NTT domain")
 			}
 
 			if ctIn[i].Degree() != 1 {
-				panic("ctIn.Degree() != 1")
+				panic("cannot Merge: ctIn.Degree() != 1")
 			}
 
 			v0, v1 := ctIn[i].Value[0], ctIn[i].Value[1]
@@ -385,9 +385,9 @@ func genXPow2(r *ring.Ring, levelQ, logN int, div bool) (xPow []*ring.Poly) {
 	return
 }
 
-// InnerSum applies an optimized inner sum on the ciphertext (log2(n) + HW(n) rotations with double hoisting).
-// The operation assumes that `ctIn` encrypts SlotCount/`batchSize` sub-vectors of size `batchSize` which it adds together (in parallel) by groups of `n`.
-// It outputs in ctOut a ciphertext for which the "leftmost" sub-vector of each group is equal to the sum of the group.
+// InnerSum applies an optimized inner sum on the Ciphertext (log2(n) + HW(n) rotations with double hoisting).
+// The operation assumes that `ctIn` encrypts SlotCount/`batchSize` sub-vectors of size `batchSize` which it adds together (in parallel) in groups of `n`.
+// It outputs in ctOut a Ciphertext for which the "leftmost" sub-vector of each group is equal to the sum of the group.
 func (eval *Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
 
 	ringQ := eval.params.RingQ()
@@ -501,13 +501,13 @@ func (eval *Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 	}
 }
 
-// Replicate applies an optimized replication on the ciphertext (log2(n) + HW(n) rotations with double hoisting).
+// Replicate applies an optimized replication on the Ciphertext (log2(n) + HW(n) rotations with double hoisting).
 // It acts as the inverse of a inner sum (summing elements from left to right).
 // The replication is parameterized by the size of the sub-vectors to replicate "batchSize" and
-// the number of time "n" they need to be replicated.
+// the number of times 'n' they need to be replicated.
 // To ensure correctness, a gap of zero values of size batchSize * (n-1) must exist between
 // two consecutive sub-vectors to replicate.
-// This method is faster than Replicate when the number of rotations is large and uses log2(n) + HW(n) instead of 'n'.
+// This method is faster than Replicate when the number of rotations is large and it uses log2(n) + HW(n) instead of 'n'.
 func (eval *Evaluator) Replicate(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
 	eval.InnerSum(ctIn, -batchSize, n, ctOut)
 }

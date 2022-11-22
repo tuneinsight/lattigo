@@ -155,7 +155,7 @@ type Parameters struct {
 func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err error) {
 
 	if rlweParams.DefaultNTTFlag() {
-		return Parameters{}, fmt.Errorf("provided RLWE are invalid for BFV scheme (DefaultNTTFlag must be false)")
+		return Parameters{}, fmt.Errorf("provided RLWE parameters are invalid for BFV scheme (DefaultNTTFlag must be false)")
 	}
 
 	if utils.IsInSliceUint64(t, rlweParams.Q()) && rlweParams.Q()[0] != t {
@@ -284,7 +284,7 @@ func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 	return nil
 }
 
-// MarshalBinarySize returns the length of the []byte encoding of the reciever.
+// MarshalBinarySize returns the length of the []byte encoding of the receiver.
 func (p Parameters) MarshalBinarySize() int {
 	return p.Parameters.MarshalBinarySize() + 8
 }

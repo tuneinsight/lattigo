@@ -682,7 +682,7 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	return err
 }
 
-// MarshalBinarySize returns the length of the []byte encoding of the reciever.
+// MarshalBinarySize returns the length of the []byte encoding of the receiver.
 func (p Parameters) MarshalBinarySize() int {
 	return 22 + p.DefaultScale().MarshalBinarySize() + (len(p.qi)+len(p.pi))<<3
 }

@@ -101,8 +101,8 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, s
 	ringQ := rtg.params.RingQ()
 	ringQP := rtg.params.RingQP()
 
-	levelQ := sk.Value.LevelQ()
-	levelP := sk.Value.LevelP()
+	levelQ := sk.LevelQ()
+	levelP := sk.LevelP()
 
 	hasModulusP := levelP > -1
 
@@ -190,17 +190,17 @@ func (rtg *RTGProtocol) GenRotationKey(share *RTGShare, crp RTGCRP, rotKey *rlwe
 	BITDecomp := len(share.Value[0])
 	for i := 0; i < RNSDecomp; i++ {
 		for j := 0; j < BITDecomp; j++ {
-			rotKey.Value[i][j].Value[0].CopyValues(share.Value[i][j])
-			rotKey.Value[i][j].Value[1].CopyValues(crp[i][j])
+			rotKey.Value[i][j].Value[0].Copy(share.Value[i][j])
+			rotKey.Value[i][j].Value[1].Copy(crp[i][j])
 		}
 	}
 }
 
 // MarshalBinary encode the target element on a slice of byte.
 func (share *RTGShare) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, 2+share.Value[0][0].GetDataLen64(true)*len(share.Value)*len(share.Value[0]))
+	data = make([]byte, 2+share.Value[0][0].MarshalBinarySize64()*len(share.Value)*len(share.Value[0]))
 	if len(share.Value) > 0xFF {
-		return []byte{}, errors.New("RKGShare : uint8 overflow on length")
+		return []byte{}, errors.New("RKGShare: uint8 overflow on length")
 	}
 	data[0] = uint8(len(share.Value))
 	data[1] = uint8(len(share.Value[0]))
@@ -208,7 +208,7 @@ func (share *RTGShare) MarshalBinary() (data []byte, err error) {
 	var inc int
 	for i := range share.Value {
 		for _, el := range share.Value[i] {
-			if inc, err = el.WriteTo64(data[ptr:]); err != nil {
+			if inc, err = el.Encode64(data[ptr:]); err != nil {
 				return []byte{}, err
 			}
 			ptr += inc
@@ -226,7 +226,7 @@ func (share *RTGShare) UnmarshalBinary(data []byte) (err error) {
 	for i := range share.Value {
 		share.Value[i] = make([]ringqp.Poly, data[1])
 		for j := range share.Value[i] {
-			if inc, err = share.Value[i][j].DecodePoly64(data[ptr:]); err != nil {
+			if inc, err = share.Value[i][j].Decode64(data[ptr:]); err != nil {
 				return err
 			}
 			ptr += inc

@@ -46,10 +46,10 @@ type party struct {
 }
 
 type maskTask struct {
-	query           *bfv.Ciphertext
+	query           *rlwe.Ciphertext
 	mask            *bfv.PlaintextMul
-	row             *bfv.Ciphertext
-	res             *bfv.Ciphertext
+	row             *rlwe.Ciphertext
+	res             *rlwe.Ciphertext
 	elapsedmaskTask time.Duration
 }
 
@@ -135,12 +135,12 @@ func main() {
 	// Pre-loading memory
 	encoder := bfv.NewEncoder(params)
 	l.Println("> Memory alloc Phase")
-	encInputs := make([]*bfv.Ciphertext, N)
+	encInputs := make([]*rlwe.Ciphertext, N)
 	plainMask := make([]*bfv.PlaintextMul, N)
 
 	// Ciphertexts to be retrieved
 	for i := range encInputs {
-		encInputs[i] = bfv.NewCiphertext(params, 1)
+		encInputs[i] = bfv.NewCiphertext(params, 1, params.MaxLevel())
 	}
 
 	// Plaintext masks: plainmask[i] = encode([0, ..., 0, 1_i, 0, ..., 0])
@@ -148,14 +148,14 @@ func main() {
 	for i := range plainMask {
 		maskCoeffs := make([]uint64, params.N())
 		maskCoeffs[i] = 1
-		plainMask[i] = bfv.NewPlaintextMul(params)
+		plainMask[i] = bfv.NewPlaintextMul(params, params.MaxLevel())
 		encoder.EncodeMul(maskCoeffs, plainMask[i])
 	}
 
 	// Ciphertexts encrypted under CKG and stored in the cloud
 	l.Println("> Encrypt Phase")
 	encryptor := bfv.NewEncryptor(params, pk)
-	pt := bfv.NewPlaintext(params)
+	pt := bfv.NewPlaintext(params, params.MaxLevel())
 	elapsedEncryptParty := runTimedParty(func() {
 		for i, pi := range P {
 			encoder.Encode(pi.input, pt)
@@ -178,7 +178,7 @@ func main() {
 
 	// Decryption by the external party
 	decryptor := bfv.NewDecryptor(params, P[0].sk)
-	ptres := bfv.NewPlaintext(params)
+	ptres := bfv.NewPlaintext(params, params.MaxLevel())
 	elapsedDecParty := runTimed(func() {
 		decryptor.Decrypt(encOut, ptres)
 	})
@@ -191,7 +191,7 @@ func main() {
 		elapsedCKGParty+elapsedRKGParty+elapsedRTGParty+elapsedEncryptParty+elapsedRequestParty+elapsedPCKSParty+elapsedDecParty)
 }
 
-func cksphase(params bfv.Parameters, P []*party, result *bfv.Ciphertext) *bfv.Ciphertext {
+func cksphase(params bfv.Parameters, P []*party, result *rlwe.Ciphertext) *rlwe.Ciphertext {
 	l := log.New(os.Stderr, "", 0)
 
 	l.Println("> CKS Phase")
@@ -199,18 +199,18 @@ func cksphase(params bfv.Parameters, P []*party, result *bfv.Ciphertext) *bfv.Ci
 	cks := dbfv.NewCKSProtocol(params, 3.19) // Collective public-key re-encryption
 
 	for _, pi := range P {
-		pi.cksShare = cks.AllocateShare()
+		pi.cksShare = cks.AllocateShare(params.MaxLevel())
 	}
 
-	zero := bfv.NewSecretKey(params)
-	cksCombined := cks.AllocateShare()
+	zero := rlwe.NewSecretKey(params.Parameters)
+	cksCombined := cks.AllocateShare(params.MaxLevel())
 	elapsedPCKSParty = runTimedParty(func() {
 		for _, pi := range P[1:] {
-			cks.GenShare(pi.sk, zero, result.Value[1], pi.cksShare)
+			cks.GenShare(pi.sk, zero, result, pi.cksShare)
 		}
 	}, len(P)-1)
 
-	encOut := bfv.NewCiphertext(params, 1)
+	encOut := bfv.NewCiphertext(params, 1, params.MaxLevel())
 	elapsedCKSCloud = runTimed(func() {
 		for _, pi := range P {
 			cks.AggregateShares(pi.cksShare, cksCombined, cksCombined)
@@ -264,7 +264,7 @@ func ckgphase(params bfv.Parameters, crs utils.PRNG, P []*party) *rlwe.PublicKey
 		}
 	}, len(P))
 
-	pk := bfv.NewPublicKey(params)
+	pk := rlwe.NewPublicKey(params.Parameters)
 
 	elapsedCKGCloud = runTimed(func() {
 		for _, pi := range P {
@@ -311,7 +311,7 @@ func rkgphase(params bfv.Parameters, crs utils.PRNG, P []*party) *rlwe.Relineari
 		}
 	}, len(P))
 
-	rlk := bfv.NewRelinearizationKey(params, 1)
+	rlk := rlwe.NewRelinearizationKey(params.Parameters, 1)
 	elapsedRKGCloud += runTimed(func() {
 		for _, pi := range P {
 			rkg.AggregateShares(pi.rkgShareTwo, rkgCombined2, rkgCombined2)
@@ -337,7 +337,7 @@ func rtkphase(params bfv.Parameters, crs utils.PRNG, P []*party) *rlwe.RotationK
 	}
 
 	galEls := params.GaloisElementsForRowInnerSum()
-	rotKeySet := bfv.NewRotationKeySet(params, galEls)
+	rotKeySet := rlwe.NewRotationKeySet(params.Parameters, galEls)
 
 	for _, galEl := range galEls {
 
@@ -363,12 +363,12 @@ func rtkphase(params bfv.Parameters, crs utils.PRNG, P []*party) *rlwe.RotationK
 	return rotKeySet
 }
 
-func genquery(params bfv.Parameters, queryIndex int, encoder bfv.Encoder, encryptor bfv.Encryptor) *bfv.Ciphertext {
+func genquery(params bfv.Parameters, queryIndex int, encoder bfv.Encoder, encryptor rlwe.Encryptor) *rlwe.Ciphertext {
 	// Query ciphertext
 	queryCoeffs := make([]uint64, params.N())
 	queryCoeffs[queryIndex] = 1
-	query := bfv.NewPlaintext(params)
-	var encQuery *bfv.Ciphertext
+	query := bfv.NewPlaintext(params, params.MaxLevel())
+	var encQuery *rlwe.Ciphertext
 	elapsedRequestParty += runTimed(func() {
 		encoder.Encode(queryCoeffs, query)
 		encQuery = encryptor.EncryptNew(query)
@@ -377,16 +377,16 @@ func genquery(params bfv.Parameters, queryIndex int, encoder bfv.Encoder, encryp
 	return encQuery
 }
 
-func requestphase(params bfv.Parameters, queryIndex, NGoRoutine int, encQuery *bfv.Ciphertext, encInputs []*bfv.Ciphertext, plainMask []*bfv.PlaintextMul, rlk *rlwe.RelinearizationKey, rtk *rlwe.RotationKeySet) *bfv.Ciphertext {
+func requestphase(params bfv.Parameters, queryIndex, NGoRoutine int, encQuery *rlwe.Ciphertext, encInputs []*rlwe.Ciphertext, plainMask []*bfv.PlaintextMul, rlk *rlwe.RelinearizationKey, rtk *rlwe.RotationKeySet) *rlwe.Ciphertext {
 
 	l := log.New(os.Stderr, "", 0)
 
 	l.Println("> Request Phase")
 
 	// Buffer for the intermediate computation done by the cloud
-	encPartial := make([]*bfv.Ciphertext, len(encInputs))
+	encPartial := make([]*rlwe.Ciphertext, len(encInputs))
 	for i := range encPartial {
-		encPartial[i] = bfv.NewCiphertext(params, 2)
+		encPartial[i] = bfv.NewCiphertext(params, 2, params.MaxLevel())
 	}
 
 	evaluator := bfv.NewEvaluator(params, rlwe.EvaluationKey{Rlk: rlk, Rtks: rtk})
@@ -398,7 +398,7 @@ func requestphase(params bfv.Parameters, queryIndex, NGoRoutine int, encQuery *b
 	for i := 1; i <= NGoRoutine; i++ {
 		go func(i int) {
 			evaluator := evaluator.ShallowCopy() // creates a shallow evaluator copy for this goroutine
-			tmp := bfv.NewCiphertext(params, 1)
+			tmp := bfv.NewCiphertext(params, 1, params.MaxLevel())
 			for task := range tasks {
 				task.elapsedmaskTask = runTimed(func() {
 					// 1) Multiplication of the query with the plaintext mask
@@ -436,8 +436,8 @@ func requestphase(params bfv.Parameters, queryIndex, NGoRoutine int, encQuery *b
 		elapsedRequestCloudCPU += t.elapsedmaskTask
 	}
 
-	resultDeg2 := bfv.NewCiphertext(params, 2)
-	result := bfv.NewCiphertext(params, 1)
+	resultDeg2 := bfv.NewCiphertext(params, 2, params.MaxLevel())
+	result := bfv.NewCiphertext(params, 1, params.MaxLevel())
 
 	// Summation of all the partial result among the different Go routines
 	finalAddDuration := runTimed(func() {

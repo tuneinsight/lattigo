@@ -43,9 +43,10 @@ func benchHoistedKeySwitch(kgen KeyGenerator, eval *Evaluator, b *testing.B) {
 	skIn := kgen.GenSecretKey()
 	skOut := kgen.GenSecretKey()
 	plaintext := NewPlaintext(params, params.MaxLevel())
-	plaintext.Value.IsNTT = true
+	plaintext.IsNTT = true
 	encryptor := NewEncryptor(params, skIn)
-	ciphertext := NewCiphertextNTT(params, 1, plaintext.Level())
+	ciphertext := NewCiphertext(params, 1, plaintext.Level())
+	ciphertext.IsNTT = true
 	encryptor.Encrypt(plaintext, ciphertext)
 
 	swk := kgen.GenSwitchingKey(skIn, skOut)
@@ -53,7 +54,7 @@ func benchHoistedKeySwitch(kgen KeyGenerator, eval *Evaluator, b *testing.B) {
 	b.Run(testString(params, "DecomposeNTT/"), func(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			eval.DecomposeNTT(ciphertext.Level(), params.PCount()-1, params.PCount(), ciphertext.Value[1], eval.BuffDecompQP)
+			eval.DecomposeNTT(ciphertext.Level(), params.PCount()-1, params.PCount(), ciphertext.Value[1], ciphertext.IsNTT, eval.BuffDecompQP)
 		}
 	})
 

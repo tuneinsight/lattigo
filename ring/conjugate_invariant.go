@@ -11,7 +11,7 @@ import (
 func (r *Ring) UnfoldConjugateInvariantToStandard(level int, polyConjugateInvariant, polyStd *Poly) {
 
 	if 2*len(polyConjugateInvariant.Coeffs[0]) != len(polyStd.Coeffs[0]) {
-		panic("Ring degree of polyConjugateInvariant must be twice the ring degree of polyStd")
+		panic("cannot UnfoldConjugateInvariantToStandard: Ring degree of polyConjugateInvariant must be twice the ring degree of polyStd")
 	}
 
 	N := len(polyConjugateInvariant.Coeffs[0])
@@ -31,7 +31,7 @@ func (r *Ring) UnfoldConjugateInvariantToStandard(level int, polyConjugateInvari
 func (r *Ring) FoldStandardToConjugateInvariant(level int, polyStandard *Poly, permuteNTTIndexInv []uint64, polyConjugateInvariant *Poly) {
 
 	if len(polyStandard.Coeffs[0]) != 2*len(polyConjugateInvariant.Coeffs[0]) {
-		panic("Ring degree of p2 must be 2N and ring degree of p1 must be N")
+		panic("cannot FoldStandardToConjugateInvariant: Ring degree of p2 must be 2N and ring degree of p1 must be N")
 	}
 
 	r.PermuteNTTWithIndexLvl(level, polyStandard, permuteNTTIndexInv, polyConjugateInvariant)
@@ -40,12 +40,11 @@ func (r *Ring) FoldStandardToConjugateInvariant(level int, polyStandard *Poly, p
 	}
 }
 
-// PadDefaultRingToConjuateInvariant converts a polynomial in Z[X]/(X^N +1) to a polynomial in Z[X+X^-1]/(X^2N+1).
-// Conversion will check the .IsNTT flag of the polynomial p1.
-func PadDefaultRingToConjuateInvariant(p1 *Poly, ringQ *Ring, p2 *Poly) {
+// PadDefaultRingToConjugateInvariant converts a polynomial in Z[X]/(X^N +1) to a polynomial in Z[X+X^-1]/(X^2N+1).
+func PadDefaultRingToConjugateInvariant(p1 *Poly, ringQ *Ring, IsNTT bool, p2 *Poly) {
 
 	if p1 == p2 {
-		panic("p1 == p2 but method cannot be used in place")
+		panic("cannot PadDefaultRingToConjugateInvariant: p1 == p2 but method cannot be used in place")
 	}
 
 	level := utils.MinInt(p1.Level(), p2.Level())
@@ -55,13 +54,13 @@ func PadDefaultRingToConjuateInvariant(p1 *Poly, ringQ *Ring, p2 *Poly) {
 		qi := ringQ.Modulus[i]
 
 		if len(p2.Coeffs[i]) != 2*len(p1.Coeffs[i]) {
-			panic("p2 degree must be twice the one of p1")
+			panic("cannot PadDefaultRingToConjugateInvariant: p2 degree must be twice the one of p1")
 		}
 
 		copy(p2.Coeffs[i], p1.Coeffs[i])
 
 		tmp := p2.Coeffs[i]
-		if p1.IsNTT {
+		if IsNTT {
 			for j := 0; j < n; j++ {
 				tmp[n-j-1] = tmp[j]
 			}
@@ -72,6 +71,4 @@ func PadDefaultRingToConjuateInvariant(p1 *Poly, ringQ *Ring, p2 *Poly) {
 			}
 		}
 	}
-
-	p2.IsNTT = p1.IsNTT
 }

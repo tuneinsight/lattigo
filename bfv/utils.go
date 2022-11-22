@@ -11,25 +11,24 @@ import (
 // of the standard deviation, minimum and maximum norm of the noise
 // assuming the decryption is correct.
 // This function is used for testing/profiling/evaluation purposes
-func Noise(cthave *Ciphertext, dec Decryptor) (std, min, max float64) {
+func Noise(params Parameters, ct *rlwe.Ciphertext, dec rlwe.Decryptor) (std, min, max float64) {
 
-	level := cthave.Level()
+	level := ct.Level()
 
-	params := dec.(*decryptor).params
 	ringQ := params.RingQ()
 
 	ecd := NewEncoder(params).(*encoder)
 
-	pt := &Plaintext{Plaintext: &rlwe.Plaintext{Value: ecd.tmpPoly}}
+	pt := &rlwe.Plaintext{Value: ecd.tmpPoly}
 
-	dec.Decrypt(cthave, pt)
+	dec.Decrypt(ct, pt)
 
 	ecd.ScaleDown(pt, ecd.tmpPtRt)
 	ecd.ScaleUp(ecd.tmpPtRt, pt)
 
-	ringQ.SubLvl(level, cthave.Value[0], pt.Value, cthave.Value[0])
+	ringQ.SubLvl(level, ct.Value[0], pt.Value, ct.Value[0])
 
-	dec.Decrypt(cthave, pt)
+	dec.Decrypt(ct, pt)
 
 	bigintCoeffs := make([]*big.Int, ringQ.N)
 	ringQ.PolyToBigintLvl(level, pt.Value, 1, bigintCoeffs)

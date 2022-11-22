@@ -18,77 +18,64 @@ type Evaluator interface {
 	// === Original ckks.Evaluator methods ===
 	// =======================================
 
-	Add(ctIn *ckks.Ciphertext, op1 ckks.Operand, ctOut *ckks.Ciphertext)
-	AddNoMod(ctIn *ckks.Ciphertext, op1 ckks.Operand, ctOut *ckks.Ciphertext)
-	AddNew(ctIn *ckks.Ciphertext, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
-	AddNoModNew(ctIn *ckks.Ciphertext, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
-	Sub(ctIn *ckks.Ciphertext, op1 ckks.Operand, ctOut *ckks.Ciphertext)
-	SubNoMod(ctIn *ckks.Ciphertext, op1 ckks.Operand, ctOut *ckks.Ciphertext)
-	SubNew(ctIn *ckks.Ciphertext, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
-	SubNoModNew(ctIn *ckks.Ciphertext, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
-	Neg(ctIn *ckks.Ciphertext, ctOut *ckks.Ciphertext)
-	NegNew(ctIn *ckks.Ciphertext) (ctOut *ckks.Ciphertext)
-	AddConstNew(ctIn *ckks.Ciphertext, constant interface{}) (ctOut *ckks.Ciphertext)
-	AddConst(ctIn *ckks.Ciphertext, constant interface{}, ctOut *ckks.Ciphertext)
-	MultByConstNew(ctIn *ckks.Ciphertext, constant interface{}) (ctOut *ckks.Ciphertext)
-	MultByConst(ctIn *ckks.Ciphertext, constant interface{}, ctOut *ckks.Ciphertext)
-	MultByGaussianInteger(ctIn *ckks.Ciphertext, cReal, cImag interface{}, ctOut *ckks.Ciphertext)
-	MultByConstAndAdd(ctIn *ckks.Ciphertext, constant interface{}, ctOut *ckks.Ciphertext)
-	MultByGaussianIntegerAndAdd(ctIn *ckks.Ciphertext, cReal, cImag interface{}, ctOut *ckks.Ciphertext)
-	MultByiNew(ctIn *ckks.Ciphertext) (ctOut *ckks.Ciphertext)
-	MultByi(ctIn *ckks.Ciphertext, ctOut *ckks.Ciphertext)
-	DivByiNew(ctIn *ckks.Ciphertext) (ctOut *ckks.Ciphertext)
-	DivByi(ctIn *ckks.Ciphertext, ctOut *ckks.Ciphertext)
-	ConjugateNew(ctIn *ckks.Ciphertext) (ctOut *ckks.Ciphertext)
-	Conjugate(ctIn *ckks.Ciphertext, ctOut *ckks.Ciphertext)
-	Mul(ctIn *ckks.Ciphertext, op1 ckks.Operand, ctOut *ckks.Ciphertext)
-	MulNew(ctIn *ckks.Ciphertext, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
-	MulRelin(ctIn *ckks.Ciphertext, op1 ckks.Operand, ctOut *ckks.Ciphertext)
-	MulRelinNew(ctIn *ckks.Ciphertext, op1 ckks.Operand) (ctOut *ckks.Ciphertext)
-	RotateNew(ctIn *ckks.Ciphertext, k int) (ctOut *ckks.Ciphertext)
-	Rotate(ctIn *ckks.Ciphertext, k int, ctOut *ckks.Ciphertext)
-	RotateHoistedNew(ctIn *ckks.Ciphertext, rotations []int) (ctOut map[int]*ckks.Ciphertext)
-	RotateHoisted(ctIn *ckks.Ciphertext, rotations []int, ctOut map[int]*ckks.Ciphertext)
-	MulByPow2New(ctIn *ckks.Ciphertext, pow2 int) (ctOut *ckks.Ciphertext)
-	MulByPow2(ctIn *ckks.Ciphertext, pow2 int, ctOut *ckks.Ciphertext)
-	PowerOf2(ctIn *ckks.Ciphertext, logPow2 int, ctOut *ckks.Ciphertext)
-	Power(ctIn *ckks.Ciphertext, degree int, ctOut *ckks.Ciphertext)
-	PowerNew(ctIn *ckks.Ciphertext, degree int) (ctOut *ckks.Ciphertext)
-	EvaluatePoly(input interface{}, pol *ckks.Polynomial, targetScale float64) (ctOut *ckks.Ciphertext, err error)
-	EvaluatePolyVector(input interface{}, pols []*ckks.Polynomial, encoder ckks.Encoder, slotIndex map[int][]int, targetScale float64) (ctOut *ckks.Ciphertext, err error)
-	InverseNew(ctIn *ckks.Ciphertext, steps int) (ctOut *ckks.Ciphertext)
-	LinearTransformNew(ctIn *ckks.Ciphertext, linearTransform interface{}) (ctOut []*ckks.Ciphertext)
-	LinearTransform(ctIn *ckks.Ciphertext, linearTransform interface{}, ctOut []*ckks.Ciphertext)
-	MultiplyByDiagMatrix(ctIn *ckks.Ciphertext, matrix ckks.LinearTransform, c2DecompQP []ringqp.Poly, ctOut *ckks.Ciphertext)
-	MultiplyByDiagMatrixBSGS(ctIn *ckks.Ciphertext, matrix ckks.LinearTransform, c2DecompQP []ringqp.Poly, ctOut *ckks.Ciphertext)
-	InnerSumLog(ctIn *ckks.Ciphertext, batch, n int, ctOut *ckks.Ciphertext)
-	InnerSum(ctIn *ckks.Ciphertext, batch, n int, ctOut *ckks.Ciphertext)
-	ReplicateLog(ctIn *ckks.Ciphertext, batch, n int, ctOut *ckks.Ciphertext)
-	Replicate(ctIn *ckks.Ciphertext, batch, n int, ctOut *ckks.Ciphertext)
-	TraceNew(ctIn *ckks.Ciphertext, logSlots int) *ckks.Ciphertext
-	Trace(ctIn *ckks.Ciphertext, logSlots int, ctOut *ckks.Ciphertext)
-	SwitchKeysNew(ctIn *ckks.Ciphertext, switchingKey *rlwe.SwitchingKey) (ctOut *ckks.Ciphertext)
-	SwitchKeys(ctIn *ckks.Ciphertext, switchingKey *rlwe.SwitchingKey, ctOut *ckks.Ciphertext)
-	RelinearizeNew(ctIn *ckks.Ciphertext) (ctOut *ckks.Ciphertext)
-	Relinearize(ctIn *ckks.Ciphertext, ctOut *ckks.Ciphertext)
-	ScaleUpNew(ctIn *ckks.Ciphertext, scale float64) (ctOut *ckks.Ciphertext)
-	ScaleUp(ctIn *ckks.Ciphertext, scale float64, ctOut *ckks.Ciphertext)
-	SetScale(ctIn *ckks.Ciphertext, scale float64)
-	Rescale(ctIn *ckks.Ciphertext, minScale float64, ctOut *ckks.Ciphertext) (err error)
-	DropLevelNew(ctIn *ckks.Ciphertext, levels int) (ctOut *ckks.Ciphertext)
-	DropLevel(ctIn *ckks.Ciphertext, levels int)
-	ReduceNew(ctIn *ckks.Ciphertext) (ctOut *ckks.Ciphertext)
-	Reduce(ctIn *ckks.Ciphertext, ctOut *ckks.Ciphertext) error
+	Add(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext)
+	AddNew(ctIn *rlwe.Ciphertext, op1 rlwe.Operand) (ctOut *rlwe.Ciphertext)
+	Sub(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext)
+	SubNew(ctIn *rlwe.Ciphertext, op1 rlwe.Operand) (ctOut *rlwe.Ciphertext)
+	Neg(ctIn *rlwe.Ciphertext, ctOut *rlwe.Ciphertext)
+	NegNew(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext)
+	AddConstNew(ctIn *rlwe.Ciphertext, constant interface{}) (ctOut *rlwe.Ciphertext)
+	AddConst(ctIn *rlwe.Ciphertext, constant interface{}, ctOut *rlwe.Ciphertext)
+	MultByConstNew(ctIn *rlwe.Ciphertext, constant interface{}) (ctOut *rlwe.Ciphertext)
+	MultByConst(ctIn *rlwe.Ciphertext, constant interface{}, ctOut *rlwe.Ciphertext)
+	MultByGaussianInteger(ctIn *rlwe.Ciphertext, cReal, cImag interface{}, ctOut *rlwe.Ciphertext)
+	MultByConstAndAdd(ctIn *rlwe.Ciphertext, constant interface{}, ctOut *rlwe.Ciphertext)
+	MultByGaussianIntegerAndAdd(ctIn *rlwe.Ciphertext, cReal, cImag interface{}, ctOut *rlwe.Ciphertext)
+	MultByiNew(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext)
+	MultByi(ctIn *rlwe.Ciphertext, ctOut *rlwe.Ciphertext)
+	DivByiNew(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext)
+	DivByi(ctIn *rlwe.Ciphertext, ctOut *rlwe.Ciphertext)
+	ConjugateNew(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext)
+	Conjugate(ctIn *rlwe.Ciphertext, ctOut *rlwe.Ciphertext)
+	Mul(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext)
+	MulNew(ctIn *rlwe.Ciphertext, op1 rlwe.Operand) (ctOut *rlwe.Ciphertext)
+	MulRelin(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext)
+	MulRelinNew(ctIn *rlwe.Ciphertext, op1 rlwe.Operand) (ctOut *rlwe.Ciphertext)
+	RotateNew(ctIn *rlwe.Ciphertext, k int) (ctOut *rlwe.Ciphertext)
+	Rotate(ctIn *rlwe.Ciphertext, k int, ctOut *rlwe.Ciphertext)
+	RotateHoistedNew(ctIn *rlwe.Ciphertext, rotations []int) (ctOut map[int]*rlwe.Ciphertext)
+	RotateHoisted(ctIn *rlwe.Ciphertext, rotations []int, ctOut map[int]*rlwe.Ciphertext)
+	EvaluatePoly(input interface{}, pol *ckks.Polynomial, targetscale rlwe.Scale) (ctOut *rlwe.Ciphertext, err error)
+	EvaluatePolyVector(input interface{}, pols []*ckks.Polynomial, encoder ckks.Encoder, slotIndex map[int][]int, targetscale rlwe.Scale) (ctOut *rlwe.Ciphertext, err error)
+	InverseNew(ctIn *rlwe.Ciphertext, steps int) (ctOut *rlwe.Ciphertext, err error)
+	LinearTransformNew(ctIn *rlwe.Ciphertext, linearTransform interface{}) (ctOut []*rlwe.Ciphertext)
+	LinearTransform(ctIn *rlwe.Ciphertext, linearTransform interface{}, ctOut []*rlwe.Ciphertext)
+	MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix ckks.LinearTransform, c2DecompQP []ringqp.Poly, ctOut *rlwe.Ciphertext)
+	MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix ckks.LinearTransform, c2DecompQP []ringqp.Poly, ctOut *rlwe.Ciphertext)
+	InnerSum(ctIn *rlwe.Ciphertext, batch, n int, ctOut *rlwe.Ciphertext)
+	Replicate(ctIn *rlwe.Ciphertext, batch, n int, ctOut *rlwe.Ciphertext)
+	TraceNew(ctIn *rlwe.Ciphertext, logSlots int) *rlwe.Ciphertext
+	Trace(ctIn *rlwe.Ciphertext, logSlots int, ctOut *rlwe.Ciphertext)
+	SwitchKeysNew(ctIn *rlwe.Ciphertext, switchingKey *rlwe.SwitchingKey) (ctOut *rlwe.Ciphertext)
+	SwitchKeys(ctIn *rlwe.Ciphertext, switchingKey *rlwe.SwitchingKey, ctOut *rlwe.Ciphertext)
+	RelinearizeNew(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext)
+	Relinearize(ctIn *rlwe.Ciphertext, ctOut *rlwe.Ciphertext)
+	ScaleUpNew(ctIn *rlwe.Ciphertext, scale rlwe.Scale) (ctOut *rlwe.Ciphertext)
+	ScaleUp(ctIn *rlwe.Ciphertext, scale rlwe.Scale, ctOut *rlwe.Ciphertext)
+	SetScale(ctIn *rlwe.Ciphertext, scale rlwe.Scale)
+	Rescale(ctIn *rlwe.Ciphertext, minscale rlwe.Scale, ctOut *rlwe.Ciphertext) (err error)
+	DropLevelNew(ctIn *rlwe.Ciphertext, levels int) (ctOut *rlwe.Ciphertext)
+	DropLevel(ctIn *rlwe.Ciphertext, levels int)
 
 	// ======================================
 	// === advanced.Evaluator new methods ===
 	// ======================================
 
-	CoeffsToSlotsNew(ctIn *ckks.Ciphertext, ctsMatrices EncodingMatrix) (ctReal, ctImag *ckks.Ciphertext)
-	CoeffsToSlots(ctIn *ckks.Ciphertext, ctsMatrices EncodingMatrix, ctReal, ctImag *ckks.Ciphertext)
-	SlotsToCoeffsNew(ctReal, ctImag *ckks.Ciphertext, stcMatrices EncodingMatrix) (ctOut *ckks.Ciphertext)
-	SlotsToCoeffs(ctReal, ctImag *ckks.Ciphertext, stcMatrices EncodingMatrix, ctOut *ckks.Ciphertext)
-	EvalModNew(ctIn *ckks.Ciphertext, evalModPoly EvalModPoly) (ctOut *ckks.Ciphertext)
+	CoeffsToSlotsNew(ctIn *rlwe.Ciphertext, ctsMatrices EncodingMatrix) (ctReal, ctImag *rlwe.Ciphertext)
+	CoeffsToSlots(ctIn *rlwe.Ciphertext, ctsMatrices EncodingMatrix, ctReal, ctImag *rlwe.Ciphertext)
+	SlotsToCoeffsNew(ctReal, ctImag *rlwe.Ciphertext, stcMatrices EncodingMatrix) (ctOut *rlwe.Ciphertext)
+	SlotsToCoeffs(ctReal, ctImag *rlwe.Ciphertext, stcMatrices EncodingMatrix, ctOut *rlwe.Ciphertext)
+	EvalModNew(ctIn *rlwe.Ciphertext, evalModPoly EvalModPoly) (ctOut *rlwe.Ciphertext)
 
 	// =================================================
 	// === original ckks.Evaluator redefined methods ===
@@ -96,7 +83,7 @@ type Evaluator interface {
 
 	GetRLWEEvaluator() *rlwe.Evaluator
 	BuffQ() [3]*ring.Poly
-	BuffCt() *ckks.Ciphertext
+	BuffCt() *rlwe.Ciphertext
 	ShallowCopy() Evaluator
 	WithKey(rlwe.EvaluationKey) Evaluator
 }
@@ -128,11 +115,11 @@ func (eval *evaluator) WithKey(evaluationKey rlwe.EvaluationKey) Evaluator {
 // Homomorphically encodes a complex vector vReal + i*vImag.
 // If the packing is sparse (n < N/2), then returns ctReal = Ecd(vReal || vImag) and ctImag = nil.
 // If the packing is dense (n == N/2), then returns ctReal = Ecd(vReal) and ctImag = Ecd(vImag).
-func (eval *evaluator) CoeffsToSlotsNew(ctIn *ckks.Ciphertext, ctsMatrices EncodingMatrix) (ctReal, ctImag *ckks.Ciphertext) {
-	ctReal = ckks.NewCiphertext(eval.params, 1, ctsMatrices.LevelStart, 0)
+func (eval *evaluator) CoeffsToSlotsNew(ctIn *rlwe.Ciphertext, ctsMatrices EncodingMatrix) (ctReal, ctImag *rlwe.Ciphertext) {
+	ctReal = ckks.NewCiphertext(eval.params, 1, ctsMatrices.LevelStart)
 
 	if eval.params.LogSlots() == eval.params.LogN()-1 {
-		ctImag = ckks.NewCiphertext(eval.params, 1, ctsMatrices.LevelStart, 0)
+		ctImag = ckks.NewCiphertext(eval.params, 1, ctsMatrices.LevelStart)
 	}
 
 	eval.CoeffsToSlots(ctIn, ctsMatrices, ctReal, ctImag)
@@ -143,7 +130,7 @@ func (eval *evaluator) CoeffsToSlotsNew(ctIn *ckks.Ciphertext, ctsMatrices Encod
 // Homomorphically encodes a complex vector vReal + i*vImag of size n on a real vector of size 2n.
 // If the packing is sparse (n < N/2), then returns ctReal = Ecd(vReal || vImag) and ctImag = nil.
 // If the packing is dense (n == N/2), then returns ctReal = Ecd(vReal) and ctImag = Ecd(vImag).
-func (eval *evaluator) CoeffsToSlots(ctIn *ckks.Ciphertext, ctsMatrices EncodingMatrix, ctReal, ctImag *ckks.Ciphertext) {
+func (eval *evaluator) CoeffsToSlots(ctIn *rlwe.Ciphertext, ctsMatrices EncodingMatrix, ctReal, ctImag *rlwe.Ciphertext) {
 
 	if ctsMatrices.RepackImag2Real {
 
@@ -153,11 +140,12 @@ func (eval *evaluator) CoeffsToSlots(ctIn *ckks.Ciphertext, ctsMatrices Encoding
 
 		eval.Conjugate(zV, ctReal)
 
-		var tmp *ckks.Ciphertext
+		var tmp *rlwe.Ciphertext
 		if ctImag != nil {
 			tmp = ctImag
 		} else {
-			tmp = ckks.NewCiphertextAtLevelFromPoly(ctReal.Level(), [2]*ring.Poly{eval.BuffCt().Value[0], eval.BuffCt().Value[1]})
+			tmp = rlwe.NewCiphertextAtLevelFromPoly(ctReal.Level(), [2]*ring.Poly{eval.BuffCt().Value[0], eval.BuffCt().Value[1]})
+			tmp.IsNTT = true
 		}
 
 		// Imag part
@@ -183,13 +171,13 @@ func (eval *evaluator) CoeffsToSlots(ctIn *ckks.Ciphertext, ctsMatrices Encoding
 // Homomorphically decodes a real vector of size 2n on a complex vector vReal + i*vImag of size n.
 // If the packing is sparse (n < N/2) then ctReal = Ecd(vReal || vImag) and ctImag = nil.
 // If the packing is dense (n == N/2), then ctReal = Ecd(vReal) and ctImag = Ecd(vImag).
-func (eval *evaluator) SlotsToCoeffsNew(ctReal, ctImag *ckks.Ciphertext, stcMatrices EncodingMatrix) (ctOut *ckks.Ciphertext) {
+func (eval *evaluator) SlotsToCoeffsNew(ctReal, ctImag *rlwe.Ciphertext, stcMatrices EncodingMatrix) (ctOut *rlwe.Ciphertext) {
 
 	if ctReal.Level() < stcMatrices.LevelStart || (ctImag != nil && ctImag.Level() < stcMatrices.LevelStart) {
 		panic("ctReal.Level() or ctImag.Level() < EncodingMatrix.LevelStart")
 	}
 
-	ctOut = ckks.NewCiphertext(eval.params, 1, stcMatrices.LevelStart, ctReal.Scale())
+	ctOut = ckks.NewCiphertext(eval.params, 1, stcMatrices.LevelStart)
 	eval.SlotsToCoeffs(ctReal, ctImag, stcMatrices, ctOut)
 	return
 
@@ -199,7 +187,7 @@ func (eval *evaluator) SlotsToCoeffsNew(ctReal, ctImag *ckks.Ciphertext, stcMatr
 // Homomorphically decodes a real vector of size 2n on a complex vector vReal + i*vImag of size n.
 // If the packing is sparse (n < N/2) then ctReal = Ecd(vReal || vImag) and ctImag = nil.
 // If the packing is dense (n == N/2), then ctReal = Ecd(vReal) and ctImag = Ecd(vImag).
-func (eval *evaluator) SlotsToCoeffs(ctReal, ctImag *ckks.Ciphertext, stcMatrices EncodingMatrix, ctOut *ckks.Ciphertext) {
+func (eval *evaluator) SlotsToCoeffs(ctReal, ctImag *rlwe.Ciphertext, stcMatrices EncodingMatrix, ctOut *rlwe.Ciphertext) {
 	// If full packing, the repacking can be done directly using ct0 and ct1.
 	if ctImag != nil {
 		eval.MultByi(ctImag, ctOut)
@@ -210,16 +198,16 @@ func (eval *evaluator) SlotsToCoeffs(ctReal, ctImag *ckks.Ciphertext, stcMatrice
 	}
 }
 
-func (eval *evaluator) dft(ctIn *ckks.Ciphertext, plainVectors []ckks.LinearTransform, ctOut *ckks.Ciphertext) {
+func (eval *evaluator) dft(ctIn *rlwe.Ciphertext, plainVectors []ckks.LinearTransform, ctOut *rlwe.Ciphertext) {
 	// Sequentially multiplies w with the provided dft matrices.
-	scale := ctIn.Scale()
-	var in, out *ckks.Ciphertext
+	scale := ctIn.Scale
+	var in, out *rlwe.Ciphertext
 	for i, plainVector := range plainVectors {
 		in, out = ctOut, ctOut
 		if i == 0 {
 			in, out = ctIn, ctOut
 		}
-		eval.LinearTransform(in, plainVector, []*ckks.Ciphertext{out})
+		eval.LinearTransform(in, plainVector, []*rlwe.Ciphertext{out})
 		if err := eval.Rescale(out, scale, out); err != nil {
 			panic(err)
 		}
@@ -240,7 +228,7 @@ func (eval *evaluator) dft(ctIn *ckks.Ciphertext, plainVectors []ckks.LinearTran
 // !! Assumes that the input is normalized by 1/K for K the range of the approximation.
 //
 // Scaling back error correction by 2^{round(log(Q))}/Q afterward is included in the polynomial
-func (eval *evaluator) EvalModNew(ct *ckks.Ciphertext, evalModPoly EvalModPoly) *ckks.Ciphertext {
+func (eval *evaluator) EvalModNew(ct *rlwe.Ciphertext, evalModPoly EvalModPoly) *rlwe.Ciphertext {
 
 	if ct.Level() < evalModPoly.LevelStart() {
 		panic("ct.Level() < evalModPoly.LevelStart")
@@ -251,17 +239,18 @@ func (eval *evaluator) EvalModNew(ct *ckks.Ciphertext, evalModPoly EvalModPoly) 
 	}
 
 	// Stores default scales
-	prevScaleCt := ct.Scale()
+	prevScaleCt := ct.Scale
 
 	// Normalize the modular reduction to mod by 1 (division by Q)
-	ct.SetScale(evalModPoly.scalingFactor)
+	ct.Scale = evalModPoly.scalingFactor
 
 	var err error
 
 	// Compute the scales that the ciphertext should have before the double angle
 	// formula such that after it it has the scale it had before the polynomial
 	// evaluation
-	targetScale := ct.Scale()
+
+	targetScale := ct.Scale.Float64()
 	for i := 0; i < evalModPoly.doubleAngle; i++ {
 		targetScale = math.Sqrt(targetScale * eval.params.QiFloat64(evalModPoly.levelStart-evalModPoly.sinePoly.Depth()-evalModPoly.doubleAngle+i+1))
 	}
@@ -272,7 +261,7 @@ func (eval *evaluator) EvalModNew(ct *ckks.Ciphertext, evalModPoly EvalModPoly) 
 	}
 
 	// Chebyshev evaluation
-	if ct, err = eval.EvaluatePoly(ct, evalModPoly.sinePoly, targetScale); err != nil {
+	if ct, err = eval.EvaluatePoly(ct, evalModPoly.sinePoly, rlwe.NewScale(targetScale)); err != nil {
 		panic(err)
 	}
 
@@ -283,19 +272,19 @@ func (eval *evaluator) EvalModNew(ct *ckks.Ciphertext, evalModPoly EvalModPoly) 
 		eval.MulRelin(ct, ct, ct)
 		eval.Add(ct, ct, ct)
 		eval.AddConst(ct, -sqrt2pi, ct)
-		if err := eval.Rescale(ct, targetScale, ct); err != nil {
+		if err := eval.Rescale(ct, rlwe.NewScale(targetScale), ct); err != nil {
 			panic(err)
 		}
 	}
 
 	// ArcSine
 	if evalModPoly.arcSinePoly != nil {
-		if ct, err = eval.EvaluatePoly(ct, evalModPoly.arcSinePoly, ct.Scale()); err != nil {
+		if ct, err = eval.EvaluatePoly(ct, evalModPoly.arcSinePoly, ct.Scale); err != nil {
 			panic(err)
 		}
 	}
 
 	// Multiplies back by q
-	ct.SetScale(prevScaleCt)
+	ct.Scale = prevScaleCt
 	return ct
 }

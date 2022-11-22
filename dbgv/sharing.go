@@ -11,7 +11,7 @@ import (
 // E2SProtocol is the structure storing the parameters and temporary buffers
 // required by the encryption-to-shares protocol.
 type E2SProtocol struct {
-	CKSProtocol
+	drlwe.CKSProtocol
 	params bgv.Parameters
 
 	maskSampler *ring.UniformSampler
@@ -48,7 +48,7 @@ func (e2s *E2SProtocol) ShallowCopy() *E2SProtocol {
 // NewE2SProtocol creates a new E2SProtocol struct from the passed bgv parameters.
 func NewE2SProtocol(params bgv.Parameters, sigmaSmudging float64) *E2SProtocol {
 	e2s := new(E2SProtocol)
-	e2s.CKSProtocol = *NewCKSProtocol(params, sigmaSmudging)
+	e2s.CKSProtocol = *drlwe.NewCKSProtocol(params.Parameters, sigmaSmudging)
 	e2s.params = params
 	e2s.encoder = bgv.NewEncoder(params)
 	prng, err := utils.NewPRNG()
@@ -64,19 +64,18 @@ func NewE2SProtocol(params bgv.Parameters, sigmaSmudging float64) *E2SProtocol {
 
 // AllocateShare allocates a share of the E2S protocol
 func (e2s *E2SProtocol) AllocateShare(level int) (share *drlwe.CKSShare) {
-	share = e2s.CKSProtocol.AllocateShare(level)
-	share.Value.IsNTT = true
-	return
+	return e2s.CKSProtocol.AllocateShare(level)
 }
 
 // GenShare generates a party's share in the encryption-to-shares protocol. This share consist in the additive secret-share of the party
 // which is written in secretShareOut and in the public masked-decryption share written in publicShareOut.
 // ct1 is degree 1 element of a bgv.Ciphertext, i.e. bgv.Ciphertext.Value[1].
-func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, ct1 *ring.Poly, secretShareOut *rlwe.AdditiveShare, publicShareOut *drlwe.CKSShare) {
-	level := utils.MinInt(ct1.Level(), publicShareOut.Value.Level())
-	e2s.CKSProtocol.GenShare(sk, e2s.zero, ct1, publicShareOut)
+func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, ct *rlwe.Ciphertext, secretShareOut *rlwe.AdditiveShare, publicShareOut *drlwe.CKSShare) {
+	level := utils.MinInt(ct.Level(), publicShareOut.Value.Level())
+	e2s.CKSProtocol.GenShare(sk, e2s.zero, ct, publicShareOut)
 	e2s.maskSampler.Read(&secretShareOut.Value)
 	e2s.encoder.RingT2Q(level, &secretShareOut.Value, e2s.tmpPlaintextRingQ)
+	e2s.encoder.ScaleUp(level, e2s.tmpPlaintextRingQ, e2s.tmpPlaintextRingQ)
 	e2s.params.RingQ().NTTLvl(level, e2s.tmpPlaintextRingQ, e2s.tmpPlaintextRingQ)
 	e2s.params.RingQ().SubLvl(level, publicShareOut.Value, e2s.tmpPlaintextRingQ, publicShareOut.Value)
 }
@@ -86,10 +85,11 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, ct1 *ring.Poly, secretShare
 // If the caller is not secret-key-share holder (i.e., didn't generate a decryption share), `secretShare` can be set to nil.
 // Therefore, in order to obtain an additive sharing of the message, only one party should call this method, and the other parties should use
 // the secretShareOut output of the GenShare method.
-func (e2s *E2SProtocol) GetShare(secretShare *rlwe.AdditiveShare, aggregatePublicShare *drlwe.CKSShare, ct *bgv.Ciphertext, secretShareOut *rlwe.AdditiveShare) {
+func (e2s *E2SProtocol) GetShare(secretShare *rlwe.AdditiveShare, aggregatePublicShare *drlwe.CKSShare, ct *rlwe.Ciphertext, secretShareOut *rlwe.AdditiveShare) {
 	level := utils.MinInt(ct.Level(), aggregatePublicShare.Value.Level())
 	e2s.params.RingQ().AddLvl(level, aggregatePublicShare.Value, ct.Value[0], e2s.tmpPlaintextRingQ)
 	e2s.params.RingQ().InvNTTLvl(level, e2s.tmpPlaintextRingQ, e2s.tmpPlaintextRingQ)
+	e2s.encoder.ScaleDown(level, e2s.tmpPlaintextRingQ, e2s.tmpPlaintextRingQ)
 	e2s.encoder.RingQ2T(level, e2s.tmpPlaintextRingQ, e2s.tmpPlaintextRingT)
 	if secretShare != nil {
 		e2s.params.RingT().Add(&secretShare.Value, e2s.tmpPlaintextRingT, &secretShareOut.Value)
@@ -101,7 +101,7 @@ func (e2s *E2SProtocol) GetShare(secretShare *rlwe.AdditiveShare, aggregatePubli
 // S2EProtocol is the structure storing the parameters and temporary buffers
 // required by the shares-to-encryption protocol.
 type S2EProtocol struct {
-	CKSProtocol
+	drlwe.CKSProtocol
 	params bgv.Parameters
 
 	encoder bgv.Encoder
@@ -113,7 +113,7 @@ type S2EProtocol struct {
 // NewS2EProtocol creates a new S2EProtocol struct from the passed bgv parameters.
 func NewS2EProtocol(params bgv.Parameters, sigmaSmudging float64) *S2EProtocol {
 	s2e := new(S2EProtocol)
-	s2e.CKSProtocol = *NewCKSProtocol(params, sigmaSmudging)
+	s2e.CKSProtocol = *drlwe.NewCKSProtocol(params.Parameters, sigmaSmudging)
 	s2e.params = params
 	s2e.encoder = bgv.NewEncoder(params)
 	s2e.zero = rlwe.NewSecretKey(params.Parameters)
@@ -123,9 +123,7 @@ func NewS2EProtocol(params bgv.Parameters, sigmaSmudging float64) *S2EProtocol {
 
 // AllocateShare allocates a share of the S2E protocol
 func (s2e S2EProtocol) AllocateShare(level int) (share *drlwe.CKSShare) {
-	share = s2e.CKSProtocol.AllocateShare(level)
-	share.Value.IsNTT = true
-	return
+	return s2e.CKSProtocol.AllocateShare(level)
 }
 
 // ShallowCopy creates a shallow copy of S2EProtocol in which all the read-only data-structures are
@@ -152,15 +150,16 @@ func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crp drlwe.CKSCRP, secretSha
 		panic("cannot GenShare: c1 and c0ShareOut level must be equal")
 	}
 
-	s2e.CKSProtocol.GenShare(s2e.zero, sk, &c1, c0ShareOut)
+	s2e.CKSProtocol.GenShare(s2e.zero, sk, &rlwe.Ciphertext{Value: []*ring.Poly{nil, &c1}, MetaData: rlwe.MetaData{IsNTT: true}}, c0ShareOut)
 	s2e.encoder.RingT2Q(c1.Level(), &secretShare.Value, s2e.tmpPlaintextRingQ)
+	s2e.encoder.ScaleUp(c1.Level(), s2e.tmpPlaintextRingQ, s2e.tmpPlaintextRingQ)
 	s2e.params.RingQ().NTTLvl(c1.Level(), s2e.tmpPlaintextRingQ, s2e.tmpPlaintextRingQ)
 	s2e.params.RingQ().AddLvl(c1.Level(), c0ShareOut.Value, s2e.tmpPlaintextRingQ, c0ShareOut.Value)
 }
 
 // GetEncryption computes the final encryption of the secret-shared message when provided with the aggregation `c0Agg` of the parties'
 // shares in the protocol and with the common, CRS-sampled polynomial `crp`.
-func (s2e *S2EProtocol) GetEncryption(c0Agg *drlwe.CKSShare, crp drlwe.CKSCRP, ctOut *bgv.Ciphertext) {
+func (s2e *S2EProtocol) GetEncryption(c0Agg *drlwe.CKSShare, crp drlwe.CKSCRP, ctOut *rlwe.Ciphertext) {
 	if ctOut.Degree() != 1 {
 		panic("cannot GetEncryption: ctOut must have degree 1.")
 	}

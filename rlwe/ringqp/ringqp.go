@@ -52,15 +52,26 @@ func (p *Poly) Equals(other Poly) (v bool) {
 	return v
 }
 
-// CopyValues copies the coefficients of other on the target polynomial.
-// This method simply calls the CopyValues method for each of its sub-polynomials.
-func (p *Poly) CopyValues(other Poly) {
+// Copy copies the coefficients of other on the target polynomial.
+// This method simply calls the Copy method for each of its sub-polynomials.
+func (p *Poly) Copy(other Poly) {
 	if p.Q != nil {
 		copy(p.Q.Buff, other.Q.Buff)
 	}
 
 	if p.P != nil {
 		copy(p.P.Buff, other.P.Buff)
+	}
+}
+
+// CopyLvl copies the values of p1 on p2.
+// The operation is performed at levelQ for the ringQ and levelP for the ringP.
+func (r *Ring) CopyLvl(levelQ, levelP int, p1, p2 Poly) {
+	if r.RingQ != nil {
+		ring.CopyLvl(levelQ, p1.Q, p2.Q)
+	}
+	if r.RingP != nil {
+		ring.CopyLvl(levelP, p1.P, p2.P)
 	}
 }
 
@@ -214,6 +225,16 @@ func (r *Ring) EvalPolyScalar(pol []Poly, pt uint64, p3 Poly) {
 	r.RingQ.EvalPolyScalar(polQ, pt, p3.Q)
 	if r.RingP != nil {
 		r.RingP.EvalPolyScalar(polP, pt, p3.P)
+	}
+}
+
+// MulScalarLvl multiplies p1 by scalar and returns the result in p2.
+func (r *Ring) MulScalarLvl(levelQ, levelP int, p1 Poly, scalar uint64, p2 Poly) {
+	if r.RingQ != nil {
+		r.RingQ.MulScalarLvl(levelQ, p1.Q, scalar, p2.Q)
+	}
+	if r.RingP != nil {
+		r.RingP.MulScalarLvl(levelP, p1.P, scalar, p2.P)
 	}
 }
 
@@ -405,17 +426,6 @@ func (r *Ring) PermuteNTTWithIndexAndAddNoModLvl(levelQ, levelP int, p1 Poly, in
 	}
 }
 
-// CopyValuesLvl copies the values of p1 on p2.
-// The operation is performed at levelQ for the ringQ and levelP for the ringP.
-func (r *Ring) CopyValuesLvl(levelQ, levelP int, p1, p2 Poly) {
-	if r.RingQ != nil {
-		ring.CopyValuesLvl(levelQ, p1.Q, p2.Q)
-	}
-	if r.RingP != nil {
-		ring.CopyValuesLvl(levelP, p1.P, p2.P)
-	}
-}
-
 // ExtendBasisSmallNormAndCenter extends a small-norm polynomial polQ in R_Q to a polynomial
 // polQP in R_QP.
 func (r *Ring) ExtendBasisSmallNormAndCenter(polyInQ *ring.Poly, levelP int, polyOutQ, polyOutP *ring.Poly) {
@@ -443,35 +453,25 @@ func (r *Ring) ExtendBasisSmallNormAndCenter(polyInQ *ring.Poly, levelP int, pol
 	}
 }
 
-// Copy copies the input Poly on the target Poly.
-func (p *Poly) Copy(polFrom Poly) {
-	if polFrom.Q != nil {
-		p.Q.Copy(polFrom.Q)
-	}
-	if polFrom.P != nil {
-		p.P.Copy(polFrom.P)
-	}
-}
-
-// GetDataLen64 returns the length in byte of the target Poly.
+// MarshalBinarySize64 returns the length in byte of the target Poly.
 // Assumes that each coefficient uses 8 bytes.
-func (p *Poly) GetDataLen64(WithMetadata bool) (dataLen int) {
-	if WithMetadata {
-		dataLen = 2
-	}
+func (p *Poly) MarshalBinarySize64() (dataLen int) {
+
+	dataLen = 2
+
 	if p.Q != nil {
-		dataLen += p.Q.GetDataLen64(WithMetadata)
+		dataLen += p.Q.MarshalBinarySize64()
 	}
 	if p.P != nil {
-		dataLen += p.P.GetDataLen64(WithMetadata)
+		dataLen += p.P.MarshalBinarySize64()
 	}
 
 	return
 }
 
-// WriteTo64 writes a Poly on the input data.
+// Encode64 writes a Poly on the input data.
 // Encodes each coefficient on 8 bytes.
-func (p *Poly) WriteTo64(data []byte) (pt int, err error) {
+func (p *Poly) Encode64(data []byte) (pt int, err error) {
 	var inc int
 
 	if p.Q != nil {
@@ -485,14 +485,14 @@ func (p *Poly) WriteTo64(data []byte) (pt int, err error) {
 	pt = 2
 
 	if data[0] == 1 {
-		if inc, err = p.Q.WriteTo64(data[pt:]); err != nil {
+		if inc, err = p.Q.Encode64(data[pt:]); err != nil {
 			return
 		}
 		pt += inc
 	}
 
 	if data[1] == 1 {
-		if inc, err = p.P.WriteTo64(data[pt:]); err != nil {
+		if inc, err = p.P.Encode64(data[pt:]); err != nil {
 			return
 		}
 		pt += inc
@@ -501,10 +501,10 @@ func (p *Poly) WriteTo64(data []byte) (pt int, err error) {
 	return
 }
 
-// DecodePoly64 decodes the input bytes on the target Poly.
+// Decode64 decodes the input bytes on the target Poly.
 // Writes on pre-allocated coefficients.
 // Assumes that each coefficient is encoded on 8 bytes.
-func (p *Poly) DecodePoly64(data []byte) (pt int, err error) {
+func (p *Poly) Decode64(data []byte) (pt int, err error) {
 
 	var inc int
 	pt = 2
@@ -515,7 +515,7 @@ func (p *Poly) DecodePoly64(data []byte) (pt int, err error) {
 			p.Q = new(ring.Poly)
 		}
 
-		if inc, err = p.Q.DecodePoly64(data[pt:]); err != nil {
+		if inc, err = p.Q.Decode64(data[pt:]); err != nil {
 			return
 		}
 		pt += inc
@@ -527,7 +527,7 @@ func (p *Poly) DecodePoly64(data []byte) (pt int, err error) {
 			p.P = new(ring.Poly)
 		}
 
-		if inc, err = p.P.DecodePoly64(data[pt:]); err != nil {
+		if inc, err = p.P.Decode64(data[pt:]); err != nil {
 			return
 		}
 		pt += inc
@@ -537,13 +537,13 @@ func (p *Poly) DecodePoly64(data []byte) (pt int, err error) {
 }
 
 func (p *Poly) MarshalBinary() ([]byte, error) {
-	b := make([]byte, p.GetDataLen64(true))
-	_, err := p.WriteTo64(b)
+	b := make([]byte, p.MarshalBinarySize64())
+	_, err := p.Encode64(b)
 	return b, err
 }
 
 func (p *Poly) UnmarshalBinary(b []byte) error {
-	_, err := p.DecodePoly64(b)
+	_, err := p.Decode64(b)
 	return err
 }
 

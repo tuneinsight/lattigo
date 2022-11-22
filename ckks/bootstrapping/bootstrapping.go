@@ -4,15 +4,15 @@ package bootstrapping
 import (
 	"math"
 
-	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
 // Bootstrap re-encrypts a ciphertext at lvl Q0 to a ciphertext at MaxLevel-k where k is the depth of the bootstrapping circuit.
 // If the input ciphertext level is zero, the input scale must be an exact power of two smaller or equal to round(Q0/2^{10}).
 // If the input ciphertext is at level one or more, the input scale does not need to be an exact power of two as one level
 // can be used to do a scale matching.
-func (btp *Bootstrapper) Bootstrap(ctIn *ckks.Ciphertext) (ctOut *ckks.Ciphertext) {
+func (btp *Bootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext) {
 
 	ctOut = ctIn.CopyNew()
 
@@ -25,7 +25,7 @@ func (btp *Bootstrapper) Bootstrap(ctIn *ckks.Ciphertext) (ctOut *ckks.Ciphertex
 	if ctOut.Level() == 1 {
 
 		// If one level is available, then uses it to match the scale
-		btp.SetScale(ctOut, btp.q0OverMessageRatio)
+		btp.SetScale(ctOut, rlwe.NewScale(btp.q0OverMessageRatio))
 
 		// Then drops to level 0
 		for ctOut.Level() != 0 {
@@ -35,24 +35,24 @@ func (btp *Bootstrapper) Bootstrap(ctIn *ckks.Ciphertext) (ctOut *ckks.Ciphertex
 	} else {
 
 		// Does an integer constant mult by round((Q0/Delta_m)/ctscle)
-		if btp.q0OverMessageRatio < ctOut.Scale() {
+		if btp.q0OverMessageRatio < ctOut.Scale.Float64() {
 			panic("Cannot bootstrap: ciphetext scale > q/||m||)")
 		}
 
-		btp.ScaleUp(ctOut, math.Round(btp.q0OverMessageRatio/ctOut.Scale()), ctOut)
+		btp.ScaleUp(ctOut, rlwe.NewScale(math.Round(btp.q0OverMessageRatio/ctOut.Scale.Float64())), ctOut)
 	}
 
 	// Scales the message to Q0/|m|, which is the maximum possible before ModRaise to avoid plaintext overflow.
-	if math.Round((btp.params.QiFloat64(0)/btp.evalModPoly.MessageRatio())/ctOut.Scale()) > 1 {
-		btp.ScaleUp(ctOut, math.Round((btp.params.QiFloat64(0)/btp.evalModPoly.MessageRatio())/ctOut.Scale()), ctOut)
+	if scale := math.Round((btp.params.QiFloat64(0) / btp.evalModPoly.MessageRatio()) / ctOut.Scale.Float64()); scale > 1 {
+		btp.ScaleUp(ctOut, rlwe.NewScale(scale), ctOut)
 	}
 
 	// Step 1 : Extend the basis from q to Q
 	ctOut = btp.modUpFromQ0(ctOut)
 
 	// Scale the message from Q0/|m| to QL/|m|, where QL is the largest modulus used during the bootstrapping.
-	if (btp.evalModPoly.ScalingFactor()/btp.evalModPoly.MessageRatio())/ctOut.Scale() > 1 {
-		btp.ScaleUp(ctOut, math.Round((btp.evalModPoly.ScalingFactor()/btp.evalModPoly.MessageRatio())/ctOut.Scale()), ctOut)
+	if scale := (btp.evalModPoly.ScalingFactor().Float64() / btp.evalModPoly.MessageRatio()) / ctOut.Scale.Float64(); scale > 1 {
+		btp.ScaleUp(ctOut, rlwe.NewScale(scale), ctOut)
 	}
 
 	//SubSum X -> (N/dslots) * Y^dslots
@@ -66,11 +66,11 @@ func (btp *Bootstrapper) Bootstrap(ctIn *ckks.Ciphertext) (ctOut *ckks.Ciphertex
 	// ctImag = Ecd(imag)
 	// If n < N/2 then ctReal = Ecd(real|imag)
 	ctReal = btp.EvalModNew(ctReal, btp.evalModPoly)
-	ctReal.SetScale(btp.params.DefaultScale())
+	ctReal.Scale = btp.params.DefaultScale()
 
 	if ctImag != nil {
 		ctImag = btp.EvalModNew(ctImag, btp.evalModPoly)
-		ctImag.SetScale(btp.params.DefaultScale())
+		ctImag.Scale = btp.params.DefaultScale()
 	}
 
 	// Step 4 : SlotsToCoeffs (Homomorphic decoding)
@@ -79,7 +79,7 @@ func (btp *Bootstrapper) Bootstrap(ctIn *ckks.Ciphertext) (ctOut *ckks.Ciphertex
 	return
 }
 
-func (btp *Bootstrapper) modUpFromQ0(ct *ckks.Ciphertext) *ckks.Ciphertext {
+func (btp *Bootstrapper) modUpFromQ0(ct *rlwe.Ciphertext) *rlwe.Ciphertext {
 
 	if btp.swkDtS != nil {
 		btp.SwitchKeys(ct, btp.swkDtS, ct)

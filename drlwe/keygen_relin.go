@@ -122,8 +122,8 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp RKGCRP, ephSkOu
 	ringQ := ekg.params.RingQ()
 	ringQP := ekg.params.RingQP()
 
-	levelQ := sk.Value.LevelQ()
-	levelP := sk.Value.LevelP()
+	levelQ := sk.LevelQ()
+	levelP := sk.LevelP()
 
 	hasModulusP := levelP > -1
 
@@ -209,12 +209,12 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp RKGCRP, ephSkOu
 func (ekg *RKGProtocol) GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGShare, shareOut *RKGShare) {
 
 	ringQP := ekg.params.RingQP()
-	levelQ := sk.Value.Q.Level()
+	levelQ := sk.LevelQ()
 
 	hasModulusP := sk.Value.P != nil
 	var levelP int
 	if hasModulusP {
-		levelP = sk.Value.P.Level()
+		levelP = sk.LevelP()
 	}
 
 	// (u_i - s_i)
@@ -302,7 +302,7 @@ func (ekg *RKGProtocol) GenRelinearizationKey(round1 *RKGShare, round2 *RKGShare
 // MarshalBinary encodes the target element on a slice of bytes.
 func (share *RKGShare) MarshalBinary() ([]byte, error) {
 	//we have modulus * bitLog * Len of 1 ring rings
-	data := make([]byte, 2+2*share.Value[0][0][0].GetDataLen64(true)*len(share.Value)*len(share.Value[0]))
+	data := make([]byte, 2+2*share.Value[0][0][0].MarshalBinarySize64()*len(share.Value)*len(share.Value[0]))
 	if len(share.Value) > 0xFF {
 		return []byte{}, errors.New("RKGShare : uint8 overflow on length")
 	}
@@ -322,12 +322,12 @@ func (share *RKGShare) MarshalBinary() ([]byte, error) {
 	for i := range share.Value {
 		for _, el := range share.Value[i] {
 
-			if inc, err = el[0].WriteTo64(data[ptr:]); err != nil {
+			if inc, err = el[0].Encode64(data[ptr:]); err != nil {
 				return []byte{}, err
 			}
 			ptr += inc
 
-			if inc, err = el[1].WriteTo64(data[ptr:]); err != nil {
+			if inc, err = el[1].Encode64(data[ptr:]); err != nil {
 				return []byte{}, err
 			}
 			ptr += inc
@@ -346,12 +346,12 @@ func (share *RKGShare) UnmarshalBinary(data []byte) (err error) {
 		share.Value[i] = make([][2]ringqp.Poly, data[1])
 		for j := range share.Value[i] {
 
-			if inc, err = share.Value[i][j][0].DecodePoly64(data[ptr:]); err != nil {
+			if inc, err = share.Value[i][j][0].Decode64(data[ptr:]); err != nil {
 				return err
 			}
 			ptr += inc
 
-			if inc, err = share.Value[i][j][1].DecodePoly64(data[ptr:]); err != nil {
+			if inc, err = share.Value[i][j][1].Decode64(data[ptr:]); err != nil {
 				return err
 			}
 			ptr += inc

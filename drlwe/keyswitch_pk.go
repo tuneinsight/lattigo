@@ -81,18 +81,15 @@ func (pcks *PCKSProtocol) AllocateShare(levelQ int) (s *PCKSShare) {
 	return &PCKSShare{[2]*ring.Poly{pcks.params.RingQ().NewPolyLvl(levelQ), pcks.params.RingQ().NewPolyLvl(levelQ)}}
 }
 
-// GenShare is the first part of the unique round of the PCKSProtocol protocol. Each party computes the following :
-//
-// [s_i * ct[1] + (u_i * pk[0] + e_0i)/P, (u_i * pk[1] + e_1i)/P]
-//
-// and broadcasts the result to the other j-1 parties.
-// ct1 is the degree 1 element of the rlwe.Ciphertext to keyswitch, i.e. ct1 = rlwe.Ciphertext.Value[1].
-// NTT flag for ct1 is expected to be set correctly.
-func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct1 *ring.Poly, shareOut *PCKSShare) {
+// GenShare computes a party's share in the PCKS protocol from secret-key sk to public-key pk.
+// ct is the rlwe.Ciphertext to keyswitch. Note that ct.Value[0] is not used by the function and can be nil/zero.
+func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct *rlwe.Ciphertext, shareOut *PCKSShare) {
 
 	ringQ := pcks.params.RingQ()
 	ringP := pcks.params.RingP()
 	ringQP := pcks.params.RingQP()
+
+	ct1 := ct.Value[1]
 
 	levelQ := utils.MinInt(shareOut.Value[0].Level(), ct1.Level())
 	var levelP int
@@ -145,7 +142,7 @@ func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct1 *
 	}
 
 	// h_0 = s_i*c_1 + (u_i * pk_0 + e0)/P
-	if ct1.IsNTT {
+	if ct.IsNTT {
 		ringQ.NTTLvl(levelQ, shareOut.Value[0], shareOut.Value[0])
 		ringQ.NTTLvl(levelQ, shareOut.Value[1], shareOut.Value[1])
 		ringQ.MulCoeffsMontgomeryAndAddLvl(levelQ, ct1, sk.Value.Q, shareOut.Value[0])
@@ -176,24 +173,29 @@ func (pcks *PCKSProtocol) AggregateShares(share1, share2, shareOut *PCKSShare) {
 
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
 func (pcks *PCKSProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined *PCKSShare, ctOut *rlwe.Ciphertext) {
+
 	level := ctIn.Level()
-	ctOut.Resize(ctIn.Degree(), level)
-	pcks.params.RingQ().AddLvl(level, ctIn.Value[0], combined.Value[0], ctOut.Value[0])
+
 	if ctIn != ctOut {
-		ring.CopyValuesLvl(level, combined.Value[1], ctOut.Value[1])
+		ctOut.Resize(ctIn.Degree(), level)
+		ctOut.MetaData = ctIn.MetaData
 	}
+
+	pcks.params.RingQ().AddLvl(level, ctIn.Value[0], combined.Value[0], ctOut.Value[0])
+
+	ring.CopyLvl(level, combined.Value[1], ctOut.Value[1])
 }
 
 // MarshalBinary encodes a PCKS share on a slice of bytes.
 func (share *PCKSShare) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, share.Value[0].GetDataLen64(true)+share.Value[1].GetDataLen64(true))
+	data = make([]byte, share.Value[0].MarshalBinarySize64()+share.Value[1].MarshalBinarySize64())
 	var inc, pt int
-	if inc, err = share.Value[0].WriteTo64(data[pt:]); err != nil {
+	if inc, err = share.Value[0].Encode64(data[pt:]); err != nil {
 		return nil, err
 	}
 	pt += inc
 
-	if _, err = share.Value[1].WriteTo64(data[pt:]); err != nil {
+	if _, err = share.Value[1].Encode64(data[pt:]); err != nil {
 		return nil, err
 	}
 	return
@@ -203,13 +205,13 @@ func (share *PCKSShare) MarshalBinary() (data []byte, err error) {
 func (share *PCKSShare) UnmarshalBinary(data []byte) (err error) {
 	var pt, inc int
 	share.Value[0] = new(ring.Poly)
-	if inc, err = share.Value[0].DecodePoly64(data[pt:]); err != nil {
+	if inc, err = share.Value[0].Decode64(data[pt:]); err != nil {
 		return
 	}
 	pt += inc
 
 	share.Value[1] = new(ring.Poly)
-	if _, err = share.Value[1].DecodePoly64(data[pt:]); err != nil {
+	if _, err = share.Value[1].Decode64(data[pt:]); err != nil {
 		return
 	}
 	return

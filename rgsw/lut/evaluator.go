@@ -40,7 +40,8 @@ func NewEvaluator(paramsLUT, paramsLWE rlwe.Parameters, rtks *rlwe.RotationKeySe
 	ringP := paramsLUT.RingP()
 
 	eval.poolMod2N = [2]*ring.Poly{paramsLWE.RingQ().NewPolyLvl(0), paramsLWE.RingQ().NewPolyLvl(0)}
-	eval.accumulator = rlwe.NewCiphertextNTT(paramsLUT, 1, paramsLUT.MaxLevel())
+	eval.accumulator = rlwe.NewCiphertext(paramsLUT, 1, paramsLUT.MaxLevel())
+	eval.accumulator.IsNTT = true // This flag is always true
 
 	// Compute X^{n} -  1 from 0 to 2N LWE
 	oneNTTMFormQ := ringQ.NewPoly()
@@ -144,7 +145,7 @@ func (eval *Evaluator) EvaluateAndRepack(ct *rlwe.Ciphertext, lutPolyWihtSlotInd
 		ciphertexts[repackIndex[i]] = cts[i]
 	}
 
-	return eval.MergeRLWE(ciphertexts)
+	return eval.Merge(ciphertexts)
 }
 
 // Evaluate extracts on the fly LWE samples and evaluates the provided LUT on the LWE.
@@ -166,8 +167,13 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWihtSlotIndex map[in
 	// mod 2N
 	mask := uint64(ringQLUT.N<<1) - 1
 
-	ringQLWE.InvNTTLvl(ct.Level(), ct.Value[0], acc.Value[0])
-	ringQLWE.InvNTTLvl(ct.Level(), ct.Value[1], acc.Value[1])
+	if ct.IsNTT {
+		ringQLWE.InvNTTLvl(ct.Level(), ct.Value[0], acc.Value[0])
+		ringQLWE.InvNTTLvl(ct.Level(), ct.Value[1], acc.Value[1])
+	} else {
+		ring.CopyLvl(ct.Level(), ct.Value[0], acc.Value[0])
+		ring.CopyLvl(ct.Level(), ct.Value[1], acc.Value[1])
+	}
 
 	// Switch modulus from Q to 2N
 	eval.ModSwitchRLWETo2NLvl(ct.Level(), acc.Value[1], acc.Value[1])
@@ -215,8 +221,13 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWihtSlotIndex map[in
 				// LUT[RLWE] = LUT[RLWE] x RGSW[(X^{a} - 1) * sk_{j}[0] + (X^{-a} - 1) * sk_{j}[1] + 1]
 				eval.ExternalProduct(acc, eval.tmpRGSW, acc)
 			}
-
 			res[index] = acc.CopyNew()
+
+			if !eval.paramsLUT.DefaultNTTFlag() {
+				ringQLUT.InvNTTLvl(levelQ, res[index].Value[0], res[index].Value[0])
+				ringQLUT.InvNTTLvl(levelQ, res[index].Value[1], res[index].Value[1])
+				res[index].IsNTT = false
+			}
 		}
 
 		// LUT[RLWE] = LUT[RLWE] * X^{m+e}

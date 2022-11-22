@@ -7,6 +7,75 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ring"
 )
 
+// GetRootsbigFloat returns the roots e^{2*pi*i/m *j} for 0 <= j <= NthRoot
+// with prec bits of precision.
+func GetRootsbigFloat(NthRoot int, prec uint) (roots []*ring.Complex) {
+
+	roots = make([]*ring.Complex, NthRoot+1)
+
+	quarm := NthRoot >> 2
+
+	var PI = new(big.Float)
+	PI.SetPrec(prec)
+	PI.SetString(pi)
+
+	e2ipi := ring.NewFloat(2, prec)
+	e2ipi.Mul(e2ipi, PI)
+	e2ipi.Quo(e2ipi, ring.NewFloat(float64(NthRoot), prec))
+
+	angle := new(big.Float).SetPrec(prec)
+
+	roots[0] = &ring.Complex{ring.NewFloat(1, prec), ring.NewFloat(0, prec)}
+
+	for i := 1; i < quarm; i++ {
+		angle.Mul(e2ipi, ring.NewFloat(float64(i), prec))
+		roots[i] = &ring.Complex{ring.Cos(angle), nil}
+	}
+
+	for i := 1; i < quarm; i++ {
+		roots[quarm-i][1] = new(big.Float).Set(roots[i].Real())
+	}
+
+	roots[quarm] = &ring.Complex{ring.NewFloat(0, prec), ring.NewFloat(1, prec)}
+
+	for i := 1; i < quarm+1; i++ {
+		roots[i+1*quarm] = &ring.Complex{new(big.Float).Neg(roots[quarm-i].Real()), new(big.Float).Set(roots[quarm-i].Imag())}
+		roots[i+2*quarm] = &ring.Complex{new(big.Float).Neg(roots[i].Real()), new(big.Float).Neg(roots[i].Imag())}
+		roots[i+3*quarm] = &ring.Complex{new(big.Float).Set(roots[quarm-i].Real()), new(big.Float).Neg(roots[quarm-i].Imag())}
+	}
+
+	roots[NthRoot] = roots[0]
+
+	return
+}
+
+// GetRootsFloat64 returns the roots e^{2*pi*i/m *j} for 0 <= j <= NthRoot.
+func GetRootsFloat64(NthRoot int) (roots []complex128) {
+	roots = make([]complex128, NthRoot+1)
+
+	quarm := NthRoot >> 2
+
+	angle := 2 * 3.141592653589793 / float64(NthRoot)
+
+	for i := 0; i < quarm; i++ {
+		roots[i] = complex(math.Cos(angle*float64(i)), 0)
+	}
+
+	for i := 0; i < quarm; i++ {
+		roots[quarm-i] += complex(0, real(roots[i]))
+	}
+
+	for i := 1; i < quarm+1; i++ {
+		roots[i+1*quarm] = complex(-real(roots[quarm-i]), imag(roots[quarm-i]))
+		roots[i+2*quarm] = -roots[i]
+		roots[i+3*quarm] = complex(real(roots[quarm-i]), -imag(roots[quarm-i]))
+	}
+
+	roots[NthRoot] = roots[0]
+
+	return
+}
+
 // StandardDeviation computes the scaled standard deviation of the input vector.
 func StandardDeviation(vec []float64, scale float64) (std float64) {
 	// We assume that the error is centered around zero
@@ -211,7 +280,7 @@ func scaleUpExact(value float64, n float64, q uint64) (res uint64) {
 
 func scaleUpVecExactBigFloat(values []*big.Float, scale float64, moduli []uint64, coeffs [][]uint64) {
 
-	prec := int(values[0].Prec())
+	prec := values[0].Prec()
 
 	xFlo := ring.NewFloat(0, prec)
 	xInt := new(big.Int)

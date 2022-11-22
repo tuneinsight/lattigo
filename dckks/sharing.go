@@ -1,3 +1,4 @@
+// Package dckks implements a distributed (or threshold) version of the CKKS scheme that enables secure multiparty computation solutions with secret-shared secret keys.
 package dckks
 
 import (
@@ -13,7 +14,7 @@ import (
 // E2SProtocol is the structure storing the parameters and temporary buffers
 // required by the encryption-to-shares protocol.
 type E2SProtocol struct {
-	CKSProtocol
+	*drlwe.CKSProtocol
 
 	params     ckks.Parameters
 	zero       *rlwe.SecretKey
@@ -32,7 +33,7 @@ func (e2s *E2SProtocol) ShallowCopy() *E2SProtocol {
 	}
 
 	return &E2SProtocol{
-		CKSProtocol: *e2s.CKSProtocol.ShallowCopy(),
+		CKSProtocol: e2s.CKSProtocol.ShallowCopy(),
 		params:      e2s.params,
 		zero:        e2s.zero,
 		maskBigint:  maskBigint,
@@ -43,7 +44,7 @@ func (e2s *E2SProtocol) ShallowCopy() *E2SProtocol {
 // NewE2SProtocol creates a new E2SProtocol struct from the passed CKKS parameters.
 func NewE2SProtocol(params ckks.Parameters, sigmaSmudging float64) *E2SProtocol {
 	e2s := new(E2SProtocol)
-	e2s.CKSProtocol = *NewCKSProtocol(params, sigmaSmudging)
+	e2s.CKSProtocol = drlwe.NewCKSProtocol(params.Parameters, sigmaSmudging)
 	e2s.params = params
 	e2s.zero = rlwe.NewSecretKey(params.Parameters)
 	e2s.maskBigint = make([]*big.Int, params.N())
@@ -56,9 +57,7 @@ func NewE2SProtocol(params ckks.Parameters, sigmaSmudging float64) *E2SProtocol 
 
 // AllocateShare allocates a share of the E2S protocol
 func (e2s *E2SProtocol) AllocateShare(level int) (share *drlwe.CKSShare) {
-	share = e2s.CKSProtocol.AllocateShare(level)
-	share.Value.IsNTT = true
-	return
+	return e2s.CKSProtocol.AllocateShare(level)
 }
 
 // GenShare generates a party's share in the encryption-to-shares protocol. This share consist in the additive secret-share of the party
@@ -69,9 +68,11 @@ func (e2s *E2SProtocol) AllocateShare(level int) (share *drlwe.CKSShare) {
 // ct1      : the degree 1 element the ciphertext to share, i.e. ct1 = ckk.Ciphertext.Value[1].
 // The method "GetMinimumLevelForBootstrapping" should be used to get the minimum level at which E2S can be called while still ensure 128-bits of security, as well as the
 // value for logBound.
-func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound, logSlots int, ct1 *ring.Poly, secretShareOut *rlwe.AdditiveShareBigint, publicShareOut *drlwe.CKSShare) {
+func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, logSlots int, ct *rlwe.Ciphertext, secretShareOut *rlwe.AdditiveShareBigint, publicShareOut *drlwe.CKSShare) {
 
 	ringQ := e2s.params.RingQ()
+
+	ct1 := ct.Value[1]
 
 	levelQ := utils.MinInt(ct1.Level(), publicShareOut.Value.Level())
 
@@ -113,7 +114,7 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound, logSlots int, ct1
 
 	// Encrypt the mask
 	// Generates an encryption of zero and subtracts the mask
-	e2s.CKSProtocol.GenShare(sk, e2s.zero, ct1, publicShareOut)
+	e2s.CKSProtocol.GenShare(sk, e2s.zero, ct, publicShareOut)
 
 	ringQ.SetCoefficientsBigintLvl(levelQ, secretShareOut.Value[:dslots], e2s.buff)
 
@@ -129,7 +130,7 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound, logSlots int, ct1
 // If the caller is not secret-key-share holder (i.e., didn't generate a decryption share), `secretShare` can be set to nil.
 // Therefore, in order to obtain an additive sharing of the message, only one party should call this method, and the other parties should use
 // the secretShareOut output of the GenShare method.
-func (e2s *E2SProtocol) GetShare(secretShare *rlwe.AdditiveShareBigint, aggregatePublicShare *drlwe.CKSShare, logSlots int, ct *ckks.Ciphertext, secretShareOut *rlwe.AdditiveShareBigint) {
+func (e2s *E2SProtocol) GetShare(secretShare *rlwe.AdditiveShareBigint, aggregatePublicShare *drlwe.CKSShare, logSlots int, ct *rlwe.Ciphertext, secretShareOut *rlwe.AdditiveShareBigint) {
 
 	ringQ := e2s.params.RingQ()
 
@@ -171,7 +172,7 @@ func (e2s *E2SProtocol) GetShare(secretShare *rlwe.AdditiveShareBigint, aggregat
 // S2EProtocol is the structure storing the parameters and temporary buffers
 // required by the shares-to-encryption protocol.
 type S2EProtocol struct {
-	CKSProtocol
+	*drlwe.CKSProtocol
 	params   ckks.Parameters
 	tmp      *ring.Poly
 	ssBigint []*big.Int
@@ -183,7 +184,7 @@ type S2EProtocol struct {
 // S2EProtocol can be used concurrently.
 func (s2e *S2EProtocol) ShallowCopy() *S2EProtocol {
 	return &S2EProtocol{
-		CKSProtocol: *s2e.CKSProtocol.ShallowCopy(),
+		CKSProtocol: s2e.CKSProtocol.ShallowCopy(),
 		params:      s2e.params,
 		tmp:         s2e.params.RingQ().NewPoly(),
 		ssBigint:    make([]*big.Int, s2e.params.N()),
@@ -194,7 +195,7 @@ func (s2e *S2EProtocol) ShallowCopy() *S2EProtocol {
 // NewS2EProtocol creates a new S2EProtocol struct from the passed CKKS parameters.
 func NewS2EProtocol(params ckks.Parameters, sigmaSmudging float64) *S2EProtocol {
 	s2e := new(S2EProtocol)
-	s2e.CKSProtocol = *NewCKSProtocol(params, sigmaSmudging)
+	s2e.CKSProtocol = drlwe.NewCKSProtocol(params.Parameters, sigmaSmudging)
 	s2e.params = params
 	s2e.tmp = s2e.params.RingQ().NewPoly()
 	s2e.ssBigint = make([]*big.Int, s2e.params.N())
@@ -204,9 +205,7 @@ func NewS2EProtocol(params ckks.Parameters, sigmaSmudging float64) *S2EProtocol 
 
 // AllocateShare allocates a share of the S2E protocol
 func (s2e S2EProtocol) AllocateShare(level int) (share *drlwe.CKSShare) {
-	share = s2e.CKSProtocol.AllocateShare(level)
-	share.Value.IsNTT = true
-	return
+	return s2e.CKSProtocol.AllocateShare(level)
 }
 
 // GenShare generates a party's in the shares-to-encryption protocol given the party's secret-key share `sk`, a common
@@ -222,8 +221,7 @@ func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.CKSCRP, logSlots 
 	}
 
 	// Generates an encryption share
-	c1.IsNTT = true
-	s2e.CKSProtocol.GenShare(s2e.zero, sk, &c1, c0ShareOut)
+	s2e.CKSProtocol.GenShare(s2e.zero, sk, &rlwe.Ciphertext{Value: []*ring.Poly{nil, &c1}, MetaData: rlwe.MetaData{IsNTT: true}}, c0ShareOut)
 
 	dslots := 1 << logSlots
 	if ringQ.Type() == ring.Standard {
@@ -240,7 +238,7 @@ func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.CKSCRP, logSlots 
 
 // GetEncryption computes the final encryption of the secret-shared message when provided with the aggregation `c0Agg` of the parties'
 // share in the protocol and with the common, CRS-sampled polynomial `c1`.
-func (s2e *S2EProtocol) GetEncryption(c0Agg *drlwe.CKSShare, crs drlwe.CKSCRP, ctOut *ckks.Ciphertext) {
+func (s2e *S2EProtocol) GetEncryption(c0Agg *drlwe.CKSShare, crs drlwe.CKSCRP, ctOut *rlwe.Ciphertext) {
 
 	if ctOut.Degree() != 1 {
 		panic("cannot GetEncryption: ctOut must have degree 1.")

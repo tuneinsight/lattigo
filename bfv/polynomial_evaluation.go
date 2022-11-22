@@ -40,14 +40,14 @@ type polynomialEvaluator struct {
 	Evaluator
 	Encoder
 	slotsIndex map[int][]int
-	powerBasis map[int]*Ciphertext
+	powerBasis map[int]*rlwe.Ciphertext
 	logDegree  int
 	logSplit   int
 }
 
 // EvaluatePoly evaluates a polynomial in standard basis on the input Ciphertext in ceil(log2(deg+1)) depth.
-// input must be either *Ciphertext or *Powerbasis.
-func (eval *evaluator) EvaluatePoly(input interface{}, pol *Polynomial) (opOut *Ciphertext, err error) {
+// input must be either *rlwe.Ciphertext or *Powerbasis.
+func (eval *evaluator) EvaluatePoly(input interface{}, pol *Polynomial) (opOut *rlwe.Ciphertext, err error) {
 	return eval.evaluatePolyVector(input, polynomialVector{Value: []*Polynomial{pol}})
 }
 
@@ -59,14 +59,14 @@ type polynomialVector struct {
 
 // EvaluatePolyVector evaluates a vector of Polynomials on the input Ciphertext in ceil(log2(deg+1)) depth.
 // Inputs:
-// input: *Ciphertext or *PowerBasis.
+// input: *rlwe.Ciphertext or *PowerBasis.
 // pols: a slice of up to 'n' *Polynomial ('n' being the maximum number of slots), indexed from 0 to n-1. Returns an error if the polynomials do not all have the same degree.
 // encoder: an Encoder.
 // slotsIndex: a map[int][]int indexing as key the polynomial to evalute and as value the index of the slots on which to evaluate the polynomial indexed by the key.
 //
 // Example: if pols = []*Polynomial{pol0, pol1} and slotsIndex = map[int][]int:{0:[1, 2, 4, 5, 7], 1:[0, 3]},
 // then pol0 will be applied to slots [1, 2, 4, 5, 7], pol1 to slots [0, 3] and the slot 6 will be zero-ed.
-func (eval *evaluator) EvaluatePolyVector(input interface{}, pols []*Polynomial, encoder Encoder, slotsIndex map[int][]int) (opOut *Ciphertext, err error) {
+func (eval *evaluator) EvaluatePolyVector(input interface{}, pols []*Polynomial, encoder Encoder, slotsIndex map[int][]int) (opOut *rlwe.Ciphertext, err error) {
 	var maxDeg int
 	for i := range pols {
 		maxDeg = utils.MaxInt(maxDeg, pols[i].MaxDeg)
@@ -81,7 +81,7 @@ func (eval *evaluator) EvaluatePolyVector(input interface{}, pols []*Polynomial,
 	return eval.evaluatePolyVector(input, polynomialVector{Encoder: encoder, Value: pols, SlotsIndex: slotsIndex})
 }
 
-func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVector) (opOut *Ciphertext, err error) {
+func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVector) (opOut *rlwe.Ciphertext, err error) {
 
 	if pol.SlotsIndex != nil && pol.Encoder == nil {
 		return nil, fmt.Errorf("cannot evaluatePolyVector: missing Encoder input")
@@ -89,7 +89,7 @@ func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVecto
 
 	var powerBasis *PowerBasis
 	switch input := input.(type) {
-	case *Ciphertext:
+	case *rlwe.Ciphertext:
 		powerBasis = NewPowerBasis(input)
 	case *PowerBasis:
 		if input.Value[1] == nil {
@@ -97,7 +97,7 @@ func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVecto
 		}
 		powerBasis = input
 	default:
-		return nil, fmt.Errorf("cannot evaluatePolyVector: invalid input, must be either *Ciphertext or *PowerBasis")
+		return nil, fmt.Errorf("cannot evaluatePolyVector: invalid input, must be either *rlwe.Ciphertext or *PowerBasis")
 	}
 
 	logDegree := bits.Len64(uint64(pol.Value[0].Degree()))
@@ -136,13 +136,13 @@ func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVecto
 
 // PowerBasis is a struct storing powers of a ciphertext.
 type PowerBasis struct {
-	Value map[int]*Ciphertext
+	Value map[int]*rlwe.Ciphertext
 }
 
 // NewPowerBasis creates a new PowerBasis.
-func NewPowerBasis(ct *Ciphertext) (p *PowerBasis) {
+func NewPowerBasis(ct *rlwe.Ciphertext) (p *PowerBasis) {
 	p = new(PowerBasis)
-	p.Value = make(map[int]*Ciphertext)
+	p.Value = make(map[int]*rlwe.Ciphertext)
 	p.Value[1] = ct.CopyNew()
 	return
 }
@@ -179,7 +179,7 @@ func (p *PowerBasis) GenPower(n int, eval Evaluator) {
 func (p *PowerBasis) MarshalBinary() (data []byte, err error) {
 	data = make([]byte, 16)
 	binary.LittleEndian.PutUint64(data[0:8], uint64(len(p.Value)))
-	binary.LittleEndian.PutUint64(data[8:16], uint64(p.Value[1].GetDataLen(true)))
+	binary.LittleEndian.PutUint64(data[8:16], uint64(p.Value[1].MarshalBinarySize()))
 	for key, ct := range p.Value {
 		keyBytes := make([]byte, 8)
 		binary.LittleEndian.PutUint64(keyBytes, uint64(key))
@@ -195,14 +195,14 @@ func (p *PowerBasis) MarshalBinary() (data []byte, err error) {
 
 // UnmarshalBinary decodes a slice of bytes on the target.
 func (p *PowerBasis) UnmarshalBinary(data []byte) (err error) {
-	p.Value = make(map[int]*Ciphertext)
+	p.Value = make(map[int]*rlwe.Ciphertext)
 	nbct := int(binary.LittleEndian.Uint64(data[0:8]))
 	dtLen := int(binary.LittleEndian.Uint64(data[8:16]))
 	ptr := 16
 	for i := 0; i < nbct; i++ {
 		idx := int(binary.LittleEndian.Uint64(data[ptr : ptr+8]))
 		ptr += 8
-		p.Value[idx] = new(Ciphertext)
+		p.Value[idx] = &rlwe.Ciphertext{}
 		if err = p.Value[idx].UnmarshalBinary(data[ptr : ptr+dtLen]); err != nil {
 			return
 		}
@@ -253,7 +253,7 @@ func splitCoeffsPolyVector(poly polynomialVector, split int) (polyq, polyr polyn
 	return polynomialVector{Value: coeffsq}, polynomialVector{Value: coeffsr}
 }
 
-func (polyEval *polynomialEvaluator) recurse(pol polynomialVector) (res *Ciphertext, err error) {
+func (polyEval *polynomialEvaluator) recurse(pol polynomialVector) (res *rlwe.Ciphertext, err error) {
 
 	logSplit := polyEval.logSplit
 
@@ -292,12 +292,12 @@ func (polyEval *polynomialEvaluator) recurse(pol polynomialVector) (res *Ciphert
 		return nil, err
 	}
 
-	var tmp *Ciphertext
+	var tmp *rlwe.Ciphertext
 	if tmp, err = polyEval.recurse(coeffsr); err != nil {
 		return nil, err
 	}
 
-	res2 := NewCiphertextLvl(polyEval.Evaluator.(*evaluator).params, 2, res.Level())
+	res2 := NewCiphertext(polyEval.Evaluator.(*evaluator).params, 2, res.Level())
 	polyEval.Mul(res, XPow, res2)
 	polyEval.Relinearize(res2, res)
 	polyEval.Add(res, tmp, res)
@@ -307,7 +307,7 @@ func (polyEval *polynomialEvaluator) recurse(pol polynomialVector) (res *Ciphert
 	return
 }
 
-func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(pol polynomialVector) (res *Ciphertext, err error) {
+func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(pol polynomialVector) (res *rlwe.Ciphertext, err error) {
 
 	X := polyEval.powerBasis
 	level := X[1].Level()
@@ -339,7 +339,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(pol polynomialVe
 		if minimumDegreeNonZeroCoefficient == 0 {
 
 			// Allocates the output ciphertext
-			res = NewCiphertextLvl(params, 1, level)
+			res = NewCiphertext(params, 1, level)
 
 			// Looks for non-zero coefficients among the degree-0 coefficients of the polynomials
 			for i, p := range pol.Value {
@@ -353,17 +353,17 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(pol polynomialVe
 
 			// If a non-zero coefficient was found, encodes the values, adds on the ciphertext, and returns
 			if toEncode {
-				polyEval.Encode(values, &Plaintext{&rlwe.Plaintext{Value: res.Value[0]}})
+				polyEval.Encode(values, &rlwe.Plaintext{Value: res.Value[0]})
 			}
 
 			return
 		}
 
 		// Allocates the output ciphertext
-		res = NewCiphertextLvl(params, 1, level)
+		res = NewCiphertext(params, 1, level)
 
 		// Allocates a temporary plaintext to encode the values
-		pt := NewPlaintextAtLevelFromPoly(level, polyEval.Evaluator.BuffPt().Value)
+		pt := rlwe.NewPlaintextAtLevelFromPoly(level, polyEval.Evaluator.BuffPt().Value)
 
 		// Looks for a non-zero coefficient among the degree-0 coefficient of the polynomials
 		for i, p := range pol.Value {
@@ -416,8 +416,8 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(pol polynomialVe
 			// If a non-zero degree coefficient was found, encodes and adds the values on the output
 			// ciphertext
 			if toEncode {
-				polyEval.EncodeMul(values, &PlaintextMul{pt.Plaintext})
-				polyEval.MulAndAdd(X[key], &PlaintextMul{pt.Plaintext}, res)
+				polyEval.EncodeMul(values, &PlaintextMul{pt})
+				polyEval.MulAndAdd(X[key], &PlaintextMul{pt}, res)
 				toEncode = false
 			}
 		}
@@ -428,7 +428,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(pol polynomialVe
 
 		if minimumDegreeNonZeroCoefficient == 0 {
 
-			res = NewCiphertextLvl(params, 1, level)
+			res = NewCiphertext(params, 1, level)
 
 			if c != 0 {
 				polyEval.AddScalar(res, c, res)
@@ -437,7 +437,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(pol polynomialVe
 			return
 		}
 
-		res = NewCiphertextLvl(params, 1, level)
+		res = NewCiphertext(params, 1, level)
 
 		if c != 0 {
 			polyEval.AddScalar(res, c, res)

@@ -7,6 +7,15 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 )
 
+// Operand is a common interface for Ciphertext and Plaintext types.
+type Operand interface {
+	El() *Ciphertext
+	Degree() int
+	Level() int
+	GetScale() Scale
+	SetScale(Scale)
+}
+
 // Evaluator is a struct that holds the necessary elements to execute general homomorphic
 // operation on RLWE ciphertexts, such as automorphisms, key-switching and relinearization.
 type Evaluator struct {
@@ -26,6 +35,7 @@ type evaluatorBase struct {
 }
 
 type evaluatorBuffers struct {
+	BuffCt Ciphertext
 	// BuffQP[0-0]: Key-Switch on the fly decomp(c2)
 	// BuffQP[1-2]: Key-Switch output
 	// BuffQP[3-5]: Available
@@ -36,9 +46,9 @@ type evaluatorBuffers struct {
 }
 
 func newEvaluatorBase(params Parameters) *evaluatorBase {
-	ev := new(evaluatorBase)
-	ev.params = params
-	return ev
+	return &evaluatorBase{
+		params: params,
+	}
 }
 
 func newEvaluatorBuffers(params Parameters) *evaluatorBuffers {
@@ -46,6 +56,8 @@ func newEvaluatorBuffers(params Parameters) *evaluatorBuffers {
 	buff := new(evaluatorBuffers)
 	decompRNS := params.DecompRNS(params.QCount()-1, params.PCount()-1)
 	ringQP := params.RingQP()
+
+	buff.BuffCt = Ciphertext{Value: []*ring.Poly{ringQP.RingQ.NewPoly(), ringQP.RingQ.NewPoly()}}
 
 	buff.BuffQP = [6]ringqp.Poly{ringQP.NewPoly(), ringQP.NewPoly(), ringQP.NewPoly(), ringQP.NewPoly(), ringQP.NewPoly(), ringQP.NewPoly()}
 
@@ -139,10 +151,15 @@ func (eval *Evaluator) WithKey(evaluationKey *EvaluationKey) *Evaluator {
 	}
 }
 
-// ExpandRLWE expands a RLWE ciphertext encrypting sum ai * X^i to 2^logN ciphertexts,
+// Expand expands a RLWE Ciphertext encrypting sum ai * X^i to 2^logN ciphertexts,
 // each encrypting ai * X^0 for 0 <= i < 2^LogN. That is, it extracts the first 2^logN
-// coefficients of ctIn and returns a RLWE ciphetext for each coefficient extracted.
-func (eval *Evaluator) ExpandRLWE(ctIn *Ciphertext, logN int) (ctOut []*Ciphertext) {
+// coefficients, whose degree is a multiple of 2^logGap, of ctIn and returns an RLWE
+// Ciphertext for each coefficient extracted.
+func (eval *Evaluator) Expand(ctIn *Ciphertext, logN, logGap int) (ctOut []*Ciphertext) {
+
+	if ctIn.Degree() != 1 {
+		panic("ctIn.Degree() != 1")
+	}
 
 	params := eval.params
 	ringQ := params.RingQ()
@@ -152,7 +169,7 @@ func (eval *Evaluator) ExpandRLWE(ctIn *Ciphertext, logN int) (ctOut []*Cipherte
 	// Compute X^{-2^{i}} from 1 to LogN
 	xPow2 := genXPow2(ringQ, levelQ, logN, true)
 
-	ctOut = make([]*Ciphertext, 1<<logN)
+	ctOut = make([]*Ciphertext, 1<<(logN-logGap))
 	ctOut[0] = ctIn.CopyNew()
 
 	Q := ringQ.Modulus
@@ -167,15 +184,17 @@ func (eval *Evaluator) ExpandRLWE(ctIn *Ciphertext, logN int) (ctOut []*Cipherte
 		ring.MulScalarMontgomeryVec(v1.Coeffs[i], v1.Coeffs[i], NInv, Q[i], mredParams[i])
 	}
 
-	tmp := NewCiphertextNTT(params, 1, levelQ)
+	gap := 1 << logGap
+
+	tmp := NewCiphertext(params, 1, levelQ)
 
 	for i := 0; i < logN; i++ {
 
 		galEl := uint64(ringQ.N/(1<<i) + 1)
 
-		for j := 0; j < (1 << i); j++ {
+		for j := 0; j < (1 << i); j += gap {
 
-			c0 := ctOut[j]
+			c0 := ctOut[j/gap]
 
 			// X -> X^{N/2^{i} + 1}
 			eval.Automorphism(c0, galEl, tmp)
@@ -186,27 +205,31 @@ func (eval *Evaluator) ExpandRLWE(ctIn *Ciphertext, logN int) (ctOut []*Cipherte
 			ringQ.AddLvl(levelQ, c0.Value[0], tmp.Value[0], c0.Value[0])
 			ringQ.AddLvl(levelQ, c0.Value[1], tmp.Value[1], c0.Value[1])
 
-			// Zeroes even coeffs: [a, b, c, d] -> [0, 2b, 0, 2d]
-			ringQ.SubLvl(levelQ, c1.Value[0], tmp.Value[0], c1.Value[0])
-			ringQ.SubLvl(levelQ, c1.Value[1], tmp.Value[1], c1.Value[1])
+			if (j+(1<<i))/gap > 0 {
 
-			// c1 * X^{-2^{i}}: [0, 2b, 0, 2d] -> [2b, 0, 2d, 0]
-			ringQ.MulCoeffsMontgomeryLvl(levelQ, c1.Value[0], xPow2[i], c1.Value[0])
-			ringQ.MulCoeffsMontgomeryLvl(levelQ, c1.Value[1], xPow2[i], c1.Value[1])
+				// Zeroes even coeffs: [a, b, c, d] -> [0, 2b, 0, 2d]
+				ringQ.SubLvl(levelQ, c1.Value[0], tmp.Value[0], c1.Value[0])
+				ringQ.SubLvl(levelQ, c1.Value[1], tmp.Value[1], c1.Value[1])
 
-			ctOut[j+(1<<i)] = c1
+				// c1 * X^{-2^{i}}: [0, 2b, 0, 2d] -> [2b, 0, 2d, 0]
+				ringQ.MulCoeffsMontgomeryLvl(levelQ, c1.Value[0], xPow2[i], c1.Value[0])
+				ringQ.MulCoeffsMontgomeryLvl(levelQ, c1.Value[1], xPow2[i], c1.Value[1])
+
+				ctOut[(j+(1<<i))/gap] = c1
+			}
 		}
 	}
 
 	return
 }
 
-// MergeRLWE merges a batch of RLWE, packing the first coefficient of each RLWE into a single RLWE.
+// Merge merges a batch of RLWE, packing the first coefficient of each RLWE into a single RLWE.
 // The operation will require N/gap + log(gap) key-switches, where gap is the minimum gap between
 // two non-zero coefficients of the final Ciphertext.
 // The method takes as input a map of Ciphertext, indexing in which coefficient of the final
 // Ciphertext the first coefficient of each Ciphertext of the map must be packed.
-func (eval *Evaluator) MergeRLWE(ctIn map[int]*Ciphertext) (ctOut *Ciphertext) {
+// All input ciphertexts must be in the NTT domain; otherwise, the method will panic.
+func (eval *Evaluator) Merge(ctIn map[int]*Ciphertext) (ctOut *Ciphertext) {
 
 	params := eval.params
 	ringQ := params.RingQ()
@@ -226,6 +249,15 @@ func (eval *Evaluator) MergeRLWE(ctIn map[int]*Ciphertext) (ctOut *Ciphertext) {
 	// Multiplies by (Slots * N) ^-1 mod Q
 	for i := range ctIn {
 		if ctIn[i] != nil {
+
+			if !ctIn[i].IsNTT {
+				panic("canot Merge: all ctIn must be in the NTT domain")
+			}
+
+			if ctIn[i].Degree() != 1 {
+				panic("cannot Merge: ctIn.Degree() != 1")
+			}
+
 			v0, v1 := ctIn[i].Value[0], ctIn[i].Value[1]
 			for j := 0; j < levelQ+1; j++ {
 				ring.MulScalarMontgomeryVec(v0.Coeffs[j], v0.Coeffs[j], NInv[j], Q[j], mredParams[j])
@@ -241,7 +273,8 @@ func (eval *Evaluator) MergeRLWE(ctIn map[int]*Ciphertext) (ctOut *Ciphertext) {
 	}
 
 	if ciphertextslist[0] == nil {
-		ciphertextslist[0] = NewCiphertextNTT(params, 1, levelQ)
+		ciphertextslist[0] = NewCiphertext(params, 1, levelQ)
+		ciphertextslist[0].IsNTT = true
 	}
 
 	return eval.mergeRLWERecurse(ciphertextslist, xPow2)
@@ -350,4 +383,131 @@ func genXPow2(r *ring.Ring, levelQ, logN int, div bool) (xPow []*ring.Poly) {
 	}
 
 	return
+}
+
+// InnerSum applies an optimized inner sum on the Ciphertext (log2(n) + HW(n) rotations with double hoisting).
+// The operation assumes that `ctIn` encrypts SlotCount/`batchSize` sub-vectors of size `batchSize` which it adds together (in parallel) in groups of `n`.
+// It outputs in ctOut a Ciphertext for which the "leftmost" sub-vector of each group is equal to the sum of the group.
+func (eval *Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
+
+	ringQ := eval.params.RingQ()
+	ringP := eval.params.RingP()
+	ringQP := eval.params.RingQP()
+
+	levelQ := ctIn.Level()
+	levelP := len(ringP.Modulus) - 1
+
+	ctOut.Resize(ctOut.Degree(), levelQ)
+	ctOut.MetaData = ctIn.MetaData
+
+	if n == 1 {
+		if ctIn != ctOut {
+			ring.CopyLvl(levelQ, ctIn.Value[0], ctOut.Value[0])
+			ring.CopyLvl(levelQ, ctIn.Value[1], ctOut.Value[1])
+		}
+	} else {
+
+		c0OutQP := eval.BuffQP[2]
+		c1OutQP := eval.BuffQP[3]
+
+		cQP := CiphertextQP{Value: [2]ringqp.Poly{eval.BuffQP[4], eval.BuffQP[5]}}
+		cQP.IsNTT = true
+
+		// Memory buffer for ctIn = ctIn + rot(ctIn, 2^i) in Q
+		tmpct := NewCiphertextAtLevelFromPoly(levelQ, [2]*ring.Poly{eval.BuffCt.Value[0], eval.BuffCt.Value[1]})
+		tmpct.IsNTT = true
+
+		ctqp := NewCiphertextAtLevelFromPoly(levelQ, [2]*ring.Poly{cQP.Value[0].Q, cQP.Value[1].Q})
+		ctqp.IsNTT = true
+
+		state := false
+		copy := true
+		// Binary reading of the input n
+		for i, j := 0, n; j > 0; i, j = i+1, j>>1 {
+
+			// Starts by decomposing the input ciphertext
+			if i == 0 {
+				// If first iteration, then copies directly from the input ciphertext that hasn't been rotated
+				eval.DecomposeNTT(levelQ, levelP, levelP+1, ctIn.Value[1], true, eval.BuffDecompQP)
+			} else {
+				// Else copies from the rotated input ciphertext
+				eval.DecomposeNTT(levelQ, levelP, levelP+1, tmpct.Value[1], true, eval.BuffDecompQP)
+			}
+
+			// If the binary reading scans a 1
+			if j&1 == 1 {
+
+				k := n - (n & ((2 << i) - 1))
+				k *= batchSize
+
+				// If the rotation is not zero
+				if k != 0 {
+
+					// Rotate((tmpc0, tmpc1), k)
+					if i == 0 {
+						eval.AutomorphismHoistedNoModDown(levelQ, ctIn.Value[0], eval.BuffDecompQP, eval.params.GaloisElementForColumnRotationBy(k), cQP)
+					} else {
+						eval.AutomorphismHoistedNoModDown(levelQ, tmpct.Value[0], eval.BuffDecompQP, eval.params.GaloisElementForColumnRotationBy(k), cQP)
+					}
+
+					// ctOut += Rotate((tmpc0, tmpc1), k)
+					if copy {
+						ringQP.CopyLvl(levelQ, levelP, cQP.Value[0], c0OutQP)
+						ringQP.CopyLvl(levelQ, levelP, cQP.Value[1], c1OutQP)
+						copy = false
+					} else {
+						ringQP.AddLvl(levelQ, levelP, c0OutQP, cQP.Value[0], c0OutQP)
+						ringQP.AddLvl(levelQ, levelP, c1OutQP, cQP.Value[1], c1OutQP)
+					}
+				} else {
+
+					state = true
+
+					// if n is not a power of two
+					if n&(n-1) != 0 {
+
+						eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, c0OutQP.Q, c0OutQP.P, c0OutQP.Q) // Division by P
+						eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, c1OutQP.Q, c1OutQP.P, c1OutQP.Q) // Division by P
+
+						// ctOut += (tmpc0, tmpc1)
+						ringQ.AddLvl(levelQ, c0OutQP.Q, tmpct.Value[0], ctOut.Value[0])
+						ringQ.AddLvl(levelQ, c1OutQP.Q, tmpct.Value[1], ctOut.Value[1])
+
+					} else {
+
+						ring.CopyLvl(levelQ, tmpct.Value[0], ctOut.Value[0])
+						ring.CopyLvl(levelQ, tmpct.Value[1], ctOut.Value[1])
+					}
+				}
+			}
+
+			if !state {
+
+				rot := eval.params.GaloisElementForColumnRotationBy((1 << i) * batchSize)
+				if i == 0 {
+
+					eval.AutomorphismHoisted(levelQ, ctIn, eval.BuffDecompQP, rot, tmpct)
+
+					ringQ.AddLvl(levelQ, tmpct.Value[0], ctIn.Value[0], tmpct.Value[0])
+					ringQ.AddLvl(levelQ, tmpct.Value[1], ctIn.Value[1], tmpct.Value[1])
+				} else {
+					// (tmpc0, tmpc1) = Rotate((tmpc0, tmpc1), 2^i)
+					eval.AutomorphismHoisted(levelQ, tmpct, eval.BuffDecompQP, rot, ctqp)
+					ringQ.AddLvl(levelQ, tmpct.Value[0], cQP.Value[0].Q, tmpct.Value[0])
+					ringQ.AddLvl(levelQ, tmpct.Value[1], cQP.Value[1].Q, tmpct.Value[1])
+				}
+			}
+		}
+	}
+}
+
+// Replicate applies an optimized replication on the Ciphertext (log2(n) + HW(n) rotations with double hoisting).
+// It acts as the inverse of a inner sum (summing elements from left to right).
+// The replication is parameterized by the size of the sub-vectors to replicate "batchSize" and
+// the number of times 'n' they need to be replicated.
+// To ensure correctness, a gap of zero values of size batchSize * (n-1) must exist between
+// two consecutive sub-vectors to replicate.
+// This method is faster than Replicate when the number of rotations is large and it uses log2(n) + HW(n) instead of 'n'.
+func (eval *Evaluator) Replicate(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
+	eval.InnerSum(ctIn, -batchSize, n, ctOut)
 }

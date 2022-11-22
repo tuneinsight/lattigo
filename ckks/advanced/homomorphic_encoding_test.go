@@ -189,7 +189,7 @@ func testCoeffsToSlots(params ckks.Parameters, t *testing.T) {
 		}
 
 		// Encodes coefficient-wise and encrypts the test vector
-		plaintext := ckks.NewPlaintext(params, params.MaxLevel(), params.DefaultScale())
+		plaintext := ckks.NewPlaintext(params, params.MaxLevel())
 		encoder.EncodeCoeffs(valuesFloat, plaintext)
 		ciphertext := encryptor.EncryptNew(plaintext)
 
@@ -301,10 +301,10 @@ func testSlotsToCoeffs(params ckks.Parameters, t *testing.T) {
 			logSlots++
 		}
 
-		plaintext := ckks.NewPlaintext(params, params.MaxLevel(), params.DefaultScale())
+		plaintext := ckks.NewPlaintext(params, params.MaxLevel())
 		encoder.Encode(valuesReal, plaintext, logSlots)
 		ct0 := encryptor.EncryptNew(plaintext)
-		var ct1 *ckks.Ciphertext
+		var ct1 *rlwe.Ciphertext
 		if params.LogSlots() == params.LogN()-1 {
 			encoder.Encode(valuesImag, plaintext, logSlots)
 			ct1 = encryptor.EncryptNew(plaintext)
@@ -339,7 +339,7 @@ func testSlotsToCoeffs(params ckks.Parameters, t *testing.T) {
 	})
 }
 
-func verifyTestVectors(params ckks.Parameters, encoder ckks.Encoder, decryptor ckks.Decryptor, valuesWant []complex128, element interface{}, logSlots int, bound float64, t *testing.T) {
+func verifyTestVectors(params ckks.Parameters, encoder ckks.Encoder, decryptor rlwe.Decryptor, valuesWant []complex128, element interface{}, logSlots int, bound float64, t *testing.T) {
 
 	precStats := ckks.GetPrecisionStats(params, encoder, decryptor, valuesWant, element, logSlots, bound)
 	if *printPrecisionStats {

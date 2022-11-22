@@ -12,6 +12,10 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
+const (
+	DefaultNTTFlag = false
+)
+
 var (
 	// PN11QP54 is a set of default parameters with logN=11 and logQP=54
 	PN11QP54 = ParametersLiteral{
@@ -125,15 +129,16 @@ type ParametersLiteral struct {
 // RLWEParameters returns the rlwe.ParametersLiteral from the target bfv.ParametersLiteral.
 func (p ParametersLiteral) RLWEParameters() rlwe.ParametersLiteral {
 	return rlwe.ParametersLiteral{
-		LogN:     p.LogN,
-		Q:        p.Q,
-		P:        p.P,
-		LogQ:     p.LogQ,
-		LogP:     p.LogP,
-		Pow2Base: p.Pow2Base,
-		Sigma:    p.Sigma,
-		H:        p.H,
-		RingType: ring.Standard,
+		LogN:           p.LogN,
+		Q:              p.Q,
+		P:              p.P,
+		LogQ:           p.LogQ,
+		LogP:           p.LogP,
+		Pow2Base:       p.Pow2Base,
+		Sigma:          p.Sigma,
+		H:              p.H,
+		RingType:       ring.Standard,
+		DefaultNTTFlag: DefaultNTTFlag,
 	}
 }
 
@@ -148,6 +153,10 @@ type Parameters struct {
 // NewParameters instantiate a set of BFV parameters from the generic RLWE parameters and the BFV-specific ones.
 // It returns the empty parameters Parameters{} and a non-nil error if the specified parameters are invalid.
 func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err error) {
+
+	if rlweParams.DefaultNTTFlag() {
+		return Parameters{}, fmt.Errorf("provided RLWE parameters are invalid for BFV scheme (DefaultNTTFlag must be false)")
+	}
 
 	if utils.IsInSliceUint64(t, rlweParams.Q()) && rlweParams.Q()[0] != t {
 		return Parameters{}, fmt.Errorf("if t|Q then Q[0] must be t")
@@ -185,6 +194,18 @@ func NewParametersFromLiteral(pl ParametersLiteral) (Parameters, error) {
 		return Parameters{}, err
 	}
 	return NewParameters(rlweParams, pl.T)
+}
+
+func (p Parameters) ParametersLiteral() ParametersLiteral {
+	return ParametersLiteral{
+		LogN:     p.LogN(),
+		Q:        p.Q(),
+		P:        p.P(),
+		Pow2Base: p.Pow2Base(),
+		Sigma:    p.Sigma(),
+		H:        p.HammingWeight(),
+		T:        p.T(),
+	}
 }
 
 // RingQMul returns a pointer to the ring of the extended basis for multiplication.
@@ -263,21 +284,14 @@ func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 	return nil
 }
 
-// MarshalBinarySize returns the length of the []byte encoding of the reciever.
+// MarshalBinarySize returns the length of the []byte encoding of the receiver.
 func (p Parameters) MarshalBinarySize() int {
 	return p.Parameters.MarshalBinarySize() + 8
 }
 
 // MarshalJSON returns a JSON representation of this parameter set. See `Marshal` from the `encoding/json` package.
 func (p Parameters) MarshalJSON() ([]byte, error) {
-	return json.Marshal(ParametersLiteral{
-		LogN:  p.LogN(),
-		Q:     p.Q(),
-		P:     p.P(),
-		H:     p.HammingWeight(),
-		Sigma: p.Sigma(),
-		T:     p.T(),
-	})
+	return json.Marshal(p.ParametersLiteral())
 }
 
 // UnmarshalJSON reads a JSON representation of a parameter set into the receiver Parameter. See `Unmarshal` from the `encoding/json` package.

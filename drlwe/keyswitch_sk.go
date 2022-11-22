@@ -90,14 +90,15 @@ func (cks *CKSProtocol) SampleCRP(level int, crs CRS) CKSCRP {
 	return CKSCRP(*crp)
 }
 
-// GenShare computes a party's share in the CKS protocol.
-// ct1 is the degree 1 element of the rlwe.Ciphertext to keyswitch, i.e. ct1 = rlwe.Ciphertext.Value[1].
-// NTT flag for ct1 is expected to be set correctly.
-func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, c1 *ring.Poly, shareOut *CKSShare) {
+// GenShare computes a party's share in the CKS protocol from secret-key skInput to secret-key skOutput.
+// ct is the rlwe.Ciphertext to keyswitch. Note that ct.Value[0] is not used by the function and can be nil/zero.
+func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlwe.Ciphertext, shareOut *CKSShare) {
 
 	ringQ := cks.params.RingQ()
 	ringP := cks.params.RingP()
 	ringQP := cks.params.RingQP()
+
+	c1 := ct.Value[1]
 
 	levelQ := utils.MinInt(shareOut.Value.Level(), c1.Level())
 	levelP := cks.params.PCount() - 1
@@ -105,7 +106,7 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, c1 *ring.Pol
 	ringQ.SubLvl(levelQ, skInput.Value.Q, skOutput.Value.Q, cks.tmpDelta)
 
 	ct1 := c1
-	if !c1.IsNTT {
+	if !ct.IsNTT {
 		ringQ.NTTLazyLvl(levelQ, c1, cks.tmpQP.Q)
 		ct1 = cks.tmpQP.Q
 	}
@@ -118,7 +119,7 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, c1 *ring.Pol
 		ringQ.MulScalarBigintLvl(levelQ, shareOut.Value, ringP.ModulusAtLevel[levelP], shareOut.Value)
 	}
 
-	if !c1.IsNTT {
+	if !ct.IsNTT {
 		// InvNTT(P * a * (skIn - skOut)) mod QP (mod P = 0)
 		ringQ.InvNTTLazyLvl(levelQ, shareOut.Value, shareOut.Value)
 
@@ -174,10 +175,17 @@ func (cks *CKSProtocol) AggregateShares(share1, share2, shareOut *CKSShare) {
 
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
 func (cks *CKSProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined *CKSShare, ctOut *rlwe.Ciphertext) {
+
 	level := ctIn.Level()
-	ctOut.Resize(ctIn.Degree(), level)
-	cks.params.RingQ().AddLvl(level, ctIn.Value[0], combined.Value, ctOut.Value[0])
+
 	if ctIn != ctOut {
-		ring.CopyValuesLvl(level, ctIn.Value[1], ctOut.Value[1])
+
+		ctOut.Resize(ctIn.Degree(), level)
+
+		ring.CopyLvl(level, ctIn.Value[1], ctOut.Value[1])
+
+		ctOut.MetaData = ctIn.MetaData
 	}
+
+	cks.params.RingQ().AddLvl(level, ctIn.Value[0], combined.Value, ctOut.Value[0])
 }

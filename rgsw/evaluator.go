@@ -196,7 +196,7 @@ func (eval *Evaluator) externalProductInPlaceMultipleP(levelQ, levelP int, ct0 *
 
 	for k, el := range rgsw.Value {
 
-		if ct0.Value[k].IsNTT {
+		if ct0.IsNTT {
 			c2NTT = ct0.Value[k]
 			c2InvNTT = eval.BuffInvNTT
 			ringQ.InvNTTLvl(levelQ, c2NTT, c2InvNTT)

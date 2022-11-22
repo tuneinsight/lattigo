@@ -42,15 +42,18 @@ func sign(x float64) float64 {
 	return -1
 }
 
+var DefaultNTTFlag = true
+
 func testLUT(t *testing.T) {
 	var err error
 
 	// RLWE parameters of the LUT
 	// N=1024, Q=0x7fff801 -> 2^131
 	paramsLUT, err := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
-		LogN:     10,
-		Q:        []uint64{0x7fff801},
-		Pow2Base: 6,
+		LogN:           10,
+		Q:              []uint64{0x7fff801},
+		Pow2Base:       6,
+		DefaultNTTFlag: DefaultNTTFlag,
 	})
 
 	assert.Nil(t, err)
@@ -58,8 +61,9 @@ func testLUT(t *testing.T) {
 	// RLWE parameters of the samples
 	// N=512, Q=0x3001 -> 2^135
 	paramsLWE, err := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
-		LogN: 9,
-		Q:    []uint64{0x3001},
+		LogN:           9,
+		Q:              []uint64{0x3001},
+		DefaultNTTFlag: DefaultNTTFlag,
 	})
 
 	assert.Nil(t, err)
@@ -76,7 +80,7 @@ func testLUT(t *testing.T) {
 		slots := 16
 
 		// Test poly
-		LUTPoly := InitLUT(sign, scaleLUT, paramsLUT.RingQ(), -1, 1)
+		LUTPoly := InitLUT(sign, rlwe.NewScale(scaleLUT), paramsLUT.RingQ(), -1, 1)
 
 		// Index map of which test poly to evaluate on which slot
 		lutPolyMap := make(map[int]*ring.Poly)
@@ -98,6 +102,7 @@ func testLUT(t *testing.T) {
 
 		// Encode multiples values in a single RLWE
 		ptLWE := rlwe.NewPlaintext(paramsLWE, paramsLWE.MaxLevel())
+
 		for i := range values {
 			if values[i] < 0 {
 				ptLWE.Value.Coeffs[0][i] = paramsLWE.Q()[0] - uint64(-values[i]*scaleLWE)
@@ -106,8 +111,12 @@ func testLUT(t *testing.T) {
 			}
 		}
 
+		if ptLWE.IsNTT {
+			paramsLWE.RingQ().NTT(ptLWE.Value, ptLWE.Value)
+		}
+
 		// Encrypt the multiples values in a single RLWE
-		ctLWE := rlwe.NewCiphertextNTT(paramsLWE, 1, paramsLWE.MaxLevel())
+		ctLWE := rlwe.NewCiphertext(paramsLWE, 1, paramsLWE.MaxLevel())
 		encryptorLWE.Encrypt(ptLWE, ctLWE)
 
 		// Evaluator for the LUT evaluation
@@ -131,6 +140,10 @@ func testLUT(t *testing.T) {
 		for i := 0; i < slots; i++ {
 
 			decryptorLUT.Decrypt(ctsLUT[i], ptLUT)
+
+			if ptLUT.IsNTT {
+				paramsLUT.RingQ().InvNTT(ptLUT.Value, ptLUT.Value)
+			}
 
 			c := ptLUT.Value.Coeffs[0][0]
 

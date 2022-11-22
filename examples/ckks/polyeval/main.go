@@ -50,7 +50,7 @@ func chebyshevinterpolation() {
 	}
 
 	fmt.Printf("CKKS parameters: logN = %d, logQ = %d, levels = %d, scale= %f, sigma = %f \n",
-		params.LogN(), params.LogQP(), params.MaxLevel()+1, params.DefaultScale(), params.Sigma())
+		params.LogN(), params.LogQP(), params.MaxLevel()+1, params.DefaultScale().Float64(), params.Sigma())
 
 	fmt.Println()
 	fmt.Printf("Values     : %6f %6f %6f %6f...\n",
@@ -61,7 +61,7 @@ func chebyshevinterpolation() {
 	plaintext := encoder.EncodeNew(values, params.MaxLevel(), params.DefaultScale(), params.LogSlots())
 
 	// Encryption process
-	var ciphertext *ckks.Ciphertext
+	var ciphertext *rlwe.Ciphertext
 	ciphertext = encryptor.EncryptNew(plaintext)
 
 	a, b := -8.0, 8.0
@@ -95,7 +95,7 @@ func chebyshevinterpolation() {
 	}
 
 	// We evaluate the interpolated Chebyshev interpolant on the ciphertext
-	if ciphertext, err = evaluator.EvaluatePolyVector(ciphertext, []*ckks.Polynomial{approxF, approxG}, encoder, slotsIndex, ciphertext.Scale()); err != nil {
+	if ciphertext, err = evaluator.EvaluatePolyVector(ciphertext, []*ckks.Polynomial{approxF, approxG}, encoder, slotsIndex, ciphertext.Scale); err != nil {
 		panic(err)
 	}
 
@@ -124,7 +124,7 @@ func round(x float64) float64 {
 	return math.Round(x*100000000) / 100000000
 }
 
-func printDebug(params ckks.Parameters, ciphertext *ckks.Ciphertext, valuesWant []float64, decryptor ckks.Decryptor, encoder ckks.Encoder) (valuesTest []float64) {
+func printDebug(params ckks.Parameters, ciphertext *rlwe.Ciphertext, valuesWant []float64, decryptor rlwe.Decryptor, encoder ckks.Encoder) (valuesTest []float64) {
 
 	tmp := encoder.Decode(decryptor.DecryptNew(ciphertext), params.LogSlots())
 
@@ -135,7 +135,7 @@ func printDebug(params ckks.Parameters, ciphertext *ckks.Ciphertext, valuesWant 
 
 	fmt.Println()
 	fmt.Printf("Level: %d (logQ = %d)\n", ciphertext.Level(), params.LogQLvl(ciphertext.Level()))
-	fmt.Printf("Scale: 2^%f\n", math.Log2(ciphertext.Scale()))
+	fmt.Printf("Scale: 2^%f\n", math.Log2(ciphertext.Scale.Float64()))
 	fmt.Printf("ValuesTest: %6.10f %6.10f %6.10f %6.10f...\n", valuesTest[0], valuesTest[1], valuesTest[2], valuesTest[3])
 	fmt.Printf("ValuesWant: %6.10f %6.10f %6.10f %6.10f...\n", valuesWant[0], valuesWant[1], valuesWant[2], valuesWant[3])
 	fmt.Println()

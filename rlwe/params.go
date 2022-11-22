@@ -47,35 +47,39 @@ const GaloisGen uint64 = ring.GaloisGen
 // type (RingType). If left unset, standard default values for these field are substituted at
 // parameter creation (see NewParametersFromLiteral).
 type ParametersLiteral struct {
-	LogN     int
-	Q        []uint64
-	P        []uint64
-	LogQ     []int `json:",omitempty"`
-	LogP     []int `json:",omitempty"`
-	Pow2Base int
-	Sigma    float64
-	H        int
-	RingType ring.Type
+	LogN           int
+	Q              []uint64
+	P              []uint64
+	LogQ           []int `json:",omitempty"`
+	LogP           []int `json:",omitempty"`
+	Pow2Base       int
+	Sigma          float64
+	H              int
+	RingType       ring.Type
+	DefaultScale   Scale
+	DefaultNTTFlag bool
 }
 
 // Parameters represents a set of generic RLWE parameters. Its fields are private and
 // immutable. See ParametersLiteral for user-specified parameters.
 type Parameters struct {
-	logN     int
-	qi       []uint64
-	pi       []uint64
-	pow2Base int
-	sigma    float64
-	h        int
-	ringQ    *ring.Ring
-	ringP    *ring.Ring
-	ringType ring.Type
+	logN           int
+	qi             []uint64
+	pi             []uint64
+	pow2Base       int
+	sigma          float64
+	h              int
+	ringQ          *ring.Ring
+	ringP          *ring.Ring
+	ringType       ring.Type
+	defaultScale   Scale
+	defaultNTTFlag bool
 }
 
 // NewParameters returns a new set of generic RLWE parameters from the given ring degree logn, moduli q and p, and
 // error distribution parameter sigma. It returns the empty parameters Parameters{} and a non-nil error if the
 // specified parameters are invalid.
-func NewParameters(logn int, q, p []uint64, pow2Base, h int, sigma float64, ringType ring.Type) (Parameters, error) {
+func NewParameters(logn int, q, p []uint64, pow2Base, h int, sigma float64, ringType ring.Type, defaultScale Scale, defaultNTTFlag bool) (Parameters, error) {
 
 	if pow2Base != 0 && len(p) > 1 {
 		return Parameters{}, fmt.Errorf("rlwe.NewParameters: invalid parameters, cannot have pow2Base > 0 if len(P) > 1")
@@ -92,13 +96,15 @@ func NewParameters(logn int, q, p []uint64, pow2Base, h int, sigma float64, ring
 	}
 
 	params := Parameters{
-		logN:     logn,
-		qi:       make([]uint64, len(q)),
-		pi:       make([]uint64, lenP),
-		pow2Base: pow2Base,
-		h:        h,
-		sigma:    sigma,
-		ringType: ringType,
+		logN:           logn,
+		qi:             make([]uint64, len(q)),
+		pi:             make([]uint64, lenP),
+		pow2Base:       pow2Base,
+		h:              h,
+		sigma:          sigma,
+		ringType:       ringType,
+		defaultScale:   defaultScale,
+		defaultNTTFlag: defaultNTTFlag,
 	}
 
 	// pre-check that moduli chain is of valid size and that all factors are prime.
@@ -140,9 +146,13 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
 		paramDef.Sigma = DefaultSigma
 	}
 
+	if paramDef.DefaultScale.Cmp(Scale{}) == 0 {
+		paramDef.DefaultScale = NewScale(1)
+	}
+
 	switch {
 	case paramDef.Q != nil && paramDef.LogQ == nil:
-		return NewParameters(paramDef.LogN, paramDef.Q, paramDef.P, paramDef.Pow2Base, paramDef.H, paramDef.Sigma, paramDef.RingType)
+		return NewParameters(paramDef.LogN, paramDef.Q, paramDef.P, paramDef.Pow2Base, paramDef.H, paramDef.Sigma, paramDef.RingType, paramDef.DefaultScale, paramDef.DefaultNTTFlag)
 	case paramDef.LogQ != nil && paramDef.Q == nil:
 		var q, p []uint64
 		var err error
@@ -157,7 +167,7 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
 		if err != nil {
 			return Parameters{}, err
 		}
-		return NewParameters(paramDef.LogN, q, p, paramDef.Pow2Base, paramDef.H, paramDef.Sigma, paramDef.RingType)
+		return NewParameters(paramDef.LogN, q, p, paramDef.Pow2Base, paramDef.H, paramDef.Sigma, paramDef.RingType, paramDef.DefaultScale, paramDef.DefaultNTTFlag)
 	default:
 		return Parameters{}, fmt.Errorf("rlwe.NewParametersFromLiteral: invalid parameter literal")
 	}
@@ -193,14 +203,23 @@ func (p Parameters) ParametersLiteral() ParametersLiteral {
 	copy(P, p.pi)
 
 	return ParametersLiteral{
-		LogN:     p.logN,
-		Q:        Q,
-		P:        P,
-		Pow2Base: p.pow2Base,
-		Sigma:    p.sigma,
-		H:        p.h,
-		RingType: p.ringType,
+		LogN:           p.logN,
+		Q:              Q,
+		P:              P,
+		Pow2Base:       p.pow2Base,
+		Sigma:          p.sigma,
+		H:              p.h,
+		RingType:       p.ringType,
+		DefaultScale:   p.defaultScale,
+		DefaultNTTFlag: p.defaultNTTFlag,
 	}
+}
+
+// NewScale creates a new scale using the stored default scale as template.
+func (p Parameters) NewScale(scale interface{}) Scale {
+	newScale := NewScale(scale)
+	newScale.Mod = p.defaultScale.Mod
+	return newScale
 }
 
 // N returns the ring degree
@@ -226,6 +245,16 @@ func (p Parameters) RingP() *ring.Ring {
 // RingQP returns a pointer to ringQP
 func (p Parameters) RingQP() *ringqp.Ring {
 	return &ringqp.Ring{RingQ: p.ringQ, RingP: p.ringP}
+}
+
+// DefaultScale returns the default scale, if any.
+func (p Parameters) DefaultScale() Scale {
+	return p.defaultScale
+}
+
+// DefaultNTTFlag returns the default NTT flag.
+func (p Parameters) DefaultNTTFlag() bool {
+	return p.defaultNTTFlag
 }
 
 // HammingWeight returns the number of non-zero coefficients in secret-keys.
@@ -438,6 +467,40 @@ func (p Parameters) GaloisElementsForTrace(logN int) (galEls []uint64) {
 	return
 }
 
+// RotationsForReplicate generates the rotations that will be performed by the
+// `Evaluator.Replicate` operation when performed with parameters `batch` and `n`.
+func (p Parameters) RotationsForReplicate(batch, n int) (rotations []int) {
+	return p.RotationsForInnerSum(-batch, n)
+}
+
+// RotationsForInnerSum generates the rotations that will be performed by the
+// `Evaluator.RotationsForInnerSum` operation when performed with parameters `batch` and `n`.
+func (p Parameters) RotationsForInnerSum(batch, n int) (rotations []int) {
+
+	rotIndex := make(map[int]bool)
+
+	var k int
+	for i := 1; i < n; i <<= 1 {
+
+		k = i
+		k *= batch
+		rotIndex[k] = true
+
+		k = n - (n & ((i << 1) - 1))
+		k *= batch
+		rotIndex[k] = true
+	}
+
+	rotations = make([]int, len(rotIndex))
+	var i int
+	for j := range rotIndex {
+		rotations[i] = j
+		i++
+	}
+
+	return
+}
+
 // GaloisElementsForRowInnerSum returns a list of all Galois elements required to
 // perform an InnerSum operation. This corresponds to all the left rotations by
 // k-positions where k is a power of two and the row-rotation element.
@@ -459,9 +522,9 @@ func (p Parameters) GaloisElementsForRowInnerSum() (galEls []uint64) {
 	return galEls
 }
 
-// GaloisElementForExpandRLWE returns the list of Galois elements required
-// to perform the ExpandRLWE operation.
-func (p Parameters) GaloisElementForExpandRLWE(logN int) (galEls []uint64) {
+// GaloisElementForExpand returns the list of Galois elements required
+// to perform the Expand operation.
+func (p Parameters) GaloisElementForExpand(logN int) (galEls []uint64) {
 	galEls = make([]uint64, logN)
 
 	for i := 0; i < logN; i++ {
@@ -471,9 +534,9 @@ func (p Parameters) GaloisElementForExpandRLWE(logN int) (galEls []uint64) {
 	return
 }
 
-// GaloisElementsForMergeRLWE returns the list of Galois elements required
-// to perform the MergeRLWE operation.
-func (p Parameters) GaloisElementsForMergeRLWE() (galEls []uint64) {
+// GaloisElementsForMerge returns the list of Galois elements required
+// to perform the Merge operation.
+func (p Parameters) GaloisElementsForMerge() (galEls []uint64) {
 	return p.GaloisElementsForRowInnerSum()
 }
 
@@ -481,6 +544,29 @@ func (p Parameters) GaloisElementsForMergeRLWE() (galEls []uint64) {
 // corresponding to the inverse automorphism
 func (p Parameters) InverseGaloisElement(galEl uint64) uint64 {
 	return ring.ModExp(galEl, p.ringQ.NthRoot-1, p.ringQ.NthRoot)
+}
+
+// RotationFromGaloisElement returns the corresponding rotation
+// from the Galois element, i.e. computes k given 5^k = galEl mod NthRoot.
+func (p Parameters) RotationFromGaloisElement(galEl uint64) (k uint64) {
+
+	N := p.ringQ.NthRoot
+
+	x := N >> 3
+
+	for {
+
+		if ring.ModExpPow2(GaloisGen, k, N) != ring.ModExpPow2(galEl, x, N) {
+			k |= N >> 3
+		}
+
+		if x == 1 {
+			return
+		}
+
+		x >>= 1
+		k >>= 1
+	}
 }
 
 // Equals checks two Parameter structs for equality.
@@ -491,6 +577,8 @@ func (p Parameters) Equals(other Parameters) bool {
 	res = res && (p.h == other.h)
 	res = res && (p.sigma == other.sigma)
 	res = res && (p.ringType == other.ringType)
+	res = res && (p.defaultScale.Cmp(other.defaultScale) == 0)
+	res = res && (p.defaultNTTFlag == other.defaultNTTFlag)
 	return res
 }
 
@@ -524,6 +612,8 @@ func (p Parameters) MarshalBinary() ([]byte, error) {
 	// 8 byte : H
 	// 8 byte : sigma
 	// 1 byte : ringType
+	// 1 byte defaultNTTFlag
+	// 48 bytes: defaultScale
 	// 8 * (#Q) : Q
 	// 8 * (#P) : P
 	b := utils.NewBuffer(make([]byte, 0, p.MarshalBinarySize()))
@@ -534,8 +624,24 @@ func (p Parameters) MarshalBinary() ([]byte, error) {
 	b.WriteUint64(uint64(p.h))
 	b.WriteUint64(math.Float64bits(p.sigma))
 	b.WriteUint8(uint8(p.ringType))
+	if p.defaultNTTFlag {
+		b.WriteUint8(1)
+	} else {
+		b.WriteUint8(0)
+	}
+
+	data := make([]byte, p.defaultScale.MarshalBinarySize())
+	err := p.defaultScale.Encode(data)
+	if err != nil {
+		return nil, err
+	}
+	for i := range data {
+		b.WriteUint8(data[i])
+	}
+
 	b.WriteUint64Slice(p.qi)
 	b.WriteUint64Slice(p.pi)
+
 	return b.Bytes(), nil
 }
 
@@ -552,6 +658,15 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	h := int(b.ReadUint64())
 	sigma := math.Float64frombits(b.ReadUint64())
 	ringType := ring.Type(b.ReadUint8())
+	var defaultNTTFlag bool
+	if b.ReadUint8() == 1 {
+		defaultNTTFlag = true
+	}
+
+	var defaultScale Scale
+	dataScale := make([]uint8, defaultScale.MarshalBinarySize())
+	b.ReadUint8Slice(dataScale)
+	defaultScale.Decode(dataScale)
 
 	if err := checkSizeParams(logN, lenQ, lenP); err != nil {
 		return err
@@ -563,18 +678,19 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	b.ReadUint64Slice(pi)
 
 	var err error
-	*p, err = NewParameters(logN, qi, pi, logbase2, h, sigma, ringType)
+	*p, err = NewParameters(logN, qi, pi, logbase2, h, sigma, ringType, defaultScale, defaultNTTFlag)
 	return err
 }
 
-// MarshalBinarySize returns the length of the []byte encoding of the reciever.
+// MarshalBinarySize returns the length of the []byte encoding of the receiver.
 func (p Parameters) MarshalBinarySize() int {
-	return 21 + (len(p.qi)+len(p.pi))<<3
+	return 22 + p.DefaultScale().MarshalBinarySize() + (len(p.qi)+len(p.pi))<<3
 }
 
 // MarshalJSON returns a JSON representation of this parameter set. See `Marshal` from the `encoding/json` package.
 func (p Parameters) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&ParametersLiteral{LogN: p.logN, Q: p.qi, P: p.pi, Pow2Base: p.pow2Base, H: p.h, Sigma: p.sigma})
+	paramsLit := p.ParametersLiteral()
+	return json.Marshal(&paramsLit)
 }
 
 // UnmarshalJSON reads a JSON representation of a parameter set into the receiver Parameter. See `Unmarshal` from the `encoding/json` package.

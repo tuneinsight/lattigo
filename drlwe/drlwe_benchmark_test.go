@@ -83,7 +83,7 @@ func benchRelinKeyGen(params rlwe.Parameters, b *testing.B) {
 	rkg := NewRKGProtocol(params)
 	sk := rlwe.NewKeyGenerator(params).GenSecretKey()
 	ephSk, share1, share2 := rkg.AllocateShare()
-	rlk := rlwe.NewRelinKey(params, 2)
+	rlk := rlwe.NewRelinearizationKey(params, 2)
 	crs, _ := utils.NewPRNG()
 
 	crp := rkg.SampleCRP(crs)

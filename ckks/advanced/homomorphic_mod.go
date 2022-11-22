@@ -5,6 +5,7 @@ import (
 	"math/cmplx"
 
 	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
@@ -51,7 +52,7 @@ func (evm *EvalModLiteral) QDiff() float64 {
 // the polynomials.
 type EvalModPoly struct {
 	levelStart    int
-	scalingFactor float64
+	scalingFactor rlwe.Scale
 	sineType      SineType
 	messageRatio  float64
 	doubleAngle   int
@@ -68,7 +69,7 @@ func (evp *EvalModPoly) LevelStart() int {
 }
 
 // ScalingFactor returns scaling factor used during the EvalMod.
-func (evp *EvalModPoly) ScalingFactor() float64 {
+func (evp *EvalModPoly) ScalingFactor() rlwe.Scale {
 	return evp.scalingFactor
 }
 
@@ -164,7 +165,7 @@ func NewEvalModPolyFromLiteral(evm EvalModLiteral) EvalModPoly {
 
 	return EvalModPoly{
 		levelStart:    evm.LevelStart,
-		scalingFactor: evm.ScalingFactor,
+		scalingFactor: rlwe.NewScale(evm.ScalingFactor),
 		sineType:      evm.SineType,
 		messageRatio:  evm.MessageRatio,
 		doubleAngle:   evm.DoubleAngle,

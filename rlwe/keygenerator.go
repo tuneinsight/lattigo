@@ -22,7 +22,7 @@ type KeyGenerator interface {
 	GenRotationKeysForRotations(ks []int, inclueSwapRows bool, sk *SecretKey) (rks *RotationKeySet)
 	GenSwitchingKeyForRowRotation(sk *SecretKey) (swk *SwitchingKey)
 	GenRotationKeysForInnerSum(sk *SecretKey) (rks *RotationKeySet)
-	GenSwitchingKeysForRingSwap(skCKKS, skCI *SecretKey) (swkStdToConjugateInvariant, swkConjugateInvariantToStd *SwitchingKey)
+	GenSwitchingKeysForRingSwap(skCKKS, skCI *SecretKey) (stdToci, ciToStd *SwitchingKey)
 }
 
 // KeyGenerator is a structure that stores the elements required to create new keys,
@@ -80,7 +80,9 @@ func (keygen *keyGenerator) genSecretKeyFromSampler(sampler ring.Sampler) (sk *S
 // GenPublicKey generates a new public key from the provided SecretKey.
 func (keygen *keyGenerator) GenPublicKey(sk *SecretKey) (pk *PublicKey) {
 	pk = NewPublicKey(keygen.params)
-	keygen.WithKey(sk).EncryptZero(&CiphertextQP{pk.Value})
+	pk.IsNTT = true
+	pk.IsMontgomery = true
+	keygen.WithKey(sk).EncryptZero(&CiphertextQP{Value: pk.Value, MetaData: pk.MetaData})
 	return
 }
 
@@ -106,7 +108,7 @@ func (keygen *keyGenerator) GenRelinearizationKey(sk *SecretKey, maxDegree int) 
 	ringQ := keygen.params.RingQ()
 	for i := 0; i < maxDegree; i++ {
 		ringQ.MulCoeffsMontgomery(keygen.buffQP.Q, sk.Value.Q, keygen.buffQP.Q)
-		keygen.genSwitchingKey(keygen.buffQP.Q, sk.Value, evk.Keys[i])
+		keygen.genSwitchingKey(keygen.buffQP.Q, sk, evk.Keys[i])
 	}
 
 	return
@@ -170,11 +172,11 @@ func (keygen *keyGenerator) genrotKey(sk ringqp.Poly, galEl uint64, swk *Switchi
 	ringQ.PermuteNTTWithIndexLvl(keygen.params.QCount()-1, skIn.Q, index, skOut.Q)
 	ringQ.PermuteNTTWithIndexLvl(keygen.params.PCount()-1, skIn.P, index, skOut.P)
 
-	keygen.genSwitchingKey(skIn.Q, skOut, swk)
+	keygen.genSwitchingKey(skIn.Q, &SecretKey{Value: skOut}, swk)
 }
 
 // GenSwitchingKeysForRingSwap generates the necessary switching keys to switch from a standard ring to to a conjugate invariant ring and vice-versa.
-func (keygen *keyGenerator) GenSwitchingKeysForRingSwap(skStd, skConjugateInvariant *SecretKey) (swkStdToConjugateInvariant, swkConjugateInvariantToStd *SwitchingKey) {
+func (keygen *keyGenerator) GenSwitchingKeysForRingSwap(skStd, skConjugateInvariant *SecretKey) (stdToci, ciToStd *SwitchingKey) {
 
 	skCIMappedToStandard := &SecretKey{Value: keygen.buffQP}
 	keygen.params.RingQ().UnfoldConjugateInvariantToStandard(skConjugateInvariant.Value.Q.Level(), skConjugateInvariant.Value.Q, skCIMappedToStandard.Value.Q)
@@ -183,9 +185,7 @@ func (keygen *keyGenerator) GenSwitchingKeysForRingSwap(skStd, skConjugateInvari
 		keygen.extendQ2P(keygen.params.PCount()-1, skCIMappedToStandard.Value.Q, keygen.buffQ[0], skCIMappedToStandard.Value.P)
 	}
 
-	swkConjugateInvariantToStd = keygen.GenSwitchingKey(skCIMappedToStandard, skStd)
-	swkStdToConjugateInvariant = keygen.GenSwitchingKey(skStd, skCIMappedToStandard)
-	return
+	return keygen.GenSwitchingKey(skStd, skCIMappedToStandard), keygen.GenSwitchingKey(skCIMappedToStandard, skStd)
 }
 
 // GenSwitchingKey generates a new key-switching key, that will re-encrypt a Ciphertext encrypted under the input key into the output key.
@@ -215,7 +215,7 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *
 			keygen.extendQ2P(levelP, keygen.buffQP.Q, keygen.buffQ[0], keygen.buffQP.P)
 		}
 
-		keygen.genSwitchingKey(skInput.Value.Q, keygen.buffQP, swk)
+		keygen.genSwitchingKey(skInput.Value.Q, &SecretKey{Value: keygen.buffQP}, swk)
 
 	} else { // N -> N or n -> N (swk switch to the same or a larger dimension)
 
@@ -266,7 +266,7 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *
 			}
 		}
 
-		keygen.genSwitchingKey(keygen.buffQ[0], skOutput.Value, swk)
+		keygen.genSwitchingKey(keygen.buffQ[0], skOutput, swk)
 	}
 
 	return
@@ -306,9 +306,9 @@ func (keygen *keyGenerator) extendQ2P(levelP int, polQ, buff, polP *ring.Poly) {
 	ringP.MFormLvl(levelP, polP, polP)
 }
 
-func (keygen *keyGenerator) genSwitchingKey(skIn *ring.Poly, skOut ringqp.Poly, swk *SwitchingKey) {
+func (keygen *keyGenerator) genSwitchingKey(skIn *ring.Poly, skOut *SecretKey, swk *SwitchingKey) {
 
-	enc := keygen.WithKey(&SecretKey{skOut})
+	enc := keygen.WithKey(skOut)
 	// Samples an encryption of zero for each element of the switching-key.
 	for i := 0; i < len(swk.Value); i++ {
 		for j := 0; j < len(swk.Value[0]); j++ {

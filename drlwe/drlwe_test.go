@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"math"
 	"math/bits"
 	"runtime"
 	"testing"
@@ -82,13 +81,14 @@ func TestDRLWE(t *testing.T) {
 		defaultParams = []rlwe.ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
-	for _, defaultParam := range defaultParams {
+	for _, defaultParam := range defaultParams[:] {
+
 		var params rlwe.Parameters
 		if params, err = rlwe.NewParametersFromLiteral(defaultParam); err != nil {
 			t.Fatal(err)
 		}
 
-		testCtx := newTestContext(params)
+		tc := newTestContext(params)
 
 		for _, testSet := range []func(tc *testContext, t *testing.T){
 			testPublicKeyGen,
@@ -99,17 +99,17 @@ func TestDRLWE(t *testing.T) {
 			testMarshalling,
 			testThreshold,
 		} {
-			testSet(testCtx, t)
+			testSet(tc, t)
 			runtime.GC()
 		}
 	}
 }
 
-func testPublicKeyGen(testCtx *testContext, t *testing.T) {
+func testPublicKeyGen(tc *testContext, t *testing.T) {
 
-	params := testCtx.params
+	params := tc.params
 
-	t.Run(testString("PublicKeyGen", testCtx), func(t *testing.T) {
+	t.Run(testString("PublicKeyGen", tc), func(t *testing.T) {
 
 		ckg := make([]*CKGProtocol, nbParties)
 		for i := range ckg {
@@ -125,10 +125,10 @@ func testPublicKeyGen(testCtx *testContext, t *testing.T) {
 			shares[i] = ckg[i].AllocateShare()
 		}
 
-		crp := ckg[0].SampleCRP(testCtx.crs)
+		crp := ckg[0].SampleCRP(tc.crs)
 
 		for i := range shares {
-			ckg[i].GenShare(testCtx.skShares[i], crp, shares[i])
+			ckg[i].GenShare(tc.skShares[i], crp, shares[i])
 		}
 
 		for i := 1; i < nbParties; i++ {
@@ -139,17 +139,17 @@ func testPublicKeyGen(testCtx *testContext, t *testing.T) {
 		ckg[0].GenPublicKey(shares[0], crp, pk)
 
 		log2Bound := bits.Len64(3 * params.NoiseBound() * uint64(params.N()))
-		require.True(t, rlwe.PublicKeyIsCorrect(pk, testCtx.skIdeal, params, log2Bound))
+		require.True(t, rlwe.PublicKeyIsCorrect(pk, tc.skIdeal, params, log2Bound))
 	})
 }
 
-func testKeySwitching(testCtx *testContext, t *testing.T) {
+func testKeySwitching(tc *testContext, t *testing.T) {
 
-	params := testCtx.params
+	params := tc.params
 	ringQ := params.RingQ()
 	ringQP := params.RingQP()
 	levelQ, levelP := params.QCount()-1, params.PCount()-1
-	t.Run(testString("KeySwitching", testCtx), func(t *testing.T) {
+	t.Run(testString("KeySwitching", tc), func(t *testing.T) {
 
 		cks := make([]*CKSProtocol, nbParties)
 
@@ -166,51 +166,54 @@ func testKeySwitching(testCtx *testContext, t *testing.T) {
 		skout := make([]*rlwe.SecretKey, nbParties)
 		skOutIdeal := rlwe.NewSecretKey(params)
 		for i := range skout {
-			skout[i] = testCtx.kgen.GenSecretKey()
+			skout[i] = tc.kgen.GenSecretKey()
 			ringQP.AddLvl(levelQ, levelP, skOutIdeal.Value, skout[i].Value, skOutIdeal.Value)
 		}
 
-		ciphertext := &rlwe.Ciphertext{Value: []*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly()}}
-		testCtx.uniformSampler.Read(ciphertext.Value[1])
-		ringQ.MulCoeffsMontgomeryAndSub(ciphertext.Value[1], testCtx.skIdeal.Value.Q, ciphertext.Value[0])
-		ciphertext.Value[0].IsNTT = true
-		ciphertext.Value[1].IsNTT = true
+		ct := rlwe.NewCiphertext(params, 1, params.MaxLevel())
+		rlwe.NewEncryptor(params, tc.skIdeal).EncryptZero(ct)
 
 		shares := make([]*CKSShare, nbParties)
 		for i := range shares {
-			shares[i] = cks[i].AllocateShare(ciphertext.Level())
+			shares[i] = cks[i].AllocateShare(ct.Level())
 		}
 
 		for i := range shares {
-			cks[i].GenShare(testCtx.skShares[i], skout[i], ciphertext.Value[1], shares[i])
+			cks[i].GenShare(tc.skShares[i], skout[i], ct, shares[i])
+			if i > 0 {
+				cks[0].AggregateShares(shares[0], shares[i], shares[0])
+			}
 		}
 
-		for i := 1; i < nbParties; i++ {
-			cks[i].AggregateShares(shares[0], shares[i], shares[0])
-		}
+		ksCt := rlwe.NewCiphertext(params, 1, params.MaxLevel())
 
-		ksCiphertext := &rlwe.Ciphertext{Value: []*ring.Poly{params.RingQ().NewPoly(), params.RingQ().NewPoly()}}
+		dec := rlwe.NewDecryptor(params, skOutIdeal)
 
-		cks[0].KeySwitch(ciphertext, shares[0], ksCiphertext)
+		log2Bound := bits.Len64(3 * params.NoiseBound() * uint64(params.N()))
 
-		// [-as + e] + [as]
-		ringQ.MulCoeffsMontgomeryAndAdd(ksCiphertext.Value[1], skOutIdeal.Value.Q, ksCiphertext.Value[0])
-		ringQ.InvNTT(ksCiphertext.Value[0], ksCiphertext.Value[0])
+		cks[0].KeySwitch(ct, shares[0], ksCt)
 
-		log2Bound := bits.Len64(uint64(nbParties) * uint64(math.Floor(sigmaSmudging*6)) * uint64(params.N()))
-		require.GreaterOrEqual(t, log2Bound, ringQ.Log2OfInnerSum(ksCiphertext.Value[0].Level(), ksCiphertext.Value[0]))
+		pt := rlwe.NewPlaintext(params, ct.Level())
+
+		dec.Decrypt(ksCt, pt)
+		require.GreaterOrEqual(t, log2Bound+5, ringQ.Log2OfInnerSum(pt.Level(), pt.Value))
+
+		cks[0].KeySwitch(ct, shares[0], ct)
+
+		dec.Decrypt(ct, pt)
+		require.GreaterOrEqual(t, log2Bound+5, ringQ.Log2OfInnerSum(pt.Level(), pt.Value))
 
 	})
 }
 
-func testPublicKeySwitching(testCtx *testContext, t *testing.T) {
+func testPublicKeySwitching(tc *testContext, t *testing.T) {
 
-	params := testCtx.params
+	params := tc.params
 	ringQ := params.RingQ()
 
-	t.Run(testString("PublicKeySwitching", testCtx), func(t *testing.T) {
+	t.Run(testString("PublicKeySwitching", tc), func(t *testing.T) {
 
-		skOut, pkOut := testCtx.kgen.GenKeyPair()
+		skOut, pkOut := tc.kgen.GenKeyPair()
 
 		sigmaSmudging := 8 * rlwe.DefaultSigma
 
@@ -223,45 +226,45 @@ func testPublicKeySwitching(testCtx *testContext, t *testing.T) {
 			}
 		}
 
-		ciphertext := &rlwe.Ciphertext{Value: []*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly()}}
-		testCtx.uniformSampler.Read(ciphertext.Value[1])
-		ringQ.MulCoeffsMontgomeryAndSub(ciphertext.Value[1], testCtx.skIdeal.Value.Q, ciphertext.Value[0])
-		ciphertext.Value[0].IsNTT = true
-		ciphertext.Value[1].IsNTT = true
+		ct := rlwe.NewCiphertext(params, 1, params.MaxLevel())
+
+		rlwe.NewEncryptor(params, tc.skIdeal).EncryptZero(ct)
 
 		shares := make([]*PCKSShare, nbParties)
 		for i := range shares {
-			shares[i] = pcks[i].AllocateShare(ciphertext.Level())
+			shares[i] = pcks[i].AllocateShare(ct.Level())
 		}
 
 		for i := range shares {
-			pcks[i].GenShare(testCtx.skShares[i], pkOut, ciphertext.Value[1], shares[i])
+			pcks[i].GenShare(tc.skShares[i], pkOut, ct, shares[i])
 		}
 
 		for i := 1; i < nbParties; i++ {
 			pcks[0].AggregateShares(shares[0], shares[i], shares[0])
 		}
 
-		ksCiphertext := &rlwe.Ciphertext{Value: []*ring.Poly{params.RingQ().NewPoly(), params.RingQ().NewPoly()}}
+		ksCt := rlwe.NewCiphertext(params, 1, params.MaxLevel())
+		dec := rlwe.NewDecryptor(params, skOut)
+		log2Bound := bits.Len64(uint64(nbParties) * params.NoiseBound() * uint64(params.N()))
 
-		pcks[0].KeySwitch(ciphertext, shares[0], ksCiphertext)
+		pcks[0].KeySwitch(ct, shares[0], ksCt)
 
-		// [-as + e] + [as]
-		ringQ.MulCoeffsMontgomeryAndAdd(ksCiphertext.Value[1], skOut.Value.Q, ksCiphertext.Value[0])
-		ringQ.InvNTT(ksCiphertext.Value[0], ksCiphertext.Value[0])
+		pt := rlwe.NewPlaintext(params, ct.Level())
+		dec.Decrypt(ksCt, pt)
+		require.GreaterOrEqual(t, log2Bound+5, ringQ.Log2OfInnerSum(pt.Level(), pt.Value))
 
-		log2Bound := bits.Len64(uint64(nbParties) * uint64(math.Floor(sigmaSmudging*6)) * uint64(params.N()))
+		pcks[0].KeySwitch(ct, shares[0], ct)
 
-		require.GreaterOrEqual(t, log2Bound+5, ringQ.Log2OfInnerSum(ksCiphertext.Value[0].Level(), ksCiphertext.Value[0]))
-
+		dec.Decrypt(ct, pt)
+		require.GreaterOrEqual(t, log2Bound+5, ringQ.Log2OfInnerSum(pt.Level(), pt.Value))
 	})
 }
 
-func testRelinKeyGen(testCtx *testContext, t *testing.T) {
-	params := testCtx.params
+func testRelinKeyGen(tc *testContext, t *testing.T) {
+	params := tc.params
 	levelQ, levelP := params.QCount()-1, params.PCount()-1
 
-	t.Run(testString("RelinKeyGen", testCtx), func(t *testing.T) {
+	t.Run(testString("RelinKeyGen", tc), func(t *testing.T) {
 
 		rkg := make([]*RKGProtocol, nbParties)
 
@@ -281,9 +284,9 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 			ephSk[i], share1[i], share2[i] = rkg[i].AllocateShare()
 		}
 
-		crp := rkg[0].SampleCRP(testCtx.crs)
+		crp := rkg[0].SampleCRP(tc.crs)
 		for i := range rkg {
-			rkg[i].GenShareRoundOne(testCtx.skShares[i], crp, ephSk[i], share1[i])
+			rkg[i].GenShareRoundOne(tc.skShares[i], crp, ephSk[i], share1[i])
 		}
 
 		for i := 1; i < nbParties; i++ {
@@ -291,30 +294,30 @@ func testRelinKeyGen(testCtx *testContext, t *testing.T) {
 		}
 
 		for i := range rkg {
-			rkg[i].GenShareRoundTwo(ephSk[i], testCtx.skShares[i], share1[0], share2[i])
+			rkg[i].GenShareRoundTwo(ephSk[i], tc.skShares[i], share1[0], share2[i])
 		}
 
 		for i := 1; i < nbParties; i++ {
 			rkg[0].AggregateShares(share2[0], share2[i], share2[0])
 		}
 
-		rlk := rlwe.NewRelinKey(params, 2)
+		rlk := rlwe.NewRelinearizationKey(params, 2)
 		rkg[0].GenRelinearizationKey(share1[0], share2[0], rlk)
 		swk := rlk.Keys[0]
 
 		decompSize := params.DecompPw2(levelQ, levelP) * params.DecompRNS(levelQ, levelP)
 		log2Bound := bits.Len64(uint64(params.N() * decompSize * (params.N()*3*int(params.NoiseBound()) + 2*3*int(params.NoiseBound()) + params.N()*3)))
 
-		require.True(t, rlwe.RelinearizationKeyIsCorrect(swk, testCtx.skIdeal, params, log2Bound))
+		require.True(t, rlwe.RelinearizationKeyIsCorrect(swk, tc.skIdeal, params, log2Bound))
 	})
 }
 
-func testRotKeyGen(testCtx *testContext, t *testing.T) {
+func testRotKeyGen(tc *testContext, t *testing.T) {
 
-	params := testCtx.params
+	params := tc.params
 	levelQ, levelP := params.QCount()-1, params.PCount()-1
 
-	t.Run(testString("RotKeyGen", testCtx), func(t *testing.T) {
+	t.Run(testString("RotKeyGen", tc), func(t *testing.T) {
 
 		rtg := make([]*RTGProtocol, nbParties)
 		for i := range rtg {
@@ -330,12 +333,12 @@ func testRotKeyGen(testCtx *testContext, t *testing.T) {
 			shares[i] = rtg[i].AllocateShare()
 		}
 
-		crp := rtg[0].SampleCRP(testCtx.crs)
+		crp := rtg[0].SampleCRP(tc.crs)
 
 		galEl := params.GaloisElementForRowRotation()
 
 		for i := range shares {
-			rtg[i].GenShare(testCtx.skShares[i], galEl, crp, shares[i])
+			rtg[i].GenShare(tc.skShares[i], galEl, crp, shares[i])
 		}
 
 		for i := 1; i < nbParties; i++ {
@@ -348,24 +351,24 @@ func testRotKeyGen(testCtx *testContext, t *testing.T) {
 		decompSize := params.DecompPw2(levelQ, levelP) * params.DecompRNS(levelQ, levelP)
 		log2Bound := bits.Len64(uint64(params.N() * decompSize * (params.N()*3*int(params.NoiseBound()) + 2*3*int(params.NoiseBound()) + params.N()*3)))
 
-		require.True(t, rlwe.RotationKeyIsCorrect(rotKeySet.Keys[galEl], galEl, testCtx.skIdeal, params, log2Bound))
+		require.True(t, rlwe.RotationKeyIsCorrect(rotKeySet.Keys[galEl], galEl, tc.skIdeal, params, log2Bound))
 	})
 }
 
-func testMarshalling(testCtx *testContext, t *testing.T) {
+func testMarshalling(tc *testContext, t *testing.T) {
 
-	params := testCtx.params
+	params := tc.params
 
 	ciphertext := &rlwe.Ciphertext{Value: []*ring.Poly{params.RingQ().NewPoly(), params.RingQ().NewPoly()}}
-	testCtx.uniformSampler.Read(ciphertext.Value[0])
-	testCtx.uniformSampler.Read(ciphertext.Value[1])
+	tc.uniformSampler.Read(ciphertext.Value[0])
+	tc.uniformSampler.Read(ciphertext.Value[1])
 
-	t.Run(testString("Marshalling/CKG", testCtx), func(t *testing.T) {
-		ckg := NewCKGProtocol(testCtx.params)
+	t.Run(testString("Marshalling/CKG", tc), func(t *testing.T) {
+		ckg := NewCKGProtocol(tc.params)
 		KeyGenShareBefore := ckg.AllocateShare()
-		crs := ckg.SampleCRP(testCtx.crs)
+		crs := ckg.SampleCRP(tc.crs)
 
-		ckg.GenShare(testCtx.skShares[0], crs, KeyGenShareBefore)
+		ckg.GenShare(tc.skShares[0], crs, KeyGenShareBefore)
 		//now we marshall it
 		data, err := KeyGenShareBefore.MarshalBinary()
 
@@ -391,13 +394,13 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 		}
 	})
 
-	t.Run(testString("Marshalling/PCKS", testCtx), func(t *testing.T) {
+	t.Run(testString("Marshalling/PCKS", tc), func(t *testing.T) {
 		//Check marshalling for the PCKS
 
-		KeySwitchProtocol := NewPCKSProtocol(testCtx.params, testCtx.params.Sigma())
+		KeySwitchProtocol := NewPCKSProtocol(tc.params, tc.params.Sigma())
 		SwitchShare := KeySwitchProtocol.AllocateShare(ciphertext.Level())
-		_, pkOut := testCtx.kgen.GenKeyPair()
-		KeySwitchProtocol.GenShare(testCtx.skShares[0], pkOut, ciphertext.Value[1], SwitchShare)
+		_, pkOut := tc.kgen.GenKeyPair()
+		KeySwitchProtocol.GenShare(tc.skShares[0], pkOut, ciphertext, SwitchShare)
 
 		data, err := SwitchShare.MarshalBinary()
 		require.NoError(t, err)
@@ -414,12 +417,12 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 		require.Equal(t, SwitchShare.Value[1].Coeffs, SwitchShareReceiver.Value[1].Coeffs)
 	})
 
-	t.Run(testString("Marshalling/CKS", testCtx), func(t *testing.T) {
+	t.Run(testString("Marshalling/CKS", tc), func(t *testing.T) {
 
 		//Now for CKSShare ~ its similar to PKSShare
-		cksp := NewCKSProtocol(testCtx.params, testCtx.params.Sigma())
+		cksp := NewCKSProtocol(tc.params, tc.params.Sigma())
 		cksshare := cksp.AllocateShare(ciphertext.Level())
-		cksp.GenShare(testCtx.skShares[0], testCtx.skShares[1], ciphertext.Value[1], cksshare)
+		cksp.GenShare(tc.skShares[0], tc.skShares[1], ciphertext, cksshare)
 
 		data, err := cksshare.MarshalBinary()
 		require.NoError(t, err)
@@ -435,15 +438,15 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 		require.Equal(t, cksshare.Value.Coeffs, cksshareAfter.Value.Coeffs)
 	})
 
-	t.Run(testString("Marshalling/RKG", testCtx), func(t *testing.T) {
+	t.Run(testString("Marshalling/RKG", tc), func(t *testing.T) {
 
 		RKGProtocol := NewRKGProtocol(params)
 
 		ephSk0, share10, _ := RKGProtocol.AllocateShare()
 
-		crp := RKGProtocol.SampleCRP(testCtx.crs)
+		crp := RKGProtocol.SampleCRP(tc.crs)
 
-		RKGProtocol.GenShareRoundOne(testCtx.skShares[0], crp, ephSk0, share10)
+		RKGProtocol.GenShareRoundOne(tc.skShares[0], crp, ephSk0, share10)
 
 		data, err := share10.MarshalBinary()
 		require.NoError(t, err)
@@ -471,16 +474,16 @@ func testMarshalling(testCtx *testContext, t *testing.T) {
 		}
 	})
 
-	t.Run(testString("Marshalling/RTG", testCtx), func(t *testing.T) {
+	t.Run(testString("Marshalling/RTG", tc), func(t *testing.T) {
 
-		galEl := testCtx.params.GaloisElementForColumnRotationBy(64)
+		galEl := tc.params.GaloisElementForColumnRotationBy(64)
 
-		rtg := NewRTGProtocol(testCtx.params)
+		rtg := NewRTGProtocol(tc.params)
 		rtgShare := rtg.AllocateShare()
 
-		crp := rtg.SampleCRP(testCtx.crs)
+		crp := rtg.SampleCRP(tc.crs)
 
-		rtg.GenShare(testCtx.skShares[0], galEl, crp, rtgShare)
+		rtg.GenShare(tc.skShares[0], galEl, crp, rtgShare)
 
 		data, err := rtgShare.MarshalBinary()
 		require.NoError(t, err)

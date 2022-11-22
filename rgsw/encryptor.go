@@ -39,7 +39,7 @@ func (enc *Encryptor) Encrypt(pt *rlwe.Plaintext, ct interface{}) {
 
 	if pt != nil {
 		ringQ.MFormLvl(levelQ, pt.Value, enc.buffQP.Q)
-		if !pt.Value.IsNTT {
+		if !pt.IsNTT {
 			ringQ.NTTLvl(levelQ, enc.buffQP.Q, enc.buffQP.Q)
 		}
 		rlwe.AddPolyTimesGadgetVectorToGadgetCiphertext(
@@ -75,6 +75,9 @@ func (enc *Encryptor) EncryptZero(ct interface{}) {
 	}
 }
 
+// ShallowCopy creates a shallow copy of this Encryptor in which all the read-only data-structures are
+// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+// Encryptors can be used concurrently.
 func (enc *Encryptor) ShallowCopy() *Encryptor {
 	return &Encryptor{Encryptor: enc.Encryptor.ShallowCopy(), params: enc.params, buffQP: enc.params.RingQP().NewPoly()}
 }

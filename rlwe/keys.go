@@ -5,16 +5,19 @@ import (
 )
 
 // SecretKey is a type for generic RLWE secret keys.
+// The Value field stores the polynomial in NTT and Montgomery form.
 type SecretKey struct {
 	Value ringqp.Poly
 }
 
 // PublicKey is a type for generic RLWE public keys.
+// The Value field stores the polynomials in NTT and Montgomery form.
 type PublicKey struct {
-	Value [2]ringqp.Poly
+	CiphertextQP
 }
 
 // SwitchingKey is a type for generic RLWE public switching keys.
+// The Value field stores the polynomials in NTT and Montgomery form.
 type SwitchingKey struct {
 	GadgetCiphertext
 }
@@ -61,14 +64,7 @@ func (sk *SecretKey) LevelP() int {
 
 // NewPublicKey returns a new PublicKey with zero values.
 func NewPublicKey(params Parameters) (pk *PublicKey) {
-	pk = &PublicKey{Value: [2]ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()}}
-	pk.Value[0].Q.IsNTT = true
-	pk.Value[1].Q.IsNTT = true
-	if params.PCount() > 0 {
-		pk.Value[0].P.IsNTT = true
-		pk.Value[1].P.IsNTT = true
-	}
-	return
+	return &PublicKey{CiphertextQP{Value: [2]ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()}, MetaData: MetaData{IsNTT: true, IsMontgomery: true}}}
 }
 
 // LevelQ returns the level of the modulus Q of the target.
@@ -134,8 +130,8 @@ func (swk *SwitchingKey) CopyNew() *SwitchingKey {
 	return &SwitchingKey{GadgetCiphertext: *swk.GadgetCiphertext.CopyNew()}
 }
 
-// NewRelinKey creates a new EvaluationKey with zero values.
-func NewRelinKey(params Parameters, maxRelinDegree int) (evakey *RelinearizationKey) {
+// NewRelinearizationKey creates a new EvaluationKey with zero values.
+func NewRelinearizationKey(params Parameters, maxRelinDegree int) (evakey *RelinearizationKey) {
 	evakey = new(RelinearizationKey)
 	evakey.Keys = make([]*SwitchingKey, maxRelinDegree)
 	for d := 0; d < maxRelinDegree; d++ {
@@ -158,7 +154,7 @@ func (pk *PublicKey) CopyNew() *PublicKey {
 	if pk == nil {
 		return nil
 	}
-	return &PublicKey{[2]ringqp.Poly{pk.Value[0].CopyNew(), pk.Value[1].CopyNew()}}
+	return &PublicKey{*pk.CiphertextQP.CopyNew()}
 }
 
 // Equals checks two RelinearizationKeys for equality.

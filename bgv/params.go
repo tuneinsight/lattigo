@@ -11,6 +11,10 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
+const (
+	DefaultNTTFlag = true
+)
+
 var (
 	// PN12QP109 is a set of default parameters with logN=12 and logQP=109
 	PN12QP109 = ParametersLiteral{
@@ -116,15 +120,17 @@ type ParametersLiteral struct {
 // RLWEParameters returns the rlwe.ParametersLiteral from the target bfv.ParametersLiteral.
 func (p ParametersLiteral) RLWEParameters() rlwe.ParametersLiteral {
 	return rlwe.ParametersLiteral{
-		LogN:     p.LogN,
-		Q:        p.Q,
-		P:        p.P,
-		LogQ:     p.LogQ,
-		LogP:     p.LogP,
-		Pow2Base: p.Pow2Base,
-		Sigma:    p.Sigma,
-		H:        p.H,
-		RingType: ring.Standard,
+		LogN:           p.LogN,
+		Q:              p.Q,
+		P:              p.P,
+		LogQ:           p.LogQ,
+		LogP:           p.LogP,
+		Pow2Base:       p.Pow2Base,
+		Sigma:          p.Sigma,
+		H:              p.H,
+		RingType:       ring.Standard,
+		DefaultScale:   rlwe.NewScaleModT(1, p.T),
+		DefaultNTTFlag: DefaultNTTFlag,
 	}
 }
 
@@ -138,6 +144,14 @@ type Parameters struct {
 // NewParameters instantiate a set of BGV parameters from the generic RLWE parameters and the BGV-specific ones.
 // It returns the empty parameters Parameters{} and a non-nil error if the specified parameters are invalid.
 func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err error) {
+
+	if !rlweParams.DefaultNTTFlag() {
+		return Parameters{}, fmt.Errorf("provided RLWE parameters are invalid for BGV scheme (DefaultNTTFlag must be true)")
+	}
+
+	if t == 0 {
+		return Parameters{}, fmt.Errorf("invalid parameters: t = 0")
+	}
 
 	if utils.IsInSliceUint64(t, rlweParams.Q()) {
 		return Parameters{}, fmt.Errorf("insecure parameters: t|Q")
@@ -171,6 +185,19 @@ func NewParametersFromLiteral(pl ParametersLiteral) (Parameters, error) {
 	return NewParameters(rlweParams, pl.T)
 }
 
+// ParametersLiteral returns the ParametersLiteral of the target Parameters.
+func (p Parameters) ParametersLiteral() ParametersLiteral {
+	return ParametersLiteral{
+		LogN:     p.LogN(),
+		Q:        p.Q(),
+		P:        p.P(),
+		Pow2Base: p.Pow2Base(),
+		Sigma:    p.Sigma(),
+		H:        p.HammingWeight(),
+		T:        p.T(),
+	}
+}
+
 // T returns the plaintext coefficient modulus t.
 func (p Parameters) T() uint64 {
 	return p.ringT.Modulus[0]
@@ -191,34 +218,6 @@ func (p Parameters) Equals(other Parameters) bool {
 	res := p.Parameters.Equals(other.Parameters)
 	res = res && (p.T() == other.T())
 	return res
-}
-
-// RotationsForInnerSumLog generates the rotations that will be performed by the
-// `Evaluator.InnerSumLog` operation when performed with parameters `batch` and `n`.
-func (p Parameters) RotationsForInnerSumLog(batch, n int) (rotations []int) {
-
-	rotIndex := make(map[int]bool)
-
-	var k int
-	for i := 1; i < n; i <<= 1 {
-
-		k = i
-		k *= batch
-		rotIndex[k] = true
-
-		k = n - (n & ((i << 1) - 1))
-		k *= batch
-		rotIndex[k] = true
-	}
-
-	rotations = make([]int, len(rotIndex))
-	var i int
-	for j := range rotIndex {
-		rotations[i] = j
-		i++
-	}
-
-	return
 }
 
 // CopyNew makes a deep copy of the receiver and returns it.
@@ -252,6 +251,7 @@ func (p Parameters) MarshalBinary() ([]byte, error) {
 
 // UnmarshalBinary decodes a []byte into a parameter set struct.
 func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
+
 	if err := p.Parameters.UnmarshalBinary(data); err != nil {
 		return err
 	}
@@ -265,21 +265,14 @@ func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 	return nil
 }
 
-// MarshalBinarySize returns the length of the []byte encoding of the reciever.
+// MarshalBinarySize returns the length of the []byte encoding of the receiver.
 func (p Parameters) MarshalBinarySize() int {
 	return p.Parameters.MarshalBinarySize() + 8
 }
 
 // MarshalJSON returns a JSON representation of this parameter set. See `Marshal` from the `encoding/json` package.
 func (p Parameters) MarshalJSON() ([]byte, error) {
-	return json.Marshal(ParametersLiteral{
-		LogN:  p.LogN(),
-		Q:     p.Q(),
-		P:     p.P(),
-		H:     p.HammingWeight(),
-		Sigma: p.Sigma(),
-		T:     p.T(),
-	})
+	return json.Marshal(p.ParametersLiteral())
 }
 
 // UnmarshalJSON reads a JSON representation of a parameter set into the receiver Parameter. See `Unmarshal` from the `encoding/json` package.

@@ -50,9 +50,9 @@ func benchEncoder(tc *testContext, b *testing.B) {
 	coeffs := tc.uSampler.ReadNew()
 	coeffsOut := make([]uint64, tc.params.N())
 
-	plaintext := NewPlaintext(tc.params)
+	plaintext := NewPlaintext(tc.params, tc.params.MaxLevel())
 	plaintextRingT := NewPlaintextRingT(tc.params)
-	plaintextMul := NewPlaintextMul(tc.params)
+	plaintextMul := NewPlaintextMul(tc.params, tc.params.MaxLevel())
 
 	b.Run(testString("Encoder/EncodeUint", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -109,8 +109,8 @@ func benchEncrypt(tc *testContext, b *testing.B) {
 	encryptorPk := tc.encryptorPk
 	encryptorSk := tc.encryptorSk
 
-	plaintext := NewPlaintext(tc.params)
-	ciphertext := NewCiphertextRandom(tc.prng, tc.params, 1)
+	plaintext := NewPlaintext(tc.params, tc.params.MaxLevel())
+	ciphertext := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, tc.params.MaxLevel())
 
 	b.Run(testString("Encrypt/key=Pk", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -128,10 +128,10 @@ func benchEncrypt(tc *testContext, b *testing.B) {
 func benchDecrypt(tc *testContext, b *testing.B) {
 
 	decryptor := tc.decryptor
-	ciphertext := NewCiphertextRandom(tc.prng, tc.params, 1)
+	ciphertext := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, tc.params.MaxLevel())
 
-	b.Run(testString("Decrypt/", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
-		plaintext := NewPlaintext(tc.params)
+	b.Run(testString("Decrypt/", tc.params, ciphertext.Level()), func(b *testing.B) {
+		plaintext := NewPlaintext(tc.params, ciphertext.Level())
 		for i := 0; i < b.N; i++ {
 			decryptor.Decrypt(ciphertext, plaintext)
 		}
@@ -142,18 +142,18 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 
 	encoder := tc.encoder
 
-	plaintext := NewPlaintext(tc.params)
+	plaintext := NewPlaintext(tc.params, tc.params.MaxLevel())
 	plaintextRingT := NewPlaintextRingT(tc.params)
-	plaintextMul := NewPlaintextMul(tc.params)
+	plaintextMul := NewPlaintextMul(tc.params, tc.params.MaxLevel())
 
 	coeffs := tc.uSampler.ReadNew()
 	encoder.EncodeRingT(coeffs.Coeffs[0], plaintextRingT)
 	encoder.Encode(coeffs.Coeffs[0], plaintext)
 	encoder.EncodeMul(coeffs.Coeffs[0], plaintextMul)
 
-	ciphertext1 := NewCiphertextRandom(tc.prng, tc.params, 1)
-	ciphertext2 := NewCiphertextRandom(tc.prng, tc.params, 1)
-	receiver := NewCiphertextRandom(tc.prng, tc.params, 2)
+	ciphertext1 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, tc.params.MaxLevel())
+	ciphertext2 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, tc.params.MaxLevel())
+	receiver := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 2, tc.params.MaxLevel())
 
 	rotkey := tc.kgen.GenRotationKeysForRotations([]int{1}, true, tc.sk)
 

@@ -3,7 +3,6 @@ package dbfv
 import (
 	"github.com/tuneinsight/lattigo/v4/bfv"
 	"github.com/tuneinsight/lattigo/v4/drlwe"
-	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
@@ -33,15 +32,15 @@ func NewRefreshProtocol(params bfv.Parameters, sigmaSmudging float64) (rfp *Refr
 }
 
 // AllocateShare allocates the shares of the PermuteProtocol
-func (rfp *RefreshProtocol) AllocateShare() *RefreshShare {
-	share := rfp.MaskedTransformProtocol.AllocateShare()
+func (rfp *RefreshProtocol) AllocateShare(levelIn, levelOut int) *RefreshShare {
+	share := rfp.MaskedTransformProtocol.AllocateShare(levelIn, levelOut)
 	return &RefreshShare{*share}
 }
 
 // GenShare generates a share for the Refresh protocol.
 // ct1 is degree 1 element of a bfv.Ciphertext, i.e. bfv.Ciphertext.Value[1].
-func (rfp *RefreshProtocol) GenShare(sk *rlwe.SecretKey, ct1 *ring.Poly, crp drlwe.CKSCRP, shareOut *RefreshShare) {
-	rfp.MaskedTransformProtocol.GenShare(sk, sk, ct1, crp, nil, &shareOut.MaskedTransformShare)
+func (rfp *RefreshProtocol) GenShare(sk *rlwe.SecretKey, ct *rlwe.Ciphertext, crp drlwe.CKSCRP, shareOut *RefreshShare) {
+	rfp.MaskedTransformProtocol.GenShare(sk, sk, ct, crp, nil, &shareOut.MaskedTransformShare)
 }
 
 // AggregateShares aggregates two parties' shares in the Refresh protocol.
@@ -50,6 +49,6 @@ func (rfp *RefreshProtocol) AggregateShares(share1, share2, shareOut *RefreshSha
 }
 
 // Finalize applies Decrypt, Recode and Recrypt on the input ciphertext.
-func (rfp *RefreshProtocol) Finalize(ctIn *bfv.Ciphertext, crp drlwe.CKSCRP, share *RefreshShare, ctOut *bfv.Ciphertext) {
+func (rfp *RefreshProtocol) Finalize(ctIn *rlwe.Ciphertext, crp drlwe.CKSCRP, share *RefreshShare, ctOut *rlwe.Ciphertext) {
 	rfp.MaskedTransformProtocol.Transform(ctIn, nil, crp, &share.MaskedTransformShare, ctOut)
 }

@@ -2,7 +2,7 @@
 # Changelog
 All notable changes to this library are documented in this file.
 
-# UNRELEASED 
+## [4.1.0] - 2022-11-22 
 - Further improved the generalization of the code across schemes through the `rlwe` package and the introduction of a generic scale management interface.
 - All: uniformized the `prec` type to `uint` for `*big.Float` types.
 - All: renamed `WriteTo<32/64>` to `Encode<32/64>` and `DecodePoly<32/64>` to `Decode<32/64>`, added similar method to `rlwe.Ciphertext`.
@@ -24,7 +24,7 @@ All notable changes to this library are documented in this file.
     - `PowerOf2`, `Power` and `PowerNew` which are replaced by `PolynomialBasis` and `GenPower`.
 - BFV/BGV/CKKS: the naive method algorithms for `InnerSum` and `Replicate` have been removed. The method names `InnerSumLog` and `ReplicateLog` have been replaced by `InnerSum` and `Replicate` respectively.
 
-## - [4.0.0] 2022-10-04
+## [4.0.0] - 2022-10-04
 - Added BGV/DBGV schemes.
 - ALL: added default parameters for LogN=11 and LogN=10.
 - RING: prime generation no longer skips the first candidate.

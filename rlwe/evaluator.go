@@ -2,6 +2,7 @@ package rlwe
 
 import (
 	"fmt"
+	"math/big"
 	"math/bits"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
@@ -219,12 +220,13 @@ func (eval *Evaluator) Expand(ctIn *Ciphertext, logN, logGap int) (ctOut []*Ciph
 
 	params := eval.params
 
-	levelQ := ctIn.Level()
+	level := ctIn.Level()
 
 	ringQ := params.RingQ().AtLevel(levelQ)
 
 	// Compute X^{-2^{i}} from 1 to LogN
 	xPow2 := genXPow2(ringQ.AtLevel(levelQ), logN, true)
+	xPow2 := genXPow2(ringQ, level, logN, true)
 
 	ctOut = make([]*Ciphertext, 1<<(logN-logGap))
 	ctOut[0] = ctIn.CopyNew()
@@ -244,39 +246,66 @@ func (eval *Evaluator) Expand(ctIn *Ciphertext, logN, logGap int) (ctOut []*Ciph
 		s.MulScalarMontgomery(v0.Coeffs[i], NInv, v0.Coeffs[i])
 		s.MulScalarMontgomery(v1.Coeffs[i], NInv, v1.Coeffs[i])
 	}
+	NInv := new(big.Int).SetUint64(1 << logN)
+	NInv.ModInverse(NInv, ringQ.ModulusAtLevel[level])
+
+	ringQ.MulScalarBigintLvl(level, ctOut[0].Value[0], NInv, ctOut[0].Value[0])
+	ringQ.MulScalarBigintLvl(level, ctOut[0].Value[1], NInv, ctOut[0].Value[1])
 
 	gap := 1 << logGap
 
-	tmp := NewCiphertext(params, 1, levelQ)
+	tmp := NewCiphertextAtLevelFromPoly(level, [2]*ring.Poly{eval.BuffCt.Value[0], eval.BuffCt.Value[1]})
+	tmp.MetaData = ctIn.MetaData
 
 	for i := 0; i < logN; i++ {
 
 		galEl := uint64(ringQ.N()/(1<<i) + 1)
+		n := 1 << i
 
-		for j := 0; j < (1 << i); j += gap {
+		galEl := uint64(ringQ.N/n + 1)
 
-			c0 := ctOut[j/gap]
+		half := n / gap
 
-			// X -> X^{N/2^{i} + 1}
+		for j := 0; j < (n+gap-1)/gap; j++ {
+
+			c0 := ctOut[j]
+
+			// X -> X^{N/n + 1}
+			//[a, b, c, d] -> [a, -b, c, -d]
 			eval.Automorphism(c0, galEl, tmp)
 
-			c1 := c0.CopyNew()
+			if j+half > 0 {
 
 			// Zeroes odd coeffs: [a, b, c, d] -> [2a, 0, 2b, 0]
 			ringQ.Add(c0.Value[0], tmp.Value[0], c0.Value[0])
 			ringQ.Add(c0.Value[1], tmp.Value[1], c0.Value[1])
+				c1 := ctOut[j].CopyNew()
 
-			if (j+(1<<i))/gap > 0 {
+				// Zeroes odd coeffs: [a, b, c, d] + [a, -b, c, -d] -> [2a, 0, 2b, 0]
+				ringQ.AddLvl(level, c0.Value[0], tmp.Value[0], c0.Value[0])
+				ringQ.AddLvl(level, c0.Value[1], tmp.Value[1], c0.Value[1])
 
 				// Zeroes even coeffs: [a, b, c, d] -> [0, 2b, 0, 2d]
 				ringQ.Sub(c1.Value[0], tmp.Value[0], c1.Value[0])
 				ringQ.Sub(c1.Value[1], tmp.Value[1], c1.Value[1])
+				// Zeroes even coeffs: [a, b, c, d] - [a, -b, c, -d] -> [0, 2b, 0, 2d]
+				ringQ.SubLvl(level, c1.Value[0], tmp.Value[0], c1.Value[0])
+				ringQ.SubLvl(level, c1.Value[1], tmp.Value[1], c1.Value[1])
 
 				// c1 * X^{-2^{i}}: [0, 2b, 0, 2d] -> [2b, 0, 2d, 0]
 				ringQ.MulCoeffsMontgomery(c1.Value[0], xPow2[i], c1.Value[0])
 				ringQ.MulCoeffsMontgomery(c1.Value[1], xPow2[i], c1.Value[1])
+				// c1 * X^{-2^{i}}: [0, 2b, 0, 2d] * X^{-n} -> [2b, 0, 2d, 0]
+				ringQ.MulCoeffsMontgomeryLvl(level, c1.Value[0], xPow2[i], c1.Value[0])
+				ringQ.MulCoeffsMontgomeryLvl(level, c1.Value[1], xPow2[i], c1.Value[1])
 
-				ctOut[(j+(1<<i))/gap] = c1
+				ctOut[j+half] = c1
+
+			} else {
+
+				// Zeroes odd coeffs: [a, b, c, d] + [a, -b, c, -d] -> [2a, 0, 2b, 0]
+				ringQ.AddLvl(level, c0.Value[0], tmp.Value[0], c0.Value[0])
+				ringQ.AddLvl(level, c0.Value[1], tmp.Value[1], c0.Value[1])
 			}
 		}
 	}
@@ -293,6 +322,10 @@ func (eval *Evaluator) Expand(ctIn *Ciphertext, logN, logGap int) (ctOut []*Ciph
 }
 
 // Merge merges a batch of RLWE, packing the first coefficient of each RLWE into a single RLWE.
+//
+// Given P(Y) = sum[ct(P(X) = sum[a_{ij} * X^{j}]) * Y^{i}] returns ct(P(X) = sum[a_{0j} * X^{j}])
+//
+// This method is not inplace and will modify the input ciphertexts.
 // The operation will require N/gap + log(gap) key-switches, where gap is the minimum gap between
 // two non-zero coefficients of the final Ciphertext.
 // The method takes as input a map of Ciphertext, indexing in which coefficient of the final
@@ -303,17 +336,24 @@ func (eval *Evaluator) Merge(ctIn map[int]*Ciphertext) (ctOut *Ciphertext) {
 	params := eval.params
 	ringQ := params.RingQ()
 
-	var levelQ int
-	for i := range ctIn {
-		levelQ = ctIn[i].Level()
+	var level int
+	for _, ct := range ctIn {
+		level = ct.Level()
 		break
 	}
 
 	for i := range ctIn {
 		levelQ = utils.MinInt(levelQ, ctIn[i].Level())
 	}
+	for _, ct := range ctIn {
+		level = utils.MinInt(level, ct.Level())
+	}
 
 	xPow2 := genXPow2(ringQ.AtLevel(levelQ), params.LogN(), false)
+	xPow2 := genXPow2(ringQ, level, params.LogN(), false)
+
+	NInv := new(big.Int).SetUint64(uint64(ringQ.N))
+	NInv.ModInverse(NInv, ringQ.ModulusAtLevel[level])
 
 	// Multiplies by (Slots * N) ^-1 mod Q
 	for i := range ctIn {
@@ -332,37 +372,43 @@ func (eval *Evaluator) Merge(ctIn map[int]*Ciphertext) (ctOut *Ciphertext) {
 				s.MulScalarMontgomery(v0.Coeffs[j], s.NInv, v0.Coeffs[j])
 				s.MulScalarMontgomery(v1.Coeffs[j], s.NInv, v1.Coeffs[j])
 			}
+			ringQ.MulScalarBigintLvl(level, ctIn[i].Value[0], NInv, ctIn[i].Value[0])
+			ringQ.MulScalarBigintLvl(level, ctIn[i].Value[1], NInv, ctIn[i].Value[1])
 		}
 	}
 
 	ciphertextslist := make([]*Ciphertext, ringQ.N())
+	ctPoly := make([]*Ciphertext, ringQ.N)
 
 	for i := range ctIn {
-		ciphertextslist[i] = ctIn[i]
+		ctPoly[i] = ctIn[i]
 	}
 
-	if ciphertextslist[0] == nil {
-		ciphertextslist[0] = NewCiphertext(params, 1, levelQ)
-		ciphertextslist[0].IsNTT = true
+	if ctPoly[0] == nil {
+		ctPoly[0] = NewCiphertext(params, 1, level)
+		ctPoly[0].IsNTT = true
 	}
 
-	return eval.mergeRLWERecurse(ciphertextslist, xPow2)
+	return eval.mergeRLWERecurse(ctPoly, xPow2)
 }
 
-func (eval *Evaluator) mergeRLWERecurse(ciphertexts []*Ciphertext, xPow []*ring.Poly) *Ciphertext {
+func (eval *Evaluator) mergeRLWERecurse(ct []*Ciphertext, xPow []*ring.Poly) *Ciphertext {
 
 	L := bits.Len64(uint64(len(ciphertexts))) - 1
+	ringQ := eval.params.RingQ()
+
+	L := bits.Len64(uint64(len(ct))) - 1
 
 	if L == 0 {
-		return ciphertexts[0]
+		return ct[0]
 	}
 
-	odd := make([]*Ciphertext, len(ciphertexts)>>1)
-	even := make([]*Ciphertext, len(ciphertexts)>>1)
+	odd := make([]*Ciphertext, len(ct)>>1)
+	even := make([]*Ciphertext, len(ct)>>1)
 
-	for i := 0; i < len(ciphertexts)>>1; i++ {
-		odd[i] = ciphertexts[2*i]
-		even[i] = ciphertexts[2*i+1]
+	for i := 0; i < len(ct)>>1; i++ {
+		odd[i] = ct[2*i]
+		even[i] = ct[2*i+1]
 	}
 
 	ctEven := eval.mergeRLWERecurse(odd, xPow)

@@ -56,9 +56,9 @@ on the security.
 
 The BFV scheme supports the standard recommended parameters chosen to offer a security of 128 bits
 for a secret key with uniform ternary distribution
-$s \in_u \{-1, 0, 1\}^N $, according to the [Homomorphic Encryption Standards group](https://homomorphicencryption.org/standard/).  
+$s \in_u \\{-1, 0, 1\\}^N $, according to the [Homomorphic Encryption Standards group](https://homomorphicencryption.org/standard/).  
 
-Each set of parameters is defined by the tuple $\{log_2(N), log_2(Q), \sigma \}$:
+Each set of parameters is defined by the tuple $\\{ log_2(N), log_2(Q), \sigma \\}$:
 
 - **{12, 109, 3.2}**
 - **{13, 218, 3.2}**
@@ -70,4 +70,4 @@ These parameter sets are hard-coded in the file
 variance should always be set to 3.2 unless the user is perfectly aware of the security implications
 of changing this parameter.
 
-Finally, it is worth noting that these security parameters are computed for fully entropic ternary keys (with probability distribution $\{1/3,1/3,1/3\}$ for values $\{-1,0,1\}$). Lattigo uses this fully-entropic key configuration by default. It is possible, though, to generate keys with lower entropy, by modifying their distribution to $\{(1-p)/2, p, (1-p)/2 \}$, for any $p$ between 0 and 1, which for $p\gg 1/3$ can result in low Hamming weight keys (*sparse* keys). *We recall that it has been shown that the security of sparse keys can be considerably lower than that of fully entropic keys, and the BFV security parameters should be re-evaluated if sparse keys are used*.
+Finally, it is worth noting that these security parameters are computed for fully entropic ternary keys (with probability distribution $\\{1/3,1/3,1/3\\}$ for values $\\{-1,0,1\\}$). Lattigo uses this fully-entropic key configuration by default. It is possible, though, to generate keys with lower entropy, by modifying their distribution to $\\{(1-p)/2, p, (1-p)/2 \\}$, for any $p$ between 0 and 1, which for $p\gg 1/3$ can result in low Hamming weight keys (*sparse* keys). *We recall that it has been shown that the security of sparse keys can be considerably lower than that of fully entropic keys, and the BFV security parameters should be re-evaluated if sparse keys are used*.

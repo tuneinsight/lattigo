@@ -80,7 +80,7 @@ func ModexpMontgomery(x uint64, e int, q, qInv uint64, bredParams []uint64) (res
 	return result
 }
 
-// primitiveRoot computes one primitive root (the smallest) for the given prime q
+// primitiveRoot computes the smallest primitive root of the given prime q
 func primitiveRoot(q uint64) (g uint64) {
 	var tmp uint64
 

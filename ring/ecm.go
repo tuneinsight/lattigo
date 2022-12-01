@@ -100,7 +100,7 @@ type Weierstrass struct {
 
 // Add adds two Weierstrass points together with respect
 // to the underlying Weierstrass curve.
-// This method does not check if the point are lying on
+// This method does not check if the points lie on
 // the underlying curve.
 func (w *Weierstrass) Add(P, Q Point) Point {
 	if P.X == 0 && P.Y == 1 {
@@ -187,7 +187,7 @@ func NewRandomWeierstrassCurve(N uint64) (Weierstrass, Point) {
 	}
 }
 
-// Point represent an elliptic curve point.
+// Point represents an elliptic curve point.
 type Point struct {
 	X, Y uint64
 }

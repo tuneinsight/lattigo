@@ -36,7 +36,7 @@ func GetFactors(m uint64) (factors []uint64) {
 		}
 
 		// Then tries with a quick PollardRho
-		// If this fail, calls ECM factorization
+		// If this fails, calls ECM factorization
 		if factor = FactorizationPollardsRho(m); factor == 1 {
 			factor = FactorizeECM(m)
 		}
@@ -64,7 +64,7 @@ func GetFactors(m uint64) (factors []uint64) {
 	return
 }
 
-// FactorizationPollardsRho realizes Pollard's Rho algorithm for fast prime factorization,
+// FactorizationPollardsRho implements Pollard's Rho algorithm for fast prime factorization,
 // but this function only returns one factor per call
 func FactorizationPollardsRho(m uint64) (d uint64) {
 	var x, y, c uint64
@@ -79,8 +79,8 @@ func FactorizationPollardsRho(m uint64) (d uint64) {
 		for d != 0 {
 
 			//Walk, walk and eventually meet \o/
-			x = polynomialPollardsRho(x, m, c)
-			y = polynomialPollardsRho(polynomialPollardsRho(y, m, c), m, c)
+			x = polynomialPollardsRho(x, c, m)
+			y = polynomialPollardsRho(polynomialPollardsRho(y, c, m), c, m)
 
 			if d = utils.GCD(x+m-y, m); d > 1 {
 				return

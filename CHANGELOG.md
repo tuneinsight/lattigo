@@ -2,6 +2,10 @@
 # Changelog
 All notable changes to this library are documented in this file.
 
+## UNRELEASED - XXXX-XX-XX
+- Go `1.13` is not supported anymore by the library due to behavioral changes in the `math/big` package. The minimum version is now `1.14`.
+- UTILS: added `GetFactors`, `GetFactorPollardRho` and `GetFactorECM`.
+
 ## [4.1.0] - 2022-11-22 
 - Further improved the generalization of the code across schemes through the `rlwe` package and the introduction of a generic scale management interface.
 - All: uniformized the `prec` type to `uint` for `*big.Float` types.

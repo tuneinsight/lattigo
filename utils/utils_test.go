@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"math/big"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -42,4 +43,26 @@ func TestRotateUint64(t *testing.T) {
 
 	RotateUint64SliceAllocFree(s, -2, s)
 	require.Equal(t, []uint64{7, 0, 1, 2, 3, 4, 5, 6}, s)
+}
+
+func TestGetFactors(t *testing.T) {
+
+	m := new(big.Int).SetUint64(35184372088631)
+
+	t.Run("ECM", func(t *testing.T) {
+
+		factor := GetFactorECM(m)
+
+		if factor.Cmp(new(big.Int).SetUint64(6292343)) != 0 && factor.Cmp(new(big.Int).SetUint64(5591617)) != 0 {
+			t.Fail()
+		}
+	})
+
+	t.Run("PollardRho", func(t *testing.T) {
+		factor := GetFactorPollardRho(m)
+
+		if factor.Cmp(new(big.Int).SetUint64(6292343)) != 0 && factor.Cmp(new(big.Int).SetUint64(5591617)) != 0 {
+			t.Fail()
+		}
+	})
 }

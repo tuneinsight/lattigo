@@ -79,28 +79,3 @@ func ModexpMontgomery(x uint64, e int, q, qInv uint64, bredParams []uint64) (res
 	}
 	return result
 }
-
-// primitiveRoot computes the smallest primitive root of the given prime q
-func primitiveRoot(q uint64) (g uint64) {
-	var tmp uint64
-
-	notFoundPrimitiveRoot := true
-
-	factors := GetFactors(q - 1) //Factor q-1, might be slow
-
-	g = 2
-
-	for notFoundPrimitiveRoot {
-		g++
-		for _, factor := range factors {
-			tmp = (q - 1) / factor
-			// if for any factor of q-1, g^(q-1)/factor = 1 mod q, g is not a primitive root
-			if ModExp(g, tmp, q) == 1 {
-				notFoundPrimitiveRoot = true
-				break
-			}
-			notFoundPrimitiveRoot = false
-		}
-	}
-	return
-}

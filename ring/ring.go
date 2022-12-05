@@ -331,6 +331,29 @@ func (r *Ring) genNTTParams(NthRoot uint64) error {
 	return nil
 }
 
+// primitiveRoot computes the smallest primitive root of the given prime q
+func primitiveRoot(q uint64) (g uint64) {
+
+	notFoundPrimitiveRoot := true
+
+	factors := utils.GetFactors(new(big.Int).SetUint64(q - 1)) //Factor q-1, might be slow
+
+	g = 2
+
+	for notFoundPrimitiveRoot {
+		g++
+		for _, factor := range factors {
+			// if for any factor of q-1, g^(q-1)/factor = 1 mod q, g is not a primitive root
+			if ModExp(g, (q-1)/factor.Uint64(), q) == 1 {
+				notFoundPrimitiveRoot = true
+				break
+			}
+			notFoundPrimitiveRoot = false
+		}
+	}
+	return
+}
+
 // Minimal required information to recover the full ring. Used to import and export the ring.
 type ringParams struct {
 	N       int

@@ -3,6 +3,7 @@ package utils
 import (
 	"crypto/rand"
 	"encoding/binary"
+	"math/big"
 	"math/bits"
 )
 
@@ -28,6 +29,15 @@ func RandFloat64(min, max float64) float64 {
 // RandComplex128 returns a random complex with the real and imaginary part between min and max.
 func RandComplex128(min, max float64) complex128 {
 	return complex(RandFloat64(min, max), RandFloat64(min, max))
+}
+
+// RandInt generates a random Int in [0, max-1].
+func RandInt(max *big.Int) (n *big.Int) {
+	var err error
+	if n, err = rand.Int(rand.Reader, max); err != nil {
+		panic(err)
+	}
+	return
 }
 
 // EqualSliceUint64 checks the equality between two uint64 slices.

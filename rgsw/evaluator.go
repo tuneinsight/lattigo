@@ -55,9 +55,9 @@ func (eval *Evaluator) ExternalProduct(op0 *rlwe.Ciphertext, op1 *Ciphertext, op
 	if levelP < 1 {
 
 		// If log(Q) * (Q-1)**2 < 2^{64}-1
-		if ringQ := eval.params.RingQ(); levelQ == 0 && levelP == -1 && (ringQ.Modulus[0]>>29) == 0 {
+		if ringQ := eval.params.RingQ(); levelQ == 0 && levelP == -1 && (ringQ.Tables[0].Modulus>>29) == 0 {
 			eval.externalProduct32Bit(op0, op1, c0QP.Q, c1QP.Q)
-			q, mredParams := ringQ.Modulus[0], ringQ.MredParams[0]
+			q, mredParams := ringQ.Tables[0].Modulus, ringQ.Tables[0].MRedParams
 			ring.InvMFormVec(c0QP.Q.Coeffs[0], op2.Value[0].Coeffs[0], q, mredParams)
 			ring.InvMFormVec(c1QP.Q.Coeffs[0], op2.Value[1].Coeffs[0], q, mredParams)
 		} else {
@@ -145,29 +145,41 @@ func (eval *Evaluator) externalProductInPlaceSinglePAndBitDecomp(ct0 *rlwe.Ciphe
 				if k == 0 && i == 0 && j == 0 {
 
 					for u := 0; u < levelQ+1; u++ {
+
+						Table := ringQ.Tables[u]
+
 						ringQ.NTTSingleLazy(u, cw, cwNTT)
-						ring.MulCoeffsMontgomeryVec(el.Value[i][j].Value[0].Q.Coeffs[u], cwNTT, c0QP.Q.Coeffs[u], ringQ.Modulus[u], ringQ.MredParams[u])
-						ring.MulCoeffsMontgomeryVec(el.Value[i][j].Value[1].Q.Coeffs[u], cwNTT, c1QP.Q.Coeffs[u], ringQ.Modulus[u], ringQ.MredParams[u])
+						ring.MulCoeffsMontgomeryVec(el.Value[i][j].Value[0].Q.Coeffs[u], cwNTT, c0QP.Q.Coeffs[u], Table.Modulus, Table.MRedParams)
+						ring.MulCoeffsMontgomeryVec(el.Value[i][j].Value[1].Q.Coeffs[u], cwNTT, c1QP.Q.Coeffs[u], Table.Modulus, Table.MRedParams)
 					}
 
 					for u := 0; u < levelP+1; u++ {
+
+						Table := ringP.Tables[u]
+
 						ringP.NTTSingleLazy(u, cw, cwNTT)
-						ring.MulCoeffsMontgomeryVec(el.Value[i][j].Value[0].P.Coeffs[u], cwNTT, c0QP.P.Coeffs[u], ringP.Modulus[u], ringP.MredParams[u])
-						ring.MulCoeffsMontgomeryVec(el.Value[i][j].Value[1].P.Coeffs[u], cwNTT, c1QP.P.Coeffs[u], ringP.Modulus[u], ringP.MredParams[u])
+						ring.MulCoeffsMontgomeryVec(el.Value[i][j].Value[0].P.Coeffs[u], cwNTT, c0QP.P.Coeffs[u], Table.Modulus, Table.MRedParams)
+						ring.MulCoeffsMontgomeryVec(el.Value[i][j].Value[1].P.Coeffs[u], cwNTT, c1QP.P.Coeffs[u], Table.Modulus, Table.MRedParams)
 					}
 
 				} else {
 
 					for u := 0; u < levelQ+1; u++ {
+
+						Table := ringQ.Tables[u]
+
 						ringQ.NTTSingleLazy(u, cw, cwNTT)
-						ring.MulCoeffsMontgomeryAndAddVec(el.Value[i][j].Value[0].Q.Coeffs[u], cwNTT, c0QP.Q.Coeffs[u], ringQ.Modulus[u], ringQ.MredParams[u])
-						ring.MulCoeffsMontgomeryAndAddVec(el.Value[i][j].Value[1].Q.Coeffs[u], cwNTT, c1QP.Q.Coeffs[u], ringQ.Modulus[u], ringQ.MredParams[u])
+						ring.MulCoeffsMontgomeryAndAddVec(el.Value[i][j].Value[0].Q.Coeffs[u], cwNTT, c0QP.Q.Coeffs[u], Table.Modulus, Table.MRedParams)
+						ring.MulCoeffsMontgomeryAndAddVec(el.Value[i][j].Value[1].Q.Coeffs[u], cwNTT, c1QP.Q.Coeffs[u], Table.Modulus, Table.MRedParams)
 					}
 
 					for u := 0; u < levelP+1; u++ {
+
+						Table := ringP.Tables[u]
+
 						ringP.NTTSingleLazy(u, cw, cwNTT)
-						ring.MulCoeffsMontgomeryAndAddVec(el.Value[i][j].Value[0].P.Coeffs[u], cwNTT, c0QP.P.Coeffs[u], ringP.Modulus[u], ringP.MredParams[u])
-						ring.MulCoeffsMontgomeryAndAddVec(el.Value[i][j].Value[1].P.Coeffs[u], cwNTT, c1QP.P.Coeffs[u], ringP.Modulus[u], ringP.MredParams[u])
+						ring.MulCoeffsMontgomeryAndAddVec(el.Value[i][j].Value[0].P.Coeffs[u], cwNTT, c0QP.P.Coeffs[u], Table.Modulus, Table.MRedParams)
+						ring.MulCoeffsMontgomeryAndAddVec(el.Value[i][j].Value[1].P.Coeffs[u], cwNTT, c1QP.P.Coeffs[u], Table.Modulus, Table.MRedParams)
 					}
 				}
 			}

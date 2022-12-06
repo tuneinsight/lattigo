@@ -166,27 +166,44 @@ func (eval *Evaluator) GadgetProductSinglePAndBitDecompNoModDown(levelQ int, cx 
 
 			if i == 0 && j == 0 {
 				for u := 0; u < levelQ+1; u++ {
+
+					Table := ringQ.Tables[u]
+
 					ringQ.NTTSingleLazy(u, cw, cwNTT)
-					ring.MulCoeffsMontgomeryConstantVec(el[i][j].Value[0].Q.Coeffs[u], cwNTT, ct.Value[0].Q.Coeffs[u], ringQ.Modulus[u], ringQ.MredParams[u])
-					ring.MulCoeffsMontgomeryConstantVec(el[i][j].Value[1].Q.Coeffs[u], cwNTT, ct.Value[1].Q.Coeffs[u], ringQ.Modulus[u], ringQ.MredParams[u])
+					ring.MulCoeffsMontgomeryConstantVec(el[i][j].Value[0].Q.Coeffs[u], cwNTT, ct.Value[0].Q.Coeffs[u], Table.Modulus, Table.MRedParams)
+					ring.MulCoeffsMontgomeryConstantVec(el[i][j].Value[1].Q.Coeffs[u], cwNTT, ct.Value[1].Q.Coeffs[u], Table.Modulus, Table.MRedParams)
 				}
 
-				for u := 0; u < levelP+1; u++ {
-					ringP.NTTSingleLazy(u, cw, cwNTT)
-					ring.MulCoeffsMontgomeryConstantVec(el[i][j].Value[0].P.Coeffs[u], cwNTT, ct.Value[0].P.Coeffs[u], ringP.Modulus[u], ringP.MredParams[u])
-					ring.MulCoeffsMontgomeryConstantVec(el[i][j].Value[1].P.Coeffs[u], cwNTT, ct.Value[1].P.Coeffs[u], ringP.Modulus[u], ringP.MredParams[u])
+				if ringP != nil {
+					for u := 0; u < levelP+1; u++ {
+
+						Table := ringP.Tables[u]
+
+						ringP.NTTSingleLazy(u, cw, cwNTT)
+						ring.MulCoeffsMontgomeryConstantVec(el[i][j].Value[0].P.Coeffs[u], cwNTT, ct.Value[0].P.Coeffs[u], Table.Modulus, Table.MRedParams)
+						ring.MulCoeffsMontgomeryConstantVec(el[i][j].Value[1].P.Coeffs[u], cwNTT, ct.Value[1].P.Coeffs[u], Table.Modulus, Table.MRedParams)
+					}
 				}
+
 			} else {
 				for u := 0; u < levelQ+1; u++ {
+
+					Table := ringQ.Tables[u]
+
 					ringQ.NTTSingleLazy(u, cw, cwNTT)
-					ring.MulCoeffsMontgomeryConstantAndAddNoModVec(el[i][j].Value[0].Q.Coeffs[u], cwNTT, ct.Value[0].Q.Coeffs[u], ringQ.Modulus[u], ringQ.MredParams[u])
-					ring.MulCoeffsMontgomeryConstantAndAddNoModVec(el[i][j].Value[1].Q.Coeffs[u], cwNTT, ct.Value[1].Q.Coeffs[u], ringQ.Modulus[u], ringQ.MredParams[u])
+					ring.MulCoeffsMontgomeryConstantAndAddNoModVec(el[i][j].Value[0].Q.Coeffs[u], cwNTT, ct.Value[0].Q.Coeffs[u], Table.Modulus, Table.MRedParams)
+					ring.MulCoeffsMontgomeryConstantAndAddNoModVec(el[i][j].Value[1].Q.Coeffs[u], cwNTT, ct.Value[1].Q.Coeffs[u], Table.Modulus, Table.MRedParams)
 				}
 
-				for u := 0; u < levelP+1; u++ {
-					ringP.NTTSingleLazy(u, cw, cwNTT)
-					ring.MulCoeffsMontgomeryConstantAndAddNoModVec(el[i][j].Value[0].P.Coeffs[u], cwNTT, ct.Value[0].P.Coeffs[u], ringP.Modulus[u], ringP.MredParams[u])
-					ring.MulCoeffsMontgomeryConstantAndAddNoModVec(el[i][j].Value[1].P.Coeffs[u], cwNTT, ct.Value[1].P.Coeffs[u], ringP.Modulus[u], ringP.MredParams[u])
+				if ringP != nil {
+					for u := 0; u < levelP+1; u++ {
+
+						Table := ringP.Tables[u]
+
+						ringP.NTTSingleLazy(u, cw, cwNTT)
+						ring.MulCoeffsMontgomeryConstantAndAddNoModVec(el[i][j].Value[0].P.Coeffs[u], cwNTT, ct.Value[0].P.Coeffs[u], Table.Modulus, Table.MRedParams)
+						ring.MulCoeffsMontgomeryConstantAndAddNoModVec(el[i][j].Value[1].P.Coeffs[u], cwNTT, ct.Value[1].P.Coeffs[u], Table.Modulus, Table.MRedParams)
+					}
 				}
 			}
 
@@ -209,8 +226,11 @@ func (eval *Evaluator) GadgetProductSinglePAndBitDecompNoModDown(levelQ int, cx 
 		ringQ.ReduceLvl(levelQ, ct.Value[1].Q, ct.Value[1].Q)
 	}
 
-	if reduce%PiOverF != 0 {
-		ringP.ReduceLvl(levelP, ct.Value[0].P, ct.Value[0].P)
-		ringP.ReduceLvl(levelP, ct.Value[1].P, ct.Value[1].P)
+	if ringP != nil {
+		if reduce%PiOverF != 0 {
+			ringP.ReduceLvl(levelP, ct.Value[0].P, ct.Value[0].P)
+			ringP.ReduceLvl(levelP, ct.Value[1].P, ct.Value[1].P)
+		}
 	}
+
 }

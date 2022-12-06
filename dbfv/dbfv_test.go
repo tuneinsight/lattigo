@@ -274,7 +274,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 			evaluator.Relinearize(tc.evaluator.MulNew(ciphertextTmp, ciphertextTmp), ciphertextTmp)
 
 			for j := range coeffsTmp {
-				coeffsTmp[j] = ring.BRed(coeffsTmp[j], coeffsTmp[j], tc.ringT.Modulus[0], tc.ringT.BredParams[0])
+				coeffsTmp[j] = ring.BRed(coeffsTmp[j], coeffsTmp[j], tc.ringT.Tables[0].Modulus, tc.ringT.Tables[0].BRedParams)
 			}
 
 			if utils.EqualSliceUint64(coeffsTmp, encoder.DecodeUintNew(decryptorSk0.DecryptNew(ciphertextTmp))) {
@@ -296,14 +296,13 @@ func testRefresh(tc *testContext, t *testing.T) {
 			coeffsBigint[i].Add(coeffsBigint[i], ring.RandInt(errorRange))
 		}
 
-		tc.ringQ.SetCoefficientsBigint(coeffsBigint, ciphertext.Value[0])
+		tc.ringQ.SetCoefficientsBigintLvl(ciphertext.Level(), coeffsBigint, ciphertext.Value[0])
 
 		for i, p := range RefreshParties {
 			p.GenShare(p.s, ciphertext, crp, p.share)
 			if i > 0 {
 				P0.AggregateShares(p.share, P0.share, P0.share)
 			}
-
 		}
 
 		ctRes := bfv.NewCiphertext(tc.params, 1, tc.params.MaxLevel())
@@ -315,7 +314,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 			evaluator.Relinearize(tc.evaluator.MulNew(ctRes, ctRes), ctRes)
 
 			for j := range coeffs {
-				coeffs[j] = ring.BRed(coeffs[j], coeffs[j], tc.ringT.Modulus[0], tc.ringT.BredParams[0])
+				coeffs[j] = ring.BRed(coeffs[j], coeffs[j], tc.ringT.Tables[0].Modulus, tc.ringT.Tables[0].BRedParams)
 			}
 		}
 

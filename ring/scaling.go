@@ -7,7 +7,7 @@ func (r *Ring) DivFloorByLastModulusNTTLvl(level int, p0, buff, p1 *Poly) {
 	for i := 0; i < level; i++ {
 		r.NTTSingleLazy(i, buff.Coeffs[0], buff.Coeffs[1])
 		// (-x[i] + x[-1]) * -InvQ
-		SubVecAndMulScalarMontgomeryTwoQiVec(buff.Coeffs[1], p0.Coeffs[i], p1.Coeffs[i], r.RescaleParams[level-1][i], r.Modulus[i], r.MredParams[i])
+		SubVecAndMulScalarMontgomeryTwoQiVec(buff.Coeffs[1], p0.Coeffs[i], p1.Coeffs[i], r.RescaleParams[level-1][i], r.Tables[i].Modulus, r.Tables[i].MRedParams)
 	}
 }
 
@@ -15,7 +15,7 @@ func (r *Ring) DivFloorByLastModulusNTTLvl(level int, p0, buff, p1 *Poly) {
 // Output poly level must be equal or one less than input level.
 func (r *Ring) DivFloorByLastModulusLvl(level int, p0, p1 *Poly) {
 	for i := 0; i < level; i++ {
-		SubVecAndMulScalarMontgomeryTwoQiVec(p0.Coeffs[level], p0.Coeffs[i], p1.Coeffs[i], r.RescaleParams[level-1][i], r.Modulus[i], r.MredParams[i])
+		SubVecAndMulScalarMontgomeryTwoQiVec(p0.Coeffs[level], p0.Coeffs[i], p1.Coeffs[i], r.RescaleParams[level-1][i], r.Tables[i].Modulus, r.Tables[i].MRedParams)
 	}
 }
 
@@ -78,16 +78,17 @@ func (r *Ring) DivRoundByLastModulusNTTLvl(level int, p0, buff, p1 *Poly) {
 	r.InvNTTSingleLazy(level, p0.Coeffs[level], buff.Coeffs[level])
 
 	// Center by (p-1)/2
-	pj := r.Modulus[level]
+	pj := r.Tables[level].Modulus
 	pHalf := (pj - 1) >> 1
 
 	AddScalarVec(buff.Coeffs[level], buff.Coeffs[level], pHalf, pj)
 
 	for i := 0; i < level; i++ {
-		qi := r.Modulus[i]
-		AddScalarNoModVec(buff.Coeffs[level], buff.Coeffs[i], qi-BRedAdd(pHalf, qi, r.BredParams[i]))
+		table := r.Tables[i]
+		qi := table.Modulus
+		AddScalarNoModVec(buff.Coeffs[level], buff.Coeffs[i], qi-BRedAdd(pHalf, qi, table.BRedParams))
 		r.NTTSingleLazy(i, buff.Coeffs[i], buff.Coeffs[i])
-		SubVecAndMulScalarMontgomeryTwoQiVec(buff.Coeffs[i], p0.Coeffs[i], p1.Coeffs[i], r.RescaleParams[level-1][i], qi, r.MredParams[i])
+		SubVecAndMulScalarMontgomeryTwoQiVec(buff.Coeffs[i], p0.Coeffs[i], p1.Coeffs[i], r.RescaleParams[level-1][i], qi, table.MRedParams)
 	}
 }
 
@@ -96,15 +97,16 @@ func (r *Ring) DivRoundByLastModulusNTTLvl(level int, p0, buff, p1 *Poly) {
 func (r *Ring) DivRoundByLastModulusLvl(level int, p0, p1 *Poly) {
 
 	// Center by (p-1)/2
-	pj := r.Modulus[level]
+	pj := r.Tables[level].Modulus
 	pHalf := (pj - 1) >> 1
 
 	AddScalarVec(p0.Coeffs[level], p0.Coeffs[level], pHalf, pj)
 
 	for i := 0; i < level; i++ {
-		qi := r.Modulus[i]
-		AddScalarNoModAndNegTwoQiNoModVec(p0.Coeffs[i], p0.Coeffs[i], qi-BRedAdd(pHalf, qi, r.BredParams[i]), qi)
-		AddVecNoModAndMulScalarMontgomeryVec(p0.Coeffs[level], p0.Coeffs[i], p1.Coeffs[i], r.RescaleParams[level-1][i], qi, r.MredParams[i])
+		table := r.Tables[i]
+		qi := table.Modulus
+		AddScalarNoModAndNegTwoQiNoModVec(p0.Coeffs[i], p0.Coeffs[i], qi-BRedAdd(pHalf, qi, table.BRedParams), qi)
+		AddVecNoModAndMulScalarMontgomeryVec(p0.Coeffs[level], p0.Coeffs[i], p1.Coeffs[i], r.RescaleParams[level-1][i], qi, table.MRedParams)
 	}
 }
 

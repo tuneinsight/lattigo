@@ -173,9 +173,9 @@ func (r *Ring) NegLvl(levelQ, levelP int, p1, p2 Poly) {
 
 // NewRNSScalar creates a new Scalar value (i.e., a degree-0 polynomial) in the RingQP.
 func (r *Ring) NewRNSScalar() ring.RNSScalar {
-	modlen := len(r.RingQ.Modulus)
+	modlen := r.RingQ.NbModuli()
 	if r.RingP != nil {
-		modlen += len(r.RingP.Modulus)
+		modlen += r.RingP.NbModuli()
 	}
 	return make(ring.RNSScalar, modlen)
 }
@@ -194,7 +194,7 @@ func (r *Ring) NewRNSScalarFromUInt64(v uint64) ring.RNSScalar {
 
 // SubRNSScalar subtracts s2 to s1 and stores the result in sout.
 func (r *Ring) SubRNSScalar(s1, s2, sout ring.RNSScalar) {
-	qlen := len(r.RingQ.Modulus)
+	qlen := r.RingQ.NbModuli()
 	if r.RingQ != nil {
 		r.RingQ.SubRNSScalar(s1[:qlen], s2[:qlen], sout[:qlen])
 	}
@@ -206,7 +206,7 @@ func (r *Ring) SubRNSScalar(s1, s2, sout ring.RNSScalar) {
 
 // MulRNSScalar multiplies s1 and s2 and stores the result in sout.
 func (r *Ring) MulRNSScalar(s1, s2, sout ring.RNSScalar) {
-	qlen := len(r.RingQ.Modulus)
+	qlen := r.RingQ.NbModuli()
 	if r.RingQ != nil {
 		r.RingQ.MulRNSScalar(s1[:qlen], s2[:qlen], sout[:qlen])
 	}
@@ -368,7 +368,7 @@ func (r *Ring) MulCoeffsMontgomeryAndAddLvl(levelQ, levelP int, p1, p2, p3 Poly)
 // MulRNSScalarMontgomery multiplies p with a scalar value expressed in the CRT decomposition.
 // It assumes the scalar decomposition to be in Montgomery form.
 func (r *Ring) MulRNSScalarMontgomery(p Poly, scalar []uint64, pOut Poly) {
-	scalarQ, scalarP := scalar[:len(r.RingQ.Modulus)], scalar[len(r.RingQ.Modulus):]
+	scalarQ, scalarP := scalar[:r.RingQ.NbModuli()], scalar[r.RingQ.NbModuli():]
 	if r.RingQ != nil {
 		r.RingQ.MulRNSScalarMontgomery(p.Q, scalarQ, pOut.Q)
 	}
@@ -380,7 +380,7 @@ func (r *Ring) MulRNSScalarMontgomery(p Poly, scalar []uint64, pOut Poly) {
 // Inverse computes the modular inverse of a scalar a expressed in a CRT decomposition.
 // The inversion is done in-place and assumes that a is in Montgomery form.
 func (r *Ring) Inverse(scalar ring.RNSScalar) {
-	scalarQ, scalarP := scalar[:len(r.RingQ.Modulus)], scalar[len(r.RingQ.Modulus):]
+	scalarQ, scalarP := scalar[:r.RingQ.NbModuli()], scalar[r.RingQ.NbModuli():]
 	if r.RingQ != nil {
 		r.RingQ.Inverse(scalarQ)
 	}
@@ -430,14 +430,16 @@ func (r *Ring) PermuteNTTWithIndexAndAddNoModLvl(levelQ, levelP int, p1 Poly, in
 // polQP in R_QP.
 func (r *Ring) ExtendBasisSmallNormAndCenter(polyInQ *ring.Poly, levelP int, polyOutQ, polyOutP *ring.Poly) {
 	var coeff, Q, QHalf, sign uint64
-	Q = r.RingQ.Modulus[0]
+	Q = r.RingQ.Tables[0].Modulus
 	QHalf = Q >> 1
 
 	if polyInQ != polyOutQ && polyOutQ != nil {
 		polyOutQ.Copy(polyInQ)
 	}
 
-	for j := 0; j < r.RingQ.N; j++ {
+	P := r.RingP.Moduli()
+
+	for j := 0; j < r.RingQ.N(); j++ {
 
 		coeff = polyInQ.Coeffs[0][j]
 
@@ -447,7 +449,7 @@ func (r *Ring) ExtendBasisSmallNormAndCenter(polyInQ *ring.Poly, levelP int, pol
 			sign = 0
 		}
 
-		for i, pi := range r.RingP.Modulus[:levelP+1] {
+		for i, pi := range P[:levelP+1] {
 			polyOutP.Coeffs[i][j] = (coeff * sign) | (pi-coeff)*(sign^1)
 		}
 	}

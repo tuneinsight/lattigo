@@ -41,9 +41,10 @@ func (eval *evaluator) Average(ctIn *rlwe.Ciphertext, logBatchSize int, ctOut *r
 
 	// pre-multiplication by n^-1
 	for i := 0; i < level+1; i++ {
-		Q := ringQ.Modulus[i]
-		bredParams := ringQ.BredParams[i]
-		mredparams := ringQ.MredParams[i]
+		Table := ringQ.Tables[i]
+		Q := Table.Modulus
+		bredParams := Table.BRedParams
+		mredparams := Table.MRedParams
 		invN := ring.ModExp(uint64(n), Q-2, Q)
 		invN = ring.MForm(invN, Q, bredParams)
 
@@ -557,7 +558,7 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix Linear
 	ringQP := eval.params.RingQP()
 
 	levelQ := utils.MinInt(ctOut.Level(), utils.MinInt(ctIn.Level(), matrix.Level))
-	levelP := len(ringP.Modulus) - 1
+	levelP := ringP.MaxLevel()
 
 	ctOut.Resize(ctOut.Degree(), levelQ)
 
@@ -583,7 +584,7 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix Linear
 	var cnt int
 	for k := range matrix.Vec {
 
-		k &= int((ringQ.NthRoot >> 2) - 1)
+		k &= int((ringQ.NthRoot() >> 2) - 1)
 
 		if k == 0 {
 			state = true
@@ -658,7 +659,7 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Li
 	ringQP := eval.params.RingQP()
 
 	levelQ := utils.MinInt(ctOut.Level(), utils.MinInt(ctIn.Level(), matrix.Level))
-	levelP := len(ringP.Modulus) - 1
+	levelP := ringP.MaxLevel()
 
 	ctOut.Resize(ctOut.Degree(), levelQ)
 

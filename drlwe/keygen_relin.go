@@ -170,11 +170,11 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp RKGCRP, ephSkOu
 					break
 				}
 
-				qi := ringQ.Modulus[index]
+				qi := ringQ.Tables[index].Modulus
 				skP := ekg.tmpPoly1.Q.Coeffs[index]
 				h := shareOut.Value[i][j][0].Q.Coeffs[index]
 
-				for w := 0; w < ringQ.N; w++ {
+				for w := 0; w < ringQ.N(); w++ {
 					h[w] = ring.CRed(h[w]+skP[w], qi)
 				}
 			}

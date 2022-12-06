@@ -238,13 +238,14 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *
 			ringQ.InvMFormLvl(0, keygen.buffQP.Q, keygen.buffQP.Q)
 
 			// Extends the RNS basis of the small norm polynomial.
-			Q := ringQ.Modulus[0]
+			Qi := ringQ.Moduli()
+			Q := Qi[0]
 			QHalf := Q >> 1
 
 			polQ := keygen.buffQP.Q
 			polP := keygen.buffQ[0]
 			var sign uint64
-			for j := 0; j < ringQ.N; j++ {
+			for j := 0; j < ringQ.N(); j++ {
 
 				coeff := polQ.Coeffs[0][j]
 
@@ -255,14 +256,14 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *
 				}
 
 				for i := skInput.LevelQ() + 1; i < skOutput.LevelQ()+1; i++ {
-					polP.Coeffs[i][j] = (coeff * sign) | (ringQ.Modulus[i]-coeff)*(sign^1)
+					polP.Coeffs[i][j] = (coeff * sign) | (Qi[i]-coeff)*(sign^1)
 				}
 			}
 
 			// Switches back to the NTT and Montgomery domain.
 			for i := skInput.Value.Q.Level() + 1; i < skOutput.Value.Q.Level()+1; i++ {
 				ringQ.NTTSingle(i, polP.Coeffs[i], polP.Coeffs[i])
-				ring.MFormVec(polP.Coeffs[i], polP.Coeffs[i], ringQ.Modulus[i], ringQ.BredParams[i])
+				ring.MFormVec(polP.Coeffs[i], polP.Coeffs[i], Qi[i], ringQ.Tables[i].BRedParams)
 			}
 		}
 
@@ -281,13 +282,13 @@ func (keygen *keyGenerator) extendQ2P(levelP int, polQ, buff, polP *ring.Poly) {
 	ringQ.InvMFormLvl(0, buff, buff)
 
 	// Reconstruct P from Q
-	Q := ringQ.Modulus[0]
+	Q := ringQ.Tables[0].Modulus
 	QHalf := Q >> 1
 
-	P := ringP.Modulus
+	P := ringP.Moduli()
 
 	var sign uint64
-	for j := 0; j < ringQ.N; j++ {
+	for j := 0; j < ringQ.N(); j++ {
 
 		coeff := buff.Coeffs[0][j]
 

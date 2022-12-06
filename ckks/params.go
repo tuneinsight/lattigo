@@ -346,7 +346,7 @@ func NewParameters(rlweParams rlwe.Parameters, logSlots int) (p Parameters, err 
 		return Parameters{}, fmt.Errorf("provided RLWE parameters are invalid")
 	}
 
-	if maxLogSlots := bits.Len64(rlweParams.RingQ().NthRoot) - 3; logSlots > maxLogSlots || logSlots < minLogSlots {
+	if maxLogSlots := bits.Len64(rlweParams.RingQ().NthRoot()) - 3; logSlots > maxLogSlots || logSlots < minLogSlots {
 		return Parameters{}, fmt.Errorf("logSlot=%d is larger than the logN-1=%d or smaller than %d", logSlots, maxLogSlots, minLogSlots)
 	}
 

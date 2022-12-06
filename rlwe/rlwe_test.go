@@ -97,7 +97,7 @@ func testGenKeyPair(kgen KeyGenerator, t *testing.T) {
 						zeros++
 					}
 				}
-				require.Equal(t, params.ringP.N, zeros+params.h)
+				require.Equal(t, params.ringP.N(), zeros+params.h)
 			}
 		}
 
@@ -109,7 +109,7 @@ func testGenKeyPair(kgen KeyGenerator, t *testing.T) {
 					zeros++
 				}
 			}
-			require.Equal(t, params.ringQ.N, zeros+params.h)
+			require.Equal(t, params.ringQ.N(), zeros+params.h)
 		}
 
 	})
@@ -515,15 +515,17 @@ func testMerge(kgen KeyGenerator, t *testing.T) {
 
 		bound := uint64(params.N() * params.N())
 
+		Q := params.RingQ().Moduli()
+
 		for i := 0; i < pt.Level()+1; i++ {
 
-			Q := params.RingQ().Modulus[i]
-			QHalf := Q >> 1
+			qi := Q[i]
+			qiHalf := qi >> 1
 
 			for i, c := range pt.Value.Coeffs[i] {
 
-				if c >= QHalf {
-					c = Q - c
+				if c >= qiHalf {
+					c = qi - c
 				}
 
 				if _, ok := slotIndex[i]; !ok {
@@ -581,6 +583,8 @@ func testExpand(kgen KeyGenerator, t *testing.T) {
 
 		bound := uint64(params.N() * params.N())
 
+		Q := params.RingQ().Moduli()
+
 		for i := range ciphertexts {
 
 			decryptor.Decrypt(ciphertexts[i], pt)
@@ -591,13 +595,13 @@ func testExpand(kgen KeyGenerator, t *testing.T) {
 
 			for j := 0; j < pt.Level()+1; j++ {
 
-				Q := params.RingQ().Modulus[j]
-				QHalf := Q >> 1
+				qi := Q[j]
+				qiHalf := qi >> 1
 
 				for k, c := range pt.Value.Coeffs[j] {
 
-					if c >= QHalf {
-						c = Q - c
+					if c >= qiHalf {
+						c = qi - c
 					}
 
 					if k != 0 {

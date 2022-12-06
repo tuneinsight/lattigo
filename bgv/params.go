@@ -200,7 +200,7 @@ func (p Parameters) ParametersLiteral() ParametersLiteral {
 
 // T returns the plaintext coefficient modulus t.
 func (p Parameters) T() uint64 {
-	return p.ringT.Modulus[0]
+	return p.ringT.Tables[0].Modulus
 }
 
 // LogT returns log2(plaintext coefficient modulus).

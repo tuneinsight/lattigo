@@ -34,9 +34,11 @@ func (r *Ring) FoldStandardToConjugateInvariant(level int, polyStandard *Poly, p
 		panic("cannot FoldStandardToConjugateInvariant: Ring degree of p2 must be 2N and ring degree of p1 must be N")
 	}
 
+	N := r.N()
+
 	r.PermuteNTTWithIndexLvl(level, polyStandard, permuteNTTIndexInv, polyConjugateInvariant)
 	for i := 0; i < level+1; i++ {
-		AddVec(polyConjugateInvariant.Coeffs[i][:r.N], polyStandard.Coeffs[i][:r.N], polyConjugateInvariant.Coeffs[i][:r.N], r.Modulus[i])
+		AddVec(polyConjugateInvariant.Coeffs[i][:N], polyStandard.Coeffs[i][:N], polyConjugateInvariant.Coeffs[i][:N], r.Tables[i].Modulus)
 	}
 }
 
@@ -51,7 +53,7 @@ func PadDefaultRingToConjugateInvariant(p1 *Poly, ringQ *Ring, IsNTT bool, p2 *P
 	n := len(p1.Coeffs[0])
 
 	for i := 0; i < level+1; i++ {
-		qi := ringQ.Modulus[i]
+		qi := ringQ.Tables[i].Modulus
 
 		if len(p2.Coeffs[i]) != 2*len(p1.Coeffs[i]) {
 			panic("cannot PadDefaultRingToConjugateInvariant: p2 degree must be twice the one of p1")

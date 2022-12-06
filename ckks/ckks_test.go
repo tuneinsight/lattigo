@@ -234,7 +234,7 @@ func testParameters(tc *testContext, t *testing.T) {
 			require.Equal(t, params.LogSlots(), tc.params.LogSlots())
 			require.NoError(t, err)
 		default:
-			t.Error("invalid RingType")
+			t.Fatal("invalid RingType")
 		}
 	})
 }
@@ -440,14 +440,14 @@ func testEvaluatorRescale(tc *testContext, t *testing.T) {
 
 		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-		constant := tc.ringQ.Modulus[ciphertext.Level()]
+		constant := tc.ringQ.Tables[ciphertext.Level()].Modulus
 
 		tc.evaluator.MultByConst(ciphertext, constant, ciphertext)
 
 		ciphertext.Scale = ciphertext.Scale.Mul(rlwe.NewScale(constant))
 
 		if err := tc.evaluator.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogSlots(), 0, t)
@@ -467,13 +467,13 @@ func testEvaluatorRescale(tc *testContext, t *testing.T) {
 		}
 
 		for i := 0; i < nbRescales; i++ {
-			constant := tc.ringQ.Modulus[ciphertext.Level()-i]
+			constant := tc.ringQ.Tables[ciphertext.Level()-i].Modulus
 			tc.evaluator.MultByConst(ciphertext, constant, ciphertext)
 			ciphertext.Scale = ciphertext.Scale.Mul(rlwe.NewScale(constant))
 		}
 
 		if err := tc.evaluator.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogSlots(), 0, t)
@@ -834,7 +834,7 @@ func testEvaluatePoly(tc *testContext, t *testing.T) {
 		}
 
 		if ciphertext, err = tc.evaluator.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogSlots(), 0, t)
@@ -875,7 +875,7 @@ func testEvaluatePoly(tc *testContext, t *testing.T) {
 		}
 
 		if ciphertext, err = tc.evaluator.EvaluatePolyVector(ciphertext, []*Polynomial{poly}, tc.encoder, slotIndex, ciphertext.Scale); err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, valuesWant, ciphertext, tc.params.LogSlots(), 0, t)
@@ -905,12 +905,12 @@ func testChebyshevInterpolator(tc *testContext, t *testing.T) {
 		eval.MultByConst(ciphertext, 2/(poly.B-poly.A), ciphertext)
 		eval.AddConst(ciphertext, (-poly.A-poly.B)/(poly.B-poly.A), ciphertext)
 		if err = eval.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
-			t.Error(err)
+			t.Fatal(err)
 
 		}
 
 		if ciphertext, err = eval.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {
-			t.Error(err)
+			t.Fatal(err)
 
 		}
 
@@ -941,12 +941,12 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 		eval.MultByConst(ciphertext, 2/(poly.B-poly.A), ciphertext)
 		eval.AddConst(ciphertext, (-poly.A-poly.B)/(poly.B-poly.A), ciphertext)
 		if err := eval.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
-			t.Error(err)
+			t.Fatal(err)
 
 		}
 
 		if ciphertext, err = eval.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {
-			t.Error(err)
+			t.Fatal(err)
 
 		}
 
@@ -1000,7 +1000,7 @@ func testBridge(tc *testContext, t *testing.T) {
 		ciParams := tc.params
 		var err error
 		if _, err = ciParams.StandardParameters(); err != nil {
-			t.Errorf("all Conjugate Invariant parameters should have a standard counterpart but got: %f", err)
+			t.Fatalf("all Conjugate Invariant parameters should have a standard counterpart but got: %f", err)
 		}
 
 		// Create equivalent parameters with RingStandard ring type and different auxiliary modulus P
@@ -1008,7 +1008,6 @@ func testBridge(tc *testContext, t *testing.T) {
 		stdParamsLit.LogN = ciParams.LogN() + 1
 		stdParamsLit.P = []uint64{0x1ffffffff6c80001, 0x1ffffffff6140001} // Assigns new P to ensure that independence from auxiliary P is tested
 		stdParamsLit.RingType = ring.Standard
-
 		stdParams, err := NewParametersFromLiteral(stdParamsLit)
 		require.Nil(t, err)
 
@@ -1022,7 +1021,7 @@ func testBridge(tc *testContext, t *testing.T) {
 
 		switcher, err := NewDomainSwitcher(stdParams, swkCtR, swkRtC)
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 
 		evalStandar := NewEvaluator(stdParams, rlwe.EvaluationKey{})

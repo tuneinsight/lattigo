@@ -32,7 +32,7 @@ func NewGaussianSampler(prng utils.PRNG, baseRing *Ring, sigma float64, bound in
 
 // Read samples a truncated Gaussian polynomial on "pol" at the maximum level in the default ring, standard deviation and bound.
 func (gaussianSampler *GaussianSampler) Read(pol *Poly) {
-	gaussianSampler.ReadLvl(len(gaussianSampler.baseRing.Modulus)-1, pol)
+	gaussianSampler.ReadLvl(pol.Level(), pol)
 }
 
 // ReadLvl samples a truncated Gaussian polynomial at the provided level, in the default ring, standard deviation and bound.
@@ -71,9 +71,9 @@ func (gaussianSampler *GaussianSampler) ReadAndAddFromDistLvl(level int, pol *Po
 
 	gaussianSampler.prng.Read(gaussianSampler.randomBufferN)
 
-	modulus := ring.Modulus[:level+1]
+	modulus := ring.Moduli()[:level+1]
 
-	for i := 0; i < ring.N; i++ {
+	for i := 0; i < ring.N(); i++ {
 
 		for {
 			coeffFlo, sign = gaussianSampler.normFloat64()
@@ -96,9 +96,9 @@ func (gaussianSampler *GaussianSampler) readLvl(level int, pol *Poly, ring *Ring
 
 	gaussianSampler.prng.Read(gaussianSampler.randomBufferN)
 
-	modulus := ring.Modulus[:level+1]
+	modulus := ring.Moduli()[:level+1]
 
-	for i := 0; i < ring.N; i++ {
+	for i := 0; i < ring.N(); i++ {
 
 		for {
 			coeffFlo, sign = gaussianSampler.normFloat64()

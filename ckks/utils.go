@@ -101,7 +101,7 @@ func StandardDeviation(vec []float64, scale float64) (std float64) {
 // This method is used to accelerate the NTT of polynomials that encode sparse plaintexts.
 func NttAndMontgomeryLvl(level int, logSlots int, ringQ *ring.Ring, montgomery bool, pol *ring.Poly) {
 
-	if 1<<logSlots == ringQ.NthRoot>>2 {
+	if 1<<logSlots == ringQ.NthRoot()>>2 {
 		ringQ.NTTLvl(level, pol, pol)
 		if montgomery {
 			ringQ.MFormLvl(level, pol, pol)
@@ -109,7 +109,7 @@ func NttAndMontgomeryLvl(level int, logSlots int, ringQ *ring.Ring, montgomery b
 	} else {
 
 		var n int
-		var NTT func(coeffsIn, coeffsOut []uint64, N int, nttPsi []uint64, Q, QInv uint64, bredParams []uint64)
+		var NTT func(Table *ring.Table, coeffsIn, coeffsOut []uint64)
 		switch ringQ.Type() {
 		case ring.Standard:
 			n = 2 << logSlots
@@ -119,17 +119,21 @@ func NttAndMontgomeryLvl(level int, logSlots int, ringQ *ring.Ring, montgomery b
 			NTT = ring.NTTConjugateInvariant
 		}
 
-		N := ringQ.N
+		N := ringQ.N()
 		gap := N / n
 		for i := 0; i < level+1; i++ {
+
+			Table := ringQ.Tables[i]
 
 			coeffs := pol.Coeffs[i]
 
 			// NTT in dimension n
-			NTT(coeffs[:n], coeffs[:n], n, ringQ.NttPsi[i], ringQ.Modulus[i], ringQ.MredParams[i], ringQ.BredParams[i])
+			Table.N = n
+			NTT(Table, coeffs[:n], coeffs[:n])
+			Table.N = N
 
 			if montgomery {
-				ring.MFormVec(coeffs[:n], coeffs[:n], ringQ.Modulus[i], ringQ.BredParams[i])
+				ring.MFormVec(coeffs[:n], coeffs[:n], Table.Modulus, Table.BRedParams)
 			}
 
 			// Maps NTT in dimension n to NTT in dimension N
@@ -209,7 +213,7 @@ func singleFloatToFixedPointCRT(level, i int, value float64, scale float64, ring
 
 	value *= scale
 
-	moduli := ringQ.Modulus
+	moduli := ringQ.Moduli()
 
 	if value > 1.8446744073709552e+19 {
 		xFlo = big.NewFloat(value)
@@ -226,7 +230,7 @@ func singleFloatToFixedPointCRT(level, i int, value float64, scale float64, ring
 		}
 
 	} else {
-		bredParams := ringQ.BredParams
+		bredParams := ringQ.BRedParams()
 
 		c = uint64(value + 0.5)
 		if isNegative {

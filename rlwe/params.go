@@ -432,7 +432,7 @@ func (p *Parameters) PiOverflowMargin(level int) int {
 // column rotations by k position to the left. Providing a negative k is
 // equivalent to a right rotation.
 func (p Parameters) GaloisElementForColumnRotationBy(k int) uint64 {
-	return ring.ModExp(GaloisGen, uint64(k&int(p.ringQ.NthRoot-1)), p.ringQ.NthRoot)
+	return ring.ModExp(GaloisGen, uint64(k)&(p.ringQ.NthRoot()-1), p.ringQ.NthRoot())
 }
 
 // GaloisElementForRowRotation returns the Galois element for generating the row
@@ -441,7 +441,7 @@ func (p Parameters) GaloisElementForRowRotation() uint64 {
 	if p.ringType == ring.ConjugateInvariant {
 		panic("Cannot generate GaloisElementForRowRotation if ringType is ConjugateInvariant")
 	}
-	return p.ringQ.NthRoot - 1
+	return p.ringQ.NthRoot() - 1
 }
 
 // GaloisElementsForTrace generates the Galois elements for the Trace evaluation.
@@ -543,14 +543,14 @@ func (p Parameters) GaloisElementsForMerge() (galEls []uint64) {
 // InverseGaloisElement takes a Galois element and returns the Galois element
 // corresponding to the inverse automorphism
 func (p Parameters) InverseGaloisElement(galEl uint64) uint64 {
-	return ring.ModExp(galEl, p.ringQ.NthRoot-1, p.ringQ.NthRoot)
+	return ring.ModExp(galEl, p.ringQ.NthRoot()-1, p.ringQ.NthRoot())
 }
 
 // RotationFromGaloisElement returns the corresponding rotation
 // from the Galois element, i.e. computes k given 5^k = galEl mod NthRoot.
 func (p Parameters) RotationFromGaloisElement(galEl uint64) (k uint64) {
 
-	N := p.ringQ.NthRoot
+	N := p.ringQ.NthRoot()
 
 	x := N >> 3
 

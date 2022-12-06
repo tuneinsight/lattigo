@@ -426,7 +426,7 @@ func (eval *evaluator) getConstAndScale(level int, constant interface{}) (cReal,
 			valueFloat := cReal - float64(valueInt)
 
 			if valueFloat != 0 {
-				scale = float64(eval.params.RingQ().Modulus[level])
+				scale = float64(eval.params.RingQ().Tables[level].Modulus)
 			}
 		}
 
@@ -435,7 +435,7 @@ func (eval *evaluator) getConstAndScale(level int, constant interface{}) (cReal,
 			valueFloat := cImag - float64(valueInt)
 
 			if valueFloat != 0 {
-				scale = float64(eval.params.RingQ().Modulus[level])
+				scale = float64(eval.params.RingQ().Tables[level].Modulus)
 			}
 		}
 
@@ -448,7 +448,7 @@ func (eval *evaluator) getConstAndScale(level int, constant interface{}) (cReal,
 			valueFloat := cReal - float64(valueInt)
 
 			if valueFloat != 0 {
-				scale = float64(eval.params.RingQ().Modulus[level])
+				scale = float64(eval.params.RingQ().Tables[level].Modulus)
 			}
 		}
 
@@ -496,7 +496,7 @@ func (eval *evaluator) AddConst(ct0 *rlwe.Ciphertext, constant interface{}, ctOu
 	// Which is equivalent outside of the NTT domain to adding a to the first coefficient of ct0 and b to the N/2-th coefficient of ct0.
 	for i := 0; i < level+1; i++ {
 		scaledConstReal, scaledConstImag, scaledConst = 0, 0, 0
-		qi = ringQ.Modulus[i]
+		qi = ringQ.Tables[i].Modulus
 
 		if cReal != 0 {
 			scaledConstReal = scaleUpExact(cReal, cf64, qi)
@@ -504,20 +504,20 @@ func (eval *evaluator) AddConst(ct0 *rlwe.Ciphertext, constant interface{}, ctOu
 		}
 
 		if cImag != 0 {
-			scaledConstImag = ring.MRed(scaleUpExact(cImag, cf64, qi), ringQ.NttPsi[i][1], qi, ringQ.MredParams[i])
+			scaledConstImag = ring.MRed(scaleUpExact(cImag, cf64, qi), ringQ.Tables[i].RootsForward[1], qi, ringQ.Tables[i].MRedParams)
 			scaledConst = ring.CRed(scaledConst+scaledConstImag, qi)
 		}
 
 		p0tmp := ct0.Value[0].Coeffs[i]
 		p1tmp := ctOut.Value[0].Coeffs[i]
 
-		ring.AddScalarVec(p0tmp[:ringQ.N>>1], p1tmp[:ringQ.N>>1], scaledConst, qi)
+		ring.AddScalarVec(p0tmp[:ringQ.N()>>1], p1tmp[:ringQ.N()>>1], scaledConst, qi)
 
 		if cImag != 0 {
 			scaledConst = ring.CRed(scaledConstReal+(qi-scaledConstImag), qi)
 		}
 
-		ring.AddScalarVec(p0tmp[ringQ.N>>1:], p1tmp[ringQ.N>>1:], scaledConst, qi)
+		ring.AddScalarVec(p0tmp[ringQ.N()>>1:], p1tmp[ringQ.N()>>1:], scaledConst, qi)
 	}
 }
 
@@ -592,9 +592,11 @@ func (eval *evaluator) MultByConstAndAdd(ct0 *rlwe.Ciphertext, constant interfac
 	// Which is equivalent outside of the NTT domain to adding a to the first coefficient of ct0 and b to the N/2-th coefficient of ct0.
 	for i := 0; i < level+1; i++ {
 
-		qi := ringQ.Modulus[i]
-		mredParams := ringQ.MredParams[i]
-		bredParams := ringQ.BredParams[i]
+		Table := ringQ.Tables[i]
+
+		qi := Table.Modulus
+		mredParams := Table.MRedParams
+		bredParams := Table.BRedParams
 
 		scaledConstReal = 0
 		scaledConstImag = 0
@@ -607,7 +609,7 @@ func (eval *evaluator) MultByConstAndAdd(ct0 *rlwe.Ciphertext, constant interfac
 
 		if cImag != 0 {
 			scaledConstImag = scaleUpExact(cImag, scale, qi)
-			scaledConstImag = ring.MRed(scaledConstImag, ringQ.NttPsi[i][1], qi, mredParams)
+			scaledConstImag = ring.MRed(scaledConstImag, Table.RootsForward[1], qi, mredParams)
 			scaledConst = ring.CRed(scaledConst+scaledConstImag, qi)
 		}
 
@@ -616,7 +618,7 @@ func (eval *evaluator) MultByConstAndAdd(ct0 *rlwe.Ciphertext, constant interfac
 		for u := range ct0.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-			ring.MulScalarMontgomeryAndAddVec(p0tmp[:ringQ.N>>1], p1tmp[:ringQ.N>>1], scaledConst, qi, mredParams)
+			ring.MulScalarMontgomeryAndAddVec(p0tmp[:ringQ.N()>>1], p1tmp[:ringQ.N()>>1], scaledConst, qi, mredParams)
 		}
 
 		if cImag != 0 {
@@ -627,7 +629,7 @@ func (eval *evaluator) MultByConstAndAdd(ct0 *rlwe.Ciphertext, constant interfac
 		for u := range ct0.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-			ring.MulScalarMontgomeryAndAddVec(p0tmp[ringQ.N>>1:], p1tmp[ringQ.N>>1:], scaledConst, qi, mredParams)
+			ring.MulScalarMontgomeryAndAddVec(p0tmp[ringQ.N()>>1:], p1tmp[ringQ.N()>>1:], scaledConst, qi, mredParams)
 		}
 	}
 }
@@ -658,9 +660,11 @@ func (eval *evaluator) MultByConst(ct0 *rlwe.Ciphertext, constant interface{}, c
 	var scaledConst, scaledConstReal, scaledConstImag uint64
 	for i := 0; i < level+1; i++ {
 
-		qi := ringQ.Modulus[i]
-		bredParams := ringQ.BredParams[i]
-		mredParams := ringQ.MredParams[i]
+		Table := ringQ.Tables[i]
+
+		qi := Table.Modulus
+		bredParams := Table.BRedParams
+		mredParams := Table.MRedParams
 
 		scaledConstReal = 0
 		scaledConstImag = 0
@@ -673,7 +677,7 @@ func (eval *evaluator) MultByConst(ct0 *rlwe.Ciphertext, constant interface{}, c
 
 		if cImag != 0 {
 			scaledConstImag = scaleUpExact(cImag, scale, qi)
-			scaledConstImag = ring.MRed(scaledConstImag, ringQ.NttPsi[i][1], qi, mredParams)
+			scaledConstImag = ring.MRed(scaledConstImag, Table.RootsForward[1], qi, mredParams)
 			scaledConst = ring.CRed(scaledConst+scaledConstImag, qi)
 		}
 
@@ -682,7 +686,7 @@ func (eval *evaluator) MultByConst(ct0 *rlwe.Ciphertext, constant interface{}, c
 		for u := range ct0.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-			ring.MulScalarMontgomeryVec(p0tmp[:ringQ.N>>1], p1tmp[:ringQ.N>>1], scaledConst, qi, mredParams)
+			ring.MulScalarMontgomeryVec(p0tmp[:ringQ.N()>>1], p1tmp[:ringQ.N()>>1], scaledConst, qi, mredParams)
 		}
 
 		if cImag != 0 {
@@ -693,7 +697,7 @@ func (eval *evaluator) MultByConst(ct0 *rlwe.Ciphertext, constant interface{}, c
 		for u := range ct0.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-			ring.MulScalarMontgomeryVec(p0tmp[ringQ.N>>1:], p1tmp[ringQ.N>>1:], scaledConst, qi, mredParams)
+			ring.MulScalarMontgomeryVec(p0tmp[ringQ.N()>>1:], p1tmp[ringQ.N()>>1:], scaledConst, qi, mredParams)
 		}
 	}
 
@@ -714,9 +718,11 @@ func (eval *evaluator) MultByGaussianInteger(ct0 *rlwe.Ciphertext, cReal, cImag 
 
 	for i := 0; i < level+1; i++ {
 
-		qi := ringQ.Modulus[i]
-		bredParams := ringQ.BredParams[i]
-		mredParams := ringQ.MredParams[i]
+		Table := ringQ.Tables[i]
+
+		qi := Table.Modulus
+		bredParams := Table.BRedParams
+		mredParams := Table.MRedParams
 
 		scaledConstReal = interfaceMod(cReal, qi)
 
@@ -727,7 +733,7 @@ func (eval *evaluator) MultByGaussianInteger(ct0 *rlwe.Ciphertext, cReal, cImag 
 		scaledConst = scaledConstReal
 
 		if scaledConstImag != 0 {
-			scaledConstImag = ring.MRed(scaledConstImag, ringQ.NttPsi[i][1], qi, mredParams)
+			scaledConstImag = ring.MRed(scaledConstImag, Table.RootsForward[1], qi, mredParams)
 			scaledConst = ring.CRed(scaledConst+scaledConstImag, qi)
 		}
 
@@ -736,7 +742,7 @@ func (eval *evaluator) MultByGaussianInteger(ct0 *rlwe.Ciphertext, cReal, cImag 
 		for u := range ct0.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-			ring.MulScalarMontgomeryVec(p0tmp[:ringQ.N>>1], p1tmp[:ringQ.N>>1], scaledConst, qi, mredParams)
+			ring.MulScalarMontgomeryVec(p0tmp[:ringQ.N()>>1], p1tmp[:ringQ.N()>>1], scaledConst, qi, mredParams)
 		}
 
 		if cImag != 0 {
@@ -747,7 +753,7 @@ func (eval *evaluator) MultByGaussianInteger(ct0 *rlwe.Ciphertext, cReal, cImag 
 		for u := range ct0.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-			ring.MulScalarMontgomeryVec(p0tmp[ringQ.N>>1:], p1tmp[ringQ.N>>1:], scaledConst, qi, mredParams)
+			ring.MulScalarMontgomeryVec(p0tmp[ringQ.N()>>1:], p1tmp[ringQ.N()>>1:], scaledConst, qi, mredParams)
 		}
 	}
 }
@@ -763,9 +769,11 @@ func (eval *evaluator) MultByGaussianIntegerAndAdd(ct0 *rlwe.Ciphertext, cReal, 
 
 	for i := 0; i < level+1; i++ {
 
-		qi := ringQ.Modulus[i]
-		bredParams := ringQ.BredParams[i]
-		mredParams := ringQ.MredParams[i]
+		Table := ringQ.Tables[i]
+
+		qi := Table.Modulus
+		bredParams := Table.BRedParams
+		mredParams := Table.MRedParams
 
 		scaledConstReal = interfaceMod(cReal, qi)
 
@@ -776,7 +784,7 @@ func (eval *evaluator) MultByGaussianIntegerAndAdd(ct0 *rlwe.Ciphertext, cReal, 
 		scaledConst = scaledConstReal
 
 		if scaledConstImag != 0 {
-			scaledConstImag = ring.MRed(scaledConstImag, ringQ.NttPsi[i][1], qi, mredParams)
+			scaledConstImag = ring.MRed(scaledConstImag, Table.RootsForward[1], qi, mredParams)
 			scaledConst = ring.CRed(scaledConst+scaledConstImag, qi)
 		}
 
@@ -785,7 +793,7 @@ func (eval *evaluator) MultByGaussianIntegerAndAdd(ct0 *rlwe.Ciphertext, cReal, 
 		for u := range ct0.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-			ring.MulScalarMontgomeryAndAddVec(p0tmp[:ringQ.N>>1], p1tmp[:ringQ.N>>1], scaledConst, qi, mredParams)
+			ring.MulScalarMontgomeryAndAddVec(p0tmp[:ringQ.N()>>1], p1tmp[:ringQ.N()>>1], scaledConst, qi, mredParams)
 		}
 
 		if cImag != 0 {
@@ -796,7 +804,7 @@ func (eval *evaluator) MultByGaussianIntegerAndAdd(ct0 *rlwe.Ciphertext, cReal, 
 		for u := range ct0.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-			ring.MulScalarMontgomeryAndAddVec(p0tmp[ringQ.N>>1:], p1tmp[ringQ.N>>1:], scaledConst, qi, mredParams)
+			ring.MulScalarMontgomeryAndAddVec(p0tmp[ringQ.N()>>1:], p1tmp[ringQ.N()>>1:], scaledConst, qi, mredParams)
 		}
 	}
 }
@@ -827,20 +835,19 @@ func (eval *evaluator) MultByi(ct0 *rlwe.Ciphertext, ctOut *rlwe.Ciphertext) {
 
 	ringQ := eval.params.RingQ()
 
-	var imag uint64
-
 	// Equivalent to a product by the monomial x^(n/2) outside of the NTT domain
 	for i := 0; i < level+1; i++ {
 
-		qi := ringQ.Modulus[i]
-		mredParams := ringQ.MredParams[i]
+		Table := ringQ.Tables[i]
 
-		imag = ringQ.NttPsi[i][1] // Psi^2
+		qi := Table.Modulus
+		mredParams := Table.MRedParams
+		imag := Table.RootsForward[1] // Psi^2
 
 		for u := range ctOut.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-			ring.MulScalarMontgomeryVec(p0tmp[:ringQ.N>>1], p1tmp[:ringQ.N>>1], imag, qi, mredParams)
+			ring.MulScalarMontgomeryVec(p0tmp[:ringQ.N()>>1], p1tmp[:ringQ.N()>>1], imag, qi, mredParams)
 		}
 
 		imag = qi - imag
@@ -848,7 +855,7 @@ func (eval *evaluator) MultByi(ct0 *rlwe.Ciphertext, ctOut *rlwe.Ciphertext) {
 		for u := range ctOut.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-			ring.MulScalarMontgomeryVec(p0tmp[ringQ.N>>1:], p1tmp[ringQ.N>>1:], imag, qi, mredParams)
+			ring.MulScalarMontgomeryVec(p0tmp[ringQ.N()>>1:], p1tmp[ringQ.N()>>1:], imag, qi, mredParams)
 		}
 	}
 }
@@ -880,28 +887,27 @@ func (eval *evaluator) DivByi(ct0 *rlwe.Ciphertext, ctOut *rlwe.Ciphertext) {
 
 	ctOut.MetaData = ct0.MetaData
 
-	var imag uint64
-
 	// Equivalent to a product by the monomial x^(3*n/2) outside of the NTT domain
 	for i := 0; i < level+1; i++ {
 
-		qi := ringQ.Modulus[i]
-		mredParams := ringQ.MredParams[i]
+		Table := ringQ.Tables[i]
 
-		imag = qi - ringQ.NttPsi[i][1] // -Psi^2
+		qi := Table.Modulus
+		mredParams := Table.MRedParams
+		imag := qi - Table.RootsForward[1] // -Psi^2
 
 		for u := range ctOut.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-			ring.MulScalarMontgomeryVec(p0tmp[:ringQ.N>>1], p1tmp[:ringQ.N>>1], imag, qi, mredParams)
+			ring.MulScalarMontgomeryVec(p0tmp[:ringQ.N()>>1], p1tmp[:ringQ.N()>>1], imag, qi, mredParams)
 		}
 
-		imag = ringQ.NttPsi[i][1] // Psi^2
+		imag = qi - imag // Psi^2
 
 		for u := range ctOut.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-			ring.MulScalarMontgomeryVec(p0tmp[ringQ.N>>1:], p1tmp[ringQ.N>>1:], imag, qi, mredParams)
+			ring.MulScalarMontgomeryVec(p0tmp[ringQ.N()>>1:], p1tmp[ringQ.N()>>1:], imag, qi, mredParams)
 		}
 	}
 }
@@ -996,7 +1002,7 @@ func (eval *evaluator) Rescale(ctIn *rlwe.Ciphertext, minScale rlwe.Scale, ctOut
 	var nbRescales int
 	for currentLevel >= 0 {
 
-		scale := ctOut.Scale.Div(rlwe.NewScale(ringQ.Modulus[currentLevel]))
+		scale := ctOut.Scale.Div(rlwe.NewScale(ringQ.Tables[currentLevel].Modulus))
 
 		if scale.Cmp(minScale) == -1 {
 			break

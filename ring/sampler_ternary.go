@@ -53,7 +53,7 @@ func NewTernarySamplerWithHammingWeight(prng utils.PRNG, baseRing *Ring, hw int,
 
 // Read samples a polynomial into pol.
 func (ts *TernarySampler) Read(pol *Poly) {
-	ts.sample(len(ts.baseRing.Modulus)-1, pol)
+	ts.sample(pol.Level(), pol)
 }
 
 // ReadLvl samples a polynomial into pol at the speciefied level.
@@ -64,7 +64,7 @@ func (ts *TernarySampler) ReadLvl(lvl int, pol *Poly) {
 // ReadNew allocates and samples a polynomial at the max level.
 func (ts *TernarySampler) ReadNew() (pol *Poly) {
 	pol = ts.baseRing.NewPoly()
-	ts.sample(len(ts.baseRing.Modulus)-1, pol)
+	ts.sample(pol.Level(), pol)
 	return pol
 }
 
@@ -76,22 +76,25 @@ func (ts *TernarySampler) ReadLvlNew(lvl int) (pol *Poly) {
 }
 
 func (ts *TernarySampler) initializeMatrix(montgomery bool) {
-	ts.matrixValues = make([][3]uint64, len(ts.baseRing.Modulus))
+	ts.matrixValues = make([][3]uint64, ts.baseRing.NbModuli())
 
 	// [0] = 0
 	// [1] = 1 * 2^64 mod qi
 	// [2] = (qi - 1) * 2^64 mod qi
 
-	for i, Qi := range ts.baseRing.Modulus {
+	for i, table := range ts.baseRing.Tables {
+
+		modulus := table.Modulus
+		bredParams := table.BRedParams
 
 		ts.matrixValues[i][0] = 0
 
 		if montgomery {
-			ts.matrixValues[i][1] = MForm(1, Qi, ts.baseRing.BredParams[i])
-			ts.matrixValues[i][2] = MForm(Qi-1, Qi, ts.baseRing.BredParams[i])
+			ts.matrixValues[i][1] = MForm(1, modulus, bredParams)
+			ts.matrixValues[i][2] = MForm(modulus-1, modulus, bredParams)
 		} else {
 			ts.matrixValues[i][1] = 1
-			ts.matrixValues[i][2] = Qi - 1
+			ts.matrixValues[i][2] = modulus - 1
 		}
 	}
 }
@@ -128,43 +131,47 @@ func (ts *TernarySampler) sampleProba(lvl int, pol *Poly) {
 	var sign uint64
 	var index uint64
 
+	N := ts.baseRing.N()
+
+	lut := ts.matrixValues
+
 	if ts.p == 0.5 {
 
-		randomBytesCoeffs := make([]byte, ts.baseRing.N>>3)
-		randomBytesSign := make([]byte, ts.baseRing.N>>3)
+		randomBytesCoeffs := make([]byte, N>>3)
+		randomBytesSign := make([]byte, N>>3)
 
 		ts.prng.Read(randomBytesCoeffs)
 
 		ts.prng.Read(randomBytesSign)
 
-		for i := 0; i < ts.baseRing.N; i++ {
+		for i := 0; i < N; i++ {
 			coeff = uint64(uint8(randomBytesCoeffs[i>>3])>>(i&7)) & 1
 			sign = uint64(uint8(randomBytesSign[i>>3])>>(i&7)) & 1
 
 			index = (coeff & (sign ^ 1)) | ((sign & coeff) << 1)
 
 			for j := 0; j < lvl+1; j++ {
-				pol.Coeffs[j][i] = ts.matrixValues[j][index]
+				pol.Coeffs[j][i] = lut[j][index]
 			}
 		}
 
 	} else {
 
-		randomBytes := make([]byte, ts.baseRing.N)
+		randomBytes := make([]byte, N)
 
 		pointer := uint8(0)
 		var bytePointer int
 
 		ts.prng.Read(randomBytes)
 
-		for i := 0; i < ts.baseRing.N; i++ {
+		for i := 0; i < N; i++ {
 
-			coeff, sign, randomBytes, pointer, bytePointer = ts.kysampling(ts.prng, randomBytes, pointer, bytePointer, ts.baseRing.N)
+			coeff, sign, randomBytes, pointer, bytePointer = ts.kysampling(ts.prng, randomBytes, pointer, bytePointer, N)
 
 			index = (coeff & (sign ^ 1)) | ((sign & coeff) << 1)
 
 			for j := 0; j < lvl+1; j++ {
-				pol.Coeffs[j][i] = ts.matrixValues[j][index]
+				pol.Coeffs[j][i] = lut[j][index]
 			}
 		}
 	}
@@ -172,28 +179,31 @@ func (ts *TernarySampler) sampleProba(lvl int, pol *Poly) {
 
 func (ts *TernarySampler) sampleSparse(lvl int, pol *Poly) {
 
-	if ts.hw > ts.baseRing.N {
-		ts.hw = ts.baseRing.N
+	N := ts.baseRing.N()
+	hw := ts.hw
+
+	if hw > N {
+		hw = N
 	}
 
 	var mask, j uint64
 	var coeff uint8
 
-	index := make([]int, ts.baseRing.N)
-	for i := 0; i < ts.baseRing.N; i++ {
+	index := make([]int, N)
+	for i := 0; i < N; i++ {
 		index[i] = i
 	}
 
-	randomBytes := make([]byte, (uint64(math.Ceil(float64(ts.hw) / 8.0)))) // We sample ceil(hw/8) bytes
+	randomBytes := make([]byte, (uint64(math.Ceil(float64(hw) / 8.0)))) // We sample ceil(hw/8) bytes
 	pointer := uint8(0)
 
 	ts.prng.Read(randomBytes)
 
-	for i := 0; i < ts.hw; i++ {
-		mask = (1 << uint64(bits.Len64(uint64(ts.baseRing.N-i)))) - 1 // rejection sampling of a random variable between [0, len(index)]
+	for i := 0; i < hw; i++ {
+		mask = (1 << uint64(bits.Len64(uint64(N-i)))) - 1 // rejection sampling of a random variable between [0, len(index)]
 
 		j = randInt32(ts.prng, mask)
-		for j >= uint64(ts.baseRing.N-i) {
+		for j >= uint64(N-i) {
 			j = randInt32(ts.prng, mask)
 		}
 

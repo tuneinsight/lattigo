@@ -81,10 +81,7 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, logSlots int
 	bound := ring.NewUint(1)
 	bound.Lsh(bound, uint(logBound))
 
-	boundMax := ring.NewUint(ringQ.Modulus[0])
-	for i := 1; i < levelQ+1; i++ {
-		boundMax.Mul(boundMax, ring.NewUint(ringQ.Modulus[i]))
-	}
+	boundMax := new(big.Int).Set(ringQ.ModulusAtLevel[levelQ])
 
 	var sign int
 
@@ -147,7 +144,7 @@ func (e2s *E2SProtocol) GetShare(secretShare *rlwe.AdditiveShareBigint, aggregat
 		dslots *= 2
 	}
 
-	gap := ringQ.N / dslots
+	gap := ringQ.N() / dslots
 
 	// Switches the LSSS RNS ciphertext outside of the RNS domain
 	ringQ.PolyToBigintCenteredLvl(levelQ, e2s.buff, gap, e2s.maskBigint)

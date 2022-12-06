@@ -367,7 +367,7 @@ func (rfp *MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, logSlots int,
 	}
 
 	// Extend the levels of the ciphertext for future allocation
-	if ciphertextOut.Value[0].N() != ringQ.N {
+	if ciphertextOut.Value[0].N() != ringQ.N() {
 		for i := range ciphertextOut.Value {
 			ciphertextOut.Value[i] = ringQ.NewPolyLvl(maxLevel)
 		}

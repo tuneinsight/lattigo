@@ -68,7 +68,7 @@ func newEvaluatorBuffers(params Parameters) *evaluatorBuffers {
 		buff.BuffDecompQP[i] = ringQP.NewPoly()
 	}
 
-	buff.BuffBitDecomp = make([]uint64, params.RingQ().N)
+	buff.BuffBitDecomp = make([]uint64, params.RingQ().N())
 
 	return buff
 }
@@ -172,16 +172,18 @@ func (eval *Evaluator) Expand(ctIn *Ciphertext, logN, logGap int) (ctOut []*Ciph
 	ctOut = make([]*Ciphertext, 1<<(logN-logGap))
 	ctOut[0] = ctIn.CopyNew()
 
-	Q := ringQ.Modulus
-	mredParams := ringQ.MredParams
-	bredParams := ringQ.BredParams
-
 	// Multiplies by 2^{-logN} mod Q
 	v0, v1 := ctOut[0].Value[0], ctOut[0].Value[1]
 	for i := 0; i < levelQ+1; i++ {
-		NInv := ring.MForm(ring.ModExp(1<<logN, Q[i]-2, Q[i]), Q[i], bredParams[i])
-		ring.MulScalarMontgomeryVec(v0.Coeffs[i], v0.Coeffs[i], NInv, Q[i], mredParams[i])
-		ring.MulScalarMontgomeryVec(v1.Coeffs[i], v1.Coeffs[i], NInv, Q[i], mredParams[i])
+
+		Table := ringQ.Tables[i]
+		Q := Table.Modulus
+		BRedParams := Table.BRedParams
+		MRedParams := Table.MRedParams
+
+		NInv := ring.MForm(ring.ModExp(1<<logN, Q-2, Q), Q, BRedParams)
+		ring.MulScalarMontgomeryVec(v0.Coeffs[i], v0.Coeffs[i], NInv, Q, MRedParams)
+		ring.MulScalarMontgomeryVec(v1.Coeffs[i], v1.Coeffs[i], NInv, Q, MRedParams)
 	}
 
 	gap := 1 << logGap
@@ -190,7 +192,7 @@ func (eval *Evaluator) Expand(ctIn *Ciphertext, logN, logGap int) (ctOut []*Ciph
 
 	for i := 0; i < logN; i++ {
 
-		galEl := uint64(ringQ.N/(1<<i) + 1)
+		galEl := uint64(ringQ.N()/(1<<i) + 1)
 
 		for j := 0; j < (1 << i); j += gap {
 
@@ -242,10 +244,6 @@ func (eval *Evaluator) Merge(ctIn map[int]*Ciphertext) (ctOut *Ciphertext) {
 
 	xPow2 := genXPow2(ringQ, levelQ, params.LogN(), false)
 
-	NInv := ringQ.NttNInv
-	Q := ringQ.Modulus
-	mredParams := ringQ.MredParams
-
 	// Multiplies by (Slots * N) ^-1 mod Q
 	for i := range ctIn {
 		if ctIn[i] != nil {
@@ -260,13 +258,16 @@ func (eval *Evaluator) Merge(ctIn map[int]*Ciphertext) (ctOut *Ciphertext) {
 
 			v0, v1 := ctIn[i].Value[0], ctIn[i].Value[1]
 			for j := 0; j < levelQ+1; j++ {
-				ring.MulScalarMontgomeryVec(v0.Coeffs[j], v0.Coeffs[j], NInv[j], Q[j], mredParams[j])
-				ring.MulScalarMontgomeryVec(v1.Coeffs[j], v1.Coeffs[j], NInv[j], Q[j], mredParams[j])
+
+				Table := ringQ.Tables[j]
+
+				ring.MulScalarMontgomeryVec(v0.Coeffs[j], v0.Coeffs[j], Table.NInv, Table.Modulus, Table.MRedParams)
+				ring.MulScalarMontgomeryVec(v1.Coeffs[j], v1.Coeffs[j], Table.NInv, Table.Modulus, Table.MRedParams)
 			}
 		}
 	}
 
-	ciphertextslist := make([]*Ciphertext, ringQ.N)
+	ciphertextslist := make([]*Ciphertext, ringQ.N())
 
 	for i := range ctIn {
 		ciphertextslist[i] = ctIn[i]
@@ -336,7 +337,7 @@ func (eval *Evaluator) mergeRLWERecurse(ciphertexts []*Ciphertext, xPow []*ring.
 
 		// if L-2 == -1, then gal = -1
 		if L == 1 {
-			eval.Automorphism(tmpEven, uint64(2*ringQ.N-1), tmpEven)
+			eval.Automorphism(tmpEven, ringQ.NthRoot()-1, tmpEven)
 		} else {
 			eval.Automorphism(tmpEven, eval.params.GaloisElementForColumnRotationBy(1<<(L-2)), tmpEven)
 		}
@@ -354,13 +355,16 @@ func genXPow2(r *ring.Ring, levelQ, logN int, div bool) (xPow []*ring.Poly) {
 	// Compute X^{-n} from 0 to LogN
 	xPow = make([]*ring.Poly, logN)
 
+	Modulus := r.Moduli()
+	BRedParams := r.BRedParams()
+
 	var idx int
 	for i := 0; i < logN; i++ {
 
 		idx = 1 << i
 
 		if div {
-			idx = r.N - idx
+			idx = r.N() - idx
 		}
 
 		xPow[i] = r.NewPoly()
@@ -368,7 +372,7 @@ func genXPow2(r *ring.Ring, levelQ, logN int, div bool) (xPow []*ring.Poly) {
 		if i == 0 {
 
 			for j := 0; j < levelQ+1; j++ {
-				xPow[i].Coeffs[j][idx] = ring.MForm(1, r.Modulus[j], r.BredParams[j])
+				xPow[i].Coeffs[j][idx] = ring.MForm(1, Modulus[j], BRedParams[j])
 			}
 
 			r.NTTLvl(levelQ, xPow[i], xPow[i])
@@ -395,7 +399,7 @@ func (eval *Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 	ringQP := eval.params.RingQP()
 
 	levelQ := ctIn.Level()
-	levelP := len(ringP.Modulus) - 1
+	levelP := ringP.MaxLevel()
 
 	ctOut.Resize(ctOut.Degree(), levelQ)
 	ctOut.MetaData = ctIn.MetaData

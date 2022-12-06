@@ -34,7 +34,9 @@ type RNSScaler struct {
 // NewRNSScaler creates a new RNSScaler from t, the modulus under which the reconstruction is returned, the Ring in which the polynomial to reconstruct is represented.
 func NewRNSScaler(ringQ *ring.Ring, T uint64) (rnss *RNSScaler) {
 
-	if utils.IsInSliceUint64(T, ringQ.Modulus) && ringQ.Modulus[0] != T {
+	moduli := ringQ.Moduli()
+
+	if utils.IsInSliceUint64(T, moduli) && moduli[0] != T {
 		panic("cannot NewRNSScaler: T must be Q[0] if T|Q")
 	}
 
@@ -45,34 +47,35 @@ func NewRNSScaler(ringQ *ring.Ring, T uint64) (rnss *RNSScaler) {
 	rnss.buffQ = ringQ.NewPoly()
 
 	rnss.ringT = new(ring.Ring)
-	rnss.ringT.N = ringQ.N
-	rnss.ringT.Modulus = []uint64{T}
-	rnss.ringT.BredParams = [][]uint64{ring.BRedParams(T)}
-	rnss.ringT.MredParams = []uint64{ring.MRedParams(T)}
+	rnss.ringT.Tables = []*ring.Table{&ring.Table{}}
+	rnss.ringT.Tables[0].N = ringQ.N()
+	rnss.ringT.Tables[0].Modulus = T
+	rnss.ringT.Tables[0].BRedParams = ring.BRedParams(T)
+	rnss.ringT.Tables[0].MRedParams = ring.MRedParams(T)
 	rnss.buffP = rnss.ringT.NewPoly()
 
-	rnss.tDividesQ = T == ringQ.Modulus[0]
+	rnss.tDividesQ = T == moduli[0]
 
 	if !rnss.tDividesQ {
 
-		rnss.tInvModQi = make([]uint64, len(ringQ.Modulus))
-		for i, qi := range ringQ.Modulus {
-			rnss.tInvModQi[i] = ring.MForm(ring.ModExp(T, qi-2, qi), qi, ringQ.BredParams[i])
+		rnss.tInvModQi = make([]uint64, len(moduli))
+		for i, qi := range moduli {
+			rnss.tInvModQi[i] = ring.MForm(ring.ModExp(T, qi-2, qi), qi, ringQ.Tables[i].BRedParams)
 		}
 
-		rnss.qHalf = make([]*big.Int, len(ringQ.Modulus))
-		rnss.qInv = make([]uint64, len(ringQ.Modulus))
-		rnss.qHalfModT = make([]uint64, len(ringQ.Modulus))
-		rnss.paramsQP = make([]ring.ModupParams, len(ringQ.Modulus))
+		rnss.qHalf = make([]*big.Int, len(moduli))
+		rnss.qInv = make([]uint64, len(moduli))
+		rnss.qHalfModT = make([]uint64, len(moduli))
+		rnss.paramsQP = make([]ring.ModupParams, len(moduli))
 
 		bigQ := new(big.Int).SetUint64(1)
 		tmp := new(big.Int)
 		bredParams := ring.BRedParams(T)
 		TBig := ring.NewUint(T)
-		for i := range ringQ.Modulus {
-			rnss.paramsQP[i] = ring.GenModUpParams(ringQ.Modulus[:i+1], rnss.ringT.Modulus)
+		for i, qi := range moduli {
+			rnss.paramsQP[i] = ring.GenModUpParams(moduli[:i+1], rnss.ringT.Moduli())
 
-			bigQ.Mul(bigQ, ring.NewUint(ringQ.Modulus[i]))
+			bigQ.Mul(bigQ, ring.NewUint(qi))
 
 			rnss.qInv[i] = tmp.Mod(bigQ, TBig).Uint64()
 			rnss.qInv[i] = ring.ModExp(rnss.qInv[i], T-2, T)
@@ -99,8 +102,8 @@ func (rnss *RNSScaler) DivByQOverTRoundedLvl(level int, p1Q, p2T *ring.Poly) {
 		} else {
 
 			ringT := rnss.ringT
-			T := ringT.Modulus[0]
-			tInv := ringT.MredParams[0]
+			T := ringT.Tables[0].Modulus
+			tInv := ringT.Tables[0].MRedParams
 			p2tmp := p2T.Coeffs[0]
 			p3tmp := rnss.buffP.Coeffs[0]
 			qInv := T - rnss.qInv[level]
@@ -128,9 +131,9 @@ func (rnss *RNSScaler) DivByQOverTRoundedLvl(level int, p1Q, p2T *ring.Poly) {
 			// since |Q| < 62 bits, and min(logN) = 10, then |<s, e>| > 10 bits, hence there is no
 			// possible case where |T| > 51 bits & lvl = 0 that does not lead to an overflow of
 			// the error when decrypting.
-			qOverT := float64(ringQ.Modulus[0]) / float64(rnss.ringT.Modulus[0])
+			qOverT := float64(ringQ.Tables[0].Modulus) / float64(rnss.ringT.Tables[0].Modulus)
 			tmp0, tmp1 := p2T.Coeffs[0], p1Q.Coeffs[0]
-			for i := 0; i < ringQ.N; i++ {
+			for i := 0; i < ringQ.N(); i++ {
 				tmp0[i] = uint64(float64(tmp1[i])/qOverT + 0.5)
 			}
 		}
@@ -151,11 +154,11 @@ func (rnss *RNSScaler) ScaleUpByQOverTLvl(level int, pIn, pOut *ring.Poly) {
 // Poly pOut in ringQ.
 func ScaleUpTCoprimeWithQVecLvl(level int, ringQ, ringT *ring.Ring, tInvModQi, buffN []uint64, pIn, pOut *ring.Poly) {
 
-	qModTmontgomery := ring.MForm(new(big.Int).Mod(ringQ.ModulusAtLevel[level], ring.NewUint(ringT.Modulus[0])).Uint64(), ringT.Modulus[0], ringT.BredParams[0])
+	qModTmontgomery := ring.MForm(new(big.Int).Mod(ringQ.ModulusAtLevel[level], ring.NewUint(ringT.Tables[0].Modulus)).Uint64(), ringT.Tables[0].Modulus, ringT.Tables[0].BRedParams)
 
-	t := ringT.Modulus[0]
+	t := ringT.Tables[0].Modulus
 	tHalf := t >> 1
-	tInv := ringT.MredParams[0]
+	tInv := ringT.Tables[0].MRedParams
 
 	// (x * Q + T/2) mod T
 	ring.MulScalarMontgomeryAndAddScalarVec(pIn.Coeffs[0], buffN, tHalf, qModTmontgomery, t, tInv)
@@ -164,9 +167,12 @@ func ScaleUpTCoprimeWithQVecLvl(level int, ringQ, ringT *ring.Ring, tInvModQi, b
 	for i := 0; i < level+1; i++ {
 		p0tmp := buffN
 		p1tmp := pOut.Coeffs[i]
-		qi := ringQ.Modulus[i]
-		bredParams := ringQ.BredParams[i]
-		mredParams := ringQ.MredParams[i]
+
+		Table := ringQ.Tables[i]
+
+		qi := Table.Modulus
+		bredParams := Table.BRedParams
+		mredParams := Table.MRedParams
 		rescaleParams := qi - tInvModQi[i]
 		tHalfNegQi := qi - ring.BRedAdd(tHalf, qi, bredParams)
 
@@ -182,10 +188,10 @@ func ScaleUpTIsQ0VecLvl(level int, ringQ *ring.Ring, pIn, pOut *ring.Poly) {
 	// Q/T mod T
 	tmp := new(big.Int)
 	tmp.Quo(ringQ.ModulusAtLevel[level], ringQ.ModulusAtLevel[0])
-	QOverTMont := ring.MForm(tmp.Mod(tmp, new(big.Int).SetUint64(ringQ.Modulus[0])).Uint64(), ringQ.Modulus[0], ringQ.BredParams[0])
+	QOverTMont := ring.MForm(tmp.Mod(tmp, new(big.Int).SetUint64(ringQ.Tables[0].Modulus)).Uint64(), ringQ.Tables[0].Modulus, ringQ.Tables[0].BRedParams)
 
 	// pOut = Q/T * pIn
-	ring.MulScalarMontgomeryVec(pIn.Coeffs[0], pOut.Coeffs[0], QOverTMont, ringQ.Modulus[0], ringQ.MredParams[0])
+	ring.MulScalarMontgomeryVec(pIn.Coeffs[0], pOut.Coeffs[0], QOverTMont, ringQ.Tables[0].Modulus, ringQ.Tables[0].MRedParams)
 
 	for i := 1; i < level+1; i++ {
 		ring.ZeroVec(pOut.Coeffs[i])

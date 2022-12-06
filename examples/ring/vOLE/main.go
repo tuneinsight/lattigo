@@ -117,24 +117,20 @@ type lowNormSampler struct {
 func newLowNormSampler(baseRing *ring.Ring) (lns *lowNormSampler) {
 	lns = new(lowNormSampler)
 	lns.baseRing = baseRing
-	lns.coeffs = make([]*big.Int, baseRing.N)
+	lns.coeffs = make([]*big.Int, baseRing.N())
 	return
 }
 
 // Samples a uniform polynomial in Z_{norm}/(X^N + 1)
-func (lns *lowNormSampler) newPolyLowNorm(norm []uint64) (pol *ring.Poly) {
-	bound := ring.NewUint(0)
-	for _, qi := range norm {
-		bound.Add(bound, ring.NewUint(qi))
-	}
+func (lns *lowNormSampler) newPolyLowNorm(norm *big.Int) (pol *ring.Poly) {
 
 	pol = lns.baseRing.NewPoly()
 
 	for i := range lns.coeffs {
-		lns.coeffs[i] = ring.RandInt(bound)
+		lns.coeffs[i] = ring.RandInt(norm)
 	}
 
-	lns.baseRing.SetCoefficientsBigint(lns.coeffs, pol)
+	lns.baseRing.SetCoefficientsBigintLvl(pol.Level(), lns.coeffs, pol)
 
 	return
 }
@@ -157,7 +153,7 @@ func main() {
 		ringQ := volerings.ringQ
 
 		n := param.n
-		qlevel := len(ringQ.Modulus) - 1
+		qlevel := ringQ.MaxLevel()
 		plevel := param.plevel
 		mlevel := param.mlevel
 
@@ -230,11 +226,11 @@ func main() {
 		for i := 0; i < n; i++ {
 
 			// Generate uniform inputs u and v (in R_m) in the time domain
-			u[i] = lowNormUniformQ.newPolyLowNorm(ringQ.Modulus[:mlevel+1])
+			u[i] = lowNormUniformQ.newPolyLowNorm(ringQ.ModulusAtLevel[mlevel])
 
 			ringQ.NTT(u[i], u[i])
 
-			v[i] = lowNormUniformQ.newPolyLowNorm(ringQ.Modulus[:mlevel+1])
+			v[i] = lowNormUniformQ.newPolyLowNorm(ringQ.ModulusAtLevel[mlevel])
 
 			c[i] = ringQ.NewPoly()
 			d[i] = ringQ.NewPolyLvl(plevel)

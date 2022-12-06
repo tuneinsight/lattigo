@@ -213,12 +213,12 @@ func AddPolyTimesGadgetVectorToGadgetCiphertext(pt *ring.Poly, cts []GadgetCiphe
 					break
 				}
 
-				qi := ringQ.Modulus[index]
+				qi := ringQ.Tables[index].Modulus
 				p0tmp := buff.Coeffs[index]
 
 				for u, ct := range cts {
 					p1tmp := ct.Value[i][j].Value[u].Q.Coeffs[index]
-					for w := 0; w < ringQ.N; w++ {
+					for w := 0; w < ringQ.N(); w++ {
 						p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi)
 					}
 				}
@@ -272,11 +272,11 @@ func AddPolyToGadgetMatrix(pt *ring.Poly, gm [][]ringqp.Poly, ringQP ringqp.Ring
 					break
 				}
 
-				qi := ringQ.Modulus[index]
+				qi := ringQ.Tables[index].Modulus
 				p0tmp := buff.Coeffs[index]
 
 				p1tmp := gm[i][j].Q.Coeffs[index]
-				for w := 0; w < ringQ.N; w++ {
+				for w := 0; w < ringQ.N(); w++ {
 					p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi)
 				}
 			}
@@ -304,17 +304,17 @@ func NewGadgetPlaintext(value interface{}, levelQ, levelP, logBase2, decompBIT i
 	switch el := value.(type) {
 	case uint64:
 		pt.Value[0] = ringQ.NewPolyLvl(levelQ)
-		for i := range ringQ.Modulus[:levelQ+1] {
+		for i := 0; i < levelQ+1; i++ {
 			pt.Value[0].Coeffs[i][0] = el
 		}
 	case int64:
 		pt.Value[0] = ringQ.NewPolyLvl(levelQ)
 		if el < 0 {
-			for i, qi := range ringQ.Modulus[:levelQ+1] {
-				pt.Value[0].Coeffs[i][0] = qi - uint64(-el)
+			for i := 0; i < levelQ+1; i++ {
+				pt.Value[0].Coeffs[i][0] = ringQ.Tables[i].Modulus - uint64(-el)
 			}
 		} else {
-			for i := range ringQ.Modulus[:levelQ+1] {
+			for i := 0; i < levelQ+1; i++ {
 				pt.Value[0].Coeffs[i][0] = uint64(el)
 			}
 		}

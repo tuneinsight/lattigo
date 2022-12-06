@@ -31,11 +31,11 @@ func GenGaloisParams(n, gen uint64) (galElRotCol []uint64) {
 func (r *Ring) PermuteNTTIndex(galEl uint64) (index []uint64) {
 
 	var mask, tmp1, tmp2, logNthRoot uint64
-	logNthRoot = uint64(bits.Len64(r.NthRoot) - 2)
-	mask = r.NthRoot - 1
-	index = make([]uint64, r.N)
+	logNthRoot = uint64(bits.Len64(r.NthRoot()) - 2)
+	mask = r.NthRoot() - 1
+	index = make([]uint64, r.N())
 
-	for i := uint64(0); i < uint64(r.N); i++ {
+	for i := uint64(0); i < uint64(r.N()); i++ {
 		tmp1 = 2*utils.BitReverse64(i, logNthRoot) + 1
 		tmp2 = ((galEl * tmp1 & mask) - 1) >> 1
 		index[i] = utils.BitReverse64(tmp2, logNthRoot)
@@ -63,7 +63,7 @@ func (r *Ring) PermuteNTTLvl(level int, polIn *Poly, gen uint64, polOut *Poly) {
 // It must be noted that the result cannot be in-place.
 func (r *Ring) PermuteNTTWithIndexLvl(level int, polIn *Poly, index []uint64, polOut *Poly) {
 
-	for j := 0; j < r.N; j = j + 8 {
+	for j := 0; j < r.N(); j = j + 8 {
 
 		x := (*[8]uint64)(unsafe.Pointer(&index[j]))
 
@@ -90,7 +90,7 @@ func (r *Ring) PermuteNTTWithIndexLvl(level int, polIn *Poly, index []uint64, po
 // It must be noted that the result cannot be in-place.
 func (r *Ring) PermuteNTTWithIndexAndAddNoModLvl(level int, polIn *Poly, index []uint64, polOut *Poly) {
 
-	for j := 0; j < r.N; j = j + 8 {
+	for j := 0; j < r.N(); j = j + 8 {
 
 		x := (*[8]uint64)(unsafe.Pointer(&index[j]))
 
@@ -125,11 +125,11 @@ func (r *Ring) PermuteLvl(level int, polIn *Poly, gen uint64, polOut *Poly) {
 
 	var mask, index, indexRaw, logN, tmp uint64
 
-	mask = uint64(r.N - 1)
+	mask = uint64(r.N() - 1)
 
 	logN = uint64(bits.Len64(mask))
 
-	for i := uint64(0); i < uint64(r.N); i++ {
+	for i := uint64(0); i < uint64(r.N()); i++ {
 
 		indexRaw = i * gen
 
@@ -137,9 +137,8 @@ func (r *Ring) PermuteLvl(level int, polIn *Poly, gen uint64, polOut *Poly) {
 
 		tmp = (indexRaw >> logN) & 1
 
-		for j, qi := range r.Modulus[:level+1] {
-
-			polOut.Coeffs[j][index] = polIn.Coeffs[j][i]*(tmp^1) | (qi-polIn.Coeffs[j][i])*tmp
+		for j, Table := range r.Tables[:level+1] {
+			polOut.Coeffs[j][index] = polIn.Coeffs[j][i]*(tmp^1) | (Table.Modulus-polIn.Coeffs[j][i])*tmp
 		}
 	}
 }

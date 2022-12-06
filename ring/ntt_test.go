@@ -102,11 +102,11 @@ var testVector = []struct {
 
 func TestNTT(t *testing.T) {
 
-	for _, tv := range testVector[1:] {
+	for _, tv := range testVector[1:2] {
 
 		ringQ, _ := NewRing(tv.N, tv.Qis)
 
-		t.Run(fmt.Sprintf("N=%d/limbs=%d", ringQ.N, len(ringQ.Modulus)), func(t *testing.T) {
+		t.Run(fmt.Sprintf("N=%d/limbs=%d", ringQ.N(), ringQ.NbModuli()), func(t *testing.T) {
 			x := ringQ.NewPoly()
 			ringQ.NTT(tv.poly, x)
 

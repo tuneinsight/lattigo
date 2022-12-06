@@ -28,13 +28,15 @@ func NewDomainSwitcher(params Parameters, comlexToRealSwk, RealToComplexSwk *rlw
 	}
 	var err error
 	if s.stdRingQ, err = params.RingQ().StandardRing(); err != nil {
-		return DomainSwitcher{}, fmt.Errorf("cannot switch between schemes because the standard NTT is undefined for params: %f", err)
+		fmt.Println(1)
+		return DomainSwitcher{}, fmt.Errorf("cannot switch between schemes because the standard NTT is undefined for params: %s", err)
 	}
 	if s.conjugateRingQ, err = params.RingQ().ConjugateInvariantRing(); err != nil {
-		return DomainSwitcher{}, fmt.Errorf("cannot switch between schemes because the standard NTT is undefined for params: %f", err)
+		return DomainSwitcher{}, fmt.Errorf("cannot switch between schemes because the standard NTT is undefined for params: %s", err)
 	}
 
-	s.permuteNTTIndex = s.stdRingQ.PermuteNTTIndex(s.stdRingQ.NthRoot - 1)
+	s.permuteNTTIndex = s.stdRingQ.PermuteNTTIndex(s.stdRingQ.NthRoot() - 1)
+
 	return s, nil
 }
 

@@ -37,9 +37,9 @@ func GenEvaluationKey(paramsRLWE rlwe.Parameters, skRLWE *rlwe.SecretKey, params
 	skRGSWNeg := make([]*rgsw.Ciphertext, paramsLWE.N())
 
 	ringQ := paramsLWE.RingQ()
-	Q := ringQ.Modulus[0]
-	OneMForm := ring.MForm(1, Q, ringQ.BredParams[0])
-	MinusOneMform := ring.MForm(Q-1, Q, ringQ.BredParams[0])
+	Q := ringQ.Tables[0].Modulus
+	OneMForm := ring.MForm(1, Q, ringQ.Tables[0].BRedParams)
+	MinusOneMform := ring.MForm(Q-1, Q, ringQ.Tables[0].BRedParams)
 
 	decompRNS := paramsRLWE.DecompRNS(levelQ, levelP)
 	decompPw2 := paramsRLWE.DecompPw2(levelQ, levelP)

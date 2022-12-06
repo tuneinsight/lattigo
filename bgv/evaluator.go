@@ -97,9 +97,9 @@ func newEvaluatorPrecomp(params Parameters) *evaluatorBase {
 	ringQ := params.RingQ()
 	t := params.T()
 
-	tInvModQ := make([]*big.Int, len(ringQ.Modulus))
+	tInvModQ := make([]*big.Int, ringQ.NbModuli())
 
-	for i := range ringQ.Modulus {
+	for i := range tInvModQ {
 		tInvModQ[i] = ring.NewUint(t)
 		tInvModQ[i].ModInverse(tInvModQ[i], ringQ.ModulusAtLevel[i])
 	}
@@ -304,7 +304,7 @@ func (eval *evaluator) AddScalar(ctIn *rlwe.Ciphertext, scalar uint64, ctOut *rl
 	level := utils.MinInt(ctIn.Level(), ctOut.Level())
 
 	if ctIn.Scale.Cmp(eval.params.NewScale(1)) != 0 {
-		scalar = ring.BRed(scalar, ctIn.Scale.Uint64(), ringT.Modulus[0], ringT.BredParams[0])
+		scalar = ring.BRed(scalar, ctIn.Scale.Uint64(), ringT.Tables[0].Modulus, ringT.Tables[0].BRedParams)
 	}
 
 	scalarBig := new(big.Int).SetUint64(scalar)
@@ -352,9 +352,9 @@ func (eval *evaluator) MulScalarAndAdd(ctIn *rlwe.Ciphertext, scalar uint64, ctO
 	// scalar *= (ctOut.scale / ctIn.Scale)
 	if ctIn.Scale.Cmp(ctOut.Scale) != 0 {
 		ringT := eval.params.RingT()
-		ratio := ring.ModExp(ctIn.Scale.Uint64(), ringT.Modulus[0]-2, ringT.Modulus[0])
-		ratio = ring.BRed(ratio, ctOut.Scale.Uint64(), ringT.Modulus[0], ringT.BredParams[0])
-		scalar = ring.BRed(ratio, scalar, ringT.Modulus[0], ringT.BredParams[0])
+		ratio := ring.ModExp(ctIn.Scale.Uint64(), ringT.Tables[0].Modulus-2, ringT.Tables[0].Modulus)
+		ratio = ring.BRed(ratio, ctOut.Scale.Uint64(), ringT.Tables[0].Modulus, ringT.Tables[0].BRedParams)
+		scalar = ring.BRed(ratio, scalar, ringT.Tables[0].Modulus, ringT.Tables[0].BRedParams)
 	}
 
 	for i := 0; i < ctIn.Degree()+1; i++ {
@@ -559,7 +559,7 @@ func (eval *evaluator) mulRelinAndAdd(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, r
 		tmp0, tmp1 := ctIn.El(), op1.El()
 
 		var r0 uint64 = 1
-		if targetScale := ring.BRed(ctIn.Scale.Uint64(), op1.GetScale().Uint64(), ringT.Modulus[0], ringT.BredParams[0]); ctOut.Scale.Cmp(eval.params.NewScale(targetScale)) != 0 {
+		if targetScale := ring.BRed(ctIn.Scale.Uint64(), op1.GetScale().Uint64(), ringT.Tables[0].Modulus, ringT.Tables[0].BRedParams); ctOut.Scale.Cmp(eval.params.NewScale(targetScale)) != 0 {
 			var r1 uint64
 			r0, r1, _ = eval.matchScalesBinary(targetScale, ctOut.Scale.Uint64())
 
@@ -618,7 +618,7 @@ func (eval *evaluator) mulRelinAndAdd(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, r
 		ringQ.MulScalarLvl(level, c00, eval.params.T(), c00)
 
 		var r0 = uint64(1)
-		if targetScale := ring.BRed(ctIn.Scale.Uint64(), op1.GetScale().Uint64(), ringT.Modulus[0], ringT.BredParams[0]); ctOut.Scale.Cmp(eval.params.NewScale(targetScale)) != 0 {
+		if targetScale := ring.BRed(ctIn.Scale.Uint64(), op1.GetScale().Uint64(), ringT.Tables[0].Modulus, ringT.Tables[0].BRedParams); ctOut.Scale.Cmp(eval.params.NewScale(targetScale)) != 0 {
 			var r1 uint64
 			r0, r1, _ = eval.matchScalesBinary(targetScale, ctOut.Scale.Uint64())
 
@@ -664,7 +664,7 @@ func (eval *evaluator) Rescale(ctIn, ctOut *rlwe.Ciphertext) (err error) {
 
 	ctOut.Resize(ctOut.Degree(), level-1)
 	ctOut.MetaData = ctIn.MetaData
-	ctOut.Scale = ctIn.Scale.Div(eval.params.NewScale(ringQ.Modulus[level]))
+	ctOut.Scale = ctIn.Scale.Div(eval.params.NewScale(ringQ.Tables[level].Modulus))
 	return
 }
 
@@ -763,15 +763,15 @@ func (eval *evaluator) matchScalesBinary(scale0, scale1 uint64) (r0, r1, e uint6
 
 	ringT := eval.params.RingT()
 
-	t := ringT.Modulus[0]
+	t := ringT.Tables[0].Modulus
 	tHalf := t >> 1
-	bredParams := ringT.BredParams[0]
+	bredParams := ringT.Tables[0].BRedParams
 
 	if utils.GCD(scale0, t) != 1 {
 		panic("cannot matchScalesBinary: invalid ciphertext scale: gcd(scale, t) != 1")
 	}
 
-	var a = ringT.Modulus[0]
+	var a = ringT.Tables[0].Modulus
 	var b uint64 = 0
 	var A = ring.BRed(ring.ModExp(scale0, t-2, t), scale1, t, bredParams)
 	var B uint64 = 1

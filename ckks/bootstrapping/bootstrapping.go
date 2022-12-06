@@ -98,11 +98,11 @@ func (btp *Bootstrapper) modUpFromQ0(ct *rlwe.Ciphertext) *rlwe.Ciphertext {
 	levelQ := btp.params.QCount() - 1
 	levelP := btp.params.PCount() - 1
 
-	Q := ringQ.Modulus
-	P := ringP.Modulus
+	Q := ringQ.Moduli()
+	P := ringP.Moduli()
 	q := Q[0]
-	bredparamsQ := ringQ.BredParams
-	bredparamsP := ringP.BredParams
+	bredparamsQ := ringQ.BRedParams()
+	bredparamsP := ringP.BRedParams()
 
 	var coeff, tmp, pos, neg uint64
 

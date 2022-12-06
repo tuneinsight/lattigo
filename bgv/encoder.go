@@ -78,19 +78,22 @@ func NewEncoder(params Parameters) Encoder {
 	ringQ := params.RingQ()
 	ringT := params.RingT()
 
-	paramsQP := make([]ring.ModupParams, len(ringQ.Modulus))
+	paramsQP := make([]ring.ModupParams, ringQ.NbModuli())
 
-	qHalf := make([]*big.Int, len(ringQ.Modulus))
+	qHalf := make([]*big.Int, ringQ.NbModuli())
 
-	for i := 1; i < len(ringQ.Modulus); i++ {
-		paramsQP[i] = ring.GenModUpParams(ringQ.Modulus[:i+1], ringT.Modulus)
+	moduli := ringQ.Moduli()
+	T := ringT.Tables[0].Modulus
+
+	for i := 1; i < ringQ.NbModuli(); i++ {
+		paramsQP[i] = ring.GenModUpParams(moduli[:i+1], []uint64{T})
 		qHalf[i] = new(big.Int).Set(ringQ.ModulusAtLevel[i])
 		qHalf[i].Rsh(qHalf[i], 1)
 	}
 
-	tInvModQ := make([]*big.Int, len(ringQ.Modulus))
-	for i := range ringQ.Modulus {
-		tInvModQ[i] = ring.NewUint(params.T())
+	tInvModQ := make([]*big.Int, ringQ.NbModuli())
+	for i := range moduli {
+		tInvModQ[i] = ring.NewUint(T)
 		tInvModQ[i].ModInverse(tInvModQ[i], ringQ.ModulusAtLevel[i])
 	}
 
@@ -176,8 +179,8 @@ func (ecd *encoder) EncodeRingT(values interface{}, scale rlwe.Scale, pT *ring.P
 		valLen = len(values)
 	case []int64:
 
-		T := ringT.Modulus[0]
-		bredparamsT := ringT.BredParams[0]
+		T := ringT.Tables[0].Modulus
+		bredparamsT := ringT.Tables[0].BRedParams
 
 		var sign, abs uint64
 		for i, c := range values {
@@ -201,23 +204,25 @@ func (ecd *encoder) EncodeRingT(values interface{}, scale rlwe.Scale, pT *ring.P
 // EncodeRingT decodes a pT in basis T on a slice of []uint64 or []int64.
 func (ecd *encoder) DecodeRingT(pT *ring.Poly, scale rlwe.Scale, values interface{}) {
 	ringT := ecd.params.RingT()
-	ringT.MulScalar(pT, ring.ModExp(scale.Uint64(), ringT.Modulus[0]-2, ringT.Modulus[0]), ecd.buffT)
+	ringT.MulScalar(pT, ring.ModExp(scale.Uint64(), ringT.Tables[0].Modulus-2, ringT.Tables[0].Modulus), ecd.buffT)
 	ringT.NTT(ecd.buffT, ecd.buffT)
+
+	tmp := ecd.buffT.Coeffs[0]
 
 	switch values := values.(type) {
 	case []uint64:
-		for i := 0; i < ecd.params.RingQ().N; i++ {
-			values[i] = ecd.buffT.Coeffs[0][ecd.indexMatrix[i]]
+		for i := 0; i < ecd.params.N(); i++ {
+			values[i] = tmp[ecd.indexMatrix[i]]
 		}
 	case []int64:
 		modulus := int64(ecd.params.T())
 		modulusHalf := modulus >> 1
 		var value int64
-		for i := 0; i < ecd.params.RingQ().N; i++ {
-			value = int64(ecd.buffT.Coeffs[0][ecd.indexMatrix[i]])
-			values[i] = value
-			if value >= modulusHalf {
-				values[i] -= modulus
+		for i := 0; i < ecd.params.N(); i++ {
+			if value = int64(tmp[ecd.indexMatrix[i]]); value >= modulusHalf {
+				values[i] = value - modulus
+			} else {
+				values[i] = value
 			}
 		}
 	default:
@@ -248,9 +253,9 @@ func (ecd *encoder) RingQ2T(level int, pQ, pT *ring.Poly) {
 		ring.ModUpExact(ecd.buffQ.Coeffs[:level+1], pT.Coeffs, ringQ, ringT, ecd.paramsQP[level])
 		ringT.SubScalarBigint(pT, ecd.qHalf[level], pT)
 	} else {
-		ringQ.AddScalarLvl(level, pQ, ringQ.Modulus[0]>>1, ecd.buffQ)
+		ringQ.AddScalarLvl(level, pQ, ringQ.Tables[0].Modulus>>1, ecd.buffQ)
 		ringT.Reduce(ecd.buffQ, pT)
-		ringT.SubScalar(pT, ring.BRedAdd(ringQ.Modulus[0]>>1, ringT.Modulus[0], ringT.BredParams[0]), pT)
+		ringT.SubScalar(pT, ring.BRedAdd(ringQ.Tables[0].Modulus>>1, ringT.Tables[0].Modulus, ringT.Tables[0].BRedParams), pT)
 	}
 }
 
@@ -275,7 +280,7 @@ func (ecd *encoder) DecodeUint(pt *rlwe.Plaintext, values []uint64) {
 
 // DecodeUintNew decodes any plaintext type and returns the coefficients on a new []uint64 slice.
 func (ecd *encoder) DecodeUintNew(pt *rlwe.Plaintext) (values []uint64) {
-	values = make([]uint64, ecd.params.RingQ().N)
+	values = make([]uint64, ecd.params.N())
 	ecd.DecodeUint(pt, values)
 	return
 }
@@ -298,7 +303,7 @@ func (ecd *encoder) DecodeInt(pt *rlwe.Plaintext, values []int64) {
 // DecodeInt decodes a any plaintext type and write the coefficients on an new int64 slice.
 // Values are centered between [t/2, t/2).
 func (ecd *encoder) DecodeIntNew(pt *rlwe.Plaintext) (values []int64) {
-	values = make([]int64, ecd.params.RingQ().N)
+	values = make([]int64, ecd.params.N())
 	ecd.DecodeInt(pt, values)
 	return
 }
@@ -314,7 +319,7 @@ func (ecd *encoder) DecodeCoeffs(pt *rlwe.Plaintext, values []uint64) {
 
 	ecd.RingQ2T(pt.Level(), ecd.buffQ, ecd.buffT)
 	ringT := ecd.params.RingT()
-	ringT.MulScalar(ecd.buffT, ring.ModExp(pt.Scale.Uint64(), ringT.Modulus[0]-2, ringT.Modulus[0]), ecd.buffT)
+	ringT.MulScalar(ecd.buffT, ring.ModExp(pt.Scale.Uint64(), ringT.Tables[0].Modulus-2, ringT.Tables[0].Modulus), ecd.buffT)
 	copy(values, ecd.buffT.Coeffs[0])
 }
 

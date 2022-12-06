@@ -106,7 +106,7 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, s
 
 	hasModulusP := levelP > -1
 
-	galElInv := ring.ModExp(galEl, ringQ.NthRoot-1, ringQ.NthRoot)
+	galElInv := ring.ModExp(galEl, ringQ.NthRoot()-1, ringQ.NthRoot())
 
 	ringQ.PermuteNTT(sk.Value.Q, galElInv, rtg.buff[1].Q)
 
@@ -148,11 +148,11 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, s
 					break
 				}
 
-				qi := ringQ.Modulus[index]
+				qi := ringQ.Tables[index].Modulus
 				tmp0 := rtg.buff[0].Q.Coeffs[index]
 				tmp1 := shareOut.Value[i][j].Q.Coeffs[index]
 
-				for w := 0; w < ringQ.N; w++ {
+				for w := 0; w < ringQ.N(); w++ {
 					tmp1[w] = ring.CRed(tmp1[w]+tmp0[w], qi)
 				}
 			}

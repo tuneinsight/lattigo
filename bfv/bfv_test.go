@@ -232,18 +232,18 @@ func verifyTestVectors(tc *testContext, decryptor rlwe.Decryptor, coeffs *ring.P
 func testScaler(tc *testContext, t *testing.T) {
 	t.Run(testString("Scaler/DivRoundByQOverT", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
 
-		T := tc.ringT.Modulus[0]
+		T := tc.params.T()
 		ringQ := tc.ringQ
 
 		scaler := NewRNSScaler(ringQ, T)
 
-		coeffs := make([]*big.Int, ringQ.N)
+		coeffs := make([]*big.Int, ringQ.N())
 		bigQ := ringQ.ModulusAtLevel[tc.params.MaxLevel()]
-		for i := 0; i < ringQ.N; i++ {
+		for i := 0; i < ringQ.N(); i++ {
 			coeffs[i] = ring.RandInt(bigQ)
 		}
 
-		coeffsWant := make([]*big.Int, ringQ.N)
+		coeffsWant := make([]*big.Int, ringQ.N())
 		bigT := ring.NewUint(T)
 		for i := range coeffs {
 			coeffsWant[i] = new(big.Int).Set(coeffs[i])
@@ -253,12 +253,12 @@ func testScaler(tc *testContext, t *testing.T) {
 		}
 
 		polyQ := ringQ.NewPoly()
-		polyT := ring.NewPoly(ringQ.N, 1)
-		ringQ.SetCoefficientsBigint(coeffs, polyQ)
+		polyT := ring.NewPoly(ringQ.N(), 1)
+		ringQ.SetCoefficientsBigintLvl(tc.params.MaxLevel(), coeffs, polyQ)
 
 		scaler.DivByQOverTRoundedLvl(polyQ.Level(), polyQ, polyT)
 
-		for i := 0; i < ringQ.N; i++ {
+		for i := 0; i < ringQ.N(); i++ {
 			require.Equal(t, polyT.Coeffs[0][i], coeffsWant[i].Uint64())
 		}
 	})
@@ -725,7 +725,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		values1, _, ciphertext1 := newTestVectorsRingQLvl(tc.params.MaxLevel(), tc, tc.encryptorPk, t)
 		tc.evaluator.RescaleTo(1, ciphertext1, ciphertext1)
 		verifyTestVectors(tc, tc.decryptor, values1, ciphertext1, t)
-		if tc.params.T() != tc.params.RingQ().Modulus[0] { // only happens if T divides Q.
+		if tc.params.T() != tc.params.RingQ().Tables[0].Modulus { // only happens if T divides Q.
 			tc.evaluator.RescaleTo(0, ciphertext1, ciphertext1)
 			verifyTestVectors(tc, tc.decryptor, values1, ciphertext1, t)
 		}
@@ -798,7 +798,7 @@ func testPolyEval(tc *testContext, t *testing.T) {
 
 			coeffs := []uint64{1, 2, 3, 4, 5, 6, 7, 8}
 
-			T := tc.ringT.Modulus[0]
+			T := tc.params.T()
 			for i := range values.Coeffs[0] {
 				values.Coeffs[0][i] = ring.EvalPolyModP(values.Coeffs[0][i], coeffs, T)
 			}
@@ -840,7 +840,7 @@ func testPolyEval(tc *testContext, t *testing.T) {
 			slotIndex[0] = idx0
 			slotIndex[1] = idx1
 
-			T := tc.ringT.Modulus[0]
+			T := tc.params.T()
 			for pol, idx := range slotIndex {
 				for _, i := range idx {
 					values.Coeffs[0][i] = ring.EvalPolyModP(values.Coeffs[0][i], polyVec[pol].Coeffs, T)

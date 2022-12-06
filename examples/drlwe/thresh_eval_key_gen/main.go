@@ -319,7 +319,7 @@ func main() {
 
 	fmt.Printf("Checking the keys... ")
 
-	levelQ, levelP := len(params.RingQ().Modulus)-1, len(params.RingP().Modulus)-1
+	levelQ, levelP := params.RingQ().MaxLevel(), params.RingP().MaxLevel()
 	decompSize := params.DecompPw2(levelQ, levelP) * params.DecompRNS(levelQ, levelP)
 	log2bound := bits.Len64(uint64(params.N() * decompSize * (params.N()*3*int(params.NoiseBound()) + 2*3*int(params.NoiseBound()) + params.N()*3)))
 	for galEl, rtk := range rtks {

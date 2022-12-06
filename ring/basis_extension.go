@@ -22,19 +22,25 @@ type BasisExtender struct {
 
 func genModDownParams(ringQ, ringP *Ring) (params [][]uint64) {
 
-	params = make([][]uint64, len(ringP.Modulus))
+	params = make([][]uint64, ringP.NbModuli())
 
-	bredParams := ringQ.BredParams
-	mredParams := ringQ.MredParams
+	for j, TableP := range ringP.Tables {
 
-	for j := range ringP.Modulus {
-		params[j] = make([]uint64, len(ringQ.Modulus))
-		for i, qi := range ringQ.Modulus {
-			params[j][i] = ModExp(ringP.Modulus[j], qi-2, qi)
-			params[j][i] = MForm(params[j][i], qi, bredParams[i])
+		pj := TableP.Modulus
+
+		params[j] = make([]uint64, ringQ.NbModuli())
+
+		for i, TableQ := range ringQ.Tables {
+
+			bredParams := TableQ.BRedParams
+			mredParams := TableQ.MRedParams
+			qi := TableQ.Modulus
+
+			params[j][i] = ModExp(pj, qi-2, qi)
+			params[j][i] = MForm(params[j][i], qi, bredParams)
 
 			if j > 0 {
-				params[j][i] = MRed(params[j][i], params[j-1][i], qi, mredParams[i])
+				params[j][i] = MRed(params[j][i], params[j-1][i], qi, mredParams)
 			}
 		}
 	}
@@ -50,14 +56,17 @@ func NewBasisExtender(ringQ, ringP *Ring) *BasisExtender {
 	newParams.ringQ = ringQ
 	newParams.ringP = ringP
 
-	newParams.paramsQtoP = make([]ModupParams, len(ringQ.Modulus))
-	for i := range ringQ.Modulus {
-		newParams.paramsQtoP[i] = GenModUpParams(ringQ.Modulus[:i+1], ringP.Modulus)
+	Q := ringQ.Moduli()
+	P := ringP.Moduli()
+
+	newParams.paramsQtoP = make([]ModupParams, ringQ.NbModuli())
+	for i := range Q {
+		newParams.paramsQtoP[i] = GenModUpParams(Q[:i+1], P)
 	}
 
-	newParams.paramsPtoQ = make([]ModupParams, len(ringP.Modulus))
-	for i := range ringP.Modulus {
-		newParams.paramsPtoQ[i] = GenModUpParams(ringP.Modulus[:i+1], ringQ.Modulus)
+	newParams.paramsPtoQ = make([]ModupParams, ringP.NbModuli())
+	for i := range P {
+		newParams.paramsPtoQ[i] = GenModUpParams(P[:i+1], Q)
 	}
 
 	newParams.modDownparamsPtoQ = genModDownParams(ringQ, ringP)
@@ -202,7 +211,11 @@ func (be *BasisExtender) ModDownQPtoQ(levelQ, levelP int, p1Q, p1P, p2Q *Poly) {
 
 	// Finally, for each level of p1 (and buff since they now share the same basis) we compute p2 = (P^-1) * (p1 - buff) mod Q
 	for i := 0; i < levelQ+1; i++ {
-		SubVecAndMulScalarMontgomeryTwoQiVec(buff.Coeffs[i], p1Q.Coeffs[i], p2Q.Coeffs[i], ringQ.Modulus[i]-modDownParams[levelP][i], ringQ.Modulus[i], ringQ.MredParams[i])
+
+		Modulus := ringQ.Tables[i].Modulus
+		MredParams := ringQ.Tables[i].MRedParams
+
+		SubVecAndMulScalarMontgomeryTwoQiVec(buff.Coeffs[i], p1Q.Coeffs[i], p2Q.Coeffs[i], Modulus-modDownParams[levelP][i], Modulus, MredParams)
 	}
 
 	// In total we do len(P) + len(Q) NTT, which is optimal (linear in the number of moduli of P and Q)
@@ -233,8 +246,12 @@ func (be *BasisExtender) ModDownQPtoQNTT(levelQ, levelP int, p1Q, p1P, p2Q *Poly
 
 	// Finally, for each level of p1 (and the buffer since they now share the same basis) we compute p2 = (P^-1) * (p1 - buff) mod Q
 	for i := 0; i < levelQ+1; i++ {
+
+		Modulus := ringQ.Tables[i].Modulus
+		MredParams := ringQ.Tables[i].MRedParams
+
 		// Then for each coefficient we compute (P^-1) * (p1[i][j] - buff[i][j]) mod qi
-		SubVecAndMulScalarMontgomeryTwoQiVec(buffQ.Coeffs[i], p1Q.Coeffs[i], p2Q.Coeffs[i], ringQ.Modulus[i]-modDownParams[levelP][i], ringQ.Modulus[i], ringQ.MredParams[i])
+		SubVecAndMulScalarMontgomeryTwoQiVec(buffQ.Coeffs[i], p1Q.Coeffs[i], p2Q.Coeffs[i], Modulus-modDownParams[levelP][i], Modulus, MredParams)
 	}
 
 	// In total we do len(P) + len(Q) NTT, which is optimal (linear in the number of moduli of P and Q)
@@ -256,8 +273,12 @@ func (be *BasisExtender) ModDownQPtoP(levelQ, levelP int, p1Q, p1P, p2P *Poly) {
 
 	// Finally, for each level of p1 (and buff since they now share the same basis) we compute p2 = (P^-1) * (p1 - buff) mod Q
 	for i := 0; i < levelP+1; i++ {
+
+		Modulus := ringP.Tables[i].Modulus
+		MredParams := ringP.Tables[i].MRedParams
+
 		// Then, for each coefficient we compute (P^-1) * (p1[i][j] - buff[i][j]) mod qi
-		SubVecAndMulScalarMontgomeryTwoQiVec(buff.Coeffs[i], p1P.Coeffs[i], p2P.Coeffs[i], ringP.Modulus[i]-modDownParams[levelQ][i], ringP.Modulus[i], ringP.MredParams[i])
+		SubVecAndMulScalarMontgomeryTwoQiVec(buff.Coeffs[i], p1P.Coeffs[i], p2P.Coeffs[i], Modulus-modDownParams[levelQ][i], Modulus, MredParams)
 	}
 
 	// In total we do len(P) + len(Q) NTT, which is optimal (linear in the number of moduli of P and Q)
@@ -270,19 +291,24 @@ func ModUpExact(p1, p2 [][]uint64, ringQ, ringP *Ring, params ModupParams) {
 	var v [8]uint64
 	var y0, y1, y2, y3, y4, y5, y6, y7 [32]uint64
 
-	Q := ringQ.Modulus
-	P := ringP.Modulus
-	mredParamsQ := ringQ.MredParams
-	mredParamsP := ringP.MredParams
+	levelQ := len(p1) - 1
+	levelP := len(p2) - 1
+
+	Q := ringQ.Moduli()
+	mredParamsQ := ringQ.MRedParams()
+
+	P := ringP.Moduli()
+	mredParamsP := ringP.MRedParams()
+
 	vtimesqmodp := params.vtimesqmodp
 	qoverqiinvqi := params.qoverqiinvqi
 	qoverqimodp := params.qoverqimodp
 
 	// We loop over each coefficient and apply the basis extension
 	for x := 0; x < len(p1[0]); x = x + 8 {
-		reconstructRNS(len(p1), x, p1, &v, &y0, &y1, &y2, &y3, &y4, &y5, &y6, &y7, Q, mredParamsQ, qoverqiinvqi)
-		for j := 0; j < len(p2); j++ {
-			multSum((*[8]uint64)(unsafe.Pointer(&p2[j][x])), &v, &y0, &y1, &y2, &y3, &y4, &y5, &y6, &y7, len(p1), P[j], mredParamsP[j], vtimesqmodp[j], qoverqimodp[j])
+		reconstructRNS(levelQ+1, x, p1, &v, &y0, &y1, &y2, &y3, &y4, &y5, &y6, &y7, Q, mredParamsQ, qoverqiinvqi)
+		for j := 0; j < levelP+1; j++ {
+			multSum((*[8]uint64)(unsafe.Pointer(&p2[j][x])), &v, &y0, &y1, &y2, &y3, &y4, &y5, &y6, &y7, levelQ+1, P[j], mredParamsP[j], vtimesqmodp[j], qoverqimodp[j])
 		}
 	}
 }
@@ -302,13 +328,13 @@ func NewDecomposer(ringQ, ringP *Ring) (decomposer *Decomposer) {
 	decomposer.ringQ = ringQ
 	decomposer.ringP = ringP
 
-	Q := ringQ.Modulus
+	Q := ringQ.Moduli()
 
-	decomposer.modUpParams = make([][][]ModupParams, len(ringP.Modulus)-1)
+	decomposer.modUpParams = make([][][]ModupParams, ringP.NbModuli()-1)
 
-	for lvlP := range ringP.Modulus[1:] {
+	for lvlP := 0; lvlP < ringP.NbModuli()-1; lvlP++ {
 
-		P := ringP.Modulus[:lvlP+2]
+		P := ringP.Moduli()[:lvlP+2]
 
 		nbPi := len(P)
 		decompRNS := int(math.Ceil(float64(len(Q)) / float64(nbPi)))
@@ -395,10 +421,10 @@ func (decomposer *Decomposer) DecomposeAndSplit(levelQ, levelP, nbPi, decompRNS 
 		var vi [8]float64
 		var y0, y1, y2, y3, y4, y5, y6, y7 [32]uint64
 
-		Q := ringQ.Modulus
-		P := ringP.Modulus
-		mredParamsQ := ringQ.MredParams
-		mredParamsP := ringP.MredParams
+		Q := ringQ.Moduli()
+		P := ringP.Moduli()
+		mredParamsQ := ringQ.MRedParams()
+		mredParamsP := ringP.MRedParams()
 		qoverqiinvqi := params.qoverqiinvqi
 		vtimesqmodp := params.vtimesqmodp
 		qoverqimodp := params.qoverqimodp
@@ -463,7 +489,7 @@ func (decomposer *Decomposer) DecomposeAndSplit(levelQ, levelP, nbPi, decompRNS 
 			}
 
 			// Coefficients of the special primes Pi
-			for j, u := 0, len(ringQ.Modulus); j < levelP+1; j, u = j+1, u+1 {
+			for j, u := 0, len(Q); j < levelP+1; j, u = j+1, u+1 {
 				multSum((*[8]uint64)(unsafe.Pointer(&p1P.Coeffs[j][x])), &v, &y0, &y1, &y2, &y3, &y4, &y5, &y6, &y7, decompLvl+2, P[j], mredParamsP[j], vtimesqmodp[u], qoverqimodp[u])
 			}
 		}

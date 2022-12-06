@@ -486,7 +486,7 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix Linear
 	ringQP := eval.params.RingQP()
 
 	levelQ := utils.MinInt(ctOut.Level(), utils.MinInt(ctIn.Level(), matrix.Level))
-	levelP := len(ringP.Modulus) - 1
+	levelP := ringP.MaxLevel()
 
 	ctOut.Resize(ctOut.Degree(), levelQ)
 
@@ -512,7 +512,7 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix Linear
 	var cnt int
 	for k := range matrix.Vec {
 
-		k &= int((ringQ.NthRoot >> 2) - 1)
+		k &= int((ringQ.NthRoot() >> 2) - 1)
 
 		if k == 0 {
 			state = true
@@ -587,7 +587,7 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Li
 	ringQP := eval.params.RingQP()
 
 	levelQ := utils.MinInt(ctOut.Level(), utils.MinInt(ctIn.Level(), matrix.Level))
-	levelP := len(ringP.Modulus) - 1
+	levelP := ringP.MaxLevel()
 
 	ctOut.Resize(ctOut.Degree(), levelQ)
 

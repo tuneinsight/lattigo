@@ -108,7 +108,7 @@ func (ecd *encoder) ShallowCopy() *encoder {
 
 func newEncoder(params Parameters) encoder {
 
-	m := int(params.RingQ().NthRoot)
+	m := int(params.RingQ().NthRoot())
 
 	rotGroup := make([]int, m>>1)
 	fivePows := 1
@@ -411,9 +411,9 @@ func (ecd *encoderComplex128) Embed(values interface{}, logSlots int, scale rlwe
 func polyToComplexNoCRT(coeffs []uint64, values []complex128, scale rlwe.Scale, logSlots int, isreal bool, ringQ *ring.Ring) {
 
 	slots := 1 << logSlots
-	maxSlots := int(ringQ.NthRoot >> 2)
+	maxSlots := int(ringQ.NthRoot() >> 2)
 	gap := maxSlots / slots
-	Q := ringQ.Modulus[0]
+	Q := ringQ.Tables[0].Modulus
 	var c uint64
 	for i, idx := 0, 0; i < slots; i, idx = i+1, idx+gap {
 		c = coeffs[idx]
@@ -440,7 +440,7 @@ func polyToComplexNoCRT(coeffs []uint64, values []complex128, scale rlwe.Scale, 
 
 func polyToComplexCRT(poly *ring.Poly, bigintCoeffs []*big.Int, values []complex128, scale rlwe.Scale, logSlots int, isreal bool, ringQ *ring.Ring, Q *big.Int) {
 
-	maxSlots := int(ringQ.NthRoot >> 2)
+	maxSlots := int(ringQ.NthRoot() >> 2)
 	slots := 1 << logSlots
 	gap := maxSlots / slots
 
@@ -569,7 +569,7 @@ func (ecd *encoderComplex128) decodeCoeffsPublic(plaintext *rlwe.Plaintext, sigm
 		// We can directly get the coefficients
 	} else {
 
-		Q := ecd.params.RingQ().Modulus[0]
+		Q := ecd.params.RingQ().Tables[0].Modulus
 		coeffs := ecd.buff.Coeffs[0]
 
 		for i := range res {
@@ -655,21 +655,21 @@ func (ecd *encoderBigComplex) Encode(values []*ring.Complex, plaintext *rlwe.Pla
 
 	ecd.InvFFT(ecd.values, slots)
 
-	gap := (ecd.params.RingQ().N >> 1) / slots
+	gap := (ecd.params.RingQ().N() >> 1) / slots
 
-	for i, jdx, idx := 0, (ecd.params.RingQ().N >> 1), 0; i < slots; i, jdx, idx = i+1, jdx+gap, idx+gap {
+	for i, jdx, idx := 0, (ecd.params.N() >> 1), 0; i < slots; i, jdx, idx = i+1, jdx+gap, idx+gap {
 		ecd.valuesfloat[idx].Set(ecd.values[i].Real())
 		ecd.valuesfloat[jdx].Set(ecd.values[i].Imag())
 	}
 
-	scaleUpVecExactBigFloat(ecd.valuesfloat, plaintext.Scale.Float64(), ecd.params.RingQ().Modulus[:plaintext.Level()+1], plaintext.Value.Coeffs)
+	scaleUpVecExactBigFloat(ecd.valuesfloat, plaintext.Scale.Float64(), ecd.params.RingQ().Moduli()[:plaintext.Level()+1], plaintext.Value.Coeffs)
 
-	for i := 0; i < (ecd.params.RingQ().N >> 1); i++ {
+	for i := 0; i < (ecd.params.N() >> 1); i++ {
 		ecd.values[i].Real().Set(ecd.zero)
 		ecd.values[i].Imag().Set(ecd.zero)
 	}
 
-	for i := 0; i < ecd.params.RingQ().N; i++ {
+	for i := 0; i < ecd.params.N(); i++ {
 		ecd.valuesfloat[i].Set(ecd.zero)
 	}
 
@@ -797,7 +797,7 @@ func (ecd *encoderBigComplex) decodePublic(plaintext *rlwe.Plaintext, logSlots i
 
 	Q := ecd.bigintChain[plaintext.Level()]
 
-	maxSlots := ecd.params.RingQ().N >> 1
+	maxSlots := ecd.params.N() >> 1
 
 	scaleFlo := plaintext.Scale.Value
 

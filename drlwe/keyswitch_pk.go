@@ -94,7 +94,7 @@ func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct *r
 	levelQ := utils.MinInt(shareOut.Value[0].Level(), ct1.Level())
 	var levelP int
 	if ringP != nil {
-		levelP = len(ringP.Modulus) - 1
+		levelP = ringP.MaxLevel()
 	}
 
 	// samples MForm(u_i) in Q and P separately

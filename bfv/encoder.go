@@ -143,8 +143,8 @@ func (ecd *encoder) EncodeRingT(values interface{}, ptOut *PlaintextRingT) {
 		valLen = len(values)
 	case []int64:
 
-		T := ringT.Modulus[0]
-		bredparamsT := ringT.BredParams[0]
+		T := ringT.Tables[0].Modulus
+		bredparamsT := ringT.Tables[0].BRedParams
 
 		var sign, abs uint64
 		for i, c := range values {
@@ -249,18 +249,18 @@ func (ecd *encoder) Decode(p interface{}, coeffs interface{}) {
 
 	switch coeffs := coeffs.(type) {
 	case []uint64:
-		for i := 0; i < ecd.params.RingT().N; i++ {
+		for i := 0; i < ecd.params.N(); i++ {
 			coeffs[i] = tmp[pos[i]]
 		}
 	case []int64:
 		modulus := int64(ecd.params.T())
 		modulusHalf := modulus >> 1
 		var value int64
-		for i := 0; i < ecd.params.RingQ().N; i++ {
-			value = int64(ecd.tmpPoly.Coeffs[0][ecd.indexMatrix[i]])
-			coeffs[i] = value
-			if value >= modulusHalf {
-				coeffs[i] -= modulus
+		for i := 0; i < ecd.params.N(); i++ {
+			if value = int64(tmp[ecd.indexMatrix[i]]); value >= modulusHalf {
+				coeffs[i] = value - modulus
+			} else {
+				coeffs[i] = value
 			}
 		}
 	default:
@@ -271,7 +271,7 @@ func (ecd *encoder) Decode(p interface{}, coeffs interface{}) {
 // DecodeUintNew decodes any plaintext type and returns the coefficients in a new []uint64.
 // It panics if p is not PlaintextRingT, Plaintext or PlaintextMul.
 func (ecd *encoder) DecodeUintNew(p interface{}) (coeffs []uint64) {
-	coeffs = make([]uint64, ecd.params.RingQ().N)
+	coeffs = make([]uint64, ecd.params.N())
 	ecd.Decode(p, coeffs)
 	return
 }
@@ -279,7 +279,7 @@ func (ecd *encoder) DecodeUintNew(p interface{}) (coeffs []uint64) {
 // DecodeIntNew decodes any plaintext type and returns the coefficients in a new []int64. It also decodes the sign
 // modulus (by centering the values around the plaintext). It panics if p is not PlaintextRingT, Plaintext or PlaintextMul.
 func (ecd *encoder) DecodeIntNew(p interface{}) (coeffs []int64) {
-	coeffs = make([]int64, ecd.params.RingQ().N)
+	coeffs = make([]int64, ecd.params.N())
 	ecd.Decode(p, coeffs)
 	return
 }
@@ -291,7 +291,7 @@ func (ecd *encoder) ShallowCopy() Encoder {
 	return &encoder{
 		params:      ecd.params,
 		indexMatrix: ecd.indexMatrix,
-		scaler:      NewRNSScaler(ecd.params.RingQ(), ecd.params.RingT().Modulus[0]),
+		scaler:      NewRNSScaler(ecd.params.RingQ(), ecd.params.T()),
 		tmpPoly:     ecd.params.RingQ().NewPoly(),
 		tmpPtRt:     NewPlaintextRingT(ecd.params),
 	}

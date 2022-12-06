@@ -100,13 +100,19 @@ func invbutterfly(U, V, Psi, twoQ, fourQ, Q, Qinv uint64) (X, Y uint64) {
 }
 
 // NTT computes the NTT on the input coefficients using the input parameters.
-func NTT(coeffsIn, coeffsOut []uint64, N int, nttPsi []uint64, Q, mredParams uint64, bredParams []uint64) {
-	NTTLazy(coeffsIn, coeffsOut, N, nttPsi, Q, mredParams, bredParams)
-	ReduceVec(coeffsOut, coeffsOut, Q, bredParams)
+func NTT(table *Table, coeffsIn, coeffsOut []uint64) {
+	NTTLazy(table, coeffsIn, coeffsOut)
+	ReduceVec(coeffsOut, coeffsOut, table.Modulus, table.BRedParams)
 }
 
 // NTTLazy computes the NTT on the input coefficients using the input parameters with output values in the range [0, 2q-1].
-func NTTLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uint64, Q, QInv uint64, bredParams []uint64) {
+func NTTLazy(table *Table, coeffsIn, coeffsOut []uint64) {
+
+	N := table.N
+	nttPsi := table.RootsForward
+	Q := table.Modulus
+	QInv := table.MRedParams
+
 	var j1, j2, t int
 	var F, V uint64
 
@@ -377,7 +383,13 @@ func NTTLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uint64, Q, QInv uint6
 	}
 }
 
-func invNTTCore(coeffsIn, coeffsOut []uint64, N int, nttPsiInv []uint64, Q, QInv uint64) {
+func invNTTCore(table *Table, coeffsIn, coeffsOut []uint64) {
+
+	N := table.N
+	nttPsiInv := table.RootsBackward
+	Q := table.Modulus
+	QInv := table.MRedParams
+
 	var h, t int
 	var F uint64
 
@@ -471,25 +483,31 @@ func invNTTCore(coeffsIn, coeffsOut []uint64, N int, nttPsiInv []uint64, Q, QInv
 }
 
 // InvNTT computes the InvNTT transformation on the input coefficients using the input parameters.
-func InvNTT(coeffsIn, coeffsOut []uint64, N int, nttPsiInv []uint64, nttNInv, Q, QInv uint64) {
-	invNTTCore(coeffsIn, coeffsOut, N, nttPsiInv, Q, QInv)
-	MulScalarMontgomeryVec(coeffsOut, coeffsOut, nttNInv, Q, QInv)
+func InvNTT(table *Table, coeffsIn, coeffsOut []uint64) {
+	invNTTCore(table, coeffsIn, coeffsOut)
+	MulScalarMontgomeryVec(coeffsOut, coeffsOut, table.NInv, table.Modulus, table.MRedParams)
 }
 
 // InvNTTLazy computes the InvNTT transformation on the input coefficients using the input parameters with output values in the range [0, 2q-1].
-func InvNTTLazy(coeffsIn, coeffsOut []uint64, N int, nttPsiInv []uint64, nttNInv, Q, QInv uint64) {
-	invNTTCore(coeffsIn, coeffsOut, N, nttPsiInv, Q, QInv)
-	MulScalarMontgomeryConstantVec(coeffsOut, coeffsOut, nttNInv, Q, QInv)
+func InvNTTLazy(table *Table, coeffsIn, coeffsOut []uint64) {
+	invNTTCore(table, coeffsIn, coeffsOut)
+	MulScalarMontgomeryConstantVec(coeffsOut, coeffsOut, table.NInv, table.Modulus, table.MRedParams)
 }
 
 // NTTConjugateInvariant computes the NTT in the closed sub-ring Z[X + X^-1]/(X^2N +1) of Z[X]/(X^2N+1).
-func NTTConjugateInvariant(coeffsIn, coeffsOut []uint64, N int, nttPsi []uint64, Q, QInv uint64, bredParams []uint64) {
-	NTTConjugateInvariantLazy(coeffsIn, coeffsOut, N, nttPsi, Q, QInv, bredParams)
-	ReduceVec(coeffsOut, coeffsOut, Q, bredParams)
+func NTTConjugateInvariant(table *Table, coeffsIn, coeffsOut []uint64) {
+	NTTConjugateInvariantLazy(table, coeffsIn, coeffsOut)
+	ReduceVec(coeffsOut, coeffsOut, table.Modulus, table.BRedParams)
 }
 
 // NTTConjugateInvariantLazy computes the NTT in the closed sub-ring Z[X + X^-1]/(X^2N +1) of Z[X]/(X^2N+1) with output values in the range [0, 2q-1].
-func NTTConjugateInvariantLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uint64, Q, QInv uint64, bredParams []uint64) {
+func NTTConjugateInvariantLazy(table *Table, coeffsIn, coeffsOut []uint64) {
+
+	N := table.N
+	nttPsi := table.RootsForward
+	Q := table.Modulus
+	QInv := table.MRedParams
+
 	var t, h int
 	var F, V uint64
 	var reduce bool
@@ -760,18 +778,24 @@ func NTTConjugateInvariantLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uin
 }
 
 // InvNTTConjugateInvariant computes the InvNTT in the closed sub-ring Z[X + X^-1]/(X^2N +1) of Z[X]/(X^2N+1).
-func InvNTTConjugateInvariant(coeffsIn, coeffsOut []uint64, N int, nttPsiInv []uint64, nttNInv, Q, QInv uint64) {
-	invNTTConjugateInvariantCore(coeffsIn, coeffsOut, N, nttPsiInv, Q, QInv)
-	MulScalarMontgomeryVec(coeffsOut, coeffsOut, nttNInv, Q, QInv)
+func InvNTTConjugateInvariant(table *Table, coeffsIn, coeffsOut []uint64) {
+	invNTTConjugateInvariantCore(table, coeffsIn, coeffsOut)
+	MulScalarMontgomeryVec(coeffsOut, coeffsOut, table.NInv, table.Modulus, table.MRedParams)
 }
 
 // InvNTTConjugateInvariantLazy computes the InvNTT in the closed sub-ring Z[X + X^-1]/(X^2N +1) of Z[X]/(X^2N+1) with output values in the range [0, 2q-1].
-func InvNTTConjugateInvariantLazy(coeffsIn, coeffsOut []uint64, N int, nttPsiInv []uint64, nttNInv, Q, QInv uint64) {
-	invNTTConjugateInvariantCore(coeffsIn, coeffsOut, N, nttPsiInv, Q, QInv)
-	MulScalarMontgomeryConstantVec(coeffsOut, coeffsOut, nttNInv, Q, QInv)
+func InvNTTConjugateInvariantLazy(table *Table, coeffsIn, coeffsOut []uint64) {
+	invNTTConjugateInvariantCore(table, coeffsIn, coeffsOut)
+	MulScalarMontgomeryConstantVec(coeffsOut, coeffsOut, table.NInv, table.Modulus, table.MRedParams)
 }
 
-func invNTTConjugateInvariantCore(coeffsIn, coeffsOut []uint64, N int, nttPsiInv []uint64, Q, QInv uint64) {
+func invNTTConjugateInvariantCore(table *Table, coeffsIn, coeffsOut []uint64) {
+
+	N := table.N
+	Q := table.Modulus
+	QInv := table.MRedParams
+	nttPsiInv := table.RootsBackward
+
 	var j1, j2, h, t int
 	var F uint64
 

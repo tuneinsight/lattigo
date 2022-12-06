@@ -647,7 +647,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 
 			coeffs := []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 
-			T := tc.ringT.Modulus[0]
+			T := tc.params.T()
 			for i := range values.Coeffs[0] {
 				values.Coeffs[0][i] = ring.EvalPolyModP(values.Coeffs[0][i], coeffs, T)
 			}
@@ -692,7 +692,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 			slotIndex[0] = idx0
 			slotIndex[1] = idx1
 
-			T := tc.ringT.Modulus[0]
+			T := tc.params.T()
 			for pol, idx := range slotIndex {
 				for _, i := range idx {
 					values.Coeffs[0][i] = ring.EvalPolyModP(values.Coeffs[0][i], polyVec[pol].Coeffs, T)

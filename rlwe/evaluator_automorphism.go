@@ -185,9 +185,10 @@ func (eval *Evaluator) Trace(ctIn *Ciphertext, logN int, ctOut *Ciphertext) {
 
 		// pre-multiplication by (N/n)^-1
 		for i := 0; i < levelQ+1; i++ {
-			Q := ringQ.Modulus[i]
-			bredParams := ringQ.BredParams[i]
-			mredparams := ringQ.MredParams[i]
+
+			Q := ringQ.Tables[i].Modulus
+			bredParams := ringQ.Tables[i].BRedParams
+			mredparams := ringQ.Tables[i].MRedParams
 			invN := ring.ModExp(uint64(gap), Q-2, Q)
 			invN = ring.MForm(invN, Q, bredParams)
 
@@ -205,7 +206,7 @@ func (eval *Evaluator) Trace(ctIn *Ciphertext, logN int, ctOut *Ciphertext) {
 		}
 
 		if logN == 0 {
-			eval.Automorphism(ctOut, ringQ.NthRoot-1, buff)
+			eval.Automorphism(ctOut, ringQ.NthRoot()-1, buff)
 			ringQ.AddLvl(levelQ, ctOut.Value[0], buff.Value[0], ctOut.Value[0])
 			ringQ.AddLvl(levelQ, ctOut.Value[1], buff.Value[1], ctOut.Value[1])
 		}

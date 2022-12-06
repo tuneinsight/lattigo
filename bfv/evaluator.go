@@ -87,18 +87,18 @@ func newEvaluatorPrecomp(params Parameters) *evaluatorBase {
 	ev.ringP = params.RingP()
 	ev.ringQMul = params.RingQMul()
 
-	ev.levelQMul = make([]int, len(ev.ringQ.Modulus))
+	ev.levelQMul = make([]int, ev.ringQ.NbModuli())
 	Q := new(big.Int).SetUint64(1)
 	for i := range ev.levelQMul {
-		Q.Mul(Q, new(big.Int).SetUint64(ev.ringQ.Modulus[i]))
+		Q.Mul(Q, new(big.Int).SetUint64(ev.ringQ.Tables[i].Modulus))
 		ev.levelQMul[i] = int(math.Ceil(float64(Q.BitLen()+params.LogN())/61.0)) - 1
 	}
 
-	ev.pHalf = make([]*big.Int, len(ev.ringQMul.Modulus))
+	ev.pHalf = make([]*big.Int, ev.ringQMul.NbModuli())
 
 	QMul := new(big.Int).SetUint64(1)
 	for i := range ev.pHalf {
-		QMul.Mul(QMul, new(big.Int).SetUint64(ev.ringQMul.Modulus[i]))
+		QMul.Mul(QMul, new(big.Int).SetUint64(ev.ringQMul.Tables[i].Modulus))
 		ev.pHalf[i] = new(big.Int).Rsh(QMul, 1)
 	}
 
@@ -137,10 +137,15 @@ func NewEvaluator(params Parameters, evaluationKey rlwe.EvaluationKey) Evaluator
 	ev.evaluatorBase = newEvaluatorPrecomp(params)
 	ev.evaluatorBuffers = newEvaluatorBuffer(ev.evaluatorBase)
 
+	ringQ := params.RingQ()
+
 	if params.T() != params.Q()[0] {
-		ev.tInvModQi = make([]uint64, len(params.RingQ().Modulus))
-		for i, qi := range params.RingQ().Modulus {
-			ev.tInvModQi[i] = ring.MForm(ring.ModExp(params.T(), qi-2, qi), qi, params.RingQ().BredParams[i])
+		ev.tInvModQi = make([]uint64, ringQ.NbModuli())
+		for i := range ev.tInvModQi {
+			Table := ringQ.Tables[i]
+			qi := Table.Modulus
+			bredparams := Table.BRedParams
+			ev.tInvModQi[i] = ring.MForm(ring.ModExp(params.T(), qi-2, qi), qi, bredparams)
 		}
 	} else {
 		ev.tDividesQ = true
@@ -279,7 +284,11 @@ func (eval *evaluator) AddScalar(ctIn *rlwe.Ciphertext, scalar uint64, ctOut *rl
 	scalarBigint.Mul(scalarBigint, eval.ringQ.ModulusAtLevel[ctIn.Level()])
 	ring.DivRound(scalarBigint, eval.params.RingT().ModulusAtLevel[0], scalarBigint)
 	tmp := new(big.Int)
-	for i, qi := range eval.ringQ.Modulus[:ctIn.Level()+1] {
+
+	ringQ := eval.ringQ
+
+	for i := 0; i < ctIn.Level()+1; i++ {
+		qi := ringQ.Tables[i].Modulus
 		ctOut.Value[0].Coeffs[i][0] = ring.CRed(ctIn.Value[0].Coeffs[i][0]+tmp.Mod(scalarBigint, new(big.Int).SetUint64(qi)).Uint64(), qi)
 	}
 }
@@ -555,16 +564,17 @@ func (eval *evaluator) mulPlaintextRingT(ctIn *rlwe.Ciphertext, ptRt *PlaintextR
 		eval.ringQ.MFormLvl(level, ctOut.Value[i], ctOut.Value[i])
 
 		// For each qi in Q
-		for j := range ringQ.Modulus[:level+1] {
+		for j := 0; j < ctIn.Level()+1; j++ {
 
 			tmp := ctOut.Value[i].Coeffs[j]
-			qi := ringQ.Modulus[j]
-			nttPsi := ringQ.NttPsi[j]
-			bredParams := ringQ.BredParams[j]
-			mredParams := ringQ.MredParams[j]
+
+			Table := ringQ.Tables[j]
+
+			qi := Table.Modulus
+			mredParams := Table.MRedParams
 
 			// Transforms the plaintext in the NTT domain of that qi
-			ring.NTTLazy(coeffs, coeffsNTT, ringQ.N, nttPsi, qi, mredParams, bredParams)
+			ring.NTTLazy(Table, coeffs, coeffsNTT)
 
 			// Multiplies NTT_qi(pt) * NTT_qi(ct)
 			ring.MulCoeffsMontgomeryVec(tmp, coeffsNTT, tmp, qi, mredParams)
@@ -631,7 +641,7 @@ func (eval *evaluator) InnerSum(ctIn *rlwe.Ciphertext, ctOut *rlwe.Ciphertext) {
 	cTmp := NewCiphertext(eval.params, 1, ctIn.Level())
 	ctOut.Copy(ctIn.El())
 
-	for i := 1; i < int(eval.ringQ.N>>1); i <<= 1 {
+	for i := 1; i < eval.ringQ.N()>>1; i <<= 1 {
 		eval.RotateColumns(ctOut, i, cTmp)
 		eval.Add(cTmp, ctOut, ctOut)
 	}

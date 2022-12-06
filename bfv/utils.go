@@ -30,12 +30,12 @@ func Noise(params Parameters, ct *rlwe.Ciphertext, dec rlwe.Decryptor) (std, min
 
 	dec.Decrypt(ct, pt)
 
-	bigintCoeffs := make([]*big.Int, ringQ.N)
+	bigintCoeffs := make([]*big.Int, ringQ.N())
 	ringQ.PolyToBigintLvl(level, pt.Value, 1, bigintCoeffs)
 
 	Q := new(big.Int).SetUint64(1)
 	for i := 0; i < level+1; i++ {
-		Q.Mul(Q, new(big.Int).SetUint64(ringQ.Modulus[i]))
+		Q.Mul(Q, new(big.Int).SetUint64(ringQ.Tables[0].Modulus))
 	}
 
 	center(bigintCoeffs, Q)

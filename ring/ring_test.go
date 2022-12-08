@@ -17,8 +17,8 @@ import (
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters). Overrides -short and requires -timeout=0.")
 
 var T = uint64(0x3ee0001)
-var DefaultSigma = float64(3.2)
-var DefaultBound = int(6 * DefaultSigma)
+var DefaultSigma = StandardDeviation(3.2)
+var DefaultBound = 6
 
 func testString(opname string, ringQ *Ring) string {
 	return fmt.Sprintf("%s/N=%d/limbs=%d", opname, ringQ.N(), ringQ.ModuliChainLength())
@@ -416,6 +416,7 @@ func testUniformSampler(tc *testParams, t *testing.T) {
 	})
 
 	t.Run(testString("UniformSampler/ReadNew", tc.ringQ), func(t *testing.T) {
+
 		pol := tc.uniformSamplerQ.ReadNew()
 
 		for i, qi := range tc.ringQ.ModuliChain() {
@@ -432,15 +433,18 @@ func testGaussianSampler(tc *testParams, t *testing.T) {
 	N := tc.ringQ.N()
 
 	t.Run(testString("GaussianSampler", tc.ringQ), func(t *testing.T) {
-		gaussianSampler := NewGaussianSampler(tc.prng, tc.ringQ, DefaultSigma, DefaultBound)
-		pol := gaussianSampler.ReadNew()
 
-		bound := uint64(DefaultBound)
-		for i, qi := range tc.ringQ.ModuliChain() {
-			coeffs := pol.Coeffs[i]
-			negbound := qi - uint64(DefaultBound)
-			for j := 0; j < N; j++ {
-				require.False(t, bound < coeffs[j] && coeffs[j] < negbound)
+		dist := &DiscreteGaussian{DefaultSigma, DefaultBound}
+
+		sampler := NewSampler(tc.prng, tc.ringQ, dist, false)
+
+		noiseBound := dist.NoiseBound()
+
+		pol := sampler.ReadNew()
+
+		for i := 0; i < N; i++ {
+			for j, table := range tc.ringQ.Tables {
+				require.False(t, noiseBound < pol.Coeffs[j][i] && pol.Coeffs[j][i] < (table.Modulus-noiseBound))
 			}
 		}
 	})
@@ -451,15 +455,16 @@ func testTernarySampler(tc *testParams, t *testing.T) {
 	for _, p := range []float64{.5, 1. / 3., 128. / 65536.} {
 		t.Run(testString(fmt.Sprintf("TernarySampler/p=%1.2f", p), tc.ringQ), func(t *testing.T) {
 
-			prng, err := sampling.NewPRNG()
-			if err != nil {
-				panic(err)
-			}
-			ternarySampler := NewTernarySampler(prng, tc.ringQ, p, false)
 
 			pol := ternarySampler.ReadNew()
 			for i, qi := range tc.ringQ.ModuliChain() {
 				minOne := qi - 1
+			sampler := NewSampler(tc.prng, tc.ringQ, &UniformTernary{p}, false)
+
+			pol := sampler.ReadNew()
+
+			for i, table := range tc.ringQ.Tables {
+				minOne := table.Modulus - 1
 				for _, c := range pol.Coeffs[i] {
 					require.True(t, c == 0 || c == minOne || c == 1)
 				}
@@ -470,12 +475,7 @@ func testTernarySampler(tc *testParams, t *testing.T) {
 	for _, p := range []int{0, 64, 96, 128, 256} {
 		t.Run(testString(fmt.Sprintf("TernarySampler/hw=%d", p), tc.ringQ), func(t *testing.T) {
 
-			prng, err := sampling.NewPRNG()
-			if err != nil {
-				panic(err)
-			}
-
-			ternarySampler := NewTernarySamplerWithHammingWeight(prng, tc.ringQ, p, false)
+			sampler := NewSampler(tc.prng, tc.ringQ, &SparseTernary{p}, false)
 
 			checkPoly := func(pol *Poly) {
 				for i := range tc.ringQ.SubRings {
@@ -489,11 +489,11 @@ func testTernarySampler(tc *testParams, t *testing.T) {
 				}
 			}
 
-			pol := ternarySampler.ReadNew()
+			pol := sampler.ReadNew()
 
 			checkPoly(pol)
 
-			ternarySampler.Read(pol)
+			sampler.Read(pol)
 
 			checkPoly(pol)
 		})

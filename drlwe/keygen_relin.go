@@ -14,8 +14,8 @@ import (
 type RKGProtocol struct {
 	params rlwe.Parameters
 
-	gaussianSamplerQ *ring.GaussianSampler
-	ternarySamplerQ  *ring.TernarySampler // sampling in Montgomery form
+	gaussianSamplerQ ring.Sampler
+	ternarySamplerQ  ring.Sampler
 
 	buf [2]*ringqp.Poly
 }
@@ -34,9 +34,9 @@ func (ekg *RKGProtocol) ShallowCopy() *RKGProtocol {
 
 	return &RKGProtocol{
 		params:           ekg.params,
-		gaussianSamplerQ: ring.NewGaussianSampler(prng, params.RingQ(), params.Sigma(), int(6*params.Sigma())),
-		ternarySamplerQ:  ring.NewTernarySamplerWithHammingWeight(prng, params.RingQ(), params.HammingWeight(), false),
 		buf:              [2]*ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()},
+		gaussianSamplerQ: ekg.params.Xe().NewSampler(prng, ekg.params.RingQ(), false),
+		ternarySamplerQ:  ekg.params.Xs().NewSampler(prng, ekg.params.RingQ(), false),
 	}
 }
 
@@ -56,8 +56,8 @@ func NewRKGProtocol(params rlwe.Parameters) *RKGProtocol {
 		panic(err)
 	}
 
-	rkg.gaussianSamplerQ = ring.NewGaussianSampler(prng, params.RingQ(), params.Sigma(), int(6*params.Sigma()))
-	rkg.ternarySamplerQ = ring.NewTernarySamplerWithHammingWeight(prng, params.RingQ(), params.HammingWeight(), false)
+	rkg.gaussianSamplerQ = params.Xe().NewSampler(prng, params.RingQ(), false)
+	rkg.ternarySamplerQ = params.Xs().NewSampler(prng, params.RingQ(), false)
 	rkg.buf = [2]*ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()}
 	return rkg
 }

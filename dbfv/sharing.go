@@ -46,9 +46,9 @@ func (e2s *E2SProtocol) ShallowCopy() *E2SProtocol {
 }
 
 // NewE2SProtocol creates a new E2SProtocol struct from the passed BFV parameters.
-func NewE2SProtocol(params bfv.Parameters, sigmaSmudging float64) *E2SProtocol {
+func NewE2SProtocol(params bfv.Parameters, noise ring.Distribution) *E2SProtocol {
 	e2s := new(E2SProtocol)
-	e2s.CKSProtocol = drlwe.NewCKSProtocol(params.Parameters, sigmaSmudging)
+	e2s.CKSProtocol = drlwe.NewCKSProtocol(params.Parameters, noise)
 	e2s.params = params
 	e2s.encoder = bfv.NewEncoder(params)
 	prng, err := sampling.NewPRNG()
@@ -100,9 +100,9 @@ type S2EProtocol struct {
 }
 
 // NewS2EProtocol creates a new S2EProtocol struct from the passed BFV parameters.
-func NewS2EProtocol(params bfv.Parameters, sigmaSmudging float64) *S2EProtocol {
+func NewS2EProtocol(params bfv.Parameters, noise ring.Distribution) *S2EProtocol {
 	s2e := new(S2EProtocol)
-	s2e.CKSProtocol = drlwe.NewCKSProtocol(params.Parameters, sigmaSmudging)
+	s2e.CKSProtocol = drlwe.NewCKSProtocol(params.Parameters, noise)
 	s2e.params = params
 	s2e.encoder = bfv.NewEncoder(params)
 	s2e.zero = rlwe.NewSecretKey(params.Parameters)

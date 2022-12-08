@@ -12,7 +12,7 @@ import (
 )
 
 func testString(params rlwe.Parameters, opname string) string {
-	return fmt.Sprintf("%slogN=%d/logQ=%d/logP=%d/#Qi=%d/#Pi=%d",
+	return fmt.Sprintf("%slogN=%d/logQ=%f/logP=%f/#Qi=%d/#Pi=%d",
 		opname,
 		params.LogN(),
 		params.LogQ(),
@@ -61,9 +61,10 @@ func testLUT(t *testing.T) {
 	// RLWE parameters of the samples
 	// N=512, Q=0x3001 -> 2^135
 	paramsLWE, err := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
-		LogN:           9,
-		Q:              []uint64{0x3001},
-		DefaultNTTFlag: DefaultNTTFlag,
+		LogN:                9,
+		Q:                   []uint64{0x3001},
+		DefaultNTTFlag:      DefaultNTTFlag,
+		IgnoreSecurityCheck: true,
 	})
 
 	assert.Nil(t, err)

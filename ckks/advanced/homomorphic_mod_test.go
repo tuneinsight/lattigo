@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
@@ -143,7 +144,7 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 			//values[i] = sin2pi2pi(values[i] / complex(evm.MessageRatio*evm.QDiff(), 0)) * complex(evm.MessageRatio*evm.QDiff(), 0) / 6.283185307179586
 		}
 
-		verifyTestVectors(params, encoder, decryptor, values, ciphertext, params.LogSlots(), 0, t)
+		verifyTestVectors(params, encoder, decryptor, values, ciphertext, params.LogSlots(), t)
 	})
 
 	t.Run("CosOptimizedChebyshevWithArcSine", func(t *testing.T) {
@@ -188,7 +189,7 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 			//values[i] = sin2pi2pi(values[i] / complex(evm.MessageRatio*evm.QDiff(), 0)) * complex(evm.MessageRatio*evm.QDiff(), 0) / 6.283185307179586
 		}
 
-		verifyTestVectors(params, encoder, decryptor, values, ciphertext, params.LogSlots(), 0, t)
+		verifyTestVectors(params, encoder, decryptor, values, ciphertext, params.LogSlots(), t)
 	})
 }
 

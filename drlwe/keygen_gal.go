@@ -24,7 +24,7 @@ type GKGCRP struct {
 type GKGProtocol struct {
 	params           rlwe.Parameters
 	buff             [2]*ringqp.Poly
-	gaussianSamplerQ *ring.GaussianSampler
+	gaussianSamplerQ ring.Sampler
 }
 
 // ShallowCopy creates a shallow copy of GKGProtocol in which all the read-only data-structures are
@@ -41,7 +41,7 @@ func (gkg *GKGProtocol) ShallowCopy() *GKGProtocol {
 	return &GKGProtocol{
 		params:           gkg.params,
 		buff:             [2]*ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()},
-		gaussianSamplerQ: ring.NewGaussianSampler(prng, params.RingQ(), params.Sigma(), int(6*params.Sigma())),
+		gaussianSamplerQ: rtg.params.Xe().NewSampler(prng, rtg.params.RingQ(), false),
 	}
 }
 
@@ -54,9 +54,15 @@ func NewGKGProtocol(params rlwe.Parameters) (gkg *GKGProtocol) {
 	if err != nil {
 		panic(err)
 	}
+<<<<<<< dev_evk:drlwe/keygen_gal.go
 	gkg.gaussianSamplerQ = ring.NewGaussianSampler(prng, params.RingQ(), params.Sigma(), int(6*params.Sigma()))
 	gkg.buff = [2]*ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()}
 	return
+=======
+	rtg.gaussianSamplerQ = params.Xe().NewSampler(prng, params.RingQ(), false)
+	rtg.buff = [2]ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()}
+	return rtg
+>>>>>>> 1st attempt at adding sec check and rework sampler & distributions:drlwe/keygen_rot.go
 }
 
 // AllocateShare allocates a party's share in the GaloisKey Generation.

@@ -12,7 +12,7 @@ import (
 // CKGProtocol is the structure storing the parameters and and precomputations for the collective key generation protocol.
 type CKGProtocol struct {
 	params           rlwe.Parameters
-	gaussianSamplerQ *ring.GaussianSampler
+	gaussianSamplerQ ring.Sampler
 }
 
 // ShallowCopy creates a shallow copy of CKGProtocol in which all the read-only data-structures are
@@ -24,7 +24,7 @@ func (ckg *CKGProtocol) ShallowCopy() *CKGProtocol {
 		panic(err)
 	}
 
-	return &CKGProtocol{ckg.params, ring.NewGaussianSampler(prng, ckg.params.RingQ(), ckg.params.Sigma(), int(6*ckg.params.Sigma()))}
+	return &CKGProtocol{ckg.params, ckg.params.Xe().NewSampler(prng, ckg.params.RingQ(), false)}
 }
 
 // CKGShare is a struct storing the CKG protocol's share.
@@ -97,7 +97,7 @@ func NewCKGProtocol(params rlwe.Parameters) *CKGProtocol {
 	if err != nil {
 		panic(err)
 	}
-	ckg.gaussianSamplerQ = ring.NewGaussianSampler(prng, params.RingQ(), params.Sigma(), int(6*params.Sigma()))
+	ckg.gaussianSamplerQ = params.Xe().NewSampler(prng, params.RingQ(), false)
 	return ckg
 }
 

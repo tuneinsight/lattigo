@@ -14,8 +14,8 @@ import (
 // CKSProtocol is the structure storing the parameters and and precomputations for the collective key-switching protocol.
 type CKSProtocol struct {
 	params          rlwe.Parameters
-	sigmaSmudging   float64
-	gaussianSampler *ring.GaussianSampler
+	noise           ring.Distribution
+	gaussianSampler ring.Sampler
 	basisExtender   *ring.BasisExtender
 	buf             *ring.Poly
 	bufDelta        *ring.Poly
@@ -34,7 +34,7 @@ func (cks *CKSProtocol) ShallowCopy() *CKSProtocol {
 
 	return &CKSProtocol{
 		params:          params,
-		gaussianSampler: ring.NewGaussianSampler(prng, params.RingQ(), cks.sigmaSmudging, int(6*cks.sigmaSmudging)),
+		gaussianSampler: cks.noise.NewSampler(prng, cks.params.RingQ(), false),
 		basisExtender:   cks.basisExtender.ShallowCopy(),
 		buf:             params.RingQ().NewPoly(),
 		bufDelta:        params.RingQ().NewPoly(),
@@ -49,7 +49,7 @@ type CKSCRP struct {
 // NewCKSProtocol creates a new CKSProtocol that will be used to perform a collective key-switching on a ciphertext encrypted under a collective public-key, whose
 // secret-shares are distributed among j parties, re-encrypting the ciphertext under another public-key, whose secret-shares are also known to the
 // parties.
-func NewCKSProtocol(params rlwe.Parameters, sigmaSmudging float64) *CKSProtocol {
+func NewCKSProtocol(params rlwe.Parameters, noise ring.Distribution) *CKSProtocol {
 	cks := new(CKSProtocol)
 	cks.params = params
 	prng, err := sampling.NewPRNG()

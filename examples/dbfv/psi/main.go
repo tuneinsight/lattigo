@@ -297,7 +297,7 @@ func pcksPhase(params bfv.Parameters, tpk *rlwe.PublicKey, encRes *rlwe.Cipherte
 	// Collective key switching from the collective secret key to
 	// the target public key
 
-	pcks := dbfv.NewPCKSProtocol(params, 3.19)
+	pcks := dbfv.NewPCKSProtocol(params, params.Xe())
 
 	for _, pi := range P {
 		pi.pcksShare = pcks.AllocateShare(params.MaxLevel())

@@ -2,7 +2,7 @@
 package rlwe
 
 import (
-	"encoding/json"
+	"encoding/binary"
 	"fmt"
 	"math"
 	"math/big"
@@ -26,9 +26,6 @@ const MaxModuliCount = 34
 // MaxModuliSize is the largest bit-length supported for the moduli in the RNS representation.
 const MaxModuliSize = 60
 
-// DefaultSigma is the default error distribution standard deviation
-const DefaultSigma = 3.2
-
 // GaloisGen is an integer of order N=2^d modulo M=2N and that spans Z_M with the integer -1.
 // The j-th ring automorphism takes the root zeta to zeta^(5j).
 const GaloisGen uint64 = ring.GaloisGen
@@ -48,39 +45,41 @@ const GaloisGen uint64 = ring.GaloisGen
 // If left unset, standard default values for these field are substituted at
 // parameter creation (see NewParametersFromLiteral).
 type ParametersLiteral struct {
-	LogN           int
-	Q              []uint64
-	P              []uint64
-	LogQ           []int `json:",omitempty"`
-	LogP           []int `json:",omitempty"`
-	Pow2Base       int
-	Sigma          float64
-	H              int
-	RingType       ring.Type
-	DefaultScale   Scale
-	DefaultNTTFlag bool
+	LogN                int
+	Q                   []uint64
+	P                   []uint64
+	LogQ                []int `json:",omitempty"`
+	LogP                []int `json:",omitempty"`
+	Pow2Base            int
+	Xe                  ring.Distribution
+	Xs                  ring.Distribution
+	RingType            ring.Type
+	DefaultScale        Scale
+	DefaultNTTFlag      bool
+	IgnoreSecurityCheck bool
 }
 
 // Parameters represents a set of generic RLWE parameters. Its fields are private and
 // immutable. See ParametersLiteral for user-specified parameters.
 type Parameters struct {
-	logN           int
-	qi             []uint64
-	pi             []uint64
-	pow2Base       int
-	sigma          float64
-	h              int
-	ringQ          *ring.Ring
-	ringP          *ring.Ring
-	ringType       ring.Type
-	defaultScale   Scale
-	defaultNTTFlag bool
+	logN                int
+	qi                  []uint64
+	pi                  []uint64
+	pow2Base            int
+	xe                  ring.Distribution
+	xs                  ring.Distribution
+	ringQ               *ring.Ring
+	ringP               *ring.Ring
+	ringType            ring.Type
+	defaultScale        Scale
+	defaultNTTFlag      bool
+	ignoreSecurityCheck bool
 }
 
 // NewParameters returns a new set of generic RLWE parameters from the given ring degree logn, moduli q and p, and
-// error distribution parameter sigma. It returns the empty parameters Parameters{} and a non-nil error if the
+// error distribution Xs (secret) and Xe (error). It returns the empty parameters Parameters{} and a non-nil error if the
 // specified parameters are invalid.
-func NewParameters(logn int, q, p []uint64, pow2Base, h int, sigma float64, ringType ring.Type, defaultScale Scale, defaultNTTFlag bool) (params Parameters, err error) {
+func NewParameters(logn int, q, p []uint64, pow2Base int, xs, xe ring.Distribution, ringType ring.Type, defaultScale Scale, defaultNTTFlag bool, ignoreSecurityCheck bool) (Parameters, error) {
 
 	if pow2Base != 0 && len(p) > 1 {
 		return Parameters{}, fmt.Errorf("rlwe.NewParameters: invalid parameters, cannot have pow2Base > 0 if len(P) > 1")
@@ -110,16 +109,17 @@ func NewParameters(logn int, q, p []uint64, pow2Base, h int, sigma float64, ring
 		}
 	}
 
-	params = Parameters{
-		logN:           logn,
-		qi:             make([]uint64, len(q)),
-		pi:             make([]uint64, lenP),
-		pow2Base:       pow2Base,
-		h:              h,
-		sigma:          sigma,
-		ringType:       ringType,
-		defaultScale:   defaultScale,
-		defaultNTTFlag: defaultNTTFlag,
+	params := Parameters{
+		logN:                logn,
+		qi:                  make([]uint64, len(q)),
+		pi:                  make([]uint64, lenP),
+		pow2Base:            pow2Base,
+		xs:                  xs.CopyNew(),
+		xe:                  xe.CopyNew(),
+		ringType:            ringType,
+		defaultScale:        defaultScale,
+		defaultNTTFlag:      defaultNTTFlag,
+		ignoreSecurityCheck: ignoreSecurityCheck,
 	}
 
 	// pre-check that moduli chain is of valid size and that all factors are prime.
@@ -150,21 +150,19 @@ func NewParameters(logn int, q, p []uint64, pow2Base, h int, sigma float64, ring
 // If the secrets' density parameter (H) is left unset, its value is set to 2^(paramDef.LogN-1) to match
 // the standard ternary distribution.
 //
-// If the error variance is left unset, its value is set to `DefaultSigma`.
+// If the error variance is left unset, its value is set to `DefaultError`.
 //
 // If the RingType is left unset, the default value is ring.Standard.
 func NewParametersFromLiteral(paramDef ParametersLiteral) (params Parameters, err error) {
 
-	if paramDef.H == 0 {
-		paramDef.H = 1 << (paramDef.LogN - 1)
-	} else if paramDef.H < 0 {
-		paramDef.H = 0
+	if paramDef.Xs == nil {
+		paramDef.Xs = &ring.UniformTernary{P: 1 / 3.0}
 	}
 
-	if paramDef.Sigma == 0 {
-		paramDef.Sigma = DefaultSigma
-	} else if paramDef.Sigma <= 0 {
-		paramDef.Sigma = 0
+	if paramDef.Xe == nil {
+		// prevents the zero value of ParameterLiteral to result in a noise-less parameter instance.
+		// Users should use the NewParameters method to explicitely create noiseless instances.
+		paramDef.Xe = &DefaultXe
 	}
 
 	if paramDef.DefaultScale.Cmp(Scale{}) == 0 {
@@ -173,7 +171,7 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (params Parameters, er
 
 	switch {
 	case paramDef.Q != nil && paramDef.LogQ == nil:
-		return NewParameters(paramDef.LogN, paramDef.Q, paramDef.P, paramDef.Pow2Base, paramDef.H, paramDef.Sigma, paramDef.RingType, paramDef.DefaultScale, paramDef.DefaultNTTFlag)
+		return NewParameters(paramDef.LogN, paramDef.Q, paramDef.P, paramDef.Pow2Base, paramDef.Xs, paramDef.Xe, paramDef.RingType, paramDef.DefaultScale, paramDef.DefaultNTTFlag, paramDef.IgnoreSecurityCheck)
 	case paramDef.LogQ != nil && paramDef.Q == nil:
 		var q, p []uint64
 		switch paramDef.RingType {
@@ -187,7 +185,7 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (params Parameters, er
 		if err != nil {
 			return Parameters{}, err
 		}
-		return NewParameters(paramDef.LogN, q, p, paramDef.Pow2Base, paramDef.H, paramDef.Sigma, paramDef.RingType, paramDef.DefaultScale, paramDef.DefaultNTTFlag)
+		return NewParameters(paramDef.LogN, q, p, paramDef.Pow2Base, paramDef.Xs, paramDef.Xe, paramDef.RingType, paramDef.DefaultScale, paramDef.DefaultNTTFlag, paramDef.IgnoreSecurityCheck)
 	default:
 		return Parameters{}, fmt.Errorf("rlwe.NewParametersFromLiteral: invalid parameter literal")
 	}
@@ -227,8 +225,8 @@ func (p Parameters) ParametersLiteral() ParametersLiteral {
 		Q:              Q,
 		P:              P,
 		Pow2Base:       p.pow2Base,
-		Sigma:          p.sigma,
-		H:              p.h,
+		Xe:             p.xe.CopyNew(),
+		Xs:             p.xs.CopyNew(),
 		RingType:       p.ringType,
 		DefaultScale:   p.defaultScale,
 		DefaultNTTFlag: p.defaultNTTFlag,
@@ -240,6 +238,22 @@ func (p Parameters) NewScale(scale interface{}) Scale {
 	newScale := NewScale(scale)
 	newScale.Mod = p.defaultScale.Mod
 	return newScale
+}
+
+// LWEParameters returns the LWEParameters of the target Parameters
+func (p Parameters) LWEParameters() LWEParameters {
+	return LWEParameters{
+		LogN:  p.LogN(),
+		LogQP: p.LogQP(),
+		Xs:    p.Xs().StandardDeviation(p.LogN(), p.LogQP()),
+		Xe:    p.Xe().StandardDeviation(p.LogN(), p.LogQP()),
+	}
+}
+
+// IgnoreSecurityCheck returns a boolean indicating if the target Parameters
+// were flagged to ignore security checks during their creation.
+func (p Parameters) IgnoreSecurityCheck() bool {
+	return p.ignoreSecurityCheck
 }
 
 // N returns the ring degree
@@ -277,19 +291,41 @@ func (p Parameters) DefaultNTTFlag() bool {
 	return p.defaultNTTFlag
 }
 
-// HammingWeight returns the number of non-zero coefficients in secret-keys.
-func (p Parameters) HammingWeight() int {
-	return p.h
+// Xs returns the ring.Distribution of the secret
+func (p Parameters) Xs() ring.Distribution {
+	return p.xs.CopyNew()
 }
 
-// Sigma returns standard deviation of the noise distribution
-func (p Parameters) Sigma() float64 {
-	return p.sigma
+// XsHammingWeight returns the expected Hamming weight of the secret.
+func (p Parameters) XsHammingWeight() int {
+	switch xs := p.xs.(type) {
+	case *ring.UniformTernary:
+		return int(math.Ceil(float64(p.N()) * (1 - xs.P)))
+	case *ring.SparseTernary:
+		return xs.HammingWeight
+	case *ring.DiscreteGaussian:
+		return int(math.Ceil(float64(p.N()) * float64(xs.Sigma) * math.Sqrt(2.0/math.Pi)))
+	default:
+		panic(fmt.Sprintf("invalid error distribution: must be *ring.DiscretGaussian, *ring.UniformTernary or *ring.SparseTernary but is %T", xs))
+	}
 }
 
-// NoiseBound returns truncation bound for the noise distribution.
+// Xe returns ring.Distribution of the error
+func (p Parameters) Xe() ring.Distribution {
+	return p.xe.CopyNew()
+}
+
+// NoiseBound returns truncation bound for the error distribution.
 func (p Parameters) NoiseBound() uint64 {
-	return uint64(math.Floor(p.sigma * 6))
+
+	switch xe := p.xe.(type) {
+	case *ring.DiscreteGaussian:
+		return xe.NoiseBound()
+	case *ring.UniformTernary, *ring.SparseTernary:
+		return 1
+	default:
+		panic(fmt.Sprintf("invalid error distribution: must be *ring.DiscretGaussian, *ring.UniformTernary or *ring.SparseTernary but is %T", xe))
+	}
 }
 
 // NoiseFreshPK returns the standard deviation
@@ -401,33 +437,24 @@ func (p Parameters) QPBigInt() *big.Int {
 }
 
 // LogQ returns the size of the extended modulus Q in bits
-func (p Parameters) LogQ() int {
-	tmp := ring.NewUint(1)
+func (p Parameters) LogQ() (logq float64) {
 	for _, qi := range p.qi {
-		tmp.Mul(tmp, ring.NewUint(qi))
+		logq += math.Log2(float64(qi))
 	}
-	return tmp.BitLen()
+	return
 }
 
 // LogP returns the size of the extended modulus P in bits
-func (p Parameters) LogP() int {
-	tmp := ring.NewUint(1)
+func (p Parameters) LogP() (logp float64) {
 	for _, pi := range p.pi {
-		tmp.Mul(tmp, ring.NewUint(pi))
+		logp += math.Log2(float64(pi))
 	}
-	return tmp.BitLen()
+	return
 }
 
 // LogQP returns the size of the extended modulus QP in bits
-func (p Parameters) LogQP() int {
-	tmp := ring.NewUint(1)
-	for _, qi := range p.qi {
-		tmp.Mul(tmp, ring.NewUint(qi))
-	}
-	for _, pi := range p.pi {
-		tmp.Mul(tmp, ring.NewUint(pi))
-	}
-	return tmp.BitLen()
+func (p Parameters) LogQP() (logqp float64) {
+	return p.LogQ() + p.LogP()
 }
 
 // Pow2Base returns the base 2^x decomposition used for the GadgetCiphertexts.
@@ -632,13 +659,14 @@ func (p Parameters) RotationFromGaloisElement(galEl uint64) (k uint64) {
 // Equal checks two Parameter structs for equality.
 func (p Parameters) Equal(other Parameters) bool {
 	res := p.logN == other.logN
+	res = res && (p.Xs().StandardDeviation(p.LogN(), p.LogQP()) == other.Xs().StandardDeviation(p.LogN(), p.LogQP()))
+	res = res && (p.Xe().StandardDeviation(p.LogN(), p.LogQP()) == other.Xe().StandardDeviation(p.LogN(), p.LogQP()))
 	res = res && cmp.Equal(p.qi, other.qi)
 	res = res && cmp.Equal(p.pi, other.pi)
-	res = res && (p.h == other.h)
-	res = res && (p.sigma == other.sigma)
 	res = res && (p.ringType == other.ringType)
 	res = res && (p.defaultScale.Equal(other.defaultScale))
 	res = res && (p.defaultNTTFlag == other.defaultNTTFlag)
+
 	return res
 }
 
@@ -659,12 +687,22 @@ func (p Parameters) CopyNew() Parameters {
 	return p
 }
 
+// MarshalBinarySize returns the length of the []byte encoding of the receiver.
+func (p Parameters) MarshalBinarySize() (dataLen int) {
+	dataLen = 7
+	dataLen += 1 + p.Xe().MarshalBinarySize()
+	dataLen += 1 + p.Xs().MarshalBinarySize()
+	dataLen += p.DefaultScale().MarshalBinarySize()
+	dataLen += (len(p.qi) + len(p.pi)) << 3
+	return
+}
+
 // MarshalBinary returns a []byte representation of the parameter set.
 func (p Parameters) MarshalBinary() ([]byte, error) {
 	return p.MarshalJSON()
 }
 
-// UnmarshalBinary decodes a []byte into a parameter set struct.
+// UnmarshalBinary decodes a slice of bytes on the target Parameters.
 func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 	return p.UnmarshalJSON(data)
 }
@@ -683,6 +721,7 @@ func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 	*p, err = NewParametersFromLiteral(params)
 	return
 }
+*/
 
 // CheckModuli checks that the provided q and p correspond to a valid moduli chain.
 func CheckModuli(q, p []uint64) error {

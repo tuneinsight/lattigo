@@ -195,7 +195,7 @@ func main() {
 	}
 
 	fmt.Printf("Starting for N=%d, t=%d\n", N, t)
-	fmt.Printf("LogN=%d, LogQP=%d, L=%d, k=%d\n", params.LogN(), params.LogQP(), params.QPCount(), k)
+	fmt.Printf("LogN=%d, LogQP=%f, L=%d, k=%d\n", params.LogN(), params.LogQP(), params.QPCount(), k)
 
 	kg := rlwe.NewKeyGenerator(params)
 

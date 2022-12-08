@@ -56,7 +56,7 @@ func benchRefresh(tc *testContext, b *testing.B) {
 	}
 
 	p := new(Party)
-	p.RefreshProtocol = NewRefreshProtocol(tc.params, 3.2)
+	p.RefreshProtocol = NewRefreshProtocol(tc.params, tc.params.Xe())
 	p.s = sk0Shards[0]
 	p.share = p.AllocateShare(minLevel, maxLevel)
 

@@ -164,9 +164,9 @@ func main() {
 			panic(err)
 		}
 
-		ternarySamplerMontgomeryQ := ring.NewTernarySampler(prng, ringQ, 1.0/3.0, true)
-		gaussianSamplerQ := ring.NewGaussianSampler(prng, ringQ, 3.2, 19)
-		uniformSamplerQ := ring.NewUniformSampler(prng, ringQ)
+		ternarySamplerMontgomeryQ := ring.NewSampler(prng, ringQ, &ring.UniformTernary{P: 1.0 / 3.0}, true)
+		gaussianSamplerQ := ring.NewSampler(prng, ringQ, &ring.DiscreteGaussian{Sigma: ring.StandardDeviation(3.2), Bound: 19}, false)
+		uniformSamplerQ := ring.NewSampler(prng, ringQ, &ring.Uniform{}, false)
 		lowNormUniformQ := newLowNormSampler(ringQ)
 
 		var elapsed, TotalTime, AliceTime, BobTime time.Duration

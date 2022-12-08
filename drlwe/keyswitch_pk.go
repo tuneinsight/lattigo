@@ -11,8 +11,8 @@ import (
 
 // PCKSProtocol is the structure storing the parameters for the collective public key-switching.
 type PCKSProtocol struct {
-	params        rlwe.Parameters
-	sigmaSmudging float64
+	params rlwe.Parameters
+	noise  ring.Distribution
 
 	buf *ring.Poly
 
@@ -42,10 +42,10 @@ func (pcks *PCKSProtocol) ShallowCopy() *PCKSProtocol {
 
 // NewPCKSProtocol creates a new PCKSProtocol object and will be used to re-encrypt a ciphertext ctx encrypted under a secret-shared key among j parties under a new
 // collective public-key.
-func NewPCKSProtocol(params rlwe.Parameters, sigmaSmudging float64) (pcks *PCKSProtocol) {
+func NewPCKSProtocol(params rlwe.Parameters, noise ring.Distribution) (pcks *PCKSProtocol) {
 	pcks = new(PCKSProtocol)
 	pcks.params = params
-	pcks.sigmaSmudging = sigmaSmudging
+	pcks.noise = noise.CopyNew()
 
 	pcks.buf = params.RingQ().NewPoly()
 
@@ -57,6 +57,15 @@ func NewPCKSProtocol(params rlwe.Parameters, sigmaSmudging float64) (pcks *PCKSP
 	pcks.Encryptor = rlwe.NewEncryptor(params, nil)
 
 	pcks.gaussianSampler = ring.NewGaussianSampler(prng, params.RingQ(), sigmaSmudging, int(6*sigmaSmudging))
+
+	switch noise.(type) {
+	case *ring.DiscreteGaussian:
+	default:
+		panic(fmt.Sprintf("invalid distribution type, expected %T but got %T", &ring.DiscreteGaussian{}, noise))
+	}
+
+	pcks.gaussianSampler = noise.NewSampler(prng, params.RingQ(), false)
+	pcks.ternarySamplerMontgomeryQ = params.Xs().NewSampler(prng, params.RingQ(), false)
 
 	return pcks
 }

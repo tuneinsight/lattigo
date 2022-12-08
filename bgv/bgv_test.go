@@ -1,7 +1,7 @@
 package bgv
 
 import (
-	"encoding/json"
+	//"encoding/json"
 	"flag"
 	"fmt"
 	"runtime"
@@ -11,7 +11,6 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
@@ -22,10 +21,11 @@ var flagParamString = flag.String("params", "", "specify the test cryptographic 
 var (
 	// TESTN13QP218 is a of 128-bit secure test parameters set with a 32-bit plaintext and depth 4.
 	TESTN14QP418 = ParametersLiteral{
-		LogN: 13,
-		Q:    []uint64{0x3fffffa8001, 0x1000090001, 0x10000c8001, 0x10000f0001, 0xffff00001},
-		P:    []uint64{0x7fffffd8001},
-		T:    0xffc001,
+		LogN:                13,
+		Q:                   []uint64{0x3fffffa8001, 0x1000090001, 0x10000c8001, 0x10000f0001, 0xffff00001},
+		P:                   []uint64{0x7fffffd8001},
+		T:                   0xffc001,
+		IgnoreSecurityCheck: true,
 	}
 
 	// TestParams is a set of test parameters for BGV ensuring 128 bit security in the classic setting.
@@ -164,18 +164,6 @@ func verifyTestVectors(tc *testContext, decryptor rlwe.Decryptor, coeffs *ring.P
 }
 
 func testParameters(tc *testContext, t *testing.T) {
-
-	t.Run("Parameters/NewParameters", func(t *testing.T) {
-		params, err := NewParametersFromLiteral(ParametersLiteral{
-			LogN: 4,
-			LogQ: []int{60, 60},
-			LogP: []int{60},
-			T:    0x10001,
-		})
-		require.NoError(t, err)
-		require.Equal(t, ring.Standard, params.RingType())  // Default ring type should be standard
-		require.Equal(t, rlwe.DefaultSigma, params.Sigma()) // Default error std should be rlwe.DefaultSigma
-	})
 
 	t.Run("Parameters/CopyNew", func(t *testing.T) {
 		params1, params2 := tc.params.CopyNew(), tc.params.CopyNew()
@@ -853,42 +841,73 @@ func testMarshalling(tc *testContext, t *testing.T) {
 		t.Run("Parameters/Binary", func(t *testing.T) {
 
 			bytes, err := tc.params.MarshalBinary()
-			assert.Nil(t, err)
+			require.Nil(t, err)
+			require.Equal(t, tc.params.MarshalBinarySize(), len(bytes))
 			var p Parameters
-			err = p.UnmarshalBinary(bytes)
-			assert.Nil(t, err)
-			assert.Equal(t, tc.params, p)
 			assert.Equal(t, tc.params.RingQ(), p.RingQ())
+			assert.Equal(t, tc.params, p)
+			require.Nil(t, p.UnmarshalBinary(bytes))
 		})
 
-		t.Run("Parameters/JSON", func(t *testing.T) {
-			// checks that parameters can be marshalled without error
-			data, err := json.Marshal(tc.params)
-			assert.Nil(t, err)
-			assert.NotNil(t, data)
+		/*
+			t.Run("Parameters/JSON", func(t *testing.T) {
+				// checks that parameters can be marshalled without error
+				data, err := json.Marshal(tc.params)
+				require.Nil(t, err)
+				require.NotNil(t, data)
 
-			// checks that ckks.Parameters can be unmarshalled without error
-			var paramsRec Parameters
-			err = json.Unmarshal(data, &paramsRec)
-			assert.Nil(t, err)
-			assert.True(t, tc.params.Equal(paramsRec))
+				// checks that ckks.Parameters can be unmarshalled without error
+				var paramsRec Parameters
+				err = json.Unmarshal(data, &paramsRec)
+				require.Nil(t, err)
+				require.True(t, tc.params.Equals(paramsRec))
 
-			// checks that ckks.Parameters can be unmarshalled with log-moduli definition without error
-			dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60], "T":65537}`, tc.params.LogN()))
-			var paramsWithLogModuli Parameters
-			err = json.Unmarshal(dataWithLogModuli, &paramsWithLogModuli)
-			assert.Nil(t, err)
-			assert.Equal(t, 2, paramsWithLogModuli.QCount())
-			assert.Equal(t, 1, paramsWithLogModuli.PCount())
-			assert.Equal(t, rlwe.DefaultSigma, paramsWithLogModuli.Sigma()) // Omitting sigma should result in Default being used
+				// checks that ckks.Parameters can be unmarshalled with log-moduli definition without error
+				dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60], "T":65537}`, tc.params.LogN()))
+				var paramsWithLogModuli Parameters
+				err = json.Unmarshal(dataWithLogModuli, &paramsWithLogModuli)
+				require.Nil(t, err)
+				require.Equal(t, 2, paramsWithLogModuli.QCount())
+				require.Equal(t, 1, paramsWithLogModuli.PCount())
+				require.Equal(t, rlwe.DefaultSigma, paramsWithLogModuli.Sigma()) // Omitting sigma should result in Default being used
 
-			// checks that one can provide custom parameters for the secret-key and error distributions
-			dataWithCustomSecrets := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60],"H": 192, "Sigma": 6.6, "T":65537}`, tc.params.LogN()))
-			var paramsWithCustomSecrets Parameters
-			err = json.Unmarshal(dataWithCustomSecrets, &paramsWithCustomSecrets)
-			assert.Nil(t, err)
-			assert.Equal(t, 6.6, paramsWithCustomSecrets.Sigma())
-			assert.Equal(t, 192, paramsWithCustomSecrets.HammingWeight())
-		})
+				// checks that one can provide custom parameters for the secret-key and error distributions
+				dataWithCustomSecrets := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60],"H": 192, "Sigma": 6.6, "T":65537}`, tc.params.LogN()))
+				var paramsWithCustomSecrets Parameters
+				err = json.Unmarshal(dataWithCustomSecrets, &paramsWithCustomSecrets)
+				require.Nil(t, err)
+				require.Equal(t, 6.6, paramsWithCustomSecrets.Sigma())
+				require.Equal(t, 192, paramsWithCustomSecrets.HammingWeight())
+			})
+
+			t.Run(GetTestName("PowerBasis", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
+
+				if tc.params.MaxLevel() < 4 {
+					t.Skip("not enough levels")
+				}
+
+				_, _, ct := newTestVectorsLvl(tc.params.MaxLevel(), tc.params.DefaultScale(), tc, tc.encryptorPk)
+
+				pb := NewPowerBasis(ct)
+
+				for i := 2; i < 4; i++ {
+					pb.GenPower(i, true, tc.evaluator)
+				}
+
+				pbBytes, err := pb.MarshalBinary()
+
+				require.Nil(t, err)
+				pbNew := new(PowerBasis)
+				require.Nil(t, pbNew.UnmarshalBinary(pbBytes))
+
+			for i := range pb.Value {
+				ctWant := pb.Value[i]
+				ctHave := pbNew.Value[i]
+				require.NotNil(t, ctHave)
+				for j := range ctWant.Value {
+					require.True(t, tc.ringQ.AtLevel(ctWant.Value[j].Level()).Equal(ctWant.Value[j], ctHave.Value[j]))
+				}
+			})
+		*/
 	})
 }

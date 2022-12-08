@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"math/bits"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
@@ -114,30 +113,33 @@ var DefaultPostQuantumParams = []ParametersLiteral{PN12QP101pq, PN13QP202pq, PN1
 // unset, standard default values for these field are substituted at parameter creation (see
 // NewParametersFromLiteral).
 type ParametersLiteral struct {
-	LogN     int
-	Q        []uint64
-	P        []uint64
-	LogQ     []int `json:",omitempty"`
-	LogP     []int `json:",omitempty"`
-	Pow2Base int
-	Sigma    float64
-	H        int
-	T        uint64 // Plaintext modulus
+	LogN                int
+	Q                   []uint64
+	P                   []uint64
+	LogQ                []int `json:",omitempty"`
+	LogP                []int `json:",omitempty"`
+	Pow2Base            int
+	Xe                  ring.Distribution
+	Xs                  ring.Distribution
+	RingType            ring.Type
+	IgnoreSecurityCheck bool
+	T                   uint64 // Plaintext modulus
 }
 
-// RLWEParameters returns the rlwe.ParametersLiteral from the target bfv.ParametersLiteral.
-func (p ParametersLiteral) RLWEParameters() rlwe.ParametersLiteral {
+// RLWEParametersLiteral returns the rlwe.ParametersLiteral from the target bfv.ParametersLiteral.
+func (p ParametersLiteral) RLWEParametersLiteral() rlwe.ParametersLiteral {
 	return rlwe.ParametersLiteral{
-		LogN:           p.LogN,
-		Q:              p.Q,
-		P:              p.P,
-		LogQ:           p.LogQ,
-		LogP:           p.LogP,
-		Pow2Base:       p.Pow2Base,
-		Sigma:          p.Sigma,
-		H:              p.H,
-		RingType:       ring.Standard,
-		DefaultNTTFlag: DefaultNTTFlag,
+		LogN:                p.LogN,
+		Q:                   p.Q,
+		P:                   p.P,
+		LogQ:                p.LogQ,
+		LogP:                p.LogP,
+		Pow2Base:            p.Pow2Base,
+		Xe:                  p.Xe,
+		Xs:                  p.Xs,
+		RingType:            ring.Standard,
+		DefaultNTTFlag:      DefaultNTTFlag,
+		IgnoreSecurityCheck: p.IgnoreSecurityCheck,
 	}
 }
 
@@ -188,7 +190,7 @@ func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err erro
 //
 // See `rlwe.NewParametersFromLiteral` for default values of the optional fields.
 func NewParametersFromLiteral(pl ParametersLiteral) (Parameters, error) {
-	rlweParams, err := rlwe.NewParametersFromLiteral(pl.RLWEParameters())
+	rlweParams, err := rlwe.NewParametersFromLiteral(pl.RLWEParametersLiteral())
 	if err != nil {
 		return Parameters{}, err
 	}
@@ -197,13 +199,15 @@ func NewParametersFromLiteral(pl ParametersLiteral) (Parameters, error) {
 
 func (p Parameters) ParametersLiteral() ParametersLiteral {
 	return ParametersLiteral{
-		LogN:     p.LogN(),
-		Q:        p.Q(),
-		P:        p.P(),
-		Pow2Base: p.Pow2Base(),
-		Sigma:    p.Sigma(),
-		H:        p.HammingWeight(),
-		T:        p.T(),
+		LogN:                p.LogN(),
+		Q:                   p.Q(),
+		P:                   p.P(),
+		Pow2Base:            p.Pow2Base(),
+		Xe:                  p.Xe(),
+		Xs:                  p.Xs(),
+		T:                   p.T(),
+		RingType:            p.RingType(),
+		IgnoreSecurityCheck: p.IgnoreSecurityCheck(),
 	}
 }
 
@@ -218,8 +222,8 @@ func (p Parameters) T() uint64 {
 }
 
 // LogT returns log2(plaintext coefficient modulus).
-func (p Parameters) LogT() int {
-	return bits.Len64(p.T())
+func (p Parameters) LogT() float64 {
+	return math.Log2(float64(p.T()))
 }
 
 // RingT returns a pointer to the plaintext ring.

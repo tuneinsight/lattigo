@@ -20,7 +20,7 @@ var flagLongTest = flag.Bool("long", false, "run the long test suite (all parame
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
 
 func ParamsToString(params ckks.Parameters, opname string) string {
-	return fmt.Sprintf("%slogN=%d/LogSlots=%d/logQP=%d/levels=%d/a=%d/b=%d",
+	return fmt.Sprintf("%slogN=%d/LogSlots=%d/logQP=%f/levels=%d/a=%d/b=%d",
 		opname,
 		params.LogN(),
 		params.LogSlots(),
@@ -182,13 +182,13 @@ func testbootstrap(params ckks.Parameters, original bool, btpParams Parameters, 
 		wg.Wait()
 
 		for i := range ciphertexts {
-			verifyTestVectors(params, encoder, decryptor, values, ciphertexts[i], params.LogSlots(), 0, t)
+			verifyTestVectors(params, encoder, decryptor, values, ciphertexts[i], params.LogSlots(), t)
 		}
 	})
 }
 
-func verifyTestVectors(params ckks.Parameters, encoder ckks.Encoder, decryptor rlwe.Decryptor, valuesWant []complex128, element interface{}, logSlots int, bound float64, t *testing.T) {
-	precStats := ckks.GetPrecisionStats(params, encoder, decryptor, valuesWant, element, logSlots, bound)
+func verifyTestVectors(params ckks.Parameters, encoder ckks.Encoder, decryptor rlwe.Decryptor, valuesWant []complex128, element interface{}, logSlots int, t *testing.T) {
+	precStats := ckks.GetPrecisionStats(params, encoder, decryptor, valuesWant, element, logSlots, nil)
 	if *printPrecisionStats {
 		t.Log(precStats.String())
 	}

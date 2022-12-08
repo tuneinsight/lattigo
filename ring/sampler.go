@@ -1,7 +1,10 @@
 package ring
 
 import (
-	"github.com/tuneinsight/lattigo/v4/utils/sampling"
+	"fmt"
+	"reflect"
+
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 const precision = uint64(56)
@@ -26,4 +29,24 @@ func (b *baseSampler) AtLevel(level int) baseSampler {
 type Sampler interface {
 	Read(pOut *Poly)
 	AtLevel(level int) Sampler
+	Read(pol *Poly)
+	ReadLvl(level int, pol *Poly)
+	ReadNew() (pol *Poly)
+	ReadLvlNew(level int) (pol *Poly)
+	ReadAndAddLvl(level int, pol *Poly)
+}
+
+func NewSampler(prng utils.PRNG, baseRing *Ring, X Distribution, montgomery bool) Sampler {
+	switch X := X.(type) {
+	case *DiscreteGaussian:
+		return NewGaussianSampler(prng, baseRing, X, montgomery)
+	case *UniformTernary:
+		return NewTernarySampler(prng, baseRing, X, montgomery)
+	case *SparseTernary:
+		return NewTernarySamplerWithHammingWeight(prng, baseRing, X, montgomery)
+	case *Uniform:
+		return NewUniformSampler(prng, baseRing)
+	default:
+		panic(fmt.Sprintf("Invalid distribution: want *ring.DiscretGaussian, *ring.UniformTernary, *ring.SparseTernary or *ring.Uniform but have %s", reflect.TypeOf(X)))
+	}
 }

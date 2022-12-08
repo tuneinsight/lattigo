@@ -6,6 +6,7 @@ package dckks
 import (
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/drlwe"
+	"github.com/tuneinsight/lattigo/v4/ring"
 )
 
 // NewCKGProtocol creates a new drlwe.CKGProtocol instance from the CKKS parameters.
@@ -28,12 +29,12 @@ func NewGKGProtocol(params ckks.Parameters) *drlwe.GKGProtocol {
 
 // NewCKSProtocol creates a new drlwe.CKSProtocol instance from the CKKS parameters.
 // The returned protocol instance is generic and can be used in other multiparty schemes.
-func NewCKSProtocol(params ckks.Parameters, sigmaSmudging float64) *drlwe.CKSProtocol {
-	return drlwe.NewCKSProtocol(params.Parameters, sigmaSmudging)
+func NewCKSProtocol(params ckks.Parameters, noise ring.Distribution) *drlwe.CKSProtocol {
+	return drlwe.NewCKSProtocol(params.Parameters, noise)
 }
 
 // NewPCKSProtocol creates a new drlwe.PCKSProtocol instance from the CKKS paramters.
 // The returned protocol instance is generic and can be used in other multiparty schemes.
-func NewPCKSProtocol(params ckks.Parameters, sigmaSmudging float64) *drlwe.PCKSProtocol {
-	return drlwe.NewPCKSProtocol(params.Parameters, sigmaSmudging)
+func NewPCKSProtocol(params ckks.Parameters, noise ring.Distribution) *drlwe.PCKSProtocol {
+	return drlwe.NewPCKSProtocol(params.Parameters, noise)
 }

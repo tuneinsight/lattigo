@@ -22,7 +22,7 @@ var flagLongTest = flag.Bool("long", false, "run the long test suite (all parame
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 
 func testString(opname string, parties int, params bfv.Parameters) string {
-	return fmt.Sprintf("%s/LogN=%d/logQ=%d/parties=%d", opname, params.LogN(), params.LogQP(), parties)
+	return fmt.Sprintf("%s/LogN=%d/logQP=%f/parties=%d", opname, params.LogN(), params.LogQP(), parties)
 }
 
 type testContext struct {
@@ -168,8 +168,8 @@ func testEncToShares(tc *testContext, t *testing.T) {
 
 	for i := range P {
 		if i == 0 {
-			P[i].e2s = NewE2SProtocol(params, 3.2)
-			P[i].s2e = NewS2EProtocol(params, 3.2)
+			P[i].e2s = NewE2SProtocol(params, params.Xe())
+			P[i].s2e = NewS2EProtocol(params, params.Xe())
 		} else {
 			P[i].e2s = P[0].e2s.ShallowCopy()
 			P[i].s2e = P[0].s2e.ShallowCopy()
@@ -246,7 +246,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 		for i := 0; i < tc.NParties; i++ {
 			p := new(Party)
 			if i == 0 {
-				p.RefreshProtocol = NewRefreshProtocol(tc.params, 3.2)
+				p.RefreshProtocol = NewRefreshProtocol(tc.params, tc.params.Xe())
 			} else {
 				p.RefreshProtocol = RefreshParties[0].RefreshProtocol.ShallowCopy()
 			}
@@ -351,11 +351,11 @@ func testRefreshAndTransform(tc *testContext, t *testing.T) {
 		for i := 0; i < tc.NParties; i++ {
 			p := new(Party)
 			if i == 0 {
-				if p.MaskedTransformProtocol, err = NewMaskedTransformProtocol(tc.params, tc.params, 3.2); err != nil {
+				if p.MaskedTransformProtocol, err = NewMaskedTransformProtocol(tc.params, tc.params, tc.params.Xe()); err != nil {
 					t.Fatal(err)
 				}
 			} else {
-				if p.MaskedTransformProtocol, err = NewMaskedTransformProtocol(tc.params, tc.params, 3.2); err != nil {
+				if p.MaskedTransformProtocol, err = NewMaskedTransformProtocol(tc.params, tc.params, tc.params.Xe()); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -425,10 +425,11 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 		var paramsOut bfv.Parameters
 		var err error
 		paramsOut, err = bfv.NewParametersFromLiteral(bfv.ParametersLiteral{
-			LogN: paramsIn.LogN(),
-			LogQ: []int{54, 49, 49, 49},
-			LogP: []int{52, 52},
-			T:    paramsIn.T(),
+			LogN:                paramsIn.LogN(),
+			LogQ:                []int{54, 49, 49, 49},
+			LogP:                []int{52, 52},
+			T:                   paramsIn.T(),
+			IgnoreSecurityCheck: true,
 		})
 
 		require.Nil(t, err)
@@ -448,11 +449,11 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 		for i := 0; i < tc.NParties; i++ {
 			p := new(Party)
 			if i == 0 {
-				if p.MaskedTransformProtocol, err = NewMaskedTransformProtocol(paramsIn, paramsOut, 3.2); err != nil {
+				if p.MaskedTransformProtocol, err = NewMaskedTransformProtocol(paramsIn, paramsOut, tc.params.Xe()); err != nil {
 					t.Fatal(err)
 				}
 			} else {
-				if p.MaskedTransformProtocol, err = NewMaskedTransformProtocol(paramsIn, paramsOut, 3.2); err != nil {
+				if p.MaskedTransformProtocol, err = NewMaskedTransformProtocol(paramsIn, paramsOut, tc.params.Xe()); err != nil {
 					t.Fatal(err)
 				}
 			}

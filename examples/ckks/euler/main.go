@@ -55,7 +55,7 @@ func example() {
 	fmt.Printf("Done in %s \n", time.Since(start))
 
 	fmt.Println()
-	fmt.Printf("CKKS parameters: logN = %d, logSlots = %d, logQP = %d, levels = %d, scale= %f, sigma = %f \n", params.LogN(), params.LogSlots(), params.LogQP(), params.MaxLevel()+1, params.DefaultScale().Float64(), params.Sigma())
+	fmt.Printf("CKKS parameters: logN = %d, logSlots = %d, logQP = %f, levels = %d, scale= %f, noise = %T %v \n", params.LogN(), params.LogSlots(), params.LogQP(), params.MaxLevel()+1, params.DefaultScale().Float64(), params.Xe(), params.Xe())
 
 	fmt.Println()
 	fmt.Println("=========================================")
@@ -214,7 +214,7 @@ func printDebug(params ckks.Parameters, ciphertext *rlwe.Ciphertext, valuesWant 
 	fmt.Printf("ValuesWant: %6.10f %6.10f %6.10f %6.10f...\n", valuesWant[0], valuesWant[1], valuesWant[2], valuesWant[3])
 	fmt.Println()
 
-	precStats := ckks.GetPrecisionStats(params, encoder, nil, valuesWant, valuesTest, params.LogSlots(), 0)
+	precStats := ckks.GetPrecisionStats(params, encoder, nil, valuesWant, valuesTest, params.LogSlots(), nil)
 
 	fmt.Println(precStats.String())
 

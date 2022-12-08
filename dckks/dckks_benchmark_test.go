@@ -62,7 +62,7 @@ func benchRefresh(tc *testContext, b *testing.B) {
 		}
 
 		p := new(Party)
-		p.RefreshProtocol = NewRefreshProtocol(params, logBound, 3.2)
+		p.RefreshProtocol = NewRefreshProtocol(params, logBound, params.Xe())
 		p.s = sk0Shards[0]
 		p.share = p.AllocateShare(minLevel, params.MaxLevel())
 
@@ -115,7 +115,7 @@ func benchMaskedTransform(tc *testContext, b *testing.B) {
 		ciphertext := ckks.NewCiphertext(params, 1, minLevel)
 
 		p := new(Party)
-		p.MaskedTransformProtocol, _ = NewMaskedTransformProtocol(params, params, logBound, 3.2)
+		p.MaskedTransformProtocol, _ = NewMaskedTransformProtocol(params, params, logBound, params.Xe())
 		p.s = sk0Shards[0]
 		p.share = p.AllocateShare(ciphertext.Level(), params.MaxLevel())
 

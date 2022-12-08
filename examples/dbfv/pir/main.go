@@ -205,7 +205,7 @@ func cksphase(params bfv.Parameters, P []*party, result *rlwe.Ciphertext) *rlwe.
 
 	l.Println("> CKS Phase")
 
-	cks := dbfv.NewCKSProtocol(params, 3.19) // Collective public-key re-encryption
+	cks := dbfv.NewCKSProtocol(params, params.Xe()) // Collective public-key re-encryption
 
 	for _, pi := range P {
 		pi.cksShare = cks.AllocateShare(params.MaxLevel())

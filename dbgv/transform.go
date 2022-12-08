@@ -50,15 +50,15 @@ type MaskedTransformFunc struct {
 }
 
 // NewMaskedTransformProtocol creates a new instance of the PermuteProtocol.
-func NewMaskedTransformProtocol(paramsIn, paramsOut bgv.Parameters, sigmaSmudging float64) (rfp *MaskedTransformProtocol, err error) {
+func NewMaskedTransformProtocol(paramsIn, paramsOut bgv.Parameters, noise ring.Distribution) (rfp *MaskedTransformProtocol, err error) {
 
 	if paramsIn.N() > paramsOut.N() {
 		return nil, fmt.Errorf("newMaskedTransformProtocol: paramsIn.N() != paramsOut.N()")
 	}
 
 	rfp = new(MaskedTransformProtocol)
-	rfp.e2s = *NewE2SProtocol(paramsIn, sigmaSmudging)
-	rfp.s2e = *NewS2EProtocol(paramsOut, sigmaSmudging)
+	rfp.e2s = *NewE2SProtocol(paramsIn, noise)
+	rfp.s2e = *NewS2EProtocol(paramsOut, noise)
 
 	rfp.tmpPt = paramsOut.RingQ().NewPoly()
 	rfp.tmpMask = paramsIn.RingT().NewPoly()

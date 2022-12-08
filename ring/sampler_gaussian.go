@@ -10,23 +10,23 @@ import (
 // GaussianSampler keeps the state of a truncated Gaussian polynomial sampler.
 type GaussianSampler struct {
 	baseSampler
-	sigma         float64
-	bound         int
+	xe            *DiscreteGaussian
 	randomBufferN []byte
 	ptr           uint64
+	montgomery    bool
 }
 
 // NewGaussianSampler creates a new instance of GaussianSampler from a PRNG, a ring definition and the truncated
 // Gaussian distribution parameters. Sigma is the desired standard deviation and bound is the maximum coefficient norm in absolute
 // value.
-func NewGaussianSampler(prng sampling.PRNG, baseRing *Ring, sigma float64, bound int) (g *GaussianSampler) {
+func NewGaussianSampler(prng utils.PRNG, baseRing *Ring, X *DiscreteGaussian, montgomery bool) (g *GaussianSampler) {
 	g = new(GaussianSampler)
 	g.prng = prng
 	g.randomBufferN = make([]byte, 1024)
 	g.ptr = 0
 	g.baseRing = baseRing
-	g.sigma = sigma
-	g.bound = bound
+	g.xe = X.CopyNew().(*DiscreteGaussian)
+	g.montgomery = montgomery
 	return
 }
 
@@ -59,13 +59,18 @@ func (g *GaussianSampler) ReadAndAdd(pol *Poly) {
 	g.ReadAndAddFromDist(pol, g.baseRing, g.sigma, g.bound)
 }
 
-// ReadFromDist samples a truncated Gaussian polynomial at the given level in the provided ring, standard deviation and bound.
-func (g *GaussianSampler) ReadFromDist(level int, pol *Poly, ring *Ring, sigma float64, bound int) {
-	g.read(pol, ring, sigma, bound)
+// ReadFromDistLvl samples a truncated Gaussian polynomial at the given level in the provided ring, standard deviation and bound.
+func (g *GaussianSampler) ReadFromDistLvl(level int, pol *Poly, ring *Ring, X *DiscreteGaussian) {
+	g.readLvl(level, pol, ring, X)
 }
 
-// ReadAndAddFromDist samples a truncated Gaussian polynomial at the given level in the provided ring, standard deviation and bound and adds it on "pol".
-func (g *GaussianSampler) ReadAndAddFromDist(pol *Poly, r *Ring, sigma float64, bound int) {
+// ReadAndAddLvl samples a truncated Gaussian polynomial at the given level for the receiver's default standard deviation and bound and adds it on "pol".
+func (g *GaussianSampler) ReadAndAddLvl(level int, pol *Poly) {
+	g.ReadAndAddFromDistLvl(level, pol, g.baseRing, g.xe)
+}
+
+// ReadAndAddFromDistLvl samples a truncated Gaussian polynomial at the given level in the provided ring, standard deviation and bound and adds it on "pol".
+func (g *GaussianSampler) ReadAndAddFromDistLvl(level int, pol *Poly, ring *Ring, X *DiscreteGaussian) {
 	var coeffFlo float64
 	var coeffInt, sign uint64
 
@@ -82,18 +87,18 @@ func (g *GaussianSampler) ReadAndAddFromDist(pol *Poly, r *Ring, sigma float64, 
 		for {
 			coeffFlo, sign = g.normFloat64()
 
-			if coeffInt = uint64(coeffFlo*sigma + 0.5); coeffInt <= uint64(bound) {
+			if coeffInt = uint64(coeffFlo*sigma + 0.5); coeffInt <= bound {
 				break
 			}
 		}
 
-		for j, qi := range modulus {
-			pol.Coeffs[j][i] = CRed(pol.Coeffs[j][i]+((coeffInt*sign)|(qi-coeffInt)*(sign^1)), qi)
+		for j, qi := range moduli {
+			coeffs[j][i] = CRed(coeffs[j][i]+((coeffInt*sign)|(qi-coeffInt)*(sign^1)), qi)
 		}
 	}
 }
 
-func (g *GaussianSampler) read(pol *Poly, r *Ring, sigma float64, bound int) {
+func (g *GaussianSampler) readLvl(level int, pol *Poly, ring *Ring, X *DiscreteGaussian) {
 	var coeffFlo float64
 	var coeffInt uint64
 	var sign uint64
@@ -118,9 +123,13 @@ func (g *GaussianSampler) read(pol *Poly, r *Ring, sigma float64, bound int) {
 			}
 		}
 
-		for j, qi := range modulus {
-			pol.Coeffs[j][i] = (coeffInt * sign) | (qi-coeffInt)*(sign^1)
+		for j, qi := range moduli {
+			coeffs[j][i] = (coeffInt * sign) | (qi-coeffInt)*(sign^1)
 		}
+	}
+
+	if g.montgomery {
+		g.baseRing.MFormLvl(level, pol, pol)
 	}
 }
 
@@ -140,6 +149,11 @@ func randFloat64(randomBytes []byte) float64 {
 // Algorithm adapted from https://golang.org/src/math/rand/normal.go
 // to use a secure PRNG instead of math/rand.
 func (g *GaussianSampler) normFloat64() (float64, uint64) {
+
+	ptr := g.ptr
+	buff := g.randomBufferN
+	prng := g.prng
+	buffLen := uint64(len(buff))
 
 	for {
 
@@ -162,6 +176,8 @@ func (g *GaussianSampler) normFloat64() (float64, uint64) {
 
 		// 1
 		if uint32(j) < kn[i] {
+
+			g.ptr = ptr
 
 			// This case should be hit more than 99% of the time.
 			return x, sign
@@ -198,6 +214,8 @@ func (g *GaussianSampler) normFloat64() (float64, uint64) {
 				}
 			}
 
+			g.ptr = ptr
+
 			return x + 3.442619855899, sign
 		}
 
@@ -215,6 +233,7 @@ func (g *GaussianSampler) normFloat64() (float64, uint64) {
 		}
 		g.ptr += 8
 	}
+
 }
 
 var kn = [128]uint32{

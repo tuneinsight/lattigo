@@ -5,6 +5,7 @@ import (
 	"math"
 	"sort"
 
+	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
@@ -59,15 +60,15 @@ Err STD Coeffs : %5.2f Log2
 // GetPrecisionStats generates a PrecisionStats struct from the reference values and the decrypted values
 // vWant.(type) must be either []complex128 or []float64
 // element.(type) must be either *Plaintext, *Ciphertext, []complex128 or []float64. If not *Ciphertext, then decryptor can be nil.
-func GetPrecisionStats(params Parameters, encoder Encoder, decryptor rlwe.Decryptor, vWant, element interface{}, logSlots int, sigma float64) (prec PrecisionStats) {
+func GetPrecisionStats(params Parameters, encoder Encoder, decryptor rlwe.Decryptor, vWant, element interface{}, logSlots int, noise *ring.DiscreteGaussian) (prec PrecisionStats) {
 
 	var valuesTest []complex128
 
 	switch element := element.(type) {
 	case *rlwe.Ciphertext:
-		valuesTest = encoder.DecodePublic(decryptor.DecryptNew(element), logSlots, sigma)
+		valuesTest = encoder.DecodePublic(decryptor.DecryptNew(element), logSlots, noise)
 	case *rlwe.Plaintext:
-		valuesTest = encoder.DecodePublic(element, logSlots, sigma)
+		valuesTest = encoder.DecodePublic(element, logSlots, noise)
 	case []complex128:
 		valuesTest = element
 	case []float64:

@@ -280,8 +280,8 @@ type ParametersLiteral struct {
 	LogScale int
 }
 
-// RLWEParameters returns the rlwe.ParametersLiteral from the target ckks.ParameterLiteral.
-func (p ParametersLiteral) RLWEParameters() rlwe.ParametersLiteral {
+// RLWEParametersLiteral returns the rlwe.ParametersLiteral from the target ckks.ParameterLiteral.
+func (p ParametersLiteral) RLWEParametersLiteral() rlwe.ParametersLiteral {
 	return rlwe.ParametersLiteral{
 		LogN:           p.LogN,
 		Q:              p.Q,
@@ -343,7 +343,7 @@ func NewParameters(rlweParams rlwe.Parameters, logSlots int) (p Parameters, err 
 //
 // See `rlwe.NewParametersFromLiteral` for default values of the other optional fields.
 func NewParametersFromLiteral(pl ParametersLiteral) (Parameters, error) {
-	rlweParams, err := rlwe.NewParametersFromLiteral(pl.RLWEParameters())
+	rlweParams, err := rlwe.NewParametersFromLiteral(pl.RLWEParametersLiteral())
 	if err != nil {
 		return Parameters{}, err
 	}

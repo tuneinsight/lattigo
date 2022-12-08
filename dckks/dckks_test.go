@@ -23,12 +23,13 @@ var printPrecisionStats = flag.Bool("print-precision", false, "print precision s
 var minPrec float64 = 15.0
 
 func testString(opname string, parties int, params ckks.Parameters) string {
-	return fmt.Sprintf("%s/RingType=%s/logN=%d/logSlots=%d/logQ=%d/levels=%d/#Pi=%d/Decomp=%d/parties=%d",
+	return fmt.Sprintf("%s/RingType=%s/logN=%d/logSlots=%d/logQ=%f/LogP=%f/levels=%d/#Pi=%d/Decomp=%d/parties=%d",
 		opname,
 		params.RingType(),
 		params.LogN(),
 		params.LogSlots(),
-		params.LogQP(),
+		params.LogQ(),
+		params.LogP(),
 		params.MaxLevel()+1,
 		params.PCount(),
 		params.DecompRNS(params.MaxLevelQ(), params.MaxLevelP()),
@@ -189,8 +190,8 @@ func testE2SProtocol(tc *testContext, t *testing.T) {
 		params := tc.params
 		P := make([]Party, tc.NParties)
 		for i := range P {
-			P[i].e2s = NewE2SProtocol(params, 3.2)
-			P[i].s2e = NewS2EProtocol(params, 3.2)
+			P[i].e2s = NewE2SProtocol(params, params.Xe())
+			P[i].s2e = NewS2EProtocol(params, params.Xe())
 			P[i].sk = tc.sk0Shards[i]
 			P[i].publicShareE2S = P[i].e2s.AllocateShare(minLevel)
 			P[i].publicShareS2E = P[i].s2e.AllocateShare(params.MaxLevel())
@@ -275,7 +276,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 		for i := 0; i < tc.NParties; i++ {
 			p := new(Party)
 			if i == 0 {
-				p.RefreshProtocol = NewRefreshProtocol(params, logBound, 3.2)
+				p.RefreshProtocol = NewRefreshProtocol(params, logBound, params.Xe())
 			} else {
 				p.RefreshProtocol = RefreshParties[0].RefreshProtocol.ShallowCopy()
 			}
@@ -350,7 +351,7 @@ func testRefreshAndTransform(tc *testContext, t *testing.T) {
 			p := new(Party)
 
 			if i == 0 {
-				if p.MaskedTransformProtocol, err = NewMaskedTransformProtocol(params, params, logBound, 3.2); err != nil {
+				if p.MaskedTransformProtocol, err = NewMaskedTransformProtocol(params, params, logBound, params.Xe()); err != nil {
 					t.Log(err)
 					t.Fail()
 				}
@@ -449,7 +450,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 			p := new(Party)
 
 			if i == 0 {
-				if p.MaskedTransformProtocol, err = NewMaskedTransformProtocol(params, paramsOut, logBound, 3.2); err != nil {
+				if p.MaskedTransformProtocol, err = NewMaskedTransformProtocol(params, paramsOut, logBound, params.Xe()); err != nil {
 					t.Log(err)
 					t.Fail()
 				}
@@ -494,7 +495,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 			coeffs[i] = complex(real(coeffs[i])*0.9238795325112867, imag(coeffs[i])*0.7071067811865476)
 		}
 
-		precStats := ckks.GetPrecisionStats(paramsOut, ckks.NewEncoder(paramsOut), nil, coeffs, ckks.NewDecryptor(paramsOut, skIdealOut).DecryptNew(ciphertext), params.LogSlots(), 0)
+		precStats := ckks.GetPrecisionStats(paramsOut, ckks.NewEncoder(paramsOut), nil, coeffs, ckks.NewDecryptor(paramsOut, skIdealOut).DecryptNew(ciphertext), params.LogSlots(), nil)
 
 		if *printPrecisionStats {
 			t.Log(precStats.String())
@@ -532,7 +533,7 @@ func newTestVectorsAtScale(testContext *testContext, encryptor rlwe.Encryptor, a
 
 func verifyTestVectors(tc *testContext, decryptor rlwe.Decryptor, valuesWant []complex128, element interface{}, t *testing.T) {
 
-	precStats := ckks.GetPrecisionStats(tc.params, tc.encoder, decryptor, valuesWant, element, tc.params.LogSlots(), 0)
+	precStats := ckks.GetPrecisionStats(tc.params, tc.encoder, decryptor, valuesWant, element, tc.params.LogSlots(), nil)
 
 	if *printPrecisionStats {
 		t.Log(precStats.String())

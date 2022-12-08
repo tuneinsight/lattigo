@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
@@ -399,13 +400,13 @@ func testSlotsToCoeffs(params ckks.Parameters, t *testing.T) {
 		// Result is bit-reversed, so applies the bit-reverse permutation on the reference vector
 		utils.BitReverseInPlaceSlice(valuesReal, params.Slots())
 
-		verifyTestVectors(params, encoder, decryptor, valuesReal, valuesTest, params.LogSlots(), 0, t)
+		verifyTestVectors(params, encoder, decryptor, valuesReal, valuesTest, params.LogSlots(), t)
 	})
 }
 
 func verifyTestVectors(params ckks.Parameters, encoder ckks.Encoder, decryptor rlwe.Decryptor, valuesWant, element interface{}, logSlots int, bound float64, t *testing.T) {
 
-	precStats := ckks.GetPrecisionStats(params, encoder, decryptor, valuesWant, element, logSlots, bound)
+	precStats := ckks.GetPrecisionStats(params, encoder, decryptor, valuesWant, element, logSlots, nil)
 	if *printPrecisionStats {
 		t.Log(precStats.String())
 	}

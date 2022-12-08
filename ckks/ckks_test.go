@@ -9,7 +9,6 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
@@ -190,9 +189,9 @@ func randomConst(tp ring.Type, a, b complex128) (constant complex128) {
 	return
 }
 
-func verifyTestVectors(params Parameters, encoder Encoder, decryptor rlwe.Decryptor, valuesWant []complex128, element interface{}, logSlots int, bound float64, t *testing.T) {
+func verifyTestVectors(params Parameters, encoder Encoder, decryptor rlwe.Decryptor, valuesWant []complex128, element interface{}, logSlots int, noise *ring.DiscreteGaussian, t *testing.T) {
 
-	precStats := GetPrecisionStats(params, encoder, decryptor, valuesWant, element, logSlots, bound)
+	precStats := GetPrecisionStats(params, encoder, decryptor, valuesWant, element, logSlots, noise)
 
 	if *printPrecisionStats {
 		t.Log(precStats.String())
@@ -213,7 +212,7 @@ func testParameters(tc *testContext, t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.Equal(t, ring.Standard, params.RingType())   // Default ring type should be standard
-		require.Equal(t, rlwe.DefaultSigma, params.Sigma())  // Default error std should be rlwe.DefaultSigma
+		require.Equal(t, &rlwe.DefaultXe, params.Xe())       // Default error std should be rlwe.DefaultSigma
 		require.Equal(t, params.LogN()-1, params.LogSlots()) // Default number of slots should be N/2
 	})
 
@@ -239,7 +238,7 @@ func testEncoder(tc *testContext, t *testing.T) {
 
 		values, plaintext, _ := newTestVectors(tc, nil, -1-1i, 1+1i, t)
 
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, plaintext, tc.params.LogSlots(), 0, t)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, plaintext, tc.params.LogSlots(), nil, t)
 	})
 
 	t.Run(GetTestName(tc.params, "Encoder/EncodeCoeffs"), func(t *testing.T) {
@@ -288,7 +287,7 @@ func testEvaluatorAdd(tc *testContext, t *testing.T) {
 
 		tc.evaluator.Add(ciphertext1, ciphertext2, ciphertext1)
 
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), nil, t)
 	})
 
 	t.Run(GetTestName(tc.params, "Evaluator/AddNew/CtCt"), func(t *testing.T) {
@@ -302,7 +301,7 @@ func testEvaluatorAdd(tc *testContext, t *testing.T) {
 
 		ciphertext3 := tc.evaluator.AddNew(ciphertext1, ciphertext2)
 
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext3, tc.params.LogSlots(), 0, t)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext3, tc.params.LogSlots(), nil, t)
 	})
 
 	t.Run(GetTestName(tc.params, "Evaluator/Add/CtPlain"), func(t *testing.T) {
@@ -316,7 +315,7 @@ func testEvaluatorAdd(tc *testContext, t *testing.T) {
 
 		tc.evaluator.Add(ciphertext1, plaintext2, ciphertext1)
 
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), nil, t)
 	})
 
 	t.Run(GetTestName(tc.params, "Evaluator/AddNew/CtPlain"), func(t *testing.T) {
@@ -330,7 +329,7 @@ func testEvaluatorAdd(tc *testContext, t *testing.T) {
 
 		ciphertext3 := tc.evaluator.AddNew(ciphertext1, plaintext2)
 
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext3, tc.params.LogSlots(), 0, t)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext3, tc.params.LogSlots(), nil, t)
 	})
 
 }
@@ -348,7 +347,7 @@ func testEvaluatorSub(tc *testContext, t *testing.T) {
 
 		tc.evaluator.Sub(ciphertext1, ciphertext2, ciphertext1)
 
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), nil, t)
 	})
 
 	t.Run(GetTestName(tc.params, "Evaluator/SubNew/CtCt"), func(t *testing.T) {
@@ -362,7 +361,7 @@ func testEvaluatorSub(tc *testContext, t *testing.T) {
 
 		ciphertext3 := tc.evaluator.SubNew(ciphertext1, ciphertext2)
 
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext3, tc.params.LogSlots(), 0, t)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext3, tc.params.LogSlots(), nil, t)
 	})
 
 	t.Run(GetTestName(tc.params, "Evaluator/Sub/CtPlain"), func(t *testing.T) {
@@ -377,7 +376,7 @@ func testEvaluatorSub(tc *testContext, t *testing.T) {
 
 		tc.evaluator.Sub(ciphertext1, plaintext2, ciphertext2)
 
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, valuesTest, ciphertext2, tc.params.LogSlots(), 0, t)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, valuesTest, ciphertext2, tc.params.LogSlots(), nil, t)
 	})
 
 	t.Run(GetTestName(tc.params, "Evaluator/SubNew/CtPlain"), func(t *testing.T) {
@@ -392,7 +391,7 @@ func testEvaluatorSub(tc *testContext, t *testing.T) {
 
 		ciphertext3 := tc.evaluator.SubNew(ciphertext1, plaintext2)
 
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, valuesTest, ciphertext3, tc.params.LogSlots(), 0, t)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, valuesTest, ciphertext3, tc.params.LogSlots(), nil, t)
 	})
 
 }
@@ -417,7 +416,7 @@ func testEvaluatorRescale(tc *testContext, t *testing.T) {
 			t.Fatal(err)
 		}
 
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogSlots(), 0, t)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogSlots(), nil, t)
 	})
 
 	t.Run(GetTestName(tc.params, "Evaluator/Rescale/Many"), func(t *testing.T) {
@@ -443,7 +442,7 @@ func testEvaluatorRescale(tc *testContext, t *testing.T) {
 			t.Fatal(err)
 		}
 
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogSlots(), 0, t)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogSlots(), nil, t)
 	})
 }
 
@@ -461,7 +460,7 @@ func testEvaluatorAddConst(tc *testContext, t *testing.T) {
 
 		tc.evaluator.AddConst(ciphertext, constant, ciphertext)
 
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogSlots(), 0, t)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogSlots(), nil, t)
 	})
 }
 
@@ -479,7 +478,7 @@ func testEvaluatorMultByConst(tc *testContext, t *testing.T) {
 
 		tc.evaluator.MultByConst(ciphertext, constant, ciphertext)
 
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogSlots(), 0, t)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogSlots(), nil, t)
 	})
 
 }
@@ -499,7 +498,7 @@ func testEvaluatorMultByConstThenAdd(tc *testContext, t *testing.T) {
 
 		tc.evaluator.MultByConstThenAdd(ciphertext1, constant, ciphertext2)
 
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values2, ciphertext2, tc.params.LogSlots(), 0, t)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values2, ciphertext2, tc.params.LogSlots(), nil, t)
 	})
 
 }
@@ -518,7 +517,7 @@ func testEvaluatorMul(tc *testContext, t *testing.T) {
 
 			tc.evaluator.MulRelin(ciphertext1, plaintext1, ciphertext1)
 
-			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
+			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), nil, t)
 		})
 
 		t.Run(GetTestName(tc.params, "pt*ct0->ct0"), func(t *testing.T) {
@@ -531,7 +530,7 @@ func testEvaluatorMul(tc *testContext, t *testing.T) {
 
 			tc.evaluator.MulRelin(ciphertext1, plaintext1, ciphertext1)
 
-			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
+			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), nil, t)
 		})
 
 		t.Run(GetTestName(tc.params, "ct0*pt->ct1"), func(t *testing.T) {
@@ -544,7 +543,7 @@ func testEvaluatorMul(tc *testContext, t *testing.T) {
 
 			ciphertext2 := tc.evaluator.MulRelinNew(ciphertext1, plaintext1)
 
-			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext2, tc.params.LogSlots(), 0, t)
+			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext2, tc.params.LogSlots(), nil, t)
 		})
 
 		t.Run(GetTestName(tc.params, "ct0*ct1->ct0"), func(t *testing.T) {
@@ -558,7 +557,7 @@ func testEvaluatorMul(tc *testContext, t *testing.T) {
 
 			tc.evaluator.MulRelin(ciphertext1, ciphertext2, ciphertext1)
 
-			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values2, ciphertext1, tc.params.LogSlots(), 0, t)
+			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values2, ciphertext1, tc.params.LogSlots(), nil, t)
 		})
 
 		t.Run(GetTestName(tc.params, "ct0*ct1->ct0 (degree 0)"), func(t *testing.T) {
@@ -576,7 +575,7 @@ func testEvaluatorMul(tc *testContext, t *testing.T) {
 
 			tc.evaluator.MulRelin(ciphertext1, ciphertext2, ciphertext1)
 
-			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values2, ciphertext1, tc.params.LogSlots(), 0, t)
+			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values2, ciphertext1, tc.params.LogSlots(), nil, t)
 		})
 
 		t.Run(GetTestName(tc.params, "ct0*ct1->ct1"), func(t *testing.T) {
@@ -590,7 +589,7 @@ func testEvaluatorMul(tc *testContext, t *testing.T) {
 
 			tc.evaluator.MulRelin(ciphertext1, ciphertext2, ciphertext2)
 
-			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values2, ciphertext2, tc.params.LogSlots(), 0, t)
+			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values2, ciphertext2, tc.params.LogSlots(), nil, t)
 		})
 
 		t.Run(GetTestName(tc.params, "ct0*ct1->ct2"), func(t *testing.T) {
@@ -604,7 +603,7 @@ func testEvaluatorMul(tc *testContext, t *testing.T) {
 
 			ciphertext3 := tc.evaluator.MulRelinNew(ciphertext1, ciphertext2)
 
-			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values2, ciphertext3, tc.params.LogSlots(), 0, t)
+			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values2, ciphertext3, tc.params.LogSlots(), nil, t)
 		})
 
 		t.Run(GetTestName(tc.params, "ct0*ct0->ct0"), func(t *testing.T) {
@@ -617,7 +616,7 @@ func testEvaluatorMul(tc *testContext, t *testing.T) {
 
 			tc.evaluator.MulRelin(ciphertext1, ciphertext1, ciphertext1)
 
-			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
+			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), nil, t)
 		})
 
 		t.Run(GetTestName(tc.params, "ct0*ct0->ct1"), func(t *testing.T) {
@@ -630,7 +629,7 @@ func testEvaluatorMul(tc *testContext, t *testing.T) {
 
 			ciphertext2 := tc.evaluator.MulRelinNew(ciphertext1, ciphertext1)
 
-			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext2, tc.params.LogSlots(), 0, t)
+			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext2, tc.params.LogSlots(), nil, t)
 		})
 
 		t.Run(GetTestName(tc.params, "MulRelin(ct0*ct1->ct0)"), func(t *testing.T) {
@@ -645,7 +644,7 @@ func testEvaluatorMul(tc *testContext, t *testing.T) {
 			tc.evaluator.MulRelin(ciphertext1, ciphertext2, ciphertext1)
 			require.Equal(t, ciphertext1.Degree(), 1)
 
-			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
+			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), nil, t)
 		})
 	})
 }
@@ -665,7 +664,7 @@ func testEvaluatorMulThenAdd(tc *testContext, t *testing.T) {
 
 		require.Equal(t, ciphertext1.Degree(), 1)
 
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), nil, t)
 	})
 
 	t.Run(GetTestName(tc.params, "Evaluator/MulRelinThenAdd/ct1*ct1->ct0"), func(t *testing.T) {
@@ -681,7 +680,7 @@ func testEvaluatorMulThenAdd(tc *testContext, t *testing.T) {
 
 		require.Equal(t, ciphertext1.Degree(), 1)
 
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), nil, t)
 	})
 
 	t.Run(GetTestName(tc.params, "Evaluator/MulThenAdd/ct0*ct1->ct2"), func(t *testing.T) {
@@ -705,7 +704,7 @@ func testEvaluatorMulThenAdd(tc *testContext, t *testing.T) {
 
 		require.Equal(t, ciphertext3.Degree(), 1)
 
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext3, tc.params.LogSlots(), 0, t)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext3, tc.params.LogSlots(), nil, t)
 	})
 
 	t.Run(GetTestName(tc.params, "Evaluator/MulThenAdd/ct1*ct1->ct0"), func(t *testing.T) {
@@ -725,7 +724,7 @@ func testEvaluatorMulThenAdd(tc *testContext, t *testing.T) {
 
 		require.Equal(t, ciphertext1.Degree(), 1)
 
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), nil, t)
 	})
 }
 
@@ -750,7 +749,7 @@ func testFunctions(tc *testContext, t *testing.T) {
 			t.Fatal(err)
 		}
 
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogSlots(), 0, t)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogSlots(), nil, t)
 	})
 }
 
@@ -787,7 +786,7 @@ func testEvaluatePoly(tc *testContext, t *testing.T) {
 			t.Fatal(err)
 		}
 
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogSlots(), 0, t)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogSlots(), nil, t)
 	})
 
 	t.Run(GetTestName(tc.params, "EvaluatePoly/PolyVector/Exp"), func(t *testing.T) {
@@ -828,7 +827,7 @@ func testEvaluatePoly(tc *testContext, t *testing.T) {
 			t.Fatal(err)
 		}
 
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, valuesWant, ciphertext, tc.params.LogSlots(), 0, t)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, valuesWant, ciphertext, tc.params.LogSlots(), nil, t)
 	})
 }
 
@@ -904,13 +903,13 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 
 		valuesHave := tc.encoder.Decode(plaintext, tc.params.LogSlots())
 
-		verifyTestVectors(tc.params, tc.encoder, nil, values, valuesHave, tc.params.LogSlots(), 0, t)
+		verifyTestVectors(tc.params, tc.encoder, nil, values, valuesHave, tc.params.LogSlots(), nil, t)
 
-		sigma := tc.encoder.GetErrSTDCoeffDomain(values, valuesHave, plaintext.Scale)
+		sigma := ring.StandardDeviation(tc.encoder.GetErrSTDCoeffDomain(values, valuesHave, plaintext.Scale))
 
-		valuesHave = tc.encoder.DecodePublic(plaintext, tc.params.LogSlots(), sigma)
+		valuesHave = tc.encoder.DecodePublic(plaintext, tc.params.LogSlots(), &ring.DiscreteGaussian{Sigma: sigma, Bound: int(2.5066282746310002 * sigma)})
 
-		verifyTestVectors(tc.params, tc.encoder, nil, values, valuesHave, tc.params.LogSlots(), 0, t)
+		verifyTestVectors(tc.params, tc.encoder, nil, values, valuesHave, tc.params.LogSlots(), nil, t)
 	})
 }
 
@@ -933,6 +932,7 @@ func testBridge(tc *testContext, t *testing.T) {
 		stdParamsLit.LogN = ciParams.LogN() + 1
 		stdParamsLit.P = []uint64{0x1ffffffff6c80001, 0x1ffffffff6140001} // Assigns new P to ensure that independence from auxiliary P is tested
 		stdParamsLit.RingType = ring.Standard
+		stdParamsLit.IgnoreSecurityCheck = true
 		stdParams, err := NewParametersFromLiteral(stdParamsLit)
 		require.Nil(t, err)
 
@@ -957,7 +957,7 @@ func testBridge(tc *testContext, t *testing.T) {
 
 		switcher.RealToComplex(evalStandar, ctCI, stdCTHave)
 
-		verifyTestVectors(stdParams, stdEncoder, stdDecryptor, values, stdCTHave, stdParams.LogSlots(), 0, t)
+		verifyTestVectors(stdParams, stdEncoder, stdDecryptor, values, stdCTHave, stdParams.LogSlots(), nil, t)
 
 		stdCTImag := stdEvaluator.MultByConstNew(stdCTHave, 1i)
 		stdEvaluator.Add(stdCTHave, stdCTImag, stdCTHave)
@@ -965,7 +965,7 @@ func testBridge(tc *testContext, t *testing.T) {
 		ciCTHave := NewCiphertext(ciParams, 1, stdCTHave.Level())
 		switcher.ComplexToReal(evalStandar, stdCTHave, ciCTHave)
 
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciCTHave, ciParams.LogSlots(), 0, t)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciCTHave, ciParams.LogSlots(), nil, t)
 	})
 }
 
@@ -1062,7 +1062,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 			values1[i] += tmp[(i+15)%params.Slots()]
 		}
 
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), nil, t)
 	})
 
 	t.Run(GetTestName(tc.params, "LinearTransform/Naive"), func(t *testing.T) {
@@ -1099,7 +1099,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 			values1[i] += tmp[(i-1+params.Slots())%params.Slots()]
 		}
 
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), nil, t)
 	})
 }
 
@@ -1111,30 +1111,30 @@ func testMarshaller(tc *testContext, t *testing.T) {
 		assert.Nil(t, err)
 		assert.NotNil(t, data)
 
-		// checks that ckks.Parameters can be unmarshalled without error
-		var paramsRec Parameters
-		err = json.Unmarshal(data, &paramsRec)
-		assert.Nil(t, err)
-		assert.True(t, tc.params.Equal(paramsRec))
+			// checks that ckks.Parameters can be unmarshalled without error
+			var paramsRec Parameters
+			err = json.Unmarshal(data, &paramsRec)
+			require.Nil(t, err)
+			require.True(t, tc.params.Equals(paramsRec))
 
-		// checks that ckks.Parameters can be unmarshalled with log-moduli definition without error
-		dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60], "DefaultScale":1.0}`, tc.params.LogN()))
-		var paramsWithLogModuli Parameters
-		err = json.Unmarshal(dataWithLogModuli, &paramsWithLogModuli)
-		assert.Nil(t, err)
-		assert.Equal(t, 2, paramsWithLogModuli.QCount())
-		assert.Equal(t, 1, paramsWithLogModuli.PCount())
-		assert.Equal(t, ring.Standard, paramsWithLogModuli.RingType())  // Omitting the RingType field should result in a standard instance
-		assert.Equal(t, rlwe.DefaultSigma, paramsWithLogModuli.Sigma()) // Omitting sigma should result in Default being used
+			// checks that ckks.Parameters can be unmarshalled with log-moduli definition without error
+			dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60], "DefaultScale":1.0}`, tc.params.LogN()))
+			var paramsWithLogModuli Parameters
+			err = json.Unmarshal(dataWithLogModuli, &paramsWithLogModuli)
+			require.Nil(t, err)
+			require.Equal(t, 2, paramsWithLogModuli.QCount())
+			require.Equal(t, 1, paramsWithLogModuli.PCount())
+			require.Equal(t, ring.Standard, paramsWithLogModuli.RingType())  // Omitting the RingType field should result in a standard instance
+			require.Equal(t, rlwe.DefaultSigma, paramsWithLogModuli.Sigma()) // Omitting sigma should result in Default being used
 
-		// checks that ckks.Parameters can be unmarshalled with log-moduli definition with empty P without error
-		dataWithLogModuliNoP := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[],"DefaultScale":1.0,"RingType": "ConjugateInvariant"}`, tc.params.LogN()))
-		var paramsWithLogModuliNoP Parameters
-		err = json.Unmarshal(dataWithLogModuliNoP, &paramsWithLogModuliNoP)
-		assert.Nil(t, err)
-		assert.Equal(t, 2, paramsWithLogModuliNoP.QCount())
-		assert.Equal(t, 0, paramsWithLogModuliNoP.PCount())
-		assert.Equal(t, ring.ConjugateInvariant, paramsWithLogModuliNoP.RingType())
+			// checks that ckks.Parameters can be unmarshalled with log-moduli definition with empty P without error
+			dataWithLogModuliNoP := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[],"DefaultScale":1.0,"RingType": "ConjugateInvariant"}`, tc.params.LogN()))
+			var paramsWithLogModuliNoP Parameters
+			err = json.Unmarshal(dataWithLogModuliNoP, &paramsWithLogModuliNoP)
+			require.Nil(t, err)
+			require.Equal(t, 2, paramsWithLogModuliNoP.QCount())
+			require.Equal(t, 0, paramsWithLogModuliNoP.PCount())
+			require.Equal(t, ring.ConjugateInvariant, paramsWithLogModuliNoP.RingType())
 
 		// checks that one can provide custom parameters for the secret-key and error distributions
 		dataWithCustomSecrets := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60],"DefaultScale":1.0,"H": 192, "Sigma": 6.6}`, tc.params.LogN()))

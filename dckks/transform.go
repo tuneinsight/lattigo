@@ -16,7 +16,7 @@ type MaskedTransformProtocol struct {
 	e2s E2SProtocol
 	s2e S2EProtocol
 
-	sigmaSmudging float64
+	noise ring.Distribution
 
 	defaultScale *big.Int
 	prec         uint
@@ -58,7 +58,7 @@ func (rfp *MaskedTransformProtocol) WithParams(paramsOut ckks.Parameters) *Maske
 
 	return &MaskedTransformProtocol{
 		e2s:          *rfp.e2s.ShallowCopy(),
-		s2e:          *NewS2EProtocol(paramsOut, rfp.sigmaSmudging),
+		s2e:          *NewS2EProtocol(paramsOut, rfp.noise),
 		prec:         rfp.prec,
 		defaultScale: rfp.defaultScale,
 		tmpMask:      tmpMask,
@@ -85,7 +85,7 @@ type MaskedTransformFunc struct {
 // paramsOut: the ckks.Parameters of the ciphertext after the protocol.
 // prec : the log2 of decimal precision of the internal encoder.
 // The method will return an error if the maximum number of slots of the output parameters is smaller than the number of slots of the input ciphertext.
-func NewMaskedTransformProtocol(paramsIn, paramsOut ckks.Parameters, prec uint, sigmaSmudging float64) (rfp *MaskedTransformProtocol, err error) {
+func NewMaskedTransformProtocol(paramsIn, paramsOut ckks.Parameters, prec uint, noise ring.Distribution) (rfp *MaskedTransformProtocol, err error) {
 
 	if paramsIn.Slots() > paramsOut.MaxSlots() {
 		return nil, fmt.Errorf("newMaskedTransformProtocol: paramsOut.N()/2 < paramsIn.Slots()")
@@ -93,10 +93,10 @@ func NewMaskedTransformProtocol(paramsIn, paramsOut ckks.Parameters, prec uint, 
 
 	rfp = new(MaskedTransformProtocol)
 
-	rfp.sigmaSmudging = sigmaSmudging
+	rfp.noise = noise.CopyNew()
 
-	rfp.e2s = *NewE2SProtocol(paramsIn, sigmaSmudging)
-	rfp.s2e = *NewS2EProtocol(paramsOut, sigmaSmudging)
+	rfp.e2s = *NewE2SProtocol(paramsIn, noise)
+	rfp.s2e = *NewS2EProtocol(paramsOut, noise)
 
 	rfp.prec = prec
 

@@ -35,8 +35,8 @@ type encryptorBase struct {
 	*encryptorBuffers
 
 	prng            sampling.PRNG
-	gaussianSampler *ring.GaussianSampler
-	ternarySampler  *ring.TernarySampler
+	gaussianSampler ring.Sampler
+	ternarySampler  ring.Sampler
 	basisextender   *ring.BasisExtender
 	uniformSampler  ringqp.UniformSampler
 }
@@ -86,8 +86,8 @@ func newEncryptorBase(params Parameters) *encryptorBase {
 	return &encryptorBase{
 		params:           params,
 		prng:             prng,
-		gaussianSampler:  ring.NewGaussianSampler(prng, params.RingQ(), params.Sigma(), int(6*params.Sigma())),
-		ternarySampler:   ring.NewTernarySamplerWithHammingWeight(prng, params.ringQ, params.h, false),
+		gaussianSampler:  params.Xe().NewSampler(prng, params.RingQ(), false),
+		ternarySampler:   params.Xs().NewSampler(prng, params.RingQ(), false),
 		encryptorBuffers: newEncryptorBuffers(params),
 		uniformSampler:   ringqp.NewUniformSampler(prng, *params.RingQP()),
 		basisextender:    bc,

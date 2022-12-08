@@ -6,6 +6,7 @@ package dbgv
 import (
 	"github.com/tuneinsight/lattigo/v4/bgv"
 	"github.com/tuneinsight/lattigo/v4/drlwe"
+	"github.com/tuneinsight/lattigo/v4/ring"
 )
 
 // NewCKGProtocol creates a new drlwe.CKGProtocol instance from the BGV parameters.
@@ -28,12 +29,12 @@ func NewGKGProtocol(params bgv.Parameters) *drlwe.GKGProtocol {
 
 // NewCKSProtocol creates a new drlwe.CKSProtocol instance from the BGV parameters.
 // The returned protocol instance is generic and can be used in other multiparty schemes.
-func NewCKSProtocol(params bgv.Parameters, sigmaSmudging float64) *drlwe.CKSProtocol {
-	return drlwe.NewCKSProtocol(params.Parameters, sigmaSmudging)
+func NewCKSProtocol(params bgv.Parameters, noise *ring.DiscreteGaussian) *drlwe.CKSProtocol {
+	return drlwe.NewCKSProtocol(params.Parameters, noise)
 }
 
 // NewPCKSProtocol creates a new drlwe.PCKSProtocol instance from the BGV paramters.
 // The returned protocol instance is generic and can be used in other multiparty schemes.
-func NewPCKSProtocol(params bgv.Parameters, sigmaSmudging float64) *drlwe.PCKSProtocol {
-	return drlwe.NewPCKSProtocol(params.Parameters, sigmaSmudging)
+func NewPCKSProtocol(params bgv.Parameters, noise *ring.DiscreteGaussian) *drlwe.PCKSProtocol {
+	return drlwe.NewPCKSProtocol(params.Parameters, noise)
 }

@@ -54,7 +54,7 @@ func BenchmarkDRLWE(b *testing.B) {
 }
 
 func benchString(opname string, params rlwe.Parameters) string {
-	return fmt.Sprintf("%s/LogN=%d/logQP=%d", opname, params.LogN(), params.LogQP())
+	return fmt.Sprintf("%s/LogN=%d/logQP=%f", opname, params.LogN(), params.LogQP())
 }
 
 func benchPublicKeyGen(params rlwe.Parameters, b *testing.B) {

@@ -28,7 +28,7 @@ func (r *Ring) UnfoldConjugateInvariantToStandard(level int, polyConjugateInvari
 // FoldStandardToConjugateInvariant folds [X]/(X^N+1) to [X+X^-1]/(X^N+1) in compressed form (N/2 coefficients).
 // Requires degree(polyConjugateInvariant) = 2*degree(polyStd).
 // Requires that polyStd and polyConjugateInvariant share the same moduli.
-func (r *Ring) FoldStandardToConjugateInvariant(level int, polyStandard *Poly, permuteNTTIndexInv []uint64, polyConjugateInvariant *Poly) {
+func (r *Ring) FoldStandardToConjugateInvariant(polyStandard *Poly, permuteNTTIndexInv []uint64, polyConjugateInvariant *Poly) {
 
 	if len(polyStandard.Coeffs[0]) != 2*len(polyConjugateInvariant.Coeffs[0]) {
 		panic("cannot FoldStandardToConjugateInvariant: Ring degree of p2 must be 2N and ring degree of p1 must be N")
@@ -36,7 +36,9 @@ func (r *Ring) FoldStandardToConjugateInvariant(level int, polyStandard *Poly, p
 
 	N := r.N()
 
-	r.PermuteNTTWithIndexLvl(level, polyStandard, permuteNTTIndexInv, polyConjugateInvariant)
+	level := r.level
+
+	r.PermuteNTTWithIndex(polyStandard, permuteNTTIndexInv, polyConjugateInvariant)
 	for i := 0; i < level+1; i++ {
 		AddVec(polyConjugateInvariant.Coeffs[i][:N], polyStandard.Coeffs[i][:N], polyConjugateInvariant.Coeffs[i][:N], r.Tables[i].Modulus)
 	}

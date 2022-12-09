@@ -1,27 +1,34 @@
 package ring
 
-// DivFloorByLastModulusNTTLvl divides (floored) the polynomial by its last modulus. The input must be in the NTT domain.
+// DivFloorByLastModulusNTT divides (floored) the polynomial by its last modulus.
+// The input must be in the NTT domain.
 // Output poly level must be equal or one less than input level.
-func (r *Ring) DivFloorByLastModulusNTTLvl(level int, p0, buff, p1 *Poly) {
-	r.InvNTTSingleLazy(level, p0.Coeffs[level], buff.Coeffs[0])
-	for i := 0; i < level; i++ {
-		r.NTTSingleLazy(i, buff.Coeffs[0], buff.Coeffs[1])
+func (r *Ring) DivFloorByLastModulusNTT(p0, buff, p1 *Poly) {
+
+	level := r.level
+
+	r.InvNTTSingleLazy(r.Tables[level], p0.Coeffs[level], buff.Coeffs[0])
+	for i, table := range r.Tables[:level] {
+		r.NTTSingleLazy(table, buff.Coeffs[0], buff.Coeffs[1])
 		// (-x[i] + x[-1]) * -InvQ
-		SubVecAndMulScalarMontgomeryTwoQiVec(buff.Coeffs[1], p0.Coeffs[i], p1.Coeffs[i], r.RescaleParams[level-1][i], r.Tables[i].Modulus, r.Tables[i].MRedParams)
+		SubVecAndMulScalarMontgomeryTwoQiVec(buff.Coeffs[1], p0.Coeffs[i], p1.Coeffs[i], r.RescaleParams[r.level-1][i], table.Modulus, table.MRedParams)
 	}
 }
 
-// DivFloorByLastModulusLvl divides (floored) the polynomial by its last modulus.
+// DivFloorByLastModulus divides (floored) the polynomial by its last modulus.
 // Output poly level must be equal or one less than input level.
-func (r *Ring) DivFloorByLastModulusLvl(level int, p0, p1 *Poly) {
+func (r *Ring) DivFloorByLastModulus(p0, p1 *Poly) {
+
+	level := r.level
+
 	for i := 0; i < level; i++ {
 		SubVecAndMulScalarMontgomeryTwoQiVec(p0.Coeffs[level], p0.Coeffs[i], p1.Coeffs[i], r.RescaleParams[level-1][i], r.Tables[i].Modulus, r.Tables[i].MRedParams)
 	}
 }
 
-// DivFloorByLastModulusManyNTTLvl divides (floored) sequentially nbRescales times the polynomial by its last modulus. Input must be in the NTT domain.
+// DivFloorByLastModulusManyNTT divides (floored) sequentially nbRescales times the polynomial by its last modulus. Input must be in the NTT domain.
 // Output poly level must be equal or nbRescales less than input level.
-func (r *Ring) DivFloorByLastModulusManyNTTLvl(level, nbRescales int, p0, buff, p1 *Poly) {
+func (r *Ring) DivFloorByLastModulusManyNTT(nbRescales int, p0, buff, p1 *Poly) {
 
 	if nbRescales == 0 {
 
@@ -31,19 +38,22 @@ func (r *Ring) DivFloorByLastModulusManyNTTLvl(level, nbRescales int, p0, buff, 
 
 	} else {
 
-		r.InvNTTLvl(level, p0, buff)
+		rCpy := r.AtLevel(r.Level())
+
+		rCpy.InvNTT(p0, buff)
 
 		for i := 0; i < nbRescales; i++ {
-			r.DivFloorByLastModulusLvl(level-i, buff, buff)
+			rCpy.DivFloorByLastModulus(buff, buff)
+			rCpy = rCpy.AtLevel(rCpy.Level() - 1)
 		}
 
-		r.NTTLvl(level-nbRescales, buff, p1)
+		rCpy.NTT(buff, p1)
 	}
 }
 
-// DivFloorByLastModulusManyLvl divides (floored) sequentially nbRescales times the polynomial by its last modulus.
+// DivFloorByLastModulusMany divides (floored) sequentially nbRescales times the polynomial by its last modulus.
 // Output poly level must be equal or nbRescales less than input level.
-func (r *Ring) DivFloorByLastModulusManyLvl(level, nbRescales int, p0, buff, p1 *Poly) {
+func (r *Ring) DivFloorByLastModulusMany(nbRescales int, p0, buff, p1 *Poly) {
 
 	if nbRescales == 0 {
 
@@ -54,28 +64,36 @@ func (r *Ring) DivFloorByLastModulusManyLvl(level, nbRescales int, p0, buff, p1 
 	} else {
 
 		if nbRescales > 1 {
-			r.DivFloorByLastModulusLvl(level, p0, buff)
+
+			rCpy := r.AtLevel(r.Level())
+
+			rCpy.DivFloorByLastModulus(p0, buff)
+			rCpy = rCpy.AtLevel(rCpy.Level() - 1)
 
 			for i := 1; i < nbRescales; i++ {
 
 				if i == nbRescales-1 {
-					r.DivFloorByLastModulusLvl(level-i, buff, p1)
+					rCpy.DivFloorByLastModulus(buff, p1)
 				} else {
-					r.DivFloorByLastModulusLvl(level-i, buff, buff)
+					rCpy.DivFloorByLastModulus(buff, buff)
 				}
+
+				rCpy = rCpy.AtLevel(rCpy.Level() - 1)
 			}
 
 		} else {
-			r.DivFloorByLastModulusLvl(level, p0, p1)
+			r.DivFloorByLastModulus(p0, p1)
 		}
 	}
 }
 
-// DivRoundByLastModulusNTTLvl divides (rounded) the polynomial by its last modulus. The input must be in the NTT domain.
+// DivRoundByLastModulusNTT divides (rounded) the polynomial by its last modulus. The input must be in the NTT domain.
 // Output poly level must be equal or one less than input level.
-func (r *Ring) DivRoundByLastModulusNTTLvl(level int, p0, buff, p1 *Poly) {
+func (r *Ring) DivRoundByLastModulusNTT(p0, buff, p1 *Poly) {
 
-	r.InvNTTSingleLazy(level, p0.Coeffs[level], buff.Coeffs[level])
+	level := r.level
+
+	r.InvNTTSingleLazy(r.Tables[level], p0.Coeffs[level], buff.Coeffs[level])
 
 	// Center by (p-1)/2
 	pj := r.Tables[level].Modulus
@@ -83,18 +101,19 @@ func (r *Ring) DivRoundByLastModulusNTTLvl(level int, p0, buff, p1 *Poly) {
 
 	AddScalarVec(buff.Coeffs[level], buff.Coeffs[level], pHalf, pj)
 
-	for i := 0; i < level; i++ {
-		table := r.Tables[i]
+	for i, table := range r.Tables[:level] {
 		qi := table.Modulus
 		AddScalarNoModVec(buff.Coeffs[level], buff.Coeffs[i], qi-BRedAdd(pHalf, qi, table.BRedParams))
-		r.NTTSingleLazy(i, buff.Coeffs[i], buff.Coeffs[i])
+		r.NTTSingleLazy(table, buff.Coeffs[i], buff.Coeffs[i])
 		SubVecAndMulScalarMontgomeryTwoQiVec(buff.Coeffs[i], p0.Coeffs[i], p1.Coeffs[i], r.RescaleParams[level-1][i], qi, table.MRedParams)
 	}
 }
 
-// DivRoundByLastModulusLvl divides (rounded) the polynomial by its last modulus. The input must be in the NTT domain.
+// DivRoundByLastModulus divides (rounded) the polynomial by its last modulus. The input must be in the NTT domain.
 // Output poly level must be equal or one less than input level.
-func (r *Ring) DivRoundByLastModulusLvl(level int, p0, p1 *Poly) {
+func (r *Ring) DivRoundByLastModulus(p0, p1 *Poly) {
+
+	level := r.level
 
 	// Center by (p-1)/2
 	pj := r.Tables[level].Modulus
@@ -110,9 +129,9 @@ func (r *Ring) DivRoundByLastModulusLvl(level int, p0, p1 *Poly) {
 	}
 }
 
-// DivRoundByLastModulusManyNTTLvl divides (rounded) sequentially nbRescales times the polynomial by its last modulus. The input must be in the NTT domain.
+// DivRoundByLastModulusManyNTT divides (rounded) sequentially nbRescales times the polynomial by its last modulus. The input must be in the NTT domain.
 // Output poly level must be equal or nbRescales less than input level.
-func (r *Ring) DivRoundByLastModulusManyNTTLvl(level, nbRescales int, p0, buff, p1 *Poly) {
+func (r *Ring) DivRoundByLastModulusManyNTT(level, nbRescales int, p0, buff, p1 *Poly) {
 
 	if nbRescales == 0 {
 
@@ -124,21 +143,25 @@ func (r *Ring) DivRoundByLastModulusManyNTTLvl(level, nbRescales int, p0, buff, 
 
 		if nbRescales > 1 {
 
-			r.InvNTTLvl(level, p0, buff)
+			rCpy := r.AtLevel(r.Level())
+
+			rCpy.InvNTT(p0, buff)
 			for i := 0; i < nbRescales; i++ {
-				r.DivRoundByLastModulusLvl(level-i, buff, buff)
+				rCpy.DivRoundByLastModulus(buff, buff)
+				rCpy = rCpy.AtLevel(rCpy.Level() - 1)
 			}
-			r.NTTLvl(level-nbRescales, buff, p1)
+
+			rCpy.NTT(buff, p1)
 
 		} else {
-			r.DivRoundByLastModulusNTTLvl(level, p0, buff, p1)
+			r.DivRoundByLastModulusNTT(p0, buff, p1)
 		}
 	}
 }
 
-// DivRoundByLastModulusManyLvl divides (rounded) sequentially nbRescales times the polynomial by its last modulus.
+// DivRoundByLastModulusMany divides (rounded) sequentially nbRescales times the polynomial by its last modulus.
 // Output poly level must be equal or nbRescales less than input level.
-func (r *Ring) DivRoundByLastModulusManyLvl(level, nbRescales int, p0, buff, p1 *Poly) {
+func (r *Ring) DivRoundByLastModulusMany(nbRescales int, p0, buff, p1 *Poly) {
 
 	if nbRescales == 0 {
 
@@ -150,19 +173,24 @@ func (r *Ring) DivRoundByLastModulusManyLvl(level, nbRescales int, p0, buff, p1 
 
 		if nbRescales > 1 {
 
-			r.DivRoundByLastModulusLvl(level, p0, buff)
+			rCpy := r.AtLevel(r.Level())
+
+			rCpy.DivRoundByLastModulus(p0, buff)
+			rCpy = rCpy.AtLevel(rCpy.Level() - 1)
 
 			for i := 1; i < nbRescales; i++ {
 
 				if i == nbRescales-1 {
-					r.DivRoundByLastModulusLvl(level-i, buff, p1)
+					rCpy.DivRoundByLastModulus(buff, p1)
 				} else {
-					r.DivRoundByLastModulusLvl(level-i, buff, buff)
+					rCpy.DivRoundByLastModulus(buff, buff)
 				}
+
+				rCpy = rCpy.AtLevel(rCpy.Level() - 1)
 			}
 
 		} else {
-			r.DivRoundByLastModulusLvl(level, p0, p1)
+			r.DivRoundByLastModulus(p0, p1)
 		}
 	}
 }

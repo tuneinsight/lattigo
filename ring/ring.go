@@ -72,6 +72,8 @@ type Ring struct {
 
 	// Rescaling parameters (RNS division)
 	RescaleParams [][]uint64
+
+	level int
 }
 
 // ConjugateInvariantRing returns the conjugate invariant ring of the receiver ring.
@@ -138,6 +140,31 @@ func (r *Ring) NbModuli() int {
 	return len(r.Tables)
 }
 
+// Level returns the level of the current ring.
+func (r *Ring) Level() int {
+	return r.level
+}
+
+// AtLevel returns a shallowcopy of the target ring that operates at the target level.
+func (r *Ring) AtLevel(level int) *Ring {
+
+	if level < 0 {
+		panic("level cannot be negative")
+	}
+
+	if level > r.MaxLevel() {
+		panic("level cannot be larger than max level")
+	}
+
+	return &Ring{
+		NumberTheoreticTransformer: r.NumberTheoreticTransformer,
+		Tables:                     r.Tables,
+		ModulusAtLevel:             r.ModulusAtLevel,
+		RescaleParams:              r.RescaleParams,
+		level:                      level,
+	}
+}
+
 // MaxLevel returns the maximum level allowed by the ring (#NbModuli -1).
 func (r *Ring) MaxLevel() int {
 	return r.NbModuli() - 1
@@ -153,6 +180,14 @@ func (r *Ring) Moduli() (moduli []uint64) {
 	return
 }
 
+// Modulus returns the modulus of the target ring at the currently
+// set level in *big.Int.
+func (r *Ring) Modulus() *big.Int {
+	return r.ModulusAtLevel[r.level]
+}
+
+// MRedParams returns the concatenation of the Montgomery parameters
+// of the target ring.
 func (r *Ring) MRedParams() (mredparams []uint64) {
 	mredparams = make([]uint64, len(r.Tables))
 	for i := range r.Tables {
@@ -162,6 +197,8 @@ func (r *Ring) MRedParams() (mredparams []uint64) {
 	return
 }
 
+// MRedParams returns the concatenation of the Barrett parameters
+// of the target ring.
 func (r *Ring) BRedParams() (bredparams [][]uint64) {
 	bredparams = make([][]uint64, len(r.Tables))
 	for i := range r.Tables {
@@ -265,6 +302,8 @@ func (r *Ring) SetParameters(N int, Modulus []uint64) error {
 
 	r.RescaleParams = rewRescaleParams(r.Tables)
 
+	r.level = len(Modulus) - 1
+
 	return nil
 }
 
@@ -311,27 +350,22 @@ func (r *Ring) GenNTTParams(NthRoot uint64, primitiveRoots []uint64, factors [][
 
 // NewPoly creates a new polynomial with all coefficients set to 0.
 func (r *Ring) NewPoly() *Poly {
-	return NewPoly(r.N(), r.MaxLevel())
+	return NewPoly(r.N(), r.level)
 }
 
-// NewPolyLvl creates a new polynomial with all coefficients set to 0.
-func (r *Ring) NewPolyLvl(level int) *Poly {
-	return NewPoly(r.N(), level)
-}
-
-// SetCoefficientsBigintLvl sets the coefficients of p1 from an array of Int variables.
-func (r *Ring) SetCoefficientsBigintLvl(level int, coeffs []*big.Int, p1 *Poly) {
+// SetCoefficientsBigint sets the coefficients of p1 from an array of Int variables.
+func (r *Ring) SetCoefficientsBigint(coeffs []*big.Int, p1 *Poly) {
 
 	QiBigint := new(big.Int)
 	coeffTmp := new(big.Int)
-	for i := 0; i < level+1; i++ {
+	for i, table := range r.Tables[:r.level+1] {
 
-		Modulus := r.Tables[i].Modulus
+		QiBigint.SetUint64(table.Modulus)
 
-		QiBigint.SetUint64(Modulus)
+		p1Coeffs := p1.Coeffs[i]
+
 		for j, coeff := range coeffs {
-			p1.Coeffs[i][j] = coeffTmp.Mod(coeff, QiBigint).Uint64()
-
+			p1Coeffs[j] = coeffTmp.Mod(coeff, QiBigint).Uint64()
 		}
 	}
 }
@@ -355,24 +389,15 @@ func (r *Ring) PolyToString(p1 *Poly) []string {
 // For example, if gap = 1, then all coefficients are reconstructed, while
 // if gap = 2 then only coefficients X^{2*i} are reconstructed.
 func (r *Ring) PolyToBigint(p1 *Poly, gap int, coeffsBigint []*big.Int) {
-	r.PolyToBigintLvl(p1.Level(), p1, gap, coeffsBigint)
-}
 
-// PolyToBigintLvl reconstructs p1 and returns the result in an array of Int.
-// gap defines coefficients X^{i*gap} that will be reconstructed.
-// For example, if gap = 1, then all coefficients are reconstructed, while
-// if gap = 2 then only coefficients X^{2*i} are reconstructed.
-func (r *Ring) PolyToBigintLvl(level int, p1 *Poly, gap int, coeffsBigint []*big.Int) {
-
-	crtReconstruction := make([]*big.Int, level+1)
+	crtReconstruction := make([]*big.Int, r.level+1)
 
 	QiB := new(big.Int)
 	tmp := new(big.Int)
-	modulusBigint := r.ModulusAtLevel[level]
+	modulusBigint := r.ModulusAtLevel[r.level]
 
-	for i := 0; i < level+1; i++ {
-		Modulus := r.Tables[i].Modulus
-		QiB.SetUint64(Modulus)
+	for i, table := range r.Tables[:r.level+1] {
+		QiB.SetUint64(table.Modulus)
 		crtReconstruction[i] = new(big.Int).Quo(modulusBigint, QiB)
 		tmp.ModInverse(crtReconstruction[i], QiB)
 		tmp.Mod(tmp, QiB)
@@ -384,7 +409,7 @@ func (r *Ring) PolyToBigintLvl(level int, p1 *Poly, gap int, coeffsBigint []*big
 		tmp.SetUint64(0)
 		coeffsBigint[i] = new(big.Int)
 
-		for k := 0; k < level+1; k++ {
+		for k := 0; k < r.level+1; k++ {
 			coeffsBigint[i].Add(coeffsBigint[i], tmp.Mul(NewUint(p1.Coeffs[k][j]), crtReconstruction[k]))
 		}
 
@@ -392,22 +417,21 @@ func (r *Ring) PolyToBigintLvl(level int, p1 *Poly, gap int, coeffsBigint []*big
 	}
 }
 
-// PolyToBigintCenteredLvl reconstructs p1 and returns the result in an array of Int.
+// PolyToBigintCentered reconstructs p1 and returns the result in an array of Int.
 // Coefficients are centered around Q/2
 // gap defines coefficients X^{i*gap} that will be reconstructed.
 // For example, if gap = 1, then all coefficients are reconstructed, while
 // if gap = 2 then only coefficients X^{2*i} are reconstructed.
-func (r *Ring) PolyToBigintCenteredLvl(level int, p1 *Poly, gap int, coeffsBigint []*big.Int) {
+func (r *Ring) PolyToBigintCentered(p1 *Poly, gap int, coeffsBigint []*big.Int) {
 
-	crtReconstruction := make([]*big.Int, level+1)
+	crtReconstruction := make([]*big.Int, r.level+1)
 
 	QiB := new(big.Int)
 	tmp := new(big.Int)
-	modulusBigint := r.ModulusAtLevel[level]
+	modulusBigint := r.ModulusAtLevel[r.level]
 
-	for i := 0; i < level+1; i++ {
-		Modulus := r.Tables[i].Modulus
-		QiB.SetUint64(Modulus)
+	for i, table := range r.Tables[:r.level+1] {
+		QiB.SetUint64(table.Modulus)
 		crtReconstruction[i] = new(big.Int).Quo(modulusBigint, QiB)
 		tmp.ModInverse(crtReconstruction[i], QiB)
 		tmp.Mod(tmp, QiB)
@@ -423,7 +447,7 @@ func (r *Ring) PolyToBigintCenteredLvl(level int, p1 *Poly, gap int, coeffsBigin
 		tmp.SetUint64(0)
 		coeffsBigint[i].SetUint64(0)
 
-		for k := 0; k < level+1; k++ {
+		for k := 0; k < r.level; k++ {
 			coeffsBigint[i].Add(coeffsBigint[i], tmp.Mul(NewUint(p1.Coeffs[k][j]), crtReconstruction[k]))
 		}
 
@@ -440,22 +464,17 @@ func (r *Ring) PolyToBigintCenteredLvl(level int, p1 *Poly, gap int, coeffsBigin
 
 // Equal checks if p1 = p2 in the given Ring.
 func (r *Ring) Equal(p1, p2 *Poly) bool {
-	return r.EqualLvl(utils.MinInt(p1.Level(), p2.Level()), p1, p2)
-}
 
-// EqualLvl checks if p1 = p2 in the given Ring, up to a given level.
-func (r *Ring) EqualLvl(level int, p1, p2 *Poly) bool {
-
-	for i := 0; i < level+1; i++ {
+	for i := 0; i < r.level+1; i++ {
 		if len(p1.Coeffs[i]) != len(p2.Coeffs[i]) {
 			return false
 		}
 	}
 
-	r.ReduceLvl(level, p1, p1)
-	r.ReduceLvl(level, p2, p2)
+	r.Reduce(p1, p1)
+	r.Reduce(p2, p2)
 
-	for i := 0; i < level+1; i++ {
+	for i := 0; i < r.level+1; i++ {
 		for j := 0; j < r.N(); j++ {
 			if p1.Coeffs[i][j] != p2.Coeffs[i][j] {
 				return false
@@ -470,6 +489,7 @@ func (r *Ring) EqualLvl(level int, p1, p2 *Poly) bool {
 func (r *Ring) MarshalBinarySize() (dataLen int) {
 	dataLen++ // Type
 	dataLen++ // #Tables
+	dataLen++ // level
 	for i := range r.Tables {
 		dataLen += r.Tables[i].MarshalBinarySize()
 	}
@@ -505,6 +525,8 @@ func (r *Ring) Encode(data []byte) (ptr int, err error) {
 	ptr++
 	data[ptr] = uint8(len(r.Tables))
 	ptr++
+	data[ptr] = uint8(r.level)
+	ptr++
 
 	var inc int
 	for i := range r.Tables {
@@ -525,6 +547,9 @@ func (r *Ring) Decode(data []byte) (ptr int, err error) {
 	ptr++
 
 	r.Tables = make([]*Table, data[ptr])
+	ptr++
+
+	r.level = int(data[ptr])
 	ptr++
 
 	var inc int

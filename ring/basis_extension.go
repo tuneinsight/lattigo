@@ -235,14 +235,14 @@ func (be *BasisExtender) ModDownQPtoQNTT(levelQ, levelP int, p1Q, p1P, p2Q *Poly
 	buffQ := be.buffQ
 
 	// First we get the P basis part of p1 out of the NTT domain
-	ringP.InvNTTLazyLvl(levelP, p1P, buffP)
+	ringP.AtLevel(levelP).InvNTTLazy(p1P, buffP)
 
 	// Then we target this P basis of p1 and convert it to a Q basis (at the "level" of p1) and copy it on the buffer.
 	// The buffer is now the representation of the P basis of p1 but in basis Q (at the "level" of p1)
 	be.ModUpPtoQ(levelP, levelQ, buffP, buffQ)
 
 	// First, we switch back the buffer CRT array back to the NTT domain
-	ringQ.NTTLazyLvl(levelQ, buffQ, buffQ)
+	ringQ.AtLevel(levelQ).NTTLazy(buffQ, buffQ)
 
 	// Finally, for each level of p1 (and the buffer since they now share the same basis) we compute p2 = (P^-1) * (p1 - buff) mod Q
 	for i := 0; i < levelQ+1; i++ {

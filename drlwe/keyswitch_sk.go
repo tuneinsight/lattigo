@@ -34,7 +34,7 @@ func (cks *CKSProtocol) ShallowCopy() *CKSProtocol {
 
 	return &CKSProtocol{
 		params:          params,
-		gaussianSampler: cks.noise.NewSampler(prng, cks.params.RingQ(), false),
+		gaussianSampler: ring.NewSampler(prng, cks.params.RingQ(), cks.noise, false),
 		basisExtender:   cks.basisExtender.ShallowCopy(),
 		buf:             params.RingQ().NewPoly(),
 		bufDelta:        params.RingQ().NewPoly(),
@@ -59,8 +59,14 @@ func NewCKSProtocol(params rlwe.Parameters, noise ring.Distribution) *CKSProtoco
 
 	// EncFreshSK + sigmaSmudging
 	cks.sigmaSmudging = math.Sqrt(params.Sigma()*params.Sigma() + sigmaSmudging*sigmaSmudging)
+	switch noise.(type) {
+	case *ring.DiscreteGaussianDistribution:
+	default:
+		panic(fmt.Sprintf("invalid distribution type, expected %T but got %T", &ring.DiscreteGaussianDistribution{}, noise))
+	}
 
 	cks.gaussianSampler = ring.NewGaussianSampler(prng, params.RingQ(), cks.sigmaSmudging, int(6*cks.sigmaSmudging))
+	cks.gaussianSampler = ring.NewSampler(prng, params.RingQ(), noise, false)
 
 	if cks.params.RingP() != nil {
 		cks.basisExtender = ring.NewBasisExtender(params.RingQ(), params.RingP())

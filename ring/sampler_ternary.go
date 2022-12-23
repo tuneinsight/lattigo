@@ -20,18 +20,25 @@ type TernarySampler struct {
 // NewTernarySampler creates a new instance of TernarySampler from a PRNG, the ring definition and the distribution
 // parameters: p is the probability of a coefficient being 0, (1-p)/2 is the probability of 1 and -1. If "montgomery"
 // is set to true, polynomials read from this sampler are in Montgomery form.
-func NewTernarySampler(prng utils.PRNG, baseRing *Ring, X *UniformTernary, montgomery bool) (ts *TernarySampler) {
+func NewTernarySampler(prng utils.PRNG, baseRing *Ring, X *TernaryDistribution, montgomery bool) (ts *TernarySampler) {
 	ts = new(TernarySampler)
 	ts.baseRing = baseRing
 	ts.prng = prng
-	ts.p = X.P
-	ts.sampleLvl = ts.sampleProbaLvl
-	ts.sampleLvlAndAddLvl = ts.sampleProbaAndAddLvl
-
 	ts.initializeMatrix(montgomery)
-
-	if ts.p != 0.5 {
-		ts.computeMatrixTernary(ts.p)
+	switch {
+	case X.P != 0 && X.H == 0:
+		ts.p = X.P
+		ts.sampleLvl = ts.sampleProbaLvl
+		ts.sampleLvlAndAddLvl = ts.sampleProbaAndAddLvl
+		if ts.p != 0.5 {
+			ts.computeMatrixTernary(ts.p)
+		}
+	case X.P == 0 && X.H != 0:
+		ts.hw = X.H
+		ts.sampleLvl = ts.sampleSparseLvl
+		ts.sampleLvlAndAddLvl = ts.sampleSparseAndAddLvl
+	default:
+		panic("invalid TernaryDistribution: at exactly one of (H, P) should be > 0")
 	}
 
 	return
@@ -53,7 +60,7 @@ func (ts *TernarySampler) AtLevel(level int) Sampler {
 // NewTernarySamplerWithHammingWeight creates a new instance of a fixed-hamming-weight TernarySampler from a PRNG, the ring definition and the desired
 // hamming weight for the output polynomials. If "montgomery" is set to true, polynomials read from this sampler
 // are in Montgomery form.
-func NewTernarySamplerWithHammingWeight(prng utils.PRNG, baseRing *Ring, X *SparseTernary, montgomery bool) (ts *TernarySampler) {
+func NewTernarySamplerWithHammingWeight(prng utils.PRNG, baseRing *Ring, X *TernaryFixedHammingWeightDistribution, montgomery bool) (ts *TernarySampler) {
 	ts = new(TernarySampler)
 	ts.baseRing = baseRing
 	ts.prng = prng

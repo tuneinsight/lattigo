@@ -24,7 +24,7 @@ func (ckg *CKGProtocol) ShallowCopy() *CKGProtocol {
 		panic(err)
 	}
 
-	return &CKGProtocol{ckg.params, ckg.params.Xe().NewSampler(prng, ckg.params.RingQ(), false)}
+	return &CKGProtocol{ckg.params, ring.NewSampler(prng, ckg.params.RingQ(), ckg.params.Xe(), false)}
 }
 
 // CKGShare is a struct storing the CKG protocol's share.
@@ -97,7 +97,7 @@ func NewCKGProtocol(params rlwe.Parameters) *CKGProtocol {
 	if err != nil {
 		panic(err)
 	}
-	ckg.gaussianSamplerQ = params.Xe().NewSampler(prng, params.RingQ(), false)
+	ckg.gaussianSamplerQ = ring.NewSampler(prng, params.RingQ(), params.Xe(), false)
 	return ckg
 }
 

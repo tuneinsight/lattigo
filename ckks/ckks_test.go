@@ -189,7 +189,7 @@ func randomConst(tp ring.Type, a, b complex128) (constant complex128) {
 	return
 }
 
-func verifyTestVectors(params Parameters, encoder Encoder, decryptor rlwe.Decryptor, valuesWant []complex128, element interface{}, logSlots int, noise *ring.DiscreteGaussian, t *testing.T) {
+func verifyTestVectors(params Parameters, encoder Encoder, decryptor rlwe.Decryptor, valuesWant []complex128, element interface{}, logSlots int, noise *ring.DiscreteGaussianDistribution, t *testing.T) {
 
 	precStats := GetPrecisionStats(params, encoder, decryptor, valuesWant, element, logSlots, noise)
 
@@ -907,7 +907,7 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 
 		sigma := ring.StandardDeviation(tc.encoder.GetErrSTDCoeffDomain(values, valuesHave, plaintext.Scale))
 
-		valuesHave = tc.encoder.DecodePublic(plaintext, tc.params.LogSlots(), &ring.DiscreteGaussian{Sigma: sigma, Bound: int(2.5066282746310002 * sigma)})
+		valuesHave = tc.encoder.DecodePublic(plaintext, tc.params.LogSlots(), &ring.DiscreteGaussianDistribution{Sigma: sigma, Bound: int(2.5066282746310002 * sigma)})
 
 		verifyTestVectors(tc.params, tc.encoder, nil, values, valuesHave, tc.params.LogSlots(), nil, t)
 	})

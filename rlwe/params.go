@@ -3,6 +3,7 @@ package rlwe
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"math"
 	"math/big"
@@ -156,7 +157,7 @@ func NewParameters(logn int, q, p []uint64, pow2Base int, xs, xe ring.Distributi
 func NewParametersFromLiteral(paramDef ParametersLiteral) (params Parameters, err error) {
 
 	if paramDef.Xs == nil {
-		paramDef.Xs = &ring.UniformTernary{P: 1 / 3.0}
+		paramDef.Xs = &DefaultXs
 	}
 
 	if paramDef.Xe == nil {
@@ -299,11 +300,9 @@ func (p Parameters) Xs() ring.Distribution {
 // XsHammingWeight returns the expected Hamming weight of the secret.
 func (p Parameters) XsHammingWeight() int {
 	switch xs := p.xs.(type) {
-	case *ring.UniformTernary:
+	case *ring.TernaryDistribution:
 		return int(math.Ceil(float64(p.N()) * (1 - xs.P)))
-	case *ring.SparseTernary:
-		return xs.HammingWeight
-	case *ring.DiscreteGaussian:
+	case *ring.DiscreteGaussianDistribution:
 		return int(math.Ceil(float64(p.N()) * float64(xs.Sigma) * math.Sqrt(2.0/math.Pi)))
 	default:
 		panic(fmt.Sprintf("invalid error distribution: must be *ring.DiscretGaussian, *ring.UniformTernary or *ring.SparseTernary but is %T", xs))
@@ -319,9 +318,9 @@ func (p Parameters) Xe() ring.Distribution {
 func (p Parameters) NoiseBound() uint64 {
 
 	switch xe := p.xe.(type) {
-	case *ring.DiscreteGaussian:
+	case *ring.DiscreteGaussianDistribution:
 		return xe.NoiseBound()
-	case *ring.UniformTernary, *ring.SparseTernary:
+	case *ring.TernaryDistribution:
 		return 1
 	default:
 		panic(fmt.Sprintf("invalid error distribution: must be *ring.DiscretGaussian, *ring.UniformTernary or *ring.SparseTernary but is %T", xe))
@@ -666,7 +665,6 @@ func (p Parameters) Equal(other Parameters) bool {
 	res = res && (p.ringType == other.ringType)
 	res = res && (p.defaultScale.Equal(other.defaultScale))
 	res = res && (p.defaultNTTFlag == other.defaultNTTFlag)
-
 	return res
 }
 
@@ -721,7 +719,6 @@ func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 	*p, err = NewParametersFromLiteral(params)
 	return
 }
-*/
 
 // CheckModuli checks that the provided q and p correspond to a valid moduli chain.
 func CheckModuli(q, p []uint64) error {

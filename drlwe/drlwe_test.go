@@ -156,6 +156,59 @@ func testRKGProtocol(tc *testContext, level int, t *testing.T) {
 
 	t.Run(testString(params, level, "RKG/Protocol"), func(t *testing.T) {
 
+		skOut, pkOut := tc.kgen.GenKeyPair()
+
+		sigmaSmudging := ring.StandardDeviation(8 * rlwe.DefaultNoise)
+
+		pcks := make([]*PCKSProtocol, nbParties)
+		for i := range pcks {
+			if i == 0 {
+				pcks[i] = NewPCKSProtocol(params, &ring.DiscreteGaussianDistribution{Sigma: sigmaSmudging, Bound: int(6 * sigmaSmudging)})
+			} else {
+				pcks[i] = pcks[0].ShallowCopy()
+			}
+		}
+
+		ct := rlwe.NewCiphertext(params, 1, params.MaxLevel())
+
+		rlwe.NewEncryptor(params, tc.skIdeal).EncryptZero(ct)
+
+		shares := make([]*PCKSShare, nbParties)
+		for i := range shares {
+			shares[i] = pcks[i].AllocateShare(ct.Level())
+		}
+
+		for i := range shares {
+			pcks[i].GenShare(tc.skShares[i], pkOut, ct, shares[i])
+		}
+
+		for i := 1; i < nbParties; i++ {
+			pcks[0].AggregateShares(shares[0], shares[i], shares[0])
+		}
+
+		ksCt := rlwe.NewCiphertext(params, 1, params.MaxLevel())
+		dec := rlwe.NewDecryptor(params, skOut)
+		log2Bound := bits.Len64(uint64(nbParties) * params.NoiseBound() * uint64(params.N()))
+
+		pcks[0].KeySwitch(ct, shares[0], ksCt)
+
+		pt := rlwe.NewPlaintext(params, ct.Level())
+		dec.Decrypt(ksCt, pt)
+		require.GreaterOrEqual(t, log2Bound+5, ringQ.Log2OfInnerSum(pt.Value))
+
+		pcks[0].KeySwitch(ct, shares[0], ct)
+
+		dec.Decrypt(ct, pt)
+		require.GreaterOrEqual(t, log2Bound+5, ringQ.Log2OfInnerSum(pt.Value))
+	})
+}
+
+func testRelinKeyGen(tc *testContext, t *testing.T) {
+	params := tc.params
+	levelQ, levelP := params.MaxLevelQ(), params.MaxLevelP()
+
+	t.Run(testString("RelinKeyGen", tc), func(t *testing.T) {
+
 		rkg := make([]*RKGProtocol, nbParties)
 
 		for i := range rkg {

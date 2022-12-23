@@ -59,13 +59,13 @@ func NewPCKSProtocol(params rlwe.Parameters, noise ring.Distribution) (pcks *PCK
 	pcks.gaussianSampler = ring.NewGaussianSampler(prng, params.RingQ(), sigmaSmudging, int(6*sigmaSmudging))
 
 	switch noise.(type) {
-	case *ring.DiscreteGaussian:
+	case *ring.DiscreteGaussianDistribution:
 	default:
-		panic(fmt.Sprintf("invalid distribution type, expected %T but got %T", &ring.DiscreteGaussian{}, noise))
+		panic(fmt.Sprintf("invalid distribution type, expected %T but got %T", &ring.DiscreteGaussianDistribution{}, noise))
 	}
 
-	pcks.gaussianSampler = noise.NewSampler(prng, params.RingQ(), false)
-	pcks.ternarySamplerMontgomeryQ = params.Xs().NewSampler(prng, params.RingQ(), false)
+	pcks.gaussianSampler = ring.NewSampler(prng, params.RingQ(), noise, false)
+	pcks.ternarySamplerMontgomeryQ = ring.NewSampler(prng, params.RingQ(), params.Xs(), false)
 
 	return pcks
 }

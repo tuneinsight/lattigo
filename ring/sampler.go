@@ -38,13 +38,11 @@ type Sampler interface {
 
 func NewSampler(prng utils.PRNG, baseRing *Ring, X Distribution, montgomery bool) Sampler {
 	switch X := X.(type) {
-	case *DiscreteGaussian:
+	case *DiscreteGaussianDistribution:
 		return NewGaussianSampler(prng, baseRing, X, montgomery)
-	case *UniformTernary:
+	case *TernaryDistribution:
 		return NewTernarySampler(prng, baseRing, X, montgomery)
-	case *SparseTernary:
-		return NewTernarySamplerWithHammingWeight(prng, baseRing, X, montgomery)
-	case *Uniform:
+	case *UniformDistribution:
 		return NewUniformSampler(prng, baseRing)
 	default:
 		panic(fmt.Sprintf("Invalid distribution: want *ring.DiscretGaussian, *ring.UniformTernary, *ring.SparseTernary or *ring.Uniform but have %s", reflect.TypeOf(X)))

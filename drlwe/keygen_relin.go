@@ -35,8 +35,8 @@ func (ekg *RKGProtocol) ShallowCopy() *RKGProtocol {
 	return &RKGProtocol{
 		params:           ekg.params,
 		buf:              [2]*ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()},
-		gaussianSamplerQ: ekg.params.Xe().NewSampler(prng, ekg.params.RingQ(), false),
-		ternarySamplerQ:  ekg.params.Xs().NewSampler(prng, ekg.params.RingQ(), false),
+		gaussianSamplerQ: ring.NewSampler(prng, ekg.params.RingQ(), ekg.params.Xe(), false),
+		ternarySamplerQ:  ring.NewSampler(prng, ekg.params.RingQ(), ekg.params.Xs(), false),
 	}
 }
 
@@ -56,8 +56,8 @@ func NewRKGProtocol(params rlwe.Parameters) *RKGProtocol {
 		panic(err)
 	}
 
-	rkg.gaussianSamplerQ = params.Xe().NewSampler(prng, params.RingQ(), false)
-	rkg.ternarySamplerQ = params.Xs().NewSampler(prng, params.RingQ(), false)
+	rkg.gaussianSamplerQ = ring.NewSampler(prng, params.RingQ(), params.Xe(), false)
+	rkg.ternarySamplerQ = ring.NewSampler(prng, params.RingQ(), params.Xs(), false)
 	rkg.buf = [2]*ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()}
 	return rkg
 }

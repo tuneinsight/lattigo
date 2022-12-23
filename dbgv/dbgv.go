@@ -29,12 +29,12 @@ func NewGKGProtocol(params bgv.Parameters) *drlwe.GKGProtocol {
 
 // NewCKSProtocol creates a new drlwe.CKSProtocol instance from the BGV parameters.
 // The returned protocol instance is generic and can be used in other multiparty schemes.
-func NewCKSProtocol(params bgv.Parameters, noise *ring.DiscreteGaussian) *drlwe.CKSProtocol {
+func NewCKSProtocol(params bgv.Parameters, noise *ring.DiscreteGaussianDistribution) *drlwe.CKSProtocol {
 	return drlwe.NewCKSProtocol(params.Parameters, noise)
 }
 
 // NewPCKSProtocol creates a new drlwe.PCKSProtocol instance from the BGV paramters.
 // The returned protocol instance is generic and can be used in other multiparty schemes.
-func NewPCKSProtocol(params bgv.Parameters, noise *ring.DiscreteGaussian) *drlwe.PCKSProtocol {
+func NewPCKSProtocol(params bgv.Parameters, noise *ring.DiscreteGaussianDistribution) *drlwe.PCKSProtocol {
 	return drlwe.NewPCKSProtocol(params.Parameters, noise)
 }

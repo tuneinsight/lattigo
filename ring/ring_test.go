@@ -434,7 +434,7 @@ func testGaussianSampler(tc *testParams, t *testing.T) {
 
 	t.Run(testString("GaussianSampler", tc.ringQ), func(t *testing.T) {
 
-		dist := &DiscreteGaussian{DefaultSigma, DefaultBound}
+		dist := &DiscreteGaussianDistribution{DefaultSigma, DefaultBound}
 
 		sampler := NewSampler(tc.prng, tc.ringQ, dist, false)
 
@@ -455,11 +455,7 @@ func testTernarySampler(tc *testParams, t *testing.T) {
 	for _, p := range []float64{.5, 1. / 3., 128. / 65536.} {
 		t.Run(testString(fmt.Sprintf("TernarySampler/p=%1.2f", p), tc.ringQ), func(t *testing.T) {
 
-
-			pol := ternarySampler.ReadNew()
-			for i, qi := range tc.ringQ.ModuliChain() {
-				minOne := qi - 1
-			sampler := NewSampler(tc.prng, tc.ringQ, &UniformTernary{p}, false)
+			sampler := NewSampler(tc.prng, tc.ringQ, &TernaryDistribution{P: p}, false)
 
 			pol := sampler.ReadNew()
 
@@ -472,10 +468,14 @@ func testTernarySampler(tc *testParams, t *testing.T) {
 		})
 	}
 
-	for _, p := range []int{0, 64, 96, 128, 256} {
-		t.Run(testString(fmt.Sprintf("TernarySampler/hw=%d", p), tc.ringQ), func(t *testing.T) {
+	for _, h := range []int{0, 64, 96, 128, 256} {
+		t.Run(testString(fmt.Sprintf("TernarySampler/hw=%d", h), tc.ringQ), func(t *testing.T) {
 
-			sampler := NewSampler(tc.prng, tc.ringQ, &SparseTernary{p}, false)
+			if h == 0 { // TODO: do we really need this case ?
+				t.Skip()
+			}
+
+			sampler := NewSampler(tc.prng, tc.ringQ, &TernaryDistribution{H: h}, false)
 
 			checkPoly := func(pol *Poly) {
 				for i := range tc.ringQ.SubRings {
@@ -485,7 +485,7 @@ func testTernarySampler(tc *testParams, t *testing.T) {
 							hw++
 						}
 					}
-					require.True(t, hw == p)
+					require.True(t, hw == h)
 				}
 			}
 

@@ -18,7 +18,9 @@ const (
 )
 
 // DefaultXe is the default discret Gaussian distribution.
-var DefaultXe = ring.DiscreteGaussian{Sigma: DefaultNoise, Bound: DefaultNoiseBound}
+var DefaultXe = ring.DiscreteGaussianDistribution{Sigma: DefaultNoise, Bound: DefaultNoiseBound}
+
+var DefaultXs = ring.TernaryDistribution{P: 1 / 3.0}
 
 // LWEParameters is a struct
 type LWEParameters struct {

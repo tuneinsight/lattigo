@@ -10,7 +10,7 @@ import (
 // GaussianSampler keeps the state of a truncated Gaussian polynomial sampler.
 type GaussianSampler struct {
 	baseSampler
-	xe            *DiscreteGaussian
+	xe            *DiscreteGaussianDistribution
 	randomBufferN []byte
 	ptr           uint64
 	montgomery    bool
@@ -19,13 +19,13 @@ type GaussianSampler struct {
 // NewGaussianSampler creates a new instance of GaussianSampler from a PRNG, a ring definition and the truncated
 // Gaussian distribution parameters. Sigma is the desired standard deviation and bound is the maximum coefficient norm in absolute
 // value.
-func NewGaussianSampler(prng utils.PRNG, baseRing *Ring, X *DiscreteGaussian, montgomery bool) (g *GaussianSampler) {
+func NewGaussianSampler(prng utils.PRNG, baseRing *Ring, X *DiscreteGaussianDistribution, montgomery bool) (g *GaussianSampler) {
 	g = new(GaussianSampler)
 	g.prng = prng
 	g.randomBufferN = make([]byte, 1024)
 	g.ptr = 0
 	g.baseRing = baseRing
-	g.xe = X.CopyNew().(*DiscreteGaussian)
+	g.xe = X.CopyNew().(*DiscreteGaussianDistribution)
 	g.montgomery = montgomery
 	return
 }
@@ -60,7 +60,7 @@ func (g *GaussianSampler) ReadAndAdd(pol *Poly) {
 }
 
 // ReadFromDistLvl samples a truncated Gaussian polynomial at the given level in the provided ring, standard deviation and bound.
-func (g *GaussianSampler) ReadFromDistLvl(level int, pol *Poly, ring *Ring, X *DiscreteGaussian) {
+func (g *GaussianSampler) ReadFromDistLvl(level int, pol *Poly, ring *Ring, X *DiscreteGaussianDistribution) {
 	g.readLvl(level, pol, ring, X)
 }
 
@@ -70,7 +70,7 @@ func (g *GaussianSampler) ReadAndAddLvl(level int, pol *Poly) {
 }
 
 // ReadAndAddFromDistLvl samples a truncated Gaussian polynomial at the given level in the provided ring, standard deviation and bound and adds it on "pol".
-func (g *GaussianSampler) ReadAndAddFromDistLvl(level int, pol *Poly, ring *Ring, X *DiscreteGaussian) {
+func (g *GaussianSampler) ReadAndAddFromDistLvl(level int, pol *Poly, ring *Ring, X *DiscreteGaussianDistribution) {
 	var coeffFlo float64
 	var coeffInt, sign uint64
 
@@ -98,7 +98,7 @@ func (g *GaussianSampler) ReadAndAddFromDistLvl(level int, pol *Poly, ring *Ring
 	}
 }
 
-func (g *GaussianSampler) readLvl(level int, pol *Poly, ring *Ring, X *DiscreteGaussian) {
+func (g *GaussianSampler) readLvl(level int, pol *Poly, ring *Ring, X *DiscreteGaussianDistribution) {
 	var coeffFlo float64
 	var coeffInt uint64
 	var sign uint64

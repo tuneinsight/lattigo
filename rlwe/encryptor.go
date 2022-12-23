@@ -86,8 +86,8 @@ func newEncryptorBase(params Parameters) *encryptorBase {
 	return &encryptorBase{
 		params:           params,
 		prng:             prng,
-		gaussianSampler:  params.Xe().NewSampler(prng, params.RingQ(), false),
-		ternarySampler:   params.Xs().NewSampler(prng, params.RingQ(), false),
+		gaussianSampler:  ring.NewSampler(prng, params.RingQ(), params.xe, false),
+		ternarySampler:   ring.NewSampler(prng, params.RingQ(), params.xs, false), // TODO rename fields
 		encryptorBuffers: newEncryptorBuffers(params),
 		uniformSampler:   ringqp.NewUniformSampler(prng, *params.RingQP()),
 		basisextender:    bc,

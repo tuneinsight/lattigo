@@ -87,7 +87,7 @@ func benchSampling(tc *testParams, b *testing.B) {
 
 	b.Run(testString("Sampling/Gaussian/", tc.ringQ), func(b *testing.B) {
 
-		sampler := NewSampler(tc.prng, tc.ringQ, &DiscreteGaussian{DefaultSigma, DefaultBound}, false)
+		sampler := NewSampler(tc.prng, tc.ringQ, &DiscreteGaussianDistribution{DefaultSigma, DefaultBound}, false)
 
 		for i := 0; i < b.N; i++ {
 			gaussianSampler.Read(pol)
@@ -96,7 +96,7 @@ func benchSampling(tc *testParams, b *testing.B) {
 
 	b.Run(testString("Sampling/Ternary/0.3/", tc.ringQ), func(b *testing.B) {
 
-		sampler := NewSampler(tc.prng, tc.ringQ, &UniformTernary{1.0 / 3}, true)
+		sampler := NewSampler(tc.prng, tc.ringQ, &TernaryDistribution{P: 1.0 / 3}, true)
 
 		for i := 0; i < b.N; i++ {
 			sampler.Read(pol)
@@ -105,7 +105,7 @@ func benchSampling(tc *testParams, b *testing.B) {
 
 	b.Run(testString("Sampling/Ternary/0.5/", tc.ringQ), func(b *testing.B) {
 
-		sampler := NewSampler(tc.prng, tc.ringQ, &UniformTernary{1.0 / 3}, true)
+		sampler := NewSampler(tc.prng, tc.ringQ, &TernaryDistribution{P: 1.0 / 3}, true)
 
 		for i := 0; i < b.N; i++ {
 			sampler.Read(pol)
@@ -114,7 +114,7 @@ func benchSampling(tc *testParams, b *testing.B) {
 
 	b.Run(testString("Sampling/Ternary/sparse128/", tc.ringQ), func(b *testing.B) {
 
-		NewSampler := NewTernarySamplerWithHammingWeight(tc.prng, tc.ringQ, &SparseTernary{128}, true)
+		NewSampler := NewTernarySampler(tc.prng, tc.ringQ, &TernaryDistribution{H: 128}, true)
 
 		for i := 0; i < b.N; i++ {
 			NewSampler.Read(pol)

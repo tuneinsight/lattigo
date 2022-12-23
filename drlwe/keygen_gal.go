@@ -41,7 +41,7 @@ func (gkg *GKGProtocol) ShallowCopy() *GKGProtocol {
 	return &GKGProtocol{
 		params:           gkg.params,
 		buff:             [2]*ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()},
-		gaussianSamplerQ: rtg.params.Xe().NewSampler(prng, rtg.params.RingQ(), false),
+		gaussianSamplerQ: ring.NewSampler(prng, rtg.params.RingQ(), rtg.params.Xe(), false),
 	}
 }
 
@@ -55,11 +55,15 @@ func NewGKGProtocol(params rlwe.Parameters) (gkg *GKGProtocol) {
 		panic(err)
 	}
 <<<<<<< dev_evk:drlwe/keygen_gal.go
+<<<<<<< dev_evk:drlwe/keygen_gal.go
 	gkg.gaussianSamplerQ = ring.NewGaussianSampler(prng, params.RingQ(), params.Sigma(), int(6*params.Sigma()))
 	gkg.buff = [2]*ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()}
 	return
 =======
 	rtg.gaussianSamplerQ = params.Xe().NewSampler(prng, params.RingQ(), false)
+=======
+	rtg.gaussianSamplerQ = ring.NewSampler(prng, params.RingQ(), params.Xe(), false)
+>>>>>>> added first draft for JSON-marshallable paramaters revamp:drlwe/keygen_rot.go
 	rtg.buff = [2]ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()}
 	return rtg
 >>>>>>> 1st attempt at adding sec check and rework sampler & distributions:drlwe/keygen_rot.go

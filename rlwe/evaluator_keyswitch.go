@@ -17,7 +17,7 @@ func (eval *Evaluator) SwitchKeys(ctIn *Ciphertext, switchingKey *SwitchingKey, 
 	}
 
 	level := utils.MinInt(ctIn.Level(), ctOut.Level())
-	ringQ := eval.params.RingQ()
+	ringQ := eval.params.RingQ().AtLevel(level)
 
 	ctTmp := &Ciphertext{}
 	ctTmp.Value = []*ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}
@@ -25,7 +25,7 @@ func (eval *Evaluator) SwitchKeys(ctIn *Ciphertext, switchingKey *SwitchingKey, 
 
 	eval.GadgetProduct(level, ctIn.Value[1], switchingKey.GadgetCiphertext, ctTmp)
 
-	ringQ.AddLvl(level, ctIn.Value[0], ctTmp.Value[0], ctOut.Value[0])
+	ringQ.Add(ctIn.Value[0], ctTmp.Value[0], ctOut.Value[0])
 	ring.CopyLvl(level, ctTmp.Value[1], ctOut.Value[1])
 
 	ctOut.MetaData = ctIn.MetaData
@@ -41,20 +41,20 @@ func (eval *Evaluator) Relinearize(ctIn *Ciphertext, ctOut *Ciphertext) {
 
 	level := utils.MinInt(ctIn.Level(), ctOut.Level())
 
-	ringQ := eval.params.RingQ()
+	ringQ := eval.params.RingQ().AtLevel(level)
 
 	ctTmp := &Ciphertext{}
 	ctTmp.Value = []*ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}
 	ctTmp.IsNTT = ctIn.IsNTT
 
 	eval.GadgetProduct(level, ctIn.Value[2], eval.Rlk.Keys[0].GadgetCiphertext, ctTmp)
-	ringQ.AddLvl(level, ctIn.Value[0], ctTmp.Value[0], ctOut.Value[0])
-	ringQ.AddLvl(level, ctIn.Value[1], ctTmp.Value[1], ctOut.Value[1])
+	ringQ.Add(ctIn.Value[0], ctTmp.Value[0], ctOut.Value[0])
+	ringQ.Add(ctIn.Value[1], ctTmp.Value[1], ctOut.Value[1])
 
 	for deg := ctIn.Degree() - 1; deg > 1; deg-- {
 		eval.GadgetProduct(level, ctIn.Value[deg], eval.Rlk.Keys[deg-2].GadgetCiphertext, ctTmp)
-		ringQ.AddLvl(level, ctOut.Value[0], ctTmp.Value[0], ctOut.Value[0])
-		ringQ.AddLvl(level, ctOut.Value[1], ctTmp.Value[1], ctOut.Value[1])
+		ringQ.Add(ctOut.Value[0], ctTmp.Value[0], ctOut.Value[0])
+		ringQ.Add(ctOut.Value[1], ctTmp.Value[1], ctOut.Value[1])
 	}
 
 	ctOut.Resize(1, level)
@@ -68,18 +68,18 @@ func (eval *Evaluator) Relinearize(ctIn *Ciphertext, ctOut *Ciphertext) {
 // special RNS decomposition of c2 (in the NTT domain)
 func (eval *Evaluator) DecomposeNTT(levelQ, levelP, nbPi int, c2 *ring.Poly, c2IsNTT bool, BuffDecompQP []ringqp.Poly) {
 
-	ringQ := eval.params.RingQ()
+	ringQ := eval.params.RingQ().AtLevel(levelQ)
 
 	var polyNTT, polyInvNTT *ring.Poly
 
 	if c2IsNTT {
 		polyNTT = c2
 		polyInvNTT = eval.BuffInvNTT
-		ringQ.InvNTTLvl(levelQ, polyNTT, polyInvNTT)
+		ringQ.InvNTT(polyNTT, polyInvNTT)
 	} else {
 		polyNTT = eval.BuffInvNTT
 		polyInvNTT = c2
-		ringQ.NTTLvl(levelQ, polyInvNTT, polyNTT)
+		ringQ.NTT(polyInvNTT, polyNTT)
 	}
 
 	decompRNS := eval.params.DecompRNS(levelQ, levelP)
@@ -92,8 +92,8 @@ func (eval *Evaluator) DecomposeNTT(levelQ, levelP, nbPi int, c2 *ring.Poly, c2I
 // modulo the RNS basis, and returns the result on c2QiQ and c2QiP, the receiver polynomials respectively mod Q and mod P (in the NTT domain)
 func (eval *Evaluator) DecomposeSingleNTT(levelQ, levelP, nbPi, decompRNS int, c2NTT, c2InvNTT, c2QiQ, c2QiP *ring.Poly) {
 
-	ringQ := eval.params.RingQ()
-	ringP := eval.params.RingP()
+	ringQ := eval.params.RingQ().AtLevel(levelQ)
+	ringP := eval.params.RingP().AtLevel(levelP)
 
 	eval.Decomposer.DecomposeAndSplit(levelQ, levelP, nbPi, decompRNS, c2InvNTT, c2QiQ, c2QiP)
 
@@ -105,13 +105,13 @@ func (eval *Evaluator) DecomposeSingleNTT(levelQ, levelP, nbPi, decompRNS int, c
 		if p0idxst <= x && x < p0idxed {
 			copy(c2QiQ.Coeffs[x], c2NTT.Coeffs[x])
 		} else {
-			ringQ.NTTSingle(x, c2QiQ.Coeffs[x], c2QiQ.Coeffs[x])
+			ringQ.NTTSingle(ringQ.Tables[x], c2QiQ.Coeffs[x], c2QiQ.Coeffs[x])
 		}
 	}
 
 	if ringP != nil {
 		// c2QiP = c2 mod qi mod pj
-		ringP.NTTLvl(levelP, c2QiP, c2QiP)
+		ringP.NTT(c2QiP, c2QiP)
 	}
 }
 
@@ -137,14 +137,16 @@ func (eval *Evaluator) KeyswitchHoisted(levelQ int, BuffQPDecompQP []ringqp.Poly
 // BuffQP3 = dot(BuffQPDecompQ||BuffQPDecompP * evakey[1]) mod QP
 func (eval *Evaluator) KeyswitchHoistedNoModDown(levelQ int, BuffQPDecompQP []ringqp.Poly, evakey *SwitchingKey, c0Q, c1Q, c0P, c1P *ring.Poly) {
 
-	ringQ := eval.params.RingQ()
-	ringP := eval.params.RingP()
-	ringQP := eval.params.RingQP()
+	levelP := evakey.LevelP()
+
+	ringQP := eval.params.RingQP().AtLevel(levelQ, levelP)
+
+	ringQ := ringQP.RingQ
+	ringP := ringQP.RingP
 
 	c0QP := ringqp.Poly{Q: c0Q, P: c0P}
 	c1QP := ringqp.Poly{Q: c1Q, P: c1P}
 
-	levelP := evakey.Value[0][0].Value[0].P.Level()
 	decompRNS := (levelQ + 1 + levelP) / (levelP + 1)
 
 	QiOverF := eval.params.QiOverflowMargin(levelQ) >> 1
@@ -155,33 +157,33 @@ func (eval *Evaluator) KeyswitchHoistedNoModDown(levelQ int, BuffQPDecompQP []ri
 	for i := 0; i < decompRNS; i++ {
 
 		if i == 0 {
-			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, evakey.Value[i][0].Value[0], BuffQPDecompQP[i], c0QP)
-			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, evakey.Value[i][0].Value[1], BuffQPDecompQP[i], c1QP)
+			ringQP.MulCoeffsMontgomeryConstant(evakey.Value[i][0].Value[0], BuffQPDecompQP[i], c0QP)
+			ringQP.MulCoeffsMontgomeryConstant(evakey.Value[i][0].Value[1], BuffQPDecompQP[i], c1QP)
 		} else {
-			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, evakey.Value[i][0].Value[0], BuffQPDecompQP[i], c0QP)
-			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, evakey.Value[i][0].Value[1], BuffQPDecompQP[i], c1QP)
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoMod(evakey.Value[i][0].Value[0], BuffQPDecompQP[i], c0QP)
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoMod(evakey.Value[i][0].Value[1], BuffQPDecompQP[i], c1QP)
 		}
 
 		if reduce%QiOverF == QiOverF-1 {
-			ringQ.ReduceLvl(levelQ, c0QP.Q, c0QP.Q)
-			ringQ.ReduceLvl(levelQ, c1QP.Q, c1QP.Q)
+			ringQ.Reduce(c0QP.Q, c0QP.Q)
+			ringQ.Reduce(c1QP.Q, c1QP.Q)
 		}
 
 		if reduce%PiOverF == PiOverF-1 {
-			ringP.ReduceLvl(levelP, c0QP.P, c0QP.P)
-			ringP.ReduceLvl(levelP, c1QP.P, c1QP.P)
+			ringP.Reduce(c0QP.P, c0QP.P)
+			ringP.Reduce(c1QP.P, c1QP.P)
 		}
 
 		reduce++
 	}
 
 	if reduce%QiOverF != 0 {
-		ringQ.ReduceLvl(levelQ, c0QP.Q, c0QP.Q)
-		ringQ.ReduceLvl(levelQ, c1QP.Q, c1QP.Q)
+		ringQ.Reduce(c0QP.Q, c0QP.Q)
+		ringQ.Reduce(c1QP.Q, c1QP.Q)
 	}
 
 	if reduce%PiOverF != 0 {
-		ringP.ReduceLvl(levelP, c0QP.P, c0QP.P)
-		ringP.ReduceLvl(levelP, c1QP.P, c1QP.P)
+		ringP.Reduce(c0QP.P, c0QP.P)
+		ringP.Reduce(c1QP.P, c1QP.P)
 	}
 }

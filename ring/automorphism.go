@@ -62,7 +62,7 @@ func (r *Ring) PermuteNTTWithIndex(polIn *Poly, index []uint64, polOut *Poly) {
 
 		x := (*[8]uint64)(unsafe.Pointer(&index[j]))
 
-		for i := 0; i < level; i++ {
+		for i := 0; i < level+1; i++ {
 
 			z := (*[8]uint64)(unsafe.Pointer(&polOut.Coeffs[i][j]))
 			y := polIn.Coeffs[i]

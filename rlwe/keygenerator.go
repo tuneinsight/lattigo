@@ -64,15 +64,14 @@ func (keygen *keyGenerator) genSecretKeyFromSampler(sampler ring.Sampler) (sk *S
 	sk = new(SecretKey)
 	ringQP := keygen.params.RingQP()
 	sk.Value = ringQP.NewPoly()
-	levelQ, levelP := sk.LevelQ(), sk.LevelP()
 	sampler.Read(sk.Value.Q)
 
-	if levelP > -1 {
+	if levelP := sk.LevelP(); levelP > -1 {
 		ringQP.ExtendBasisSmallNormAndCenter(sk.Value.Q, levelP, nil, sk.Value.P)
 	}
 
-	ringQP.NTTLvl(levelQ, levelP, sk.Value, sk.Value)
-	ringQP.MFormLvl(levelQ, levelP, sk.Value, sk.Value)
+	ringQP.NTT(sk.Value, sk.Value)
+	ringQP.MForm(sk.Value, sk.Value)
 
 	return
 }
@@ -166,11 +165,16 @@ func (keygen *keyGenerator) genrotKey(sk ringqp.Poly, galEl uint64, swk *Switchi
 
 	skIn := sk
 	skOut := keygen.buffQP
+
 	ringQ := keygen.params.RingQ()
+	ringP := keygen.params.RingP()
 
 	index := ringQ.PermuteNTTIndex(galEl)
-	ringQ.PermuteNTTWithIndexLvl(keygen.params.QCount()-1, skIn.Q, index, skOut.Q)
-	ringQ.PermuteNTTWithIndexLvl(keygen.params.PCount()-1, skIn.P, index, skOut.P)
+	ringQ.PermuteNTTWithIndex(skIn.Q, index, skOut.Q)
+
+	if ringP != nil {
+		ringP.PermuteNTTWithIndex(skIn.P, index, skOut.P)
+	}
 
 	keygen.genSwitchingKey(skIn.Q, &SecretKey{Value: skOut}, swk)
 }
@@ -231,11 +235,11 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *
 		// if the former is smaller.
 		if skInput.Value.Q.Level() < skOutput.Value.Q.Level() {
 
-			ringQ := keygen.params.RingQ()
+			ringQ := keygen.params.RingQ().AtLevel(0)
 
 			// Switches out of the NTT and Montgomery domain.
-			ringQ.InvNTTLvl(0, keygen.buffQ[0], keygen.buffQP.Q)
-			ringQ.InvMFormLvl(0, keygen.buffQP.Q, keygen.buffQP.Q)
+			ringQ.InvNTT(keygen.buffQ[0], keygen.buffQP.Q)
+			ringQ.InvMForm(keygen.buffQP.Q, keygen.buffQP.Q)
 
 			// Extends the RNS basis of the small norm polynomial.
 			Qi := ringQ.Moduli()
@@ -262,7 +266,7 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *
 
 			// Switches back to the NTT and Montgomery domain.
 			for i := skInput.Value.Q.Level() + 1; i < skOutput.Value.Q.Level()+1; i++ {
-				ringQ.NTTSingle(i, polP.Coeffs[i], polP.Coeffs[i])
+				ringQ.NTTSingle(ringQ.Tables[i], polP.Coeffs[i], polP.Coeffs[i])
 				ring.MFormVec(polP.Coeffs[i], polP.Coeffs[i], Qi[i], ringQ.Tables[i].BRedParams)
 			}
 		}
@@ -274,12 +278,12 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *
 }
 
 func (keygen *keyGenerator) extendQ2P(levelP int, polQ, buff, polP *ring.Poly) {
-	ringQ := keygen.params.RingQ()
-	ringP := keygen.params.RingP()
+	ringQ := keygen.params.RingQ().AtLevel(0)
+	ringP := keygen.params.RingP().AtLevel(levelP)
 
 	// Switches Q[0] out of the NTT and Montgomery domain.
-	ringQ.InvNTTLvl(0, polQ, buff)
-	ringQ.InvMFormLvl(0, buff, buff)
+	ringQ.InvNTT(polQ, buff)
+	ringQ.InvMForm(buff, buff)
 
 	// Reconstruct P from Q
 	Q := ringQ.Tables[0].Modulus
@@ -303,8 +307,8 @@ func (keygen *keyGenerator) extendQ2P(levelP int, polQ, buff, polP *ring.Poly) {
 		}
 	}
 
-	ringP.NTTLvl(levelP, polP, polP)
-	ringP.MFormLvl(levelP, polP, polP)
+	ringP.NTT(polP, polP)
+	ringP.MForm(polP, polP)
 }
 
 func (keygen *keyGenerator) genSwitchingKey(skIn *ring.Poly, skOut *SecretKey, swk *SwitchingKey) {

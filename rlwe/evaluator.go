@@ -5,6 +5,7 @@ import (
 
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 // Operand is a common interface for Ciphertext and Plaintext types.
@@ -162,12 +163,13 @@ func (eval *Evaluator) Expand(ctIn *Ciphertext, logN, logGap int) (ctOut []*Ciph
 	}
 
 	params := eval.params
-	ringQ := params.RingQ()
 
 	levelQ := ctIn.Level()
 
+	ringQ := params.RingQ().AtLevel(levelQ)
+
 	// Compute X^{-2^{i}} from 1 to LogN
-	xPow2 := genXPow2(ringQ, levelQ, logN, true)
+	xPow2 := genXPow2(ringQ, logN, true)
 
 	ctOut = make([]*Ciphertext, 1<<(logN-logGap))
 	ctOut[0] = ctIn.CopyNew()
@@ -204,18 +206,18 @@ func (eval *Evaluator) Expand(ctIn *Ciphertext, logN, logGap int) (ctOut []*Ciph
 			c1 := c0.CopyNew()
 
 			// Zeroes odd coeffs: [a, b, c, d] -> [2a, 0, 2b, 0]
-			ringQ.AddLvl(levelQ, c0.Value[0], tmp.Value[0], c0.Value[0])
-			ringQ.AddLvl(levelQ, c0.Value[1], tmp.Value[1], c0.Value[1])
+			ringQ.Add(c0.Value[0], tmp.Value[0], c0.Value[0])
+			ringQ.Add(c0.Value[1], tmp.Value[1], c0.Value[1])
 
 			if (j+(1<<i))/gap > 0 {
 
 				// Zeroes even coeffs: [a, b, c, d] -> [0, 2b, 0, 2d]
-				ringQ.SubLvl(levelQ, c1.Value[0], tmp.Value[0], c1.Value[0])
-				ringQ.SubLvl(levelQ, c1.Value[1], tmp.Value[1], c1.Value[1])
+				ringQ.Sub(c1.Value[0], tmp.Value[0], c1.Value[0])
+				ringQ.Sub(c1.Value[1], tmp.Value[1], c1.Value[1])
 
 				// c1 * X^{-2^{i}}: [0, 2b, 0, 2d] -> [2b, 0, 2d, 0]
-				ringQ.MulCoeffsMontgomeryLvl(levelQ, c1.Value[0], xPow2[i], c1.Value[0])
-				ringQ.MulCoeffsMontgomeryLvl(levelQ, c1.Value[1], xPow2[i], c1.Value[1])
+				ringQ.MulCoeffsMontgomery(c1.Value[0], xPow2[i], c1.Value[0])
+				ringQ.MulCoeffsMontgomery(c1.Value[1], xPow2[i], c1.Value[1])
 
 				ctOut[(j+(1<<i))/gap] = c1
 			}
@@ -242,7 +244,11 @@ func (eval *Evaluator) Merge(ctIn map[int]*Ciphertext) (ctOut *Ciphertext) {
 		break
 	}
 
-	xPow2 := genXPow2(ringQ, levelQ, params.LogN(), false)
+	for i := range ctIn {
+		levelQ = utils.MinInt(levelQ, ctIn[i].Level())
+	}
+
+	xPow2 := genXPow2(ringQ, params.LogN(), false)
 
 	// Multiplies by (Slots * N) ^-1 mod Q
 	for i := range ctIn {
@@ -283,8 +289,6 @@ func (eval *Evaluator) Merge(ctIn map[int]*Ciphertext) (ctOut *Ciphertext) {
 
 func (eval *Evaluator) mergeRLWERecurse(ciphertexts []*Ciphertext, xPow []*ring.Poly) *Ciphertext {
 
-	ringQ := eval.params.RingQ()
-
 	L := bits.Len64(uint64(len(ciphertexts))) - 1
 
 	if L == 0 {
@@ -311,29 +315,37 @@ func (eval *Evaluator) mergeRLWERecurse(ciphertexts []*Ciphertext, xPow []*ring.
 		tmpEven = ctEven.CopyNew()
 	}
 
+	var level = 0xFFFF // Case if ctOdd == nil
+
+	if ctOdd != nil {
+		level = ctOdd.Level()
+	}
+
+	if ctEven != nil {
+		level = utils.MinInt(level, ctEven.Level())
+	}
+
+	ringQ := eval.params.RingQ().AtLevel(level)
+
 	// ctOdd * X^(N/2^L)
 	if ctOdd != nil {
 
-		level := ctOdd.Level()
-
 		//X^(N/2^L)
-		ringQ.MulCoeffsMontgomeryLvl(level, ctOdd.Value[0], xPow[len(xPow)-L], ctOdd.Value[0])
-		ringQ.MulCoeffsMontgomeryLvl(level, ctOdd.Value[1], xPow[len(xPow)-L], ctOdd.Value[1])
+		ringQ.MulCoeffsMontgomery(ctOdd.Value[0], xPow[len(xPow)-L], ctOdd.Value[0])
+		ringQ.MulCoeffsMontgomery(ctOdd.Value[1], xPow[len(xPow)-L], ctOdd.Value[1])
 
 		if ctEven != nil {
 			// ctEven + ctOdd * X^(N/2^L)
-			ringQ.AddLvl(level, ctEven.Value[0], ctOdd.Value[0], ctEven.Value[0])
-			ringQ.AddLvl(level, ctEven.Value[1], ctOdd.Value[1], ctEven.Value[1])
+			ringQ.Add(ctEven.Value[0], ctOdd.Value[0], ctEven.Value[0])
+			ringQ.Add(ctEven.Value[1], ctOdd.Value[1], ctEven.Value[1])
 
 			// phi(ctEven - ctOdd * X^(N/2^L), 2^(L-2))
-			ringQ.SubLvl(level, tmpEven.Value[0], ctOdd.Value[0], tmpEven.Value[0])
-			ringQ.SubLvl(level, tmpEven.Value[1], ctOdd.Value[1], tmpEven.Value[1])
+			ringQ.Sub(tmpEven.Value[0], ctOdd.Value[0], tmpEven.Value[0])
+			ringQ.Sub(tmpEven.Value[1], ctOdd.Value[1], tmpEven.Value[1])
 		}
 	}
 
 	if ctEven != nil {
-
-		level := ctEven.Level()
 
 		// if L-2 == -1, then gal = -1
 		if L == 1 {
@@ -343,14 +355,14 @@ func (eval *Evaluator) mergeRLWERecurse(ciphertexts []*Ciphertext, xPow []*ring.
 		}
 
 		// ctEven + ctOdd * X^(N/2^L) + phi(ctEven - ctOdd * X^(N/2^L), 2^(L-2))
-		ringQ.AddLvl(level, ctEven.Value[0], tmpEven.Value[0], ctEven.Value[0])
-		ringQ.AddLvl(level, ctEven.Value[1], tmpEven.Value[1], ctEven.Value[1])
+		ringQ.Add(ctEven.Value[0], tmpEven.Value[0], ctEven.Value[0])
+		ringQ.Add(ctEven.Value[1], tmpEven.Value[1], ctEven.Value[1])
 	}
 
 	return ctEven
 }
 
-func genXPow2(r *ring.Ring, levelQ, logN int, div bool) (xPow []*ring.Poly) {
+func genXPow2(r *ring.Ring, logN int, div bool) (xPow []*ring.Poly) {
 
 	// Compute X^{-n} from 0 to LogN
 	xPow = make([]*ring.Poly, logN)
@@ -371,19 +383,19 @@ func genXPow2(r *ring.Ring, levelQ, logN int, div bool) (xPow []*ring.Poly) {
 
 		if i == 0 {
 
-			for j := 0; j < levelQ+1; j++ {
+			for j := 0; j < r.NbModuli(); j++ {
 				xPow[i].Coeffs[j][idx] = ring.MForm(1, Modulus[j], BRedParams[j])
 			}
 
-			r.NTTLvl(levelQ, xPow[i], xPow[i])
+			r.NTT(xPow[i], xPow[i])
 
 		} else {
-			r.MulCoeffsMontgomeryLvl(levelQ, xPow[i-1], xPow[i-1], xPow[i]) // X^{n} = X^{1} * X^{n-1}
+			r.MulCoeffsMontgomery(xPow[i-1], xPow[i-1], xPow[i]) // X^{n} = X^{1} * X^{n-1}
 		}
 	}
 
 	if div {
-		r.NegLvl(levelQ, xPow[0], xPow[0])
+		r.Neg(xPow[0], xPow[0])
 	}
 
 	return
@@ -394,12 +406,12 @@ func genXPow2(r *ring.Ring, levelQ, logN int, div bool) (xPow []*ring.Poly) {
 // It outputs in ctOut a Ciphertext for which the "leftmost" sub-vector of each group is equal to the sum of the group.
 func (eval *Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
 
-	ringQ := eval.params.RingQ()
-	ringP := eval.params.RingP()
-	ringQP := eval.params.RingQP()
-
 	levelQ := ctIn.Level()
-	levelP := ringP.MaxLevel()
+	levelP := eval.params.PCount() - 1
+
+	ringQP := eval.params.RingQP().AtLevel(ctIn.Level(), levelP)
+
+	ringQ := ringQP.RingQ
 
 	ctOut.Resize(ctOut.Degree(), levelQ)
 	ctOut.MetaData = ctIn.MetaData
@@ -456,12 +468,12 @@ func (eval *Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 
 					// ctOut += Rotate((tmpc0, tmpc1), k)
 					if copy {
-						ringQP.CopyLvl(levelQ, levelP, cQP.Value[0], c0OutQP)
-						ringQP.CopyLvl(levelQ, levelP, cQP.Value[1], c1OutQP)
+						ringqp.CopyLvl(levelQ, levelP, cQP.Value[0], c0OutQP)
+						ringqp.CopyLvl(levelQ, levelP, cQP.Value[1], c1OutQP)
 						copy = false
 					} else {
-						ringQP.AddLvl(levelQ, levelP, c0OutQP, cQP.Value[0], c0OutQP)
-						ringQP.AddLvl(levelQ, levelP, c1OutQP, cQP.Value[1], c1OutQP)
+						ringQP.Add(c0OutQP, cQP.Value[0], c0OutQP)
+						ringQP.Add(c1OutQP, cQP.Value[1], c1OutQP)
 					}
 				} else {
 
@@ -474,8 +486,8 @@ func (eval *Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 						eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, c1OutQP.Q, c1OutQP.P, c1OutQP.Q) // Division by P
 
 						// ctOut += (tmpc0, tmpc1)
-						ringQ.AddLvl(levelQ, c0OutQP.Q, tmpct.Value[0], ctOut.Value[0])
-						ringQ.AddLvl(levelQ, c1OutQP.Q, tmpct.Value[1], ctOut.Value[1])
+						ringQ.Add(c0OutQP.Q, tmpct.Value[0], ctOut.Value[0])
+						ringQ.Add(c1OutQP.Q, tmpct.Value[1], ctOut.Value[1])
 
 					} else {
 
@@ -492,13 +504,13 @@ func (eval *Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 
 					eval.AutomorphismHoisted(levelQ, ctIn, eval.BuffDecompQP, rot, tmpct)
 
-					ringQ.AddLvl(levelQ, tmpct.Value[0], ctIn.Value[0], tmpct.Value[0])
-					ringQ.AddLvl(levelQ, tmpct.Value[1], ctIn.Value[1], tmpct.Value[1])
+					ringQ.Add(tmpct.Value[0], ctIn.Value[0], tmpct.Value[0])
+					ringQ.Add(tmpct.Value[1], ctIn.Value[1], tmpct.Value[1])
 				} else {
 					// (tmpc0, tmpc1) = Rotate((tmpc0, tmpc1), 2^i)
 					eval.AutomorphismHoisted(levelQ, tmpct, eval.BuffDecompQP, rot, ctqp)
-					ringQ.AddLvl(levelQ, tmpct.Value[0], cQP.Value[0].Q, tmpct.Value[0])
-					ringQ.AddLvl(levelQ, tmpct.Value[1], cQP.Value[1].Q, tmpct.Value[1])
+					ringQ.Add(tmpct.Value[0], cQP.Value[0].Q, tmpct.Value[0])
+					ringQ.Add(tmpct.Value[1], cQP.Value[1].Q, tmpct.Value[1])
 				}
 			}
 		}

@@ -32,15 +32,23 @@ func (eval *Evaluator) GadgetProduct(levelQ int, cx *ring.Poly, gadgetCt GadgetC
 		eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, ct.Value[1], ctTmp.Value[1].P, ct.Value[1])
 	} else if !ct.IsNTT {
 
-		eval.params.RingQ().InvNTTLazyLvl(levelQ, ct.Value[0], ct.Value[0])
-		eval.params.RingQ().InvNTTLazyLvl(levelQ, ct.Value[1], ct.Value[1])
+		ringQ := eval.params.RingQ().AtLevel(levelQ)
 
 		if levelP != -1 {
-			eval.params.RingP().InvNTTLazyLvl(levelP, ctTmp.Value[0].P, ctTmp.Value[0].P)
-			eval.params.RingP().InvNTTLazyLvl(levelP, ctTmp.Value[1].P, ctTmp.Value[1].P)
+
+			ringQ.InvNTTLazy(ct.Value[0], ct.Value[0])
+			ringQ.InvNTTLazy(ct.Value[1], ct.Value[1])
+
+			ringP := eval.params.RingP().AtLevel(levelP)
+
+			ringP.InvNTTLazy(ctTmp.Value[0].P, ctTmp.Value[0].P)
+			ringP.InvNTTLazy(ctTmp.Value[1].P, ctTmp.Value[1].P)
 
 			eval.BasisExtender.ModDownQPtoQ(levelQ, levelP, ct.Value[0], ctTmp.Value[0].P, ct.Value[0])
 			eval.BasisExtender.ModDownQPtoQ(levelQ, levelP, ct.Value[1], ctTmp.Value[1].P, ct.Value[1])
+		} else {
+			ringQ.InvNTT(ct.Value[0], ct.Value[0])
+			ringQ.InvNTT(ct.Value[1], ct.Value[1])
 		}
 	}
 }
@@ -53,9 +61,12 @@ func (eval *Evaluator) GadgetProduct(levelQ int, cx *ring.Poly, gadgetCt GadgetC
 // Expects the flag IsNTT of ct to correctly reflect the domain of cx.
 func (eval *Evaluator) GadgetProductNoModDown(levelQ int, cx *ring.Poly, gadgetCt GadgetCiphertext, ct CiphertextQP) {
 
-	ringQ := eval.params.RingQ()
-	ringP := eval.params.RingP()
-	ringQP := eval.params.RingQP()
+	levelP := gadgetCt.LevelP()
+
+	ringQP := eval.params.RingQP().AtLevel(levelQ, levelP)
+
+	ringQ := ringQP.RingQ
+	ringP := ringQP.RingP
 
 	c2QP := eval.BuffQP[0]
 
@@ -63,14 +74,12 @@ func (eval *Evaluator) GadgetProductNoModDown(levelQ int, cx *ring.Poly, gadgetC
 	if ct.IsNTT {
 		cxNTT = cx
 		cxInvNTT = eval.BuffInvNTT
-		ringQ.InvNTTLvl(levelQ, cxNTT, cxInvNTT)
+		ringQ.InvNTT(cxNTT, cxInvNTT)
 	} else {
 		cxNTT = eval.BuffInvNTT
 		cxInvNTT = cx
-		ringQ.NTTLvl(levelQ, cxInvNTT, cxNTT)
+		ringQ.NTT(cxInvNTT, cxNTT)
 	}
-
-	levelP := gadgetCt.LevelP()
 
 	decompRNS := eval.params.DecompRNS(levelQ, levelP)
 
@@ -86,34 +95,34 @@ func (eval *Evaluator) GadgetProductNoModDown(levelQ int, cx *ring.Poly, gadgetC
 		eval.DecomposeSingleNTT(levelQ, levelP, levelP+1, i, cxNTT, cxInvNTT, c2QP.Q, c2QP.P)
 
 		if i == 0 {
-			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, el[i][0].Value[0], c2QP, ct.Value[0])
-			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, el[i][0].Value[1], c2QP, ct.Value[1])
+			ringQP.MulCoeffsMontgomeryConstant(el[i][0].Value[0], c2QP, ct.Value[0])
+			ringQP.MulCoeffsMontgomeryConstant(el[i][0].Value[1], c2QP, ct.Value[1])
 		} else {
-			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, el[i][0].Value[0], c2QP, ct.Value[0])
-			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, el[i][0].Value[1], c2QP, ct.Value[1])
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoMod(el[i][0].Value[0], c2QP, ct.Value[0])
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoMod(el[i][0].Value[1], c2QP, ct.Value[1])
 		}
 
 		if reduce%QiOverF == QiOverF-1 {
-			ringQ.ReduceLvl(levelQ, ct.Value[0].Q, ct.Value[0].Q)
-			ringQ.ReduceLvl(levelQ, ct.Value[1].Q, ct.Value[1].Q)
+			ringQ.Reduce(ct.Value[0].Q, ct.Value[0].Q)
+			ringQ.Reduce(ct.Value[1].Q, ct.Value[1].Q)
 		}
 
 		if reduce%PiOverF == PiOverF-1 {
-			ringP.ReduceLvl(levelP, ct.Value[0].P, ct.Value[0].P)
-			ringP.ReduceLvl(levelP, ct.Value[1].P, ct.Value[1].P)
+			ringP.Reduce(ct.Value[0].P, ct.Value[0].P)
+			ringP.Reduce(ct.Value[1].P, ct.Value[1].P)
 		}
 
 		reduce++
 	}
 
 	if reduce%QiOverF != 0 {
-		ringQ.ReduceLvl(levelQ, ct.Value[0].Q, ct.Value[0].Q)
-		ringQ.ReduceLvl(levelQ, ct.Value[1].Q, ct.Value[1].Q)
+		ringQ.Reduce(ct.Value[0].Q, ct.Value[0].Q)
+		ringQ.Reduce(ct.Value[1].Q, ct.Value[1].Q)
 	}
 
 	if reduce%PiOverF != 0 {
-		ringP.ReduceLvl(levelP, ct.Value[0].P, ct.Value[0].P)
-		ringP.ReduceLvl(levelP, ct.Value[1].P, ct.Value[1].P)
+		ringP.Reduce(ct.Value[0].P, ct.Value[0].P)
+		ringP.Reduce(ct.Value[1].P, ct.Value[1].P)
 	}
 }
 
@@ -125,18 +134,20 @@ func (eval *Evaluator) GadgetProductNoModDown(levelQ int, cx *ring.Poly, gadgetC
 // Expects the flag IsNTT of ct to correctly reflect the domain of cx.
 func (eval *Evaluator) GadgetProductSinglePAndBitDecompNoModDown(levelQ int, cx *ring.Poly, gadgetCt GadgetCiphertext, ct CiphertextQP) {
 
-	ringQ := eval.params.RingQ()
-	ringP := eval.params.RingP()
+	levelP := gadgetCt.LevelP()
+
+	ringQP := eval.params.RingQP().AtLevel(levelQ, levelP)
+
+	ringQ := ringQP.RingQ
+	ringP := ringQP.RingP
 
 	var cxInvNTT *ring.Poly
 	if ct.IsNTT {
 		cxInvNTT = eval.BuffInvNTT
-		ringQ.InvNTTLvl(levelQ, cx, cxInvNTT)
+		ringQ.InvNTT(cx, cxInvNTT)
 	} else {
 		cxInvNTT = cx
 	}
-
-	levelP := gadgetCt.LevelP()
 
 	decompRNS := eval.params.DecompRNS(levelQ, levelP)
 	decompPw2 := eval.params.DecompPw2(levelQ, levelP)
@@ -169,7 +180,7 @@ func (eval *Evaluator) GadgetProductSinglePAndBitDecompNoModDown(levelQ int, cx 
 
 					Table := ringQ.Tables[u]
 
-					ringQ.NTTSingleLazy(u, cw, cwNTT)
+					ringQ.NTTSingleLazy(Table, cw, cwNTT)
 					ring.MulCoeffsMontgomeryConstantVec(el[i][j].Value[0].Q.Coeffs[u], cwNTT, ct.Value[0].Q.Coeffs[u], Table.Modulus, Table.MRedParams)
 					ring.MulCoeffsMontgomeryConstantVec(el[i][j].Value[1].Q.Coeffs[u], cwNTT, ct.Value[1].Q.Coeffs[u], Table.Modulus, Table.MRedParams)
 				}
@@ -179,7 +190,7 @@ func (eval *Evaluator) GadgetProductSinglePAndBitDecompNoModDown(levelQ int, cx 
 
 						Table := ringP.Tables[u]
 
-						ringP.NTTSingleLazy(u, cw, cwNTT)
+						ringP.NTTSingleLazy(Table, cw, cwNTT)
 						ring.MulCoeffsMontgomeryConstantVec(el[i][j].Value[0].P.Coeffs[u], cwNTT, ct.Value[0].P.Coeffs[u], Table.Modulus, Table.MRedParams)
 						ring.MulCoeffsMontgomeryConstantVec(el[i][j].Value[1].P.Coeffs[u], cwNTT, ct.Value[1].P.Coeffs[u], Table.Modulus, Table.MRedParams)
 					}
@@ -190,7 +201,7 @@ func (eval *Evaluator) GadgetProductSinglePAndBitDecompNoModDown(levelQ int, cx 
 
 					Table := ringQ.Tables[u]
 
-					ringQ.NTTSingleLazy(u, cw, cwNTT)
+					ringQ.NTTSingleLazy(Table, cw, cwNTT)
 					ring.MulCoeffsMontgomeryConstantAndAddNoModVec(el[i][j].Value[0].Q.Coeffs[u], cwNTT, ct.Value[0].Q.Coeffs[u], Table.Modulus, Table.MRedParams)
 					ring.MulCoeffsMontgomeryConstantAndAddNoModVec(el[i][j].Value[1].Q.Coeffs[u], cwNTT, ct.Value[1].Q.Coeffs[u], Table.Modulus, Table.MRedParams)
 				}
@@ -200,7 +211,7 @@ func (eval *Evaluator) GadgetProductSinglePAndBitDecompNoModDown(levelQ int, cx 
 
 						Table := ringP.Tables[u]
 
-						ringP.NTTSingleLazy(u, cw, cwNTT)
+						ringP.NTTSingleLazy(Table, cw, cwNTT)
 						ring.MulCoeffsMontgomeryConstantAndAddNoModVec(el[i][j].Value[0].P.Coeffs[u], cwNTT, ct.Value[0].P.Coeffs[u], Table.Modulus, Table.MRedParams)
 						ring.MulCoeffsMontgomeryConstantAndAddNoModVec(el[i][j].Value[1].P.Coeffs[u], cwNTT, ct.Value[1].P.Coeffs[u], Table.Modulus, Table.MRedParams)
 					}
@@ -208,13 +219,13 @@ func (eval *Evaluator) GadgetProductSinglePAndBitDecompNoModDown(levelQ int, cx 
 			}
 
 			if reduce%QiOverF == QiOverF-1 {
-				ringQ.ReduceLvl(levelQ, ct.Value[0].Q, ct.Value[0].Q)
-				ringQ.ReduceLvl(levelQ, ct.Value[1].Q, ct.Value[1].Q)
+				ringQ.Reduce(ct.Value[0].Q, ct.Value[0].Q)
+				ringQ.Reduce(ct.Value[1].Q, ct.Value[1].Q)
 			}
 
 			if reduce%PiOverF == PiOverF-1 {
-				ringP.ReduceLvl(levelP, ct.Value[0].P, ct.Value[0].P)
-				ringP.ReduceLvl(levelP, ct.Value[1].P, ct.Value[1].P)
+				ringP.Reduce(ct.Value[0].P, ct.Value[0].P)
+				ringP.Reduce(ct.Value[1].P, ct.Value[1].P)
 			}
 
 			reduce++
@@ -222,14 +233,14 @@ func (eval *Evaluator) GadgetProductSinglePAndBitDecompNoModDown(levelQ int, cx 
 	}
 
 	if reduce%QiOverF != 0 {
-		ringQ.ReduceLvl(levelQ, ct.Value[0].Q, ct.Value[0].Q)
-		ringQ.ReduceLvl(levelQ, ct.Value[1].Q, ct.Value[1].Q)
+		ringQ.Reduce(ct.Value[0].Q, ct.Value[0].Q)
+		ringQ.Reduce(ct.Value[1].Q, ct.Value[1].Q)
 	}
 
 	if ringP != nil {
 		if reduce%PiOverF != 0 {
-			ringP.ReduceLvl(levelP, ct.Value[0].P, ct.Value[0].P)
-			ringP.ReduceLvl(levelP, ct.Value[1].P, ct.Value[1].P)
+			ringP.Reduce(ct.Value[0].P, ct.Value[0].P)
+			ringP.Reduce(ct.Value[1].P, ct.Value[1].P)
 		}
 	}
 

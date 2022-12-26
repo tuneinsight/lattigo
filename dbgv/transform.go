@@ -161,8 +161,8 @@ func (rfp *MaskedTransformProtocol) AggregateShares(share1, share2, shareOut *Ma
 		panic("cannot AggregateShares: all s2e shares must be at the same level")
 	}
 
-	rfp.e2s.params.RingQ().AddLvl(share1.e2sShare.Value.Level(), share1.e2sShare.Value, share2.e2sShare.Value, shareOut.e2sShare.Value)
-	rfp.s2e.params.RingQ().AddLvl(share1.s2eShare.Value.Level(), share1.s2eShare.Value, share2.s2eShare.Value, shareOut.s2eShare.Value)
+	rfp.e2s.params.RingQ().AtLevel(share1.e2sShare.Value.Level()).Add(share1.e2sShare.Value, share2.e2sShare.Value, shareOut.e2sShare.Value)
+	rfp.s2e.params.RingQ().AtLevel(share1.s2eShare.Value.Level()).Add(share1.s2eShare.Value, share2.s2eShare.Value, shareOut.s2eShare.Value)
 }
 
 // Transform applies Decrypt, Recode and Recrypt on the input ciphertext.
@@ -204,7 +204,7 @@ func (rfp *MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, transform *Ma
 
 	rfp.s2e.encoder.RingT2Q(maxLevel, mask, rfp.tmpPt)
 	rfp.s2e.encoder.ScaleUp(maxLevel, rfp.tmpPt, rfp.tmpPt)
-	rfp.s2e.params.RingQ().NTTLvl(maxLevel, rfp.tmpPt, rfp.tmpPt)
-	rfp.s2e.params.RingQ().AddLvl(maxLevel, rfp.tmpPt, share.s2eShare.Value, ciphertextOut.Value[0])
+	rfp.s2e.params.RingQ().AtLevel(maxLevel).NTT(rfp.tmpPt, rfp.tmpPt)
+	rfp.s2e.params.RingQ().AtLevel(maxLevel).Add(rfp.tmpPt, share.s2eShare.Value, ciphertextOut.Value[0])
 	rfp.s2e.GetEncryption(&drlwe.CKSShare{Value: ciphertextOut.Value[0]}, crs, ciphertextOut)
 }

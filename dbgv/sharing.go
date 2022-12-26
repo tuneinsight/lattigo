@@ -76,8 +76,9 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, ct *rlwe.Ciphertext, secret
 	e2s.maskSampler.Read(&secretShareOut.Value)
 	e2s.encoder.RingT2Q(level, &secretShareOut.Value, e2s.tmpPlaintextRingQ)
 	e2s.encoder.ScaleUp(level, e2s.tmpPlaintextRingQ, e2s.tmpPlaintextRingQ)
-	e2s.params.RingQ().NTTLvl(level, e2s.tmpPlaintextRingQ, e2s.tmpPlaintextRingQ)
-	e2s.params.RingQ().SubLvl(level, publicShareOut.Value, e2s.tmpPlaintextRingQ, publicShareOut.Value)
+	ringQ := e2s.params.RingQ().AtLevel(level)
+	ringQ.NTT(e2s.tmpPlaintextRingQ, e2s.tmpPlaintextRingQ)
+	ringQ.Sub(publicShareOut.Value, e2s.tmpPlaintextRingQ, publicShareOut.Value)
 }
 
 // GetShare is the final step of the encryption-to-share protocol. It performs the masked decryption of the target ciphertext followed by a
@@ -87,8 +88,9 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, ct *rlwe.Ciphertext, secret
 // the secretShareOut output of the GenShare method.
 func (e2s *E2SProtocol) GetShare(secretShare *rlwe.AdditiveShare, aggregatePublicShare *drlwe.CKSShare, ct *rlwe.Ciphertext, secretShareOut *rlwe.AdditiveShare) {
 	level := utils.MinInt(ct.Level(), aggregatePublicShare.Value.Level())
-	e2s.params.RingQ().AddLvl(level, aggregatePublicShare.Value, ct.Value[0], e2s.tmpPlaintextRingQ)
-	e2s.params.RingQ().InvNTTLvl(level, e2s.tmpPlaintextRingQ, e2s.tmpPlaintextRingQ)
+	ringQ := e2s.params.RingQ().AtLevel(level)
+	ringQ.Add(aggregatePublicShare.Value, ct.Value[0], e2s.tmpPlaintextRingQ)
+	ringQ.InvNTT(e2s.tmpPlaintextRingQ, e2s.tmpPlaintextRingQ)
 	e2s.encoder.ScaleDown(level, e2s.tmpPlaintextRingQ, e2s.tmpPlaintextRingQ)
 	e2s.encoder.RingQ2T(level, e2s.tmpPlaintextRingQ, e2s.tmpPlaintextRingT)
 	if secretShare != nil {
@@ -153,8 +155,9 @@ func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crp drlwe.CKSCRP, secretSha
 	s2e.CKSProtocol.GenShare(s2e.zero, sk, &rlwe.Ciphertext{Value: []*ring.Poly{nil, &c1}, MetaData: rlwe.MetaData{IsNTT: true}}, c0ShareOut)
 	s2e.encoder.RingT2Q(c1.Level(), &secretShare.Value, s2e.tmpPlaintextRingQ)
 	s2e.encoder.ScaleUp(c1.Level(), s2e.tmpPlaintextRingQ, s2e.tmpPlaintextRingQ)
-	s2e.params.RingQ().NTTLvl(c1.Level(), s2e.tmpPlaintextRingQ, s2e.tmpPlaintextRingQ)
-	s2e.params.RingQ().AddLvl(c1.Level(), c0ShareOut.Value, s2e.tmpPlaintextRingQ, c0ShareOut.Value)
+	ringQ := s2e.params.RingQ().AtLevel(c1.Level())
+	ringQ.NTT(s2e.tmpPlaintextRingQ, s2e.tmpPlaintextRingQ)
+	ringQ.Add(c0ShareOut.Value, s2e.tmpPlaintextRingQ, c0ShareOut.Value)
 }
 
 // GetEncryption computes the final encryption of the secret-shared message when provided with the aggregation `c0Agg` of the parties'

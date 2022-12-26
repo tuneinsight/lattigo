@@ -272,8 +272,8 @@ func (rfp *MaskedTransformProtocol) AggregateShares(share1, share2, shareOut *Ma
 		panic("cannot AggregateShares: all s2e shares must be at the same level")
 	}
 
-	rfp.e2s.params.RingQ().AddLvl(share1.e2sShare.Value.Level(), share1.e2sShare.Value, share2.e2sShare.Value, shareOut.e2sShare.Value)
-	rfp.s2e.params.RingQ().AddLvl(share1.s2eShare.Value.Level(), share1.s2eShare.Value, share2.s2eShare.Value, shareOut.s2eShare.Value)
+	rfp.e2s.params.RingQ().AtLevel(share1.e2sShare.Value.Level()).Add(share1.e2sShare.Value, share2.e2sShare.Value, shareOut.e2sShare.Value)
+	rfp.s2e.params.RingQ().AtLevel(share1.s2eShare.Value.Level()).Add(share1.s2eShare.Value, share2.s2eShare.Value, shareOut.s2eShare.Value)
 }
 
 // Transform applies Decrypt, Recode and Recrypt on the input ciphertext.
@@ -290,7 +290,7 @@ func (rfp *MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, logSlots int,
 		panic("cannot Transform: crs level and s2e level must be the same")
 	}
 
-	ringQ := rfp.s2e.params.RingQ()
+	ringQ := rfp.s2e.params.RingQ().AtLevel(maxLevel)
 
 	slots := 1 << logSlots
 
@@ -369,19 +369,19 @@ func (rfp *MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, logSlots int,
 	// Extend the levels of the ciphertext for future allocation
 	if ciphertextOut.Value[0].N() != ringQ.N() {
 		for i := range ciphertextOut.Value {
-			ciphertextOut.Value[i] = ringQ.NewPolyLvl(maxLevel)
+			ciphertextOut.Value[i] = ringQ.NewPoly()
 		}
 	} else {
 		ciphertextOut.Resize(ciphertextOut.Degree(), maxLevel)
 	}
 
 	// Sets LT(-sum(M_i) + x) * diffscale in the RNS domain
-	ringQ.SetCoefficientsBigintLvl(maxLevel, rfp.tmpMask[:dslots], ciphertextOut.Value[0])
+	ringQ.SetCoefficientsBigint(rfp.tmpMask[:dslots], ciphertextOut.Value[0])
 
-	ckks.NttAndMontgomeryLvl(maxLevel, logSlots, ringQ, false, ciphertextOut.Value[0])
+	ckks.NttAndMontgomery(ringQ, logSlots, false, ciphertextOut.Value[0])
 
 	// LT(-sum(M_i) + x) * diffscale + [-a*s + LT(M_i) * diffscale + e] = [-a*s + LT(x) * diffscale + e]
-	ringQ.AddLvl(maxLevel, ciphertextOut.Value[0], share.s2eShare.Value, ciphertextOut.Value[0])
+	ringQ.Add(ciphertextOut.Value[0], share.s2eShare.Value, ciphertextOut.Value[0])
 
 	// Copies the result on the out ciphertext
 	rfp.s2e.GetEncryption(&drlwe.CKSShare{Value: ciphertextOut.Value[0]}, crs, ciphertextOut)

@@ -99,7 +99,7 @@ func StandardDeviation(vec []float64, scale float64) (std float64) {
 
 // NttAndMontgomeryLvl takes the polynomial polIn Z[Y] outside of the NTT domain to the polynomial Z[X] in the NTT domain where Y = X^(gap).
 // This method is used to accelerate the NTT of polynomials that encode sparse plaintexts.
-func NttAndMontgomeryLvl(ringQ *ring.Ring, logSlots int, montgomery bool, pol *ring.Poly) {
+func NttAndMontgomery(ringQ *ring.Ring, logSlots int, montgomery bool, pol *ring.Poly) {
 
 	if 1<<logSlots == ringQ.NthRoot()>>2 {
 		ringQ.NTT(pol, pol)

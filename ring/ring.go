@@ -447,7 +447,7 @@ func (r *Ring) PolyToBigintCentered(p1 *Poly, gap int, coeffsBigint []*big.Int) 
 		tmp.SetUint64(0)
 		coeffsBigint[i].SetUint64(0)
 
-		for k := 0; k < r.level; k++ {
+		for k := 0; k < r.level+1; k++ {
 			coeffsBigint[i].Add(coeffsBigint[i], tmp.Mul(NewUint(p1.Coeffs[k][j]), crtReconstruction[k]))
 		}
 

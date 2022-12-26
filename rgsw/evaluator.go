@@ -256,7 +256,7 @@ func (eval *Evaluator) externalProductInPlaceMultipleP(levelQ, levelP int, ct0 *
 	}
 }
 
-// AddNoModLvl adds op to ctOut, without modular reduction.
+// AddNoMod adds op to ctOut, without modular reduction.
 func AddNoMod(op interface{}, ringQP ringqp.Ring, ctOut *Ciphertext) {
 	switch el := op.(type) {
 	case *Plaintext:
@@ -294,7 +294,7 @@ func AddNoMod(op interface{}, ringQP ringqp.Ring, ctOut *Ciphertext) {
 	}
 }
 
-// ReduceLvl applies the modular reduction on ctIn and returns the result on ctOut.
+// Reduce applies the modular reduction on ctIn and returns the result on ctOut.
 func Reduce(ctIn *Ciphertext, ringQP ringqp.Ring, ctOut *Ciphertext) {
 	for i := range ctIn.Value[0].Value {
 		for j := range ctIn.Value[0].Value[i] {
@@ -306,7 +306,7 @@ func Reduce(ctIn *Ciphertext, ringQP ringqp.Ring, ctOut *Ciphertext) {
 	}
 }
 
-// MulByXPowAlphaMinusOneConstantLvl multiplies ctOut by (X^alpha - 1) and returns the result on ctOut.
+// MulByXPowAlphaMinusOneConstant multiplies ctOut by (X^alpha - 1) and returns the result on ctOut.
 func MulByXPowAlphaMinusOneConstant(ctIn *Ciphertext, powXMinusOne ringqp.Poly, ringQP ringqp.Ring, ctOut *Ciphertext) {
 	for i := range ctIn.Value[0].Value {
 		for j := range ctIn.Value[0].Value[i] {
@@ -318,7 +318,7 @@ func MulByXPowAlphaMinusOneConstant(ctIn *Ciphertext, powXMinusOne ringqp.Poly, 
 	}
 }
 
-// MulByXPowAlphaMinusOneAndAddNoModLvl multiplies ctOut by (X^alpha - 1) and adds the result on ctOut.
+// MulByXPowAlphaMinusOneAndAddNoMod multiplies ctOut by (X^alpha - 1) and adds the result on ctOut.
 func MulByXPowAlphaMinusOneAndAddNoMod(ctIn *Ciphertext, powXMinusOne ringqp.Poly, ringQP ringqp.Ring, ctOut *Ciphertext) {
 	for i := range ctIn.Value[0].Value {
 		for j := range ctIn.Value[0].Value[i] {

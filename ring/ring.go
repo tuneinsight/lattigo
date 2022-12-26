@@ -197,7 +197,7 @@ func (r *Ring) MRedParams() (mredparams []uint64) {
 	return
 }
 
-// MRedParams returns the concatenation of the Barrett parameters
+// BRedParams returns the concatenation of the Barrett parameters
 // of the target ring.
 func (r *Ring) BRedParams() (bredparams [][]uint64) {
 	bredparams = make([][]uint64, len(r.Tables))

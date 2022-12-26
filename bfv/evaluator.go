@@ -37,6 +37,7 @@ type Evaluator interface {
 	RotateColumns(ctIn *rlwe.Ciphertext, k int, ctOut *rlwe.Ciphertext)
 	RotateRows(ctIn *rlwe.Ciphertext, ctOut *rlwe.Ciphertext)
 	RotateRowsNew(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext)
+	InnerSum(op0 *rlwe.Ciphertext, batch, n int, ctOut *rlwe.Ciphertext)
 	ShallowCopy() Evaluator
 	WithKey(rlwe.EvaluationKey) Evaluator
 
@@ -537,6 +538,17 @@ func (eval *evaluator) RotateRowsNew(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphert
 	ctOut = NewCiphertext(eval.params, 1, ctIn.Level())
 	eval.RotateRows(ctIn, ctOut)
 	return
+}
+
+func (eval *evaluator) InnerSum(ctIn *rlwe.Ciphertext, batchSize, n int, ctOut *rlwe.Ciphertext) {
+	_, level := eval.params.CheckUnary(ctIn, ctOut)
+	eval.params.RingQ().AtLevel(level).NTT(ctIn.Value[0], ctOut.Value[0])
+	eval.params.RingQ().AtLevel(level).NTT(ctIn.Value[1], ctOut.Value[1])
+	ctOut.IsNTT = true
+	eval.Evaluator.InnerSum(ctOut, batchSize, n, ctOut)
+	eval.params.RingQ().AtLevel(level).InvNTT(ctOut.Value[0], ctOut.Value[0])
+	eval.params.RingQ().AtLevel(level).InvNTT(ctOut.Value[1], ctOut.Value[1])
+	ctOut.IsNTT = false
 }
 
 // ShallowCopy creates a shallow copy of this evaluator in which the read-only data-structures are

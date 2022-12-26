@@ -7,14 +7,6 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
-func (r *Ring) minLevelTernary(p1, p2, p3 *Poly) int {
-	return utils.MinInt(utils.MinInt(r.NbModuli()-1, p1.Level()), utils.MinInt(p2.Level(), p3.Level()))
-}
-
-func (r *Ring) minLevelBinary(p1, p2 *Poly) int {
-	return utils.MinInt(utils.MinInt(r.NbModuli()-1, p1.Level()), p2.Level())
-}
-
 // Add adds p1 to p2 coefficient-wise and writes the result on p3.
 func (r *Ring) Add(p1, p2, p3 *Poly) {
 	N := r.N()

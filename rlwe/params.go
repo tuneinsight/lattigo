@@ -600,11 +600,13 @@ func (p Parameters) CopyNew() Parameters {
 }
 
 // CheckBinary checks that:
-//     Inputs are not nil
-//     op0.Degree() + op1.Degree() != 0 (i.e at least one operand is a ciphertext)
-//     opOut.Degree() >= opOutMinDegree
-//     op0.IsNTT = DefaultNTTFlag
-//     op1.IsNTT = DefaultNTTFlag
+//
+//	Inputs are not nil
+//	op0.Degree() + op1.Degree() != 0 (i.e at least one operand is a ciphertext)
+//	opOut.Degree() >= opOutMinDegree
+//	op0.IsNTT = DefaultNTTFlag
+//	op1.IsNTT = DefaultNTTFlag
+//
 // and returns max(op0.Degree(), op1.Degree(), opOut.Degree()) and min(op0.Level(), op1.Level(), opOut.Level())
 func (p Parameters) CheckBinary(op0, op1, opOut Operand, opOutMinDegree int) (degree, level int) {
 

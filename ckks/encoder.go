@@ -233,7 +233,7 @@ func (ecd *encoderComplex128) EncodeCoeffs(values []float64, plaintext *rlwe.Pla
 	}
 
 	floatToFixedPointCRT(plaintext.Level(), values, plaintext.Scale.Float64(), ecd.params.RingQ(), plaintext.Value.Coeffs)
-	ecd.params.RingQ().NTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
+	ecd.params.RingQ().AtLevel(plaintext.Level()).NTT(plaintext.Value, plaintext.Value)
 }
 
 // EncodeCoeffsNew encodes the values on the coefficient of a new plaintext.
@@ -394,15 +394,15 @@ func (ecd *encoderComplex128) Embed(values interface{}, logSlots int, scale rlwe
 	switch p := polyOut.(type) {
 	case ringqp.Poly:
 		complexToFixedPointCRT(p.Q.Level(), ecd.values[:slots], scale.Float64(), ecd.params.RingQ(), p.Q.Coeffs, isRingStandard)
-		NttAndMontgomeryLvl(p.Q.Level(), logSlots, ecd.params.RingQ(), montgomery, p.Q)
+		NttAndMontgomeryLvl(ecd.params.RingQ().AtLevel(p.Q.Level()), logSlots, montgomery, p.Q)
 
 		if p.P != nil {
 			complexToFixedPointCRT(p.P.Level(), ecd.values[:slots], scale.Float64(), ecd.params.RingP(), p.P.Coeffs, isRingStandard)
-			NttAndMontgomeryLvl(p.P.Level(), logSlots, ecd.params.RingP(), montgomery, p.P)
+			NttAndMontgomeryLvl(ecd.params.RingP().AtLevel(p.P.Level()), logSlots, montgomery, p.P)
 		}
 	case *ring.Poly:
 		complexToFixedPointCRT(p.Level(), ecd.values[:slots], scale.Float64(), ecd.params.RingQ(), p.Coeffs, isRingStandard)
-		NttAndMontgomeryLvl(p.Level(), logSlots, ecd.params.RingQ(), montgomery, p)
+		NttAndMontgomeryLvl(ecd.params.RingQ().AtLevel(p.Level()), logSlots, montgomery, p)
 	default:
 		panic("cannot Embed: invalid polyOut.(Type) must be ringqp.Poly or *ring.Poly")
 	}
@@ -501,14 +501,14 @@ func (ecd *encoderComplex128) decodePublic(plaintext *rlwe.Plaintext, logSlots i
 	}
 
 	if plaintext.IsNTT {
-		ecd.params.RingQ().InvNTTLvl(plaintext.Level(), plaintext.Value, ecd.buff)
+		ecd.params.RingQ().AtLevel(plaintext.Level()).InvNTT(plaintext.Value, ecd.buff)
 	} else {
 		ring.CopyLvl(plaintext.Level(), plaintext.Value, ecd.buff)
 	}
 
 	// B = floor(sigma * sqrt(2*pi))
 	if sigma != 0 {
-		ecd.gaussianSampler.ReadAndAddFromDistLvl(plaintext.Level(), ecd.buff, ecd.params.RingQ(), sigma, int(2.5066282746310002*sigma))
+		ecd.gaussianSampler.AtLevel(plaintext.Level()).ReadAndAddFromDist(ecd.buff, ecd.params.RingQ(), sigma, int(2.5066282746310002*sigma))
 	}
 
 	ecd.plaintextToComplex(plaintext.Level(), plaintext.Scale, logSlots, ecd.buff, ecd.values)
@@ -528,14 +528,14 @@ func (ecd *encoderComplex128) decodePublic(plaintext *rlwe.Plaintext, logSlots i
 func (ecd *encoderComplex128) decodeCoeffsPublic(plaintext *rlwe.Plaintext, sigma float64) (res []float64) {
 
 	if plaintext.IsNTT {
-		ecd.params.RingQ().InvNTTLvl(plaintext.Level(), plaintext.Value, ecd.buff)
+		ecd.params.RingQ().AtLevel(plaintext.Level()).InvNTT(plaintext.Value, ecd.buff)
 	} else {
 		ring.CopyLvl(plaintext.Level(), plaintext.Value, ecd.buff)
 	}
 
 	if sigma != 0 {
 		// B = floor(sigma * sqrt(2*pi))
-		ecd.gaussianSampler.ReadAndAddFromDistLvl(plaintext.Level(), ecd.buff, ecd.params.RingQ(), sigma, int(2.5066282746310002*sigma))
+		ecd.gaussianSampler.AtLevel(plaintext.Level()).ReadAndAddFromDist(ecd.buff, ecd.params.RingQ(), sigma, int(2.5066282746310002*sigma))
 	}
 
 	res = make([]float64, ecd.params.N())
@@ -673,7 +673,7 @@ func (ecd *encoderBigComplex) Encode(values []*ring.Complex, plaintext *rlwe.Pla
 		ecd.valuesfloat[i].Set(ecd.zero)
 	}
 
-	ecd.params.RingQ().NTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
+	ecd.params.RingQ().AtLevel(plaintext.Level()).NTT(plaintext.Value, plaintext.Value)
 }
 
 // EncodeNew encodes a set of values on a new plaintext.
@@ -788,11 +788,11 @@ func (ecd *encoderBigComplex) decodePublic(plaintext *rlwe.Plaintext, logSlots i
 		panic("cannot Decode: too many slots for the given ring degree")
 	}
 
-	ecd.params.RingQ().InvNTTLvl(plaintext.Level(), plaintext.Value, ecd.buff)
+	ecd.params.RingQ().AtLevel(plaintext.Level()).InvNTT(plaintext.Value, ecd.buff)
 
 	if sigma != 0 {
 		// B = floor(sigma * sqrt(2*pi))
-		ecd.gaussianSampler.ReadAndAddFromDistLvl(plaintext.Level(), ecd.buff, ecd.params.RingQ(), sigma, int(2.5066282746310002*sigma+0.5))
+		ecd.gaussianSampler.AtLevel(plaintext.Level()).ReadAndAddFromDist(ecd.buff, ecd.params.RingQ(), sigma, int(2.5066282746310002*sigma+0.5))
 	}
 
 	Q := ecd.bigintChain[plaintext.Level()]

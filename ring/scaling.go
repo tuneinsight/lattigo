@@ -131,7 +131,7 @@ func (r *Ring) DivRoundByLastModulus(p0, p1 *Poly) {
 
 // DivRoundByLastModulusManyNTT divides (rounded) sequentially nbRescales times the polynomial by its last modulus. The input must be in the NTT domain.
 // Output poly level must be equal or nbRescales less than input level.
-func (r *Ring) DivRoundByLastModulusManyNTT(level, nbRescales int, p0, buff, p1 *Poly) {
+func (r *Ring) DivRoundByLastModulusManyNTT(nbRescales int, p0, buff, p1 *Poly) {
 
 	if nbRescales == 0 {
 

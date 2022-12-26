@@ -183,7 +183,7 @@ func (keygen *keyGenerator) genrotKey(sk ringqp.Poly, galEl uint64, swk *Switchi
 func (keygen *keyGenerator) GenSwitchingKeysForRingSwap(skStd, skConjugateInvariant *SecretKey) (stdToci, ciToStd *SwitchingKey) {
 
 	skCIMappedToStandard := &SecretKey{Value: keygen.buffQP}
-	keygen.params.RingQ().UnfoldConjugateInvariantToStandard(skConjugateInvariant.Value.Q.Level(), skConjugateInvariant.Value.Q, skCIMappedToStandard.Value.Q)
+	keygen.params.RingQ().UnfoldConjugateInvariantToStandard(skConjugateInvariant.Value.Q, skCIMappedToStandard.Value.Q)
 
 	if keygen.params.PCount() != 0 {
 		keygen.extendQ2P(keygen.params.PCount()-1, skCIMappedToStandard.Value.Q, keygen.buffQ[0], skCIMappedToStandard.Value.P)

@@ -301,7 +301,7 @@ func testEncryptor(tc *testContext, t *testing.T) {
 		sampler := ring.NewUniformSampler(prng2, tc.ringQ)
 		values1, pt, _ := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
 		ciphertext := enc.WithPRNG(prng1).EncryptNew(pt)
-		c1Want := sampler.ReadLvlNew(lvl)
+		c1Want := sampler.AtLevel(lvl).ReadNew()
 		assert.True(t, c1Want.Equals(ciphertext.Value[1]))
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext, tc.params.LogSlots(), 0, t)
 	})

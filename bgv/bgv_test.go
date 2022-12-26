@@ -1079,7 +1079,7 @@ func testMarshalling(tc *testContext, t *testing.T) {
 				ctHave := pbNew.Value[i]
 				require.NotNil(t, ctHave)
 				for j := range ctWant.Value {
-					require.True(t, tc.ringQ.Equal(ctWant.Value[j], ctHave.Value[j]))
+					require.True(t, tc.ringQ.AtLevel(ctWant.Value[j].Level()).Equal(ctWant.Value[j], ctHave.Value[j]))
 				}
 			}
 		})

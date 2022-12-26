@@ -88,16 +88,15 @@ func (ckg *CKGProtocol) GenShare(sk *rlwe.SecretKey, crp CKGCRP, shareOut *CKGSh
 		ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value.Q, ckg.params.PCount()-1, nil, shareOut.Value.P)
 	}
 
-	levelQ, levelP := ckg.params.QCount()-1, ckg.params.PCount()-1
-	ringQP.NTTLvl(levelQ, levelP, shareOut.Value, shareOut.Value)
-	ringQP.MFormLvl(levelQ, levelP, shareOut.Value, shareOut.Value)
+	ringQP.NTT(shareOut.Value, shareOut.Value)
+	ringQP.MForm(shareOut.Value, shareOut.Value)
 
-	ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, sk.Value, ringqp.Poly(crp), shareOut.Value)
+	ringQP.MulCoeffsMontgomeryAndSub(sk.Value, ringqp.Poly(crp), shareOut.Value)
 }
 
 // AggregateShares aggregates a new share to the aggregate key
 func (ckg *CKGProtocol) AggregateShares(share1, share2, shareOut *CKGShare) {
-	ckg.params.RingQP().AddLvl(ckg.params.QCount()-1, ckg.params.PCount()-1, share1.Value, share2.Value, shareOut.Value)
+	ckg.params.RingQP().Add(share1.Value, share2.Value, shareOut.Value)
 }
 
 // GenPublicKey return the current aggregation of the received shares as a bfv.PublicKey.

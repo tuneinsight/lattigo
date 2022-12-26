@@ -106,11 +106,11 @@ func (r *Ring) AtLevel(levelQ, levelP int) *Ring {
 
 	var ringQ, ringP *ring.Ring
 
-	if levelQ > -1 {
+	if levelQ > -1 && r.RingQ != nil {
 		ringQ = r.RingQ.AtLevel(levelQ)
 	}
 
-	if levelP > -1 {
+	if levelP > -1 && r.RingP != nil {
 		ringP = r.RingP.AtLevel(levelP)
 	}
 

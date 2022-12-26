@@ -45,6 +45,11 @@ type CKSShare struct {
 // CKSCRP is a type for common reference polynomials in the CKS protocol.
 type CKSCRP ring.Poly
 
+// Level returns the level of the target share.
+func (ckss *CKSShare) Level() int {
+	return ckss.Value.Level()
+}
+
 // MarshalBinary encodes a CKS share on a slice of bytes.
 func (ckss *CKSShare) MarshalBinary() (data []byte, err error) {
 	return ckss.Value.MarshalBinary()
@@ -79,14 +84,15 @@ func NewCKSProtocol(params rlwe.Parameters, sigmaSmudging float64) *CKSProtocol 
 
 // AllocateShare allocates the shares of the CKSProtocol
 func (cks *CKSProtocol) AllocateShare(level int) *CKSShare {
-	return &CKSShare{cks.params.RingQ().NewPolyLvl(level)}
+	return &CKSShare{cks.params.RingQ().AtLevel(level).NewPoly()}
 }
 
 // SampleCRP samples a common random polynomial to be used in the CKS protocol from the provided
 // common reference string.
 func (cks *CKSProtocol) SampleCRP(level int, crs CRS) CKSCRP {
-	crp := cks.params.RingQ().NewPolyLvl(level)
-	ring.NewUniformSampler(crs, cks.params.RingQ()).ReadLvl(level, crp)
+	ringQ := cks.params.RingQ().AtLevel(level)
+	crp := ringQ.NewPoly()
+	ring.NewUniformSampler(crs, ringQ).Read(crp)
 	return CKSCRP(*crp)
 }
 
@@ -94,37 +100,39 @@ func (cks *CKSProtocol) SampleCRP(level int, crs CRS) CKSCRP {
 // ct is the rlwe.Ciphertext to keyswitch. Note that ct.Value[0] is not used by the function and can be nil/zero.
 func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlwe.Ciphertext, shareOut *CKSShare) {
 
-	ringQ := cks.params.RingQ()
-	ringP := cks.params.RingP()
-	ringQP := cks.params.RingQP()
-
 	c1 := ct.Value[1]
 
 	levelQ := utils.MinInt(shareOut.Value.Level(), c1.Level())
 	levelP := cks.params.PCount() - 1
 
-	ringQ.SubLvl(levelQ, skInput.Value.Q, skOutput.Value.Q, cks.tmpDelta)
+	shareOut.Value.Resize(levelQ)
+
+	ringQP := cks.params.RingQP().AtLevel(levelQ, levelP)
+	ringQ := ringQP.RingQ
+	ringP := ringQP.RingP
+
+	ringQ.Sub(skInput.Value.Q, skOutput.Value.Q, cks.tmpDelta)
 
 	ct1 := c1
 	if !ct.IsNTT {
-		ringQ.NTTLazyLvl(levelQ, c1, cks.tmpQP.Q)
+		ringQ.NTTLazy(c1, cks.tmpQP.Q)
 		ct1 = cks.tmpQP.Q
 	}
 
 	// a * (skIn - skOut) mod Q
-	ringQ.MulCoeffsMontgomeryConstantLvl(levelQ, ct1, cks.tmpDelta, shareOut.Value)
+	ringQ.MulCoeffsMontgomeryConstant(ct1, cks.tmpDelta, shareOut.Value)
 
 	if ringP != nil {
 		// P * a * (skIn - skOut) mod QP (mod P = 0)
-		ringQ.MulScalarBigintLvl(levelQ, shareOut.Value, ringP.ModulusAtLevel[levelP], shareOut.Value)
+		ringQ.MulScalarBigint(shareOut.Value, ringP.ModulusAtLevel[levelP], shareOut.Value)
 	}
 
 	if !ct.IsNTT {
 		// InvNTT(P * a * (skIn - skOut)) mod QP (mod P = 0)
-		ringQ.InvNTTLazyLvl(levelQ, shareOut.Value, shareOut.Value)
+		ringQ.InvNTTLazy(shareOut.Value, shareOut.Value)
 
 		// Samples e in Q
-		cks.gaussianSampler.ReadLvl(levelQ, cks.tmpQP.Q)
+		cks.gaussianSampler.Read(cks.tmpQP.Q)
 
 		if ringP != nil {
 			// Extend e to P (assumed to have norm < qi)
@@ -132,7 +140,7 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlwe.Cip
 		}
 
 		// InvNTT(P * a * (skIn - skOut) + e) mod QP (mod P = e)
-		ringQ.AddLvl(levelQ, shareOut.Value, cks.tmpQP.Q, shareOut.Value)
+		ringQ.Add(shareOut.Value, cks.tmpQP.Q, shareOut.Value)
 
 		if ringP != nil {
 			// InvNTT(P * a * (skIn - skOut) + e) * (1/P) mod QP (mod P = e)
@@ -141,7 +149,7 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlwe.Cip
 
 	} else {
 		// Sample e in Q
-		cks.gaussianSampler.ReadLvl(levelQ, cks.tmpQP.Q)
+		cks.gaussianSampler.Read(cks.tmpQP.Q)
 
 		if ringP != nil {
 			// Extend e to P (assumed to have norm < qi)
@@ -149,28 +157,30 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlwe.Cip
 		}
 
 		// Takes the error to the NTT domain
-		ringQ.InvNTTLvl(levelQ, shareOut.Value, shareOut.Value)
+		ringQ.InvNTT(shareOut.Value, shareOut.Value)
 
 		// P * a * (skIn - skOut) + e mod Q (mod P = 0, so P = e)
-		ringQ.AddLvl(levelQ, shareOut.Value, cks.tmpQP.Q, shareOut.Value)
+		ringQ.Add(shareOut.Value, cks.tmpQP.Q, shareOut.Value)
 
 		if ringP != nil {
 			// (P * a * (skIn - skOut) + e) * (1/P) mod QP (mod P = e)
 			cks.basisExtender.ModDownQPtoQ(levelQ, levelP, shareOut.Value, cks.tmpQP.P, shareOut.Value)
 		}
 
-		ringQ.NTTLvl(levelQ, shareOut.Value, shareOut.Value)
+		ringQ.NTT(shareOut.Value, shareOut.Value)
 
 	}
-
-	shareOut.Value.Resize(levelQ)
 }
 
 // AggregateShares is the second part of the unique round of the CKSProtocol protocol. Upon receiving the j-1 elements each party computes :
 //
 // [ctx[0] + sum((skInput_i - skOutput_i) * ctx[0] + e_i), ctx[1]]
 func (cks *CKSProtocol) AggregateShares(share1, share2, shareOut *CKSShare) {
-	cks.params.RingQ().AddLvl(share1.Value.Level(), share1.Value, share2.Value, shareOut.Value)
+	if share1.Level() != share2.Level() || share1.Level() != shareOut.Level() {
+		panic("shares levels do not match")
+	}
+
+	cks.params.RingQ().AtLevel(share1.Level()).Add(share1.Value, share2.Value, shareOut.Value)
 }
 
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
@@ -187,5 +197,5 @@ func (cks *CKSProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined *CKSShare, ctO
 		ctOut.MetaData = ctIn.MetaData
 	}
 
-	cks.params.RingQ().AddLvl(level, ctIn.Value[0], combined.Value, ctOut.Value[0])
+	cks.params.RingQ().AtLevel(level).Add(ctIn.Value[0], combined.Value, ctOut.Value[0])
 }

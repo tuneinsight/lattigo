@@ -100,8 +100,10 @@ func (thr *Thresholdizer) GenShamirSecretShare(recipient ShamirPublicPoint, secr
 
 // AggregateShares aggregates two ShamirSecretShare and stores the result in outShare.
 func (thr *Thresholdizer) AggregateShares(share1, share2, outShare *ShamirSecretShare) {
-	lvlQ, lvlP := thr.params.QCount()-1, thr.params.PCount()-1
-	thr.ringQP.AddLvl(lvlQ, lvlP, share1.Poly, share2.Poly, outShare.Poly)
+	if share1.LevelQ() != share2.LevelQ() || share1.LevelQ() != outShare.LevelQ() || share1.LevelP() != share2.LevelP() || share1.LevelP() != outShare.LevelP() {
+		panic("shares level do not match")
+	}
+	thr.ringQP.AtLevel(share1.LevelQ(), share1.LevelP()).Add(share1.Poly, share2.Poly, outShare.Poly)
 }
 
 // NewCombiner creates a new Combiner struct from the parameters and the set of ShamirPublicPoints. Note that the other

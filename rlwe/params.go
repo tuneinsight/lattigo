@@ -599,6 +599,58 @@ func (p Parameters) CopyNew() Parameters {
 	return p
 }
 
+// CheckBinary checks that:
+//     Inputs are not nil
+//     op0.Degree() + op1.Degree() != 0 (i.e at least one operand is a ciphertext)
+//     opOut.Degree() >= opOutMinDegree
+//     op0.IsNTT = DefaultNTTFlag
+//     op1.IsNTT = DefaultNTTFlag
+// and returns max(op0.Degree(), op1.Degree(), opOut.Degree()) and min(op0.Level(), op1.Level(), opOut.Level())
+func (p Parameters) CheckBinary(op0, op1, opOut Operand, opOutMinDegree int) (degree, level int) {
+
+	degree = utils.MaxInt(op0.Degree(), op1.Degree())
+	degree = utils.MaxInt(degree, opOut.Degree())
+	level = utils.MinInt(op0.Level(), op1.Level())
+	level = utils.MinInt(level, opOut.Level())
+
+	if op0 == nil || op1 == nil || opOut == nil {
+		panic("op0, op1 and opOut cannot be nil")
+	}
+
+	if op0.Degree()+op1.Degree() == 0 {
+		panic("op0 and op1 cannot be both plaintexts")
+	}
+
+	if opOut.Degree() < opOutMinDegree {
+		panic("opOut degree is too small")
+	}
+
+	if op0.El().IsNTT != p.DefaultNTTFlag() {
+		panic(fmt.Sprintf("op0.IsNTT() != %t", p.DefaultNTTFlag()))
+	}
+
+	if op1.El().IsNTT != p.DefaultNTTFlag() {
+		panic(fmt.Sprintf("op1.IsNTT() != %t", p.DefaultNTTFlag()))
+	}
+
+	return
+}
+
+// CheckUnary checks that op0 and opOut are not nil and that op0 respects the DefaultNTTFlag.
+// Also returns max(op0.Degree(), opOut.Degree()) and min(op0.Level(), opOut.Level()).
+func (p Parameters) CheckUnary(op0, opOut Operand) (degree, level int) {
+
+	if op0 == nil || opOut == nil {
+		panic("op0 and opOut cannot be nil")
+	}
+
+	if op0.El().IsNTT != p.DefaultNTTFlag() {
+		panic(fmt.Sprintf("op0.IsNTT() != %t", p.DefaultNTTFlag()))
+	}
+
+	return utils.MaxInt(op0.Degree(), opOut.Degree()), utils.MinInt(op0.Level(), opOut.Level())
+}
+
 // MarshalBinary returns a []byte representation of the parameter set.
 func (p Parameters) MarshalBinary() ([]byte, error) {
 	if p.LogN() == 0 { // if N is 0, then p is the zero value

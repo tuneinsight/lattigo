@@ -206,15 +206,18 @@ func (ecd *encoder) RingTToMul(ptRt *PlaintextRingT, ptMul *PlaintextMul) {
 		copy(ptMul.Value.Coeffs[i], ptRt.Value.Coeffs[0])
 	}
 
-	ecd.params.RingQ().NTTLazyLvl(level, ptMul.Value, ptMul.Value)
-	ecd.params.RingQ().MFormLvl(level, ptMul.Value, ptMul.Value)
+	ringQ := ecd.params.RingQ().AtLevel(level)
+
+	ringQ.NTTLazy(ptMul.Value, ptMul.Value)
+	ringQ.MForm(ptMul.Value, ptMul.Value)
 }
 
 // MulToRingT transforms a PlaintextMul into PlaintextRingT by performing the inverse NTT transform of R_q and
 // putting the coefficients out of the Montgomery form.
 func (ecd *encoder) MulToRingT(pt *PlaintextMul, ptRt *PlaintextRingT) {
-	ecd.params.RingQ().InvNTTLazyLvl(0, pt.Value, ptRt.Value)
-	ecd.params.RingQ().InvMFormLvl(0, ptRt.Value, ptRt.Value)
+	ringQ := ecd.params.RingQ().AtLevel(0)
+	ringQ.InvNTTLazy(pt.Value, ptRt.Value)
+	ringQ.InvMForm(ptRt.Value, ptRt.Value)
 }
 
 // SwitchToRingT decodes any plaintext type into a PlaintextRingT. It panics if p is not PlaintextRingT, Plaintext or PlaintextMul.

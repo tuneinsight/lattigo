@@ -198,36 +198,6 @@ func (eval *evaluator) PermuteNTTIndexesForKey(rtks *rlwe.RotationKeySet) *map[u
 	return &PermuteNTTIndex
 }
 
-func (eval *evaluator) checkBinary(op0, op1, opOut rlwe.Operand, opOutMinDegree int) (degree, level int) {
-
-	degree = utils.MaxInt(op0.Degree(), op1.Degree())
-	degree = utils.MaxInt(degree, opOut.Degree())
-	level = utils.MinInt(op0.Level(), op1.Level())
-	level = utils.MinInt(level, opOut.Level())
-
-	if op0 == nil || op1 == nil || opOut == nil {
-		panic("cannot checkBinary: rlwe.Operands cannot be nil")
-	}
-
-	if op0.Degree()+op1.Degree() == 0 {
-		panic("cannot checkBinary: rlwe.Operands cannot be both plaintext")
-	}
-
-	if opOut.Degree() < opOutMinDegree {
-		panic("cannot checkBinary: receiver rlwe.Operand degree is too small")
-	}
-
-	if !op0.El().IsNTT {
-		panic("cannot checkBinary: op0 must be in NTT")
-	}
-
-	if !op1.El().IsNTT {
-		panic("cannot checkBinary: op1 must be in NTT")
-	}
-
-	return
-}
-
 func (eval *evaluator) newCiphertextBinary(op0, op1 rlwe.Operand) (ctOut *rlwe.Ciphertext) {
 
 	maxDegree := utils.MaxInt(op0.Degree(), op1.Degree())
@@ -238,7 +208,7 @@ func (eval *evaluator) newCiphertextBinary(op0, op1 rlwe.Operand) (ctOut *rlwe.C
 
 // Add adds op1 to ctIn and returns the result in ctOut.
 func (eval *evaluator) Add(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext) {
-	_, level := eval.checkBinary(ctIn, op1, ctOut, utils.MaxInt(ctIn.Degree(), op1.Degree()))
+	_, level := eval.params.CheckBinary(ctIn, op1, ctOut, utils.MaxInt(ctIn.Degree(), op1.Degree()))
 	eval.evaluateInPlace(level, ctIn, op1, ctOut, eval.params.RingQ().AtLevel(level).Add)
 }
 
@@ -252,7 +222,7 @@ func (eval *evaluator) AddNew(ctIn *rlwe.Ciphertext, op1 rlwe.Operand) (ctOut *r
 // Sub subtracts op1 from ctIn and returns the result in ctOut.
 func (eval *evaluator) Sub(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext) {
 
-	_, level := eval.checkBinary(ctIn, op1, ctOut, utils.MaxInt(ctIn.Degree(), op1.Degree()))
+	_, level := eval.params.CheckBinary(ctIn, op1, ctOut, utils.MaxInt(ctIn.Degree(), op1.Degree()))
 
 	eval.evaluateInPlace(level, ctIn, op1, ctOut, eval.params.RingQ().AtLevel(level).Sub)
 
@@ -1078,7 +1048,7 @@ func (eval *evaluator) mulRelin(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, relin b
 	// Case Ciphertext (x) Ciphertext
 	if ctIn.Degree() == 1 && op1.Degree() == 1 {
 
-		_, level := eval.checkBinary(ctIn, op1, ctOut, ctOut.Degree())
+		_, level := eval.params.CheckBinary(ctIn, op1, ctOut, ctOut.Degree())
 
 		ringQ := eval.params.RingQ().AtLevel(level)
 
@@ -1137,7 +1107,7 @@ func (eval *evaluator) mulRelin(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, relin b
 		// Case Plaintext (x) Ciphertext or Ciphertext (x) Plaintext
 	} else {
 
-		_, level := eval.checkBinary(ctIn, op1, ctOut, ctOut.Degree())
+		_, level := eval.params.CheckBinary(ctIn, op1, ctOut, ctOut.Degree())
 
 		ringQ := eval.params.RingQ().AtLevel(level)
 
@@ -1185,7 +1155,7 @@ func (eval *evaluator) MulRelinAndAdd(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, c
 
 func (eval *evaluator) mulRelinAndAdd(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, relin bool, ctOut *rlwe.Ciphertext) {
 
-	_, level := eval.checkBinary(ctIn, op1, ctOut, utils.MaxInt(ctIn.Degree(), op1.Degree()))
+	_, level := eval.params.CheckBinary(ctIn, op1, ctOut, utils.MaxInt(ctIn.Degree(), op1.Degree()))
 
 	if ctIn.Degree()+op1.Degree() > 2 {
 		panic("cannot MulRelinAndAdd: the sum of the input elements' degree cannot be larger than 2")

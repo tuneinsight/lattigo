@@ -15,7 +15,7 @@ func Noise(params Parameters, ct *rlwe.Ciphertext, dec rlwe.Decryptor) (std, min
 
 	level := ct.Level()
 
-	ringQ := params.RingQ()
+	ringQ := params.RingQ().AtLevel(level)
 
 	ecd := NewEncoder(params).(*encoder)
 
@@ -26,12 +26,12 @@ func Noise(params Parameters, ct *rlwe.Ciphertext, dec rlwe.Decryptor) (std, min
 	ecd.ScaleDown(pt, ecd.tmpPtRt)
 	ecd.ScaleUp(ecd.tmpPtRt, pt)
 
-	ringQ.SubLvl(level, ct.Value[0], pt.Value, ct.Value[0])
+	ringQ.Sub(ct.Value[0], pt.Value, ct.Value[0])
 
 	dec.Decrypt(ct, pt)
 
 	bigintCoeffs := make([]*big.Int, ringQ.N())
-	ringQ.PolyToBigintLvl(level, pt.Value, 1, bigintCoeffs)
+	ringQ.PolyToBigint(pt.Value, 1, bigintCoeffs)
 
 	Q := new(big.Int).SetUint64(1)
 	for i := 0; i < level+1; i++ {

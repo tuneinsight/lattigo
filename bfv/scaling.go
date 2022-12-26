@@ -94,11 +94,11 @@ func NewRNSScaler(ringQ *ring.Ring, T uint64) (rnss *RNSScaler) {
 // DivByQOverTRoundedLvl returns p1 scaled by a factor t/Q and mod t on the receiver p2.
 func (rnss *RNSScaler) DivByQOverTRoundedLvl(level int, p1Q, p2T *ring.Poly) {
 
-	ringQ := rnss.ringQ
+	ringQ := rnss.ringQ.AtLevel(level)
 
 	if level > 0 {
 		if rnss.tDividesQ {
-			ringQ.DivRoundByLastModulusManyLvl(level, level, p1Q, rnss.buffQ, p2T)
+			ringQ.DivRoundByLastModulusMany(level, p1Q, rnss.buffQ, p2T)
 		} else {
 
 			ringT := rnss.ringT
@@ -112,10 +112,10 @@ func (rnss *RNSScaler) DivByQOverTRoundedLvl(level int, p1Q, p2T *ring.Poly) {
 			// Multiplies P_{Q} by t and extend the basis from P_{Q} to t*(P_{Q}||P_{t})
 			// Since the coefficients of P_{t} are multiplied by t, they are all zero,
 			// hence the basis extension can be omitted
-			ringQ.MulScalarLvl(level, p1Q, T, rnss.buffQ)
+			ringQ.MulScalar(p1Q, T, rnss.buffQ)
 
 			// Centers t*P_{Q} around (Q-1)/2 to round instead of floor during the division
-			ringQ.AddScalarBigintLvl(level, rnss.buffQ, rnss.qHalf[level], rnss.buffQ)
+			ringQ.AddScalarBigint(rnss.buffQ, rnss.qHalf[level], rnss.buffQ)
 
 			// Extends the basis of (t*P_{Q} + (Q-1)/2) to (t*P_{t} + (Q-1)/2)
 			ring.ModUpExact(rnss.buffQ.Coeffs[:level+1], rnss.buffP.Coeffs, ringQ, ringT, rnss.paramsQP[level])

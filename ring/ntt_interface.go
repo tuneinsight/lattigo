@@ -42,7 +42,7 @@ func (rntt NumberTheoreticTransformerStandard) Backward(r *Ring, p1, p2 *Poly) {
 // BackwardLazy writes the backward NTT in Z[X]/(X^N+1) on p2.
 // Returns values in the range [0, 2q-1].
 func (rntt NumberTheoreticTransformerStandard) BackwardLazy(r *Ring, p1, p2 *Poly) {
-	for x := range r.Tables {
+	for x := range r.Tables[:r.level+1] {
 		InvNTTLazy(r.Tables[x], p1.Coeffs[x], p2.Coeffs[x])
 	}
 }

@@ -121,7 +121,7 @@ func NttAndMontgomery(ringQ *ring.Ring, logSlots int, montgomery bool, pol *ring
 
 		N := ringQ.N()
 		gap := N / n
-		for i := 0; i < ringQ.NbModuli(); i++ {
+		for i := 0; i < ringQ.Level()+1; i++ {
 
 			Table := ringQ.Tables[i]
 

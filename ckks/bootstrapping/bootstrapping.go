@@ -85,11 +85,11 @@ func (btp *Bootstrapper) modUpFromQ0(ct *rlwe.Ciphertext) *rlwe.Ciphertext {
 		btp.SwitchKeys(ct, btp.swkDtS, ct)
 	}
 
-	ringQ := btp.params.RingQ()
+	ringQ := btp.params.RingQ().AtLevel(ct.Level())
 	ringP := btp.params.RingP()
 
 	for i := range ct.Value {
-		ringQ.InvNTTLvl(ct.Level(), ct.Value[i], ct.Value[i])
+		ringQ.InvNTT(ct.Value[i], ct.Value[i])
 	}
 
 	// Extend the ciphertext with zero polynomials.
@@ -97,6 +97,8 @@ func (btp *Bootstrapper) modUpFromQ0(ct *rlwe.Ciphertext) *rlwe.Ciphertext {
 
 	levelQ := btp.params.QCount() - 1
 	levelP := btp.params.PCount() - 1
+
+	ringQ = ringQ.AtLevel(levelQ)
 
 	Q := ringQ.Moduli()
 	P := ringP.Moduli()
@@ -149,17 +151,17 @@ func (btp *Bootstrapper) modUpFromQ0(ct *rlwe.Ciphertext) *rlwe.Ciphertext {
 		}
 
 		for i := len(ks.BuffDecompQP) - 1; i >= 0; i-- {
-			ringQ.NTTLvl(levelQ, ks.BuffDecompQP[0].Q, ks.BuffDecompQP[i].Q)
+			ringQ.NTT(ks.BuffDecompQP[0].Q, ks.BuffDecompQP[i].Q)
 		}
 
 		for i := len(ks.BuffDecompQP) - 1; i >= 0; i-- {
-			ringP.NTTLvl(levelP, ks.BuffDecompQP[0].P, ks.BuffDecompQP[i].P)
+			ringP.NTT(ks.BuffDecompQP[0].P, ks.BuffDecompQP[i].P)
 		}
 
-		ringQ.NTTLvl(levelQ, ct.Value[0], ct.Value[0])
+		ringQ.NTT(ct.Value[0], ct.Value[0])
 
 		ks.KeyswitchHoisted(levelQ, ks.BuffDecompQP, btp.swkStD, ks.BuffQP[1].Q, ct.Value[1], ks.BuffQP[1].P, ks.BuffQP[2].P)
-		ringQ.AddLvl(levelQ, ct.Value[0], ks.BuffQP[1].Q, ct.Value[0])
+		ringQ.Add(ct.Value[0], ks.BuffQP[1].Q, ct.Value[0])
 
 	} else {
 
@@ -178,8 +180,8 @@ func (btp *Bootstrapper) modUpFromQ0(ct *rlwe.Ciphertext) *rlwe.Ciphertext {
 			}
 		}
 
-		ringQ.NTTLvl(levelQ, ct.Value[0], ct.Value[0])
-		ringQ.NTTLvl(levelQ, ct.Value[1], ct.Value[1])
+		ringQ.NTT(ct.Value[0], ct.Value[0])
+		ringQ.NTT(ct.Value[1], ct.Value[1])
 	}
 
 	return ct

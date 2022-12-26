@@ -4,6 +4,12 @@ All notable changes to this library are documented in this file.
 
 ## UNRELEASED - XXXX-XX-XX
 - Go `1.13` is not supported anymore by the library due to behavioral changes in the `math/big` package. The minimum version is now `1.14`.
+- BFV: removed `AddNoMod`, `AddNoModNew`, `SubNoMod`, `SubNoModNew`, `Reduce`, `ReduceNew`.
+- BFV: removed `InnerSum` which is natively supported by the `rlwe` package.
+- BFV: removed checks during addition and subtraction for the type of plaintext.
+- RLWE: added `CheckBinary` and `CheckUnary` to the `Parameters` struct.
+- RING: refactoring the `ring.Ring` object to be a list of `Table` which store the pre-computations for modular arithmetic and NTT per prime.
+- RING: removed all methods with the API `[...]Lvl(level, ...)`. Instead a new ring, to perform operations at a specific level, can be obtained using `.AtLevel(level)`.
 - UTILS: added `GetFactors`, `GetFactorPollardRho` and `GetFactorECM`.
 
 ## [4.1.0] - 2022-11-22 

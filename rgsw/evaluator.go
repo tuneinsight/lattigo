@@ -85,7 +85,7 @@ func (eval *Evaluator) externalProduct32Bit(ct0 *rlwe.Ciphertext, rgsw *Cipherte
 	// rgsw = [(-as + P*w*m1 + e, a), (-bs + e, b + P*w*m1)]
 	// ct = [-cs + m0 + e, c]
 	// ctOut = [<ct, rgsw[0]>, <ct, rgsw[1]>] = [ct[0] * rgsw[0][0] + ct[1] * rgsw[0][1], ct[0] * rgsw[1][0] + ct[1] * rgsw[1][1]]
-	ringQ := eval.params.RingQ()
+	ringQ := eval.params.RingQ().AtLevel(0)
 	pw2 := eval.params.Pow2Base()
 	mask := uint64(((1 << pw2) - 1))
 
@@ -98,15 +98,15 @@ func (eval *Evaluator) externalProduct32Bit(ct0 *rlwe.Ciphertext, rgsw *Cipherte
 	// (a, b) + (c0 * rgsw[0][0], c0 * rgsw[0][1])
 	// (a, b) + (c1 * rgsw[1][0], c1 * rgsw[1][1])
 	for i, el := range rgsw.Value {
-		ringQ.InvNTTLvl(0, ct0.Value[i], eval.BuffInvNTT)
+		ringQ.InvNTT(ct0.Value[i], eval.BuffInvNTT)
 		for j := range el.Value[0] {
 			ring.MaskVec(eval.BuffInvNTT.Coeffs[0], cw, j*pw2, mask)
 			if j == 0 && i == 0 {
-				ringQ.NTTSingleLazy(0, cw, cwNTT)
+				ringQ.NTTSingleLazy(ringQ.Tables[0], cw, cwNTT)
 				ring.MulCoeffsNoModVec(el.Value[0][j].Value[0].Q.Coeffs[0], cwNTT, acc0)
 				ring.MulCoeffsNoModVec(el.Value[0][j].Value[1].Q.Coeffs[0], cwNTT, acc1)
 			} else {
-				ringQ.NTTSingleLazy(0, cw, cwNTT)
+				ringQ.NTTSingleLazy(ringQ.Tables[0], cw, cwNTT)
 				ring.MulCoeffsNoModAndAddNoModVec(el.Value[0][j].Value[0].Q.Coeffs[0], cwNTT, acc0)
 				ring.MulCoeffsNoModAndAddNoModVec(el.Value[0][j].Value[1].Q.Coeffs[0], cwNTT, acc1)
 			}
@@ -119,11 +119,11 @@ func (eval *Evaluator) externalProductInPlaceSinglePAndBitDecomp(ct0 *rlwe.Ciphe
 	// rgsw = [(-as + P*w*m1 + e, a), (-bs + e, b + P*w*m1)]
 	// ct = [-cs + m0 + e, c]
 	// ctOut = [<ct, rgsw[0]>, <ct, rgsw[1]>] = [ct[0] * rgsw[0][0] + ct[1] * rgsw[0][1], ct[0] * rgsw[1][0] + ct[1] * rgsw[1][1]]
-	ringQ := eval.params.RingQ()
-	ringP := eval.params.RingP()
-
 	levelQ := rgsw.LevelQ()
 	levelP := rgsw.LevelP()
+
+	ringQ := eval.params.RingQ().AtLevel(levelQ)
+	ringP := eval.params.RingP().AtLevel(levelP)
 
 	pw2 := eval.params.Pow2Base()
 	mask := uint64(((1 << pw2) - 1))
@@ -136,7 +136,7 @@ func (eval *Evaluator) externalProductInPlaceSinglePAndBitDecomp(ct0 *rlwe.Ciphe
 
 	// (a, b) + (c0 * rgsw[k][0], c0 * rgsw[k][1])
 	for k, el := range rgsw.Value {
-		ringQ.InvNTTLvl(levelQ, ct0.Value[k], eval.BuffInvNTT)
+		ringQ.InvNTT(ct0.Value[k], eval.BuffInvNTT)
 		cw := eval.BuffQP[0].Q.Coeffs[0]
 		cwNTT := eval.BuffBitDecomp
 		for i := 0; i < decompRNS; i++ {
@@ -148,7 +148,7 @@ func (eval *Evaluator) externalProductInPlaceSinglePAndBitDecomp(ct0 *rlwe.Ciphe
 
 						Table := ringQ.Tables[u]
 
-						ringQ.NTTSingleLazy(u, cw, cwNTT)
+						ringQ.NTTSingleLazy(Table, cw, cwNTT)
 						ring.MulCoeffsMontgomeryVec(el.Value[i][j].Value[0].Q.Coeffs[u], cwNTT, c0QP.Q.Coeffs[u], Table.Modulus, Table.MRedParams)
 						ring.MulCoeffsMontgomeryVec(el.Value[i][j].Value[1].Q.Coeffs[u], cwNTT, c1QP.Q.Coeffs[u], Table.Modulus, Table.MRedParams)
 					}
@@ -157,7 +157,7 @@ func (eval *Evaluator) externalProductInPlaceSinglePAndBitDecomp(ct0 *rlwe.Ciphe
 
 						Table := ringP.Tables[u]
 
-						ringP.NTTSingleLazy(u, cw, cwNTT)
+						ringP.NTTSingleLazy(Table, cw, cwNTT)
 						ring.MulCoeffsMontgomeryVec(el.Value[i][j].Value[0].P.Coeffs[u], cwNTT, c0QP.P.Coeffs[u], Table.Modulus, Table.MRedParams)
 						ring.MulCoeffsMontgomeryVec(el.Value[i][j].Value[1].P.Coeffs[u], cwNTT, c1QP.P.Coeffs[u], Table.Modulus, Table.MRedParams)
 					}
@@ -168,7 +168,7 @@ func (eval *Evaluator) externalProductInPlaceSinglePAndBitDecomp(ct0 *rlwe.Ciphe
 
 						Table := ringQ.Tables[u]
 
-						ringQ.NTTSingleLazy(u, cw, cwNTT)
+						ringQ.NTTSingleLazy(Table, cw, cwNTT)
 						ring.MulCoeffsMontgomeryAndAddVec(el.Value[i][j].Value[0].Q.Coeffs[u], cwNTT, c0QP.Q.Coeffs[u], Table.Modulus, Table.MRedParams)
 						ring.MulCoeffsMontgomeryAndAddVec(el.Value[i][j].Value[1].Q.Coeffs[u], cwNTT, c1QP.Q.Coeffs[u], Table.Modulus, Table.MRedParams)
 					}
@@ -177,7 +177,7 @@ func (eval *Evaluator) externalProductInPlaceSinglePAndBitDecomp(ct0 *rlwe.Ciphe
 
 						Table := ringP.Tables[u]
 
-						ringP.NTTSingleLazy(u, cw, cwNTT)
+						ringP.NTTSingleLazy(Table, cw, cwNTT)
 						ring.MulCoeffsMontgomeryAndAddVec(el.Value[i][j].Value[0].P.Coeffs[u], cwNTT, c0QP.P.Coeffs[u], Table.Modulus, Table.MRedParams)
 						ring.MulCoeffsMontgomeryAndAddVec(el.Value[i][j].Value[1].P.Coeffs[u], cwNTT, c1QP.P.Coeffs[u], Table.Modulus, Table.MRedParams)
 					}
@@ -190,9 +190,9 @@ func (eval *Evaluator) externalProductInPlaceSinglePAndBitDecomp(ct0 *rlwe.Ciphe
 func (eval *Evaluator) externalProductInPlaceMultipleP(levelQ, levelP int, ct0 *rlwe.Ciphertext, rgsw *Ciphertext, c0OutQ, c0OutP, c1OutQ, c1OutP *ring.Poly) {
 	var reduce int
 
-	ringQ := eval.params.RingQ()
-	ringP := eval.params.RingP()
-	ringQP := eval.params.RingQP()
+	ringQP := eval.params.RingQP().AtLevel(levelQ, levelP)
+	ringQ := ringQP.RingQ
+	ringP := ringQP.RingP
 
 	c2QP := eval.BuffQP[0]
 
@@ -211,11 +211,11 @@ func (eval *Evaluator) externalProductInPlaceMultipleP(levelQ, levelP int, ct0 *
 		if ct0.IsNTT {
 			c2NTT = ct0.Value[k]
 			c2InvNTT = eval.BuffInvNTT
-			ringQ.InvNTTLvl(levelQ, c2NTT, c2InvNTT)
+			ringQ.InvNTT(c2NTT, c2InvNTT)
 		} else {
 			c2NTT = eval.BuffInvNTT
 			c2InvNTT = ct0.Value[k]
-			ringQ.NTTLvl(levelQ, c2InvNTT, c2NTT)
+			ringQ.NTT(c2InvNTT, c2NTT)
 		}
 
 		// (a, b) + (c0 * rgsw[0][0], c0 * rgsw[0][1])
@@ -224,21 +224,21 @@ func (eval *Evaluator) externalProductInPlaceMultipleP(levelQ, levelP int, ct0 *
 			eval.DecomposeSingleNTT(levelQ, levelP, levelP+1, i, c2NTT, c2InvNTT, c2QP.Q, c2QP.P)
 
 			if k == 0 && i == 0 {
-				ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, el.Value[i][0].Value[0], c2QP, c0QP)
-				ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, el.Value[i][0].Value[1], c2QP, c1QP)
+				ringQP.MulCoeffsMontgomeryConstant(el.Value[i][0].Value[0], c2QP, c0QP)
+				ringQP.MulCoeffsMontgomeryConstant(el.Value[i][0].Value[1], c2QP, c1QP)
 			} else {
-				ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, el.Value[i][0].Value[0], c2QP, c0QP)
-				ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, el.Value[i][0].Value[1], c2QP, c1QP)
+				ringQP.MulCoeffsMontgomeryConstantAndAddNoMod(el.Value[i][0].Value[0], c2QP, c0QP)
+				ringQP.MulCoeffsMontgomeryConstantAndAddNoMod(el.Value[i][0].Value[1], c2QP, c1QP)
 			}
 
 			if reduce%QiOverF == QiOverF-1 {
-				ringQ.ReduceLvl(levelQ, c0QP.Q, c0QP.Q)
-				ringQ.ReduceLvl(levelQ, c1QP.Q, c1QP.Q)
+				ringQ.Reduce(c0QP.Q, c0QP.Q)
+				ringQ.Reduce(c1QP.Q, c1QP.Q)
 			}
 
 			if reduce%PiOverF == PiOverF-1 {
-				ringP.ReduceLvl(levelP, c0QP.P, c0QP.P)
-				ringP.ReduceLvl(levelP, c1QP.P, c1QP.P)
+				ringP.Reduce(c0QP.P, c0QP.P)
+				ringP.Reduce(c1QP.P, c1QP.P)
 			}
 
 			reduce++
@@ -246,23 +246,23 @@ func (eval *Evaluator) externalProductInPlaceMultipleP(levelQ, levelP int, ct0 *
 	}
 
 	if reduce%QiOverF != 0 {
-		ringQ.ReduceLvl(levelQ, c0QP.Q, c0QP.Q)
-		ringQ.ReduceLvl(levelQ, c1QP.Q, c1QP.Q)
+		ringQ.Reduce(c0QP.Q, c0QP.Q)
+		ringQ.Reduce(c1QP.Q, c1QP.Q)
 	}
 
 	if reduce%PiOverF != 0 {
-		ringP.ReduceLvl(levelP, c0QP.P, c0QP.P)
-		ringP.ReduceLvl(levelP, c1QP.P, c1QP.P)
+		ringP.Reduce(c0QP.P, c0QP.P)
+		ringP.Reduce(c1QP.P, c1QP.P)
 	}
 }
 
 // AddNoModLvl adds op to ctOut, without modular reduction.
-func AddNoModLvl(levelQ, levelP int, op interface{}, ringQP ringqp.Ring, ctOut *Ciphertext) {
+func AddNoMod(op interface{}, ringQP ringqp.Ring, ctOut *Ciphertext) {
 	switch el := op.(type) {
 	case *Plaintext:
 
-		nQ := levelQ + 1
-		nP := levelP + 1
+		nQ := ringQP.LevelQ() + 1
+		nP := ringQP.LevelP() + 1
 
 		if nP == 0 {
 			nP = 1
@@ -283,10 +283,10 @@ func AddNoModLvl(levelQ, levelP int, op interface{}, ringQP ringqp.Ring, ctOut *
 	case *Ciphertext:
 		for i := range el.Value[0].Value {
 			for j := range el.Value[0].Value[i] {
-				ringQP.AddNoModLvl(levelQ, levelP, ctOut.Value[0].Value[i][j].Value[0], el.Value[0].Value[i][j].Value[0], ctOut.Value[0].Value[i][j].Value[0])
-				ringQP.AddNoModLvl(levelQ, levelP, ctOut.Value[0].Value[i][j].Value[1], el.Value[0].Value[i][j].Value[1], ctOut.Value[0].Value[i][j].Value[1])
-				ringQP.AddNoModLvl(levelQ, levelP, ctOut.Value[1].Value[i][j].Value[0], el.Value[1].Value[i][j].Value[0], ctOut.Value[1].Value[i][j].Value[0])
-				ringQP.AddNoModLvl(levelQ, levelP, ctOut.Value[1].Value[i][j].Value[1], el.Value[1].Value[i][j].Value[1], ctOut.Value[1].Value[i][j].Value[1])
+				ringQP.AddNoMod(ctOut.Value[0].Value[i][j].Value[0], el.Value[0].Value[i][j].Value[0], ctOut.Value[0].Value[i][j].Value[0])
+				ringQP.AddNoMod(ctOut.Value[0].Value[i][j].Value[1], el.Value[0].Value[i][j].Value[1], ctOut.Value[0].Value[i][j].Value[1])
+				ringQP.AddNoMod(ctOut.Value[1].Value[i][j].Value[0], el.Value[1].Value[i][j].Value[0], ctOut.Value[1].Value[i][j].Value[0])
+				ringQP.AddNoMod(ctOut.Value[1].Value[i][j].Value[1], el.Value[1].Value[i][j].Value[1], ctOut.Value[1].Value[i][j].Value[1])
 			}
 		}
 	default:
@@ -295,37 +295,37 @@ func AddNoModLvl(levelQ, levelP int, op interface{}, ringQP ringqp.Ring, ctOut *
 }
 
 // ReduceLvl applies the modular reduction on ctIn and returns the result on ctOut.
-func ReduceLvl(levelQ, levelP int, ctIn *Ciphertext, ringQP ringqp.Ring, ctOut *Ciphertext) {
+func Reduce(ctIn *Ciphertext, ringQP ringqp.Ring, ctOut *Ciphertext) {
 	for i := range ctIn.Value[0].Value {
 		for j := range ctIn.Value[0].Value[i] {
-			ringQP.ReduceLvl(levelQ, levelP, ctIn.Value[0].Value[i][j].Value[0], ctOut.Value[0].Value[i][j].Value[0])
-			ringQP.ReduceLvl(levelQ, levelP, ctIn.Value[0].Value[i][j].Value[1], ctOut.Value[0].Value[i][j].Value[1])
-			ringQP.ReduceLvl(levelQ, levelP, ctIn.Value[1].Value[i][j].Value[0], ctOut.Value[1].Value[i][j].Value[0])
-			ringQP.ReduceLvl(levelQ, levelP, ctIn.Value[1].Value[i][j].Value[1], ctOut.Value[1].Value[i][j].Value[1])
+			ringQP.Reduce(ctIn.Value[0].Value[i][j].Value[0], ctOut.Value[0].Value[i][j].Value[0])
+			ringQP.Reduce(ctIn.Value[0].Value[i][j].Value[1], ctOut.Value[0].Value[i][j].Value[1])
+			ringQP.Reduce(ctIn.Value[1].Value[i][j].Value[0], ctOut.Value[1].Value[i][j].Value[0])
+			ringQP.Reduce(ctIn.Value[1].Value[i][j].Value[1], ctOut.Value[1].Value[i][j].Value[1])
 		}
 	}
 }
 
 // MulByXPowAlphaMinusOneConstantLvl multiplies ctOut by (X^alpha - 1) and returns the result on ctOut.
-func MulByXPowAlphaMinusOneConstantLvl(levelQ, levelP int, ctIn *Ciphertext, powXMinusOne ringqp.Poly, ringQP ringqp.Ring, ctOut *Ciphertext) {
+func MulByXPowAlphaMinusOneConstant(ctIn *Ciphertext, powXMinusOne ringqp.Poly, ringQP ringqp.Ring, ctOut *Ciphertext) {
 	for i := range ctIn.Value[0].Value {
 		for j := range ctIn.Value[0].Value[i] {
-			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, ctIn.Value[0].Value[i][j].Value[0], powXMinusOne, ctOut.Value[0].Value[i][j].Value[0])
-			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, ctIn.Value[0].Value[i][j].Value[1], powXMinusOne, ctOut.Value[0].Value[i][j].Value[1])
-			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, ctIn.Value[1].Value[i][j].Value[0], powXMinusOne, ctOut.Value[1].Value[i][j].Value[0])
-			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, ctIn.Value[1].Value[i][j].Value[1], powXMinusOne, ctOut.Value[1].Value[i][j].Value[1])
+			ringQP.MulCoeffsMontgomeryConstant(ctIn.Value[0].Value[i][j].Value[0], powXMinusOne, ctOut.Value[0].Value[i][j].Value[0])
+			ringQP.MulCoeffsMontgomeryConstant(ctIn.Value[0].Value[i][j].Value[1], powXMinusOne, ctOut.Value[0].Value[i][j].Value[1])
+			ringQP.MulCoeffsMontgomeryConstant(ctIn.Value[1].Value[i][j].Value[0], powXMinusOne, ctOut.Value[1].Value[i][j].Value[0])
+			ringQP.MulCoeffsMontgomeryConstant(ctIn.Value[1].Value[i][j].Value[1], powXMinusOne, ctOut.Value[1].Value[i][j].Value[1])
 		}
 	}
 }
 
 // MulByXPowAlphaMinusOneAndAddNoModLvl multiplies ctOut by (X^alpha - 1) and adds the result on ctOut.
-func MulByXPowAlphaMinusOneAndAddNoModLvl(levelQ, levelP int, ctIn *Ciphertext, powXMinusOne ringqp.Poly, ringQP ringqp.Ring, ctOut *Ciphertext) {
+func MulByXPowAlphaMinusOneAndAddNoMod(ctIn *Ciphertext, powXMinusOne ringqp.Poly, ringQP ringqp.Ring, ctOut *Ciphertext) {
 	for i := range ctIn.Value[0].Value {
 		for j := range ctIn.Value[0].Value[i] {
-			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, ctIn.Value[0].Value[i][j].Value[0], powXMinusOne, ctOut.Value[0].Value[i][j].Value[0])
-			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, ctIn.Value[0].Value[i][j].Value[1], powXMinusOne, ctOut.Value[0].Value[i][j].Value[1])
-			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, ctIn.Value[1].Value[i][j].Value[0], powXMinusOne, ctOut.Value[1].Value[i][j].Value[0])
-			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, ctIn.Value[1].Value[i][j].Value[1], powXMinusOne, ctOut.Value[1].Value[i][j].Value[1])
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoMod(ctIn.Value[0].Value[i][j].Value[0], powXMinusOne, ctOut.Value[0].Value[i][j].Value[0])
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoMod(ctIn.Value[0].Value[i][j].Value[1], powXMinusOne, ctOut.Value[0].Value[i][j].Value[1])
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoMod(ctIn.Value[1].Value[i][j].Value[0], powXMinusOne, ctOut.Value[1].Value[i][j].Value[0])
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoMod(ctIn.Value[1].Value[i][j].Value[1], powXMinusOne, ctOut.Value[1].Value[i][j].Value[1])
 		}
 	}
 }

@@ -43,12 +43,11 @@ func GenEvaluationKey(paramsRLWE rlwe.Parameters, skRLWE *rlwe.SecretKey, params
 
 	decompRNS := paramsRLWE.DecompRNS(levelQ, levelP)
 	decompPw2 := paramsRLWE.DecompPw2(levelQ, levelP)
-	ringQP := *paramsRLWE.RingQP()
 
 	for i, si := range skLWEInvNTT.Coeffs[0] {
 
-		skRGSWPos[i] = rgsw.NewCiphertext(levelQ, levelP, decompRNS, decompPw2, ringQP)
-		skRGSWNeg[i] = rgsw.NewCiphertext(levelQ, levelP, decompRNS, decompPw2, ringQP)
+		skRGSWPos[i] = rgsw.NewCiphertext(paramsRLWE, levelQ, levelP, decompRNS, decompPw2)
+		skRGSWNeg[i] = rgsw.NewCiphertext(paramsRLWE, levelQ, levelP, decompRNS, decompPw2)
 
 		// sk_i =  1 -> [RGSW(1), RGSW(0)]
 		if si == OneMForm {

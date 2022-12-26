@@ -102,6 +102,8 @@ type Ring struct {
 	RingQ, RingP *ring.Ring
 }
 
+// AtLevel returns a shallow copy of the target ring configured to
+// carry on operations at the specified levels.
 func (r *Ring) AtLevel(levelQ, levelP int) *Ring {
 
 	var ringQ, ringP *ring.Ring
@@ -118,6 +120,26 @@ func (r *Ring) AtLevel(levelQ, levelP int) *Ring {
 		RingQ: ringQ,
 		RingP: ringP,
 	}
+}
+
+// LevelQ returns the level at which the target
+// ring operates for the modulus Q.
+func (r *Ring) LevelQ() int {
+	if r.RingQ != nil {
+		return r.RingQ.Level()
+	}
+
+	return -1
+}
+
+// LevelQ returns the level at which the target
+// ring operates for the modulus P.
+func (r *Ring) LevelP() int {
+	if r.RingP != nil {
+		return r.RingP.Level()
+	}
+
+	return -1
 }
 
 // NewPoly creates a new polynomial with all coefficients set to 0.

@@ -298,9 +298,9 @@ type GadgetPlaintext struct {
 
 // NewGadgetPlaintext creates a new gadget plaintext from value, which can be either uint64, int64 or *ring.Poly.
 // Plaintext is returned in the NTT and Mongtomery domain.
-func NewGadgetPlaintext(value interface{}, levelQ, levelP, logBase2, decompBIT int, ringQP ringqp.Ring) (pt *GadgetPlaintext) {
+func NewGadgetPlaintext(params Parameters, value interface{}, levelQ, levelP, logBase2, decompBIT int) (pt *GadgetPlaintext) {
 
-	ringQ := ringQP.RingQ.AtLevel(levelQ)
+	ringQ := params.RingQP().RingQ.AtLevel(levelQ)
 
 	pt = new(GadgetPlaintext)
 	pt.Value = make([]*ring.Poly, decompBIT)
@@ -329,7 +329,7 @@ func NewGadgetPlaintext(value interface{}, levelQ, levelP, logBase2, decompBIT i
 	}
 
 	if levelP > -1 {
-		ringQ.MulScalarBigint(pt.Value[0], ringQP.RingP.AtLevel(levelP).Modulus(), pt.Value[0])
+		ringQ.MulScalarBigint(pt.Value[0], params.RingP().AtLevel(levelP).Modulus(), pt.Value[0])
 	}
 
 	ringQ.NTT(pt.Value[0], pt.Value[0])

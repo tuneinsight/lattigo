@@ -34,13 +34,13 @@ func (enc *Encryptor) Encrypt(pt *rlwe.Plaintext, ct interface{}) {
 
 	enc.EncryptZero(rgswCt)
 
-	ringQ := enc.params.RingQ()
 	levelQ := rgswCt.LevelQ()
+	ringQ := enc.params.RingQ().AtLevel(levelQ)
 
 	if pt != nil {
-		ringQ.MFormLvl(levelQ, pt.Value, enc.buffQP.Q)
+		ringQ.MForm(pt.Value, enc.buffQP.Q)
 		if !pt.IsNTT {
-			ringQ.NTTLvl(levelQ, enc.buffQP.Q, enc.buffQP.Q)
+			ringQ.NTT(enc.buffQP.Q, enc.buffQP.Q)
 		}
 		rlwe.AddPolyTimesGadgetVectorToGadgetCiphertext(
 			enc.buffQP.Q,

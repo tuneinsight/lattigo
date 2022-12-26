@@ -39,7 +39,7 @@ func NewEvaluator(paramsLUT, paramsLWE rlwe.Parameters, rtks *rlwe.RotationKeySe
 	ringQ := paramsLUT.RingQ()
 	ringP := paramsLUT.RingP()
 
-	eval.poolMod2N = [2]*ring.Poly{paramsLWE.RingQ().NewPolyLvl(0), paramsLWE.RingQ().NewPolyLvl(0)}
+	eval.poolMod2N = [2]*ring.Poly{paramsLWE.RingQ().NewPoly(), paramsLWE.RingQ().NewPoly()}
 	eval.accumulator = rlwe.NewCiphertext(paramsLUT, 1, paramsLUT.MaxLevel())
 	eval.accumulator.IsNTT = true // This flag is always true
 
@@ -132,10 +132,9 @@ func NewEvaluator(paramsLUT, paramsLWE rlwe.Parameters, rtks *rlwe.RotationKeySe
 	levelP := paramsLUT.PCount() - 1
 	decompRNS := paramsLUT.DecompRNS(levelQ, levelP)
 	decompPw2 := paramsLUT.DecompPw2(levelQ, levelP)
-	ringQP := paramsLUT.RingQP()
-	eval.tmpRGSW = rgsw.NewCiphertext(levelQ, levelP, decompRNS, decompPw2, *ringQP)
 
-	eval.one = rgsw.NewPlaintext(uint64(1), levelQ, levelP, paramsLUT.Pow2Base(), decompPw2, *ringQP)
+	eval.tmpRGSW = rgsw.NewCiphertext(paramsLUT, levelQ, levelP, decompRNS, decompPw2)
+	eval.one = rgsw.NewPlaintext(paramsLUT, uint64(1), levelQ, levelP, paramsLUT.Pow2Base(), decompPw2)
 
 	return
 }
@@ -170,16 +169,20 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWihtSlotIndex map[in
 
 	acc := eval.accumulator
 
-	ringQLUT := eval.paramsLUT.RingQ()
-	ringQLWE := eval.paramsLWE.RingQ()
-	ringQPLUT := *eval.paramsLUT.RingQP()
+	levelQ := key.SkPos[0].LevelQ()
+	levelP := key.SkPos[0].LevelP()
+
+	ringQPLUT := *eval.paramsLUT.RingQP().AtLevel(levelQ, levelP)
+	ringQLUT := ringQPLUT.RingQ
+
+	ringQLWE := eval.paramsLWE.RingQ().AtLevel(ct.Level())
 
 	// mod 2N
 	mask := uint64(ringQLUT.N()<<1) - 1
 
 	if ct.IsNTT {
-		ringQLWE.InvNTTLvl(ct.Level(), ct.Value[0], acc.Value[0])
-		ringQLWE.InvNTTLvl(ct.Level(), ct.Value[1], acc.Value[1])
+		ringQLWE.InvNTT(ct.Value[0], acc.Value[0])
+		ringQLWE.InvNTT(ct.Value[1], acc.Value[1])
 	} else {
 		ring.CopyLvl(ct.Level(), ct.Value[0], acc.Value[0])
 		ring.CopyLvl(ct.Level(), ct.Value[1], acc.Value[1])
@@ -199,9 +202,6 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWihtSlotIndex map[in
 	}
 
 	eval.ModSwitchRLWETo2NLvl(ct.Level(), acc.Value[0], bRLWEMod2N)
-
-	levelQ := key.SkPos[0].LevelQ()
-	levelP := key.SkPos[0].LevelP()
 
 	res = make(map[int]*rlwe.Ciphertext)
 
@@ -224,9 +224,9 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWihtSlotIndex map[in
 
 			for j := 0; j < ringQLWE.N(); j++ {
 				// RGSW[(X^{a} - 1) * sk_{j}[0] + (X^{-a} - 1) * sk_{j}[1] + 1]
-				rgsw.MulByXPowAlphaMinusOneConstantLvl(levelQ, levelP, key.SkPos[j], eval.xPowMinusOne[a[j]], ringQPLUT, eval.tmpRGSW)
-				rgsw.MulByXPowAlphaMinusOneAndAddNoModLvl(levelQ, levelP, key.SkNeg[j], eval.xPowMinusOne[-a[j]&mask], ringQPLUT, eval.tmpRGSW)
-				rgsw.AddNoModLvl(levelQ, levelP, eval.one, ringQPLUT, eval.tmpRGSW)
+				rgsw.MulByXPowAlphaMinusOneConstant(key.SkPos[j], eval.xPowMinusOne[a[j]], ringQPLUT, eval.tmpRGSW)
+				rgsw.MulByXPowAlphaMinusOneAndAddNoMod(key.SkNeg[j], eval.xPowMinusOne[-a[j]&mask], ringQPLUT, eval.tmpRGSW)
+				rgsw.AddNoMod(eval.one, ringQPLUT, eval.tmpRGSW)
 
 				// LUT[RLWE] = LUT[RLWE] x RGSW[(X^{a} - 1) * sk_{j}[0] + (X^{-a} - 1) * sk_{j}[1] + 1]
 				eval.ExternalProduct(acc, eval.tmpRGSW, acc)
@@ -234,8 +234,8 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWihtSlotIndex map[in
 			res[index] = acc.CopyNew()
 
 			if !eval.paramsLUT.DefaultNTTFlag() {
-				ringQLUT.InvNTTLvl(levelQ, res[index].Value[0], res[index].Value[0])
-				ringQLUT.InvNTTLvl(levelQ, res[index].Value[1], res[index].Value[1])
+				ringQLUT.InvNTT(res[index].Value[0], res[index].Value[0])
+				ringQLUT.InvNTT(res[index].Value[1], res[index].Value[1])
 				res[index].IsNTT = false
 			}
 		}
@@ -250,9 +250,9 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWihtSlotIndex map[in
 func (eval *Evaluator) ModSwitchRLWETo2NLvl(level int, polQ *ring.Poly, pol2N *ring.Poly) {
 	coeffsBigint := make([]*big.Int, len(polQ.Coeffs[0]))
 
-	ringQ := eval.paramsLWE.RingQ()
+	ringQ := eval.paramsLWE.RingQ().AtLevel(level)
 
-	ringQ.PolyToBigintLvl(level, polQ, 1, coeffsBigint)
+	ringQ.PolyToBigint(polQ, 1, coeffsBigint)
 
 	QBig := ringQ.ModulusAtLevel[level]
 

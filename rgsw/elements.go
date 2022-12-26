@@ -2,7 +2,6 @@ package rgsw
 
 import (
 	"github.com/tuneinsight/lattigo/v4/rlwe"
-	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 )
 
 // Ciphertext is a generic type for RGSW ciphertext.
@@ -21,11 +20,11 @@ func (ct *Ciphertext) LevelP() int {
 }
 
 // NewCiphertext allocates a new RGSW ciphertext in the NTT domain.
-func NewCiphertext(levelQ, levelP, decompRNS, decompBit int, ringQP ringqp.Ring) (ct *Ciphertext) {
+func NewCiphertext(params rlwe.Parameters, levelQ, levelP, decompRNS, decompBit int) (ct *Ciphertext) {
 	return &Ciphertext{
 		Value: [2]rlwe.GadgetCiphertext{
-			*rlwe.NewGadgetCiphertext(levelQ, levelP, decompRNS, decompBit, ringQP),
-			*rlwe.NewGadgetCiphertext(levelQ, levelP, decompRNS, decompBit, ringQP),
+			*rlwe.NewGadgetCiphertext(params, levelQ, levelP, decompRNS, decompBit),
+			*rlwe.NewGadgetCiphertext(params, levelQ, levelP, decompRNS, decompBit),
 		},
 	}
 }
@@ -35,6 +34,6 @@ type Plaintext rlwe.GadgetPlaintext
 
 // NewPlaintext creates a new RGSW plaintext from value, which can be either uint64, int64 or *ring.Poly.
 // Plaintext is returned in the NTT and Mongtomery domain.
-func NewPlaintext(value interface{}, levelQ, levelP, logBase2, decompBIT int, ringQP ringqp.Ring) (pt *Plaintext) {
-	return &Plaintext{Value: rlwe.NewGadgetPlaintext(value, levelQ, levelP, logBase2, decompBIT, ringQP).Value}
+func NewPlaintext(params rlwe.Parameters, value interface{}, levelQ, levelP, logBase2, decompBIT int) (pt *Plaintext) {
+	return &Plaintext{Value: rlwe.NewGadgetPlaintext(params, value, levelQ, levelP, logBase2, decompBIT).Value}
 }

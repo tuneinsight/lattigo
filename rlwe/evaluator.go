@@ -169,23 +169,19 @@ func (eval *Evaluator) Expand(ctIn *Ciphertext, logN, logGap int) (ctOut []*Ciph
 	ringQ := params.RingQ().AtLevel(levelQ)
 
 	// Compute X^{-2^{i}} from 1 to LogN
-	xPow2 := genXPow2(ringQ, logN, true)
+	xPow2 := genXPow2(ringQ.AtLevel(levelQ), logN, true)
 
 	ctOut = make([]*Ciphertext, 1<<(logN-logGap))
 	ctOut[0] = ctIn.CopyNew()
 
 	// Multiplies by 2^{-logN} mod Q
 	v0, v1 := ctOut[0].Value[0], ctOut[0].Value[1]
-	for i := 0; i < levelQ+1; i++ {
+	for i, s := range ringQ.SubRings[:levelQ+1] {
 
-		Table := ringQ.Tables[i]
-		Q := Table.Modulus
-		BRedParams := Table.BRedParams
-		MRedParams := Table.MRedParams
+		NInv := ring.MForm(ring.ModExp(1<<logN, s.Modulus-2, s.Modulus), s.Modulus, s.BRedConstant)
 
-		NInv := ring.MForm(ring.ModExp(1<<logN, Q-2, Q), Q, BRedParams)
-		ring.MulScalarMontgomeryVec(v0.Coeffs[i], v0.Coeffs[i], NInv, Q, MRedParams)
-		ring.MulScalarMontgomeryVec(v1.Coeffs[i], v1.Coeffs[i], NInv, Q, MRedParams)
+		s.MulScalarMontgomery(v0.Coeffs[i], NInv, v0.Coeffs[i])
+		s.MulScalarMontgomery(v1.Coeffs[i], NInv, v1.Coeffs[i])
 	}
 
 	gap := 1 << logGap
@@ -248,7 +244,7 @@ func (eval *Evaluator) Merge(ctIn map[int]*Ciphertext) (ctOut *Ciphertext) {
 		levelQ = utils.MinInt(levelQ, ctIn[i].Level())
 	}
 
-	xPow2 := genXPow2(ringQ, params.LogN(), false)
+	xPow2 := genXPow2(ringQ.AtLevel(levelQ), params.LogN(), false)
 
 	// Multiplies by (Slots * N) ^-1 mod Q
 	for i := range ctIn {
@@ -263,12 +259,9 @@ func (eval *Evaluator) Merge(ctIn map[int]*Ciphertext) (ctOut *Ciphertext) {
 			}
 
 			v0, v1 := ctIn[i].Value[0], ctIn[i].Value[1]
-			for j := 0; j < levelQ+1; j++ {
-
-				Table := ringQ.Tables[j]
-
-				ring.MulScalarMontgomeryVec(v0.Coeffs[j], v0.Coeffs[j], Table.NInv, Table.Modulus, Table.MRedParams)
-				ring.MulScalarMontgomeryVec(v1.Coeffs[j], v1.Coeffs[j], Table.NInv, Table.Modulus, Table.MRedParams)
+			for j, s := range ringQ.SubRings[:levelQ+1] {
+				s.MulScalarMontgomery(v0.Coeffs[j], s.NInv, v0.Coeffs[j])
+				s.MulScalarMontgomery(v1.Coeffs[j], s.NInv, v1.Coeffs[j])
 			}
 		}
 	}
@@ -367,8 +360,8 @@ func genXPow2(r *ring.Ring, logN int, div bool) (xPow []*ring.Poly) {
 	// Compute X^{-n} from 0 to LogN
 	xPow = make([]*ring.Poly, logN)
 
-	Modulus := r.Moduli()
-	BRedParams := r.BRedParams()
+	moduli := r.ModuliChain()[:r.Level()+1]
+	BRC := r.BRedConstants()
 
 	var idx int
 	for i := 0; i < logN; i++ {
@@ -383,8 +376,8 @@ func genXPow2(r *ring.Ring, logN int, div bool) (xPow []*ring.Poly) {
 
 		if i == 0 {
 
-			for j := 0; j < r.NbModuli(); j++ {
-				xPow[i].Coeffs[j][idx] = ring.MForm(1, Modulus[j], BRedParams[j])
+			for j := range moduli {
+				xPow[i].Coeffs[j][idx] = ring.MForm(1, moduli[j], BRC[j])
 			}
 
 			r.NTT(xPow[i], xPow[i])
@@ -430,10 +423,10 @@ func (eval *Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 		cQP.IsNTT = true
 
 		// Memory buffer for ctIn = ctIn + rot(ctIn, 2^i) in Q
-		tmpct := NewCiphertextAtLevelFromPoly(levelQ, [2]*ring.Poly{eval.BuffCt.Value[0], eval.BuffCt.Value[1]})
+		tmpct := NewCiphertextAtLevelFromPoly(levelQ, eval.BuffCt.Value[:2])
 		tmpct.IsNTT = true
 
-		ctqp := NewCiphertextAtLevelFromPoly(levelQ, [2]*ring.Poly{cQP.Value[0].Q, cQP.Value[1].Q})
+		ctqp := NewCiphertextAtLevelFromPoly(levelQ, []*ring.Poly{cQP.Value[0].Q, cQP.Value[1].Q})
 		ctqp.IsNTT = true
 
 		state := false
@@ -461,9 +454,9 @@ func (eval *Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 
 					// Rotate((tmpc0, tmpc1), k)
 					if i == 0 {
-						eval.AutomorphismHoistedNoModDown(levelQ, ctIn.Value[0], eval.BuffDecompQP, eval.params.GaloisElementForColumnRotationBy(k), cQP)
+						eval.AutomorphismHoistedLazy(levelQ, ctIn.Value[0], eval.BuffDecompQP, eval.params.GaloisElementForColumnRotationBy(k), cQP)
 					} else {
-						eval.AutomorphismHoistedNoModDown(levelQ, tmpct.Value[0], eval.BuffDecompQP, eval.params.GaloisElementForColumnRotationBy(k), cQP)
+						eval.AutomorphismHoistedLazy(levelQ, tmpct.Value[0], eval.BuffDecompQP, eval.params.GaloisElementForColumnRotationBy(k), cQP)
 					}
 
 					// ctOut += Rotate((tmpc0, tmpc1), k)

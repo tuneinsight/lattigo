@@ -143,13 +143,13 @@ func (ecd *encoder) EncodeRingT(values interface{}, ptOut *PlaintextRingT) {
 		valLen = len(values)
 	case []int64:
 
-		T := ringT.Tables[0].Modulus
-		bredparamsT := ringT.Tables[0].BRedParams
+		T := ringT.SubRings[0].Modulus
+		BRedConstantT := ringT.SubRings[0].BRedConstant
 
 		var sign, abs uint64
 		for i, c := range values {
 			sign = uint64(c) >> 63
-			abs = ring.BRedAdd(uint64(c*((int64(sign)^1)-int64(sign))), T, bredparamsT)
+			abs = ring.BRedAdd(uint64(c*((int64(sign)^1)-int64(sign))), T, BRedConstantT)
 			pt[ecd.indexMatrix[i]] = sign*(T-abs) | (sign^1)*abs
 		}
 		valLen = len(values)
@@ -161,7 +161,7 @@ func (ecd *encoder) EncodeRingT(values interface{}, ptOut *PlaintextRingT) {
 		pt[ecd.indexMatrix[i]] = 0
 	}
 
-	ringT.InvNTT(ptOut.Value, ptOut.Value)
+	ringT.INTT(ptOut.Value, ptOut.Value)
 }
 
 // EncodeMulNew encodes a slice of integers of type []uint64 or []int64 of size at most N into a newly allocated PlaintextMul (optimized for ciphertext-plaintext multiplication).
@@ -216,8 +216,8 @@ func (ecd *encoder) RingTToMul(ptRt *PlaintextRingT, ptMul *PlaintextMul) {
 // putting the coefficients out of the Montgomery form.
 func (ecd *encoder) MulToRingT(pt *PlaintextMul, ptRt *PlaintextRingT) {
 	ringQ := ecd.params.RingQ().AtLevel(0)
-	ringQ.InvNTTLazy(pt.Value, ptRt.Value)
-	ringQ.InvMForm(ptRt.Value, ptRt.Value)
+	ringQ.INTTLazy(pt.Value, ptRt.Value)
+	ringQ.IMForm(ptRt.Value, ptRt.Value)
 }
 
 // SwitchToRingT decodes any plaintext type into a PlaintextRingT. It panics if p is not PlaintextRingT, Plaintext or PlaintextMul.
@@ -249,17 +249,18 @@ func (ecd *encoder) Decode(p interface{}, coeffs interface{}) {
 
 	pos := ecd.indexMatrix
 	tmp := ecd.tmpPoly.Coeffs[0]
+	N := ecd.params.N()
 
 	switch coeffs := coeffs.(type) {
 	case []uint64:
-		for i := 0; i < ecd.params.N(); i++ {
+		for i := 0; i < N; i++ {
 			coeffs[i] = tmp[pos[i]]
 		}
 	case []int64:
 		modulus := int64(ecd.params.T())
 		modulusHalf := modulus >> 1
 		var value int64
-		for i := 0; i < ecd.params.N(); i++ {
+		for i := 0; i < N; i++ {
 			if value = int64(tmp[ecd.indexMatrix[i]]); value >= modulusHalf {
 				coeffs[i] = value - modulus
 			} else {

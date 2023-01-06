@@ -29,11 +29,14 @@ func NewCiphertext(params Parameters, degree, level int) (ct *Ciphertext) {
 // where the message is set to the passed poly. No checks are performed on poly and
 // the returned Ciphertext will share its backing array of coefficients.
 // Returned Ciphertext's MetaData is empty.
-func NewCiphertextAtLevelFromPoly(level int, poly [2]*ring.Poly) (ct *Ciphertext) {
-	v0, v1 := new(ring.Poly), new(ring.Poly)
-	v0.Coeffs, v1.Coeffs = poly[0].Coeffs[:level+1], poly[1].Coeffs[:level+1]
-	v0.Buff, v1.Buff = poly[0].Buff[:poly[0].N()*(level+1)], poly[1].Buff[:poly[1].N()*(level+1)]
-	return &Ciphertext{Value: []*ring.Poly{v0, v1}}
+func NewCiphertextAtLevelFromPoly(level int, poly []*ring.Poly) (ct *Ciphertext) {
+	Value := make([]*ring.Poly, len(poly))
+	for i := range Value {
+		Value[i] = new(ring.Poly)
+		Value[i].Coeffs = poly[i].Coeffs[:level+1]
+		Value[i].Buff = poly[i].Buff[:poly[i].N()*(level+1)]
+	}
+	return &Ciphertext{Value: Value}
 }
 
 // NewCiphertextRandom generates a new uniformly distributed Ciphertext of degree, level.
@@ -98,12 +101,12 @@ func SwitchCiphertextRingDegreeNTT(ctIn *Ciphertext, ringQSmallDim, ringQLargeDi
 		for i := range ctOut.Value {
 			for j := range ctOut.Value[i].Coeffs {
 				tmpIn, tmpOut := ctIn.Value[i].Coeffs[j], ctOut.Value[i].Coeffs[j]
-				ringQLargeDim.InvNTTSingle(ringQLargeDim.Tables[j], tmpIn, buff)
+				ringQLargeDim.SubRings[j].INTT(tmpIn, buff)
 				for w0, w1 := 0, 0; w0 < NOut; w0, w1 = w0+1, w1+gap {
 					tmpOut[w0] = buff[w1]
 				}
 
-				ringQSmallDim.NTTSingle(ringQSmallDim.Tables[j], tmpOut, tmpOut)
+				ringQSmallDim.SubRings[j].NTT(tmpOut, tmpOut)
 			}
 		}
 

@@ -553,11 +553,11 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetLevel int,
 			// ciphertext
 			if toEncode {
 
-				// MulAndAdd would actually scale the plaintext accordingly,
+				// MulThenAdd would actually scale the plaintext accordingly,
 				// but encoding with the correct scale is slightly faster
 				pt.Scale = targetScale.Div(X[key].Scale)
 				polyEval.Encode(values, pt)
-				polyEval.MulAndAdd(X[key], pt, res)
+				polyEval.MulThenAdd(X[key], pt, res)
 				toEncode = false
 			}
 		}
@@ -589,7 +589,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetLevel int,
 			c = pol.Value[0].Coeffs[key]
 			if key != 0 && c != 0 {
 				// MulScalarAndAdd automatically scales c to match the scale of res.
-				polyEval.MulScalarAndAdd(X[key], c, res)
+				polyEval.MulScalarThenAdd(X[key], c, res)
 			}
 		}
 	}

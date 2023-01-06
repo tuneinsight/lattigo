@@ -101,9 +101,9 @@ func TestCKKS(t *testing.T) {
 			testEvaluatorRescale,
 			testEvaluatorAddConst,
 			testEvaluatorMultByConst,
-			testEvaluatorMultByConstAndAdd,
+			testEvaluatorMultByConstThenAdd,
 			testEvaluatorMul,
-			testEvaluatorMulAndAdd,
+			testEvaluatorMulThenAdd,
 			testFunctions,
 			testDecryptPublic,
 			testEvaluatePoly,
@@ -440,7 +440,7 @@ func testEvaluatorRescale(tc *testContext, t *testing.T) {
 
 		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
 
-		constant := tc.ringQ.Tables[ciphertext.Level()].Modulus
+		constant := tc.ringQ.SubRings[ciphertext.Level()].Modulus
 
 		tc.evaluator.MultByConst(ciphertext, constant, ciphertext)
 
@@ -467,7 +467,7 @@ func testEvaluatorRescale(tc *testContext, t *testing.T) {
 		}
 
 		for i := 0; i < nbRescales; i++ {
-			constant := tc.ringQ.Tables[ciphertext.Level()-i].Modulus
+			constant := tc.ringQ.SubRings[ciphertext.Level()-i].Modulus
 			tc.evaluator.MultByConst(ciphertext, constant, ciphertext)
 			ciphertext.Scale = ciphertext.Scale.Mul(rlwe.NewScale(constant))
 		}
@@ -517,9 +517,9 @@ func testEvaluatorMultByConst(tc *testContext, t *testing.T) {
 
 }
 
-func testEvaluatorMultByConstAndAdd(tc *testContext, t *testing.T) {
+func testEvaluatorMultByConstThenAdd(tc *testContext, t *testing.T) {
 
-	t.Run(GetTestName(tc.params, "Evaluator/MultByConstAndAdd"), func(t *testing.T) {
+	t.Run(GetTestName(tc.params, "Evaluator/MultByConstThenAdd"), func(t *testing.T) {
 
 		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
 		values2, _, ciphertext2 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
@@ -530,7 +530,7 @@ func testEvaluatorMultByConstAndAdd(tc *testContext, t *testing.T) {
 			values2[i] += (constant * values1[i])
 		}
 
-		tc.evaluator.MultByConstAndAdd(ciphertext1, constant, ciphertext2)
+		tc.evaluator.MultByConstThenAdd(ciphertext1, constant, ciphertext2)
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values2, ciphertext2, tc.params.LogSlots(), 0, t)
 	})
@@ -700,9 +700,9 @@ func testEvaluatorMul(tc *testContext, t *testing.T) {
 	})
 }
 
-func testEvaluatorMulAndAdd(tc *testContext, t *testing.T) {
+func testEvaluatorMulThenAdd(tc *testContext, t *testing.T) {
 
-	t.Run(GetTestName(tc.params, "Evaluator/MulAndAdd/ct1*pt0->ct0"), func(t *testing.T) {
+	t.Run(GetTestName(tc.params, "Evaluator/MulThenAdd/ct1*pt0->ct0"), func(t *testing.T) {
 
 		values1, plaintext1, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
 		values2, _, ciphertext2 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
@@ -711,14 +711,14 @@ func testEvaluatorMulAndAdd(tc *testContext, t *testing.T) {
 			values1[i] += values1[i] * values2[i]
 		}
 
-		tc.evaluator.MulRelinAndAdd(ciphertext2, plaintext1, ciphertext1)
+		tc.evaluator.MulRelinThenAdd(ciphertext2, plaintext1, ciphertext1)
 
 		require.Equal(t, ciphertext1.Degree(), 1)
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
 	})
 
-	t.Run(GetTestName(tc.params, "Evaluator/MulRelinAndAdd/ct1*ct1->ct0"), func(t *testing.T) {
+	t.Run(GetTestName(tc.params, "Evaluator/MulRelinThenAdd/ct1*ct1->ct0"), func(t *testing.T) {
 
 		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
 		values2, _, ciphertext2 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
@@ -727,14 +727,14 @@ func testEvaluatorMulAndAdd(tc *testContext, t *testing.T) {
 			values1[i] += values2[i] * values2[i]
 		}
 
-		tc.evaluator.MulRelinAndAdd(ciphertext2, ciphertext2, ciphertext1)
+		tc.evaluator.MulRelinThenAdd(ciphertext2, ciphertext2, ciphertext1)
 
 		require.Equal(t, ciphertext1.Degree(), 1)
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
 	})
 
-	t.Run(GetTestName(tc.params, "Evaluator/MulAndAdd/ct0*ct1->ct2"), func(t *testing.T) {
+	t.Run(GetTestName(tc.params, "Evaluator/MulThenAdd/ct0*ct1->ct2"), func(t *testing.T) {
 
 		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
 		values2, _, ciphertext2 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
@@ -747,7 +747,7 @@ func testEvaluatorMulAndAdd(tc *testContext, t *testing.T) {
 
 		ciphertext3.Scale = ciphertext1.Scale.Mul(ciphertext2.Scale)
 
-		tc.evaluator.MulAndAdd(ciphertext1, ciphertext2, ciphertext3)
+		tc.evaluator.MulThenAdd(ciphertext1, ciphertext2, ciphertext3)
 
 		require.Equal(t, ciphertext3.Degree(), 2)
 
@@ -758,7 +758,7 @@ func testEvaluatorMulAndAdd(tc *testContext, t *testing.T) {
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext3, tc.params.LogSlots(), 0, t)
 	})
 
-	t.Run(GetTestName(tc.params, "Evaluator/MulAndAdd/ct1*ct1->ct0"), func(t *testing.T) {
+	t.Run(GetTestName(tc.params, "Evaluator/MulThenAdd/ct1*ct1->ct0"), func(t *testing.T) {
 
 		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
 		values2, _, ciphertext2 := newTestVectors(tc, tc.encryptorSk, complex(-1, -1), complex(1, 1), t)
@@ -767,7 +767,7 @@ func testEvaluatorMulAndAdd(tc *testContext, t *testing.T) {
 			values1[i] += values2[i] * values2[i]
 		}
 
-		tc.evaluator.MulAndAdd(ciphertext2, ciphertext2, ciphertext1)
+		tc.evaluator.MulThenAdd(ciphertext2, ciphertext2, ciphertext1)
 
 		require.Equal(t, ciphertext1.Degree(), 2)
 

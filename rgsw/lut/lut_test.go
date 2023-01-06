@@ -142,7 +142,7 @@ func testLUT(t *testing.T) {
 			decryptorLUT.Decrypt(ctsLUT[i], ptLUT)
 
 			if ptLUT.IsNTT {
-				paramsLUT.RingQ().InvNTT(ptLUT.Value, ptLUT.Value)
+				paramsLUT.RingQ().INTT(ptLUT.Value, ptLUT.Value)
 			}
 
 			c := ptLUT.Value.Coeffs[0][0]

@@ -75,22 +75,22 @@ func (ts *TernarySampler) ReadNew() (pol *Poly) {
 }
 
 func (ts *TernarySampler) initializeMatrix(montgomery bool) {
-	ts.matrixValues = make([][3]uint64, ts.baseRing.NbModuli())
+	ts.matrixValues = make([][3]uint64, ts.baseRing.ModuliChainLength())
 
 	// [0] = 0
 	// [1] = 1 * 2^64 mod qi
 	// [2] = (qi - 1) * 2^64 mod qi
 
-	for i, table := range ts.baseRing.Tables {
+	for i, s := range ts.baseRing.SubRings {
 
-		modulus := table.Modulus
-		bredParams := table.BRedParams
+		modulus := s.Modulus
+		brc := s.BRedConstant
 
 		ts.matrixValues[i][0] = 0
 
 		if montgomery {
-			ts.matrixValues[i][1] = MForm(1, modulus, bredParams)
-			ts.matrixValues[i][2] = MForm(modulus-1, modulus, bredParams)
+			ts.matrixValues[i][1] = MForm(1, modulus, brc)
+			ts.matrixValues[i][2] = MForm(modulus-1, modulus, brc)
 		} else {
 			ts.matrixValues[i][1] = 1
 			ts.matrixValues[i][2] = modulus - 1

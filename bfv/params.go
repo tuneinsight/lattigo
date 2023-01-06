@@ -215,7 +215,7 @@ func (p Parameters) RingQMul() *ring.Ring {
 
 // T returns the plaintext coefficient modulus t.
 func (p Parameters) T() uint64 {
-	return p.ringT.Tables[0].Modulus
+	return p.ringT.SubRings[0].Modulus
 }
 
 // LogT returns log2(plaintext coefficient modulus).

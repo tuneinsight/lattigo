@@ -35,7 +35,7 @@ func Noise(params Parameters, ct *rlwe.Ciphertext, dec rlwe.Decryptor) (std, min
 
 	Q := new(big.Int).SetUint64(1)
 	for i := 0; i < level+1; i++ {
-		Q.Mul(Q, new(big.Int).SetUint64(ringQ.Tables[0].Modulus))
+		Q.Mul(Q, new(big.Int).SetUint64(ringQ.SubRings[0].Modulus))
 	}
 
 	center(bigintCoeffs, Q)

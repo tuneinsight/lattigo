@@ -89,7 +89,7 @@ func (btp *Bootstrapper) modUpFromQ0(ct *rlwe.Ciphertext) *rlwe.Ciphertext {
 	ringP := btp.params.RingP()
 
 	for i := range ct.Value {
-		ringQ.InvNTT(ct.Value[i], ct.Value[i])
+		ringQ.INTT(ct.Value[i], ct.Value[i])
 	}
 
 	// Extend the ciphertext with zero polynomials.
@@ -100,16 +100,18 @@ func (btp *Bootstrapper) modUpFromQ0(ct *rlwe.Ciphertext) *rlwe.Ciphertext {
 
 	ringQ = ringQ.AtLevel(levelQ)
 
-	Q := ringQ.Moduli()
-	P := ringP.Moduli()
+	Q := ringQ.ModuliChain()
+	P := ringP.ModuliChain()
 	q := Q[0]
-	bredparamsQ := ringQ.BRedParams()
-	bredparamsP := ringP.BRedParams()
+	BRCQ := ringQ.BRedConstants()
+	BRCP := ringP.BRedConstants()
 
 	var coeff, tmp, pos, neg uint64
 
+	N := ringQ.N()
+
 	// ModUp q->Q for ct[0] centered around q
-	for j := 0; j < btp.params.N(); j++ {
+	for j := 0; j < N; j++ {
 
 		coeff = ct.Value[0].Coeffs[0][j]
 		pos, neg = 1, 0
@@ -119,7 +121,7 @@ func (btp *Bootstrapper) modUpFromQ0(ct *rlwe.Ciphertext) *rlwe.Ciphertext {
 		}
 
 		for i := 1; i < levelQ+1; i++ {
-			tmp = ring.BRedAdd(coeff, Q[i], bredparamsQ[i])
+			tmp = ring.BRedAdd(coeff, Q[i], BRCQ[i])
 			ct.Value[0].Coeffs[i][j] = tmp*pos + (Q[i]-tmp)*neg
 		}
 	}
@@ -129,7 +131,7 @@ func (btp *Bootstrapper) modUpFromQ0(ct *rlwe.Ciphertext) *rlwe.Ciphertext {
 		ks := btp.GetRLWEEvaluator()
 
 		// ModUp q->QP for ct[1] centered around q
-		for j := 0; j < btp.params.N(); j++ {
+		for j := 0; j < N; j++ {
 
 			coeff = ct.Value[1].Coeffs[0][j]
 			pos, neg = 1, 0
@@ -139,13 +141,13 @@ func (btp *Bootstrapper) modUpFromQ0(ct *rlwe.Ciphertext) *rlwe.Ciphertext {
 			}
 
 			for i := 0; i < levelQ+1; i++ {
-				tmp = ring.BRedAdd(coeff, Q[i], bredparamsQ[i])
+				tmp = ring.BRedAdd(coeff, Q[i], BRCQ[i])
 				ks.BuffDecompQP[0].Q.Coeffs[i][j] = tmp*pos + (Q[i]-tmp)*neg
 
 			}
 
 			for i := 0; i < levelP+1; i++ {
-				tmp = ring.BRedAdd(coeff, P[i], bredparamsP[i])
+				tmp = ring.BRedAdd(coeff, P[i], BRCP[i])
 				ks.BuffDecompQP[0].P.Coeffs[i][j] = tmp*pos + (P[i]-tmp)*neg
 			}
 		}
@@ -165,7 +167,7 @@ func (btp *Bootstrapper) modUpFromQ0(ct *rlwe.Ciphertext) *rlwe.Ciphertext {
 
 	} else {
 
-		for j := 0; j < btp.params.N(); j++ {
+		for j := 0; j < N; j++ {
 
 			coeff = ct.Value[1].Coeffs[0][j]
 			pos, neg = 1, 0
@@ -175,7 +177,7 @@ func (btp *Bootstrapper) modUpFromQ0(ct *rlwe.Ciphertext) *rlwe.Ciphertext {
 			}
 
 			for i := 1; i < levelQ+1; i++ {
-				tmp = ring.BRedAdd(coeff, Q[i], bredparamsQ[i])
+				tmp = ring.BRedAdd(coeff, Q[i], BRCQ[i])
 				ct.Value[1].Coeffs[i][j] = tmp*pos + (Q[i]-tmp)*neg
 			}
 		}

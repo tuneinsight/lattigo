@@ -115,13 +115,13 @@ func NewCombiner(params rlwe.Parameters, own ShamirPublicPoint, others []ShamirP
 	cmb.tmp1, cmb.tmp2 = cmb.ringQP.NewRNSScalar(), cmb.ringQP.NewRNSScalar()
 	cmb.one = cmb.ringQP.NewRNSScalarFromUInt64(1)
 
-	qlen := cmb.ringQP.RingQ.NbModuli()
-	for i, table := range cmb.ringQP.RingQ.Tables {
-		cmb.one[i] = ring.MForm(cmb.one[i], table.Modulus, table.BRedParams)
+	qlen := cmb.ringQP.RingQ.ModuliChainLength()
+	for i, s := range cmb.ringQP.RingQ.SubRings {
+		cmb.one[i] = ring.MForm(cmb.one[i], s.Modulus, s.BRedConstant)
 	}
 	if cmb.ringQP.RingP != nil {
-		for i, table := range cmb.ringQP.RingP.Tables {
-			cmb.one[i+qlen] = ring.MForm(cmb.one[i+qlen], table.Modulus, table.BRedParams)
+		for i, s := range cmb.ringQP.RingP.SubRings {
+			cmb.one[i+qlen] = ring.MForm(cmb.one[i+qlen], s.Modulus, s.BRedConstant)
 		}
 	}
 

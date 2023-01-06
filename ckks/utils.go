@@ -109,7 +109,7 @@ func NttAndMontgomery(ringQ *ring.Ring, logSlots int, montgomery bool, pol *ring
 	} else {
 
 		var n int
-		var NTT func(Table *ring.Table, coeffsIn, coeffsOut []uint64)
+		var NTT func(s *ring.SubRing, coeffsIn, coeffsOut []uint64)
 		switch ringQ.Type() {
 		case ring.Standard:
 			n = 2 << logSlots
@@ -121,19 +121,17 @@ func NttAndMontgomery(ringQ *ring.Ring, logSlots int, montgomery bool, pol *ring
 
 		N := ringQ.N()
 		gap := N / n
-		for i := 0; i < ringQ.Level()+1; i++ {
-
-			Table := ringQ.Tables[i]
+		for i, s := range ringQ.SubRings[:ringQ.Level()+1] {
 
 			coeffs := pol.Coeffs[i]
 
 			// NTT in dimension n
-			Table.N = n
-			NTT(Table, coeffs[:n], coeffs[:n])
-			Table.N = N
+			s.N = n // Hack!
+			NTT(s, coeffs[:n], coeffs[:n])
+			s.N = N // Dont forget!
 
 			if montgomery {
-				ring.MFormVec(coeffs[:n], coeffs[:n], Table.Modulus, Table.BRedParams)
+				s.MForm(coeffs[:n], coeffs[:n])
 			}
 
 			// Maps NTT in dimension n to NTT in dimension N
@@ -213,7 +211,7 @@ func singleFloatToFixedPointCRT(level, i int, value float64, scale float64, ring
 
 	value *= scale
 
-	moduli := ringQ.Moduli()
+	moduli := ringQ.ModuliChain()
 
 	if value > 1.8446744073709552e+19 {
 		xFlo = big.NewFloat(value)
@@ -230,13 +228,13 @@ func singleFloatToFixedPointCRT(level, i int, value float64, scale float64, ring
 		}
 
 	} else {
-		bredParams := ringQ.BRedParams()
+		brc := ringQ.BRedConstants()
 
 		c = uint64(value + 0.5)
 		if isNegative {
 			for j, qi := range moduli[:level+1] {
 				if c > qi {
-					coeffs[j][i] = qi - ring.BRedAdd(c, qi, bredParams[j])
+					coeffs[j][i] = qi - ring.BRedAdd(c, qi, brc[j])
 				} else {
 					coeffs[j][i] = qi - c
 				}
@@ -244,7 +242,7 @@ func singleFloatToFixedPointCRT(level, i int, value float64, scale float64, ring
 		} else {
 			for j, qi := range moduli[:level+1] {
 				if c > 0x1fffffffffffffff {
-					coeffs[j][i] = ring.BRedAdd(c, qi, bredParams[j])
+					coeffs[j][i] = ring.BRedAdd(c, qi, brc[j])
 				} else {
 					coeffs[j][i] = c
 				}
@@ -253,31 +251,18 @@ func singleFloatToFixedPointCRT(level, i int, value float64, scale float64, ring
 	}
 }
 
-func scaleUpExact(value float64, n float64, q uint64) (res uint64) {
+func scaleUpExact(value, scale float64) (res *big.Int) {
 
-	var isNegative bool
-	var xFlo *big.Float
-	var xInt *big.Int
+	xFlo := big.NewFloat(scale * value)
 
-	isNegative = false
-	if value < 0 {
-		isNegative = true
-		xFlo = big.NewFloat(-n * value)
+	if value > 0 {
+		xFlo.Add(xFlo, big.NewFloat(0.5))
 	} else {
-		xFlo = big.NewFloat(n * value)
+		xFlo.Sub(xFlo, big.NewFloat(0.5))
 	}
 
-	xFlo.Add(xFlo, big.NewFloat(0.5))
-
-	xInt = new(big.Int)
-	xFlo.Int(xInt)
-	xInt.Mod(xInt, ring.NewUint(q))
-
-	res = xInt.Uint64()
-
-	if isNegative {
-		res = q - res
-	}
+	res = new(big.Int)
+	xFlo.Int(res)
 
 	return
 }
@@ -424,7 +409,7 @@ func GenSwitchkeysRescalingParams(Q, P []uint64) (params []uint64) {
 
 		params[i] = tmp.Mod(PBig, ring.NewUint(Q[i])).Uint64()
 		params[i] = ring.ModExp(params[i], Q[i]-2, Q[i])
-		params[i] = ring.MForm(params[i], Q[i], ring.BRedParams(Q[i]))
+		params[i] = ring.MForm(params[i], Q[i], ring.BRedConstant(Q[i]))
 	}
 
 	return

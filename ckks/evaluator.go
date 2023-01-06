@@ -39,14 +39,14 @@ type Evaluator interface {
 	MultByGaussianInteger(ctIn *rlwe.Ciphertext, cReal, cImag interface{}, ctOut *rlwe.Ciphertext)
 
 	// Constant Multiplication with Addition
-	MultByConstAndAdd(ctIn *rlwe.Ciphertext, constant interface{}, ctOut *rlwe.Ciphertext)
-	MultByGaussianIntegerAndAdd(ctIn *rlwe.Ciphertext, cReal, cImag interface{}, ctOut *rlwe.Ciphertext)
+	MultByConstThenAdd(ctIn *rlwe.Ciphertext, constant interface{}, ctOut *rlwe.Ciphertext)
+	MultByGaussianIntegerThenAdd(ctIn *rlwe.Ciphertext, cReal, cImag interface{}, ctOut *rlwe.Ciphertext)
 
-	// Multiplication by the imaginary unit
-	MultByiNew(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext)
-	MultByi(ctIn *rlwe.Ciphertext, ctOut *rlwe.Ciphertext)
-	DivByiNew(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext)
-	DivByi(ctIn *rlwe.Ciphertext, ctOut *rlwe.Ciphertext)
+	// Multiplication with the imaginary unit
+	MultByi(ct0 *rlwe.Ciphertext, ctOut *rlwe.Ciphertext)
+	MultByiNew(ct0 *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext)
+	DivByi(ct0 *rlwe.Ciphertext, ctOut *rlwe.Ciphertext)
+	DivByiNew(ct0 *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext)
 
 	// Conjugation
 	ConjugateNew(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext)
@@ -58,15 +58,15 @@ type Evaluator interface {
 	MulRelin(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext)
 	MulRelinNew(ctIn *rlwe.Ciphertext, op1 rlwe.Operand) (ctOut *rlwe.Ciphertext)
 
-	MulAndAdd(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext)
-	MulRelinAndAdd(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext)
+	MulThenAdd(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext)
+	MulRelinThenAdd(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext)
 
 	// Slot Rotations
 	RotateNew(ctIn *rlwe.Ciphertext, k int) (ctOut *rlwe.Ciphertext)
 	Rotate(ctIn *rlwe.Ciphertext, k int, ctOut *rlwe.Ciphertext)
 	RotateHoistedNew(ctIn *rlwe.Ciphertext, rotations []int) (ctOut map[int]*rlwe.Ciphertext)
 	RotateHoisted(ctIn *rlwe.Ciphertext, rotations []int, ctOut map[int]*rlwe.Ciphertext)
-	RotateHoistedNoModDownNew(level int, rotations []int, c0 *ring.Poly, c2DecompQP []ringqp.Poly) (cOut map[int]rlwe.CiphertextQP)
+	RotateHoistedLazyNew(level int, rotations []int, c0 *ring.Poly, c2DecompQP []ringqp.Poly) (cOut map[int]rlwe.CiphertextQP)
 
 	// ===========================
 	// === Advanced Arithmetic ===
@@ -267,8 +267,8 @@ func (eval *evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 rlwe.O
 
 		if cmp == 1 && math.Floor(c0Scale/c1Scale) > 1 {
 
-			tmp1 = eval.buffCt.El()
-			tmp1.Scale = ctOut.Scale
+			tmp1 = rlwe.NewCiphertextAtLevelFromPoly(level+1, eval.buffCt.Value[:c1.Degree()+1])
+			tmp1.MetaData = ctOut.MetaData
 
 			eval.MultByConst(c1.El(), math.Floor(c0Scale/c1Scale), tmp1)
 
@@ -297,8 +297,9 @@ func (eval *evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 rlwe.O
 
 		} else if cmp == -1 && math.Floor(c1Scale/c0Scale) > 1 {
 
-			tmp0 = eval.buffCt.El()
-			tmp0.Scale = ctOut.Scale
+			// Will avoid resizing on the output
+			tmp0 = rlwe.NewCiphertextAtLevelFromPoly(level+1, eval.buffCt.Value[:c0.Degree()+1])
+			tmp0.MetaData = ctOut.MetaData
 
 			eval.MultByConst(c0, math.Floor(c1Scale/c0Scale), tmp0)
 		} else {
@@ -311,9 +312,9 @@ func (eval *evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 rlwe.O
 
 		if cmp == 1 && math.Floor(c0Scale/c1Scale) > 1 {
 
-			tmp1 = eval.buffCt.El()
-
-			tmp1.Scale = ctOut.Scale
+			// Will avoid resizing on the output
+			tmp1 = rlwe.NewCiphertextAtLevelFromPoly(level+1, eval.buffCt.Value[:c1.Degree()+1])
+			tmp1.MetaData = ctOut.MetaData
 
 			eval.MultByConst(c1.El(), math.Floor(c0Scale/c1Scale), tmp1)
 
@@ -321,9 +322,8 @@ func (eval *evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 rlwe.O
 
 		} else if cmp == -1 && math.Floor(c1Scale/c0Scale) > 1 {
 
-			tmp0 = eval.buffCt.El()
-
-			tmp0.Scale = ctOut.Scale
+			tmp0 = rlwe.NewCiphertextAtLevelFromPoly(level+1, eval.buffCt.Value[:c0.Degree()+1])
+			tmp0.MetaData = ctOut.MetaData
 
 			eval.MultByConst(c0, math.Floor(c1Scale/c0Scale), tmp0)
 
@@ -379,13 +379,6 @@ func (eval *evaluator) NegNew(ct0 *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext) {
 	return
 }
 
-// AddConstNew adds the input constant (which can be a uint64, int64, float64 or complex128) to ct0 and returns the result in a new element.
-func (eval *evaluator) AddConstNew(ct0 *rlwe.Ciphertext, constant interface{}) (ctOut *rlwe.Ciphertext) {
-	ctOut = ct0.CopyNew()
-	eval.AddConst(ct0, constant, ctOut)
-	return ctOut
-}
-
 func (eval *evaluator) getConstAndScale(level int, constant interface{}) (cReal, cImag, scale float64) {
 
 	// Converts to float64 and determines if a scaling is required (which is the case if either real or imag have a rational part)
@@ -400,7 +393,7 @@ func (eval *evaluator) getConstAndScale(level int, constant interface{}) (cReal,
 			valueFloat := cReal - float64(valueInt)
 
 			if valueFloat != 0 {
-				scale = float64(eval.params.RingQ().Tables[level].Modulus)
+				scale = float64(eval.params.RingQ().SubRings[level].Modulus)
 			}
 		}
 
@@ -409,7 +402,7 @@ func (eval *evaluator) getConstAndScale(level int, constant interface{}) (cReal,
 			valueFloat := cImag - float64(valueInt)
 
 			if valueFloat != 0 {
-				scale = float64(eval.params.RingQ().Tables[level].Modulus)
+				scale = float64(eval.params.RingQ().SubRings[level].Modulus)
 			}
 		}
 
@@ -422,7 +415,7 @@ func (eval *evaluator) getConstAndScale(level int, constant interface{}) (cReal,
 			valueFloat := cReal - float64(valueInt)
 
 			if valueFloat != 0 {
-				scale = float64(eval.params.RingQ().Tables[level].Modulus)
+				scale = float64(eval.params.RingQ().SubRings[level].Modulus)
 			}
 		}
 
@@ -451,72 +444,37 @@ func (eval *evaluator) getConstAndScale(level int, constant interface{}) (cReal,
 }
 
 // AddConst adds the input constant (which can be a uint64, int64, float64 or complex128) to ct0 and returns the result in ctOut.
-func (eval *evaluator) AddConst(ct0 *rlwe.Ciphertext, constant interface{}, ctOut *rlwe.Ciphertext) {
-
-	var level = utils.MinInt(ct0.Level(), ctOut.Level())
-	var scaledConst, scaledConstReal, scaledConstImag, qi uint64
-
+func (eval *evaluator) AddConst(ct0 *rlwe.Ciphertext, constant interface{}, ct1 *rlwe.Ciphertext) {
+	level := utils.MinInt(ct0.Level(), ct1.Level())
+	ct1.Resize(ct0.Degree(), level)
 	cReal, cImag, _ := eval.getConstAndScale(level, constant)
-
-	ringQ := eval.params.RingQ()
-
-	cf64 := ctOut.Scale.Float64()
-
-	ctOut.MetaData = ct0.MetaData
-
-	// Component wise addition of the following vector to the ciphertext:
-	// [a + b*psi_qi^2, ....., a + b*psi_qi^2, a - b*psi_qi^2, ...., a - b*psi_qi^2] mod Qi
-	// [{                  N/2                }{                N/2               }]
-	// Which is equivalent outside of the NTT domain to adding a to the first coefficient of ct0 and b to the N/2-th coefficient of ct0.
-	for i := 0; i < level+1; i++ {
-		scaledConstReal, scaledConstImag, scaledConst = 0, 0, 0
-		qi = ringQ.Tables[i].Modulus
-
-		if cReal != 0 {
-			scaledConstReal = scaleUpExact(cReal, cf64, qi)
-			scaledConst = scaledConstReal
-		}
-
-		if cImag != 0 {
-			scaledConstImag = ring.MRed(scaleUpExact(cImag, cf64, qi), ringQ.Tables[i].RootsForward[1], qi, ringQ.Tables[i].MRedParams)
-			scaledConst = ring.CRed(scaledConst+scaledConstImag, qi)
-		}
-
-		p0tmp := ct0.Value[0].Coeffs[i]
-		p1tmp := ctOut.Value[0].Coeffs[i]
-
-		ring.AddScalarVec(p0tmp[:ringQ.N()>>1], p1tmp[:ringQ.N()>>1], scaledConst, qi)
-
-		if cImag != 0 {
-			scaledConst = ring.CRed(scaledConstReal+(qi-scaledConstImag), qi)
-		}
-
-		ring.AddScalarVec(p0tmp[ringQ.N()>>1:], p1tmp[ringQ.N()>>1:], scaledConst, qi)
-	}
+	RNSReal := eval.params.RingQ().AtLevel(level).NewRNSScalarFromBigint(scaleUpExact(cReal, ct0.Scale.Float64()))
+	RNSImag := eval.params.RingQ().AtLevel(level).NewRNSScalarFromBigint(scaleUpExact(cImag, ct0.Scale.Float64()))
+	eval.evaluateWithScalar(level, ct0.Value[:1], RNSReal, RNSImag, ct1.Value[:1], eval.params.RingQ().AtLevel(level).AddDoubleRNSScalar)
 }
 
-// MultByConstAndAdd multiplies ct0 by the input constant, and adds it to the receiver element (it does not modify the input
+// AddConstNew adds the input constant (which can be a uint64, int64, float64 or complex128) to ct0 and returns the result in a new element.
+func (eval *evaluator) AddConstNew(ct0 *rlwe.Ciphertext, constant interface{}) (ctOut *rlwe.Ciphertext) {
+	ctOut = ct0.CopyNew()
+	eval.AddConst(ct0, constant, ctOut)
+	return
+}
+
+// MultByConstThenAdd multiplies ct0 by the input constant, and adds it to the receiver element (it does not modify the input
 // element), e.g., ctOut(x) = ctOut(x) + ct0(x) * (a+bi). This functions removes the need of storing the intermediate value c(x) * (a+bi).
 // This function will modify the level and the scale of the receiver element depending on the level and the scale of the input
 // element and the type of the constant. The level of the receiver element will be set to min(input.level, receiver.level).
 // The scale of the receiver element will be set to the scale that the input element would have after the multiplication by the constant.
-func (eval *evaluator) MultByConstAndAdd(ct0 *rlwe.Ciphertext, constant interface{}, ctOut *rlwe.Ciphertext) {
+func (eval *evaluator) MultByConstThenAdd(ct0 *rlwe.Ciphertext, constant interface{}, ctOut *rlwe.Ciphertext) {
 
 	var level = utils.MinInt(ct0.Level(), ctOut.Level())
 
-	// Forces a drop of ctOut level to ct0 level
-	if ctOut.Level() > level {
-		eval.DropLevel(ctOut, ctOut.Level()-level)
-	}
+	ctOut.Resize(ctOut.Degree(), level)
 
 	cReal, cImag, scale := eval.getConstAndScale(level, constant)
 
-	var scaledConst, scaledConstReal, scaledConstImag uint64
-
 	c0f64 := ct0.Scale.Float64()
 	c1f64 := ctOut.Scale.Float64()
-
-	ringQ := eval.params.RingQ()
 
 	// If a scaling would be required to multiply by the constant,
 	// it equalizes scales such that the scales match in the end.
@@ -527,9 +485,7 @@ func (eval *evaluator) MultByConstAndAdd(ct0 *rlwe.Ciphertext, constant interfac
 		if c1f64 < c0f64*scale {
 
 			if scale := math.Floor((scale * c0f64) / c1f64); scale > 1 {
-
 				eval.MultByConst(ctOut, scale, ctOut)
-
 			}
 
 			ctOut.MetaData = ct0.MetaData
@@ -560,51 +516,25 @@ func (eval *evaluator) MultByConstAndAdd(ct0 *rlwe.Ciphertext, constant interfac
 		}
 	}
 
-	// Component-wise multiplication of the following vector to the ciphertext:
+	RNSReal := eval.params.RingQ().AtLevel(level).NewRNSScalarFromBigint(scaleUpExact(cReal, scale))
+	RNSImag := eval.params.RingQ().AtLevel(level).NewRNSScalarFromBigint(scaleUpExact(cImag, scale))
+
+	eval.evaluateWithScalar(level, ct0.Value, RNSReal, RNSImag, ctOut.Value, eval.params.RingQ().AtLevel(level).MulDoubleRNSScalarThenAdd)
+}
+
+func (eval *evaluator) evaluateWithScalar(level int, p0 []*ring.Poly, RNSReal, RNSImag ring.RNSScalar, p1 []*ring.Poly, evaluate func(*ring.Poly, ring.RNSScalar, ring.RNSScalar, *ring.Poly)) {
+
+	// Component wise operation with the following vector:
 	// [a + b*psi_qi^2, ....., a + b*psi_qi^2, a - b*psi_qi^2, ...., a - b*psi_qi^2] mod Qi
 	// [{                  N/2                }{                N/2               }]
-	// Which is equivalent outside of the NTT domain to adding a to the first coefficient of ct0 and b to the N/2-th coefficient of ct0.
-	for i := 0; i < level+1; i++ {
+	// Which is equivalent outside of the NTT domain to evaluating a to the first coefficient of ct0 and b to the N/2-th coefficient of ct0.
+	for i, s := range eval.params.RingQ().SubRings[:level+1] {
+		RNSImag[i] = ring.MRedLazy(RNSImag[i], s.RootsForward[1], s.Modulus, s.MRedConstant)
+		RNSReal[i], RNSImag[i] = RNSReal[i]+RNSImag[i], RNSReal[i]+2*s.Modulus-RNSImag[i]
+	}
 
-		Table := ringQ.Tables[i]
-
-		qi := Table.Modulus
-		mredParams := Table.MRedParams
-		bredParams := Table.BRedParams
-
-		scaledConstReal = 0
-		scaledConstImag = 0
-		scaledConst = 0
-
-		if cReal != 0 {
-			scaledConstReal = scaleUpExact(cReal, scale, qi)
-			scaledConst = scaledConstReal
-		}
-
-		if cImag != 0 {
-			scaledConstImag = scaleUpExact(cImag, scale, qi)
-			scaledConstImag = ring.MRed(scaledConstImag, Table.RootsForward[1], qi, mredParams)
-			scaledConst = ring.CRed(scaledConst+scaledConstImag, qi)
-		}
-
-		scaledConst = ring.MForm(scaledConst, qi, bredParams)
-
-		for u := range ct0.Value {
-			p0tmp := ct0.Value[u].Coeffs[i]
-			p1tmp := ctOut.Value[u].Coeffs[i]
-			ring.MulScalarMontgomeryAndAddVec(p0tmp[:ringQ.N()>>1], p1tmp[:ringQ.N()>>1], scaledConst, qi, mredParams)
-		}
-
-		if cImag != 0 {
-			scaledConst = ring.CRed(scaledConstReal+(qi-scaledConstImag), qi)
-			scaledConst = ring.MForm(scaledConst, qi, bredParams)
-		}
-
-		for u := range ct0.Value {
-			p0tmp := ct0.Value[u].Coeffs[i]
-			p1tmp := ctOut.Value[u].Coeffs[i]
-			ring.MulScalarMontgomeryAndAddVec(p0tmp[ringQ.N()>>1:], p1tmp[ringQ.N()>>1:], scaledConst, qi, mredParams)
-		}
+	for i := range p0 {
+		evaluate(p0[i], RNSReal, RNSImag, p1[i])
 	}
 }
 
@@ -621,60 +551,12 @@ func (eval *evaluator) MultByConstNew(ct0 *rlwe.Ciphertext, constant interface{}
 // The scale of the output element will depend on the scale of the input element and the constant (if the constant
 // needs to be scaled (its rational part is not zero)). The constant can be a uint64, int64, float64 or complex128.
 func (eval *evaluator) MultByConst(ct0 *rlwe.Ciphertext, constant interface{}, ctOut *rlwe.Ciphertext) {
-
-	var level = utils.MinInt(ct0.Level(), ctOut.Level())
-
+	level := utils.MinInt(ct0.Level(), ctOut.Level())
+	ctOut.Resize(ct0.Degree(), level)
 	cReal, cImag, scale := eval.getConstAndScale(level, constant)
-
-	// Component wise multiplication of the following vector with the ciphertext:
-	// [a + b*psi_qi^2, ....., a + b*psi_qi^2, a - b*psi_qi^2, ...., a - b*psi_qi^2] mod Qi
-	// [{                  N/2                }{                N/2               }]
-	// Which is equivalent outside of the NTT domain to adding a to the first coefficient of ct0 and b to the N/2-th coefficient of ct0.
-	ringQ := eval.params.RingQ()
-	var scaledConst, scaledConstReal, scaledConstImag uint64
-	for i := 0; i < level+1; i++ {
-
-		Table := ringQ.Tables[i]
-
-		qi := Table.Modulus
-		bredParams := Table.BRedParams
-		mredParams := Table.MRedParams
-
-		scaledConstReal = 0
-		scaledConstImag = 0
-		scaledConst = 0
-
-		if cReal != 0 {
-			scaledConstReal = scaleUpExact(cReal, scale, qi)
-			scaledConst = scaledConstReal
-		}
-
-		if cImag != 0 {
-			scaledConstImag = scaleUpExact(cImag, scale, qi)
-			scaledConstImag = ring.MRed(scaledConstImag, Table.RootsForward[1], qi, mredParams)
-			scaledConst = ring.CRed(scaledConst+scaledConstImag, qi)
-		}
-
-		scaledConst = ring.MForm(scaledConst, qi, bredParams)
-
-		for u := range ct0.Value {
-			p0tmp := ct0.Value[u].Coeffs[i]
-			p1tmp := ctOut.Value[u].Coeffs[i]
-			ring.MulScalarMontgomeryVec(p0tmp[:ringQ.N()>>1], p1tmp[:ringQ.N()>>1], scaledConst, qi, mredParams)
-		}
-
-		if cImag != 0 {
-			scaledConst = ring.CRed(scaledConstReal+(qi-scaledConstImag), qi)
-			scaledConst = ring.MForm(scaledConst, qi, bredParams)
-		}
-
-		for u := range ct0.Value {
-			p0tmp := ct0.Value[u].Coeffs[i]
-			p1tmp := ctOut.Value[u].Coeffs[i]
-			ring.MulScalarMontgomeryVec(p0tmp[ringQ.N()>>1:], p1tmp[ringQ.N()>>1:], scaledConst, qi, mredParams)
-		}
-	}
-
+	RNSReal := eval.params.RingQ().AtLevel(level).NewRNSScalarFromBigint(scaleUpExact(cReal, scale))
+	RNSImag := eval.params.RingQ().AtLevel(level).NewRNSScalarFromBigint(scaleUpExact(cImag, scale))
+	eval.evaluateWithScalar(level, ct0.Value, RNSReal, RNSImag, ctOut.Value, eval.params.RingQ().AtLevel(level).MulDoubleRNSScalar)
 	ctOut.MetaData = ct0.MetaData
 	ctOut.Scale = ct0.Scale.Mul(rlwe.NewScale(scale))
 }
@@ -688,97 +570,97 @@ func (eval *evaluator) MultByGaussianInteger(ct0 *rlwe.Ciphertext, cReal, cImag 
 	level := utils.MinInt(ct0.Level(), ctOut.Level())
 	var scaledConst, scaledConstReal, scaledConstImag uint64
 
+	ctOut.Resize(ct0.Degree(), level)
+
 	ctOut.MetaData = ct0.MetaData
 
-	for i := 0; i < level+1; i++ {
+	NHalf := ringQ.N() >> 1
 
-		Table := ringQ.Tables[i]
+	for i, s := range ringQ.SubRings[:level+1] {
 
-		qi := Table.Modulus
-		bredParams := Table.BRedParams
-		mredParams := Table.MRedParams
+		modulus := s.Modulus
+		BRedConstant := s.BRedConstant
+		MRedConstant := s.MRedConstant
 
-		scaledConstReal = interfaceMod(cReal, qi)
+		scaledConstReal = interfaceMod(cReal, modulus)
 
 		if eval.params.RingType() != ring.ConjugateInvariant {
-			scaledConstImag = interfaceMod(cImag, qi)
+			scaledConstImag = interfaceMod(cImag, modulus)
 		}
 
 		scaledConst = scaledConstReal
 
 		if scaledConstImag != 0 {
-			scaledConstImag = ring.MRed(scaledConstImag, Table.RootsForward[1], qi, mredParams)
-			scaledConst = ring.CRed(scaledConst+scaledConstImag, qi)
+			scaledConstImag = ring.MRed(scaledConstImag, s.RootsForward[1], modulus, MRedConstant)
+			scaledConst = ring.CRed(scaledConst+scaledConstImag, modulus)
 		}
 
-		scaledConst = ring.MForm(scaledConst, qi, bredParams)
+		scaledConst = ring.MForm(scaledConst, modulus, BRedConstant)
 
 		for u := range ct0.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-			ring.MulScalarMontgomeryVec(p0tmp[:ringQ.N()>>1], p1tmp[:ringQ.N()>>1], scaledConst, qi, mredParams)
+			s.MulScalarMontgomery(p0tmp[:NHalf], scaledConst, p1tmp[:NHalf])
 		}
 
 		if cImag != 0 {
-			scaledConst = ring.CRed(scaledConstReal+(qi-scaledConstImag), qi)
-			scaledConst = ring.MForm(scaledConst, qi, bredParams)
+			scaledConst = ring.CRed(scaledConstReal+(modulus-scaledConstImag), modulus)
+			scaledConst = ring.MForm(scaledConst, modulus, BRedConstant)
 		}
 
 		for u := range ct0.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-			ring.MulScalarMontgomeryVec(p0tmp[ringQ.N()>>1:], p1tmp[ringQ.N()>>1:], scaledConst, qi, mredParams)
+			s.MulScalarMontgomery(p0tmp[NHalf:], scaledConst, p1tmp[NHalf:])
 		}
 	}
 }
 
-// MultByGaussianIntegerAndAdd multiples the ct0 by the gaussian integer cReal + i*cImag and adds the result on ctOut.
+// MultByGaussianIntegerThenAdd multiples the ct0 by the gaussian integer cReal + i*cImag and adds the result on ctOut.
 // Accepted types for cReal and cImag are uint64, int64 and big.Int.
-func (eval *evaluator) MultByGaussianIntegerAndAdd(ct0 *rlwe.Ciphertext, cReal, cImag interface{}, ctOut *rlwe.Ciphertext) {
+func (eval *evaluator) MultByGaussianIntegerThenAdd(ct0 *rlwe.Ciphertext, cReal, cImag interface{}, ctOut *rlwe.Ciphertext) {
 
 	ringQ := eval.params.RingQ()
 
 	level := utils.MinInt(ct0.Level(), ctOut.Level())
 	var scaledConst, scaledConstReal, scaledConstImag uint64
+	NHalf := ringQ.N() >> 1
+	for i, s := range ringQ.SubRings[:level+1] {
 
-	for i := 0; i < level+1; i++ {
+		modulus := s.Modulus
+		BRedConstant := s.BRedConstant
+		MRedConstant := s.MRedConstant
 
-		Table := ringQ.Tables[i]
-
-		qi := Table.Modulus
-		bredParams := Table.BRedParams
-		mredParams := Table.MRedParams
-
-		scaledConstReal = interfaceMod(cReal, qi)
+		scaledConstReal = interfaceMod(cReal, modulus)
 
 		if eval.params.RingType() != ring.ConjugateInvariant {
-			scaledConstImag = interfaceMod(cImag, qi)
+			scaledConstImag = interfaceMod(cImag, modulus)
 		}
 
 		scaledConst = scaledConstReal
 
 		if scaledConstImag != 0 {
-			scaledConstImag = ring.MRed(scaledConstImag, Table.RootsForward[1], qi, mredParams)
-			scaledConst = ring.CRed(scaledConst+scaledConstImag, qi)
+			scaledConstImag = ring.MRed(scaledConstImag, s.RootsForward[1], modulus, MRedConstant)
+			scaledConst = ring.CRed(scaledConst+scaledConstImag, modulus)
 		}
 
-		scaledConst = ring.MForm(scaledConst, qi, bredParams)
+		scaledConst = ring.MForm(scaledConst, modulus, BRedConstant)
 
 		for u := range ct0.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-			ring.MulScalarMontgomeryAndAddVec(p0tmp[:ringQ.N()>>1], p1tmp[:ringQ.N()>>1], scaledConst, qi, mredParams)
+			s.MulScalarMontgomeryThenAdd(p0tmp[:NHalf], scaledConst, p1tmp[:NHalf])
 		}
 
 		if cImag != 0 {
-			scaledConst = ring.CRed(scaledConstReal+(qi-scaledConstImag), qi)
-			scaledConst = ring.MForm(scaledConst, qi, bredParams)
+			scaledConst = ring.CRed(scaledConstReal+(modulus-scaledConstImag), modulus)
+			scaledConst = ring.MForm(scaledConst, modulus, BRedConstant)
 		}
 
 		for u := range ct0.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-			ring.MulScalarMontgomeryAndAddVec(p0tmp[ringQ.N()>>1:], p1tmp[ringQ.N()>>1:], scaledConst, qi, mredParams)
+			s.MulScalarMontgomeryThenAdd(p0tmp[NHalf:], scaledConst, p1tmp[NHalf:])
 		}
 	}
 }
@@ -808,28 +690,24 @@ func (eval *evaluator) MultByi(ct0 *rlwe.Ciphertext, ctOut *rlwe.Ciphertext) {
 	ctOut.MetaData = ct0.MetaData
 
 	ringQ := eval.params.RingQ()
-
+	NHalf := ringQ.N() >> 1
 	// Equivalent to a product by the monomial x^(n/2) outside of the NTT domain
-	for i := 0; i < level+1; i++ {
+	for i, s := range ringQ.SubRings[:level+1] {
 
-		Table := ringQ.Tables[i]
-
-		qi := Table.Modulus
-		mredParams := Table.MRedParams
-		imag := Table.RootsForward[1] // Psi^2
+		imag := s.RootsForward[1] // Psi^2
 
 		for u := range ctOut.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-			ring.MulScalarMontgomeryVec(p0tmp[:ringQ.N()>>1], p1tmp[:ringQ.N()>>1], imag, qi, mredParams)
+			s.MulScalarMontgomery(p0tmp[:NHalf], imag, p1tmp[:NHalf])
 		}
 
-		imag = qi - imag
+		imag = s.Modulus - imag
 
 		for u := range ctOut.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-			ring.MulScalarMontgomeryVec(p0tmp[ringQ.N()>>1:], p1tmp[ringQ.N()>>1:], imag, qi, mredParams)
+			s.MulScalarMontgomery(p0tmp[NHalf:], imag, p1tmp[NHalf:])
 		}
 	}
 }
@@ -860,28 +738,24 @@ func (eval *evaluator) DivByi(ct0 *rlwe.Ciphertext, ctOut *rlwe.Ciphertext) {
 	ringQ := eval.params.RingQ()
 
 	ctOut.MetaData = ct0.MetaData
-
+	NHalf := ringQ.N() >> 1
 	// Equivalent to a product by the monomial x^(3*n/2) outside of the NTT domain
-	for i := 0; i < level+1; i++ {
+	for i, s := range ringQ.SubRings[:level+1] {
 
-		Table := ringQ.Tables[i]
-
-		qi := Table.Modulus
-		mredParams := Table.MRedParams
-		imag := qi - Table.RootsForward[1] // -Psi^2
+		imag := s.Modulus - s.RootsForward[1] // -Psi^2
 
 		for u := range ctOut.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-			ring.MulScalarMontgomeryVec(p0tmp[:ringQ.N()>>1], p1tmp[:ringQ.N()>>1], imag, qi, mredParams)
+			s.MulScalarMontgomery(p0tmp[:NHalf], imag, p1tmp[:NHalf])
 		}
 
-		imag = qi - imag // Psi^2
+		imag = s.Modulus - imag // Psi^2
 
 		for u := range ctOut.Value {
 			p0tmp := ct0.Value[u].Coeffs[i]
 			p1tmp := ctOut.Value[u].Coeffs[i]
-			ring.MulScalarMontgomeryVec(p0tmp[ringQ.N()>>1:], p1tmp[ringQ.N()>>1:], imag, qi, mredParams)
+			s.MulScalarMontgomery(p0tmp[NHalf:], imag, p1tmp[NHalf:])
 		}
 	}
 }
@@ -976,7 +850,7 @@ func (eval *evaluator) Rescale(ctIn *rlwe.Ciphertext, minScale rlwe.Scale, ctOut
 	var nbRescales int
 	for newLevel >= 0 {
 
-		scale := ctOut.Scale.Div(rlwe.NewScale(ringQ.Tables[newLevel].Modulus))
+		scale := ctOut.Scale.Div(rlwe.NewScale(ringQ.SubRings[newLevel].Modulus))
 
 		if scale.Cmp(minScale) == -1 {
 			break
@@ -1087,7 +961,7 @@ func (eval *evaluator) mulRelin(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, relin b
 			ringQ.MulCoeffsMontgomery(c00, tmp1.Value[0], c0) // c0 = c0[0]*c0[0]
 			ringQ.MulCoeffsMontgomery(c01, tmp1.Value[1], c2) // c2 = c0[1]*c1[1]
 			ringQ.MulCoeffsMontgomery(c00, tmp1.Value[1], c1)
-			ringQ.MulCoeffsMontgomeryAndAdd(c01, tmp1.Value[0], c1) // c1 = c0[0]*c1[1] + c0[1]*c1[0]
+			ringQ.MulCoeffsMontgomeryThenAdd(c01, tmp1.Value[0], c1) // c1 = c0[0]*c1[1] + c0[1]*c1[0]
 		}
 
 		if relin {
@@ -1132,37 +1006,37 @@ func (eval *evaluator) mulRelin(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, relin b
 	}
 }
 
-// MulAndAdd multiplies ctIn with op1 without relinearization and adds the result on ctOut.
+// MulThenAdd multiplies ctIn with op1 without relinearization and adds the result on ctOut.
 // User must ensure that ctOut.scale <= ctIn.scale * op1.scale.
 // If ctOut.scale < ctIn.scale * op1.scale, then scales up ctOut before adding the result.
 // The procedure will panic if either ctIn or op1 are have a degree higher than 1.
 // The procedure will panic if ctOut.Degree != ctIn.Degree + op1.Degree.
 // The procedure will panic if ctOut = ctIn or op1.
-func (eval *evaluator) MulAndAdd(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext) {
-	eval.mulRelinAndAdd(ctIn, op1, false, ctOut)
+func (eval *evaluator) MulThenAdd(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext) {
+	eval.mulRelinThenAdd(ctIn, op1, false, ctOut)
 }
 
-// MulRelinAndAdd multiplies ctIn with op1 with relinearization and adds the result on ctOut.
+// MulRelinThenAdd multiplies ctIn with op1 with relinearization and adds the result on ctOut.
 // User must ensure that ctOut.scale <= ctIn.scale * op1.scale.
 // If ctOut.scale < ctIn.scale * op1.scale, then scales up ctOut before adding the result.
 // The procedure will panic if either ctIn.Degree or op1.Degree > 1.
 // The procedure will panic if ctOut.Degree != ctIn.Degree + op1.Degree.
 // The procedure will panic if the evaluator was not created with an relinearization key.
 // The procedure will panic if ctOut = ctIn or op1.
-func (eval *evaluator) MulRelinAndAdd(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext) {
-	eval.mulRelinAndAdd(ctIn, op1, true, ctOut)
+func (eval *evaluator) MulRelinThenAdd(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext) {
+	eval.mulRelinThenAdd(ctIn, op1, true, ctOut)
 }
 
-func (eval *evaluator) mulRelinAndAdd(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, relin bool, ctOut *rlwe.Ciphertext) {
+func (eval *evaluator) mulRelinThenAdd(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, relin bool, ctOut *rlwe.Ciphertext) {
 
 	_, level := eval.params.CheckBinary(ctIn, op1, ctOut, utils.MaxInt(ctIn.Degree(), op1.Degree()))
 
 	if ctIn.Degree()+op1.Degree() > 2 {
-		panic("cannot MulRelinAndAdd: the sum of the input elements' degree cannot be larger than 2")
+		panic("cannot MulRelinThenAdd: the sum of the input elements' degree cannot be larger than 2")
 	}
 
 	if ctIn.El() == ctOut.El() || op1.El() == ctOut.El() {
-		panic("cannot MulRelinAndAdd: ctOut must be different from op0 and op1")
+		panic("cannot MulRelinThenAdd: ctOut must be different from op0 and op1")
 	}
 
 	c0f64 := ctIn.Scale.Float64()
@@ -1202,14 +1076,14 @@ func (eval *evaluator) mulRelinAndAdd(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, r
 		ringQ.MForm(tmp0.Value[0], c00)
 		ringQ.MForm(tmp0.Value[1], c01)
 
-		ringQ.MulCoeffsMontgomeryAndAdd(c00, tmp1.Value[0], c0) // c0 += c[0]*c[0]
-		ringQ.MulCoeffsMontgomeryAndAdd(c00, tmp1.Value[1], c1) // c1 += c[0]*c[1]
-		ringQ.MulCoeffsMontgomeryAndAdd(c01, tmp1.Value[0], c1) // c1 += c[1]*c[0]
+		ringQ.MulCoeffsMontgomeryThenAdd(c00, tmp1.Value[0], c0) // c0 += c[0]*c[0]
+		ringQ.MulCoeffsMontgomeryThenAdd(c00, tmp1.Value[1], c1) // c1 += c[0]*c[1]
+		ringQ.MulCoeffsMontgomeryThenAdd(c01, tmp1.Value[0], c1) // c1 += c[1]*c[0]
 
 		if relin {
 
 			if eval.Rlk == nil {
-				panic("cannot MulRelinAndAdd: relinearization key is missing")
+				panic("cannot MulRelinThenAdd: relinearization key is missing")
 			}
 
 			ringQ.MulCoeffsMontgomery(c01, tmp1.Value[1], c2) // c2 += c[1]*c[1]
@@ -1221,7 +1095,7 @@ func (eval *evaluator) mulRelinAndAdd(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, r
 			ringQ.Add(c0, tmpCt.Value[0], c0)
 			ringQ.Add(c1, tmpCt.Value[1], c1)
 		} else {
-			ringQ.MulCoeffsMontgomeryAndAdd(c01, tmp1.Value[1], c2) // c2 += c[1]*c[1]
+			ringQ.MulCoeffsMontgomeryThenAdd(c01, tmp1.Value[1], c2) // c2 += c[1]*c[1]
 		}
 
 		// Case Plaintext (x) Ciphertext or Ciphertext (x) Plaintext
@@ -1235,7 +1109,7 @@ func (eval *evaluator) mulRelinAndAdd(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, r
 
 		ringQ.MForm(op1.El().Value[0], c00)
 		for i := range ctIn.Value {
-			ringQ.MulCoeffsMontgomeryAndAdd(ctIn.Value[i], c00, ctOut.Value[i])
+			ringQ.MulCoeffsMontgomeryThenAdd(ctIn.Value[i], c00, ctOut.Value[i])
 		}
 	}
 }
@@ -1296,7 +1170,7 @@ func (eval *evaluator) Conjugate(ct0 *rlwe.Ciphertext, ctOut *rlwe.Ciphertext) {
 	eval.Automorphism(ct0, eval.params.GaloisElementForRowRotation(), ctOut)
 }
 
-func (eval *evaluator) RotateHoistedNoModDownNew(level int, rotations []int, c0 *ring.Poly, c2DecompQP []ringqp.Poly) (cOut map[int]rlwe.CiphertextQP) {
+func (eval *evaluator) RotateHoistedLazyNew(level int, rotations []int, c0 *ring.Poly, c2DecompQP []ringqp.Poly) (cOut map[int]rlwe.CiphertextQP) {
 	ringQ := eval.params.RingQ().AtLevel(level)
 	ringP := eval.params.RingP()
 	cOut = make(map[int]rlwe.CiphertextQP)
@@ -1317,7 +1191,7 @@ func (eval *evaluator) RotateHoistedNoModDownNew(level int, rotations []int, c0 
 					IsNTT: true,
 				},
 			}
-			eval.AutomorphismHoistedNoModDown(level, c0, c2DecompQP, eval.params.GaloisElementForColumnRotationBy(i), cOut[i])
+			eval.AutomorphismHoistedLazy(level, c0, c2DecompQP, eval.params.GaloisElementForColumnRotationBy(i), cOut[i])
 		}
 	}
 

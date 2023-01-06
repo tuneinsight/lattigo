@@ -29,8 +29,8 @@ type Evaluator interface {
 	MultByConstNew(ctIn *rlwe.Ciphertext, constant interface{}) (ctOut *rlwe.Ciphertext)
 	MultByConst(ctIn *rlwe.Ciphertext, constant interface{}, ctOut *rlwe.Ciphertext)
 	MultByGaussianInteger(ctIn *rlwe.Ciphertext, cReal, cImag interface{}, ctOut *rlwe.Ciphertext)
-	MultByConstAndAdd(ctIn *rlwe.Ciphertext, constant interface{}, ctOut *rlwe.Ciphertext)
-	MultByGaussianIntegerAndAdd(ctIn *rlwe.Ciphertext, cReal, cImag interface{}, ctOut *rlwe.Ciphertext)
+	MultByConstThenAdd(ctIn *rlwe.Ciphertext, constant interface{}, ctOut *rlwe.Ciphertext)
+	MultByGaussianIntegerThenAdd(ctIn *rlwe.Ciphertext, cReal, cImag interface{}, ctOut *rlwe.Ciphertext)
 	MultByiNew(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext)
 	MultByi(ctIn *rlwe.Ciphertext, ctOut *rlwe.Ciphertext)
 	DivByiNew(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext)
@@ -144,7 +144,7 @@ func (eval *evaluator) CoeffsToSlots(ctIn *rlwe.Ciphertext, ctsMatrices Encoding
 		if ctImag != nil {
 			tmp = ctImag
 		} else {
-			tmp = rlwe.NewCiphertextAtLevelFromPoly(ctReal.Level(), [2]*ring.Poly{eval.BuffCt().Value[0], eval.BuffCt().Value[1]})
+			tmp = rlwe.NewCiphertextAtLevelFromPoly(ctReal.Level(), eval.BuffCt().Value[:2])
 			tmp.IsNTT = true
 		}
 

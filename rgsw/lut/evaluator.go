@@ -51,10 +51,10 @@ func NewEvaluator(paramsLUT, paramsLWE rlwe.Parameters, rtks *rlwe.RotationKeySe
 
 		coeffs := oneNTTMFormQ.Coeffs[i]
 
-		table := ringQ.Tables[i]
+		s := ringQ.SubRings[i]
 
 		for j := 0; j < N; j++ {
-			coeffs[j] = ring.MForm(1, table.Modulus, table.BRedParams)
+			coeffs[j] = ring.MForm(1, s.Modulus, s.BRedConstant)
 		}
 	}
 
@@ -63,8 +63,8 @@ func NewEvaluator(paramsLUT, paramsLWE rlwe.Parameters, rtks *rlwe.RotationKeySe
 		eval.xPowMinusOne[i].Q = ringQ.NewPoly()
 		eval.xPowMinusOne[i+N].Q = ringQ.NewPoly()
 		if i == 0 || i == 1 {
-			for j, table := range ringQ.Tables {
-				eval.xPowMinusOne[i].Q.Coeffs[j][i] = ring.MForm(1, table.Modulus, table.BRedParams)
+			for j, s := range ringQ.SubRings {
+				eval.xPowMinusOne[i].Q.Coeffs[j][i] = ring.MForm(1, s.Modulus, s.BRedConstant)
 			}
 
 			ringQ.NTT(eval.xPowMinusOne[i].Q, eval.xPowMinusOne[i].Q)
@@ -91,10 +91,10 @@ func NewEvaluator(paramsLUT, paramsLWE rlwe.Parameters, rtks *rlwe.RotationKeySe
 
 			coeffs := oneNTTMFormP.Coeffs[i]
 
-			table := ringP.Tables[i]
+			table := ringP.SubRings[i]
 
 			for j := 0; j < N; j++ {
-				coeffs[j] = ring.MForm(1, table.Modulus, table.BRedParams)
+				coeffs[j] = ring.MForm(1, table.Modulus, table.BRedConstant)
 			}
 		}
 
@@ -102,8 +102,8 @@ func NewEvaluator(paramsLUT, paramsLWE rlwe.Parameters, rtks *rlwe.RotationKeySe
 			eval.xPowMinusOne[i].P = ringP.NewPoly()
 			eval.xPowMinusOne[i+N].P = ringP.NewPoly()
 			if i == 0 || i == 1 {
-				for j, table := range ringP.Tables {
-					eval.xPowMinusOne[i].P.Coeffs[j][i] = ring.MForm(1, table.Modulus, table.BRedParams)
+				for j, table := range ringP.SubRings {
+					eval.xPowMinusOne[i].P.Coeffs[j][i] = ring.MForm(1, table.Modulus, table.BRedConstant)
 				}
 
 				ringP.NTT(eval.xPowMinusOne[i].P, eval.xPowMinusOne[i].P)
@@ -181,8 +181,8 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWihtSlotIndex map[in
 	mask := uint64(ringQLUT.N()<<1) - 1
 
 	if ct.IsNTT {
-		ringQLWE.InvNTT(ct.Value[0], acc.Value[0])
-		ringQLWE.InvNTT(ct.Value[1], acc.Value[1])
+		ringQLWE.INTT(ct.Value[0], acc.Value[0])
+		ringQLWE.INTT(ct.Value[1], acc.Value[1])
 	} else {
 		ring.CopyLvl(ct.Level(), ct.Value[0], acc.Value[0])
 		ring.CopyLvl(ct.Level(), ct.Value[1], acc.Value[1])
@@ -197,7 +197,8 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWihtSlotIndex map[in
 	tmp0 := aRLWEMod2N.Coeffs[0]
 	tmp1 := acc.Value[1].Coeffs[0]
 	tmp0[0] = tmp1[0]
-	for j := 1; j < ringQLWE.N(); j++ {
+	NLWE := ringQLWE.N()
+	for j := 1; j < NLWE; j++ {
 		tmp0[j] = -tmp1[ringQLWE.N()-j] & mask
 	}
 
@@ -206,7 +207,7 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWihtSlotIndex map[in
 	res = make(map[int]*rlwe.Ciphertext)
 
 	var prevIndex int
-	for index := 0; index < ringQLWE.N(); index++ {
+	for index := 0; index < NLWE; index++ {
 
 		if lut, ok := lutPolyWihtSlotIndex[index]; ok {
 
@@ -222,11 +223,11 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWihtSlotIndex map[in
 			ringQLUT.Add(acc.Value[0], lut, acc.Value[0])
 			acc.Value[1].Zero()
 
-			for j := 0; j < ringQLWE.N(); j++ {
+			for j := 0; j < NLWE; j++ {
 				// RGSW[(X^{a} - 1) * sk_{j}[0] + (X^{-a} - 1) * sk_{j}[1] + 1]
-				rgsw.MulByXPowAlphaMinusOneConstant(key.SkPos[j], eval.xPowMinusOne[a[j]], ringQPLUT, eval.tmpRGSW)
-				rgsw.MulByXPowAlphaMinusOneAndAddNoMod(key.SkNeg[j], eval.xPowMinusOne[-a[j]&mask], ringQPLUT, eval.tmpRGSW)
-				rgsw.AddNoMod(eval.one, ringQPLUT, eval.tmpRGSW)
+				rgsw.MulByXPowAlphaMinusOneLazy(key.SkPos[j], eval.xPowMinusOne[a[j]], ringQPLUT, eval.tmpRGSW)
+				rgsw.MulByXPowAlphaMinusOneThenAddLazy(key.SkNeg[j], eval.xPowMinusOne[-a[j]&mask], ringQPLUT, eval.tmpRGSW)
+				rgsw.AddLazy(eval.one, ringQPLUT, eval.tmpRGSW)
 
 				// LUT[RLWE] = LUT[RLWE] x RGSW[(X^{a} - 1) * sk_{j}[0] + (X^{-a} - 1) * sk_{j}[1] + 1]
 				eval.ExternalProduct(acc, eval.tmpRGSW, acc)
@@ -234,8 +235,8 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWihtSlotIndex map[in
 			res[index] = acc.CopyNew()
 
 			if !eval.paramsLUT.DefaultNTTFlag() {
-				ringQLUT.InvNTT(res[index].Value[0], res[index].Value[0])
-				ringQLUT.InvNTT(res[index].Value[1], res[index].Value[1])
+				ringQLUT.INTT(res[index].Value[0], res[index].Value[0])
+				ringQLUT.INTT(res[index].Value[1], res[index].Value[1])
 				res[index].IsNTT = false
 			}
 		}
@@ -259,7 +260,8 @@ func (eval *Evaluator) ModSwitchRLWETo2NLvl(level int, polQ *ring.Poly, pol2N *r
 	twoN := uint64(eval.paramsLUT.N() << 1)
 	twoNBig := ring.NewUint(twoN)
 	tmp := pol2N.Coeffs[0]
-	for i := 0; i < ringQ.N(); i++ {
+	N := ringQ.N()
+	for i := 0; i < N; i++ {
 		coeffsBigint[i].Mul(coeffsBigint[i], twoNBig)
 		ring.DivRound(coeffsBigint[i], QBig, coeffsBigint[i])
 		tmp[i] = coeffsBigint[i].Uint64() & (twoN - 1)

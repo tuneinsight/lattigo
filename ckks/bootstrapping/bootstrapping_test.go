@@ -126,8 +126,10 @@ func testbootstrap(params ckks.Parameters, original bool, btpParams Parameters, 
 		plaintext := ckks.NewPlaintext(params, 0)
 		encoder.Encode(values, plaintext, params.LogSlots())
 
-		ciphertexts := make([]*rlwe.Ciphertext, 2)
-		bootstrappers := make([]*Bootstrapper, 2)
+		n := 2
+
+		ciphertexts := make([]*rlwe.Ciphertext, n)
+		bootstrappers := make([]*Bootstrapper, n)
 		bootstrappers[0] = btp
 		ciphertexts[0] = encryptor.EncryptNew(plaintext)
 		for i := 1; i < len(ciphertexts); i++ {
@@ -136,7 +138,7 @@ func testbootstrap(params ckks.Parameters, original bool, btpParams Parameters, 
 		}
 
 		var wg sync.WaitGroup
-		wg.Add(2)
+		wg.Add(n)
 		for i := range ciphertexts {
 			go func(index int) {
 				ciphertexts[index] = bootstrappers[index].Bootstrap(ciphertexts[index])

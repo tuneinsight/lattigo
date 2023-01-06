@@ -75,7 +75,7 @@ func (eval *Evaluator) DecomposeNTT(levelQ, levelP, nbPi int, c2 *ring.Poly, c2I
 	if c2IsNTT {
 		polyNTT = c2
 		polyInvNTT = eval.BuffInvNTT
-		ringQ.InvNTT(polyNTT, polyInvNTT)
+		ringQ.INTT(polyNTT, polyInvNTT)
 	} else {
 		polyNTT = eval.BuffInvNTT
 		polyInvNTT = c2
@@ -105,7 +105,7 @@ func (eval *Evaluator) DecomposeSingleNTT(levelQ, levelP, nbPi, decompRNS int, c
 		if p0idxst <= x && x < p0idxed {
 			copy(c2QiQ.Coeffs[x], c2NTT.Coeffs[x])
 		} else {
-			ringQ.NTTSingle(ringQ.Tables[x], c2QiQ.Coeffs[x], c2QiQ.Coeffs[x])
+			ringQ.SubRings[x].NTT(c2QiQ.Coeffs[x], c2QiQ.Coeffs[x])
 		}
 	}
 
@@ -122,7 +122,7 @@ func (eval *Evaluator) DecomposeSingleNTT(levelQ, levelP, nbPi, decompRNS int, c
 // BuffQP3 = dot(BuffQPDecompQ||BuffQPDecompP * evakey[1]) mod Q
 func (eval *Evaluator) KeyswitchHoisted(levelQ int, BuffQPDecompQP []ringqp.Poly, evakey *SwitchingKey, c0Q, c1Q, c0P, c1P *ring.Poly) {
 
-	eval.KeyswitchHoistedNoModDown(levelQ, BuffQPDecompQP, evakey, c0Q, c1Q, c0P, c1P)
+	eval.KeyswitchHoistedLazy(levelQ, BuffQPDecompQP, evakey, c0Q, c1Q, c0P, c1P)
 
 	levelP := evakey.Value[0][0].Value[0].P.Level()
 
@@ -131,11 +131,11 @@ func (eval *Evaluator) KeyswitchHoisted(levelQ int, BuffQPDecompQP []ringqp.Poly
 	eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, c1Q, c1P, c1Q)
 }
 
-// KeyswitchHoistedNoModDown applies the key-switch to the decomposed polynomial c2 mod QP (BuffQPDecompQ and BuffQPDecompP)
+// KeyswitchHoistedLazy applies the key-switch to the decomposed polynomial c2 mod QP (BuffQPDecompQ and BuffQPDecompP)
 //
 // BuffQP2 = dot(BuffQPDecompQ||BuffQPDecompP * evakey[0]) mod QP
 // BuffQP3 = dot(BuffQPDecompQ||BuffQPDecompP * evakey[1]) mod QP
-func (eval *Evaluator) KeyswitchHoistedNoModDown(levelQ int, BuffQPDecompQP []ringqp.Poly, evakey *SwitchingKey, c0Q, c1Q, c0P, c1P *ring.Poly) {
+func (eval *Evaluator) KeyswitchHoistedLazy(levelQ int, BuffQPDecompQP []ringqp.Poly, evakey *SwitchingKey, c0Q, c1Q, c0P, c1P *ring.Poly) {
 
 	levelP := evakey.LevelP()
 
@@ -157,11 +157,11 @@ func (eval *Evaluator) KeyswitchHoistedNoModDown(levelQ int, BuffQPDecompQP []ri
 	for i := 0; i < decompRNS; i++ {
 
 		if i == 0 {
-			ringQP.MulCoeffsMontgomeryConstant(evakey.Value[i][0].Value[0], BuffQPDecompQP[i], c0QP)
-			ringQP.MulCoeffsMontgomeryConstant(evakey.Value[i][0].Value[1], BuffQPDecompQP[i], c1QP)
+			ringQP.MulCoeffsMontgomeryLazy(evakey.Value[i][0].Value[0], BuffQPDecompQP[i], c0QP)
+			ringQP.MulCoeffsMontgomeryLazy(evakey.Value[i][0].Value[1], BuffQPDecompQP[i], c1QP)
 		} else {
-			ringQP.MulCoeffsMontgomeryConstantAndAddNoMod(evakey.Value[i][0].Value[0], BuffQPDecompQP[i], c0QP)
-			ringQP.MulCoeffsMontgomeryConstantAndAddNoMod(evakey.Value[i][0].Value[1], BuffQPDecompQP[i], c1QP)
+			ringQP.MulCoeffsMontgomeryLazyThenAddLazy(evakey.Value[i][0].Value[0], BuffQPDecompQP[i], c0QP)
+			ringQP.MulCoeffsMontgomeryLazyThenAddLazy(evakey.Value[i][0].Value[1], BuffQPDecompQP[i], c1QP)
 		}
 
 		if reduce%QiOverF == QiOverF-1 {

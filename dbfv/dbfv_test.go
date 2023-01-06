@@ -274,7 +274,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 			evaluator.Relinearize(tc.evaluator.MulNew(ciphertextTmp, ciphertextTmp), ciphertextTmp)
 
 			for j := range coeffsTmp {
-				coeffsTmp[j] = ring.BRed(coeffsTmp[j], coeffsTmp[j], tc.ringT.Tables[0].Modulus, tc.ringT.Tables[0].BRedParams)
+				coeffsTmp[j] = ring.BRed(coeffsTmp[j], coeffsTmp[j], tc.ringT.SubRings[0].Modulus, tc.ringT.SubRings[0].BRedConstant)
 			}
 
 			if utils.EqualSliceUint64(coeffsTmp, encoder.DecodeUintNew(decryptorSk0.DecryptNew(ciphertextTmp))) {
@@ -292,7 +292,9 @@ func testRefresh(tc *testContext, t *testing.T) {
 		errorRange.Quo(errorRange, tc.ringT.ModulusAtLevel[0])
 		errorRange.Quo(errorRange, tc.ringT.ModulusAtLevel[0])
 
-		for i := 0; i < tc.params.N(); i++ {
+		N := tc.params.N()
+
+		for i := 0; i < N; i++ {
 			coeffsBigint[i].Add(coeffsBigint[i], ring.RandInt(errorRange))
 		}
 
@@ -314,7 +316,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 			evaluator.Relinearize(tc.evaluator.MulNew(ctRes, ctRes), ctRes)
 
 			for j := range coeffs {
-				coeffs[j] = ring.BRed(coeffs[j], coeffs[j], tc.ringT.Tables[0].Modulus, tc.ringT.Tables[0].BRedParams)
+				coeffs[j] = ring.BRed(coeffs[j], coeffs[j], tc.ringT.SubRings[0].Modulus, tc.ringT.SubRings[0].BRedConstant)
 			}
 		}
 

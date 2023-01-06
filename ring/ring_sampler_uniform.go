@@ -42,10 +42,10 @@ func (u *UniformSampler) Read(pol *Poly) {
 
 	for j := 0; j < u.baseRing.level+1; j++ {
 
-		qi = u.baseRing.Tables[j].Modulus
+		qi = u.baseRing.SubRings[j].Modulus
 
 		// Starts by computing the mask
-		mask = u.baseRing.Tables[j].Mask
+		mask = u.baseRing.SubRings[j].Mask
 
 		ptmp := pol.Coeffs[j]
 

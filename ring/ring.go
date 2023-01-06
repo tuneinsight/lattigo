@@ -3,8 +3,6 @@
 package ring
 
 import (
-	//"bytes"
-	//"encoding/gob"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -63,15 +61,13 @@ func (rt Type) MarshalJSON() ([]byte, error) {
 
 // Ring is a structure that keeps all the variables required to operate on a polynomial represented in this ring.
 type Ring struct {
-	NumberTheoreticTransformer
-
-	Tables []*Table
+	SubRings []*SubRing
 
 	// Product of the Moduli for each level
 	ModulusAtLevel []*big.Int
 
 	// Rescaling parameters (RNS division)
-	RescaleParams [][]uint64
+	RescaleConstants [][]uint64
 
 	level int
 }
@@ -82,23 +78,28 @@ type Ring struct {
 // The returned Ring is a shallow copy of the receiver.
 func (r *Ring) ConjugateInvariantRing() (*Ring, error) {
 
+	var err error
+
 	if r.Type() == ConjugateInvariant {
 		return r, nil
 	}
 
 	cr := *r
-	cr.Tables = make([]*Table, len(r.Tables))
-	for i := range cr.Tables {
-		cr.Tables[i] = NewTable(r.N()>>1, r.Tables[i].Modulus)
-		cr.Tables[i].Factors = r.Tables[i].Factors
-		if err := r.Tables[i].GenNTTParams(uint64(cr.N()) << 2); err != nil {
+
+	cr.SubRings = make([]*SubRing, len(r.SubRings))
+
+	factors := make([][]uint64, len(r.SubRings))
+
+	for i, s := range r.SubRings {
+
+		if cr.SubRings[i], err = NewSubRingWithCustomNTT(s.N>>1, s.Modulus, NumberTheoreticTransformerConjugateInvariant{}, int(s.NthRoot)); err != nil {
 			return nil, err
 		}
+
+		factors[i] = s.Factors // Alocates factor for faster generation
 	}
 
-	cr.NumberTheoreticTransformer = NumberTheoreticTransformerConjugateInvariant{}
-
-	return &cr, nil
+	return &cr, cr.generateNTTConstants(nil, factors)
 }
 
 // StandardRing returns the standard ring of the receiver ring.
@@ -106,38 +107,44 @@ func (r *Ring) ConjugateInvariantRing() (*Ring, error) {
 // if `r.Type()==ConjugateInvariant`, then the method returns a ring with ring degree 2N.
 // The returned Ring is a shallow copy of the receiver.
 func (r *Ring) StandardRing() (*Ring, error) {
+
+	var err error
+
 	if r.Type() == Standard {
 		return r, nil
 	}
 
 	sr := *r
-	sr.Tables = make([]*Table, len(r.Tables))
-	for i := range sr.Tables {
-		sr.Tables[i] = NewTable(r.N()<<1, r.Tables[i].Modulus)
-		sr.Tables[i].Factors = r.Tables[i].Factors
-		if err := r.Tables[i].GenNTTParams(uint64(sr.N()) << 1); err != nil {
+
+	sr.SubRings = make([]*SubRing, len(r.SubRings))
+
+	factors := make([][]uint64, len(r.SubRings))
+
+	for i, s := range r.SubRings {
+
+		if sr.SubRings[i], err = NewSubRingWithCustomNTT(s.N<<1, s.Modulus, NumberTheoreticTransformerStandard{}, int(s.NthRoot)); err != nil {
 			return nil, err
 		}
+
+		factors[i] = s.Factors // Alocates factor for faster generation
 	}
 
-	sr.NumberTheoreticTransformer = NumberTheoreticTransformerStandard{}
-
-	return &sr, nil
+	return &sr, sr.generateNTTConstants(nil, factors)
 }
 
 // N returns the ring degree.
 func (r *Ring) N() int {
-	return r.Tables[0].N
+	return r.SubRings[0].N
 }
 
 // NthRoot returns the multiplicative order of the primitive root.
 func (r *Ring) NthRoot() uint64 {
-	return r.Tables[0].NthRoot
+	return r.SubRings[0].NthRoot
 }
 
-// NbModuli returns the number of primes in the RNS basis of the ring.
-func (r *Ring) NbModuli() int {
-	return len(r.Tables)
+// ModuliChainLength returns the number of primes in the RNS basis of the ring.
+func (r *Ring) ModuliChainLength() int {
+	return len(r.SubRings)
 }
 
 // Level returns the level of the current ring.
@@ -157,24 +164,23 @@ func (r *Ring) AtLevel(level int) *Ring {
 	}
 
 	return &Ring{
-		NumberTheoreticTransformer: r.NumberTheoreticTransformer,
-		Tables:                     r.Tables,
-		ModulusAtLevel:             r.ModulusAtLevel,
-		RescaleParams:              r.RescaleParams,
-		level:                      level,
+		SubRings:         r.SubRings,
+		ModulusAtLevel:   r.ModulusAtLevel,
+		RescaleConstants: r.RescaleConstants,
+		level:            level,
 	}
 }
 
 // MaxLevel returns the maximum level allowed by the ring (#NbModuli -1).
 func (r *Ring) MaxLevel() int {
-	return r.NbModuli() - 1
+	return r.ModuliChainLength() - 1
 }
 
-// Moduli returns the list of primes in the modulus chain.
-func (r *Ring) Moduli() (moduli []uint64) {
-	moduli = make([]uint64, len(r.Tables))
-	for i := range r.Tables {
-		moduli[i] = r.Tables[i].Modulus
+// ModuliChain returns the list of primes in the modulus chain.
+func (r *Ring) ModuliChain() (moduli []uint64) {
+	moduli = make([]uint64, len(r.SubRings))
+	for i := range r.SubRings {
+		moduli[i] = r.SubRings[i].Modulus
 	}
 
 	return
@@ -186,23 +192,23 @@ func (r *Ring) Modulus() *big.Int {
 	return r.ModulusAtLevel[r.level]
 }
 
-// MRedParams returns the concatenation of the Montgomery parameters
+// MRedConstants returns the concatenation of the Montgomery constants
 // of the target ring.
-func (r *Ring) MRedParams() (mredparams []uint64) {
-	mredparams = make([]uint64, len(r.Tables))
-	for i := range r.Tables {
-		mredparams[i] = r.Tables[i].MRedParams
+func (r *Ring) MRedConstants() (MRC []uint64) {
+	MRC = make([]uint64, len(r.SubRings))
+	for i := range r.SubRings {
+		MRC[i] = r.SubRings[i].MRedConstant
 	}
 
 	return
 }
 
-// BRedParams returns the concatenation of the Barrett parameters
+// BRedConstants returns the concatenation of the Barrett constants
 // of the target ring.
-func (r *Ring) BRedParams() (bredparams [][]uint64) {
-	bredparams = make([][]uint64, len(r.Tables))
-	for i := range r.Tables {
-		bredparams[i] = r.Tables[i].BRedParams
+func (r *Ring) BRedConstants() (BRC [][]uint64) {
+	BRC = make([][]uint64, len(r.SubRings))
+	for i := range r.SubRings {
+		BRC[i] = r.SubRings[i].BRedConstant
 	}
 
 	return
@@ -239,108 +245,84 @@ func NewRingFromType(N int, Moduli []uint64, ringType Type) (r *Ring, err error)
 }
 
 // NewRingWithCustomNTT creates a new RNS Ring with degree N and coefficient moduli Moduli with user-defined NTT transform and primitive Nth root of unity.
-// Moduli should be a non-empty []uint64 with distinct prime elements. All moduli must also be equal to 1 modulo the root of unity.
+// ModuliChain should be a non-empty []uint64 with distinct prime elements.
+// All moduli must also be equal to 1 modulo the root of unity.
 // N must be a power of two larger than 8. An error is returned with a nil *Ring in the case of non NTT-enabling parameters.
-func NewRingWithCustomNTT(N int, Moduli []uint64, ntt NumberTheoreticTransformer, NthRoot int) (r *Ring, err error) {
+func NewRingWithCustomNTT(N int, ModuliChain []uint64, ntt NumberTheoreticTransformer, NthRoot int) (r *Ring, err error) {
 	r = new(Ring)
-	err = r.SetParameters(N, Moduli)
-	if err != nil {
-		return nil, err
-	}
-
-	r.NumberTheoreticTransformer = ntt
-
-	err = r.GenNTTParams(uint64(NthRoot), nil, nil)
-	if err != nil {
-		return r, err
-	}
-
-	return r, nil
-}
-
-// Type returns the Type of the ring which might be either `Standard` or `ConjugateInvariant`.
-func (r *Ring) Type() Type {
-	switch r.NumberTheoreticTransformer.(type) {
-	case NumberTheoreticTransformerStandard:
-		return Standard
-	case NumberTheoreticTransformerConjugateInvariant:
-		return ConjugateInvariant
-	default:
-		panic("invalid NumberTheoreticTransformer type")
-	}
-}
-
-// SetParameters initializes a *Ring by setting the required pre-computed values (except for the NTT-related values, which are set by the
-// GenNTTParams function).
-func (r *Ring) SetParameters(N int, Modulus []uint64) error {
 
 	// Checks if N is a power of 2
 	if (N < 16) || (N&(N-1)) != 0 && N != 0 {
-		return errors.New("invalid ring degree (must be a power of 2 >= 8)")
+		return nil, errors.New("invalid ring degree (must be a power of 2 >= 8)")
 	}
 
-	if len(Modulus) == 0 {
-		return errors.New("invalid modulus (must be a non-empty []uint64)")
+	if len(ModuliChain) == 0 {
+		return nil, errors.New("invalid ModuliChain (must be a non-empty []uint64)")
 	}
 
-	if !utils.AllDistinct(Modulus) {
-		return errors.New("invalid modulus (moduli are not distinct)")
+	if !utils.AllDistinct(ModuliChain) {
+		return nil, errors.New("invalid ModuliChain (moduli are not distinct)")
 	}
 
 	// Computes bigQ for all levels
-	r.ModulusAtLevel = make([]*big.Int, len(Modulus))
-	r.ModulusAtLevel[0] = NewUint(Modulus[0])
-	for i := 1; i < len(Modulus); i++ {
-		r.ModulusAtLevel[i] = new(big.Int).Mul(r.ModulusAtLevel[i-1], NewUint(Modulus[i]))
+	r.ModulusAtLevel = make([]*big.Int, len(ModuliChain))
+	r.ModulusAtLevel[0] = NewUint(ModuliChain[0])
+	for i := 1; i < len(ModuliChain); i++ {
+		r.ModulusAtLevel[i] = new(big.Int).Mul(r.ModulusAtLevel[i-1], NewUint(ModuliChain[i]))
 	}
 
-	r.Tables = make([]*Table, len(Modulus))
+	r.SubRings = make([]*SubRing, len(ModuliChain))
 
-	for i := range r.Tables {
-		r.Tables[i] = NewTable(N, Modulus[i])
+	for i := range r.SubRings {
+		if r.SubRings[i], err = NewSubRingWithCustomNTT(N, ModuliChain[i], ntt, NthRoot); err != nil {
+			return nil, err
+		}
 	}
 
-	r.RescaleParams = rewRescaleParams(r.Tables)
+	r.RescaleConstants = rewRescaleConstants(r.SubRings)
 
-	r.level = len(Modulus) - 1
+	r.level = len(ModuliChain) - 1
 
-	return nil
+	return r, r.generateNTTConstants(nil, nil)
 }
 
-func rewRescaleParams(tables []*Table) (rescaleParams [][]uint64) {
+// Type returns the Type of the first subring which might be either `Standard` or `ConjugateInvariant`.
+func (r *Ring) Type() Type {
+	return r.SubRings[0].Type()
+}
 
-	rescaleParams = make([][]uint64, len(tables)-1)
+func rewRescaleConstants(subRings []*SubRing) (rescaleConstants [][]uint64) {
 
-	for j := len(tables) - 1; j > 0; j-- {
+	rescaleConstants = make([][]uint64, len(subRings)-1)
 
-		qj := tables[j].Modulus
+	for j := len(subRings) - 1; j > 0; j-- {
 
-		rescaleParams[j-1] = make([]uint64, j)
+		qj := subRings[j].Modulus
+
+		rescaleConstants[j-1] = make([]uint64, j)
 
 		for i := 0; i < j; i++ {
-
-			qi := tables[i].Modulus
-			bredParams := tables[i].BRedParams
-
-			rescaleParams[j-1][i] = MForm(qi-ModExp(qj, qi-2, qi), qi, bredParams)
+			qi := subRings[i].Modulus
+			rescaleConstants[j-1][i] = MForm(qi-ModExp(qj, qi-2, qi), qi, subRings[i].BRedConstant)
 		}
 	}
 
 	return
 }
 
-// GenNTTParams checks that N has been correctly initialized, and checks that each modulus is a prime congruent to 1 mod 2N (i.e. NTT-friendly).
+// generateNTTConstants checks that N has been correctly initialized, and checks that each modulus is a prime congruent to 1 mod 2N (i.e. NTT-friendly).
 // Then, it computes the variables required for the NTT. The purpose of ValidateParameters is to validate that the moduli allow the NTT, and to compute the
 // NTT parameters.
-func (r *Ring) GenNTTParams(NthRoot uint64, primitiveRoots []uint64, factors [][]uint64) (err error) {
+func (r *Ring) generateNTTConstants(primitiveRoots []uint64, factors [][]uint64) (err error) {
 
-	for i := range r.Tables {
+	for i := range r.SubRings {
+
 		if primitiveRoots != nil && factors != nil {
-			r.Tables[i].PrimitiveRoot = primitiveRoots[i]
-			r.Tables[i].Factors = factors[i]
+			r.SubRings[i].PrimitiveRoot = primitiveRoots[i]
+			r.SubRings[i].Factors = factors[i]
 		}
 
-		if err = r.Tables[i].GenNTTParams(NthRoot); err != nil {
+		if err = r.SubRings[i].GenerateNTTConstants(); err != nil {
 			return
 		}
 	}
@@ -358,7 +340,7 @@ func (r *Ring) SetCoefficientsBigint(coeffs []*big.Int, p1 *Poly) {
 
 	QiBigint := new(big.Int)
 	coeffTmp := new(big.Int)
-	for i, table := range r.Tables[:r.level+1] {
+	for i, table := range r.SubRings[:r.level+1] {
 
 		QiBigint.SetUint64(table.Modulus)
 
@@ -396,7 +378,7 @@ func (r *Ring) PolyToBigint(p1 *Poly, gap int, coeffsBigint []*big.Int) {
 	tmp := new(big.Int)
 	modulusBigint := r.ModulusAtLevel[r.level]
 
-	for i, table := range r.Tables[:r.level+1] {
+	for i, table := range r.SubRings[:r.level+1] {
 		QiB.SetUint64(table.Modulus)
 		crtReconstruction[i] = new(big.Int).Quo(modulusBigint, QiB)
 		tmp.ModInverse(crtReconstruction[i], QiB)
@@ -404,7 +386,9 @@ func (r *Ring) PolyToBigint(p1 *Poly, gap int, coeffsBigint []*big.Int) {
 		crtReconstruction[i].Mul(crtReconstruction[i], tmp)
 	}
 
-	for i, j := 0, 0; j < r.N(); i, j = i+1, j+gap {
+	N := r.N()
+
+	for i, j := 0, 0; j < N; i, j = i+1, j+gap {
 
 		tmp.SetUint64(0)
 		coeffsBigint[i] = new(big.Int)
@@ -430,7 +414,7 @@ func (r *Ring) PolyToBigintCentered(p1 *Poly, gap int, coeffsBigint []*big.Int) 
 	tmp := new(big.Int)
 	modulusBigint := r.ModulusAtLevel[r.level]
 
-	for i, table := range r.Tables[:r.level+1] {
+	for i, table := range r.SubRings[:r.level+1] {
 		QiB.SetUint64(table.Modulus)
 		crtReconstruction[i] = new(big.Int).Quo(modulusBigint, QiB)
 		tmp.ModInverse(crtReconstruction[i], QiB)
@@ -441,8 +425,10 @@ func (r *Ring) PolyToBigintCentered(p1 *Poly, gap int, coeffsBigint []*big.Int) 
 	modulusBigintHalf := new(big.Int)
 	modulusBigintHalf.Rsh(modulusBigint, 1)
 
+	N := r.N()
+
 	var sign int
-	for i, j := 0, 0; j < r.N(); i, j = i+1, j+gap {
+	for i, j := 0, 0; j < N; i, j = i+1, j+gap {
 
 		tmp.SetUint64(0)
 		coeffsBigint[i].SetUint64(0)
@@ -474,8 +460,10 @@ func (r *Ring) Equal(p1, p2 *Poly) bool {
 	r.Reduce(p1, p1)
 	r.Reduce(p2, p2)
 
+	N := r.N()
+
 	for i := 0; i < r.level+1; i++ {
-		for j := 0; j < r.N(); j++ {
+		for j := 0; j < N; j++ {
 			if p1.Coeffs[i][j] != p2.Coeffs[i][j] {
 				return false
 			}
@@ -487,11 +475,10 @@ func (r *Ring) Equal(p1, p2 *Poly) bool {
 
 // MarshalBinarySize returns the size in bytes of the target Ring.
 func (r *Ring) MarshalBinarySize() (dataLen int) {
-	dataLen++ // Type
-	dataLen++ // #Tables
+	dataLen++ // #SubRings
 	dataLen++ // level
-	for i := range r.Tables {
-		dataLen += r.Tables[i].MarshalBinarySize()
+	for i := range r.SubRings {
+		dataLen += r.SubRings[i].MarshalBinarySize()
 	}
 
 	return
@@ -521,16 +508,15 @@ func (r *Ring) UnmarshalBinary(data []byte) (err error) {
 // Encode encodes the target Ring on a slice of bytes and returns
 // the number of bytes written.
 func (r *Ring) Encode(data []byte) (ptr int, err error) {
-	data[ptr] = uint8(r.Type())
-	ptr++
-	data[ptr] = uint8(len(r.Tables))
+
+	data[ptr] = uint8(len(r.SubRings))
 	ptr++
 	data[ptr] = uint8(r.level)
 	ptr++
 
 	var inc int
-	for i := range r.Tables {
-		if inc, err = r.Tables[i].Encode(data[ptr:]); err != nil {
+	for i := range r.SubRings {
+		if inc, err = r.SubRings[i].Encode(data[ptr:]); err != nil {
 			return
 		}
 
@@ -543,60 +529,39 @@ func (r *Ring) Encode(data []byte) (ptr int, err error) {
 // Decode decodes the input slice of bytes on the target Ring and
 // returns the number of bytes read.
 func (r *Ring) Decode(data []byte) (ptr int, err error) {
-	ringType := Type(data[ptr])
-	ptr++
 
-	r.Tables = make([]*Table, data[ptr])
+	r.SubRings = make([]*SubRing, data[ptr])
 	ptr++
 
 	r.level = int(data[ptr])
 	ptr++
 
 	var inc int
-	for i := range r.Tables {
+	for i := range r.SubRings {
 
-		r.Tables[i] = new(Table)
+		r.SubRings[i] = new(SubRing)
 
-		if inc, err = r.Tables[i].Decode(data[ptr:]); err != nil {
+		if inc, err = r.SubRings[i].Decode(data[ptr:]); err != nil {
 			return
 		}
 		ptr += inc
 
 		if i > 0 {
-			if r.Tables[i].N != r.Tables[i-1].N || r.Tables[i].NthRoot != r.Tables[i-1].NthRoot {
-				return ptr, fmt.Errorf("invalid tables: all tables must have the same ring degree and NthRoot")
+			if r.SubRings[i].N != r.SubRings[i-1].N || r.SubRings[i].NthRoot != r.SubRings[i-1].NthRoot {
+				return ptr, fmt.Errorf("invalid SubRings: all SubRings must have the same ring degree and NthRoot")
 			}
 		}
 	}
 
-	switch ringType {
-	case Standard:
-		r.NumberTheoreticTransformer = NumberTheoreticTransformerStandard{}
+	r.ModulusAtLevel = make([]*big.Int, len(r.SubRings))
 
-		if int(r.NthRoot()) < r.N()<<1 {
-			return ptr, fmt.Errorf("invalid ring type: NthRoot must be at least 2N but is %dN", int(r.NthRoot())/r.N())
-		}
+	r.ModulusAtLevel[0] = new(big.Int).SetUint64(r.SubRings[0].Modulus)
 
-	case ConjugateInvariant:
-		r.NumberTheoreticTransformer = NumberTheoreticTransformerConjugateInvariant{}
-
-		if int(r.NthRoot()) < r.N()<<2 {
-			return ptr, fmt.Errorf("invalid ring type: NthRoot must be at least 4N but is %dN", int(r.NthRoot())/r.N())
-		}
-
-	default:
-		return ptr, fmt.Errorf("invalid ring type")
+	for i := 1; i < len(r.SubRings); i++ {
+		r.ModulusAtLevel[i] = new(big.Int).Mul(r.ModulusAtLevel[i-1], new(big.Int).SetUint64(r.SubRings[i].Modulus))
 	}
 
-	r.ModulusAtLevel = make([]*big.Int, len(r.Tables))
-
-	r.ModulusAtLevel[0] = new(big.Int).SetUint64(r.Tables[0].Modulus)
-
-	for i := 1; i < len(r.Tables); i++ {
-		r.ModulusAtLevel[i] = new(big.Int).Mul(r.ModulusAtLevel[i-1], new(big.Int).SetUint64(r.Tables[i].Modulus))
-	}
-
-	r.RescaleParams = rewRescaleParams(r.Tables)
+	r.RescaleConstants = rewRescaleConstants(r.SubRings)
 
 	return
 }

@@ -93,19 +93,19 @@ func (eval *Evaluator) AutomorphismHoisted(level int, ctIn *Ciphertext, c1Decomp
 	ctOut.Scale = ctIn.Scale
 }
 
-// AutomorphismHoistedNoModDown is similar to AutomorphismHoisted, except that it returns a ciphertext modulo QP and scaled by P.
+// AutomorphismHoistedLazy is similar to AutomorphismHoisted, except that it returns a ciphertext modulo QP and scaled by P.
 // The method requires that the corresponding RotationKey has been added to the Evaluator.
 // Requires that the NTT domain of c0 and ctQP are the same.
-func (eval *Evaluator) AutomorphismHoistedNoModDown(levelQ int, c0 *ring.Poly, c1DecompQP []ringqp.Poly, galEl uint64, ctQP CiphertextQP) {
+func (eval *Evaluator) AutomorphismHoistedLazy(levelQ int, c0 *ring.Poly, c1DecompQP []ringqp.Poly, galEl uint64, ctQP CiphertextQP) {
 
 	rtk, generated := eval.Rtks.GetRotationKey(galEl)
 	if !generated {
-		panic(fmt.Sprintf("cannot AutomorphismHoistedNoModDown: galEl key 5^%d missing", eval.params.RotationFromGaloisElement(eval.params.InverseGaloisElement(galEl))))
+		panic(fmt.Sprintf("cannot AutomorphismHoistedLazy: galEl key 5^%d missing", eval.params.RotationFromGaloisElement(eval.params.InverseGaloisElement(galEl))))
 	}
 
 	levelP := rtk.LevelP()
 
-	eval.KeyswitchHoistedNoModDown(levelQ, c1DecompQP, rtk, eval.BuffQP[0].Q, eval.BuffQP[1].Q, eval.BuffQP[0].P, eval.BuffQP[1].P)
+	eval.KeyswitchHoistedLazy(levelQ, c1DecompQP, rtk, eval.BuffQP[0].Q, eval.BuffQP[1].Q, eval.BuffQP[0].P, eval.BuffQP[1].P)
 
 	ringQ := eval.params.RingQ().AtLevel(levelQ)
 	ringP := eval.params.RingP().AtLevel(levelP)
@@ -185,19 +185,15 @@ func (eval *Evaluator) Trace(ctIn *Ciphertext, logN int, ctOut *Ciphertext) {
 		ringQ := eval.params.RingQ().AtLevel(levelQ)
 
 		// pre-multiplication by (N/n)^-1
-		for i := 0; i < levelQ+1; i++ {
+		for i, s := range ringQ.SubRings[:levelQ+1] {
 
-			Q := ringQ.Tables[i].Modulus
-			bredParams := ringQ.Tables[i].BRedParams
-			mredparams := ringQ.Tables[i].MRedParams
-			invN := ring.ModExp(uint64(gap), Q-2, Q)
-			invN = ring.MForm(invN, Q, bredParams)
+			NInv := ring.MForm(ring.ModExp(uint64(gap), s.Modulus-2, s.Modulus), s.Modulus, s.BRedConstant)
 
-			ring.MulScalarMontgomeryVec(ctIn.Value[0].Coeffs[i], ctOut.Value[0].Coeffs[i], invN, Q, mredparams)
-			ring.MulScalarMontgomeryVec(ctIn.Value[1].Coeffs[i], ctOut.Value[1].Coeffs[i], invN, Q, mredparams)
+			s.MulScalarMontgomery(ctIn.Value[0].Coeffs[i], NInv, ctOut.Value[0].Coeffs[i])
+			s.MulScalarMontgomery(ctIn.Value[1].Coeffs[i], NInv, ctOut.Value[1].Coeffs[i])
 		}
 
-		buff := NewCiphertextAtLevelFromPoly(levelQ, [2]*ring.Poly{eval.BuffQP[3].Q, eval.BuffQP[4].Q})
+		buff := NewCiphertextAtLevelFromPoly(levelQ, []*ring.Poly{eval.BuffQP[3].Q, eval.BuffQP[4].Q})
 		buff.IsNTT = ctIn.IsNTT
 
 		for i := logN; i < eval.params.LogN()-1; i++ {

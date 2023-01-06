@@ -121,6 +121,7 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, s
 
 	RNSDecomp := len(shareOut.Value)
 	BITDecomp := len(shareOut.Value[0])
+	N := ringQ.N()
 
 	var index int
 	for j := 0; j < BITDecomp; j++ {
@@ -149,17 +150,17 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, s
 					break
 				}
 
-				qi := ringQ.Tables[index].Modulus
+				qi := ringQ.SubRings[index].Modulus
 				tmp0 := rtg.buff[0].Q.Coeffs[index]
 				tmp1 := shareOut.Value[i][j].Q.Coeffs[index]
 
-				for w := 0; w < ringQ.N(); w++ {
+				for w := 0; w < N; w++ {
 					tmp1[w] = ring.CRed(tmp1[w]+tmp0[w], qi)
 				}
 			}
 
 			// sk_in * (qiBarre*qiStar) * 2^w - a*sk + e
-			ringQP.MulCoeffsMontgomeryAndSub(crp[i][j], rtg.buff[1], shareOut.Value[i][j])
+			ringQP.MulCoeffsMontgomeryThenSub(crp[i][j], rtg.buff[1], shareOut.Value[i][j])
 		}
 
 		ringQ.MulScalar(rtg.buff[0].Q, 1<<rtg.params.Pow2Base(), rtg.buff[0].Q)

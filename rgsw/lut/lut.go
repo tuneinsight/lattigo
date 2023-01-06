@@ -11,7 +11,7 @@ import (
 // Interval [a, b] should take into account the "drift" of the value x, caused by the change of modulus from Q to 2N.
 func InitLUT(g func(x float64) (y float64), scale rlwe.Scale, ringQ *ring.Ring, a, b float64) (F *ring.Poly) {
 	F = ringQ.NewPoly()
-	Q := ringQ.Moduli()
+	Q := ringQ.ModuliChain()[:ringQ.Level()+1]
 
 	sf64 := scale.Float64()
 

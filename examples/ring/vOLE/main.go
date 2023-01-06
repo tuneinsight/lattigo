@@ -263,7 +263,7 @@ func main() {
 
 			// c = NTT(u * (Q/P) + e) + NTT(a) * MForm(NTT(skAlice))
 			// c = NTT(u * (Q/P) + e + a*skAlice)
-			ringQ.MulCoeffsMontgomeryAndAdd(a[i], skBob, c[i])
+			ringQ.MulCoeffsMontgomeryThenAdd(a[i], skBob, c[i])
 		}
 
 		elapsed = time.Since(start)
@@ -281,7 +281,7 @@ func main() {
 
 			// rhoAlice = NTT(skBob * (u * (Q/P) + e + a*skAlice)) - NTT(a) * NTT(MForm(sigmaAlice))
 			// rhoAlice = NTT(skBob * (u * (Q/P) + e + a*skAlice) - a*sigmaAlice)
-			ringQ.MulCoeffsMontgomeryAndSub(a[i], sigmaAlice, rhoAlice[i])
+			ringQ.MulCoeffsMontgomeryThenSub(a[i], sigmaAlice, rhoAlice[i])
 
 			// rhoAlice = NTT(skBob * u)  + NTT(a*skBob*skAlice - a*sigmaAlice) * (P/Q)
 			ringQ.AtLevel(qlevel).DivRoundByLastModulusManyNTT(qlevel-plevel, rhoAlice[i], buff, rhoAlice[i])
@@ -353,7 +353,7 @@ func main() {
 
 		// Second Message, Alice
 		start = time.Now()
-		ringQ.AtLevel(plevel).InvMForm(skAlice, skAlice)
+		ringQ.AtLevel(plevel).IMForm(skAlice, skAlice)
 		for i := 0; i < n; i++ {
 			// d = v * P/M
 			ringQ.AtLevel(plevel).MulScalarBigint(v[i], volerings.pDivM, d[i])
@@ -366,7 +366,7 @@ func main() {
 
 			// d = NTT(v * (P/M) + e) + NTT(MForm(a'))*NTT(skAlice)
 			//   = NTT(v * (P/M) + e + a'*skAlice)
-			ringQ.AtLevel(plevel).MulCoeffsMontgomeryAndAdd(aprime[i], skAlice, d[i])
+			ringQ.AtLevel(plevel).MulCoeffsMontgomeryThenAdd(aprime[i], skAlice, d[i])
 		}
 
 		elapsed = time.Since(start)
@@ -386,10 +386,10 @@ func main() {
 
 			// beta = NTT(u * (v * (P/M) + e + a'*skAlice)) - NTT(MForm(a')) * NTT(-a * sigmaBob) * (P/Q)
 			// 		= NTT(u * (v * (P/M) + e + a'*skAlice) - a'*-a*sigmaBob * (P/Q))
-			ringQ.AtLevel(plevel).MulCoeffsMontgomeryAndSub(aprime[i], rhoBob[i], beta[i])
+			ringQ.AtLevel(plevel).MulCoeffsMontgomeryThenSub(aprime[i], rhoBob[i], beta[i])
 
 			// beta = u*(v * (P/M) + e + a'*skAlice) * u -  a'*-a*sigmaBob * (P/Q)
-			ringQ.AtLevel(plevel).InvNTT(beta[i], beta[i])
+			ringQ.AtLevel(plevel).INTT(beta[i], beta[i])
 
 			// beta = (u*(v * (P/M) + e + a'*skAlice) * u -  a'*-a*sigmaBob * (P/Q)) * (M/P)
 			// 		= (M/P) * u * (v * (P/M) + e + a'*skAlice) - a'*-a*sigmaBob * (M/Q)
@@ -410,7 +410,7 @@ func main() {
 			// 		 = NTT(a'*skAlice*u + (a'*a*skBob*skAlice - a'*a*sigmaAlice) * (P/Q))
 
 			ringQ.AtLevel(plevel).MulCoeffsMontgomery(aprime[i], rhoAlice[i], alpha[i])
-			ringQ.AtLevel(plevel).InvNTT(alpha[i], alpha[i])
+			ringQ.AtLevel(plevel).INTT(alpha[i], alpha[i])
 
 			// alpha = (a'*skAlice*u + (a'*a*skBob*skAlice - a'*a*sigmaAlice) * (P/Q)) * (M/P)
 			//		 = a'*skAlice*u*(M/P) + a'*a*skBob*skAlice*(M/Q) - a'*a*sigmaAlice*(M/Q)
@@ -445,7 +445,7 @@ func main() {
 			ringQ.AtLevel(mlevel).NTT(v[i], checkMessage1b)
 			ringQ.AtLevel(mlevel).MulCoeffsMontgomery(u[i], checkMessage1b, checkMessage1a)
 
-			ringQ.AtLevel(mlevel).InvNTT(checkMessage1a, checkMessage1a)
+			ringQ.AtLevel(mlevel).INTT(checkMessage1a, checkMessage1a)
 
 			ringQ.AtLevel(mlevel).Add(alpha[i], beta[i], checkMessage1b)
 

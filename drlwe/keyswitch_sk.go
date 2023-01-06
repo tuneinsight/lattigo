@@ -120,7 +120,7 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlwe.Cip
 	}
 
 	// a * (skIn - skOut) mod Q
-	ringQ.MulCoeffsMontgomeryConstant(ct1, cks.tmpDelta, shareOut.Value)
+	ringQ.MulCoeffsMontgomeryLazy(ct1, cks.tmpDelta, shareOut.Value)
 
 	if ringP != nil {
 		// P * a * (skIn - skOut) mod QP (mod P = 0)
@@ -129,7 +129,7 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlwe.Cip
 
 	if !ct.IsNTT {
 		// InvNTT(P * a * (skIn - skOut)) mod QP (mod P = 0)
-		ringQ.InvNTTLazy(shareOut.Value, shareOut.Value)
+		ringQ.INTTLazy(shareOut.Value, shareOut.Value)
 
 		// Samples e in Q
 		cks.gaussianSampler.Read(cks.tmpQP.Q)
@@ -157,7 +157,7 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlwe.Cip
 		}
 
 		// Takes the error to the NTT domain
-		ringQ.InvNTT(shareOut.Value, shareOut.Value)
+		ringQ.INTT(shareOut.Value, shareOut.Value)
 
 		// P * a * (skIn - skOut) + e mod Q (mod P = 0, so P = e)
 		ringQ.Add(shareOut.Value, cks.tmpQP.Q, shareOut.Value)

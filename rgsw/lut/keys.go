@@ -18,12 +18,13 @@ func GenEvaluationKey(paramsRLWE rlwe.Parameters, skRLWE *rlwe.SecretKey, params
 
 	skLWEInvNTT := paramsLWE.RingQ().NewPoly()
 
-	paramsLWE.RingQ().InvNTT(skLWE.Value.Q, skLWEInvNTT)
+	paramsLWE.RingQ().INTT(skLWE.Value.Q, skLWEInvNTT)
 
 	plaintextRGSWOne := rlwe.NewPlaintext(paramsRLWE, paramsRLWE.MaxLevel())
 	plaintextRGSWOne.IsNTT = true
+	NRLWE := paramsRLWE.N()
 	for j := 0; j < paramsRLWE.QCount(); j++ {
-		for i := 0; i < paramsRLWE.N(); i++ {
+		for i := 0; i < NRLWE; i++ {
 			plaintextRGSWOne.Value.Coeffs[j][i] = 1
 		}
 	}
@@ -37,9 +38,9 @@ func GenEvaluationKey(paramsRLWE rlwe.Parameters, skRLWE *rlwe.SecretKey, params
 	skRGSWNeg := make([]*rgsw.Ciphertext, paramsLWE.N())
 
 	ringQ := paramsLWE.RingQ()
-	Q := ringQ.Tables[0].Modulus
-	OneMForm := ring.MForm(1, Q, ringQ.Tables[0].BRedParams)
-	MinusOneMform := ring.MForm(Q-1, Q, ringQ.Tables[0].BRedParams)
+	Q := ringQ.SubRings[0].Modulus
+	OneMForm := ring.MForm(1, Q, ringQ.SubRings[0].BRedConstant)
+	MinusOneMform := ring.MForm(Q-1, Q, ringQ.SubRings[0].BRedConstant)
 
 	decompRNS := paramsRLWE.DecompRNS(levelQ, levelP)
 	decompPw2 := paramsRLWE.DecompPw2(levelQ, levelP)

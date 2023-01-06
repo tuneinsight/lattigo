@@ -111,8 +111,8 @@ func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct *r
 	ringQP.MulCoeffsMontgomery(pcks.tmpQP, pk.Value[0], shareOutQP0)
 	ringQP.MulCoeffsMontgomery(pcks.tmpQP, pk.Value[1], shareOutQP1)
 
-	ringQP.InvNTT(shareOutQP0, shareOutQP0)
-	ringQP.InvNTT(shareOutQP1, shareOutQP1)
+	ringQP.INTT(shareOutQP0, shareOutQP0)
+	ringQP.INTT(shareOutQP1, shareOutQP1)
 
 	// h_0 = u_i * pk_0
 	pcks.gaussianSampler.AtLevel(levelQ).Read(pcks.tmpQP.Q)
@@ -142,12 +142,12 @@ func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct *r
 	if ct.IsNTT {
 		ringQ.NTT(shareOut.Value[0], shareOut.Value[0])
 		ringQ.NTT(shareOut.Value[1], shareOut.Value[1])
-		ringQ.MulCoeffsMontgomeryAndAdd(ct1, sk.Value.Q, shareOut.Value[0])
+		ringQ.MulCoeffsMontgomeryThenAdd(ct1, sk.Value.Q, shareOut.Value[0])
 	} else {
 		// tmp = s_i*c_1
 		ringQ.NTTLazy(ct1, pcks.tmpQP.Q)
-		ringQ.MulCoeffsMontgomeryConstant(pcks.tmpQP.Q, sk.Value.Q, pcks.tmpQP.Q)
-		ringQ.InvNTT(pcks.tmpQP.Q, pcks.tmpQP.Q)
+		ringQ.MulCoeffsMontgomeryLazy(pcks.tmpQP.Q, sk.Value.Q, pcks.tmpQP.Q)
+		ringQ.INTT(pcks.tmpQP.Q, pcks.tmpQP.Q)
 
 		// h_0 = s_i*c_1 + (u_i * pk_0 + e0)/P
 		ringQ.Add(shareOut.Value[0], pcks.tmpQP.Q, shareOut.Value[0])

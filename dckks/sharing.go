@@ -137,7 +137,7 @@ func (e2s *E2SProtocol) GetShare(secretShare *rlwe.AdditiveShareBigint, aggregat
 	ringQ.Add(aggregatePublicShare.Value, ct.Value[0], e2s.buff)
 
 	// Switches the LSSS RNS NTT ciphertext outside of the NTT domain
-	ringQ.InvNTT(e2s.buff, e2s.buff)
+	ringQ.INTT(e2s.buff, e2s.buff)
 
 	dslots := 1 << logSlots
 	if ringQ.Type() == ring.Standard {

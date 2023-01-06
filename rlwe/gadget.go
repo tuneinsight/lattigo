@@ -196,6 +196,7 @@ func AddPolyTimesGadgetVectorToGadgetCiphertext(pt *ring.Poly, cts []GadgetCiphe
 
 	RNSDecomp := len(cts[0].Value)
 	BITDecomp := len(cts[0].Value[0])
+	N := ringQ.N()
 
 	var index int
 	for j := 0; j < BITDecomp; j++ {
@@ -217,12 +218,12 @@ func AddPolyTimesGadgetVectorToGadgetCiphertext(pt *ring.Poly, cts []GadgetCiphe
 					break
 				}
 
-				qi := ringQ.Tables[index].Modulus
+				qi := ringQ.SubRings[index].Modulus
 				p0tmp := buff.Coeffs[index]
 
 				for u, ct := range cts {
 					p1tmp := ct.Value[i][j].Value[u].Q.Coeffs[index]
-					for w := 0; w < ringQ.N(); w++ {
+					for w := 0; w < N; w++ {
 						p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi)
 					}
 				}
@@ -255,6 +256,7 @@ func AddPolyToGadgetMatrix(pt *ring.Poly, gm [][]ringqp.Poly, ringQP ringqp.Ring
 
 	RNSDecomp := len(gm)
 	BITDecomp := len(gm[0])
+	N := ringQ.N()
 
 	var index int
 	for j := 0; j < BITDecomp; j++ {
@@ -276,11 +278,11 @@ func AddPolyToGadgetMatrix(pt *ring.Poly, gm [][]ringqp.Poly, ringQP ringqp.Ring
 					break
 				}
 
-				qi := ringQ.Tables[index].Modulus
+				qi := ringQ.SubRings[index].Modulus
 				p0tmp := buff.Coeffs[index]
 
 				p1tmp := gm[i][j].Q.Coeffs[index]
-				for w := 0; w < ringQ.N(); w++ {
+				for w := 0; w < N; w++ {
 					p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi)
 				}
 			}
@@ -315,7 +317,7 @@ func NewGadgetPlaintext(params Parameters, value interface{}, levelQ, levelP, lo
 		pt.Value[0] = ringQ.NewPoly()
 		if el < 0 {
 			for i := 0; i < levelQ+1; i++ {
-				pt.Value[0].Coeffs[i][0] = ringQ.Tables[i].Modulus - uint64(-el)
+				pt.Value[0].Coeffs[i][0] = ringQ.SubRings[i].Modulus - uint64(-el)
 			}
 		} else {
 			for i := 0; i < levelQ+1; i++ {
@@ -336,8 +338,13 @@ func NewGadgetPlaintext(params Parameters, value interface{}, levelQ, levelP, lo
 	ringQ.MForm(pt.Value[0], pt.Value[0])
 
 	for i := 1; i < len(pt.Value); i++ {
+
 		pt.Value[i] = pt.Value[0].CopyNew()
-		ringQ.MulByPow2(pt.Value[i], i*logBase2, pt.Value[i])
+
+		for j := 0; j < i; j++ {
+			ringQ.MulScalar(pt.Value[i], 1<<logBase2, pt.Value[i])
+		}
+
 	}
 
 	return

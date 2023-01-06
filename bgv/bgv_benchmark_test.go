@@ -183,9 +183,9 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 		ciphertext0 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, lvl)
 		ciphertext1 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, lvl)
 		scalar := tc.params.T() >> 1
-		b.Run(GetTestName("Evaluator/MulScalarAndAdd/op0=ct", tc.params, lvl), func(b *testing.B) {
+		b.Run(GetTestName("Evaluator/MulScalarThenAdd/op0=ct", tc.params, lvl), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				eval.MulScalarAndAdd(ciphertext0, scalar, ciphertext1)
+				eval.MulScalarThenAdd(ciphertext0, scalar, ciphertext1)
 			}
 		})
 	}
@@ -226,9 +226,9 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 		ciphertext0 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, lvl)
 		ciphertext1 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, lvl)
 		ciphertext2 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, lvl)
-		b.Run(GetTestName("Evaluator/MulRelinAndAdd/op0=ct/op1=ct", tc.params, lvl), func(b *testing.B) {
+		b.Run(GetTestName("Evaluator/MulRelinThenAdd/op0=ct/op1=ct", tc.params, lvl), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				eval.MulRelinAndAdd(ciphertext0, ciphertext1, ciphertext2)
+				eval.MulRelinThenAdd(ciphertext0, ciphertext1, ciphertext2)
 			}
 		})
 	}

@@ -241,8 +241,8 @@ func (enc *pkEncryptor) encryptZero(ct *Ciphertext) {
 	ringQP.MulCoeffsMontgomery(u, enc.pk.Value[1], ct1QP)
 
 	// 2*(#Q + #P) NTT
-	ringQP.InvNTT(ct0QP, ct0QP)
-	ringQP.InvNTT(ct1QP, ct1QP)
+	ringQP.INTT(ct0QP, ct0QP)
+	ringQP.INTT(ct1QP, ct1QP)
 
 	e := ringqp.Poly{Q: buffQ0, P: buffP2}
 
@@ -290,7 +290,7 @@ func (enc *pkEncryptor) encryptZeroNoP(ct *Ciphertext) {
 		ringQ.NTT(buffQ0, buffQ0)
 		ringQ.Add(c0, buffQ0, c0)
 	} else {
-		ringQ.InvNTT(c0, c0)
+		ringQ.INTT(c0, c0)
 		enc.gaussianSampler.AtLevel(levelQ).ReadAndAdd(c0)
 	}
 
@@ -301,7 +301,7 @@ func (enc *pkEncryptor) encryptZeroNoP(ct *Ciphertext) {
 		ringQ.Add(c1, buffQ0, c1)
 
 	} else {
-		ringQ.InvNTT(c1, c1)
+		ringQ.INTT(c1, c1)
 		enc.gaussianSampler.AtLevel(levelQ).ReadAndAdd(c1)
 	}
 }
@@ -383,9 +383,9 @@ func (enc *skEncryptor) encryptZero(ct *Ciphertext, c1 *ring.Poly) {
 		ringQ.NTT(enc.buffQ[0], enc.buffQ[0])                  // NTT(e)
 		ringQ.Add(c0, enc.buffQ[0], c0)                        // c0 = NTT(-sc1 + e)
 	} else {
-		ringQ.InvNTT(c0, c0) // c0 = -sc1
+		ringQ.INTT(c0, c0) // c0 = -sc1
 		if ct.Degree() == 1 {
-			ringQ.InvNTT(c1, c1) // c1 = c1
+			ringQ.INTT(c1, c1) // c1 = c1
 		}
 
 		enc.gaussianSampler.AtLevel(levelQ).ReadAndAdd(c0) // c0 = -sc1 + e
@@ -421,11 +421,11 @@ func (enc *skEncryptor) encryptZeroQP(ct CiphertextQP) {
 	enc.uniformSampler.AtLevel(levelQ, levelP).Read(c1)
 
 	// (-a*sk + e, a)
-	ringQP.MulCoeffsMontgomeryAndSub(c1, enc.sk.Value, c0)
+	ringQP.MulCoeffsMontgomeryThenSub(c1, enc.sk.Value, c0)
 
 	if !ct.IsNTT {
-		ringQP.InvNTT(c0, c0)
-		ringQP.InvNTT(c1, c1)
+		ringQP.INTT(c0, c0)
+		ringQP.INTT(c1, c1)
 	}
 }
 

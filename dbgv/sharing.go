@@ -90,7 +90,7 @@ func (e2s *E2SProtocol) GetShare(secretShare *rlwe.AdditiveShare, aggregatePubli
 	level := utils.MinInt(ct.Level(), aggregatePublicShare.Value.Level())
 	ringQ := e2s.params.RingQ().AtLevel(level)
 	ringQ.Add(aggregatePublicShare.Value, ct.Value[0], e2s.tmpPlaintextRingQ)
-	ringQ.InvNTT(e2s.tmpPlaintextRingQ, e2s.tmpPlaintextRingQ)
+	ringQ.INTT(e2s.tmpPlaintextRingQ, e2s.tmpPlaintextRingQ)
 	e2s.encoder.ScaleDown(level, e2s.tmpPlaintextRingQ, e2s.tmpPlaintextRingQ)
 	e2s.encoder.RingQ2T(level, e2s.tmpPlaintextRingQ, e2s.tmpPlaintextRingT)
 	if secretShare != nil {

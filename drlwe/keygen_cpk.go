@@ -91,7 +91,7 @@ func (ckg *CKGProtocol) GenShare(sk *rlwe.SecretKey, crp CKGCRP, shareOut *CKGSh
 	ringQP.NTT(shareOut.Value, shareOut.Value)
 	ringQP.MForm(shareOut.Value, shareOut.Value)
 
-	ringQP.MulCoeffsMontgomeryAndSub(sk.Value, ringqp.Poly(crp), shareOut.Value)
+	ringQP.MulCoeffsMontgomeryThenSub(sk.Value, ringqp.Poly(crp), shareOut.Value)
 }
 
 // AggregateShares aggregates a new share to the aggregate key

@@ -528,7 +528,7 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix Linear
 
 			index := eval.PermuteNTTIndex[galEl]
 
-			eval.KeyswitchHoistedNoModDown(levelQ, BuffDecompQP, rtk, ksRes0QP.Q, ksRes1QP.Q, ksRes0QP.P, ksRes1QP.P)
+			eval.KeyswitchHoistedLazy(levelQ, BuffDecompQP, rtk, ksRes0QP.Q, ksRes1QP.Q, ksRes0QP.P, ksRes1QP.P)
 			ringQ.Add(ksRes0QP.Q, ct0TimesP, ksRes0QP.Q)
 			ringQP.PermuteNTTWithIndex(ksRes0QP, index, tmp0QP)
 			ringQP.PermuteNTTWithIndex(ksRes1QP, index, tmp1QP)
@@ -539,8 +539,8 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix Linear
 				ringQP.MulCoeffsMontgomery(matrix.Vec[k], tmp1QP, c1OutQP)
 			} else {
 				// keyswitch(c1_Q) = (d0_QP, d1_QP)
-				ringQP.MulCoeffsMontgomeryAndAdd(matrix.Vec[k], tmp0QP, c0OutQP)
-				ringQP.MulCoeffsMontgomeryAndAdd(matrix.Vec[k], tmp1QP, c1OutQP)
+				ringQP.MulCoeffsMontgomeryThenAdd(matrix.Vec[k], tmp0QP, c0OutQP)
+				ringQP.MulCoeffsMontgomeryThenAdd(matrix.Vec[k], tmp1QP, c1OutQP)
 			}
 
 			if cnt%QiOverF == QiOverF-1 {
@@ -571,8 +571,8 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix Linear
 	eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, c1OutQP.Q, c1OutQP.P, c1OutQP.Q) // sum(phi(d1_QP))/P
 
 	if state { // Rotation by zero
-		ringQ.MulCoeffsMontgomeryAndAdd(matrix.Vec[0].Q, ctInTmp0, c0OutQP.Q) // ctOut += c0_Q * plaintext
-		ringQ.MulCoeffsMontgomeryAndAdd(matrix.Vec[0].Q, ctInTmp1, c1OutQP.Q) // ctOut += c1_Q * plaintext
+		ringQ.MulCoeffsMontgomeryThenAdd(matrix.Vec[0].Q, ctInTmp0, c0OutQP.Q) // ctOut += c0_Q * plaintext
+		ringQ.MulCoeffsMontgomeryThenAdd(matrix.Vec[0].Q, ctInTmp1, c1OutQP.Q) // ctOut += c1_Q * plaintext
 	}
 }
 
@@ -604,7 +604,7 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Li
 	ctInTmp0, ctInTmp1 := eval.buffCt.Value[0], eval.buffCt.Value[1]
 
 	// Pre-rotates ciphertext for the baby-step giant-step algorithm, does not divide by P yet
-	ctInRotQP := eval.RotateHoistedNoModDownNew(levelQ, rotN2, ctInTmp0, eval.BuffDecompQP)
+	ctInRotQP := eval.RotateHoistedLazyNew(levelQ, rotN2, ctInTmp0, eval.BuffDecompQP)
 
 	// Accumulator inner loop
 	tmp0QP := eval.BuffQP[1]
@@ -630,21 +630,21 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Li
 		for _, i := range index[j] {
 			if i == 0 {
 				if cnt1 == 0 {
-					ringQ.MulCoeffsMontgomeryConstant(matrix.Vec[j].Q, ctInTmp0, tmp0QP.Q)
-					ringQ.MulCoeffsMontgomeryConstant(matrix.Vec[j].Q, ctInTmp1, tmp1QP.Q)
+					ringQ.MulCoeffsMontgomeryLazy(matrix.Vec[j].Q, ctInTmp0, tmp0QP.Q)
+					ringQ.MulCoeffsMontgomeryLazy(matrix.Vec[j].Q, ctInTmp1, tmp1QP.Q)
 					tmp0QP.P.Zero()
 					tmp1QP.P.Zero()
 				} else {
-					ringQ.MulCoeffsMontgomeryConstantAndAddNoMod(matrix.Vec[j].Q, ctInTmp0, tmp0QP.Q)
-					ringQ.MulCoeffsMontgomeryConstantAndAddNoMod(matrix.Vec[j].Q, ctInTmp1, tmp1QP.Q)
+					ringQ.MulCoeffsMontgomeryLazyThenAddLazy(matrix.Vec[j].Q, ctInTmp0, tmp0QP.Q)
+					ringQ.MulCoeffsMontgomeryLazyThenAddLazy(matrix.Vec[j].Q, ctInTmp1, tmp1QP.Q)
 				}
 			} else {
 				if cnt1 == 0 {
-					ringQP.MulCoeffsMontgomeryConstant(matrix.Vec[j+i], ctInRotQP[i].Value[0], tmp0QP)
-					ringQP.MulCoeffsMontgomeryConstant(matrix.Vec[j+i], ctInRotQP[i].Value[1], tmp1QP)
+					ringQP.MulCoeffsMontgomeryLazy(matrix.Vec[j+i], ctInRotQP[i].Value[0], tmp0QP)
+					ringQP.MulCoeffsMontgomeryLazy(matrix.Vec[j+i], ctInRotQP[i].Value[1], tmp1QP)
 				} else {
-					ringQP.MulCoeffsMontgomeryConstantAndAddNoMod(matrix.Vec[j+i], ctInRotQP[i].Value[0], tmp0QP)
-					ringQP.MulCoeffsMontgomeryConstantAndAddNoMod(matrix.Vec[j+i], ctInRotQP[i].Value[1], tmp1QP)
+					ringQP.MulCoeffsMontgomeryLazyThenAddLazy(matrix.Vec[j+i], ctInRotQP[i].Value[0], tmp0QP)
+					ringQP.MulCoeffsMontgomeryLazyThenAddLazy(matrix.Vec[j+i], ctInRotQP[i].Value[1], tmp1QP)
 				}
 			}
 
@@ -686,7 +686,7 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Li
 
 			rotIndex := eval.PermuteNTTIndex[galEl]
 
-			eval.GadgetProductNoModDown(levelQ, tmp1QP.Q, rtk.GadgetCiphertext, cQP) // Switchkey(P*phi(tmpRes_1)) = (d0, d1) in base QP
+			eval.GadgetProductLazy(levelQ, tmp1QP.Q, rtk.GadgetCiphertext, cQP) // Switchkey(P*phi(tmpRes_1)) = (d0, d1) in base QP
 			ringQP.Add(cQP.Value[0], tmp0QP, cQP.Value[0])
 
 			// Outer loop rotations
@@ -695,8 +695,8 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Li
 				ringQP.PermuteNTTWithIndex(cQP.Value[0], rotIndex, c0OutQP)
 				ringQP.PermuteNTTWithIndex(cQP.Value[1], rotIndex, c1OutQP)
 			} else {
-				ringQP.PermuteNTTWithIndexAndAddNoMod(cQP.Value[0], rotIndex, c0OutQP)
-				ringQP.PermuteNTTWithIndexAndAddNoMod(cQP.Value[1], rotIndex, c1OutQP)
+				ringQP.PermuteNTTWithIndexThenAddLazy(cQP.Value[0], rotIndex, c0OutQP)
+				ringQP.PermuteNTTWithIndexThenAddLazy(cQP.Value[1], rotIndex, c1OutQP)
 			}
 
 			// Else directly adds on ((cQP.Value[0].Q, cQP.Value[0].P), (cQP.Value[1].Q, cQP.Value[1].P))
@@ -705,8 +705,8 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Li
 				ringqp.CopyLvl(levelQ, levelP, tmp0QP, c0OutQP)
 				ringqp.CopyLvl(levelQ, levelP, tmp1QP, c1OutQP)
 			} else {
-				ringQP.AddNoMod(c0OutQP, tmp0QP, c0OutQP)
-				ringQP.AddNoMod(c1OutQP, tmp1QP, c1OutQP)
+				ringQP.AddLazy(c0OutQP, tmp0QP, c0OutQP)
+				ringQP.AddLazy(c1OutQP, tmp1QP, c1OutQP)
 			}
 		}
 

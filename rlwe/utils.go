@@ -16,9 +16,9 @@ func PublicKeyIsCorrect(pk *PublicKey, sk *SecretKey, params Parameters, log2Bou
 	ringQP := params.RingQP().AtLevel(levelQ, levelP)
 
 	// [-as + e] + [as]
-	ringQP.MulCoeffsMontgomeryAndAdd(sk.Value, pk.Value[1], pk.Value[0])
-	ringQP.InvNTT(pk.Value[0], pk.Value[0])
-	ringQP.InvMForm(pk.Value[0], pk.Value[0])
+	ringQP.MulCoeffsMontgomeryThenAdd(sk.Value, pk.Value[1], pk.Value[0])
+	ringQP.INTT(pk.Value[0], pk.Value[0])
+	ringQP.IMForm(pk.Value[0], pk.Value[0])
 
 	if log2Bound <= ringQP.RingQ.Log2OfInnerSum(pk.Value[0].Q) {
 		return false
@@ -70,7 +70,7 @@ func SwitchingKeyIsCorrect(swk *SwitchingKey, skIn, skOut *SecretKey, params Par
 	// [-asIn + w*P*sOut + e, a] + [asIn]
 	for i := range swk.Value {
 		for j := range swk.Value[i] {
-			ringQP.MulCoeffsMontgomeryAndAdd(swk.Value[i][j].Value[1], skOut.Value, swk.Value[i][j].Value[0])
+			ringQP.MulCoeffsMontgomeryThenAdd(swk.Value[i][j].Value[1], skOut.Value, swk.Value[i][j].Value[0])
 		}
 	}
 
@@ -96,8 +96,8 @@ func SwitchingKeyIsCorrect(swk *SwitchingKey, skIn, skOut *SecretKey, params Par
 
 		// Checks that the error is below the bound
 		// Worst error bound is N * floor(6*sigma) * #Keys
-		ringQP.InvNTT(swk.Value[0][i].Value[0], swk.Value[0][i].Value[0])
-		ringQP.InvMForm(swk.Value[0][i].Value[0], swk.Value[0][i].Value[0])
+		ringQP.INTT(swk.Value[0][i].Value[0], swk.Value[0][i].Value[0])
+		ringQP.IMForm(swk.Value[0][i].Value[0], swk.Value[0][i].Value[0])
 
 		// Worst bound of inner sum
 		// N*#Keys*(N * #Parties * floor(sigma*6) + #Parties * floor(sigma*6) + N * #Parties  +  #Parties * floor(6*sigma))
@@ -137,7 +137,7 @@ func Norm(ct *Ciphertext, dec Decryptor) (std, min, max float64) {
 	ringQ := params.RingQ().AtLevel(ct.Level())
 
 	if pt.IsNTT {
-		ringQ.InvNTT(pt.Value, pt.Value)
+		ringQ.INTT(pt.Value, pt.Value)
 	}
 
 	ringQ.PolyToBigintCentered(pt.Value, 1, coeffsBigint)

@@ -84,7 +84,7 @@ func (d *decryptor) Decrypt(ct *Ciphertext, pt *Plaintext) {
 	}
 
 	if !ct.IsNTT {
-		ringQ.InvNTT(pt.Value, pt.Value)
+		ringQ.INTT(pt.Value, pt.Value)
 	}
 }
 

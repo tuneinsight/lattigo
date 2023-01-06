@@ -69,9 +69,11 @@ func (g *GaussianSampler) ReadAndAddFromDist(pol *Poly, r *Ring, sigma float64, 
 
 	g.prng.Read(g.randomBufferN)
 
-	modulus := r.Moduli()[:r.level+1]
+	modulus := r.ModuliChain()[:r.level+1]
 
-	for i := 0; i < r.N(); i++ {
+	N := r.N()
+
+	for i := 0; i < N; i++ {
 
 		for {
 			coeffFlo, sign = g.normFloat64()
@@ -87,18 +89,20 @@ func (g *GaussianSampler) ReadAndAddFromDist(pol *Poly, r *Ring, sigma float64, 
 	}
 }
 
-func (g *GaussianSampler) read(pol *Poly, ring *Ring, sigma float64, bound int) {
+func (g *GaussianSampler) read(pol *Poly, r *Ring, sigma float64, bound int) {
 	var coeffFlo float64
 	var coeffInt uint64
 	var sign uint64
 
-	level := ring.level
+	level := r.level
 
 	g.prng.Read(g.randomBufferN)
 
-	modulus := ring.Moduli()[:level+1]
+	modulus := r.ModuliChain()[:level+1]
 
-	for i := 0; i < ring.N(); i++ {
+	N := r.N()
+
+	for i := 0; i < N; i++ {
 
 		for {
 			coeffFlo, sign = g.normFloat64()

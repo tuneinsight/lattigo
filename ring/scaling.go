@@ -7,11 +7,12 @@ func (r *Ring) DivFloorByLastModulusNTT(p0, buff, p1 *Poly) {
 
 	level := r.level
 
-	r.InvNTTSingleLazy(r.Tables[level], p0.Coeffs[level], buff.Coeffs[0])
-	for i, table := range r.Tables[:level] {
-		r.NTTSingleLazy(table, buff.Coeffs[0], buff.Coeffs[1])
+	r.SubRings[level].INTTLazy(p0.Coeffs[level], buff.Coeffs[0])
+
+	for i, s := range r.SubRings[:level] {
+		s.NTTLazy(buff.Coeffs[0], buff.Coeffs[1])
 		// (-x[i] + x[-1]) * -InvQ
-		SubVecAndMulScalarMontgomeryTwoQiVec(buff.Coeffs[1], p0.Coeffs[i], p1.Coeffs[i], r.RescaleParams[r.level-1][i], table.Modulus, table.MRedParams)
+		s.SubThenMulScalarMontgomeryTwoModulus(buff.Coeffs[1], p0.Coeffs[i], r.RescaleConstants[r.level-1][i], p1.Coeffs[i])
 	}
 }
 
@@ -21,8 +22,8 @@ func (r *Ring) DivFloorByLastModulus(p0, p1 *Poly) {
 
 	level := r.level
 
-	for i := 0; i < level; i++ {
-		SubVecAndMulScalarMontgomeryTwoQiVec(p0.Coeffs[level], p0.Coeffs[i], p1.Coeffs[i], r.RescaleParams[level-1][i], r.Tables[i].Modulus, r.Tables[i].MRedParams)
+	for i, s := range r.SubRings[:level] {
+		s.SubThenMulScalarMontgomeryTwoModulus(p0.Coeffs[level], p0.Coeffs[i], r.RescaleConstants[level-1][i], p1.Coeffs[i])
 	}
 }
 
@@ -40,7 +41,7 @@ func (r *Ring) DivFloorByLastModulusManyNTT(nbRescales int, p0, buff, p1 *Poly) 
 
 		rCpy := r.AtLevel(r.Level())
 
-		rCpy.InvNTT(p0, buff)
+		rCpy.INTT(p0, buff)
 
 		for i := 0; i < nbRescales; i++ {
 			rCpy.DivFloorByLastModulus(buff, buff)
@@ -93,19 +94,17 @@ func (r *Ring) DivRoundByLastModulusNTT(p0, buff, p1 *Poly) {
 
 	level := r.level
 
-	r.InvNTTSingleLazy(r.Tables[level], p0.Coeffs[level], buff.Coeffs[level])
+	r.SubRings[level].INTTLazy(p0.Coeffs[level], buff.Coeffs[level])
 
 	// Center by (p-1)/2
-	pj := r.Tables[level].Modulus
-	pHalf := (pj - 1) >> 1
+	pHalf := (r.SubRings[level].Modulus - 1) >> 1
 
-	AddScalarVec(buff.Coeffs[level], buff.Coeffs[level], pHalf, pj)
+	r.SubRings[level].AddScalar(buff.Coeffs[level], pHalf, buff.Coeffs[level])
 
-	for i, table := range r.Tables[:level] {
-		qi := table.Modulus
-		AddScalarNoModVec(buff.Coeffs[level], buff.Coeffs[i], qi-BRedAdd(pHalf, qi, table.BRedParams))
-		r.NTTSingleLazy(table, buff.Coeffs[i], buff.Coeffs[i])
-		SubVecAndMulScalarMontgomeryTwoQiVec(buff.Coeffs[i], p0.Coeffs[i], p1.Coeffs[i], r.RescaleParams[level-1][i], qi, table.MRedParams)
+	for i, s := range r.SubRings[:level] {
+		s.AddScalarLazy(buff.Coeffs[level], s.Modulus-BRedAdd(pHalf, s.Modulus, s.BRedConstant), buff.Coeffs[i])
+		s.NTTLazy(buff.Coeffs[i], buff.Coeffs[i])
+		s.SubThenMulScalarMontgomeryTwoModulus(buff.Coeffs[i], p0.Coeffs[i], r.RescaleConstants[level-1][i], p1.Coeffs[i])
 	}
 }
 
@@ -116,16 +115,13 @@ func (r *Ring) DivRoundByLastModulus(p0, p1 *Poly) {
 	level := r.level
 
 	// Center by (p-1)/2
-	pj := r.Tables[level].Modulus
-	pHalf := (pj - 1) >> 1
+	pHalf := (r.SubRings[level].Modulus - 1) >> 1
 
-	AddScalarVec(p0.Coeffs[level], p0.Coeffs[level], pHalf, pj)
+	r.SubRings[level].AddScalar(p0.Coeffs[level], pHalf, p0.Coeffs[level])
 
-	for i := 0; i < level; i++ {
-		table := r.Tables[i]
-		qi := table.Modulus
-		AddScalarNoModAndNegTwoQiNoModVec(p0.Coeffs[i], p0.Coeffs[i], qi-BRedAdd(pHalf, qi, table.BRedParams), qi)
-		AddVecNoModAndMulScalarMontgomeryVec(p0.Coeffs[level], p0.Coeffs[i], p1.Coeffs[i], r.RescaleParams[level-1][i], qi, table.MRedParams)
+	for i, s := range r.SubRings[:level] {
+		s.AddScalarLazyThenNegTwoModulusLazy(p0.Coeffs[i], s.Modulus-BRedAdd(pHalf, s.Modulus, s.BRedConstant), p0.Coeffs[i])
+		s.AddLazyThenMulScalarMontgomery(p0.Coeffs[level], p0.Coeffs[i], r.RescaleConstants[level-1][i], p1.Coeffs[i])
 	}
 }
 
@@ -145,7 +141,7 @@ func (r *Ring) DivRoundByLastModulusManyNTT(nbRescales int, p0, buff, p1 *Poly) 
 
 			rCpy := r.AtLevel(r.Level())
 
-			rCpy.InvNTT(p0, buff)
+			rCpy.INTT(p0, buff)
 			for i := 0; i < nbRescales; i++ {
 				rCpy.DivRoundByLastModulus(buff, buff)
 				rCpy = rCpy.AtLevel(rCpy.Level() - 1)

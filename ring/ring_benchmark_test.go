@@ -2,7 +2,6 @@ package ring
 
 import (
 	"fmt"
-	//"math/bits"
 	"testing"
 )
 
@@ -23,7 +22,6 @@ func BenchmarkRing(b *testing.B) {
 		var tc *testParams
 		if tc, err = genTestParams(defaultParam); err != nil {
 			b.Fatal(err)
-
 		}
 
 		benchGenRing(tc, b)
@@ -48,7 +46,7 @@ func benchGenRing(tc *testParams, b *testing.B) {
 
 	b.Run(testString("GenRing/", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			if _, err := NewRing(tc.ringQ.N(), tc.ringQ.Moduli()); err != nil {
+			if _, err := NewRing(tc.ringQ.N(), tc.ringQ.ModuliChain()); err != nil {
 				b.Error(err)
 			}
 		}
@@ -142,7 +140,7 @@ func benchMontgomery(tc *testParams, b *testing.B) {
 
 	b.Run(testString("Montgomery/InvMForm/", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			tc.ringQ.InvMForm(p, p)
+			tc.ringQ.IMForm(p, p)
 		}
 	})
 }
@@ -159,11 +157,11 @@ func benchNTT(tc *testParams, b *testing.B) {
 
 	b.Run(testString("NTT/Backward/Standard/", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			tc.ringQ.InvNTT(p, p)
+			tc.ringQ.INTT(p, p)
 		}
 	})
 
-	ringQConjugateInvariant, _ := NewRingConjugateInvariant(tc.ringQ.N(), tc.ringQ.Moduli())
+	ringQConjugateInvariant, _ := NewRingConjugateInvariant(tc.ringQ.N(), tc.ringQ.ModuliChain())
 
 	b.Run(testString("NTT/Forward/ConjugateInvariant4NthRoot/", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -173,7 +171,7 @@ func benchNTT(tc *testParams, b *testing.B) {
 
 	b.Run(testString("NTT/Backward/ConjugateInvariant4NthRoot/", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			ringQConjugateInvariant.InvNTT(p, p)
+			ringQConjugateInvariant.INTT(p, p)
 		}
 	})
 }
@@ -189,21 +187,21 @@ func benchMulCoeffs(tc *testParams, b *testing.B) {
 		}
 	})
 
-	b.Run(testString("MulCoeffs/MontgomeryConstant/", tc.ringQ), func(b *testing.B) {
+	b.Run(testString("MulCoeffs/MontgomeryLazy/", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			tc.ringQ.MulCoeffsMontgomeryConstant(p0, p1, p0)
+			tc.ringQ.MulCoeffsMontgomeryLazy(p0, p1, p0)
 		}
 	})
 
 	b.Run(testString("MulCoeffs/Barrett/", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			tc.ringQ.MulCoeffs(p0, p1, p0)
+			tc.ringQ.MulCoeffsBarrett(p0, p1, p0)
 		}
 	})
 
-	b.Run(testString("MulCoeffs/BarrettConstant/", tc.ringQ), func(b *testing.B) {
+	b.Run(testString("MulCoeffs/BarrettLazy/", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			tc.ringQ.MulCoeffsConstant(p0, p1, p0)
+			tc.ringQ.MulCoeffsBarrettLazy(p0, p1, p0)
 		}
 	})
 }
@@ -219,9 +217,9 @@ func benchAddCoeffs(tc *testParams, b *testing.B) {
 		}
 	})
 
-	b.Run(testString("AddCoeffs/AddConstant/", tc.ringQ), func(b *testing.B) {
+	b.Run(testString("AddCoeffs/AddLazy", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			tc.ringQ.AddNoMod(p0, p1, p0)
+			tc.ringQ.AddLazy(p0, p1, p0)
 		}
 	})
 }
@@ -237,9 +235,9 @@ func benchSubCoeffs(tc *testParams, b *testing.B) {
 		}
 	})
 
-	b.Run(testString("SubCoeffs/SubConstant/", tc.ringQ), func(b *testing.B) {
+	b.Run(testString("SubCoeffs/SubLazy/", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			tc.ringQ.SubNoMod(p0, p1, p0)
+			tc.ringQ.SubLazy(p0, p1, p0)
 		}
 	})
 }
@@ -288,19 +286,19 @@ func benchExtendBasis(tc *testParams, b *testing.B) {
 	levelQ := tc.ringQ.MaxLevel()
 	levelP := tc.ringP.MaxLevel()
 
-	b.Run(fmt.Sprintf("ExtendBasis/ModUp/N=%d/limbsQ=%d/limbsP=%d", tc.ringQ.N(), tc.ringQ.NbModuli(), tc.ringP.NbModuli()), func(b *testing.B) {
+	b.Run(fmt.Sprintf("ExtendBasis/ModUp/N=%d/limbsQ=%d/limbsP=%d", tc.ringQ.N(), tc.ringQ.ModuliChainLength(), tc.ringP.ModuliChainLength()), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			basisExtender.ModUpQtoP(levelQ, levelP, p0, p1)
 		}
 	})
 
-	b.Run(fmt.Sprintf("ExtendBasis/ModDown/N=%d/limbsQ=%d/limbsP=%d", tc.ringQ.N(), tc.ringQ.NbModuli(), tc.ringP.NbModuli()), func(b *testing.B) {
+	b.Run(fmt.Sprintf("ExtendBasis/ModDown/N=%d/limbsQ=%d/limbsP=%d", tc.ringQ.N(), tc.ringQ.ModuliChainLength(), tc.ringP.ModuliChainLength()), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			basisExtender.ModDownQPtoQ(levelQ, levelP, p0, p1, p0)
 		}
 	})
 
-	b.Run(fmt.Sprintf("ExtendBasis/ModDownNTT/N=%d/limbsQ=%d/limbsP=%d", tc.ringQ.N(), tc.ringQ.NbModuli(), tc.ringP.NbModuli()), func(b *testing.B) {
+	b.Run(fmt.Sprintf("ExtendBasis/ModDownNTT/N=%d/limbsQ=%d/limbsP=%d", tc.ringQ.N(), tc.ringQ.ModuliChainLength(), tc.ringP.ModuliChainLength()), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			basisExtender.ModDownQPtoQNTT(levelQ, levelP, p0, p1, p0)
 		}
@@ -343,13 +341,13 @@ func benchBRed(tc *testParams, b *testing.B) {
 
 	var q, x, y uint64 = 1033576114481528833, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF
 
-	u := BRedParams(q)
+	brc := BRedConstant(q)
 
 	b.ResetTimer()
 
 	b.Run("BRed", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			x = BRed(x, y, q, u)
+			x = BRed(x, y, q, brc)
 		}
 	})
 }
@@ -358,17 +356,15 @@ func benchMRed(tc *testParams, b *testing.B) {
 
 	var q, x, y uint64 = 1033576114481528833, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF
 
-	u := BRedParams(q)
+	y = MForm(y, q, BRedConstant(q))
 
-	y = MForm(y, q, u)
-
-	m := MRedParams(q)
+	mrc := MRedConstant(q)
 
 	b.ResetTimer()
 
 	b.Run("MRed", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			x = MRed(x, y, q, m)
+			x = MRed(x, y, q, mrc)
 		}
 	})
 }
@@ -377,13 +373,13 @@ func benchBRedAdd(tc *testParams, b *testing.B) {
 
 	var q, x uint64 = 1033576114481528833, 0xFFFFFFFFFFFFFFFF
 
-	u := BRedParams(q)
+	brc := BRedConstant(q)
 
 	b.ResetTimer()
 
 	b.Run("BRedAdd", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			BRedAdd(x, q, u)
+			BRedAdd(x, q, brc)
 		}
 	})
 }

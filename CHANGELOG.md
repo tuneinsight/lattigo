@@ -4,6 +4,11 @@ All notable changes to this library are documented in this file.
 
 ## UNRELEASED - XXXX-XX-XX
 - Go `1.13` is not supported anymore by the library due to behavioral changes in the `math/big` package. The minimum version is now `1.14`.
+- ALL: consistency accross method names:
+    - all substrings `NoMod` and `Constant` in methods have been replaced by the substring `Lazy`. For example `AddNoMod` and `MulCoeffsMontgomeryConstant` becomes `AddLazy` and `MulCoeffsMontgomeryLazy` respectively.
+    - all substrings `And` in methods have been replaced by the substring `Then`. For example `MulAndAdd` becomes `MulThenAdd`.
+    - all substrings `Inv` have been replaced by `I` for consistency. For example `InvNTT` becomes `INTT`.
+    - all substrings `params` and alike in pre-computed constants have been replaced by `constant`. For example `ModUpParams` becomes `ModUpConstants`.
 - BFV: removed `AddNoMod`, `AddNoModNew`, `SubNoMod`, `SubNoModNew`, `Reduce`, `ReduceNew`.
 - BFV: removed `InnerSum` which is natively supported by the `rlwe` package.
 - BFV: removed checks during addition and subtraction for the type of plaintext.
@@ -11,6 +16,12 @@ All notable changes to this library are documented in this file.
 - RING: refactoring the `ring.Ring` object to be a list of `Table` which store the pre-computations for modular arithmetic and NTT per prime.
 - RING: removed all methods with the API `[...]Lvl(level, ...)`. Instead a new ring, to perform operations at a specific level, can be obtained using `.AtLevel(level)`.
 - UTILS: added `GetFactors`, `GetFactorPollardRho` and `GetFactorECM`.
+- CKKS: renamed the `Parameters` field `DefaultScale` to `LogScale`, which now takes a value in log2.
+- CKKS: the `Parameters` field `LogSlots` now has a default value which is the maximum number of slots possible for the given parameters.
+- CKKS: `Polynomial` added the field `Lazy` which specifies if the power basis is computed with lazy relinearization.
+- Ring: updated `ModDownQPtoQNTT` to round the RNS division (instead of flooring).
+- RLWE: setting the Hamming weight of the secret or the standard deviation of the error to negative values will instantiate these fields as zero values and return a warning.
+- Examples: added `examples/rgsw/main.go` which showcases LUT evaluation using the `rgsw` package.
 
 ## [4.1.0] - 2022-11-22 
 - Further improved the generalization of the code across schemes through the `rlwe` package and the introduction of a generic scale management interface.

@@ -636,7 +636,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasis(targetScale
 			if toEncode {
 				pt.Scale = targetScale.Div(X[key].Scale)
 				polyEval.EncodeSlots(values, pt, params.LogSlots())
-				polyEval.MulAndAdd(X[key], pt, res)
+				polyEval.MulThenAdd(X[key], pt, res)
 				toEncode = false
 			}
 		}
@@ -700,7 +700,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasis(targetScale
 				cRealFlo.Int(cRealBig)
 				cImagFlo.Int(cImagBig)
 
-				polyEval.MultByGaussianIntegerAndAdd(X[key], cRealBig, cImagBig, res)
+				polyEval.MultByGaussianIntegerThenAdd(X[key], cRealBig, cImagBig, res)
 			}
 		}
 	}

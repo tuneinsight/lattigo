@@ -109,7 +109,7 @@ func NttAndMontgomery(ringQ *ring.Ring, logSlots int, montgomery bool, pol *ring
 	} else {
 
 		var n int
-		var NTT func(s *ring.SubRing, coeffsIn, coeffsOut []uint64)
+		var NTT func(s *ring.SubRing, N int, coeffsIn, coeffsOut []uint64)
 		switch ringQ.Type() {
 		case ring.Standard:
 			n = 2 << logSlots
@@ -125,10 +125,9 @@ func NttAndMontgomery(ringQ *ring.Ring, logSlots int, montgomery bool, pol *ring
 
 			coeffs := pol.Coeffs[i]
 
-			// NTT in dimension n
-			s.N = n // Hack!
-			NTT(s, coeffs[:n], coeffs[:n])
-			s.N = N // Dont forget!
+			// Hack!
+			// NTT in dimension n but with roots of N
+			NTT(s, n, coeffs[:n], coeffs[:n])
 
 			if montgomery {
 				s.MForm(coeffs[:n], coeffs[:n])

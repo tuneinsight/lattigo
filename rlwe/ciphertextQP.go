@@ -13,6 +13,28 @@ type CiphertextQP struct {
 	Value [2]ringqp.Poly
 }
 
+// NewCiphertextQP allocates a new CiphertextQP.
+func NewCiphertextQP(params Parameters, levelQ, levelP int) CiphertextQP {
+	ringQ := params.RingQ().AtLevel(levelQ)
+	ringP := params.RingQ().AtLevel(levelP)
+
+	return CiphertextQP{
+		Value: [2]ringqp.Poly{
+			{
+				Q: ringQ.NewPoly(),
+				P: ringP.NewPoly(),
+			},
+			{
+				Q: ringQ.NewPoly(),
+				P: ringP.NewPoly(),
+			},
+		},
+		MetaData: MetaData{
+			IsNTT: params.DefaultNTTFlag(),
+		},
+	}
+}
+
 // MarshalBinarySize returns the length in bytes of the target CiphertextQP.
 func (ct *CiphertextQP) MarshalBinarySize() int {
 	return ct.MetaData.MarshalBinarySize() + 2*ct.Value[0].MarshalBinarySize64()

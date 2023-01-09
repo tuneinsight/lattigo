@@ -713,19 +713,10 @@ func (eval *evaluator) RotateRows(ctIn *rlwe.Ciphertext, ctOut *rlwe.Ciphertext)
 }
 
 func (eval *evaluator) RotateHoistedLazyNew(level int, rotations []int, c0 *ring.Poly, c2DecompQP []ringqp.Poly) (cOut map[int]rlwe.CiphertextQP) {
-	ringQP := eval.params.RingQP().AtLevel(level, eval.params.PCount()-1)
 	cOut = make(map[int]rlwe.CiphertextQP)
 	for _, i := range rotations {
 		if i != 0 {
-			cOut[i] = rlwe.CiphertextQP{
-				Value: [2]ringqp.Poly{
-					ringQP.NewPoly(),
-					ringQP.NewPoly(),
-				},
-				MetaData: rlwe.MetaData{
-					IsNTT: true,
-				},
-			}
+			cOut[i] = rlwe.NewCiphertextQP(eval.params.Parameters, level, eval.params.PCount()-1)
 			eval.AutomorphismHoistedLazy(level, c0, c2DecompQP, eval.params.GaloisElementForColumnRotationBy(i), cOut[i])
 		}
 	}

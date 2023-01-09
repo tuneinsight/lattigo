@@ -186,6 +186,6 @@ func ScaleUpTIsQ0VecLvl(level int, ringQ *ring.Ring, pIn, pOut *ring.Poly) {
 	ringQ.SubRings[0].MulScalarMontgomery(pIn.Coeffs[0], QOverTMont, pOut.Coeffs[0])
 
 	for i := 1; i < level+1; i++ {
-		ring.Zero(pOut.Coeffs[i])
+		ring.ZeroVec(pOut.Coeffs[i])
 	}
 }

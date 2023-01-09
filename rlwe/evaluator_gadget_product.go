@@ -173,7 +173,7 @@ func (eval *Evaluator) GadgetProductSinglePAndBitDecompLazy(levelQ int, cx *ring
 	for i := 0; i < decompRNS; i++ {
 		for j := 0; j < decompPw2; j++ {
 
-			ring.Mask(cxInvNTT.Coeffs[i], j*pw2, mask, cw)
+			ring.MaskVec(cxInvNTT.Coeffs[i], j*pw2, mask, cw)
 
 			if i == 0 && j == 0 {
 				for u, s := range ringQ.SubRings[:levelQ+1] {

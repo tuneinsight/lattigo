@@ -59,7 +59,7 @@ func (r *Ring) ReduceLazy(p1, p2 *Poly) {
 // MulCoeffsBarrett evaluates p3 = p1 * p2 coefficient-wise in the ring, with Barrett reduction.
 func (r *Ring) MulCoeffsBarrett(p1, p2, p3 *Poly) {
 	for i, s := range r.SubRings[:r.level+1] {
-		s.MulCoeffs(p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i])
+		s.MulCoeffsBarrett(p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i])
 	}
 }
 
@@ -73,14 +73,14 @@ func (r *Ring) MulCoeffsBarrettLazy(p1, p2, p3 *Poly) {
 // MulCoeffsBarrettThenAdd evaluates p3 = p3 + p1 * p2 coefficient-wise in the ring, with Barrett reduction.
 func (r *Ring) MulCoeffsBarrettThenAdd(p1, p2, p3 *Poly) {
 	for i, s := range r.SubRings[:r.level+1] {
-		s.MulCoeffsThenAdd(p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i])
+		s.MulCoeffsBarrettThenAdd(p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i])
 	}
 }
 
 // MulCoeffsBarrettThenAddLazy evaluates p3 = p1 * p2 coefficient-wise in the ring, with Barrett reduction, with p3 in [0, 2*modulus-1].
 func (r *Ring) MulCoeffsBarrettThenAddLazy(p1, p2, p3 *Poly) {
 	for i, s := range r.SubRings[:r.level+1] {
-		s.MulCoeffsThenAddLazy(p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i])
+		s.MulCoeffsBarrettThenAddLazy(p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i])
 	}
 }
 

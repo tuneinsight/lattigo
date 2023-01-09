@@ -100,7 +100,7 @@ func (eval *Evaluator) externalProduct32Bit(ct0 *rlwe.Ciphertext, rgsw *Cipherte
 	for i, el := range rgsw.Value {
 		ringQ.INTT(ct0.Value[i], eval.BuffInvNTT)
 		for j := range el.Value[0] {
-			ring.Mask(eval.BuffInvNTT.Coeffs[0], j*pw2, mask, cw)
+			ring.MaskVec(eval.BuffInvNTT.Coeffs[0], j*pw2, mask, cw)
 			if j == 0 && i == 0 {
 				subRing.NTTLazy(cw, cwNTT)
 				subRing.MulCoeffsLazy(el.Value[0][j].Value[0].Q.Coeffs[0], cwNTT, acc0)
@@ -141,7 +141,7 @@ func (eval *Evaluator) externalProductInPlaceSinglePAndBitDecomp(ct0 *rlwe.Ciphe
 		cwNTT := eval.BuffBitDecomp
 		for i := 0; i < decompRNS; i++ {
 			for j := 0; j < decompPw2; j++ {
-				ring.Mask(eval.BuffInvNTT.Coeffs[i], j*pw2, mask, cw)
+				ring.MaskVec(eval.BuffInvNTT.Coeffs[i], j*pw2, mask, cw)
 				if k == 0 && i == 0 && j == 0 {
 
 					for u, s := range ringQ.SubRings[:levelQ+1] {

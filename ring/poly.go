@@ -53,7 +53,7 @@ func (pol *Poly) Level() int {
 
 // Zero sets all coefficients of the target polynomial to 0.
 func (pol *Poly) Zero() {
-	Zero(pol.Buff)
+	ZeroVec(pol.Buff)
 }
 
 // CopyNew creates an exact copy of the target polynomial.

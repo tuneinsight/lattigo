@@ -55,7 +55,7 @@ func newEvaluatorBase(params Parameters) *evaluatorBase {
 func newEvaluatorBuffers(params Parameters) *evaluatorBuffers {
 
 	buff := new(evaluatorBuffers)
-	decompRNS := params.DecompRNS(params.QCount()-1, params.PCount()-1)
+	decompRNS := params.DecompRNS(params.MaxLevelQ(), params.MaxLevelP())
 	ringQP := params.RingQP()
 
 	buff.BuffCt = Ciphertext{Value: []*ring.Poly{ringQP.RingQ.NewPoly(), ringQP.RingQ.NewPoly()}}

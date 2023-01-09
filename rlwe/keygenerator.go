@@ -124,7 +124,7 @@ func (keygen *keyGenerator) GenRotationKeys(galEls []uint64, sk *SecretKey) (rks
 }
 
 func (keygen *keyGenerator) GenSwitchingKeyForRotationBy(k int, sk *SecretKey) (swk *SwitchingKey) {
-	swk = NewSwitchingKey(keygen.params, keygen.params.QCount()-1, keygen.params.PCount()-1)
+	swk = NewSwitchingKey(keygen.params, keygen.params.MaxLevelQ(), keygen.params.MaxLevelP())
 	galElInv := keygen.params.GaloisElementForColumnRotationBy(-int(k))
 	keygen.genrotKey(sk.Value, galElInv, swk)
 	return
@@ -145,13 +145,13 @@ func (keygen *keyGenerator) GenRotationKeysForRotations(ks []int, includeConjuga
 }
 
 func (keygen *keyGenerator) GenSwitchingKeyForRowRotation(sk *SecretKey) (swk *SwitchingKey) {
-	swk = NewSwitchingKey(keygen.params, keygen.params.QCount()-1, keygen.params.PCount()-1)
+	swk = NewSwitchingKey(keygen.params, keygen.params.MaxLevelQ(), keygen.params.MaxLevelP())
 	keygen.genrotKey(sk.Value, keygen.params.GaloisElementForRowRotation(), swk)
 	return
 }
 
 func (keygen *keyGenerator) GenSwitchingKeyForGalois(galoisEl uint64, sk *SecretKey) (swk *SwitchingKey) {
-	swk = NewSwitchingKey(keygen.params, keygen.params.QCount()-1, keygen.params.PCount()-1)
+	swk = NewSwitchingKey(keygen.params, keygen.params.MaxLevelQ(), keygen.params.MaxLevelP())
 	keygen.genrotKey(sk.Value, keygen.params.InverseGaloisElement(galoisEl), swk)
 	return
 }
@@ -186,7 +186,7 @@ func (keygen *keyGenerator) GenSwitchingKeysForRingSwap(skStd, skConjugateInvari
 	keygen.params.RingQ().UnfoldConjugateInvariantToStandard(skConjugateInvariant.Value.Q, skCIMappedToStandard.Value.Q)
 
 	if keygen.params.PCount() != 0 {
-		keygen.extendQ2P(keygen.params.PCount()-1, skCIMappedToStandard.Value.Q, keygen.buffQ[0], skCIMappedToStandard.Value.P)
+		keygen.extendQ2P(keygen.params.MaxLevelP(), skCIMappedToStandard.Value.Q, keygen.buffQ[0], skCIMappedToStandard.Value.P)
 	}
 
 	return keygen.GenSwitchingKey(skStd, skCIMappedToStandard), keygen.GenSwitchingKey(skCIMappedToStandard, skStd)
@@ -223,7 +223,7 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *
 
 	} else { // N -> N or n -> N (swk switch to the same or a larger dimension)
 
-		levelP := utils.MinInt(skOutput.LevelP(), keygen.params.PCount()-1)
+		levelP := utils.MinInt(skOutput.LevelP(), keygen.params.MaxLevelP())
 
 		// Allocates the switching-key.
 		swk = NewSwitchingKey(keygen.params, skOutput.Value.Q.Level(), levelP)

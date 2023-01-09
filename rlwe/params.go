@@ -277,9 +277,19 @@ func (p Parameters) RingType() ring.Type {
 	return p.ringType
 }
 
-// MaxLevel returns the maximum level of a ciphertext
+// MaxLevel returns the maximum level of a ciphertext.
 func (p Parameters) MaxLevel() int {
+	return p.MaxLevelQ()
+}
+
+// MaxLevelQ returns the maximum level of the modulus Q.
+func (p Parameters) MaxLevelQ() int {
 	return p.QCount() - 1
+}
+
+// MaxLevelP returns the maximum level of the modulus P.
+func (p Parameters) MaxLevelP() int {
+	return p.PCount() - 1
 }
 
 // Q returns a new slice with the factors of the ciphertext modulus q

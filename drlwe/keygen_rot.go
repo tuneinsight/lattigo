@@ -61,8 +61,8 @@ func (rtg *RTGProtocol) AllocateShare() (rtgShare *RTGShare) {
 	rtgShare = new(RTGShare)
 
 	params := rtg.params
-	decompRNS := rtg.params.DecompRNS(params.QCount()-1, params.PCount()-1)
-	decompPw2 := rtg.params.DecompPw2(params.QCount()-1, params.PCount()-1)
+	decompRNS := rtg.params.DecompRNS(params.MaxLevelQ(), params.MaxLevelP())
+	decompPw2 := rtg.params.DecompPw2(params.MaxLevelQ(), params.MaxLevelP())
 
 	rtgShare.Value = make([][]ringqp.Poly, decompRNS)
 
@@ -80,8 +80,8 @@ func (rtg *RTGProtocol) AllocateShare() (rtgShare *RTGShare) {
 func (rtg *RTGProtocol) SampleCRP(crs CRS) RTGCRP {
 
 	params := rtg.params
-	decompRNS := rtg.params.DecompRNS(params.QCount()-1, params.PCount()-1)
-	decompPw2 := rtg.params.DecompPw2(params.QCount()-1, params.PCount()-1)
+	decompRNS := rtg.params.DecompRNS(params.MaxLevelQ(), params.MaxLevelP())
+	decompPw2 := rtg.params.DecompPw2(params.MaxLevelQ(), params.MaxLevelP())
 
 	crp := make([][]ringqp.Poly, decompRNS)
 	us := ringqp.NewUniformSampler(crs, *params.RingQP())

@@ -129,7 +129,7 @@ func (c *cloud) Run(galEls []uint64, params rlwe.Parameters, t int) {
 		c.RTGProtocol.AggregateShares(acc.share, task.rtgShare, acc.share)
 		acc.needed--
 		if acc.needed == 0 {
-			rtk := rlwe.NewSwitchingKey(params, params.MaxLevel(), params.PCount()-1)
+			rtk := rlwe.NewSwitchingKey(params, params.MaxLevel(), params.MaxLevelP())
 			c.GenRotationKey(acc.share, crp[task.galEl], rtk)
 			c.finDone <- struct {
 				galEl uint64

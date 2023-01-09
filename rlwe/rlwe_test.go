@@ -157,12 +157,12 @@ func testSwitchKeyGen(kgen KeyGenerator, t *testing.T) {
 	t.Run(testString(params, "SWKGen"), func(t *testing.T) {
 		skIn := kgen.GenSecretKey()
 		skOut := kgen.GenSecretKey()
-		levelQ, levelP := params.QCount()-1, params.PCount()-1
+		levelQ, levelP := params.MaxLevelQ(), params.MaxLevelP()
 		decompPW2 := params.DecompPw2(levelQ, levelP)
 		decompRNS := params.DecompRNS(levelQ, levelP)
 
 		// Generates Decomp([-asIn + w*P*sOut + e, a])
-		swk := NewSwitchingKey(params, params.QCount()-1, params.PCount()-1)
+		swk := NewSwitchingKey(params, params.MaxLevelQ(), params.MaxLevelP())
 		kgen.(*keyGenerator).genSwitchingKey(skIn.Value.Q, skOut, swk)
 
 		require.Equal(t, decompRNS*decompPW2, len(swk.Value)*len(swk.Value[0])) // checks that decomposition size is correct

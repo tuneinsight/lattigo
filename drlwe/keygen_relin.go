@@ -73,8 +73,8 @@ func (ekg *RKGProtocol) AllocateShare() (ephSk *rlwe.SecretKey, r1 *RKGShare, r2
 	ephSk = rlwe.NewSecretKey(params)
 	r1, r2 = new(RKGShare), new(RKGShare)
 
-	decompRNS := params.DecompRNS(params.QCount()-1, params.PCount()-1)
-	decompPw2 := params.DecompPw2(params.QCount()-1, params.PCount()-1)
+	decompRNS := params.DecompRNS(params.MaxLevelQ(), params.MaxLevelP())
+	decompPw2 := params.DecompPw2(params.MaxLevelQ(), params.MaxLevelP())
 
 	r1.Value = make([][][2]ringqp.Poly, decompRNS)
 	r2.Value = make([][][2]ringqp.Poly, decompRNS)
@@ -96,8 +96,8 @@ func (ekg *RKGProtocol) AllocateShare() (ephSk *rlwe.SecretKey, r1 *RKGShare, r2
 // common reference string.
 func (ekg *RKGProtocol) SampleCRP(crs CRS) RKGCRP {
 	params := ekg.params
-	decompRNS := params.DecompRNS(params.QCount()-1, params.PCount()-1)
-	decompPw2 := params.DecompPw2(params.QCount()-1, params.PCount()-1)
+	decompRNS := params.DecompRNS(params.MaxLevelQ(), params.MaxLevelP())
+	decompPw2 := params.DecompPw2(params.MaxLevelQ(), params.MaxLevelP())
 
 	crp := make([][]ringqp.Poly, decompRNS)
 	us := ringqp.NewUniformSampler(crs, *params.RingQP())

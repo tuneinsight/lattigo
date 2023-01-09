@@ -15,6 +15,8 @@ All notable changes to this library are documented in this file.
 - CKKS: `Polynomial` added the field `Lazy` which specifies if the power basis is computed with lazy relinearization.
 - CKKS: `NttAndMontgomery` is thread safe again!
 - RLWE: added `CheckBinary` and `CheckUnary` to the `Parameters` struct.
+- RLWE: added the methods `MaxLevelQ()` and `MaxLevelP` to the `Parameters` struct.
+- RLWE: added the method `NewCiphertextQP`.
 - RLWE: setting the Hamming weight of the secret or the standard deviation of the error to negative values will instantiate these fields as zero values and return a warning.
 - RING: refactoring of the `ring.Ring` object:
     - the `ring.Ring` object is now composed of a list of `ring.SubRings` objects, which store the pre-computations for modular arithmetic and NTT for their respective prime.

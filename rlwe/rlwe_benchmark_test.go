@@ -54,7 +54,7 @@ func benchHoistedKeySwitch(kgen KeyGenerator, eval *Evaluator, b *testing.B) {
 	b.Run(testString(params, "DecomposeNTT/"), func(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			eval.DecomposeNTT(ciphertext.Level(), params.PCount()-1, params.PCount(), ciphertext.Value[1], ciphertext.IsNTT, eval.BuffDecompQP)
+			eval.DecomposeNTT(ciphertext.Level(), params.MaxLevelP(), params.PCount(), ciphertext.Value[1], ciphertext.IsNTT, eval.BuffDecompQP)
 		}
 	})
 

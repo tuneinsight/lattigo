@@ -32,7 +32,7 @@ func GetTestName(params Parameters, opname string) string {
 		params.LogSlots(),
 		params.MaxLevel()+1,
 		params.PCount(),
-		params.DecompRNS(params.QCount()-1, params.PCount()-1))
+		params.DecompRNS(params.MaxLevelQ(), params.MaxLevelP()))
 }
 
 type testContext struct {

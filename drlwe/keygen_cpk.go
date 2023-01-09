@@ -85,7 +85,7 @@ func (ckg *CKGProtocol) GenShare(sk *rlwe.SecretKey, crp CKGCRP, shareOut *CKGSh
 	ckg.gaussianSamplerQ.Read(shareOut.Value.Q)
 
 	if ringQP.RingP != nil {
-		ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value.Q, ckg.params.PCount()-1, nil, shareOut.Value.P)
+		ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value.Q, ckg.params.MaxLevelP(), nil, shareOut.Value.P)
 	}
 
 	ringQP.NTT(shareOut.Value, shareOut.Value)

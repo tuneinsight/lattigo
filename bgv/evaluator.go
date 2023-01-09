@@ -716,7 +716,7 @@ func (eval *evaluator) RotateHoistedLazyNew(level int, rotations []int, c0 *ring
 	cOut = make(map[int]rlwe.CiphertextQP)
 	for _, i := range rotations {
 		if i != 0 {
-			cOut[i] = rlwe.NewCiphertextQP(eval.params.Parameters, level, eval.params.PCount()-1)
+			cOut[i] = rlwe.NewCiphertextQP(eval.params.Parameters, level, eval.params.MaxLevelP())
 			eval.AutomorphismHoistedLazy(level, c0, c2DecompQP, eval.params.GaloisElementForColumnRotationBy(i), cOut[i])
 		}
 	}

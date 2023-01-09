@@ -68,7 +68,7 @@ func (eval *evaluator) RotateHoistedNew(ctIn *rlwe.Ciphertext, rotations []int) 
 // It is much faster than sequential calls to Rotate.
 func (eval *evaluator) RotateHoisted(ctIn *rlwe.Ciphertext, rotations []int, ctOut map[int]*rlwe.Ciphertext) {
 	levelQ := ctIn.Level()
-	eval.DecomposeNTT(levelQ, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], ctIn.IsNTT, eval.BuffDecompQP)
+	eval.DecomposeNTT(levelQ, eval.params.MaxLevelP(), eval.params.PCount(), ctIn.Value[1], ctIn.IsNTT, eval.BuffDecompQP)
 	for _, i := range rotations {
 		eval.AutomorphismHoisted(levelQ, ctIn, eval.BuffDecompQP, eval.params.GaloisElementForColumnRotationBy(i), ctOut[i])
 	}
@@ -471,7 +471,7 @@ func (eval *evaluator) LinearTransformNew(ctIn *rlwe.Ciphertext, linearTransform
 		}
 
 		minLevel := utils.MinInt(maxLevel, ctIn.Level())
-		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], ctIn.IsNTT, eval.BuffDecompQP)
+		eval.DecomposeNTT(minLevel, eval.params.MaxLevelP(), eval.params.PCount(), ctIn.Value[1], ctIn.IsNTT, eval.BuffDecompQP)
 
 		for i, LT := range LTs {
 			ctOut[i] = NewCiphertext(eval.params, 1, minLevel)
@@ -489,7 +489,7 @@ func (eval *evaluator) LinearTransformNew(ctIn *rlwe.Ciphertext, linearTransform
 	case LinearTransform:
 
 		minLevel := utils.MinInt(LTs.Level, ctIn.Level())
-		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], ctIn.IsNTT, eval.BuffDecompQP)
+		eval.DecomposeNTT(minLevel, eval.params.MaxLevelP(), eval.params.PCount(), ctIn.Value[1], ctIn.IsNTT, eval.BuffDecompQP)
 
 		ctOut = []*rlwe.Ciphertext{NewCiphertext(eval.params, 1, minLevel)}
 
@@ -520,7 +520,7 @@ func (eval *evaluator) LinearTransform(ctIn *rlwe.Ciphertext, linearTransform in
 		}
 
 		minLevel := utils.MinInt(maxLevel, ctIn.Level())
-		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], ctIn.IsNTT, eval.BuffDecompQP)
+		eval.DecomposeNTT(minLevel, eval.params.MaxLevelP(), eval.params.PCount(), ctIn.Value[1], ctIn.IsNTT, eval.BuffDecompQP)
 
 		for i, LT := range LTs {
 			if LT.N1 == 0 {
@@ -535,7 +535,7 @@ func (eval *evaluator) LinearTransform(ctIn *rlwe.Ciphertext, linearTransform in
 
 	case LinearTransform:
 		minLevel := utils.MinInt(LTs.Level, ctIn.Level())
-		eval.DecomposeNTT(minLevel, eval.params.PCount()-1, eval.params.PCount(), ctIn.Value[1], ctIn.IsNTT, eval.BuffDecompQP)
+		eval.DecomposeNTT(minLevel, eval.params.MaxLevelP(), eval.params.PCount(), ctIn.Value[1], ctIn.IsNTT, eval.BuffDecompQP)
 		if LTs.N1 == 0 {
 			eval.MultiplyByDiagMatrix(ctIn, LTs, eval.BuffDecompQP, ctOut[0])
 		} else {

@@ -12,7 +12,7 @@ func PublicKeyIsCorrect(pk *PublicKey, sk *SecretKey, params Parameters, log2Bou
 
 	pk = pk.CopyNew()
 
-	levelQ, levelP := params.QCount()-1, params.PCount()-1
+	levelQ, levelP := params.MaxLevelQ(), params.MaxLevelP()
 	ringQP := params.RingQP().AtLevel(levelQ, levelP)
 
 	// [-as + e] + [as]
@@ -33,7 +33,7 @@ func PublicKeyIsCorrect(pk *PublicKey, sk *SecretKey, params Parameters, log2Bou
 
 // RelinearizationKeyIsCorrect returns true if swk is a correct RLWE relinearization-key for secret-key sk and parameters params.
 func RelinearizationKeyIsCorrect(rlk *SwitchingKey, skIdeal *SecretKey, params Parameters, log2Bound int) bool {
-	levelQ, levelP := params.QCount()-1, params.PCount()-1
+	levelQ, levelP := params.MaxLevelQ(), params.MaxLevelP()
 	skIn := skIdeal.CopyNew()
 	skOut := skIdeal.CopyNew()
 	params.RingQP().AtLevel(levelQ, levelP).MulCoeffsMontgomery(skIn.Value, skIn.Value, skIn.Value)
@@ -61,7 +61,7 @@ func SwitchingKeyIsCorrect(swk *SwitchingKey, skIn, skOut *SecretKey, params Par
 	swk = swk.CopyNew()
 	skIn = skIn.CopyNew()
 	skOut = skOut.CopyNew()
-	levelQ, levelP := params.QCount()-1, params.PCount()-1
+	levelQ, levelP := params.MaxLevelQ(), params.MaxLevelP()
 	ringQP := params.RingQP().AtLevel(levelQ, levelP)
 	ringQ, ringP := ringQP.RingQ, ringQP.RingP
 	decompPw2 := params.DecompPw2(levelQ, levelP)

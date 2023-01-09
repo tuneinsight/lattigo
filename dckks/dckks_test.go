@@ -31,7 +31,7 @@ func testString(opname string, parties int, params ckks.Parameters) string {
 		params.LogQP(),
 		params.MaxLevel()+1,
 		params.PCount(),
-		params.DecompRNS(params.QCount()-1, params.PCount()-1),
+		params.DecompRNS(params.MaxLevelQ(), params.MaxLevelP()),
 		parties)
 }
 

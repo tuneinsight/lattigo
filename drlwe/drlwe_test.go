@@ -259,7 +259,7 @@ func testPublicKeySwitching(tc *testContext, t *testing.T) {
 
 func testRelinKeyGen(tc *testContext, t *testing.T) {
 	params := tc.params
-	levelQ, levelP := params.QCount()-1, params.PCount()-1
+	levelQ, levelP := params.MaxLevelQ(), params.MaxLevelP()
 
 	t.Run(testString("RelinKeyGen", tc), func(t *testing.T) {
 
@@ -312,7 +312,7 @@ func testRelinKeyGen(tc *testContext, t *testing.T) {
 func testRotKeyGen(tc *testContext, t *testing.T) {
 
 	params := tc.params
-	levelQ, levelP := params.QCount()-1, params.PCount()-1
+	levelQ, levelP := params.MaxLevelQ(), params.MaxLevelP()
 
 	t.Run(testString("RotKeyGen", tc), func(t *testing.T) {
 

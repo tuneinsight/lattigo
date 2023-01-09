@@ -40,28 +40,31 @@ func BenchmarkRLWE(b *testing.B) {
 func benchHoistedKeySwitch(kgen KeyGenerator, eval *Evaluator, b *testing.B) {
 
 	params := kgen.(*keyGenerator).params
-	skIn := kgen.GenSecretKey()
-	skOut := kgen.GenSecretKey()
-	plaintext := NewPlaintext(params, params.MaxLevel())
-	plaintext.IsNTT = true
-	encryptor := NewEncryptor(params, skIn)
-	ciphertext := NewCiphertext(params, 1, plaintext.Level())
-	ciphertext.IsNTT = true
-	encryptor.Encrypt(plaintext, ciphertext)
 
-	swk := kgen.GenSwitchingKey(skIn, skOut)
+	if params.PCount() > 0 {
+		skIn := kgen.GenSecretKey()
+		skOut := kgen.GenSecretKey()
+		plaintext := NewPlaintext(params, params.MaxLevel())
+		plaintext.IsNTT = true
+		encryptor := NewEncryptor(params, skIn)
+		ciphertext := NewCiphertext(params, 1, plaintext.Level())
+		ciphertext.IsNTT = true
+		encryptor.Encrypt(plaintext, ciphertext)
 
-	b.Run(testString(params, "DecomposeNTT/"), func(b *testing.B) {
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			eval.DecomposeNTT(ciphertext.Level(), params.MaxLevelP(), params.PCount(), ciphertext.Value[1], ciphertext.IsNTT, eval.BuffDecompQP)
-		}
-	})
+		swk := kgen.GenSwitchingKey(skIn, skOut)
 
-	b.Run(testString(params, "KeySwitchHoisted/"), func(b *testing.B) {
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			eval.KeyswitchHoisted(ciphertext.Level(), eval.BuffDecompQP, swk, ciphertext.Value[0], ciphertext.Value[1], eval.BuffQP[1].P, eval.BuffQP[2].P)
-		}
-	})
+		b.Run(testString(params, "DecomposeNTT/"), func(b *testing.B) {
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				eval.DecomposeNTT(ciphertext.Level(), params.MaxLevelP(), params.PCount(), ciphertext.Value[1], ciphertext.IsNTT, eval.BuffDecompQP)
+			}
+		})
+
+		b.Run(testString(params, "KeySwitchHoisted/"), func(b *testing.B) {
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				eval.KeyswitchHoisted(ciphertext.Level(), eval.BuffDecompQP, swk, ciphertext.Value[0], ciphertext.Value[1], eval.BuffQP[1].P, eval.BuffQP[2].P)
+			}
+		})
+	}
 }

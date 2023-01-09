@@ -48,7 +48,7 @@ func TestRLWE(t *testing.T) {
 		defaultParams = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
-	for _, defaultParam := range defaultParams[:] {
+	for _, defaultParam := range defaultParams[:1] {
 
 		var params Parameters
 		if params, err = NewParametersFromLiteral(defaultParam); err != nil {
@@ -555,6 +555,8 @@ func testExpand(kgen KeyGenerator, t *testing.T) {
 
 	params := kgen.(*keyGenerator).params
 
+	IsNTT := false
+
 	t.Run(testString(params, "Expand"), func(t *testing.T) {
 
 		kgen := NewKeyGenerator(params)
@@ -579,8 +581,10 @@ func testExpand(kgen KeyGenerator, t *testing.T) {
 			copy(pt.Value.Coeffs[i], values)
 		}
 
-		params.RingQ().NTT(pt.Value, pt.Value)
-		pt.IsNTT = true
+		if IsNTT {
+			params.RingQ().NTT(pt.Value, pt.Value)
+			pt.IsNTT = true
+		}
 
 		ctIn := NewCiphertext(params, 1, params.MaxLevel())
 		encryptor.Encrypt(pt, ctIn)

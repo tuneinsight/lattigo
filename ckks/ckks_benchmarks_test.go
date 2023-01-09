@@ -205,6 +205,11 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 	})
 
 	b.Run(GetTestName(tc.params, "Evaluator/Conjugate"), func(b *testing.B) {
+
+		if tc.params.RingType() == ring.ConjugateInvariant {
+			b.Skip("method is not supported when params.RingType() == ring.ConjugateInvariant")
+		}
+
 		for i := 0; i < b.N; i++ {
 			eval.Conjugate(ciphertext1, ciphertext1)
 		}

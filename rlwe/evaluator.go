@@ -174,6 +174,12 @@ func (eval *Evaluator) Expand(ctIn *Ciphertext, logN, logGap int) (ctOut []*Ciph
 	ctOut = make([]*Ciphertext, 1<<(logN-logGap))
 	ctOut[0] = ctIn.CopyNew()
 
+	if ct := ctOut[0]; !ctIn.IsNTT {
+		ringQ.NTT(ct.Value[0], ct.Value[0])
+		ringQ.NTT(ct.Value[1], ct.Value[1])
+		ct.IsNTT = true
+	}
+
 	// Multiplies by 2^{-logN} mod Q
 	v0, v1 := ctOut[0].Value[0], ctOut[0].Value[1]
 	for i, s := range ringQ.SubRings[:levelQ+1] {
@@ -217,6 +223,14 @@ func (eval *Evaluator) Expand(ctIn *Ciphertext, logN, logGap int) (ctOut []*Ciph
 
 				ctOut[(j+(1<<i))/gap] = c1
 			}
+		}
+	}
+
+	for _, ct := range ctOut {
+		if ct != nil && !ctIn.IsNTT {
+			ringQ.INTT(ct.Value[0], ct.Value[0])
+			ringQ.INTT(ct.Value[1], ct.Value[1])
+			ct.IsNTT = false
 		}
 	}
 

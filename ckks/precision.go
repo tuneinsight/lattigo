@@ -241,7 +241,7 @@ func calcmedian(values []Stats) (median Stats) {
 		return Stats{values[index].Real, values[index].Imag, values[index].L2}
 	}
 
-	return Stats{(values[index].Real + values[index+1].Real) / 2,
-		(values[index].Imag + values[index+1].Imag) / 2,
-		(values[index].L2 + values[index+1].L2) / 2}
+	return Stats{(values[index-1].Real + values[index].Real) / 2,
+		(values[index-1].Imag + values[index].Imag) / 2,
+		(values[index-1].L2 + values[index].L2) / 2}
 }

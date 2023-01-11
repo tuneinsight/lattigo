@@ -37,7 +37,7 @@ type Evaluator interface {
 	MultByConstNew(ctIn *rlwe.Ciphertext, constant interface{}) (ctOut *rlwe.Ciphertext)
 	MultByConst(ctIn *rlwe.Ciphertext, constant interface{}, ctOut *rlwe.Ciphertext)
 
-	// Constant Multiplication followd by Addition
+	// Constant Multiplication followed by Addition
 	MultByConstThenAdd(ctIn *rlwe.Ciphertext, constant interface{}, ctOut *rlwe.Ciphertext)
 
 	// Complex Conjugation
@@ -113,6 +113,8 @@ type Evaluator interface {
 	// ==============
 	// === Others ===
 	// ==============
+	CheckBinary(op0, op1, opOut rlwe.Operand, opOutMinDegree int) (degree, level int)
+	CheckUnary(op0, opOut rlwe.Operand) (degree, level int)
 	GetRLWEEvaluator() *rlwe.Evaluator
 	BuffQ() [3]*ring.Poly
 	BuffCt() *rlwe.Ciphertext
@@ -200,7 +202,7 @@ func (eval *evaluator) newCiphertextBinary(op0, op1 rlwe.Operand) (ctOut *rlwe.C
 
 // Add adds op1 to ctIn and returns the result in ctOut.
 func (eval *evaluator) Add(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext) {
-	_, level := eval.params.CheckBinary(ctIn, op1, ctOut, utils.MaxInt(ctIn.Degree(), op1.Degree()))
+	_, level := eval.CheckBinary(ctIn, op1, ctOut, utils.MaxInt(ctIn.Degree(), op1.Degree()))
 	eval.evaluateInPlace(level, ctIn, op1, ctOut, eval.params.RingQ().AtLevel(level).Add)
 }
 
@@ -214,7 +216,7 @@ func (eval *evaluator) AddNew(ctIn *rlwe.Ciphertext, op1 rlwe.Operand) (ctOut *r
 // Sub subtracts op1 from ctIn and returns the result in ctOut.
 func (eval *evaluator) Sub(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext) {
 
-	_, level := eval.params.CheckBinary(ctIn, op1, ctOut, utils.MaxInt(ctIn.Degree(), op1.Degree()))
+	_, level := eval.CheckBinary(ctIn, op1, ctOut, utils.MaxInt(ctIn.Degree(), op1.Degree()))
 
 	eval.evaluateInPlace(level, ctIn, op1, ctOut, eval.params.RingQ().AtLevel(level).Sub)
 
@@ -426,7 +428,7 @@ func (eval *evaluator) MultByConstThenAdd(ctIn *rlwe.Ciphertext, constant interf
 			ctOut.Scale = ctOut.Scale.Mul(scaleRLWE)
 		}
 
-	} else if cmp == -1 { // ctOut.Scale > ctIn.Scale then the scaling factor for the constant becomes the quotien between the two scales
+	} else if cmp == -1 { // ctOut.Scale > ctIn.Scale then the scaling factor for the constant becomes the quotient between the two scales
 		scaleRLWE = ctOut.Scale.Div(ctIn.Scale)
 	} else { // Else multiplies ctOut by scaleRLWE * ctIn.Scale / ctOut.Scale
 		panic("MultByConstThenAdd: ctIn.Scale > ctOut.Scale is not supported")
@@ -651,7 +653,7 @@ func (eval *evaluator) mulRelin(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, relin b
 	// Case Ciphertext (x) Ciphertext
 	if ctIn.Degree() == 1 && op1.Degree() == 1 {
 
-		_, level := eval.params.CheckBinary(ctIn, op1, ctOut, ctOut.Degree())
+		_, level := eval.CheckBinary(ctIn, op1, ctOut, ctOut.Degree())
 
 		ringQ := eval.params.RingQ().AtLevel(level)
 
@@ -710,7 +712,7 @@ func (eval *evaluator) mulRelin(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, relin b
 		// Case Plaintext (x) Ciphertext or Ciphertext (x) Plaintext
 	} else {
 
-		_, level := eval.params.CheckBinary(ctIn, op1, ctOut, ctOut.Degree())
+		_, level := eval.CheckBinary(ctIn, op1, ctOut, ctOut.Degree())
 
 		ringQ := eval.params.RingQ().AtLevel(level)
 
@@ -758,7 +760,7 @@ func (eval *evaluator) MulRelinThenAdd(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, 
 
 func (eval *evaluator) mulRelinThenAdd(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, relin bool, ctOut *rlwe.Ciphertext) {
 
-	_, level := eval.params.CheckBinary(ctIn, op1, ctOut, utils.MaxInt(ctIn.Degree(), op1.Degree()))
+	_, level := eval.CheckBinary(ctIn, op1, ctOut, utils.MaxInt(ctIn.Degree(), op1.Degree()))
 
 	if ctIn.Degree()+op1.Degree() > 2 {
 		panic("cannot MulRelinThenAdd: the sum of the input elements' degree cannot be larger than 2")

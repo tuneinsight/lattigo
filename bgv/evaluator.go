@@ -74,6 +74,8 @@ type Evaluator interface {
 	Merge(ctIn map[int]*rlwe.Ciphertext) (ctOut *rlwe.Ciphertext)
 
 	// Others
+	CheckBinary(op0, op1, opOut rlwe.Operand, opOutMinDegree int) (degree, level int)
+	CheckUnary(op0, opOut rlwe.Operand) (degree, level int)
 	GetRLWEEvaluator() *rlwe.Evaluator
 	BuffQ() [3]*ring.Poly
 	ShallowCopy() Evaluator
@@ -234,7 +236,7 @@ func (eval *evaluator) newCiphertextBinary(op0, op1 rlwe.Operand) (ctOut *rlwe.C
 
 // Add adds op1 to ctIn and returns the result in ctOut.
 func (eval *evaluator) Add(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext) {
-	_, level := eval.params.CheckBinary(ctIn, op1, ctOut, utils.MaxInt(ctIn.Degree(), op1.Degree()))
+	_, level := eval.CheckBinary(ctIn, op1, ctOut, utils.MaxInt(ctIn.Degree(), op1.Degree()))
 
 	if ctIn.Scale.Cmp(op1.GetScale()) == 0 {
 		eval.evaluateInPlace(level, ctIn, op1.El(), ctOut, eval.params.RingQ().AtLevel(level).Add)
@@ -252,7 +254,7 @@ func (eval *evaluator) AddNew(ctIn *rlwe.Ciphertext, op1 rlwe.Operand) (ctOut *r
 
 // Sub subtracts op1 to ctIn and returns the result in ctOut.
 func (eval *evaluator) Sub(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext) {
-	_, level := eval.params.CheckBinary(ctIn, op1, ctOut, utils.MaxInt(ctIn.Degree(), op1.Degree()))
+	_, level := eval.CheckBinary(ctIn, op1, ctOut, utils.MaxInt(ctIn.Degree(), op1.Degree()))
 
 	if ctIn.Scale.Cmp(op1.GetScale()) == 0 {
 		eval.evaluateInPlace(level, ctIn, op1.El(), ctOut, eval.params.RingQ().AtLevel(level).Sub)

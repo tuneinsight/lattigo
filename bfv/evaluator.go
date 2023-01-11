@@ -41,6 +41,8 @@ type Evaluator interface {
 	ShallowCopy() Evaluator
 	WithKey(rlwe.EvaluationKey) Evaluator
 
+	CheckBinary(op0, op1, opOut rlwe.Operand, opOutMinDegree int) (degree, level int)
+	CheckUnary(op0, opOut rlwe.Operand) (degree, level int)
 	BuffQ() [][]*ring.Poly
 	BuffQMul() [][]*ring.Poly
 	BuffPt() *rlwe.Plaintext
@@ -155,7 +157,7 @@ func NewEvaluators(params Parameters, evaluationKey rlwe.EvaluationKey, n int) [
 
 // Add adds ctIn to op1 and returns the result in ctOut.
 func (eval *evaluator) Add(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext) {
-	_, level := eval.params.CheckBinary(ctIn, op1, ctOut, utils.MaxInt(ctIn.Degree(), op1.Degree()))
+	_, level := eval.CheckBinary(ctIn, op1, ctOut, utils.MaxInt(ctIn.Degree(), op1.Degree()))
 	ctOut.Resize(ctOut.Degree(), level)
 	eval.evaluateInPlaceBinary(ctIn, op1.El(), ctOut, eval.params.RingQ().AtLevel(level).Add)
 }
@@ -169,7 +171,7 @@ func (eval *evaluator) AddNew(ctIn *rlwe.Ciphertext, op1 rlwe.Operand) (ctOut *r
 
 // Sub subtracts op1 from ctIn and returns the result in cOut.
 func (eval *evaluator) Sub(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext) {
-	_, level := eval.params.CheckBinary(ctIn, op1, ctOut, utils.MaxInt(ctIn.Degree(), op1.Degree()))
+	_, level := eval.CheckBinary(ctIn, op1, ctOut, utils.MaxInt(ctIn.Degree(), op1.Degree()))
 	ctOut.Resize(ctOut.Degree(), level)
 	eval.evaluateInPlaceBinary(ctIn, op1.El(), ctOut, eval.params.RingQ().AtLevel(level).Sub)
 
@@ -189,7 +191,7 @@ func (eval *evaluator) SubNew(ctIn *rlwe.Ciphertext, op1 rlwe.Operand) (ctOut *r
 
 // Neg negates ctIn and returns the result in ctOut.
 func (eval *evaluator) Neg(ctIn, ctOut *rlwe.Ciphertext) {
-	_, level := eval.params.CheckUnary(ctIn, ctOut)
+	_, level := eval.CheckUnary(ctIn, ctOut)
 	ctOut.Resize(ctOut.Degree(), level)
 	evaluateInPlaceUnary(ctIn, ctOut, eval.params.RingQ().AtLevel(level).Neg)
 }
@@ -203,21 +205,21 @@ func (eval *evaluator) NegNew(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext) {
 
 // MulScalar multiplies ctIn by a uint64 scalar and returns the result in ctOut.
 func (eval *evaluator) MulScalar(ctIn *rlwe.Ciphertext, scalar uint64, ctOut *rlwe.Ciphertext) {
-	_, level := eval.params.CheckUnary(ctIn, ctOut)
+	_, level := eval.CheckUnary(ctIn, ctOut)
 	ctOut.Resize(ctOut.Degree(), level)
 	evaluateInPlaceUnary(ctIn, ctOut, func(el, elOut *ring.Poly) { eval.params.RingQ().AtLevel(level).MulScalar(el, scalar, elOut) })
 }
 
 // MulScalarThenAdd multiplies ctIn by a uint64 scalar and adds the result on ctOut.
 func (eval *evaluator) MulScalarThenAdd(ctIn *rlwe.Ciphertext, scalar uint64, ctOut *rlwe.Ciphertext) {
-	_, level := eval.params.CheckUnary(ctIn, ctOut)
+	_, level := eval.CheckUnary(ctIn, ctOut)
 	ctOut.Resize(ctOut.Degree(), level)
 	evaluateInPlaceUnary(ctIn, ctOut, func(el, elOut *ring.Poly) { eval.params.RingQ().AtLevel(level).MulScalarThenAdd(el, scalar, elOut) })
 }
 
 // AddScalar adds the scalar on ctIn and returns the result on ctOut.
 func (eval *evaluator) AddScalar(ctIn *rlwe.Ciphertext, scalar uint64, ctOut *rlwe.Ciphertext) {
-	_, level := eval.params.CheckUnary(ctIn, ctOut)
+	_, level := eval.CheckUnary(ctIn, ctOut)
 	ctOut.Resize(ctOut.Degree(), level)
 	ringQ := eval.params.RingQ().AtLevel(level)
 	scalarBigint := new(big.Int).SetUint64(scalar)
@@ -410,7 +412,7 @@ func (eval *evaluator) quantizeLvl(level, levelQMul int, ctOut *rlwe.Ciphertext)
 
 // Mul multiplies ctIn by op1 and returns the result in ctOut.
 func (eval *evaluator) Mul(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext) {
-	eval.params.CheckBinary(ctIn, op1, ctOut, ctIn.Degree()+op1.Degree())
+	eval.CheckBinary(ctIn, op1, ctOut, ctIn.Degree()+op1.Degree())
 	switch op1 := op1.(type) {
 	case *PlaintextMul:
 		eval.mulPlaintextMul(ctIn, op1, ctOut)
@@ -533,7 +535,7 @@ func (eval *evaluator) RotateRowsNew(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphert
 }
 
 func (eval *evaluator) InnerSum(ctIn *rlwe.Ciphertext, batchSize, n int, ctOut *rlwe.Ciphertext) {
-	_, level := eval.params.CheckUnary(ctIn, ctOut)
+	_, level := eval.CheckUnary(ctIn, ctOut)
 	eval.params.RingQ().AtLevel(level).NTT(ctIn.Value[0], ctOut.Value[0])
 	eval.params.RingQ().AtLevel(level).NTT(ctIn.Value[1], ctOut.Value[1])
 	ctOut.IsNTT = true

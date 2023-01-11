@@ -322,7 +322,7 @@ func (r *Ring) generateNTTConstants(primitiveRoots []uint64, factors [][]uint64)
 			r.SubRings[i].Factors = factors[i]
 		}
 
-		if err = r.SubRings[i].GenerateNTTConstants(); err != nil {
+		if err = r.SubRings[i].generateNTTConstants(); err != nil {
 			return
 		}
 	}

@@ -96,11 +96,11 @@ func (s *SubRing) Type() Type {
 	}
 }
 
-// GenerateNTTConstants generates the NTT constant for the target SubRing.
+// generateNTTConstants generates the NTT constant for the target SubRing.
 // The fields `PrimitiveRoot` and `Factors` can be set manually to
 // bypasse the search for the primitive root (which requires to
 // factor Modulus-1) and speedup the generation of the constants.
-func (s *SubRing) GenerateNTTConstants() (err error) {
+func (s *SubRing) generateNTTConstants() (err error) {
 
 	if s.N == 0 || s.Modulus == 0 {
 		return fmt.Errorf("invalid t parameters (missing)")
@@ -324,7 +324,7 @@ func (s *SubRing) Decode(data []byte) (ptr int, err error) {
 		return ptr, fmt.Errorf("invalid ring type")
 	}
 
-	if err = s.GenerateNTTConstants(); err != nil {
+	if err = s.generateNTTConstants(); err != nil {
 		return
 	}
 

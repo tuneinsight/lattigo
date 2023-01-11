@@ -14,7 +14,8 @@ All notable changes to this library are documented in this file.
 - BFV: removed checks during addition and subtraction for the type of plaintext.
 - CKKS: `Polynomial` added the field `Lazy` which specifies if the power basis is computed with lazy relinearization.
 - CKKS: `NttAndMontgomery` is thread safe again!
-- CKKS: removed `MultByGaussianInteger`, `MultByGaussianIntegerThenAdd`, `MultByi`, `MultByiNew`, `DivByi` and `DivByiNew` method. These are now all handled by the methods `MultByConst[...]` methods.
+- CKKS: removed `MultByGaussianInteger`, `MultByGaussianIntegerThenAdd`, `MultByi`, `MultByiNew`, `DivByi` and `DivByiNew` method. These are now all handled by the methods `MultByConst[...]`.
+- CKKS: updated the behavior of `MultByConstAndAdd`.
 - RLWE: added `CheckBinary` and `CheckUnary` to the `Parameters` struct.
 - RLWE: added the methods `MaxLevelQ()` and `MaxLevelP` to the `Parameters` struct.
 - RLWE: added the method `NewCiphertextQP`.

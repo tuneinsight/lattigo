@@ -3,6 +3,7 @@ package ckks
 import (
 	"errors"
 	"math"
+	"math/big"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
@@ -385,14 +386,23 @@ func (eval *evaluator) AddConstNew(ct0 *rlwe.Ciphertext, constant interface{}) (
 	return
 }
 
-// MultByConstThenAdd multiplies ct0 by the input constant, and adds it to the receiver element (it does not modify the input
-// element), e.g., ctOut(x) = ctOut(x) + ct0(x) * (a+bi). This functions removes the need of storing the intermediate value c(x) * (a+bi).
-// This function will modify the level and the scale of the receiver element depending on the level and the scale of the input
-// element and the type of the constant. The level of the receiver element will be set to min(input.level, receiver.level).
-// The scale of the receiver element will be set to the scale that the input element would have after the multiplication by the constant.
-func (eval *evaluator) MultByConstThenAdd(ct0 *rlwe.Ciphertext, constant interface{}, ctOut *rlwe.Ciphertext) {
+// MultByConstThenAdd multiplies ctIn by the input constant, and adds it to the receiver element,
+// e.g., ctOut(x) = ctOut(x) + ctIn(x) * (a+bi). This functions removes the need of storing the intermediate value c(x) * (a+bi).
+//
+// This function will not modify ctIn but will multiply ctOut by Q[min(ctIn.Level(), ctOut.Level())] if:
+// - ctIn.Scale == ctOut.Scale
+// - constant is not a Gaussian integer.
+//
+// If ctIn.Scale == ctOut.Scale then the constant will be scaled by Q[min(ctIn.Level(), ctOut.Level())]
+// else if ctOut.Scale > ctIn.Scale, the constant will be scaled by ctOut.Scale/ctIn.Scale.
+//
+// To correctly use this function, either make sure that
+// - ctIn.Scale == ctOut.Scale
+// - ctOut.Scale = ctIn.Scale * Q[min(ctIn.Level(), ctOut.Level())]
+// This function will panic if ctIn.Scale > ctOut.Scale.
+func (eval *evaluator) MultByConstThenAdd(ctIn *rlwe.Ciphertext, constant interface{}, ctOut *rlwe.Ciphertext) {
 
-	var level = utils.MinInt(ct0.Level(), ctOut.Level())
+	var level = utils.MinInt(ctIn.Level(), ctOut.Level())
 
 	ringQ := eval.params.RingQ().AtLevel(level)
 
@@ -400,61 +410,31 @@ func (eval *evaluator) MultByConstThenAdd(ct0 *rlwe.Ciphertext, constant interfa
 
 	cmplxBig := valueToBigComplex(constant, scalingPrecision)
 
-	var scaleBig rlwe.Scale
+	var scaleRLWE rlwe.Scale
 
-	if cmplxBig.IsInt() {
-		scaleBig = rlwe.NewScale(1)
-	} else {
-		scaleBig = rlwe.NewScale(ringQ.SubRings[level].Modulus)
-	}
+	// If ctIn and ctOut scales are identical, but the constant is not a Gaussian integer then multiplies ctOut by scaleRLWE.
+	// This ensures noiseless addition with ctOut = scaleRLWE * ctOut + ctIn * round(scalar * scaleRLWE).
+	if cmp := ctIn.Scale.Cmp(ctOut.Scale); cmp == 0 {
 
-	RNSReal, RNSImag := bigComplexToRNSScalar(ringQ, &scaleBig.Value, cmplxBig)
-
-	c0f64 := ct0.Scale.Float64()
-	c1f64 := ctOut.Scale.Float64()
-	scale := scaleBig.Float64()
-
-	// If a scaling would be required to multiply by the constant,
-	// it equalizes scales such that the scales match in the end.
-	if scale != 1 {
-
-		// If ctOut scaling is smaller than ct0's scale + the default scaling,
-		// then brings ctOut scale to ct0's scale.
-		if c1f64 < c0f64*scale {
-
-			if scale := math.Floor((scale * c0f64) / c1f64); scale > 1 {
-				eval.MultByConst(ctOut, scale, ctOut)
-			}
-
-			ctOut.MetaData = ct0.MetaData
-			ctOut.Scale = ct0.Scale.Mul(rlwe.NewScale(scale))
-
-			// If ctOut.scale > ((a+bi)*scale)*ct0(x), then it sets the scale to
-			// bring c(x)*scale to the level of ctOut(x) scale
-		} else if c1f64 > c0f64*scale {
-			scale = c1f64 / c0f64
+		if cmplxBig.IsInt() {
+			scaleRLWE = rlwe.NewScale(1)
+		} else {
+			scaleRLWE = rlwe.NewScale(ringQ.SubRings[level].Modulus)
+			scaleInt := new(big.Int)
+			scaleRLWE.Value.Int(scaleInt)
+			eval.MultByConst(ctOut, scaleInt, ctOut)
+			ctOut.Scale = ctOut.Scale.Mul(scaleRLWE)
 		}
 
-		// If no scaling is required, then it sets the appropriate scale such that
-		// ct0(x)*scale matches ctOut(x) scale without modifying ct0(x) scale.
-	} else {
-
-		if c1f64 > c0f64 {
-
-			scale = c1f64 / c0f64
-
-		} else if c0f64 > c1f64 {
-
-			if scale := math.Floor(c0f64 / c1f64); scale > 1 {
-				eval.MultByConst(ctOut, scale, ctOut)
-			}
-
-			ctOut.MetaData = ct0.MetaData
-			ctOut.Scale = ct0.Scale
-		}
+	} else if cmp == -1 { // ctOut.Scale > ctIn.Scale then the scaling factor for the constant becomes the quotien between the two scales
+		scaleRLWE = ctOut.Scale.Div(ctIn.Scale)
+	} else { // Else multiplies ctOut by scaleRLWE * ctIn.Scale / ctOut.Scale
+		panic("MultByConstThenAdd: ctIn.Scale > ctOut.Scale is not supported")
 	}
 
-	eval.evaluateWithScalar(level, ct0.Value, RNSReal, RNSImag, ctOut.Value, ringQ.MulDoubleRNSScalarThenAdd)
+	RNSReal, RNSImag := bigComplexToRNSScalar(ringQ, &scaleRLWE.Value, cmplxBig)
+
+	eval.evaluateWithScalar(level, ctIn.Value, RNSReal, RNSImag, ctOut.Value, ringQ.MulDoubleRNSScalarThenAdd)
 }
 
 func (eval *evaluator) evaluateWithScalar(level int, p0 []*ring.Poly, RNSReal, RNSImag ring.RNSScalar, p1 []*ring.Poly, evaluate func(*ring.Poly, ring.RNSScalar, ring.RNSScalar, *ring.Poly)) {

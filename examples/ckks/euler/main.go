@@ -102,7 +102,7 @@ func example() {
 
 	start = time.Now()
 
-	evaluator.MultByi(ciphertext, ciphertext)
+	evaluator.MultByConst(ciphertext, complex(0, 1), ciphertext)
 
 	fmt.Printf("Done in %s \n", time.Since(start))
 

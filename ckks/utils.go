@@ -144,35 +144,6 @@ func NttAndMontgomery(ringQ *ring.Ring, logSlots int, montgomery bool, pol *ring
 	}
 }
 
-func interfaceMod(x interface{}, qi uint64) uint64 {
-
-	switch x := x.(type) {
-
-	case uint64:
-		return x % qi
-
-	case int64:
-
-		if x > 0 {
-			return uint64(x)
-		} else if x < 0 {
-			return uint64(int64(qi) + x%int64(qi))
-		}
-		return 0
-
-	case *big.Int:
-
-		if x.Cmp(ring.NewUint(0)) != 0 {
-			return new(big.Int).Mod(x, ring.NewUint(qi)).Uint64()
-		}
-
-		return 0
-
-	default:
-		panic("constant must either be uint64, int64 or *big.Int")
-	}
-}
-
 func complexToFixedPointCRT(level int, values []complex128, scale float64, ringQ *ring.Ring, coeffs [][]uint64, isRingStandard bool) {
 
 	for i, v := range values {

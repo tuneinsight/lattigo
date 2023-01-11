@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/big"
-	"reflect"
 )
 
 const (
@@ -240,6 +239,6 @@ func scaleToBigFloat(scale interface{}) (s *big.Float) {
 	case Scale:
 		return scaleToBigFloat(scale.Value)
 	default:
-		panic(fmt.Errorf("invalid scale.(type): must be int, int64, uint64, float64, *big.Int, *big.Float or *Scale but is %s", reflect.TypeOf(scale)))
+		panic(fmt.Errorf("invalid scale.(type): must be int, int64, uint64, float64, *big.Int, *big.Float or *Scale but is %T", scale))
 	}
 }

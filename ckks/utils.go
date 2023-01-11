@@ -250,22 +250,6 @@ func singleFloatToFixedPointCRT(level, i int, value float64, scale float64, ring
 	}
 }
 
-func scaleUpExact(value, scale float64) (res *big.Int) {
-
-	xFlo := big.NewFloat(scale * value)
-
-	if value > 0 {
-		xFlo.Add(xFlo, big.NewFloat(0.5))
-	} else {
-		xFlo.Sub(xFlo, big.NewFloat(0.5))
-	}
-
-	res = new(big.Int)
-	xFlo.Int(res)
-
-	return
-}
-
 func scaleUpVecExactBigFloat(values []*big.Float, scale float64, moduli []uint64, coeffs [][]uint64) {
 
 	prec := values[0].Prec()
@@ -370,26 +354,6 @@ func SliceBitReverseInPlaceRingComplex(slice []*ring.Complex, N int) {
 			slice[i], slice[j] = slice[j], slice[i]
 		}
 	}
-}
-
-// Divides x by n^2, returns a float
-func scaleDown(coeff *big.Int, n float64) (x float64) {
-
-	x, _ = new(big.Float).SetInt(coeff).Float64()
-	x /= n
-
-	return
-}
-
-func genBigIntChain(Q []uint64) (bigintChain []*big.Int) {
-
-	bigintChain = make([]*big.Int, len(Q))
-	bigintChain[0] = ring.NewUint(Q[0])
-	for i := 1; i < len(Q); i++ {
-		bigintChain[i] = ring.NewUint(Q[i])
-		bigintChain[i].Mul(bigintChain[i], bigintChain[i-1])
-	}
-	return
 }
 
 // GenSwitchkeysRescalingParams generates the parameters for rescaling the switching keys

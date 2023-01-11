@@ -898,10 +898,6 @@ func testChebyshevInterpolator(tc *testContext, t *testing.T) {
 
 		poly := Approximate(cmplx.Sin, complex(-1.5, 0), complex(1.5, 0), 15)
 
-		for i := range values {
-			values[i] = cmplx.Sin(values[i])
-		}
-
 		eval.MultByConst(ciphertext, 2/(poly.B-poly.A), ciphertext)
 		eval.AddConst(ciphertext, (-poly.A-poly.B)/(poly.B-poly.A), ciphertext)
 		if err = eval.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
@@ -912,6 +908,10 @@ func testChebyshevInterpolator(tc *testContext, t *testing.T) {
 		if ciphertext, err = eval.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {
 			t.Fatal(err)
 
+		}
+
+		for i := range values {
+			values[i] = cmplx.Sin(values[i])
 		}
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogSlots(), 0, t)
@@ -1034,7 +1034,7 @@ func testBridge(tc *testContext, t *testing.T) {
 
 		verifyTestVectors(stdParams, stdEncoder, stdDecryptor, values, stdCTHave, stdParams.LogSlots(), 0, t)
 
-		stdCTImag := stdEvaluator.MultByiNew(stdCTHave)
+		stdCTImag := stdEvaluator.MultByConstNew(stdCTHave, complex(0, 1))
 		stdEvaluator.Add(stdCTHave, stdCTImag, stdCTHave)
 
 		ciCTHave := NewCiphertext(ciParams, 1, stdCTHave.Level())

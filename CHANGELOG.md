@@ -14,6 +14,7 @@ All notable changes to this library are documented in this file.
 - BFV: removed checks during addition and subtraction for the type of plaintext.
 - CKKS: `Polynomial` added the field `Lazy` which specifies if the power basis is computed with lazy relinearization.
 - CKKS: `NttAndMontgomery` is thread safe again!
+- CKKS: removed `MultByGaussianInteger`, `MultByGaussianIntegerThenAdd`, `MultByi`, `MultByiNew`, `DivByi` and `DivByiNew` method. These are now all handled by the methods `MultByConst[...]` methods.
 - RLWE: added `CheckBinary` and `CheckUnary` to the `Parameters` struct.
 - RLWE: added the methods `MaxLevelQ()` and `MaxLevelP` to the `Parameters` struct.
 - RLWE: added the method `NewCiphertextQP`.
@@ -24,10 +25,11 @@ All notable changes to this library are documented in this file.
     - the a `ring.Ring` object marshalling also marshals the factors and the primitive roots, removing the need for factorization and enabling a deterministic ring reconstruction.
     - removed all methods with the API `[...]Lvl(level, ...)`. Instead a ring, to perform operations at a specific level, can be obtained using `.AtLevel(level)`, which is allocation free.
     - level-specific methods such as `NTTSingle` or `AddVec` are now accessible via `ring.Ring.SubRing[level].Method(*)`. Note that the consistency changes across method names also apply to those methods. So for example, `NTTSingle` and `AddVec` are now simply `NTT` and `Add` when called via a `SubRing` object.
-    - all methods with the sub-strings `Vec` and requiring additinal inputs to the vectors have been made private.
+    - all methods with the sub-strings `Vec` and requiring additional inputs to the vectors have been made private.
     - the level specific methods in `NumberTheoreticTransformer` have been removed due to the above changes.
 - RING: the core NTT method now takes `N` as an input, enabling NTT of different dimensions without having to modify internal value of the ring degree in the `ring.Ring` object.
 - RING: updated `ModDownQPtoQNTT` to round the RNS division (instead of flooring).
+- RING: added `IsInt` method on the struct `ring.Complex`.
 - UTILS: added `GetFactors`, `GetFactorPollardRho` and `GetFactorECM`.
 
 ## [4.1.0] - 2022-11-22 

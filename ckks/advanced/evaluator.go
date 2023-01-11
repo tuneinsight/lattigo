@@ -28,13 +28,7 @@ type Evaluator interface {
 	AddConst(ctIn *rlwe.Ciphertext, constant interface{}, ctOut *rlwe.Ciphertext)
 	MultByConstNew(ctIn *rlwe.Ciphertext, constant interface{}) (ctOut *rlwe.Ciphertext)
 	MultByConst(ctIn *rlwe.Ciphertext, constant interface{}, ctOut *rlwe.Ciphertext)
-	MultByGaussianInteger(ctIn *rlwe.Ciphertext, cReal, cImag interface{}, ctOut *rlwe.Ciphertext)
 	MultByConstThenAdd(ctIn *rlwe.Ciphertext, constant interface{}, ctOut *rlwe.Ciphertext)
-	MultByGaussianIntegerThenAdd(ctIn *rlwe.Ciphertext, cReal, cImag interface{}, ctOut *rlwe.Ciphertext)
-	MultByiNew(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext)
-	MultByi(ctIn *rlwe.Ciphertext, ctOut *rlwe.Ciphertext)
-	DivByiNew(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext)
-	DivByi(ctIn *rlwe.Ciphertext, ctOut *rlwe.Ciphertext)
 	ConjugateNew(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext)
 	Conjugate(ctIn *rlwe.Ciphertext, ctOut *rlwe.Ciphertext)
 	Mul(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext)
@@ -150,7 +144,7 @@ func (eval *evaluator) CoeffsToSlots(ctIn *rlwe.Ciphertext, ctsMatrices Encoding
 
 		// Imag part
 		eval.Sub(zV, ctReal, tmp)
-		eval.DivByi(tmp, tmp)
+		eval.MultByConst(tmp, complex(0, -1), tmp)
 
 		// Real part
 		eval.Add(ctReal, zV, ctReal)
@@ -190,7 +184,7 @@ func (eval *evaluator) SlotsToCoeffsNew(ctReal, ctImag *rlwe.Ciphertext, stcMatr
 func (eval *evaluator) SlotsToCoeffs(ctReal, ctImag *rlwe.Ciphertext, stcMatrices EncodingMatrix, ctOut *rlwe.Ciphertext) {
 	// If full packing, the repacking can be done directly using ct0 and ct1.
 	if ctImag != nil {
-		eval.MultByi(ctImag, ctOut)
+		eval.MultByConst(ctImag, complex(0, 1), ctOut)
 		eval.Add(ctOut, ctReal, ctOut)
 		eval.dft(ctOut, stcMatrices.matrices, ctOut)
 	} else {

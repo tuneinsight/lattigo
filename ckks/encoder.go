@@ -67,7 +67,6 @@ type Encoder interface {
 // encoder is a struct storing the necessary parameters to encode a slice of complex number on a Plaintext.
 type encoder struct {
 	params       Parameters
-	bigintChain  []*big.Int
 	bigintCoeffs []*big.Int
 	qHalf        *big.Int
 	buff         *ring.Poly
@@ -96,7 +95,6 @@ func (ecd *encoder) ShallowCopy() *encoder {
 
 	return &encoder{
 		params:          ecd.params,
-		bigintChain:     ecd.bigintChain,
 		bigintCoeffs:    make([]*big.Int, ecd.m>>1),
 		qHalf:           ring.NewUint(0),
 		buff:            ecd.params.RingQ().NewPoly(),
@@ -127,7 +125,6 @@ func newEncoder(params Parameters) encoder {
 
 	return encoder{
 		params:          params,
-		bigintChain:     genBigIntChain(params.Q()),
 		bigintCoeffs:    make([]*big.Int, m>>1),
 		qHalf:           ring.NewUint(0),
 		buff:            params.RingQ().NewPoly(),
@@ -482,7 +479,7 @@ func (ecd *encoderComplex128) plaintextToComplex(level int, scale rlwe.Scale, lo
 	if level == 0 {
 		polyToComplexNoCRT(p.Coeffs[0], values, scale, logSlots, isreal, ecd.params.RingQ())
 	} else {
-		polyToComplexCRT(p, ecd.bigintCoeffs, values, scale, logSlots, isreal, ecd.params.RingQ(), ecd.bigintChain[level])
+		polyToComplexCRT(p, ecd.bigintCoeffs, values, scale, logSlots, isreal, ecd.params.RingQ(), ecd.params.RingQ().ModulusAtLevel[level])
 	}
 
 	if isreal { // [X]/(X^N+1) to [X+X^-1]/(X^N+1)
@@ -547,7 +544,7 @@ func (ecd *encoderComplex128) decodeCoeffsPublic(plaintext *rlwe.Plaintext, sigm
 
 		ecd.params.RingQ().PolyToBigint(ecd.buff, 1, ecd.bigintCoeffs)
 
-		Q := ecd.bigintChain[plaintext.Level()]
+		Q := ecd.params.RingQ().ModulusAtLevel[plaintext.Level()]
 
 		ecd.qHalf.Set(Q)
 		ecd.qHalf.Rsh(ecd.qHalf, 1)
@@ -797,7 +794,7 @@ func (ecd *encoderBigComplex) decodePublic(plaintext *rlwe.Plaintext, logSlots i
 		ecd.gaussianSampler.AtLevel(plaintext.Level()).ReadAndAddFromDist(ecd.buff, ecd.params.RingQ(), sigma, int(2.5066282746310002*sigma+0.5))
 	}
 
-	Q := ecd.bigintChain[plaintext.Level()]
+	Q := ecd.params.RingQ().ModulusAtLevel[plaintext.Level()]
 
 	maxSlots := ecd.params.N() >> 1
 

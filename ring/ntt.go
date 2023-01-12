@@ -16,8 +16,8 @@ type NumberTheoreticTransformer interface {
 
 type numberTheoreticTransformerBase struct {
 	n                                          int
-	nInv *uint64
-	modulus, mredConstant                uint64
+	nInv                                       *uint64
+	modulus, mredConstant                      uint64
 	bredConstants, rootsForward, rootsBackward []uint64
 }
 
@@ -29,12 +29,12 @@ type NumberTheoreticTransformerStandard struct {
 func NewNumberTheoreticTransformerStandard(r *SubRing, n int) NumberTheoreticTransformer {
 	return NumberTheoreticTransformerStandard{
 		numberTheoreticTransformerBase: numberTheoreticTransformerBase{
-			n: n, 
-			nInv: &r.NInv, 
-			modulus: r.Modulus, 
-			mredConstant: r.MRedConstant, 
-			bredConstants: r.BRedConstant, 
-			rootsForward: r.RootsForward, 
+			n:             n,
+			nInv:          &r.NInv,
+			modulus:       r.Modulus,
+			mredConstant:  r.MRedConstant,
+			bredConstants: r.BRedConstant,
+			rootsForward:  r.RootsForward,
 			rootsBackward: r.RootsBackward,
 		},
 	}
@@ -42,24 +42,24 @@ func NewNumberTheoreticTransformerStandard(r *SubRing, n int) NumberTheoreticTra
 
 // Forward writes the forward NTT in Z[X]/(X^N+1) of p1 on p2.
 func (rntt NumberTheoreticTransformerStandard) Forward(p1, p2 []uint64) {
-	nttStandard(p1, p2, rntt.n, rntt.modulus, rntt.mredConstant, rntt.bredConstants, rntt.rootsForward)
+	NTTStandard(p1, p2, rntt.n, rntt.modulus, rntt.mredConstant, rntt.bredConstants, rntt.rootsForward)
 }
 
 // ForwardLazy writes the forward NTT in Z[X]/(X^N+1) of p1 on p2.
 // Returns values in the range [0, 2q-1].
 func (rntt NumberTheoreticTransformerStandard) ForwardLazy(p1, p2 []uint64) {
-	nttStandardLazy(p1, p2, rntt.n, rntt.modulus, rntt.mredConstant, rntt.rootsForward)
+	NTTStandardLazy(p1, p2, rntt.n, rntt.modulus, rntt.mredConstant, rntt.rootsForward)
 }
 
 // Backward writes the backward NTT in Z[X]/(X^N+1) of p1 on p2.
 func (rntt NumberTheoreticTransformerStandard) Backward(p1, p2 []uint64) {
-	inttStandard(p1, p2, rntt.n, *rntt.nInv, rntt.modulus, rntt.mredConstant, rntt.rootsBackward)
+	INTTStandard(p1, p2, rntt.n, *rntt.nInv, rntt.modulus, rntt.mredConstant, rntt.rootsBackward)
 }
 
 // BackwardLazy writes the backward NTT in Z[X]/(X^N+1) p1 on p2.
 // Returns values in the range [0, 2q-1].
 func (rntt NumberTheoreticTransformerStandard) BackwardLazy(p1, p2 []uint64) {
-	inttStandardLazy(p1, p2, rntt.n, *rntt.nInv, rntt.modulus, rntt.mredConstant, rntt.rootsBackward)
+	INTTStandardLazy(p1, p2, rntt.n, *rntt.nInv, rntt.modulus, rntt.mredConstant, rntt.rootsBackward)
 }
 
 // NumberTheoreticTransformerConjugateInvariant computes the NTT in the ring Z[X+X^-1]/(X^2N+1).
@@ -84,7 +84,7 @@ func NewNumberTheoreticTransformerConjugateInvariant(r *SubRing, n int) NumberTh
 
 // Forward writes the forward NTT in Z[X+X^-1]/(X^2N+1) of p1 on p2.
 func (rntt NumberTheoreticTransformerConjugateInvariant) Forward(p1, p2 []uint64) {
-	nttConjugateInvariant(p1, p2, rntt.n, rntt.modulus, rntt.mredConstant, rntt.bredConstants, rntt.rootsForward)
+	NTTConjugateInvariant(p1, p2, rntt.n, rntt.modulus, rntt.mredConstant, rntt.bredConstants, rntt.rootsForward)
 }
 
 // ForwardLazy writes the forward NTT in Z[X+X^-1]/(X^2N+1) of p1 on p2.
@@ -95,13 +95,13 @@ func (rntt NumberTheoreticTransformerConjugateInvariant) ForwardLazy(p1, p2 []ui
 
 // Backward writes the backward NTT in Z[X+X^-1]/(X^2N+1) of p1 on p2.
 func (rntt NumberTheoreticTransformerConjugateInvariant) Backward(p1, p2 []uint64) {
-	inttConjugateInvariant(p1, p2, rntt.n, *rntt.nInv, rntt.modulus, rntt.mredConstant, rntt.rootsBackward)
+	INTTConjugateInvariant(p1, p2, rntt.n, *rntt.nInv, rntt.modulus, rntt.mredConstant, rntt.rootsBackward)
 }
 
 // BackwardLazy writes the backward NTT in Z[X+X^-1]/(X^2N+1) of p1 on p2.
 // Returns values in the range [0, 2q-1].
 func (rntt NumberTheoreticTransformerConjugateInvariant) BackwardLazy(p1, p2 []uint64) {
-	inttConjugateInvariantLazy(p1, p2, rntt.n, *rntt.nInv, rntt.modulus, rntt.mredConstant, rntt.mredConstant, rntt.rootsBackward)
+	INTTConjugateInvariantLazy(p1, p2, rntt.n, *rntt.nInv, rntt.modulus, rntt.mredConstant, rntt.mredConstant, rntt.rootsBackward)
 }
 
 // NTT evaluates p2 = NTT(P1).
@@ -132,53 +132,6 @@ func (r *Ring) INTTLazy(p1, p2 *Poly) {
 	}
 }
 
-// NttSparseAndMontgomery takes the polynomial polIn Z[Y] outside of the NTT domain to the polynomial Z[X] in the NTT domain where Y = X^(gap).
-// This method is used to accelerate the NTT of polynomials that encode sparse plaintexts.
-func (r *Ring) NttSparseAndMontgomery(logSlots int, montgomery bool, pol *Poly) {
-
-	if 1<<logSlots == r.NthRoot()>>2 {
-		r.NTT(pol, pol)
-		if montgomery {
-			r.MForm(pol, pol)
-		}
-	} else {
-
-		var n int
-		var ntt func(p1, p2 []uint64, N int, Q, QInv uint64, BRedConstant, nttPsi []uint64)
-		switch r.Type() {
-		case Standard:
-			n = 2 << logSlots
-			ntt = nttStandard
-		case ConjugateInvariant:
-			n = 1 << logSlots
-			ntt = nttConjugateInvariant
-		}
-
-		N := r.N()
-		gap := N / n
-		for i, s := range r.SubRings[:r.Level()+1] {
-
-			coeffs := pol.Coeffs[i]
-
-			// Hack!
-			// NTT in dimension n but with roots of N
-			ntt(coeffs[:n], coeffs[:n], n, s.Modulus, s.MRedConstant, s.BRedConstant, s.RootsForward)
-
-			if montgomery {
-				s.MForm(coeffs[:n], coeffs[:n])
-			}
-
-			// Maps NTT in dimension n to NTT in dimension N
-			for j := n - 1; j >= 0; j-- {
-				c := coeffs[j]
-				for w := 0; w < gap; w++ {
-					coeffs[j*gap+w] = c
-				}
-			}
-		}
-	}
-}
-
 // butterfly computes X, Y = U + V*Psi, U - V*Psi mod Q.
 func butterfly(U, V, Psi, twoQ, fourQ, Q, Qinv uint64) (uint64, uint64) {
 	if U >= fourQ {
@@ -198,44 +151,44 @@ func invbutterfly(U, V, Psi, twoQ, fourQ, Q, Qinv uint64) (X, Y uint64) {
 	return
 }
 
-// nttStandard computes the nttStandard on the input coefficients using the input parameters.
-func nttStandard(p1, p2 []uint64, N int, Q, QInv uint64, BRedConstant, nttPsi []uint64) {
-	nttStandardLazy(p1, p2, N, Q, QInv, nttPsi)
+// NTTStandard computes the NTTStandard on the input coefficients using the input parameters.
+func NTTStandard(p1, p2 []uint64, N int, Q, QInv uint64, BRedConstant, nttPsi []uint64) {
+	NTTStandardLazy(p1, p2, N, Q, QInv, nttPsi)
 	reducevec(p2, p2, Q, BRedConstant)
 }
 
-// inttStandard evalues p2 = inttStandard(p1) in the given SubRing.
-func inttStandard(p1, p2 []uint64, N int, NInv, Q, MRedConstant uint64, nttPsiInv []uint64) {
+// INTTStandard evalues p2 = INTTStandard(p1) in the given SubRing.
+func INTTStandard(p1, p2 []uint64, N int, NInv, Q, MRedConstant uint64, nttPsiInv []uint64) {
 	iNTTCore(p1, p2, N, Q, MRedConstant, nttPsiInv)
 	mulscalarmontgomeryvec(p2, NInv, p2, Q, MRedConstant)
 }
 
-// inttStandardLazy evalues p2 = INTT(p1) in the given SubRing with p2 in [0, 2*modulus-1].
-func inttStandardLazy(p1, p2 []uint64, N int, NInv, Q, MRedConstant uint64, nttPsiInv []uint64) {
+// INTTStandardLazy evalues p2 = INTT(p1) in the given SubRing with p2 in [0, 2*modulus-1].
+func INTTStandardLazy(p1, p2 []uint64, N int, NInv, Q, MRedConstant uint64, nttPsiInv []uint64) {
 	iNTTCore(p1, p2, N, Q, MRedConstant, nttPsiInv)
 	mulscalarmontgomerylazyvec(p2, NInv, p2, Q, MRedConstant)
 }
 
-// nttConjugateInvariant evaluates p2 = NTT(p1) in the sub-ring Z[X + X^-1]/(X^2N +1) of Z[X]/(X^2N+1).
-func nttConjugateInvariant(p1, p2 []uint64, N int, Q, MRedConstant uint64, BRedConstant, nttPsi []uint64) {
+// NTTConjugateInvariant evaluates p2 = NTT(p1) in the sub-ring Z[X + X^-1]/(X^2N +1) of Z[X]/(X^2N+1).
+func NTTConjugateInvariant(p1, p2 []uint64, N int, Q, MRedConstant uint64, BRedConstant, nttPsi []uint64) {
 	nttConjugateInvariantLazy(p1, p2, N, Q, MRedConstant, nttPsi)
 	reducevec(p2, p2, Q, BRedConstant)
 }
 
-// inttConjugateInvariant evaluates p2 = INTT(p1) in the closed sub-ring Z[X + X^-1]/(X^2N +1) of Z[X]/(X^2N+1).
-func inttConjugateInvariant(p1, p2 []uint64, N int, NInv, Q, MRedConstant uint64, nttPsiInv []uint64) {
+// INTTConjugateInvariant evaluates p2 = INTT(p1) in the closed sub-ring Z[X + X^-1]/(X^2N +1) of Z[X]/(X^2N+1).
+func INTTConjugateInvariant(p1, p2 []uint64, N int, NInv, Q, MRedConstant uint64, nttPsiInv []uint64) {
 	iNTTConjugateInvariantCore(p1, p2, N, Q, MRedConstant, nttPsiInv)
 	mulscalarmontgomeryvec(p2, NInv, p2, Q, MRedConstant)
 }
 
-// inttConjugateInvariantLazy evaluates p2 = INTT(p1) in the closed sub-ring Z[X + X^-1]/(X^2N +1) of Z[X]/(X^2N+1) with p2 in the range [0, 2*modulus-1].
-func inttConjugateInvariantLazy(p1, p2 []uint64, N int, NInv, Q, QInv, MRedConstant uint64, nttPsiInv []uint64) {
+// INTTConjugateInvariantLazy evaluates p2 = INTT(p1) in the closed sub-ring Z[X + X^-1]/(X^2N +1) of Z[X]/(X^2N+1) with p2 in the range [0, 2*modulus-1].
+func INTTConjugateInvariantLazy(p1, p2 []uint64, N int, NInv, Q, QInv, MRedConstant uint64, nttPsiInv []uint64) {
 	iNTTConjugateInvariantCore(p1, p2, N, Q, QInv, nttPsiInv)
 	mulscalarmontgomerylazyvec(p2, NInv, p2, Q, MRedConstant)
 }
 
-// nttStandardLazy computes the NTT on the input coefficients using the input parameters with output values in the range [0, 2*modulus-1].
-func nttStandardLazy(p1, p2 []uint64, N int, Q, QInv uint64, nttPsi []uint64) {
+// NTTStandardLazy computes the NTT on the input coefficients using the input parameters with output values in the range [0, 2*modulus-1].
+func NTTStandardLazy(p1, p2 []uint64, N int, Q, QInv uint64, nttPsi []uint64) {
 
 	var j1, j2, t int
 	var F, V uint64

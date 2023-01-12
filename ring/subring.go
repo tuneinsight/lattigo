@@ -79,6 +79,9 @@ func NewSubRingWithCustomNTT(N int, Modulus uint64, ntt func(*SubRing, int) Numb
 		s.MRedConstant = MRedConstant(Modulus)
 	}
 
+	s.RootsForward = make([]uint64, NthRoot>>1)
+	s.RootsBackward = make([]uint64, NthRoot>>1)
+
 	s.ntt = ntt(s, N)
 
 	return
@@ -138,8 +141,6 @@ func (s *SubRing) generateNTTConstants() (err error) {
 	s.NInv = MForm(ModExp(NthRoot>>1, Modulus-2, Modulus), Modulus, s.BRedConstant)
 
 	// 1.2 Computes Psi and PsiInv in Montgomery form
-	s.RootsForward = make([]uint64, NthRoot>>1)
-	s.RootsBackward = make([]uint64, NthRoot>>1)
 
 	// Computes Psi and PsiInv in Montgomery form
 	PsiMont := MForm(ModExp(s.PrimitiveRoot, (Modulus-1)/NthRoot, Modulus), Modulus, s.BRedConstant)
@@ -304,9 +305,12 @@ func (s *SubRing) Decode(data []byte) (ptr int, err error) {
 		s.MRedConstant = MRedConstant(s.Modulus)
 	}
 
+	s.RootsForward = make([]uint64, s.NthRoot>>1)
+	s.RootsBackward = make([]uint64, s.NthRoot>>1)
+
 	switch ringType {
 	case Standard:
-		s.ntt = NumberTheoreticTransformerStandard{}
+		s.ntt = NewNumberTheoreticTransformerStandard(s, s.N)
 
 		if int(s.NthRoot) < s.N<<1 {
 			return ptr, fmt.Errorf("invalid ring type: NthRoot must be at least 2N but is %dN", int(s.NthRoot)/s.N)
@@ -314,7 +318,7 @@ func (s *SubRing) Decode(data []byte) (ptr int, err error) {
 
 	case ConjugateInvariant:
 
-		s.ntt = NumberTheoreticTransformerConjugateInvariant{}
+		s.ntt = NewNumberTheoreticTransformerConjugateInvariant(s, s.N)
 
 		if int(s.NthRoot) < s.N<<2 {
 			return ptr, fmt.Errorf("invalid ring type: NthRoot must be at least 4N but is %dN", int(s.NthRoot)/s.N)

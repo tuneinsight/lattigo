@@ -27,7 +27,7 @@ All notable changes to this library are documented in this file.
     - removed all methods with the API `[...]Lvl(level, ...)`. Instead, to perform operations at a specific level, a `ring.Ring` type can be obtained using `ring.Ring.AtLevel(level)` (which is allocation free).
     - subring-level methods such as `NTTSingle` or `AddVec` are now accessible via `ring.Ring.SubRing[level].Method(*)`. Note that the consistency changes across method names also apply to those methods. So for example, `NTTSingle` and `AddVec` are now simply `NTT` and `Add` when called via a `SubRing` object.
     - all methods with the sub-strings `Vec` and requiring additional inputs to the vectors have been made private.
-    - the  `NumberTheoreticTransformer` interface now longer have to be implemented for arbitrary `*SubRing` and abstracts this parameterization being its instantiation.
+    - the `NumberTheoreticTransformer` interface now longer has to be implemented for arbitrary `*SubRing` and abstracts this parameterization being its instantiation.
 - RING: the core NTT method now takes `N` as an input, enabling NTT of different dimensions without having to modify internal value of the ring degree in the `ring.Ring` object.
 - RING: updated `ModDownQPtoQNTT` to round the RNS division (instead of flooring).
 - RING: added `IsInt` method on the struct `ring.Complex`.

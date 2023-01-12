@@ -125,8 +125,8 @@ func NttSparseAndMontgomery(r *ring.Ring, logSlots int, montgomery bool, pol *ri
 
 			coeffs := pol.Coeffs[i]
 
-			// Hack!
 			// NTT in dimension n but with roots of N
+			// This is a small hack to perform at reduced cost an NTT of dimension N on a vector in Y = X^{N/n}, i.e. sparse plaintext.
 			ntt(coeffs[:n], coeffs[:n], n, s.Modulus, s.MRedConstant, s.BRedConstant, s.RootsForward)
 
 			if montgomery {

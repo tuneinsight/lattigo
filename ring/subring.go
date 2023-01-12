@@ -18,9 +18,6 @@ type SubRing struct {
 	// Polynomial nb.Coefficients
 	N int
 
-	// Nthroot used for the NTT
-	NthRoot uint64
-
 	// Modulus
 	Modulus uint64
 
@@ -34,13 +31,7 @@ type SubRing struct {
 	BRedConstant []uint64 // Barrett Reduction
 	MRedConstant uint64   // Montgomery Reduction
 
-	AllowsNTT bool // Indicates whether NTT can be used with the current ring.
-
-	PrimitiveRoot uint64 // 2N-th primitive root
-
-	RootsForward  []uint64 //powers of the 2N-th primitive root in Montgomery form (in bit-reversed order)
-	RootsBackward []uint64 //powers of the inverse of the 2N-th primitive root in Montgomery form (in bit-reversed order)
-	NInv          uint64   //[N^-1] mod Modulus in Montgomery form
+	*NTTTable // NTT related constants
 }
 
 // NewSubRing creates a new SubRing with the standard NTT.
@@ -63,10 +54,6 @@ func NewSubRingWithCustomNTT(N int, Modulus uint64, ntt func(*SubRing, int) Numb
 
 	s.N = N
 
-	s.NthRoot = uint64(NthRoot)
-
-	s.AllowsNTT = false
-
 	s.Modulus = Modulus
 	s.Mask = (1 << uint64(bits.Len64(Modulus-1))) - 1
 
@@ -79,8 +66,8 @@ func NewSubRingWithCustomNTT(N int, Modulus uint64, ntt func(*SubRing, int) Numb
 		s.MRedConstant = MRedConstant(Modulus)
 	}
 
-	s.RootsForward = make([]uint64, NthRoot>>1)
-	s.RootsBackward = make([]uint64, NthRoot>>1)
+	s.NTTTable = new(NTTTable)
+	s.NthRoot = uint64(NthRoot)
 
 	s.ntt = ntt(s, N)
 
@@ -146,6 +133,9 @@ func (s *SubRing) generateNTTConstants() (err error) {
 	PsiMont := MForm(ModExp(s.PrimitiveRoot, (Modulus-1)/NthRoot, Modulus), Modulus, s.BRedConstant)
 	PsiInvMont := MForm(ModExp(s.PrimitiveRoot, Modulus-((Modulus-1)/NthRoot)-1, Modulus), Modulus, s.BRedConstant)
 
+	s.RootsForward = make([]uint64, NthRoot>>1)
+	s.RootsBackward = make([]uint64, NthRoot>>1)
+
 	s.RootsForward[0] = MForm(1, Modulus, s.BRedConstant)
 	s.RootsBackward[0] = MForm(1, Modulus, s.BRedConstant)
 
@@ -158,8 +148,6 @@ func (s *SubRing) generateNTTConstants() (err error) {
 		s.RootsForward[indexReverseNext] = MRed(s.RootsForward[indexReversePrev], PsiMont, Modulus, s.MRedConstant)
 		s.RootsBackward[indexReverseNext] = MRed(s.RootsBackward[indexReversePrev], PsiInvMont, Modulus, s.MRedConstant)
 	}
-
-	s.AllowsNTT = true
 
 	return
 }
@@ -281,6 +269,7 @@ func (s *SubRing) Decode(data []byte) (ptr int, err error) {
 	ptr++
 	s.N = 1 << int(data[ptr])
 	ptr++
+	s.NTTTable = new(NTTTable)
 	s.NthRoot = uint64(s.N) * uint64(data[ptr])
 	ptr++
 	s.Modulus = binary.LittleEndian.Uint64(data[ptr:])
@@ -304,9 +293,6 @@ func (s *SubRing) Decode(data []byte) (ptr int, err error) {
 	if (s.Modulus&(s.Modulus-1)) != 0 && s.Modulus != 0 {
 		s.MRedConstant = MRedConstant(s.Modulus)
 	}
-
-	s.RootsForward = make([]uint64, s.NthRoot>>1)
-	s.RootsBackward = make([]uint64, s.NthRoot>>1)
 
 	switch ringType {
 	case Standard:

@@ -391,15 +391,15 @@ func (ecd *encoderComplex128) Embed(values interface{}, logSlots int, scale rlwe
 	switch p := polyOut.(type) {
 	case ringqp.Poly:
 		complexToFixedPointCRT(p.Q.Level(), ecd.values[:slots], scale.Float64(), ecd.params.RingQ(), p.Q.Coeffs, isRingStandard)
-		NttAndMontgomery(ecd.params.RingQ().AtLevel(p.Q.Level()), logSlots, montgomery, p.Q)
+		ecd.params.RingQ().AtLevel(p.Q.Level()).NttSparseAndMontgomery(logSlots, montgomery, p.Q)
 
 		if p.P != nil {
 			complexToFixedPointCRT(p.P.Level(), ecd.values[:slots], scale.Float64(), ecd.params.RingP(), p.P.Coeffs, isRingStandard)
-			NttAndMontgomery(ecd.params.RingP().AtLevel(p.P.Level()), logSlots, montgomery, p.P)
+			ecd.params.RingP().AtLevel(p.P.Level()).NttSparseAndMontgomery(logSlots, montgomery, p.P)
 		}
 	case *ring.Poly:
 		complexToFixedPointCRT(p.Level(), ecd.values[:slots], scale.Float64(), ecd.params.RingQ(), p.Coeffs, isRingStandard)
-		NttAndMontgomery(ecd.params.RingQ().AtLevel(p.Level()), logSlots, montgomery, p)
+		ecd.params.RingQ().AtLevel(p.Level()).NttSparseAndMontgomery(logSlots, montgomery, p)
 	default:
 		panic("cannot Embed: invalid polyOut.(Type) must be ringqp.Poly or *ring.Poly")
 	}

@@ -13,7 +13,7 @@ import (
 // for fast modular reduction and NTT for
 // a given modulus.
 type SubRing struct {
-	NumberTheoreticTransformer
+	ntt NumberTheoreticTransformer
 
 	// Polynomial nb.Coefficients
 	N int
@@ -46,13 +46,13 @@ type SubRing struct {
 // NewSubRing creates a new SubRing with the standard NTT.
 // NTT constants still need to be generated using .GenNTTConstants(NthRoot uint64).
 func NewSubRing(N int, Modulus uint64) (s *SubRing, err error) {
-	return NewSubRingWithCustomNTT(N, Modulus, NumberTheoreticTransformerStandard{}, 2*N)
+	return NewSubRingWithCustomNTT(N, Modulus, NewNumberTheoreticTransformerStandard, 2*N)
 }
 
 // NewSubRingWithCustomNTT creates a new SubRing with degree N and modulus Modulus with user-defined NTT transform and primitive Nth root of unity.
 // Modulus should be equal to 1 modulo the root of unity.
 // N must be a power of two larger than 8. An error is returned with a nil *SubRing in the case of non NTT-enabling parameters.
-func NewSubRingWithCustomNTT(N int, Modulus uint64, ntt NumberTheoreticTransformer, NthRoot int) (s *SubRing, err error) {
+func NewSubRingWithCustomNTT(N int, Modulus uint64, ntt func(*SubRing, int) NumberTheoreticTransformer, NthRoot int) (s *SubRing, err error) {
 
 	// Checks if N is a power of 2
 	if (N < 16) || (N&(N-1)) != 0 && N != 0 {
@@ -64,8 +64,6 @@ func NewSubRingWithCustomNTT(N int, Modulus uint64, ntt NumberTheoreticTransform
 	s.N = N
 
 	s.NthRoot = uint64(NthRoot)
-
-	s.NumberTheoreticTransformer = ntt
 
 	s.AllowsNTT = false
 
@@ -81,18 +79,20 @@ func NewSubRingWithCustomNTT(N int, Modulus uint64, ntt NumberTheoreticTransform
 		s.MRedConstant = MRedConstant(Modulus)
 	}
 
+	s.ntt = ntt(s, N)
+
 	return
 }
 
 // Type returns the Type of subring which might be either `Standard` or `ConjugateInvariant`.
 func (s *SubRing) Type() Type {
-	switch s.NumberTheoreticTransformer.(type) {
+	switch s.ntt.(type) {
 	case NumberTheoreticTransformerStandard:
 		return Standard
 	case NumberTheoreticTransformerConjugateInvariant:
 		return ConjugateInvariant
 	default:
-		panic("invalid NumberTheoreticTransformer type")
+		panic(fmt.Errorf("invalid NumberTheoreticTransformer type: %T", s.ntt))
 	}
 }
 
@@ -306,7 +306,7 @@ func (s *SubRing) Decode(data []byte) (ptr int, err error) {
 
 	switch ringType {
 	case Standard:
-		s.NumberTheoreticTransformer = NumberTheoreticTransformerStandard{}
+		s.ntt = NumberTheoreticTransformerStandard{}
 
 		if int(s.NthRoot) < s.N<<1 {
 			return ptr, fmt.Errorf("invalid ring type: NthRoot must be at least 2N but is %dN", int(s.NthRoot)/s.N)
@@ -314,7 +314,7 @@ func (s *SubRing) Decode(data []byte) (ptr int, err error) {
 
 	case ConjugateInvariant:
 
-		s.NumberTheoreticTransformer = NumberTheoreticTransformerConjugateInvariant{}
+		s.ntt = NumberTheoreticTransformerConjugateInvariant{}
 
 		if int(s.NthRoot) < s.N<<2 {
 			return ptr, fmt.Errorf("invalid ring type: NthRoot must be at least 4N but is %dN", int(s.NthRoot)/s.N)

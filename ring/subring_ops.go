@@ -231,6 +231,26 @@ func (s *SubRing) SubThenMulScalarMontgomeryTwoModulus(p1, p2 []uint64, scalarMo
 	subthenmulscalarmontgomeryTwoModulusvec(p1, p2, scalarMont, p3, s.Modulus, s.MRedConstant)
 }
 
+// NTT evaluates p2 = NTT(p1).
+func (s *SubRing) NTT(p1, p2 []uint64) {
+	s.ntt.Forward(p1, p2)
+}
+
+// NTTLazy evaluates p2 = NTT(p1) with p2 in [0, 2*modulus-1].
+func (s *SubRing) NTTLazy(p1, p2 []uint64) {
+	s.ntt.ForwardLazy(p1, p2)
+}
+
+// INTT evaluates p2 = INTT(p1).
+func (s *SubRing) INTT(p1, p2 []uint64) {
+	s.ntt.Backward(p1, p2)
+}
+
+// INTTLazy evaluates p2 = INTT(p1) with p2 in [0, 2*modulus-1].
+func (s *SubRing) INTTLazy(p1, p2 []uint64) {
+	s.ntt.BackwardLazy(p1, p2)
+}
+
 // MForm evaluates p2 = p1 * 2^64 (mod modulus).
 // Iteration is done with respect to len(p1).
 // All input must have a size which is a multiple of 8.

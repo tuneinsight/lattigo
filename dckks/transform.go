@@ -378,7 +378,7 @@ func (rfp *MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, logSlots int,
 	// Sets LT(-sum(M_i) + x) * diffscale in the RNS domain
 	ringQ.SetCoefficientsBigint(rfp.tmpMask[:dslots], ciphertextOut.Value[0])
 
-	ckks.NttAndMontgomery(ringQ, logSlots, false, ciphertextOut.Value[0])
+	ringQ.NttSparseAndMontgomery(logSlots, false, ciphertextOut.Value[0])
 
 	// LT(-sum(M_i) + x) * diffscale + [-a*s + LT(M_i) * diffscale + e] = [-a*s + LT(x) * diffscale + e]
 	ringQ.Add(ciphertextOut.Value[0], share.s2eShare.Value, ciphertextOut.Value[0])

@@ -116,7 +116,7 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, logSlots int
 	ringQ.SetCoefficientsBigint(secretShareOut.Value[:dslots], e2s.buff)
 
 	// Maps Y^{N/n} -> X^{N} in Montgomery and NTT
-	ckks.NttAndMontgomery(ringQ, logSlots, false, e2s.buff)
+	ringQ.NttSparseAndMontgomery(logSlots, false, e2s.buff)
 
 	// Subtracts the mask to the encryption of zero
 	ringQ.Sub(publicShareOut.Value, e2s.buff, publicShareOut.Value)
@@ -228,7 +228,7 @@ func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.CKSCRP, logSlots 
 	ringQ.SetCoefficientsBigint(secretShare.Value[:dslots], s2e.tmp)
 
 	// Maps Y^{N/n} -> X^{N} in Montgomery and NTT
-	ckks.NttAndMontgomery(ringQ, logSlots, false, s2e.tmp)
+	ringQ.NttSparseAndMontgomery(logSlots, false, s2e.tmp)
 
 	ringQ.Add(c0ShareOut.Value, s2e.tmp, c0ShareOut.Value)
 }

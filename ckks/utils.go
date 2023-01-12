@@ -97,53 +97,6 @@ func StandardDeviation(vec []float64, scale float64) (std float64) {
 	return math.Sqrt(err/n) * scale
 }
 
-// NttAndMontgomery takes the polynomial polIn Z[Y] outside of the NTT domain to the polynomial Z[X] in the NTT domain where Y = X^(gap).
-// This method is used to accelerate the NTT of polynomials that encode sparse plaintexts.
-func NttAndMontgomery(ringQ *ring.Ring, logSlots int, montgomery bool, pol *ring.Poly) {
-
-	if 1<<logSlots == ringQ.NthRoot()>>2 {
-		ringQ.NTT(pol, pol)
-		if montgomery {
-			ringQ.MForm(pol, pol)
-		}
-	} else {
-
-		var n int
-		var NTT func(s *ring.SubRing, N int, coeffsIn, coeffsOut []uint64)
-		switch ringQ.Type() {
-		case ring.Standard:
-			n = 2 << logSlots
-			NTT = ring.NTT
-		case ring.ConjugateInvariant:
-			n = 1 << logSlots
-			NTT = ring.NTTConjugateInvariant
-		}
-
-		N := ringQ.N()
-		gap := N / n
-		for i, s := range ringQ.SubRings[:ringQ.Level()+1] {
-
-			coeffs := pol.Coeffs[i]
-
-			// Hack!
-			// NTT in dimension n but with roots of N
-			NTT(s, n, coeffs[:n], coeffs[:n])
-
-			if montgomery {
-				s.MForm(coeffs[:n], coeffs[:n])
-			}
-
-			// Maps NTT in dimension n to NTT in dimension N
-			for j := n - 1; j >= 0; j-- {
-				c := coeffs[j]
-				for w := 0; w < gap; w++ {
-					coeffs[j*gap+w] = c
-				}
-			}
-		}
-	}
-}
-
 func complexToFixedPointCRT(level int, values []complex128, scale float64, ringQ *ring.Ring, coeffs [][]uint64, isRingStandard bool) {
 
 	for i, v := range values {

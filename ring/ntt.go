@@ -16,7 +16,8 @@ type NumberTheoreticTransformer interface {
 
 type numberTheoreticTransformerBase struct {
 	n                                          int
-	nInv, modulus, mredConstant                uint64
+	nInv *uint64
+	modulus, mredConstant                uint64
 	bredConstants, rootsForward, rootsBackward []uint64
 }
 
@@ -28,7 +29,13 @@ type NumberTheoreticTransformerStandard struct {
 func NewNumberTheoreticTransformerStandard(r *SubRing, n int) NumberTheoreticTransformer {
 	return NumberTheoreticTransformerStandard{
 		numberTheoreticTransformerBase: numberTheoreticTransformerBase{
-			n: n, nInv: r.NInv, modulus: r.Modulus, mredConstant: r.MRedConstant, bredConstants: r.BRedConstant, rootsForward: r.RootsForward, rootsBackward: r.RootsBackward,
+			n: n, 
+			nInv: &r.NInv, 
+			modulus: r.Modulus, 
+			mredConstant: r.MRedConstant, 
+			bredConstants: r.BRedConstant, 
+			rootsForward: r.RootsForward, 
+			rootsBackward: r.RootsBackward,
 		},
 	}
 }
@@ -41,18 +48,18 @@ func (rntt NumberTheoreticTransformerStandard) Forward(p1, p2 []uint64) {
 // ForwardLazy writes the forward NTT in Z[X]/(X^N+1) of p1 on p2.
 // Returns values in the range [0, 2q-1].
 func (rntt NumberTheoreticTransformerStandard) ForwardLazy(p1, p2 []uint64) {
-	nttStandardLazy(p1, p2, rntt.n, rntt.modulus, rntt.mredConstant, rntt.rootsBackward)
+	nttStandardLazy(p1, p2, rntt.n, rntt.modulus, rntt.mredConstant, rntt.rootsForward)
 }
 
 // Backward writes the backward NTT in Z[X]/(X^N+1) of p1 on p2.
 func (rntt NumberTheoreticTransformerStandard) Backward(p1, p2 []uint64) {
-	inttStandard(p1, p2, rntt.n, rntt.modulus, rntt.nInv, rntt.mredConstant, rntt.rootsBackward)
+	inttStandard(p1, p2, rntt.n, *rntt.nInv, rntt.modulus, rntt.mredConstant, rntt.rootsBackward)
 }
 
 // BackwardLazy writes the backward NTT in Z[X]/(X^N+1) p1 on p2.
 // Returns values in the range [0, 2q-1].
 func (rntt NumberTheoreticTransformerStandard) BackwardLazy(p1, p2 []uint64) {
-	inttStandardLazy(p1, p2, rntt.n, rntt.modulus, rntt.nInv, rntt.mredConstant, rntt.rootsBackward)
+	inttStandardLazy(p1, p2, rntt.n, *rntt.nInv, rntt.modulus, rntt.mredConstant, rntt.rootsBackward)
 }
 
 // NumberTheoreticTransformerConjugateInvariant computes the NTT in the ring Z[X+X^-1]/(X^2N+1).
@@ -70,7 +77,7 @@ type NumberTheoreticTransformerConjugateInvariant struct {
 func NewNumberTheoreticTransformerConjugateInvariant(r *SubRing, n int) NumberTheoreticTransformer {
 	return NumberTheoreticTransformerConjugateInvariant{
 		numberTheoreticTransformerBase: numberTheoreticTransformerBase{
-			n: n, nInv: r.NInv, modulus: r.Modulus, mredConstant: r.MRedConstant, bredConstants: r.BRedConstant, rootsForward: r.RootsForward, rootsBackward: r.RootsBackward,
+			n: n, nInv: &r.NInv, modulus: r.Modulus, mredConstant: r.MRedConstant, bredConstants: r.BRedConstant, rootsForward: r.RootsForward, rootsBackward: r.RootsBackward,
 		},
 	}
 }
@@ -88,13 +95,13 @@ func (rntt NumberTheoreticTransformerConjugateInvariant) ForwardLazy(p1, p2 []ui
 
 // Backward writes the backward NTT in Z[X+X^-1]/(X^2N+1) of p1 on p2.
 func (rntt NumberTheoreticTransformerConjugateInvariant) Backward(p1, p2 []uint64) {
-	inttConjugateInvariant(p1, p2, rntt.n, rntt.modulus, rntt.nInv, rntt.mredConstant, rntt.rootsBackward)
+	inttConjugateInvariant(p1, p2, rntt.n, *rntt.nInv, rntt.modulus, rntt.mredConstant, rntt.rootsBackward)
 }
 
 // BackwardLazy writes the backward NTT in Z[X+X^-1]/(X^2N+1) of p1 on p2.
 // Returns values in the range [0, 2q-1].
 func (rntt NumberTheoreticTransformerConjugateInvariant) BackwardLazy(p1, p2 []uint64) {
-	inttConjugateInvariantLazy(p1, p2, rntt.n, rntt.modulus, rntt.nInv, rntt.mredConstant, rntt.mredConstant, rntt.rootsBackward)
+	inttConjugateInvariantLazy(p1, p2, rntt.n, *rntt.nInv, rntt.modulus, rntt.mredConstant, rntt.mredConstant, rntt.rootsBackward)
 }
 
 // NTT evaluates p2 = NTT(P1).

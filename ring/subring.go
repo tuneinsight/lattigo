@@ -310,6 +310,7 @@ func (s *SubRing) Decode(data []byte) (ptr int, err error) {
 
 	switch ringType {
 	case Standard:
+
 		s.ntt = NewNumberTheoreticTransformerStandard(s, s.N)
 
 		if int(s.NthRoot) < s.N<<1 {

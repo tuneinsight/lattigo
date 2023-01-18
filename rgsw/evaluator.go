@@ -122,8 +122,10 @@ func (eval *Evaluator) externalProductInPlaceSinglePAndBitDecomp(ct0 *rlwe.Ciphe
 	levelQ := rgsw.LevelQ()
 	levelP := rgsw.LevelP()
 
-	ringQ := eval.params.RingQ().AtLevel(levelQ)
-	ringP := eval.params.RingP().AtLevel(levelP)
+	ringQP := eval.params.RingQP().AtLevel(levelQ, levelP)
+
+	ringQ := ringQP.RingQ
+	ringP := ringQP.RingP
 
 	pw2 := eval.params.Pow2Base()
 	mask := uint64(((1 << pw2) - 1))
@@ -150,10 +152,12 @@ func (eval *Evaluator) externalProductInPlaceSinglePAndBitDecomp(ct0 *rlwe.Ciphe
 						s.MulCoeffsMontgomery(el.Value[i][j].Value[1].Q.Coeffs[u], cwNTT, c1QP.Q.Coeffs[u])
 					}
 
-					for u, s := range ringP.SubRings[:levelP+1] {
-						s.NTTLazy(cw, cwNTT)
-						s.MulCoeffsMontgomery(el.Value[i][j].Value[0].P.Coeffs[u], cwNTT, c0QP.P.Coeffs[u])
-						s.MulCoeffsMontgomery(el.Value[i][j].Value[1].P.Coeffs[u], cwNTT, c1QP.P.Coeffs[u])
+					if ringP != nil {
+						for u, s := range ringP.SubRings[:levelP+1] {
+							s.NTTLazy(cw, cwNTT)
+							s.MulCoeffsMontgomery(el.Value[i][j].Value[0].P.Coeffs[u], cwNTT, c0QP.P.Coeffs[u])
+							s.MulCoeffsMontgomery(el.Value[i][j].Value[1].P.Coeffs[u], cwNTT, c1QP.P.Coeffs[u])
+						}
 					}
 
 				} else {
@@ -164,10 +168,12 @@ func (eval *Evaluator) externalProductInPlaceSinglePAndBitDecomp(ct0 *rlwe.Ciphe
 						s.MulCoeffsMontgomeryThenAdd(el.Value[i][j].Value[1].Q.Coeffs[u], cwNTT, c1QP.Q.Coeffs[u])
 					}
 
-					for u, s := range ringP.SubRings[:levelP+1] {
-						s.NTTLazy(cw, cwNTT)
-						s.MulCoeffsMontgomeryThenAdd(el.Value[i][j].Value[0].P.Coeffs[u], cwNTT, c0QP.P.Coeffs[u])
-						s.MulCoeffsMontgomeryThenAdd(el.Value[i][j].Value[1].P.Coeffs[u], cwNTT, c1QP.P.Coeffs[u])
+					if ringP != nil {
+						for u, s := range ringP.SubRings[:levelP+1] {
+							s.NTTLazy(cw, cwNTT)
+							s.MulCoeffsMontgomeryThenAdd(el.Value[i][j].Value[0].P.Coeffs[u], cwNTT, c0QP.P.Coeffs[u])
+							s.MulCoeffsMontgomeryThenAdd(el.Value[i][j].Value[1].P.Coeffs[u], cwNTT, c1QP.P.Coeffs[u])
+						}
 					}
 				}
 			}

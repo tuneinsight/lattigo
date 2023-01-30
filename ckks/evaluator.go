@@ -373,7 +373,8 @@ func (eval *evaluator) NegNew(ct0 *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext) {
 	return
 }
 
-// AddConst adds the input constant (which can be a uint64, int64, float64 or complex128) to ct0 and returns the result in ctOut.
+// AddConst adds the input constant to ct0 and returns the result in ctOut.
+// The constant can be a complex128, float64, int, int64, uint64. *big.Float, *big.Int or *ring.Complex.
 func (eval *evaluator) AddConst(ct0 *rlwe.Ciphertext, constant interface{}, ct1 *rlwe.Ciphertext) {
 	level := utils.MinInt(ct0.Level(), ct1.Level())
 	ct1.Resize(ct0.Degree(), level)
@@ -381,7 +382,8 @@ func (eval *evaluator) AddConst(ct0 *rlwe.Ciphertext, constant interface{}, ct1 
 	eval.evaluateWithScalar(level, ct0.Value[:1], RNSReal, RNSImag, ct1.Value[:1], eval.params.RingQ().AtLevel(level).AddDoubleRNSScalar)
 }
 
-// AddConstNew adds the input constant (which can be a uint64, int64, float64 or complex128) to ct0 and returns the result in a new element.
+// AddConstNew adds the input constant to ct0 and returns the result in a new element.
+// The constant can be a complex128, float64, int, int64, uint64. *big.Float, *big.Int or *ring.Complex.
 func (eval *evaluator) AddConstNew(ct0 *rlwe.Ciphertext, constant interface{}) (ctOut *rlwe.Ciphertext) {
 	ctOut = ct0.CopyNew()
 	eval.AddConst(ct0, constant, ctOut)
@@ -395,12 +397,12 @@ func (eval *evaluator) AddConstNew(ct0 *rlwe.Ciphertext, constant interface{}) (
 // - ctIn.Scale == ctOut.Scale
 // - constant is not a Gaussian integer.
 //
-// If ctIn.Scale == ctOut.Scale then the constant will be scaled by Q[min(ctIn.Level(), ctOut.Level())]
-// else if ctOut.Scale > ctIn.Scale, the constant will be scaled by ctOut.Scale/ctIn.Scale.
+// If ctIn.Scale == ctOut.Scale, and constant is not a Gaussian integer, then the constant will be scaled by
+// Q[min(ctIn.Level(), ctOut.Level())] else if ctOut.Scale > ctIn.Scale, the constant will be scaled by ctOut.Scale/ctIn.Scale.
 //
-// To correctly use this function, either make sure that
-// - ctIn.Scale == ctOut.Scale
-// - ctOut.Scale = ctIn.Scale * Q[min(ctIn.Level(), ctOut.Level())]
+// To correctly use this function, make sure that either ctIn.Scale == ctOut.Scale or
+// ctOut.Scale = ctIn.Scale * Q[min(ctIn.Level(), ctOut.Level())].
+//
 // This function will panic if ctIn.Scale > ctOut.Scale.
 func (eval *evaluator) MultByConstThenAdd(ctIn *rlwe.Ciphertext, constant interface{}, ctOut *rlwe.Ciphertext) {
 
@@ -430,7 +432,7 @@ func (eval *evaluator) MultByConstThenAdd(ctIn *rlwe.Ciphertext, constant interf
 
 	} else if cmp == -1 { // ctOut.Scale > ctIn.Scale then the scaling factor for the constant becomes the quotient between the two scales
 		scaleRLWE = ctOut.Scale.Div(ctIn.Scale)
-	} else { // Else multiplies ctOut by scaleRLWE * ctIn.Scale / ctOut.Scale
+	} else {
 		panic("MultByConstThenAdd: ctIn.Scale > ctOut.Scale is not supported")
 	}
 
@@ -457,7 +459,8 @@ func (eval *evaluator) evaluateWithScalar(level int, p0 []*ring.Poly, RNSReal, R
 
 // MultByConstNew multiplies ct0 by the input constant and returns the result in a newly created element.
 // The scale of the output element will depend on the scale of the input element and the constant (if the constant
-// needs to be scaled (its rational part is not zero)). The constant can be a uint64, int64, float64 or complex128.
+// needs to be scaled (its rational part is not zero)).
+// The constant can be a complex128, float64, int, int64, uint64. *big.Float, *big.Int or *ring.Complex.
 func (eval *evaluator) MultByConstNew(ct0 *rlwe.Ciphertext, constant interface{}) (ctOut *rlwe.Ciphertext) {
 	ctOut = NewCiphertext(eval.params, ct0.Degree(), ct0.Level())
 	eval.MultByConst(ct0, constant, ctOut)
@@ -466,7 +469,8 @@ func (eval *evaluator) MultByConstNew(ct0 *rlwe.Ciphertext, constant interface{}
 
 // MultByConst multiplies ct0 by the input constant and returns the result in ctOut.
 // The scale of the output element will depend on the scale of the input element and the constant (if the constant
-// needs to be scaled (its rational part is not zero)). The constant can be a uint64, int64, float64 or complex128.
+// needs to be scaled (its rational part is not zero)).
+// The constant can be a complex128, float64, int, int64, uint64. *big.Float, *big.Int or *ring.Complex.
 func (eval *evaluator) MultByConst(ct0 *rlwe.Ciphertext, constant interface{}, ctOut *rlwe.Ciphertext) {
 
 	level := utils.MinInt(ct0.Level(), ctOut.Level())
@@ -491,23 +495,21 @@ func (eval *evaluator) MultByConst(ct0 *rlwe.Ciphertext, constant interface{}, c
 	ctOut.Scale = ct0.Scale.Mul(scale)
 }
 
-// ScaleUpNew multiplies ct0 by 2^scale and sets its scale to its previous scale
-// plus 2^n. It returns the result in a newly created element.
+// ScaleUpNew multiplies ct0 by scale and sets its scale to its previous scale times scale returns the result in ctOut.
 func (eval *evaluator) ScaleUpNew(ct0 *rlwe.Ciphertext, scale rlwe.Scale) (ctOut *rlwe.Ciphertext) {
 	ctOut = NewCiphertext(eval.params, ct0.Degree(), ct0.Level())
 	eval.ScaleUp(ct0, scale, ctOut)
 	return
 }
 
-// ScaleUp multiplies ct0 by 2^scale and sets its scale to its previous scale
-// plus 2^n. It returns the result in ctOut.
+// ScaleUp multiplies ct0 by scale and sets its scale to its previous scale times scale returns the result in ctOut.
 func (eval *evaluator) ScaleUp(ct0 *rlwe.Ciphertext, scale rlwe.Scale, ctOut *rlwe.Ciphertext) {
 	eval.MultByConst(ct0, scale.Uint64(), ctOut)
 	ctOut.MetaData = ct0.MetaData
 	ctOut.Scale = ct0.Scale.Mul(scale)
 }
 
-// SetScale sets the scale of the ciphertext to the input scale (consumes a level)
+// SetScale sets the scale of the ciphertext to the input scale (consumes a level).
 func (eval *evaluator) SetScale(ct *rlwe.Ciphertext, scale rlwe.Scale) {
 
 	eval.MultByConst(ct, scale.Float64()/ct.Scale.Float64(), ct)

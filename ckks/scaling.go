@@ -54,8 +54,6 @@ func valueToBigComplex(value interface{}, prec uint) (cmplx *ring.Complex) {
 
 func bigComplexToRNSScalar(r *ring.Ring, scale *big.Float, cmplx *ring.Complex) (RNSReal, RNSImag ring.RNSScalar) {
 
-	//fmt.Println(cmplx, scale)
-
 	if scale == nil {
 		scale = new(big.Float).SetFloat64(1)
 	}
@@ -73,7 +71,7 @@ func bigComplexToRNSScalar(r *ring.Ring, scale *big.Float, cmplx *ring.Complex) 
 	return r.NewRNSScalarFromBigint(real), r.NewRNSScalarFromBigint(imag)
 }
 
-// Divides x by n^2, returns a float
+// Divides x by n, returns a float.
 func scaleDown(coeff *big.Int, n float64) (x float64) {
 
 	x, _ = new(big.Float).SetInt(coeff).Float64()

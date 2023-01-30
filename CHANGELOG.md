@@ -12,10 +12,12 @@ All notable changes to this library are documented in this file.
 - BFV: removed `Evaluator` methods `AddNoMod`, `AddNoModNew`, `SubNoMod`, `SubNoModNew`, `Reduce`, `ReduceNew`.
 - BFV: replaced `bfv.Evaluator.InnerSum` with the more complete `rlwe.Evaluator.InnerSum`.
 - BFV: the `Evaluator` addition and subtraction no longer enforce BFV-specific operand types.
+- BFV: the maximum degree allowed for ciphertext mutliplication has been reduced to two (same as `bgv` and `ckks`).
 - CKKS: added the `Polynomial.Lazy` field which specifies if the power basis is computed with lazy relinearization.
 - CKKS: made `NttAndMontgomery` thread safe again!
 - CKKS: removed `Evaluator` methods `MultByGaussianInteger`, `MultByGaussianIntegerThenAdd`, `MultByi`, `MultByiNew`, `DivByi` and `DivByiNew`. These are now all handled by the methods `MultByConst[...]`.
 - CKKS: updated the behavior of `MultByConstAndAdd`.
+- CKKS: fixed the median statistics of `PrecisionStats`, that were off by one index. 
 - RLWE: added `CheckBinary` and `CheckUnary` to the `Evaluator` type. It performs pre-checks on operands of the `Evaluator` methods.
 - RLWE: added the `MaxLevelQ` and `MaxLevelP` methods to the `Parameters` type.
 - RLWE: added the method `NewCiphertextQP`.

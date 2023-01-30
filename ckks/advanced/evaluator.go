@@ -144,7 +144,7 @@ func (eval *evaluator) CoeffsToSlots(ctIn *rlwe.Ciphertext, ctsMatrices Encoding
 
 		// Imag part
 		eval.Sub(zV, ctReal, tmp)
-		eval.MultByConst(tmp, complex(0, -1), tmp)
+		eval.MultByConst(tmp, -1i, tmp)
 
 		// Real part
 		eval.Add(ctReal, zV, ctReal)
@@ -184,7 +184,7 @@ func (eval *evaluator) SlotsToCoeffsNew(ctReal, ctImag *rlwe.Ciphertext, stcMatr
 func (eval *evaluator) SlotsToCoeffs(ctReal, ctImag *rlwe.Ciphertext, stcMatrices EncodingMatrix, ctOut *rlwe.Ciphertext) {
 	// If full packing, the repacking can be done directly using ct0 and ct1.
 	if ctImag != nil {
-		eval.MultByConst(ctImag, complex(0, 1), ctOut)
+		eval.MultByConst(ctImag, 1i, ctOut)
 		eval.Add(ctOut, ctReal, ctOut)
 		eval.dft(ctOut, stcMatrices.matrices, ctOut)
 	} else {

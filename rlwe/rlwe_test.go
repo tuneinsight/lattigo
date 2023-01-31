@@ -48,7 +48,7 @@ func TestRLWE(t *testing.T) {
 		defaultParams = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
-	for _, defaultParam := range defaultParams[:1] {
+	for _, defaultParam := range defaultParams[:] {
 
 		var params Parameters
 		if params, err = NewParametersFromLiteral(defaultParam); err != nil {

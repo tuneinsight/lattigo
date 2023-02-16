@@ -96,7 +96,7 @@ func (r *Ring) ConjugateInvariantRing() (*Ring, error) {
 			return nil, err
 		}
 
-		factors[i] = s.Factors // Alocates factor for faster generation
+		factors[i] = s.Factors // Allocates factor for faster generation
 	}
 
 	return &cr, cr.generateNTTConstants(nil, factors)
@@ -126,7 +126,7 @@ func (r *Ring) StandardRing() (*Ring, error) {
 			return nil, err
 		}
 
-		factors[i] = s.Factors // Alocates factor for faster generation
+		factors[i] = s.Factors // Allocates factor for faster generation
 	}
 
 	return &sr, sr.generateNTTConstants(nil, factors)
@@ -152,7 +152,7 @@ func (r *Ring) Level() int {
 	return r.level
 }
 
-// AtLevel returns a shallowcopy of the target ring that operates at the target level.
+// AtLevel returns a shallow copy of the target ring that operates at the target level.
 func (r *Ring) AtLevel(level int) *Ring {
 
 	if level < 0 {

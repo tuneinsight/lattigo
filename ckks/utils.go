@@ -261,7 +261,7 @@ func scaleUpVecExactBigFloat(values []*big.Float, scale float64, moduli []uint64
 	}
 }
 
-// SliceBitReverseInPlaceComplex128 applies an in-place bit-reverse permuation on the input slice.
+// SliceBitReverseInPlaceComplex128 applies an in-place bit-reverse permutation on the input slice.
 func SliceBitReverseInPlaceComplex128(slice []complex128, N int) {
 
 	var bit, j int
@@ -283,7 +283,7 @@ func SliceBitReverseInPlaceComplex128(slice []complex128, N int) {
 	}
 }
 
-// SliceBitReverseInPlaceFloat64 applies an in-place bit-reverse permuation on the input slice.
+// SliceBitReverseInPlaceFloat64 applies an in-place bit-reverse permutation on the input slice.
 func SliceBitReverseInPlaceFloat64(slice []float64, N int) {
 
 	var bit, j int
@@ -305,7 +305,7 @@ func SliceBitReverseInPlaceFloat64(slice []float64, N int) {
 	}
 }
 
-// SliceBitReverseInPlaceRingComplex applies an in-place bit-reverse permuation on the input slice.
+// SliceBitReverseInPlaceRingComplex applies an in-place bit-reverse permutation on the input slice.
 func SliceBitReverseInPlaceRingComplex(slice []*ring.Complex, N int) {
 
 	var bit, j int

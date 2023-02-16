@@ -51,7 +51,7 @@ func (r *Ring) SubRNSScalar(s1, s2, sout RNSScalar) {
 }
 
 // MulRNSScalar multiplies s1 and s2 and stores the result in sout.
-// Multiplication is oprated with Montgomery.
+// Multiplication is operated with Montgomery.
 func (r *Ring) MulRNSScalar(s1, s2, sout RNSScalar) {
 	for i, s := range r.SubRings[:r.level+1] {
 		sout[i] = MRedLazy(s1[i], s2[i], s.Modulus, s.MRedConstant)

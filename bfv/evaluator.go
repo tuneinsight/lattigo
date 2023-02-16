@@ -10,7 +10,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
-// Evaluator is an interface implementing the public methodes of the eval.
+// Evaluator is an interface implementing the public methods of the eval.
 type Evaluator interface {
 	Add(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext)
 	AddNew(ctIn *rlwe.Ciphertext, op1 rlwe.Operand) (ctOut *rlwe.Ciphertext)

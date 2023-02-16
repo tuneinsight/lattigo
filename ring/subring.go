@@ -88,7 +88,7 @@ func (s *SubRing) Type() Type {
 
 // generateNTTConstants generates the NTT constant for the target SubRing.
 // The fields `PrimitiveRoot` and `Factors` can be set manually to
-// bypasse the search for the primitive root (which requires to
+// bypass the search for the primitive root (which requires to
 // factor Modulus-1) and speedup the generation of the constants.
 func (s *SubRing) generateNTTConstants() (err error) {
 
@@ -109,9 +109,9 @@ func (s *SubRing) generateNTTConstants() (err error) {
 	}
 
 	// It is possible to manually set the primitive root along with the factors of q-1.
-	// This is notably useful when marhsalling the SubRing, to avoid re-factoring q-1.
+	// This is notably useful when marshalling the SubRing, to avoid re-factoring q-1.
 	// If both are set, then checks that that the root is indeed primitive.
-	// Else, factorize q-1 and finds a primitive roos.
+	// Else, factorize q-1 and finds a primitive root.
 	if s.PrimitiveRoot != 0 && s.Factors != nil {
 		if err = CheckPrimitiveRoot(s.PrimitiveRoot, s.Modulus, s.Factors); err != nil {
 			return
@@ -153,7 +153,7 @@ func (s *SubRing) generateNTTConstants() (err error) {
 }
 
 // PrimitiveRoot computes the smallest primitive root of the given prime q
-// The unique factors of q-1 can be given to speed up the search for the roos.
+// The unique factors of q-1 can be given to speed up the search for the root.
 func PrimitiveRoot(q uint64, factors []uint64) (uint64, []uint64, error) {
 
 	if factors != nil {
@@ -211,7 +211,7 @@ func CheckFactors(m uint64, factors []uint64) (err error) {
 	return
 }
 
-// CheckPrimitiveRoot checks that g is a valid primtive root mod q,
+// CheckPrimitiveRoot checks that g is a valid primitive root mod q,
 // given the factors of q-1.
 func CheckPrimitiveRoot(g, q uint64, factors []uint64) (err error) {
 

@@ -30,6 +30,8 @@ func NewGaussianSampler(prng utils.PRNG, baseRing *Ring, sigma float64, bound in
 	return
 }
 
+// AtLevel returns an instance of the target GaussianSampler that operates at the target level.
+// This instance is not thread safe and cannot be used concurrently to the base instance.
 func (g *GaussianSampler) AtLevel(level int) *GaussianSampler {
 	return &GaussianSampler{
 		baseSampler:   g.baseSampler.AtLevel(level),

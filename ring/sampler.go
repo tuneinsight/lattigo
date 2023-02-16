@@ -11,6 +11,8 @@ type baseSampler struct {
 	baseRing *Ring
 }
 
+// AtLevel returns an instance of the target base sampler that operates at the target level.
+// This instance is not thread safe and cannot be used concurrently to the base instance.
 func (b *baseSampler) AtLevel(level int) baseSampler {
 	return baseSampler{
 		prng:     b.prng,

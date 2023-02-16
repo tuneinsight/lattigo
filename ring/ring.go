@@ -152,7 +152,8 @@ func (r *Ring) Level() int {
 	return r.level
 }
 
-// AtLevel returns a shallow copy of the target ring that operates at the target level.
+// AtLevel returns an instance of the target ring that operates at the target level.
+// This instance is thread safe and can be use concurrently with the base ring.
 func (r *Ring) AtLevel(level int) *Ring {
 
 	if level < 0 {

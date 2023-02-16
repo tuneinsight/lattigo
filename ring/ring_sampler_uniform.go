@@ -21,6 +21,8 @@ func NewUniformSampler(prng utils.PRNG, baseRing *Ring) *UniformSampler {
 	return uniformSampler
 }
 
+// AtLevel returns an instance of the target UniformSampler that operates at the target level.
+// This instance is not thread safe and cannot be used concurrently to the base instance.
 func (u *UniformSampler) AtLevel(level int) *UniformSampler {
 	return &UniformSampler{
 		baseSampler:   u.baseSampler.AtLevel(level),

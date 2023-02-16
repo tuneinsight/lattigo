@@ -47,7 +47,7 @@ func NewRNSScaler(ringQ *ring.Ring, T uint64) (rnss *RNSScaler) {
 	rnss.buffQ = ringQ.NewPoly()
 
 	rnss.ringT = new(ring.Ring)
-	rnss.ringT.SubRings = []*ring.SubRing{&ring.SubRing{}}
+	rnss.ringT.SubRings = []*ring.SubRing{{}}
 	rnss.ringT.SubRings[0].N = ringQ.N()
 	rnss.ringT.SubRings[0].Modulus = T
 	rnss.ringT.SubRings[0].BRedConstant = ring.BRedConstant(T)

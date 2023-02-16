@@ -36,6 +36,8 @@ func NewTernarySampler(prng utils.PRNG, baseRing *Ring, p float64, montgomery bo
 	return ternarySampler
 }
 
+// AtLevel returns an instance of the target TernarySampler that operates at the target level.
+// This instance is not thread safe and cannot be used concurrently to the base instance.
 func (ts *TernarySampler) AtLevel(level int) *TernarySampler {
 	return &TernarySampler{
 		baseSampler:  ts.baseSampler.AtLevel(level),

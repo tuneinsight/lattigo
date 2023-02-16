@@ -70,21 +70,18 @@ func (e2s *E2SProtocol) AllocateShare(level int) (share *drlwe.CKSShare) {
 // value for logBound.
 func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, logSlots int, ct *rlwe.Ciphertext, secretShareOut *rlwe.AdditiveShareBigint, publicShareOut *drlwe.CKSShare) {
 
-	ringQ := e2s.params.RingQ()
-
 	ct1 := ct.Value[1]
 
 	levelQ := utils.MinInt(ct1.Level(), publicShareOut.Value.Level())
+
+	ringQ := e2s.params.RingQ().AtLevel(levelQ)
 
 	// Get the upperbound on the norm
 	// Ensures that bound >= 2^{128+logbound}
 	bound := ring.NewUint(1)
 	bound.Lsh(bound, uint(logBound))
 
-	boundMax := ring.NewUint(ringQ.Modulus[0])
-	for i := 1; i < levelQ+1; i++ {
-		boundMax.Mul(boundMax, ring.NewUint(ringQ.Modulus[i]))
-	}
+	boundMax := new(big.Int).Set(ringQ.ModulusAtLevel[levelQ])
 
 	var sign int
 
@@ -116,13 +113,13 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, logSlots int
 	// Generates an encryption of zero and subtracts the mask
 	e2s.CKSProtocol.GenShare(sk, e2s.zero, ct, publicShareOut)
 
-	ringQ.SetCoefficientsBigintLvl(levelQ, secretShareOut.Value[:dslots], e2s.buff)
+	ringQ.SetCoefficientsBigint(secretShareOut.Value[:dslots], e2s.buff)
 
 	// Maps Y^{N/n} -> X^{N} in Montgomery and NTT
-	ckks.NttAndMontgomeryLvl(levelQ, logSlots, ringQ, false, e2s.buff)
+	ckks.NttSparseAndMontgomery(ringQ, logSlots, false, e2s.buff)
 
 	// Subtracts the mask to the encryption of zero
-	ringQ.SubLvl(levelQ, publicShareOut.Value, e2s.buff, publicShareOut.Value)
+	ringQ.Sub(publicShareOut.Value, e2s.buff, publicShareOut.Value)
 }
 
 // GetShare is the final step of the encryption-to-share protocol. It performs the masked decryption of the target ciphertext followed by a
@@ -132,25 +129,25 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, logSlots int
 // the secretShareOut output of the GenShare method.
 func (e2s *E2SProtocol) GetShare(secretShare *rlwe.AdditiveShareBigint, aggregatePublicShare *drlwe.CKSShare, logSlots int, ct *rlwe.Ciphertext, secretShareOut *rlwe.AdditiveShareBigint) {
 
-	ringQ := e2s.params.RingQ()
-
 	levelQ := utils.MinInt(ct.Level(), aggregatePublicShare.Value.Level())
 
+	ringQ := e2s.params.RingQ().AtLevel(levelQ)
+
 	// Adds the decryption share on the ciphertext and stores the result in a buff
-	ringQ.AddLvl(levelQ, aggregatePublicShare.Value, ct.Value[0], e2s.buff)
+	ringQ.Add(aggregatePublicShare.Value, ct.Value[0], e2s.buff)
 
 	// Switches the LSSS RNS NTT ciphertext outside of the NTT domain
-	ringQ.InvNTTLvl(levelQ, e2s.buff, e2s.buff)
+	ringQ.INTT(e2s.buff, e2s.buff)
 
 	dslots := 1 << logSlots
 	if ringQ.Type() == ring.Standard {
 		dslots *= 2
 	}
 
-	gap := ringQ.N / dslots
+	gap := ringQ.N() / dslots
 
 	// Switches the LSSS RNS ciphertext outside of the RNS domain
-	ringQ.PolyToBigintCenteredLvl(levelQ, e2s.buff, gap, e2s.maskBigint)
+	ringQ.PolyToBigintCentered(e2s.buff, gap, e2s.maskBigint)
 
 	// Subtracts the last mask
 	if secretShare != nil {
@@ -212,9 +209,9 @@ func (s2e S2EProtocol) AllocateShare(level int) (share *drlwe.CKSShare) {
 // polynomial sampled from the CRS `c1` and the party's secret share of the message.
 func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.CKSCRP, logSlots int, secretShare *rlwe.AdditiveShareBigint, c0ShareOut *drlwe.CKSShare) {
 
-	ringQ := s2e.params.RingQ()
-
 	c1 := ring.Poly(crs)
+
+	ringQ := s2e.params.RingQ().AtLevel(c1.Level())
 
 	if c1.Level() != c0ShareOut.Value.Level() {
 		panic("cannot GenShare: c1 and c0ShareOut level must be equal")
@@ -228,12 +225,12 @@ func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.CKSCRP, logSlots 
 		dslots *= 2
 	}
 
-	ringQ.SetCoefficientsBigintLvl(c1.Level(), secretShare.Value[:dslots], s2e.tmp)
+	ringQ.SetCoefficientsBigint(secretShare.Value[:dslots], s2e.tmp)
 
 	// Maps Y^{N/n} -> X^{N} in Montgomery and NTT
-	ckks.NttAndMontgomeryLvl(c1.Level(), logSlots, ringQ, false, s2e.tmp)
+	ckks.NttSparseAndMontgomery(ringQ, logSlots, false, s2e.tmp)
 
-	ringQ.AddLvl(c1.Level(), c0ShareOut.Value, s2e.tmp, c0ShareOut.Value)
+	ringQ.Add(c0ShareOut.Value, s2e.tmp, c0ShareOut.Value)
 }
 
 // GetEncryption computes the final encryption of the secret-shared message when provided with the aggregation `c0Agg` of the parties'

@@ -135,7 +135,7 @@ func benchRotKeyGen(params rlwe.Parameters, b *testing.B) {
 		}
 	})
 
-	rotKey := rlwe.NewSwitchingKey(params, params.QCount()-1, params.PCount()-1)
+	rotKey := rlwe.NewSwitchingKey(params, params.MaxLevelQ(), params.MaxLevelP())
 	b.Run(benchString("RotKeyGen/Finalize", params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			rtg.GenRotationKey(share, crp, rotKey)

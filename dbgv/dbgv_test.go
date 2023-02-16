@@ -132,12 +132,12 @@ func gentestContext(nParties int, params bgv.Parameters) (tc *testContext, err e
 	tc.sk0 = rlwe.NewSecretKey(tc.params.Parameters)
 	tc.sk1 = rlwe.NewSecretKey(tc.params.Parameters)
 
-	ringQP, levelQ, levelP := params.RingQP(), params.QCount()-1, params.PCount()-1
+	ringQP := params.RingQP()
 	for j := 0; j < nParties; j++ {
 		tc.sk0Shards[j] = kgen.GenSecretKey()
 		tc.sk1Shards[j] = kgen.GenSecretKey()
-		ringQP.AddLvl(levelQ, levelP, tc.sk0.Value, tc.sk0Shards[j].Value, tc.sk0.Value)
-		ringQP.AddLvl(levelQ, levelP, tc.sk1.Value, tc.sk1Shards[j].Value, tc.sk1.Value)
+		ringQP.Add(tc.sk0.Value, tc.sk0Shards[j].Value, tc.sk0.Value)
+		ringQP.Add(tc.sk1.Value, tc.sk1Shards[j].Value, tc.sk1.Value)
 	}
 
 	// Publickeys

@@ -100,8 +100,10 @@ func (thr *Thresholdizer) GenShamirSecretShare(recipient ShamirPublicPoint, secr
 
 // AggregateShares aggregates two ShamirSecretShare and stores the result in outShare.
 func (thr *Thresholdizer) AggregateShares(share1, share2, outShare *ShamirSecretShare) {
-	lvlQ, lvlP := thr.params.QCount()-1, thr.params.PCount()-1
-	thr.ringQP.AddLvl(lvlQ, lvlP, share1.Poly, share2.Poly, outShare.Poly)
+	if share1.LevelQ() != share2.LevelQ() || share1.LevelQ() != outShare.LevelQ() || share1.LevelP() != share2.LevelP() || share1.LevelP() != outShare.LevelP() {
+		panic("shares level do not match")
+	}
+	thr.ringQP.AtLevel(share1.LevelQ(), share1.LevelP()).Add(share1.Poly, share2.Poly, outShare.Poly)
 }
 
 // NewCombiner creates a new Combiner struct from the parameters and the set of ShamirPublicPoints. Note that the other
@@ -113,13 +115,13 @@ func NewCombiner(params rlwe.Parameters, own ShamirPublicPoint, others []ShamirP
 	cmb.tmp1, cmb.tmp2 = cmb.ringQP.NewRNSScalar(), cmb.ringQP.NewRNSScalar()
 	cmb.one = cmb.ringQP.NewRNSScalarFromUInt64(1)
 
-	qlen := len(cmb.ringQP.RingQ.Modulus)
-	for i, qi := range cmb.ringQP.RingQ.Modulus {
-		cmb.one[i] = ring.MForm(cmb.one[i], qi, cmb.ringQP.RingQ.BredParams[i])
+	qlen := cmb.ringQP.RingQ.ModuliChainLength()
+	for i, s := range cmb.ringQP.RingQ.SubRings {
+		cmb.one[i] = ring.MForm(cmb.one[i], s.Modulus, s.BRedConstant)
 	}
 	if cmb.ringQP.RingP != nil {
-		for i, pi := range cmb.ringQP.RingP.Modulus {
-			cmb.one[i+qlen] = ring.MForm(cmb.one[i+qlen], pi, cmb.ringQP.RingP.BredParams[i])
+		for i, s := range cmb.ringQP.RingP.SubRings {
+			cmb.one[i+qlen] = ring.MForm(cmb.one[i+qlen], s.Modulus, s.BRedConstant)
 		}
 	}
 

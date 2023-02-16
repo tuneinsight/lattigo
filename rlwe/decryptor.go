@@ -49,9 +49,9 @@ func (d *decryptor) DecryptNew(ct *Ciphertext) (pt *Plaintext) {
 // Output pt MetaData will match the input ct MetaData.
 func (d *decryptor) Decrypt(ct *Ciphertext, pt *Plaintext) {
 
-	ringQ := d.ringQ
-
 	level := utils.MinInt(ct.Level(), pt.Level())
+
+	ringQ := d.ringQ.AtLevel(level)
 
 	pt.Value.Resize(level)
 
@@ -60,31 +60,31 @@ func (d *decryptor) Decrypt(ct *Ciphertext, pt *Plaintext) {
 	if ct.IsNTT {
 		ring.CopyLvl(level, ct.Value[ct.Degree()], pt.Value)
 	} else {
-		ringQ.NTTLazyLvl(level, ct.Value[ct.Degree()], pt.Value)
+		ringQ.NTTLazy(ct.Value[ct.Degree()], pt.Value)
 	}
 
 	for i := ct.Degree(); i > 0; i-- {
 
-		ringQ.MulCoeffsMontgomeryLvl(level, pt.Value, d.sk.Value.Q, pt.Value)
+		ringQ.MulCoeffsMontgomery(pt.Value, d.sk.Value.Q, pt.Value)
 
 		if !ct.IsNTT {
-			ringQ.NTTLazyLvl(level, ct.Value[i-1], d.buff)
-			ringQ.AddLvl(level, pt.Value, d.buff, pt.Value)
+			ringQ.NTTLazy(ct.Value[i-1], d.buff)
+			ringQ.Add(pt.Value, d.buff, pt.Value)
 		} else {
-			ringQ.AddLvl(level, pt.Value, ct.Value[i-1], pt.Value)
+			ringQ.Add(pt.Value, ct.Value[i-1], pt.Value)
 		}
 
 		if i&7 == 7 {
-			ringQ.ReduceLvl(level, pt.Value, pt.Value)
+			ringQ.Reduce(pt.Value, pt.Value)
 		}
 	}
 
 	if (ct.Degree())&7 != 7 {
-		ringQ.ReduceLvl(level, pt.Value, pt.Value)
+		ringQ.Reduce(pt.Value, pt.Value)
 	}
 
 	if !ct.IsNTT {
-		ringQ.InvNTTLvl(level, pt.Value, pt.Value)
+		ringQ.INTT(pt.Value, pt.Value)
 	}
 }
 

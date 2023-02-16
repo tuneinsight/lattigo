@@ -417,7 +417,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(pol polynomialVe
 			// ciphertext
 			if toEncode {
 				polyEval.EncodeMul(values, &PlaintextMul{pt})
-				polyEval.MulAndAdd(X[key], &PlaintextMul{pt}, res)
+				polyEval.MulThenAdd(X[key], &PlaintextMul{pt}, res)
 				toEncode = false
 			}
 		}
@@ -446,7 +446,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(pol polynomialVe
 		for key := pol.Value[0].Degree(); key > 0; key-- {
 			c = pol.Value[0].Coeffs[key]
 			if key != 0 && c != 0 {
-				polyEval.MulScalarAndAdd(X[key], c, res)
+				polyEval.MulScalarThenAdd(X[key], c, res)
 			}
 		}
 	}

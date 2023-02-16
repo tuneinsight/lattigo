@@ -13,14 +13,17 @@ type GadgetCiphertext struct {
 
 // NewGadgetCiphertext returns a new Ciphertext key with pre-allocated zero-value.
 // Ciphertext is always in the NTT domain.
-func NewGadgetCiphertext(levelQ, levelP, decompRNS, decompBIT int, ringQP ringqp.Ring) (ct *GadgetCiphertext) {
+func NewGadgetCiphertext(params Parameters, levelQ, levelP, decompRNS, decompBIT int) (ct *GadgetCiphertext) {
+
+	ringQP := params.RingQP().AtLevel(levelQ, levelP)
+
 	ct = new(GadgetCiphertext)
 	ct.Value = make([][]CiphertextQP, decompRNS)
 	for i := 0; i < decompRNS; i++ {
 		ct.Value[i] = make([]CiphertextQP, decompBIT)
 		for j := 0; j < decompBIT; j++ {
-			ct.Value[i][j].Value[0] = ringQP.NewPolyLvl(levelQ, levelP)
-			ct.Value[i][j].Value[1] = ringQP.NewPolyLvl(levelQ, levelP)
+			ct.Value[i][j].Value[0] = ringQP.NewPoly()
+			ct.Value[i][j].Value[1] = ringQP.NewPoly()
 			ct.Value[i][j].IsNTT = true
 			ct.Value[i][j].IsMontgomery = true
 		}
@@ -173,16 +176,17 @@ func (ct *GadgetCiphertext) Decode(data []byte) (ptr int, err error) {
 // len(cts) > 2.
 func AddPolyTimesGadgetVectorToGadgetCiphertext(pt *ring.Poly, cts []GadgetCiphertext, ringQP ringqp.Ring, logbase2 int, buff *ring.Poly) {
 
-	ringQ := ringQP.RingQ
 	levelQ := cts[0].LevelQ()
 	levelP := cts[0].LevelP()
+
+	ringQ := ringQP.RingQ.AtLevel(levelQ)
 
 	if len(cts) > 2 {
 		panic("cannot AddPolyTimesGadgetVectorToGadgetCiphertext: len(cts) should be <= 2")
 	}
 
 	if levelP != -1 {
-		ringQ.MulScalarBigintLvl(levelQ, pt, ringQP.RingP.ModulusAtLevel[levelP], buff) // P * pt
+		ringQ.MulScalarBigint(pt, ringQP.RingP.AtLevel(levelP).Modulus(), buff) // P * pt
 	} else {
 		levelP = 0
 		if pt != buff {
@@ -192,6 +196,7 @@ func AddPolyTimesGadgetVectorToGadgetCiphertext(pt *ring.Poly, cts []GadgetCiphe
 
 	RNSDecomp := len(cts[0].Value)
 	BITDecomp := len(cts[0].Value[0])
+	N := ringQ.N()
 
 	var index int
 	for j := 0; j < BITDecomp; j++ {
@@ -213,12 +218,12 @@ func AddPolyTimesGadgetVectorToGadgetCiphertext(pt *ring.Poly, cts []GadgetCiphe
 					break
 				}
 
-				qi := ringQ.Modulus[index]
+				qi := ringQ.SubRings[index].Modulus
 				p0tmp := buff.Coeffs[index]
 
 				for u, ct := range cts {
 					p1tmp := ct.Value[i][j].Value[u].Q.Coeffs[index]
-					for w := 0; w < ringQ.N; w++ {
+					for w := 0; w < N; w++ {
 						p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi)
 					}
 				}
@@ -235,13 +240,13 @@ func AddPolyTimesGadgetVectorToGadgetCiphertext(pt *ring.Poly, cts []GadgetCiphe
 // plaintext times the RNS and BIT decomposition to the list of ringqp.Poly.
 func AddPolyToGadgetMatrix(pt *ring.Poly, gm [][]ringqp.Poly, ringQP ringqp.Ring, logbase2 int, buff *ring.Poly) {
 
-	ringQ := ringQP.RingQ
-
 	levelQ := gm[0][0].LevelQ()
 	levelP := gm[0][0].LevelP()
 
+	ringQ := ringQP.RingQ.AtLevel(levelQ)
+
 	if levelP != -1 {
-		ringQ.MulScalarBigintLvl(levelQ, pt, ringQP.RingP.ModulusAtLevel[levelP], buff) // P * pt
+		ringQ.MulScalarBigint(pt, ringQP.RingP.AtLevel(levelP).Modulus(), buff) // P * pt
 	} else {
 		levelP = 0
 		if pt != buff {
@@ -251,6 +256,7 @@ func AddPolyToGadgetMatrix(pt *ring.Poly, gm [][]ringqp.Poly, ringQP ringqp.Ring
 
 	RNSDecomp := len(gm)
 	BITDecomp := len(gm[0])
+	N := ringQ.N()
 
 	var index int
 	for j := 0; j < BITDecomp; j++ {
@@ -272,11 +278,11 @@ func AddPolyToGadgetMatrix(pt *ring.Poly, gm [][]ringqp.Poly, ringQP ringqp.Ring
 					break
 				}
 
-				qi := ringQ.Modulus[index]
+				qi := ringQ.SubRings[index].Modulus
 				p0tmp := buff.Coeffs[index]
 
 				p1tmp := gm[i][j].Q.Coeffs[index]
-				for w := 0; w < ringQ.N; w++ {
+				for w := 0; w < N; w++ {
 					p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi)
 				}
 			}
@@ -294,27 +300,27 @@ type GadgetPlaintext struct {
 
 // NewGadgetPlaintext creates a new gadget plaintext from value, which can be either uint64, int64 or *ring.Poly.
 // Plaintext is returned in the NTT and Mongtomery domain.
-func NewGadgetPlaintext(value interface{}, levelQ, levelP, logBase2, decompBIT int, ringQP ringqp.Ring) (pt *GadgetPlaintext) {
+func NewGadgetPlaintext(params Parameters, value interface{}, levelQ, levelP, logBase2, decompBIT int) (pt *GadgetPlaintext) {
 
-	ringQ := ringQP.RingQ
+	ringQ := params.RingQP().RingQ.AtLevel(levelQ)
 
 	pt = new(GadgetPlaintext)
 	pt.Value = make([]*ring.Poly, decompBIT)
 
 	switch el := value.(type) {
 	case uint64:
-		pt.Value[0] = ringQ.NewPolyLvl(levelQ)
-		for i := range ringQ.Modulus[:levelQ+1] {
+		pt.Value[0] = ringQ.NewPoly()
+		for i := 0; i < levelQ+1; i++ {
 			pt.Value[0].Coeffs[i][0] = el
 		}
 	case int64:
-		pt.Value[0] = ringQ.NewPolyLvl(levelQ)
+		pt.Value[0] = ringQ.NewPoly()
 		if el < 0 {
-			for i, qi := range ringQ.Modulus[:levelQ+1] {
-				pt.Value[0].Coeffs[i][0] = qi - uint64(-el)
+			for i := 0; i < levelQ+1; i++ {
+				pt.Value[0].Coeffs[i][0] = ringQ.SubRings[i].Modulus - uint64(-el)
 			}
 		} else {
-			for i := range ringQ.Modulus[:levelQ+1] {
+			for i := 0; i < levelQ+1; i++ {
 				pt.Value[0].Coeffs[i][0] = uint64(el)
 			}
 		}
@@ -325,15 +331,20 @@ func NewGadgetPlaintext(value interface{}, levelQ, levelP, logBase2, decompBIT i
 	}
 
 	if levelP > -1 {
-		ringQ.MulScalarBigintLvl(levelQ, pt.Value[0], ringQP.RingP.ModulusAtLevel[levelP], pt.Value[0])
+		ringQ.MulScalarBigint(pt.Value[0], params.RingP().AtLevel(levelP).Modulus(), pt.Value[0])
 	}
 
-	ringQ.NTTLvl(levelQ, pt.Value[0], pt.Value[0])
-	ringQ.MFormLvl(levelQ, pt.Value[0], pt.Value[0])
+	ringQ.NTT(pt.Value[0], pt.Value[0])
+	ringQ.MForm(pt.Value[0], pt.Value[0])
 
 	for i := 1; i < len(pt.Value); i++ {
+
 		pt.Value[i] = pt.Value[0].CopyNew()
-		ringQ.MulByPow2Lvl(levelQ, pt.Value[i], i*logBase2, pt.Value[i])
+
+		for j := 0; j < i; j++ {
+			ringQ.MulScalar(pt.Value[i], 1<<logBase2, pt.Value[i])
+		}
+
 	}
 
 	return

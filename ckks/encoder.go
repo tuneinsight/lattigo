@@ -67,7 +67,6 @@ type Encoder interface {
 // encoder is a struct storing the necessary parameters to encode a slice of complex number on a Plaintext.
 type encoder struct {
 	params       Parameters
-	bigintChain  []*big.Int
 	bigintCoeffs []*big.Int
 	qHalf        *big.Int
 	buff         *ring.Poly
@@ -96,7 +95,6 @@ func (ecd *encoder) ShallowCopy() *encoder {
 
 	return &encoder{
 		params:          ecd.params,
-		bigintChain:     ecd.bigintChain,
 		bigintCoeffs:    make([]*big.Int, ecd.m>>1),
 		qHalf:           ring.NewUint(0),
 		buff:            ecd.params.RingQ().NewPoly(),
@@ -108,7 +106,7 @@ func (ecd *encoder) ShallowCopy() *encoder {
 
 func newEncoder(params Parameters) encoder {
 
-	m := int(params.RingQ().NthRoot)
+	m := int(params.RingQ().NthRoot())
 
 	rotGroup := make([]int, m>>1)
 	fivePows := 1
@@ -127,7 +125,6 @@ func newEncoder(params Parameters) encoder {
 
 	return encoder{
 		params:          params,
-		bigintChain:     genBigIntChain(params.Q()),
 		bigintCoeffs:    make([]*big.Int, m>>1),
 		qHalf:           ring.NewUint(0),
 		buff:            params.RingQ().NewPoly(),
@@ -233,7 +230,7 @@ func (ecd *encoderComplex128) EncodeCoeffs(values []float64, plaintext *rlwe.Pla
 	}
 
 	floatToFixedPointCRT(plaintext.Level(), values, plaintext.Scale.Float64(), ecd.params.RingQ(), plaintext.Value.Coeffs)
-	ecd.params.RingQ().NTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
+	ecd.params.RingQ().AtLevel(plaintext.Level()).NTT(plaintext.Value, plaintext.Value)
 }
 
 // EncodeCoeffsNew encodes the values on the coefficient of a new plaintext.
@@ -394,15 +391,15 @@ func (ecd *encoderComplex128) Embed(values interface{}, logSlots int, scale rlwe
 	switch p := polyOut.(type) {
 	case ringqp.Poly:
 		complexToFixedPointCRT(p.Q.Level(), ecd.values[:slots], scale.Float64(), ecd.params.RingQ(), p.Q.Coeffs, isRingStandard)
-		NttAndMontgomeryLvl(p.Q.Level(), logSlots, ecd.params.RingQ(), montgomery, p.Q)
+		NttSparseAndMontgomery(ecd.params.RingQ().AtLevel(p.Q.Level()), logSlots, montgomery, p.Q)
 
 		if p.P != nil {
 			complexToFixedPointCRT(p.P.Level(), ecd.values[:slots], scale.Float64(), ecd.params.RingP(), p.P.Coeffs, isRingStandard)
-			NttAndMontgomeryLvl(p.P.Level(), logSlots, ecd.params.RingP(), montgomery, p.P)
+			NttSparseAndMontgomery(ecd.params.RingP().AtLevel(p.P.Level()), logSlots, montgomery, p.P)
 		}
 	case *ring.Poly:
 		complexToFixedPointCRT(p.Level(), ecd.values[:slots], scale.Float64(), ecd.params.RingQ(), p.Coeffs, isRingStandard)
-		NttAndMontgomeryLvl(p.Level(), logSlots, ecd.params.RingQ(), montgomery, p)
+		NttSparseAndMontgomery(ecd.params.RingQ().AtLevel(p.Level()), logSlots, montgomery, p)
 	default:
 		panic("cannot Embed: invalid polyOut.(Type) must be ringqp.Poly or *ring.Poly")
 	}
@@ -411,9 +408,9 @@ func (ecd *encoderComplex128) Embed(values interface{}, logSlots int, scale rlwe
 func polyToComplexNoCRT(coeffs []uint64, values []complex128, scale rlwe.Scale, logSlots int, isreal bool, ringQ *ring.Ring) {
 
 	slots := 1 << logSlots
-	maxSlots := int(ringQ.NthRoot >> 2)
+	maxSlots := int(ringQ.NthRoot() >> 2)
 	gap := maxSlots / slots
-	Q := ringQ.Modulus[0]
+	Q := ringQ.SubRings[0].Modulus
 	var c uint64
 	for i, idx := 0, 0; i < slots; i, idx = i+1, idx+gap {
 		c = coeffs[idx]
@@ -440,7 +437,7 @@ func polyToComplexNoCRT(coeffs []uint64, values []complex128, scale rlwe.Scale, 
 
 func polyToComplexCRT(poly *ring.Poly, bigintCoeffs []*big.Int, values []complex128, scale rlwe.Scale, logSlots int, isreal bool, ringQ *ring.Ring, Q *big.Int) {
 
-	maxSlots := int(ringQ.NthRoot >> 2)
+	maxSlots := int(ringQ.NthRoot() >> 2)
 	slots := 1 << logSlots
 	gap := maxSlots / slots
 
@@ -482,7 +479,7 @@ func (ecd *encoderComplex128) plaintextToComplex(level int, scale rlwe.Scale, lo
 	if level == 0 {
 		polyToComplexNoCRT(p.Coeffs[0], values, scale, logSlots, isreal, ecd.params.RingQ())
 	} else {
-		polyToComplexCRT(p, ecd.bigintCoeffs, values, scale, logSlots, isreal, ecd.params.RingQ(), ecd.bigintChain[level])
+		polyToComplexCRT(p, ecd.bigintCoeffs, values, scale, logSlots, isreal, ecd.params.RingQ(), ecd.params.RingQ().ModulusAtLevel[level])
 	}
 
 	if isreal { // [X]/(X^N+1) to [X+X^-1]/(X^N+1)
@@ -501,14 +498,14 @@ func (ecd *encoderComplex128) decodePublic(plaintext *rlwe.Plaintext, logSlots i
 	}
 
 	if plaintext.IsNTT {
-		ecd.params.RingQ().InvNTTLvl(plaintext.Level(), plaintext.Value, ecd.buff)
+		ecd.params.RingQ().AtLevel(plaintext.Level()).INTT(plaintext.Value, ecd.buff)
 	} else {
 		ring.CopyLvl(plaintext.Level(), plaintext.Value, ecd.buff)
 	}
 
 	// B = floor(sigma * sqrt(2*pi))
 	if sigma != 0 {
-		ecd.gaussianSampler.ReadAndAddFromDistLvl(plaintext.Level(), ecd.buff, ecd.params.RingQ(), sigma, int(2.5066282746310002*sigma))
+		ecd.gaussianSampler.AtLevel(plaintext.Level()).ReadAndAddFromDist(ecd.buff, ecd.params.RingQ(), sigma, int(2.5066282746310002*sigma))
 	}
 
 	ecd.plaintextToComplex(plaintext.Level(), plaintext.Scale, logSlots, ecd.buff, ecd.values)
@@ -528,14 +525,14 @@ func (ecd *encoderComplex128) decodePublic(plaintext *rlwe.Plaintext, logSlots i
 func (ecd *encoderComplex128) decodeCoeffsPublic(plaintext *rlwe.Plaintext, sigma float64) (res []float64) {
 
 	if plaintext.IsNTT {
-		ecd.params.RingQ().InvNTTLvl(plaintext.Level(), plaintext.Value, ecd.buff)
+		ecd.params.RingQ().AtLevel(plaintext.Level()).INTT(plaintext.Value, ecd.buff)
 	} else {
 		ring.CopyLvl(plaintext.Level(), plaintext.Value, ecd.buff)
 	}
 
 	if sigma != 0 {
 		// B = floor(sigma * sqrt(2*pi))
-		ecd.gaussianSampler.ReadAndAddFromDistLvl(plaintext.Level(), ecd.buff, ecd.params.RingQ(), sigma, int(2.5066282746310002*sigma))
+		ecd.gaussianSampler.AtLevel(plaintext.Level()).ReadAndAddFromDist(ecd.buff, ecd.params.RingQ(), sigma, int(2.5066282746310002*sigma))
 	}
 
 	res = make([]float64, ecd.params.N())
@@ -547,7 +544,7 @@ func (ecd *encoderComplex128) decodeCoeffsPublic(plaintext *rlwe.Plaintext, sigm
 
 		ecd.params.RingQ().PolyToBigint(ecd.buff, 1, ecd.bigintCoeffs)
 
-		Q := ecd.bigintChain[plaintext.Level()]
+		Q := ecd.params.RingQ().ModulusAtLevel[plaintext.Level()]
 
 		ecd.qHalf.Set(Q)
 		ecd.qHalf.Rsh(ecd.qHalf, 1)
@@ -569,7 +566,7 @@ func (ecd *encoderComplex128) decodeCoeffsPublic(plaintext *rlwe.Plaintext, sigm
 		// We can directly get the coefficients
 	} else {
 
-		Q := ecd.params.RingQ().Modulus[0]
+		Q := ecd.params.RingQ().SubRings[0].Modulus
 		coeffs := ecd.buff.Coeffs[0]
 
 		for i := range res {
@@ -640,6 +637,7 @@ func NewEncoderBigComplex(params Parameters, prec uint) EncoderBigComplex {
 func (ecd *encoderBigComplex) Encode(values []*ring.Complex, plaintext *rlwe.Plaintext, logSlots int) {
 
 	slots := 1 << logSlots
+	N := ecd.params.N()
 
 	if len(values) > ecd.params.N()/2 || len(values) > slots || logSlots > ecd.params.LogN()-1 {
 		panic("cannot Encode: too many values/slots for the given ring degree")
@@ -655,25 +653,26 @@ func (ecd *encoderBigComplex) Encode(values []*ring.Complex, plaintext *rlwe.Pla
 
 	ecd.InvFFT(ecd.values, slots)
 
-	gap := (ecd.params.RingQ().N >> 1) / slots
+	gap := (ecd.params.RingQ().N() >> 1) / slots
 
-	for i, jdx, idx := 0, (ecd.params.RingQ().N >> 1), 0; i < slots; i, jdx, idx = i+1, jdx+gap, idx+gap {
+	for i, jdx, idx := 0, N>>1, 0; i < slots; i, jdx, idx = i+1, jdx+gap, idx+gap {
 		ecd.valuesfloat[idx].Set(ecd.values[i].Real())
 		ecd.valuesfloat[jdx].Set(ecd.values[i].Imag())
 	}
 
-	scaleUpVecExactBigFloat(ecd.valuesfloat, plaintext.Scale.Float64(), ecd.params.RingQ().Modulus[:plaintext.Level()+1], plaintext.Value.Coeffs)
+	scaleUpVecExactBigFloat(ecd.valuesfloat, plaintext.Scale.Float64(), ecd.params.RingQ().ModuliChain()[:plaintext.Level()+1], plaintext.Value.Coeffs)
 
-	for i := 0; i < (ecd.params.RingQ().N >> 1); i++ {
+	halfN := N >> 1
+	for i := 0; i < halfN; i++ {
 		ecd.values[i].Real().Set(ecd.zero)
 		ecd.values[i].Imag().Set(ecd.zero)
 	}
 
-	for i := 0; i < ecd.params.RingQ().N; i++ {
+	for i := 0; i < N; i++ {
 		ecd.valuesfloat[i].Set(ecd.zero)
 	}
 
-	ecd.params.RingQ().NTTLvl(plaintext.Level(), plaintext.Value, plaintext.Value)
+	ecd.params.RingQ().AtLevel(plaintext.Level()).NTT(plaintext.Value, plaintext.Value)
 }
 
 // EncodeNew encodes a set of values on a new plaintext.
@@ -788,16 +787,16 @@ func (ecd *encoderBigComplex) decodePublic(plaintext *rlwe.Plaintext, logSlots i
 		panic("cannot Decode: too many slots for the given ring degree")
 	}
 
-	ecd.params.RingQ().InvNTTLvl(plaintext.Level(), plaintext.Value, ecd.buff)
+	ecd.params.RingQ().AtLevel(plaintext.Level()).INTT(plaintext.Value, ecd.buff)
 
 	if sigma != 0 {
 		// B = floor(sigma * sqrt(2*pi))
-		ecd.gaussianSampler.ReadAndAddFromDistLvl(plaintext.Level(), ecd.buff, ecd.params.RingQ(), sigma, int(2.5066282746310002*sigma+0.5))
+		ecd.gaussianSampler.AtLevel(plaintext.Level()).ReadAndAddFromDist(ecd.buff, ecd.params.RingQ(), sigma, int(2.5066282746310002*sigma+0.5))
 	}
 
-	Q := ecd.bigintChain[plaintext.Level()]
+	Q := ecd.params.RingQ().ModulusAtLevel[plaintext.Level()]
 
-	maxSlots := ecd.params.RingQ().N >> 1
+	maxSlots := ecd.params.N() >> 1
 
 	scaleFlo := plaintext.Scale.Value
 

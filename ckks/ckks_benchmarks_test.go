@@ -197,13 +197,19 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 
 	b.Run(GetTestName(tc.params, "Evaluator/PermuteNTTWithIndexLvl"), func(b *testing.B) {
 		galEL := tc.params.GaloisElementForColumnRotationBy(1)
+		ringQ := tc.params.RingQ().AtLevel(ciphertext1.Level())
 		for i := 0; i < b.N; i++ {
-			tc.params.RingQ().PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.Value[0], eval.(*evaluator).PermuteNTTIndex[galEL], ciphertext1.Value[0])
-			tc.params.RingQ().PermuteNTTWithIndexLvl(ciphertext1.Level(), ciphertext1.Value[1], eval.(*evaluator).PermuteNTTIndex[galEL], ciphertext1.Value[1])
+			ringQ.PermuteNTTWithIndex(ciphertext1.Value[0], eval.(*evaluator).PermuteNTTIndex[galEL], ciphertext1.Value[0])
+			ringQ.PermuteNTTWithIndex(ciphertext1.Value[1], eval.(*evaluator).PermuteNTTIndex[galEL], ciphertext1.Value[1])
 		}
 	})
 
 	b.Run(GetTestName(tc.params, "Evaluator/Conjugate"), func(b *testing.B) {
+
+		if tc.params.RingType() == ring.ConjugateInvariant {
+			b.Skip("method is not supported when params.RingType() == ring.ConjugateInvariant")
+		}
+
 		for i := 0; i < b.N; i++ {
 			eval.Conjugate(ciphertext1, ciphertext1)
 		}

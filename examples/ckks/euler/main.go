@@ -102,12 +102,12 @@ func example() {
 
 	start = time.Now()
 
-	evaluator.MultByi(ciphertext, ciphertext)
+	evaluator.MultByConst(ciphertext, 1i, ciphertext)
 
 	fmt.Printf("Done in %s \n", time.Since(start))
 
 	for i := range values {
-		values[i] *= complex(0, 1)
+		values[i] *= 1i
 	}
 
 	printDebug(params, ciphertext, values, decryptor, encoder)
@@ -139,14 +139,14 @@ func example() {
 	start = time.Now()
 
 	coeffs := []complex128{
-		complex(1.0, 0),
-		complex(1.0, 0),
-		complex(1.0/2, 0),
-		complex(1.0/6, 0),
-		complex(1.0/24, 0),
-		complex(1.0/120, 0),
-		complex(1.0/720, 0),
-		complex(1.0/5040, 0),
+		1.0,
+		1.0,
+		1.0 / 2,
+		1.0 / 6,
+		1.0 / 24,
+		1.0 / 120,
+		1.0 / 720,
+		1.0 / 5040,
 	}
 
 	poly := ckks.NewPoly(coeffs)

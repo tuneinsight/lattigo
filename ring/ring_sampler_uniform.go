@@ -17,85 +17,54 @@ func NewUniformSampler(prng utils.PRNG, baseRing *Ring) *UniformSampler {
 	uniformSampler := new(UniformSampler)
 	uniformSampler.baseRing = baseRing
 	uniformSampler.prng = prng
-	uniformSampler.randomBufferN = make([]byte, baseRing.N)
+	uniformSampler.randomBufferN = make([]byte, baseRing.N())
 	return uniformSampler
 }
 
-// Read generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1].
-func (uniformSampler *UniformSampler) Read(Pol *Poly) {
-
-	var randomUint, mask, qi uint64
-	var ptr int
-
-	uniformSampler.prng.Read(uniformSampler.randomBufferN)
-
-	for j := range uniformSampler.baseRing.Modulus[:len(Pol.Coeffs)] {
-
-		qi = uniformSampler.baseRing.Modulus[j]
-
-		// Starts by computing the mask
-		mask = uniformSampler.baseRing.Mask[j]
-
-		ptmp := Pol.Coeffs[j]
-
-		// Iterates for each modulus over each coefficient
-		for i := 0; i < uniformSampler.baseRing.N; i++ {
-
-			// Samples an integer between [0, qi-1]
-			for {
-
-				// Refills the buff if it runs empty
-				if ptr == uniformSampler.baseRing.N {
-					uniformSampler.prng.Read(uniformSampler.randomBufferN)
-					ptr = 0
-				}
-
-				// Reads bytes from the buff
-				randomUint = binary.BigEndian.Uint64(uniformSampler.randomBufferN[ptr:ptr+8]) & mask
-				ptr += 8
-
-				// If the integer is between [0, qi-1], breaks the loop
-				if randomUint < qi {
-					break
-				}
-			}
-
-			ptmp[i] = randomUint
-		}
+// AtLevel returns an instance of the target UniformSampler that operates at the target level.
+// This instance is not thread safe and cannot be used concurrently to the base instance.
+func (u *UniformSampler) AtLevel(level int) *UniformSampler {
+	return &UniformSampler{
+		baseSampler:   u.baseSampler.AtLevel(level),
+		randomBufferN: u.randomBufferN,
 	}
 }
 
-// ReadLvl generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1].
-func (uniformSampler *UniformSampler) ReadLvl(level int, Pol *Poly) {
+// Read generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1].
+func (u *UniformSampler) Read(pol *Poly) {
 
 	var randomUint, mask, qi uint64
 	var ptr int
 
-	uniformSampler.prng.Read(uniformSampler.randomBufferN)
+	u.prng.Read(u.randomBufferN)
 
-	for j := 0; j < level+1; j++ {
+	N := u.baseRing.N()
 
-		qi = uniformSampler.baseRing.Modulus[j]
+	buffer := u.randomBufferN
+
+	for j := 0; j < u.baseRing.level+1; j++ {
+
+		qi = u.baseRing.SubRings[j].Modulus
 
 		// Starts by computing the mask
-		mask = uniformSampler.baseRing.Mask[j]
+		mask = u.baseRing.SubRings[j].Mask
 
-		ptmp := Pol.Coeffs[j]
+		ptmp := pol.Coeffs[j]
 
 		// Iterates for each modulus over each coefficient
-		for i := 0; i < uniformSampler.baseRing.N; i++ {
+		for i := 0; i < N; i++ {
 
 			// Samples an integer between [0, qi-1]
 			for {
 
 				// Refills the buff if it runs empty
-				if ptr == uniformSampler.baseRing.N {
-					uniformSampler.prng.Read(uniformSampler.randomBufferN)
+				if ptr == N {
+					u.prng.Read(buffer)
 					ptr = 0
 				}
 
 				// Reads bytes from the buff
-				randomUint = binary.BigEndian.Uint64(uniformSampler.randomBufferN[ptr:ptr+8]) & mask
+				randomUint = binary.BigEndian.Uint64(buffer[ptr:ptr+8]) & mask
 				ptr += 8
 
 				// If the integer is between [0, qi-1], breaks the loop
@@ -111,22 +80,14 @@ func (uniformSampler *UniformSampler) ReadLvl(level int, Pol *Poly) {
 
 // ReadNew generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1].
 // Polynomial is created at the max level.
-func (uniformSampler *UniformSampler) ReadNew() (Pol *Poly) {
-	Pol = uniformSampler.baseRing.NewPoly()
-	uniformSampler.Read(Pol)
+func (u *UniformSampler) ReadNew() (Pol *Poly) {
+	Pol = u.baseRing.NewPoly()
+	u.Read(Pol)
 	return
 }
 
-// ReadLvlNew generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1].
-// Polynomial is created at the specified level.
-func (uniformSampler *UniformSampler) ReadLvlNew(level int) (Pol *Poly) {
-	Pol = uniformSampler.baseRing.NewPolyLvl(level)
-	uniformSampler.ReadLvl(level, Pol)
-	return
-}
-
-func (uniformSampler *UniformSampler) WithPRNG(prng utils.PRNG) *UniformSampler {
-	return &UniformSampler{baseSampler: baseSampler{prng: prng, baseRing: uniformSampler.baseRing}, randomBufferN: uniformSampler.randomBufferN}
+func (u *UniformSampler) WithPRNG(prng utils.PRNG) *UniformSampler {
+	return &UniformSampler{baseSampler: baseSampler{prng: prng, baseRing: u.baseRing}, randomBufferN: u.randomBufferN}
 }
 
 // RandUniform samples a uniform randomInt variable in the range [0, mask] until randomInt is in the range [0, v-1].

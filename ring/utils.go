@@ -1,15 +1,11 @@
 package ring
 
-import (
-	"math/bits"
-)
-
 // EvalPolyModP evaluates y = sum poly[i] * x^{i} mod p.
 func EvalPolyModP(x uint64, poly []uint64, p uint64) (y uint64) {
-	bredParams := BRedParams(p)
+	brc := BRedConstant(p)
 	y = poly[len(poly)-1]
 	for i := len(poly) - 2; i >= 0; i-- {
-		y = BRed(y, x, p, bredParams)
+		y = BRed(y, x, p, brc)
 		y = CRed(y+poly[i], p)
 	}
 
@@ -25,28 +21,16 @@ func Min(x, y int) int {
 	return x
 }
 
-// PowerOf2 returns (x*2^n)%q where x is in Montgomery form
-func PowerOf2(x uint64, n int, q, qInv uint64) (r uint64) {
-	ahi, alo := x>>(64-n), x<<n
-	R := alo * qInv
-	H, _ := bits.Mul64(R, q)
-	r = ahi - H + q
-	if r >= q {
-		r -= q
-	}
-	return
-}
-
 // ModExp performs the modular exponentiation x^e mod p,
 // x and p are required to be at most 64 bits to avoid an overflow.
 func ModExp(x, e, p uint64) (result uint64) {
-	params := BRedParams(p)
+	brc := BRedConstant(p)
 	result = 1
 	for i := e; i > 0; i >>= 1 {
 		if i&1 == 1 {
-			result = BRed(result, x, p, params)
+			result = BRed(result, x, p, brc)
 		}
-		x = BRed(x, x, p, params)
+		x = BRed(x, x, p, brc)
 	}
 	return result
 }
@@ -67,9 +51,9 @@ func ModExpPow2(x, e, p uint64) (result uint64) {
 
 // ModexpMontgomery performs the modular exponentiation x^e mod p,
 // where x is in Montgomery form, and returns x^e in Montgomery form.
-func ModexpMontgomery(x uint64, e int, q, qInv uint64, bredParams []uint64) (result uint64) {
+func ModexpMontgomery(x uint64, e int, q, qInv uint64, bredconstant []uint64) (result uint64) {
 
-	result = MForm(1, q, bredParams)
+	result = MForm(1, q, bredconstant)
 
 	for i := e; i > 0; i >>= 1 {
 		if i&1 == 1 {

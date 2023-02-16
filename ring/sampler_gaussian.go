@@ -19,64 +19,66 @@ type GaussianSampler struct {
 // NewGaussianSampler creates a new instance of GaussianSampler from a PRNG, a ring definition and the truncated
 // Gaussian distribution parameters. Sigma is the desired standard deviation and bound is the maximum coefficient norm in absolute
 // value.
-func NewGaussianSampler(prng utils.PRNG, baseRing *Ring, sigma float64, bound int) *GaussianSampler {
-	gaussianSampler := new(GaussianSampler)
-	gaussianSampler.prng = prng
-	gaussianSampler.randomBufferN = make([]byte, 1024)
-	gaussianSampler.ptr = 0
-	gaussianSampler.baseRing = baseRing
-	gaussianSampler.sigma = sigma
-	gaussianSampler.bound = bound
-	return gaussianSampler
+func NewGaussianSampler(prng utils.PRNG, baseRing *Ring, sigma float64, bound int) (g *GaussianSampler) {
+	g = new(GaussianSampler)
+	g.prng = prng
+	g.randomBufferN = make([]byte, 1024)
+	g.ptr = 0
+	g.baseRing = baseRing
+	g.sigma = sigma
+	g.bound = bound
+	return
+}
+
+// AtLevel returns an instance of the target GaussianSampler that operates at the target level.
+// This instance is not thread safe and cannot be used concurrently to the base instance.
+func (g *GaussianSampler) AtLevel(level int) *GaussianSampler {
+	return &GaussianSampler{
+		baseSampler:   g.baseSampler.AtLevel(level),
+		sigma:         g.sigma,
+		bound:         g.bound,
+		randomBufferN: g.randomBufferN,
+		ptr:           g.ptr,
+	}
 }
 
 // Read samples a truncated Gaussian polynomial on "pol" at the maximum level in the default ring, standard deviation and bound.
-func (gaussianSampler *GaussianSampler) Read(pol *Poly) {
-	gaussianSampler.ReadLvl(len(gaussianSampler.baseRing.Modulus)-1, pol)
-}
-
-// ReadLvl samples a truncated Gaussian polynomial at the provided level, in the default ring, standard deviation and bound.
-func (gaussianSampler *GaussianSampler) ReadLvl(level int, pol *Poly) {
-	gaussianSampler.readLvl(level, pol, gaussianSampler.baseRing, gaussianSampler.sigma, gaussianSampler.bound)
+func (g *GaussianSampler) Read(pol *Poly) {
+	g.read(pol, g.baseRing, g.sigma, g.bound)
 }
 
 // ReadNew samples a new truncated Gaussian polynomial at the maximum level in the default ring, standard deviation and bound.
-func (gaussianSampler *GaussianSampler) ReadNew() (pol *Poly) {
-	pol = gaussianSampler.baseRing.NewPoly()
-	gaussianSampler.Read(pol)
+func (g *GaussianSampler) ReadNew() (pol *Poly) {
+	pol = g.baseRing.NewPoly()
+	g.Read(pol)
 	return pol
 }
 
-// ReadLvlNew samples a new truncated Gaussian polynomial at the provided level, in the default ring, standard deviation and bound.
-func (gaussianSampler *GaussianSampler) ReadLvlNew(level int) (pol *Poly) {
-	pol = gaussianSampler.baseRing.NewPolyLvl(level)
-	gaussianSampler.ReadLvl(level, pol)
-	return pol
+// ReadAndAdd samples a truncated Gaussian polynomial at the given level for the receiver's default standard deviation and bound and adds it on "pol".
+func (g *GaussianSampler) ReadAndAdd(pol *Poly) {
+	g.ReadAndAddFromDist(pol, g.baseRing, g.sigma, g.bound)
 }
 
-// ReadFromDistLvl samples a truncated Gaussian polynomial at the given level in the provided ring, standard deviation and bound.
-func (gaussianSampler *GaussianSampler) ReadFromDistLvl(level int, pol *Poly, ring *Ring, sigma float64, bound int) {
-	gaussianSampler.readLvl(level, pol, ring, sigma, bound)
+// ReadFromDist samples a truncated Gaussian polynomial at the given level in the provided ring, standard deviation and bound.
+func (g *GaussianSampler) ReadFromDist(level int, pol *Poly, ring *Ring, sigma float64, bound int) {
+	g.read(pol, ring, sigma, bound)
 }
 
-// ReadAndAddLvl samples a truncated Gaussian polynomial at the given level for the receiver's default standard deviation and bound and adds it on "pol".
-func (gaussianSampler *GaussianSampler) ReadAndAddLvl(level int, pol *Poly) {
-	gaussianSampler.ReadAndAddFromDistLvl(level, pol, gaussianSampler.baseRing, gaussianSampler.sigma, gaussianSampler.bound)
-}
-
-// ReadAndAddFromDistLvl samples a truncated Gaussian polynomial at the given level in the provided ring, standard deviation and bound and adds it on "pol".
-func (gaussianSampler *GaussianSampler) ReadAndAddFromDistLvl(level int, pol *Poly, ring *Ring, sigma float64, bound int) {
+// ReadAndAddFromDist samples a truncated Gaussian polynomial at the given level in the provided ring, standard deviation and bound and adds it on "pol".
+func (g *GaussianSampler) ReadAndAddFromDist(pol *Poly, r *Ring, sigma float64, bound int) {
 	var coeffFlo float64
 	var coeffInt, sign uint64
 
-	gaussianSampler.prng.Read(gaussianSampler.randomBufferN)
+	g.prng.Read(g.randomBufferN)
 
-	modulus := ring.Modulus[:level+1]
+	modulus := r.ModuliChain()[:r.level+1]
 
-	for i := 0; i < ring.N; i++ {
+	N := r.N()
+
+	for i := 0; i < N; i++ {
 
 		for {
-			coeffFlo, sign = gaussianSampler.normFloat64()
+			coeffFlo, sign = g.normFloat64()
 
 			if coeffInt = uint64(coeffFlo*sigma + 0.5); coeffInt <= uint64(bound) {
 				break
@@ -89,19 +91,23 @@ func (gaussianSampler *GaussianSampler) ReadAndAddFromDistLvl(level int, pol *Po
 	}
 }
 
-func (gaussianSampler *GaussianSampler) readLvl(level int, pol *Poly, ring *Ring, sigma float64, bound int) {
+func (g *GaussianSampler) read(pol *Poly, r *Ring, sigma float64, bound int) {
 	var coeffFlo float64
 	var coeffInt uint64
 	var sign uint64
 
-	gaussianSampler.prng.Read(gaussianSampler.randomBufferN)
+	level := r.level
 
-	modulus := ring.Modulus[:level+1]
+	g.prng.Read(g.randomBufferN)
 
-	for i := 0; i < ring.N; i++ {
+	modulus := r.ModuliChain()[:level+1]
+
+	N := r.N()
+
+	for i := 0; i < N; i++ {
 
 		for {
-			coeffFlo, sign = gaussianSampler.normFloat64()
+			coeffFlo, sign = g.normFloat64()
 
 			if coeffInt = uint64(coeffFlo*sigma + 0.5); coeffInt <= uint64(bound) {
 				break
@@ -129,17 +135,17 @@ func randFloat64(randomBytes []byte) float64 {
 //
 // Algorithm adapted from https://golang.org/src/math/rand/normal.go
 // to use a secure PRNG instead of math/rand.
-func (gaussianSampler *GaussianSampler) normFloat64() (float64, uint64) {
+func (g *GaussianSampler) normFloat64() (float64, uint64) {
 
 	for {
 
-		if gaussianSampler.ptr == uint64(len(gaussianSampler.randomBufferN)) {
-			gaussianSampler.prng.Read(gaussianSampler.randomBufferN)
-			gaussianSampler.ptr = 0
+		if g.ptr == uint64(len(g.randomBufferN)) {
+			g.prng.Read(g.randomBufferN)
+			g.ptr = 0
 		}
 
-		juint32 := binary.BigEndian.Uint32(gaussianSampler.randomBufferN[gaussianSampler.ptr : gaussianSampler.ptr+4])
-		gaussianSampler.ptr += 8
+		juint32 := binary.BigEndian.Uint32(g.randomBufferN[g.ptr : g.ptr+4])
+		g.ptr += 8
 
 		j := int32(juint32 & 0x7fffffff)
 		sign := uint64(juint32 >> 31)
@@ -161,21 +167,21 @@ func (gaussianSampler *GaussianSampler) normFloat64() (float64, uint64) {
 			// This extra work is only required for the base strip.
 			for {
 
-				if gaussianSampler.ptr == uint64(len(gaussianSampler.randomBufferN)) {
-					gaussianSampler.prng.Read(gaussianSampler.randomBufferN)
-					gaussianSampler.ptr = 0
+				if g.ptr == uint64(len(g.randomBufferN)) {
+					g.prng.Read(g.randomBufferN)
+					g.ptr = 0
 				}
 
-				x = -math.Log(randFloat64(gaussianSampler.randomBufferN[gaussianSampler.ptr:gaussianSampler.ptr+8])) * (1.0 / 3.442619855899)
-				gaussianSampler.ptr += 8
+				x = -math.Log(randFloat64(g.randomBufferN[g.ptr:g.ptr+8])) * (1.0 / 3.442619855899)
+				g.ptr += 8
 
-				if gaussianSampler.ptr == uint64(len(gaussianSampler.randomBufferN)) {
-					gaussianSampler.prng.Read(gaussianSampler.randomBufferN)
-					gaussianSampler.ptr = 0
+				if g.ptr == uint64(len(g.randomBufferN)) {
+					g.prng.Read(g.randomBufferN)
+					g.ptr = 0
 				}
 
-				y := -math.Log(randFloat64(gaussianSampler.randomBufferN[gaussianSampler.ptr : gaussianSampler.ptr+8]))
-				gaussianSampler.ptr += 8
+				y := -math.Log(randFloat64(g.randomBufferN[g.ptr : g.ptr+8]))
+				g.ptr += 8
 
 				if y+y >= x*x {
 					break
@@ -185,17 +191,17 @@ func (gaussianSampler *GaussianSampler) normFloat64() (float64, uint64) {
 			return x + 3.442619855899, sign
 		}
 
-		if gaussianSampler.ptr == uint64(len(gaussianSampler.randomBufferN)) {
-			gaussianSampler.prng.Read(gaussianSampler.randomBufferN)
-			gaussianSampler.ptr = 0
+		if g.ptr == uint64(len(g.randomBufferN)) {
+			g.prng.Read(g.randomBufferN)
+			g.ptr = 0
 		}
 
 		// 3
-		if fn[i]+float32(randFloat64(gaussianSampler.randomBufferN[gaussianSampler.ptr:gaussianSampler.ptr+8]))*(fn[i-1]-fn[i]) < float32(math.Exp(-0.5*x*x)) {
-			gaussianSampler.ptr += 8
+		if fn[i]+float32(randFloat64(g.randomBufferN[g.ptr:g.ptr+8]))*(fn[i-1]-fn[i]) < float32(math.Exp(-0.5*x*x)) {
+			g.ptr += 8
 			return x, sign
 		}
-		gaussianSampler.ptr += 8
+		g.ptr += 8
 	}
 }
 

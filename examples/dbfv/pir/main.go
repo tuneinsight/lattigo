@@ -185,7 +185,7 @@ func main() {
 
 	res := encoder.DecodeUintNew(ptres)
 
-	l.Printf("\t%v\n", res[:16])
+	l.Printf("\t%v...%v\n", res[:8], res[params.N()-8:])
 	l.Printf("> Finished (total cloud: %s, total party: %s)\n",
 		elapsedCKGCloud+elapsedRKGCloud+elapsedRTGCloud+elapsedEncryptCloud+elapsedRequestCloudCPU+elapsedCKSCloud,
 		elapsedCKGParty+elapsedRKGParty+elapsedRTGParty+elapsedEncryptParty+elapsedRequestParty+elapsedPCKSParty+elapsedDecParty)
@@ -403,8 +403,11 @@ func requestphase(params bfv.Parameters, queryIndex, NGoRoutine int, encQuery *r
 				task.elapsedmaskTask = runTimed(func() {
 					// 1) Multiplication of the query with the plaintext mask
 					evaluator.Mul(task.query, task.mask, tmp)
+
 					// 2) Inner sum (populate all the slots with the sum of all the slots)
-					evaluator.InnerSum(tmp, tmp)
+					evaluator.InnerSum(tmp, 1, params.N()>>1, tmp)
+					evaluator.Add(tmp, evaluator.RotateRowsNew(tmp), tmp)
+
 					// 3) Multiplication of 2) with the i-th ciphertext stored in the cloud
 					evaluator.Mul(tmp, task.row, task.res)
 				})

@@ -129,7 +129,7 @@ func (c *cloud) Run(galEls []uint64, params rlwe.Parameters, t int) {
 		c.RTGProtocol.AggregateShares(acc.share, task.rtgShare, acc.share)
 		acc.needed--
 		if acc.needed == 0 {
-			rtk := rlwe.NewSwitchingKey(params, params.MaxLevel(), params.PCount()-1)
+			rtk := rlwe.NewSwitchingKey(params, params.MaxLevel(), params.MaxLevelP())
 			c.GenRotationKey(acc.share, crp[task.galEl], rtk)
 			c.finDone <- struct {
 				galEl uint64
@@ -245,7 +245,7 @@ func main() {
 		P[i] = pi
 
 		// computes the ideal sk for the sake of the example
-		params.RingQP().AddLvl(params.QCount()-1, params.PCount()-1, skIdeal.Value, pi.sk.Value, skIdeal.Value)
+		params.RingQP().Add(skIdeal.Value, pi.sk.Value, skIdeal.Value)
 
 		shamirPks = append(shamirPks, pi.shamirPk)
 	}
@@ -319,7 +319,7 @@ func main() {
 
 	fmt.Printf("Checking the keys... ")
 
-	levelQ, levelP := len(params.RingQ().Modulus)-1, len(params.RingP().Modulus)-1
+	levelQ, levelP := params.RingQ().MaxLevel(), params.RingP().MaxLevel()
 	decompSize := params.DecompPw2(levelQ, levelP) * params.DecompRNS(levelQ, levelP)
 	log2bound := bits.Len64(uint64(params.N() * decompSize * (params.N()*3*int(params.NoiseBound()) + 2*3*int(params.NoiseBound()) + params.N()*3)))
 	for galEl, rtk := range rtks {

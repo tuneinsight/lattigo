@@ -61,8 +61,8 @@ func (rtg *RTGProtocol) AllocateShare() (rtgShare *RTGShare) {
 	rtgShare = new(RTGShare)
 
 	params := rtg.params
-	decompRNS := rtg.params.DecompRNS(params.QCount()-1, params.PCount()-1)
-	decompPw2 := rtg.params.DecompPw2(params.QCount()-1, params.PCount()-1)
+	decompRNS := rtg.params.DecompRNS(params.MaxLevelQ(), params.MaxLevelP())
+	decompPw2 := rtg.params.DecompPw2(params.MaxLevelQ(), params.MaxLevelP())
 
 	rtgShare.Value = make([][]ringqp.Poly, decompRNS)
 
@@ -80,8 +80,8 @@ func (rtg *RTGProtocol) AllocateShare() (rtgShare *RTGShare) {
 func (rtg *RTGProtocol) SampleCRP(crs CRS) RTGCRP {
 
 	params := rtg.params
-	decompRNS := rtg.params.DecompRNS(params.QCount()-1, params.PCount()-1)
-	decompPw2 := rtg.params.DecompPw2(params.QCount()-1, params.PCount()-1)
+	decompRNS := rtg.params.DecompRNS(params.MaxLevelQ(), params.MaxLevelP())
+	decompPw2 := rtg.params.DecompPw2(params.MaxLevelQ(), params.MaxLevelP())
 
 	crp := make([][]ringqp.Poly, decompRNS)
 	us := ringqp.NewUniformSampler(crs, *params.RingQP())
@@ -104,14 +104,15 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, s
 	levelQ := sk.LevelQ()
 	levelP := sk.LevelP()
 
-	hasModulusP := levelP > -1
-
-	galElInv := ring.ModExp(galEl, ringQ.NthRoot-1, ringQ.NthRoot)
+	galElInv := ring.ModExp(galEl, ringQ.NthRoot()-1, ringQ.NthRoot())
 
 	ringQ.PermuteNTT(sk.Value.Q, galElInv, rtg.buff[1].Q)
 
-	if hasModulusP {
-		ringQ.PermuteNTT(sk.Value.P, galElInv, rtg.buff[1].P)
+	var hasModulusP bool
+
+	if levelP > -1 {
+		hasModulusP = true
+		rtg.params.RingP().PermuteNTT(sk.Value.P, galElInv, rtg.buff[1].P)
 		ringQ.MulScalarBigint(sk.Value.Q, ringQP.RingP.ModulusAtLevel[levelP], rtg.buff[0].Q)
 	} else {
 		levelP = 0
@@ -120,6 +121,7 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, s
 
 	RNSDecomp := len(shareOut.Value)
 	BITDecomp := len(shareOut.Value[0])
+	N := ringQ.N()
 
 	var index int
 	for j := 0; j < BITDecomp; j++ {
@@ -132,8 +134,8 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, s
 				ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value[i][j].Q, levelP, nil, shareOut.Value[i][j].P)
 			}
 
-			ringQP.NTTLazyLvl(levelQ, levelP, shareOut.Value[i][j], shareOut.Value[i][j])
-			ringQP.MFormLvl(levelQ, levelP, shareOut.Value[i][j], shareOut.Value[i][j])
+			ringQP.NTTLazy(shareOut.Value[i][j], shareOut.Value[i][j])
+			ringQP.MForm(shareOut.Value[i][j], shareOut.Value[i][j])
 
 			// a is the CRP
 
@@ -148,17 +150,17 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, s
 					break
 				}
 
-				qi := ringQ.Modulus[index]
+				qi := ringQ.SubRings[index].Modulus
 				tmp0 := rtg.buff[0].Q.Coeffs[index]
 				tmp1 := shareOut.Value[i][j].Q.Coeffs[index]
 
-				for w := 0; w < ringQ.N; w++ {
+				for w := 0; w < N; w++ {
 					tmp1[w] = ring.CRed(tmp1[w]+tmp0[w], qi)
 				}
 			}
 
 			// sk_in * (qiBarre*qiStar) * 2^w - a*sk + e
-			ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, crp[i][j], rtg.buff[1], shareOut.Value[i][j])
+			ringQP.MulCoeffsMontgomeryThenSub(crp[i][j], rtg.buff[1], shareOut.Value[i][j])
 		}
 
 		ringQ.MulScalar(rtg.buff[0].Q, 1<<rtg.params.Pow2Base(), rtg.buff[0].Q)
@@ -167,7 +169,7 @@ func (rtg *RTGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp RTGCRP, s
 
 // AggregateShares aggregates two share in the Rotation Key Generation protocol.
 func (rtg *RTGProtocol) AggregateShares(share1, share2, shareOut *RTGShare) {
-	ringQP := rtg.params.RingQP()
+
 	levelQ := share1.Value[0][0].Q.Level()
 
 	var levelP int
@@ -175,11 +177,13 @@ func (rtg *RTGProtocol) AggregateShares(share1, share2, shareOut *RTGShare) {
 		levelP = share1.Value[0][0].P.Level()
 	}
 
+	ringQP := rtg.params.RingQP().AtLevel(levelQ, levelP)
+
 	RNSDecomp := len(shareOut.Value)
 	BITDecomp := len(shareOut.Value[0])
 	for i := 0; i < RNSDecomp; i++ {
 		for j := 0; j < BITDecomp; j++ {
-			ringQP.AddLvl(levelQ, levelP, share1.Value[i][j], share2.Value[i][j], shareOut.Value[i][j])
+			ringQP.Add(share1.Value[i][j], share2.Value[i][j], shareOut.Value[i][j])
 		}
 	}
 }

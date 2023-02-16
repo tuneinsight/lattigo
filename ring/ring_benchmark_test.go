@@ -2,7 +2,6 @@ package ring
 
 import (
 	"fmt"
-	"math/bits"
 	"testing"
 )
 
@@ -20,48 +19,47 @@ func BenchmarkRing(b *testing.B) {
 
 	for _, defaultParam := range defaultParams {
 
-		var testContext *testParams
-		if testContext, err = genTestParams(defaultParam); err != nil {
+		var tc *testParams
+		if tc, err = genTestParams(defaultParam); err != nil {
 			b.Fatal(err)
-
 		}
 
-		benchGenRing(testContext, b)
-		benchMarshalling(testContext, b)
-		benchSampling(testContext, b)
-		benchMontgomery(testContext, b)
-		benchNTT(testContext, b)
-		benchMulCoeffs(testContext, b)
-		benchAddCoeffs(testContext, b)
-		benchSubCoeffs(testContext, b)
-		benchNegCoeffs(testContext, b)
-		benchMulScalar(testContext, b)
-		benchExtendBasis(testContext, b)
-		benchDivByLastModulus(testContext, b)
-		benchMRed(testContext, b)
-		benchBRed(testContext, b)
-		benchBRedAdd(testContext, b)
+		benchGenRing(tc, b)
+		benchMarshalling(tc, b)
+		benchSampling(tc, b)
+		benchMontgomery(tc, b)
+		benchNTT(tc, b)
+		benchMulCoeffs(tc, b)
+		benchAddCoeffs(tc, b)
+		benchSubCoeffs(tc, b)
+		benchNegCoeffs(tc, b)
+		benchMulScalar(tc, b)
+		benchExtendBasis(tc, b)
+		benchDivByLastModulus(tc, b)
+		benchMRed(tc, b)
+		benchBRed(tc, b)
+		benchBRedAdd(tc, b)
 	}
 }
 
-func benchGenRing(testContext *testParams, b *testing.B) {
+func benchGenRing(tc *testParams, b *testing.B) {
 
-	b.Run(testString("GenRing/", testContext.ringQ), func(b *testing.B) {
+	b.Run(testString("GenRing/", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			if _, err := NewRing(testContext.ringQ.N, testContext.ringQ.Modulus); err != nil {
+			if _, err := NewRing(tc.ringQ.N(), tc.ringQ.ModuliChain()); err != nil {
 				b.Error(err)
 			}
 		}
 	})
 }
 
-func benchMarshalling(testContext *testParams, b *testing.B) {
+func benchMarshalling(tc *testParams, b *testing.B) {
 
 	var err error
 
-	p := testContext.uniformSamplerQ.ReadNew()
+	p := tc.uniformSamplerQ.ReadNew()
 
-	b.Run(testString("Marshalling/MarshalPoly/", testContext.ringQ), func(b *testing.B) {
+	b.Run(testString("Marshalling/MarshalPoly/", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			if _, err = p.MarshalBinary(); err != nil {
 				b.Error(err)
@@ -74,7 +72,7 @@ func benchMarshalling(testContext *testParams, b *testing.B) {
 		b.Error(err)
 	}
 
-	b.Run(testString("Marshalling/UnmarshalPoly/", testContext.ringQ), func(b *testing.B) {
+	b.Run(testString("Marshalling/UnmarshalPoly/", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			if err = p.UnmarshalBinary(data); err != nil {
 				b.Error(err)
@@ -83,313 +81,305 @@ func benchMarshalling(testContext *testParams, b *testing.B) {
 	})
 }
 
-func benchSampling(testContext *testParams, b *testing.B) {
+func benchSampling(tc *testParams, b *testing.B) {
 
-	pol := testContext.ringQ.NewPoly()
+	pol := tc.ringQ.NewPoly()
 
-	b.Run(testString("Sampling/Gaussian/", testContext.ringQ), func(b *testing.B) {
+	b.Run(testString("Sampling/Gaussian/", tc.ringQ), func(b *testing.B) {
 
-		gaussianSampler := NewGaussianSampler(testContext.prng, testContext.ringQ, DefaultSigma, DefaultBound)
+		gaussianSampler := NewGaussianSampler(tc.prng, tc.ringQ, DefaultSigma, DefaultBound)
 
 		for i := 0; i < b.N; i++ {
-			gaussianSampler.ReadLvl(len(testContext.ringQ.Modulus)-1, pol)
+			gaussianSampler.Read(pol)
 		}
 	})
 
-	b.Run(testString("Sampling/Ternary/0.3/", testContext.ringQ), func(b *testing.B) {
+	b.Run(testString("Sampling/Ternary/0.3/", tc.ringQ), func(b *testing.B) {
 
-		ternarySampler := NewTernarySampler(testContext.prng, testContext.ringQ, 1.0/3, true)
+		ternarySampler := NewTernarySampler(tc.prng, tc.ringQ, 1.0/3, true)
 
 		for i := 0; i < b.N; i++ {
 			ternarySampler.Read(pol)
 		}
 	})
 
-	b.Run(testString("Sampling/Ternary/0.5/", testContext.ringQ), func(b *testing.B) {
+	b.Run(testString("Sampling/Ternary/0.5/", tc.ringQ), func(b *testing.B) {
 
-		ternarySampler := NewTernarySampler(testContext.prng, testContext.ringQ, 0.5, true)
-
-		for i := 0; i < b.N; i++ {
-			ternarySampler.Read(pol)
-		}
-	})
-
-	b.Run(testString("Sampling/Ternary/sparse128/", testContext.ringQ), func(b *testing.B) {
-
-		ternarySampler := NewTernarySamplerWithHammingWeight(testContext.prng, testContext.ringQ, 128, true)
+		ternarySampler := NewTernarySampler(tc.prng, tc.ringQ, 0.5, true)
 
 		for i := 0; i < b.N; i++ {
 			ternarySampler.Read(pol)
 		}
 	})
 
-	b.Run(testString("Sampling/Uniform/", testContext.ringQ), func(b *testing.B) {
+	b.Run(testString("Sampling/Ternary/sparse128/", tc.ringQ), func(b *testing.B) {
+
+		ternarySampler := NewTernarySamplerWithHammingWeight(tc.prng, tc.ringQ, 128, true)
+
 		for i := 0; i < b.N; i++ {
-			testContext.uniformSamplerQ.Read(pol)
+			ternarySampler.Read(pol)
+		}
+	})
+
+	b.Run(testString("Sampling/Uniform/", tc.ringQ), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			tc.uniformSamplerQ.Read(pol)
 		}
 	})
 }
 
-func benchMontgomery(testContext *testParams, b *testing.B) {
+func benchMontgomery(tc *testParams, b *testing.B) {
 
-	p := testContext.uniformSamplerQ.ReadNew()
+	p := tc.uniformSamplerQ.ReadNew()
 
-	b.Run(testString("Montgomery/MForm/", testContext.ringQ), func(b *testing.B) {
+	b.Run(testString("Montgomery/MForm/", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			testContext.ringQ.MForm(p, p)
+			tc.ringQ.MForm(p, p)
 		}
 	})
 
-	b.Run(testString("Montgomery/InvMForm/", testContext.ringQ), func(b *testing.B) {
+	b.Run(testString("Montgomery/InvMForm/", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			testContext.ringQ.InvMForm(p, p)
+			tc.ringQ.IMForm(p, p)
 		}
 	})
 }
 
-func benchNTT(testContext *testParams, b *testing.B) {
+func benchNTT(tc *testParams, b *testing.B) {
 
-	p := testContext.uniformSamplerQ.ReadNew()
+	p := tc.uniformSamplerQ.ReadNew()
 
-	b.Run(testString("NTT/Forward/Standard/", testContext.ringQ), func(b *testing.B) {
+	b.Run(testString("NTT/Forward/Standard/", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			testContext.ringQ.NTT(p, p)
+			tc.ringQ.NTT(p, p)
 		}
 	})
 
-	b.Run(testString("NTT/Backward/Standard/", testContext.ringQ), func(b *testing.B) {
+	b.Run(testString("NTT/Backward/Standard/", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			testContext.ringQ.InvNTT(p, p)
+			tc.ringQ.INTT(p, p)
 		}
 	})
 
-	ringQConjugateInvariant, _ := NewRingConjugateInvariant(testContext.ringQ.N, testContext.ringQ.Modulus)
+	ringQConjugateInvariant, _ := NewRingConjugateInvariant(tc.ringQ.N(), tc.ringQ.ModuliChain())
 
-	b.Run(testString("NTT/Forward/ConjugateInvariant4NthRoot/", testContext.ringQ), func(b *testing.B) {
+	b.Run(testString("NTT/Forward/ConjugateInvariant4NthRoot/", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			ringQConjugateInvariant.NTT(p, p)
 		}
 	})
 
-	b.Run(testString("NTT/Backward/ConjugateInvariant4NthRoot/", testContext.ringQ), func(b *testing.B) {
+	b.Run(testString("NTT/Backward/ConjugateInvariant4NthRoot/", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			ringQConjugateInvariant.InvNTT(p, p)
+			ringQConjugateInvariant.INTT(p, p)
 		}
 	})
 }
 
-func benchMulCoeffs(testContext *testParams, b *testing.B) {
+func benchMulCoeffs(tc *testParams, b *testing.B) {
 
-	p0 := testContext.uniformSamplerQ.ReadNew()
-	p1 := testContext.uniformSamplerQ.ReadNew()
+	p0 := tc.uniformSamplerQ.ReadNew()
+	p1 := tc.uniformSamplerQ.ReadNew()
 
-	b.Run(testString("MulCoeffs/Montgomery/", testContext.ringQ), func(b *testing.B) {
+	b.Run(testString("MulCoeffs/Montgomery/", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			testContext.ringQ.MulCoeffsMontgomery(p0, p1, p0)
+			tc.ringQ.MulCoeffsMontgomery(p0, p1, p0)
 		}
 	})
 
-	b.Run(testString("MulCoeffs/MontgomeryConstant/", testContext.ringQ), func(b *testing.B) {
+	b.Run(testString("MulCoeffs/MontgomeryLazy/", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			testContext.ringQ.MulCoeffsMontgomeryConstant(p0, p1, p0)
+			tc.ringQ.MulCoeffsMontgomeryLazy(p0, p1, p0)
 		}
 	})
 
-	b.Run(testString("MulCoeffs/Barrett/", testContext.ringQ), func(b *testing.B) {
+	b.Run(testString("MulCoeffs/Barrett/", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			testContext.ringQ.MulCoeffs(p0, p1, p0)
+			tc.ringQ.MulCoeffsBarrett(p0, p1, p0)
 		}
 	})
 
-	b.Run(testString("MulCoeffs/BarrettConstant/", testContext.ringQ), func(b *testing.B) {
+	b.Run(testString("MulCoeffs/BarrettLazy/", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			testContext.ringQ.MulCoeffsConstant(p0, p1, p0)
-		}
-	})
-}
-
-func benchAddCoeffs(testContext *testParams, b *testing.B) {
-
-	p0 := testContext.uniformSamplerQ.ReadNew()
-	p1 := testContext.uniformSamplerQ.ReadNew()
-
-	b.Run(testString("AddCoeffs/Add/", testContext.ringQ), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			testContext.ringQ.Add(p0, p1, p0)
-		}
-	})
-
-	b.Run(testString("AddCoeffs/AddConstant/", testContext.ringQ), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			testContext.ringQ.AddNoMod(p0, p1, p0)
+			tc.ringQ.MulCoeffsBarrettLazy(p0, p1, p0)
 		}
 	})
 }
 
-func benchSubCoeffs(testContext *testParams, b *testing.B) {
+func benchAddCoeffs(tc *testParams, b *testing.B) {
 
-	p0 := testContext.uniformSamplerQ.ReadNew()
-	p1 := testContext.uniformSamplerQ.ReadNew()
+	p0 := tc.uniformSamplerQ.ReadNew()
+	p1 := tc.uniformSamplerQ.ReadNew()
 
-	b.Run(testString("SubCoeffs/Sub/", testContext.ringQ), func(b *testing.B) {
+	b.Run(testString("AddCoeffs/Add/", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			testContext.ringQ.Sub(p0, p1, p0)
+			tc.ringQ.Add(p0, p1, p0)
 		}
 	})
 
-	b.Run(testString("SubCoeffs/SubConstant/", testContext.ringQ), func(b *testing.B) {
+	b.Run(testString("AddCoeffs/AddLazy", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			testContext.ringQ.SubNoMod(p0, p1, p0)
-		}
-	})
-}
-
-func benchNegCoeffs(testContext *testParams, b *testing.B) {
-
-	p0 := testContext.uniformSamplerQ.ReadNew()
-
-	b.Run(testString("NegCoeffs", testContext.ringQ), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			testContext.ringQ.Neg(p0, p0)
+			tc.ringQ.AddLazy(p0, p1, p0)
 		}
 	})
 }
 
-func benchMulScalar(testContext *testParams, b *testing.B) {
+func benchSubCoeffs(tc *testParams, b *testing.B) {
 
-	p := testContext.uniformSamplerQ.ReadNew()
+	p0 := tc.uniformSamplerQ.ReadNew()
+	p1 := tc.uniformSamplerQ.ReadNew()
 
-	rand1 := RandUniform(testContext.prng, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)
-	rand2 := RandUniform(testContext.prng, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)
+	b.Run(testString("SubCoeffs/Sub/", tc.ringQ), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			tc.ringQ.Sub(p0, p1, p0)
+		}
+	})
+
+	b.Run(testString("SubCoeffs/SubLazy/", tc.ringQ), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			tc.ringQ.SubLazy(p0, p1, p0)
+		}
+	})
+}
+
+func benchNegCoeffs(tc *testParams, b *testing.B) {
+
+	p0 := tc.uniformSamplerQ.ReadNew()
+
+	b.Run(testString("NegCoeffs", tc.ringQ), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			tc.ringQ.Neg(p0, p0)
+		}
+	})
+}
+
+func benchMulScalar(tc *testParams, b *testing.B) {
+
+	p := tc.uniformSamplerQ.ReadNew()
+
+	rand1 := RandUniform(tc.prng, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)
+	rand2 := RandUniform(tc.prng, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)
 
 	scalarBigint := NewUint(rand1)
 	scalarBigint.Mul(scalarBigint, NewUint(rand2))
 
-	b.Run(testString("MulScalar/uint64/", testContext.ringQ), func(b *testing.B) {
+	b.Run(testString("MulScalar/uint64/", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			testContext.ringQ.MulScalar(p, rand1, p)
+			tc.ringQ.MulScalar(p, rand1, p)
 		}
 	})
 
-	b.Run(testString("MulScalar/big.Int/", testContext.ringQ), func(b *testing.B) {
+	b.Run(testString("MulScalar/big.Int/", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			testContext.ringQ.MulScalarBigint(p, scalarBigint, p)
+			tc.ringQ.MulScalarBigint(p, scalarBigint, p)
 		}
 	})
 }
 
-func benchExtendBasis(testContext *testParams, b *testing.B) {
+func benchExtendBasis(tc *testParams, b *testing.B) {
 
-	rescaleParams := make([]uint64, len(testContext.ringP.Modulus))
+	basisExtender := NewBasisExtender(tc.ringQ, tc.ringP)
 
-	for i, pi := range testContext.ringP.Modulus {
-		rescaleParams[i] = RandUniform(testContext.prng, pi, (1<<uint64(bits.Len64(pi)-1) - 1))
-	}
+	p0 := tc.uniformSamplerQ.ReadNew()
+	p1 := tc.uniformSamplerP.ReadNew()
 
-	basisExtender := NewBasisExtender(testContext.ringQ, testContext.ringP)
+	levelQ := tc.ringQ.MaxLevel()
+	levelP := tc.ringP.MaxLevel()
 
-	p0 := testContext.uniformSamplerQ.ReadNew()
-	p1 := testContext.uniformSamplerP.ReadNew()
-
-	levelQ := len(testContext.ringQ.Modulus) - 1
-	levelP := len(testContext.ringP.Modulus) - 1
-
-	b.Run(fmt.Sprintf("ExtendBasis/ModUp/N=%d/limbsQ=%d/limbsP=%d", testContext.ringQ.N, len(testContext.ringQ.Modulus), len(testContext.ringP.Modulus)), func(b *testing.B) {
+	b.Run(fmt.Sprintf("ExtendBasis/ModUp/N=%d/limbsQ=%d/limbsP=%d", tc.ringQ.N(), tc.ringQ.ModuliChainLength(), tc.ringP.ModuliChainLength()), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			basisExtender.ModUpQtoP(levelQ, levelP, p0, p1)
 		}
 	})
 
-	b.Run(fmt.Sprintf("ExtendBasis/ModDown/N=%d/limbsQ=%d/limbsP=%d", testContext.ringQ.N, len(testContext.ringQ.Modulus), len(testContext.ringP.Modulus)), func(b *testing.B) {
+	b.Run(fmt.Sprintf("ExtendBasis/ModDown/N=%d/limbsQ=%d/limbsP=%d", tc.ringQ.N(), tc.ringQ.ModuliChainLength(), tc.ringP.ModuliChainLength()), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			basisExtender.ModDownQPtoQ(levelQ, levelP, p0, p1, p0)
 		}
 	})
 
-	b.Run(fmt.Sprintf("ExtendBasis/ModDownNTT/N=%d/limbsQ=%d/limbsP=%d", testContext.ringQ.N, len(testContext.ringQ.Modulus), len(testContext.ringP.Modulus)), func(b *testing.B) {
+	b.Run(fmt.Sprintf("ExtendBasis/ModDownNTT/N=%d/limbsQ=%d/limbsP=%d", tc.ringQ.N(), tc.ringQ.ModuliChainLength(), tc.ringP.ModuliChainLength()), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			basisExtender.ModDownQPtoQNTT(levelQ, levelP, p0, p1, p0)
 		}
 	})
 }
 
-func benchDivByLastModulus(testContext *testParams, b *testing.B) {
+func benchDivByLastModulus(tc *testParams, b *testing.B) {
 
-	p0 := testContext.uniformSamplerQ.ReadNew()
-	p1 := testContext.ringQ.NewPolyLvl(p0.Level() - 1)
+	p0 := tc.uniformSamplerQ.ReadNew()
+	p1 := tc.ringQ.AtLevel(p0.Level() - 1).NewPoly()
 
-	buff := testContext.ringQ.NewPoly()
+	buff := tc.ringQ.NewPoly()
 
-	b.Run(testString("DivByLastModulus/Floor/", testContext.ringQ), func(b *testing.B) {
+	b.Run(testString("DivByLastModulus/Floor/", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			testContext.ringQ.DivFloorByLastModulusLvl(p0.Level(), p0, p1)
+			tc.ringQ.DivFloorByLastModulus(p0, p1)
 		}
 	})
 
-	b.Run(testString("DivByLastModulus/FloorNTT/", testContext.ringQ), func(b *testing.B) {
+	b.Run(testString("DivByLastModulus/FloorNTT/", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			testContext.ringQ.DivFloorByLastModulusNTTLvl(p0.Level(), p0, buff, p1)
+			tc.ringQ.DivFloorByLastModulusNTT(p0, buff, p1)
 		}
 	})
 
-	b.Run(testString("DivByLastModulus/Round/", testContext.ringQ), func(b *testing.B) {
+	b.Run(testString("DivByLastModulus/Round/", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			testContext.ringQ.DivRoundByLastModulusLvl(p0.Level(), p0, p1)
+			tc.ringQ.DivRoundByLastModulus(p0, p1)
 		}
 	})
 
-	b.Run(testString("DivByLastModulus/RoundNTT/", testContext.ringQ), func(b *testing.B) {
+	b.Run(testString("DivByLastModulus/RoundNTT/", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			testContext.ringQ.DivRoundByLastModulusNTTLvl(p0.Level(), p0, buff, p1)
+			tc.ringQ.DivRoundByLastModulusNTT(p0, buff, p1)
 		}
 	})
 }
 
-func benchBRed(testContext *testParams, b *testing.B) {
+func benchBRed(tc *testParams, b *testing.B) {
 
 	var q, x, y uint64 = 1033576114481528833, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF
 
-	u := BRedParams(q)
+	brc := BRedConstant(q)
 
 	b.ResetTimer()
 
 	b.Run("BRed", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			x = BRed(x, y, q, u)
+			x = BRed(x, y, q, brc)
 		}
 	})
 }
 
-func benchMRed(testContext *testParams, b *testing.B) {
+func benchMRed(tc *testParams, b *testing.B) {
 
 	var q, x, y uint64 = 1033576114481528833, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF
 
-	u := BRedParams(q)
+	y = MForm(y, q, BRedConstant(q))
 
-	y = MForm(y, q, u)
-
-	m := MRedParams(q)
+	mrc := MRedConstant(q)
 
 	b.ResetTimer()
 
 	b.Run("MRed", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			x = MRed(x, y, q, m)
+			x = MRed(x, y, q, mrc)
 		}
 	})
 }
 
-func benchBRedAdd(testContext *testParams, b *testing.B) {
+func benchBRedAdd(tc *testParams, b *testing.B) {
 
 	var q, x uint64 = 1033576114481528833, 0xFFFFFFFFFFFFFFFF
 
-	u := BRedParams(q)
+	brc := BRedConstant(q)
 
 	b.ResetTimer()
 
 	b.Run("BRedAdd", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			BRedAdd(x, q, u)
+			BRedAdd(x, q, brc)
 		}
 	})
 }

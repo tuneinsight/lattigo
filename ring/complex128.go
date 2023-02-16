@@ -68,6 +68,26 @@ func NewComplex(a, b *big.Float) (c *Complex) {
 	return
 }
 
+// IsInt returns true if both the real and imaginary part are integers.
+func (c *Complex) IsInt() bool {
+
+	var real, imag bool
+
+	if c[0] != nil {
+		real = c[0].IsInt()
+	} else {
+		real = true
+	}
+
+	if c[1] != nil {
+		imag = c[1].IsInt()
+	} else {
+		imag = true
+	}
+
+	return real && imag
+}
+
 // Set sets a arbitrary precision complex number
 func (c *Complex) Set(a *Complex) {
 	c[0].Set(a[0])

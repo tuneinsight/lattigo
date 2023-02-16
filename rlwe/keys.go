@@ -95,7 +95,7 @@ func NewRotationKeySet(params Parameters, galoisElement []uint64) (rotKey *Rotat
 	rotKey = new(RotationKeySet)
 	rotKey.Keys = make(map[uint64]*SwitchingKey, len(galoisElement))
 	for _, galEl := range galoisElement {
-		rotKey.Keys[galEl] = NewSwitchingKey(params, params.QCount()-1, params.PCount()-1)
+		rotKey.Keys[galEl] = NewSwitchingKey(params, params.MaxLevelQ(), params.MaxLevelP())
 	}
 	return
 }
@@ -113,11 +113,12 @@ func (rtks *RotationKeySet) GetRotationKey(galoisEl uint64) (*SwitchingKey, bool
 // NewSwitchingKey returns a new public switching key with pre-allocated zero-value
 func NewSwitchingKey(params Parameters, levelQ, levelP int) *SwitchingKey {
 	return &SwitchingKey{GadgetCiphertext: *NewGadgetCiphertext(
+		params,
 		levelQ,
 		levelP,
 		params.DecompRNS(levelQ, levelP),
 		params.DecompPw2(levelQ, levelP),
-		*params.RingQP())}
+	)}
 }
 
 // Equals checks two SwitchingKeys for equality.
@@ -135,7 +136,7 @@ func NewRelinearizationKey(params Parameters, maxRelinDegree int) (evakey *Relin
 	evakey = new(RelinearizationKey)
 	evakey.Keys = make([]*SwitchingKey, maxRelinDegree)
 	for d := 0; d < maxRelinDegree; d++ {
-		evakey.Keys[d] = NewSwitchingKey(params, params.QCount()-1, params.PCount()-1)
+		evakey.Keys[d] = NewSwitchingKey(params, params.MaxLevelQ(), params.MaxLevelP())
 	}
 
 	return

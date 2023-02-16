@@ -5,79 +5,143 @@ import (
 	"unsafe"
 )
 
-// NTT computes the NTT of p1 and returns the result on p2.
+// NumberTheoreticTransformer is an interface to provide
+// flexibility on what type of NTT is used by the struct Ring.
+type NumberTheoreticTransformer interface {
+	Forward(p1, p2 []uint64)
+	ForwardLazy(p1, p2 []uint64)
+	Backward(p1, p2 []uint64)
+	BackwardLazy(p1, p2 []uint64)
+}
+
+type numberTheoreticTransformerBase struct {
+	*NTTTable
+	N            int
+	Modulus      uint64
+	MRedConstant uint64
+	BRedConstant []uint64
+}
+
+// NumberTheoreticTransformerStandard computes the standard nega-cyclic NTT in the ring Z[X]/(X^N+1).
+type NumberTheoreticTransformerStandard struct {
+	numberTheoreticTransformerBase
+}
+
+// NTTTable store all the constants that are specifically tied to the NTT.
+type NTTTable struct {
+	NthRoot       uint64   // Nthroot used for the NTT
+	PrimitiveRoot uint64   // 2N-th primitive root
+	RootsForward  []uint64 //powers of the 2N-th primitive root in Montgomery form (in bit-reversed order)
+	RootsBackward []uint64 //powers of the inverse of the 2N-th primitive root in Montgomery form (in bit-reversed order)
+	NInv          uint64   //[N^-1] mod Modulus in Montgomery form
+}
+
+func NewNumberTheoreticTransformerStandard(r *SubRing, n int) NumberTheoreticTransformer {
+	return NumberTheoreticTransformerStandard{
+		numberTheoreticTransformerBase: numberTheoreticTransformerBase{
+			N:            r.N,
+			Modulus:      r.Modulus,
+			MRedConstant: r.MRedConstant,
+			BRedConstant: r.BRedConstant,
+			NTTTable:     r.NTTTable,
+		},
+	}
+}
+
+// Forward writes the forward NTT in Z[X]/(X^N+1) of p1 on p2.
+func (rntt NumberTheoreticTransformerStandard) Forward(p1, p2 []uint64) {
+	NTTStandard(p1, p2, rntt.N, rntt.Modulus, rntt.MRedConstant, rntt.BRedConstant, rntt.RootsForward)
+}
+
+// ForwardLazy writes the forward NTT in Z[X]/(X^N+1) of p1 on p2.
+// Returns values in the range [0, 2q-1].
+func (rntt NumberTheoreticTransformerStandard) ForwardLazy(p1, p2 []uint64) {
+	NTTStandardLazy(p1, p2, rntt.N, rntt.Modulus, rntt.MRedConstant, rntt.RootsForward)
+}
+
+// Backward writes the backward NTT in Z[X]/(X^N+1) of p1 on p2.
+func (rntt NumberTheoreticTransformerStandard) Backward(p1, p2 []uint64) {
+	INTTStandard(p1, p2, rntt.N, rntt.NInv, rntt.Modulus, rntt.MRedConstant, rntt.RootsBackward)
+}
+
+// BackwardLazy writes the backward NTT in Z[X]/(X^N+1) p1 on p2.
+// Returns values in the range [0, 2q-1].
+func (rntt NumberTheoreticTransformerStandard) BackwardLazy(p1, p2 []uint64) {
+	INTTStandardLazy(p1, p2, rntt.N, rntt.NInv, rntt.Modulus, rntt.MRedConstant, rntt.RootsBackward)
+}
+
+// NumberTheoreticTransformerConjugateInvariant computes the NTT in the ring Z[X+X^-1]/(X^2N+1).
+// Z[X+X^-1]/(X^2N+1) is a closed sub-ring of Z[X]/(X^2N+1). Note that the input polynomial only needs to be size N
+// since the right half does not provide any additional information.
+// See "Approximate Homomorphic Encryption over the Conjugate-invariant Ring", https://eprint.iacr.org/2018/952.
+// The implemented approach is more efficient than the one proposed in the referenced work.
+// It avoids the linear map Z[X + X^-1]/(X^2N + 1) <-> Z[X]/(X^N - 1) by instead directly computing the left
+// half of the NTT of Z[X + X^-1]/(X^2N + 1) since the right half provides no additional information, which
+// allows to (re)use nega-cyclic NTT.
+type NumberTheoreticTransformerConjugateInvariant struct {
+	numberTheoreticTransformerBase
+}
+
+func NewNumberTheoreticTransformerConjugateInvariant(r *SubRing, n int) NumberTheoreticTransformer {
+	return NumberTheoreticTransformerConjugateInvariant{
+		numberTheoreticTransformerBase: numberTheoreticTransformerBase{
+			N:            r.N,
+			Modulus:      r.Modulus,
+			MRedConstant: r.MRedConstant,
+			BRedConstant: r.BRedConstant,
+			NTTTable:     r.NTTTable,
+		},
+	}
+}
+
+// Forward writes the forward NTT in Z[X+X^-1]/(X^2N+1) of p1 on p2.
+func (rntt NumberTheoreticTransformerConjugateInvariant) Forward(p1, p2 []uint64) {
+	NTTConjugateInvariant(p1, p2, rntt.N, rntt.Modulus, rntt.MRedConstant, rntt.BRedConstant, rntt.RootsForward)
+}
+
+// ForwardLazy writes the forward NTT in Z[X+X^-1]/(X^2N+1) of p1 on p2.
+// Returns values in the range [0, 2q-1].
+func (rntt NumberTheoreticTransformerConjugateInvariant) ForwardLazy(p1, p2 []uint64) {
+	nttConjugateInvariantLazy(p1, p2, rntt.N, rntt.Modulus, rntt.MRedConstant, rntt.RootsForward)
+}
+
+// Backward writes the backward NTT in Z[X+X^-1]/(X^2N+1) of p1 on p2.
+func (rntt NumberTheoreticTransformerConjugateInvariant) Backward(p1, p2 []uint64) {
+	INTTConjugateInvariant(p1, p2, rntt.N, rntt.NInv, rntt.Modulus, rntt.MRedConstant, rntt.RootsBackward)
+}
+
+// BackwardLazy writes the backward NTT in Z[X+X^-1]/(X^2N+1) of p1 on p2.
+// Returns values in the range [0, 2q-1].
+func (rntt NumberTheoreticTransformerConjugateInvariant) BackwardLazy(p1, p2 []uint64) {
+	INTTConjugateInvariantLazy(p1, p2, rntt.N, rntt.NInv, rntt.Modulus, rntt.MRedConstant, rntt.MRedConstant, rntt.RootsBackward)
+}
+
+// NTT evaluates p2 = NTT(P1).
 func (r *Ring) NTT(p1, p2 *Poly) {
-	r.NumberTheoreticTransformer.Forward(r, p1, p2)
+	for i, s := range r.SubRings[:r.level+1] {
+		s.NTT(p1.Coeffs[i], p2.Coeffs[i])
+	}
 }
 
-// NTTLvl computes the NTT of p1 and returns the result on p2.
-// The value level defines the number of moduli of the input polynomials.
-func (r *Ring) NTTLvl(level int, p1, p2 *Poly) {
-	r.NumberTheoreticTransformer.ForwardLvl(r, level, p1, p2)
-}
-
-// NTTLazy computes the NTT of p1 and returns the result on p2.
-// Output values are in the range [0, 2q-1]
+// NTTLazy evaluates p2 = NTT(p1) with p2 in [0, 2*modulus-1].
 func (r *Ring) NTTLazy(p1, p2 *Poly) {
-	r.NumberTheoreticTransformer.ForwardLazy(r, p1, p2)
+	for i, s := range r.SubRings[:r.level+1] {
+		s.NTTLazy(p1.Coeffs[i], p2.Coeffs[i])
+	}
 }
 
-// NTTLazyLvl computes the NTT of p1 and returns the result on p2.
-// The value level defines the number of moduli of the input polynomials.
-// Output values are in the range [0, 2q-1]
-func (r *Ring) NTTLazyLvl(level int, p1, p2 *Poly) {
-	r.NumberTheoreticTransformer.ForwardLazyLvl(r, level, p1, p2)
+// INTT evaluates p2 = INTT(p1).
+func (r *Ring) INTT(p1, p2 *Poly) {
+	for i, s := range r.SubRings[:r.level+1] {
+		s.INTT(p1.Coeffs[i], p2.Coeffs[i])
+	}
 }
 
-// NTTSingle computes the NTT of p1 and returns the result on p2.
-// The level-th moduli of the ring NTT params are used.
-func (r *Ring) NTTSingle(level int, p1, p2 []uint64) {
-	r.NumberTheoreticTransformer.ForwardVec(r, level, p1, p2)
-}
-
-// NTTSingleLazy computes the NTT of p1 and returns the result on p2.
-// The level-th moduli of the ring NTT params are used.
-// Output values are in the range [0, 2q-1]
-func (r *Ring) NTTSingleLazy(level int, p1, p2 []uint64) {
-	r.NumberTheoreticTransformer.ForwardLazyVec(r, level, p1, p2)
-}
-
-// InvNTT computes the inverse-NTT of p1 and returns the result on p2.
-func (r *Ring) InvNTT(p1, p2 *Poly) {
-	r.NumberTheoreticTransformer.Backward(r, p1, p2)
-}
-
-// InvNTTLvl computes the inverse-NTT of p1 and returns the result on p2.
-// The value level defines the number of moduli of the input polynomials.
-func (r *Ring) InvNTTLvl(level int, p1, p2 *Poly) {
-	r.NumberTheoreticTransformer.BackwardLvl(r, level, p1, p2)
-}
-
-// InvNTTLazy computes the inverse-NTT of p1 and returns the result on p2.
-// Output values are in the range [0, 2q-1]
-func (r *Ring) InvNTTLazy(p1, p2 *Poly) {
-	r.NumberTheoreticTransformer.BackwardLazy(r, p1, p2)
-}
-
-// InvNTTLazyLvl computes the inverse-NTT of p1 and returns the result on p2.
-// The value level defines the number of moduli of the input polynomials.
-// Output values are in the range [0, 2q-1]
-func (r *Ring) InvNTTLazyLvl(level int, p1, p2 *Poly) {
-	r.NumberTheoreticTransformer.BackwardLazyLvl(r, level, p1, p2)
-}
-
-// InvNTTSingle computes the InvNTT of p1 and returns the result on p2.
-// The level-th moduli of the ring InvNTT params are used.
-// Only computes the InvNTT for the i-th level.
-func (r *Ring) InvNTTSingle(level int, p1, p2 []uint64) {
-	r.NumberTheoreticTransformer.BackwardVec(r, level, p1, p2)
-}
-
-// InvNTTSingleLazy computes the InvNTT of p1 and returns the result on p2.
-// The level-th moduli of the ring InvNTT params are used.
-// Output values are in the range [0, 2q-1]
-func (r *Ring) InvNTTSingleLazy(level int, p1, p2 []uint64) {
-	r.NumberTheoreticTransformer.BackwardLazyVec(r, level, p1, p2)
+// INTTLazy evaluates p2 = INTT(p1) with p2 in [0, 2*modulus-1].
+func (r *Ring) INTTLazy(p1, p2 *Poly) {
+	for i, s := range r.SubRings[:r.level+1] {
+		s.INTTLazy(p1.Coeffs[i], p2.Coeffs[i])
+	}
 }
 
 // butterfly computes X, Y = U + V*Psi, U - V*Psi mod Q.
@@ -85,7 +149,7 @@ func butterfly(U, V, Psi, twoQ, fourQ, Q, Qinv uint64) (uint64, uint64) {
 	if U >= fourQ {
 		U -= fourQ
 	}
-	V = MRedConstant(V, Psi, Q, Qinv)
+	V = MRedLazy(V, Psi, Q, Qinv)
 	return U + V, U + twoQ - V
 }
 
@@ -95,18 +159,49 @@ func invbutterfly(U, V, Psi, twoQ, fourQ, Q, Qinv uint64) (X, Y uint64) {
 	if X >= twoQ {
 		X -= twoQ
 	}
-	Y = MRedConstant(U+fourQ-V, Psi, Q, Qinv) // At the moment it is not possible to use MRedConstant if Q > 61 bits
+	Y = MRedLazy(U+fourQ-V, Psi, Q, Qinv) // At the moment it is not possible to use MRedLazy if Q > 61 bits
 	return
 }
 
-// NTT computes the NTT on the input coefficients using the input parameters.
-func NTT(coeffsIn, coeffsOut []uint64, N int, nttPsi []uint64, Q, mredParams uint64, bredParams []uint64) {
-	NTTLazy(coeffsIn, coeffsOut, N, nttPsi, Q, mredParams, bredParams)
-	ReduceVec(coeffsOut, coeffsOut, Q, bredParams)
+// NTTStandard computes the NTTStandard on the input coefficients using the input parameters.
+func NTTStandard(p1, p2 []uint64, N int, Q, QInv uint64, BRedConstant, nttPsi []uint64) {
+	NTTStandardLazy(p1, p2, N, Q, QInv, nttPsi)
+	reducevec(p2, p2, Q, BRedConstant)
 }
 
-// NTTLazy computes the NTT on the input coefficients using the input parameters with output values in the range [0, 2q-1].
-func NTTLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uint64, Q, QInv uint64, bredParams []uint64) {
+// INTTStandard evalues p2 = INTTStandard(p1) in the given SubRing.
+func INTTStandard(p1, p2 []uint64, N int, NInv, Q, MRedConstant uint64, nttPsiInv []uint64) {
+	iNTTCore(p1, p2, N, Q, MRedConstant, nttPsiInv)
+	mulscalarmontgomeryvec(p2, NInv, p2, Q, MRedConstant)
+}
+
+// INTTStandardLazy evalues p2 = INTT(p1) in the given SubRing with p2 in [0, 2*modulus-1].
+func INTTStandardLazy(p1, p2 []uint64, N int, NInv, Q, MRedConstant uint64, nttPsiInv []uint64) {
+	iNTTCore(p1, p2, N, Q, MRedConstant, nttPsiInv)
+	mulscalarmontgomerylazyvec(p2, NInv, p2, Q, MRedConstant)
+}
+
+// NTTConjugateInvariant evaluates p2 = NTT(p1) in the sub-ring Z[X + X^-1]/(X^2N +1) of Z[X]/(X^2N+1).
+func NTTConjugateInvariant(p1, p2 []uint64, N int, Q, MRedConstant uint64, BRedConstant, nttPsi []uint64) {
+	nttConjugateInvariantLazy(p1, p2, N, Q, MRedConstant, nttPsi)
+	reducevec(p2, p2, Q, BRedConstant)
+}
+
+// INTTConjugateInvariant evaluates p2 = INTT(p1) in the closed sub-ring Z[X + X^-1]/(X^2N +1) of Z[X]/(X^2N+1).
+func INTTConjugateInvariant(p1, p2 []uint64, N int, NInv, Q, MRedConstant uint64, nttPsiInv []uint64) {
+	iNTTConjugateInvariantCore(p1, p2, N, Q, MRedConstant, nttPsiInv)
+	mulscalarmontgomeryvec(p2, NInv, p2, Q, MRedConstant)
+}
+
+// INTTConjugateInvariantLazy evaluates p2 = INTT(p1) in the closed sub-ring Z[X + X^-1]/(X^2N +1) of Z[X]/(X^2N+1) with p2 in the range [0, 2*modulus-1].
+func INTTConjugateInvariantLazy(p1, p2 []uint64, N int, NInv, Q, QInv, MRedConstant uint64, nttPsiInv []uint64) {
+	iNTTConjugateInvariantCore(p1, p2, N, Q, QInv, nttPsiInv)
+	mulscalarmontgomerylazyvec(p2, NInv, p2, Q, MRedConstant)
+}
+
+// NTTStandardLazy computes the NTT on the input coefficients using the input parameters with output values in the range [0, 2*modulus-1].
+func NTTStandardLazy(p1, p2 []uint64, N int, Q, QInv uint64, nttPsi []uint64) {
+
 	var j1, j2, t int
 	var F, V uint64
 
@@ -119,34 +214,34 @@ func NTTLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uint64, Q, QInv uint6
 
 	for jx, jy := 0, t; jx <= t-1; jx, jy = jx+8, jy+8 {
 
-		xin := (*[8]uint64)(unsafe.Pointer(&coeffsIn[jx]))
-		yin := (*[8]uint64)(unsafe.Pointer(&coeffsIn[jy]))
+		xin := (*[8]uint64)(unsafe.Pointer(&p1[jx]))
+		yin := (*[8]uint64)(unsafe.Pointer(&p1[jy]))
 
-		xout := (*[8]uint64)(unsafe.Pointer(&coeffsOut[jx]))
-		yout := (*[8]uint64)(unsafe.Pointer(&coeffsOut[jy]))
+		xout := (*[8]uint64)(unsafe.Pointer(&p2[jx]))
+		yout := (*[8]uint64)(unsafe.Pointer(&p2[jy]))
 
-		V = MRedConstant(yin[0], F, Q, QInv)
+		V = MRedLazy(yin[0], F, Q, QInv)
 		xout[0], yout[0] = xin[0]+V, xin[0]+twoQ-V
 
-		V = MRedConstant(yin[1], F, Q, QInv)
+		V = MRedLazy(yin[1], F, Q, QInv)
 		xout[1], yout[1] = xin[1]+V, xin[1]+twoQ-V
 
-		V = MRedConstant(yin[2], F, Q, QInv)
+		V = MRedLazy(yin[2], F, Q, QInv)
 		xout[2], yout[2] = xin[2]+V, xin[2]+twoQ-V
 
-		V = MRedConstant(yin[3], F, Q, QInv)
+		V = MRedLazy(yin[3], F, Q, QInv)
 		xout[3], yout[3] = xin[3]+V, xin[3]+twoQ-V
 
-		V = MRedConstant(yin[4], F, Q, QInv)
+		V = MRedLazy(yin[4], F, Q, QInv)
 		xout[4], yout[4] = xin[4]+V, xin[4]+twoQ-V
 
-		V = MRedConstant(yin[5], F, Q, QInv)
+		V = MRedLazy(yin[5], F, Q, QInv)
 		xout[5], yout[5] = xin[5]+V, xin[5]+twoQ-V
 
-		V = MRedConstant(yin[6], F, Q, QInv)
+		V = MRedLazy(yin[6], F, Q, QInv)
 		xout[6], yout[6] = xin[6]+V, xin[6]+twoQ-V
 
-		V = MRedConstant(yin[7], F, Q, QInv)
+		V = MRedLazy(yin[7], F, Q, QInv)
 		xout[7], yout[7] = xin[7]+V, xin[7]+twoQ-V
 	}
 
@@ -173,8 +268,8 @@ func NTTLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uint64, Q, QInv uint6
 
 					for jx, jy := j1, j1+t; jx <= j2; jx, jy = jx+8, jy+8 {
 
-						x := (*[8]uint64)(unsafe.Pointer(&coeffsOut[jx]))
-						y := (*[8]uint64)(unsafe.Pointer(&coeffsOut[jy]))
+						x := (*[8]uint64)(unsafe.Pointer(&p2[jx]))
+						y := (*[8]uint64)(unsafe.Pointer(&p2[jy]))
 
 						x[0], y[0] = butterfly(x[0], y[0], F, twoQ, fourQ, Q, QInv)
 						x[1], y[1] = butterfly(x[1], y[1], F, twoQ, fourQ, Q, QInv)
@@ -190,31 +285,31 @@ func NTTLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uint64, Q, QInv uint6
 
 					for jx, jy := j1, j1+t; jx <= j2; jx, jy = jx+8, jy+8 {
 
-						x := (*[8]uint64)(unsafe.Pointer(&coeffsOut[jx]))
-						y := (*[8]uint64)(unsafe.Pointer(&coeffsOut[jy]))
+						x := (*[8]uint64)(unsafe.Pointer(&p2[jx]))
+						y := (*[8]uint64)(unsafe.Pointer(&p2[jy]))
 
-						V = MRedConstant(y[0], F, Q, QInv)
+						V = MRedLazy(y[0], F, Q, QInv)
 						x[0], y[0] = x[0]+V, x[0]+twoQ-V
 
-						V = MRedConstant(y[1], F, Q, QInv)
+						V = MRedLazy(y[1], F, Q, QInv)
 						x[1], y[1] = x[1]+V, x[1]+twoQ-V
 
-						V = MRedConstant(y[2], F, Q, QInv)
+						V = MRedLazy(y[2], F, Q, QInv)
 						x[2], y[2] = x[2]+V, x[2]+twoQ-V
 
-						V = MRedConstant(y[3], F, Q, QInv)
+						V = MRedLazy(y[3], F, Q, QInv)
 						x[3], y[3] = x[3]+V, x[3]+twoQ-V
 
-						V = MRedConstant(y[4], F, Q, QInv)
+						V = MRedLazy(y[4], F, Q, QInv)
 						x[4], y[4] = x[4]+V, x[4]+twoQ-V
 
-						V = MRedConstant(y[5], F, Q, QInv)
+						V = MRedLazy(y[5], F, Q, QInv)
 						x[5], y[5] = x[5]+V, x[5]+twoQ-V
 
-						V = MRedConstant(y[6], F, Q, QInv)
+						V = MRedLazy(y[6], F, Q, QInv)
 						x[6], y[6] = x[6]+V, x[6]+twoQ-V
 
-						V = MRedConstant(y[7], F, Q, QInv)
+						V = MRedLazy(y[7], F, Q, QInv)
 						x[7], y[7] = x[7]+V, x[7]+twoQ-V
 					}
 				}
@@ -227,7 +322,7 @@ func NTTLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uint64, Q, QInv uint6
 				for i, j1 := m, 0; i < 2*m; i, j1 = i+2, j1+4*t {
 
 					psi := (*[2]uint64)(unsafe.Pointer(&nttPsi[i]))
-					x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[j1]))
+					x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 					x[0], x[4] = butterfly(x[0], x[4], psi[0], twoQ, fourQ, Q, QInv)
 					x[1], x[5] = butterfly(x[1], x[5], psi[0], twoQ, fourQ, Q, QInv)
@@ -244,30 +339,30 @@ func NTTLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uint64, Q, QInv uint6
 				for i, j1 := m, 0; i < 2*m; i, j1 = i+2, j1+4*t {
 
 					psi := (*[2]uint64)(unsafe.Pointer(&nttPsi[i]))
-					x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[j1]))
+					x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
-					V = MRedConstant(x[4], psi[0], Q, QInv)
+					V = MRedLazy(x[4], psi[0], Q, QInv)
 					x[0], x[4] = x[0]+V, x[0]+twoQ-V
 
-					V = MRedConstant(x[5], psi[0], Q, QInv)
+					V = MRedLazy(x[5], psi[0], Q, QInv)
 					x[1], x[5] = x[1]+V, x[1]+twoQ-V
 
-					V = MRedConstant(x[6], psi[0], Q, QInv)
+					V = MRedLazy(x[6], psi[0], Q, QInv)
 					x[2], x[6] = x[2]+V, x[2]+twoQ-V
 
-					V = MRedConstant(x[7], psi[0], Q, QInv)
+					V = MRedLazy(x[7], psi[0], Q, QInv)
 					x[3], x[7] = x[3]+V, x[3]+twoQ-V
 
-					V = MRedConstant(x[12], psi[1], Q, QInv)
+					V = MRedLazy(x[12], psi[1], Q, QInv)
 					x[8], x[12] = x[8]+V, x[8]+twoQ-V
 
-					V = MRedConstant(x[13], psi[1], Q, QInv)
+					V = MRedLazy(x[13], psi[1], Q, QInv)
 					x[9], x[13] = x[9]+V, x[9]+twoQ-V
 
-					V = MRedConstant(x[14], psi[1], Q, QInv)
+					V = MRedLazy(x[14], psi[1], Q, QInv)
 					x[10], x[14] = x[10]+V, x[10]+twoQ-V
 
-					V = MRedConstant(x[15], psi[1], Q, QInv)
+					V = MRedLazy(x[15], psi[1], Q, QInv)
 					x[11], x[15] = x[11]+V, x[11]+twoQ-V
 
 				}
@@ -281,7 +376,7 @@ func NTTLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uint64, Q, QInv uint6
 				for i, j1 := m, 0; i < 2*m; i, j1 = i+4, j1+8*t {
 
 					psi := (*[4]uint64)(unsafe.Pointer(&nttPsi[i]))
-					x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[j1]))
+					x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 					x[0], x[2] = butterfly(x[0], x[2], psi[0], twoQ, fourQ, Q, QInv)
 					x[1], x[3] = butterfly(x[1], x[3], psi[0], twoQ, fourQ, Q, QInv)
@@ -297,30 +392,30 @@ func NTTLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uint64, Q, QInv uint6
 				for i, j1 := m, 0; i < 2*m; i, j1 = i+4, j1+8*t {
 
 					psi := (*[4]uint64)(unsafe.Pointer(&nttPsi[i]))
-					x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[j1]))
+					x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
-					V = MRedConstant(x[2], psi[0], Q, QInv)
+					V = MRedLazy(x[2], psi[0], Q, QInv)
 					x[0], x[2] = x[0]+V, x[0]+twoQ-V
 
-					V = MRedConstant(x[3], psi[0], Q, QInv)
+					V = MRedLazy(x[3], psi[0], Q, QInv)
 					x[1], x[3] = x[1]+V, x[1]+twoQ-V
 
-					V = MRedConstant(x[6], psi[1], Q, QInv)
+					V = MRedLazy(x[6], psi[1], Q, QInv)
 					x[4], x[6] = x[4]+V, x[4]+twoQ-V
 
-					V = MRedConstant(x[7], psi[1], Q, QInv)
+					V = MRedLazy(x[7], psi[1], Q, QInv)
 					x[5], x[7] = x[5]+V, x[5]+twoQ-V
 
-					V = MRedConstant(x[10], psi[2], Q, QInv)
+					V = MRedLazy(x[10], psi[2], Q, QInv)
 					x[8], x[10] = x[8]+V, x[8]+twoQ-V
 
-					V = MRedConstant(x[11], psi[2], Q, QInv)
+					V = MRedLazy(x[11], psi[2], Q, QInv)
 					x[9], x[11] = x[9]+V, x[9]+twoQ-V
 
-					V = MRedConstant(x[14], psi[3], Q, QInv)
+					V = MRedLazy(x[14], psi[3], Q, QInv)
 					x[12], x[14] = x[12]+V, x[12]+twoQ-V
 
-					V = MRedConstant(x[15], psi[3], Q, QInv)
+					V = MRedLazy(x[15], psi[3], Q, QInv)
 					x[13], x[15] = x[13]+V, x[13]+twoQ-V
 				}
 			}
@@ -330,7 +425,7 @@ func NTTLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uint64, Q, QInv uint6
 			for i, j1 := m, 0; i < 2*m; i, j1 = i+8, j1+16 {
 
 				psi := (*[8]uint64)(unsafe.Pointer(&nttPsi[i]))
-				x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[j1]))
+				x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 				x[0], x[1] = butterfly(x[0], x[1], psi[0], twoQ, fourQ, Q, QInv)
 				x[2], x[3] = butterfly(x[2], x[3], psi[1], twoQ, fourQ, Q, QInv)
@@ -346,30 +441,30 @@ func NTTLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uint64, Q, QInv uint6
 				for i := uint64(0); i < m; i = i + 8 {
 
 					psi := (*[8]uint64)(unsafe.Pointer(&nttPsi[m+i]))
-					x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[2*i]))
+					x := (*[16]uint64)(unsafe.Pointer(&p2[2*i]))
 
-					V = MRedConstant(x[1], psi[0], Q, QInv)
+					V = MRedLazy(x[1], psi[0], Q, QInv)
 					x[0], x[1] = x[0]+V, x[0]+twoQ-V
 
-					V = MRedConstant(x[3], psi[1], Q, QInv)
+					V = MRedLazy(x[3], psi[1], Q, QInv)
 					x[2], x[3] = x[2]+V, x[2]+twoQ-V
 
-					V = MRedConstant(x[5], psi[2], Q, QInv)
+					V = MRedLazy(x[5], psi[2], Q, QInv)
 					x[4], x[5] = x[4]+V, x[4]+twoQ-V
 
-					V = MRedConstant(x[7], psi[3], Q, QInv)
+					V = MRedLazy(x[7], psi[3], Q, QInv)
 					x[6], x[7] = x[6]+V, x[6]+twoQ-V
 
-					V = MRedConstant(x[9], psi[4], Q, QInv)
+					V = MRedLazy(x[9], psi[4], Q, QInv)
 					x[8], x[9] = x[8]+V, x[8]+twoQ-V
 
-					V = MRedConstant(x[11], psi[5], Q, QInv)
+					V = MRedLazy(x[11], psi[5], Q, QInv)
 					x[10], x[11] = x[10]+V, x[10]+twoQ-V
 
-					V = MRedConstant(x[13], psi[6], Q, QInv)
+					V = MRedLazy(x[13], psi[6], Q, QInv)
 					x[12], x[13] = x[12]+V, x[12]+twoQ-V
 
-					V = MRedConstant(x[15], psi[7], Q, QInv)
+					V = MRedLazy(x[15], psi[7], Q, QInv)
 					x[14], x[15] = x[14]+V, x[14]+twoQ-V
 				}
 			*/
@@ -377,7 +472,8 @@ func NTTLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uint64, Q, QInv uint6
 	}
 }
 
-func invNTTCore(coeffsIn, coeffsOut []uint64, N int, nttPsiInv []uint64, Q, QInv uint64) {
+func iNTTCore(p1, p2 []uint64, N int, Q, QInv uint64, nttPsiInv []uint64) {
+
 	var h, t int
 	var F uint64
 
@@ -390,8 +486,8 @@ func invNTTCore(coeffsIn, coeffsOut []uint64, N int, nttPsiInv []uint64, Q, QInv
 	for i, j := h, 0; i < 2*h; i, j = i+8, j+16 {
 
 		psi := (*[8]uint64)(unsafe.Pointer(&nttPsiInv[i]))
-		xin := (*[16]uint64)(unsafe.Pointer(&coeffsIn[j]))
-		xout := (*[16]uint64)(unsafe.Pointer(&coeffsOut[j]))
+		xin := (*[16]uint64)(unsafe.Pointer(&p1[j]))
+		xout := (*[16]uint64)(unsafe.Pointer(&p2[j]))
 
 		xout[0], xout[1] = invbutterfly(xin[0], xin[1], psi[0], twoQ, fourQ, Q, QInv)
 		xout[2], xout[3] = invbutterfly(xin[2], xin[3], psi[1], twoQ, fourQ, Q, QInv)
@@ -417,8 +513,8 @@ func invNTTCore(coeffsIn, coeffsOut []uint64, N int, nttPsiInv []uint64, Q, QInv
 
 				for jx, jy := j1, j1+t; jx <= j2; jx, jy = jx+8, jy+8 {
 
-					x := (*[8]uint64)(unsafe.Pointer(&coeffsOut[jx]))
-					y := (*[8]uint64)(unsafe.Pointer(&coeffsOut[jy]))
+					x := (*[8]uint64)(unsafe.Pointer(&p2[jx]))
+					y := (*[8]uint64)(unsafe.Pointer(&p2[jy]))
 
 					x[0], y[0] = invbutterfly(x[0], y[0], F, twoQ, fourQ, Q, QInv)
 					x[1], y[1] = invbutterfly(x[1], y[1], F, twoQ, fourQ, Q, QInv)
@@ -436,7 +532,7 @@ func invNTTCore(coeffsIn, coeffsOut []uint64, N int, nttPsiInv []uint64, Q, QInv
 			for i, j1 := h, 0; i < 2*h; i, j1 = i+2, j1+4*t {
 
 				psi := (*[2]uint64)(unsafe.Pointer(&nttPsiInv[i]))
-				x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[j1]))
+				x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 				x[0], x[4] = invbutterfly(x[0], x[4], psi[0], twoQ, fourQ, Q, QInv)
 				x[1], x[5] = invbutterfly(x[1], x[5], psi[0], twoQ, fourQ, Q, QInv)
@@ -453,7 +549,7 @@ func invNTTCore(coeffsIn, coeffsOut []uint64, N int, nttPsiInv []uint64, Q, QInv
 			for i, j1 := h, 0; i < 2*h; i, j1 = i+4, j1+8*t {
 
 				psi := (*[4]uint64)(unsafe.Pointer(&nttPsiInv[i]))
-				x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[j1]))
+				x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 				x[0], x[2] = invbutterfly(x[0], x[2], psi[0], twoQ, fourQ, Q, QInv)
 				x[1], x[3] = invbutterfly(x[1], x[3], psi[0], twoQ, fourQ, Q, QInv)
@@ -470,26 +566,9 @@ func invNTTCore(coeffsIn, coeffsOut []uint64, N int, nttPsiInv []uint64, Q, QInv
 	}
 }
 
-// InvNTT computes the InvNTT transformation on the input coefficients using the input parameters.
-func InvNTT(coeffsIn, coeffsOut []uint64, N int, nttPsiInv []uint64, nttNInv, Q, QInv uint64) {
-	invNTTCore(coeffsIn, coeffsOut, N, nttPsiInv, Q, QInv)
-	MulScalarMontgomeryVec(coeffsOut, coeffsOut, nttNInv, Q, QInv)
-}
+// nttConjugateInvariantLazy evaluates p2 = NTT(p1) in the sub-ring Z[X + X^-1]/(X^2N +1) of Z[X]/(X^2N+1) with p2 [0, 2*modulus-1].
+func nttConjugateInvariantLazy(p1, p2 []uint64, N int, Q, QInv uint64, nttPsi []uint64) {
 
-// InvNTTLazy computes the InvNTT transformation on the input coefficients using the input parameters with output values in the range [0, 2q-1].
-func InvNTTLazy(coeffsIn, coeffsOut []uint64, N int, nttPsiInv []uint64, nttNInv, Q, QInv uint64) {
-	invNTTCore(coeffsIn, coeffsOut, N, nttPsiInv, Q, QInv)
-	MulScalarMontgomeryConstantVec(coeffsOut, coeffsOut, nttNInv, Q, QInv)
-}
-
-// NTTConjugateInvariant computes the NTT in the closed sub-ring Z[X + X^-1]/(X^2N +1) of Z[X]/(X^2N+1).
-func NTTConjugateInvariant(coeffsIn, coeffsOut []uint64, N int, nttPsi []uint64, Q, QInv uint64, bredParams []uint64) {
-	NTTConjugateInvariantLazy(coeffsIn, coeffsOut, N, nttPsi, Q, QInv, bredParams)
-	ReduceVec(coeffsOut, coeffsOut, Q, bredParams)
-}
-
-// NTTConjugateInvariantLazy computes the NTT in the closed sub-ring Z[X + X^-1]/(X^2N +1) of Z[X]/(X^2N+1) with output values in the range [0, 2q-1].
-func NTTConjugateInvariantLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uint64, Q, QInv uint64, bredParams []uint64) {
 	var t, h int
 	var F, V uint64
 	var reduce bool
@@ -503,38 +582,38 @@ func NTTConjugateInvariantLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uin
 
 	for jx, jy := 1, N-8; jx < (N>>1)-7; jx, jy = jx+8, jy-8 {
 
-		xin := (*[8]uint64)(unsafe.Pointer(&coeffsIn[jx]))
-		yin := (*[8]uint64)(unsafe.Pointer(&coeffsIn[jy]))
+		xin := (*[8]uint64)(unsafe.Pointer(&p1[jx]))
+		yin := (*[8]uint64)(unsafe.Pointer(&p1[jy]))
 
-		xout := (*[8]uint64)(unsafe.Pointer(&coeffsOut[jx]))
-		yout := (*[8]uint64)(unsafe.Pointer(&coeffsOut[jy]))
+		xout := (*[8]uint64)(unsafe.Pointer(&p2[jx]))
+		yout := (*[8]uint64)(unsafe.Pointer(&p2[jy]))
 
-		xout[0], yout[7] = xin[0]+twoQ-MRedConstant(yin[7], F, Q, QInv), yin[7]+twoQ-MRedConstant(xin[0], F, Q, QInv)
-		xout[1], yout[6] = xin[1]+twoQ-MRedConstant(yin[6], F, Q, QInv), yin[6]+twoQ-MRedConstant(xin[1], F, Q, QInv)
-		xout[2], yout[5] = xin[2]+twoQ-MRedConstant(yin[5], F, Q, QInv), yin[5]+twoQ-MRedConstant(xin[2], F, Q, QInv)
-		xout[3], yout[4] = xin[3]+twoQ-MRedConstant(yin[4], F, Q, QInv), yin[4]+twoQ-MRedConstant(xin[3], F, Q, QInv)
-		xout[4], yout[3] = xin[4]+twoQ-MRedConstant(yin[3], F, Q, QInv), yin[3]+twoQ-MRedConstant(xin[4], F, Q, QInv)
-		xout[5], yout[2] = xin[5]+twoQ-MRedConstant(yin[2], F, Q, QInv), yin[2]+twoQ-MRedConstant(xin[5], F, Q, QInv)
-		xout[6], yout[1] = xin[6]+twoQ-MRedConstant(yin[1], F, Q, QInv), yin[1]+twoQ-MRedConstant(xin[6], F, Q, QInv)
-		xout[7], yout[0] = xin[7]+twoQ-MRedConstant(yin[0], F, Q, QInv), yin[0]+twoQ-MRedConstant(xin[7], F, Q, QInv)
+		xout[0], yout[7] = xin[0]+twoQ-MRedLazy(yin[7], F, Q, QInv), yin[7]+twoQ-MRedLazy(xin[0], F, Q, QInv)
+		xout[1], yout[6] = xin[1]+twoQ-MRedLazy(yin[6], F, Q, QInv), yin[6]+twoQ-MRedLazy(xin[1], F, Q, QInv)
+		xout[2], yout[5] = xin[2]+twoQ-MRedLazy(yin[5], F, Q, QInv), yin[5]+twoQ-MRedLazy(xin[2], F, Q, QInv)
+		xout[3], yout[4] = xin[3]+twoQ-MRedLazy(yin[4], F, Q, QInv), yin[4]+twoQ-MRedLazy(xin[3], F, Q, QInv)
+		xout[4], yout[3] = xin[4]+twoQ-MRedLazy(yin[3], F, Q, QInv), yin[3]+twoQ-MRedLazy(xin[4], F, Q, QInv)
+		xout[5], yout[2] = xin[5]+twoQ-MRedLazy(yin[2], F, Q, QInv), yin[2]+twoQ-MRedLazy(xin[5], F, Q, QInv)
+		xout[6], yout[1] = xin[6]+twoQ-MRedLazy(yin[1], F, Q, QInv), yin[1]+twoQ-MRedLazy(xin[6], F, Q, QInv)
+		xout[7], yout[0] = xin[7]+twoQ-MRedLazy(yin[0], F, Q, QInv), yin[0]+twoQ-MRedLazy(xin[7], F, Q, QInv)
 	}
 
 	j := (N >> 1) - 7
-	xin := (*[7]uint64)(unsafe.Pointer(&coeffsIn[j]))
-	yin := (*[7]uint64)(unsafe.Pointer(&coeffsIn[N-j-6]))
-	xout := (*[7]uint64)(unsafe.Pointer(&coeffsOut[j]))
-	yout := (*[7]uint64)(unsafe.Pointer(&coeffsOut[N-j-6]))
+	xin := (*[7]uint64)(unsafe.Pointer(&p1[j]))
+	yin := (*[7]uint64)(unsafe.Pointer(&p1[N-j-6]))
+	xout := (*[7]uint64)(unsafe.Pointer(&p2[j]))
+	yout := (*[7]uint64)(unsafe.Pointer(&p2[N-j-6]))
 
-	xout[0], yout[6] = xin[0]+twoQ-MRedConstant(yin[6], F, Q, QInv), yin[6]+twoQ-MRedConstant(xin[0], F, Q, QInv)
-	xout[1], yout[5] = xin[1]+twoQ-MRedConstant(yin[5], F, Q, QInv), yin[5]+twoQ-MRedConstant(xin[1], F, Q, QInv)
-	xout[2], yout[4] = xin[2]+twoQ-MRedConstant(yin[4], F, Q, QInv), yin[4]+twoQ-MRedConstant(xin[2], F, Q, QInv)
-	xout[3], yout[3] = xin[3]+twoQ-MRedConstant(yin[3], F, Q, QInv), yin[3]+twoQ-MRedConstant(xin[3], F, Q, QInv)
-	xout[4], yout[2] = xin[4]+twoQ-MRedConstant(yin[2], F, Q, QInv), yin[2]+twoQ-MRedConstant(xin[4], F, Q, QInv)
-	xout[5], yout[1] = xin[5]+twoQ-MRedConstant(yin[1], F, Q, QInv), yin[1]+twoQ-MRedConstant(xin[5], F, Q, QInv)
-	xout[6], yout[0] = xin[6]+twoQ-MRedConstant(yin[0], F, Q, QInv), yin[0]+twoQ-MRedConstant(xin[6], F, Q, QInv)
+	xout[0], yout[6] = xin[0]+twoQ-MRedLazy(yin[6], F, Q, QInv), yin[6]+twoQ-MRedLazy(xin[0], F, Q, QInv)
+	xout[1], yout[5] = xin[1]+twoQ-MRedLazy(yin[5], F, Q, QInv), yin[5]+twoQ-MRedLazy(xin[1], F, Q, QInv)
+	xout[2], yout[4] = xin[2]+twoQ-MRedLazy(yin[4], F, Q, QInv), yin[4]+twoQ-MRedLazy(xin[2], F, Q, QInv)
+	xout[3], yout[3] = xin[3]+twoQ-MRedLazy(yin[3], F, Q, QInv), yin[3]+twoQ-MRedLazy(xin[3], F, Q, QInv)
+	xout[4], yout[2] = xin[4]+twoQ-MRedLazy(yin[2], F, Q, QInv), yin[2]+twoQ-MRedLazy(xin[4], F, Q, QInv)
+	xout[5], yout[1] = xin[5]+twoQ-MRedLazy(yin[1], F, Q, QInv), yin[1]+twoQ-MRedLazy(xin[5], F, Q, QInv)
+	xout[6], yout[0] = xin[6]+twoQ-MRedLazy(yin[0], F, Q, QInv), yin[0]+twoQ-MRedLazy(xin[6], F, Q, QInv)
 
-	coeffsOut[N>>1] = coeffsIn[N>>1] + twoQ - MRedConstant(coeffsIn[N>>1], F, Q, QInv)
-	coeffsOut[0] = coeffsIn[0]
+	p2[N>>1] = p1[N>>1] + twoQ - MRedLazy(p1[N>>1], F, Q, QInv)
+	p2[0] = p1[0]
 
 	// Continue the rest of the second to the n-1 butterflies on p2 with approximate reduction
 	for m := 2; m < 2*N; m <<= 1 {
@@ -554,8 +633,8 @@ func NTTConjugateInvariantLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uin
 
 					for jx, jy := j1, j1+t; jx <= j2; jx, jy = jx+8, jy+8 {
 
-						x := (*[8]uint64)(unsafe.Pointer(&coeffsOut[jx]))
-						y := (*[8]uint64)(unsafe.Pointer(&coeffsOut[jy]))
+						x := (*[8]uint64)(unsafe.Pointer(&p2[jx]))
+						y := (*[8]uint64)(unsafe.Pointer(&p2[jy]))
 
 						x[0], y[0] = butterfly(x[0], y[0], F, twoQ, fourQ, Q, QInv)
 						x[1], y[1] = butterfly(x[1], y[1], F, twoQ, fourQ, Q, QInv)
@@ -571,31 +650,31 @@ func NTTConjugateInvariantLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uin
 
 					for jx, jy := j1, j1+t; jx <= j2; jx, jy = jx+8, jy+8 {
 
-						x := (*[8]uint64)(unsafe.Pointer(&coeffsOut[jx]))
-						y := (*[8]uint64)(unsafe.Pointer(&coeffsOut[jy]))
+						x := (*[8]uint64)(unsafe.Pointer(&p2[jx]))
+						y := (*[8]uint64)(unsafe.Pointer(&p2[jy]))
 
-						V = MRedConstant(y[0], F, Q, QInv)
+						V = MRedLazy(y[0], F, Q, QInv)
 						x[0], y[0] = x[0]+V, x[0]+twoQ-V
 
-						V = MRedConstant(y[1], F, Q, QInv)
+						V = MRedLazy(y[1], F, Q, QInv)
 						x[1], y[1] = x[1]+V, x[1]+twoQ-V
 
-						V = MRedConstant(y[2], F, Q, QInv)
+						V = MRedLazy(y[2], F, Q, QInv)
 						x[2], y[2] = x[2]+V, x[2]+twoQ-V
 
-						V = MRedConstant(y[3], F, Q, QInv)
+						V = MRedLazy(y[3], F, Q, QInv)
 						x[3], y[3] = x[3]+V, x[3]+twoQ-V
 
-						V = MRedConstant(y[4], F, Q, QInv)
+						V = MRedLazy(y[4], F, Q, QInv)
 						x[4], y[4] = x[4]+V, x[4]+twoQ-V
 
-						V = MRedConstant(y[5], F, Q, QInv)
+						V = MRedLazy(y[5], F, Q, QInv)
 						x[5], y[5] = x[5]+V, x[5]+twoQ-V
 
-						V = MRedConstant(y[6], F, Q, QInv)
+						V = MRedLazy(y[6], F, Q, QInv)
 						x[6], y[6] = x[6]+V, x[6]+twoQ-V
 
-						V = MRedConstant(y[7], F, Q, QInv)
+						V = MRedLazy(y[7], F, Q, QInv)
 						x[7], y[7] = x[7]+V, x[7]+twoQ-V
 					}
 				}
@@ -608,7 +687,7 @@ func NTTConjugateInvariantLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uin
 				for i, j1 := m, 0; i < h+m; i, j1 = i+2, j1+4*t {
 
 					psi := (*[2]uint64)(unsafe.Pointer(&nttPsi[i]))
-					x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[j1]))
+					x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 					x[0], x[4] = butterfly(x[0], x[4], psi[0], twoQ, fourQ, Q, QInv)
 					x[1], x[5] = butterfly(x[1], x[5], psi[0], twoQ, fourQ, Q, QInv)
@@ -625,30 +704,30 @@ func NTTConjugateInvariantLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uin
 				for i, j1 := m, 0; i < h+m; i, j1 = i+2, j1+4*t {
 
 					psi := (*[2]uint64)(unsafe.Pointer(&nttPsi[i]))
-					x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[j1]))
+					x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
-					V = MRedConstant(x[4], psi[0], Q, QInv)
+					V = MRedLazy(x[4], psi[0], Q, QInv)
 					x[0], x[4] = x[0]+V, x[0]+twoQ-V
 
-					V = MRedConstant(x[5], psi[0], Q, QInv)
+					V = MRedLazy(x[5], psi[0], Q, QInv)
 					x[1], x[5] = x[1]+V, x[1]+twoQ-V
 
-					V = MRedConstant(x[6], psi[0], Q, QInv)
+					V = MRedLazy(x[6], psi[0], Q, QInv)
 					x[2], x[6] = x[2]+V, x[2]+twoQ-V
 
-					V = MRedConstant(x[7], psi[0], Q, QInv)
+					V = MRedLazy(x[7], psi[0], Q, QInv)
 					x[3], x[7] = x[3]+V, x[3]+twoQ-V
 
-					V = MRedConstant(x[12], psi[1], Q, QInv)
+					V = MRedLazy(x[12], psi[1], Q, QInv)
 					x[8], x[12] = x[8]+V, x[8]+twoQ-V
 
-					V = MRedConstant(x[13], psi[1], Q, QInv)
+					V = MRedLazy(x[13], psi[1], Q, QInv)
 					x[9], x[13] = x[9]+V, x[9]+twoQ-V
 
-					V = MRedConstant(x[14], psi[1], Q, QInv)
+					V = MRedLazy(x[14], psi[1], Q, QInv)
 					x[10], x[14] = x[10]+V, x[10]+twoQ-V
 
-					V = MRedConstant(x[15], psi[1], Q, QInv)
+					V = MRedLazy(x[15], psi[1], Q, QInv)
 					x[11], x[15] = x[11]+V, x[11]+twoQ-V
 
 				}
@@ -661,7 +740,7 @@ func NTTConjugateInvariantLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uin
 				for i, j1 := m, 0; i < h+m; i, j1 = i+4, j1+8*t {
 
 					psi := (*[4]uint64)(unsafe.Pointer(&nttPsi[i]))
-					x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[j1]))
+					x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 					x[0], x[2] = butterfly(x[0], x[2], psi[0], twoQ, fourQ, Q, QInv)
 					x[1], x[3] = butterfly(x[1], x[3], psi[0], twoQ, fourQ, Q, QInv)
@@ -677,30 +756,30 @@ func NTTConjugateInvariantLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uin
 				for i, j1 := m, 0; i < h+m; i, j1 = i+4, j1+8*t {
 
 					psi := (*[4]uint64)(unsafe.Pointer(&nttPsi[i]))
-					x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[j1]))
+					x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
-					V = MRedConstant(x[2], psi[0], Q, QInv)
+					V = MRedLazy(x[2], psi[0], Q, QInv)
 					x[0], x[2] = x[0]+V, x[0]+twoQ-V
 
-					V = MRedConstant(x[3], psi[0], Q, QInv)
+					V = MRedLazy(x[3], psi[0], Q, QInv)
 					x[1], x[3] = x[1]+V, x[1]+twoQ-V
 
-					V = MRedConstant(x[6], psi[1], Q, QInv)
+					V = MRedLazy(x[6], psi[1], Q, QInv)
 					x[4], x[6] = x[4]+V, x[4]+twoQ-V
 
-					V = MRedConstant(x[7], psi[1], Q, QInv)
+					V = MRedLazy(x[7], psi[1], Q, QInv)
 					x[5], x[7] = x[5]+V, x[5]+twoQ-V
 
-					V = MRedConstant(x[10], psi[2], Q, QInv)
+					V = MRedLazy(x[10], psi[2], Q, QInv)
 					x[8], x[10] = x[8]+V, x[8]+twoQ-V
 
-					V = MRedConstant(x[11], psi[2], Q, QInv)
+					V = MRedLazy(x[11], psi[2], Q, QInv)
 					x[9], x[11] = x[9]+V, x[9]+twoQ-V
 
-					V = MRedConstant(x[14], psi[3], Q, QInv)
+					V = MRedLazy(x[14], psi[3], Q, QInv)
 					x[12], x[14] = x[12]+V, x[12]+twoQ-V
 
-					V = MRedConstant(x[15], psi[3], Q, QInv)
+					V = MRedLazy(x[15], psi[3], Q, QInv)
 					x[13], x[15] = x[13]+V, x[13]+twoQ-V
 				}
 			}
@@ -712,7 +791,7 @@ func NTTConjugateInvariantLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uin
 				for i, j1 := m, 0; i < h+m; i, j1 = i+8, j1+16 {
 
 					psi := (*[8]uint64)(unsafe.Pointer(&nttPsi[i]))
-					x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[j1]))
+					x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 					x[0], x[1] = butterfly(x[0], x[1], psi[0], twoQ, fourQ, Q, QInv)
 					x[2], x[3] = butterfly(x[2], x[3], psi[1], twoQ, fourQ, Q, QInv)
@@ -728,30 +807,30 @@ func NTTConjugateInvariantLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uin
 				for i, j1 := m, 0; i < h+m; i, j1 = i+8, j1+16 {
 
 					psi := (*[8]uint64)(unsafe.Pointer(&nttPsi[i]))
-					x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[j1]))
+					x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
-					V = MRedConstant(x[1], psi[0], Q, QInv)
+					V = MRedLazy(x[1], psi[0], Q, QInv)
 					x[0], x[1] = x[0]+V, x[0]+twoQ-V
 
-					V = MRedConstant(x[3], psi[1], Q, QInv)
+					V = MRedLazy(x[3], psi[1], Q, QInv)
 					x[2], x[3] = x[2]+V, x[2]+twoQ-V
 
-					V = MRedConstant(x[5], psi[2], Q, QInv)
+					V = MRedLazy(x[5], psi[2], Q, QInv)
 					x[4], x[5] = x[4]+V, x[4]+twoQ-V
 
-					V = MRedConstant(x[7], psi[3], Q, QInv)
+					V = MRedLazy(x[7], psi[3], Q, QInv)
 					x[6], x[7] = x[6]+V, x[6]+twoQ-V
 
-					V = MRedConstant(x[9], psi[4], Q, QInv)
+					V = MRedLazy(x[9], psi[4], Q, QInv)
 					x[8], x[9] = x[8]+V, x[8]+twoQ-V
 
-					V = MRedConstant(x[11], psi[5], Q, QInv)
+					V = MRedLazy(x[11], psi[5], Q, QInv)
 					x[10], x[11] = x[10]+V, x[10]+twoQ-V
 
-					V = MRedConstant(x[13], psi[6], Q, QInv)
+					V = MRedLazy(x[13], psi[6], Q, QInv)
 					x[12], x[13] = x[12]+V, x[12]+twoQ-V
 
-					V = MRedConstant(x[15], psi[7], Q, QInv)
+					V = MRedLazy(x[15], psi[7], Q, QInv)
 					x[14], x[15] = x[14]+V, x[14]+twoQ-V
 				}
 			}
@@ -759,19 +838,8 @@ func NTTConjugateInvariantLazy(coeffsIn, coeffsOut []uint64, N int, nttPsi []uin
 	}
 }
 
-// InvNTTConjugateInvariant computes the InvNTT in the closed sub-ring Z[X + X^-1]/(X^2N +1) of Z[X]/(X^2N+1).
-func InvNTTConjugateInvariant(coeffsIn, coeffsOut []uint64, N int, nttPsiInv []uint64, nttNInv, Q, QInv uint64) {
-	invNTTConjugateInvariantCore(coeffsIn, coeffsOut, N, nttPsiInv, Q, QInv)
-	MulScalarMontgomeryVec(coeffsOut, coeffsOut, nttNInv, Q, QInv)
-}
+func iNTTConjugateInvariantCore(p1, p2 []uint64, N int, Q, QInv uint64, nttPsiInv []uint64) {
 
-// InvNTTConjugateInvariantLazy computes the InvNTT in the closed sub-ring Z[X + X^-1]/(X^2N +1) of Z[X]/(X^2N+1) with output values in the range [0, 2q-1].
-func InvNTTConjugateInvariantLazy(coeffsIn, coeffsOut []uint64, N int, nttPsiInv []uint64, nttNInv, Q, QInv uint64) {
-	invNTTConjugateInvariantCore(coeffsIn, coeffsOut, N, nttPsiInv, Q, QInv)
-	MulScalarMontgomeryConstantVec(coeffsOut, coeffsOut, nttNInv, Q, QInv)
-}
-
-func invNTTConjugateInvariantCore(coeffsIn, coeffsOut []uint64, N int, nttPsiInv []uint64, Q, QInv uint64) {
 	var j1, j2, h, t int
 	var F uint64
 
@@ -784,8 +852,8 @@ func invNTTConjugateInvariantCore(coeffsIn, coeffsOut []uint64, N int, nttPsiInv
 	for i, j := N, 0; i < h+N; i, j = i+8, j+16 {
 
 		psi := (*[8]uint64)(unsafe.Pointer(&nttPsiInv[i]))
-		xin := (*[16]uint64)(unsafe.Pointer(&coeffsIn[j]))
-		xout := (*[16]uint64)(unsafe.Pointer(&coeffsOut[j]))
+		xin := (*[16]uint64)(unsafe.Pointer(&p1[j]))
+		xout := (*[16]uint64)(unsafe.Pointer(&p2[j]))
 
 		xout[0], xout[1] = invbutterfly(xin[0], xin[1], psi[0], twoQ, fourQ, Q, QInv)
 		xout[2], xout[3] = invbutterfly(xin[2], xin[3], psi[1], twoQ, fourQ, Q, QInv)
@@ -814,8 +882,8 @@ func invNTTConjugateInvariantCore(coeffsIn, coeffsOut []uint64, N int, nttPsiInv
 
 				for jx, jy := j1, j1+t; jx <= j2; jx, jy = jx+8, jy+8 {
 
-					x := (*[8]uint64)(unsafe.Pointer(&coeffsOut[jx]))
-					y := (*[8]uint64)(unsafe.Pointer(&coeffsOut[jy]))
+					x := (*[8]uint64)(unsafe.Pointer(&p2[jx]))
+					y := (*[8]uint64)(unsafe.Pointer(&p2[jy]))
 
 					x[0], y[0] = invbutterfly(x[0], y[0], F, twoQ, fourQ, Q, QInv)
 					x[1], y[1] = invbutterfly(x[1], y[1], F, twoQ, fourQ, Q, QInv)
@@ -835,7 +903,7 @@ func invNTTConjugateInvariantCore(coeffsIn, coeffsOut []uint64, N int, nttPsiInv
 			for i := m; i < h+m; i = i + 2 {
 
 				psi := (*[2]uint64)(unsafe.Pointer(&nttPsiInv[i]))
-				x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[j1]))
+				x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 				x[0], x[4] = invbutterfly(x[0], x[4], psi[0], twoQ, fourQ, Q, QInv)
 				x[1], x[5] = invbutterfly(x[1], x[5], psi[0], twoQ, fourQ, Q, QInv)
@@ -854,7 +922,7 @@ func invNTTConjugateInvariantCore(coeffsIn, coeffsOut []uint64, N int, nttPsiInv
 			for i := m; i < h+m; i = i + 4 {
 
 				psi := (*[4]uint64)(unsafe.Pointer(&nttPsiInv[i]))
-				x := (*[16]uint64)(unsafe.Pointer(&coeffsOut[j1]))
+				x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 				x[0], x[2] = invbutterfly(x[0], x[2], psi[0], twoQ, fourQ, Q, QInv)
 				x[1], x[3] = invbutterfly(x[1], x[3], psi[0], twoQ, fourQ, Q, QInv)
@@ -876,31 +944,31 @@ func invNTTConjugateInvariantCore(coeffsIn, coeffsOut []uint64, N int, nttPsiInv
 
 	for jx, jy := 1, N-8; jx < (N>>1)-7; jx, jy = jx+8, jy-8 {
 
-		xout := (*[8]uint64)(unsafe.Pointer(&coeffsOut[jx]))
-		yout := (*[8]uint64)(unsafe.Pointer(&coeffsOut[jy]))
+		xout := (*[8]uint64)(unsafe.Pointer(&p2[jx]))
+		yout := (*[8]uint64)(unsafe.Pointer(&p2[jy]))
 
-		xout[0], yout[7] = xout[0]+twoQ-MRedConstant(yout[7], F, Q, QInv), yout[7]+twoQ-MRedConstant(xout[0], F, Q, QInv)
-		xout[1], yout[6] = xout[1]+twoQ-MRedConstant(yout[6], F, Q, QInv), yout[6]+twoQ-MRedConstant(xout[1], F, Q, QInv)
-		xout[2], yout[5] = xout[2]+twoQ-MRedConstant(yout[5], F, Q, QInv), yout[5]+twoQ-MRedConstant(xout[2], F, Q, QInv)
-		xout[3], yout[4] = xout[3]+twoQ-MRedConstant(yout[4], F, Q, QInv), yout[4]+twoQ-MRedConstant(xout[3], F, Q, QInv)
-		xout[4], yout[3] = xout[4]+twoQ-MRedConstant(yout[3], F, Q, QInv), yout[3]+twoQ-MRedConstant(xout[4], F, Q, QInv)
-		xout[5], yout[2] = xout[5]+twoQ-MRedConstant(yout[2], F, Q, QInv), yout[2]+twoQ-MRedConstant(xout[5], F, Q, QInv)
-		xout[6], yout[1] = xout[6]+twoQ-MRedConstant(yout[1], F, Q, QInv), yout[1]+twoQ-MRedConstant(xout[6], F, Q, QInv)
-		xout[7], yout[0] = xout[7]+twoQ-MRedConstant(yout[0], F, Q, QInv), yout[0]+twoQ-MRedConstant(xout[7], F, Q, QInv)
+		xout[0], yout[7] = xout[0]+twoQ-MRedLazy(yout[7], F, Q, QInv), yout[7]+twoQ-MRedLazy(xout[0], F, Q, QInv)
+		xout[1], yout[6] = xout[1]+twoQ-MRedLazy(yout[6], F, Q, QInv), yout[6]+twoQ-MRedLazy(xout[1], F, Q, QInv)
+		xout[2], yout[5] = xout[2]+twoQ-MRedLazy(yout[5], F, Q, QInv), yout[5]+twoQ-MRedLazy(xout[2], F, Q, QInv)
+		xout[3], yout[4] = xout[3]+twoQ-MRedLazy(yout[4], F, Q, QInv), yout[4]+twoQ-MRedLazy(xout[3], F, Q, QInv)
+		xout[4], yout[3] = xout[4]+twoQ-MRedLazy(yout[3], F, Q, QInv), yout[3]+twoQ-MRedLazy(xout[4], F, Q, QInv)
+		xout[5], yout[2] = xout[5]+twoQ-MRedLazy(yout[2], F, Q, QInv), yout[2]+twoQ-MRedLazy(xout[5], F, Q, QInv)
+		xout[6], yout[1] = xout[6]+twoQ-MRedLazy(yout[1], F, Q, QInv), yout[1]+twoQ-MRedLazy(xout[6], F, Q, QInv)
+		xout[7], yout[0] = xout[7]+twoQ-MRedLazy(yout[0], F, Q, QInv), yout[0]+twoQ-MRedLazy(xout[7], F, Q, QInv)
 	}
 
 	j := (N >> 1) - 7
-	xout := (*[7]uint64)(unsafe.Pointer(&coeffsOut[j]))
-	yout := (*[7]uint64)(unsafe.Pointer(&coeffsOut[N-j-6]))
+	xout := (*[7]uint64)(unsafe.Pointer(&p2[j]))
+	yout := (*[7]uint64)(unsafe.Pointer(&p2[N-j-6]))
 
-	xout[0], yout[6] = xout[0]+twoQ-MRedConstant(yout[6], F, Q, QInv), yout[6]+twoQ-MRedConstant(xout[0], F, Q, QInv)
-	xout[1], yout[5] = xout[1]+twoQ-MRedConstant(yout[5], F, Q, QInv), yout[5]+twoQ-MRedConstant(xout[1], F, Q, QInv)
-	xout[2], yout[4] = xout[2]+twoQ-MRedConstant(yout[4], F, Q, QInv), yout[4]+twoQ-MRedConstant(xout[2], F, Q, QInv)
-	xout[3], yout[3] = xout[3]+twoQ-MRedConstant(yout[3], F, Q, QInv), yout[3]+twoQ-MRedConstant(xout[3], F, Q, QInv)
-	xout[4], yout[2] = xout[4]+twoQ-MRedConstant(yout[2], F, Q, QInv), yout[2]+twoQ-MRedConstant(xout[4], F, Q, QInv)
-	xout[5], yout[1] = xout[5]+twoQ-MRedConstant(yout[1], F, Q, QInv), yout[1]+twoQ-MRedConstant(xout[5], F, Q, QInv)
-	xout[6], yout[0] = xout[6]+twoQ-MRedConstant(yout[0], F, Q, QInv), yout[0]+twoQ-MRedConstant(xout[6], F, Q, QInv)
+	xout[0], yout[6] = xout[0]+twoQ-MRedLazy(yout[6], F, Q, QInv), yout[6]+twoQ-MRedLazy(xout[0], F, Q, QInv)
+	xout[1], yout[5] = xout[1]+twoQ-MRedLazy(yout[5], F, Q, QInv), yout[5]+twoQ-MRedLazy(xout[1], F, Q, QInv)
+	xout[2], yout[4] = xout[2]+twoQ-MRedLazy(yout[4], F, Q, QInv), yout[4]+twoQ-MRedLazy(xout[2], F, Q, QInv)
+	xout[3], yout[3] = xout[3]+twoQ-MRedLazy(yout[3], F, Q, QInv), yout[3]+twoQ-MRedLazy(xout[3], F, Q, QInv)
+	xout[4], yout[2] = xout[4]+twoQ-MRedLazy(yout[2], F, Q, QInv), yout[2]+twoQ-MRedLazy(xout[4], F, Q, QInv)
+	xout[5], yout[1] = xout[5]+twoQ-MRedLazy(yout[1], F, Q, QInv), yout[1]+twoQ-MRedLazy(xout[5], F, Q, QInv)
+	xout[6], yout[0] = xout[6]+twoQ-MRedLazy(yout[0], F, Q, QInv), yout[0]+twoQ-MRedLazy(xout[6], F, Q, QInv)
 
-	coeffsOut[N>>1] = coeffsOut[N>>1] + twoQ - MRedConstant(coeffsOut[N>>1], F, Q, QInv)
-	coeffsOut[0] = CRed(coeffsOut[0]<<1, Q)
+	p2[N>>1] = p2[N>>1] + twoQ - MRedLazy(p2[N>>1], F, Q, QInv)
+	p2[0] = CRed(p2[0]<<1, Q)
 }

@@ -15,18 +15,6 @@ var testVector = []struct {
 	polyNTT *Poly
 }{
 	{
-		8,
-		[]uint64{576460752303439873, 576460752303702017},
-		&Poly{[][]uint64{
-			{218919769016417135, 285383958099531571, 154130792340322329, 208160061956504958, 240497969120867784, 56870045954269445, 426823474235379995, 504896482300062811},
-			{275112135024930041, 250984234238255359, 362910580529173626, 199635459264466796, 384027850586118086, 24808063873304527, 338428138896886890, 278051156238693569},
-		}, []uint64{}},
-		&Poly{[][]uint64{
-			{532040159151935360, 6777376300449212, 105015934674156327, 435476759662080597, 230332092648414310, 312854922061405173, 527557817676300694, 177763842260035280},
-			{133270078917385086, 320664165956944128, 162488447052015562, 564362462797872461, 574419935916152080, 214479305361450751, 457815076814980937, 349858359686341340},
-		}, []uint64{}},
-	},
-	{
 		16,
 		[]uint64{576460752303439873, 576460752303702017},
 		&Poly{[][]uint64{
@@ -102,17 +90,21 @@ var testVector = []struct {
 
 func TestNTT(t *testing.T) {
 
-	for _, tv := range testVector[1:] {
+	for _, tv := range testVector[:] {
 
-		ringQ, _ := NewRing(tv.N, tv.Qis)
+		ringQ, err := NewRing(tv.N, tv.Qis)
 
-		t.Run(fmt.Sprintf("N=%d/limbs=%d", ringQ.N, len(ringQ.Modulus)), func(t *testing.T) {
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		t.Run(fmt.Sprintf("N=%d/limbs=%d", ringQ.N(), ringQ.ModuliChainLength()), func(t *testing.T) {
 			x := ringQ.NewPoly()
 			ringQ.NTT(tv.poly, x)
 
 			assert.True(t, ringQ.Equal(x, tv.polyNTT), "transformed poly and polyNTT should match")
 
-			ringQ.InvNTT(x, x)
+			ringQ.INTT(x, x)
 
 			assert.True(t, ringQ.Equal(tv.poly, x), "invNTT should reverse NTT")
 		})

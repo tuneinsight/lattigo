@@ -1,10 +1,12 @@
 package rlwe
 
 import (
+	"fmt"
 	"math/bits"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 // Operand is a common interface for Ciphertext and Plaintext types.
@@ -54,7 +56,7 @@ func newEvaluatorBase(params Parameters) *evaluatorBase {
 func newEvaluatorBuffers(params Parameters) *evaluatorBuffers {
 
 	buff := new(evaluatorBuffers)
-	decompRNS := params.DecompRNS(params.QCount()-1, params.PCount()-1)
+	decompRNS := params.DecompRNS(params.MaxLevelQ(), params.MaxLevelP())
 	ringQP := params.RingQP()
 
 	buff.BuffCt = Ciphertext{Value: []*ring.Poly{ringQP.RingQ.NewPoly(), ringQP.RingQ.NewPoly()}}
@@ -68,7 +70,7 @@ func newEvaluatorBuffers(params Parameters) *evaluatorBuffers {
 		buff.BuffDecompQP[i] = ringQP.NewPoly()
 	}
 
-	buff.BuffBitDecomp = make([]uint64, params.RingQ().N)
+	buff.BuffBitDecomp = make([]uint64, params.RingQ().N())
 
 	return buff
 }
@@ -101,6 +103,60 @@ func NewEvaluator(params Parameters, evaluationKey *EvaluationKey) (eval *Evalua
 // Parameters returns the parameters used to instantiate the target evaluator.
 func (eval *Evaluator) Parameters() Parameters {
 	return eval.params
+}
+
+// CheckBinary checks that:
+//
+//	Inputs are not nil
+//	op0.Degree() + op1.Degree() != 0 (i.e at least one operand is a ciphertext)
+//	opOut.Degree() >= opOutMinDegree
+//	op0.IsNTT = DefaultNTTFlag
+//	op1.IsNTT = DefaultNTTFlag
+//
+// and returns max(op0.Degree(), op1.Degree(), opOut.Degree()) and min(op0.Level(), op1.Level(), opOut.Level())
+func (eval *Evaluator) CheckBinary(op0, op1, opOut Operand, opOutMinDegree int) (degree, level int) {
+
+	degree = utils.MaxInt(op0.Degree(), op1.Degree())
+	degree = utils.MaxInt(degree, opOut.Degree())
+	level = utils.MinInt(op0.Level(), op1.Level())
+	level = utils.MinInt(level, opOut.Level())
+
+	if op0 == nil || op1 == nil || opOut == nil {
+		panic("op0, op1 and opOut cannot be nil")
+	}
+
+	if op0.Degree()+op1.Degree() == 0 {
+		panic("op0 and op1 cannot be both plaintexts")
+	}
+
+	if opOut.Degree() < opOutMinDegree {
+		panic("opOut degree is too small")
+	}
+
+	if op0.El().IsNTT != eval.params.DefaultNTTFlag() {
+		panic(fmt.Sprintf("op0.IsNTT() != %t", eval.params.DefaultNTTFlag()))
+	}
+
+	if op1.El().IsNTT != eval.params.DefaultNTTFlag() {
+		panic(fmt.Sprintf("op1.IsNTT() != %t", eval.params.DefaultNTTFlag()))
+	}
+
+	return
+}
+
+// CheckUnary checks that op0 and opOut are not nil and that op0 respects the DefaultNTTFlag.
+// Also returns max(op0.Degree(), opOut.Degree()) and min(op0.Level(), opOut.Level()).
+func (eval *Evaluator) CheckUnary(op0, opOut Operand) (degree, level int) {
+
+	if op0 == nil || opOut == nil {
+		panic("op0 and opOut cannot be nil")
+	}
+
+	if op0.El().IsNTT != eval.params.DefaultNTTFlag() {
+		panic(fmt.Sprintf("op0.IsNTT() != %t", eval.params.DefaultNTTFlag()))
+	}
+
+	return utils.MaxInt(op0.Degree(), opOut.Degree()), utils.MinInt(op0.Level(), opOut.Level())
 }
 
 // permuteNTTIndexesForKey generates permutation indexes for automorphisms for ciphertexts
@@ -162,26 +218,31 @@ func (eval *Evaluator) Expand(ctIn *Ciphertext, logN, logGap int) (ctOut []*Ciph
 	}
 
 	params := eval.params
-	ringQ := params.RingQ()
 
 	levelQ := ctIn.Level()
 
+	ringQ := params.RingQ().AtLevel(levelQ)
+
 	// Compute X^{-2^{i}} from 1 to LogN
-	xPow2 := genXPow2(ringQ, levelQ, logN, true)
+	xPow2 := genXPow2(ringQ.AtLevel(levelQ), logN, true)
 
 	ctOut = make([]*Ciphertext, 1<<(logN-logGap))
 	ctOut[0] = ctIn.CopyNew()
 
-	Q := ringQ.Modulus
-	mredParams := ringQ.MredParams
-	bredParams := ringQ.BredParams
+	if ct := ctOut[0]; !ctIn.IsNTT {
+		ringQ.NTT(ct.Value[0], ct.Value[0])
+		ringQ.NTT(ct.Value[1], ct.Value[1])
+		ct.IsNTT = true
+	}
 
 	// Multiplies by 2^{-logN} mod Q
 	v0, v1 := ctOut[0].Value[0], ctOut[0].Value[1]
-	for i := 0; i < levelQ+1; i++ {
-		NInv := ring.MForm(ring.ModExp(1<<logN, Q[i]-2, Q[i]), Q[i], bredParams[i])
-		ring.MulScalarMontgomeryVec(v0.Coeffs[i], v0.Coeffs[i], NInv, Q[i], mredParams[i])
-		ring.MulScalarMontgomeryVec(v1.Coeffs[i], v1.Coeffs[i], NInv, Q[i], mredParams[i])
+	for i, s := range ringQ.SubRings[:levelQ+1] {
+
+		NInv := ring.MForm(ring.ModExp(1<<logN, s.Modulus-2, s.Modulus), s.Modulus, s.BRedConstant)
+
+		s.MulScalarMontgomery(v0.Coeffs[i], NInv, v0.Coeffs[i])
+		s.MulScalarMontgomery(v1.Coeffs[i], NInv, v1.Coeffs[i])
 	}
 
 	gap := 1 << logGap
@@ -190,7 +251,7 @@ func (eval *Evaluator) Expand(ctIn *Ciphertext, logN, logGap int) (ctOut []*Ciph
 
 	for i := 0; i < logN; i++ {
 
-		galEl := uint64(ringQ.N/(1<<i) + 1)
+		galEl := uint64(ringQ.N()/(1<<i) + 1)
 
 		for j := 0; j < (1 << i); j += gap {
 
@@ -202,21 +263,29 @@ func (eval *Evaluator) Expand(ctIn *Ciphertext, logN, logGap int) (ctOut []*Ciph
 			c1 := c0.CopyNew()
 
 			// Zeroes odd coeffs: [a, b, c, d] -> [2a, 0, 2b, 0]
-			ringQ.AddLvl(levelQ, c0.Value[0], tmp.Value[0], c0.Value[0])
-			ringQ.AddLvl(levelQ, c0.Value[1], tmp.Value[1], c0.Value[1])
+			ringQ.Add(c0.Value[0], tmp.Value[0], c0.Value[0])
+			ringQ.Add(c0.Value[1], tmp.Value[1], c0.Value[1])
 
 			if (j+(1<<i))/gap > 0 {
 
 				// Zeroes even coeffs: [a, b, c, d] -> [0, 2b, 0, 2d]
-				ringQ.SubLvl(levelQ, c1.Value[0], tmp.Value[0], c1.Value[0])
-				ringQ.SubLvl(levelQ, c1.Value[1], tmp.Value[1], c1.Value[1])
+				ringQ.Sub(c1.Value[0], tmp.Value[0], c1.Value[0])
+				ringQ.Sub(c1.Value[1], tmp.Value[1], c1.Value[1])
 
 				// c1 * X^{-2^{i}}: [0, 2b, 0, 2d] -> [2b, 0, 2d, 0]
-				ringQ.MulCoeffsMontgomeryLvl(levelQ, c1.Value[0], xPow2[i], c1.Value[0])
-				ringQ.MulCoeffsMontgomeryLvl(levelQ, c1.Value[1], xPow2[i], c1.Value[1])
+				ringQ.MulCoeffsMontgomery(c1.Value[0], xPow2[i], c1.Value[0])
+				ringQ.MulCoeffsMontgomery(c1.Value[1], xPow2[i], c1.Value[1])
 
 				ctOut[(j+(1<<i))/gap] = c1
 			}
+		}
+	}
+
+	for _, ct := range ctOut {
+		if ct != nil && !ctIn.IsNTT {
+			ringQ.INTT(ct.Value[0], ct.Value[0])
+			ringQ.INTT(ct.Value[1], ct.Value[1])
+			ct.IsNTT = false
 		}
 	}
 
@@ -240,11 +309,11 @@ func (eval *Evaluator) Merge(ctIn map[int]*Ciphertext) (ctOut *Ciphertext) {
 		break
 	}
 
-	xPow2 := genXPow2(ringQ, levelQ, params.LogN(), false)
+	for i := range ctIn {
+		levelQ = utils.MinInt(levelQ, ctIn[i].Level())
+	}
 
-	NInv := ringQ.NttNInv
-	Q := ringQ.Modulus
-	mredParams := ringQ.MredParams
+	xPow2 := genXPow2(ringQ.AtLevel(levelQ), params.LogN(), false)
 
 	// Multiplies by (Slots * N) ^-1 mod Q
 	for i := range ctIn {
@@ -259,14 +328,14 @@ func (eval *Evaluator) Merge(ctIn map[int]*Ciphertext) (ctOut *Ciphertext) {
 			}
 
 			v0, v1 := ctIn[i].Value[0], ctIn[i].Value[1]
-			for j := 0; j < levelQ+1; j++ {
-				ring.MulScalarMontgomeryVec(v0.Coeffs[j], v0.Coeffs[j], NInv[j], Q[j], mredParams[j])
-				ring.MulScalarMontgomeryVec(v1.Coeffs[j], v1.Coeffs[j], NInv[j], Q[j], mredParams[j])
+			for j, s := range ringQ.SubRings[:levelQ+1] {
+				s.MulScalarMontgomery(v0.Coeffs[j], s.NInv, v0.Coeffs[j])
+				s.MulScalarMontgomery(v1.Coeffs[j], s.NInv, v1.Coeffs[j])
 			}
 		}
 	}
 
-	ciphertextslist := make([]*Ciphertext, ringQ.N)
+	ciphertextslist := make([]*Ciphertext, ringQ.N())
 
 	for i := range ctIn {
 		ciphertextslist[i] = ctIn[i]
@@ -281,8 +350,6 @@ func (eval *Evaluator) Merge(ctIn map[int]*Ciphertext) (ctOut *Ciphertext) {
 }
 
 func (eval *Evaluator) mergeRLWERecurse(ciphertexts []*Ciphertext, xPow []*ring.Poly) *Ciphertext {
-
-	ringQ := eval.params.RingQ()
 
 	L := bits.Len64(uint64(len(ciphertexts))) - 1
 
@@ -310,49 +377,60 @@ func (eval *Evaluator) mergeRLWERecurse(ciphertexts []*Ciphertext, xPow []*ring.
 		tmpEven = ctEven.CopyNew()
 	}
 
+	var level = 0xFFFF // Case if ctOdd == nil
+
+	if ctOdd != nil {
+		level = ctOdd.Level()
+	}
+
+	if ctEven != nil {
+		level = utils.MinInt(level, ctEven.Level())
+	}
+
+	ringQ := eval.params.RingQ().AtLevel(level)
+
 	// ctOdd * X^(N/2^L)
 	if ctOdd != nil {
 
-		level := ctOdd.Level()
-
 		//X^(N/2^L)
-		ringQ.MulCoeffsMontgomeryLvl(level, ctOdd.Value[0], xPow[len(xPow)-L], ctOdd.Value[0])
-		ringQ.MulCoeffsMontgomeryLvl(level, ctOdd.Value[1], xPow[len(xPow)-L], ctOdd.Value[1])
+		ringQ.MulCoeffsMontgomery(ctOdd.Value[0], xPow[len(xPow)-L], ctOdd.Value[0])
+		ringQ.MulCoeffsMontgomery(ctOdd.Value[1], xPow[len(xPow)-L], ctOdd.Value[1])
 
 		if ctEven != nil {
 			// ctEven + ctOdd * X^(N/2^L)
-			ringQ.AddLvl(level, ctEven.Value[0], ctOdd.Value[0], ctEven.Value[0])
-			ringQ.AddLvl(level, ctEven.Value[1], ctOdd.Value[1], ctEven.Value[1])
+			ringQ.Add(ctEven.Value[0], ctOdd.Value[0], ctEven.Value[0])
+			ringQ.Add(ctEven.Value[1], ctOdd.Value[1], ctEven.Value[1])
 
 			// phi(ctEven - ctOdd * X^(N/2^L), 2^(L-2))
-			ringQ.SubLvl(level, tmpEven.Value[0], ctOdd.Value[0], tmpEven.Value[0])
-			ringQ.SubLvl(level, tmpEven.Value[1], ctOdd.Value[1], tmpEven.Value[1])
+			ringQ.Sub(tmpEven.Value[0], ctOdd.Value[0], tmpEven.Value[0])
+			ringQ.Sub(tmpEven.Value[1], ctOdd.Value[1], tmpEven.Value[1])
 		}
 	}
 
 	if ctEven != nil {
 
-		level := ctEven.Level()
-
 		// if L-2 == -1, then gal = -1
 		if L == 1 {
-			eval.Automorphism(tmpEven, uint64(2*ringQ.N-1), tmpEven)
+			eval.Automorphism(tmpEven, ringQ.NthRoot()-1, tmpEven)
 		} else {
 			eval.Automorphism(tmpEven, eval.params.GaloisElementForColumnRotationBy(1<<(L-2)), tmpEven)
 		}
 
 		// ctEven + ctOdd * X^(N/2^L) + phi(ctEven - ctOdd * X^(N/2^L), 2^(L-2))
-		ringQ.AddLvl(level, ctEven.Value[0], tmpEven.Value[0], ctEven.Value[0])
-		ringQ.AddLvl(level, ctEven.Value[1], tmpEven.Value[1], ctEven.Value[1])
+		ringQ.Add(ctEven.Value[0], tmpEven.Value[0], ctEven.Value[0])
+		ringQ.Add(ctEven.Value[1], tmpEven.Value[1], ctEven.Value[1])
 	}
 
 	return ctEven
 }
 
-func genXPow2(r *ring.Ring, levelQ, logN int, div bool) (xPow []*ring.Poly) {
+func genXPow2(r *ring.Ring, logN int, div bool) (xPow []*ring.Poly) {
 
 	// Compute X^{-n} from 0 to LogN
 	xPow = make([]*ring.Poly, logN)
+
+	moduli := r.ModuliChain()[:r.Level()+1]
+	BRC := r.BRedConstants()
 
 	var idx int
 	for i := 0; i < logN; i++ {
@@ -360,26 +438,26 @@ func genXPow2(r *ring.Ring, levelQ, logN int, div bool) (xPow []*ring.Poly) {
 		idx = 1 << i
 
 		if div {
-			idx = r.N - idx
+			idx = r.N() - idx
 		}
 
 		xPow[i] = r.NewPoly()
 
 		if i == 0 {
 
-			for j := 0; j < levelQ+1; j++ {
-				xPow[i].Coeffs[j][idx] = ring.MForm(1, r.Modulus[j], r.BredParams[j])
+			for j := range moduli {
+				xPow[i].Coeffs[j][idx] = ring.MForm(1, moduli[j], BRC[j])
 			}
 
-			r.NTTLvl(levelQ, xPow[i], xPow[i])
+			r.NTT(xPow[i], xPow[i])
 
 		} else {
-			r.MulCoeffsMontgomeryLvl(levelQ, xPow[i-1], xPow[i-1], xPow[i]) // X^{n} = X^{1} * X^{n-1}
+			r.MulCoeffsMontgomery(xPow[i-1], xPow[i-1], xPow[i]) // X^{n} = X^{1} * X^{n-1}
 		}
 	}
 
 	if div {
-		r.NegLvl(levelQ, xPow[0], xPow[0])
+		r.Neg(xPow[0], xPow[0])
 	}
 
 	return
@@ -390,12 +468,12 @@ func genXPow2(r *ring.Ring, levelQ, logN int, div bool) (xPow []*ring.Poly) {
 // It outputs in ctOut a Ciphertext for which the "leftmost" sub-vector of each group is equal to the sum of the group.
 func (eval *Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
 
-	ringQ := eval.params.RingQ()
-	ringP := eval.params.RingP()
-	ringQP := eval.params.RingQP()
-
 	levelQ := ctIn.Level()
-	levelP := len(ringP.Modulus) - 1
+	levelP := eval.params.PCount() - 1
+
+	ringQP := eval.params.RingQP().AtLevel(ctIn.Level(), levelP)
+
+	ringQ := ringQP.RingQ
 
 	ctOut.Resize(ctOut.Degree(), levelQ)
 	ctOut.MetaData = ctIn.MetaData
@@ -414,10 +492,10 @@ func (eval *Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 		cQP.IsNTT = true
 
 		// Memory buffer for ctIn = ctIn + rot(ctIn, 2^i) in Q
-		tmpct := NewCiphertextAtLevelFromPoly(levelQ, [2]*ring.Poly{eval.BuffCt.Value[0], eval.BuffCt.Value[1]})
+		tmpct := NewCiphertextAtLevelFromPoly(levelQ, eval.BuffCt.Value[:2])
 		tmpct.IsNTT = true
 
-		ctqp := NewCiphertextAtLevelFromPoly(levelQ, [2]*ring.Poly{cQP.Value[0].Q, cQP.Value[1].Q})
+		ctqp := NewCiphertextAtLevelFromPoly(levelQ, []*ring.Poly{cQP.Value[0].Q, cQP.Value[1].Q})
 		ctqp.IsNTT = true
 
 		state := false
@@ -445,19 +523,19 @@ func (eval *Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 
 					// Rotate((tmpc0, tmpc1), k)
 					if i == 0 {
-						eval.AutomorphismHoistedNoModDown(levelQ, ctIn.Value[0], eval.BuffDecompQP, eval.params.GaloisElementForColumnRotationBy(k), cQP)
+						eval.AutomorphismHoistedLazy(levelQ, ctIn.Value[0], eval.BuffDecompQP, eval.params.GaloisElementForColumnRotationBy(k), cQP)
 					} else {
-						eval.AutomorphismHoistedNoModDown(levelQ, tmpct.Value[0], eval.BuffDecompQP, eval.params.GaloisElementForColumnRotationBy(k), cQP)
+						eval.AutomorphismHoistedLazy(levelQ, tmpct.Value[0], eval.BuffDecompQP, eval.params.GaloisElementForColumnRotationBy(k), cQP)
 					}
 
 					// ctOut += Rotate((tmpc0, tmpc1), k)
 					if copy {
-						ringQP.CopyLvl(levelQ, levelP, cQP.Value[0], c0OutQP)
-						ringQP.CopyLvl(levelQ, levelP, cQP.Value[1], c1OutQP)
+						ringqp.CopyLvl(levelQ, levelP, cQP.Value[0], c0OutQP)
+						ringqp.CopyLvl(levelQ, levelP, cQP.Value[1], c1OutQP)
 						copy = false
 					} else {
-						ringQP.AddLvl(levelQ, levelP, c0OutQP, cQP.Value[0], c0OutQP)
-						ringQP.AddLvl(levelQ, levelP, c1OutQP, cQP.Value[1], c1OutQP)
+						ringQP.Add(c0OutQP, cQP.Value[0], c0OutQP)
+						ringQP.Add(c1OutQP, cQP.Value[1], c1OutQP)
 					}
 				} else {
 
@@ -470,8 +548,8 @@ func (eval *Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 						eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, c1OutQP.Q, c1OutQP.P, c1OutQP.Q) // Division by P
 
 						// ctOut += (tmpc0, tmpc1)
-						ringQ.AddLvl(levelQ, c0OutQP.Q, tmpct.Value[0], ctOut.Value[0])
-						ringQ.AddLvl(levelQ, c1OutQP.Q, tmpct.Value[1], ctOut.Value[1])
+						ringQ.Add(c0OutQP.Q, tmpct.Value[0], ctOut.Value[0])
+						ringQ.Add(c1OutQP.Q, tmpct.Value[1], ctOut.Value[1])
 
 					} else {
 
@@ -488,13 +566,13 @@ func (eval *Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 
 					eval.AutomorphismHoisted(levelQ, ctIn, eval.BuffDecompQP, rot, tmpct)
 
-					ringQ.AddLvl(levelQ, tmpct.Value[0], ctIn.Value[0], tmpct.Value[0])
-					ringQ.AddLvl(levelQ, tmpct.Value[1], ctIn.Value[1], tmpct.Value[1])
+					ringQ.Add(tmpct.Value[0], ctIn.Value[0], tmpct.Value[0])
+					ringQ.Add(tmpct.Value[1], ctIn.Value[1], tmpct.Value[1])
 				} else {
 					// (tmpc0, tmpc1) = Rotate((tmpc0, tmpc1), 2^i)
 					eval.AutomorphismHoisted(levelQ, tmpct, eval.BuffDecompQP, rot, ctqp)
-					ringQ.AddLvl(levelQ, tmpct.Value[0], cQP.Value[0].Q, tmpct.Value[0])
-					ringQ.AddLvl(levelQ, tmpct.Value[1], cQP.Value[1].Q, tmpct.Value[1])
+					ringQ.Add(tmpct.Value[0], cQP.Value[0].Q, tmpct.Value[0])
+					ringQ.Add(tmpct.Value[1], cQP.Value[1].Q, tmpct.Value[1])
 				}
 			}
 		}

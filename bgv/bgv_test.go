@@ -457,7 +457,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		}
 
 		for _, lvl := range tc.testLevel {
-			t.Run(GetTestName("MulScalarAndAdd/op0=ct", tc.params, lvl), func(t *testing.T) {
+			t.Run(GetTestName("MulScalarThenAdd/op0=ct", tc.params, lvl), func(t *testing.T) {
 
 				if lvl == 0 {
 					t.Skip("Level = 0")
@@ -470,8 +470,8 @@ func testEvaluator(tc *testContext, t *testing.T) {
 
 				scalar := tc.params.T() >> 1
 
-				tc.evaluator.MulScalarAndAdd(ciphertext0, scalar, ciphertext1)
-				tc.ringT.MulScalarAndAdd(values0, scalar, values1)
+				tc.evaluator.MulScalarThenAdd(ciphertext0, scalar, ciphertext1)
+				tc.ringT.MulScalarThenAdd(values0, scalar, values1)
 
 				verifyTestVectors(tc, tc.decryptor, values1, ciphertext1, t)
 			})
@@ -490,7 +490,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				require.True(t, ciphertext0.Scale.Cmp(ciphertext1.Scale) != 0)
 
 				tc.evaluator.Mul(ciphertext0, ciphertext1, ciphertext0)
-				tc.ringT.MulCoeffs(values0, values1, values0)
+				tc.ringT.MulCoeffsBarrett(values0, values1, values0)
 
 				verifyTestVectors(tc, tc.decryptor, values0, ciphertext0, t)
 
@@ -510,7 +510,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				require.True(t, ciphertext0.Scale.Cmp(plaintext.Scale) != 0)
 
 				tc.evaluator.Mul(ciphertext0, plaintext, ciphertext0)
-				tc.ringT.MulCoeffs(values0, values1, values0)
+				tc.ringT.MulCoeffsBarrett(values0, values1, values0)
 
 				verifyTestVectors(tc, tc.decryptor, values0, ciphertext0, t)
 
@@ -527,7 +527,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				values0, _, ciphertext0 := newTestVectorsLvl(lvl, tc.params.NewScale(3), tc, tc.encryptorSk)
 
 				tc.evaluator.Mul(ciphertext0, ciphertext0, ciphertext0)
-				tc.ringT.MulCoeffs(values0, values0, values0)
+				tc.ringT.MulCoeffsBarrett(values0, values0, values0)
 
 				verifyTestVectors(tc, tc.decryptor, values0, ciphertext0, t)
 
@@ -544,7 +544,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				values0, _, ciphertext0 := newTestVectorsLvl(lvl, tc.params.NewScale(3), tc, tc.encryptorSk)
 				values1, _, ciphertext1 := newTestVectorsLvl(lvl, tc.params.NewScale(7), tc, tc.encryptorSk)
 
-				tc.ringT.MulCoeffs(values0, values1, values0)
+				tc.ringT.MulCoeffsBarrett(values0, values1, values0)
 
 				require.True(t, ciphertext0.Scale.Cmp(ciphertext1.Scale) != 0)
 
@@ -572,7 +572,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		}
 
 		for _, lvl := range tc.testLevel {
-			t.Run(GetTestName("MulAndAdd/op0=ct/op2=ct", tc.params, lvl), func(t *testing.T) {
+			t.Run(GetTestName("MulThenAdd/op0=ct/op2=ct", tc.params, lvl), func(t *testing.T) {
 
 				if lvl == 0 {
 					t.Skip("Level = 0")
@@ -585,8 +585,8 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				require.True(t, ciphertext0.Scale.Cmp(ciphertext1.Scale) != 0)
 				require.True(t, ciphertext0.Scale.Cmp(ciphertext2.Scale) != 0)
 
-				tc.evaluator.MulAndAdd(ciphertext0, ciphertext1, ciphertext2)
-				tc.ringT.MulCoeffsAndAdd(values0, values1, values2)
+				tc.evaluator.MulThenAdd(ciphertext0, ciphertext1, ciphertext2)
+				tc.ringT.MulCoeffsBarrettThenAdd(values0, values1, values2)
 
 				verifyTestVectors(tc, tc.decryptor, values2, ciphertext2, t)
 
@@ -594,7 +594,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		}
 
 		for _, lvl := range tc.testLevel {
-			t.Run(GetTestName("MulRelinAndAdd/op0=ct/op2=ct", tc.params, lvl), func(t *testing.T) {
+			t.Run(GetTestName("MulRelinThenAdd/op0=ct/op2=ct", tc.params, lvl), func(t *testing.T) {
 
 				if lvl == 0 {
 					t.Skip("Level = 0")
@@ -607,8 +607,8 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				require.True(t, ciphertext0.Scale.Cmp(ciphertext1.Scale) != 0)
 				require.True(t, ciphertext0.Scale.Cmp(ciphertext2.Scale) != 0)
 
-				tc.evaluator.MulRelinAndAdd(ciphertext0, ciphertext1, ciphertext2)
-				tc.ringT.MulCoeffsAndAdd(values0, values1, values2)
+				tc.evaluator.MulRelinThenAdd(ciphertext0, ciphertext1, ciphertext2)
+				tc.ringT.MulCoeffsBarrettThenAdd(values0, values1, values2)
 
 				verifyTestVectors(tc, tc.decryptor, values2, ciphertext2, t)
 
@@ -616,7 +616,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		}
 
 		for _, lvl := range tc.testLevel {
-			t.Run(GetTestName("MulAndAdd/op0=ct/op1=pt", tc.params, lvl), func(t *testing.T) {
+			t.Run(GetTestName("MulThenAdd/op0=ct/op1=pt", tc.params, lvl), func(t *testing.T) {
 
 				if lvl == 0 {
 					t.Skip("Level = 0")
@@ -629,8 +629,8 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				require.True(t, ciphertext0.Scale.Cmp(plaintext1.Scale) != 0)
 				require.True(t, ciphertext0.Scale.Cmp(ciphertext2.Scale) != 0)
 
-				tc.evaluator.MulAndAdd(ciphertext0, plaintext1, ciphertext2)
-				tc.ringT.MulCoeffsAndAdd(values0, values1, values2)
+				tc.evaluator.MulThenAdd(ciphertext0, plaintext1, ciphertext2)
+				tc.ringT.MulCoeffsBarrettThenAdd(values0, values1, values2)
 
 				verifyTestVectors(tc, tc.decryptor, values2, ciphertext2, t)
 
@@ -647,7 +647,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 
 			coeffs := []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 
-			T := tc.ringT.Modulus[0]
+			T := tc.params.T()
 			for i := range values.Coeffs[0] {
 				values.Coeffs[0][i] = ring.EvalPolyModP(values.Coeffs[0][i], coeffs, T)
 			}
@@ -692,7 +692,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 			slotIndex[0] = idx0
 			slotIndex[1] = idx1
 
-			T := tc.ringT.Modulus[0]
+			T := tc.params.T()
 			for pol, idx := range slotIndex {
 				for _, i := range idx {
 					values.Coeffs[0][i] = ring.EvalPolyModP(values.Coeffs[0][i], polyVec[pol].Coeffs, T)
@@ -738,7 +738,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 					for i := 0; i < lvl; i++ {
 						tc.evaluator.MulRelin(ciphertext0, ciphertext1, ciphertext0)
 
-						ringT.MulCoeffs(values0, values1, values0)
+						ringT.MulCoeffsBarrett(values0, values1, values0)
 
 						if *flagPrintNoise {
 							printNoise(fmt.Sprintf("%dx", i+1), values0.Coeffs[0], ciphertext0)
@@ -833,9 +833,9 @@ func testInnerSum(tc *testContext, t *testing.T) {
 		tmp := make([]uint64, tc.params.N())
 		copy(tmp, values.Coeffs[0])
 
-		T := tc.params.T()
+		subring := tc.params.RingT().SubRings[0]
 		for i := 1; i < n; i++ {
-			ring.AddVec(values.Coeffs[0], utils.RotateUint64Slots(tmp, i*batch), values.Coeffs[0], T)
+			subring.Add(values.Coeffs[0], utils.RotateUint64Slots(tmp, i*batch), values.Coeffs[0])
 		}
 
 		verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
@@ -852,11 +852,13 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		diagMatrix := make(map[int][]uint64)
 
-		diagMatrix[-1] = make([]uint64, params.N())
-		diagMatrix[0] = make([]uint64, params.N())
-		diagMatrix[1] = make([]uint64, params.N())
+		N := params.N()
 
-		for i := 0; i < params.N(); i++ {
+		diagMatrix[-1] = make([]uint64, N)
+		diagMatrix[0] = make([]uint64, N)
+		diagMatrix[1] = make([]uint64, N)
+
+		for i := 0; i < N; i++ {
 			diagMatrix[-1][i] = 1
 			diagMatrix[0][i] = 1
 			diagMatrix[1][i] = 1
@@ -875,10 +877,10 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 		tmp := make([]uint64, params.N())
 		copy(tmp, values.Coeffs[0])
 
-		T := tc.params.T()
+		subRing := tc.params.RingT().SubRings[0]
 
-		ring.AddVec(values.Coeffs[0], utils.RotateUint64Slots(tmp, -1), values.Coeffs[0], T)
-		ring.AddVec(values.Coeffs[0], utils.RotateUint64Slots(tmp, 1), values.Coeffs[0], T)
+		subRing.Add(values.Coeffs[0], utils.RotateUint64Slots(tmp, -1), values.Coeffs[0])
+		subRing.Add(values.Coeffs[0], utils.RotateUint64Slots(tmp, 1), values.Coeffs[0])
 
 		verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
 	})
@@ -891,17 +893,19 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		diagMatrix := make(map[int][]uint64)
 
-		diagMatrix[-15] = make([]uint64, params.N())
-		diagMatrix[-4] = make([]uint64, params.N())
-		diagMatrix[-1] = make([]uint64, params.N())
-		diagMatrix[0] = make([]uint64, params.N())
-		diagMatrix[1] = make([]uint64, params.N())
-		diagMatrix[2] = make([]uint64, params.N())
-		diagMatrix[3] = make([]uint64, params.N())
-		diagMatrix[4] = make([]uint64, params.N())
-		diagMatrix[15] = make([]uint64, params.N())
+		N := params.N()
 
-		for i := 0; i < params.N(); i++ {
+		diagMatrix[-15] = make([]uint64, N)
+		diagMatrix[-4] = make([]uint64, N)
+		diagMatrix[-1] = make([]uint64, N)
+		diagMatrix[0] = make([]uint64, N)
+		diagMatrix[1] = make([]uint64, N)
+		diagMatrix[2] = make([]uint64, N)
+		diagMatrix[3] = make([]uint64, N)
+		diagMatrix[4] = make([]uint64, N)
+		diagMatrix[15] = make([]uint64, N)
+
+		for i := 0; i < N; i++ {
 			diagMatrix[-15][i] = 1
 			diagMatrix[-4][i] = 1
 			diagMatrix[-1][i] = 1
@@ -926,16 +930,16 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 		tmp := make([]uint64, params.N())
 		copy(tmp, values.Coeffs[0])
 
-		T := tc.params.T()
+		subRing := tc.params.RingT().SubRings[0]
 
-		ring.AddVec(values.Coeffs[0], utils.RotateUint64Slots(tmp, -15), values.Coeffs[0], T)
-		ring.AddVec(values.Coeffs[0], utils.RotateUint64Slots(tmp, -4), values.Coeffs[0], T)
-		ring.AddVec(values.Coeffs[0], utils.RotateUint64Slots(tmp, -1), values.Coeffs[0], T)
-		ring.AddVec(values.Coeffs[0], utils.RotateUint64Slots(tmp, 1), values.Coeffs[0], T)
-		ring.AddVec(values.Coeffs[0], utils.RotateUint64Slots(tmp, 2), values.Coeffs[0], T)
-		ring.AddVec(values.Coeffs[0], utils.RotateUint64Slots(tmp, 3), values.Coeffs[0], T)
-		ring.AddVec(values.Coeffs[0], utils.RotateUint64Slots(tmp, 4), values.Coeffs[0], T)
-		ring.AddVec(values.Coeffs[0], utils.RotateUint64Slots(tmp, 15), values.Coeffs[0], T)
+		subRing.Add(values.Coeffs[0], utils.RotateUint64Slots(tmp, -15), values.Coeffs[0])
+		subRing.Add(values.Coeffs[0], utils.RotateUint64Slots(tmp, -4), values.Coeffs[0])
+		subRing.Add(values.Coeffs[0], utils.RotateUint64Slots(tmp, -1), values.Coeffs[0])
+		subRing.Add(values.Coeffs[0], utils.RotateUint64Slots(tmp, 1), values.Coeffs[0])
+		subRing.Add(values.Coeffs[0], utils.RotateUint64Slots(tmp, 2), values.Coeffs[0])
+		subRing.Add(values.Coeffs[0], utils.RotateUint64Slots(tmp, 3), values.Coeffs[0])
+		subRing.Add(values.Coeffs[0], utils.RotateUint64Slots(tmp, 4), values.Coeffs[0])
+		subRing.Add(values.Coeffs[0], utils.RotateUint64Slots(tmp, 15), values.Coeffs[0])
 
 		verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
 	})
@@ -957,8 +961,11 @@ func testMerge(tc *testContext, t *testing.T) {
 		ciphertexts := make(map[int]*rlwe.Ciphertext)
 		slotIndex := make(map[int]bool)
 
+		N := params.N()
+		gap := N / n
+
 		pt := NewPlaintext(params, params.MaxLevel())
-		for i := 0; i < params.N(); i += params.N() / n {
+		for i := 0; i < N; i += gap {
 
 			tc.encoder.EncodeCoeffs(append(values[i:], values[i:]...), pt)
 
@@ -1079,7 +1086,7 @@ func testMarshalling(tc *testContext, t *testing.T) {
 				ctHave := pbNew.Value[i]
 				require.NotNil(t, ctHave)
 				for j := range ctWant.Value {
-					require.True(t, tc.ringQ.Equal(ctWant.Value[j], ctHave.Value[j]))
+					require.True(t, tc.ringQ.AtLevel(ctWant.Value[j].Level()).Equal(ctWant.Value[j], ctHave.Value[j]))
 				}
 			}
 		})

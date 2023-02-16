@@ -31,7 +31,7 @@ func testString(opname string, parties int, params ckks.Parameters) string {
 		params.LogQP(),
 		params.MaxLevel()+1,
 		params.PCount(),
-		params.DecompRNS(params.QCount()-1, params.PCount()-1),
+		params.DecompRNS(params.MaxLevelQ(), params.MaxLevelP()),
 		parties)
 }
 
@@ -142,12 +142,12 @@ func genTestParams(params ckks.Parameters, NParties int) (tc *testContext, err e
 	tc.sk0 = rlwe.NewSecretKey(tc.params.Parameters)
 	tc.sk1 = rlwe.NewSecretKey(tc.params.Parameters)
 
-	ringQP, levelQ, levelP := params.RingQP(), params.QCount()-1, params.PCount()-1
+	ringQP := params.RingQP()
 	for j := 0; j < NParties; j++ {
 		tc.sk0Shards[j] = kgen.GenSecretKey()
 		tc.sk1Shards[j] = kgen.GenSecretKey()
-		ringQP.AddLvl(levelQ, levelP, tc.sk0.Value, tc.sk0Shards[j].Value, tc.sk0.Value)
-		ringQP.AddLvl(levelQ, levelP, tc.sk1.Value, tc.sk1Shards[j].Value, tc.sk1.Value)
+		ringQP.Add(tc.sk0.Value, tc.sk0Shards[j].Value, tc.sk0.Value)
+		ringQP.Add(tc.sk1.Value, tc.sk1Shards[j].Value, tc.sk1.Value)
 	}
 
 	// Publickeys
@@ -225,7 +225,7 @@ func testE2SProtocol(tc *testContext, t *testing.T) {
 		pt := ckks.NewPlaintext(params, ciphertext.Level())
 		pt.IsNTT = false
 		pt.Scale = ciphertext.Scale
-		tc.ringQ.SetCoefficientsBigintLvl(pt.Level(), rec.Value, pt.Value)
+		tc.ringQ.AtLevel(pt.Level()).SetCoefficientsBigint(rec.Value, pt.Value)
 
 		verifyTestVectors(tc, nil, coeffs, pt, t)
 
@@ -520,8 +520,8 @@ func testMarshalling(tc *testContext, t *testing.T) {
 
 		ciphertext := ckks.NewCiphertext(params, 1, minLevel)
 		ciphertext.Scale = params.DefaultScale()
-		tc.uniformSampler.Read(ciphertext.Value[0])
-		tc.uniformSampler.Read(ciphertext.Value[1])
+		tc.uniformSampler.AtLevel(minLevel).Read(ciphertext.Value[0])
+		tc.uniformSampler.AtLevel(minLevel).Read(ciphertext.Value[1])
 
 		// Testing refresh shares
 		refreshproto := NewRefreshProtocol(tc.params, logBound, 3.2)

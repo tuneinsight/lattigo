@@ -44,14 +44,12 @@ type testContext struct {
 
 func newTestContext(params rlwe.Parameters) *testContext {
 
-	levelQ, levelP := params.QCount()-1, params.PCount()-1
-
 	kgen := rlwe.NewKeyGenerator(params)
 	skShares := make([]*rlwe.SecretKey, nbParties)
 	skIdeal := rlwe.NewSecretKey(params)
 	for i := range skShares {
 		skShares[i] = kgen.GenSecretKey()
-		params.RingQP().AddLvl(levelQ, levelP, skIdeal.Value, skShares[i].Value, skIdeal.Value)
+		params.RingQP().Add(skIdeal.Value, skShares[i].Value, skIdeal.Value)
 	}
 
 	prng, _ := utils.NewKeyedPRNG([]byte{'t', 'e', 's', 't'})
@@ -148,7 +146,6 @@ func testKeySwitching(tc *testContext, t *testing.T) {
 	params := tc.params
 	ringQ := params.RingQ()
 	ringQP := params.RingQP()
-	levelQ, levelP := params.QCount()-1, params.PCount()-1
 	t.Run(testString("KeySwitching", tc), func(t *testing.T) {
 
 		cks := make([]*CKSProtocol, nbParties)
@@ -167,7 +164,7 @@ func testKeySwitching(tc *testContext, t *testing.T) {
 		skOutIdeal := rlwe.NewSecretKey(params)
 		for i := range skout {
 			skout[i] = tc.kgen.GenSecretKey()
-			ringQP.AddLvl(levelQ, levelP, skOutIdeal.Value, skout[i].Value, skOutIdeal.Value)
+			ringQP.Add(skOutIdeal.Value, skout[i].Value, skOutIdeal.Value)
 		}
 
 		ct := rlwe.NewCiphertext(params, 1, params.MaxLevel())
@@ -196,12 +193,12 @@ func testKeySwitching(tc *testContext, t *testing.T) {
 		pt := rlwe.NewPlaintext(params, ct.Level())
 
 		dec.Decrypt(ksCt, pt)
-		require.GreaterOrEqual(t, log2Bound+5, ringQ.Log2OfInnerSum(pt.Level(), pt.Value))
+		require.GreaterOrEqual(t, log2Bound+5, ringQ.Log2OfInnerSum(pt.Value))
 
 		cks[0].KeySwitch(ct, shares[0], ct)
 
 		dec.Decrypt(ct, pt)
-		require.GreaterOrEqual(t, log2Bound+5, ringQ.Log2OfInnerSum(pt.Level(), pt.Value))
+		require.GreaterOrEqual(t, log2Bound+5, ringQ.Log2OfInnerSum(pt.Value))
 
 	})
 }
@@ -251,18 +248,18 @@ func testPublicKeySwitching(tc *testContext, t *testing.T) {
 
 		pt := rlwe.NewPlaintext(params, ct.Level())
 		dec.Decrypt(ksCt, pt)
-		require.GreaterOrEqual(t, log2Bound+5, ringQ.Log2OfInnerSum(pt.Level(), pt.Value))
+		require.GreaterOrEqual(t, log2Bound+5, ringQ.Log2OfInnerSum(pt.Value))
 
 		pcks[0].KeySwitch(ct, shares[0], ct)
 
 		dec.Decrypt(ct, pt)
-		require.GreaterOrEqual(t, log2Bound+5, ringQ.Log2OfInnerSum(pt.Level(), pt.Value))
+		require.GreaterOrEqual(t, log2Bound+5, ringQ.Log2OfInnerSum(pt.Value))
 	})
 }
 
 func testRelinKeyGen(tc *testContext, t *testing.T) {
 	params := tc.params
-	levelQ, levelP := params.QCount()-1, params.PCount()-1
+	levelQ, levelP := params.MaxLevelQ(), params.MaxLevelP()
 
 	t.Run(testString("RelinKeyGen", tc), func(t *testing.T) {
 
@@ -315,7 +312,7 @@ func testRelinKeyGen(tc *testContext, t *testing.T) {
 func testRotKeyGen(tc *testContext, t *testing.T) {
 
 	params := tc.params
-	levelQ, levelP := params.QCount()-1, params.PCount()-1
+	levelQ, levelP := params.MaxLevelQ(), params.MaxLevelP()
 
 	t.Run(testString("RotKeyGen", tc), func(t *testing.T) {
 
@@ -577,11 +574,10 @@ func testThreshold(tc *testContext, t *testing.T) {
 			// Slow because each party has to generate its public key on-the-fly. In
 			// practice the public key could be precomputed from an id by parties during setup
 			ringQP := tc.params.RingQP()
-			levelQ, levelP := tc.params.QCount()-1, tc.params.PCount()-1
 			recSk := rlwe.NewSecretKey(tc.params)
 			for _, pi := range activeParties {
 				pi.Combiner.GenAdditiveShare(activeShamirPks, pi.tpk, pi.tsks, pi.tsk)
-				ringQP.AddLvl(levelQ, levelP, pi.tsk.Value, recSk.Value, recSk.Value)
+				ringQP.Add(pi.tsk.Value, recSk.Value, recSk.Value)
 			}
 
 			require.True(t, tc.skIdeal.Value.Equals(recSk.Value)) // reconstructed key should match the ideal sk

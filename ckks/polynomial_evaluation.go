@@ -636,7 +636,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasis(targetScale
 			if toEncode {
 				pt.Scale = targetScale.Div(X[key].Scale)
 				polyEval.EncodeSlots(values, pt, params.LogSlots())
-				polyEval.MulAndAdd(X[key], pt, res)
+				polyEval.MulThenAdd(X[key], pt, res)
 				toEncode = false
 			}
 		}
@@ -664,8 +664,9 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasis(targetScale
 			polyEval.AddConst(res, c, res)
 		}
 
-		cRealFlo, cImagFlo, constScale := ring.NewFloat(0, 128), ring.NewFloat(0, 128), ring.NewFloat(0, 128)
-		cRealBig, cImagBig := ring.NewUint(0), ring.NewUint(0)
+		constScale := new(big.Float).SetPrec(scalingPrecision)
+
+		ringQ := params.RingQ().AtLevel(level)
 
 		for key := pol.Value[0].Degree(); key > 0; key-- {
 
@@ -673,34 +674,15 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasis(targetScale
 
 			if key != 0 && isNotNegligible(c) {
 
-				cRealFlo.SetFloat64(real(c))
-				cImagFlo.SetFloat64(imag(c))
-
 				XScale := X[key].Scale.Value
 				tgScale := targetScale.Value
-
 				constScale.Quo(&tgScale, &XScale)
 
-				// Target scale * rescale-scale / power basis scale
-				cRealFlo.Mul(cRealFlo, constScale)
-				cImagFlo.Mul(cImagFlo, constScale)
+				cmplxBig := valueToBigComplex(c, scalingPrecision)
 
-				if cRealFlo.Sign() < 0 {
-					cRealFlo.Sub(cRealFlo, new(big.Float).SetFloat64(0.5))
-				} else {
-					cRealFlo.Add(cRealFlo, new(big.Float).SetFloat64(0.5))
-				}
+				RNSReal, RNSImag := bigComplexToRNSScalar(ringQ, constScale, cmplxBig)
 
-				if cImagFlo.Sign() < 0 {
-					cImagFlo.Sub(cImagFlo, new(big.Float).SetFloat64(0.5))
-				} else {
-					cImagFlo.Add(cImagFlo, new(big.Float).SetFloat64(0.5))
-				}
-
-				cRealFlo.Int(cRealBig)
-				cImagFlo.Int(cImagBig)
-
-				polyEval.MultByGaussianIntegerAndAdd(X[key], cRealBig, cImagBig, res)
+				polyEval.Evaluator.(*evaluator).evaluateWithScalar(level, X[key].Value, RNSReal, RNSImag, res.Value, ringQ.MulDoubleRNSScalarThenAdd)
 			}
 		}
 	}

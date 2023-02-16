@@ -117,24 +117,20 @@ type lowNormSampler struct {
 func newLowNormSampler(baseRing *ring.Ring) (lns *lowNormSampler) {
 	lns = new(lowNormSampler)
 	lns.baseRing = baseRing
-	lns.coeffs = make([]*big.Int, baseRing.N)
+	lns.coeffs = make([]*big.Int, baseRing.N())
 	return
 }
 
 // Samples a uniform polynomial in Z_{norm}/(X^N + 1)
-func (lns *lowNormSampler) newPolyLowNorm(norm []uint64) (pol *ring.Poly) {
-	bound := ring.NewUint(0)
-	for _, qi := range norm {
-		bound.Add(bound, ring.NewUint(qi))
-	}
+func (lns *lowNormSampler) newPolyLowNorm(norm *big.Int) (pol *ring.Poly) {
 
 	pol = lns.baseRing.NewPoly()
 
 	for i := range lns.coeffs {
-		lns.coeffs[i] = ring.RandInt(bound)
+		lns.coeffs[i] = ring.RandInt(norm)
 	}
 
-	lns.baseRing.SetCoefficientsBigint(lns.coeffs, pol)
+	lns.baseRing.AtLevel(pol.Level()).SetCoefficientsBigint(lns.coeffs, pol)
 
 	return
 }
@@ -157,7 +153,7 @@ func main() {
 		ringQ := volerings.ringQ
 
 		n := param.n
-		qlevel := len(ringQ.Modulus) - 1
+		qlevel := ringQ.MaxLevel()
 		plevel := param.plevel
 		mlevel := param.mlevel
 
@@ -208,8 +204,8 @@ func main() {
 		// NTT(MForm(a')) in Z_P
 		for i := range a {
 			a[i] = uniformSamplerQ.ReadNew()
-			aprime[i] = uniformSamplerQ.ReadLvlNew(plevel)
-			ringQ.MFormLvl(plevel, aprime[i], aprime[i])
+			aprime[i] = uniformSamplerQ.AtLevel(plevel).ReadNew()
+			ringQ.AtLevel(plevel).MForm(aprime[i], aprime[i])
 		}
 
 		elapsed = time.Since(start)
@@ -230,18 +226,18 @@ func main() {
 		for i := 0; i < n; i++ {
 
 			// Generate uniform inputs u and v (in R_m) in the time domain
-			u[i] = lowNormUniformQ.newPolyLowNorm(ringQ.Modulus[:mlevel+1])
+			u[i] = lowNormUniformQ.newPolyLowNorm(ringQ.ModulusAtLevel[mlevel])
 
 			ringQ.NTT(u[i], u[i])
 
-			v[i] = lowNormUniformQ.newPolyLowNorm(ringQ.Modulus[:mlevel+1])
+			v[i] = lowNormUniformQ.newPolyLowNorm(ringQ.ModulusAtLevel[mlevel])
 
 			c[i] = ringQ.NewPoly()
-			d[i] = ringQ.NewPolyLvl(plevel)
+			d[i] = ringQ.AtLevel(plevel).NewPoly()
 			rhoAlice[i] = ringQ.NewPoly()
 			rhoBob[i] = ringQ.NewPoly()
-			alpha[i] = ringQ.NewPolyLvl(plevel)
-			beta[i] = ringQ.NewPolyLvl(plevel)
+			alpha[i] = ringQ.AtLevel(plevel).NewPoly()
+			beta[i] = ringQ.AtLevel(plevel).NewPoly()
 		}
 
 		elapsed = time.Since(start)
@@ -254,7 +250,7 @@ func main() {
 		for i := 0; i < n; i++ {
 
 			// c = e
-			gaussianSamplerQ.ReadAndAddLvl(qlevel, c[i])
+			gaussianSamplerQ.AtLevel(qlevel).ReadAndAdd(c[i])
 
 			// c = NTT(e)
 			ringQ.NTT(c[i], c[i])
@@ -267,7 +263,7 @@ func main() {
 
 			// c = NTT(u * (Q/P) + e) + NTT(a) * MForm(NTT(skAlice))
 			// c = NTT(u * (Q/P) + e + a*skAlice)
-			ringQ.MulCoeffsMontgomeryAndAdd(a[i], skBob, c[i])
+			ringQ.MulCoeffsMontgomeryThenAdd(a[i], skBob, c[i])
 		}
 
 		elapsed = time.Since(start)
@@ -285,10 +281,10 @@ func main() {
 
 			// rhoAlice = NTT(skBob * (u * (Q/P) + e + a*skAlice)) - NTT(a) * NTT(MForm(sigmaAlice))
 			// rhoAlice = NTT(skBob * (u * (Q/P) + e + a*skAlice) - a*sigmaAlice)
-			ringQ.MulCoeffsMontgomeryAndSub(a[i], sigmaAlice, rhoAlice[i])
+			ringQ.MulCoeffsMontgomeryThenSub(a[i], sigmaAlice, rhoAlice[i])
 
 			// rhoAlice = NTT(skBob * u)  + NTT(a*skBob*skAlice - a*sigmaAlice) * (P/Q)
-			ringQ.DivRoundByLastModulusManyNTTLvl(qlevel, qlevel-plevel, rhoAlice[i], buff, rhoAlice[i])
+			ringQ.AtLevel(qlevel).DivRoundByLastModulusManyNTT(qlevel-plevel, rhoAlice[i], buff, rhoAlice[i])
 			rhoAlice[i].Resize(plevel)
 		}
 
@@ -306,11 +302,11 @@ func main() {
 			ringQ.MulCoeffsMontgomery(a[i], sigmaBob, rhoBob[i])
 
 			// rhoBob = NTT(a * sigmaBob * (P/Q))
-			ringQ.DivRoundByLastModulusManyNTTLvl(qlevel, qlevel-plevel, rhoBob[i], buff, rhoBob[i])
+			ringQ.AtLevel(qlevel).DivRoundByLastModulusManyNTT(qlevel-plevel, rhoBob[i], buff, rhoBob[i])
 			rhoBob[i].Resize(plevel)
 
 			// rhoBob = NTT(-a * sigmaBob) * (P/Q)
-			ringQ.NegLvl(plevel, rhoBob[i], rhoBob[i])
+			ringQ.AtLevel(plevel).Neg(rhoBob[i], rhoBob[i])
 		}
 
 		elapsed = time.Since(start)
@@ -324,15 +320,15 @@ func main() {
 
 		// ********* VERIFY CORRECTNESS *********
 
-		checkMessage1a := ringQ.NewPolyLvl(plevel)
-		checkMessage1b := ringQ.NewPolyLvl(plevel)
+		checkMessage1a := ringQ.AtLevel(plevel).NewPoly()
+		checkMessage1b := ringQ.AtLevel(plevel).NewPoly()
 
 		nerrors := 0
 		for i := 0; i < n; i++ {
 
 			// checkMessage1a = NTT(u) * NTT(MForm(skBob))
 
-			ringQ.MulCoeffsMontgomeryLvl(plevel, u[i], skAlice, checkMessage1a)
+			ringQ.AtLevel(plevel).MulCoeffsMontgomery(u[i], skAlice, checkMessage1a)
 
 			// rhoAlice = NTT(skBob * u)  + NTT(a*skBob*skAlice - a*sigmaAlice) * P/Q
 			// rhoBob = NTT(-a * sigmaBob) * P/Q
@@ -345,8 +341,8 @@ func main() {
 			// -> rhoAlice + rhoBob = NTT(skBob * u) + NTT(-a * sigmaBob) * (P/Q) + NTT(a*sigmaBob) * P/Q
 			//					    = NTT(skBob * u)
 
-			ringQ.AddLvl(plevel, rhoAlice[i], rhoBob[i], checkMessage1b)
-			if !ringQ.EqualLvl(plevel, checkMessage1a, checkMessage1b) {
+			ringQ.AtLevel(plevel).Add(rhoAlice[i], rhoBob[i], checkMessage1b)
+			if !ringQ.AtLevel(plevel).Equal(checkMessage1a, checkMessage1b) {
 				nerrors++
 			}
 		}
@@ -357,20 +353,20 @@ func main() {
 
 		// Second Message, Alice
 		start = time.Now()
-		ringQ.InvMFormLvl(plevel, skAlice, skAlice)
+		ringQ.AtLevel(plevel).IMForm(skAlice, skAlice)
 		for i := 0; i < n; i++ {
 			// d = v * P/M
-			ringQ.MulScalarBigintLvl(plevel, v[i], volerings.pDivM, d[i])
+			ringQ.AtLevel(plevel).MulScalarBigint(v[i], volerings.pDivM, d[i])
 
 			// d = v * (P/M) + e
-			gaussianSamplerQ.ReadAndAddLvl(plevel, d[i])
+			gaussianSamplerQ.AtLevel(plevel).ReadAndAdd(d[i])
 
 			// d = NTT(v * (P/M) + e)
-			ringQ.NTTLvl(plevel, d[i], d[i])
+			ringQ.AtLevel(plevel).NTT(d[i], d[i])
 
 			// d = NTT(v * (P/M) + e) + NTT(MForm(a'))*NTT(skAlice)
 			//   = NTT(v * (P/M) + e + a'*skAlice)
-			ringQ.MulCoeffsMontgomeryAndAddLvl(plevel, aprime[i], skAlice, d[i])
+			ringQ.AtLevel(plevel).MulCoeffsMontgomeryThenAdd(aprime[i], skAlice, d[i])
 		}
 
 		elapsed = time.Since(start)
@@ -385,20 +381,20 @@ func main() {
 			// beta = NTT(v * (P/M) + e + a'*skAlice) * NTT(MForm(u))
 			//      = NTT(u * (v * (P/M) + e + a'*skAlice))
 
-			ringQ.MFormLvl(plevel, u[i], u[i])
-			ringQ.MulCoeffsMontgomeryLvl(plevel, u[i], d[i], beta[i])
+			ringQ.AtLevel(plevel).MForm(u[i], u[i])
+			ringQ.AtLevel(plevel).MulCoeffsMontgomery(u[i], d[i], beta[i])
 
 			// beta = NTT(u * (v * (P/M) + e + a'*skAlice)) - NTT(MForm(a')) * NTT(-a * sigmaBob) * (P/Q)
 			// 		= NTT(u * (v * (P/M) + e + a'*skAlice) - a'*-a*sigmaBob * (P/Q))
-			ringQ.MulCoeffsMontgomeryAndSubLvl(plevel, aprime[i], rhoBob[i], beta[i])
+			ringQ.AtLevel(plevel).MulCoeffsMontgomeryThenSub(aprime[i], rhoBob[i], beta[i])
 
 			// beta = u*(v * (P/M) + e + a'*skAlice) * u -  a'*-a*sigmaBob * (P/Q)
-			ringQ.InvNTTLvl(plevel, beta[i], beta[i])
+			ringQ.AtLevel(plevel).INTT(beta[i], beta[i])
 
 			// beta = (u*(v * (P/M) + e + a'*skAlice) * u -  a'*-a*sigmaBob * (P/Q)) * (M/P)
 			// 		= (M/P) * u * (v * (P/M) + e + a'*skAlice) - a'*-a*sigmaBob * (M/Q)
 			//		= u*v + a'*skAlice*u*(M/P) + a'*a*sigmaBob * (M/Q)
-			ringQ.DivRoundByLastModulusManyLvl(plevel, plevel-mlevel, beta[i], buff, beta[i])
+			ringQ.AtLevel(plevel).DivRoundByLastModulusMany(plevel-mlevel, beta[i], buff, beta[i])
 			beta[i].Resize(mlevel)
 		}
 
@@ -413,19 +409,19 @@ func main() {
 			// alpha = NTT(MForm(a')) * (NTT(skAlice * u)  + NTT(a*skBob*skAlice - a*sigmaAlice) * (P/Q))
 			// 		 = NTT(a'*skAlice*u + (a'*a*skBob*skAlice - a'*a*sigmaAlice) * (P/Q))
 
-			ringQ.MulCoeffsMontgomeryLvl(plevel, aprime[i], rhoAlice[i], alpha[i])
-			ringQ.InvNTTLvl(plevel, alpha[i], alpha[i])
+			ringQ.AtLevel(plevel).MulCoeffsMontgomery(aprime[i], rhoAlice[i], alpha[i])
+			ringQ.AtLevel(plevel).INTT(alpha[i], alpha[i])
 
 			// alpha = (a'*skAlice*u + (a'*a*skBob*skAlice - a'*a*sigmaAlice) * (P/Q)) * (M/P)
 			//		 = a'*skAlice*u*(M/P) + a'*a*skBob*skAlice*(M/Q) - a'*a*sigmaAlice*(M/Q)
-			ringQ.DivRoundByLastModulusManyLvl(plevel, plevel-mlevel, alpha[i], buff, alpha[i])
+			ringQ.AtLevel(plevel).DivRoundByLastModulusMany(plevel-mlevel, alpha[i], buff, alpha[i])
 			alpha[i].Resize(mlevel)
 
 			// alpha = - a'*skAlice*u*(M/P) - a'*a*skBob*skAlice*(M/Q) + a'*a*sigmaAlice*(M/Q)
 			// 	 	 = - a'*skAlice*u*(M/P) - a'*a*skBob*skAlice*(M/Q) + a'*a*(skBob*skAlice - sigmaBob)*(M/Q)
 			//		 = - a'*skAlice*u*(M/P) - a'*a*skBob*skAlice*(M/Q) + a'*a*skBob*skAlice*(M/Q) - a'*a*sigmaBob*(M/Q)
 			// 		 = - a'*skAlice*u*(M/P) - a'*a*sigmaBob*(M/Q)
-			ringQ.NegLvl(mlevel, alpha[i], alpha[i])
+			ringQ.AtLevel(mlevel).Neg(alpha[i], alpha[i])
 		}
 
 		elapsed = time.Since(start)
@@ -446,14 +442,14 @@ func main() {
 
 			// u * v = alpha + beta
 
-			ringQ.NTTLvl(mlevel, v[i], checkMessage1b)
-			ringQ.MulCoeffsMontgomeryLvl(mlevel, u[i], checkMessage1b, checkMessage1a)
+			ringQ.AtLevel(mlevel).NTT(v[i], checkMessage1b)
+			ringQ.AtLevel(mlevel).MulCoeffsMontgomery(u[i], checkMessage1b, checkMessage1a)
 
-			ringQ.InvNTTLvl(mlevel, checkMessage1a, checkMessage1a)
+			ringQ.AtLevel(mlevel).INTT(checkMessage1a, checkMessage1a)
 
-			ringQ.AddLvl(mlevel, alpha[i], beta[i], checkMessage1b)
+			ringQ.AtLevel(mlevel).Add(alpha[i], beta[i], checkMessage1b)
 
-			if !ringQ.EqualLvl(mlevel, checkMessage1a, checkMessage1b) {
+			if !ringQ.AtLevel(mlevel).Equal(checkMessage1a, checkMessage1b) {
 				nerrors++
 			}
 		}

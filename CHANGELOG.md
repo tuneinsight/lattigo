@@ -4,7 +4,36 @@ All notable changes to this library are documented in this file.
 
 ## UNRELEASED - XXXX-XX-XX
 - Go `1.13` is not supported anymore by the library due to behavioral changes in the `math/big` package. The minimum version is now `1.14`.
-- UTILS: added `GetFactors`, `GetFactorPollardRho` and `GetFactorECM`.
+- ALL: improved consistency across method names:
+    - all sub-strings `NoMod`, `NoModDown` and `Constant` in methods names have been replaced by the sub-string `Lazy`. For example `AddNoMod` and `MulCoeffsMontgomeryConstant` become `AddLazy` and `MulCoeffsMontgomeryLazy` respectively.
+    - all sub-strings `And` in methods names have been replaced by the sub-string `Then`. For example `MulAndAdd` becomes `MulThenAdd`.
+    - all sub-strings `Inv` have been replaced by `I` for consistency. For example `InvNTT` becomes `INTT`.
+    - all sub-strings `Params` and alike referring to pre-computed constants have been replaced by `Constant`. For example `ModUpParams` becomes `ModUpConstants`.
+- BFV: removed `Evaluator` methods `AddNoMod`, `AddNoModNew`, `SubNoMod`, `SubNoModNew`, `Reduce`, `ReduceNew`.
+- BFV: replaced `bfv.Evaluator.InnerSum` with the more complete `rlwe.Evaluator.InnerSum`.
+- BFV: the `Evaluator` addition and subtraction no longer enforce BFV-specific operand types.
+- BFV: the maximum degree allowed for ciphertext multiplication has been reduced to two (same as `bgv` and `ckks`).
+- CKKS: added the `Polynomial.Lazy` field which specifies if the power basis is computed with lazy relinearization.
+- CKKS: made `NttAndMontgomery` thread safe again!
+- CKKS: removed `Evaluator` methods `MultByGaussianInteger`, `MultByGaussianIntegerThenAdd`, `MultByi`, `MultByiNew`, `DivByi` and `DivByiNew`. These are now all handled by the methods `MultByConst[...]`.
+- CKKS: updated the behavior of `MultByConstAndAdd`.
+- CKKS: fixed the median statistics of `PrecisionStats`, that were off by one index. 
+- RLWE: added `CheckBinary` and `CheckUnary` to the `Evaluator` type. It performs pre-checks on operands of the `Evaluator` methods.
+- RLWE: added the `MaxLevelQ` and `MaxLevelP` methods to the `Parameters` type.
+- RLWE: added the method `NewCiphertextQP`.
+- RLWE: setting the Hamming weight of the secret or the standard deviation of the error to negative values will now instantiate these fields as zero values and return a warning.
+- RING: refactoring of the `ring.Ring` object:
+    - the `ring.Ring` object is now composed of a slice of `ring.SubRings` structs, which store the pre-computations for modular arithmetic and NTT for their respective prime.
+    - the methods `ModuliChain()`, `ModuliChainLength()`, `MaxLevel()`, `Level()` have been added to the `ring.Ring` type. 
+    - added the `BinaryMarshaller` interface implementation for `ring.Ring` types. It marshals the factors and the primitive roots, removing the need for factorization and enabling a deterministic ring reconstruction.
+    - removed all methods with the API `[...]Lvl(level, ...)`. Instead, to perform operations at a specific level, a `ring.Ring` type can be obtained using `ring.Ring.AtLevel(level)` (which is allocation free).
+    - subring-level methods such as `NTTSingle` or `AddVec` are now accessible via `ring.Ring.SubRing[level].Method(*)`. Note that the consistency changes across method names also apply to those methods. So for example, `NTTSingle` and `AddVec` are now simply `NTT` and `Add` when called via a `SubRing` object.
+    - all methods with the sub-strings `Vec` and requiring additional inputs to the vectors have been made private.
+    - the `NumberTheoreticTransformer` interface now longer has to be implemented for arbitrary `*SubRing` and abstracts this parameterization being its instantiation.
+- RING: the core NTT method now takes `N` as an input, enabling NTT of different dimensions without having to modify internal value of the ring degree in the `ring.Ring` object.
+- RING: updated `ModDownQPtoQNTT` to round the RNS division (instead of flooring).
+- RING: added `IsInt` method on the struct `ring.Complex`.
+- UTILS: added public factorization methods `GetFactors`, `GetFactorPollardRho` and `GetFactorECM`.
 
 ## [4.1.0] - 2022-11-22 
 - Further improved the generalization of the code across schemes through the `rlwe` package and the introduction of a generic scale management interface.

@@ -97,39 +97,40 @@ func StandardDeviation(vec []float64, scale float64) (std float64) {
 	return math.Sqrt(err/n) * scale
 }
 
-// NttAndMontgomeryLvl takes the polynomial polIn Z[Y] outside of the NTT domain to the polynomial Z[X] in the NTT domain where Y = X^(gap).
+// NttSparseAndMontgomery takes the polynomial polIn Z[Y] outside of the NTT domain to the polynomial Z[X] in the NTT domain where Y = X^(gap).
 // This method is used to accelerate the NTT of polynomials that encode sparse plaintexts.
-func NttAndMontgomeryLvl(level int, logSlots int, ringQ *ring.Ring, montgomery bool, pol *ring.Poly) {
+func NttSparseAndMontgomery(r *ring.Ring, logSlots int, montgomery bool, pol *ring.Poly) {
 
-	if 1<<logSlots == ringQ.NthRoot>>2 {
-		ringQ.NTTLvl(level, pol, pol)
+	if 1<<logSlots == r.NthRoot()>>2 {
+		r.NTT(pol, pol)
 		if montgomery {
-			ringQ.MFormLvl(level, pol, pol)
+			r.MForm(pol, pol)
 		}
 	} else {
 
 		var n int
-		var NTT func(coeffsIn, coeffsOut []uint64, N int, nttPsi []uint64, Q, QInv uint64, bredParams []uint64)
-		switch ringQ.Type() {
+		var ntt func(p1, p2 []uint64, N int, Q, QInv uint64, BRedConstant, nttPsi []uint64)
+		switch r.Type() {
 		case ring.Standard:
 			n = 2 << logSlots
-			NTT = ring.NTT
+			ntt = ring.NTTStandard
 		case ring.ConjugateInvariant:
 			n = 1 << logSlots
-			NTT = ring.NTTConjugateInvariant
+			ntt = ring.NTTConjugateInvariant
 		}
 
-		N := ringQ.N
+		N := r.N()
 		gap := N / n
-		for i := 0; i < level+1; i++ {
+		for i, s := range r.SubRings[:r.Level()+1] {
 
 			coeffs := pol.Coeffs[i]
 
-			// NTT in dimension n
-			NTT(coeffs[:n], coeffs[:n], n, ringQ.NttPsi[i], ringQ.Modulus[i], ringQ.MredParams[i], ringQ.BredParams[i])
+			// NTT in dimension n but with roots of N
+			// This is a small hack to perform at reduced cost an NTT of dimension N on a vector in Y = X^{N/n}, i.e. sparse plaintext.
+			ntt(coeffs[:n], coeffs[:n], n, s.Modulus, s.MRedConstant, s.BRedConstant, s.RootsForward)
 
 			if montgomery {
-				ring.MFormVec(coeffs[:n], coeffs[:n], ringQ.Modulus[i], ringQ.BredParams[i])
+				s.MForm(coeffs[:n], coeffs[:n])
 			}
 
 			// Maps NTT in dimension n to NTT in dimension N
@@ -140,35 +141,6 @@ func NttAndMontgomeryLvl(level int, logSlots int, ringQ *ring.Ring, montgomery b
 				}
 			}
 		}
-	}
-}
-
-func interfaceMod(x interface{}, qi uint64) uint64 {
-
-	switch x := x.(type) {
-
-	case uint64:
-		return x % qi
-
-	case int64:
-
-		if x > 0 {
-			return uint64(x)
-		} else if x < 0 {
-			return uint64(int64(qi) + x%int64(qi))
-		}
-		return 0
-
-	case *big.Int:
-
-		if x.Cmp(ring.NewUint(0)) != 0 {
-			return new(big.Int).Mod(x, ring.NewUint(qi)).Uint64()
-		}
-
-		return 0
-
-	default:
-		panic("constant must either be uint64, int64 or *big.Int")
 	}
 }
 
@@ -209,7 +181,7 @@ func singleFloatToFixedPointCRT(level, i int, value float64, scale float64, ring
 
 	value *= scale
 
-	moduli := ringQ.Modulus
+	moduli := ringQ.ModuliChain()
 
 	if value > 1.8446744073709552e+19 {
 		xFlo = big.NewFloat(value)
@@ -226,13 +198,13 @@ func singleFloatToFixedPointCRT(level, i int, value float64, scale float64, ring
 		}
 
 	} else {
-		bredParams := ringQ.BredParams
+		brc := ringQ.BRedConstants()
 
 		c = uint64(value + 0.5)
 		if isNegative {
 			for j, qi := range moduli[:level+1] {
 				if c > qi {
-					coeffs[j][i] = qi - ring.BRedAdd(c, qi, bredParams[j])
+					coeffs[j][i] = qi - ring.BRedAdd(c, qi, brc[j])
 				} else {
 					coeffs[j][i] = qi - c
 				}
@@ -240,42 +212,13 @@ func singleFloatToFixedPointCRT(level, i int, value float64, scale float64, ring
 		} else {
 			for j, qi := range moduli[:level+1] {
 				if c > 0x1fffffffffffffff {
-					coeffs[j][i] = ring.BRedAdd(c, qi, bredParams[j])
+					coeffs[j][i] = ring.BRedAdd(c, qi, brc[j])
 				} else {
 					coeffs[j][i] = c
 				}
 			}
 		}
 	}
-}
-
-func scaleUpExact(value float64, n float64, q uint64) (res uint64) {
-
-	var isNegative bool
-	var xFlo *big.Float
-	var xInt *big.Int
-
-	isNegative = false
-	if value < 0 {
-		isNegative = true
-		xFlo = big.NewFloat(-n * value)
-	} else {
-		xFlo = big.NewFloat(n * value)
-	}
-
-	xFlo.Add(xFlo, big.NewFloat(0.5))
-
-	xInt = new(big.Int)
-	xFlo.Int(xInt)
-	xInt.Mod(xInt, ring.NewUint(q))
-
-	res = xInt.Uint64()
-
-	if isNegative {
-		res = q - res
-	}
-
-	return
 }
 
 func scaleUpVecExactBigFloat(values []*big.Float, scale float64, moduli []uint64, coeffs [][]uint64) {
@@ -318,7 +261,7 @@ func scaleUpVecExactBigFloat(values []*big.Float, scale float64, moduli []uint64
 	}
 }
 
-// SliceBitReverseInPlaceComplex128 applies an in-place bit-reverse permuation on the input slice.
+// SliceBitReverseInPlaceComplex128 applies an in-place bit-reverse permutation on the input slice.
 func SliceBitReverseInPlaceComplex128(slice []complex128, N int) {
 
 	var bit, j int
@@ -340,7 +283,7 @@ func SliceBitReverseInPlaceComplex128(slice []complex128, N int) {
 	}
 }
 
-// SliceBitReverseInPlaceFloat64 applies an in-place bit-reverse permuation on the input slice.
+// SliceBitReverseInPlaceFloat64 applies an in-place bit-reverse permutation on the input slice.
 func SliceBitReverseInPlaceFloat64(slice []float64, N int) {
 
 	var bit, j int
@@ -362,7 +305,7 @@ func SliceBitReverseInPlaceFloat64(slice []float64, N int) {
 	}
 }
 
-// SliceBitReverseInPlaceRingComplex applies an in-place bit-reverse permuation on the input slice.
+// SliceBitReverseInPlaceRingComplex applies an in-place bit-reverse permutation on the input slice.
 func SliceBitReverseInPlaceRingComplex(slice []*ring.Complex, N int) {
 
 	var bit, j int
@@ -384,26 +327,6 @@ func SliceBitReverseInPlaceRingComplex(slice []*ring.Complex, N int) {
 	}
 }
 
-// Divides x by n^2, returns a float
-func scaleDown(coeff *big.Int, n float64) (x float64) {
-
-	x, _ = new(big.Float).SetInt(coeff).Float64()
-	x /= n
-
-	return
-}
-
-func genBigIntChain(Q []uint64) (bigintChain []*big.Int) {
-
-	bigintChain = make([]*big.Int, len(Q))
-	bigintChain[0] = ring.NewUint(Q[0])
-	for i := 1; i < len(Q); i++ {
-		bigintChain[i] = ring.NewUint(Q[i])
-		bigintChain[i].Mul(bigintChain[i], bigintChain[i-1])
-	}
-	return
-}
-
 // GenSwitchkeysRescalingParams generates the parameters for rescaling the switching keys
 func GenSwitchkeysRescalingParams(Q, P []uint64) (params []uint64) {
 
@@ -420,7 +343,7 @@ func GenSwitchkeysRescalingParams(Q, P []uint64) (params []uint64) {
 
 		params[i] = tmp.Mod(PBig, ring.NewUint(Q[i])).Uint64()
 		params[i] = ring.ModExp(params[i], Q[i]-2, Q[i])
-		params[i] = ring.MForm(params[i], Q[i], ring.BRedParams(Q[i]))
+		params[i] = ring.MForm(params[i], Q[i], ring.BRedConstant(Q[i]))
 	}
 
 	return

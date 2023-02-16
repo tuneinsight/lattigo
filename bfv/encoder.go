@@ -143,13 +143,13 @@ func (ecd *encoder) EncodeRingT(values interface{}, ptOut *PlaintextRingT) {
 		valLen = len(values)
 	case []int64:
 
-		T := ringT.Modulus[0]
-		bredparamsT := ringT.BredParams[0]
+		T := ringT.SubRings[0].Modulus
+		BRedConstantT := ringT.SubRings[0].BRedConstant
 
 		var sign, abs uint64
 		for i, c := range values {
 			sign = uint64(c) >> 63
-			abs = ring.BRedAdd(uint64(c*((int64(sign)^1)-int64(sign))), T, bredparamsT)
+			abs = ring.BRedAdd(uint64(c*((int64(sign)^1)-int64(sign))), T, BRedConstantT)
 			pt[ecd.indexMatrix[i]] = sign*(T-abs) | (sign^1)*abs
 		}
 		valLen = len(values)
@@ -161,7 +161,7 @@ func (ecd *encoder) EncodeRingT(values interface{}, ptOut *PlaintextRingT) {
 		pt[ecd.indexMatrix[i]] = 0
 	}
 
-	ringT.InvNTT(ptOut.Value, ptOut.Value)
+	ringT.INTT(ptOut.Value, ptOut.Value)
 }
 
 // EncodeMulNew encodes a slice of integers of type []uint64 or []int64 of size at most N into a newly allocated PlaintextMul (optimized for ciphertext-plaintext multiplication).
@@ -206,15 +206,18 @@ func (ecd *encoder) RingTToMul(ptRt *PlaintextRingT, ptMul *PlaintextMul) {
 		copy(ptMul.Value.Coeffs[i], ptRt.Value.Coeffs[0])
 	}
 
-	ecd.params.RingQ().NTTLazyLvl(level, ptMul.Value, ptMul.Value)
-	ecd.params.RingQ().MFormLvl(level, ptMul.Value, ptMul.Value)
+	ringQ := ecd.params.RingQ().AtLevel(level)
+
+	ringQ.NTTLazy(ptMul.Value, ptMul.Value)
+	ringQ.MForm(ptMul.Value, ptMul.Value)
 }
 
 // MulToRingT transforms a PlaintextMul into PlaintextRingT by performing the inverse NTT transform of R_q and
 // putting the coefficients out of the Montgomery form.
 func (ecd *encoder) MulToRingT(pt *PlaintextMul, ptRt *PlaintextRingT) {
-	ecd.params.RingQ().InvNTTLazyLvl(0, pt.Value, ptRt.Value)
-	ecd.params.RingQ().InvMFormLvl(0, ptRt.Value, ptRt.Value)
+	ringQ := ecd.params.RingQ().AtLevel(0)
+	ringQ.INTTLazy(pt.Value, ptRt.Value)
+	ringQ.IMForm(ptRt.Value, ptRt.Value)
 }
 
 // SwitchToRingT decodes any plaintext type into a PlaintextRingT. It panics if p is not PlaintextRingT, Plaintext or PlaintextMul.
@@ -246,21 +249,22 @@ func (ecd *encoder) Decode(p interface{}, coeffs interface{}) {
 
 	pos := ecd.indexMatrix
 	tmp := ecd.tmpPoly.Coeffs[0]
+	N := ecd.params.N()
 
 	switch coeffs := coeffs.(type) {
 	case []uint64:
-		for i := 0; i < ecd.params.RingT().N; i++ {
+		for i := 0; i < N; i++ {
 			coeffs[i] = tmp[pos[i]]
 		}
 	case []int64:
 		modulus := int64(ecd.params.T())
 		modulusHalf := modulus >> 1
 		var value int64
-		for i := 0; i < ecd.params.RingQ().N; i++ {
-			value = int64(ecd.tmpPoly.Coeffs[0][ecd.indexMatrix[i]])
-			coeffs[i] = value
-			if value >= modulusHalf {
-				coeffs[i] -= modulus
+		for i := 0; i < N; i++ {
+			if value = int64(tmp[ecd.indexMatrix[i]]); value >= modulusHalf {
+				coeffs[i] = value - modulus
+			} else {
+				coeffs[i] = value
 			}
 		}
 	default:
@@ -271,7 +275,7 @@ func (ecd *encoder) Decode(p interface{}, coeffs interface{}) {
 // DecodeUintNew decodes any plaintext type and returns the coefficients in a new []uint64.
 // It panics if p is not PlaintextRingT, Plaintext or PlaintextMul.
 func (ecd *encoder) DecodeUintNew(p interface{}) (coeffs []uint64) {
-	coeffs = make([]uint64, ecd.params.RingQ().N)
+	coeffs = make([]uint64, ecd.params.N())
 	ecd.Decode(p, coeffs)
 	return
 }
@@ -279,7 +283,7 @@ func (ecd *encoder) DecodeUintNew(p interface{}) (coeffs []uint64) {
 // DecodeIntNew decodes any plaintext type and returns the coefficients in a new []int64. It also decodes the sign
 // modulus (by centering the values around the plaintext). It panics if p is not PlaintextRingT, Plaintext or PlaintextMul.
 func (ecd *encoder) DecodeIntNew(p interface{}) (coeffs []int64) {
-	coeffs = make([]int64, ecd.params.RingQ().N)
+	coeffs = make([]int64, ecd.params.N())
 	ecd.Decode(p, coeffs)
 	return
 }
@@ -291,7 +295,7 @@ func (ecd *encoder) ShallowCopy() Encoder {
 	return &encoder{
 		params:      ecd.params,
 		indexMatrix: ecd.indexMatrix,
-		scaler:      NewRNSScaler(ecd.params.RingQ(), ecd.params.RingT().Modulus[0]),
+		scaler:      NewRNSScaler(ecd.params.RingQ(), ecd.params.T()),
 		tmpPoly:     ecd.params.RingQ().NewPoly(),
 		tmpPtRt:     NewPlaintextRingT(ecd.params),
 	}

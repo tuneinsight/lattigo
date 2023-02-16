@@ -132,12 +132,12 @@ func gentestContext(params bfv.Parameters, parties int) (tc *testContext, err er
 	tc.sk0 = rlwe.NewSecretKey(tc.params.Parameters)
 	tc.sk1 = rlwe.NewSecretKey(tc.params.Parameters)
 
-	ringQP, levelQ, levelP := params.RingQP(), params.QCount()-1, params.PCount()-1
+	ringQP := params.RingQP()
 	for j := 0; j < parties; j++ {
 		tc.sk0Shards[j] = kgen.GenSecretKey()
 		tc.sk1Shards[j] = kgen.GenSecretKey()
-		ringQP.AddLvl(levelQ, levelP, tc.sk0.Value, tc.sk0Shards[j].Value, tc.sk0.Value)
-		ringQP.AddLvl(levelQ, levelP, tc.sk1.Value, tc.sk1Shards[j].Value, tc.sk1.Value)
+		ringQP.Add(tc.sk0.Value, tc.sk0Shards[j].Value, tc.sk0.Value)
+		ringQP.Add(tc.sk1.Value, tc.sk1Shards[j].Value, tc.sk1.Value)
 	}
 
 	// Publickeys
@@ -274,7 +274,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 			evaluator.Relinearize(tc.evaluator.MulNew(ciphertextTmp, ciphertextTmp), ciphertextTmp)
 
 			for j := range coeffsTmp {
-				coeffsTmp[j] = ring.BRed(coeffsTmp[j], coeffsTmp[j], tc.ringT.Modulus[0], tc.ringT.BredParams[0])
+				coeffsTmp[j] = ring.BRed(coeffsTmp[j], coeffsTmp[j], tc.ringT.SubRings[0].Modulus, tc.ringT.SubRings[0].BRedConstant)
 			}
 
 			if utils.EqualSliceUint64(coeffsTmp, encoder.DecodeUintNew(decryptorSk0.DecryptNew(ciphertextTmp))) {
@@ -292,18 +292,19 @@ func testRefresh(tc *testContext, t *testing.T) {
 		errorRange.Quo(errorRange, tc.ringT.ModulusAtLevel[0])
 		errorRange.Quo(errorRange, tc.ringT.ModulusAtLevel[0])
 
-		for i := 0; i < tc.params.N(); i++ {
+		N := tc.params.N()
+
+		for i := 0; i < N; i++ {
 			coeffsBigint[i].Add(coeffsBigint[i], ring.RandInt(errorRange))
 		}
 
-		tc.ringQ.SetCoefficientsBigint(coeffsBigint, ciphertext.Value[0])
+		tc.ringQ.AtLevel(ciphertext.Level()).SetCoefficientsBigint(coeffsBigint, ciphertext.Value[0])
 
 		for i, p := range RefreshParties {
 			p.GenShare(p.s, ciphertext, crp, p.share)
 			if i > 0 {
 				P0.AggregateShares(p.share, P0.share, P0.share)
 			}
-
 		}
 
 		ctRes := bfv.NewCiphertext(tc.params, 1, tc.params.MaxLevel())
@@ -315,7 +316,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 			evaluator.Relinearize(tc.evaluator.MulNew(ctRes, ctRes), ctRes)
 
 			for j := range coeffs {
-				coeffs[j] = ring.BRed(coeffs[j], coeffs[j], tc.ringT.Modulus[0], tc.ringT.BredParams[0])
+				coeffs[j] = ring.BRed(coeffs[j], coeffs[j], tc.ringT.SubRings[0].Modulus, tc.ringT.SubRings[0].BRedConstant)
 			}
 		}
 

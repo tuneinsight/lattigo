@@ -11,19 +11,20 @@ import (
 func PublicKeyIsCorrect(pk *PublicKey, sk *SecretKey, params Parameters, log2Bound int) bool {
 
 	pk = pk.CopyNew()
-	ringQ, ringP, ringQP := params.RingQ(), params.RingP(), params.RingQP()
-	levelQ, levelP := params.QCount()-1, params.PCount()-1
+
+	levelQ, levelP := params.MaxLevelQ(), params.MaxLevelP()
+	ringQP := params.RingQP().AtLevel(levelQ, levelP)
 
 	// [-as + e] + [as]
-	ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, sk.Value, pk.Value[1], pk.Value[0])
-	ringQP.InvNTTLvl(levelQ, levelP, pk.Value[0], pk.Value[0])
-	ringQP.InvMFormLvl(levelQ, levelP, pk.Value[0], pk.Value[0])
+	ringQP.MulCoeffsMontgomeryThenAdd(sk.Value, pk.Value[1], pk.Value[0])
+	ringQP.INTT(pk.Value[0], pk.Value[0])
+	ringQP.IMForm(pk.Value[0], pk.Value[0])
 
-	if log2Bound <= ringQ.Log2OfInnerSum(pk.Value[0].Q.Level(), pk.Value[0].Q) {
+	if log2Bound <= ringQP.RingQ.Log2OfInnerSum(pk.Value[0].Q) {
 		return false
 	}
 
-	if ringP != nil && log2Bound <= ringP.Log2OfInnerSum(pk.Value[0].P.Level(), pk.Value[0].P) {
+	if ringQP.RingP != nil && log2Bound <= ringQP.RingP.Log2OfInnerSum(pk.Value[0].P) {
 		return false
 	}
 
@@ -32,10 +33,10 @@ func PublicKeyIsCorrect(pk *PublicKey, sk *SecretKey, params Parameters, log2Bou
 
 // RelinearizationKeyIsCorrect returns true if swk is a correct RLWE relinearization-key for secret-key sk and parameters params.
 func RelinearizationKeyIsCorrect(rlk *SwitchingKey, skIdeal *SecretKey, params Parameters, log2Bound int) bool {
-	levelQ, levelP := params.QCount()-1, params.PCount()-1
+	levelQ, levelP := params.MaxLevelQ(), params.MaxLevelP()
 	skIn := skIdeal.CopyNew()
 	skOut := skIdeal.CopyNew()
-	params.RingQP().MulCoeffsMontgomeryLvl(levelQ, levelP, skIn.Value, skIn.Value, skIn.Value)
+	params.RingQP().AtLevel(levelQ, levelP).MulCoeffsMontgomery(skIn.Value, skIn.Value, skIn.Value)
 	return SwitchingKeyIsCorrect(rlk, skIn, skOut, params, log2Bound)
 }
 
@@ -60,15 +61,16 @@ func SwitchingKeyIsCorrect(swk *SwitchingKey, skIn, skOut *SecretKey, params Par
 	swk = swk.CopyNew()
 	skIn = skIn.CopyNew()
 	skOut = skOut.CopyNew()
-	levelQ, levelP := params.QCount()-1, params.PCount()-1
-	ringQ, ringP, ringQP := params.RingQ(), params.RingP(), params.RingQP()
+	levelQ, levelP := params.MaxLevelQ(), params.MaxLevelP()
+	ringQP := params.RingQP().AtLevel(levelQ, levelP)
+	ringQ, ringP := ringQP.RingQ, ringQP.RingP
 	decompPw2 := params.DecompPw2(levelQ, levelP)
 
 	// Decrypts
 	// [-asIn + w*P*sOut + e, a] + [asIn]
 	for i := range swk.Value {
 		for j := range swk.Value[i] {
-			ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, swk.Value[i][j].Value[1], skOut.Value, swk.Value[i][j].Value[0])
+			ringQP.MulCoeffsMontgomeryThenAdd(swk.Value[i][j].Value[1], skOut.Value, swk.Value[i][j].Value[0])
 		}
 	}
 
@@ -77,14 +79,14 @@ func SwitchingKeyIsCorrect(swk *SwitchingKey, skIn, skOut *SecretKey, params Par
 	for i := range swk.Value { // RNS decomp
 		if i > 0 {
 			for j := range swk.Value[i] { // PW2 decomp
-				ringQP.AddLvl(levelQ, levelP, swk.Value[0][j].Value[0], swk.Value[i][j].Value[0], swk.Value[0][j].Value[0])
+				ringQP.Add(swk.Value[0][j].Value[0], swk.Value[i][j].Value[0], swk.Value[0][j].Value[0])
 			}
 		}
 	}
 
 	if levelP != -1 {
 		// sOut * P
-		ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusAtLevel[levelP], skIn.Value.Q)
+		ringQ.MulScalarBigint(skIn.Value.Q, ringP.Modulus(), skIn.Value.Q)
 	}
 
 	for i := 0; i < decompPw2; i++ {
@@ -94,18 +96,18 @@ func SwitchingKeyIsCorrect(swk *SwitchingKey, skIn, skOut *SecretKey, params Par
 
 		// Checks that the error is below the bound
 		// Worst error bound is N * floor(6*sigma) * #Keys
-		ringQP.InvNTTLvl(levelQ, levelP, swk.Value[0][i].Value[0], swk.Value[0][i].Value[0])
-		ringQP.InvMFormLvl(levelQ, levelP, swk.Value[0][i].Value[0], swk.Value[0][i].Value[0])
+		ringQP.INTT(swk.Value[0][i].Value[0], swk.Value[0][i].Value[0])
+		ringQP.IMForm(swk.Value[0][i].Value[0], swk.Value[0][i].Value[0])
 
 		// Worst bound of inner sum
 		// N*#Keys*(N * #Parties * floor(sigma*6) + #Parties * floor(sigma*6) + N * #Parties  +  #Parties * floor(6*sigma))
 
-		if log2Bound < ringQ.Log2OfInnerSum(levelQ, swk.Value[0][i].Value[0].Q) {
+		if log2Bound < ringQ.Log2OfInnerSum(swk.Value[0][i].Value[0].Q) {
 			return false
 		}
 
 		if levelP != -1 {
-			if log2Bound < ringP.Log2OfInnerSum(levelP, swk.Value[0][i].Value[0].P) {
+			if log2Bound < ringP.Log2OfInnerSum(swk.Value[0][i].Value[0].P) {
 				return false
 			}
 		}
@@ -132,11 +134,13 @@ func Norm(ct *Ciphertext, dec Decryptor) (std, min, max float64) {
 
 	dec.Decrypt(ct, pt)
 
+	ringQ := params.RingQ().AtLevel(ct.Level())
+
 	if pt.IsNTT {
-		params.RingQ().InvNTTLvl(ct.Level(), pt.Value, pt.Value)
+		ringQ.INTT(pt.Value, pt.Value)
 	}
 
-	params.RingQ().PolyToBigintCenteredLvl(ct.Level(), pt.Value, 1, coeffsBigint)
+	ringQ.PolyToBigintCentered(pt.Value, 1, coeffsBigint)
 
 	return NormStats(coeffsBigint)
 }

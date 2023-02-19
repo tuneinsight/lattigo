@@ -20,48 +20,47 @@ const (
 // EncodingMatrix is a struct storing the factorized DFT matrix
 type EncodingMatrix struct {
 	EncodingMatrixLiteral
-	matrices []ckks.LinearTransform
+	Matrices []ckks.LinearTransform
 }
 
 // EncodingMatrixLiteral is a struct storing the parameters to generate the factorized DFT matrix.
+// This struct has mandatory and optional fields.
+// Mandatory:
+// - LinearTransformType: CoeffsToSlots or SlotsToCoeffs
+// - LogN: Log2(RingDegree)
+// - LogSlots: Log2(slots)
+// - LevelStart: Encoding level
+// - Levels: Depth of the linear transform (i.e. the degree of factorization of the encoding matrix)
+// Optional:
+// - RepackImag2Real: If true, the imaginary part is repacked into the right n slots of the real part
+// - Scaling: Constant by which the matrix is multiplied
+// - BitReversed: If true, then applies the transformation bit-reversed and expects bit-reversed inputs
+// - LogBSGSRatio: log of the ratio between the inner and outer loop of the baby-step giant-step algorithm
 type EncodingMatrixLiteral struct {
+	// Mandatory
 	LinearTransformType LinearTransformType
-	RepackImag2Real     bool    // If true, the imaginary part is repacked into the right n slots of the real part
-	LogN                int     // Log2(RingDegree)
-	LogSlots            int     // Log2(slots)
-	Scaling             float64 // Constant by which the matrix is multiplied
-	LevelStart          int     // Encoding level
-	BitReversed         bool    // If true, then applies the transformation bit-reversed and expects bit-reversed inputs
-	BSGSRatio           float64 // n1/n2 ratio for the bsgs algo for matrix x vector eval
-	ScalingFactor       [][]float64
+	LogN                int
+	LogSlots            int
+	LevelStart          int
+	Levels              []int
+	// Optional
+	RepackImag2Real bool    // Default: False.
+	Scaling         float64 // Default 1.0.
+	BitReversed     bool    // Default: False.
+	LogBSGSRatio    int     // Default: 0.
 }
 
-// Depth returns the number of levels allocated.
+// Depth returns the number of levels allocated to the linear transform.
 // If actual == true then returns the number of moduli consumed, else
 // returns the factorization depth.
 func (mParams *EncodingMatrixLiteral) Depth(actual bool) (depth int) {
 	if actual {
-		depth = len(mParams.ScalingFactor)
+		depth = len(mParams.Levels)
 	} else {
-		for i := range mParams.ScalingFactor {
-			for range mParams.ScalingFactor[i] {
-				depth++
-			}
+		for _, d := range mParams.Levels {
+			depth += d
 		}
 	}
-	return
-}
-
-// Levels returns the index of the Qi used int CoeffsToSlots.
-func (mParams *EncodingMatrixLiteral) Levels() (levels []int) {
-	levels = []int{}
-	trueDepth := mParams.Depth(true)
-	for i := range mParams.ScalingFactor {
-		for range mParams.ScalingFactor[trueDepth-1-i] {
-			levels = append(levels, mParams.LevelStart-i)
-		}
-	}
-
 	return
 }
 
@@ -84,7 +83,7 @@ func (mParams *EncodingMatrixLiteral) Rotations() (rotations []int) {
 
 	// Coeffs to Slots rotations
 	for i, pVec := range indexCtS {
-		N1 := ckks.FindBestBSGSSplit(pVec, dslots, mParams.BSGSRatio)
+		N1 := ckks.FindBestBSGSRatio(pVec, dslots, mParams.LogBSGSRatio)
 		rotations = addMatrixRotToList(pVec, rotations, N1, slots, mParams.LinearTransformType == SlotsToCoeffs && logSlots < logN-1 && i == 0 && mParams.RepackImag2Real)
 	}
 
@@ -102,39 +101,27 @@ func NewHomomorphicEncodingMatrixFromLiteral(mParams EncodingMatrixLiteral, enco
 		logdSlots++
 	}
 
-	ctsLevels := mParams.Levels()
+	params := encoder.Parameters()
 
 	// CoeffsToSlots vectors
-	matrices := make([]ckks.LinearTransform, len(ctsLevels))
-	pVecDFT := mParams.computeDFTMatrices()
-	cnt := 0
-	trueDepth := mParams.Depth(true)
-	for i := range mParams.ScalingFactor {
-		for j := range mParams.ScalingFactor[trueDepth-i-1] {
-			matrices[cnt] = ckks.GenLinearTransformBSGS(encoder, pVecDFT[cnt], ctsLevels[cnt], rlwe.NewScale(mParams.ScalingFactor[trueDepth-i-1][j]), mParams.BSGSRatio, logdSlots)
-			cnt++
+	matrices := []ckks.LinearTransform{}
+	pVecDFT := mParams.ComputeDFTMatrices()
+
+	level := mParams.LevelStart
+	var idx int
+	for i := range mParams.Levels {
+
+		scale := rlwe.NewScale(math.Pow(params.QiFloat64(level), 1.0/float64(mParams.Levels[i])))
+
+		for j := 0; j < mParams.Levels[i]; j++ {
+			matrices = append(matrices, ckks.GenLinearTransformBSGS(encoder, pVecDFT[idx], level, scale, mParams.LogBSGSRatio, logdSlots))
+			idx++
 		}
+
+		level--
 	}
 
-	return EncodingMatrix{EncodingMatrixLiteral: mParams, matrices: matrices}
-}
-
-func computeRoots(N int) (roots []complex128) {
-
-	var angle float64
-
-	m := N << 1
-
-	roots = make([]complex128, m)
-
-	roots[0] = 1
-
-	for i := 1; i < m; i++ {
-		angle = 6.283185307179586 * float64(i) / float64(m)
-		roots[i] = complex(math.Cos(angle), math.Sin(angle))
-	}
-
-	return
+	return EncodingMatrix{EncodingMatrixLiteral: mParams, Matrices: matrices}
 }
 
 func fftPlainVec(logN, dslots int, roots []complex128, pow5 []int) (a, b, c [][]complex128) {
@@ -397,7 +384,8 @@ func nextLevelfftIndexMap(vec map[int]bool, logL, N, nextLevel int, ltType Linea
 	return
 }
 
-func (mParams *EncodingMatrixLiteral) computeDFTMatrices() (plainVector []map[int][]complex128) {
+// ComputeDFTMatrices returns the ordered list of factors of the non-zero diagones of the encoding/decoding matrix.
+func (mParams *EncodingMatrixLiteral) ComputeDFTMatrices() (plainVector []map[int][]complex128) {
 
 	logSlots := mParams.LogSlots
 	slots := 1 << logSlots
@@ -410,7 +398,7 @@ func (mParams *EncodingMatrixLiteral) computeDFTMatrices() (plainVector []map[in
 		logdSlots++
 	}
 
-	roots := computeRoots(slots << 1)
+	roots := ckks.GetRootsFloat64(slots << 2)
 	pow5 := make([]int, (slots<<1)+1)
 	pow5[0] = 1
 	for i := 1; i < (slots<<1)+1; i++ {
@@ -459,12 +447,12 @@ func (mParams *EncodingMatrixLiteral) computeDFTMatrices() (plainVector []map[in
 			plainVector[i] = genRepackMatrix(logSlots, bitreversed)
 
 			// Merges this special initial matrix with the first layer of SlotsToCoeffs DFT
-			plainVector[i] = multiplyFFTMatrixWithNextFFTLevel(plainVector[i], logSlots, 2<<logSlots, fftLevel, a[logSlots-fftLevel], b[logSlots-fftLevel], c[logSlots-fftLevel], ltType, bitreversed)
+			plainVector[i] = multiplyFFTMatrixWithNextFFTLevel(plainVector[i], logSlots, 2*slots, fftLevel, a[logSlots-fftLevel], b[logSlots-fftLevel], c[logSlots-fftLevel], ltType, bitreversed)
 
 			// Continues the merging with the next layers if the total depth requires it.
 			nextfftLevel = fftLevel - 1
 			for j := 0; j < merge[i]-1; j++ {
-				plainVector[i] = multiplyFFTMatrixWithNextFFTLevel(plainVector[i], logSlots, 2<<logSlots, nextfftLevel, a[logSlots-nextfftLevel], b[logSlots-nextfftLevel], c[logSlots-nextfftLevel], ltType, bitreversed)
+				plainVector[i] = multiplyFFTMatrixWithNextFFTLevel(plainVector[i], logSlots, 2*slots, nextfftLevel, a[logSlots-nextfftLevel], b[logSlots-nextfftLevel], c[logSlots-nextfftLevel], ltType, bitreversed)
 				nextfftLevel--
 			}
 
@@ -475,7 +463,7 @@ func (mParams *EncodingMatrixLiteral) computeDFTMatrices() (plainVector []map[in
 			// Merges the layer with the next levels of the DFT if the total depth requires it.
 			nextfftLevel = fftLevel - 1
 			for j := 0; j < merge[i]-1; j++ {
-				plainVector[i] = multiplyFFTMatrixWithNextFFTLevel(plainVector[i], logSlots, 1<<logSlots, nextfftLevel, a[logSlots-nextfftLevel], b[logSlots-nextfftLevel], c[logSlots-nextfftLevel], ltType, bitreversed)
+				plainVector[i] = multiplyFFTMatrixWithNextFFTLevel(plainVector[i], logSlots, slots, nextfftLevel, a[logSlots-nextfftLevel], b[logSlots-nextfftLevel], c[logSlots-nextfftLevel], ltType, bitreversed)
 				nextfftLevel--
 			}
 		}
@@ -486,18 +474,39 @@ func (mParams *EncodingMatrixLiteral) computeDFTMatrices() (plainVector []map[in
 	// Repacking after the CoeffsToSlots (we multiply the last DFT matrix with the vector [1, 1, ..., 1, 1, 0, 0, ..., 0, 0]).
 	if logSlots != logdSlots && ltType == CoeffsToSlots && mParams.RepackImag2Real {
 		for j := range plainVector[maxDepth-1] {
-			for x := 0; x < 1<<logSlots; x++ {
-				plainVector[maxDepth-1][j][x+(1<<logSlots)] = complex(0, 0)
+			v := plainVector[maxDepth-1][j]
+			for x := 0; x < slots; x++ {
+				v[x+slots] = complex(0, 0)
 			}
 		}
 	}
 
 	// Rescaling of the DFT matrix of the SlotsToCoeffs/CoeffsToSlots
-	scaling := complex(math.Pow(mParams.Scaling, 1.0/float64(mParams.Depth(false))), 0)
+	scaling := complex(mParams.Scaling, 0)
+
+	// If no scaling (Default); set to 1
+	if scaling == 0 {
+		scaling = 1.0
+	}
+
+	// If encoding matrix, rescale by 1/N
+	if ltType == CoeffsToSlots {
+		scaling /= complex(float64(slots), 0)
+
+		// Real/Imag extraction 1/2 factor
+		if mParams.RepackImag2Real {
+			scaling /= 2
+		}
+	}
+
+	// Spreads the scale accross the matrices
+	scaling = complex(math.Pow(real(scaling), 1.0/float64(mParams.Depth(false))), 0)
+
 	for j := range plainVector {
 		for x := range plainVector[j] {
-			for i := range plainVector[j][x] {
-				plainVector[j][x][i] *= scaling
+			v := plainVector[j][x]
+			for i := range v {
+				v[i] *= scaling
 			}
 		}
 	}

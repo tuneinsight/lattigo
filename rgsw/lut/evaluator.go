@@ -231,6 +231,7 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWihtSlotIndex map[in
 
 				// LUT[RLWE] = LUT[RLWE] x RGSW[(X^{a} - 1) * sk_{j}[0] + (X^{-a} - 1) * sk_{j}[1] + 1]
 				eval.ExternalProduct(acc, eval.tmpRGSW, acc)
+
 			}
 			res[index] = acc.CopyNew()
 
@@ -240,7 +241,6 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWihtSlotIndex map[in
 				res[index].IsNTT = false
 			}
 		}
-
 		// LUT[RLWE] = LUT[RLWE] * X^{m+e}
 	}
 

@@ -13,15 +13,27 @@ All notable changes to this library are documented in this file.
 - BFV: replaced `bfv.Evaluator.InnerSum` with the more complete `rlwe.Evaluator.InnerSum`.
 - BFV: the `Evaluator` addition and subtraction no longer enforce BFV-specific operand types.
 - BFV: the maximum degree allowed for ciphertext multiplication has been reduced to two (same as `bgv` and `ckks`).
+- BFV: removed checks during addition and subtraction for the type of plaintext.
 - CKKS: added the `Polynomial.Lazy` field which specifies if the power basis is computed with lazy relinearization.
 - CKKS: made `NttAndMontgomery` thread safe again!
 - CKKS: removed `Evaluator` methods `MultByGaussianInteger`, `MultByGaussianIntegerThenAdd`, `MultByi`, `MultByiNew`, `DivByi` and `DivByiNew`. These are now all handled by the methods `MultByConst[...]`.
 - CKKS: updated the behavior of `MultByConstAndAdd`.
 - CKKS: fixed the median statistics of `PrecisionStats`, that were off by one index. 
+- CKKS: renamed the `Parameters` field `DefaultScale` to `LogScale`, which now takes a value in log2.
+- CKKS: the `Parameters` field `LogSlots` now has a default value which is the maximum number of slots possible for the given parameters.
+- CKKS: variable `BSGSRatio` is now `LogBSGSRatio` and is given in log2.
+- CKKS/Bootstrapping: complete refactoring the bootstrapping parameters for better usability.
+- CKKS/Bootstrapping: upon bootstrapping, the method will check that the ciphertext scale is a power of two.
+- CKKS/Bootstrapping: added the iterative bootstrapping `META-BTS` of `Youngjin et al.`
+- CKKS/Advanced: all fields of `EncodingMatrixLiteral` are now marshalled.
+- CKKS/Advanced: the `CoeffsToSlots` matrix is only scaled by an additional factor 1/2 if the `RepackImag2Real` field is set to true.
 - RLWE: added `CheckBinary` and `CheckUnary` to the `Evaluator` type. It performs pre-checks on operands of the `Evaluator` methods.
-- RLWE: added the `MaxLevelQ` and `MaxLevelP` methods to the `Parameters` type.
+- RLWE: added the methods `MaxLevelQ()` and `MaxLevelP` to the `Parameters` struct.
 - RLWE: added the method `NewCiphertextQP`.
-- RLWE: setting the Hamming weight of the secret or the standard deviation of the error to negative values will now instantiate these fields as zero values and return a warning.
+- RLWE: setting the Hamming weight of the secret or the standard deviation of the error to negative values will instantiate these fields as zero values and return a warning (as an error).
+- RLWE: added bootstrapping interface.
+- RLWE: the method `SwitchKeys` can now be used to switch the ring degree of ciphertexts.
+- RLWE: `NewScale` now checks that scales given as `float64` are not `Inf` or `NaN` and that scales given as `big.Float` are not `Inf`.
 - RING: refactoring of the `ring.Ring` object:
     - the `ring.Ring` object is now composed of a slice of `ring.SubRings` structs, which store the pre-computations for modular arithmetic and NTT for their respective prime.
     - the methods `ModuliChain()`, `ModuliChainLength()`, `MaxLevel()`, `Level()` have been added to the `ring.Ring` type. 
@@ -34,6 +46,7 @@ All notable changes to this library are documented in this file.
 - RING: updated `ModDownQPtoQNTT` to round the RNS division (instead of flooring).
 - RING: added `IsInt` method on the struct `ring.Complex`.
 - UTILS: added public factorization methods `GetFactors`, `GetFactorPollardRho` and `GetFactorECM`.
+- Examples: added `examples/rgsw/main.go` which showcases LUT evaluation using the `rgsw` package.
 
 ## [4.1.0] - 2022-11-22 
 - Further improved the generalization of the code across schemes through the `rlwe` package and the introduction of a generic scale management interface.

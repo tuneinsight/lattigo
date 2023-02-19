@@ -2,53 +2,85 @@
 package bootstrapping
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
-// Bootstrap re-encrypts a ciphertext at lvl Q0 to a ciphertext at MaxLevel-k where k is the depth of the bootstrapping circuit.
-// If the input ciphertext level is zero, the input scale must be an exact power of two smaller or equal to round(Q0/2^{10}).
+// Bootstrap re-encrypts a ciphertext to a ciphertext at MaxLevel-k where k is the depth of the bootstrapping circuit.
+// If the input ciphertext level is zero, the input scale must be an exact power of two smaller than Q[0]/MessageRatio
+// (it can't be equal since Q[0] is not a power of two).
+// The message ratio is an optional field in the bootstrapping parameters, by default it set to 2^{LogMessageRatio = 8}.
 // If the input ciphertext is at level one or more, the input scale does not need to be an exact power of two as one level
 // can be used to do a scale matching.
 func (btp *Bootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext) {
 
-	ctOut = ctIn.CopyNew()
+	// Pre-processing
+	ctDiff := ctIn.CopyNew()
 
 	// Drops the level to 1
-	for ctOut.Level() > 1 {
-		btp.DropLevel(ctOut, 1)
+	for ctDiff.Level() > 1 {
+		btp.DropLevel(ctDiff, 1)
 	}
 
 	// Brings the ciphertext scale to Q0/MessageRatio
-	if ctOut.Level() == 1 {
+	if ctDiff.Level() == 1 {
 
 		// If one level is available, then uses it to match the scale
-		btp.SetScale(ctOut, rlwe.NewScale(btp.q0OverMessageRatio))
+		btp.SetScale(ctDiff, rlwe.NewScale(btp.q0OverMessageRatio))
 
 		// Then drops to level 0
-		for ctOut.Level() != 0 {
-			btp.DropLevel(ctOut, 1)
+		for ctDiff.Level() != 0 {
+			btp.DropLevel(ctDiff, 1)
 		}
 
 	} else {
 
 		// Does an integer constant mult by round((Q0/Delta_m)/ctscle)
-		if btp.q0OverMessageRatio < ctOut.Scale.Float64() {
-			panic("Cannot bootstrap: ciphetext scale > q/||m||)")
+		if scale := ctDiff.Scale.Float64(); scale != math.Exp2(math.Round(math.Log2(scale))) || btp.q0OverMessageRatio < scale {
+			msgRatio := btp.EvalModParameters.LogMessageRatio
+			panic(fmt.Sprintf("ciphetext scale must be a power of two smaller than Q[0]/2^{LogMessageRatio=%d} = %f but is %f", msgRatio, float64(btp.params.Q()[0])/math.Exp2(float64(msgRatio)), scale))
 		}
 
-		btp.ScaleUp(ctOut, rlwe.NewScale(math.Round(btp.q0OverMessageRatio/ctOut.Scale.Float64())), ctOut)
+		btp.ScaleUp(ctDiff, rlwe.NewScale(math.Round(btp.q0OverMessageRatio/ctDiff.Scale.Float64())), ctDiff)
 	}
 
 	// Scales the message to Q0/|m|, which is the maximum possible before ModRaise to avoid plaintext overflow.
-	if scale := math.Round((btp.params.QiFloat64(0) / btp.evalModPoly.MessageRatio()) / ctOut.Scale.Float64()); scale > 1 {
-		btp.ScaleUp(ctOut, rlwe.NewScale(scale), ctOut)
+	if scale := math.Round((btp.params.QiFloat64(0) / btp.evalModPoly.MessageRatio()) / ctDiff.Scale.Float64()); scale > 1 {
+		btp.ScaleUp(ctDiff, rlwe.NewScale(scale), ctDiff)
 	}
 
+	// 2^d * M + 2^(d-n) * e
+	ctOut = btp.bootstrap(ctDiff.CopyNew())
+
+	for i := 1; i < btp.Iterations; i++ {
+		// 2^(d-n)*e <- [2^d * M + 2^(d-n) * e] - [2^d * M]
+		tmp := btp.SubNew(ctDiff, ctOut)
+
+		// 2^d * e
+		btp.MultByConst(tmp, 1<<16, tmp)
+
+		// 2^d * e + 2^(d-n) * e'
+		tmp = btp.bootstrap(tmp)
+
+		// 2^(d-n) * e + 2^(d-2n) * e'
+		btp.MultByConst(tmp, btp.params.QiFloat64(tmp.Level())/float64(uint64(1<<16)), tmp)
+		tmp.Scale = tmp.Scale.Mul(rlwe.NewScale(btp.params.Q()[tmp.Level()]))
+		btp.Rescale(tmp, btp.params.DefaultScale(), tmp)
+
+		// [2^d * M + 2^(d-2n) * e'] <- [2^d * M + 2^(d-n) * e] - [2^(d-n) * e + 2^(d-2n) * e']
+		btp.Add(ctOut, tmp, ctOut)
+	}
+
+	return
+}
+
+func (btp *Bootstrapper) bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext) {
+
 	// Step 1 : Extend the basis from q to Q
-	ctOut = btp.modUpFromQ0(ctOut)
+	ctOut = btp.modUpFromQ0(ctIn)
 
 	// Scale the message from Q0/|m| to QL/|m|, where QL is the largest modulus used during the bootstrapping.
 	if scale := (btp.evalModPoly.ScalingFactor().Float64() / btp.evalModPoly.MessageRatio()) / ctOut.Scale.Float64(); scale > 1 {

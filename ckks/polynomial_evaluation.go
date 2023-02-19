@@ -8,7 +8,6 @@ import (
 	"math/bits"
 	"runtime"
 
-	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
@@ -16,12 +15,13 @@ import (
 // Polynomial is a struct storing the coefficients of a polynomial
 // that then can be evaluated on the ciphertext
 type Polynomial struct {
-	BasisType
-	MaxDeg int
-	Coeffs []complex128
-	Lead   bool
-	A      float64
-	B      float64
+	BasisType              // Either `Monomial` or `Chebyshev`
+	MaxDeg    int          // Always set to len(Coeffs)-1
+	Coeffs    []complex128 // List of coefficients
+	Lead      bool         // Always set to true
+	A         float64      // Bound A of the interval [A, B]
+	B         float64      // Bound B of the interval [A, B]
+	Lazy      bool         // Flag for lazy-relinearization
 }
 
 // BasisType is a type for the polynomials basis
@@ -187,8 +187,6 @@ func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVecto
 		odd, even = odd && tmp0, even && tmp1
 	}
 
-	isRingStandard := eval.params.RingType() == ring.Standard
-
 	// Computes all the powers of two with relinearization
 	// This will recursively compute and store all powers of two up to 2^logDegree
 	if err = monomialBasis.GenPower(1<<logDegree, false, targetScale, eval); err != nil {
@@ -198,7 +196,7 @@ func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVecto
 	// Computes the intermediate powers, starting from the largest, without relinearization if possible
 	for i := (1 << logSplit) - 1; i > 2; i-- {
 		if !(even || odd) || (i&1 == 0 && even) || (i&1 == 1 && odd) {
-			if err = monomialBasis.GenPower(i, isRingStandard, targetScale, eval); err != nil {
+			if err = monomialBasis.GenPower(i, pol.Value[0].Lazy, targetScale, eval); err != nil {
 				return nil, err
 			}
 		}
@@ -268,6 +266,7 @@ func (p *PolynomialBasis) GenPower(n int, lazy bool, scale rlwe.Scale, eval Eval
 }
 
 func (p *PolynomialBasis) genPower(n int, lazy bool, scale rlwe.Scale, eval Evaluator) (err error) {
+
 	if p.Value[n] == nil {
 
 		isPow2 := n&(n-1) == 0

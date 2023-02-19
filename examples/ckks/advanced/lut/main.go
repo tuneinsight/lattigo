@@ -57,24 +57,11 @@ func main() {
 	// LogN = 12 & LogQP = ~103 -> >128-bit secure.
 	var paramsN12 ckks.Parameters
 	if paramsN12, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
-		LogN:         LogN,
-		Q:            Q,
-		P:            P,
-		LogSlots:     4,
-		DefaultScale: 1 << 32,
-	}); err != nil {
-		panic(err)
-	}
-
-	// Params for Key-switching N12 to N11.
-	// LogN = 12 & LogQP = ~54 -> >>>128-bit secure.
-	var paramsN12ToN11 ckks.Parameters
-	if paramsN12ToN11, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
-		LogN:         LogN,
-		Q:            Q[:1],
-		P:            []uint64{0x42001},
-		Pow2Base:     16,
-		DefaultScale: 1.0,
+		LogN:     LogN,
+		Q:        Q,
+		P:        P,
+		LogSlots: 4,
+		LogScale: 32,
 	}); err != nil {
 		panic(err)
 	}
@@ -84,11 +71,10 @@ func main() {
 	// LogN = 11 & LogQP = ~54 -> 128-bit secure.
 	var paramsN11 ckks.Parameters
 	if paramsN11, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
-		LogN:         LogN - 1,
-		Q:            Q[:1],
-		P:            []uint64{0x42001},
-		Pow2Base:     12,
-		DefaultScale: 1.0,
+		LogN:     LogN - 1,
+		Q:        Q[:1],
+		P:        []uint64{0x42001},
+		Pow2Base: 12,
 	}); err != nil {
 		panic(err)
 	}
@@ -109,28 +95,17 @@ func main() {
 		LogSlots:            paramsN12.LogSlots(),
 		Scaling:             normalization * diffScale,
 		LinearTransformType: ckksAdvanced.SlotsToCoeffs,
-		RepackImag2Real:     false,
-		LevelStart:          1,     // starting level
-		BSGSRatio:           4.0,   // ratio between n1/n2 for n1*n2 = slots
-		BitReversed:         false, // bit-reversed input
-		ScalingFactor: [][]float64{ // Decomposition level of the encoding matrix
-			{paramsN12.QiFloat64(1)}, // Scale of the decoding matrix
-		},
+		LevelStart:          1,        // starting level
+		Levels:              []int{1}, // Decomposition levels of the encoding matrix (this will use one one matrix in one level)
 	}
 
 	// CoeffsToSlotsParameters homomorphic decoding parameters
 	var CoeffsToSlotsParameters = ckksAdvanced.EncodingMatrixLiteral{
 		LinearTransformType: ckksAdvanced.CoeffsToSlots,
-		RepackImag2Real:     false,
 		LogN:                paramsN12.LogN(),
 		LogSlots:            paramsN12.LogSlots(),
-		Scaling:             1 / float64(paramsN12.Slots()),
-		LevelStart:          1,     // starting level
-		BSGSRatio:           4.0,   // ratio between n1/n2 for n1*n2 = slots
-		BitReversed:         false, // bit-reversed input
-		ScalingFactor: [][]float64{ // Decomposition level of the encoding matrix
-			{paramsN12.QiFloat64(1)}, // Scale of the encoding matrix
-		},
+		LevelStart:          1,        // starting level
+		Levels:              []int{1}, // Decomposition levels of the encoding matrix (this will use one one matrix in one level)
 	}
 
 	fmt.Printf("Generating LUT... ")
@@ -158,11 +133,9 @@ func main() {
 
 	kgenN11 := ckks.NewKeyGenerator(paramsN11)
 	skN11 := kgenN11.GenSecretKey()
-	//decryptorN11 := ckks.NewDecryptor(paramsN11, skN11)
-	//encoderN11 := ckks.NewEncoder(paramsN11)
 
 	// Switchingkey RLWEN12 -> RLWEN11
-	swkN12ToN11 := ckks.NewKeyGenerator(paramsN12ToN11).GenSwitchingKey(skN12, skN11)
+	swkN12ToN11 := ckks.NewKeyGenerator(paramsN12).GenSwitchingKey(skN12, skN11)
 
 	fmt.Printf("Gen SlotsToCoeffs Matrices... ")
 	now = time.Now()
@@ -186,7 +159,6 @@ func main() {
 
 	// CKKS Evaluator
 	evalCKKS := ckksAdvanced.NewEvaluator(paramsN12, rlwe.EvaluationKey{Rlk: nil, Rtks: rotKey})
-	evalCKKSN12ToN11 := ckks.NewEvaluator(paramsN12ToN11, rlwe.EvaluationKey{})
 
 	fmt.Printf("Encrypting bits of skLWE in RGSW... ")
 	now = time.Now()
@@ -208,29 +180,17 @@ func main() {
 	now = time.Now()
 	// Homomorphic Decoding: [(a+bi), (c+di)] -> [a, c, b, d]
 	ctN12 = evalCKKS.SlotsToCoeffsNew(ctN12, nil, SlotsToCoeffsMatrix)
-	ctN12.Scale = rlwe.NewScale(paramsN11.QiFloat64(0) / 4.0)
 
-	// Key-Switch from LogN = 12 to LogN = 10
-	evalCKKS.DropLevel(ctN12, ctN12.Level())                    // drop to LUT level
-	ctTmp := evalCKKSN12ToN11.SwitchKeysNew(ctN12, swkN12ToN11) // key-switch to LWE degree
-	ctN11 := ckks.NewCiphertext(paramsN11, 1, paramsN11.MaxLevel())
-	rlwe.SwitchCiphertextRingDegreeNTT(ctTmp, paramsN11.RingQ(), paramsN12.RingQ(), ctN11)
+	// Key-Switch from LogN = 12 to LogN = 11
+	ctN11 := rlwe.NewCiphertext(paramsN11.Parameters, 1, paramsN11.MaxLevel())
+	evalCKKS.SwitchKeys(ctN12, swkN12ToN11, ctN11) // key-switch to LWE degree
 	fmt.Printf("Done (%s)\n", time.Since(now))
-
-	//for i, v := range encoderN11.DecodeCoeffs(decryptorN11.DecryptNew(ctN11)){
-	//	fmt.Printf("%3d: %7.4f\n", i, v)
-	//}
 
 	fmt.Printf("Evaluating LUT... ")
 	now = time.Now()
 	// Extracts & EvalLUT(LWEs, indexLUT) on the fly -> Repack(LWEs, indexRepack) -> RLWE
 	ctN12 = evalLUT.EvaluateAndRepack(ctN11, lutPolyMap, repackIndex, LUTKEY)
-	ctN12.Scale = rlwe.NewScale(paramsN12.DefaultScale())
 	fmt.Printf("Done (%s)\n", time.Since(now))
-
-	//for i, v := range encoderN12.DecodeCoeffs(decryptorN12.DecryptNew(ctN12)){
-	//	fmt.Printf("%3d: %7.4f\n", i, v)
-	//}
 
 	fmt.Printf("Homomorphic Encoding... ")
 	now = time.Now()

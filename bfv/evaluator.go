@@ -62,8 +62,7 @@ type evaluatorBase struct {
 	params Parameters
 
 	tInvModQi []uint64
-	levelQMul []int      // optimal #QiMul depending on #Qi (variable level)
-	qMulHalf  []*big.Int // all prod(QiMul) / 2 depending on #Qi
+	levelQMul []int // optimal #QiMul depending on #Qi (variable level)
 
 	tDividesQ bool
 }
@@ -78,13 +77,6 @@ func newEvaluatorPrecomp(params Parameters) *evaluatorBase {
 	ev.levelQMul = make([]int, params.RingQ().ModuliChainLength())
 	for i := range ev.levelQMul {
 		ev.levelQMul[i] = int(math.Ceil(float64(ringQ.AtLevel(i).Modulus().BitLen()+params.LogN())/61.0)) - 1
-	}
-
-	ringQMul := params.RingQMul()
-
-	ev.qMulHalf = make([]*big.Int, ringQMul.ModuliChainLength())
-	for i := range ev.qMulHalf {
-		ev.qMulHalf[i] = new(big.Int).Rsh(ringQMul.AtLevel(i).Modulus(), 1)
 	}
 
 	return ev
@@ -401,9 +393,7 @@ func (eval *evaluator) quantizeLvl(level, levelQMul int, ctOut *rlwe.Ciphertext)
 		eval.basisExtenderQ1toQ2.ModDownQPtoP(level, levelQMul, c2Q1[i], c2Q2[i], c2Q2[i]) // QP / Q -> P
 
 		// Centers ct(x)P by (P-1)/2 and extends ct(x)P to the basis Q
-		ringQMul.AddScalarBigint(c2Q2[i], eval.qMulHalf[levelQMul], c2Q2[i])
 		eval.basisExtenderQ1toQ2.ModUpPtoQ(levelQMul, level, c2Q2[i], ctOut.Value[i])
-		ringQ.SubScalarBigint(ctOut.Value[i], eval.qMulHalf[levelQMul], ctOut.Value[i])
 
 		// (ct(x)/Q)*T, doing so only requires that Q*P > Q*Q, faster but adds error ~|T|
 		ringQ.MulScalarBigint(ctOut.Value[i], eval.params.RingT().Modulus(), ctOut.Value[i])

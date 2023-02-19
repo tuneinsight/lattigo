@@ -88,25 +88,36 @@ func (ct *Ciphertext) Resize(degree, level int) {
 
 // SwitchCiphertextRingDegreeNTT changes the ring degree of ctIn to the one of ctOut.
 // Maps Y^{N/n} -> X^{N} or X^{N} -> Y^{N/n}.
-// If the ring degree of ctOut is larger than the one of ctIn, then the ringQ of ctIn
+// If the ring degree of ctOut is larger than the one of ctIn, then the ringQ of ctOut
 // must be provided (otherwise, a nil pointer).
 // The ctIn must be in the NTT domain and ctOut will be in the NTT domain.
-func SwitchCiphertextRingDegreeNTT(ctIn *Ciphertext, ringQSmallDim, ringQLargeDim *ring.Ring, ctOut *Ciphertext) {
+func SwitchCiphertextRingDegreeNTT(ctIn *Ciphertext, ringQLargeDim *ring.Ring, ctOut *Ciphertext) {
 
 	NIn, NOut := len(ctIn.Value[0].Coeffs[0]), len(ctOut.Value[0].Coeffs[0])
 
 	if NIn > NOut {
+
 		gap := NIn / NOut
 		buff := make([]uint64, NIn)
 		for i := range ctOut.Value {
 			for j := range ctOut.Value[i].Coeffs {
+
 				tmpIn, tmpOut := ctIn.Value[i].Coeffs[j], ctOut.Value[i].Coeffs[j]
+
 				ringQLargeDim.SubRings[j].INTT(tmpIn, buff)
+
 				for w0, w1 := 0, 0; w0 < NOut; w0, w1 = w0+1, w1+gap {
 					tmpOut[w0] = buff[w1]
 				}
 
-				ringQSmallDim.SubRings[j].NTT(tmpOut, tmpOut)
+				s := ringQLargeDim.SubRings[j]
+
+				switch ringQLargeDim.Type() {
+				case ring.Standard:
+					ring.NTTStandard(tmpOut, tmpOut, NOut, s.Modulus, s.MRedConstant, s.BRedConstant, s.RootsForward)
+				case ring.ConjugateInvariant:
+					ring.NTTConjugateInvariant(tmpOut, tmpOut, NOut, s.Modulus, s.MRedConstant, s.BRedConstant, s.RootsForward)
+				}
 			}
 		}
 
@@ -117,7 +128,6 @@ func SwitchCiphertextRingDegreeNTT(ctIn *Ciphertext, ringQSmallDim, ringQLargeDi
 	}
 
 	ctOut.MetaData = ctIn.MetaData
-
 }
 
 // SwitchCiphertextRingDegree changes the ring degree of ctIn to the one of ctOut.

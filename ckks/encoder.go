@@ -51,6 +51,9 @@ type Encoder interface {
 	DecodePublic(plaintext *rlwe.Plaintext, logSlots int, sigma float64) []complex128
 	DecodeSlotsPublic(plaintext *rlwe.Plaintext, logSlots int, sigma float64) []complex128
 
+	FFT(values []complex128, N int)
+	IFFT(values []complex128, N int)
+
 	// Coeffs Encoding
 	EncodeCoeffs(values []float64, plaintext *rlwe.Plaintext)
 	EncodeCoeffsNew(values []float64, level int, scale rlwe.Scale) (plaintext *rlwe.Plaintext)
@@ -62,6 +65,7 @@ type Encoder interface {
 	GetErrSTDCoeffDomain(valuesWant, valuesHave []complex128, scale rlwe.Scale) (std float64)
 	GetErrSTDSlotDomain(valuesWant, valuesHave []complex128, scale rlwe.Scale) (std float64)
 	ShallowCopy() Encoder
+	Parameters() Parameters
 }
 
 // encoder is a struct storing the necessary parameters to encode a slice of complex number on a Plaintext.
@@ -102,6 +106,11 @@ func (ecd *encoder) ShallowCopy() *encoder {
 		rotGroup:        ecd.rotGroup,
 		gaussianSampler: ring.NewGaussianSampler(prng, ecd.params.RingQ(), ecd.params.Sigma(), int(6*ecd.params.Sigma())),
 	}
+}
+
+// Parameters returns the parameters used by the encoder.
+func (ecd *encoder) Parameters() Parameters {
+	return ecd.params
 }
 
 func newEncoder(params Parameters) encoder {
@@ -229,7 +238,7 @@ func (ecd *encoderComplex128) EncodeCoeffs(values []float64, plaintext *rlwe.Pla
 		panic("cannot EncodeCoeffs: too many values (maximum is N)")
 	}
 
-	floatToFixedPointCRT(plaintext.Level(), values, plaintext.Scale.Float64(), ecd.params.RingQ(), plaintext.Value.Coeffs)
+	FloatToFixedPointCRT(ecd.params.RingQ().AtLevel(plaintext.Level()), values, plaintext.Scale.Float64(), plaintext.Value.Coeffs)
 	ecd.params.RingQ().AtLevel(plaintext.Level()).NTT(plaintext.Value, plaintext.Value)
 }
 
@@ -269,12 +278,7 @@ func (ecd *encoderComplex128) GetErrSTDCoeffDomain(valuesWant, valuesHave []comp
 
 	logSlots := bits.Len64(uint64(len(valuesHave) - 1))
 
-	// Runs FFT^-1 with the smallest power of two length that is greater than the input size
-	if logSlots < 3 {
-		SpecialiFFTVec(ecd.values, 1<<logSlots, ecd.m, ecd.rotGroup, ecd.roots)
-	} else {
-		SpecialiFFTUL8Vec(ecd.values, 1<<logSlots, ecd.m, ecd.rotGroup, ecd.roots)
-	}
+	ecd.IFFT(ecd.values, logSlots)
 
 	for i := range valuesWant {
 		ecd.valuesFloat[2*i] = real(ecd.values[i])
@@ -380,25 +384,19 @@ func (ecd *encoderComplex128) Embed(values interface{}, logSlots int, scale rlwe
 		ecd.values[i] = 0
 	}
 
-	if logSlots < 4 {
-		SpecialiFFTVec(ecd.values, slots, ecd.m, ecd.rotGroup, ecd.roots)
-	} else {
-		SpecialiFFTUL8Vec(ecd.values, slots, ecd.m, ecd.rotGroup, ecd.roots)
-	}
-
-	isRingStandard := ecd.params.RingType() == ring.Standard
+	ecd.IFFT(ecd.values, logSlots)
 
 	switch p := polyOut.(type) {
 	case ringqp.Poly:
-		complexToFixedPointCRT(p.Q.Level(), ecd.values[:slots], scale.Float64(), ecd.params.RingQ(), p.Q.Coeffs, isRingStandard)
+		ComplexToFixedPointCRT(ecd.params.RingQ().AtLevel(p.Q.Level()), ecd.values[:slots], scale.Float64(), p.Q.Coeffs)
 		NttSparseAndMontgomery(ecd.params.RingQ().AtLevel(p.Q.Level()), logSlots, montgomery, p.Q)
 
 		if p.P != nil {
-			complexToFixedPointCRT(p.P.Level(), ecd.values[:slots], scale.Float64(), ecd.params.RingP(), p.P.Coeffs, isRingStandard)
+			ComplexToFixedPointCRT(ecd.params.RingP().AtLevel(p.P.Level()), ecd.values[:slots], scale.Float64(), p.P.Coeffs)
 			NttSparseAndMontgomery(ecd.params.RingP().AtLevel(p.P.Level()), logSlots, montgomery, p.P)
 		}
 	case *ring.Poly:
-		complexToFixedPointCRT(p.Level(), ecd.values[:slots], scale.Float64(), ecd.params.RingQ(), p.Coeffs, isRingStandard)
+		ComplexToFixedPointCRT(ecd.params.RingQ().AtLevel(p.Level()), ecd.values[:slots], scale.Float64(), p.Coeffs)
 		NttSparseAndMontgomery(ecd.params.RingQ().AtLevel(p.Level()), logSlots, montgomery, p)
 	default:
 		panic("cannot Embed: invalid polyOut.(Type) must be ringqp.Poly or *ring.Poly")
@@ -510,11 +508,7 @@ func (ecd *encoderComplex128) decodePublic(plaintext *rlwe.Plaintext, logSlots i
 
 	ecd.plaintextToComplex(plaintext.Level(), plaintext.Scale, logSlots, ecd.buff, ecd.values)
 
-	if logSlots < 3 {
-		SpecialFFTVec(ecd.values, 1<<logSlots, ecd.m, ecd.rotGroup, ecd.roots)
-	} else {
-		SpecialFFTUL8Vec(ecd.values, 1<<logSlots, ecd.m, ecd.rotGroup, ecd.roots)
-	}
+	ecd.FFT(ecd.values, logSlots)
 
 	res = make([]complex128, 1<<logSlots)
 	copy(res, ecd.values)
@@ -582,6 +576,22 @@ func (ecd *encoderComplex128) decodeCoeffsPublic(plaintext *rlwe.Plaintext, sigm
 	}
 
 	return
+}
+
+func (ecd *encoderComplex128) IFFT(values []complex128, logN int) {
+	if logN < 3 {
+		SpecialiFFTVec(values, 1<<logN, ecd.m, ecd.rotGroup, ecd.roots)
+	} else {
+		SpecialiFFTUL8Vec(values, 1<<logN, ecd.m, ecd.rotGroup, ecd.roots)
+	}
+}
+
+func (ecd *encoderComplex128) FFT(values []complex128, logN int) {
+	if logN < 3 {
+		SpecialFFTVec(values, 1<<logN, ecd.m, ecd.rotGroup, ecd.roots)
+	} else {
+		SpecialFFTUL8Vec(values, 1<<logN, ecd.m, ecd.rotGroup, ecd.roots)
+	}
 }
 
 // EncoderBigComplex is an interface that implements the encoding algorithms with arbitrary precision.

@@ -75,6 +75,7 @@ type Evaluator interface {
 	// === original ckks.Evaluator redefined methods ===
 	// =================================================
 
+	Parameters() ckks.Parameters
 	GetRLWEEvaluator() *rlwe.Evaluator
 	BuffQ() [3]*ring.Poly
 	BuffCt() *rlwe.Ciphertext
@@ -97,6 +98,11 @@ func NewEvaluator(params ckks.Parameters, evaluationKey rlwe.EvaluationKey) Eval
 // Evaluators can be used concurrently.
 func (eval *evaluator) ShallowCopy() Evaluator {
 	return &evaluator{eval.Evaluator.ShallowCopy(), eval.params}
+}
+
+// Parameters returns the ckks.Parameters of the target Evaluator.
+func (eval *evaluator) Parameters() ckks.Parameters {
+	return eval.params
 }
 
 // WithKey creates a shallow copy of the receiver Evaluator for which the new EvaluationKey is evaluationKey
@@ -130,7 +136,7 @@ func (eval *evaluator) CoeffsToSlots(ctIn *rlwe.Ciphertext, ctsMatrices Encoding
 
 		zV := ctIn.CopyNew()
 
-		eval.dft(ctIn, ctsMatrices.matrices, zV)
+		eval.dft(ctIn, ctsMatrices.Matrices, zV)
 
 		eval.Conjugate(zV, ctReal)
 
@@ -157,7 +163,7 @@ func (eval *evaluator) CoeffsToSlots(ctIn *rlwe.Ciphertext, ctsMatrices Encoding
 
 		zV = nil
 	} else {
-		eval.dft(ctIn, ctsMatrices.matrices, ctReal)
+		eval.dft(ctIn, ctsMatrices.Matrices, ctReal)
 	}
 }
 
@@ -186,13 +192,14 @@ func (eval *evaluator) SlotsToCoeffs(ctReal, ctImag *rlwe.Ciphertext, stcMatrice
 	if ctImag != nil {
 		eval.MultByConst(ctImag, 1i, ctOut)
 		eval.Add(ctOut, ctReal, ctOut)
-		eval.dft(ctOut, stcMatrices.matrices, ctOut)
+		eval.dft(ctOut, stcMatrices.Matrices, ctOut)
 	} else {
-		eval.dft(ctReal, stcMatrices.matrices, ctOut)
+		eval.dft(ctReal, stcMatrices.Matrices, ctOut)
 	}
 }
 
 func (eval *evaluator) dft(ctIn *rlwe.Ciphertext, plainVectors []ckks.LinearTransform, ctOut *rlwe.Ciphertext) {
+
 	// Sequentially multiplies w with the provided dft matrices.
 	scale := ctIn.Scale
 	var in, out *rlwe.Ciphertext
@@ -202,6 +209,7 @@ func (eval *evaluator) dft(ctIn *rlwe.Ciphertext, plainVectors []ckks.LinearTran
 			in, out = ctIn, ctOut
 		}
 		eval.LinearTransform(in, plainVector, []*rlwe.Ciphertext{out})
+
 		if err := eval.Rescale(out, scale, out); err != nil {
 			panic(err)
 		}
@@ -236,7 +244,7 @@ func (eval *evaluator) EvalModNew(ct *rlwe.Ciphertext, evalModPoly EvalModPoly) 
 	prevScaleCt := ct.Scale
 
 	// Normalize the modular reduction to mod by 1 (division by Q)
-	ct.Scale = evalModPoly.scalingFactor
+	ct.Scale = evalModPoly.ScalingFactor()
 
 	var err error
 
@@ -250,7 +258,7 @@ func (eval *evaluator) EvalModNew(ct *rlwe.Ciphertext, evalModPoly EvalModPoly) 
 	}
 
 	// Division by 1/2^r and change of variable for the Chebyshev evaluation
-	if evalModPoly.sineType == Cos1 || evalModPoly.sineType == Cos2 {
+	if evalModPoly.sineType == CosDiscret || evalModPoly.sineType == CosContinuous {
 		eval.AddConst(ct, -0.5/(evalModPoly.scFac*(evalModPoly.sinePoly.B-evalModPoly.sinePoly.A)), ct)
 	}
 

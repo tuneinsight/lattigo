@@ -7,9 +7,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/ckks/advanced"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
@@ -31,15 +31,48 @@ func ParamsToString(params ckks.Parameters, opname string) string {
 }
 
 func TestBootstrapParametersMarshalling(t *testing.T) {
-	bootstrapParams := DefaultParametersDense[0].BootstrappingParams
-	data, err := bootstrapParams.MarshalBinary()
-	assert.Nil(t, err)
 
-	bootstrapParamsNew := new(Parameters)
-	if err := bootstrapParamsNew.UnmarshalBinary(data); err != nil {
-		assert.Nil(t, err)
-	}
-	assert.Equal(t, bootstrapParams, *bootstrapParamsNew)
+	t.Run("ParametersLiteral", func(t *testing.T) {
+
+		paramsLit := ParametersLiteral{
+			C2SLogScale:           [][]int{{53}, {53}, {53}, {53}},
+			S2CLogScale:           [][]int{{30}, {30, 30}},
+			EvalModLogScale:       59,
+			EphemeralSecretWeight: -1,
+			Iterations:            2,
+			SineType:              advanced.CosDiscret,
+			LogMessageRatio:       -1,
+			K:                     -1,
+			SineDeg:               31,
+			DoubleAngle:           -1,
+			ArcSineDeg:            7,
+		}
+
+		data, err := paramsLit.MarshalBinary()
+		require.Nil(t, err)
+
+		paramsLitNew := new(ParametersLiteral)
+		if err := paramsLitNew.UnmarshalBinary(data); err != nil {
+			require.Nil(t, err)
+		}
+		require.Equal(t, paramsLit, *paramsLitNew)
+	})
+
+	t.Run("Parameters", func(t *testing.T) {
+		paramSet := DefaultParametersSparse[0]
+
+		_, btpParams, err := NewParametersFromLiteral(paramSet.SchemeParams, paramSet.BootstrappingParams)
+		require.Nil(t, err)
+
+		data, err := btpParams.MarshalBinary()
+		require.Nil(t, err)
+		btpParamsNew := new(Parameters)
+		if err := btpParamsNew.UnmarshalBinary(data); err != nil {
+			require.Nil(t, err)
+		}
+
+		require.Equal(t, btpParams, *btpParamsNew)
+	})
 }
 
 func TestBootstrap(t *testing.T) {
@@ -49,36 +82,41 @@ func TestBootstrap(t *testing.T) {
 	}
 
 	paramSet := DefaultParametersSparse[0]
-	ckksParams := paramSet.SchemeParams
-	btpParams := paramSet.BootstrappingParams
+
+	ckksParamsLit, btpParams, err := NewParametersFromLiteral(paramSet.SchemeParams, paramSet.BootstrappingParams)
+	require.Nil(t, err)
 
 	// Insecure params for fast testing only
 	if !*flagLongTest {
-		ckksParams.LogN = 13
-		ckksParams.LogSlots = 12
+		ckksParamsLit.LogN = 13
+
+		// Corrects the message ratio to take into account the smaller number of slots and keep the same precision
+		btpParams.EvalModParameters.LogMessageRatio += paramSet.SchemeParams.LogN - 1 - ckksParamsLit.LogN - 1
+
+		ckksParamsLit.LogSlots = ckksParamsLit.LogN - 1
 	}
 
-	LogSlots := ckksParams.LogSlots
-	H := ckksParams.H
+	H := ckksParamsLit.H
+
 	EphemeralSecretWeight := btpParams.EphemeralSecretWeight
 
 	for _, testSet := range [][]bool{{false, false}, {true, false}, {false, true}, {true, true}} {
 
 		if testSet[0] {
-			ckksParams.H = EphemeralSecretWeight
+			ckksParamsLit.H = EphemeralSecretWeight
 			btpParams.EphemeralSecretWeight = 0
 		} else {
-			ckksParams.H = H
+			ckksParamsLit.H = H
 			btpParams.EphemeralSecretWeight = EphemeralSecretWeight
 		}
 
 		if testSet[1] {
-			ckksParams.LogSlots = LogSlots - 1
+			ckksParamsLit.LogSlots = ckksParamsLit.LogN - 2
 		} else {
-			ckksParams.LogSlots = LogSlots
+			ckksParamsLit.LogSlots = ckksParamsLit.LogN - 1
 		}
 
-		params, err := ckks.NewParametersFromLiteral(ckksParams)
+		params, err := ckks.NewParametersFromLiteral(ckksParamsLit)
 		if err != nil {
 			panic(err)
 		}
@@ -142,7 +180,6 @@ func testbootstrap(params ckks.Parameters, original bool, btpParams Parameters, 
 		for i := range ciphertexts {
 			go func(index int) {
 				ciphertexts[index] = bootstrappers[index].Bootstrap(ciphertexts[index])
-				//btp.SetScale(ciphertexts[index], params.Scale())
 				wg.Done()
 			}(i)
 		}

@@ -32,10 +32,10 @@ const DefaultSigma = 3.2
 // The j-th ring automorphism takes the root zeta to zeta^(5j).
 const GaloisGen uint64 = ring.GaloisGen
 
-// ParametersLiteral is a literal representation of BFV parameters.  It has public
-// fields and is used to express unchecked user-defined parameters literally into
-// Go programs. The NewParametersFromLiteral function is used to generate the actual
-// checked parameters from the literal representation.
+// ParametersLiteral is a literal representation of RLWE parameters. It has public fields and
+// is used to express unchecked user-defined parameters literally into Go programs.
+// The NewParametersFromLiteral function is used to generate the actual checked parameters
+// from the literal representation.
 //
 // Users must set the polynomial degree (LogN) and the coefficient modulus, by either setting
 // the Q and P fields to the desired moduli chain, or by setting the LogQ and LogP fields to
@@ -43,8 +43,8 @@ const GaloisGen uint64 = ring.GaloisGen
 //
 // Optionally, users may specify
 // - the base 2 decomposition for the gadget ciphertexts
-// - the error variance (Sigma) and secrets' density (H) and the ring
-// type (RingType). If left unset, standard default values for these field are substituted at
+// - the error variance (Sigma) and secrets' density (H) and the ring type (RingType).
+// If left unset, standard default values for these field are substituted at
 // parameter creation (see NewParametersFromLiteral).
 type ParametersLiteral struct {
 	LogN           int
@@ -79,7 +79,7 @@ type Parameters struct {
 // NewParameters returns a new set of generic RLWE parameters from the given ring degree logn, moduli q and p, and
 // error distribution parameter sigma. It returns the empty parameters Parameters{} and a non-nil error if the
 // specified parameters are invalid.
-func NewParameters(logn int, q, p []uint64, pow2Base, h int, sigma float64, ringType ring.Type, defaultScale Scale, defaultNTTFlag bool) (Parameters, error) {
+func NewParameters(logn int, q, p []uint64, pow2Base, h int, sigma float64, ringType ring.Type, defaultScale Scale, defaultNTTFlag bool) (params Parameters, err error) {
 
 	if pow2Base != 0 && len(p) > 1 {
 		return Parameters{}, fmt.Errorf("rlwe.NewParameters: invalid parameters, cannot have pow2Base > 0 if len(P) > 1")
@@ -90,12 +90,26 @@ func NewParameters(logn int, q, p []uint64, pow2Base, h int, sigma float64, ring
 		lenP = len(p)
 	}
 
-	var err error
 	if err = checkSizeParams(logn, len(q), lenP); err != nil {
 		return Parameters{}, err
 	}
 
-	params := Parameters{
+	var warning error
+	if h < 1 {
+		h = 0
+		warning = fmt.Errorf("warning secret Hamming weight is 0")
+	}
+
+	if sigma <= 0 {
+		sigma = 0
+		if warning != nil {
+			warning = fmt.Errorf("%w; warning error standard deviation 0", warning)
+		} else {
+			warning = fmt.Errorf("warning error standard deviation 0")
+		}
+	}
+
+	params = Parameters{
 		logN:           logn,
 		qi:             make([]uint64, len(q)),
 		pi:             make([]uint64, lenP),
@@ -119,7 +133,13 @@ func NewParameters(logn int, q, p []uint64, pow2Base, h int, sigma float64, ring
 		copy(params.pi, p)
 	}
 
-	return params, params.initRings()
+	if err = params.initRings(); err != nil {
+		if warning != nil {
+			err = fmt.Errorf("%w; %s", err, warning)
+		}
+	}
+
+	return
 }
 
 // NewParametersFromLiteral instantiate a set of generic RLWE parameters from a ParametersLiteral specification.
@@ -134,16 +154,18 @@ func NewParameters(logn int, q, p []uint64, pow2Base, h int, sigma float64, ring
 // If the error variance is left unset, its value is set to `DefaultSigma`.
 //
 // If the RingType is left unset, the default value is ring.Standard.
-func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
+func NewParametersFromLiteral(paramDef ParametersLiteral) (params Parameters, err error) {
 
 	if paramDef.H == 0 {
 		paramDef.H = 1 << (paramDef.LogN - 1)
+	} else if paramDef.H < 0 {
+		paramDef.H = 0
 	}
 
 	if paramDef.Sigma == 0 {
-		// prevents the zero value of ParameterLiteral to result in a noise-less parameter instance.
-		// Users should use the NewParameters method to explicitely create noiseless instances.
 		paramDef.Sigma = DefaultSigma
+	} else if paramDef.Sigma <= 0 {
+		paramDef.Sigma = 0
 	}
 
 	if paramDef.DefaultScale.Cmp(Scale{}) == 0 {
@@ -155,17 +177,16 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (Parameters, error) {
 		return NewParameters(paramDef.LogN, paramDef.Q, paramDef.P, paramDef.Pow2Base, paramDef.H, paramDef.Sigma, paramDef.RingType, paramDef.DefaultScale, paramDef.DefaultNTTFlag)
 	case paramDef.LogQ != nil && paramDef.Q == nil:
 		var q, p []uint64
-		var err error
 		switch paramDef.RingType {
 		case ring.Standard:
 			q, p, err = GenModuli(paramDef.LogN, paramDef.LogQ, paramDef.LogP)
 		case ring.ConjugateInvariant:
 			q, p, err = GenModuli(paramDef.LogN+1, paramDef.LogQ, paramDef.LogP)
 		default:
-			return Parameters{}, fmt.Errorf("rlwe.NewParametersFromLiteral: invalid ring.Type, must be ring.ConjugateInvariant or ring.Standard")
+			return params, fmt.Errorf("rlwe.NewParametersFromLiteral: invalid ring.Type, must be ring.ConjugateInvariant or ring.Standard")
 		}
 		if err != nil {
-			return Parameters{}, err
+			return params, err
 		}
 		return NewParameters(paramDef.LogN, q, p, paramDef.Pow2Base, paramDef.H, paramDef.Sigma, paramDef.RingType, paramDef.DefaultScale, paramDef.DefaultNTTFlag)
 	default:

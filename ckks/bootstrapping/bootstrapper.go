@@ -44,12 +44,12 @@ type EvaluationKeys struct {
 // NewBootstrapper creates a new Bootstrapper.
 func NewBootstrapper(params ckks.Parameters, btpParams Parameters, btpKeys EvaluationKeys) (btp *Bootstrapper, err error) {
 
-	if btpParams.EvalModParameters.SineType == advanced.Sin && btpParams.EvalModParameters.DoubleAngle != 0 {
+	if btpParams.EvalModParameters.SineType == advanced.SinContinuous && btpParams.EvalModParameters.DoubleAngle != 0 {
 		return nil, fmt.Errorf("cannot use double angle formul for SineType = Sin -> must use SineType = Cos")
 	}
 
-	if btpParams.EvalModParameters.SineType == advanced.Cos1 && btpParams.EvalModParameters.SineDeg < 2*(btpParams.EvalModParameters.K-1) {
-		return nil, fmt.Errorf("SineType 'advanced.Cos1' uses a minimum degree of 2*(K-1) but EvalMod degree is smaller")
+	if btpParams.EvalModParameters.SineType == advanced.CosDiscret && btpParams.EvalModParameters.SineDeg < 2*(btpParams.EvalModParameters.K-1) {
+		return nil, fmt.Errorf("SineType 'advanced.CosDiscret' uses a minimum degree of 2*(K-1) but EvalMod degree is smaller")
 	}
 
 	if btpParams.CoeffsToSlotsParameters.LevelStart-btpParams.CoeffsToSlotsParameters.Depth(true) != btpParams.EvalModParameters.LevelStart {
@@ -183,11 +183,10 @@ func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey Ev
 		bb.logdslots++
 	}
 
-	bb.evalModPoly = advanced.NewEvalModPolyFromLiteral(btpParams.EvalModParameters)
+	bb.evalModPoly = advanced.NewEvalModPolyFromLiteral(params, btpParams.EvalModParameters)
 
 	scFac := bb.evalModPoly.ScFac()
 	K := bb.evalModPoly.K() / scFac
-	n := float64(2 * params.Slots())
 
 	// Correcting factor for approximate division by Q
 	// The second correcting factor for approximate multiplication by Q is included in the coefficients of the EvalMod polynomials
@@ -199,7 +198,7 @@ func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey Ev
 	// If the scale used during the EvalMod step is smaller than Q0, then we cannot increase the scale during
 	// the EvalMod step to get a free division by MessageRatio, and we need to do this division (totally or partly)
 	// during the CoeffstoSlots step
-	qDiv := btpParams.EvalModParameters.ScalingFactor / math.Exp2(math.Round(math.Log2(params.QiFloat64(0))))
+	qDiv := bb.evalModPoly.ScalingFactor().Float64() / math.Exp2(math.Round(math.Log2(params.QiFloat64(0))))
 
 	// Sets qDiv to 1 if there is enough room for the division to happen using scale manipulation.
 	if qDiv > 1 {
@@ -214,9 +213,9 @@ func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey Ev
 	bb.CoeffsToSlotsParameters.LogSlots = params.LogSlots()
 
 	if bb.CoeffsToSlotsParameters.Scaling == 0 {
-		bb.CoeffsToSlotsParameters.Scaling = qDiv / (K * n * scFac * qDiff)
+		bb.CoeffsToSlotsParameters.Scaling = qDiv / (K * scFac * qDiff)
 	} else {
-		bb.CoeffsToSlotsParameters.Scaling *= qDiv / (K * n * scFac * qDiff)
+		bb.CoeffsToSlotsParameters.Scaling *= qDiv / (K * scFac * qDiff)
 	}
 
 	bb.ctsMatrices = advanced.NewHomomorphicEncodingMatrixFromLiteral(bb.CoeffsToSlotsParameters, encoder)

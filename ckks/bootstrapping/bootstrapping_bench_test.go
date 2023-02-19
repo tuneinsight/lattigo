@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
@@ -15,10 +16,11 @@ func BenchmarkBootstrap(b *testing.B) {
 	var btp *Bootstrapper
 
 	paramSet := DefaultParametersDense[0]
-	ckksParams := paramSet.SchemeParams
-	btpParams := paramSet.BootstrappingParams
 
-	params, err := ckks.NewParametersFromLiteral(ckksParams)
+	ckksParamsLit, btpParams, err := NewParametersFromLiteral(paramSet.SchemeParams, paramSet.BootstrappingParams)
+	require.Nil(b, err)
+
+	params, err := ckks.NewParametersFromLiteral(ckksParamsLit)
 	if err != nil {
 		panic(err)
 	}

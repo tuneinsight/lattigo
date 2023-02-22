@@ -261,7 +261,7 @@ func (eval *evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 rlwe.O
 
 		if cmp == 1 && math.Floor(c0Scale/c1Scale) > 1 {
 
-			tmp1 = rlwe.NewCiphertextAtLevelFromPoly(level+1, eval.buffCt.Value[:c1.Degree()+1])
+			tmp1 = rlwe.NewCiphertextAtLevelFromPoly(level, eval.buffCt.Value[:c1.Degree()+1])
 			tmp1.MetaData = ctOut.MetaData
 
 			eval.MultByConst(c1.El(), math.Floor(c0Scale/c1Scale), tmp1)
@@ -292,7 +292,7 @@ func (eval *evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 rlwe.O
 		} else if cmp == -1 && math.Floor(c1Scale/c0Scale) > 1 {
 
 			// Will avoid resizing on the output
-			tmp0 = rlwe.NewCiphertextAtLevelFromPoly(level+1, eval.buffCt.Value[:c0.Degree()+1])
+			tmp0 = rlwe.NewCiphertextAtLevelFromPoly(level, eval.buffCt.Value[:c0.Degree()+1])
 			tmp0.MetaData = ctOut.MetaData
 
 			eval.MultByConst(c0, math.Floor(c1Scale/c0Scale), tmp0)
@@ -307,7 +307,7 @@ func (eval *evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 rlwe.O
 		if cmp == 1 && math.Floor(c0Scale/c1Scale) > 1 {
 
 			// Will avoid resizing on the output
-			tmp1 = rlwe.NewCiphertextAtLevelFromPoly(level+1, eval.buffCt.Value[:c1.Degree()+1])
+			tmp1 = rlwe.NewCiphertextAtLevelFromPoly(level, eval.buffCt.Value[:c1.Degree()+1])
 			tmp1.MetaData = ctOut.MetaData
 
 			eval.MultByConst(c1.El(), math.Floor(c0Scale/c1Scale), tmp1)
@@ -316,7 +316,7 @@ func (eval *evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 rlwe.O
 
 		} else if cmp == -1 && math.Floor(c1Scale/c0Scale) > 1 {
 
-			tmp0 = rlwe.NewCiphertextAtLevelFromPoly(level+1, eval.buffCt.Value[:c0.Degree()+1])
+			tmp0 = rlwe.NewCiphertextAtLevelFromPoly(level, eval.buffCt.Value[:c0.Degree()+1])
 			tmp0.MetaData = ctOut.MetaData
 
 			eval.MultByConst(c0, math.Floor(c1Scale/c0Scale), tmp0)
@@ -333,8 +333,10 @@ func (eval *evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 rlwe.O
 		evaluate(tmp0.Value[i], tmp1.Value[i], ctOut.El().Value[i])
 	}
 
+	scale := c0.Scale.Max(c1.GetScale())
+
 	ctOut.MetaData = c0.MetaData
-	ctOut.Scale = c0.Scale.Max(c1.GetScale())
+	ctOut.Scale = scale
 
 	// If the inputs degrees differ, it copies the remaining degree on the receiver.
 	// Also checks that the receiver is not one of the inputs to avoid unnecessary work.

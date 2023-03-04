@@ -2,6 +2,7 @@ package ring
 
 import (
 	"crypto/rand"
+	"io"
 	"math/big"
 )
 
@@ -26,9 +27,9 @@ func NewIntFromString(s string) *big.Int {
 }
 
 // RandInt generates a random Int in [0, max-1].
-func RandInt(max *big.Int) (n *big.Int) {
+func RandInt(reader io.Reader, max *big.Int) (n *big.Int) {
 	var err error
-	if n, err = rand.Int(rand.Reader, max); err != nil {
+	if n, err = rand.Int(reader, max); err != nil {
 		panic("error: crypto/rand/bigint")
 	}
 	return

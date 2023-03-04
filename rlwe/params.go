@@ -94,32 +94,41 @@ func NewParameters(logn int, q, p []uint64, pow2Base int, xs, xe distribution.Di
 		return Parameters{}, err
 	}
 
-	var warning error
-	if h < 1 {
-		h = 0
-		warning = fmt.Errorf("warning secret Hamming weight is 0")
+	switch xs := xs.(type) {
+	case *distribution.Ternary, *distribution.DiscreteGaussian:
+	default:
+		return Parameters{}, fmt.Errorf("secret distribution type must be Ternary or DiscretGaussian but is %T", xs)
 	}
 
-	if sigma <= 0 {
-		sigma = 0
+	switch xe := xe.(type) {
+	case *distribution.Ternary, *distribution.DiscreteGaussian:
+	default:
+		return Parameters{}, fmt.Errorf("error distribution type must be Ternary or DiscretGaussian but is %T", xe)
+	}
+
+	params = Parameters{
+		logN:           logn,
+		qi:             make([]uint64, len(q)),
+		pi:             make([]uint64, lenP),
+		pow2Base:       pow2Base,
+		xs:             xs.CopyNew(),
+		xe:             xe.CopyNew(),
+		ringType:       ringType,
+		defaultScale:   defaultScale,
+		defaultNTTFlag: defaultNTTFlag,
+	}
+
+	var warning error
+	if params.XsHammingWeight() == 0 {
+		warning = fmt.Errorf("warning secret standard HammingWeight is 0")
+	}
+
+	if xe.StandardDeviation(0, 0) <= 0 {
 		if warning != nil {
 			warning = fmt.Errorf("%w; warning error standard deviation 0", warning)
 		} else {
 			warning = fmt.Errorf("warning error standard deviation 0")
 		}
-	}
-
-	params := Parameters{
-		logN:                logn,
-		qi:                  make([]uint64, len(q)),
-		pi:                  make([]uint64, lenP),
-		pow2Base:            pow2Base,
-		xs:                  xs.CopyNew(),
-		xe:                  xe.CopyNew(),
-		ringType:            ringType,
-		defaultScale:        defaultScale,
-		defaultNTTFlag:      defaultNTTFlag,
-		ignoreSecurityCheck: ignoreSecurityCheck,
 	}
 
 	// pre-check that moduli chain is of valid size and that all factors are prime.
@@ -312,13 +321,13 @@ func (p Parameters) Xe() distribution.Distribution {
 }
 
 // NoiseBound returns truncation bound for the error distribution.
-func (p Parameters) NoiseBound() uint64 {
+func (p Parameters) NoiseBound() float64 {
 
 	switch xe := p.xe.(type) {
 	case *distribution.DiscreteGaussian:
 		return xe.NoiseBound()
 	case *distribution.Ternary:
-		return 1
+		return 1.0
 	default:
 		panic(fmt.Sprintf("invalid error distribution: must be *distribution.DiscretGaussian, *distribution.Ternary but is %T", xe))
 	}

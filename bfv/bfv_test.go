@@ -245,8 +245,9 @@ func testScaler(tc *testContext, t *testing.T) {
 
 		coeffs := make([]*big.Int, N)
 		bigQ := ringQ.ModulusAtLevel[tc.params.MaxLevel()]
+		prng, _ := utils.NewPRNG()
 		for i := 0; i < N; i++ {
-			coeffs[i] = ring.RandInt(bigQ)
+			coeffs[i] = ring.RandInt(prng, bigQ)
 		}
 
 		coeffsWant := make([]*big.Int, N)

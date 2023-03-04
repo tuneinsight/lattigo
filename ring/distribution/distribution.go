@@ -35,7 +35,7 @@ func (t Type) String() string {
 // Distribution is a interface for distributions
 type Distribution interface {
 	Type() Type
-	StandardDeviation(LogN int, LogQP float64) StandardDeviation // TODO: properly define
+	StandardDeviation(LogN int, LogQP float64) float64
 	Equals(Distribution) bool
 	CopyNew() Distribution
 
@@ -99,16 +99,12 @@ func Decode(data []byte) (ptr int, X Distribution, err error) {
 	return ptr + 1, X, err
 }
 
-// StandardDeviation is a float64 type storing
-// a value representing a standard deviation
-type StandardDeviation float64
-
 // DiscreteGaussian is a discrete Gaussian distribution
 // with a given standard deviation and a bound
 // in number of standard deviations.
 type DiscreteGaussian struct {
-	Sigma StandardDeviation
-	Bound int
+	Sigma float64
+	Bound float64
 }
 
 func NewDiscreteGaussian(distDef map[string]interface{}) (d *DiscreteGaussian, err error) {
@@ -116,22 +112,23 @@ func NewDiscreteGaussian(distDef map[string]interface{}) (d *DiscreteGaussian, e
 	if errSigma != nil {
 		return nil, err
 	}
-	bound, errBound := getIntFromMap(distDef, "Bound")
+	bound, errBound := getFloatFromMap(distDef, "Bound")
 	if errBound != nil {
 		return nil, err
 	}
-	return &DiscreteGaussian{Sigma: StandardDeviation(sigma), Bound: bound}, nil
+	return &DiscreteGaussian{Sigma: sigma, Bound: bound}, nil
 }
 
 func (d *DiscreteGaussian) Type() Type {
 	return discreteGaussian
 }
 
-func (d *DiscreteGaussian) StandardDeviation(LogN int, LogQP float64) StandardDeviation {
-	return StandardDeviation(d.Sigma)
+func (d *DiscreteGaussian) StandardDeviation(LogN int, LogQP float64) float64 {
+	return d.Sigma
 }
 
 func (d *DiscreteGaussian) Equals(other Distribution) bool {
+
 	if other == d {
 		return true
 	}
@@ -149,9 +146,9 @@ func (d *DiscreteGaussian) MarshalJSON() ([]byte, error) {
 	})
 }
 
-// NoiseBound returns floor(StandardDeviation * Bound)
-func (d *DiscreteGaussian) NoiseBound() uint64 {
-	return uint64(float64(d.Sigma) * float64(d.Bound)) // TODO: is bound really given as a factor of sigma ?
+// NoiseBound returns Bound
+func (d *DiscreteGaussian) NoiseBound() float64 {
+	return d.Bound
 }
 
 func (d *DiscreteGaussian) CopyNew() Distribution {
@@ -167,8 +164,8 @@ func (d *DiscreteGaussian) Encode(data []byte) (ptr int, err error) {
 		return ptr, fmt.Errorf("data stream is too small: should be at least %d but is %d", d.MarshalBinarySize(), len(data))
 	}
 
-	binary.LittleEndian.PutUint64(data, math.Float64bits(float64(d.Sigma)))
-	binary.LittleEndian.PutUint64(data[8:], uint64(d.Bound))
+	binary.LittleEndian.PutUint64(data[0:], math.Float64bits(float64(d.Sigma)))
+	binary.LittleEndian.PutUint64(data[8:], math.Float64bits(float64(d.Bound)))
 
 	return 16, nil
 }
@@ -177,8 +174,8 @@ func (d *DiscreteGaussian) Decode(data []byte) (ptr int, err error) {
 	if len(data) < d.MarshalBinarySize() {
 		return ptr, fmt.Errorf("data length should be at least %d but is %d", d.MarshalBinarySize(), len(data))
 	}
-	d.Sigma = StandardDeviation(math.Float64frombits(binary.LittleEndian.Uint64(data[0:])))
-	d.Bound = int(binary.LittleEndian.Uint64(data[8:]))
+	d.Sigma = math.Float64frombits(binary.LittleEndian.Uint64(data[0:]))
+	d.Bound = math.Float64frombits(binary.LittleEndian.Uint64(data[8:]))
 	return 16, nil
 }
 
@@ -234,8 +231,8 @@ func (d *Ternary) CopyNew() Distribution {
 	return &Ternary{d.P, d.H}
 }
 
-func (d *Ternary) StandardDeviation(LogN int, LogQP float64) StandardDeviation {
-	return StandardDeviation(math.Sqrt(1 - d.P))
+func (d *Ternary) StandardDeviation(LogN int, LogQP float64) float64 {
+	return math.Sqrt(1 - d.P)
 }
 
 func (d *Ternary) MarshalBinarySize() int {
@@ -296,8 +293,8 @@ func (d *Uniform) CopyNew() Distribution {
 	return &Uniform{}
 }
 
-func (d *Uniform) StandardDeviation(LogN int, LogQP float64) StandardDeviation {
-	return StandardDeviation(math.Exp2(LogQP) / math.Sqrt(12.0))
+func (d *Uniform) StandardDeviation(LogN int, LogQP float64) float64 {
+	return math.Exp2(LogQP) / math.Sqrt(12.0)
 }
 
 func (d *Uniform) MarshalBinarySize() int {

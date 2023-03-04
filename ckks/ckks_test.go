@@ -906,9 +906,9 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 
 		verifyTestVectors(tc.params, tc.encoder, nil, values, valuesHave, tc.params.LogSlots(), nil, t)
 
-		sigma := distribution.StandardDeviation(tc.encoder.GetErrSTDCoeffDomain(values, valuesHave, plaintext.Scale))
+		sigma := tc.encoder.GetErrSTDCoeffDomain(values, valuesHave, plaintext.Scale)
 
-		valuesHave = tc.encoder.DecodePublic(plaintext, tc.params.LogSlots(), &distribution.DiscreteGaussian{Sigma: sigma, Bound: int(2.5066282746310002 * sigma)})
+		valuesHave = tc.encoder.DecodePublic(plaintext, tc.params.LogSlots(), &distribution.DiscreteGaussian{Sigma: sigma, Bound: 2.5066282746310002 * sigma})
 
 		verifyTestVectors(tc.params, tc.encoder, nil, values, valuesHave, tc.params.LogSlots(), nil, t)
 	})

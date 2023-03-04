@@ -8,13 +8,13 @@ import (
 
 const (
 	// XsUniformTernary is the standard deviation of a ternary key with uniform distribution
-	XsUniformTernary = distribution.StandardDeviation(0.816496580927726)
+	XsUniformTernary = 0.816496580927726 //Sqrt(2/3)
 
 	// DefaultNoise is the default standard deviation of the error
-	DefaultNoise = distribution.StandardDeviation(3.2)
+	DefaultNoise = 3.2
 
 	// DefaultNoiseBound is the default bound (in number of standar deviation) of the noise bound
-	DefaultNoiseBound = 19
+	DefaultNoiseBound = 19.2 // 6*3.2
 )
 
 // DefaultXe is the default discret Gaussian distribution.
@@ -26,8 +26,8 @@ var DefaultXs = distribution.Ternary{P: 1 / 3.0}
 type LWEParameters struct {
 	LogN  int
 	LogQP float64
-	Xe    distribution.StandardDeviation
-	Xs    distribution.StandardDeviation
+	Xe    float64
+	Xs    float64
 }
 
 func (p *LWEParameters) String() string {

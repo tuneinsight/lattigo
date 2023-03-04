@@ -297,8 +297,9 @@ func testRefresh(tc *testContext, t *testing.T) {
 
 		N := tc.params.N()
 
+		prng, _ := utils.NewPRNG()
 		for i := 0; i < N; i++ {
-			coeffsBigint[i].Add(coeffsBigint[i], ring.RandInt(errorRange))
+			coeffsBigint[i].Add(coeffsBigint[i], ring.RandInt(prng, errorRange))
 		}
 
 		tc.ringQ.AtLevel(ciphertext.Level()).SetCoefficientsBigint(coeffsBigint, ciphertext.Value[0])

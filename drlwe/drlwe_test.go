@@ -260,11 +260,11 @@ func testCKSProtocol(tc *testContext, level int, t *testing.T) {
 
 		cks := make([]*CKSProtocol, nbParties)
 
-		sigmaSmudging := distribution.StandardDeviation(8 * rlwe.DefaultNoise)
+		sigmaSmudging := 8 * rlwe.DefaultNoise
 
 		for i := range cks {
 			if i == 0 {
-				cks[i] = NewCKSProtocol(params, &distribution.DiscreteGaussian{Sigma: sigmaSmudging, Bound: int(6 * sigmaSmudging)})
+				cks[i] = NewCKSProtocol(params, &distribution.DiscreteGaussian{Sigma: sigmaSmudging, Bound: 6 * sigmaSmudging})
 			} else {
 				cks[i] = cks[0].ShallowCopy()
 			}
@@ -333,12 +333,12 @@ func testPCKSProtocol(tc *testContext, level int, t *testing.T) {
 
 		skOut, pkOut := tc.kgen.GenKeyPairNew()
 
-		sigmaSmudging := distribution.StandardDeviation(8 * rlwe.DefaultNoise)
+		sigmaSmudging := 8 * rlwe.DefaultNoise
 
 		pcks := make([]*PCKSProtocol, nbParties)
 		for i := range pcks {
 			if i == 0 {
-				pcks[i] = NewPCKSProtocol(params, &distribution.DiscreteGaussian{Sigma: sigmaSmudging, Bound: int(6 * sigmaSmudging)})
+				pcks[i] = NewPCKSProtocol(params, &distribution.DiscreteGaussian{Sigma: sigmaSmudging, Bound: 6 * sigmaSmudging})
 			} else {
 				pcks[i] = pcks[0].ShallowCopy()
 			}

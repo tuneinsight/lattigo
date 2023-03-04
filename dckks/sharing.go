@@ -99,9 +99,11 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, logSlots int
 		dslots *= 2
 	}
 
+	prng, _ := utils.NewPRNG()
+
 	// Generate the mask in Z[Y] for Y = X^{N/(2*slots)}
 	for i := 0; i < dslots; i++ {
-		e2s.maskBigint[i] = ring.RandInt(bound)
+		e2s.maskBigint[i] = ring.RandInt(prng, bound)
 		sign = e2s.maskBigint[i].Cmp(boundHalf)
 		if sign == 1 || sign == 0 {
 			e2s.maskBigint[i].Sub(e2s.maskBigint[i], bound)

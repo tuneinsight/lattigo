@@ -3,6 +3,7 @@ package ring
 import (
 	"encoding/binary"
 	"math"
+	"math/big"
 
 	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
@@ -64,8 +65,8 @@ func (g *GaussianSampler) ReadAndAdd(pol *Poly) {
 }
 
 func (g *GaussianSampler) read(pol *Poly, f func(a, b, c uint64) uint64) {
-	var coeffFlo float64
-	var coeffInt uint64
+	var norm float64
+
 	var sign uint64
 
 	r := g.baseRing
@@ -85,18 +86,77 @@ func (g *GaussianSampler) read(pol *Poly, f func(a, b, c uint64) uint64) {
 
 	coeffs := pol.Coeffs
 
-	for i := 0; i < N; i++ {
+	// If the standard deviation is greager than float64 precision
+	// and the bound ins greater than uint64, we switch to an approximation
+	// using arbitrary precision.
+	//
+	// The approximation of the large norm sampling is done by sampling
+	// a uniform value [0, sigma] * ceil(norm) * sign.
+	if sigma > 0x20000000000000 && bound > 0xffffffffffffffff {
 
-		for {
-			coeffFlo, sign = g.normFloat64()
+		sigmaInt := new(big.Int)
+		new(big.Float).SetFloat64(sigma).Int(sigmaInt)
 
-			if coeffInt = uint64(coeffFlo*sigma + 0.5); coeffInt <= uint64(bound) {
-				break
+		Qi := make([]*big.Int, len(moduli))
+
+		for i, qi := range moduli {
+			Qi[i] = NewUint(qi)
+		}
+
+		var coeffInt *big.Int
+
+		boundInt := new(big.Int)
+		new(big.Float).SetFloat64(bound).Int(boundInt)
+
+		coeffTmp := new(big.Int)
+
+		normInt := new(big.Int)
+
+		bias := math.Log2(math.Sqrt(2 * math.Pi)) // Corrects small bias due to discretization
+
+		for i := 0; i < N; i++ {
+
+			for {
+				norm, sign = g.normFloat64()
+
+				if norm < 1 {
+					normInt.Rsh(sigmaInt, uint(-(math.Log2(norm))))
+				} else {
+					normInt.Lsh(sigmaInt, uint(math.Log2(norm)+bias))
+				}
+
+				coeffInt = RandInt(g.prng, normInt)
+
+				coeffInt.Mul(coeffInt, NewInt(2*int64(sign)-1))
+
+				if coeffInt.Cmp(boundInt) < 1 {
+					break
+				}
+			}
+
+			for j, qi := range moduli {
+				coeffs[j][i] = f(coeffs[j][i], coeffTmp.Mod(coeffInt, Qi[j]).Uint64(), qi)
 			}
 		}
 
-		for j, qi := range moduli {
-			coeffs[j][i] = f(coeffs[j][i], (coeffInt*sign)|(qi-coeffInt)*(sign^1), qi)
+	} else {
+
+		var coeffInt uint64
+
+		for i := 0; i < N; i++ {
+
+			for {
+				norm, sign = g.normFloat64()
+
+				if v := norm * sigma; v <= bound {
+					coeffInt = uint64(norm*sigma + 0.5)
+					break
+				}
+			}
+
+			for j, qi := range moduli {
+				coeffs[j][i] = f(coeffs[j][i], (coeffInt*sign)|(qi-coeffInt)*(sign^1), qi)
+			}
 		}
 	}
 

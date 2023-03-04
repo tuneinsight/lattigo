@@ -98,6 +98,8 @@ All notable changes to this library are documented in this file.
 - RING: the core NTT method now takes `N` as an input, enabling NTT of different dimensions without having to modify internal value of the ring degree in the `ring.Ring` object.
 - RING: updated `ModDownQPtoQNTT` to round the RNS division (instead of flooring).
 - RING: added `IsInt` method on the struct `ring.Complex`.
+- RING: `RandInt` now takes an `io.Reader` interface as input.
+- RING: added large standard deviation sampling.
 - UTILS: added public factorization methods `GetFactors`, `GetFactorPollardRho` and `GetFactorECM`.
 
 ## [4.1.0] - 2022-11-22 

@@ -127,8 +127,10 @@ func (lns *lowNormSampler) newPolyLowNorm(norm *big.Int) (pol *ring.Poly) {
 
 	pol = lns.baseRing.NewPoly()
 
+	prng, _ := utils.NewPRNG()
+
 	for i := range lns.coeffs {
-		lns.coeffs[i] = ring.RandInt(norm)
+		lns.coeffs[i] = ring.RandInt(prng, norm)
 	}
 
 	lns.baseRing.AtLevel(pol.Level()).SetCoefficientsBigint(lns.coeffs, pol)

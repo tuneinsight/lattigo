@@ -61,10 +61,9 @@ func NewCKSProtocol(params rlwe.Parameters, noise distribution.Distribution) *CK
 	switch noise.(type) {
 	case *distribution.DiscreteGaussian:
 		eFresh := params.NoiseFreshSK()
-		eNoise := float64(noise.StandardDeviation(0, 0))
+		eNoise := noise.StandardDeviation(0, 0)
 		eSigma := math.Sqrt(eFresh*eFresh + eNoise*eNoise)
-		bound := int(6 * eSigma)
-		cks.noise = &distribution.DiscreteGaussian{Sigma: distribution.StandardDeviation(eSigma), Bound: bound}
+		cks.noise = &distribution.DiscreteGaussian{Sigma: eSigma, Bound: 6 * eSigma}
 	default:
 		panic(fmt.Sprintf("invalid distribution type, expected %T but got %T", &distribution.DiscreteGaussian{}, noise))
 	}

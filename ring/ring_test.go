@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"math"
 	"math/big"
 	"testing"
 
@@ -18,8 +19,8 @@ import (
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters). Overrides -short and requires -timeout=0.")
 
 var T = uint64(0x3ee0001)
-var DefaultSigma = distribution.StandardDeviation(3.2)
-var DefaultBound = 6
+var DefaultSigma = 3.2
+var DefaultBound = 6.0 * DefaultSigma
 
 func testString(opname string, ringQ *Ring) string {
 	return fmt.Sprintf("%s/N=%d/limbs=%d", opname, ringQ.N(), ringQ.ModuliChainLength())
@@ -220,6 +221,8 @@ func testDivFloorByLastModulusMany(tc *testParams, t *testing.T) {
 
 	t.Run(testString("DivFloorByLastModulusMany", tc.ringQ), func(t *testing.T) {
 
+		prng, _ := utils.NewPRNG()
+
 		N := tc.ringQ.N()
 
 		level := tc.ringQ.Level()
@@ -228,7 +231,7 @@ func testDivFloorByLastModulusMany(tc *testParams, t *testing.T) {
 
 		coeffs := make([]*big.Int, N)
 		for i := 0; i < N; i++ {
-			coeffs[i] = RandInt(tc.ringQ.ModulusAtLevel[level])
+			coeffs[i] = RandInt(prng, tc.ringQ.ModulusAtLevel[level])
 			coeffs[i].Quo(coeffs[i], NewUint(10))
 		}
 
@@ -263,6 +266,8 @@ func testDivRoundByLastModulusMany(tc *testParams, t *testing.T) {
 
 	t.Run(testString("DivRoundByLastModulusMany", tc.ringQ), func(t *testing.T) {
 
+		prng, _ := utils.NewPRNG()
+
 		N := tc.ringQ.N()
 
 		level := tc.ringQ.Level()
@@ -271,7 +276,7 @@ func testDivRoundByLastModulusMany(tc *testParams, t *testing.T) {
 
 		coeffs := make([]*big.Int, N)
 		for i := 0; i < N; i++ {
-			coeffs[i] = RandInt(tc.ringQ.ModulusAtLevel[level])
+			coeffs[i] = RandInt(prng, tc.ringQ.ModulusAtLevel[level])
 			coeffs[i].Quo(coeffs[i], NewUint(10))
 		}
 
@@ -415,13 +420,13 @@ func testSampler(tc *testParams, t *testing.T) {
 		}
 	})
 
-	t.Run(testString("Sampler/Gaussian", tc.ringQ), func(t *testing.T) {
+	t.Run(testString("Sampler/Gaussian/SmallSigma", tc.ringQ), func(t *testing.T) {
 
 		dist := &distribution.DiscreteGaussian{Sigma: DefaultSigma, Bound: DefaultBound}
 
 		sampler := NewSampler(tc.prng, tc.ringQ, dist, false)
 
-		noiseBound := dist.NoiseBound()
+		noiseBound := uint64(dist.NoiseBound())
 
 		pol := sampler.ReadNew()
 
@@ -430,6 +435,17 @@ func testSampler(tc *testParams, t *testing.T) {
 				require.False(t, noiseBound < pol.Coeffs[j][i] && pol.Coeffs[j][i] < (s.Modulus-noiseBound))
 			}
 		}
+	})
+
+	t.Run(testString("Sampler/Gaussian/LargeSigma", tc.ringQ), func(t *testing.T) {
+
+		dist := &distribution.DiscreteGaussian{Sigma: 1e21, Bound: 1e25}
+
+		sampler := NewSampler(tc.prng, tc.ringQ, dist, false)
+
+		pol := sampler.ReadNew()
+
+		require.InDelta(t, math.Log2(1e21), tc.ringQ.Log2OfStandardDeviation(pol), 0.1)
 	})
 
 	for _, p := range []float64{.5, 1. / 3., 128. / 65536.} {
@@ -656,6 +672,8 @@ func testExtendBasis(tc *testParams, t *testing.T) {
 
 	t.Run(testString("ModUp/QToP", tc.ringQ), func(t *testing.T) {
 
+		prng, _ := utils.NewPRNG()
+
 		basisextender := NewBasisExtender(tc.ringQ, tc.ringP)
 
 		levelQ := tc.ringQ.Level() - 1
@@ -671,7 +689,7 @@ func testExtendBasis(tc *testParams, t *testing.T) {
 
 		coeffs := make([]*big.Int, N)
 		for i := 0; i < N; i++ {
-			coeffs[i] = RandInt(Q)
+			coeffs[i] = RandInt(prng, Q)
 			coeffs[i].Sub(coeffs[i], QHalf)
 		}
 
@@ -694,6 +712,8 @@ func testExtendBasis(tc *testParams, t *testing.T) {
 
 	t.Run(testString("ModUp/PToQ", tc.ringQ), func(t *testing.T) {
 
+		prng, _ := utils.NewPRNG()
+
 		basisextender := NewBasisExtender(tc.ringQ, tc.ringP)
 
 		levelQ := tc.ringQ.Level() - 1
@@ -709,7 +729,7 @@ func testExtendBasis(tc *testParams, t *testing.T) {
 
 		coeffs := make([]*big.Int, N)
 		for i := 0; i < N; i++ {
-			coeffs[i] = RandInt(P)
+			coeffs[i] = RandInt(prng, P)
 			coeffs[i].Sub(coeffs[i], PHalf)
 		}
 
@@ -732,6 +752,8 @@ func testExtendBasis(tc *testParams, t *testing.T) {
 
 	t.Run(testString("ModDown/QPToQ", tc.ringQ), func(t *testing.T) {
 
+		prng, _ := utils.NewPRNG()
+
 		basisextender := NewBasisExtender(tc.ringQ, tc.ringP)
 
 		levelQ := tc.ringQ.Level() - 1
@@ -747,7 +769,7 @@ func testExtendBasis(tc *testParams, t *testing.T) {
 
 		coeffs := make([]*big.Int, N)
 		for i := 0; i < N; i++ {
-			coeffs[i] = RandInt(QP)
+			coeffs[i] = RandInt(prng, QP)
 			coeffs[i].Quo(coeffs[i], NewUint(10))
 		}
 
@@ -777,6 +799,8 @@ func testExtendBasis(tc *testParams, t *testing.T) {
 
 	t.Run(testString("ModDown/QPToP", tc.ringQ), func(t *testing.T) {
 
+		prng, _ := utils.NewPRNG()
+
 		basisextender := NewBasisExtender(tc.ringQ, tc.ringP)
 
 		levelQ := tc.ringQ.Level() - 1
@@ -792,7 +816,7 @@ func testExtendBasis(tc *testParams, t *testing.T) {
 
 		coeffs := make([]*big.Int, N)
 		for i := 0; i < N; i++ {
-			coeffs[i] = RandInt(QP)
+			coeffs[i] = RandInt(prng, QP)
 			coeffs[i].Quo(coeffs[i], NewUint(10))
 		}
 

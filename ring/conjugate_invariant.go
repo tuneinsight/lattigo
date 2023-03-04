@@ -38,7 +38,7 @@ func (r *Ring) FoldStandardToConjugateInvariant(polyStandard *Poly, permuteNTTIn
 
 	level := r.level
 
-	r.PermuteNTTWithIndex(polyStandard, permuteNTTIndexInv, polyConjugateInvariant)
+	r.AutomorphismNTTWithIndex(polyStandard, permuteNTTIndexInv, polyConjugateInvariant)
 
 	for i, s := range r.SubRings[:level+1] {
 		s.Add(polyConjugateInvariant.Coeffs[i][:N], polyStandard.Coeffs[i][:N], polyConjugateInvariant.Coeffs[i][:N])

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 
 	"github.com/tuneinsight/lattigo/v4/utils"
@@ -565,4 +566,47 @@ func (r *Ring) Decode(data []byte) (ptr int, err error) {
 	r.RescaleConstants = rewRescaleConstants(r.SubRings)
 
 	return
+}
+
+// Log2OfStandardDeviation returns base 2 logarithm of the standard deviation of the coefficients
+// of the polynomial.
+func (r *Ring) Log2OfStandardDeviation(poly *Poly) (std float64) {
+
+	N := r.N()
+
+	prec := uint(128)
+
+	coeffs := make([]*big.Int, N)
+
+	for i := 0; i < N; i++ {
+		coeffs[i] = new(big.Int)
+	}
+
+	r.PolyToBigintCentered(poly, 1, coeffs)
+
+	mean := NewFloat(0, prec)
+	tmp := NewFloat(0, prec)
+
+	for i := 0; i < N; i++ {
+		mean.Add(mean, tmp.SetInt(coeffs[i]))
+	}
+
+	mean.Quo(mean, NewFloat(float64(N), prec))
+
+	stdFloat := NewFloat(0, prec)
+
+	for i := 0; i < N; i++ {
+		tmp.SetInt(coeffs[i])
+		tmp.Sub(tmp, mean)
+		tmp.Mul(tmp, tmp)
+		stdFloat.Add(stdFloat, tmp)
+	}
+
+	stdFloat.Quo(stdFloat, NewFloat(float64(N-1), prec))
+
+	stdFloat.Sqrt(stdFloat)
+
+	stdF64, _ := stdFloat.Float64()
+
+	return math.Log2(stdF64)
 }

@@ -25,4 +25,5 @@ func (b *baseSampler) AtLevel(level int) baseSampler {
 // populated according to the Sampler's distribution.
 type Sampler interface {
 	Read(pOut *Poly)
+	AtLevel(level int) Sampler
 }

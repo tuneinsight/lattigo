@@ -8,7 +8,6 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ckks/advanced"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
-	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 // Parameters is a struct for the default bootstrapping parameters
@@ -207,20 +206,18 @@ func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 	return json.Unmarshal(data, p)
 }
 
-// RotationsForBootstrapping returns the list of rotations performed during the Bootstrapping operation.
-func (p *Parameters) RotationsForBootstrapping(params ckks.Parameters) (rotations []int) {
+// GaloisElements returns the list of Galois elements required to evaluate the bootstrapping.
+func (p *Parameters) GaloisElements(params ckks.Parameters) (galEls []uint64) {
 
 	logN := params.LogN()
 	logSlots := params.LogSlots()
 
-	// List of the rotation key values to needed for the bootstrap
-	rotations = []int{}
+	// List of the rotation key values to needed for the bootstrapp
+	keys := make(map[uint64]bool)
 
 	//SubSum rotation needed X -> Y^slots rotations
 	for i := logSlots; i < logN-1; i++ {
-		if !utils.IsInSliceInt(1<<i, rotations) {
-			rotations = append(rotations, 1<<i)
-		}
+		keys[params.GaloisElementForColumnRotationBy(1<<i)] = true
 	}
 
 	p.CoeffsToSlotsParameters.LogN = logN
@@ -229,8 +226,21 @@ func (p *Parameters) RotationsForBootstrapping(params ckks.Parameters) (rotation
 	p.CoeffsToSlotsParameters.LogSlots = logSlots
 	p.SlotsToCoeffsParameters.LogSlots = logSlots
 
-	rotations = append(rotations, p.CoeffsToSlotsParameters.Rotations()...)
-	rotations = append(rotations, p.SlotsToCoeffsParameters.Rotations()...)
+	for _, galEl := range p.CoeffsToSlotsParameters.GaloisElements(params) {
+		keys[galEl] = true
+	}
+
+	for _, galEl := range p.SlotsToCoeffsParameters.GaloisElements(params) {
+		keys[galEl] = true
+	}
+
+	galEls = make([]uint64, len(keys))
+
+	var i int
+	for key := range keys {
+		galEls[i] = key
+		i++
+	}
 
 	return
 }

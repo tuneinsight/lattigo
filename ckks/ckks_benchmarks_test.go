@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
@@ -17,6 +16,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 	if testing.Short() {
 		defaultParams = DefaultParams[:2]
 	}
+
 	if *flagParamString != "" {
 		var jsonParams ParametersLiteral
 		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
@@ -37,11 +37,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 		}
 
 		benchEncoder(tc, b)
-		benchKeyGen(tc, b)
-		benchEncrypt(tc, b)
-		benchDecrypt(tc, b)
 		benchEvaluator(tc, b)
-		benchInnerSum(tc, b)
 	}
 }
 
@@ -80,59 +76,6 @@ func benchEncoder(tc *testContext, b *testing.B) {
 	})
 }
 
-func benchKeyGen(tc *testContext, b *testing.B) {
-
-	kgen := tc.kgen
-	sk := tc.sk
-
-	b.Run(GetTestName(tc.params, "KeyGen/KeyPairGen"), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			kgen.GenKeyPair()
-		}
-	})
-
-	b.Run(GetTestName(tc.params, "KeyGen/SwitchKeyGen"), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			kgen.GenRelinearizationKey(sk, 1)
-		}
-	})
-}
-
-func benchEncrypt(tc *testContext, b *testing.B) {
-
-	encryptorPk := tc.encryptorPk
-	encryptorSk := tc.encryptorSk
-
-	plaintext := NewPlaintext(tc.params, tc.params.MaxLevel())
-	ciphertext := NewCiphertext(tc.params, 1, tc.params.MaxLevel())
-
-	b.Run(GetTestName(tc.params, "Encrypt/key=Pk"), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			encryptorPk.Encrypt(plaintext, ciphertext)
-		}
-	})
-
-	b.Run(GetTestName(tc.params, "Encrypt/key=Sk"), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			encryptorSk.Encrypt(plaintext, ciphertext)
-		}
-	})
-}
-
-func benchDecrypt(tc *testContext, b *testing.B) {
-
-	decryptor := tc.decryptor
-
-	plaintext := NewPlaintext(tc.params, tc.params.MaxLevel())
-	ciphertext := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, tc.params.MaxLevel())
-
-	b.Run(GetTestName(tc.params, "Decrypt"), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			decryptor.Decrypt(ciphertext, plaintext)
-		}
-	})
-}
-
 func benchEvaluator(tc *testContext, b *testing.B) {
 
 	plaintext := NewPlaintext(tc.params, tc.params.MaxLevel())
@@ -140,14 +83,7 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 	ciphertext2 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, tc.params.MaxLevel())
 	receiver := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 2, tc.params.MaxLevel())
 
-	var rlk *rlwe.RelinearizationKey
-	var rotkey *rlwe.RotationKeySet
-	if tc.params.PCount() != 0 {
-		rlk = tc.kgen.GenRelinearizationKey(tc.sk, 1)
-		rotkey = tc.kgen.GenRotationKeysForRotations([]int{1}, tc.params.RingType() == ring.Standard, tc.sk)
-	}
-
-	eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: rlk, Rtks: rotkey})
+	eval := tc.evaluator.WithKey(&rlwe.EvaluationKeySet{RelinearizationKey: tc.kgen.GenRelinearizationKeyNew(tc.sk)})
 
 	b.Run(GetTestName(tc.params, "Evaluator/Add"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -157,13 +93,13 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 
 	b.Run(GetTestName(tc.params, "Evaluator/AddScalar"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			eval.AddConst(ciphertext1, complex(3.1415, -1.4142), ciphertext1)
+			eval.AddConst(ciphertext1, 3.1415-1.4142i, ciphertext1)
 		}
 	})
 
 	b.Run(GetTestName(tc.params, "Evaluator/MulScalar"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			eval.MultByConst(ciphertext1, complex(3.1415, -1.4142), ciphertext1)
+			eval.MultByConst(ciphertext1, 3.1415-1.4142i, ciphertext1)
 		}
 	})
 
@@ -194,56 +130,4 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 			}
 		}
 	})
-
-	b.Run(GetTestName(tc.params, "Evaluator/PermuteNTTWithIndexLvl"), func(b *testing.B) {
-		galEL := tc.params.GaloisElementForColumnRotationBy(1)
-		ringQ := tc.params.RingQ().AtLevel(ciphertext1.Level())
-		for i := 0; i < b.N; i++ {
-			ringQ.PermuteNTTWithIndex(ciphertext1.Value[0], eval.(*evaluator).PermuteNTTIndex[galEL], ciphertext1.Value[0])
-			ringQ.PermuteNTTWithIndex(ciphertext1.Value[1], eval.(*evaluator).PermuteNTTIndex[galEL], ciphertext1.Value[1])
-		}
-	})
-
-	b.Run(GetTestName(tc.params, "Evaluator/Conjugate"), func(b *testing.B) {
-
-		if tc.params.RingType() == ring.ConjugateInvariant {
-			b.Skip("method is not supported when params.RingType() == ring.ConjugateInvariant")
-		}
-
-		for i := 0; i < b.N; i++ {
-			eval.Conjugate(ciphertext1, ciphertext1)
-		}
-	})
-
-	b.Run(GetTestName(tc.params, "Evaluator/Relin"), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			eval.Relinearize(receiver, ciphertext1)
-		}
-	})
-
-	b.Run(GetTestName(tc.params, "Evaluator/Rotate"), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			eval.Rotate(ciphertext1, 1, ciphertext1)
-		}
-	})
-}
-
-func benchInnerSum(tc *testContext, b *testing.B) {
-
-	ciphertext1 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, tc.params.MaxLevel())
-
-	batch := 1
-	n := 4
-
-	b.Run(GetTestName(tc.params, "InnerSu"), func(b *testing.B) {
-		rotKey := tc.kgen.GenRotationKeysForRotations(tc.params.RotationsForInnerSum(batch, n), false, tc.sk)
-		eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
-
-		b.ResetTimer()
-
-		for i := 0; i < b.N; i++ {
-			eval.InnerSum(ciphertext1, batch, n, ciphertext1)
-		}
-	})
-
 }

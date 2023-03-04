@@ -132,7 +132,7 @@ func genTestParams(params ckks.Parameters, NParties int) (tc *testContext, err e
 	tc.uniformSampler = ring.NewUniformSampler(prng, params.RingQ())
 
 	tc.encoder = ckks.NewEncoder(tc.params)
-	tc.evaluator = ckks.NewEvaluator(tc.params, rlwe.EvaluationKey{})
+	tc.evaluator = ckks.NewEvaluator(tc.params, nil)
 
 	kgen := ckks.NewKeyGenerator(tc.params)
 
@@ -144,15 +144,15 @@ func genTestParams(params ckks.Parameters, NParties int) (tc *testContext, err e
 
 	ringQP := params.RingQP()
 	for j := 0; j < NParties; j++ {
-		tc.sk0Shards[j] = kgen.GenSecretKey()
-		tc.sk1Shards[j] = kgen.GenSecretKey()
+		tc.sk0Shards[j] = kgen.GenSecretKeyNew()
+		tc.sk1Shards[j] = kgen.GenSecretKeyNew()
 		ringQP.Add(tc.sk0.Value, tc.sk0Shards[j].Value, tc.sk0.Value)
 		ringQP.Add(tc.sk1.Value, tc.sk1Shards[j].Value, tc.sk1.Value)
 	}
 
 	// Publickeys
-	tc.pk0 = kgen.GenPublicKey(tc.sk0)
-	tc.pk1 = kgen.GenPublicKey(tc.sk1)
+	tc.pk0 = kgen.GenPublicKeyNew(tc.sk0)
+	tc.pk1 = kgen.GenPublicKeyNew(tc.sk1)
 
 	tc.encryptorPk0 = ckks.NewEncryptor(tc.params, tc.pk0)
 	tc.decryptorSk0 = ckks.NewDecryptor(tc.params, tc.sk0)
@@ -460,7 +460,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 
 			p.sIn = sk0Shards[i]
 
-			p.sOut = kgenParamsOut.GenSecretKey() // New shared secret key in target parameters
+			p.sOut = kgenParamsOut.GenSecretKeyNew() // New shared secret key in target parameters
 			paramsOut.RingQ().Add(skIdealOut.Value.Q, p.sOut.Value.Q, skIdealOut.Value.Q)
 
 			p.share = p.AllocateShare(levelIn, levelOut)

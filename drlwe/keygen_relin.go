@@ -114,9 +114,11 @@ func (ekg *RKGProtocol) SampleCRP(crs CRS) RKGCRP {
 // GenShareRoundOne is the first of three rounds of the RKGProtocol protocol. Each party generates a pseudo encryption of
 // its secret share of the key s_i under its ephemeral key u_i : [-u_i*a + s_i*w + e_i] and broadcasts it to the other
 // j-1 parties.
+//
+// round1 = [-u_i * a + s_i * P + e_0i, s_i* a + e_i1]
 func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp RKGCRP, ephSkOut *rlwe.SecretKey, shareOut *RKGShare) {
 	// Given a base decomposition w_i (here the CRT decomposition)
-	// computes [-u*a_i + P*s_i + e_i]
+	// computes [-u*a_i + P*s_i + e_i, s_i * a + e_i]
 	// where a_i = crp_i
 
 	levelQ := sk.LevelQ()
@@ -203,9 +205,13 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp RKGCRP, ephSkOu
 
 // GenShareRoundTwo is the second of three rounds of the RKGProtocol protocol. Upon receiving the j-1 shares, each party computes :
 //
-// [s_i * sum([-u_j*a + s_j*w + e_j]) + e_i1, s_i*a + e_i2]
+// round1 = sum([-u_i * a + s_i * P + e_0i, s_i* a + e_i1])
 //
-// = [s_i * (-u*a + s*w + e) + e_i1, s_i*a + e_i2]
+//	= [u * a + s * P + e0, s * a + e1]
+//
+// round2 = [s_i * round1[0] + e_i2, (u_i - s_i) * round1[1] + e_i3]
+//
+//	= [s_i * {u * a + s * P + e0} + e_i2, (u_i - s_i) * {s * a + e1} + e_i3]
 //
 // and broadcasts both values to the other j-1 parties.
 func (ekg *RKGProtocol) GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGShare, shareOut *RKGShare) {
@@ -242,7 +248,7 @@ func (ekg *RKGProtocol) GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGS
 			ringQP.Add(shareOut.Value[i][j][0], ekg.tmpPoly2, shareOut.Value[i][j][0])
 
 			// second part
-			// (u - s) * (sum [x][s*a_i + e_2i]) + e3i
+			// (u_i - s_i) * (sum [x][s*a_i + e_2i]) + e3i
 			ekg.gaussianSamplerQ.Read(shareOut.Value[i][j][1].Q)
 
 			if levelP > -1 {
@@ -278,6 +284,16 @@ func (ekg *RKGProtocol) AggregateShares(share1, share2, shareOut *RKGShare) {
 }
 
 // GenRelinearizationKey computes the generated RLK from the public shares and write the result in evalKeyOut.
+//
+// round1 = [u * a + s * P + e0, s * a + e1]
+//
+// round2 = sum([s_i * {u * a + s * P + e0} + e_i2, (u_i - s_i) * {s * a + e1} + e_i3])
+//
+//	= [-sua + P*s^2 + s*e0 + e2, sua + ue1 - s^2a -s*e1 + e3]
+//
+// [round2[0] + round2[1], round1[1]] = [- s^2a - s*e1 + P*s^2 + s*e0 + u*e1 + e2 + e3, s * a + e1]
+//
+//	= [s * b + P * s^2 + s*e0 + u*e1 + e2 + e3, b]
 func (ekg *RKGProtocol) GenRelinearizationKey(round1 *RKGShare, round2 *RKGShare, evalKeyOut *rlwe.RelinearizationKey) {
 
 	levelQ := round1.Value[0][0][0].Q.Level()
@@ -293,10 +309,10 @@ func (ekg *RKGProtocol) GenRelinearizationKey(round1 *RKGShare, round2 *RKGShare
 	BITDecomp := len(round1.Value[0])
 	for i := 0; i < RNSDecomp; i++ {
 		for j := 0; j < BITDecomp; j++ {
-			ringQP.Add(round2.Value[i][j][0], round2.Value[i][j][1], evalKeyOut.Keys[0].Value[i][j].Value[0])
-			evalKeyOut.Keys[0].Value[i][j].Value[1].Copy(round1.Value[i][j][1])
-			ringQP.MForm(evalKeyOut.Keys[0].Value[i][j].Value[0], evalKeyOut.Keys[0].Value[i][j].Value[0])
-			ringQP.MForm(evalKeyOut.Keys[0].Value[i][j].Value[1], evalKeyOut.Keys[0].Value[i][j].Value[1])
+			ringQP.Add(round2.Value[i][j][0], round2.Value[i][j][1], evalKeyOut.Value[i][j].Value[0])
+			evalKeyOut.Value[i][j].Value[1].Copy(round1.Value[i][j][1])
+			ringQP.MForm(evalKeyOut.Value[i][j].Value[0], evalKeyOut.Value[i][j].Value[0])
+			ringQP.MForm(evalKeyOut.Value[i][j].Value[1], evalKeyOut.Value[i][j].Value[1])
 		}
 	}
 }

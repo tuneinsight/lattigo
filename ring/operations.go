@@ -2,7 +2,6 @@ package ring
 
 import (
 	"math/big"
-	"math/bits"
 
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
@@ -371,62 +370,4 @@ func MapSmallDimensionToLargerDimensionNTT(polSmall, polLarge *Poly) {
 			}
 		}
 	}
-}
-
-// Log2OfInnerSum returns the bit-size of the sum of all the coefficients (in absolute value) of a Poly.
-func (r *Ring) Log2OfInnerSum(poly *Poly) (logSum int) {
-	sumRNS := make([]uint64, r.level+1)
-	var sum uint64
-	N := r.N()
-	for i, s := range r.SubRings[:r.level+1] {
-
-		qi := s.Modulus
-		qiHalf := qi >> 1
-		coeffs := poly.Coeffs[i]
-		sum = 0
-
-		for j := 0; j < N; j++ {
-
-			v := coeffs[j]
-
-			if v >= qiHalf {
-				sum = CRed(sum+qi-v, qi)
-			} else {
-				sum = CRed(sum+v, qi)
-			}
-		}
-
-		sumRNS[i] = sum
-	}
-
-	var smallNorm = true
-	for i := 1; i < r.level+1; i++ {
-		smallNorm = smallNorm && (sumRNS[0] == sumRNS[i])
-	}
-
-	if !smallNorm {
-		var crtReconstruction *big.Int
-
-		sumBigInt := NewUint(0)
-		QiB := new(big.Int)
-		tmp := new(big.Int)
-		modulusBigint := r.ModulusAtLevel[r.level]
-
-		for i, s := range r.SubRings[:r.level+1] {
-			QiB.SetUint64(s.Modulus)
-			crtReconstruction = new(big.Int).Quo(modulusBigint, QiB)
-			tmp.ModInverse(crtReconstruction, QiB)
-			tmp.Mod(tmp, QiB)
-			crtReconstruction.Mul(crtReconstruction, tmp)
-			sumBigInt.Add(sumBigInt, tmp.Mul(NewUint(sumRNS[i]), crtReconstruction))
-		}
-
-		sumBigInt.Mod(sumBigInt, modulusBigint)
-
-		logSum = sumBigInt.BitLen()
-	} else {
-		logSum = bits.Len64(sumRNS[0])
-	}
-
-	return
 }

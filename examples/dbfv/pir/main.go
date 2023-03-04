@@ -39,7 +39,7 @@ type party struct {
 	ckgShare    *drlwe.CKGShare
 	rkgShareOne *drlwe.RKGShare
 	rkgShareTwo *drlwe.RKGShare
-	rtgShare    *drlwe.RTGShare
+	GKGShare    *drlwe.GKGShare
 	cksShare    *drlwe.CKSShare
 
 	input []uint64
@@ -57,8 +57,8 @@ var elapsedCKGCloud time.Duration
 var elapsedCKGParty time.Duration
 var elapsedRKGCloud time.Duration
 var elapsedRKGParty time.Duration
-var elapsedRTGCloud time.Duration
-var elapsedRTGParty time.Duration
+var elapsedGKGCloud time.Duration
+var elapsedGKGParty time.Duration
 var elapsedCKSCloud time.Duration
 var elapsedPCKSParty time.Duration
 var elapsedRequestParty time.Duration
@@ -122,15 +122,28 @@ func main() {
 	// 1) Collective public key generation
 	pk := ckgphase(params, crs, P)
 
-	// 2) Collective relinearization key generation
-	rlk := rkgphase(params, crs, P)
+	// 2) Collective RelinearizationKey generation
+	relinKey := rkgphase(params, crs, P)
 
-	// 3) Collective rotation keys generation
-	rtk := rtkphase(params, crs, P)
+	// 3) Collective GaloisKeys generation
+	galKeys := gkgphase(params, crs, P)
+
+	// Instantiates EvaluationKeySet
+	evk := rlwe.NewEvaluationKeySet()
+
+	if err := evk.Add(relinKey); err != nil {
+		panic(err)
+	}
+
+	for _, galKey := range galKeys {
+		if err := evk.Add(galKey); err != nil {
+			panic(err)
+		}
+	}
 
 	l.Printf("\tSetup done (cloud: %s, party: %s)\n",
-		elapsedCKGCloud+elapsedRKGCloud+elapsedRTGCloud,
-		elapsedCKGParty+elapsedRKGParty+elapsedRTGParty)
+		elapsedCKGCloud+elapsedRKGCloud+elapsedGKGCloud,
+		elapsedCKGParty+elapsedRKGParty+elapsedGKGParty)
 
 	// Pre-loading memory
 	encoder := bfv.NewEncoder(params)
@@ -169,7 +182,7 @@ func main() {
 	// Request phase
 	encQuery := genquery(params, queryIndex, encoder, encryptor)
 
-	result := requestphase(params, queryIndex, NGoRoutine, encQuery, encInputs, plainMask, rlk, rtk)
+	result := requestphase(params, queryIndex, NGoRoutine, encQuery, encInputs, plainMask, evk)
 
 	// Collective (partial) decryption (key switch)
 	encOut := cksphase(params, P, result)
@@ -187,8 +200,8 @@ func main() {
 
 	l.Printf("\t%v...%v\n", res[:8], res[params.N()-8:])
 	l.Printf("> Finished (total cloud: %s, total party: %s)\n",
-		elapsedCKGCloud+elapsedRKGCloud+elapsedRTGCloud+elapsedEncryptCloud+elapsedRequestCloudCPU+elapsedCKSCloud,
-		elapsedCKGParty+elapsedRKGParty+elapsedRTGParty+elapsedEncryptParty+elapsedRequestParty+elapsedPCKSParty+elapsedDecParty)
+		elapsedCKGCloud+elapsedRKGCloud+elapsedGKGCloud+elapsedEncryptCloud+elapsedRequestCloudCPU+elapsedCKSCloud,
+		elapsedCKGParty+elapsedRKGParty+elapsedGKGParty+elapsedEncryptParty+elapsedRequestParty+elapsedPCKSParty+elapsedDecParty)
 }
 
 func cksphase(params bfv.Parameters, P []*party, result *rlwe.Ciphertext) *rlwe.Ciphertext {
@@ -230,7 +243,7 @@ func genparties(params bfv.Parameters, N int) []*party {
 
 	for i := range P {
 		pi := &party{}
-		pi.sk = kgen.GenSecretKey()
+		pi.sk = kgen.GenSecretKeyNew()
 
 		pi.input = make([]uint64, params.N())
 		for j := range pi.input {
@@ -311,7 +324,7 @@ func rkgphase(params bfv.Parameters, crs utils.PRNG, P []*party) *rlwe.Relineari
 		}
 	}, len(P))
 
-	rlk := rlwe.NewRelinearizationKey(params.Parameters, 1)
+	rlk := rlwe.NewRelinearizationKey(params.Parameters)
 	elapsedRKGCloud += runTimed(func() {
 		for _, pi := range P {
 			rkg.AggregateShares(pi.rkgShareTwo, rkgCombined2, rkgCombined2)
@@ -324,43 +337,52 @@ func rkgphase(params bfv.Parameters, crs utils.PRNG, P []*party) *rlwe.Relineari
 	return rlk
 }
 
-func rtkphase(params bfv.Parameters, crs utils.PRNG, P []*party) *rlwe.RotationKeySet {
+func gkgphase(params bfv.Parameters, crs utils.PRNG, P []*party) (galKeys []*rlwe.GaloisKey) {
 
 	l := log.New(os.Stderr, "", 0)
 
 	l.Println("> RTG Phase")
 
-	rtg := dbfv.NewRTGProtocol(params) // Rotation keys generation
+	gkg := dbfv.NewGKGProtocol(params) // Rotation keys generation
 
 	for _, pi := range P {
-		pi.rtgShare = rtg.AllocateShare()
+		pi.GKGShare = gkg.AllocateShare()
 	}
 
-	galEls := params.GaloisElementsForRowInnerSum()
-	rotKeySet := rlwe.NewRotationKeySet(params.Parameters, galEls)
+	galEls := append(params.GaloisElementsForInnerSum(1, params.N()>>1), params.GaloisElementForRowRotation())
+	galKeys = make([]*rlwe.GaloisKey, len(galEls))
 
-	for _, galEl := range galEls {
+	GKGShareCombined := gkg.AllocateShare()
 
-		rtgShareCombined := rtg.AllocateShare()
+	for i, galEl := range galEls {
 
-		crp := rtg.SampleCRP(crs)
+		GKGShareCombined.GaloisElement = galEl
 
-		elapsedRTGParty += runTimedParty(func() {
+		crp := gkg.SampleCRP(crs)
+
+		elapsedGKGParty += runTimedParty(func() {
 			for _, pi := range P {
-				rtg.GenShare(pi.sk, galEl, crp, pi.rtgShare)
+				gkg.GenShare(pi.sk, galEl, crp, pi.GKGShare)
 			}
+
 		}, len(P))
 
-		elapsedRTGCloud += runTimed(func() {
-			for _, pi := range P {
-				rtg.AggregateShares(pi.rtgShare, rtgShareCombined, rtgShareCombined)
+		elapsedGKGCloud += runTimed(func() {
+
+			gkg.AggregateShares(P[0].GKGShare, P[1].GKGShare, GKGShareCombined)
+
+			for _, pi := range P[2:] {
+				gkg.AggregateShares(pi.GKGShare, GKGShareCombined, GKGShareCombined)
 			}
-			rtg.GenRotationKey(rtgShareCombined, crp, rotKeySet.Keys[galEl])
+
+			galKeys[i] = rlwe.NewGaloisKey(params.Parameters)
+
+			gkg.GenGaloisKey(GKGShareCombined, crp, galKeys[i])
 		})
 	}
-	l.Printf("\tdone (cloud: %s, party %s)\n", elapsedRTGCloud, elapsedRTGParty)
+	l.Printf("\tdone (cloud: %s, party %s)\n", elapsedGKGCloud, elapsedGKGParty)
 
-	return rotKeySet
+	return
 }
 
 func genquery(params bfv.Parameters, queryIndex int, encoder bfv.Encoder, encryptor rlwe.Encryptor) *rlwe.Ciphertext {
@@ -377,7 +399,7 @@ func genquery(params bfv.Parameters, queryIndex int, encoder bfv.Encoder, encryp
 	return encQuery
 }
 
-func requestphase(params bfv.Parameters, queryIndex, NGoRoutine int, encQuery *rlwe.Ciphertext, encInputs []*rlwe.Ciphertext, plainMask []*bfv.PlaintextMul, rlk *rlwe.RelinearizationKey, rtk *rlwe.RotationKeySet) *rlwe.Ciphertext {
+func requestphase(params bfv.Parameters, queryIndex, NGoRoutine int, encQuery *rlwe.Ciphertext, encInputs []*rlwe.Ciphertext, plainMask []*bfv.PlaintextMul, evk rlwe.EvaluationKeySetInterface) *rlwe.Ciphertext {
 
 	l := log.New(os.Stderr, "", 0)
 
@@ -389,7 +411,7 @@ func requestphase(params bfv.Parameters, queryIndex, NGoRoutine int, encQuery *r
 		encPartial[i] = bfv.NewCiphertext(params, 2, params.MaxLevel())
 	}
 
-	evaluator := bfv.NewEvaluator(params, rlwe.EvaluationKey{Rlk: rlk, Rtks: rtk})
+	evaluator := bfv.NewEvaluator(params, evk)
 
 	// Split the task among the Go routines
 	tasks := make(chan *maskTask)

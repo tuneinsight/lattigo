@@ -91,12 +91,15 @@ func testEvalModMarshalling(t *testing.T) {
 func testEvalMod(params ckks.Parameters, t *testing.T) {
 
 	kgen := ckks.NewKeyGenerator(params)
-	sk := kgen.GenSecretKey()
-	rlk := kgen.GenRelinearizationKey(sk, 1)
+	sk := kgen.GenSecretKeyNew()
 	encoder := ckks.NewEncoder(params)
 	encryptor := ckks.NewEncryptor(params, sk)
 	decryptor := ckks.NewDecryptor(params, sk)
-	eval := NewEvaluator(params, rlwe.EvaluationKey{Rlk: rlk, Rtks: nil})
+
+	evk := rlwe.NewEvaluationKeySet()
+	evk.Add(kgen.GenRelinearizationKeyNew(sk))
+
+	eval := NewEvaluator(params, evk)
 
 	t.Run("SineChebyshevWithArcSine", func(t *testing.T) {
 

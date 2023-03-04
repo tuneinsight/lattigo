@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"math/bits"
 	"os"
 	"sync"
 	"time"
@@ -27,14 +26,14 @@ import (
 //  - the corruption threshold, as the number of guaranteed honest parties,
 //  - the number of parties being online to generate the evaluation key,
 //  - the parameters of the RLWE cryptosystem for which the evaluation-key is generated
-//  - the size of the evaluation-key to be generated, as the number of switching keys.
+//  - the size of the evaluation-key to be generated, as the number of GaloisKeys.
 //
 // If the number of online parties is greater than the threshold, the scenario simulates the distribution of the
 // workload among the set of online parties.
 
 // party represents a party in the scenario.
 type party struct {
-	*drlwe.RTGProtocol
+	*drlwe.GKGProtocol
 	*drlwe.Thresholdizer
 	*drlwe.Combiner
 
@@ -49,16 +48,13 @@ type party struct {
 
 // cloud represents the cloud server assisting the parties.
 type cloud struct {
-	*drlwe.RTGProtocol
+	*drlwe.GKGProtocol
 
 	aggTaskQueue chan genTaskResult
-	finDone      chan struct {
-		galEl uint64
-		rtk   rlwe.SwitchingKey
-	}
+	finDone      chan rlwe.GaloisKey
 }
 
-var crp map[uint64]drlwe.RTGCRP
+var crp map[uint64]drlwe.GKGCRP
 
 // Run simulate the behavior of a party during the key generation protocol. The parties process
 // a queue of share-generation tasks which is attributed to them by a protocol orchestrator
@@ -105,19 +101,20 @@ func (p *party) String() string {
 }
 
 // Run simulate the behavior of the cloud during the key generation protocol.
-// The cloud process aggregation requests and generates the switching keys when
+// The cloud process aggregation requests and generates the GaloisKeys keys when
 // all the parties' shares have been aggregated.
 func (c *cloud) Run(galEls []uint64, params rlwe.Parameters, t int) {
 
 	shares := make(map[uint64]*struct {
-		share  *drlwe.RTGShare
+		share  *drlwe.GKGShare
 		needed int
 	}, len(galEls))
 	for _, galEl := range galEls {
 		shares[galEl] = &struct {
-			share  *drlwe.RTGShare
+			share  *drlwe.GKGShare
 			needed int
 		}{c.AllocateShare(), t}
+		shares[galEl].share.GaloisElement = galEl
 	}
 
 	var i int
@@ -126,15 +123,12 @@ func (c *cloud) Run(galEls []uint64, params rlwe.Parameters, t int) {
 	for task := range c.aggTaskQueue {
 		start := time.Now()
 		acc := shares[task.galEl]
-		c.RTGProtocol.AggregateShares(acc.share, task.rtgShare, acc.share)
+		c.GKGProtocol.AggregateShares(acc.share, task.rtgShare, acc.share)
 		acc.needed--
 		if acc.needed == 0 {
-			rtk := rlwe.NewSwitchingKey(params, params.MaxLevel(), params.MaxLevelP())
-			c.GenRotationKey(acc.share, crp[task.galEl], rtk)
-			c.finDone <- struct {
-				galEl uint64
-				rtk   rlwe.SwitchingKey
-			}{galEl: task.galEl, rtk: *rtk}
+			gk := rlwe.NewGaloisKey(params)
+			c.GenGaloisKey(acc.share, crp[task.galEl], gk)
+			c.finDone <- *gk
 		}
 		i++
 		cpuTime += time.Since(start)
@@ -149,26 +143,26 @@ var flagN = flag.Int("N", 3, "the number of parties")
 var flagT = flag.Int("t", 2, "the threshold")
 var flagO = flag.Int("o", 0, "the number of online parties")
 var flagK = flag.Int("k", 10, "number of rotation keys to generate")
-var flagDefaultParams = flag.Int("params", 3, "default param set to use")
+var flagDefaultParams = flag.Int("params", 1, "default param set to use")
 var flagJSONParams = flag.String("json", "", "the JSON encoded parameter set to use")
 
 func main() {
 
 	flag.Parse()
 
-	if *flagDefaultParams >= len(rlwe.DefaultParams) {
+	if *flagDefaultParams >= len(rlwe.TestParamsLiteral) {
 		panic("invalid default parameter set")
 	}
 
-	paramsDef := rlwe.DefaultParams[*flagDefaultParams]
+	paramsLit := rlwe.TestParamsLiteral[*flagDefaultParams]
 
 	if *flagJSONParams != "" {
-		if err := json.Unmarshal([]byte(*flagJSONParams), &paramsDef); err != nil {
+		if err := json.Unmarshal([]byte(*flagJSONParams), &paramsLit); err != nil {
 			panic(err)
 		}
 	}
 
-	params, err := rlwe.NewParametersFromLiteral(paramsDef)
+	params, err := rlwe.NewParametersFromLiteral(paramsLit)
 	if err != nil {
 		panic(err)
 	}
@@ -212,12 +206,9 @@ func main() {
 
 	wg := new(sync.WaitGroup)
 	C := &cloud{
-		RTGProtocol:  drlwe.NewRTGProtocol(params),
+		GKGProtocol:  drlwe.NewGKGProtocol(params),
 		aggTaskQueue: make(chan genTaskResult, len(galEls)*N),
-		finDone: make(chan struct {
-			galEl uint64
-			rtk   rlwe.SwitchingKey
-		}, len(galEls)),
+		finDone:      make(chan rlwe.GaloisKey, len(galEls)),
 	}
 
 	// Initialize the parties' state
@@ -227,9 +218,9 @@ func main() {
 
 	for i := range P {
 		pi := new(party)
-		pi.RTGProtocol = drlwe.NewRTGProtocol(params)
+		pi.GKGProtocol = drlwe.NewGKGProtocol(params)
 		pi.i = i
-		pi.sk = kg.GenSecretKey()
+		pi.sk = kg.GenSecretKeyNew()
 		pi.genTaskQueue = make(chan genTask, k)
 
 		if t != N {
@@ -282,7 +273,7 @@ func main() {
 
 	// Sample the common random polynomials from the CRS.
 	// For the scenario, we consider it is provided as-is to the parties.
-	crp = make(map[uint64]drlwe.RTGCRP)
+	crp = make(map[uint64]drlwe.GKGCRP)
 	for _, galEl := range galEls {
 		crp[galEl] = P[0].SampleCRP(crs)
 	}
@@ -297,7 +288,7 @@ func main() {
 
 	// distribute the key generation sub-tasks among the online parties. This
 	// simulates a protocol orchestrator affecting each party with the tasks
-	// of generating specific switching keys.
+	// of generating specific GaloisKeys.
 	tasks := getTasks(galEls, groups)
 	for _, task := range tasks {
 		for _, p := range task.group {
@@ -310,22 +301,31 @@ func main() {
 	wg.Wait()
 	close(C.aggTaskQueue)
 
-	// collects the results
-	rtks := make(map[uint64]rlwe.SwitchingKey)
+	// collects the results in an EvaluationKeySet
+	evk := rlwe.NewEvaluationKeySet()
 	for task := range C.finDone {
-		rtks[task.galEl] = task.rtk
+		if err = evk.Add(&task); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 	}
-	fmt.Printf("Generation of %d keys completed in %s\n", len(rtks), time.Since(start))
+
+	fmt.Printf("Generation of %d keys completed in %s\n", len(galEls), time.Since(start))
 
 	fmt.Printf("Checking the keys... ")
 
-	levelQ, levelP := params.RingQ().MaxLevel(), params.RingP().MaxLevel()
-	decompSize := params.DecompPw2(levelQ, levelP) * params.DecompRNS(levelQ, levelP)
-	log2bound := bits.Len64(uint64(params.N() * decompSize * (params.N()*3*int(params.NoiseBound()) + 2*3*int(params.NoiseBound()) + params.N()*3)))
-	for galEl, rtk := range rtks {
-		if !rlwe.RotationKeyIsCorrect(&rtk, galEl, skIdeal, params, log2bound) {
-			fmt.Printf("invalid key for galEl=%d\n", galEl)
+	noise := drlwe.NoiseGaloisKey(params, t)
+
+	for _, galEl := range galEls {
+
+		if gk, err := evk.GetGaloisKey(galEl); err != nil {
+			fmt.Printf("missing GaloisKey for galEl=%d\n", galEl)
 			os.Exit(1)
+		} else {
+			if !rlwe.GaloisKeyIsCorrect(gk, skIdeal, params, noise) {
+				fmt.Printf("invalid GaloisKey for galEl=%d\n", galEl)
+				os.Exit(1)
+			}
 		}
 	}
 	fmt.Println("done")
@@ -339,7 +339,7 @@ type genTask struct {
 type genTaskResult struct {
 	galEl uint64
 
-	rtgShare *drlwe.RTGShare
+	rtgShare *drlwe.GKGShare
 }
 
 func getTasks(galEls []uint64, groups [][]*party) []genTask {

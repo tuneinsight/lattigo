@@ -13,18 +13,19 @@ import (
 type DomainSwitcher struct {
 	stdRingQ, conjugateRingQ *ring.Ring
 
-	stdToci, ciToStd *rlwe.SwitchingKey
-	permuteNTTIndex  []uint64
+	stdToci, ciToStd  *rlwe.EvaluationKey
+	automorphismIndex []uint64
 }
 
 // NewDomainSwitcher instantiate a new DomainSwitcher type. It may be instantiated from parameters from either RingType.
 // The method returns an error if the parameters cannot support the switching (e.g., the NTTs are undefined for
 // either of the two ring types).
-func NewDomainSwitcher(params Parameters, comlexToRealSwk, RealToComplexSwk *rlwe.SwitchingKey) (DomainSwitcher, error) {
+// The comlexToRealEvk and comlexToRealEvk EvaluationKeys can be generated using the rlwe.KeyGenerator.GenEvaluationKeysForRingSwap(*).
+func NewDomainSwitcher(params Parameters, comlexToRealEvk, realToComplexEvk *rlwe.EvaluationKey) (DomainSwitcher, error) {
 
 	s := DomainSwitcher{
-		stdToci: comlexToRealSwk,
-		ciToStd: RealToComplexSwk,
+		stdToci: comlexToRealEvk,
+		ciToStd: realToComplexEvk,
 	}
 	var err error
 	if s.stdRingQ, err = params.RingQ().StandardRing(); err != nil {
@@ -34,7 +35,7 @@ func NewDomainSwitcher(params Parameters, comlexToRealSwk, RealToComplexSwk *rlw
 		return DomainSwitcher{}, fmt.Errorf("cannot switch between schemes because the standard NTT is undefined for params: %s", err)
 	}
 
-	s.permuteNTTIndex = s.stdRingQ.PermuteNTTIndex(s.stdRingQ.NthRoot() - 1)
+	s.automorphismIndex = ring.AutomorphismNTTIndex(s.stdRingQ.N(), s.stdRingQ.NthRoot(), s.stdRingQ.NthRoot()-1)
 
 	return s, nil
 }
@@ -46,7 +47,7 @@ func NewDomainSwitcher(params Parameters, comlexToRealSwk, RealToComplexSwk *rlw
 // The scale of the output ciphertext is twice the scale of the input one.
 // Requires the ring degree of ctOut to be half the ring degree of ctIn.
 // The security is changed from Z[X]/(X^N+1) to Z[X]/(X^N/2+1).
-// The method panics if the DomainSwitcher was not initialized with a SwkComplexToReal key.
+// The method panics if the DomainSwitcher was not initialized with a the appropriate EvaluationKeys.
 func (switcher *DomainSwitcher) ComplexToReal(eval Evaluator, ctIn, ctOut *rlwe.Ciphertext) {
 
 	evalRLWE := eval.GetRLWEEvaluator()
@@ -64,7 +65,7 @@ func (switcher *DomainSwitcher) ComplexToReal(eval Evaluator, ctIn, ctOut *rlwe.
 	ctOut.Resize(1, level)
 
 	if switcher.stdToci == nil {
-		panic("cannot ComplexToReal: no SwkStandardToConjugateInvariant provided to this DomainSwitcher")
+		panic("cannot ComplexToReal: no realToComplexEvk provided to this DomainSwitcher")
 	}
 
 	ctTmp := &rlwe.Ciphertext{Value: []*ring.Poly{evalRLWE.BuffQP[1].Q, evalRLWE.BuffQP[2].Q}}
@@ -73,8 +74,8 @@ func (switcher *DomainSwitcher) ComplexToReal(eval Evaluator, ctIn, ctOut *rlwe.
 	evalRLWE.GadgetProduct(level, ctIn.Value[1], switcher.stdToci.GadgetCiphertext, ctTmp)
 	switcher.stdRingQ.AtLevel(level).Add(evalRLWE.BuffQP[1].Q, ctIn.Value[0], evalRLWE.BuffQP[1].Q)
 
-	switcher.conjugateRingQ.AtLevel(level).FoldStandardToConjugateInvariant(evalRLWE.BuffQP[1].Q, switcher.permuteNTTIndex, ctOut.Value[0])
-	switcher.conjugateRingQ.AtLevel(level).FoldStandardToConjugateInvariant(evalRLWE.BuffQP[2].Q, switcher.permuteNTTIndex, ctOut.Value[1])
+	switcher.conjugateRingQ.AtLevel(level).FoldStandardToConjugateInvariant(evalRLWE.BuffQP[1].Q, switcher.automorphismIndex, ctOut.Value[0])
+	switcher.conjugateRingQ.AtLevel(level).FoldStandardToConjugateInvariant(evalRLWE.BuffQP[2].Q, switcher.automorphismIndex, ctOut.Value[1])
 	ctOut.MetaData = ctIn.MetaData
 	ctOut.Scale = ctIn.Scale.Mul(rlwe.NewScale(2))
 }
@@ -85,7 +86,7 @@ func (switcher *DomainSwitcher) ComplexToReal(eval Evaluator, ctIn, ctOut *rlwe.
 // ctOutCKKS = enc(real(m) + imag(0)) in Z[X]/(X^2N+1).
 // Requires the ring degree of ctOut to be twice the ring degree of ctIn.
 // The security is changed from Z[X]/(X^N+1) to Z[X]/(X^2N+1).
-// The method panics if the DomainSwitcher was not initialized with a SwkRealToComplex key.
+// The method panics if the DomainSwitcher was not initialized with a the appropriate EvaluationKeys.
 func (switcher *DomainSwitcher) RealToComplex(eval Evaluator, ctIn, ctOut *rlwe.Ciphertext) {
 
 	evalRLWE := eval.GetRLWEEvaluator()
@@ -103,7 +104,7 @@ func (switcher *DomainSwitcher) RealToComplex(eval Evaluator, ctIn, ctOut *rlwe.
 	ctOut.Resize(1, level)
 
 	if switcher.ciToStd == nil {
-		panic("cannot RealToComplex: no SwkConjugateInvariantToStandard provided to this DomainSwitcher")
+		panic("cannot RealToComplex: no realToComplexEvk provided to this DomainSwitcher")
 	}
 
 	switcher.stdRingQ.AtLevel(level).UnfoldConjugateInvariantToStandard(ctIn.Value[0], ctOut.Value[0])

@@ -13,8 +13,8 @@ type EvaluationKey struct {
 	SkNeg []*rgsw.Ciphertext
 }
 
-// GenEvaluationKey generates the LUT evaluation key
-func GenEvaluationKey(paramsRLWE rlwe.Parameters, skRLWE *rlwe.SecretKey, paramsLWE rlwe.Parameters, skLWE *rlwe.SecretKey) (key EvaluationKey) {
+// GenEvaluationKeyNew generates a new LUT evaluation key
+func GenEvaluationKeyNew(paramsRLWE rlwe.Parameters, skRLWE *rlwe.SecretKey, paramsLWE rlwe.Parameters, skLWE *rlwe.SecretKey) (key EvaluationKey) {
 
 	skLWEInvNTT := paramsLWE.RingQ().NewPoly()
 

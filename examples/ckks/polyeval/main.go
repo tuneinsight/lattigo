@@ -29,10 +29,10 @@ func chebyshevinterpolation() {
 
 	// Keys
 	kgen := ckks.NewKeyGenerator(params)
-	sk, pk := kgen.GenKeyPair()
+	sk, pk := kgen.GenKeyPairNew()
 
 	// Relinearization key
-	rlk := kgen.GenRelinearizationKey(sk, 1)
+	rlk := kgen.GenRelinearizationKeyNew(sk)
 
 	// Encryptor
 	encryptor := ckks.NewEncryptor(params, pk)
@@ -40,8 +40,11 @@ func chebyshevinterpolation() {
 	// Decryptor
 	decryptor := ckks.NewDecryptor(params, sk)
 
+	evk := rlwe.NewEvaluationKeySet()
+	evk.Add(rlk)
+
 	// Evaluator
-	evaluator := ckks.NewEvaluator(params, rlwe.EvaluationKey{Rlk: rlk})
+	evaluator := ckks.NewEvaluator(params, evk)
 
 	// Values to encrypt
 	values := make([]float64, params.Slots())

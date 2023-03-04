@@ -1,6 +1,7 @@
 package bgv
 
 import (
+	"encoding/json"
 	"runtime"
 	"testing"
 
@@ -11,7 +12,17 @@ func BenchmarkBGV(b *testing.B) {
 
 	var err error
 
-	for _, p := range TestParams[:] {
+	paramsLiterals := TestParams
+
+	if *flagParamString != "" {
+		var jsonParams ParametersLiteral
+		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
+			b.Fatal(err)
+		}
+		paramsLiterals = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
+	}
+
+	for _, p := range paramsLiterals[:] {
 
 		var params Parameters
 		if params, err = NewParametersFromLiteral(p); err != nil {
@@ -27,8 +38,6 @@ func BenchmarkBGV(b *testing.B) {
 
 		for _, testSet := range []func(tc *testContext, b *testing.B){
 			benchEncoder,
-			benchKeyGenerator,
-			benchEncryptor,
 			benchEvaluator,
 		} {
 			testSet(tc, b)
@@ -39,12 +48,11 @@ func BenchmarkBGV(b *testing.B) {
 
 func benchEncoder(tc *testContext, b *testing.B) {
 
+	params := tc.params
+
 	poly := tc.uSampler.ReadNew()
-
-	tc.params.RingT().Reduce(poly, poly)
-
+	params.RingT().Reduce(poly, poly)
 	coeffsUint64 := poly.Coeffs[0]
-
 	coeffsInt64 := make([]int64, len(coeffsUint64))
 	for i := range coeffsUint64 {
 		coeffsInt64[i] = int64(coeffsUint64[i])
@@ -52,231 +60,118 @@ func benchEncoder(tc *testContext, b *testing.B) {
 
 	encoder := tc.encoder
 
-	for _, lvl := range tc.testLevel {
-		plaintext := NewPlaintext(tc.params, lvl)
-		b.Run(GetTestName("Encoder/Encode/Uint", tc.params, lvl), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				encoder.Encode(coeffsUint64, plaintext)
-			}
-		})
-	}
+	level := params.MaxLevel()
+	plaintext := NewPlaintext(params, level)
 
-	for _, lvl := range tc.testLevel {
-		plaintext := NewPlaintext(tc.params, lvl)
-		b.Run(GetTestName("Encoder/Encode/Int", tc.params, lvl), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				encoder.Encode(coeffsInt64, plaintext)
-			}
-		})
-	}
-
-	for _, lvl := range tc.testLevel {
-		plaintext := NewPlaintext(tc.params, lvl)
-		b.Run(GetTestName("Encoder/Decode/Uint", tc.params, lvl), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				encoder.DecodeUint(plaintext, coeffsUint64)
-			}
-		})
-	}
-
-	for _, lvl := range tc.testLevel {
-		plaintext := NewPlaintext(tc.params, lvl)
-		b.Run(GetTestName("Encoder/Decode/Int", tc.params, lvl), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				encoder.DecodeInt(plaintext, coeffsInt64)
-			}
-		})
-	}
-}
-
-func benchKeyGenerator(tc *testContext, b *testing.B) {
-
-	kgen := tc.kgen
-
-	b.Run(GetTestName("KeyGen/KeyPairGen", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
+	b.Run(GetTestName("Encoder/Encode/Uint", params, level), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			kgen.GenKeyPair()
+			encoder.Encode(coeffsUint64, plaintext)
 		}
 	})
 
-	b.Run(GetTestName("KeyGen/SwitchKeyGen", tc.params, tc.params.MaxLevel()), func(b *testing.B) {
-		sk := tc.sk
+	b.Run(GetTestName("Encoder/Encode/Int", params, level), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			kgen.GenRelinearizationKey(sk, 1)
+			encoder.Encode(coeffsInt64, plaintext)
 		}
 	})
-}
 
-func benchEncryptor(tc *testContext, b *testing.B) {
+	b.Run(GetTestName("Encoder/Decode/Uint", params, level), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			encoder.DecodeUint(plaintext, coeffsUint64)
+		}
+	})
 
-	for _, lvl := range tc.testLevel {
-		b.Run(GetTestName("Encrypt/key=Pk", tc.params, lvl), func(b *testing.B) {
-			plaintext := NewPlaintext(tc.params, lvl)
-			ciphertext := NewCiphertext(tc.params, 1, lvl)
-			encryptorPk := tc.encryptorPk
-			for i := 0; i < b.N; i++ {
-				encryptorPk.Encrypt(plaintext, ciphertext)
-			}
-		})
-	}
-
-	for _, lvl := range tc.testLevel {
-		b.Run(GetTestName("Encrypt/key=Sk", tc.params, lvl), func(b *testing.B) {
-			plaintext := NewPlaintext(tc.params, lvl)
-			ciphertext := NewCiphertext(tc.params, 1, lvl)
-			encryptorSk := tc.encryptorSk
-			for i := 0; i < b.N; i++ {
-				encryptorSk.Encrypt(plaintext, ciphertext)
-			}
-		})
-	}
+	b.Run(GetTestName("Encoder/Decode/Int", params, level), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			encoder.DecodeInt(plaintext, coeffsInt64)
+		}
+	})
 }
 
 func benchEvaluator(tc *testContext, b *testing.B) {
 
+	params := tc.params
 	eval := tc.evaluator
-
 	scale := rlwe.NewScale(1)
+	level := params.MaxLevel()
 
-	for _, lvl := range tc.testLevel {
-		ciphertext0 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, lvl)
-		ciphertext1 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, lvl)
-		b.Run(GetTestName("Evaluator/Add/op0=ct/op1=ct", tc.params, lvl), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				eval.Add(ciphertext0, ciphertext1, ciphertext0)
-			}
-		})
-	}
+	ciphertext0 := rlwe.NewCiphertextRandom(tc.prng, params.Parameters, 1, level)
+	ciphertext1 := rlwe.NewCiphertextRandom(tc.prng, params.Parameters, 1, level)
+	plaintext1 := &rlwe.Plaintext{Value: rlwe.NewCiphertextRandom(tc.prng, params.Parameters, 0, level).Value[0]}
+	plaintext1.Scale = scale
+	plaintext1.IsNTT = ciphertext0.IsNTT
+	scalar := params.T() >> 1
 
-	for _, lvl := range tc.testLevel {
-		ciphertext0 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, lvl)
-		plaintext1 := &rlwe.Plaintext{Value: rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 0, lvl).Value[0]}
-		plaintext1.Scale = scale
-		plaintext1.IsNTT = ciphertext0.IsNTT
-		b.Run(GetTestName("Evaluator/Add/op0=ct/op1=pt", tc.params, lvl), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				eval.Add(ciphertext0, plaintext1, ciphertext0)
-			}
-		})
-	}
+	b.Run(GetTestName("Evaluator/Add/Ct/Ct", params, level), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			eval.Add(ciphertext0, ciphertext1, ciphertext0)
+		}
+	})
 
-	for _, lvl := range tc.testLevel {
-		ciphertext0 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, lvl)
-		scalar := tc.params.T() >> 1
-		b.Run(GetTestName("Evaluator/AddScalar/op0=ct", tc.params, lvl), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				eval.AddScalar(ciphertext0, scalar, ciphertext0)
-			}
-		})
-	}
+	b.Run(GetTestName("Evaluator/Add/Ct/Pt", params, level), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			eval.Add(ciphertext0, plaintext1, ciphertext0)
+		}
+	})
 
-	for _, lvl := range tc.testLevel {
-		ciphertext0 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, lvl)
-		scalar := tc.params.T() >> 1
-		b.Run(GetTestName("Evaluator/MulScalar/op0=ct", tc.params, lvl), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				eval.MulScalar(ciphertext0, scalar, ciphertext0)
-			}
-		})
-	}
+	b.Run(GetTestName("Evaluator/AddScalar", params, level), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			eval.AddScalar(ciphertext0, scalar, ciphertext0)
+		}
+	})
 
-	for _, lvl := range tc.testLevel {
-		ciphertext0 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, lvl)
-		ciphertext1 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, lvl)
-		scalar := tc.params.T() >> 1
-		b.Run(GetTestName("Evaluator/MulScalarThenAdd/op0=ct", tc.params, lvl), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				eval.MulScalarThenAdd(ciphertext0, scalar, ciphertext1)
-			}
-		})
-	}
+	b.Run(GetTestName("Evaluator/MulScalar", params, level), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			eval.MulScalar(ciphertext0, scalar, ciphertext0)
+		}
+	})
 
-	for _, lvl := range tc.testLevel {
-		ciphertext0 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, lvl)
-		ciphertext1 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, lvl)
-		receiver := NewCiphertext(tc.params, 2, lvl)
-		b.Run(GetTestName("Evaluator/Mul/op0=ct/op1=ct", tc.params, lvl), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				eval.Mul(ciphertext0, ciphertext1, receiver)
-			}
-		})
-	}
+	b.Run(GetTestName("Evaluator/MulScalarThenAdd", params, level), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			eval.MulScalarThenAdd(ciphertext0, scalar, ciphertext1)
+		}
+	})
 
-	for _, lvl := range tc.testLevel {
-		ciphertext0 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, lvl)
-		plaintext1 := &rlwe.Plaintext{Value: rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 0, lvl).Value[0]}
-		plaintext1.Scale = scale
-		plaintext1.IsNTT = ciphertext0.IsNTT
-		b.Run(GetTestName("Evaluator/Mul/op0=ct/op1=pt", tc.params, lvl), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				eval.Mul(ciphertext0, plaintext1, ciphertext0)
-			}
-		})
-	}
+	b.Run(GetTestName("Evaluator/Mul/Ct/Ct", params, level), func(b *testing.B) {
+		receiver := NewCiphertext(params, 2, level)
+		for i := 0; i < b.N; i++ {
+			eval.Mul(ciphertext0, ciphertext1, receiver)
+		}
+	})
 
-	for _, lvl := range tc.testLevel {
-		ciphertext0 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, lvl)
-		ciphertext1 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, lvl)
-		b.Run(GetTestName("Evaluator/MulRelin/op0=ct/op1=ct", tc.params, lvl), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				eval.MulRelin(ciphertext0, ciphertext1, ciphertext0)
-			}
-		})
-	}
+	b.Run(GetTestName("Evaluator/Mul/Ct/Pt", params, level), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			eval.Mul(ciphertext0, plaintext1, ciphertext0)
+		}
+	})
 
-	for _, lvl := range tc.testLevel {
-		ciphertext0 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, lvl)
-		ciphertext1 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, lvl)
-		ciphertext2 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, lvl)
-		b.Run(GetTestName("Evaluator/MulRelinThenAdd/op0=ct/op1=ct", tc.params, lvl), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				eval.MulRelinThenAdd(ciphertext0, ciphertext1, ciphertext2)
-			}
-		})
-	}
+	b.Run(GetTestName("Evaluator/MulRelin/Ct/Ct", params, level), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			eval.MulRelin(ciphertext0, ciphertext1, ciphertext0)
+		}
+	})
 
-	for _, lvl := range tc.testLevel[1:] {
-		ciphertext0 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, lvl)
-		receiver := NewCiphertext(tc.params, 1, lvl-1)
-		b.Run(GetTestName("Evaluator/Rescale/op0=ct", tc.params, lvl), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				if err := eval.Rescale(ciphertext0, receiver); err != nil {
-					b.Log(err)
-					b.Fail()
-				}
-			}
-		})
-	}
+	b.Run(GetTestName("Evaluator/MulRelinThenAdd/Ct/Ct", params, level), func(b *testing.B) {
+		ciphertext2 := rlwe.NewCiphertextRandom(tc.prng, params.Parameters, 1, level)
+		for i := 0; i < b.N; i++ {
+			eval.MulRelinThenAdd(ciphertext0, ciphertext1, ciphertext2)
+		}
+	})
 
-	for _, lvl := range tc.testLevel {
-		ciphertext0 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 2, lvl)
-		receiver := NewCiphertext(tc.params, 1, lvl)
-		b.Run(GetTestName("Evaluator/Relin/op0=ct", tc.params, lvl), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				eval.Relinearize(ciphertext0, receiver)
-			}
-		})
-	}
+	b.Run(GetTestName("Evaluator/MulRelinThenAdd/Ct/Pt", params, level), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			eval.MulRelinThenAdd(ciphertext0, plaintext1, ciphertext1)
+		}
+	})
 
-	for _, lvl := range tc.testLevel {
-		rotkey := tc.kgen.GenRotationKeysForRotations([]int{}, true, tc.sk)
-		eval := eval.WithKey(rlwe.EvaluationKey{Rtks: rotkey})
-		ciphertext0 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, lvl)
-		b.Run(GetTestName("Evaluator/RotateRwos/op0=ct", tc.params, lvl), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				eval.RotateRows(ciphertext0, ciphertext0)
+	b.Run(GetTestName("Evaluator/Rescale", params, level), func(b *testing.B) {
+		receiver := NewCiphertext(params, 1, level-1)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			if err := eval.Rescale(ciphertext0, receiver); err != nil {
+				b.Log(err)
+				b.Fail()
 			}
-		})
-	}
-
-	for _, lvl := range tc.testLevel {
-		rotkey := tc.kgen.GenRotationKeysForRotations([]int{1}, false, tc.sk)
-		eval := eval.WithKey(rlwe.EvaluationKey{Rtks: rotkey})
-		ciphertext0 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, lvl)
-		b.Run(GetTestName("Evaluator/RotateColumns/op0=ct", tc.params, lvl), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				eval.RotateColumns(ciphertext0, 1, ciphertext0)
-			}
-		})
-	}
+		}
+	})
 }

@@ -8,8 +8,7 @@ import (
 
 // GadgetProduct evaluates poly x Gadget -> RLWE where
 //
-// p0 = dot(decomp(cx) * gadget[0]) mod Q
-// p1 = dot(decomp(cx) * gadget[1]) mod Q
+// ct = [<decomp(cx), gadget[0]>, <decomp(cx), gadget[1]>] mod Q
 //
 // Expects the flag IsNTT of ct to correctly reflect the domain of cx.
 func (eval *Evaluator) GadgetProduct(levelQ int, cx *ring.Poly, gadgetCt GadgetCiphertext, ct *Ciphertext) {
@@ -18,48 +17,95 @@ func (eval *Evaluator) GadgetProduct(levelQ int, cx *ring.Poly, gadgetCt GadgetC
 	levelP := gadgetCt.LevelP()
 
 	ctTmp := CiphertextQP{}
-	ctTmp.Value = [2]ringqp.Poly{{Q: ct.Value[0], P: eval.BuffQP[1].P}, {Q: ct.Value[1], P: eval.BuffQP[2].P}}
+	ctTmp.Value = [2]ringqp.Poly{{Q: ct.Value[0], P: eval.BuffQP[0].P}, {Q: ct.Value[1], P: eval.BuffQP[1].P}}
 	ctTmp.IsNTT = ct.IsNTT
 
-	if levelP > 0 {
-		eval.GadgetProductLazy(levelQ, cx, gadgetCt, ctTmp)
-	} else {
-		eval.GadgetProductSinglePAndBitDecompLazy(levelQ, cx, gadgetCt, ctTmp)
-	}
+	eval.GadgetProductLazy(levelQ, cx, gadgetCt, ctTmp)
 
-	if ct.IsNTT && levelP != -1 {
-		eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, ct.Value[0], ctTmp.Value[0].P, ct.Value[0])
-		eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, ct.Value[1], ctTmp.Value[1].P, ct.Value[1])
-	} else if !ct.IsNTT {
+	eval.ModDown(levelQ, levelP, ctTmp, ct)
+}
+
+// ModDown takes ctQP (mod QP) and returns ct = (ctQP/P) (mod Q).
+func (eval *Evaluator) ModDown(levelQ, levelP int, ctQP CiphertextQP, ct *Ciphertext) {
+
+	if ctQP.IsNTT && levelP != -1 {
+
+		if ct.IsNTT {
+			// NTT -> NTT
+			eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, ctQP.Value[0].Q, ctQP.Value[0].P, ct.Value[0])
+			eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, ctQP.Value[1].Q, ctQP.Value[1].P, ct.Value[1])
+		} else {
+
+			// NTT -> INTT
+			ringQP := eval.params.RingQP().AtLevel(levelQ, levelP)
+
+			ringQP.INTTLazy(ctQP.Value[0], ctQP.Value[0])
+			ringQP.INTTLazy(ctQP.Value[1], ctQP.Value[1])
+
+			eval.BasisExtender.ModDownQPtoQ(levelQ, levelP, ctQP.Value[0].Q, ctQP.Value[0].P, ct.Value[0])
+			eval.BasisExtender.ModDownQPtoQ(levelQ, levelP, ctQP.Value[1].Q, ctQP.Value[1].P, ct.Value[1])
+		}
+
+	} else {
 
 		ringQ := eval.params.RingQ().AtLevel(levelQ)
 
 		if levelP != -1 {
 
-			ringQ.INTTLazy(ct.Value[0], ct.Value[0])
-			ringQ.INTTLazy(ct.Value[1], ct.Value[1])
+			if ct.IsNTT {
 
-			ringP := eval.params.RingP().AtLevel(levelP)
+				// INTT -> NTT
+				eval.BasisExtender.ModDownQPtoQ(levelQ, levelP, ctQP.Value[0].Q, ctQP.Value[0].P, ct.Value[0])
+				eval.BasisExtender.ModDownQPtoQ(levelQ, levelP, ctQP.Value[1].Q, ctQP.Value[1].P, ct.Value[1])
 
-			ringP.INTTLazy(ctTmp.Value[0].P, ctTmp.Value[0].P)
-			ringP.INTTLazy(ctTmp.Value[1].P, ctTmp.Value[1].P)
+				ringQ.NTT(ct.Value[0], ct.Value[0])
+				ringQ.NTT(ct.Value[1], ct.Value[1])
 
-			eval.BasisExtender.ModDownQPtoQ(levelQ, levelP, ct.Value[0], ctTmp.Value[0].P, ct.Value[0])
-			eval.BasisExtender.ModDownQPtoQ(levelQ, levelP, ct.Value[1], ctTmp.Value[1].P, ct.Value[1])
+			} else {
+
+				// INTT -> INTT
+				eval.BasisExtender.ModDownQPtoQ(levelQ, levelP, ctQP.Value[0].Q, ctQP.Value[0].P, ct.Value[0])
+				eval.BasisExtender.ModDownQPtoQ(levelQ, levelP, ctQP.Value[1].Q, ctQP.Value[1].P, ct.Value[1])
+			}
+
 		} else {
-			ringQ.INTT(ct.Value[0], ct.Value[0])
-			ringQ.INTT(ct.Value[1], ct.Value[1])
+
+			if !ct.IsNTT {
+				// INTT ->NTT
+				ring.CopyLvl(levelQ, ct.Value[0], ctQP.Value[0].Q)
+				ring.CopyLvl(levelQ, ct.Value[1], ctQP.Value[1].Q)
+			} else {
+
+				// INTT -> INTT
+				ringQ.INTT(ctQP.Value[0].Q, ct.Value[0])
+				ringQ.INTT(ctQP.Value[1].Q, ct.Value[1])
+			}
 		}
 	}
 }
 
-// GadgetProductLazy applies the gadget prodcut to the polynomial cx:
+// GadgetProductLazy evaluates poly x Gadget -> RLWE where
 //
-// ct.Value[0] = dot(decomp(cx) * gadget[0]) mod QP (encrypted input is multiplied by P factor)
-// ct.Value[1] = dot(decomp(cx) * gadget[1]) mod QP (encrypted input is multiplied by P factor)
+// ct = [<decomp(cx), gadget[0]>, <decomp(cx), gadget[1]>] mod QP
 //
 // Expects the flag IsNTT of ct to correctly reflect the domain of cx.
+//
+// Result NTT domain is returned according to the NTT flag of ct.
 func (eval *Evaluator) GadgetProductLazy(levelQ int, cx *ring.Poly, gadgetCt GadgetCiphertext, ct CiphertextQP) {
+	if gadgetCt.LevelP() > 0 {
+		eval.gadgetProductMultiplePLazy(levelQ, cx, gadgetCt, ct)
+	} else {
+		eval.gadgetProductSinglePAndBitDecompLazy(levelQ, cx, gadgetCt, ct)
+	}
+
+	if !ct.IsNTT {
+		ringQP := eval.params.RingQP().AtLevel(levelQ, gadgetCt.LevelP())
+		ringQP.INTT(ct.Value[0], ct.Value[0])
+		ringQP.INTT(ct.Value[1], ct.Value[1])
+	}
+}
+
+func (eval *Evaluator) gadgetProductMultiplePLazy(levelQ int, cx *ring.Poly, gadgetCt GadgetCiphertext, ct CiphertextQP) {
 
 	levelP := gadgetCt.LevelP()
 
@@ -68,7 +114,7 @@ func (eval *Evaluator) GadgetProductLazy(levelQ int, cx *ring.Poly, gadgetCt Gad
 	ringQ := ringQP.RingQ
 	ringP := ringQP.RingP
 
-	c2QP := eval.BuffQP[0]
+	c2QP := eval.BuffDecompQP[0]
 
 	var cxNTT, cxInvNTT *ring.Poly
 	if ct.IsNTT {
@@ -88,7 +134,7 @@ func (eval *Evaluator) GadgetProductLazy(levelQ int, cx *ring.Poly, gadgetCt Gad
 
 	el := gadgetCt.Value
 
-	// Key switching with CRT decomposition for the Qi
+	// Re-encryption with CRT decomposition for the Qi
 	var reduce int
 	for i := 0; i < decompRNS; i++ {
 
@@ -126,13 +172,7 @@ func (eval *Evaluator) GadgetProductLazy(levelQ int, cx *ring.Poly, gadgetCt Gad
 	}
 }
 
-// GadgetProductSinglePAndBitDecompLazy applies the key-switch to the polynomial cx:
-//
-// ct.Value[0] = dot(decomp(cx) * evakey[0]) mod QP (encrypted input is multiplied by P factor)
-// ct.Value[1] = dot(decomp(cx) * evakey[1]) mod QP (encrypted input is multiplied by P factor)
-//
-// Expects the flag IsNTT of ct to correctly reflect the domain of cx.
-func (eval *Evaluator) GadgetProductSinglePAndBitDecompLazy(levelQ int, cx *ring.Poly, gadgetCt GadgetCiphertext, ct CiphertextQP) {
+func (eval *Evaluator) gadgetProductSinglePAndBitDecompLazy(levelQ int, cx *ring.Poly, gadgetCt GadgetCiphertext, ct CiphertextQP) {
 
 	levelP := gadgetCt.LevelP()
 
@@ -160,7 +200,7 @@ func (eval *Evaluator) GadgetProductSinglePAndBitDecompLazy(levelQ int, cx *ring
 		mask = 0xFFFFFFFFFFFFFFFF
 	}
 
-	cw := eval.BuffQP[0].Q.Coeffs[0]
+	cw := eval.BuffDecompQP[0].Q.Coeffs[0]
 	cwNTT := eval.BuffBitDecomp
 
 	QiOverF := eval.params.QiOverflowMargin(levelQ) >> 1
@@ -168,7 +208,7 @@ func (eval *Evaluator) GadgetProductSinglePAndBitDecompLazy(levelQ int, cx *ring
 
 	el := gadgetCt.Value
 
-	// Key switching with CRT decomposition for the Qi
+	// Re-encryption with CRT decomposition for the Qi
 	var reduce int
 	for i := 0; i < decompRNS; i++ {
 		for j := 0; j < decompPw2; j++ {
@@ -230,5 +270,144 @@ func (eval *Evaluator) GadgetProductSinglePAndBitDecompLazy(levelQ int, cx *ring
 			ringP.Reduce(ct.Value[0].P, ct.Value[0].P)
 			ringP.Reduce(ct.Value[1].P, ct.Value[1].P)
 		}
+	}
+}
+
+// GadgetProductHoisted applies the key-switch to the decomposed polynomial c2 mod QP (BuffQPDecompQP)
+// and divides the result by P, reducing the basis from QP to Q.
+//
+// ct = [<BuffQPDecompQP,  gadgetCt[0]) mod Q
+//
+// BuffQPDecompQP is expected to be in the NTT domain.
+//
+// Result NTT domain is returned according to the NTT flag of ct.
+func (eval *Evaluator) GadgetProductHoisted(levelQ int, BuffQPDecompQP []ringqp.Poly, gadgetCt GadgetCiphertext, ct *Ciphertext) {
+
+	ctQP := CiphertextQP{}
+	ctQP.Value = [2]ringqp.Poly{{Q: ct.Value[0], P: eval.BuffQP[0].P}, {Q: ct.Value[1], P: eval.BuffQP[1].P}}
+	ctQP.IsNTT = ct.IsNTT
+
+	eval.GadgetProductHoistedLazy(levelQ, BuffQPDecompQP, gadgetCt, ctQP)
+	eval.ModDown(levelQ, gadgetCt.LevelP(), ctQP, ct)
+}
+
+// GadgetProductHoistedLazy applies the gadget product to the decomposed polynomial c2 mod QP (BuffQPDecompQ and BuffQPDecompP)
+//
+// BuffQP2 = dot(BuffQPDecompQ||BuffQPDecompP * gadgetCt[0]) mod QP
+// BuffQP3 = dot(BuffQPDecompQ||BuffQPDecompP * gadgetCt[1]) mod QP
+//
+// BuffQPDecompQP is expected to be in the NTT domain.
+//
+// Result NTT domain is returned according to the NTT flag of ct.
+func (eval *Evaluator) GadgetProductHoistedLazy(levelQ int, BuffQPDecompQP []ringqp.Poly, gadgetCt GadgetCiphertext, ct CiphertextQP) {
+
+	levelP := gadgetCt.LevelP()
+
+	ringQP := eval.params.RingQP().AtLevel(levelQ, levelP)
+
+	ringQ := ringQP.RingQ
+	ringP := ringQP.RingP
+
+	c0QP := ct.Value[0]
+	c1QP := ct.Value[1]
+
+	decompRNS := (levelQ + 1 + levelP) / (levelP + 1)
+
+	QiOverF := eval.params.QiOverflowMargin(levelQ) >> 1
+	PiOverF := eval.params.PiOverflowMargin(levelP) >> 1
+
+	// Key switching with CRT decomposition for the Qi
+	var reduce int
+	for i := 0; i < decompRNS; i++ {
+
+		gct := gadgetCt.Value[i][0].Value
+
+		if i == 0 {
+			ringQP.MulCoeffsMontgomeryLazy(gct[0], BuffQPDecompQP[i], c0QP)
+			ringQP.MulCoeffsMontgomeryLazy(gct[1], BuffQPDecompQP[i], c1QP)
+		} else {
+			ringQP.MulCoeffsMontgomeryLazyThenAddLazy(gct[0], BuffQPDecompQP[i], c0QP)
+			ringQP.MulCoeffsMontgomeryLazyThenAddLazy(gct[1], BuffQPDecompQP[i], c1QP)
+		}
+
+		if reduce%QiOverF == QiOverF-1 {
+			ringQ.Reduce(c0QP.Q, c0QP.Q)
+			ringQ.Reduce(c1QP.Q, c1QP.Q)
+		}
+
+		if reduce%PiOverF == PiOverF-1 {
+			ringP.Reduce(c0QP.P, c0QP.P)
+			ringP.Reduce(c1QP.P, c1QP.P)
+		}
+
+		reduce++
+	}
+
+	if reduce%QiOverF != 0 {
+		ringQ.Reduce(c0QP.Q, c0QP.Q)
+		ringQ.Reduce(c1QP.Q, c1QP.Q)
+	}
+
+	if reduce%PiOverF != 0 {
+		ringP.Reduce(c0QP.P, c0QP.P)
+		ringP.Reduce(c1QP.P, c1QP.P)
+	}
+
+	if !ct.IsNTT {
+		ringQP.INTT(ct.Value[0], ct.Value[0])
+		ringQP.INTT(ct.Value[1], ct.Value[1])
+	}
+}
+
+// DecomposeNTT applies the full RNS basis decomposition on c2.
+// Expects the IsNTT flag of c2 to correctly reflect the domain of c2.
+// BuffQPDecompQ and BuffQPDecompQ are vectors of polynomials (mod Q and mod P) that store the
+// special RNS decomposition of c2 (in the NTT domain)
+func (eval *Evaluator) DecomposeNTT(levelQ, levelP, nbPi int, c2 *ring.Poly, c2IsNTT bool, BuffDecompQP []ringqp.Poly) {
+
+	ringQ := eval.params.RingQ().AtLevel(levelQ)
+
+	var polyNTT, polyInvNTT *ring.Poly
+
+	if c2IsNTT {
+		polyNTT = c2
+		polyInvNTT = eval.BuffInvNTT
+		ringQ.INTT(polyNTT, polyInvNTT)
+	} else {
+		polyNTT = eval.BuffInvNTT
+		polyInvNTT = c2
+		ringQ.NTT(polyInvNTT, polyNTT)
+	}
+
+	decompRNS := eval.params.DecompRNS(levelQ, levelP)
+	for i := 0; i < decompRNS; i++ {
+		eval.DecomposeSingleNTT(levelQ, levelP, nbPi, i, polyNTT, polyInvNTT, BuffDecompQP[i].Q, BuffDecompQP[i].P)
+	}
+}
+
+// DecomposeSingleNTT takes the input polynomial c2 (c2NTT and c2InvNTT, respectively in the NTT and out of the NTT domain)
+// modulo the RNS basis, and returns the result on c2QiQ and c2QiP, the receiver polynomials respectively mod Q and mod P (in the NTT domain)
+func (eval *Evaluator) DecomposeSingleNTT(levelQ, levelP, nbPi, decompRNS int, c2NTT, c2InvNTT, c2QiQ, c2QiP *ring.Poly) {
+
+	ringQ := eval.params.RingQ().AtLevel(levelQ)
+	ringP := eval.params.RingP().AtLevel(levelP)
+
+	eval.Decomposer.DecomposeAndSplit(levelQ, levelP, nbPi, decompRNS, c2InvNTT, c2QiQ, c2QiP)
+
+	p0idxst := decompRNS * nbPi
+	p0idxed := p0idxst + nbPi
+
+	// c2_qi = cx mod qi mod qi
+	for x := 0; x < levelQ+1; x++ {
+		if p0idxst <= x && x < p0idxed {
+			copy(c2QiQ.Coeffs[x], c2NTT.Coeffs[x])
+		} else {
+			ringQ.SubRings[x].NTT(c2QiQ.Coeffs[x], c2QiQ.Coeffs[x])
+		}
+	}
+
+	if ringP != nil {
+		// c2QiP = c2 mod qi mod pj
+		ringP.NTT(c2QiP, c2QiP)
 	}
 }

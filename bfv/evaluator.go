@@ -29,17 +29,17 @@ type Evaluator interface {
 	MulThenAdd(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext)
 	Relinearize(ctIn *rlwe.Ciphertext, ctOut *rlwe.Ciphertext)
 	RelinearizeNew(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext)
-	SwitchKeys(ctIn *rlwe.Ciphertext, switchKey *rlwe.SwitchingKey, ctOut *rlwe.Ciphertext)
-	EvaluatePoly(input interface{}, pol *Polynomial) (opOut *rlwe.Ciphertext, err error)
-	EvaluatePolyVector(input interface{}, pols []*Polynomial, encoder Encoder, slotsIndex map[int][]int) (opOut *rlwe.Ciphertext, err error)
-	SwitchKeysNew(ctIn *rlwe.Ciphertext, switchkey *rlwe.SwitchingKey) (ctOut *rlwe.Ciphertext)
+	ApplyEvaluationKey(ctIn *rlwe.Ciphertext, evk *rlwe.EvaluationKey, ctOut *rlwe.Ciphertext)
+	ApplyEvaluationKeyNew(ctIn *rlwe.Ciphertext, evk *rlwe.EvaluationKey) (ctOut *rlwe.Ciphertext)
 	RotateColumnsNew(ctIn *rlwe.Ciphertext, k int) (ctOut *rlwe.Ciphertext)
 	RotateColumns(ctIn *rlwe.Ciphertext, k int, ctOut *rlwe.Ciphertext)
 	RotateRows(ctIn *rlwe.Ciphertext, ctOut *rlwe.Ciphertext)
 	RotateRowsNew(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext)
+	EvaluatePoly(input interface{}, pol *Polynomial) (opOut *rlwe.Ciphertext, err error)
+	EvaluatePolyVector(input interface{}, pols []*Polynomial, encoder Encoder, slotsIndex map[int][]int) (opOut *rlwe.Ciphertext, err error)
 	InnerSum(op0 *rlwe.Ciphertext, batch, n int, ctOut *rlwe.Ciphertext)
 	ShallowCopy() Evaluator
-	WithKey(rlwe.EvaluationKey) Evaluator
+	WithKey(rlwe.EvaluationKeySetInterface) Evaluator
 
 	CheckBinary(op0, op1, opOut rlwe.Operand, opOutMinDegree int) (degree, level int)
 	CheckUnary(op0, opOut rlwe.Operand) (degree, level int)
@@ -109,7 +109,7 @@ func newEvaluatorBuffer(eval *evaluatorBase) *evaluatorBuffers {
 // NewEvaluator creates a new Evaluator, that can be used to do homomorphic
 // operations on ciphertexts and/or plaintexts. It stores a memory buffer
 // and ciphertexts that will be used for intermediate values.
-func NewEvaluator(params Parameters, evaluationKey rlwe.EvaluationKey) Evaluator {
+func NewEvaluator(params Parameters, evk rlwe.EvaluationKeySetInterface) Evaluator {
 	ev := new(evaluator)
 	ev.evaluatorBase = newEvaluatorPrecomp(params)
 	ev.evaluatorBuffers = newEvaluatorBuffer(ev.evaluatorBase)
@@ -126,20 +126,20 @@ func NewEvaluator(params Parameters, evaluationKey rlwe.EvaluationKey) Evaluator
 	}
 
 	ev.basisExtenderQ1toQ2 = ring.NewBasisExtender(ev.params.RingQ(), ev.params.RingQMul())
-	ev.Evaluator = rlwe.NewEvaluator(params.Parameters, &evaluationKey)
+	ev.Evaluator = rlwe.NewEvaluator(params.Parameters, evk)
 
 	return ev
 }
 
 // NewEvaluators creates n evaluators sharing the same read-only data-structures.
-func NewEvaluators(params Parameters, evaluationKey rlwe.EvaluationKey, n int) []Evaluator {
+func NewEvaluators(params Parameters, evk rlwe.EvaluationKeySetInterface, n int) []Evaluator {
 	if n <= 0 {
 		return []Evaluator{}
 	}
 	evas := make([]Evaluator, n)
 	for i := range evas {
 		if i == 0 {
-			evas[0] = NewEvaluator(params, evaluationKey)
+			evas[0] = NewEvaluator(params, evk)
 		} else {
 			evas[i] = evas[i-1].ShallowCopy()
 		}
@@ -492,11 +492,10 @@ func (eval *evaluator) RelinearizeNew(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Cipher
 	return
 }
 
-// SwitchKeysNew applies the key-switching procedure to the ciphertext ct0 and creates a new ciphertext to store the result. It requires as an additional input a valid switching-key:
-// it must encrypt the target key under the public key under which ct0 is currently encrypted.
-func (eval *evaluator) SwitchKeysNew(ctIn *rlwe.Ciphertext, switchkey *rlwe.SwitchingKey) (ctOut *rlwe.Ciphertext) {
+// ApplyEvaluationKeyNew applies the EvaluationKey in the ciphertext ct0 and creates a new ciphertext to store the result.
+func (eval *evaluator) ApplyEvaluationKeyNew(ctIn *rlwe.Ciphertext, evk *rlwe.EvaluationKey) (ctOut *rlwe.Ciphertext) {
 	ctOut = NewCiphertext(eval.params, 1, ctIn.Level())
-	eval.SwitchKeys(ctIn, switchkey, ctOut)
+	eval.ApplyEvaluationKey(ctIn, evk, ctOut)
 	return
 }
 
@@ -548,10 +547,10 @@ func (eval *evaluator) ShallowCopy() Evaluator {
 
 // WithKey creates a shallow copy of this evaluator in which the read-only data-structures are
 // shared with the receiver but the EvaluationKey is evaluationKey.
-func (eval *evaluator) WithKey(evaluationKey rlwe.EvaluationKey) Evaluator {
+func (eval *evaluator) WithKey(evk rlwe.EvaluationKeySetInterface) Evaluator {
 	return &evaluator{
 		evaluatorBase:       eval.evaluatorBase,
-		Evaluator:           eval.Evaluator.WithKey(&evaluationKey),
+		Evaluator:           eval.Evaluator.WithKey(evk),
 		evaluatorBuffers:    eval.evaluatorBuffers,
 		basisExtenderQ1toQ2: eval.basisExtenderQ1toQ2,
 	}

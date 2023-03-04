@@ -330,25 +330,3 @@ func SliceBitReverseInPlaceRingComplex(slice []*ring.Complex, N int) {
 		}
 	}
 }
-
-// GenSwitchkeysRescalingParams generates the parameters for rescaling the switching keys
-func GenSwitchkeysRescalingParams(Q, P []uint64) (params []uint64) {
-
-	params = make([]uint64, len(Q))
-
-	PBig := ring.NewUint(1)
-	for _, pj := range P {
-		PBig.Mul(PBig, ring.NewUint(pj))
-	}
-
-	tmp := ring.NewUint(0)
-
-	for i := 0; i < len(Q); i++ {
-
-		params[i] = tmp.Mod(PBig, ring.NewUint(Q[i])).Uint64()
-		params[i] = ring.ModExp(params[i], Q[i]-2, Q[i])
-		params[i] = ring.MForm(params[i], Q[i], ring.BRedConstant(Q[i]))
-	}
-
-	return
-}

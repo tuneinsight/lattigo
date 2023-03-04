@@ -132,12 +132,12 @@ func testbootstrap(params ckks.Parameters, original bool, btpParams Parameters, 
 	t.Run(ParamsToString(params, "Bootstrapping/FullCircuit/"+btpType), func(t *testing.T) {
 
 		kgen := ckks.NewKeyGenerator(params)
-		sk := kgen.GenSecretKey()
+		sk := kgen.GenSecretKeyNew()
 		encoder := ckks.NewEncoder(params)
 		encryptor := ckks.NewEncryptor(params, sk)
 		decryptor := ckks.NewDecryptor(params, sk)
 
-		evk := GenEvaluationKeys(btpParams, params, sk)
+		evk := GenEvaluationKeySetNew(btpParams, params, sk)
 
 		btp, err := NewBootstrapper(params, btpParams, evk)
 		if err != nil {

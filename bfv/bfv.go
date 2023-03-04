@@ -51,7 +51,7 @@ func NewDecryptor(params Parameters, key *rlwe.SecretKey) rlwe.Decryptor {
 	return rlwe.NewDecryptor(params.Parameters, key)
 }
 
-func NewKeyGenerator(params Parameters) rlwe.KeyGenerator {
+func NewKeyGenerator(params Parameters) *rlwe.KeyGenerator {
 	return rlwe.NewKeyGenerator(params.Parameters)
 }
 

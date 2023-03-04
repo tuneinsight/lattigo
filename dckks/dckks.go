@@ -20,10 +20,10 @@ func NewRKGProtocol(params ckks.Parameters) *drlwe.RKGProtocol {
 	return drlwe.NewRKGProtocol(params.Parameters)
 }
 
-// NewRTGProtocol creates a new drlwe.RTGProtocol instance from the CKKS parameters.
+// NewGKGProtocol creates a new drlwe.GKGProtocol instance from the CKKS parameters.
 // The returned protocol instance is generic and can be used in other multiparty schemes.
-func NewRTGProtocol(params ckks.Parameters) *drlwe.RTGProtocol {
-	return drlwe.NewRTGProtocol(params.Parameters)
+func NewGKGProtocol(params ckks.Parameters) *drlwe.GKGProtocol {
+	return drlwe.NewGKGProtocol(params.Parameters)
 }
 
 // NewCKSProtocol creates a new drlwe.CKSProtocol instance from the CKKS parameters.

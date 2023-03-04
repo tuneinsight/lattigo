@@ -3,7 +3,6 @@ package drlwe
 import (
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
-	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
@@ -17,12 +16,10 @@ type PCKSProtocol struct {
 	params        rlwe.Parameters
 	sigmaSmudging float64
 
-	tmpQP ringqp.Poly
-	tmpP  [2]*ring.Poly
+	buff *ring.Poly
 
-	basisExtender             *ring.BasisExtender
-	gaussianSampler           *ring.GaussianSampler
-	ternarySamplerMontgomeryQ *ring.TernarySampler
+	rlwe.Encryptor
+	gaussianSampler *ring.GaussianSampler
 }
 
 // ShallowCopy creates a shallow copy of PCKSProtocol in which all the read-only data-structures are
@@ -36,19 +33,12 @@ func (pcks *PCKSProtocol) ShallowCopy() *PCKSProtocol {
 
 	params := pcks.params
 
-	var tmpP [2]*ring.Poly
-	if params.RingP() != nil {
-		tmpP = [2]*ring.Poly{params.RingP().NewPoly(), params.RingP().NewPoly()}
-	}
-
 	return &PCKSProtocol{
-		params:                    params,
-		sigmaSmudging:             pcks.sigmaSmudging,
-		tmpQP:                     params.RingQP().NewPoly(),
-		tmpP:                      tmpP,
-		basisExtender:             pcks.basisExtender.ShallowCopy(),
-		gaussianSampler:           ring.NewGaussianSampler(prng, params.RingQ(), pcks.sigmaSmudging, int(6*pcks.sigmaSmudging)),
-		ternarySamplerMontgomeryQ: ring.NewTernarySamplerWithHammingWeight(prng, params.RingQ(), params.HammingWeight(), false),
+		params:          params,
+		Encryptor:       rlwe.NewEncryptor(params, nil),
+		sigmaSmudging:   pcks.sigmaSmudging,
+		buff:            params.RingQ().NewPoly(),
+		gaussianSampler: ring.NewGaussianSampler(prng, params.RingQ(), pcks.sigmaSmudging, int(6*pcks.sigmaSmudging)),
 	}
 }
 
@@ -59,19 +49,16 @@ func NewPCKSProtocol(params rlwe.Parameters, sigmaSmudging float64) (pcks *PCKSP
 	pcks.params = params
 	pcks.sigmaSmudging = sigmaSmudging
 
-	pcks.tmpQP = params.RingQP().NewPoly()
-
-	if params.RingP() != nil {
-		pcks.basisExtender = ring.NewBasisExtender(params.RingQ(), params.RingP())
-		pcks.tmpP = [2]*ring.Poly{params.RingP().NewPoly(), params.RingP().NewPoly()}
-	}
+	pcks.buff = params.RingQ().NewPoly()
 
 	prng, err := utils.NewPRNG()
 	if err != nil {
 		panic(err)
 	}
+
+	pcks.Encryptor = rlwe.NewEncryptor(params, nil)
+
 	pcks.gaussianSampler = ring.NewGaussianSampler(prng, params.RingQ(), sigmaSmudging, int(6*sigmaSmudging))
-	pcks.ternarySamplerMontgomeryQ = ring.NewTernarySamplerWithHammingWeight(prng, params.RingQ(), params.HammingWeight(), false)
 
 	return pcks
 }
@@ -83,74 +70,35 @@ func (pcks *PCKSProtocol) AllocateShare(levelQ int) (s *PCKSShare) {
 
 // GenShare computes a party's share in the PCKS protocol from secret-key sk to public-key pk.
 // ct is the rlwe.Ciphertext to keyswitch. Note that ct.Value[0] is not used by the function and can be nil/zero.
+//
+// Expected noise: ctNoise + encFreshPk + smudging
 func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct *rlwe.Ciphertext, shareOut *PCKSShare) {
 
-	ct1 := ct.Value[1]
+	levelQ := utils.MinInt(shareOut.Value[0].Level(), ct.Value[1].Level())
 
-	levelQ := utils.MinInt(shareOut.Value[0].Level(), ct1.Level())
-	levelP := sk.LevelP()
+	ringQ := pcks.params.RingQ().AtLevel(levelQ)
 
-	ringQP := pcks.params.RingQP().AtLevel(levelQ, levelP)
-	ringQ := ringQP.RingQ
-	ringP := ringQP.RingP
+	// Encrypt zero
+	pcks.Encryptor.WithKey(pk).EncryptZero(&rlwe.Ciphertext{
+		Value: []*ring.Poly{
+			shareOut.Value[0],
+			shareOut.Value[1],
+		},
+		MetaData: ct.MetaData,
+	})
 
-	// samples MForm(u_i) in Q and P separately
-	pcks.ternarySamplerMontgomeryQ.AtLevel(levelQ).Read(pcks.tmpQP.Q)
-
-	if ringP != nil {
-		ringQP.ExtendBasisSmallNormAndCenter(pcks.tmpQP.Q, levelP, nil, pcks.tmpQP.P)
-	}
-
-	ringQP.NTT(pcks.tmpQP, pcks.tmpQP)
-
-	shareOutQP0 := ringqp.Poly{Q: shareOut.Value[0], P: pcks.tmpP[0]}
-	shareOutQP1 := ringqp.Poly{Q: shareOut.Value[1], P: pcks.tmpP[1]}
-
-	// h_0 = u_i * pk_0
-	// h_1 = u_i * pk_1
-	ringQP.MulCoeffsMontgomery(pcks.tmpQP, pk.Value[0], shareOutQP0)
-	ringQP.MulCoeffsMontgomery(pcks.tmpQP, pk.Value[1], shareOutQP1)
-
-	ringQP.INTT(shareOutQP0, shareOutQP0)
-	ringQP.INTT(shareOutQP1, shareOutQP1)
-
-	// h_0 = u_i * pk_0
-	pcks.gaussianSampler.AtLevel(levelQ).Read(pcks.tmpQP.Q)
-	if ringP != nil {
-		ringQP.ExtendBasisSmallNormAndCenter(pcks.tmpQP.Q, levelP, nil, pcks.tmpQP.P)
-	}
-
-	ringQP.Add(shareOutQP0, pcks.tmpQP, shareOutQP0)
-
-	// h_1 = u_i * pk_1 + e1
-	pcks.gaussianSampler.AtLevel(levelQ).Read(pcks.tmpQP.Q)
-	if ringP != nil {
-		ringQP.ExtendBasisSmallNormAndCenter(pcks.tmpQP.Q, levelP, nil, pcks.tmpQP.P)
-	}
-
-	ringQP.Add(shareOutQP1, pcks.tmpQP, shareOutQP1)
-
-	if ringP != nil {
-		// h_0 = (u_i * pk_0 + e0)/P
-		pcks.basisExtender.ModDownQPtoQ(levelQ, levelP, shareOutQP0.Q, shareOutQP0.P, shareOutQP0.Q)
-
-		// h_1 = (u_i * pk_1 + e1)/P
-		pcks.basisExtender.ModDownQPtoQ(levelQ, levelP, shareOutQP1.Q, shareOutQP1.P, shareOutQP1.Q)
-	}
-
-	// h_0 = s_i*c_1 + (u_i * pk_0 + e0)/P
+	// Add ct[1] * s and noise
 	if ct.IsNTT {
-		ringQ.NTT(shareOut.Value[0], shareOut.Value[0])
-		ringQ.NTT(shareOut.Value[1], shareOut.Value[1])
-		ringQ.MulCoeffsMontgomeryThenAdd(ct1, sk.Value.Q, shareOut.Value[0])
+		ringQ.MulCoeffsMontgomeryThenAdd(ct.Value[1], sk.Value.Q, shareOut.Value[0])
+		pcks.gaussianSampler.Read(pcks.buff)
+		ringQ.NTT(pcks.buff, pcks.buff)
+		ringQ.Add(shareOut.Value[0], pcks.buff, shareOut.Value[0])
 	} else {
-		// tmp = s_i*c_1
-		ringQ.NTTLazy(ct1, pcks.tmpQP.Q)
-		ringQ.MulCoeffsMontgomeryLazy(pcks.tmpQP.Q, sk.Value.Q, pcks.tmpQP.Q)
-		ringQ.INTT(pcks.tmpQP.Q, pcks.tmpQP.Q)
-
-		// h_0 = s_i*c_1 + (u_i * pk_0 + e0)/P
-		ringQ.Add(shareOut.Value[0], pcks.tmpQP.Q, shareOut.Value[0])
+		ringQ.NTTLazy(ct.Value[1], pcks.buff)
+		ringQ.MulCoeffsMontgomeryLazy(pcks.buff, sk.Value.Q, pcks.buff)
+		ringQ.INTT(pcks.buff, pcks.buff)
+		pcks.gaussianSampler.ReadAndAdd(pcks.buff)
+		ringQ.Add(shareOut.Value[0], pcks.buff, shareOut.Value[0])
 	}
 }
 

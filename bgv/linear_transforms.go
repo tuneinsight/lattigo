@@ -1,6 +1,7 @@
 package bgv
 
 import (
+	"fmt"
 	"runtime"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
@@ -500,8 +501,9 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix Linear
 	ct0TimesP := eval.BuffQP[0].Q // ct0 * P mod Q
 	tmp0QP := eval.BuffQP[1]
 	tmp1QP := eval.BuffQP[2]
-	ksRes0QP := eval.BuffQP[3]
-	ksRes1QP := eval.BuffQP[4]
+
+	cQP := rlwe.CiphertextQP{Value: [2]ringqp.Poly{eval.BuffQP[3], eval.BuffQP[4]}}
+	cQP.IsNTT = true
 
 	ring.Copy(ctIn.Value[0], eval.buffCt.Value[0])
 	ring.Copy(ctIn.Value[1], eval.buffCt.Value[1])
@@ -521,17 +523,22 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix Linear
 
 			galEl := eval.params.GaloisElementForColumnRotationBy(k)
 
-			rtk, generated := eval.Rtks.Keys[galEl]
-			if !generated {
-				panic("cannot MultiplyByDiagMatrix: switching key not available")
+			var rtk *rlwe.GaloisKey
+			var err error
+			if eval.EvaluationKeySetInterface != nil {
+				if rtk, err = eval.GetGaloisKey(galEl); err != nil {
+					panic(fmt.Errorf("MultiplyByDiagMatrix: %w", err))
+				}
+			} else {
+				panic(fmt.Errorf("MultiplyByDiagMatrix: EvaluationKeySetInterface is nil"))
 			}
 
-			index := eval.PermuteNTTIndex[galEl]
+			index := eval.AutomorphismIndex[galEl]
 
-			eval.KeyswitchHoistedLazy(levelQ, BuffDecompQP, rtk, ksRes0QP.Q, ksRes1QP.Q, ksRes0QP.P, ksRes1QP.P)
-			ringQ.Add(ksRes0QP.Q, ct0TimesP, ksRes0QP.Q)
-			ringQP.PermuteNTTWithIndex(ksRes0QP, index, tmp0QP)
-			ringQP.PermuteNTTWithIndex(ksRes1QP, index, tmp1QP)
+			eval.GadgetProductHoistedLazy(levelQ, BuffDecompQP, rtk.GadgetCiphertext, cQP)
+			ringQ.Add(cQP.Value[0].Q, ct0TimesP, cQP.Value[0].Q)
+			ringQP.AutomorphismNTTWithIndex(cQP.Value[0], index, tmp0QP)
+			ringQP.AutomorphismNTTWithIndex(cQP.Value[1], index, tmp1QP)
 
 			if cnt == 0 {
 				// keyswitch(c1_Q) = (d0_QP, d1_QP)
@@ -604,7 +611,7 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Li
 	ctInTmp0, ctInTmp1 := eval.buffCt.Value[0], eval.buffCt.Value[1]
 
 	// Pre-rotates ciphertext for the baby-step giant-step algorithm, does not divide by P yet
-	ctInRotQP := eval.RotateHoistedLazyNew(levelQ, rotN2, ctInTmp0, eval.BuffDecompQP)
+	ctInRotQP := eval.RotateHoistedLazyNew(levelQ, rotN2, eval.buffCt, eval.BuffDecompQP)
 
 	// Accumulator inner loop
 	tmp0QP := eval.BuffQP[1]
@@ -679,24 +686,28 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Li
 
 			galEl := eval.params.GaloisElementForColumnRotationBy(j)
 
-			rtk, generated := eval.Rtks.Keys[galEl]
-			if !generated {
-				panic("cannot MultiplyByDiagMatrixBSGS: switching key not available")
+			var rtk *rlwe.GaloisKey
+			var err error
+			if eval.EvaluationKeySetInterface != nil {
+				if rtk, err = eval.GetGaloisKey(galEl); err != nil {
+					panic(fmt.Errorf("MultiplyByDiagMatrix: %w", err))
+				}
+			} else {
+				panic(fmt.Errorf("MultiplyByDiagMatrix: EvaluationKeySetInterface is nil"))
 			}
+			rotIndex := eval.AutomorphismIndex[galEl]
 
-			rotIndex := eval.PermuteNTTIndex[galEl]
-
-			eval.GadgetProductLazy(levelQ, tmp1QP.Q, rtk.GadgetCiphertext, cQP) // Switchkey(P*phi(tmpRes_1)) = (d0, d1) in base QP
+			eval.GadgetProductLazy(levelQ, tmp1QP.Q, rtk.GadgetCiphertext, cQP) // EvaluationKey(P*phi(tmpRes_1)) = (d0, d1) in base QP
 			ringQP.Add(cQP.Value[0], tmp0QP, cQP.Value[0])
 
 			// Outer loop rotations
 			if cnt0 == 0 {
 
-				ringQP.PermuteNTTWithIndex(cQP.Value[0], rotIndex, c0OutQP)
-				ringQP.PermuteNTTWithIndex(cQP.Value[1], rotIndex, c1OutQP)
+				ringQP.AutomorphismNTTWithIndex(cQP.Value[0], rotIndex, c0OutQP)
+				ringQP.AutomorphismNTTWithIndex(cQP.Value[1], rotIndex, c1OutQP)
 			} else {
-				ringQP.PermuteNTTWithIndexThenAddLazy(cQP.Value[0], rotIndex, c0OutQP)
-				ringQP.PermuteNTTWithIndexThenAddLazy(cQP.Value[1], rotIndex, c1OutQP)
+				ringQP.AutomorphismNTTWithIndexThenAddLazy(cQP.Value[0], rotIndex, c0OutQP)
+				ringQP.AutomorphismNTTWithIndexThenAddLazy(cQP.Value[1], rotIndex, c1OutQP)
 			}
 
 			// Else directly adds on ((cQP.Value[0].Q, cQP.Value[0].P), (cQP.Value[1].Q, cQP.Value[1].P))

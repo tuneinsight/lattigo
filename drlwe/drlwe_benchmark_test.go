@@ -5,41 +5,51 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 func BenchmarkDRLWE(b *testing.B) {
 
-	defaultParams := []rlwe.ParametersLiteral{rlwe.TestPN12QP109, rlwe.TestPN13QP218, rlwe.TestPN14QP438, rlwe.TestPN15QP880}
 	thresholdInc := 5
 
-	if testing.Short() {
-		defaultParams = defaultParams[:2]
-		thresholdInc = 5
-	}
+	var err error
+
+	defaultParamsLiteral := rlwe.TestParamsLiteral[:]
 
 	if *flagParamString != "" {
 		var jsonParams rlwe.ParametersLiteral
-		json.Unmarshal([]byte(*flagParamString), &jsonParams)
-		defaultParams = []rlwe.ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
+		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
+			b.Fatal(err)
+		}
+		defaultParamsLiteral = []rlwe.ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
-	for _, p := range defaultParams {
-		params, err := rlwe.NewParametersFromLiteral(p)
-		if err != nil {
-			panic(err)
+	for _, paramsLit := range defaultParamsLiteral {
+
+		for _, DefaultNTTFlag := range []bool{true, false} {
+
+			for _, RingType := range []ring.Type{ring.Standard, ring.ConjugateInvariant}[:] {
+
+				paramsLit.DefaultNTTFlag = DefaultNTTFlag
+				paramsLit.RingType = RingType
+
+				var params rlwe.Parameters
+				if params, err = rlwe.NewParametersFromLiteral(paramsLit); err != nil {
+					b.Fatal(err)
+				}
+
+				benchPublicKeyGen(params, b)
+				benchRelinKeyGen(params, b)
+				benchRotKeyGen(params, b)
+
+				// Varying t
+				for t := 2; t <= 19; t += thresholdInc {
+					benchThreshold(params, t, b)
+				}
+			}
 		}
-
-		benchPublicKeyGen(params, b)
-		benchRelinKeyGen(params, b)
-		benchRotKeyGen(params, b)
-
-		// Varying t
-		for t := 2; t <= 19; t += thresholdInc {
-			benchThreshold(params, t, b)
-		}
-
 	}
 }
 
@@ -50,7 +60,7 @@ func benchString(opname string, params rlwe.Parameters) string {
 func benchPublicKeyGen(params rlwe.Parameters, b *testing.B) {
 
 	ckg := NewCKGProtocol(params)
-	sk := rlwe.NewKeyGenerator(params).GenSecretKey()
+	sk := rlwe.NewKeyGenerator(params).GenSecretKeyNew()
 	s1 := ckg.AllocateShare()
 	crs, _ := utils.NewPRNG()
 
@@ -81,9 +91,9 @@ func benchPublicKeyGen(params rlwe.Parameters, b *testing.B) {
 func benchRelinKeyGen(params rlwe.Parameters, b *testing.B) {
 
 	rkg := NewRKGProtocol(params)
-	sk := rlwe.NewKeyGenerator(params).GenSecretKey()
+	sk := rlwe.NewKeyGenerator(params).GenSecretKeyNew()
 	ephSk, share1, share2 := rkg.AllocateShare()
-	rlk := rlwe.NewRelinearizationKey(params, 2)
+	rlk := rlwe.NewRelinearizationKey(params)
 	crs, _ := utils.NewPRNG()
 
 	crp := rkg.SampleCRP(crs)
@@ -115,8 +125,8 @@ func benchRelinKeyGen(params rlwe.Parameters, b *testing.B) {
 
 func benchRotKeyGen(params rlwe.Parameters, b *testing.B) {
 
-	rtg := NewRTGProtocol(params)
-	sk := rlwe.NewKeyGenerator(params).GenSecretKey()
+	rtg := NewGKGProtocol(params)
+	sk := rlwe.NewKeyGenerator(params).GenSecretKeyNew()
 	share := rtg.AllocateShare()
 	crs, _ := utils.NewPRNG()
 	crp := rtg.SampleCRP(crs)
@@ -135,10 +145,10 @@ func benchRotKeyGen(params rlwe.Parameters, b *testing.B) {
 		}
 	})
 
-	rotKey := rlwe.NewSwitchingKey(params, params.MaxLevelQ(), params.MaxLevelP())
+	gkey := rlwe.NewGaloisKey(params)
 	b.Run(benchString("RotKeyGen/Finalize", params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			rtg.GenRotationKey(share, crp, rotKey)
+			rtg.GenGaloisKey(share, crp, gkey)
 		}
 	})
 }

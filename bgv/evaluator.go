@@ -57,7 +57,7 @@ type Evaluator interface {
 	EvaluatePoly(input interface{}, pol *Polynomial, targetScale rlwe.Scale) (ctOut *rlwe.Ciphertext, err error)
 	EvaluatePolyVector(input interface{}, pols []*Polynomial, encoder Encoder, slotIndex map[int][]int, targetScale rlwe.Scale) (ctOut *rlwe.Ciphertext, err error)
 
-	// TODO
+	// LinearTransform
 	LinearTransformNew(ctIn *rlwe.Ciphertext, linearTransform interface{}) (ctOut []*rlwe.Ciphertext)
 	LinearTransform(ctIn *rlwe.Ciphertext, linearTransform interface{}, ctOut []*rlwe.Ciphertext)
 	MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix LinearTransform, c2DecompQP []ringqp.Poly, ctOut *rlwe.Ciphertext)
@@ -65,12 +65,11 @@ type Evaluator interface {
 	InnerSum(ctIn *rlwe.Ciphertext, batch, n int, ctOut *rlwe.Ciphertext)
 	Replicate(ctIn *rlwe.Ciphertext, batch, n int, ctOut *rlwe.Ciphertext)
 
-	// Key-Switching
-	SwitchKeysNew(ctIn *rlwe.Ciphertext, swk *rlwe.SwitchingKey) (ctOut *rlwe.Ciphertext)
-	SwitchKeys(ctIn *rlwe.Ciphertext, swk *rlwe.SwitchingKey, ctOut *rlwe.Ciphertext)
+	ApplyEvaluationKeyNew(ctIn *rlwe.Ciphertext, evk *rlwe.EvaluationKey) (ctOut *rlwe.Ciphertext)
+	ApplyEvaluationKey(ctIn *rlwe.Ciphertext, evk *rlwe.EvaluationKey, ctOut *rlwe.Ciphertext)
 	Automorphism(ctIn *rlwe.Ciphertext, galEl uint64, ctOut *rlwe.Ciphertext)
 	AutomorphismHoisted(level int, ctIn *rlwe.Ciphertext, c1DecompQP []ringqp.Poly, galEl uint64, ctOut *rlwe.Ciphertext)
-	RotateHoistedLazyNew(level int, rotations []int, c0 *ring.Poly, c2DecompQP []ringqp.Poly) (cOut map[int]rlwe.CiphertextQP)
+	RotateHoistedLazyNew(level int, rotations []int, ctIn *rlwe.Ciphertext, c2DecompQP []ringqp.Poly) (cOut map[int]rlwe.CiphertextQP)
 	Merge(ctIn map[int]*rlwe.Ciphertext) (ctOut *rlwe.Ciphertext)
 
 	// Others
@@ -78,8 +77,8 @@ type Evaluator interface {
 	CheckUnary(op0, opOut rlwe.Operand) (degree, level int)
 	GetRLWEEvaluator() *rlwe.Evaluator
 	BuffQ() [3]*ring.Poly
-	ShallowCopy() Evaluator
-	WithKey(rlwe.EvaluationKey) Evaluator
+	ShallowCopy() (eval Evaluator)
+	WithKey(evk rlwe.EvaluationKeySetInterface) (eval Evaluator)
 }
 
 // evaluator is a struct that holds the necessary elements to perform the homomorphic operations between ciphertexts and/or plaintexts.
@@ -139,11 +138,11 @@ func newEvaluatorBuffer(eval *evaluatorBase) *evaluatorBuffers {
 // NewEvaluator creates a new Evaluator, that can be used to do homomorphic
 // operations on ciphertexts and/or plaintexts. It stores a memory buffer
 // and ciphertexts that will be used for intermediate values.
-func NewEvaluator(params Parameters, evaluationKey rlwe.EvaluationKey) Evaluator {
+func NewEvaluator(params Parameters, evk rlwe.EvaluationKeySetInterface) Evaluator {
 	ev := new(evaluator)
 	ev.evaluatorBase = newEvaluatorPrecomp(params)
 	ev.evaluatorBuffers = newEvaluatorBuffer(ev.evaluatorBase)
-	ev.Evaluator = rlwe.NewEvaluator(params.Parameters, &evaluationKey)
+	ev.Evaluator = rlwe.NewEvaluator(params.Parameters, evk)
 
 	return ev
 }
@@ -160,10 +159,10 @@ func (eval *evaluator) ShallowCopy() Evaluator {
 
 // WithKey creates a shallow copy of this evaluator in which the read-only data-structures are
 // shared with the receiver but the EvaluationKey is evaluationKey.
-func (eval *evaluator) WithKey(evaluationKey rlwe.EvaluationKey) Evaluator {
+func (eval *evaluator) WithKey(evk rlwe.EvaluationKeySetInterface) Evaluator {
 	return &evaluator{
 		evaluatorBase:    eval.evaluatorBase,
-		Evaluator:        eval.Evaluator.WithKey(&evaluationKey),
+		Evaluator:        eval.Evaluator.WithKey(evk),
 		evaluatorBuffers: eval.evaluatorBuffers,
 	}
 }
@@ -473,14 +472,20 @@ func (eval *evaluator) mulRelin(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, relin b
 
 		if relin {
 
-			if eval.Rlk == nil {
-				panic("cannot MulRelin: relinerization key is missing")
+			var rlk *rlwe.RelinearizationKey
+			var err error
+			if eval.EvaluationKeySetInterface != nil {
+				if rlk, err = eval.GetRelinearizationKey(); err != nil {
+					panic(fmt.Errorf("cannot MulRelin: %w", err))
+				}
+			} else {
+				panic(fmt.Errorf("cannot MulRelin: EvaluationKeySet is nil"))
 			}
 
 			tmpCt := &rlwe.Ciphertext{Value: []*ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}}
 			tmpCt.IsNTT = true
 
-			eval.GadgetProduct(level, c2, eval.Rlk.Keys[0].GadgetCiphertext, tmpCt)
+			eval.GadgetProduct(level, c2, rlk.GadgetCiphertext, tmpCt)
 
 			ringQ.Add(ctOut.Value[0], tmpCt.Value[0], ctOut.Value[0])
 			ringQ.Add(ctOut.Value[1], tmpCt.Value[1], ctOut.Value[1])
@@ -584,16 +589,21 @@ func (eval *evaluator) mulRelinThenAdd(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, 
 
 		if relin {
 
-			if eval.Rlk == nil {
-				panic("cannot MulRelinThenAdd: relinerization key is missing")
+			var rlk *rlwe.RelinearizationKey
+			var err error
+			if eval.EvaluationKeySetInterface != nil {
+				if rlk, err = eval.GetRelinearizationKey(); err != nil {
+					panic(fmt.Errorf("cannot MulRelin: %w", err))
+				}
+			} else {
+				panic(fmt.Errorf("cannot MulRelin: EvaluationKeySet is nil"))
 			}
-
 			ringQ.MulCoeffsMontgomery(c01, tmp1.Value[1], c2) // c2 += c[1]*c[1]
 
 			tmpCt := &rlwe.Ciphertext{Value: []*ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}}
 			tmpCt.IsNTT = true
 
-			eval.GadgetProduct(level, c2, eval.Rlk.Keys[0].GadgetCiphertext, tmpCt)
+			eval.GadgetProduct(level, c2, rlk.GadgetCiphertext, tmpCt)
 
 			ringQ.Add(ctOut.Value[0], tmpCt.Value[0], ctOut.Value[0])
 			ringQ.Add(ctOut.Value[1], tmpCt.Value[1], ctOut.Value[1])
@@ -672,13 +682,13 @@ func (eval *evaluator) RelinearizeNew(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Cipher
 	return
 }
 
-// SwitchKeysNew re-encrypts ctIn under a different key and returns the result in a new ctOut.
-// It requires a SwitchingKey, which is computed from the key under which the Ciphertext is currently encrypted,
+// ApplyEvaluationKeyNew re-encrypts ctIn under a different key and returns the result in a new ctOut.
+// It requires a EvaluationKey, which is computed from the key under which the Ciphertext is currently encrypted,
 // and the key under which the Ciphertext will be re-encrypted.
 // The procedure will panic if either ctIn.Degree() or ctOut.Degree() != 1.
-func (eval *evaluator) SwitchKeysNew(ctIn *rlwe.Ciphertext, swk *rlwe.SwitchingKey) (ctOut *rlwe.Ciphertext) {
+func (eval *evaluator) ApplyEvaluationKeyNew(ctIn *rlwe.Ciphertext, evk *rlwe.EvaluationKey) (ctOut *rlwe.Ciphertext) {
 	ctOut = NewCiphertext(eval.params, ctIn.Degree(), ctIn.Level())
-	eval.SwitchKeys(ctIn, swk, ctOut)
+	eval.ApplyEvaluationKey(ctIn, evk, ctOut)
 	return
 }
 
@@ -714,12 +724,12 @@ func (eval *evaluator) RotateRows(ctIn *rlwe.Ciphertext, ctOut *rlwe.Ciphertext)
 	eval.Automorphism(ctIn, eval.params.GaloisElementForRowRotation(), ctOut)
 }
 
-func (eval *evaluator) RotateHoistedLazyNew(level int, rotations []int, c0 *ring.Poly, c2DecompQP []ringqp.Poly) (cOut map[int]rlwe.CiphertextQP) {
+func (eval *evaluator) RotateHoistedLazyNew(level int, rotations []int, ctIn *rlwe.Ciphertext, c2DecompQP []ringqp.Poly) (cOut map[int]rlwe.CiphertextQP) {
 	cOut = make(map[int]rlwe.CiphertextQP)
 	for _, i := range rotations {
 		if i != 0 {
 			cOut[i] = rlwe.NewCiphertextQP(eval.params.Parameters, level, eval.params.MaxLevelP())
-			eval.AutomorphismHoistedLazy(level, c0, c2DecompQP, eval.params.GaloisElementForColumnRotationBy(i), cOut[i])
+			eval.AutomorphismHoistedLazy(level, ctIn, c2DecompQP, eval.params.GaloisElementForColumnRotationBy(i), cOut[i])
 		}
 	}
 

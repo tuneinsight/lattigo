@@ -150,7 +150,7 @@ func testCoeffsToSlots(params ckks.Parameters, t *testing.T) {
 		}
 
 		kgen := ckks.NewKeyGenerator(params)
-		sk := kgen.GenSecretKey()
+		sk := kgen.GenSecretKeyNew()
 		encoder := ckks.NewEncoder(params)
 		encryptor := ckks.NewEncryptor(params, sk)
 		decryptor := ckks.NewDecryptor(params, sk)
@@ -158,14 +158,22 @@ func testCoeffsToSlots(params ckks.Parameters, t *testing.T) {
 		// Generates the encoding matrices
 		CoeffsToSlotMatrices := NewHomomorphicDFTMatrixFromLiteral(CoeffsToSlotsParametersLiteral, encoder)
 
-		// Gets the rotations indexes for CoeffsToSlots
-		rotations := CoeffsToSlotsParametersLiteral.Rotations()
+		// Gets Galois elements
+		galEls := CoeffsToSlotsParametersLiteral.GaloisElements(params)
 
-		// Generates the rotation keys
-		rotKey := kgen.GenRotationKeysForRotations(rotations, true, sk)
+		// Instantiates the EvaluationKeySet
+		evk := rlwe.NewEvaluationKeySet()
+
+		// Generates and adds the keys
+		for _, galEl := range galEls {
+			evk.Add(kgen.GenGaloisKeyNew(galEl, sk))
+		}
+
+		// Also adds the conjugate key
+		evk.Add(kgen.GenGaloisKeyNew(params.GaloisElementForRowRotation(), sk))
 
 		// Creates an evaluator with the rotation keys
-		eval := NewEvaluator(params, rlwe.EvaluationKey{Rlk: nil, Rtks: rotKey})
+		eval := NewEvaluator(params, evk)
 
 		// Generates the vector of random complex values
 		values := make([]complex128, params.Slots())
@@ -309,7 +317,7 @@ func testSlotsToCoeffs(params ckks.Parameters, t *testing.T) {
 		}
 
 		kgen := ckks.NewKeyGenerator(params)
-		sk := kgen.GenSecretKey()
+		sk := kgen.GenSecretKeyNew()
 		encoder := ckks.NewEncoder(params)
 		encryptor := ckks.NewEncryptor(params, sk)
 		decryptor := ckks.NewDecryptor(params, sk)
@@ -317,14 +325,22 @@ func testSlotsToCoeffs(params ckks.Parameters, t *testing.T) {
 		// Generates the encoding matrices
 		SlotsToCoeffsMatrix := NewHomomorphicDFTMatrixFromLiteral(SlotsToCoeffsParametersLiteral, encoder)
 
-		// Gets the rotations indexes for SlotsToCoeffs
-		rotations := SlotsToCoeffsParametersLiteral.Rotations()
+		// Gets the Galois elements
+		galEls := SlotsToCoeffsParametersLiteral.GaloisElements(params)
 
-		// Generates the rotation keys
-		rotKey := kgen.GenRotationKeysForRotations(rotations, true, sk)
+		// Instantiates the EvaluationKeySet
+		evk := rlwe.NewEvaluationKeySet()
+
+		// Generates and adds the keys
+		for _, galEl := range galEls {
+			evk.Add(kgen.GenGaloisKeyNew(galEl, sk))
+		}
+
+		// Also adds the conjugate key
+		evk.Add(kgen.GenGaloisKeyNew(params.GaloisElementForRowRotation(), sk))
 
 		// Creates an evaluator with the rotation keys
-		eval := NewEvaluator(params, rlwe.EvaluationKey{Rlk: nil, Rtks: rotKey})
+		eval := NewEvaluator(params, evk)
 
 		// Generates the n first slots of the test vector (real part to encode)
 		valuesReal := make([]complex128, params.Slots())

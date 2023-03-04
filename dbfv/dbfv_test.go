@@ -121,7 +121,7 @@ func gentestContext(params bfv.Parameters, parties int) (tc *testContext, err er
 	tc.uniformSampler = ring.NewUniformSampler(prng, params.RingQ())
 
 	tc.encoder = bfv.NewEncoder(tc.params)
-	tc.evaluator = bfv.NewEvaluator(tc.params, rlwe.EvaluationKey{})
+	tc.evaluator = bfv.NewEvaluator(tc.params, nil)
 
 	kgen := bfv.NewKeyGenerator(tc.params)
 
@@ -134,15 +134,15 @@ func gentestContext(params bfv.Parameters, parties int) (tc *testContext, err er
 
 	ringQP := params.RingQP()
 	for j := 0; j < parties; j++ {
-		tc.sk0Shards[j] = kgen.GenSecretKey()
-		tc.sk1Shards[j] = kgen.GenSecretKey()
+		tc.sk0Shards[j] = kgen.GenSecretKeyNew()
+		tc.sk1Shards[j] = kgen.GenSecretKeyNew()
 		ringQP.Add(tc.sk0.Value, tc.sk0Shards[j].Value, tc.sk0.Value)
 		ringQP.Add(tc.sk1.Value, tc.sk1Shards[j].Value, tc.sk1.Value)
 	}
 
 	// Publickeys
-	tc.pk0 = kgen.GenPublicKey(tc.sk0)
-	tc.pk1 = kgen.GenPublicKey(tc.sk1)
+	tc.pk0 = kgen.GenPublicKeyNew(tc.sk0)
+	tc.pk1 = kgen.GenPublicKeyNew(tc.sk1)
 
 	tc.encryptorPk0 = bfv.NewEncryptor(tc.params, tc.pk0)
 	tc.decryptorSk0 = bfv.NewDecryptor(tc.params, tc.sk0)
@@ -230,7 +230,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 
 	kgen := bfv.NewKeyGenerator(tc.params)
 
-	rlk := kgen.GenRelinearizationKey(tc.sk0, 1)
+	rlk := kgen.GenRelinearizationKeyNew(tc.sk0)
 
 	t.Run(testString("Refresh", tc.NParties, tc.params), func(t *testing.T) {
 
@@ -267,7 +267,10 @@ func testRefresh(tc *testContext, t *testing.T) {
 
 		copy(coeffsTmp, coeffs)
 
-		evaluator := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: rlk, Rtks: nil})
+		evk := rlwe.NewEvaluationKeySet()
+		evk.Add(rlk)
+
+		evaluator := tc.evaluator.WithKey(evk)
 		// Finds the maximum multiplicative depth
 		for {
 
@@ -456,7 +459,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 
 			p.sIn = sk0Shards[i]
 
-			p.sOut = kgenParamsOut.GenSecretKey() // New shared secret key in target parameters
+			p.sOut = kgenParamsOut.GenSecretKeyNew() // New shared secret key in target parameters
 			paramsOut.RingQ().Add(skIdealOut.Value.Q, p.sOut.Value.Q, skIdealOut.Value.Q)
 
 			p.share = p.AllocateShare(ciphertext.Level(), paramsOut.MaxLevel())

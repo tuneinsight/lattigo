@@ -67,9 +67,9 @@ func (d *HomomorphicDFTMatrixLiteral) Depth(actual bool) (depth int) {
 	return
 }
 
-// Rotations returns the list of rotations performed during the homomorphic encoding/decoding operations.
-func (d *HomomorphicDFTMatrixLiteral) Rotations() (rotations []int) {
-	rotations = []int{}
+// GaloisElements returns the list of rotations performed during the CoeffsToSlot operation.
+func (d *HomomorphicDFTMatrixLiteral) GaloisElements(params ckks.Parameters) (galEls []uint64) {
+	rotations := []int{}
 
 	logSlots := d.LogSlots
 	logN := d.LogN
@@ -90,7 +90,7 @@ func (d *HomomorphicDFTMatrixLiteral) Rotations() (rotations []int) {
 		rotations = addMatrixRotToList(pVec, rotations, N1, slots, d.Type == Decode && logSlots < logN-1 && i == 0 && d.RepackImag2Real)
 	}
 
-	return
+	return params.GaloisElementsForRotations(rotations)
 }
 
 // NewHomomorphicDFTMatrixFromLiteral generates the factorized DFT/IDFT matrices for the homomorphic encoding/decoding.

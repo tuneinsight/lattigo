@@ -26,9 +26,9 @@ func BenchmarkBootstrap(b *testing.B) {
 	}
 
 	kgen := ckks.NewKeyGenerator(params)
-	sk := kgen.GenSecretKey()
+	sk := kgen.GenSecretKeyNew()
 
-	evk := GenEvaluationKeys(btpParams, params, sk)
+	evk := GenEvaluationKeySetNew(btpParams, params, sk)
 
 	if btp, err = NewBootstrapper(params, btpParams, evk); err != nil {
 		panic(err)

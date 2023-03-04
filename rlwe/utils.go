@@ -8,7 +8,7 @@ import (
 )
 
 // PublicKeyIsCorrect returns true if pk is a correct RLWE public-key for secret-key sk and parameters params.
-func PublicKeyIsCorrect(pk *PublicKey, sk *SecretKey, params Parameters, log2Bound int) bool {
+func PublicKeyIsCorrect(pk *PublicKey, sk *SecretKey, params Parameters, log2Bound float64) bool {
 
 	pk = pk.CopyNew()
 
@@ -20,47 +20,49 @@ func PublicKeyIsCorrect(pk *PublicKey, sk *SecretKey, params Parameters, log2Bou
 	ringQP.INTT(pk.Value[0], pk.Value[0])
 	ringQP.IMForm(pk.Value[0], pk.Value[0])
 
-	if log2Bound <= ringQP.RingQ.Log2OfInnerSum(pk.Value[0].Q) {
+	if log2Bound <= ringQP.RingQ.Log2OfStandardDeviation(pk.Value[0].Q) {
 		return false
 	}
 
-	if ringQP.RingP != nil && log2Bound <= ringQP.RingP.Log2OfInnerSum(pk.Value[0].P) {
+	if ringQP.RingP != nil && log2Bound <= ringQP.RingP.Log2OfStandardDeviation(pk.Value[0].P) {
 		return false
 	}
 
 	return true
 }
 
-// RelinearizationKeyIsCorrect returns true if swk is a correct RLWE relinearization-key for secret-key sk and parameters params.
-func RelinearizationKeyIsCorrect(rlk *SwitchingKey, skIdeal *SecretKey, params Parameters, log2Bound int) bool {
+// RelinearizationKeyIsCorrect returns true if evk is a correct RLWE relinearization-key for secret-key sk and parameters params.
+func RelinearizationKeyIsCorrect(rlk *RelinearizationKey, sk *SecretKey, params Parameters, log2Bound float64) bool {
 	levelQ, levelP := params.MaxLevelQ(), params.MaxLevelP()
-	skIn := skIdeal.CopyNew()
-	skOut := skIdeal.CopyNew()
-	params.RingQP().AtLevel(levelQ, levelP).MulCoeffsMontgomery(skIn.Value, skIn.Value, skIn.Value)
-	return SwitchingKeyIsCorrect(rlk, skIn, skOut, params, log2Bound)
+	sk2 := sk.CopyNew()
+	params.RingQP().AtLevel(levelQ, levelP).MulCoeffsMontgomery(sk2.Value, sk2.Value, sk2.Value)
+	return EvaluationKeyIsCorrect(rlk.EvaluationKey.CopyNew(), sk2, sk, params, log2Bound)
 }
 
-// RotationKeyIsCorrect returns true if swk is a correct RLWE switching-key for galois element galEl, secret-key sk and parameters params.
-func RotationKeyIsCorrect(swk *SwitchingKey, galEl uint64, skIdeal *SecretKey, params Parameters, log2Bound int) bool {
-	swk = swk.CopyNew()
-	skIn := skIdeal.CopyNew()
-	skOut := skIdeal.CopyNew()
-	galElInv := ring.ModExp(galEl, uint64(4*params.N()-1), uint64(4*params.N()))
+// GaloisKeyIsCorrect returns true if evk is a correct EvaluationKey for galois element galEl, secret-key sk and parameters params.
+func GaloisKeyIsCorrect(gk *GaloisKey, sk *SecretKey, params Parameters, log2Bound float64) bool {
+
+	skIn := sk.CopyNew()
+	skOut := sk.CopyNew()
+
+	nthRoot := params.RingQ().NthRoot()
+
+	galElInv := ring.ModExp(gk.GaloisElement, nthRoot-1, nthRoot)
+
 	ringQ, ringP := params.RingQ(), params.RingP()
 
-	ringQ.PermuteNTT(skIdeal.Value.Q, galElInv, skOut.Value.Q)
+	ringQ.AutomorphismNTT(sk.Value.Q, galElInv, skOut.Value.Q)
 	if ringP != nil {
-		ringP.PermuteNTT(skIdeal.Value.P, galElInv, skOut.Value.P)
+		ringP.AutomorphismNTT(sk.Value.P, galElInv, skOut.Value.P)
 	}
 
-	return SwitchingKeyIsCorrect(swk, skIn, skOut, params, log2Bound)
+	return EvaluationKeyIsCorrect(gk.EvaluationKey, skIn, skOut, params, log2Bound)
 }
 
-// SwitchingKeyIsCorrect returns true if swk is a correct RLWE switching-key for input key skIn, output key skOut and parameters params.
-func SwitchingKeyIsCorrect(swk *SwitchingKey, skIn, skOut *SecretKey, params Parameters, log2Bound int) bool {
-	swk = swk.CopyNew()
+// EvaluationKeyIsCorrect returns true if evk is a correct EvaluationKey for input key skIn, output key skOut and parameters params.
+func EvaluationKeyIsCorrect(evk *EvaluationKey, skIn, skOut *SecretKey, params Parameters, log2Bound float64) bool {
+	evk = evk.CopyNew()
 	skIn = skIn.CopyNew()
-	skOut = skOut.CopyNew()
 	levelQ, levelP := params.MaxLevelQ(), params.MaxLevelP()
 	ringQP := params.RingQP().AtLevel(levelQ, levelP)
 	ringQ, ringP := ringQP.RingQ, ringQP.RingP
@@ -68,18 +70,18 @@ func SwitchingKeyIsCorrect(swk *SwitchingKey, skIn, skOut *SecretKey, params Par
 
 	// Decrypts
 	// [-asIn + w*P*sOut + e, a] + [asIn]
-	for i := range swk.Value {
-		for j := range swk.Value[i] {
-			ringQP.MulCoeffsMontgomeryThenAdd(swk.Value[i][j].Value[1], skOut.Value, swk.Value[i][j].Value[0])
+	for i := range evk.Value {
+		for j := range evk.Value[i] {
+			ringQP.MulCoeffsMontgomeryThenAdd(evk.Value[i][j].Value[1], skOut.Value, evk.Value[i][j].Value[0])
 		}
 	}
 
 	// Sums all bases together (equivalent to multiplying with CRT decomposition of 1)
 	// sum([1]_w * [RNS*PW2*P*sOut + e]) = PWw*P*sOut + sum(e)
-	for i := range swk.Value { // RNS decomp
+	for i := range evk.Value { // RNS decomp
 		if i > 0 {
-			for j := range swk.Value[i] { // PW2 decomp
-				ringQP.Add(swk.Value[0][j].Value[0], swk.Value[i][j].Value[0], swk.Value[0][j].Value[0])
+			for j := range evk.Value[i] { // PW2 decomp
+				ringQP.Add(evk.Value[0][j].Value[0], evk.Value[i][j].Value[0], evk.Value[0][j].Value[0])
 			}
 		}
 	}
@@ -92,22 +94,22 @@ func SwitchingKeyIsCorrect(swk *SwitchingKey, skIn, skOut *SecretKey, params Par
 	for i := 0; i < decompPw2; i++ {
 
 		// P*s^i + sum(e) - P*s^i = sum(e)
-		ringQ.Sub(swk.Value[0][i].Value[0].Q, skIn.Value.Q, swk.Value[0][i].Value[0].Q)
+		ringQ.Sub(evk.Value[0][i].Value[0].Q, skIn.Value.Q, evk.Value[0][i].Value[0].Q)
 
 		// Checks that the error is below the bound
 		// Worst error bound is N * floor(6*sigma) * #Keys
-		ringQP.INTT(swk.Value[0][i].Value[0], swk.Value[0][i].Value[0])
-		ringQP.IMForm(swk.Value[0][i].Value[0], swk.Value[0][i].Value[0])
+		ringQP.INTT(evk.Value[0][i].Value[0], evk.Value[0][i].Value[0])
+		ringQP.IMForm(evk.Value[0][i].Value[0], evk.Value[0][i].Value[0])
 
 		// Worst bound of inner sum
 		// N*#Keys*(N * #Parties * floor(sigma*6) + #Parties * floor(sigma*6) + N * #Parties  +  #Parties * floor(6*sigma))
 
-		if log2Bound < ringQ.Log2OfInnerSum(swk.Value[0][i].Value[0].Q) {
+		if log2Bound < ringQ.Log2OfStandardDeviation(evk.Value[0][i].Value[0].Q) {
 			return false
 		}
 
 		if levelP != -1 {
-			if log2Bound < ringP.Log2OfInnerSum(swk.Value[0][i].Value[0].P) {
+			if log2Bound < ringP.Log2OfStandardDeviation(evk.Value[0][i].Value[0].P) {
 				return false
 			}
 		}

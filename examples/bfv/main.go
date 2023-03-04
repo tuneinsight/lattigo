@@ -64,7 +64,7 @@ func obliviousRiding() {
 	// Rider's keygen
 	kgen := bfv.NewKeyGenerator(params)
 
-	riderSk, riderPk := kgen.GenKeyPair()
+	riderSk, riderPk := kgen.GenKeyPairNew()
 
 	decryptor := bfv.NewDecryptor(params, riderSk)
 
@@ -72,7 +72,7 @@ func obliviousRiding() {
 
 	encryptorRiderSk := bfv.NewEncryptor(params, riderSk)
 
-	evaluator := bfv.NewEvaluator(params, rlwe.EvaluationKey{})
+	evaluator := bfv.NewEvaluator(params, nil)
 
 	fmt.Println("============================================")
 	fmt.Println("Homomorphic computations on batched integers")

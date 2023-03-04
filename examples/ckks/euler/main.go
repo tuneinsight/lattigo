@@ -38,9 +38,9 @@ func example() {
 
 	kgen := ckks.NewKeyGenerator(params)
 
-	sk := kgen.GenSecretKey()
+	sk := kgen.GenSecretKeyNew()
 
-	rlk := kgen.GenRelinearizationKey(sk, 1)
+	rlk := kgen.GenRelinearizationKeyNew(sk)
 
 	encryptor := ckks.NewEncryptor(params, sk)
 
@@ -48,7 +48,10 @@ func example() {
 
 	encoder := ckks.NewEncoder(params)
 
-	evaluator := ckks.NewEvaluator(params, rlwe.EvaluationKey{Rlk: rlk})
+	evk := rlwe.NewEvaluationKeySet()
+	evk.Add(rlk)
+
+	evaluator := ckks.NewEvaluator(params, evk)
 
 	fmt.Printf("Done in %s \n", time.Since(start))
 

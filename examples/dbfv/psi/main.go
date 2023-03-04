@@ -103,7 +103,7 @@ func main() {
 	encoder := bfv.NewEncoder(params)
 
 	// Target private and public keys
-	tsk, tpk := bfv.NewKeyGenerator(params).GenKeyPair()
+	tsk, tpk := bfv.NewKeyGenerator(params).GenKeyPairNew()
 
 	// Create each party, and allocate the memory for all the shares that the protocols will need
 	P := genparties(params, N)
@@ -117,6 +117,11 @@ func main() {
 	// 2) Collective relinearization key generation
 	rlk := rkgphase(params, crs, P)
 
+	evk := rlwe.NewEvaluationKeySet()
+	if err := evk.Add(rlk); err != nil {
+		panic(err)
+	}
+
 	l.Printf("\tdone (cloud: %s, party: %s)\n",
 		elapsedRKGCloud, elapsedRKGParty)
 	l.Printf("\tSetup done (cloud: %s, party: %s)\n",
@@ -124,7 +129,7 @@ func main() {
 
 	encInputs := encPhase(params, P, pk, encoder)
 
-	encRes := evalPhase(params, NGoRoutine, encInputs, rlk)
+	encRes := evalPhase(params, NGoRoutine, encInputs, evk)
 
 	encOut := pcksPhase(params, tpk, encRes, P)
 
@@ -180,7 +185,7 @@ func encPhase(params bfv.Parameters, P []*party, pk *rlwe.PublicKey, encoder bfv
 	return
 }
 
-func evalPhase(params bfv.Parameters, NGoRoutine int, encInputs []*rlwe.Ciphertext, rlk *rlwe.RelinearizationKey) (encRes *rlwe.Ciphertext) {
+func evalPhase(params bfv.Parameters, NGoRoutine int, encInputs []*rlwe.Ciphertext, evk rlwe.EvaluationKeySetInterface) (encRes *rlwe.Ciphertext) {
 
 	l := log.New(os.Stderr, "", 0)
 
@@ -195,7 +200,7 @@ func evalPhase(params bfv.Parameters, NGoRoutine int, encInputs []*rlwe.Cipherte
 	}
 	encRes = encLvls[len(encLvls)-1][0]
 
-	evaluator := bfv.NewEvaluator(params, rlwe.EvaluationKey{Rlk: rlk, Rtks: nil})
+	evaluator := bfv.NewEvaluator(params, evk)
 	// Split the task among the Go routines
 	tasks := make(chan *multTask)
 	workers := &sync.WaitGroup{}
@@ -257,7 +262,7 @@ func genparties(params bfv.Parameters, N int) []*party {
 	P := make([]*party, N)
 	for i := range P {
 		pi := &party{}
-		pi.sk = bfv.NewKeyGenerator(params).GenSecretKey()
+		pi.sk = bfv.NewKeyGenerator(params).GenSecretKeyNew()
 
 		P[i] = pi
 	}
@@ -353,7 +358,7 @@ func rkgphase(params bfv.Parameters, crs utils.PRNG, P []*party) *rlwe.Relineari
 		}
 	}, len(P))
 
-	rlk := rlwe.NewRelinearizationKey(params.Parameters, 1)
+	rlk := rlwe.NewRelinearizationKey(params.Parameters)
 	elapsedRKGCloud += runTimed(func() {
 		for _, pi := range P {
 			rkg.AggregateShares(pi.rkgShareTwo, rkgCombined2, rkgCombined2)

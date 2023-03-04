@@ -293,6 +293,17 @@ func (r *Ring) NTTLazy(p1, p2 Poly) {
 	}
 }
 
+// INTTLazy computes the inverse-NTT of p1 and returns the result on p2.
+// Output values are in the range [0, 2q-1].
+func (r *Ring) INTTLazy(p1, p2 Poly) {
+	if r.RingQ != nil {
+		r.RingQ.INTTLazy(p1.Q, p2.Q)
+	}
+	if r.RingP != nil {
+		r.RingP.INTTLazy(p1.P, p2.P)
+	}
+}
+
 // MForm switches p1 to the Montgomery domain and writes the result on p2.
 func (r *Ring) MForm(p1, p2 Poly) {
 	if r.RingQ != nil {
@@ -413,27 +424,38 @@ func (r *Ring) Reduce(p1, p2 Poly) {
 	}
 }
 
-// PermuteNTTWithIndex applies the automorphism X^{5^j} on p1 and writes the result on p2.
-// Index of automorphism must be provided.
+// Automorphism applies the automorphism X^{i} -> X^{i*gen} on p1 and writes the result on p2.
 // Method is not in place.
-func (r *Ring) PermuteNTTWithIndex(p1 Poly, index []uint64, p2 Poly) {
+func (r *Ring) Automorphism(p1 Poly, galEl uint64, p2 Poly) {
 	if r.RingQ != nil {
-		r.RingQ.PermuteNTTWithIndex(p1.Q, index, p2.Q)
+		r.RingQ.Automorphism(p1.Q, galEl, p2.Q)
 	}
 	if r.RingP != nil {
-		r.RingP.PermuteNTTWithIndex(p1.P, index, p2.P)
+		r.RingP.Automorphism(p1.P, galEl, p2.P)
 	}
 }
 
-// PermuteNTTWithIndexThenAddLazy applies the automorphism X^{5^j} on p1 and adds the result on p2.
+// AutomorphismNTTWithIndex applies the automorphism X^{i} -> X^{i*gen} on p1 and writes the result on p2.
 // Index of automorphism must be provided.
 // Method is not in place.
-func (r *Ring) PermuteNTTWithIndexThenAddLazy(p1 Poly, index []uint64, p2 Poly) {
+func (r *Ring) AutomorphismNTTWithIndex(p1 Poly, index []uint64, p2 Poly) {
 	if r.RingQ != nil {
-		r.RingQ.PermuteNTTWithIndexThenAddLazy(p1.Q, index, p2.Q)
+		r.RingQ.AutomorphismNTTWithIndex(p1.Q, index, p2.Q)
 	}
 	if r.RingP != nil {
-		r.RingP.PermuteNTTWithIndexThenAddLazy(p1.P, index, p2.P)
+		r.RingP.AutomorphismNTTWithIndex(p1.P, index, p2.P)
+	}
+}
+
+// AutomorphismNTTWithIndexThenAddLazy applies the automorphism X^{i} -> X^{i*gen} on p1 and adds the result on p2.
+// Index of automorphism must be provided.
+// Method is not in place.
+func (r *Ring) AutomorphismNTTWithIndexThenAddLazy(p1 Poly, index []uint64, p2 Poly) {
+	if r.RingQ != nil {
+		r.RingQ.AutomorphismNTTWithIndexThenAddLazy(p1.Q, index, p2.Q)
+	}
+	if r.RingP != nil {
+		r.RingP.AutomorphismNTTWithIndexThenAddLazy(p1.P, index, p2.P)
 	}
 }
 

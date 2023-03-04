@@ -83,114 +83,44 @@ func (pk *PublicKey) UnmarshalBinary(data []byte) (err error) {
 	return
 }
 
-// MarshalBinary encodes the target SwitchingKey on a slice of bytes.
-func (swk *SwitchingKey) MarshalBinary() (data []byte, err error) {
-	return swk.GadgetCiphertext.MarshalBinary()
+// MarshalBinary encodes the target EvaluationKey on a slice of bytes.
+func (evk *EvaluationKey) MarshalBinary() (data []byte, err error) {
+	return evk.GadgetCiphertext.MarshalBinary()
 }
 
-// UnmarshalBinary decodes a slice of bytes on the target SwitchingKey.
-func (swk *SwitchingKey) UnmarshalBinary(data []byte) (err error) {
-	return swk.GadgetCiphertext.UnmarshalBinary(data)
+// UnmarshalBinary decodes a slice of bytes on the target EvaluationKey.
+func (evk *EvaluationKey) UnmarshalBinary(data []byte) (err error) {
+	return evk.GadgetCiphertext.UnmarshalBinary(data)
 }
 
-// MarshalBinarySize returns the length in bytes of the target EvaluationKey.
-func (rlk *RelinearizationKey) MarshalBinarySize() (dataLen int) {
-	return 1 + len(rlk.Keys)*rlk.Keys[0].MarshalBinarySize()
-}
-
-// MarshalBinary encodes an EvaluationKey key in a byte slice.
 func (rlk *RelinearizationKey) MarshalBinary() (data []byte, err error) {
-
-	data = make([]byte, rlk.MarshalBinarySize())
-
-	var ptr int
-
-	data[0] = uint8(len(rlk.Keys))
-
-	ptr++
-
-	var inc int
-	for _, evakey := range rlk.Keys {
-
-		if inc, err = evakey.Encode(data[ptr:]); err != nil {
-			return nil, err
-		}
-		ptr += inc
-	}
-
-	return data, nil
+	return rlk.GadgetCiphertext.MarshalBinary()
 }
 
-// UnmarshalBinary decodes a previously marshaled EvaluationKey in the target EvaluationKey.
 func (rlk *RelinearizationKey) UnmarshalBinary(data []byte) (err error) {
-
-	deg := int(data[0])
-
-	rlk.Keys = make([]*SwitchingKey, deg)
-
-	pointer := 1
-	var inc int
-	for i := 0; i < deg; i++ {
-		rlk.Keys[i] = new(SwitchingKey)
-		if inc, err = rlk.Keys[i].Decode(data[pointer:]); err != nil {
-			return err
-		}
-		pointer += inc
+	if rlk.EvaluationKey == nil {
+		rlk.EvaluationKey = &EvaluationKey{}
 	}
 
-	return nil
+	return rlk.GadgetCiphertext.UnmarshalBinary(data)
 }
 
-// MarshalBinarySize returns the length in bytes of the target RotationKeys.
-func (rtks *RotationKeySet) MarshalBinarySize() (dataLen int) {
-	for _, k := range rtks.Keys {
-		dataLen += 8 + k.MarshalBinarySize()
-	}
+func (gk *GaloisKey) MarshalBinary() (data []byte, err error) {
+	data = make([]byte, gk.EvaluationKey.MarshalBinarySize()+16)
+	binary.LittleEndian.PutUint64(data[0:], gk.GaloisElement)
+	binary.LittleEndian.PutUint64(data[8:], gk.NthRoot)
+	_, err = gk.EvaluationKey.GadgetCiphertext.Encode(data[16:])
 	return
 }
 
-// MarshalBinary encodes a RotationKeys struct in a byte slice.
-func (rtks *RotationKeySet) MarshalBinary() (data []byte, err error) {
+func (gk *GaloisKey) UnmarshalBinary(data []byte) (err error) {
+	gk.GaloisElement = binary.LittleEndian.Uint64(data[0:])
+	gk.NthRoot = binary.LittleEndian.Uint64(data[8:])
 
-	data = make([]byte, rtks.MarshalBinarySize())
-
-	ptr := int(0)
-
-	var inc int
-	for galEL, key := range rtks.Keys {
-
-		binary.BigEndian.PutUint64(data[ptr:], galEL)
-		ptr += 8
-
-		if inc, err = key.Encode(data[ptr:]); err != nil {
-			return nil, err
-		}
-
-		ptr += inc
+	if gk.EvaluationKey == nil {
+		gk.EvaluationKey = &EvaluationKey{}
 	}
 
-	return data, nil
-}
-
-// UnmarshalBinary decodes a previously marshaled RotationKeys in the target RotationKeys.
-func (rtks *RotationKeySet) UnmarshalBinary(data []byte) (err error) {
-
-	rtks.Keys = make(map[uint64]*SwitchingKey)
-
-	for len(data) > 0 {
-
-		galEl := binary.BigEndian.Uint64(data)
-		data = data[8:]
-
-		swk := new(SwitchingKey)
-		var inc int
-		if inc, err = swk.Decode(data); err != nil {
-			return err
-		}
-		data = data[inc:]
-		rtks.Keys[galEl] = swk
-
-	}
-
-	return nil
+	_, err = gk.EvaluationKey.GadgetCiphertext.Decode(data[16:])
+	return
 }

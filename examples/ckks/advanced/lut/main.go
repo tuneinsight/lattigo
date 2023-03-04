@@ -126,16 +126,16 @@ func main() {
 	}
 
 	kgenN12 := ckks.NewKeyGenerator(paramsN12)
-	skN12 := kgenN12.GenSecretKey()
+	skN12 := kgenN12.GenSecretKeyNew()
 	encoderN12 := ckks.NewEncoder(paramsN12)
 	encryptorN12 := ckks.NewEncryptor(paramsN12, skN12)
 	decryptorN12 := ckks.NewDecryptor(paramsN12, skN12)
 
 	kgenN11 := ckks.NewKeyGenerator(paramsN11)
-	skN11 := kgenN11.GenSecretKey()
+	skN11 := kgenN11.GenSecretKeyNew()
 
-	// Switchingkey RLWEN12 -> RLWEN11
-	swkN12ToN11 := ckks.NewKeyGenerator(paramsN12).GenSwitchingKey(skN12, skN11)
+	// EvaluationKey RLWEN12 -> RLWEN11
+	evkN12ToN11 := ckks.NewKeyGenerator(paramsN12).GenEvaluationKeyNew(skN12, skN11)
 
 	fmt.Printf("Gen SlotsToCoeffs Matrices... ")
 	now = time.Now()
@@ -143,26 +143,32 @@ func main() {
 	CoeffsToSlotsMatrix := ckksAdvanced.NewHomomorphicDFTMatrixFromLiteral(CoeffsToSlotsParameters, encoderN12)
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
-	// Rotation Keys
-	rotations := []int{}
-	for i := 1; i < paramsN12.N(); i <<= 1 {
-		rotations = append(rotations, i)
+	// GaloisKeys
+	galEls := paramsN12.GaloisElementsForTrace(0)
+	galEls = append(galEls, SlotsToCoeffsParameters.GaloisElements(paramsN12)...)
+	galEls = append(galEls, CoeffsToSlotsParameters.GaloisElements(paramsN12)...)
+
+	evk := rlwe.NewEvaluationKeySet()
+
+	for _, galEl := range galEls {
+		if err = evk.Add(kgenN12.GenGaloisKeyNew(galEl, skN12)); err != nil {
+			panic(err)
+		}
 	}
 
-	rotations = append(rotations, SlotsToCoeffsParameters.Rotations()...)
-	rotations = append(rotations, CoeffsToSlotsParameters.Rotations()...)
-
-	rotKey := kgenN12.GenRotationKeysForRotations(rotations, true, skN12)
+	if err = evk.Add(kgenN12.GenGaloisKeyNew(paramsN12.GaloisElementForRowRotation(), skN12)); err != nil {
+		panic(err)
+	}
 
 	// LUT Evaluator
-	evalLUT := lut.NewEvaluator(paramsN12.Parameters, paramsN11.Parameters, rotKey)
+	evalLUT := lut.NewEvaluator(paramsN12.Parameters, paramsN11.Parameters, evk)
 
 	// CKKS Evaluator
-	evalCKKS := ckksAdvanced.NewEvaluator(paramsN12, rlwe.EvaluationKey{Rlk: nil, Rtks: rotKey})
+	evalCKKS := ckksAdvanced.NewEvaluator(paramsN12, evk)
 
 	fmt.Printf("Encrypting bits of skLWE in RGSW... ")
 	now = time.Now()
-	LUTKEY := lut.GenEvaluationKey(paramsN12.Parameters, skN12, paramsN11.Parameters, skN11) // Generate RGSW(sk_i) for all coefficients of sk
+	LUTKEY := lut.GenEvaluationKeyNew(paramsN12.Parameters, skN12, paramsN11.Parameters, skN11) // Generate RGSW(sk_i) for all coefficients of sk
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
 	// Generates the starting plaintext values.
@@ -183,7 +189,7 @@ func main() {
 
 	// Key-Switch from LogN = 12 to LogN = 11
 	ctN11 := rlwe.NewCiphertext(paramsN11.Parameters, 1, paramsN11.MaxLevel())
-	evalCKKS.SwitchKeys(ctN12, swkN12ToN11, ctN11) // key-switch to LWE degree
+	evalCKKS.ApplyEvaluationKey(ctN12, evkN12ToN11, ctN11) // key-switch to LWE degree
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
 	fmt.Printf("Evaluating LUT... ")

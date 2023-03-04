@@ -291,6 +291,27 @@ func (p Parameters) NoiseBound() uint64 {
 	return uint64(math.Floor(p.sigma * 6))
 }
 
+// NoiseFreshPK returns the standard deviation
+// of a fresh encryption with the public key.
+func (p Parameters) NoiseFreshPK() (std float64) {
+
+	std = float64(p.HammingWeight() + 1)
+
+	if p.RingP() != nil {
+		std *= 1 / 12.0
+	} else {
+		std *= p.Sigma() * p.Sigma()
+	}
+
+	return math.Sqrt(std)
+}
+
+// NoiseFreshSK returns the standard deviation
+// of a fresh encryption with the secret key.
+func (p Parameters) NoiseFreshSK() (std float64) {
+	return p.Sigma()
+}
+
 // RingType returns the type of the underlying ring.
 func (p Parameters) RingType() ring.Type {
 	return p.ringType
@@ -408,7 +429,7 @@ func (p Parameters) LogQP() int {
 	return tmp.BitLen()
 }
 
-// Pow2Base returns the base 2^x decomposition used for the key-switching keys.
+// Pow2Base returns the base 2^x decomposition used for the GadgetCiphertexts.
 // Returns 0 if no decomposition is used (the case where x = 0).
 func (p Parameters) Pow2Base() int {
 	return p.pow2Base
@@ -428,7 +449,7 @@ func (p Parameters) MaxBit(levelQ, levelP int) (c int) {
 
 // DecompPw2 returns ceil(p.MaxBitQ(levelQ, levelP)/bitDecomp).
 func (p Parameters) DecompPw2(levelQ, levelP int) (c int) {
-	if p.pow2Base == 0 {
+	if p.pow2Base == 0 || levelP > 0 {
 		return 1
 	}
 
@@ -457,6 +478,16 @@ func (p *Parameters) PiOverflowMargin(level int) int {
 	return int(math.Exp2(64) / float64(utils.MaxSliceUint64(p.pi[:level+1])))
 }
 
+// GaloisElementsForRotations takes a list of rotations and returns the corresponding list of Galois elements.
+func (p Parameters) GaloisElementsForRotations(rots []int) (galEls []uint64) {
+	galEls = make([]uint64, len(rots))
+
+	for i, rot := range rots {
+		galEls[i] = p.GaloisElementForColumnRotationBy(rot)
+	}
+	return
+}
+
 // GaloisElementForColumnRotationBy returns the Galois element for plaintext
 // column rotations by k position to the left. Providing a negative k is
 // equivalent to a right rotation.
@@ -465,7 +496,7 @@ func (p Parameters) GaloisElementForColumnRotationBy(k int) uint64 {
 }
 
 // GaloisElementForRowRotation returns the Galois element for generating the row
-// rotation automorphism
+// rotation automorphism.
 func (p Parameters) GaloisElementForRowRotation() uint64 {
 	if p.ringType == ring.ConjugateInvariant {
 		panic("Cannot generate GaloisElementForRowRotation if ringType is ConjugateInvariant")
@@ -473,7 +504,7 @@ func (p Parameters) GaloisElementForRowRotation() uint64 {
 	return p.ringQ.NthRoot() - 1
 }
 
-// GaloisElementsForTrace generates the Galois elements for the Trace evaluation.
+// GaloisElementsForTrace returns the list of Galois elements requored for the for the `Trace` operation.
 // Trace maps X -> sum((-1)^i * X^{i*n+1}) for 2^{LogN} <= i < N.
 func (p Parameters) GaloisElementsForTrace(logN int) (galEls []uint64) {
 
@@ -496,15 +527,15 @@ func (p Parameters) GaloisElementsForTrace(logN int) (galEls []uint64) {
 	return
 }
 
-// RotationsForReplicate generates the rotations that will be performed by the
-// `Evaluator.Replicate` operation when performed with parameters `batch` and `n`.
-func (p Parameters) RotationsForReplicate(batch, n int) (rotations []int) {
-	return p.RotationsForInnerSum(-batch, n)
+// GaloisElementsForReplicate returns the list of Galois elements necessary to perform the
+// `Replicate` operation with parameters `batch` and `n`.
+func (p Parameters) GaloisElementsForReplicate(batch, n int) (galEls []uint64) {
+	return p.GaloisElementsForInnerSum(-batch, n)
 }
 
-// RotationsForInnerSum generates the rotations that will be performed by the
-// `Evaluator.RotationsForInnerSum` operation when performed with parameters `batch` and `n`.
-func (p Parameters) RotationsForInnerSum(batch, n int) (rotations []int) {
+// GaloisElementsForInnerSum returns the list of Galois elements necessary to apply the method
+// `InnerSum` operation with parameters `batch` and `n`.
+func (p Parameters) GaloisElementsForInnerSum(batch, n int) (galEls []uint64) {
 
 	rotIndex := make(map[int]bool)
 
@@ -520,20 +551,33 @@ func (p Parameters) RotationsForInnerSum(batch, n int) (rotations []int) {
 		rotIndex[k] = true
 	}
 
-	rotations = make([]int, len(rotIndex))
+	rotations := make([]int, len(rotIndex))
 	var i int
 	for j := range rotIndex {
 		rotations[i] = j
 		i++
 	}
 
+	return p.GaloisElementsForRotations(rotations)
+}
+
+// GaloisElementsForExpand returns the list of Galois elements required
+// to perform the `Expand` operation with parameter `logN`.
+func (p Parameters) GaloisElementsForExpand(logN int) (galEls []uint64) {
+	galEls = make([]uint64, logN)
+
+	NthRoot := p.RingQ().NthRoot()
+
+	for i := 0; i < logN; i++ {
+		galEls[i] = uint64(NthRoot/(2<<i) + 1)
+	}
+
 	return
 }
 
-// GaloisElementsForRowInnerSum returns a list of all Galois elements required to
-// perform an InnerSum operation. This corresponds to all the left rotations by
-// k-positions where k is a power of two and the row-rotation element.
-func (p Parameters) GaloisElementsForRowInnerSum() (galEls []uint64) {
+// GaloisElementsForMerge returns the list of Galois elements required
+// to perform the `Merge` operation.
+func (p Parameters) GaloisElementsForMerge() (galEls []uint64) {
 	galEls = make([]uint64, p.logN)
 	for i := 0; i < int(p.logN)-1; i++ {
 		galEls[i] = p.GaloisElementForColumnRotationBy(1 << i)
@@ -545,28 +589,9 @@ func (p Parameters) GaloisElementsForRowInnerSum() (galEls []uint64) {
 	case ring.ConjugateInvariant:
 		galEls[p.logN-1] = p.GaloisElementForColumnRotationBy(1 << (p.logN - 1))
 	default:
-		panic("cannot GaloisElementsForRowInnerSum: invalid ring type")
+		panic("cannot GaloisElementsForMerge: invalid ring type")
 	}
-
-	return galEls
-}
-
-// GaloisElementForExpand returns the list of Galois elements required
-// to perform the Expand operation.
-func (p Parameters) GaloisElementForExpand(logN int) (galEls []uint64) {
-	galEls = make([]uint64, logN)
-
-	for i := 0; i < logN; i++ {
-		galEls[i] = uint64(p.N()/(1<<i) + 1)
-	}
-
 	return
-}
-
-// GaloisElementsForMerge returns the list of Galois elements required
-// to perform the Merge operation.
-func (p Parameters) GaloisElementsForMerge() (galEls []uint64) {
-	return p.GaloisElementsForRowInnerSum()
 }
 
 // InverseGaloisElement takes a Galois element and returns the Galois element

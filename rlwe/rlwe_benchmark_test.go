@@ -7,64 +7,122 @@ import (
 )
 
 func BenchmarkRLWE(b *testing.B) {
-	defaultParams := TestParams
-	if testing.Short() {
-		defaultParams = TestParams[:2]
-	}
+
+	var err error
+
+	defaultParamsLiteral := TestParamsLiteral[:]
+
 	if *flagParamString != "" {
 		var jsonParams ParametersLiteral
-		if err := json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
+		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
 			b.Fatal(err)
 		}
-		defaultParams = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
+		defaultParamsLiteral = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
-	for _, defaultParam := range defaultParams {
-		params, err := NewParametersFromLiteral(defaultParam)
-		if err != nil {
+	for _, paramsLit := range defaultParamsLiteral {
+
+		var params Parameters
+		if params, err = NewParametersFromLiteral(paramsLit); err != nil {
 			b.Fatal(err)
 		}
 
-		kgen := NewKeyGenerator(params)
-		eval := NewEvaluator(params, nil)
+		tc := NewTestContext(params)
 
-		for _, testSet := range []func(kgen KeyGenerator, eval *Evaluator, b *testing.B){
-			benchHoistedKeySwitch,
+		for _, testSet := range []func(tc *TestContext, b *testing.B){
+			benchKeyGenerator,
+			benchEncryptor,
+			benchDecryptor,
+			benchEvaluator,
 		} {
-			testSet(kgen, eval, b)
+			testSet(tc, b)
 			runtime.GC()
 		}
 	}
 }
 
-func benchHoistedKeySwitch(kgen KeyGenerator, eval *Evaluator, b *testing.B) {
+func benchKeyGenerator(tc *TestContext, b *testing.B) {
 
-	params := kgen.(*keyGenerator).params
+	params := tc.params
+	kgen := tc.kgen
 
-	if params.PCount() > 0 {
-		skIn := kgen.GenSecretKey()
-		skOut := kgen.GenSecretKey()
-		plaintext := NewPlaintext(params, params.MaxLevel())
-		plaintext.IsNTT = true
-		encryptor := NewEncryptor(params, skIn)
-		ciphertext := NewCiphertext(params, 1, plaintext.Level())
-		ciphertext.IsNTT = true
-		encryptor.Encrypt(plaintext, ciphertext)
+	b.Run(testString(params, params.MaxLevel(), "KeyGenerator/GenSecretKey"), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			kgen.GenSecretKey(tc.sk)
+		}
+	})
 
-		swk := kgen.GenSwitchingKey(skIn, skOut)
+	b.Run(testString(params, params.MaxLevel(), "KeyGenerator/GenPublicKey"), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			kgen.GenPublicKey(tc.sk, tc.pk)
+		}
 
-		b.Run(testString(params, "DecomposeNTT/"), func(b *testing.B) {
-			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
-				eval.DecomposeNTT(ciphertext.Level(), params.MaxLevelP(), params.PCount(), ciphertext.Value[1], ciphertext.IsNTT, eval.BuffDecompQP)
-			}
-		})
+	})
 
-		b.Run(testString(params, "KeySwitchHoisted/"), func(b *testing.B) {
-			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
-				eval.KeyswitchHoisted(ciphertext.Level(), eval.BuffDecompQP, swk, ciphertext.Value[0], ciphertext.Value[1], eval.BuffQP[1].P, eval.BuffQP[2].P)
-			}
-		})
-	}
+	b.Run(testString(params, params.MaxLevel(), "KeyGenerator/GenEvaluationKey"), func(b *testing.B) {
+		sk0, sk1 := tc.sk, kgen.GenSecretKeyNew()
+		evk := NewEvaluationKey(params, params.MaxLevelQ(), params.MaxLevelP())
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			kgen.GenEvaluationKey(sk0, sk1, evk)
+		}
+	})
+}
+
+func benchEncryptor(tc *TestContext, b *testing.B) {
+
+	params := tc.params
+
+	b.Run(testString(params, params.MaxLevel(), "Encryptor/EncryptZero/SecretKey"), func(b *testing.B) {
+		ct := NewCiphertext(params, 1, params.MaxLevel())
+		enc := tc.enc.WithKey(tc.sk)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			enc.EncryptZero(ct)
+		}
+
+	})
+
+	b.Run(testString(params, params.MaxLevel(), "Encryptor/EncryptZero/PublicKey"), func(b *testing.B) {
+		ct := NewCiphertext(params, 1, params.MaxLevel())
+		enc := tc.enc.WithKey(tc.pk)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			enc.EncryptZero(ct)
+		}
+	})
+}
+
+func benchDecryptor(tc *TestContext, b *testing.B) {
+
+	params := tc.params
+
+	b.Run(testString(params, params.MaxLevel(), "Decryptor/Decrypt"), func(b *testing.B) {
+		dec := tc.dec
+		ct := tc.enc.EncryptZeroNew(params.MaxLevel())
+		pt := NewPlaintext(params, ct.Level())
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			dec.Decrypt(ct, pt)
+		}
+	})
+}
+
+func benchEvaluator(tc *TestContext, b *testing.B) {
+
+	params := tc.params
+	kgen := tc.kgen
+	sk := tc.sk
+	eval := tc.eval
+
+	b.Run(testString(params, params.MaxLevel(), "Evaluator/GadgetProduct"), func(b *testing.B) {
+
+		ct := NewEncryptor(params, sk).EncryptZeroNew(params.MaxLevel())
+		evk := kgen.GenEvaluationKeyNew(sk, kgen.GenSecretKeyNew())
+
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			eval.GadgetProduct(ct.Level(), ct.Value[1], evk.GadgetCiphertext, ct)
+		}
+	})
 }

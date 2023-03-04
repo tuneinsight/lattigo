@@ -24,13 +24,13 @@ var printPrecisionStats = flag.Bool("print-precision", false, "print precision s
 var minPrec float64 = 15.0
 
 func GetTestName(params Parameters, opname string) string {
-	return fmt.Sprintf("%s/RingType=%s/logN=%d/logQP=%d/LogSlots=%d/levels=%d/#Pi=%d/Decomp=%d",
+	return fmt.Sprintf("%s/RingType=%s/logN=%d/logQP=%d/LogSlots=%d/Qi=%d/Pi=%d/Decomp=%d",
 		opname,
 		params.RingType(),
 		params.LogN(),
 		params.LogQP(),
 		params.LogSlots(),
-		params.MaxLevel()+1,
+		params.QCount(),
 		params.PCount(),
 		params.DecompRNS(params.MaxLevelQ(), params.MaxLevelP()))
 }
@@ -41,10 +41,9 @@ type testContext struct {
 	ringP       *ring.Ring
 	prng        utils.PRNG
 	encoder     Encoder
-	kgen        rlwe.KeyGenerator
+	kgen        *rlwe.KeyGenerator
 	sk          *rlwe.SecretKey
 	pk          *rlwe.PublicKey
-	rlk         *rlwe.RelinearizationKey
 	encryptorPk rlwe.Encryptor
 	encryptorSk rlwe.Encryptor
 	decryptor   rlwe.Decryptor
@@ -95,7 +94,6 @@ func TestCKKS(t *testing.T) {
 		for _, testSet := range []func(tc *testContext, t *testing.T){
 			testParameters,
 			testEncoder,
-			testEncryptor,
 			testEvaluatorAdd,
 			testEvaluatorSub,
 			testEvaluatorRescale,
@@ -108,11 +106,7 @@ func TestCKKS(t *testing.T) {
 			testDecryptPublic,
 			testEvaluatePoly,
 			testChebyshevInterpolator,
-			testSwitchKeys,
 			testBridge,
-			testAutomorphisms,
-			testInnerSum,
-			testReplicate,
 			testLinearTransform,
 			testMarshaller,
 		} {
@@ -130,12 +124,11 @@ func genTestParams(defaultParam Parameters) (tc *testContext, err error) {
 
 	tc.kgen = NewKeyGenerator(tc.params)
 
-	tc.sk, tc.pk = tc.kgen.GenKeyPair()
+	tc.sk, tc.pk = tc.kgen.GenKeyPairNew()
 
 	tc.ringQ = defaultParam.RingQ()
 	if tc.params.PCount() != 0 {
 		tc.ringP = defaultParam.RingP()
-		tc.rlk = tc.kgen.GenRelinearizationKey(tc.sk, 1)
 	}
 
 	if tc.prng, err = utils.NewPRNG(); err != nil {
@@ -148,7 +141,7 @@ func genTestParams(defaultParam Parameters) (tc *testContext, err error) {
 	tc.encryptorSk = NewEncryptor(tc.params, tc.sk)
 	tc.decryptor = NewDecryptor(tc.params, tc.sk)
 
-	tc.evaluator = NewEvaluator(tc.params, rlwe.EvaluationKey{Rlk: tc.rlk})
+	tc.evaluator = NewEvaluator(tc.params, &rlwe.EvaluationKeySet{RelinearizationKey: tc.kgen.GenRelinearizationKeyNew(tc.sk)})
 
 	return tc, nil
 
@@ -277,33 +270,6 @@ func testEncoder(tc *testContext, t *testing.T) {
 		}
 
 		require.GreaterOrEqual(t, math.Log2(1/meanprec), minPrec)
-	})
-
-}
-
-func testEncryptor(tc *testContext, t *testing.T) {
-
-	t.Run(GetTestName(tc.params, "Encryptor/Encrypt/key=pk"), func(t *testing.T) {
-		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorPk, -1-1i, 1+1i, t)
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
-	})
-
-	t.Run(GetTestName(tc.params, "Encryptor/Encrypt/key=sk"), func(t *testing.T) {
-		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
-	})
-
-	t.Run(GetTestName(tc.params, "Encryptor/WithPRNG/Encrypt"), func(t *testing.T) {
-		lvl := tc.params.MaxLevel()
-		enc := NewPRNGEncryptor(tc.params, tc.sk)
-		prng1, _ := utils.NewKeyedPRNG([]byte{'l'})
-		prng2, _ := utils.NewKeyedPRNG([]byte{'l'})
-		sampler := ring.NewUniformSampler(prng2, tc.ringQ)
-		values1, pt, _ := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
-		ciphertext := enc.WithPRNG(prng1).EncryptNew(pt)
-		c1Want := sampler.AtLevel(lvl).ReadNew()
-		assert.True(t, c1Want.Equals(ciphertext.Value[1]))
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext, tc.params.LogSlots(), 0, t)
 	})
 
 }
@@ -664,7 +630,7 @@ func testEvaluatorMul(tc *testContext, t *testing.T) {
 			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext2, tc.params.LogSlots(), 0, t)
 		})
 
-		t.Run(GetTestName(tc.params, "Relinearize(ct0*ct1->ct0)"), func(t *testing.T) {
+		t.Run(GetTestName(tc.params, "MulRelin(ct0*ct1->ct0)"), func(t *testing.T) {
 
 			values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
 			values2, _, ciphertext2 := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
@@ -673,29 +639,10 @@ func testEvaluatorMul(tc *testContext, t *testing.T) {
 				values1[i] *= values2[i]
 			}
 
-			tc.evaluator.Mul(ciphertext1, ciphertext2, ciphertext1)
-			require.Equal(t, ciphertext1.Degree(), 2)
-			tc.evaluator.Relinearize(ciphertext1, ciphertext1)
+			tc.evaluator.MulRelin(ciphertext1, ciphertext2, ciphertext1)
 			require.Equal(t, ciphertext1.Degree(), 1)
 
 			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
-		})
-
-		t.Run(GetTestName(tc.params, "Relinearize(ct0*ct1->ct1)"), func(t *testing.T) {
-
-			values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
-			values2, _, ciphertext2 := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
-
-			for i := range values1 {
-				values2[i] *= values1[i]
-			}
-
-			tc.evaluator.Mul(ciphertext1, ciphertext2, ciphertext2)
-			require.Equal(t, ciphertext2.Degree(), 2)
-			tc.evaluator.Relinearize(ciphertext2, ciphertext2)
-			require.Equal(t, ciphertext2.Degree(), 1)
-
-			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values2, ciphertext2, tc.params.LogSlots(), 0, t)
 		})
 	})
 }
@@ -964,31 +911,6 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 	})
 }
 
-func testSwitchKeys(tc *testContext, t *testing.T) {
-
-	sk2 := tc.kgen.GenSecretKey()
-	decryptorSk2 := NewDecryptor(tc.params, sk2)
-	switchingKey := tc.kgen.GenSwitchingKey(tc.sk, sk2)
-
-	t.Run(GetTestName(tc.params, "SwitchKeys"), func(t *testing.T) {
-
-		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
-
-		tc.evaluator.SwitchKeys(ciphertext, switchingKey, ciphertext)
-
-		verifyTestVectors(tc.params, tc.encoder, decryptorSk2, values, ciphertext, tc.params.LogSlots(), 0, t)
-	})
-
-	t.Run(GetTestName(tc.params, "SwitchKeysNew"), func(t *testing.T) {
-
-		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
-
-		ciphertext = tc.evaluator.SwitchKeysNew(ciphertext, switchingKey)
-
-		verifyTestVectors(tc.params, tc.encoder, decryptorSk2, values, ciphertext, tc.params.LogSlots(), 0, t)
-	})
-}
-
 func testBridge(tc *testContext, t *testing.T) {
 
 	t.Run(GetTestName(tc.params, "Bridge"), func(t *testing.T) {
@@ -1012,19 +934,19 @@ func testBridge(tc *testContext, t *testing.T) {
 		require.Nil(t, err)
 
 		stdKeyGen := NewKeyGenerator(stdParams)
-		stdSK := stdKeyGen.GenSecretKey()
+		stdSK := stdKeyGen.GenSecretKeyNew()
 		stdDecryptor := NewDecryptor(stdParams, stdSK)
 		stdEncoder := NewEncoder(stdParams)
-		stdEvaluator := NewEvaluator(stdParams, rlwe.EvaluationKey{Rlk: nil, Rtks: nil})
+		stdEvaluator := NewEvaluator(stdParams, nil)
 
-		swkCtR, swkRtC := stdKeyGen.GenSwitchingKeysForRingSwap(stdSK, tc.sk)
+		evkCtR, evkRtC := stdKeyGen.GenEvaluationKeysForRingSwapNew(stdSK, tc.sk)
 
-		switcher, err := NewDomainSwitcher(stdParams, swkCtR, swkRtC)
+		switcher, err := NewDomainSwitcher(stdParams, evkCtR, evkRtC)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		evalStandar := NewEvaluator(stdParams, rlwe.EvaluationKey{})
+		evalStandar := NewEvaluator(stdParams, nil)
 
 		values, _, ctCI := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
 
@@ -1044,116 +966,7 @@ func testBridge(tc *testContext, t *testing.T) {
 	})
 }
 
-func testAutomorphisms(tc *testContext, t *testing.T) {
-
-	params := tc.params
-
-	rots := []int{0, 1, -1, 4, -4, 63, -63}
-	var rotKey *rlwe.RotationKeySet
-
-	if tc.params.PCount() != 0 {
-		rotKey = tc.kgen.GenRotationKeysForRotations(rots, params.RingType() == ring.Standard, tc.sk)
-	}
-
-	evaluator := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
-
-	t.Run(GetTestName(params, "Conjugate"), func(t *testing.T) {
-
-		if params.RingType() != ring.Standard {
-			t.Skip("Conjugate not defined in real-CKKS")
-		}
-
-		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
-
-		for i := range values {
-			values[i] = complex(real(values[i]), -imag(values[i]))
-		}
-
-		evaluator.Conjugate(ciphertext, ciphertext)
-
-		verifyTestVectors(params, tc.encoder, tc.decryptor, values, ciphertext, params.LogSlots(), 0, t)
-	})
-
-	t.Run(GetTestName(params, "ConjugateNew"), func(t *testing.T) {
-
-		if params.RingType() != ring.Standard {
-			t.Skip("Conjugate not defined in real-CKKS")
-		}
-
-		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
-
-		for i := range values {
-			values[i] = complex(real(values[i]), -imag(values[i]))
-		}
-
-		ciphertext = evaluator.ConjugateNew(ciphertext)
-
-		verifyTestVectors(params, tc.encoder, tc.decryptor, values, ciphertext, params.LogSlots(), 0, t)
-	})
-
-	t.Run(GetTestName(tc.params, "Rotate"), func(t *testing.T) {
-
-		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
-
-		ciphertext2 := NewCiphertext(tc.params, ciphertext1.Degree(), ciphertext1.Level())
-
-		for _, n := range rots {
-			evaluator.Rotate(ciphertext1, n, ciphertext2)
-			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, utils.RotateComplex128Slice(values1, n), ciphertext2, tc.params.LogSlots(), 0, t)
-		}
-	})
-
-	t.Run(GetTestName(tc.params, "RotateNew"), func(t *testing.T) {
-
-		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
-
-		for _, n := range rots {
-			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, utils.RotateComplex128Slice(values1, n), evaluator.RotateNew(ciphertext1, n), tc.params.LogSlots(), 0, t)
-		}
-
-	})
-
-	t.Run(GetTestName(tc.params, "RotateHoisted"), func(t *testing.T) {
-
-		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
-
-		ciphertexts := evaluator.RotateHoistedNew(ciphertext1, rots)
-
-		for _, n := range rots {
-			verifyTestVectors(tc.params, tc.encoder, tc.decryptor, utils.RotateComplex128Slice(values1, n), ciphertexts[n], tc.params.LogSlots(), 0, t)
-		}
-	})
-}
-
-func testInnerSum(tc *testContext, t *testing.T) {
-
-	t.Run(GetTestName(tc.params, "InnerSum"), func(t *testing.T) {
-
-		batch := 512
-		n := tc.params.Slots() / batch
-
-		rotKey := tc.kgen.GenRotationKeysForRotations(tc.params.RotationsForInnerSum(batch, n), false, tc.sk)
-		eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
-
-		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
-
-		eval.InnerSum(ciphertext1, batch, n, ciphertext1)
-
-		tmp0 := make([]complex128, len(values1))
-		copy(tmp0, values1)
-
-		for i := 1; i < n; i++ {
-
-			tmp1 := utils.RotateComplex128Slice(tmp0, i*batch)
-
-			for j := range values1 {
-				values1[j] += tmp1[j]
-			}
-		}
-
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
-
-	})
+func testLinearTransform(tc *testContext, t *testing.T) {
 
 	t.Run(GetTestName(tc.params, "Average"), func(t *testing.T) {
 
@@ -1161,8 +974,12 @@ func testInnerSum(tc *testContext, t *testing.T) {
 		batch := 1 << logBatch
 		n := tc.params.Slots() / batch
 
-		rotKey := tc.kgen.GenRotationKeysForRotations(tc.params.RotationsForInnerSum(batch, n), false, tc.sk)
-		eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
+		evk := rlwe.NewEvaluationKeySet()
+		for _, galEl := range tc.params.GaloisElementsForInnerSum(batch, n) {
+			evk.Add(tc.kgen.GenGaloisKeyNew(galEl, tc.sk))
+		}
+
+		eval := tc.evaluator.WithKey(evk)
 
 		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
 
@@ -1185,42 +1002,7 @@ func testInnerSum(tc *testContext, t *testing.T) {
 		}
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
-
 	})
-}
-
-func testReplicate(tc *testContext, t *testing.T) {
-
-	t.Run(GetTestName(tc.params, "Replicate"), func(t *testing.T) {
-
-		batch := 3
-		n := 15
-
-		rotKey := tc.kgen.GenRotationKeysForRotations(tc.params.RotationsForReplicate(batch, n), false, tc.sk)
-		eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
-
-		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
-
-		eval.Replicate(ciphertext1, batch, n, ciphertext1)
-
-		tmp0 := make([]complex128, len(values1))
-		copy(tmp0, values1)
-
-		for i := 1; i < n; i++ {
-
-			tmp1 := utils.RotateComplex128Slice(tmp0, i*-batch)
-
-			for j := range values1 {
-				values1[j] += tmp1[j]
-			}
-		}
-
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
-
-	})
-}
-
-func testLinearTransform(tc *testContext, t *testing.T) {
 
 	t.Run(GetTestName(tc.params, "LinearTransform/BSGS"), func(t *testing.T) {
 
@@ -1254,11 +1036,14 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		linTransf := GenLinearTransformBSGS(tc.encoder, diagMatrix, params.MaxLevel(), rlwe.NewScale(params.Q()[params.MaxLevel()]), 2.0, params.logSlots)
 
-		rots := linTransf.Rotations()
+		rotations := linTransf.Rotations()
 
-		rotKey := tc.kgen.GenRotationKeysForRotations(rots, false, tc.sk)
+		evk := rlwe.NewEvaluationKeySet()
+		for _, galEl := range tc.params.GaloisElementsForRotations(rotations) {
+			evk.Add(tc.kgen.GenGaloisKeyNew(galEl, tc.sk))
+		}
 
-		eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
+		eval := tc.evaluator.WithKey(evk)
 
 		eval.LinearTransform(ciphertext1, linTransf, []*rlwe.Ciphertext{ciphertext1})
 
@@ -1297,11 +1082,14 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		linTransf := GenLinearTransform(tc.encoder, diagMatrix, params.MaxLevel(), rlwe.NewScale(params.Q()[params.MaxLevel()]), params.LogSlots())
 
-		rots := linTransf.Rotations()
+		rotations := linTransf.Rotations()
 
-		rotKey := tc.kgen.GenRotationKeysForRotations(rots, false, tc.sk)
+		evk := rlwe.NewEvaluationKeySet()
+		for _, galEl := range tc.params.GaloisElementsForRotations(rotations) {
+			evk.Add(tc.kgen.GenGaloisKeyNew(galEl, tc.sk))
+		}
 
-		eval := tc.evaluator.WithKey(rlwe.EvaluationKey{Rlk: tc.rlk, Rtks: rotKey})
+		eval := tc.evaluator.WithKey(evk)
 
 		eval.LinearTransform(ciphertext1, linTransf, []*rlwe.Ciphertext{ciphertext1})
 

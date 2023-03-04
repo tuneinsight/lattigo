@@ -114,8 +114,8 @@ func (btp *Bootstrapper) bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertex
 
 func (btp *Bootstrapper) modUpFromQ0(ct *rlwe.Ciphertext) *rlwe.Ciphertext {
 
-	if btp.swkDtS != nil {
-		btp.SwitchKeys(ct, btp.swkDtS, ct)
+	if btp.EvkDtS != nil {
+		btp.ApplyEvaluationKey(ct, btp.EvkDtS, ct)
 	}
 
 	ringQ := btp.params.RingQ().AtLevel(ct.Level())
@@ -159,7 +159,7 @@ func (btp *Bootstrapper) modUpFromQ0(ct *rlwe.Ciphertext) *rlwe.Ciphertext {
 		}
 	}
 
-	if btp.swkStD != nil {
+	if btp.EvkStD != nil {
 
 		ks := btp.GetRLWEEvaluator()
 
@@ -195,8 +195,16 @@ func (btp *Bootstrapper) modUpFromQ0(ct *rlwe.Ciphertext) *rlwe.Ciphertext {
 
 		ringQ.NTT(ct.Value[0], ct.Value[0])
 
-		ks.KeyswitchHoisted(levelQ, ks.BuffDecompQP, btp.swkStD, ks.BuffQP[1].Q, ct.Value[1], ks.BuffQP[1].P, ks.BuffQP[2].P)
-		ringQ.Add(ct.Value[0], ks.BuffQP[1].Q, ct.Value[0])
+		ctTmp := &rlwe.Ciphertext{
+			Value: []*ring.Poly{
+				ks.BuffQP[1].Q,
+				ct.Value[1],
+			},
+			MetaData: ct.MetaData,
+		}
+
+		ks.GadgetProductHoisted(levelQ, ks.BuffDecompQP, btp.EvkStD.GadgetCiphertext, ctTmp)
+		ringQ.Add(ct.Value[0], ctTmp.Value[0], ct.Value[0])
 
 	} else {
 

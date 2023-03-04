@@ -29,7 +29,7 @@ An execution of the MHE-based MPC protocol has two phases: the Setup phase and t
     3. Collective Public Encryption-Key Generation
     4. Collective Public Evaluation-Key Generation
         1. Relinearization-Key
-        2. Other required Switching-Keys
+        2. Other required Galois-Keys
 2. Evaluation Phase
    1. Input (Encryption)
    2. Circuit Evaluation
@@ -110,14 +110,14 @@ The protocol is implemented by the  `drlwe.RKGProtocol` type and its steps are a
 - Each party can derive the public relinearization-key (`rlwe.RelinearizationKey`) by using the `RKGProtocol.GenRelinearizationKey` method.
 
 #### 1.iv.b Rotation-keys and other Automorphisms
-This protocol provides the parties with a public rotation-key (stored as `rlwe.SwitchingKey` types) for the _ideal secret-key_. One rotation-key enables one specific rotation on the ciphertexts' slots. The protocol can be repeated to generate the keys for multiple rotations.
+This protocol provides the parties with a public Galois-key (stored as `rlwe.GaloisKey` types) for the _ideal secret-key_. One rotation-key enables one specific rotation on the ciphertexts' slots. The protocol can be repeated to generate the keys for multiple rotations.
 
 The protocol is implemented by the  `drlwe.RTGProtocol` type and its steps are as follows:
 - Each party samples a common random polynomial matrix (`drlwe.RTGCRP`) from the CRS by using the `RTGProtocol.SampleCRP` method.
 - _[if t < N]_ Each party uses the `drlwe.Combiner.GenAdditiveShare` to obtain a t-out-of-t sharing and uses the result as its secret-key in the next step.
 - Each party generates a share (`drlwe.RTGShare`) by using `RTGProtocol.GenShare`. 
 - Each party discloses its `drlwe.RTGShare` over the public channel. The shares are aggregated with the `RTGProtocol.AggregateShares` method.
-- Each party can derive the public rotation-key (`rlwe.SwitchingKey`) from the final `RTGShare` by using the `RTGProtocol.AggregateShares` method.
+- Each party can derive the public Galois-key (`rlwe.GaloisKey`) from the final `RTGShare` by using the `RTGProtocol.AggregateShares` method.
 
 ### 2 Evaluation Phase 
 

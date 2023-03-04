@@ -50,8 +50,8 @@ type Evaluator interface {
 	Replicate(ctIn *rlwe.Ciphertext, batch, n int, ctOut *rlwe.Ciphertext)
 	TraceNew(ctIn *rlwe.Ciphertext, logSlots int) *rlwe.Ciphertext
 	Trace(ctIn *rlwe.Ciphertext, logSlots int, ctOut *rlwe.Ciphertext)
-	SwitchKeysNew(ctIn *rlwe.Ciphertext, switchingKey *rlwe.SwitchingKey) (ctOut *rlwe.Ciphertext)
-	SwitchKeys(ctIn *rlwe.Ciphertext, switchingKey *rlwe.SwitchingKey, ctOut *rlwe.Ciphertext)
+	ApplyEvaluationKeyNew(ctIn *rlwe.Ciphertext, evk *rlwe.EvaluationKey) (ctOut *rlwe.Ciphertext)
+	ApplyEvaluationKey(ctIn *rlwe.Ciphertext, evk *rlwe.EvaluationKey, ctOut *rlwe.Ciphertext)
 	RelinearizeNew(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext)
 	Relinearize(ctIn *rlwe.Ciphertext, ctOut *rlwe.Ciphertext)
 	ScaleUpNew(ctIn *rlwe.Ciphertext, scale rlwe.Scale) (ctOut *rlwe.Ciphertext)
@@ -80,7 +80,7 @@ type Evaluator interface {
 	BuffQ() [3]*ring.Poly
 	BuffCt() *rlwe.Ciphertext
 	ShallowCopy() Evaluator
-	WithKey(rlwe.EvaluationKey) Evaluator
+	WithKey(rlwe.EvaluationKeySetInterface) Evaluator
 }
 
 type evaluator struct {
@@ -89,8 +89,8 @@ type evaluator struct {
 }
 
 // NewEvaluator creates a new Evaluator.
-func NewEvaluator(params ckks.Parameters, evaluationKey rlwe.EvaluationKey) Evaluator {
-	return &evaluator{ckks.NewEvaluator(params, evaluationKey), params}
+func NewEvaluator(params ckks.Parameters, evk rlwe.EvaluationKeySetInterface) Evaluator {
+	return &evaluator{ckks.NewEvaluator(params, evk), params}
 }
 
 // ShallowCopy creates a shallow copy of this evaluator in which all the read-only data-structures are
@@ -107,8 +107,8 @@ func (eval *evaluator) Parameters() ckks.Parameters {
 
 // WithKey creates a shallow copy of the receiver Evaluator for which the new EvaluationKey is evaluationKey
 // and where the temporary buffers are shared. The receiver and the returned Evaluators cannot be used concurrently.
-func (eval *evaluator) WithKey(evaluationKey rlwe.EvaluationKey) Evaluator {
-	return &evaluator{eval.Evaluator.WithKey(evaluationKey), eval.params}
+func (eval *evaluator) WithKey(evk rlwe.EvaluationKeySetInterface) Evaluator {
+	return &evaluator{eval.Evaluator.WithKey(evk), eval.params}
 }
 
 // CoeffsToSlotsNew applies the homomorphic encoding and returns the result on new ciphertexts.

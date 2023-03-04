@@ -151,13 +151,17 @@ func (ct *GadgetCiphertext) Decode(data []byte) (ptr int, err error) {
 
 	ptr = 2
 
-	ct.Value = make([][]CiphertextQP, decompRNS)
+	if ct.Value == nil || len(ct.Value) != decompRNS {
+		ct.Value = make([][]CiphertextQP, decompRNS)
+	}
 
 	var inc int
 
 	for i := range ct.Value {
 
-		ct.Value[i] = make([]CiphertextQP, decompBIT)
+		if ct.Value[i] == nil || len(ct.Value[i]) != decompBIT {
+			ct.Value[i] = make([]CiphertextQP, decompBIT)
+		}
 
 		for j := range ct.Value[i] {
 

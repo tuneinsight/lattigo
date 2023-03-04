@@ -1,9 +1,10 @@
 package drlwe
 
 import (
+	"math"
+
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
-	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
@@ -13,8 +14,8 @@ type CKSProtocol struct {
 	sigmaSmudging   float64
 	gaussianSampler *ring.GaussianSampler
 	basisExtender   *ring.BasisExtender
-	tmpQP           ringqp.Poly
-	tmpDelta        *ring.Poly
+	buff            *ring.Poly
+	buffDelta       *ring.Poly
 }
 
 // ShallowCopy creates a shallow copy of CKSProtocol in which all the read-only data-structures are
@@ -32,8 +33,8 @@ func (cks *CKSProtocol) ShallowCopy() *CKSProtocol {
 		params:          params,
 		gaussianSampler: ring.NewGaussianSampler(prng, params.RingQ(), cks.sigmaSmudging, int(6*cks.sigmaSmudging)),
 		basisExtender:   cks.basisExtender.ShallowCopy(),
-		tmpQP:           params.RingQP().NewPoly(),
-		tmpDelta:        params.RingQ().NewPoly(),
+		buff:            params.RingQ().NewPoly(),
+		buffDelta:       params.RingQ().NewPoly(),
 	}
 }
 
@@ -67,18 +68,21 @@ func (ckss *CKSShare) UnmarshalBinary(data []byte) (err error) {
 func NewCKSProtocol(params rlwe.Parameters, sigmaSmudging float64) *CKSProtocol {
 	cks := new(CKSProtocol)
 	cks.params = params
-	cks.sigmaSmudging = sigmaSmudging
 	prng, err := utils.NewPRNG()
 	if err != nil {
 		panic(err)
 	}
-	cks.gaussianSampler = ring.NewGaussianSampler(prng, params.RingQ(), sigmaSmudging, int(6*sigmaSmudging))
+
+	// EncFreshSK + sigmaSmudging
+	cks.sigmaSmudging = math.Sqrt(params.Sigma()*params.Sigma() + sigmaSmudging*sigmaSmudging)
+
+	cks.gaussianSampler = ring.NewGaussianSampler(prng, params.RingQ(), cks.sigmaSmudging, int(6*cks.sigmaSmudging))
 
 	if cks.params.RingP() != nil {
 		cks.basisExtender = ring.NewBasisExtender(params.RingQ(), params.RingP())
 	}
-	cks.tmpQP = params.RingQP().NewPoly()
-	cks.tmpDelta = params.RingQ().NewPoly()
+	cks.buff = params.RingQ().NewPoly()
+	cks.buffDelta = params.RingQ().NewPoly()
 	return cks
 }
 
@@ -98,77 +102,38 @@ func (cks *CKSProtocol) SampleCRP(level int, crs CRS) CKSCRP {
 
 // GenShare computes a party's share in the CKS protocol from secret-key skInput to secret-key skOutput.
 // ct is the rlwe.Ciphertext to keyswitch. Note that ct.Value[0] is not used by the function and can be nil/zero.
+//
+// Expected noise: ctNoise + encFreshSk + smudging
 func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlwe.Ciphertext, shareOut *CKSShare) {
 
-	c1 := ct.Value[1]
-
-	levelQ := utils.MinInt(shareOut.Value.Level(), c1.Level())
-	levelP := cks.params.PCount() - 1
+	levelQ := utils.MinInt(shareOut.Value.Level(), ct.Value[1].Level())
 
 	shareOut.Value.Resize(levelQ)
 
-	ringQP := cks.params.RingQP().AtLevel(levelQ, levelP)
-	ringQ := ringQP.RingQ
-	ringP := ringQP.RingP
+	ringQ := cks.params.RingQ().AtLevel(levelQ)
 
-	ringQ.Sub(skInput.Value.Q, skOutput.Value.Q, cks.tmpDelta)
+	ringQ.Sub(skInput.Value.Q, skOutput.Value.Q, cks.buffDelta)
 
-	ct1 := c1
+	var c1NTT *ring.Poly
 	if !ct.IsNTT {
-		ringQ.NTTLazy(c1, cks.tmpQP.Q)
-		ct1 = cks.tmpQP.Q
-	}
-
-	// a * (skIn - skOut) mod Q
-	ringQ.MulCoeffsMontgomeryLazy(ct1, cks.tmpDelta, shareOut.Value)
-
-	if ringP != nil {
-		// P * a * (skIn - skOut) mod QP (mod P = 0)
-		ringQ.MulScalarBigint(shareOut.Value, ringP.ModulusAtLevel[levelP], shareOut.Value)
-	}
-
-	if !ct.IsNTT {
-		// InvNTT(P * a * (skIn - skOut)) mod QP (mod P = 0)
-		ringQ.INTTLazy(shareOut.Value, shareOut.Value)
-
-		// Samples e in Q
-		cks.gaussianSampler.Read(cks.tmpQP.Q)
-
-		if ringP != nil {
-			// Extend e to P (assumed to have norm < qi)
-			ringQP.ExtendBasisSmallNormAndCenter(cks.tmpQP.Q, levelP, nil, cks.tmpQP.P)
-		}
-
-		// InvNTT(P * a * (skIn - skOut) + e) mod QP (mod P = e)
-		ringQ.Add(shareOut.Value, cks.tmpQP.Q, shareOut.Value)
-
-		if ringP != nil {
-			// InvNTT(P * a * (skIn - skOut) + e) * (1/P) mod QP (mod P = e)
-			cks.basisExtender.ModDownQPtoQ(levelQ, levelP, shareOut.Value, cks.tmpQP.P, shareOut.Value)
-		}
-
+		ringQ.NTTLazy(ct.Value[1], cks.buff)
+		c1NTT = cks.buff
 	} else {
-		// Sample e in Q
-		cks.gaussianSampler.Read(cks.tmpQP.Q)
+		c1NTT = ct.Value[1]
+	}
 
-		if ringP != nil {
-			// Extend e to P (assumed to have norm < qi)
-			ringQP.ExtendBasisSmallNormAndCenter(cks.tmpQP.Q, levelP, nil, cks.tmpQP.P)
-		}
+	// c1NTT * (skIn - skOut)
+	ringQ.MulCoeffsMontgomeryLazy(c1NTT, cks.buffDelta, shareOut.Value)
 
-		// Takes the error to the NTT domain
-		ringQ.INTT(shareOut.Value, shareOut.Value)
-
-		// P * a * (skIn - skOut) + e mod Q (mod P = 0, so P = e)
-		ringQ.Add(shareOut.Value, cks.tmpQP.Q, shareOut.Value)
-
-		if ringP != nil {
-			// (P * a * (skIn - skOut) + e) * (1/P) mod QP (mod P = e)
-			cks.basisExtender.ModDownQPtoQ(levelQ, levelP, shareOut.Value, cks.tmpQP.P, shareOut.Value)
-		}
-
-		ringQ.NTT(shareOut.Value, shareOut.Value)
-
+	if !ct.IsNTT {
+		// InvNTT(c1NTT * (skIn - skOut)) + e
+		ringQ.INTTLazy(shareOut.Value, shareOut.Value)
+		cks.gaussianSampler.AtLevel(levelQ).ReadAndAdd(shareOut.Value)
+	} else {
+		// c1NTT * (skIn - skOut) + e
+		cks.gaussianSampler.AtLevel(levelQ).Read(cks.buff)
+		ringQ.NTT(cks.buff, cks.buff)
+		ringQ.Add(shareOut.Value, cks.buff, shareOut.Value)
 	}
 }
 

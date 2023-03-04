@@ -87,7 +87,7 @@ func main() {
 	// Scheme context and keys
 	kgen := ckks.NewKeyGenerator(params)
 
-	sk, pk := kgen.GenKeyPair()
+	sk, pk := kgen.GenKeyPairNew()
 
 	encoder := ckks.NewEncoder(params)
 	decryptor := ckks.NewDecryptor(params, sk)
@@ -95,7 +95,7 @@ func main() {
 
 	fmt.Println()
 	fmt.Println("Generating bootstrapping keys...")
-	evk := bootstrapping.GenEvaluationKeys(btpParams, params, sk)
+	evk := bootstrapping.GenEvaluationKeySetNew(btpParams, params, sk)
 	fmt.Println("Done")
 
 	var btp *bootstrapping.Bootstrapper

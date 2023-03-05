@@ -7,6 +7,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
 // Evaluator is a struct that stores the necessary
@@ -258,12 +259,12 @@ func (eval *Evaluator) ModSwitchRLWETo2NLvl(level int, polQ *ring.Poly, pol2N *r
 	QBig := ringQ.ModulusAtLevel[level]
 
 	twoN := uint64(eval.paramsLUT.N() << 1)
-	twoNBig := ring.NewUint(twoN)
+	twoNBig := bignum.NewInt(twoN)
 	tmp := pol2N.Coeffs[0]
 	N := ringQ.N()
 	for i := 0; i < N; i++ {
 		coeffsBigint[i].Mul(coeffsBigint[i], twoNBig)
-		ring.DivRound(coeffsBigint[i], QBig, coeffsBigint[i])
+		bignum.DivRound(coeffsBigint[i], QBig, coeffsBigint[i])
 		tmp[i] = coeffsBigint[i].Uint64() & (twoN - 1)
 	}
 }

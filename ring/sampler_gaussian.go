@@ -7,6 +7,7 @@ import (
 
 	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
 // GaussianSampler keeps the state of a truncated Gaussian polynomial sampler.
@@ -100,7 +101,7 @@ func (g *GaussianSampler) read(pol *Poly, f func(a, b, c uint64) uint64) {
 		Qi := make([]*big.Int, len(moduli))
 
 		for i, qi := range moduli {
-			Qi[i] = NewUint(qi)
+			Qi[i] = bignum.NewInt(qi)
 		}
 
 		var coeffInt *big.Int
@@ -125,9 +126,9 @@ func (g *GaussianSampler) read(pol *Poly, f func(a, b, c uint64) uint64) {
 					normInt.Lsh(sigmaInt, uint(math.Log2(norm)+bias))
 				}
 
-				coeffInt = RandInt(g.prng, normInt)
+				coeffInt = bignum.RandInt(g.prng, normInt)
 
-				coeffInt.Mul(coeffInt, NewInt(2*int64(sign)-1))
+				coeffInt.Mul(coeffInt, bignum.NewInt(2*int64(sign)-1))
 
 				if coeffInt.Cmp(boundInt) < 1 {
 					break

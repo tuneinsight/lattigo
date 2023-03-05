@@ -2,10 +2,12 @@ package advanced
 
 import (
 	"math"
+	"math/big"
 
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
 // DFTType is a type used to distinguish different linear transformations.
@@ -42,7 +44,6 @@ type HomomorphicDFTMatrix struct {
 type HomomorphicDFTMatrixLiteral struct {
 	// Mandatory
 	Type       DFTType
-	LogN       int
 	LogSlots   int
 	LevelStart int
 	Levels     []int
@@ -72,7 +73,7 @@ func (d *HomomorphicDFTMatrixLiteral) GaloisElements(params ckks.Parameters) (ga
 	rotations := []int{}
 
 	logSlots := d.LogSlots
-	logN := d.LogN
+	logN := params.LogN()
 	slots := 1 << logSlots
 	dslots := slots
 	if logSlots < logN-1 && d.RepackImag2Real {
@@ -82,7 +83,7 @@ func (d *HomomorphicDFTMatrixLiteral) GaloisElements(params ckks.Parameters) (ga
 		}
 	}
 
-	indexCtS := d.computeBootstrappingDFTIndexMap()
+	indexCtS := d.computeBootstrappingDFTIndexMap(logN)
 
 	// Coeffs to Slots rotations
 	for i, pVec := range indexCtS {
@@ -94,25 +95,32 @@ func (d *HomomorphicDFTMatrixLiteral) GaloisElements(params ckks.Parameters) (ga
 }
 
 // NewHomomorphicDFTMatrixFromLiteral generates the factorized DFT/IDFT matrices for the homomorphic encoding/decoding.
-func NewHomomorphicDFTMatrixFromLiteral(d HomomorphicDFTMatrixLiteral, encoder ckks.Encoder) HomomorphicDFTMatrix {
-
-	logSlots := d.LogSlots
-	logdSlots := logSlots
-	if logdSlots < d.LogN-1 && d.RepackImag2Real {
-		logdSlots++
-	}
+func NewHomomorphicDFTMatrixFromLiteral(d HomomorphicDFTMatrixLiteral, encoder *ckks.Encoder) HomomorphicDFTMatrix {
 
 	params := encoder.Parameters()
 
-	// DFT vectors
+	logSlots := d.LogSlots
+	logdSlots := logSlots
+	if logdSlots < params.MaxLogSlots() && d.RepackImag2Real {
+		logdSlots++
+	}
+
+	// CoeffsToSlots vectors
 	matrices := []ckks.LinearTransform{}
-	pVecDFT := d.GenMatrices()
+	pVecDFT := d.GenMatrices(params.LogN())
 
 	level := d.LevelStart
 	var idx int
 	for i := range d.Levels {
 
-		scale := rlwe.NewScale(math.Pow(params.QiFloat64(level), 1.0/float64(d.Levels[i])))
+		scale := rlwe.NewScale(params.Q()[level])
+
+		if d.Levels[i] > 1 {
+			y := new(big.Float).SetPrec(scale.Value.Prec()).SetInt64(1)
+			y.Quo(y, new(big.Float).SetPrec(scale.Value.Prec()).SetInt64(int64(d.Levels[i])))
+
+			scale.Value = *bignum.Pow(&scale.Value, y)
+		}
 
 		for j := 0; j < d.Levels[i]; j++ {
 			matrices = append(matrices, ckks.GenLinearTransformBSGS(encoder, pVecDFT[idx], level, scale, d.LogBSGSRatio, logdSlots))
@@ -247,7 +255,7 @@ func addMatrixRotToList(pVec map[int]bool, rotations []int, N1, slots int, repac
 			index = (j / N1) * N1
 
 			if repack {
-				// Sparse repacking, occurring during the first IDFT matrix.
+				// Sparse repacking, occurring during the first DFT matrix of the CoeffsToSlots.
 				index &= (2*slots - 1)
 			} else {
 				// Other cases
@@ -269,9 +277,8 @@ func addMatrixRotToList(pVec map[int]bool, rotations []int, N1, slots int, repac
 	return rotations
 }
 
-func (d *HomomorphicDFTMatrixLiteral) computeBootstrappingDFTIndexMap() (rotationMap []map[int]bool) {
+func (d *HomomorphicDFTMatrixLiteral) computeBootstrappingDFTIndexMap(logN int) (rotationMap []map[int]bool) {
 
-	logN := d.LogN
 	logSlots := d.LogSlots
 	ltType := d.Type
 	repacki2r := d.RepackImag2Real
@@ -308,10 +315,10 @@ func (d *HomomorphicDFTMatrixLiteral) computeBootstrappingDFTIndexMap() (rotatio
 
 		if logSlots < logN-1 && ltType == Decode && i == 0 && repacki2r {
 
-			// Special initial matrix for the repacking before DFT
+			// Special initial matrix for the repacking before Decode
 			rotationMap[i] = genWfftRepackIndexMap(logSlots, level)
 
-			// Merges this special initial matrix with the first layer of DFT
+			// Merges this special initial matrix with the first layer of Decode DFT
 			rotationMap[i] = nextLevelfftIndexMap(rotationMap[i], logSlots, 2<<logSlots, level, ltType, bitreversed)
 
 			// Continues the merging with the next layers if the total depth requires it.
@@ -385,8 +392,8 @@ func nextLevelfftIndexMap(vec map[int]bool, logL, N, nextLevel int, ltType DFTTy
 	return
 }
 
-// GenMatrices returns the ordered list of factors of the non-zero diagonals of the IDFT (encoding) or DFT (decoding) matrix.
-func (d *HomomorphicDFTMatrixLiteral) GenMatrices() (plainVector []map[int][]complex128) {
+// GenMatrices returns the ordered list of factors of the non-zero diagonales of the IDFT (encoding) or DFT (decoding) matrix.
+func (d *HomomorphicDFTMatrixLiteral) GenMatrices(LogN int) (plainVector []map[int][]complex128) {
 
 	logSlots := d.LogSlots
 	slots := 1 << logSlots
@@ -395,7 +402,7 @@ func (d *HomomorphicDFTMatrixLiteral) GenMatrices() (plainVector []map[int][]com
 	bitreversed := d.BitReversed
 
 	logdSlots := logSlots
-	if logdSlots < d.LogN-1 && d.RepackImag2Real {
+	if logdSlots < LogN-1 && d.RepackImag2Real {
 		logdSlots++
 	}
 

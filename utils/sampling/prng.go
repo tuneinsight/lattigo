@@ -44,6 +44,15 @@ func NewPRNG() (*KeyedPRNG, error) {
 	return prng, err
 }
 
+// Key returns a copy of the key used to seed the PRNG.
+// This value can be used with `NewKeyedPRNG` to instantiate
+// a new PRNG that will produce the same stream of bytes.
+func (prng *KeyedPRNG) Key() (key []byte) {
+	key = make([]byte, len(prng.key))
+	copy(key, prng.key)
+	return
+}
+
 // Read reads bytes from the KeyedPRNG on sum.
 func (prng *KeyedPRNG) Read(sum []byte) (n int, err error) {
 	if n, err = prng.xof.Read(sum); err != nil {

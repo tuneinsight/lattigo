@@ -8,6 +8,14 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
+// Operand is a common interface for Ciphertext and Plaintext types.
+type Operand interface {
+	El() *Ciphertext
+	Degree() int
+	Level() int
+	GetMetaData() *MetaData
+}
+
 // Evaluator is a struct that holds the necessary elements to execute general homomorphic
 // operation on RLWE ciphertexts, such as automorphisms, key-switching and relinearization.
 type Evaluator struct {
@@ -136,11 +144,17 @@ func (eval *Evaluator) CheckAndGetRelinearizationKey() (evk *RelinearizationKey,
 
 // CheckBinary checks that:
 //
-//	Inputs are not nil
-//	op0.Degree() + op1.Degree() != 0 (i.e at least one operand is a ciphertext)
-//	opOut.Degree() >= opOutMinDegree
-//	op0.IsNTT = DefaultNTTFlag
-//	op1.IsNTT = DefaultNTTFlag
+//		Inputs are not nil
+//		op0.Degree() + op1.Degree() != 0 (i.e at least one operand is a ciphertext)
+//		opOut.Degree() >= opOutMinDegree
+//		op0.IsNTT == op1.IsNTT == DefaultNTTFlag
+//	 op0.EncodingDomain == op1.EncodingDomain
+//
+// The method will also update the MetaData of OpOut:
+//
+// IsNTT <- DefaultNTTFlag
+// EncodingDomain <- op0.EncodingDomain
+// LogSlots <- max(op0.LogSlots, op1.LogSlots)
 //
 // and returns max(op0.Degree(), op1.Degree(), opOut.Degree()) and min(op0.Level(), op1.Level(), opOut.Level())
 func (eval *Evaluator) CheckBinary(op0, op1, opOut Operand, opOutMinDegree int) (degree, level int) {
@@ -164,12 +178,31 @@ func (eval *Evaluator) CheckBinary(op0, op1, opOut Operand, opOutMinDegree int) 
 		opOut.El().IsNTT = op0.El().IsNTT
 	}
 
-	opOut.El().Resize(utils.Max(opOutMinDegree, opOut.Degree()), level)
+	if op0.El().IsNTT != op1.El().IsNTT || op0.El().IsNTT != eval.params.DefaultNTTFlag() {
+		panic(fmt.Sprintf("op0.El().IsNTT or op1.El().IsNTT != %t", eval.params.DefaultNTTFlag()))
+	} else {
+		opOut.El().IsNTT = op0.El().IsNTT
+	}
+
+	if op0.El().EncodingDomain != op1.El().EncodingDomain {
+		panic("op1.El().EncodingDomain != op2.El().EncodingDomain")
+	} else {
+		opOut.El().EncodingDomain = op0.El().EncodingDomain
+	}
+
+	opOut.El().LogSlots = utils.MaxInt(op0.El().LogSlots, op1.El().LogSlots)
 
 	return
 }
 
 // CheckUnary checks that op0 and opOut are not nil and that op0 respects the DefaultNTTFlag.
+//
+// The method will also update the metadata of opOut:
+//
+// IsNTT <- DefaultNTTFlag
+// EncodingDomain <- op0.EncodingDomain
+// LogSlots <- op0.LogSlots
+//
 // Also returns max(op0.Degree(), opOut.Degree()) and min(op0.Level(), opOut.Level()).
 func (eval *Evaluator) CheckUnary(op0, opOut Operand) (degree, level int) {
 
@@ -179,9 +212,15 @@ func (eval *Evaluator) CheckUnary(op0, opOut Operand) (degree, level int) {
 
 	if op0.El().IsNTT != eval.params.DefaultNTTFlag() {
 		panic(fmt.Sprintf("op0.IsNTT() != %t", eval.params.DefaultNTTFlag()))
+	} else {
+		opOut.El().IsNTT = op0.El().IsNTT
 	}
 
-	return utils.Max(op0.Degree(), opOut.Degree()), utils.Min(op0.Level(), opOut.Level())
+	opOut.El().EncodingDomain = op0.El().EncodingDomain
+
+	opOut.El().LogSlots = op0.El().LogSlots
+
+	return utils.MaxInt(op0.Degree(), opOut.Degree()), utils.MinInt(op0.Level(), opOut.Level())
 }
 
 // ShallowCopy creates a shallow copy of this Evaluator in which all the read-only data-structures are

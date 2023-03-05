@@ -3,11 +3,13 @@ package ring
 import (
 	"fmt"
 	"math/bits"
+
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
 // IsPrime applies the Baillie-PSW, which is 100% accurate for numbers bellow 2^64.
 func IsPrime(x uint64) bool {
-	return NewUint(x).ProbablyPrime(0)
+	return bignum.NewInt(x).ProbablyPrime(0)
 }
 
 // GenerateNTTPrimes generates n NthRoot NTT friendly primes given logQ = size of the primes.

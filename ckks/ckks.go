@@ -7,11 +7,15 @@ import (
 )
 
 func NewPlaintext(params Parameters, level int) (pt *rlwe.Plaintext) {
-	return rlwe.NewPlaintext(params.Parameters, level)
+	pt = rlwe.NewPlaintext(params.Parameters, level)
+	pt.LogSlots = params.MaxLogSlots()
+	return
 }
 
 func NewCiphertext(params Parameters, degree, level int) (ct *rlwe.Ciphertext) {
-	return rlwe.NewCiphertext(params.Parameters, degree, level)
+	ct = rlwe.NewCiphertext(params.Parameters, degree, level)
+	ct.LogSlots = params.MaxLogSlots()
+	return
 }
 
 func NewEncryptor(params Parameters, key interface{}) rlwe.Encryptor {

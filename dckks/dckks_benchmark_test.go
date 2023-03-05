@@ -8,40 +8,43 @@ import (
 	"github.com/tuneinsight/lattigo/v4/drlwe"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
 func BenchmarkDCKKS(b *testing.B) {
 
 	var err error
 
-	defaultParams := ckks.DefaultParams
-	if testing.Short() {
-		defaultParams = ckks.DefaultParams[:2]
+	var testParams []ckks.ParametersLiteral
+	switch {
+	case *flagParamString != "": // the custom test suite reads the parameters from the -params flag
+		testParams = append(testParams, ckks.ParametersLiteral{})
+		if err = json.Unmarshal([]byte(*flagParamString), &testParams[0]); err != nil {
+			b.Fatal(err)
+		}
+	default:
+		testParams = ckks.TestParamsLiteral
 	}
-	if *flagParamString != "" {
-		var jsonParams ckks.ParametersLiteral
-		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
-			b.Fatal(err)
+
+	for _, ringType := range []ring.Type{ring.Standard, ring.ConjugateInvariant} {
+
+		for _, paramsLiteral := range testParams {
+
+			paramsLiteral.RingType = ringType
+
+			var params ckks.Parameters
+			if params, err = ckks.NewParametersFromLiteral(paramsLiteral); err != nil {
+				b.Fatal(err)
+			}
+			N := 3
+			var tc *testContext
+			if tc, err = genTestParams(params, N); err != nil {
+				b.Fatal(err)
+			}
+
+			benchRefresh(tc, b)
+			benchMaskedTransform(tc, b)
 		}
-		defaultParams = []ckks.ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
-	}
-
-	parties := 3
-
-	for _, p := range defaultParams {
-
-		var params ckks.Parameters
-		if params, err = ckks.NewParametersFromLiteral(p); err != nil {
-			b.Fatal(err)
-		}
-
-		var tc *testContext
-		if tc, err = genTestParams(params, parties); err != nil {
-			b.Fatal(err)
-		}
-
-		benchRefresh(tc, b)
-		benchMaskedTransform(tc, b)
 	}
 }
 
@@ -70,24 +73,24 @@ func benchRefresh(tc *testContext, b *testing.B) {
 
 		crp := p.SampleCRP(params.MaxLevel(), tc.crs)
 
-		b.Run(testString("Refresh/Round1/Gen", tc.NParties, params), func(b *testing.B) {
+		b.Run(GetTestName("Refresh/Round1/Gen", tc.NParties, params), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
-				p.GenShare(p.s, logBound, params.LogSlots(), ciphertext, crp, p.share)
+				p.GenShare(p.s, logBound, ciphertext, crp, p.share)
 			}
 		})
 
-		b.Run(testString("Refresh/Round1/Agg", tc.NParties, params), func(b *testing.B) {
+		b.Run(GetTestName("Refresh/Round1/Agg", tc.NParties, params), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				p.AggregateShares(p.share, p.share, p.share)
 			}
 		})
 
-		b.Run(testString("Refresh/Finalize", tc.NParties, params), func(b *testing.B) {
+		b.Run(GetTestName("Refresh/Finalize", tc.NParties, params), func(b *testing.B) {
 			ctOut := ckks.NewCiphertext(params, 1, params.MaxLevel())
 			for i := 0; i < b.N; i++ {
-				p.Finalize(ciphertext, params.LogSlots(), crp, p.share, ctOut)
+				p.Finalize(ciphertext, crp, p.share, ctOut)
 			}
 		})
 
@@ -123,33 +126,33 @@ func benchMaskedTransform(tc *testContext, b *testing.B) {
 
 		transform := &MaskedTransformFunc{
 			Decode: true,
-			Func: func(coeffs []*ring.Complex) {
+			Func: func(coeffs []*bignum.Complex) {
 				for i := range coeffs {
-					coeffs[i][0].Mul(coeffs[i][0], ring.NewFloat(0.9238795325112867, logBound))
-					coeffs[i][1].Mul(coeffs[i][1], ring.NewFloat(0.7071067811865476, logBound))
+					coeffs[i][0].Mul(coeffs[i][0], bignum.NewFloat(0.9238795325112867, logBound))
+					coeffs[i][1].Mul(coeffs[i][1], bignum.NewFloat(0.7071067811865476, logBound))
 				}
 			},
 			Encode: true,
 		}
 
-		b.Run(testString("Refresh&Transform/Round1/Gen", tc.NParties, params), func(b *testing.B) {
+		b.Run(GetTestName("Refresh&Transform/Round1/Gen", tc.NParties, params), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
-				p.GenShare(p.s, p.s, logBound, params.LogSlots(), ciphertext, crp, transform, p.share)
+				p.GenShare(p.s, p.s, logBound, ciphertext, crp, transform, p.share)
 			}
 		})
 
-		b.Run(testString("Refresh&Transform/Round1/Agg", tc.NParties, params), func(b *testing.B) {
+		b.Run(GetTestName("Refresh&Transform/Round1/Agg", tc.NParties, params), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				p.AggregateShares(p.share, p.share, p.share)
 			}
 		})
 
-		b.Run(testString("Refresh&Transform/Transform", tc.NParties, params), func(b *testing.B) {
+		b.Run(GetTestName("Refresh&Transform/Transform", tc.NParties, params), func(b *testing.B) {
 			ctOut := ckks.NewCiphertext(params, 1, params.MaxLevel())
 			for i := 0; i < b.N; i++ {
-				p.Transform(ciphertext, params.LogSlots(), transform, crp, p.share, ctOut)
+				p.Transform(ciphertext, transform, crp, p.share, ctOut)
 			}
 		})
 

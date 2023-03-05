@@ -2,12 +2,14 @@ package ckks
 
 import (
 	"fmt"
+	"math/big"
 	"runtime"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
 // TraceNew maps X -> sum((-1)^i * X^{i*n+1}) for 0 <= i < N and returns the result on a new ciphertext.
@@ -30,7 +32,7 @@ func (eval *evaluator) Average(ctIn *rlwe.Ciphertext, logBatchSize int, ctOut *r
 		panic("ctIn.Degree() != 1 or ctOut.Degree() != 1")
 	}
 
-	if logBatchSize > eval.params.LogSlots() {
+	if logBatchSize > ctIn.LogSlots {
 		panic("cannot Average: batchSize must be smaller or equal to the number of slots")
 	}
 
@@ -38,7 +40,7 @@ func (eval *evaluator) Average(ctIn *rlwe.Ciphertext, logBatchSize int, ctOut *r
 
 	level := utils.Min(ctIn.Level(), ctOut.Level())
 
-	n := eval.params.Slots() / (1 << logBatchSize)
+	n := 1 << (ctIn.LogSlots - logBatchSize)
 
 	// pre-multiplication by n^-1
 	for i, s := range ringQ.SubRings[:level+1] {
@@ -162,12 +164,7 @@ func (LT *LinearTransform) GaloisElements(params Parameters) (galEls []uint64) {
 // It can then be evaluated on a ciphertext using evaluator.LinearTransform.
 // Evaluation will use the naive approach (single hoisting and no baby-step giant-step).
 // Faster if there is only a few non-zero diagonals but uses more keys.
-func (LT *LinearTransform) Encode(encoder Encoder, value interface{}, scale rlwe.Scale) {
-
-	enc, ok := encoder.(*encoderComplex128)
-	if !ok {
-		panic("cannot Encode: encoder should be an encoderComplex128")
-	}
+func (LT *LinearTransform) Encode(ecd *Encoder, value interface{}, scale rlwe.Scale) {
 
 	dMat := interfaceMapToMapOfInterface(value)
 	slots := 1 << LT.LogSlots
@@ -184,7 +181,7 @@ func (LT *LinearTransform) Encode(encoder Encoder, value interface{}, scale rlwe
 				panic("cannot Encode: error encoding on LinearTransform: input does not match the same non-zero diagonals")
 			}
 
-			enc.Embed(dMat[i], LT.LogSlots, scale, true, LT.Vec[idx])
+			ecd.Embed(dMat[i], LT.LogSlots, scale, true, LT.Vec[idx])
 		}
 	} else {
 
@@ -196,6 +193,10 @@ func (LT *LinearTransform) Encode(encoder Encoder, value interface{}, scale rlwe
 			values = make([]complex128, slots)
 		case map[int][]float64:
 			values = make([]float64, slots)
+		case map[int][]*big.Float:
+			values = make([]*big.Float, slots)
+		case map[int][]*bignum.Complex:
+			values = make([]*bignum.Complex, slots)
 		}
 
 		for j := range index {
@@ -215,7 +216,7 @@ func (LT *LinearTransform) Encode(encoder Encoder, value interface{}, scale rlwe
 
 				copyRotInterface(values, v, rot)
 
-				enc.Embed(values, LT.LogSlots, scale, true, LT.Vec[j+i])
+				ecd.Embed(values, LT.LogSlots, scale, true, LT.Vec[j+i])
 			}
 		}
 	}
@@ -229,14 +230,9 @@ func (LT *LinearTransform) Encode(encoder Encoder, value interface{}, scale rlwe
 // It can then be evaluated on a ciphertext using evaluator.LinearTransform.
 // Evaluation will use the naive approach (single hoisting and no baby-step giant-step).
 // Faster if there is only a few non-zero diagonals but uses more keys.
-func GenLinearTransform(encoder Encoder, value interface{}, level int, scale rlwe.Scale, logslots int) LinearTransform {
+func GenLinearTransform(ecd *Encoder, value interface{}, level int, scale rlwe.Scale, logslots int) LinearTransform {
 
-	enc, ok := encoder.(*encoderComplex128)
-	if !ok {
-		panic("cannot GenLinearTransform: encoder should be an encoderComplex128")
-	}
-
-	params := enc.params
+	params := ecd.params
 	dMat := interfaceMapToMapOfInterface(value)
 	vec := make(map[int]ringqp.Poly)
 	slots := 1 << logslots
@@ -249,8 +245,8 @@ func GenLinearTransform(encoder Encoder, value interface{}, level int, scale rlw
 		if idx < 0 {
 			idx += slots
 		}
-		vec[idx] = *ringQP.NewPoly()
-		enc.Embed(dMat[i], logslots, scale, true, vec[idx])
+		vec[idx] = ringQP.NewPoly()
+		ecd.Embed(dMat[i], logslots, scale, true, vec[idx])
 	}
 
 	return LinearTransform{LogSlots: logslots, N1: 0, Vec: vec, Level: level, Scale: scale}
@@ -264,14 +260,9 @@ func GenLinearTransform(encoder Encoder, value interface{}, level int, scale rlw
 // Faster if there is more than a few non-zero diagonals.
 // LogBSGSRatio is the log of the maximum ratio between the inner and outer loop of the baby-step giant-step algorithm used in evaluator.LinearTransform.
 // Optimal LogBSGSRatio value is between 0 and 4 depending on the sparsity of the matrix.
-func GenLinearTransformBSGS(encoder Encoder, value interface{}, level int, scale rlwe.Scale, LogBSGSRatio int, logSlots int) (LT LinearTransform) {
+func GenLinearTransformBSGS(ecd *Encoder, value interface{}, level int, scale rlwe.Scale, LogBSGSRatio int, logSlots int) (LT LinearTransform) {
 
-	enc, ok := encoder.(*encoderComplex128)
-	if !ok {
-		panic("cannot GenLinearTransformBSGS: encoder should be an encoderComplex128")
-	}
-
-	params := enc.params
+	params := ecd.params
 
 	slots := 1 << logSlots
 
@@ -294,6 +285,10 @@ func GenLinearTransformBSGS(encoder Encoder, value interface{}, level int, scale
 		values = make([]complex128, slots)
 	case map[int][]float64:
 		values = make([]float64, slots)
+	case map[int][]*big.Float:
+		values = make([]*big.Float, slots)
+	case map[int][]*bignum.Complex:
+		values = make([]*bignum.Complex, slots)
 	}
 
 	for j := range index {
@@ -311,7 +306,7 @@ func GenLinearTransformBSGS(encoder Encoder, value interface{}, level int, scale
 
 			copyRotInterface(values, v, rot)
 
-			enc.Embed(values, logSlots, scale, true, vec[j+i])
+			ecd.Embed(values, logSlots, scale, true, vec[j+i])
 		}
 	}
 
@@ -346,6 +341,32 @@ func copyRotInterface(a, b interface{}, rot int) {
 		} else {
 			copy(af64[n-rot:], bf64)
 		}
+	case []*big.Float:
+
+		aF := a.([]*big.Float)
+		bF := b.([]*big.Float)
+
+		n := len(aF)
+
+		if len(bF) >= rot {
+			copy(aF[:n-rot], bF[rot:])
+			copy(aF[n-rot:], bF[:rot])
+		} else {
+			copy(aF[n-rot:], bF)
+		}
+	case []*bignum.Complex:
+
+		aC := a.([]*bignum.Complex)
+		bC := b.([]*bignum.Complex)
+
+		n := len(aC)
+
+		if len(bC) >= rot {
+			copy(aC[:n-rot], bC[rot:])
+			copy(aC[n-rot:], bC[:rot])
+		} else {
+			copy(aC[n-rot:], bC)
+		}
 	}
 }
 
@@ -378,6 +399,20 @@ func BSGSIndex(el interface{}, slots, N1 int) (index map[int][]int, rotN1, rotN2
 			i++
 		}
 	case map[int]ringqp.Poly:
+		nonZeroDiags = make([]int, len(element))
+		var i int
+		for key := range element {
+			nonZeroDiags[i] = key
+			i++
+		}
+	case map[int][]*big.Float:
+		nonZeroDiags = make([]int, len(element))
+		var i int
+		for key := range element {
+			nonZeroDiags[i] = key
+			i++
+		}
+	case map[int][]*bignum.Complex:
 		nonZeroDiags = make([]int, len(element))
 		var i int
 		for key := range element {
@@ -425,8 +460,16 @@ func interfaceMapToMapOfInterface(m interface{}) map[int]interface{} {
 		for i := range el {
 			d[i] = el[i]
 		}
+	case map[int][]*big.Float:
+		for i := range el {
+			d[i] = el[i]
+		}
+	case map[int][]*bignum.Complex:
+		for i := range el {
+			d[i] = el[i]
+		}
 	default:
-		panic("cannot interfaceMapToMapOfInterface: invalid input, must be map[int][]complex128 or map[int][]float64")
+		panic("cannot interfaceMapToMapOfInterface: invalid input, must be map[int]{[]complex128, []float64, []*big.Float or []*bignum.Complex}")
 	}
 	return d
 }
@@ -531,6 +574,7 @@ func (eval *evaluator) LinearTransform(ctIn *rlwe.Ciphertext, linearTransform in
 
 			ctOut[i].MetaData = ctIn.MetaData
 			ctOut[i].Scale = ctIn.Scale.Mul(LT.Scale)
+			ctOut[i].LogSlots = utils.MaxInt(ctOut[i].LogSlots, LT.LogSlots)
 		}
 
 	case LinearTransform:
@@ -544,6 +588,7 @@ func (eval *evaluator) LinearTransform(ctIn *rlwe.Ciphertext, linearTransform in
 
 		ctOut[0].MetaData = ctIn.MetaData
 		ctOut[0].Scale = ctIn.Scale.Mul(LTs.Scale)
+		ctOut[0].LogSlots = utils.MaxInt(ctOut[0].LogSlots, LTs.LogSlots)
 	}
 }
 

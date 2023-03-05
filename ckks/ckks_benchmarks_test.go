@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
@@ -12,66 +13,74 @@ func BenchmarkCKKSScheme(b *testing.B) {
 
 	var err error
 
-	defaultParams := append(DefaultParams, DefaultConjugateInvariantParams...)
-	if testing.Short() {
-		defaultParams = DefaultParams[:2]
+	var testParams []ParametersLiteral
+	switch {
+	case *flagParamString != "": // the custom test suite reads the parameters from the -params flag
+		testParams = append(testParams, ParametersLiteral{})
+		if err = json.Unmarshal([]byte(*flagParamString), &testParams[0]); err != nil {
+			b.Fatal(err)
+		}
+	default:
+		testParams = TestParamsLiteral
 	}
 
-	if *flagParamString != "" {
-		var jsonParams ParametersLiteral
-		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
-			b.Fatal(err)
-		}
-		defaultParams = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
-	}
+	for _, ringType := range []ring.Type{ring.Standard, ring.ConjugateInvariant} {
 
-	for _, defaultParams := range defaultParams {
-		var params Parameters
-		if params, err = NewParametersFromLiteral(defaultParams); err != nil {
-			b.Fatal(err)
-		}
+		for _, paramsLiteral := range testParams {
 
-		var tc *testContext
-		if tc, err = genTestParams(params); err != nil {
-			b.Fatal(err)
-		}
+			paramsLiteral.RingType = ringType
 
-		benchEncoder(tc, b)
-		benchEvaluator(tc, b)
+			var params Parameters
+			if params, err = NewParametersFromLiteral(paramsLiteral); err != nil {
+				b.Fatal(err)
+			}
+
+			var tc *testContext
+			if tc, err = genTestParams(params); err != nil {
+				b.Fatal(err)
+			}
+
+			benchEncoder(tc, b)
+			benchEvaluator(tc, b)
+		}
 	}
 }
 
 func benchEncoder(tc *testContext, b *testing.B) {
 
 	encoder := tc.encoder
-	logSlots := tc.params.LogSlots()
 
 	b.Run(GetTestName(tc.params, "Encoder/Encode"), func(b *testing.B) {
 
-		values := make([]complex128, 1<<logSlots)
-		for i := 0; i < 1<<logSlots; i++ {
-			values[i] = sampling.RandComplex128(-1, 1)
+		pt := NewPlaintext(tc.params, tc.params.MaxLevel())
+
+		values := make([]complex128, 1<<pt.LogSlots)
+		for i := range values {
+			values[i] = utils.RandComplex128(-1, 1)
 		}
 
-		plaintext := NewPlaintext(tc.params, tc.params.MaxLevel())
+		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
-			encoder.Encode(values, plaintext, logSlots)
+			encoder.Encode(values, pt)
 		}
 	})
 
 	b.Run(GetTestName(tc.params, "Encoder/Decode"), func(b *testing.B) {
 
-		values := make([]complex128, 1<<logSlots)
-		for i := 0; i < 1<<logSlots; i++ {
-			values[i] = sampling.RandComplex128(-1, 1)
+		pt := NewPlaintext(tc.params, tc.params.MaxLevel())
+
+		values := make([]complex128, 1<<pt.LogSlots)
+		for i := range values {
+			values[i] = utils.RandComplex128(-1, 1)
 		}
 
-		plaintext := NewPlaintext(tc.params, tc.params.MaxLevel())
-		encoder.Encode(values, plaintext, logSlots)
+		encoder.Encode(values, pt)
+
+		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
-			encoder.Decode(plaintext, logSlots)
+			encoder.Decode(pt, values)
 		}
 	})
 }
@@ -85,31 +94,37 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 
 	eval := tc.evaluator.WithKey(&rlwe.EvaluationKeySet{RelinearizationKey: tc.kgen.GenRelinearizationKeyNew(tc.sk)})
 
-	b.Run(GetTestName(tc.params, "Evaluator/Add"), func(b *testing.B) {
+	b.Run(GetTestName(tc.params, "Evaluator/Add/Scalar"), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			eval.Add(ciphertext1, 3.1415-1.4142i, ciphertext1)
+		}
+	})
+
+	b.Run(GetTestName(tc.params, "Evaluator/Add/Pt"), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			eval.Add(ciphertext1, plaintext, ciphertext1)
+		}
+	})
+
+	b.Run(GetTestName(tc.params, "Evaluator/Add/Ct"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			eval.Add(ciphertext1, ciphertext2, ciphertext1)
 		}
 	})
 
-	b.Run(GetTestName(tc.params, "Evaluator/AddScalar"), func(b *testing.B) {
+	b.Run(GetTestName(tc.params, "Evaluator/Mul/Scalar"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			eval.AddConst(ciphertext1, 3.1415-1.4142i, ciphertext1)
+			eval.Mul(ciphertext1, 3.1415-1.4142i, ciphertext1)
 		}
 	})
 
-	b.Run(GetTestName(tc.params, "Evaluator/MulScalar"), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			eval.MultByConst(ciphertext1, 3.1415-1.4142i, ciphertext1)
-		}
-	})
-
-	b.Run(GetTestName(tc.params, "Evaluator/MulPlain"), func(b *testing.B) {
+	b.Run(GetTestName(tc.params, "Evaluator/Mul/Pt"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			eval.Mul(ciphertext1, plaintext, ciphertext1)
 		}
 	})
 
-	b.Run(GetTestName(tc.params, "Evaluator/Mul"), func(b *testing.B) {
+	b.Run(GetTestName(tc.params, "Evaluator/Mul/Ct"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			eval.Mul(ciphertext1, ciphertext2, receiver)
 		}

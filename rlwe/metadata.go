@@ -7,21 +7,37 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
+type EncodingDomain int
+
+const (
+	SlotsDomain        = EncodingDomain(0)
+	CoefficientsDomain = EncodingDomain(1)
+)
+
 // MetaData is a struct storing metadata.
 type MetaData struct {
 	Scale
-	IsNTT        bool
-	IsMontgomery bool
+	EncodingDomain EncodingDomain
+	LogSlots       int
+	IsNTT          bool
+	IsMontgomery   bool
 }
 
 // Equal returns true if two MetaData structs are identical.
-func (m *MetaData) Equal(other *MetaData) (res bool) {
 	return cmp.Equal(&m.Scale, &other.Scale) && m.IsNTT == other.IsNTT && m.IsMontgomery == other.IsMontgomery
+func (m *MetaData) Equal(other MetaData) (res bool) {
+	res = m.Scale.Cmp(other.Scale) == 0
+	res = res && m.EncodingDomain == other.EncodingDomain
+	res = res && m.LogSlots == other.LogSlots
+	res = res && m.IsNTT == other.IsNTT
+	res = res && m.IsMontgomery == other.IsMontgomery
+	return
 }
 
-// BinarySize returns the size in bytes that the object once marshalled into a binary form.
-func (m *MetaData) BinarySize() int {
-	return 2 + m.Scale.BinarySize()
+// Slots returns the number of slots.
+func (m *MetaData) Slots() int {
+	return 1 << m.LogSlots
+}
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
@@ -72,6 +88,14 @@ func (m *MetaData) Encode(p []byte) (n int, err error) {
 		return 0, err
 	}
 
+	ptr += inc
+
+	data[ptr] = uint8(m.EncodingDomain)
+	ptr++
+
+	data[ptr] = uint8(m.LogSlots)
+	ptr++
+
 	if m.IsNTT {
 		p[n] = 1
 	}
@@ -98,6 +122,12 @@ func (m *MetaData) Decode(p []byte) (n int, err error) {
 	if n, err = m.Scale.Decode(p[n:]); err != nil {
 		return
 	}
+
+	m.EncodingDomain = EncodingDomain(data[ptr])
+	ptr++
+
+	m.LogSlots = int(data[ptr])
+	ptr++
 
 	m.IsNTT = p[n] == 1
 	n++

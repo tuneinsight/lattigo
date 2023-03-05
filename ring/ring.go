@@ -10,6 +10,7 @@ import (
 	"math/big"
 
 	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
 // GaloisGen is an integer of order N/2 modulo M that spans Z_M with the integer -1.
@@ -268,9 +269,9 @@ func NewRingWithCustomNTT(N int, ModuliChain []uint64, ntt func(*SubRing, int) N
 
 	// Computes bigQ for all levels
 	r.ModulusAtLevel = make([]*big.Int, len(ModuliChain))
-	r.ModulusAtLevel[0] = NewUint(ModuliChain[0])
+	r.ModulusAtLevel[0] = bignum.NewInt(ModuliChain[0])
 	for i := 1; i < len(ModuliChain); i++ {
-		r.ModulusAtLevel[i] = new(big.Int).Mul(r.ModulusAtLevel[i-1], NewUint(ModuliChain[i]))
+		r.ModulusAtLevel[i] = new(big.Int).Mul(r.ModulusAtLevel[i-1], bignum.NewInt(ModuliChain[i]))
 	}
 
 	r.SubRings = make([]*SubRing, len(ModuliChain))
@@ -396,7 +397,7 @@ func (r *Ring) PolyToBigint(p1 *Poly, gap int, coeffsBigint []*big.Int) {
 		coeffsBigint[i] = new(big.Int)
 
 		for k := 0; k < r.level+1; k++ {
-			coeffsBigint[i].Add(coeffsBigint[i], tmp.Mul(NewUint(p1.Coeffs[k][j]), crtReconstruction[k]))
+			coeffsBigint[i].Add(coeffsBigint[i], tmp.Mul(bignum.NewInt(p1.Coeffs[k][j]), crtReconstruction[k]))
 		}
 
 		coeffsBigint[i].Mod(coeffsBigint[i], modulusBigint)
@@ -436,7 +437,7 @@ func (r *Ring) PolyToBigintCentered(p1 *Poly, gap int, coeffsBigint []*big.Int) 
 		coeffsBigint[i].SetUint64(0)
 
 		for k := 0; k < r.level+1; k++ {
-			coeffsBigint[i].Add(coeffsBigint[i], tmp.Mul(NewUint(p1.Coeffs[k][j]), crtReconstruction[k]))
+			coeffsBigint[i].Add(coeffsBigint[i], tmp.Mul(bignum.NewInt(p1.Coeffs[k][j]), crtReconstruction[k]))
 		}
 
 		coeffsBigint[i].Mod(coeffsBigint[i], modulusBigint)
@@ -576,16 +577,16 @@ func (r *Ring) Log2OfStandardDeviation(poly *Poly) (std float64) {
 
 	r.PolyToBigintCentered(poly, 1, coeffs)
 
-	mean := NewFloat(0, prec)
-	tmp := NewFloat(0, prec)
+	mean := bignum.NewFloat(0, prec)
+	tmp := bignum.NewFloat(0, prec)
 
 	for i := 0; i < N; i++ {
 		mean.Add(mean, tmp.SetInt(coeffs[i]))
 	}
 
-	mean.Quo(mean, NewFloat(float64(N), prec))
+	mean.Quo(mean, bignum.NewFloat(float64(N), prec))
 
-	stdFloat := NewFloat(0, prec)
+	stdFloat := bignum.NewFloat(0, prec)
 
 	for i := 0; i < N; i++ {
 		tmp.SetInt(coeffs[i])
@@ -594,7 +595,7 @@ func (r *Ring) Log2OfStandardDeviation(poly *Poly) (std float64) {
 		stdFloat.Add(stdFloat, tmp)
 	}
 
-	stdFloat.Quo(stdFloat, NewFloat(float64(N-1), prec))
+	stdFloat.Quo(stdFloat, bignum.NewFloat(float64(N-1), prec))
 
 	stdFloat.Sqrt(stdFloat)
 

@@ -3,13 +3,13 @@ package ckks
 import (
 	"math"
 
-	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
 // Approximate computes a Chebyshev approximation of the input function, for the range [-a, b] of degree degree.
 // function.(type) can be either func(complex128)complex128 or func(float64)float64
 // To be used in conjunction with the function EvaluateCheby.
-func Approximate(function interface{}, a, b float64, degree int) (pol *Polynomial) {
+func Approximate(function interface{}, a, b float64, degree int) (pol *bignum.Polynomial) {
 
 	nodes := chebyshevNodes(degree+1, a, b)
 
@@ -28,14 +28,7 @@ func Approximate(function interface{}, a, b float64, degree int) (pol *Polynomia
 		panic("function must be either func(complex128)complex128 or func(float64)float64")
 	}
 
-	pol = NewPoly(chebyCoeffs(nodes, fi, a, b))
-	pol.A = a
-	pol.B = b
-	pol.MaxDeg = degree
-	pol.Lead = true
-	pol.Basis = polynomial.Chebyshev
-
-	return
+	return bignum.NewPolynomial(bignum.Chebyshev, chebyCoeffs(nodes, fi, a, b), [2]float64{a, b})
 }
 
 func chebyshevNodes(n int, a, b float64) (u []float64) {

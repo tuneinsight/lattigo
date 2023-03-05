@@ -49,7 +49,7 @@ func (btp *Bootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertex
 	}
 
 	// Scales the message to Q0/|m|, which is the maximum possible before ModRaise to avoid plaintext overflow.
-	if scale := math.Round((btp.params.QiFloat64(0) / btp.evalModPoly.MessageRatio()) / ctDiff.Scale.Float64()); scale > 1 {
+	if scale := math.Round((float64(btp.params.Q()[0]) / btp.evalModPoly.MessageRatio()) / ctDiff.Scale.Float64()); scale > 1 {
 		btp.ScaleUp(ctDiff, rlwe.NewScale(scale), ctDiff)
 	}
 
@@ -61,14 +61,13 @@ func (btp *Bootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertex
 		tmp := btp.SubNew(ctDiff, ctOut)
 
 		// 2^d * e
-		btp.MultByConst(tmp, 1<<16, tmp)
+		btp.Mul(tmp, 1<<16, tmp)
 
 		// 2^d * e + 2^(d-n) * e'
 		tmp = btp.bootstrap(tmp)
 
 		// 2^(d-n) * e + 2^(d-2n) * e'
-		btp.MultByConst(tmp, btp.params.QiFloat64(tmp.Level())/float64(uint64(1<<16)), tmp)
-
+		btp.Mul(tmp, float64(btp.params.Q()[tmp.Level()])/float64(uint64(1<<16)), tmp)
 		tmp.Scale = tmp.Scale.Mul(rlwe.NewScale(btp.params.Q()[tmp.Level()]))
 
 		if err := btp.Rescale(tmp, btp.params.DefaultScale(), tmp); err != nil {
@@ -93,7 +92,7 @@ func (btp *Bootstrapper) bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertex
 	}
 
 	//SubSum X -> (N/dslots) * Y^dslots
-	btp.Trace(ctOut, btp.params.LogSlots(), ctOut)
+	btp.Trace(ctOut, ctOut.LogSlots, ctOut)
 
 	// Step 2 : CoeffsToSlots (Homomorphic encoding)
 	ctReal, ctImag := btp.CoeffsToSlotsNew(ctOut, btp.ctsMatrices)

@@ -10,6 +10,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
@@ -66,11 +67,10 @@ func (e2s *E2SProtocol) AllocateShare(level int) (share *drlwe.CKSShare) {
 // which is written in secretShareOut and in the public masked-decryption share written in publicShareOut.
 // This protocol requires additional inputs which are :
 // logBound : the bit length of the masks
-// logSlots : the bit length of the number of slots
 // ct1      : the degree 1 element the ciphertext to share, i.e. ct1 = ckk.Ciphertext.Value[1].
 // The method "GetMinimumLevelForBootstrapping" should be used to get the minimum level at which E2S can be called while still ensure 128-bits of security, as well as the
 // value for logBound.
-func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, logSlots int, ct *rlwe.Ciphertext, secretShareOut *drlwe.AdditiveShareBigint, publicShareOut *drlwe.CKSShare) {
+func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, ct *rlwe.Ciphertext, secretShareOut *rlwe.AdditiveShareBigint, publicShareOut *drlwe.CKSShare) {
 
 	ct1 := ct.Value[1]
 
@@ -80,7 +80,7 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, logSlots int
 
 	// Get the upperbound on the norm
 	// Ensures that bound >= 2^{128+logbound}
-	bound := ring.NewUint(1)
+	bound := bignum.NewInt(1)
 	bound.Lsh(bound, uint(logBound))
 
 	boundMax := new(big.Int).Set(ringQ.ModulusAtLevel[levelQ])
@@ -95,7 +95,7 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, logSlots int
 
 	boundHalf := new(big.Int).Rsh(bound, 1)
 
-	dslots := 1 << logSlots
+	dslots := 1 << ct.LogSlots
 	if ringQ.Type() == ring.Standard {
 		dslots *= 2
 	}
@@ -104,7 +104,7 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, logSlots int
 
 	// Generate the mask in Z[Y] for Y = X^{N/(2*slots)}
 	for i := 0; i < dslots; i++ {
-		e2s.maskBigint[i] = ring.RandInt(prng, bound)
+		e2s.maskBigint[i] = bignum.RandInt(prng, bound)
 		sign = e2s.maskBigint[i].Cmp(boundHalf)
 		if sign == 1 || sign == 0 {
 			e2s.maskBigint[i].Sub(e2s.maskBigint[i], bound)
@@ -120,7 +120,7 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, logSlots int
 	ringQ.SetCoefficientsBigint(secretShareOut.Value[:dslots], e2s.buff)
 
 	// Maps Y^{N/n} -> X^{N} in Montgomery and NTT
-	ckks.NttSparseAndMontgomery(ringQ, logSlots, false, e2s.buff)
+	ckks.NttSparseAndMontgomery(ringQ, ct.LogSlots, false, e2s.buff)
 
 	// Subtracts the mask to the encryption of zero
 	ringQ.Sub(publicShareOut.Value, e2s.buff, publicShareOut.Value)
@@ -131,7 +131,7 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, logSlots int
 // If the caller is not secret-key-share holder (i.e., didn't generate a decryption share), `secretShare` can be set to nil.
 // Therefore, in order to obtain an additive sharing of the message, only one party should call this method, and the other parties should use
 // the secretShareOut output of the GenShare method.
-func (e2s *E2SProtocol) GetShare(secretShare *drlwe.AdditiveShareBigint, aggregatePublicShare *drlwe.CKSShare, logSlots int, ct *rlwe.Ciphertext, secretShareOut *drlwe.AdditiveShareBigint) {
+func (e2s *E2SProtocol) GetShare(secretShare *rlwe.AdditiveShareBigint, aggregatePublicShare *drlwe.CKSShare, ct *rlwe.Ciphertext, secretShareOut *rlwe.AdditiveShareBigint) {
 
 	levelQ := utils.Min(ct.Level(), aggregatePublicShare.Value.Level())
 
@@ -143,7 +143,7 @@ func (e2s *E2SProtocol) GetShare(secretShare *drlwe.AdditiveShareBigint, aggrega
 	// Switches the LSSS RNS NTT ciphertext outside of the NTT domain
 	ringQ.INTT(e2s.buff, e2s.buff)
 
-	dslots := 1 << logSlots
+	dslots := 1 << ct.LogSlots
 	if ringQ.Type() == ring.Standard {
 		dslots *= 2
 	}

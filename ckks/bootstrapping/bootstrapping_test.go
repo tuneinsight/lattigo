@@ -20,11 +20,11 @@ var minPrec float64 = 12.0
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters + secure bootstrapping). Overrides -short and requires -timeout=0.")
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
 
-func ParamsToString(params ckks.Parameters, opname string) string {
+func ParamsToString(params ckks.Parameters, LogSlots int, opname string) string {
 	return fmt.Sprintf("%slogN=%d/LogSlots=%d/logQP=%f/levels=%d/a=%d/b=%d",
 		opname,
 		params.LogN(),
-		params.LogSlots(),
+		LogSlots,
 		params.LogQP(),
 		params.MaxLevel()+1,
 		params.PCount(),
@@ -80,58 +80,49 @@ func TestBootstrap(t *testing.T) {
 
 	paramSet := DefaultParametersSparse[0]
 
-	ckksParamsLit, btpParams, err := NewParametersFromLiteral(paramSet.SchemeParams, paramSet.BootstrappingParams)
-	require.Nil(t, err)
-
-	// Insecure params for fast testing only
 	if !*flagLongTest {
-		ckksParamsLit.LogN = 13
-
-		// Corrects the message ratio to take into account the smaller number of slots and keep the same precision
-		btpParams.EvalModParameters.LogMessageRatio += paramSet.SchemeParams.LogN - 1 - ckksParamsLit.LogN - 1
-
-		ckksParamsLit.LogSlots = ckksParamsLit.LogN - 1
+		paramSet.SchemeParams.LogN -= 3
 	}
 
-	Xs := ckksParamsLit.Xs
+	for _, LogSlots := range []int{1, paramSet.SchemeParams.LogN - 2, paramSet.SchemeParams.LogN - 1} {
+		for _, encapsulation := range []bool{true, false} {
 
-	EphemeralSecretWeight := btpParams.EphemeralSecretWeight
+			paramSet.BootstrappingParams.LogSlots = &LogSlots
 
-	for _, testSet := range [][]bool{{false, false}, {true, false}, {false, true}, {true, true}} {
+			ckksParamsLit, btpParams, err := NewParametersFromLiteral(paramSet.SchemeParams, paramSet.BootstrappingParams)
+			require.Nil(t, err)
 
-		if testSet[0] {
-			ckksParamsLit.Xs = &distribution.Ternary{H: EphemeralSecretWeight}
-			btpParams.EphemeralSecretWeight = 0
-		} else {
-			ckksParamsLit.Xs = Xs
-			btpParams.EphemeralSecretWeight = EphemeralSecretWeight
+			// Insecure params for fast testing only
+			if !*flagLongTest {
+				// Corrects the message ratio to take into account the smaller number of slots and keep the same precision
+				btpParams.EvalModParameters.LogMessageRatio += utils.MinInt(utils.MaxInt(15-LogSlots, 0), 8)
+			}
+
+			if !encapsulation {
+				ckksParamsLit.Xs = &distribution.Ternary{H: btpParams.EphemeralSecretWeight}
+				btpParams.EphemeralSecretWeight = 0
+			}
+
+			params, err := ckks.NewParametersFromLiteral(ckksParamsLit)
+			if err != nil {
+				panic(err)
+			}
+
+			testbootstrap(params, btpParams, t)
+			runtime.GC()
 		}
-
-		if testSet[1] {
-			ckksParamsLit.LogSlots = ckksParamsLit.LogN - 2
-		} else {
-			ckksParamsLit.LogSlots = ckksParamsLit.LogN - 1
-		}
-
-		params, err := ckks.NewParametersFromLiteral(ckksParamsLit)
-		if err != nil {
-			panic(err)
-		}
-
-		testbootstrap(params, testSet[0], btpParams, t)
-		runtime.GC()
 	}
 }
 
-func testbootstrap(params ckks.Parameters, original bool, btpParams Parameters, t *testing.T) {
+func testbootstrap(params ckks.Parameters, btpParams Parameters, t *testing.T) {
 
 	btpType := "Encapsulation/"
 
-	if original {
+	if btpParams.EphemeralSecretWeight == 0 {
 		btpType = "Original/"
 	}
 
-	t.Run(ParamsToString(params, "Bootstrapping/FullCircuit/"+btpType), func(t *testing.T) {
+	t.Run(ParamsToString(params, btpParams.LogSlots(), "Bootstrapping/FullCircuit/"+btpType), func(t *testing.T) {
 
 		kgen := ckks.NewKeyGenerator(params)
 		sk := kgen.GenSecretKeyNew()
@@ -146,22 +137,24 @@ func testbootstrap(params ckks.Parameters, original bool, btpParams Parameters, 
 			panic(err)
 		}
 
-		values := make([]complex128, 1<<params.LogSlots())
+		values := make([]complex128, 1<<btpParams.LogSlots())
 		for i := range values {
 			values[i] = sampling.RandComplex128(-1, 1)
 		}
 
 		values[0] = complex(0.9238795325112867, 0.3826834323650898)
 		values[1] = complex(0.9238795325112867, 0.3826834323650898)
-		if 1<<params.LogSlots() > 2 {
+
+		if btpParams.LogSlots() > 1 {
 			values[2] = complex(0.9238795325112867, 0.3826834323650898)
 			values[3] = complex(0.9238795325112867, 0.3826834323650898)
 		}
 
 		plaintext := ckks.NewPlaintext(params, 0)
-		encoder.Encode(values, plaintext, params.LogSlots())
+		plaintext.LogSlots = btpParams.LogSlots()
+		encoder.Encode(values, plaintext)
 
-		n := 2
+		n := 1
 
 		ciphertexts := make([]*rlwe.Ciphertext, n)
 		bootstrappers := make([]*Bootstrapper, n)
@@ -183,17 +176,20 @@ func testbootstrap(params ckks.Parameters, original bool, btpParams Parameters, 
 		wg.Wait()
 
 		for i := range ciphertexts {
-			verifyTestVectors(params, encoder, decryptor, values, ciphertexts[i], params.LogSlots(), t)
+			verifyTestVectors(params, encoder, decryptor, values, ciphertexts[i], t)
 		}
 	})
 }
 
-func verifyTestVectors(params ckks.Parameters, encoder ckks.Encoder, decryptor rlwe.Decryptor, valuesWant []complex128, element interface{}, logSlots int, t *testing.T) {
-	precStats := ckks.GetPrecisionStats(params, encoder, decryptor, valuesWant, element, logSlots, nil)
+func verifyTestVectors(params ckks.Parameters, encoder *ckks.Encoder, decryptor rlwe.Decryptor, valuesWant, valuesHave interface{}, t *testing.T) {
+	precStats := ckks.GetPrecisionStats(params, encoder, decryptor, valuesWant, valuesHave, nil, false)
 	if *printPrecisionStats {
 		t.Log(precStats.String())
 	}
 
-	require.GreaterOrEqual(t, precStats.MeanPrecision.Real, minPrec)
-	require.GreaterOrEqual(t, precStats.MeanPrecision.Imag, minPrec)
+	rf64, _ := precStats.MeanPrecision.Real.Float64()
+	if64, _ := precStats.MeanPrecision.Imag.Float64()
+
+	require.GreaterOrEqual(t, rf64, minPrec)
+	require.GreaterOrEqual(t, if64, minPrec)
 }

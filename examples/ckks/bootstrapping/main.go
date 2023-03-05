@@ -28,11 +28,17 @@ func main() {
 	// bootstrapping circuit on top of the residual moduli that we defined.
 	ckksParamsResidualLit := ckks.ParametersLiteral{
 		LogN:     16,                                                // Log2 of the ringdegree
-		LogSlots: 15,                                                // Log2 of the number of slots
 		LogQ:     []int{55, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40}, // Log2 of the ciphertext prime moduli
 		LogP:     []int{61, 61, 61, 61},                             // Log2 of the key-switch auxiliary prime moduli
 		LogScale: 40,                                                // Log2 of the scale
 		Xs:       &distribution.Ternary{H: 192},                     // Hamming weight of the secret
+	}
+
+	LogSlots := ckksParamsResidualLit.LogN - 2
+
+	if *flagShort {
+		ckksParamsResidualLit.LogN -= 3
+		LogSlots -= 3
 	}
 
 	// Note that with H=192 and LogN=16, parameters are at least 128-bit if LogQP <= 1550.
@@ -43,12 +49,18 @@ func main() {
 	// Thus we expect the bootstrapping to give a precision of 27.25 bits with H=192 (and 23.8 with H=N/2)
 	// if the plaintext values are uniformly distributed in [-1, 1] for both the real and imaginary part.
 	// See `/ckks/bootstrapping/parameters.go` for information about the optional fields.
-	btpParametersLit := bootstrapping.ParametersLiteral{}
+	btpParametersLit := bootstrapping.ParametersLiteral{
+		// Since a ciphertext with message m and LogSlots = x is equivalent to a ciphertext with message m|m and LogSlots = x+1
+		// it is possible to run the bootstrapping on any ciphertext with LogSlots <= bootstrapping.LogSlots, however doing so
+		// will increase the runtime, so it is recommanded to have the LogSlots of the ciphertext and bootstrapping parameters
+		// be the same.
+		LogSlots: &LogSlots,
+	}
 
 	// The default bootstrapping parameters consume 822 bits which is smaller than the maximum
 	// allowed of 851 in our example, so the target security is easily met.
 	// We can print and verify the expected bit consumption of bootstrapping parameters with:
-	bits, err := btpParametersLit.BitConsumption()
+	bits, err := btpParametersLit.BitComsumption(LogSlots)
 	if err != nil {
 		panic(err)
 	}
@@ -63,15 +75,8 @@ func main() {
 	}
 
 	if *flagShort {
-
-		prevLogSlots := ckksParamsLit.LogSlots
-
-		ckksParamsLit.LogN = 13
-
 		// Corrects the message ratio to take into account the smaller number of slots and keep the same precision
-		btpParams.EvalModParameters.LogMessageRatio += prevLogSlots - ckksParamsLit.LogN - 1
-
-		ckksParamsLit.LogSlots = ckksParamsLit.LogN - 1
+		btpParams.EvalModParameters.LogMessageRatio += 3
 	}
 
 	// This generate ckks.Parameters, with the NTT tables and other pre-computations from the ckks.ParametersLiteral (which is only a template).
@@ -83,7 +88,7 @@ func main() {
 	// Here we print some information about the generated ckks.Parameters
 	// We can notably check that the LogQP of the generated ckks.Parameters is equal to 699 + 822 = 1521.
 	// Not that this value can be overestimated by one bit.
-	fmt.Printf("CKKS parameters: logN=%d, logSlots=%d, H(%d; %d), sigma=%f, logQP=%f, levels=%d, scale=2^%f\n", params.LogN(), params.LogSlots(), params.XsHammingWeight(), btpParams.EphemeralSecretWeight, params.Xe(), params.LogQP(), params.QCount(), math.Log2(params.DefaultScale().Float64()))
+	fmt.Printf("CKKS parameters: logN=%d, logSlots=%d, H(%d; %d), sigma=%f, logQP=%f, levels=%d, scale=2^%f\n", params.LogN(), LogSlots, params.XsHammingWeight(), btpParams.EphemeralSecretWeight, params.Xe(), params.LogQP(), params.QCount(), math.Log2(params.DefaultScale().Float64()))
 
 	// Scheme context and keys
 	kgen := ckks.NewKeyGenerator(params)
@@ -104,13 +109,15 @@ func main() {
 		panic(err)
 	}
 
-	// Generate a random plaintext with values uniformly distributed in [-1, 1] for the real and imaginary part.
-	valuesWant := make([]complex128, params.Slots())
+	// Generate a random plaintext with values uniformely distributed in [-1, 1] for the real and imaginary part.
+	valuesWant := make([]complex128, 1<<LogSlots)
 	for i := range valuesWant {
 		valuesWant[i] = sampling.RandComplex128(-1, 1)
 	}
 
-	plaintext := encoder.EncodeNew(valuesWant, params.MaxLevel(), params.DefaultScale(), params.LogSlots())
+	plaintext := ckks.NewPlaintext(params, params.MaxLevel())
+	plaintext.LogSlots = LogSlots
+	encoder.Encode(valuesWant, plaintext)
 
 	// Encrypt
 	ciphertext1 := encryptor.EncryptNew(plaintext)
@@ -126,6 +133,7 @@ func main() {
 	// CAUTION: the scale of the ciphertext MUST be equal (or very close) to params.DefaultScale()
 	// To equalize the scale, the function evaluator.SetScale(ciphertext, parameters.DefaultScale()) can be used at the expense of one level.
 	// If the ciphertext is is at level one or greater when given to the bootstrapper, this equalization is automatically done.
+	fmt.Println(ciphertext1.LogSlots)
 	fmt.Println()
 	fmt.Println("Bootstrapping...")
 	ciphertext2 := btp.Bootstrap(ciphertext1)
@@ -137,9 +145,11 @@ func main() {
 	printDebug(params, ciphertext2, valuesTest1, decryptor, encoder)
 }
 
-func printDebug(params ckks.Parameters, ciphertext *rlwe.Ciphertext, valuesWant []complex128, decryptor rlwe.Decryptor, encoder ckks.Encoder) (valuesTest []complex128) {
+func printDebug(params ckks.Parameters, ciphertext *rlwe.Ciphertext, valuesWant []complex128, decryptor rlwe.Decryptor, encoder *ckks.Encoder) (valuesTest []complex128) {
 
-	valuesTest = encoder.Decode(decryptor.DecryptNew(ciphertext), params.LogSlots())
+	valuesTest = make([]complex128, 1<<ciphertext.LogSlots)
+
+	encoder.Decode(decryptor.DecryptNew(ciphertext), valuesTest)
 
 	fmt.Println()
 	fmt.Printf("Level: %d (logQ = %d)\n", ciphertext.Level(), params.LogQLvl(ciphertext.Level()))
@@ -148,7 +158,7 @@ func printDebug(params ckks.Parameters, ciphertext *rlwe.Ciphertext, valuesWant 
 	fmt.Printf("ValuesTest: %6.10f %6.10f %6.10f %6.10f...\n", valuesTest[0], valuesTest[1], valuesTest[2], valuesTest[3])
 	fmt.Printf("ValuesWant: %6.10f %6.10f %6.10f %6.10f...\n", valuesWant[0], valuesWant[1], valuesWant[2], valuesWant[3])
 
-	precStats := ckks.GetPrecisionStats(params, encoder, nil, valuesWant, valuesTest, params.LogSlots(), nil)
+	precStats := ckks.GetPrecisionStats(params, encoder, nil, valuesWant, valuesTest, nil, false)
 
 	fmt.Println(precStats.String())
 	fmt.Println()

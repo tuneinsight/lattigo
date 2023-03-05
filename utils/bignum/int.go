@@ -1,29 +1,40 @@
-package ring
+package bignum
 
 import (
 	"crypto/rand"
+	"fmt"
 	"io"
 	"math/big"
 )
 
-// NewInt creates a new Int with a given int64 value.
-func NewInt(v int64) *big.Int {
-	return new(big.Int).SetInt64(v)
-}
+func NewInt(x interface{}) (y *big.Int) {
 
-// NewUint creates a new Int with a given uint64 value.
-func NewUint(v uint64) *big.Int {
-	return new(big.Int).SetUint64(v)
-}
+	y = new(big.Int)
 
-// NewIntFromString creates a new Int from a string.
-// A prefix of "0x" or "0X" selects base 16;
-// the "0" prefix selects base 8, and
-// a "0b" or "0B" prefix selects base 2.
-// Otherwise, the selected base is 10.
-func NewIntFromString(s string) *big.Int {
-	i, _ := new(big.Int).SetString(s, 0)
-	return i
+	if x == nil {
+		return
+	}
+
+	switch x := x.(type) {
+	case string:
+		y.SetString(x, 0)
+	case uint:
+		y.SetUint64(uint64(x))
+	case uint64:
+		y.SetUint64(x)
+	case int64:
+		y.SetInt64(x)
+	case int:
+		y.SetInt64(int64(x))
+	case *big.Float:
+		x.Int(y)
+	case *big.Int:
+		y.Set(x)
+	default:
+		panic(fmt.Sprintf("cannot Newint: accepted types are string, uint, uint64, int, int64, *big.Float, *big.Int, but is %T", x))
+	}
+
+	return
 }
 
 // RandInt generates a random Int in [0, max-1].

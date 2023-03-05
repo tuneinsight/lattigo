@@ -381,11 +381,6 @@ func (p Parameters) Q() []uint64 {
 	return qi
 }
 
-// QiFloat64 returns the float64 value of the Qi at position level in the modulus chain.
-func (p Parameters) QiFloat64(level int) float64 {
-	return float64(p.qi[level])
-}
-
 // QCount returns the number of factors of the ciphertext modulus Q
 func (p Parameters) QCount() int {
 	return len(p.qi)

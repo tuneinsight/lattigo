@@ -2,9 +2,10 @@ package ring
 
 import (
 	"math"
-	"math/big"
 	"math/bits"
 	"unsafe"
+
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
 // BasisExtender stores the necessary parameters for RNS basis extension.
@@ -189,7 +190,7 @@ func (be *BasisExtender) ModUpQtoP(levelQ, levelP int, polQ, polP *Poly) {
 	ringP := be.ringP.AtLevel(levelP)
 	buffQ := be.buffQ
 
-	QHalf := new(big.Int).Set(ringQ.ModulusAtLevel[levelQ])
+	QHalf := bignum.NewInt(ringQ.ModulusAtLevel[levelQ])
 	QHalf.Rsh(QHalf, 1)
 
 	ringQ.AddScalarBigint(polQ, QHalf, buffQ)
@@ -206,7 +207,7 @@ func (be *BasisExtender) ModUpPtoQ(levelP, levelQ int, polP, polQ *Poly) {
 	ringP := be.ringP.AtLevel(levelP)
 	buffP := be.buffP
 
-	PHalf := new(big.Int).Set(ringP.ModulusAtLevel[levelP])
+	PHalf := bignum.NewInt(ringP.ModulusAtLevel[levelP])
 	PHalf.Rsh(PHalf, 1)
 
 	ringP.AddScalarBigint(polP, PHalf, buffP)
@@ -444,15 +445,17 @@ func (decomposer *Decomposer) DecomposeAndSplit(levelQ, levelP, nbPi, decompRNS 
 		vtimesqmodp := MUC.vtimesqmodp
 		qoverqimodp := MUC.qoverqimodp
 
-		QBig := NewUint(1)
+		QBig := bignum.NewInt(1)
 		for i := p0idxst; i < p0idxed; i++ {
-			QBig.Mul(QBig, NewUint(Q[i]))
+			QBig.Mul(QBig, bignum.NewInt(Q[i]))
 		}
 
-		QHalf := new(big.Int).Rsh(QBig, 1)
+		QHalf := bignum.NewInt(QBig)
+		QHalf.Rsh(QHalf, 1)
 		QHalfModqi := make([]uint64, p0idxed-p0idxst)
+		tmp := bignum.NewInt(0)
 		for i, j := 0, p0idxst; j < p0idxed; i, j = i+1, j+1 {
-			QHalfModqi[i] = new(big.Int).Mod(QHalf, NewUint(Q[j])).Uint64()
+			QHalfModqi[i] = tmp.Mod(QHalf, bignum.NewInt(Q[j])).Uint64()
 		}
 
 		// We loop over each coefficient and apply the basis extension

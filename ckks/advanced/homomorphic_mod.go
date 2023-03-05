@@ -1,15 +1,15 @@
 package advanced
 
 import (
-	"fmt"
 	"math"
+	"math/big"
 	"math/bits"
 	"math/cmplx"
 
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
-	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
 // SineType is the type of function used during the bootstrapping
@@ -57,8 +57,8 @@ type EvalModPoly struct {
 	qDiff           float64
 	scFac           float64
 	sqrt2Pi         float64
-	sinePoly        *ckks.Polynomial
-	arcSinePoly     *ckks.Polynomial
+	sinePoly        *bignum.Polynomial
+	arcSinePoly     *bignum.Polynomial
 	k               float64
 }
 
@@ -98,8 +98,8 @@ func (evp *EvalModPoly) QDiff() float64 {
 // homomorphically evaluates x mod Q[0] (the first prime of the moduli chain) on the ciphertext.
 func NewEvalModPolyFromLiteral(params ckks.Parameters, evm EvalModLiteral) EvalModPoly {
 
-	var arcSinePoly *ckks.Polynomial
-	var sinePoly *ckks.Polynomial
+	var arcSinePoly *bignum.Polynomial
+	var sinePoly *bignum.Polynomial
 	var sqrt2pi float64
 
 	doubleAngle := evm.DoubleAngle
@@ -126,7 +126,14 @@ func NewEvalModPolyFromLiteral(params ckks.Parameters, evm EvalModLiteral) EvalM
 			coeffs[i] = coeffs[i-2] * complex(float64(i*i-4*i+4)/float64(i*i-i), 0)
 		}
 
-		arcSinePoly = ckks.NewPoly(coeffs)
+		arcSinePoly = bignum.NewPolynomial(bignum.Monomial, coeffs, nil)
+		arcSinePoly.IsEven = false
+
+		for i := range arcSinePoly.Coeffs {
+			if i&1 == 0 {
+				arcSinePoly.Coeffs[i] = nil
+			}
+		}
 
 	} else {
 		sqrt2pi = math.Pow(0.15915494309189535*qDiff, 1.0/scFac)
@@ -136,26 +143,44 @@ func NewEvalModPolyFromLiteral(params ckks.Parameters, evm EvalModLiteral) EvalM
 	case SinContinuous:
 
 		sinePoly = ckks.Approximate(sin2pi2pi, -K, K, evm.SineDegree)
-	case CosDiscrete:
+		sinePoly.IsEven = false
 
-		sinePoly = new(ckks.Polynomial)
-		sinePoly.Coeffs = ApproximateCos(evm.K, evm.SineDegree, float64(uint(1<<evm.LogMessageRatio)), int(evm.DoubleAngle))
-		sinePoly.MaxDeg = sinePoly.Degree()
-		sinePoly.A = -K
-		sinePoly.B = K
-		sinePoly.Lead = true
-		sinePoly.Basis = polynomial.Chebyshev
+		for i := range sinePoly.Coeffs {
+			if i&1 == 0 {
+				sinePoly.Coeffs[i] = nil
+			}
+		}
+
+	case CosDiscrete:
+		sinePoly = bignum.NewPolynomial(bignum.Chebyshev, ApproximateCos(evm.K, evm.SineDegree, float64(uint(1<<evm.LogMessageRatio)), int(evm.DoubleAngle)), [2]float64{-K, K})
+		sinePoly.IsOdd = false
+
+		for i := range sinePoly.Coeffs {
+			if i&1 == 1 {
+				sinePoly.Coeffs[i] = nil
+			}
+		}
 
 	case CosContinuous:
-
 		sinePoly = ckks.Approximate(cos2pi, -K, K, evm.SineDegree)
+		sinePoly.IsOdd = false
+
+		for i := range sinePoly.Coeffs {
+			if i&1 == 1 {
+				sinePoly.Coeffs[i] = nil
+			}
+		}
 
 	default:
-		panic(fmt.Sprintf("invalid SineType: allowed types are SinContinuous, CosDiscrete and CosContinuous, but is %T", evm.SineType))
+		panic("invalid SineType")
 	}
 
+	sqrt2piBig := new(big.Float).SetFloat64(sqrt2pi)
 	for i := range sinePoly.Coeffs {
-		sinePoly.Coeffs[i] *= complex(sqrt2pi, 0)
+		if sinePoly.Coeffs[i] != nil {
+			sinePoly.Coeffs[i][0].Mul(sinePoly.Coeffs[i][0], sqrt2piBig)
+			sinePoly.Coeffs[i][1].Mul(sinePoly.Coeffs[i][1], sqrt2piBig)
+		}
 	}
 
 	return EvalModPoly{

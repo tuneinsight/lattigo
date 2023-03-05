@@ -22,7 +22,6 @@ func example() {
 			LogN:     14,
 			LogQ:     []int{55, 40, 40, 40, 40, 40, 40, 40},
 			LogP:     []int{45, 45},
-			LogSlots: 13,
 			LogScale: 40,
 		})
 	if err != nil {
@@ -55,7 +54,7 @@ func example() {
 	fmt.Printf("Done in %s \n", time.Since(start))
 
 	fmt.Println()
-	fmt.Printf("CKKS parameters: logN = %d, logSlots = %d, logQP = %f, levels = %d, scale= %f, noise = %T %v \n", params.LogN(), params.LogSlots(), params.LogQP(), params.MaxLevel()+1, params.DefaultScale().Float64(), params.Xe(), params.Xe())
+	fmt.Printf("CKKS parameters: logN = %d, logSlots = %d, logQP = %f, levels = %d, scale= %f, noise = %T %v \n", params.LogN(), params.MaxLogSlots(), params.LogQP(), params.MaxLevel()+1, params.DefaultScale().Float64(), params.Xe(), params.Xe())
 
 	fmt.Println()
 	fmt.Println("=========================================")
@@ -69,7 +68,7 @@ func example() {
 
 	pi := 3.141592653589793
 
-	slots := params.Slots()
+	slots := params.MaxSlots()
 
 	values := make([]complex128, slots)
 	for i := range values {
@@ -78,7 +77,7 @@ func example() {
 
 	plaintext := ckks.NewPlaintext(params, params.MaxLevel())
 	plaintext.Scale = plaintext.Scale.Div(rlwe.NewScale(r))
-	encoder.Encode(values, plaintext, params.LogSlots())
+	encoder.Encode(values, plaintext)
 
 	fmt.Printf("Done in %s \n", time.Since(start))
 
@@ -104,7 +103,7 @@ func example() {
 
 	start = time.Now()
 
-	evaluator.MultByConst(ciphertext, 1i, ciphertext)
+	evaluator.Mul(ciphertext, 1i, ciphertext)
 
 	fmt.Printf("Done in %s \n", time.Since(start))
 
@@ -151,7 +150,8 @@ func example() {
 		1.0 / 5040,
 	}
 
-	poly := ckks.NewPoly(coeffs)
+	// We create a new polynomial, with the standard basis [1, x, x^2, ...], with no interval.
+	poly := bignum.NewPolynomial(bignum.Monomial, coeffs, nil)
 
 	if ciphertext, err = evaluator.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {
 		panic(err)
@@ -195,17 +195,17 @@ func example() {
 
 	start = time.Now()
 
-	encoder.Decode(decryptor.DecryptNew(ciphertext), params.LogSlots())
-
 	fmt.Printf("Done in %s \n", time.Since(start))
 
 	printDebug(params, ciphertext, values, decryptor, encoder)
 
 }
 
-func printDebug(params ckks.Parameters, ciphertext *rlwe.Ciphertext, valuesWant []complex128, decryptor rlwe.Decryptor, encoder ckks.Encoder) (valuesTest []complex128) {
+func printDebug(params ckks.Parameters, ciphertext *rlwe.Ciphertext, valuesWant []complex128, decryptor rlwe.Decryptor, encoder *ckks.Encoder) (valuesTest []complex128) {
 
-	valuesTest = encoder.Decode(decryptor.DecryptNew(ciphertext), params.LogSlots())
+	valuesTest = make([]complex128, 1<<ciphertext.LogSlots)
+
+	encoder.Decode(decryptor.DecryptNew(ciphertext), valuesTest)
 
 	fmt.Println()
 	fmt.Printf("Level: %d (logQ = %d)\n", ciphertext.Level(), params.LogQLvl(ciphertext.Level()))
@@ -214,7 +214,7 @@ func printDebug(params ckks.Parameters, ciphertext *rlwe.Ciphertext, valuesWant 
 	fmt.Printf("ValuesWant: %6.10f %6.10f %6.10f %6.10f...\n", valuesWant[0], valuesWant[1], valuesWant[2], valuesWant[3])
 	fmt.Println()
 
-	precStats := ckks.GetPrecisionStats(params, encoder, nil, valuesWant, valuesTest, params.LogSlots(), nil)
+	precStats := ckks.GetPrecisionStats(params, encoder, nil, valuesWant, valuesTest, nil, false)
 
 	fmt.Println(precStats.String())
 

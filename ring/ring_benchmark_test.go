@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/tuneinsight/lattigo/v4/ring/distribution"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
 func BenchmarkRing(b *testing.B) {
@@ -265,8 +266,8 @@ func benchMulScalar(tc *testParams, b *testing.B) {
 	rand1 := RandUniform(tc.prng, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)
 	rand2 := RandUniform(tc.prng, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)
 
-	scalarBigint := NewUint(rand1)
-	scalarBigint.Mul(scalarBigint, NewUint(rand2))
+	scalarBigint := bignum.NewInt(rand1)
+	scalarBigint.Mul(scalarBigint, bignum.NewInt(rand2))
 
 	b.Run(testString("MulScalar/uint64/", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {

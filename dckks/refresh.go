@@ -36,11 +36,12 @@ func (rfp *RefreshProtocol) AllocateShare(inputLevel, outputLevel int) *drlwe.Re
 // GenShare generates a share for the Refresh protocol.
 // This protocol requires additional inputs which are :
 // logBound : the bit length of the masks
-// logSlots : the bit length of the number of slots
 // ct1      : the degree 1 element the ciphertext to refresh, i.e. ct1 = ckk.Ciphetext.Value[1].
 // scale    : the scale of the ciphertext entering the refresh.
 // The method "GetMinimumLevelForBootstrapping" should be used to get the minimum level at which the refresh can be called while still ensure 128-bits of security, as well as the
 // value for logBound.
+func (rfp *RefreshProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, ct *rlwe.Ciphertext, crs drlwe.CKSCRP, shareOut *RefreshShare) {
+	rfp.MaskedTransformProtocol.GenShare(sk, sk, logBound, ct, crs, nil, &shareOut.MaskedTransformShare)
 func (rfp *RefreshProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, logSlots int, ct *rlwe.Ciphertext, crs drlwe.CKSCRP, shareOut *drlwe.RefreshShare) {
 	rfp.MaskedTransformProtocol.GenShare(sk, sk, logBound, logSlots, ct, crs, nil, shareOut)
 }
@@ -52,6 +53,8 @@ func (rfp *RefreshProtocol) AggregateShares(share1, share2, shareOut *drlwe.Refr
 
 // Finalize applies Decrypt, Recode and Recrypt on the input ciphertext.
 // The ciphertext scale is reset to the default scale.
+func (rfp *RefreshProtocol) Finalize(ctIn *rlwe.Ciphertext, crs drlwe.CKSCRP, share *RefreshShare, ctOut *rlwe.Ciphertext) {
+	rfp.MaskedTransformProtocol.Transform(ctIn, nil, crs, &share.MaskedTransformShare, ctOut)
 func (rfp *RefreshProtocol) Finalize(ctIn *rlwe.Ciphertext, logSlots int, crs drlwe.CKSCRP, share *drlwe.RefreshShare, ctOut *rlwe.Ciphertext) {
 	rfp.MaskedTransformProtocol.Transform(ctIn, logSlots, nil, crs, share, ctOut)
 }

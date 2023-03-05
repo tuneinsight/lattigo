@@ -9,6 +9,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
 // Vectorized oblivious evaluation is a two-party protocol for the function f(x) = ax + b where a sender
@@ -97,14 +98,14 @@ func newvOLErings(params parameters) *vOLErings {
 		panic(err)
 	}
 
-	rings.qDivP = ring.NewInt(1)
+	rings.qDivP = bignum.NewInt(1)
 	for _, qi := range primes[params.plevel+1:] {
-		rings.qDivP.Mul(rings.qDivP, ring.NewUint(qi))
+		rings.qDivP.Mul(rings.qDivP, bignum.NewInt(qi))
 	}
 
-	rings.pDivM = ring.NewInt(1)
+	rings.pDivM = bignum.NewInt(1)
 	for _, qi := range primes[params.mlevel+1 : params.plevel+1] {
-		rings.pDivM.Mul(rings.pDivM, ring.NewUint(qi))
+		rings.pDivM.Mul(rings.pDivM, bignum.NewInt(qi))
 	}
 
 	return rings
@@ -130,7 +131,7 @@ func (lns *lowNormSampler) newPolyLowNorm(norm *big.Int) (pol *ring.Poly) {
 	prng, _ := sampling.NewPRNG()
 
 	for i := range lns.coeffs {
-		lns.coeffs[i] = ring.RandInt(prng, norm)
+		lns.coeffs[i] = bignum.RandInt(prng, norm)
 	}
 
 	lns.baseRing.AtLevel(pol.Level()).SetCoefficientsBigint(lns.coeffs, pol)

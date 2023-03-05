@@ -6,6 +6,7 @@ import (
 	"math/bits"
 
 	"github.com/tuneinsight/lattigo/v4/ckks/advanced"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 // ParametersLiteral is a struct to parameterize the bootstrapping parameters.
@@ -26,9 +27,11 @@ import (
 // Optional fields (with default values)
 // =====================================
 //
+// LogSlots: the maximum number of slots of the ciphertext. Default value: LogN-1.
+//
 // CoeffsToSlotsFactorizationDepthAndLogScales: the scaling factor and distribution of the moduli for the SlotsToCoeffs (homomorphic encoding) step.
 //
-//	Default value is [][]int{{56}, {56}, {56}, {56}}.
+//	Default value is [][]int{min(4, max(LogSlots, 1)) * 56}.
 //	This is a double slice where the first dimension is the index of the prime to be used, and the second dimension the scaling factors to be used: [level][scaling].
 //	For example: [][]int{{45}, {46}, {47}} means that the CoeffsToSlots step will use three levels, each with one prime. Primes are consumed in reverse order,
 //	so in this example the first matrix will use the prime of 47 bits, the second the prime of 46 bits, and so on.
@@ -37,7 +40,7 @@ import (
 //
 // SlotsToCoeffsFactorizationDepthAndLogScales: the scaling factor and distribution of the moduli for the CoeffsToSlots (homomorphic decoding) step.
 //
-//	Parameterization is identical to C2SLogScale. and the default value is [][]int{{39}, {39}, {39}}
+//	Parameterization is identical to C2SLogScale. and the default value is [][]int{min(3, max(LogSlots, 1)) * 39}.
 //
 // EvalModLogScale: the scaling factor used during the EvalMod step (all primes will have this bit-size).
 //
@@ -67,8 +70,9 @@ import (
 //
 // ArcSineDeg: the degree of the ArcSine Taylor polynomial, by default set to 0.
 type ParametersLiteral struct {
-	CoeffsToSlotsFactorizationDepthAndLogScales [][]int           // Default: [][]int{{56}, {56}, {56}, {56}}
-	SlotsToCoeffsFactorizationDepthAndLogScales [][]int           // Default: [][]int{{39}, {39}, {39}}
+	LogSlots                                    *int              // Default: LogN-1
+	CoeffsToSlotsFactorizationDepthAndLogScales [][]int           // Default: [][]int{min(4, max(LogSlots, 1)) * 56}
+	SlotsToCoeffsFactorizationDepthAndLogScales [][]int           // Default: [][]int{min(3, max(LogSlots, 1)) * 39}
 	EvalModLogScale                             *int              // Default: 60
 	EphemeralSecretWeight                       *int              // Default: 32
 	Iterations                                  *int              // Default: 1
@@ -123,11 +127,28 @@ func (p *ParametersLiteral) UnmarshalBinary(data []byte) (err error) {
 	return json.Unmarshal(data, p)
 }
 
+// GetLogSlots returns the LogSlots field of the target ParametersLiteral.
+// The default value LogN-1 is returned is the field is nil.
+func (p *ParametersLiteral) GetLogSlots(LogN int) (LogSlots int, err error) {
+	if v := p.LogSlots; v == nil {
+		LogSlots = LogN - 1
+
+	} else {
+		LogSlots = *v
+
+		if LogSlots < 1 || LogSlots > LogN-1 {
+			return LogSlots, fmt.Errorf("field LogSlots cannot be smaller than 1 or greater than LogN-1")
+		}
+	}
+
+	return
+}
+
 // GetCoeffsToSlotsFactorizationDepthAndLogScales returns a copy of the CoeffsToSlotsFactorizationDepthAndLogScales field of the target ParametersLiteral.
 // The default value constructed from DefaultC2SFactorization and DefaultC2SLogScale is returned if the field is nil.
-func (p *ParametersLiteral) GetCoeffsToSlotsFactorizationDepthAndLogScales() (CoeffsToSlotsFactorizationDepthAndLogScales [][]int) {
+func (p *ParametersLiteral) GetCoeffsToSlotsFactorizationDepthAndLogScales(LogSlots int) (CoeffsToSlotsFactorizationDepthAndLogScales [][]int) {
 	if p.CoeffsToSlotsFactorizationDepthAndLogScales == nil {
-		CoeffsToSlotsFactorizationDepthAndLogScales = make([][]int, DefaultCoeffsToSlotsFactorizationDepth)
+		CoeffsToSlotsFactorizationDepthAndLogScales = make([][]int, utils.MinInt(DefaultCoeffsToSlotsFactorizationDepth, utils.MaxInt(LogSlots, 1)))
 		for i := range CoeffsToSlotsFactorizationDepthAndLogScales {
 			CoeffsToSlotsFactorizationDepthAndLogScales[i] = []int{DefaultCoeffsToSlotsLogScale}
 		}
@@ -139,9 +160,9 @@ func (p *ParametersLiteral) GetCoeffsToSlotsFactorizationDepthAndLogScales() (Co
 
 // GetSlotsToCoeffsFactorizationDepthAndLogScales returns a copy of the SlotsToCoeffsFactorizationDepthAndLogScales field of the target ParametersLiteral.
 // The default value constructed from DefaultS2CFactorization and DefaultS2CLogScale is returned if the field is nil.
-func (p *ParametersLiteral) GetSlotsToCoeffsFactorizationDepthAndLogScales() (SlotsToCoeffsFactorizationDepthAndLogScales [][]int) {
+func (p *ParametersLiteral) GetSlotsToCoeffsFactorizationDepthAndLogScales(LogSlots int) (SlotsToCoeffsFactorizationDepthAndLogScales [][]int) {
 	if p.SlotsToCoeffsFactorizationDepthAndLogScales == nil {
-		SlotsToCoeffsFactorizationDepthAndLogScales = make([][]int, DefaultSlotsToCoeffsFactorizationDepth)
+		SlotsToCoeffsFactorizationDepthAndLogScales = make([][]int, utils.MinInt(DefaultSlotsToCoeffsFactorizationDepth, utils.MaxInt(LogSlots, 1)))
 		for i := range SlotsToCoeffsFactorizationDepthAndLogScales {
 			SlotsToCoeffsFactorizationDepthAndLogScales[i] = []int{DefaultSlotsToCoeffsLogScale}
 		}
@@ -294,16 +315,16 @@ func (p *ParametersLiteral) GetEphemeralSecretWeight() (EphemeralSecretWeight in
 // BitConsumption returns the expected consumption in bits of
 // bootstrapping circuit of the target ParametersLiteral.
 // The value is rounded up and thus will overestimate the value by up to 1 bit.
-func (p *ParametersLiteral) BitConsumption() (logQ int, err error) {
+func (p *ParametersLiteral) BitComsumption(LogSlots int) (logQ int, err error) {
 
-	C2SLogScale := p.GetCoeffsToSlotsFactorizationDepthAndLogScales()
+	C2SLogScale := p.GetCoeffsToSlotsFactorizationDepthAndLogScales(LogSlots)
 	for i := range C2SLogScale {
 		for _, logQi := range C2SLogScale[i] {
 			logQ += logQi
 		}
 	}
 
-	S2CLogScale := p.GetSlotsToCoeffsFactorizationDepthAndLogScales()
+	S2CLogScale := p.GetSlotsToCoeffsFactorizationDepthAndLogScales(LogSlots)
 	for i := range S2CLogScale {
 		for _, logQi := range S2CLogScale[i] {
 			logQ += logQi

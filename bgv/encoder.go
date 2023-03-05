@@ -6,6 +6,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
 // GaloisGen is an integer of order N=2^d modulo M=2N and that spans Z_M with the integer -1.
@@ -92,7 +93,7 @@ func NewEncoder(params Parameters) Encoder {
 
 	tInvModQ := make([]*big.Int, ringQ.ModuliChainLength())
 	for i := range moduli {
-		tInvModQ[i] = ring.NewUint(T)
+		tInvModQ[i] = bignum.NewInt(T)
 		tInvModQ[i].ModInverse(tInvModQ[i], ringQ.ModulusAtLevel[i])
 	}
 

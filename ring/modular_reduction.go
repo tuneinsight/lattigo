@@ -1,8 +1,9 @@
 package ring
 
 import (
-	"math/big"
 	"math/bits"
+
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
 // MForm switches a to the Montgomery domain by computing
@@ -78,11 +79,11 @@ func MRedLazy(x, y, q, qInv uint64) (r uint64) {
 // BRedConstant computes the constant for the BRed algorithm.
 // Returns ((2^128)/q)/(2^64) and (2^128)/q mod 2^64.
 func BRedConstant(q uint64) (constant []uint64) {
-	bigR := new(big.Int).Lsh(NewUint(1), 128)
-	bigR.Quo(bigR, NewUint(q))
+	bigR := bignum.NewInt("0x100000000000000000000000000000000")
+	bigR.Quo(bigR, bignum.NewInt(q))
 
-	mhi := new(big.Int).Rsh(bigR, 64).Uint64()
 	mlo := bigR.Uint64()
+	mhi := bigR.Rsh(bigR, 64).Uint64()
 
 	return []uint64{mhi, mlo}
 }

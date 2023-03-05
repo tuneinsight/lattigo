@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"math"
+	"math/big"
 	"runtime"
 	"testing"
 
@@ -13,26 +15,23 @@ import (
 	"github.com/tuneinsight/lattigo/v4/drlwe"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
-var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters + secure refresh). Overrides -short and requires -timeout=0.")
-var flagPostQuantum = flag.Bool("pq", false, "run post quantum test suite (does not run non-PQ parameters).")
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
-var minPrec float64 = 15.0
 
-func testString(opname string, parties int, params ckks.Parameters) string {
-	return fmt.Sprintf("%s/RingType=%s/logN=%d/logSlots=%d/logQ=%f/LogP=%f/levels=%d/#Pi=%d/Decomp=%d/parties=%d",
+func GetTestName(opname string, parties int, params ckks.Parameters) string {
+	return fmt.Sprintf("%s/RingType=%s/logN=%d/logQP=%d/Qi=%d/Pi=%d/LogScale=%d/Parties=%d",
 		opname,
 		params.RingType(),
 		params.LogN(),
-		params.LogSlots(),
-		params.LogQ(),
-		params.LogP(),
-		params.MaxLevel()+1,
+		int(math.Round(params.LogQP())),
+		params.QCount(),
 		params.PCount(),
-		params.DecompRNS(params.MaxLevelQ(), params.MaxLevelP()),
+		int(math.Log2(params.DefaultScale().Float64())),
 		parties)
 }
 
@@ -43,7 +42,7 @@ type testContext struct {
 	ringQ *ring.Ring
 	ringP *ring.Ring
 
-	encoder   ckks.Encoder
+	encoder   *ckks.Encoder
 	evaluator ckks.Evaluator
 
 	encryptorPk0 rlwe.Encryptor
@@ -74,36 +73,36 @@ func TestDCKKS(t *testing.T) {
 		if err = json.Unmarshal([]byte(*flagParamString), &testParams[0]); err != nil {
 			t.Fatal(err)
 		}
-	case *flagLongTest:
-		for _, pls := range [][]ckks.ParametersLiteral{
-			ckks.DefaultParams,
-			ckks.DefaultConjugateInvariantParams,
-			ckks.DefaultPostQuantumParams,
-			ckks.DefaultPostQuantumConjugateInvariantParams} {
-			testParams = append(testParams, pls...)
-		}
-	case *flagPostQuantum && testing.Short():
-		testParams = append(ckks.DefaultPostQuantumParams[:2], ckks.DefaultPostQuantumConjugateInvariantParams[:2]...)
-	case *flagPostQuantum:
-		testParams = append(ckks.DefaultPostQuantumParams[:4], ckks.DefaultPostQuantumConjugateInvariantParams[:4]...)
-	case testing.Short():
-		testParams = append(ckks.DefaultParams[:2], ckks.DefaultConjugateInvariantParams[:2]...)
 	default:
-		testParams = append(ckks.DefaultParams[:4], ckks.DefaultConjugateInvariantParams[:4]...)
+		testParams = ckks.TestParamsLiteral
 	}
 
-	for _, paramsLiteral := range testParams[:] {
+	for _, ringType := range []ring.Type{ring.Standard, ring.ConjugateInvariant} {
 
-		var params ckks.Parameters
-		if params, err = ckks.NewParametersFromLiteral(paramsLiteral); err != nil {
-			t.Fatal(err)
-		}
-		N := 3
-		var tc *testContext
-		if tc, err = genTestParams(params, N); err != nil {
-			t.Fatal(err)
-		}
+		for _, paramsLiteral := range testParams {
 
+			paramsLiteral.RingType = ringType
+
+			var params ckks.Parameters
+			if params, err = ckks.NewParametersFromLiteral(paramsLiteral); err != nil {
+				t.Fatal(err)
+			}
+			N := 3
+			var tc *testContext
+			if tc, err = genTestParams(params, N); err != nil {
+				t.Fatal(err)
+			}
+
+			for _, testSet := range []func(tc *testContext, t *testing.T){
+				testE2SProtocol,
+				testRefresh,
+				testRefreshAndTransform,
+				testRefreshAndTransformSwitchParams,
+				testMarshalling,
+			} {
+				testSet(tc, t)
+				runtime.GC()
+			}
 		for _, testSet := range []func(tc *testContext, t *testing.T){
 			testE2SProtocol,
 			testRefresh,
@@ -165,7 +164,7 @@ func testE2SProtocol(tc *testContext, t *testing.T) {
 
 	params := tc.params
 
-	t.Run(testString("E2SProtocol", tc.NParties, params), func(t *testing.T) {
+	t.Run(GetTestName("E2SProtocol", tc.NParties, params), func(t *testing.T) {
 
 		var minLevel int
 		var logBound uint
@@ -195,12 +194,12 @@ func testE2SProtocol(tc *testContext, t *testing.T) {
 			P[i].sk = tc.sk0Shards[i]
 			P[i].publicShareE2S = P[i].e2s.AllocateShare(minLevel)
 			P[i].publicShareS2E = P[i].s2e.AllocateShare(params.MaxLevel())
-			P[i].secretShare = drlwe.NewAdditiveShareBigint(params.Parameters, params.LogSlots())
+			P[i].secretShare = NewAdditiveShareBigint(params, ciphertext.LogSlots)
 		}
 
 		for i, p := range P {
 			// Enc(-M_i)
-			p.e2s.GenShare(p.sk, logBound, params.LogSlots(), ciphertext, p.secretShare, p.publicShareE2S)
+			p.e2s.GenShare(p.sk, logBound, ciphertext, p.secretShare, p.publicShareE2S)
 
 			if i > 0 {
 				// Enc(sum(-M_i))
@@ -209,10 +208,10 @@ func testE2SProtocol(tc *testContext, t *testing.T) {
 		}
 
 		// sum(-M_i) + x
-		P[0].e2s.GetShare(P[0].secretShare, P[0].publicShareE2S, params.LogSlots(), ciphertext, P[0].secretShare)
+		P[0].e2s.GetShare(P[0].secretShare, P[0].publicShareE2S, ciphertext, P[0].secretShare)
 
 		// sum(-M_i) + x + sum(M_i) = x
-		rec := drlwe.NewAdditiveShareBigint(params.Parameters, params.LogSlots())
+		rec := NewAdditiveShareBigint(params, ciphertext.LogSlots)
 		for _, p := range P {
 			a := rec.Value
 			b := p.secretShare.Value
@@ -232,7 +231,7 @@ func testE2SProtocol(tc *testContext, t *testing.T) {
 		crp := P[0].s2e.SampleCRP(params.MaxLevel(), tc.crs)
 
 		for i, p := range P {
-			p.s2e.GenShare(p.sk, crp, params.LogSlots(), p.secretShare, p.publicShareS2E)
+			p.s2e.GenShare(p.sk, crp, ciphertext.LogSlots, p.secretShare, p.publicShareS2E)
 			if i > 0 {
 				p.s2e.AggregateShares(P[0].publicShareS2E, p.publicShareS2E, P[0].publicShareS2E)
 			}
@@ -254,7 +253,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 	decryptorSk0 := tc.decryptorSk0
 	params := tc.params
 
-	t.Run(testString("Refresh", tc.NParties, params), func(t *testing.T) {
+	t.Run(GetTestName("Refresh", tc.NParties, params), func(t *testing.T) {
 
 		var minLevel int
 		var logBound uint
@@ -289,7 +288,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 		P0 := RefreshParties[0]
 
 		for _, scale := range []float64{params.DefaultScale().Float64(), params.DefaultScale().Float64() * 128} {
-			t.Run(fmt.Sprintf("atScale=%f", scale), func(t *testing.T) {
+			t.Run(fmt.Sprintf("AtScale=%d", int(math.Round(math.Log2(scale)))), func(t *testing.T) {
 				coeffs, _, ciphertext := newTestVectorsAtScale(tc, encryptorPk0, -1, 1, rlwe.NewScale(scale))
 
 				// Brings ciphertext to minLevel + 1
@@ -299,14 +298,14 @@ func testRefresh(tc *testContext, t *testing.T) {
 
 				for i, p := range RefreshParties {
 
-					p.GenShare(p.s, logBound, params.LogSlots(), ciphertext, crp, p.share)
+					p.GenShare(p.s, logBound, ciphertext, crp, p.share)
 
 					if i > 0 {
 						P0.AggregateShares(p.share, P0.share, P0.share)
 					}
 				}
 
-				P0.Finalize(ciphertext, params.LogSlots(), crp, P0.share, ciphertext)
+				P0.Finalize(ciphertext, crp, P0.share, ciphertext)
 
 				verifyTestVectors(tc, decryptorSk0, coeffs, ciphertext, t)
 			})
@@ -323,7 +322,7 @@ func testRefreshAndTransform(tc *testContext, t *testing.T) {
 	params := tc.params
 	decryptorSk0 := tc.decryptorSk0
 
-	t.Run(testString("RefreshAndTransform", tc.NParties, params), func(t *testing.T) {
+	t.Run(GetTestName("RefreshAndTransform", tc.NParties, params), func(t *testing.T) {
 
 		var minLevel int
 		var logBound uint
@@ -369,27 +368,28 @@ func testRefreshAndTransform(tc *testContext, t *testing.T) {
 
 		transform := &MaskedTransformFunc{
 			Decode: true,
-			Func: func(coeffs []*ring.Complex) {
+			Func: func(coeffs []*bignum.Complex) {
 				for i := range coeffs {
-					coeffs[i][0].Mul(coeffs[i][0], ring.NewFloat(0.9238795325112867, logBound))
-					coeffs[i][1].Mul(coeffs[i][1], ring.NewFloat(0.7071067811865476, logBound))
+					coeffs[i][0].Mul(coeffs[i][0], bignum.NewFloat(0.9238795325112867, logBound))
+					coeffs[i][1].Mul(coeffs[i][1], bignum.NewFloat(0.7071067811865476, logBound))
 				}
 			},
 			Encode: true,
 		}
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.s, p.s, logBound, params.LogSlots(), ciphertext, crp, transform, p.share)
+			p.GenShare(p.s, p.s, logBound, ciphertext, crp, transform, p.share)
 
 			if i > 0 {
 				P0.AggregateShares(p.share, P0.share, P0.share)
 			}
 		}
 
-		P0.Transform(ciphertext, tc.params.LogSlots(), transform, crp, P0.share, ciphertext)
+		P0.Transform(ciphertext, transform, crp, P0.share, ciphertext)
 
 		for i := range coeffs {
-			coeffs[i] = complex(real(coeffs[i])*0.9238795325112867, imag(coeffs[i])*0.7071067811865476)
+			coeffs[i][0].Mul(coeffs[i][0], bignum.NewFloat(0.9238795325112867, logBound))
+			coeffs[i][1].Mul(coeffs[i][1], bignum.NewFloat(0.7071067811865476, logBound))
 		}
 
 		verifyTestVectors(tc, decryptorSk0, coeffs, ciphertext, t)
@@ -404,7 +404,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 	sk0Shards := tc.sk0Shards
 	params := tc.params
 
-	t.Run(testString("RefreshAndTransformAndSwitchParams", tc.NParties, params), func(t *testing.T) {
+	t.Run(GetTestName("RefreshAndTransformAndSwitchParams", tc.NParties, params), func(t *testing.T) {
 
 		var minLevel int
 		var logBound uint
@@ -434,7 +434,6 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 			LogQ:     []int{54, 49, 49, 49, 49, 49, 49},
 			LogP:     []int{52, 52},
 			RingType: params.RingType(),
-			LogSlots: params.MaxLogSlots() + 1,
 			LogScale: 49,
 		})
 
@@ -472,73 +471,145 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 
 		transform := &MaskedTransformFunc{
 			Decode: true,
-			Func: func(coeffs []*ring.Complex) {
+			Func: func(coeffs []*bignum.Complex) {
 				for i := range coeffs {
-					coeffs[i][0].Mul(coeffs[i][0], ring.NewFloat(0.9238795325112867, logBound))
-					coeffs[i][1].Mul(coeffs[i][1], ring.NewFloat(0.7071067811865476, logBound))
+					coeffs[i][0].Mul(coeffs[i][0], bignum.NewFloat(0.9238795325112867, logBound))
+					coeffs[i][1].Mul(coeffs[i][1], bignum.NewFloat(0.7071067811865476, logBound))
 				}
 			},
 			Encode: true,
 		}
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.sIn, p.sOut, logBound, params.LogSlots(), ciphertext, crp, transform, p.share)
+			p.GenShare(p.sIn, p.sOut, logBound, ciphertext, crp, transform, p.share)
 
 			if i > 0 {
 				P0.AggregateShares(p.share, P0.share, P0.share)
 			}
 		}
 
-		P0.Transform(ciphertext, tc.params.LogSlots(), transform, crp, P0.share, ciphertext)
+		P0.Transform(ciphertext, transform, crp, P0.share, ciphertext)
 
 		for i := range coeffs {
-			coeffs[i] = complex(real(coeffs[i])*0.9238795325112867, imag(coeffs[i])*0.7071067811865476)
+			coeffs[i][0].Mul(coeffs[i][0], bignum.NewFloat(0.9238795325112867, logBound))
+			coeffs[i][1].Mul(coeffs[i][1], bignum.NewFloat(0.7071067811865476, logBound))
 		}
 
-		precStats := ckks.GetPrecisionStats(paramsOut, ckks.NewEncoder(paramsOut), nil, coeffs, ckks.NewDecryptor(paramsOut, skIdealOut).DecryptNew(ciphertext), params.LogSlots(), nil)
+		precStats := ckks.GetPrecisionStats(paramsOut, ckks.NewEncoder(paramsOut), nil, coeffs, ckks.NewDecryptor(paramsOut, skIdealOut).DecryptNew(ciphertext), nil, false)
 
 		if *printPrecisionStats {
 			t.Log(precStats.String())
 		}
 
-		require.GreaterOrEqual(t, precStats.MeanPrecision.Real, minPrec)
-		require.GreaterOrEqual(t, precStats.MeanPrecision.Imag, minPrec)
+		rf64, _ := precStats.MeanPrecision.Real.Float64()
+		if64, _ := precStats.MeanPrecision.Imag.Float64()
+
+		minPrec := math.Log2(paramsOut.DefaultScale().Float64()) - float64(paramsOut.LogN()+2)
+		if minPrec < 0 {
+			minPrec = 0
+		}
+
+		require.GreaterOrEqual(t, rf64, minPrec)
+		require.GreaterOrEqual(t, if64, minPrec)
 	})
 }
 
+func testMarshalling(tc *testContext, t *testing.T) {
+	params := tc.params
+
+	t.Run(GetTestName("Marshalling/Refresh", tc.NParties, params), func(t *testing.T) {
+
+		var minLevel int
+		var logBound uint
+		var ok bool
+		if minLevel, logBound, ok = GetMinimumLevelForRefresh(128, params.DefaultScale(), tc.NParties, params.Q()); ok != true {
+			t.Skip("Not enough levels to ensure correctness and 128 security")
+		}
+
+		ciphertext := ckks.NewCiphertext(params, 1, minLevel)
+		ciphertext.Scale = params.DefaultScale()
+		tc.uniformSampler.AtLevel(minLevel).Read(ciphertext.Value[0])
+		tc.uniformSampler.AtLevel(minLevel).Read(ciphertext.Value[1])
+
+		// Testing refresh shares
+		refreshproto := NewRefreshProtocol(tc.params, logBound, params.Xe())
+		refreshshare := refreshproto.AllocateShare(ciphertext.Level(), params.MaxLevel())
+
+		crp := refreshproto.SampleCRP(params.MaxLevel(), tc.crs)
+
+		refreshproto.GenShare(tc.sk0, logBound, ciphertext, crp, refreshshare)
+
+		data, err := refreshshare.MarshalBinary()
+
+		if err != nil {
+			t.Fatal("Could not marshal RefreshShare", err)
+		}
+
+		resRefreshShare := new(MaskedTransformShare)
+		err = resRefreshShare.UnmarshalBinary(data)
+
+		if err != nil {
+			t.Fatal("Could not unmarshal RefreshShare", err)
+		}
+
+		for i, r := range refreshshare.e2sShare.Value.Coeffs {
+			if !utils.EqualSlice(resRefreshShare.e2sShare.Value.Coeffs[i], r) {
+				t.Fatal("Result of marshalling not the same as original : RefreshShare")
+			}
+
+		}
+		for i, r := range refreshshare.s2eShare.Value.Coeffs {
+			if !utils.EqualSlice(resRefreshShare.s2eShare.Value.Coeffs[i], r) {
+				t.Fatal("Result of marshalling not the same as original : RefreshShare")
+			}
+
+		}
+	})
+}
+
+func newTestVectors(testContext *testContext, encryptor rlwe.Encryptor, a, b complex128) (values []*bignum.Complex, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
 func newTestVectors(testContext *testContext, encryptor rlwe.Encryptor, a, b complex128) (values []complex128, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
 	return newTestVectorsAtScale(testContext, encryptor, a, b, testContext.params.DefaultScale())
 }
 
-func newTestVectorsAtScale(testContext *testContext, encryptor rlwe.Encryptor, a, b complex128, scale rlwe.Scale) (values []complex128, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
+func newTestVectorsAtScale(tc *testContext, encryptor rlwe.Encryptor, a, b complex128, scale rlwe.Scale) (values []*bignum.Complex, pt *rlwe.Plaintext, ct *rlwe.Ciphertext) {
 
-	params := testContext.params
+	prec := tc.encoder.Prec()
 
-	logSlots := params.LogSlots()
+	pt = ckks.NewPlaintext(tc.params, tc.params.MaxLevel())
+	pt.Scale = scale
 
-	values = make([]complex128, 1<<logSlots)
+	values = make([]*bignum.Complex, pt.Slots())
 
 	for i := 0; i < 1<<logSlots; i++ {
-		values[i] = complex(sampling.RandFloat64(real(a), real(b)), sampling.RandFloat64(imag(a), imag(b)))
+		values[i] = complex(utils.RandFloat64(real(a), real(b)), utils.RandFloat64(imag(a), imag(b)))
 	}
 
-	plaintext = testContext.encoder.EncodeNew(values, params.MaxLevel(), scale, params.LogSlots())
+	tc.encoder.Encode(values, pt)
 
 	if encryptor != nil {
-		ciphertext = encryptor.EncryptNew(plaintext)
+		ct = encryptor.EncryptNew(pt)
 	}
 
-	return values, plaintext, ciphertext
+	return values, pt, ct
 }
 
-func verifyTestVectors(tc *testContext, decryptor rlwe.Decryptor, valuesWant []complex128, element interface{}, t *testing.T) {
+func verifyTestVectors(tc *testContext, decryptor rlwe.Decryptor, valuesWant, valuesHave interface{}, t *testing.T) {
 
-	precStats := ckks.GetPrecisionStats(tc.params, tc.encoder, decryptor, valuesWant, element, tc.params.LogSlots(), nil)
+	precStats := ckks.GetPrecisionStats(tc.params, tc.encoder, decryptor, valuesWant, valuesHave, nil, false)
 
 	if *printPrecisionStats {
 		t.Log(precStats.String())
 	}
 
-	require.GreaterOrEqual(t, precStats.MeanPrecision.Real, minPrec)
-	require.GreaterOrEqual(t, precStats.MeanPrecision.Imag, minPrec)
+	rf64, _ := precStats.MeanPrecision.Real.Float64()
+	if64, _ := precStats.MeanPrecision.Imag.Float64()
+
+	minPrec := math.Log2(tc.params.DefaultScale().Float64()) - float64(tc.params.LogN()+2)
+	if minPrec < 0 {
+		minPrec = 0
+	}
+
+	require.GreaterOrEqual(t, rf64, minPrec)
+	require.GreaterOrEqual(t, if64, minPrec)
 }

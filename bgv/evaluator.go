@@ -9,6 +9,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
 // Evaluator is an interface implementing the public methods of the eval.
@@ -109,7 +110,7 @@ func newEvaluatorPrecomp(params Parameters) *evaluatorBase {
 	tInvModQ := make([]*big.Int, ringQ.ModuliChainLength())
 
 	for i := range tInvModQ {
-		tInvModQ[i] = ring.NewUint(t)
+		tInvModQ[i] = bignum.NewInt(t)
 		tInvModQ[i].ModInverse(tInvModQ[i], ringQ.ModulusAtLevel[i])
 	}
 
@@ -275,8 +276,8 @@ func (eval *evaluator) Add(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 
 		_, level := eval.CheckBinary(op0, op1, op2, utils.Max(op0.Degree(), op1.Degree()))
 
-		if op0.Scale.Cmp(op1.GetScale()) == 0 {
-			eval.evaluateInPlace(level, op0.El(), op1.El(), op2.El(), ringQ.AtLevel(level).Add)
+		if op0.Scale.Cmp(op1.GetMetaData().Scale) == 0 {
+			eval.evaluateInPlace(level, op0, op1.El(), op2, ringQ.AtLevel(level).Add)
 		} else {
 			eval.matchScaleThenEvaluateInPlace(level, op0.El(), op1.El(), op2.El(), ringQ.AtLevel(level).MulScalarThenAdd)
 		}
@@ -336,8 +337,8 @@ func (eval *evaluator) Sub(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 
 		ringQ := eval.params.RingQ()
 
-		if op0.Scale.Cmp(op1.GetScale()) == 0 {
-			eval.evaluateInPlace(level, op0.El(), op1.El(), op2.El(), ringQ.AtLevel(level).Sub)
+		if op0.Scale.Cmp(op1.GetMetaData().Scale) == 0 {
+			eval.evaluateInPlace(level, op0, op1.El(), op2, ringQ.AtLevel(level).Sub)
 		} else {
 			eval.matchScaleThenEvaluateInPlace(level, op0.El(), op1.El(), op2.El(), ringQ.AtLevel(level).MulScalarThenSub)
 		}
@@ -504,7 +505,7 @@ func (eval *evaluator) tensorStandard(op0 *rlwe.Ciphertext, op1 *rlwe.OperandQ, 
 	}
 
 	op2.MetaData = op0.MetaData
-	op2.Scale = op0.Scale.Mul(op1.GetScale())
+	op2.Scale = op0.Scale.Mul(op1.GetMetaData().Scale)
 
 	ringQ := eval.params.RingQ().AtLevel(level)
 
@@ -898,7 +899,7 @@ func (eval *evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 rlwe.Operand, r
 		tmp0, tmp1 := op0.El(), op1.El()
 
 		var r0 uint64 = 1
-		if targetScale := ring.BRed(op0.Scale.Uint64(), op1.GetScale().Uint64(), sT.Modulus, sT.BRedConstant); op2.Scale.Cmp(eval.params.NewScale(targetScale)) != 0 {
+		if targetScale := ring.BRed(op0.Scale.Uint64(), op1.GetMetaData().Scale.Uint64(), sT.Modulus, sT.BRedConstant); op2.Scale.Cmp(eval.params.NewScale(targetScale)) != 0 {
 			var r1 uint64
 			r0, r1, _ = eval.matchScalesBinary(targetScale, op2.Scale.Uint64())
 
@@ -960,7 +961,7 @@ func (eval *evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 rlwe.Operand, r
 		ringQ.MulScalar(c00, eval.params.T(), c00)
 
 		var r0 = uint64(1)
-		if targetScale := ring.BRed(op0.Scale.Uint64(), op1.GetScale().Uint64(), sT.Modulus, sT.BRedConstant); op2.Scale.Cmp(eval.params.NewScale(targetScale)) != 0 {
+		if targetScale := ring.BRed(op0.Scale.Uint64(), op1.GetMetaData().Scale.Uint64(), sT.Modulus, sT.BRedConstant); op2.Scale.Cmp(eval.params.NewScale(targetScale)) != 0 {
 			var r1 uint64
 			r0, r1, _ = eval.matchScalesBinary(targetScale, op2.Scale.Uint64())
 

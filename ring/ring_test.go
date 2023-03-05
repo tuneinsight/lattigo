@@ -14,6 +14,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/structs"
 
 	"github.com/stretchr/testify/require"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters). Overrides -short and requires -timeout=0.")
@@ -231,8 +232,8 @@ func testDivFloorByLastModulusMany(tc *testParams, t *testing.T) {
 
 		coeffs := make([]*big.Int, N)
 		for i := 0; i < N; i++ {
-			coeffs[i] = RandInt(prng, tc.ringQ.ModulusAtLevel[level])
-			coeffs[i].Quo(coeffs[i], NewUint(10))
+			coeffs[i] = bignum.RandInt(prng, tc.ringQ.ModulusAtLevel[level])
+			coeffs[i].Quo(coeffs[i], bignum.NewInt(10))
 		}
 
 		nbRescales := level
@@ -241,7 +242,7 @@ func testDivFloorByLastModulusMany(tc *testParams, t *testing.T) {
 		for i := range coeffs {
 			coeffsWant[i] = new(big.Int).Set(coeffs[i])
 			for j := 0; j < nbRescales; j++ {
-				coeffsWant[i].Quo(coeffsWant[i], NewUint(tc.ringQ.SubRings[level-j].Modulus))
+				coeffsWant[i].Quo(coeffsWant[i], bignum.NewInt(tc.ringQ.SubRings[level-j].Modulus))
 			}
 		}
 
@@ -264,7 +265,7 @@ func testDivFloorByLastModulusMany(tc *testParams, t *testing.T) {
 
 func testDivRoundByLastModulusMany(tc *testParams, t *testing.T) {
 
-	t.Run(testString("DivRoundByLastModulusMany", tc.ringQ), func(t *testing.T) {
+	t.Run(testString("bignum.DivRoundByLastModulusMany", tc.ringQ), func(t *testing.T) {
 
 		prng, _ := sampling.NewPRNG()
 
@@ -276,8 +277,8 @@ func testDivRoundByLastModulusMany(tc *testParams, t *testing.T) {
 
 		coeffs := make([]*big.Int, N)
 		for i := 0; i < N; i++ {
-			coeffs[i] = RandInt(prng, tc.ringQ.ModulusAtLevel[level])
-			coeffs[i].Quo(coeffs[i], NewUint(10))
+			coeffs[i] = bignum.RandInt(prng, tc.ringQ.ModulusAtLevel[level])
+			coeffs[i].Quo(coeffs[i], bignum.NewInt(10))
 		}
 
 		nbRescals := level
@@ -286,7 +287,7 @@ func testDivRoundByLastModulusMany(tc *testParams, t *testing.T) {
 		for i := range coeffs {
 			coeffsWant[i] = new(big.Int).Set(coeffs[i])
 			for j := 0; j < nbRescals; j++ {
-				DivRound(coeffsWant[i], NewUint(tc.ringQ.SubRings[level-j].Modulus), coeffsWant[i])
+				bignum.DivRound(coeffsWant[i], bignum.NewInt(tc.ringQ.SubRings[level-j].Modulus), coeffsWant[i])
 			}
 		}
 
@@ -501,15 +502,15 @@ func testModularReduction(tc *testParams, t *testing.T) {
 
 		for j, q := range tc.ringQ.ModuliChain() {
 
-			bigQ = NewUint(q)
+			bigQ = bignum.NewInt(q)
 
 			brc := tc.ringQ.SubRings[j].BRedConstant
 
 			x = 1
 			y = 1
 
-			result = NewUint(x)
-			result.Mul(result, NewUint(y))
+			result = bignum.NewInt(x)
+			result.Mul(result, bignum.NewInt(y))
 			result.Mod(result, bigQ)
 
 			require.Equalf(t, BRed(x, y, q, brc), result.Uint64(), "x = %v, y=%v", x, y)
@@ -517,8 +518,8 @@ func testModularReduction(tc *testParams, t *testing.T) {
 			x = 1
 			y = q - 1
 
-			result = NewUint(x)
-			result.Mul(result, NewUint(y))
+			result = bignum.NewInt(x)
+			result.Mul(result, bignum.NewInt(y))
 			result.Mod(result, bigQ)
 
 			require.Equalf(t, BRed(x, y, q, brc), result.Uint64(), "x = %v, y=%v", x, y)
@@ -526,8 +527,8 @@ func testModularReduction(tc *testParams, t *testing.T) {
 			x = 1
 			y = 0xFFFFFFFFFFFFFFFF
 
-			result = NewUint(x)
-			result.Mul(result, NewUint(y))
+			result = bignum.NewInt(x)
+			result.Mul(result, bignum.NewInt(y))
 			result.Mod(result, bigQ)
 
 			require.Equalf(t, BRed(x, y, q, brc), result.Uint64(), "x = %v, y=%v", x, y)
@@ -535,8 +536,8 @@ func testModularReduction(tc *testParams, t *testing.T) {
 			x = q - 1
 			y = q - 1
 
-			result = NewUint(x)
-			result.Mul(result, NewUint(y))
+			result = bignum.NewInt(x)
+			result.Mul(result, bignum.NewInt(y))
 			result.Mod(result, bigQ)
 
 			require.Equalf(t, BRed(x, y, q, brc), result.Uint64(), "x = %v, y=%v", x, y)
@@ -544,8 +545,8 @@ func testModularReduction(tc *testParams, t *testing.T) {
 			x = q - 1
 			y = 0xFFFFFFFFFFFFFFFF
 
-			result = NewUint(x)
-			result.Mul(result, NewUint(y))
+			result = bignum.NewInt(x)
+			result.Mul(result, bignum.NewInt(y))
 			result.Mod(result, bigQ)
 
 			require.Equalf(t, BRed(x, y, q, brc), result.Uint64(), "x = %v, y=%v", x, y)
@@ -553,8 +554,8 @@ func testModularReduction(tc *testParams, t *testing.T) {
 			x = 0xFFFFFFFFFFFFFFFF
 			y = 0xFFFFFFFFFFFFFFFF
 
-			result = NewUint(x)
-			result.Mul(result, NewUint(y))
+			result = bignum.NewInt(x)
+			result.Mul(result, bignum.NewInt(y))
 			result.Mod(result, bigQ)
 
 			require.Equalf(t, BRed(x, y, q, brc), result.Uint64(), "x = %v, y=%v", x, y)
@@ -568,7 +569,7 @@ func testModularReduction(tc *testParams, t *testing.T) {
 
 		for j, q := range tc.ringQ.ModuliChain() {
 
-			bigQ = NewUint(q)
+			bigQ = bignum.NewInt(q)
 
 			brc := tc.ringQ.SubRings[j].BRedConstant
 			mrc := tc.ringQ.SubRings[j].MRedConstant
@@ -576,8 +577,8 @@ func testModularReduction(tc *testParams, t *testing.T) {
 			x = 1
 			y = 1
 
-			result = NewUint(x)
-			result.Mul(result, NewUint(y))
+			result = bignum.NewInt(x)
+			result.Mul(result, bignum.NewInt(y))
 			result.Mod(result, bigQ)
 
 			require.Equalf(t, MRed(x, MForm(y, q, brc), q, mrc), result.Uint64(), "x = %v, y=%v", x, y)
@@ -585,8 +586,8 @@ func testModularReduction(tc *testParams, t *testing.T) {
 			x = 1
 			y = q - 1
 
-			result = NewUint(x)
-			result.Mul(result, NewUint(y))
+			result = bignum.NewInt(x)
+			result.Mul(result, bignum.NewInt(y))
 			result.Mod(result, bigQ)
 
 			require.Equalf(t, MRed(x, MForm(y, q, brc), q, mrc), result.Uint64(), "x = %v, y=%v", x, y)
@@ -594,8 +595,8 @@ func testModularReduction(tc *testParams, t *testing.T) {
 			x = 1
 			y = 0xFFFFFFFFFFFFFFFF
 
-			result = NewUint(x)
-			result.Mul(result, NewUint(y))
+			result = bignum.NewInt(x)
+			result.Mul(result, bignum.NewInt(y))
 			result.Mod(result, bigQ)
 
 			require.Equalf(t, MRed(x, MForm(y, q, brc), q, mrc), result.Uint64(), "x = %v, y=%v", x, y)
@@ -603,8 +604,8 @@ func testModularReduction(tc *testParams, t *testing.T) {
 			x = q - 1
 			y = q - 1
 
-			result = NewUint(x)
-			result.Mul(result, NewUint(y))
+			result = bignum.NewInt(x)
+			result.Mul(result, bignum.NewInt(y))
 			result.Mod(result, bigQ)
 
 			require.Equalf(t, MRed(x, MForm(y, q, brc), q, mrc), result.Uint64(), "x = %v, y=%v", x, y)
@@ -612,8 +613,8 @@ func testModularReduction(tc *testParams, t *testing.T) {
 			x = q - 1
 			y = 0xFFFFFFFFFFFFFFFF
 
-			result = NewUint(x)
-			result.Mul(result, NewUint(y))
+			result = bignum.NewInt(x)
+			result.Mul(result, bignum.NewInt(y))
 			result.Mod(result, bigQ)
 
 			require.Equalf(t, MRed(x, MForm(y, q, brc), q, mrc), result.Uint64(), "x = %v, y=%v", x, y)
@@ -621,8 +622,8 @@ func testModularReduction(tc *testParams, t *testing.T) {
 			x = 0xFFFFFFFFFFFFFFFF
 			y = 0xFFFFFFFFFFFFFFFF
 
-			result = NewUint(x)
-			result.Mul(result, NewUint(y))
+			result = bignum.NewInt(x)
+			result.Mul(result, bignum.NewInt(y))
 			result.Mod(result, bigQ)
 
 			require.Equalf(t, MRed(x, MForm(y, q, brc), q, mrc), result.Uint64(), "x = %v, y=%v", x, y)
@@ -654,8 +655,8 @@ func testMulScalarBigint(tc *testParams, t *testing.T) {
 		rand1 := RandUniform(tc.prng, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)
 		rand2 := RandUniform(tc.prng, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)
 
-		scalarBigint := NewUint(rand1)
-		scalarBigint.Mul(scalarBigint, NewUint(rand2))
+		scalarBigint := bignum.NewInt(rand1)
+		scalarBigint.Mul(scalarBigint, bignum.NewInt(rand2))
 
 		tc.ringQ.MulScalar(polWant, rand1, polWant)
 		tc.ringQ.MulScalar(polWant, rand2, polWant)
@@ -688,7 +689,7 @@ func testExtendBasis(tc *testParams, t *testing.T) {
 
 		coeffs := make([]*big.Int, N)
 		for i := 0; i < N; i++ {
-			coeffs[i] = RandInt(prng, Q)
+			coeffs[i] = bignum.RandInt(prng, Q)
 			coeffs[i].Sub(coeffs[i], QHalf)
 		}
 
@@ -728,7 +729,7 @@ func testExtendBasis(tc *testParams, t *testing.T) {
 
 		coeffs := make([]*big.Int, N)
 		for i := 0; i < N; i++ {
-			coeffs[i] = RandInt(prng, P)
+			coeffs[i] = bignum.RandInt(prng, P)
 			coeffs[i].Sub(coeffs[i], PHalf)
 		}
 
@@ -768,14 +769,14 @@ func testExtendBasis(tc *testParams, t *testing.T) {
 
 		coeffs := make([]*big.Int, N)
 		for i := 0; i < N; i++ {
-			coeffs[i] = RandInt(prng, QP)
-			coeffs[i].Quo(coeffs[i], NewUint(10))
+			coeffs[i] = bignum.RandInt(prng, QP)
+			coeffs[i].Quo(coeffs[i], bignum.NewInt(10))
 		}
 
 		coeffsWant := make([]*big.Int, N)
 		for i := range coeffs {
 			coeffsWant[i] = new(big.Int).Set(coeffs[i])
-			DivRound(coeffsWant[i], P, coeffsWant[i])
+			bignum.DivRound(coeffsWant[i], P, coeffsWant[i])
 		}
 
 		PolQHave := ringQ.NewPoly()
@@ -815,14 +816,14 @@ func testExtendBasis(tc *testParams, t *testing.T) {
 
 		coeffs := make([]*big.Int, N)
 		for i := 0; i < N; i++ {
-			coeffs[i] = RandInt(prng, QP)
-			coeffs[i].Quo(coeffs[i], NewUint(10))
+			coeffs[i] = bignum.RandInt(prng, QP)
+			coeffs[i].Quo(coeffs[i], bignum.NewInt(10))
 		}
 
 		coeffsWant := make([]*big.Int, N)
 		for i := range coeffs {
 			coeffsWant[i] = new(big.Int).Set(coeffs[i])
-			DivRound(coeffsWant[i], Q, coeffsWant[i])
+			bignum.DivRound(coeffsWant[i], Q, coeffsWant[i])
 		}
 
 		PolQHave := ringQ.NewPoly()

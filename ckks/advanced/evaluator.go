@@ -2,12 +2,13 @@
 package advanced
 
 import (
-	"math"
+	"math/big"
 
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
 // Evaluator is an interface embedding the ckks.Evaluator interface with
@@ -18,48 +19,87 @@ type Evaluator interface {
 	// === Original ckks.Evaluator methods ===
 	// =======================================
 
-	Add(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext)
-	AddNew(ctIn *rlwe.Ciphertext, op1 rlwe.Operand) (ctOut *rlwe.Ciphertext)
-	Sub(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext)
-	SubNew(ctIn *rlwe.Ciphertext, op1 rlwe.Operand) (ctOut *rlwe.Ciphertext)
-	Neg(ctIn *rlwe.Ciphertext, ctOut *rlwe.Ciphertext)
-	NegNew(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext)
-	AddConstNew(ctIn *rlwe.Ciphertext, constant interface{}) (ctOut *rlwe.Ciphertext)
-	AddConst(ctIn *rlwe.Ciphertext, constant interface{}, ctOut *rlwe.Ciphertext)
-	MultByConstNew(ctIn *rlwe.Ciphertext, constant interface{}) (ctOut *rlwe.Ciphertext)
-	MultByConst(ctIn *rlwe.Ciphertext, constant interface{}, ctOut *rlwe.Ciphertext)
-	MultByConstThenAdd(ctIn *rlwe.Ciphertext, constant interface{}, ctOut *rlwe.Ciphertext)
-	ConjugateNew(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext)
-	Conjugate(ctIn *rlwe.Ciphertext, ctOut *rlwe.Ciphertext)
-	Mul(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext)
-	MulNew(ctIn *rlwe.Ciphertext, op1 rlwe.Operand) (ctOut *rlwe.Ciphertext)
-	MulRelin(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext)
-	MulRelinNew(ctIn *rlwe.Ciphertext, op1 rlwe.Operand) (ctOut *rlwe.Ciphertext)
-	RotateNew(ctIn *rlwe.Ciphertext, k int) (ctOut *rlwe.Ciphertext)
-	Rotate(ctIn *rlwe.Ciphertext, k int, ctOut *rlwe.Ciphertext)
-	RotateHoistedNew(ctIn *rlwe.Ciphertext, rotations []int) (ctOut map[int]*rlwe.Ciphertext)
-	RotateHoisted(ctIn *rlwe.Ciphertext, rotations []int, ctOut map[int]*rlwe.Ciphertext)
-	EvaluatePoly(input interface{}, pol *ckks.Polynomial, targetscale rlwe.Scale) (ctOut *rlwe.Ciphertext, err error)
-	EvaluatePolyVector(input interface{}, pols []*ckks.Polynomial, encoder ckks.Encoder, slotIndex map[int][]int, targetscale rlwe.Scale) (ctOut *rlwe.Ciphertext, err error)
-	InverseNew(ctIn *rlwe.Ciphertext, steps int) (ctOut *rlwe.Ciphertext, err error)
-	LinearTransformNew(ctIn *rlwe.Ciphertext, linearTransform interface{}) (ctOut []*rlwe.Ciphertext)
-	LinearTransform(ctIn *rlwe.Ciphertext, linearTransform interface{}, ctOut []*rlwe.Ciphertext)
-	MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix ckks.LinearTransform, c2DecompQP []ringqp.Poly, ctOut *rlwe.Ciphertext)
-	MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix ckks.LinearTransform, c2DecompQP []ringqp.Poly, ctOut *rlwe.Ciphertext)
-	InnerSum(ctIn *rlwe.Ciphertext, batch, n int, ctOut *rlwe.Ciphertext)
-	Replicate(ctIn *rlwe.Ciphertext, batch, n int, ctOut *rlwe.Ciphertext)
-	TraceNew(ctIn *rlwe.Ciphertext, logSlots int) *rlwe.Ciphertext
-	Trace(ctIn *rlwe.Ciphertext, logSlots int, ctOut *rlwe.Ciphertext)
-	ApplyEvaluationKeyNew(ctIn *rlwe.Ciphertext, evk *rlwe.EvaluationKey) (ctOut *rlwe.Ciphertext)
-	ApplyEvaluationKey(ctIn *rlwe.Ciphertext, evk *rlwe.EvaluationKey, ctOut *rlwe.Ciphertext)
-	RelinearizeNew(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext)
-	Relinearize(ctIn *rlwe.Ciphertext, ctOut *rlwe.Ciphertext)
-	ScaleUpNew(ctIn *rlwe.Ciphertext, scale rlwe.Scale) (ctOut *rlwe.Ciphertext)
-	ScaleUp(ctIn *rlwe.Ciphertext, scale rlwe.Scale, ctOut *rlwe.Ciphertext)
-	SetScale(ctIn *rlwe.Ciphertext, scale rlwe.Scale)
-	Rescale(ctIn *rlwe.Ciphertext, minscale rlwe.Scale, ctOut *rlwe.Ciphertext) (err error)
-	DropLevelNew(ctIn *rlwe.Ciphertext, levels int) (ctOut *rlwe.Ciphertext)
-	DropLevel(ctIn *rlwe.Ciphertext, levels int)
+	// ========================
+	// === Basic Arithmetic ===
+	// ========================
+
+	// Addition
+	Add(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciphertext)
+	AddNew(op0 *rlwe.Ciphertext, op1 interface{}) (op2 *rlwe.Ciphertext)
+
+	// Subtraction
+	Sub(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciphertext)
+	SubNew(op0 *rlwe.Ciphertext, op1 interface{}) (op2 *rlwe.Ciphertext)
+
+	// Complex Conjugation
+	ConjugateNew(op0 *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext)
+	Conjugate(op0 *rlwe.Ciphertext, ctOut *rlwe.Ciphertext)
+
+	// Multiplication
+	Mul(op0 *rlwe.Ciphertext, op1 interface{}, ctOut *rlwe.Ciphertext)
+	MulNew(op0 *rlwe.Ciphertext, op1 interface{}) (ctOut *rlwe.Ciphertext)
+	MulRelin(op0 *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext)
+	MulRelinNew(op0 *rlwe.Ciphertext, op1 rlwe.Operand) (ctOut *rlwe.Ciphertext)
+
+	MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, ctOut *rlwe.Ciphertext)
+	MulRelinThenAdd(op0 *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext)
+
+	// Slot Rotations
+	RotateNew(op0 *rlwe.Ciphertext, k int) (ctOut *rlwe.Ciphertext)
+	Rotate(op0 *rlwe.Ciphertext, k int, ctOut *rlwe.Ciphertext)
+	RotateHoistedNew(op0 *rlwe.Ciphertext, rotations []int) (ctOut map[int]*rlwe.Ciphertext)
+	RotateHoisted(op0 *rlwe.Ciphertext, rotations []int, ctOut map[int]*rlwe.Ciphertext)
+	RotateHoistedLazyNew(level int, rotations []int, ct *rlwe.Ciphertext, c2DecompQP []ringqp.Poly) (cOut map[int]rlwe.CiphertextQP)
+
+	// ===========================
+	// === Advanced Arithmetic ===
+	// ===========================
+
+	// Polynomial evaluation
+	EvaluatePoly(input interface{}, pol *bignum.Polynomial, targetScale rlwe.Scale) (ctOut *rlwe.Ciphertext, err error)
+	EvaluatePolyVector(input interface{}, pols []*bignum.Polynomial, encoder *ckks.Encoder, slotIndex map[int][]int, targetScale rlwe.Scale) (ctOut *rlwe.Ciphertext, err error)
+
+	// GoldschmidtDivision
+	GoldschmidtDivisionNew(ct *rlwe.Ciphertext, minValue, log2Targetprecision float64, btp rlwe.Bootstrapper) (ctInv *rlwe.Ciphertext, err error)
+
+	// Linear Transformations
+	LinearTransformNew(op0 *rlwe.Ciphertext, linearTransform interface{}) (ctOut []*rlwe.Ciphertext)
+	LinearTransform(op0 *rlwe.Ciphertext, linearTransform interface{}, ctOut []*rlwe.Ciphertext)
+	MultiplyByDiagMatrix(op0 *rlwe.Ciphertext, matrix ckks.LinearTransform, c2DecompQP []ringqp.Poly, ctOut *rlwe.Ciphertext)
+	MultiplyByDiagMatrixBSGS(op0 *rlwe.Ciphertext, matrix ckks.LinearTransform, c2DecompQP []ringqp.Poly, ctOut *rlwe.Ciphertext)
+
+	// Inner sum
+	InnerSum(op0 *rlwe.Ciphertext, batch, n int, ctOut *rlwe.Ciphertext)
+	Average(op0 *rlwe.Ciphertext, batch int, ctOut *rlwe.Ciphertext)
+
+	// Replication (inverse of Inner sum)
+	Replicate(op0 *rlwe.Ciphertext, batch, n int, ctOut *rlwe.Ciphertext)
+
+	// Trace
+	Trace(op0 *rlwe.Ciphertext, logSlots int, ctOut *rlwe.Ciphertext)
+	TraceNew(op0 *rlwe.Ciphertext, logSlots int) (ctOut *rlwe.Ciphertext)
+
+	// =============================
+	// === Ciphertext Management ===
+	// =============================
+
+	// Generic EvaluationKeys
+	ApplyEvaluationKeyNew(op0 *rlwe.Ciphertext, evk *rlwe.EvaluationKey) (ctOut *rlwe.Ciphertext)
+	ApplyEvaluationKey(op0 *rlwe.Ciphertext, evk *rlwe.EvaluationKey, ctOut *rlwe.Ciphertext)
+
+	// Degree Management
+	RelinearizeNew(op0 *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext)
+	Relinearize(op0 *rlwe.Ciphertext, ctOut *rlwe.Ciphertext)
+
+	// Scale Management
+	ScaleUpNew(op0 *rlwe.Ciphertext, scale rlwe.Scale) (ctOut *rlwe.Ciphertext)
+	ScaleUp(op0 *rlwe.Ciphertext, scale rlwe.Scale, ctOut *rlwe.Ciphertext)
+	SetScale(op0 *rlwe.Ciphertext, scale rlwe.Scale)
+	Rescale(op0 *rlwe.Ciphertext, minScale rlwe.Scale, ctOut *rlwe.Ciphertext) (err error)
+
+	// Level Management
+	DropLevelNew(op0 *rlwe.Ciphertext, levels int) (ctOut *rlwe.Ciphertext)
+	DropLevel(op0 *rlwe.Ciphertext, levels int)
 
 	// ======================================
 	// === advanced.Evaluator new methods ===
@@ -75,12 +115,13 @@ type Evaluator interface {
 	// === original ckks.Evaluator redefined methods ===
 	// =================================================
 
-	Parameters() ckks.Parameters
+	CheckBinary(op0, op1, opOut rlwe.Operand, opOutMinDegree int) (degree, level int)
+	CheckUnary(op0, opOut rlwe.Operand) (degree, level int)
 	GetRLWEEvaluator() *rlwe.Evaluator
 	BuffQ() [3]*ring.Poly
 	BuffCt() *rlwe.Ciphertext
 	ShallowCopy() Evaluator
-	WithKey(rlwe.EvaluationKeySetInterface) Evaluator
+	WithKey(evk rlwe.EvaluationKeySetInterface) Evaluator
 }
 
 type evaluator struct {
@@ -118,7 +159,7 @@ func (eval *evaluator) WithKey(evk rlwe.EvaluationKeySetInterface) Evaluator {
 func (eval *evaluator) CoeffsToSlotsNew(ctIn *rlwe.Ciphertext, ctsMatrices HomomorphicDFTMatrix) (ctReal, ctImag *rlwe.Ciphertext) {
 	ctReal = ckks.NewCiphertext(eval.params, 1, ctsMatrices.LevelStart)
 
-	if eval.params.LogSlots() == eval.params.LogN()-1 {
+	if ctsMatrices.LogSlots == eval.params.MaxLogSlots() {
 		ctImag = ckks.NewCiphertext(eval.params, 1, ctsMatrices.LevelStart)
 	}
 
@@ -150,18 +191,19 @@ func (eval *evaluator) CoeffsToSlots(ctIn *rlwe.Ciphertext, ctsMatrices Homomorp
 
 		// Imag part
 		eval.Sub(zV, ctReal, tmp)
-		eval.MultByConst(tmp, -1i, tmp)
+		eval.Mul(tmp, -1i, tmp)
 
 		// Real part
 		eval.Add(ctReal, zV, ctReal)
 
 		// If repacking, then ct0 and ct1 right n/2 slots are zero.
-		if eval.params.LogSlots() < eval.params.LogN()-1 {
-			eval.Rotate(tmp, eval.params.Slots(), tmp)
+		if ctsMatrices.LogSlots < eval.params.MaxLogSlots() {
+			eval.Rotate(tmp, ctIn.Slots(), tmp)
 			eval.Add(ctReal, tmp, ctReal)
 		}
 
 		zV = nil
+
 	} else {
 		eval.dft(ctIn, ctsMatrices.Matrices, ctReal)
 	}
@@ -190,7 +232,7 @@ func (eval *evaluator) SlotsToCoeffsNew(ctReal, ctImag *rlwe.Ciphertext, stcMatr
 func (eval *evaluator) SlotsToCoeffs(ctReal, ctImag *rlwe.Ciphertext, stcMatrices HomomorphicDFTMatrix, ctOut *rlwe.Ciphertext) {
 	// If full packing, the repacking can be done directly using ct0 and ct1.
 	if ctImag != nil {
-		eval.MultByConst(ctImag, 1i, ctOut)
+		eval.Mul(ctImag, 1i, ctOut)
 		eval.Add(ctOut, ctReal, ctOut)
 		eval.dft(ctOut, stcMatrices.Matrices, ctOut)
 	} else {
@@ -200,6 +242,8 @@ func (eval *evaluator) SlotsToCoeffs(ctReal, ctImag *rlwe.Ciphertext, stcMatrice
 
 func (eval *evaluator) dft(ctIn *rlwe.Ciphertext, plainVectors []ckks.LinearTransform, ctOut *rlwe.Ciphertext) {
 
+	inputLogSlots := ctIn.LogSlots
+
 	// Sequentially multiplies w with the provided dft matrices.
 	scale := ctIn.Scale
 	var in, out *rlwe.Ciphertext
@@ -208,12 +252,18 @@ func (eval *evaluator) dft(ctIn *rlwe.Ciphertext, plainVectors []ckks.LinearTran
 		if i == 0 {
 			in, out = ctIn, ctOut
 		}
+
 		eval.LinearTransform(in, plainVector, []*rlwe.Ciphertext{out})
 
 		if err := eval.Rescale(out, scale, out); err != nil {
 			panic(err)
 		}
 	}
+
+	// Encoding matrices are a special case of `fractal` linear transform
+	// that doesn't change the underlying plaintext polynomial Y = X^{N/n}
+	// of the input ciphertext.
+	ctOut.LogSlots = inputLogSlots
 }
 
 // EvalModNew applies a homomorphic mod Q on a vector scaled by Delta, scaled down to mod 1 :
@@ -252,14 +302,19 @@ func (eval *evaluator) EvalModNew(ct *rlwe.Ciphertext, evalModPoly EvalModPoly) 
 	// formula such that after it it has the scale it had before the polynomial
 	// evaluation
 
-	targetScale := ct.Scale.Float64()
+	targetScale := ct.Scale
 	for i := 0; i < evalModPoly.doubleAngle; i++ {
-		targetScale = math.Sqrt(targetScale * eval.params.QiFloat64(evalModPoly.levelStart-evalModPoly.sinePoly.Depth()-evalModPoly.doubleAngle+i+1))
+		qi := eval.params.Q()[evalModPoly.levelStart-evalModPoly.sinePoly.Depth()-evalModPoly.doubleAngle+i+1]
+		targetScale = targetScale.Mul(rlwe.NewScale(qi))
+		targetScale.Value.Sqrt(&targetScale.Value)
 	}
 
 	// Division by 1/2^r and change of variable for the Chebyshev evaluation
 	if evalModPoly.sineType == CosDiscrete || evalModPoly.sineType == CosContinuous {
-		eval.AddConst(ct, -0.5/(evalModPoly.scFac*(evalModPoly.sinePoly.B-evalModPoly.sinePoly.A)), ct)
+		offset := new(big.Float).Sub(evalModPoly.sinePoly.B, evalModPoly.sinePoly.A)
+		offset.Mul(offset, new(big.Float).SetFloat64(evalModPoly.scFac))
+		offset.Quo(new(big.Float).SetFloat64(-0.5), offset)
+		eval.Add(ct, offset, ct)
 	}
 
 	// Chebyshev evaluation
@@ -273,7 +328,7 @@ func (eval *evaluator) EvalModNew(ct *rlwe.Ciphertext, evalModPoly EvalModPoly) 
 		sqrt2pi *= sqrt2pi
 		eval.MulRelin(ct, ct, ct)
 		eval.Add(ct, ct, ct)
-		eval.AddConst(ct, -sqrt2pi, ct)
+		eval.Add(ct, -sqrt2pi, ct)
 		if err := eval.Rescale(ct, rlwe.NewScale(targetScale), ct); err != nil {
 			panic(err)
 		}

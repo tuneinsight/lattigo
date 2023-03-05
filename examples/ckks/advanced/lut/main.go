@@ -51,6 +51,9 @@ func main() {
 		LogN = 6
 	}
 
+	LogSlots := 4
+	slots := 1 << LogSlots
+
 	// Starting RLWE params, size of these params
 	// determine the complexity of the LUT:
 	// each LUT takes N RGSW ciphertext-ciphetext mul.
@@ -60,7 +63,6 @@ func main() {
 		LogN:     LogN,
 		Q:        Q,
 		P:        P,
-		LogSlots: 4,
 		LogScale: 32,
 	}); err != nil {
 		panic(err)
@@ -86,14 +88,13 @@ func main() {
 	// LUT inputs and change of scale to ensure that upperbound on the homomorphic
 	// decryption of LWE during the LUT evaluation X^{dec(lwe)} is smaller than N
 	// to avoid negacyclic wrapping of X^{dec(lwe)}.
-	diffScale := paramsN11.QiFloat64(0) / (4.0 * paramsN12.DefaultScale().Float64())
+	diffScale := float64(paramsN11.Q()[0]) / (4.0 * paramsN12.DefaultScale().Float64())
 	normalization := 2.0 / (b - a) // all inputs are normalized before the LUT evaluation.
 
 	// SlotsToCoeffsParameters homomorphic encoding parameters
 	var SlotsToCoeffsParameters = ckksAdvanced.HomomorphicDFTMatrixLiteral{
 		Type:       ckksAdvanced.Decode,
-		LogN:       paramsN12.LogN(),
-		LogSlots:   paramsN12.LogSlots(),
+		LogSlots:   LogSlots,
 		Scaling:    normalization * diffScale,
 		LevelStart: 1,        // starting level
 		Levels:     []int{1}, // Decomposition levels of the encoding matrix (this will use one one matrix in one level)
@@ -102,8 +103,7 @@ func main() {
 	// CoeffsToSlotsParameters homomorphic decoding parameters
 	var CoeffsToSlotsParameters = ckksAdvanced.HomomorphicDFTMatrixLiteral{
 		Type:       ckksAdvanced.Encode,
-		LogN:       paramsN12.LogN(),
-		LogSlots:   paramsN12.LogSlots(),
+		LogSlots:   LogSlots,
 		LevelStart: 1,        // starting level
 		Levels:     []int{1}, // Decomposition levels of the encoding matrix (this will use one one matrix in one level)
 	}
@@ -117,10 +117,10 @@ func main() {
 	// Index of the LUT poly and repacking after evaluating the LUT.
 	lutPolyMap := make(map[int]*ring.Poly) // Which slot to evaluate on the LUT
 	repackIndex := make(map[int]int)       // Where to repack slots after the LUT
-	gapN11 := paramsN11.N() / (2 * paramsN12.Slots())
-	gapN12 := paramsN12.N() / (2 * paramsN12.Slots())
+	gapN11 := paramsN11.N() / (2 * slots)
+	gapN12 := paramsN12.N() / (2 * slots)
 
-	for i := 0; i < paramsN12.Slots(); i++ {
+	for i := 0; i < slots; i++ {
 		lutPolyMap[i*gapN11] = LUTPoly
 		repackIndex[i*gapN11] = i * gapN12
 	}
@@ -168,20 +168,23 @@ func main() {
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
 	// Generates the starting plaintext values.
-	interval := (b - a) / float64(paramsN12.Slots())
-	values := make([]float64, paramsN12.Slots())
-	for i := 0; i < paramsN12.Slots(); i++ {
+	interval := (b - a) / float64(slots)
+	values := make([]float64, slots)
+	for i := 0; i < slots; i++ {
 		values[i] = a + float64(i)*interval
 	}
 
 	pt := ckks.NewPlaintext(paramsN12, paramsN12.MaxLevel())
-	encoderN12.EncodeSlots(values, pt, paramsN12.LogSlots())
+	pt.LogSlots = LogSlots
+	encoderN12.Encode(values, pt)
 	ctN12 := encryptorN12.EncryptNew(pt)
 
 	fmt.Printf("Homomorphic Decoding... ")
 	now = time.Now()
+
 	// Homomorphic Decoding: [(a+bi), (c+di)] -> [a, c, b, d]
 	ctN12 = evalCKKS.SlotsToCoeffsNew(ctN12, nil, SlotsToCoeffsMatrix)
+	ctN12.EncodingDomain = rlwe.CoefficientsDomain
 
 	// Key-Switch from LogN = 12 to LogN = 11
 	ctN11 := rlwe.NewCiphertext(paramsN11.Parameters, 1, paramsN11.MaxLevel())
@@ -193,6 +196,7 @@ func main() {
 	// Extracts & EvalLUT(LWEs, indexLUT) on the fly -> Repack(LWEs, indexRepack) -> RLWE
 	ctN12 = evalLUT.EvaluateAndRepack(ctN11, lutPolyMap, repackIndex, LUTKEY)
 	fmt.Printf("Done (%s)\n", time.Since(now))
+	ctN12.EncodingDomain = rlwe.CoefficientsDomain
 
 	fmt.Printf("Homomorphic Encoding... ")
 	now = time.Now()
@@ -200,7 +204,11 @@ func main() {
 	ctN12, _ = evalCKKS.CoeffsToSlotsNew(ctN12, CoeffsToSlotsMatrix)
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
-	for i, v := range encoderN12.Decode(decryptorN12.DecryptNew(ctN12), paramsN12.LogSlots()) {
+	res := make([]float64, slots)
+	ctN12.EncodingDomain = rlwe.SlotsDomain
+	ctN12.LogSlots = LogSlots
+	encoderN12.Decode(decryptorN12.DecryptNew(ctN12), res)
+	for i, v := range res {
 		fmt.Printf("%7.4f -> %7.4f\n", values[i], v)
 	}
 }

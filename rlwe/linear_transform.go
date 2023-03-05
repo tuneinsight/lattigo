@@ -124,6 +124,7 @@ func (eval *Evaluator) Expand(ctIn *Ciphertext, logN, logGap int) (ctOut []*Ciph
 
 	ctOut = make([]*Ciphertext, 1<<(logN-logGap))
 	ctOut[0] = ctIn.CopyNew()
+	ctOut[0].LogSlots = 0
 
 	if ct := ctOut[0]; !ctIn.IsNTT {
 		ringQ.NTT(ct.Value[0], ct.Value[0])

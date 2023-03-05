@@ -7,6 +7,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
 func chebyshevinterpolation() {
@@ -20,7 +21,13 @@ func chebyshevinterpolation() {
 	// The result is then parsed and compared to the expected result.
 
 	// Scheme params are taken directly from the proposed defaults
-	params, err := ckks.NewParametersFromLiteral(ckks.PN14QP438)
+	params, err := ckks.NewParametersFromLiteral(
+		ckks.ParametersLiteral{
+			LogN:     14,
+			LogQ:     []int{55, 40, 40, 40, 40, 40, 40, 40},
+			LogP:     []int{45, 45},
+			LogScale: 40,
+		})
 	if err != nil {
 		panic(err)
 	}
@@ -45,7 +52,7 @@ func chebyshevinterpolation() {
 	evaluator := ckks.NewEvaluator(params, evk)
 
 	// Values to encrypt
-	values := make([]float64, params.Slots())
+	values := make([]float64, params.MaxSlots())
 	for i := range values {
 		values[i] = sampling.RandFloat64(-8, 8)
 	}
@@ -59,7 +66,10 @@ func chebyshevinterpolation() {
 	fmt.Println()
 
 	// Plaintext creation and encoding process
-	plaintext := encoder.EncodeNew(values, params.MaxLevel(), params.DefaultScale(), params.LogSlots())
+	plaintext := ckks.NewPlaintext(params, params.MaxLevel())
+	encoder.Encode(values, plaintext)
+
+	slots := 1 << plaintext.LogSlots
 
 	// Encryption process
 	var ciphertext *rlwe.Ciphertext
@@ -78,9 +88,9 @@ func chebyshevinterpolation() {
 	// Map storing which polynomial has to be applied to which slot.
 	slotsIndex := make(map[int][]int)
 
-	idxF := make([]int, params.Slots()>>1)
-	idxG := make([]int, params.Slots()>>1)
-	for i := 0; i < params.Slots()>>1; i++ {
+	idxF := make([]int, slots>>1)
+	idxG := make([]int, slots>>1)
+	for i := 0; i < slots>>1; i++ {
 		idxF[i] = i * 2   // Index with all even slots
 		idxG[i] = i*2 + 1 // Index with all odd slots
 	}
@@ -89,21 +99,21 @@ func chebyshevinterpolation() {
 	slotsIndex[1] = idxG // Assigns index of all odd slots to poly[1] = g(x)
 
 	// Change of variable
-	evaluator.MultByConst(ciphertext, 2/(b-a), ciphertext)
-	evaluator.AddConst(ciphertext, (-a-b)/(b-a), ciphertext)
+	evaluator.Mul(ciphertext, 2/(b-a), ciphertext)
+	evaluator.Add(ciphertext, (-a-b)/(b-a), ciphertext)
 	if err := evaluator.Rescale(ciphertext, params.DefaultScale(), ciphertext); err != nil {
 		panic(err)
 	}
 
 	// We evaluate the interpolated Chebyshev interpolant on the ciphertext
-	if ciphertext, err = evaluator.EvaluatePolyVector(ciphertext, []*ckks.Polynomial{approxF, approxG}, encoder, slotsIndex, ciphertext.Scale); err != nil {
+	if ciphertext, err = evaluator.EvaluatePolyVector(ciphertext, []*bignum.Polynomial{approxF, approxG}, encoder, slotsIndex, ciphertext.Scale); err != nil {
 		panic(err)
 	}
 
 	fmt.Println("Done... Consumed levels:", params.MaxLevel()-ciphertext.Level())
 
 	// Computation of the reference values
-	for i := 0; i < params.Slots()>>1; i++ {
+	for i := 0; i < slots>>1; i++ {
 		values[i*2] = f(values[i*2])
 		values[i*2+1] = g(values[i*2+1])
 	}
@@ -125,14 +135,11 @@ func round(x float64) float64 {
 	return math.Round(x*100000000) / 100000000
 }
 
-func printDebug(params ckks.Parameters, ciphertext *rlwe.Ciphertext, valuesWant []float64, decryptor rlwe.Decryptor, encoder ckks.Encoder) (valuesTest []float64) {
+func printDebug(params ckks.Parameters, ciphertext *rlwe.Ciphertext, valuesWant []float64, decryptor rlwe.Decryptor, encoder *ckks.Encoder) (valuesTest []float64) {
 
-	tmp := encoder.Decode(decryptor.DecryptNew(ciphertext), params.LogSlots())
+	valuesTest = make([]float64, 1<<ciphertext.LogSlots)
 
-	valuesTest = make([]float64, len(tmp))
-	for i := range tmp {
-		valuesTest[i] = real(tmp[i])
-	}
+	encoder.Decode(decryptor.DecryptNew(ciphertext), valuesTest)
 
 	fmt.Println()
 	fmt.Printf("Level: %d (logQ = %d)\n", ciphertext.Level(), params.LogQLvl(ciphertext.Level()))
@@ -141,7 +148,7 @@ func printDebug(params ckks.Parameters, ciphertext *rlwe.Ciphertext, valuesWant 
 	fmt.Printf("ValuesWant: %6.10f %6.10f %6.10f %6.10f...\n", valuesWant[0], valuesWant[1], valuesWant[2], valuesWant[3])
 	fmt.Println()
 
-	precStats := ckks.GetPrecisionStats(params, encoder, nil, valuesWant, valuesTest, params.LogSlots(), nil)
+	precStats := ckks.GetPrecisionStats(params, encoder, nil, valuesWant, valuesTest, nil, false)
 
 	fmt.Println(precStats.String())
 

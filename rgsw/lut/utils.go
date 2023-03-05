@@ -4,6 +4,7 @@ import (
 	"math/big"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
 // MulBySmallMonomialMod2N multiplies pol by x^n, with 0 <= n < N
@@ -40,7 +41,7 @@ func scaleUp(value float64, scale float64, Q uint64) (res uint64) {
 
 	xInt = new(big.Int)
 	xFlo.Int(xInt)
-	xInt.Mod(xInt, ring.NewUint(Q))
+	xInt.Mod(xInt, bignum.NewInt(Q))
 
 	res = xInt.Uint64()
 

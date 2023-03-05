@@ -4,6 +4,7 @@ import (
 	"math/big"
 
 	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
 // Add evaluates p3 = p1 + p2 coefficient-wise in the ring.
@@ -157,18 +158,27 @@ func (r *Ring) AddScalar(p1 *Poly, scalar uint64, p2 *Poly) {
 func (r *Ring) AddScalarBigint(p1 *Poly, scalar *big.Int, p2 *Poly) {
 	tmp := new(big.Int)
 	for i, s := range r.SubRings[:r.level+1] {
-		s.AddScalar(p1.Coeffs[i], tmp.Mod(scalar, NewUint(s.Modulus)).Uint64(), p2.Coeffs[i])
+		s.AddScalar(p1.Coeffs[i], tmp.Mod(scalar, bignum.NewInt(s.Modulus)).Uint64(), p2.Coeffs[i])
 	}
 }
 
 // AddDoubleRNSScalar evaluates p2 = p1[:N/2] + scalar0 || p1[N/2] + scalar1 coefficient-wise in the ring,
 // with the scalar values expressed in the CRT decomposition at a given level.
-// It assumes the scalar decomposition to be in Montgomery form.
 func (r *Ring) AddDoubleRNSScalar(p1 *Poly, scalar0, scalar1 RNSScalar, p2 *Poly) {
 	NHalf := r.N() >> 1
 	for i, s := range r.SubRings[:r.level+1] {
 		s.AddScalar(p1.Coeffs[i][:NHalf], scalar0[i], p2.Coeffs[i][:NHalf])
 		s.AddScalar(p1.Coeffs[i][NHalf:], scalar1[i], p2.Coeffs[i][NHalf:])
+	}
+}
+
+// SubDoubleRNSScalar evaluates p2 = p1[:N/2] - scalar0 || p1[N/2] - scalar1 coefficient-wise in the ring,
+// with the scalar values expressed in the CRT decomposition at a given level.
+func (r *Ring) SubDoubleRNSScalar(p1 *Poly, scalar0, scalar1 RNSScalar, p2 *Poly) {
+	NHalf := r.N() >> 1
+	for i, s := range r.SubRings[:r.level+1] {
+		s.SubScalar(p1.Coeffs[i][:NHalf], scalar0[i], p2.Coeffs[i][:NHalf])
+		s.SubScalar(p1.Coeffs[i][NHalf:], scalar1[i], p2.Coeffs[i][NHalf:])
 	}
 }
 
@@ -183,7 +193,7 @@ func (r *Ring) SubScalar(p1 *Poly, scalar uint64, p2 *Poly) {
 func (r *Ring) SubScalarBigint(p1 *Poly, scalar *big.Int, p2 *Poly) {
 	tmp := new(big.Int)
 	for i, s := range r.SubRings[:r.level+1] {
-		s.SubScalar(p1.Coeffs[i], tmp.Mod(scalar, NewUint(s.Modulus)).Uint64(), p2.Coeffs[i])
+		s.SubScalar(p1.Coeffs[i], tmp.Mod(scalar, bignum.NewInt(s.Modulus)).Uint64(), p2.Coeffs[i])
 	}
 }
 
@@ -221,7 +231,7 @@ func (r *Ring) MulScalarThenSub(p1 *Poly, scalar uint64, p2 *Poly) {
 func (r *Ring) MulScalarBigint(p1 *Poly, scalar *big.Int, p2 *Poly) {
 	scalarQi := new(big.Int)
 	for i, s := range r.SubRings[:r.level+1] {
-		scalarQi.Mod(scalar, NewUint(s.Modulus))
+		scalarQi.Mod(scalar, bignum.NewInt(s.Modulus))
 		s.MulScalarMontgomery(p1.Coeffs[i], MForm(scalarQi.Uint64(), s.Modulus, s.BRedConstant), p2.Coeffs[i])
 	}
 }

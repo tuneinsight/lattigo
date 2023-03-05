@@ -22,16 +22,21 @@ type Parameters struct {
 // NewParametersFromLiteral takes as input a ckks.ParametersLiteral and a bootstrapping.ParametersLiteral structs and returns the
 // appropriate ckks.ParametersLiteral for the bootstrapping circuit as well as the instantiated bootstrapping.Parameters.
 // The returned ckks.ParametersLiteral contains allocated primes.
-func NewParametersFromLiteral(paramsCKKS ckks.ParametersLiteral, paramsBootstrap ParametersLiteral) (ckks.ParametersLiteral, Parameters, error) {
+func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersLiteral) (ckks.ParametersLiteral, Parameters, error) {
 
 	var err error
 
-	if paramsCKKS.RingType != ring.Standard {
+	if ckksLit.RingType != ring.Standard {
 		return ckks.ParametersLiteral{}, Parameters{}, fmt.Errorf("NewParametersFromLiteral: invalid ring.RingType: must be ring.Standard")
 	}
 
-	CoeffsToSlotsFactorizationDepthAndLogScales := paramsBootstrap.GetCoeffsToSlotsFactorizationDepthAndLogScales()
-	SlotsToCoeffsFactorizationDepthAndLogScales := paramsBootstrap.GetSlotsToCoeffsFactorizationDepthAndLogScales()
+	var LogSlots int
+	if LogSlots, err = btpLit.GetLogSlots(ckksLit.LogN); err != nil {
+		return ckks.ParametersLiteral{}, Parameters{}, err
+	}
+
+	CoeffsToSlotsFactorizationDepthAndLogScales := btpLit.GetCoeffsToSlotsFactorizationDepthAndLogScales(LogSlots)
+	SlotsToCoeffsFactorizationDepthAndLogScales := btpLit.GetSlotsToCoeffsFactorizationDepthAndLogScales(LogSlots)
 
 	// Slots To Coeffs params
 	SlotsToCoeffsLevels := make([]int, len(SlotsToCoeffsFactorizationDepthAndLogScales))
@@ -40,47 +45,48 @@ func NewParametersFromLiteral(paramsCKKS ckks.ParametersLiteral, paramsBootstrap
 	}
 
 	var Iterations int
-	if Iterations, err = paramsBootstrap.GetIterations(); err != nil {
+	if Iterations, err = btpLit.GetIterations(); err != nil {
 		return ckks.ParametersLiteral{}, Parameters{}, err
 	}
 
 	S2CParams := advanced.HomomorphicDFTMatrixLiteral{
 		Type:            advanced.Decode,
+		LogSlots:        LogSlots,
 		RepackImag2Real: true,
-		LevelStart:      len(paramsCKKS.LogQ) - 1 + len(SlotsToCoeffsFactorizationDepthAndLogScales) + Iterations - 1,
+		LevelStart:      len(ckksLit.LogQ) - 1 + len(SlotsToCoeffsFactorizationDepthAndLogScales) + Iterations - 1,
 		LogBSGSRatio:    1,
 		Levels:          SlotsToCoeffsLevels,
 	}
 
 	var EvalModLogScale int
-	if EvalModLogScale, err = paramsBootstrap.GetEvalModLogScale(); err != nil {
+	if EvalModLogScale, err = btpLit.GetEvalModLogScale(); err != nil {
 		return ckks.ParametersLiteral{}, Parameters{}, err
 	}
 
-	SineType := paramsBootstrap.GetSineType()
+	SineType := btpLit.GetSineType()
 
 	var ArcSineDegree int
-	if ArcSineDegree, err = paramsBootstrap.GetArcSineDegree(); err != nil {
+	if ArcSineDegree, err = btpLit.GetArcSineDegree(); err != nil {
 		return ckks.ParametersLiteral{}, Parameters{}, err
 	}
 
 	var LogMessageRatio int
-	if LogMessageRatio, err = paramsBootstrap.GetLogMessageRatio(); err != nil {
+	if LogMessageRatio, err = btpLit.GetLogMessageRatio(); err != nil {
 		return ckks.ParametersLiteral{}, Parameters{}, err
 	}
 
 	var K int
-	if K, err = paramsBootstrap.GetK(); err != nil {
+	if K, err = btpLit.GetK(); err != nil {
 		return ckks.ParametersLiteral{}, Parameters{}, err
 	}
 
 	var DoubleAngle int
-	if DoubleAngle, err = paramsBootstrap.GetDoubleAngle(); err != nil {
+	if DoubleAngle, err = btpLit.GetDoubleAngle(); err != nil {
 		return ckks.ParametersLiteral{}, Parameters{}, err
 	}
 
 	var SineDegree int
-	if SineDegree, err = paramsBootstrap.GetSineDegree(); err != nil {
+	if SineDegree, err = btpLit.GetSineDegree(); err != nil {
 		return ckks.ParametersLiteral{}, Parameters{}, err
 	}
 
@@ -95,7 +101,7 @@ func NewParametersFromLiteral(paramsCKKS ckks.ParametersLiteral, paramsBootstrap
 	}
 
 	var EphemeralSecretWeight int
-	if EphemeralSecretWeight, err = paramsBootstrap.GetEphemeralSecretWeight(); err != nil {
+	if EphemeralSecretWeight, err = btpLit.GetEphemeralSecretWeight(); err != nil {
 		return ckks.ParametersLiteral{}, Parameters{}, err
 	}
 
@@ -109,14 +115,15 @@ func NewParametersFromLiteral(paramsCKKS ckks.ParametersLiteral, paramsBootstrap
 
 	C2SParams := advanced.HomomorphicDFTMatrixLiteral{
 		Type:            advanced.Encode,
+		LogSlots:        LogSlots,
 		RepackImag2Real: true,
 		LevelStart:      EvalModParams.LevelStart + len(CoeffsToSlotsFactorizationDepthAndLogScales),
 		LogBSGSRatio:    1,
 		Levels:          CoeffsToSlotsLevels,
 	}
 
-	LogQ := make([]int, len(paramsCKKS.LogQ))
-	copy(LogQ, paramsCKKS.LogQ)
+	LogQ := make([]int, len(ckksLit.LogQ))
+	copy(LogQ, ckksLit.LogQ)
 
 	for i := 0; i < Iterations-1; i++ {
 		LogQ = append(LogQ, DefaultIterationsLogScale)
@@ -128,8 +135,8 @@ func NewParametersFromLiteral(paramsCKKS ckks.ParametersLiteral, paramsBootstrap
 			qi += SlotsToCoeffsFactorizationDepthAndLogScales[i][j]
 		}
 
-		if qi+paramsCKKS.LogScale < 61 {
-			qi += paramsCKKS.LogScale
+		if qi+ckksLit.LogScale < 61 {
+			qi += ckksLit.LogScale
 		}
 
 		LogQ = append(LogQ, qi)
@@ -147,23 +154,22 @@ func NewParametersFromLiteral(paramsCKKS ckks.ParametersLiteral, paramsBootstrap
 		LogQ = append(LogQ, qi)
 	}
 
-	LogP := make([]int, len(paramsCKKS.LogP))
-	copy(LogP, paramsCKKS.LogP)
+	LogP := make([]int, len(ckksLit.LogP))
+	copy(LogP, ckksLit.LogP)
 
-	Q, P, err := rlwe.GenModuli(paramsCKKS.LogN, LogQ, LogP)
+	Q, P, err := rlwe.GenModuli(ckksLit.LogN, LogQ, LogP)
 
 	if err != nil {
 		return ckks.ParametersLiteral{}, Parameters{}, err
 	}
 
 	return ckks.ParametersLiteral{
-			LogN:     paramsCKKS.LogN,
+			LogN:     ckksLit.LogN,
 			Q:        Q,
 			P:        P,
-			LogSlots: paramsCKKS.LogSlots,
-			LogScale: paramsCKKS.LogScale,
-			Xe:       paramsCKKS.Xe,
-			Xs:       paramsCKKS.Xs,
+			LogScale: ckksLit.LogScale,
+			Xe:       ckksLit.Xe,
+			Xs:       ckksLit.Xs,
 		},
 		Parameters{
 			EphemeralSecretWeight:   EphemeralSecretWeight,
@@ -172,6 +178,11 @@ func NewParametersFromLiteral(paramsCKKS ckks.ParametersLiteral, paramsBootstrap
 			CoeffsToSlotsParameters: C2SParams,
 			Iterations:              Iterations,
 		}, nil
+}
+
+// LogSlots returns the LogSlots of the target Parameters.
+func (p *Parameters) LogSlots() int {
+	return p.SlotsToCoeffsParameters.LogSlots
 }
 
 // DepthCoeffsToSlots returns the depth of the Coeffs to Slots of the CKKS bootstrapping.
@@ -210,21 +221,14 @@ func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 func (p *Parameters) GaloisElements(params ckks.Parameters) (galEls []uint64) {
 
 	logN := params.LogN()
-	logSlots := params.LogSlots()
 
 	// List of the rotation key values to needed for the bootstrapp
 	keys := make(map[uint64]bool)
 
 	//SubSum rotation needed X -> Y^slots rotations
-	for i := logSlots; i < logN-1; i++ {
+	for i := p.LogSlots(); i < logN-1; i++ {
 		keys[params.GaloisElementForColumnRotationBy(1<<i)] = true
 	}
-
-	p.CoeffsToSlotsParameters.LogN = logN
-	p.SlotsToCoeffsParameters.LogN = logN
-
-	p.CoeffsToSlotsParameters.LogSlots = logSlots
-	p.SlotsToCoeffsParameters.LogSlots = logSlots
 
 	for _, galEl := range p.CoeffsToSlotsParameters.GaloisElements(params) {
 		keys[galEl] = true

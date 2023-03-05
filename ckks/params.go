@@ -5,255 +5,19 @@ import (
 	"fmt"
 	"math"
 	"math/big"
-	"math/bits"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
-	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
 const (
-	minLogSlots    = 0
 	DefaultNTTFlag = true
 )
 
 // Name of the different default parameter sets
-var (
-
-	// PN12QP109 is a default parameter set for logN=12 and logQP=109
-	PN12QP109 = ParametersLiteral{
-		LogN:     12,
-		Q:        []uint64{0x200000e001, 0x100006001}, // 37 + 32},
-		P:        []uint64{0x3ffffea001},              // 38
-		LogScale: 32,
-	}
-
-	// PN13QP218 is a default parameter set for logN=13 and logQP=218
-	PN13QP218 = ParametersLiteral{
-		LogN: 13,
-		Q: []uint64{0x1fffec001, // 33 + 5 x 30
-			0x3fff4001,
-			0x3ffe8001,
-			0x40020001,
-			0x40038001,
-			0x3ffc0001},
-		P:        []uint64{0x800004001}, // 35
-		LogScale: 30,
-	}
-	// PN14QP438 is a default parameter set for logN=14 and logQP=438
-	PN14QP438 = ParametersLiteral{
-		LogN: 14,
-		Q: []uint64{0x200000008001, 0x400018001, // 45 + 9 x 34
-			0x3fffd0001, 0x400060001,
-			0x400068001, 0x3fff90001,
-			0x400080001, 0x4000a8001,
-			0x400108001, 0x3ffeb8001},
-		P:        []uint64{0x7fffffd8001, 0x7fffffc8001}, // 43, 43
-		LogScale: 34,
-	}
-
-	// PN15QP880 is a default parameter set for logN=15 and logQP=880
-	PN15QP880 = ParametersLiteral{
-		LogN: 15,
-		Q: []uint64{0x4000000120001, 0x10000140001, 0xffffe80001, // 50 + 17 x 40
-			0x10000290001, 0xffffc40001, 0x100003e0001,
-			0x10000470001, 0x100004b0001, 0xffffb20001,
-			0x10000500001, 0x10000650001, 0xffff940001,
-			0xffff8a0001, 0xffff820001, 0xffff780001,
-			0x10000890001, 0xffff750001, 0x10000960001},
-		P:        []uint64{0x40000001b0001, 0x3ffffffdf0001, 0x4000000270001}, // 50, 50, 50
-		LogScale: 40,
-	}
-	// PN16QP1761 is a default parameter set for logN=16 and logQP = 1761
-	PN16QP1761 = ParametersLiteral{
-		LogN: 16,
-		Q: []uint64{0x80000000080001, 0x2000000a0001, 0x2000000e0001, 0x1fffffc20001, // 55 + 33 x 45
-			0x200000440001, 0x200000500001, 0x200000620001, 0x1fffff980001,
-			0x2000006a0001, 0x1fffff7e0001, 0x200000860001, 0x200000a60001,
-			0x200000aa0001, 0x200000b20001, 0x200000c80001, 0x1fffff360001,
-			0x200000e20001, 0x1fffff060001, 0x200000fe0001, 0x1ffffede0001,
-			0x1ffffeca0001, 0x1ffffeb40001, 0x200001520001, 0x1ffffe760001,
-			0x2000019a0001, 0x1ffffe640001, 0x200001a00001, 0x1ffffe520001,
-			0x200001e80001, 0x1ffffe0c0001, 0x1ffffdee0001, 0x200002480001,
-			0x1ffffdb60001, 0x200002560001},
-		P:        []uint64{0x80000000440001, 0x7fffffffba0001, 0x80000000500001, 0x7fffffffaa0001}, // 4 x 55
-		LogScale: 45,
-	}
-
-	// PN12QP109CI is a default parameter set for logN=12 and logQP=109
-	PN12QP109CI = ParametersLiteral{
-		LogN:     12,
-		Q:        []uint64{0x1ffffe0001, 0x100014001}, // 37 + 32
-		P:        []uint64{0x4000038001},              // 38
-		RingType: ring.ConjugateInvariant,
-		LogScale: 32,
-	}
-
-	// PN13QP218CI is a default parameter set for logN=13 and logQP=218
-	PN13QP218CI = ParametersLiteral{
-		LogN: 13,
-		Q: []uint64{0x200038001, // 33 + 5 x 30
-			0x3ffe8001,
-			0x40020001,
-			0x40038001,
-			0x3ffc0001,
-			0x40080001},
-		P:        []uint64{0x800008001}, // 35
-		RingType: ring.ConjugateInvariant,
-		LogScale: 30,
-	}
-	// PN14QP438CI is a default parameter set for logN=14 and logQP=438
-	PN14QP438CI = ParametersLiteral{
-		LogN: 14,
-		Q: []uint64{0x2000000a0001, 0x3fffd0001, // 45 + 9*34
-			0x400060001, 0x3fff90001,
-			0x400080001, 0x400180001,
-			0x3ffd20001, 0x400300001,
-			0x400360001, 0x4003e0001},
-		P:        []uint64{0x80000050001, 0x7ffffdb0001}, // 43, 43
-		RingType: ring.ConjugateInvariant,
-		LogScale: 34,
-	}
-
-	// PN15QP880CI is a default parameter set for logN=15 and logQP=880
-	PN15QP880CI = ParametersLiteral{
-		LogN: 15,
-		Q: []uint64{0x4000000120001, // 50 + 17 x 40
-			0x10000140001, 0xffffe80001, 0xffffc40001,
-			0x100003e0001, 0xffffb20001, 0x10000500001,
-			0xffff940001, 0xffff8a0001, 0xffff820001,
-			0xffff780001, 0x10000960001, 0x10000a40001,
-			0xffff580001, 0x10000b60001, 0xffff480001,
-			0xffff420001, 0xffff340001},
-		P:        []uint64{0x3ffffffd20001, 0x4000000420001, 0x3ffffffb80001}, // 50, 50, 50
-		RingType: ring.ConjugateInvariant,
-		LogScale: 40,
-	}
-	// PN16QP1761CI is a default parameter set for logN=16 and logQP = 1761
-	PN16QP1761CI = ParametersLiteral{
-		LogN: 16,
-		Q: []uint64{0x80000000080001, // 55 + 33 x 45
-			0x200000440001, 0x200000500001, 0x1fffff980001, 0x200000c80001,
-			0x1ffffeb40001, 0x1ffffe640001, 0x200001a00001, 0x200001e80001,
-			0x1ffffe0c0001, 0x200002480001, 0x200002800001, 0x1ffffd800001,
-			0x200002900001, 0x1ffffd700001, 0x2000029c0001, 0x1ffffcf00001,
-			0x200003140001, 0x1ffffcc80001, 0x1ffffcb40001, 0x1ffffc980001,
-			0x200003740001, 0x200003800001, 0x200003d40001, 0x1ffffc200001,
-			0x1ffffc140001, 0x200004100001, 0x200004180001, 0x1ffffbc40001,
-			0x200004700001, 0x1ffffb900001, 0x200004cc0001, 0x1ffffb240001,
-			0x200004e80001},
-		P:        []uint64{0x80000000440001, 0x80000000500001, 0x7fffffff380001, 0x80000000e00001}, // 4 x 55
-		RingType: ring.ConjugateInvariant,
-		LogScale: 45,
-	}
-
-	// PN12QP101pq is a default (post quantum) parameter set for logN=12 and logQP=101
-	PN12QP101pq = ParametersLiteral{
-		LogN:     12,
-		Q:        []uint64{0x800004001, 0x40002001}, // 35 + 30
-		P:        []uint64{0x1000002001},            // 36
-		LogScale: 30,
-	}
-	// PN13QP202pq is a default (post quantum) parameter set for logN=13 and logQP=202
-	PN13QP202pq = ParametersLiteral{
-		LogN:     13,
-		Q:        []uint64{0x1fffec001, 0x8008001, 0x8020001, 0x802c001, 0x7fa8001, 0x7f74001}, // 33 + 5 x 27
-		P:        []uint64{0x400018001},                                                        // 34
-		LogScale: 27,
-	}
-
-	// PN14QP411pq is a default (post quantum) parameter set for logN=14 and logQP=411
-	PN14QP411pq = ParametersLiteral{
-		LogN: 14,
-		Q: []uint64{0x10000048001, 0x200038001, 0x1fff90001, 0x200080001, 0x1fff60001,
-			0x2000b8001, 0x200100001, 0x1fff00001, 0x1ffef0001, 0x200128001}, // 40 + 9 x 33
-		P:        []uint64{0x1ffffe0001, 0x1ffffc0001}, // 37, 37
-		LogScale: 33,
-	}
-
-	// PN15QP827pq is a default (post quantum) parameter set for logN=15 and logQP=827
-	PN15QP827pq = ParametersLiteral{
-		LogN: 15,
-		Q: []uint64{0x400000060001, 0x4000170001, 0x3fffe80001, 0x40002f0001, 0x4000300001,
-			0x3fffcf0001, 0x40003f0001, 0x3fffc10001, 0x4000450001, 0x3fffb80001,
-			0x3fffb70001, 0x40004a0001, 0x3fffb20001, 0x4000510001, 0x3fffaf0001,
-			0x4000540001, 0x4000560001, 0x4000590001}, // 46 + 17 x 38
-		P:        []uint64{0x2000000a0001, 0x2000000e0001, 0x2000001d0001}, // 3 x 45
-		LogScale: 38,
-	}
-	// PN16QP1654pq is a default (post quantum) parameter set for logN=16 and logQP=1654
-	PN16QP1654pq = ParametersLiteral{
-		LogN: 16,
-		Q: []uint64{0x80000000080001, 0x2000000a0001, 0x2000000e0001, 0x1fffffc20001, 0x200000440001,
-			0x200000500001, 0x200000620001, 0x1fffff980001, 0x2000006a0001, 0x1fffff7e0001,
-			0x200000860001, 0x200000a60001, 0x200000aa0001, 0x200000b20001, 0x200000c80001,
-			0x1fffff360001, 0x200000e20001, 0x1fffff060001, 0x200000fe0001, 0x1ffffede0001,
-			0x1ffffeca0001, 0x1ffffeb40001, 0x200001520001, 0x1ffffe760001, 0x2000019a0001,
-			0x1ffffe640001, 0x200001a00001, 0x1ffffe520001, 0x200001e80001, 0x1ffffe0c0001,
-			0x1ffffdee0001, 0x200002480001}, // 55 + 31 x 45
-		P:        []uint64{0x7fffffffe0001, 0x80000001c0001, 0x80000002c0001, 0x7ffffffd20001}, // 4 x 51
-		LogScale: 45,
-	}
-
-	// PN12QP101pq is a default (post quantum) parameter set for logN=12 and logQP=101
-	PN12QP101CIpq = ParametersLiteral{
-		LogN:     12,
-		Q:        []uint64{0x800004001, 0x3fff4001}, // 35 + 30
-		P:        []uint64{0xffffc4001},             // 36
-		RingType: ring.ConjugateInvariant,
-		LogScale: 30,
-	}
-	// PN13QP202CIpq is a default (post quantum) parameter set for logN=13 and logQP=202
-	PN13QP202CIpq = ParametersLiteral{
-		LogN:     13,
-		Q:        []uint64{0x1ffffe0001, 0x100050001, 0xfff88001, 0x100098001, 0x1000b0001}, // 37 + 4 x 32
-		P:        []uint64{0x1ffffc0001},                                                    // 37
-		RingType: ring.ConjugateInvariant,
-		LogScale: 32,
-	}
-
-	// PN14QP411CIpq is a default (post quantum) parameter set for logN=14 and logQP=411
-	PN14QP411CIpq = ParametersLiteral{
-		LogN: 14,
-		Q: []uint64{0x10000140001, 0x1fff90001, 0x200080001,
-			0x1fff60001, 0x200100001, 0x1fff00001,
-			0x1ffef0001, 0x1ffe60001, 0x2001d0001,
-			0x2002e0001}, // 40 + 9 x 33
-
-		P:        []uint64{0x1ffffe0001, 0x1ffffc0001}, // 37, 37
-		RingType: ring.ConjugateInvariant,
-		LogScale: 33,
-	}
-
-	// PN15QP827CIpq is a default (post quantum) parameter set for logN=15 and logQP=827
-	PN15QP827CIpq = ParametersLiteral{
-		LogN: 15,
-		Q: []uint64{0x400000060001, 0x3fffe80001, 0x4000300001, 0x3fffb80001,
-			0x40004a0001, 0x3fffb20001, 0x4000540001, 0x4000560001,
-			0x3fff900001, 0x4000720001, 0x3fff8e0001, 0x4000800001,
-			0x40008a0001, 0x3fff6c0001, 0x40009e0001, 0x3fff300001,
-			0x3fff1c0001, 0x4000fc0001}, // 46 + 17 x 38
-		P:        []uint64{0x2000000a0001, 0x2000000e0001, 0x1fffffc20001}, // 3 x 45
-		RingType: ring.ConjugateInvariant,
-		LogScale: 38,
-	}
-	// PN16QP1654CIpq is a default (post quantum) parameter set for logN=16 and logQP=1654
-	PN16QP1654CIpq = ParametersLiteral{
-		LogN: 16,
-		Q: []uint64{0x80000000080001, 0x200000440001, 0x200000500001, 0x1fffff980001,
-			0x200000c80001, 0x1ffffeb40001, 0x1ffffe640001, 0x200001a00001,
-			0x200001e80001, 0x1ffffe0c0001, 0x200002480001, 0x200002800001,
-			0x1ffffd800001, 0x200002900001, 0x1ffffd700001, 0x2000029c0001,
-			0x1ffffcf00001, 0x200003140001, 0x1ffffcc80001, 0x1ffffcb40001,
-			0x1ffffc980001, 0x200003740001, 0x200003800001, 0x200003d40001,
-			0x1ffffc200001, 0x1ffffc140001, 0x200004100001, 0x200004180001,
-			0x1ffffbc40001, 0x200004700001, 0x1ffffb900001, 0x200004cc0001}, // 55 + 31 x 45
-		P:        []uint64{0x80000001c0001, 0x80000002c0001, 0x8000000500001, 0x7ffffff9c0001}, // 4 x 51
-		RingType: ring.ConjugateInvariant,
-		LogScale: 45,
-	}
-)
+var ()
 
 // ParametersLiteral is a literal representation of CKKS parameters.  It has public
 // fields and is used to express unchecked user-defined parameters literally into
@@ -277,7 +41,6 @@ type ParametersLiteral struct {
 	Xe       distribution.Distribution
 	Xs       distribution.Distribution
 	RingType ring.Type
-	LogSlots int
 	LogScale int
 }
 
@@ -298,28 +61,15 @@ func (p ParametersLiteral) RLWEParametersLiteral() rlwe.ParametersLiteral {
 	}
 }
 
-// DefaultParams is a set of default CKKS parameters ensuring 128 bit security in a classic setting.
-var DefaultParams = []ParametersLiteral{PN12QP109, PN13QP218, PN14QP438, PN15QP880, PN16QP1761}
-
-// DefaultConjugateInvariantParams is a set of default conjugate invariant parameters for encrypting real values and ensuring 128 bit security in a classic setting.
-var DefaultConjugateInvariantParams = []ParametersLiteral{PN12QP109CI, PN13QP218CI, PN14QP438CI, PN15QP880CI, PN16QP1761CI}
-
-// DefaultPostQuantumParams is a set of default CKKS parameters ensuring 128 bit security in a post-quantum setting.
-var DefaultPostQuantumParams = []ParametersLiteral{PN12QP101pq, PN13QP202pq, PN14QP411pq, PN15QP827pq, PN16QP1654pq}
-
-// DefaultPostQuantumConjugateInvariantParams is a set of default conjugate invariant parameters for encrypting real values and ensuring 128 bit security in a post-quantum setting.
-var DefaultPostQuantumConjugateInvariantParams = []ParametersLiteral{PN12QP101CIpq, PN13QP202CIpq, PN14QP411CIpq, PN15QP827CIpq, PN16QP1654CIpq}
-
 // Parameters represents a parameter set for the CKKS cryptosystem. Its fields are private and
 // immutable. See ParametersLiteral for user-specified parameters.
 type Parameters struct {
 	rlwe.Parameters
-	logSlots int
 }
 
 // NewParameters instantiate a set of CKKS parameters from the generic RLWE parameters and the CKKS-specific ones.
 // It returns the empty parameters Parameters{} and a non-nil error if the specified parameters are invalid.
-func NewParameters(rlweParams rlwe.Parameters, logSlots int) (p Parameters, err error) {
+func NewParameters(rlweParams rlwe.Parameters) (p Parameters, err error) {
 
 	if !rlweParams.DefaultNTTFlag() {
 		return Parameters{}, fmt.Errorf("provided RLWE parameters are invalid for CKKS scheme (DefaultNTTFlag must be true)")
@@ -329,11 +79,7 @@ func NewParameters(rlweParams rlwe.Parameters, logSlots int) (p Parameters, err 
 		return Parameters{}, fmt.Errorf("provided RLWE parameters are invalid")
 	}
 
-	if maxLogSlots := bits.Len64(rlweParams.RingQ().NthRoot()) - 3; logSlots > maxLogSlots || logSlots < minLogSlots {
-		return Parameters{}, fmt.Errorf("logSlot=%d is larger than the logN-1=%d or smaller than %d", logSlots, maxLogSlots, minLogSlots)
-	}
-
-	return Parameters{rlweParams, logSlots}, nil
+	return Parameters{rlweParams}, nil
 }
 
 // NewParametersFromLiteral instantiate a set of CKKS parameters from a ParametersLiteral specification.
@@ -349,16 +95,7 @@ func NewParametersFromLiteral(pl ParametersLiteral) (Parameters, error) {
 		return Parameters{}, err
 	}
 
-	if pl.LogSlots == 0 {
-		switch pl.RingType {
-		case ring.Standard:
-			pl.LogSlots = pl.LogN - 1
-		case ring.ConjugateInvariant:
-			pl.LogSlots = pl.LogN
-		}
-	}
-
-	return NewParameters(rlweParams, pl.LogSlots)
+	return NewParameters(rlweParams)
 }
 
 // StandardParameters returns the CKKS parameters corresponding to the receiver
@@ -384,23 +121,36 @@ func (p Parameters) ParametersLiteral() (pLit ParametersLiteral) {
 		Xs:       p.Xs(),
 		RingType: p.RingType(),
 		LogScale: int(math.Round(math.Log2(p.DefaultScale().Float64()))),
-		LogSlots: p.LogSlots(),
 	}
 }
 
-// LogSlots returns the log of the number of slots
-func (p Parameters) LogSlots() int {
-	return p.logSlots
+// DefaultPrecision returns the default precision in bits of the plaintext values which
+// is max(53, log2(DefaultScale)).
+func (p Parameters) DefaultPrecision() (prec uint) {
+	if log2scale := math.Log2(p.DefaultScale().Float64()); log2scale <= 53 {
+		prec = 53
+	} else {
+		prec = uint(log2scale)
+	}
+
+	return
+}
+
+// MaxDepth returns MaxLevel / DefaultScaleModuliRatio which is the maximum number of multiplicaitons
+// followed by a rescaling that can be carried out with on a ciphertext with the DefaultScale.
+func (p Parameters) MaxDepth() int {
+	return p.MaxLevel() / p.DefaultScaleModuliRatio()
+}
+
+// DefaultScaleModuliRatio returns the default ratio between the scaling factor and moduli.
+// This default ratio is computed as ceil(DefaultScalingFactor/2^{60}).
+func (p Parameters) DefaultScaleModuliRatio() int {
+	return int(math.Ceil(math.Log2(p.DefaultScale().Float64()) / 60.0))
 }
 
 // MaxLevel returns the maximum ciphertext level
 func (p Parameters) MaxLevel() int {
 	return p.QCount() - 1
-}
-
-// Slots returns number of available plaintext slots
-func (p Parameters) Slots() int {
-	return 1 << p.logSlots
 }
 
 // MaxSlots returns the theoretical maximum of plaintext slots allowed by the ring degree
@@ -435,9 +185,9 @@ func (p Parameters) LogQLvl(level int) int {
 
 // QLvl returns the product of the moduli at the given level as a big.Int
 func (p Parameters) QLvl(level int) *big.Int {
-	tmp := ring.NewUint(1)
+	tmp := bignum.NewInt(1)
 	for _, qi := range p.Q()[:level+1] {
-		tmp.Mul(tmp, ring.NewUint(qi))
+		tmp.Mul(tmp, bignum.NewInt(qi))
 	}
 	return tmp
 }
@@ -471,10 +221,9 @@ func (p Parameters) GaloisElementsForLinearTransform(nonZeroDiags interface{}, l
 	return
 }
 
-// Equal compares two sets of parameters for equality.
-func (p Parameters) Equal(other Parameters) bool {
-	res := p.Parameters.Equal(other.Parameters)
-	res = res && (p.logSlots == other.LogSlots())
+// Equals compares two sets of parameters for equality.
+func (p Parameters) Equals(other Parameters) bool {
+	res := p.Parameters.Equals(other.Parameters)
 	return res
 }
 

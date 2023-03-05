@@ -47,7 +47,7 @@ func Concatenate(slices [][]uint64) []uint64 {
 var reservedModuli = Concatenate([][]uint64{qSuffixBootPrecision19, qSuffixBootPrecision26, qSuffixBootPrecision32, []uint64{q0BootPrecision19, q0BootPrecision26, q0BootPrecision32}, pBootPrecision19, pBootPrecision26, pBootPrecision32})
 
 var qSuffixBootPrecision19 = []uint64{
-	0x1000000000b00001, // 60 StC  (30)
+	0x40020001,         // 30 StC
 	0x1000000000ce0001, // 60 StC  (30+30)
 	0x80000000440001,   // 55 Sine (double angle)
 	0x7fffffffba0001,   // 55 Sine (double angle)

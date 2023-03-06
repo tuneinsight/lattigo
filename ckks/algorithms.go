@@ -7,29 +7,24 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
-// GetGoldschmidtDivisionIterationsNumber returns the minimum number of iterations of the GoldschmidtDivision
-// algorithm to get at least log2Targetprecision bits of precision, considering that the a value in the interval
-// (0 < minValue < 2, 2).
-
 // GoldschmidtDivisionNew homomorphically computes 1/x.
-// input: ct: Enc(x) with values bounded in the interval (0<minvalue<2, 2) and log2Targetprecision the desired number of bits of precision after the decimal.
-// output: Enc(1/x - e), where |e| <= (1-x)^2^(iters+1) -> the bit-precision doubles after each iteration.
+// input: ct: Enc(x) with values in the interval [0+minvalue, 2-minvalue] and logPrec the desired number of bits of precisions.
+// output: Enc(1/x - e), where |e| <= (1-x)^2^(#iterations+1) -> the bit-precision doubles after each iteration.
 // The method automatically estimates how many iterations are needed to achieve the desired precision, and returns an error if the input ciphertext
 // does not have enough remaining level and if no bootstrapper was given.
-// Note that the desired precision will never exceed log2(ct.Scale) - logN + 1.
-func (eval *evaluator) GoldschmidtDivisionNew(ct *rlwe.Ciphertext, minValue, log2Targetprecision float64, btp rlwe.Bootstrapper) (ctInv *rlwe.Ciphertext, err error) {
+func (eval *evaluator) GoldschmidtDivisionNew(ct *rlwe.Ciphertext, minValue, logPrec float64, btp rlwe.Bootstrapper) (ctInv *rlwe.Ciphertext, err error) {
 
 	params := eval.params
 
 	start := math.Log2(1 - minValue)
 	var iters int
-	for start+log2Targetprecision > 0.5 {
+	for start+logPrec > 0.5 {
 		start *= 2 // Doubles the bit-precision at each iteration
 		iters++
 	}
 
 	if depth := iters * params.DefaultScaleModuliRatio(); btp == nil && depth > ct.Level() {
-		return nil, fmt.Errorf("cannot GoldschmidtDivisionNew: ct.Level()=%d < depth=%d", ct.Level(), depth)
+		return nil, fmt.Errorf("cannot GoldschmidtDivisionNew: ct.Level()=%d < depth=%d and rlwe.Bootstrapper is nil", ct.Level(), depth)
 	}
 
 	a := eval.MulNew(ct, -1)

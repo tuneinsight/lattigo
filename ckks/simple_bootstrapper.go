@@ -35,6 +35,7 @@ func (d *SimpleBootstrapper) Bootstrap(ct *rlwe.Ciphertext) (*rlwe.Ciphertext, e
 	}
 	pt := NewPlaintext(d.Parameters, d.MaxLevel())
 	pt.MetaData = ct.MetaData
+	pt.Scale = d.params.DefaultScale()
 	if err := d.Encode(values, pt); err != nil {
 		return nil, err
 	}

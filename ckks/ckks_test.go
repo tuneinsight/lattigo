@@ -669,17 +669,17 @@ func testFunctions(tc *testContext, t *testing.T) {
 
 		min := 0.1
 
-		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, complex(min, 0), 1+0i, t)
+		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, complex(min, 0), complex(2-min, 0), t)
 
 		one := new(big.Float).SetInt64(1)
 		for i := range values {
 			values[i][0].Quo(one, values[i][0])
 		}
 
-		log2Targetprecision := math.Log2(tc.params.DefaultScale().Float64()) - float64(tc.params.LogN())
+		logPrec := math.Log2(tc.params.DefaultScale().Float64()) - float64(tc.params.LogN()-1)
 
 		var err error
-		if ciphertext, err = tc.evaluator.GoldschmidtDivisionNew(ciphertext, min, log2Targetprecision, NewSimpleBootstrapper(tc.params, tc.sk)); err != nil {
+		if ciphertext, err = tc.evaluator.GoldschmidtDivisionNew(ciphertext, min, logPrec, NewSimpleBootstrapper(tc.params, tc.sk)); err != nil {
 			t.Fatal(err)
 		}
 

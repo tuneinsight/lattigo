@@ -77,9 +77,10 @@ func (c *Complex) Prec() uint {
 	return c[0].Prec()
 }
 
-func (c *Complex) SetPrec(prec uint) {
+func (c *Complex) SetPrec(prec uint) *Complex {
 	c[0].SetPrec(prec)
 	c[1].SetPrec(prec)
+	return c
 }
 
 // Copy returns a new copy of the target arbitrary precision complex number

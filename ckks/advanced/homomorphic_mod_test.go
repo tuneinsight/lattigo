@@ -184,7 +184,7 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 		//pi2r := 6.283185307179586/complex(math.Exp2(float64(evm.DoubleAngle)), 0)
 		for i := range values {
 			//values[i] -= complex(EvalModPoly.MessageRatio()*EvalModPoly.QDiff()*math.Round(real(values[i])/(EvalModPoly.MessageRatio()/EvalModPoly.QDiff())), 0)
-			values[i] = sin2pi2pi(values[i]/complex(EvalModPoly.MessageRatio()*EvalModPoly.QDiff(), 0)) * complex(EvalModPoly.MessageRatio()*EvalModPoly.QDiff(), 0) / 6.283185307179586
+			values[i] = complex(sin2pi2pi(real(values[i])/EvalModPoly.MessageRatio()*EvalModPoly.QDiff())*EvalModPoly.MessageRatio()*EvalModPoly.QDiff()/6.283185307179586, 0)
 		}
 
 		verifyTestVectors(params, encoder, decryptor, values, ciphertext, t)
@@ -229,7 +229,7 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 		//pi2r := 6.283185307179586/complex(math.Exp2(float64(EvalModPoly.DoubleAngle)), 0)
 		for i := range values {
 			//values[i] -= complex(EvalModPoly.MessageRatio()*EvalModPoly.QDiff()*math.Round(real(values[i])/(EvalModPoly.MessageRatio()/EvalModPoly.QDiff())), 0)
-			values[i] = sin2pi2pi(values[i]/complex(EvalModPoly.MessageRatio()*EvalModPoly.QDiff(), 0)) * complex(EvalModPoly.MessageRatio()*EvalModPoly.QDiff(), 0) / 6.283185307179586
+			values[i] = complex(sin2pi2pi(real(values[i])/EvalModPoly.MessageRatio()*EvalModPoly.QDiff())*EvalModPoly.MessageRatio()*EvalModPoly.QDiff()/6.283185307179586, 0)
 		}
 
 		verifyTestVectors(params, encoder, decryptor, values, ciphertext, t)

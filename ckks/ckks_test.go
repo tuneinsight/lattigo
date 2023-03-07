@@ -7,7 +7,6 @@ import (
 	"math"
 	"math/big"
 	"math/bits"
-	"math/cmplx"
 	"runtime"
 	"testing"
 
@@ -777,15 +776,32 @@ func testChebyshevInterpolator(tc *testContext, t *testing.T) {
 
 	t.Run(GetTestName(tc.params, "ChebyshevInterpolator/Sin"), func(t *testing.T) {
 
-		if tc.params.MaxDepth() < 5 {
-			t.Skip("skipping test for params max level < 5")
+		degree := 7
+
+		if tc.params.MaxDepth() < bits.Len64(uint64(degree)) {
+			t.Skip("skipping test: not enough levels")
 		}
 
 		eval := tc.evaluator
 
 		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, -1, 1, t)
 
-		poly := Approximate(cmplx.Sin, -1.5, 1.5, 7)
+		prec := tc.params.DefaultPrecision()
+
+		sin := func(x *bignum.Complex) (y *bignum.Complex) {
+			xf64, _ := x[0].Float64()
+			y = bignum.NewComplex()
+			y.SetPrec(prec)
+			y[0].SetFloat64(math.Sin(xf64))
+			return
+		}
+
+		interval := bignum.Interval{
+			A: new(big.Float).SetPrec(prec).SetFloat64(-1.5),
+			B: new(big.Float).SetPrec(prec).SetFloat64(1.5),
+		}
+
+		poly := bignum.Approximate(sin, interval, degree)
 
 		scalar, constant := poly.ChangeOfBasis()
 		eval.Mul(ciphertext, scalar, ciphertext)
@@ -814,16 +830,32 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 	t.Run(GetTestName(tc.params, "DecryptPublic/Sin"), func(t *testing.T) {
 
 		degree := 7
+		a, b := -1.5, 1.5
 
 		if tc.params.MaxDepth() < bits.Len64(uint64(degree)) {
-			t.Skip("skipping test for params max level < 5")
+			t.Skip("skipping test: not enough levels")
 		}
 
 		eval := tc.evaluator
 
-		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, -1, 1, t)
+		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, complex(a, 0), complex(b, 0), t)
 
-		poly := Approximate(cmplx.Sin, -1.5, 1.5, degree)
+		prec := tc.params.DefaultPrecision()
+
+		sin := func(x *bignum.Complex) (y *bignum.Complex) {
+			xf64, _ := x[0].Float64()
+			y = bignum.NewComplex()
+			y.SetPrec(prec)
+			y[0].SetFloat64(math.Sin(xf64))
+			return
+		}
+
+		interval := bignum.Interval{
+			A: new(big.Float).SetPrec(prec).SetFloat64(a),
+			B: new(big.Float).SetPrec(prec).SetFloat64(b),
+		}
+
+		poly := bignum.Approximate(sin, interval, degree)
 
 		for i := range values {
 			values[i] = poly.Evaluate(values[i])
@@ -835,7 +867,6 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 		eval.Add(ciphertext, constant, ciphertext)
 		if err := eval.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
 			t.Fatal(err)
-
 		}
 
 		if ciphertext, err = eval.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {

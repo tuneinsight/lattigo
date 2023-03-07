@@ -154,9 +154,9 @@ func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVecto
 	logDegree := bits.Len64(uint64(pol.Value[0].Degree()))
 	logSplit := optimalSplit(logDegree)
 
-	var odd, even bool = true, true
+	var odd, even bool = false, false
 	for _, p := range pol.Value {
-		odd, even = odd && p.IsOdd, even && p.IsEven
+		odd, even = odd || p.IsOdd, even || p.IsEven
 	}
 
 	// Computes all the powers of two with relinearization
@@ -584,11 +584,13 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetScale rlwe
 			res.LogSlots = logSlots
 
 			// Looks for non-zero coefficients among the degree 0 coefficients of the polynomials
-			for i, p := range pol.Value {
-				if !isZero(p.Coeffs[0]) {
-					toEncode = true
-					for _, j := range slotsIndex[i] {
-						values[j] = p.Coeffs[0]
+			if even {
+				for i, p := range pol.Value {
+					if !isZero(p.Coeffs[0]) {
+						toEncode = true
+						for _, j := range slotsIndex[i] {
+							values[j] = p.Coeffs[0]
+						}
 					}
 				}
 			}
@@ -616,11 +618,13 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetScale rlwe
 		pt.LogSlots = logSlots
 
 		// Looks for a non-zero coefficient among the degree zero coefficient of the polynomials
-		for i, p := range pol.Value {
-			if !isZero(p.Coeffs[0]) {
-				toEncode = true
-				for _, j := range slotsIndex[i] {
-					values[j] = p.Coeffs[0]
+		if even {
+			for i, p := range pol.Value {
+				if !isZero(p.Coeffs[0]) {
+					toEncode = true
+					for _, j := range slotsIndex[i] {
+						values[j] = p.Coeffs[0]
+					}
 				}
 			}
 		}
@@ -638,31 +642,35 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetScale rlwe
 		for key := pol.Value[0].Degree(); key > 0; key-- {
 
 			var reset bool
-			// Loops over the polynomials
-			for i, p := range pol.Value {
 
-				// Looks for a non-zero coefficient
-				if !isZero(p.Coeffs[key]) {
-					toEncode = true
+			if !(even || odd) || (key&1 == 0 && even) || (key&1 == 1 && odd) {
 
-					// Resets the temporary array to zero
-					// is needed if a zero coefficient
-					// is at the place of a previous non-zero
-					// coefficient
-					if !reset {
-						for j := range values {
-							if values[j] != nil {
-								values[j][0].SetFloat64(0)
-								values[j][1].SetFloat64(0)
+				// Loops over the polynomials
+				for i, p := range pol.Value {
+
+					// Looks for a non-zero coefficient
+					if !isZero(p.Coeffs[key]) {
+						toEncode = true
+
+						// Resets the temporary array to zero
+						// is needed if a zero coefficient
+						// is at the place of a previous non-zero
+						// coefficient
+						if !reset {
+							for j := range values {
+								if values[j] != nil {
+									values[j][0].SetFloat64(0)
+									values[j][1].SetFloat64(0)
+								}
 							}
+							reset = true
 						}
-						reset = true
-					}
 
-					// Copies the coefficient on the temporary array
-					// according to the slot map index
-					for _, j := range slotsIndex[i] {
-						values[j] = p.Coeffs[key]
+						// Copies the coefficient on the temporary array
+						// according to the slot map index
+						for _, j := range slotsIndex[i] {
+							values[j] = p.Coeffs[key]
+						}
 					}
 				}
 			}
@@ -680,7 +688,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetScale rlwe
 	} else {
 
 		var c *bignum.Complex
-		if polyEval.isEven && !isZero(pol.Value[0].Coeffs[0]) {
+		if even && !isZero(pol.Value[0].Coeffs[0]) {
 			c = pol.Value[0].Coeffs[0]
 		}
 

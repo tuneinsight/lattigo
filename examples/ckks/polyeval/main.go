@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"math"
+	"math/big"
 
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
@@ -82,8 +83,26 @@ func chebyshevinterpolation() {
 
 	// Evaluation process
 	// We approximate f(x) in the range [-8, 8] with a Chebyshev interpolant of 33 coefficients (degree 32).
-	approxF := ckks.Approximate(f, a, b, deg)
-	approxG := ckks.Approximate(g, a, b, deg)
+
+	approxF := bignum.Approximate(func(x *bignum.Complex) (y *bignum.Complex) {
+		xf64, _ := x[0].Float64()
+		y = bignum.NewComplex().SetPrec(53)
+		y[0].SetFloat64(f(xf64))
+		return
+	}, bignum.Interval{
+		A: new(big.Float).SetFloat64(a),
+		B: new(big.Float).SetFloat64(b),
+	}, deg)
+
+	approxG := bignum.Approximate(func(x *bignum.Complex) (y *bignum.Complex) {
+		xf64, _ := x[0].Float64()
+		y = bignum.NewComplex().SetPrec(53)
+		y[0].SetFloat64(g(xf64))
+		return
+	}, bignum.Interval{
+		A: new(big.Float).SetFloat64(a),
+		B: new(big.Float).SetFloat64(b),
+	}, deg)
 
 	// Map storing which polynomial has to be applied to which slot.
 	slotsIndex := make(map[int][]int)

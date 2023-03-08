@@ -41,7 +41,7 @@ func TestHomomorphicEncoding(t *testing.T) {
 		LogScale: 45,
 	}
 
-	testEncodingMatrixLiteralMarshalling(t)
+	testDFTMatrixLiteralMarshalling(t)
 
 	var params ckks.Parameters
 	if params, err = ckks.NewParametersFromLiteral(ParametersLiteral); err != nil {
@@ -70,23 +70,23 @@ func TestHomomorphicEncoding(t *testing.T) {
 	}
 }
 
-func testEncodingMatrixLiteralMarshalling(t *testing.T) {
+func testDFTMatrixLiteralMarshalling(t *testing.T) {
 	t.Run("Marshalling", func(t *testing.T) {
-		m := EncodingMatrixLiteral{
-			LogN:                16,
-			LogSlots:            15,
-			LinearTransformType: CoeffsToSlots,
-			LevelStart:          12,
-			LogBSGSRatio:        2,
-			Levels:              []int{1, 1, 1},
-			BitReversed:         true,
-			RepackImag2Real:     true,
+		m := HomomorphicDFTMatrixLiteral{
+			Type:            Encode,
+			LogN:            16,
+			LogSlots:        15,
+			LevelStart:      12,
+			LogBSGSRatio:    2,
+			Levels:          []int{1, 1, 1},
+			BitReversed:     true,
+			RepackImag2Real: true,
 		}
 
 		data, err := m.MarshalBinary()
 		assert.Nil(t, err)
 
-		mNew := new(EncodingMatrixLiteral)
+		mNew := new(HomomorphicDFTMatrixLiteral)
 		if err := mNew.UnmarshalBinary(data); err != nil {
 			assert.Nil(t, err)
 		}
@@ -140,13 +140,13 @@ func testCoeffsToSlots(params ckks.Parameters, t *testing.T) {
 			Levels[i] = 1
 		}
 
-		CoeffsToSlotsParametersLiteral := EncodingMatrixLiteral{
-			LogN:                params.LogN(),
-			LogSlots:            params.LogSlots(),
-			LinearTransformType: CoeffsToSlots,
-			RepackImag2Real:     true,
-			LevelStart:          params.MaxLevel(),
-			Levels:              Levels,
+		CoeffsToSlotsParametersLiteral := HomomorphicDFTMatrixLiteral{
+			Type:            Encode,
+			LogN:            params.LogN(),
+			LogSlots:        params.LogSlots(),
+			RepackImag2Real: true,
+			LevelStart:      params.MaxLevel(),
+			Levels:          Levels,
 		}
 
 		kgen := ckks.NewKeyGenerator(params)
@@ -156,7 +156,7 @@ func testCoeffsToSlots(params ckks.Parameters, t *testing.T) {
 		decryptor := ckks.NewDecryptor(params, sk)
 
 		// Generates the encoding matrices
-		CoeffsToSlotMatrices := NewHomomorphicEncodingMatrixFromLiteral(CoeffsToSlotsParametersLiteral, encoder)
+		CoeffsToSlotMatrices := NewHomomorphicDFTMatrixFromLiteral(CoeffsToSlotsParametersLiteral, encoder)
 
 		// Gets the rotations indexes for CoeffsToSlots
 		rotations := CoeffsToSlotsParametersLiteral.Rotations()
@@ -299,13 +299,13 @@ func testSlotsToCoeffs(params ckks.Parameters, t *testing.T) {
 			Levels[i] = 1
 		}
 
-		SlotsToCoeffsParametersLiteral := EncodingMatrixLiteral{
-			LogN:                params.LogN(),
-			LogSlots:            params.LogSlots(),
-			LinearTransformType: SlotsToCoeffs,
-			RepackImag2Real:     true,
-			LevelStart:          params.MaxLevel(),
-			Levels:              Levels,
+		SlotsToCoeffsParametersLiteral := HomomorphicDFTMatrixLiteral{
+			Type:            Decode,
+			LogN:            params.LogN(),
+			LogSlots:        params.LogSlots(),
+			RepackImag2Real: true,
+			LevelStart:      params.MaxLevel(),
+			Levels:          Levels,
 		}
 
 		kgen := ckks.NewKeyGenerator(params)
@@ -315,7 +315,7 @@ func testSlotsToCoeffs(params ckks.Parameters, t *testing.T) {
 		decryptor := ckks.NewDecryptor(params, sk)
 
 		// Generates the encoding matrices
-		SlotsToCoeffsMatrix := NewHomomorphicEncodingMatrixFromLiteral(SlotsToCoeffsParametersLiteral, encoder)
+		SlotsToCoeffsMatrix := NewHomomorphicDFTMatrixFromLiteral(SlotsToCoeffsParametersLiteral, encoder)
 
 		// Gets the rotations indexes for SlotsToCoeffs
 		rotations := SlotsToCoeffsParametersLiteral.Rotations()

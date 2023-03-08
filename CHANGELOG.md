@@ -24,14 +24,17 @@ All notable changes to this library are documented in this file.
 - CKKS: variable `BSGSRatio` is now `LogBSGSRatio` and is given in log2.
 - CKKS/Bootstrapping: complete refactoring the bootstrapping parameters for better usability.
 - CKKS/Bootstrapping: upon bootstrapping, the method will check that the ciphertext scale is a power of two.
-- CKKS/Bootstrapping: added the iterative bootstrapping `META-BTS` of `Youngjin et al.`
+- CKKS/Bootstrapping: added the iterative bootstrapping `META-BTS` of [Youngjin et al.](https://eprint.iacr.org/2020/1203).
+- CKKS/Bootstrapping: added `SimpleBootstrapper` which provides a re-encryption using the secret key and complies to the `rlwe.Bootstrapper` interface.
+- CKKS/Advanced: refactored names of structs and methods of the homomorphic encoding/decoding to better convey they purpose.
 - CKKS/Advanced: all fields of `EncodingMatrixLiteral` are now marshalled.
 - CKKS/Advanced: the `CoeffsToSlots` matrix is only scaled by an additional factor 1/2 if the `RepackImag2Real` field is set to true.
+- DCKKS: `GetMinimumLevelForBootstrapping` has been renamed to `GetMinimumLevelForRefresh`.
 - RLWE: added `CheckBinary` and `CheckUnary` to the `Evaluator` type. It performs pre-checks on operands of the `Evaluator` methods.
-- RLWE: added the methods `MaxLevelQ()` and `MaxLevelP` to the `Parameters` struct.
+- RLWE: added the methods `MaxLevelQ` and `MaxLevelP` to the `Parameters` struct.
 - RLWE: added the method `NewCiphertextQP`.
-- RLWE: setting the Hamming weight of the secret or the standard deviation of the error to negative values will instantiate these fields as zero values and return a warning (as an error).
-- RLWE: added bootstrapping interface.
+- RLWE: setting the Hamming weight of the secret or the standard deviation of the error through `NewParameters` to negative values will instantiate these fields as zero values and return a warning (as an error).
+- RLWE: added `Bootstrapper` interface.
 - RLWE: the method `SwitchKeys` can now be used to switch the ring degree of ciphertexts.
 - RLWE: `NewScale` now checks that scales given as `float64` are not `Inf` or `NaN` and that scales given as `big.Float` are not `Inf`.
 - RING: refactoring of the `ring.Ring` object:

@@ -24,8 +24,8 @@ type bootstrapperBase struct {
 	logdslots int
 
 	evalModPoly advanced.EvalModPoly
-	stcMatrices advanced.EncodingMatrix
-	ctsMatrices advanced.EncodingMatrix
+	stcMatrices advanced.HomomorphicDFTMatrix
+	ctsMatrices advanced.HomomorphicDFTMatrix
 
 	q0OverMessageRatio float64
 
@@ -48,7 +48,7 @@ func NewBootstrapper(params ckks.Parameters, btpParams Parameters, btpKeys Evalu
 		return nil, fmt.Errorf("cannot use double angle formul for SineType = Sin -> must use SineType = Cos")
 	}
 
-	if btpParams.EvalModParameters.SineType == advanced.CosDiscret && btpParams.EvalModParameters.SineDeg < 2*(btpParams.EvalModParameters.K-1) {
+	if btpParams.EvalModParameters.SineType == advanced.CosDiscrete && btpParams.EvalModParameters.SineDegree < 2*(btpParams.EvalModParameters.K-1) {
 		return nil, fmt.Errorf("SineType 'advanced.CosDiscret' uses a minimum degree of 2*(K-1) but EvalMod degree is smaller")
 	}
 
@@ -218,7 +218,7 @@ func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey Ev
 		bb.CoeffsToSlotsParameters.Scaling *= qDiv / (K * scFac * qDiff)
 	}
 
-	bb.ctsMatrices = advanced.NewHomomorphicEncodingMatrixFromLiteral(bb.CoeffsToSlotsParameters, encoder)
+	bb.ctsMatrices = advanced.NewHomomorphicDFTMatrixFromLiteral(bb.CoeffsToSlotsParameters, encoder)
 
 	// SlotsToCoeffs vectors
 	// Rescaling factor to set the final ciphertext to the desired scale
@@ -231,7 +231,7 @@ func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey Ev
 		bb.SlotsToCoeffsParameters.Scaling *= bb.params.DefaultScale().Float64() / (bb.evalModPoly.ScalingFactor().Float64() / bb.evalModPoly.MessageRatio())
 	}
 
-	bb.stcMatrices = advanced.NewHomomorphicEncodingMatrixFromLiteral(bb.SlotsToCoeffsParameters, encoder)
+	bb.stcMatrices = advanced.NewHomomorphicDFTMatrixFromLiteral(bb.SlotsToCoeffsParameters, encoder)
 
 	encoder = nil
 

@@ -276,7 +276,7 @@ func (be *BasisExtender) ModDownQPtoP(levelQ, levelP int, p1Q, p1P, p2P *Poly) {
 }
 
 // ModUpExact takes p1 mod Q and switches its basis to P, returning the result on p2.
-// Caution, returns the values in [0, 2q-1]
+// Caution: values are not centered and returned values are in [0, 2P-1].
 func ModUpExact(p1, p2 [][]uint64, ringQ, ringP *Ring, MUC ModUpConstants) {
 
 	var v, rlo, rhi [8]uint64

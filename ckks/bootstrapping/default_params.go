@@ -2,6 +2,7 @@ package bootstrapping
 
 import (
 	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 type defaultParametersLiteral struct {
@@ -55,11 +56,10 @@ var (
 			LogScale: 45,
 		},
 		ParametersLiteral{
-			S2CLogScale:     [][]int{{42}, {42}, {42}},
-			C2SLogScale:     [][]int{{58}, {58}, {58}, {58}},
-			LogMessageRatio: 2,
-			ArcSineDeg:      7,
-			EvalModLogScale: 60,
+			SlotsToCoeffsFactorizationDepthAndLogScales: [][]int{{42}, {42}, {42}},
+			CoeffsToSlotsFactorizationDepthAndLogScales: [][]int{{58}, {58}, {58}, {58}},
+			LogMessageRatio: utils.PointyInt(2),
+			ArcSineDegree:   utils.PointyInt(7),
 		},
 	}
 
@@ -79,9 +79,9 @@ var (
 			LogScale: 30,
 		},
 		ParametersLiteral{
-			S2CLogScale:     [][]int{{30}, {30, 30}},
-			C2SLogScale:     [][]int{{53}, {53}, {53}, {53}},
-			EvalModLogScale: 55,
+			SlotsToCoeffsFactorizationDepthAndLogScales: [][]int{{30}, {30, 30}},
+			CoeffsToSlotsFactorizationDepthAndLogScales: [][]int{{53}, {53}, {53}, {53}},
+			EvalModLogScale: utils.PointyInt(55),
 		},
 	}
 
@@ -101,9 +101,9 @@ var (
 			LogScale: 25,
 		},
 		ParametersLiteral{
-			S2CLogScale:     [][]int{{30, 30}},
-			C2SLogScale:     [][]int{{49}, {49}},
-			EvalModLogScale: 50,
+			SlotsToCoeffsFactorizationDepthAndLogScales: [][]int{{30, 30}},
+			CoeffsToSlotsFactorizationDepthAndLogScales: [][]int{{49}, {49}},
+			EvalModLogScale: utils.PointyInt(50),
 		},
 	}
 
@@ -141,11 +141,10 @@ var (
 			LogScale: 45,
 		},
 		ParametersLiteral{
-			S2CLogScale:     [][]int{{42}, {42}, {42}},
-			C2SLogScale:     [][]int{{58}, {58}, {58}, {58}},
-			LogMessageRatio: 2,
-			ArcSineDeg:      7,
-			EvalModLogScale: 60,
+			SlotsToCoeffsFactorizationDepthAndLogScales: [][]int{{42}, {42}, {42}},
+			CoeffsToSlotsFactorizationDepthAndLogScales: [][]int{{58}, {58}, {58}, {58}},
+			LogMessageRatio: utils.PointyInt(2),
+			ArcSineDegree:   utils.PointyInt(7),
 		},
 	}
 
@@ -165,9 +164,9 @@ var (
 			LogScale: 30,
 		},
 		ParametersLiteral{
-			S2CLogScale:     [][]int{{30}, {30, 30}},
-			C2SLogScale:     [][]int{{53}, {53}, {53}, {53}},
-			EvalModLogScale: 55,
+			SlotsToCoeffsFactorizationDepthAndLogScales: [][]int{{30}, {30, 30}},
+			CoeffsToSlotsFactorizationDepthAndLogScales: [][]int{{53}, {53}, {53}, {53}},
+			EvalModLogScale: utils.PointyInt(55),
 		},
 	}
 
@@ -187,9 +186,9 @@ var (
 			LogScale: 31,
 		},
 		ParametersLiteral{
-			S2CLogScale:     [][]int{{30, 30}},
-			C2SLogScale:     [][]int{{52}, {52}},
-			EvalModLogScale: 55,
+			SlotsToCoeffsFactorizationDepthAndLogScales: [][]int{{30, 30}},
+			CoeffsToSlotsFactorizationDepthAndLogScales: [][]int{{52}, {52}},
+			EvalModLogScale: utils.PointyInt(55),
 		},
 	}
 )

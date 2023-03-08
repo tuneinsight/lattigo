@@ -90,22 +90,22 @@ func main() {
 	normalization := 2.0 / (b - a) // all inputs are normalized before the LUT evaluation.
 
 	// SlotsToCoeffsParameters homomorphic encoding parameters
-	var SlotsToCoeffsParameters = ckksAdvanced.EncodingMatrixLiteral{
-		LogN:                paramsN12.LogN(),
-		LogSlots:            paramsN12.LogSlots(),
-		Scaling:             normalization * diffScale,
-		LinearTransformType: ckksAdvanced.SlotsToCoeffs,
-		LevelStart:          1,        // starting level
-		Levels:              []int{1}, // Decomposition levels of the encoding matrix (this will use one one matrix in one level)
+	var SlotsToCoeffsParameters = ckksAdvanced.HomomorphicDFTMatrixLiteral{
+		Type:       ckksAdvanced.Decode,
+		LogN:       paramsN12.LogN(),
+		LogSlots:   paramsN12.LogSlots(),
+		Scaling:    normalization * diffScale,
+		LevelStart: 1,        // starting level
+		Levels:     []int{1}, // Decomposition levels of the encoding matrix (this will use one one matrix in one level)
 	}
 
 	// CoeffsToSlotsParameters homomorphic decoding parameters
-	var CoeffsToSlotsParameters = ckksAdvanced.EncodingMatrixLiteral{
-		LinearTransformType: ckksAdvanced.CoeffsToSlots,
-		LogN:                paramsN12.LogN(),
-		LogSlots:            paramsN12.LogSlots(),
-		LevelStart:          1,        // starting level
-		Levels:              []int{1}, // Decomposition levels of the encoding matrix (this will use one one matrix in one level)
+	var CoeffsToSlotsParameters = ckksAdvanced.HomomorphicDFTMatrixLiteral{
+		Type:       ckksAdvanced.Encode,
+		LogN:       paramsN12.LogN(),
+		LogSlots:   paramsN12.LogSlots(),
+		LevelStart: 1,        // starting level
+		Levels:     []int{1}, // Decomposition levels of the encoding matrix (this will use one one matrix in one level)
 	}
 
 	fmt.Printf("Generating LUT... ")
@@ -139,8 +139,8 @@ func main() {
 
 	fmt.Printf("Gen SlotsToCoeffs Matrices... ")
 	now = time.Now()
-	SlotsToCoeffsMatrix := ckksAdvanced.NewHomomorphicEncodingMatrixFromLiteral(SlotsToCoeffsParameters, encoderN12)
-	CoeffsToSlotsMatrix := ckksAdvanced.NewHomomorphicEncodingMatrixFromLiteral(CoeffsToSlotsParameters, encoderN12)
+	SlotsToCoeffsMatrix := ckksAdvanced.NewHomomorphicDFTMatrixFromLiteral(SlotsToCoeffsParameters, encoderN12)
+	CoeffsToSlotsMatrix := ckksAdvanced.NewHomomorphicDFTMatrixFromLiteral(CoeffsToSlotsParameters, encoderN12)
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
 	// Rotation Keys

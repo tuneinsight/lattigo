@@ -9,10 +9,11 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
-// Bootstrap re-encrypts a ciphertext to a ciphertext at MaxLevel-k where k is the depth of the bootstrapping circuit.
+// Bootstrap re-encrypts a ciphertext to a ciphertext at MaxLevel - k where k is the depth of the bootstrapping circuit.
 // If the input ciphertext level is zero, the input scale must be an exact power of two smaller than Q[0]/MessageRatio
 // (it can't be equal since Q[0] is not a power of two).
 // The message ratio is an optional field in the bootstrapping parameters, by default it set to 2^{LogMessageRatio = 8}.
+// See the bootstrapping parameters for more informations about the message ratio or other parameters related to the bootstrapping.
 // If the input ciphertext is at level one or more, the input scale does not need to be an exact power of two as one level
 // can be used to do a scale matching.
 func (btp *Bootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext) {

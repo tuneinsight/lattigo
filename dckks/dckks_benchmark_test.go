@@ -48,7 +48,7 @@ func benchRefresh(tc *testContext, b *testing.B) {
 
 	params := tc.params
 
-	minLevel, logBound, ok := GetMinimumLevelForBootstrapping(128, params.DefaultScale(), tc.NParties, params.Q())
+	minLevel, logBound, ok := GetMinimumLevelForRefresh(128, params.DefaultScale(), tc.NParties, params.Q())
 
 	if ok {
 
@@ -99,7 +99,7 @@ func benchMaskedTransform(tc *testContext, b *testing.B) {
 
 	params := tc.params
 
-	minLevel, logBound, ok := GetMinimumLevelForBootstrapping(128, params.DefaultScale(), tc.NParties, params.Q())
+	minLevel, logBound, ok := GetMinimumLevelForRefresh(128, params.DefaultScale(), tc.NParties, params.Q())
 
 	if ok {
 

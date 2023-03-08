@@ -9,7 +9,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v4/ckks"
-	"github.com/tuneinsight/lattigo/v4/ckks/advanced"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
@@ -35,17 +34,13 @@ func TestBootstrapParametersMarshalling(t *testing.T) {
 	t.Run("ParametersLiteral", func(t *testing.T) {
 
 		paramsLit := ParametersLiteral{
-			C2SLogScale:           [][]int{{53}, {53}, {53}, {53}},
-			S2CLogScale:           [][]int{{30}, {30, 30}},
-			EvalModLogScale:       59,
-			EphemeralSecretWeight: -1,
-			Iterations:            2,
-			SineType:              advanced.CosDiscret,
-			LogMessageRatio:       -1,
-			K:                     -1,
-			SineDeg:               31,
-			DoubleAngle:           -1,
-			ArcSineDeg:            7,
+			CoeffsToSlotsFactorizationDepthAndLogScales: [][]int{{53}, {53}, {53}, {53}},
+			SlotsToCoeffsFactorizationDepthAndLogScales: [][]int{{30}, {30, 30}},
+			EvalModLogScale:       utils.PointyInt(59),
+			EphemeralSecretWeight: utils.PointyInt(1),
+			Iterations:            utils.PointyInt(2),
+			SineDegree:            utils.PointyInt(32),
+			ArcSineDegree:         utils.PointyInt(7),
 		}
 
 		data, err := paramsLit.MarshalBinary()

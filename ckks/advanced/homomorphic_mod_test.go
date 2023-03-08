@@ -72,8 +72,8 @@ func testEvalModMarshalling(t *testing.T) {
 			SineType:        SinContinuous,
 			LogMessageRatio: 8,
 			K:               14,
-			SineDeg:         127,
-			ArcSineDeg:      7,
+			SineDegree:      127,
+			ArcSineDegree:   7,
 			LogScale:        60,
 		}
 
@@ -105,8 +105,8 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 			SineType:        SinContinuous,
 			LogMessageRatio: 8,
 			K:               14,
-			SineDeg:         127,
-			ArcSineDeg:      7,
+			SineDegree:      127,
+			ArcSineDegree:   7,
 			LogScale:        60,
 		}
 
@@ -150,7 +150,7 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 			SineType:        CosContinuous,
 			LogMessageRatio: 8,
 			K:               325,
-			SineDeg:         255,
+			SineDegree:      255,
 			DoubleAngle:     4,
 			LogScale:        60,
 		}

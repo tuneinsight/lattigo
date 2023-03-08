@@ -65,10 +65,10 @@ type Evaluator interface {
 	// === advanced.Evaluator new methods ===
 	// ======================================
 
-	CoeffsToSlotsNew(ctIn *rlwe.Ciphertext, ctsMatrices EncodingMatrix) (ctReal, ctImag *rlwe.Ciphertext)
-	CoeffsToSlots(ctIn *rlwe.Ciphertext, ctsMatrices EncodingMatrix, ctReal, ctImag *rlwe.Ciphertext)
-	SlotsToCoeffsNew(ctReal, ctImag *rlwe.Ciphertext, stcMatrices EncodingMatrix) (ctOut *rlwe.Ciphertext)
-	SlotsToCoeffs(ctReal, ctImag *rlwe.Ciphertext, stcMatrices EncodingMatrix, ctOut *rlwe.Ciphertext)
+	CoeffsToSlotsNew(ctIn *rlwe.Ciphertext, ctsMatrices HomomorphicDFTMatrix) (ctReal, ctImag *rlwe.Ciphertext)
+	CoeffsToSlots(ctIn *rlwe.Ciphertext, ctsMatrices HomomorphicDFTMatrix, ctReal, ctImag *rlwe.Ciphertext)
+	SlotsToCoeffsNew(ctReal, ctImag *rlwe.Ciphertext, stcMatrices HomomorphicDFTMatrix) (ctOut *rlwe.Ciphertext)
+	SlotsToCoeffs(ctReal, ctImag *rlwe.Ciphertext, stcMatrices HomomorphicDFTMatrix, ctOut *rlwe.Ciphertext)
 	EvalModNew(ctIn *rlwe.Ciphertext, evalModPoly EvalModPoly) (ctOut *rlwe.Ciphertext)
 
 	// =================================================
@@ -115,7 +115,7 @@ func (eval *evaluator) WithKey(evaluationKey rlwe.EvaluationKey) Evaluator {
 // Homomorphically encodes a complex vector vReal + i*vImag.
 // If the packing is sparse (n < N/2), then returns ctReal = Ecd(vReal || vImag) and ctImag = nil.
 // If the packing is dense (n == N/2), then returns ctReal = Ecd(vReal) and ctImag = Ecd(vImag).
-func (eval *evaluator) CoeffsToSlotsNew(ctIn *rlwe.Ciphertext, ctsMatrices EncodingMatrix) (ctReal, ctImag *rlwe.Ciphertext) {
+func (eval *evaluator) CoeffsToSlotsNew(ctIn *rlwe.Ciphertext, ctsMatrices HomomorphicDFTMatrix) (ctReal, ctImag *rlwe.Ciphertext) {
 	ctReal = ckks.NewCiphertext(eval.params, 1, ctsMatrices.LevelStart)
 
 	if eval.params.LogSlots() == eval.params.LogN()-1 {
@@ -130,7 +130,7 @@ func (eval *evaluator) CoeffsToSlotsNew(ctIn *rlwe.Ciphertext, ctsMatrices Encod
 // Homomorphically encodes a complex vector vReal + i*vImag of size n on a real vector of size 2n.
 // If the packing is sparse (n < N/2), then returns ctReal = Ecd(vReal || vImag) and ctImag = nil.
 // If the packing is dense (n == N/2), then returns ctReal = Ecd(vReal) and ctImag = Ecd(vImag).
-func (eval *evaluator) CoeffsToSlots(ctIn *rlwe.Ciphertext, ctsMatrices EncodingMatrix, ctReal, ctImag *rlwe.Ciphertext) {
+func (eval *evaluator) CoeffsToSlots(ctIn *rlwe.Ciphertext, ctsMatrices HomomorphicDFTMatrix, ctReal, ctImag *rlwe.Ciphertext) {
 
 	if ctsMatrices.RepackImag2Real {
 
@@ -171,10 +171,10 @@ func (eval *evaluator) CoeffsToSlots(ctIn *rlwe.Ciphertext, ctsMatrices Encoding
 // Homomorphically decodes a real vector of size 2n on a complex vector vReal + i*vImag of size n.
 // If the packing is sparse (n < N/2) then ctReal = Ecd(vReal || vImag) and ctImag = nil.
 // If the packing is dense (n == N/2), then ctReal = Ecd(vReal) and ctImag = Ecd(vImag).
-func (eval *evaluator) SlotsToCoeffsNew(ctReal, ctImag *rlwe.Ciphertext, stcMatrices EncodingMatrix) (ctOut *rlwe.Ciphertext) {
+func (eval *evaluator) SlotsToCoeffsNew(ctReal, ctImag *rlwe.Ciphertext, stcMatrices HomomorphicDFTMatrix) (ctOut *rlwe.Ciphertext) {
 
 	if ctReal.Level() < stcMatrices.LevelStart || (ctImag != nil && ctImag.Level() < stcMatrices.LevelStart) {
-		panic("ctReal.Level() or ctImag.Level() < EncodingMatrix.LevelStart")
+		panic("ctReal.Level() or ctImag.Level() < HomomorphicDFTMatrix.LevelStart")
 	}
 
 	ctOut = ckks.NewCiphertext(eval.params, 1, stcMatrices.LevelStart)
@@ -187,7 +187,7 @@ func (eval *evaluator) SlotsToCoeffsNew(ctReal, ctImag *rlwe.Ciphertext, stcMatr
 // Homomorphically decodes a real vector of size 2n on a complex vector vReal + i*vImag of size n.
 // If the packing is sparse (n < N/2) then ctReal = Ecd(vReal || vImag) and ctImag = nil.
 // If the packing is dense (n == N/2), then ctReal = Ecd(vReal) and ctImag = Ecd(vImag).
-func (eval *evaluator) SlotsToCoeffs(ctReal, ctImag *rlwe.Ciphertext, stcMatrices EncodingMatrix, ctOut *rlwe.Ciphertext) {
+func (eval *evaluator) SlotsToCoeffs(ctReal, ctImag *rlwe.Ciphertext, stcMatrices HomomorphicDFTMatrix, ctOut *rlwe.Ciphertext) {
 	// If full packing, the repacking can be done directly using ct0 and ct1.
 	if ctImag != nil {
 		eval.MultByConst(ctImag, 1i, ctOut)
@@ -258,7 +258,7 @@ func (eval *evaluator) EvalModNew(ct *rlwe.Ciphertext, evalModPoly EvalModPoly) 
 	}
 
 	// Division by 1/2^r and change of variable for the Chebyshev evaluation
-	if evalModPoly.sineType == CosDiscret || evalModPoly.sineType == CosContinuous {
+	if evalModPoly.sineType == CosDiscrete || evalModPoly.sineType == CosContinuous {
 		eval.AddConst(ct, -0.5/(evalModPoly.scFac*(evalModPoly.sinePoly.B-evalModPoly.sinePoly.A)), ct)
 	}
 

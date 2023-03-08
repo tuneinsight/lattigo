@@ -1,7 +1,9 @@
 package advanced
 
 import (
+	"fmt"
 	"math"
+	"math/bits"
 	"math/cmplx"
 
 	"github.com/tuneinsight/lattigo/v4/ckks"
@@ -21,28 +23,30 @@ func cos2pi(x complex128) complex128 {
 	return cmplx.Cos(6.283185307179586 * x)
 }
 
-// Sin and Cos are the two proposed functions for SineType
+// Sin and Cos are the two proposed functions for SineType.
+// These trigonometric functions offer a good approximation of the function x mod 1 when the values are close to the origin.
 const (
-	CosDiscret    = SineType(0) // Special approximation (Han and Ki) of pow((1/2pi), 1/2^r) * cos(2pi(x-0.25)/2^r); this method requires a minimum degree of 2*(K-1).
+	CosDiscrete   = SineType(0) // Special approximation (Han and Ki) of pow((1/2pi), 1/2^r) * cos(2pi(x-0.25)/2^r); this method requires a minimum degree of 2*(K-1).
 	SinContinuous = SineType(1) // Standard Chebyshev approximation of (1/2pi) * sin(2pix) on the full interval
 	CosContinuous = SineType(2) // Standard Chebyshev approximation of pow((1/2pi), 1/2^r) * cos(2pi(x-0.25)/2^r) on the full interval
 )
 
-// EvalModLiteral a struct for the paramters of the EvalMod step
-// of the bootstrapping
+// EvalModLiteral a struct for the paramters of the EvalMod procedure.
+// The EvalMod procedure goal is to homomorphically evaluate a modular reduction by Q[0] (the first prime of the moduli chain) on the encrypted plaintext.
+// This struct is consumed by `NewEvalModPolyFromLiteral` to generate the `EvalModPoly` struct, which notably stores
+// the coefficient of the polynomial approximating the function x mod Q[0].
 type EvalModLiteral struct {
 	LevelStart      int      // Starting level of EvalMod
 	LogScale        int      // Log2 of the scaling factor used during EvalMod
 	SineType        SineType // Chose betwenn [Sin(2*pi*x)] or [cos(2*pi*x/r) with double angle formula]
 	LogMessageRatio int      // Log2 of the tatio between Q0 and m, i.e. Q[0]/|m|
 	K               int      // K parameter (interpolation in the range -K to K)
-	SineDeg         int      // Degree of the interpolation
-	DoubleAngle     int      // Number of rescale and double angle formula (only applies for cos)
-	ArcSineDeg      int      // Degree of the Taylor arcsine composed with f(2*pi*x) (if zero then not used)
+	SineDegree      int      // Degree of the interpolation
+	DoubleAngle     int      // Number of rescale and double angle formula (only applies for cos and is ignored if sin is used)
+	ArcSineDegree   int      // Degree of the Taylor arcsine composed with f(2*pi*x) (if zero then not used)
 }
 
-// EvalModPoly is a struct storing the EvalModLiteral with
-// the polynomials.
+// EvalModPoly is a struct storing the parameters and polynomials approximating the function x mod Q[0] (the first prime of the moduli chain).
 type EvalModPoly struct {
 	levelStart      int
 	logScale        int
@@ -82,35 +86,42 @@ func (evp *EvalModPoly) K() float64 {
 	return evp.k * evp.scFac
 }
 
-// QDiff return Q/ClosestedPow2
-// This is the error introduced by the approximate division by Q.
+// QDiff return Q[0]/ClosestedPow2
+// This is the error introduced by the approximate division by Q[0].
 func (evp *EvalModPoly) QDiff() float64 {
 	return evp.qDiff
 }
 
-// NewEvalModPolyFromLiteral generates an EvalModPoly fromt the EvalModLiteral.
+// NewEvalModPolyFromLiteral generates an EvalModPoly struct from the EvalModLiteral struct.
+// The EvalModPoly struct is used by the `EvalModNew` method from the `Evaluator`, which
+// homomorphically evaluates x mod Q[0] (the first prime of the moduli chain) on the ciphertext.
 func NewEvalModPolyFromLiteral(params ckks.Parameters, evm EvalModLiteral) EvalModPoly {
 
 	var arcSinePoly *ckks.Polynomial
 	var sinePoly *ckks.Polynomial
 	var sqrt2pi float64
 
-	scFac := math.Exp2(float64(evm.DoubleAngle))
+	doubleAngle := evm.DoubleAngle
+	if evm.SineType == SinContinuous {
+		doubleAngle = 0
+	}
+
+	scFac := math.Exp2(float64(doubleAngle))
 
 	K := float64(evm.K) / scFac
 
 	Q := params.Q()[0]
 	qDiff := float64(Q) / math.Exp2(math.Round(math.Log2(float64(Q))))
 
-	if evm.ArcSineDeg > 0 {
+	if evm.ArcSineDegree > 0 {
 
 		sqrt2pi = 1.0
 
-		coeffs := make([]complex128, evm.ArcSineDeg+1)
+		coeffs := make([]complex128, evm.ArcSineDegree+1)
 
 		coeffs[1] = 0.15915494309189535 * complex(qDiff, 0)
 
-		for i := 3; i < evm.ArcSineDeg+1; i += 2 {
+		for i := 3; i < evm.ArcSineDegree+1; i += 2 {
 			coeffs[i] = coeffs[i-2] * complex(float64(i*i-4*i+4)/float64(i*i-i), 0)
 		}
 
@@ -120,30 +131,26 @@ func NewEvalModPolyFromLiteral(params ckks.Parameters, evm EvalModLiteral) EvalM
 		sqrt2pi = math.Pow(0.15915494309189535*qDiff, 1.0/scFac)
 	}
 
-	if evm.SineType == SinContinuous {
+	switch evm.SineType {
+	case SinContinuous:
 
-		if evm.DoubleAngle != 0 {
-			panic("cannot user double angle with SineType == SinContinuous")
-		}
-
-		sinePoly = ckks.Approximate(sin2pi2pi, -K, K, evm.SineDeg)
-
-	} else if evm.SineType == CosDiscret {
+		sinePoly = ckks.Approximate(sin2pi2pi, -K, K, evm.SineDegree)
+	case CosDiscrete:
 
 		sinePoly = new(ckks.Polynomial)
-		sinePoly.Coeffs = ApproximateCos(evm.K, evm.SineDeg, float64(uint(1<<evm.LogMessageRatio)), int(evm.DoubleAngle))
+		sinePoly.Coeffs = ApproximateCos(evm.K, evm.SineDegree, float64(uint(1<<evm.LogMessageRatio)), int(evm.DoubleAngle))
 		sinePoly.MaxDeg = sinePoly.Degree()
 		sinePoly.A = -K
 		sinePoly.B = K
 		sinePoly.Lead = true
 		sinePoly.BasisType = ckks.Chebyshev
 
-	} else if evm.SineType == CosContinuous {
+	case CosContinuous:
 
-		sinePoly = ckks.Approximate(cos2pi, -K, K, evm.SineDeg)
+		sinePoly = ckks.Approximate(cos2pi, -K, K, evm.SineDegree)
 
-	} else {
-		panic("invalid SineType")
+	default:
+		panic(fmt.Sprintf("invalid SineType: allowed types are SinContinuous, CosDiscrete and CosContinuous, but is %T", evm.SineType))
 	}
 
 	for i := range sinePoly.Coeffs {
@@ -155,7 +162,7 @@ func NewEvalModPolyFromLiteral(params ckks.Parameters, evm EvalModLiteral) EvalM
 		logScale:        evm.LogScale,
 		sineType:        evm.SineType,
 		LogMessageRatio: evm.LogMessageRatio,
-		doubleAngle:     evm.DoubleAngle,
+		doubleAngle:     doubleAngle,
 		qDiff:           qDiff,
 		scFac:           scFac,
 		sqrt2Pi:         sqrt2pi,
@@ -165,17 +172,19 @@ func NewEvalModPolyFromLiteral(params ckks.Parameters, evm EvalModLiteral) EvalM
 	}
 }
 
-// Depth returns the depth of the SineEval. If true, then also
-// counts the double angle formula.
+// Depth returns the depth of the SineEval.
 func (evm *EvalModLiteral) Depth() (depth int) {
 
-	if evm.SineType == CosDiscret { // this method requires a minimum degree of 2*K-1.
-		depth += int(math.Ceil(math.Log2(float64(utils.MaxInt(evm.SineDeg, 2*evm.K-1) + 1))))
+	if evm.SineType == CosDiscrete { // this method requires a minimum degree of 2*K-1.
+		depth += int(bits.Len64(uint64(utils.MaxInt(evm.SineDegree, 2*evm.K-1))))
 	} else {
-		depth += int(math.Ceil(math.Log2(float64(evm.SineDeg + 1))))
+		depth += int(bits.Len64(uint64(evm.SineDegree)))
 	}
 
-	depth += evm.DoubleAngle
-	depth += int(math.Ceil(math.Log2(float64(evm.ArcSineDeg + 1))))
+	if evm.SineType != SinContinuous {
+		depth += evm.DoubleAngle
+	}
+
+	depth += int(bits.Len64(uint64(evm.ArcSineDegree)))
 	return depth
 }

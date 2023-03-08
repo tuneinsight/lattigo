@@ -134,12 +134,10 @@ func NewParameters(logn int, q, p []uint64, pow2Base, h int, sigma float64, ring
 	}
 
 	if err = params.initRings(); err != nil {
-		if warning != nil {
-			err = fmt.Errorf("%w; %s", err, warning)
-		}
+		return
 	}
 
-	return
+	return params, warning
 }
 
 // NewParametersFromLiteral instantiate a set of generic RLWE parameters from a ParametersLiteral specification.
@@ -183,10 +181,10 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (params Parameters, er
 		case ring.ConjugateInvariant:
 			q, p, err = GenModuli(paramDef.LogN+1, paramDef.LogQ, paramDef.LogP)
 		default:
-			return params, fmt.Errorf("rlwe.NewParametersFromLiteral: invalid ring.Type, must be ring.ConjugateInvariant or ring.Standard")
+			return Parameters{}, fmt.Errorf("rlwe.NewParametersFromLiteral: invalid ring.Type, must be ring.ConjugateInvariant or ring.Standard")
 		}
 		if err != nil {
-			return params, err
+			return Parameters{}, err
 		}
 		return NewParameters(paramDef.LogN, q, p, paramDef.Pow2Base, paramDef.H, paramDef.Sigma, paramDef.RingType, paramDef.DefaultScale, paramDef.DefaultNTTFlag)
 	default:

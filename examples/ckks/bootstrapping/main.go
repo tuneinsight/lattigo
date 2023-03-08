@@ -1,3 +1,7 @@
+// Package main implements an example showcasing the basics of the bootstrapping for the CKKS scheme.
+// The CKKS bootstrapping is a circuit that homomorphically re-encrypts a ciphertext at level zero to a ciphertext at a higher level, enabling further computations.
+// Note that, unlike the BGV or BFV bootstrapping, the CKKS bootstrapping does not reduce the error in the ciphertext, but only enables further computations.
+// Use the flag -short to run the examples fast but with insecure parameters.
 package main
 
 import (
@@ -10,9 +14,6 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
-
-// This examples showcases the basics of the bootstrapping for the CKKS scheme.
-// Use the flag -short to run the examples fast but with insecure parameters.
 
 var flagShort = flag.Bool("short", false, "run the example with a smaller and insecure ring degree.")
 
@@ -46,7 +47,11 @@ func main() {
 	// The default bootstrapping parameters consume 822 bits which is smaller than the maximum
 	// allowed of 851 in our example, so the target security is easily met.
 	// We can print and verify the expected bit consumption of bootstrapping parameters with:
-	fmt.Printf("Bootstrapping depth (bits): %d\n", btpParametersLit.BitComsumption())
+	bits, err := btpParametersLit.BitComsumption()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Bootstrapping depth (bits): %d\n", bits)
 
 	// Now we generate the updated ckks.ParametersLiteral that contain our residual moduli and the moduli for
 	// the bootstrapping circuit, as well as the bootstrapping.Parameters that contain all the necessary informations

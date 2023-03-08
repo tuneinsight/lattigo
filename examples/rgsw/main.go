@@ -1,3 +1,5 @@
+// Package main implements an example of homomorphic LUT (Lookup Table) evaluation of the sign function using blind rotations implemented with the `rgsw` and `rgsw/lut` packages.
+// These packages can be used to implement all the functionalities the TFHE scheme.
 package main
 
 import (

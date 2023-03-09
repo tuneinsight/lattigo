@@ -6,7 +6,7 @@ package dbfv
 import (
 	"github.com/tuneinsight/lattigo/v4/bfv"
 	"github.com/tuneinsight/lattigo/v4/drlwe"
-	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 )
 
 // NewCKGProtocol creates a new drlwe.CKGProtocol instance from the BFV parameters.
@@ -29,12 +29,12 @@ func NewGKGProtocol(params bfv.Parameters) *drlwe.GKGProtocol {
 
 // NewCKSProtocol creates a new drlwe.CKSProtocol instance from the BFV parameters.
 // The returned protocol instance is generic and can be used in other multiparty schemes.
-func NewCKSProtocol(params bfv.Parameters, noise ring.Distribution) *drlwe.CKSProtocol {
+func NewCKSProtocol(params bfv.Parameters, noise distribution.Distribution) *drlwe.CKSProtocol {
 	return drlwe.NewCKSProtocol(params.Parameters, noise)
 }
 
 // NewPCKSProtocol creates a new drlwe.PCKSProtocol instance from the BFV paramters.
 // The returned protocol instance is generic and can be used in other multiparty schemes.
-func NewPCKSProtocol(params bfv.Parameters, noise ring.Distribution) *drlwe.PCKSProtocol {
+func NewPCKSProtocol(params bfv.Parameters, noise distribution.Distribution) *drlwe.PCKSProtocol {
 	return drlwe.NewPCKSProtocol(params.Parameters, noise)
 }

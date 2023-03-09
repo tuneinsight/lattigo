@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
@@ -28,7 +29,7 @@ func GetTestName(params Parameters, opname string) string {
 		opname,
 		params.RingType(),
 		params.LogN(),
-		params.LogQP(),
+		int(math.Round(params.LogQP())),
 		params.LogSlots(),
 		params.QCount(),
 		params.PCount(),
@@ -189,7 +190,7 @@ func randomConst(tp ring.Type, a, b complex128) (constant complex128) {
 	return
 }
 
-func verifyTestVectors(params Parameters, encoder Encoder, decryptor rlwe.Decryptor, valuesWant []complex128, element interface{}, logSlots int, noise *ring.DiscreteGaussianDistribution, t *testing.T) {
+func verifyTestVectors(params Parameters, encoder Encoder, decryptor rlwe.Decryptor, valuesWant []complex128, element interface{}, logSlots int, noise distribution.Distribution, t *testing.T) {
 
 	precStats := GetPrecisionStats(params, encoder, decryptor, valuesWant, element, logSlots, noise)
 
@@ -863,7 +864,7 @@ func testChebyshevInterpolator(tc *testContext, t *testing.T) {
 			values[i] = cmplx.Sin(values[i])
 		}
 
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogSlots(), 0, t)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogSlots(), nil, t)
 	})
 }
 
@@ -905,9 +906,9 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 
 		verifyTestVectors(tc.params, tc.encoder, nil, values, valuesHave, tc.params.LogSlots(), nil, t)
 
-		sigma := ring.StandardDeviation(tc.encoder.GetErrSTDCoeffDomain(values, valuesHave, plaintext.Scale))
+		sigma := distribution.StandardDeviation(tc.encoder.GetErrSTDCoeffDomain(values, valuesHave, plaintext.Scale))
 
-		valuesHave = tc.encoder.DecodePublic(plaintext, tc.params.LogSlots(), &ring.DiscreteGaussianDistribution{Sigma: sigma, Bound: int(2.5066282746310002 * sigma)})
+		valuesHave = tc.encoder.DecodePublic(plaintext, tc.params.LogSlots(), &distribution.DiscreteGaussian{Sigma: sigma, Bound: int(2.5066282746310002 * sigma)})
 
 		verifyTestVectors(tc.params, tc.encoder, nil, values, valuesHave, tc.params.LogSlots(), nil, t)
 	})
@@ -932,7 +933,6 @@ func testBridge(tc *testContext, t *testing.T) {
 		stdParamsLit.LogN = ciParams.LogN() + 1
 		stdParamsLit.P = []uint64{0x1ffffffff6c80001, 0x1ffffffff6140001} // Assigns new P to ensure that independence from auxiliary P is tested
 		stdParamsLit.RingType = ring.Standard
-		stdParamsLit.IgnoreSecurityCheck = true
 		stdParams, err := NewParametersFromLiteral(stdParamsLit)
 		require.Nil(t, err)
 
@@ -1004,7 +1004,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 			values1[i] /= complex(float64(n), 0)
 		}
 
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), 0, t)
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogSlots(), nil, t)
 	})
 
 	t.Run(GetTestName(tc.params, "LinearTransform/BSGS"), func(t *testing.T) {

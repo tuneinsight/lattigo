@@ -18,8 +18,8 @@ func NoiseRelinearizationKey(params rlwe.Parameters, nbParties int) (std float64
 	// e2 = sum(e_i2)
 	// e3 = sum(e_i3)
 
-	H := float64(nbParties * params.HammingWeight())          // var(sk) and var(u)
-	e := float64(nbParties) * params.Sigma() * params.Sigma() // var(e0), var(e1), var(e2), var(e3)
+	H := float64(nbParties * params.XsHammingWeight())                      // var(sk) and var(u)
+	e := float64(nbParties) * params.NoiseFreshSK() * params.NoiseFreshSK() // var(e0), var(e1), var(e2), var(e3)
 
 	// var([s*e0 + u*e1 + e2 + e3]) = H*e + H*e + e + e = e(2H+2) = 2e(H+1)
 	return math.Sqrt(2 * e * (H + 1))
@@ -27,7 +27,7 @@ func NoiseRelinearizationKey(params rlwe.Parameters, nbParties int) (std float64
 
 // NoiseGaloisKey returns the standard deviation of the noise of each individual elements in a collective GaloisKey.
 func NoiseGaloisKey(params rlwe.Parameters, nbParties int) (std float64) {
-	return math.Sqrt(float64(nbParties)) * params.Sigma()
+	return math.Sqrt(float64(nbParties)) * params.NoiseFreshSK()
 }
 
 // NoiseCKS returns the standard deviation of the noise of a ciphertext after the CKS protocol

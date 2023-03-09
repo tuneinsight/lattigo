@@ -8,6 +8,7 @@ import (
 
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
+	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 )
 
 // Vectorized oblivious evaluation is a two-party protocol for the function f(x) = ax + b where a sender
@@ -164,9 +165,9 @@ func main() {
 			panic(err)
 		}
 
-		ternarySamplerMontgomeryQ := ring.NewSampler(prng, ringQ, &ring.TernaryDistribution{P: 1.0 / 3.0}, true)
-		gaussianSamplerQ := ring.NewSampler(prng, ringQ, &ring.DiscreteGaussianDistribution{Sigma: ring.StandardDeviation(3.2), Bound: 19}, false)
-		uniformSamplerQ := ring.NewSampler(prng, ringQ, &ring.UniformDistribution{}, false)
+		ternarySamplerMontgomeryQ := ring.NewSampler(prng, ringQ, &distribution.Ternary{P: 1.0 / 3.0}, true)
+		gaussianSamplerQ := ring.NewSampler(prng, ringQ, &distribution.DiscreteGaussian{Sigma: 3.2, Bound: 19}, false)
+		uniformSamplerQ := ring.NewSampler(prng, ringQ, &distribution.Uniform{}, false)
 		lowNormUniformQ := newLowNormSampler(ringQ)
 
 		var elapsed, TotalTime, AliceTime, BobTime time.Duration

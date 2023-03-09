@@ -6,6 +6,7 @@ import (
 	"math"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
@@ -13,10 +14,9 @@ import (
 
 // CKSProtocol is the structure storing the parameters and and precomputations for the collective key-switching protocol.
 type CKSProtocol struct {
-	params          rlwe.Parameters
-	noise           ring.Distribution
-	gaussianSampler ring.Sampler
-	basisExtender   *ring.BasisExtender
+	params       rlwe.Parameters
+	noise        distribution.Distribution
+	noiseSampler ring.Sampler
 	buf             *ring.Poly
 	bufDelta        *ring.Poly
 }
@@ -33,9 +33,8 @@ func (cks *CKSProtocol) ShallowCopy() *CKSProtocol {
 	params := cks.params
 
 	return &CKSProtocol{
-		params:          params,
-		gaussianSampler: ring.NewSampler(prng, cks.params.RingQ(), cks.noise, false),
-		basisExtender:   cks.basisExtender.ShallowCopy(),
+		params:       params,
+		noiseSampler: ring.NewSampler(prng, cks.params.RingQ(), cks.noise, false),
 		buf:             params.RingQ().NewPoly(),
 		bufDelta:        params.RingQ().NewPoly(),
 	}
@@ -49,7 +48,7 @@ type CKSCRP struct {
 // NewCKSProtocol creates a new CKSProtocol that will be used to perform a collective key-switching on a ciphertext encrypted under a collective public-key, whose
 // secret-shares are distributed among j parties, re-encrypting the ciphertext under another public-key, whose secret-shares are also known to the
 // parties.
-func NewCKSProtocol(params rlwe.Parameters, noise ring.Distribution) *CKSProtocol {
+func NewCKSProtocol(params rlwe.Parameters, noise distribution.Distribution) *CKSProtocol {
 	cks := new(CKSProtocol)
 	cks.params = params
 	prng, err := sampling.NewPRNG()
@@ -58,19 +57,20 @@ func NewCKSProtocol(params rlwe.Parameters, noise ring.Distribution) *CKSProtoco
 	}
 
 	// EncFreshSK + sigmaSmudging
-	cks.sigmaSmudging = math.Sqrt(params.Sigma()*params.Sigma() + sigmaSmudging*sigmaSmudging)
+
 	switch noise.(type) {
-	case *ring.DiscreteGaussianDistribution:
+	case *distribution.DiscreteGaussian:
+		eFresh := params.NoiseFreshSK()
+		eNoise := float64(noise.StandardDeviation(0, 0))
+		eSigma := math.Sqrt(eFresh*eFresh + eNoise*eNoise)
+		bound := int(6 * eSigma)
+		cks.noise = &distribution.DiscreteGaussian{Sigma: distribution.StandardDeviation(eSigma), Bound: bound}
 	default:
-		panic(fmt.Sprintf("invalid distribution type, expected %T but got %T", &ring.DiscreteGaussianDistribution{}, noise))
+		panic(fmt.Sprintf("invalid distribution type, expected %T but got %T", &distribution.DiscreteGaussian{}, noise))
 	}
 
-	cks.gaussianSampler = ring.NewGaussianSampler(prng, params.RingQ(), cks.sigmaSmudging, int(6*cks.sigmaSmudging))
-	cks.gaussianSampler = ring.NewSampler(prng, params.RingQ(), noise, false)
+	cks.noiseSampler = ring.NewSampler(prng, params.RingQ(), cks.noise, false)
 
-	if cks.params.RingP() != nil {
-		cks.basisExtender = ring.NewBasisExtender(params.RingQ(), params.RingP())
-	}
 	cks.buf = params.RingQ().NewPoly()
 	cks.bufDelta = params.RingQ().NewPoly()
 	return cks
@@ -118,12 +118,12 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlwe.Cip
 	if !ct.IsNTT {
 		// InvNTT(c1NTT * (skIn - skOut)) + e
 		ringQ.INTTLazy(shareOut.Value, shareOut.Value)
-		cks.gaussianSampler.AtLevel(levelQ).ReadAndAdd(shareOut.Value)
+		cks.noiseSampler.AtLevel(levelQ).ReadAndAdd(shareOut.Value)
 	} else {
 		// c1NTT * (skIn - skOut) + e
-		cks.gaussianSampler.AtLevel(levelQ).Read(cks.buf)
-		ringQ.NTT(cks.buf, cks.buf)
-		ringQ.Add(shareOut.Value, cks.buf, shareOut.Value)
+		cks.noiseSampler.AtLevel(levelQ).Read(cks.buff)
+		ringQ.NTT(cks.buff, cks.buff)
+		ringQ.Add(shareOut.Value, cks.buff, shareOut.Value)
 	}
 }
 

@@ -47,10 +47,8 @@ func main() {
 	flagShort := flag.Bool("short", false, "runs the example with insecure parameters for fast testing")
 	flag.Parse()
 
-	var IgnoreSecurityCheck bool
 	if *flagShort {
 		LogN = 6
-		IgnoreSecurityCheck = true
 	}
 
 	// Starting RLWE params, size of these params

@@ -1,9 +1,10 @@
 package bgv
 
 import (
-	//"encoding/json"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"math"
 	"runtime"
 	"testing"
 
@@ -21,11 +22,10 @@ var flagParamString = flag.String("params", "", "specify the test cryptographic 
 var (
 	// TESTN13QP218 is a of 128-bit secure test parameters set with a 32-bit plaintext and depth 4.
 	TESTN14QP418 = ParametersLiteral{
-		LogN:                13,
-		Q:                   []uint64{0x3fffffa8001, 0x1000090001, 0x10000c8001, 0x10000f0001, 0xffff00001},
-		P:                   []uint64{0x7fffffd8001},
-		T:                   0xffc001,
-		IgnoreSecurityCheck: true,
+		LogN: 13,
+		Q:    []uint64{0x3fffffa8001, 0x1000090001, 0x10000c8001, 0x10000f0001, 0xffff00001},
+		P:    []uint64{0x7fffffd8001},
+		T:    0xffc001,
 	}
 
 	// TestParams is a set of test parameters for BGV ensuring 128 bit security in the classic setting.
@@ -33,7 +33,15 @@ var (
 )
 
 func GetTestName(opname string, p Parameters, lvl int) string {
-	return fmt.Sprintf("%s/LogN=%d/logQ=%d/logP=%d/logT=%d/Qi=%d/Pi=%d/lvl=%d", opname, p.LogN(), p.LogQ(), p.LogP(), p.LogT(), p.QCount(), p.PCount(), lvl)
+	return fmt.Sprintf("%s/LogN=%d/logQ=%d/logP=%d/logT=%d/Qi=%d/Pi=%d/lvl=%d",
+		opname,
+		p.LogN(),
+		int(math.Round(p.LogQ())),
+		int(math.Round(p.LogP())),
+		int(math.Round(p.LogT())),
+		p.QCount(),
+		p.PCount(),
+		lvl)
 }
 
 func TestBGV(t *testing.T) {

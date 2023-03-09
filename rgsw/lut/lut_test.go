@@ -61,10 +61,9 @@ func testLUT(t *testing.T) {
 	// RLWE parameters of the samples
 	// N=512, Q=0x3001 -> 2^135
 	paramsLWE, err := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
-		LogN:                9,
-		Q:                   []uint64{0x3001},
-		DefaultNTTFlag:      DefaultNTTFlag,
-		IgnoreSecurityCheck: true,
+		LogN:           9,
+		Q:              []uint64{0x3001},
+		DefaultNTTFlag: DefaultNTTFlag,
 	})
 
 	assert.Nil(t, err)

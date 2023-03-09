@@ -6,6 +6,7 @@ import (
 	"math/bits"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v4/utils"
@@ -49,8 +50,8 @@ type Encoder interface {
 	EncodeSlotsNew(values interface{}, level int, scale rlwe.Scale, logSlots int) (plaintext *rlwe.Plaintext)
 	Decode(plaintext *rlwe.Plaintext, logSlots int) (res []complex128)
 	DecodeSlots(plaintext *rlwe.Plaintext, logSlots int) (res []complex128)
-	DecodePublic(plaintext *rlwe.Plaintext, logSlots int, noise *ring.DiscreteGaussianDistribution) []complex128
-	DecodeSlotsPublic(plaintext *rlwe.Plaintext, logSlots int, noise *ring.DiscreteGaussianDistribution) []complex128
+	DecodePublic(plaintext *rlwe.Plaintext, logSlots int, noise distribution.Distribution) []complex128
+	DecodeSlotsPublic(plaintext *rlwe.Plaintext, logSlots int, noise distribution.Distribution) []complex128
 
 	FFT(values []complex128, N int)
 	IFFT(values []complex128, N int)
@@ -59,7 +60,7 @@ type Encoder interface {
 	EncodeCoeffs(values []float64, plaintext *rlwe.Plaintext)
 	EncodeCoeffsNew(values []float64, level int, scale rlwe.Scale) (plaintext *rlwe.Plaintext)
 	DecodeCoeffs(plaintext *rlwe.Plaintext) (res []float64)
-	DecodeCoeffsPublic(plaintext *rlwe.Plaintext, noise *ring.DiscreteGaussianDistribution) (res []float64)
+	DecodeCoeffsPublic(plaintext *rlwe.Plaintext, noise distribution.Distribution) (res []float64)
 
 	// Utility
 	Embed(values interface{}, logSlots int, scale rlwe.Scale, montgomery bool, polyOut interface{})
@@ -78,7 +79,7 @@ type encoder struct {
 	m            int
 	rotGroup     []int
 
-	gaussianSampler *ring.GaussianSampler
+	prng utils.PRNG
 }
 
 type encoderComplex128 struct {
@@ -99,13 +100,13 @@ func (ecd *encoder) ShallowCopy() *encoder {
 	}
 
 	return &encoder{
-		params:          ecd.params,
-		bigintCoeffs:    make([]*big.Int, ecd.m>>1),
-		qHalf:           ring.NewUint(0),
-		buff:            ecd.params.RingQ().NewPoly(),
-		m:               ecd.m,
-		rotGroup:        ecd.rotGroup,
-		gaussianSampler: ring.NewGaussianSampler(prng, ecd.params.RingQ(), &rlwe.DefaultXe, false),
+		params:       ecd.params,
+		bigintCoeffs: make([]*big.Int, ecd.m>>1),
+		qHalf:        ring.NewUint(0),
+		buff:         ecd.params.RingQ().NewPoly(),
+		m:            ecd.m,
+		rotGroup:     ecd.rotGroup,
+		prng:         prng,
 	}
 }
 
@@ -132,13 +133,13 @@ func newEncoder(params Parameters) encoder {
 	}
 
 	return encoder{
-		params:          params,
-		bigintCoeffs:    make([]*big.Int, m>>1),
-		qHalf:           ring.NewUint(0),
-		buff:            params.RingQ().NewPoly(),
-		m:               m,
-		rotGroup:        rotGroup,
-		gaussianSampler: ring.NewGaussianSampler(prng, params.RingQ(), &rlwe.DefaultXe, false),
+		params:       params,
+		bigintCoeffs: make([]*big.Int, m>>1),
+		qHalf:        ring.NewUint(0),
+		buff:         params.RingQ().NewPoly(),
+		m:            m,
+		rotGroup:     rotGroup,
+		prng:         prng,
 	}
 }
 
@@ -213,16 +214,16 @@ func (ecd *encoderComplex128) DecodeSlots(plaintext *rlwe.Plaintext, logSlots in
 
 // DecodePublic decodes the input plaintext on a new slice of complex128.
 // This method is the same as .DecodeSlotsPublic(*).
-// Adds, before the decoding step, an error following the given DiscreteGaussian distribution.
+// Adds, before the decoding step, noise following the given distribution.
 // If the underlying ringType is ConjugateInvariant, the imaginary part (and its related error) are zero.
-func (ecd *encoderComplex128) DecodePublic(plaintext *rlwe.Plaintext, logSlots int, noise *ring.DiscreteGaussianDistribution) (res []complex128) {
+func (ecd *encoderComplex128) DecodePublic(plaintext *rlwe.Plaintext, logSlots int, noise distribution.Distribution) (res []complex128) {
 	return ecd.DecodeSlotsPublic(plaintext, logSlots, noise)
 }
 
 // DecodeSlotsPublic decodes the input plaintext on a new slice of complex128.
-// Adds, before the decoding step, an error following the given DiscreteGaussian distribution.
+// Adds, before the decoding step, noise following the given distribution.
 // If the underlying ringType is ConjugateInvariant, the imaginary part (and its related error) are zero.
-func (ecd *encoderComplex128) DecodeSlotsPublic(plaintext *rlwe.Plaintext, logSlots int, noise *ring.DiscreteGaussianDistribution) (res []complex128) {
+func (ecd *encoderComplex128) DecodeSlotsPublic(plaintext *rlwe.Plaintext, logSlots int, noise distribution.Distribution) (res []complex128) {
 	return ecd.decodePublic(plaintext, logSlots, noise)
 }
 
@@ -255,8 +256,8 @@ func (ecd *encoderComplex128) DecodeCoeffs(plaintext *rlwe.Plaintext) (res []flo
 }
 
 // DecodeCoeffsPublic reconstructs the RNS coefficients of the plaintext on a slice of float64.
-// Adds an error following the given DiscreteGaussian distribution.
-func (ecd *encoderComplex128) DecodeCoeffsPublic(plaintext *rlwe.Plaintext, noise *ring.DiscreteGaussianDistribution) (res []float64) {
+// Adds noise following the given distribution to the decoding output.
+func (ecd *encoderComplex128) DecodeCoeffsPublic(plaintext *rlwe.Plaintext, noise distribution.Distribution) (res []float64) {
 	return ecd.decodeCoeffsPublic(plaintext, noise)
 }
 
@@ -486,7 +487,7 @@ func (ecd *encoderComplex128) plaintextToComplex(level int, scale rlwe.Scale, lo
 	}
 }
 
-func (ecd *encoderComplex128) decodePublic(plaintext *rlwe.Plaintext, logSlots int, noise *ring.DiscreteGaussianDistribution) (res []complex128) {
+func (ecd *encoderComplex128) decodePublic(plaintext *rlwe.Plaintext, logSlots int, noise distribution.Distribution) (res []complex128) {
 
 	if logSlots > ecd.params.MaxLogSlots() || logSlots < minLogSlots {
 		panic(fmt.Sprintf("cannot Decode: ensure that %d <= logSlots (%d) <= %d", minLogSlots, logSlots, ecd.params.MaxLogSlots()))
@@ -499,10 +500,8 @@ func (ecd *encoderComplex128) decodePublic(plaintext *rlwe.Plaintext, logSlots i
 	}
 
 	// B = floor(sigma * sqrt(2*pi))
-	if sigma != 0 {
-		ecd.gaussianSampler.AtLevel(plaintext.Level()).ReadAndAddFromDist(ecd.buff, ecd.params.RingQ(), sigma, int(2.5066282746310002*sigma))
 	if noise != nil {
-		ecd.gaussianSampler.ReadAndAddFromDistLvl(plaintext.Level(), ecd.buff, ecd.params.RingQ(), noise)
+		ring.NewSampler(ecd.prng, ecd.params.RingQ(), noise, plaintext.IsMontgomery).AtLevel(plaintext.Level()).ReadAndAdd(ecd.buff)
 	}
 
 	ecd.plaintextToComplex(plaintext.Level(), plaintext.Scale, logSlots, ecd.buff, ecd.values)
@@ -515,7 +514,7 @@ func (ecd *encoderComplex128) decodePublic(plaintext *rlwe.Plaintext, logSlots i
 	return
 }
 
-func (ecd *encoderComplex128) decodeCoeffsPublic(plaintext *rlwe.Plaintext, noise *ring.DiscreteGaussianDistribution) (res []float64) {
+func (ecd *encoderComplex128) decodeCoeffsPublic(plaintext *rlwe.Plaintext, noise distribution.Distribution) (res []float64) {
 
 	if plaintext.IsNTT {
 		ecd.params.RingQ().AtLevel(plaintext.Level()).INTT(plaintext.Value, ecd.buff)
@@ -524,9 +523,7 @@ func (ecd *encoderComplex128) decodeCoeffsPublic(plaintext *rlwe.Plaintext, nois
 	}
 
 	if noise != nil {
-		// B = floor(sigma * sqrt(2*pi))
-		ecd.gaussianSampler.AtLevel(plaintext.Level()).ReadAndAddFromDist(ecd.buff, ecd.params.RingQ(), sigma, int(2.5066282746310002*sigma))
-		ecd.gaussianSampler.ReadAndAddFromDistLvl(plaintext.Level(), ecd.buff, ecd.params.RingQ(), noise)
+		ring.NewSampler(ecd.prng, ecd.params.RingQ(), noise, plaintext.IsMontgomery).AtLevel(plaintext.Level()).ReadAndAdd(ecd.buff)
 	}
 
 	res = make([]float64, ecd.params.N())
@@ -599,7 +596,7 @@ type EncoderBigComplex interface {
 	Encode(values []*ring.Complex, plaintext *rlwe.Plaintext, logSlots int)
 	EncodeNew(values []*ring.Complex, level int, scale rlwe.Scale, logSlots int) (plaintext *rlwe.Plaintext)
 	Decode(plaintext *rlwe.Plaintext, logSlots int) (res []*ring.Complex)
-	DecodePublic(plaintext *rlwe.Plaintext, logSlots int, noise *ring.DiscreteGaussianDistribution) (res []*ring.Complex)
+	DecodePublic(plaintext *rlwe.Plaintext, logSlots int, noise distribution.Distribution) (res []*ring.Complex)
 	FFT(values []*ring.Complex, N int)
 	InvFFT(values []*ring.Complex, N int)
 	ShallowCopy() EncoderBigComplex
@@ -700,7 +697,7 @@ func (ecd *encoderBigComplex) Decode(plaintext *rlwe.Plaintext, logSlots int) (r
 	return ecd.decodePublic(plaintext, logSlots, nil)
 }
 
-func (ecd *encoderBigComplex) DecodePublic(plaintext *rlwe.Plaintext, logSlots int, noise *ring.DiscreteGaussianDistribution) (res []*ring.Complex) {
+func (ecd *encoderBigComplex) DecodePublic(plaintext *rlwe.Plaintext, logSlots int, noise distribution.Distribution) (res []*ring.Complex) {
 	return ecd.decodePublic(plaintext, logSlots, noise)
 }
 
@@ -789,7 +786,7 @@ func (ecd *encoderBigComplex) ShallowCopy() EncoderBigComplex {
 	}
 }
 
-func (ecd *encoderBigComplex) decodePublic(plaintext *rlwe.Plaintext, logSlots int, noise *ring.DiscreteGaussianDistribution) (res []*ring.Complex) {
+func (ecd *encoderBigComplex) decodePublic(plaintext *rlwe.Plaintext, logSlots int, noise distribution.Distribution) (res []*ring.Complex) {
 
 	slots := 1 << logSlots
 
@@ -800,9 +797,7 @@ func (ecd *encoderBigComplex) decodePublic(plaintext *rlwe.Plaintext, logSlots i
 	ecd.params.RingQ().AtLevel(plaintext.Level()).INTT(plaintext.Value, ecd.buff)
 
 	if noise != nil {
-		// B = floor(sigma * sqrt(2*pi))
-		ecd.gaussianSampler.AtLevel(plaintext.Level()).ReadAndAddFromDist(ecd.buff, ecd.params.RingQ(), sigma, int(2.5066282746310002*sigma+0.5))
-		ecd.gaussianSampler.ReadAndAddFromDistLvl(plaintext.Level(), ecd.buff, ecd.params.RingQ(), noise)
+		ring.NewSampler(ecd.prng, ecd.params.RingQ(), noise, plaintext.IsMontgomery).AtLevel(plaintext.Level()).ReadAndAdd(ecd.buff)
 	}
 
 	Q := ecd.params.RingQ().ModulusAtLevel[plaintext.Level()]

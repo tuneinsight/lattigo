@@ -378,11 +378,10 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 		var paramsOut bgv.Parameters
 		var err error
 		paramsOut, err = bgv.NewParametersFromLiteral(bgv.ParametersLiteral{
-			LogN:                paramsIn.LogN(),
-			LogQ:                []int{54, 49, 49, 49},
-			LogP:                []int{52, 52},
-			T:                   paramsIn.T(),
-			IgnoreSecurityCheck: true,
+			LogN: paramsIn.LogN(),
+			LogQ: []int{54, 49, 49, 49},
+			LogP: []int{52, 52},
+			T:    paramsIn.T(),
 		})
 
 		minLevel := 0

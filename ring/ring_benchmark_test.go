@@ -3,6 +3,8 @@ package ring
 import (
 	"fmt"
 	"testing"
+
+	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 )
 
 func BenchmarkRing(b *testing.B) {
@@ -17,7 +19,7 @@ func BenchmarkRing(b *testing.B) {
 		defaultParams = DefaultParams
 	}
 
-	for _, defaultParam := range defaultParams {
+	for _, defaultParam := range defaultParams[:1] {
 
 		var tc *testParams
 		if tc, err = genTestParams(defaultParam); err != nil {
@@ -87,16 +89,16 @@ func benchSampling(tc *testParams, b *testing.B) {
 
 	b.Run(testString("Sampling/Gaussian/", tc.ringQ), func(b *testing.B) {
 
-		sampler := NewSampler(tc.prng, tc.ringQ, &DiscreteGaussianDistribution{DefaultSigma, DefaultBound}, false)
+		sampler := NewSampler(tc.prng, tc.ringQ, &distribution.DiscreteGaussian{Sigma: DefaultSigma, Bound: DefaultBound}, false)
 
 		for i := 0; i < b.N; i++ {
-			gaussianSampler.Read(pol)
+			sampler.Read(pol)
 		}
 	})
 
 	b.Run(testString("Sampling/Ternary/0.3/", tc.ringQ), func(b *testing.B) {
 
-		sampler := NewSampler(tc.prng, tc.ringQ, &TernaryDistribution{P: 1.0 / 3}, true)
+		sampler := NewSampler(tc.prng, tc.ringQ, &distribution.Ternary{P: 1.0 / 3}, true)
 
 		for i := 0; i < b.N; i++ {
 			sampler.Read(pol)
@@ -105,7 +107,7 @@ func benchSampling(tc *testParams, b *testing.B) {
 
 	b.Run(testString("Sampling/Ternary/0.5/", tc.ringQ), func(b *testing.B) {
 
-		sampler := NewSampler(tc.prng, tc.ringQ, &TernaryDistribution{P: 1.0 / 3}, true)
+		sampler := NewSampler(tc.prng, tc.ringQ, &distribution.Ternary{P: 0.5}, true)
 
 		for i := 0; i < b.N; i++ {
 			sampler.Read(pol)
@@ -114,16 +116,19 @@ func benchSampling(tc *testParams, b *testing.B) {
 
 	b.Run(testString("Sampling/Ternary/sparse128/", tc.ringQ), func(b *testing.B) {
 
-		NewSampler := NewTernarySampler(tc.prng, tc.ringQ, &TernaryDistribution{H: 128}, true)
+		sampler := NewSampler(tc.prng, tc.ringQ, &distribution.Ternary{H: 128}, true)
 
 		for i := 0; i < b.N; i++ {
-			NewSampler.Read(pol)
+			sampler.Read(pol)
 		}
 	})
 
 	b.Run(testString("Sampling/Uniform/", tc.ringQ), func(b *testing.B) {
+
+		sampler := NewSampler(tc.prng, tc.ringQ, &distribution.Uniform{}, true)
+
 		for i := 0; i < b.N; i++ {
-			tc.uniformSamplerQ.Read(pol)
+			sampler.Read(pol)
 		}
 	})
 }

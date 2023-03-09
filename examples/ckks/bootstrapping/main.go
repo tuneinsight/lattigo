@@ -11,6 +11,7 @@ import (
 
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/ckks/bootstrapping"
+	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
@@ -31,7 +32,7 @@ func main() {
 		LogQ:     []int{55, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40}, // Log2 of the ciphertext prime moduli
 		LogP:     []int{61, 61, 61, 61},                             // Log2 of the key-switch auxiliary prime moduli
 		LogScale: 40,                                                // Log2 of the scale
-		H:        192,                                               // Hamming weight of the secret
+		Xs:       &distribution.Ternary{H: 192},                     // Hamming weight of the secret
 	}
 
 	// Note that with H=192 and LogN=16, parameters are at least 128-bit if LogQP <= 1550.
@@ -82,7 +83,7 @@ func main() {
 	// Here we print some information about the generated ckks.Parameters
 	// We can notably check that the LogQP of the generated ckks.Parameters is equal to 699 + 822 = 1521.
 	// Not that this value can be overestimated by one bit.
-	fmt.Printf("CKKS parameters: logN=%d, logSlots=%d, H(%d; %d), sigma=%f, logQP=%d, levels=%d, scale=2^%f\n", params.LogN(), params.LogSlots(), params.HammingWeight(), btpParams.EphemeralSecretWeight, params.Sigma(), params.LogQP(), params.QCount(), math.Log2(params.DefaultScale().Float64()))
+	fmt.Printf("CKKS parameters: logN=%d, logSlots=%d, H(%d; %d), sigma=%f, logQP=%f, levels=%d, scale=2^%f\n", params.LogN(), params.LogSlots(), params.XsHammingWeight(), btpParams.EphemeralSecretWeight, params.Xe(), params.LogQP(), params.QCount(), math.Log2(params.DefaultScale().Float64()))
 
 	// Scheme context and keys
 	kgen := ckks.NewKeyGenerator(params)

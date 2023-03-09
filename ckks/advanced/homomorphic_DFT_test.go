@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v4/ckks"
-	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
@@ -38,7 +38,7 @@ func TestHomomorphicEncoding(t *testing.T) {
 			0x1fffffffffc80001, // Pi 61
 		},
 
-		H:        192,
+		Xs:       &distribution.Ternary{H: 192},
 		LogSlots: 12,
 		LogScale: 45,
 	}
@@ -239,7 +239,7 @@ func testCoeffsToSlots(params ckks.Parameters, t *testing.T) {
 			}
 
 			// Compares
-			verifyTestVectors(params, ecd2N, nil, vecReal, coeffsReal, params.LogSlots(), 0, t)
+			verifyTestVectors(params, ecd2N, nil, vecReal, coeffsReal, params.LogSlots(), t)
 
 		} else {
 			coeffsReal := encoder.DecodeCoeffs(decryptor.DecryptNew(ct0))
@@ -266,8 +266,8 @@ func testCoeffsToSlots(params ckks.Parameters, t *testing.T) {
 				vecImag[i], vecImag[j] = real(vec1[i]), imag(vec1[i])
 			}
 
-			verifyTestVectors(params, ecd2N, nil, vecReal, coeffsReal, params.LogSlots(), 0, t)
-			verifyTestVectors(params, ecd2N, nil, vecImag, coeffsImag, params.LogSlots(), 0, t)
+			verifyTestVectors(params, ecd2N, nil, vecReal, coeffsReal, params.LogSlots(), t)
+			verifyTestVectors(params, ecd2N, nil, vecImag, coeffsImag, params.LogSlots(), t)
 		}
 	})
 }
@@ -404,7 +404,7 @@ func testSlotsToCoeffs(params ckks.Parameters, t *testing.T) {
 	})
 }
 
-func verifyTestVectors(params ckks.Parameters, encoder ckks.Encoder, decryptor rlwe.Decryptor, valuesWant, element interface{}, logSlots int, bound float64, t *testing.T) {
+func verifyTestVectors(params ckks.Parameters, encoder ckks.Encoder, decryptor rlwe.Decryptor, valuesWant, element interface{}, logSlots int, t *testing.T) {
 
 	precStats := ckks.GetPrecisionStats(params, encoder, decryptor, valuesWant, element, logSlots, nil)
 	if *printPrecisionStats {

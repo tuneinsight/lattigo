@@ -10,6 +10,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/buffer"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 	"github.com/tuneinsight/lattigo/v4/utils/structs"
+	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 
 	"github.com/stretchr/testify/require"
 )
@@ -17,7 +18,7 @@ import (
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters). Overrides -short and requires -timeout=0.")
 
 var T = uint64(0x3ee0001)
-var DefaultSigma = StandardDeviation(3.2)
+var DefaultSigma = distribution.StandardDeviation(3.2)
 var DefaultBound = 6
 
 func testString(opname string, ringQ *Ring) string {
@@ -79,9 +80,7 @@ func TestRing(t *testing.T) {
 		testDivRoundByLastModulusMany(tc, t)
 		testMarshalBinary(tc, t)
 		testWriterAndReader(tc, t)
-		testUniformSampler(tc, t)
-		testGaussianSampler(tc, t)
-		testTernarySampler(tc, t)
+		testSampler(tc, t)
 		testModularReduction(tc, t)
 		testMForm(tc, t)
 		testMulScalarBigint(tc, t)
@@ -400,10 +399,11 @@ func testWriterAndReader(tc *testParams, t *testing.T) {
 }
 
 func testUniformSampler(tc *testParams, t *testing.T) {
+func testSampler(tc *testParams, t *testing.T) {
 
 	N := tc.ringQ.N()
 
-	t.Run(testString("UniformSampler/Read", tc.ringQ), func(t *testing.T) {
+	t.Run(testString("Sampler/Uniform", tc.ringQ), func(t *testing.T) {
 		pol := tc.ringQ.NewPoly()
 		tc.uniformSamplerQ.Read(pol)
 
@@ -415,26 +415,9 @@ func testUniformSampler(tc *testParams, t *testing.T) {
 		}
 	})
 
-	t.Run(testString("UniformSampler/ReadNew", tc.ringQ), func(t *testing.T) {
+	t.Run(testString("Sampler/Gaussian", tc.ringQ), func(t *testing.T) {
 
-		pol := tc.uniformSamplerQ.ReadNew()
-
-		for i, qi := range tc.ringQ.ModuliChain() {
-			coeffs := pol.Coeffs[i]
-			for j := 0; j < N; j++ {
-				require.False(t, coeffs[j] > qi)
-			}
-		}
-	})
-}
-
-func testGaussianSampler(tc *testParams, t *testing.T) {
-
-	N := tc.ringQ.N()
-
-	t.Run(testString("GaussianSampler", tc.ringQ), func(t *testing.T) {
-
-		dist := &DiscreteGaussianDistribution{DefaultSigma, DefaultBound}
+		dist := &distribution.DiscreteGaussian{Sigma: DefaultSigma, Bound: DefaultBound}
 
 		sampler := NewSampler(tc.prng, tc.ringQ, dist, false)
 
@@ -443,24 +426,21 @@ func testGaussianSampler(tc *testParams, t *testing.T) {
 		pol := sampler.ReadNew()
 
 		for i := 0; i < N; i++ {
-			for j, table := range tc.ringQ.Tables {
-				require.False(t, noiseBound < pol.Coeffs[j][i] && pol.Coeffs[j][i] < (table.Modulus-noiseBound))
+			for j, s := range tc.ringQ.SubRings {
+				require.False(t, noiseBound < pol.Coeffs[j][i] && pol.Coeffs[j][i] < (s.Modulus-noiseBound))
 			}
 		}
 	})
-}
-
-func testTernarySampler(tc *testParams, t *testing.T) {
 
 	for _, p := range []float64{.5, 1. / 3., 128. / 65536.} {
-		t.Run(testString(fmt.Sprintf("TernarySampler/p=%1.2f", p), tc.ringQ), func(t *testing.T) {
+		t.Run(testString(fmt.Sprintf("Sampler/Ternary/p=%1.2f", p), tc.ringQ), func(t *testing.T) {
 
-			sampler := NewSampler(tc.prng, tc.ringQ, &TernaryDistribution{P: p}, false)
+			sampler := NewSampler(tc.prng, tc.ringQ, &distribution.Ternary{P: p}, false)
 
 			pol := sampler.ReadNew()
 
-			for i, table := range tc.ringQ.Tables {
-				minOne := table.Modulus - 1
+			for i, s := range tc.ringQ.SubRings {
+				minOne := s.Modulus - 1
 				for _, c := range pol.Coeffs[i] {
 					require.True(t, c == 0 || c == minOne || c == 1)
 				}
@@ -468,14 +448,10 @@ func testTernarySampler(tc *testParams, t *testing.T) {
 		})
 	}
 
-	for _, h := range []int{0, 64, 96, 128, 256} {
-		t.Run(testString(fmt.Sprintf("TernarySampler/hw=%d", h), tc.ringQ), func(t *testing.T) {
+	for _, h := range []int{64, 96, 128, 256} {
+		t.Run(testString(fmt.Sprintf("Sampler/Ternary/hw=%d", h), tc.ringQ), func(t *testing.T) {
 
-			if h == 0 { // TODO: do we really need this case ?
-				t.Skip()
-			}
-
-			sampler := NewSampler(tc.prng, tc.ringQ, &TernaryDistribution{H: h}, false)
+			sampler := NewSampler(tc.prng, tc.ringQ, &distribution.Ternary{H: h}, false)
 
 			checkPoly := func(pol *Poly) {
 				for i := range tc.ringQ.SubRings {
@@ -485,6 +461,7 @@ func testTernarySampler(tc *testParams, t *testing.T) {
 							hw++
 						}
 					}
+
 					require.True(t, hw == h)
 				}
 			}

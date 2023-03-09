@@ -8,6 +8,7 @@ import (
 	"math/bits"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
@@ -273,8 +274,8 @@ type ParametersLiteral struct {
 	LogQ     []int `json:",omitempty"`
 	LogP     []int `json:",omitempty"`
 	Pow2Base int
-	Sigma    float64
-	H        int
+	Xe       distribution.Distribution
+	Xs       distribution.Distribution
 	RingType ring.Type
 	LogSlots int
 	LogScale int
@@ -289,8 +290,8 @@ func (p ParametersLiteral) RLWEParametersLiteral() rlwe.ParametersLiteral {
 		LogQ:           p.LogQ,
 		LogP:           p.LogP,
 		Pow2Base:       p.Pow2Base,
-		Sigma:          p.Sigma,
-		H:              p.H,
+		Xe:             p.Xe,
+		Xs:             p.Xs,
 		RingType:       p.RingType,
 		DefaultNTTFlag: DefaultNTTFlag,
 		DefaultScale:   rlwe.NewScale(math.Exp2(float64(p.LogScale))),
@@ -379,8 +380,8 @@ func (p Parameters) ParametersLiteral() (pLit ParametersLiteral) {
 		Q:        p.Q(),
 		P:        p.P(),
 		Pow2Base: p.Pow2Base(),
-		Sigma:    p.Sigma(),
-		H:        p.HammingWeight(),
+		Xe:       p.Xe(),
+		Xs:       p.Xs(),
 		RingType: p.RingType(),
 		LogScale: int(math.Round(math.Log2(p.DefaultScale().Float64()))),
 		LogSlots: p.LogSlots(),

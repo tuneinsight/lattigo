@@ -4,6 +4,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/bgv"
 	"github.com/tuneinsight/lattigo/v4/drlwe"
 	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
@@ -47,7 +48,7 @@ func (e2s *E2SProtocol) ShallowCopy() *E2SProtocol {
 }
 
 // NewE2SProtocol creates a new E2SProtocol struct from the passed bgv parameters.
-func NewE2SProtocol(params bgv.Parameters, noise ring.Distribution) *E2SProtocol {
+func NewE2SProtocol(params bgv.Parameters, noise distribution.Distribution) *E2SProtocol {
 	e2s := new(E2SProtocol)
 	e2s.CKSProtocol = *drlwe.NewCKSProtocol(params.Parameters, noise)
 	e2s.params = params
@@ -114,7 +115,7 @@ type S2EProtocol struct {
 }
 
 // NewS2EProtocol creates a new S2EProtocol struct from the passed bgv parameters.
-func NewS2EProtocol(params bgv.Parameters, noise ring.Distribution) *S2EProtocol {
+func NewS2EProtocol(params bgv.Parameters, noise distribution.Distribution) *S2EProtocol {
 	s2e := new(S2EProtocol)
 	s2e.CKSProtocol = *drlwe.NewCKSProtocol(params.Parameters, noise)
 	s2e.params = params

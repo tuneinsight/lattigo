@@ -92,17 +92,17 @@ func TestBootstrap(t *testing.T) {
 		ckksParamsLit.LogSlots = ckksParamsLit.LogN - 1
 	}
 
-	H := ckksParamsLit.H
+	Xs := ckksParamsLit.Xs
 
 	EphemeralSecretWeight := btpParams.EphemeralSecretWeight
 
 	for _, testSet := range [][]bool{{false, false}, {true, false}, {false, true}, {true, true}} {
 
 		if testSet[0] {
-			ckksParamsLit.H = EphemeralSecretWeight
+			ckksParamsLit.Xs = &distribution.Ternary{H: EphemeralSecretWeight}
 			btpParams.EphemeralSecretWeight = 0
 		} else {
-			ckksParamsLit.H = H
+			ckksParamsLit.Xs = Xs
 			btpParams.EphemeralSecretWeight = EphemeralSecretWeight
 		}
 

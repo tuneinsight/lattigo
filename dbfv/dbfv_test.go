@@ -425,11 +425,10 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 		var paramsOut bfv.Parameters
 		var err error
 		paramsOut, err = bfv.NewParametersFromLiteral(bfv.ParametersLiteral{
-			LogN:                paramsIn.LogN(),
-			LogQ:                []int{54, 49, 49, 49},
-			LogP:                []int{52, 52},
-			T:                   paramsIn.T(),
-			IgnoreSecurityCheck: true,
+			LogN: paramsIn.LogN(),
+			LogQ: []int{54, 49, 49, 49},
+			LogP: []int{52, 52},
+			T:    paramsIn.T(),
 		})
 
 		require.Nil(t, err)

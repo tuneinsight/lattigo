@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/buffer"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
@@ -147,7 +148,7 @@ func testCKGProtocol(tc *testContext, level int, t *testing.T) {
 		pk := rlwe.NewPublicKey(params)
 		ckg[0].GenPublicKey(shares[0], crp, pk)
 
-		require.True(t, rlwe.PublicKeyIsCorrect(pk, tc.skIdeal, params, math.Log2(math.Sqrt(float64(nbParties))*params.Sigma())+1))
+		require.True(t, rlwe.PublicKeyIsCorrect(pk, tc.skIdeal, params, math.Log2(math.Sqrt(float64(nbParties))*params.NoiseFreshSK())+1))
 	})
 }
 
@@ -155,59 +156,6 @@ func testRKGProtocol(tc *testContext, level int, t *testing.T) {
 	params := tc.params
 
 	t.Run(testString(params, level, "RKG/Protocol"), func(t *testing.T) {
-
-		skOut, pkOut := tc.kgen.GenKeyPair()
-
-		sigmaSmudging := ring.StandardDeviation(8 * rlwe.DefaultNoise)
-
-		pcks := make([]*PCKSProtocol, nbParties)
-		for i := range pcks {
-			if i == 0 {
-				pcks[i] = NewPCKSProtocol(params, &ring.DiscreteGaussianDistribution{Sigma: sigmaSmudging, Bound: int(6 * sigmaSmudging)})
-			} else {
-				pcks[i] = pcks[0].ShallowCopy()
-			}
-		}
-
-		ct := rlwe.NewCiphertext(params, 1, params.MaxLevel())
-
-		rlwe.NewEncryptor(params, tc.skIdeal).EncryptZero(ct)
-
-		shares := make([]*PCKSShare, nbParties)
-		for i := range shares {
-			shares[i] = pcks[i].AllocateShare(ct.Level())
-		}
-
-		for i := range shares {
-			pcks[i].GenShare(tc.skShares[i], pkOut, ct, shares[i])
-		}
-
-		for i := 1; i < nbParties; i++ {
-			pcks[0].AggregateShares(shares[0], shares[i], shares[0])
-		}
-
-		ksCt := rlwe.NewCiphertext(params, 1, params.MaxLevel())
-		dec := rlwe.NewDecryptor(params, skOut)
-		log2Bound := bits.Len64(uint64(nbParties) * params.NoiseBound() * uint64(params.N()))
-
-		pcks[0].KeySwitch(ct, shares[0], ksCt)
-
-		pt := rlwe.NewPlaintext(params, ct.Level())
-		dec.Decrypt(ksCt, pt)
-		require.GreaterOrEqual(t, log2Bound+5, ringQ.Log2OfInnerSum(pt.Value))
-
-		pcks[0].KeySwitch(ct, shares[0], ct)
-
-		dec.Decrypt(ct, pt)
-		require.GreaterOrEqual(t, log2Bound+5, ringQ.Log2OfInnerSum(pt.Value))
-	})
-}
-
-func testRelinKeyGen(tc *testContext, t *testing.T) {
-	params := tc.params
-	levelQ, levelP := params.MaxLevelQ(), params.MaxLevelP()
-
-	t.Run(testString("RelinKeyGen", tc), func(t *testing.T) {
 
 		rkg := make([]*RKGProtocol, nbParties)
 
@@ -312,11 +260,11 @@ func testCKSProtocol(tc *testContext, level int, t *testing.T) {
 
 		cks := make([]*CKSProtocol, nbParties)
 
-		sigmaSmudging := 8 * rlwe.DefaultSigma
+		sigmaSmudging := distribution.StandardDeviation(8 * rlwe.DefaultNoise)
 
 		for i := range cks {
 			if i == 0 {
-				cks[i] = NewCKSProtocol(params, sigmaSmudging)
+				cks[i] = NewCKSProtocol(params, &distribution.DiscreteGaussian{Sigma: sigmaSmudging, Bound: int(6 * sigmaSmudging)})
 			} else {
 				cks[i] = cks[0].ShallowCopy()
 			}
@@ -363,7 +311,7 @@ func testCKSProtocol(tc *testContext, level int, t *testing.T) {
 			ringQ.INTT(pt.Value, pt.Value)
 		}
 
-		require.GreaterOrEqual(t, math.Log2(NoiseCKS(params, nbParties, params.NoiseFreshSK(), sigmaSmudging))+1, ringQ.Log2OfStandardDeviation(pt.Value))
+		require.GreaterOrEqual(t, math.Log2(NoiseCKS(params, nbParties, params.NoiseFreshSK(), float64(sigmaSmudging)))+1, ringQ.Log2OfStandardDeviation(pt.Value))
 
 		cks[0].KeySwitch(ct, shares[0], ct)
 
@@ -373,7 +321,7 @@ func testCKSProtocol(tc *testContext, level int, t *testing.T) {
 			ringQ.INTT(pt.Value, pt.Value)
 		}
 
-		require.GreaterOrEqual(t, math.Log2(NoiseCKS(params, nbParties, params.NoiseFreshSK(), sigmaSmudging))+1, ringQ.Log2OfStandardDeviation(pt.Value))
+		require.GreaterOrEqual(t, math.Log2(NoiseCKS(params, nbParties, params.NoiseFreshSK(), float64(sigmaSmudging)))+1, ringQ.Log2OfStandardDeviation(pt.Value))
 	})
 }
 
@@ -385,12 +333,12 @@ func testPCKSProtocol(tc *testContext, level int, t *testing.T) {
 
 		skOut, pkOut := tc.kgen.GenKeyPairNew()
 
-		sigmaSmudging := 8 * rlwe.DefaultSigma
+		sigmaSmudging := distribution.StandardDeviation(8 * rlwe.DefaultNoise)
 
 		pcks := make([]*PCKSProtocol, nbParties)
 		for i := range pcks {
 			if i == 0 {
-				pcks[i] = NewPCKSProtocol(params, sigmaSmudging)
+				pcks[i] = NewPCKSProtocol(params, &distribution.DiscreteGaussian{Sigma: sigmaSmudging, Bound: int(6 * sigmaSmudging)})
 			} else {
 				pcks[i] = pcks[0].ShallowCopy()
 			}
@@ -430,7 +378,7 @@ func testPCKSProtocol(tc *testContext, level int, t *testing.T) {
 			ringQ.INTT(pt.Value, pt.Value)
 		}
 
-		require.GreaterOrEqual(t, math.Log2(NoisePCKS(params, nbParties, params.NoiseFreshSK(), sigmaSmudging))+1, ringQ.Log2OfStandardDeviation(pt.Value))
+		require.GreaterOrEqual(t, math.Log2(NoisePCKS(params, nbParties, params.NoiseFreshSK(), float64(sigmaSmudging)))+1, ringQ.Log2OfStandardDeviation(pt.Value))
 
 		pcks[0].KeySwitch(ct, shares[0], ct)
 
@@ -440,7 +388,7 @@ func testPCKSProtocol(tc *testContext, level int, t *testing.T) {
 			ringQ.INTT(pt.Value, pt.Value)
 		}
 
-		require.GreaterOrEqual(t, math.Log2(NoisePCKS(params, nbParties, params.NoiseFreshSK(), sigmaSmudging))+1, ringQ.Log2OfStandardDeviation(pt.Value))
+		require.GreaterOrEqual(t, math.Log2(NoisePCKS(params, nbParties, params.NoiseFreshSK(), float64(sigmaSmudging)))+1, ringQ.Log2OfStandardDeviation(pt.Value))
 	})
 }
 

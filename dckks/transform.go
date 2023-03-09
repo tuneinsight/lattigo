@@ -7,6 +7,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/drlwe"
 	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
@@ -16,7 +17,7 @@ type MaskedTransformProtocol struct {
 	e2s E2SProtocol
 	s2e S2EProtocol
 
-	noise ring.Distribution
+	noise distribution.Distribution
 
 	defaultScale *big.Int
 	prec         uint
@@ -85,7 +86,7 @@ type MaskedTransformFunc struct {
 // paramsOut: the ckks.Parameters of the ciphertext after the protocol.
 // prec : the log2 of decimal precision of the internal encoder.
 // The method will return an error if the maximum number of slots of the output parameters is smaller than the number of slots of the input ciphertext.
-func NewMaskedTransformProtocol(paramsIn, paramsOut ckks.Parameters, prec uint, noise ring.Distribution) (rfp *MaskedTransformProtocol, err error) {
+func NewMaskedTransformProtocol(paramsIn, paramsOut ckks.Parameters, prec uint, noise distribution.Distribution) (rfp *MaskedTransformProtocol, err error) {
 
 	if paramsIn.Slots() > paramsOut.MaxSlots() {
 		return nil, fmt.Errorf("newMaskedTransformProtocol: paramsOut.N()/2 < paramsIn.Slots()")

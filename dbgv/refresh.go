@@ -4,7 +4,7 @@ package dbgv
 import (
 	"github.com/tuneinsight/lattigo/v4/bgv"
 	"github.com/tuneinsight/lattigo/v4/drlwe"
-	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
@@ -21,7 +21,7 @@ func (rfp *RefreshProtocol) ShallowCopy() *RefreshProtocol {
 }
 
 // NewRefreshProtocol creates a new Refresh protocol instance.
-func NewRefreshProtocol(params bgv.Parameters, noise ring.Distribution) (rfp *RefreshProtocol) {
+func NewRefreshProtocol(params bgv.Parameters, noise distribution.Distribution) (rfp *RefreshProtocol) {
 	rfp = new(RefreshProtocol)
 	mt, _ := NewMaskedTransformProtocol(params, params, noise)
 	rfp.MaskedTransformProtocol = *mt

@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"math"
 	"runtime"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
+	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 	"github.com/tuneinsight/lattigo/v4/utils/buffer"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
@@ -95,6 +95,7 @@ type TestContext struct {
 	pk     *PublicKey
 	eval   *Evaluator
 }
+
 func testUserDefinedParameters(t *testing.T) {
 	t.Run("Parameters/UnmarshalJSON", func(t *testing.T) {
 
@@ -124,12 +125,12 @@ func testUserDefinedParameters(t *testing.T) {
 		}
 
 		// checks that one can provide custom parameters for the secret-key and error distributions
-		dataWithCustomSecrets := []byte(`{"LogN":13,"LogQ":[50,50],"LogP":[60],"Xs":{"Type":"Ternary", "H":5462},"Xe":{"Type":"Gaussian","Sigma":6.4,"Bound":38}}`)
+		dataWithCustomSecrets := []byte(`{"LogN":13,"LogQ":[50,50],"LogP":[60],"Xs":{"Type":"Ternary", "H":5462},"Xe":{"Type":"DiscreteGaussian","Sigma":6.4,"Bound":38}}`)
 		var paramsWithCustomSecrets Parameters
 		err = json.Unmarshal(dataWithCustomSecrets, &paramsWithCustomSecrets)
 		require.Nil(t, err)
-		require.True(t, paramsWithCustomSecrets.Xe().Equals(&ring.DiscreteGaussianDistribution{Sigma: 6.4, Bound: 38}))
-		require.True(t, paramsWithCustomSecrets.Xs().Equals(&ring.TernaryDistribution{H: 5462}))
+		require.True(t, paramsWithCustomSecrets.Xe().Equals(&distribution.DiscreteGaussian{Sigma: 6.4, Bound: 38}))
+		require.True(t, paramsWithCustomSecrets.Xs().Equals(&distribution.Ternary{H: 5462}))
 
 		// checks that providing an ambiguous ternary distribution yields an error
 		dataWithBadDist := []byte(`{"LogN":13,"LogQ":[50,50],"LogP":[60],"Xs":{"Type":"Ternary", "H":5462,"P":0.3}}`)
@@ -139,8 +140,6 @@ func testUserDefinedParameters(t *testing.T) {
 		require.Equal(t, paramsWithBadDist, Parameters{})
 	})
 }
-
-func testGenKeyPair(kgen KeyGenerator, t *testing.T) {
 
 func NewTestContext(params Parameters) (tc *TestContext) {
 	kgen := NewKeyGenerator(params)
@@ -191,6 +190,15 @@ func testKeyGenerator(tc *TestContext, t *testing.T) {
 	// Checks that the secret-key has exactly params.h non-zero coefficients
 	t.Run(testString(params, params.MaxLevel(), "KeyGenerator/GenSecretKey"), func(t *testing.T) {
 
+		switch xs := params.Xs().(type) {
+		case *distribution.Ternary:
+			if xs.P != 0 {
+				t.Skip("cannot run test for probabilistic ternary distribution")
+			}
+		default:
+			t.Skip("cannot run test for non ternary distribution")
+		}
+
 		skINTT := NewSecretKey(params)
 
 		if params.PCount() > 0 {
@@ -202,7 +210,7 @@ func testKeyGenerator(tc *TestContext, t *testing.T) {
 						zeros++
 					}
 				}
-				require.Equal(t, params.ringP.N(), zeros+params.h)
+				require.Equal(t, params.ringP.N(), zeros+params.XsHammingWeight())
 			}
 		}
 
@@ -214,7 +222,7 @@ func testKeyGenerator(tc *TestContext, t *testing.T) {
 					zeros++
 				}
 			}
-			require.Equal(t, params.ringQ.N(), zeros+params.h)
+			require.Equal(t, params.ringQ.N(), zeros+params.XsHammingWeight())
 		}
 
 	})
@@ -233,8 +241,8 @@ func testKeyGenerator(tc *TestContext, t *testing.T) {
 			ringQP.INTT(zero, zero)
 			ringQP.IMForm(zero, zero)
 
-			require.GreaterOrEqual(t, math.Log2(params.Sigma())+1, params.RingQ().Log2OfStandardDeviation(zero.Q))
-			require.GreaterOrEqual(t, math.Log2(params.Sigma())+1, params.RingP().Log2OfStandardDeviation(zero.P))
+			require.GreaterOrEqual(t, math.Log2(params.NoiseFreshSK())+1, params.RingQ().Log2OfStandardDeviation(zero.Q))
+			require.GreaterOrEqual(t, math.Log2(params.NoiseFreshSK())+1, params.RingP().Log2OfStandardDeviation(zero.P))
 		} else {
 
 			ringQ := params.RingQ()
@@ -246,7 +254,7 @@ func testKeyGenerator(tc *TestContext, t *testing.T) {
 			ringQ.INTT(zero, zero)
 			ringQ.IMForm(zero, zero)
 
-			require.GreaterOrEqual(t, math.Log2(params.Sigma())+1, params.RingQ().Log2OfStandardDeviation(zero))
+			require.GreaterOrEqual(t, math.Log2(params.NoiseFreshSK())+1, params.RingQ().Log2OfStandardDeviation(zero))
 		}
 	})
 
@@ -267,7 +275,7 @@ func testKeyGenerator(tc *TestContext, t *testing.T) {
 
 		require.Equal(t, decompRNS*decompPW2, len(evk.Value)*len(evk.Value[0])) // checks that decomposition size is correct
 
-		require.True(t, EvaluationKeyIsCorrect(evk, sk, skOut, params, math.Log2(math.Sqrt(float64(decompRNS))*params.Sigma())+1))
+		require.True(t, EvaluationKeyIsCorrect(evk, sk, skOut, params, math.Log2(math.Sqrt(float64(decompRNS))*params.NoiseFreshSK())+1))
 	})
 
 	t.Run(testString(params, params.MaxLevel(), "KeyGenerator/GenRelinearizationKey"), func(t *testing.T) {
@@ -281,7 +289,7 @@ func testKeyGenerator(tc *TestContext, t *testing.T) {
 
 		require.Equal(t, decompRNS*decompPW2, len(rlk.Value)*len(rlk.Value[0])) // checks that decomposition size is correct
 
-		require.True(t, RelinearizationKeyIsCorrect(rlk, sk, params, math.Log2(math.Sqrt(float64(decompRNS))*params.Sigma())+1))
+		require.True(t, RelinearizationKeyIsCorrect(rlk, sk, params, math.Log2(math.Sqrt(float64(decompRNS))*params.NoiseFreshSK())+1))
 	})
 
 	t.Run(testString(params, params.MaxLevel(), "KeyGenerator/GenGaloisKey"), func(t *testing.T) {
@@ -295,7 +303,7 @@ func testKeyGenerator(tc *TestContext, t *testing.T) {
 
 		require.Equal(t, decompRNS*decompPW2, len(gk.Value)*len(gk.Value[0])) // checks that decomposition size is correct
 
-		require.True(t, GaloisKeyIsCorrect(gk, sk, params, math.Log2(math.Sqrt(float64(decompRNS))*params.Sigma())+1))
+		require.True(t, GaloisKeyIsCorrect(gk, sk, params, math.Log2(math.Sqrt(float64(decompRNS))*params.NoiseFreshSK())+1))
 	})
 }
 
@@ -448,7 +456,6 @@ func testApplyEvaluationKey(tc *TestContext, level int, t *testing.T) {
 			LogN:     paramsLargeDim.LogN() - 1,
 			Q:        paramsLargeDim.Q(),
 			P:        []uint64{0x1ffffffff6c80001, 0x1ffffffff6140001}[:paramsLargeDim.PCount()], // some other P to test that the modulus is correctly extended in the keygen
-			Sigma:    DefaultSigma,
 			RingType: paramsLargeDim.RingType(),
 		})
 
@@ -486,7 +493,6 @@ func testApplyEvaluationKey(tc *TestContext, level int, t *testing.T) {
 			LogN:     paramsLargeDim.LogN() - 1,
 			Q:        paramsLargeDim.Q(),
 			P:        []uint64{0x1ffffffff6c80001, 0x1ffffffff6140001}[:paramsLargeDim.PCount()], // some other P to test that the modulus is correctly extended in the keygen
-			Sigma:    DefaultSigma,
 			RingType: paramsLargeDim.RingType(),
 		})
 

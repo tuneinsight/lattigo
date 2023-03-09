@@ -3,7 +3,7 @@ package dckks
 import (
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/drlwe"
-	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
@@ -14,7 +14,7 @@ type RefreshProtocol struct {
 
 // NewRefreshProtocol creates a new Refresh protocol instance.
 // prec : the log2 of decimal precision of the internal encoder.
-func NewRefreshProtocol(params ckks.Parameters, prec uint, noise ring.Distribution) (rfp *RefreshProtocol) {
+func NewRefreshProtocol(params ckks.Parameters, prec uint, noise distribution.Distribution) (rfp *RefreshProtocol) {
 	rfp = new(RefreshProtocol)
 	mt, _ := NewMaskedTransformProtocol(params, params, prec, noise)
 	rfp.MaskedTransformProtocol = *mt

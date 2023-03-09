@@ -6,6 +6,7 @@ import (
 	"math"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
@@ -105,34 +106,32 @@ var DefaultPostQuantumParams = []ParametersLiteral{PN12QP101pq, PN13QP202pq, PN1
 // unset, standard default values for these field are substituted at parameter creation (see
 // NewParametersFromLiteral).
 type ParametersLiteral struct {
-	LogN                int
-	Q                   []uint64
-	P                   []uint64
-	LogQ                []int `json:",omitempty"`
-	LogP                []int `json:",omitempty"`
-	Pow2Base            int
-	Xe                  ring.Distribution
-	Xs                  ring.Distribution
-	RingType            ring.Type
-	IgnoreSecurityCheck bool
-	T                   uint64 // Plaintext modulus
+	LogN     int
+	Q        []uint64
+	P        []uint64
+	LogQ     []int `json:",omitempty"`
+	LogP     []int `json:",omitempty"`
+	Pow2Base int
+	Xe       distribution.Distribution
+	Xs       distribution.Distribution
+	RingType ring.Type
+	T        uint64 // Plaintext modulus
 }
 
 // RLWEParametersLiteral returns the rlwe.ParametersLiteral from the target bfv.ParametersLiteral.
 func (p ParametersLiteral) RLWEParametersLiteral() rlwe.ParametersLiteral {
 	return rlwe.ParametersLiteral{
-		LogN:                p.LogN,
-		Q:                   p.Q,
-		P:                   p.P,
-		LogQ:                p.LogQ,
-		LogP:                p.LogP,
-		Pow2Base:            p.Pow2Base,
-		Xe:                  p.Xe,
-		Xs:                  p.Xs,
-		RingType:            ring.Standard,
-		DefaultScale:        rlwe.NewScaleModT(1, p.T),
-		DefaultNTTFlag:      DefaultNTTFlag,
-		IgnoreSecurityCheck: p.IgnoreSecurityCheck,
+		LogN:           p.LogN,
+		Q:              p.Q,
+		P:              p.P,
+		LogQ:           p.LogQ,
+		LogP:           p.LogP,
+		Pow2Base:       p.Pow2Base,
+		Xe:             p.Xe,
+		Xs:             p.Xs,
+		RingType:       ring.Standard,
+		DefaultScale:   rlwe.NewScaleModT(1, p.T),
+		DefaultNTTFlag: DefaultNTTFlag,
 	}
 }
 
@@ -190,15 +189,14 @@ func NewParametersFromLiteral(pl ParametersLiteral) (Parameters, error) {
 // ParametersLiteral returns the ParametersLiteral of the target Parameters.
 func (p Parameters) ParametersLiteral() ParametersLiteral {
 	return ParametersLiteral{
-		LogN:                p.LogN(),
-		Q:                   p.Q(),
-		P:                   p.P(),
-		Pow2Base:            p.Pow2Base(),
-		Xe:                  p.Xe(),
-		Xs:                  p.Xs(),
-		T:                   p.T(),
-		RingType:            p.RingType(),
-		IgnoreSecurityCheck: p.IgnoreSecurityCheck(),
+		LogN:     p.LogN(),
+		Q:        p.Q(),
+		P:        p.P(),
+		Pow2Base: p.Pow2Base(),
+		Xe:       p.Xe(),
+		Xs:       p.Xs(),
+		T:        p.T(),
+		RingType: p.RingType(),
 	}
 }
 

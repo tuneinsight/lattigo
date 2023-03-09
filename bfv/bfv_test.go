@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"math"
 	"math/big"
 	"math/bits"
 	"runtime"
@@ -22,7 +23,15 @@ var flagParamString = flag.String("params", "", "specify the test cryptographic 
 var flagPrintNoise = flag.Bool("print-noise", false, "print the residual noise")
 
 func testString(opname string, p Parameters, lvl int) string {
-	return fmt.Sprintf("%s/LogN=%d/logQP=%d/logT=%d/TIsQ0=%t/Qi=%d/Pi=%d/lvl=%d", opname, p.LogN(), p.LogQP(), p.LogT(), p.T() == p.Q()[0], p.QCount(), p.PCount(), lvl)
+	return fmt.Sprintf("%s/LogN=%d/logQP=%d/logT=%d/TIsQ0=%t/Qi=%d/Pi=%d/lvl=%d",
+		opname,
+		p.LogN(),
+		int(math.Round(p.LogQP())),
+		int(math.Round(p.LogT())),
+		p.T() == p.Q()[0],
+		p.QCount(),
+		p.PCount(),
+		lvl)
 }
 
 type testContext struct {

@@ -2,8 +2,8 @@ package ring
 
 import (
 	"fmt"
-	"reflect"
 
+	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
@@ -27,24 +27,21 @@ func (b *baseSampler) AtLevel(level int) baseSampler {
 // It has a single Read method which takes as argument the polynomial to be
 // populated according to the Sampler's distribution.
 type Sampler interface {
-	Read(pOut *Poly)
-	AtLevel(level int) Sampler
 	Read(pol *Poly)
-	ReadLvl(level int, pol *Poly)
 	ReadNew() (pol *Poly)
-	ReadLvlNew(level int) (pol *Poly)
-	ReadAndAddLvl(level int, pol *Poly)
+	ReadAndAdd(pol *Poly)
+	AtLevel(level int) Sampler
 }
 
-func NewSampler(prng utils.PRNG, baseRing *Ring, X Distribution, montgomery bool) Sampler {
+func NewSampler(prng utils.PRNG, baseRing *Ring, X distribution.Distribution, montgomery bool) Sampler {
 	switch X := X.(type) {
-	case *DiscreteGaussianDistribution:
-		return NewGaussianSampler(prng, baseRing, X, montgomery)
-	case *TernaryDistribution:
-		return NewTernarySampler(prng, baseRing, X, montgomery)
-	case *UniformDistribution:
+	case *distribution.DiscreteGaussian:
+		return NewGaussianSampler(prng, baseRing, *X, montgomery)
+	case *distribution.Ternary:
+		return NewTernarySampler(prng, baseRing, *X, montgomery)
+	case *distribution.Uniform:
 		return NewUniformSampler(prng, baseRing)
 	default:
-		panic(fmt.Sprintf("Invalid distribution: want *ring.DiscretGaussian, *ring.UniformTernary, *ring.SparseTernary or *ring.Uniform but have %s", reflect.TypeOf(X)))
+		panic(fmt.Sprintf("Invalid distribution: want *ring.DiscreteGaussianDistribution, *ring.TernaryDistribution or *ring.UniformDistribution but have %T", X))
 	}
 }

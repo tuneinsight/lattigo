@@ -162,8 +162,8 @@ func NewParametersFromLiteral(paramsCKKS ckks.ParametersLiteral, paramsBootstrap
 			P:        P,
 			LogSlots: paramsCKKS.LogSlots,
 			LogScale: paramsCKKS.LogScale,
-			Sigma:    paramsCKKS.Sigma,
-			H:        paramsCKKS.H,
+			Xe:       paramsCKKS.Xe,
+			Xs:       paramsCKKS.Xs,
 		},
 		Parameters{
 			EphemeralSecretWeight:   EphemeralSecretWeight,

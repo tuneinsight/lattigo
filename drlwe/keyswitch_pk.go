@@ -4,6 +4,7 @@ import (
 	"io"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
@@ -12,12 +13,12 @@ import (
 // PCKSProtocol is the structure storing the parameters for the collective public key-switching.
 type PCKSProtocol struct {
 	params rlwe.Parameters
-	noise  ring.Distribution
+	noise  distribution.Distribution
 
 	buf *ring.Poly
 
 	rlwe.Encryptor
-	gaussianSampler *ring.GaussianSampler
+	noiseSampler ring.Sampler
 }
 
 // ShallowCopy creates a shallow copy of PCKSProtocol in which all the read-only data-structures are
@@ -32,17 +33,17 @@ func (pcks *PCKSProtocol) ShallowCopy() *PCKSProtocol {
 	params := pcks.params
 
 	return &PCKSProtocol{
-		params:          params,
-		Encryptor:       rlwe.NewEncryptor(params, nil),
-		sigmaSmudging:   pcks.sigmaSmudging,
+		noiseSampler: ring.NewSampler(prng, params.RingQ(), pcks.noise, false),
+		noise:        pcks.noise,
+		Encryptor:    rlwe.NewEncryptor(params, nil),
+		params:       params,
 		buf:             params.RingQ().NewPoly(),
-		gaussianSampler: ring.NewGaussianSampler(prng, params.RingQ(), pcks.sigmaSmudging, int(6*pcks.sigmaSmudging)),
 	}
 }
 
 // NewPCKSProtocol creates a new PCKSProtocol object and will be used to re-encrypt a ciphertext ctx encrypted under a secret-shared key among j parties under a new
 // collective public-key.
-func NewPCKSProtocol(params rlwe.Parameters, noise ring.Distribution) (pcks *PCKSProtocol) {
+func NewPCKSProtocol(params rlwe.Parameters, noise distribution.Distribution) (pcks *PCKSProtocol) {
 	pcks = new(PCKSProtocol)
 	pcks.params = params
 	pcks.noise = noise.CopyNew()
@@ -56,16 +57,13 @@ func NewPCKSProtocol(params rlwe.Parameters, noise ring.Distribution) (pcks *PCK
 
 	pcks.Encryptor = rlwe.NewEncryptor(params, nil)
 
-	pcks.gaussianSampler = ring.NewGaussianSampler(prng, params.RingQ(), sigmaSmudging, int(6*sigmaSmudging))
-
 	switch noise.(type) {
-	case *ring.DiscreteGaussianDistribution:
+	case *distribution.DiscreteGaussian:
 	default:
-		panic(fmt.Sprintf("invalid distribution type, expected %T but got %T", &ring.DiscreteGaussianDistribution{}, noise))
+		panic(fmt.Sprintf("invalid distribution type, expected %T but got %T", &distribution.DiscreteGaussian{}, noise))
 	}
 
-	pcks.gaussianSampler = ring.NewSampler(prng, params.RingQ(), noise, false)
-	pcks.ternarySamplerMontgomeryQ = ring.NewSampler(prng, params.RingQ(), params.Xs(), false)
+	pcks.noiseSampler = ring.NewSampler(prng, params.RingQ(), noise, false)
 
 	return pcks
 }
@@ -99,15 +97,15 @@ func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct *r
 	// Add ct[1] * s and noise
 	if ct.IsNTT {
 		ringQ.MulCoeffsMontgomeryThenAdd(ct.Value[1], sk.Value.Q, shareOut.Value[0])
-		pcks.gaussianSampler.Read(pcks.buf)
-		ringQ.NTT(pcks.buf, pcks.buf)
-		ringQ.Add(shareOut.Value[0], pcks.buf, shareOut.Value[0])
+		pcks.noiseSampler.Read(pcks.buff)
+		ringQ.NTT(pcks.buff, pcks.buff)
+		ringQ.Add(shareOut.Value[0], pcks.buff, shareOut.Value[0])
 	} else {
-		ringQ.NTTLazy(ct.Value[1], pcks.buf)
-		ringQ.MulCoeffsMontgomeryLazy(pcks.buf, sk.Value.Q, pcks.buf)
-		ringQ.INTT(pcks.buf, pcks.buf)
-		pcks.gaussianSampler.ReadAndAdd(pcks.buf)
-		ringQ.Add(shareOut.Value[0], pcks.buf, shareOut.Value[0])
+		ringQ.NTTLazy(ct.Value[1], pcks.buff)
+		ringQ.MulCoeffsMontgomeryLazy(pcks.buff, sk.Value.Q, pcks.buff)
+		ringQ.INTT(pcks.buff, pcks.buff)
+		pcks.noiseSampler.ReadAndAdd(pcks.buff)
+		ringQ.Add(shareOut.Value[0], pcks.buff, shareOut.Value[0])
 	}
 }
 

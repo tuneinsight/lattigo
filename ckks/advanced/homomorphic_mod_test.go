@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/tuneinsight/lattigo/v4/ckks"
-	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
@@ -44,8 +44,7 @@ func TestHomomorphicMod(t *testing.T) {
 			0x1fffffffff500001, // Pi 61
 			0x1fffffffff420001, // Pi 61
 		},
-		H:        192,
-		Sigma:    rlwe.DefaultSigma,
+		Xs:       &distribution.Ternary{H: 192},
 		LogSlots: 13,
 		LogScale: 45,
 	}

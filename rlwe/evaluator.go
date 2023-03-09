@@ -110,6 +110,32 @@ func (eval *Evaluator) Parameters() Parameters {
 	return eval.params
 }
 
+// CheckAndGetGaloisKey returns an error if the GaloisKey for the given Galois element is missing or the EvaluationKey interface is nil.
+func (eval *Evaluator) CheckAndGetGaloisKey(galEl uint64) (evk *GaloisKey, err error) {
+	if eval.EvaluationKeySetInterface != nil {
+		if evk, err = eval.GetGaloisKey(galEl); err != nil {
+			return nil, fmt.Errorf("%w: key for galEl %d = 5^{%d} key is missing", err, galEl, eval.params.RotationFromGaloisElement(galEl))
+		}
+	} else {
+		return nil, fmt.Errorf("evaluation key interface is nil")
+	}
+
+	return
+}
+
+// CheckAndGetRelinearizationKey returns an error if the RelinearizationKey is missing or the EvaluationKey interface is nil.
+func (eval *Evaluator) CheckAndGetRelinearizationKey() (evk *RelinearizationKey, err error) {
+	if eval.EvaluationKeySetInterface != nil {
+		if evk, err = eval.GetRelinearizationKey(); err != nil {
+			return nil, fmt.Errorf("%w: relineariztion key is missing", err)
+		}
+	} else {
+		return nil, fmt.Errorf("evaluation key interface is nil")
+	}
+
+	return
+}
+
 // CheckBinary checks that:
 //
 //	Inputs are not nil

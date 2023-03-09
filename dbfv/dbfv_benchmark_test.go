@@ -60,21 +60,21 @@ func benchRefresh(tc *testContext, b *testing.B) {
 
 	crp := p.SampleCRP(ciphertext.Level(), tc.crs)
 
-	b.Run(testString("Refresh/Round1/Gen/", tc.NParties, tc.params), func(b *testing.B) {
+	b.Run(testString("Refresh/Round1/Gen", tc.NParties, tc.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			p.GenShare(p.s, ciphertext, crp, p.share)
 		}
 	})
 
-	b.Run(testString("Refresh/Round1/Agg/", tc.NParties, tc.params), func(b *testing.B) {
+	b.Run(testString("Refresh/Round1/Agg", tc.NParties, tc.params), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			p.AggregateShares(p.share, p.share, p.share)
 		}
 	})
 
-	b.Run(testString("Refresh/Finalize/", tc.NParties, tc.params), func(b *testing.B) {
+	b.Run(testString("Refresh/Finalize", tc.NParties, tc.params), func(b *testing.B) {
 		ctOut := bfv.NewCiphertext(tc.params, 1, tc.params.MaxLevel())
 		for i := 0; i < b.N; i++ {
 			p.Finalize(ciphertext, crp, p.share, ctOut)

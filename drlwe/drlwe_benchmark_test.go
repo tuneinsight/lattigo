@@ -67,14 +67,12 @@ func benchPublicKeyGen(params rlwe.Parameters, b *testing.B) {
 	crp := ckg.SampleCRP(crs)
 
 	b.Run(benchString("PublicKeyGen/Round1/Gen", params), func(b *testing.B) {
-
 		for i := 0; i < b.N; i++ {
 			ckg.GenShare(sk, crp, s1)
 		}
 	})
 
 	b.Run(benchString("PublicKeyGen/Round1/Agg", params), func(b *testing.B) {
-
 		for i := 0; i < b.N; i++ {
 			ckg.AggregateShares(s1, s1, s1)
 		}
@@ -132,14 +130,12 @@ func benchRotKeyGen(params rlwe.Parameters, b *testing.B) {
 	crp := rtg.SampleCRP(crs)
 
 	b.Run(benchString("RotKeyGen/Round1/Gen", params), func(b *testing.B) {
-
 		for i := 0; i < b.N; i++ {
-			rtg.GenShare(sk, params.GaloisElementForRowRotation(), crp, share)
+			rtg.GenShare(sk, params.GaloisElementForColumnRotationBy(1), crp, share)
 		}
 	})
 
 	b.Run(benchString("RotKeyGen/Round1/Agg", params), func(b *testing.B) {
-
 		for i := 0; i < b.N; i++ {
 			rtg.AggregateShares(share, share, share)
 		}
@@ -184,7 +180,6 @@ func benchThreshold(params rlwe.Parameters, t int, b *testing.B) {
 	shamirShare := p.Thresholdizer.AllocateThresholdSecretShare()
 
 	b.Run(benchString("Thresholdizer/GenShamirSecretShare", params)+fmt.Sprintf("/threshold=%d", t), func(b *testing.B) {
-
 		for i := 0; i < b.N; i++ {
 			p.Thresholdizer.GenShamirSecretShare(shamirPks[0], p.gen, shamirShare)
 		}

@@ -693,12 +693,8 @@ func (eval *evaluator) mulRelin(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, relin b
 
 			var rlk *rlwe.RelinearizationKey
 			var err error
-			if eval.EvaluationKeySetInterface != nil {
-				if rlk, err = eval.GetRelinearizationKey(); err != nil {
-					panic(fmt.Errorf("cannot MulRelin: %w", err))
-				}
-			} else {
-				panic(fmt.Errorf("cannot MulRelin: EvaluationKeySet is nil"))
+			if rlk, err = eval.CheckAndGetRelinearizationKey(); err != nil {
+				panic(fmt.Errorf("cannot relinearize: %w", err))
 			}
 
 			tmpCt := &rlwe.Ciphertext{Value: []*ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}}
@@ -815,12 +811,8 @@ func (eval *evaluator) mulRelinThenAdd(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, 
 
 			var rlk *rlwe.RelinearizationKey
 			var err error
-			if eval.EvaluationKeySetInterface != nil {
-				if rlk, err = eval.GetRelinearizationKey(); err != nil {
-					panic(fmt.Errorf("cannot MulRelin: %w", err))
-				}
-			} else {
-				panic(fmt.Errorf("cannot MulRelin: EvaluationKeySet is nil"))
+			if rlk, err = eval.CheckAndGetRelinearizationKey(); err != nil {
+				panic(fmt.Errorf("cannot relinearize: %w", err))
 			}
 
 			ringQ.MulCoeffsMontgomery(c01, tmp1.Value[1], c2) // c2 += c[1]*c[1]

@@ -26,8 +26,8 @@ func (eval *Evaluator) Automorphism(ctIn *Ciphertext, galEl uint64, ctOut *Ciphe
 
 	var evk *GaloisKey
 	var err error
-	if evk, err = eval.GetGaloisKey(galEl); err != nil {
-		panic(fmt.Sprintf("cannot apply Automorphism: %s: galEl key 5^%d missing\n", err, eval.params.RotationFromGaloisElement(galEl)))
+	if evk, err = eval.CheckAndGetGaloisKey(galEl); err != nil {
+		panic(fmt.Errorf("cannot apply Automorphism: %w", err))
 	}
 
 	level := utils.MinInt(ctIn.Level(), ctOut.Level())
@@ -73,8 +73,8 @@ func (eval *Evaluator) AutomorphismHoisted(level int, ctIn *Ciphertext, c1Decomp
 
 	var evk *GaloisKey
 	var err error
-	if evk, err = eval.GetGaloisKey(galEl); err != nil {
-		panic(fmt.Sprintf("cannot apply AutomorphismHoisted: %s: galEl key 5^%d missing\n", err, eval.params.RotationFromGaloisElement(galEl)))
+	if evk, err = eval.CheckAndGetGaloisKey(galEl); err != nil {
+		panic(fmt.Errorf("cannot apply AutomorphismHoisted: %w", err))
 	}
 
 	ctOut.Resize(ctOut.Degree(), level)
@@ -106,8 +106,8 @@ func (eval *Evaluator) AutomorphismHoistedLazy(levelQ int, ctIn *Ciphertext, c1D
 
 	var evk *GaloisKey
 	var err error
-	if evk, err = eval.GetGaloisKey(galEl); err != nil {
-		panic(fmt.Sprintf("cannot apply AutomorphismHoistedLazy: %s: galEl key 5^%d missing\n", err, eval.params.RotationFromGaloisElement(galEl)))
+	if evk, err = eval.CheckAndGetGaloisKey(galEl); err != nil {
+		panic(fmt.Errorf("cannot apply AutomorphismHoistedLazy: %w", err))
 	}
 
 	levelP := evk.LevelP()

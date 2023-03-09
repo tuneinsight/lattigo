@@ -604,19 +604,15 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix Linear
 
 			galEl := eval.params.GaloisElementForColumnRotationBy(k)
 
-			var rtk *rlwe.GaloisKey
+			var evk *rlwe.GaloisKey
 			var err error
-			if eval.EvaluationKeySetInterface != nil {
-				if rtk, err = eval.GetGaloisKey(galEl); err != nil {
-					panic(fmt.Errorf("MultiplyByDiagMatrix: %w", err))
-				}
-			} else {
-				panic(fmt.Errorf("MultiplyByDiagMatrix: EvaluationKeySetInterface is nil"))
+			if evk, err = eval.CheckAndGetGaloisKey(galEl); err != nil {
+				panic(fmt.Errorf("cannot apply Automorphism: %w", err))
 			}
 
 			index := eval.AutomorphismIndex[galEl]
 
-			eval.GadgetProductHoistedLazy(levelQ, BuffDecompQP, rtk.GadgetCiphertext, ksRes)
+			eval.GadgetProductHoistedLazy(levelQ, BuffDecompQP, evk.GadgetCiphertext, ksRes)
 			ringQ.Add(ksRes0QP.Q, ct0TimesP, ksRes0QP.Q)
 
 			ringQP.AutomorphismNTTWithIndex(ksRes0QP, index, tmp0QP)
@@ -769,18 +765,14 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Li
 
 			galEl := eval.params.GaloisElementForColumnRotationBy(j)
 
-			var rtk *rlwe.GaloisKey
+			var evk *rlwe.GaloisKey
 			var err error
-			if eval.EvaluationKeySetInterface != nil {
-				if rtk, err = eval.GetGaloisKey(galEl); err != nil {
-					panic(fmt.Errorf("MultiplyByDiagMatrix: %w", err))
-				}
-			} else {
-				panic(fmt.Errorf("MultiplyByDiagMatrix: EvaluationKeySetInterface is nil"))
+			if evk, err = eval.CheckAndGetGaloisKey(galEl); err != nil {
+				panic(fmt.Errorf("cannot apply Automorphism: %w", err))
 			}
 
 			rotIndex := eval.AutomorphismIndex[galEl]
-			eval.GadgetProductLazy(levelQ, tmp1QP.Q, rtk.GadgetCiphertext, cQP) // EvaluationKey(P*phi(tmpRes_1)) = (d0, d1) in base QP
+			eval.GadgetProductLazy(levelQ, tmp1QP.Q, evk.GadgetCiphertext, cQP) // EvaluationKey(P*phi(tmpRes_1)) = (d0, d1) in base QP
 			ringQP.Add(cQP.Value[0], tmp0QP, cQP.Value[0])
 
 			// Outer loop rotations

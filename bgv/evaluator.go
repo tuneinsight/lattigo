@@ -167,32 +167,6 @@ func (eval *evaluator) WithKey(evk rlwe.EvaluationKeySetInterface) Evaluator {
 	}
 }
 
-func (eval *evaluator) checkBinary(op0, op1, opOut rlwe.Operand, opOutMinDegree int) {
-	if op0 == nil || op1 == nil || opOut == nil {
-		panic("cannot checkBinary: rlwe.Operands cannot be nil")
-	}
-
-	if op0.Degree()+op1.Degree() == 0 {
-		panic("cannot checkBinary: rlwe.Operands cannot be both plaintext")
-	}
-
-	if opOut.Degree() < opOutMinDegree {
-		opOut.El().Resize(opOutMinDegree, opOut.Level())
-	}
-
-	if op0.Degree() > 2 || op1.Degree() > 2 || opOut.Degree() > 2 {
-		panic("cannot checkBinary: rlwe.Operands degree cannot be larger than 2")
-	}
-
-	for !op0.El().IsNTT {
-		panic("cannot checkBinary: op0 must be in NTT")
-	}
-
-	for !op1.El().IsNTT {
-		panic("cannot checkBinary: op1 must be in NTT")
-	}
-}
-
 func (eval *evaluator) evaluateInPlace(level int, el0, el1, elOut *rlwe.Ciphertext, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly)) {
 
 	smallest, largest, _ := rlwe.GetSmallestLargest(el0.El(), el1.El())
@@ -406,9 +380,7 @@ func (eval *evaluator) MulRelin(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *
 
 func (eval *evaluator) mulRelin(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, relin bool, ctOut *rlwe.Ciphertext) {
 
-	eval.checkBinary(ctIn, op1, ctOut, utils.MaxInt(ctIn.Degree(), op1.Degree()))
-
-	level := utils.MinInt(utils.MinInt(ctIn.Level(), op1.Level()), ctOut.Level())
+	_, level := eval.CheckBinary(ctIn, op1, ctOut, utils.MaxInt(ctIn.Degree(), op1.Degree()))
 
 	if ctOut.Level() > level {
 		eval.DropLevel(ctOut, ctOut.Level()-level)
@@ -474,12 +446,8 @@ func (eval *evaluator) mulRelin(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, relin b
 
 			var rlk *rlwe.RelinearizationKey
 			var err error
-			if eval.EvaluationKeySetInterface != nil {
-				if rlk, err = eval.GetRelinearizationKey(); err != nil {
-					panic(fmt.Errorf("cannot MulRelin: %w", err))
-				}
-			} else {
-				panic(fmt.Errorf("cannot MulRelin: EvaluationKeySet is nil"))
+			if rlk, err = eval.CheckAndGetRelinearizationKey(); err != nil {
+				panic(fmt.Errorf("cannot relinearize: %w", err))
 			}
 
 			tmpCt := &rlwe.Ciphertext{Value: []*ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}}
@@ -524,9 +492,7 @@ func (eval *evaluator) MulRelinThenAdd(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, 
 
 func (eval *evaluator) mulRelinThenAdd(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, relin bool, ctOut *rlwe.Ciphertext) {
 
-	eval.checkBinary(ctIn, op1, ctOut, utils.MaxInt(ctIn.Degree(), op1.Degree()))
-
-	level := utils.MinInt(utils.MinInt(ctIn.Level(), op1.Level()), ctOut.Level())
+	_, level := eval.CheckBinary(ctIn, op1, ctOut, utils.MaxInt(ctIn.Degree(), op1.Degree()))
 
 	if ctIn.Degree()+op1.Degree() > 2 {
 		panic("cannot MulRelinThenAdd: input elements total degree cannot be larger than 2")
@@ -591,13 +557,10 @@ func (eval *evaluator) mulRelinThenAdd(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, 
 
 			var rlk *rlwe.RelinearizationKey
 			var err error
-			if eval.EvaluationKeySetInterface != nil {
-				if rlk, err = eval.GetRelinearizationKey(); err != nil {
-					panic(fmt.Errorf("cannot MulRelin: %w", err))
-				}
-			} else {
-				panic(fmt.Errorf("cannot MulRelin: EvaluationKeySet is nil"))
+			if rlk, err = eval.CheckAndGetRelinearizationKey(); err != nil {
+				panic(fmt.Errorf("cannot relinearize: %w", err))
 			}
+
 			ringQ.MulCoeffsMontgomery(c01, tmp1.Value[1], c2) // c2 += c[1]*c[1]
 
 			tmpCt := &rlwe.Ciphertext{Value: []*ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}}

@@ -2,6 +2,30 @@
 # Changelog
 All notable changes to this library are documented in this file.
 
+## UNRELEASED [4.1.x] - xxxx-xx-xx
+- All: all tests and benchmarks in package other than the `RLWE` and `DRLWE` package that were merely wrapper of methods of the `RLWE` or `DRLWE` have been removed and/or moved to the `RLWE` and `DRLWE` packages.
+- RLWE: added accurate noise bounds for the tests.
+- RLWE: replaced `rlwe.DefaultParameters` by `rlwe.TestParametersLiteral`.
+- RLWE: substantially increased the test coverage of `rlwe` (both for the amount of operations but also parameters).
+- RLWE: substantially increased the number of benchmarked operations in `rlwe`.
+- RLWE: fixed all methods of the `rlwe.Evaluator` to work with operands in and out of the NTT domain.
+- RLWE: added `EvaluationKeySetInterface`, which enables users to provide custom loading/saving/persistence policies and implementation for the `EvaluationKeys`.
+- RLWE: added the `Evaluator`methods `CheckAndGetGaloisKey` and `CheckAndGetRelinearizationKey` to safely check and get the corresponding `EvaluationKeys`.
+- RLWE: `SwitchingKey` has been renamed `EvaluationKey` to better convey that theses are public keys used during the evaluation phase of a circuit. All methods and variables names have been accordingly renamed.
+- RLWE: the method `SwitchKeys` of the `Evaluator` has been renamed `ApplyEvaluationKey`.
+- RLWE: the struct `RotationKeySet` holding a map of `SwitchingKeys` has been replaced by the struct `GaloisKey` holding a single `EvaluationKey`.
+- RLWE: `RelinearizationKey` now only stores `s^2`, which is aligned with the capabilities of the schemes.
+- RLWE: `rlwe.KeyGenerator` isn't an interface anymore.
+- RLWE: simplified the `rlwe.KeyGenerator`: methods to generate specific sets of `rlwe.GaloisKey` have been removed, instead the corresponding method on `rlwe.Parameters` allows to get the appropriate `GaloisElement`s.
+- RLWE: added methods on `rlwe.Parameters` to get the noise standard deviation for fresh ciphertexts.
+- RLWE: improved the API consistency of the `rlwe.KeyGenerator`. Methods that allocate elements have the suffix `New`. Added corresponding in place methods.
+- DRLWE: added accurate noise bounds for the tests.
+- DRLWE: fixed `CKS` and `PCKS` smudging noise to not be rescaled by `P`.
+- DRLWE: improved the GoDoc of the protocols.
+- RING: replaced  `Log2OfInnerSum` by `Log2OfStandardDeviation` in the `ring` package, which returns the log2 of the standard deviation of the coefficients of a polynomial.
+- RING: renamed `Permute[...]` by `Automorphism[...]` in the `ring` package.
+- RING: added non-NTT `Automorphism` support for the `ConjugateInvariant` ring.
+
 ## UNRELEASED [4.1.x] - 2022-03-09
 - CKKS: renamed the `Parameters` field `DefaultScale` to `LogScale`, which now takes a value in log2.
 - CKKS: the `Parameters` field `LogSlots` now has a default value which is the maximum number of slots possible for the given parameters.

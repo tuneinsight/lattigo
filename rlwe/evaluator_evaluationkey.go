@@ -115,17 +115,13 @@ func (eval *Evaluator) applyEvaluationKey(level int, ctIn *Ciphertext, evk *Eval
 func (eval *Evaluator) Relinearize(ctIn *Ciphertext, ctOut *Ciphertext) {
 
 	if ctIn.Degree() != 2 {
-		panic(fmt.Errorf("Relinearize: ctIn.Degree() should be 2 but is %d", ctIn.Degree()))
+		panic(fmt.Errorf("cannot relinearize: ctIn.Degree() should be 2 but is %d", ctIn.Degree()))
 	}
 
 	var rlk *RelinearizationKey
 	var err error
-	if eval.EvaluationKeySetInterface != nil {
-		if rlk, err = eval.GetRelinearizationKey(); err != nil {
-			panic(fmt.Errorf("Relinearize: %w", err))
-		}
-	} else {
-		panic(fmt.Errorf("Relinearize: EvaluationKeySet is nil"))
+	if rlk, err = eval.CheckAndGetRelinearizationKey(); err != nil {
+		panic(fmt.Errorf("cannot relinearize: %w", err))
 	}
 
 	level := utils.MinInt(ctIn.Level(), ctOut.Level())

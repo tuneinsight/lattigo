@@ -1,26 +1,44 @@
-package bootstrapping
+package ckks
 
 import (
-	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
 // SecretKeyBootstrapper is an implementation of the rlwe.Bootstrapping interface that
 // uses the secret-key to decrypt and re-encrypt the bootstrapped ciphertext.
 type SecretKeyBootstrapper struct {
-	ckks.Parameters
-	ckks.Encoder
+	Parameters
+	*Encoder
 	rlwe.Decryptor
 	rlwe.Encryptor
+	sk      *rlwe.SecretKey
+	Values  []*bignum.Complex
 	Counter int // records the number of bootstrapping
 }
 
-func NewSecretKeyBootstrapper(params ckks.Parameters, sk *rlwe.SecretKey) rlwe.Bootstrapper {
-	return &SecretKeyBootstrapper{params, ckks.NewEncoder(params), ckks.NewDecryptor(params, sk), ckks.NewEncryptor(params, sk), 0}
+func NewSecretKeyBootstrapper(params Parameters, sk *rlwe.SecretKey) rlwe.Bootstrapper {
+	return &SecretKeyBootstrapper{
+		params,
+		NewEncoder(params),
+		NewDecryptor(params, sk),
+		NewEncryptor(params, sk),
+		sk,
+		make([]*bignum.Complex, params.N()),
+		0}
 }
 
 func (d *SecretKeyBootstrapper) Bootstrap(ct *rlwe.Ciphertext) (*rlwe.Ciphertext, error) {
-	pt := d.EncodeNew(d.Decode(d.DecryptNew(ct), d.LogSlots()), d.MaxLevel(), d.DefaultScale(), d.LogSlots())
+	values := d.Values[:1<<ct.LogSlots]
+	if err := d.Decode(d.DecryptNew(ct), values); err != nil {
+		return nil, err
+	}
+	pt := NewPlaintext(d.Parameters, d.MaxLevel())
+	pt.MetaData = ct.MetaData
+	pt.Scale = d.params.DefaultScale()
+	if err := d.Encode(values, pt); err != nil {
+		return nil, err
+	}
 	ct.Resize(1, d.MaxLevel())
 	d.Encrypt(pt, ct)
 	d.Counter++
@@ -42,6 +60,6 @@ func (d *SecretKeyBootstrapper) MinimumInputLevel() int {
 	return 0
 }
 
-func (d *SecretKeyBootstrapper) OutputLevel() int {
+func (d *SecretKeyBootstrapper) OuputLevel() int {
 	return d.MaxLevel()
 }

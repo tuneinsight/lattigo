@@ -146,13 +146,22 @@ func (p *ParametersLiteral) GetLogSlots(LogN int) (LogSlots int, err error) {
 
 // GetCoeffsToSlotsFactorizationDepthAndLogScales returns a copy of the CoeffsToSlotsFactorizationDepthAndLogScales field of the target ParametersLiteral.
 // The default value constructed from DefaultC2SFactorization and DefaultC2SLogScale is returned if the field is nil.
-func (p *ParametersLiteral) GetCoeffsToSlotsFactorizationDepthAndLogScales(LogSlots int) (CoeffsToSlotsFactorizationDepthAndLogScales [][]int) {
+func (p *ParametersLiteral) GetCoeffsToSlotsFactorizationDepthAndLogScales(LogSlots int) (CoeffsToSlotsFactorizationDepthAndLogScales [][]int, err error) {
 	if p.CoeffsToSlotsFactorizationDepthAndLogScales == nil {
 		CoeffsToSlotsFactorizationDepthAndLogScales = make([][]int, utils.MinInt(DefaultCoeffsToSlotsFactorizationDepth, utils.MaxInt(LogSlots, 1)))
 		for i := range CoeffsToSlotsFactorizationDepthAndLogScales {
 			CoeffsToSlotsFactorizationDepthAndLogScales[i] = []int{DefaultCoeffsToSlotsLogScale}
 		}
 	} else {
+		var depth int
+		for _, level := range p.CoeffsToSlotsFactorizationDepthAndLogScales {
+			for range level {
+				depth++
+				if depth > LogSlots {
+					return nil, fmt.Errorf("field CoeffsToSlotsFactorizationDepthAndLogScales cannot contain parameters for a depth > LogSlots")
+				}
+			}
+		}
 		CoeffsToSlotsFactorizationDepthAndLogScales = p.CoeffsToSlotsFactorizationDepthAndLogScales
 	}
 	return
@@ -160,13 +169,22 @@ func (p *ParametersLiteral) GetCoeffsToSlotsFactorizationDepthAndLogScales(LogSl
 
 // GetSlotsToCoeffsFactorizationDepthAndLogScales returns a copy of the SlotsToCoeffsFactorizationDepthAndLogScales field of the target ParametersLiteral.
 // The default value constructed from DefaultS2CFactorization and DefaultS2CLogScale is returned if the field is nil.
-func (p *ParametersLiteral) GetSlotsToCoeffsFactorizationDepthAndLogScales(LogSlots int) (SlotsToCoeffsFactorizationDepthAndLogScales [][]int) {
+func (p *ParametersLiteral) GetSlotsToCoeffsFactorizationDepthAndLogScales(LogSlots int) (SlotsToCoeffsFactorizationDepthAndLogScales [][]int, err error) {
 	if p.SlotsToCoeffsFactorizationDepthAndLogScales == nil {
 		SlotsToCoeffsFactorizationDepthAndLogScales = make([][]int, utils.MinInt(DefaultSlotsToCoeffsFactorizationDepth, utils.MaxInt(LogSlots, 1)))
 		for i := range SlotsToCoeffsFactorizationDepthAndLogScales {
 			SlotsToCoeffsFactorizationDepthAndLogScales[i] = []int{DefaultSlotsToCoeffsLogScale}
 		}
 	} else {
+		var depth int
+		for _, level := range p.SlotsToCoeffsFactorizationDepthAndLogScales {
+			for range level {
+				depth++
+				if depth > LogSlots {
+					return nil, fmt.Errorf("field SlotsToCoeffsFactorizationDepthAndLogScales cannot contain parameters for a depth > LogSlots")
+				}
+			}
+		}
 		SlotsToCoeffsFactorizationDepthAndLogScales = p.SlotsToCoeffsFactorizationDepthAndLogScales
 	}
 	return
@@ -317,14 +335,22 @@ func (p *ParametersLiteral) GetEphemeralSecretWeight() (EphemeralSecretWeight in
 // The value is rounded up and thus will overestimate the value by up to 1 bit.
 func (p *ParametersLiteral) BitComsumption(LogSlots int) (logQ int, err error) {
 
-	C2SLogScale := p.GetCoeffsToSlotsFactorizationDepthAndLogScales(LogSlots)
+	var C2SLogScale [][]int
+	if C2SLogScale, err = p.GetCoeffsToSlotsFactorizationDepthAndLogScales(LogSlots); err != nil {
+		return
+	}
+
 	for i := range C2SLogScale {
 		for _, logQi := range C2SLogScale[i] {
 			logQ += logQi
 		}
 	}
 
-	S2CLogScale := p.GetSlotsToCoeffsFactorizationDepthAndLogScales(LogSlots)
+	var S2CLogScale [][]int
+	if S2CLogScale, err = p.GetSlotsToCoeffsFactorizationDepthAndLogScales(LogSlots); err != nil {
+		return
+	}
+
 	for i := range S2CLogScale {
 		for _, logQi := range S2CLogScale[i] {
 			logQ += logQi

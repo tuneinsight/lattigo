@@ -164,7 +164,7 @@ func (btp *Bootstrapper) modUpFromQ0(ct *rlwe.Ciphertext) *rlwe.Ciphertext {
 
 	if btp.EvkStD != nil {
 
-		ks := btp.GetRLWEEvaluator()
+		ks := btp.Evaluator.Evaluator
 
 		// ModUp q->QP for ct[1] centered around q
 		for j := 0; j < N; j++ {

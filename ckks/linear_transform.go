@@ -14,7 +14,7 @@ import (
 
 // TraceNew maps X -> sum((-1)^i * X^{i*n+1}) for 0 <= i < N and returns the result on a new ciphertext.
 // For log(n) = logSlots.
-func (eval *evaluator) TraceNew(ctIn *rlwe.Ciphertext, logSlots int) (ctOut *rlwe.Ciphertext) {
+func (eval *Evaluator) TraceNew(ctIn *rlwe.Ciphertext, logSlots int) (ctOut *rlwe.Ciphertext) {
 	ctOut = NewCiphertext(eval.params, 1, ctIn.Level())
 	eval.Trace(ctIn, logSlots, ctOut)
 	return
@@ -26,7 +26,7 @@ func (eval *evaluator) TraceNew(ctIn *rlwe.Ciphertext, logSlots int) (ctOut *rlw
 // Example for batchSize=4 and slots=8: [{a, b, c, d}, {e, f, g, h}] -> [0.5*{a+e, b+f, c+g, d+h}, 0.5*{a+e, b+f, c+g, d+h}]
 // Operation requires log2(SlotCout/'batchSize') rotations.
 // Required rotation keys can be generated with 'RotationsForInnerSumLog(batchSize, SlotCount/batchSize)”
-func (eval *evaluator) Average(ctIn *rlwe.Ciphertext, logBatchSize int, ctOut *rlwe.Ciphertext) {
+func (eval *Evaluator) Average(ctIn *rlwe.Ciphertext, logBatchSize int, ctOut *rlwe.Ciphertext) {
 
 	if ctIn.Degree() != 1 || ctOut.Degree() != 1 {
 		panic("ctIn.Degree() != 1 or ctOut.Degree() != 1")
@@ -57,7 +57,7 @@ func (eval *evaluator) Average(ctIn *rlwe.Ciphertext, logBatchSize int, ctOut *r
 
 // RotateHoistedNew takes an input Ciphertext and a list of rotations and returns a map of Ciphertext, where each element of the map is the input Ciphertext
 // rotation by one element of the list. It is much faster than sequential calls to Rotate.
-func (eval *evaluator) RotateHoistedNew(ctIn *rlwe.Ciphertext, rotations []int) (ctOut map[int]*rlwe.Ciphertext) {
+func (eval *Evaluator) RotateHoistedNew(ctIn *rlwe.Ciphertext, rotations []int) (ctOut map[int]*rlwe.Ciphertext) {
 	ctOut = make(map[int]*rlwe.Ciphertext)
 	for _, i := range rotations {
 		ctOut[i] = NewCiphertext(eval.params, 1, ctIn.Level())
@@ -69,7 +69,7 @@ func (eval *evaluator) RotateHoistedNew(ctIn *rlwe.Ciphertext, rotations []int) 
 // RotateHoisted takes an input Ciphertext and a list of rotations and populates a map of pre-allocated Ciphertexts,
 // where each element of the map is the input Ciphertext rotation by one element of the list.
 // It is much faster than sequential calls to Rotate.
-func (eval *evaluator) RotateHoisted(ctIn *rlwe.Ciphertext, rotations []int, ctOut map[int]*rlwe.Ciphertext) {
+func (eval *Evaluator) RotateHoisted(ctIn *rlwe.Ciphertext, rotations []int, ctOut map[int]*rlwe.Ciphertext) {
 	levelQ := ctIn.Level()
 	eval.DecomposeNTT(levelQ, eval.params.MaxLevelP(), eval.params.PCount(), ctIn.Value[1], ctIn.IsNTT, eval.BuffDecompQP)
 	for _, i := range rotations {
@@ -502,7 +502,7 @@ func FindBestBSGSRatio(diagMatrix interface{}, maxN int, logMaxRatio int) (minN 
 // In either case, a list of Ciphertext is returned (the second case returning a list
 // containing a single Ciphertext). A PtDiagMatrix is a diagonalized plaintext matrix constructed with an Encoder using
 // the method encoder.EncodeDiagMatrixAtLvl(*).
-func (eval *evaluator) LinearTransformNew(ctIn *rlwe.Ciphertext, linearTransform interface{}) (ctOut []*rlwe.Ciphertext) {
+func (eval *Evaluator) LinearTransformNew(ctIn *rlwe.Ciphertext, linearTransform interface{}) (ctOut []*rlwe.Ciphertext) {
 
 	switch LTs := linearTransform.(type) {
 	case []LinearTransform:
@@ -553,7 +553,7 @@ func (eval *evaluator) LinearTransformNew(ctIn *rlwe.Ciphertext, linearTransform
 // In either case a list of Ciphertext is returned (the second case returning a list
 // containing a single Ciphertext). A PtDiagMatrix is a diagonalized plaintext matrix constructed with an Encoder using
 // the method encoder.EncodeDiagMatrixAtLvl(*).
-func (eval *evaluator) LinearTransform(ctIn *rlwe.Ciphertext, linearTransform interface{}, ctOut []*rlwe.Ciphertext) {
+func (eval *Evaluator) LinearTransform(ctIn *rlwe.Ciphertext, linearTransform interface{}, ctOut []*rlwe.Ciphertext) {
 
 	switch LTs := linearTransform.(type) {
 	case []LinearTransform:
@@ -597,7 +597,7 @@ func (eval *evaluator) LinearTransform(ctIn *rlwe.Ciphertext, linearTransform in
 // respectively, each of size params.Beta().
 // The naive approach is used (single hoisting and no baby-step giant-step), which is faster than MultiplyByDiagMatrixBSGS
 // for matrix of only a few non-zero diagonals but uses more keys.
-func (eval *evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix LinearTransform, BuffDecompQP []ringqp.Poly, ctOut *rlwe.Ciphertext) {
+func (eval *Evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix LinearTransform, BuffDecompQP []ringqp.Poly, ctOut *rlwe.Ciphertext) {
 
 	levelQ := utils.Min(ctOut.Level(), utils.Min(ctIn.Level(), matrix.Level))
 	levelP := eval.params.RingP().MaxLevel()
@@ -628,9 +628,9 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix Linear
 	}
 	ksRes.MetaData.IsNTT = true
 
-	ring.Copy(ctIn.Value[0], eval.buffCt.Value[0])
-	ring.Copy(ctIn.Value[1], eval.buffCt.Value[1])
-	ctInTmp0, ctInTmp1 := eval.buffCt.Value[0], eval.buffCt.Value[1]
+	ring.Copy(ctIn.Value[0], eval.BuffCt.Value[0])
+	ring.Copy(ctIn.Value[1], eval.BuffCt.Value[1])
+	ctInTmp0, ctInTmp1 := eval.BuffCt.Value[0], eval.BuffCt.Value[1]
 
 	ringQ.MulScalarBigint(ctInTmp0, ringP.Modulus(), ct0TimesP) // P*c0
 
@@ -710,7 +710,7 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix Linear
 // respectively, each of size params.Beta().
 // The BSGS approach is used (double hoisting with baby-step giant-step), which is faster than MultiplyByDiagMatrix
 // for matrix with more than a few non-zero diagonals and uses significantly less keys.
-func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix LinearTransform, PoolDecompQP []ringqp.Poly, ctOut *rlwe.Ciphertext) {
+func (eval *Evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix LinearTransform, PoolDecompQP []ringqp.Poly, ctOut *rlwe.Ciphertext) {
 
 	levelQ := utils.Min(ctOut.Level(), utils.Min(ctIn.Level(), matrix.Level))
 	levelP := eval.params.RingP().MaxLevel()
@@ -728,13 +728,13 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Li
 	// Computes the N2 rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giant-step algorithm
 	index, _, rotN2 := BSGSIndex(matrix.Vec, 1<<matrix.LogSlots, matrix.N1)
 
-	ring.Copy(ctIn.Value[0], eval.buffCt.Value[0])
-	ring.Copy(ctIn.Value[1], eval.buffCt.Value[1])
+	ring.Copy(ctIn.Value[0], eval.BuffCt.Value[0])
+	ring.Copy(ctIn.Value[1], eval.BuffCt.Value[1])
 
-	ctInTmp0, ctInTmp1 := eval.buffCt.Value[0], eval.buffCt.Value[1]
+	ctInTmp0, ctInTmp1 := eval.BuffCt.Value[0], eval.BuffCt.Value[1]
 
 	// Pre-rotates ciphertext for the baby-step giant-step algorithm, does not divide by P yet
-	ctInRotQP := eval.RotateHoistedLazyNew(levelQ, rotN2, eval.buffCt, eval.BuffDecompQP)
+	ctInRotQP := eval.RotateHoistedLazyNew(levelQ, rotN2, eval.BuffCt, eval.BuffDecompQP)
 
 	// Accumulator inner loop
 	tmp0QP := eval.BuffQP[1]

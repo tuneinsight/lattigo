@@ -144,13 +144,12 @@ func (eval *Evaluator) CheckAndGetRelinearizationKey() (evk *RelinearizationKey,
 
 // CheckBinary checks that:
 //
-//		Inputs are not nil
-//		op0.Degree() + op1.Degree() != 0 (i.e at least one operand is a ciphertext)
-//		opOut.Degree() >= opOutMinDegree
-//		op0.IsNTT == op1.IsNTT == DefaultNTTFlag
-//	 op0.EncodingDomain == op1.EncodingDomain
+// Inputs are not nil
+// op0.Degree() + op1.Degree() != 0 (i.e at least one operand is a ciphertext)
+// op0.IsNTT == op1.IsNTT == DefaultNTTFlag
+// op0.EncodingDomain == op1.EncodingDomain
 //
-// The method will also update the MetaData of OpOut:
+// The method will also resize opOut to the correct degree and level, and update its MetaData:
 //
 // IsNTT <- DefaultNTTFlag
 // EncodingDomain <- op0.EncodingDomain
@@ -178,12 +177,6 @@ func (eval *Evaluator) CheckBinary(op0, op1, opOut Operand, opOutMinDegree int) 
 		opOut.El().IsNTT = op0.El().IsNTT
 	}
 
-	if op0.El().IsNTT != op1.El().IsNTT || op0.El().IsNTT != eval.params.DefaultNTTFlag() {
-		panic(fmt.Sprintf("op0.El().IsNTT or op1.El().IsNTT != %t", eval.params.DefaultNTTFlag()))
-	} else {
-		opOut.El().IsNTT = op0.El().IsNTT
-	}
-
 	if op0.El().EncodingDomain != op1.El().EncodingDomain {
 		panic("op1.El().EncodingDomain != op2.El().EncodingDomain")
 	} else {
@@ -191,6 +184,8 @@ func (eval *Evaluator) CheckBinary(op0, op1, opOut Operand, opOutMinDegree int) 
 	}
 
 	opOut.El().LogSlots = utils.MaxInt(op0.El().LogSlots, op1.El().LogSlots)
+
+	opOut.El().Resize(utils.MaxInt(opOutMinDegree, opOut.Degree()), level)
 
 	return
 }

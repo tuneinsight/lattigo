@@ -35,8 +35,15 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 		return ckks.ParametersLiteral{}, Parameters{}, err
 	}
 
-	CoeffsToSlotsFactorizationDepthAndLogScales := btpLit.GetCoeffsToSlotsFactorizationDepthAndLogScales(LogSlots)
-	SlotsToCoeffsFactorizationDepthAndLogScales := btpLit.GetSlotsToCoeffsFactorizationDepthAndLogScales(LogSlots)
+	var CoeffsToSlotsFactorizationDepthAndLogScales [][]int
+	if CoeffsToSlotsFactorizationDepthAndLogScales, err = btpLit.GetCoeffsToSlotsFactorizationDepthAndLogScales(LogSlots); err != nil {
+		return ckks.ParametersLiteral{}, Parameters{}, err
+	}
+
+	var SlotsToCoeffsFactorizationDepthAndLogScales [][]int
+	if SlotsToCoeffsFactorizationDepthAndLogScales, err = btpLit.GetSlotsToCoeffsFactorizationDepthAndLogScales(LogSlots); err != nil {
+		return ckks.ParametersLiteral{}, Parameters{}, err
+	}
 
 	// Slots To Coeffs params
 	SlotsToCoeffsLevels := make([]int, len(SlotsToCoeffsFactorizationDepthAndLogScales))

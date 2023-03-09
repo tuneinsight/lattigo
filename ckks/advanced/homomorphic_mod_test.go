@@ -136,10 +136,18 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 		ciphertext = eval.EvalModNew(ciphertext, EvalModPoly)
 
 		// PlaintextCircuit
-		//pi2r := 6.283185307179586/complex(math.Exp2(float64(evm.DoubleAngle)), 0)
 		for i := range values {
-			values[i] -= complex(EvalModPoly.MessageRatio()*EvalModPoly.QDiff()*math.Round(real(values[i])/(EvalModPoly.MessageRatio()/EvalModPoly.QDiff())), 0)
-			//values[i] = sin2pi2pi(values[i] / complex(evm.MessageRatio*evm.QDiff(), 0)) * complex(evm.MessageRatio*evm.QDiff(), 0) / 6.283185307179586
+			x := values[i]
+
+			x /= EvalModPoly.MessageRatio()
+			x /= EvalModPoly.QDiff()
+			x = math.Sin(6.28318530717958 * x)
+			x = math.Asin(x)
+			x *= EvalModPoly.MessageRatio()
+			x *= EvalModPoly.QDiff()
+			x /= 6.28318530717958
+
+			values[i] = x
 		}
 
 		verifyTestVectors(params, encoder, decryptor, values, ciphertext, t)
@@ -149,9 +157,9 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 
 		evm := EvalModLiteral{
 			LevelStart:      12,
-			SineType:        CosContinuous,
+			SineType:        CosDiscrete,
 			LogMessageRatio: 8,
-			K:               16,
+			K:               12,
 			SineDegree:      30,
 			DoubleAngle:     3,
 			LogScale:        60,
@@ -183,8 +191,17 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 		// PlaintextCircuit
 		//pi2r := 6.283185307179586/complex(math.Exp2(float64(evm.DoubleAngle)), 0)
 		for i := range values {
-			//values[i] -= complex(EvalModPoly.MessageRatio()*EvalModPoly.QDiff()*math.Round(real(values[i])/(EvalModPoly.MessageRatio()/EvalModPoly.QDiff())), 0)
-			values[i] = complex(sin2pi2pi(real(values[i])/EvalModPoly.MessageRatio()*EvalModPoly.QDiff())*EvalModPoly.MessageRatio()*EvalModPoly.QDiff()/6.283185307179586, 0)
+
+			x := values[i]
+
+			x /= EvalModPoly.MessageRatio()
+			x /= EvalModPoly.QDiff()
+			x = math.Sin(6.28318530717958 * x)
+			x *= EvalModPoly.MessageRatio()
+			x *= EvalModPoly.QDiff()
+			x /= 6.28318530717958
+
+			values[i] = x
 		}
 
 		verifyTestVectors(params, encoder, decryptor, values, ciphertext, t)
@@ -197,7 +214,7 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 			SineType:        CosContinuous,
 			LogMessageRatio: 8,
 			K:               325,
-			SineDegree:      255,
+			SineDegree:      177,
 			DoubleAngle:     4,
 			LogScale:        60,
 		}
@@ -228,28 +245,36 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 		// PlaintextCircuit
 		//pi2r := 6.283185307179586/complex(math.Exp2(float64(EvalModPoly.DoubleAngle)), 0)
 		for i := range values {
-			//values[i] -= complex(EvalModPoly.MessageRatio()*EvalModPoly.QDiff()*math.Round(real(values[i])/(EvalModPoly.MessageRatio()/EvalModPoly.QDiff())), 0)
-			values[i] = complex(sin2pi2pi(real(values[i])/EvalModPoly.MessageRatio()*EvalModPoly.QDiff())*EvalModPoly.MessageRatio()*EvalModPoly.QDiff()/6.283185307179586, 0)
+			x := values[i]
+
+			x /= EvalModPoly.MessageRatio()
+			x /= EvalModPoly.QDiff()
+			x = math.Sin(6.28318530717958 * x)
+			x *= EvalModPoly.MessageRatio()
+			x *= EvalModPoly.QDiff()
+			x /= 6.28318530717958
+
+			values[i] = x
 		}
 
 		verifyTestVectors(params, encoder, decryptor, values, ciphertext, t)
 	})
 }
 
-func newTestVectorsEvalMod(params ckks.Parameters, encryptor rlwe.Encryptor, encoder *ckks.Encoder, evm EvalModPoly, t *testing.T) (values []complex128, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
+func newTestVectorsEvalMod(params ckks.Parameters, encryptor rlwe.Encryptor, encoder *ckks.Encoder, evm EvalModPoly, t *testing.T) (values []float64, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
 
 	logSlots := params.MaxLogSlots()
 
-	values = make([]complex128, 1<<logSlots)
+	values = make([]float64, 1<<logSlots)
 
 	K := float64(evm.K() - 1)
 	Q := float64(params.Q()[0]) / math.Exp2(math.Round(math.Log2(float64(params.Q()[0])))) * evm.MessageRatio()
 
 	for i := uint64(0); i < 1<<logSlots; i++ {
-		values[i] = complex(math.Round(sampling.RandFloat64(-K, K))*Q+sampling.RandFloat64(-1, 1), 0)
+		values[i] = math.Round(utils.RandFloat64(-K, K))*Q + utils.RandFloat64(-1, 1)
 	}
 
-	values[0] = complex(K*Q+0.5, 0)
+	values[0] = K*Q + 0.5
 
 	plaintext = ckks.NewPlaintext(params, params.MaxLevel())
 

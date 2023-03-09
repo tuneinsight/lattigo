@@ -45,7 +45,7 @@ type testContext struct {
 	encryptorPk rlwe.Encryptor
 	encryptorSk rlwe.Encryptor
 	decryptor   rlwe.Decryptor
-	evaluator   Evaluator
+	evaluator   *Evaluator
 }
 
 func TestCKKS(t *testing.T) {
@@ -347,6 +347,20 @@ func testEvaluatorAdd(tc *testContext, t *testing.T) {
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, nil, t)
 	})
+
+	t.Run(GetTestName(tc.params, "Evaluator/Add/Vector"), func(t *testing.T) {
+
+		values1, _, ciphertext := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
+		values2, _, _ := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
+
+		for i := range values1 {
+			values1[i].Add(values1[i], values2[i])
+		}
+
+		tc.evaluator.Add(ciphertext, values2, ciphertext)
+
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext, nil, t)
+	})
 }
 
 func testEvaluatorSub(tc *testContext, t *testing.T) {
@@ -408,6 +422,20 @@ func testEvaluatorSub(tc *testContext, t *testing.T) {
 		ciphertext = tc.evaluator.SubNew(ciphertext, constant)
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, nil, t)
+	})
+
+	t.Run(GetTestName(tc.params, "Evaluator/Sub/Vector"), func(t *testing.T) {
+
+		values1, _, ciphertext := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
+		values2, _, _ := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
+
+		for i := range values1 {
+			values1[i].Sub(values1[i], values2[i])
+		}
+
+		tc.evaluator.Sub(ciphertext, values2, ciphertext)
+
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext, nil, t)
 	})
 }
 
@@ -493,6 +521,22 @@ func testEvaluatorMul(tc *testContext, t *testing.T) {
 		tc.evaluator.Mul(ciphertext, constant, ciphertext)
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, nil, t)
+	})
+
+	t.Run(GetTestName(tc.params, "Evaluator/Mul/Ct/Vector"), func(t *testing.T) {
+
+		values1, _, ciphertext := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
+		values2, _, _ := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
+
+		mul := bignum.NewComplexMultiplier()
+
+		for i := range values1 {
+			mul.Mul(values1[i], values2[i], values1[i])
+		}
+
+		tc.evaluator.Mul(ciphertext, values2, ciphertext)
+
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext, nil, t)
 	})
 
 	t.Run(GetTestName(tc.params, "Evaluator/Mul/Ct/Pt"), func(t *testing.T) {
@@ -595,6 +639,29 @@ func testEvaluatorMulThenAdd(tc *testContext, t *testing.T) {
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values2, ciphertext2, nil, t)
 	})
 
+	t.Run(GetTestName(tc.params, "Evaluator/MulThenAdd/Vector"), func(t *testing.T) {
+
+		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, -1, 1, t)
+		values2, _, ciphertext2 := newTestVectors(tc, tc.encryptorSk, -1, 1, t)
+
+		tc.evaluator.MulThenAdd(ciphertext2, values1, ciphertext1)
+
+		mul := bignum.NewComplexMultiplier()
+
+		tmp := new(bignum.Complex)
+		tmp[0] = new(big.Float)
+		tmp[1] = new(big.Float)
+
+		for i := range values1 {
+			mul.Mul(values2[i], values1[i], tmp)
+			values1[i].Add(values1[i], tmp)
+		}
+
+		require.Equal(t, ciphertext1.Degree(), 1)
+
+		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, nil, t)
+	})
+
 	t.Run(GetTestName(tc.params, "Evaluator/MulThenAdd/Pt"), func(t *testing.T) {
 
 		values1, plaintext1, ciphertext1 := newTestVectors(tc, tc.encryptorSk, -1, 1, t)
@@ -678,7 +745,7 @@ func testFunctions(tc *testContext, t *testing.T) {
 		logPrec := math.Log2(tc.params.DefaultScale().Float64()) - float64(tc.params.LogN()-1)
 
 		var err error
-		if ciphertext, err = tc.evaluator.GoldschmidtDivisionNew(ciphertext, min, logPrec, NewSimpleBootstrapper(tc.params, tc.sk)); err != nil {
+		if ciphertext, err = tc.evaluator.GoldschmidtDivisionNew(ciphertext, min, logPrec, NewSecretKeyBootstrapper(tc.params, tc.sk)); err != nil {
 			t.Fatal(err)
 		}
 
@@ -762,7 +829,7 @@ func testEvaluatePoly(tc *testContext, t *testing.T) {
 			valuesWant[j] = poly.Evaluate(values[j])
 		}
 
-		if ciphertext, err = tc.evaluator.EvaluatePolyVector(ciphertext, []*bignum.Polynomial{poly}, tc.encoder, slotIndex, ciphertext.Scale); err != nil {
+		if ciphertext, err = tc.evaluator.EvaluatePolyVector(ciphertext, []*bignum.Polynomial{poly}, slotIndex, ciphertext.Scale); err != nil {
 			t.Fatal(err)
 		}
 

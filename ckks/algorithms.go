@@ -12,7 +12,7 @@ import (
 // output: Enc(1/x - e), where |e| <= (1-x)^2^(#iterations+1) -> the bit-precision doubles after each iteration.
 // The method automatically estimates how many iterations are needed to achieve the desired precision, and returns an error if the input ciphertext
 // does not have enough remaining level and if no bootstrapper was given.
-func (eval *evaluator) GoldschmidtDivisionNew(ct *rlwe.Ciphertext, minValue, logPrec float64, btp rlwe.Bootstrapper) (ctInv *rlwe.Ciphertext, err error) {
+func (eval *Evaluator) GoldschmidtDivisionNew(ct *rlwe.Ciphertext, minValue, logPrec float64, btp rlwe.Bootstrapper) (ctInv *rlwe.Ciphertext, err error) {
 
 	params := eval.params
 

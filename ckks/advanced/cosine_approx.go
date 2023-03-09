@@ -6,59 +6,117 @@ package advanced
 //    https://github.com/DohyeongKi/better-homomorphic-sine-evaluation
 
 import (
-	//"fmt"
 	"math"
 	"math/big"
+
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
-// NewFloat creates a new big.Float element with 1000 bits of precision
-func NewFloat(x float64) (y *big.Float) {
-	y = new(big.Float)
-	y.SetPrec(1000) // log2 precision
-	y.SetFloat64(x)
-	return
-}
+const (
+	defaultPrecision = uint(512)
+)
 
-// BigintCos is an iterative arbitrary precision computation of Cos(x)
-// Iterative process with an error of ~10^{−0.60206*k} after k iterations.
-// ref : Johansson, B. Tomas, An elementary algorithm to evaluate trigonometric functions to high precision, 2018
-func BigintCos(x *big.Float) (cosx *big.Float) {
+var (
+	log2TwoPi = math.Log2(2 * math.Pi)
+	aQuarter  = bignum.NewFloat(0.25, defaultPrecision)
+	pi        = bignum.Pi(defaultPrecision)
+)
+
+// ApproximateCos computes a polynomial approximation of degree "degree" in Chevyshev basis of the function
+// cos(2*pi*x/2^"scnum") in the range -"K" to "K"
+// The nodes of the Chevyshev approximation are are located from -dev to +dev at each integer value between -K and -K
+func ApproximateCos(K, degree int, dev float64, scnum int) []*big.Float {
+
+	var scfac = bignum.NewFloat(float64(int(1<<scnum)), defaultPrecision)
+
+	deg, totdeg := genDegrees(degree, K, dev)
+
+	x, p, c, totdeg := genNodes(deg, dev, totdeg, K, scnum)
+
 	tmp := new(big.Float)
 
-	k := 1000 // number of iterations
-	t := NewFloat(0.5)
-	half := new(big.Float).Copy(t)
-
-	for i := 1; i < k-1; i++ {
-		t.Mul(t, half)
+	var T = make([][]*big.Float, totdeg)
+	for i := 0; i < totdeg; i++ {
+		T[i] = make([]*big.Float, totdeg)
 	}
 
-	s := new(big.Float).Mul(x, t)
-	s.Mul(s, x)
-	s.Mul(s, t)
+	KBig := new(big.Float).SetInt64(int64(K))
 
-	four := NewFloat(4.0)
+	for i := 0; i < totdeg; i++ {
 
-	for i := 1; i < k; i++ {
-		tmp.Sub(four, s)
-		s.Mul(s, tmp)
+		T[i][0] = bignum.NewFloat(1.0, defaultPrecision)
+
+		T[i][1] = new(big.Float).Set(x[i])
+
+		tmp.Quo(KBig, scfac)
+
+		T[i][1].Quo(T[i][1], tmp)
+
+		for j := 2; j < totdeg; j++ {
+
+			T[i][j] = bignum.NewFloat(2.0, defaultPrecision)
+
+			tmp.Quo(KBig, scfac)
+			tmp.Quo(x[i], tmp)
+			T[i][j].Mul(T[i][j], tmp)
+			T[i][j].Mul(T[i][j], T[i][j-1])
+			T[i][j].Sub(T[i][j], T[i][j-2])
+		}
 	}
 
-	cosx = new(big.Float).Quo(s, NewFloat(2.0))
-	cosx.Sub(NewFloat(1.0), cosx)
-	return
+	var maxabs = new(big.Float)
+	var maxindex int
+	for i := 0; i < totdeg-1; i++ {
+		maxabs.Abs(T[i][i])
+		maxindex = i
+		for j := i + 1; j < totdeg; j++ {
+			tmp.Abs(T[j][i])
+			if tmp.Cmp(maxabs) == 1 {
+				maxabs.Abs(T[j][i])
+				maxindex = j
+			}
+		}
 
-}
+		if i != maxindex {
+			for j := i; j < totdeg; j++ {
+				tmp.Set(T[maxindex][j])
+				T[maxindex][j].Set(T[i][j])
+				T[i][j].Set(tmp)
+			}
 
-// BigintSin is an iterative arbitrary precision computation of Sin(x)
-func BigintSin(x *big.Float) (sinx *big.Float) {
+			tmp.Set(p[maxindex])
+			p[maxindex].Set(p[i])
+			p[i].Set(tmp)
+		}
 
-	sinx = NewFloat(1)
-	tmp := BigintCos(x)
-	tmp.Mul(tmp, tmp)
-	sinx.Sub(sinx, tmp)
-	sinx.Sqrt(sinx)
-	return
+		for j := i + 1; j < totdeg; j++ {
+			T[i][j].Quo(T[i][j], T[i][i])
+		}
+
+		p[i].Quo(p[i], T[i][i])
+		T[i][i] = bignum.NewFloat(1.0, defaultPrecision)
+
+		for j := i + 1; j < totdeg; j++ {
+			tmp.Mul(T[j][i], p[i])
+			p[j].Sub(p[j], tmp)
+			for l := i + 1; l < totdeg; l++ {
+				tmp.Mul(T[j][i], T[i][l])
+				T[j][l].Sub(T[j][l], tmp)
+			}
+			T[j][i] = bignum.NewFloat(0.0, defaultPrecision)
+		}
+	}
+
+	c[totdeg-1] = p[totdeg-1]
+	for i := totdeg - 2; i >= 0; i-- {
+		c[i] = new(big.Float).Set(p[i])
+		for j := i + 1; j < totdeg; j++ {
+			tmp.Mul(T[i][j], c[j])
+			c[i].Sub(c[i], tmp)
+		}
+	}
+
+	return c[:totdeg-1]
 }
 
 func log2(x float64) float64 {
@@ -69,10 +127,7 @@ func abs(x float64) float64 {
 	return math.Abs(x)
 }
 
-var pi = "3.1415926535897932384626433832795028841971693993751058209749445923078164062862089986280348253421170679821480865132823066470938446095505822317253594081284811174502841027019385211055596446229489549303819644288109756659334461284756482337867831652712019091456485669234603486104543266482133936072602491412737245870066063155881748815209209628292540917153643678925903600113305305488204665213841469519415116094330572703657595919530921861173819326117931051185480744623799627495673518857527248912279381830119491298336733624406566430860213949463952247371907021798609437027705392171762931767523846748184676694051320005681271452635608277857713427577896091736371787214684409012249534301465495853710507922796892589235420199561121290219608640344181598136297747713099605187072113499999983729780499510597317328160963185950244594553469083026425223082533446850352619311881710100031378387528865875332083814206171776691473035982534904287554687311595628638823537875937519577818577805321712268066130019278766111959092164201989"
-var mPI = 3.141592653589793238462643383279502884
-
-func Maxdex(array []float64) (Maxd int) {
+func maxIndex(array []float64) (maxind int) {
 	max := array[0]
 	for i := 1; i < len(array); i++ {
 		if array[i] > max {
@@ -102,7 +157,7 @@ func genDegrees(degree, K int, dev float64) ([]int, int) {
 	for i := 1; i <= (2*K - 1); i++ {
 		temp -= log2(float64(i))
 	}
-	temp += (2*float64(K) - 1) * log2(2*mPI)
+	temp += (2*float64(K) - 1) * log2TwoPi
 	temp += log2(err)
 
 	for i := 0; i < K; i++ {
@@ -132,7 +187,7 @@ func genDegrees(degree, K int, dev float64) ([]int, int) {
 			for i := 0; i < K; i++ {
 				bdd[i] -= log2(float64(totdeg + 1))
 				bdd[i] -= log2(float64(totdeg + 2))
-				bdd[i] += 2.0 * log2(2.0*mPI)
+				bdd[i] += 2.0 * log2TwoPi
 
 				if i != maxi {
 					bdd[i] += log2(abs(float64(i-maxi)) + err)
@@ -147,10 +202,10 @@ func genDegrees(degree, K int, dev float64) ([]int, int) {
 		} else {
 			bdd[0] -= log2(float64(totdeg + 1))
 			bdd[0] += log2(err) - 1.0
-			bdd[0] += log2(2.0 * mPI)
+			bdd[0] += log2TwoPi
 			for i := 1; i < K; i++ {
 				bdd[i] -= log2(float64(totdeg + 1))
-				bdd[i] += log2(2.0 * mPI)
+				bdd[i] += log2TwoPi
 				bdd[i] += log2(float64(i) + err)
 			}
 
@@ -178,79 +233,66 @@ func genDegrees(degree, K int, dev float64) ([]int, int) {
 
 func genNodes(deg []int, dev float64, totdeg, K, scnum int) ([]*big.Float, []*big.Float, []*big.Float, int) {
 
-	var PI = new(big.Float)
-	PI.SetPrec(1000)
-	PI.SetString(pi)
+	var scfac = bignum.NewFloat(1<<scnum, defaultPrecision)
 
-	var scfac = NewFloat(float64(int(1 << scnum)))
-
-	var intersize = NewFloat(1.0 / dev)
+	var intersize = bignum.NewFloat(1.0/dev, defaultPrecision)
 
 	var z = make([]*big.Float, totdeg)
+
+	for i := range z {
+		z[i] = bignum.NewFloat(0, defaultPrecision)
+	}
+
 	var cnt int
 	if deg[0]%2 != 0 {
-		z[cnt] = NewFloat(0)
 		cnt++
 	}
 
-	var tmp *big.Float
+	tmp := new(big.Float)
 
 	for i := K - 1; i > 0; i-- {
 		for j := 1; j <= deg[i]; j++ {
 
-			tmp = NewFloat(float64(2*j - 1))
-			tmp.Mul(tmp, PI)
-			tmp.Quo(tmp, NewFloat(float64(2*deg[i])))
-			tmp = BigintCos(tmp)
-
+			tmp.Mul(pi, new(big.Float).SetInt64(int64((2*j - 1))))
+			tmp.Quo(tmp, new(big.Float).SetInt64(int64(2*deg[i])))
+			tmp = bignum.Cos(tmp)
 			tmp.Mul(tmp, intersize)
 
-			z[cnt] = NewFloat(float64(i))
-			z[cnt].Add(z[cnt], tmp)
+			z[cnt].Add(new(big.Float).SetInt64(int64(i)), tmp)
 			cnt++
 
-			z[cnt] = NewFloat(float64(-i))
-			z[cnt].Sub(z[cnt], tmp)
+			z[cnt].Sub(new(big.Float).SetInt64(int64(-i)), tmp)
 			cnt++
-
 		}
 	}
 
 	for j := 1; j <= deg[0]/2; j++ {
-		tmp = NewFloat(float64(2*j - 1))
-		tmp.Mul(tmp, PI)
-		tmp.Quo(tmp, NewFloat(float64(2*deg[0])))
-		tmp = BigintCos(tmp)
+
+		tmp.Mul(pi, new(big.Float).SetInt64(int64((2*j - 1))))
+		tmp.Quo(tmp, new(big.Float).SetInt64(int64(2*deg[j])))
+		tmp = bignum.Cos(tmp)
 		tmp.Mul(tmp, intersize)
 
-		z[cnt] = new(big.Float).Add(NewFloat(0), tmp)
+		z[cnt].Add(z[cnt], tmp)
 		cnt++
 
-		z[cnt] = new(big.Float).Sub(NewFloat(0), tmp)
+		z[cnt].Sub(z[cnt], tmp)
 		cnt++
 	}
 
 	// cos(2*pi*(x-0.25)/r)
 	var d = make([]*big.Float, totdeg)
 	for i := 0; i < totdeg; i++ {
-
-		d[i] = NewFloat(2.0)
-		d[i].Mul(d[i], PI)
-
-		z[i].Sub(z[i], NewFloat(0.25))
-		z[i].Quo(z[i], scfac)
-
-		d[i].Mul(d[i], z[i])
-		d[i] = BigintCos(d[i])
-
-		//tmp := new(big.Float).Sqrt(PI)
-		//tmp.Sqrt(tmp)
-		//d[i].Quo(d[i], tmp)
+		d[i] = cos2PiXMinusQuarterOverR(z[i], scfac)
 	}
 
 	for j := 1; j < totdeg; j++ {
 		for l := 0; l < totdeg-j; l++ {
+
+			// d[l] = d[l+1] - d[l]
 			d[l].Sub(d[l+1], d[l])
+
+			// d[l] = (d[l+1] - d[l])/(z[l+j] - z[l])
 			tmp.Sub(z[l+j], z[l])
 			d[l].Quo(d[l], tmp)
 		}
@@ -260,17 +302,22 @@ func genNodes(deg []int, dev float64, totdeg, K, scnum int) ([]*big.Float, []*bi
 
 	var x = make([]*big.Float, totdeg)
 	for i := 0; i < totdeg; i++ {
-		x[i] = NewFloat(float64(K))
+		// x[i] = K
+		x[i] = bignum.NewFloat(float64(K), defaultPrecision)
+
+		// x[i] = K/r
 		x[i].Quo(x[i], scfac)
-		tmp.Mul(NewFloat(float64(i)), PI)
-		tmp.Quo(tmp, NewFloat(float64(totdeg-1)))
-		x[i].Mul(x[i], BigintCos(tmp))
+
+		// x[i] = (K/r) * cos(PI * i/(totdeg-1))
+		tmp.Mul(new(big.Float).SetInt64(int64(i)), pi)
+		tmp.Quo(tmp, new(big.Float).SetInt64(int64(totdeg-1)))
+		x[i].Mul(x[i], bignum.Cos(tmp))
 	}
 
 	var c = make([]*big.Float, totdeg)
 	var p = make([]*big.Float, totdeg)
 	for i := 0; i < totdeg; i++ {
-		p[i] = new(big.Float).Copy(d[0])
+		p[i] = new(big.Float).Set(d[0])
 		for j := 1; j < totdeg-1; j++ {
 			tmp.Sub(x[i], z[j])
 			p[i].Mul(p[i], tmp)
@@ -279,112 +326,4 @@ func genNodes(deg []int, dev float64, totdeg, K, scnum int) ([]*big.Float, []*bi
 	}
 
 	return x, p, c, totdeg
-}
-
-// ApproximateCos computes a polynomial approximation of degree "degree" in Chevyshev basis of the function
-// cos(2*pi*x/2^"scnum") in the range -"K" to "K"
-// The nodes of the Chevyshev approximation are are located from -dev to +dev at each integer value between -K and -K
-func ApproximateCos(K, degree int, dev float64, scnum int) []complex128 {
-
-	var scfac = NewFloat(float64(int(1 << scnum)))
-
-	deg, totdeg := genDegrees(degree, K, dev)
-
-	x, p, c, totdeg := genNodes(deg, dev, totdeg, K, scnum)
-
-	tmp := new(big.Float)
-
-	var T = make([][]*big.Float, totdeg)
-	for i := 0; i < totdeg; i++ {
-		T[i] = make([]*big.Float, totdeg)
-	}
-
-	for i := 0; i < totdeg; i++ {
-
-		T[i][0] = NewFloat(1.0)
-
-		T[i][1] = new(big.Float).Copy(x[i])
-
-		tmp.Quo(NewFloat(float64(K)), scfac)
-
-		T[i][1].Quo(T[i][1], tmp)
-
-		for j := 2; j < totdeg; j++ {
-
-			T[i][j] = NewFloat(2.0)
-
-			tmp.Quo(NewFloat(float64(K)), scfac)
-			tmp.Quo(x[i], tmp)
-			T[i][j].Mul(T[i][j], tmp)
-			T[i][j].Mul(T[i][j], T[i][j-1])
-			T[i][j].Sub(T[i][j], T[i][j-2])
-		}
-	}
-
-	var maxabs = new(big.Float)
-	var Maxdex int
-	for i := 0; i < totdeg-1; i++ {
-		maxabs.Abs(T[i][i])
-		Maxdex = i
-		for j := i + 1; j < totdeg; j++ {
-			tmp.Abs(T[j][i])
-			if tmp.Cmp(maxabs) == 1 {
-				maxabs.Abs(T[j][i])
-				Maxdex = j
-			}
-		}
-
-		if i != Maxdex {
-			for j := i; j < totdeg; j++ {
-				tmp.Copy(T[Maxdex][j])
-				T[Maxdex][j].Set(T[i][j])
-				T[i][j].Set(tmp)
-			}
-
-			tmp.Set(p[Maxdex])
-			p[Maxdex].Set(p[i])
-			p[i].Set(tmp)
-		}
-
-		for j := i + 1; j < totdeg; j++ {
-			T[i][j].Quo(T[i][j], T[i][i])
-		}
-
-		p[i].Quo(p[i], T[i][i])
-		T[i][i] = NewFloat(1.0)
-
-		for j := i + 1; j < totdeg; j++ {
-			tmp.Mul(T[j][i], p[i])
-			p[j].Sub(p[j], tmp)
-			for l := i + 1; l < totdeg; l++ {
-				tmp.Mul(T[j][i], T[i][l])
-				T[j][l].Sub(T[j][l], tmp)
-			}
-			T[j][i] = NewFloat(0.0)
-		}
-	}
-
-	c[totdeg-1] = p[totdeg-1]
-	for i := totdeg - 2; i >= 0; i-- {
-		c[i] = new(big.Float)
-		c[i].Copy(p[i])
-		for j := i + 1; j < totdeg; j++ {
-			tmp.Mul(T[i][j], c[j])
-			c[i].Sub(c[i], tmp)
-		}
-	}
-
-	totdeg--
-
-	res := make([]complex128, totdeg)
-	//fmt.Printf("[")
-	for i := 0; i < totdeg; i++ {
-		tmp, _ := c[i].Float64()
-		res[i] = complex(tmp, 0)
-		//fmt.Printf("%.20f, ", real(res[i]))
-	}
-	//fmt.Printf("]\n")
-
-	return res
-
 }

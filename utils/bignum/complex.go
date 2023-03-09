@@ -68,9 +68,10 @@ func (c *Complex) SetComplex128(x complex128) {
 }
 
 // Set sets a arbitrary precision complex number
-func (c *Complex) Set(a *Complex) {
+func (c *Complex) Set(a *Complex) *Complex {
 	c[0].Set(a[0])
 	c[1].Set(a[1])
+	return c
 }
 
 func (c *Complex) Prec() uint {

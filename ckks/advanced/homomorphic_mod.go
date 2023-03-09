@@ -15,12 +15,36 @@ import (
 // for the homomorphic modular reduction
 type SineType uint64
 
-func sin2pi2pi(x float64) float64 {
-	return math.Sin(6.283185307179586 * x)
+func sin2pi(x *bignum.Complex) (y *bignum.Complex) {
+	y = bignum.NewComplex().Set(x)
+	y[0].Mul(y[0], new(big.Float).SetFloat64(2))
+	y[0].Mul(y[0], pi)
+	y[0] = bignum.Sin(y[0])
+	return
 }
 
-func cos2pi(x float64) float64 {
-	return math.Cos(6.283185307179586 * x)
+func cos2pi(x *bignum.Complex) (y *bignum.Complex) {
+	y = bignum.NewComplex().Set(x)
+	y[0].Mul(y[0], new(big.Float).SetFloat64(2))
+	y[0].Mul(y[0], pi)
+	y[0] = bignum.Cos(y[0])
+	return y
+}
+
+func cos2PiXMinusQuarterOverR(x, scfac *big.Float) (y *big.Float) {
+	//y = 2 * pi
+	y = bignum.NewFloat(2.0, defaultPrecision)
+	y.Mul(y, pi)
+
+	// x = (x - 0.25)/r
+	x.Sub(x, aQuarter)
+	x.Quo(x, scfac)
+
+	// y = 2 * pi * (x - 0.25)/r
+	y.Mul(y, x)
+
+	// y = cos(2 * pi * (x - 0.25)/r)
+	return bignum.Cos(y)
 }
 
 // Sin and Cos are the two proposed functions for SineType.
@@ -141,14 +165,9 @@ func NewEvalModPolyFromLiteral(params ckks.Parameters, evm EvalModLiteral) EvalM
 	switch evm.SineType {
 	case SinContinuous:
 
-		sinePoly = bignum.Approximate(func(x *bignum.Complex) (y *bignum.Complex) {
-			xf64, _ := x[0].Float64()
-			y = bignum.NewComplex().SetPrec(53)
-			y[0].SetFloat64(sin2pi2pi(xf64))
-			return
-		}, bignum.Interval{
-			A: new(big.Float).SetFloat64(-K),
-			B: new(big.Float).SetFloat64(K),
+		sinePoly = bignum.Approximate(sin2pi, bignum.Interval{
+			A: new(big.Float).SetPrec(defaultPrecision).SetFloat64(-K),
+			B: new(big.Float).SetPrec(defaultPrecision).SetFloat64(K),
 		}, evm.SineDegree)
 		sinePoly.IsEven = false
 
@@ -169,14 +188,9 @@ func NewEvalModPolyFromLiteral(params ckks.Parameters, evm EvalModLiteral) EvalM
 		}
 
 	case CosContinuous:
-		sinePoly = bignum.Approximate(func(x *bignum.Complex) (y *bignum.Complex) {
-			xf64, _ := x[0].Float64()
-			y = bignum.NewComplex().SetPrec(53)
-			y[0].SetFloat64(cos2pi(xf64))
-			return
-		}, bignum.Interval{
-			A: new(big.Float).SetFloat64(-K),
-			B: new(big.Float).SetFloat64(K),
+		sinePoly = bignum.Approximate(cos2pi, bignum.Interval{
+			A: new(big.Float).SetPrec(defaultPrecision).SetFloat64(-K),
+			B: new(big.Float).SetPrec(defaultPrecision).SetFloat64(K),
 		}, evm.SineDegree)
 		sinePoly.IsOdd = false
 

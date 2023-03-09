@@ -48,9 +48,9 @@ func NewDomainSwitcher(params Parameters, comlexToRealEvk, realToComplexEvk *rlw
 // Requires the ring degree of ctOut to be half the ring degree of ctIn.
 // The security is changed from Z[X]/(X^N+1) to Z[X]/(X^N/2+1).
 // The method panics if the DomainSwitcher was not initialized with a the appropriate EvaluationKeys.
-func (switcher *DomainSwitcher) ComplexToReal(eval Evaluator, ctIn, ctOut *rlwe.Ciphertext) {
+func (switcher *DomainSwitcher) ComplexToReal(eval *Evaluator, ctIn, ctOut *rlwe.Ciphertext) {
 
-	evalRLWE := eval.GetRLWEEvaluator()
+	evalRLWE := eval.Evaluator
 
 	if evalRLWE.Parameters().RingType() != ring.Standard {
 		panic("cannot ComplexToReal: provided evaluator is not instantiated with RingType ring.Standard")
@@ -88,9 +88,9 @@ func (switcher *DomainSwitcher) ComplexToReal(eval Evaluator, ctIn, ctOut *rlwe.
 // Requires the ring degree of ctOut to be twice the ring degree of ctIn.
 // The security is changed from Z[X]/(X^N+1) to Z[X]/(X^2N+1).
 // The method panics if the DomainSwitcher was not initialized with a the appropriate EvaluationKeys.
-func (switcher *DomainSwitcher) RealToComplex(eval Evaluator, ctIn, ctOut *rlwe.Ciphertext) {
+func (switcher *DomainSwitcher) RealToComplex(eval *Evaluator, ctIn, ctOut *rlwe.Ciphertext) {
 
-	evalRLWE := eval.GetRLWEEvaluator()
+	evalRLWE := eval.Evaluator
 
 	if evalRLWE.Parameters().RingType() != ring.Standard {
 		panic("cannot RealToComplex: provided evaluator is not instantiated with RingType ring.Standard")

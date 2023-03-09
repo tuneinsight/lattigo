@@ -43,7 +43,7 @@ type testContext struct {
 	ringP *ring.Ring
 
 	encoder   *ckks.Encoder
-	evaluator ckks.Evaluator
+	evaluator *ckks.Evaluator
 
 	encryptorPk0 rlwe.Encryptor
 	decryptorSk0 rlwe.Decryptor

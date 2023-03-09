@@ -12,7 +12,7 @@ import (
 // Bootstrapper is a struct to store a memory buffer with the plaintext matrices,
 // the polynomial approximation, and the keys for the bootstrapping.
 type Bootstrapper struct {
-	advanced.Evaluator
+	*advanced.Evaluator
 	*bootstrapperBase
 }
 
@@ -207,9 +207,9 @@ func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey *E
 	// Rescaling factor to set the final ciphertext to the desired scale
 
 	if bb.SlotsToCoeffsParameters.Scaling == 0 {
-		bb.SlotsToCoeffsParameters.Scaling = bb.params.DefaultScale().Float64() / (bb.evalModPoly.ScalingFactor().Float64() / bb.evalModPoly.MessageRatio())
+		bb.SlotsToCoeffsParameters.Scaling = bb.params.DefaultScale().Float64() / (bb.evalModPoly.ScalingFactor().Float64() / bb.evalModPoly.MessageRatio()) * qDiff
 	} else {
-		bb.SlotsToCoeffsParameters.Scaling *= bb.params.DefaultScale().Float64() / (bb.evalModPoly.ScalingFactor().Float64() / bb.evalModPoly.MessageRatio())
+		bb.SlotsToCoeffsParameters.Scaling *= bb.params.DefaultScale().Float64() / (bb.evalModPoly.ScalingFactor().Float64() / bb.evalModPoly.MessageRatio()) * qDiff
 	}
 
 	bb.stcMatrices = advanced.NewHomomorphicDFTMatrixFromLiteral(bb.SlotsToCoeffsParameters, encoder)

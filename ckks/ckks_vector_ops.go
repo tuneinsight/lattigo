@@ -69,7 +69,7 @@ func SpecialFFTArbitrary(values []*bignum.Complex, N, M int, rotGroup []int, roo
 	u := &bignum.Complex{new(big.Float), new(big.Float)}
 	v := &bignum.Complex{new(big.Float), new(big.Float)}
 
-	SliceBitReverseInPlaceRingComplex(values, N)
+	SliceBitReverseInPlaceBigComplex(values, N)
 
 	cMul := bignum.NewComplexMultiplier()
 
@@ -127,7 +127,7 @@ func SpecialIFFTArbitrary(values []*bignum.Complex, N, M int, rotGroup []int, ro
 		values[i][1].Quo(values[i][1], NBig)
 	}
 
-	SliceBitReverseInPlaceRingComplex(values, N)
+	SliceBitReverseInPlaceBigComplex(values, N)
 }
 
 // SpecialFFTDoubleUL8 performs the CKKS special FFT transform in place with unrolled loops of size 8.

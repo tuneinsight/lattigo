@@ -78,7 +78,7 @@ func TestBootstrap(t *testing.T) {
 		t.Skip("skipping bootstrapping tests for GOARCH=wasm")
 	}
 
-	paramSet := DefaultParametersSparse[1]
+	paramSet := DefaultParametersSparse[0]
 
 	if !*flagLongTest {
 		paramSet.SchemeParams.LogN -= 3

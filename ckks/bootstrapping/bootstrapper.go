@@ -3,6 +3,7 @@ package bootstrapping
 import (
 	"fmt"
 	"math"
+	"math/big"
 
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/ckks/advanced"
@@ -195,10 +196,10 @@ func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey *E
 	// CoeffsToSlots vectors
 	// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum + eventual scaling factor for the double angle formula
 
-	if bb.CoeffsToSlotsParameters.Scaling == 0 {
-		bb.CoeffsToSlotsParameters.Scaling = qDiv / (K * scFac * qDiff)
+	if bb.CoeffsToSlotsParameters.Scaling == nil {
+		bb.CoeffsToSlotsParameters.Scaling = new(big.Float).SetFloat64(qDiv / (K * scFac * qDiff))
 	} else {
-		bb.CoeffsToSlotsParameters.Scaling *= qDiv / (K * scFac * qDiff)
+		bb.CoeffsToSlotsParameters.Scaling.Mul(bb.CoeffsToSlotsParameters.Scaling, new(big.Float).SetFloat64(qDiv/(K*scFac*qDiff)))
 	}
 
 	bb.ctsMatrices = advanced.NewHomomorphicDFTMatrixFromLiteral(bb.CoeffsToSlotsParameters, encoder)
@@ -206,10 +207,10 @@ func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey *E
 	// SlotsToCoeffs vectors
 	// Rescaling factor to set the final ciphertext to the desired scale
 
-	if bb.SlotsToCoeffsParameters.Scaling == 0 {
-		bb.SlotsToCoeffsParameters.Scaling = bb.params.DefaultScale().Float64() / (bb.evalModPoly.ScalingFactor().Float64() / bb.evalModPoly.MessageRatio()) * qDiff
+	if bb.SlotsToCoeffsParameters.Scaling == nil {
+		bb.SlotsToCoeffsParameters.Scaling = new(big.Float).SetFloat64(bb.params.DefaultScale().Float64() / (bb.evalModPoly.ScalingFactor().Float64() / bb.evalModPoly.MessageRatio()) * qDiff)
 	} else {
-		bb.SlotsToCoeffsParameters.Scaling *= bb.params.DefaultScale().Float64() / (bb.evalModPoly.ScalingFactor().Float64() / bb.evalModPoly.MessageRatio()) * qDiff
+		bb.SlotsToCoeffsParameters.Scaling.Mul(bb.SlotsToCoeffsParameters.Scaling, new(big.Float).SetFloat64(bb.params.DefaultScale().Float64()/(bb.evalModPoly.ScalingFactor().Float64()/bb.evalModPoly.MessageRatio())*qDiff))
 	}
 
 	bb.stcMatrices = advanced.NewHomomorphicDFTMatrixFromLiteral(bb.SlotsToCoeffsParameters, encoder)

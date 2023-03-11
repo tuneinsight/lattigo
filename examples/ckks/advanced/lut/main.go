@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/tuneinsight/lattigo/v4/ckks"
@@ -95,7 +96,7 @@ func main() {
 	var SlotsToCoeffsParameters = ckksAdvanced.HomomorphicDFTMatrixLiteral{
 		Type:       ckksAdvanced.Decode,
 		LogSlots:   LogSlots,
-		Scaling:    normalization * diffScale,
+		Scaling:    new(big.Float).SetFloat64(normalization * diffScale),
 		LevelStart: 1,        // starting level
 		Levels:     []int{1}, // Decomposition levels of the encoding matrix (this will use one one matrix in one level)
 	}

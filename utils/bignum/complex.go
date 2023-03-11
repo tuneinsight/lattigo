@@ -109,15 +109,24 @@ func (c *Complex) Complex128() complex128 {
 }
 
 // Add adds two arbitrary precision complex numbers together
-func (c *Complex) Add(a, b *Complex) {
+func (c *Complex) Add(a, b *Complex) *Complex {
 	c[0].Add(a[0], b[0])
 	c[1].Add(a[1], b[1])
+	return c
 }
 
 // Sub subtracts two arbitrary precision complex numbers together
-func (c *Complex) Sub(a, b *Complex) {
+func (c *Complex) Sub(a, b *Complex) *Complex {
 	c[0].Sub(a[0], b[0])
 	c[1].Sub(a[1], b[1])
+	return c
+}
+
+// Neg negates a and writes the result on c.
+func (c *Complex) Neg(a *Complex) *Complex {
+	c[0].Neg(a[0])
+	c[1].Neg(a[1])
+	return c
 }
 
 // ComplexMultiplier is a struct for the multiplication or division of two arbitrary precision complex numbers

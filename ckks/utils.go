@@ -9,9 +9,9 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
-// GetRootsbigFloat returns the roots e^{2*pi*i/m *j} for 0 <= j <= NthRoot
+// GetRootsBigComplex returns the roots e^{2*pi*i/m *j} for 0 <= j <= NthRoot
 // with prec bits of precision.
-func GetRootsbigFloat(NthRoot int, prec uint) (roots []*bignum.Complex) {
+func GetRootsBigComplex(NthRoot int, prec uint) (roots []*bignum.Complex) {
 
 	roots = make([]*bignum.Complex, NthRoot+1)
 
@@ -49,8 +49,8 @@ func GetRootsbigFloat(NthRoot int, prec uint) (roots []*bignum.Complex) {
 	return
 }
 
-// GetRootsFloat64 returns the roots e^{2*pi*i/m *j} for 0 <= j <= NthRoot.
-func GetRootsFloat64(NthRoot int) (roots []complex128) {
+// GetRootsComplex128 returns the roots e^{2*pi*i/m *j} for 0 <= j <= NthRoot.
+func GetRootsComplex128(NthRoot int) (roots []complex128) {
 	roots = make([]complex128, NthRoot+1)
 
 	quarm := NthRoot >> 2
@@ -365,6 +365,120 @@ func ComplexArbitraryToFixedPointCRT(r *ring.Ring, values []*bignum.Complex, sca
 				}
 				coeffs[j][i+slots] = tmp.Uint64()
 			}
+		}
+	}
+}
+
+func BigFloatToFixedPointCRT(r *ring.Ring, values []*big.Float, scale *big.Float, coeffs [][]uint64) {
+
+	prec := values[0].Prec()
+
+	xFlo := bignum.NewFloat(0, prec)
+	xInt := new(big.Int)
+	tmp := new(big.Int)
+
+	zero := new(big.Float)
+
+	half := bignum.NewFloat(0.5, prec)
+
+	moduli := r.ModuliChain()[:r.Level()+1]
+
+	for i := range values {
+
+		if values[i] == nil || values[i].Cmp(zero) == 0 {
+			for j := range moduli {
+				coeffs[j][i] = 0
+			}
+		} else {
+
+			xFlo.Mul(scale, values[i])
+
+			if values[i].Cmp(zero) < 0 {
+				xFlo.Sub(xFlo, half)
+			} else {
+				xFlo.Add(xFlo, half)
+			}
+
+			xFlo.Int(xInt)
+
+			for j := range moduli {
+
+				Q := bignum.NewInt(moduli[j])
+
+				tmp.Mod(xInt, Q)
+
+				if values[i].Cmp(zero) < 0 {
+					tmp.Add(tmp, Q)
+				}
+
+				coeffs[j][i] = tmp.Uint64()
+			}
+		}
+	}
+}
+
+// SliceBitReverseInPlaceComplex128 applies an in-place bit-reverse permutation on the input slice.
+func SliceBitReverseInPlaceComplex128(slice []complex128, N int) {
+
+	var bit, j int
+
+	for i := 1; i < N; i++ {
+
+		bit = N >> 1
+
+		for j >= bit {
+			j -= bit
+			bit >>= 1
+		}
+
+		j += bit
+
+		if i < j {
+			slice[i], slice[j] = slice[j], slice[i]
+		}
+	}
+}
+
+// SliceBitReverseInPlaceFloat64 applies an in-place bit-reverse permutation on the input slice.
+func SliceBitReverseInPlaceFloat64(slice []float64, N int) {
+
+	var bit, j int
+
+	for i := 1; i < N; i++ {
+
+		bit = N >> 1
+
+		for j >= bit {
+			j -= bit
+			bit >>= 1
+		}
+
+		j += bit
+
+		if i < j {
+			slice[i], slice[j] = slice[j], slice[i]
+		}
+	}
+}
+
+// SliceBitReverseInPlaceBigComplex applies an in-place bit-reverse permutation on the input slice.
+func SliceBitReverseInPlaceBigComplex(slice []*bignum.Complex, N int) {
+
+	var bit, j int
+
+	for i := 1; i < N; i++ {
+
+		bit = N >> 1
+
+		for j >= bit {
+			j -= bit
+			bit >>= 1
+		}
+
+		j += bit
+
+		if i < j {
+			slice[i], slice[j] = slice[j], slice[i]
 		}
 	}
 }

@@ -133,7 +133,7 @@ func NewEncoder(params Parameters, precision ...uint) (ecd *Encoder) {
 
 	if prec <= 53 {
 
-		ecd.roots = GetRootsFloat64(ecd.m)
+		ecd.roots = GetRootsComplex128(ecd.m)
 		ecd.buffCmplx = make([]complex128, ecd.m>>2)
 
 	} else {
@@ -144,7 +144,7 @@ func NewEncoder(params Parameters, precision ...uint) (ecd *Encoder) {
 			tmp[i] = &bignum.Complex{bignum.NewFloat(0, prec), bignum.NewFloat(0, prec)}
 		}
 
-		ecd.roots = GetRootsbigFloat(ecd.m, prec)
+		ecd.roots = GetRootsBigComplex(ecd.m, prec)
 		ecd.buffCmplx = tmp
 	}
 

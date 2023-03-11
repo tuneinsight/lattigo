@@ -120,7 +120,7 @@ func (p Parameters) ParametersLiteral() (pLit ParametersLiteral) {
 		Xe:       p.Xe(),
 		Xs:       p.Xs(),
 		RingType: p.RingType(),
-		LogScale: int(math.Round(math.Log2(p.DefaultScale().Float64()))),
+		LogScale: p.LogScale(),
 	}
 }
 
@@ -175,6 +175,11 @@ func (p Parameters) MaxLogSlots() int {
 	default:
 		panic("cannot MaxLogSlots: invalid ring type")
 	}
+}
+
+// LogScale returns the log2 of the default scaling factor.
+func (p Parameters) LogScale() int {
+	return int(math.Round(math.Log2(p.DefaultScale().Float64())))
 }
 
 // LogQLvl returns the size of the modulus Q in bits at a specific level

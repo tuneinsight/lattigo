@@ -48,10 +48,10 @@ type HomomorphicDFTMatrixLiteral struct {
 	LevelStart int
 	Levels     []int
 	// Optional
-	RepackImag2Real bool    // Default: False.
-	Scaling         float64 // Default 1.0.
-	BitReversed     bool    // Default: False.
-	LogBSGSRatio    int     // Default: 0.
+	RepackImag2Real bool       // Default: False.
+	Scaling         *big.Float // Default 1.0.
+	BitReversed     bool       // Default: False.
+	LogBSGSRatio    int        // Default: 0.
 }
 
 // Depth returns the number of levels allocated to the linear transform.
@@ -107,13 +107,19 @@ func NewHomomorphicDFTMatrixFromLiteral(d HomomorphicDFTMatrixLiteral, encoder *
 
 	// CoeffsToSlots vectors
 	matrices := []ckks.LinearTransform{}
-	pVecDFT := d.GenMatrices(params.LogN())
+	pVecDFT := d.GenMatrices(params.LogN(), params.DefaultPrecision())
+
+	nbModuliPerRescale := params.DefaultScaleModuliRatio()
 
 	level := d.LevelStart
 	var idx int
 	for i := range d.Levels {
 
 		scale := rlwe.NewScale(params.Q()[level])
+
+		for j := 1; j < nbModuliPerRescale; j++ {
+			scale = scale.Mul(rlwe.NewScale(params.Q()[level-j]))
+		}
 
 		if d.Levels[i] > 1 {
 			y := new(big.Float).SetPrec(scale.Value.Prec()).SetInt64(1)
@@ -127,21 +133,21 @@ func NewHomomorphicDFTMatrixFromLiteral(d HomomorphicDFTMatrixLiteral, encoder *
 			idx++
 		}
 
-		level--
+		level -= nbModuliPerRescale
 	}
 
 	return HomomorphicDFTMatrix{HomomorphicDFTMatrixLiteral: d, Matrices: matrices}
 }
 
-func fftPlainVec(logN, dslots int, roots []complex128, pow5 []int) (a, b, c [][]complex128) {
+func fftPlainVec(logN, dslots int, roots []*bignum.Complex, pow5 []int) (a, b, c [][]*bignum.Complex) {
 
 	var N, m, index, tt, gap, k, mask, idx1, idx2 int
 
 	N = 1 << logN
 
-	a = make([][]complex128, logN)
-	b = make([][]complex128, logN)
-	c = make([][]complex128, logN)
+	a = make([][]*bignum.Complex, logN)
+	b = make([][]*bignum.Complex, logN)
+	c = make([][]*bignum.Complex, logN)
 
 	var size int
 	if 2*N == dslots {
@@ -150,12 +156,20 @@ func fftPlainVec(logN, dslots int, roots []complex128, pow5 []int) (a, b, c [][]
 		size = 1
 	}
 
+	prec := roots[0].Prec()
+
 	index = 0
 	for m = 2; m <= N; m <<= 1 {
 
-		a[index] = make([]complex128, dslots)
-		b[index] = make([]complex128, dslots)
-		c[index] = make([]complex128, dslots)
+		aM := make([]*bignum.Complex, dslots)
+		bM := make([]*bignum.Complex, dslots)
+		cM := make([]*bignum.Complex, dslots)
+
+		for i := 0; i < dslots; i++ {
+			aM[i] = bignum.NewComplex().SetPrec(prec)
+			bM[i] = bignum.NewComplex().SetPrec(prec)
+			cM[i] = bignum.NewComplex().SetPrec(prec)
+		}
 
 		tt = m >> 1
 
@@ -172,13 +186,17 @@ func fftPlainVec(logN, dslots int, roots []complex128, pow5 []int) (a, b, c [][]
 				idx2 = i + j + tt
 
 				for u := 0; u < size; u++ {
-					a[index][idx1+u*N] = 1
-					a[index][idx2+u*N] = -roots[k]
-					b[index][idx1+u*N] = roots[k]
-					c[index][idx2+u*N] = 1
+					aM[idx1+u*N].Set(roots[0])
+					aM[idx2+u*N].Neg(roots[k])
+					bM[idx1+u*N].Set(roots[k])
+					cM[idx2+u*N].Set(roots[0])
 				}
 			}
 		}
+
+		a[index] = aM
+		b[index] = bM
+		c[index] = cM
 
 		index++
 	}
@@ -186,15 +204,15 @@ func fftPlainVec(logN, dslots int, roots []complex128, pow5 []int) (a, b, c [][]
 	return
 }
 
-func ifftPlainVec(logN, dslots int, roots []complex128, pow5 []int) (a, b, c [][]complex128) {
+func ifftPlainVec(logN, dslots int, roots []*bignum.Complex, pow5 []int) (a, b, c [][]*bignum.Complex) {
 
 	var N, m, index, tt, gap, k, mask, idx1, idx2 int
 
 	N = 1 << logN
 
-	a = make([][]complex128, logN)
-	b = make([][]complex128, logN)
-	c = make([][]complex128, logN)
+	a = make([][]*bignum.Complex, logN)
+	b = make([][]*bignum.Complex, logN)
+	c = make([][]*bignum.Complex, logN)
 
 	var size int
 	if 2*N == dslots {
@@ -203,12 +221,20 @@ func ifftPlainVec(logN, dslots int, roots []complex128, pow5 []int) (a, b, c [][
 		size = 1
 	}
 
+	prec := roots[0].Prec()
+
 	index = 0
 	for m = N; m >= 2; m >>= 1 {
 
-		a[index] = make([]complex128, dslots)
-		b[index] = make([]complex128, dslots)
-		c[index] = make([]complex128, dslots)
+		aM := make([]*bignum.Complex, dslots)
+		bM := make([]*bignum.Complex, dslots)
+		cM := make([]*bignum.Complex, dslots)
+
+		for i := 0; i < dslots; i++ {
+			aM[i] = bignum.NewComplex().SetPrec(prec)
+			bM[i] = bignum.NewComplex().SetPrec(prec)
+			cM[i] = bignum.NewComplex().SetPrec(prec)
+		}
 
 		tt = m >> 1
 
@@ -225,14 +251,17 @@ func ifftPlainVec(logN, dslots int, roots []complex128, pow5 []int) (a, b, c [][
 				idx2 = i + j + tt
 
 				for u := 0; u < size; u++ {
-
-					a[index][idx1+u*N] = 1
-					a[index][idx2+u*N] = -roots[k]
-					b[index][idx1+u*N] = 1
-					c[index][idx2+u*N] = roots[k]
+					aM[idx1+u*N].Set(roots[0])
+					aM[idx2+u*N].Neg(roots[k])
+					bM[idx1+u*N].Set(roots[0])
+					cM[idx2+u*N].Set(roots[k])
 				}
 			}
 		}
+
+		a[index] = aM
+		b[index] = bM
+		c[index] = cM
 
 		index++
 	}
@@ -393,7 +422,7 @@ func nextLevelfftIndexMap(vec map[int]bool, logL, N, nextLevel int, ltType DFTTy
 }
 
 // GenMatrices returns the ordered list of factors of the non-zero diagonales of the IDFT (encoding) or DFT (decoding) matrix.
-func (d *HomomorphicDFTMatrixLiteral) GenMatrices(LogN int) (plainVector []map[int][]complex128) {
+func (d *HomomorphicDFTMatrixLiteral) GenMatrices(LogN int, prec uint) (plainVector []map[int][]*bignum.Complex) {
 
 	logSlots := d.LogSlots
 	slots := 1 << logSlots
@@ -406,7 +435,7 @@ func (d *HomomorphicDFTMatrixLiteral) GenMatrices(LogN int) (plainVector []map[i
 		logdSlots++
 	}
 
-	roots := ckks.GetRootsFloat64(slots << 2)
+	roots := ckks.GetRootsBigComplex(slots<<2, prec)
 	pow5 := make([]int, (slots<<1)+1)
 	pow5[0] = 1
 	for i := 1; i < (slots<<1)+1; i++ {
@@ -418,14 +447,14 @@ func (d *HomomorphicDFTMatrixLiteral) GenMatrices(LogN int) (plainVector []map[i
 
 	fftLevel = logSlots
 
-	var a, b, c [][]complex128
+	var a, b, c [][]*bignum.Complex
 	if ltType == Encode {
 		a, b, c = ifftPlainVec(logSlots, 1<<logdSlots, roots, pow5)
 	} else {
 		a, b, c = fftPlainVec(logSlots, 1<<logdSlots, roots, pow5)
 	}
 
-	plainVector = make([]map[int][]complex128, maxDepth)
+	plainVector = make([]map[int][]*bignum.Complex, maxDepth)
 
 	// We compute the chain of merge in order or reverse order depending if its DFT or InvDFT because
 	// the way the levels are collapsed has an impact on the total number of rotations and keys to be
@@ -452,7 +481,7 @@ func (d *HomomorphicDFTMatrixLiteral) GenMatrices(LogN int) (plainVector []map[i
 		if logSlots != logdSlots && ltType == Decode && i == 0 && d.RepackImag2Real {
 
 			// Special initial matrix for the repacking before DFT
-			plainVector[i] = genRepackMatrix(logSlots, bitreversed)
+			plainVector[i] = genRepackMatrix(logSlots, prec, bitreversed)
 
 			// Merges this special initial matrix with the first layer of DFT
 			plainVector[i] = multiplyFFTMatrixWithNextFFTLevel(plainVector[i], logSlots, 2*slots, fftLevel, a[logSlots-fftLevel], b[logSlots-fftLevel], c[logSlots-fftLevel], ltType, bitreversed)
@@ -484,37 +513,37 @@ func (d *HomomorphicDFTMatrixLiteral) GenMatrices(LogN int) (plainVector []map[i
 		for j := range plainVector[maxDepth-1] {
 			v := plainVector[maxDepth-1][j]
 			for x := 0; x < slots; x++ {
-				v[x+slots] = complex(0, 0)
+				v[x+slots] = bignum.NewComplex().SetPrec(prec)
 			}
 		}
 	}
 
-	// Rescaling of the DFT matrices.
-	scaling := complex(d.Scaling, 0)
-
-	// If no scaling (Default); set to 1
-	if scaling == 0 {
-		scaling = 1.0
+	scaling := new(big.Float).SetPrec(prec)
+	if d.Scaling == nil {
+		scaling.SetFloat64(1)
+	} else {
+		scaling.Set(d.Scaling)
 	}
 
 	// If DFT matrix, rescale by 1/N
 	if ltType == Encode {
-		scaling /= complex(float64(slots), 0)
-
 		// Real/Imag extraction 1/2 factor
 		if d.RepackImag2Real {
-			scaling /= 2
+			scaling.Quo(scaling, new(big.Float).SetFloat64(float64(2*slots)))
+		} else {
+			scaling.Quo(scaling, new(big.Float).SetFloat64(float64(slots)))
 		}
 	}
 
-	// Spreads the scale across the matrices
-	scaling = complex(math.Pow(real(scaling), 1.0/float64(d.Depth(false))), 0)
+	// Spreads the scale accross the matrices
+	scaling = bignum.Pow(scaling, new(big.Float).Quo(new(big.Float).SetPrec(prec).SetFloat64(1), new(big.Float).SetPrec(prec).SetFloat64(float64(d.Depth(false)))))
 
 	for j := range plainVector {
 		for x := range plainVector[j] {
 			v := plainVector[j][x]
 			for i := range v {
-				v[i] *= scaling
+				v[i][0].Mul(v[i][0], scaling)
+				v[i][1].Mul(v[i][1], scaling)
 			}
 		}
 	}
@@ -522,7 +551,7 @@ func (d *HomomorphicDFTMatrixLiteral) GenMatrices(LogN int) (plainVector []map[i
 	return
 }
 
-func genFFTDiagMatrix(logL, fftLevel int, a, b, c []complex128, ltType DFTType, bitreversed bool) (vectors map[int][]complex128) {
+func genFFTDiagMatrix(logL, fftLevel int, a, b, c []*bignum.Complex, ltType DFTType, bitreversed bool) (vectors map[int][]*bignum.Complex) {
 
 	var rot int
 
@@ -532,7 +561,7 @@ func genFFTDiagMatrix(logL, fftLevel int, a, b, c []complex128, ltType DFTType, 
 		rot = 1 << (logL - fftLevel)
 	}
 
-	vectors = make(map[int][]complex128)
+	vectors = make(map[int][]*bignum.Complex)
 
 	if bitreversed {
 		utils.BitReverseInPlaceSlice(a, 1<<logL)
@@ -553,19 +582,23 @@ func genFFTDiagMatrix(logL, fftLevel int, a, b, c []complex128, ltType DFTType, 
 	return
 }
 
-func genRepackMatrix(logL int, bitreversed bool) (vectors map[int][]complex128) {
+func genRepackMatrix(logL int, prec uint, bitreversed bool) (vectors map[int][]*bignum.Complex) {
 
-	vectors = make(map[int][]complex128)
+	vectors = make(map[int][]*bignum.Complex)
 
-	a := make([]complex128, 2<<logL)
-	b := make([]complex128, 2<<logL)
+	a := make([]*bignum.Complex, 2<<logL)
+	b := make([]*bignum.Complex, 2<<logL)
 
 	for i := 0; i < 1<<logL; i++ {
-		a[i] = complex(1, 0)
-		a[i+(1<<logL)] = complex(0, 1)
+		a[i] = bignum.NewComplex().SetPrec(prec)
+		a[i][0].SetFloat64(1)
+		a[i+(1<<logL)] = bignum.NewComplex().SetPrec(prec)
+		a[i+(1<<logL)][1].SetFloat64(1)
 
-		b[i] = complex(0, 1)
-		b[i+(1<<logL)] = complex(1, 0)
+		b[i] = bignum.NewComplex().SetPrec(prec)
+		b[i][1].SetFloat64(1)
+		b[i+(1<<logL)] = bignum.NewComplex().SetPrec(prec)
+		b[i+(1<<logL)][0].SetFloat64(1)
 	}
 
 	addToDiagMatrix(vectors, 0, a)
@@ -574,11 +607,11 @@ func genRepackMatrix(logL int, bitreversed bool) (vectors map[int][]complex128) 
 	return
 }
 
-func multiplyFFTMatrixWithNextFFTLevel(vec map[int][]complex128, logL, N, nextLevel int, a, b, c []complex128, ltType DFTType, bitreversed bool) (newVec map[int][]complex128) {
+func multiplyFFTMatrixWithNextFFTLevel(vec map[int][]*bignum.Complex, logL, N, nextLevel int, a, b, c []*bignum.Complex, ltType DFTType, bitreversed bool) (newVec map[int][]*bignum.Complex) {
 
 	var rot int
 
-	newVec = make(map[int][]complex128)
+	newVec = make(map[int][]*bignum.Complex)
 
 	if ltType == Encode && !bitreversed || ltType == Decode && bitreversed {
 		rot = (1 << (nextLevel - 1)) & (N - 1)
@@ -599,54 +632,44 @@ func multiplyFFTMatrixWithNextFFTLevel(vec map[int][]complex128, logL, N, nextLe
 	}
 
 	for i := range vec {
-		addToDiagMatrix(newVec, i, mul(vec[i], a))
-		addToDiagMatrix(newVec, (i+rot)&(N-1), mul(rotate(vec[i], rot), b))
-		addToDiagMatrix(newVec, (i-rot)&(N-1), mul(rotate(vec[i], -rot), c))
+		addToDiagMatrix(newVec, i, rotateAndMulNew(vec[i], 0, a))
+		addToDiagMatrix(newVec, (i+rot)&(N-1), rotateAndMulNew(vec[i], rot, b))
+		addToDiagMatrix(newVec, (i-rot)&(N-1), rotateAndMulNew(vec[i], -rot, c))
 	}
 
 	return
 }
 
-func addToDiagMatrix(diagMat map[int][]complex128, index int, vec []complex128) {
+func addToDiagMatrix(diagMat map[int][]*bignum.Complex, index int, vec []*bignum.Complex) {
 	if diagMat[index] == nil {
-		diagMat[index] = vec
+		diagMat[index] = make([]*bignum.Complex, len(vec))
+		for i := range vec {
+			diagMat[index][i] = vec[i].Copy()
+		}
 	} else {
-		diagMat[index] = add(diagMat[index], vec)
+		add(diagMat[index], vec, diagMat[index])
 	}
 }
 
-func rotate(x []complex128, n int) (y []complex128) {
+func rotateAndMulNew(a []*bignum.Complex, k int, b []*bignum.Complex) (c []*bignum.Complex) {
+	multiplier := bignum.NewComplexMultiplier()
 
-	y = make([]complex128, len(x))
-
-	mask := int(len(x) - 1)
-
-	// Rotates to the left
-	for i := 0; i < len(x); i++ {
-		y[i] = x[(i+n)&mask]
+	c = make([]*bignum.Complex, len(a))
+	for i := range c {
+		c[i] = b[i].Copy()
 	}
 
-	return
-}
-
-func mul(a, b []complex128) (res []complex128) {
-
-	res = make([]complex128, len(a))
+	mask := int(len(a) - 1)
 
 	for i := 0; i < len(a); i++ {
-		res[i] = a[i] * b[i]
+		multiplier.Mul(c[i], a[(i+k)&mask], c[i])
 	}
 
 	return
 }
 
-func add(a, b []complex128) (res []complex128) {
-
-	res = make([]complex128, len(a))
-
+func add(a, b, c []*bignum.Complex) {
 	for i := 0; i < len(a); i++ {
-		res[i] = a[i] + b[i]
+		c[i].Add(a[i], b[i])
 	}
-
-	return
 }

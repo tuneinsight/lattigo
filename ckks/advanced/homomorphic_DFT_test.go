@@ -2,6 +2,8 @@ package advanced
 
 import (
 	"flag"
+	"math/big"
+	"math/rand"
 	"runtime"
 	"testing"
 
@@ -12,34 +14,26 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
 
 var minPrec float64 = 15
 
-func TestHomomorphicEncoding(t *testing.T) {
+func TestHomomorphicDFT(t *testing.T) {
 	var err error
 
 	if runtime.GOARCH == "wasm" {
-		t.Skip("skipping homomorphic encoding tests for GOARCH=wasm")
+		t.Skip("skipping homomorphic DFT tests for GOARCH=wasm")
 	}
 
 	ParametersLiteral := ckks.ParametersLiteral{
-		LogN: 13,
-		Q: []uint64{
-			0x10000000006e0001, // 60 Q0
-			0x2000000a0001,     // 45
-			0x2000000e0001,     // 45
-			0x1fffffc20001,     // 45
-		},
-		P: []uint64{
-			0x1fffffffffe00001, // Pi 61
-			0x1fffffffffc80001, // Pi 61
-		},
-
+		LogN:     13,
+		LogQ:     []int{60, 45, 45, 45, 45, 45, 45, 45},
+		LogP:     []int{61, 61},
 		Xs:       &distribution.Ternary{H: 192},
-		LogScale: 45,
+		LogScale: 90,
 	}
 
 	testHomomorphicDFTMatrixLiteralMarshalling(t)
@@ -51,8 +45,8 @@ func TestHomomorphicEncoding(t *testing.T) {
 
 	for _, logSlots := range []int{params.MaxLogSlots() - 1, params.MaxLogSlots()} {
 		for _, testSet := range []func(params ckks.Parameters, logSlots int, t *testing.T){
-			testCoeffsToSlots,
-			testSlotsToCoeffs,
+			testHomomorphicEncoding,
+			testHomomorphicDecoding,
 		} {
 			testSet(params, logSlots, t)
 			runtime.GC()
@@ -83,7 +77,7 @@ func testHomomorphicDFTMatrixLiteralMarshalling(t *testing.T) {
 	})
 }
 
-func testCoeffsToSlots(params ckks.Parameters, LogSlots int, t *testing.T) {
+func testHomomorphicEncoding(params ckks.Parameters, LogSlots int, t *testing.T) {
 
 	slots := 1 << LogSlots
 
@@ -94,18 +88,20 @@ func testCoeffsToSlots(params ckks.Parameters, LogSlots int, t *testing.T) {
 		packing = "SparsePacking"
 	}
 
-	params2NLit := params.ParametersLiteral()
-	params2NLit.LogN++
-
 	var params2N ckks.Parameters
 	var err error
-	if params2N, err = ckks.NewParametersFromLiteral(params2NLit); err != nil {
+	if params2N, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
+		LogN:     params.LogN() + 1,
+		LogQ:     []int{60},
+		LogP:     []int{61},
+		LogScale: params.LogScale(),
+	}); err != nil {
 		t.Fatal(err)
 	}
 
 	ecd2N := ckks.NewEncoder(params2N)
 
-	t.Run("CoeffsToSlots/"+packing, func(t *testing.T) {
+	t.Run("Encode/"+packing, func(t *testing.T) {
 
 		// This test tests the homomorphic encoding
 		// It first generates a vector of complex values of size slots
@@ -126,7 +122,7 @@ func testCoeffsToSlots(params ckks.Parameters, LogSlots int, t *testing.T) {
 		//
 		// Then checks that Dcd(Dec(Enc(Ecd(vReal)))) = vReal and Dcd(Dec(Enc(Ecd(vImag)))) = vImag
 
-		Levels := make([]int, params.MaxLevel())
+		Levels := make([]int, params.MaxDepth())
 		for i := range Levels {
 			Levels[i] = 1
 		}
@@ -165,21 +161,24 @@ func testCoeffsToSlots(params ckks.Parameters, LogSlots int, t *testing.T) {
 		// Creates an evaluator with the rotation keys
 		eval := NewEvaluator(params, evk)
 
+		prec := params.DefaultPrecision()
+
 		// Generates the vector of random complex values
-		values := make([]complex128, slots)
+		values := make([]*bignum.Complex, slots)
+		r := rand.New(rand.NewSource(0))
 		for i := range values {
-			values[i] = complex(sampling.RandFloat64(-1, 1), sampling.RandFloat64(-1, 1))
+			values[i] = complex(utils.RandFloat64(-1, 1), utils.RandFloat64(-1, 1))
 		}
 
 		// Splits between real and imaginary
-		valuesReal := make([]float64, slots)
+		valuesReal := make([]*big.Float, slots)
 		for i := range valuesReal {
-			valuesReal[i] = real(values[i])
+			valuesReal[i] = new(big.Float).Set(values[i][0])
 		}
 
-		valuesImag := make([]float64, slots)
+		valuesImag := make([]*big.Float, slots)
 		for i := range valuesImag {
-			valuesImag[i] = imag(values[i])
+			valuesImag[i] = new(big.Float).Set(values[i][1])
 		}
 
 		// Applies bit-reverse on the original complex vector
@@ -187,11 +186,11 @@ func testCoeffsToSlots(params ckks.Parameters, LogSlots int, t *testing.T) {
 
 		// Maps to a float vector
 		// Add gaps if sparse packing
-		valuesFloat := make([]float64, params.N())
+		valuesFloat := make([]*big.Float, params.N())
 		gap := params.N() / (2 * slots)
 		for i, jdx, idx := 0, params.N()>>1, 0; i < slots; i, jdx, idx = i+1, jdx+gap, idx+gap {
-			valuesFloat[idx] = real(values[i])
-			valuesFloat[jdx] = imag(values[i])
+			valuesFloat[idx] = values[i][0]
+			valuesFloat[jdx] = values[i][1]
 		}
 
 		// Encodes coefficient-wise and encrypts the test vector
@@ -199,7 +198,9 @@ func testCoeffsToSlots(params ckks.Parameters, LogSlots int, t *testing.T) {
 		pt.LogSlots = LogSlots
 
 		pt.EncodingDomain = rlwe.CoefficientsDomain
-		encoder.Encode(valuesFloat, pt)
+		if err = encoder.Encode(valuesFloat, pt); err != nil {
+			t.Fatal(err)
+		}
 		pt.EncodingDomain = rlwe.SlotsDomain
 
 		ct := encryptor.EncryptNew(pt)
@@ -212,71 +213,87 @@ func testCoeffsToSlots(params ckks.Parameters, LogSlots int, t *testing.T) {
 
 			ct0.EncodingDomain = rlwe.CoefficientsDomain
 
-			coeffsReal := make([]float64, params.N())
+			have := make([]*big.Float, params.N())
 
-			encoder.Decode(decryptor.DecryptNew(ct0), coeffsReal)
+			if err = encoder.Decode(decryptor.DecryptNew(ct0), have); err != nil {
+				t.Fatal(err)
+			}
 
 			// Plaintext circuit
-			vec := make([]complex128, 2*slots)
+			vec := make([]*bignum.Complex, 2*slots)
 
 			// Embed real vector into the complex vector (trivial)
 			for i, j := 0, slots; i < slots; i, j = i+1, j+1 {
-				vec[i] = complex(valuesReal[i], 0)
-				vec[j] = complex(valuesImag[i], 0)
+				vec[i] = bignum.NewComplex().SetPrec(prec)
+				vec[i][0].Set(valuesReal[i])
+				vec[j] = bignum.NewComplex().SetPrec(prec)
+				vec[j][0].Set(valuesImag[i])
 			}
 
 			// IFFT
-			encoder.IFFT(vec, LogSlots+1)
+			if err = encoder.IFFT(vec, LogSlots+1); err != nil {
+				t.Fatal(err)
+			}
 
 			// Extract complex vector into real vector
-			vecReal := make([]float64, params.N())
+			want := make([]*big.Float, params.N())
 			for i, idx, jdx := 0, 0, params.N()>>1; i < 2*slots; i, idx, jdx = i+1, idx+gap/2, jdx+gap/2 {
-				vecReal[idx] = real(vec[i])
-				vecReal[jdx] = imag(vec[i])
+				want[idx] = vec[i][0]
+				want[jdx] = vec[i][1]
 			}
 
 			// Compares
-			verifyTestVectors(params, ecd2N, nil, vecReal, coeffsReal, t)
+			verifyTestVectors(params, ecd2N, nil, want, have, t)
 
 		} else {
 
 			ct0.EncodingDomain = rlwe.CoefficientsDomain
 			ct1.EncodingDomain = rlwe.CoefficientsDomain
 
-			coeffsReal := make([]float64, params.N())
-			coeffsImag := make([]float64, params.N())
+			haveReal := make([]*big.Float, params.N())
+			if err = encoder.Decode(decryptor.DecryptNew(ct0), haveReal); err != nil {
+				t.Fatal(err)
+			}
 
-			encoder.Decode(decryptor.DecryptNew(ct0), coeffsReal)
-			encoder.Decode(decryptor.DecryptNew(ct1), coeffsImag)
+			haveImag := make([]*big.Float, params.N())
+			if err = encoder.Decode(decryptor.DecryptNew(ct1), haveImag); err != nil {
+				t.Fatal(err)
+			}
 
-			vec0 := make([]complex128, slots)
-			vec1 := make([]complex128, slots)
+			vec0 := make([]*bignum.Complex, slots)
+			vec1 := make([]*bignum.Complex, slots)
 
 			// Embed real vector into the complex vector (trivial)
 			for i := 0; i < slots; i++ {
-				vec0[i] = complex(valuesReal[i], 0)
-				vec1[i] = complex(valuesImag[i], 0)
+				vec0[i] = bignum.NewComplex().SetPrec(prec)
+				vec0[i][0].Set(valuesReal[i])
+				vec1[i] = bignum.NewComplex().SetPrec(prec)
+				vec1[i][0].Set(valuesImag[i])
 			}
 
 			// IFFT
-			encoder.IFFT(vec0, LogSlots)
-			encoder.IFFT(vec1, LogSlots)
-
-			// Extract complex vectors into real vectors
-			vecReal := make([]float64, params.N())
-			vecImag := make([]float64, params.N())
-			for i, j := 0, slots; i < slots; i, j = i+1, j+1 {
-				vecReal[i], vecReal[j] = real(vec0[i]), imag(vec0[i])
-				vecImag[i], vecImag[j] = real(vec1[i]), imag(vec1[i])
+			if err = encoder.IFFT(vec0, LogSlots); err != nil {
+				t.Fatal(err)
+			}
+			if err = encoder.IFFT(vec1, LogSlots); err != nil {
+				t.Fatal(err)
 			}
 
-			verifyTestVectors(params, ecd2N, nil, vecReal, coeffsReal, t)
-			verifyTestVectors(params, ecd2N, nil, vecImag, coeffsImag, t)
+			// Extract complex vectors into real vectors
+			wantReal := make([]*big.Float, params.N())
+			wantImag := make([]*big.Float, params.N())
+			for i, j := 0, slots; i < slots; i, j = i+1, j+1 {
+				wantReal[i], wantReal[j] = vec0[i][0], vec0[i][1]
+				wantImag[i], wantImag[j] = vec1[i][0], vec1[i][1]
+			}
+
+			verifyTestVectors(params, ecd2N, nil, wantReal, haveReal, t)
+			verifyTestVectors(params, ecd2N, nil, wantImag, haveImag, t)
 		}
 	})
 }
 
-func testSlotsToCoeffs(params ckks.Parameters, LogSlots int, t *testing.T) {
+func testHomomorphicDecoding(params ckks.Parameters, LogSlots int, t *testing.T) {
 
 	slots := 1 << LogSlots
 
@@ -287,7 +304,9 @@ func testSlotsToCoeffs(params ckks.Parameters, LogSlots int, t *testing.T) {
 		packing = "SparsePacking"
 	}
 
-	t.Run("SlotsToCoeffs/"+packing, func(t *testing.T) {
+	var err error
+
+	t.Run("Decode/"+packing, func(t *testing.T) {
 
 		// This test tests the homomorphic decoding
 		// It first generates a complex vector of size 2*slots
@@ -310,7 +329,7 @@ func testSlotsToCoeffs(params ckks.Parameters, LogSlots int, t *testing.T) {
 		// The first N/2 slots of the plaintext will be the real part while the last N/2 the imaginary part
 		// In case of 2*slots < N, then there is a gap of N/(2*slots) between each values
 
-		Levels := make([]int, params.MaxLevel())
+		Levels := make([]int, params.MaxDepth())
 		for i := range Levels {
 			Levels[i] = 1
 		}
@@ -349,22 +368,24 @@ func testSlotsToCoeffs(params ckks.Parameters, LogSlots int, t *testing.T) {
 		// Creates an evaluator with the rotation keys
 		eval := NewEvaluator(params, evk)
 
+		prec := params.DefaultPrecision()
+
 		// Generates the n first slots of the test vector (real part to encode)
-		valuesReal := make([]complex128, slots)
+		valuesReal := make([]*bignum.Complex, slots)
 		for i := range valuesReal {
-			valuesReal[i] = complex(sampling.RandFloat64(-1, 1), 0)
+			valuesReal[i] = complex(utils.RandFloat64(-1, 1), 0)
 		}
 
 		// Generates the n first slots of the test vector (imaginary part to encode)
-		valuesImag := make([]complex128, slots)
+		valuesImag := make([]*bignum.Complex, slots)
 		for i := range valuesImag {
-			valuesImag[i] = complex(sampling.RandFloat64(-1, 1), 0)
+			valuesImag[i] = complex(utils.RandFloat64(-1, 1), 0)
 		}
 
 		// If sparse, there there is the space to store both vectors in one
 		if sparse {
 			for i := range valuesReal {
-				valuesReal[i] = complex(real(valuesReal[i]), real(valuesImag[i]))
+				valuesReal[i][1].Add(valuesReal[i][1], valuesImag[i][0])
 			}
 			LogSlots++
 		}
@@ -372,11 +393,15 @@ func testSlotsToCoeffs(params ckks.Parameters, LogSlots int, t *testing.T) {
 		// Encodes and encrypts the test vectors
 		plaintext := ckks.NewPlaintext(params, params.MaxLevel())
 		plaintext.LogSlots = LogSlots
-		encoder.Encode(valuesReal, plaintext)
+		if err = encoder.Encode(valuesReal, plaintext); err != nil {
+			t.Fatal(err)
+		}
 		ct0 := encryptor.EncryptNew(plaintext)
 		var ct1 *rlwe.Ciphertext
 		if !sparse {
-			encoder.Encode(valuesImag, plaintext)
+			if err = encoder.Encode(valuesImag, plaintext); err != nil {
+				t.Fatal(err)
+			}
 			ct1 = encryptor.EncryptNew(plaintext)
 		}
 
@@ -384,24 +409,26 @@ func testSlotsToCoeffs(params ckks.Parameters, LogSlots int, t *testing.T) {
 		res := eval.SlotsToCoeffsNew(ct0, ct1, SlotsToCoeffsMatrix)
 
 		// Decrypt and decode in the coefficient domain
-		coeffsFloat := make([]float64, params.N())
+		coeffsFloat := make([]*big.Float, params.N())
 		res.EncodingDomain = rlwe.CoefficientsDomain
 
-		encoder.Decode(decryptor.DecryptNew(res), coeffsFloat)
+		if err = encoder.Decode(decryptor.DecryptNew(res), coeffsFloat); err != nil {
+			t.Fatal(err)
+		}
 
 		// Extracts the coefficients and construct the complex vector
 		// This is simply coefficient ordering
-		valuesTest := make([]complex128, slots)
+		valuesTest := make([]*bignum.Complex, slots)
 		gap := params.N() / (2 * slots)
 		for i, idx := 0, 0; i < slots; i, idx = i+1, idx+gap {
-			valuesTest[i] = complex(coeffsFloat[idx], coeffsFloat[idx+(params.N()>>1)])
+			valuesTest[i] = &bignum.Complex{coeffsFloat[idx], coeffsFloat[idx+(params.N()>>1)]}
 		}
 
 		// The result is always returned as a single complex vector, so if full-packing (2 initial vectors)
 		// then repacks both vectors together
 		if !sparse {
 			for i := range valuesReal {
-				valuesReal[i] += complex(0, real(valuesImag[i]))
+				valuesReal[i][1].Add(valuesReal[i][1], valuesImag[i][0])
 			}
 		}
 

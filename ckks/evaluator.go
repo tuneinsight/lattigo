@@ -559,9 +559,16 @@ func (eval *Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 // MulRelinNew multiplies op0 with op1 with relinearization and returns the result in a newly created element.
 // The procedure will panic if either op0.Degree or op1.Degree > 1.
 // The procedure will panic if the evaluator was not created with an relinearization key.
-func (eval *Evaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 rlwe.Operand) (ctOut *rlwe.Ciphertext) {
-	ctOut = NewCiphertext(eval.params, 1, utils.MinInt(op0.Level(), op1.Level()))
-	eval.mulRelin(op0, op1, true, ctOut)
+func (eval *Evaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 interface{}) (ctOut *rlwe.Ciphertext) {
+
+	switch op1 := op1.(type) {
+	case rlwe.Operand:
+		ctOut = NewCiphertext(eval.params, 1, utils.MinInt(op0.Level(), op1.Level()))
+		eval.mulRelin(op0, op1, true, ctOut)
+	default:
+		ctOut = NewCiphertext(eval.params, 1, op0.Level())
+		eval.Mul(op0, op1, ctOut)
+	}
 	return
 }
 
@@ -569,8 +576,13 @@ func (eval *Evaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 rlwe.Operand) (ctOu
 // The procedure will panic if either op0.Degree or op1.Degree > 1.
 // The procedure will panic if ctOut.Degree != op0.Degree + op1.Degree.
 // The procedure will panic if the evaluator was not created with an relinearization key.
-func (eval *Evaluator) MulRelin(op0 *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext) {
-	eval.mulRelin(op0, op1, true, ctOut)
+func (eval *Evaluator) MulRelin(op0 *rlwe.Ciphertext, op1 interface{}, ctOut *rlwe.Ciphertext) {
+	switch op1 := op1.(type) {
+	case rlwe.Operand:
+		eval.mulRelin(op0, op1, true, ctOut)
+	default:
+		eval.Mul(op0, op1, ctOut)
+	}
 }
 
 func (eval *Evaluator) mulRelin(op0 *rlwe.Ciphertext, op1 rlwe.Operand, relin bool, ctOut *rlwe.Ciphertext) {

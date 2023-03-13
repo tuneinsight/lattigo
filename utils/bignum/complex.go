@@ -62,9 +62,10 @@ func (c *Complex) IsReal() bool {
 	return c[1].Cmp(new(big.Float)) == 0
 }
 
-func (c *Complex) SetComplex128(x complex128) {
+func (c *Complex) SetComplex128(x complex128) (*Complex) {
 	c[0].SetFloat64(real(x))
 	c[1].SetFloat64(real(x))
+	return c
 }
 
 // Set sets a arbitrary precision complex number

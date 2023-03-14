@@ -157,7 +157,7 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 
 	b.Run(GetTestName(tc.params, "Evaluator/AddScalar"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			eval.AddConst(ciphertext1, ciphertext2, ciphertext1)
+			eval.AddConst(ciphertext1, complex(3.1415, -1.4142), ciphertext1)
 		}
 	})
 

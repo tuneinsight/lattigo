@@ -5,6 +5,8 @@ import (
 	"math/big"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
 // PublicKeyIsCorrect returns true if pk is a correct RLWE public-key for secret-key sk and parameters params.
@@ -195,4 +197,106 @@ func NormStats(vec []*big.Int) (float64, float64, float64) {
 	z, _ := maxErr.Float64()
 
 	return math.Log2(x), math.Log2(y), math.Log2(z)
+}
+
+// FindBestBSGSRatio finds the best N1*N2 = N for the baby-step giant-step algorithm for matrix multiplication.
+func FindBestBSGSRatio(diagMatrix interface{}, maxN int, logMaxRatio int) (minN int) {
+
+	maxRatio := float64(int(1 << logMaxRatio))
+
+	for N1 := 1; N1 < maxN; N1 <<= 1 {
+
+		_, rotN1, rotN2 := BSGSIndex(diagMatrix, maxN, N1)
+
+		nbN1, nbN2 := len(rotN1)-1, len(rotN2)-1
+
+		if float64(nbN2)/float64(nbN1) == maxRatio {
+			return N1
+		}
+
+		if float64(nbN2)/float64(nbN1) > maxRatio {
+			return N1 / 2
+		}
+	}
+
+	return 1
+}
+
+// BSGSIndex returns the index map and needed rotation for the BSGS matrix-vector multiplication algorithm.
+func BSGSIndex(el interface{}, slots, N1 int) (index map[int][]int, rotN1, rotN2 []int) {
+	index = make(map[int][]int)
+	rotN1Map := make(map[int]bool)
+	rotN2Map := make(map[int]bool)
+	var nonZeroDiags []int
+	switch element := el.(type) {
+	case map[int][]complex128:
+		nonZeroDiags = make([]int, len(element))
+		var i int
+		for key := range element {
+			nonZeroDiags[i] = key
+			i++
+		}
+	case map[int][]float64:
+		nonZeroDiags = make([]int, len(element))
+		var i int
+		for key := range element {
+			nonZeroDiags[i] = key
+			i++
+		}
+	case map[int]bool:
+		nonZeroDiags = make([]int, len(element))
+		var i int
+		for key := range element {
+			nonZeroDiags[i] = key
+			i++
+		}
+	case map[int]ringqp.Poly:
+		nonZeroDiags = make([]int, len(element))
+		var i int
+		for key := range element {
+			nonZeroDiags[i] = key
+			i++
+		}
+	case map[int][]*big.Float:
+		nonZeroDiags = make([]int, len(element))
+		var i int
+		for key := range element {
+			nonZeroDiags[i] = key
+			i++
+		}
+	case map[int][]*bignum.Complex:
+		nonZeroDiags = make([]int, len(element))
+		var i int
+		for key := range element {
+			nonZeroDiags[i] = key
+			i++
+		}
+	case []int:
+		nonZeroDiags = element
+	}
+
+	for _, rot := range nonZeroDiags {
+		rot &= (slots - 1)
+		idxN1 := ((rot / N1) * N1) & (slots - 1)
+		idxN2 := rot & (N1 - 1)
+		if index[idxN1] == nil {
+			index[idxN1] = []int{idxN2}
+		} else {
+			index[idxN1] = append(index[idxN1], idxN2)
+		}
+		rotN1Map[idxN1] = true
+		rotN2Map[idxN2] = true
+	}
+
+	rotN1 = []int{}
+	for i := range rotN1Map {
+		rotN1 = append(rotN1, i)
+	}
+
+	rotN2 = []int{}
+	for i := range rotN2Map {
+		rotN2 = append(rotN2, i)
+	}
+
+	return
 }

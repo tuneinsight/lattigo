@@ -627,6 +627,46 @@ func (p Parameters) GaloisElementsForPack(logGap int) (galEls []uint64) {
 	return
 }
 
+// GaloisElementsForLinearTransform returns the list of Galois elements required to perform a linear transform
+// with the provided non-zero diagonales.
+// Set LogBSGSRatio < 0 to return the Galois elements for a naive evaluation of the linear transform.
+func (p Parameters) GaloisElementsForLinearTransform(nonZeroDiagonals []int, LogBSGSRatio, LogSlots int) (galEls []uint64) {
+
+	slots := 1 << LogSlots
+
+	rotIndex := make(map[int]bool)
+
+	var index int
+
+	if LogBSGSRatio < 0 {
+
+		for _, j := range nonZeroDiagonals {
+			rotIndex[j] = true
+		}
+
+	} else {
+
+		N1 := FindBestBSGSRatio(nonZeroDiagonals, slots, LogBSGSRatio)
+
+		for _, j := range nonZeroDiagonals {
+			j &= (slots - 1)
+			index = ((j / N1) * N1) & (slots - 1)
+			rotIndex[index] = true
+			index = j & (N1 - 1)
+			rotIndex[index] = true
+		}
+	}
+
+	rotations := make([]int, len(rotIndex))
+	var i int
+	for j := range rotIndex {
+		rotations[i] = j
+		i++
+	}
+
+	return p.GaloisElementsForRotations(rotations)
+}
+
 // InverseGaloisElement takes a Galois element and returns the Galois element
 // corresponding to the inverse automorphism
 func (p Parameters) InverseGaloisElement(galEl uint64) uint64 {

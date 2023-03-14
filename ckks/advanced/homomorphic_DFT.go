@@ -87,7 +87,7 @@ func (d *HomomorphicDFTMatrixLiteral) GaloisElements(params ckks.Parameters) (ga
 
 	// Coeffs to Slots rotations
 	for i, pVec := range indexCtS {
-		N1 := ckks.FindBestBSGSRatio(pVec, dslots, d.LogBSGSRatio)
+		N1 := rlwe.FindBestBSGSRatio(pVec, dslots, d.LogBSGSRatio)
 		rotations = addMatrixRotToList(pVec, rotations, N1, slots, d.Type == Decode && logSlots < logN-1 && i == 0 && d.RepackImag2Real)
 	}
 

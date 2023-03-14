@@ -1080,34 +1080,25 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		slots := ciphertext.Slots()
 
-		diagMatrix := make(map[int][]*bignum.Complex)
-
-		diagMatrix[-15] = make([]*bignum.Complex, slots)
-		diagMatrix[-4] = make([]*bignum.Complex, slots)
-		diagMatrix[-1] = make([]*bignum.Complex, slots)
-		diagMatrix[0] = make([]*bignum.Complex, slots)
-		diagMatrix[1] = make([]*bignum.Complex, slots)
-		diagMatrix[2] = make([]*bignum.Complex, slots)
-		diagMatrix[3] = make([]*bignum.Complex, slots)
-		diagMatrix[4] = make([]*bignum.Complex, slots)
-		diagMatrix[15] = make([]*bignum.Complex, slots)
+		nonZeroDiags := []int{-15, -4, -1, 0, 1, 2, 3, 4, 15}
 
 		one := new(big.Float).SetInt64(1)
 		zero := new(big.Float)
 
-		for i := 0; i < slots; i++ {
-			diagMatrix[-15][i] = &bignum.Complex{one, zero}
-			diagMatrix[-4][i] = &bignum.Complex{one, zero}
-			diagMatrix[-1][i] = &bignum.Complex{one, zero}
-			diagMatrix[0][i] = &bignum.Complex{one, zero}
-			diagMatrix[1][i] = &bignum.Complex{one, zero}
-			diagMatrix[2][i] = &bignum.Complex{one, zero}
-			diagMatrix[3][i] = &bignum.Complex{one, zero}
-			diagMatrix[4][i] = &bignum.Complex{one, zero}
-			diagMatrix[15][i] = &bignum.Complex{one, zero}
+		diagMatrix := make(map[int][]*bignum.Complex)
+		for _, i := range nonZeroDiags {
+			diagMatrix[i] = make([]*bignum.Complex, slots)
+
+			for j := 0; j < slots; j++ {
+				diagMatrix[i][j] = &bignum.Complex{one, zero}
+			}
 		}
 
-		linTransf := GenLinearTransformBSGS(tc.encoder, diagMatrix, params.MaxLevel(), rlwe.NewScale(params.Q()[params.MaxLevel()]), 2.0, ciphertext.LogSlots)
+		LogBSGSRatio := 2
+
+		linTransf := GenLinearTransformBSGS(tc.encoder, diagMatrix, params.MaxLevel(), rlwe.NewScale(params.Q()[params.MaxLevel()]), LogBSGSRatio, ciphertext.LogSlots)
+
+		galEls := params.GaloisElementsForLinearTransform(nonZeroDiags, LogBSGSRatio, ciphertext.LogSlots)
 
 		evk := rlwe.NewEvaluationKeySet()
 		for _, galEl := range linTransf.GaloisElements(params) {
@@ -1159,6 +1150,8 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 		}
 
 		linTransf := GenLinearTransform(tc.encoder, diagMatrix, params.MaxLevel(), rlwe.NewScale(params.Q()[params.MaxLevel()]), ciphertext.LogSlots)
+
+		galEls := params.GaloisElementsForLinearTransform([]int{-1, 0}, -1, ciphertext.LogSlots)
 
 		evk := rlwe.NewEvaluationKeySet()
 		for _, galEl := range linTransf.GaloisElements(params) {

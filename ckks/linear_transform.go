@@ -107,8 +107,8 @@ func NewLinearTransform(params Parameters, nonZeroDiags []int, level, logSlots i
 			vec[idx] = *ringQP.NewPoly()
 		}
 	} else {
-		N1 = FindBestBSGSRatio(nonZeroDiags, slots, LogBSGSRatio)
-		index, _, _ := BSGSIndex(nonZeroDiags, slots, N1)
+		N1 = rlwe.FindBestBSGSRatio(nonZeroDiags, slots, LogBSGSRatio)
+		index, _, _ := rlwe.BSGSIndex(nonZeroDiags, slots, N1)
 		for j := range index {
 			for _, i := range index[j] {
 				vec[j+i] = *ringQP.NewPoly()
@@ -119,9 +119,8 @@ func NewLinearTransform(params Parameters, nonZeroDiags []int, level, logSlots i
 	return LinearTransform{LogSlots: logSlots, N1: N1, Level: level, Vec: vec}
 }
 
-// GaloisElements returns the list of Galois elements needed for the evaluation
-// of the linear transform.
-func (LT *LinearTransform) GaloisElements(params Parameters) (galEls []uint64) {
+// GaloisElements returns the list of Galois elements needed for the evaluation of the linear transform.
+func (LT *LinearTransform) GaloisElements(params Parameters) (GalEls []uint64) {
 	slots := 1 << LT.LogSlots
 
 	rotIndex := make(map[int]bool)
@@ -139,23 +138,21 @@ func (LT *LinearTransform) GaloisElements(params Parameters) (galEls []uint64) {
 	} else {
 
 		for j := range LT.Vec {
-
 			index = ((j / N1) * N1) & (slots - 1)
 			rotIndex[index] = true
-
 			index = j & (N1 - 1)
 			rotIndex[index] = true
 		}
 	}
 
-	galEls = make([]uint64, len(rotIndex))
+	rotations := make([]int, len(rotIndex))
 	var i int
 	for j := range rotIndex {
 		galEls[i] = params.GaloisElementForColumnRotationBy(j)
 		i++
 	}
 
-	return
+	return params.GaloisElementsForRotations(rotations)
 }
 
 // Encode encodes on a pre-allocated LinearTransform the linear transforms' matrix in diagonal form `value`.
@@ -185,7 +182,7 @@ func (LT *LinearTransform) Encode(ecd *Encoder, value interface{}, scale rlwe.Sc
 		}
 	} else {
 
-		index, _, _ := BSGSIndex(value, slots, N1)
+		index, _, _ := rlwe.BSGSIndex(value, slots, N1)
 
 		var values interface{}
 		switch value.(type) {
@@ -267,9 +264,9 @@ func GenLinearTransformBSGS(ecd *Encoder, value interface{}, level int, scale rl
 	slots := 1 << logSlots
 
 	// N1*N2 = N
-	N1 := FindBestBSGSRatio(value, slots, LogBSGSRatio)
+	N1 := rlwe.FindBestBSGSRatio(value, slots, LogBSGSRatio)
 
-	index, _, _ := BSGSIndex(value, slots, N1)
+	index, _, _ := rlwe.BSGSIndex(value, slots, N1)
 
 	vec := make(map[int]ringqp.Poly)
 
@@ -370,85 +367,6 @@ func copyRotInterface(a, b interface{}, rot int) {
 	}
 }
 
-// BSGSIndex returns the index map and needed rotation for the BSGS matrix-vector multiplication algorithm.
-func BSGSIndex(el interface{}, slots, N1 int) (index map[int][]int, rotN1, rotN2 []int) {
-	index = make(map[int][]int)
-	rotN1Map := make(map[int]bool)
-	rotN2Map := make(map[int]bool)
-	var nonZeroDiags []int
-	switch element := el.(type) {
-	case map[int][]complex128:
-		nonZeroDiags = make([]int, len(element))
-		var i int
-		for key := range element {
-			nonZeroDiags[i] = key
-			i++
-		}
-	case map[int][]float64:
-		nonZeroDiags = make([]int, len(element))
-		var i int
-		for key := range element {
-			nonZeroDiags[i] = key
-			i++
-		}
-	case map[int]bool:
-		nonZeroDiags = make([]int, len(element))
-		var i int
-		for key := range element {
-			nonZeroDiags[i] = key
-			i++
-		}
-	case map[int]ringqp.Poly:
-		nonZeroDiags = make([]int, len(element))
-		var i int
-		for key := range element {
-			nonZeroDiags[i] = key
-			i++
-		}
-	case map[int][]*big.Float:
-		nonZeroDiags = make([]int, len(element))
-		var i int
-		for key := range element {
-			nonZeroDiags[i] = key
-			i++
-		}
-	case map[int][]*bignum.Complex:
-		nonZeroDiags = make([]int, len(element))
-		var i int
-		for key := range element {
-			nonZeroDiags[i] = key
-			i++
-		}
-	case []int:
-		nonZeroDiags = element
-	}
-
-	for _, rot := range nonZeroDiags {
-		rot &= (slots - 1)
-		idxN1 := ((rot / N1) * N1) & (slots - 1)
-		idxN2 := rot & (N1 - 1)
-		if index[idxN1] == nil {
-			index[idxN1] = []int{idxN2}
-		} else {
-			index[idxN1] = append(index[idxN1], idxN2)
-		}
-		rotN1Map[idxN1] = true
-		rotN2Map[idxN2] = true
-	}
-
-	rotN1 = []int{}
-	for i := range rotN1Map {
-		rotN1 = append(rotN1, i)
-	}
-
-	rotN2 = []int{}
-	for i := range rotN2Map {
-		rotN2 = append(rotN2, i)
-	}
-
-	return
-}
-
 func interfaceMapToMapOfInterface(m interface{}) map[int]interface{} {
 	d := make(map[int]interface{})
 	switch el := m.(type) {
@@ -472,29 +390,6 @@ func interfaceMapToMapOfInterface(m interface{}) map[int]interface{} {
 		panic("cannot interfaceMapToMapOfInterface: invalid input, must be map[int]{[]complex128, []float64, []*big.Float or []*bignum.Complex}")
 	}
 	return d
-}
-
-// FindBestBSGSRatio finds the best N1*N2 = N for the baby-step giant-step algorithm for matrix multiplication.
-func FindBestBSGSRatio(diagMatrix interface{}, maxN int, logMaxRatio int) (minN int) {
-
-	maxRatio := float64(int(1 << logMaxRatio))
-
-	for N1 := 1; N1 < maxN; N1 <<= 1 {
-
-		_, rotN1, rotN2 := BSGSIndex(diagMatrix, maxN, N1)
-
-		nbN1, nbN2 := len(rotN1)-1, len(rotN2)-1
-
-		if float64(nbN2)/float64(nbN1) == maxRatio {
-			return N1
-		}
-
-		if float64(nbN2)/float64(nbN1) > maxRatio {
-			return N1 / 2
-		}
-	}
-
-	return 1
 }
 
 // LinearTransformNew evaluates a linear transform on the Ciphertext "ctIn" and returns the result on a new Ciphertext.
@@ -726,7 +621,7 @@ func (eval *Evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Li
 	PiOverF := eval.params.PiOverflowMargin(levelP) >> 1
 
 	// Computes the N2 rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giant-step algorithm
-	index, _, rotN2 := BSGSIndex(matrix.Vec, 1<<matrix.LogSlots, matrix.N1)
+	index, _, rotN2 := rlwe.BSGSIndex(matrix.Vec, 1<<matrix.LogSlots, matrix.N1)
 
 	ring.Copy(ctIn.Value[0], eval.BuffCt.Value[0])
 	ring.Copy(ctIn.Value[1], eval.BuffCt.Value[1])

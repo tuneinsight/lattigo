@@ -40,21 +40,21 @@ func main() {
 
 	// For this first example, we do not specify any optional field of the bootstrapping
 	// Thus we expect the bootstrapping to give a precision of 27.25 bits with H=192 (and 23.8 with H=N/2)
-	// if the plaintext values are uniformely distributed in [-1, 1] for both the real and imaginary part.
+	// if the plaintext values are uniformly distributed in [-1, 1] for both the real and imaginary part.
 	// See `/ckks/bootstrapping/parameters.go` for information about the optional fields.
 	btpParametersLit := bootstrapping.ParametersLiteral{}
 
 	// The default bootstrapping parameters consume 822 bits which is smaller than the maximum
 	// allowed of 851 in our example, so the target security is easily met.
 	// We can print and verify the expected bit consumption of bootstrapping parameters with:
-	bits, err := btpParametersLit.BitComsumption()
+	bits, err := btpParametersLit.BitConsumption()
 	if err != nil {
 		panic(err)
 	}
 	fmt.Printf("Bootstrapping depth (bits): %d\n", bits)
 
 	// Now we generate the updated ckks.ParametersLiteral that contain our residual moduli and the moduli for
-	// the bootstrapping circuit, as well as the bootstrapping.Parameters that contain all the necessary informations
+	// the bootstrapping circuit, as well as the bootstrapping.Parameters that contain all the necessary information
 	// of the bootstrapping circuit.
 	ckksParamsLit, btpParams, err := bootstrapping.NewParametersFromLiteral(ckksParamsResidualLit, btpParametersLit)
 	if err != nil {
@@ -79,7 +79,7 @@ func main() {
 		panic(err)
 	}
 
-	// Here we print some informations about the generated ckks.Parameters
+	// Here we print some information about the generated ckks.Parameters
 	// We can notably check that the LogQP of the generated ckks.Parameters is equal to 699 + 822 = 1521.
 	// Not that this value can be overestimated by one bit.
 	fmt.Printf("CKKS parameters: logN=%d, logSlots=%d, H(%d; %d), sigma=%f, logQP=%d, levels=%d, scale=2^%f\n", params.LogN(), params.LogSlots(), params.HammingWeight(), btpParams.EphemeralSecretWeight, params.Sigma(), params.LogQP(), params.QCount(), math.Log2(params.DefaultScale().Float64()))
@@ -103,7 +103,7 @@ func main() {
 		panic(err)
 	}
 
-	// Generate a random plaintext with values uniformely distributed in [-1, 1] for the real and imaginary part.
+	// Generate a random plaintext with values uniformly distributed in [-1, 1] for the real and imaginary part.
 	valuesWant := make([]complex128, params.Slots())
 	for i := range valuesWant {
 		valuesWant[i] = utils.RandComplex128(-1, 1)
@@ -132,7 +132,7 @@ func main() {
 
 	// Decrypt, print and compare with the plaintext values
 	fmt.Println()
-	fmt.Println("Precision of ciphertext vs. Bootstrapp(ciphertext)")
+	fmt.Println("Precision of ciphertext vs. Bootstrap(ciphertext)")
 	printDebug(params, ciphertext2, valuesTest1, decryptor, encoder)
 }
 

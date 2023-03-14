@@ -13,7 +13,7 @@ import (
 // If the input ciphertext level is zero, the input scale must be an exact power of two smaller than Q[0]/MessageRatio
 // (it can't be equal since Q[0] is not a power of two).
 // The message ratio is an optional field in the bootstrapping parameters, by default it set to 2^{LogMessageRatio = 8}.
-// See the bootstrapping parameters for more informations about the message ratio or other parameters related to the bootstrapping.
+// See the bootstrapping parameters for more information about the message ratio or other parameters related to the bootstrapping.
 // If the input ciphertext is at level one or more, the input scale does not need to be an exact power of two as one level
 // can be used to do a scale matching.
 func (btp *Bootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext) {
@@ -39,10 +39,10 @@ func (btp *Bootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertex
 
 	} else {
 
-		// Does an integer constant mult by round((Q0/Delta_m)/ctscle)
+		// Does an integer constant mult by round((Q0/Delta_m)/ctscale)
 		if scale := ctDiff.Scale.Float64(); scale != math.Exp2(math.Round(math.Log2(scale))) || btp.q0OverMessageRatio < scale {
 			msgRatio := btp.EvalModParameters.LogMessageRatio
-			panic(fmt.Sprintf("ciphetext scale must be a power of two smaller than Q[0]/2^{LogMessageRatio=%d} = %f but is %f", msgRatio, float64(btp.params.Q()[0])/math.Exp2(float64(msgRatio)), scale))
+			panic(fmt.Sprintf("ciphertext scale must be a power of two smaller than Q[0]/2^{LogMessageRatio=%d} = %f but is %f", msgRatio, float64(btp.params.Q()[0])/math.Exp2(float64(msgRatio)), scale))
 		}
 
 		btp.ScaleUp(ctDiff, rlwe.NewScale(math.Round(btp.q0OverMessageRatio/ctDiff.Scale.Float64())), ctDiff)

@@ -57,7 +57,7 @@ import (
 //		When using a small ratio (i.e. 2^4), for example if ct.Scale is close to Q[0] is small or if |m| is large, the ArcSine degree can be set to
 //	 a non zero value (i.e. 5 or 7). This will greatly improve the precision of the bootstrapping, at the expense of slightly increasing its depth.
 //
-// SineType: the type of approximation for the modular reduction polynomial. By default set to advanced.CosDiscret.
+// SineType: the type of approximation for the modular reduction polynomial. By default set to advanced.CosDiscrete.
 //
 // K: the range of the approximation interval, by default set to 16.
 //
@@ -72,7 +72,7 @@ type ParametersLiteral struct {
 	EvalModLogScale                             *int              // Default: 60
 	EphemeralSecretWeight                       *int              // Default: 32
 	Iterations                                  *int              // Default: 1
-	SineType                                    advanced.SineType // Default: advanced.CosDiscret
+	SineType                                    advanced.SineType // Default: advanced.CosDiscrete
 	LogMessageRatio                             *int              // Default: 8
 	K                                           *int              // Default: 16
 	SineDegree                                  *int              // Default: 30
@@ -95,7 +95,7 @@ const (
 	DefaultEphemeralSecretWeight = 32
 	// DefaultIterations is the default number of bootstrapping iterations.
 	DefaultIterations = 1
-	// DefaultIterationsLogScale is the default scaling factor for the additional prime consummed per additional bootstrapping iteration above 1.
+	// DefaultIterationsLogScale is the default scaling factor for the additional prime consumed per additional bootstrapping iteration above 1.
 	DefaultIterationsLogScale = 25
 	// DefaultSineType is the default function and approximation technique for the homomorphic modular reduction polynomial.
 	DefaultSineType = advanced.CosDiscrete
@@ -111,7 +111,7 @@ const (
 	DefaultArcSineDegree = 0
 )
 
-// MarshalBinary returns a JSON reprsentation of the the target ParametersLiteral struct on a slice of bytes.
+// MarshalBinary returns a JSON representation of the the target ParametersLiteral struct on a slice of bytes.
 // See `Marshal` from the `encoding/json` package.
 func (p *ParametersLiteral) MarshalBinary() (data []byte, err error) {
 	return json.Marshal(p)
@@ -262,7 +262,7 @@ func (p *ParametersLiteral) GetDoubleAngle() (DoubleAngle int, err error) {
 }
 
 // GetSineDegree returns the SineDegree field of the target ParametersLiteral.
-// The default value DefaulSineDegree is returned is the field is nil.
+// The default value DefaultSineDegree is returned is the field is nil.
 func (p *ParametersLiteral) GetSineDegree() (SineDegree int, err error) {
 	if v := p.SineDegree; v == nil {
 		SineDegree = DefaultSineDegree
@@ -277,7 +277,7 @@ func (p *ParametersLiteral) GetSineDegree() (SineDegree int, err error) {
 }
 
 // GetEphemeralSecretWeight returns the EphemeralSecretWeight field of the target ParametersLiteral.
-// The default value DefaulEphemeralSecretWeight is returned is the field is nil.
+// The default value DefaultEphemeralSecretWeight is returned is the field is nil.
 func (p *ParametersLiteral) GetEphemeralSecretWeight() (EphemeralSecretWeight int, err error) {
 	if v := p.EphemeralSecretWeight; v == nil {
 		EphemeralSecretWeight = DefaultEphemeralSecretWeight
@@ -291,10 +291,10 @@ func (p *ParametersLiteral) GetEphemeralSecretWeight() (EphemeralSecretWeight in
 	return
 }
 
-// BitComsumption returns the expected consumption in bits of
+// BitConsumption returns the expected consumption in bits of
 // bootstrapping circuit of the target ParametersLiteral.
 // The value is rounded up and thus will overestimate the value by up to 1 bit.
-func (p *ParametersLiteral) BitComsumption() (logQ int, err error) {
+func (p *ParametersLiteral) BitConsumption() (logQ int, err error) {
 
 	C2SLogScale := p.GetCoeffsToSlotsFactorizationDepthAndLogScales()
 	for i := range C2SLogScale {

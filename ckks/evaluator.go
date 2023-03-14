@@ -553,7 +553,7 @@ func (eval *evaluator) RescaleNew(ct0 *rlwe.Ciphertext, minScale rlwe.Scale) (ct
 // in ctOut. Since all the moduli in the moduli chain are generated to be close to the
 // original scale, this procedure is equivalent to dividing the input element by the scale and adding
 // some error.
-// Returns an error if "minScale <= 0", ct.scale = 0, ct.Level() = 0, ct.IsNTT() != true or if ct.Leve() != ctOut.Level()
+// Returns an error if "minScale <= 0", ct.scale = 0, ct.Level() = 0, ct.IsNTT() != true or if ct.Level() != ctOut.Level()
 func (eval *evaluator) Rescale(ctIn *rlwe.Ciphertext, minScale rlwe.Scale, ctOut *rlwe.Ciphertext) (err error) {
 
 	if minScale.Cmp(rlwe.NewScale(0)) != 1 {

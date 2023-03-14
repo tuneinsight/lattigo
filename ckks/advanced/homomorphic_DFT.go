@@ -18,7 +18,7 @@ const (
 )
 
 // HomomorphicDFTMatrix is a struct storing the factorized IDFT, DFT matrices, which are
-// used to hommorphically used to encode and decode a ciphertext respectively.
+// used to hommorphically encode and decode a ciphertext respectively.
 type HomomorphicDFTMatrix struct {
 	HomomorphicDFTMatrixLiteral
 	Matrices []ckks.LinearTransform
@@ -26,17 +26,19 @@ type HomomorphicDFTMatrix struct {
 
 // HomomorphicDFTMatrixLiteral is a struct storing the parameters to generate the factorized DFT/IDFT matrices.
 // This struct has mandatory and optional fields.
+//
 // Mandatory:
-// - DFTType: Encode (a.k.a. CoeffsToSlots) or Decode (a.k.a. SlotsToCoeffs)
-// - LogN: log2(RingDegree)
-// - LogSlots: log2(slots)
-// - LevelStart: starting level of the linear transformation
-// - Levels: depth of the linear transform (i.e. the degree of factorization of the encoding matrix)
+//   - DFTType: Encode (a.k.a. CoeffsToSlots) or Decode (a.k.a. SlotsToCoeffs)
+//   - LogN: log2(RingDegree)
+//   - LogSlots: log2(slots)
+//   - LevelStart: starting level of the linear transformation
+//   - Levels: depth of the linear transform (i.e. the degree of factorization of the encoding matrix)
+//
 // Optional:
-// - RepackImag2Real: if true, the imaginary part is repacked into the right n slots of the real part
-// - Scaling: constant by which the matrix is multiplied
-// - BitReversed: if true, then applies the transformation bit-reversed and expects bit-reversed inputs
-// - LogBSGSRatio: log2 of the ratio between the inner and outer loop of the baby-step giant-step algorithm
+//   - RepackImag2Real: if true, the imaginary part is repacked into the right n slots of the real part
+//   - Scaling: constant by which the matrix is multiplied
+//   - BitReversed: if true, then applies the transformation bit-reversed and expects bit-reversed inputs
+//   - LogBSGSRatio: log2 of the ratio between the inner and outer loop of the baby-step giant-step algorithm
 type HomomorphicDFTMatrixLiteral struct {
 	// Mandatory
 	Type       DFTType
@@ -383,7 +385,7 @@ func nextLevelfftIndexMap(vec map[int]bool, logL, N, nextLevel int, ltType DFTTy
 	return
 }
 
-// GenMatrices returns the ordered list of factors of the non-zero diagonales of the IDFT (encoding) or DFT (decoding) matrix.
+// GenMatrices returns the ordered list of factors of the non-zero diagonals of the IDFT (encoding) or DFT (decoding) matrix.
 func (d *HomomorphicDFTMatrixLiteral) GenMatrices() (plainVector []map[int][]complex128) {
 
 	logSlots := d.LogSlots
@@ -419,7 +421,7 @@ func (d *HomomorphicDFTMatrixLiteral) GenMatrices() (plainVector []map[int][]com
 	plainVector = make([]map[int][]complex128, maxDepth)
 
 	// We compute the chain of merge in order or reverse order depending if its DFT or InvDFT because
-	// the way the levels are collapsed has an inpact on the total number of rotations and keys to be
+	// the way the levels are collapsed has an impact on the total number of rotations and keys to be
 	// stored. Ex. instead of using 255 + 64 plaintext vectors, we can use 127 + 128 plaintext vectors
 	// by reversing the order of the merging.
 	merge := make([]int, maxDepth)
@@ -498,7 +500,7 @@ func (d *HomomorphicDFTMatrixLiteral) GenMatrices() (plainVector []map[int][]com
 		}
 	}
 
-	// Spreads the scale accross the matrices
+	// Spreads the scale across the matrices
 	scaling = complex(math.Pow(real(scaling), 1.0/float64(d.Depth(false))), 0)
 
 	for j := range plainVector {

@@ -31,15 +31,15 @@ const (
 	CosContinuous = SineType(2) // Standard Chebyshev approximation of pow((1/2pi), 1/2^r) * cos(2pi(x-0.25)/2^r) on the full interval
 )
 
-// EvalModLiteral a struct for the paramters of the EvalMod procedure.
+// EvalModLiteral a struct for the parameters of the EvalMod procedure.
 // The EvalMod procedure goal is to homomorphically evaluate a modular reduction by Q[0] (the first prime of the moduli chain) on the encrypted plaintext.
 // This struct is consumed by `NewEvalModPolyFromLiteral` to generate the `EvalModPoly` struct, which notably stores
 // the coefficient of the polynomial approximating the function x mod Q[0].
 type EvalModLiteral struct {
 	LevelStart      int      // Starting level of EvalMod
 	LogScale        int      // Log2 of the scaling factor used during EvalMod
-	SineType        SineType // Chose betwenn [Sin(2*pi*x)] or [cos(2*pi*x/r) with double angle formula]
-	LogMessageRatio int      // Log2 of the tatio between Q0 and m, i.e. Q[0]/|m|
+	SineType        SineType // Chose between [Sin(2*pi*x)] or [cos(2*pi*x/r) with double angle formula]
+	LogMessageRatio int      // Log2 of the ratio between Q0 and m, i.e. Q[0]/|m|
 	K               int      // K parameter (interpolation in the range -K to K)
 	SineDegree      int      // Degree of the interpolation
 	DoubleAngle     int      // Number of rescale and double angle formula (only applies for cos and is ignored if sin is used)
@@ -86,7 +86,7 @@ func (evp *EvalModPoly) K() float64 {
 	return evp.k * evp.scFac
 }
 
-// QDiff return Q[0]/ClosestedPow2
+// QDiff return Q[0]/ClosetPow2
 // This is the error introduced by the approximate division by Q[0].
 func (evp *EvalModPoly) QDiff() float64 {
 	return evp.qDiff

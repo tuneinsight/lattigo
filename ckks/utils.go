@@ -167,7 +167,7 @@ func FloatToFixedPointCRT(r *ring.Ring, values []float64, scale float64, coeffs 
 	}
 }
 
-// SingleFloatToFixedPointCRT encodes a single float on a CRT polynomialon in the i-th coefficient.
+// SingleFloatToFixedPointCRT encodes a single float on a CRT polynomial in the i-th coefficient.
 func SingleFloatToFixedPointCRT(r *ring.Ring, i int, value float64, scale float64, coeffs [][]uint64) {
 
 	var isNegative bool

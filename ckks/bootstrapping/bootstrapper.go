@@ -49,7 +49,7 @@ func NewBootstrapper(params ckks.Parameters, btpParams Parameters, btpKeys Evalu
 	}
 
 	if btpParams.EvalModParameters.SineType == advanced.CosDiscrete && btpParams.EvalModParameters.SineDegree < 2*(btpParams.EvalModParameters.K-1) {
-		return nil, fmt.Errorf("SineType 'advanced.CosDiscret' uses a minimum degree of 2*(K-1) but EvalMod degree is smaller")
+		return nil, fmt.Errorf("SineType 'advanced.CosDiscrete' uses a minimum degree of 2*(K-1) but EvalMod degree is smaller")
 	}
 
 	if btpParams.CoeffsToSlotsParameters.LevelStart-btpParams.CoeffsToSlotsParameters.Depth(true) != btpParams.EvalModParameters.LevelStart {

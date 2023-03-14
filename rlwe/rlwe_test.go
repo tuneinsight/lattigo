@@ -18,7 +18,7 @@ import (
 
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 
-// TestParams is a set of test parameters for the correctness of the rlwe pacakge.
+// TestParams is a set of test parameters for the correctness of the rlwe package.
 var TestParams = []ParametersLiteral{TestPN10QP27, TestPN11QP54, TestPN12QP109, TestPN13QP218, TestPN14QP438, TestPN15QP880, TestPN16QP240, TestPN17QP360}
 
 func testString(params Parameters, opname string) string {
@@ -425,7 +425,7 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 
 			ctSmallDim := NewCiphertext(paramsSmallDim, 1, paramsSmallDim.MaxLevel())
 
-			// skLarge -> skSmall embeded in N
+			// skLarge -> skSmall embedded in N
 			eval.SwitchKeys(ctLargeDim, swk, ctSmallDim)
 
 			// Decrypts with smaller dimension key

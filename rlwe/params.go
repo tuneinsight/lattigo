@@ -349,7 +349,7 @@ func (p Parameters) PCount() int {
 	return len(p.pi)
 }
 
-// PBigInt return the ciphertext-space extention modulus P in big.Integer, reconstructed, representation.
+// PBigInt return the ciphertext-space extension modulus P in big.Integer, reconstructed, representation.
 func (p Parameters) PBigInt() *big.Int {
 	pInt := big.NewInt(1)
 	for _, pi := range p.pi {

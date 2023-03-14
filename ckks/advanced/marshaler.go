@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 )
 
-// MarshalBinary returns a JSON reprsentation of the the target HomomorphicDFTMatrixLiteral on a slice of bytes.
+// MarshalBinary returns a JSON representation of the the target HomomorphicDFTMatrixLiteral on a slice of bytes.
 // See `Marshal` from the `encoding/json` package.
 func (d *HomomorphicDFTMatrixLiteral) MarshalBinary() (data []byte, err error) {
 	return json.Marshal(d)
@@ -16,7 +16,7 @@ func (d *HomomorphicDFTMatrixLiteral) UnmarshalBinary(data []byte) error {
 	return json.Unmarshal(data, d)
 }
 
-// MarshalBinary returns a JSON reprsentation of the the target EvalModLiteral struct on a slice of bytes.
+// MarshalBinary returns a JSON representation of the the target EvalModLiteral struct on a slice of bytes.
 // See `Marshal` from the `encoding/json` package.
 func (evm *EvalModLiteral) MarshalBinary() (data []byte, err error) {
 	return json.Marshal(evm)

@@ -8,6 +8,7 @@ test_gotest:
 test_examples:
 	@echo Running the examples
 	go run ./examples/ring/vOLE -short > /dev/null
+	go run ./examples/rgsw > /dev/null
 	go run ./examples/bfv > /dev/null
 	go run ./examples/ckks/bootstrapping -short > /dev/null
 	go run ./examples/ckks/advanced/lut -short > /dev/null

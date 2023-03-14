@@ -2,7 +2,24 @@
 # Changelog
 All notable changes to this library are documented in this file.
 
-## UNRELEASED - XXXX-XX-XX
+## UNRELEASED [4.1.x] - 2022-03-09
+- CKKS: renamed the `Parameters` field `DefaultScale` to `LogScale`, which now takes a value in log2.
+- CKKS: the `Parameters` field `LogSlots` now has a default value which is the maximum number of slots possible for the given parameters.
+- CKKS: variable `BSGSRatio` is now `LogBSGSRatio` and is given in log2.
+- CKKS/Bootstrapping: complete refactoring the bootstrapping parameters for better usability.
+- CKKS/Bootstrapping: upon bootstrapping, the method will check that the ciphertext scale is a power of two.
+- CKKS/Bootstrapping: added the iterative bootstrapping `META-BTS` of [Youngjin et al.](https://eprint.iacr.org/2020/1203).
+- CKKS/Bootstrapping: added `SimpleBootstrapper` which provides a re-encryption using the secret key and complies to the `rlwe.Bootstrapper` interface.
+- CKKS/Advanced: refactored names of structs and methods of the homomorphic encoding/decoding to better convey they purpose.
+- CKKS/Advanced: all fields of `EncodingMatrixLiteral` are now marshalled.
+- CKKS/Advanced: the homomorphic `Encoding` matrix is only scaled by an additional factor 1/2 if the `RepackImag2Real` field is set to true.
+- DCKKS: `GetMinimumLevelForBootstrapping` has been renamed to `GetMinimumLevelForRefresh`.
+- RLWE: added `Bootstrapper` interface.
+- RLWE: the method `SwitchKeys` can now be used to switch the ring degree of ciphertexts.
+- RLWE: `NewScale` now checks that scales given as `float64` are not `Inf` or `NaN` and that scales given as `big.Float` are not `Inf`.
+- Examples: added `examples/rgsw/main.go` which showcases LUT evaluation using the `rgsw` package.
+
+## UNRELEASED [4.1.x] - 2022-02-17
 - Go `1.13` is not supported anymore by the library due to behavioral changes in the `math/big` package. The minimum version is now `1.14`.
 - ALL: improved consistency across method names:
     - all sub-strings `NoMod`, `NoModDown` and `Constant` in methods names have been replaced by the sub-string `Lazy`. For example `AddNoMod` and `MulCoeffsMontgomeryConstant` become `AddLazy` and `MulCoeffsMontgomeryLazy` respectively.
@@ -13,18 +30,19 @@ All notable changes to this library are documented in this file.
 - BFV: replaced `bfv.Evaluator.InnerSum` with the more complete `rlwe.Evaluator.InnerSum`.
 - BFV: the `Evaluator` addition and subtraction no longer enforce BFV-specific operand types.
 - BFV: the maximum degree allowed for ciphertext multiplication has been reduced to two (same as `bgv` and `ckks`).
+- BFV: removed checks during addition and subtraction for the type of plaintext.
 - CKKS: added the `Polynomial.Lazy` field which specifies if the power basis is computed with lazy relinearization.
 - CKKS: made `NttAndMontgomery` thread safe again!
 - CKKS: removed `Evaluator` methods `MultByGaussianInteger`, `MultByGaussianIntegerThenAdd`, `MultByi`, `MultByiNew`, `DivByi` and `DivByiNew`. These are now all handled by the methods `MultByConst[...]`.
 - CKKS: updated the behavior of `MultByConstAndAdd`.
 - CKKS: fixed the median statistics of `PrecisionStats`, that were off by one index. 
 - RLWE: added `CheckBinary` and `CheckUnary` to the `Evaluator` type. It performs pre-checks on operands of the `Evaluator` methods.
-- RLWE: added the `MaxLevelQ` and `MaxLevelP` methods to the `Parameters` type.
+- RLWE: added the methods `MaxLevelQ` and `MaxLevelP` to the `Parameters` struct.
 - RLWE: added the method `NewCiphertextQP`.
-- RLWE: setting the Hamming weight of the secret or the standard deviation of the error to negative values will now instantiate these fields as zero values and return a warning.
+- RLWE: setting the Hamming weight of the secret or the standard deviation of the error through `NewParameters` to negative values will instantiate these fields as zero values and return a warning (as an error).
 - RING: refactoring of the `ring.Ring` object:
     - the `ring.Ring` object is now composed of a slice of `ring.SubRings` structs, which store the pre-computations for modular arithmetic and NTT for their respective prime.
-    - the methods `ModuliChain()`, `ModuliChainLength()`, `MaxLevel()`, `Level()` have been added to the `ring.Ring` type. 
+    - the methods `ModuliChain`, `ModuliChainLength`, `MaxLevel`, `Level` have been added to the `ring.Ring` type. 
     - added the `BinaryMarshaller` interface implementation for `ring.Ring` types. It marshals the factors and the primitive roots, removing the need for factorization and enabling a deterministic ring reconstruction.
     - removed all methods with the API `[...]Lvl(level, ...)`. Instead, to perform operations at a specific level, a `ring.Ring` type can be obtained using `ring.Ring.AtLevel(level)` (which is allocation free).
     - subring-level methods such as `NTTSingle` or `AddVec` are now accessible via `ring.Ring.SubRing[level].Method(*)`. Note that the consistency changes across method names also apply to those methods. So for example, `NTTSingle` and `AddVec` are now simply `NTT` and `Add` when called via a `SubRing` object.

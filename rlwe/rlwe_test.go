@@ -18,17 +18,18 @@ import (
 
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 
-// TestParams is a set of test parameters for the correctness of the rlwe pacakge.
+// TestParams is a set of test parameters for the correctness of the rlwe package.
 var TestParams = []ParametersLiteral{TestPN10QP27, TestPN11QP54, TestPN12QP109, TestPN13QP218, TestPN14QP438, TestPN15QP880, TestPN16QP240, TestPN17QP360}
 
 func testString(params Parameters, opname string) string {
-	return fmt.Sprintf("%s/logN=%d/logQ=%d/logP=%d/#Qi=%d/#Pi=%d",
+	return fmt.Sprintf("%s/logN=%d/logQ=%d/logP=%d/#Qi=%d/#Pi=%d/%s",
 		opname,
 		params.LogN(),
 		params.LogQ(),
 		params.LogP(),
 		params.QCount(),
-		params.PCount())
+		params.PCount(),
+		params.RingType())
 }
 
 func TestRLWE(t *testing.T) {
@@ -405,7 +406,6 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 
 		t.Run(testString(paramsLargeDim, "LargeToSmall"), func(t *testing.T) {
 
-			ringQLargeDim := paramsLargeDim.RingQ()
 			ringQSmallDim := paramsSmallDim.RingQ()
 
 			kgenLargeDim := NewKeyGenerator(paramsLargeDim)
@@ -423,13 +423,10 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 
 			eval := NewEvaluator(paramsLargeDim, nil)
 
-			// skLarge -> skSmall embeded in N
-			eval.SwitchKeys(ctLargeDim, swk, ctLargeDim)
-
-			//Extracts Coefficients
 			ctSmallDim := NewCiphertext(paramsSmallDim, 1, paramsSmallDim.MaxLevel())
 
-			SwitchCiphertextRingDegreeNTT(ctLargeDim, ringQSmallDim, ringQLargeDim, ctSmallDim)
+			// skLarge -> skSmall embedded in N
+			eval.SwitchKeys(ctLargeDim, swk, ctSmallDim)
 
 			// Decrypts with smaller dimension key
 			ringQSmallDim.MulCoeffsMontgomeryThenAdd(ctSmallDim.Value[1], skSmallDim.Value.Q, ctSmallDim.Value[0])
@@ -459,14 +456,11 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 			ctSmallDim := NewCiphertext(paramsSmallDim, 1, plaintext.Level())
 			encryptor.Encrypt(plaintext, ctSmallDim)
 
-			//Extracts Coefficients
 			ctLargeDim := NewCiphertext(paramsLargeDim, 1, plaintext.Level())
-
-			SwitchCiphertextRingDegreeNTT(ctSmallDim, nil, nil, ctLargeDim)
 
 			eval := NewEvaluator(paramsLargeDim, nil)
 
-			eval.SwitchKeys(ctLargeDim, swk, ctLargeDim)
+			eval.SwitchKeys(ctSmallDim, swk, ctLargeDim)
 
 			// Decrypts with smaller dimension key
 			ringQLargeDim.MulCoeffsMontgomeryThenAdd(ctLargeDim.Value[1], skLargeDim.Value.Q, ctLargeDim.Value[0])

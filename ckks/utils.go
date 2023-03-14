@@ -94,7 +94,7 @@ func StandardDeviation(vec []float64, scale float64) (std float64) {
 		err += tmp * tmp
 	}
 
-	return math.Sqrt(err/n) * scale
+	return math.Sqrt(err/(n-1)) * scale
 }
 
 // NttSparseAndMontgomery takes the polynomial polIn Z[Y] outside of the NTT domain to the polynomial Z[X] in the NTT domain where Y = X^(gap).
@@ -144,27 +144,31 @@ func NttSparseAndMontgomery(r *ring.Ring, logSlots int, montgomery bool, pol *ri
 	}
 }
 
-func complexToFixedPointCRT(level int, values []complex128, scale float64, ringQ *ring.Ring, coeffs [][]uint64, isRingStandard bool) {
+// ComplexToFixedPointCRT encodes a vector of complex on a CRT polynomial.
+// The real part is put in a left N/2 coefficient and the imaginary in the right N/2 coefficients.
+func ComplexToFixedPointCRT(r *ring.Ring, values []complex128, scale float64, coeffs [][]uint64) {
 
 	for i, v := range values {
-		singleFloatToFixedPointCRT(level, i, real(v), scale, ringQ, coeffs)
+		SingleFloatToFixedPointCRT(r, i, real(v), scale, coeffs)
 	}
 
-	if isRingStandard {
+	if r.Type() == ring.Standard {
 		slots := len(values)
 		for i, v := range values {
-			singleFloatToFixedPointCRT(level, i+slots, imag(v), scale, ringQ, coeffs)
+			SingleFloatToFixedPointCRT(r, i+slots, imag(v), scale, coeffs)
 		}
 	}
 }
 
-func floatToFixedPointCRT(level int, values []float64, scale float64, ringQ *ring.Ring, coeffs [][]uint64) {
+// FloatToFixedPointCRT encodes a vector of floats on a CRT polynomial.
+func FloatToFixedPointCRT(r *ring.Ring, values []float64, scale float64, coeffs [][]uint64) {
 	for i, v := range values {
-		singleFloatToFixedPointCRT(level, i, v, scale, ringQ, coeffs)
+		SingleFloatToFixedPointCRT(r, i, v, scale, coeffs)
 	}
 }
 
-func singleFloatToFixedPointCRT(level, i int, value float64, scale float64, ringQ *ring.Ring, coeffs [][]uint64) {
+// SingleFloatToFixedPointCRT encodes a single float on a CRT polynomial in the i-th coefficient.
+func SingleFloatToFixedPointCRT(r *ring.Ring, i int, value float64, scale float64, coeffs [][]uint64) {
 
 	var isNegative bool
 	var xFlo *big.Float
@@ -181,14 +185,14 @@ func singleFloatToFixedPointCRT(level, i int, value float64, scale float64, ring
 
 	value *= scale
 
-	moduli := ringQ.ModuliChain()
+	moduli := r.ModuliChain()[:r.Level()+1]
 
 	if value > 1.8446744073709552e+19 {
 		xFlo = big.NewFloat(value)
 		xFlo.Add(xFlo, big.NewFloat(0.5))
 		xInt = new(big.Int)
 		xFlo.Int(xInt)
-		for j := range moduli[:level+1] {
+		for j := range moduli {
 			tmp.Mod(xInt, ring.NewUint(moduli[j]))
 			if isNegative {
 				coeffs[j][i] = moduli[j] - tmp.Uint64()
@@ -198,11 +202,11 @@ func singleFloatToFixedPointCRT(level, i int, value float64, scale float64, ring
 		}
 
 	} else {
-		brc := ringQ.BRedConstants()
+		brc := r.BRedConstants()
 
 		c = uint64(value + 0.5)
 		if isNegative {
-			for j, qi := range moduli[:level+1] {
+			for j, qi := range moduli {
 				if c > qi {
 					coeffs[j][i] = qi - ring.BRedAdd(c, qi, brc[j])
 				} else {
@@ -210,7 +214,7 @@ func singleFloatToFixedPointCRT(level, i int, value float64, scale float64, ring
 				}
 			}
 		} else {
-			for j, qi := range moduli[:level+1] {
+			for j, qi := range moduli {
 				if c > 0x1fffffffffffffff {
 					coeffs[j][i] = ring.BRedAdd(c, qi, brc[j])
 				} else {

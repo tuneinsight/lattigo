@@ -3,6 +3,7 @@ package rlwe
 import (
 	"encoding/binary"
 	"fmt"
+	"math"
 	"math/big"
 )
 
@@ -196,21 +197,22 @@ func scaleToBigFloat(scale interface{}) (s *big.Float) {
 
 	switch scale := scale.(type) {
 	case float64:
-		if scale < 0 {
-			panic(fmt.Errorf("scale cannot be  negative but is %f", scale))
+		if scale < 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
+			panic(fmt.Errorf("scale cannot be negative, NaN or Inf, but is %f", scale))
 		}
+
 		s = new(big.Float).SetPrec(ScalePrecision)
 		s.SetFloat64(scale)
 		return
 	case *big.Float:
-		if scale.Cmp(new(big.Float).SetFloat64(0)) < 0 {
+		if scale.Cmp(new(big.Float).SetFloat64(0)) < 0 || scale.IsInf() {
 			panic(fmt.Errorf("scale cannot be negative, but is %f", scale))
 		}
 		s = new(big.Float).SetPrec(ScalePrecision)
 		s.Set(scale)
 		return
 	case big.Float:
-		if scale.Cmp(new(big.Float).SetFloat64(0)) < 0 {
+		if scale.Cmp(new(big.Float).SetFloat64(0)) < 0 || scale.IsInf() {
 			panic(fmt.Errorf("scale cannot be negative, but is %f", &scale))
 		}
 		s = new(big.Float).SetPrec(ScalePrecision)

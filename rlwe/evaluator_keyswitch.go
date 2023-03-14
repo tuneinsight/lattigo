@@ -10,25 +10,79 @@ import (
 // It requires a SwitchingKey, which is computed from the key under which the Ciphertext is currently encrypted
 // and the key under which the Ciphertext will be re-encrypted.
 // The method will panic if either ctIn or ctOut degree isn't 1.
-func (eval *Evaluator) SwitchKeys(ctIn *Ciphertext, switchingKey *SwitchingKey, ctOut *Ciphertext) {
+//
+// This method can also be used to switch the ciphertext to a different ring degree.
+// Note that the parameters of the smaller ring degree must have the exact same moduli Q and P
+// as the ones of the larger ring degree, but the number of primes in the modulus
+// P and Q can differ.
+//
+// To do so, it must be provided with the appropriate switching key, and have the operands
+// matching the target ring degrees.
+//
+// To switch a ciphertext to a smaller ring degree:
+// - ctIn ring degree must match the evaluator's ring degree.
+// - ctOut ring degree must match the smaller ring degree.
+// - swk must have been generated using the key-generator of the large ring degree with as input large-key -> small-key.
+//
+// To switch a ciphertext to a smaller ring degree:
+// - ctIn ring degree must match the smaller ring degree.
+// - ctOut ring degree must match the evaluator's ring degree.
+// - swk must have been generated using the key-generator of the large ring degree with as input small-key -> large-key.
+func (eval *Evaluator) SwitchKeys(ctIn *Ciphertext, swk *SwitchingKey, ctOut *Ciphertext) {
 
 	if ctIn.Degree() != 1 || ctOut.Degree() != 1 {
-		panic("cannot SwitchKeys: input and output Ciphertext must be of degree 1")
+		panic("SwitchKeys: input and output Ciphertext must be of degree 1")
 	}
 
 	level := utils.MinInt(ctIn.Level(), ctOut.Level())
 	ringQ := eval.params.RingQ().AtLevel(level)
 
+	NIn := ctIn.Value[0].N()
+	NOut := ctOut.Value[0].N()
+
+	if NIn < NOut {
+
+		if NOut != ringQ.N() {
+			panic("SwitchKeys: ctOut ring degree does not match evaluator params ring degree")
+		}
+
+		// Maps to larger ring degree Y = X^{N/n} -> X
+		SwitchCiphertextRingDegreeNTT(ctIn, nil, ctOut)
+
+		// Switches key from small to larger ring degree
+		eval.switchKeys(level, ctOut, swk, ctOut)
+
+	} else if NIn > NOut {
+
+		if NIn != ringQ.N() {
+			panic("SwitchKeys: ctIn ring degree does not match evaluator params ring degree")
+		}
+
+		level := utils.MinInt(ctIn.Level(), ctOut.Level())
+
+		ctTmp := NewCiphertextAtLevelFromPoly(level, eval.BuffCt.Value)
+		ctTmp.MetaData = ctIn.MetaData
+
+		// Switches key from large to small degree
+		eval.switchKeys(level, ctIn, swk, ctTmp)
+
+		// Maps to smaller ring degree X -> Y = X^{N/n}
+		SwitchCiphertextRingDegreeNTT(ctTmp, ringQ, ctOut)
+
+	} else {
+		eval.switchKeys(level, ctIn, swk, ctOut)
+	}
+
+	ctOut.MetaData = ctIn.MetaData
+}
+
+func (eval *Evaluator) switchKeys(level int, ctIn *Ciphertext, switchingKey *SwitchingKey, ctOut *Ciphertext) {
 	ctTmp := &Ciphertext{}
 	ctTmp.Value = []*ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}
 	ctTmp.IsNTT = ctIn.IsNTT
-
 	eval.GadgetProduct(level, ctIn.Value[1], switchingKey.GadgetCiphertext, ctTmp)
-
-	ringQ.Add(ctIn.Value[0], ctTmp.Value[0], ctOut.Value[0])
+	eval.params.RingQ().AtLevel(level).Add(ctIn.Value[0], ctTmp.Value[0], ctOut.Value[0])
 	ring.CopyLvl(level, ctTmp.Value[1], ctOut.Value[1])
-
-	ctOut.MetaData = ctIn.MetaData
 }
 
 // Relinearize applies the relinearization procedure on ct0 and returns the result in ctOut.

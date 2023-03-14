@@ -16,7 +16,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
-var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters + secure bootstrapping). Overrides -short and requires -timeout=0.")
+var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters + secure refresh). Overrides -short and requires -timeout=0.")
 var flagPostQuantum = flag.Bool("pq", false, "run post quantum test suite (does not run non-PQ parameters).")
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
@@ -170,7 +170,7 @@ func testE2SProtocol(tc *testContext, t *testing.T) {
 		var minLevel int
 		var logBound uint
 		var ok bool
-		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.DefaultScale(), tc.NParties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
+		if minLevel, logBound, ok = GetMinimumLevelForRefresh(128, params.DefaultScale(), tc.NParties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
 			t.Skip("Not enough levels to ensure correctness and 128 security")
 		}
 
@@ -259,7 +259,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 		var minLevel int
 		var logBound uint
 		var ok bool
-		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.DefaultScale(), tc.NParties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
+		if minLevel, logBound, ok = GetMinimumLevelForRefresh(128, params.DefaultScale(), tc.NParties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
 			t.Skip("Not enough levels to ensure correctness and 128 security")
 		}
 
@@ -328,7 +328,7 @@ func testRefreshAndTransform(tc *testContext, t *testing.T) {
 		var minLevel int
 		var logBound uint
 		var ok bool
-		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.DefaultScale(), tc.NParties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
+		if minLevel, logBound, ok = GetMinimumLevelForRefresh(128, params.DefaultScale(), tc.NParties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
 			t.Skip("Not enough levels to ensure correctness and 128 security")
 		}
 
@@ -409,7 +409,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 		var minLevel int
 		var logBound uint
 		var ok bool
-		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.DefaultScale(), tc.NParties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
+		if minLevel, logBound, ok = GetMinimumLevelForRefresh(128, params.DefaultScale(), tc.NParties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
 			t.Skip("Not enough levels to ensure correctness and 128 security")
 		}
 
@@ -430,12 +430,12 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 		// Target parameters
 		var paramsOut ckks.Parameters
 		paramsOut, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
-			LogN:         params.LogN() + 1,
-			LogQ:         []int{54, 49, 49, 49, 49, 49, 49},
-			LogP:         []int{52, 52},
-			RingType:     params.RingType(),
-			LogSlots:     params.MaxLogSlots() + 1,
-			DefaultScale: 1 << 49,
+			LogN:     params.LogN() + 1,
+			LogQ:     []int{54, 49, 49, 49, 49, 49, 49},
+			LogP:     []int{52, 52},
+			RingType: params.RingType(),
+			LogSlots: params.MaxLogSlots() + 1,
+			LogScale: 49,
 		})
 
 		require.Nil(t, err)
@@ -514,7 +514,7 @@ func testMarshalling(tc *testContext, t *testing.T) {
 		var minLevel int
 		var logBound uint
 		var ok bool
-		if minLevel, logBound, ok = GetMinimumLevelForBootstrapping(128, params.DefaultScale(), tc.NParties, params.Q()); ok != true {
+		if minLevel, logBound, ok = GetMinimumLevelForRefresh(128, params.DefaultScale(), tc.NParties, params.Q()); ok != true {
 			t.Skip("Not enough levels to ensure correctness and 128 security")
 		}
 

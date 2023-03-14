@@ -630,9 +630,13 @@ func testExtendBasis(tc *testParams, t *testing.T) {
 
 		Q := ringQ.Modulus()
 
+		QHalf := new(big.Int).Set(Q)
+		QHalf.Rsh(QHalf, 1)
+
 		coeffs := make([]*big.Int, N)
 		for i := 0; i < N; i++ {
 			coeffs[i] = RandInt(Q)
+			coeffs[i].Sub(coeffs[i], QHalf)
 		}
 
 		PolQHave := ringQ.NewPoly()
@@ -664,9 +668,13 @@ func testExtendBasis(tc *testParams, t *testing.T) {
 
 		P := ringP.Modulus()
 
+		PHalf := new(big.Int).Set(P)
+		PHalf.Rsh(PHalf, 1)
+
 		coeffs := make([]*big.Int, N)
 		for i := 0; i < N; i++ {
 			coeffs[i] = RandInt(P)
+			coeffs[i].Sub(coeffs[i], PHalf)
 		}
 
 		PolQWant := ringQ.NewPoly()
@@ -710,7 +718,7 @@ func testExtendBasis(tc *testParams, t *testing.T) {
 		coeffsWant := make([]*big.Int, N)
 		for i := range coeffs {
 			coeffsWant[i] = new(big.Int).Set(coeffs[i])
-			coeffsWant[i].Quo(coeffsWant[i], P)
+			DivRound(coeffsWant[i], P, coeffsWant[i])
 		}
 
 		PolQHave := ringQ.NewPoly()
@@ -755,23 +763,23 @@ func testExtendBasis(tc *testParams, t *testing.T) {
 		coeffsWant := make([]*big.Int, N)
 		for i := range coeffs {
 			coeffsWant[i] = new(big.Int).Set(coeffs[i])
-			coeffsWant[i].Quo(coeffsWant[i], P)
+			DivRound(coeffsWant[i], Q, coeffsWant[i])
 		}
 
 		PolQHave := ringQ.NewPoly()
 		PolPHave := ringP.NewPoly()
-		PolQWant := ringP.NewPoly()
+		PolPWant := ringP.NewPoly()
 
 		ringQ.SetCoefficientsBigint(coeffs, PolQHave)
 		ringP.SetCoefficientsBigint(coeffs, PolPHave)
-		ringQ.SetCoefficientsBigint(coeffsWant, PolQWant)
+		ringP.SetCoefficientsBigint(coeffsWant, PolPWant)
 
-		basisextender.ModDownQPtoQ(levelQ, levelP, PolQHave, PolPHave, PolQHave)
-		ringQ.Reduce(PolQHave, PolQHave)
+		basisextender.ModDownQPtoP(levelQ, levelP, PolQHave, PolPHave, PolPHave)
+		ringP.Reduce(PolPHave, PolPHave)
 
 		for i := 0; i < PolQHave.Level()+1; i++ {
 			for j := 0; j < N; j++ {
-				require.Equal(t, PolQHave.Coeffs[i][j], PolQWant.Coeffs[i][j])
+				require.Equal(t, PolPHave.Coeffs[i][j], PolPWant.Coeffs[i][j])
 			}
 		}
 	})

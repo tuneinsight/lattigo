@@ -18,11 +18,11 @@ func example() {
 	// Schemes parameters are created from scratch
 	params, err := ckks.NewParametersFromLiteral(
 		ckks.ParametersLiteral{
-			LogN:         14,
-			LogQ:         []int{55, 40, 40, 40, 40, 40, 40, 40},
-			LogP:         []int{45, 45},
-			LogSlots:     13,
-			DefaultScale: 1 << 40,
+			LogN:     14,
+			LogQ:     []int{55, 40, 40, 40, 40, 40, 40, 40},
+			LogP:     []int{45, 45},
+			LogSlots: 13,
+			LogScale: 40,
 		})
 	if err != nil {
 		panic(err)

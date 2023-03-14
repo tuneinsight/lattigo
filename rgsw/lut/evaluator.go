@@ -69,13 +69,13 @@ func NewEvaluator(paramsLUT, paramsLWE rlwe.Parameters, rtks *rlwe.RotationKeySe
 
 			ringQ.NTT(eval.xPowMinusOne[i].Q, eval.xPowMinusOne[i].Q)
 
-			// Negacyclic wrap-arround for n > N
+			// Negacyclic wrap-around for n > N
 			ringQ.Neg(eval.xPowMinusOne[i].Q, eval.xPowMinusOne[i+N].Q)
 
 		} else {
 			ringQ.MulCoeffsMontgomery(eval.xPowMinusOne[1].Q, eval.xPowMinusOne[i-1].Q, eval.xPowMinusOne[i].Q) // X^{n} = X^{1} * X^{n-1}
 
-			// Negacyclic wrap-arround for n > N
+			// Negacyclic wrap-around for n > N
 			ringQ.Neg(eval.xPowMinusOne[i].Q, eval.xPowMinusOne[i+N].Q) // X^{2n} = -X^{1} * X^{n-1}
 		}
 	}
@@ -108,14 +108,14 @@ func NewEvaluator(paramsLUT, paramsLWE rlwe.Parameters, rtks *rlwe.RotationKeySe
 
 				ringP.NTT(eval.xPowMinusOne[i].P, eval.xPowMinusOne[i].P)
 
-				// Negacyclic wrap-arround for n > N
+				// Negacyclic wrap-around for n > N
 				ringP.Neg(eval.xPowMinusOne[i].P, eval.xPowMinusOne[i+N].P)
 
 			} else {
 				// X^{n} = X^{1} * X^{n-1}
 				ringP.MulCoeffsMontgomery(eval.xPowMinusOne[1].P, eval.xPowMinusOne[i-1].P, eval.xPowMinusOne[i].P)
 
-				// Negacyclic wrap-arround for n > N
+				// Negacyclic wrap-around for n > N
 				// X^{2n} = -X^{1} * X^{n-1}
 				ringP.Neg(eval.xPowMinusOne[i].P, eval.xPowMinusOne[i+N].P)
 			}
@@ -141,12 +141,12 @@ func NewEvaluator(paramsLUT, paramsLWE rlwe.Parameters, rtks *rlwe.RotationKeySe
 
 // EvaluateAndRepack extracts on the fly LWE samples, evaluates the provided LUT on the LWE and repacks everything into a single rlwe.Ciphertext.
 // ct : a rlwe Ciphertext with coefficient encoded values at level 0
-// lutPolyWihtSlotIndex : a map with [slot_index] -> LUT
+// lutPolyWithSlotIndex : a map with [slot_index] -> LUT
 // repackIndex : a map with [slot_index_have] -> slot_index_want
 // lutKey : LUTKey
 // Returns a *rlwe.Ciphertext
-func (eval *Evaluator) EvaluateAndRepack(ct *rlwe.Ciphertext, lutPolyWihtSlotIndex map[int]*ring.Poly, repackIndex map[int]int, key EvaluationKey) (res *rlwe.Ciphertext) {
-	cts := eval.Evaluate(ct, lutPolyWihtSlotIndex, key)
+func (eval *Evaluator) EvaluateAndRepack(ct *rlwe.Ciphertext, lutPolyWithSlotIndex map[int]*ring.Poly, repackIndex map[int]int, key EvaluationKey) (res *rlwe.Ciphertext) {
+	cts := eval.Evaluate(ct, lutPolyWithSlotIndex, key)
 
 	ciphertexts := make(map[int]*rlwe.Ciphertext)
 
@@ -159,10 +159,10 @@ func (eval *Evaluator) EvaluateAndRepack(ct *rlwe.Ciphertext, lutPolyWihtSlotInd
 
 // Evaluate extracts on the fly LWE samples and evaluates the provided LUT on the LWE.
 // ct : a rlwe Ciphertext with coefficient encoded values at level 0
-// lutPolyWihtSlotIndex : a map with [slot_index] -> LUT
+// lutPolyWithSlotIndex : a map with [slot_index] -> LUT
 // lutKey : lut.Key
 // Returns a map[slot_index] -> LUT(ct[slot_index])
-func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWihtSlotIndex map[int]*ring.Poly, key EvaluationKey) (res map[int]*rlwe.Ciphertext) {
+func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWithSlotIndex map[int]*ring.Poly, key EvaluationKey) (res map[int]*rlwe.Ciphertext) {
 
 	bRLWEMod2N := eval.poolMod2N[0]
 	aRLWEMod2N := eval.poolMod2N[1]
@@ -209,7 +209,7 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWihtSlotIndex map[in
 	var prevIndex int
 	for index := 0; index < NLWE; index++ {
 
-		if lut, ok := lutPolyWihtSlotIndex[index]; ok {
+		if lut, ok := lutPolyWithSlotIndex[index]; ok {
 
 			MulBySmallMonomialMod2N(mask, aRLWEMod2N, index-prevIndex)
 			prevIndex = index
@@ -231,6 +231,7 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWihtSlotIndex map[in
 
 				// LUT[RLWE] = LUT[RLWE] x RGSW[(X^{a} - 1) * sk_{j}[0] + (X^{-a} - 1) * sk_{j}[1] + 1]
 				eval.ExternalProduct(acc, eval.tmpRGSW, acc)
+
 			}
 			res[index] = acc.CopyNew()
 
@@ -240,7 +241,6 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWihtSlotIndex map[in
 				res[index].IsNTT = false
 			}
 		}
-
 		// LUT[RLWE] = LUT[RLWE] * X^{m+e}
 	}
 

@@ -212,10 +212,10 @@ func testParameters(tc *testContext, t *testing.T) {
 
 	t.Run(GetTestName(tc.params, "Parameters/NewParameters"), func(t *testing.T) {
 		params, err := NewParametersFromLiteral(ParametersLiteral{
-			LogN:         4,
-			LogQ:         []int{60, 60},
-			LogP:         []int{60},
-			DefaultScale: 1.0,
+			LogN:     4,
+			LogQ:     []int{60, 60},
+			LogP:     []int{60},
+			LogScale: 0,
 		})
 		require.NoError(t, err)
 		require.Equal(t, ring.Standard, params.RingType())   // Default ring type should be standard

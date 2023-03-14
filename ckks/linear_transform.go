@@ -86,16 +86,15 @@ type LinearTransform struct {
 }
 
 // NewLinearTransform allocates a new LinearTransform with zero plaintexts at the specified level.
-// If BSGSRatio == 0, the LinearTransform is set to not use the BSGS approach.
-// Method will panic if BSGSRatio < 0.
-func NewLinearTransform(params Parameters, nonZeroDiags []int, level, logSlots int, BSGSRatio float64) LinearTransform {
+// If LogBSGSRatio < 0, the LinearTransform is set to not use the BSGS approach.
+func NewLinearTransform(params Parameters, nonZeroDiags []int, level, logSlots int, LogBSGSRatio int) LinearTransform {
 	vec := make(map[int]ringqp.Poly)
 	slots := 1 << logSlots
 	levelQ := level
 	levelP := params.PCount() - 1
 	ringQP := params.RingQP().AtLevel(levelQ, levelP)
 	var N1 int
-	if BSGSRatio == 0 {
+	if LogBSGSRatio < 0 {
 		N1 = 0
 		for _, i := range nonZeroDiags {
 			idx := i
@@ -104,16 +103,14 @@ func NewLinearTransform(params Parameters, nonZeroDiags []int, level, logSlots i
 			}
 			vec[idx] = ringQP.NewPoly()
 		}
-	} else if BSGSRatio > 0 {
-		N1 = FindBestBSGSSplit(nonZeroDiags, slots, BSGSRatio)
-		index, _, _ := BsgsIndex(nonZeroDiags, slots, N1)
+	} else {
+		N1 = FindBestBSGSRatio(nonZeroDiags, slots, LogBSGSRatio)
+		index, _, _ := BSGSIndex(nonZeroDiags, slots, N1)
 		for j := range index {
 			for _, i := range index[j] {
 				vec[j+i] = ringQP.NewPoly()
 			}
 		}
-	} else {
-		panic("cannot NewLinearTransform: BSGS ratio cannot be negative")
 	}
 
 	return LinearTransform{LogSlots: logSlots, N1: N1, Level: level, Vec: vec}
@@ -190,7 +187,7 @@ func (LT *LinearTransform) Encode(encoder Encoder, value interface{}, scale rlwe
 		}
 	} else {
 
-		index, _, _ := BsgsIndex(value, slots, N1)
+		index, _, _ := BSGSIndex(value, slots, N1)
 
 		var values interface{}
 		switch value.(type) {
@@ -264,9 +261,9 @@ func GenLinearTransform(encoder Encoder, value interface{}, level int, scale rlw
 // LinearTransform types can be be evaluated on a ciphertext using evaluator.LinearTransform.
 // Evaluation will use the optimized approach (double hoisting and baby-step giant-step).
 // Faster if there is more than a few non-zero diagonals.
-// BSGSRatio is the maximum ratio between the inner and outer loop of the baby-step giant-step algorithm used in evaluator.LinearTransform.
-// Optimal BSGSRatio value is between 4 and 16 depending on the sparsity of the matrix.
-func GenLinearTransformBSGS(encoder Encoder, value interface{}, level int, scale rlwe.Scale, BSGSRatio float64, logSlots int) (LT LinearTransform) {
+// LogBSGSRatio is the log of the maximum ratio between the inner and outer loop of the baby-step giant-step algorithm used in evaluator.LinearTransform.
+// Optimal LogBSGSRatio value is between 0 and 4 depending on the sparsity of the matrix.
+func GenLinearTransformBSGS(encoder Encoder, value interface{}, level int, scale rlwe.Scale, LogBSGSRatio int, logSlots int) (LT LinearTransform) {
 
 	enc, ok := encoder.(*encoderComplex128)
 	if !ok {
@@ -278,9 +275,9 @@ func GenLinearTransformBSGS(encoder Encoder, value interface{}, level int, scale
 	slots := 1 << logSlots
 
 	// N1*N2 = N
-	N1 := FindBestBSGSSplit(value, slots, BSGSRatio)
+	N1 := FindBestBSGSRatio(value, slots, LogBSGSRatio)
 
-	index, _, _ := BsgsIndex(value, slots, N1)
+	index, _, _ := BSGSIndex(value, slots, N1)
 
 	vec := make(map[int]ringqp.Poly)
 
@@ -351,8 +348,8 @@ func copyRotInterface(a, b interface{}, rot int) {
 	}
 }
 
-// BsgsIndex returns the index map and needed rotation for the BSGS matrix-vector multiplication algorithm.
-func BsgsIndex(el interface{}, slots, N1 int) (index map[int][]int, rotN1, rotN2 []int) {
+// BSGSIndex returns the index map and needed rotation for the BSGS matrix-vector multiplication algorithm.
+func BSGSIndex(el interface{}, slots, N1 int) (index map[int][]int, rotN1, rotN2 []int) {
 	index = make(map[int][]int)
 	rotN1Map := make(map[int]bool)
 	rotN2Map := make(map[int]bool)
@@ -433,12 +430,14 @@ func interfaceMapToMapOfInterface(m interface{}) map[int]interface{} {
 	return d
 }
 
-// FindBestBSGSSplit finds the best N1*N2 = N for the baby-step giant-step algorithm for matrix multiplication.
-func FindBestBSGSSplit(diagMatrix interface{}, maxN int, maxRatio float64) (minN int) {
+// FindBestBSGSRatio finds the best N1*N2 = N for the baby-step giant-step algorithm for matrix multiplication.
+func FindBestBSGSRatio(diagMatrix interface{}, maxN int, logMaxRatio int) (minN int) {
+
+	maxRatio := float64(int(1 << logMaxRatio))
 
 	for N1 := 1; N1 < maxN; N1 <<= 1 {
 
-		_, rotN1, rotN2 := BsgsIndex(diagMatrix, maxN, N1)
+		_, rotN1, rotN2 := BSGSIndex(diagMatrix, maxN, N1)
 
 		nbN1, nbN2 := len(rotN1)-1, len(rotN2)-1
 
@@ -670,7 +669,7 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Li
 	PiOverF := eval.params.PiOverflowMargin(levelP) >> 1
 
 	// Computes the N2 rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giant-step algorithm
-	index, _, rotN2 := BsgsIndex(matrix.Vec, 1<<matrix.LogSlots, matrix.N1)
+	index, _, rotN2 := BSGSIndex(matrix.Vec, 1<<matrix.LogSlots, matrix.N1)
 
 	ring.Copy(ctIn.Value[0], eval.buffCt.Value[0])
 	ring.Copy(ctIn.Value[1], eval.buffCt.Value[1])

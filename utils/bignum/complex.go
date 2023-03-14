@@ -62,7 +62,7 @@ func (c *Complex) IsReal() bool {
 	return c[1].Cmp(new(big.Float)) == 0
 }
 
-func (c *Complex) SetComplex128(x complex128) (*Complex) {
+func (c *Complex) SetComplex128(x complex128) *Complex {
 	c[0].SetFloat64(real(x))
 	c[1].SetFloat64(imag(x))
 	return c

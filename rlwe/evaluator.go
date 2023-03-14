@@ -126,6 +126,14 @@ func (eval *Evaluator) CheckAndGetGaloisKey(galEl uint64) (evk *GaloisKey, err e
 		return nil, fmt.Errorf("evaluation key interface is nil")
 	}
 
+	if eval.AutomorphismIndex == nil {
+		eval.AutomorphismIndex = map[uint64][]uint64{}
+	}
+
+	if _, ok := eval.AutomorphismIndex[galEl]; !ok {
+		eval.AutomorphismIndex[galEl] = ring.AutomorphismNTTIndex(eval.params.N(), eval.params.RingQ().NthRoot(), galEl)
+	}
+
 	return
 }
 

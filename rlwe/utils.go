@@ -56,7 +56,7 @@ func GaloisKeyIsCorrect(gk *GaloisKey, sk *SecretKey, params Parameters, log2Bou
 		ringP.AutomorphismNTT(sk.Value.P, galElInv, skOut.Value.P)
 	}
 
-	return EvaluationKeyIsCorrect(gk.EvaluationKey, skIn, skOut, params, log2Bound)
+	return EvaluationKeyIsCorrect(&gk.EvaluationKey, skIn, skOut, params, log2Bound)
 }
 
 // EvaluationKeyIsCorrect returns true if evk is a correct EvaluationKey for input key skIn, output key skOut and parameters params.

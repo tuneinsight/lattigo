@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
+
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
@@ -952,6 +954,23 @@ func testMarshaller(tc *TestContext, t *testing.T) {
 		require.True(t, m.Equal(mHave))
 	})
 
+	t.Run(testString(params, params.MaxLevel(), "Marshaller/Plaintext"), func(t *testing.T) {
+
+		prng, _ := utils.NewPRNG()
+
+		plaintextWant := NewPlaintext(params, params.MaxLevel())
+		ring.NewUniformSampler(prng, params.RingQ()).Read(plaintextWant.Value)
+
+		marshaledPlaintext, err := plaintextWant.MarshalBinary()
+		require.NoError(t, err)
+
+		plaintextTest := new(Plaintext)
+		require.NoError(t, plaintextTest.UnmarshalBinary(marshaledPlaintext))
+
+		require.Equal(t, plaintextWant.Level(), plaintextTest.Level())
+		require.True(t, params.RingQ().Equal(plaintextWant.Value, plaintextTest.Value))
+	})
+
 	t.Run(testString(params, params.MaxLevel(), "Marshaller/Ciphertext"), func(t *testing.T) {
 
 		prng, _ := utils.NewPRNG()
@@ -974,6 +993,59 @@ func testMarshaller(tc *TestContext, t *testing.T) {
 				}
 			})
 		}
+	})
+
+	t.Run(testString(params, params.MaxLevel(), "Marshaller/CiphertextQP"), func(t *testing.T) {
+
+		prng, _ := utils.NewPRNG()
+
+		sampler := ringqp.NewUniformSampler(prng, *params.RingQP())
+
+		ciphertextWant := NewCiphertextQP(params, params.MaxLevelQ(), params.MaxLevelP())
+		sampler.Read(ciphertextWant.Value[0])
+		sampler.Read(ciphertextWant.Value[1])
+
+		marshalledCiphertext, err := ciphertextWant.MarshalBinary()
+		require.NoError(t, err)
+
+		ciphertextTest := new(CiphertextQP)
+		require.NoError(t, ciphertextTest.UnmarshalBinary(marshalledCiphertext))
+
+		require.Equal(t, ciphertextWant.LevelQ(), ciphertextTest.LevelQ())
+		require.Equal(t, ciphertextWant.LevelP(), ciphertextTest.LevelP())
+
+		require.True(t, params.RingQP().Equal(ciphertextWant.Value[0], ciphertextTest.Value[0]))
+		require.True(t, params.RingQP().Equal(ciphertextWant.Value[1], ciphertextTest.Value[1]))
+	})
+
+	t.Run(testString(params, params.MaxLevel(), "Marshaller/GadgetCiphertext"), func(t *testing.T) {
+
+		prng, _ := utils.NewPRNG()
+
+		sampler := ringqp.NewUniformSampler(prng, *params.RingQP())
+
+		levelQ := params.MaxLevelQ()
+		levelP := params.MaxLevelP()
+
+		RNS := params.DecompRNS(levelQ, levelP)
+		BIT := params.DecompPw2(levelQ, levelP)
+
+		ciphertextWant := NewGadgetCiphertext(params, params.MaxLevelQ(), params.MaxLevelP(), RNS, BIT)
+
+		for i := 0; i < RNS; i++ {
+			for j := 0; j < BIT; j++ {
+				sampler.Read(ciphertextWant.Value[i][j].Value[0])
+				sampler.Read(ciphertextWant.Value[i][j].Value[1])
+			}
+		}
+
+		marshalledCiphertext, err := ciphertextWant.MarshalBinary()
+		require.NoError(t, err)
+
+		ciphertextTest := new(GadgetCiphertext)
+		require.NoError(t, ciphertextTest.UnmarshalBinary(marshalledCiphertext))
+
+		require.True(t, ciphertextWant.Equals(ciphertextTest))
 	})
 
 	t.Run(testString(params, params.MaxLevel(), "Marshaller/Sk"), func(t *testing.T) {

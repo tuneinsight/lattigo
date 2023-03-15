@@ -142,6 +142,19 @@ func (r *Ring) LevelP() int {
 	return -1
 }
 
+func (r *Ring) Equal(p1, p2 Poly) (v bool) {
+	v = true
+	if r.RingQ != nil {
+		v = v && r.RingQ.Equal(p1.Q, p2.Q)
+	}
+
+	if r.RingP != nil {
+		v = v && r.RingP.Equal(p1.P, p2.P)
+	}
+
+	return
+}
+
 // NewPoly creates a new polynomial with all coefficients set to 0.
 func (r *Ring) NewPoly() Poly {
 	var Q, P *ring.Poly

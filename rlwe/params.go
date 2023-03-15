@@ -685,10 +685,11 @@ func (p Parameters) MarshalBinary() ([]byte, error) {
 	}
 
 	data := make([]byte, p.defaultScale.MarshalBinarySize())
-	err := p.defaultScale.Encode(data)
-	if err != nil {
+
+	if _, err := p.defaultScale.MarshalBinaryInPlace(data); err != nil {
 		return nil, err
 	}
+
 	for i := range data {
 		b.WriteUint8(data[i])
 	}
@@ -700,7 +701,7 @@ func (p Parameters) MarshalBinary() ([]byte, error) {
 }
 
 // UnmarshalBinary decodes a []byte into a parameter set struct.
-func (p *Parameters) UnmarshalBinary(data []byte) error {
+func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 	if len(data) < 11 {
 		return fmt.Errorf("invalid rlwe.Parameter serialization")
 	}
@@ -720,7 +721,9 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	var defaultScale Scale
 	dataScale := make([]uint8, defaultScale.MarshalBinarySize())
 	b.ReadUint8Slice(dataScale)
-	defaultScale.Decode(dataScale)
+	if _, err = defaultScale.UnmarshalBinaryInPlace(dataScale); err != nil {
+		return
+	}
 
 	if err := checkSizeParams(logN, lenQ, lenP); err != nil {
 		return err
@@ -731,7 +734,6 @@ func (p *Parameters) UnmarshalBinary(data []byte) error {
 	b.ReadUint64Slice(qi)
 	b.ReadUint64Slice(pi)
 
-	var err error
 	*p, err = NewParameters(logN, qi, pi, logbase2, h, sigma, ringType, defaultScale, defaultNTTFlag)
 	return err
 }

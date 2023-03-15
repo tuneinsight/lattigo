@@ -88,12 +88,12 @@ func (kgen *KeyGenerator) GenRelinearizationKeyNew(sk *SecretKey) (rlk *Relinear
 func (kgen *KeyGenerator) GenRelinearizationKey(sk *SecretKey, rlk *RelinearizationKey) {
 	kgen.buffQP.Q.CopyValues(sk.Value.Q)
 	kgen.params.RingQ().AtLevel(rlk.LevelQ()).MulCoeffsMontgomery(kgen.buffQP.Q, sk.Value.Q, kgen.buffQP.Q)
-	kgen.genEvaluationKey(kgen.buffQP.Q, sk, rlk.EvaluationKey)
+	kgen.genEvaluationKey(kgen.buffQP.Q, sk, &rlk.EvaluationKey)
 }
 
 // GenGaloisKeyNew generates a new GaloisKey, enabling the automorphism X^{i} -> X^{i * galEl}.
 func (kgen *KeyGenerator) GenGaloisKeyNew(galEl uint64, sk *SecretKey) (gk *GaloisKey) {
-	gk = &GaloisKey{EvaluationKey: NewEvaluationKey(kgen.params, sk.LevelQ(), sk.LevelP())}
+	gk = &GaloisKey{EvaluationKey: *NewEvaluationKey(kgen.params, sk.LevelQ(), sk.LevelP())}
 	kgen.GenGaloisKey(galEl, sk, gk)
 	return
 }
@@ -121,7 +121,7 @@ func (kgen *KeyGenerator) GenGaloisKey(galEl uint64, sk *SecretKey, gk *GaloisKe
 		ringP.AutomorphismNTTWithIndex(skIn.P, index, skOut.P)
 	}
 
-	kgen.genEvaluationKey(skIn.Q, &SecretKey{Value: skOut}, gk.EvaluationKey)
+	kgen.genEvaluationKey(skIn.Q, &SecretKey{Value: skOut}, &gk.EvaluationKey)
 
 	gk.GaloisElement = galEl
 	gk.NthRoot = ringQ.NthRoot()

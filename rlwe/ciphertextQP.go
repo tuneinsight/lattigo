@@ -50,7 +50,7 @@ func (ct *CiphertextQP) CopyNew() *CiphertextQP {
 	return &CiphertextQP{Value: [2]ringqp.Poly{ct.Value[0].CopyNew(), ct.Value[1].CopyNew()}, MetaData: ct.MetaData}
 }
 
-// MarshalBinarySize returns the size in bytes that the object once marshaled into a binary form.
+// MarshalBinarySize returns the size in bytes that the object once marshalled into a binary form.
 func (ct *CiphertextQP) MarshalBinarySize() int {
 	return ct.MetaData.MarshalBinarySize() + ct.Value[0].MarshalBinarySize64() + ct.Value[1].MarshalBinarySize64()
 }

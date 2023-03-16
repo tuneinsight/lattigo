@@ -72,7 +72,7 @@ func (share *MaskedTransformShare) MarshalBinary() (data []byte, err error) {
 	return data, nil
 }
 
-// UnmarshalBinary decodes a marshaled RefreshShare on the target RefreshShare.
+// UnmarshalBinary decodes a marshalled RefreshShare on the target RefreshShare.
 func (share *MaskedTransformShare) UnmarshalBinary(data []byte) error {
 
 	e2sDataLen := binary.LittleEndian.Uint64(data[:8])

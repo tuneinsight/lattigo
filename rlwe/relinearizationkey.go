@@ -28,7 +28,7 @@ func (rlk *RelinearizationKey) MarshalBinarySize() (dataLen int) {
 	return rlk.EvaluationKey.MarshalBinarySize()
 }
 
-// MarshalBinary encodes the object on a newly allocated slice of bytes of size `object.MarshalBinarySize()` and returns it.
+// MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
 func (rlk *RelinearizationKey) MarshalBinary() (data []byte, err error) {
 	return rlk.EvaluationKey.MarshalBinary()
 }

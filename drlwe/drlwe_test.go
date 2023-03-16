@@ -151,7 +151,7 @@ func testCKGProtocol(tc *testContext, level int, t *testing.T) {
 		crs := ckg.SampleCRP(tc.crs)
 
 		ckg.GenShare(tc.skShares[0], crs, KeyGenShareBefore)
-		//now we marshall it
+		//now we marshal it
 		data, err := KeyGenShareBefore.MarshalBinary()
 
 		if err != nil {

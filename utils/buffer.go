@@ -1,7 +1,7 @@
 // Package utils contains helper structures and function
 package utils
 
-// Buffer is a simple wrapper around a []byte to facilitate efficient marshaling of lattigo's objects
+// Buffer is a simple wrapper around a []byte to facilitate efficient marshalling of lattigo's objects
 type Buffer struct {
 	buf []byte
 }

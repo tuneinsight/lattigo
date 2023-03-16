@@ -65,7 +65,7 @@ func (pt *Plaintext) Copy(other *Plaintext) {
 	}
 }
 
-// MarshalBinarySize returns the size in bytes that the object once marshaled into a binary form.
+// MarshalBinarySize returns the size in bytes that the object once marshalled into a binary form.
 func (pt *Plaintext) MarshalBinarySize() (dataLen int) {
 	return pt.MetaData.MarshalBinarySize() + pt.Value.MarshalBinarySize64()
 }

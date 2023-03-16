@@ -44,7 +44,7 @@ func (pk *PublicKey) CopyNew() *PublicKey {
 	return &PublicKey{*pk.CiphertextQP.CopyNew()}
 }
 
-// MarshalBinarySize returns the size in bytes that the object once marshaled into a binary form.
+// MarshalBinarySize returns the size in bytes that the object once marshalled into a binary form.
 func (pk *PublicKey) MarshalBinarySize() (dataLen int) {
 	return pk.Value[0].MarshalBinarySize64() + pk.Value[1].MarshalBinarySize64() + pk.MetaData.MarshalBinarySize()
 }

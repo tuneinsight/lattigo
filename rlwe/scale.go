@@ -129,7 +129,7 @@ func (s Scale) Min(s1 Scale) (max Scale) {
 	return s
 }
 
-// MarshalBinarySize returns the size in bytes that the object once marshaled into a binary form.
+// MarshalBinarySize returns the size in bytes that the object once marshalled into a binary form.
 func (s Scale) MarshalBinarySize() int {
 	return 48
 }

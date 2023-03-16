@@ -36,7 +36,7 @@ func (sk *SecretKey) CopyNew() *SecretKey {
 	return &SecretKey{sk.Value.CopyNew()}
 }
 
-// MarshalBinarySize returns the size in bytes that the object once marshaled into a binary form.
+// MarshalBinarySize returns the size in bytes that the object once marshalled into a binary form.
 func (sk *SecretKey) MarshalBinarySize() (dataLen int) {
 	return sk.Value.MarshalBinarySize64()
 }

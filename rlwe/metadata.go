@@ -19,7 +19,7 @@ func (m *MetaData) Equal(other MetaData) (res bool) {
 	return
 }
 
-// MarshalBinarySize returns the size in bytes that the object once marshaled into a binary form.
+// MarshalBinarySize returns the size in bytes that the object once marshalled into a binary form.
 func (m *MetaData) MarshalBinarySize() int {
 	return 2 + m.Scale.MarshalBinarySize()
 }

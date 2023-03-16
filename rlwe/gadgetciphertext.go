@@ -87,7 +87,7 @@ func (ct *GadgetCiphertext) CopyNew() (ctCopy *GadgetCiphertext) {
 	return &GadgetCiphertext{Value: v}
 }
 
-// MarshalBinarySize returns the size in bytes that the object once marshaled into a binary form.
+// MarshalBinarySize returns the size in bytes that the object once marshalled into a binary form.
 func (ct *GadgetCiphertext) MarshalBinarySize() (dataLen int) {
 
 	dataLen = 2

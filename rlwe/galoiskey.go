@@ -67,7 +67,14 @@ func (gk *GaloisKey) MarshalBinaryInPlace(data []byte) (ptr int, err error) {
 	binary.LittleEndian.PutUint64(data[ptr:], gk.NthRoot)
 	ptr += 8
 
-	return gk.EvaluationKey.MarshalBinaryInPlace(data[ptr:])
+	var inc int
+	if inc, err = gk.EvaluationKey.MarshalBinaryInPlace(data[ptr:]); err != nil {
+		return
+	}
+
+	ptr += inc
+
+	return
 
 }
 

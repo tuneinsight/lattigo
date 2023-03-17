@@ -160,17 +160,13 @@ func (eval *Evaluator) CheckBinary(op0, op1, opOut Operand, opOutMinDegree int) 
 		panic("op0 and op1 cannot be both plaintexts")
 	}
 
-	if opOut.Degree() < opOutMinDegree {
-		panic("opOut degree is too small")
+	if op0.El().IsNTT != op1.El().IsNTT || op0.El().IsNTT != eval.params.DefaultNTTFlag() {
+		panic(fmt.Sprintf("op0.El().IsNTT or op1.El().IsNTT != %t", eval.params.DefaultNTTFlag()))
+	} else {
+		opOut.El().IsNTT = op0.El().IsNTT
 	}
 
-	if op0.El().IsNTT != eval.params.DefaultNTTFlag() {
-		panic(fmt.Sprintf("op0.IsNTT() != %t", eval.params.DefaultNTTFlag()))
-	}
-
-	if op1.El().IsNTT != eval.params.DefaultNTTFlag() {
-		panic(fmt.Sprintf("op1.IsNTT() != %t", eval.params.DefaultNTTFlag()))
-	}
+	opOut.El().Resize(utils.MaxInt(opOutMinDegree, opOut.Degree()), level)
 
 	return
 }

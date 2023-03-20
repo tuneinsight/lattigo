@@ -2,6 +2,7 @@ package utils
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 )
 
@@ -21,7 +22,7 @@ func NewWriter(w io.Writer) *Writer {
 
 func (w *Writer) Flush() (err error) {
 	if _, err = w.Writer.Write(w.buff[:w.n]); err != nil {
-		return
+		return fmt.Errorf("cannot flush: %w", err)
 	}
 
 	w.n = 0
@@ -30,6 +31,12 @@ func (w *Writer) Flush() (err error) {
 }
 
 func (w *Writer) Write(p []byte) (n int, err error) {
+
+	// First we flush because we bypass the internal buffer
+	if err = w.Flush(); err != nil {
+		return
+	}
+
 	return w.Writer.Write(p)
 }
 
@@ -37,7 +44,7 @@ func (w *Writer) WriteUint8(c uint8) (n int, err error) {
 
 	if len(w.buff[w.n:]) < 1 {
 		if err = w.Flush(); err != nil {
-			return
+			return n, fmt.Errorf("cannot WriteUint8: %w", err)
 		}
 	}
 
@@ -56,7 +63,7 @@ func (w *Writer) WriteUint16(c uint16) (n int, err error) {
 
 	if len(w.buff[w.n:]) < 2 {
 		if err = w.Flush(); err != nil {
-			return
+			return n, fmt.Errorf("cannot WriteUint16: %w", err)
 		}
 	}
 
@@ -114,7 +121,7 @@ func (w *Writer) WriteUint32(c uint32) (n int, err error) {
 
 	if len(w.buff[w.n:]) < 4 {
 		if err = w.Flush(); err != nil {
-			return
+			return n, fmt.Errorf("cannot WriteUint32: %w", err)
 		}
 	}
 
@@ -172,7 +179,7 @@ func (w *Writer) WriteUint64(c uint64) (n int, err error) {
 
 	if len(w.buff[w.n:]) < 8 {
 		if err = w.Flush(); err != nil {
-			return
+			return n, fmt.Errorf("cannot WriteUint64: %w", err)
 		}
 	}
 

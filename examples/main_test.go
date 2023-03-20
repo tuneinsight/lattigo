@@ -30,34 +30,101 @@ func Benchmark(b *testing.B) {
 
 	pol := sampler.ReadNew()
 
-	data := make([]byte, pol.MarshalBinarySize64())
-
-	b.Run("Encode/Native", func(b *testing.B) {
+	b.Run("Read([]byte)", func(b *testing.B) {
+		data := make([]byte, pol.MarshalBinarySize())
+		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			if _, err = pol.Encode64(data); err != nil {
+			if _, err = pol.Read(data); err != nil {
 				b.Fatal(err)
 			}
-
 		}
 	})
 
-	fmt.Println(data[:8])
-
-	writer := NewWriter(len(data))
-
-	w := utils.NewWriter(writer)
-
-	b.Run("Encode/utils.Writer", func(b *testing.B) {
+	b.Run("WriteTo(utils.Writer)", func(b *testing.B) {
+		writer := NewWriter(pol.MarshalBinarySize())
+		w := utils.NewWriter(writer)
+		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			if _, err = pol.Write(w); err != nil {
+			if _, err = pol.WriteTo(w); err != nil {
 				b.Fatal(err)
 			}
+
+			if err = w.Flush(); err != nil {
+				b.Fatal(err)
+			}
+
 			writer.n = 0
 		}
 	})
 
-	fmt.Println(data[:8])
-	fmt.Println(writer.buff[:8])
+	b.Run("Write([]byte)", func(b *testing.B) {
+
+		data := make([]byte, pol.MarshalBinarySize())
+
+		if _, err = pol.Read(data); err != nil {
+			b.Fatal(err)
+		}
+
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			if _, err = pol.Write(data); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+
+	b.Run("ReadFrom(utils.Reader)", func(b *testing.B) {
+
+		writer := NewWriter(pol.MarshalBinarySize())
+
+		w := utils.NewWriter(writer)
+
+		if _, err = pol.WriteTo(w); err != nil {
+			b.Fatal(err)
+		}
+
+		if err = w.Flush(); err != nil {
+			b.Fatal(err)
+		}
+
+		reader := NewReader(writer.buff)
+
+		r := utils.NewReader(reader)
+
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			if _, err = pol.ReadFrom(r); err != nil {
+				b.Fatal(err)
+			}
+
+			reader.n = 0
+		}
+	})
+
+}
+
+type Reader struct {
+	buff []byte
+	n    int
+}
+
+func NewReader(b []byte) *Reader {
+	return &Reader{
+		buff: b,
+		n:    0,
+	}
+}
+
+func (r *Reader) Read(b []byte) (n int, err error) {
+	if len(b) > len(r.buff[r.n:]) {
+		return 0, fmt.Errorf("cannot read: len(b)=%d > %d", len(b), len(r.buff[r.n:]))
+	}
+
+	copy(b, r.buff[r.n:])
+
+	r.n += len(b)
+
+	return len(b), nil
 }
 
 type Writer struct {

@@ -3,6 +3,8 @@ package ring
 import (
 	"encoding/binary"
 	"errors"
+
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 // Poly is the structure that contains the coefficients of a polynomial.
@@ -150,6 +152,30 @@ func (pol *Poly) UnmarshalBinary(data []byte) (err error) {
 	}
 
 	return nil
+}
+
+func (pol *Poly) Write(w *utils.Writer) (n int, err error) {
+
+	var inc int
+	if inc, err = w.WriteUint32(uint32(pol.N())); err != nil {
+		return n + inc, err
+	}
+
+	n += inc
+
+	if inc, err = w.WriteUint8(uint8(pol.Level())); err != nil {
+		return n + inc, err
+	}
+
+	n += inc
+
+	if inc, err = w.WriteUint64Slice(pol.Buff); err != nil {
+		return n + inc, err
+	}
+
+	n += inc
+
+	return n, w.Flush()
 }
 
 // Encode64 writes the given poly to the data array, using 8 bytes per coefficient.

@@ -1,5 +1,5 @@
-// Package utils contains helper structures and function
-package utils
+// Package buffer implements interfaces and structs for buffered read and write.
+package buffer
 
 // Buffer is a simple wrapper around a []byte to facilitate efficient marshalling of lattigo's objects
 type Buffer struct {

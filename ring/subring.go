@@ -7,6 +7,7 @@ import (
 	"math/bits"
 
 	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/factorization"
 )
 
 // SubRing is a struct storing precomputation
@@ -162,7 +163,7 @@ func PrimitiveRoot(q uint64, factors []uint64) (uint64, []uint64, error) {
 		}
 	} else {
 
-		factorsBig := utils.GetFactors(new(big.Int).SetUint64(q - 1)) //Factor q-1, might be slow
+		factorsBig := factorization.GetFactors(new(big.Int).SetUint64(q - 1)) //Factor q-1, might be slow
 
 		factors = make([]uint64, len(factorsBig))
 		for i := range factors {

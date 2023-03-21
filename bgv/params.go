@@ -244,7 +244,7 @@ func (p Parameters) MarshalBinary() ([]byte, error) {
 	// len(rlweBytes) : RLWE parameters
 	// 8 byte : T
 	var tBytes [8]byte
-	binary.BigEndian.PutUint64(tBytes[:], p.T())
+	binary.LittleEndian.PutUint64(tBytes[:], p.T())
 	data := append(rlweBytes, tBytes[:]...)
 	return data, nil
 }
@@ -256,7 +256,7 @@ func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 		return err
 	}
 
-	t := binary.BigEndian.Uint64(data[len(data)-8:])
+	t := binary.LittleEndian.Uint64(data[len(data)-8:])
 
 	if p.ringT, err = ring.NewRing(p.N(), []uint64{t}); err != nil {
 		return err

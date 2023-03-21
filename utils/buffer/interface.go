@@ -1,4 +1,4 @@
-package utils
+package buffer
 
 // BinaryMarshaler is an interface implemented by an object that can marshal itself into a binary form.
 type BinaryMarshaler interface {

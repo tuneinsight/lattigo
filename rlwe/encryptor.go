@@ -7,6 +7,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 // Encryptor a generic RLWE encryption interface.
@@ -26,14 +27,14 @@ type Encryptor interface {
 // interface.
 type PRNGEncryptor interface {
 	Encryptor
-	WithPRNG(prng utils.PRNG) PRNGEncryptor
+	WithPRNG(prng sampling.PRNG) PRNGEncryptor
 }
 
 type encryptorBase struct {
 	params Parameters
 	*encryptorBuffers
 
-	prng            utils.PRNG
+	prng            sampling.PRNG
 	gaussianSampler *ring.GaussianSampler
 	ternarySampler  *ring.TernarySampler
 	basisextender   *ring.BasisExtender
@@ -72,7 +73,7 @@ func NewPRNGEncryptor(params Parameters, key *SecretKey) PRNGEncryptor {
 
 func newEncryptorBase(params Parameters) *encryptorBase {
 
-	prng, err := utils.NewPRNG()
+	prng, err := sampling.NewPRNG()
 	if err != nil {
 		panic(err)
 	}
@@ -453,7 +454,7 @@ func (enc *skEncryptor) ShallowCopy() Encryptor {
 
 // WithPRNG returns this encryptor with prng as its source of randomness for the uniform
 // element c1.
-func (enc skEncryptor) WithPRNG(prng utils.PRNG) PRNGEncryptor {
+func (enc skEncryptor) WithPRNG(prng sampling.PRNG) PRNGEncryptor {
 	encBase := enc.encryptorBase
 	encBase.uniformSampler = ringqp.NewUniformSampler(prng, *enc.params.RingQP())
 	return &skEncryptor{encBase, enc.sk}

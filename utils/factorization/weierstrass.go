@@ -1,7 +1,9 @@
-package utils
+package factorization
 
 import (
 	"math/big"
+
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 // Weierstrass is an elliptic curve y^2 = x^3 + ax + b mod N.
@@ -92,9 +94,9 @@ func NewRandomWeierstrassCurve(N *big.Int) (Weierstrass, Point) {
 	for {
 
 		// Select random values for A, xG and yG
-		A = RandInt(N)
-		xG = RandInt(N)
-		yG = RandInt(N)
+		A = sampling.RandInt(N)
+		xG = sampling.RandInt(N)
+		yG = sampling.RandInt(N)
 
 		// Deduces B from Y^2 = X^3 + A * X + B evaluated at point (xG, yG)
 		yGpow2 := new(big.Int).Mul(yG, yG)

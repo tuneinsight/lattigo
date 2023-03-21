@@ -1,13 +1,13 @@
 package ring
 
 import (
-	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 const precision = uint64(56)
 
 type baseSampler struct {
-	prng     utils.PRNG
+	prng     sampling.PRNG
 	baseRing *Ring
 }
 

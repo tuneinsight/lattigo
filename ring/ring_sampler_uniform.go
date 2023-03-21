@@ -3,7 +3,7 @@ package ring
 import (
 	"encoding/binary"
 
-	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 // UniformSampler wraps a util.PRNG and represents the state of a sampler of uniform polynomials.
@@ -13,7 +13,7 @@ type UniformSampler struct {
 }
 
 // NewUniformSampler creates a new instance of UniformSampler from a PRNG and ring definition.
-func NewUniformSampler(prng utils.PRNG, baseRing *Ring) *UniformSampler {
+func NewUniformSampler(prng sampling.PRNG, baseRing *Ring) *UniformSampler {
 	uniformSampler := new(UniformSampler)
 	uniformSampler.baseRing = baseRing
 	uniformSampler.prng = prng
@@ -64,7 +64,7 @@ func (u *UniformSampler) Read(pol *Poly) {
 				}
 
 				// Reads bytes from the buff
-				randomUint = binary.BigEndian.Uint64(buffer[ptr:ptr+8]) & mask
+				randomUint = binary.LittleEndian.Uint64(buffer[ptr:ptr+8]) & mask
 				ptr += 8
 
 				// If the integer is between [0, qi-1], breaks the loop
@@ -86,13 +86,13 @@ func (u *UniformSampler) ReadNew() (Pol *Poly) {
 	return
 }
 
-func (u *UniformSampler) WithPRNG(prng utils.PRNG) *UniformSampler {
+func (u *UniformSampler) WithPRNG(prng sampling.PRNG) *UniformSampler {
 	return &UniformSampler{baseSampler: baseSampler{prng: prng, baseRing: u.baseRing}, randomBufferN: u.randomBufferN}
 }
 
 // RandUniform samples a uniform randomInt variable in the range [0, mask] until randomInt is in the range [0, v-1].
 // mask needs to be of the form 2^n -1.
-func RandUniform(prng utils.PRNG, v uint64, mask uint64) (randomInt uint64) {
+func RandUniform(prng sampling.PRNG, v uint64, mask uint64) (randomInt uint64) {
 	for {
 		randomInt = randInt64(prng, mask)
 		if randomInt < v {
@@ -102,28 +102,28 @@ func RandUniform(prng utils.PRNG, v uint64, mask uint64) (randomInt uint64) {
 }
 
 // randInt32 samples a uniform variable in the range [0, mask], where mask is of the form 2^n-1, with n in [0, 32].
-func randInt32(prng utils.PRNG, mask uint64) uint64 {
+func randInt32(prng sampling.PRNG, mask uint64) uint64 {
 
 	// generate random 4 bytes
 	randomBytes := make([]byte, 4)
 	prng.Read(randomBytes)
 
 	// convert 4 bytes to a uint32
-	randomUint32 := uint64(binary.BigEndian.Uint32(randomBytes))
+	randomUint32 := uint64(binary.LittleEndian.Uint32(randomBytes))
 
 	// return required bits
 	return mask & randomUint32
 }
 
 // randInt64 samples a uniform variable in the range [0, mask], where mask is of the form 2^n-1, with n in [0, 64].
-func randInt64(prng utils.PRNG, mask uint64) uint64 {
+func randInt64(prng sampling.PRNG, mask uint64) uint64 {
 
 	// generate random 8 bytes
 	randomBytes := make([]byte, 8)
 	prng.Read(randomBytes)
 
 	// convert 8 bytes to a uint64
-	randomUint64 := binary.BigEndian.Uint64(randomBytes)
+	randomUint64 := binary.LittleEndian.Uint64(randomBytes)
 
 	// return required bits
 	return mask & randomUint64

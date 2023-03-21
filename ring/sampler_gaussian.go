@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"math"
 
-	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 // GaussianSampler keeps the state of a truncated Gaussian polynomial sampler.
@@ -19,7 +19,7 @@ type GaussianSampler struct {
 // NewGaussianSampler creates a new instance of GaussianSampler from a PRNG, a ring definition and the truncated
 // Gaussian distribution parameters. Sigma is the desired standard deviation and bound is the maximum coefficient norm in absolute
 // value.
-func NewGaussianSampler(prng utils.PRNG, baseRing *Ring, sigma float64, bound int) (g *GaussianSampler) {
+func NewGaussianSampler(prng sampling.PRNG, baseRing *Ring, sigma float64, bound int) (g *GaussianSampler) {
 	g = new(GaussianSampler)
 	g.prng = prng
 	g.randomBufferN = make([]byte, 1024)
@@ -122,7 +122,7 @@ func (g *GaussianSampler) read(pol *Poly, r *Ring, sigma float64, bound int) {
 
 // randFloat64 returns a uniform float64 value between 0 and 1.
 func randFloat64(randomBytes []byte) float64 {
-	return float64(binary.BigEndian.Uint64(randomBytes)&0x1fffffffffffff) / float64(0x1fffffffffffff)
+	return float64(binary.LittleEndian.Uint64(randomBytes)&0x1fffffffffffff) / float64(0x1fffffffffffff)
 }
 
 // NormFloat64 returns a normally distributed float64 in
@@ -144,7 +144,7 @@ func (g *GaussianSampler) normFloat64() (float64, uint64) {
 			g.ptr = 0
 		}
 
-		juint32 := binary.BigEndian.Uint32(g.randomBufferN[g.ptr : g.ptr+4])
+		juint32 := binary.LittleEndian.Uint32(g.randomBufferN[g.ptr : g.ptr+4])
 		g.ptr += 8
 
 		j := int32(juint32 & 0x7fffffff)

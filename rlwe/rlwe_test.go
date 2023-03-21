@@ -14,7 +14,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
@@ -309,8 +309,8 @@ func testEncryptor(tc *TestContext, level int, t *testing.T) {
 		enc := NewPRNGEncryptor(params, sk)
 		ct := NewCiphertext(params, 1, level)
 
-		prng1, _ := utils.NewKeyedPRNG([]byte{'a', 'b', 'c'})
-		prng2, _ := utils.NewKeyedPRNG([]byte{'a', 'b', 'c'})
+		prng1, _ := sampling.NewKeyedPRNG([]byte{'a', 'b', 'c'})
+		prng2, _ := sampling.NewKeyedPRNG([]byte{'a', 'b', 'c'})
 
 		enc.WithPRNG(prng1).Encrypt(pt, ct)
 
@@ -475,7 +475,7 @@ func testGadgetProduct(tc *TestContext, level int, t *testing.T) {
 
 	ringQ := params.RingQ().AtLevel(level)
 
-	prng, _ := utils.NewKeyedPRNG([]byte{'a', 'b', 'c'})
+	prng, _ := sampling.NewKeyedPRNG([]byte{'a', 'b', 'c'})
 
 	sampler := ring.NewUniformSampler(prng, ringQ)
 
@@ -956,7 +956,7 @@ func testMarshaller(tc *TestContext, t *testing.T) {
 
 	t.Run(testString(params, params.MaxLevel(), "Marshaller/Plaintext"), func(t *testing.T) {
 
-		prng, _ := utils.NewPRNG()
+		prng, _ := sampling.NewPRNG()
 
 		plaintextWant := NewPlaintext(params, params.MaxLevel())
 		ring.NewUniformSampler(prng, params.RingQ()).Read(plaintextWant.Value)
@@ -973,7 +973,7 @@ func testMarshaller(tc *TestContext, t *testing.T) {
 
 	t.Run(testString(params, params.MaxLevel(), "Marshaller/Ciphertext"), func(t *testing.T) {
 
-		prng, _ := utils.NewPRNG()
+		prng, _ := sampling.NewPRNG()
 
 		for degree := 0; degree < 4; degree++ {
 			t.Run(fmt.Sprintf("degree=%d", degree), func(t *testing.T) {
@@ -997,7 +997,7 @@ func testMarshaller(tc *TestContext, t *testing.T) {
 
 	t.Run(testString(params, params.MaxLevel(), "Marshaller/CiphertextQP"), func(t *testing.T) {
 
-		prng, _ := utils.NewPRNG()
+		prng, _ := sampling.NewPRNG()
 
 		sampler := ringqp.NewUniformSampler(prng, *params.RingQP())
 
@@ -1020,7 +1020,7 @@ func testMarshaller(tc *TestContext, t *testing.T) {
 
 	t.Run(testString(params, params.MaxLevel(), "Marshaller/GadgetCiphertext"), func(t *testing.T) {
 
-		prng, _ := utils.NewPRNG()
+		prng, _ := sampling.NewPRNG()
 
 		sampler := ringqp.NewUniformSampler(prng, *params.RingQP())
 

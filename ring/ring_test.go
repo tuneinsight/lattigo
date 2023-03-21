@@ -6,7 +6,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 
 	"github.com/stretchr/testify/require"
 )
@@ -24,7 +24,7 @@ func testString(opname string, ringQ *Ring) string {
 type testParams struct {
 	ringQ           *Ring
 	ringP           *Ring
-	prng            utils.PRNG
+	prng            sampling.PRNG
 	uniformSamplerQ *UniformSampler
 	uniformSamplerP *UniformSampler
 }
@@ -39,7 +39,7 @@ func genTestParams(defaultParams Parameters) (tc *testParams, err error) {
 	if tc.ringP, err = NewRing(1<<defaultParams.logN, defaultParams.pi); err != nil {
 		return nil, err
 	}
-	if tc.prng, err = utils.NewPRNG(); err != nil {
+	if tc.prng, err = sampling.NewPRNG(); err != nil {
 		return nil, err
 	}
 	tc.uniformSamplerQ = NewUniformSampler(tc.prng, tc.ringQ)
@@ -176,14 +176,14 @@ func testPRNG(tc *testParams, t *testing.T) {
 
 		var err error
 
-		var prng1, prng2 utils.PRNG
+		var prng1, prng2 sampling.PRNG
 
-		if prng1, err = utils.NewKeyedPRNG(nil); err != nil {
-			t.Error(err)
+		if prng1, err = sampling.NewKeyedPRNG(nil); err != nil {
+			t.Fatal(err)
 		}
 
-		if prng2, err = utils.NewKeyedPRNG(nil); err != nil {
-			t.Error(err)
+		if prng2, err = sampling.NewKeyedPRNG(nil); err != nil {
+			t.Fatal(err)
 		}
 
 		crsGenerator1 := NewUniformSampler(prng1, tc.ringQ)
@@ -307,12 +307,12 @@ func testMarshalBinary(tc *testParams, t *testing.T) {
 
 		var data []byte
 		if data, err = tc.ringQ.MarshalBinary(); err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 
 		ringQTest := new(Ring)
 		if err = ringQTest.UnmarshalBinary(data); err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 
 		require.Equal(t, ringQTest, tc.ringQ)
@@ -326,12 +326,12 @@ func testMarshalBinary(tc *testParams, t *testing.T) {
 
 		var data []byte
 		if data, err = p.MarshalBinary(); err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 
 		pTest := new(Poly)
 		if err = pTest.UnmarshalBinary(data); err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 
 		for i := range tc.ringQ.SubRings {
@@ -392,7 +392,7 @@ func testTernarySampler(tc *testParams, t *testing.T) {
 	for _, p := range []float64{.5, 1. / 3., 128. / 65536.} {
 		t.Run(testString(fmt.Sprintf("TernarySampler/p=%1.2f", p), tc.ringQ), func(t *testing.T) {
 
-			prng, err := utils.NewPRNG()
+			prng, err := sampling.NewPRNG()
 			if err != nil {
 				panic(err)
 			}
@@ -411,7 +411,7 @@ func testTernarySampler(tc *testParams, t *testing.T) {
 	for _, p := range []int{0, 64, 96, 128, 256} {
 		t.Run(testString(fmt.Sprintf("TernarySampler/hw=%d", p), tc.ringQ), func(t *testing.T) {
 
-			prng, err := utils.NewPRNG()
+			prng, err := sampling.NewPRNG()
 			if err != nil {
 				panic(err)
 			}

@@ -11,6 +11,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/buffer"
 )
 
 // MaxLogN is the log2 of the largest supported polynomial modulus degree.
@@ -670,7 +671,7 @@ func (p Parameters) MarshalBinary() ([]byte, error) {
 	// 48 bytes: defaultScale
 	// 8 * (#Q) : Q
 	// 8 * (#P) : P
-	b := utils.NewBuffer(make([]byte, 0, p.MarshalBinarySize()))
+	b := buffer.NewBuffer(make([]byte, 0, p.MarshalBinarySize()))
 	b.WriteUint8(uint8(p.logN))
 	b.WriteUint8(uint8(len(p.qi)))
 	b.WriteUint8(uint8(len(p.pi)))
@@ -686,7 +687,7 @@ func (p Parameters) MarshalBinary() ([]byte, error) {
 
 	data := make([]byte, p.defaultScale.MarshalBinarySize())
 
-	if _, err := p.defaultScale.MarshalBinaryInPlace(data); err != nil {
+	if _, err := p.defaultScale.Read(data); err != nil {
 		return nil, err
 	}
 
@@ -705,7 +706,7 @@ func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 	if len(data) < 11 {
 		return fmt.Errorf("invalid rlwe.Parameter serialization")
 	}
-	b := utils.NewBuffer(data)
+	b := buffer.NewBuffer(data)
 	logN := int(b.ReadUint8())
 	lenQ := int(b.ReadUint8())
 	lenP := int(b.ReadUint8())
@@ -721,7 +722,7 @@ func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 	var defaultScale Scale
 	dataScale := make([]uint8, defaultScale.MarshalBinarySize())
 	b.ReadUint8Slice(dataScale)
-	if _, err = defaultScale.UnmarshalBinaryInPlace(dataScale); err != nil {
+	if _, err = defaultScale.Write(dataScale); err != nil {
 		return
 	}
 

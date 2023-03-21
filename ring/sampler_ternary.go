@@ -4,7 +4,7 @@ import (
 	"math"
 	"math/bits"
 
-	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 // TernarySampler keeps the state of a polynomial sampler in the ternary distribution.
@@ -20,7 +20,7 @@ type TernarySampler struct {
 // NewTernarySampler creates a new instance of TernarySampler from a PRNG, the ring definition and the distribution
 // parameters: p is the probability of a coefficient being 0, (1-p)/2 is the probability of 1 and -1. If "montgomery"
 // is set to true, polynomials read from this sampler are in Montgomery form.
-func NewTernarySampler(prng utils.PRNG, baseRing *Ring, p float64, montgomery bool) *TernarySampler {
+func NewTernarySampler(prng sampling.PRNG, baseRing *Ring, p float64, montgomery bool) *TernarySampler {
 	ternarySampler := new(TernarySampler)
 	ternarySampler.baseRing = baseRing
 	ternarySampler.prng = prng
@@ -52,7 +52,7 @@ func (ts *TernarySampler) AtLevel(level int) Sampler {
 // NewTernarySamplerWithHammingWeight creates a new instance of a fixed-hamming-weight TernarySampler from a PRNG, the ring definition and the desired
 // hamming weight for the output polynomials. If "montgomery" is set to true, polynomials read from this sampler
 // are in Montgomery form.
-func NewTernarySamplerWithHammingWeight(prng utils.PRNG, baseRing *Ring, hw int, montgomery bool) *TernarySampler {
+func NewTernarySamplerWithHammingWeight(prng sampling.PRNG, baseRing *Ring, hw int, montgomery bool) *TernarySampler {
 	ternarySampler := new(TernarySampler)
 	ternarySampler.baseRing = baseRing
 	ternarySampler.prng = prng
@@ -238,7 +238,7 @@ func (ts *TernarySampler) sampleSparse(pol *Poly) {
 }
 
 // kysampling uses the binary expansion and random bytes matrix to sample a discrete Gaussian value and its sign.
-func (ts *TernarySampler) kysampling(prng utils.PRNG, randomBytes []byte, pointer uint8, bytePointer, byteLength int) (uint64, uint64, []byte, uint8, int) {
+func (ts *TernarySampler) kysampling(prng sampling.PRNG, randomBytes []byte, pointer uint8, bytePointer, byteLength int) (uint64, uint64, []byte, uint8, int) {
 
 	var sign uint8
 

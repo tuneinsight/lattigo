@@ -10,7 +10,7 @@ import (
 
 	"github.com/tuneinsight/lattigo/v4/drlwe"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
-	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 // This example showcases the use of the drlwe package to generate an evaluation key in a multiparty setting.
@@ -87,7 +87,7 @@ func (p *party) Run(wg *sync.WaitGroup, params rlwe.Parameters, N int, P []*part
 			p.GenShare(sk, galEl, crp[galEl], rtgShare)
 			C.aggTaskQueue <- genTaskResult{galEl: galEl, rtgShare: rtgShare}
 			nShares++
-			byteSent += len(rtgShare.Value) * len(rtgShare.Value[0]) * rtgShare.Value[0][0].MarshalBinarySize64()
+			byteSent += len(rtgShare.Value) * len(rtgShare.Value[0]) * rtgShare.Value[0][0].MarshalBinarySize()
 		}
 		nTasks++
 		cpuTime += time.Since(start)
@@ -132,7 +132,7 @@ func (c *cloud) Run(galEls []uint64, params rlwe.Parameters, t int) {
 		}
 		i++
 		cpuTime += time.Since(start)
-		byteRecv += len(acc.share.Value) * len(acc.share.Value[0]) * acc.share.Value[0][0].MarshalBinarySize64()
+		byteRecv += len(acc.share.Value) * len(acc.share.Value[0]) * acc.share.Value[0][0].MarshalBinarySize()
 	}
 	close(c.finDone)
 	fmt.Printf("\tCloud finished aggregating %d shares in %s, received %s\n", i, cpuTime, formatByteSize(byteRecv))
@@ -199,7 +199,7 @@ func main() {
 
 	kg := rlwe.NewKeyGenerator(params)
 
-	crs, err := utils.NewPRNG()
+	crs, err := sampling.NewPRNG()
 	if err != nil {
 		panic(err)
 	}

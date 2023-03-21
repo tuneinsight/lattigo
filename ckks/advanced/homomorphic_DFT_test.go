@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
-	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
@@ -178,7 +178,7 @@ func testCoeffsToSlots(params ckks.Parameters, t *testing.T) {
 		// Generates the vector of random complex values
 		values := make([]complex128, params.Slots())
 		for i := range values {
-			values[i] = complex(utils.RandFloat64(-1, 1), utils.RandFloat64(-1, 1))
+			values[i] = complex(sampling.RandFloat64(-1, 1), sampling.RandFloat64(-1, 1))
 		}
 
 		// Splits between real and imaginary
@@ -345,13 +345,13 @@ func testSlotsToCoeffs(params ckks.Parameters, t *testing.T) {
 		// Generates the n first slots of the test vector (real part to encode)
 		valuesReal := make([]complex128, params.Slots())
 		for i := range valuesReal {
-			valuesReal[i] = complex(utils.RandFloat64(-1, 1), 0)
+			valuesReal[i] = complex(sampling.RandFloat64(-1, 1), 0)
 		}
 
 		// Generates the n first slots of the test vector (imaginary part to encode)
 		valuesImag := make([]complex128, params.Slots())
 		for i := range valuesImag {
-			valuesImag[i] = complex(utils.RandFloat64(-1, 1), 0)
+			valuesImag[i] = complex(sampling.RandFloat64(-1, 1), 0)
 		}
 
 		// If sparse, there there is the space to store both vectors in one

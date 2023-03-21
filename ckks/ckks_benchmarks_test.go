@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/tuneinsight/lattigo/v4/rlwe"
-	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 func BenchmarkCKKSScheme(b *testing.B) {
@@ -50,7 +50,7 @@ func benchEncoder(tc *testContext, b *testing.B) {
 
 		values := make([]complex128, 1<<logSlots)
 		for i := 0; i < 1<<logSlots; i++ {
-			values[i] = utils.RandComplex128(-1, 1)
+			values[i] = sampling.RandComplex128(-1, 1)
 		}
 
 		plaintext := NewPlaintext(tc.params, tc.params.MaxLevel())
@@ -64,7 +64,7 @@ func benchEncoder(tc *testContext, b *testing.B) {
 
 		values := make([]complex128, 1<<logSlots)
 		for i := 0; i < 1<<logSlots; i++ {
-			values[i] = utils.RandComplex128(-1, 1)
+			values[i] = sampling.RandComplex128(-1, 1)
 		}
 
 		plaintext := NewPlaintext(tc.params, tc.params.MaxLevel())

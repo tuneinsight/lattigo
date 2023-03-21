@@ -402,13 +402,17 @@ func (eval *evaluator) quantizeLvl(level, levelQMul int, ctOut *rlwe.Ciphertext)
 
 // Mul multiplies ctIn by op1 and returns the result in ctOut.
 func (eval *evaluator) Mul(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext) {
-	eval.CheckBinary(ctIn, op1, ctOut, ctIn.Degree()+op1.Degree())
+
 	switch op1 := op1.(type) {
 	case *PlaintextMul:
+		eval.CheckBinary(ctIn, op1, ctOut, ctIn.Degree()+op1.Degree())
 		eval.mulPlaintextMul(ctIn, op1, ctOut)
 	case *PlaintextRingT:
+		// Special case where we do not want ctOut to be resized to level 0
+		eval.CheckBinary(ctIn, ctIn, ctOut, ctIn.Degree()+op1.Degree())
 		eval.mulPlaintextRingT(ctIn, op1, ctOut)
 	case *rlwe.Plaintext, *rlwe.Ciphertext:
+		eval.CheckBinary(ctIn, op1, ctOut, ctIn.Degree()+op1.Degree())
 		eval.tensorAndRescale(ctIn, op1.El(), ctOut)
 	default:
 		panic(fmt.Errorf("cannot Mul: invalid rlwe.Operand type for Mul: %T", op1))
@@ -461,7 +465,7 @@ func (eval *evaluator) mulPlaintextRingT(ctIn *rlwe.Ciphertext, ptRt *PlaintextR
 		ringQ.MForm(ctOut.Value[i], ctOut.Value[i])
 
 		// For each qi in Q
-		for j, s := range ringQ.SubRings[:ctIn.Level()+1] {
+		for j, s := range ringQ.SubRings[:level+1] {
 
 			tmp := ctOut.Value[i].Coeffs[j]
 

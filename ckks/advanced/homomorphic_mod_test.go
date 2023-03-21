@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
-	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 func TestHomomorphicMod(t *testing.T) {
@@ -202,7 +202,7 @@ func newTestVectorsEvalMod(params ckks.Parameters, encryptor rlwe.Encryptor, enc
 	Q := float64(params.Q()[0]) / math.Exp2(math.Round(math.Log2(float64(params.Q()[0])))) * evm.MessageRatio()
 
 	for i := uint64(0); i < 1<<logSlots; i++ {
-		values[i] = complex(math.Round(utils.RandFloat64(-K, K))*Q+utils.RandFloat64(-1, 1), 0)
+		values[i] = complex(math.Round(sampling.RandFloat64(-K, K))*Q+sampling.RandFloat64(-1, 1), 0)
 	}
 
 	values[0] = complex(K*Q+0.5, 0)

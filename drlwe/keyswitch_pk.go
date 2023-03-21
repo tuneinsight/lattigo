@@ -4,6 +4,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 // PCKSProtocol is the structure storing the parameters for the collective public key-switching.
@@ -21,7 +22,7 @@ type PCKSProtocol struct {
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // PCKSProtocol can be used concurrently.
 func (pcks *PCKSProtocol) ShallowCopy() *PCKSProtocol {
-	prng, err := utils.NewPRNG()
+	prng, err := sampling.NewPRNG()
 	if err != nil {
 		panic(err)
 	}
@@ -46,7 +47,7 @@ func NewPCKSProtocol(params rlwe.Parameters, sigmaSmudging float64) (pcks *PCKSP
 
 	pcks.buff = params.RingQ().NewPoly()
 
-	prng, err := utils.NewPRNG()
+	prng, err := sampling.NewPRNG()
 	if err != nil {
 		panic(err)
 	}
@@ -133,7 +134,7 @@ type PCKSShare struct {
 
 // MarshalBinarySize returns the size in bytes that the object once marshalled into a binary form.
 func (share *PCKSShare) MarshalBinarySize() int {
-	return share.Value[0].MarshalBinarySize64() + share.Value[1].MarshalBinarySize64()
+	return share.Value[0].MarshalBinarySize() + share.Value[1].MarshalBinarySize()
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
@@ -148,11 +149,11 @@ func (share *PCKSShare) MarshalBinary() (data []byte, err error) {
 func (share *PCKSShare) MarshalBinaryInPlace(data []byte) (ptr int, err error) {
 
 	var inc int
-	if ptr, err = share.Value[0].Encode64(data[ptr:]); err != nil {
+	if ptr, err = share.Value[0].Read(data[ptr:]); err != nil {
 		return
 	}
 
-	if inc, err = share.Value[1].Encode64(data[ptr:]); err != nil {
+	if inc, err = share.Value[1].Read(data[ptr:]); err != nil {
 		return
 	}
 
@@ -178,7 +179,7 @@ func (share *PCKSShare) UnmarshalBinaryInPlace(data []byte) (ptr int, err error)
 		share.Value[0] = new(ring.Poly)
 	}
 
-	if ptr, err = share.Value[0].Decode64(data[ptr:]); err != nil {
+	if ptr, err = share.Value[0].Write(data[ptr:]); err != nil {
 		return
 	}
 
@@ -186,7 +187,7 @@ func (share *PCKSShare) UnmarshalBinaryInPlace(data []byte) (ptr int, err error)
 		share.Value[1] = new(ring.Poly)
 	}
 
-	if inc, err = share.Value[1].Decode64(data[ptr:]); err != nil {
+	if inc, err = share.Value[1].Write(data[ptr:]); err != nil {
 		return
 	}
 

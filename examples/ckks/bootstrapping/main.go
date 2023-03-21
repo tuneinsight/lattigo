@@ -12,7 +12,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/ckks/bootstrapping"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
-	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 var flagShort = flag.Bool("short", false, "run the example with a smaller and insecure ring degree.")
@@ -106,7 +106,7 @@ func main() {
 	// Generate a random plaintext with values uniformly distributed in [-1, 1] for the real and imaginary part.
 	valuesWant := make([]complex128, params.Slots())
 	for i := range valuesWant {
-		valuesWant[i] = utils.RandComplex128(-1, 1)
+		valuesWant[i] = sampling.RandComplex128(-1, 1)
 	}
 
 	plaintext := encoder.EncodeNew(valuesWant, params.MaxLevel(), params.DefaultScale(), params.LogSlots())

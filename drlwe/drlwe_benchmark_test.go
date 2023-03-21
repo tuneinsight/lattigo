@@ -7,7 +7,7 @@ import (
 
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
-	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 func BenchmarkDRLWE(b *testing.B) {
@@ -62,7 +62,7 @@ func benchPublicKeyGen(params rlwe.Parameters, b *testing.B) {
 	ckg := NewCKGProtocol(params)
 	sk := rlwe.NewKeyGenerator(params).GenSecretKeyNew()
 	s1 := ckg.AllocateShare()
-	crs, _ := utils.NewPRNG()
+	crs, _ := sampling.NewPRNG()
 
 	crp := ckg.SampleCRP(crs)
 
@@ -92,7 +92,7 @@ func benchRelinKeyGen(params rlwe.Parameters, b *testing.B) {
 	sk := rlwe.NewKeyGenerator(params).GenSecretKeyNew()
 	ephSk, share1, share2 := rkg.AllocateShare()
 	rlk := rlwe.NewRelinearizationKey(params)
-	crs, _ := utils.NewPRNG()
+	crs, _ := sampling.NewPRNG()
 
 	crp := rkg.SampleCRP(crs)
 
@@ -126,7 +126,7 @@ func benchRotKeyGen(params rlwe.Parameters, b *testing.B) {
 	rtg := NewGKGProtocol(params)
 	sk := rlwe.NewKeyGenerator(params).GenSecretKeyNew()
 	share := rtg.AllocateShare()
-	crs, _ := utils.NewPRNG()
+	crs, _ := sampling.NewPRNG()
 	crp := rtg.SampleCRP(crs)
 
 	b.Run(benchString("RotKeyGen/Round1/Gen", params), func(b *testing.B) {

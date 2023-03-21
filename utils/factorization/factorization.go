@@ -1,3 +1,4 @@
+// Package factorization implements various algorithms for efficient factoring integers of small to medium size.
 package factorization
 
 import (

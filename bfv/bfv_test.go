@@ -14,6 +14,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters). Overrides -short and requires -timeout=0.")
@@ -28,7 +29,7 @@ type testContext struct {
 	params      Parameters
 	ringQ       *ring.Ring
 	ringT       *ring.Ring
-	prng        utils.PRNG
+	prng        sampling.PRNG
 	uSampler    *ring.UniformSampler
 	encoder     Encoder
 	kgen        *rlwe.KeyGenerator
@@ -117,7 +118,7 @@ func genTestParams(params Parameters) (tc *testContext, err error) {
 	tc = new(testContext)
 	tc.params = params
 
-	if tc.prng, err = utils.NewPRNG(); err != nil {
+	if tc.prng, err = sampling.NewPRNG(); err != nil {
 		return nil, err
 	}
 

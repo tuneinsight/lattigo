@@ -6,7 +6,7 @@ import (
 
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
-	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 func chebyshevinterpolation() {
@@ -49,7 +49,7 @@ func chebyshevinterpolation() {
 	// Values to encrypt
 	values := make([]float64, params.Slots())
 	for i := range values {
-		values[i] = utils.RandFloat64(-8, 8)
+		values[i] = sampling.RandFloat64(-8, 8)
 	}
 
 	fmt.Printf("CKKS parameters: logN = %d, logQ = %d, levels = %d, scale= %f, sigma = %f \n",

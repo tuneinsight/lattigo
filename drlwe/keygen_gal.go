@@ -7,7 +7,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
-	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 // GKGCRP is a type for common reference polynomials in the GaloisKey Generation protocol.
@@ -24,7 +24,7 @@ type GKGProtocol struct {
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // GKGProtocol can be used concurrently.
 func (gkg *GKGProtocol) ShallowCopy() *GKGProtocol {
-	prng, err := utils.NewPRNG()
+	prng, err := sampling.NewPRNG()
 	if err != nil {
 		panic(err)
 	}
@@ -43,7 +43,7 @@ func NewGKGProtocol(params rlwe.Parameters) (gkg *GKGProtocol) {
 	gkg = new(GKGProtocol)
 	gkg.params = params
 
-	prng, err := utils.NewPRNG()
+	prng, err := sampling.NewPRNG()
 	if err != nil {
 		panic(err)
 	}
@@ -216,7 +216,7 @@ type GKGShare struct {
 
 // MarshalBinarySize returns the size in bytes that the object once marshalled into a binary form.
 func (share *GKGShare) MarshalBinarySize() int {
-	return 10 + share.Value[0][0].MarshalBinarySize64()*len(share.Value)*len(share.Value[0])
+	return 10 + share.Value[0][0].MarshalBinarySize()*len(share.Value)*len(share.Value[0])
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
@@ -245,7 +245,7 @@ func (share *GKGShare) MarshalBinaryInPlace(data []byte) (ptr int, err error) {
 	var inc int
 	for i := range share.Value {
 		for _, el := range share.Value[i] {
-			if inc, err = el.Encode64(data[ptr:]); err != nil {
+			if inc, err = el.Read(data[ptr:]); err != nil {
 				return
 			}
 			ptr += inc
@@ -283,7 +283,7 @@ func (share *GKGShare) UnmarshalBinaryInPlace(data []byte) (ptr int, err error) 
 		}
 
 		for j := range share.Value[i] {
-			if inc, err = share.Value[i][j].Decode64(data[ptr:]); err != nil {
+			if inc, err = share.Value[i][j].Write(data[ptr:]); err != nil {
 				return
 			}
 			ptr += inc

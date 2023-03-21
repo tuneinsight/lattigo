@@ -14,6 +14,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters + secure refresh). Overrides -short and requires -timeout=0.")
@@ -127,7 +128,7 @@ func genTestParams(params ckks.Parameters, NParties int) (tc *testContext, err e
 	tc.ringQ = params.RingQ()
 	tc.ringP = params.RingP()
 
-	prng, _ := utils.NewKeyedPRNG([]byte{'t', 'e', 's', 't'})
+	prng, _ := sampling.NewKeyedPRNG([]byte{'t', 'e', 's', 't'})
 	tc.crs = prng
 	tc.uniformSampler = ring.NewUniformSampler(prng, params.RingQ())
 
@@ -572,7 +573,7 @@ func newTestVectorsAtScale(testContext *testContext, encryptor rlwe.Encryptor, a
 	values = make([]complex128, 1<<logSlots)
 
 	for i := 0; i < 1<<logSlots; i++ {
-		values[i] = complex(utils.RandFloat64(real(a), real(b)), utils.RandFloat64(imag(a), imag(b)))
+		values[i] = complex(sampling.RandFloat64(real(a), real(b)), sampling.RandFloat64(imag(a), imag(b)))
 	}
 
 	plaintext = testContext.encoder.EncodeNew(values, params.MaxLevel(), scale, params.LogSlots())

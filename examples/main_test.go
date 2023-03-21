@@ -5,7 +5,8 @@ import (
 	"testing"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/buffer"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 func Benchmark(b *testing.B) {
@@ -21,7 +22,7 @@ func Benchmark(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	prng, err := utils.NewPRNG()
+	prng, err := sampling.NewPRNG()
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -40,9 +41,9 @@ func Benchmark(b *testing.B) {
 		}
 	})
 
-	b.Run("WriteTo(utils.Writer)", func(b *testing.B) {
+	b.Run("WriteTo(buffer.Writer)", func(b *testing.B) {
 		writer := NewWriter(pol.MarshalBinarySize())
-		w := utils.NewWriter(writer)
+		w := buffer.NewWriter(writer)
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			if _, err = pol.WriteTo(w); err != nil {
@@ -77,7 +78,7 @@ func Benchmark(b *testing.B) {
 
 		writer := NewWriter(pol.MarshalBinarySize())
 
-		w := utils.NewWriter(writer)
+		w := buffer.NewWriter(writer)
 
 		if _, err = pol.WriteTo(w); err != nil {
 			b.Fatal(err)
@@ -89,7 +90,7 @@ func Benchmark(b *testing.B) {
 
 		reader := NewReader(writer.buff)
 
-		r := utils.NewReader(reader)
+		r := buffer.NewReader(reader)
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {

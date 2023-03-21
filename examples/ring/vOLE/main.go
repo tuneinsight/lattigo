@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 // Vectorized oblivious evaluation is a two-party protocol for the function f(x) = ax + b where a sender
@@ -159,7 +159,7 @@ func main() {
 
 		fmt.Printf("Params : n=%d logN=%d qlevel=%d plevel=%d mlevel=%d\n", n, param.logN, qlevel, plevel, mlevel)
 
-		prng, err := utils.NewPRNG()
+		prng, err := sampling.NewPRNG()
 		if err != nil {
 			panic(err)
 		}

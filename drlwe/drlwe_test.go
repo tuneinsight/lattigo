@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
-	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 var nbParties = int(5)
@@ -37,7 +37,7 @@ type testContext struct {
 	skShares       []*rlwe.SecretKey
 	skIdeal        *rlwe.SecretKey
 	uniformSampler *ring.UniformSampler
-	crs            utils.PRNG
+	crs            sampling.PRNG
 }
 
 func newTestContext(params rlwe.Parameters) *testContext {
@@ -50,7 +50,7 @@ func newTestContext(params rlwe.Parameters) *testContext {
 		params.RingQP().Add(skIdeal.Value, skShares[i].Value, skIdeal.Value)
 	}
 
-	prng, _ := utils.NewKeyedPRNG([]byte{'t', 'e', 's', 't'})
+	prng, _ := sampling.NewKeyedPRNG([]byte{'t', 'e', 's', 't'})
 	unifSampler := ring.NewUniformSampler(prng, params.RingQ())
 
 	return &testContext{params, kgen, skShares, skIdeal, unifSampler, prng}

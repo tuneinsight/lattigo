@@ -6,7 +6,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
-	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 // RKGProtocol is the structure storing the parameters and and precomputations for the collective relinearization key generation protocol.
@@ -25,7 +25,7 @@ type RKGProtocol struct {
 // RKGProtocol can be used concurrently.
 func (ekg *RKGProtocol) ShallowCopy() *RKGProtocol {
 	var err error
-	prng, err := utils.NewPRNG()
+	prng, err := sampling.NewPRNG()
 	if err != nil {
 		panic(err)
 	}
@@ -50,7 +50,7 @@ func NewRKGProtocol(params rlwe.Parameters) *RKGProtocol {
 	rkg.params = params
 
 	var err error
-	prng, err := utils.NewPRNG()
+	prng, err := sampling.NewPRNG()
 	if err != nil {
 		panic(err)
 	}
@@ -319,7 +319,7 @@ type RKGShare struct {
 
 // MarshalBinarySize returns the size in bytes that the object once marshalled into a binary form.
 func (share *RKGShare) MarshalBinarySize() int {
-	return 2 + 2*share.Value[0][0][0].MarshalBinarySize64()*len(share.Value)*len(share.Value[0])
+	return 2 + 2*share.Value[0][0][0].MarshalBinarySize()*len(share.Value)*len(share.Value[0])
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
@@ -350,12 +350,12 @@ func (share *RKGShare) MarshalBinaryInPlace(data []byte) (ptr int, err error) {
 	for i := range share.Value {
 		for _, el := range share.Value[i] {
 
-			if inc, err = el[0].Encode64(data[ptr:]); err != nil {
+			if inc, err = el[0].Read(data[ptr:]); err != nil {
 				return
 			}
 			ptr += inc
 
-			if inc, err = el[1].Encode64(data[ptr:]); err != nil {
+			if inc, err = el[1].Read(data[ptr:]); err != nil {
 				return
 			}
 			ptr += inc
@@ -393,12 +393,12 @@ func (share *RKGShare) UnmarshalBinaryInPlace(data []byte) (ptr int, err error) 
 
 		for j := range share.Value[i] {
 
-			if inc, err = share.Value[i][j][0].Decode64(data[ptr:]); err != nil {
+			if inc, err = share.Value[i][j][0].Write(data[ptr:]); err != nil {
 				return
 			}
 			ptr += inc
 
-			if inc, err = share.Value[i][j][1].Decode64(data[ptr:]); err != nil {
+			if inc, err = share.Value[i][j][1].Write(data[ptr:]); err != nil {
 				return
 			}
 			ptr += inc

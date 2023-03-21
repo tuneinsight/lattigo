@@ -11,6 +11,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 var minPrec float64 = 12.0
@@ -146,7 +147,7 @@ func testbootstrap(params ckks.Parameters, original bool, btpParams Parameters, 
 
 		values := make([]complex128, 1<<params.LogSlots())
 		for i := range values {
-			values[i] = utils.RandComplex128(-1, 1)
+			values[i] = sampling.RandComplex128(-1, 1)
 		}
 
 		values[0] = complex(0.9238795325112867, 0.3826834323650898)

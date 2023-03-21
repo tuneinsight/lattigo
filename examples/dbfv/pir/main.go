@@ -11,7 +11,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/dbfv"
 	"github.com/tuneinsight/lattigo/v4/drlwe"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
-	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 func check(err error) {
@@ -109,7 +109,7 @@ func main() {
 	}
 
 	// Common reference polynomial generator that uses the PRNG
-	crs, err := utils.NewKeyedPRNG([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'})
+	crs, err := sampling.NewKeyedPRNG([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'})
 	if err != nil {
 		panic(err)
 	}
@@ -256,7 +256,7 @@ func genparties(params bfv.Parameters, N int) []*party {
 	return P
 }
 
-func ckgphase(params bfv.Parameters, crs utils.PRNG, P []*party) *rlwe.PublicKey {
+func ckgphase(params bfv.Parameters, crs sampling.PRNG, P []*party) *rlwe.PublicKey {
 
 	l := log.New(os.Stderr, "", 0)
 
@@ -291,7 +291,7 @@ func ckgphase(params bfv.Parameters, crs utils.PRNG, P []*party) *rlwe.PublicKey
 	return pk
 }
 
-func rkgphase(params bfv.Parameters, crs utils.PRNG, P []*party) *rlwe.RelinearizationKey {
+func rkgphase(params bfv.Parameters, crs sampling.PRNG, P []*party) *rlwe.RelinearizationKey {
 	l := log.New(os.Stderr, "", 0)
 
 	l.Println("> RKG Phase")
@@ -337,7 +337,7 @@ func rkgphase(params bfv.Parameters, crs utils.PRNG, P []*party) *rlwe.Relineari
 	return rlk
 }
 
-func gkgphase(params bfv.Parameters, crs utils.PRNG, P []*party) (galKeys []*rlwe.GaloisKey) {
+func gkgphase(params bfv.Parameters, crs sampling.PRNG, P []*party) (galKeys []*rlwe.GaloisKey) {
 
 	l := log.New(os.Stderr, "", 0)
 

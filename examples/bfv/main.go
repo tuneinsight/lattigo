@@ -6,7 +6,7 @@ import (
 	"math/bits"
 
 	"github.com/tuneinsight/lattigo/v4/rlwe"
-	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 
 	"github.com/tuneinsight/lattigo/v4/bfv"
 	"github.com/tuneinsight/lattigo/v4/ring"
@@ -89,7 +89,7 @@ func obliviousRiding() {
 		nbDrivers, maxvalue, maxvalue)
 	fmt.Println()
 
-	prng, err := utils.NewPRNG()
+	prng, err := sampling.NewPRNG()
 	if err != nil {
 		panic(err)
 	}

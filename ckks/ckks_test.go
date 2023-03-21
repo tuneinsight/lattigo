@@ -14,6 +14,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters + secure bootstrapping). Overrides -short and requires -timeout=0.")
@@ -39,7 +40,7 @@ type testContext struct {
 	params      Parameters
 	ringQ       *ring.Ring
 	ringP       *ring.Ring
-	prng        utils.PRNG
+	prng        sampling.PRNG
 	encoder     Encoder
 	kgen        *rlwe.KeyGenerator
 	sk          *rlwe.SecretKey
@@ -131,7 +132,7 @@ func genTestParams(defaultParam Parameters) (tc *testContext, err error) {
 		tc.ringP = defaultParam.RingP()
 	}
 
-	if tc.prng, err = utils.NewPRNG(); err != nil {
+	if tc.prng, err = sampling.NewPRNG(); err != nil {
 		return nil, err
 	}
 
@@ -156,11 +157,11 @@ func newTestVectors(tc *testContext, encryptor rlwe.Encryptor, a, b complex128, 
 	switch tc.params.RingType() {
 	case ring.Standard:
 		for i := 0; i < 1<<logSlots; i++ {
-			values[i] = complex(utils.RandFloat64(real(a), real(b)), utils.RandFloat64(imag(a), imag(b)))
+			values[i] = complex(sampling.RandFloat64(real(a), real(b)), sampling.RandFloat64(imag(a), imag(b)))
 		}
 	case ring.ConjugateInvariant:
 		for i := 0; i < 1<<logSlots; i++ {
-			values[i] = complex(utils.RandFloat64(real(a), real(b)), 0)
+			values[i] = complex(sampling.RandFloat64(real(a), real(b)), 0)
 		}
 	default:
 		panic("invalid ring type")
@@ -180,9 +181,9 @@ func newTestVectors(tc *testContext, encryptor rlwe.Encryptor, a, b complex128, 
 func randomConst(tp ring.Type, a, b complex128) (constant complex128) {
 	switch tp {
 	case ring.Standard:
-		constant = complex(utils.RandFloat64(real(a), real(b)), utils.RandFloat64(imag(a), imag(b)))
+		constant = complex(sampling.RandFloat64(real(a), real(b)), sampling.RandFloat64(imag(a), imag(b)))
 	case ring.ConjugateInvariant:
-		constant = complex(utils.RandFloat64(real(a), real(b)), 0)
+		constant = complex(sampling.RandFloat64(real(a), real(b)), 0)
 	default:
 		panic("invalid ring type")
 	}
@@ -248,7 +249,7 @@ func testEncoder(tc *testContext, t *testing.T) {
 		valuesWant := make([]float64, slots)
 
 		for i := 0; i < slots; i++ {
-			valuesWant[i] = utils.RandFloat64(-1, 1)
+			valuesWant[i] = sampling.RandFloat64(-1, 1)
 		}
 
 		valuesWant[0] = 0.607538

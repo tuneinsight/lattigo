@@ -8,7 +8,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
-	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 // GaloisGen is an integer of order N/2 modulo M and that spans Z_M with the integer -1.
@@ -92,7 +92,7 @@ type encoderComplex128 struct {
 // encoder can be used concurrently.
 func (ecd *encoder) ShallowCopy() *encoder {
 
-	prng, err := utils.NewPRNG()
+	prng, err := sampling.NewPRNG()
 	if err != nil {
 		panic(err)
 	}
@@ -125,7 +125,7 @@ func newEncoder(params Parameters) encoder {
 		fivePows &= (m - 1)
 	}
 
-	prng, err := utils.NewPRNG()
+	prng, err := sampling.NewPRNG()
 	if err != nil {
 		panic(err)
 	}

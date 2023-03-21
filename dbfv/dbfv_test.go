@@ -15,6 +15,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters). Overrides -short and requires -timeout=0.")
@@ -116,7 +117,7 @@ func gentestContext(params bfv.Parameters, parties int) (tc *testContext, err er
 	tc.ringQ = params.RingQ()
 	tc.ringP = params.RingP()
 
-	prng, _ := utils.NewKeyedPRNG([]byte{'t', 'e', 's', 't'})
+	prng, _ := sampling.NewKeyedPRNG([]byte{'t', 'e', 's', 't'})
 	tc.crs = prng
 	tc.uniformSampler = ring.NewUniformSampler(prng, params.RingQ())
 
@@ -371,7 +372,7 @@ func testRefreshAndTransform(tc *testContext, t *testing.T) {
 
 		permutation := make([]uint64, len(coeffs))
 		N := uint64(tc.params.N())
-		prng, _ := utils.NewPRNG()
+		prng, _ := sampling.NewPRNG()
 		for i := range permutation {
 			permutation[i] = ring.RandUniform(prng, N, N-1)
 		}
@@ -473,7 +474,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 
 		permutation := make([]uint64, len(coeffs))
 		N := uint64(tc.params.N())
-		prng, _ := utils.NewPRNG()
+		prng, _ := sampling.NewPRNG()
 		for i := range permutation {
 			permutation[i] = ring.RandUniform(prng, N, N-1)
 		}
@@ -510,7 +511,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 
 func newTestVectors(tc *testContext, encryptor rlwe.Encryptor, t *testing.T) (coeffs []uint64, pt *rlwe.Plaintext, ct *rlwe.Ciphertext) {
 
-	prng, _ := utils.NewPRNG()
+	prng, _ := sampling.NewPRNG()
 	uniformSampler := ring.NewUniformSampler(prng, tc.ringT)
 	coeffsPol := uniformSampler.ReadNew()
 	pt = bfv.NewPlaintext(tc.params, tc.params.MaxLevel())

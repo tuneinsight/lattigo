@@ -6,6 +6,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 // E2SProtocol is the structure storing the parameters and temporary buffers
@@ -29,7 +30,7 @@ func (e2s *E2SProtocol) ShallowCopy() *E2SProtocol {
 
 	params := e2s.params
 
-	prng, err := utils.NewPRNG()
+	prng, err := sampling.NewPRNG()
 	if err != nil {
 		panic(err)
 	}
@@ -51,7 +52,7 @@ func NewE2SProtocol(params bgv.Parameters, sigmaSmudging float64) *E2SProtocol {
 	e2s.CKSProtocol = *drlwe.NewCKSProtocol(params.Parameters, sigmaSmudging)
 	e2s.params = params
 	e2s.encoder = bgv.NewEncoder(params)
-	prng, err := utils.NewPRNG()
+	prng, err := sampling.NewPRNG()
 	if err != nil {
 		panic(err)
 	}

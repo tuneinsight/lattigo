@@ -11,7 +11,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/dbfv"
 	"github.com/tuneinsight/lattigo/v4/drlwe"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
-	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 func check(err error) {
@@ -95,7 +95,7 @@ func main() {
 		panic(err)
 	}
 
-	crs, err := utils.NewKeyedPRNG([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'})
+	crs, err := sampling.NewKeyedPRNG([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'})
 	if err != nil {
 		panic(err)
 	}
@@ -281,7 +281,7 @@ func genInputs(params bfv.Parameters, P []*party) (expRes []uint64) {
 
 		pi.input = make([]uint64, params.N())
 		for i := range pi.input {
-			if utils.RandFloat64(0, 1) > 0.3 || i == 4 {
+			if sampling.RandFloat64(0, 1) > 0.3 || i == 4 {
 				pi.input[i] = 1
 			}
 			expRes[i] *= pi.input[i]
@@ -326,7 +326,7 @@ func pcksPhase(params bfv.Parameters, tpk *rlwe.PublicKey, encRes *rlwe.Cipherte
 	return
 }
 
-func rkgphase(params bfv.Parameters, crs utils.PRNG, P []*party) *rlwe.RelinearizationKey {
+func rkgphase(params bfv.Parameters, crs sampling.PRNG, P []*party) *rlwe.RelinearizationKey {
 	l := log.New(os.Stderr, "", 0)
 
 	l.Println("> RKG Phase")
@@ -371,7 +371,7 @@ func rkgphase(params bfv.Parameters, crs utils.PRNG, P []*party) *rlwe.Relineari
 	return rlk
 }
 
-func ckgphase(params bfv.Parameters, crs utils.PRNG, P []*party) *rlwe.PublicKey {
+func ckgphase(params bfv.Parameters, crs sampling.PRNG, P []*party) *rlwe.PublicKey {
 
 	l := log.New(os.Stderr, "", 0)
 

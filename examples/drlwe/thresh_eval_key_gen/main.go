@@ -304,10 +304,7 @@ func main() {
 	// collects the results in an EvaluationKeySet
 	evk := rlwe.NewEvaluationKeySet()
 	for task := range C.finDone {
-		if err = evk.Add(&task); err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
+		evk.GaloisKeys[task.GaloisElement] = &task
 	}
 
 	fmt.Printf("Generation of %d keys completed in %s\n", len(galEls), time.Since(start))

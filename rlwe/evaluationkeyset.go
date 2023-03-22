@@ -7,8 +7,6 @@ import "fmt"
 // This interface must support concurrent calls on the methods
 // GetGaloisKey and GetRelinearizationKey.
 type EvaluationKeySetInterface interface {
-	// Add adds a key to the object.
-	Add(evk interface{}) (err error)
 
 	// GetGaloisKey retrieves the Galois key for the automorphism X^{i} -> X^{i*galEl}.
 	GetGaloisKey(galEl uint64) (evk *GaloisKey, err error)
@@ -34,21 +32,6 @@ func NewEvaluationKeySet() (evk *EvaluationKeySet) {
 		RelinearizationKey: nil,
 		GaloisKeys:         make(map[uint64]*GaloisKey),
 	}
-}
-
-// Add stores the evaluation key in the EvaluationKeySet.
-// Supported types are *rlwe.EvalutionKey and *rlwe.GaloiKey.
-func (evk *EvaluationKeySet) Add(key interface{}) (err error) {
-	switch key := key.(type) {
-	case *RelinearizationKey:
-		evk.RelinearizationKey = key
-	case *GaloisKey:
-		evk.GaloisKeys[key.GaloisElement] = key
-	default:
-		return fmt.Errorf("unsupported type. Supported types are *rlwe.EvalutionKey and *rlwe.GaloiKey, but have %T", key)
-	}
-
-	return
 }
 
 // GetGaloisKey retrieves the Galois key for the automorphism X^{i} -> X^{i*galEl}.

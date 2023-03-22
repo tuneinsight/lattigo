@@ -83,13 +83,13 @@ func GenEvaluationKeySetNew(btpParams Parameters, ckksParams ckks.Parameters, sk
 
 	evk := rlwe.NewEvaluationKeySet()
 
-	evk.Add(kgen.GenRelinearizationKeyNew(sk))
+	evk.RelinearizationKey = kgen.GenRelinearizationKeyNew(sk)
 
 	for _, galEl := range btpParams.GaloisElements(ckksParams) {
-		evk.Add(kgen.GenGaloisKeyNew(galEl, sk))
+		evk.GaloisKeys[galEl] = kgen.GenGaloisKeyNew(galEl, sk)
 	}
 
-	evk.Add(kgen.GenGaloisKeyNew(ckksParams.GaloisElementForRowRotation(), sk))
+	evk.GaloisKeys[ckksParams.GaloisElementForRowRotation()] = kgen.GenGaloisKeyNew(ckksParams.GaloisElementForRowRotation(), sk)
 
 	EvkDtS, EvkStD := btpParams.GenEncapsulationEvaluationKeysNew(ckksParams, sk)
 

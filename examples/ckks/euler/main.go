@@ -40,8 +40,6 @@ func example() {
 
 	sk := kgen.GenSecretKeyNew()
 
-	rlk := kgen.GenRelinearizationKeyNew(sk)
-
 	encryptor := ckks.NewEncryptor(params, sk)
 
 	decryptor := ckks.NewDecryptor(params, sk)
@@ -49,7 +47,7 @@ func example() {
 	encoder := ckks.NewEncoder(params)
 
 	evk := rlwe.NewEvaluationKeySet()
-	evk.Add(rlk)
+	evk.RelinearizationKey = kgen.GenRelinearizationKeyNew(sk)
 
 	evaluator := ckks.NewEvaluator(params, evk)
 

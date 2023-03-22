@@ -131,14 +131,10 @@ func main() {
 	// Instantiates EvaluationKeySet
 	evk := rlwe.NewEvaluationKeySet()
 
-	if err := evk.Add(relinKey); err != nil {
-		panic(err)
-	}
+	evk.RelinearizationKey = relinKey
 
 	for _, galKey := range galKeys {
-		if err := evk.Add(galKey); err != nil {
-			panic(err)
-		}
+		evk.GaloisKeys[galKey.GaloisElement] = galKey
 	}
 
 	l.Printf("\tSetup done (cloud: %s, party: %s)\n",

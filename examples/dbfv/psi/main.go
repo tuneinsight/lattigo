@@ -118,9 +118,7 @@ func main() {
 	rlk := rkgphase(params, crs, P)
 
 	evk := rlwe.NewEvaluationKeySet()
-	if err := evk.Add(rlk); err != nil {
-		panic(err)
-	}
+	evk.RelinearizationKey = rlk
 
 	l.Printf("\tdone (cloud: %s, party: %s)\n",
 		elapsedRKGCloud, elapsedRKGParty)

@@ -166,11 +166,11 @@ func testCoeffsToSlots(params ckks.Parameters, t *testing.T) {
 
 		// Generates and adds the keys
 		for _, galEl := range galEls {
-			evk.Add(kgen.GenGaloisKeyNew(galEl, sk))
+			evk.GaloisKeys[galEl] = kgen.GenGaloisKeyNew(galEl, sk)
 		}
 
 		// Also adds the conjugate key
-		evk.Add(kgen.GenGaloisKeyNew(params.GaloisElementForRowRotation(), sk))
+		evk.GaloisKeys[params.GaloisElementForRowRotation()] = kgen.GenGaloisKeyNew(params.GaloisElementForRowRotation(), sk)
 
 		// Creates an evaluator with the rotation keys
 		eval := NewEvaluator(params, evk)
@@ -333,11 +333,11 @@ func testSlotsToCoeffs(params ckks.Parameters, t *testing.T) {
 
 		// Generates and adds the keys
 		for _, galEl := range galEls {
-			evk.Add(kgen.GenGaloisKeyNew(galEl, sk))
+			evk.GaloisKeys[galEl] = kgen.GenGaloisKeyNew(galEl, sk)
 		}
 
 		// Also adds the conjugate key
-		evk.Add(kgen.GenGaloisKeyNew(params.GaloisElementForRowRotation(), sk))
+		evk.GaloisKeys[params.GaloisElementForRowRotation()] = kgen.GenGaloisKeyNew(params.GaloisElementForRowRotation(), sk)
 
 		// Creates an evaluator with the rotation keys
 		eval := NewEvaluator(params, evk)

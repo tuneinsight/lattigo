@@ -269,7 +269,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 		copy(coeffsTmp, coeffs)
 
 		evk := rlwe.NewEvaluationKeySet()
-		evk.Add(rlk)
+		evk.RelinearizationKey = rlk
 
 		evaluator := tc.evaluator.WithKey(evk)
 		// Finds the maximum multiplicative depth

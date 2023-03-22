@@ -97,7 +97,7 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 	decryptor := ckks.NewDecryptor(params, sk)
 
 	evk := rlwe.NewEvaluationKeySet()
-	evk.Add(kgen.GenRelinearizationKeyNew(sk))
+	evk.RelinearizationKey = kgen.GenRelinearizationKeyNew(sk)
 
 	eval := NewEvaluator(params, evk)
 

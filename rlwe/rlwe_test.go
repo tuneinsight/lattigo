@@ -578,7 +578,7 @@ func testAutomorphism(tc *TestContext, level int, t *testing.T) {
 
 		// Allocate a new EvaluationKeySet and adds the GaloisKey
 		evk := NewEvaluationKeySet()
-		evk.Add(gk)
+		evk.GaloisKeys[gk.GaloisElement] = gk
 
 		// Evaluate the automorphism
 		eval.WithKey(evk).Automorphism(ct, galEl, ct)
@@ -623,7 +623,7 @@ func testAutomorphism(tc *TestContext, level int, t *testing.T) {
 
 		// Allocate a new EvaluationKeySet and adds the GaloisKey
 		evk := NewEvaluationKeySet()
-		evk.Add(gk)
+		evk.GaloisKeys[gk.GaloisElement] = gk
 
 		//Decompose the ciphertext
 		eval.DecomposeNTT(level, params.MaxLevelP(), params.MaxLevelP()+1, ct.Value[1], ct.IsNTT, eval.BuffDecompQP)
@@ -671,7 +671,7 @@ func testAutomorphism(tc *TestContext, level int, t *testing.T) {
 
 		// Allocate a new EvaluationKeySet and adds the GaloisKey
 		evk := NewEvaluationKeySet()
-		evk.Add(gk)
+		evk.GaloisKeys[gk.GaloisElement] = gk
 
 		//Decompose the ciphertext
 		eval.DecomposeNTT(level, params.MaxLevelP(), params.MaxLevelP()+1, ct.Value[1], ct.IsNTT, eval.BuffDecompQP)
@@ -753,9 +753,7 @@ func testLinearTransform(tc *TestContext, level int, t *testing.T) {
 		// GaloisKeys
 		evk := NewEvaluationKeySet()
 		for _, galEl := range params.GaloisElementsForExpand(logN) {
-			if err := evk.Add(kgen.GenGaloisKeyNew(galEl, sk)); err != nil {
-				t.Fatal(err)
-			}
+			evk.GaloisKeys[galEl] = kgen.GenGaloisKeyNew(galEl, sk)
 		}
 
 		eval := NewEvaluator(params, evk)
@@ -820,9 +818,7 @@ func testLinearTransform(tc *TestContext, level int, t *testing.T) {
 		// Galois Keys
 		evk := NewEvaluationKeySet()
 		for _, galEl := range params.GaloisElementsForMerge() {
-			if err := evk.Add(kgen.GenGaloisKeyNew(galEl, sk)); err != nil {
-				t.Fatal(err)
-			}
+			evk.GaloisKeys[galEl] = kgen.GenGaloisKeyNew(galEl, sk)
 		}
 
 		ct := eval.WithKey(evk).Merge(ciphertexts)
@@ -855,9 +851,7 @@ func testLinearTransform(tc *TestContext, level int, t *testing.T) {
 		// Galois Keys
 		evk := NewEvaluationKeySet()
 		for _, galEl := range params.GaloisElementsForInnerSum(batch, n) {
-			if err := evk.Add(kgen.GenGaloisKeyNew(galEl, sk)); err != nil {
-				t.Fatal(err)
-			}
+			evk.GaloisKeys[galEl] = kgen.GenGaloisKeyNew(galEl, sk)
 		}
 
 		eval.WithKey(evk).InnerSum(ct, batch, n, ct)

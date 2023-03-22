@@ -151,14 +151,10 @@ func main() {
 	evk := rlwe.NewEvaluationKeySet()
 
 	for _, galEl := range galEls {
-		if err = evk.Add(kgenN12.GenGaloisKeyNew(galEl, skN12)); err != nil {
-			panic(err)
-		}
+		evk.GaloisKeys[galEl] = kgenN12.GenGaloisKeyNew(galEl, skN12)
 	}
 
-	if err = evk.Add(kgenN12.GenGaloisKeyNew(paramsN12.GaloisElementForRowRotation(), skN12)); err != nil {
-		panic(err)
-	}
+	evk.GaloisKeys[paramsN12.GaloisElementForRowRotation()] = kgenN12.GenGaloisKeyNew(paramsN12.GaloisElementForRowRotation(), skN12)
 
 	// LUT Evaluator
 	evalLUT := lut.NewEvaluator(paramsN12.Parameters, paramsN11.Parameters, evk)

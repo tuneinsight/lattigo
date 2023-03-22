@@ -977,7 +977,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		evk := rlwe.NewEvaluationKeySet()
 		for _, galEl := range tc.params.GaloisElementsForInnerSum(batch, n) {
-			evk.Add(tc.kgen.GenGaloisKeyNew(galEl, tc.sk))
+			evk.GaloisKeys[galEl] = tc.kgen.GenGaloisKeyNew(galEl, tc.sk)
 		}
 
 		eval := tc.evaluator.WithKey(evk)
@@ -1041,7 +1041,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		evk := rlwe.NewEvaluationKeySet()
 		for _, galEl := range tc.params.GaloisElementsForRotations(rotations) {
-			evk.Add(tc.kgen.GenGaloisKeyNew(galEl, tc.sk))
+			evk.GaloisKeys[galEl] = tc.kgen.GenGaloisKeyNew(galEl, tc.sk)
 		}
 
 		eval := tc.evaluator.WithKey(evk)
@@ -1087,7 +1087,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		evk := rlwe.NewEvaluationKeySet()
 		for _, galEl := range tc.params.GaloisElementsForRotations(rotations) {
-			evk.Add(tc.kgen.GenGaloisKeyNew(galEl, tc.sk))
+			evk.GaloisKeys[galEl] = tc.kgen.GenGaloisKeyNew(galEl, tc.sk)
 		}
 
 		eval := tc.evaluator.WithKey(evk)

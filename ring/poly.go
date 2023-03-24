@@ -1,8 +1,10 @@
 package ring
 
 import (
+	"bufio"
 	"encoding/binary"
 	"fmt"
+	"io"
 
 	"github.com/tuneinsight/lattigo/v4/utils/buffer"
 )
@@ -115,7 +117,7 @@ func (pol *Poly) Equals(other *Poly) bool {
 
 // MarshalBinarySize returns the size in bytes that the object once marshalled into a binary form.
 func MarshalBinarySize(N, Level int) (size int) {
-	return 5 + N*(Level+1)<<3
+	return 16 + N*(Level+1)<<3
 }
 
 // MarshalBinarySize returns the size in bytes that the object once marshalled into a binary form.
@@ -135,8 +137,8 @@ func (pol *Poly) MarshalBinary() (p []byte, err error) {
 // or Read on the object.
 func (pol *Poly) UnmarshalBinary(p []byte) (err error) {
 
-	N := int(binary.LittleEndian.Uint32(p))
-	Level := int(p[4])
+	N := int(binary.LittleEndian.Uint64(p))
+	Level := int(binary.LittleEndian.Uint64(p[8:]))
 
 	if size := MarshalBinarySize(N, Level); len(p) != size {
 		return fmt.Errorf("cannot UnmarshalBinary: len(p)=%d != %d", len(p), size)
@@ -149,76 +151,104 @@ func (pol *Poly) UnmarshalBinary(p []byte) (err error) {
 	return nil
 }
 
-func (pol *Poly) WriteTo(w *buffer.Writer) (n int, err error) {
+// WriteTo writes the object on an io.Writer.
+// To ensure optimal efficiency and minimal allocations, the user is encouraged
+// to provide a struct implementing the interface buffer.Writer, which defines
+// a subset of the method of the bufio.Writer.
+// If w is not compliant to the buffer.Writer interface, it will be wrapped in
+// a new bufio.Writer.
+// For additional information, see lattigo/utils/buffer/writer.go.
+func (pol *Poly) WriteTo(w io.Writer) (int64, error) {
 
-	var inc int
-	if inc, err = w.WriteUint32(uint32(pol.N())); err != nil {
-		return n + inc, fmt.Errorf("cannot WriteTo: N: %w", err)
+	switch w := w.(type) {
+	case buffer.Writer:
+
+		var err error
+
+		var n, inc int
+
+		if n, err = buffer.WriteInt(w, pol.N()); err != nil {
+			return int64(n), err
+		}
+
+		if inc, err = buffer.WriteInt(w, pol.Level()); err != nil {
+			return int64(n + inc), err
+		}
+
+		n += inc
+
+		if inc, err = buffer.WriteUint64Slice(w, pol.Buff); err != nil {
+			return int64(n + inc), err
+		}
+
+		return int64(n + inc), w.Flush()
+
+	default:
+		return pol.WriteTo(bufio.NewWriter(w))
 	}
-
-	n += inc
-
-	if inc, err = w.WriteUint8(uint8(pol.Level())); err != nil {
-		return n + inc, fmt.Errorf("cannot WriteTo: levels: %w", err)
-	}
-
-	n += inc
-
-	if inc, err = w.WriteUint64Slice(pol.Buff); err != nil {
-		return n + inc, fmt.Errorf("cannot WriteTo: buffer: %w", err)
-	}
-
-	n += inc
-
-	return n, nil
 }
 
-func (pol *Poly) ReadFrom(r *buffer.Reader) (n int, err error) {
-	var inc int
+// ReadFrom reads on the object from an io.Writer.
+// To ensure optimal efficiency and minimal allocations, the user is encouraged
+// to provide a struct implementing the interface buffer.Reader, which defines
+// a subset of the method of the bufio.Reader.
+// If r is not compliant to the buffer.Reader interface, it will be wrapped in
+// a new bufio.Reader.
+// For additional information, see lattigo/utils/buffer/reader.go.
+func (pol *Poly) ReadFrom(r io.Reader) (int64, error) {
 
-	var NU32 uint32
-	if inc, err = r.ReadUint32(&NU32); err != nil {
-		return n + inc, fmt.Errorf("cannot ReadFrom: N: %w", err)
+	switch r := r.(type) {
+	case buffer.Reader:
+		var err error
+
+		var n, inc int
+
+		var N int
+		if n, err = buffer.ReadInt(r, &N); err != nil {
+			return int64(n), fmt.Errorf("cannot ReadFrom: N: %w", err)
+		}
+
+		n += inc
+
+		if N <= 0 {
+			return int64(n), fmt.Errorf("error ReadFrom: N cannot be 0 or negative")
+		}
+
+		var Level int
+		if inc, err = buffer.ReadInt(r, &Level); err != nil {
+			return int64(n + inc), fmt.Errorf("cannot ReadFrom: Level: %w", err)
+		}
+
+		n += inc
+
+		if Level < 0 {
+			return int64(n), fmt.Errorf("invalid encoding: Level cannot be negative")
+		}
+
+		if pol.Buff == nil || len(pol.Buff) != N*(Level+1) {
+			pol.Buff = make([]uint64, N*int(Level+1))
+		}
+
+		if inc, err = buffer.ReadUint64Slice(r, pol.Buff); err != nil {
+			return int64(n + inc), fmt.Errorf("cannot ReadFrom: pol.Buff: %w", err)
+		}
+
+		n += inc
+
+		// Reslice
+		if len(pol.Coeffs) != Level+1 {
+			pol.Coeffs = make([][]uint64, Level+1)
+		}
+
+		for i := 0; i < Level+1; i++ {
+			pol.Coeffs[i] = pol.Buff[i*N : (i+1)*N]
+		}
+
+		return int64(n), nil
+
+	default:
+		return pol.ReadFrom(bufio.NewReader(r))
 	}
-
-	N := int(NU32)
-
-	if N == 0 {
-		return n, fmt.Errorf("error ReadFrom: N cannot be 0")
-	}
-
-	n += inc
-
-	var LevelU8 uint8
-	if inc, err = r.ReadUint8(&LevelU8); err != nil {
-		return n + inc, fmt.Errorf("cannot ReadFrom: Level: %w", err)
-	}
-
-	Level := int(LevelU8)
-
-	if Level < 0 || Level > 255 {
-		return n + inc, fmt.Errorf("invalid encoding: 0<=Level=%d<256", Level)
-	}
-
-	n += inc
-
-	if pol.Buff == nil || len(pol.Buff) != N*(Level+1) {
-		pol.Buff = make([]uint64, N*int(Level+1))
-	}
-
-	if inc, err = r.ReadUint64Slice(pol.Buff); err != nil {
-		return n + inc, fmt.Errorf("cannot ReadFrom: pol.Buff: %w", err)
-	}
-
-	n += inc
-
-	// Reslice
-	pol.Coeffs = make([][]uint64, Level+1)
-	for i := 0; i < Level+1; i++ {
-		pol.Coeffs[i] = pol.Buff[i*N : (i+1)*N]
-	}
-
-	return
 }
 
 // Read encodes the object into a binary form on a preallocated slice of bytes
@@ -232,11 +262,11 @@ func (pol *Poly) Read(p []byte) (n int, err error) {
 		return n, fmt.Errorf("cannot Read: len(p)=%d < %d", len(p), pol.MarshalBinarySize())
 	}
 
-	binary.LittleEndian.PutUint32(p[n:], uint32(N))
-	n += 4
+	binary.LittleEndian.PutUint64(p[n:], uint64(N))
+	n += 8
 
-	p[n] = uint8(Level)
-	n++
+	binary.LittleEndian.PutUint64(p[n:], uint64(Level))
+	n += 8
 
 	coeffs := pol.Buff
 	NCoeffs := len(coeffs)
@@ -250,14 +280,14 @@ func (pol *Poly) Read(p []byte) (n int, err error) {
 	return
 }
 
-// Write decodes a slice of bytes generated by MarshalBinary or
+// Write decodes a slice of bytes generated by MarshalBinary, WriteTo or
 // Read on the object and returns the number of bytes read.
 func (pol *Poly) Write(p []byte) (n int, err error) {
 
-	N := int(binary.LittleEndian.Uint32(p))
-	Level := int(p[4])
-
-	n = 5
+	N := int(binary.LittleEndian.Uint64(p[n:]))
+	n += 8
+	Level := int(binary.LittleEndian.Uint64(p[n:]))
+	n += 8
 
 	if size := MarshalBinarySize(N, Level); len(p) < size {
 		return n, fmt.Errorf("cannot Read: len(p)=%d < ", size)
@@ -277,7 +307,10 @@ func (pol *Poly) Write(p []byte) (n int, err error) {
 	n += N * (Level + 1) << 3
 
 	// Reslice
-	pol.Coeffs = make([][]uint64, Level+1)
+	if len(pol.Coeffs) != Level+1 {
+		pol.Coeffs = make([][]uint64, Level+1)
+	}
+
 	for i := 0; i < Level+1; i++ {
 		pol.Coeffs[i] = pol.Buff[i*N : (i+1)*N]
 	}

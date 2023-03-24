@@ -1,11 +1,11 @@
 package main_test
 
 import (
+	"bufio"
 	"fmt"
 	"testing"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/utils/buffer"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
@@ -43,14 +43,12 @@ func Benchmark(b *testing.B) {
 
 	b.Run("WriteTo(buffer.Writer)", func(b *testing.B) {
 		writer := NewWriter(pol.MarshalBinarySize())
-		w := buffer.NewWriter(writer)
+
+		w := bufio.NewWriter(writer)
+
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			if _, err = pol.WriteTo(w); err != nil {
-				b.Fatal(err)
-			}
-
-			if err = w.Flush(); err != nil {
 				b.Fatal(err)
 			}
 
@@ -78,7 +76,7 @@ func Benchmark(b *testing.B) {
 
 		writer := NewWriter(pol.MarshalBinarySize())
 
-		w := buffer.NewWriter(writer)
+		w := bufio.NewWriter(writer)
 
 		if _, err = pol.WriteTo(w); err != nil {
 			b.Fatal(err)
@@ -90,7 +88,7 @@ func Benchmark(b *testing.B) {
 
 		reader := NewReader(writer.buff)
 
-		r := buffer.NewReader(reader)
+		r := bufio.NewReader(reader)
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
@@ -101,7 +99,6 @@ func Benchmark(b *testing.B) {
 			reader.n = 0
 		}
 	})
-
 }
 
 type Reader struct {

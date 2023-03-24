@@ -464,32 +464,12 @@ func (p Parameters) Equals(other Parameters) bool {
 
 // MarshalBinary returns a []byte representation of the parameter set.
 func (p Parameters) MarshalBinary() ([]byte, error) {
-	if p.LogN() == 0 { // if N is 0, then p is the zero value
-		return []byte{}, nil
-	}
-
-	rlweBytes, err := p.Parameters.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
-	data := append(rlweBytes, uint8(p.logSlots))
-	return data, nil
+	return p.MarshalJSON()
 }
 
 // UnmarshalBinary decodes a []byte into a parameter set struct
 func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
-	var rlweParams rlwe.Parameters
-	if err := rlweParams.UnmarshalBinary(data); err != nil {
-		return err
-	}
-	*p, err = NewParameters(rlweParams, int(data[len(data)-1]))
-	return
-}
-
-// MarshalBinarySize returns the length of the []byte encoding of the receiver.
-func (p Parameters) MarshalBinarySize() int {
-	return p.Parameters.MarshalBinarySize() + 1
+	return p.UnmarshalJSON(data)
 }
 
 // MarshalJSON returns a JSON representation of this parameter set. See `Marshal` from the `encoding/json` package.

@@ -2,214 +2,224 @@ package buffer
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
+	"unsafe"
 )
 
-type Reader struct {
+// Reader defines a interface comprising of the minimum subset
+// of methods defined by the type bufio.Reader necessary to run
+// the functions defined in this file.
+// See the documentation of bufio.Reader: https://pkg.go.dev/bufio.
+type Reader interface {
 	io.Reader
-	buff []byte
+	Size() int
+	Peek(n int) ([]byte, error)
+	Discard(n int) (discarded int, err error)
 }
 
-func NewReader(r io.Reader) *Reader {
-	return &Reader{
-		Reader: r,
-		buff:   make([]byte, 1<<12),
-	}
+func ReadInt(r Reader, c *int) (n int, err error) {
+	return ReadUint64(r, (*uint64)(unsafe.Pointer(c)))
 }
 
-func (r *Reader) Read(p []byte) (n int, err error) {
-	return r.Reader.Read(p)
-}
+func ReadUint8(r Reader, c *uint8) (n int, err error) {
 
-func (r *Reader) ReadUint8(c *uint8) (n int, err error) {
+	var bb = [1]byte{}
 
-	if n, err = r.Reader.Read(r.buff[:1]); err != nil {
+	if n, err = r.Read(bb[:]); err != nil {
 		return
 	}
 
 	// Reads one byte
-	*c = uint8(r.buff[0])
+	*c = uint8(bb[0])
 
 	return n, nil
 }
 
-func (r *Reader) ReadUint8Slice(c []uint8) (n int, err error) {
-
-	buff := r.buff
-
-	if n, err = r.Reader.Read(r.buff); err != nil {
-		return
-	}
-
-	available := len(buff)
-
-	// If the slice to write on is smaller than the available buffer
-	if len(c) < available {
-
-		// Copy the maximum on c
-		copy(c, buff)
-
-		return len(c), nil
-	}
-
-	// Copy the maximum on c
-	copy(c, buff)
-
-	// Updates the number of bytes read
-	n += available
-
-	// Recurses on the remaining slice to fill
-	var inc int
-	if inc, err = r.ReadUint8Slice(c[available:]); err != nil {
-		return n + inc, err
-	}
-
-	return n + inc, nil
+func ReadUint8Slice(r Reader, c []uint8) (n int, err error) {
+	return r.Read(c)
 }
 
-func (r *Reader) ReadUint16(c *uint16) (n int, err error) {
+func ReadUint16(r Reader, c *uint16) (n int, err error) {
 
-	if n, err = r.Reader.Read(r.buff[:2]); err != nil {
+	var bb = [2]byte{}
+
+	if n, err = r.Read(bb[:]); err != nil {
 		return
 	}
 
 	// Reads one byte
-	*c = binary.LittleEndian.Uint16(r.buff[:2])
+	*c = binary.LittleEndian.Uint16(bb[:])
 
 	return n, nil
 }
 
-func (r *Reader) ReadUint16Slice(c []uint16) (n int, err error) {
+func ReadUint16Slice(r Reader, c []uint16) (n int, err error) {
 
+	// c is empty, return
 	if len(c) == 0 {
 		return
 	}
 
-	buff := r.buff
+	var slice []byte
 
-	if n, err = r.Reader.Read(r.buff); err != nil {
+	// Then returns the unread bytes
+	if slice, err = r.Peek(r.Size()); err != nil {
+		fmt.Println(err)
 		return
 	}
 
-	available := len(buff) >> 1
+	buffered := len(slice) >> 1
 
-	// If the slice to write on is smaller than the available buffer
-	if N := len(c); N < available {
+	// If the slice to write on is equal or smaller than the amount peaked
+	if N := len(c); N <= buffered {
 
 		for i, j := 0, 0; i < N; i, j = i+1, j+2 {
-			c[i] = binary.LittleEndian.Uint16(buff[j:])
+			c[i] = binary.LittleEndian.Uint16(slice[j:])
 		}
 
-		return n, nil
+		return r.Discard(N << 1) // Discards what was read
 	}
 
-	// Writes the maximum on c
-	for i, j := 0, 0; i < available; i, j = i+1, j+2 {
-		c[i] = binary.LittleEndian.Uint16(buff[j:])
+	// Decodes the maximum
+	for i, j := 0, 0; i < buffered; i, j = i+1, j+2 {
+		c[i] = binary.LittleEndian.Uint16(slice[j:])
 	}
+
+	// Discard what was peeked
+	var inc int
+	if inc, err = r.Discard(len(slice)); err != nil {
+		return n + inc, err
+	}
+
+	n += inc
 
 	// Recurses on the remaining slice to fill
-	var inc int
-	if inc, err = r.ReadUint16Slice(c[available:]); err != nil {
+	if inc, err = ReadUint16Slice(r, c[buffered:]); err != nil {
 		return n + inc, err
 	}
 
 	return n + inc, nil
 }
 
-func (r *Reader) ReadUint32(c *uint32) (n int, err error) {
+func ReadUint32(r Reader, c *uint32) (n int, err error) {
 
-	if n, err = r.Reader.Read(r.buff[:4]); err != nil {
-		return
-	}
+	var bb = [4]byte{}
 
-	*c = binary.LittleEndian.Uint32(r.buff[:4])
-
-	return n, nil
-}
-
-func (r *Reader) ReadUint32Slice(c []uint32) (n int, err error) {
-
-	if len(c) == 0 {
-		return
-	}
-
-	buff := r.buff
-
-	if n, err = r.Reader.Read(r.buff); err != nil {
-		return
-	}
-
-	available := len(buff) >> 2
-
-	// If the slice to write on is smaller than the available buffer
-	if N := len(c); N < available {
-
-		for i, j := 0, 0; i < N; i, j = i+1, j+4 {
-			c[i] = binary.LittleEndian.Uint32(buff[j:])
-		}
-
-		return n, nil
-	}
-
-	// Writes the maximum on c
-	for i, j := 0, 0; i < available; i, j = i+1, j+4 {
-		c[i] = binary.LittleEndian.Uint32(buff[j:])
-	}
-
-	// Recurses on the remaining slice to fill
-	var inc int
-	if inc, err = r.ReadUint32Slice(c[available:]); err != nil {
-		return n + inc, err
-	}
-
-	return n + inc, nil
-}
-
-func (r *Reader) ReadUint64(c *uint64) (n int, err error) {
-
-	if n, err = r.Reader.Read(r.buff[:8]); err != nil {
+	if n, err = r.Read(bb[:]); err != nil {
 		return
 	}
 
 	// Reads one byte
-	*c = binary.LittleEndian.Uint64(r.buff[:8])
+	*c = binary.LittleEndian.Uint32(bb[:])
 
 	return n, nil
 }
 
-func (r *Reader) ReadUint64Slice(c []uint64) (n int, err error) {
+func ReadUint32Slice(r Reader, c []uint32) (n int, err error) {
 
+	// c is empty, return
 	if len(c) == 0 {
 		return
 	}
 
-	buff := r.buff
+	var slice []byte
 
-	if n, err = r.Reader.Read(r.buff); err != nil {
+	// Then returns the unread bytes
+	if slice, err = r.Peek(r.Size()); err != nil {
+		fmt.Println(err)
 		return
 	}
 
-	available := len(buff) >> 3
+	buffered := len(slice) >> 2
 
-	// If the slice to write on is smaller than the available buffer
-	if N := len(c); N < available {
+	// If the slice to write on is equal or smaller than the amount peaked
+	if N := len(c); N <= buffered {
 
-		for i, j := 0, 0; i < N; i, j = i+1, j+8 {
-			c[i] = binary.LittleEndian.Uint64(buff[j:])
+		for i, j := 0, 0; i < N; i, j = i+1, j+4 {
+			c[i] = binary.LittleEndian.Uint32(slice[j:])
 		}
 
-		return n, nil
+		return r.Discard(N << 2) // Discards what was read
 	}
 
-	// Writes the maximum on c
-	for i, j := 0, 0; i < available; i, j = i+1, j+8 {
-		c[i] = binary.LittleEndian.Uint64(buff[j:])
+	// Decodes the maximum
+	for i, j := 0, 0; i < buffered; i, j = i+1, j+4 {
+		c[i] = binary.LittleEndian.Uint32(slice[j:])
 	}
+
+	// Discard what was peeked
+	var inc int
+	if inc, err = r.Discard(len(slice)); err != nil {
+		return n + inc, err
+	}
+
+	n += inc
 
 	// Recurses on the remaining slice to fill
+	if inc, err = ReadUint32Slice(r, c[buffered:]); err != nil {
+		return n + inc, err
+	}
+
+	return n + inc, nil
+}
+
+func ReadUint64(r Reader, c *uint64) (n int, err error) {
+
+	var bb = [8]byte{}
+
+	if n, err = r.Read(bb[:]); err != nil {
+		return
+	}
+
+	// Reads one byte
+	*c = binary.LittleEndian.Uint64(bb[:])
+
+	return n, nil
+}
+
+func ReadUint64Slice(r Reader, c []uint64) (n int, err error) {
+
+	// c is empty, return
+	if len(c) == 0 {
+		return
+	}
+
+	var slice []byte
+
+	// Then returns the unread bytes
+	if slice, err = r.Peek(r.Size()); err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	buffered := len(slice) >> 3
+
+	// If the slice to write on is equal or smaller than the amount peaked
+	if N := len(c); N <= buffered {
+
+		for i, j := 0, 0; i < N; i, j = i+1, j+8 {
+			c[i] = binary.LittleEndian.Uint64(slice[j:])
+		}
+
+		return r.Discard(N << 3) // Discards what was read
+	}
+
+	// Decodes the maximum
+	for i, j := 0, 0; i < buffered; i, j = i+1, j+8 {
+		c[i] = binary.LittleEndian.Uint64(slice[j:])
+	}
+
+	// Discard what was peeked
 	var inc int
-	if inc, err = r.ReadUint64Slice(c[available:]); err != nil {
+	if inc, err = r.Discard(len(slice)); err != nil {
+		return n + inc, err
+	}
+
+	n += inc
+
+	// Recurses on the remaining slice to fill
+	if inc, err = ReadUint64Slice(r, c[buffered:]); err != nil {
 		return n + inc, err
 	}
 

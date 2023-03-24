@@ -2,6 +2,7 @@ package rlwe
 
 import (
 	"fmt"
+	"io"
 )
 
 // MetaData is a struct storing metadata.
@@ -36,6 +37,28 @@ func (m *MetaData) MarshalBinary() (data []byte, err error) {
 func (m *MetaData) UnmarshalBinary(data []byte) (err error) {
 	_, err = m.Write(data)
 	return
+}
+
+// WriteTo writes the object on an io.Writer.
+func (m *MetaData) WriteTo(w io.Writer) (int64, error) {
+	if data, err := m.MarshalBinary(); err != nil {
+		return 0, err
+	} else {
+		if n, err := w.Write(data); err != nil {
+			return int64(n), err
+		} else {
+			return int64(n), nil
+		}
+	}
+}
+
+func (m *MetaData) ReadFrom(r io.Reader) (int64, error) {
+	data := make([]byte, m.MarshalBinarySize())
+	if n, err := r.Read(data); err != nil {
+		return int64(n), err
+	} else {
+		return int64(n), m.UnmarshalBinary(data)
+	}
 }
 
 // Read encodes the object into a binary form on a preallocated slice of bytes

@@ -2,6 +2,7 @@ package rlwe
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 )
@@ -59,6 +60,64 @@ func (ct *CiphertextQP) MarshalBinarySize() int {
 func (ct *CiphertextQP) MarshalBinary() (data []byte, err error) {
 	data = make([]byte, ct.MarshalBinarySize())
 	_, err = ct.Read(data)
+	return
+}
+
+// WriteTo writes the object on an io.Writer.
+// To ensure optimal efficiency and minimal allocations, the user is encouraged
+// to provide a struct implementing the interface buffer.Writer, which defines
+// a subset of the method of the bufio.Writer.
+// If w is not compliant to the buffer.Writer interface, it will be wrapped in
+// a new bufio.Writer.
+// For additional information, see lattigo/utils/buffer/writer.go.
+func (ct *CiphertextQP) WriteTo(w io.Writer) (n int64, err error) {
+
+	if n, err = ct.MetaData.WriteTo(w); err != nil {
+		return n, err
+	}
+
+	var inc int64
+	if inc, err = ct.Value[0].WriteTo(w); err != nil {
+		return n + inc, err
+	}
+
+	n += inc
+
+	if inc, err = ct.Value[1].WriteTo(w); err != nil {
+		return n + inc, err
+	}
+
+	n += inc
+
+	return
+}
+
+// ReadFrom reads on the object from an io.Writer.
+// To ensure optimal efficiency and minimal allocations, the user is encouraged
+// to provide a struct implementing the interface buffer.Reader, which defines
+// a subset of the method of the bufio.Reader.
+// If r is not compliant to the buffer.Reader interface, it will be wrapped in
+// a new bufio.Reader.
+// For additional information, see lattigo/utils/buffer/reader.go.
+func (ct *CiphertextQP) ReadFrom(r io.Reader) (n int64, err error) {
+
+	if n, err = ct.MetaData.ReadFrom(r); err != nil {
+		return n, err
+	}
+
+	var inc int64
+	if inc, err = ct.Value[0].ReadFrom(r); err != nil {
+		return n + inc, err
+	}
+
+	n += inc
+
+	if inc, err = ct.Value[1].ReadFrom(r); err != nil {
+		return n + inc, err
+	}
+
+	n += inc
+
 	return
 }
 

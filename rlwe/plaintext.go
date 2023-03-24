@@ -1,9 +1,12 @@
 package rlwe
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/utils/buffer"
 )
 
 // Plaintext is a common base type for RLWE plaintexts.
@@ -77,6 +80,67 @@ func (pt *Plaintext) MarshalBinary() (data []byte, err error) {
 	return
 }
 
+// WriteTo writes the object on an io.Writer.
+// To ensure optimal efficiency and minimal allocations, the user is encouraged
+// to provide a struct implementing the interface buffer.Writer, which defines
+// a subset of the method of the bufio.Writer.
+// If w is not compliant to the buffer.Writer interface, it will be wrapped in
+// a new bufio.Writer.
+// For additional information, see lattigo/utils/buffer/writer.go.
+func (pt *Plaintext) WriteTo(w io.Writer) (n int64, err error) {
+	switch w := w.(type) {
+	case buffer.Writer:
+
+		if n, err = pt.MetaData.WriteTo(w); err != nil {
+			return n, err
+		}
+
+		var inc int64
+		if inc, err = pt.Value.WriteTo(w); err != nil {
+			return n + inc, err
+		}
+
+		n += inc
+
+		return
+	default:
+		return pt.WriteTo(bufio.NewWriter(w))
+	}
+}
+
+// ReadFrom reads on the object from an io.Writer.
+// To ensure optimal efficiency and minimal allocations, the user is encouraged
+// to provide a struct implementing the interface buffer.Reader, which defines
+// a subset of the method of the bufio.Reader.
+// If r is not compliant to the buffer.Reader interface, it will be wrapped in
+// a new bufio.Reader.
+// For additional information, see lattigo/utils/buffer/reader.go.
+func (pt *Plaintext) ReadFrom(r io.Reader) (n int64, err error) {
+	switch r := r.(type) {
+	case buffer.Reader:
+
+		if n, err = pt.MetaData.ReadFrom(r); err != nil {
+			return n, err
+		}
+
+		if pt.Value == nil {
+			pt.Value = new(ring.Poly)
+		}
+
+		var inc int64
+		if inc, err = pt.Value.ReadFrom(r); err != nil {
+			return int64(n) + inc, err
+		}
+
+		n += inc
+
+		return
+
+	default:
+		return pt.ReadFrom(bufio.NewReader(r))
+	}
+}
+
 // Read encodes the object into a binary form on a preallocated slice of bytes
 // and returns the number of bytes written.
 func (pt *Plaintext) Read(data []byte) (ptr int, err error) {
@@ -87,6 +151,10 @@ func (pt *Plaintext) Read(data []byte) (ptr int, err error) {
 
 	if ptr, err = pt.MetaData.Read(data); err != nil {
 		return
+	}
+
+	if pt.Value == nil {
+		pt.Value = new(ring.Poly)
 	}
 
 	var inc int

@@ -1,9 +1,12 @@
 package rlwe
 
 import (
+	"bytes"
+	"encoding"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"math"
 	"runtime"
 	"testing"
@@ -64,6 +67,7 @@ func TestRLWE(t *testing.T) {
 				testParameters(tc, t)
 				testKeyGenerator(tc, t)
 				testMarshaller(tc, t)
+				testWriteAndRead(tc, t)
 
 				for _, level := range []int{0, params.MaxLevel()} {
 
@@ -903,6 +907,194 @@ func genPlaintext(params Parameters, level, max int) (pt *Plaintext) {
 	}
 
 	return
+}
+
+type WriteAndReadTestInterface interface {
+	MarshalBinarySize() int
+	io.WriterTo
+	io.ReaderFrom
+	encoding.BinaryMarshaler
+	encoding.BinaryUnmarshaler
+}
+
+// testInterfaceWriteAndRead tests that:
+// - input and output implement WriteAndReadTestInterface
+// - input.WriteTo(io.Writer) writes a number of bytes on the writer equal to input.MarshalBinarySize
+// - output.ReadFrom(io.Reader) reads a number of bytes on the reader equal to input.MarshalBinarySize
+// - input.WriteTo written bytes are equal to the bytes produced by input.MarshalBinary
+// - all the above WriteTo, ReadFrom, MarhsalBinary and UnmarshalBinary do not return an error
+func testInterfaceWriteAndRead(input, output WriteAndReadTestInterface) (err error) {
+	data := make([]byte, 0, input.MarshalBinarySize())
+
+	buf := bytes.NewBuffer(data) // Compliant to io.Writer and io.Reader
+
+	if n, err := input.WriteTo(buf); err != nil {
+		return fmt.Errorf("%T: %w", input, err)
+	} else {
+		if int(n) != input.MarshalBinarySize() {
+			return fmt.Errorf("invalid size: %T.WriteTo number of bytes written != %T.BinarySize", input, input)
+		}
+	}
+
+	if data2, err := input.MarshalBinary(); err != nil {
+		return err
+	} else {
+		if !bytes.Equal(buf.Bytes(), data2) {
+			return fmt.Errorf("invalid encoding: %T.WriteTo buffer != %T.MarshalBinary", input, input)
+		}
+	}
+
+	if n, err := output.ReadFrom(buf); err != nil {
+		return fmt.Errorf("%T: %w", output, err)
+	} else {
+		if int(n) != input.MarshalBinarySize() {
+			return fmt.Errorf("invalid encoding: %T.ReadFrom number of bytes read != %T.BinarySize", input, input)
+		}
+	}
+
+	return
+}
+
+func testWriteAndRead(tc *TestContext, t *testing.T) {
+
+	params := tc.params
+
+	sk, pk := tc.sk, tc.pk
+
+	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/Plaintext"), func(t *testing.T) {
+
+		prng, _ := sampling.NewPRNG()
+
+		plaintextWant := NewPlaintext(params, params.MaxLevel())
+		ring.NewUniformSampler(prng, params.RingQ()).Read(plaintextWant.Value)
+
+		plaintextTest := new(Plaintext)
+
+		require.NoError(t, testInterfaceWriteAndRead(plaintextWant, plaintextTest))
+
+		require.Equal(t, plaintextWant.Level(), plaintextTest.Level())
+		require.True(t, params.RingQ().Equal(plaintextWant.Value, plaintextTest.Value))
+	})
+
+	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/Ciphertext"), func(t *testing.T) {
+
+		prng, _ := sampling.NewPRNG()
+
+		for degree := 0; degree < 4; degree++ {
+			t.Run(fmt.Sprintf("degree=%d", degree), func(t *testing.T) {
+				ciphertextWant := NewCiphertextRandom(prng, params, degree, params.MaxLevel())
+				ciphertextTest := new(Ciphertext)
+
+				require.NoError(t, testInterfaceWriteAndRead(ciphertextWant, ciphertextTest))
+
+				require.Equal(t, ciphertextWant.Degree(), ciphertextTest.Degree())
+				require.Equal(t, ciphertextWant.Level(), ciphertextTest.Level())
+
+				for i := range ciphertextWant.Value {
+					require.True(t, params.RingQ().Equal(ciphertextWant.Value[i], ciphertextTest.Value[i]))
+				}
+			})
+		}
+	})
+
+	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/CiphertextQP"), func(t *testing.T) {
+
+		prng, _ := sampling.NewPRNG()
+
+		sampler := ringqp.NewUniformSampler(prng, *params.RingQP())
+
+		ciphertextWant := NewCiphertextQP(params, params.MaxLevelQ(), params.MaxLevelP())
+		sampler.Read(ciphertextWant.Value[0])
+		sampler.Read(ciphertextWant.Value[1])
+
+		ciphertextTest := CiphertextQP{}
+
+		require.NoError(t, testInterfaceWriteAndRead(&ciphertextWant, &ciphertextTest))
+
+		require.Equal(t, ciphertextWant.LevelQ(), ciphertextTest.LevelQ())
+		require.Equal(t, ciphertextWant.LevelP(), ciphertextTest.LevelP())
+
+		require.True(t, params.RingQP().Equal(ciphertextWant.Value[0], ciphertextTest.Value[0]))
+		require.True(t, params.RingQP().Equal(ciphertextWant.Value[1], ciphertextTest.Value[1]))
+	})
+
+	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/GadgetCiphertext"), func(t *testing.T) {
+
+		prng, _ := sampling.NewPRNG()
+
+		sampler := ringqp.NewUniformSampler(prng, *params.RingQP())
+
+		levelQ := params.MaxLevelQ()
+		levelP := params.MaxLevelP()
+
+		RNS := params.DecompRNS(levelQ, levelP)
+		BIT := params.DecompPw2(levelQ, levelP)
+
+		ciphertextWant := NewGadgetCiphertext(params, params.MaxLevelQ(), params.MaxLevelP(), RNS, BIT)
+
+		for i := 0; i < RNS; i++ {
+			for j := 0; j < BIT; j++ {
+				sampler.Read(ciphertextWant.Value[i][j].Value[0])
+				sampler.Read(ciphertextWant.Value[i][j].Value[1])
+			}
+		}
+
+		ciphertextTest := new(GadgetCiphertext)
+
+		require.NoError(t, testInterfaceWriteAndRead(ciphertextWant, ciphertextTest))
+
+		require.True(t, ciphertextWant.Equals(ciphertextTest))
+	})
+
+	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/Sk"), func(t *testing.T) {
+
+		skTest := new(SecretKey)
+
+		require.NoError(t, testInterfaceWriteAndRead(sk, skTest))
+
+		require.True(t, sk.Value.Equals(skTest.Value))
+	})
+
+	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/Pk"), func(t *testing.T) {
+
+		pkTest := new(PublicKey)
+
+		require.NoError(t, testInterfaceWriteAndRead(pk, pkTest))
+
+		require.True(t, pk.Equals(pkTest))
+	})
+
+	t.Run(testString(params, params.MaxLevel(), "Marshaller/EvaluationKey"), func(t *testing.T) {
+
+		skOut := tc.kgen.GenSecretKeyNew()
+
+		evalKey := tc.kgen.GenEvaluationKeyNew(sk, skOut)
+
+		resEvalKey := new(EvaluationKey)
+		require.NoError(t, testInterfaceWriteAndRead(evalKey, resEvalKey))
+
+		require.True(t, evalKey.Equals(resEvalKey))
+	})
+
+	t.Run(testString(params, params.MaxLevel(), "Marshaller/RelinearizationKey"), func(t *testing.T) {
+		rlk := NewRelinearizationKey(params)
+
+		rlkNew := &RelinearizationKey{}
+
+		require.NoError(t, testInterfaceWriteAndRead(rlk, rlkNew))
+
+		require.True(t, rlk.Equals(rlkNew))
+	})
+
+	t.Run(testString(params, params.MaxLevel(), "Marshaller/GaloisKey"), func(t *testing.T) {
+		gk := NewGaloisKey(params)
+
+		gkNew := &GaloisKey{}
+
+		require.NoError(t, testInterfaceWriteAndRead(gk, gkNew))
+
+		require.True(t, gk.Equals(gkNew))
+	})
 }
 
 func testMarshaller(tc *TestContext, t *testing.T) {

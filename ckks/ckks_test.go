@@ -1107,17 +1107,6 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 func testMarshaller(tc *testContext, t *testing.T) {
 
-	t.Run(GetTestName(tc.params, "Marshaller/Parameters/Binary"), func(t *testing.T) {
-		bytes, err := tc.params.MarshalBinary()
-		assert.Nil(t, err)
-		var p Parameters
-		err = p.UnmarshalBinary(bytes)
-		assert.Nil(t, err)
-		assert.Equal(t, tc.params, p)
-		assert.Equal(t, tc.params.RingQ(), p.RingQ())
-		assert.Equal(t, tc.params.MarshalBinarySize(), len(bytes))
-	})
-
 	t.Run(GetTestName(tc.params, "Marshaller/Parameters/JSON"), func(t *testing.T) {
 		// checks that parameters can be marshalled without error
 		data, err := json.Marshal(tc.params)

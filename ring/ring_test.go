@@ -1,6 +1,7 @@
 package ring
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"math/big"
@@ -74,6 +75,7 @@ func TestRing(t *testing.T) {
 		testDivFloorByLastModulusMany(tc, t)
 		testDivRoundByLastModulusMany(tc, t)
 		testMarshalBinary(tc, t)
+		testWriterAndReader(tc, t)
 		testUniformSampler(tc, t)
 		testGaussianSampler(tc, t)
 		testTernarySampler(tc, t)
@@ -332,6 +334,47 @@ func testMarshalBinary(tc *testParams, t *testing.T) {
 		pTest := new(Poly)
 		if err = pTest.UnmarshalBinary(data); err != nil {
 			t.Fatal(err)
+		}
+
+		for i := range tc.ringQ.SubRings {
+			require.Equal(t, p.Coeffs[i][:tc.ringQ.N()], pTest.Coeffs[i][:tc.ringQ.N()])
+		}
+	})
+}
+
+func testWriterAndReader(tc *testParams, t *testing.T) {
+
+	t.Run(testString("WriterAndReader/Poly", tc.ringQ), func(t *testing.T) {
+
+		p := tc.uniformSamplerQ.ReadNew()
+
+		data := make([]byte, 0, p.MarshalBinarySize())
+
+		buf := bytes.NewBuffer(data) // Complient to io.Writer and io.Reader
+
+		if n, err := p.WriteTo(buf); err != nil {
+			t.Fatal(err)
+		} else {
+			if int(n) != p.MarshalBinarySize() {
+				t.Fatal()
+			}
+		}
+
+		if data2, err := p.MarshalBinary(); err != nil {
+			t.Fatal(err)
+		} else {
+			if !bytes.Equal(buf.Bytes(), data2) {
+				t.Fatal()
+			}
+		}
+
+		pTest := new(Poly)
+		if n, err := pTest.ReadFrom(buf); err != nil {
+			t.Fatal(err)
+		} else {
+			if int(n) != p.MarshalBinarySize() {
+				t.Fatal()
+			}
 		}
 
 		for i := range tc.ringQ.SubRings {

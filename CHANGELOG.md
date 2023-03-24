@@ -3,6 +3,7 @@
 All notable changes to this library are documented in this file.
 
 ## UNRELEASED [4.1.x] - xxxx-xx-xx
+- Go `1.14`, `1.15`, `1.16` and `1.17` are not supported anymore by the library due to `func (b *Writer) AvailableBuffer() []byte` missing. The minimum version is now `1.18`.
 - All: low entropy and lightweight structs, such as parameter now all use `json.Marshal` as underlying marshaler.
 - All: high entropy and heavy structs, such as keys and ciphertexts, now all comply to the following interfaces:
     - `BinarySize() int`: size in bytes when written to an `io.Writer` or to a slice of bytes using `Read`.

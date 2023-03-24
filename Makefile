@@ -48,7 +48,7 @@ static_check: check_tools
 		false;\
     fi
 	
-	@STATICCHECKOUT=$$(staticcheck -go 1.19 -checks all ./...); \
+	@STATICCHECKOUT=$$(staticcheck -go 1.20 -checks all ./...); \
 	if [ -z "$$STATICCHECKOUT" ]; then\
         echo "staticcheck: OK";\
 	else \
@@ -71,7 +71,7 @@ EXECUTABLES = goimports staticcheck
 .PHONY: get_tools
 get_tools:
 	go install golang.org/x/tools/cmd/goimports@latest
-	go install honnef.co/go/tools/cmd/staticcheck@2022.1.1
+	go install honnef.co/go/tools/cmd/staticcheck@latest
 
 .PHONY: check_tools
 check_tools:

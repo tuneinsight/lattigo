@@ -202,7 +202,7 @@ func testEncToShares(tc *testContext, t *testing.T) {
 		ptRt := bfv.NewPlaintextRingT(tc.params)
 		ptRt.Value.Copy(&rec.Value)
 
-		assert.True(t, utils.EqualSliceUint64(coeffs, tc.encoder.DecodeUintNew(ptRt)))
+		assert.True(t, utils.EqualSlice(coeffs, tc.encoder.DecodeUintNew(ptRt)))
 	})
 
 	crp := P[0].e2s.SampleCRP(params.MaxLevel(), tc.crs)
@@ -281,7 +281,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 				coeffsTmp[j] = ring.BRed(coeffsTmp[j], coeffsTmp[j], tc.ringT.SubRings[0].Modulus, tc.ringT.SubRings[0].BRedConstant)
 			}
 
-			if utils.EqualSliceUint64(coeffsTmp, encoder.DecodeUintNew(decryptorSk0.DecryptNew(ciphertextTmp))) {
+			if utils.EqualSlice(coeffsTmp, encoder.DecodeUintNew(decryptorSk0.DecryptNew(ciphertextTmp))) {
 				maxDepth++
 			} else {
 				break
@@ -325,7 +325,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 		}
 
 		//Decrypts and compare
-		require.True(t, utils.EqualSliceUint64(coeffs, encoder.DecodeUintNew(decryptorSk0.DecryptNew(ctRes))))
+		require.True(t, utils.EqualSlice(coeffs, encoder.DecodeUintNew(decryptorSk0.DecryptNew(ctRes))))
 	})
 }
 
@@ -406,7 +406,7 @@ func testRefreshAndTransform(tc *testContext, t *testing.T) {
 		coeffsHave := encoder.DecodeUintNew(decryptorSk0.DecryptNew(ciphertext))
 
 		//Decrypts and compares
-		require.True(t, utils.EqualSliceUint64(coeffsPermute, coeffsHave))
+		require.True(t, utils.EqualSlice(coeffsPermute, coeffsHave))
 	})
 }
 
@@ -505,7 +505,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 		coeffsHave := bfv.NewEncoder(paramsOut).DecodeUintNew(bfv.NewDecryptor(paramsOut, skIdealOut).DecryptNew(ciphertext))
 
 		//Decrypts and compares
-		require.True(t, utils.EqualSliceUint64(coeffs, coeffsHave))
+		require.True(t, utils.EqualSlice(coeffs, coeffsHave))
 	})
 }
 
@@ -520,7 +520,7 @@ func newTestVectors(tc *testContext, encryptor rlwe.Encryptor, t *testing.T) (co
 }
 
 func verifyTestVectors(tc *testContext, decryptor rlwe.Decryptor, coeffs []uint64, ct *rlwe.Ciphertext, t *testing.T) {
-	require.True(t, utils.EqualSliceUint64(coeffs, tc.encoder.DecodeUintNew(decryptor.DecryptNew(ct))))
+	require.True(t, utils.EqualSlice(coeffs, tc.encoder.DecodeUintNew(decryptor.DecryptNew(ct))))
 }
 
 func testMarshalling(tc *testContext, t *testing.T) {
@@ -549,13 +549,13 @@ func testMarshalling(tc *testContext, t *testing.T) {
 			t.Fatal("Could not unmarshal RefreshShare", err)
 		}
 		for i, r := range refreshshare.e2sShare.Value.Coeffs {
-			if !utils.EqualSliceUint64(resRefreshShare.e2sShare.Value.Coeffs[i], r) {
+			if !utils.EqualSlice(resRefreshShare.e2sShare.Value.Coeffs[i], r) {
 				t.Fatal("Result of marshalling not the same as original : RefreshShare")
 			}
 
 		}
 		for i, r := range refreshshare.s2eShare.Value.Coeffs {
-			if !utils.EqualSliceUint64(resRefreshShare.s2eShare.Value.Coeffs[i], r) {
+			if !utils.EqualSlice(resRefreshShare.s2eShare.Value.Coeffs[i], r) {
 				t.Fatal("Result of marshalling not the same as original : RefreshShare")
 			}
 		}

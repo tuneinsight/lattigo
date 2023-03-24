@@ -36,7 +36,7 @@ func NewRNSScaler(ringQ *ring.Ring, T uint64) (rnss *RNSScaler) {
 
 	moduli := ringQ.ModuliChain()
 
-	if utils.IsInSliceUint64(T, moduli) && moduli[0] != T {
+	if utils.IsInSlice(T, moduli) && moduli[0] != T {
 		panic("cannot NewRNSScaler: T must be Q[0] if T|Q")
 	}
 

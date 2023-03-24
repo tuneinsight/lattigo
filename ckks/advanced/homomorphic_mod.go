@@ -176,7 +176,7 @@ func NewEvalModPolyFromLiteral(params ckks.Parameters, evm EvalModLiteral) EvalM
 func (evm *EvalModLiteral) Depth() (depth int) {
 
 	if evm.SineType == CosDiscrete { // this method requires a minimum degree of 2*K-1.
-		depth += int(bits.Len64(uint64(utils.MaxInt(evm.SineDegree, 2*evm.K-1))))
+		depth += int(bits.Len64(uint64(utils.Max(evm.SineDegree, 2*evm.K-1))))
 	} else {
 		depth += int(bits.Len64(uint64(evm.SineDegree)))
 	}

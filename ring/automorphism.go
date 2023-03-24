@@ -18,13 +18,13 @@ func AutomorphismNTTIndex(N int, NthRoot, GalEl uint64) (index []uint64) {
 		panic("NthRoot must be w power of two")
 	}
 
-	var mask, tmp1, tmp2, logNthRoot uint64
-	logNthRoot = uint64(bits.Len64(NthRoot-1) - 1)
+	var mask, tmp1, tmp2 uint64
+	logNthRoot := int(bits.Len64(NthRoot-1) - 1)
 	mask = NthRoot - 1
 	index = make([]uint64, N)
 
 	for i := 0; i < N; i++ {
-		tmp1 = 2*utils.BitReverse64(uint64(i), logNthRoot) + 1
+		tmp1 = 2*utils.BitReverse64(i, logNthRoot) + 1
 		tmp2 = ((GalEl * tmp1 & mask) - 1) >> 1
 		index[i] = utils.BitReverse64(tmp2, logNthRoot)
 	}

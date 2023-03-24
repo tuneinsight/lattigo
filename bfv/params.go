@@ -1,7 +1,6 @@
 package bfv
 
 import (
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -158,7 +157,7 @@ func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err erro
 		return Parameters{}, fmt.Errorf("provided RLWE parameters are invalid for BFV scheme (DefaultNTTFlag must be false)")
 	}
 
-	if utils.IsInSliceUint64(t, rlweParams.Q()) && rlweParams.Q()[0] != t {
+	if utils.IsInSlice(t, rlweParams.Q()) && rlweParams.Q()[0] != t {
 		return Parameters{}, fmt.Errorf("if t|Q then Q[0] must be t")
 	}
 
@@ -247,46 +246,12 @@ func (p Parameters) CopyNew() Parameters {
 
 // MarshalBinary returns a []byte representation of the parameter set.
 func (p Parameters) MarshalBinary() ([]byte, error) {
-	if p.LogN() == 0 { // if N is 0, then p is the zero value
-		return []byte{}, nil
-	}
-
-	rlweBytes, err := p.Parameters.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
-	// len(rlweBytes) : RLWE parameters
-	// 8 byte : T
-	var tBytes [8]byte
-	binary.LittleEndian.PutUint64(tBytes[:], p.T())
-	data := append(rlweBytes, tBytes[:]...)
-	return data, nil
+	return p.MarshalJSON()
 }
 
 // UnmarshalBinary decodes a []byte into a parameter set struct.
 func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
-	if err := p.Parameters.UnmarshalBinary(data); err != nil {
-		return err
-	}
-
-	nbQiMul := int(math.Ceil(float64(p.RingQ().ModulusAtLevel[p.MaxLevel()].BitLen()+p.LogN()) / 61.0))
-	if p.ringQMul, err = ring.NewRing(p.N(), ring.GenerateNTTPrimesP(61, 2*p.N(), nbQiMul)); err != nil {
-		return err
-	}
-
-	t := binary.LittleEndian.Uint64(data[len(data)-8:])
-
-	if p.ringT, err = ring.NewRing(p.N(), []uint64{t}); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// BinarySize returns the length of the []byte encoding of the receiver.
-func (p Parameters) BinarySize() int {
-	return p.Parameters.BinarySize() + 8
+	return p.UnmarshalJSON(data)
 }
 
 // MarshalJSON returns a JSON representation of this parameter set. See `Marshal` from the `encoding/json` package.

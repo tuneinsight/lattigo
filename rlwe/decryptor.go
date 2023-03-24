@@ -49,7 +49,7 @@ func (d *decryptor) DecryptNew(ct *Ciphertext) (pt *Plaintext) {
 // Output pt MetaData will match the input ct MetaData.
 func (d *decryptor) Decrypt(ct *Ciphertext, pt *Plaintext) {
 
-	level := utils.MinInt(ct.Level(), pt.Level())
+	level := utils.Min(ct.Level(), pt.Level())
 
 	ringQ := d.ringQ.AtLevel(level)
 

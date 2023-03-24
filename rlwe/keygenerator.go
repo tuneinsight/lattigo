@@ -130,7 +130,7 @@ func (kgen *KeyGenerator) GenGaloisKey(galEl uint64, sk *SecretKey, gk *GaloisKe
 // GenEvaluationKeysForRingSwapNew generates the necessary EvaluationKeys to switch from a standard ring to to a conjugate invariant ring and vice-versa.
 func (kgen *KeyGenerator) GenEvaluationKeysForRingSwapNew(skStd, skConjugateInvariant *SecretKey) (stdToci, ciToStd *EvaluationKey) {
 
-	levelQ := utils.MinInt(skStd.Value.Q.Level(), skConjugateInvariant.Value.Q.Level())
+	levelQ := utils.Min(skStd.Value.Q.Level(), skConjugateInvariant.Value.Q.Level())
 
 	skCIMappedToStandard := &SecretKey{Value: kgen.buffQP}
 	kgen.params.RingQ().AtLevel(levelQ).UnfoldConjugateInvariantToStandard(skConjugateInvariant.Value.Q, skCIMappedToStandard.Value.Q)
@@ -152,8 +152,8 @@ func (kgen *KeyGenerator) GenEvaluationKeysForRingSwapNew(skStd, skConjugateInva
 // When re-encrypting a Ciphertext from X^{N} to Y^{N/n}, the output of the re-encryption is in still X^{N} and
 // must be mapped Y^{N/n} using SwitchCiphertextRingDegreeNTT(ctLargeDim, ringQLargeDim, ctSmallDim).
 func (kgen *KeyGenerator) GenEvaluationKeyNew(skInput, skOutput *SecretKey) (evk *EvaluationKey) {
-	levelQ := utils.MinInt(skOutput.LevelQ(), kgen.params.MaxLevelQ())
-	levelP := utils.MinInt(skOutput.LevelP(), kgen.params.MaxLevelP())
+	levelQ := utils.Min(skOutput.LevelQ(), kgen.params.MaxLevelQ())
+	levelP := utils.Min(skOutput.LevelP(), kgen.params.MaxLevelP())
 	evk = NewEvaluationKey(kgen.params, levelQ, levelP)
 	kgen.GenEvaluationKey(skInput, skOutput, evk)
 	return

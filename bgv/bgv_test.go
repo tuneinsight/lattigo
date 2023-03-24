@@ -160,7 +160,7 @@ func verifyTestVectors(tc *testContext, decryptor rlwe.Decryptor, coeffs *ring.P
 		t.Error("invalid test object to verify")
 	}
 
-	require.True(t, utils.EqualSliceUint64(coeffs.Coeffs[0], coeffsTest))
+	require.True(t, utils.EqualSlice(coeffs.Coeffs[0], coeffsTest))
 }
 
 func testParameters(tc *testContext, t *testing.T) {
@@ -213,7 +213,7 @@ func testEncoder(tc *testContext, t *testing.T) {
 
 			plaintext := NewPlaintext(tc.params, lvl)
 			tc.encoder.Encode(coeffsInt, plaintext)
-			require.True(t, utils.EqualSliceInt64(coeffsInt, tc.encoder.DecodeIntNew(plaintext)))
+			require.True(t, utils.EqualSlice(coeffsInt, tc.encoder.DecodeIntNew(plaintext)))
 		})
 	}
 }
@@ -778,8 +778,8 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		subRing := tc.params.RingT().SubRings[0]
 
-		subRing.Add(values.Coeffs[0], utils.RotateUint64Slots(tmp, -1), values.Coeffs[0])
-		subRing.Add(values.Coeffs[0], utils.RotateUint64Slots(tmp, 1), values.Coeffs[0])
+		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, -1), values.Coeffs[0])
+		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, 1), values.Coeffs[0])
 
 		verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
 	})
@@ -834,14 +834,14 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		subRing := tc.params.RingT().SubRings[0]
 
-		subRing.Add(values.Coeffs[0], utils.RotateUint64Slots(tmp, -15), values.Coeffs[0])
-		subRing.Add(values.Coeffs[0], utils.RotateUint64Slots(tmp, -4), values.Coeffs[0])
-		subRing.Add(values.Coeffs[0], utils.RotateUint64Slots(tmp, -1), values.Coeffs[0])
-		subRing.Add(values.Coeffs[0], utils.RotateUint64Slots(tmp, 1), values.Coeffs[0])
-		subRing.Add(values.Coeffs[0], utils.RotateUint64Slots(tmp, 2), values.Coeffs[0])
-		subRing.Add(values.Coeffs[0], utils.RotateUint64Slots(tmp, 3), values.Coeffs[0])
-		subRing.Add(values.Coeffs[0], utils.RotateUint64Slots(tmp, 4), values.Coeffs[0])
-		subRing.Add(values.Coeffs[0], utils.RotateUint64Slots(tmp, 15), values.Coeffs[0])
+		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, -15), values.Coeffs[0])
+		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, -4), values.Coeffs[0])
+		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, -1), values.Coeffs[0])
+		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, 1), values.Coeffs[0])
+		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, 2), values.Coeffs[0])
+		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, 3), values.Coeffs[0])
+		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, 4), values.Coeffs[0])
+		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, 15), values.Coeffs[0])
 
 		verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
 	})
@@ -859,7 +859,6 @@ func testMarshalling(tc *testContext, t *testing.T) {
 			assert.Nil(t, err)
 			assert.Equal(t, tc.params, p)
 			assert.Equal(t, tc.params.RingQ(), p.RingQ())
-			assert.Equal(t, tc.params.BinarySize(), len(bytes))
 		})
 
 		t.Run("Parameters/JSON", func(t *testing.T) {

@@ -52,7 +52,7 @@ func PadDefaultRingToConjugateInvariant(p1 *Poly, ringQ *Ring, IsNTT bool, p2 *P
 		panic("cannot PadDefaultRingToConjugateInvariant: p1 == p2 but method cannot be used in place")
 	}
 
-	level := utils.MinInt(p1.Level(), p2.Level())
+	level := utils.Min(p1.Level(), p2.Level())
 	n := len(p1.Coeffs[0])
 
 	for i := 0; i < level+1; i++ {

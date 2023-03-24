@@ -160,7 +160,7 @@ func (enc *pkEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
 
 			ct.MetaData = pt.MetaData
 
-			level := utils.MinInt(pt.Level(), ct.Level())
+			level := utils.Min(pt.Level(), ct.Level())
 
 			ct.Resize(ct.Degree(), level)
 
@@ -321,7 +321,7 @@ func (enc *skEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
 		switch ct := ct.(type) {
 		case *Ciphertext:
 			ct.MetaData = pt.MetaData
-			level := utils.MinInt(pt.Level(), ct.Level())
+			level := utils.Min(pt.Level(), ct.Level())
 			ct.Resize(ct.Degree(), level)
 			enc.EncryptZero(ct)
 			enc.addPtToCt(level, pt, ct)

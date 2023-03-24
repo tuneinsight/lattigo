@@ -11,7 +11,6 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v4/utils"
-	"github.com/tuneinsight/lattigo/v4/utils/buffer"
 )
 
 // MaxLogN is the log2 of the largest supported polynomial modulus degree.
@@ -439,11 +438,11 @@ func (p Parameters) Pow2Base() int {
 // MaxBit returns max(max(bitLen(Q[:levelQ+1])), max(bitLen(P[:levelP+1])).
 func (p Parameters) MaxBit(levelQ, levelP int) (c int) {
 	for _, qi := range p.Q()[:levelQ+1] {
-		c = utils.MaxInt(c, bits.Len64(qi))
+		c = utils.Max(c, bits.Len64(qi))
 	}
 
 	for _, pi := range p.P()[:levelP+1] {
-		c = utils.MaxInt(c, bits.Len64(pi))
+		c = utils.Max(c, bits.Len64(pi))
 	}
 	return
 }
@@ -470,13 +469,13 @@ func (p Parameters) DecompRNS(levelQ, levelP int) int {
 // QiOverflowMargin returns floor(2^64 / max(Qi)), i.e. the number of times elements of Z_max{Qi} can
 // be added together before overflowing 2^64.
 func (p *Parameters) QiOverflowMargin(level int) int {
-	return int(math.Exp2(64) / float64(utils.MaxSliceUint64(p.qi[:level+1])))
+	return int(math.Exp2(64) / float64(utils.MaxSlice(p.qi[:level+1])))
 }
 
 // PiOverflowMargin returns floor(2^64 / max(Pi)), i.e. the number of times elements of Z_max{Pi} can
 // be added together before overflowing 2^64.
 func (p *Parameters) PiOverflowMargin(level int) int {
-	return int(math.Exp2(64) / float64(utils.MaxSliceUint64(p.pi[:level+1])))
+	return int(math.Exp2(64) / float64(utils.MaxSlice(p.pi[:level+1])))
 }
 
 // GaloisElementsForRotations takes a list of rotations and returns the corresponding list of Galois elements.
@@ -627,8 +626,8 @@ func (p Parameters) RotationFromGaloisElement(galEl uint64) (k uint64) {
 // Equals checks two Parameter structs for equality.
 func (p Parameters) Equals(other Parameters) bool {
 	res := p.logN == other.logN
-	res = res && utils.EqualSliceUint64(p.qi, other.qi)
-	res = res && utils.EqualSliceUint64(p.pi, other.pi)
+	res = res && utils.EqualSlice(p.qi, other.qi)
+	res = res && utils.EqualSlice(p.pi, other.pi)
 	res = res && (p.h == other.h)
 	res = res && (p.sigma == other.sigma)
 	res = res && (p.ringType == other.ringType)
@@ -656,98 +655,17 @@ func (p Parameters) CopyNew() Parameters {
 
 // MarshalBinary returns a []byte representation of the parameter set.
 func (p Parameters) MarshalBinary() ([]byte, error) {
-	if p.LogN() == 0 { // if N is 0, then p is the zero value
-		return []byte{}, nil
-	}
-
-	// 1 byte : logN
-	// 1 byte : #Q
-	// 1 byte : #P
-	// 1 byte : pow2Base
-	// 8 byte : H
-	// 8 byte : sigma
-	// 1 byte : ringType
-	// 1 byte defaultNTTFlag
-	// 48 bytes: defaultScale
-	// 8 * (#Q) : Q
-	// 8 * (#P) : P
-	b := buffer.NewBuffer(make([]byte, 0, p.BinarySize()))
-	b.WriteUint8(uint8(p.logN))
-	b.WriteUint8(uint8(len(p.qi)))
-	b.WriteUint8(uint8(len(p.pi)))
-	b.WriteUint8(uint8(p.pow2Base))
-	b.WriteUint64(uint64(p.h))
-	b.WriteUint64(math.Float64bits(p.sigma))
-	b.WriteUint8(uint8(p.ringType))
-	if p.defaultNTTFlag {
-		b.WriteUint8(1)
-	} else {
-		b.WriteUint8(0)
-	}
-
-	data := make([]byte, p.defaultScale.BinarySize())
-
-	if _, err := p.defaultScale.Read(data); err != nil {
-		return nil, err
-	}
-
-	for i := range data {
-		b.WriteUint8(data[i])
-	}
-
-	b.WriteUint64Slice(p.qi)
-	b.WriteUint64Slice(p.pi)
-
-	return b.Bytes(), nil
+	return p.MarshalJSON()
 }
 
 // UnmarshalBinary decodes a []byte into a parameter set struct.
 func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
-	if len(data) < 11 {
-		return fmt.Errorf("invalid rlwe.Parameter serialization")
-	}
-	b := buffer.NewBuffer(data)
-	logN := int(b.ReadUint8())
-	lenQ := int(b.ReadUint8())
-	lenP := int(b.ReadUint8())
-	logbase2 := int(b.ReadUint8())
-	h := int(b.ReadUint64())
-	sigma := math.Float64frombits(b.ReadUint64())
-	ringType := ring.Type(b.ReadUint8())
-	var defaultNTTFlag bool
-	if b.ReadUint8() == 1 {
-		defaultNTTFlag = true
-	}
-
-	var defaultScale Scale
-	dataScale := make([]uint8, defaultScale.BinarySize())
-	b.ReadUint8Slice(dataScale)
-	if _, err = defaultScale.Write(dataScale); err != nil {
-		return
-	}
-
-	if err := checkSizeParams(logN, lenQ, lenP); err != nil {
-		return err
-	}
-
-	qi := make([]uint64, lenQ)
-	pi := make([]uint64, lenP)
-	b.ReadUint64Slice(qi)
-	b.ReadUint64Slice(pi)
-
-	*p, err = NewParameters(logN, qi, pi, logbase2, h, sigma, ringType, defaultScale, defaultNTTFlag)
-	return err
-}
-
-// BinarySize returns the length of the []byte encoding of the receiver.
-func (p Parameters) BinarySize() int {
-	return 22 + p.DefaultScale().BinarySize() + (len(p.qi)+len(p.pi))<<3
+	return p.UnmarshalJSON(data)
 }
 
 // MarshalJSON returns a JSON representation of this parameter set. See `Marshal` from the `encoding/json` package.
 func (p Parameters) MarshalJSON() ([]byte, error) {
-	paramsLit := p.ParametersLiteral()
-	return json.Marshal(&paramsLit)
+	return json.Marshal(p.ParametersLiteral())
 }
 
 // UnmarshalJSON reads a JSON representation of a parameter set into the receiver Parameter. See `Unmarshal` from the `encoding/json` package.

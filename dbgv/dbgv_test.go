@@ -204,7 +204,7 @@ func testEncToShares(tc *testContext, t *testing.T) {
 
 		tc.encoder.DecodeRingT(ptRt, ciphertext.Scale, values)
 
-		assert.True(t, utils.EqualSliceUint64(coeffs, values))
+		assert.True(t, utils.EqualSlice(coeffs, values))
 	})
 
 	crp := P[0].e2s.SampleCRP(params.MaxLevel(), tc.crs)
@@ -277,7 +277,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 
 		//Decrypts and compare
 		require.True(t, ciphertext.Level() == maxLevel)
-		require.True(t, utils.EqualSliceUint64(coeffs, encoder.DecodeUintNew(decryptorSk0.DecryptNew(ciphertext))))
+		require.True(t, utils.EqualSlice(coeffs, encoder.DecodeUintNew(decryptorSk0.DecryptNew(ciphertext))))
 	})
 }
 
@@ -364,7 +364,7 @@ func testRefreshAndPermutation(tc *testContext, t *testing.T) {
 
 		//Decrypts and compares
 		require.True(t, ciphertext.Level() == maxLevel)
-		require.True(t, utils.EqualSliceUint64(coeffsPermute, coeffsHave))
+		require.True(t, utils.EqualSlice(coeffsPermute, coeffsHave))
 	})
 }
 
@@ -462,7 +462,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 
 		//Decrypts and compares
 		require.True(t, ciphertext.Level() == maxLevel)
-		require.True(t, utils.EqualSliceUint64(coeffs, coeffsHave))
+		require.True(t, utils.EqualSlice(coeffs, coeffsHave))
 	})
 }
 
@@ -484,7 +484,7 @@ func newTestVectors(tc *testContext, encryptor rlwe.Encryptor, t *testing.T) (co
 }
 
 func verifyTestVectors(tc *testContext, decryptor rlwe.Decryptor, coeffs []uint64, ciphertext *rlwe.Ciphertext, t *testing.T) {
-	require.True(t, utils.EqualSliceUint64(coeffs, tc.encoder.DecodeUintNew(decryptor.DecryptNew(ciphertext))))
+	require.True(t, utils.EqualSlice(coeffs, tc.encoder.DecodeUintNew(decryptor.DecryptNew(ciphertext))))
 }
 
 func testMarshalling(tc *testContext, t *testing.T) {
@@ -516,13 +516,13 @@ func testMarshalling(tc *testContext, t *testing.T) {
 			t.Fatal("Could not unmarshal RefreshShare", err)
 		}
 		for i, r := range refreshshare.e2sShare.Value.Coeffs {
-			if !utils.EqualSliceUint64(resRefreshShare.e2sShare.Value.Coeffs[i], r) {
+			if !utils.EqualSlice(resRefreshShare.e2sShare.Value.Coeffs[i], r) {
 				t.Fatal("Result of marshalling not the same as original : RefreshShare")
 			}
 
 		}
 		for i, r := range refreshshare.s2eShare.Value.Coeffs {
-			if !utils.EqualSliceUint64(resRefreshShare.s2eShare.Value.Coeffs[i], r) {
+			if !utils.EqualSlice(resRefreshShare.s2eShare.Value.Coeffs[i], r) {
 				t.Fatal("Result of marshalling not the same as original : RefreshShare")
 			}
 		}

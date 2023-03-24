@@ -86,7 +86,7 @@ func (cks *CKSProtocol) SampleCRP(level int, crs CRS) CKSCRP {
 // Expected noise: ctNoise + encFreshSk + smudging
 func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlwe.Ciphertext, shareOut *CKSShare) {
 
-	levelQ := utils.MinInt(shareOut.Value.Level(), ct.Value[1].Level())
+	levelQ := utils.Min(shareOut.Value.Level(), ct.Value[1].Level())
 
 	shareOut.Value.Resize(levelQ)
 

@@ -129,7 +129,7 @@ func (eval *Evaluator) Merge(ctIn map[int]*Ciphertext) (ctOut *Ciphertext) {
 	}
 
 	for i := range ctIn {
-		levelQ = utils.MinInt(levelQ, ctIn[i].Level())
+		levelQ = utils.Min(levelQ, ctIn[i].Level())
 	}
 
 	xPow2 := genXPow2(ringQ.AtLevel(levelQ), params.LogN(), false)
@@ -194,7 +194,7 @@ func (eval *Evaluator) mergeRLWERecurse(ciphertexts []*Ciphertext, xPow []*ring.
 	}
 
 	if ctEven != nil {
-		level = utils.MinInt(level, ctEven.Level())
+		level = utils.Min(level, ctEven.Level())
 	}
 
 	ringQ := eval.params.RingQ().AtLevel(level)

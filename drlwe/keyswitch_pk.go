@@ -70,7 +70,7 @@ func (pcks *PCKSProtocol) AllocateShare(levelQ int) (s *PCKSShare) {
 // Expected noise: ctNoise + encFreshPk + smudging
 func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct *rlwe.Ciphertext, shareOut *PCKSShare) {
 
-	levelQ := utils.MinInt(shareOut.Value[0].Level(), ct.Value[1].Level())
+	levelQ := utils.Min(shareOut.Value[0].Level(), ct.Value[1].Level())
 
 	ringQ := pcks.params.RingQ().AtLevel(levelQ)
 

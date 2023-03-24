@@ -236,7 +236,7 @@ func addMatrixRotToList(pVec map[int]bool, rotations []int, N1, slots int, repac
 
 	if len(pVec) < 3 {
 		for j := range pVec {
-			if !utils.IsInSliceInt(j, rotations) {
+			if !utils.IsInSlice(j, rotations) {
 				rotations = append(rotations, j)
 			}
 		}
@@ -254,13 +254,13 @@ func addMatrixRotToList(pVec map[int]bool, rotations []int, N1, slots int, repac
 				index &= (slots - 1)
 			}
 
-			if index != 0 && !utils.IsInSliceInt(index, rotations) {
+			if index != 0 && !utils.IsInSlice(index, rotations) {
 				rotations = append(rotations, index)
 			}
 
 			index = j & (N1 - 1)
 
-			if index != 0 && !utils.IsInSliceInt(index, rotations) {
+			if index != 0 && !utils.IsInSlice(index, rotations) {
 				rotations = append(rotations, index)
 			}
 		}

@@ -546,13 +546,13 @@ func testMarshalling(tc *testContext, t *testing.T) {
 		}
 
 		for i, r := range refreshshare.e2sShare.Value.Coeffs {
-			if !utils.EqualSliceUint64(resRefreshShare.e2sShare.Value.Coeffs[i], r) {
+			if !utils.EqualSlice(resRefreshShare.e2sShare.Value.Coeffs[i], r) {
 				t.Fatal("Result of marshalling not the same as original : RefreshShare")
 			}
 
 		}
 		for i, r := range refreshshare.s2eShare.Value.Coeffs {
-			if !utils.EqualSliceUint64(resRefreshShare.s2eShare.Value.Coeffs[i], r) {
+			if !utils.EqualSlice(resRefreshShare.s2eShare.Value.Coeffs[i], r) {
 				t.Fatal("Result of marshalling not the same as original : RefreshShare")
 			}
 

@@ -3,115 +3,43 @@ package utils
 
 import (
 	"math/bits"
+
+	"golang.org/x/exp/constraints"
 )
 
-// EqualSliceUint64 checks the equality between two uint64 slices.
-func EqualSliceUint64(a, b []uint64) (v bool) {
-	v = true
-	for i := range a {
-		v = v && (a[i] == b[i])
-	}
-	return
-}
-
-// EqualSliceInt64 checks the equality between two int64 slices.
-func EqualSliceInt64(a, b []int64) (v bool) {
-	v = true
-	for i := range a {
-		v = v && (a[i] == b[i])
-	}
-	return
-}
-
-// EqualSliceUint8 checks the equality between two uint8 slices.
-func EqualSliceUint8(a, b []uint8) (v bool) {
-	v = true
-	for i := range a {
-		v = v && (a[i] == b[i])
-	}
-	return
-}
-
-// IsInSliceUint64 checks if x is in slice.
-func IsInSliceUint64(x uint64, slice []uint64) (v bool) {
-	for i := range slice {
-		v = v || (slice[i] == x)
-	}
-	return
-}
-
-// IsInSliceInt checks if x is in slice.
-func IsInSliceInt(x int, slice []int) (v bool) {
-	for i := range slice {
-		v = v || (slice[i] == x)
-	}
-	return
-}
-
-// MinUint64 returns the minimum value of the input of uint64 values.
-func MinUint64(a, b uint64) (r uint64) {
+// Min returns the minimum value of the two inputs.
+func Min[V constraints.Ordered](a, b V) (r V) {
 	if a <= b {
 		return a
 	}
 	return b
 }
 
-// MinInt returns the minimum value of the input of int values.
-func MinInt(a, b int) (r int) {
-	if a <= b {
-		return a
-	}
-	return b
-}
-
-// MaxUint64 returns the maximum value of the input slice of uint64 values.
-func MaxUint64(a, b uint64) (r uint64) {
+// Max returns the maximum value of the two inputs.
+func Max[V constraints.Ordered](a, b V) (r V) {
 	if a >= b {
 		return a
 	}
 	return b
-}
-
-// MaxInt returns the maximum value of the input of int values.
-func MaxInt(a, b int) (r int) {
-	if a >= b {
-		return a
-	}
-	return b
-}
-
-// MaxFloat64 returns the maximum value of the input slice of float64 values.
-func MaxFloat64(a, b float64) (r float64) {
-	if a >= b {
-		return a
-	}
-	return b
-}
-
-// MaxSliceUint64 returns the maximum value of the input slice of uint64 values.
-func MaxSliceUint64(slice []uint64) (max uint64) {
-	for i := range slice {
-		max = MaxUint64(max, slice[i])
-	}
-	return
 }
 
 // BitReverse64 returns the bit-reverse value of the input value, within a context of 2^bitLen.
-func BitReverse64(index, bitLen uint64) uint64 {
-	return bits.Reverse64(index) >> (64 - bitLen)
+func BitReverse64[V uint64 | uint32 | int | int64](index V, bitLen int) uint64 {
+	return bits.Reverse64(uint64(index)) >> (64 - bitLen)
 }
 
 // HammingWeight64 returns the hammingweight if the input value.
-func HammingWeight64(x uint64) uint64 {
-	x -= (x >> 1) & 0x5555555555555555
-	x = (x & 0x3333333333333333) + ((x >> 2) & 0x3333333333333333)
-	x = (x + (x >> 4)) & 0x0f0f0f0f0f0f0f0f
-	return ((x * 0x0101010101010101) & 0xffffffffffffffff) >> 56
+func HammingWeight64[V uint64 | uint32 | int | int64](x V) V {
+	y := uint64(x)
+	y -= (y >> 1) & 0x5555555555555555
+	y = (y & 0x3333333333333333) + ((y >> 2) & 0x3333333333333333)
+	y = (y + (y >> 4)) & 0x0f0f0f0f0f0f0f0f
+	return V(((y * 0x0101010101010101) & 0xffffffffffffffff) >> 56)
 }
 
 // AllDistinct returns true if all elements in s are distinct, and false otherwise.
-func AllDistinct(s []uint64) bool {
-	m := make(map[uint64]struct{}, len(s))
+func AllDistinct[V comparable](s []V) bool {
+	m := make(map[V]struct{}, len(s))
 	for _, si := range s {
 		if _, exists := m[si]; exists {
 			return false
@@ -121,8 +49,8 @@ func AllDistinct(s []uint64) bool {
 	return true
 }
 
-// GCD computes the greatest common divisor gcd(a,b) for a,b uint64 variables.
-func GCD(a, b uint64) uint64 {
+// GCD computes the greatest common divisor between a and b.
+func GCD[V uint64 | uint32 | int | int64](a, b V) V {
 	if a == 0 || b == 0 {
 		return 0
 	}
@@ -130,135 +58,4 @@ func GCD(a, b uint64) uint64 {
 		a, b = b, a%b
 	}
 	return a
-}
-
-// RotateUint64Slice returns a new slice corresponding to s rotated by k positions to the left.
-func RotateUint64Slice(s []uint64, k int) []uint64 {
-	ret := make([]uint64, len(s))
-	RotateUint64SliceAllocFree(s, k, ret)
-	return ret
-}
-
-// RotateUint64SliceAllocFree rotates slice s by k positions to the left and writes the result in sout.
-// without allocating new memory.
-func RotateUint64SliceAllocFree(s []uint64, k int, sout []uint64) {
-
-	if len(s) != len(sout) {
-		panic("cannot RotateUint64SliceAllocFree: s and sout of different lengths")
-	}
-
-	if len(s) == 0 {
-		return
-	}
-
-	k = k % len(s)
-	if k < 0 {
-		k = k + len(s)
-	}
-
-	if &s[0] == &sout[0] { // checks if the two slice share the same backing array
-		RotateUint64SliceInPlace(s, k)
-		return
-	}
-
-	copy(sout[:len(s)-k], s[k:])
-	copy(sout[len(s)-k:], s[:k])
-}
-
-// RotateUint64SliceInPlace rotates slice s in place by k positions to the left.
-func RotateUint64SliceInPlace(s []uint64, k int) {
-	n := len(s)
-	k = k % len(s)
-	if k < 0 {
-		k = k + len(s)
-	}
-	gcd := GCD(uint64(k), uint64(n))
-	for i := 0; i < int(gcd); i++ {
-		tmp := s[i]
-		j := i
-		for {
-			x := j + k
-			if x >= n {
-				x = x - n
-			}
-			if x == i {
-				break
-			}
-			s[j] = s[x]
-			j = x
-		}
-		s[j] = tmp
-	}
-}
-
-// RotateInt64Slice returns a new slice corresponding to s rotated by k positions to the left.
-func RotateInt64Slice(s []int64, k int) []int64 {
-	if k == 0 || len(s) == 0 {
-		return s
-	}
-	r := k % len(s)
-	if r < 0 {
-		r = r + len(s)
-	}
-	ret := make([]int64, len(s))
-	copy(ret[:len(s)-r], s[r:])
-	copy(ret[len(s)-r:], s[:r])
-	return ret
-}
-
-// RotateUint64Slots returns a new slice corresponding to s where each half of the slice
-// have been rotated by k positions to the left.
-func RotateUint64Slots(s []uint64, k int) []uint64 {
-	ret := make([]uint64, len(s))
-	slots := len(s) >> 1
-	copy(ret[:slots], RotateUint64Slice(s[:slots], k))
-	copy(ret[slots:], RotateUint64Slice(s[slots:], k))
-	return ret
-}
-
-// RotateComplex128Slice returns a new slice corresponding to s rotated by k positions to the left.
-func RotateComplex128Slice(s []complex128, k int) []complex128 {
-	if k == 0 || len(s) == 0 {
-		return s
-	}
-	r := k % len(s)
-	if r < 0 {
-		r = r + len(s)
-	}
-	ret := make([]complex128, len(s))
-	copy(ret[:len(s)-r], s[r:])
-	copy(ret[len(s)-r:], s[:r])
-	return ret
-}
-
-// RotateFloat64Slice returns a new slice corresponding to s rotated by k positions to the left.
-func RotateFloat64Slice(s []float64, k int) []float64 {
-	if k == 0 || len(s) == 0 {
-		return s
-	}
-	r := k % len(s)
-	if r < 0 {
-		r = r + len(s)
-	}
-	ret := make([]float64, len(s))
-	copy(ret[:len(s)-r], s[r:])
-	copy(ret[len(s)-r:], s[:r])
-	return ret
-}
-
-// RotateSlice takes as input an interface slice and returns a new interface slice
-// corresponding to s rotated by k positions to the left.
-// s.(type) can be either []complex128, []float64, []uint64 or []int64.
-func RotateSlice(s interface{}, k int) interface{} {
-	switch el := s.(type) {
-	case []complex128:
-		return RotateComplex128Slice(el, k)
-	case []float64:
-		return RotateFloat64Slice(el, k)
-	case []uint64:
-		return RotateUint64Slice(el, k)
-	case []int64:
-		return RotateInt64Slice(el, k)
-	}
-	return nil
 }

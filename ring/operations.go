@@ -258,7 +258,7 @@ func (r *Ring) EvalPolyScalar(p1 []*Poly, scalar uint64, p2 *Poly) {
 // Shift evaluates p2 = p2<<<k coefficient-wise in the ring.
 func (r *Ring) Shift(p1 *Poly, k int, p2 *Poly) {
 	for i := range p1.Coeffs {
-		utils.RotateUint64SliceAllocFree(p1.Coeffs[i], k, p2.Coeffs[i])
+		utils.RotateSliceAllocFree(p1.Coeffs[i], k, p2.Coeffs[i])
 	}
 }
 

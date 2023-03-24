@@ -72,7 +72,7 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, logSlots int
 
 	ct1 := ct.Value[1]
 
-	levelQ := utils.MinInt(ct1.Level(), publicShareOut.Value.Level())
+	levelQ := utils.Min(ct1.Level(), publicShareOut.Value.Level())
 
 	ringQ := e2s.params.RingQ().AtLevel(levelQ)
 
@@ -129,7 +129,7 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, logSlots int
 // the secretShareOut output of the GenShare method.
 func (e2s *E2SProtocol) GetShare(secretShare *rlwe.AdditiveShareBigint, aggregatePublicShare *drlwe.CKSShare, logSlots int, ct *rlwe.Ciphertext, secretShareOut *rlwe.AdditiveShareBigint) {
 
-	levelQ := utils.MinInt(ct.Level(), aggregatePublicShare.Value.Level())
+	levelQ := utils.Min(ct.Level(), aggregatePublicShare.Value.Level())
 
 	ringQ := e2s.params.RingQ().AtLevel(levelQ)
 

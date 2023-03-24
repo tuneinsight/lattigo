@@ -184,15 +184,15 @@ func (eval *evaluator) GetRLWEEvaluator() *rlwe.Evaluator {
 
 func (eval *evaluator) newCiphertextBinary(op0, op1 rlwe.Operand) (ctOut *rlwe.Ciphertext) {
 
-	maxDegree := utils.MaxInt(op0.Degree(), op1.Degree())
-	minLevel := utils.MinInt(op0.Level(), op1.Level())
+	maxDegree := utils.Max(op0.Degree(), op1.Degree())
+	minLevel := utils.Min(op0.Level(), op1.Level())
 
 	return NewCiphertext(eval.params, maxDegree, minLevel)
 }
 
 // Add adds op1 to ctIn and returns the result in ctOut.
 func (eval *evaluator) Add(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext) {
-	_, level := eval.CheckBinary(ctIn, op1, ctOut, utils.MaxInt(ctIn.Degree(), op1.Degree()))
+	_, level := eval.CheckBinary(ctIn, op1, ctOut, utils.Max(ctIn.Degree(), op1.Degree()))
 	eval.evaluateInPlace(level, ctIn, op1, ctOut, eval.params.RingQ().AtLevel(level).Add)
 }
 
@@ -206,7 +206,7 @@ func (eval *evaluator) AddNew(ctIn *rlwe.Ciphertext, op1 rlwe.Operand) (ctOut *r
 // Sub subtracts op1 from ctIn and returns the result in ctOut.
 func (eval *evaluator) Sub(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext) {
 
-	_, level := eval.CheckBinary(ctIn, op1, ctOut, utils.MaxInt(ctIn.Degree(), op1.Degree()))
+	_, level := eval.CheckBinary(ctIn, op1, ctOut, utils.Max(ctIn.Degree(), op1.Degree()))
 
 	eval.evaluateInPlace(level, ctIn, op1, ctOut, eval.params.RingQ().AtLevel(level).Sub)
 
@@ -229,8 +229,8 @@ func (eval *evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 rlwe.O
 
 	var tmp0, tmp1 *rlwe.Ciphertext
 
-	maxDegree := utils.MaxInt(c0.Degree(), c1.Degree())
-	minDegree := utils.MinInt(c0.Degree(), c1.Degree())
+	maxDegree := utils.Max(c0.Degree(), c1.Degree())
+	minDegree := utils.Min(c0.Degree(), c1.Degree())
 
 	// Else resizes the receiver element
 	ctOut.El().Resize(maxDegree, ctOut.Level())
@@ -239,7 +239,7 @@ func (eval *evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 rlwe.O
 	c1Scale := c1.GetScale().Float64()
 
 	if ctOut.Level() > level {
-		eval.DropLevel(ctOut, ctOut.Level()-utils.MinInt(c0.Level(), c1.Level()))
+		eval.DropLevel(ctOut, ctOut.Level()-utils.Min(c0.Level(), c1.Level()))
 	}
 
 	cmp := c0.GetScale().Cmp(c1.GetScale())
@@ -345,7 +345,7 @@ func (eval *evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 rlwe.O
 // Neg negates the value of ct0 and returns the result in ctOut.
 func (eval *evaluator) Neg(ct0 *rlwe.Ciphertext, ctOut *rlwe.Ciphertext) {
 
-	level := utils.MinInt(ct0.Level(), ctOut.Level())
+	level := utils.Min(ct0.Level(), ctOut.Level())
 
 	if ct0.Degree() != ctOut.Degree() {
 		panic("cannot Negate: invalid receiver Ciphertext does not match input Ciphertext degree")
@@ -368,7 +368,7 @@ func (eval *evaluator) NegNew(ct0 *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext) {
 // AddConst adds the input constant to ct0 and returns the result in ctOut.
 // The constant can be a complex128, float64, int, int64, uint64. *big.Float, *big.Int or *ring.Complex.
 func (eval *evaluator) AddConst(ct0 *rlwe.Ciphertext, constant interface{}, ct1 *rlwe.Ciphertext) {
-	level := utils.MinInt(ct0.Level(), ct1.Level())
+	level := utils.Min(ct0.Level(), ct1.Level())
 	ct1.Resize(ct0.Degree(), level)
 	RNSReal, RNSImag := bigComplexToRNSScalar(eval.params.RingQ().AtLevel(level), &ct0.Scale.Value, valueToBigComplex(constant, scalingPrecision))
 	eval.evaluateWithScalar(level, ct0.Value[:1], RNSReal, RNSImag, ct1.Value[:1], eval.params.RingQ().AtLevel(level).AddDoubleRNSScalar)
@@ -398,7 +398,7 @@ func (eval *evaluator) AddConstNew(ct0 *rlwe.Ciphertext, constant interface{}) (
 // This function will panic if ctIn.Scale > ctOut.Scale.
 func (eval *evaluator) MultByConstThenAdd(ctIn *rlwe.Ciphertext, constant interface{}, ctOut *rlwe.Ciphertext) {
 
-	var level = utils.MinInt(ctIn.Level(), ctOut.Level())
+	var level = utils.Min(ctIn.Level(), ctOut.Level())
 
 	ringQ := eval.params.RingQ().AtLevel(level)
 
@@ -465,7 +465,7 @@ func (eval *evaluator) MultByConstNew(ct0 *rlwe.Ciphertext, constant interface{}
 // The constant can be a complex128, float64, int, int64, uint64. *big.Float, *big.Int or *ring.Complex.
 func (eval *evaluator) MultByConst(ct0 *rlwe.Ciphertext, constant interface{}, ctOut *rlwe.Ciphertext) {
 
-	level := utils.MinInt(ct0.Level(), ctOut.Level())
+	level := utils.Min(ct0.Level(), ctOut.Level())
 	ctOut.Resize(ct0.Degree(), level)
 
 	ringQ := eval.params.RingQ().AtLevel(level)
@@ -604,7 +604,7 @@ func (eval *evaluator) Rescale(ctIn *rlwe.Ciphertext, minScale rlwe.Scale, ctOut
 // MulNew multiplies ctIn with op1 without relinearization and returns the result in a newly created element.
 // The procedure will panic if either ctIn.Degree or op1.Degree > 1.
 func (eval *evaluator) MulNew(ctIn *rlwe.Ciphertext, op1 rlwe.Operand) (ctOut *rlwe.Ciphertext) {
-	ctOut = NewCiphertext(eval.params, ctIn.Degree()+op1.Degree(), utils.MinInt(ctIn.Level(), op1.Level()))
+	ctOut = NewCiphertext(eval.params, ctIn.Degree()+op1.Degree(), utils.Min(ctIn.Level(), op1.Level()))
 	eval.mulRelin(ctIn, op1, false, ctOut)
 	return
 }
@@ -620,7 +620,7 @@ func (eval *evaluator) Mul(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.
 // The procedure will panic if either ctIn.Degree or op1.Degree > 1.
 // The procedure will panic if the evaluator was not created with an relinearization key.
 func (eval *evaluator) MulRelinNew(ctIn *rlwe.Ciphertext, op1 rlwe.Operand) (ctOut *rlwe.Ciphertext) {
-	ctOut = NewCiphertext(eval.params, 1, utils.MinInt(ctIn.Level(), op1.Level()))
+	ctOut = NewCiphertext(eval.params, 1, utils.Min(ctIn.Level(), op1.Level()))
 	eval.mulRelin(ctIn, op1, true, ctOut)
 	return
 }
@@ -756,7 +756,7 @@ func (eval *evaluator) MulRelinThenAdd(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, 
 
 func (eval *evaluator) mulRelinThenAdd(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, relin bool, ctOut *rlwe.Ciphertext) {
 
-	_, level := eval.CheckBinary(ctIn, op1, ctOut, utils.MaxInt(ctIn.Degree(), op1.Degree()))
+	_, level := eval.CheckBinary(ctIn, op1, ctOut, utils.Max(ctIn.Degree(), op1.Degree()))
 
 	if ctIn.Degree()+op1.Degree() > 2 {
 		panic("cannot MulRelinThenAdd: the sum of the input elements' degree cannot be larger than 2")

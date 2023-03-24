@@ -396,10 +396,10 @@ func (eval *evaluator) LinearTransformNew(ctIn *rlwe.Ciphertext, linearTransform
 
 		var maxLevel int
 		for _, LT := range LTs {
-			maxLevel = utils.MaxInt(maxLevel, LT.Level)
+			maxLevel = utils.Max(maxLevel, LT.Level)
 		}
 
-		minLevel := utils.MinInt(maxLevel, ctIn.Level())
+		minLevel := utils.Min(maxLevel, ctIn.Level())
 		eval.DecomposeNTT(minLevel, eval.params.MaxLevelP(), eval.params.PCount(), ctIn.Value[1], ctIn.IsNTT, eval.BuffDecompQP)
 
 		for i, LT := range LTs {
@@ -417,7 +417,7 @@ func (eval *evaluator) LinearTransformNew(ctIn *rlwe.Ciphertext, linearTransform
 
 	case LinearTransform:
 
-		minLevel := utils.MinInt(LTs.Level, ctIn.Level())
+		minLevel := utils.Min(LTs.Level, ctIn.Level())
 		eval.DecomposeNTT(minLevel, eval.params.MaxLevelP(), eval.params.PCount(), ctIn.Value[1], ctIn.IsNTT, eval.BuffDecompQP)
 
 		ctOut = []*rlwe.Ciphertext{NewCiphertext(eval.params, 1, minLevel)}
@@ -445,10 +445,10 @@ func (eval *evaluator) LinearTransform(ctIn *rlwe.Ciphertext, linearTransform in
 	case []LinearTransform:
 		var maxLevel int
 		for _, LT := range LTs {
-			maxLevel = utils.MaxInt(maxLevel, LT.Level)
+			maxLevel = utils.Max(maxLevel, LT.Level)
 		}
 
-		minLevel := utils.MinInt(maxLevel, ctIn.Level())
+		minLevel := utils.Min(maxLevel, ctIn.Level())
 		eval.DecomposeNTT(minLevel, eval.params.MaxLevelP(), eval.params.PCount(), ctIn.Value[1], true, eval.BuffDecompQP)
 
 		for i, LT := range LTs {
@@ -463,7 +463,7 @@ func (eval *evaluator) LinearTransform(ctIn *rlwe.Ciphertext, linearTransform in
 		}
 
 	case LinearTransform:
-		minLevel := utils.MinInt(LTs.Level, ctIn.Level())
+		minLevel := utils.Min(LTs.Level, ctIn.Level())
 		eval.DecomposeNTT(minLevel, eval.params.MaxLevelP(), eval.params.PCount(), ctIn.Value[1], true, eval.BuffDecompQP)
 		if LTs.N1 == 0 {
 			eval.MultiplyByDiagMatrix(ctIn, LTs, eval.BuffDecompQP, ctOut[0])
@@ -483,7 +483,7 @@ func (eval *evaluator) LinearTransform(ctIn *rlwe.Ciphertext, linearTransform in
 // for matrix of only a few non-zero diagonals but uses more keys.
 func (eval *evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix LinearTransform, BuffDecompQP []ringqp.Poly, ctOut *rlwe.Ciphertext) {
 
-	levelQ := utils.MinInt(ctOut.Level(), utils.MinInt(ctIn.Level(), matrix.Level))
+	levelQ := utils.Min(ctOut.Level(), utils.Min(ctIn.Level(), matrix.Level))
 	levelP := eval.params.RingP().MaxLevel()
 
 	ringQP := eval.params.RingQP().AtLevel(levelQ, levelP)
@@ -590,7 +590,7 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Li
 	ringP := eval.params.RingP()
 	ringQP := eval.params.RingQP()
 
-	levelQ := utils.MinInt(ctOut.Level(), utils.MinInt(ctIn.Level(), matrix.Level))
+	levelQ := utils.Min(ctOut.Level(), utils.Min(ctIn.Level(), matrix.Level))
 	levelP := ringP.MaxLevel()
 
 	ctOut.Resize(ctOut.Degree(), levelQ)

@@ -70,7 +70,9 @@ type encoder struct {
 // NewEncoder creates a new encoder from the provided parameters.
 func NewEncoder(params Parameters) Encoder {
 
-	var N, logN, pow, pos uint64 = uint64(params.N()), uint64(params.LogN()), 1, 0
+	var N, pow, pos uint64 = uint64(params.N()), 1, 0
+
+	logN := params.LogN()
 
 	mask := 2*N - 1
 

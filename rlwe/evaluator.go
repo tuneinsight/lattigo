@@ -147,10 +147,10 @@ func (eval *Evaluator) CheckAndGetRelinearizationKey() (evk *RelinearizationKey,
 // and returns max(op0.Degree(), op1.Degree(), opOut.Degree()) and min(op0.Level(), op1.Level(), opOut.Level())
 func (eval *Evaluator) CheckBinary(op0, op1, opOut Operand, opOutMinDegree int) (degree, level int) {
 
-	degree = utils.MaxInt(op0.Degree(), op1.Degree())
-	degree = utils.MaxInt(degree, opOut.Degree())
-	level = utils.MinInt(op0.Level(), op1.Level())
-	level = utils.MinInt(level, opOut.Level())
+	degree = utils.Max(op0.Degree(), op1.Degree())
+	degree = utils.Max(degree, opOut.Degree())
+	level = utils.Min(op0.Level(), op1.Level())
+	level = utils.Min(level, opOut.Level())
 
 	if op0 == nil || op1 == nil || opOut == nil {
 		panic("op0, op1 and opOut cannot be nil")
@@ -166,7 +166,7 @@ func (eval *Evaluator) CheckBinary(op0, op1, opOut Operand, opOutMinDegree int) 
 		opOut.El().IsNTT = op0.El().IsNTT
 	}
 
-	opOut.El().Resize(utils.MaxInt(opOutMinDegree, opOut.Degree()), level)
+	opOut.El().Resize(utils.Max(opOutMinDegree, opOut.Degree()), level)
 
 	return
 }
@@ -183,7 +183,7 @@ func (eval *Evaluator) CheckUnary(op0, opOut Operand) (degree, level int) {
 		panic(fmt.Sprintf("op0.IsNTT() != %t", eval.params.DefaultNTTFlag()))
 	}
 
-	return utils.MaxInt(op0.Degree(), opOut.Degree()), utils.MinInt(op0.Level(), opOut.Level())
+	return utils.Max(op0.Degree(), opOut.Degree()), utils.Min(op0.Level(), opOut.Level())
 }
 
 // ShallowCopy creates a shallow copy of this Evaluator in which all the read-only data-structures are

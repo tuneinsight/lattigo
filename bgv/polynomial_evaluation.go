@@ -71,7 +71,7 @@ type polynomialVector struct {
 func (eval *evaluator) EvaluatePolyVector(input interface{}, pols []*Polynomial, encoder Encoder, slotsIndex map[int][]int, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
 	var maxDeg int
 	for i := range pols {
-		maxDeg = utils.MaxInt(maxDeg, pols[i].MaxDeg)
+		maxDeg = utils.Max(maxDeg, pols[i].MaxDeg)
 	}
 
 	for i := range pols {
@@ -449,7 +449,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetLevel int,
 	maximumCiphertextDegree := 0
 	for i := pol.Value[0].Degree(); i > 0; i-- {
 		if x, ok := X[i]; ok {
-			maximumCiphertextDegree = utils.MaxInt(maximumCiphertextDegree, x.Degree())
+			maximumCiphertextDegree = utils.Max(maximumCiphertextDegree, x.Degree())
 		}
 	}
 

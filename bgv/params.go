@@ -1,7 +1,6 @@
 package bgv
 
 import (
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"math/bits"
@@ -153,7 +152,7 @@ func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err erro
 		return Parameters{}, fmt.Errorf("invalid parameters: t = 0")
 	}
 
-	if utils.IsInSliceUint64(t, rlweParams.Q()) {
+	if utils.IsInSlice(t, rlweParams.Q()) {
 		return Parameters{}, fmt.Errorf("insecure parameters: t|Q")
 	}
 
@@ -232,42 +231,12 @@ func (p Parameters) CopyNew() Parameters {
 
 // MarshalBinary returns a []byte representation of the parameter set.
 func (p Parameters) MarshalBinary() ([]byte, error) {
-	if p.LogN() == 0 { // if N is 0, then p is the zero value
-		return []byte{}, nil
-	}
-
-	rlweBytes, err := p.Parameters.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
-	// len(rlweBytes) : RLWE parameters
-	// 8 byte : T
-	var tBytes [8]byte
-	binary.LittleEndian.PutUint64(tBytes[:], p.T())
-	data := append(rlweBytes, tBytes[:]...)
-	return data, nil
+	return p.MarshalJSON()
 }
 
 // UnmarshalBinary decodes a []byte into a parameter set struct.
 func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
-
-	if err := p.Parameters.UnmarshalBinary(data); err != nil {
-		return err
-	}
-
-	t := binary.LittleEndian.Uint64(data[len(data)-8:])
-
-	if p.ringT, err = ring.NewRing(p.N(), []uint64{t}); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// BinarySize returns the length of the []byte encoding of the receiver.
-func (p Parameters) BinarySize() int {
-	return p.Parameters.BinarySize() + 8
+	return p.UnmarshalJSON(data)
 }
 
 // MarshalJSON returns a JSON representation of this parameter set. See `Marshal` from the `encoding/json` package.

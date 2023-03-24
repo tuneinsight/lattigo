@@ -1,17 +1,13 @@
 package rlwe
 
 import (
-	"bytes"
-	"encoding"
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
 	"math"
 	"runtime"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
@@ -48,9 +44,9 @@ func TestRLWE(t *testing.T) {
 		defaultParamsLiteral = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
-	for _, paramsLit := range defaultParamsLiteral {
+	for _, paramsLit := range defaultParamsLiteral[:] {
 
-		for _, DefaultNTTFlag := range []bool{true, false} {
+		for _, DefaultNTTFlag := range []bool{true, false}[:] {
 
 			for _, RingType := range []ring.Type{ring.Standard, ring.ConjugateInvariant}[:] {
 
@@ -127,7 +123,7 @@ func testParameters(tc *TestContext, t *testing.T) {
 			galEl := params.GaloisElementForColumnRotationBy(i)
 			inv := params.InverseGaloisElement(galEl)
 			res := (inv * galEl) & mask
-			assert.Equal(t, uint64(1), res)
+			require.Equal(t, uint64(1), res)
 		}
 	})
 }
@@ -407,7 +403,7 @@ func testApplyEvaluationKey(tc *TestContext, level int, t *testing.T) {
 			RingType: paramsLargeDim.RingType(),
 		})
 
-		assert.Nil(t, err)
+		require.Nil(t, err)
 
 		kgenLargeDim := kgen
 		skLargeDim := sk
@@ -445,7 +441,7 @@ func testApplyEvaluationKey(tc *TestContext, level int, t *testing.T) {
 			RingType: paramsLargeDim.RingType(),
 		})
 
-		assert.Nil(t, err)
+		require.Nil(t, err)
 
 		kgenLargeDim := kgen
 		skLargeDim := sk
@@ -909,52 +905,6 @@ func genPlaintext(params Parameters, level, max int) (pt *Plaintext) {
 	return
 }
 
-type WriteAndReadTestInterface interface {
-	BinarySize() int
-	io.WriterTo
-	io.ReaderFrom
-	encoding.BinaryMarshaler
-	encoding.BinaryUnmarshaler
-}
-
-// testInterfaceWriteAndRead tests that:
-// - input and output implement WriteAndReadTestInterface
-// - input.WriteTo(io.Writer) writes a number of bytes on the writer equal to input.BinarySize
-// - output.ReadFrom(io.Reader) reads a number of bytes on the reader equal to input.BinarySize
-// - input.WriteTo written bytes are equal to the bytes produced by input.MarshalBinary
-// - all the above WriteTo, ReadFrom, MarhsalBinary and UnmarshalBinary do not return an error
-func testInterfaceWriteAndRead(input, output WriteAndReadTestInterface) (err error) {
-	data := make([]byte, 0, input.BinarySize())
-
-	buf := bytes.NewBuffer(data) // Compliant to io.Writer and io.Reader
-
-	if n, err := input.WriteTo(buf); err != nil {
-		return fmt.Errorf("%T: %w", input, err)
-	} else {
-		if int(n) != input.BinarySize() {
-			return fmt.Errorf("invalid size: %T.WriteTo number of bytes written != %T.BinarySize", input, input)
-		}
-	}
-
-	if data2, err := input.MarshalBinary(); err != nil {
-		return err
-	} else {
-		if !bytes.Equal(buf.Bytes(), data2) {
-			return fmt.Errorf("invalid encoding: %T.WriteTo buffer != %T.MarshalBinary", input, input)
-		}
-	}
-
-	if n, err := output.ReadFrom(buf); err != nil {
-		return fmt.Errorf("%T: %w", output, err)
-	} else {
-		if int(n) != input.BinarySize() {
-			return fmt.Errorf("invalid encoding: %T.ReadFrom number of bytes read != %T.BinarySize", input, input)
-		}
-	}
-
-	return
-}
-
 func testWriteAndRead(tc *TestContext, t *testing.T) {
 
 	params := tc.params
@@ -970,7 +920,7 @@ func testWriteAndRead(tc *TestContext, t *testing.T) {
 
 		plaintextTest := new(Plaintext)
 
-		require.NoError(t, testInterfaceWriteAndRead(plaintextWant, plaintextTest))
+		require.NoError(t, TestInterfaceWriteAndRead(plaintextWant, plaintextTest))
 
 		require.Equal(t, plaintextWant.Level(), plaintextTest.Level())
 		require.True(t, params.RingQ().Equal(plaintextWant.Value, plaintextTest.Value))
@@ -985,7 +935,7 @@ func testWriteAndRead(tc *TestContext, t *testing.T) {
 				ciphertextWant := NewCiphertextRandom(prng, params, degree, params.MaxLevel())
 				ciphertextTest := new(Ciphertext)
 
-				require.NoError(t, testInterfaceWriteAndRead(ciphertextWant, ciphertextTest))
+				require.NoError(t, TestInterfaceWriteAndRead(ciphertextWant, ciphertextTest))
 
 				require.Equal(t, ciphertextWant.Degree(), ciphertextTest.Degree())
 				require.Equal(t, ciphertextWant.Level(), ciphertextTest.Level())
@@ -1009,7 +959,7 @@ func testWriteAndRead(tc *TestContext, t *testing.T) {
 
 		ciphertextTest := CiphertextQP{}
 
-		require.NoError(t, testInterfaceWriteAndRead(&ciphertextWant, &ciphertextTest))
+		require.NoError(t, TestInterfaceWriteAndRead(&ciphertextWant, &ciphertextTest))
 
 		require.Equal(t, ciphertextWant.LevelQ(), ciphertextTest.LevelQ())
 		require.Equal(t, ciphertextWant.LevelP(), ciphertextTest.LevelP())
@@ -1041,7 +991,7 @@ func testWriteAndRead(tc *TestContext, t *testing.T) {
 
 		ciphertextTest := new(GadgetCiphertext)
 
-		require.NoError(t, testInterfaceWriteAndRead(ciphertextWant, ciphertextTest))
+		require.NoError(t, TestInterfaceWriteAndRead(ciphertextWant, ciphertextTest))
 
 		require.True(t, ciphertextWant.Equals(ciphertextTest))
 	})
@@ -1050,7 +1000,7 @@ func testWriteAndRead(tc *TestContext, t *testing.T) {
 
 		skTest := new(SecretKey)
 
-		require.NoError(t, testInterfaceWriteAndRead(sk, skTest))
+		require.NoError(t, TestInterfaceWriteAndRead(sk, skTest))
 
 		require.True(t, sk.Value.Equals(skTest.Value))
 	})
@@ -1059,7 +1009,7 @@ func testWriteAndRead(tc *TestContext, t *testing.T) {
 
 		pkTest := new(PublicKey)
 
-		require.NoError(t, testInterfaceWriteAndRead(pk, pkTest))
+		require.NoError(t, TestInterfaceWriteAndRead(pk, pkTest))
 
 		require.True(t, pk.Equals(pkTest))
 	})
@@ -1071,7 +1021,7 @@ func testWriteAndRead(tc *TestContext, t *testing.T) {
 		evalKey := tc.kgen.GenEvaluationKeyNew(sk, skOut)
 
 		resEvalKey := new(EvaluationKey)
-		require.NoError(t, testInterfaceWriteAndRead(evalKey, resEvalKey))
+		require.NoError(t, TestInterfaceWriteAndRead(evalKey, resEvalKey))
 
 		require.True(t, evalKey.Equals(resEvalKey))
 	})
@@ -1081,7 +1031,7 @@ func testWriteAndRead(tc *TestContext, t *testing.T) {
 
 		rlkNew := &RelinearizationKey{}
 
-		require.NoError(t, testInterfaceWriteAndRead(rlk, rlkNew))
+		require.NoError(t, TestInterfaceWriteAndRead(rlk, rlkNew))
 
 		require.True(t, rlk.Equals(rlkNew))
 	})
@@ -1091,7 +1041,7 @@ func testWriteAndRead(tc *TestContext, t *testing.T) {
 
 		gkNew := &GaloisKey{}
 
-		require.NoError(t, testInterfaceWriteAndRead(gk, gkNew))
+		require.NoError(t, TestInterfaceWriteAndRead(gk, gkNew))
 
 		require.True(t, gk.Equals(gkNew))
 	})
@@ -1105,37 +1055,45 @@ func testMarshaller(tc *TestContext, t *testing.T) {
 
 	t.Run(testString(params, params.MaxLevel(), "Marshaller/Parameters/Binary"), func(t *testing.T) {
 		bytes, err := params.MarshalBinary()
-		assert.Nil(t, err)
+
+		require.Nil(t, err)
 		var p Parameters
-		err = p.UnmarshalBinary(bytes)
-		assert.Nil(t, err)
-		assert.Equal(t, params, p)
-		assert.Equal(t, params.RingQ(), p.RingQ())
+		require.Nil(t, p.UnmarshalBinary(bytes))
+		require.Equal(t, params, p)
+		require.Equal(t, params.RingQ(), p.RingQ())
 	})
 
 	t.Run(testString(params, params.MaxLevel(), "Marshaller/Parameters/JSON"), func(t *testing.T) {
-		// checks that parameters can be marshalled without error
-		data, err := json.Marshal(params)
-		assert.Nil(t, err)
-		assert.NotNil(t, data)
 
-		// checks that Parameters can be unmarshalled without error
-		var rlweParams Parameters
-		err = json.Unmarshal(data, &rlweParams)
-		assert.Nil(t, err)
-		assert.True(t, params.Equals(rlweParams))
+		paramsLit := params.ParametersLiteral()
+
+		paramsLit.DefaultScale = NewScale(1 << 45)
+
+		var err error
+		params, err = NewParametersFromLiteral(paramsLit)
+
+		require.Nil(t, err)
+
+		data, err := params.MarshalJSON()
+		require.Nil(t, err)
+		require.NotNil(t, data)
+
+		var p Parameters
+		require.Nil(t, p.UnmarshalJSON(data))
+
+		require.Equal(t, params, p)
 	})
 
 	t.Run("Marshaller/MetaData", func(t *testing.T) {
 		m := MetaData{Scale: NewScaleModT(1, 65537), IsNTT: true, IsMontgomery: true}
 
 		data, err := m.MarshalBinary()
-		assert.Nil(t, err)
-		assert.NotNil(t, data)
+		require.Nil(t, err)
+		require.NotNil(t, data)
 
 		mHave := MetaData{}
 
-		assert.Nil(t, mHave.UnmarshalBinary(data))
+		require.Nil(t, mHave.UnmarshalBinary(data))
 
 		require.True(t, m.Equal(mHave))
 	})

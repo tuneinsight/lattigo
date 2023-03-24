@@ -149,21 +149,21 @@ func NewEvaluators(params Parameters, evk rlwe.EvaluationKeySetInterface, n int)
 
 // Add adds ctIn to op1 and returns the result in ctOut.
 func (eval *evaluator) Add(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext) {
-	_, level := eval.CheckBinary(ctIn, op1, ctOut, utils.MaxInt(ctIn.Degree(), op1.Degree()))
+	_, level := eval.CheckBinary(ctIn, op1, ctOut, utils.Max(ctIn.Degree(), op1.Degree()))
 	ctOut.Resize(ctOut.Degree(), level)
 	eval.evaluateInPlaceBinary(ctIn, op1.El(), ctOut, eval.params.RingQ().AtLevel(level).Add)
 }
 
 // AddNew adds ctIn to op1 and creates a new element ctOut to store the result.
 func (eval *evaluator) AddNew(ctIn *rlwe.Ciphertext, op1 rlwe.Operand) (ctOut *rlwe.Ciphertext) {
-	ctOut = NewCiphertext(eval.params, utils.MaxInt(ctIn.Degree(), op1.Degree()), ctIn.Level())
+	ctOut = NewCiphertext(eval.params, utils.Max(ctIn.Degree(), op1.Degree()), ctIn.Level())
 	eval.Add(ctIn, op1, ctOut)
 	return
 }
 
 // Sub subtracts op1 from ctIn and returns the result in cOut.
 func (eval *evaluator) Sub(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext) {
-	_, level := eval.CheckBinary(ctIn, op1, ctOut, utils.MaxInt(ctIn.Degree(), op1.Degree()))
+	_, level := eval.CheckBinary(ctIn, op1, ctOut, utils.Max(ctIn.Degree(), op1.Degree()))
 	ctOut.Resize(ctOut.Degree(), level)
 	eval.evaluateInPlaceBinary(ctIn, op1.El(), ctOut, eval.params.RingQ().AtLevel(level).Sub)
 
@@ -176,7 +176,7 @@ func (eval *evaluator) Sub(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.
 
 // SubNew subtracts op1 from ctIn and creates a new element ctOut to store the result.
 func (eval *evaluator) SubNew(ctIn *rlwe.Ciphertext, op1 rlwe.Operand) (ctOut *rlwe.Ciphertext) {
-	ctOut = NewCiphertext(eval.params, utils.MaxInt(ctIn.Degree(), op1.Degree()), ctIn.Level())
+	ctOut = NewCiphertext(eval.params, utils.Max(ctIn.Degree(), op1.Degree()), ctIn.Level())
 	eval.Sub(ctIn, op1, ctOut)
 	return
 }
@@ -255,7 +255,7 @@ func (eval *evaluator) RescaleTo(level int, ctIn, ctOut *rlwe.Ciphertext) {
 // tensorAndRescale computes (ct0 x ct1) * (t/Q) and stores the result in ctOut.
 func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *rlwe.Ciphertext) {
 
-	level := utils.MinInt(utils.MinInt(ct0.Level(), ct1.Level()), ctOut.Level())
+	level := utils.Min(utils.Min(ct0.Level(), ct1.Level()), ctOut.Level())
 
 	levelQMul := eval.levelQMul[level]
 
@@ -422,7 +422,7 @@ func (eval *evaluator) Mul(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.
 // MulThenAdd multiplies ctIn with op1 and adds the result on ctOut.
 func (eval *evaluator) MulThenAdd(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext) {
 
-	level := utils.MinInt(ctIn.Level(), ctOut.Level())
+	level := utils.Min(ctIn.Level(), ctOut.Level())
 
 	ct2 := &rlwe.Ciphertext{Value: make([]*ring.Poly, ctIn.Degree()+op1.Degree()+1)}
 	for i := range ct2.Value {
@@ -436,7 +436,7 @@ func (eval *evaluator) MulThenAdd(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut
 
 func (eval *evaluator) mulPlaintextMul(ctIn *rlwe.Ciphertext, ptRt *PlaintextMul, ctOut *rlwe.Ciphertext) {
 
-	ringQ := eval.params.RingQ().AtLevel(utils.MinInt(ctIn.Level(), ctOut.Level()))
+	ringQ := eval.params.RingQ().AtLevel(utils.Min(ctIn.Level(), ctOut.Level()))
 
 	for i := range ctIn.Value {
 		ringQ.NTTLazy(ctIn.Value[i], ctOut.Value[i])
@@ -447,7 +447,7 @@ func (eval *evaluator) mulPlaintextMul(ctIn *rlwe.Ciphertext, ptRt *PlaintextMul
 
 func (eval *evaluator) mulPlaintextRingT(ctIn *rlwe.Ciphertext, ptRt *PlaintextRingT, ctOut *rlwe.Ciphertext) {
 
-	level := utils.MinInt(ctIn.Level(), ctOut.Level())
+	level := utils.Min(ctIn.Level(), ctOut.Level())
 
 	ctOut.Resize(ctOut.Degree(), level)
 

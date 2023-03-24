@@ -122,7 +122,7 @@ func (s *SubRing) generateNTTConstants() (err error) {
 		}
 	}
 
-	logNthRoot := uint64(bits.Len64(NthRoot>>1) - 1)
+	logNthRoot := int(bits.Len64(NthRoot>>1) - 1)
 
 	// 1.1 Computes N^(-1) mod Q in Montgomery form
 	s.NInv = MForm(ModExp(NthRoot>>1, Modulus-2, Modulus), Modulus, s.BRedConstant)
@@ -142,8 +142,8 @@ func (s *SubRing) generateNTTConstants() (err error) {
 	// Computes nttPsi[j] = nttPsi[j-1]*Psi and RootsBackward[j] = RootsBackward[j-1]*PsiInv
 	for j := uint64(1); j < NthRoot>>1; j++ {
 
-		indexReversePrev := utils.BitReverse64(uint64(j-1), logNthRoot)
-		indexReverseNext := utils.BitReverse64(uint64(j), logNthRoot)
+		indexReversePrev := utils.BitReverse64(j-1, logNthRoot)
+		indexReverseNext := utils.BitReverse64(j, logNthRoot)
 
 		s.RootsForward[indexReverseNext] = MRed(s.RootsForward[indexReversePrev], PsiMont, Modulus, s.MRedConstant)
 		s.RootsBackward[indexReverseNext] = MRed(s.RootsBackward[indexReversePrev], PsiInvMont, Modulus, s.MRedConstant)

@@ -2,6 +2,7 @@ package rlwe
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"math"
 	"math/big"
@@ -141,6 +142,18 @@ func (s Scale) MarshalBinary() (data []byte, err error) {
 	return
 }
 
+// MarshalJSON encodes the object into a binary form on a newly allocated slice of bytes.
+func (s Scale) MarshalJSON() (data []byte, err error) {
+	aux := &struct {
+		Value *big.Float
+		Mod   *big.Int
+	}{
+		Value: &s.Value,
+		Mod:   s.Mod,
+	}
+	return json.Marshal(aux)
+}
+
 // Read encodes the object into a binary form on a preallocated slice of bytes
 // and returns the number of bytes written.
 func (s Scale) Read(data []byte) (ptr int, err error) {
@@ -170,6 +183,26 @@ func (s Scale) Read(data []byte) (ptr int, err error) {
 // or Read on the object.
 func (s Scale) UnmarshalBinary(data []byte) (err error) {
 	_, err = s.Write(data)
+	return
+}
+
+func (s *Scale) UnmarshalJSON(data []byte) (err error) {
+
+	aux := &struct {
+		Value *big.Float
+		Mod   *big.Int
+	}{
+		Value: new(big.Float).SetPrec(ScalePrecision),
+		Mod:   s.Mod,
+	}
+
+	if err = json.Unmarshal(data, aux); err != nil {
+		return
+	}
+
+	s.Value = *aux.Value
+	s.Mod = aux.Mod
+
 	return
 }
 

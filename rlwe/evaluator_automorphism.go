@@ -30,7 +30,7 @@ func (eval *Evaluator) Automorphism(ctIn *Ciphertext, galEl uint64, ctOut *Ciphe
 		panic(fmt.Errorf("cannot apply Automorphism: %w", err))
 	}
 
-	level := utils.MinInt(ctIn.Level(), ctOut.Level())
+	level := utils.Min(ctIn.Level(), ctOut.Level())
 
 	ctOut.Resize(ctOut.Degree(), level)
 
@@ -178,7 +178,7 @@ func (eval *Evaluator) Trace(ctIn *Ciphertext, logN int, ctOut *Ciphertext) {
 		panic("ctIn.Degree() != 1 or ctOut.Degree() != 1")
 	}
 
-	levelQ := utils.MinInt(ctIn.Level(), ctOut.Level())
+	levelQ := utils.Min(ctIn.Level(), ctOut.Level())
 
 	ctOut.Resize(ctOut.Degree(), levelQ)
 

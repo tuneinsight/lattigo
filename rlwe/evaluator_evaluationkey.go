@@ -40,7 +40,7 @@ func (eval *Evaluator) ApplyEvaluationKey(ctIn *Ciphertext, evk *EvaluationKey, 
 		panic("ApplyEvaluationKey: input and output Ciphertext must be of degree 1")
 	}
 
-	level := utils.MinInt(ctIn.Level(), ctOut.Level())
+	level := utils.Min(ctIn.Level(), ctOut.Level())
 	ringQ := eval.params.RingQ().AtLevel(level)
 
 	NIn := ctIn.Value[0].N()
@@ -70,7 +70,7 @@ func (eval *Evaluator) ApplyEvaluationKey(ctIn *Ciphertext, evk *EvaluationKey, 
 			panic("ApplyEvaluationKey: ctIn ring degree does not match evaluator params ring degree")
 		}
 
-		level := utils.MinInt(ctIn.Level(), ctOut.Level())
+		level := utils.Min(ctIn.Level(), ctOut.Level())
 
 		ctTmp := NewCiphertextAtLevelFromPoly(level, eval.BuffCt.Value)
 		ctTmp.MetaData = ctIn.MetaData
@@ -124,7 +124,7 @@ func (eval *Evaluator) Relinearize(ctIn *Ciphertext, ctOut *Ciphertext) {
 		panic(fmt.Errorf("cannot relinearize: %w", err))
 	}
 
-	level := utils.MinInt(ctIn.Level(), ctOut.Level())
+	level := utils.Min(ctIn.Level(), ctOut.Level())
 
 	ringQ := eval.params.RingQ().AtLevel(level)
 

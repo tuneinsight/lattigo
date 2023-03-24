@@ -13,7 +13,7 @@ import (
 // Expects the flag IsNTT of ct to correctly reflect the domain of cx.
 func (eval *Evaluator) GadgetProduct(levelQ int, cx *ring.Poly, gadgetCt GadgetCiphertext, ct *Ciphertext) {
 
-	levelQ = utils.MinInt(levelQ, gadgetCt.LevelQ())
+	levelQ = utils.Min(levelQ, gadgetCt.LevelQ())
 	levelP := gadgetCt.LevelP()
 
 	ctTmp := CiphertextQP{}

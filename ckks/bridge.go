@@ -56,7 +56,7 @@ func (switcher *DomainSwitcher) ComplexToReal(eval Evaluator, ctIn, ctOut *rlwe.
 		panic("cannot ComplexToReal: provided evaluator is not instantiated with RingType ring.Standard")
 	}
 
-	level := utils.MinInt(ctIn.Level(), ctOut.Level())
+	level := utils.Min(ctIn.Level(), ctOut.Level())
 
 	if len(ctIn.Value[0].Coeffs[0]) != 2*len(ctOut.Value[0].Coeffs[0]) {
 		panic("cannot ComplexToReal: ctIn ring degree must be twice ctOut ring degree")
@@ -95,7 +95,7 @@ func (switcher *DomainSwitcher) RealToComplex(eval Evaluator, ctIn, ctOut *rlwe.
 		panic("cannot RealToComplex: provided evaluator is not instantiated with RingType ring.Standard")
 	}
 
-	level := utils.MinInt(ctIn.Level(), ctOut.Level())
+	level := utils.Min(ctIn.Level(), ctOut.Level())
 
 	if 2*len(ctIn.Value[0].Coeffs[0]) != len(ctOut.Value[0].Coeffs[0]) {
 		panic("cannot RealToComplex: ctOut ring degree must be twice ctIn ring degree")

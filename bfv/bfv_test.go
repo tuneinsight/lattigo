@@ -221,7 +221,7 @@ func verifyTestVectors(tc *testContext, decryptor rlwe.Decryptor, coeffs *ring.P
 		t.Error("invalid test object to verify")
 	}
 
-	require.True(t, utils.EqualSliceUint64(coeffs.Coeffs[0], coeffsTest))
+	require.True(t, utils.EqualSlice(coeffs.Coeffs[0], coeffsTest))
 }
 
 func testScaler(tc *testContext, t *testing.T) {
@@ -297,7 +297,7 @@ func testEncoder(tc *testContext, t *testing.T) {
 		tc.encoder.EncodeRingT(coeffsInt, plaintext)
 		coeffsTest := tc.encoder.DecodeIntNew(plaintext)
 
-		require.True(t, utils.EqualSliceInt64(coeffsInt, coeffsTest))
+		require.True(t, utils.EqualSlice(coeffsInt, coeffsTest))
 	})
 
 	for _, lvl := range tc.testLevel {
@@ -325,7 +325,7 @@ func testEncoder(tc *testContext, t *testing.T) {
 
 			plaintext := NewPlaintext(tc.params, lvl)
 			tc.encoder.Encode(coeffsInt, plaintext)
-			require.True(t, utils.EqualSliceInt64(coeffsInt, tc.encoder.DecodeIntNew(plaintext)))
+			require.True(t, utils.EqualSlice(coeffsInt, tc.encoder.DecodeIntNew(plaintext)))
 		})
 	}
 
@@ -348,8 +348,8 @@ func testEncoder(tc *testContext, t *testing.T) {
 
 		galEl := params.GaloisElementForColumnRotationBy(k)
 
-		utils.RotateUint64SliceAllocFree(values.Coeffs[0][:N>>1], k, values.Coeffs[0][:N>>1])
-		utils.RotateUint64SliceAllocFree(values.Coeffs[0][N>>1:], k, values.Coeffs[0][N>>1:])
+		utils.RotateSliceAllocFree(values.Coeffs[0][:N>>1], k, values.Coeffs[0][:N>>1])
+		utils.RotateSliceAllocFree(values.Coeffs[0][N>>1:], k, values.Coeffs[0][N>>1:])
 
 		tmp := params.RingT().NewPoly()
 
@@ -728,7 +728,6 @@ func testMarshaller(tc *testContext, t *testing.T) {
 		err = p.UnmarshalBinary(bytes)
 		assert.Nil(t, err)
 		assert.Equal(t, tc.params, p)
-		assert.Equal(t, tc.params.BinarySize(), len(bytes))
 	})
 
 	t.Run(testString("Marshaller/Parameters/JSON", tc.params, tc.params.MaxLevel()), func(t *testing.T) {

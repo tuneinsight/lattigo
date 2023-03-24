@@ -42,14 +42,14 @@ func (evk *EvaluationKey) CopyNew() *EvaluationKey {
 	return &EvaluationKey{GadgetCiphertext: *evk.GadgetCiphertext.CopyNew()}
 }
 
-// MarshalBinarySize returns the size in bytes that the object once marshalled into a binary form.
-func (evk *EvaluationKey) MarshalBinarySize() (dataLen int) {
-	return evk.GadgetCiphertext.MarshalBinarySize()
+// BinarySize returns the size in bytes that the object once marshalled into a binary form.
+func (evk *EvaluationKey) BinarySize() (dataLen int) {
+	return evk.GadgetCiphertext.BinarySize()
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
 func (evk *EvaluationKey) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, evk.MarshalBinarySize())
+	data = make([]byte, evk.BinarySize())
 	_, err = evk.Read(data)
 	return
 }

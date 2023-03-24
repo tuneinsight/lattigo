@@ -115,20 +115,20 @@ func (pol *Poly) Equals(other *Poly) bool {
 	return false
 }
 
-// MarshalBinarySize returns the size in bytes that the object once marshalled into a binary form.
-func MarshalBinarySize(N, Level int) (size int) {
+// BinarySize returns the size in bytes that the object once marshalled into a binary form.
+func BinarySize(N, Level int) (size int) {
 	return 16 + N*(Level+1)<<3
 }
 
-// MarshalBinarySize returns the size in bytes that the object once marshalled into a binary form.
+// BinarySize returns the size in bytes that the object once marshalled into a binary form.
 // Assumes that each coefficient takes 8 bytes.
-func (pol *Poly) MarshalBinarySize() (size int) {
-	return MarshalBinarySize(pol.N(), pol.Level())
+func (pol *Poly) BinarySize() (size int) {
+	return BinarySize(pol.N(), pol.Level())
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
 func (pol *Poly) MarshalBinary() (p []byte, err error) {
-	p = make([]byte, pol.MarshalBinarySize())
+	p = make([]byte, pol.BinarySize())
 	_, err = pol.Read(p)
 	return
 }
@@ -140,7 +140,7 @@ func (pol *Poly) UnmarshalBinary(p []byte) (err error) {
 	N := int(binary.LittleEndian.Uint64(p))
 	Level := int(binary.LittleEndian.Uint64(p[8:]))
 
-	if size := MarshalBinarySize(N, Level); len(p) != size {
+	if size := BinarySize(N, Level); len(p) != size {
 		return fmt.Errorf("cannot UnmarshalBinary: len(p)=%d != %d", len(p), size)
 	}
 
@@ -258,8 +258,8 @@ func (pol *Poly) Read(p []byte) (n int, err error) {
 	N := pol.N()
 	Level := pol.Level()
 
-	if len(p) < pol.MarshalBinarySize() {
-		return n, fmt.Errorf("cannot Read: len(p)=%d < %d", len(p), pol.MarshalBinarySize())
+	if len(p) < pol.BinarySize() {
+		return n, fmt.Errorf("cannot Read: len(p)=%d < %d", len(p), pol.BinarySize())
 	}
 
 	binary.LittleEndian.PutUint64(p[n:], uint64(N))
@@ -289,7 +289,7 @@ func (pol *Poly) Write(p []byte) (n int, err error) {
 	Level := int(binary.LittleEndian.Uint64(p[n:]))
 	n += 8
 
-	if size := MarshalBinarySize(N, Level); len(p) < size {
+	if size := BinarySize(N, Level); len(p) < size {
 		return n, fmt.Errorf("cannot Read: len(p)=%d < ", size)
 	}
 

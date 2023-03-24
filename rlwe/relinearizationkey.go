@@ -27,9 +27,9 @@ func (rlk *RelinearizationKey) CopyNew() *RelinearizationKey {
 	return &RelinearizationKey{EvaluationKey: *rlk.EvaluationKey.CopyNew()}
 }
 
-// MarshalBinarySize returns the length in bytes that the object requires to be marshaled.
-func (rlk *RelinearizationKey) MarshalBinarySize() (dataLen int) {
-	return rlk.EvaluationKey.MarshalBinarySize()
+// BinarySize returns the length in bytes that the object requires to be marshaled.
+func (rlk *RelinearizationKey) BinarySize() (dataLen int) {
+	return rlk.EvaluationKey.BinarySize()
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.

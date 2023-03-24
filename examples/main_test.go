@@ -32,7 +32,7 @@ func Benchmark(b *testing.B) {
 	pol := sampler.ReadNew()
 
 	b.Run("Read([]byte)", func(b *testing.B) {
-		data := make([]byte, pol.MarshalBinarySize())
+		data := make([]byte, pol.BinarySize())
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			if _, err = pol.Read(data); err != nil {
@@ -42,7 +42,7 @@ func Benchmark(b *testing.B) {
 	})
 
 	b.Run("WriteTo(buffer.Writer)", func(b *testing.B) {
-		writer := NewWriter(pol.MarshalBinarySize())
+		writer := NewWriter(pol.BinarySize())
 
 		w := bufio.NewWriter(writer)
 
@@ -58,7 +58,7 @@ func Benchmark(b *testing.B) {
 
 	b.Run("Write([]byte)", func(b *testing.B) {
 
-		data := make([]byte, pol.MarshalBinarySize())
+		data := make([]byte, pol.BinarySize())
 
 		if _, err = pol.Read(data); err != nil {
 			b.Fatal(err)
@@ -74,7 +74,7 @@ func Benchmark(b *testing.B) {
 
 	b.Run("ReadFrom(utils.Reader)", func(b *testing.B) {
 
-		writer := NewWriter(pol.MarshalBinarySize())
+		writer := NewWriter(pol.BinarySize())
 
 		w := bufio.NewWriter(writer)
 

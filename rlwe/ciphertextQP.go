@@ -51,14 +51,14 @@ func (ct *CiphertextQP) CopyNew() *CiphertextQP {
 	return &CiphertextQP{Value: [2]ringqp.Poly{ct.Value[0].CopyNew(), ct.Value[1].CopyNew()}, MetaData: ct.MetaData}
 }
 
-// MarshalBinarySize returns the size in bytes that the object once marshalled into a binary form.
-func (ct *CiphertextQP) MarshalBinarySize() int {
-	return ct.MetaData.MarshalBinarySize() + ct.Value[0].MarshalBinarySize() + ct.Value[1].MarshalBinarySize()
+// BinarySize returns the size in bytes that the object once marshalled into a binary form.
+func (ct *CiphertextQP) BinarySize() int {
+	return ct.MetaData.BinarySize() + ct.Value[0].BinarySize() + ct.Value[1].BinarySize()
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
 func (ct *CiphertextQP) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, ct.MarshalBinarySize())
+	data = make([]byte, ct.BinarySize())
 	_, err = ct.Read(data)
 	return
 }
@@ -125,7 +125,7 @@ func (ct *CiphertextQP) ReadFrom(r io.Reader) (n int64, err error) {
 // and returns the number of bytes written.
 func (ct *CiphertextQP) Read(data []byte) (ptr int, err error) {
 
-	if len(data) < ct.MarshalBinarySize() {
+	if len(data) < ct.BinarySize() {
 		return 0, fmt.Errorf("cannote write: len(data) is too small")
 	}
 

@@ -728,7 +728,7 @@ func testMarshaller(tc *testContext, t *testing.T) {
 		err = p.UnmarshalBinary(bytes)
 		assert.Nil(t, err)
 		assert.Equal(t, tc.params, p)
-		assert.Equal(t, tc.params.MarshalBinarySize(), len(bytes))
+		assert.Equal(t, tc.params.BinarySize(), len(bytes))
 	})
 
 	t.Run(testString("Marshaller/Parameters/JSON", tc.params, tc.params.MaxLevel()), func(t *testing.T) {

@@ -45,14 +45,14 @@ func (gk *GaloisKey) CopyNew() *GaloisKey {
 	}
 }
 
-// MarshalBinarySize returns the size in bytes that the object once marshalled into a binary form.
-func (gk *GaloisKey) MarshalBinarySize() (dataLen int) {
-	return gk.EvaluationKey.MarshalBinarySize() + 16
+// BinarySize returns the size in bytes that the object once marshalled into a binary form.
+func (gk *GaloisKey) BinarySize() (dataLen int) {
+	return gk.EvaluationKey.BinarySize() + 16
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
 func (gk *GaloisKey) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, gk.MarshalBinarySize())
+	data = make([]byte, gk.BinarySize())
 	_, err = gk.Read(data)
 	return
 }

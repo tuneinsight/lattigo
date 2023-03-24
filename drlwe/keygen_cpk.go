@@ -33,14 +33,14 @@ type CKGShare struct {
 // CKGCRP is a type for common reference polynomials in the CKG protocol.
 type CKGCRP ringqp.Poly
 
-// MarshalBinarySize returns the size in bytes that the object once marshalled into a binary form.
-func (share *CKGShare) MarshalBinarySize() int {
-	return share.Value.MarshalBinarySize()
+// BinarySize returns the size in bytes that the object once marshalled into a binary form.
+func (share *CKGShare) BinarySize() int {
+	return share.Value.BinarySize()
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
 func (share *CKGShare) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, share.MarshalBinarySize())
+	data = make([]byte, share.BinarySize())
 	_, err = share.MarshalBinaryInPlace(data)
 	return
 }

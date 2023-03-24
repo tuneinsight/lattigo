@@ -317,14 +317,14 @@ type RKGShare struct {
 	Value [][][2]ringqp.Poly
 }
 
-// MarshalBinarySize returns the size in bytes that the object once marshalled into a binary form.
-func (share *RKGShare) MarshalBinarySize() int {
-	return 2 + 2*share.Value[0][0][0].MarshalBinarySize()*len(share.Value)*len(share.Value[0])
+// BinarySize returns the size in bytes that the object once marshalled into a binary form.
+func (share *RKGShare) BinarySize() int {
+	return 2 + 2*share.Value[0][0][0].BinarySize()*len(share.Value)*len(share.Value[0])
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
 func (share *RKGShare) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, share.MarshalBinarySize())
+	data = make([]byte, share.BinarySize())
 	_, err = share.MarshalBinaryInPlace(data)
 	return
 }

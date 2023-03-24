@@ -352,7 +352,7 @@ func (p *PolynomialBasis) genPower(n int, lazy bool, scale rlwe.Scale, eval Eval
 func (p *PolynomialBasis) MarshalBinary() (data []byte, err error) {
 	data = make([]byte, 16)
 	binary.LittleEndian.PutUint64(data[0:8], uint64(len(p.Value)))
-	binary.LittleEndian.PutUint64(data[8:16], uint64(p.Value[1].MarshalBinarySize()))
+	binary.LittleEndian.PutUint64(data[8:16], uint64(p.Value[1].BinarySize()))
 	for key, ct := range p.Value {
 		keyBytes := make([]byte, 8)
 		binary.LittleEndian.PutUint64(keyBytes, uint64(key))

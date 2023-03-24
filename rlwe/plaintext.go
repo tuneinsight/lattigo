@@ -68,14 +68,14 @@ func (pt *Plaintext) Copy(other *Plaintext) {
 	}
 }
 
-// MarshalBinarySize returns the size in bytes that the object once marshalled into a binary form.
-func (pt *Plaintext) MarshalBinarySize() (dataLen int) {
-	return pt.MetaData.MarshalBinarySize() + pt.Value.MarshalBinarySize()
+// BinarySize returns the size in bytes that the object once marshalled into a binary form.
+func (pt *Plaintext) BinarySize() (dataLen int) {
+	return pt.MetaData.BinarySize() + pt.Value.BinarySize()
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
 func (pt *Plaintext) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, pt.MarshalBinarySize())
+	data = make([]byte, pt.BinarySize())
 	_, err = pt.Read(data)
 	return
 }
@@ -145,7 +145,7 @@ func (pt *Plaintext) ReadFrom(r io.Reader) (n int64, err error) {
 // and returns the number of bytes written.
 func (pt *Plaintext) Read(data []byte) (ptr int, err error) {
 
-	if len(data) < pt.MarshalBinarySize() {
+	if len(data) < pt.BinarySize() {
 		return 0, fmt.Errorf("cannot write: len(data) is too small")
 	}
 

@@ -265,9 +265,9 @@ func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 	return nil
 }
 
-// MarshalBinarySize returns the length of the []byte encoding of the receiver.
-func (p Parameters) MarshalBinarySize() int {
-	return p.Parameters.MarshalBinarySize() + 8
+// BinarySize returns the length of the []byte encoding of the receiver.
+func (p Parameters) BinarySize() int {
+	return p.Parameters.BinarySize() + 8
 }
 
 // MarshalJSON returns a JSON representation of this parameter set. See `Marshal` from the `encoding/json` package.

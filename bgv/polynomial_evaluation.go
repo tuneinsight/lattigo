@@ -271,7 +271,7 @@ func (p *PowerBasis) MarshalBinary() (data []byte, err error) {
 
 		header := make([]byte, 16)
 		binary.LittleEndian.PutUint64(header[0:], uint64(key))
-		binary.LittleEndian.PutUint64(header[8:], uint64(ct.MarshalBinarySize()))
+		binary.LittleEndian.PutUint64(header[8:], uint64(ct.BinarySize()))
 
 		data = append(data, header...)
 		ctBytes, err := ct.MarshalBinary()

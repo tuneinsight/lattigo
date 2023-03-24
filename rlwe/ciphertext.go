@@ -212,24 +212,24 @@ func PopulateElementRandom(prng sampling.PRNG, params Parameters, ct *Ciphertext
 	}
 }
 
-// MarshalBinarySize returns the size in bytes that the object once marshaled into a binary form.
-func (ct *Ciphertext) MarshalBinarySize() (dataLen int) {
+// BinarySize returns the size in bytes that the object once marshaled into a binary form.
+func (ct *Ciphertext) BinarySize() (dataLen int) {
 
 	// 8 byte : Degree
 	dataLen = 8
 
 	for _, ct := range ct.Value {
-		dataLen += ct.MarshalBinarySize()
+		dataLen += ct.BinarySize()
 	}
 
-	dataLen += ct.MetaData.MarshalBinarySize()
+	dataLen += ct.MetaData.BinarySize()
 
 	return dataLen
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
 func (ct *Ciphertext) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, ct.MarshalBinarySize())
+	data = make([]byte, ct.BinarySize())
 	_, err = ct.Read(data)
 	return
 }
@@ -329,7 +329,7 @@ func (ct *Ciphertext) ReadFrom(r io.Reader) (n int64, err error) {
 // and returns the number of bytes written.
 func (ct *Ciphertext) Read(p []byte) (n int, err error) {
 
-	if len(p) < ct.MarshalBinarySize() {
+	if len(p) < ct.BinarySize() {
 		return 0, fmt.Errorf("cannot write: len(p) is too small")
 	}
 

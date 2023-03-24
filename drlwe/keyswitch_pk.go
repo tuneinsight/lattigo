@@ -132,14 +132,14 @@ type PCKSShare struct {
 	Value [2]*ring.Poly
 }
 
-// MarshalBinarySize returns the size in bytes that the object once marshalled into a binary form.
-func (share *PCKSShare) MarshalBinarySize() int {
-	return share.Value[0].MarshalBinarySize() + share.Value[1].MarshalBinarySize()
+// BinarySize returns the size in bytes that the object once marshalled into a binary form.
+func (share *PCKSShare) BinarySize() int {
+	return share.Value[0].BinarySize() + share.Value[1].BinarySize()
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
 func (share *PCKSShare) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, share.MarshalBinarySize())
+	data = make([]byte, share.BinarySize())
 	_, err = share.MarshalBinaryInPlace(data)
 	return
 }

@@ -348,14 +348,14 @@ func testWriterAndReader(tc *testParams, t *testing.T) {
 
 		p := tc.uniformSamplerQ.ReadNew()
 
-		data := make([]byte, 0, p.MarshalBinarySize())
+		data := make([]byte, 0, p.BinarySize())
 
 		buf := bytes.NewBuffer(data) // Complient to io.Writer and io.Reader
 
 		if n, err := p.WriteTo(buf); err != nil {
 			t.Fatal(err)
 		} else {
-			if int(n) != p.MarshalBinarySize() {
+			if int(n) != p.BinarySize() {
 				t.Fatal()
 			}
 		}
@@ -372,7 +372,7 @@ func testWriterAndReader(tc *testParams, t *testing.T) {
 		if n, err := pTest.ReadFrom(buf); err != nil {
 			t.Fatal(err)
 		} else {
-			if int(n) != p.MarshalBinarySize() {
+			if int(n) != p.BinarySize() {
 				t.Fatal()
 			}
 		}

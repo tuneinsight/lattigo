@@ -87,7 +87,7 @@ func (p *party) Run(wg *sync.WaitGroup, params rlwe.Parameters, N int, P []*part
 			p.GenShare(sk, galEl, crp[galEl], rtgShare)
 			C.aggTaskQueue <- genTaskResult{galEl: galEl, rtgShare: rtgShare}
 			nShares++
-			byteSent += len(rtgShare.Value) * len(rtgShare.Value[0]) * rtgShare.Value[0][0].MarshalBinarySize()
+			byteSent += len(rtgShare.Value) * len(rtgShare.Value[0]) * rtgShare.Value[0][0].BinarySize()
 		}
 		nTasks++
 		cpuTime += time.Since(start)
@@ -132,7 +132,7 @@ func (c *cloud) Run(galEls []uint64, params rlwe.Parameters, t int) {
 		}
 		i++
 		cpuTime += time.Since(start)
-		byteRecv += len(acc.share.Value) * len(acc.share.Value[0]) * acc.share.Value[0][0].MarshalBinarySize()
+		byteRecv += len(acc.share.Value) * len(acc.share.Value[0]) * acc.share.Value[0][0].BinarySize()
 	}
 	close(c.finDone)
 	fmt.Printf("\tCloud finished aggregating %d shares in %s, received %s\n", i, cpuTime, formatByteSize(byteRecv))

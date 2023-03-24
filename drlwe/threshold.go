@@ -171,14 +171,14 @@ func (cmb *Combiner) lagrangeCoeff(thisKey ShamirPublicPoint, thatKey ShamirPubl
 	cmb.ringQP.MulRNSScalar(lagCoeff, that, lagCoeff)
 }
 
-// MarshalBinarySize returns the size in bytes that the object once marshalled into a binary form.
-func (s *ShamirSecretShare) MarshalBinarySize() int {
-	return s.Poly.MarshalBinarySize()
+// BinarySize returns the size in bytes that the object once marshalled into a binary form.
+func (s *ShamirSecretShare) BinarySize() int {
+	return s.Poly.BinarySize()
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
 func (s *ShamirSecretShare) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, s.MarshalBinarySize())
+	data = make([]byte, s.BinarySize())
 	_, err = s.MarshalBinaryInPlace(data)
 	return
 }

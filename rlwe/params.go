@@ -671,7 +671,7 @@ func (p Parameters) MarshalBinary() ([]byte, error) {
 	// 48 bytes: defaultScale
 	// 8 * (#Q) : Q
 	// 8 * (#P) : P
-	b := buffer.NewBuffer(make([]byte, 0, p.MarshalBinarySize()))
+	b := buffer.NewBuffer(make([]byte, 0, p.BinarySize()))
 	b.WriteUint8(uint8(p.logN))
 	b.WriteUint8(uint8(len(p.qi)))
 	b.WriteUint8(uint8(len(p.pi)))
@@ -685,7 +685,7 @@ func (p Parameters) MarshalBinary() ([]byte, error) {
 		b.WriteUint8(0)
 	}
 
-	data := make([]byte, p.defaultScale.MarshalBinarySize())
+	data := make([]byte, p.defaultScale.BinarySize())
 
 	if _, err := p.defaultScale.Read(data); err != nil {
 		return nil, err
@@ -720,7 +720,7 @@ func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 	}
 
 	var defaultScale Scale
-	dataScale := make([]uint8, defaultScale.MarshalBinarySize())
+	dataScale := make([]uint8, defaultScale.BinarySize())
 	b.ReadUint8Slice(dataScale)
 	if _, err = defaultScale.Write(dataScale); err != nil {
 		return
@@ -739,9 +739,9 @@ func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 	return err
 }
 
-// MarshalBinarySize returns the length of the []byte encoding of the receiver.
-func (p Parameters) MarshalBinarySize() int {
-	return 22 + p.DefaultScale().MarshalBinarySize() + (len(p.qi)+len(p.pi))<<3
+// BinarySize returns the length of the []byte encoding of the receiver.
+func (p Parameters) BinarySize() int {
+	return 22 + p.DefaultScale().BinarySize() + (len(p.qi)+len(p.pi))<<3
 }
 
 // MarshalJSON returns a JSON representation of this parameter set. See `Marshal` from the `encoding/json` package.

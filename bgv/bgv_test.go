@@ -859,7 +859,7 @@ func testMarshalling(tc *testContext, t *testing.T) {
 			assert.Nil(t, err)
 			assert.Equal(t, tc.params, p)
 			assert.Equal(t, tc.params.RingQ(), p.RingQ())
-			assert.Equal(t, tc.params.MarshalBinarySize(), len(bytes))
+			assert.Equal(t, tc.params.BinarySize(), len(bytes))
 		})
 
 		t.Run("Parameters/JSON", func(t *testing.T) {

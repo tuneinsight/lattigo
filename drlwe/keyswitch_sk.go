@@ -155,14 +155,14 @@ func (ckss *CKSShare) Level() int {
 	return ckss.Value.Level()
 }
 
-// MarshalBinarySize returns the size in bytes that the object once marshalled into a binary form.
-func (ckss *CKSShare) MarshalBinarySize() int {
-	return ckss.Value.MarshalBinarySize()
+// BinarySize returns the size in bytes that the object once marshalled into a binary form.
+func (ckss *CKSShare) BinarySize() int {
+	return ckss.Value.BinarySize()
 }
 
 // MarshalBinary encodes a CKS share on a slice of bytes.
 func (ckss *CKSShare) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, ckss.MarshalBinarySize())
+	data = make([]byte, ckss.BinarySize())
 	_, err = ckss.MarshalBinaryInPlace(data)
 	return
 }

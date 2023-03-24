@@ -506,17 +506,17 @@ func (r *Ring) ExtendBasisSmallNormAndCenter(polyInQ *ring.Poly, levelP int, pol
 	}
 }
 
-// MarshalBinarySize returns the size in bytes that the object once marshalled into a binary form.
+// BinarySize returns the size in bytes that the object once marshalled into a binary form.
 // Assumes that each coefficient takes 8 bytes.
-func (p *Poly) MarshalBinarySize() (dataLen int) {
+func (p *Poly) BinarySize() (dataLen int) {
 
 	dataLen = 2
 
 	if p.Q != nil {
-		dataLen += p.Q.MarshalBinarySize()
+		dataLen += p.Q.BinarySize()
 	}
 	if p.P != nil {
-		dataLen += p.P.MarshalBinarySize()
+		dataLen += p.P.BinarySize()
 	}
 
 	return
@@ -722,7 +722,7 @@ func (p *Poly) Write(data []byte) (n int, err error) {
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
 func (p *Poly) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, p.MarshalBinarySize())
+	data = make([]byte, p.BinarySize())
 	_, err = p.Read(data)
 	return
 }

@@ -910,7 +910,7 @@ func genPlaintext(params Parameters, level, max int) (pt *Plaintext) {
 }
 
 type WriteAndReadTestInterface interface {
-	MarshalBinarySize() int
+	BinarySize() int
 	io.WriterTo
 	io.ReaderFrom
 	encoding.BinaryMarshaler
@@ -919,19 +919,19 @@ type WriteAndReadTestInterface interface {
 
 // testInterfaceWriteAndRead tests that:
 // - input and output implement WriteAndReadTestInterface
-// - input.WriteTo(io.Writer) writes a number of bytes on the writer equal to input.MarshalBinarySize
-// - output.ReadFrom(io.Reader) reads a number of bytes on the reader equal to input.MarshalBinarySize
+// - input.WriteTo(io.Writer) writes a number of bytes on the writer equal to input.BinarySize
+// - output.ReadFrom(io.Reader) reads a number of bytes on the reader equal to input.BinarySize
 // - input.WriteTo written bytes are equal to the bytes produced by input.MarshalBinary
 // - all the above WriteTo, ReadFrom, MarhsalBinary and UnmarshalBinary do not return an error
 func testInterfaceWriteAndRead(input, output WriteAndReadTestInterface) (err error) {
-	data := make([]byte, 0, input.MarshalBinarySize())
+	data := make([]byte, 0, input.BinarySize())
 
 	buf := bytes.NewBuffer(data) // Compliant to io.Writer and io.Reader
 
 	if n, err := input.WriteTo(buf); err != nil {
 		return fmt.Errorf("%T: %w", input, err)
 	} else {
-		if int(n) != input.MarshalBinarySize() {
+		if int(n) != input.BinarySize() {
 			return fmt.Errorf("invalid size: %T.WriteTo number of bytes written != %T.BinarySize", input, input)
 		}
 	}
@@ -947,7 +947,7 @@ func testInterfaceWriteAndRead(input, output WriteAndReadTestInterface) (err err
 	if n, err := output.ReadFrom(buf); err != nil {
 		return fmt.Errorf("%T: %w", output, err)
 	} else {
-		if int(n) != input.MarshalBinarySize() {
+		if int(n) != input.BinarySize() {
 			return fmt.Errorf("invalid encoding: %T.ReadFrom number of bytes read != %T.BinarySize", input, input)
 		}
 	}

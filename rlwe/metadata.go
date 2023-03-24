@@ -20,14 +20,14 @@ func (m *MetaData) Equal(other MetaData) (res bool) {
 	return
 }
 
-// MarshalBinarySize returns the size in bytes that the object once marshalled into a binary form.
-func (m *MetaData) MarshalBinarySize() int {
-	return 2 + m.Scale.MarshalBinarySize()
+// BinarySize returns the size in bytes that the object once marshalled into a binary form.
+func (m *MetaData) BinarySize() int {
+	return 2 + m.Scale.BinarySize()
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
 func (m *MetaData) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, m.MarshalBinarySize())
+	data = make([]byte, m.BinarySize())
 	_, err = m.Read(data)
 	return
 }
@@ -53,7 +53,7 @@ func (m *MetaData) WriteTo(w io.Writer) (int64, error) {
 }
 
 func (m *MetaData) ReadFrom(r io.Reader) (int64, error) {
-	data := make([]byte, m.MarshalBinarySize())
+	data := make([]byte, m.BinarySize())
 	if n, err := r.Read(data); err != nil {
 		return int64(n), err
 	} else {
@@ -65,7 +65,7 @@ func (m *MetaData) ReadFrom(r io.Reader) (int64, error) {
 // and returns the number of bytes written.
 func (m *MetaData) Read(data []byte) (ptr int, err error) {
 
-	if len(data) < m.MarshalBinarySize() {
+	if len(data) < m.BinarySize() {
 		return 0, fmt.Errorf("cannot write: len(data) is too small")
 	}
 
@@ -92,7 +92,7 @@ func (m *MetaData) Read(data []byte) (ptr int, err error) {
 // Read on the object and returns the number of bytes read.
 func (m *MetaData) Write(data []byte) (ptr int, err error) {
 
-	if len(data) < m.MarshalBinarySize() {
+	if len(data) < m.BinarySize() {
 		return 0, fmt.Errorf("canoot read: len(data) is too small")
 	}
 

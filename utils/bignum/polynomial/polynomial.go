@@ -1,3 +1,4 @@
+// Package polynomial provides helper for polynomials, approximation of functions using polynomials and their evaluation.
 package polynomial
 
 // Basis is a type for the polynomials basis

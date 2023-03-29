@@ -9,29 +9,20 @@ import (
 
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
 )
 
 // Polynomial is a struct storing the coefficients of a polynomial
 // that then can be evaluated on the ciphertext
 type Polynomial struct {
-	BasisType              // Either `Monomial` or `Chebyshev`
-	MaxDeg    int          // Always set to len(Coeffs)-1
-	Coeffs    []complex128 // List of coefficients
-	Lead      bool         // Always set to true
-	A         float64      // Bound A of the interval [A, B]
-	B         float64      // Bound B of the interval [A, B]
-	Lazy      bool         // Flag for lazy-relinearization
+	polynomial.Basis              // Either `Monomial` or `Chebyshev`
+	MaxDeg           int          // Always set to len(Coeffs)-1
+	Coeffs           []complex128 // List of coefficients
+	Lead             bool         // Always set to true
+	A                float64      // Bound A of the interval [A, B]
+	B                float64      // Bound B of the interval [A, B]
+	Lazy             bool         // Flag for lazy-relinearization
 }
-
-// BasisType is a type for the polynomials basis
-type BasisType int
-
-const (
-	// Monomial : x^(a+b) = x^a * x^b
-	Monomial = BasisType(0)
-	// Chebyshev : T_(a+b) = 2 * T_a * T_b - T_(|a-b|)
-	Chebyshev = BasisType(1)
-)
 
 // IsNegligibleThreshold : threshold under which a coefficient
 // of a polynomial is ignored.
@@ -73,7 +64,7 @@ func checkEnoughLevels(levels, depth int, c complex128) (err error) {
 type polynomialEvaluator struct {
 	Evaluator
 	Encoder
-	PolynomialBasis
+	PowerBasis
 	slotsIndex map[int][]int
 	logDegree  int
 	logSplit   int
@@ -89,7 +80,7 @@ type polynomialEvaluator struct {
 // Coefficients of the polynomial with an absolute value smaller than "IsNegligibleThreshold" will automatically be set to zero
 // if the polynomial is "even" or "odd" (to ensure that the even or odd property remains valid
 // after the "splitCoeffs" polynomial decomposition).
-// input must be either *rlwe.Ciphertext or *PolynomialBasis.
+// input must be either *rlwe.Ciphertext or *PowerBasis.
 // pol: a *Polynomial
 // targetScale: the desired output scale. This value shouldn't differ too much from the original ciphertext scale. It can
 // for example be used to correct small deviations in the ciphertext scale and reset it to the default scale.
@@ -113,7 +104,7 @@ type polynomialVector struct {
 // Coefficients of the polynomial with an absolute value smaller than "IsNegligibleThreshold" will automatically be set to zero
 // if the polynomial is "even" or "odd" (to ensure that the even or odd property remains valid
 // after the "splitCoeffs" polynomial decomposition).
-// input: must be either *rlwe.Ciphertext or *PolynomialBasis.
+// input: must be either *rlwe.Ciphertext or *PowerBasis.
 // pols: a slice of up to 'n' *Polynomial ('n' being the maximum number of slots), indexed from 0 to n-1.
 // encoder: an Encoder.
 // slotsIndex: a map[int][]int indexing as key the polynomial to evaluate and as value the index of the slots on which to evaluate the polynomial indexed by the key.
@@ -124,14 +115,14 @@ type polynomialVector struct {
 // then pol0 will be applied to slots [1, 2, 4, 5, 7], pol1 to slots [0, 3] and the slot 6 will be zero-ed.
 func (eval *evaluator) EvaluatePolyVector(input interface{}, pols []*Polynomial, encoder Encoder, slotsIndex map[int][]int, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
 	var maxDeg int
-	var basis BasisType
+	var basis polynomial.Basis
 	for i := range pols {
 		maxDeg = utils.Max(maxDeg, pols[i].MaxDeg)
-		basis = pols[i].BasisType
+		basis = pols[i].Basis
 	}
 
 	for i := range pols {
-		if basis != pols[i].BasisType {
+		if basis != pols[i].Basis {
 			return nil, fmt.Errorf("polynomial basis must be the same for all polynomials in a polynomial vector")
 		}
 
@@ -160,17 +151,17 @@ func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVecto
 		return nil, fmt.Errorf("cannot EvaluatePolyVector: missing Encoder input")
 	}
 
-	var monomialBasis *PolynomialBasis
+	var monomialBasis *PowerBasis
 	switch input := input.(type) {
 	case *rlwe.Ciphertext:
-		monomialBasis = NewPolynomialBasis(input, pol.Value[0].BasisType)
-	case *PolynomialBasis:
+		monomialBasis = NewPowerBasis(input, pol.Value[0].Basis)
+	case *PowerBasis:
 		if input.Value[1] == nil {
-			return nil, fmt.Errorf("cannot evaluatePolyVector: given PolynomialBasis.Value[1] is empty")
+			return nil, fmt.Errorf("cannot evaluatePolyVector: given PowerBasis.Value[1] is empty")
 		}
 		monomialBasis = input
 	default:
-		return nil, fmt.Errorf("cannot evaluatePolyVector: invalid input, must be either *rlwe.Ciphertext or *PolynomialBasis")
+		return nil, fmt.Errorf("cannot evaluatePolyVector: invalid input, must be either *rlwe.Ciphertext or *PowerBasis")
 	}
 
 	if err := checkEnoughLevels(monomialBasis.Value[1].Level(), pol.Value[0].Depth(), 1); err != nil {
@@ -205,7 +196,7 @@ func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVecto
 	polyEval.slotsIndex = pol.SlotsIndex
 	polyEval.Evaluator = eval
 	polyEval.Encoder = pol.Encoder
-	polyEval.PolynomialBasis = *monomialBasis
+	polyEval.PowerBasis = *monomialBasis
 	polyEval.logDegree = logDegree
 	polyEval.logSplit = logSplit
 	polyEval.isOdd = odd
@@ -249,11 +240,11 @@ func splitCoeffs(coeffs *Polynomial, split int) (coeffsq, coeffsr *Polynomial) {
 
 	coeffsq.Coeffs[0] = coeffs.Coeffs[split]
 
-	if coeffs.BasisType == Monomial {
+	if coeffs.Basis == polynomial.Monomial {
 		for i := split + 1; i < coeffs.Degree()+1; i++ {
 			coeffsq.Coeffs[i-split] = coeffs.Coeffs[i]
 		}
-	} else if coeffs.BasisType == Chebyshev {
+	} else if coeffs.Basis == polynomial.Chebyshev {
 		for i, j := split+1, 1; i < coeffs.Degree()+1; i, j = i+1, j+1 {
 			coeffsq.Coeffs[i-split] = 2 * coeffs.Coeffs[i]
 			coeffsr.Coeffs[split-j] -= coeffs.Coeffs[i]
@@ -264,7 +255,7 @@ func splitCoeffs(coeffs *Polynomial, split int) (coeffsq, coeffsr *Polynomial) {
 		coeffsq.Lead = true
 	}
 
-	coeffsq.BasisType, coeffsr.BasisType = coeffs.BasisType, coeffs.BasisType
+	coeffsq.Basis, coeffsr.Basis = coeffs.Basis, coeffs.Basis
 
 	return
 }
@@ -299,7 +290,7 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale rlwe.S
 			polyEvalBis.slotsIndex = polyEval.slotsIndex
 			polyEvalBis.logDegree = logDegree
 			polyEvalBis.logSplit = logSplit
-			polyEvalBis.PolynomialBasis = polyEval.PolynomialBasis
+			polyEvalBis.PowerBasis = polyEval.PowerBasis
 			polyEvalBis.isOdd = polyEval.isOdd
 			polyEvalBis.isEven = polyEval.isEven
 
@@ -310,7 +301,7 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale rlwe.S
 			targetScale = targetScale.Mul(rlwe.NewScale(params.QiFloat64(targetLevel)))
 		}
 
-		return polyEval.evaluatePolyFromPolynomialBasis(targetScale, targetLevel, pol)
+		return polyEval.evaluatePolyFromPowerBasis(targetScale, targetLevel, pol)
 	}
 
 	var nextPower = 1 << polyEval.logSplit
@@ -320,7 +311,7 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale rlwe.S
 
 	coeffsq, coeffsr := splitCoeffsPolyVector(pol, nextPower)
 
-	XPow := polyEval.PolynomialBasis.Value[nextPower]
+	XPow := polyEval.PowerBasis.Value[nextPower]
 
 	level := targetLevel
 
@@ -360,9 +351,9 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale rlwe.S
 	return
 }
 
-func (polyEval *polynomialEvaluator) evaluatePolyFromPolynomialBasis(targetScale rlwe.Scale, level int, pol polynomialVector) (res *rlwe.Ciphertext, err error) {
+func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetScale rlwe.Scale, level int, pol polynomialVector) (res *rlwe.Ciphertext, err error) {
 
-	X := polyEval.PolynomialBasis.Value
+	X := polyEval.PowerBasis.Value
 
 	params := polyEval.Evaluator.(*evaluator).params
 	slotsIndex := polyEval.slotsIndex

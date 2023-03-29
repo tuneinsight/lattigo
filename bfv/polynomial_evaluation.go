@@ -1,7 +1,6 @@
 package bfv
 
 import (
-	"encoding/binary"
 	"fmt"
 	"math"
 	"math/bits"
@@ -132,83 +131,6 @@ func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVecto
 	polyEval = nil
 	runtime.GC()
 	return opOut, err
-}
-
-// PowerBasis is a struct storing powers of a ciphertext.
-type PowerBasis struct {
-	Value map[int]*rlwe.Ciphertext
-}
-
-// NewPowerBasis creates a new PowerBasis.
-func NewPowerBasis(ct *rlwe.Ciphertext) (p *PowerBasis) {
-	p = new(PowerBasis)
-	p.Value = make(map[int]*rlwe.Ciphertext)
-	p.Value[1] = ct.CopyNew()
-	return
-}
-
-// GenPower generates the n-th power of the power basis,
-// as well as all the necessary intermediate powers if
-// they are not yet present.
-func (p *PowerBasis) GenPower(n int, eval Evaluator) {
-
-	if p.Value[n] == nil {
-
-		// Computes the index required to compute the required ring evaluation
-		var a, b int
-		if n&(n-1) == 0 {
-			a, b = n/2, n/2 // Necessary for optimal depth
-		} else {
-			// Maximize the number of odd terms
-			k := int(math.Ceil(math.Log2(float64(n)))) - 1
-			a = (1 << k) - 1
-			b = n + 1 - (1 << k)
-		}
-
-		// Recurses on the given indexes
-		p.GenPower(a, eval)
-		p.GenPower(b, eval)
-
-		// Computes C[n] = C[a]*C[b]
-		p.Value[n] = eval.MulNew(p.Value[a], p.Value[b])
-		eval.Relinearize(p.Value[n], p.Value[n])
-	}
-}
-
-// MarshalBinary encodes the target on a slice of bytes.
-func (p *PowerBasis) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, 16)
-	binary.LittleEndian.PutUint64(data[0:8], uint64(len(p.Value)))
-	binary.LittleEndian.PutUint64(data[8:16], uint64(p.Value[1].BinarySize()))
-	for key, ct := range p.Value {
-		keyBytes := make([]byte, 8)
-		binary.LittleEndian.PutUint64(keyBytes, uint64(key))
-		data = append(data, keyBytes...)
-		ctBytes, err := ct.MarshalBinary()
-		if err != nil {
-			return []byte{}, err
-		}
-		data = append(data, ctBytes...)
-	}
-	return
-}
-
-// UnmarshalBinary decodes a slice of bytes on the target.
-func (p *PowerBasis) UnmarshalBinary(data []byte) (err error) {
-	p.Value = make(map[int]*rlwe.Ciphertext)
-	nbct := int(binary.LittleEndian.Uint64(data[0:8]))
-	dtLen := int(binary.LittleEndian.Uint64(data[8:16]))
-	ptr := 16
-	for i := 0; i < nbct; i++ {
-		idx := int(binary.LittleEndian.Uint64(data[ptr : ptr+8]))
-		ptr += 8
-		p.Value[idx] = &rlwe.Ciphertext{}
-		if err = p.Value[idx].UnmarshalBinary(data[ptr : ptr+dtLen]); err != nil {
-			return
-		}
-		ptr += dtLen
-	}
-	return
 }
 
 // splitCoeffs splits a polynomial p such that p = q*C^degree + r.

@@ -1146,41 +1146,4 @@ func testMarshaller(tc *testContext, t *testing.T) {
 		assert.Equal(t, 6.6, paramsWithCustomSecrets.Sigma())
 		assert.Equal(t, 192, paramsWithCustomSecrets.HammingWeight())
 	})
-
-	t.Run(GetTestName(tc.params, "Marshaller/PolynomialBasis"), func(t *testing.T) {
-
-		if tc.params.MaxLevel() < 4 {
-			t.Skip("skipping test for params max level < 7")
-		}
-
-		_, _, ct := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
-
-		basis := NewPolynomialBasis(ct, Chebyshev)
-
-		require.NoError(t, basis.GenPower(7, false, tc.params.DefaultScale(), tc.evaluator))
-
-		basisTest := new(PolynomialBasis)
-
-		require.NoError(t, rlwe.TestInterfaceWriteAndRead(basis, basisTest))
-
-		require.True(t, basis.BasisType == basisTest.BasisType)
-		require.True(t, len(basis.Value) == len(basisTest.Value))
-
-		for key, ct1 := range basis.Value {
-			if ct2, ok := basisTest.Value[key]; !ok {
-				t.Fatal()
-			} else {
-
-				require.True(t, ct1.Degree() == ct2.Degree())
-				require.True(t, ct1.Level() == ct2.Level())
-
-				ringQ := tc.params.RingQ().AtLevel(ct1.Level())
-
-				for i := range ct1.Value {
-
-					require.True(t, ringQ.Equal(ct1.Value[i], ct2.Value[i]))
-				}
-			}
-		}
-	})
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
 )
 
 // SineType is the type of function used during the bootstrapping
@@ -143,7 +144,7 @@ func NewEvalModPolyFromLiteral(params ckks.Parameters, evm EvalModLiteral) EvalM
 		sinePoly.A = -K
 		sinePoly.B = K
 		sinePoly.Lead = true
-		sinePoly.BasisType = ckks.Chebyshev
+		sinePoly.Basis = polynomial.Chebyshev
 
 	case CosContinuous:
 

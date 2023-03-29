@@ -2,6 +2,8 @@ package ckks
 
 import (
 	"math"
+
+	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
 )
 
 // Approximate computes a Chebyshev approximation of the input function, for the range [-a, b] of degree degree.
@@ -31,7 +33,7 @@ func Approximate(function interface{}, a, b float64, degree int) (pol *Polynomia
 	pol.B = b
 	pol.MaxDeg = degree
 	pol.Lead = true
-	pol.BasisType = Chebyshev
+	pol.Basis = polynomial.Chebyshev
 
 	return
 }

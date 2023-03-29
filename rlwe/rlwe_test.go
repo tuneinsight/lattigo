@@ -13,6 +13,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
@@ -1014,7 +1015,7 @@ func testWriteAndRead(tc *TestContext, t *testing.T) {
 		require.True(t, pk.Equals(pkTest))
 	})
 
-	t.Run(testString(params, params.MaxLevel(), "Marshaller/EvaluationKey"), func(t *testing.T) {
+	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/EvaluationKey"), func(t *testing.T) {
 
 		skOut := tc.kgen.GenSecretKeyNew()
 
@@ -1026,7 +1027,7 @@ func testWriteAndRead(tc *TestContext, t *testing.T) {
 		require.True(t, evalKey.Equals(resEvalKey))
 	})
 
-	t.Run(testString(params, params.MaxLevel(), "Marshaller/RelinearizationKey"), func(t *testing.T) {
+	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/RelinearizationKey"), func(t *testing.T) {
 		rlk := NewRelinearizationKey(params)
 
 		rlkNew := &RelinearizationKey{}
@@ -1036,7 +1037,7 @@ func testWriteAndRead(tc *TestContext, t *testing.T) {
 		require.True(t, rlk.Equals(rlkNew))
 	})
 
-	t.Run(testString(params, params.MaxLevel(), "Marshaller/GaloisKey"), func(t *testing.T) {
+	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/GaloisKey"), func(t *testing.T) {
 		gk := NewGaloisKey(params)
 
 		gkNew := &GaloisKey{}
@@ -1044,6 +1045,44 @@ func testWriteAndRead(tc *TestContext, t *testing.T) {
 		require.NoError(t, TestInterfaceWriteAndRead(gk, gkNew))
 
 		require.True(t, gk.Equals(gkNew))
+	})
+
+	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/PowerBasis"), func(t *testing.T) {
+
+		prng, _ := sampling.NewPRNG()
+
+		ct := NewCiphertextRandom(prng, params, 1, params.MaxLevel())
+
+		basis := NewPowerBasis(ct, polynomial.Chebyshev)
+
+		basis.Value[2] = NewCiphertextRandom(prng, params, 1, params.MaxLevel())
+		basis.Value[3] = NewCiphertextRandom(prng, params, 2, params.MaxLevel())
+		basis.Value[4] = NewCiphertextRandom(prng, params, 1, params.MaxLevel())
+		basis.Value[8] = NewCiphertextRandom(prng, params, 1, params.MaxLevel())
+
+		basisTest := new(PowerBasis)
+
+		require.NoError(t, TestInterfaceWriteAndRead(basis, basisTest))
+
+		require.True(t, basis.Basis == basisTest.Basis)
+		require.True(t, len(basis.Value) == len(basisTest.Value))
+
+		for key, ct1 := range basis.Value {
+			if ct2, ok := basisTest.Value[key]; !ok {
+				t.Fatal()
+			} else {
+
+				require.True(t, ct1.Degree() == ct2.Degree())
+				require.True(t, ct1.Level() == ct2.Level())
+
+				ringQ := tc.params.RingQ().AtLevel(ct1.Level())
+
+				for i := range ct1.Value {
+
+					require.True(t, ringQ.Equal(ct1.Value[i], ct2.Value[i]))
+				}
+			}
+		}
 	})
 }
 
@@ -1259,5 +1298,46 @@ func testMarshaller(tc *TestContext, t *testing.T) {
 		}
 
 		require.True(t, gk.Equals(gkNew))
+	})
+
+	t.Run(testString(params, params.MaxLevel(), "Marshaller/PowerBasis"), func(t *testing.T) {
+
+		prng, _ := sampling.NewPRNG()
+
+		ct := NewCiphertextRandom(prng, params, 1, params.MaxLevel())
+
+		basis := NewPowerBasis(ct, polynomial.Chebyshev)
+
+		basis.Value[2] = NewCiphertextRandom(prng, params, 1, params.MaxLevel())
+		basis.Value[3] = NewCiphertextRandom(prng, params, 2, params.MaxLevel())
+		basis.Value[4] = NewCiphertextRandom(prng, params, 1, params.MaxLevel())
+		basis.Value[8] = NewCiphertextRandom(prng, params, 1, params.MaxLevel())
+
+		data, err := basis.MarshalBinary()
+		require.Nil(t, err)
+
+		basisTest := new(PowerBasis)
+
+		require.Nil(t, basisTest.UnmarshalBinary(data))
+
+		require.True(t, basis.Basis == basisTest.Basis)
+		require.True(t, len(basis.Value) == len(basisTest.Value))
+
+		for key, ct1 := range basis.Value {
+			if ct2, ok := basisTest.Value[key]; !ok {
+				t.Fatal()
+			} else {
+
+				require.True(t, ct1.Degree() == ct2.Degree())
+				require.True(t, ct1.Level() == ct2.Level())
+
+				ringQ := tc.params.RingQ().AtLevel(ct1.Level())
+
+				for i := range ct1.Value {
+
+					require.True(t, ringQ.Equal(ct1.Value[i], ct2.Value[i]))
+				}
+			}
+		}
 	})
 }

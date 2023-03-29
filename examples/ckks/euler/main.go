@@ -8,6 +8,7 @@ import (
 
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
 )
 
 func example() {
@@ -172,7 +173,7 @@ func example() {
 
 	start = time.Now()
 
-	monomialBasis := ckks.NewPolynomialBasis(ciphertext, ckks.Monomial)
+	monomialBasis := ckks.NewPowerBasis(ciphertext, polynomial.Monomial)
 	monomialBasis.GenPower(int(r), false, params.DefaultScale(), evaluator)
 	ciphertext = monomialBasis.Value[int(r)]
 

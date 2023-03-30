@@ -69,7 +69,9 @@ func (g *GaussianSampler) ReadAndAddFromDist(pol *Poly, r *Ring, sigma float64, 
 	var coeffFlo float64
 	var coeffInt, sign uint64
 
-	g.prng.Read(g.randomBufferN)
+	if _, err := g.prng.Read(g.randomBufferN); err != nil {
+		panic(err)
+	}
 
 	modulus := r.ModuliChain()[:r.level+1]
 
@@ -98,7 +100,9 @@ func (g *GaussianSampler) read(pol *Poly, r *Ring, sigma float64, bound int) {
 
 	level := r.level
 
-	g.prng.Read(g.randomBufferN)
+	if _, err := g.prng.Read(g.randomBufferN); err != nil {
+		panic(err)
+	}
 
 	modulus := r.ModuliChain()[:level+1]
 
@@ -140,7 +144,9 @@ func (g *GaussianSampler) normFloat64() (float64, uint64) {
 	for {
 
 		if g.ptr == uint64(len(g.randomBufferN)) {
-			g.prng.Read(g.randomBufferN)
+			if _, err := g.prng.Read(g.randomBufferN); err != nil {
+				panic(err)
+			}
 			g.ptr = 0
 		}
 
@@ -168,7 +174,9 @@ func (g *GaussianSampler) normFloat64() (float64, uint64) {
 			for {
 
 				if g.ptr == uint64(len(g.randomBufferN)) {
-					g.prng.Read(g.randomBufferN)
+					if _, err := g.prng.Read(g.randomBufferN); err != nil {
+						panic(err)
+					}
 					g.ptr = 0
 				}
 
@@ -176,7 +184,9 @@ func (g *GaussianSampler) normFloat64() (float64, uint64) {
 				g.ptr += 8
 
 				if g.ptr == uint64(len(g.randomBufferN)) {
-					g.prng.Read(g.randomBufferN)
+					if _, err := g.prng.Read(g.randomBufferN); err != nil {
+						panic(err)
+					}
 					g.ptr = 0
 				}
 
@@ -192,7 +202,9 @@ func (g *GaussianSampler) normFloat64() (float64, uint64) {
 		}
 
 		if g.ptr == uint64(len(g.randomBufferN)) {
-			g.prng.Read(g.randomBufferN)
+			if _, err := g.prng.Read(g.randomBufferN); err != nil {
+				panic(err)
+			}
 			g.ptr = 0
 		}
 

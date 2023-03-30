@@ -174,7 +174,9 @@ func example() {
 	start = time.Now()
 
 	monomialBasis := ckks.NewPowerBasis(ciphertext, polynomial.Monomial)
-	monomialBasis.GenPower(int(r), false, params.DefaultScale(), evaluator)
+	if err = monomialBasis.GenPower(int(r), false, params.DefaultScale(), evaluator); err != nil {
+		panic(err)
+	}
 	ciphertext = monomialBasis.Value[int(r)]
 
 	fmt.Printf("Done in %s \n", time.Since(start))

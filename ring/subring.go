@@ -9,6 +9,12 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/factorization"
 )
 
+const (
+	// MinimuRingDegree is the minimum ring degree
+	// necessary for memory safe loop unrolling
+	MinimuRingDegree = 16
+)
+
 // SubRing is a struct storing precomputation
 // for fast modular reduction and NTT for
 // a given modulus.
@@ -46,8 +52,8 @@ func NewSubRing(N int, Modulus uint64) (s *SubRing, err error) {
 func NewSubRingWithCustomNTT(N int, Modulus uint64, ntt func(*SubRing, int) NumberTheoreticTransformer, NthRoot int) (s *SubRing, err error) {
 
 	// Checks if N is a power of 2
-	if (N < 16) || (N&(N-1)) != 0 && N != 0 {
-		return nil, fmt.Errorf("invalid degree (must be a power of 2 >= 8)")
+	if (N < MinimuRingDegree) || (N&(N-1)) != 0 && N != 0 {
+		return nil, fmt.Errorf("invalid degree (must be a power of 2 >= %d)", MinimuRingDegree)
 	}
 
 	s = &SubRing{}

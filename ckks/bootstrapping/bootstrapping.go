@@ -68,8 +68,12 @@ func (btp *Bootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertex
 
 		// 2^(d-n) * e + 2^(d-2n) * e'
 		btp.MultByConst(tmp, btp.params.QiFloat64(tmp.Level())/float64(uint64(1<<16)), tmp)
+
 		tmp.Scale = tmp.Scale.Mul(rlwe.NewScale(btp.params.Q()[tmp.Level()]))
-		btp.Rescale(tmp, btp.params.DefaultScale(), tmp)
+
+		if err := btp.Rescale(tmp, btp.params.DefaultScale(), tmp); err != nil {
+			panic(err)
+		}
 
 		// [2^d * M + 2^(d-2n) * e'] <- [2^d * M + 2^(d-n) * e] - [2^(d-n) * e + 2^(d-2n) * e']
 		btp.Add(ctOut, tmp, ctOut)

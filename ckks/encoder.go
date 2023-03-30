@@ -117,7 +117,7 @@ func newEncoder(params Parameters) encoder {
 
 	m := int(params.RingQ().NthRoot())
 
-	rotGroup := make([]int, m>>1)
+	rotGroup := make([]int, m>>2)
 	fivePows := 1
 	for i := 0; i < m>>2; i++ {
 		rotGroup[i] = fivePows
@@ -430,7 +430,7 @@ func polyToComplexNoCRT(coeffs []uint64, values []complex128, scale rlwe.Scale, 
 		}
 	}
 
-	DivideComplex128SliceVec(values, complex(scale.Float64(), 0))
+	divideComplex128SliceVec(values, complex(scale.Float64(), 0))
 }
 
 func polyToComplexCRT(poly *ring.Poly, bigintCoeffs []*big.Int, values []complex128, scale rlwe.Scale, logSlots int, isreal bool, ringQ *ring.Ring, Q *big.Int) {

@@ -299,6 +299,7 @@ func ModUpExact(p1, p2 [][]uint64, ringQ, ringP *Ring, MUC ModUpConstants) {
 	for x := 0; x < len(p1[0]); x = x + 8 {
 		reconstructRNS(0, levelQ+1, x, p1, &v, &y0, &y1, &y2, &y3, &y4, &y5, &y6, &y7, Q, mredQ, qoverqiinvqi)
 		for j := 0; j < levelP+1; j++ {
+			/* #nosec G103 -- behavior and consequences well understood */
 			multSum(levelQ, (*[8]uint64)(unsafe.Pointer(&p2[j][x])), &rlo, &rhi, &v, &y0, &y1, &y2, &y3, &y4, &y5, &y6, &y7, P[j], mredP[j], vtimesqmodp[j], qoverqimodp[j])
 		}
 	}
@@ -461,16 +462,19 @@ func (decomposer *Decomposer) DecomposeAndSplit(levelQ, levelP, nbPi, decompRNS 
 
 			// Coefficients of index smaller than the ones to be decomposed
 			for j := 0; j < p0idxst; j++ {
+				/* #nosec G103 -- behavior and consequences well understood */
 				multSum(decompLvl+1, (*[8]uint64)(unsafe.Pointer(&p1Q.Coeffs[j][x])), &rlo, &rhi, &v, &y0, &y1, &y2, &y3, &y4, &y5, &y6, &y7, Q[j], mredQ[j], vtimesqmodp[j], qoverqimodp[j])
 			}
 
 			// Coefficients of index greater than the ones to be decomposed
 			for j := p0idxed; j < levelQ+1; j++ {
+				/* #nosec G103 -- behavior and consequences well understood */
 				multSum(decompLvl+1, (*[8]uint64)(unsafe.Pointer(&p1Q.Coeffs[j][x])), &rlo, &rhi, &v, &y0, &y1, &y2, &y3, &y4, &y5, &y6, &y7, Q[j], mredQ[j], vtimesqmodp[j], qoverqimodp[j])
 			}
 
 			// Coefficients of the special primes Pi
 			for j, u := 0, len(Q); j < levelP+1; j, u = j+1, u+1 {
+				/* #nosec G103 -- behavior and consequences well understood */
 				multSum(decompLvl+1, (*[8]uint64)(unsafe.Pointer(&p1P.Coeffs[j][x])), &rlo, &rhi, &v, &y0, &y1, &y2, &y3, &y4, &y5, &y6, &y7, P[j], mredP[j], vtimesqmodp[u], qoverqimodp[u])
 			}
 		}
@@ -492,6 +496,7 @@ func reconstructRNSCentered(start, end, x int, p [][]uint64, v *[8]uint64, vi *[
 		mredConstant := mredQ[j]
 		qif := float64(qi)
 
+		/* #nosec G103 -- behavior and consequences well understood */
 		px := (*[8]uint64)(unsafe.Pointer(&p[j][x]))
 
 		y0[i] = MRed(px[0]+qHalf, qqiinv, qi, mredConstant)
@@ -537,6 +542,8 @@ func reconstructRNS(start, end, x int, p [][]uint64, v *[8]uint64, y0, y1, y2, y
 		qi = Q[i]
 		qiInv = QInv[i]
 		qif = float64(qi)
+
+		/* #nosec G103 -- behavior and consequences well understood */
 		pTmp := (*[8]uint64)(unsafe.Pointer(&p[i][x]))
 
 		y0[j] = MRed(pTmp[0], qoverqiinvqi, qi, qiInv)

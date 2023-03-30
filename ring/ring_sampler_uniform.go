@@ -36,7 +36,9 @@ func (u *UniformSampler) Read(pol *Poly) {
 	var randomUint, mask, qi uint64
 	var ptr int
 
-	u.prng.Read(u.randomBufferN)
+	if _, err := u.prng.Read(u.randomBufferN); err != nil {
+		panic(err)
+	}
 
 	N := u.baseRing.N()
 
@@ -59,7 +61,9 @@ func (u *UniformSampler) Read(pol *Poly) {
 
 				// Refills the buff if it runs empty
 				if ptr == N {
-					u.prng.Read(buffer)
+					if _, err := u.prng.Read(buffer); err != nil {
+						panic(err)
+					}
 					ptr = 0
 				}
 
@@ -106,13 +110,12 @@ func randInt32(prng sampling.PRNG, mask uint64) uint64 {
 
 	// generate random 4 bytes
 	randomBytes := make([]byte, 4)
-	prng.Read(randomBytes)
-
-	// convert 4 bytes to a uint32
-	randomUint32 := uint64(binary.LittleEndian.Uint32(randomBytes))
+	if _, err := prng.Read(randomBytes); err != nil {
+		panic(err)
+	}
 
 	// return required bits
-	return mask & randomUint32
+	return mask & uint64(binary.LittleEndian.Uint32(randomBytes))
 }
 
 // randInt64 samples a uniform variable in the range [0, mask], where mask is of the form 2^n-1, with n in [0, 64].
@@ -120,11 +123,11 @@ func randInt64(prng sampling.PRNG, mask uint64) uint64 {
 
 	// generate random 8 bytes
 	randomBytes := make([]byte, 8)
-	prng.Read(randomBytes)
 
-	// convert 8 bytes to a uint64
-	randomUint64 := binary.LittleEndian.Uint64(randomBytes)
+	if _, err := prng.Read(randomBytes); err != nil {
+		panic(err)
+	}
 
 	// return required bits
-	return mask & randomUint64
+	return mask & binary.LittleEndian.Uint64(randomBytes)
 }

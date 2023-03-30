@@ -1,12 +1,22 @@
 package ckks
 
 import (
+	"fmt"
 	"math/bits"
 	"unsafe"
 )
 
+const (
+	minVecLenForLoopUnrolling = 16
+)
+
 // SpecialiFFTVec performs the CKKS special inverse FFT transform in place.
 func SpecialiFFTVec(values []complex128, N, M int, rotGroup []int, roots []complex128) {
+
+	if len(values) < N || len(rotGroup) < N || len(roots) < M+1 {
+		panic(fmt.Sprintf("invalid call of SpecialiFFTVec: len(values)=%d or len(rotGroup)=%d < N=%d or len(roots)=%d < M+1=%d", len(values), len(rotGroup), N, len(roots), M))
+	}
+
 	logN := int(bits.Len64(uint64(N))) - 1
 	logM := int(bits.Len64(uint64(M))) - 1
 	for loglen := logN; loglen > 0; loglen-- {
@@ -31,6 +41,11 @@ func SpecialiFFTVec(values []complex128, N, M int, rotGroup []int, roots []compl
 
 // SpecialFFTVec performs the CKKS special FFT transform in place.
 func SpecialFFTVec(values []complex128, N, M int, rotGroup []int, roots []complex128) {
+
+	if len(values) < N || len(rotGroup) < N || len(roots) < M+1 {
+		panic(fmt.Sprintf("invalid call of SpecialFFTVec: len(values)=%d or len(rotGroup)=%d < N=%d or len(roots)=%d < M+1=%d", len(values), len(rotGroup), N, len(roots), M))
+	}
+
 	SliceBitReverseInPlaceComplex128(values, N)
 	logN := int(bits.Len64(uint64(N))) - 1
 	logM := int(bits.Len64(uint64(M))) - 1
@@ -52,6 +67,14 @@ func SpecialFFTVec(values []complex128, N, M int, rotGroup []int, roots []comple
 // SpecialFFTUL8Vec performs the CKKS special FFT transform in place with unrolled loops of size 8.
 func SpecialFFTUL8Vec(values []complex128, N, M int, rotGroup []int, roots []complex128) {
 
+	if len(values) < minVecLenForLoopUnrolling {
+		panic(fmt.Sprintf("unsafe call of SpecialFFTUL8Vec: len(values)=%d < %d", len(values), minVecLenForLoopUnrolling))
+	}
+
+	if len(values) < N || len(rotGroup) < N || len(roots) < M+1 {
+		panic(fmt.Sprintf("invalid call of SpecialFFTUL8Vec: len(values)=%d or len(rotGroup)=%d < N=%d or len(roots)=%d < M+1=%d", len(values), len(rotGroup), N, len(roots), M))
+	}
+
 	SliceBitReverseInPlaceComplex128(values, N)
 
 	logN := int(bits.Len64(uint64(N))) - 1
@@ -70,8 +93,11 @@ func SpecialFFTUL8Vec(values []complex128, N, M int, rotGroup []int, roots []com
 
 				for j, k := 0, i; j < lenh; j, k = j+8, k+8 {
 
+					/* #nosec G103 -- behavior and consequences well understood */
 					u := (*[8]complex128)(unsafe.Pointer(&values[k]))
+					/* #nosec G103 -- behavior and consequences well understood */
 					v := (*[8]complex128)(unsafe.Pointer(&values[k+lenh]))
+					/* #nosec G103 -- behavior and consequences well understood */
 					w := (*[8]int)(unsafe.Pointer(&rotGroup[j]))
 
 					v[0] *= roots[(w[0]&mask)<<logGap]
@@ -106,6 +132,7 @@ func SpecialFFTUL8Vec(values []complex128, N, M int, rotGroup []int, roots []com
 
 			for i := 0; i < N; i += 16 {
 
+				/* #nosec G103 -- behavior and consequences well understood */
 				u := (*[16]complex128)(unsafe.Pointer(&values[i]))
 
 				u[8] *= psi0
@@ -136,6 +163,7 @@ func SpecialFFTUL8Vec(values []complex128, N, M int, rotGroup []int, roots []com
 
 			for i := 0; i < N; i += 16 {
 
+				/* #nosec G103 -- behavior and consequences well understood */
 				u := (*[16]complex128)(unsafe.Pointer(&values[i]))
 
 				u[4] *= psi0
@@ -163,6 +191,7 @@ func SpecialFFTUL8Vec(values []complex128, N, M int, rotGroup []int, roots []com
 
 			for i := 0; i < N; i += 16 {
 
+				/* #nosec G103 -- behavior and consequences well understood */
 				u := (*[16]complex128)(unsafe.Pointer(&values[i]))
 
 				u[2] *= psi0
@@ -189,6 +218,7 @@ func SpecialFFTUL8Vec(values []complex128, N, M int, rotGroup []int, roots []com
 
 			for i := 0; i < N; i += 16 {
 
+				/* #nosec G103 -- behavior and consequences well understood */
 				u := (*[16]complex128)(unsafe.Pointer(&values[i]))
 
 				u[1] *= psi0
@@ -216,6 +246,14 @@ func SpecialFFTUL8Vec(values []complex128, N, M int, rotGroup []int, roots []com
 // SpecialiFFTUL8Vec performs the CKKS special inverse FFT transform in place with unrolled loops of size 8.
 func SpecialiFFTUL8Vec(values []complex128, N, M int, rotGroup []int, roots []complex128) {
 
+	if len(values) < minVecLenForLoopUnrolling {
+		panic(fmt.Sprintf("unsafe call of SpecialiFFTUL8Vec: len(values)=%d < %d", len(values), minVecLenForLoopUnrolling))
+	}
+
+	if len(values) < N || len(rotGroup) < N || len(roots) < M+1 {
+		panic(fmt.Sprintf("invalid call of SpecialiFFTUL8Vec: len(values)=%d or len(rotGroup)=%d < N=%d or len(roots)=%d < M+1=%d", len(values), len(rotGroup), N, len(roots), M))
+	}
+
 	logN := int(bits.Len64(uint64(N))) - 1
 	logM := int(bits.Len64(uint64(M))) - 1
 
@@ -230,8 +268,11 @@ func SpecialiFFTUL8Vec(values []complex128, N, M int, rotGroup []int, roots []co
 			for i := 0; i < N; i += len {
 				for j, k := 0, i; j < lenh; j, k = j+8, k+8 {
 
+					/* #nosec G103 -- behavior and consequences well understood */
 					u := (*[8]complex128)(unsafe.Pointer(&values[k]))
+					/* #nosec G103 -- behavior and consequences well understood */
 					v := (*[8]complex128)(unsafe.Pointer(&values[k+lenh]))
+					/* #nosec G103 -- behavior and consequences well understood */
 					w := (*[8]int)(unsafe.Pointer(&rotGroup[j]))
 
 					u[0], v[0] = u[0]+v[0], (u[0]-v[0])*roots[(lenq-(w[0]&mask))<<logGap]
@@ -257,6 +298,7 @@ func SpecialiFFTUL8Vec(values []complex128, N, M int, rotGroup []int, roots []co
 
 			for i := 0; i < N; i += 16 {
 
+				/* #nosec G103 -- behavior and consequences well understood */
 				u := (*[16]complex128)(unsafe.Pointer(&values[i]))
 
 				u[0], u[8] = u[0]+u[8], (u[0]-u[8])*psi0
@@ -278,6 +320,7 @@ func SpecialiFFTUL8Vec(values []complex128, N, M int, rotGroup []int, roots []co
 
 			for i := 0; i < N; i += 16 {
 
+				/* #nosec G103 -- behavior and consequences well understood */
 				u := (*[16]complex128)(unsafe.Pointer(&values[i]))
 
 				u[0], u[4] = u[0]+u[4], (u[0]-u[4])*psi0
@@ -296,6 +339,7 @@ func SpecialiFFTUL8Vec(values []complex128, N, M int, rotGroup []int, roots []co
 
 			for i := 0; i < N; i += 16 {
 
+				/* #nosec G103 -- behavior and consequences well understood */
 				u := (*[16]complex128)(unsafe.Pointer(&values[i]))
 
 				u[0], u[2] = u[0]+u[2], (u[0]-u[2])*psi0
@@ -313,6 +357,7 @@ func SpecialiFFTUL8Vec(values []complex128, N, M int, rotGroup []int, roots []co
 
 			for i := 0; i < N; i += 16 {
 
+				/* #nosec G103 -- behavior and consequences well understood */
 				u := (*[16]complex128)(unsafe.Pointer(&values[i]))
 
 				u[0], u[1] = u[0]+u[1], (u[0]-u[1])*psi0
@@ -327,16 +372,17 @@ func SpecialiFFTUL8Vec(values []complex128, N, M int, rotGroup []int, roots []co
 		}
 	}
 
-	DivideComplex128SliceVec(values, complex(float64(N), 0))
+	divideComplex128SliceVec(values, complex(float64(N), 0))
 
 	SliceBitReverseInPlaceComplex128(values, N)
 }
 
-// DivideComplex128SliceVec divides the entries in values by scaleVal in place.
-func DivideComplex128SliceVec(values []complex128, scaleVal complex128) {
+// divideComplex128SliceVec divides the entries in values by scaleVal in place.
+func divideComplex128SliceVec(values []complex128, scaleVal complex128) {
 	lenValues := len(values)
 	for i := 0; i < lenValues; i = i + 8 {
 
+		/* #nosec G103 -- behavior and consequences well understood */
 		v := (*[8]complex128)(unsafe.Pointer(&values[i]))
 
 		v[0] /= scaleVal

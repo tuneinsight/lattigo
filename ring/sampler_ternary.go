@@ -143,9 +143,13 @@ func (ts *TernarySampler) sampleProba(pol *Poly) {
 		randomBytesCoeffs := make([]byte, N>>3)
 		randomBytesSign := make([]byte, N>>3)
 
-		ts.prng.Read(randomBytesCoeffs)
+		if _, err := ts.prng.Read(randomBytesCoeffs); err != nil {
+			panic(err)
+		}
 
-		ts.prng.Read(randomBytesSign)
+		if _, err := ts.prng.Read(randomBytesSign); err != nil {
+			panic(err)
+		}
 
 		for i := 0; i < N; i++ {
 			coeff = uint64(uint8(randomBytesCoeffs[i>>3])>>(i&7)) & 1
@@ -165,7 +169,9 @@ func (ts *TernarySampler) sampleProba(pol *Poly) {
 		pointer := uint8(0)
 		var bytePointer int
 
-		ts.prng.Read(randomBytes)
+		if _, err := ts.prng.Read(randomBytes); err != nil {
+			panic(err)
+		}
 
 		for i := 0; i < N; i++ {
 
@@ -200,7 +206,9 @@ func (ts *TernarySampler) sampleSparse(pol *Poly) {
 	randomBytes := make([]byte, (uint64(math.Ceil(float64(hw) / 8.0)))) // We sample ceil(hw/8) bytes
 	pointer := uint8(0)
 
-	ts.prng.Read(randomBytes)
+	if _, err := ts.prng.Read(randomBytes); err != nil {
+		panic(err)
+	}
 
 	level := ts.baseRing.level
 
@@ -233,7 +241,6 @@ func (ts *TernarySampler) sampleSparse(pol *Poly) {
 		for k := 0; k < level+1; k++ {
 			pol.Coeffs[k][i] = 0
 		}
-
 	}
 }
 
@@ -273,7 +280,9 @@ func (ts *TernarySampler) kysampling(prng sampling.PRNG, randomBytes []byte, poi
 
 						if bytePointer >= byteLength {
 							bytePointer = 0
-							prng.Read(randomBytes)
+							if _, err := prng.Read(randomBytes); err != nil {
+								panic(err)
+							}
 						}
 
 						sign = uint8(randomBytes[bytePointer]) & 1
@@ -298,7 +307,9 @@ func (ts *TernarySampler) kysampling(prng sampling.PRNG, randomBytes []byte, poi
 
 		if bytePointer >= byteLength {
 			bytePointer = 0
-			prng.Read(randomBytes)
+			if _, err := prng.Read(randomBytes); err != nil {
+				panic(err)
+			}
 		}
 
 	}

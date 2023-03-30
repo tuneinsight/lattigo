@@ -1,6 +1,7 @@
 package ring
 
 import (
+	"fmt"
 	"math/bits"
 	"unsafe"
 )
@@ -202,6 +203,14 @@ func INTTConjugateInvariantLazy(p1, p2 []uint64, N int, NInv, Q, QInv, MRedConst
 // NTTStandardLazy computes the NTT on the input coefficients using the input parameters with output values in the range [0, 2*modulus-1].
 func NTTStandardLazy(p1, p2 []uint64, N int, Q, QInv uint64, nttPsi []uint64) {
 
+	if len(p2) < MinimuRingDegree {
+		panic(fmt.Sprintf("unsafe call of NTTStandardLazy: receiver len(p2)=%d < %d", len(p2), MinimuRingDegree))
+	}
+
+	if len(p1) < N || len(p2) < N || len(nttPsi) < N {
+		panic(fmt.Sprintf("cannot NTTStandardLazy: ensure that len(p1)=%d, len(p2)=%d and len(nttPsi)=%d >= N=%d", len(p1), len(p2), len(nttPsi), N))
+	}
+
 	var j1, j2, t int
 	var F, V uint64
 
@@ -214,10 +223,14 @@ func NTTStandardLazy(p1, p2 []uint64, N int, Q, QInv uint64, nttPsi []uint64) {
 
 	for jx, jy := 0, t; jx <= t-1; jx, jy = jx+8, jy+8 {
 
+		/* #nosec G103 -- behavior and consequences well understood */
 		xin := (*[8]uint64)(unsafe.Pointer(&p1[jx]))
+		/* #nosec G103 -- behavior and consequences well understood */
 		yin := (*[8]uint64)(unsafe.Pointer(&p1[jy]))
 
+		/* #nosec G103 -- behavior and consequences well understood */
 		xout := (*[8]uint64)(unsafe.Pointer(&p2[jx]))
+		/* #nosec G103 -- behavior and consequences well understood */
 		yout := (*[8]uint64)(unsafe.Pointer(&p2[jy]))
 
 		V = MRedLazy(yin[0], F, Q, QInv)
@@ -268,7 +281,9 @@ func NTTStandardLazy(p1, p2 []uint64, N int, Q, QInv uint64, nttPsi []uint64) {
 
 					for jx, jy := j1, j1+t; jx <= j2; jx, jy = jx+8, jy+8 {
 
+						/* #nosec G103 -- behavior and consequences well understood */
 						x := (*[8]uint64)(unsafe.Pointer(&p2[jx]))
+						/* #nosec G103 -- behavior and consequences well understood */
 						y := (*[8]uint64)(unsafe.Pointer(&p2[jy]))
 
 						x[0], y[0] = butterfly(x[0], y[0], F, twoQ, fourQ, Q, QInv)
@@ -285,7 +300,9 @@ func NTTStandardLazy(p1, p2 []uint64, N int, Q, QInv uint64, nttPsi []uint64) {
 
 					for jx, jy := j1, j1+t; jx <= j2; jx, jy = jx+8, jy+8 {
 
+						/* #nosec G103 -- behavior and consequences well understood */
 						x := (*[8]uint64)(unsafe.Pointer(&p2[jx]))
+						/* #nosec G103 -- behavior and consequences well understood */
 						y := (*[8]uint64)(unsafe.Pointer(&p2[jy]))
 
 						V = MRedLazy(y[0], F, Q, QInv)
@@ -321,7 +338,9 @@ func NTTStandardLazy(p1, p2 []uint64, N int, Q, QInv uint64, nttPsi []uint64) {
 
 				for i, j1 := m, 0; i < 2*m; i, j1 = i+2, j1+4*t {
 
+					/* #nosec G103 -- behavior and consequences well understood */
 					psi := (*[2]uint64)(unsafe.Pointer(&nttPsi[i]))
+					/* #nosec G103 -- behavior and consequences well understood */
 					x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 					x[0], x[4] = butterfly(x[0], x[4], psi[0], twoQ, fourQ, Q, QInv)
@@ -338,7 +357,9 @@ func NTTStandardLazy(p1, p2 []uint64, N int, Q, QInv uint64, nttPsi []uint64) {
 
 				for i, j1 := m, 0; i < 2*m; i, j1 = i+2, j1+4*t {
 
+					/* #nosec G103 -- behavior and consequences well understood */
 					psi := (*[2]uint64)(unsafe.Pointer(&nttPsi[i]))
+					/* #nosec G103 -- behavior and consequences well understood */
 					x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 					V = MRedLazy(x[4], psi[0], Q, QInv)
@@ -375,7 +396,9 @@ func NTTStandardLazy(p1, p2 []uint64, N int, Q, QInv uint64, nttPsi []uint64) {
 
 				for i, j1 := m, 0; i < 2*m; i, j1 = i+4, j1+8*t {
 
+					/* #nosec G103 -- behavior and consequences well understood */
 					psi := (*[4]uint64)(unsafe.Pointer(&nttPsi[i]))
+					/* #nosec G103 -- behavior and consequences well understood */
 					x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 					x[0], x[2] = butterfly(x[0], x[2], psi[0], twoQ, fourQ, Q, QInv)
@@ -391,7 +414,9 @@ func NTTStandardLazy(p1, p2 []uint64, N int, Q, QInv uint64, nttPsi []uint64) {
 
 				for i, j1 := m, 0; i < 2*m; i, j1 = i+4, j1+8*t {
 
+					/* #nosec G103 -- behavior and consequences well understood */
 					psi := (*[4]uint64)(unsafe.Pointer(&nttPsi[i]))
+					/* #nosec G103 -- behavior and consequences well understood */
 					x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 					V = MRedLazy(x[2], psi[0], Q, QInv)
@@ -424,7 +449,9 @@ func NTTStandardLazy(p1, p2 []uint64, N int, Q, QInv uint64, nttPsi []uint64) {
 
 			for i, j1 := m, 0; i < 2*m; i, j1 = i+8, j1+16 {
 
+				/* #nosec G103 -- behavior and consequences well understood */
 				psi := (*[8]uint64)(unsafe.Pointer(&nttPsi[i]))
+				/* #nosec G103 -- behavior and consequences well understood */
 				x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 				x[0], x[1] = butterfly(x[0], x[1], psi[0], twoQ, fourQ, Q, QInv)
@@ -474,6 +501,14 @@ func NTTStandardLazy(p1, p2 []uint64, N int, Q, QInv uint64, nttPsi []uint64) {
 
 func iNTTCore(p1, p2 []uint64, N int, Q, QInv uint64, nttPsiInv []uint64) {
 
+	if len(p2) < MinimuRingDegree {
+		panic(fmt.Sprintf("unsafe call of iNTTCore: receiver len(p2)=%d < %d", len(p2), MinimuRingDegree))
+	}
+
+	if len(p1) < N || len(p2) < N || len(nttPsiInv) < N {
+		panic(fmt.Sprintf("cannot iNTTCore: ensure that len(p1)=%d, len(p2)=%d and len(nttPsiInv)=%d >= N=%d", len(p1), len(p2), len(nttPsiInv), N))
+	}
+
 	var h, t int
 	var F uint64
 
@@ -485,8 +520,11 @@ func iNTTCore(p1, p2 []uint64, N int, Q, QInv uint64, nttPsiInv []uint64) {
 
 	for i, j := h, 0; i < 2*h; i, j = i+8, j+16 {
 
+		/* #nosec G103 -- behavior and consequences well understood */
 		psi := (*[8]uint64)(unsafe.Pointer(&nttPsiInv[i]))
+		/* #nosec G103 -- behavior and consequences well understood */
 		xin := (*[16]uint64)(unsafe.Pointer(&p1[j]))
+		/* #nosec G103 -- behavior and consequences well understood */
 		xout := (*[16]uint64)(unsafe.Pointer(&p2[j]))
 
 		xout[0], xout[1] = invbutterfly(xin[0], xin[1], psi[0], twoQ, fourQ, Q, QInv)
@@ -513,7 +551,9 @@ func iNTTCore(p1, p2 []uint64, N int, Q, QInv uint64, nttPsiInv []uint64) {
 
 				for jx, jy := j1, j1+t; jx <= j2; jx, jy = jx+8, jy+8 {
 
+					/* #nosec G103 -- behavior and consequences well understood */
 					x := (*[8]uint64)(unsafe.Pointer(&p2[jx]))
+					/* #nosec G103 -- behavior and consequences well understood */
 					y := (*[8]uint64)(unsafe.Pointer(&p2[jy]))
 
 					x[0], y[0] = invbutterfly(x[0], y[0], F, twoQ, fourQ, Q, QInv)
@@ -531,7 +571,9 @@ func iNTTCore(p1, p2 []uint64, N int, Q, QInv uint64, nttPsiInv []uint64) {
 
 			for i, j1 := h, 0; i < 2*h; i, j1 = i+2, j1+4*t {
 
+				/* #nosec G103 -- behavior and consequences well understood */
 				psi := (*[2]uint64)(unsafe.Pointer(&nttPsiInv[i]))
+				/* #nosec G103 -- behavior and consequences well understood */
 				x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 				x[0], x[4] = invbutterfly(x[0], x[4], psi[0], twoQ, fourQ, Q, QInv)
@@ -548,7 +590,9 @@ func iNTTCore(p1, p2 []uint64, N int, Q, QInv uint64, nttPsiInv []uint64) {
 
 			for i, j1 := h, 0; i < 2*h; i, j1 = i+4, j1+8*t {
 
+				/* #nosec G103 -- behavior and consequences well understood */
 				psi := (*[4]uint64)(unsafe.Pointer(&nttPsiInv[i]))
+				/* #nosec G103 -- behavior and consequences well understood */
 				x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 				x[0], x[2] = invbutterfly(x[0], x[2], psi[0], twoQ, fourQ, Q, QInv)
@@ -569,6 +613,14 @@ func iNTTCore(p1, p2 []uint64, N int, Q, QInv uint64, nttPsiInv []uint64) {
 // nttConjugateInvariantLazy evaluates p2 = NTT(p1) in the sub-ring Z[X + X^-1]/(X^2N +1) of Z[X]/(X^2N+1) with p2 [0, 2*modulus-1].
 func nttConjugateInvariantLazy(p1, p2 []uint64, N int, Q, QInv uint64, nttPsi []uint64) {
 
+	if len(p2) < MinimuRingDegree {
+		panic(fmt.Sprintf("unsafe call of nttConjugateInvariantLazy: receiver len(p2)=%d < %d", len(p2), MinimuRingDegree))
+	}
+
+	if len(p1) < N || len(p2) < N || len(nttPsi) < N {
+		panic(fmt.Sprintf("cannot nttConjugateInvariantLazy: ensure that len(p1)=%d, len(p2)=%d and len(nttPsi)=%d >= N=%d", len(p1), len(p2), len(nttPsi), N))
+	}
+
 	var t, h int
 	var F, V uint64
 	var reduce bool
@@ -582,10 +634,14 @@ func nttConjugateInvariantLazy(p1, p2 []uint64, N int, Q, QInv uint64, nttPsi []
 
 	for jx, jy := 1, N-8; jx < (N>>1)-7; jx, jy = jx+8, jy-8 {
 
+		/* #nosec G103 -- behavior and consequences well understood */
 		xin := (*[8]uint64)(unsafe.Pointer(&p1[jx]))
+		/* #nosec G103 -- behavior and consequences well understood */
 		yin := (*[8]uint64)(unsafe.Pointer(&p1[jy]))
 
+		/* #nosec G103 -- behavior and consequences well understood */
 		xout := (*[8]uint64)(unsafe.Pointer(&p2[jx]))
+		/* #nosec G103 -- behavior and consequences well understood */
 		yout := (*[8]uint64)(unsafe.Pointer(&p2[jy]))
 
 		xout[0], yout[7] = xin[0]+twoQ-MRedLazy(yin[7], F, Q, QInv), yin[7]+twoQ-MRedLazy(xin[0], F, Q, QInv)
@@ -599,9 +655,13 @@ func nttConjugateInvariantLazy(p1, p2 []uint64, N int, Q, QInv uint64, nttPsi []
 	}
 
 	j := (N >> 1) - 7
+	/* #nosec G103 -- behavior and consequences well understood */
 	xin := (*[7]uint64)(unsafe.Pointer(&p1[j]))
+	/* #nosec G103 -- behavior and consequences well understood */
 	yin := (*[7]uint64)(unsafe.Pointer(&p1[N-j-6]))
+	/* #nosec G103 -- behavior and consequences well understood */
 	xout := (*[7]uint64)(unsafe.Pointer(&p2[j]))
+	/* #nosec G103 -- behavior and consequences well understood */
 	yout := (*[7]uint64)(unsafe.Pointer(&p2[N-j-6]))
 
 	xout[0], yout[6] = xin[0]+twoQ-MRedLazy(yin[6], F, Q, QInv), yin[6]+twoQ-MRedLazy(xin[0], F, Q, QInv)
@@ -633,7 +693,9 @@ func nttConjugateInvariantLazy(p1, p2 []uint64, N int, Q, QInv uint64, nttPsi []
 
 					for jx, jy := j1, j1+t; jx <= j2; jx, jy = jx+8, jy+8 {
 
+						/* #nosec G103 -- behavior and consequences well understood */
 						x := (*[8]uint64)(unsafe.Pointer(&p2[jx]))
+						/* #nosec G103 -- behavior and consequences well understood */
 						y := (*[8]uint64)(unsafe.Pointer(&p2[jy]))
 
 						x[0], y[0] = butterfly(x[0], y[0], F, twoQ, fourQ, Q, QInv)
@@ -650,7 +712,9 @@ func nttConjugateInvariantLazy(p1, p2 []uint64, N int, Q, QInv uint64, nttPsi []
 
 					for jx, jy := j1, j1+t; jx <= j2; jx, jy = jx+8, jy+8 {
 
+						/* #nosec G103 -- behavior and consequences well understood */
 						x := (*[8]uint64)(unsafe.Pointer(&p2[jx]))
+						/* #nosec G103 -- behavior and consequences well understood */
 						y := (*[8]uint64)(unsafe.Pointer(&p2[jy]))
 
 						V = MRedLazy(y[0], F, Q, QInv)
@@ -686,7 +750,9 @@ func nttConjugateInvariantLazy(p1, p2 []uint64, N int, Q, QInv uint64, nttPsi []
 
 				for i, j1 := m, 0; i < h+m; i, j1 = i+2, j1+4*t {
 
+					/* #nosec G103 -- behavior and consequences well understood */
 					psi := (*[2]uint64)(unsafe.Pointer(&nttPsi[i]))
+					/* #nosec G103 -- behavior and consequences well understood */
 					x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 					x[0], x[4] = butterfly(x[0], x[4], psi[0], twoQ, fourQ, Q, QInv)
@@ -703,7 +769,9 @@ func nttConjugateInvariantLazy(p1, p2 []uint64, N int, Q, QInv uint64, nttPsi []
 
 				for i, j1 := m, 0; i < h+m; i, j1 = i+2, j1+4*t {
 
+					/* #nosec G103 -- behavior and consequences well understood */
 					psi := (*[2]uint64)(unsafe.Pointer(&nttPsi[i]))
+					/* #nosec G103 -- behavior and consequences well understood */
 					x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 					V = MRedLazy(x[4], psi[0], Q, QInv)
@@ -739,7 +807,9 @@ func nttConjugateInvariantLazy(p1, p2 []uint64, N int, Q, QInv uint64, nttPsi []
 
 				for i, j1 := m, 0; i < h+m; i, j1 = i+4, j1+8*t {
 
+					/* #nosec G103 -- behavior and consequences well understood */
 					psi := (*[4]uint64)(unsafe.Pointer(&nttPsi[i]))
+					/* #nosec G103 -- behavior and consequences well understood */
 					x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 					x[0], x[2] = butterfly(x[0], x[2], psi[0], twoQ, fourQ, Q, QInv)
@@ -755,7 +825,9 @@ func nttConjugateInvariantLazy(p1, p2 []uint64, N int, Q, QInv uint64, nttPsi []
 
 				for i, j1 := m, 0; i < h+m; i, j1 = i+4, j1+8*t {
 
+					/* #nosec G103 -- behavior and consequences well understood */
 					psi := (*[4]uint64)(unsafe.Pointer(&nttPsi[i]))
+					/* #nosec G103 -- behavior and consequences well understood */
 					x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 					V = MRedLazy(x[2], psi[0], Q, QInv)
@@ -790,7 +862,9 @@ func nttConjugateInvariantLazy(p1, p2 []uint64, N int, Q, QInv uint64, nttPsi []
 
 				for i, j1 := m, 0; i < h+m; i, j1 = i+8, j1+16 {
 
+					/* #nosec G103 -- behavior and consequences well understood */
 					psi := (*[8]uint64)(unsafe.Pointer(&nttPsi[i]))
+					/* #nosec G103 -- behavior and consequences well understood */
 					x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 					x[0], x[1] = butterfly(x[0], x[1], psi[0], twoQ, fourQ, Q, QInv)
@@ -806,7 +880,9 @@ func nttConjugateInvariantLazy(p1, p2 []uint64, N int, Q, QInv uint64, nttPsi []
 
 				for i, j1 := m, 0; i < h+m; i, j1 = i+8, j1+16 {
 
+					/* #nosec G103 -- behavior and consequences well understood */
 					psi := (*[8]uint64)(unsafe.Pointer(&nttPsi[i]))
+					/* #nosec G103 -- behavior and consequences well understood */
 					x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 					V = MRedLazy(x[1], psi[0], Q, QInv)
@@ -840,6 +916,14 @@ func nttConjugateInvariantLazy(p1, p2 []uint64, N int, Q, QInv uint64, nttPsi []
 
 func iNTTConjugateInvariantCore(p1, p2 []uint64, N int, Q, QInv uint64, nttPsiInv []uint64) {
 
+	if len(p2) < MinimuRingDegree {
+		panic(fmt.Sprintf("unsafe call of iNTTConjugateInvariantCore: receiver len(p2)=%d < %d", len(p2), MinimuRingDegree))
+	}
+
+	if len(p1) < N || len(p2) < N || len(nttPsiInv) < N {
+		panic(fmt.Sprintf("cannot iNTTConjugateInvariantCore: ensure that len(p1)=%d, len(p2)=%d and len(nttPsiInv)=%d >= N=%d", len(p1), len(p2), len(nttPsiInv), N))
+	}
+
 	var j1, j2, h, t int
 	var F uint64
 
@@ -851,8 +935,11 @@ func iNTTConjugateInvariantCore(p1, p2 []uint64, N int, Q, QInv uint64, nttPsiIn
 
 	for i, j := N, 0; i < h+N; i, j = i+8, j+16 {
 
+		/* #nosec G103 -- behavior and consequences well understood */
 		psi := (*[8]uint64)(unsafe.Pointer(&nttPsiInv[i]))
+		/* #nosec G103 -- behavior and consequences well understood */
 		xin := (*[16]uint64)(unsafe.Pointer(&p1[j]))
+		/* #nosec G103 -- behavior and consequences well understood */
 		xout := (*[16]uint64)(unsafe.Pointer(&p2[j]))
 
 		xout[0], xout[1] = invbutterfly(xin[0], xin[1], psi[0], twoQ, fourQ, Q, QInv)
@@ -882,7 +969,9 @@ func iNTTConjugateInvariantCore(p1, p2 []uint64, N int, Q, QInv uint64, nttPsiIn
 
 				for jx, jy := j1, j1+t; jx <= j2; jx, jy = jx+8, jy+8 {
 
+					/* #nosec G103 -- behavior and consequences well understood */
 					x := (*[8]uint64)(unsafe.Pointer(&p2[jx]))
+					/* #nosec G103 -- behavior and consequences well understood */
 					y := (*[8]uint64)(unsafe.Pointer(&p2[jy]))
 
 					x[0], y[0] = invbutterfly(x[0], y[0], F, twoQ, fourQ, Q, QInv)
@@ -902,7 +991,9 @@ func iNTTConjugateInvariantCore(p1, p2 []uint64, N int, Q, QInv uint64, nttPsiIn
 
 			for i := m; i < h+m; i = i + 2 {
 
+				/* #nosec G103 -- behavior and consequences well understood */
 				psi := (*[2]uint64)(unsafe.Pointer(&nttPsiInv[i]))
+				/* #nosec G103 -- behavior and consequences well understood */
 				x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 				x[0], x[4] = invbutterfly(x[0], x[4], psi[0], twoQ, fourQ, Q, QInv)
@@ -921,7 +1012,9 @@ func iNTTConjugateInvariantCore(p1, p2 []uint64, N int, Q, QInv uint64, nttPsiIn
 
 			for i := m; i < h+m; i = i + 4 {
 
+				/* #nosec G103 -- behavior and consequences well understood */
 				psi := (*[4]uint64)(unsafe.Pointer(&nttPsiInv[i]))
+				/* #nosec G103 -- behavior and consequences well understood */
 				x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 				x[0], x[2] = invbutterfly(x[0], x[2], psi[0], twoQ, fourQ, Q, QInv)
@@ -944,7 +1037,9 @@ func iNTTConjugateInvariantCore(p1, p2 []uint64, N int, Q, QInv uint64, nttPsiIn
 
 	for jx, jy := 1, N-8; jx < (N>>1)-7; jx, jy = jx+8, jy-8 {
 
+		/* #nosec G103 -- behavior and consequences well understood */
 		xout := (*[8]uint64)(unsafe.Pointer(&p2[jx]))
+		/* #nosec G103 -- behavior and consequences well understood */
 		yout := (*[8]uint64)(unsafe.Pointer(&p2[jy]))
 
 		xout[0], yout[7] = xout[0]+twoQ-MRedLazy(yout[7], F, Q, QInv), yout[7]+twoQ-MRedLazy(xout[0], F, Q, QInv)
@@ -958,7 +1053,9 @@ func iNTTConjugateInvariantCore(p1, p2 []uint64, N int, Q, QInv uint64, nttPsiIn
 	}
 
 	j := (N >> 1) - 7
+	/* #nosec G103 -- behavior and consequences well understood */
 	xout := (*[7]uint64)(unsafe.Pointer(&p2[j]))
+	/* #nosec G103 -- behavior and consequences well understood */
 	yout := (*[7]uint64)(unsafe.Pointer(&p2[N-j-6]))
 
 	xout[0], yout[6] = xout[0]+twoQ-MRedLazy(yout[6], F, Q, QInv), yout[6]+twoQ-MRedLazy(xout[0], F, Q, QInv)

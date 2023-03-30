@@ -4,7 +4,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"unsafe"
+
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 // Reader defines a interface comprising of the minimum subset
@@ -19,10 +20,19 @@ type Reader interface {
 }
 
 func ReadInt(r Reader, c *int) (n int, err error) {
-	return ReadUint64(r, (*uint64)(unsafe.Pointer(c)))
+
+	if c == nil {
+		return 0, fmt.Errorf("cannot ReadInt: c is nil")
+	}
+
+	return ReadUint64(r, utils.PointyIntToPointUint64(c))
 }
 
 func ReadUint8(r Reader, c *uint8) (n int, err error) {
+
+	if c == nil {
+		return 0, fmt.Errorf("cannot ReadUint8: c is nil")
+	}
 
 	var bb = [1]byte{}
 
@@ -41,6 +51,10 @@ func ReadUint8Slice(r Reader, c []uint8) (n int, err error) {
 }
 
 func ReadUint16(r Reader, c *uint16) (n int, err error) {
+
+	if c == nil {
+		return 0, fmt.Errorf("cannot ReadUint16: c is nil")
+	}
 
 	var bb = [2]byte{}
 
@@ -104,6 +118,10 @@ func ReadUint16Slice(r Reader, c []uint16) (n int, err error) {
 
 func ReadUint32(r Reader, c *uint32) (n int, err error) {
 
+	if c == nil {
+		return 0, fmt.Errorf("cannot ReadUint32: c is nil")
+	}
+
 	var bb = [4]byte{}
 
 	if n, err = r.Read(bb[:]); err != nil {
@@ -165,6 +183,10 @@ func ReadUint32Slice(r Reader, c []uint32) (n int, err error) {
 }
 
 func ReadUint64(r Reader, c *uint64) (n int, err error) {
+
+	if c == nil {
+		return 0, fmt.Errorf("cannot ReadUint64: c is nil")
+	}
 
 	var bb = [8]byte{}
 

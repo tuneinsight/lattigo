@@ -4,6 +4,7 @@ All notable changes to this library are documented in this file.
 
 ## UNRELEASED [4.1.x] - xxxx-xx-xx
 - Go `1.14`, `1.15`, `1.16` and `1.17` are not supported anymore by the library due to `func (b *Writer) AvailableBuffer() []byte` missing. The minimum version is now `1.18`.
+- All: Golang Security Checker pass.
 - All: lightweight structs, such as parameter now all use `json.Marshal` as underlying marshaler.
 - All: heavy structs, such as keys and ciphertexts, now all comply to the following interfaces:
     - `BinarySize() int`: size in bytes when written to an `io.Writer` or to a slice of bytes using `Read`.
@@ -33,6 +34,7 @@ All notable changes to this library are documented in this file.
 - RING: replaced  `Log2OfInnerSum` by `Log2OfStandardDeviation` in the `ring` package, which returns the log2 of the standard deviation of the coefficients of a polynomial.
 - RING: renamed `Permute[...]` by `Automorphism[...]` in the `ring` package.
 - RING: added non-NTT `Automorphism` support for the `ConjugateInvariant` ring.
+- RING: NTT for ring degrees smaller than 16 is safe and allowed again.
 
 ## UNRELEASED [4.1.x] - 2022-03-09
 - CKKS: renamed the `Parameters` field `DefaultScale` to `LogScale`, which now takes a value in log2.

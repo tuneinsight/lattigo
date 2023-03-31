@@ -1,62 +1,11 @@
 package rlwe
 
 import (
-	"bytes"
-	"encoding"
-	"fmt"
-	"io"
 	"math"
 	"math/big"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
 )
-
-// WriteAndReadTestInterface is a testing interface for byte encoding and decoding.
-type WriteAndReadTestInterface interface {
-	BinarySize() int
-	io.WriterTo
-	io.ReaderFrom
-	encoding.BinaryMarshaler
-	encoding.BinaryUnmarshaler
-}
-
-// TestInterfaceWriteAndRead tests that:
-// - input and output implement WriteAndReadTestInterface
-// - input.WriteTo(io.Writer) writes a number of bytes on the writer equal to input.BinarySize
-// - output.ReadFrom(io.Reader) reads a number of bytes on the reader equal to input.BinarySize
-// - input.WriteTo written bytes are equal to the bytes produced by input.MarshalBinary
-// - all the above WriteTo, ReadFrom, MarhsalBinary and UnmarshalBinary do not return an error
-func TestInterfaceWriteAndRead(input, output WriteAndReadTestInterface) (err error) {
-	data := make([]byte, 0, input.BinarySize())
-
-	buf := bytes.NewBuffer(data) // Compliant to io.Writer and io.Reader
-
-	if n, err := input.WriteTo(buf); err != nil {
-		return fmt.Errorf("%T: %w", input, err)
-	} else {
-		if int(n) != input.BinarySize() {
-			return fmt.Errorf("invalid size: %T.WriteTo number of bytes written != %T.BinarySize", input, input)
-		}
-	}
-
-	if data2, err := input.MarshalBinary(); err != nil {
-		return err
-	} else {
-		if !bytes.Equal(buf.Bytes(), data2) {
-			return fmt.Errorf("invalid encoding: %T.WriteTo buffer != %T.MarshalBinary", input, input)
-		}
-	}
-
-	if n, err := output.ReadFrom(buf); err != nil {
-		return fmt.Errorf("%T: %w", output, err)
-	} else {
-		if int(n) != input.BinarySize() {
-			return fmt.Errorf("invalid encoding: %T.ReadFrom number of bytes read != %T.BinarySize", input, input)
-		}
-	}
-
-	return
-}
 
 // PublicKeyIsCorrect returns true if pk is a correct RLWE public-key for secret-key sk and parameters params.
 func PublicKeyIsCorrect(pk *PublicKey, sk *SecretKey, params Parameters, log2Bound float64) bool {

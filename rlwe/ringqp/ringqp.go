@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"io"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/utils/buffer"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
@@ -38,22 +39,9 @@ func (p *Poly) LevelP() int {
 	return -1
 }
 
-// Equals returns true if the receiver Poly is equal to the provided other Poly.
-// This method checks for equality of its two sub-polynomials.
-func (p *Poly) Equals(other Poly) (v bool) {
-
-	if p == &other {
-		return true
-	}
-
-	v = true
-	if p.Q != nil {
-		v = p.Q.Equals(other.Q)
-	}
-	if p.P != nil {
-		v = v && p.P.Equals(other.P)
-	}
-	return v
+// Equal returns true if the receiver Poly is equal to the provided other Poly.
+func (p *Poly) Equal(other *Poly) (v bool) {
+	return cmp.Equal(p, other)
 }
 
 // Copy copies the coefficients of other on the target polynomial.

@@ -2,6 +2,8 @@ package rlwe
 
 import (
 	"io"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 // RelinearizationKey is type of evaluation key used for ciphertext multiplication compactness.
@@ -17,9 +19,9 @@ func NewRelinearizationKey(params Parameters) *RelinearizationKey {
 	return &RelinearizationKey{EvaluationKey: *NewEvaluationKey(params, params.MaxLevelQ(), params.MaxLevelP())}
 }
 
-// Equals returs true if the to objects are equal.
-func (rlk *RelinearizationKey) Equals(other *RelinearizationKey) bool {
-	return rlk.EvaluationKey.Equals(&other.EvaluationKey)
+// Equal returs true if the to objects are equal.
+func (rlk *RelinearizationKey) Equal(other *RelinearizationKey) bool {
+	return cmp.Equal(rlk.EvaluationKey, other.EvaluationKey)
 }
 
 // CopyNew creates a deep copy of the object and returns it.

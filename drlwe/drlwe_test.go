@@ -605,7 +605,7 @@ func testThreshold(tc *testContext, level int, t *testing.T) {
 				ringQP.Add(pi.tsk.Value, recSk.Value, recSk.Value)
 			}
 
-			require.True(t, tc.skIdeal.Value.Equals(recSk.Value)) // reconstructed key should match the ideal sk
+			require.True(t, tc.skIdeal.Equal(recSk)) // reconstructed key should match the ideal sk
 		})
 	}
 }

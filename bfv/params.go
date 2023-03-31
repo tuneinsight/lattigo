@@ -161,7 +161,7 @@ func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err erro
 		return Parameters{}, fmt.Errorf("if t|Q then Q[0] must be t")
 	}
 
-	if rlweParams.Equals(rlwe.Parameters{}) {
+	if rlweParams.Equal(rlwe.Parameters{}) {
 		return Parameters{}, fmt.Errorf("provided RLWE parameters are invalid")
 	}
 
@@ -227,9 +227,9 @@ func (p Parameters) RingT() *ring.Ring {
 	return p.ringT
 }
 
-// Equals compares two sets of parameters for equality.
-func (p Parameters) Equals(other Parameters) bool {
-	res := p.Parameters.Equals(other.Parameters)
+// Equal compares two sets of parameters for equality.
+func (p Parameters) Equal(other Parameters) bool {
+	res := p.Parameters.Equal(other.Parameters)
 	res = res && (p.T() == other.T())
 	return res
 }

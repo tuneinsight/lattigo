@@ -13,6 +13,7 @@ All notable changes to this library are documented in this file.
     - `Read([]byte) (int, error)`: highly efficient encoding on preallocated slice of bytes.
     - `Write([]byte) (int, error)`: highly efficient decoding from a slice of bytes.
 - All: all tests and benchmarks in package other than the `RLWE` and `DRLWE` package that were merely wrapper of methods of the `RLWE` or `DRLWE` have been removed and/or moved to the `RLWE` and `DRLWE` packages.
+- All: polynomials, ciphertext and keys now all implement the method V Equal(V) bool.
 - RLWE: added accurate noise bounds for the tests.
 - RLWE: replaced `rlwe.DefaultParameters` by `rlwe.TestParametersLiteral`.
 - RLWE: substantially increased the test coverage of `rlwe` (both for the amount of operations but also parameters).

@@ -179,10 +179,10 @@ func testParameters(tc *testContext, t *testing.T) {
 
 	t.Run("Parameters/CopyNew", func(t *testing.T) {
 		params1, params2 := tc.params.CopyNew(), tc.params.CopyNew()
-		require.True(t, params1.Equals(tc.params) && params2.Equals(tc.params))
+		require.True(t, params1.Equal(tc.params) && params2.Equal(tc.params))
 		params1.ringT, _ = ring.NewRing(params1.N(), []uint64{0x40002001})
-		require.False(t, params1.Equals(tc.params))
-		require.True(t, params2.Equals(tc.params))
+		require.False(t, params1.Equal(tc.params))
+		require.True(t, params2.Equal(tc.params))
 	})
 }
 
@@ -871,7 +871,7 @@ func testMarshalling(tc *testContext, t *testing.T) {
 			var paramsRec Parameters
 			err = json.Unmarshal(data, &paramsRec)
 			assert.Nil(t, err)
-			assert.True(t, tc.params.Equals(paramsRec))
+			assert.True(t, tc.params.Equal(paramsRec))
 
 			// checks that ckks.Parameters can be unmarshalled with log-moduli definition without error
 			dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60], "T":65537}`, tc.params.LogN()))

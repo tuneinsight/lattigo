@@ -221,7 +221,7 @@ func testParameters(tc *testContext, t *testing.T) {
 		params, err := tc.params.StandardParameters()
 		switch tc.params.RingType() {
 		case ring.Standard:
-			require.True(t, params.Equals(tc.params))
+			require.True(t, params.Equal(tc.params))
 			require.NoError(t, err)
 		case ring.ConjugateInvariant:
 			require.Equal(t, params.LogN(), tc.params.LogN()+1)
@@ -1117,7 +1117,7 @@ func testMarshaller(tc *testContext, t *testing.T) {
 		var paramsRec Parameters
 		err = json.Unmarshal(data, &paramsRec)
 		assert.Nil(t, err)
-		assert.True(t, tc.params.Equals(paramsRec))
+		assert.True(t, tc.params.Equal(paramsRec))
 
 		// checks that ckks.Parameters can be unmarshalled with log-moduli definition without error
 		dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60], "DefaultScale":1.0}`, tc.params.LogN()))

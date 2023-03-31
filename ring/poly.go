@@ -95,11 +95,12 @@ func (pol *Poly) Copy(p1 *Poly) {
 	pol.CopyValues(p1)
 }
 
-// Equals returns true if the receiver Poly is equal to the provided other Poly.
+// Equal returns true if the receiver Poly is equal to the provided other Poly.
 // This function checks for strict equality between the polynomial coefficients
 // (i.e., it does not consider congruence as equality within the ring like
-// `Ring.Equals` does).
-func (pol *Poly) Equals(other *Poly) bool {
+// `Ring.Equal` does).
+func (pol *Poly) Equal(other *Poly) bool {
+
 	if pol == other {
 		return true
 	}

@@ -169,10 +169,10 @@ func testParameters(tc *testContext, t *testing.T) {
 
 	t.Run(testString("Parameters/CopyNew", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
 		params1, params2 := tc.params.CopyNew(), tc.params.CopyNew()
-		assert.True(t, params1.Equals(tc.params) && params2.Equals(tc.params))
+		assert.True(t, params1.Equal(tc.params) && params2.Equal(tc.params))
 		params1.ringT, _ = ring.NewRing(tc.params.N(), []uint64{7})
-		assert.False(t, params1.Equals(tc.params))
-		assert.True(t, params2.Equals(tc.params))
+		assert.False(t, params1.Equal(tc.params))
+		assert.True(t, params2.Equal(tc.params))
 	})
 }
 
@@ -740,7 +740,7 @@ func testMarshaller(tc *testContext, t *testing.T) {
 		var paramsRec Parameters
 		err = json.Unmarshal(data, &paramsRec)
 		assert.Nil(t, err)
-		assert.True(t, tc.params.Equals(paramsRec))
+		assert.True(t, tc.params.Equal(paramsRec))
 
 		// checks that bfv.Parameters can be unmarshalled with log-moduli definition without error
 		dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60], "T":65537}`, tc.params.LogN()))

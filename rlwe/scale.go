@@ -108,6 +108,10 @@ func (s Scale) Cmp(s1 Scale) (cmp int) {
 	return s.Value.Cmp(&s1.Value)
 }
 
+func (s Scale) Equal(s1 Scale) bool {
+	return s.Cmp(s1) == 0
+}
+
 // Max returns the a new scale which is the maximum
 // between the target scale and s1.
 func (s Scale) Max(s1 Scale) (max Scale) {

@@ -3,6 +3,8 @@ package rlwe
 import (
 	"fmt"
 	"io"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 // MetaData is a struct storing metadata.
@@ -13,11 +15,8 @@ type MetaData struct {
 }
 
 // Equal returns true if two MetaData structs are identical.
-func (m *MetaData) Equal(other MetaData) (res bool) {
-	res = m.Scale.Cmp(other.Scale) == 0
-	res = res && m.IsNTT == other.IsNTT
-	res = res && m.IsMontgomery == other.IsMontgomery
-	return
+func (m *MetaData) Equal(other *MetaData) (res bool) {
+	return cmp.Equal(&m.Scale, &other.Scale) && m.IsNTT == other.IsNTT && m.IsMontgomery == other.IsMontgomery
 }
 
 // BinarySize returns the size in bytes that the object once marshalled into a binary form.

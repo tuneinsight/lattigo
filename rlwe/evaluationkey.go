@@ -2,6 +2,8 @@ package rlwe
 
 import (
 	"io"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 // EvaluationKey is a public key indended to be used during the evaluation phase of a homomorphic circuit.
@@ -32,9 +34,9 @@ func NewEvaluationKey(params Parameters, levelQ, levelP int) *EvaluationKey {
 	)}
 }
 
-// Equals checks two EvaluationKeys for equality.
-func (evk *EvaluationKey) Equals(other *EvaluationKey) bool {
-	return evk.GadgetCiphertext.Equals(&other.GadgetCiphertext)
+// Equal checks two EvaluationKeys for equality.
+func (evk *EvaluationKey) Equal(other *EvaluationKey) bool {
+	return cmp.Equal(evk.GadgetCiphertext, other.GadgetCiphertext)
 }
 
 // CopyNew creates a deep copy of the target EvaluationKey and returns it.

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/tuneinsight/lattigo/v4/utils/buffer"
 )
 
@@ -31,9 +32,9 @@ func NewGaloisKey(params Parameters) *GaloisKey {
 	return &GaloisKey{EvaluationKey: *NewEvaluationKey(params, params.MaxLevelQ(), params.MaxLevelP()), NthRoot: params.RingQ().NthRoot()}
 }
 
-// Equals returns true if the two objects are equal.
-func (gk *GaloisKey) Equals(other *GaloisKey) bool {
-	return gk.EvaluationKey.Equals(&other.EvaluationKey) && gk.GaloisElement == other.GaloisElement && gk.NthRoot == other.NthRoot
+// Equal returns true if the two objects are equal.
+func (gk *GaloisKey) Equal(other *GaloisKey) bool {
+	return gk.GaloisElement == other.GaloisElement && gk.NthRoot == other.NthRoot && cmp.Equal(gk.EvaluationKey, other.EvaluationKey)
 }
 
 // CopyNew creates a deep copy of the object and returns it

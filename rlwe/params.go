@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"math/bits"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v4/utils"
@@ -623,15 +624,15 @@ func (p Parameters) RotationFromGaloisElement(galEl uint64) (k uint64) {
 	}
 }
 
-// Equals checks two Parameter structs for equality.
-func (p Parameters) Equals(other Parameters) bool {
+// Equal checks two Parameter structs for equality.
+func (p Parameters) Equal(other Parameters) bool {
 	res := p.logN == other.logN
-	res = res && utils.EqualSlice(p.qi, other.qi)
-	res = res && utils.EqualSlice(p.pi, other.pi)
+	res = res && cmp.Equal(p.qi, other.qi)
+	res = res && cmp.Equal(p.pi, other.pi)
 	res = res && (p.h == other.h)
 	res = res && (p.sigma == other.sigma)
 	res = res && (p.ringType == other.ringType)
-	res = res && (p.defaultScale.Cmp(other.defaultScale) == 0)
+	res = res && (p.defaultScale.Equal(other.defaultScale))
 	res = res && (p.defaultNTTFlag == other.defaultNTTFlag)
 	return res
 }

@@ -10,10 +10,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
-
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
+	"github.com/tuneinsight/lattigo/v4/utils/buffer"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
@@ -137,7 +136,7 @@ func testKeyGenerator(tc *TestContext, t *testing.T) {
 	pk := tc.pk
 
 	t.Run(testString(params, params.MaxLevel(), "CheckMetaData"), func(t *testing.T) {
-		require.True(t, pk.MetaData.Equal(MetaData{IsNTT: true, IsMontgomery: true}))
+		require.True(t, pk.MetaData.Equal(&MetaData{IsNTT: true, IsMontgomery: true}))
 	})
 
 	// Checks that the secret-key has exactly params.h non-zero coefficients
@@ -279,7 +278,7 @@ func testEncryptor(tc *TestContext, level int, t *testing.T) {
 		enc1 := enc.WithKey(pk)
 		enc2 := enc1.ShallowCopy()
 		pkEnc1, pkEnc2 := enc1.(*pkEncryptor), enc2.(*pkEncryptor)
-		require.True(t, pkEnc1.params.Equals(pkEnc2.params))
+		require.True(t, pkEnc1.params.Equal(pkEnc2.params))
 		require.True(t, pkEnc1.pk == pkEnc2.pk)
 		require.False(t, (pkEnc1.basisextender == pkEnc2.basisextender) && (pkEnc1.basisextender != nil) && (pkEnc2.basisextender != nil))
 		require.False(t, pkEnc1.encryptorBuffers == pkEnc2.encryptorBuffers)
@@ -332,7 +331,7 @@ func testEncryptor(tc *TestContext, level int, t *testing.T) {
 		enc1 := NewEncryptor(params, sk)
 		enc2 := enc1.ShallowCopy()
 		skEnc1, skEnc2 := enc1.(*skEncryptor), enc2.(*skEncryptor)
-		require.True(t, skEnc1.params.Equals(skEnc2.params))
+		require.True(t, skEnc1.params.Equal(skEnc2.params))
 		require.True(t, skEnc1.sk == skEnc2.sk)
 		require.False(t, (skEnc1.basisextender == skEnc2.basisextender) && (skEnc1.basisextender != nil) && (skEnc2.basisextender != nil))
 		require.False(t, skEnc1.encryptorBuffers == skEnc2.encryptorBuffers)
@@ -345,9 +344,9 @@ func testEncryptor(tc *TestContext, level int, t *testing.T) {
 		enc1 := NewEncryptor(params, sk)
 		enc2 := enc1.WithKey(sk2)
 		skEnc1, skEnc2 := enc1.(*skEncryptor), enc2.(*skEncryptor)
-		require.True(t, skEnc1.params.Equals(skEnc2.params))
-		require.True(t, skEnc1.sk.Value.Equals(sk.Value))
-		require.True(t, skEnc2.sk.Value.Equals(sk2.Value))
+		require.True(t, skEnc1.params.Equal(skEnc2.params))
+		require.True(t, skEnc1.sk.Equal(sk))
+		require.True(t, skEnc2.sk.Equal(sk2))
 		require.True(t, skEnc1.basisextender == skEnc2.basisextender)
 		require.True(t, skEnc1.encryptorBuffers == skEnc2.encryptorBuffers)
 		require.True(t, skEnc1.ternarySampler == skEnc2.ternarySampler)
@@ -913,18 +912,10 @@ func testWriteAndRead(tc *TestContext, t *testing.T) {
 	sk, pk := tc.sk, tc.pk
 
 	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/Plaintext"), func(t *testing.T) {
-
 		prng, _ := sampling.NewPRNG()
-
 		plaintextWant := NewPlaintext(params, params.MaxLevel())
 		ring.NewUniformSampler(prng, params.RingQ()).Read(plaintextWant.Value)
-
-		plaintextTest := new(Plaintext)
-
-		require.NoError(t, TestInterfaceWriteAndRead(plaintextWant, plaintextTest))
-
-		require.Equal(t, plaintextWant.Level(), plaintextTest.Level())
-		require.True(t, params.RingQ().Equal(plaintextWant.Value, plaintextTest.Value))
+		buffer.TestInterfaceWriteAndRead(t, plaintextWant)
 	})
 
 	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/Ciphertext"), func(t *testing.T) {
@@ -933,118 +924,37 @@ func testWriteAndRead(tc *TestContext, t *testing.T) {
 
 		for degree := 0; degree < 4; degree++ {
 			t.Run(fmt.Sprintf("degree=%d", degree), func(t *testing.T) {
-				ciphertextWant := NewCiphertextRandom(prng, params, degree, params.MaxLevel())
-				ciphertextTest := new(Ciphertext)
-
-				require.NoError(t, TestInterfaceWriteAndRead(ciphertextWant, ciphertextTest))
-
-				require.Equal(t, ciphertextWant.Degree(), ciphertextTest.Degree())
-				require.Equal(t, ciphertextWant.Level(), ciphertextTest.Level())
-
-				for i := range ciphertextWant.Value {
-					require.True(t, params.RingQ().Equal(ciphertextWant.Value[i], ciphertextTest.Value[i]))
-				}
+				buffer.TestInterfaceWriteAndRead(t, NewCiphertextRandom(prng, params, degree, params.MaxLevel()))
 			})
 		}
 	})
 
 	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/CiphertextQP"), func(t *testing.T) {
-
-		prng, _ := sampling.NewPRNG()
-
-		sampler := ringqp.NewUniformSampler(prng, *params.RingQP())
-
-		ciphertextWant := NewCiphertextQP(params, params.MaxLevelQ(), params.MaxLevelP())
-		sampler.Read(ciphertextWant.Value[0])
-		sampler.Read(ciphertextWant.Value[1])
-
-		ciphertextTest := CiphertextQP{}
-
-		require.NoError(t, TestInterfaceWriteAndRead(&ciphertextWant, &ciphertextTest))
-
-		require.Equal(t, ciphertextWant.LevelQ(), ciphertextTest.LevelQ())
-		require.Equal(t, ciphertextWant.LevelP(), ciphertextTest.LevelP())
-
-		require.True(t, params.RingQP().Equal(ciphertextWant.Value[0], ciphertextTest.Value[0]))
-		require.True(t, params.RingQP().Equal(ciphertextWant.Value[1], ciphertextTest.Value[1]))
+		buffer.TestInterfaceWriteAndRead(t, &tc.pk.CiphertextQP)
 	})
 
 	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/GadgetCiphertext"), func(t *testing.T) {
-
-		prng, _ := sampling.NewPRNG()
-
-		sampler := ringqp.NewUniformSampler(prng, *params.RingQP())
-
-		levelQ := params.MaxLevelQ()
-		levelP := params.MaxLevelP()
-
-		RNS := params.DecompRNS(levelQ, levelP)
-		BIT := params.DecompPw2(levelQ, levelP)
-
-		ciphertextWant := NewGadgetCiphertext(params, params.MaxLevelQ(), params.MaxLevelP(), RNS, BIT)
-
-		for i := 0; i < RNS; i++ {
-			for j := 0; j < BIT; j++ {
-				sampler.Read(ciphertextWant.Value[i][j].Value[0])
-				sampler.Read(ciphertextWant.Value[i][j].Value[1])
-			}
-		}
-
-		ciphertextTest := new(GadgetCiphertext)
-
-		require.NoError(t, TestInterfaceWriteAndRead(ciphertextWant, ciphertextTest))
-
-		require.True(t, ciphertextWant.Equals(ciphertextTest))
+		buffer.TestInterfaceWriteAndRead(t, &tc.kgen.GenRelinearizationKeyNew(tc.sk).GadgetCiphertext)
 	})
 
 	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/Sk"), func(t *testing.T) {
-
-		skTest := new(SecretKey)
-
-		require.NoError(t, TestInterfaceWriteAndRead(sk, skTest))
-
-		require.True(t, sk.Value.Equals(skTest.Value))
+		buffer.TestInterfaceWriteAndRead(t, sk)
 	})
 
 	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/Pk"), func(t *testing.T) {
-
-		pkTest := new(PublicKey)
-
-		require.NoError(t, TestInterfaceWriteAndRead(pk, pkTest))
-
-		require.True(t, pk.Equals(pkTest))
+		buffer.TestInterfaceWriteAndRead(t, pk)
 	})
 
 	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/EvaluationKey"), func(t *testing.T) {
-
-		skOut := tc.kgen.GenSecretKeyNew()
-
-		evalKey := tc.kgen.GenEvaluationKeyNew(sk, skOut)
-
-		resEvalKey := new(EvaluationKey)
-		require.NoError(t, TestInterfaceWriteAndRead(evalKey, resEvalKey))
-
-		require.True(t, evalKey.Equals(resEvalKey))
+		buffer.TestInterfaceWriteAndRead(t, tc.kgen.GenEvaluationKeyNew(sk, sk))
 	})
 
 	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/RelinearizationKey"), func(t *testing.T) {
-		rlk := NewRelinearizationKey(params)
-
-		rlkNew := &RelinearizationKey{}
-
-		require.NoError(t, TestInterfaceWriteAndRead(rlk, rlkNew))
-
-		require.True(t, rlk.Equals(rlkNew))
+		buffer.TestInterfaceWriteAndRead(t, tc.kgen.GenRelinearizationKeyNew(tc.sk))
 	})
 
 	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/GaloisKey"), func(t *testing.T) {
-		gk := NewGaloisKey(params)
-
-		gkNew := &GaloisKey{}
-
-		require.NoError(t, TestInterfaceWriteAndRead(gk, gkNew))
-
-		require.True(t, gk.Equals(gkNew))
+		buffer.TestInterfaceWriteAndRead(t, tc.kgen.GenGaloisKeyNew(5, tc.sk))
 	})
 
 	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/PowerBasis"), func(t *testing.T) {
@@ -1060,37 +970,13 @@ func testWriteAndRead(tc *TestContext, t *testing.T) {
 		basis.Value[4] = NewCiphertextRandom(prng, params, 1, params.MaxLevel())
 		basis.Value[8] = NewCiphertextRandom(prng, params, 1, params.MaxLevel())
 
-		basisTest := new(PowerBasis)
-
-		require.NoError(t, TestInterfaceWriteAndRead(basis, basisTest))
-
-		require.True(t, basis.Basis == basisTest.Basis)
-		require.True(t, len(basis.Value) == len(basisTest.Value))
-
-		for key, ct1 := range basis.Value {
-			if ct2, ok := basisTest.Value[key]; !ok {
-				t.Fatal()
-			} else {
-
-				require.True(t, ct1.Degree() == ct2.Degree())
-				require.True(t, ct1.Level() == ct2.Level())
-
-				ringQ := tc.params.RingQ().AtLevel(ct1.Level())
-
-				for i := range ct1.Value {
-
-					require.True(t, ringQ.Equal(ct1.Value[i], ct2.Value[i]))
-				}
-			}
-		}
+		buffer.TestInterfaceWriteAndRead(t, basis)
 	})
 }
 
 func testMarshaller(tc *TestContext, t *testing.T) {
 
 	params := tc.params
-
-	sk, pk := tc.sk, tc.pk
 
 	t.Run(testString(params, params.MaxLevel(), "Marshaller/Parameters/Binary"), func(t *testing.T) {
 		bytes, err := params.MarshalBinary()
@@ -1130,214 +1016,10 @@ func testMarshaller(tc *TestContext, t *testing.T) {
 		require.Nil(t, err)
 		require.NotNil(t, data)
 
-		mHave := MetaData{}
+		mHave := &MetaData{}
 
 		require.Nil(t, mHave.UnmarshalBinary(data))
 
 		require.True(t, m.Equal(mHave))
-	})
-
-	t.Run(testString(params, params.MaxLevel(), "Marshaller/Plaintext"), func(t *testing.T) {
-
-		prng, _ := sampling.NewPRNG()
-
-		plaintextWant := NewPlaintext(params, params.MaxLevel())
-		ring.NewUniformSampler(prng, params.RingQ()).Read(plaintextWant.Value)
-
-		marshaledPlaintext, err := plaintextWant.MarshalBinary()
-		require.NoError(t, err)
-
-		plaintextTest := new(Plaintext)
-		require.NoError(t, plaintextTest.UnmarshalBinary(marshaledPlaintext))
-
-		require.Equal(t, plaintextWant.Level(), plaintextTest.Level())
-		require.True(t, params.RingQ().Equal(plaintextWant.Value, plaintextTest.Value))
-	})
-
-	t.Run(testString(params, params.MaxLevel(), "Marshaller/Ciphertext"), func(t *testing.T) {
-
-		prng, _ := sampling.NewPRNG()
-
-		for degree := 0; degree < 4; degree++ {
-			t.Run(fmt.Sprintf("degree=%d", degree), func(t *testing.T) {
-				ciphertextWant := NewCiphertextRandom(prng, params, degree, params.MaxLevel())
-
-				marshalledCiphertext, err := ciphertextWant.MarshalBinary()
-				require.NoError(t, err)
-
-				ciphertextTest := new(Ciphertext)
-				require.NoError(t, ciphertextTest.UnmarshalBinary(marshalledCiphertext))
-
-				require.Equal(t, ciphertextWant.Degree(), ciphertextTest.Degree())
-				require.Equal(t, ciphertextWant.Level(), ciphertextTest.Level())
-
-				for i := range ciphertextWant.Value {
-					require.True(t, params.RingQ().Equal(ciphertextWant.Value[i], ciphertextTest.Value[i]))
-				}
-			})
-		}
-	})
-
-	t.Run(testString(params, params.MaxLevel(), "Marshaller/CiphertextQP"), func(t *testing.T) {
-
-		prng, _ := sampling.NewPRNG()
-
-		sampler := ringqp.NewUniformSampler(prng, *params.RingQP())
-
-		ciphertextWant := NewCiphertextQP(params, params.MaxLevelQ(), params.MaxLevelP())
-		sampler.Read(ciphertextWant.Value[0])
-		sampler.Read(ciphertextWant.Value[1])
-
-		marshalledCiphertext, err := ciphertextWant.MarshalBinary()
-		require.NoError(t, err)
-
-		ciphertextTest := new(CiphertextQP)
-		require.NoError(t, ciphertextTest.UnmarshalBinary(marshalledCiphertext))
-
-		require.Equal(t, ciphertextWant.LevelQ(), ciphertextTest.LevelQ())
-		require.Equal(t, ciphertextWant.LevelP(), ciphertextTest.LevelP())
-
-		require.True(t, params.RingQP().Equal(ciphertextWant.Value[0], ciphertextTest.Value[0]))
-		require.True(t, params.RingQP().Equal(ciphertextWant.Value[1], ciphertextTest.Value[1]))
-	})
-
-	t.Run(testString(params, params.MaxLevel(), "Marshaller/GadgetCiphertext"), func(t *testing.T) {
-
-		prng, _ := sampling.NewPRNG()
-
-		sampler := ringqp.NewUniformSampler(prng, *params.RingQP())
-
-		levelQ := params.MaxLevelQ()
-		levelP := params.MaxLevelP()
-
-		RNS := params.DecompRNS(levelQ, levelP)
-		BIT := params.DecompPw2(levelQ, levelP)
-
-		ciphertextWant := NewGadgetCiphertext(params, params.MaxLevelQ(), params.MaxLevelP(), RNS, BIT)
-
-		for i := 0; i < RNS; i++ {
-			for j := 0; j < BIT; j++ {
-				sampler.Read(ciphertextWant.Value[i][j].Value[0])
-				sampler.Read(ciphertextWant.Value[i][j].Value[1])
-			}
-		}
-
-		marshalledCiphertext, err := ciphertextWant.MarshalBinary()
-		require.NoError(t, err)
-
-		ciphertextTest := new(GadgetCiphertext)
-		require.NoError(t, ciphertextTest.UnmarshalBinary(marshalledCiphertext))
-
-		require.True(t, ciphertextWant.Equals(ciphertextTest))
-	})
-
-	t.Run(testString(params, params.MaxLevel(), "Marshaller/Sk"), func(t *testing.T) {
-
-		marshalledSk, err := sk.MarshalBinary()
-		require.NoError(t, err)
-
-		skTest := new(SecretKey)
-		err = skTest.UnmarshalBinary(marshalledSk)
-		require.NoError(t, err)
-
-		require.True(t, sk.Value.Equals(skTest.Value))
-	})
-
-	t.Run(testString(params, params.MaxLevel(), "Marshaller/Pk"), func(t *testing.T) {
-
-		marshalledPk, err := pk.MarshalBinary()
-		require.NoError(t, err)
-
-		pkTest := new(PublicKey)
-		err = pkTest.UnmarshalBinary(marshalledPk)
-		require.NoError(t, err)
-
-		require.True(t, pk.Equals(pkTest))
-	})
-
-	t.Run(testString(params, params.MaxLevel(), "Marshaller/EvaluationKey"), func(t *testing.T) {
-
-		skOut := tc.kgen.GenSecretKeyNew()
-
-		evalKey := tc.kgen.GenEvaluationKeyNew(sk, skOut)
-		data, err := evalKey.MarshalBinary()
-		require.NoError(t, err)
-
-		resEvalKey := new(EvaluationKey)
-		err = resEvalKey.UnmarshalBinary(data)
-		require.NoError(t, err)
-
-		require.True(t, evalKey.Equals(resEvalKey))
-	})
-
-	t.Run(testString(params, params.MaxLevel(), "Marshaller/RelinearizationKey"), func(t *testing.T) {
-		rlk := NewRelinearizationKey(params)
-
-		data, err := rlk.MarshalBinary()
-		require.NoError(t, err)
-
-		rlkNew := &RelinearizationKey{}
-
-		if err := rlkNew.UnmarshalBinary(data); err != nil {
-			t.Fatal(err)
-		}
-
-		require.True(t, rlk.Equals(rlkNew))
-	})
-
-	t.Run(testString(params, params.MaxLevel(), "Marshaller/GaloisKey"), func(t *testing.T) {
-		gk := NewGaloisKey(params)
-
-		data, err := gk.MarshalBinary()
-		require.NoError(t, err)
-
-		gkNew := &GaloisKey{}
-
-		if err := gkNew.UnmarshalBinary(data); err != nil {
-			t.Fatal(err)
-		}
-
-		require.True(t, gk.Equals(gkNew))
-	})
-
-	t.Run(testString(params, params.MaxLevel(), "Marshaller/PowerBasis"), func(t *testing.T) {
-
-		prng, _ := sampling.NewPRNG()
-
-		ct := NewCiphertextRandom(prng, params, 1, params.MaxLevel())
-
-		basis := NewPowerBasis(ct, polynomial.Chebyshev)
-
-		basis.Value[2] = NewCiphertextRandom(prng, params, 1, params.MaxLevel())
-		basis.Value[3] = NewCiphertextRandom(prng, params, 2, params.MaxLevel())
-		basis.Value[4] = NewCiphertextRandom(prng, params, 1, params.MaxLevel())
-		basis.Value[8] = NewCiphertextRandom(prng, params, 1, params.MaxLevel())
-
-		data, err := basis.MarshalBinary()
-		require.Nil(t, err)
-
-		basisTest := new(PowerBasis)
-
-		require.Nil(t, basisTest.UnmarshalBinary(data))
-
-		require.True(t, basis.Basis == basisTest.Basis)
-		require.True(t, len(basis.Value) == len(basisTest.Value))
-
-		for key, ct1 := range basis.Value {
-			if ct2, ok := basisTest.Value[key]; !ok {
-				t.Fatal()
-			} else {
-
-				require.True(t, ct1.Degree() == ct2.Degree())
-				require.True(t, ct1.Level() == ct2.Level())
-
-				ringQ := tc.params.RingQ().AtLevel(ct1.Level())
-
-				for i := range ct1.Value {
-
-					require.True(t, ringQ.Equal(ct1.Value[i], ct2.Value[i]))
-				}
-			}
-		}
 	})
 }

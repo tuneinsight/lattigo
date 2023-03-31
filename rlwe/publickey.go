@@ -3,6 +3,7 @@ package rlwe
 import (
 	"io"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 )
 
@@ -32,12 +33,9 @@ func (pk *PublicKey) LevelP() int {
 	return -1
 }
 
-// Equals checks two PublicKey struct for equality.
-func (pk *PublicKey) Equals(other *PublicKey) bool {
-	if pk == other {
-		return true
-	}
-	return pk.Value[0].Equals(other.Value[0]) && pk.Value[1].Equals(other.Value[1])
+// Equal checks two PublicKey struct for equality.
+func (pk *PublicKey) Equal(other *PublicKey) bool {
+	return cmp.Equal(pk.CiphertextQP, other.CiphertextQP)
 }
 
 // CopyNew creates a deep copy of the receiver PublicKey and returns it.

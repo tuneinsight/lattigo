@@ -3,6 +3,7 @@ package rlwe
 import (
 	"io"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 )
 
@@ -15,6 +16,10 @@ type SecretKey struct {
 // NewSecretKey generates a new SecretKey with zero values.
 func NewSecretKey(params Parameters) *SecretKey {
 	return &SecretKey{Value: params.RingQP().NewPoly()}
+}
+
+func (sk *SecretKey) Equal(other *SecretKey) bool {
+	return cmp.Equal(sk.Value, other.Value)
 }
 
 // LevelQ returns the level of the modulus Q of the target.

@@ -3,6 +3,7 @@ module github.com/tuneinsight/lattigo/v4
 go 1.18
 
 require (
+	github.com/google/go-cmp v0.5.8
 	github.com/stretchr/testify v1.8.0
 	golang.org/x/crypto v0.0.0-20220926161630-eccd6366d1be
 	golang.org/x/exp v0.0.0-20230321023759-10a507213a29

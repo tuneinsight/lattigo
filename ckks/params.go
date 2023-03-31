@@ -323,7 +323,7 @@ func NewParameters(rlweParams rlwe.Parameters, logSlots int) (p Parameters, err 
 		return Parameters{}, fmt.Errorf("provided RLWE parameters are invalid for CKKS scheme (DefaultNTTFlag must be true)")
 	}
 
-	if rlweParams.Equals(rlwe.Parameters{}) {
+	if rlweParams.Equal(rlwe.Parameters{}) {
 		return Parameters{}, fmt.Errorf("provided RLWE parameters are invalid")
 	}
 
@@ -455,9 +455,9 @@ func (p Parameters) RotationsForLinearTransform(nonZeroDiags interface{}, logSlo
 	return append(rotN1, rotN2...)
 }
 
-// Equals compares two sets of parameters for equality.
-func (p Parameters) Equals(other Parameters) bool {
-	res := p.Parameters.Equals(other.Parameters)
+// Equal compares two sets of parameters for equality.
+func (p Parameters) Equal(other Parameters) bool {
+	res := p.Parameters.Equal(other.Parameters)
 	res = res && (p.logSlots == other.LogSlots())
 	return res
 }

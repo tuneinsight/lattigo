@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"io"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v4/utils/buffer"
@@ -50,30 +51,9 @@ func (ct *GadgetCiphertext) LevelP() int {
 	return -1
 }
 
-// Equals checks two Ciphertexts for equality.
-func (ct *GadgetCiphertext) Equals(other *GadgetCiphertext) bool {
-	if ct == other {
-		return true
-	}
-	if (ct == nil) != (other == nil) {
-		return false
-	}
-	if len(ct.Value) != len(other.Value) {
-		return false
-	}
-
-	if len(ct.Value[0]) != len(other.Value[0]) {
-		return false
-	}
-
-	for i := range ct.Value {
-		for j, pol := range ct.Value[i] {
-			if !pol.Value[0].Equals(other.Value[i][j].Value[0]) && !pol.Value[1].Equals(other.Value[i][j].Value[1]) {
-				return false
-			}
-		}
-	}
-	return true
+// Equal checks two Ciphertexts for equality.
+func (ct *GadgetCiphertext) Equal(other *GadgetCiphertext) bool {
+	return cmp.Equal(ct.Value, other.Value)
 }
 
 // CopyNew creates a deep copy of the receiver Ciphertext and returns it.

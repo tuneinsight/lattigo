@@ -6,12 +6,13 @@ All notable changes to this library are documented in this file.
 - Go `1.14`, `1.15`, `1.16` and `1.17` are not supported anymore by the library due to `func (b *Writer) AvailableBuffer() []byte` missing. The minimum version is now `1.18`.
 - All: Golang Security Checker pass.
 - All: lightweight structs, such as parameter now all use `json.Marshal` as underlying marshaler.
-- All: heavy structs, such as keys and ciphertexts, now all comply to the following interfaces:
+- All: heavy structs, such as keys, shares and ciphertexts, now all comply to the following interface:
     - `BinarySize() int`: size in bytes when written to an `io.Writer` or to a slice of bytes using `Read`.
     - `WriteTo(io.Writer) (int64, error)`: efficient writing on any `io.Writer`.
     - `ReadFrom(io.Reader) (int64, error)`: efficient reading from any `io.Reader`.
     - `Read([]byte) (int, error)`: highly efficient encoding on preallocated slice of bytes.
     - `Write([]byte) (int, error)`: highly efficient decoding from a slice of bytes.
+    Streamlined and simplified all test related this interface. They can now be implemented with a single line of code.
 - All: all tests and benchmarks in package other than the `RLWE` and `DRLWE` package that were merely wrapper of methods of the `RLWE` or `DRLWE` have been removed and/or moved to the `RLWE` and `DRLWE` packages.
 - All: polynomials, ciphertext and keys now all implement the method V Equal(V) bool.
 - RLWE: added accurate noise bounds for the tests.
@@ -36,6 +37,11 @@ All notable changes to this library are documented in this file.
 - RING: renamed `Permute[...]` by `Automorphism[...]` in the `ring` package.
 - RING: added non-NTT `Automorphism` support for the `ConjugateInvariant` ring.
 - RING: NTT for ring degrees smaller than 16 is safe and allowed again.
+- RING: added `PolyVector` and `PolyMatrix` structs.
+- UTILS: added subpackage `buffer` which implement custom methods to efficiently write and read slice on any writer or reader implementing a subset interface of the `bufio.Writer` and `bufio.Reader`.
+- UTILS: added subpackage `bignum`, which is a place holder for future support of arbitrary precision complex arithmetic, polynomials and functions approximation.
+- UTILS: added subpackage `sampling` which regroups the various random bytes and number generator that were previously present in the package `utils`.
+- UTILS: updated methods with generics when applicable.
 
 ## UNRELEASED [4.1.x] - 2022-03-09
 - CKKS: renamed the `Parameters` field `DefaultScale` to `LogScale`, which now takes a value in log2.

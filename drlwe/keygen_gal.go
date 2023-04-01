@@ -1,17 +1,20 @@
 package drlwe
 
 import (
+	"bufio"
 	"encoding/binary"
 	"fmt"
+	"io"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
+	"github.com/tuneinsight/lattigo/v4/utils/buffer"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 // GKGCRP is a type for common reference polynomials in the GaloisKey Generation protocol.
-type GKGCRP [][]ringqp.Poly
+type GKGCRP ringqp.PolyMatrix
 
 // GKGProtocol is the structure storing the parameters for the collective GaloisKeys generation.
 type GKGProtocol struct {
@@ -54,21 +57,10 @@ func NewGKGProtocol(params rlwe.Parameters) (gkg *GKGProtocol) {
 
 // AllocateShare allocates a party's share in the GaloisKey Generation.
 func (gkg *GKGProtocol) AllocateShare() (gkgShare *GKGShare) {
-	gkgShare = new(GKGShare)
-
 	params := gkg.params
-	decompRNS := gkg.params.DecompRNS(params.MaxLevelQ(), params.MaxLevelP())
-	decompPw2 := gkg.params.DecompPw2(params.MaxLevelQ(), params.MaxLevelP())
-
-	gkgShare.Value = make([][]ringqp.Poly, decompRNS)
-
-	for i := 0; i < decompRNS; i++ {
-		gkgShare.Value[i] = make([]ringqp.Poly, decompPw2)
-		for j := 0; j < decompPw2; j++ {
-			gkgShare.Value[i][j] = gkg.params.RingQP().NewPoly()
-		}
-	}
-	return
+	decompRNS := params.DecompRNS(params.MaxLevelQ(), params.MaxLevelP())
+	decompPw2 := params.DecompPw2(params.MaxLevelQ(), params.MaxLevelP())
+	return &GKGShare{Value: ringqp.NewPolyMatrix(params.N(), params.MaxLevelQ(), params.MaxLevelP(), decompRNS, decompPw2)}
 }
 
 // SampleCRP samples a common random polynomial to be used in the GaloisKey Generation from the provided
@@ -76,19 +68,19 @@ func (gkg *GKGProtocol) AllocateShare() (gkgShare *GKGShare) {
 func (gkg *GKGProtocol) SampleCRP(crs CRS) GKGCRP {
 
 	params := gkg.params
-	decompRNS := gkg.params.DecompRNS(params.MaxLevelQ(), params.MaxLevelP())
-	decompPw2 := gkg.params.DecompPw2(params.MaxLevelQ(), params.MaxLevelP())
+	decompRNS := params.DecompRNS(params.MaxLevelQ(), params.MaxLevelP())
+	decompPw2 := params.DecompPw2(params.MaxLevelQ(), params.MaxLevelP())
 
-	crp := make([][]ringqp.Poly, decompRNS)
+	m := ringqp.NewPolyMatrix(params.N(), params.MaxLevelQ(), params.MaxLevelP(), decompRNS, decompPw2)
 	us := ringqp.NewUniformSampler(crs, *params.RingQP())
-	for i := 0; i < decompRNS; i++ {
-		crp[i] = make([]ringqp.Poly, decompPw2)
-		for j := 0; j < decompPw2; j++ {
-			crp[i][j] = gkg.params.RingQP().NewPoly()
-			us.Read(crp[i][j])
+
+	for _, v := range m {
+		for _, p := range v {
+			us.Read(p)
 		}
 	}
-	return GKGCRP(crp)
+
+	return GKGCRP(m)
 }
 
 // GenShare generates a party's share in the GaloisKey Generation.
@@ -211,84 +203,104 @@ func (gkg *GKGProtocol) GenGaloisKey(share *GKGShare, crp GKGCRP, gk *rlwe.Galoi
 // GKGShare is represent a Party's share in the GaloisKey Generation protocol.
 type GKGShare struct {
 	GaloisElement uint64
-	Value         [][]ringqp.Poly
+	Value         ringqp.PolyMatrix
 }
 
 // BinarySize returns the size in bytes that the object once marshalled into a binary form.
 func (share *GKGShare) BinarySize() int {
-	return 10 + share.Value[0][0].BinarySize()*len(share.Value)*len(share.Value[0])
+	return 8 + share.Value.BinarySize()
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
 func (share *GKGShare) MarshalBinary() (data []byte, err error) {
 	data = make([]byte, share.BinarySize())
-	_, err = share.MarshalBinaryInPlace(data)
+	_, err = share.Read(data)
 	return
 }
 
-// MarshalBinaryInPlace encodes the object into a binary form on a preallocated slice of bytes
+// Read encodes the object into a binary form on a preallocated slice of bytes
 // and returns the number of bytes written.
-func (share *GKGShare) MarshalBinaryInPlace(data []byte) (ptr int, err error) {
+func (share *GKGShare) Read(data []byte) (n int, err error) {
+	binary.LittleEndian.PutUint64(data, share.GaloisElement)
+	n, err = share.Value.Read(data[8:])
+	return n + 8, err
+}
 
-	if len(share.Value) > 0xFF {
-		return ptr, fmt.Errorf("uint8 overflow on length")
-	}
+// WriteTo writes the object on an io.Writer.
+// To ensure optimal efficiency and minimal allocations, the user is encouraged
+// to provide a struct implementing the interface buffer.Writer, which defines
+// a subset of the method of the bufio.Writer.
+// If w is not compliant to the buffer.Writer interface, it will be wrapped in
+// a new bufio.Writer.
+// For additional information, see lattigo/utils/buffer/writer.go.
+func (share *GKGShare) WriteTo(w io.Writer) (n int64, err error) {
+	switch w := w.(type) {
+	case buffer.Writer:
+		var inc int
 
-	data[ptr] = uint8(len(share.Value))
-	ptr++
-	data[ptr] = uint8(len(share.Value[0]))
-	ptr++
-
-	binary.LittleEndian.PutUint64(data[ptr:ptr+8], share.GaloisElement)
-	ptr += 8
-
-	var inc int
-	for i := range share.Value {
-		for _, el := range share.Value[i] {
-			if inc, err = el.Read(data[ptr:]); err != nil {
-				return
-			}
-			ptr += inc
+		if inc, err = buffer.WriteUint64(w, share.GaloisElement); err != nil {
+			return n + int64(inc), err
 		}
-	}
 
-	return
+		n += int64(inc)
+
+		var inc2 int64
+		if inc2, err = share.Value.WriteTo(w); err != nil {
+			return n + inc2, err
+		}
+
+		n += inc2
+
+		return
+
+	default:
+		return share.WriteTo(bufio.NewWriter(w))
+	}
 }
 
 // UnmarshalBinary decodes a slice of bytes generated by MarshalBinary
-// or MarshalBinaryInPlace on the object.
+// or Read on the object.
 func (share *GKGShare) UnmarshalBinary(data []byte) (err error) {
-	_, err = share.UnmarshalBinaryInPlace(data)
+	_, err = share.Write(data)
 	return
 }
 
-// UnmarshalBinaryInPlace decodes a slice of bytes generated by MarshalBinary or
-// MarshalBinaryInPlace on the object and returns the number of bytes read.
-func (share *GKGShare) UnmarshalBinaryInPlace(data []byte) (ptr int, err error) {
+// Write decodes a slice of bytes generated by MarshalBinary or
+// Read on the object and returns the number of bytes read.
+func (share *GKGShare) Write(data []byte) (n int, err error) {
+	share.GaloisElement = binary.LittleEndian.Uint64(data)
+	n, err = share.Value.Write(data[8:])
+	return n + 8, err
+}
 
-	RNS := int(data[0])
-	BIT := int(data[1])
+// ReadFrom reads on the object from an io.Writer.
+// To ensure optimal efficiency and minimal allocations, the user is encouraged
+// to provide a struct implementing the interface buffer.Reader, which defines
+// a subset of the method of the bufio.Reader.
+// If r is not compliant to the buffer.Reader interface, it will be wrapped in
+// a new bufio.Reader.
+// For additional information, see lattigo/utils/buffer/reader.go.
+func (share *GKGShare) ReadFrom(r io.Reader) (n int64, err error) {
+	switch r := r.(type) {
+	case buffer.Reader:
 
-	if share.Value == nil || len(share.Value) != RNS {
-		share.Value = make([][]ringqp.Poly, RNS)
-	}
+		var inc int
 
-	share.GaloisElement = binary.LittleEndian.Uint64(data[2:10])
-	ptr = 10
-	var inc int
-	for i := range share.Value {
-
-		if share.Value[i] == nil {
-			share.Value[i] = make([]ringqp.Poly, BIT)
+		if inc, err = buffer.ReadUint64(r, &share.GaloisElement); err != nil {
+			return n + int64(inc), err
 		}
 
-		for j := range share.Value[i] {
-			if inc, err = share.Value[i][j].Write(data[ptr:]); err != nil {
-				return
-			}
-			ptr += inc
-		}
-	}
+		n += int64(inc)
 
-	return
+		var inc2 int64
+		if inc2, err = share.Value.ReadFrom(r); err != nil {
+			return n + inc2, err
+		}
+
+		n += inc2
+
+		return
+	default:
+		return share.ReadFrom(bufio.NewReader(r))
+	}
 }

@@ -82,7 +82,7 @@ func ReadUint16Slice(r Reader, c []uint16) (n int, err error) {
 		size = len(c) << 1
 	}
 
-	// Then returns the unread bytes
+	// Then returns the writen bytes
 	if slice, err = r.Peek(size); err != nil {
 		fmt.Println(err)
 		return
@@ -154,7 +154,7 @@ func ReadUint32Slice(r Reader, c []uint32) (n int, err error) {
 		size = len(c) << 2
 	}
 
-	// Then returns the unread bytes
+	// Then returns the writen bytes
 	if slice, err = r.Peek(size); err != nil {
 		fmt.Println(err)
 		return
@@ -226,7 +226,7 @@ func ReadUint64Slice(r Reader, c []uint64) (n int, err error) {
 		size = len(c) << 3
 	}
 
-	// Then returns the unread bytes
+	// Then returns the writen bytes
 	if slice, err = r.Peek(size); err != nil {
 		return
 	}

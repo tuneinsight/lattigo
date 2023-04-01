@@ -13,16 +13,14 @@ import (
 type PolyVector []Poly
 
 // NewPolyVector allocates a new poly vector of the given size.
-func NewPolyVector(N, levelQ, levelP, size int) *PolyVector {
+func NewPolyVector(N, levelQ, levelP, size int) PolyVector {
 	v := make([]Poly, size)
 
 	for i := range v {
 		v[i] = NewPoly(N, levelQ, levelP)
 	}
 
-	pv := PolyVector(v)
-
-	return &pv
+	return PolyVector(v)
 }
 
 // Set sets a poly vector to the slice of *Poly.

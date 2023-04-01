@@ -10,28 +10,26 @@ import (
 )
 
 // PolyMatrix is a struct storing a vector of PolyVector.
-type PolyMatrix []*PolyVector
+type PolyMatrix []PolyVector
 
 // NewPolyMatrix allocates a new PolyMatrix of size rows x cols.
-func NewPolyMatrix(N, Level, rows, cols int) *PolyMatrix {
-	m := make([]*PolyVector, rows)
+func NewPolyMatrix(N, Level, rows, cols int) PolyMatrix {
+	m := make([]PolyVector, rows)
 
 	for i := range m {
 		m[i] = NewPolyVector(N, Level, cols)
 	}
 
-	pm := PolyMatrix(m)
-
-	return &pm
+	return PolyMatrix(m)
 }
 
 // Set sets a poly matrix to the double slice of *Poly.
 // Overwrites the current states of the poly matrix.
 func (pm *PolyMatrix) Set(polys [][]*Poly) {
 
-	m := PolyMatrix(make([]*PolyVector, len(polys)))
+	m := PolyMatrix(make([]PolyVector, len(polys)))
 	for i := range m {
-		m[i] = new(PolyVector)
+		m[i] = PolyVector{}
 		m[i].Set(polys[i])
 	}
 
@@ -170,17 +168,13 @@ func (pm *PolyMatrix) Write(p []byte) (n int, err error) {
 	n += 8
 
 	if len(*pm) != size {
-		*pm = make([]*PolyVector, size)
+		*pm = make([]PolyVector, size)
 	}
 
 	m := *pm
 
 	var inc int
 	for i := range m {
-		if m[i] == nil {
-			m[i] = new(PolyVector)
-		}
-
 		if inc, err = m[i].Write(p[n:]); err != nil {
 			return n + inc, err
 		}
@@ -210,17 +204,12 @@ func (pm *PolyMatrix) ReadFrom(r io.Reader) (int64, error) {
 		}
 
 		if len(*pm) != size {
-			*pm = make([]*PolyVector, size)
+			*pm = make([]PolyVector, size)
 		}
 
 		m := *pm
 
 		for i := range m {
-
-			if m[i] == nil {
-				m[i] = new(PolyVector)
-			}
-
 			var inc int64
 			if inc, err = m[i].ReadFrom(r); err != nil {
 				return int64(n) + inc, err

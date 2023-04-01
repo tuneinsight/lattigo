@@ -95,7 +95,6 @@ func TestDBGV(t *testing.T) {
 			testRefresh,
 			testRefreshAndPermutation,
 			testRefreshAndTransformSwitchParams,
-			testMarshalling,
 		} {
 			testSet(tc, t)
 			runtime.GC()
@@ -241,7 +240,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 		type Party struct {
 			*RefreshProtocol
 			s     *rlwe.SecretKey
-			share *RefreshShare
+			share *drlwe.RefreshShare
 		}
 
 		RefreshParties := make([]*Party, tc.NParties)
@@ -297,7 +296,7 @@ func testRefreshAndPermutation(tc *testContext, t *testing.T) {
 		type Party struct {
 			*MaskedTransformProtocol
 			s     *rlwe.SecretKey
-			share *MaskedTransformShare
+			share *drlwe.RefreshShare
 		}
 
 		RefreshParties := make([]*Party, tc.NParties)
@@ -394,7 +393,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 			*MaskedTransformProtocol
 			sIn   *rlwe.SecretKey
 			sOut  *rlwe.SecretKey
-			share *MaskedTransformShare
+			share *drlwe.RefreshShare
 		}
 
 		RefreshParties := make([]*Party, tc.NParties)
@@ -485,46 +484,4 @@ func newTestVectors(tc *testContext, encryptor rlwe.Encryptor, t *testing.T) (co
 
 func verifyTestVectors(tc *testContext, decryptor rlwe.Decryptor, coeffs []uint64, ciphertext *rlwe.Ciphertext, t *testing.T) {
 	require.True(t, utils.EqualSlice(coeffs, tc.encoder.DecodeUintNew(decryptor.DecryptNew(ciphertext))))
-}
-
-func testMarshalling(tc *testContext, t *testing.T) {
-	ciphertext := bgv.NewCiphertext(tc.params, 1, tc.params.MaxLevel())
-	tc.uniformSampler.Read(ciphertext.Value[0])
-	tc.uniformSampler.Read(ciphertext.Value[1])
-
-	minLevel := 0
-	maxLevel := tc.params.MaxLevel()
-
-	t.Run(testString("MarshallingRefresh", tc.NParties, tc.params), func(t *testing.T) {
-
-		// Testing refresh shares
-		refreshproto := NewRefreshProtocol(tc.params, 3.2)
-		refreshshare := refreshproto.AllocateShare(minLevel, maxLevel)
-
-		crp := refreshproto.SampleCRP(maxLevel, tc.crs)
-
-		refreshproto.GenShare(tc.sk0, ciphertext, ciphertext.Scale, crp, refreshshare)
-
-		data, err := refreshshare.MarshalBinary()
-		if err != nil {
-			t.Fatal("Could not marshal RefreshShare", err)
-		}
-		resRefreshShare := new(MaskedTransformShare)
-		err = resRefreshShare.UnmarshalBinary(data)
-
-		if err != nil {
-			t.Fatal("Could not unmarshal RefreshShare", err)
-		}
-		for i, r := range refreshshare.e2sShare.Value.Coeffs {
-			if !utils.EqualSlice(resRefreshShare.e2sShare.Value.Coeffs[i], r) {
-				t.Fatal("Result of marshalling not the same as original : RefreshShare")
-			}
-
-		}
-		for i, r := range refreshshare.s2eShare.Value.Coeffs {
-			if !utils.EqualSlice(resRefreshShare.s2eShare.Value.Coeffs[i], r) {
-				t.Fatal("Result of marshalling not the same as original : RefreshShare")
-			}
-		}
-	})
 }

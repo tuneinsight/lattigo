@@ -13,7 +13,6 @@ import (
 	"github.com/tuneinsight/lattigo/v4/drlwe"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
-	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
@@ -109,7 +108,6 @@ func TestDCKKS(t *testing.T) {
 			testRefresh,
 			testRefreshAndTransform,
 			testRefreshAndTransformSwitchParams,
-			testMarshalling,
 		} {
 			testSet(tc, t)
 			runtime.GC()
@@ -267,7 +265,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 		type Party struct {
 			*RefreshProtocol
 			s     *rlwe.SecretKey
-			share *RefreshShare
+			share *drlwe.RefreshShare
 		}
 
 		levelIn := minLevel
@@ -336,7 +334,7 @@ func testRefreshAndTransform(tc *testContext, t *testing.T) {
 		type Party struct {
 			*MaskedTransformProtocol
 			s     *rlwe.SecretKey
-			share *MaskedTransformShare
+			share *drlwe.RefreshShare
 		}
 
 		coeffs, _, ciphertext := newTestVectors(tc, encryptorPk0, -1, 1)
@@ -418,7 +416,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 			*MaskedTransformProtocol
 			sIn   *rlwe.SecretKey
 			sOut  *rlwe.SecretKey
-			share *MaskedTransformShare
+			share *drlwe.RefreshShare
 		}
 
 		coeffs, _, ciphertext := newTestVectors(tc, encryptorPk0, -1, 1)
@@ -504,59 +502,6 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 
 		require.GreaterOrEqual(t, precStats.MeanPrecision.Real, minPrec)
 		require.GreaterOrEqual(t, precStats.MeanPrecision.Imag, minPrec)
-	})
-}
-
-func testMarshalling(tc *testContext, t *testing.T) {
-	params := tc.params
-
-	t.Run(testString("Marshalling/Refresh", tc.NParties, params), func(t *testing.T) {
-
-		var minLevel int
-		var logBound uint
-		var ok bool
-		if minLevel, logBound, ok = GetMinimumLevelForRefresh(128, params.DefaultScale(), tc.NParties, params.Q()); ok != true {
-			t.Skip("Not enough levels to ensure correctness and 128 security")
-		}
-
-		ciphertext := ckks.NewCiphertext(params, 1, minLevel)
-		ciphertext.Scale = params.DefaultScale()
-		tc.uniformSampler.AtLevel(minLevel).Read(ciphertext.Value[0])
-		tc.uniformSampler.AtLevel(minLevel).Read(ciphertext.Value[1])
-
-		// Testing refresh shares
-		refreshproto := NewRefreshProtocol(tc.params, logBound, 3.2)
-		refreshshare := refreshproto.AllocateShare(ciphertext.Level(), params.MaxLevel())
-
-		crp := refreshproto.SampleCRP(params.MaxLevel(), tc.crs)
-
-		refreshproto.GenShare(tc.sk0, logBound, params.LogSlots(), ciphertext, crp, refreshshare)
-
-		data, err := refreshshare.MarshalBinary()
-
-		if err != nil {
-			t.Fatal("Could not marshal RefreshShare", err)
-		}
-
-		resRefreshShare := new(MaskedTransformShare)
-		err = resRefreshShare.UnmarshalBinary(data)
-
-		if err != nil {
-			t.Fatal("Could not unmarshal RefreshShare", err)
-		}
-
-		for i, r := range refreshshare.e2sShare.Value.Coeffs {
-			if !utils.EqualSlice(resRefreshShare.e2sShare.Value.Coeffs[i], r) {
-				t.Fatal("Result of marshalling not the same as original : RefreshShare")
-			}
-
-		}
-		for i, r := range refreshshare.s2eShare.Value.Coeffs {
-			if !utils.EqualSlice(resRefreshShare.s2eShare.Value.Coeffs[i], r) {
-				t.Fatal("Result of marshalling not the same as original : RefreshShare")
-			}
-
-		}
 	})
 }
 

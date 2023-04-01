@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/utils/buffer"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
@@ -94,6 +95,7 @@ func TestDRLWE(t *testing.T) {
 				testRKGProtocol(tc, params.MaxLevel(), t)
 				testGKGProtocol(tc, params.MaxLevel(), t)
 				testThreshold(tc, params.MaxLevel(), t)
+				testRefreshShare(tc, params.MaxLevel(), t)
 
 				for _, level := range []int{0, params.MaxLevel()} {
 					for _, testSet := range []func(tc *testContext, level int, t *testing.T){
@@ -139,43 +141,16 @@ func testCKGProtocol(tc *testContext, level int, t *testing.T) {
 			ckg[0].AggregateShares(shares[0], shares[i], shares[0])
 		}
 
+		// Test binary encoding
+		buffer.TestInterfaceWriteAndRead(t, shares[0])
+
 		pk := rlwe.NewPublicKey(params)
 		ckg[0].GenPublicKey(shares[0], crp, pk)
 
 		require.True(t, rlwe.PublicKeyIsCorrect(pk, tc.skIdeal, params, math.Log2(math.Sqrt(float64(nbParties))*params.Sigma())+1))
 	})
-
-	t.Run(testString(params, level, "CKS/Marshalling"), func(t *testing.T) {
-		ckg := NewCKGProtocol(tc.params)
-		KeyGenShareBefore := ckg.AllocateShare()
-		crs := ckg.SampleCRP(tc.crs)
-
-		ckg.GenShare(tc.skShares[0], crs, KeyGenShareBefore)
-		//now we marshal it
-		data, err := KeyGenShareBefore.MarshalBinary()
-
-		if err != nil {
-			t.Error("Could not marshal the CKGShare : ", err)
-		}
-
-		KeyGenShareAfter := new(CKGShare)
-		err = KeyGenShareAfter.UnmarshalBinary(data)
-		if err != nil {
-			t.Error("Could not unmarshal the CKGShare : ", err)
-		}
-
-		//comparing the results
-		require.Equal(t, KeyGenShareBefore.Value.Q.N(), KeyGenShareAfter.Value.Q.N())
-		require.Equal(t, KeyGenShareBefore.Value.Q.Level(), KeyGenShareAfter.Value.Q.Level())
-		require.Equal(t, KeyGenShareAfter.Value.Q.Coeffs, KeyGenShareBefore.Value.Q.Coeffs)
-
-		if params.RingP() != nil {
-			require.Equal(t, KeyGenShareBefore.Value.P.N(), KeyGenShareAfter.Value.P.N())
-			require.Equal(t, KeyGenShareBefore.Value.P.Level(), KeyGenShareAfter.Value.P.Level())
-			require.Equal(t, KeyGenShareAfter.Value.P.Coeffs, KeyGenShareBefore.Value.P.Coeffs)
-		}
-	})
 }
+
 func testRKGProtocol(tc *testContext, level int, t *testing.T) {
 	params := tc.params
 
@@ -208,6 +183,9 @@ func testRKGProtocol(tc *testContext, level int, t *testing.T) {
 			rkg[0].AggregateShares(share1[0], share1[i], share1[0])
 		}
 
+		// Test binary encoding
+		buffer.TestInterfaceWriteAndRead(t, share1[0])
+
 		for i := range rkg {
 			rkg[i].GenShareRoundTwo(ephSk[i], tc.skShares[i], share1[0], share2[i])
 		}
@@ -224,42 +202,6 @@ func testRKGProtocol(tc *testContext, level int, t *testing.T) {
 		noiseBound := math.Log2(math.Sqrt(float64(decompRNS))*NoiseRelinearizationKey(params, nbParties)) + 1
 
 		require.True(t, rlwe.RelinearizationKeyIsCorrect(rlk, tc.skIdeal, params, noiseBound))
-	})
-
-	t.Run(testString(params, level, "RKG/Marshalling"), func(t *testing.T) {
-
-		RKGProtocol := NewRKGProtocol(params)
-
-		ephSk0, share10, _ := RKGProtocol.AllocateShare()
-
-		crp := RKGProtocol.SampleCRP(tc.crs)
-
-		RKGProtocol.GenShareRoundOne(tc.skShares[0], crp, ephSk0, share10)
-
-		data, err := share10.MarshalBinary()
-		require.NoError(t, err)
-
-		rkgShare := new(RKGShare)
-		err = rkgShare.UnmarshalBinary(data)
-		require.NoError(t, err)
-
-		require.Equal(t, len(rkgShare.Value), len(share10.Value))
-		for i := range share10.Value {
-			for j, val := range share10.Value[i] {
-
-				require.Equal(t, len(rkgShare.Value[i][j][0].Q.Coeffs), len(val[0].Q.Coeffs))
-				require.Equal(t, rkgShare.Value[i][j][0].Q.Coeffs, val[0].Q.Coeffs)
-				require.Equal(t, len(rkgShare.Value[i][j][1].Q.Coeffs), len(val[1].Q.Coeffs))
-				require.Equal(t, rkgShare.Value[i][j][1].Q.Coeffs, val[1].Q.Coeffs)
-
-				if params.PCount() != 0 {
-					require.Equal(t, len(rkgShare.Value[i][j][0].P.Coeffs), len(val[0].P.Coeffs))
-					require.Equal(t, rkgShare.Value[i][j][0].P.Coeffs, val[0].P.Coeffs)
-					require.Equal(t, len(rkgShare.Value[i][j][1].P.Coeffs), len(val[1].P.Coeffs))
-					require.Equal(t, rkgShare.Value[i][j][1].P.Coeffs, val[1].P.Coeffs)
-				}
-			}
-		}
 	})
 }
 
@@ -295,6 +237,9 @@ func testGKGProtocol(tc *testContext, level int, t *testing.T) {
 			gkg[0].AggregateShares(shares[0], shares[i], shares[0])
 		}
 
+		// Test binary encoding
+		buffer.TestInterfaceWriteAndRead(t, shares[0])
+
 		galoisKey := rlwe.NewGaloisKey(params)
 		gkg[0].GenGaloisKey(shares[0], crp, galoisKey)
 
@@ -303,39 +248,6 @@ func testGKGProtocol(tc *testContext, level int, t *testing.T) {
 		noiseBound := math.Log2(math.Sqrt(float64(decompRNS))*NoiseGaloisKey(params, nbParties)) + 1
 
 		require.True(t, rlwe.GaloisKeyIsCorrect(galoisKey, tc.skIdeal, params, noiseBound))
-	})
-
-	t.Run(testString(params, level, "GKG/Marhsalling"), func(t *testing.T) {
-
-		galEl := tc.params.GaloisElementForColumnRotationBy(64)
-
-		gkg := NewGKGProtocol(tc.params)
-		gkgShare := gkg.AllocateShare()
-
-		crp := gkg.SampleCRP(tc.crs)
-
-		gkg.GenShare(tc.skShares[0], galEl, crp, gkgShare)
-
-		data, err := gkgShare.MarshalBinary()
-		require.NoError(t, err)
-
-		resgkgShare := new(GKGShare)
-		err = resgkgShare.UnmarshalBinary(data)
-		require.NoError(t, err)
-
-		require.Equal(t, len(resgkgShare.Value), len(gkgShare.Value))
-
-		for i := range gkgShare.Value {
-			for j, val := range gkgShare.Value[i] {
-				require.Equal(t, len(resgkgShare.Value[i][j].Q.Coeffs), len(val.Q.Coeffs))
-				require.Equal(t, resgkgShare.Value[i][j].Q.Coeffs, val.Q.Coeffs)
-
-				if params.PCount() != 0 {
-					require.Equal(t, len(resgkgShare.Value[i][j].P.Coeffs), len(val.P.Coeffs))
-					require.Equal(t, resgkgShare.Value[i][j].P.Coeffs, val.P.Coeffs)
-				}
-			}
-		}
 	})
 }
 
@@ -379,6 +291,9 @@ func testCKSProtocol(tc *testContext, level int, t *testing.T) {
 			}
 		}
 
+		// Test binary encoding
+		buffer.TestInterfaceWriteAndRead(t, shares[0])
+
 		ksCt := rlwe.NewCiphertext(params, 1, ct.Level())
 
 		dec := rlwe.NewDecryptor(params, skOutIdeal)
@@ -406,33 +321,6 @@ func testCKSProtocol(tc *testContext, level int, t *testing.T) {
 		}
 
 		require.GreaterOrEqual(t, math.Log2(NoiseCKS(params, nbParties, params.NoiseFreshSK(), sigmaSmudging))+1, ringQ.Log2OfStandardDeviation(pt.Value))
-	})
-
-	t.Run(testString(params, level, "CKS/Marshalling"), func(t *testing.T) {
-
-		ringQ := params.RingQ().AtLevel(level)
-
-		ciphertext := &rlwe.Ciphertext{Value: []*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly()}}
-		tc.uniformSampler.AtLevel(level).Read(ciphertext.Value[0])
-		tc.uniformSampler.AtLevel(level).Read(ciphertext.Value[1])
-
-		//Now for CKSShare ~ its similar to PKSShare
-		cksp := NewCKSProtocol(tc.params, tc.params.Sigma())
-		cksshare := cksp.AllocateShare(ciphertext.Level())
-		cksp.GenShare(tc.skShares[0], tc.skShares[1], ciphertext, cksshare)
-
-		data, err := cksshare.MarshalBinary()
-		require.NoError(t, err)
-		cksshareAfter := new(CKSShare)
-		err = cksshareAfter.UnmarshalBinary(data)
-		require.NoError(t, err)
-
-		//now compare both shares.
-
-		require.Equal(t, cksshare.Value.N(), cksshareAfter.Value.N())
-		require.Equal(t, cksshare.Value.Level(), cksshareAfter.Value.Level())
-
-		require.Equal(t, cksshare.Value.Coeffs, cksshareAfter.Value.Coeffs)
 	})
 }
 
@@ -472,6 +360,9 @@ func testPCKSProtocol(tc *testContext, level int, t *testing.T) {
 			pcks[0].AggregateShares(shares[0], shares[i], shares[0])
 		}
 
+		// Test binary encoding
+		buffer.TestInterfaceWriteAndRead(t, shares[0])
+
 		ksCt := rlwe.NewCiphertext(params, 1, level)
 		dec := rlwe.NewDecryptor(params, skOut)
 
@@ -497,36 +388,6 @@ func testPCKSProtocol(tc *testContext, level int, t *testing.T) {
 		}
 
 		require.GreaterOrEqual(t, math.Log2(NoisePCKS(params, nbParties, params.NoiseFreshSK(), sigmaSmudging))+1, ringQ.Log2OfStandardDeviation(pt.Value))
-	})
-
-	t.Run(testString(params, level, "PCKS/Marshalling"), func(t *testing.T) {
-
-		ringQ := params.RingQ().AtLevel(level)
-
-		ciphertext := &rlwe.Ciphertext{Value: []*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly()}}
-		tc.uniformSampler.AtLevel(level).Read(ciphertext.Value[0])
-		tc.uniformSampler.AtLevel(level).Read(ciphertext.Value[1])
-
-		//Check marshalling for the PCKS
-
-		KeySwitchProtocol := NewPCKSProtocol(tc.params, tc.params.Sigma())
-		SwitchShare := KeySwitchProtocol.AllocateShare(ciphertext.Level())
-		_, pkOut := tc.kgen.GenKeyPairNew()
-		KeySwitchProtocol.GenShare(tc.skShares[0], pkOut, ciphertext, SwitchShare)
-
-		data, err := SwitchShare.MarshalBinary()
-		require.NoError(t, err)
-
-		SwitchShareReceiver := new(PCKSShare)
-		err = SwitchShareReceiver.UnmarshalBinary(data)
-		require.NoError(t, err)
-
-		require.Equal(t, SwitchShare.Value[0].N(), SwitchShareReceiver.Value[0].N())
-		require.Equal(t, SwitchShare.Value[1].N(), SwitchShareReceiver.Value[1].N())
-		require.Equal(t, SwitchShare.Value[0].Level(), SwitchShareReceiver.Value[0].Level())
-		require.Equal(t, SwitchShare.Value[1].Level(), SwitchShareReceiver.Value[1].Level())
-		require.Equal(t, SwitchShare.Value[0].Coeffs, SwitchShareReceiver.Value[0].Coeffs)
-		require.Equal(t, SwitchShare.Value[1].Coeffs, SwitchShareReceiver.Value[1].Coeffs)
 	})
 }
 
@@ -587,6 +448,9 @@ func testThreshold(tc *testContext, level int, t *testing.T) {
 				}
 			}
 
+			// Test binary encoding
+			buffer.TestInterfaceWriteAndRead(t, P[0].tsks)
+
 			// Determining which parties are active. In a distributed context, a party
 			// would receive the ids of active players and retrieve (or compute) the corresponding keys.
 			activeParties := P[:threshold]
@@ -608,4 +472,19 @@ func testThreshold(tc *testContext, level int, t *testing.T) {
 			require.True(t, tc.skIdeal.Equal(recSk)) // reconstructed key should match the ideal sk
 		})
 	}
+}
+
+func testRefreshShare(tc *testContext, level int, t *testing.T) {
+	t.Run(testString(tc.params, level, "RefreshShare"), func(t *testing.T) {
+		params := tc.params
+		ringQ := params.RingQ().AtLevel(level)
+		ciphertext := &rlwe.Ciphertext{Value: []*ring.Poly{nil, ringQ.NewPoly()}}
+		tc.uniformSampler.AtLevel(level).Read(ciphertext.Value[1])
+		cksp := NewCKSProtocol(tc.params, tc.params.Sigma())
+		share1 := cksp.AllocateShare(level)
+		share2 := cksp.AllocateShare(level)
+		cksp.GenShare(tc.skShares[0], tc.skShares[1], ciphertext, share1)
+		cksp.GenShare(tc.skShares[1], tc.skShares[0], ciphertext, share2)
+		buffer.TestInterfaceWriteAndRead(t, &RefreshShare{E2SShare: *share1, S2EShare: *share2})
+	})
 }

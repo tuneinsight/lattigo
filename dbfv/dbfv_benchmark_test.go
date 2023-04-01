@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/tuneinsight/lattigo/v4/bfv"
+	"github.com/tuneinsight/lattigo/v4/drlwe"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
@@ -48,7 +49,7 @@ func benchRefresh(tc *testContext, b *testing.B) {
 	type Party struct {
 		*RefreshProtocol
 		s     *rlwe.SecretKey
-		share *RefreshShare
+		share *drlwe.RefreshShare
 	}
 
 	p := new(Party)

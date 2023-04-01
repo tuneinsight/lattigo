@@ -92,6 +92,13 @@ func (ct *GadgetCiphertext) MarshalBinary() (data []byte, err error) {
 	return
 }
 
+// WriteTo writes the object on an io.Writer.
+// To ensure optimal efficiency and minimal allocations, the user is encouraged
+// to provide a struct implementing the interface buffer.Writer, which defines
+// a subset of the method of the bufio.Writer.
+// If w is not compliant to the buffer.Writer interface, it will be wrapped in
+// a new bufio.Writer.
+// For additional information, see lattigo/utils/buffer/writer.go.
 func (ct *GadgetCiphertext) WriteTo(w io.Writer) (n int64, err error) {
 	switch w := w.(type) {
 	case buffer.Writer:
@@ -154,6 +161,13 @@ func (ct *GadgetCiphertext) Read(data []byte) (ptr int, err error) {
 	return
 }
 
+// ReadFrom reads on the object from an io.Writer.
+// To ensure optimal efficiency and minimal allocations, the user is encouraged
+// to provide a struct implementing the interface buffer.Reader, which defines
+// a subset of the method of the bufio.Reader.
+// If r is not compliant to the buffer.Reader interface, it will be wrapped in
+// a new bufio.Reader.
+// For additional information, see lattigo/utils/buffer/reader.go.
 func (ct *GadgetCiphertext) ReadFrom(r io.Reader) (n int64, err error) {
 	switch r := r.(type) {
 	case buffer.Reader:

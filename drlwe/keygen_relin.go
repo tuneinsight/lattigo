@@ -1,7 +1,7 @@
 package drlwe
 
 import (
-	"fmt"
+	"io"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
@@ -42,7 +42,7 @@ func (ekg *RKGProtocol) ShallowCopy() *RKGProtocol {
 }
 
 // RKGCRP is a type for common reference polynomials in the RKG protocol.
-type RKGCRP [][]ringqp.Poly
+type RKGCRP ringqp.PolyMatrix
 
 // NewRKGProtocol creates a new RKG protocol struct.
 func NewRKGProtocol(params rlwe.Parameters) *RKGProtocol {
@@ -62,31 +62,6 @@ func NewRKGProtocol(params rlwe.Parameters) *RKGProtocol {
 	return rkg
 }
 
-// AllocateShare allocates the share of the EKG protocol.
-func (ekg *RKGProtocol) AllocateShare() (ephSk *rlwe.SecretKey, r1 *RKGShare, r2 *RKGShare) {
-	params := ekg.params
-	ephSk = rlwe.NewSecretKey(params)
-	r1, r2 = new(RKGShare), new(RKGShare)
-
-	decompRNS := params.DecompRNS(params.MaxLevelQ(), params.MaxLevelP())
-	decompPw2 := params.DecompPw2(params.MaxLevelQ(), params.MaxLevelP())
-
-	r1.Value = make([][][2]ringqp.Poly, decompRNS)
-	r2.Value = make([][][2]ringqp.Poly, decompRNS)
-
-	for i := 0; i < decompRNS; i++ {
-		r1.Value[i] = make([][2]ringqp.Poly, decompPw2)
-		r2.Value[i] = make([][2]ringqp.Poly, decompPw2)
-		for j := 0; j < decompPw2; j++ {
-			r1.Value[i][j][0] = ekg.params.RingQP().NewPoly()
-			r1.Value[i][j][1] = ekg.params.RingQP().NewPoly()
-			r2.Value[i][j][0] = ekg.params.RingQP().NewPoly()
-			r2.Value[i][j][1] = ekg.params.RingQP().NewPoly()
-		}
-	}
-	return
-}
-
 // SampleCRP samples a common random polynomial to be used in the RKG protocol from the provided
 // common reference string.
 func (ekg *RKGProtocol) SampleCRP(crs CRS) RKGCRP {
@@ -94,16 +69,16 @@ func (ekg *RKGProtocol) SampleCRP(crs CRS) RKGCRP {
 	decompRNS := params.DecompRNS(params.MaxLevelQ(), params.MaxLevelP())
 	decompPw2 := params.DecompPw2(params.MaxLevelQ(), params.MaxLevelP())
 
-	crp := make([][]ringqp.Poly, decompRNS)
+	m := ringqp.NewPolyMatrix(params.N(), params.MaxLevelQ(), params.MaxLevelP(), decompRNS, decompPw2)
 	us := ringqp.NewUniformSampler(crs, *params.RingQP())
-	for i := range crp {
-		crp[i] = make([]ringqp.Poly, decompPw2)
-		for j := range crp[i] {
-			crp[i][j] = params.RingQP().NewPoly()
-			us.Read(crp[i][j])
+
+	for _, v := range m {
+		for _, p := range v {
+			us.Read(p)
 		}
 	}
-	return RKGCRP(crp)
+
+	return RKGCRP(m)
 }
 
 // GenShareRoundOne is the first of three rounds of the RKGProtocol protocol. Each party generates a pseudo encryption of
@@ -151,13 +126,13 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp RKGCRP, ephSkOu
 	for j := 0; j < BITDecomp; j++ {
 		for i := 0; i < RNSDecomp; i++ {
 			// h = e
-			ekg.gaussianSamplerQ.Read(shareOut.Value[i][j][0].Q)
+			ekg.gaussianSamplerQ.Read(shareOut.Value[i][j].Value[0].Q)
 
 			if hasModulusP {
-				ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value[i][j][0].Q, levelP, nil, shareOut.Value[i][j][0].P)
+				ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value[i][j].Value[0].Q, levelP, nil, shareOut.Value[i][j].Value[0].P)
 			}
 
-			ringQP.NTT(shareOut.Value[i][j][0], shareOut.Value[i][j][0])
+			ringQP.NTT(shareOut.Value[i][j].Value[0], shareOut.Value[i][j].Value[0])
 
 			// h = sk*CrtBaseDecompQi + e
 			for k := 0; k < levelP+1; k++ {
@@ -171,7 +146,7 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp RKGCRP, ephSkOu
 
 				qi := ringQ.SubRings[index].Modulus
 				skP := ekg.tmpPoly1.Q.Coeffs[index]
-				h := shareOut.Value[i][j][0].Q.Coeffs[index]
+				h := shareOut.Value[i][j].Value[0].Q.Coeffs[index]
 
 				for w := 0; w < N; w++ {
 					h[w] = ring.CRed(h[w]+skP[w], qi)
@@ -179,19 +154,19 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp RKGCRP, ephSkOu
 			}
 
 			// h = sk*CrtBaseDecompQi + -u*a + e
-			ringQP.MulCoeffsMontgomeryThenSub(ephSkOut.Value, crp[i][j], shareOut.Value[i][j][0])
+			ringQP.MulCoeffsMontgomeryThenSub(ephSkOut.Value, crp[i][j], shareOut.Value[i][j].Value[0])
 
 			// Second Element
 			// e_2i
-			ekg.gaussianSamplerQ.Read(shareOut.Value[i][j][1].Q)
+			ekg.gaussianSamplerQ.Read(shareOut.Value[i][j].Value[1].Q)
 
 			if hasModulusP {
-				ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value[i][j][1].Q, levelP, nil, shareOut.Value[i][j][1].P)
+				ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value[i][j].Value[1].Q, levelP, nil, shareOut.Value[i][j].Value[1].P)
 			}
 
-			ringQP.NTT(shareOut.Value[i][j][1], shareOut.Value[i][j][1])
+			ringQP.NTT(shareOut.Value[i][j].Value[1], shareOut.Value[i][j].Value[1])
 			// s*a + e_2i
-			ringQP.MulCoeffsMontgomeryThenAdd(sk.Value, crp[i][j], shareOut.Value[i][j][1])
+			ringQP.MulCoeffsMontgomeryThenAdd(sk.Value, crp[i][j], shareOut.Value[i][j].Value[1])
 		}
 
 		ringQ.MulScalar(ekg.tmpPoly1.Q, 1<<ekg.params.Pow2Base(), ekg.tmpPoly1.Q)
@@ -230,7 +205,7 @@ func (ekg *RKGProtocol) GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGS
 			// Computes [(sum samples)*sk + e_1i, sk*a + e_2i]
 
 			// (AggregateShareRoundTwo samples) * sk
-			ringQP.MulCoeffsMontgomeryLazy(round1.Value[i][j][0], sk.Value, shareOut.Value[i][j][0])
+			ringQP.MulCoeffsMontgomeryLazy(round1.Value[i][j].Value[0], sk.Value, shareOut.Value[i][j].Value[0])
 
 			// (AggregateShareRoundTwo samples) * sk + e_1i
 			ekg.gaussianSamplerQ.Read(ekg.tmpPoly2.Q)
@@ -240,18 +215,18 @@ func (ekg *RKGProtocol) GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGS
 			}
 
 			ringQP.NTT(ekg.tmpPoly2, ekg.tmpPoly2)
-			ringQP.Add(shareOut.Value[i][j][0], ekg.tmpPoly2, shareOut.Value[i][j][0])
+			ringQP.Add(shareOut.Value[i][j].Value[0], ekg.tmpPoly2, shareOut.Value[i][j].Value[0])
 
 			// second part
 			// (u_i - s_i) * (sum [x][s*a_i + e_2i]) + e3i
-			ekg.gaussianSamplerQ.Read(shareOut.Value[i][j][1].Q)
+			ekg.gaussianSamplerQ.Read(shareOut.Value[i][j].Value[1].Q)
 
 			if levelP > -1 {
-				ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value[i][j][1].Q, levelP, nil, shareOut.Value[i][j][1].P)
+				ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value[i][j].Value[1].Q, levelP, nil, shareOut.Value[i][j].Value[1].P)
 			}
 
-			ringQP.NTT(shareOut.Value[i][j][1], shareOut.Value[i][j][1])
-			ringQP.MulCoeffsMontgomeryThenAdd(ekg.tmpPoly1, round1.Value[i][j][1], shareOut.Value[i][j][1])
+			ringQP.NTT(shareOut.Value[i][j].Value[1], shareOut.Value[i][j].Value[1])
+			ringQP.MulCoeffsMontgomeryThenAdd(ekg.tmpPoly1, round1.Value[i][j].Value[1], shareOut.Value[i][j].Value[1])
 		}
 	}
 }
@@ -259,12 +234,8 @@ func (ekg *RKGProtocol) GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGS
 // AggregateShares combines two RKG shares into a single one.
 func (ekg *RKGProtocol) AggregateShares(share1, share2, shareOut *RKGShare) {
 
-	levelQ := share1.Value[0][0][0].Q.Level()
-
-	var levelP int
-	if share1.Value[0][0][0].P != nil {
-		levelP = share1.Value[0][0][0].P.Level()
-	}
+	levelQ := share1.Value[0][0].Value[0].LevelQ()
+	levelP := share1.Value[0][0].Value[0].LevelP()
 
 	ringQP := ekg.params.RingQP().AtLevel(levelQ, levelP)
 
@@ -272,8 +243,8 @@ func (ekg *RKGProtocol) AggregateShares(share1, share2, shareOut *RKGShare) {
 	BITDecomp := len(shareOut.Value[0])
 	for i := 0; i < RNSDecomp; i++ {
 		for j := 0; j < BITDecomp; j++ {
-			ringQP.Add(share1.Value[i][j][0], share2.Value[i][j][0], shareOut.Value[i][j][0])
-			ringQP.Add(share1.Value[i][j][1], share2.Value[i][j][1], shareOut.Value[i][j][1])
+			ringQP.Add(share1.Value[i][j].Value[0], share2.Value[i][j].Value[0], shareOut.Value[i][j].Value[0])
+			ringQP.Add(share1.Value[i][j].Value[1], share2.Value[i][j].Value[1], shareOut.Value[i][j].Value[1])
 		}
 	}
 }
@@ -291,12 +262,8 @@ func (ekg *RKGProtocol) AggregateShares(share1, share2, shareOut *RKGShare) {
 //	= [s * b + P * s^2 + s*e0 + u*e1 + e2 + e3, b]
 func (ekg *RKGProtocol) GenRelinearizationKey(round1 *RKGShare, round2 *RKGShare, evalKeyOut *rlwe.RelinearizationKey) {
 
-	levelQ := round1.Value[0][0][0].Q.Level()
-
-	var levelP int
-	if round1.Value[0][0][0].P != nil {
-		levelP = round1.Value[0][0][0].P.Level()
-	}
+	levelQ := round1.Value[0][0].Value[0].LevelQ()
+	levelP := round1.Value[0][0].Value[0].LevelP()
 
 	ringQP := ekg.params.RingQP().AtLevel(levelQ, levelP)
 
@@ -304,8 +271,8 @@ func (ekg *RKGProtocol) GenRelinearizationKey(round1 *RKGShare, round2 *RKGShare
 	BITDecomp := len(round1.Value[0])
 	for i := 0; i < RNSDecomp; i++ {
 		for j := 0; j < BITDecomp; j++ {
-			ringQP.Add(round2.Value[i][j][0], round2.Value[i][j][1], evalKeyOut.Value[i][j].Value[0])
-			evalKeyOut.Value[i][j].Value[1].Copy(round1.Value[i][j][1])
+			ringQP.Add(round2.Value[i][j].Value[0], round2.Value[i][j].Value[1], evalKeyOut.Value[i][j].Value[0])
+			evalKeyOut.Value[i][j].Value[1].Copy(round1.Value[i][j].Value[1])
 			ringQP.MForm(evalKeyOut.Value[i][j].Value[0], evalKeyOut.Value[i][j].Value[0])
 			ringQP.MForm(evalKeyOut.Value[i][j].Value[1], evalKeyOut.Value[i][j].Value[1])
 		}
@@ -314,96 +281,69 @@ func (ekg *RKGProtocol) GenRelinearizationKey(round1 *RKGShare, round2 *RKGShare
 
 // RKGShare is a share in the RKG protocol.
 type RKGShare struct {
-	Value [][][2]ringqp.Poly
+	rlwe.GadgetCiphertext
+}
+
+// AllocateShare allocates the share of the EKG protocol.
+func (ekg *RKGProtocol) AllocateShare() (ephSk *rlwe.SecretKey, r1 *RKGShare, r2 *RKGShare) {
+	params := ekg.params
+	ephSk = rlwe.NewSecretKey(params)
+
+	decompRNS := params.DecompRNS(params.MaxLevelQ(), params.MaxLevelP())
+	decompPw2 := params.DecompPw2(params.MaxLevelQ(), params.MaxLevelP())
+
+	r1 = &RKGShare{GadgetCiphertext: *rlwe.NewGadgetCiphertext(params, params.MaxLevelQ(), params.MaxLevelP(), decompRNS, decompPw2)}
+	r2 = &RKGShare{GadgetCiphertext: *rlwe.NewGadgetCiphertext(params, params.MaxLevelQ(), params.MaxLevelP(), decompRNS, decompPw2)}
+
+	return
 }
 
 // BinarySize returns the size in bytes that the object once marshalled into a binary form.
 func (share *RKGShare) BinarySize() int {
-	return 2 + 2*share.Value[0][0][0].BinarySize()*len(share.Value)*len(share.Value[0])
+	return share.GadgetCiphertext.BinarySize()
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
 func (share *RKGShare) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, share.BinarySize())
-	_, err = share.MarshalBinaryInPlace(data)
-	return
+	return share.GadgetCiphertext.MarshalBinary()
 }
 
-// MarshalBinaryInPlace encodes the object into a binary form on a preallocated slice of bytes
+// Read encodes the object into a binary form on a preallocated slice of bytes
 // and returns the number of bytes written.
-func (share *RKGShare) MarshalBinaryInPlace(data []byte) (ptr int, err error) {
+func (share *RKGShare) Read(data []byte) (n int, err error) {
+	return share.GadgetCiphertext.Read(data)
+}
 
-	if len(share.Value) > 0xFF {
-		return ptr, fmt.Errorf("uint8 overflow on length")
-	}
-
-	if len(share.Value[0]) > 0xFF {
-		return ptr, fmt.Errorf("uint8 overflow on length")
-	}
-
-	data[ptr] = uint8(len(share.Value))
-	ptr++
-	data[ptr] = uint8(len(share.Value[0]))
-	ptr++
-
-	var inc int
-	for i := range share.Value {
-		for _, el := range share.Value[i] {
-
-			if inc, err = el[0].Read(data[ptr:]); err != nil {
-				return
-			}
-			ptr += inc
-
-			if inc, err = el[1].Read(data[ptr:]); err != nil {
-				return
-			}
-			ptr += inc
-		}
-	}
-
-	return
+// WriteTo writes the object on an io.Writer.
+// To ensure optimal efficiency and minimal allocations, the user is encouraged
+// to provide a struct implementing the interface buffer.Writer, which defines
+// a subset of the method of the bufio.Writer.
+// If w is not compliant to the buffer.Writer interface, it will be wrapped in
+// a new bufio.Writer.
+// For additional information, see lattigo/utils/buffer/writer.go.
+func (share *RKGShare) WriteTo(w io.Writer) (n int64, err error) {
+	return share.GadgetCiphertext.WriteTo(w)
 }
 
 // UnmarshalBinary decodes a slice of bytes generated by MarshalBinary
-// or MarshalBinaryInPlace on the object.
+// or Read on the object.
 func (share *RKGShare) UnmarshalBinary(data []byte) (err error) {
-	_, err = share.UnmarshalBinaryInPlace(data)
-	return
+	return share.GadgetCiphertext.UnmarshalBinary(data)
 }
 
-// UnmarshalBinaryInPlace decodes a slice of bytes generated by MarshalBinary or
-// MarshalBinaryInPlace on the object and returns the number of bytes read.
-func (share *RKGShare) UnmarshalBinaryInPlace(data []byte) (ptr int, err error) {
+// Write decodes a slice of bytes generated by MarshalBinary or
+// Read on the object and returns the number of bytes read.
+func (share *RKGShare) Write(data []byte) (n int, err error) {
+	return share.GadgetCiphertext.Write(data)
+}
 
-	RNS := int(data[0])
-	BIT := int(data[1])
-
-	if share.Value == nil || len(share.Value) != RNS {
-		share.Value = make([][][2]ringqp.Poly, RNS)
-	}
-
-	ptr = 2
-	var inc int
-	for i := range share.Value {
-
-		if share.Value[i] == nil || len(share.Value[i]) != BIT {
-			share.Value[i] = make([][2]ringqp.Poly, BIT)
-		}
-
-		for j := range share.Value[i] {
-
-			if inc, err = share.Value[i][j][0].Write(data[ptr:]); err != nil {
-				return
-			}
-			ptr += inc
-
-			if inc, err = share.Value[i][j][1].Write(data[ptr:]); err != nil {
-				return
-			}
-			ptr += inc
-		}
-	}
-
-	return
+// ReadFrom reads on the object from an io.Writer.
+// To ensure optimal efficiency and minimal allocations, the user is encouraged
+// to provide a struct implementing the interface buffer.Reader, which defines
+// a subset of the method of the bufio.Reader.
+// If r is not compliant to the buffer.Reader interface, it will be wrapped in
+// a new bufio.Reader.
+// For additional information, see lattigo/utils/buffer/reader.go.
+func (share *RKGShare) ReadFrom(r io.Reader) (n int64, err error) {
+	return share.GadgetCiphertext.ReadFrom(r)
 }

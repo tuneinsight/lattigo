@@ -1,4 +1,4 @@
-package ring
+package ringqp
 
 import (
 	"bufio"
@@ -10,14 +10,14 @@ import (
 )
 
 // PolyVector is a struct storing a vector of *Poly.
-type PolyVector []*Poly
+type PolyVector []Poly
 
 // NewPolyVector allocates a new poly vector of the given size.
-func NewPolyVector(N, Level, size int) *PolyVector {
-	v := make([]*Poly, size)
+func NewPolyVector(N, levelQ, levelP, size int) *PolyVector {
+	v := make([]Poly, size)
 
 	for i := range v {
-		v[i] = NewPoly(N, Level)
+		v[i] = NewPoly(N, levelQ, levelP)
 	}
 
 	pv := PolyVector(v)
@@ -27,40 +27,54 @@ func NewPolyVector(N, Level, size int) *PolyVector {
 
 // Set sets a poly vector to the slice of *Poly.
 // Overwrites the current states of the poly vector.
-func (pv *PolyVector) Set(polys []*Poly) {
+func (pv *PolyVector) Set(polys []Poly) {
 	*pv = PolyVector(polys)
 }
 
 // Get returns the underlying slice of *Poly.
-func (pv *PolyVector) Get() []*Poly {
-	return []*Poly(*pv)
+func (pv *PolyVector) Get() []Poly {
+	return []Poly(*pv)
 }
 
 // N returns the ring degree of the first polynomial in the vector of polynomials.
 func (pv *PolyVector) N() int {
-	return (*pv)[0].N()
+	v := *pv
+	if v[0].Q != nil {
+		return v[0].Q.N()
+	}
+
+	if v[0].P != nil {
+		return v[0].P.N()
+	}
+
+	return 0
 }
 
-// Level returns the level of the first polynomial in the vector of polynomials.
-func (pv *PolyVector) Level() int {
-	return (*pv)[0].Level()
+// LevelQ returns the levelQ of the first polynomial in the vector of polynomials.
+func (pv *PolyVector) LevelQ() int {
+	return (*pv)[0].LevelQ()
 }
 
-// Resize resizes the level and size of the vector of polynomials, allocating if necessary.
-func (pv *PolyVector) Resize(level, size int) {
+// LevelP returns the levelP of the first polynomial in the vector of polynomials.
+func (pv *PolyVector) LevelP() int {
+	return (*pv)[0].LevelP()
+}
+
+// Resize resizes the levels and size of the vector of polynomials, allocating if necessary.
+func (pv *PolyVector) Resize(levelQ, levelP, size int) {
 	N := pv.N()
 
 	v := *pv
 
 	for i := range v {
-		v[i].Resize(level)
+		v[i].Resize(levelQ, levelP)
 	}
 
 	if len(v) > size {
 		v = v[:size+1]
 	} else {
 		for i := len(v); i < size+1; i++ {
-			v = append(v, NewPoly(N, level))
+			v = append(v, NewPoly(N, levelQ, levelP))
 		}
 	}
 
@@ -157,17 +171,13 @@ func (pv *PolyVector) Write(p []byte) (n int, err error) {
 	n += 8
 
 	if len(*pv) != size {
-		*pv = make([]*Poly, size)
+		*pv = make([]Poly, size)
 	}
 
 	v := *pv
 
 	var inc int
 	for i := range v {
-		if v[i] == nil {
-			v[i] = new(Poly)
-		}
-
 		if inc, err = v[i].Write(p[n:]); err != nil {
 			return n + inc, err
 		}
@@ -197,16 +207,12 @@ func (pv *PolyVector) ReadFrom(r io.Reader) (int64, error) {
 		}
 
 		if len(*pv) != size {
-			*pv = make([]*Poly, size)
+			*pv = make([]Poly, size)
 		}
 
 		v := *pv
 
 		for i := range v {
-
-			if v[i] == nil {
-				v[i] = new(Poly)
-			}
 
 			var inc int64
 			if inc, err = v[i].ReadFrom(r); err != nil {

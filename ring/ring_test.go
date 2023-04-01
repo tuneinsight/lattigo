@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/tuneinsight/lattigo/v4/utils/buffer"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 
 	"github.com/stretchr/testify/require"
@@ -62,6 +63,7 @@ func TestRing(t *testing.T) {
 
 	testNewRing(t)
 	testShift(t)
+
 	for _, defaultParam := range defaultParams[:] {
 
 		var tc *testParams
@@ -321,24 +323,39 @@ func testMarshalBinary(tc *testParams, t *testing.T) {
 	})
 
 	t.Run(testString("MarshalBinary/Poly", tc.ringQ), func(t *testing.T) {
+		buffer.TestInterfaceWriteAndRead(t, tc.uniformSamplerQ.ReadNew())
+	})
 
-		var err error
+	t.Run(testString("MarshalBinary/PolyVector", tc.ringQ), func(t *testing.T) {
 
-		p := tc.uniformSamplerQ.ReadNew()
+		polys := make([]*Poly, 4)
 
-		var data []byte
-		if data, err = p.MarshalBinary(); err != nil {
-			t.Fatal(err)
+		for i := range polys {
+			polys[i] = tc.uniformSamplerQ.ReadNew()
 		}
 
-		pTest := new(Poly)
-		if err = pTest.UnmarshalBinary(data); err != nil {
-			t.Fatal(err)
+		pv := new(PolyVector)
+		pv.Set(polys)
+
+		buffer.TestInterfaceWriteAndRead(t, pv)
+	})
+
+	t.Run(testString("MarshalBinary/PolyMatrix", tc.ringQ), func(t *testing.T) {
+
+		polys := make([][]*Poly, 4)
+
+		for i := range polys {
+			polys[i] = make([]*Poly, 4)
+
+			for j := range polys {
+				polys[i][j] = tc.uniformSamplerQ.ReadNew()
+			}
 		}
 
-		for i := range tc.ringQ.SubRings {
-			require.Equal(t, p.Coeffs[i][:tc.ringQ.N()], pTest.Coeffs[i][:tc.ringQ.N()])
-		}
+		pm := new(PolyMatrix)
+		pm.Set(polys)
+
+		buffer.TestInterfaceWriteAndRead(t, pm)
 	})
 }
 

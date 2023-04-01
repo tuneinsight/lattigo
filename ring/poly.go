@@ -116,13 +116,14 @@ func (pol *Poly) Equal(other *Poly) bool {
 	return false
 }
 
-// BinarySize returns the size in bytes that the object once marshalled into a binary form.
+// BinarySize returns the size in bytes of the object
+// when encoded using MarshalBinary, Read or WriteTo.
 func BinarySize(N, Level int) (size int) {
 	return 16 + N*(Level+1)<<3
 }
 
-// BinarySize returns the size in bytes that the object once marshalled into a binary form.
-// Assumes that each coefficient takes 8 bytes.
+// BinarySize returns the size in bytes of the object
+// when encoded using MarshalBinary, Read or WriteTo.
 func (pol *Poly) BinarySize() (size int) {
 	return BinarySize(pol.N(), pol.Level())
 }

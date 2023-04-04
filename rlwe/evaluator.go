@@ -58,13 +58,20 @@ func newEvaluatorBuffers(params Parameters) *evaluatorBuffers {
 
 	buff.BuffCt = Ciphertext{Value: []*ring.Poly{ringQP.RingQ.NewPoly(), ringQP.RingQ.NewPoly()}}
 
-	buff.BuffQP = [6]ringqp.Poly{ringQP.NewPoly(), ringQP.NewPoly(), ringQP.NewPoly(), ringQP.NewPoly(), ringQP.NewPoly(), ringQP.NewPoly()}
+	buff.BuffQP = [6]ringqp.Poly{
+		*ringQP.NewPoly(),
+		*ringQP.NewPoly(),
+		*ringQP.NewPoly(),
+		*ringQP.NewPoly(),
+		*ringQP.NewPoly(),
+		*ringQP.NewPoly(),
+	}
 
 	buff.BuffInvNTT = params.RingQ().NewPoly()
 
 	buff.BuffDecompQP = make([]ringqp.Poly, decompRNS)
 	for i := 0; i < decompRNS; i++ {
-		buff.BuffDecompQP[i] = ringQP.NewPoly()
+		buff.BuffDecompQP[i] = *ringQP.NewPoly()
 	}
 
 	buff.BuffBitDecomp = make([]uint64, params.RingQ().N())

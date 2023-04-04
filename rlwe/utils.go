@@ -16,9 +16,9 @@ func PublicKeyIsCorrect(pk *PublicKey, sk *SecretKey, params Parameters, log2Bou
 	ringQP := params.RingQP().AtLevel(levelQ, levelP)
 
 	// [-as + e] + [as]
-	ringQP.MulCoeffsMontgomeryThenAdd(sk.Value, pk.Value[1], pk.Value[0])
-	ringQP.INTT(pk.Value[0], pk.Value[0])
-	ringQP.IMForm(pk.Value[0], pk.Value[0])
+	ringQP.MulCoeffsMontgomeryThenAdd(&sk.Value, &pk.Value[1], &pk.Value[0])
+	ringQP.INTT(&pk.Value[0], &pk.Value[0])
+	ringQP.IMForm(&pk.Value[0], &pk.Value[0])
 
 	if log2Bound <= ringQP.RingQ.Log2OfStandardDeviation(pk.Value[0].Q) {
 		return false
@@ -35,7 +35,7 @@ func PublicKeyIsCorrect(pk *PublicKey, sk *SecretKey, params Parameters, log2Bou
 func RelinearizationKeyIsCorrect(rlk *RelinearizationKey, sk *SecretKey, params Parameters, log2Bound float64) bool {
 	levelQ, levelP := params.MaxLevelQ(), params.MaxLevelP()
 	sk2 := sk.CopyNew()
-	params.RingQP().AtLevel(levelQ, levelP).MulCoeffsMontgomery(sk2.Value, sk2.Value, sk2.Value)
+	params.RingQP().AtLevel(levelQ, levelP).MulCoeffsMontgomery(&sk2.Value, &sk2.Value, &sk2.Value)
 	return EvaluationKeyIsCorrect(rlk.EvaluationKey.CopyNew(), sk2, sk, params, log2Bound)
 }
 
@@ -72,7 +72,7 @@ func EvaluationKeyIsCorrect(evk *EvaluationKey, skIn, skOut *SecretKey, params P
 	// [-asIn + w*P*sOut + e, a] + [asIn]
 	for i := range evk.Value {
 		for j := range evk.Value[i] {
-			ringQP.MulCoeffsMontgomeryThenAdd(evk.Value[i][j].Value[1], skOut.Value, evk.Value[i][j].Value[0])
+			ringQP.MulCoeffsMontgomeryThenAdd(&evk.Value[i][j].Value[1], &skOut.Value, &evk.Value[i][j].Value[0])
 		}
 	}
 
@@ -81,7 +81,7 @@ func EvaluationKeyIsCorrect(evk *EvaluationKey, skIn, skOut *SecretKey, params P
 	for i := range evk.Value { // RNS decomp
 		if i > 0 {
 			for j := range evk.Value[i] { // PW2 decomp
-				ringQP.Add(evk.Value[0][j].Value[0], evk.Value[i][j].Value[0], evk.Value[0][j].Value[0])
+				ringQP.Add(&evk.Value[0][j].Value[0], &evk.Value[i][j].Value[0], &evk.Value[0][j].Value[0])
 			}
 		}
 	}
@@ -98,8 +98,8 @@ func EvaluationKeyIsCorrect(evk *EvaluationKey, skIn, skOut *SecretKey, params P
 
 		// Checks that the error is below the bound
 		// Worst error bound is N * floor(6*sigma) * #Keys
-		ringQP.INTT(evk.Value[0][i].Value[0], evk.Value[0][i].Value[0])
-		ringQP.IMForm(evk.Value[0][i].Value[0], evk.Value[0][i].Value[0])
+		ringQP.INTT(&evk.Value[0][i].Value[0], &evk.Value[0][i].Value[0])
+		ringQP.IMForm(&evk.Value[0][i].Value[0], &evk.Value[0][i].Value[0])
 
 		// Worst bound of inner sum
 		// N*#Keys*(N * #Parties * floor(sigma*6) + #Parties * floor(sigma*6) + N * #Parties  +  #Parties * floor(6*sigma))

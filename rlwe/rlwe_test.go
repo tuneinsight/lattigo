@@ -179,8 +179,8 @@ func testKeyGenerator(tc *TestContext, t *testing.T) {
 
 			zero := ringQP.NewPoly()
 
-			ringQP.MulCoeffsMontgomery(sk.Value, pk.Value[1], zero)
-			ringQP.Add(zero, pk.Value[0], zero)
+			ringQP.MulCoeffsMontgomery(&sk.Value, &pk.Value[1], zero)
+			ringQP.Add(zero, &pk.Value[0], zero)
 			ringQP.INTT(zero, zero)
 			ringQP.IMForm(zero, zero)
 

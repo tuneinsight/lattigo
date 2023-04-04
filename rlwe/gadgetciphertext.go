@@ -27,8 +27,8 @@ func NewGadgetCiphertext(params Parameters, levelQ, levelP, decompRNS, decompBIT
 	for i := 0; i < decompRNS; i++ {
 		ct.Value[i] = make([]CiphertextQP, decompBIT)
 		for j := 0; j < decompBIT; j++ {
-			ct.Value[i][j].Value[0] = ringQP.NewPoly()
-			ct.Value[i][j].Value[1] = ringQP.NewPoly()
+			ct.Value[i][j].Value[0] = *ringQP.NewPoly()
+			ct.Value[i][j].Value[1] = *ringQP.NewPoly()
 			ct.Value[i][j].IsNTT = true
 			ct.Value[i][j].IsMontgomery = true
 		}

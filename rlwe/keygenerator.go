@@ -54,8 +54,8 @@ func (kgen *KeyGenerator) genSecretKeyFromSampler(sampler ring.Sampler, sk *Secr
 		ringQP.ExtendBasisSmallNormAndCenter(sk.Value.Q, levelP, nil, sk.Value.P)
 	}
 
-	ringQP.NTT(sk.Value, sk.Value)
-	ringQP.MForm(sk.Value, sk.Value)
+	ringQP.NTT(&sk.Value, &sk.Value)
+	ringQP.MForm(&sk.Value, &sk.Value)
 }
 
 // GenPublicKeyNew generates a new public key from the provided SecretKey.

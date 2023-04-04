@@ -139,7 +139,7 @@ func newEncryptorBuffers(params Parameters) *encryptorBuffers {
 	return &encryptorBuffers{
 		buffQ:  [2]*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly()},
 		buffP:  buffP,
-		buffQP: params.RingQP().NewPoly(),
+		buffQP: *params.RingQP().NewPoly(),
 	}
 }
 
@@ -227,7 +227,7 @@ func (enc *pkEncryptor) encryptZero(ct *Ciphertext) {
 	buffP1 := enc.buffP[1]
 	buffP2 := enc.buffP[2]
 
-	u := ringqp.Poly{Q: buffQ0, P: buffP2}
+	u := &ringqp.Poly{Q: buffQ0, P: buffP2}
 
 	// We sample a RLWE instance (encryption of zero) over the extended ring (ciphertext ring + special prime)
 	enc.ternarySampler.AtLevel(levelQ).Read(u.Q)
@@ -236,19 +236,19 @@ func (enc *pkEncryptor) encryptZero(ct *Ciphertext) {
 	// (#Q + #P) NTT
 	ringQP.NTT(u, u)
 
-	ct0QP := ringqp.Poly{Q: ct.Value[0], P: buffP0}
-	ct1QP := ringqp.Poly{Q: ct.Value[1], P: buffP1}
+	ct0QP := &ringqp.Poly{Q: ct.Value[0], P: buffP0}
+	ct1QP := &ringqp.Poly{Q: ct.Value[1], P: buffP1}
 
 	// ct0 = u*pk0
 	// ct1 = u*pk1
-	ringQP.MulCoeffsMontgomery(u, enc.pk.Value[0], ct0QP)
-	ringQP.MulCoeffsMontgomery(u, enc.pk.Value[1], ct1QP)
+	ringQP.MulCoeffsMontgomery(u, &enc.pk.Value[0], ct0QP)
+	ringQP.MulCoeffsMontgomery(u, &enc.pk.Value[1], ct1QP)
 
 	// 2*(#Q + #P) NTT
 	ringQP.INTT(ct0QP, ct0QP)
 	ringQP.INTT(ct1QP, ct1QP)
 
-	e := ringqp.Poly{Q: buffQ0, P: buffP2}
+	e := &ringqp.Poly{Q: buffQ0, P: buffP2}
 
 	enc.gaussianSampler.AtLevel(levelQ).Read(e.Q)
 	ringQP.ExtendBasisSmallNormAndCenter(e.Q, levelP, nil, e.P)
@@ -353,7 +353,7 @@ func (enc *skEncryptor) EncryptZero(ct interface{}) {
 			c1 = enc.buffQ[1]
 		}
 
-		enc.uniformSampler.AtLevel(ct.Level(), -1).Read(ringqp.Poly{Q: c1})
+		enc.uniformSampler.AtLevel(ct.Level(), -1).Read(&ringqp.Poly{Q: c1})
 
 		if !ct.IsNTT {
 			enc.params.RingQ().AtLevel(ct.Level()).NTT(c1, c1)
@@ -409,7 +409,7 @@ func (enc *skEncryptor) encryptZero(ct *Ciphertext, c1 *ring.Poly) {
 // montgomery: returns the result in the Montgomery domain.
 func (enc *skEncryptor) encryptZeroQP(ct CiphertextQP) {
 
-	c0, c1 := ct.Value[0], ct.Value[1]
+	c0, c1 := &ct.Value[0], &ct.Value[1]
 
 	levelQ, levelP := c0.LevelQ(), c1.LevelP()
 	ringQP := enc.params.RingQP().AtLevel(levelQ, levelP)
@@ -430,7 +430,7 @@ func (enc *skEncryptor) encryptZeroQP(ct CiphertextQP) {
 	enc.uniformSampler.AtLevel(levelQ, levelP).Read(c1)
 
 	// (-a*sk + e, a)
-	ringQP.MulCoeffsMontgomeryThenSub(c1, enc.sk.Value, c0)
+	ringQP.MulCoeffsMontgomeryThenSub(c1, &enc.sk.Value, c0)
 
 	if !ct.IsNTT {
 		ringQP.INTT(c0, c0)

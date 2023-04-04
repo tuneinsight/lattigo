@@ -9,6 +9,7 @@ import (
 
 	"github.com/tuneinsight/lattigo/v4/utils/buffer"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
+	"github.com/tuneinsight/lattigo/v4/utils/structs"
 
 	"github.com/stretchr/testify/require"
 )
@@ -326,7 +327,7 @@ func testMarshalBinary(tc *testParams, t *testing.T) {
 		buffer.TestInterfaceWriteAndRead(t, tc.uniformSamplerQ.ReadNew())
 	})
 
-	t.Run(testString("MarshalBinary/PolyVector", tc.ringQ), func(t *testing.T) {
+	t.Run(testString("structs/PolyVector", tc.ringQ), func(t *testing.T) {
 
 		polys := make([]*Poly, 4)
 
@@ -334,13 +335,13 @@ func testMarshalBinary(tc *testParams, t *testing.T) {
 			polys[i] = tc.uniformSamplerQ.ReadNew()
 		}
 
-		pv := new(PolyVector)
+		pv := &structs.Vector[Poly]{}
 		pv.Set(polys)
 
 		buffer.TestInterfaceWriteAndRead(t, pv)
 	})
 
-	t.Run(testString("MarshalBinary/PolyMatrix", tc.ringQ), func(t *testing.T) {
+	t.Run(testString("structs/PolyMatrix", tc.ringQ), func(t *testing.T) {
 
 		polys := make([][]*Poly, 4)
 
@@ -352,7 +353,7 @@ func testMarshalBinary(tc *testParams, t *testing.T) {
 			}
 		}
 
-		pm := new(PolyMatrix)
+		pm := &structs.Matrix[Poly]{}
 		pm.Set(polys)
 
 		buffer.TestInterfaceWriteAndRead(t, pm)

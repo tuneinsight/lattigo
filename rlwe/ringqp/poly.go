@@ -21,7 +21,7 @@ type Poly struct {
 
 // NewPoly creates a new polynomial at the given levels.
 // If levelQ or levelP are negative, the corresponding polynomial will be nil.
-func NewPoly(N, levelQ, levelP int) Poly {
+func NewPoly(N, levelQ, levelP int) *Poly {
 	var Q, P *ring.Poly
 
 	if levelQ >= 0 {
@@ -32,7 +32,7 @@ func NewPoly(N, levelQ, levelP int) Poly {
 		P = ring.NewPoly(N, levelP)
 	}
 
-	return Poly{Q, P}
+	return &Poly{Q, P}
 }
 
 // LevelQ returns the level of the polynomial modulo Q.
@@ -60,7 +60,7 @@ func (p *Poly) Equal(other *Poly) (v bool) {
 
 // Copy copies the coefficients of other on the target polynomial.
 // This method simply calls the Copy method for each of its sub-polynomials.
-func (p *Poly) Copy(other Poly) {
+func (p *Poly) Copy(other *Poly) {
 	if p.Q != nil {
 		copy(p.Q.Buff, other.Q.Buff)
 	}
@@ -72,7 +72,7 @@ func (p *Poly) Copy(other Poly) {
 
 // CopyLvl copies the values of p1 on p2.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
-func CopyLvl(levelQ, levelP int, p1, p2 Poly) {
+func CopyLvl(levelQ, levelP int, p1, p2 *Poly) {
 
 	if p1.Q != nil && p2.Q != nil {
 		ring.CopyLvl(levelQ, p1.Q, p2.Q)
@@ -84,9 +84,9 @@ func CopyLvl(levelQ, levelP int, p1, p2 Poly) {
 }
 
 // CopyNew creates an exact copy of the target polynomial.
-func (p *Poly) CopyNew() Poly {
+func (p *Poly) CopyNew() *Poly {
 	if p == nil {
-		return Poly{}
+		return nil
 	}
 
 	var Q, P *ring.Poly
@@ -98,7 +98,7 @@ func (p *Poly) CopyNew() Poly {
 		P = p.P.CopyNew()
 	}
 
-	return Poly{Q, P}
+	return &Poly{Q, P}
 }
 
 // Resize resizes the levels of the target polynomial to the provided levels.

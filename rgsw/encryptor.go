@@ -18,7 +18,7 @@ type Encryptor struct {
 // NewEncryptor creates a new Encryptor type. Note that only secret-key encryption is
 // supported at the moment.
 func NewEncryptor(params rlwe.Parameters, sk *rlwe.SecretKey) *Encryptor {
-	return &Encryptor{rlwe.NewEncryptor(params, sk), params, params.RingQP().NewPoly()}
+	return &Encryptor{rlwe.NewEncryptor(params, sk), params, *params.RingQP().NewPoly()}
 }
 
 // Encrypt encrypts a plaintext pt into a ciphertext ct, which can be a rgsw.Ciphertext
@@ -79,5 +79,5 @@ func (enc *Encryptor) EncryptZero(ct interface{}) {
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // Encryptors can be used concurrently.
 func (enc *Encryptor) ShallowCopy() *Encryptor {
-	return &Encryptor{Encryptor: enc.Encryptor.ShallowCopy(), params: enc.params, buffQP: enc.params.RingQP().NewPoly()}
+	return &Encryptor{Encryptor: enc.Encryptor.ShallowCopy(), params: enc.params, buffQP: *enc.params.RingQP().NewPoly()}
 }

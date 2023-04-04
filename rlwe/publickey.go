@@ -15,7 +15,18 @@ type PublicKey struct {
 
 // NewPublicKey returns a new PublicKey with zero values.
 func NewPublicKey(params Parameters) (pk *PublicKey) {
-	return &PublicKey{CiphertextQP{Value: [2]ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()}, MetaData: MetaData{IsNTT: true, IsMontgomery: true}}}
+	return &PublicKey{
+		CiphertextQP{
+			Value: [2]ringqp.Poly{
+				*params.RingQP().NewPoly(),
+				*params.RingQP().NewPoly(),
+			},
+			MetaData: MetaData{
+				IsNTT:        true,
+				IsMontgomery: true,
+			},
+		},
+	}
 }
 
 // LevelQ returns the level of the modulus Q of the target.

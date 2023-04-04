@@ -8,6 +8,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
+	"github.com/tuneinsight/lattigo/v4/utils/structs"
 )
 
 // Thresholdizer is a type for generating secret-shares of ringqp.Poly types such that
@@ -46,7 +47,7 @@ type ShamirPublicPoint uint64
 //
 // See Thresholdizer type.
 type ShamirPolynomial struct {
-	Value ringqp.PolyVector
+	Value structs.Vector[ringqp.Poly]
 }
 
 // ShamirSecretShare represents a t-out-of-N-threshold secret-share.
@@ -79,24 +80,28 @@ func (thr *Thresholdizer) GenShamirPolynomial(threshold int, secret *rlwe.Secret
 	if threshold < 1 {
 		return nil, fmt.Errorf("threshold should be >= 1")
 	}
-	gen := make([]ringqp.Poly, int(threshold))
+	gen := make([]*ringqp.Poly, int(threshold))
 	gen[0] = secret.Value.CopyNew()
 	for i := 1; i < threshold; i++ {
 		gen[i] = thr.ringQP.NewPoly()
 		thr.usampler.Read(gen[i])
 	}
-	return &ShamirPolynomial{Value: ringqp.PolyVector(gen)}, nil
+
+	Value := structs.Vector[ringqp.Poly]{}
+	Value.Set(gen)
+
+	return &ShamirPolynomial{Value: Value}, nil
 }
 
 // AllocateThresholdSecretShare allocates a ShamirSecretShare struct.
 func (thr *Thresholdizer) AllocateThresholdSecretShare() *ShamirSecretShare {
-	return &ShamirSecretShare{thr.ringQP.NewPoly()}
+	return &ShamirSecretShare{*thr.ringQP.NewPoly()}
 }
 
 // GenShamirSecretShare generates a secret share for the given recipient, identified by its ShamirPublicPoint.
 // The result is stored in ShareOut and should be sent to this party.
 func (thr *Thresholdizer) GenShamirSecretShare(recipient ShamirPublicPoint, secretPoly *ShamirPolynomial, shareOut *ShamirSecretShare) {
-	thr.ringQP.EvalPolyScalar(secretPoly.Value, uint64(recipient), shareOut.Poly)
+	thr.ringQP.EvalPolyScalar(secretPoly.Value.Get(), uint64(recipient), &shareOut.Poly)
 }
 
 // AggregateShares aggregates two ShamirSecretShare and stores the result in outShare.
@@ -104,7 +109,7 @@ func (thr *Thresholdizer) AggregateShares(share1, share2, outShare *ShamirSecret
 	if share1.LevelQ() != share2.LevelQ() || share1.LevelQ() != outShare.LevelQ() || share1.LevelP() != share2.LevelP() || share1.LevelP() != outShare.LevelP() {
 		panic("shares level do not match")
 	}
-	thr.ringQP.AtLevel(share1.LevelQ(), share1.LevelP()).Add(share1.Poly, share2.Poly, outShare.Poly)
+	thr.ringQP.AtLevel(share1.LevelQ(), share1.LevelP()).Add(&share1.Poly, &share2.Poly, &outShare.Poly)
 }
 
 // NewCombiner creates a new Combiner struct from the parameters and the set of ShamirPublicPoints. Note that the other
@@ -157,7 +162,7 @@ func (cmb *Combiner) GenAdditiveShare(activesPoints []ShamirPublicPoint, ownPoin
 		}
 	}
 
-	cmb.ringQP.MulRNSScalarMontgomery(ownShare.Poly, prod, skOut.Value)
+	cmb.ringQP.MulRNSScalarMontgomery(&ownShare.Poly, prod, &skOut.Value)
 }
 
 func (cmb *Combiner) lagrangeCoeff(thisKey ShamirPublicPoint, thatKey ShamirPublicPoint, lagCoeff []uint64) {

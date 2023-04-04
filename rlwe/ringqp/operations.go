@@ -5,7 +5,7 @@ import (
 )
 
 // Add adds p1 to p2 coefficient-wise and writes the result on p3.
-func (r *Ring) Add(p1, p2, p3 Poly) {
+func (r *Ring) Add(p1, p2, p3 *Poly) {
 	if r.RingQ != nil {
 		r.RingQ.Add(p1.Q, p2.Q, p3.Q)
 	}
@@ -15,7 +15,7 @@ func (r *Ring) Add(p1, p2, p3 Poly) {
 }
 
 // AddLazy adds p1 to p2 coefficient-wise and writes the result on p3 without modular reduction.
-func (r *Ring) AddLazy(p1, p2, p3 Poly) {
+func (r *Ring) AddLazy(p1, p2, p3 *Poly) {
 	if r.RingQ != nil {
 		r.RingQ.AddLazy(p1.Q, p2.Q, p3.Q)
 	}
@@ -25,7 +25,7 @@ func (r *Ring) AddLazy(p1, p2, p3 Poly) {
 }
 
 // Sub subtracts p2 to p1 coefficient-wise and writes the result on p3.
-func (r *Ring) Sub(p1, p2, p3 Poly) {
+func (r *Ring) Sub(p1, p2, p3 *Poly) {
 	if r.RingQ != nil {
 		r.RingQ.Sub(p1.Q, p2.Q, p3.Q)
 	}
@@ -35,7 +35,7 @@ func (r *Ring) Sub(p1, p2, p3 Poly) {
 }
 
 // Neg negates p1 coefficient-wise and writes the result on p2.
-func (r *Ring) Neg(p1, p2 Poly) {
+func (r *Ring) Neg(p1, p2 *Poly) {
 	if r.RingQ != nil {
 		r.RingQ.Neg(p1.Q, p2.Q)
 	}
@@ -89,7 +89,7 @@ func (r *Ring) MulRNSScalar(s1, s2, sout ring.RNSScalar) {
 }
 
 // EvalPolyScalar evaluate the polynomial pol at pt and writes the result in p3
-func (r *Ring) EvalPolyScalar(pol []Poly, pt uint64, p3 Poly) {
+func (r *Ring) EvalPolyScalar(pol []*Poly, pt uint64, p3 *Poly) {
 	polQ, polP := make([]*ring.Poly, len(pol)), make([]*ring.Poly, len(pol))
 	for i, coeff := range pol {
 		polQ[i] = coeff.Q
@@ -102,7 +102,7 @@ func (r *Ring) EvalPolyScalar(pol []Poly, pt uint64, p3 Poly) {
 }
 
 // MulScalar multiplies p1 by scalar and returns the result in p2.
-func (r *Ring) MulScalar(p1 Poly, scalar uint64, p2 Poly) {
+func (r *Ring) MulScalar(p1 *Poly, scalar uint64, p2 *Poly) {
 	if r.RingQ != nil {
 		r.RingQ.MulScalar(p1.Q, scalar, p2.Q)
 	}
@@ -112,7 +112,7 @@ func (r *Ring) MulScalar(p1 Poly, scalar uint64, p2 Poly) {
 }
 
 // NTT computes the NTT of p1 and returns the result on p2.
-func (r *Ring) NTT(p1, p2 Poly) {
+func (r *Ring) NTT(p1, p2 *Poly) {
 	if r.RingQ != nil {
 		r.RingQ.NTT(p1.Q, p2.Q)
 	}
@@ -122,7 +122,7 @@ func (r *Ring) NTT(p1, p2 Poly) {
 }
 
 // INTT computes the inverse-NTT of p1 and returns the result on p2.
-func (r *Ring) INTT(p1, p2 Poly) {
+func (r *Ring) INTT(p1, p2 *Poly) {
 	if r.RingQ != nil {
 		r.RingQ.INTT(p1.Q, p2.Q)
 	}
@@ -133,7 +133,7 @@ func (r *Ring) INTT(p1, p2 Poly) {
 
 // NTTLazy computes the NTT of p1 and returns the result on p2.
 // Output values are in the range [0, 2q-1].
-func (r *Ring) NTTLazy(p1, p2 Poly) {
+func (r *Ring) NTTLazy(p1, p2 *Poly) {
 	if r.RingQ != nil {
 		r.RingQ.NTTLazy(p1.Q, p2.Q)
 	}
@@ -144,7 +144,7 @@ func (r *Ring) NTTLazy(p1, p2 Poly) {
 
 // INTTLazy computes the inverse-NTT of p1 and returns the result on p2.
 // Output values are in the range [0, 2q-1].
-func (r *Ring) INTTLazy(p1, p2 Poly) {
+func (r *Ring) INTTLazy(p1, p2 *Poly) {
 	if r.RingQ != nil {
 		r.RingQ.INTTLazy(p1.Q, p2.Q)
 	}
@@ -154,7 +154,7 @@ func (r *Ring) INTTLazy(p1, p2 Poly) {
 }
 
 // MForm switches p1 to the Montgomery domain and writes the result on p2.
-func (r *Ring) MForm(p1, p2 Poly) {
+func (r *Ring) MForm(p1, p2 *Poly) {
 	if r.RingQ != nil {
 		r.RingQ.MForm(p1.Q, p2.Q)
 	}
@@ -164,7 +164,7 @@ func (r *Ring) MForm(p1, p2 Poly) {
 }
 
 // IMForm switches back p1 from the Montgomery domain to the conventional domain and writes the result on p2.
-func (r *Ring) IMForm(p1, p2 Poly) {
+func (r *Ring) IMForm(p1, p2 *Poly) {
 	if r.RingQ != nil {
 		r.RingQ.IMForm(p1.Q, p2.Q)
 	}
@@ -174,7 +174,7 @@ func (r *Ring) IMForm(p1, p2 Poly) {
 }
 
 // MulCoeffsMontgomery multiplies p1 by p2 coefficient-wise with a Montgomery modular reduction.
-func (r *Ring) MulCoeffsMontgomery(p1, p2, p3 Poly) {
+func (r *Ring) MulCoeffsMontgomery(p1, p2, p3 *Poly) {
 	if r.RingQ != nil {
 		r.RingQ.MulCoeffsMontgomery(p1.Q, p2.Q, p3.Q)
 	}
@@ -185,7 +185,7 @@ func (r *Ring) MulCoeffsMontgomery(p1, p2, p3 Poly) {
 
 // MulCoeffsMontgomeryLazy multiplies p1 by p2 coefficient-wise with a constant-time Montgomery modular reduction.
 // Result is within [0, 2q-1].
-func (r *Ring) MulCoeffsMontgomeryLazy(p1, p2, p3 Poly) {
+func (r *Ring) MulCoeffsMontgomeryLazy(p1, p2, p3 *Poly) {
 	if r.RingQ != nil {
 		r.RingQ.MulCoeffsMontgomeryLazy(p1.Q, p2.Q, p3.Q)
 	}
@@ -197,7 +197,7 @@ func (r *Ring) MulCoeffsMontgomeryLazy(p1, p2, p3 Poly) {
 // MulCoeffsMontgomeryLazyThenAddLazy multiplies p1 by p2 coefficient-wise with a
 // constant-time Montgomery modular reduction and adds the result on p3.
 // Result is within [0, 2q-1]
-func (r *Ring) MulCoeffsMontgomeryLazyThenAddLazy(p1, p2, p3 Poly) {
+func (r *Ring) MulCoeffsMontgomeryLazyThenAddLazy(p1, p2, p3 *Poly) {
 	if r.RingQ != nil {
 		r.RingQ.MulCoeffsMontgomeryLazyThenAddLazy(p1.Q, p2.Q, p3.Q)
 	}
@@ -208,7 +208,7 @@ func (r *Ring) MulCoeffsMontgomeryLazyThenAddLazy(p1, p2, p3 Poly) {
 
 // MulCoeffsMontgomeryThenSub multiplies p1 by p2 coefficient-wise with
 // a Montgomery modular reduction and subtracts the result from p3.
-func (r *Ring) MulCoeffsMontgomeryThenSub(p1, p2, p3 Poly) {
+func (r *Ring) MulCoeffsMontgomeryThenSub(p1, p2, p3 *Poly) {
 	if r.RingQ != nil {
 		r.RingQ.MulCoeffsMontgomeryThenSub(p1.Q, p2.Q, p3.Q)
 	}
@@ -219,7 +219,7 @@ func (r *Ring) MulCoeffsMontgomeryThenSub(p1, p2, p3 Poly) {
 
 // MulCoeffsMontgomeryLazyThenSubLazy multiplies p1 by p2 coefficient-wise with
 // a Montgomery modular reduction and subtracts the result from p3.
-func (r *Ring) MulCoeffsMontgomeryLazyThenSubLazy(p1, p2, p3 Poly) {
+func (r *Ring) MulCoeffsMontgomeryLazyThenSubLazy(p1, p2, p3 *Poly) {
 	if r.RingQ != nil {
 		r.RingQ.MulCoeffsMontgomeryLazyThenSubLazy(p1.Q, p2.Q, p3.Q)
 	}
@@ -230,7 +230,7 @@ func (r *Ring) MulCoeffsMontgomeryLazyThenSubLazy(p1, p2, p3 Poly) {
 
 // MulCoeffsMontgomeryThenAdd multiplies p1 by p2 coefficient-wise with a
 // Montgomery modular reduction and adds the result to p3.
-func (r *Ring) MulCoeffsMontgomeryThenAdd(p1, p2, p3 Poly) {
+func (r *Ring) MulCoeffsMontgomeryThenAdd(p1, p2, p3 *Poly) {
 	if r.RingQ != nil {
 		r.RingQ.MulCoeffsMontgomeryThenAdd(p1.Q, p2.Q, p3.Q)
 	}
@@ -241,7 +241,7 @@ func (r *Ring) MulCoeffsMontgomeryThenAdd(p1, p2, p3 Poly) {
 
 // MulRNSScalarMontgomery multiplies p with a scalar value expressed in the CRT decomposition.
 // It assumes the scalar decomposition to be in Montgomery form.
-func (r *Ring) MulRNSScalarMontgomery(p Poly, scalar []uint64, pOut Poly) {
+func (r *Ring) MulRNSScalarMontgomery(p *Poly, scalar []uint64, pOut *Poly) {
 	scalarQ, scalarP := scalar[:r.RingQ.ModuliChainLength()], scalar[r.RingQ.ModuliChainLength():]
 	if r.RingQ != nil {
 		r.RingQ.MulRNSScalarMontgomery(p.Q, scalarQ, pOut.Q)
@@ -264,7 +264,7 @@ func (r *Ring) Inverse(scalar ring.RNSScalar) {
 }
 
 // Reduce applies the modular reduction on the coefficients of p1 and returns the result on p2.
-func (r *Ring) Reduce(p1, p2 Poly) {
+func (r *Ring) Reduce(p1, p2 *Poly) {
 	if r.RingQ != nil {
 		r.RingQ.Reduce(p1.Q, p2.Q)
 	}
@@ -275,7 +275,7 @@ func (r *Ring) Reduce(p1, p2 Poly) {
 
 // Automorphism applies the automorphism X^{i} -> X^{i*gen} on p1 and writes the result on p2.
 // Method is not in place.
-func (r *Ring) Automorphism(p1 Poly, galEl uint64, p2 Poly) {
+func (r *Ring) Automorphism(p1 *Poly, galEl uint64, p2 *Poly) {
 	if r.RingQ != nil {
 		r.RingQ.Automorphism(p1.Q, galEl, p2.Q)
 	}
@@ -287,7 +287,7 @@ func (r *Ring) Automorphism(p1 Poly, galEl uint64, p2 Poly) {
 // AutomorphismNTTWithIndex applies the automorphism X^{i} -> X^{i*gen} on p1 and writes the result on p2.
 // Index of automorphism must be provided.
 // Method is not in place.
-func (r *Ring) AutomorphismNTTWithIndex(p1 Poly, index []uint64, p2 Poly) {
+func (r *Ring) AutomorphismNTTWithIndex(p1 *Poly, index []uint64, p2 *Poly) {
 	if r.RingQ != nil {
 		r.RingQ.AutomorphismNTTWithIndex(p1.Q, index, p2.Q)
 	}
@@ -299,7 +299,7 @@ func (r *Ring) AutomorphismNTTWithIndex(p1 Poly, index []uint64, p2 Poly) {
 // AutomorphismNTTWithIndexThenAddLazy applies the automorphism X^{i} -> X^{i*gen} on p1 and adds the result on p2.
 // Index of automorphism must be provided.
 // Method is not in place.
-func (r *Ring) AutomorphismNTTWithIndexThenAddLazy(p1 Poly, index []uint64, p2 Poly) {
+func (r *Ring) AutomorphismNTTWithIndexThenAddLazy(p1 *Poly, index []uint64, p2 *Poly) {
 	if r.RingQ != nil {
 		r.RingQ.AutomorphismNTTWithIndexThenAddLazy(p1.Q, index, p2.Q)
 	}

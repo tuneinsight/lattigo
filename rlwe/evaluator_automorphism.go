@@ -127,7 +127,7 @@ func (eval *Evaluator) AutomorphismHoistedLazy(levelQ int, ctIn *Ciphertext, c1D
 
 	if ctQP.IsNTT {
 
-		ringQP.AutomorphismNTTWithIndex(ctTmp.Value[1], index, ctQP.Value[1])
+		ringQP.AutomorphismNTTWithIndex(&ctTmp.Value[1], index, &ctQP.Value[1])
 
 		if levelP > -1 {
 			ringQ.MulScalarBigint(ctIn.Value[0], ringP.ModulusAtLevel[levelP], ctTmp.Value[1].Q)
@@ -135,10 +135,10 @@ func (eval *Evaluator) AutomorphismHoistedLazy(levelQ int, ctIn *Ciphertext, c1D
 
 		ringQ.Add(ctTmp.Value[0].Q, ctTmp.Value[1].Q, ctTmp.Value[0].Q)
 
-		ringQP.AutomorphismNTTWithIndex(ctTmp.Value[0], index, ctQP.Value[0])
+		ringQP.AutomorphismNTTWithIndex(&ctTmp.Value[0], index, &ctQP.Value[0])
 	} else {
 
-		ringQP.Automorphism(ctTmp.Value[1], galEl, ctQP.Value[1])
+		ringQP.Automorphism(&ctTmp.Value[1], galEl, &ctQP.Value[1])
 
 		if levelP > -1 {
 			ringQ.MulScalarBigint(ctIn.Value[0], ringP.ModulusAtLevel[levelP], ctTmp.Value[1].Q)
@@ -146,7 +146,7 @@ func (eval *Evaluator) AutomorphismHoistedLazy(levelQ int, ctIn *Ciphertext, c1D
 
 		ringQ.Add(ctTmp.Value[0].Q, ctTmp.Value[1].Q, ctTmp.Value[0].Q)
 
-		ringQP.Automorphism(ctTmp.Value[0], galEl, ctQP.Value[0])
+		ringQP.Automorphism(&ctTmp.Value[0], galEl, &ctQP.Value[0])
 	}
 }
 

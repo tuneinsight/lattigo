@@ -33,7 +33,9 @@ type CKGShare struct {
 }
 
 // CKGCRP is a type for common reference polynomials in the CKG protocol.
-type CKGCRP ringqp.Poly
+type CKGCRP struct {
+	ringqp.Poly
+}
 
 // BinarySize returns the size in bytes that the object once marshalled into a binary form.
 func (share *CKGShare) BinarySize() int {
@@ -101,7 +103,7 @@ func NewCKGProtocol(params rlwe.Parameters) *CKGProtocol {
 
 // AllocateShare allocates the share of the CKG protocol.
 func (ckg *CKGProtocol) AllocateShare() *CKGShare {
-	return &CKGShare{ckg.params.RingQP().NewPoly()}
+	return &CKGShare{*ckg.params.RingQP().NewPoly()}
 }
 
 // SampleCRP samples a common random polynomial to be used in the CKG protocol from the provided
@@ -109,7 +111,7 @@ func (ckg *CKGProtocol) AllocateShare() *CKGShare {
 func (ckg *CKGProtocol) SampleCRP(crs CRS) CKGCRP {
 	crp := ckg.params.RingQP().NewPoly()
 	ringqp.NewUniformSampler(crs, *ckg.params.RingQP()).Read(crp)
-	return CKGCRP(crp)
+	return CKGCRP{*crp}
 }
 
 // GenShare generates the party's public key share from its secret key as:
@@ -126,19 +128,19 @@ func (ckg *CKGProtocol) GenShare(sk *rlwe.SecretKey, crp CKGCRP, shareOut *CKGSh
 		ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value.Q, ckg.params.MaxLevelP(), nil, shareOut.Value.P)
 	}
 
-	ringQP.NTT(shareOut.Value, shareOut.Value)
-	ringQP.MForm(shareOut.Value, shareOut.Value)
+	ringQP.NTT(&shareOut.Value, &shareOut.Value)
+	ringQP.MForm(&shareOut.Value, &shareOut.Value)
 
-	ringQP.MulCoeffsMontgomeryThenSub(sk.Value, ringqp.Poly(crp), shareOut.Value)
+	ringQP.MulCoeffsMontgomeryThenSub(&sk.Value, &crp.Poly, &shareOut.Value)
 }
 
 // AggregateShares aggregates a new share to the aggregate key
 func (ckg *CKGProtocol) AggregateShares(share1, share2, shareOut *CKGShare) {
-	ckg.params.RingQP().Add(share1.Value, share2.Value, shareOut.Value)
+	ckg.params.RingQP().Add(&share1.Value, &share2.Value, &shareOut.Value)
 }
 
 // GenPublicKey return the current aggregation of the received shares as a bfv.PublicKey.
 func (ckg *CKGProtocol) GenPublicKey(roundShare *CKGShare, crp CKGCRP, pubkey *rlwe.PublicKey) {
-	pubkey.Value[0].Copy(roundShare.Value)
-	pubkey.Value[1].Copy(ringqp.Poly(crp))
+	pubkey.Value[0].Copy(&roundShare.Value)
+	pubkey.Value[1].Copy(&crp.Poly)
 }

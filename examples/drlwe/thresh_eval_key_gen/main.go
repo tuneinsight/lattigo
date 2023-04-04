@@ -236,7 +236,7 @@ func main() {
 		P[i] = pi
 
 		// computes the ideal sk for the sake of the example
-		params.RingQP().Add(skIdeal.Value, pi.sk.Value, skIdeal.Value)
+		params.RingQP().Add(&skIdeal.Value, &pi.sk.Value, &skIdeal.Value)
 
 		shamirPks = append(shamirPks, pi.shamirPk)
 	}

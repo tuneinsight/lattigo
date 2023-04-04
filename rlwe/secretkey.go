@@ -15,7 +15,7 @@ type SecretKey struct {
 
 // NewSecretKey generates a new SecretKey with zero values.
 func NewSecretKey(params Parameters) *SecretKey {
-	return &SecretKey{Value: params.RingQP().NewPoly()}
+	return &SecretKey{Value: *params.RingQP().NewPoly()}
 }
 
 func (sk *SecretKey) Equal(other *SecretKey) bool {
@@ -42,7 +42,7 @@ func (sk *SecretKey) CopyNew() *SecretKey {
 	if sk == nil {
 		return nil
 	}
-	return &SecretKey{sk.Value.CopyNew()}
+	return &SecretKey{*sk.Value.CopyNew()}
 }
 
 // BinarySize returns the size in bytes that the object once marshalled into a binary form.

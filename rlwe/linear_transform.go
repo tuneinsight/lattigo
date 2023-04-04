@@ -366,8 +366,8 @@ func (eval *Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 						copy = false
 					} else {
 						eval.AutomorphismHoistedLazy(levelQ, ctInNTT, eval.BuffDecompQP, rot, cQP)
-						ringQP.Add(accQP.Value[0], cQP.Value[0], accQP.Value[0])
-						ringQP.Add(accQP.Value[1], cQP.Value[1], accQP.Value[1])
+						ringQP.Add(&accQP.Value[0], &cQP.Value[0], &accQP.Value[0])
+						ringQP.Add(&accQP.Value[1], &cQP.Value[1], &accQP.Value[1])
 					}
 
 					// j is even

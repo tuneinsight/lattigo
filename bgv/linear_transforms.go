@@ -38,14 +38,14 @@ func NewLinearTransform(params Parameters, nonZeroDiags []int, level int, BSGSRa
 			if idx < 0 {
 				idx += slots
 			}
-			vec[idx] = ringQP.NewPoly()
+			vec[idx] = *ringQP.NewPoly()
 		}
 	} else if BSGSRatio > 0 {
 		N1 = FindBestBSGSSplit(nonZeroDiags, slots, BSGSRatio)
 		index, _, _ := BsgsIndex(nonZeroDiags, slots, N1)
 		for j := range index {
 			for _, i := range index[j] {
-				vec[j+i] = ringQP.NewPoly()
+				vec[j+i] = *ringQP.NewPoly()
 			}
 		}
 	} else {
@@ -128,12 +128,14 @@ func (LT *LinearTransform) Encode(ecd Encoder, dMat map[int][]uint64, scale rlwe
 				panic("cannot Encode: error encoding on LinearTransform: input does not match the same non-zero diagonals")
 			}
 
-			enc.EncodeRingT(dMat[i], scale, buffT)
-			enc.RingT2Q(levelQ, buffT, LT.Vec[idx].Q)
-			enc.RingT2Q(levelP, buffT, LT.Vec[idx].P)
+			pt := LT.Vec[idx]
 
-			ringQP.NTT(LT.Vec[idx], LT.Vec[idx])
-			ringQP.MForm(LT.Vec[idx], LT.Vec[idx])
+			enc.EncodeRingT(dMat[i], scale, buffT)
+			enc.RingT2Q(levelQ, buffT, pt.Q)
+			enc.RingT2Q(levelP, buffT, pt.P)
+
+			ringQP.NTT(&pt, &pt)
+			ringQP.MForm(&pt, &pt)
 		}
 	} else {
 		index, _, _ := BsgsIndex(dMat, slots, N1)
@@ -163,11 +165,13 @@ func (LT *LinearTransform) Encode(ecd Encoder, dMat map[int][]uint64, scale rlwe
 
 				enc.EncodeRingT(values, scale, buffT)
 
-				enc.RingT2Q(levelQ, buffT, LT.Vec[j+i].Q)
-				enc.RingT2Q(levelP, buffT, LT.Vec[j+i].P)
+				pt := LT.Vec[j+i]
 
-				ringQP.NTT(LT.Vec[j+i], LT.Vec[j+i])
-				ringQP.MForm(LT.Vec[j+i], LT.Vec[j+i])
+				enc.RingT2Q(levelQ, buffT, pt.Q)
+				enc.RingT2Q(levelP, buffT, pt.P)
+
+				ringQP.NTT(&pt, &pt)
+				ringQP.MForm(&pt, &pt)
 			}
 		}
 	}
@@ -201,14 +205,17 @@ func GenLinearTransform(ecd Encoder, dMat map[int][]uint64, level int, scale rlw
 		if idx < 0 {
 			idx += slots
 		}
-		vec[idx] = ringQP.NewPoly()
+		vec[idx] = *ringQP.NewPoly()
 
 		enc.EncodeRingT(dMat[i], scale, buffT)
-		enc.RingT2Q(levelQ, buffT, vec[idx].Q)
-		enc.RingT2Q(levelP, buffT, vec[idx].P)
 
-		ringQP.NTT(vec[idx], vec[idx])
-		ringQP.MForm(vec[idx], vec[idx])
+		pt := vec[idx]
+
+		enc.RingT2Q(levelQ, buffT, pt.Q)
+		enc.RingT2Q(levelP, buffT, pt.P)
+
+		ringQP.NTT(&pt, &pt)
+		ringQP.MForm(&pt, &pt)
 	}
 
 	return LinearTransform{LogSlots: params.LogN() - 1, N1: 0, Vec: vec, Level: level, Scale: scale}
@@ -259,7 +266,7 @@ func GenLinearTransformBSGS(ecd Encoder, dMat map[int][]uint64, level int, scale
 			if !ok {
 				v = dMat[j+i-slots]
 			}
-			vec[j+i] = ringQP.NewPoly()
+			vec[j+i] = *ringQP.NewPoly()
 
 			if len(v) > slots {
 				rotateAndCopyInplace(values[slots:], v[slots:], rot)
@@ -269,11 +276,13 @@ func GenLinearTransformBSGS(ecd Encoder, dMat map[int][]uint64, level int, scale
 
 			enc.EncodeRingT(values, scale, buffT)
 
-			enc.RingT2Q(levelQ, buffT, vec[j+i].Q)
-			enc.RingT2Q(levelP, buffT, vec[j+i].P)
+			pt := vec[i+j]
 
-			ringQP.NTT(vec[j+i], vec[j+i])
-			ringQP.MForm(vec[j+i], vec[j+i])
+			enc.RingT2Q(levelQ, buffT, pt.Q)
+			enc.RingT2Q(levelP, buffT, pt.P)
+
+			ringQP.NTT(&pt, &pt)
+			ringQP.MForm(&pt, &pt)
 		}
 	}
 
@@ -533,17 +542,19 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix Linear
 
 			eval.GadgetProductHoistedLazy(levelQ, BuffDecompQP, evk.GadgetCiphertext, cQP)
 			ringQ.Add(cQP.Value[0].Q, ct0TimesP, cQP.Value[0].Q)
-			ringQP.AutomorphismNTTWithIndex(cQP.Value[0], index, tmp0QP)
-			ringQP.AutomorphismNTTWithIndex(cQP.Value[1], index, tmp1QP)
+			ringQP.AutomorphismNTTWithIndex(&cQP.Value[0], index, &tmp0QP)
+			ringQP.AutomorphismNTTWithIndex(&cQP.Value[1], index, &tmp1QP)
+
+			pt := matrix.Vec[k]
 
 			if cnt == 0 {
 				// keyswitch(c1_Q) = (d0_QP, d1_QP)
-				ringQP.MulCoeffsMontgomery(matrix.Vec[k], tmp0QP, c0OutQP)
-				ringQP.MulCoeffsMontgomery(matrix.Vec[k], tmp1QP, c1OutQP)
+				ringQP.MulCoeffsMontgomery(&pt, &tmp0QP, &c0OutQP)
+				ringQP.MulCoeffsMontgomery(&pt, &tmp1QP, &c1OutQP)
 			} else {
 				// keyswitch(c1_Q) = (d0_QP, d1_QP)
-				ringQP.MulCoeffsMontgomeryThenAdd(matrix.Vec[k], tmp0QP, c0OutQP)
-				ringQP.MulCoeffsMontgomeryThenAdd(matrix.Vec[k], tmp1QP, c1OutQP)
+				ringQP.MulCoeffsMontgomeryThenAdd(&pt, &tmp0QP, &c0OutQP)
+				ringQP.MulCoeffsMontgomeryThenAdd(&pt, &tmp1QP, &c1OutQP)
 			}
 
 			if cnt%QiOverF == QiOverF-1 {
@@ -631,23 +642,27 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Li
 		// INNER LOOP
 		var cnt1 int
 		for _, i := range index[j] {
+
+			pt := matrix.Vec[j+i]
+			ct := ctInRotQP[i]
+
 			if i == 0 {
 				if cnt1 == 0 {
-					ringQ.MulCoeffsMontgomeryLazy(matrix.Vec[j].Q, ctInTmp0, tmp0QP.Q)
-					ringQ.MulCoeffsMontgomeryLazy(matrix.Vec[j].Q, ctInTmp1, tmp1QP.Q)
+					ringQ.MulCoeffsMontgomeryLazy(pt.Q, ctInTmp0, tmp0QP.Q)
+					ringQ.MulCoeffsMontgomeryLazy(pt.Q, ctInTmp1, tmp1QP.Q)
 					tmp0QP.P.Zero()
 					tmp1QP.P.Zero()
 				} else {
-					ringQ.MulCoeffsMontgomeryLazyThenAddLazy(matrix.Vec[j].Q, ctInTmp0, tmp0QP.Q)
-					ringQ.MulCoeffsMontgomeryLazyThenAddLazy(matrix.Vec[j].Q, ctInTmp1, tmp1QP.Q)
+					ringQ.MulCoeffsMontgomeryLazyThenAddLazy(pt.Q, ctInTmp0, tmp0QP.Q)
+					ringQ.MulCoeffsMontgomeryLazyThenAddLazy(pt.Q, ctInTmp1, tmp1QP.Q)
 				}
 			} else {
 				if cnt1 == 0 {
-					ringQP.MulCoeffsMontgomeryLazy(matrix.Vec[j+i], ctInRotQP[i].Value[0], tmp0QP)
-					ringQP.MulCoeffsMontgomeryLazy(matrix.Vec[j+i], ctInRotQP[i].Value[1], tmp1QP)
+					ringQP.MulCoeffsMontgomeryLazy(&pt, &ct.Value[0], &tmp0QP)
+					ringQP.MulCoeffsMontgomeryLazy(&pt, &ct.Value[1], &tmp1QP)
 				} else {
-					ringQP.MulCoeffsMontgomeryLazyThenAddLazy(matrix.Vec[j+i], ctInRotQP[i].Value[0], tmp0QP)
-					ringQP.MulCoeffsMontgomeryLazyThenAddLazy(matrix.Vec[j+i], ctInRotQP[i].Value[1], tmp1QP)
+					ringQP.MulCoeffsMontgomeryLazyThenAddLazy(&pt, &ct.Value[0], &tmp0QP)
+					ringQP.MulCoeffsMontgomeryLazyThenAddLazy(&pt, &ct.Value[1], &tmp1QP)
 				}
 			}
 
@@ -691,26 +706,26 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Li
 			rotIndex := eval.AutomorphismIndex[galEl]
 
 			eval.GadgetProductLazy(levelQ, tmp1QP.Q, evk.GadgetCiphertext, cQP) // EvaluationKey(P*phi(tmpRes_1)) = (d0, d1) in base QP
-			ringQP.Add(cQP.Value[0], tmp0QP, cQP.Value[0])
+			ringQP.Add(&cQP.Value[0], &tmp0QP, &cQP.Value[0])
 
 			// Outer loop rotations
 			if cnt0 == 0 {
 
-				ringQP.AutomorphismNTTWithIndex(cQP.Value[0], rotIndex, c0OutQP)
-				ringQP.AutomorphismNTTWithIndex(cQP.Value[1], rotIndex, c1OutQP)
+				ringQP.AutomorphismNTTWithIndex(&cQP.Value[0], rotIndex, &c0OutQP)
+				ringQP.AutomorphismNTTWithIndex(&cQP.Value[1], rotIndex, &c1OutQP)
 			} else {
-				ringQP.AutomorphismNTTWithIndexThenAddLazy(cQP.Value[0], rotIndex, c0OutQP)
-				ringQP.AutomorphismNTTWithIndexThenAddLazy(cQP.Value[1], rotIndex, c1OutQP)
+				ringQP.AutomorphismNTTWithIndexThenAddLazy(&cQP.Value[0], rotIndex, &c0OutQP)
+				ringQP.AutomorphismNTTWithIndexThenAddLazy(&cQP.Value[1], rotIndex, &c1OutQP)
 			}
 
 			// Else directly adds on ((cQP.Value[0].Q, cQP.Value[0].P), (cQP.Value[1].Q, cQP.Value[1].P))
 		} else {
 			if cnt0 == 0 {
-				ringqp.CopyLvl(levelQ, levelP, tmp0QP, c0OutQP)
-				ringqp.CopyLvl(levelQ, levelP, tmp1QP, c1OutQP)
+				ringqp.CopyLvl(levelQ, levelP, &tmp0QP, &c0OutQP)
+				ringqp.CopyLvl(levelQ, levelP, &tmp1QP, &c1OutQP)
 			} else {
-				ringQP.AddLazy(c0OutQP, tmp0QP, c0OutQP)
-				ringQP.AddLazy(c1OutQP, tmp1QP, c1OutQP)
+				ringQP.AddLazy(&c0OutQP, &tmp0QP, &c0OutQP)
+				ringQP.AddLazy(&c1OutQP, &tmp1QP, &c1OutQP)
 			}
 		}
 

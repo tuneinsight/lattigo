@@ -53,7 +53,7 @@ func (ct *CiphertextQP) LevelP() int {
 
 // CopyNew creates a deep copy of the object and returns it.
 func (ct *CiphertextQP) CopyNew() *CiphertextQP {
-	return &CiphertextQP{Value: [2]ringqp.Poly{ct.Value[0].CopyNew(), ct.Value[1].CopyNew()}, MetaData: ct.MetaData}
+	return &CiphertextQP{Value: [2]ringqp.Poly{*ct.Value[0].CopyNew(), *ct.Value[1].CopyNew()}, MetaData: ct.MetaData}
 }
 
 // BinarySize returns the size in bytes that the object once marshalled into a binary form.
@@ -175,7 +175,6 @@ func (ct *CiphertextQP) Write(data []byte) (ptr int, err error) {
 	}
 
 	var inc int
-
 	if inc, err = ct.Value[0].Write(data[ptr:]); err != nil {
 		return
 	}

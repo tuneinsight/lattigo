@@ -136,8 +136,8 @@ func gentestContext(params bfv.Parameters, parties int) (tc *testContext, err er
 	for j := 0; j < parties; j++ {
 		tc.sk0Shards[j] = kgen.GenSecretKeyNew()
 		tc.sk1Shards[j] = kgen.GenSecretKeyNew()
-		ringQP.Add(tc.sk0.Value, tc.sk0Shards[j].Value, tc.sk0.Value)
-		ringQP.Add(tc.sk1.Value, tc.sk1Shards[j].Value, tc.sk1.Value)
+		ringQP.Add(&tc.sk0.Value, &tc.sk0Shards[j].Value, &tc.sk0.Value)
+		ringQP.Add(&tc.sk1.Value, &tc.sk1Shards[j].Value, &tc.sk1.Value)
 	}
 
 	// Publickeys

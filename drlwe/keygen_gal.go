@@ -11,15 +11,18 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v4/utils/buffer"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
+	"github.com/tuneinsight/lattigo/v4/utils/structs"
 )
 
 // GKGCRP is a type for common reference polynomials in the GaloisKey Generation protocol.
-type GKGCRP ringqp.PolyMatrix
+type GKGCRP struct {
+	structs.Matrix[ringqp.Poly]
+}
 
 // GKGProtocol is the structure storing the parameters for the collective GaloisKeys generation.
 type GKGProtocol struct {
 	params           rlwe.Parameters
-	buff             [2]ringqp.Poly
+	buff             [2]*ringqp.Poly
 	gaussianSamplerQ *ring.GaussianSampler
 }
 
@@ -36,7 +39,7 @@ func (gkg *GKGProtocol) ShallowCopy() *GKGProtocol {
 
 	return &GKGProtocol{
 		params:           gkg.params,
-		buff:             [2]ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()},
+		buff:             [2]*ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()},
 		gaussianSamplerQ: ring.NewGaussianSampler(prng, params.RingQ(), params.Sigma(), int(6*params.Sigma())),
 	}
 }
@@ -51,7 +54,7 @@ func NewGKGProtocol(params rlwe.Parameters) (gkg *GKGProtocol) {
 		panic(err)
 	}
 	gkg.gaussianSamplerQ = ring.NewGaussianSampler(prng, params.RingQ(), params.Sigma(), int(6*params.Sigma()))
-	gkg.buff = [2]ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()}
+	gkg.buff = [2]*ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()}
 	return
 }
 
@@ -60,7 +63,20 @@ func (gkg *GKGProtocol) AllocateShare() (gkgShare *GKGShare) {
 	params := gkg.params
 	decompRNS := params.DecompRNS(params.MaxLevelQ(), params.MaxLevelP())
 	decompPw2 := params.DecompPw2(params.MaxLevelQ(), params.MaxLevelP())
-	return &GKGShare{Value: ringqp.NewPolyMatrix(params.N(), params.MaxLevelQ(), params.MaxLevelP(), decompRNS, decompPw2)}
+
+	p := make([][]*ringqp.Poly, decompRNS)
+	for i := range p {
+		vec := make([]*ringqp.Poly, decompPw2)
+		for j := range vec {
+			vec[j] = ringqp.NewPoly(params.N(), params.MaxLevelQ(), params.MaxLevelP())
+		}
+		p[i] = vec
+	}
+
+	Value := structs.Matrix[ringqp.Poly]{}
+	Value.Set(p)
+
+	return &GKGShare{Value: Value}
 }
 
 // SampleCRP samples a common random polynomial to be used in the GaloisKey Generation from the provided
@@ -71,7 +87,15 @@ func (gkg *GKGProtocol) SampleCRP(crs CRS) GKGCRP {
 	decompRNS := params.DecompRNS(params.MaxLevelQ(), params.MaxLevelP())
 	decompPw2 := params.DecompPw2(params.MaxLevelQ(), params.MaxLevelP())
 
-	m := ringqp.NewPolyMatrix(params.N(), params.MaxLevelQ(), params.MaxLevelP(), decompRNS, decompPw2)
+	m := make([][]*ringqp.Poly, decompRNS)
+	for i := range m {
+		vec := make([]*ringqp.Poly, decompPw2)
+		for j := range vec {
+			vec[j] = ringqp.NewPoly(params.N(), params.MaxLevelQ(), params.MaxLevelP())
+		}
+		m[i] = vec
+	}
+
 	us := ringqp.NewUniformSampler(crs, *params.RingQP())
 
 	for _, v := range m {
@@ -80,7 +104,10 @@ func (gkg *GKGProtocol) SampleCRP(crs CRS) GKGCRP {
 		}
 	}
 
-	return GKGCRP(m)
+	Value := structs.Matrix[ringqp.Poly]{}
+	Value.Set(m)
+
+	return GKGCRP{Value}
 }
 
 // GenShare generates a party's share in the GaloisKey Generation.
@@ -110,8 +137,12 @@ func (gkg *GKGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp GKGCRP, s
 		ring.CopyLvl(levelQ, sk.Value.Q, gkg.buff[0].Q)
 	}
 
-	RNSDecomp := len(shareOut.Value)
-	BITDecomp := len(shareOut.Value[0])
+	share := shareOut.Value.Get()
+	polys := crp.Get()
+
+	RNSDecomp := len(share)
+	BITDecomp := len(share[0])
+
 	N := ringQ.N()
 
 	var index int
@@ -119,14 +150,14 @@ func (gkg *GKGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp GKGCRP, s
 		for i := 0; i < RNSDecomp; i++ {
 
 			// e
-			gkg.gaussianSamplerQ.Read(shareOut.Value[i][j].Q)
+			gkg.gaussianSamplerQ.Read(share[i][j].Q)
 
 			if hasModulusP {
-				ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value[i][j].Q, levelP, nil, shareOut.Value[i][j].P)
+				ringQP.ExtendBasisSmallNormAndCenter(share[i][j].Q, levelP, nil, share[i][j].P)
 			}
 
-			ringQP.NTTLazy(shareOut.Value[i][j], shareOut.Value[i][j])
-			ringQP.MForm(shareOut.Value[i][j], shareOut.Value[i][j])
+			ringQP.NTTLazy(share[i][j], share[i][j])
+			ringQP.MForm(share[i][j], share[i][j])
 
 			// a is the CRP
 
@@ -143,7 +174,7 @@ func (gkg *GKGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp GKGCRP, s
 
 				qi := ringQ.SubRings[index].Modulus
 				tmp0 := gkg.buff[0].Q.Coeffs[index]
-				tmp1 := shareOut.Value[i][j].Q.Coeffs[index]
+				tmp1 := share[i][j].Q.Coeffs[index]
 
 				for w := 0; w < N; w++ {
 					tmp1[w] = ring.CRed(tmp1[w]+tmp0[w], qi)
@@ -151,48 +182,56 @@ func (gkg *GKGProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp GKGCRP, s
 			}
 
 			// sk_in * (qiBarre*qiStar) * 2^w - a*sk + e
-			ringQP.MulCoeffsMontgomeryThenSub(crp[i][j], gkg.buff[1], shareOut.Value[i][j])
+			ringQP.MulCoeffsMontgomeryThenSub(polys[i][j], gkg.buff[1], share[i][j])
 		}
 
 		ringQ.MulScalar(gkg.buff[0].Q, 1<<gkg.params.Pow2Base(), gkg.buff[0].Q)
 	}
 }
 
-// AggregateShares aggregates two share in the Rotation Key Generation protocol.
-func (gkg *GKGProtocol) AggregateShares(share1, share2, shareOut *GKGShare) {
+// AggregateShares computes share3 = share1 + share2.
+func (gkg *GKGProtocol) AggregateShares(share1, share2, share3 *GKGShare) {
 
 	if share1.GaloisElement != share2.GaloisElement {
 		panic(fmt.Sprintf("cannot aggregate: GKGShares do not share the same GaloisElement: %d != %d", share1.GaloisElement, share2.GaloisElement))
 	}
 
-	shareOut.GaloisElement = share1.GaloisElement
+	share3.GaloisElement = share1.GaloisElement
 
-	levelQ := share1.Value[0][0].Q.Level()
+	m1 := share1.Value.Get()
+	m2 := share2.Value.Get()
+	m3 := share3.Value.Get()
+
+	levelQ := m1[0][0].Q.Level()
 
 	var levelP int
-	if share1.Value[0][0].P != nil {
-		levelP = share1.Value[0][0].P.Level()
+	if m1[0][0].P != nil {
+		levelP = m1[0][0].P.Level()
 	}
 
 	ringQP := gkg.params.RingQP().AtLevel(levelQ, levelP)
 
-	RNSDecomp := len(shareOut.Value)
-	BITDecomp := len(shareOut.Value[0])
+	RNSDecomp := len(m1)
+	BITDecomp := len(m1[0])
 	for i := 0; i < RNSDecomp; i++ {
 		for j := 0; j < BITDecomp; j++ {
-			ringQP.Add(share1.Value[i][j], share2.Value[i][j], shareOut.Value[i][j])
+			ringQP.Add(m1[i][j], m2[i][j], m3[i][j])
 		}
 	}
 }
 
 // GenGaloisKey finalizes the GaloisKey Generation and populates the input GaloisKey with the computed collective GaloisKey.
 func (gkg *GKGProtocol) GenGaloisKey(share *GKGShare, crp GKGCRP, gk *rlwe.GaloisKey) {
-	RNSDecomp := len(share.Value)
-	BITDecomp := len(share.Value[0])
+
+	m := share.Value.Get()
+	p := crp.Get()
+
+	RNSDecomp := len(m)
+	BITDecomp := len(m[0])
 	for i := 0; i < RNSDecomp; i++ {
 		for j := 0; j < BITDecomp; j++ {
-			gk.Value[i][j].Value[0].Copy(share.Value[i][j])
-			gk.Value[i][j].Value[1].Copy(crp[i][j])
+			gk.Value[i][j].Value[0].Copy(m[i][j])
+			gk.Value[i][j].Value[1].Copy(p[i][j])
 		}
 	}
 
@@ -203,7 +242,7 @@ func (gkg *GKGProtocol) GenGaloisKey(share *GKGShare, crp GKGCRP, gk *rlwe.Galoi
 // GKGShare is represent a Party's share in the GaloisKey Generation protocol.
 type GKGShare struct {
 	GaloisElement uint64
-	Value         ringqp.PolyMatrix
+	Value         structs.Matrix[ringqp.Poly]
 }
 
 // BinarySize returns the size in bytes that the object once marshalled into a binary form.

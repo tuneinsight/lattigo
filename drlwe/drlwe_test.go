@@ -48,7 +48,7 @@ func newTestContext(params rlwe.Parameters) *testContext {
 	skIdeal := rlwe.NewSecretKey(params)
 	for i := range skShares {
 		skShares[i] = kgen.GenSecretKeyNew()
-		params.RingQP().Add(skIdeal.Value, skShares[i].Value, skIdeal.Value)
+		params.RingQP().Add(&skIdeal.Value, &skShares[i].Value, &skIdeal.Value)
 	}
 
 	prng, _ := sampling.NewKeyedPRNG([]byte{'t', 'e', 's', 't'})
@@ -273,7 +273,7 @@ func testCKSProtocol(tc *testContext, level int, t *testing.T) {
 		skOutIdeal := rlwe.NewSecretKey(params)
 		for i := range skout {
 			skout[i] = tc.kgen.GenSecretKeyNew()
-			params.RingQP().Add(skOutIdeal.Value, skout[i].Value, skOutIdeal.Value)
+			params.RingQP().Add(&skOutIdeal.Value, &skout[i].Value, &skOutIdeal.Value)
 		}
 
 		ct := rlwe.NewCiphertext(params, 1, level)
@@ -466,7 +466,7 @@ func testThreshold(tc *testContext, level int, t *testing.T) {
 			recSk := rlwe.NewSecretKey(tc.params)
 			for _, pi := range activeParties {
 				pi.Combiner.GenAdditiveShare(activeShamirPks, pi.tpk, pi.tsks, pi.tsk)
-				ringQP.Add(pi.tsk.Value, recSk.Value, recSk.Value)
+				ringQP.Add(&pi.tsk.Value, &recSk.Value, &recSk.Value)
 			}
 
 			require.True(t, tc.skIdeal.Equal(recSk)) // reconstructed key should match the ideal sk

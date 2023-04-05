@@ -297,7 +297,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 
 		N := tc.params.N()
 
-		prng, _ := utils.NewPRNG()
+		prng, _ := sampling.NewPRNG()
 		for i := 0; i < N; i++ {
 			coeffsBigint[i].Add(coeffsBigint[i], ring.RandInt(prng, errorRange))
 		}

@@ -2,6 +2,7 @@ package drlwe
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"math"
 
@@ -17,8 +18,8 @@ type CKSProtocol struct {
 	params       rlwe.Parameters
 	noise        distribution.Distribution
 	noiseSampler ring.Sampler
-	buf             *ring.Poly
-	bufDelta        *ring.Poly
+	buf          *ring.Poly
+	bufDelta     *ring.Poly
 }
 
 // ShallowCopy creates a shallow copy of CKSProtocol in which all the read-only data-structures are
@@ -35,8 +36,8 @@ func (cks *CKSProtocol) ShallowCopy() *CKSProtocol {
 	return &CKSProtocol{
 		params:       params,
 		noiseSampler: ring.NewSampler(prng, cks.params.RingQ(), cks.noise, false),
-		buf:             params.RingQ().NewPoly(),
-		bufDelta:        params.RingQ().NewPoly(),
+		buf:          params.RingQ().NewPoly(),
+		bufDelta:     params.RingQ().NewPoly(),
 	}
 }
 
@@ -120,9 +121,9 @@ func (cks *CKSProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlwe.Cip
 		cks.noiseSampler.AtLevel(levelQ).ReadAndAdd(shareOut.Value)
 	} else {
 		// c1NTT * (skIn - skOut) + e
-		cks.noiseSampler.AtLevel(levelQ).Read(cks.buff)
-		ringQ.NTT(cks.buff, cks.buff)
-		ringQ.Add(shareOut.Value, cks.buff, shareOut.Value)
+		cks.noiseSampler.AtLevel(levelQ).Read(cks.buf)
+		ringQ.NTT(cks.buf, cks.buf)
+		ringQ.Add(shareOut.Value, cks.buf, shareOut.Value)
 	}
 }
 

@@ -482,7 +482,7 @@ func testRefreshShare(tc *testContext, level int, t *testing.T) {
 		ciphertext := &rlwe.Ciphertext{}
 		ciphertext.Value = []*ring.Poly{nil, ringQ.NewPoly()}
 		tc.uniformSampler.AtLevel(level).Read(ciphertext.Value[1])
-		cksp := NewCKSProtocol(tc.params, tc.params.Sigma())
+		cksp := NewCKSProtocol(tc.params, tc.params.Xe())
 		share1 := cksp.AllocateShare(level)
 		share2 := cksp.AllocateShare(level)
 		cksp.GenShare(tc.skShares[0], tc.skShares[1], ciphertext, share1)

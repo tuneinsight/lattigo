@@ -2,7 +2,6 @@
 package rlwe
 
 import (
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -690,16 +689,6 @@ func (p Parameters) CopyNew() Parameters {
 		p.ringP, _ = ring.NewRingFromType(1<<p.logN, p.pi, p.ringType)
 	}
 	return p
-}
-
-// MarshalBinarySize returns the length of the []byte encoding of the receiver.
-func (p Parameters) MarshalBinarySize() (dataLen int) {
-	dataLen = 6
-	dataLen += 1 + p.Xe().MarshalBinarySize()
-	dataLen += 1 + p.Xs().MarshalBinarySize()
-	dataLen += p.DefaultScale().MarshalBinarySize()
-	dataLen += (len(p.qi) + len(p.pi)) << 3
-	return
 }
 
 // MarshalBinary returns a []byte representation of the parameter set.

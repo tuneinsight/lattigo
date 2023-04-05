@@ -10,6 +10,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 // E2SProtocol is the structure storing the parameters and temporary buffers
@@ -99,7 +100,7 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, logSlots int
 		dslots *= 2
 	}
 
-	prng, _ := utils.NewPRNG()
+	prng, _ := sampling.NewPRNG()
 
 	// Generate the mask in Z[Y] for Y = X^{N/(2*slots)}
 	for i := 0; i < dslots; i++ {

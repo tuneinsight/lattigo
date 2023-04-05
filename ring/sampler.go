@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/tuneinsight/lattigo/v4/ring/distribution"
-	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 const precision = uint64(56)
@@ -33,7 +33,7 @@ type Sampler interface {
 	AtLevel(level int) Sampler
 }
 
-func NewSampler(prng utils.PRNG, baseRing *Ring, X distribution.Distribution, montgomery bool) Sampler {
+func NewSampler(prng sampling.PRNG, baseRing *Ring, X distribution.Distribution, montgomery bool) Sampler {
 	switch X := X.(type) {
 	case *distribution.DiscreteGaussian:
 		return NewGaussianSampler(prng, baseRing, *X, montgomery)

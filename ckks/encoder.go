@@ -79,7 +79,7 @@ type encoder struct {
 	m            int
 	rotGroup     []int
 
-	prng utils.PRNG
+	prng sampling.PRNG
 }
 
 type encoderComplex128 struct {

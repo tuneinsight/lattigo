@@ -1,6 +1,7 @@
 package drlwe
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
@@ -37,7 +38,7 @@ func (pcks *PCKSProtocol) ShallowCopy() *PCKSProtocol {
 		noise:        pcks.noise,
 		Encryptor:    rlwe.NewEncryptor(params, nil),
 		params:       params,
-		buf:             params.RingQ().NewPoly(),
+		buf:          params.RingQ().NewPoly(),
 	}
 }
 
@@ -97,15 +98,15 @@ func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct *r
 	// Add ct[1] * s and noise
 	if ct.IsNTT {
 		ringQ.MulCoeffsMontgomeryThenAdd(ct.Value[1], sk.Value.Q, shareOut.Value[0])
-		pcks.noiseSampler.Read(pcks.buff)
-		ringQ.NTT(pcks.buff, pcks.buff)
-		ringQ.Add(shareOut.Value[0], pcks.buff, shareOut.Value[0])
+		pcks.noiseSampler.Read(pcks.buf)
+		ringQ.NTT(pcks.buf, pcks.buf)
+		ringQ.Add(shareOut.Value[0], pcks.buf, shareOut.Value[0])
 	} else {
-		ringQ.NTTLazy(ct.Value[1], pcks.buff)
-		ringQ.MulCoeffsMontgomeryLazy(pcks.buff, sk.Value.Q, pcks.buff)
-		ringQ.INTT(pcks.buff, pcks.buff)
-		pcks.noiseSampler.ReadAndAdd(pcks.buff)
-		ringQ.Add(shareOut.Value[0], pcks.buff, shareOut.Value[0])
+		ringQ.NTTLazy(ct.Value[1], pcks.buf)
+		ringQ.MulCoeffsMontgomeryLazy(pcks.buf, sk.Value.Q, pcks.buf)
+		ringQ.INTT(pcks.buf, pcks.buf)
+		pcks.noiseSampler.ReadAndAdd(pcks.buf)
+		ringQ.Add(shareOut.Value[0], pcks.buf, shareOut.Value[0])
 	}
 }
 

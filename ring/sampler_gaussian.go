@@ -21,7 +21,7 @@ type GaussianSampler struct {
 // NewGaussianSampler creates a new instance of GaussianSampler from a PRNG, a ring definition and the truncated
 // Gaussian distribution parameters. Sigma is the desired standard deviation and bound is the maximum coefficient norm in absolute
 // value.
-func NewGaussianSampler(prng utils.PRNG, baseRing *Ring, X distribution.DiscreteGaussian, montgomery bool) (g *GaussianSampler) {
+func NewGaussianSampler(prng sampling.PRNG, baseRing *Ring, X distribution.DiscreteGaussian, montgomery bool) (g *GaussianSampler) {
 	g = new(GaussianSampler)
 	g.prng = prng
 	g.randomBufferN = make([]byte, 1024)
@@ -190,11 +190,13 @@ func (g *GaussianSampler) normFloat64() (float64, uint64) {
 	for {
 
 		if ptr == buffLen {
-			prng.Read(buff)
+			if _, err := prng.Read(buff); err != nil {
+				panic(err)
+			}
 			ptr = 0
 		}
 
-		juint32 := binary.LittleEndian.Uint32(g.randomBufferN[g.ptr : g.ptr+4])
+		juint32 := binary.LittleEndian.Uint32(buff[ptr : ptr+4])
 		ptr += 8
 
 		j := int32(juint32 & 0x7fffffff)
@@ -220,7 +222,9 @@ func (g *GaussianSampler) normFloat64() (float64, uint64) {
 			for {
 
 				if ptr == buffLen {
-					prng.Read(buff)
+					if _, err := prng.Read(buff); err != nil {
+						panic(err)
+					}
 					ptr = 0
 				}
 
@@ -228,7 +232,9 @@ func (g *GaussianSampler) normFloat64() (float64, uint64) {
 				ptr += 8
 
 				if ptr == buffLen {
-					prng.Read(buff)
+					if _, err := prng.Read(buff); err != nil {
+						panic(err)
+					}
 					ptr = 0
 				}
 
@@ -246,7 +252,9 @@ func (g *GaussianSampler) normFloat64() (float64, uint64) {
 		}
 
 		if ptr == buffLen {
-			prng.Read(buff)
+			if _, err := prng.Read(buff); err != nil {
+				panic(err)
+			}
 			ptr = 0
 		}
 

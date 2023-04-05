@@ -21,7 +21,7 @@ type TernarySampler struct {
 // NewTernarySampler creates a new instance of TernarySampler from a PRNG, the ring definition and the distribution
 // parameters: p is the probability of a coefficient being 0, (1-p)/2 is the probability of 1 and -1. If "montgomery"
 // is set to true, polynomials read from this sampler are in Montgomery form.
-func NewTernarySampler(prng utils.PRNG, baseRing *Ring, X distribution.Ternary, montgomery bool) (ts *TernarySampler) {
+func NewTernarySampler(prng sampling.PRNG, baseRing *Ring, X distribution.Ternary, montgomery bool) (ts *TernarySampler) {
 	ts = new(TernarySampler)
 	ts.baseRing = baseRing
 	ts.prng = prng
@@ -150,8 +150,6 @@ func (ts *TernarySampler) sampleProba(pol *Poly, f func(a, b, c uint64) uint64) 
 		if _, err := ts.prng.Read(randomBytesSign); err != nil {
 			panic(err)
 		}
-		ts.prng.Read(randomBytesCoeffs)
-		ts.prng.Read(randomBytesSign)
 
 		for i := 0; i < N; i++ {
 			coeff = uint64(uint8(randomBytesCoeffs[i>>3])>>(i&7)) & 1
@@ -171,7 +169,9 @@ func (ts *TernarySampler) sampleProba(pol *Poly, f func(a, b, c uint64) uint64) 
 		pointer := uint8(0)
 		var bytePointer int
 
-		ts.prng.Read(randomBytes)
+		if _, err := ts.prng.Read(randomBytes); err != nil {
+			panic(err)
+		}
 
 		for i := 0; i < N; i++ {
 
@@ -207,7 +207,9 @@ func (ts *TernarySampler) sampleSparse(pol *Poly, f func(a, b, c uint64) uint64)
 	randomBytes := make([]byte, (uint64(math.Ceil(float64(ts.hw) / 8.0)))) // We sample ceil(hw/8) bytes
 	pointer := uint8(0)
 
-	ts.prng.Read(randomBytes)
+	if _, err := ts.prng.Read(randomBytes); err != nil {
+		panic(err)
+	}
 
 	coeffs := pol.Coeffs
 

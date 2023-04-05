@@ -705,12 +705,13 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Li
 				panic(fmt.Errorf("cannot apply Automorphism: %w", err))
 			}
 
-			eval.GadgetProductLazy(levelQ, tmp1QP.Q, evk.GadgetCiphertext, cQP) // EvaluationKey(P*phi(tmpRes_1)) = (d0, d1) in base QP
-			ringQP.Add(cQP.Value[0], tmp0QP, cQP.Value[0])
+			rotIndex := eval.AutomorphismIndex[galEl]
+
+			eval.GadgetProductLazy(levelQ, tmp1QP.Q, &evk.GadgetCiphertext, cQP) // EvaluationKey(P*phi(tmpRes_1)) = (d0, d1) in base QP
+			ringQP.Add(cQP.Value[0], &tmp0QP, cQP.Value[0])
 
 			// Outer loop rotations
 			if cnt0 == 0 {
-
 				ringQP.AutomorphismNTTWithIndex(cQP.Value[0], rotIndex, &c0OutQP)
 				ringQP.AutomorphismNTTWithIndex(cQP.Value[1], rotIndex, &c1OutQP)
 			} else {

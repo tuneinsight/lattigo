@@ -8,10 +8,10 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 	"github.com/tuneinsight/lattigo/v4/utils/buffer"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 	"github.com/tuneinsight/lattigo/v4/utils/structs"
-	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 
 	"github.com/stretchr/testify/require"
 )
@@ -221,7 +221,7 @@ func testDivFloorByLastModulusMany(tc *testParams, t *testing.T) {
 
 	t.Run(testString("DivFloorByLastModulusMany", tc.ringQ), func(t *testing.T) {
 
-		prng, _ := utils.NewPRNG()
+		prng, _ := sampling.NewPRNG()
 
 		N := tc.ringQ.N()
 
@@ -266,7 +266,7 @@ func testDivRoundByLastModulusMany(tc *testParams, t *testing.T) {
 
 	t.Run(testString("DivRoundByLastModulusMany", tc.ringQ), func(t *testing.T) {
 
-		prng, _ := utils.NewPRNG()
+		prng, _ := sampling.NewPRNG()
 
 		N := tc.ringQ.N()
 
@@ -403,7 +403,6 @@ func testWriterAndReader(tc *testParams, t *testing.T) {
 	})
 }
 
-func testUniformSampler(tc *testParams, t *testing.T) {
 func testSampler(tc *testParams, t *testing.T) {
 
 	N := tc.ringQ.N()
@@ -672,7 +671,7 @@ func testExtendBasis(tc *testParams, t *testing.T) {
 
 	t.Run(testString("ModUp/QToP", tc.ringQ), func(t *testing.T) {
 
-		prng, _ := utils.NewPRNG()
+		prng, _ := sampling.NewPRNG()
 
 		basisextender := NewBasisExtender(tc.ringQ, tc.ringP)
 
@@ -712,7 +711,7 @@ func testExtendBasis(tc *testParams, t *testing.T) {
 
 	t.Run(testString("ModUp/PToQ", tc.ringQ), func(t *testing.T) {
 
-		prng, _ := utils.NewPRNG()
+		prng, _ := sampling.NewPRNG()
 
 		basisextender := NewBasisExtender(tc.ringQ, tc.ringP)
 
@@ -752,7 +751,7 @@ func testExtendBasis(tc *testParams, t *testing.T) {
 
 	t.Run(testString("ModDown/QPToQ", tc.ringQ), func(t *testing.T) {
 
-		prng, _ := utils.NewPRNG()
+		prng, _ := sampling.NewPRNG()
 
 		basisextender := NewBasisExtender(tc.ringQ, tc.ringP)
 
@@ -799,7 +798,7 @@ func testExtendBasis(tc *testParams, t *testing.T) {
 
 	t.Run(testString("ModDown/QPToP", tc.ringQ), func(t *testing.T) {
 
-		prng, _ := utils.NewPRNG()
+		prng, _ := sampling.NewPRNG()
 
 		basisextender := NewBasisExtender(tc.ringQ, tc.ringP)
 

@@ -69,7 +69,7 @@ type Evaluator interface {
 	ApplyEvaluationKey(ctIn *rlwe.Ciphertext, evk *rlwe.EvaluationKey, ctOut *rlwe.Ciphertext)
 	Automorphism(ctIn *rlwe.Ciphertext, galEl uint64, ctOut *rlwe.Ciphertext)
 	AutomorphismHoisted(level int, ctIn *rlwe.Ciphertext, c1DecompQP []ringqp.Poly, galEl uint64, ctOut *rlwe.Ciphertext)
-	RotateHoistedLazyNew(level int, rotations []int, ctIn *rlwe.Ciphertext, c2DecompQP []ringqp.Poly) (cOut map[int]rlwe.CiphertextQP)
+	RotateHoistedLazyNew(level int, rotations []int, ctIn *rlwe.Ciphertext, c2DecompQP []ringqp.Poly) (cOut map[int]*rlwe.OperandQP)
 	Merge(ctIn map[int]*rlwe.Ciphertext) (ctOut *rlwe.Ciphertext)
 
 	// Others
@@ -167,7 +167,7 @@ func (eval *evaluator) WithKey(evk rlwe.EvaluationKeySetInterface) Evaluator {
 	}
 }
 
-func (eval *evaluator) evaluateInPlace(level int, el0, el1, elOut *rlwe.Ciphertext, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly)) {
+func (eval *evaluator) evaluateInPlace(level int, el0, el1, elOut *rlwe.OperandQ, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly)) {
 
 	smallest, largest, _ := rlwe.GetSmallestLargest(el0.El(), el1.El())
 
@@ -187,7 +187,7 @@ func (eval *evaluator) evaluateInPlace(level int, el0, el1, elOut *rlwe.Cipherte
 	elOut.MetaData = el0.MetaData
 }
 
-func (eval *evaluator) matchScaleThenEvaluateInPlace(level int, el0, el1, elOut *rlwe.Ciphertext, evaluate func(*ring.Poly, uint64, *ring.Poly)) {
+func (eval *evaluator) matchScaleThenEvaluateInPlace(level int, el0, el1, elOut *rlwe.OperandQ, evaluate func(*ring.Poly, uint64, *ring.Poly)) {
 
 	r0, r1, _ := eval.matchScalesBinary(el0.Scale.Uint64(), el1.Scale.Uint64())
 
@@ -212,9 +212,9 @@ func (eval *evaluator) Add(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.
 	_, level := eval.CheckBinary(ctIn, op1, ctOut, utils.Max(ctIn.Degree(), op1.Degree()))
 
 	if ctIn.Scale.Cmp(op1.GetScale()) == 0 {
-		eval.evaluateInPlace(level, ctIn, op1.El(), ctOut, eval.params.RingQ().AtLevel(level).Add)
+		eval.evaluateInPlace(level, ctIn.El(), op1.El(), ctOut.El(), eval.params.RingQ().AtLevel(level).Add)
 	} else {
-		eval.matchScaleThenEvaluateInPlace(level, ctIn, op1.El(), ctOut, eval.params.RingQ().AtLevel(level).MulScalarThenAdd)
+		eval.matchScaleThenEvaluateInPlace(level, ctIn.El(), op1.El(), ctOut.El(), eval.params.RingQ().AtLevel(level).MulScalarThenAdd)
 	}
 }
 
@@ -230,9 +230,9 @@ func (eval *evaluator) Sub(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.
 	_, level := eval.CheckBinary(ctIn, op1, ctOut, utils.Max(ctIn.Degree(), op1.Degree()))
 
 	if ctIn.Scale.Cmp(op1.GetScale()) == 0 {
-		eval.evaluateInPlace(level, ctIn, op1.El(), ctOut, eval.params.RingQ().AtLevel(level).Sub)
+		eval.evaluateInPlace(level, ctIn.El(), op1.El(), ctOut.El(), eval.params.RingQ().AtLevel(level).Sub)
 	} else {
-		eval.matchScaleThenEvaluateInPlace(level, ctIn, op1.El(), ctOut, eval.params.RingQ().AtLevel(level).MulScalarThenSub)
+		eval.matchScaleThenEvaluateInPlace(level, ctIn.El(), op1.El(), ctOut.El(), eval.params.RingQ().AtLevel(level).MulScalarThenSub)
 	}
 }
 
@@ -416,7 +416,7 @@ func (eval *evaluator) mulRelin(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, relin b
 		}
 
 		// Avoid overwriting if the second input is the output
-		var tmp0, tmp1 *rlwe.Ciphertext
+		var tmp0, tmp1 *rlwe.OperandQ
 		if op1.El() == ctOut.El() {
 			tmp0, tmp1 = op1.El(), ctIn.El()
 		} else {
@@ -450,10 +450,11 @@ func (eval *evaluator) mulRelin(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, relin b
 				panic(fmt.Errorf("cannot relinearize: %w", err))
 			}
 
-			tmpCt := &rlwe.Ciphertext{Value: []*ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}}
+			tmpCt := &rlwe.Ciphertext{}
+			tmpCt.Value = []*ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}
 			tmpCt.IsNTT = true
 
-			eval.GadgetProduct(level, c2, rlk.GadgetCiphertext, tmpCt)
+			eval.GadgetProduct(level, c2, &rlk.GadgetCiphertext, tmpCt)
 
 			ringQ.Add(ctOut.Value[0], tmpCt.Value[0], ctOut.Value[0])
 			ringQ.Add(ctOut.Value[1], tmpCt.Value[1], ctOut.Value[1])
@@ -563,10 +564,11 @@ func (eval *evaluator) mulRelinThenAdd(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, 
 
 			ringQ.MulCoeffsMontgomery(c01, tmp1.Value[1], c2) // c2 += c[1]*c[1]
 
-			tmpCt := &rlwe.Ciphertext{Value: []*ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}}
+			tmpCt := &rlwe.Ciphertext{}
+			tmpCt.Value = []*ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}
 			tmpCt.IsNTT = true
 
-			eval.GadgetProduct(level, c2, rlk.GadgetCiphertext, tmpCt)
+			eval.GadgetProduct(level, c2, &rlk.GadgetCiphertext, tmpCt)
 
 			ringQ.Add(ctOut.Value[0], tmpCt.Value[0], ctOut.Value[0])
 			ringQ.Add(ctOut.Value[1], tmpCt.Value[1], ctOut.Value[1])
@@ -687,11 +689,11 @@ func (eval *evaluator) RotateRows(ctIn *rlwe.Ciphertext, ctOut *rlwe.Ciphertext)
 	eval.Automorphism(ctIn, eval.params.GaloisElementForRowRotation(), ctOut)
 }
 
-func (eval *evaluator) RotateHoistedLazyNew(level int, rotations []int, ctIn *rlwe.Ciphertext, c2DecompQP []ringqp.Poly) (cOut map[int]rlwe.CiphertextQP) {
-	cOut = make(map[int]rlwe.CiphertextQP)
+func (eval *evaluator) RotateHoistedLazyNew(level int, rotations []int, ctIn *rlwe.Ciphertext, c2DecompQP []ringqp.Poly) (cOut map[int]*rlwe.OperandQP) {
+	cOut = make(map[int]*rlwe.OperandQP)
 	for _, i := range rotations {
 		if i != 0 {
-			cOut[i] = rlwe.NewCiphertextQP(eval.params.Parameters, level, eval.params.MaxLevelP())
+			cOut[i] = rlwe.NewOperandQP(eval.params.Parameters, 1, level, eval.params.MaxLevelP())
 			eval.AutomorphismHoistedLazy(level, ctIn, c2DecompQP, eval.params.GaloisElementForColumnRotationBy(i), cOut[i])
 		}
 	}

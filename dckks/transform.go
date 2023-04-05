@@ -143,7 +143,7 @@ func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, logBou
 		panic("cannot GenShare: ct[1] level must be at least equal to E2SShare level")
 	}
 
-	if (*ring.Poly)(&crs).Level() != shareOut.S2EShare.Value.Level() {
+	if crs.Value.Level() != shareOut.S2EShare.Value.Level() {
 		panic("cannot GenShare: crs level must be equal to S2EShare")
 	}
 
@@ -156,7 +156,7 @@ func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, logBou
 
 	// Generates the decryption share
 	// Returns [M_i] on rfp.tmpMask and [a*s_i -M_i + e] on E2SShare
-	rfp.e2s.GenShare(skIn, logBound, logSlots, ct, &rlwe.AdditiveShareBigint{Value: rfp.tmpMask}, &shareOut.E2SShare)
+	rfp.e2s.GenShare(skIn, logBound, logSlots, ct, &drlwe.AdditiveShareBigint{Value: rfp.tmpMask}, &shareOut.E2SShare)
 
 	// Applies LT(M_i)
 	if transform != nil {
@@ -220,7 +220,7 @@ func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, logBou
 	}
 
 	// Returns [-a*s_i + LT(M_i) * diffscale + e] on S2EShare
-	rfp.s2e.GenShare(skOut, crs, logSlots, &rlwe.AdditiveShareBigint{Value: rfp.tmpMask}, &shareOut.S2EShare)
+	rfp.s2e.GenShare(skOut, crs, logSlots, &drlwe.AdditiveShareBigint{Value: rfp.tmpMask}, &shareOut.S2EShare)
 }
 
 // AggregateShares sums share1 and share2 on shareOut.
@@ -246,7 +246,7 @@ func (rfp *MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, logSlots int,
 		panic("cannot Transform: input ciphertext level must be at least equal to e2s level")
 	}
 
-	maxLevel := (*ring.Poly)(&crs).Level()
+	maxLevel := crs.Value.Level()
 
 	if maxLevel != share.S2EShare.Value.Level() {
 		panic("cannot Transform: crs level and s2e level must be the same")
@@ -263,7 +263,7 @@ func (rfp *MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, logSlots int,
 
 	// Returns -sum(M_i) + x (outside of the NTT domain)
 
-	rfp.e2s.GetShare(nil, &share.E2SShare, logSlots, ct, &rlwe.AdditiveShareBigint{Value: rfp.tmpMask[:dslots]})
+	rfp.e2s.GetShare(nil, &share.E2SShare, logSlots, ct, &drlwe.AdditiveShareBigint{Value: rfp.tmpMask[:dslots]})
 
 	// Returns LT(-sum(M_i) + x)
 	if transform != nil {

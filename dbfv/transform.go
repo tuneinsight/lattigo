@@ -82,7 +82,7 @@ func (rfp *MaskedTransformProtocol) AllocateShare(levelIn, levelOut int) *drlwe.
 // ct1 is the degree 1 element of a bfv.Ciphertext, i.e. bfv.Ciphertext.Value[1].
 func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, ct *rlwe.Ciphertext, crs drlwe.CKSCRP, transform *MaskedTransformFunc, shareOut *drlwe.RefreshShare) {
 
-	rfp.e2s.GenShare(skIn, ct, &rlwe.AdditiveShare{Value: *rfp.tmpMask}, &shareOut.E2SShare)
+	rfp.e2s.GenShare(skIn, ct, &drlwe.AdditiveShare{Value: *rfp.tmpMask}, &shareOut.E2SShare)
 
 	mask := rfp.tmpMask
 	if transform != nil {
@@ -107,7 +107,7 @@ func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, ct *rl
 		mask = rfp.tmpMaskPerm
 	}
 
-	rfp.s2e.GenShare(skOut, crs, &rlwe.AdditiveShare{Value: *mask}, &shareOut.S2EShare)
+	rfp.s2e.GenShare(skOut, crs, &drlwe.AdditiveShare{Value: *mask}, &shareOut.S2EShare)
 }
 
 // AggregateShares sums share1 and share2 on shareOut.
@@ -119,7 +119,7 @@ func (rfp *MaskedTransformProtocol) AggregateShares(share1, share2, shareOut *dr
 // Transform applies Decrypt, Recode and Recrypt on the input ciphertext.
 func (rfp *MaskedTransformProtocol) Transform(ciphertext *rlwe.Ciphertext, transform *MaskedTransformFunc, crs drlwe.CKSCRP, share *drlwe.RefreshShare, ciphertextOut *rlwe.Ciphertext) {
 
-	rfp.e2s.GetShare(nil, &share.E2SShare, ciphertext, &rlwe.AdditiveShare{Value: *rfp.tmpMask}) // tmpMask RingT(m - sum M_i)
+	rfp.e2s.GetShare(nil, &share.E2SShare, ciphertext, &drlwe.AdditiveShare{Value: *rfp.tmpMask}) // tmpMask RingT(m - sum M_i)
 
 	mask := rfp.tmpMask
 

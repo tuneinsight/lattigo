@@ -16,6 +16,7 @@ All notable changes to this library are documented in this file.
 - All: all tests and benchmarks in package other than the `RLWE` and `DRLWE` package that were merely wrapper of methods of the `RLWE` or `DRLWE` have been removed and/or moved to the `RLWE` and `DRLWE` packages.
 - All: polynomials, ciphertext and keys now all implement the method V Equal(V) bool.
 - RLWE: added accurate noise bounds for the tests.
+- RLWE: added `OperandQ` and `OperandQP` which serve as a common underlying type for all cryptographic objects.
 - RLWE: replaced `rlwe.DefaultParameters` by `rlwe.TestParametersLiteral`.
 - RLWE: substantially increased the test coverage of `rlwe` (both for the amount of operations but also parameters).
 - RLWE: substantially increased the number of benchmarked operations in `rlwe`.
@@ -41,6 +42,7 @@ All notable changes to this library are documented in this file.
 - RING: NTT for ring degrees smaller than 16 is safe and allowed again.
 - RING: added `PolyVector` and `PolyMatrix` structs.
 - UTILS: added subpackage `buffer` which implement custom methods to efficiently write and read slice on any writer or reader implementing a subset interface of the `bufio.Writer` and `bufio.Reader`.
+- UTILS: added subpackage `structs` which implements structs composed vectors and matrices of type `any`.
 - UTILS: added subpackage `bignum`, which is a place holder for future support of arbitrary precision complex arithmetic, polynomials and functions approximation.
 - UTILS: added subpackage `sampling` which regroups the various random bytes and number generator that were previously present in the package `utils`.
 - UTILS: updated methods with generics when applicable.

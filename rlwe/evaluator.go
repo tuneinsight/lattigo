@@ -8,15 +8,6 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
-// Operand is a common interface for Ciphertext and Plaintext types.
-type Operand interface {
-	El() *Ciphertext
-	Degree() int
-	Level() int
-	GetScale() Scale
-	SetScale(Scale)
-}
-
 // Evaluator is a struct that holds the necessary elements to execute general homomorphic
 // operation on RLWE ciphertexts, such as automorphisms, key-switching and relinearization.
 type Evaluator struct {
@@ -56,7 +47,7 @@ func newEvaluatorBuffers(params Parameters) *evaluatorBuffers {
 	decompRNS := params.DecompRNS(params.MaxLevelQ(), params.MaxLevelP())
 	ringQP := params.RingQP()
 
-	buff.BuffCt = Ciphertext{Value: []*ring.Poly{ringQP.RingQ.NewPoly(), ringQP.RingQ.NewPoly()}}
+	buff.BuffCt = Ciphertext{OperandQ{Value: []*ring.Poly{ringQP.RingQ.NewPoly(), ringQP.RingQ.NewPoly()}}}
 
 	buff.BuffQP = [6]ringqp.Poly{
 		*ringQP.NewPoly(),

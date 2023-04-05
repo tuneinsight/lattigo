@@ -36,10 +36,10 @@ func (eval *Evaluator) Automorphism(ctIn *Ciphertext, galEl uint64, ctOut *Ciphe
 
 	ringQ := eval.params.RingQ().AtLevel(level)
 
-	ctTmp := &Ciphertext{Value: []*ring.Poly{eval.BuffQP[0].Q, eval.BuffQP[1].Q}}
+	ctTmp := &Ciphertext{OperandQ{Value: []*ring.Poly{eval.BuffQP[0].Q, eval.BuffQP[1].Q}}}
 	ctTmp.IsNTT = ctIn.IsNTT
 
-	eval.GadgetProduct(level, ctIn.Value[1], evk.GadgetCiphertext, ctTmp)
+	eval.GadgetProduct(level, ctIn.Value[1], &evk.GadgetCiphertext, ctTmp)
 
 	ringQ.Add(ctTmp.Value[0], ctIn.Value[0], ctTmp.Value[0])
 
@@ -85,7 +85,7 @@ func (eval *Evaluator) AutomorphismHoisted(level int, ctIn *Ciphertext, c1Decomp
 	ctTmp.Value = []*ring.Poly{eval.BuffQP[0].Q, eval.BuffQP[1].Q} // GadgetProductHoisted uses the same buffers for its ciphertext QP
 	ctTmp.IsNTT = ctIn.IsNTT
 
-	eval.GadgetProductHoisted(level, c1DecompQP, evk.EvaluationKey.GadgetCiphertext, ctTmp)
+	eval.GadgetProductHoisted(level, c1DecompQP, &evk.EvaluationKey.GadgetCiphertext, ctTmp)
 	ringQ.Add(ctTmp.Value[0], ctIn.Value[0], ctTmp.Value[0])
 
 	if ctIn.IsNTT {
@@ -102,7 +102,7 @@ func (eval *Evaluator) AutomorphismHoisted(level int, ctIn *Ciphertext, c1Decomp
 // AutomorphismHoistedLazy is similar to AutomorphismHoisted, except that it returns a ciphertext modulo QP and scaled by P.
 // The method requires that the corresponding RotationKey has been added to the Evaluator.
 // Result NTT domain is returned according to the NTT flag of ctQP.
-func (eval *Evaluator) AutomorphismHoistedLazy(levelQ int, ctIn *Ciphertext, c1DecompQP []ringqp.Poly, galEl uint64, ctQP CiphertextQP) {
+func (eval *Evaluator) AutomorphismHoistedLazy(levelQ int, ctIn *Ciphertext, c1DecompQP []ringqp.Poly, galEl uint64, ctQP *OperandQP) {
 
 	var evk *GaloisKey
 	var err error
@@ -112,11 +112,11 @@ func (eval *Evaluator) AutomorphismHoistedLazy(levelQ int, ctIn *Ciphertext, c1D
 
 	levelP := evk.LevelP()
 
-	ctTmp := CiphertextQP{}
-	ctTmp.Value = [2]ringqp.Poly{eval.BuffQP[0], eval.BuffQP[1]}
+	ctTmp := &OperandQP{}
+	ctTmp.Value = []*ringqp.Poly{&eval.BuffQP[0], &eval.BuffQP[1]}
 	ctTmp.IsNTT = ctQP.IsNTT
 
-	eval.GadgetProductHoistedLazy(levelQ, c1DecompQP, evk.GadgetCiphertext, ctTmp)
+	eval.GadgetProductHoistedLazy(levelQ, c1DecompQP, &evk.GadgetCiphertext, ctTmp)
 
 	ringQP := eval.params.RingQP().AtLevel(levelQ, levelP)
 
@@ -127,7 +127,7 @@ func (eval *Evaluator) AutomorphismHoistedLazy(levelQ int, ctIn *Ciphertext, c1D
 
 	if ctQP.IsNTT {
 
-		ringQP.AutomorphismNTTWithIndex(&ctTmp.Value[1], index, &ctQP.Value[1])
+		ringQP.AutomorphismNTTWithIndex(ctTmp.Value[1], index, ctQP.Value[1])
 
 		if levelP > -1 {
 			ringQ.MulScalarBigint(ctIn.Value[0], ringP.ModulusAtLevel[levelP], ctTmp.Value[1].Q)
@@ -135,10 +135,10 @@ func (eval *Evaluator) AutomorphismHoistedLazy(levelQ int, ctIn *Ciphertext, c1D
 
 		ringQ.Add(ctTmp.Value[0].Q, ctTmp.Value[1].Q, ctTmp.Value[0].Q)
 
-		ringQP.AutomorphismNTTWithIndex(&ctTmp.Value[0], index, &ctQP.Value[0])
+		ringQP.AutomorphismNTTWithIndex(ctTmp.Value[0], index, ctQP.Value[0])
 	} else {
 
-		ringQP.Automorphism(&ctTmp.Value[1], galEl, &ctQP.Value[1])
+		ringQP.Automorphism(ctTmp.Value[1], galEl, ctQP.Value[1])
 
 		if levelP > -1 {
 			ringQ.MulScalarBigint(ctIn.Value[0], ringP.ModulusAtLevel[levelP], ctTmp.Value[1].Q)
@@ -146,7 +146,7 @@ func (eval *Evaluator) AutomorphismHoistedLazy(levelQ int, ctIn *Ciphertext, c1D
 
 		ringQ.Add(ctTmp.Value[0].Q, ctTmp.Value[1].Q, ctTmp.Value[0].Q)
 
-		ringQP.Automorphism(&ctTmp.Value[0], galEl, &ctQP.Value[0])
+		ringQP.Automorphism(ctTmp.Value[0], galEl, ctQP.Value[0])
 	}
 }
 

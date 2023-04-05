@@ -330,11 +330,11 @@ func (eval *Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 		// BuffQP[0:2] are used by AutomorphismHoistedLazy
 
 		// Accumulator mod QP (i.e. ctOut Mod QP)
-		accQP := CiphertextQP{Value: [2]ringqp.Poly{eval.BuffQP[2], eval.BuffQP[3]}}
+		accQP := &OperandQP{Value: []*ringqp.Poly{&eval.BuffQP[2], &eval.BuffQP[3]}}
 		accQP.IsNTT = true
 
 		// Buffer mod QP (i.e. to store the result of lazy gadget products)
-		cQP := CiphertextQP{Value: [2]ringqp.Poly{eval.BuffQP[4], eval.BuffQP[5]}}
+		cQP := &OperandQP{Value: []*ringqp.Poly{&eval.BuffQP[4], &eval.BuffQP[5]}}
 		cQP.IsNTT = true
 
 		// Buffer mod Q (i.e. to store the result of gadget products)
@@ -366,8 +366,8 @@ func (eval *Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphe
 						copy = false
 					} else {
 						eval.AutomorphismHoistedLazy(levelQ, ctInNTT, eval.BuffDecompQP, rot, cQP)
-						ringQP.Add(&accQP.Value[0], &cQP.Value[0], &accQP.Value[0])
-						ringQP.Add(&accQP.Value[1], &cQP.Value[1], &accQP.Value[1])
+						ringQP.Add(accQP.Value[0], cQP.Value[0], accQP.Value[0])
+						ringQP.Add(accQP.Value[1], cQP.Value[1], accQP.Value[1])
 					}
 
 					// j is even

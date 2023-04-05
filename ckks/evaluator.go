@@ -59,7 +59,7 @@ type Evaluator interface {
 	Rotate(ctIn *rlwe.Ciphertext, k int, ctOut *rlwe.Ciphertext)
 	RotateHoistedNew(ctIn *rlwe.Ciphertext, rotations []int) (ctOut map[int]*rlwe.Ciphertext)
 	RotateHoisted(ctIn *rlwe.Ciphertext, rotations []int, ctOut map[int]*rlwe.Ciphertext)
-	RotateHoistedLazyNew(level int, rotations []int, ct *rlwe.Ciphertext, c2DecompQP []ringqp.Poly) (cOut map[int]rlwe.CiphertextQP)
+	RotateHoistedLazyNew(level int, rotations []int, ct *rlwe.Ciphertext, c2DecompQP []ringqp.Poly) (cOut map[int]*rlwe.OperandQP)
 
 	// ===========================
 	// === Advanced Arithmetic ===
@@ -254,7 +254,7 @@ func (eval *evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 rlwe.O
 			tmp1 = rlwe.NewCiphertextAtLevelFromPoly(level, eval.buffCt.Value[:c1.Degree()+1])
 			tmp1.MetaData = ctOut.MetaData
 
-			eval.MultByConst(c1.El(), math.Floor(c0Scale/c1Scale), tmp1)
+			eval.MultByConst(&rlwe.Ciphertext{OperandQ: *c1.El()}, math.Floor(c0Scale/c1Scale), tmp1)
 
 		} else if cmp == -1 && math.Floor(c1Scale/c0Scale) > 1 {
 
@@ -262,22 +262,22 @@ func (eval *evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 rlwe.O
 
 			ctOut.Scale = c1.GetScale()
 
-			tmp1 = c1.El()
+			tmp1 = &rlwe.Ciphertext{OperandQ: *c1.El()}
 		} else {
-			tmp1 = c1.El()
+			tmp1 = &rlwe.Ciphertext{OperandQ: *c1.El()}
 		}
 
-		tmp0 = c0.El()
+		tmp0 = &rlwe.Ciphertext{OperandQ: *c0.El()}
 
 	} else if ctOut == c1 {
 
 		if cmp == 1 && math.Floor(c0Scale/c1Scale) > 1 {
 
-			eval.MultByConst(c1.El(), math.Floor(c0Scale/c1Scale), ctOut)
+			eval.MultByConst(&rlwe.Ciphertext{OperandQ: *c1.El()}, math.Floor(c0Scale/c1Scale), ctOut)
 
 			ctOut.Scale = c0.Scale
 
-			tmp0 = c0.El()
+			tmp0 = &rlwe.Ciphertext{OperandQ: *c0.El()}
 
 		} else if cmp == -1 && math.Floor(c1Scale/c0Scale) > 1 {
 
@@ -287,10 +287,10 @@ func (eval *evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 rlwe.O
 
 			eval.MultByConst(c0, math.Floor(c1Scale/c0Scale), tmp0)
 		} else {
-			tmp0 = c0.El()
+			tmp0 = &rlwe.Ciphertext{OperandQ: *c0.El()}
 		}
 
-		tmp1 = c1.El()
+		tmp1 = &rlwe.Ciphertext{OperandQ: *c1.El()}
 
 	} else {
 
@@ -300,9 +300,9 @@ func (eval *evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 rlwe.O
 			tmp1 = rlwe.NewCiphertextAtLevelFromPoly(level, eval.buffCt.Value[:c1.Degree()+1])
 			tmp1.MetaData = ctOut.MetaData
 
-			eval.MultByConst(c1.El(), math.Floor(c0Scale/c1Scale), tmp1)
+			eval.MultByConst(&rlwe.Ciphertext{OperandQ: *c1.El()}, math.Floor(c0Scale/c1Scale), tmp1)
 
-			tmp0 = c0.El()
+			tmp0 = &rlwe.Ciphertext{OperandQ: *c0.El()}
 
 		} else if cmp == -1 && math.Floor(c1Scale/c0Scale) > 1 {
 
@@ -311,11 +311,11 @@ func (eval *evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 rlwe.O
 
 			eval.MultByConst(c0, math.Floor(c1Scale/c0Scale), tmp0)
 
-			tmp1 = c1.El()
+			tmp1 = &rlwe.Ciphertext{OperandQ: *c1.El()}
 
 		} else {
-			tmp0 = c0.El()
-			tmp1 = c1.El()
+			tmp0 = &rlwe.Ciphertext{OperandQ: *c0.El()}
+			tmp1 = &rlwe.Ciphertext{OperandQ: *c1.El()}
 		}
 	}
 
@@ -331,11 +331,11 @@ func (eval *evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 rlwe.O
 	// If the inputs degrees differ, it copies the remaining degree on the receiver.
 	// Also checks that the receiver is not one of the inputs to avoid unnecessary work.
 
-	if c0.Degree() > c1.Degree() && tmp0 != ctOut.El() {
+	if c0.Degree() > c1.Degree() && &tmp0.OperandQ != ctOut.El() {
 		for i := minDegree + 1; i < maxDegree+1; i++ {
 			ring.Copy(tmp0.Value[i], ctOut.El().Value[i])
 		}
-	} else if c1.Degree() > c0.Degree() && tmp1 != ctOut.El() {
+	} else if c1.Degree() > c0.Degree() && &tmp1.OperandQ != ctOut.El() {
 		for i := minDegree + 1; i < maxDegree+1; i++ {
 			ring.Copy(tmp1.Value[i], ctOut.El().Value[i])
 		}
@@ -666,7 +666,7 @@ func (eval *evaluator) mulRelin(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, relin b
 		}
 
 		// Avoid overwriting if the second input is the output
-		var tmp0, tmp1 *rlwe.Ciphertext
+		var tmp0, tmp1 *rlwe.OperandQ
 		if op1.El() == ctOut.El() {
 			tmp0, tmp1 = op1.El(), ctIn.El()
 		} else {
@@ -697,10 +697,11 @@ func (eval *evaluator) mulRelin(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, relin b
 				panic(fmt.Errorf("cannot relinearize: %w", err))
 			}
 
-			tmpCt := &rlwe.Ciphertext{Value: []*ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}}
+			tmpCt := &rlwe.Ciphertext{}
+			tmpCt.Value = []*ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}
 			tmpCt.IsNTT = true
 
-			eval.GadgetProduct(level, c2, rlk.GadgetCiphertext, tmpCt)
+			eval.GadgetProduct(level, c2, &rlk.GadgetCiphertext, tmpCt)
 			ringQ.Add(c0, tmpCt.Value[0], ctOut.Value[0])
 			ringQ.Add(c1, tmpCt.Value[1], ctOut.Value[1])
 		}
@@ -817,10 +818,11 @@ func (eval *evaluator) mulRelinThenAdd(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, 
 
 			ringQ.MulCoeffsMontgomery(c01, tmp1.Value[1], c2) // c2 += c[1]*c[1]
 
-			tmpCt := &rlwe.Ciphertext{Value: []*ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}}
+			tmpCt := &rlwe.Ciphertext{}
+			tmpCt.Value = []*ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}
 			tmpCt.IsNTT = true
 
-			eval.GadgetProduct(level, c2, rlk.GadgetCiphertext, tmpCt)
+			eval.GadgetProduct(level, c2, &rlk.GadgetCiphertext, tmpCt)
 			ringQ.Add(c0, tmpCt.Value[0], c0)
 			ringQ.Add(c1, tmpCt.Value[1], c1)
 		} else {
@@ -896,11 +898,11 @@ func (eval *evaluator) Conjugate(ct0 *rlwe.Ciphertext, ctOut *rlwe.Ciphertext) {
 	eval.Automorphism(ct0, eval.params.GaloisElementForRowRotation(), ctOut)
 }
 
-func (eval *evaluator) RotateHoistedLazyNew(level int, rotations []int, ct *rlwe.Ciphertext, c2DecompQP []ringqp.Poly) (cOut map[int]rlwe.CiphertextQP) {
-	cOut = make(map[int]rlwe.CiphertextQP)
+func (eval *evaluator) RotateHoistedLazyNew(level int, rotations []int, ct *rlwe.Ciphertext, c2DecompQP []ringqp.Poly) (cOut map[int]*rlwe.OperandQP) {
+	cOut = make(map[int]*rlwe.OperandQP)
 	for _, i := range rotations {
 		if i != 0 {
-			cOut[i] = rlwe.NewCiphertextQP(eval.params.Parameters, level, eval.params.MaxLevelP())
+			cOut[i] = rlwe.NewOperandQP(eval.params.Parameters, 1, level, eval.params.MaxLevelP())
 			eval.AutomorphismHoistedLazy(level, ct, c2DecompQP, eval.params.GaloisElementForColumnRotationBy(i), cOut[i])
 		}
 	}

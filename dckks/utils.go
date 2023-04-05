@@ -3,8 +3,6 @@ package dckks
 import (
 	"math"
 
-	"github.com/tuneinsight/lattigo/v4/ckks"
-	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
@@ -36,13 +34,4 @@ func GetMinimumLevelForRefresh(lambda int, scale rlwe.Scale, nParties int, modul
 	}
 
 	return minLevel, logBound, true
-}
-
-// NewAdditiveShareBigint instantiates a new additive share struct composed of "n" big.Int elements
-func NewAdditiveShareBigint(params ckks.Parameters, logSlots int) *rlwe.AdditiveShareBigint {
-	dslots := 1 << logSlots
-	if params.RingType() == ring.Standard {
-		dslots *= 2
-	}
-	return rlwe.NewAdditiveShareBigint(params.Parameters, dslots)
 }

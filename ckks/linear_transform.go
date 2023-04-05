@@ -576,15 +576,12 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix Linear
 	ksRes0QP := eval.BuffQP[3]
 	ksRes1QP := eval.BuffQP[4]
 
-	ksRes := rlwe.CiphertextQP{
-		Value: [2]ringqp.Poly{
-			eval.BuffQP[3],
-			eval.BuffQP[4],
-		},
-		MetaData: rlwe.MetaData{
-			IsNTT: true,
-		},
+	ksRes := &rlwe.OperandQP{}
+	ksRes.Value = []*ringqp.Poly{
+		&eval.BuffQP[3],
+		&eval.BuffQP[4],
 	}
+	ksRes.MetaData.IsNTT = true
 
 	ring.Copy(ctIn.Value[0], eval.buffCt.Value[0])
 	ring.Copy(ctIn.Value[1], eval.buffCt.Value[1])
@@ -612,7 +609,7 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix Linear
 
 			index := eval.AutomorphismIndex[galEl]
 
-			eval.GadgetProductHoistedLazy(levelQ, BuffDecompQP, evk.GadgetCiphertext, ksRes)
+			eval.GadgetProductHoistedLazy(levelQ, BuffDecompQP, &evk.GadgetCiphertext, ksRes)
 			ringQ.Add(ksRes0QP.Q, ct0TimesP, ksRes0QP.Q)
 
 			ringQP.AutomorphismNTTWithIndex(&ksRes0QP, index, &tmp0QP)
@@ -699,7 +696,8 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Li
 	tmp1QP := eval.BuffQP[2]
 
 	// Accumulator outer loop
-	cQP := rlwe.CiphertextQP{Value: [2]ringqp.Poly{eval.BuffQP[3], eval.BuffQP[4]}}
+	cQP := &rlwe.OperandQP{}
+	cQP.Value = []*ringqp.Poly{&eval.BuffQP[3], &eval.BuffQP[4]}
 	cQP.IsNTT = true
 
 	// Result in QP
@@ -732,11 +730,11 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Li
 				}
 			} else {
 				if cnt1 == 0 {
-					ringQP.MulCoeffsMontgomeryLazy(&pt, &ct.Value[0], &tmp0QP)
-					ringQP.MulCoeffsMontgomeryLazy(&pt, &ct.Value[1], &tmp1QP)
+					ringQP.MulCoeffsMontgomeryLazy(&pt, ct.Value[0], &tmp0QP)
+					ringQP.MulCoeffsMontgomeryLazy(&pt, ct.Value[1], &tmp1QP)
 				} else {
-					ringQP.MulCoeffsMontgomeryLazyThenAddLazy(&pt, &ct.Value[0], &tmp0QP)
-					ringQP.MulCoeffsMontgomeryLazyThenAddLazy(&pt, &ct.Value[1], &tmp1QP)
+					ringQP.MulCoeffsMontgomeryLazyThenAddLazy(&pt, ct.Value[0], &tmp0QP)
+					ringQP.MulCoeffsMontgomeryLazyThenAddLazy(&pt, ct.Value[1], &tmp1QP)
 				}
 			}
 
@@ -778,16 +776,16 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Li
 			}
 
 			rotIndex := eval.AutomorphismIndex[galEl]
-			eval.GadgetProductLazy(levelQ, tmp1QP.Q, evk.GadgetCiphertext, cQP) // EvaluationKey(P*phi(tmpRes_1)) = (d0, d1) in base QP
-			ringQP.Add(&cQP.Value[0], &tmp0QP, &cQP.Value[0])
+			eval.GadgetProductLazy(levelQ, tmp1QP.Q, &evk.GadgetCiphertext, cQP) // EvaluationKey(P*phi(tmpRes_1)) = (d0, d1) in base QP
+			ringQP.Add(cQP.Value[0], &tmp0QP, cQP.Value[0])
 
 			// Outer loop rotations
 			if cnt0 == 0 {
-				ringQP.AutomorphismNTTWithIndex(&cQP.Value[0], rotIndex, &c0OutQP)
-				ringQP.AutomorphismNTTWithIndex(&cQP.Value[1], rotIndex, &c1OutQP)
+				ringQP.AutomorphismNTTWithIndex(cQP.Value[0], rotIndex, &c0OutQP)
+				ringQP.AutomorphismNTTWithIndex(cQP.Value[1], rotIndex, &c1OutQP)
 			} else {
-				ringQP.AutomorphismNTTWithIndexThenAddLazy(&cQP.Value[0], rotIndex, &c0OutQP)
-				ringQP.AutomorphismNTTWithIndexThenAddLazy(&cQP.Value[1], rotIndex, &c1OutQP)
+				ringQP.AutomorphismNTTWithIndexThenAddLazy(cQP.Value[0], rotIndex, &c0OutQP)
+				ringQP.AutomorphismNTTWithIndexThenAddLazy(cQP.Value[1], rotIndex, &c1OutQP)
 			}
 
 			// Else directly adds on ((cQP.Value[0].Q, cQP.Value[0].P), (cQP.Value[1].Q, cQP.Value[1].P))

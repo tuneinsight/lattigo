@@ -1,54 +1,48 @@
 package rlwe
 
 import (
-	"bufio"
 	"io"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
-	"github.com/tuneinsight/lattigo/v4/utils/buffer"
+	"github.com/tuneinsight/lattigo/v4/utils/structs"
 )
 
 // GadgetCiphertext is a struct for storing an encrypted
 // plaintext times the gadget power matrix.
 type GadgetCiphertext struct {
-	Value [][]CiphertextQP
+	Value structs.Matrix[OperandQP]
 }
 
 // NewGadgetCiphertext returns a new Ciphertext key with pre-allocated zero-value.
 // Ciphertext is always in the NTT domain.
-func NewGadgetCiphertext(params Parameters, levelQ, levelP, decompRNS, decompBIT int) (ct *GadgetCiphertext) {
+func NewGadgetCiphertext(params Parameters, levelQ, levelP, decompRNS, decompBIT int) *GadgetCiphertext {
 
-	ringQP := params.RingQP().AtLevel(levelQ, levelP)
-
-	ct = new(GadgetCiphertext)
-	ct.Value = make([][]CiphertextQP, decompRNS)
+	m := make([][]*OperandQP, decompRNS)
 	for i := 0; i < decompRNS; i++ {
-		ct.Value[i] = make([]CiphertextQP, decompBIT)
-		for j := 0; j < decompBIT; j++ {
-			ct.Value[i][j].Value[0] = *ringQP.NewPoly()
-			ct.Value[i][j].Value[1] = *ringQP.NewPoly()
-			ct.Value[i][j].IsNTT = true
-			ct.Value[i][j].IsMontgomery = true
+		v := make([]*OperandQP, decompBIT)
+
+		for j := range v {
+			v[j] = NewOperandQP(params, 1, levelQ, levelP)
+			v[j].IsNTT = true
+			v[j].IsMontgomery = true
 		}
+
+		m[i] = v
 	}
 
-	return ct
+	return &GadgetCiphertext{Value: m}
 }
 
 // LevelQ returns the level of the modulus Q of the target Ciphertext.
-func (ct *GadgetCiphertext) LevelQ() int {
-	return ct.Value[0][0].Value[0].Q.Level()
+func (ct GadgetCiphertext) LevelQ() int {
+	return ct.Value[0][0].LevelQ()
 }
 
 // LevelP returns the level of the modulus P of the target Ciphertext.
-func (ct *GadgetCiphertext) LevelP() int {
-	if ct.Value[0][0].Value[0].P != nil {
-		return ct.Value[0][0].Value[0].P.Level()
-	}
-
-	return -1
+func (ct GadgetCiphertext) LevelP() int {
+	return ct.Value[0][0].LevelP()
 }
 
 // Equal checks two Ciphertexts for equality.
@@ -61,11 +55,11 @@ func (ct *GadgetCiphertext) CopyNew() (ctCopy *GadgetCiphertext) {
 	if ct == nil || len(ct.Value) == 0 {
 		return nil
 	}
-	v := make([][]CiphertextQP, len(ct.Value))
+	v := make([][]*OperandQP, len(ct.Value))
 	for i := range ct.Value {
-		v[i] = make([]CiphertextQP, len(ct.Value[0]))
+		v[i] = make([]*OperandQP, len(ct.Value[0]))
 		for j, el := range ct.Value[i] {
-			v[i][j] = *el.CopyNew()
+			v[i][j] = el.CopyNew()
 		}
 	}
 	return &GadgetCiphertext{Value: v}
@@ -73,22 +67,13 @@ func (ct *GadgetCiphertext) CopyNew() (ctCopy *GadgetCiphertext) {
 
 // BinarySize returns the size in bytes that the object once marshalled into a binary form.
 func (ct *GadgetCiphertext) BinarySize() (dataLen int) {
-
-	dataLen = 2
-
-	for i := range ct.Value {
-		for _, el := range ct.Value[i] {
-			dataLen += el.BinarySize()
-		}
-	}
-
-	return
+	return ct.Value.BinarySize()
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
 func (ct *GadgetCiphertext) MarshalBinary() (data []byte, err error) {
 	data = make([]byte, ct.BinarySize())
-	_, err = ct.Read(data)
+	_, err = ct.Value.Read(data)
 	return
 }
 
@@ -100,65 +85,13 @@ func (ct *GadgetCiphertext) MarshalBinary() (data []byte, err error) {
 // a new bufio.Writer.
 // For additional information, see lattigo/utils/buffer/writer.go.
 func (ct *GadgetCiphertext) WriteTo(w io.Writer) (n int64, err error) {
-	switch w := w.(type) {
-	case buffer.Writer:
-
-		var inc int
-
-		if inc, err = buffer.WriteUint8(w, uint8(len(ct.Value))); err != nil {
-			return int64(inc), err
-		}
-
-		n += int64(inc)
-
-		if inc, err = buffer.WriteUint8(w, uint8(len(ct.Value[0]))); err != nil {
-			return int64(inc), err
-		}
-
-		n += int64(inc)
-
-		for i := range ct.Value {
-
-			for _, el := range ct.Value[i] {
-
-				var inc int64
-				if inc, err = el.WriteTo(w); err != nil {
-					return n + inc, err
-				}
-
-				n += inc
-			}
-		}
-
-		return
-
-	default:
-		return ct.WriteTo(bufio.NewWriter(w))
-	}
+	return ct.Value.WriteTo(w)
 }
 
 // Read encodes the object into a binary form on a preallocated slice of bytes
 // and returns the number of bytes written.
-func (ct *GadgetCiphertext) Read(data []byte) (ptr int, err error) {
-
-	data[ptr] = uint8(len(ct.Value))
-	ptr++
-
-	data[ptr] = uint8(len(ct.Value[0]))
-	ptr++
-
-	var inc int
-	for i := range ct.Value {
-		for _, el := range ct.Value[i] {
-
-			if inc, err = el.Read(data[ptr:]); err != nil {
-				return ptr, err
-			}
-			ptr += inc
-		}
-	}
-
-	return
+func (ct *GadgetCiphertext) Read(p []byte) (n int, err error) {
+	return ct.Value.Read(p)
 }
 
 // ReadFrom reads on the object from an io.Writer.
@@ -169,88 +102,20 @@ func (ct *GadgetCiphertext) Read(data []byte) (ptr int, err error) {
 // a new bufio.Reader.
 // For additional information, see lattigo/utils/buffer/reader.go.
 func (ct *GadgetCiphertext) ReadFrom(r io.Reader) (n int64, err error) {
-	switch r := r.(type) {
-	case buffer.Reader:
-
-		var decompRNS, decompBIT uint8
-
-		var inc int
-		if inc, err = buffer.ReadUint8(r, &decompRNS); err != nil {
-			return int64(inc), err
-		}
-
-		n += int64(inc)
-
-		if inc, err = buffer.ReadUint8(r, &decompBIT); err != nil {
-			return int64(inc), err
-		}
-
-		n += int64(inc)
-
-		if ct.Value == nil || len(ct.Value) != int(decompRNS) {
-			ct.Value = make([][]CiphertextQP, decompRNS)
-		}
-
-		for i := range ct.Value {
-
-			if ct.Value[i] == nil || len(ct.Value[i]) != int(decompBIT) {
-				ct.Value[i] = make([]CiphertextQP, decompBIT)
-			}
-
-			for j := range ct.Value[i] {
-
-				var inc int64
-				if inc, err = ct.Value[i][j].ReadFrom(r); err != nil {
-					return
-				}
-				n += inc
-			}
-		}
-
-		return
-	default:
-		return ct.ReadFrom(bufio.NewReader(r))
-	}
+	return ct.Value.ReadFrom(r)
 }
 
-// UnmarshalBinary decodes a slice of bytes generated by MarshalBinary
-// or Read on the object.
-func (ct *GadgetCiphertext) UnmarshalBinary(data []byte) (err error) {
-	_, err = ct.Write(data)
+// UnmarshalBinary decodes a slice of bytes generated by MarshalBinary,
+// WriteTo or Read on the object.
+func (ct *GadgetCiphertext) UnmarshalBinary(p []byte) (err error) {
+	_, err = ct.Value.Write(p)
 	return
 }
 
 // Write decodes a slice of bytes generated by MarshalBinary or
 // Read on the object and returns the number of bytes read.
-func (ct *GadgetCiphertext) Write(data []byte) (ptr int, err error) {
-
-	decompRNS := int(data[0])
-	decompBIT := int(data[1])
-
-	ptr = 2
-
-	if ct.Value == nil || len(ct.Value) != decompRNS {
-		ct.Value = make([][]CiphertextQP, decompRNS)
-	}
-
-	var inc int
-
-	for i := range ct.Value {
-
-		if ct.Value[i] == nil || len(ct.Value[i]) != decompBIT {
-			ct.Value[i] = make([]CiphertextQP, decompBIT)
-		}
-
-		for j := range ct.Value[i] {
-
-			if inc, err = ct.Value[i][j].Write(data[ptr:]); err != nil {
-				return
-			}
-			ptr += inc
-		}
-	}
-
-	return
+func (ct *GadgetCiphertext) Write(p []byte) (n int, err error) {
+	return ct.Value.Write(p)
 }
 
 // AddPolyTimesGadgetVectorToGadgetCiphertext takes a plaintext polynomial and a list of Ciphertexts and adds the
@@ -318,66 +183,9 @@ func AddPolyTimesGadgetVectorToGadgetCiphertext(pt *ring.Poly, cts []GadgetCiphe
 	}
 }
 
-// AddPolyToGadgetMatrix takes a plaintext polynomial and a list of ringqp.Poly and adds the
-// plaintext times the RNS and BIT decomposition to the list of ringqp.Poly.
-func AddPolyToGadgetMatrix(pt *ring.Poly, gm [][]ringqp.Poly, ringQP ringqp.Ring, logbase2 int, buff *ring.Poly) {
-
-	levelQ := gm[0][0].LevelQ()
-	levelP := gm[0][0].LevelP()
-
-	ringQ := ringQP.RingQ.AtLevel(levelQ)
-
-	if levelP != -1 {
-		ringQ.MulScalarBigint(pt, ringQP.RingP.AtLevel(levelP).Modulus(), buff) // P * pt
-	} else {
-		levelP = 0
-		if pt != buff {
-			ring.CopyLvl(levelQ, pt, buff) // 1 * pt
-		}
-	}
-
-	RNSDecomp := len(gm)
-	BITDecomp := len(gm[0])
-	N := ringQ.N()
-
-	var index int
-	for j := 0; j < BITDecomp; j++ {
-		for i := 0; i < RNSDecomp; i++ {
-
-			// e + (m * P * w^2j) * (q_star * q_tild) mod QP
-			//
-			// q_prod = prod(q[i*#Pi+j])
-			// q_star = Q/qprod
-			// q_tild = q_star^-1 mod q_prod
-			//
-			// Therefore : (pt * P * w^2j) * (q_star * q_tild) = pt*P*w^2j mod q[i*#Pi+j], else 0
-			for k := 0; k < levelP+1; k++ {
-
-				index = i*(levelP+1) + k
-
-				// Handle cases where #pj does not divide #qi
-				if index >= levelQ+1 {
-					break
-				}
-
-				qi := ringQ.SubRings[index].Modulus
-				p0tmp := buff.Coeffs[index]
-
-				p1tmp := gm[i][j].Q.Coeffs[index]
-				for w := 0; w < N; w++ {
-					p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi)
-				}
-			}
-		}
-
-		// w^2j
-		ringQ.MulScalar(buff, 1<<logbase2, buff)
-	}
-}
-
-// GadgetPlaintext stores a RGSW plaintext value.
+// GadgetPlaintext stores a plaintext value times the gadget vector.
 type GadgetPlaintext struct {
-	Value []*ring.Poly
+	Value structs.Vector[ring.Poly]
 }
 
 // NewGadgetPlaintext creates a new gadget plaintext from value, which can be either uint64, int64 or *ring.Poly.
@@ -426,7 +234,6 @@ func NewGadgetPlaintext(params Parameters, value interface{}, levelQ, levelP, lo
 		for j := 0; j < i; j++ {
 			ringQ.MulScalar(pt.Value[i], 1<<logBase2, pt.Value[i])
 		}
-
 	}
 
 	return

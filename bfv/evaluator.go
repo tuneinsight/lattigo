@@ -151,7 +151,7 @@ func NewEvaluators(params Parameters, evk rlwe.EvaluationKeySetInterface, n int)
 func (eval *evaluator) Add(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext) {
 	_, level := eval.CheckBinary(ctIn, op1, ctOut, utils.Max(ctIn.Degree(), op1.Degree()))
 	ctOut.Resize(ctOut.Degree(), level)
-	eval.evaluateInPlaceBinary(ctIn, op1.El(), ctOut, eval.params.RingQ().AtLevel(level).Add)
+	eval.evaluateInPlaceBinary(ctIn.El(), op1.El(), ctOut.El(), eval.params.RingQ().AtLevel(level).Add)
 }
 
 // AddNew adds ctIn to op1 and creates a new element ctOut to store the result.
@@ -165,7 +165,7 @@ func (eval *evaluator) AddNew(ctIn *rlwe.Ciphertext, op1 rlwe.Operand) (ctOut *r
 func (eval *evaluator) Sub(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.Ciphertext) {
 	_, level := eval.CheckBinary(ctIn, op1, ctOut, utils.Max(ctIn.Degree(), op1.Degree()))
 	ctOut.Resize(ctOut.Degree(), level)
-	eval.evaluateInPlaceBinary(ctIn, op1.El(), ctOut, eval.params.RingQ().AtLevel(level).Sub)
+	eval.evaluateInPlaceBinary(ctIn.El(), op1.El(), ctOut.El(), eval.params.RingQ().AtLevel(level).Sub)
 
 	if ctIn.Degree() < op1.Degree() {
 		for i := ctIn.Degree() + 1; i < op1.Degree()+1; i++ {
@@ -253,7 +253,7 @@ func (eval *evaluator) RescaleTo(level int, ctIn, ctOut *rlwe.Ciphertext) {
 }
 
 // tensorAndRescale computes (ct0 x ct1) * (t/Q) and stores the result in ctOut.
-func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *rlwe.Ciphertext) {
+func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *rlwe.OperandQ) {
 
 	level := utils.Min(utils.Min(ct0.Level(), ct1.Level()), ctOut.Level())
 
@@ -284,7 +284,7 @@ func (eval *evaluator) tensorAndRescale(ct0, ct1, ctOut *rlwe.Ciphertext) {
 	eval.quantizeLvl(level, levelQMul, ctOut)
 }
 
-func (eval *evaluator) modUpAndNTTLvl(level, levelQMul int, ct *rlwe.Ciphertext, cQ, cQMul []*ring.Poly) {
+func (eval *evaluator) modUpAndNTTLvl(level, levelQMul int, ct *rlwe.OperandQ, cQ, cQMul []*ring.Poly) {
 
 	ringQ := eval.params.RingQ().AtLevel(level)
 	ringQMul := eval.params.RingQMul().AtLevel(levelQMul)
@@ -296,7 +296,7 @@ func (eval *evaluator) modUpAndNTTLvl(level, levelQMul int, ct *rlwe.Ciphertext,
 	}
 }
 
-func (eval *evaluator) tensoreLowDegLvl(level, levelQMul int, ct0, ct1 *rlwe.Ciphertext) {
+func (eval *evaluator) tensoreLowDegLvl(level, levelQMul int, ct0, ct1 *rlwe.OperandQ) {
 
 	c0Q1 := eval.buffQ[0]    // NTT(ct0) mod Q
 	c0Q2 := eval.buffQMul[0] // NTT(ct0) mod QMul
@@ -375,7 +375,7 @@ func (eval *evaluator) tensoreLowDegLvl(level, levelQMul int, ct0, ct1 *rlwe.Cip
 	}
 }
 
-func (eval *evaluator) quantizeLvl(level, levelQMul int, ctOut *rlwe.Ciphertext) {
+func (eval *evaluator) quantizeLvl(level, levelQMul int, ctOut *rlwe.OperandQ) {
 
 	c2Q1 := eval.buffQ[2]
 	c2Q2 := eval.buffQMul[2]
@@ -413,7 +413,7 @@ func (eval *evaluator) Mul(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut *rlwe.
 		eval.mulPlaintextRingT(ctIn, op1, ctOut)
 	case *rlwe.Plaintext, *rlwe.Ciphertext:
 		eval.CheckBinary(ctIn, op1, ctOut, ctIn.Degree()+op1.Degree())
-		eval.tensorAndRescale(ctIn, op1.El(), ctOut)
+		eval.tensorAndRescale(ctIn.El(), op1.El(), ctOut.El())
 	default:
 		panic(fmt.Errorf("cannot Mul: invalid rlwe.Operand type for Mul: %T", op1))
 	}
@@ -424,7 +424,8 @@ func (eval *evaluator) MulThenAdd(ctIn *rlwe.Ciphertext, op1 rlwe.Operand, ctOut
 
 	level := utils.Min(ctIn.Level(), ctOut.Level())
 
-	ct2 := &rlwe.Ciphertext{Value: make([]*ring.Poly, ctIn.Degree()+op1.Degree()+1)}
+	ct2 := &rlwe.Ciphertext{}
+	ct2.Value = make([]*ring.Poly, ctIn.Degree()+op1.Degree()+1)
 	for i := range ct2.Value {
 		ct2.Value[i] = new(ring.Poly)
 		ct2.Value[i].Coeffs = eval.buffQ[2][i].Coeffs[:level+1]
@@ -576,7 +577,7 @@ func (eval *evaluator) BuffPt() *rlwe.Plaintext {
 }
 
 // evaluateInPlaceBinary applies the provided function in place on el0 and el1 and returns the result in elOut.
-func (eval *evaluator) evaluateInPlaceBinary(el0, el1, elOut *rlwe.Ciphertext, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly)) {
+func (eval *evaluator) evaluateInPlaceBinary(el0, el1, elOut *rlwe.OperandQ, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly)) {
 
 	smallest, largest, _ := rlwe.GetSmallestLargest(el0, el1)
 

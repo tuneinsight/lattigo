@@ -53,15 +53,15 @@ func GenEvaluationKeyNew(paramsRLWE rlwe.Parameters, skRLWE *rlwe.SecretKey, par
 		// sk_i =  1 -> [RGSW(1), RGSW(0)]
 		if si == OneMForm {
 			encryptor.Encrypt(plaintextRGSWOne, skRGSWPos[i])
-			encryptor.Encrypt(nil, skRGSWNeg[i])
+			encryptor.EncryptZero(skRGSWNeg[i])
 			// sk_i = -1 -> [RGSW(0), RGSW(1)]
 		} else if si == MinusOneMform {
-			encryptor.Encrypt(nil, skRGSWPos[i])
+			encryptor.EncryptZero(skRGSWPos[i])
 			encryptor.Encrypt(plaintextRGSWOne, skRGSWNeg[i])
 			// sk_i =  0 -> [RGSW(0), RGSW(0)]
 		} else {
-			encryptor.Encrypt(nil, skRGSWPos[i])
-			encryptor.Encrypt(nil, skRGSWNeg[i])
+			encryptor.EncryptZero(skRGSWPos[i])
+			encryptor.EncryptZero(skRGSWNeg[i])
 		}
 	}
 

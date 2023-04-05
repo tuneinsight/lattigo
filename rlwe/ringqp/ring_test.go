@@ -38,10 +38,8 @@ func TestRingQP(t *testing.T) {
 			polys[i] = usampler.ReadNew()
 		}
 
-		pv := &structs.Vector[Poly]{}
-		pv.Set(polys)
-
-		buffer.TestInterfaceWriteAndRead(t, pv)
+		pv := structs.Vector[Poly](polys)
+		buffer.TestInterfaceWriteAndRead(t, &pv)
 	})
 
 	t.Run("structs/PolyMatrix", func(t *testing.T) {
@@ -56,10 +54,8 @@ func TestRingQP(t *testing.T) {
 			}
 		}
 
-		pm := &structs.Matrix[Poly]{}
-		pm.Set(polys)
-
-		buffer.TestInterfaceWriteAndRead(t, pm)
+		pm := structs.Matrix[Poly](polys)
+		buffer.TestInterfaceWriteAndRead(t, &pm)
 	})
 
 }

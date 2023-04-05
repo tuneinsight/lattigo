@@ -67,7 +67,7 @@ func (kgen *KeyGenerator) GenPublicKeyNew(sk *SecretKey) (pk *PublicKey) {
 
 // GenPublicKey generates a public key from the provided SecretKey.
 func (kgen *KeyGenerator) GenPublicKey(sk *SecretKey, pk *PublicKey) {
-	kgen.WithKey(sk).EncryptZero(&CiphertextQP{Value: pk.Value, MetaData: pk.MetaData})
+	kgen.WithKey(sk).EncryptZero(&pk.OperandQP)
 }
 
 // GenKeyPairNew generates a new SecretKey and a corresponding public key.
@@ -274,7 +274,7 @@ func (kgen *KeyGenerator) genEvaluationKey(skIn *ring.Poly, skOut *SecretKey, ev
 	// Samples an encryption of zero for each element of the EvaluationKey.
 	for i := 0; i < len(evk.Value); i++ {
 		for j := 0; j < len(evk.Value[0]); j++ {
-			enc.EncryptZero(&evk.Value[i][j])
+			enc.EncryptZero(evk.Value[i][j])
 		}
 	}
 

@@ -160,7 +160,7 @@ func testEncToShares(tc *testContext, t *testing.T) {
 		s2e         *S2EProtocol
 		sk          *rlwe.SecretKey
 		publicShare *drlwe.CKSShare
-		secretShare *rlwe.AdditiveShare
+		secretShare *drlwe.AdditiveShare
 	}
 
 	params := tc.params
@@ -177,7 +177,7 @@ func testEncToShares(tc *testContext, t *testing.T) {
 
 		P[i].sk = tc.sk0Shards[i]
 		P[i].publicShare = P[i].e2s.AllocateShare(ciphertext.Level())
-		P[i].secretShare = rlwe.NewAdditiveShare(params.Parameters)
+		P[i].secretShare = drlwe.NewAdditiveShare(params.Parameters)
 	}
 
 	// The E2S protocol is run in all tests, as a setup to the S2E test.
@@ -193,7 +193,7 @@ func testEncToShares(tc *testContext, t *testing.T) {
 
 	t.Run(testString("E2SProtocol", tc.NParties, tc.params), func(t *testing.T) {
 
-		rec := rlwe.NewAdditiveShare(params.Parameters)
+		rec := drlwe.NewAdditiveShare(params.Parameters)
 		for _, p := range P {
 			tc.ringT.Add(&rec.Value, &p.secretShare.Value, &rec.Value)
 		}

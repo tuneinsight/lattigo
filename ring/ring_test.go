@@ -335,10 +335,9 @@ func testMarshalBinary(tc *testParams, t *testing.T) {
 			polys[i] = tc.uniformSamplerQ.ReadNew()
 		}
 
-		pv := &structs.Vector[Poly]{}
-		pv.Set(polys)
+		v := structs.Vector[Poly](polys)
 
-		buffer.TestInterfaceWriteAndRead(t, pv)
+		buffer.TestInterfaceWriteAndRead(t, &v)
 	})
 
 	t.Run(testString("structs/PolyMatrix", tc.ringQ), func(t *testing.T) {
@@ -353,10 +352,9 @@ func testMarshalBinary(tc *testParams, t *testing.T) {
 			}
 		}
 
-		pm := &structs.Matrix[Poly]{}
-		pm.Set(polys)
+		m := structs.Matrix[Poly](polys)
 
-		buffer.TestInterfaceWriteAndRead(t, pm)
+		buffer.TestInterfaceWriteAndRead(t, &m)
 	})
 }
 

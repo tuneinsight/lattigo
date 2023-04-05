@@ -179,8 +179,8 @@ func testKeyGenerator(tc *TestContext, t *testing.T) {
 
 			zero := ringQP.NewPoly()
 
-			ringQP.MulCoeffsMontgomery(&sk.Value, &pk.Value[1], zero)
-			ringQP.Add(zero, &pk.Value[0], zero)
+			ringQP.MulCoeffsMontgomery(&sk.Value, pk.Value[1], zero)
+			ringQP.Add(zero, pk.Value[0], zero)
 			ringQP.INTT(zero, zero)
 			ringQP.IMForm(zero, zero)
 
@@ -495,7 +495,7 @@ func testGadgetProduct(tc *TestContext, level int, t *testing.T) {
 		evk := kgen.GenEvaluationKeyNew(sk, skOut)
 
 		// Gadget product: ct = [-cs1 + as0 , c]
-		eval.GadgetProduct(level, a, evk.GadgetCiphertext, ct)
+		eval.GadgetProduct(level, a, &evk.GadgetCiphertext, ct)
 
 		// pt = as0
 		pt := NewDecryptor(params, skOut).DecryptNew(ct)
@@ -531,7 +531,7 @@ func testGadgetProduct(tc *TestContext, level int, t *testing.T) {
 		eval.DecomposeNTT(level, params.MaxLevelP(), params.MaxLevelP()+1, a, ct.IsNTT, eval.BuffDecompQP)
 
 		// Gadget product: ct = [-cs1 + as0 , c]
-		eval.GadgetProductHoisted(level, eval.BuffDecompQP, evk.GadgetCiphertext, ct)
+		eval.GadgetProductHoisted(level, eval.BuffDecompQP, &evk.GadgetCiphertext, ct)
 
 		// pt = as0
 		pt := NewDecryptor(params, skOut).DecryptNew(ct)
@@ -676,7 +676,7 @@ func testAutomorphism(tc *TestContext, level int, t *testing.T) {
 		//Decompose the ciphertext
 		eval.DecomposeNTT(level, params.MaxLevelP(), params.MaxLevelP()+1, ct.Value[1], ct.IsNTT, eval.BuffDecompQP)
 
-		ctQP := NewCiphertextQP(params, level, params.MaxLevelP())
+		ctQP := NewOperandQP(params, 1, level, params.MaxLevelP())
 
 		// Evaluate the automorphism
 		eval.WithKey(evk).AutomorphismHoistedLazy(level, ct, eval.BuffDecompQP, galEl, ctQP)
@@ -911,6 +911,13 @@ func testWriteAndRead(tc *TestContext, t *testing.T) {
 
 	sk, pk := tc.sk, tc.pk
 
+	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/OperandQ"), func(t *testing.T) {
+		prng, _ := sampling.NewPRNG()
+		plaintextWant := NewPlaintext(params, params.MaxLevel())
+		ring.NewUniformSampler(prng, params.RingQ()).Read(plaintextWant.Value)
+		buffer.TestInterfaceWriteAndRead(t, &plaintextWant.OperandQ)
+	})
+
 	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/Plaintext"), func(t *testing.T) {
 		prng, _ := sampling.NewPRNG()
 		plaintextWant := NewPlaintext(params, params.MaxLevel())
@@ -930,7 +937,7 @@ func testWriteAndRead(tc *TestContext, t *testing.T) {
 	})
 
 	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/CiphertextQP"), func(t *testing.T) {
-		buffer.TestInterfaceWriteAndRead(t, &tc.pk.CiphertextQP)
+		buffer.TestInterfaceWriteAndRead(t, &tc.pk.OperandQP)
 	})
 
 	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/GadgetCiphertext"), func(t *testing.T) {

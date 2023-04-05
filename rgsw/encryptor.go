@@ -69,8 +69,8 @@ func (enc *Encryptor) EncryptZero(ct interface{}) {
 
 	for j := 0; j < decompPw2; j++ {
 		for i := 0; i < decompRNS; i++ {
-			enc.Encryptor.EncryptZero(&rgswCt.Value[0].Value[i][j])
-			enc.Encryptor.EncryptZero(&rgswCt.Value[1].Value[i][j])
+			enc.Encryptor.EncryptZero(rgswCt.Value[0].Value[i][j])
+			enc.Encryptor.EncryptZero(rgswCt.Value[1].Value[i][j])
 		}
 	}
 }

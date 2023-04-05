@@ -199,15 +199,11 @@ func (btp *Bootstrapper) modUpFromQ0(ct *rlwe.Ciphertext) *rlwe.Ciphertext {
 
 		ringQ.NTT(ct.Value[0], ct.Value[0])
 
-		ctTmp := &rlwe.Ciphertext{
-			Value: []*ring.Poly{
-				ks.BuffQP[1].Q,
-				ct.Value[1],
-			},
-			MetaData: ct.MetaData,
-		}
+		ctTmp := &rlwe.Ciphertext{}
+		ctTmp.Value = []*ring.Poly{ks.BuffQP[1].Q, ct.Value[1]}
+		ctTmp.MetaData = ct.MetaData
 
-		ks.GadgetProductHoisted(levelQ, ks.BuffDecompQP, btp.EvkStD.GadgetCiphertext, ctTmp)
+		ks.GadgetProductHoisted(levelQ, ks.BuffDecompQP, &btp.EvkStD.GadgetCiphertext, ctTmp)
 		ringQ.Add(ct.Value[0], ctTmp.Value[0], ct.Value[0])
 
 	} else {

@@ -68,7 +68,7 @@ func (e2s *E2SProtocol) AllocateShare(level int) (share *drlwe.CKSShare) {
 // ct1      : the degree 1 element the ciphertext to share, i.e. ct1 = ckk.Ciphertext.Value[1].
 // The method "GetMinimumLevelForBootstrapping" should be used to get the minimum level at which E2S can be called while still ensure 128-bits of security, as well as the
 // value for logBound.
-func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, logSlots int, ct *rlwe.Ciphertext, secretShareOut *rlwe.AdditiveShareBigint, publicShareOut *drlwe.CKSShare) {
+func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, logSlots int, ct *rlwe.Ciphertext, secretShareOut *drlwe.AdditiveShareBigint, publicShareOut *drlwe.CKSShare) {
 
 	ct1 := ct.Value[1]
 
@@ -127,7 +127,7 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, logSlots int
 // If the caller is not secret-key-share holder (i.e., didn't generate a decryption share), `secretShare` can be set to nil.
 // Therefore, in order to obtain an additive sharing of the message, only one party should call this method, and the other parties should use
 // the secretShareOut output of the GenShare method.
-func (e2s *E2SProtocol) GetShare(secretShare *rlwe.AdditiveShareBigint, aggregatePublicShare *drlwe.CKSShare, logSlots int, ct *rlwe.Ciphertext, secretShareOut *rlwe.AdditiveShareBigint) {
+func (e2s *E2SProtocol) GetShare(secretShare *drlwe.AdditiveShareBigint, aggregatePublicShare *drlwe.CKSShare, logSlots int, ct *rlwe.Ciphertext, secretShareOut *drlwe.AdditiveShareBigint) {
 
 	levelQ := utils.Min(ct.Level(), aggregatePublicShare.Value.Level())
 
@@ -206,19 +206,20 @@ func (s2e S2EProtocol) AllocateShare(level int) (share *drlwe.CKSShare) {
 }
 
 // GenShare generates a party's in the shares-to-encryption protocol given the party's secret-key share `sk`, a common
-// polynomial sampled from the CRS `c1` and the party's secret share of the message.
-func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.CKSCRP, logSlots int, secretShare *rlwe.AdditiveShareBigint, c0ShareOut *drlwe.CKSShare) {
+// polynomial sampled from the CRS `crs` and the party's secret share of the message.
+func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.CKSCRP, logSlots int, secretShare *drlwe.AdditiveShareBigint, c0ShareOut *drlwe.CKSShare) {
 
-	c1 := ring.Poly(crs)
-
-	ringQ := s2e.params.RingQ().AtLevel(c1.Level())
-
-	if c1.Level() != c0ShareOut.Value.Level() {
-		panic("cannot GenShare: c1 and c0ShareOut level must be equal")
+	if crs.Value.Level() != c0ShareOut.Value.Level() {
+		panic("cannot GenShare: crs and c0ShareOut level must be equal")
 	}
 
+	ringQ := s2e.params.RingQ().AtLevel(crs.Value.Level())
+
 	// Generates an encryption share
-	s2e.CKSProtocol.GenShare(s2e.zero, sk, &rlwe.Ciphertext{Value: []*ring.Poly{nil, &c1}, MetaData: rlwe.MetaData{IsNTT: true}}, c0ShareOut)
+	ct := &rlwe.Ciphertext{}
+	ct.Value = []*ring.Poly{nil, &crs.Value}
+	ct.MetaData.IsNTT = true
+	s2e.CKSProtocol.GenShare(s2e.zero, sk, ct, c0ShareOut)
 
 	dslots := 1 << logSlots
 	if ringQ.Type() == ring.Standard {
@@ -234,23 +235,21 @@ func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.CKSCRP, logSlots 
 }
 
 // GetEncryption computes the final encryption of the secret-shared message when provided with the aggregation `c0Agg` of the parties'
-// share in the protocol and with the common, CRS-sampled polynomial `c1`.
+// share in the protocol and with the common, CRS-sampled polynomial `crs`.
 func (s2e *S2EProtocol) GetEncryption(c0Agg *drlwe.CKSShare, crs drlwe.CKSCRP, ctOut *rlwe.Ciphertext) {
 
 	if ctOut.Degree() != 1 {
 		panic("cannot GetEncryption: ctOut must have degree 1.")
 	}
 
-	c1 := ring.Poly(crs)
-
-	if c0Agg.Value.Level() != c1.Level() {
-		panic("cannot GetEncryption: c0Agg level must be equal to c1 level")
+	if c0Agg.Value.Level() != crs.Value.Level() {
+		panic("cannot GetEncryption: c0Agg level must be equal to crs level")
 	}
 
-	if ctOut.Level() != c1.Level() {
-		panic("cannot GetEncryption: ctOut level must be equal to c1 level")
+	if ctOut.Level() != crs.Value.Level() {
+		panic("cannot GetEncryption: ctOut level must be equal to crs level")
 	}
 
 	ctOut.Value[0].Copy(c0Agg.Value)
-	ctOut.Value[1].Copy(&c1)
+	ctOut.Value[1].Copy(&crs.Value)
 }

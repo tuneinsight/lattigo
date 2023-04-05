@@ -55,9 +55,9 @@ func (eval *Evaluator) ApplyEvaluationKey(ctIn *Ciphertext, evk *EvaluationKey, 
 
 		// Maps to larger ring degree Y = X^{N/n} -> X
 		if ctIn.IsNTT {
-			SwitchCiphertextRingDegreeNTT(ctIn, nil, ctOut)
+			SwitchCiphertextRingDegreeNTT(ctIn.El(), nil, ctOut.El())
 		} else {
-			SwitchCiphertextRingDegree(ctIn, ctOut)
+			SwitchCiphertextRingDegree(ctIn.El(), ctOut.El())
 		}
 
 		// Re-encrypt ctOut from the key from small to larger ring degree
@@ -80,9 +80,9 @@ func (eval *Evaluator) ApplyEvaluationKey(ctIn *Ciphertext, evk *EvaluationKey, 
 
 		// Maps to smaller ring degree X -> Y = X^{N/n}
 		if ctIn.IsNTT {
-			SwitchCiphertextRingDegreeNTT(ctTmp, ringQ, ctOut)
+			SwitchCiphertextRingDegreeNTT(ctTmp.El(), ringQ, ctOut.El())
 		} else {
-			SwitchCiphertextRingDegree(ctTmp, ctOut)
+			SwitchCiphertextRingDegree(ctTmp.El(), ctOut.El())
 		}
 
 		// Re-encryption to the same ring degree.
@@ -97,7 +97,7 @@ func (eval *Evaluator) applyEvaluationKey(level int, ctIn *Ciphertext, evk *Eval
 	ctTmp := &Ciphertext{}
 	ctTmp.Value = []*ring.Poly{eval.BuffQP[0].Q, eval.BuffQP[1].Q}
 	ctTmp.IsNTT = ctIn.IsNTT
-	eval.GadgetProduct(level, ctIn.Value[1], evk.GadgetCiphertext, ctTmp)
+	eval.GadgetProduct(level, ctIn.Value[1], &evk.GadgetCiphertext, ctTmp)
 	eval.params.RingQ().AtLevel(level).Add(ctIn.Value[0], ctTmp.Value[0], ctOut.Value[0])
 	ring.CopyLvl(level, ctTmp.Value[1], ctOut.Value[1])
 }
@@ -132,7 +132,7 @@ func (eval *Evaluator) Relinearize(ctIn *Ciphertext, ctOut *Ciphertext) {
 	ctTmp.Value = []*ring.Poly{eval.BuffQP[0].Q, eval.BuffQP[1].Q}
 	ctTmp.IsNTT = ctIn.IsNTT
 
-	eval.GadgetProduct(level, ctIn.Value[2], rlk.GadgetCiphertext, ctTmp)
+	eval.GadgetProduct(level, ctIn.Value[2], &rlk.GadgetCiphertext, ctTmp)
 	ringQ.Add(ctIn.Value[0], ctTmp.Value[0], ctOut.Value[0])
 	ringQ.Add(ctIn.Value[1], ctTmp.Value[1], ctOut.Value[1])
 

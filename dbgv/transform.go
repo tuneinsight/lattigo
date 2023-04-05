@@ -85,11 +85,11 @@ func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, ct *rl
 		panic("cannot GenShare: ct[1] level must be at least equal to E2SShare level")
 	}
 
-	if (*ring.Poly)(&crs).Level() != shareOut.S2EShare.Value.Level() {
+	if crs.Value.Level() != shareOut.S2EShare.Value.Level() {
 		panic("cannot GenShare: crs level must be equal to S2EShare")
 	}
 
-	rfp.e2s.GenShare(skIn, ct, &rlwe.AdditiveShare{Value: *rfp.tmpMask}, &shareOut.E2SShare)
+	rfp.e2s.GenShare(skIn, ct, &drlwe.AdditiveShare{Value: *rfp.tmpMask}, &shareOut.E2SShare)
 	mask := rfp.tmpMask
 	if transform != nil {
 		coeffs := make([]uint64, len(mask.Coeffs[0]))
@@ -110,7 +110,7 @@ func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, ct *rl
 
 		mask = rfp.tmpMaskPerm
 	}
-	rfp.s2e.GenShare(skOut, crs, &rlwe.AdditiveShare{Value: *mask}, &shareOut.S2EShare)
+	rfp.s2e.GenShare(skOut, crs, &drlwe.AdditiveShare{Value: *mask}, &shareOut.S2EShare)
 }
 
 // AggregateShares sums share1 and share2 on shareOut.
@@ -135,13 +135,13 @@ func (rfp *MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, transform *Ma
 		panic("cannot Transform: input ciphertext level must be at least equal to e2s level")
 	}
 
-	maxLevel := (*ring.Poly)(&crs).Level()
+	maxLevel := crs.Value.Level()
 
 	if maxLevel != share.S2EShare.Value.Level() {
 		panic("cannot Transform: crs level and s2e level must be the same")
 	}
 
-	rfp.e2s.GetShare(nil, &share.E2SShare, ct, &rlwe.AdditiveShare{Value: *rfp.tmpMask}) // tmpMask RingT(m - sum M_i)
+	rfp.e2s.GetShare(nil, &share.E2SShare, ct, &drlwe.AdditiveShare{Value: *rfp.tmpMask}) // tmpMask RingT(m - sum M_i)
 	mask := rfp.tmpMask
 	if transform != nil {
 		coeffs := make([]uint64, len(mask.Coeffs[0]))

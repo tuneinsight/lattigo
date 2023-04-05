@@ -241,8 +241,8 @@ func (enc *pkEncryptor) encryptZero(ct *Ciphertext) {
 
 	// ct0 = u*pk0
 	// ct1 = u*pk1
-	ringQP.MulCoeffsMontgomery(u, &enc.pk.Value[0], ct0QP)
-	ringQP.MulCoeffsMontgomery(u, &enc.pk.Value[1], ct1QP)
+	ringQP.MulCoeffsMontgomery(u, enc.pk.Value[0], ct0QP)
+	ringQP.MulCoeffsMontgomery(u, enc.pk.Value[1], ct1QP)
 
 	// 2*(#Q + #P) NTT
 	ringQP.INTT(ct0QP, ct0QP)
@@ -360,7 +360,7 @@ func (enc *skEncryptor) EncryptZero(ct interface{}) {
 		}
 
 		enc.encryptZero(ct, c1)
-	case *CiphertextQP:
+	case *OperandQP:
 		enc.encryptZeroQP(*ct)
 	default:
 		panic(fmt.Sprintf("cannot EncryptZero: input ciphertext type %T is not supported", ct))
@@ -407,9 +407,9 @@ func (enc *skEncryptor) encryptZero(ct *Ciphertext, c1 *ring.Poly) {
 // sk     : secret key
 // sampler: uniform sampler; if `sampler` is nil, then the internal sampler will be used.
 // montgomery: returns the result in the Montgomery domain.
-func (enc *skEncryptor) encryptZeroQP(ct CiphertextQP) {
+func (enc *skEncryptor) encryptZeroQP(ct OperandQP) {
 
-	c0, c1 := &ct.Value[0], &ct.Value[1]
+	c0, c1 := ct.Value[0], ct.Value[1]
 
 	levelQ, levelP := c0.LevelQ(), c1.LevelP()
 	ringQP := enc.params.RingQP().AtLevel(levelQ, levelP)

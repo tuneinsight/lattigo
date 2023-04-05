@@ -53,7 +53,7 @@ func (d *decryptor) Decrypt(ct *Ciphertext, pt *Plaintext) {
 
 	ringQ := d.ringQ.AtLevel(level)
 
-	pt.Value.Resize(level)
+	pt.Resize(0, level)
 
 	pt.MetaData = ct.MetaData
 

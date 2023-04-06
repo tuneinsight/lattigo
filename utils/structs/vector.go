@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 
-	//"reflect"
 	"encoding/binary"
 
 	"github.com/tuneinsight/lattigo/v4/utils/buffer"
@@ -13,11 +12,30 @@ import (
 
 type Vector[T any] []*T
 
+// CopyNew creates a copy of the oject.
+func (v Vector[T]) CopyNew() *Vector[T] {
+	vcpy := Vector[T](make([]*T, len(v)))
+
+	var err error
+
+	codec := Codec[T]{}
+
+	for i := range v {
+		if vcpy[i], err = codec.CopynewWrapper(v[i]); err != nil {
+			panic(err)
+		}
+	}
+
+	return &vcpy
+}
+
 // BinarySize returns the size in bytes that the object once marshalled into a binary form.
 func (v Vector[T]) BinarySize() (size int) {
 
 	var err error
 	var inc int
+
+	codec := Codec[T]{}
 
 	size += 8
 	for _, vi := range v {
@@ -46,6 +64,8 @@ func (v *Vector[T]) Read(b []byte) (n int, err error) {
 
 	binary.LittleEndian.PutUint64(b[n:], uint64(len(vi)))
 	n += 8
+
+	codec := Codec[T]{}
 
 	var inc int
 	for i := range vi {
@@ -82,6 +102,8 @@ func (v *Vector[T]) WriteTo(w io.Writer) (int64, error) {
 
 		n += int64(inc)
 
+		codec := Codec[T]{}
+
 		for i := range vi {
 			var inc int64
 			if inc, err = codec.WriteToWrapper(w, vi[i]); err != nil {
@@ -117,6 +139,8 @@ func (v *Vector[T]) Write(p []byte) (n int, err error) {
 	}
 
 	vi := *v
+
+	codec := Codec[T]{}
 
 	var inc int
 	for i := range vi {
@@ -158,6 +182,8 @@ func (v *Vector[T]) ReadFrom(r io.Reader) (int64, error) {
 		}
 
 		vi := *v
+
+		codec := Codec[T]{}
 
 		for i := range vi {
 

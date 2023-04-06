@@ -12,12 +12,36 @@ import (
 // Matrix is a struct storing a vector of Vector.
 type Matrix[T any] [][]*T
 
+func (m Matrix[T]) CopyNew() *Matrix[T] {
+	mcpy := Matrix[T](make([][]*T, len(m)))
+
+	var err error
+
+	codec := Codec[T]{}
+
+	for i := range m {
+
+		mcpy[i] = make([]*T, len(m[i]))
+
+		for j := range m[i] {
+			if mcpy[i][j], err = codec.CopynewWrapper(m[i][j]); err != nil {
+				panic(err)
+			}
+		}
+	}
+
+	return &mcpy
+}
+
 // BinarySize returns the size in bytes of the object
 // when encoded using MarshalBinary, Read or WriteTo.
 func (m Matrix[T]) BinarySize() (size int) {
 	size += 8
 	var err error
 	var inc int
+
+	codec := Codec[T]{}
+
 	for _, v := range m {
 		size += 8
 		for _, vi := range v {
@@ -45,6 +69,8 @@ func (m Matrix[T]) Read(b []byte) (n int, err error) {
 
 	binary.LittleEndian.PutUint64(b[n:], uint64(len(m)))
 	n += 8
+
+	codec := Codec[T]{}
 
 	var inc int
 	for _, v := range m {
@@ -85,6 +111,8 @@ func (m Matrix[T]) WriteTo(w io.Writer) (int64, error) {
 		}
 
 		n += int64(inc)
+
+		codec := Codec[T]{}
 
 		for _, v := range m {
 
@@ -131,6 +159,8 @@ func (m *Matrix[T]) Write(p []byte) (n int, err error) {
 	}
 
 	mi := *m
+
+	codec := Codec[T]{}
 
 	var inc int
 	for i := range mi {
@@ -182,6 +212,8 @@ func (m *Matrix[T]) ReadFrom(r io.Reader) (int64, error) {
 		}
 
 		mi := *m
+
+		codec := Codec[T]{}
 
 		for i := range mi {
 

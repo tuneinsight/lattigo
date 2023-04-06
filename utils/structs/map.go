@@ -14,9 +14,28 @@ import (
 // Map is a struct storing a map of any element indexed by an Integer.
 type Map[V constraints.Integer, T any] map[V]*T
 
+// CopyNew creates a copy of the oject.
+func (m Map[V, T]) CopyNew() *Map[V, T] {
+
+	var mcpy = make(Map[V, T])
+
+	codec := Codec[T]{}
+
+	var err error
+	for key, object := range m {
+		if mcpy[key], err = codec.CopynewWrapper(object); err != nil {
+			panic(err)
+		}
+	}
+
+	return &mcpy
+}
+
 // BinarySize returns the size in bytes that the object once marshalled into a binary form.
 func (m Map[V, T]) BinarySize() (size int) {
 	size = 4 // #Ct
+
+	codec := Codec[T]{}
 
 	var inc int
 	var err error
@@ -48,6 +67,8 @@ func (m *Map[V, T]) Read(p []byte) (n int, err error) {
 	if len(p) < m.BinarySize() {
 		return n, fmt.Errorf("cannot Read: len(p)=%d < %d", len(p), m.BinarySize())
 	}
+
+	codec := Codec[T]{}
 
 	mi := *m
 
@@ -92,6 +113,8 @@ func (m *Map[V, T]) WriteTo(w io.Writer) (n int64, err error) {
 
 		n += int64(inc1)
 
+		codec := Codec[T]{}
+
 		for _, key := range utils.GetSortedKeys(mi) {
 
 			if inc1, err = buffer.WriteUint64(w, uint64(key)); err != nil {
@@ -130,6 +153,8 @@ func (m *Map[V, T]) Write(p []byte) (n int, err error) {
 
 	size := int(binary.LittleEndian.Uint32(p[n:]))
 	n += 4
+
+	codec := Codec[T]{}
 
 	for i := 0; i < size; i++ {
 
@@ -172,6 +197,8 @@ func (m *Map[V, T]) ReadFrom(r io.Reader) (n int64, err error) {
 		}
 
 		n += int64(inc1)
+
+		codec := Codec[T]{}
 
 		for i := 0; i < int(size); i++ {
 

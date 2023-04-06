@@ -6,15 +6,28 @@ import (
 	"io"
 )
 
+type Codec[V any] struct{}
+
+type CopyNewer[V any] interface {
+	CopyNew() *V
+}
+
+func (c *Codec[V]) CopynewWrapper(T interface{}) (*V, error) {
+
+	copyer, ok := T.(CopyNewer[V])
+
+	if !ok {
+		return nil, fmt.Errorf("cannot CopyNew: type T=%T does not implement CopyNew", T)
+	}
+
+	return copyer.CopyNew(), nil
+}
+
 type BinarySizer interface {
 	BinarySize() int
 }
 
-type Codec struct{}
-
-var codec = Codec{}
-
-func (c *Codec) BinarySizeWrapper(T interface{}) (size int, err error) {
+func (c *Codec[V]) BinarySizeWrapper(T interface{}) (size int, err error) {
 	binarysizer, ok := T.(BinarySizer)
 
 	if !ok {
@@ -24,7 +37,7 @@ func (c *Codec) BinarySizeWrapper(T interface{}) (size int, err error) {
 	return binarysizer.BinarySize(), nil
 }
 
-func (c *Codec) MarshalBinaryWrapper(T interface{}) (p []byte, err error) {
+func (c *Codec[V]) MarshalBinaryWrapper(T interface{}) (p []byte, err error) {
 	binarymarshaler, ok := T.(encoding.BinaryMarshaler)
 
 	if !ok {
@@ -34,7 +47,7 @@ func (c *Codec) MarshalBinaryWrapper(T interface{}) (p []byte, err error) {
 	return binarymarshaler.MarshalBinary()
 }
 
-func (c *Codec) UnmarshalBinaryWrapper(p []byte, T interface{}) (err error) {
+func (c *Codec[V]) UnmarshalBinaryWrapper(p []byte, T interface{}) (err error) {
 	binaryunmarshaler, ok := T.(encoding.BinaryUnmarshaler)
 
 	if !ok {
@@ -44,7 +57,7 @@ func (c *Codec) UnmarshalBinaryWrapper(p []byte, T interface{}) (err error) {
 	return binaryunmarshaler.UnmarshalBinary(p)
 }
 
-func (c *Codec) ReadWrapper(p []byte, T interface{}) (n int, err error) {
+func (c *Codec[V]) ReadWrapper(p []byte, T interface{}) (n int, err error) {
 	reader, ok := T.(io.Reader)
 
 	if !ok {
@@ -54,7 +67,7 @@ func (c *Codec) ReadWrapper(p []byte, T interface{}) (n int, err error) {
 	return reader.Read(p)
 }
 
-func (c *Codec) WriteWrapper(p []byte, T interface{}) (n int, err error) {
+func (c *Codec[V]) WriteWrapper(p []byte, T interface{}) (n int, err error) {
 	writer, ok := T.(io.Writer)
 
 	if !ok {
@@ -64,7 +77,7 @@ func (c *Codec) WriteWrapper(p []byte, T interface{}) (n int, err error) {
 	return writer.Write(p)
 }
 
-func (c *Codec) WriteToWrapper(w io.Writer, T interface{}) (n int64, err error) {
+func (c *Codec[V]) WriteToWrapper(w io.Writer, T interface{}) (n int64, err error) {
 	writerto, ok := T.(io.WriterTo)
 
 	if !ok {
@@ -74,7 +87,7 @@ func (c *Codec) WriteToWrapper(w io.Writer, T interface{}) (n int64, err error) 
 	return writerto.WriteTo(w)
 }
 
-func (c *Codec) ReadFromWrapper(r io.Reader, T interface{}) (n int64, err error) {
+func (c *Codec[V]) ReadFromWrapper(r io.Reader, T interface{}) (n int64, err error) {
 	readerfrom, ok := T.(io.ReaderFrom)
 
 	if !ok {

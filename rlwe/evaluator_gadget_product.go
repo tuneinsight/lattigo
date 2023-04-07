@@ -70,12 +70,12 @@ func (eval *Evaluator) ModDown(levelQ, levelP int, ctQP *OperandQP, ct *Cipherte
 
 		} else {
 
-			if !ct.IsNTT {
+			if ct.IsNTT {
+
 				// INTT ->NTT
 				ring.CopyLvl(levelQ, ct.Value[0], ctQP.Value[0].Q)
 				ring.CopyLvl(levelQ, ct.Value[1], ctQP.Value[1].Q)
 			} else {
-
 				// INTT -> INTT
 				ringQ.INTT(ctQP.Value[0].Q, ct.Value[0])
 				ringQ.INTT(ctQP.Value[1].Q, ct.Value[1])

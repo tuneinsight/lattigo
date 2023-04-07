@@ -54,6 +54,24 @@ func GetSortedKeys[K constraints.Ordered, V any](m map[K]V) (keys []K) {
 	return
 }
 
+// GetDistincts returns the list distincts element in v.
+func GetDistincts[V comparable](v []V) (vd []V) {
+	m := map[V]bool{}
+	for _, vi := range v {
+		m[vi] = true
+	}
+
+	vd = make([]V, len(m))
+
+	var i int
+	for mi := range m {
+		vd[i] = mi
+		i++
+	}
+
+	return
+}
+
 // SortSlice sorts a slice in place.
 func SortSlice[T constraints.Ordered](s []T) {
 	sort.Slice(s, func(i, j int) bool {

@@ -275,7 +275,10 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(pol polynomialVe
 
 			// If a non-zero coefficient was found, encodes the values, adds on the ciphertext, and returns
 			if toEncode {
-				polyEval.Encode(values, &rlwe.Plaintext{Value: res.Value[0]})
+				pt := &rlwe.Plaintext{}
+				pt.OperandQ.Value = res.Value[:1]
+				pt.Value = pt.OperandQ.Value[0]
+				polyEval.Encode(values, pt)
 			}
 
 			return

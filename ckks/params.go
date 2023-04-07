@@ -9,6 +9,7 @@ import (
 
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 const (
@@ -440,19 +441,33 @@ func (p Parameters) QLvl(level int) *big.Int {
 	return tmp
 }
 
-// RotationsForLinearTransform generates the list of rotations needed for the evaluation of a linear transform
+// GaloisElementsForLinearTransform generates the list of rotations needed for the evaluation of a linear transform
 // with the provided list of non-zero diagonals, logSlots encoding and BSGSratio.
 // If logBSGSRatio < 0, then provides the rotations needed for an evaluation without the BSGS approach.
-func (p Parameters) RotationsForLinearTransform(nonZeroDiags interface{}, logSlots, logBSGSRatio int) (rotations []int) {
+func (p Parameters) GaloisElementsForLinearTransform(nonZeroDiags interface{}, logSlots, logBSGSRatio int) (galEls []uint64) {
 	slots := 1 << logSlots
 	if logBSGSRatio < 0 {
 		_, _, rotN2 := BSGSIndex(nonZeroDiags, slots, slots)
-		return rotN2
+
+		galEls = make([]uint64, len(rotN2))
+
+		for i := range rotN2 {
+			galEls[i] = p.GaloisElementForColumnRotationBy(rotN2[i])
+		}
+
+		return
 	}
 
-	N1 := FindBestBSGSRatio(nonZeroDiags, slots, logBSGSRatio)
-	_, rotN1, rotN2 := BSGSIndex(nonZeroDiags, slots, N1)
-	return append(rotN1, rotN2...)
+	_, rotN1, rotN2 := BSGSIndex(nonZeroDiags, slots, FindBestBSGSRatio(nonZeroDiags, slots, logBSGSRatio))
+
+	rots := utils.GetDistincts(append(rotN1, rotN2...))
+
+	galEls = make([]uint64, len(rots))
+	for i, k := range rots {
+		galEls[i] = p.GaloisElementForColumnRotationBy(k)
+	}
+
+	return
 }
 
 // Equal compares two sets of parameters for equality.

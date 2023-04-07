@@ -117,9 +117,9 @@ func NewLinearTransform(params Parameters, nonZeroDiags []int, level, logSlots i
 	return LinearTransform{LogSlots: logSlots, N1: N1, Level: level, Vec: vec}
 }
 
-// Rotations returns the list of rotations needed for the evaluation
+// GaloisElements returns the list of Galois elements needed for the evaluation
 // of the linear transform.
-func (LT *LinearTransform) Rotations() (rotations []int) {
+func (LT *LinearTransform) GaloisElements(params Parameters) (galEls []uint64) {
 	slots := 1 << LT.LogSlots
 
 	rotIndex := make(map[int]bool)
@@ -146,14 +146,14 @@ func (LT *LinearTransform) Rotations() (rotations []int) {
 		}
 	}
 
-	rotations = make([]int, len(rotIndex))
+	galEls = make([]uint64, len(rotIndex))
 	var i int
 	for j := range rotIndex {
-		rotations[i] = j
+		galEls[i] = params.GaloisElementForColumnRotationBy(j)
 		i++
 	}
 
-	return rotations
+	return
 }
 
 // Encode encodes on a pre-allocated LinearTransform the linear transforms' matrix in diagonal form `value`.

@@ -1039,10 +1039,8 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		linTransf := GenLinearTransformBSGS(tc.encoder, diagMatrix, params.MaxLevel(), rlwe.NewScale(params.Q()[params.MaxLevel()]), 2.0, params.logSlots)
 
-		rotations := linTransf.Rotations()
-
 		evk := rlwe.NewEvaluationKeySet()
-		for _, galEl := range tc.params.GaloisElementsForRotations(rotations) {
+		for _, galEl := range linTransf.GaloisElements(params) {
 			evk.GaloisKeys[galEl] = tc.kgen.GenGaloisKeyNew(galEl, tc.sk)
 		}
 
@@ -1085,10 +1083,8 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		linTransf := GenLinearTransform(tc.encoder, diagMatrix, params.MaxLevel(), rlwe.NewScale(params.Q()[params.MaxLevel()]), params.LogSlots())
 
-		rotations := linTransf.Rotations()
-
 		evk := rlwe.NewEvaluationKeySet()
-		for _, galEl := range tc.params.GaloisElementsForRotations(rotations) {
+		for _, galEl := range linTransf.GaloisElements(params) {
 			evk.GaloisKeys[galEl] = tc.kgen.GenGaloisKeyNew(galEl, tc.sk)
 		}
 

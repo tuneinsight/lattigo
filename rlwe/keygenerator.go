@@ -104,8 +104,10 @@ func (kgen *KeyGenerator) GenGaloisKey(galEl uint64, sk *SecretKey, gk *GaloisKe
 	skIn := sk.Value
 	skOut := kgen.buffQP
 
-	ringQ := kgen.params.RingQ().AtLevel(gk.LevelQ())
-	ringP := kgen.params.RingP().AtLevel(gk.LevelP())
+	ringQP := kgen.params.RingQP().AtLevel(gk.LevelQ(), gk.LevelP())
+
+	ringQ := ringQP.RingQ
+	ringP := ringQP.RingP
 
 	// We encrypt [-a * pi_{k^-1}(sk) + sk, a]
 	// This enables to first apply the gadget product, re-encrypting

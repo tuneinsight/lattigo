@@ -42,3 +42,8 @@ func (ct *Ciphertext) CopyNew() *Ciphertext {
 func (ct *Ciphertext) Copy(ctxCopy *Ciphertext) {
 	ct.OperandQ.Copy(&ctxCopy.OperandQ)
 }
+
+// Equal performs a deep equal.
+func (ct *Ciphertext) Equal(other *Ciphertext) bool {
+	return ct.OperandQ.Equal(&other.OperandQ)
+}

@@ -17,3 +17,8 @@ func NewRelinearizationKey(params Parameters) *RelinearizationKey {
 func (rlk *RelinearizationKey) CopyNew() *RelinearizationKey {
 	return &RelinearizationKey{EvaluationKey: *rlk.EvaluationKey.CopyNew()}
 }
+
+// Equal performs a deep equal.
+func (rlk *RelinearizationKey) Equal(other *RelinearizationKey) bool {
+	return rlk.EvaluationKey.Equal(&other.EvaluationKey)
+}

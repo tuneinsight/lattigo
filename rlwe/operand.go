@@ -61,6 +61,11 @@ func NewOperandQAtLevelFromPoly(level int, poly []*ring.Poly) *OperandQ {
 	return &OperandQ{Value: Value}
 }
 
+// Equal performs a deep equal.
+func (op *OperandQ) Equal(other *OperandQ) bool {
+	return cmp.Equal(op.MetaData, other.MetaData) && cmp.Equal(op.Value, other.Value)
+}
+
 // Degree returns the degree of the target OperandQ.
 func (op *OperandQ) Degree() int {
 	return len(op.Value) - 1
@@ -339,7 +344,7 @@ func (op *OperandQP) SetScale(scale Scale) {
 	op.Scale = scale
 }
 
-// Equal evaluates a deep equal between the target OperandQP and input OperandQP.
+// Equal performs a deep equal.
 func (op *OperandQP) Equal(other *OperandQP) bool {
 	return cmp.Equal(op.MetaData, other.MetaData) && cmp.Equal(op.Value, other.Value)
 }

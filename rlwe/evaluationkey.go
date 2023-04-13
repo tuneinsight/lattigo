@@ -32,3 +32,8 @@ func NewEvaluationKey(params Parameters, levelQ, levelP int) *EvaluationKey {
 func (evk *EvaluationKey) CopyNew() *EvaluationKey {
 	return &EvaluationKey{GadgetCiphertext: *evk.GadgetCiphertext.CopyNew()}
 }
+
+// Equal performs a deep equal.
+func (evk *EvaluationKey) Equal(other *EvaluationKey) bool {
+	return evk.GadgetCiphertext.Equal(&other.GadgetCiphertext)
+}

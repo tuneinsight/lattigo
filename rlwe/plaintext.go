@@ -35,6 +35,11 @@ func (pt *Plaintext) Copy(other *Plaintext) {
 	other.Value = other.OperandQ.Value[0]
 }
 
+// Equal performs a deep equal.
+func (pt *Plaintext) Equal(other *Plaintext) bool {
+	return pt.OperandQ.Equal(&other.OperandQ) && pt.Value.Equal(other.Value)
+}
+
 // NewPlaintextRandom generates a new uniformly distributed Plaintext.
 func NewPlaintextRandom(prng sampling.PRNG, params Parameters, level int) (pt *Plaintext) {
 	pt = NewPlaintext(params, level)

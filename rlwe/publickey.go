@@ -17,3 +17,7 @@ func NewPublicKey(params Parameters) (pk *PublicKey) {
 func (p *PublicKey) CopyNew() *PublicKey {
 	return &PublicKey{*p.OperandQP.CopyNew()}
 }
+
+func (p *PublicKey) Equal(other *PublicKey) bool {
+	return p.OperandQP.Equal(&other.OperandQP)
+}

@@ -85,7 +85,7 @@ func NewEvaluator(params Parameters, evk EvaluationKeySetInterface) (eval *Evalu
 
 	var AutomorphismIndex map[uint64][]uint64
 
-	if evk != nil {
+	if !utils.IsNil(evk) {
 		if galEls := evk.GetGaloisKeysList(); len(galEls) != 0 {
 			AutomorphismIndex = make(map[uint64][]uint64)
 

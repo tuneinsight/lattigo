@@ -3,6 +3,7 @@ package utils
 
 import (
 	"math/bits"
+	"reflect"
 
 	"golang.org/x/exp/constraints"
 )
@@ -21,6 +22,12 @@ func Max[V constraints.Ordered](a, b V) (r V) {
 		return a
 	}
 	return b
+}
+
+// IsNil returns true either type or value are nil.
+// Only interfaces or pointers to objects should be passed as argument.
+func IsNil(i interface{}) bool {
+	return i == nil || reflect.ValueOf(i).IsNil()
 }
 
 // BitReverse64 returns the bit-reverse value of the input value, within a context of 2^bitLen.

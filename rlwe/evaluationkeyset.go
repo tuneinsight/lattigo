@@ -48,7 +48,7 @@ func (evk *EvaluationKeySet) GetGaloisKey(galEl uint64) (gk *GaloisKey, err erro
 // for which a Galois key exists in the object.
 func (evk *EvaluationKeySet) GetGaloisKeysList() (galEls []uint64) {
 
-	if evk.GaloisKeys == nil {
+	if evk == nil || evk.GaloisKeys == nil {
 		return []uint64{}
 	}
 

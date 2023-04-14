@@ -964,6 +964,13 @@ func testWriteAndRead(tc *TestContext, t *testing.T) {
 		buffer.TestInterfaceWriteAndRead(t, tc.kgen.GenGaloisKeyNew(5, tc.sk))
 	})
 
+	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/EvaluationKeySet"), func(t *testing.T) {
+		buffer.TestInterfaceWriteAndRead(t, &EvaluationKeySet{
+			RelinearizationKey: tc.kgen.GenRelinearizationKeyNew(tc.sk),
+			GaloisKeys:         map[uint64]*GaloisKey{5: tc.kgen.GenGaloisKeyNew(5, tc.sk)},
+		})
+	})
+
 	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/PowerBasis"), func(t *testing.T) {
 
 		prng, _ := sampling.NewPRNG()

@@ -152,23 +152,50 @@ func ComplexToFixedPointCRT(r *ring.Ring, values []complex128, scale float64, co
 		SingleFloatToFixedPointCRT(r, i, real(v), scale, coeffs)
 	}
 
+	var start int
 	if r.Type() == ring.Standard {
 		slots := len(values)
 		for i, v := range values {
 			SingleFloatToFixedPointCRT(r, i+slots, imag(v), scale, coeffs)
 		}
+
+		start = 2 * len(values)
+
+	} else {
+		start = len(values)
+	}
+
+	end := len(coeffs[0])
+	for i := start; i < end; i++ {
+		SingleFloatToFixedPointCRT(r, i, 0, 0, coeffs)
 	}
 }
 
 // FloatToFixedPointCRT encodes a vector of floats on a CRT polynomial.
 func FloatToFixedPointCRT(r *ring.Ring, values []float64, scale float64, coeffs [][]uint64) {
-	for i, v := range values {
-		SingleFloatToFixedPointCRT(r, i, v, scale, coeffs)
+
+	start := len(values)
+	end := len(coeffs[0])
+
+	for i := 0; i < start; i++ {
+		SingleFloatToFixedPointCRT(r, i, values[i], scale, coeffs)
+	}
+
+	for i := start; i < end; i++ {
+		SingleFloatToFixedPointCRT(r, i, 0, 0, coeffs)
 	}
 }
 
 // SingleFloatToFixedPointCRT encodes a single float on a CRT polynomial in the i-th coefficient.
 func SingleFloatToFixedPointCRT(r *ring.Ring, i int, value float64, scale float64, coeffs [][]uint64) {
+
+	if value == 0 {
+		for j := range coeffs {
+			coeffs[j][i] = 0
+		}
+
+		return
+	}
 
 	var isNegative bool
 	var xFlo *big.Float

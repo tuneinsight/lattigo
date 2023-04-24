@@ -10,8 +10,8 @@ All notable changes to this library are documented in this file.
     - `BinarySize() int`: size in bytes when written to an `io.Writer` or to a slice of bytes using `Read`.
     - `WriteTo(io.Writer) (int64, error)`: efficient writing on any `io.Writer`.
     - `ReadFrom(io.Reader) (int64, error)`: efficient reading from any `io.Reader`.
-    - `Read([]byte) (int, error)`: highly efficient encoding on preallocated slice of bytes.
-    - `Write([]byte) (int, error)`: highly efficient decoding from a slice of bytes.
+    - `Encode([]byte) (int, error)`: highly efficient encoding on preallocated slice of bytes.
+    - `Decode([]byte) (int, error)`: highly efficient decoding from a slice of bytes.
     Streamlined and simplified all test related this interface. They can now be implemented with a single line of code.
 - All: all tests and benchmarks in package other than the `RLWE` and `DRLWE` package that were merely wrapper of methods of the `RLWE` or `DRLWE` have been removed and/or moved to the `RLWE` and `DRLWE` packages.
 - All: polynomials, ciphertext and keys now all implement the method V Equal(V) bool.

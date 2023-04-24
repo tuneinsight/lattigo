@@ -57,31 +57,39 @@ func (c *Codec[V]) UnmarshalBinaryWrapper(p []byte, T interface{}) (err error) {
 	return binaryunmarshaler.UnmarshalBinary(p)
 }
 
-func (c *Codec[V]) ReadWrapper(p []byte, T interface{}) (n int, err error) {
-	reader, ok := T.(io.Reader)
-
-	if !ok {
-		return 0, fmt.Errorf("cannot Read: type T=%T does not implement io.Reader", T)
-	}
-
-	return reader.Read(p)
+type Encoder interface {
+	Encode(p []byte) (n int, err error)
 }
 
-func (c *Codec[V]) WriteWrapper(p []byte, T interface{}) (n int, err error) {
-	writer, ok := T.(io.Writer)
+func (c *Codec[V]) EncodeWrapper(p []byte, T interface{}) (n int, err error) {
+	encoder, ok := T.(Encoder)
 
 	if !ok {
-		return 0, fmt.Errorf("cannot Read: type T=%T does not implement io.Writer", T)
+		return 0, fmt.Errorf("cannot Encode: type T=%T does not implement Encoder", T)
 	}
 
-	return writer.Write(p)
+	return encoder.Encode(p)
+}
+
+type Decoder interface {
+	Decode(p []byte) (n int, err error)
+}
+
+func (c *Codec[V]) DecodeWrapper(p []byte, T interface{}) (n int, err error) {
+	decoder, ok := T.(Decoder)
+
+	if !ok {
+		return 0, fmt.Errorf("cannot Decode: type T=%T does not implement Decoder", T)
+	}
+
+	return decoder.Decode(p)
 }
 
 func (c *Codec[V]) WriteToWrapper(w io.Writer, T interface{}) (n int64, err error) {
 	writerto, ok := T.(io.WriterTo)
 
 	if !ok {
-		return 0, fmt.Errorf("cannot Read: type T=%T does not implement io.WriterTo", T)
+		return 0, fmt.Errorf("cannot WriteTo: type T=%T does not implement io.WriterTo", T)
 	}
 
 	return writerto.WriteTo(w)
@@ -91,7 +99,7 @@ func (c *Codec[V]) ReadFromWrapper(r io.Reader, T interface{}) (n int64, err err
 	readerfrom, ok := T.(io.ReaderFrom)
 
 	if !ok {
-		return 0, fmt.Errorf("cannot Read: type T=%T does not implement io.ReaderFrom", T)
+		return 0, fmt.Errorf("cannot ReadFrom: type T=%T does not implement io.ReaderFrom", T)
 	}
 
 	return readerfrom.ReadFrom(r)

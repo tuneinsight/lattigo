@@ -27,9 +27,9 @@ func (p *PowerBasis) ReadFrom(r io.Reader) (n int64, err error) {
 	return p.PowerBasis.ReadFrom(r)
 }
 
-func (p *PowerBasis) Write(data []byte) (n int, err error) {
+func (p *PowerBasis) Decode(data []byte) (n int, err error) {
 	p.PowerBasis = &rlwe.PowerBasis{}
-	return p.PowerBasis.Write(data)
+	return p.PowerBasis.Decode(data)
 }
 
 // GenPower recursively computes X^{n}.

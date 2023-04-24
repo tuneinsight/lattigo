@@ -250,7 +250,7 @@ func (share *GKGShare) BinarySize() int {
 func (share *GKGShare) MarshalBinary() (p []byte, err error) {
 	buf := bytes.NewBuffer([]byte{})
 	_, err = share.WriteTo(buf)
-	return buf.Bytes(), nil
+	return buf.Bytes(), err
 }
 
 // Encode encodes the object into a binary form on a preallocated slice of bytes

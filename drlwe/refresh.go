@@ -24,7 +24,7 @@ func (share *RefreshShare) BinarySize() int {
 func (share *RefreshShare) MarshalBinary() (p []byte, err error) {
 	buf := bytes.NewBuffer([]byte{})
 	_, err = share.WriteTo(buf)
-	return buf.Bytes(), nil
+	return buf.Bytes(), err
 }
 
 // Encode encodes the object into a binary form on a preallocated slice of bytes

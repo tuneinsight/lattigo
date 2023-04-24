@@ -169,7 +169,7 @@ func (ckss *CKSShare) BinarySize() int {
 func (ckss *CKSShare) MarshalBinary() (p []byte, err error) {
 	buf := bytes.NewBuffer([]byte{})
 	_, err = ckss.WriteTo(buf)
-	return buf.Bytes(), nil
+	return buf.Bytes(), err
 }
 
 // Encode encodes the object into a binary form on a preallocated slice of bytes

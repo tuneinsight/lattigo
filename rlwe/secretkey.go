@@ -50,7 +50,7 @@ func (sk *SecretKey) CopyNew() *SecretKey {
 func (sk *SecretKey) MarshalBinary() (p []byte, err error) {
 	buf := bytes.NewBuffer([]byte{})
 	_, err = sk.WriteTo(buf)
-	return buf.Bytes(), nil
+	return buf.Bytes(), err
 }
 
 // WriteTo writes the object on an io.Writer.

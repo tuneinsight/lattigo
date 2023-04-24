@@ -51,7 +51,7 @@ func (gk *GaloisKey) CopyNew() *GaloisKey {
 func (gk *GaloisKey) MarshalBinary() (p []byte, err error) {
 	buf := bytes.NewBuffer([]byte{})
 	_, err = gk.WriteTo(buf)
-	return buf.Bytes(), nil
+	return buf.Bytes(), err
 }
 
 // WriteTo writes the object on an io.Writer.

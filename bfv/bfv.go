@@ -2,7 +2,7 @@
 package bfv
 
 import (
-	"github.com/ldsec/lattigo/ring"
+	"github.com/tuneinsight/lattigo/ring"
 )
 
 // GaloisGen is an integer of order N/2 modulo M and that spans Z_M with the integer -1. The j-th ring automorphism takes the root zeta to zeta^(5j).

@@ -1,7 +1,7 @@
 package dckks
 
 import (
-	"github.com/ldsec/lattigo/ring"
+	"github.com/tuneinsight/lattigo/ring"
 )
 
 func randomFloat(max float64) float64 {

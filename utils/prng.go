@@ -2,8 +2,9 @@ package utils
 
 import (
 	"errors"
-	"golang.org/x/crypto/blake2b"
 	"hash"
+
+	"golang.org/x/crypto/blake2b"
 )
 
 // PRNG is a structure storing the parameters used to securely and deterministically generate shared

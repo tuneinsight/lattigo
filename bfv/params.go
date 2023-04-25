@@ -3,10 +3,11 @@ package bfv
 import (
 	"errors"
 	"fmt"
-	"github.com/ldsec/lattigo/ring"
-	"github.com/ldsec/lattigo/utils"
 	"math"
 	"math/bits"
+
+	"github.com/tuneinsight/lattigo/ring"
+	"github.com/tuneinsight/lattigo/utils"
 )
 
 // MaxLogN is the log2 of the largest supported polynomial modulus degree.

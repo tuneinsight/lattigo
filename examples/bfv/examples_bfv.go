@@ -5,8 +5,8 @@ import (
 	"math"
 	"math/bits"
 
-	"github.com/ldsec/lattigo/bfv"
-	"github.com/ldsec/lattigo/ring"
+	"github.com/tuneinsight/lattigo/bfv"
+	"github.com/tuneinsight/lattigo/ring"
 )
 
 func obliviousRiding() {

@@ -1,7 +1,7 @@
 package ckks
 
 import (
-	"github.com/ldsec/lattigo/ring"
+	"github.com/tuneinsight/lattigo/ring"
 )
 
 // Plaintext is is a ckksElement with only one Poly.

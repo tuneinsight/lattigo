@@ -1,9 +1,10 @@
 package dckks
 
 import (
-	"github.com/ldsec/lattigo/ckks"
-	"github.com/ldsec/lattigo/ring"
 	"testing"
+
+	"github.com/tuneinsight/lattigo/ckks"
+	"github.com/tuneinsight/lattigo/ring"
 )
 
 func BenchmarkDCKKS(b *testing.B) {

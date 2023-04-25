@@ -2,9 +2,10 @@ package ckks
 
 import (
 	"errors"
-	"github.com/ldsec/lattigo/ring"
-	"github.com/ldsec/lattigo/utils"
 	"math"
+
+	"github.com/tuneinsight/lattigo/ring"
+	"github.com/tuneinsight/lattigo/utils"
 )
 
 // Evaluator is an interface implementing the methodes to conduct homomorphic operations between ciphertext and/or plaintexts.

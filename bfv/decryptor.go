@@ -1,7 +1,7 @@
 package bfv
 
 import (
-	"github.com/ldsec/lattigo/ring"
+	"github.com/tuneinsight/lattigo/ring"
 )
 
 // Decryptor is an interface for decryptors

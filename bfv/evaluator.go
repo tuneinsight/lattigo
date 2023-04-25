@@ -1,9 +1,10 @@
 package bfv
 
 import (
-	"github.com/ldsec/lattigo/ring"
-	"github.com/ldsec/lattigo/utils"
 	"math/big"
+
+	"github.com/tuneinsight/lattigo/ring"
+	"github.com/tuneinsight/lattigo/utils"
 )
 
 // Evaluator is an interface implementing the public methodes of the evaluator.

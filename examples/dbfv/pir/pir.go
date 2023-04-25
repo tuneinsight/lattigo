@@ -1,14 +1,15 @@
 package main
 
 import (
-	"github.com/ldsec/lattigo/bfv"
-	"github.com/ldsec/lattigo/dbfv"
-	"github.com/ldsec/lattigo/ring"
 	"log"
 	"os"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/tuneinsight/lattigo/bfv"
+	"github.com/tuneinsight/lattigo/dbfv"
+	"github.com/tuneinsight/lattigo/ring"
 )
 
 func check(err error) {

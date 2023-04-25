@@ -1,9 +1,10 @@
 package dckks
 
 import (
-	"github.com/ldsec/lattigo/ckks"
-	"github.com/ldsec/lattigo/ring"
 	"math/big"
+
+	"github.com/tuneinsight/lattigo/ckks"
+	"github.com/tuneinsight/lattigo/ring"
 )
 
 // RefreshProtocol is a struct storing the parameters for the Refresh protocol.

@@ -1,9 +1,10 @@
 package dckks
 
 import (
-	"github.com/ldsec/lattigo/ckks"
-	"github.com/ldsec/lattigo/ring"
 	"math"
+
+	"github.com/tuneinsight/lattigo/ckks"
+	"github.com/tuneinsight/lattigo/ring"
 )
 
 type dckksContext struct {

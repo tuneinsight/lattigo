@@ -8,7 +8,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/ldsec/lattigo/ckks"
+	"github.com/tuneinsight/lattigo/ckks"
 )
 
 func randomFloat(min, max float64) float64 {

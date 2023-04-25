@@ -1,8 +1,9 @@
 package ckks
 
 import (
-	"github.com/ldsec/lattigo/ring"
 	"math"
+
+	"github.com/tuneinsight/lattigo/ring"
 )
 
 // KeyGenerator is an interface implementing the methods of the KeyGenerator.

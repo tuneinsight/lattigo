@@ -1,8 +1,8 @@
 package dckks
 
 import (
-	"github.com/ldsec/lattigo/ckks"
-	"github.com/ldsec/lattigo/ring"
+	"github.com/tuneinsight/lattigo/ckks"
+	"github.com/tuneinsight/lattigo/ring"
 )
 
 // RTGProtocol is the structure storing the parameters for the collective rotation-keys generation.

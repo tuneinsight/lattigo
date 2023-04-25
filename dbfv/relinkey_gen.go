@@ -2,8 +2,9 @@ package dbfv
 
 import (
 	"errors"
-	"github.com/ldsec/lattigo/bfv"
-	"github.com/ldsec/lattigo/ring"
+
+	"github.com/tuneinsight/lattigo/bfv"
+	"github.com/tuneinsight/lattigo/ring"
 )
 
 // RKGProtocol is the structure storing the parameters and state for a party in the collective relinearization key

@@ -6,8 +6,8 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/ldsec/lattigo/ckks"
-	"github.com/ldsec/lattigo/ring"
+	"github.com/tuneinsight/lattigo/ckks"
+	"github.com/tuneinsight/lattigo/ring"
 )
 
 func check(t *testing.T, err error) {

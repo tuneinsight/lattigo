@@ -1,9 +1,10 @@
 package bfv
 
 import (
-	"github.com/ldsec/lattigo/ring"
-	"github.com/ldsec/lattigo/utils"
 	"math/bits"
+
+	"github.com/tuneinsight/lattigo/ring"
+	"github.com/tuneinsight/lattigo/utils"
 )
 
 // Encoder is an interface implementing the encoder.

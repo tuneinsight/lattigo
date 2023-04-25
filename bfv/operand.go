@@ -1,7 +1,7 @@
 package bfv
 
 import (
-	"github.com/ldsec/lattigo/ring"
+	"github.com/tuneinsight/lattigo/ring"
 )
 
 // Operand is a common interface for Ciphertext and Plaintext.

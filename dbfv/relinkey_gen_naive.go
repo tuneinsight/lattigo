@@ -1,8 +1,8 @@
 package dbfv
 
 import (
-	"github.com/ldsec/lattigo/bfv"
-	"github.com/ldsec/lattigo/ring"
+	"github.com/tuneinsight/lattigo/bfv"
+	"github.com/tuneinsight/lattigo/ring"
 )
 
 // RKGProtocolNaive is a structure storing the parameters for the naive EKG protocol.

@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ldsec/lattigo/utils"
+	"github.com/tuneinsight/lattigo/utils"
 )
 
 func check(t *testing.T, err error) {

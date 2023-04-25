@@ -1,4 +1,5 @@
-module github.com/ldsec/lattigo
+// Deprecated: The latest supported version is github.com/tuneinsight/lattigo/v4.
+module github.com/tuneinsight/lattigo
 
 go 1.13
 

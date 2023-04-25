@@ -5,9 +5,10 @@ import (
 	"bytes"
 	"encoding/gob"
 	"errors"
-	"github.com/ldsec/lattigo/utils"
 	"math/big"
 	"math/bits"
+
+	"github.com/tuneinsight/lattigo/utils"
 )
 
 //==============================

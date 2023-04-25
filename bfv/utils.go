@@ -1,8 +1,9 @@
 package bfv
 
 import (
-	"github.com/ldsec/lattigo/ring"
 	"math/big"
+
+	"github.com/tuneinsight/lattigo/ring"
 )
 
 // GenLiftParams generates the lifting parameters.

@@ -5,7 +5,7 @@ import (
 	"math/big"
 )
 
-//FastBasisExtender Algorithm from https://eprint.iacr.org/2018/117.pdf
+// FastBasisExtender Algorithm from https://eprint.iacr.org/2018/117.pdf
 type FastBasisExtender struct {
 	contextQ        *Context
 	contextP        *Context

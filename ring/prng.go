@@ -2,8 +2,9 @@ package ring
 
 import (
 	"encoding/binary"
-	"github.com/ldsec/lattigo/utils"
 	"math/bits"
+
+	"github.com/tuneinsight/lattigo/utils"
 )
 
 // CRPGenerator is the structure storing the parameters for deterministicaly securely

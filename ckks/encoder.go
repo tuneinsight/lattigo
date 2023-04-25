@@ -1,9 +1,10 @@
 package ckks
 
 import (
-	"github.com/ldsec/lattigo/ring"
 	"math"
 	"math/big"
+
+	"github.com/tuneinsight/lattigo/ring"
 )
 
 // Encoder is an interface implenting the encoding algorithms.

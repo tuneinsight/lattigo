@@ -52,6 +52,6 @@ Each set of parameters is defined by the tuple ![equation](https://latex.codecog
 - {14, 438, 3.2}
 - {15, 881, 3.2}
 
-These parameter sets are hard-coded in the file [params.go](https://github.com/ldsec/lattigo/blob/master/bfv/params.go). By default the variance should always be set to 3.2 unless the user is perfectly aware of the security implications of changing this parameter.
+These parameter sets are hard-coded in the file [params.go](https://github.com/tuneinsight/lattigo/blob/master/bfv/params.go). By default the variance should always be set to 3.2 unless the user is perfectly aware of the security implications of changing this parameter.
 
 Finally, it is worth noting that these security parameters are computed for fully entropic ternary keys (with probability distribution {1/3,1/3,1/3} for values {-1,0,1}). Lattigo uses this fully-entropic key configuration by default. It is possible, though, to generate keys with lower entropy, by modifying their distribution to {(1-p)/2, p, (1-p)/2}, for any p between 0 and 1, which for p>>1/3 can result in low Hamming weight keys (*sparse* keys). *We recall that it has been shown that the security of sparse keys can be considerably lower than that of fully entropic keys, and the BFV security parameters should be re-evaluated if sparse keys are used*.

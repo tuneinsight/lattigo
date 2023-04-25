@@ -1,9 +1,10 @@
 package ring
 
 import (
-	"github.com/ldsec/lattigo/utils"
 	"math/big"
 	"math/bits"
+
+	"github.com/tuneinsight/lattigo/utils"
 )
 
 // Add adds p1 to p2 coefficient wise and applies a modular reduction, returning the result on p3.

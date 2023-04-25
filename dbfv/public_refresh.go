@@ -2,8 +2,9 @@ package dbfv
 
 import (
 	"encoding/binary"
-	"github.com/ldsec/lattigo/bfv"
-	"github.com/ldsec/lattigo/ring"
+
+	"github.com/tuneinsight/lattigo/bfv"
+	"github.com/tuneinsight/lattigo/ring"
 	//"fmt"
 )
 

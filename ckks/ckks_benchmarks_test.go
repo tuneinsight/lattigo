@@ -1,8 +1,9 @@
 package ckks
 
 import (
-	"github.com/ldsec/lattigo/ring"
 	"testing"
+
+	"github.com/tuneinsight/lattigo/ring"
 )
 
 func BenchmarkCKKSScheme(b *testing.B) {

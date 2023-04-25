@@ -65,7 +65,7 @@ Please use the following BibTex entry for citing Lattigo:
 
     @misc{lattigo,
 	    title = {Lattigo 1.3.0},
-	    howpublished = {Online: \url{http://github.com/ldsec/lattigo}},
+	    howpublished = {Online: \url{http://github.com/tuneinsight/lattigo}},
 	    month = dec,
 	    year = 2019,
 	    note = {EPFL-LDS}

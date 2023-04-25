@@ -1,8 +1,9 @@
 package ring
 
 import (
-	"github.com/ldsec/lattigo/utils"
 	"math/bits"
+
+	"github.com/tuneinsight/lattigo/utils"
 )
 
 // GenGaloisParams generates the generators for the galois endomorphisms.

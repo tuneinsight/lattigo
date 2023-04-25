@@ -1,9 +1,10 @@
 package dbfv
 
 import (
-	"github.com/ldsec/lattigo/bfv"
-	"github.com/ldsec/lattigo/ring"
 	"testing"
+
+	"github.com/tuneinsight/lattigo/bfv"
+	"github.com/tuneinsight/lattigo/ring"
 )
 
 func Benchmark_DBFV(b *testing.B) {

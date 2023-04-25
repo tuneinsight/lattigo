@@ -3,8 +3,9 @@ package dbfv
 import (
 	"encoding/binary"
 	"errors"
-	"github.com/ldsec/lattigo/bfv"
-	"github.com/ldsec/lattigo/ring"
+
+	"github.com/tuneinsight/lattigo/bfv"
+	"github.com/tuneinsight/lattigo/ring"
 )
 
 // RTGProtocol is the structure storing the parameters for the collective rotation-keys generation.

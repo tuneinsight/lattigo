@@ -286,7 +286,7 @@ func (share *GKGShare) WriteTo(w io.Writer) (n int64, err error) {
 
 		n += inc2
 
-		return
+		return n, err
 
 	default:
 		return share.WriteTo(bufio.NewWriter(w))

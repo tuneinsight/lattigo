@@ -149,7 +149,7 @@ func (evk *EvaluationKeySet) WriteTo(w io.Writer) (int64, error) {
 			n += int64(inc)
 		}
 
-		return n, nil
+		return n, w.Flush()
 
 	default:
 		return evk.WriteTo(bufio.NewWriter(w))

@@ -78,7 +78,7 @@ func (v *Vector[T]) WriteTo(w io.Writer) (int64, error) {
 			n += inc
 		}
 
-		return n, nil
+		return n, w.Flush()
 
 	default:
 		return v.WriteTo(bufio.NewWriter(w))

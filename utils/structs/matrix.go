@@ -90,7 +90,7 @@ func (m Matrix[T]) WriteTo(w io.Writer) (int64, error) {
 			}
 		}
 
-		return n, nil
+		return n, w.Flush()
 
 	default:
 		return m.WriteTo(bufio.NewWriter(w))
@@ -112,7 +112,7 @@ func (m *Matrix[T]) ReadFrom(r io.Reader) (int64, error) {
 		var size, n int
 
 		if n, err = buffer.ReadInt(r, &size); err != nil {
-			return int64(n), fmt.Errorf("cannot ReadFrom: size: %w", err)
+			return int64(n), fmt.Errorf("cannot buffer.ReadInt: size: %w", err)
 		}
 
 		if len(*m) != size {
@@ -127,7 +127,7 @@ func (m *Matrix[T]) ReadFrom(r io.Reader) (int64, error) {
 
 			var inc int
 			if inc, err = buffer.ReadInt(r, &size); err != nil {
-				return int64(n), fmt.Errorf("cannot ReadFrom: size: %w", err)
+				return int64(n), fmt.Errorf("cannot buffer.ReadInt: size: %w", err)
 			}
 
 			n += inc
@@ -144,6 +144,7 @@ func (m *Matrix[T]) ReadFrom(r io.Reader) (int64, error) {
 
 				var inc int64
 				if inc, err = codec.ReadFromWrapper(r, mi[i][j]); err != nil {
+
 					return int64(n) + inc, err
 				}
 

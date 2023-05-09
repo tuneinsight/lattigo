@@ -106,20 +106,47 @@ func (eval *Evaluator) Expand(ctIn *Ciphertext, logN, logGap int) (ctOut []*Ciph
 	return
 }
 
-// Merge merges a batch of RLWE, packing the first coefficient of each RLWE into a single RLWE.
-// The operation will require N/gap + log(gap) key-switches, where gap is the minimum gap between
-// two non-zero coefficients of the final Ciphertext.
-// The method takes as input a map of Ciphertext, indexing in which coefficient of the final
-// Ciphertext the first coefficient of each Ciphertext of the map must be packed.
-// This method accepts ciphertexts both in and out of the NTT domain, but the result
-// is always returned in the NTT domain.
-func (eval *Evaluator) Merge(ctIn map[int]*Ciphertext) (ctOut *Ciphertext) {
-
-	if eval.params.RingType() != ring.Standard {
-		panic("Merge is only supported for ring.Type = ring.Standard (X^{2^{i}} does not exist in the sub-ring Z[X + X^{-1}])")
-	}
+// Merge merges a batch of RLWE ciphertexts, packing the batch of ciphertexts into a single ciphertext.
+//
+// Input:
+//
+//	ctIn: a map of rlwe.Ciphertext, where the index in the map is the future position of the first coefficient
+//	      of the indexed ciphertext in the final ciphertext (see example).
+//	logGap: all coefficients of the input ciphertexts that are not a multiple of X^{2^{logGap}} will be zeroed
+//	        during the merging (see example). This is equivalent to skipping the first 2^{logGap} steps of the
+//	        algorithm, i.e. having as input ciphertexts that are already partially merged.
+//
+// Example: we want to pack 4 ciphertexts into one, and keep only coefficients which are a multiple of X^{4}.
+//
+//	To do so, we must set logGap = 2.
+//	Here the `X` slots are treated as garbage slots that we want to discard during the procedure.
+//
+//	input: map[int]{
+//	   0: [x00, X, X, X, x01, X, X, X],   with logGap = 2
+//	   1: [x10, X, X, X, x11, X, X, X],
+//	   2: [x20, X, X, X, x21, X, X, X],
+//	   3: [x30, X, X, X, x31, X, X, X],
+//		}
+//
+//	 Step 1:
+//	         map[0]: 2^{-1} * (map[0] + X^2 * map[2] + phi_{5^2}(map[0] - X^2 * map[2]) = [x00, X, x20, X, x01, X, x21, X]
+//	         map[1]: 2^{-1} * (map[1] + X^2 * map[3] + phi_{5^2}(map[1] - X^2 * map[3]) = [x10, X, x30, X, x11, X, x31, X]
+//	 Step 2:
+//	         map[0]: 2^{-1} * (map[0] + X^1 * map[1] + phi_{5^4}(map[0] - X^1 * map[1]) = [x00, x10, x20, x30, x01, x11, x21, x22]
+func (eval *Evaluator) Merge(ctIn map[int]*Ciphertext, logGap int) (ctOut *Ciphertext) {
 
 	params := eval.params
+
+	if params.RingType() != ring.Standard {
+		panic("cannot Merge: procedure is only supported for ring.Type = ring.Standard (X^{2^{i}} does not exist in the sub-ring Z[X + X^{-1}])")
+	}
+
+	logN := params.LogN()
+
+	if logGap > logN {
+		panic("cannot Merge: logGap > logN")
+	}
+
 	ringQ := params.RingQ()
 
 	var levelQ int
@@ -132,10 +159,11 @@ func (eval *Evaluator) Merge(ctIn map[int]*Ciphertext) (ctOut *Ciphertext) {
 		levelQ = utils.Min(levelQ, ctIn[i].Level())
 	}
 
-	xPow2 := genXPow2(ringQ.AtLevel(levelQ), params.LogN(), false)
+	xPow2 := genXPow2(ringQ.AtLevel(levelQ), params.LogN(), false) // log(N) polynomial to generate, quick
 
 	// Multiplies by (Slots * N) ^-1 mod Q
 	for i := range ctIn {
+
 		if ctIn[i] != nil {
 
 			if ctIn[i].Degree() != 1 {
@@ -144,13 +172,21 @@ func (eval *Evaluator) Merge(ctIn map[int]*Ciphertext) (ctOut *Ciphertext) {
 
 			v0, v1 := ctIn[i].Value[0], ctIn[i].Value[1]
 			for j, s := range ringQ.SubRings[:levelQ+1] {
-				s.MulScalarMontgomery(v0.Coeffs[j], s.NInv, v0.Coeffs[j])
-				s.MulScalarMontgomery(v1.Coeffs[j], s.NInv, v1.Coeffs[j])
+
+				var NInv uint64
+				if logGap != logN {
+					NInv = ring.MForm(ring.ModExp(1<<logGap, s.Modulus-2, s.Modulus), s.Modulus, s.BRedConstant)
+				} else {
+					NInv = s.NInv
+				}
+
+				s.MulScalarMontgomery(v0.Coeffs[j], NInv, v0.Coeffs[j])
+				s.MulScalarMontgomery(v1.Coeffs[j], NInv, v1.Coeffs[j])
 			}
 		}
 	}
 
-	ciphertextslist := make([]*Ciphertext, ringQ.N())
+	ciphertextslist := make([]*Ciphertext, 1<<logGap)
 
 	for i := range ctIn {
 		ciphertextslist[i] = ctIn[i]
@@ -161,16 +197,18 @@ func (eval *Evaluator) Merge(ctIn map[int]*Ciphertext) (ctOut *Ciphertext) {
 		ciphertextslist[0].IsNTT = true
 	}
 
-	return eval.mergeRLWERecurse(ciphertextslist, xPow2)
+	return eval.mergeRLWERecurse(ciphertextslist, logN-logGap, xPow2)
 }
 
-func (eval *Evaluator) mergeRLWERecurse(ciphertexts []*Ciphertext, xPow []*ring.Poly) *Ciphertext {
+func (eval *Evaluator) mergeRLWERecurse(ciphertexts []*Ciphertext, logSkip int, xPow []*ring.Poly) *Ciphertext {
 
 	L := bits.Len64(uint64(len(ciphertexts))) - 1
 
 	if L == 0 {
 		return ciphertexts[0]
 	}
+
+	L += logSkip
 
 	odd := make([]*Ciphertext, len(ciphertexts)>>1)
 	even := make([]*Ciphertext, len(ciphertexts)>>1)
@@ -180,8 +218,8 @@ func (eval *Evaluator) mergeRLWERecurse(ciphertexts []*Ciphertext, xPow []*ring.
 		even[i] = ciphertexts[2*i+1]
 	}
 
-	ctEven := eval.mergeRLWERecurse(odd, xPow)
-	ctOdd := eval.mergeRLWERecurse(even, xPow)
+	ctEven := eval.mergeRLWERecurse(odd, logSkip, xPow)
+	ctOdd := eval.mergeRLWERecurse(even, logSkip, xPow)
 
 	if ctEven == nil && ctOdd == nil {
 		return nil

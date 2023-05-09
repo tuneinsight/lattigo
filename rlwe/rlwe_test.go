@@ -65,7 +65,7 @@ func TestRLWE(t *testing.T) {
 				testMarshaller(tc, t)
 				testWriteAndRead(tc, t)
 
-				for _, level := range []int{0, params.MaxLevel()} {
+				for _, level := range []int{0, params.MaxLevel()}[:] {
 
 					for _, testSet := range []func(tc *TestContext, level int, t *testing.T){
 						testEncryptor,
@@ -781,7 +781,7 @@ func testLinearTransform(tc *TestContext, level int, t *testing.T) {
 		}
 	})
 
-	t.Run(testString(params, level, "Evaluator/Merge"), func(t *testing.T) {
+	t.Run(testString(params, level, "Evaluator/Merge/LogGap=LogN"), func(t *testing.T) {
 
 		if params.RingType() != ring.Standard {
 			t.Skip("Merge not supported for ring.Type = ring.ConjugateInvariant")
@@ -817,11 +817,73 @@ func testLinearTransform(tc *TestContext, level int, t *testing.T) {
 
 		// Galois Keys
 		evk := NewEvaluationKeySet()
-		for _, galEl := range params.GaloisElementsForMerge() {
+		for _, galEl := range params.GaloisElementsForMerge(params.LogN()) {
 			evk.GaloisKeys[galEl] = kgen.GenGaloisKeyNew(galEl, sk)
 		}
 
-		ct := eval.WithKey(evk).Merge(ciphertexts)
+		ct := eval.WithKey(evk).Merge(ciphertexts, params.LogN())
+
+		dec.Decrypt(ct, pt)
+
+		if pt.IsNTT {
+			ringQ.INTT(pt.Value, pt.Value)
+		}
+
+		ringQ.Sub(pt.Value, ptMerged.Value, pt.Value)
+
+		NoiseBound := 15.0
+
+		// Logs the noise
+		require.GreaterOrEqual(t, NoiseBound, ringQ.Log2OfStandardDeviation(pt.Value))
+	})
+
+	t.Run(testString(params, level, "Evaluator/Merge/LogGap=LogN-1"), func(t *testing.T) {
+
+		if params.RingType() != ring.Standard {
+			t.Skip("Merge not supported for ring.Type = ring.ConjugateInvariant")
+		}
+
+		pt := NewPlaintext(params, level)
+		N := params.N()
+		ringQ := tc.params.RingQ().AtLevel(level)
+
+		ptMerged := NewPlaintext(params, level)
+		ciphertexts := make(map[int]*Ciphertext)
+		slotIndex := make(map[int]bool)
+		for i := 0; i < N/2; i += params.N() / 16 {
+
+			ciphertexts[i] = enc.EncryptZeroNew(level)
+
+			scalar := (1 << 30) + uint64(i)*(1<<20)
+
+			if ciphertexts[i].IsNTT {
+				ringQ.INTT(ciphertexts[i].Value[0], ciphertexts[i].Value[0])
+			}
+
+			for j := 0; j < level+1; j++ {
+				ciphertexts[i].Value[0].Coeffs[j][0] = ring.CRed(ciphertexts[i].Value[0].Coeffs[j][0]+scalar, ringQ.SubRings[j].Modulus)
+				ciphertexts[i].Value[0].Coeffs[j][N/2] = ring.CRed(ciphertexts[i].Value[0].Coeffs[j][N/2]+scalar, ringQ.SubRings[j].Modulus)
+			}
+
+			if ciphertexts[i].IsNTT {
+				ringQ.NTT(ciphertexts[i].Value[0], ciphertexts[i].Value[0])
+			}
+
+			slotIndex[i] = true
+
+			for j := 0; j < level+1; j++ {
+				ptMerged.Value.Coeffs[j][i] = scalar
+				ptMerged.Value.Coeffs[j][i+N/2] = scalar
+			}
+		}
+
+		// Galois Keys
+		evk := NewEvaluationKeySet()
+		for _, galEl := range params.GaloisElementsForMerge(params.LogN() - 1) {
+			evk.GaloisKeys[galEl] = kgen.GenGaloisKeyNew(galEl, sk)
+		}
+
+		ct := eval.WithKey(evk).Merge(ciphertexts, params.LogN()-1)
 
 		dec.Decrypt(ct, pt)
 

@@ -578,17 +578,22 @@ func (p Parameters) GaloisElementsForExpand(logN int) (galEls []uint64) {
 
 // GaloisElementsForMerge returns the list of Galois elements required
 // to perform the `Merge` operation.
-func (p Parameters) GaloisElementsForMerge() (galEls []uint64) {
-	galEls = make([]uint64, p.logN)
-	for i := 0; i < int(p.logN)-1; i++ {
-		galEls[i] = p.GaloisElementForColumnRotationBy(1 << i)
+func (p Parameters) GaloisElementsForMerge(logGap int) (galEls []uint64) {
+
+	if logGap > p.logN || logGap < 0 {
+		panic("cannot GaloisElementsForMerge: logGap > logN || logGap < 0")
+	}
+
+	galEls = make([]uint64, 0, logGap)
+	for i := 0; i < logGap; i++ {
+		galEls = append(galEls, p.GaloisElementForColumnRotationBy(1<<i))
 	}
 
 	switch p.ringType {
 	case ring.Standard:
-		galEls[p.logN-1] = p.GaloisElementForRowRotation()
-	case ring.ConjugateInvariant:
-		galEls[p.logN-1] = p.GaloisElementForColumnRotationBy(1 << (p.logN - 1))
+		if logGap == p.logN {
+			galEls = append(galEls, p.GaloisElementForRowRotation())
+		}
 	default:
 		panic("cannot GaloisElementsForMerge: invalid ring type")
 	}

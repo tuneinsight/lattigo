@@ -70,7 +70,7 @@ type Evaluator interface {
 	Automorphism(ctIn *rlwe.Ciphertext, galEl uint64, ctOut *rlwe.Ciphertext)
 	AutomorphismHoisted(level int, ctIn *rlwe.Ciphertext, c1DecompQP []ringqp.Poly, galEl uint64, ctOut *rlwe.Ciphertext)
 	RotateHoistedLazyNew(level int, rotations []int, ctIn *rlwe.Ciphertext, c2DecompQP []ringqp.Poly) (cOut map[int]*rlwe.OperandQP)
-	Merge(ctIn map[int]*rlwe.Ciphertext) (ctOut *rlwe.Ciphertext)
+	Merge(ctIn map[int]*rlwe.Ciphertext, logGap int) (ctOut *rlwe.Ciphertext)
 
 	// Others
 	CheckBinary(op0, op1, opOut rlwe.Operand, opOutMinDegree int) (degree, level int)

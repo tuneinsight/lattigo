@@ -31,6 +31,7 @@ All notable changes to this library are documented in this file.
 - RLWE: simplified the `rlwe.KeyGenerator`: methods to generate specific sets of `rlwe.GaloisKey` have been removed, instead the corresponding method on `rlwe.Parameters` allows to get the appropriate `GaloisElement`s.
 - RLWE: added methods on `rlwe.Parameters` to get the noise standard deviation for fresh ciphertexts.
 - RLWE: improved the API consistency of the `rlwe.KeyGenerator`. Methods that allocate elements have the suffix `New`. Added corresponding in place methods.
+- RLWE: generalized `evaluator.Merge` to be able to take into account the packing of the ciphertext.
 - DBFV/DBGV/DCKKS: replaced `[dbfv/dbfv/dckks].MaskedTransformShare` by `drlwe.RefreshShare`.
 - DRLWE: added `drlwe.RefreshShare`.
 - DRLWE: added accurate noise bounds for the tests.

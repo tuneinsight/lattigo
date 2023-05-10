@@ -528,14 +528,14 @@ func genFFTDiagMatrix(logL, fftLevel int, a, b, c []complex128, ltType DFTType, 
 	vectors = make(map[int][]complex128)
 
 	if bitreversed {
-		ckks.SliceBitReverseInPlaceComplex128(a, 1<<logL)
-		ckks.SliceBitReverseInPlaceComplex128(b, 1<<logL)
-		ckks.SliceBitReverseInPlaceComplex128(c, 1<<logL)
+		utils.BitReverseInPlaceSlice(a, 1<<logL)
+		utils.BitReverseInPlaceSlice(b, 1<<logL)
+		utils.BitReverseInPlaceSlice(c, 1<<logL)
 
 		if len(a) > 1<<logL {
-			ckks.SliceBitReverseInPlaceComplex128(a[1<<logL:], 1<<logL)
-			ckks.SliceBitReverseInPlaceComplex128(b[1<<logL:], 1<<logL)
-			ckks.SliceBitReverseInPlaceComplex128(c[1<<logL:], 1<<logL)
+			utils.BitReverseInPlaceSlice(a[1<<logL:], 1<<logL)
+			utils.BitReverseInPlaceSlice(b[1<<logL:], 1<<logL)
+			utils.BitReverseInPlaceSlice(c[1<<logL:], 1<<logL)
 		}
 	}
 
@@ -580,14 +580,14 @@ func multiplyFFTMatrixWithNextFFTLevel(vec map[int][]complex128, logL, N, nextLe
 	}
 
 	if bitreversed {
-		ckks.SliceBitReverseInPlaceComplex128(a, 1<<logL)
-		ckks.SliceBitReverseInPlaceComplex128(b, 1<<logL)
-		ckks.SliceBitReverseInPlaceComplex128(c, 1<<logL)
+		utils.BitReverseInPlaceSlice(a, 1<<logL)
+		utils.BitReverseInPlaceSlice(b, 1<<logL)
+		utils.BitReverseInPlaceSlice(c, 1<<logL)
 
 		if len(a) > 1<<logL {
-			ckks.SliceBitReverseInPlaceComplex128(a[1<<logL:], 1<<logL)
-			ckks.SliceBitReverseInPlaceComplex128(b[1<<logL:], 1<<logL)
-			ckks.SliceBitReverseInPlaceComplex128(c[1<<logL:], 1<<logL)
+			utils.BitReverseInPlaceSlice(a[1<<logL:], 1<<logL)
+			utils.BitReverseInPlaceSlice(b[1<<logL:], 1<<logL)
+			utils.BitReverseInPlaceSlice(c[1<<logL:], 1<<logL)
 		}
 	}
 

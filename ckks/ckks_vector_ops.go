@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math/bits"
 	"unsafe"
+
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 const (
@@ -36,7 +38,7 @@ func SpecialiFFTVec(values []complex128, N, M int, rotGroup []int, roots []compl
 		values[i] /= complex(float64(N), 0)
 	}
 
-	SliceBitReverseInPlaceComplex128(values, N)
+	utils.BitReverseInPlaceSlice(values, N)
 }
 
 // SpecialFFTVec performs the CKKS special FFT transform in place.
@@ -46,7 +48,7 @@ func SpecialFFTVec(values []complex128, N, M int, rotGroup []int, roots []comple
 		panic(fmt.Sprintf("invalid call of SpecialFFTVec: len(values)=%d or len(rotGroup)=%d < N=%d or len(roots)=%d < M+1=%d", len(values), len(rotGroup), N, len(roots), M))
 	}
 
-	SliceBitReverseInPlaceComplex128(values, N)
+	utils.BitReverseInPlaceSlice(values, N)
 	logN := int(bits.Len64(uint64(N))) - 1
 	logM := int(bits.Len64(uint64(M))) - 1
 	for loglen := 1; loglen <= logN; loglen++ {
@@ -75,7 +77,7 @@ func SpecialFFTUL8Vec(values []complex128, N, M int, rotGroup []int, roots []com
 		panic(fmt.Sprintf("invalid call of SpecialFFTUL8Vec: len(values)=%d or len(rotGroup)=%d < N=%d or len(roots)=%d < M+1=%d", len(values), len(rotGroup), N, len(roots), M))
 	}
 
-	SliceBitReverseInPlaceComplex128(values, N)
+	utils.BitReverseInPlaceSlice(values, N)
 
 	logN := int(bits.Len64(uint64(N))) - 1
 	logM := int(bits.Len64(uint64(M))) - 1
@@ -374,7 +376,7 @@ func SpecialiFFTUL8Vec(values []complex128, N, M int, rotGroup []int, roots []co
 
 	divideComplex128SliceVec(values, complex(float64(N), 0))
 
-	SliceBitReverseInPlaceComplex128(values, N)
+	utils.BitReverseInPlaceSlice(values, N)
 }
 
 // divideComplex128SliceVec divides the entries in values by scaleVal in place.

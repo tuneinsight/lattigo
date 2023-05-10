@@ -8,6 +8,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
+	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
@@ -712,7 +713,7 @@ func (ecd *encoderBigComplex) FFT(values []*ring.Complex, N int) {
 	u := ring.NewComplex(nil, nil)
 	v := ring.NewComplex(nil, nil)
 
-	SliceBitReverseInPlaceRingComplex(values, N)
+	utils.BitReverseInPlaceSlice(values, N)
 
 	for len := 2; len <= N; len <<= 1 {
 		for i := 0; i < N; i += len {
@@ -760,7 +761,7 @@ func (ecd *encoderBigComplex) InvFFT(values []*ring.Complex, N int) {
 		values[i][1].Quo(values[i][1], NBig)
 	}
 
-	SliceBitReverseInPlaceRingComplex(values, N)
+	utils.BitReverseInPlaceSlice(values, N)
 }
 
 // ShallowCopy creates a shallow copy of this encoderBigComplex in which all the read-only data-structures are

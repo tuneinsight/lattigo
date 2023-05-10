@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
@@ -193,7 +194,7 @@ func testCoeffsToSlots(params ckks.Parameters, t *testing.T) {
 		}
 
 		// Applies bit-reverse on the original complex vector
-		ckks.SliceBitReverseInPlaceComplex128(values, params.Slots())
+		utils.BitReverseInPlaceSlice(values, params.Slots())
 
 		// Maps to a float vector
 		// Add gaps if sparse packing
@@ -396,7 +397,7 @@ func testSlotsToCoeffs(params ckks.Parameters, t *testing.T) {
 		}
 
 		// Result is bit-reversed, so applies the bit-reverse permutation on the reference vector
-		ckks.SliceBitReverseInPlaceComplex128(valuesReal, params.Slots())
+		utils.BitReverseInPlaceSlice(valuesReal, params.Slots())
 
 		verifyTestVectors(params, encoder, decryptor, valuesReal, valuesTest, params.LogSlots(), 0, t)
 	})

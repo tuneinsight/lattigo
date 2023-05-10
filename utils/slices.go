@@ -148,3 +148,25 @@ func RotateSlotsNew[V any](s []V, k int) (r []V) {
 	RotateSliceInPlace(r[slots:], k)
 	return
 }
+
+// BitReverseInPlaceSlice applies an in-place bit-reverse permutation on the input slice.
+func BitReverseInPlaceSlice[V any](slice []V, N int) {
+
+	var bit, j int
+
+	for i := 1; i < N; i++ {
+
+		bit = N >> 1
+
+		for j >= bit {
+			j -= bit
+			bit >>= 1
+		}
+
+		j += bit
+
+		if i < j {
+			slice[i], slice[j] = slice[j], slice[i]
+		}
+	}
+}

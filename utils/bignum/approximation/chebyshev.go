@@ -15,7 +15,7 @@ import (
 // - func(*big.Float)*big.Float
 // - func(*bignum.Complex)*bignum.Complex
 // The reference precision is taken from the values stored in the Interval struct.
-func Chebyshev(f func(*bignum.Complex) *bignum.Complex, interval polynomial.Interval, degree int) (pol *polynomial.Polynomial) {
+func Chebyshev(f func(*bignum.Complex) *bignum.Complex, interval bignum.Interval, degree int) (pol *polynomial.Polynomial) {
 
 	nodes := chebyshevNodes(degree+1, interval)
 
@@ -32,35 +32,35 @@ func Chebyshev(f func(*bignum.Complex) *bignum.Complex, interval polynomial.Inte
 	return polynomial.NewPolynomial(polynomial.Chebyshev, chebyCoeffs(nodes, fi, interval), &interval)
 }
 
-func chebyshevNodes(n int, interval polynomial.Interval) (u []*big.Float) {
+func chebyshevNodes(n int, inter bignum.Interval) (nodes []*big.Float) {
 
-	prec := interval.A.Prec()
-
-	u = make([]*big.Float, n)
-
-	half := new(big.Float).SetPrec(prec).SetFloat64(0.5)
-
-	x := new(big.Float).Add(interval.A, interval.B)
-	x.Mul(x, half)
-	y := new(big.Float).Sub(interval.B, interval.A)
-	y.Mul(y, half)
+	prec := inter.A.Prec()
 
 	PiOverN := bignum.Pi(prec)
-	PiOverN.Quo(PiOverN, new(big.Float).SetInt64(int64(n)))
+	PiOverN.Quo(PiOverN, bignum.NewFloat(float64(n-1), prec))
 
-	for k := 1; k < n+1; k++ {
-		up := new(big.Float).SetPrec(prec).SetFloat64(float64(k) - 0.5)
-		up.Mul(up, PiOverN)
-		up = bignum.Cos(up)
-		up.Mul(up, y)
-		up.Add(up, x)
-		u[k-1] = up
+	nodes = make([]*big.Float, n)
+
+	x := new(big.Float).Add(inter.B, inter.A)
+	y := new(big.Float).Sub(inter.B, inter.A)
+
+	two := bignum.NewFloat(2, prec)
+
+	x.Quo(x, two)
+	y.Quo(y, two)
+
+	for i := 0; i < n; i++ {
+		nodes[i] = bignum.NewFloat(float64(n-i-1), prec)
+		nodes[i].Mul(nodes[i], PiOverN)
+		nodes[i] = bignum.Cos(nodes[i])
+		nodes[i].Mul(nodes[i], y)
+		nodes[i].Add(nodes[i], x)
 	}
 
 	return
 }
 
-func chebyCoeffs(nodes []*big.Float, fi []*bignum.Complex, interval polynomial.Interval) (coeffs []*bignum.Complex) {
+func chebyCoeffs(nodes []*big.Float, fi []*bignum.Complex, interval bignum.Interval) (coeffs []*bignum.Complex) {
 
 	prec := interval.A.Prec()
 
@@ -127,4 +127,37 @@ func chebyCoeffs(nodes []*big.Float, fi []*bignum.Complex, interval polynomial.I
 	}
 
 	return
+}
+
+func chebyshevBasisInPlace(deg int, x *big.Float, inter bignum.Interval, poly []*big.Float) {
+
+	precision := x.Prec()
+
+	two := bignum.NewFloat(2, precision)
+
+	var tmp, u = new(big.Float), new(big.Float)
+	var T, Tprev, Tnext = new(big.Float), new(big.Float), new(big.Float)
+
+	// u = (2*x - (a+b))/(b-a)
+	u.Set(x)
+	u.Mul(u, two)
+	u.Sub(u, inter.A)
+	u.Sub(u, inter.B)
+	tmp.Set(inter.B)
+	tmp.Sub(tmp, inter.A)
+	u.Quo(u, tmp)
+
+	Tprev.SetPrec(precision)
+	Tprev.SetFloat64(1)
+	T.Set(u)
+	poly[0].Set(Tprev)
+
+	for i := 1; i < deg; i++ {
+		Tnext.Mul(two, u)
+		Tnext.Mul(Tnext, T)
+		Tnext.Sub(Tnext, Tprev)
+		Tprev.Set(T)
+		T.Set(Tnext)
+		poly[i].Set(Tprev)
+	}
 }

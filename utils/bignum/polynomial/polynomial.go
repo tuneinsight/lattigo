@@ -19,13 +19,9 @@ const (
 	Chebyshev = Basis(1)
 )
 
-type Interval struct {
-	A, B *big.Float
-}
-
 type Polynomial struct {
 	Basis
-	Interval
+	bignum.Interval
 	Coeffs []*bignum.Complex
 	IsOdd  bool
 	IsEven bool
@@ -76,12 +72,12 @@ func NewPolynomial(basis Basis, coeffs interface{}, interval interface{}) *Polyn
 		panic(fmt.Sprintf("invalid coefficient type, allowed types are []{bignum.Complex128, float64, *bignum.Complex, *big.Float} but is %T", coeffs))
 	}
 
-	inter := Interval{}
+	inter := bignum.Interval{}
 	switch interval := interval.(type) {
 	case [2]float64:
 		inter.A = new(big.Float).SetFloat64(interval[0])
 		inter.B = new(big.Float).SetFloat64(interval[1])
-	case *Interval:
+	case *bignum.Interval:
 		inter.A = new(big.Float).Set(interval.A)
 		inter.B = new(big.Float).Set(interval.B)
 	case nil:

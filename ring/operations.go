@@ -288,7 +288,7 @@ func (r *Ring) MultByMonomial(p1 *Poly, k int, p2 *Poly) {
 
 	N := r.N()
 
-	shift := k % (N << 1)
+	shift := (k+(N<<1)) % (N << 1)
 
 	if shift == 0 {
 

@@ -781,17 +781,17 @@ func testLinearTransform(tc *TestContext, level int, t *testing.T) {
 		}
 	})
 
-	t.Run(testString(params, level, "Evaluator/Merge/LogGap=LogN"), func(t *testing.T) {
+	t.Run(testString(params, level, "Evaluator/Pack/LogGap=LogN"), func(t *testing.T) {
 
 		if params.RingType() != ring.Standard {
-			t.Skip("Merge not supported for ring.Type = ring.ConjugateInvariant")
+			t.Skip("Pack not supported for ring.Type = ring.ConjugateInvariant")
 		}
 
 		pt := NewPlaintext(params, level)
 		N := params.N()
 		ringQ := tc.params.RingQ().AtLevel(level)
 
-		ptMerged := NewPlaintext(params, level)
+		ptPacked := NewPlaintext(params, level)
 		ciphertexts := make(map[int]*Ciphertext)
 		slotIndex := make(map[int]bool)
 		for i := 0; i < N; i += params.N() / 16 {
@@ -811,17 +811,17 @@ func testLinearTransform(tc *TestContext, level int, t *testing.T) {
 			slotIndex[i] = true
 
 			for j := 0; j < level+1; j++ {
-				ptMerged.Value.Coeffs[j][i] = scalar
+				ptPacked.Value.Coeffs[j][i] = scalar
 			}
 		}
 
 		// Galois Keys
 		evk := NewEvaluationKeySet()
-		for _, galEl := range params.GaloisElementsForMerge(params.LogN()) {
+		for _, galEl := range params.GaloisElementsForPack(params.LogN()) {
 			evk.GaloisKeys[galEl] = kgen.GenGaloisKeyNew(galEl, sk)
 		}
 
-		ct := eval.WithKey(evk).Merge(ciphertexts, params.LogN())
+		ct := eval.WithKey(evk).Pack(ciphertexts, params.LogN())
 
 		dec.Decrypt(ct, pt)
 
@@ -829,7 +829,7 @@ func testLinearTransform(tc *TestContext, level int, t *testing.T) {
 			ringQ.INTT(pt.Value, pt.Value)
 		}
 
-		ringQ.Sub(pt.Value, ptMerged.Value, pt.Value)
+		ringQ.Sub(pt.Value, ptPacked.Value, pt.Value)
 
 		NoiseBound := 15.0
 
@@ -837,17 +837,17 @@ func testLinearTransform(tc *TestContext, level int, t *testing.T) {
 		require.GreaterOrEqual(t, NoiseBound, ringQ.Log2OfStandardDeviation(pt.Value))
 	})
 
-	t.Run(testString(params, level, "Evaluator/Merge/LogGap=LogN-1"), func(t *testing.T) {
+	t.Run(testString(params, level, "Evaluator/Pack/LogGap=LogN-1"), func(t *testing.T) {
 
 		if params.RingType() != ring.Standard {
-			t.Skip("Merge not supported for ring.Type = ring.ConjugateInvariant")
+			t.Skip("Pack not supported for ring.Type = ring.ConjugateInvariant")
 		}
 
 		pt := NewPlaintext(params, level)
 		N := params.N()
 		ringQ := tc.params.RingQ().AtLevel(level)
 
-		ptMerged := NewPlaintext(params, level)
+		ptPacked := NewPlaintext(params, level)
 		ciphertexts := make(map[int]*Ciphertext)
 		slotIndex := make(map[int]bool)
 		for i := 0; i < N/2; i += params.N() / 16 {
@@ -872,18 +872,18 @@ func testLinearTransform(tc *TestContext, level int, t *testing.T) {
 			slotIndex[i] = true
 
 			for j := 0; j < level+1; j++ {
-				ptMerged.Value.Coeffs[j][i] = scalar
-				ptMerged.Value.Coeffs[j][i+N/2] = scalar
+				ptPacked.Value.Coeffs[j][i] = scalar
+				ptPacked.Value.Coeffs[j][i+N/2] = scalar
 			}
 		}
 
 		// Galois Keys
 		evk := NewEvaluationKeySet()
-		for _, galEl := range params.GaloisElementsForMerge(params.LogN() - 1) {
+		for _, galEl := range params.GaloisElementsForPack(params.LogN() - 1) {
 			evk.GaloisKeys[galEl] = kgen.GenGaloisKeyNew(galEl, sk)
 		}
 
-		ct := eval.WithKey(evk).Merge(ciphertexts, params.LogN()-1)
+		ct := eval.WithKey(evk).Pack(ciphertexts, params.LogN()-1)
 
 		dec.Decrypt(ct, pt)
 
@@ -891,7 +891,7 @@ func testLinearTransform(tc *TestContext, level int, t *testing.T) {
 			ringQ.INTT(pt.Value, pt.Value)
 		}
 
-		ringQ.Sub(pt.Value, ptMerged.Value, pt.Value)
+		ringQ.Sub(pt.Value, ptPacked.Value, pt.Value)
 
 		NoiseBound := 15.0
 

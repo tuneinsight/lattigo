@@ -1,13 +1,104 @@
 package rlwe
 
 import (
+	"fmt"
 	"math/big"
-	"math/bits"
+
+	//"math/bits"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
+
+// Trace maps X -> sum((-1)^i * X^{i*n+1}) for n <= i < N
+// Monomial X^k vanishes if k is not divisible by (N/n), otherwise it is multiplied by (N/n).
+// Ciphertext is pre-multiplied by (N/n)^-1 to remove the (N/n) factor.
+// Examples of full Trace for [0 + 1X + 2X^2 + 3X^3 + 4X^4 + 5X^5 + 6X^6 + 7X^7]
+//
+// 1.
+//
+//	  [1 + 2X + 3X^2 + 4X^3 + 5X^4 + 6X^5 + 7X^6 + 8X^7]
+//	+ [1 - 6X - 3X^2 + 8X^3 + 5X^4 + 2X^5 - 7X^6 - 4X^7]  {X-> X^(i * 5^1)}
+//	= [2 - 4X + 0X^2 +12X^3 +10X^4 + 8X^5 - 0X^6 + 4X^7]
+//
+// 2.
+//
+//	  [2 - 4X + 0X^2 +12X^3 +10X^4 + 8X^5 - 0X^6 + 4X^7]
+//	+ [2 + 4X + 0X^2 -12X^3 +10X^4 - 8X^5 + 0X^6 - 4X^7]  {X-> X^(i * 5^2)}
+//	= [4 + 0X + 0X^2 - 0X^3 +20X^4 + 0X^5 + 0X^6 - 0X^7]
+//
+// 3.
+//
+//	  [4 + 0X + 0X^2 - 0X^3 +20X^4 + 0X^5 + 0X^6 - 0X^7]
+//	+ [4 + 0X + 0X^2 - 0X^3 -20X^4 + 0X^5 + 0X^6 - 0X^7]  {X-> X^(i * -1)}
+//	= [8 + 0X + 0X^2 - 0X^3 + 0X^4 + 0X^5 + 0X^6 - 0X^7]
+func (eval *Evaluator) Trace(ctIn *Ciphertext, logN int, ctOut *Ciphertext) {
+
+	if ctIn.Degree() != 1 || ctOut.Degree() != 1 {
+		panic("ctIn.Degree() != 1 or ctOut.Degree() != 1")
+	}
+
+	level := utils.Min(ctIn.Level(), ctOut.Level())
+
+	ctOut.Resize(ctOut.Degree(), level)
+
+	ctOut.MetaData = ctIn.MetaData
+
+	gap := 1 << (eval.params.LogN() - logN - 1)
+
+	if logN == 0 {
+		gap <<= 1
+	}
+
+	if gap > 1 {
+
+		ringQ := eval.params.RingQ().AtLevel(level)
+
+		if ringQ.Type() == ring.ConjugateInvariant {
+			gap >>= 1 // We skip the last step that applies phi(5^{-1})
+		}
+
+		NInv := new(big.Int).SetUint64(uint64(gap))
+		NInv.ModInverse(NInv, ringQ.ModulusAtLevel[level])
+
+		// pre-multiplication by (N/n)^-1
+		ringQ.MulScalarBigint(ctIn.Value[0], NInv, ctOut.Value[0])
+		ringQ.MulScalarBigint(ctIn.Value[1], NInv, ctOut.Value[1])
+
+		if !ctIn.IsNTT {
+			ringQ.NTT(ctOut.Value[0], ctOut.Value[0])
+			ringQ.NTT(ctOut.Value[1], ctOut.Value[1])
+			ctOut.IsNTT = true
+		}
+
+		buff := NewCiphertextAtLevelFromPoly(level, []*ring.Poly{eval.BuffQP[3].Q, eval.BuffQP[4].Q})
+		buff.IsNTT = true
+
+		for i := logN; i < eval.params.LogN()-1; i++ {
+			eval.Automorphism(ctOut, eval.params.GaloisElementForColumnRotationBy(1<<i), buff)
+			ringQ.Add(ctOut.Value[0], buff.Value[0], ctOut.Value[0])
+			ringQ.Add(ctOut.Value[1], buff.Value[1], ctOut.Value[1])
+		}
+
+		if logN == 0 && ringQ.Type() == ring.Standard {
+			eval.Automorphism(ctOut, ringQ.NthRoot()-1, buff)
+			ringQ.Add(ctOut.Value[0], buff.Value[0], ctOut.Value[0])
+			ringQ.Add(ctOut.Value[1], buff.Value[1], ctOut.Value[1])
+		}
+
+		if !ctIn.IsNTT {
+			ringQ.INTT(ctOut.Value[0], ctOut.Value[0])
+			ringQ.INTT(ctOut.Value[1], ctOut.Value[1])
+			ctOut.IsNTT = false
+		}
+
+	} else {
+		if ctIn != ctOut {
+			ctOut.Copy(ctIn)
+		}
+	}
+}
 
 // Expand expands a RLWE Ciphertext encrypting sum ai * X^i to 2^logN ciphertexts,
 // each encrypting ai * X^0 for 0 <= i < 2^LogN. That is, it extracts the first 2^logN
@@ -106,15 +197,18 @@ func (eval *Evaluator) Expand(ctIn *Ciphertext, logN, logGap int) (ctOut []*Ciph
 	return
 }
 
-// Merge merges a batch of RLWE ciphertexts, packing the batch of ciphertexts into a single ciphertext.
+// Pack packs a batch of RLWE ciphertexts, packing the batch of ciphertexts into a single ciphertext.
+// The number of key-switching operations is log(N/len(cts)) + len(cts)
 //
 // Input:
 //
-//	ctIn: a map of rlwe.Ciphertext, where the index in the map is the future position of the first coefficient
-//	      of the indexed ciphertext in the final ciphertext (see example).
+//	cts: a map of rlwe.Ciphertext, where the index in the map is the future position of the first coefficient
+//	      of the indexed ciphertext in the final ciphertext (see example). Ciphertexts can be in or out of the NTT domain.
 //	logGap: all coefficients of the input ciphertexts that are not a multiple of X^{2^{logGap}} will be zeroed
 //	        during the merging (see example). This is equivalent to skipping the first 2^{logGap} steps of the
-//	        algorithm, i.e. having as input ciphertexts that are already partially merged.
+//	        algorithm, i.e. having as input ciphertexts that are already partially packed.
+//
+// Output: a ciphertext packing all input ciphertexts
 //
 // Example: we want to pack 4 ciphertexts into one, and keep only coefficients which are a multiple of X^{4}.
 //
@@ -133,164 +227,125 @@ func (eval *Evaluator) Expand(ctIn *Ciphertext, logN, logGap int) (ctOut []*Ciph
 //	         map[1]: 2^{-1} * (map[1] + X^2 * map[3] + phi_{5^2}(map[1] - X^2 * map[3]) = [x10, X, x30, X, x11, X, x31, X]
 //	 Step 2:
 //	         map[0]: 2^{-1} * (map[0] + X^1 * map[1] + phi_{5^4}(map[0] - X^1 * map[1]) = [x00, x10, x20, x30, x01, x11, x21, x22]
-func (eval *Evaluator) Merge(ctIn map[int]*Ciphertext, logGap int) (ctOut *Ciphertext) {
+//
+// Note: any usued coefficient in the output ciphertext will be zeroed during the procedure.
+func (eval *Evaluator) Pack(cts map[int]*Ciphertext, inputLogGap int) (ct *Ciphertext) {
 
-	params := eval.params
+	params := eval.Parameters()
 
 	if params.RingType() != ring.Standard {
-		panic("cannot Merge: procedure is only supported for ring.Type = ring.Standard (X^{2^{i}} does not exist in the sub-ring Z[X + X^{-1}])")
+		panic(fmt.Errorf("cannot Pack: procedure is only supported for ring.Type = ring.Standard (X^{2^{i}} does not exist in the sub-ring Z[X + X^{-1}])"))
+	}
+
+	if len(cts) < 2 {
+		panic(fmt.Errorf("cannot Pack: #cts must be at least 2"))
+	}
+
+	keys := utils.GetSortedKeys(cts)
+
+	gap := keys[1] - keys[0]
+	level := cts[keys[0]].Level()
+
+	for i, key := range keys[1:] {
+		level = utils.Min(level, cts[key].Level())
+
+		if i < len(keys)-1 {
+			gap = utils.Min(gap, keys[i+1]-keys[i])
+		}
 	}
 
 	logN := params.LogN()
+	ringQ := params.RingQ().AtLevel(level)
 
-	if logGap > logN {
-		panic("cannot Merge: logGap > logN")
+	logStart := logN - inputLogGap
+	logEnd := logN // Forces the trace to clean unused slots
+
+	if logStart >= logEnd {
+		panic(fmt.Errorf("cannot PackRLWE: gaps between ciphertexts is smaller than inputLogGap > N"))
 	}
 
-	ringQ := params.RingQ()
+	xPow2 := genXPow2(ringQ.AtLevel(level), params.LogN(), false) // log(N) polynomial to generate, quick
 
-	var levelQ int
-	for i := range ctIn {
-		levelQ = ctIn[i].Level()
-		break
+	NInv := new(big.Int).SetUint64(uint64(1 << (logEnd - logStart)))
+	NInv.ModInverse(NInv, ringQ.ModulusAtLevel[level])
+
+	for _, key := range keys {
+
+		ct := cts[key]
+
+		if ct.Degree() != 1 {
+			panic(fmt.Errorf("cannot PackRLWE: cts[%d].Degree() != 1", key))
+		}
+
+		if !ct.IsNTT {
+			ringQ.NTT(ct.Value[0], ct.Value[0])
+			ringQ.NTT(ct.Value[1], ct.Value[1])
+			ct.IsNTT = true
+		}
+
+		ringQ.MulScalarBigint(ct.Value[0], NInv, ct.Value[0])
+		ringQ.MulScalarBigint(ct.Value[1], NInv, ct.Value[1])
 	}
 
-	for i := range ctIn {
-		levelQ = utils.Min(levelQ, ctIn[i].Level())
-	}
+	tmpa := &Ciphertext{}
+	tmpa.Value = []*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly()}
+	tmpa.IsNTT = true
 
-	xPow2 := genXPow2(ringQ.AtLevel(levelQ), params.LogN(), false) // log(N) polynomial to generate, quick
+	for i := logStart; i < logEnd; i++ {
 
-	// Multiplies by (Slots * N) ^-1 mod Q
-	for i := range ctIn {
+		t := 1 << (logN - 1 - i)
 
-		if ctIn[i] != nil {
+		for jx, jy := 0, t; jx < t; jx, jy = jx+1, jy+1 {
 
-			if ctIn[i].Degree() != 1 {
-				panic("cannot Merge: ctIn.Degree() != 1")
+			a := cts[jx]
+			b := cts[jy]
+
+			if b != nil {
+
+				//X^(N/2^L)
+				ringQ.MulCoeffsMontgomery(b.Value[0], xPow2[len(xPow2)-i-1], b.Value[0])
+				ringQ.MulCoeffsMontgomery(b.Value[1], xPow2[len(xPow2)-i-1], b.Value[1])
+
+				if a != nil {
+
+					// tmpa = phi(a - b * X^{N/2^{i}}, 2^{i-1})
+					ringQ.Sub(a.Value[0], b.Value[0], tmpa.Value[0])
+					ringQ.Sub(a.Value[1], b.Value[1], tmpa.Value[1])
+
+					// a = a + b * X^{N/2^{i}}
+					ringQ.Add(a.Value[0], b.Value[0], a.Value[0])
+					ringQ.Add(a.Value[1], b.Value[1], a.Value[1])
+
+				} else {
+					// if ct[jx] == nil, then simply re-assigns
+					cts[jx] = cts[jy]
+				}
 			}
 
-			v0, v1 := ctIn[i].Value[0], ctIn[i].Value[1]
-			for j, s := range ringQ.SubRings[:levelQ+1] {
+			if a != nil {
 
-				var NInv uint64
-				if logGap != logN {
-					NInv = ring.MForm(ring.ModExp(1<<logGap, s.Modulus-2, s.Modulus), s.Modulus, s.BRedConstant)
+				var galEl uint64
+
+				if i == 0 {
+					galEl = ringQ.NthRoot() - 1
 				} else {
-					NInv = s.NInv
+					galEl = eval.Parameters().GaloisElementForColumnRotationBy(1 << (i - 1))
 				}
 
-				s.MulScalarMontgomery(v0.Coeffs[j], NInv, v0.Coeffs[j])
-				s.MulScalarMontgomery(v1.Coeffs[j], NInv, v1.Coeffs[j])
+				if b != nil {
+					eval.Automorphism(tmpa, galEl, tmpa)
+				} else {
+					eval.Automorphism(a, galEl, tmpa)
+				}
+
+				// a + b * X^{N/2^{i}} + phi(a - b * X^{N/2^{i}}, 2^{i-1})
+				ringQ.Add(a.Value[0], tmpa.Value[0], a.Value[0])
+				ringQ.Add(a.Value[1], tmpa.Value[1], a.Value[1])
 			}
 		}
 	}
 
-	ciphertextslist := make([]*Ciphertext, 1<<logGap)
-
-	for i := range ctIn {
-		ciphertextslist[i] = ctIn[i]
-	}
-
-	if ciphertextslist[0] == nil {
-		ciphertextslist[0] = NewCiphertext(params, 1, levelQ)
-		ciphertextslist[0].IsNTT = true
-	}
-
-	return eval.mergeRLWERecurse(ciphertextslist, logN-logGap, xPow2)
-}
-
-func (eval *Evaluator) mergeRLWERecurse(ciphertexts []*Ciphertext, logSkip int, xPow []*ring.Poly) *Ciphertext {
-
-	L := bits.Len64(uint64(len(ciphertexts))) - 1
-
-	if L == 0 {
-		return ciphertexts[0]
-	}
-
-	L += logSkip
-
-	odd := make([]*Ciphertext, len(ciphertexts)>>1)
-	even := make([]*Ciphertext, len(ciphertexts)>>1)
-
-	for i := 0; i < len(ciphertexts)>>1; i++ {
-		odd[i] = ciphertexts[2*i]
-		even[i] = ciphertexts[2*i+1]
-	}
-
-	ctEven := eval.mergeRLWERecurse(odd, logSkip, xPow)
-	ctOdd := eval.mergeRLWERecurse(even, logSkip, xPow)
-
-	if ctEven == nil && ctOdd == nil {
-		return nil
-	}
-
-	var level = 0xFFFF // Case if ctOdd == nil
-
-	if ctOdd != nil {
-		level = ctOdd.Level()
-	}
-
-	if ctEven != nil {
-		level = utils.Min(level, ctEven.Level())
-	}
-
-	ringQ := eval.params.RingQ().AtLevel(level)
-
-	if ctOdd != nil {
-		if !ctOdd.IsNTT {
-			ringQ.NTT(ctOdd.Value[0], ctOdd.Value[0])
-			ringQ.NTT(ctOdd.Value[1], ctOdd.Value[1])
-			ctOdd.IsNTT = true
-		}
-	}
-
-	if ctEven != nil {
-		if !ctEven.IsNTT {
-			ringQ.NTT(ctEven.Value[0], ctEven.Value[0])
-			ringQ.NTT(ctEven.Value[1], ctEven.Value[1])
-			ctEven.IsNTT = true
-		}
-	}
-
-	var tmpEven *Ciphertext
-	if ctEven != nil {
-		tmpEven = ctEven.CopyNew()
-	}
-
-	// ctOdd * X^(N/2^L)
-	if ctOdd != nil {
-
-		//X^(N/2^L)
-		ringQ.MulCoeffsMontgomery(ctOdd.Value[0], xPow[len(xPow)-L], ctOdd.Value[0])
-		ringQ.MulCoeffsMontgomery(ctOdd.Value[1], xPow[len(xPow)-L], ctOdd.Value[1])
-
-		if ctEven != nil {
-			// ctEven + ctOdd * X^(N/2^L)
-			ringQ.Add(ctEven.Value[0], ctOdd.Value[0], ctEven.Value[0])
-			ringQ.Add(ctEven.Value[1], ctOdd.Value[1], ctEven.Value[1])
-
-			// phi(ctEven - ctOdd * X^(N/2^L), 2^(L-2))
-			ringQ.Sub(tmpEven.Value[0], ctOdd.Value[0], tmpEven.Value[0])
-			ringQ.Sub(tmpEven.Value[1], ctOdd.Value[1], tmpEven.Value[1])
-		}
-	}
-
-	if ctEven != nil {
-
-		// if L-2 == -1, then gal = -1
-		if L == 1 {
-			eval.Automorphism(tmpEven, ringQ.NthRoot()-1, tmpEven)
-		} else {
-			eval.Automorphism(tmpEven, eval.params.GaloisElementForColumnRotationBy(1<<(L-2)), tmpEven)
-		}
-
-		// ctEven + ctOdd * X^(N/2^L) + phi(ctEven - ctOdd * X^(N/2^L), 2^(L-2))
-		ringQ.Add(ctEven.Value[0], tmpEven.Value[0], ctEven.Value[0])
-		ringQ.Add(ctEven.Value[1], tmpEven.Value[1], ctEven.Value[1])
-	}
-
-	return ctEven
+	return cts[0]
 }
 
 func genXPow2(r *ring.Ring, logN int, div bool) (xPow []*ring.Poly) {

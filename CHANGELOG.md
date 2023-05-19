@@ -32,6 +32,7 @@ All notable changes to this library are documented in this file.
 - RLWE: added methods on `rlwe.Parameters` to get the noise standard deviation for fresh ciphertexts.
 - RLWE: improved the API consistency of the `rlwe.KeyGenerator`. Methods that allocate elements have the suffix `New`. Added corresponding in place methods.
 - RLWE: renamed `evaluator.Merge` to `evaluator.Pack` and generalized `evaluator.Pack` to be able to take into account the packing `X^{N/n}` of the ciphertext. Rewrote the algorithm to be sequential instead of using recursion.
+- RLWE: `evaluator.Pack` now gives the option to zero (or not) slots which are not multiples of `X^{N/n}`.
 - DBFV/DBGV/DCKKS: replaced `[dbfv/dbfv/dckks].MaskedTransformShare` by `drlwe.RefreshShare`.
 - DRLWE: added `drlwe.RefreshShare`.
 - DRLWE: added accurate noise bounds for the tests.

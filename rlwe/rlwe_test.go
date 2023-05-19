@@ -790,11 +790,12 @@ func testLinearTransform(tc *TestContext, level int, t *testing.T) {
 		pt := NewPlaintext(params, level)
 		N := params.N()
 		ringQ := tc.params.RingQ().AtLevel(level)
+		gap := params.N() / 16
 
 		ptPacked := NewPlaintext(params, level)
 		ciphertexts := make(map[int]*Ciphertext)
 		slotIndex := make(map[int]bool)
-		for i := 0; i < N; i += params.N() / 16 {
+		for i := 0; i < N; i += gap {
 
 			ciphertexts[i] = enc.EncryptZeroNew(level)
 
@@ -821,7 +822,7 @@ func testLinearTransform(tc *TestContext, level int, t *testing.T) {
 			evk.GaloisKeys[galEl] = kgen.GenGaloisKeyNew(galEl, sk)
 		}
 
-		ct := eval.WithKey(evk).Pack(ciphertexts, params.LogN())
+		ct := eval.WithKey(evk).Pack(ciphertexts, params.LogN(), false)
 
 		dec.Decrypt(ct, pt)
 
@@ -830,6 +831,14 @@ func testLinearTransform(tc *TestContext, level int, t *testing.T) {
 		}
 
 		ringQ.Sub(pt.Value, ptPacked.Value, pt.Value)
+
+		for i := 0; i < N; i++ {
+			if i%gap != 0 {
+				for j := 0; j < level+1; j++ {
+					pt.Value.Coeffs[j][i] = 0
+				}
+			}
+		}
 
 		NoiseBound := 15.0
 
@@ -883,7 +892,7 @@ func testLinearTransform(tc *TestContext, level int, t *testing.T) {
 			evk.GaloisKeys[galEl] = kgen.GenGaloisKeyNew(galEl, sk)
 		}
 
-		ct := eval.WithKey(evk).Pack(ciphertexts, params.LogN()-1)
+		ct := eval.WithKey(evk).Pack(ciphertexts, params.LogN()-1, true)
 
 		dec.Decrypt(ct, pt)
 

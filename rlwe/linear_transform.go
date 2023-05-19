@@ -3,8 +3,7 @@ package rlwe
 import (
 	"fmt"
 	"math/big"
-
-	//"math/bits"
+	"math/bits"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
@@ -198,15 +197,18 @@ func (eval *Evaluator) Expand(ctIn *Ciphertext, logN, logGap int) (ctOut []*Ciph
 }
 
 // Pack packs a batch of RLWE ciphertexts, packing the batch of ciphertexts into a single ciphertext.
-// The number of key-switching operations is log(N/len(cts)) + len(cts)
+// The number of key-switching operations is inputLogGap - log2(gap) + len(cts), where log2(gap) is the
+// minimum distance between two keys of the map cts[int]*Ciphertext.
 //
 // Input:
 //
-//	cts: a map of rlwe.Ciphertext, where the index in the map is the future position of the first coefficient
-//	      of the indexed ciphertext in the final ciphertext (see example). Ciphertexts can be in or out of the NTT domain.
-//	logGap: all coefficients of the input ciphertexts that are not a multiple of X^{2^{logGap}} will be zeroed
-//	        during the merging (see example). This is equivalent to skipping the first 2^{logGap} steps of the
-//	        algorithm, i.e. having as input ciphertexts that are already partially packed.
+//		cts: a map of rlwe.Ciphertext, where the index in the map is the future position of the first coefficient
+//		      of the indexed ciphertext in the final ciphertext (see example). Ciphertexts can be in or out of the NTT domain.
+//		logGap: all coefficients of the input ciphertexts that are not a multiple of X^{2^{logGap}} will be zeroed
+//		        during the merging (see example). This is equivalent to skipping the first 2^{logGap} steps of the
+//		        algorithm, i.e. having as input ciphertexts that are already partially packed.
+//	 zeroGarbageSlots: if set to true, slots which are not multiples of X^{2^{logGap}} will be zeroed during the procedure.
+//	                   this will greatly increase the noise and increase the number of key-switching operations to inputLogGap + len(cts).
 //
 // Output: a ciphertext packing all input ciphertexts
 //
@@ -227,9 +229,7 @@ func (eval *Evaluator) Expand(ctIn *Ciphertext, logN, logGap int) (ctOut []*Ciph
 //	         map[1]: 2^{-1} * (map[1] + X^2 * map[3] + phi_{5^2}(map[1] - X^2 * map[3]) = [x10, X, x30, X, x11, X, x31, X]
 //	 Step 2:
 //	         map[0]: 2^{-1} * (map[0] + X^1 * map[1] + phi_{5^4}(map[0] - X^1 * map[1]) = [x00, x10, x20, x30, x01, x11, x21, x22]
-//
-// Note: any usued coefficient in the output ciphertext will be zeroed during the procedure.
-func (eval *Evaluator) Pack(cts map[int]*Ciphertext, inputLogGap int) (ct *Ciphertext) {
+func (eval *Evaluator) Pack(cts map[int]*Ciphertext, inputLogGap int, zeroGarbageSlots bool) (ct *Ciphertext) {
 
 	params := eval.Parameters()
 
@@ -258,7 +258,13 @@ func (eval *Evaluator) Pack(cts map[int]*Ciphertext, inputLogGap int) (ct *Ciphe
 	ringQ := params.RingQ().AtLevel(level)
 
 	logStart := logN - inputLogGap
-	logEnd := logN // Forces the trace to clean unused slots
+	logEnd := logN
+
+	if !zeroGarbageSlots {
+		if gap > 0 {
+			logEnd -= bits.Len64(uint64(gap - 1))
+		}
+	}
 
 	if logStart >= logEnd {
 		panic(fmt.Errorf("cannot PackRLWE: gaps between ciphertexts is smaller than inputLogGap > N"))

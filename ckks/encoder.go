@@ -9,9 +9,8 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v4/utils"
-	"github.com/tuneinsight/lattigo/v4/utils/sampling"
-	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 // GaloisGen is an integer of order N/2 modulo M and that spans Z_M with the integer -1.
@@ -51,7 +50,7 @@ type Encoder struct {
 	m            int
 	rotGroup     []int
 
-	prng utils.PRNG
+	prng sampling.PRNG
 
 	roots     interface{}
 	buffCmplx interface{}
@@ -337,7 +336,9 @@ func (ecd *Encoder) embedDouble(values interface{}, logSlots int, scale rlwe.Sca
 	}
 
 	// IFFT
-	ecd.IFFT(buffCmplx[:slots], logSlots)
+	if err = ecd.IFFT(buffCmplx[:slots], logSlots); err != nil {
+		return
+	}
 
 	// Maps Y = X^{N/n} -> X and quantizes.
 	switch p := polyOut.(type) {
@@ -460,7 +461,9 @@ func (ecd *Encoder) embedArbitrary(values interface{}, logSlots int, scale rlwe.
 		buffCmplx[i][1].SetFloat64(0)
 	}
 
-	ecd.IFFT(buffCmplx[:slots], logSlots)
+	if err = ecd.IFFT(buffCmplx[:slots], logSlots); err != nil {
+		return
+	}
 
 	// Maps Y = X^{N/n} -> X and quantizes.
 	switch p := polyOut.(type) {
@@ -539,12 +542,14 @@ func (ecd *Encoder) decodePublic(pt *rlwe.Plaintext, values interface{}, noise d
 
 			ecd.plaintextToComplex(pt.Level(), pt.Scale, logSlots, ecd.buff, buffCmplx)
 
-			ecd.FFT(buffCmplx[:slots], logSlots)
+			if err = ecd.FFT(buffCmplx[:slots], logSlots); err != nil {
+				return
+			}
 
 			switch values := values.(type) {
 			case []float64:
 
-				slots := utils.MinInt(len(values), slots)
+				slots := utils.Min(len(values), slots)
 
 				for i := 0; i < slots; i++ {
 					values[i] = real(buffCmplx[i])
@@ -553,7 +558,7 @@ func (ecd *Encoder) decodePublic(pt *rlwe.Plaintext, values interface{}, noise d
 				copy(values, buffCmplx)
 
 			case []*big.Float:
-				slots := utils.MinInt(len(values), slots)
+				slots := utils.Min(len(values), slots)
 
 				for i := 0; i < slots; i++ {
 
@@ -566,7 +571,7 @@ func (ecd *Encoder) decodePublic(pt *rlwe.Plaintext, values interface{}, noise d
 
 			case []*bignum.Complex:
 
-				slots := utils.MinInt(len(values), slots)
+				slots := utils.Min(len(values), slots)
 
 				for i := 0; i < slots; i++ {
 
@@ -595,12 +600,14 @@ func (ecd *Encoder) decodePublic(pt *rlwe.Plaintext, values interface{}, noise d
 
 			ecd.plaintextToComplex(pt.Level(), pt.Scale, logSlots, ecd.buff, buffCmplx[:slots])
 
-			ecd.FFT(buffCmplx[:slots], logSlots)
+			if err = ecd.FFT(buffCmplx[:slots], logSlots); err != nil {
+				return
+			}
 
 			switch values := values.(type) {
 			case []float64:
 
-				slots := utils.MinInt(len(values), slots)
+				slots := utils.Min(len(values), slots)
 
 				for i := 0; i < slots; i++ {
 					values[i], _ = buffCmplx[i][0].Float64()
@@ -608,14 +615,14 @@ func (ecd *Encoder) decodePublic(pt *rlwe.Plaintext, values interface{}, noise d
 
 			case []complex128:
 
-				slots := utils.MinInt(len(values), slots)
+				slots := utils.Min(len(values), slots)
 
 				for i := 0; i < slots; i++ {
 					values[i] = buffCmplx[i].Complex128()
 				}
 
 			case []*big.Float:
-				slots := utils.MinInt(len(values), slots)
+				slots := utils.Min(len(values), slots)
 
 				for i := 0; i < slots; i++ {
 
@@ -628,7 +635,7 @@ func (ecd *Encoder) decodePublic(pt *rlwe.Plaintext, values interface{}, noise d
 
 			case []*bignum.Complex:
 
-				slots := utils.MinInt(len(values), slots)
+				slots := utils.Min(len(values), slots)
 
 				for i := 0; i < slots; i++ {
 
@@ -754,7 +761,7 @@ func polyToComplexNoCRT(coeffs []uint64, values interface{}, scale rlwe.Scale, l
 			}
 		}
 
-		DivideComplex128SliceUnrolled8(values, complex(scale.Float64(), 0))
+		divideComplex128SliceUnrolled8(values, complex(scale.Float64(), 0))
 
 	case []*bignum.Complex:
 
@@ -921,13 +928,13 @@ func (ecd *Encoder) polyToFloatCRT(p *ring.Poly, values interface{}, scale rlwe.
 	var slots int
 	switch values := values.(type) {
 	case []float64:
-		slots = utils.MinInt(len(p.Coeffs[0]), len(values))
+		slots = utils.Min(len(p.Coeffs[0]), len(values))
 	case []complex128:
-		slots = utils.MinInt(len(p.Coeffs[0]), len(values))
+		slots = utils.Min(len(p.Coeffs[0]), len(values))
 	case []*big.Float:
-		slots = utils.MinInt(len(p.Coeffs[0]), len(values))
+		slots = utils.Min(len(p.Coeffs[0]), len(values))
 	case []*bignum.Complex:
-		slots = utils.MinInt(len(p.Coeffs[0]), len(values))
+		slots = utils.Min(len(p.Coeffs[0]), len(values))
 	}
 
 	bigintCoeffs := ecd.bigintCoeffs
@@ -1004,13 +1011,13 @@ func (ecd *Encoder) polyToFloatNoCRT(coeffs []uint64, values interface{}, scale 
 	var slots int
 	switch values := values.(type) {
 	case []float64:
-		slots = utils.MinInt(len(coeffs), len(values))
+		slots = utils.Min(len(coeffs), len(values))
 	case []complex128:
-		slots = utils.MinInt(len(coeffs), len(values))
+		slots = utils.Min(len(coeffs), len(values))
 	case []*big.Float:
-		slots = utils.MinInt(len(coeffs), len(values))
+		slots = utils.Min(len(coeffs), len(values))
 	case []*bignum.Complex:
-		slots = utils.MinInt(len(coeffs), len(values))
+		slots = utils.Min(len(coeffs), len(values))
 	}
 
 	switch values := values.(type) {
@@ -1086,6 +1093,5 @@ func (ecd *Encoder) polyToFloatNoCRT(coeffs []uint64, values interface{}, scale 
 
 	default:
 		panic(fmt.Errorf("cannot polyToComplexNoCRT: values.(Type) must be []complex128, []*bignum.Complex, []float64 or []*big.Float but is %T", values))
-
 	}
 }

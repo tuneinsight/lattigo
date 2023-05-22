@@ -56,7 +56,7 @@ func benchEncoder(tc *testContext, b *testing.B) {
 
 		values := make([]complex128, 1<<pt.LogSlots)
 		for i := range values {
-			values[i] = utils.RandComplex128(-1, 1)
+			values[i] = sampling.RandComplex128(-1, 1)
 		}
 
 		b.ResetTimer()
@@ -72,7 +72,7 @@ func benchEncoder(tc *testContext, b *testing.B) {
 
 		values := make([]complex128, 1<<pt.LogSlots)
 		for i := range values {
-			values[i] = utils.RandComplex128(-1, 1)
+			values[i] = sampling.RandComplex128(-1, 1)
 		}
 
 		encoder.Encode(values, pt)

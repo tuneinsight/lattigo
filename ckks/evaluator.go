@@ -56,15 +56,15 @@ func (eval *Evaluator) Add(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 	case rlwe.Operand:
 
 		// Checks operand validity and retrieves minimum level
-		_, level := eval.CheckBinary(op0, op1, op2, utils.MaxInt(op0.Degree(), op1.Degree()))
+		_, level := eval.CheckBinary(op0.El(), op1.El(), op2.El(), utils.Max(op0.Degree(), op1.Degree()))
 
 		// Generic inplace evaluation
-		eval.evaluateInPlace(level, op0, op1, op2, eval.params.RingQ().AtLevel(level).Add)
+		eval.evaluateInPlace(level, op0, op1.El(), op2, eval.params.RingQ().AtLevel(level).Add)
 
 	case complex128, float64, int, int64, uint, uint64, *big.Int, *big.Float, *bignum.Complex:
 
 		// Retrieves minimum level
-		level := utils.MinInt(op0.Level(), op2.Level())
+		level := utils.Min(op0.Level(), op2.Level())
 
 		// Resizes output to minimum level
 		op2.Resize(op0.Degree(), level)
@@ -81,7 +81,7 @@ func (eval *Evaluator) Add(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 	case []complex128, []float64, []*big.Float, []*bignum.Complex:
 
 		// Retrieves minimum level
-		level := utils.MinInt(op0.Level(), op2.Level())
+		level := utils.Min(op0.Level(), op2.Level())
 
 		// Resizes output to minimum level
 		op2.Resize(op0.Degree(), level)
@@ -91,10 +91,12 @@ func (eval *Evaluator) Add(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 		pt.MetaData = op0.MetaData // Sets the metadata, notably matches scalses
 
 		// Encodes the vector on the plaintext
-		eval.Encoder.Encode(op1, pt)
+		if err := eval.Encoder.Encode(op1, pt); err != nil {
+			panic(err)
+		}
 
 		// Generic in place evaluation
-		eval.evaluateInPlace(level, op0, pt, op2, eval.params.RingQ().AtLevel(level).Add)
+		eval.evaluateInPlace(level, op0, pt.El(), op2, eval.params.RingQ().AtLevel(level).Add)
 	default:
 		panic(fmt.Errorf("op1.(type) must be rlwe.Operand, complex128, float64, int, int64, uint, uint64, *big.Int, *big.Float, *bignum.Complex, []complex128, []float64, []*big.Float or []*bignum.Complex, but is %T", op1))
 	}
@@ -114,10 +116,10 @@ func (eval *Evaluator) Sub(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 	case rlwe.Operand:
 
 		// Checks operand validity and retrieves minimum level
-		_, level := eval.CheckBinary(op0, op1, op2, utils.MaxInt(op0.Degree(), op1.Degree()))
+		_, level := eval.CheckBinary(op0.El(), op1.El(), op2.El(), utils.Max(op0.Degree(), op1.Degree()))
 
 		// Generic inplace evaluation
-		eval.evaluateInPlace(level, op0, op1, op2, eval.params.RingQ().AtLevel(level).Sub)
+		eval.evaluateInPlace(level, op0, op1.El(), op2, eval.params.RingQ().AtLevel(level).Sub)
 
 		// Negates high degree ciphertext coefficients if the degree of the second operand is larger than the first operand
 		if op0.Degree() < op1.Degree() {
@@ -128,7 +130,7 @@ func (eval *Evaluator) Sub(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 	case complex128, float64, int, int64, uint, uint64, *big.Int, *big.Float, *bignum.Complex:
 
 		// Retrieves minimum level
-		level := utils.MinInt(op0.Level(), op2.Level())
+		level := utils.Min(op0.Level(), op2.Level())
 
 		// Resizes output to minimum level
 		op2.Resize(op0.Degree(), level)
@@ -145,7 +147,7 @@ func (eval *Evaluator) Sub(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 	case []complex128, []float64, []*big.Float, []*bignum.Complex:
 
 		// Retrieves minimum level
-		level := utils.MinInt(op0.Level(), op2.Level())
+		level := utils.Min(op0.Level(), op2.Level())
 
 		// Resizes output to minimum level
 		op2.Resize(op0.Degree(), level)
@@ -155,10 +157,12 @@ func (eval *Evaluator) Sub(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 		pt.MetaData = op0.MetaData
 
 		// Encodes the vector on the plaintext
-		eval.Encoder.Encode(op1, pt)
+		if err := eval.Encoder.Encode(op1, pt); err != nil {
+			panic(err)
+		}
 
 		// Generic inplace evaluation
-		eval.evaluateInPlace(level, op0, pt, op2, eval.params.RingQ().AtLevel(level).Sub)
+		eval.evaluateInPlace(level, op0, pt.El(), op2, eval.params.RingQ().AtLevel(level).Sub)
 
 	default:
 		panic(fmt.Errorf("op1.(type) must be rlwe.Operand, complex128, float64, int, int64, uint, uint64, *big.Int, *big.Float, *bignum.Complex, []complex128, []float64, []*big.Float or []*bignum.Complex, but is %T", op1))
@@ -172,7 +176,7 @@ func (eval *Evaluator) SubNew(op0 *rlwe.Ciphertext, op1 interface{}) (op2 *rlwe.
 	return
 }
 
-func (eval *Evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 rlwe.Operand, ctOut *rlwe.Ciphertext, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly)) {
+func (eval *Evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 *rlwe.OperandQ, ctOut *rlwe.Ciphertext, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly)) {
 
 	var tmp0, tmp1 *rlwe.Ciphertext
 
@@ -182,14 +186,14 @@ func (eval *Evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 rlwe.O
 	// Else resizes the receiver element
 	ctOut.El().Resize(maxDegree, ctOut.Level())
 
-	c0Scale := c0.GetMetaData().Scale
-	c1Scale := c1.GetMetaData().Scale
+	c0Scale := c0.Scale
+	c1Scale := c1.Scale
 
 	if ctOut.Level() > level {
 		eval.DropLevel(ctOut, ctOut.Level()-utils.Min(c0.Level(), c1.Level()))
 	}
 
-	cmp := c0.GetMetaData().Scale.Cmp(c1.GetMetaData().Scale)
+	cmp := c0.Scale.Cmp(c1.Scale)
 
 	// Checks whether or not the receiver element is the same as one of the input elements
 	// and acts accordingly to avoid unnecessary element creation or element overwriting,
@@ -207,7 +211,7 @@ func (eval *Evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 rlwe.O
 				tmp1 = rlwe.NewCiphertextAtLevelFromPoly(level, eval.BuffCt.Value[:c1.Degree()+1])
 				tmp1.MetaData = ctOut.MetaData
 
-				eval.Mul(c1.El(), ratioInt, tmp1)
+				eval.Mul(&rlwe.Ciphertext{OperandQ: *c1}, ratioInt, tmp1)
 			}
 
 		} else if cmp == -1 {
@@ -220,18 +224,18 @@ func (eval *Evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 rlwe.O
 
 				eval.Mul(c0, ratioInt, c0)
 
-				ctOut.Scale = c1.GetMetaData().Scale
+				ctOut.Scale = c1.Scale
 
-				tmp1 = c1.El()
+				tmp1 = &rlwe.Ciphertext{OperandQ: *c1}
 			}
 
 		} else {
-			tmp1 = &rlwe.Ciphertext{OperandQ: *c1.El()}
+			tmp1 = &rlwe.Ciphertext{OperandQ: *c1}
 		}
 
-		tmp0 = &rlwe.Ciphertext{OperandQ: *c0.El()}
+		tmp0 = c0
 
-	} else if ctOut == c1 {
+	} else if &ctOut.OperandQ == c1 {
 
 		if cmp == 1 {
 
@@ -240,11 +244,11 @@ func (eval *Evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 rlwe.O
 			ratioInt, _ := ratioFlo.Int(nil)
 
 			if ratioInt.Cmp(new(big.Int).SetUint64(0)) == 1 {
-				eval.Mul(c1.El(), ratioInt, ctOut)
+				eval.Mul(&rlwe.Ciphertext{OperandQ: *c1}, ratioInt, ctOut)
 
 				ctOut.Scale = c0.Scale
 
-				tmp0 = c0.El()
+				tmp0 = c0
 			}
 
 		} else if cmp == -1 {
@@ -262,10 +266,10 @@ func (eval *Evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 rlwe.O
 			}
 
 		} else {
-			tmp0 = &rlwe.Ciphertext{OperandQ: *c0.El()}
+			tmp0 = c0
 		}
 
-		tmp1 = &rlwe.Ciphertext{OperandQ: *c1.El()}
+		tmp1 = &rlwe.Ciphertext{OperandQ: *c1}
 
 	} else {
 
@@ -280,9 +284,9 @@ func (eval *Evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 rlwe.O
 				tmp1 = rlwe.NewCiphertextAtLevelFromPoly(level, eval.BuffCt.Value[:c1.Degree()+1])
 				tmp1.MetaData = ctOut.MetaData
 
-				eval.Mul(c1.El(), ratioInt, tmp1)
+				eval.Mul(&rlwe.Ciphertext{OperandQ: *c1}, ratioInt, tmp1)
 
-				tmp0 = c0.El()
+				tmp0 = c0
 			}
 
 		} else if cmp == -1 {
@@ -298,13 +302,13 @@ func (eval *Evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 rlwe.O
 
 				eval.Mul(c0, ratioInt, tmp0)
 
-				tmp1 = c1.El()
+				tmp1 = &rlwe.Ciphertext{OperandQ: *c1}
 
 			}
 
 		} else {
-			tmp0 = &rlwe.Ciphertext{OperandQ: *c0.El()}
-			tmp1 = &rlwe.Ciphertext{OperandQ: *c1.El()}
+			tmp0 = c0
+			tmp1 = &rlwe.Ciphertext{OperandQ: *c1}
 		}
 	}
 
@@ -312,7 +316,7 @@ func (eval *Evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 rlwe.O
 		evaluate(tmp0.Value[i], tmp1.Value[i], ctOut.El().Value[i])
 	}
 
-	scale := c0.Scale.Max(c1.GetMetaData().Scale)
+	scale := c0.Scale.Max(c1.Scale)
 
 	ctOut.MetaData = c0.MetaData
 	ctOut.Scale = scale
@@ -485,12 +489,12 @@ func (eval *Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 	case rlwe.Operand:
 
 		// Generic in place evaluation
-		eval.mulRelin(op0, op1, false, op2)
+		eval.mulRelin(op0, op1.El(), false, op2)
 
 	case complex128, float64, int, int64, uint, uint64, *big.Int, *big.Float, *bignum.Complex:
 
 		// Retrieves the minimum level
-		level := utils.MinInt(op0.Level(), op2.Level())
+		level := utils.Min(op0.Level(), op2.Level())
 
 		// Resizes output to minimum level
 		op2.Resize(op0.Degree(), level)
@@ -527,7 +531,7 @@ func (eval *Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 	case []complex128, []float64, []*big.Float, []*bignum.Complex:
 
 		// Retrieves minimum level
-		level := utils.MinInt(op0.Level(), op2.Level())
+		level := utils.Min(op0.Level(), op2.Level())
 
 		// Resizes output to minimum level
 		op2.Resize(op0.Degree(), level)
@@ -547,10 +551,12 @@ func (eval *Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 		}
 
 		// Encodes the vector on the plaintext
-		eval.Encoder.Encode(op1, pt)
+		if err := eval.Encoder.Encode(op1, pt); err != nil {
+			panic(err)
+		}
 
 		// Generic in place evaluation
-		eval.mulRelin(op0, pt, false, op2)
+		eval.mulRelin(op0, pt.El(), false, op2)
 	default:
 		panic(fmt.Errorf("op1.(type) must be rlwe.Operand, complex128, float64, int, int64, uint, uint64, *big.Int, *big.Float, *bignum.Complex, []complex128, []float64, []*big.Float or []*bignum.Complex, but is %T", op1))
 	}
@@ -563,8 +569,8 @@ func (eval *Evaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 interface{}) (ctOut
 
 	switch op1 := op1.(type) {
 	case rlwe.Operand:
-		ctOut = NewCiphertext(eval.params, 1, utils.MinInt(op0.Level(), op1.Level()))
-		eval.mulRelin(op0, op1, true, ctOut)
+		ctOut = NewCiphertext(eval.params, 1, utils.Min(op0.Level(), op1.Level()))
+		eval.mulRelin(op0, op1.El(), true, ctOut)
 	default:
 		ctOut = NewCiphertext(eval.params, 1, op0.Level())
 		eval.Mul(op0, op1, ctOut)
@@ -579,27 +585,27 @@ func (eval *Evaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 interface{}) (ctOut
 func (eval *Evaluator) MulRelin(op0 *rlwe.Ciphertext, op1 interface{}, ctOut *rlwe.Ciphertext) {
 	switch op1 := op1.(type) {
 	case rlwe.Operand:
-		eval.mulRelin(op0, op1, true, ctOut)
+		eval.mulRelin(op0, op1.El(), true, ctOut)
 	default:
 		eval.Mul(op0, op1, ctOut)
 	}
 }
 
-func (eval *Evaluator) mulRelin(op0 *rlwe.Ciphertext, op1 rlwe.Operand, relin bool, ctOut *rlwe.Ciphertext) {
+func (eval *Evaluator) mulRelin(op0 *rlwe.Ciphertext, op1 *rlwe.OperandQ, relin bool, ctOut *rlwe.Ciphertext) {
 
 	if op0.Degree()+op1.Degree() > 2 {
 		panic("cannot MulRelin: the sum of the input elements' total degree cannot be larger than 2")
 	}
 
 	ctOut.MetaData = op0.MetaData
-	ctOut.Scale = op0.Scale.Mul(op1.GetMetaData().Scale)
+	ctOut.Scale = op0.Scale.Mul(op1.Scale)
 
 	var c00, c01, c0, c1, c2 *ring.Poly
 
 	// Case Ciphertext (x) Ciphertext
 	if op0.Degree() == 1 && op1.Degree() == 1 {
 
-		_, level := eval.CheckBinary(op0, op1, ctOut, ctOut.Degree())
+		_, level := eval.CheckBinary(op0.El(), op1.El(), ctOut.El(), ctOut.Degree())
 
 		ringQ := eval.params.RingQ().AtLevel(level)
 
@@ -661,7 +667,7 @@ func (eval *Evaluator) mulRelin(op0 *rlwe.Ciphertext, op1 rlwe.Operand, relin bo
 		// Case Plaintext (x) Ciphertext or Ciphertext (x) Plaintext
 	} else {
 
-		_, level := eval.CheckBinary(op0, op1, ctOut, ctOut.Degree())
+		_, level := eval.CheckBinary(op0.El(), op1.El(), ctOut.El(), ctOut.Degree())
 
 		ringQ := eval.params.RingQ().AtLevel(level)
 
@@ -720,11 +726,11 @@ func (eval *Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rl
 	case rlwe.Operand:
 
 		// Generic in place evaluation
-		eval.mulRelinThenAdd(op0, op1, false, op2)
+		eval.mulRelinThenAdd(op0, op1.El(), false, op2)
 	case complex128, float64, int, int64, uint, uint64, *big.Int, *big.Float, *bignum.Complex:
 
 		// Retrieves the minimum level
-		level := utils.MinInt(op0.Level(), op2.Level())
+		level := utils.Min(op0.Level(), op2.Level())
 
 		// Resizes the output to the minimum level
 		op2.Resize(op2.Degree(), level)
@@ -768,7 +774,7 @@ func (eval *Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rl
 	case []complex128, []float64, []*big.Float, []*bignum.Complex:
 
 		// Retrieves minimum level
-		level := utils.MinInt(op0.Level(), op2.Level())
+		level := utils.Min(op0.Level(), op2.Level())
 
 		// Resizes output to minimum level
 		op2.Resize(op0.Degree(), level)
@@ -802,10 +808,12 @@ func (eval *Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rl
 		pt.Scale = scaleRLWE
 
 		// Encodes the vector on the plaintext
-		eval.Encoder.Encode(op1, pt)
+		if err := eval.Encoder.Encode(op1, pt); err != nil {
+			panic(err)
+		}
 
 		// Generic in place evaluation
-		eval.mulRelinThenAdd(op0, pt, false, op2)
+		eval.mulRelinThenAdd(op0, pt.El(), false, op2)
 
 	default:
 		panic(fmt.Errorf("op1.(type) must be rlwe.Operand, complex128, float64, int, int64, uint, uint64, *big.Int, *big.Float, *bignum.Complex, []complex128, []float64, []*big.Float or []*bignum.Complex, but is %T", op1))
@@ -820,12 +828,12 @@ func (eval *Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rl
 // The procedure will panic if the evaluator was not created with an relinearization key.
 // The procedure will panic if op2 = op0 or op1.
 func (eval *Evaluator) MulRelinThenAdd(op0 *rlwe.Ciphertext, op1 rlwe.Operand, op2 *rlwe.Ciphertext) {
-	eval.mulRelinThenAdd(op0, op1, true, op2)
+	eval.mulRelinThenAdd(op0, op1.El(), true, op2)
 }
 
-func (eval *Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 rlwe.Operand, relin bool, op2 *rlwe.Ciphertext) {
+func (eval *Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 *rlwe.OperandQ, relin bool, op2 *rlwe.Ciphertext) {
 
-	_, level := eval.CheckBinary(op0, op1, op2, utils.MaxInt(op0.Degree(), op1.Degree()))
+	_, level := eval.CheckBinary(op0.El(), op1.El(), op2.El(), utils.Max(op0.Degree(), op1.Degree()))
 
 	if op0.Degree()+op1.Degree() > 2 {
 		panic("cannot MulRelinThenAdd: the sum of the input elements' degree cannot be larger than 2")
@@ -835,7 +843,7 @@ func (eval *Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 rlwe.Operand, r
 		panic("cannot MulRelinThenAdd: op2 must be different from op0 and op1")
 	}
 
-	resScale := op0.Scale.Mul(op1.GetMetaData().Scale)
+	resScale := op0.Scale.Mul(op1.Scale)
 
 	if op2.Scale.Cmp(resScale) == -1 {
 		ratio := resScale.Div(op2.Scale)
@@ -966,8 +974,8 @@ func (eval *Evaluator) Conjugate(ct0 *rlwe.Ciphertext, ctOut *rlwe.Ciphertext) {
 	eval.Automorphism(ct0, eval.params.GaloisElementForRowRotation(), ctOut)
 }
 
-func (eval *Evaluator) RotateHoistedLazyNew(level int, rotations []int, ct *rlwe.Ciphertext, c2DecompQP []ringqp.Poly) (cOut map[int]rlwe.CiphertextQP) {
-	cOut = make(map[int]rlwe.CiphertextQP)
+func (eval *Evaluator) RotateHoistedLazyNew(level int, rotations []int, ct *rlwe.Ciphertext, c2DecompQP []ringqp.Poly) (cOut map[int]*rlwe.OperandQP) {
+	cOut = make(map[int]*rlwe.OperandQP)
 	for _, i := range rotations {
 		if i != 0 {
 			cOut[i] = rlwe.NewOperandQP(eval.params.Parameters, 1, level, eval.params.MaxLevelP())

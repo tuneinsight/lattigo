@@ -8,14 +8,6 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
-// Operand is a common interface for Ciphertext and Plaintext types.
-type Operand interface {
-	El() *Ciphertext
-	Degree() int
-	Level() int
-	GetMetaData() *MetaData
-}
-
 // Evaluator is a struct that holds the necessary elements to execute general homomorphic
 // operation on RLWE ciphertexts, such as automorphisms, key-switching and relinearization.
 type Evaluator struct {
@@ -164,7 +156,7 @@ func (eval *Evaluator) CheckAndGetRelinearizationKey() (evk *RelinearizationKey,
 // LogSlots <- max(op0.LogSlots, op1.LogSlots)
 //
 // and returns max(op0.Degree(), op1.Degree(), opOut.Degree()) and min(op0.Level(), op1.Level(), opOut.Level())
-func (eval *Evaluator) CheckBinary(op0, op1, opOut Operand, opOutMinDegree int) (degree, level int) {
+func (eval *Evaluator) CheckBinary(op0, op1, opOut *OperandQ, opOutMinDegree int) (degree, level int) {
 
 	degree = utils.Max(op0.Degree(), op1.Degree())
 	degree = utils.Max(degree, opOut.Degree())
@@ -191,9 +183,9 @@ func (eval *Evaluator) CheckBinary(op0, op1, opOut Operand, opOutMinDegree int) 
 		opOut.El().EncodingDomain = op0.El().EncodingDomain
 	}
 
-	opOut.El().LogSlots = utils.MaxInt(op0.El().LogSlots, op1.El().LogSlots)
+	opOut.El().LogSlots = utils.Max(op0.El().LogSlots, op1.El().LogSlots)
 
-	opOut.El().Resize(utils.MaxInt(opOutMinDegree, opOut.Degree()), level)
+	opOut.El().Resize(utils.Max(opOutMinDegree, opOut.Degree()), level)
 
 	return
 }
@@ -207,7 +199,7 @@ func (eval *Evaluator) CheckBinary(op0, op1, opOut Operand, opOutMinDegree int) 
 // LogSlots <- op0.LogSlots
 //
 // Also returns max(op0.Degree(), opOut.Degree()) and min(op0.Level(), opOut.Level()).
-func (eval *Evaluator) CheckUnary(op0, opOut Operand) (degree, level int) {
+func (eval *Evaluator) CheckUnary(op0, opOut *OperandQ) (degree, level int) {
 
 	if op0 == nil || opOut == nil {
 		panic("op0 and opOut cannot be nil")
@@ -223,7 +215,7 @@ func (eval *Evaluator) CheckUnary(op0, opOut Operand) (degree, level int) {
 
 	opOut.El().LogSlots = op0.El().LogSlots
 
-	return utils.MaxInt(op0.Degree(), opOut.Degree()), utils.MinInt(op0.Level(), opOut.Level())
+	return utils.Max(op0.Degree(), opOut.Degree()), utils.Min(op0.Level(), opOut.Level())
 }
 
 // ShallowCopy creates a shallow copy of this Evaluator in which all the read-only data-structures are

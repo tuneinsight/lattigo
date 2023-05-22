@@ -7,8 +7,10 @@ import (
 
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
-	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum/approximation"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 func chebyshevinterpolation() {
@@ -68,7 +70,9 @@ func chebyshevinterpolation() {
 
 	// Plaintext creation and encoding process
 	plaintext := ckks.NewPlaintext(params, params.MaxLevel())
-	encoder.Encode(values, plaintext)
+	if err := encoder.Encode(values, plaintext); err != nil {
+		panic(err)
+	}
 
 	slots := 1 << plaintext.LogSlots
 
@@ -84,22 +88,22 @@ func chebyshevinterpolation() {
 	// Evaluation process
 	// We approximate f(x) in the range [-8, 8] with a Chebyshev interpolant of 33 coefficients (degree 32).
 
-	approxF := bignum.Approximate(func(x *bignum.Complex) (y *bignum.Complex) {
+	approxF := approximation.Chebyshev(func(x *bignum.Complex) (y *bignum.Complex) {
 		xf64, _ := x[0].Float64()
 		y = bignum.NewComplex().SetPrec(53)
 		y[0].SetFloat64(f(xf64))
 		return
-	}, bignum.Interval{
+	}, polynomial.Interval{
 		A: new(big.Float).SetFloat64(a),
 		B: new(big.Float).SetFloat64(b),
 	}, deg)
 
-	approxG := bignum.Approximate(func(x *bignum.Complex) (y *bignum.Complex) {
+	approxG := approximation.Chebyshev(func(x *bignum.Complex) (y *bignum.Complex) {
 		xf64, _ := x[0].Float64()
 		y = bignum.NewComplex().SetPrec(53)
 		y[0].SetFloat64(g(xf64))
 		return
-	}, bignum.Interval{
+	}, polynomial.Interval{
 		A: new(big.Float).SetFloat64(a),
 		B: new(big.Float).SetFloat64(b),
 	}, deg)
@@ -125,7 +129,7 @@ func chebyshevinterpolation() {
 	}
 
 	// We evaluate the interpolated Chebyshev interpolant on the ciphertext
-	if ciphertext, err = evaluator.EvaluatePolyVector(ciphertext, []*bignum.Polynomial{approxF, approxG}, slotsIndex, ciphertext.Scale); err != nil {
+	if ciphertext, err = evaluator.EvaluatePolyVector(ciphertext, []*polynomial.Polynomial{approxF, approxG}, slotsIndex, ciphertext.Scale); err != nil {
 		panic(err)
 	}
 
@@ -158,7 +162,9 @@ func printDebug(params ckks.Parameters, ciphertext *rlwe.Ciphertext, valuesWant 
 
 	valuesTest = make([]float64, 1<<ciphertext.LogSlots)
 
-	encoder.Decode(decryptor.DecryptNew(ciphertext), valuesTest)
+	if err := encoder.Decode(decryptor.DecryptNew(ciphertext), valuesTest); err != nil {
+		panic(err)
+	}
 
 	fmt.Println()
 	fmt.Printf("Level: %d (logQ = %d)\n", ciphertext.Level(), params.LogQLvl(ciphertext.Level()))

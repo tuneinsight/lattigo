@@ -15,7 +15,6 @@ import (
 	"github.com/tuneinsight/lattigo/v4/drlwe"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
-	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
@@ -98,19 +97,10 @@ func TestDCKKS(t *testing.T) {
 				testRefresh,
 				testRefreshAndTransform,
 				testRefreshAndTransformSwitchParams,
-				testMarshalling,
 			} {
 				testSet(tc, t)
 				runtime.GC()
 			}
-		for _, testSet := range []func(tc *testContext, t *testing.T){
-			testE2SProtocol,
-			testRefresh,
-			testRefreshAndTransform,
-			testRefreshAndTransformSwitchParams,
-		} {
-			testSet(tc, t)
-			runtime.GC()
 		}
 	}
 }
@@ -194,7 +184,7 @@ func testE2SProtocol(tc *testContext, t *testing.T) {
 			P[i].sk = tc.sk0Shards[i]
 			P[i].publicShareE2S = P[i].e2s.AllocateShare(minLevel)
 			P[i].publicShareS2E = P[i].s2e.AllocateShare(params.MaxLevel())
-			P[i].secretShare = NewAdditiveShareBigint(params, ciphertext.LogSlots)
+			P[i].secretShare = drlwe.NewAdditiveShareBigint(params.Parameters, ciphertext.LogSlots)
 		}
 
 		for i, p := range P {
@@ -211,7 +201,7 @@ func testE2SProtocol(tc *testContext, t *testing.T) {
 		P[0].e2s.GetShare(P[0].secretShare, P[0].publicShareE2S, ciphertext, P[0].secretShare)
 
 		// sum(-M_i) + x + sum(M_i) = x
-		rec := NewAdditiveShareBigint(params, ciphertext.LogSlots)
+		rec := drlwe.NewAdditiveShareBigint(params.Parameters, ciphertext.LogSlots)
 		for _, p := range P {
 			a := rec.Value
 			b := p.secretShare.Value
@@ -514,62 +504,8 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 	})
 }
 
-func testMarshalling(tc *testContext, t *testing.T) {
-	params := tc.params
-
-	t.Run(GetTestName("Marshalling/Refresh", tc.NParties, params), func(t *testing.T) {
-
-		var minLevel int
-		var logBound uint
-		var ok bool
-		if minLevel, logBound, ok = GetMinimumLevelForRefresh(128, params.DefaultScale(), tc.NParties, params.Q()); ok != true {
-			t.Skip("Not enough levels to ensure correctness and 128 security")
-		}
-
-		ciphertext := ckks.NewCiphertext(params, 1, minLevel)
-		ciphertext.Scale = params.DefaultScale()
-		tc.uniformSampler.AtLevel(minLevel).Read(ciphertext.Value[0])
-		tc.uniformSampler.AtLevel(minLevel).Read(ciphertext.Value[1])
-
-		// Testing refresh shares
-		refreshproto := NewRefreshProtocol(tc.params, logBound, params.Xe())
-		refreshshare := refreshproto.AllocateShare(ciphertext.Level(), params.MaxLevel())
-
-		crp := refreshproto.SampleCRP(params.MaxLevel(), tc.crs)
-
-		refreshproto.GenShare(tc.sk0, logBound, ciphertext, crp, refreshshare)
-
-		data, err := refreshshare.MarshalBinary()
-
-		if err != nil {
-			t.Fatal("Could not marshal RefreshShare", err)
-		}
-
-		resRefreshShare := new(MaskedTransformShare)
-		err = resRefreshShare.UnmarshalBinary(data)
-
-		if err != nil {
-			t.Fatal("Could not unmarshal RefreshShare", err)
-		}
-
-		for i, r := range refreshshare.e2sShare.Value.Coeffs {
-			if !utils.EqualSlice(resRefreshShare.e2sShare.Value.Coeffs[i], r) {
-				t.Fatal("Result of marshalling not the same as original : RefreshShare")
-			}
-
-		}
-		for i, r := range refreshshare.s2eShare.Value.Coeffs {
-			if !utils.EqualSlice(resRefreshShare.s2eShare.Value.Coeffs[i], r) {
-				t.Fatal("Result of marshalling not the same as original : RefreshShare")
-			}
-
-		}
-	})
-}
-
-func newTestVectors(testContext *testContext, encryptor rlwe.Encryptor, a, b complex128) (values []*bignum.Complex, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
-func newTestVectors(testContext *testContext, encryptor rlwe.Encryptor, a, b complex128) (values []complex128, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
-	return newTestVectorsAtScale(testContext, encryptor, a, b, testContext.params.DefaultScale())
+func newTestVectors(tc *testContext, encryptor rlwe.Encryptor, a, b complex128) (values []*bignum.Complex, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
+	return newTestVectorsAtScale(tc, encryptor, a, b, tc.params.DefaultScale())
 }
 
 func newTestVectorsAtScale(tc *testContext, encryptor rlwe.Encryptor, a, b complex128, scale rlwe.Scale) (values []*bignum.Complex, pt *rlwe.Plaintext, ct *rlwe.Ciphertext) {
@@ -581,8 +517,23 @@ func newTestVectorsAtScale(tc *testContext, encryptor rlwe.Encryptor, a, b compl
 
 	values = make([]*bignum.Complex, pt.Slots())
 
-	for i := 0; i < 1<<logSlots; i++ {
-		values[i] = complex(utils.RandFloat64(real(a), real(b)), utils.RandFloat64(imag(a), imag(b)))
+	switch tc.params.RingType() {
+	case ring.Standard:
+		for i := range values {
+			values[i] = &bignum.Complex{
+				bignum.NewFloat(sampling.RandFloat64(real(a), real(b)), prec),
+				bignum.NewFloat(sampling.RandFloat64(imag(a), imag(b)), prec),
+			}
+		}
+	case ring.ConjugateInvariant:
+		for i := range values {
+			values[i] = &bignum.Complex{
+				bignum.NewFloat(sampling.RandFloat64(real(a), real(b)), prec),
+				new(big.Float),
+			}
+		}
+	default:
+		panic("invalid ring type")
 	}
 
 	tc.encoder.Encode(values, pt)

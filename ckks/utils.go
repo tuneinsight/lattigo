@@ -195,22 +195,22 @@ func Complex128ToFixedPointCRT(r *ring.Ring, values []complex128, scale float64,
 
 	end := len(coeffs[0])
 	for i := start; i < end; i++ {
-		SingleFloatToFixedPointCRT(r, i, 0, 0, coeffs)
+		SingleFloat64ToFixedPointCRT(r, i, 0, 0, coeffs)
 	}
 }
 
-// FloatToFixedPointCRT encodes a vector of floats on a CRT polynomial.
-func FloatToFixedPointCRT(r *ring.Ring, values []float64, scale float64, coeffs [][]uint64) {
+// Float64ToFixedPointCRT encodes a vector of floats on a CRT polynomial.
+func Float64ToFixedPointCRT(r *ring.Ring, values []float64, scale float64, coeffs [][]uint64) {
 
 	start := len(values)
 	end := len(coeffs[0])
 
 	for i := 0; i < start; i++ {
-		SingleFloatToFixedPointCRT(r, i, values[i], scale, coeffs)
+		SingleFloat64ToFixedPointCRT(r, i, values[i], scale, coeffs)
 	}
 
 	for i := start; i < end; i++ {
-		SingleFloatToFixedPointCRT(r, i, 0, 0, coeffs)
+		SingleFloat64ToFixedPointCRT(r, i, 0, 0, coeffs)
 	}
 }
 
@@ -276,20 +276,6 @@ func SingleFloat64ToFixedPointCRT(r *ring.Ring, i int, value float64, scale floa
 					coeffs[j][i] = c
 				}
 			}
-		}
-	}
-}
-
-// Float64ToFixedPointCRT encodes a vector of floats on a CRT polynomial.
-func Float64ToFixedPointCRT(r *ring.Ring, values []float64, scale float64, coeffs [][]uint64) {
-	for i, v := range values {
-		SingleFloat64ToFixedPointCRT(r, i, v, scale, coeffs)
-	}
-
-	for i := 0; i < len(coeffs); i++ {
-		tmp := coeffs[i]
-		for j := len(values); j < len(coeffs[0]); j++ {
-			tmp[j] = 0
 		}
 	}
 }
@@ -413,72 +399,6 @@ func BigFloatToFixedPointCRT(r *ring.Ring, values []*big.Float, scale *big.Float
 
 				coeffs[j][i] = tmp.Uint64()
 			}
-		}
-	}
-}
-
-// SliceBitReverseInPlaceComplex128 applies an in-place bit-reverse permutation on the input slice.
-func SliceBitReverseInPlaceComplex128(slice []complex128, N int) {
-
-	var bit, j int
-
-	for i := 1; i < N; i++ {
-
-		bit = N >> 1
-
-		for j >= bit {
-			j -= bit
-			bit >>= 1
-		}
-
-		j += bit
-
-		if i < j {
-			slice[i], slice[j] = slice[j], slice[i]
-		}
-	}
-}
-
-// SliceBitReverseInPlaceFloat64 applies an in-place bit-reverse permutation on the input slice.
-func SliceBitReverseInPlaceFloat64(slice []float64, N int) {
-
-	var bit, j int
-
-	for i := 1; i < N; i++ {
-
-		bit = N >> 1
-
-		for j >= bit {
-			j -= bit
-			bit >>= 1
-		}
-
-		j += bit
-
-		if i < j {
-			slice[i], slice[j] = slice[j], slice[i]
-		}
-	}
-}
-
-// SliceBitReverseInPlaceBigComplex applies an in-place bit-reverse permutation on the input slice.
-func SliceBitReverseInPlaceBigComplex(slice []*bignum.Complex, N int) {
-
-	var bit, j int
-
-	for i := 1; i < N; i++ {
-
-		bit = N >> 1
-
-		for j >= bit {
-			j -= bit
-			bit >>= 1
-		}
-
-		j += bit
-
-		if i < j {
-			slice[i], slice[j] = slice[j], slice[i]
 		}
 	}
 }

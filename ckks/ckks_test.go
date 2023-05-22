@@ -15,8 +15,10 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
-	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum/approximation"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
@@ -37,7 +39,7 @@ type testContext struct {
 	params      Parameters
 	ringQ       *ring.Ring
 	ringP       *ring.Ring
-	prng        utils.PRNG
+	prng        sampling.PRNG
 	encoder     *Encoder
 	kgen        *rlwe.KeyGenerator
 	sk          *rlwe.SecretKey
@@ -146,14 +148,14 @@ func newTestVectors(tc *testContext, encryptor rlwe.Encryptor, a, b complex128, 
 	case ring.Standard:
 		for i := range values {
 			values[i] = &bignum.Complex{
-				bignum.NewFloat(utils.RandFloat64(real(a), real(b)), prec),
-				bignum.NewFloat(utils.RandFloat64(imag(a), imag(b)), prec),
+				bignum.NewFloat(sampling.RandFloat64(real(a), real(b)), prec),
+				bignum.NewFloat(sampling.RandFloat64(imag(a), imag(b)), prec),
 			}
 		}
 	case ring.ConjugateInvariant:
 		for i := range values {
 			values[i] = &bignum.Complex{
-				bignum.NewFloat(utils.RandFloat64(real(a), real(b)), prec),
+				bignum.NewFloat(sampling.RandFloat64(real(a), real(b)), prec),
 				new(big.Float),
 			}
 		}
@@ -174,12 +176,12 @@ func randomConst(tp ring.Type, prec uint, a, b complex128) (constant *bignum.Com
 	switch tp {
 	case ring.Standard:
 		constant = &bignum.Complex{
-			bignum.NewFloat(utils.RandFloat64(real(a), real(b)), prec),
-			bignum.NewFloat(utils.RandFloat64(imag(a), imag(b)), prec),
+			bignum.NewFloat(sampling.RandFloat64(real(a), real(b)), prec),
+			bignum.NewFloat(sampling.RandFloat64(imag(a), imag(b)), prec),
 		}
 	case ring.ConjugateInvariant:
 		constant = &bignum.Complex{
-			bignum.NewFloat(utils.RandFloat64(real(a), real(b)), prec),
+			bignum.NewFloat(sampling.RandFloat64(real(a), real(b)), prec),
 			new(big.Float),
 		}
 	default:
@@ -565,7 +567,9 @@ func testEvaluatorMul(tc *testContext, t *testing.T) {
 			mul.Mul(values2[i], values1[i], values2[i])
 		}
 
-		ciphertext1 := &rlwe.Ciphertext{Value: []*ring.Poly{plaintext1.Value}, MetaData: plaintext1.MetaData}
+		ciphertext1 := &rlwe.Ciphertext{}
+		ciphertext1.Value = []*ring.Poly{plaintext1.Value}
+		ciphertext1.MetaData = plaintext1.MetaData
 
 		tc.evaluator.MulRelin(ciphertext1, ciphertext2, ciphertext1)
 
@@ -778,7 +782,7 @@ func testEvaluatePoly(tc *testContext, t *testing.T) {
 			new(big.Float).Quo(bignum.NewFloat(1, prec), bignum.NewFloat(5040, prec)),
 		}
 
-		poly := bignum.NewPolynomial(bignum.Monomial, coeffs, nil)
+		poly := polynomial.NewPolynomial(polynomial.Monomial, coeffs, nil)
 
 		for i := range values {
 			values[i] = poly.Evaluate(values[i])
@@ -812,7 +816,7 @@ func testEvaluatePoly(tc *testContext, t *testing.T) {
 			new(big.Float).Quo(bignum.NewFloat(1, prec), bignum.NewFloat(5040, prec)),
 		}
 
-		poly := bignum.NewPolynomial(bignum.Monomial, coeffs, nil)
+		poly := polynomial.NewPolynomial(polynomial.Monomial, coeffs, nil)
 
 		slots := ciphertext.Slots()
 
@@ -829,7 +833,7 @@ func testEvaluatePoly(tc *testContext, t *testing.T) {
 			valuesWant[j] = poly.Evaluate(values[j])
 		}
 
-		if ciphertext, err = tc.evaluator.EvaluatePolyVector(ciphertext, []*bignum.Polynomial{poly}, slotIndex, ciphertext.Scale); err != nil {
+		if ciphertext, err = tc.evaluator.EvaluatePolyVector(ciphertext, []*polynomial.Polynomial{poly}, slotIndex, ciphertext.Scale); err != nil {
 			t.Fatal(err)
 		}
 
@@ -863,12 +867,12 @@ func testChebyshevInterpolator(tc *testContext, t *testing.T) {
 			return
 		}
 
-		interval := bignum.Interval{
+		interval := polynomial.Interval{
 			A: new(big.Float).SetPrec(prec).SetFloat64(-1.5),
 			B: new(big.Float).SetPrec(prec).SetFloat64(1.5),
 		}
 
-		poly := bignum.Approximate(sin, interval, degree)
+		poly := approximation.Chebyshev(sin, interval, degree)
 
 		scalar, constant := poly.ChangeOfBasis()
 		eval.Mul(ciphertext, scalar, ciphertext)
@@ -917,12 +921,12 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 			return
 		}
 
-		interval := bignum.Interval{
+		interval := polynomial.Interval{
 			A: new(big.Float).SetPrec(prec).SetFloat64(a),
 			B: new(big.Float).SetPrec(prec).SetFloat64(b),
 		}
 
-		poly := bignum.Approximate(sin, interval, degree)
+		poly := approximation.Chebyshev(sin, interval, degree)
 
 		for i := range values {
 			values[i] = poly.Evaluate(values[i])
@@ -1042,17 +1046,6 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 			tmp0[i] = values[i].Copy()
 		}
 
-		rotatebignumslice := func(s []*bignum.Complex, k int) []*bignum.Complex {
-			if k == 0 || len(s) == 0 {
-				return s
-			}
-			r := k % len(s)
-			if r < 0 {
-				r = r + len(s)
-			}
-			return append(s[r:], s[:r]...)
-		}
-
 		for i := 1; i < n; i++ {
 
 			tmp1 := utils.RotateSlice(tmp0, i*batch)
@@ -1098,10 +1091,10 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		linTransf := GenLinearTransformBSGS(tc.encoder, diagMatrix, params.MaxLevel(), rlwe.NewScale(params.Q()[params.MaxLevel()]), LogBSGSRatio, ciphertext.LogSlots)
 
-		galEls := params.GaloisElementsForLinearTransform(nonZeroDiags, LogBSGSRatio, ciphertext.LogSlots)
+		galEls := params.GaloisElementsForLinearTransform(nonZeroDiags, ciphertext.LogSlots, LogBSGSRatio)
 
 		evk := rlwe.NewEvaluationKeySet()
-		for _, galEl := range linTransf.GaloisElements(params) {
+		for _, galEl := range galEls {
 			evk.GaloisKeys[galEl] = tc.kgen.GenGaloisKeyNew(galEl, tc.sk)
 		}
 
@@ -1151,10 +1144,10 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		linTransf := GenLinearTransform(tc.encoder, diagMatrix, params.MaxLevel(), rlwe.NewScale(params.Q()[params.MaxLevel()]), ciphertext.LogSlots)
 
-		galEls := params.GaloisElementsForLinearTransform([]int{-1, 0}, -1, ciphertext.LogSlots)
+		galEls := params.GaloisElementsForLinearTransform([]int{-1, 0}, ciphertext.LogSlots, -1)
 
 		evk := rlwe.NewEvaluationKeySet()
-		for _, galEl := range linTransf.GaloisElements(params) {
+		for _, galEl := range galEls {
 			evk.GaloisKeys[galEl] = tc.kgen.GenGaloisKeyNew(galEl, tc.sk)
 		}
 

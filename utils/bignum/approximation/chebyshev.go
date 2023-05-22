@@ -1,23 +1,27 @@
-package bignum
+// Package approximation provides methods to approximate functions with polynomials in a given interval.
+package approximation
 
 import (
 	"math/big"
+
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
 )
 
-// Approximate computes a Chebyshev approximation of the input function, for the range [-a, b] of degree degree.
+// Chebyshev computes a Chebyshev approximation of the input function, for the range [-a, b] of degree degree.
 // function.(type) can be either :
-// - func(complex128)complex128
+// - func(bignum.Complex128)bignum.Complex128
 // - func(float64)float64
 // - func(*big.Float)*big.Float
-// - func(*Complex)*Complex
+// - func(*bignum.Complex)*bignum.Complex
 // The reference precision is taken from the values stored in the Interval struct.
-func Approximate(f func(*Complex) *Complex, interval Interval, degree int) (pol *Polynomial) {
+func Chebyshev(f func(*bignum.Complex) *bignum.Complex, interval polynomial.Interval, degree int) (pol *polynomial.Polynomial) {
 
 	nodes := chebyshevNodes(degree+1, interval)
 
-	fi := make([]*Complex, len(nodes))
+	fi := make([]*bignum.Complex, len(nodes))
 
-	x := NewComplex()
+	x := bignum.NewComplex()
 	x.SetPrec(interval.A.Prec())
 
 	for i := range nodes {
@@ -25,10 +29,10 @@ func Approximate(f func(*Complex) *Complex, interval Interval, degree int) (pol 
 		fi[i] = f(x)
 	}
 
-	return NewPolynomial(Chebyshev, chebyCoeffs(nodes, fi, interval), &interval)
+	return polynomial.NewPolynomial(polynomial.Chebyshev, chebyCoeffs(nodes, fi, interval), &interval)
 }
 
-func chebyshevNodes(n int, interval Interval) (u []*big.Float) {
+func chebyshevNodes(n int, interval polynomial.Interval) (u []*big.Float) {
 
 	prec := interval.A.Prec()
 
@@ -41,13 +45,13 @@ func chebyshevNodes(n int, interval Interval) (u []*big.Float) {
 	y := new(big.Float).Sub(interval.B, interval.A)
 	y.Mul(y, half)
 
-	PiOverN := Pi(prec)
+	PiOverN := bignum.Pi(prec)
 	PiOverN.Quo(PiOverN, new(big.Float).SetInt64(int64(n)))
 
 	for k := 1; k < n+1; k++ {
 		up := new(big.Float).SetPrec(prec).SetFloat64(float64(k) - 0.5)
 		up.Mul(up, PiOverN)
-		up = Cos(up)
+		up = bignum.Cos(up)
 		up.Mul(up, y)
 		up.Add(up, x)
 		u[k-1] = up
@@ -56,22 +60,22 @@ func chebyshevNodes(n int, interval Interval) (u []*big.Float) {
 	return
 }
 
-func chebyCoeffs(nodes []*big.Float, fi []*Complex, interval Interval) (coeffs []*Complex) {
+func chebyCoeffs(nodes []*big.Float, fi []*bignum.Complex, interval polynomial.Interval) (coeffs []*bignum.Complex) {
 
 	prec := interval.A.Prec()
 
 	n := len(nodes)
 
-	coeffs = make([]*Complex, n)
+	coeffs = make([]*bignum.Complex, n)
 	for i := range coeffs {
-		coeffs[i] = NewComplex().SetPrec(prec)
+		coeffs[i] = bignum.NewComplex().SetPrec(prec)
 	}
 
-	u := NewComplex().SetPrec(prec)
+	u := bignum.NewComplex().SetPrec(prec)
 
-	mul := NewComplexMultiplier()
+	mul := bignum.NewComplexMultiplier()
 
-	tmp := NewComplex().SetPrec(prec)
+	tmp := bignum.NewComplex().SetPrec(prec)
 
 	two := new(big.Float).SetPrec(prec).SetInt64(2)
 
@@ -82,7 +86,7 @@ func chebyCoeffs(nodes []*big.Float, fi []*Complex, interval Interval) (coeffs [
 	bminusa := new(big.Float).Set(interval.B)
 	bminusa.Sub(bminusa, interval.A)
 
-	Tnext := NewComplex().SetPrec(prec)
+	Tnext := bignum.NewComplex().SetPrec(prec)
 
 	for i := 0; i < n; i++ {
 
@@ -90,7 +94,7 @@ func chebyCoeffs(nodes []*big.Float, fi []*Complex, interval Interval) (coeffs [
 		u[0].Sub(u[0], minusab)
 		u[0].Quo(u[0], bminusa)
 
-		Tprev := NewComplex().SetPrec(prec)
+		Tprev := bignum.NewComplex().SetPrec(prec)
 		Tprev[0].SetFloat64(1)
 
 		T := u.Copy()

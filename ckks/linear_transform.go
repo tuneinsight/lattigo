@@ -145,14 +145,14 @@ func (LT *LinearTransform) GaloisElements(params Parameters) (GalEls []uint64) {
 		}
 	}
 
-	rotations := make([]int, len(rotIndex))
+	galEls := make([]uint64, len(rotIndex))
 	var i int
 	for j := range rotIndex {
 		galEls[i] = params.GaloisElementForColumnRotationBy(j)
 		i++
 	}
 
-	return params.GaloisElementsForRotations(rotations)
+	return galEls
 }
 
 // Encode encodes on a pre-allocated LinearTransform the linear transforms' matrix in diagonal form `value`.
@@ -178,7 +178,9 @@ func (LT *LinearTransform) Encode(ecd *Encoder, value interface{}, scale rlwe.Sc
 				panic("cannot Encode: error encoding on LinearTransform: input does not match the same non-zero diagonals")
 			}
 
-			ecd.Embed(dMat[i], LT.LogSlots, scale, true, LT.Vec[idx])
+			if err := ecd.Embed(dMat[i], LT.LogSlots, scale, true, LT.Vec[idx]); err != nil {
+				panic(err)
+			}
 		}
 	} else {
 
@@ -213,7 +215,9 @@ func (LT *LinearTransform) Encode(ecd *Encoder, value interface{}, scale rlwe.Sc
 
 				copyRotInterface(values, v, rot)
 
-				ecd.Embed(values, LT.LogSlots, scale, true, LT.Vec[j+i])
+				if err := ecd.Embed(values, LT.LogSlots, scale, true, LT.Vec[j+i]); err != nil {
+					panic(err)
+				}
 			}
 		}
 	}
@@ -242,8 +246,10 @@ func GenLinearTransform(ecd *Encoder, value interface{}, level int, scale rlwe.S
 		if idx < 0 {
 			idx += slots
 		}
-		vec[idx] = ringQP.NewPoly()
-		ecd.Embed(dMat[i], logslots, scale, true, vec[idx])
+		vec[idx] = *ringQP.NewPoly()
+		if err := ecd.Embed(dMat[i], logslots, scale, true, vec[idx]); err != nil {
+			panic(err)
+		}
 	}
 
 	return LinearTransform{LogSlots: logslots, N1: 0, Vec: vec, Level: level, Scale: scale}
@@ -303,7 +309,9 @@ func GenLinearTransformBSGS(ecd *Encoder, value interface{}, level int, scale rl
 
 			copyRotInterface(values, v, rot)
 
-			ecd.Embed(values, logSlots, scale, true, vec[j+i])
+			if err := ecd.Embed(values, logSlots, scale, true, vec[j+i]); err != nil {
+				panic(err)
+			}
 		}
 	}
 
@@ -469,7 +477,7 @@ func (eval *Evaluator) LinearTransform(ctIn *rlwe.Ciphertext, linearTransform in
 
 			ctOut[i].MetaData = ctIn.MetaData
 			ctOut[i].Scale = ctIn.Scale.Mul(LT.Scale)
-			ctOut[i].LogSlots = utils.MaxInt(ctOut[i].LogSlots, LT.LogSlots)
+			ctOut[i].LogSlots = utils.Max(ctOut[i].LogSlots, LT.LogSlots)
 		}
 
 	case LinearTransform:
@@ -483,7 +491,7 @@ func (eval *Evaluator) LinearTransform(ctIn *rlwe.Ciphertext, linearTransform in
 
 		ctOut[0].MetaData = ctIn.MetaData
 		ctOut[0].Scale = ctIn.Scale.Mul(LTs.Scale)
-		ctOut[0].LogSlots = utils.MaxInt(ctOut[0].LogSlots, LTs.LogSlots)
+		ctOut[0].LogSlots = utils.Max(ctOut[0].LogSlots, LTs.LogSlots)
 	}
 }
 

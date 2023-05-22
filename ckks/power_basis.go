@@ -8,6 +8,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
 )
 
+// PowerBasis is a struct storing powers of a ciphertext.
 type PowerBasis struct {
 	*rlwe.PowerBasis
 }
@@ -36,7 +37,7 @@ func (p *PowerBasis) Decode(data []byte) (n int, err error) {
 // If lazy = true, the final X^{n} will not be relinearized.
 // Previous non-relinearized X^{n} that are required to compute the target X^{n} are automatically relinearized.
 // Scale sets the threshold for rescaling (ciphertext won't be rescaled if the rescaling operation would make the scale go under this threshold).
-func (p *PowerBasis) GenPower(n int, lazy bool, scale rlwe.Scale, eval Evaluator) (err error) {
+func (p *PowerBasis) GenPower(n int, lazy bool, scale rlwe.Scale, eval *Evaluator) (err error) {
 
 	if p.Value[n] == nil {
 		if err = p.genPower(n, lazy, scale, eval); err != nil {
@@ -51,7 +52,7 @@ func (p *PowerBasis) GenPower(n int, lazy bool, scale rlwe.Scale, eval Evaluator
 	return nil
 }
 
-func (p *PowerBasis) genPower(n int, lazy bool, scale rlwe.Scale, eval Evaluator) (err error) {
+func (p *PowerBasis) genPower(n int, lazy bool, scale rlwe.Scale, eval *Evaluator) (err error) {
 
 	if p.Value[n] == nil {
 
@@ -121,7 +122,7 @@ func (p *PowerBasis) genPower(n int, lazy bool, scale rlwe.Scale, eval Evaluator
 
 			// Computes C[n] = 2*C[a]*C[b] - C[c]
 			if c == 0 {
-				eval.AddConst(p.Value[n], -1, p.Value[n])
+				eval.Add(p.Value[n], -1, p.Value[n])
 			} else {
 				// Since C[0] is not stored (but rather seen as the constant 1), only recurses on c if c!= 0
 				if err = p.GenPower(c, lazy, scale, eval); err != nil {

@@ -131,7 +131,7 @@ func maxIndex(array []float64) (maxind int) {
 	max := array[0]
 	for i := 1; i < len(array); i++ {
 		if array[i] > max {
-			Maxd = i
+			maxind = i
 			max = array[i]
 		}
 	}
@@ -177,7 +177,7 @@ func genDegrees(degree, K int, dev float64) ([]int, int) {
 		if totdeg >= degbdd {
 			break
 		}
-		var maxi = Maxdex(bdd)
+		var maxi = maxIndex(bdd)
 
 		if maxi != 0 {
 			if totdeg+2 > degbdd {

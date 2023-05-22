@@ -148,7 +148,7 @@ func (p *ParametersLiteral) GetLogSlots(LogN int) (LogSlots int, err error) {
 // The default value constructed from DefaultC2SFactorization and DefaultC2SLogScale is returned if the field is nil.
 func (p *ParametersLiteral) GetCoeffsToSlotsFactorizationDepthAndLogScales(LogSlots int) (CoeffsToSlotsFactorizationDepthAndLogScales [][]int, err error) {
 	if p.CoeffsToSlotsFactorizationDepthAndLogScales == nil {
-		CoeffsToSlotsFactorizationDepthAndLogScales = make([][]int, utils.MinInt(DefaultCoeffsToSlotsFactorizationDepth, utils.MaxInt(LogSlots, 1)))
+		CoeffsToSlotsFactorizationDepthAndLogScales = make([][]int, utils.Min(DefaultCoeffsToSlotsFactorizationDepth, utils.Max(LogSlots, 1)))
 		for i := range CoeffsToSlotsFactorizationDepthAndLogScales {
 			CoeffsToSlotsFactorizationDepthAndLogScales[i] = []int{DefaultCoeffsToSlotsLogScale}
 		}
@@ -171,7 +171,7 @@ func (p *ParametersLiteral) GetCoeffsToSlotsFactorizationDepthAndLogScales(LogSl
 // The default value constructed from DefaultS2CFactorization and DefaultS2CLogScale is returned if the field is nil.
 func (p *ParametersLiteral) GetSlotsToCoeffsFactorizationDepthAndLogScales(LogSlots int) (SlotsToCoeffsFactorizationDepthAndLogScales [][]int, err error) {
 	if p.SlotsToCoeffsFactorizationDepthAndLogScales == nil {
-		SlotsToCoeffsFactorizationDepthAndLogScales = make([][]int, utils.MinInt(DefaultSlotsToCoeffsFactorizationDepth, utils.MaxInt(LogSlots, 1)))
+		SlotsToCoeffsFactorizationDepthAndLogScales = make([][]int, utils.Min(DefaultSlotsToCoeffsFactorizationDepth, utils.Max(LogSlots, 1)))
 		for i := range SlotsToCoeffsFactorizationDepthAndLogScales {
 			SlotsToCoeffsFactorizationDepthAndLogScales[i] = []int{DefaultSlotsToCoeffsLogScale}
 		}
@@ -333,7 +333,7 @@ func (p *ParametersLiteral) GetEphemeralSecretWeight() (EphemeralSecretWeight in
 // BitConsumption returns the expected consumption in bits of
 // bootstrapping circuit of the target ParametersLiteral.
 // The value is rounded up and thus will overestimate the value by up to 1 bit.
-func (p *ParametersLiteral) BitComsumption(LogSlots int) (logQ int, err error) {
+func (p *ParametersLiteral) BitConsumption(LogSlots int) (logQ int, err error) {
 
 	var C2SLogScale [][]int
 	if C2SLogScale, err = p.GetCoeffsToSlotsFactorizationDepthAndLogScales(LogSlots); err != nil {

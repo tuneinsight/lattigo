@@ -60,6 +60,6 @@ func (d *SecretKeyBootstrapper) MinimumInputLevel() int {
 	return 0
 }
 
-func (d *SecretKeyBootstrapper) OuputLevel() int {
+func (d *SecretKeyBootstrapper) OutputLevel() int {
 	return d.MaxLevel()
 }

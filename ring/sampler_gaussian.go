@@ -6,8 +6,8 @@ import (
 	"math/big"
 
 	"github.com/tuneinsight/lattigo/v4/ring/distribution"
-	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 // GaussianSampler keeps the state of a truncated Gaussian polynomial sampler.

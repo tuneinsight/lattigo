@@ -60,7 +60,7 @@ func main() {
 	// The default bootstrapping parameters consume 822 bits which is smaller than the maximum
 	// allowed of 851 in our example, so the target security is easily met.
 	// We can print and verify the expected bit consumption of bootstrapping parameters with:
-	bits, err := btpParametersLit.BitComsumption(LogSlots)
+	bits, err := btpParametersLit.BitConsumption(LogSlots)
 	if err != nil {
 		panic(err)
 	}
@@ -117,7 +117,9 @@ func main() {
 
 	plaintext := ckks.NewPlaintext(params, params.MaxLevel())
 	plaintext.LogSlots = LogSlots
-	encoder.Encode(valuesWant, plaintext)
+	if err := encoder.Encode(valuesWant, plaintext); err != nil {
+		panic(err)
+	}
 
 	// Encrypt
 	ciphertext1 := encryptor.EncryptNew(plaintext)
@@ -149,7 +151,9 @@ func printDebug(params ckks.Parameters, ciphertext *rlwe.Ciphertext, valuesWant 
 
 	valuesTest = make([]complex128, 1<<ciphertext.LogSlots)
 
-	encoder.Decode(decryptor.DecryptNew(ciphertext), valuesTest)
+	if err := encoder.Decode(decryptor.DecryptNew(ciphertext), valuesTest); err != nil {
+		panic(err)
+	}
 
 	fmt.Println()
 	fmt.Printf("Level: %d (logQ = %d)\n", ciphertext.Level(), params.LogQLvl(ciphertext.Level()))

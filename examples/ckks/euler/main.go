@@ -77,7 +77,9 @@ func example() {
 
 	plaintext := ckks.NewPlaintext(params, params.MaxLevel())
 	plaintext.Scale = plaintext.Scale.Div(rlwe.NewScale(r))
-	encoder.Encode(values, plaintext)
+	if err := encoder.Encode(values, plaintext); err != nil {
+		panic(err)
+	}
 
 	fmt.Printf("Done in %s \n", time.Since(start))
 
@@ -151,7 +153,7 @@ func example() {
 	}
 
 	// We create a new polynomial, with the standard basis [1, x, x^2, ...], with no interval.
-	poly := bignum.NewPolynomial(bignum.Monomial, coeffs, nil)
+	poly := polynomial.NewPolynomial(polynomial.Monomial, coeffs, nil)
 
 	if ciphertext, err = evaluator.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {
 		panic(err)
@@ -205,7 +207,9 @@ func printDebug(params ckks.Parameters, ciphertext *rlwe.Ciphertext, valuesWant 
 
 	valuesTest = make([]complex128, 1<<ciphertext.LogSlots)
 
-	encoder.Decode(decryptor.DecryptNew(ciphertext), valuesTest)
+	if err := encoder.Decode(decryptor.DecryptNew(ciphertext), valuesTest); err != nil {
+		panic(err)
+	}
 
 	fmt.Println()
 	fmt.Printf("Level: %d (logQ = %d)\n", ciphertext.Level(), params.LogQLvl(ciphertext.Level()))

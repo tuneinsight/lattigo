@@ -220,7 +220,7 @@ func (eval *evaluator) WithKey(evk rlwe.EvaluationKeySetInterface) Evaluator {
 	}
 }
 
-func (eval *evaluator) evaluateInPlace(level int, el0, el1, elOut *rlwe.OperandQ, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly)) {
+func (eval *evaluator) evaluateInPlace(level int, el0 *rlwe.Ciphertext, el1 *rlwe.OperandQ, elOut *rlwe.Ciphertext, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly)) {
 
 	smallest, largest, _ := rlwe.GetSmallestLargest(el0.El(), el1.El())
 
@@ -240,7 +240,7 @@ func (eval *evaluator) evaluateInPlace(level int, el0, el1, elOut *rlwe.OperandQ
 	elOut.MetaData = el0.MetaData
 }
 
-func (eval *evaluator) matchScaleThenEvaluateInPlace(level int, el0, el1, elOut *rlwe.OperandQ, evaluate func(*ring.Poly, uint64, *ring.Poly)) {
+func (eval *evaluator) matchScaleThenEvaluateInPlace(level int, el0 *rlwe.Ciphertext, el1 *rlwe.OperandQ, elOut *rlwe.Ciphertext, evaluate func(*ring.Poly, uint64, *ring.Poly)) {
 
 	elOut.Resize(utils.Max(el0.Degree(), el1.Degree()), level)
 
@@ -274,19 +274,19 @@ func (eval *evaluator) Add(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 	switch op1 := op1.(type) {
 	case rlwe.Operand:
 
-		_, level := eval.CheckBinary(op0, op1, op2, utils.Max(op0.Degree(), op1.Degree()))
+		_, level := eval.CheckBinary(op0.El(), op1.El(), op2.El(), utils.Max(op0.Degree(), op1.Degree()))
 
-		if op0.Scale.Cmp(op1.GetMetaData().Scale) == 0 {
+		if op0.Scale.Cmp(op1.El().Scale) == 0 {
 			eval.evaluateInPlace(level, op0, op1.El(), op2, ringQ.AtLevel(level).Add)
 		} else {
-			eval.matchScaleThenEvaluateInPlace(level, op0.El(), op1.El(), op2.El(), ringQ.AtLevel(level).MulScalarThenAdd)
+			eval.matchScaleThenEvaluateInPlace(level, op0, op1.El(), op2, ringQ.AtLevel(level).MulScalarThenAdd)
 		}
 
 	case uint64:
 
 		ringT := eval.params.RingT()
 
-		_, level := eval.CheckUnary(op0, op2)
+		_, level := eval.CheckUnary(op0.El(), op2.El())
 
 		op2.Resize(op0.Degree(), level)
 
@@ -333,14 +333,14 @@ func (eval *evaluator) Sub(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 	switch op1 := op1.(type) {
 	case rlwe.Operand:
 
-		_, level := eval.CheckBinary(op0, op1, op2, utils.Max(op0.Degree(), op1.Degree()))
+		_, level := eval.CheckBinary(op0.El(), op1.El(), op2.El(), utils.Max(op0.Degree(), op1.Degree()))
 
 		ringQ := eval.params.RingQ()
 
-		if op0.Scale.Cmp(op1.GetMetaData().Scale) == 0 {
+		if op0.Scale.Cmp(op1.El().Scale) == 0 {
 			eval.evaluateInPlace(level, op0, op1.El(), op2, ringQ.AtLevel(level).Sub)
 		} else {
-			eval.matchScaleThenEvaluateInPlace(level, op0.El(), op1.El(), op2.El(), ringQ.AtLevel(level).MulScalarThenSub)
+			eval.matchScaleThenEvaluateInPlace(level, op0, op1.El(), op2, ringQ.AtLevel(level).MulScalarThenSub)
 		}
 	case uint64:
 		T := eval.params.T()
@@ -427,7 +427,7 @@ func (eval *evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 		eval.tensorStandard(op0, op1.El(), false, op2)
 	case uint64:
 
-		_, level := eval.CheckUnary(op0, op2)
+		_, level := eval.CheckUnary(op0.El(), op2.El())
 
 		ringQ := eval.params.RingQ().AtLevel(level)
 
@@ -494,7 +494,7 @@ func (eval *evaluator) MulRelin(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe
 
 func (eval *evaluator) tensorStandard(op0 *rlwe.Ciphertext, op1 *rlwe.OperandQ, relin bool, op2 *rlwe.Ciphertext) {
 
-	_, level := eval.CheckBinary(op0, op1, op2, utils.Max(op0.Degree(), op1.Degree()))
+	_, level := eval.CheckBinary(op0.El(), op1.El(), op2.El(), utils.Max(op0.Degree(), op1.Degree()))
 
 	if op2.Level() > level {
 		eval.DropLevel(op2, op2.Level()-level)
@@ -505,7 +505,7 @@ func (eval *evaluator) tensorStandard(op0 *rlwe.Ciphertext, op1 *rlwe.OperandQ, 
 	}
 
 	op2.MetaData = op0.MetaData
-	op2.Scale = op0.Scale.Mul(op1.GetMetaData().Scale)
+	op2.Scale = op0.Scale.Mul(op1.Scale)
 
 	ringQ := eval.params.RingQ().AtLevel(level)
 
@@ -811,7 +811,7 @@ func (eval *evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rl
 
 	switch op1 := op1.(type) {
 	case rlwe.Operand:
-		eval.mulRelinThenAdd(op0, op1, false, op2)
+		eval.mulRelinThenAdd(op0, op1.El(), false, op2)
 	case uint64:
 
 		level := utils.Min(op0.Level(), op2.Level())
@@ -842,7 +842,7 @@ func (eval *evaluator) MulRelinThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, op
 
 	switch op1 := op1.(type) {
 	case rlwe.Operand:
-		eval.mulRelinThenAdd(op0, op1, true, op2)
+		eval.mulRelinThenAdd(op0, op1.El(), true, op2)
 	case uint64:
 
 		level := utils.Min(op0.Level(), op2.Level())
@@ -866,9 +866,9 @@ func (eval *evaluator) MulRelinThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, op
 	}
 }
 
-func (eval *evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 rlwe.Operand, relin bool, op2 *rlwe.Ciphertext) {
+func (eval *evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 *rlwe.OperandQ, relin bool, op2 *rlwe.Ciphertext) {
 
-	_, level := eval.CheckBinary(op0, op1, op2, utils.Max(op0.Degree(), op1.Degree()))
+	_, level := eval.CheckBinary(op0.El(), op1, op2.El(), utils.Max(op0.Degree(), op1.Degree()))
 
 	if op0.El() == op2.El() || op1.El() == op2.El() {
 		panic("cannot MulRelinThenAdd: op2 must be different from op0 and op1")
@@ -899,7 +899,7 @@ func (eval *evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 rlwe.Operand, r
 		tmp0, tmp1 := op0.El(), op1.El()
 
 		var r0 uint64 = 1
-		if targetScale := ring.BRed(op0.Scale.Uint64(), op1.GetMetaData().Scale.Uint64(), sT.Modulus, sT.BRedConstant); op2.Scale.Cmp(eval.params.NewScale(targetScale)) != 0 {
+		if targetScale := ring.BRed(op0.Scale.Uint64(), op1.Scale.Uint64(), sT.Modulus, sT.BRedConstant); op2.Scale.Cmp(eval.params.NewScale(targetScale)) != 0 {
 			var r1 uint64
 			r0, r1, _ = eval.matchScalesBinary(targetScale, op2.Scale.Uint64())
 
@@ -961,7 +961,7 @@ func (eval *evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 rlwe.Operand, r
 		ringQ.MulScalar(c00, eval.params.T(), c00)
 
 		var r0 = uint64(1)
-		if targetScale := ring.BRed(op0.Scale.Uint64(), op1.GetMetaData().Scale.Uint64(), sT.Modulus, sT.BRedConstant); op2.Scale.Cmp(eval.params.NewScale(targetScale)) != 0 {
+		if targetScale := ring.BRed(op0.Scale.Uint64(), op1.Scale.Uint64(), sT.Modulus, sT.BRedConstant); op2.Scale.Cmp(eval.params.NewScale(targetScale)) != 0 {
 			var r1 uint64
 			r0, r1, _ = eval.matchScalesBinary(targetScale, op2.Scale.Uint64())
 

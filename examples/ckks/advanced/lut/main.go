@@ -177,7 +177,9 @@ func main() {
 
 	pt := ckks.NewPlaintext(paramsN12, paramsN12.MaxLevel())
 	pt.LogSlots = LogSlots
-	encoderN12.Encode(values, pt)
+	if err := encoderN12.Encode(values, pt); err != nil {
+		panic(err)
+	}
 	ctN12 := encryptorN12.EncryptNew(pt)
 
 	fmt.Printf("Homomorphic Decoding... ")
@@ -208,7 +210,9 @@ func main() {
 	res := make([]float64, slots)
 	ctN12.EncodingDomain = rlwe.SlotsDomain
 	ctN12.LogSlots = LogSlots
-	encoderN12.Decode(decryptorN12.DecryptNew(ctN12), res)
+	if err := encoderN12.Decode(decryptorN12.DecryptNew(ctN12), res); err != nil {
+		panic(err)
+	}
 	for i, v := range res {
 		fmt.Printf("%7.4f -> %7.4f\n", values[i], v)
 	}

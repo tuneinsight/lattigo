@@ -13,8 +13,8 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
-	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
@@ -116,7 +116,7 @@ func testHomomorphicEncoding(params ckks.Parameters, LogSlots int, t *testing.T)
 		//
 		// Enc(iFFT(vReal+ i*vImag))
 		//
-		// And returns the result in one ciphertext if the ciphertext can store it else in two ciphertexts
+		// And returns the result in one ciphextext if the ciphertext can store it else in two ciphertexts
 		//
 		// Enc(Ecd(vReal) || Ecd(vImag)) or Enc(Ecd(vReal)) and Enc(Ecd(vImag))
 		//
@@ -167,7 +167,9 @@ func testHomomorphicEncoding(params ckks.Parameters, LogSlots int, t *testing.T)
 		values := make([]*bignum.Complex, slots)
 		r := rand.New(rand.NewSource(0))
 		for i := range values {
-			values[i] = complex(utils.RandFloat64(-1, 1), utils.RandFloat64(-1, 1))
+			values[i] = bignum.NewComplex().SetPrec(prec)
+			values[i][0].SetFloat64(2*r.Float64() - 1)
+			values[i][1].SetFloat64(2*r.Float64() - 1)
 		}
 
 		// Splits between real and imaginary
@@ -182,7 +184,7 @@ func testHomomorphicEncoding(params ckks.Parameters, LogSlots int, t *testing.T)
 		}
 
 		// Applies bit-reverse on the original complex vector
-		utils.BitReverseInPlaceSlice(values, params.Slots())
+		utils.BitReverseInPlaceSlice(values, slots)
 
 		// Maps to a float vector
 		// Add gaps if sparse packing
@@ -373,13 +375,15 @@ func testHomomorphicDecoding(params ckks.Parameters, LogSlots int, t *testing.T)
 		// Generates the n first slots of the test vector (real part to encode)
 		valuesReal := make([]*bignum.Complex, slots)
 		for i := range valuesReal {
-			valuesReal[i] = complex(utils.RandFloat64(-1, 1), 0)
+			valuesReal[i] = bignum.NewComplex().SetPrec(prec)
+			valuesReal[i][0].SetFloat64(sampling.RandFloat64(-1, 1))
 		}
 
 		// Generates the n first slots of the test vector (imaginary part to encode)
 		valuesImag := make([]*bignum.Complex, slots)
 		for i := range valuesImag {
-			valuesImag[i] = complex(utils.RandFloat64(-1, 1), 0)
+			valuesImag[i] = bignum.NewComplex().SetPrec(prec)
+			valuesImag[i][0].SetFloat64(sampling.RandFloat64(-1, 1))
 		}
 
 		// If sparse, there there is the space to store both vectors in one
@@ -433,7 +437,7 @@ func testHomomorphicDecoding(params ckks.Parameters, LogSlots int, t *testing.T)
 		}
 
 		// Result is bit-reversed, so applies the bit-reverse permutation on the reference vector
-		utils.BitReverseInPlaceSlice(valuesReal, params.Slots())
+		utils.BitReverseInPlaceSlice(valuesReal, slots)
 
 		verifyTestVectors(params, encoder, decryptor, valuesReal, valuesTest, t)
 	})

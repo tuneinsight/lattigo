@@ -9,6 +9,8 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum/approximation"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
 )
 
 func main() {
@@ -165,11 +167,7 @@ func main() {
 	// The package `rlwe` provides a simple struct that complies to this interface, but a user can design its own struct compliant to the `rlwe.EvaluationKeySetInterface`
 	// for example to manage the loading/saving/persistence of the keys in the memory.
 	evk := rlwe.NewEvaluationKeySet()
-
-	// And we populate our evaluation key set with the Relinearization key.
-	if err = evk.Add(rlk); err != nil {
-		panic(err)
-	}
+	evk.RelinearizationKey = rlk
 
 	// ====================
 	// Plaintext Generation
@@ -181,6 +179,7 @@ func main() {
 	Slots := 1 << LogSlots
 
 	// We generate a vector of `[]complex128` with both the real and imaginary part uniformly distributed in [-1, 1]
+	/* #nosec G404 -- this is a plaintext vector  */
 	r := rand.New(rand.NewSource(0))
 	values1 := make([]complex128, Slots)
 	for i := 0; i < Slots; i++ {
@@ -426,17 +425,15 @@ func main() {
 	rot := 5
 
 	// Galois key for the cyclic rotations by 5 positions to the left.
-	if err = evk.Add(kgen.GenGaloisKeyNew(params.GaloisElementForColumnRotationBy(rot), sk)); err != nil {
-		panic(err)
-	}
+	galEl := params.GaloisElementForColumnRotationBy(rot)
+	evk.GaloisKeys[galEl] = kgen.GenGaloisKeyNew(galEl, sk)
 
 	// Galois key for the complex conjugate (yes we could do a better job than `GaloisElementForRowRotation`)
 	// The reason for this name is that the `ckks` package does not yet have a wrapper for this method which comes from the `rlwe` package.
 	// The name of this method comes from the BFV/BGV schemes, which have plaintext spaces of Z_{2xN/2}, i.e. a matrix of 2 rows and N/2 columns.
 	// The CKKS scheme actually encrypts 2xN/2 values, but one row is the conjugate of the other, thus to access the conjugate, we rotates the rows.
-	if err = evk.Add(kgen.GenGaloisKeyNew(params.GaloisElementForRowRotation(), sk)); err != nil {
-		panic(err)
-	}
+	galEl = params.GaloisElementForRowRotation()
+	evk.GaloisKeys[galEl] = kgen.GenGaloisKeyNew(galEl, sk)
 
 	// Note that since the pointer to the evaluation key struct has already been given to the evaluator, we do not need to do anything else, the
 	// evaluator will be able to access/load those keys.
@@ -498,7 +495,7 @@ func main() {
 	// Since we do not have any previous operation in this example, we will have to operate the change of basis, thus
 	// the maximum polynomial degree for depth 6 is 63.
 
-	interval := bignum.Interval{
+	interval := polynomial.Interval{
 		A: bignum.NewFloat(-8, prec),
 		B: bignum.NewFloat(8, prec),
 	}
@@ -506,7 +503,7 @@ func main() {
 	degree := 63
 
 	// We generate the `bignum.Polynomial` which stores the degree 63 Chevyshev approximation of the SiLU function in the interval [-8, 8]
-	poly := bignum.Approximate(SiLU, interval, degree)
+	poly := approximation.Chebyshev(SiLU, interval, degree)
 
 	// The struct `bignum.Polynomial` comes with an handy evaluation method
 	tmp := bignum.NewComplex().SetPrec(prec)
@@ -559,15 +556,13 @@ func main() {
 	// The innersum operations is carried out with log2(n) + HW(n) automorphisms and we need to
 	// generate the corresponding Galois keys
 	for _, galEl := range params.GaloisElementsForInnerSum(batch, n) {
-		if err = evk.Add(kgen.GenGaloisKeyNew(galEl, sk)); err != nil {
-			panic(err)
-		}
+		evk.GaloisKeys[galEl] = kgen.GenGaloisKeyNew(galEl, sk)
 	}
 
 	// Plaintext circuit
 	copy(want, values1)
 	for i := 1; i < n; i++ {
-		for j, vi := range utils.RotateComplex128Slice(values1, i*batch) {
+		for j, vi := range utils.RotateSlice(values1, i*batch) {
 			want[j] += vi
 		}
 	}
@@ -581,15 +576,13 @@ func main() {
 
 	// The replicate operation is exactly the same as the innersum operation, but in reverse
 	for _, galEl := range params.GaloisElementsForReplicate(batch, n) {
-		if err = evk.Add(kgen.GenGaloisKeyNew(galEl, sk)); err != nil {
-			panic(err)
-		}
+		evk.GaloisKeys[galEl] = kgen.GenGaloisKeyNew(galEl, sk)
 	}
 
 	// Plaintext circuit
 	copy(want, values1)
 	for i := 1; i < n; i++ {
-		for j, vi := range utils.RotateComplex128Slice(values1, -i*batch) { //Note the minus sign
+		for j, vi := range utils.RotateSlice(values1, -i*batch) { //Note the minus sign
 			want[j] += vi
 		}
 	}
@@ -648,7 +641,7 @@ func main() {
 	galEls := params.GaloisElementsForLinearTransform(nonZeroDiagonales, LogBSGSRatio, LogSlots)
 
 	for _, galEl := range galEls {
-		evk.Add(kgen.GenGaloisKeyNew(galEl, sk))
+		evk.GaloisKeys[galEl] = kgen.GenGaloisKeyNew(galEl, sk)
 	}
 
 	// And we valuate the linear transform
@@ -716,16 +709,16 @@ func EvaluateLinearTransform(values []complex128, diags map[int][]complex128) (r
 				v = diags[j+i-slots]
 			}
 
-			a := utils.RotateComplex128Slice(values, i)
+			a := utils.RotateSlice(values, i)
 
-			b := utils.RotateComplex128Slice(v, rot)
+			b := utils.RotateSlice(v, rot)
 
 			for i := 0; i < slots; i++ {
 				tmp[i] += a[i] * b[i]
 			}
 		}
 
-		tmp = utils.RotateComplex128Slice(tmp, j)
+		tmp = utils.RotateSlice(tmp, j)
 
 		for i := 0; i < slots; i++ {
 			res[i] += tmp[i]

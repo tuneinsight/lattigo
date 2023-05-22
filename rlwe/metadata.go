@@ -24,9 +24,8 @@ type MetaData struct {
 }
 
 // Equal returns true if two MetaData structs are identical.
-	return cmp.Equal(&m.Scale, &other.Scale) && m.IsNTT == other.IsNTT && m.IsMontgomery == other.IsMontgomery
-func (m *MetaData) Equal(other MetaData) (res bool) {
-	res = m.Scale.Cmp(other.Scale) == 0
+func (m *MetaData) Equal(other *MetaData) (res bool) {
+	res = cmp.Equal(&m.Scale, &other.Scale)
 	res = res && m.EncodingDomain == other.EncodingDomain
 	res = res && m.LogSlots == other.LogSlots
 	res = res && m.IsNTT == other.IsNTT
@@ -38,6 +37,10 @@ func (m *MetaData) Equal(other MetaData) (res bool) {
 func (m *MetaData) Slots() int {
 	return 1 << m.LogSlots
 }
+
+// BinarySize returns the size in bytes that the object once marshalled into a binary form.
+func (m *MetaData) BinarySize() int {
+	return 4 + m.Scale.BinarySize()
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
@@ -88,13 +91,11 @@ func (m *MetaData) Encode(p []byte) (n int, err error) {
 		return 0, err
 	}
 
-	ptr += inc
+	p[n] = uint8(m.EncodingDomain)
+	n++
 
-	data[ptr] = uint8(m.EncodingDomain)
-	ptr++
-
-	data[ptr] = uint8(m.LogSlots)
-	ptr++
+	p[n] = uint8(m.LogSlots)
+	n++
 
 	if m.IsNTT {
 		p[n] = 1
@@ -123,11 +124,11 @@ func (m *MetaData) Decode(p []byte) (n int, err error) {
 		return
 	}
 
-	m.EncodingDomain = EncodingDomain(data[ptr])
-	ptr++
+	m.EncodingDomain = EncodingDomain(p[n])
+	n++
 
-	m.LogSlots = int(data[ptr])
-	ptr++
+	m.LogSlots = int(p[n])
+	n++
 
 	m.IsNTT = p[n] == 1
 	n++

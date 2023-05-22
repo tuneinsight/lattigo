@@ -12,13 +12,11 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/structs"
 )
 
-// Operand is a common interface for OperandQ types.
+// Operand is a common interface for Ciphertext and Plaintext types.
 type Operand interface {
 	El() *OperandQ
 	Degree() int
 	Level() int
-	GetScale() Scale
-	SetScale(Scale)
 }
 
 type OperandQ struct {

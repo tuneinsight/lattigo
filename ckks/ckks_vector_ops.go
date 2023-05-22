@@ -1,22 +1,26 @@
 package ckks
 
 import (
-	"math/big"
 	"fmt"
+	"math/big"
 	"math/bits"
 	"unsafe"
 
 	"github.com/tuneinsight/lattigo/v4/utils"
-)
-
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
-	if len(values) < N || len(rotGroup) < N || len(roots) < M+1 {
-		panic(fmt.Sprintf("invalid call of SpecialiFFTVec: len(values)=%d or len(rotGroup)=%d < N=%d or len(roots)=%d < M+1=%d", len(values), len(rotGroup), N, len(roots), M))
-	}
+const (
+	minVecLenForLoopUnrolling = 16
+)
+
 // SpecialIFFTDouble performs the CKKS special inverse FFT transform in place.
 func SpecialIFFTDouble(values []complex128, N, M int, rotGroup []int, roots []complex128) {
+
+	if len(values) < N || len(rotGroup) < N || len(roots) < M+1 {
+		panic(fmt.Sprintf("invalid call of SpecialIFFTDouble: len(values)=%d or len(rotGroup)=%d < N=%d or len(roots)=%d < M+1=%d", len(values), len(rotGroup), N, len(roots), M))
+	}
+
 	logN := int(bits.Len64(uint64(N))) - 1
 	logM := int(bits.Len64(uint64(M))) - 1
 	for loglen := logN; loglen > 0; loglen-- {
@@ -41,8 +45,9 @@ func SpecialIFFTDouble(values []complex128, N, M int, rotGroup []int, roots []co
 
 // SpecialFFTDouble performs the CKKS special FFT transform in place.
 func SpecialFFTDouble(values []complex128, N, M int, rotGroup []int, roots []complex128) {
+
 	if len(values) < N || len(rotGroup) < N || len(roots) < M+1 {
-		panic(fmt.Sprintf("invalid call of SpecialFFTVec: len(values)=%d or len(rotGroup)=%d < N=%d or len(roots)=%d < M+1=%d", len(values), len(rotGroup), N, len(roots), M))
+		panic(fmt.Sprintf("invalid call of SpecialFFTDouble: len(values)=%d or len(rotGroup)=%d < N=%d or len(roots)=%d < M+1=%d", len(values), len(rotGroup), N, len(roots), M))
 	}
 
 	utils.BitReverseInPlaceSlice(values, N)
@@ -66,10 +71,14 @@ func SpecialFFTDouble(values []complex128, N, M int, rotGroup []int, roots []com
 // SpecialFFTArbitrary evaluates the decoding matrix on a slice of ring.Complex values.
 func SpecialFFTArbitrary(values []*bignum.Complex, N, M int, rotGroup []int, roots []*bignum.Complex) {
 
+	if len(values) < N || len(rotGroup) < N || len(roots) < M+1 {
+		panic(fmt.Sprintf("invalid call of SpecialFFTArbitrary: len(values)=%d or len(rotGroup)=%d < N=%d or len(roots)=%d < M+1=%d", len(values), len(rotGroup), N, len(roots), M))
+	}
+
 	u := &bignum.Complex{new(big.Float), new(big.Float)}
 	v := &bignum.Complex{new(big.Float), new(big.Float)}
 
-	SliceBitReverseInPlaceBigComplex(values, N)
+	utils.BitReverseInPlaceSlice(values, N)
 
 	cMul := bignum.NewComplexMultiplier()
 
@@ -95,6 +104,10 @@ func SpecialFFTArbitrary(values []*bignum.Complex, N, M int, rotGroup []int, roo
 
 // SpecialIFFTArbitrary evaluates the encoding matrix on a slice of ring.Complex values.
 func SpecialIFFTArbitrary(values []*bignum.Complex, N, M int, rotGroup []int, roots []*bignum.Complex) {
+
+	if len(values) < N || len(rotGroup) < N || len(roots) < M+1 {
+		panic(fmt.Sprintf("invalid call of SpecialIFFTArbitrary: len(values)=%d or len(rotGroup)=%d < N=%d or len(roots)=%d < M+1=%d", len(values), len(rotGroup), N, len(roots), M))
+	}
 
 	u := &bignum.Complex{new(big.Float), new(big.Float)}
 	v := &bignum.Complex{new(big.Float), new(big.Float)}
@@ -127,18 +140,18 @@ func SpecialIFFTArbitrary(values []*bignum.Complex, N, M int, rotGroup []int, ro
 		values[i][1].Quo(values[i][1], NBig)
 	}
 
-	SliceBitReverseInPlaceBigComplex(values, N)
+	utils.BitReverseInPlaceSlice(values, N)
 }
 
 // SpecialFFTDoubleUL8 performs the CKKS special FFT transform in place with unrolled loops of size 8.
 func SpecialFFTDoubleUL8(values []complex128, N, M int, rotGroup []int, roots []complex128) {
 
 	if len(values) < minVecLenForLoopUnrolling {
-		panic(fmt.Sprintf("unsafe call of SpecialFFTUL8Vec: len(values)=%d < %d", len(values), minVecLenForLoopUnrolling))
+		panic(fmt.Sprintf("unsafe call of SpecialFFTDoubleUL8: len(values)=%d < %d", len(values), minVecLenForLoopUnrolling))
 	}
 
 	if len(values) < N || len(rotGroup) < N || len(roots) < M+1 {
-		panic(fmt.Sprintf("invalid call of SpecialFFTUL8Vec: len(values)=%d or len(rotGroup)=%d < N=%d or len(roots)=%d < M+1=%d", len(values), len(rotGroup), N, len(roots), M))
+		panic(fmt.Sprintf("invalid call of SpecialFFTDoubleUL8: len(values)=%d or len(rotGroup)=%d < N=%d or len(roots)=%d < M+1=%d", len(values), len(rotGroup), N, len(roots), M))
 	}
 
 	utils.BitReverseInPlaceSlice(values, N)
@@ -313,11 +326,11 @@ func SpecialFFTDoubleUL8(values []complex128, N, M int, rotGroup []int, roots []
 func SpecialiFFTDoubleUnrolled8(values []complex128, N, M int, rotGroup []int, roots []complex128) {
 
 	if len(values) < minVecLenForLoopUnrolling {
-		panic(fmt.Sprintf("unsafe call of SpecialiFFTUL8Vec: len(values)=%d < %d", len(values), minVecLenForLoopUnrolling))
+		panic(fmt.Sprintf("unsafe call of SpecialiFFTDoubleUnrolled8: len(values)=%d < %d", len(values), minVecLenForLoopUnrolling))
 	}
 
 	if len(values) < N || len(rotGroup) < N || len(roots) < M+1 {
-		panic(fmt.Sprintf("invalid call of SpecialiFFTUL8Vec: len(values)=%d or len(rotGroup)=%d < N=%d or len(roots)=%d < M+1=%d", len(values), len(rotGroup), N, len(roots), M))
+		panic(fmt.Sprintf("invalid call of SpecialiFFTDoubleUnrolled8: len(values)=%d or len(rotGroup)=%d < N=%d or len(roots)=%d < M+1=%d", len(values), len(rotGroup), N, len(roots), M))
 	}
 
 	logN := int(bits.Len64(uint64(N))) - 1
@@ -438,13 +451,13 @@ func SpecialiFFTDoubleUnrolled8(values []complex128, N, M int, rotGroup []int, r
 		}
 	}
 
-	divideComplex128SliceVec(values, complex(float64(N), 0))
+	divideComplex128SliceUnrolled8(values, complex(float64(N), 0))
 
 	utils.BitReverseInPlaceSlice(values, N)
 }
 
-// divideComplex128SliceVec divides the entries in values by scaleVal in place.
-func divideComplex128SliceVec(values []complex128, scaleVal complex128) {
+// divideComplex128SliceUnrolled8 divides the entries in values by scaleVal in place.
+func divideComplex128SliceUnrolled8(values []complex128, scaleVal complex128) {
 	lenValues := len(values)
 	for i := 0; i < lenValues; i = i + 8 {
 

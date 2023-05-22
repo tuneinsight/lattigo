@@ -9,6 +9,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
@@ -203,7 +204,7 @@ func (p Parameters) QLvl(level int) *big.Int {
 func (p Parameters) GaloisElementsForLinearTransform(nonZeroDiags interface{}, logSlots, logBSGSRatio int) (galEls []uint64) {
 	slots := 1 << logSlots
 	if logBSGSRatio < 0 {
-		_, _, rotN2 := BSGSIndex(nonZeroDiags, slots, slots)
+		_, _, rotN2 := rlwe.BSGSIndex(nonZeroDiags, slots, slots)
 
 		galEls = make([]uint64, len(rotN2))
 
@@ -214,7 +215,9 @@ func (p Parameters) GaloisElementsForLinearTransform(nonZeroDiags interface{}, l
 		return
 	}
 
-	_, rotN1, rotN2 := BSGSIndex(nonZeroDiags, slots, FindBestBSGSRatio(nonZeroDiags, slots, logBSGSRatio))
+	N1 := rlwe.FindBestBSGSRatio(nonZeroDiags, slots, logBSGSRatio)
+
+	_, rotN1, rotN2 := rlwe.BSGSIndex(nonZeroDiags, slots, N1)
 
 	rots := utils.GetDistincts(append(rotN1, rotN2...))
 
@@ -226,10 +229,9 @@ func (p Parameters) GaloisElementsForLinearTransform(nonZeroDiags interface{}, l
 	return
 }
 
-// Equals compares two sets of parameters for equality.
-func (p Parameters) Equals(other Parameters) bool {
-	res := p.Parameters.Equals(other.Parameters)
-	return res
+// Equal compares two sets of parameters for equality.
+func (p Parameters) Equal(other Parameters) bool {
+	return p.Parameters.Equal(other.Parameters)
 }
 
 // MarshalBinary returns a []byte representation of the parameter set.

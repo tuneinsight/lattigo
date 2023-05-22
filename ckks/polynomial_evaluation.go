@@ -2,7 +2,6 @@ package ckks
 
 import (
 	"fmt"
-	"math"
 	"math/big"
 	"math/bits"
 	"runtime"
@@ -10,27 +9,26 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
 )
 
-type polynomial struct {
-	*bignum.Polynomial
-	Prec   uint
+type poly struct {
+	*polynomial.Polynomial
 	MaxDeg int  // Always set to len(Coeffs)-1
 	Lead   bool // Always set to true
 	Lazy   bool // Flag for lazy-relinearization
 }
 
-func newPolynomial(poly *bignum.Polynomial, prec uint) (p *polynomial) {
-	return &polynomial{
-		Polynomial: poly,
-		MaxDeg:     poly.Degree(),
+func newPolynomial(p *polynomial.Polynomial) *poly {
+	return &poly{
+		Polynomial: p,
+		MaxDeg:     p.Degree(),
 		Lead:       true,
-		Prec:       prec,
 	}
 }
 
 type polynomialVector struct {
-	Value      []*polynomial
+	Value      []*poly
 	SlotsIndex map[int][]int
 }
 
@@ -48,7 +46,7 @@ func checkEnoughLevels(levels, depth int) (err error) {
 
 type polynomialEvaluator struct {
 	*Evaluator
-	PolynomialBasis
+	PowerBasis
 	slotsIndex map[int][]int
 	logDegree  int
 	logSplit   int
@@ -65,8 +63,8 @@ type polynomialEvaluator struct {
 // pol: a *Polynomial
 // targetScale: the desired output scale. This value shouldn't differ too much from the original ciphertext scale. It can
 // for example be used to correct small deviations in the ciphertext scale and reset it to the default scale.
-func (eval *Evaluator) EvaluatePoly(input interface{}, poly *bignum.Polynomial, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
-	return eval.evaluatePolyVector(input, polynomialVector{Value: []*polynomial{newPolynomial(poly, eval.params.DefaultPrecision())}}, targetScale)
+func (eval *Evaluator) EvaluatePoly(input interface{}, p *polynomial.Polynomial, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
+	return eval.evaluatePolyVector(input, polynomialVector{Value: []*poly{newPolynomial(p)}}, targetScale)
 }
 
 // EvaluatePolyVector evaluates a vector of Polynomials on the input Ciphertext in ceil(log2(deg+1)) levels.
@@ -84,16 +82,16 @@ func (eval *Evaluator) EvaluatePoly(input interface{}, poly *bignum.Polynomial, 
 //
 // Example: if pols = []*Polynomial{pol0, pol1} and slotsIndex = map[int][]int:{0:[1, 2, 4, 5, 7], 1:[0, 3]},
 // then pol0 will be applied to slots [1, 2, 4, 5, 7], pol1 to slots [0, 3] and the slot 6 will be zero-ed.
-func (eval *Evaluator) EvaluatePolyVector(input interface{}, polys []*bignum.Polynomial, slotsIndex map[int][]int, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
+func (eval *Evaluator) EvaluatePolyVector(input interface{}, polys []*polynomial.Polynomial, slotsIndex map[int][]int, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
 	var maxDeg int
-	var basis bignum.BasisType
+	var basis polynomial.Basis
 	for i := range polys {
-		maxDeg = utils.MaxInt(maxDeg, polys[i].Degree())
-		basis = polys[i].BasisType
+		maxDeg = utils.Max(maxDeg, polys[i].Degree())
+		basis = polys[i].Basis
 	}
 
 	for i := range polys {
-		if basis != polys[i].BasisType {
+		if basis != polys[i].Basis {
 			return nil, fmt.Errorf("polynomial basis must be the same for all polynomials in a polynomial vector")
 		}
 
@@ -102,11 +100,10 @@ func (eval *Evaluator) EvaluatePolyVector(input interface{}, polys []*bignum.Pol
 		}
 	}
 
-	polyvec := make([]*polynomial, len(polys))
+	polyvec := make([]*poly, len(polys))
 
-	prec := eval.params.DefaultPrecision()
 	for i := range polys {
-		polyvec[i] = newPolynomial(polys[i], prec)
+		polyvec[i] = newPolynomial(polys[i])
 	}
 
 	return eval.evaluatePolyVector(input, polynomialVector{Value: polyvec, SlotsIndex: slotsIndex}, targetScale)
@@ -125,22 +122,22 @@ func optimalSplit(logDegree int) (logSplit int) {
 
 func (eval *Evaluator) evaluatePolyVector(input interface{}, pol polynomialVector, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
 
-	var monomialBasis *PolynomialBasis
+	var powerbasis *PowerBasis
 	switch input := input.(type) {
 	case *rlwe.Ciphertext:
-		monomialBasis = NewPowerBasis(input, pol.Value[0].Basis)
+		powerbasis = NewPowerBasis(input, pol.Value[0].Basis)
 	case *PowerBasis:
 		if input.Value[1] == nil {
 			return nil, fmt.Errorf("cannot evaluatePolyVector: given PowerBasis.Value[1] is empty")
 		}
-		monomialBasis = input
+		powerbasis = input
 	default:
 		return nil, fmt.Errorf("cannot evaluatePolyVector: invalid input, must be either *rlwe.Ciphertext or *PowerBasis")
 	}
 
 	nbModuliPerRescale := eval.params.DefaultScaleModuliRatio()
 
-	if err := checkEnoughLevels(monomialBasis.Value[1].Level(), nbModuliPerRescale*pol.Value[0].Depth()); err != nil {
+	if err := checkEnoughLevels(powerbasis.Value[1].Level(), nbModuliPerRescale*pol.Value[0].Depth()); err != nil {
 		return nil, err
 	}
 
@@ -154,14 +151,14 @@ func (eval *Evaluator) evaluatePolyVector(input interface{}, pol polynomialVecto
 
 	// Computes all the powers of two with relinearization
 	// This will recursively compute and store all powers of two up to 2^logDegree
-	if err = monomialBasis.GenPower(1<<logDegree, false, targetScale, eval); err != nil {
+	if err = powerbasis.GenPower(1<<logDegree, false, targetScale, eval); err != nil {
 		return nil, err
 	}
 
 	// Computes the intermediate powers, starting from the largest, without relinearization if possible
 	for i := (1 << logSplit) - 1; i > 2; i-- {
 		if !(even || odd) || (i&1 == 0 && even) || (i&1 == 1 && odd) {
-			if err = monomialBasis.GenPower(i, pol.Value[0].Lazy, targetScale, eval); err != nil {
+			if err = powerbasis.GenPower(i, pol.Value[0].Lazy, targetScale, eval); err != nil {
 				return nil, err
 			}
 		}
@@ -170,13 +167,13 @@ func (eval *Evaluator) evaluatePolyVector(input interface{}, pol polynomialVecto
 	polyEval := &polynomialEvaluator{}
 	polyEval.slotsIndex = pol.SlotsIndex
 	polyEval.Evaluator = eval
-	polyEval.PolynomialBasis = *monomialBasis
+	polyEval.PowerBasis = *powerbasis
 	polyEval.logDegree = logDegree
 	polyEval.logSplit = logSplit
 	polyEval.isOdd = odd
 	polyEval.isEven = even
 
-	if opOut, err = polyEval.recurse(monomialBasis.Value[1].Level()-nbModuliPerRescale*(logDegree-1), targetScale, pol); err != nil {
+	if opOut, err = polyEval.recurse(powerbasis.Value[1].Level()-nbModuliPerRescale*(logDegree-1), targetScale, pol); err != nil {
 		return nil, err
 	}
 
@@ -195,240 +192,35 @@ func (eval *Evaluator) evaluatePolyVector(input interface{}, pol polynomialVecto
 	return opOut, err
 }
 
-// PolynomialBasis is a struct storing powers of a ciphertext.
-type PolynomialBasis struct {
-	bignum.BasisType
-	Value map[int]*rlwe.Ciphertext
-}
+func (p *poly) factorize(n int) (pq, pr *poly) {
 
-// NewPolynomialBasis creates a new PolynomialBasis. It takes as input a ciphertext
-// and a basistype. The struct treats the input ciphertext as a monomial X and
-// can be used to generates power of this monomial X^{n} in the given BasisType.
-func NewPolynomialBasis(ct *rlwe.Ciphertext, basistype bignum.BasisType) (p *PolynomialBasis) {
-	p = new(PolynomialBasis)
-	p.Value = make(map[int]*rlwe.Ciphertext)
-	p.Value[1] = ct.CopyNew()
-	p.BasisType = basistype
-	return
-}
+	ppq, ppr := p.Polynomial.Factorize(n)
 
-// GenPower recursively computes X^{n}.
-// If lazy = true, the final X^{n} will not be relinearized.
-// Previous non-relinearized X^{n} that are required to compute the target X^{n} are automatically relinearized.
-// Scale sets the threshold for rescaling (ciphertext won't be rescaled if the rescaling operation would make the scale go under this threshold).
-func (p *PolynomialBasis) GenPower(n int, lazy bool, scale rlwe.Scale, eval *Evaluator) (err error) {
+	pq = &poly{Polynomial: ppq}
+	pr = &poly{Polynomial: ppr}
 
-	if p.Value[n] == nil {
-		if err = p.genPower(n, lazy, scale, eval); err != nil {
-			return
-		}
+	pq.MaxDeg = p.MaxDeg
 
-		if err = eval.Rescale(p.Value[n], scale, p.Value[n]); err != nil {
-			return
-		}
-	}
-
-	return nil
-}
-
-func (p *PolynomialBasis) genPower(n int, lazy bool, scale rlwe.Scale, eval *Evaluator) (err error) {
-
-	if p.Value[n] == nil {
-
-		isPow2 := n&(n-1) == 0
-
-		// Computes the index required to compute the asked ring evaluation
-		var a, b, c int
-		if isPow2 {
-			a, b = n/2, n/2 //Necessary for optimal depth
-		} else {
-			// [Lee et al. 2020] : High-Precision and Low-Complexity Approximate Homomorphic Encryption by Error Variance Minimization
-			// Maximize the number of odd terms of Chebyshev basis
-			k := int(math.Ceil(math.Log2(float64(n)))) - 1
-			a = (1 << k) - 1
-			b = n + 1 - (1 << k)
-
-			if p.BasisType == bignum.Chebyshev {
-				c = int(math.Abs(float64(a) - float64(b))) // Cn = 2*Ca*Cb - Cc, n = a+b and c = abs(a-b)
-			}
-		}
-
-		// Recurses on the given indexes
-		if err = p.genPower(a, lazy && !isPow2, scale, eval); err != nil {
-			return err
-		}
-		if err = p.genPower(b, lazy && !isPow2, scale, eval); err != nil {
-			return err
-		}
-
-		// Computes C[n] = C[a]*C[b]
-		if lazy {
-			if p.Value[a].Degree() == 2 {
-				eval.Relinearize(p.Value[a], p.Value[a])
-			}
-
-			if p.Value[b].Degree() == 2 {
-				eval.Relinearize(p.Value[b], p.Value[b])
-			}
-
-			if err = eval.Rescale(p.Value[a], scale, p.Value[a]); err != nil {
-				return err
-			}
-
-			if err = eval.Rescale(p.Value[b], scale, p.Value[b]); err != nil {
-				return err
-			}
-
-			p.Value[n] = eval.MulNew(p.Value[a], p.Value[b])
-
-		} else {
-
-			if err = eval.Rescale(p.Value[a], scale, p.Value[a]); err != nil {
-				return err
-			}
-
-			if err = eval.Rescale(p.Value[b], scale, p.Value[b]); err != nil {
-				return err
-			}
-
-			p.Value[n] = eval.MulRelinNew(p.Value[a], p.Value[b])
-		}
-
-		if p.BasisType == bignum.Chebyshev {
-
-			// Computes C[n] = 2*C[a]*C[b]
-			eval.Add(p.Value[n], p.Value[n], p.Value[n])
-
-			// Computes C[n] = 2*C[a]*C[b] - C[c]
-			if c == 0 {
-				eval.Add(p.Value[n], -1, p.Value[n])
-			} else {
-				// Since C[0] is not stored (but rather seen as the constant 1), only recurses on c if c!= 0
-				if err = p.GenPower(c, lazy, scale, eval); err != nil {
-					return err
-				}
-				eval.Sub(p.Value[n], p.Value[c], p.Value[n])
-			}
-		}
-	}
-	return
-}
-
-// MarshalBinary encodes the target on a slice of bytes.
-func (p *PolynomialBasis) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, 16)
-	binary.LittleEndian.PutUint64(data[0:8], uint64(len(p.Value)))
-	binary.LittleEndian.PutUint64(data[8:16], uint64(p.Value[1].MarshalBinarySize()))
-	for key, ct := range p.Value {
-		keyBytes := make([]byte, 8)
-		binary.LittleEndian.PutUint64(keyBytes, uint64(key))
-		data = append(data, keyBytes...)
-		ctBytes, err := ct.MarshalBinary()
-		if err != nil {
-			return []byte{}, err
-		}
-		data = append(data, ctBytes...)
-	}
-	return
-}
-
-// UnmarshalBinary decodes a slice of bytes on the target.
-func (p *PolynomialBasis) UnmarshalBinary(data []byte) (err error) {
-	p.Value = make(map[int]*rlwe.Ciphertext)
-	nbct := int(binary.LittleEndian.Uint64(data[0:8]))
-	dtLen := int(binary.LittleEndian.Uint64(data[8:16]))
-	ptr := 16
-	for i := 0; i < nbct; i++ {
-		idx := int(binary.LittleEndian.Uint64(data[ptr : ptr+8]))
-		ptr += 8
-		p.Value[idx] = new(rlwe.Ciphertext)
-		if err = p.Value[idx].UnmarshalBinary(data[ptr : ptr+dtLen]); err != nil {
-			return
-		}
-		ptr += dtLen
-	}
-	return
-}
-
-// splitCoeffs splits coeffs as X^{2n} * coeffsq + coeffsr.
-// This function is sensitive to the precision of the coefficients.
-func splitCoeffs(coeffs *polynomial, split int) (coeffsq, coeffsr *polynomial) {
-
-	prec := coeffs.Prec
-
-	// Splits a polynomial p such that p = q*C^degree + r.
-	coeffsr = &polynomial{Polynomial: &bignum.Polynomial{}}
-	coeffsr.Coeffs = make([]*bignum.Complex, split)
-	if coeffs.MaxDeg == coeffs.Degree() {
-		coeffsr.MaxDeg = split - 1
+	if p.MaxDeg == p.Degree() {
+		pr.MaxDeg = n - 1
 	} else {
-		coeffsr.MaxDeg = coeffs.MaxDeg - (coeffs.Degree() - split + 1)
+		pr.MaxDeg = p.MaxDeg - (p.Degree() - n + 1)
 	}
 
-	for i := 0; i < split; i++ {
-		if coeffs.Coeffs[i] != nil {
-			coeffsr.Coeffs[i] = coeffs.Coeffs[i].Copy()
-			coeffsr.Coeffs[i].SetPrec(prec)
-		}
-
+	if p.Lead {
+		pq.Lead = true
 	}
-
-	coeffsq = &polynomial{Polynomial: &bignum.Polynomial{}}
-	coeffsq.Coeffs = make([]*bignum.Complex, coeffs.Degree()-split+1)
-	coeffsq.MaxDeg = coeffs.MaxDeg
-
-	if coeffs.Coeffs[split] != nil {
-		coeffsq.Coeffs[0] = coeffs.Coeffs[split].Copy()
-	}
-
-	odd := coeffs.IsOdd
-	even := coeffs.IsEven
-
-	switch coeffs.BasisType {
-	case bignum.Monomial:
-		for i := split + 1; i < coeffs.Degree()+1; i++ {
-			if coeffs.Coeffs[i] != nil && (!(even || odd) || (i&1 == 0 && even) || (i&1 == 1 && odd)) {
-				coeffsq.Coeffs[i-split] = coeffs.Coeffs[i].Copy()
-				coeffsr.Coeffs[i-split].SetPrec(prec)
-			}
-		}
-	case bignum.Chebyshev:
-
-		for i, j := split+1, 1; i < coeffs.Degree()+1; i, j = i+1, j+1 {
-			if coeffs.Coeffs[i] != nil && (!(even || odd) || (i&1 == 0 && even) || (i&1 == 1 && odd)) {
-				coeffsq.Coeffs[i-split] = coeffs.Coeffs[i].Copy()
-				coeffsr.Coeffs[i-split].SetPrec(prec)
-				coeffsq.Coeffs[i-split].Add(coeffsq.Coeffs[i-split], coeffsq.Coeffs[i-split])
-
-				if coeffsr.Coeffs[split-j] != nil {
-					coeffsr.Coeffs[split-j].Sub(coeffsr.Coeffs[split-j], coeffs.Coeffs[i])
-				} else {
-					coeffsr.Coeffs[split-j] = coeffs.Coeffs[i].Copy()
-					coeffsr.Coeffs[split-j].SetPrec(prec)
-					coeffsr.Coeffs[split-j][0].Neg(coeffsr.Coeffs[split-j][0])
-					coeffsr.Coeffs[split-j][1].Neg(coeffsr.Coeffs[split-j][1])
-				}
-			}
-		}
-	}
-
-	if coeffs.Lead {
-		coeffsq.Lead = true
-	}
-
-	coeffsq.BasisType, coeffsr.BasisType = coeffs.BasisType, coeffs.BasisType
-	coeffsq.IsOdd, coeffsr.IsOdd = coeffs.IsOdd, coeffs.IsOdd
-	coeffsq.IsEven, coeffsr.IsEven = coeffs.IsEven, coeffs.IsEven
-	coeffsq.Prec, coeffsr.Prec = prec, prec
 
 	return
 }
 
-func splitCoeffsPolyVector(poly polynomialVector, split int) (polyq, polyr polynomialVector) {
-	coeffsq := make([]*polynomial, len(poly.Value))
-	coeffsr := make([]*polynomial, len(poly.Value))
-	for i, p := range poly.Value {
-		coeffsq[i], coeffsr[i] = splitCoeffs(p, split)
+func (p *polynomialVector) factorize(n int) (polyq, polyr polynomialVector) {
+
+	coeffsq := make([]*poly, len(p.Value))
+	coeffsr := make([]*poly, len(p.Value))
+
+	for i, p := range p.Value {
+		coeffsq[i], coeffsr[i] = p.factorize(n)
 	}
 
 	return polynomialVector{Value: coeffsq}, polynomialVector{Value: coeffsr}
@@ -479,7 +271,7 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale rlwe.S
 		nextPower <<= 1
 	}
 
-	coeffsq, coeffsr := splitCoeffsPolyVector(pol, nextPower)
+	coeffsq, coeffsr := pol.factorize(nextPower)
 
 	XPow := polyEval.PowerBasis.Value[nextPower]
 
@@ -529,7 +321,7 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale rlwe.S
 func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetScale rlwe.Scale, level int, pol polynomialVector) (res *rlwe.Ciphertext, err error) {
 
 	// Map[int] of the powers [X^{0}, X^{1}, X^{2}, ...]
-	X := polyEval.PolynomialBasis.Value
+	X := polyEval.PowerBasis.Value
 
 	// Retrieve the number of slots
 	logSlots := X[1].LogSlots
@@ -588,7 +380,12 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetScale rlwe
 
 			// If a non-zero coefficient was found, encode the values, adds on the ciphertext, and returns
 			if toEncode {
-				polyEval.Evaluator.Encode(values, &rlwe.Plaintext{Value: res.Value[0], MetaData: res.MetaData})
+				pt := &rlwe.Plaintext{}
+				pt.Value = res.Value[0]
+				pt.MetaData = res.MetaData
+				if err = polyEval.Evaluator.Encode(values, pt); err != nil {
+					return nil, err
+				}
 			}
 
 			return

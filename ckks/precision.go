@@ -102,10 +102,14 @@ func getPrecisionStatsF64(params Parameters, encoder *Encoder, decryptor rlwe.De
 	switch have := have.(type) {
 	case *rlwe.Ciphertext:
 		valuesHave = make([]complex128, len(valuesWant))
-		encoder.DecodePublic(decryptor.DecryptNew(have), valuesHave, noise)
+		if err := encoder.DecodePublic(decryptor.DecryptNew(have), valuesHave, noise); err != nil {
+			panic(err)
+		}
 	case *rlwe.Plaintext:
 		valuesHave = make([]complex128, len(valuesWant))
-		encoder.DecodePublic(have, valuesHave, noise)
+		if err := encoder.DecodePublic(have, valuesHave, noise); err != nil {
+			panic(err)
+		}
 	case []complex128:
 		valuesHave = make([]complex128, len(valuesWant))
 		copy(valuesHave, have)
@@ -345,10 +349,14 @@ func getPrecisionStatsF128(params Parameters, encoder *Encoder, decryptor rlwe.D
 	switch have := have.(type) {
 	case *rlwe.Ciphertext:
 		valuesHave = make([]*bignum.Complex, len(valuesWant))
-		encoder.DecodePublic(decryptor.DecryptNew(have), valuesHave, noise)
+		if err := encoder.DecodePublic(decryptor.DecryptNew(have), valuesHave, noise); err != nil {
+			panic(err)
+		}
 	case *rlwe.Plaintext:
 		valuesHave = make([]*bignum.Complex, len(valuesWant))
-		encoder.DecodePublic(have, valuesHave, noise)
+		if err := encoder.DecodePublic(have, valuesHave, noise); err != nil {
+			panic(err)
+		}
 	case []complex128:
 		valuesHave = make([]*bignum.Complex, len(have))
 		for i := range have {

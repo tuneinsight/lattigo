@@ -271,7 +271,7 @@ func newTestVectorsEvalMod(params ckks.Parameters, encryptor rlwe.Encryptor, enc
 	Q := float64(params.Q()[0]) / math.Exp2(math.Round(math.Log2(float64(params.Q()[0])))) * evm.MessageRatio()
 
 	for i := uint64(0); i < 1<<logSlots; i++ {
-		values[i] = math.Round(utils.RandFloat64(-K, K))*Q + utils.RandFloat64(-1, 1)
+		values[i] = math.Round(sampling.RandFloat64(-K, K))*Q + sampling.RandFloat64(-1, 1)
 	}
 
 	values[0] = K*Q + 0.5

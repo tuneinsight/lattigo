@@ -9,6 +9,8 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum/approximation"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
 )
 
 // SineType is the type of function used during the bootstrapping
@@ -80,8 +82,8 @@ type EvalModPoly struct {
 	qDiff           float64
 	scFac           float64
 	sqrt2Pi         float64
-	sinePoly        *bignum.Polynomial
-	arcSinePoly     *bignum.Polynomial
+	sinePoly        *polynomial.Polynomial
+	arcSinePoly     *polynomial.Polynomial
 	k               float64
 }
 
@@ -121,8 +123,8 @@ func (evp *EvalModPoly) QDiff() float64 {
 // homomorphically evaluates x mod Q[0] (the first prime of the moduli chain) on the ciphertext.
 func NewEvalModPolyFromLiteral(params ckks.Parameters, evm EvalModLiteral) EvalModPoly {
 
-	var arcSinePoly *bignum.Polynomial
-	var sinePoly *bignum.Polynomial
+	var arcSinePoly *polynomial.Polynomial
+	var sinePoly *polynomial.Polynomial
 	var sqrt2pi float64
 
 	doubleAngle := evm.DoubleAngle
@@ -149,7 +151,7 @@ func NewEvalModPolyFromLiteral(params ckks.Parameters, evm EvalModLiteral) EvalM
 			coeffs[i] = coeffs[i-2] * complex(float64(i*i-4*i+4)/float64(i*i-i), 0)
 		}
 
-		arcSinePoly = bignum.NewPolynomial(bignum.Monomial, coeffs, nil)
+		arcSinePoly = polynomial.NewPolynomial(polynomial.Monomial, coeffs, nil)
 		arcSinePoly.IsEven = false
 
 		for i := range arcSinePoly.Coeffs {
@@ -165,7 +167,7 @@ func NewEvalModPolyFromLiteral(params ckks.Parameters, evm EvalModLiteral) EvalM
 	switch evm.SineType {
 	case SinContinuous:
 
-		sinePoly = bignum.Approximate(sin2pi, bignum.Interval{
+		sinePoly = approximation.Chebyshev(sin2pi, polynomial.Interval{
 			A: new(big.Float).SetPrec(defaultPrecision).SetFloat64(-K),
 			B: new(big.Float).SetPrec(defaultPrecision).SetFloat64(K),
 		}, evm.SineDegree)
@@ -178,7 +180,7 @@ func NewEvalModPolyFromLiteral(params ckks.Parameters, evm EvalModLiteral) EvalM
 		}
 
 	case CosDiscrete:
-		sinePoly = bignum.NewPolynomial(bignum.Chebyshev, ApproximateCos(evm.K, evm.SineDegree, float64(uint(1<<evm.LogMessageRatio)), int(evm.DoubleAngle)), [2]float64{-K, K})
+		sinePoly = polynomial.NewPolynomial(polynomial.Chebyshev, ApproximateCos(evm.K, evm.SineDegree, float64(uint(1<<evm.LogMessageRatio)), int(evm.DoubleAngle)), [2]float64{-K, K})
 		sinePoly.IsOdd = false
 
 		for i := range sinePoly.Coeffs {
@@ -188,7 +190,7 @@ func NewEvalModPolyFromLiteral(params ckks.Parameters, evm EvalModLiteral) EvalM
 		}
 
 	case CosContinuous:
-		sinePoly = bignum.Approximate(cos2pi, bignum.Interval{
+		sinePoly = approximation.Chebyshev(cos2pi, polynomial.Interval{
 			A: new(big.Float).SetPrec(defaultPrecision).SetFloat64(-K),
 			B: new(big.Float).SetPrec(defaultPrecision).SetFloat64(K),
 		}, evm.SineDegree)

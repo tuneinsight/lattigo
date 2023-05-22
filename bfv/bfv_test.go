@@ -5,33 +5,84 @@ import (
 	"flag"
 	"fmt"
 	"math"
-	"math/big"
-	"math/bits"
 	"runtime"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
+
+	"github.com/stretchr/testify/require"
 )
 
-var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters). Overrides -short and requires -timeout=0.")
-var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 var flagPrintNoise = flag.Bool("print-noise", false, "print the residual noise")
+var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short.")
 
-func testString(opname string, p Parameters, lvl int) string {
-	return fmt.Sprintf("%s/LogN=%d/logQP=%d/logT=%d/TIsQ0=%t/Qi=%d/Pi=%d/lvl=%d",
+var (
+	// TESTN13QP218 is a of 128-bit secure test parameters set with a 32-bit plaintext and depth 4.
+	TESTN14QP418 = ParametersLiteral{
+		LogN: 13,
+		Q:    []uint64{0x3fffffa8001, 0x1000090001, 0x10000c8001, 0x10000f0001, 0xffff00001},
+		P:    []uint64{0x7fffffd8001},
+		T:    0xffc001,
+	}
+
+	// TestParams is a set of test parameters for BGV ensuring 128 bit security in the classic setting.
+	TestParams = []ParametersLiteral{TESTN14QP418}
+)
+
+func GetTestName(opname string, p Parameters, lvl int) string {
+	return fmt.Sprintf("%s/LogN=%d/logQ=%d/logP=%d/logT=%d/Qi=%d/Pi=%d/lvl=%d",
 		opname,
 		p.LogN(),
-		int(math.Round(p.LogQP())),
+		int(math.Round(p.LogQ())),
+		int(math.Round(p.LogP())),
 		int(math.Round(p.LogT())),
-		p.T() == p.Q()[0],
 		p.QCount(),
 		p.PCount(),
 		lvl)
+}
+
+func TestBGV(t *testing.T) {
+
+	var err error
+
+	paramsLiterals := TestParams
+
+	if *flagParamString != "" {
+		var jsonParams ParametersLiteral
+		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
+			t.Fatal(err)
+		}
+		paramsLiterals = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
+	}
+
+	for _, p := range paramsLiterals[:] {
+
+		var params Parameters
+		if params, err = NewParametersFromLiteral(p); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
+
+		var tc *testContext
+		if tc, err = genTestParams(params); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
+
+		for _, testSet := range []func(tc *testContext, t *testing.T){
+			testParameters,
+			testEncoder,
+			testEvaluator,
+			testLinearTransform,
+			testMarshalling,
+		} {
+			testSet(tc, t)
+			runtime.GC()
+		}
+	}
 }
 
 type testContext struct {
@@ -51,77 +102,6 @@ type testContext struct {
 	testLevel   []int
 }
 
-var (
-	// TESTTDivQN2Q1P is a set of test parameters where T = Q[0].
-	TESTTDivQN2Q1P = ParametersLiteral{
-		LogN: 14,
-		Q:    []uint64{0x10001, 0xffffffffffe8001, 0xffffffffffd8001, 0xffffffffffc0001, 0xffffffffff28001},
-		P:    []uint64{0x1fffffffffe10001, 0x1fffffffffe00001},
-		T:    0x10001,
-	}
-
-	// TESTTCPrimeQN2Q1P is a set of test parameters where T is coprime with Q.
-	TESTTCPrimeQN2Q1P = ParametersLiteral{
-		LogN: 14,
-		Q:    []uint64{0xffffffffffe8001, 0xffffffffffd8001, 0xffffffffffc0001, 0xffffffffff28001},
-		P:    []uint64{0x1fffffffffe10001, 0x1fffffffffe00001},
-		T:    0x10001,
-	}
-
-	// TestParams is a set of test parameters for BFV ensuring 128 bit security in the classic setting.
-	TestParams = []ParametersLiteral{TESTTDivQN2Q1P, TESTTCPrimeQN2Q1P}
-)
-
-func TestBFV(t *testing.T) {
-
-	var err error
-
-	var paramsLiterals []ParametersLiteral
-
-	paramsLiterals = append(TestParams, DefaultParams...) // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
-
-	if testing.Short() {
-		paramsLiterals = TestParams
-	}
-
-	if *flagLongTest {
-		paramsLiterals = append(paramsLiterals, DefaultPostQuantumParams...) // the long test suite runs for all default parameters
-	}
-
-	if *flagParamString != "" {
-		var jsonParams ParametersLiteral
-		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
-			t.Fatal(err)
-		}
-		paramsLiterals = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
-	}
-
-	for _, p := range paramsLiterals[:] {
-
-		var params Parameters
-		if params, err = NewParametersFromLiteral(p); err != nil {
-			t.Fatal(err)
-		}
-
-		var tc *testContext
-		if tc, err = genTestParams(params); err != nil {
-			t.Fatal(err)
-		}
-
-		for _, testSet := range []func(tc *testContext, t *testing.T){
-			testParameters,
-			testScaler,
-			testEncoder,
-			testEvaluator,
-			testPolyEval,
-			testMarshaller,
-		} {
-			testSet(tc, t)
-			runtime.GC()
-		}
-	}
-}
-
 func genTestParams(params Parameters) (tc *testContext, err error) {
 
 	tc = new(testContext)
@@ -137,76 +117,32 @@ func genTestParams(params Parameters) (tc *testContext, err error) {
 	tc.uSampler = ring.NewUniformSampler(tc.prng, tc.ringT)
 	tc.kgen = NewKeyGenerator(tc.params)
 	tc.sk, tc.pk = tc.kgen.GenKeyPairNew()
-
 	tc.encoder = NewEncoder(tc.params)
 	tc.encryptorPk = NewEncryptor(tc.params, tc.pk)
 	tc.encryptorSk = NewEncryptor(tc.params, tc.sk)
 	tc.decryptor = NewDecryptor(tc.params, tc.sk)
-	tc.evaluator = NewEvaluator(tc.params, &rlwe.EvaluationKeySet{RelinearizationKey: tc.kgen.GenRelinearizationKeyNew(tc.sk)})
+	evk := rlwe.NewEvaluationKeySet()
+	evk.RelinearizationKey = tc.kgen.GenRelinearizationKeyNew(tc.sk)
+	tc.evaluator = NewEvaluator(tc.params, evk)
 
-	tc.testLevel = []int{params.MaxLevel()}
-	if params.T() == params.Q()[0] {
-		if params.MaxLevel() != 1 {
-			tc.testLevel = append(tc.testLevel, 1)
-		}
-	} else {
-		if 2*bits.Len64(params.T())+params.LogN() > bits.Len64(params.Q()[0]) {
-			if params.MaxLevel() != 1 {
-				tc.testLevel = append(tc.testLevel, 1)
-			}
-		} else {
-			if params.MaxLevel() != 0 {
-				tc.testLevel = append(tc.testLevel, 0)
-			}
-		}
-	}
+	tc.testLevel = []int{0, params.MaxLevel()}
 
 	return
 }
 
-func testParameters(tc *testContext, t *testing.T) {
-
-	t.Run("Parameters/InverseGaloisElement", func(t *testing.T) {
-		for i := 1; i < int(tc.params.N()/2); i++ {
-			galEl := tc.params.GaloisElementForColumnRotationBy(i)
-			mod := uint64(2 * tc.params.N())
-			inv := tc.params.InverseGaloisElement(galEl)
-			res := (inv * galEl) % mod
-			assert.Equal(t, uint64(1), res)
-		}
-	})
-
-	t.Run(testString("Parameters/CopyNew", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
-		params1, params2 := tc.params.CopyNew(), tc.params.CopyNew()
-		assert.True(t, params1.Equal(tc.params) && params2.Equal(tc.params))
-		params1.ringT, _ = ring.NewRing(tc.params.N(), []uint64{7})
-		assert.False(t, params1.Equal(tc.params))
-		assert.True(t, params2.Equal(tc.params))
-	})
-}
-
-func newTestVectorsRingQLvl(level int, tc *testContext, encryptor rlwe.Encryptor, t *testing.T) (coeffs *ring.Poly, pt *rlwe.Plaintext, ct *rlwe.Ciphertext) {
+func newTestVectorsLvl(level int, scale rlwe.Scale, tc *testContext, encryptor rlwe.Encryptor) (coeffs *ring.Poly, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
 	coeffs = tc.uSampler.ReadNew()
-	pt = NewPlaintext(tc.params, level)
-	tc.encoder.Encode(coeffs.Coeffs[0], pt)
+	for i := range coeffs.Coeffs[0] {
+		coeffs.Coeffs[0][i] = uint64(i)
+	}
+	plaintext = NewPlaintext(tc.params, level)
+	plaintext.Scale = scale
+	tc.encoder.Encode(coeffs.Coeffs[0], plaintext)
 	if encryptor != nil {
-		ct = encryptor.EncryptNew(pt)
+		ciphertext = encryptor.EncryptNew(plaintext)
 	}
-	return
-}
 
-func newTestVectorsRingT(tc *testContext, t *testing.T) (coeffs *ring.Poly, pt *PlaintextRingT) {
-	coeffs = tc.uSampler.ReadNew()
-	pt = NewPlaintextRingT(tc.params)
-	tc.encoder.EncodeRingT(coeffs.Coeffs[0], pt)
-	return
-}
-
-func newTestVectorsMulLvl(level int, tc *testContext, t *testing.T) (coeffs *ring.Poly, pt *PlaintextMul) {
-	coeffs = tc.uSampler.ReadNew()
-	pt = NewPlaintextMul(tc.params, level)
-	tc.encoder.EncodeMul(coeffs.Coeffs[0], pt)
-	return
+	return coeffs, plaintext, ciphertext
 }
 
 func verifyTestVectors(tc *testContext, decryptor rlwe.Decryptor, coeffs *ring.Poly, element rlwe.Operand, t *testing.T) {
@@ -214,9 +150,10 @@ func verifyTestVectors(tc *testContext, decryptor rlwe.Decryptor, coeffs *ring.P
 	var coeffsTest []uint64
 
 	switch el := element.(type) {
-	case *rlwe.Plaintext, *PlaintextMul, *PlaintextRingT:
+	case *rlwe.Plaintext:
 		coeffsTest = tc.encoder.DecodeUintNew(el)
 	case *rlwe.Ciphertext:
+
 		pt := decryptor.DecryptNew(el)
 
 		coeffsTest = tc.encoder.DecodeUintNew(pt)
@@ -226,6 +163,7 @@ func verifyTestVectors(tc *testContext, decryptor rlwe.Decryptor, coeffs *ring.P
 			vartmp, _, _ := rlwe.Norm(tc.evaluator.SubNew(el, pt), decryptor)
 			t.Logf("STD(noise): %f\n", vartmp)
 		}
+
 	default:
 		t.Error("invalid test object to verify")
 	}
@@ -233,92 +171,25 @@ func verifyTestVectors(tc *testContext, decryptor rlwe.Decryptor, coeffs *ring.P
 	require.True(t, utils.EqualSlice(coeffs.Coeffs[0], coeffsTest))
 }
 
-func testScaler(tc *testContext, t *testing.T) {
+func testParameters(tc *testContext, t *testing.T) {
 
-	t.Run(testString("Scaler/DivRoundByQOverT", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
-
-		T := tc.params.T()
-		ringQ := tc.ringQ
-		N := ringQ.N()
-
-		scaler := NewRNSScaler(ringQ, T)
-
-		coeffs := make([]*big.Int, N)
-		bigQ := ringQ.ModulusAtLevel[tc.params.MaxLevel()]
-		prng, _ := sampling.NewPRNG()
-		for i := 0; i < N; i++ {
-			coeffs[i] = ring.RandInt(prng, bigQ)
-		}
-
-		coeffsWant := make([]*big.Int, N)
-		bigT := ring.NewUint(T)
-		for i := range coeffs {
-			coeffsWant[i] = new(big.Int).Set(coeffs[i])
-			coeffsWant[i].Mul(coeffsWant[i], bigT)
-			ring.DivRound(coeffsWant[i], bigQ, coeffsWant[i])
-			coeffsWant[i].Mod(coeffsWant[i], bigT)
-		}
-
-		polyQ := ringQ.NewPoly()
-		polyT := ring.NewPoly(N, 1)
-		ringQ.SetCoefficientsBigint(coeffs, polyQ)
-
-		scaler.DivByQOverTRoundedLvl(polyQ.Level(), polyQ, polyT)
-
-		for i := 0; i < N; i++ {
-			require.Equal(t, polyT.Coeffs[0][i], coeffsWant[i].Uint64())
-		}
+	t.Run("Parameters/CopyNew", func(t *testing.T) {
+		params1, params2 := tc.params.CopyNew(), tc.params.CopyNew()
+		require.True(t, params1.Equal(tc.params) && params2.Equal(tc.params))
 	})
 }
 
 func testEncoder(tc *testContext, t *testing.T) {
 
-	t.Run(testString("Encoder/Encode&Decode/RingT/Uint", tc.params, 0), func(t *testing.T) {
-		values, plaintext := newTestVectorsRingT(tc, t)
-		verifyTestVectors(tc, nil, values, plaintext, t)
-
-		coeffsInt := make([]uint64, len(values.Coeffs[0]))
-		for i, v := range values.Coeffs[0] {
-			coeffsInt[i] = v + tc.params.T()*uint64(i%10)
-		}
-
-		plaintext = NewPlaintextRingT(tc.params)
-		tc.encoder.EncodeRingT(coeffsInt, plaintext)
-
-		verifyTestVectors(tc, nil, values, plaintext, t)
-	})
-
-	t.Run(testString("Encoder/Encode&Decode/RingT/Int", tc.params, 0), func(t *testing.T) {
-
-		T := tc.params.T()
-		THalf := T >> 1
-		coeffs := tc.uSampler.ReadNew()
-		coeffsInt := make([]int64, len(coeffs.Coeffs[0]))
-		for i, c := range coeffs.Coeffs[0] {
-			c %= T
-			if c >= THalf {
-				coeffsInt[i] = -int64(T - c)
-			} else {
-				coeffsInt[i] = int64(c)
-			}
-		}
-
-		plaintext := NewPlaintextRingT(tc.params)
-		tc.encoder.EncodeRingT(coeffsInt, plaintext)
-		coeffsTest := tc.encoder.DecodeIntNew(plaintext)
-
-		require.True(t, utils.EqualSlice(coeffsInt, coeffsTest))
-	})
-
 	for _, lvl := range tc.testLevel {
-		t.Run(testString("Encoder/Encode&Decode/RingQ/Uint", tc.params, lvl), func(t *testing.T) {
-			values, plaintext, _ := newTestVectorsRingQLvl(lvl, tc, nil, t)
+		t.Run(GetTestName("Encoder/Uint", tc.params, lvl), func(t *testing.T) {
+			values, plaintext, _ := newTestVectorsLvl(lvl, tc.params.DefaultScale(), tc, nil)
 			verifyTestVectors(tc, nil, values, plaintext, t)
 		})
 	}
 
 	for _, lvl := range tc.testLevel {
-		t.Run(testString("Encoder/Encode&Decode/RingQ/Int", tc.params, lvl), func(t *testing.T) {
+		t.Run(GetTestName("Encoder/Int", tc.params, lvl), func(t *testing.T) {
 
 			T := tc.params.T()
 			THalf := T >> 1
@@ -338,446 +209,645 @@ func testEncoder(tc *testContext, t *testing.T) {
 			require.True(t, utils.EqualSlice(coeffsInt, tc.encoder.DecodeIntNew(plaintext)))
 		})
 	}
-
-	for _, lvl := range tc.testLevel {
-		t.Run(testString("Encoder/Encode&Decode/PlaintextMul", tc.params, lvl), func(t *testing.T) {
-			values, plaintext := newTestVectorsMulLvl(lvl, tc, t)
-			verifyTestVectors(tc, nil, values, plaintext, t)
-		})
-	}
-
-	t.Run(testString("Encoder/Automorphism", tc.params, 0), func(t *testing.T) {
-
-		params := tc.params
-
-		N := params.N()
-
-		values, plaintext := newTestVectorsRingT(tc, t)
-
-		k := 2
-
-		galEl := params.GaloisElementForColumnRotationBy(k)
-
-		utils.RotateSliceAllocFree(values.Coeffs[0][:N>>1], k, values.Coeffs[0][:N>>1])
-		utils.RotateSliceAllocFree(values.Coeffs[0][N>>1:], k, values.Coeffs[0][N>>1:])
-
-		tmp := params.RingT().NewPoly()
-
-		params.RingT().Automorphism(plaintext.Value, galEl, tmp)
-
-		ring.Copy(tmp, plaintext.Value)
-
-		verifyTestVectors(tc, nil, values, plaintext, t)
-
-		if params.RingType() == ring.Standard {
-
-			galEl := params.GaloisElementForRowRotation()
-
-			params.RingT().Automorphism(plaintext.Value, galEl, tmp)
-
-			values.Coeffs[0] = append(values.Coeffs[0][N>>1:], values.Coeffs[0][:N>>1]...)
-
-			ring.Copy(tmp, plaintext.Value)
-
-			verifyTestVectors(tc, nil, values, plaintext, t)
-		}
-	})
 }
 
 func testEvaluator(tc *testContext, t *testing.T) {
 
-	for _, lvl := range tc.testLevel {
-		t.Run(testString("Evaluator/Add/op1=Ciphertext/op2=Ciphertext", tc.params, lvl), func(t *testing.T) {
-			values1, _, ciphertext1 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			values2, _, ciphertext2 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			tc.evaluator.Add(ciphertext1, ciphertext2, ciphertext1)
-			tc.ringT.Add(values1, values2, values1)
-			verifyTestVectors(tc, tc.decryptor, values1, ciphertext1, t)
-		})
-	}
+	t.Run("Evaluator", func(t *testing.T) {
 
-	for _, lvl := range tc.testLevel {
-		t.Run(testString("Evaluator/AddNew/op1=Ciphertext/op2=Ciphertext", tc.params, lvl), func(t *testing.T) {
-			values1, _, ciphertext1 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			values2, _, ciphertext2 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			ciphertext1 = tc.evaluator.AddNew(ciphertext1, ciphertext2)
-			tc.ringT.Add(values1, values2, values1)
-			verifyTestVectors(tc, tc.decryptor, values1, ciphertext1, t)
-		})
-	}
+		for _, lvl := range tc.testLevel {
+			t.Run(GetTestName("Add/Ct/Ct/New", tc.params, lvl), func(t *testing.T) {
 
-	for _, lvl := range tc.testLevel {
-		t.Run(testString("Evaluator/Add/op1=Ciphertext/op2=Plaintext", tc.params, lvl), func(t *testing.T) {
-			values1, _, ciphertext1 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			values2, plaintext2, ciphertext2 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			tc.evaluator.Add(ciphertext1, plaintext2, ciphertext2)
-			tc.ringT.Add(values1, values2, values2)
-			verifyTestVectors(tc, tc.decryptor, values2, ciphertext2, t)
-		})
-	}
+				values0, _, ciphertext0 := newTestVectorsLvl(lvl, tc.params.NewScale(3), tc, tc.encryptorSk)
+				values1, _, ciphertext1 := newTestVectorsLvl(lvl, tc.params.NewScale(7), tc, tc.encryptorSk)
 
-	for _, lvl := range tc.testLevel {
-		t.Run(testString("Evaluator/Sub/op1=Ciphertext/op2=Ciphertext", tc.params, lvl), func(t *testing.T) {
-			values1, _, ciphertext1 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			values2, _, ciphertext2 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			tc.evaluator.Sub(ciphertext1, ciphertext2, ciphertext1)
-			tc.ringT.Sub(values1, values2, values1)
-			verifyTestVectors(tc, tc.decryptor, values1, ciphertext1, t)
-		})
-	}
+				require.True(t, ciphertext0.Scale.Cmp(ciphertext1.Scale) != 0)
 
-	for _, lvl := range tc.testLevel {
-		t.Run(testString("Evaluator/SubNew/op1=Ciphertext/op2=Ciphertext", tc.params, lvl), func(t *testing.T) {
-			values1, _, ciphertext1 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			values2, _, ciphertext2 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			ciphertext1 = tc.evaluator.SubNew(ciphertext1, ciphertext2)
-			tc.ringT.Sub(values1, values2, values1)
-			verifyTestVectors(tc, tc.decryptor, values1, ciphertext1, t)
-		})
-	}
+				ciphertext2 := tc.evaluator.AddNew(ciphertext0, ciphertext1)
+				tc.ringT.Add(values0, values1, values0)
 
-	for _, lvl := range tc.testLevel {
-		t.Run(testString("Evaluator/Sub/op1=Ciphertext/op2=Plaintext", tc.params, lvl), func(t *testing.T) {
-			values1, _, ciphertext1 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			values2, plaintext2, ciphertext2 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			valuesWant := tc.ringT.NewPoly()
-			tc.evaluator.Sub(ciphertext1, plaintext2, ciphertext2)
-			tc.ringT.Sub(values1, values2, valuesWant)
-			verifyTestVectors(tc, tc.decryptor, valuesWant, ciphertext2, t)
-		})
-	}
-
-	for _, lvl := range tc.testLevel {
-		t.Run(testString("Evaluator/Neg", tc.params, lvl), func(t *testing.T) {
-			values1, _, ciphertext1 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			tc.evaluator.Neg(ciphertext1, ciphertext1)
-			tc.ringT.Neg(values1, values1)
-			tc.ringT.Reduce(values1, values1)
-			verifyTestVectors(tc, tc.decryptor, values1, ciphertext1, t)
-		})
-	}
-
-	for _, lvl := range tc.testLevel {
-		t.Run(testString("Evaluator/NegNew", tc.params, lvl), func(t *testing.T) {
-			values1, _, ciphertext1 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			ciphertext1 = tc.evaluator.NegNew(ciphertext1)
-			tc.ringT.Neg(values1, values1)
-			tc.ringT.Reduce(values1, values1)
-			verifyTestVectors(tc, tc.decryptor, values1, ciphertext1, t)
-		})
-	}
-
-	for _, lvl := range tc.testLevel {
-		t.Run(testString("Evaluator/AddScalar", tc.params, lvl), func(t *testing.T) {
-			values1, _, ciphertext1 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			tc.evaluator.AddScalar(ciphertext1, 37, ciphertext1)
-			tc.ringT.AddScalar(values1, 37, values1)
-			verifyTestVectors(tc, tc.decryptor, values1, ciphertext1, t)
-		})
-	}
-
-	for _, lvl := range tc.testLevel {
-		t.Run(testString("Evaluator/MulScalar", tc.params, lvl), func(t *testing.T) {
-			values1, _, ciphertext1 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			tc.evaluator.MulScalar(ciphertext1, 37, ciphertext1)
-			tc.ringT.MulScalar(values1, 37, values1)
-			verifyTestVectors(tc, tc.decryptor, values1, ciphertext1, t)
-		})
-	}
-
-	for _, lvl := range tc.testLevel {
-		t.Run(testString("Evaluator/MulScalarNew", tc.params, lvl), func(t *testing.T) {
-			values1, _, ciphertext1 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			ciphertext1 = tc.evaluator.MulScalarNew(ciphertext1, 37)
-			tc.ringT.MulScalar(values1, 37, values1)
-			verifyTestVectors(tc, tc.decryptor, values1, ciphertext1, t)
-		})
-	}
-
-	for _, lvl := range tc.testLevel {
-
-		if lvl == 0 && tc.params.MaxLevel() > 0 {
-			lvl++
-		}
-
-		t.Run(testString("Evaluator/Mul/op1=Ciphertext/op2=Ciphertext", tc.params, lvl), func(t *testing.T) {
-			values1, _, ciphertext1 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			values2, _, ciphertext2 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			receiver := NewCiphertext(tc.params, ciphertext1.Degree()+ciphertext2.Degree(), lvl)
-			tc.evaluator.Mul(ciphertext1, ciphertext2, receiver)
-			tc.ringT.MulCoeffsBarrett(values1, values2, values1)
-			verifyTestVectors(tc, tc.decryptor, values1, receiver, t)
-		})
-	}
-
-	for _, lvl := range tc.testLevel {
-
-		if lvl == 0 && tc.params.MaxLevel() > 0 {
-			lvl++
-		}
-
-		t.Run(testString("Evaluator/MulThenAdd/op1=Ciphertext/op2=Plaintext", tc.params, lvl), func(t *testing.T) {
-			values1, _, ciphertext1 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			values2, plaintext2, ciphertext2 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			tc.evaluator.MulThenAdd(ciphertext1, plaintext2, ciphertext2)
-			tmp := tc.ringT.NewPoly()
-			tc.ringT.MulCoeffsBarrett(values1, values2, tmp)
-			tc.ringT.Add(values2, tmp, values2)
-			verifyTestVectors(tc, tc.decryptor, values2, ciphertext2, t)
-		})
-	}
-
-	for _, lvl := range tc.testLevel {
-
-		if lvl == 0 && tc.params.MaxLevel() > 0 {
-			lvl++
-		}
-
-		t.Run(testString("Evaluator/MulThenAdd/op1=Ciphertext/op2=Ciphetext", tc.params, lvl), func(t *testing.T) {
-			values1, _, ciphertext1 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			values2, _, ciphertext2 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			values3, _, ciphertext3 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			ciphertext3.Resize(2, ciphertext3.Level())
-			tc.evaluator.MulThenAdd(ciphertext1, ciphertext2, ciphertext3)
-			tc.ringT.MulCoeffsBarrett(values1, values2, values1)
-			tc.ringT.Add(values3, values1, values3)
-			verifyTestVectors(tc, tc.decryptor, values3, ciphertext3, t)
-		})
-	}
-
-	for _, lvl := range tc.testLevel {
-
-		if lvl == 0 && tc.params.MaxLevel() > 0 {
-			lvl++
-		}
-
-		t.Run(testString("Evaluator/MulNew/op1=Ciphertext/op2=Ciphertext", tc.params, lvl), func(t *testing.T) {
-			values1, _, ciphertext1 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			values2, _, ciphertext2 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			receiver := tc.evaluator.MulNew(ciphertext1, ciphertext2)
-			tc.ringT.MulCoeffsBarrett(values1, values2, values1)
-			verifyTestVectors(tc, tc.decryptor, values1, receiver, t)
-		})
-	}
-
-	for _, lvl := range tc.testLevel {
-
-		if lvl == 0 && tc.params.MaxLevel() > 0 {
-			lvl++
-		}
-
-		t.Run(testString("Evaluator/MulSquare/op1=Ciphertext/op2=Ciphertext", tc.params, lvl), func(t *testing.T) {
-			values1, _, ciphertext1 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			receiver := NewCiphertext(tc.params, ciphertext1.Degree()+ciphertext1.Degree(), lvl)
-			tc.evaluator.Mul(ciphertext1, ciphertext1, receiver)
-			tc.ringT.MulCoeffsBarrett(values1, values1, values1)
-			verifyTestVectors(tc, tc.decryptor, values1, receiver, t)
-		})
-	}
-
-	for _, lvl := range tc.testLevel {
-
-		if lvl == 0 && tc.params.MaxLevel() > 0 {
-			lvl++
-		}
-
-		t.Run(testString("Evaluator/Mul/op1=Ciphertext/op2=Plaintext", tc.params, lvl), func(t *testing.T) {
-			values1, _, ciphertext1 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			values2, plaintext2, _ := newTestVectorsRingQLvl(lvl, tc, nil, t)
-			tc.evaluator.Mul(ciphertext1, plaintext2, ciphertext1)
-			tc.ringT.MulCoeffsBarrett(values1, values2, values1)
-			verifyTestVectors(tc, tc.decryptor, values1, ciphertext1, t)
-		})
-	}
-
-	for _, lvl := range tc.testLevel {
-
-		if lvl == 0 && tc.params.MaxLevel() > 0 {
-			lvl++
-		}
-
-		t.Run(testString("Evaluator/Mul/op1=Ciphertext/op2=PlaintextRingT", tc.params, lvl), func(t *testing.T) {
-			values1, plaintextRingT := newTestVectorsRingT(tc, t)
-			values2, _, ciphertext := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			ciphertextOut := NewCiphertext(tc.params, 1, lvl)
-			tc.evaluator.Mul(ciphertext, plaintextRingT, ciphertextOut)
-			tc.ringT.MulCoeffsBarrett(values1, values2, values1)
-			verifyTestVectors(tc, tc.decryptor, values1, ciphertextOut, t)
-		})
-	}
-
-	for _, lvl := range tc.testLevel {
-
-		if lvl == 0 && tc.params.MaxLevel() > 0 {
-			lvl++
-		}
-
-		t.Run(testString("Evaluator/Mul/op1=Ciphertext/op2=PlaintextMul", tc.params, lvl), func(t *testing.T) {
-			values1, _, ciphertext1 := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-			values2, plaintext2 := newTestVectorsMulLvl(lvl, tc, t)
-			tc.evaluator.Mul(ciphertext1, plaintext2, ciphertext1)
-			tc.ringT.MulCoeffsBarrett(values1, values2, values1)
-			verifyTestVectors(tc, tc.decryptor, values1, ciphertext1, t)
-		})
-	}
-
-	t.Run(testString("Evaluator/RescaleTo", tc.params, 1), func(t *testing.T) {
-		values1, _, ciphertext1 := newTestVectorsRingQLvl(tc.params.MaxLevel(), tc, tc.encryptorPk, t)
-		tc.evaluator.RescaleTo(1, ciphertext1, ciphertext1)
-		verifyTestVectors(tc, tc.decryptor, values1, ciphertext1, t)
-		if tc.params.T() != tc.params.RingQ().SubRings[0].Modulus { // only happens if T divides Q.
-			tc.evaluator.RescaleTo(0, ciphertext1, ciphertext1)
-			verifyTestVectors(tc, tc.decryptor, values1, ciphertext1, t)
-		}
-	})
-}
-
-func testPolyEval(tc *testContext, t *testing.T) {
-
-	t.Run(testString("PowerBasis/Marshalling", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
-
-		_, _, ct := newTestVectorsRingQLvl(tc.params.MaxLevel(), tc, tc.encryptorPk, t)
-
-		pb := NewPowerBasis(ct)
-
-		for i := 2; i < 4; i++ {
-			pb.GenPower(i, tc.evaluator)
-		}
-
-		pbBytes, err := pb.MarshalBinary()
-		assert.Nil(t, err)
-		pbNew := new(PowerBasis)
-		assert.Nil(t, pbNew.UnmarshalBinary(pbBytes))
-
-		for i := range pb.Value {
-			ctWant := pb.Value[i]
-			ctHave := pbNew.Value[i]
-			require.NotNil(t, ctHave)
-			for j := range ct.Value {
-				require.True(t, tc.ringQ.Equal(ctWant.Value[j], ctHave.Value[j]))
-			}
-		}
-	})
-
-	for _, lvl := range []int{tc.params.MaxLevel(), tc.params.MaxLevel() - 1} {
-		t.Run(testString("PolyEval/Single", tc.params, lvl), func(t *testing.T) {
-
-			if (tc.params.LogQ()-tc.params.LogT()-float64(tc.params.LogN()))/(tc.params.LogT()+float64(tc.params.LogN())) < 5.0 {
-				t.Skip("Homomorphic Capacity Too Low")
-			}
-
-			values, _, ciphertext := newTestVectorsRingQLvl(tc.params.MaxLevel()-1, tc, tc.encryptorPk, t)
-
-			coeffs := []uint64{1, 2, 3, 4, 5, 6, 7, 8}
-
-			T := tc.params.T()
-			for i := range values.Coeffs[0] {
-				values.Coeffs[0][i] = ring.EvalPolyModP(values.Coeffs[0][i], coeffs, T)
-			}
-
-			poly := NewPoly(coeffs)
-
-			var err error
-			if ciphertext, err = tc.evaluator.EvaluatePoly(ciphertext, poly); err != nil {
-				t.Fatal(err)
-			}
-
-			verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
-		})
-	}
-
-	for _, lvl := range []int{tc.params.MaxLevel(), tc.params.MaxLevel() - 1} {
-		t.Run(testString("PolyEval/Vector", tc.params, lvl), func(t *testing.T) {
-
-			if (tc.params.LogQ()-tc.params.LogT()-float64(tc.params.LogN()))/(tc.params.LogT()+float64(tc.params.LogN())) < 5.0 {
-
-				t.Skip("Homomorphic Capacity Too Low")
-			}
-
-			values, _, ciphertext := newTestVectorsRingQLvl(lvl, tc, tc.encryptorPk, t)
-
-			coeffs0 := []uint64{1, 2, 3, 4, 5, 6, 7, 8}
-			coeffs1 := []uint64{2, 3, 4, 5, 6, 7, 8, 9}
-
-			slotIndex := make(map[int][]int)
-			idx0 := make([]int, tc.params.N()>>1)
-			idx1 := make([]int, tc.params.N()>>1)
-			for i := 0; i < tc.params.N()>>1; i++ {
-				idx0[i] = 2 * i
-				idx1[i] = 2*i + 1
-			}
-
-			polyVec := []*Polynomial{NewPoly(coeffs0), NewPoly(coeffs1)}
-
-			slotIndex[0] = idx0
-			slotIndex[1] = idx1
-
-			T := tc.params.T()
-			for pol, idx := range slotIndex {
-				for _, i := range idx {
-					values.Coeffs[0][i] = ring.EvalPolyModP(values.Coeffs[0][i], polyVec[pol].Coeffs, T)
-				}
-			}
-
-			var err error
-			if ciphertext, err = tc.evaluator.EvaluatePolyVector(ciphertext, polyVec, tc.encoder, slotIndex); err != nil {
-				t.Fatal(err)
-			}
-
-			verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
-		})
-	}
-}
-
-func testMarshaller(tc *testContext, t *testing.T) {
-	/*
-		t.Run(testString("Marshaller/Parameters/Binary", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
-			bytes, err := tc.params.MarshalBinary()
-			require.Nil(t, err)
-			require.Equal(t, len(bytes), tc.params.MarshalBinarySize())
-			var p Parameters
-			require.Nil(t, p.UnmarshalBinary(bytes))
-			assert.Equal(t, tc.params, p)
-		})
-
-
-			t.Run(testString("Marshaller/Parameters/JSON", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
-				// checks that parameters can be marshalled without error
-				data, err := json.Marshal(tc.params)
-				assert.Nil(t, err)
-				assert.NotNil(t, data)
-
-				// checks that bfv.Parameters can be unmarshalled without error
-				var paramsRec Parameters
-				err = json.Unmarshal(data, &paramsRec)
-				assert.Nil(t, err)
-				assert.True(t, tc.params.Equals(paramsRec))
-
-				// checks that bfv.Parameters can be unmarshalled with log-moduli definition without error
-				dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60], "T":65537}`, tc.params.LogN()))
-				var paramsWithLogModuli Parameters
-				err = json.Unmarshal(dataWithLogModuli, &paramsWithLogModuli)
-				assert.Nil(t, err)
-				assert.Equal(t, 2, paramsWithLogModuli.QCount())
-				assert.Equal(t, 1, paramsWithLogModuli.PCount())
-				assert.Equal(t, rlwe.DefaultXe, paramsWithLogModuli.Xe()) // ommiting sigma should result in Default being used
-
-				// checks that bfv.Parameters can be unmarshalled with log-moduli definition with empty P without error
-				dataWithLogModuliNoP := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[],"T":65537}`, tc.params.LogN()))
-				var paramsWithLogModuliNoP Parameters
-				err = json.Unmarshal(dataWithLogModuliNoP, &paramsWithLogModuliNoP)
-				assert.Nil(t, err)
-				assert.Equal(t, 2, paramsWithLogModuliNoP.QCount())
-				assert.Equal(t, 0, paramsWithLogModuliNoP.PCount())
-
-				// checks that one can provide custom parameters for the secret-key and error distributions
-				dataWithCustomSecrets := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60], "H": 192, "Sigma": 6.6,"T":65537}`, tc.params.LogN()))
-				var paramsWithCustomSecrets Parameters
-				err = json.Unmarshal(dataWithCustomSecrets, &paramsWithCustomSecrets)
-				assert.Nil(t, err)
-				assert.Equal(t, 6.6, paramsWithCustomSecrets.Xe())
-				assert.Equal(t, 192, paramsWithCustomSecrets.XsHammingWeight())
+				verifyTestVectors(tc, tc.decryptor, values0, ciphertext2, t)
 
 			})
-	*/
+		}
+
+		for _, lvl := range tc.testLevel {
+			t.Run(GetTestName("Add/Ct/Ct/Inplace", tc.params, lvl), func(t *testing.T) {
+
+				values0, _, ciphertext0 := newTestVectorsLvl(lvl, tc.params.NewScale(3), tc, tc.encryptorSk)
+				values1, _, ciphertext1 := newTestVectorsLvl(lvl, tc.params.NewScale(7), tc, tc.encryptorSk)
+
+				require.True(t, ciphertext0.Scale.Cmp(ciphertext1.Scale) != 0)
+
+				tc.evaluator.Add(ciphertext0, ciphertext1, ciphertext0)
+				tc.ringT.Add(values0, values1, values0)
+
+				verifyTestVectors(tc, tc.decryptor, values0, ciphertext0, t)
+
+			})
+		}
+
+		for _, lvl := range tc.testLevel {
+			t.Run(GetTestName("Add/Ct/Pt/Inplace", tc.params, lvl), func(t *testing.T) {
+
+				values0, _, ciphertext0 := newTestVectorsLvl(lvl, tc.params.NewScale(3), tc, tc.encryptorSk)
+				values1, plaintext, _ := newTestVectorsLvl(lvl, tc.params.NewScale(7), tc, tc.encryptorSk)
+
+				require.True(t, ciphertext0.Scale.Cmp(plaintext.Scale) != 0)
+
+				tc.evaluator.Add(ciphertext0, plaintext, ciphertext0)
+				tc.ringT.Add(values0, values1, values0)
+
+				verifyTestVectors(tc, tc.decryptor, values0, ciphertext0, t)
+
+			})
+		}
+
+		for _, lvl := range tc.testLevel {
+			t.Run(GetTestName("Add/Ct/Scalar/Inplace", tc.params, lvl), func(t *testing.T) {
+
+				values, _, ciphertext := newTestVectorsLvl(lvl, tc.params.DefaultScale(), tc, tc.encryptorSk)
+
+				scalar := tc.params.T() >> 1
+
+				tc.evaluator.Add(ciphertext, scalar, ciphertext)
+				tc.ringT.AddScalar(values, scalar, values)
+
+				verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
+
+			})
+		}
+
+		for _, lvl := range tc.testLevel {
+			t.Run(GetTestName("Sub/Ct/Ct/New", tc.params, lvl), func(t *testing.T) {
+
+				values0, _, ciphertext0 := newTestVectorsLvl(lvl, tc.params.NewScale(3), tc, tc.encryptorSk)
+				values1, _, ciphertext1 := newTestVectorsLvl(lvl, tc.params.NewScale(7), tc, tc.encryptorSk)
+
+				require.True(t, ciphertext0.Scale.Cmp(ciphertext1.Scale) != 0)
+
+				ciphertext0 = tc.evaluator.SubNew(ciphertext0, ciphertext1)
+				tc.ringT.Sub(values0, values1, values0)
+
+				verifyTestVectors(tc, tc.decryptor, values0, ciphertext0, t)
+
+			})
+		}
+
+		for _, lvl := range tc.testLevel {
+			t.Run(GetTestName("Sub/Ct/Ct/Inplace", tc.params, lvl), func(t *testing.T) {
+
+				values0, _, ciphertext0 := newTestVectorsLvl(lvl, tc.params.NewScale(3), tc, tc.encryptorSk)
+				values1, _, ciphertext1 := newTestVectorsLvl(lvl, tc.params.NewScale(7), tc, tc.encryptorSk)
+
+				require.True(t, ciphertext0.Scale.Cmp(ciphertext1.Scale) != 0)
+
+				tc.evaluator.Sub(ciphertext0, ciphertext1, ciphertext0)
+				tc.ringT.Sub(values0, values1, values0)
+
+				verifyTestVectors(tc, tc.decryptor, values0, ciphertext0, t)
+
+			})
+		}
+
+		for _, lvl := range tc.testLevel {
+			t.Run(GetTestName("Sub/Ct/Pt/Inplace", tc.params, lvl), func(t *testing.T) {
+
+				values0, _, ciphertext0 := newTestVectorsLvl(lvl, tc.params.NewScale(3), tc, tc.encryptorSk)
+				values1, plaintext, _ := newTestVectorsLvl(lvl, tc.params.NewScale(7), tc, tc.encryptorSk)
+
+				require.True(t, ciphertext0.Scale.Cmp(plaintext.Scale) != 0)
+
+				tc.evaluator.Sub(ciphertext0, plaintext, ciphertext0)
+				tc.ringT.Sub(values0, values1, values0)
+
+				verifyTestVectors(tc, tc.decryptor, values0, ciphertext0, t)
+
+			})
+		}
+
+		for _, lvl := range tc.testLevel {
+			t.Run(GetTestName("Neg/Ct/New", tc.params, lvl), func(t *testing.T) {
+
+				values, _, ciphertext := newTestVectorsLvl(lvl, tc.params.DefaultScale(), tc, tc.encryptorSk)
+
+				ciphertext = tc.evaluator.NegNew(ciphertext)
+				tc.ringT.Neg(values, values)
+				tc.ringT.Reduce(values, values)
+
+				verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
+
+			})
+		}
+
+		for _, lvl := range tc.testLevel {
+			t.Run(GetTestName("Neg/Ct/Inplace", tc.params, lvl), func(t *testing.T) {
+
+				values, _, ciphertext := newTestVectorsLvl(lvl, tc.params.DefaultScale(), tc, tc.encryptorSk)
+
+				tc.evaluator.Neg(ciphertext, ciphertext)
+				tc.ringT.Neg(values, values)
+				tc.ringT.Reduce(values, values)
+
+				verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
+
+			})
+		}
+
+		for _, lvl := range tc.testLevel {
+			t.Run(GetTestName("Mul/Ct/Ct/Inplace", tc.params, lvl), func(t *testing.T) {
+
+				if lvl == 0 {
+					t.Skip("Level = 0")
+				}
+
+				values0, _, ciphertext0 := newTestVectorsLvl(lvl, tc.params.NewScale(3), tc, tc.encryptorSk)
+				values1, _, ciphertext1 := newTestVectorsLvl(lvl, tc.params.NewScale(7), tc, tc.encryptorSk)
+
+				require.True(t, ciphertext0.Scale.Cmp(ciphertext1.Scale) != 0)
+
+				tc.evaluator.Mul(ciphertext0, ciphertext1, ciphertext0)
+				tc.ringT.MulCoeffsBarrett(values0, values1, values0)
+
+				verifyTestVectors(tc, tc.decryptor, values0, ciphertext0, t)
+
+			})
+		}
+
+		for _, lvl := range tc.testLevel {
+			t.Run(GetTestName("Mul/Ct/Pt/Inplace", tc.params, lvl), func(t *testing.T) {
+
+				if lvl == 0 {
+					t.Skip("Level = 0")
+				}
+
+				values0, _, ciphertext0 := newTestVectorsLvl(lvl, tc.params.NewScale(3), tc, tc.encryptorSk)
+				values1, plaintext, _ := newTestVectorsLvl(lvl, tc.params.NewScale(7), tc, tc.encryptorSk)
+
+				require.True(t, ciphertext0.Scale.Cmp(plaintext.Scale) != 0)
+
+				tc.evaluator.Mul(ciphertext0, plaintext, ciphertext0)
+				tc.ringT.MulCoeffsBarrett(values0, values1, values0)
+
+				verifyTestVectors(tc, tc.decryptor, values0, ciphertext0, t)
+
+			})
+		}
+
+		for _, lvl := range tc.testLevel {
+			t.Run(GetTestName("Mul/Ct/Scalar/Inplace", tc.params, lvl), func(t *testing.T) {
+
+				if lvl == 0 {
+					t.Skip("Level = 0")
+				}
+
+				values, _, ciphertext := newTestVectorsLvl(lvl, tc.params.DefaultScale(), tc, tc.encryptorSk)
+
+				scalar := tc.params.T() >> 1
+
+				tc.evaluator.Mul(ciphertext, scalar, ciphertext)
+				tc.ringT.MulScalar(values, scalar, values)
+
+				verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
+
+			})
+		}
+
+		for _, lvl := range tc.testLevel {
+			t.Run(GetTestName("Square/Ct/Ct/Inplace", tc.params, lvl), func(t *testing.T) {
+
+				if lvl == 0 {
+					t.Skip("Level = 0")
+				}
+
+				values0, _, ciphertext0 := newTestVectorsLvl(lvl, tc.params.NewScale(3), tc, tc.encryptorSk)
+
+				tc.evaluator.Mul(ciphertext0, ciphertext0, ciphertext0)
+				tc.ringT.MulCoeffsBarrett(values0, values0, values0)
+
+				verifyTestVectors(tc, tc.decryptor, values0, ciphertext0, t)
+
+			})
+		}
+
+		for _, lvl := range tc.testLevel {
+			t.Run(GetTestName("MulRelin/Ct/Ct/Inplace", tc.params, lvl), func(t *testing.T) {
+
+				if lvl == 0 {
+					t.Skip("Level = 0")
+				}
+
+				values0, _, ciphertext0 := newTestVectorsLvl(lvl, tc.params.NewScale(3), tc, tc.encryptorSk)
+				values1, _, ciphertext1 := newTestVectorsLvl(lvl, tc.params.NewScale(7), tc, tc.encryptorSk)
+
+				tc.ringT.MulCoeffsBarrett(values0, values1, values0)
+
+				require.True(t, ciphertext0.Scale.Cmp(ciphertext1.Scale) != 0)
+
+				receiver := NewCiphertext(tc.params, 1, lvl)
+
+				tc.evaluator.MulRelin(ciphertext0, ciphertext1, receiver)
+
+				tc.evaluator.Rescale(receiver, receiver)
+
+				verifyTestVectors(tc, tc.decryptor, values0, receiver, t)
+
+			})
+		}
+
+		for _, lvl := range tc.testLevel {
+			t.Run(GetTestName("MulThenAdd/Ct/Ct/Inplace", tc.params, lvl), func(t *testing.T) {
+
+				if lvl == 0 {
+					t.Skip("Level = 0")
+				}
+
+				values0, _, ciphertext0 := newTestVectorsLvl(lvl, tc.params.DefaultScale(), tc, tc.encryptorSk)
+				values1, _, ciphertext1 := newTestVectorsLvl(lvl, rlwe.NewScale(2), tc, tc.encryptorSk)
+				values2, _, ciphertext2 := newTestVectorsLvl(lvl, tc.params.NewScale(7), tc, tc.encryptorSk)
+
+				require.True(t, ciphertext0.Scale.Cmp(ciphertext1.Scale) != 0)
+				require.True(t, ciphertext0.Scale.Cmp(ciphertext2.Scale) != 0)
+
+				tc.evaluator.MulThenAdd(ciphertext0, ciphertext1, ciphertext2)
+				tc.ringT.MulCoeffsBarrettThenAdd(values0, values1, values2)
+
+				verifyTestVectors(tc, tc.decryptor, values2, ciphertext2, t)
+
+			})
+		}
+
+		for _, lvl := range tc.testLevel {
+			t.Run(GetTestName("MulThenAdd/Ct/Pt/Inplace", tc.params, lvl), func(t *testing.T) {
+
+				if lvl == 0 {
+					t.Skip("Level = 0")
+				}
+
+				values0, _, ciphertext0 := newTestVectorsLvl(lvl, tc.params.DefaultScale(), tc, tc.encryptorSk)
+				values1, plaintext1, _ := newTestVectorsLvl(lvl, rlwe.NewScale(2), tc, tc.encryptorSk)
+				values2, _, ciphertext2 := newTestVectorsLvl(lvl, tc.params.NewScale(7), tc, tc.encryptorSk)
+
+				require.True(t, ciphertext0.Scale.Cmp(plaintext1.Scale) != 0)
+				require.True(t, ciphertext0.Scale.Cmp(ciphertext2.Scale) != 0)
+
+				tc.evaluator.MulThenAdd(ciphertext0, plaintext1, ciphertext2)
+				tc.ringT.MulCoeffsBarrettThenAdd(values0, values1, values2)
+
+				verifyTestVectors(tc, tc.decryptor, values2, ciphertext2, t)
+
+			})
+		}
+
+		for _, lvl := range tc.testLevel {
+			t.Run(GetTestName("MulThenAdd/Ct/Scalar/Inplace", tc.params, lvl), func(t *testing.T) {
+
+				if lvl == 0 {
+					t.Skip("Level = 0")
+				}
+
+				values0, _, ciphertext0 := newTestVectorsLvl(lvl, tc.params.NewScale(7), tc, tc.encryptorSk)
+				values1, _, ciphertext1 := newTestVectorsLvl(lvl, tc.params.NewScale(3), tc, tc.encryptorSk)
+
+				require.True(t, ciphertext0.Scale.Cmp(ciphertext1.Scale) != 0)
+
+				scalar := tc.params.T() >> 1
+
+				tc.evaluator.MulThenAdd(ciphertext0, scalar, ciphertext1)
+				tc.ringT.MulScalarThenAdd(values0, scalar, values1)
+
+				verifyTestVectors(tc, tc.decryptor, values1, ciphertext1, t)
+			})
+		}
+
+		for _, lvl := range tc.testLevel {
+			t.Run(GetTestName("MulRelinThenAdd/Ct/Ct/Inplace", tc.params, lvl), func(t *testing.T) {
+
+				if lvl == 0 {
+					t.Skip("Level = 0")
+				}
+
+				values0, _, ciphertext0 := newTestVectorsLvl(lvl, tc.params.DefaultScale(), tc, tc.encryptorSk)
+				values1, _, ciphertext1 := newTestVectorsLvl(lvl, rlwe.NewScale(2), tc, tc.encryptorSk)
+				values2, _, ciphertext2 := newTestVectorsLvl(lvl, tc.params.NewScale(7), tc, tc.encryptorSk)
+
+				require.True(t, ciphertext0.Scale.Cmp(ciphertext1.Scale) != 0)
+				require.True(t, ciphertext0.Scale.Cmp(ciphertext2.Scale) != 0)
+
+				tc.evaluator.MulRelinThenAdd(ciphertext0, ciphertext1, ciphertext2)
+				tc.ringT.MulCoeffsBarrettThenAdd(values0, values1, values2)
+
+				verifyTestVectors(tc, tc.decryptor, values2, ciphertext2, t)
+
+			})
+		}
+
+		t.Run("PolyEval", func(t *testing.T) {
+
+			t.Run("Single", func(t *testing.T) {
+
+				if tc.params.MaxLevel() < 4 {
+					t.Skip("MaxLevel() to low")
+				}
+
+				values, _, ciphertext := newTestVectorsLvl(tc.params.MaxLevel(), tc.params.NewScale(1), tc, tc.encryptorSk)
+
+				coeffs := []uint64{1, 2, 3, 4, 5, 6, 7, 8}
+
+				T := tc.params.T()
+				for i := range values.Coeffs[0] {
+					values.Coeffs[0][i] = ring.EvalPolyModP(values.Coeffs[0][i], coeffs, T)
+				}
+
+				poly := NewPoly(coeffs)
+
+				var err error
+				var res *rlwe.Ciphertext
+				if res, err = tc.evaluator.EvaluatePoly(ciphertext, poly, tc.params.DefaultScale()); err != nil {
+					t.Log(err)
+					t.Fatal()
+				}
+
+				require.True(t, res.Scale.Cmp(tc.params.DefaultScale()) == 0)
+
+				verifyTestVectors(tc, tc.decryptor, values, res, t)
+
+			})
+
+			t.Run("Vector", func(t *testing.T) {
+
+				if tc.params.MaxLevel() < 4 {
+					t.Skip("MaxLevel() to low")
+				}
+
+				values, _, ciphertext := newTestVectorsLvl(tc.params.MaxLevel(), tc.params.NewScale(7), tc, tc.encryptorSk)
+
+				coeffs0 := []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+				coeffs1 := []uint64{2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17}
+
+				slotIndex := make(map[int][]int)
+				idx0 := make([]int, tc.params.N()>>1)
+				idx1 := make([]int, tc.params.N()>>1)
+				for i := 0; i < tc.params.N()>>1; i++ {
+					idx0[i] = 2 * i
+					idx1[i] = 2*i + 1
+				}
+
+				polyVec := []*Polynomial{NewPoly(coeffs0), NewPoly(coeffs1)}
+
+				slotIndex[0] = idx0
+				slotIndex[1] = idx1
+
+				T := tc.params.T()
+				for pol, idx := range slotIndex {
+					for _, i := range idx {
+						values.Coeffs[0][i] = ring.EvalPolyModP(values.Coeffs[0][i], polyVec[pol].Coeffs, T)
+					}
+				}
+
+				var err error
+				var res *rlwe.Ciphertext
+				if res, err = tc.evaluator.EvaluatePolyVector(ciphertext, polyVec, tc.encoder, slotIndex, tc.params.DefaultScale()); err != nil {
+					t.Fail()
+				}
+
+				require.True(t, res.Scale.Cmp(tc.params.DefaultScale()) == 0)
+
+				verifyTestVectors(tc, tc.decryptor, values, res, t)
+
+			})
+		})
+
+		for _, lvl := range tc.testLevel[:] {
+			t.Run(GetTestName("Rescale", tc.params, lvl), func(t *testing.T) {
+
+				ringT := tc.params.RingT()
+
+				values0, _, ciphertext0 := newTestVectorsLvl(lvl, tc.params.DefaultScale(), tc, tc.encryptorPk)
+
+				printNoise := func(msg string, values []uint64, ct *rlwe.Ciphertext) {
+					pt := NewPlaintext(tc.params, ct.Level())
+					pt.MetaData = ciphertext0.MetaData
+					tc.encoder.Encode(values0.Coeffs[0], pt)
+					vartmp, _, _ := rlwe.Norm(tc.evaluator.SubNew(ct, pt), tc.decryptor)
+					t.Logf("STD(noise) %s: %f\n", msg, vartmp)
+				}
+
+				if lvl != 0 {
+
+					values1, _, ciphertext1 := newTestVectorsLvl(lvl, tc.params.DefaultScale(), tc, tc.encryptorSk)
+
+					if *flagPrintNoise {
+						printNoise("0x", values0.Coeffs[0], ciphertext0)
+					}
+
+					for i := 0; i < lvl; i++ {
+						tc.evaluator.MulRelin(ciphertext0, ciphertext1, ciphertext0)
+
+						ringT.MulCoeffsBarrett(values0, values1, values0)
+
+						if *flagPrintNoise {
+							printNoise(fmt.Sprintf("%dx", i+1), values0.Coeffs[0], ciphertext0)
+						}
+
+					}
+
+					verifyTestVectors(tc, tc.decryptor, values0, ciphertext0, t)
+
+					require.Nil(t, tc.evaluator.Rescale(ciphertext0, ciphertext0))
+
+					verifyTestVectors(tc, tc.decryptor, values0, ciphertext0, t)
+
+				} else {
+					require.NotNil(t, tc.evaluator.Rescale(ciphertext0, ciphertext0))
+				}
+			})
+		}
+	})
+}
+
+func testLinearTransform(tc *testContext, t *testing.T) {
+
+	t.Run(GetTestName("Evaluator/LinearTransform/Naive", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
+
+		params := tc.params
+
+		values, _, ciphertext := newTestVectorsLvl(tc.params.MaxLevel(), tc.params.DefaultScale(), tc, tc.encryptorSk)
+
+		diagMatrix := make(map[int][]uint64)
+
+		N := params.N()
+
+		diagMatrix[-1] = make([]uint64, N)
+		diagMatrix[0] = make([]uint64, N)
+		diagMatrix[1] = make([]uint64, N)
+
+		for i := 0; i < N; i++ {
+			diagMatrix[-1][i] = 1
+			diagMatrix[0][i] = 1
+			diagMatrix[1][i] = 1
+		}
+
+		linTransf := GenLinearTransform(tc.encoder, diagMatrix, params.MaxLevel(), tc.params.DefaultScale())
+
+		rotations := linTransf.Rotations()
+
+		evk := rlwe.NewEvaluationKeySet()
+		for _, galEl := range tc.params.GaloisElementsForRotations(rotations) {
+			evk.GaloisKeys[galEl] = tc.kgen.GenGaloisKeyNew(galEl, tc.sk)
+		}
+
+		eval := tc.evaluator.WithKey(evk)
+
+		eval.LinearTransform(ciphertext, linTransf, []*rlwe.Ciphertext{ciphertext})
+
+		tmp := make([]uint64, params.N())
+		copy(tmp, values.Coeffs[0])
+
+		subRing := tc.params.RingT().SubRings[0]
+
+		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, -1), values.Coeffs[0])
+		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, 1), values.Coeffs[0])
+
+		verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
+	})
+
+	t.Run(GetTestName("Evaluator/LinearTransform/BSGS", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
+
+		params := tc.params
+
+		values, _, ciphertext := newTestVectorsLvl(tc.params.MaxLevel(), tc.params.DefaultScale(), tc, tc.encryptorSk)
+
+		diagMatrix := make(map[int][]uint64)
+
+		N := params.N()
+
+		diagMatrix[-15] = make([]uint64, N)
+		diagMatrix[-4] = make([]uint64, N)
+		diagMatrix[-1] = make([]uint64, N)
+		diagMatrix[0] = make([]uint64, N)
+		diagMatrix[1] = make([]uint64, N)
+		diagMatrix[2] = make([]uint64, N)
+		diagMatrix[3] = make([]uint64, N)
+		diagMatrix[4] = make([]uint64, N)
+		diagMatrix[15] = make([]uint64, N)
+
+		for i := 0; i < N; i++ {
+			diagMatrix[-15][i] = 1
+			diagMatrix[-4][i] = 1
+			diagMatrix[-1][i] = 1
+			diagMatrix[0][i] = 1
+			diagMatrix[1][i] = 1
+			diagMatrix[2][i] = 1
+			diagMatrix[3][i] = 1
+			diagMatrix[4][i] = 1
+			diagMatrix[15][i] = 1
+		}
+
+		linTransf := GenLinearTransformBSGS(tc.encoder, diagMatrix, params.MaxLevel(), tc.params.DefaultScale(), 2.0)
+
+		rotations := linTransf.Rotations()
+
+		evk := rlwe.NewEvaluationKeySet()
+		for _, galEl := range tc.params.GaloisElementsForRotations(rotations) {
+			evk.GaloisKeys[galEl] = tc.kgen.GenGaloisKeyNew(galEl, tc.sk)
+		}
+
+		eval := tc.evaluator.WithKey(evk)
+
+		eval.LinearTransform(ciphertext, linTransf, []*rlwe.Ciphertext{ciphertext})
+
+		tmp := make([]uint64, params.N())
+		copy(tmp, values.Coeffs[0])
+
+		subRing := tc.params.RingT().SubRings[0]
+
+		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, -15), values.Coeffs[0])
+		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, -4), values.Coeffs[0])
+		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, -1), values.Coeffs[0])
+		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, 1), values.Coeffs[0])
+		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, 2), values.Coeffs[0])
+		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, 3), values.Coeffs[0])
+		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, 4), values.Coeffs[0])
+		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, 15), values.Coeffs[0])
+
+		verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
+	})
+}
+
+func testMarshalling(tc *testContext, t *testing.T) {
+	t.Run("Marshalling", func(t *testing.T) {
+
+		/*
+			t.Run("Parameters/Binary", func(t *testing.T) {
+
+				bytes, err := tc.params.MarshalBinary()
+				require.Nil(t, err)
+				require.Equal(t, tc.params.MarshalBinarySize(), len(bytes))
+				var p Parameters
+				require.Nil(t, p.UnmarshalBinary(bytes))
+				require.True(t, tc.params.Equals(p))
+			})
+
+
+				t.Run("Parameters/JSON", func(t *testing.T) {
+					// checks that parameters can be marshalled without error
+					data, err := json.Marshal(tc.params)
+					require.Nil(t, err)
+					require.NotNil(t, data)
+
+					// checks that ckks.Parameters can be unmarshalled without error
+					var paramsRec Parameters
+					err = json.Unmarshal(data, &paramsRec)
+					require.Nil(t, err)
+					require.True(t, tc.params.Equals(paramsRec))
+
+					// checks that ckks.Parameters can be unmarshalled with log-moduli definition without error
+					dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60], "T":65537}`, tc.params.LogN()))
+					var paramsWithLogModuli Parameters
+					err = json.Unmarshal(dataWithLogModuli, &paramsWithLogModuli)
+					require.Nil(t, err)
+					require.Equal(t, 2, paramsWithLogModuli.QCount())
+					require.Equal(t, 1, paramsWithLogModuli.PCount())
+					require.Equal(t, rlwe.DefaultSigma, paramsWithLogModuli.Sigma()) // Omitting sigma should result in Default being used
+
+					// checks that one can provide custom parameters for the secret-key and error distributions
+					dataWithCustomSecrets := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60],"H": 192, "Sigma": 6.6, "T":65537}`, tc.params.LogN()))
+					var paramsWithCustomSecrets Parameters
+					err = json.Unmarshal(dataWithCustomSecrets, &paramsWithCustomSecrets)
+					require.Nil(t, err)
+					require.Equal(t, 6.6, paramsWithCustomSecrets.Sigma())
+					require.Equal(t, 192, paramsWithCustomSecrets.HammingWeight())
+				})
+
+				t.Run(GetTestName("PowerBasis", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
+
+					if tc.params.MaxLevel() < 4 {
+						t.Skip("not enough levels")
+					}
+
+					_, _, ct := newTestVectorsLvl(tc.params.MaxLevel(), tc.params.DefaultScale(), tc, tc.encryptorPk)
+
+					pb := NewPowerBasis(ct)
+
+					for i := 2; i < 4; i++ {
+						pb.GenPower(i, true, tc.evaluator)
+					}
+
+					pbBytes, err := pb.MarshalBinary()
+
+					require.Nil(t, err)
+					pbNew := new(PowerBasis)
+					require.Nil(t, pbNew.UnmarshalBinary(pbBytes))
+
+				for i := range pb.Value {
+					ctWant := pb.Value[i]
+					ctHave := pbNew.Value[i]
+					require.NotNil(t, ctHave)
+					for j := range ctWant.Value {
+						require.True(t, tc.ringQ.AtLevel(ctWant.Value[j].Level()).Equal(ctWant.Value[j], ctHave.Value[j]))
+					}
+				})
+		*/
+	})
 }

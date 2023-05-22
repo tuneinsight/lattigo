@@ -36,14 +36,14 @@ func (p *PowerBasis) Decode(data []byte) (n int, err error) {
 // GenPower generates the n-th power of the power basis,
 // as well as all the necessary intermediate powers if
 // they are not yet present.
-func (p *PowerBasis) GenPower(n int, lazy bool, eval Evaluator) (err error) {
+func (p *PowerBasis) GenPower(n int, lazy, invariantTensoring bool, eval Evaluator) (err error) {
 
 	var rescale bool
-	if rescale, err = p.genPower(n, n, lazy, true, eval); err != nil {
+	if rescale, err = p.genPower(n, n, lazy, invariantTensoring, true, eval); err != nil {
 		return
 	}
 
-	if rescale {
+	if rescale && !invariantTensoring {
 		if err = eval.Rescale(p.Value[n], p.Value[n]); err != nil {
 			return
 		}
@@ -52,7 +52,7 @@ func (p *PowerBasis) GenPower(n int, lazy bool, eval Evaluator) (err error) {
 	return nil
 }
 
-func (p *PowerBasis) genPower(target, n int, lazy, rescale bool, eval Evaluator) (rescaleN bool, err error) {
+func (p *PowerBasis) genPower(target, n int, lazy, invariantTensoring, rescale bool, eval Evaluator) (rescaleN bool, err error) {
 
 	if p.Value[n] == nil {
 
@@ -72,11 +72,11 @@ func (p *PowerBasis) genPower(target, n int, lazy, rescale bool, eval Evaluator)
 		var rescaleA, rescaleB bool
 
 		// Recurses on the given indexes
-		if rescaleA, err = p.genPower(target, a, lazy, rescale, eval); err != nil {
+		if rescaleA, err = p.genPower(target, a, lazy, invariantTensoring, rescale, eval); err != nil {
 			return false, err
 		}
 
-		if rescaleB, err = p.genPower(target, b, lazy, rescale, eval); err != nil {
+		if rescaleB, err = p.genPower(target, b, lazy, invariantTensoring, rescale, eval); err != nil {
 			return false, err
 		}
 
@@ -102,15 +102,26 @@ func (p *PowerBasis) genPower(target, n int, lazy, rescale bool, eval Evaluator)
 
 		// Computes C[n] = C[a]*C[b]
 		if lazy && !isPow2 {
-			p.Value[n] = eval.MulNew(p.Value[a], p.Value[b])
-			return true, nil
+
+			if invariantTensoring {
+				p.Value[n] = eval.MulInvariantNew(p.Value[a], p.Value[b])
+				return false, nil
+			} else {
+				p.Value[n] = eval.MulNew(p.Value[a], p.Value[b])
+				return true, nil
+			}
+
 		}
 
-		p.Value[n] = eval.MulRelinNew(p.Value[a], p.Value[b])
-		if err = eval.Rescale(p.Value[n], p.Value[n]); err != nil {
-			return false, err
-		}
+		if invariantTensoring {
+			p.Value[n] = eval.MulRelinInvariantNew(p.Value[a], p.Value[b])
+		} else {
+			p.Value[n] = eval.MulRelinNew(p.Value[a], p.Value[b])
+			if err = eval.Rescale(p.Value[n], p.Value[n]); err != nil {
+				return false, err
+			}
 
+		}
 	}
 
 	return false, nil

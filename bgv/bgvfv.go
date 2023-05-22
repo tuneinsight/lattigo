@@ -1,4 +1,4 @@
-// Package bgv implements a RNS-accelerated BGV homomorphic encryption scheme. It provides modular arithmetic over the integers.
+// Package bgv implements a unified RNS-accelerated version of the Fan-Vercauteren version of the Brakerski's scale invariant homomorphic encryption scheme (BFV) and Brakerski-Gentry-Vaikuntanathan (BGV) homomorphic encryption scheme. It provides modular arithmetic over the integers.
 package bgv
 
 import (

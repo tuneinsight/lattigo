@@ -1,4 +1,5 @@
-// Package dbgv implements a distributed (or threshold) version of the BGV scheme that
+// Package dbgv implements a distributed (or threshold) version of the unified RNS-accelerated version of the Fan-Vercauteren version of the Brakerski's scale invariant homomorphic encryption scheme (BFV) and Brakerski-Gentry-Vaikuntanathan (BGV) homomorphic encryption scheme.
+// It provides modular arithmetic over the integers.
 // enables secure multiparty computation solutions.
 // See `drlwe/README.md` for additional information on multiparty schemes.
 package dbgv

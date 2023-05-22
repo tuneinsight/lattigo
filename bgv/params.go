@@ -139,7 +139,8 @@ func (p ParametersLiteral) RLWEParametersLiteral() rlwe.ParametersLiteral {
 // immutable. See ParametersLiteral for user-specified parameters.
 type Parameters struct {
 	rlwe.Parameters
-	ringT *ring.Ring
+	ringQMul *ring.Ring
+	ringT    *ring.Ring
 }
 
 // NewParameters instantiate a set of BGV parameters from the generic RLWE parameters and the BGV-specific ones.
@@ -166,12 +167,22 @@ func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err erro
 		return Parameters{}, fmt.Errorf("t=%d is larger than Q[0]=%d", t, rlweParams.Q()[0])
 	}
 
+	var ringQMul *ring.Ring
+	nbQiMul := int(math.Ceil(float64(rlweParams.RingQ().ModulusAtLevel[rlweParams.MaxLevel()].BitLen()+rlweParams.LogN()) / 61.0))
+	if ringQMul, err = ring.NewRing(rlweParams.N(), ring.GenerateNTTPrimesP(61, 2*rlweParams.N(), nbQiMul)); err != nil {
+		return Parameters{}, err
+	}
+
 	var ringT *ring.Ring
 	if ringT, err = ring.NewRing(rlweParams.N(), []uint64{t}); err != nil {
 		return Parameters{}, err
 	}
 
-	return Parameters{rlweParams, ringT}, nil
+	return Parameters{
+		Parameters: rlweParams,
+		ringQMul:   ringQMul,
+		ringT:      ringT,
+	}, nil
 }
 
 // NewParametersFromLiteral instantiate a set of BGV parameters from a ParametersLiteral specification.
@@ -198,6 +209,11 @@ func (p Parameters) ParametersLiteral() ParametersLiteral {
 		T:        p.T(),
 		RingType: p.RingType(),
 	}
+}
+
+// RingQMul returns a pointer to the ring of the extended basis for multiplication.
+func (p Parameters) RingQMul() *ring.Ring {
+	return p.ringQMul
 }
 
 // T returns the plaintext coefficient modulus t.

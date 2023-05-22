@@ -76,8 +76,7 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, ct *rlwe.Ciphertext, secret
 	level := utils.Min(ct.Level(), publicShareOut.Value.Level())
 	e2s.CKSProtocol.GenShare(sk, e2s.zero, ct, publicShareOut)
 	e2s.maskSampler.Read(&secretShareOut.Value)
-	e2s.encoder.RingT2Q(level, &secretShareOut.Value, e2s.tmpPlaintextRingQ)
-	e2s.encoder.ScaleUp(level, e2s.tmpPlaintextRingQ, e2s.tmpPlaintextRingQ)
+	e2s.encoder.RingT2Q(level, true, &secretShareOut.Value, e2s.tmpPlaintextRingQ)
 	ringQ := e2s.params.RingQ().AtLevel(level)
 	ringQ.NTT(e2s.tmpPlaintextRingQ, e2s.tmpPlaintextRingQ)
 	ringQ.Sub(publicShareOut.Value, e2s.tmpPlaintextRingQ, publicShareOut.Value)
@@ -93,8 +92,7 @@ func (e2s *E2SProtocol) GetShare(secretShare *drlwe.AdditiveShare, aggregatePubl
 	ringQ := e2s.params.RingQ().AtLevel(level)
 	ringQ.Add(aggregatePublicShare.Value, ct.Value[0], e2s.tmpPlaintextRingQ)
 	ringQ.INTT(e2s.tmpPlaintextRingQ, e2s.tmpPlaintextRingQ)
-	e2s.encoder.ScaleDown(level, e2s.tmpPlaintextRingQ, e2s.tmpPlaintextRingQ)
-	e2s.encoder.RingQ2T(level, e2s.tmpPlaintextRingQ, e2s.tmpPlaintextRingT)
+	e2s.encoder.RingQ2T(level, true, e2s.tmpPlaintextRingQ, e2s.tmpPlaintextRingT)
 	if secretShare != nil {
 		e2s.params.RingT().Add(&secretShare.Value, e2s.tmpPlaintextRingT, &secretShareOut.Value)
 	} else {
@@ -154,10 +152,9 @@ func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crp drlwe.CKSCRP, secretSha
 
 	ct := &rlwe.Ciphertext{}
 	ct.Value = []*ring.Poly{nil, &crp.Value}
-	ct.MetaData.IsNTT = true
+	ct.IsNTT = true
 	s2e.CKSProtocol.GenShare(s2e.zero, sk, ct, c0ShareOut)
-	s2e.encoder.RingT2Q(crp.Value.Level(), &secretShare.Value, s2e.tmpPlaintextRingQ)
-	s2e.encoder.ScaleUp(crp.Value.Level(), s2e.tmpPlaintextRingQ, s2e.tmpPlaintextRingQ)
+	s2e.encoder.RingT2Q(crp.Value.Level(), true, &secretShare.Value, s2e.tmpPlaintextRingQ)
 	ringQ := s2e.params.RingQ().AtLevel(crp.Value.Level())
 	ringQ.NTT(s2e.tmpPlaintextRingQ, s2e.tmpPlaintextRingQ)
 	ringQ.Add(c0ShareOut.Value, s2e.tmpPlaintextRingQ, c0ShareOut.Value)

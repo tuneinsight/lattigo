@@ -131,8 +131,8 @@ func (LT *LinearTransform) Encode(ecd Encoder, dMat map[int][]uint64, scale rlwe
 			pt := LT.Vec[idx]
 
 			enc.EncodeRingT(dMat[i], scale, buffT)
-			enc.RingT2Q(levelQ, buffT, pt.Q)
-			enc.RingT2Q(levelP, buffT, pt.P)
+			enc.RingT2Q(levelQ, false, buffT, LT.Vec[idx].Q)
+			enc.RingT2Q(levelP, false, buffT, LT.Vec[idx].P)
 
 			ringQP.NTT(&pt, &pt)
 			ringQP.MForm(&pt, &pt)
@@ -167,8 +167,8 @@ func (LT *LinearTransform) Encode(ecd Encoder, dMat map[int][]uint64, scale rlwe
 
 				pt := LT.Vec[j+i]
 
-				enc.RingT2Q(levelQ, buffT, pt.Q)
-				enc.RingT2Q(levelP, buffT, pt.P)
+				enc.RingT2Q(levelQ, false, buffT, pt.Q)
+				enc.RingT2Q(levelP, false, buffT, pt.P)
 
 				ringQP.NTT(&pt, &pt)
 				ringQP.MForm(&pt, &pt)
@@ -211,8 +211,8 @@ func GenLinearTransform(ecd Encoder, dMat map[int][]uint64, level int, scale rlw
 
 		pt := vec[idx]
 
-		enc.RingT2Q(levelQ, buffT, pt.Q)
-		enc.RingT2Q(levelP, buffT, pt.P)
+		enc.RingT2Q(levelQ, false, buffT, pt.Q)
+		enc.RingT2Q(levelP, false, buffT, pt.P)
 
 		ringQP.NTT(&pt, &pt)
 		ringQP.MForm(&pt, &pt)
@@ -276,10 +276,10 @@ func GenLinearTransformBSGS(ecd Encoder, dMat map[int][]uint64, level int, scale
 
 			enc.EncodeRingT(values, scale, buffT)
 
-			pt := vec[i+j]
+			pt := vec[j+i]
 
-			enc.RingT2Q(levelQ, buffT, pt.Q)
-			enc.RingT2Q(levelP, buffT, pt.P)
+			enc.RingT2Q(levelQ, false, buffT, pt.Q)
+			enc.RingT2Q(levelP, false, buffT, pt.P)
 
 			ringQP.NTT(&pt, &pt)
 			ringQP.MForm(&pt, &pt)
@@ -596,7 +596,7 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix Linear
 // respectively, each of size params.Beta().
 // The BSGS approach is used (double hoisting with baby-step giant-step), which is faster than MultiplyByDiagMatrix
 // for matrix with more than a few non-zero diagonals and uses significantly less keys.
-func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix LinearTransform, PoolDecompQP []ringqp.Poly, ctOut *rlwe.Ciphertext) {
+func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix LinearTransform, BuffDecompQP []ringqp.Poly, ctOut *rlwe.Ciphertext) {
 
 	ringQ := eval.params.RingQ()
 	ringP := eval.params.RingP()
@@ -619,7 +619,7 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Li
 	ctInTmp0, ctInTmp1 := eval.buffCt.Value[0], eval.buffCt.Value[1]
 
 	// Pre-rotates ciphertext for the baby-step giant-step algorithm, does not divide by P yet
-	ctInRotQP := eval.RotateHoistedLazyNew(levelQ, rotN2, eval.buffCt, eval.BuffDecompQP)
+	ctInRotQP := eval.RotateHoistedLazyNew(levelQ, rotN2, eval.buffCt, BuffDecompQP)
 
 	// Accumulator inner loop
 	tmp0QP := eval.BuffQP[1]

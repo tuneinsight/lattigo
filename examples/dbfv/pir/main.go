@@ -47,7 +47,7 @@ type party struct {
 
 type maskTask struct {
 	query           *rlwe.Ciphertext
-	mask            *bfv.PlaintextMul
+	mask            *rlwe.Plaintext
 	row             *rlwe.Ciphertext
 	res             *rlwe.Ciphertext
 	elapsedmaskTask time.Duration
@@ -145,7 +145,7 @@ func main() {
 	encoder := bfv.NewEncoder(params)
 	l.Println("> Memory alloc Phase")
 	encInputs := make([]*rlwe.Ciphertext, N)
-	plainMask := make([]*bfv.PlaintextMul, N)
+	plainMask := make([]*rlwe.Plaintext, N)
 
 	// Ciphertexts to be retrieved
 	for i := range encInputs {
@@ -157,8 +157,8 @@ func main() {
 	for i := range plainMask {
 		maskCoeffs := make([]uint64, params.N())
 		maskCoeffs[i] = 1
-		plainMask[i] = bfv.NewPlaintextMul(params, params.MaxLevel())
-		encoder.EncodeMul(maskCoeffs, plainMask[i])
+		plainMask[i] = bfv.NewPlaintext(params, params.MaxLevel())
+		encoder.Encode(maskCoeffs, plainMask[i])
 	}
 
 	// Ciphertexts encrypted under CKG and stored in the cloud
@@ -395,7 +395,7 @@ func genquery(params bfv.Parameters, queryIndex int, encoder bfv.Encoder, encryp
 	return encQuery
 }
 
-func requestphase(params bfv.Parameters, queryIndex, NGoRoutine int, encQuery *rlwe.Ciphertext, encInputs []*rlwe.Ciphertext, plainMask []*bfv.PlaintextMul, evk rlwe.EvaluationKeySetInterface) *rlwe.Ciphertext {
+func requestphase(params bfv.Parameters, queryIndex, NGoRoutine int, encQuery *rlwe.Ciphertext, encInputs []*rlwe.Ciphertext, plainMask []*rlwe.Plaintext, evk rlwe.EvaluationKeySetInterface) *rlwe.Ciphertext {
 
 	l := log.New(os.Stderr, "", 0)
 

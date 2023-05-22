@@ -5,6 +5,8 @@ package dbfv
 
 import (
 	"github.com/tuneinsight/lattigo/v4/bfv"
+	"github.com/tuneinsight/lattigo/v4/bgv"
+	"github.com/tuneinsight/lattigo/v4/dbgv"
 	"github.com/tuneinsight/lattigo/v4/drlwe"
 	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 )
@@ -37,4 +39,24 @@ func NewCKSProtocol(params bfv.Parameters, noise distribution.Distribution) *drl
 // The returned protocol instance is generic and can be used in other multiparty schemes.
 func NewPCKSProtocol(params bfv.Parameters, noise distribution.Distribution) *drlwe.PCKSProtocol {
 	return drlwe.NewPCKSProtocol(params.Parameters, noise)
+}
+
+// NewRefreshProtocol creates a new instance of the RefreshProtocol.
+func NewRefreshProtocol(params bfv.Parameters, noise distribution.Distribution) (rft *dbgv.RefreshProtocol) {
+	return dbgv.NewRefreshProtocol(bgv.Parameters(params), noise)
+}
+
+// NewE2SProtocol creates a new instance of the E2SProtocol.
+func NewE2SProtocol(params bfv.Parameters, noise distribution.Distribution) (e2s *dbgv.E2SProtocol) {
+	return dbgv.NewE2SProtocol(bgv.Parameters(params), noise)
+}
+
+// NewS2EProtocol creates a new instance of the S2EProtocol.
+func NewS2EProtocol(params bfv.Parameters, noise distribution.Distribution) (e2s *dbgv.S2EProtocol) {
+	return dbgv.NewS2EProtocol(bgv.Parameters(params), noise)
+}
+
+// NewMaskedTransformProtocol creates a new instance of the MaskedTransformProtocol.
+func NewMaskedTransformProtocol(paramsIn, paramsOut bfv.Parameters, noise distribution.Distribution) (rfp *dbgv.MaskedTransformProtocol, err error) {
+	return dbgv.NewMaskedTransformProtocol(bgv.Parameters(paramsIn), bgv.Parameters(paramsOut), noise)
 }

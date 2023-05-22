@@ -26,7 +26,7 @@ type evaluatorBase struct {
 }
 
 type evaluatorBuffers struct {
-	BuffCt Ciphertext
+	BuffCt *Ciphertext
 	// BuffQP[0-1]: Key-Switch output Key-Switch on the fly decomp(c2)
 	// BuffQP[2-5]: Available
 	BuffQP        [6]ringqp.Poly
@@ -47,7 +47,7 @@ func newEvaluatorBuffers(params Parameters) *evaluatorBuffers {
 	decompRNS := params.DecompRNS(params.MaxLevelQ(), params.MaxLevelP())
 	ringQP := params.RingQP()
 
-	buff.BuffCt = Ciphertext{OperandQ{Value: []*ring.Poly{ringQP.RingQ.NewPoly(), ringQP.RingQ.NewPoly()}}}
+	buff.BuffCt = NewCiphertext(params, 2, params.MaxLevel())
 
 	buff.BuffQP = [6]ringqp.Poly{
 		*ringQP.NewPoly(),

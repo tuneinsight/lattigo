@@ -3,6 +3,7 @@ package bgv
 import (
 	"fmt"
 	"math"
+	"math/big"
 	"math/bits"
 	"runtime"
 
@@ -49,7 +50,13 @@ type polynomialEvaluator struct {
 // EvaluatePoly evaluates a Polynomial in standard basis on the input Ciphertext in ceil(log2(deg+1)) depth.
 // input must be either *rlwe.Ciphertext or *PowerBasis.
 func (eval *evaluator) EvaluatePoly(input interface{}, pol *Polynomial, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
-	return eval.evaluatePolyVector(input, polynomialVector{Value: []*Polynomial{pol}}, targetScale)
+	return eval.evaluatePolyVector(input, polynomialVector{Value: []*Polynomial{pol}}, false, targetScale)
+}
+
+// EvaluatePolyInvariant evaluates a Polynomial in standard basis on the input Ciphertext in ceil(log2(deg+1)) depth.
+// input must be either *rlwe.Ciphertext or *PowerBasis.
+func (eval *evaluator) EvaluatePolyInvariant(input interface{}, pol *Polynomial, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
+	return eval.evaluatePolyVector(input, polynomialVector{Value: []*Polynomial{pol}}, true, targetScale)
 }
 
 type polynomialVector struct {
@@ -79,7 +86,22 @@ func (eval *evaluator) EvaluatePolyVector(input interface{}, pols []*Polynomial,
 		}
 	}
 
-	return eval.evaluatePolyVector(input, polynomialVector{Encoder: encoder, Value: pols, SlotsIndex: slotsIndex}, targetScale)
+	return eval.evaluatePolyVector(input, polynomialVector{Encoder: encoder, Value: pols, SlotsIndex: slotsIndex}, false, targetScale)
+}
+
+func (eval *evaluator) EvaluatePolyVectorInvariant(input interface{}, pols []*Polynomial, encoder Encoder, slotsIndex map[int][]int, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
+	var maxDeg int
+	for i := range pols {
+		maxDeg = utils.Max(maxDeg, pols[i].MaxDeg)
+	}
+
+	for i := range pols {
+		if maxDeg != pols[i].MaxDeg {
+			return nil, fmt.Errorf("cannot EvaluatePolyVector: polynomial degree must all be the same")
+		}
+	}
+
+	return eval.evaluatePolyVector(input, polynomialVector{Encoder: encoder, Value: pols, SlotsIndex: slotsIndex}, true, targetScale)
 }
 
 func optimalSplit(logDegree int) (logSplit int) {
@@ -93,7 +115,7 @@ func optimalSplit(logDegree int) (logSplit int) {
 	return
 }
 
-func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVector, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
+func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVector, invariantTensoring bool, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
 
 	if pol.SlotsIndex != nil && pol.Encoder == nil {
 		return nil, fmt.Errorf("cannot evaluatePolyVector: missing Encoder input")
@@ -129,14 +151,14 @@ func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVecto
 
 	for i := (1 << logSplit) - 1; i > 1; i-- {
 		if !(even || odd) || (i&1 == 0 && even) || (i&1 == 1 && odd) {
-			if err = powerBasis.GenPower(i, true, eval); err != nil {
+			if err = powerBasis.GenPower(i, true, invariantTensoring, eval); err != nil {
 				return nil, err
 			}
 		}
 	}
 
 	for i := logSplit; i < logDegree; i++ {
-		if err = powerBasis.GenPower(1<<i, false, eval); err != nil {
+		if err = powerBasis.GenPower(1<<i, false, invariantTensoring, eval); err != nil {
 			return nil, err
 		}
 	}
@@ -151,14 +173,22 @@ func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVecto
 	polyEval.isOdd = odd
 	polyEval.isEven = even
 
-	if opOut, err = polyEval.recurse(powerBasis.Value[1].Level()-logDegree+1, targetScale, pol); err != nil {
+	targetLevel := powerBasis.Value[1].Level()
+
+	if !invariantTensoring {
+		targetLevel = targetLevel - logDegree + 1
+	}
+
+	if opOut, err = polyEval.recurse(targetLevel, targetScale, invariantTensoring, pol); err != nil {
 		return
 	}
 
 	polyEval.Relinearize(opOut, opOut)
 
-	if err = polyEval.Rescale(opOut, opOut); err != nil {
-		return nil, err
+	if !invariantTensoring {
+		if err = polyEval.Rescale(opOut, opOut); err != nil {
+			return nil, err
+		}
 	}
 
 	polyEval = nil
@@ -208,7 +238,7 @@ func splitCoeffsPolyVector(poly polynomialVector, split int) (polyq, polyr polyn
 	return polynomialVector{Value: coeffsq}, polynomialVector{Value: coeffsr}
 }
 
-func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale rlwe.Scale, pol polynomialVector) (res *rlwe.Ciphertext, err error) {
+func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale rlwe.Scale, invariantTensoring bool, pol polynomialVector) (res *rlwe.Ciphertext, err error) {
 
 	logSplit := polyEval.logSplit
 
@@ -232,12 +262,12 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale rlwe.S
 			polyEvalBis.isOdd = polyEval.isOdd
 			polyEvalBis.isEven = polyEval.isEven
 
-			res, err = polyEvalBis.recurse(targetLevel, targetScale, pol)
+			res, err = polyEvalBis.recurse(targetLevel, targetScale, invariantTensoring, pol)
 
 			return
 		}
 
-		if pol.Value[0].Lead {
+		if !invariantTensoring && pol.Value[0].Lead {
 			targetScale = targetScale.Mul(params.NewScale(params.Q()[targetLevel]))
 		}
 
@@ -255,20 +285,31 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale rlwe.S
 
 	XPow := polyEval.powerBasis[nextPower]
 
-	level := targetLevel
-
-	var currentQi uint64
-	if pol.Value[0].Lead {
-		currentQi = params.Q()[level]
-	} else {
-		currentQi = params.Q()[level+1]
-	}
-
-	// targetScale = targetScale*currentQi/XPow.Scale
-	targetScale = targetScale.Mul(params.NewScale(currentQi))
 	targetScale = targetScale.Div(XPow.Scale)
 
-	if res, err = polyEval.recurse(targetLevel+1, targetScale, coeffsq); err != nil {
+	// targetScale = targetScale*currentQi/XPow.Scale
+	if !invariantTensoring {
+		level := targetLevel
+
+		var currentQi uint64
+		if pol.Value[0].Lead {
+			currentQi = params.Q()[level]
+		} else {
+			currentQi = params.Q()[level+1]
+		}
+
+		targetScale = targetScale.Mul(params.NewScale(currentQi))
+	} else {
+		qModTNeg := new(big.Int).Mod(params.RingQ().ModulusAtLevel[targetLevel], new(big.Int).SetUint64(params.T())).Uint64()
+		qModTNeg = params.T() - qModTNeg
+		targetScale = targetScale.Mul(params.NewScale(qModTNeg))
+	}
+
+	if !invariantTensoring {
+		targetLevel++
+	}
+
+	if res, err = polyEval.recurse(targetLevel, targetScale, invariantTensoring, coeffsq); err != nil {
 		return nil, err
 	}
 
@@ -276,14 +317,17 @@ func (polyEval *polynomialEvaluator) recurse(targetLevel int, targetScale rlwe.S
 		polyEval.Relinearize(res, res)
 	}
 
-	if err = polyEval.Rescale(res, res); err != nil {
-		return nil, err
+	if !invariantTensoring {
+		if err = polyEval.Rescale(res, res); err != nil {
+			return nil, err
+		}
+		polyEval.Mul(res, XPow, res)
+	} else {
+		polyEval.MulInvariant(res, XPow, res)
 	}
 
-	polyEval.Mul(res, XPow, res)
-
 	var tmp *rlwe.Ciphertext
-	if tmp, err = polyEval.recurse(res.Level(), res.Scale, coeffsr); err != nil {
+	if tmp, err = polyEval.recurse(res.Level(), res.Scale, invariantTensoring, coeffsr); err != nil {
 		return nil, err
 	}
 
@@ -416,7 +460,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetLevel int,
 			// ciphertext
 			if toEncode {
 
-				// MulThenAdd would actually scale the plaintext accordingly,
+				// MulAndAdd would actually scale the plaintext accordingly,
 				// but encoding with the correct scale is slightly faster
 				pt.Scale = targetScale.Div(X[key].Scale)
 				polyEval.Encode(values, pt)
@@ -435,7 +479,7 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetLevel int,
 			res.Scale = targetScale
 
 			if c != 0 {
-				polyEval.AddScalar(res, c, res)
+				polyEval.Add(res, c, res)
 			}
 
 			return
@@ -445,14 +489,14 @@ func (polyEval *polynomialEvaluator) evaluatePolyFromPowerBasis(targetLevel int,
 		res.Scale = targetScale
 
 		if c != 0 {
-			polyEval.AddScalar(res, c, res)
+			polyEval.Add(res, c, res)
 		}
 
 		for key := pol.Value[0].Degree(); key > 0; key-- {
 			c = pol.Value[0].Coeffs[key]
 			if key != 0 && c != 0 {
 				// MulScalarAndAdd automatically scales c to match the scale of res.
-				polyEval.MulScalarThenAdd(X[key], c, res)
+				polyEval.MulThenAdd(X[key], c, res)
 			}
 		}
 	}

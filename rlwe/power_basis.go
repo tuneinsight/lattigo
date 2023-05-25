@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"math"
 
 	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
 	"github.com/tuneinsight/lattigo/v4/utils/buffer"
@@ -25,6 +26,23 @@ func NewPowerBasis(ct *Ciphertext, basis polynomial.Basis) (p *PowerBasis) {
 	p.Value = make(map[int]*Ciphertext)
 	p.Value[1] = ct.CopyNew()
 	p.Basis = basis
+	return
+}
+
+// SplitDegree returns a * b = n such that |a-b| is minmized
+// with a and/or b odd if possible.
+func SplitDegree(n int) (a, b int) {
+
+	if n&(n-1) == 0 {
+		a, b = n/2, n/2 //Necessary for optimal depth
+	} else {
+		// [Lee et al. 2020] : High-Precision and Low-Complexity Approximate Homomorphic Encryption by Error Variance Minimization
+		// Maximize the number of odd terms of Chebyshev basis
+		k := int(math.Ceil(math.Log2(float64(n)))) - 1
+		a = (1 << k) - 1
+		b = n + 1 - (1 << k)
+	}
+
 	return
 }
 

@@ -1,8 +1,8 @@
 package ckks
 
 import (
+	"fmt"
 	"io"
-	"math"
 
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
@@ -41,11 +41,11 @@ func (p *PowerBasis) GenPower(n int, lazy bool, scale rlwe.Scale, eval *Evaluato
 
 	if p.Value[n] == nil {
 		if err = p.genPower(n, lazy, scale, eval); err != nil {
-			return
+			return fmt.Errorf("genpower: p.Value[%d]: %w", n, err)
 		}
 
 		if err = eval.Rescale(p.Value[n], scale, p.Value[n]); err != nil {
-			return
+			return fmt.Errorf("genpower: p.Value[%d]: rescale: %w", n, err)
 		}
 	}
 
@@ -56,30 +56,15 @@ func (p *PowerBasis) genPower(n int, lazy bool, scale rlwe.Scale, eval *Evaluato
 
 	if p.Value[n] == nil {
 
-		isPow2 := n&(n-1) == 0
-
-		// Computes the index required to compute the asked ring evaluation
-		var a, b, c int
-		if isPow2 {
-			a, b = n/2, n/2 //Necessary for optimal depth
-		} else {
-			// [Lee et al. 2020] : High-Precision and Low-Complexity Approximate Homomorphic Encryption by Error Variance Minimization
-			// Maximize the number of odd terms of Chebyshev basis
-			k := int(math.Ceil(math.Log2(float64(n)))) - 1
-			a = (1 << k) - 1
-			b = n + 1 - (1 << k)
-
-			if p.Basis == polynomial.Chebyshev {
-				c = int(math.Abs(float64(a) - float64(b))) // Cn = 2*Ca*Cb - Cc, n = a+b and c = abs(a-b)
-			}
-		}
+		a, b := rlwe.SplitDegree(n)
 
 		// Recurses on the given indexes
+		isPow2 := n&(n-1) == 0
 		if err = p.genPower(a, lazy && !isPow2, scale, eval); err != nil {
-			return err
+			return fmt.Errorf("genpower: p.Value[%d]: %w", a, err)
 		}
 		if err = p.genPower(b, lazy && !isPow2, scale, eval); err != nil {
-			return err
+			return fmt.Errorf("genpower: p.Value[%d]: %w", b, err)
 		}
 
 		// Computes C[n] = C[a]*C[b]
@@ -93,11 +78,11 @@ func (p *PowerBasis) genPower(n int, lazy bool, scale rlwe.Scale, eval *Evaluato
 			}
 
 			if err = eval.Rescale(p.Value[a], scale, p.Value[a]); err != nil {
-				return err
+				return fmt.Errorf("genpower: rescale: p.Value[%d]: %w", a, err)
 			}
 
 			if err = eval.Rescale(p.Value[b], scale, p.Value[b]); err != nil {
-				return err
+				return fmt.Errorf("genpower: rescale: p.Value[%d]: %w", b, err)
 			}
 
 			p.Value[n] = eval.MulNew(p.Value[a], p.Value[b])
@@ -105,17 +90,23 @@ func (p *PowerBasis) genPower(n int, lazy bool, scale rlwe.Scale, eval *Evaluato
 		} else {
 
 			if err = eval.Rescale(p.Value[a], scale, p.Value[a]); err != nil {
-				return err
+				return fmt.Errorf("genpower: rescale: p.Value[%d]: %w", a, err)
 			}
 
 			if err = eval.Rescale(p.Value[b], scale, p.Value[b]); err != nil {
-				return err
+				return fmt.Errorf("genpower: rescale: p.Value[%d]: %w", b, err)
 			}
 
 			p.Value[n] = eval.MulRelinNew(p.Value[a], p.Value[b])
 		}
 
 		if p.Basis == polynomial.Chebyshev {
+
+			// Cn = 2*Ca*Cb - Cc, n = a+b and c = abs(a-b)
+			c := a - b
+			if c < 0 {
+				c = -c
+			}
 
 			// Computes C[n] = 2*C[a]*C[b]
 			eval.Add(p.Value[n], p.Value[n], p.Value[n])
@@ -126,8 +117,9 @@ func (p *PowerBasis) genPower(n int, lazy bool, scale rlwe.Scale, eval *Evaluato
 			} else {
 				// Since C[0] is not stored (but rather seen as the constant 1), only recurses on c if c!= 0
 				if err = p.GenPower(c, lazy, scale, eval); err != nil {
-					return err
+					return fmt.Errorf("genpower: p.Value[%d]: %w", c, err)
 				}
+
 				eval.Sub(p.Value[n], p.Value[c], p.Value[n])
 			}
 		}

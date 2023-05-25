@@ -189,14 +189,14 @@ func (eval *Evaluator) EvalModNew(ct *rlwe.Ciphertext, evalModPoly EvalModPoly) 
 
 	// Division by 1/2^r and change of variable for the Chebyshev evaluation
 	if evalModPoly.sineType == CosDiscrete || evalModPoly.sineType == CosContinuous {
-		offset := new(big.Float).Sub(evalModPoly.sinePoly.B, evalModPoly.sinePoly.A)
+		offset := new(big.Float).Sub(&evalModPoly.sinePoly.B, &evalModPoly.sinePoly.A)
 		offset.Mul(offset, new(big.Float).SetFloat64(evalModPoly.scFac))
 		offset.Quo(new(big.Float).SetFloat64(-0.5), offset)
 		eval.Add(ct, offset, ct)
 	}
 
 	// Chebyshev evaluation
-	if ct, err = eval.EvaluatePoly(ct, evalModPoly.sinePoly, rlwe.NewScale(targetScale)); err != nil {
+	if ct, err = eval.Polynomial(ct, evalModPoly.sinePoly, rlwe.NewScale(targetScale)); err != nil {
 		panic(err)
 	}
 
@@ -214,7 +214,7 @@ func (eval *Evaluator) EvalModNew(ct *rlwe.Ciphertext, evalModPoly EvalModPoly) 
 
 	// ArcSine
 	if evalModPoly.arcSinePoly != nil {
-		if ct, err = eval.EvaluatePoly(ct, evalModPoly.arcSinePoly, ct.Scale); err != nil {
+		if ct, err = eval.Polynomial(ct, evalModPoly.arcSinePoly, ct.Scale); err != nil {
 			panic(err)
 		}
 	}

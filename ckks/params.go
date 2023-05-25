@@ -125,30 +125,6 @@ func (p Parameters) ParametersLiteral() (pLit ParametersLiteral) {
 	}
 }
 
-// DefaultPrecision returns the default precision in bits of the plaintext values which
-// is max(53, log2(DefaultScale)).
-func (p Parameters) DefaultPrecision() (prec uint) {
-	if log2scale := math.Log2(p.DefaultScale().Float64()); log2scale <= 53 {
-		prec = 53
-	} else {
-		prec = uint(log2scale)
-	}
-
-	return
-}
-
-// MaxDepth returns MaxLevel / DefaultScaleModuliRatio which is the maximum number of multiplicaitons
-// followed by a rescaling that can be carried out with on a ciphertext with the DefaultScale.
-func (p Parameters) MaxDepth() int {
-	return p.MaxLevel() / p.DefaultScaleModuliRatio()
-}
-
-// DefaultScaleModuliRatio returns the default ratio between the scaling factor and moduli.
-// This default ratio is computed as ceil(DefaultScalingFactor/2^{60}).
-func (p Parameters) DefaultScaleModuliRatio() int {
-	return int(math.Ceil(math.Log2(p.DefaultScale().Float64()) / 60.0))
-}
-
 // MaxLevel returns the maximum ciphertext level
 func (p Parameters) MaxLevel() int {
 	return p.QCount() - 1

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
 const (
@@ -108,8 +110,26 @@ func (s Scale) Cmp(s1 Scale) (cmp int) {
 	return s.Value.Cmp(&s1.Value)
 }
 
+// Equal returns true if a == b.
 func (s Scale) Equal(s1 Scale) bool {
 	return s.Cmp(s1) == 0
+}
+
+// InDelta returns true if abs(a-b) <= 2^{-log2Delta}
+func (s Scale) InDelta(s1 Scale, log2Delta float64) bool {
+	return s.Log2Delta(s1) >= log2Delta
+}
+
+// Log2Delta returns -log2(abs(a-b)/max(a, b))
+func (s Scale) Log2Delta(s1 Scale) float64 {
+	d := new(big.Float).Sub(&s.Value, &s1.Value)
+	d.Abs(d)
+	max := s.Max(s1)
+	d.Quo(d, &max.Value)
+	d.Quo(bignum.Log(d), bignum.Log2(s.Value.Prec()))
+	d.Neg(d)
+	f64, _ := d.Float64()
+	return f64
 }
 
 // Max returns the a new scale which is the maximum

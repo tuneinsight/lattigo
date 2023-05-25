@@ -155,7 +155,7 @@ func example() {
 	// We create a new polynomial, with the standard basis [1, x, x^2, ...], with no interval.
 	poly := polynomial.NewPolynomial(polynomial.Monomial, coeffs, nil)
 
-	if ciphertext, err = evaluator.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {
+	if ciphertext, err = evaluator.Polynomial(ciphertext, poly, ciphertext.Scale); err != nil {
 		panic(err)
 	}
 

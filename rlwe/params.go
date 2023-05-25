@@ -288,6 +288,41 @@ func (p Parameters) DefaultScale() Scale {
 	return p.defaultScale
 }
 
+// DefaultPrecision returns the default precision in bits of the plaintext values which
+// is max(53, log2(DefaultScale)).
+func (p Parameters) DefaultPrecision() (prec uint) {
+	if log2scale := math.Log2(p.DefaultScale().Float64()); log2scale <= 53 {
+		prec = 53
+	} else {
+		prec = uint(log2scale)
+	}
+
+	return
+}
+
+// MaxDepth returns MaxLevel / DefaultScaleModuliRatio which is the maximum number of multiplicaitons
+// followed by a rescaling that can be carried out with on a ciphertext with the DefaultScale.
+// Returns 0 if the scaling factor is zero (e.g. scale invariant scheme such as BFV).
+func (p Parameters) MaxDepth() int {
+	if ratio := p.DefaultScaleModuliRatio(); ratio > 0 {
+		return p.MaxLevel() / ratio
+	}
+	return 0
+}
+
+// DefaultScaleModuliRatio returns the default ratio between the scaling factor and moduli.
+// This default ratio is computed as ceil(DefaultScalingFactor/2^{60}).
+// Returns 0 if the scaling factor is 0 (e.g. scale invariant scheme such as BFV).
+func (p Parameters) DefaultScaleModuliRatio() int {
+	scale := p.DefaultScale().Float64()
+	nbModuli := 0
+	for scale > 1 {
+		scale /= 0xfffffffffffffff
+		nbModuli++
+	}
+	return nbModuli
+}
+
 // DefaultNTTFlag returns the default NTT flag.
 func (p Parameters) DefaultNTTFlag() bool {
 	return p.defaultNTTFlag

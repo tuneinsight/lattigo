@@ -788,14 +788,14 @@ func testEvaluatePoly(tc *testContext, t *testing.T) {
 			values[i] = poly.Evaluate(values[i])
 		}
 
-		if ciphertext, err = tc.evaluator.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {
+		if ciphertext, err = tc.evaluator.Polynomial(ciphertext, poly, ciphertext.Scale); err != nil {
 			t.Fatal(err)
 		}
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, nil, t)
 	})
 
-	t.Run(GetTestName(tc.params, "EvaluatePoly/PolyVector/Exp"), func(t *testing.T) {
+	t.Run(GetTestName(tc.params, "Polynomial/PolyVector/Exp"), func(t *testing.T) {
 
 		if tc.params.MaxLevel() < 3 {
 			t.Skip("skipping test for params max level < 3")
@@ -833,7 +833,9 @@ func testEvaluatePoly(tc *testContext, t *testing.T) {
 			valuesWant[j] = poly.Evaluate(values[j])
 		}
 
-		if ciphertext, err = tc.evaluator.EvaluatePolyVector(ciphertext, []*polynomial.Polynomial{poly}, slotIndex, ciphertext.Scale); err != nil {
+		polyVector := rlwe.NewPolynomialVector([]*rlwe.Polynomial{rlwe.NewPolynomial(poly)}, slotIndex)
+
+		if ciphertext, err = tc.evaluator.Polynomial(ciphertext, polyVector, ciphertext.Scale); err != nil {
 			t.Fatal(err)
 		}
 
@@ -847,7 +849,7 @@ func testChebyshevInterpolator(tc *testContext, t *testing.T) {
 
 	t.Run(GetTestName(tc.params, "ChebyshevInterpolator/Sin"), func(t *testing.T) {
 
-		degree := 7
+		degree := 13
 
 		if tc.params.MaxDepth() < bits.Len64(uint64(degree)) {
 			t.Skip("skipping test: not enough levels")
@@ -868,21 +870,20 @@ func testChebyshevInterpolator(tc *testContext, t *testing.T) {
 		}
 
 		interval := polynomial.Interval{
-			A: new(big.Float).SetPrec(prec).SetFloat64(-1.5),
-			B: new(big.Float).SetPrec(prec).SetFloat64(1.5),
+			A: *new(big.Float).SetPrec(prec).SetFloat64(-8),
+			B: *new(big.Float).SetPrec(prec).SetFloat64(8),
 		}
 
-		poly := approximation.Chebyshev(sin, interval, degree)
+		poly := rlwe.NewPolynomial(approximation.Chebyshev(sin, interval, degree))
 
 		scalar, constant := poly.ChangeOfBasis()
 		eval.Mul(ciphertext, scalar, ciphertext)
 		eval.Add(ciphertext, constant, ciphertext)
 		if err = eval.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
 			t.Fatal(err)
-
 		}
 
-		if ciphertext, err = eval.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {
+		if ciphertext, err = eval.Polynomial(ciphertext, poly, ciphertext.Scale); err != nil {
 			t.Fatal(err)
 		}
 
@@ -922,8 +923,8 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 		}
 
 		interval := polynomial.Interval{
-			A: new(big.Float).SetPrec(prec).SetFloat64(a),
-			B: new(big.Float).SetPrec(prec).SetFloat64(b),
+			A: *new(big.Float).SetPrec(prec).SetFloat64(a),
+			B: *new(big.Float).SetPrec(prec).SetFloat64(b),
 		}
 
 		poly := approximation.Chebyshev(sin, interval, degree)
@@ -940,7 +941,7 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if ciphertext, err = eval.EvaluatePoly(ciphertext, poly, ciphertext.Scale); err != nil {
+		if ciphertext, err = eval.Polynomial(ciphertext, poly, ciphertext.Scale); err != nil {
 			t.Fatal(err)
 		}
 
@@ -1043,7 +1044,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		tmp0 := make([]*bignum.Complex, len(values))
 		for i := range tmp0 {
-			tmp0[i] = values[i].Copy()
+			tmp0[i] = values[i].Clone()
 		}
 
 		for i := 1; i < n; i++ {
@@ -1104,7 +1105,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		tmp := make([]*bignum.Complex, len(values))
 		for i := range tmp {
-			tmp[i] = values[i].Copy()
+			tmp[i] = values[i].Clone()
 		}
 
 		for i := 0; i < slots; i++ {
@@ -1157,7 +1158,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		tmp := make([]*bignum.Complex, slots)
 		for i := range tmp {
-			tmp[i] = values[i].Copy()
+			tmp[i] = values[i].Clone()
 		}
 
 		for i := 0; i < slots; i++ {

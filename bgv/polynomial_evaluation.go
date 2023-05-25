@@ -9,6 +9,7 @@ import (
 
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
 )
 
 // Polynomial is a struct storing the coefficients of a plaintext
@@ -104,17 +105,6 @@ func (eval *evaluator) EvaluatePolyVectorInvariant(input interface{}, pols []*Po
 	return eval.evaluatePolyVector(input, polynomialVector{Encoder: encoder, Value: pols, SlotsIndex: slotsIndex}, true, targetScale)
 }
 
-func optimalSplit(logDegree int) (logSplit int) {
-	logSplit = logDegree >> 1
-	a := (1 << logSplit) + (1 << (logDegree - logSplit)) + logDegree - logSplit - 3
-	b := (1 << (logSplit + 1)) + (1 << (logDegree - logSplit - 1)) + logDegree - logSplit - 4
-	if a > b {
-		logSplit++
-	}
-
-	return
-}
-
 func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVector, invariantTensoring bool, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
 
 	if pol.SlotsIndex != nil && pol.Encoder == nil {
@@ -141,7 +131,7 @@ func (eval *evaluator) evaluatePolyVector(input interface{}, pol polynomialVecto
 	}
 
 	logDegree := bits.Len64(uint64(pol.Value[0].Degree()))
-	logSplit := optimalSplit(logDegree)
+	logSplit := polynomial.OptimalSplit(logDegree)
 
 	var odd, even = true, true
 	for _, p := range pol.Value {

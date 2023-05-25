@@ -9,26 +9,21 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
-// Basis is a type for the polynomials basis
-type Basis int
-
-const (
-	// Monomial : x^(a+b) = x^a * x^b
-	Monomial = Basis(0)
-	// Chebyshev : T_(a+b) = 2 * T_a * T_b - T_(|a-b|)
-	Chebyshev = Basis(1)
-)
-
-type Interval struct {
-	A, B *big.Float
+type Polynomial struct {
+	MetaData
+	Coeffs []*bignum.Complex
 }
 
-type Polynomial struct {
-	Basis
-	Interval
-	Coeffs []*bignum.Complex
-	IsOdd  bool
-	IsEven bool
+func (p *Polynomial) Clone() *Polynomial {
+	Coeffs := make([]*bignum.Complex, len(p.Coeffs))
+	for i := range Coeffs {
+		Coeffs[i] = p.Coeffs[i].Clone()
+	}
+
+	return &Polynomial{
+		MetaData: p.MetaData,
+		Coeffs:   Coeffs,
+	}
 }
 
 // NewPolynomial creates a new polynomial from the input parameters:
@@ -39,6 +34,16 @@ func NewPolynomial(basis Basis, coeffs interface{}, interval interface{}) *Polyn
 	var coefficients []*bignum.Complex
 
 	switch coeffs := coeffs.(type) {
+	case []uint64:
+		coefficients = make([]*bignum.Complex, len(coeffs))
+		for i := range coeffs {
+			if c := coeffs[i]; c != 0 {
+				coefficients[i] = &bignum.Complex{
+					new(big.Float).SetUint64(c),
+					new(big.Float),
+				}
+			}
+		}
 	case []complex128:
 		coefficients = make([]*bignum.Complex, len(coeffs))
 		for i := range coeffs {
@@ -79,11 +84,11 @@ func NewPolynomial(basis Basis, coeffs interface{}, interval interface{}) *Polyn
 	inter := Interval{}
 	switch interval := interval.(type) {
 	case [2]float64:
-		inter.A = new(big.Float).SetFloat64(interval[0])
-		inter.B = new(big.Float).SetFloat64(interval[1])
+		inter.A = *new(big.Float).SetFloat64(interval[0])
+		inter.B = *new(big.Float).SetFloat64(interval[1])
 	case *Interval:
-		inter.A = new(big.Float).Set(interval.A)
-		inter.B = new(big.Float).Set(interval.B)
+		inter.A = interval.A
+		inter.B = interval.B
 	case nil:
 
 	default:
@@ -91,11 +96,13 @@ func NewPolynomial(basis Basis, coeffs interface{}, interval interface{}) *Polyn
 	}
 
 	return &Polynomial{
-		Basis:    basis,
-		Interval: inter,
-		Coeffs:   coefficients,
-		IsOdd:    true,
-		IsEven:   true,
+		MetaData: MetaData{
+			Basis:    basis,
+			Interval: inter,
+			IsOdd:    true,
+			IsEven:   true,
+		},
+		Coeffs: coefficients,
 	}
 }
 
@@ -110,15 +117,15 @@ func (p *Polynomial) ChangeOfBasis() (scalar, constant *big.Float) {
 		scalar = new(big.Float).SetInt64(1)
 		constant = new(big.Float)
 	case Chebyshev:
-		num := new(big.Float).Sub(p.B, p.A)
+		num := new(big.Float).Sub(&p.B, &p.A)
 
 		// 2 / (b-a)
 		scalar = new(big.Float).Quo(new(big.Float).SetInt64(2), num)
 
 		// (-b-a)/(b-a)
-		constant = new(big.Float).Set(p.B)
+		constant = new(big.Float).Set(&p.B)
 		constant.Neg(constant)
-		constant.Sub(constant, p.A)
+		constant.Sub(constant, &p.A)
 		constant.Quo(constant, num)
 	default:
 		panic(fmt.Sprintf("invalid basis type, allowed types are `Monomial` or `Chebyshev` but is %T", p.Basis))
@@ -159,7 +166,7 @@ func (p *Polynomial) Evaluate(x interface{}) (y *bignum.Complex) {
 
 	switch p.Basis {
 	case Monomial:
-		y = coeffs[n-1].Copy()
+		y = coeffs[n-1].Clone()
 		y.SetPrec(xcmplx.Prec())
 		for i := n - 2; i >= 0; i-- {
 			mul.Mul(y, xcmplx, y)
@@ -184,7 +191,7 @@ func (p *Polynomial) Evaluate(x interface{}) (y *bignum.Complex) {
 
 		T := xcmplx
 		if coeffs[0] != nil {
-			y = coeffs[0].Copy()
+			y = coeffs[0].Clone()
 		} else {
 			y = &bignum.Complex{new(big.Float), new(big.Float)}
 		}
@@ -205,8 +212,8 @@ func (p *Polynomial) Evaluate(x interface{}) (y *bignum.Complex) {
 			mul.Mul(tmp, T, tmp)
 			tmp.Sub(tmp, TPrev)
 
-			TPrev = T.Copy()
-			T = tmp.Copy()
+			TPrev = T.Clone()
+			T = tmp.Clone()
 		}
 
 	default:
@@ -219,12 +226,16 @@ func (p *Polynomial) Evaluate(x interface{}) (y *bignum.Complex) {
 // Factorize factorizes p as X^{n} * pq + pr.
 func (p *Polynomial) Factorize(n int) (pq, pr *Polynomial) {
 
+	if n < p.Degree()>>1 {
+		panic("cannot Factorize: n < p.Degree()/2")
+	}
+
 	// ns a polynomial p such that p = q*C^degree + r.
 	pr = &Polynomial{}
 	pr.Coeffs = make([]*bignum.Complex, n)
 	for i := 0; i < n; i++ {
 		if p.Coeffs[i] != nil {
-			pr.Coeffs[i] = p.Coeffs[i].Copy()
+			pr.Coeffs[i] = p.Coeffs[i].Clone()
 		}
 	}
 
@@ -232,7 +243,7 @@ func (p *Polynomial) Factorize(n int) (pq, pr *Polynomial) {
 	pq.Coeffs = make([]*bignum.Complex, p.Degree()-n+1)
 
 	if p.Coeffs[n] != nil {
-		pq.Coeffs[0] = p.Coeffs[n].Copy()
+		pq.Coeffs[0] = p.Coeffs[n].Clone()
 	}
 
 	odd := p.IsOdd
@@ -242,20 +253,20 @@ func (p *Polynomial) Factorize(n int) (pq, pr *Polynomial) {
 	case Monomial:
 		for i := n + 1; i < p.Degree()+1; i++ {
 			if p.Coeffs[i] != nil && (!(even || odd) || (i&1 == 0 && even) || (i&1 == 1 && odd)) {
-				pq.Coeffs[i-n] = p.Coeffs[i].Copy()
+				pq.Coeffs[i-n] = p.Coeffs[i].Clone()
 			}
 		}
 	case Chebyshev:
 
 		for i, j := n+1, 1; i < p.Degree()+1; i, j = i+1, j+1 {
 			if p.Coeffs[i] != nil && (!(even || odd) || (i&1 == 0 && even) || (i&1 == 1 && odd)) {
-				pq.Coeffs[i-n] = p.Coeffs[i].Copy()
+				pq.Coeffs[i-n] = p.Coeffs[i].Clone()
 				pq.Coeffs[i-n].Add(pq.Coeffs[i-n], pq.Coeffs[i-n])
 
 				if pr.Coeffs[n-j] != nil {
 					pr.Coeffs[n-j].Sub(pr.Coeffs[n-j], p.Coeffs[i])
 				} else {
-					pr.Coeffs[n-j] = p.Coeffs[i].Copy()
+					pr.Coeffs[n-j] = p.Coeffs[i].Clone()
 					pr.Coeffs[n-j][0].Neg(pr.Coeffs[n-j][0])
 					pr.Coeffs[n-j][1].Neg(pr.Coeffs[n-j][1])
 				}

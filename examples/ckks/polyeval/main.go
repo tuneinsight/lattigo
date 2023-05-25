@@ -94,8 +94,8 @@ func chebyshevinterpolation() {
 		y[0].SetFloat64(f(xf64))
 		return
 	}, polynomial.Interval{
-		A: new(big.Float).SetFloat64(a),
-		B: new(big.Float).SetFloat64(b),
+		A: *new(big.Float).SetFloat64(a),
+		B: *new(big.Float).SetFloat64(b),
 	}, deg)
 
 	approxG := approximation.Chebyshev(func(x *bignum.Complex) (y *bignum.Complex) {
@@ -104,8 +104,8 @@ func chebyshevinterpolation() {
 		y[0].SetFloat64(g(xf64))
 		return
 	}, polynomial.Interval{
-		A: new(big.Float).SetFloat64(a),
-		B: new(big.Float).SetFloat64(b),
+		A: *new(big.Float).SetFloat64(a),
+		B: *new(big.Float).SetFloat64(b),
 	}, deg)
 
 	// Map storing which polynomial has to be applied to which slot.
@@ -128,8 +128,10 @@ func chebyshevinterpolation() {
 		panic(err)
 	}
 
+	polyVec := rlwe.NewPolynomialVector([]*rlwe.Polynomial{rlwe.NewPolynomial(approxF), rlwe.NewPolynomial(approxG)}, slotsIndex)
+
 	// We evaluate the interpolated Chebyshev interpolant on the ciphertext
-	if ciphertext, err = evaluator.EvaluatePolyVector(ciphertext, []*polynomial.Polynomial{approxF, approxG}, slotsIndex, ciphertext.Scale); err != nil {
+	if ciphertext, err = evaluator.Polynomial(ciphertext, polyVec, ciphertext.Scale); err != nil {
 		panic(err)
 	}
 

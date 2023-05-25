@@ -644,7 +644,7 @@ func addToDiagMatrix(diagMat map[int][]*bignum.Complex, index int, vec []*bignum
 	if diagMat[index] == nil {
 		diagMat[index] = make([]*bignum.Complex, len(vec))
 		for i := range vec {
-			diagMat[index][i] = vec[i].Copy()
+			diagMat[index][i] = vec[i].Clone()
 		}
 	} else {
 		add(diagMat[index], vec, diagMat[index])
@@ -656,7 +656,7 @@ func rotateAndMulNew(a []*bignum.Complex, k int, b []*bignum.Complex) (c []*bign
 
 	c = make([]*bignum.Complex, len(a))
 	for i := range c {
-		c[i] = b[i].Copy()
+		c[i] = b[i].Clone()
 	}
 
 	mask := int(len(a) - 1)

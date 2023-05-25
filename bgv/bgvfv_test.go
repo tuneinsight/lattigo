@@ -13,6 +13,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils"
 
 	"github.com/stretchr/testify/require"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
@@ -563,6 +564,19 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				}
 
 				poly := NewPoly(coeffs)
+
+				polyRLWE := rlwe.NewPolynomial(polynomial.NewPolynomial(polynomial.Monomial, coeffs, nil))
+
+				BSGS := polyRLWE.GetPatersonStockmeyerPolynomial(tc.params.Parameters, ciphertext.Level(), ciphertext.Scale, ciphertext.Scale)
+
+				fmt.Println(tc.params.Parameters.DefaultScaleModuliRatio())
+
+				fmt.Println()
+				fmt.Println(BSGS.Degree, BSGS.Base)
+				for i, v := range BSGS.Value {
+					fmt.Println(i, v.Level, v.MaxDeg, v.Lead, v.Scale.Uint64())
+				}
+				fmt.Println()
 
 				t.Run(GetTestName("Standard", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
 					var err error

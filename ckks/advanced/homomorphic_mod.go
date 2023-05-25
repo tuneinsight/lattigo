@@ -168,8 +168,8 @@ func NewEvalModPolyFromLiteral(params ckks.Parameters, evm EvalModLiteral) EvalM
 	case SinContinuous:
 
 		sinePoly = approximation.Chebyshev(sin2pi, polynomial.Interval{
-			A: new(big.Float).SetPrec(defaultPrecision).SetFloat64(-K),
-			B: new(big.Float).SetPrec(defaultPrecision).SetFloat64(K),
+			A: *new(big.Float).SetPrec(defaultPrecision).SetFloat64(-K),
+			B: *new(big.Float).SetPrec(defaultPrecision).SetFloat64(K),
 		}, evm.SineDegree)
 		sinePoly.IsEven = false
 
@@ -191,8 +191,8 @@ func NewEvalModPolyFromLiteral(params ckks.Parameters, evm EvalModLiteral) EvalM
 
 	case CosContinuous:
 		sinePoly = approximation.Chebyshev(cos2pi, polynomial.Interval{
-			A: new(big.Float).SetPrec(defaultPrecision).SetFloat64(-K),
-			B: new(big.Float).SetPrec(defaultPrecision).SetFloat64(K),
+			A: *new(big.Float).SetPrec(defaultPrecision).SetFloat64(-K),
+			B: *new(big.Float).SetPrec(defaultPrecision).SetFloat64(K),
 		}, evm.SineDegree)
 		sinePoly.IsOdd = false
 

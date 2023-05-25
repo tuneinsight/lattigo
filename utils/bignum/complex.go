@@ -85,8 +85,8 @@ func (c *Complex) SetPrec(prec uint) *Complex {
 	return c
 }
 
-// Copy returns a new copy of the target arbitrary precision complex number
-func (c *Complex) Copy() *Complex {
+// Clone returns a new copy of the target arbitrary precision complex number
+func (c *Complex) Clone() *Complex {
 	return &Complex{new(big.Float).Set(c[0]), new(big.Float).Set(c[1])}
 }
 

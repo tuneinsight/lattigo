@@ -40,9 +40,9 @@ func chebyshevNodes(n int, interval polynomial.Interval) (u []*big.Float) {
 
 	half := new(big.Float).SetPrec(prec).SetFloat64(0.5)
 
-	x := new(big.Float).Add(interval.A, interval.B)
+	x := new(big.Float).Add(&interval.A, &interval.B)
 	x.Mul(x, half)
-	y := new(big.Float).Sub(interval.B, interval.A)
+	y := new(big.Float).Sub(&interval.B, &interval.A)
 	y.Mul(y, half)
 
 	PiOverN := bignum.Pi(prec)
@@ -79,12 +79,12 @@ func chebyCoeffs(nodes []*big.Float, fi []*bignum.Complex, interval polynomial.I
 
 	two := new(big.Float).SetPrec(prec).SetInt64(2)
 
-	minusab := new(big.Float).Set(interval.A)
+	minusab := new(big.Float).Set(&interval.A)
 	minusab.Neg(minusab)
-	minusab.Sub(minusab, interval.B)
+	minusab.Sub(minusab, &interval.B)
 
-	bminusa := new(big.Float).Set(interval.B)
-	bminusa.Sub(bminusa, interval.A)
+	bminusa := new(big.Float).Set(&interval.B)
+	bminusa.Sub(bminusa, &interval.A)
 
 	Tnext := bignum.NewComplex().SetPrec(prec)
 
@@ -97,7 +97,7 @@ func chebyCoeffs(nodes []*big.Float, fi []*bignum.Complex, interval polynomial.I
 		Tprev := bignum.NewComplex().SetPrec(prec)
 		Tprev[0].SetFloat64(1)
 
-		T := u.Copy()
+		T := u.Clone()
 
 		for j := 0; j < n; j++ {
 

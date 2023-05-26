@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"math"
+	"math/bits"
 
 	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
 	"github.com/tuneinsight/lattigo/v4/utils/buffer"
@@ -14,6 +14,7 @@ import (
 
 // PowerBasis is a struct storing powers of a ciphertext.
 type PowerBasis struct {
+	EvaluatorInterface
 	polynomial.Basis
 	Value structs.Map[int, Ciphertext]
 }
@@ -21,11 +22,12 @@ type PowerBasis struct {
 // NewPowerBasis creates a new PowerBasis. It takes as input a ciphertext
 // and a basistype. The struct treats the input ciphertext as a monomial X and
 // can be used to generates power of this monomial X^{n} in the given BasisType.
-func NewPowerBasis(ct *Ciphertext, basis polynomial.Basis) (p *PowerBasis) {
+func NewPowerBasis(ct *Ciphertext, basis polynomial.Basis, eval EvaluatorInterface) (p *PowerBasis) {
 	p = new(PowerBasis)
 	p.Value = make(map[int]*Ciphertext)
 	p.Value[1] = ct.CopyNew()
 	p.Basis = basis
+	p.EvaluatorInterface = eval
 	return
 }
 
@@ -38,12 +40,128 @@ func SplitDegree(n int) (a, b int) {
 	} else {
 		// [Lee et al. 2020] : High-Precision and Low-Complexity Approximate Homomorphic Encryption by Error Variance Minimization
 		// Maximize the number of odd terms of Chebyshev basis
-		k := int(math.Ceil(math.Log2(float64(n)))) - 1
+		k := bits.Len64(uint64(n-1)) - 1
 		a = (1 << k) - 1
 		b = n + 1 - (1 << k)
 	}
 
 	return
+}
+
+// GenPower recursively computes X^{n}.
+// If lazy = true, the final X^{n} will not be relinearized.
+// Previous non-relinearized X^{n} that are required to compute the target X^{n} are automatically relinearized.
+func (p *PowerBasis) GenPower(n int, lazy bool) (err error) {
+
+	if p.EvaluatorInterface == nil {
+		return fmt.Errorf("cannot GenPower: EvaluatorInterface is nil")
+	}
+
+	if p.Value[n] == nil {
+
+		var rescale bool
+		if rescale, err = p.genPower(n, lazy, true); err != nil {
+			return fmt.Errorf("genpower: p.Value[%d]: %w", n, err)
+		}
+
+		if rescale {
+			if err = p.Rescale(p.Value[n], p.Value[n]); err != nil {
+				return fmt.Errorf("genpower: p.Value[%d]: final rescale: %w", n, err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (p *PowerBasis) genPower(n int, lazy, rescale bool) (rescaltOut bool, err error) {
+
+	if p.Value[n] == nil {
+
+		a, b := SplitDegree(n)
+
+		// Recurses on the given indexes
+		isPow2 := n&(n-1) == 0
+
+		var rescaleA, rescaleB bool // Avoids calling rescale on already generated powers
+
+		if rescaleA, err = p.genPower(a, lazy && !isPow2, rescale); err != nil {
+			return false, fmt.Errorf("genpower: p.Value[%d]: %w", a, err)
+		}
+		if rescaleB, err = p.genPower(b, lazy && !isPow2, rescale); err != nil {
+			return false, fmt.Errorf("genpower: p.Value[%d]: %w", b, err)
+		}
+
+		// Computes C[n] = C[a]*C[b]
+		if lazy {
+
+			if p.Value[a].Degree() == 2 {
+				p.Relinearize(p.Value[a], p.Value[a])
+			}
+
+			if p.Value[b].Degree() == 2 {
+				p.Relinearize(p.Value[b], p.Value[b])
+			}
+
+			if rescaleA {
+				if err = p.Rescale(p.Value[a], p.Value[a]); err != nil {
+					return false, fmt.Errorf("genpower (lazy): rescale[a]: p.Value[%d]: %w", a, err)
+				}
+			}
+
+			if rescaleB {
+				if err = p.Rescale(p.Value[b], p.Value[b]); err != nil {
+					return false, fmt.Errorf("genpower (lazy): rescale[b]: p.Value[%d]: %w", b, err)
+				}
+			}
+
+			p.Value[n] = p.MulNew(p.Value[a], p.Value[b])
+
+		} else {
+
+			if rescaleA {
+				if err = p.Rescale(p.Value[a], p.Value[a]); err != nil {
+					return false, fmt.Errorf("genpower: rescale[a]: p.Value[%d]: %w", a, err)
+				}
+			}
+
+			if rescaleB {
+				if err = p.Rescale(p.Value[b], p.Value[b]); err != nil {
+					return false, fmt.Errorf("genpower: rescale[b]: p.Value[%d]: %w", b, err)
+				}
+			}
+
+			p.Value[n] = p.MulRelinNew(p.Value[a], p.Value[b])
+		}
+
+		if p.Basis == polynomial.Chebyshev {
+
+			// Cn = 2*Ca*Cb - Cc, n = a+b and c = abs(a-b)
+			c := a - b
+			if c < 0 {
+				c = -c
+			}
+
+			// Computes C[n] = 2*C[a]*C[b]
+			p.Add(p.Value[n], p.Value[n], p.Value[n])
+
+			// Computes C[n] = 2*C[a]*C[b] - C[c]
+			if c == 0 {
+				p.Add(p.Value[n], -1, p.Value[n])
+			} else {
+				// Since C[0] is not stored (but rather seen as the constant 1), only recurses on c if c!= 0
+				if err = p.GenPower(c, lazy); err != nil {
+					return false, fmt.Errorf("genpower: p.Value[%d]: %w", c, err)
+				}
+
+				p.Sub(p.Value[n], p.Value[c], p.Value[n])
+			}
+		}
+
+		return true, nil
+	}
+
+	return false, nil
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.

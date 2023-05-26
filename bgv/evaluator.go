@@ -530,6 +530,8 @@ func (eval *Evaluator) MulInvariant(op0 *rlwe.Ciphertext, op1 interface{}, op2 *
 	}
 }
 
+// MulInvariantNew multiplies op0 by op1 and returns the result in a newly allocated op2.
+// Multiplication is done BFV-style (invariant tensoring).
 func (eval *Evaluator) MulInvariantNew(op0 *rlwe.Ciphertext, op1 interface{}) (op2 *rlwe.Ciphertext) {
 	switch op1 := op1.(type) {
 	case rlwe.Operand:
@@ -545,7 +547,7 @@ func (eval *Evaluator) MulInvariantNew(op0 *rlwe.Ciphertext, op1 interface{}) (o
 	return
 }
 
-// MulInvariantRelin multiplies op0 by op1 and returns the result in op2.
+// MulRelinInvariant multiplies op0 by op1 and returns the result in op2.
 func (eval *Evaluator) MulRelinInvariant(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciphertext) {
 	switch op1 := op1.(type) {
 	case rlwe.Operand:
@@ -562,6 +564,8 @@ func (eval *Evaluator) MulRelinInvariant(op0 *rlwe.Ciphertext, op1 interface{}, 
 	}
 }
 
+// MulRelinInvariantNew multiplies op0 by op1, relinearizes and returns the result in a newly allocated op2.
+// Multiplication is done BFV-style (invariant tensoring).
 func (eval *Evaluator) MulRelinInvariantNew(op0 *rlwe.Ciphertext, op1 interface{}) (op2 *rlwe.Ciphertext) {
 	switch op1 := op1.(type) {
 	case rlwe.Operand:
@@ -576,7 +580,7 @@ func (eval *Evaluator) MulRelinInvariantNew(op0 *rlwe.Ciphertext, op1 interface{
 	return
 }
 
-// tensorAndRescale computes (ct0 x ct1) * (t/Q) and stores the result in ctOut.
+// tensorInvariant computes (ct0 x ct1) * (t/Q) and stores the result in ctOut.
 func (eval *Evaluator) tensorInvariant(ct0 *rlwe.Ciphertext, ct1 *rlwe.OperandQ, relin bool, ctOut *rlwe.Ciphertext) {
 
 	ringQ := eval.params.RingQ()
@@ -978,6 +982,8 @@ func (eval *Evaluator) RotateRows(ctIn *rlwe.Ciphertext, ctOut *rlwe.Ciphertext)
 	eval.Automorphism(ctIn, eval.params.GaloisElementInverse(), ctOut)
 }
 
+// RotateHoistedLazyNew applies a series of rotations on the same ciphertext and returns each different rotation in a map indexed by the rotation.
+// Results are not rescaled by P.
 func (eval *Evaluator) RotateHoistedLazyNew(level int, rotations []int, ctIn *rlwe.Ciphertext, c2DecompQP []ringqp.Poly) (cOut map[int]*rlwe.OperandQP) {
 	cOut = make(map[int]*rlwe.OperandQP)
 	for _, i := range rotations {
@@ -990,7 +996,7 @@ func (eval *Evaluator) RotateHoistedLazyNew(level int, rotations []int, ctIn *rl
 	return
 }
 
-// MatchScales updates the both input ciphertexts to ensures that their scale matches.
+// MatchScalesAndLevel updates the both input ciphertexts to ensures that their scale matches.
 // To do so it computes t0 * a = ct1 * b such that:
 // - ct0.scale * a = ct1.scale: make the scales match.
 // - gcd(a, T) == gcd(b, T) == 1: ensure that the new scale is not a zero divisor if T is not prime.

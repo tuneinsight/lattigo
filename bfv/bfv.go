@@ -90,21 +90,10 @@ func (eval *Evaluator) MulRelin(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe
 	eval.Evaluator.MulRelinInvariant(op0, op1, op2)
 }
 
-type PowerBasis *bgv.PowerBasis
-
-func NewPowerBasis(ct *rlwe.Ciphertext) (p *PowerBasis) {
-	pb := PowerBasis(bgv.NewPowerBasis(ct))
-	return &pb
-}
-
 func (eval *Evaluator) Polynomial(input, pol interface{}) (opOut *rlwe.Ciphertext, err error) {
 	return eval.Evaluator.Polynomial(input, pol, true, eval.Parameters().DefaultScale())
 }
 
-type LinearTransformEncoder struct {
-	bgv.LinearTransformEncoder
-}
-
-func NewLinearTransformEncoder(ecd *Encoder, diagonals map[int][]uint64) LinearTransformEncoder {
-	return LinearTransformEncoder{bgv.NewLinearTransformEncoder(ecd.Encoder, diagonals)}
+func NewLinearTransformEncoder(ecd *Encoder, diagonals map[int][]uint64) rlwe.LinearTransformEncoder {
+	return bgv.NewLinearTransformEncoder(ecd.Encoder, diagonals)
 }

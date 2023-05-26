@@ -1105,7 +1105,7 @@ func testWriteAndRead(tc *TestContext, t *testing.T) {
 
 		ct := NewCiphertextRandom(prng, params, 1, params.MaxLevel())
 
-		basis := NewPowerBasis(ct, polynomial.Chebyshev)
+		basis := NewPowerBasis(ct, polynomial.Chebyshev, nil)
 
 		basis.Value[2] = NewCiphertextRandom(prng, params, 1, params.MaxLevel())
 		basis.Value[3] = NewCiphertextRandom(prng, params, 2, params.MaxLevel())

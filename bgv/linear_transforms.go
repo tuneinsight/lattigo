@@ -9,6 +9,8 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
+// LinearTransformEncoder is a struct complying
+// to the rlwe.LinearTransformEncoder interface.
 type LinearTransformEncoder struct {
 	*Encoder
 	buf       *ring.Poly
@@ -16,7 +18,7 @@ type LinearTransformEncoder struct {
 	diagonals map[int][]uint64
 }
 
-func NewLinearTransformEncoder(ecd *Encoder, diagonals map[int][]uint64) LinearTransformEncoder {
+func NewLinearTransformEncoder(ecd *Encoder, diagonals map[int][]uint64) rlwe.LinearTransformEncoder {
 	return LinearTransformEncoder{
 		Encoder:   ecd,
 		buf:       ecd.Parameters().RingT().NewPoly(),
@@ -29,11 +31,12 @@ func (l LinearTransformEncoder) Parameters() rlwe.Parameters {
 	return l.Encoder.Parameters().Parameters
 }
 
-// Diagonals returns the list of non-zero diagonals.
+// NonZeroDiagonals returns the list of non-zero diagonals.
 func (l LinearTransformEncoder) NonZeroDiagonals() []int {
 	return utils.GetKeys(l.diagonals)
 }
 
+// EncodeLinearTransformDiagonalNaive encodes the i-th non-zero diagonal of the internaly stored matrix at the given scale on the outut polynomial.
 func (l LinearTransformEncoder) EncodeLinearTransformDiagonalNaive(i int, scale rlwe.Scale, logslots int, output ringqp.Poly) (err error) {
 
 	ecd := l.Encoder
@@ -54,6 +57,7 @@ func (l LinearTransformEncoder) EncodeLinearTransformDiagonalNaive(i int, scale 
 	return
 }
 
+// EncodeLinearTransformDiagonalBSGS encodes the i-th non-zero diagonal of the internaly stored matrix at the given scale on the outut polynomial.
 func (l LinearTransformEncoder) EncodeLinearTransformDiagonalBSGS(i, rot int, scale rlwe.Scale, logSlots int, output ringqp.Poly) (err error) {
 
 	ecd := l.Encoder

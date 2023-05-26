@@ -11,13 +11,15 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
+// LinearTransformEncoder is a struct complying to the rlwe.LinearTransformEncoder.
 type LinearTransformEncoder[T float64 | complex128 | *big.Float | *bignum.Complex] struct {
 	*Encoder
 	diagonals map[int][]T
 	values    []T
 }
 
-func NewLinearTransformEncoder[T float64 | complex128 | *big.Float | *bignum.Complex](ecd *Encoder, diagonals map[int][]T) LinearTransformEncoder[T] {
+// NewLinearTransformEncoder creates a new LinearTransformEncoder.
+func NewLinearTransformEncoder[T float64 | complex128 | *big.Float | *bignum.Complex](ecd *Encoder, diagonals map[int][]T) rlwe.LinearTransformEncoder {
 	return LinearTransformEncoder[T]{
 		Encoder:   ecd,
 		diagonals: diagonals,
@@ -25,15 +27,17 @@ func NewLinearTransformEncoder[T float64 | complex128 | *big.Float | *bignum.Com
 	}
 }
 
+// Parameters returns the rlwe.Parameters of the underlying LinearTransformEncoder.
 func (l LinearTransformEncoder[_]) Parameters() rlwe.Parameters {
 	return l.Encoder.Parameters().Parameters
 }
 
-// Diagonals returns the list of non-zero diagonals.
+// NonZeroDiagonals returns the list of non-zero diagonals of the matrix stored in the underlying LinearTransformEncoder.
 func (l LinearTransformEncoder[_]) NonZeroDiagonals() []int {
 	return utils.GetKeys(l.diagonals)
 }
 
+// EncodeLinearTransformDiagonalNaive encodes the i-th non-zero diagonal of the internaly stored matrix at the given scale on the outut polynomial.
 func (l LinearTransformEncoder[_]) EncodeLinearTransformDiagonalNaive(i int, scale rlwe.Scale, LogSlots int, output ringqp.Poly) (err error) {
 
 	if diag, ok := l.diagonals[i]; ok {
@@ -43,6 +47,7 @@ func (l LinearTransformEncoder[_]) EncodeLinearTransformDiagonalNaive(i int, sca
 	return fmt.Errorf("cannot EncodeLinearTransformDiagonalNaive: diagonal [%d] doesn't exist", i)
 }
 
+// EncodeLinearTransformDiagonalBSGS encodes the i-th non-zero diagonal of the internaly stored matrix at the given scale on the outut polynomial.
 func (l LinearTransformEncoder[_]) EncodeLinearTransformDiagonalBSGS(i, rot int, scale rlwe.Scale, logSlots int, output ringqp.Poly) (err error) {
 
 	ecd := l.Encoder
@@ -55,20 +60,14 @@ func (l LinearTransformEncoder[_]) EncodeLinearTransformDiagonalBSGS(i, rot int,
 		v = l.diagonals[i-slots]
 	}
 
-	copyRotInterface(values[:slots], v, rot)
+	if slots >= rot {
+		copy(values[:slots-rot], v[rot:])
+		copy(values[slots-rot:], v[:rot])
+	} else {
+		copy(values[slots-rot:], v)
+	}
 
 	return ecd.Embed(values[:slots], logSlots, scale, true, output)
-}
-
-func copyRotInterface[T any](a, b []T, rot int) {
-	n := len(a)
-
-	if len(b) >= rot {
-		copy(a[:n-rot], b[rot:])
-		copy(a[n-rot:], b[:rot])
-	} else {
-		copy(a[n-rot:], b)
-	}
 }
 
 // TraceNew maps X -> sum((-1)^i * X^{i*n+1}) for 0 <= i < N and returns the result on a new ciphertext.

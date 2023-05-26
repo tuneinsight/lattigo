@@ -6,8 +6,11 @@ import (
 )
 
 type EvaluatorInterface interface {
-	Mul(op0 *Ciphertext, op1 interface{}, op2 *Ciphertext)
 	Add(op0 *Ciphertext, op1 interface{}, op2 *Ciphertext)
+	Sub(op0 *Ciphertext, op1 interface{}, op2 *Ciphertext)
+	Mul(op0 *Ciphertext, op1 interface{}, op2 *Ciphertext)
+	MulNew(op0 *Ciphertext, op1 interface{}) (op2 *Ciphertext)
+	MulRelinNew(op0 *Ciphertext, op1 interface{}) (op2 *Ciphertext)
 	Relinearize(op0, op1 *Ciphertext)
 	Rescale(op0, op1 *Ciphertext) (err error)
 }

@@ -221,11 +221,10 @@ func GenLinearTransformBSGS(ecd LinearTransformEncoder, level int, scale Scale, 
 	return LinearTransform{LogSlots: LogSlots, N1: N1, Vec: vec, Level: level, Scale: scale}, nil
 }
 
-// LinearTransformNew evaluates a linear transform on the Ciphertext "ctIn" and returns the result on a new Ciphertext.
-// The linearTransform can either be an (ordered) list of PtDiagMatrix or a single PtDiagMatrix.
-// In either case, a list of Ciphertext is returned (the second case returning a list
-// containing a single Ciphertext). A PtDiagMatrix is a diagonalized plaintext matrix constructed with an Encoder using
-// the method encoder.EncodeDiagMatrixAtLvl(*).
+// LinearTransformNew evaluates a linear transform on the pre-allocated Ciphertexts.
+// The linearTransform can either be an (ordered) list of LinearTransform or a single LinearTransform.
+// In either case a list of Ciphertext is returned (the second case returning a list
+// containing a single Ciphertext).
 func (eval *Evaluator) LinearTransformNew(ctIn *Ciphertext, linearTransform interface{}) (ctOut []*Ciphertext) {
 
 	switch LTs := linearTransform.(type) {
@@ -266,11 +265,10 @@ func (eval *Evaluator) LinearTransformNew(ctIn *Ciphertext, linearTransform inte
 	return
 }
 
-// LinearTransformNew evaluates a linear transform on the pre-allocated Ciphertexts.
-// The linearTransform can either be an (ordered) list of PtDiagMatrix or a single PtDiagMatrix.
+// LinearTransform evaluates a linear transform on the pre-allocated Ciphertexts.
+// The linearTransform can either be an (ordered) list of LinearTransform or a single LinearTransform.
 // In either case a list of Ciphertext is returned (the second case returning a list
-// containing a single Ciphertext). A PtDiagMatrix is a diagonalized plaintext matrix constructed with an Encoder using
-// the method encoder.EncodeDiagMatrixAtLvl(*).
+// containing a single Ciphertext).
 func (eval *Evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interface{}, ctOut []*Ciphertext) {
 
 	switch LTs := linearTransform.(type) {

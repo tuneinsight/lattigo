@@ -35,11 +35,13 @@ func (eval *Evaluator) Polynomial(input interface{}, p interface{}, targetScale 
 		return nil, fmt.Errorf("cannot Polynomial: invalid polynomial type: %T", p)
 	}
 
-	var powerbasis *PowerBasis
+	polyEval := NewPolynomialEvaluator(eval)
+
+	var powerbasis *rlwe.PowerBasis
 	switch input := input.(type) {
 	case *rlwe.Ciphertext:
-		powerbasis = NewPowerBasis(input, polyVec.Value[0].Basis)
-	case *PowerBasis:
+		powerbasis = rlwe.NewPowerBasis(input, polyVec.Value[0].Basis, polyEval)
+	case *rlwe.PowerBasis:
 		if input.Value[1] == nil {
 			return nil, fmt.Errorf("cannot evaluatePolyVector: given PowerBasis.Value[1] is empty")
 		}
@@ -66,14 +68,14 @@ func (eval *Evaluator) Polynomial(input interface{}, p interface{}, targetScale 
 
 	// Computes all the powers of two with relinearization
 	// This will recursively compute and store all powers of two up to 2^logDegree
-	if err = powerbasis.GenPower(1<<(logDegree-1), false, targetScale, eval); err != nil {
+	if err = powerbasis.GenPower(1<<(logDegree-1), false); err != nil {
 		return nil, err
 	}
 
 	// Computes the intermediate powers, starting from the largest, without relinearization if possible
 	for i := (1 << logSplit) - 1; i > 2; i-- {
 		if !(even || odd) || (i&1 == 0 && even) || (i&1 == 1 && odd) {
-			if err = powerbasis.GenPower(i, polyVec.Value[0].Lazy, targetScale, eval); err != nil {
+			if err = powerbasis.GenPower(i, polyVec.Value[0].Lazy); err != nil {
 				return nil, err
 			}
 		}
@@ -81,11 +83,7 @@ func (eval *Evaluator) Polynomial(input interface{}, p interface{}, targetScale 
 
 	PS := polyVec.GetPatersonStockmeyerPolynomial(params.Parameters, powerbasis.Value[1].Level(), powerbasis.Value[1].Scale, targetScale, &dummyEvaluator{params, nbModuliPerRescale})
 
-	polyEval := &polynomialEvaluator{
-		Evaluator: eval,
-	}
-
-	if opOut, err = rlwe.EvaluatePatersonStockmeyerPolynomialVector(PS, powerbasis.PowerBasis, polyEval); err != nil {
+	if opOut, err = rlwe.EvaluatePatersonStockmeyerPolynomialVector(PS, powerbasis, polyEval); err != nil {
 		return nil, err
 	}
 
@@ -162,15 +160,19 @@ func (d *dummyEvaluator) GetPolynmialDepth(degree int) int {
 	return d.nbModuliPerRescale * (bits.Len64(uint64(degree)) - 1)
 }
 
-type polynomialEvaluator struct {
+func NewPolynomialEvaluator(eval *Evaluator) *PolynomialEvaluator {
+	return &PolynomialEvaluator{eval}
+}
+
+type PolynomialEvaluator struct {
 	*Evaluator
 }
 
-func (polyEval *polynomialEvaluator) Rescale(op0, op1 *rlwe.Ciphertext) (err error) {
+func (polyEval *PolynomialEvaluator) Rescale(op0, op1 *rlwe.Ciphertext) (err error) {
 	return polyEval.Evaluator.Rescale(op0, polyEval.Evaluator.Parameters.DefaultScale(), op1)
 }
 
-func (polyEval *polynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol *rlwe.PolynomialVector, pb *rlwe.PowerBasis, targetScale rlwe.Scale) (res *rlwe.Ciphertext, err error) {
+func (polyEval *PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol *rlwe.PolynomialVector, pb *rlwe.PowerBasis, targetScale rlwe.Scale) (res *rlwe.Ciphertext, err error) {
 
 	// Map[int] of the powers [X^{0}, X^{1}, X^{2}, ...]
 	X := pb.Value

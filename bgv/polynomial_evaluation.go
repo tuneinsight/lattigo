@@ -25,7 +25,13 @@ func (eval *Evaluator) Polynomial(input interface{}, p interface{}, invariantTen
 		return nil, fmt.Errorf("cannot Polynomial: invalid polynomial type: %T", p)
 	}
 
-	var powerbasis *PowerBasis
+	polyEval := &polynomialEvaluator{
+		Evaluator:          eval,
+		Encoder:            NewEncoder(eval.params),
+		invariantTensoring: invariantTensoring,
+	}
+
+	var powerbasis *rlwe.PowerBasis
 	switch input := input.(type) {
 	case *rlwe.Ciphertext:
 
@@ -33,9 +39,9 @@ func (eval *Evaluator) Polynomial(input interface{}, p interface{}, invariantTen
 			return nil, fmt.Errorf("%d levels < %d log(d) -> cannot evaluate poly", level, depth)
 		}
 
-		powerbasis = NewPowerBasis(input)
+		powerbasis = rlwe.NewPowerBasis(input, polynomial.Monomial, polyEval)
 
-	case *PowerBasis:
+	case *rlwe.PowerBasis:
 		if input.Value[1] == nil {
 			return nil, fmt.Errorf("cannot evaluatePolyVector: given PowerBasis[1] is empty")
 		}
@@ -47,21 +53,21 @@ func (eval *Evaluator) Polynomial(input interface{}, p interface{}, invariantTen
 	logDegree := bits.Len64(uint64(polyVec.Value[0].Degree()))
 	logSplit := polynomial.OptimalSplit(logDegree)
 
-	var odd, even bool = false, false
+	var odd, even bool
 	for _, p := range polyVec.Value {
 		odd, even = odd || p.IsOdd, even || p.IsEven
 	}
 
 	// Computes all the powers of two with relinearization
 	// This will recursively compute and store all powers of two up to 2^logDegree
-	if err = powerbasis.GenPower(1<<(logDegree-1), false, invariantTensoring, eval); err != nil {
+	if err = powerbasis.GenPower(1<<(logDegree-1), false); err != nil {
 		return nil, err
 	}
 
 	// Computes the intermediate powers, starting from the largest, without relinearization if possible
 	for i := (1 << logSplit) - 1; i > 2; i-- {
 		if !(even || odd) || (i&1 == 0 && even) || (i&1 == 1 && odd) {
-			if err = powerbasis.GenPower(i, polyVec.Value[0].Lazy, invariantTensoring, eval); err != nil {
+			if err = powerbasis.GenPower(i, polyVec.Value[0].Lazy); err != nil {
 				return nil, err
 			}
 		}
@@ -69,13 +75,7 @@ func (eval *Evaluator) Polynomial(input interface{}, p interface{}, invariantTen
 
 	PS := polyVec.GetPatersonStockmeyerPolynomial(eval.params.Parameters, powerbasis.Value[1].Level(), powerbasis.Value[1].Scale, targetScale, &dummyEvaluator{eval.params, invariantTensoring})
 
-	polyEval := &polynomialEvaluator{
-		Evaluator:          eval,
-		Encoder:            NewEncoder(eval.params),
-		invariantTensoring: invariantTensoring,
-	}
-
-	if opOut, err = rlwe.EvaluatePatersonStockmeyerPolynomialVector(PS, powerbasis.PowerBasis, polyEval); err != nil {
+	if opOut, err = rlwe.EvaluatePatersonStockmeyerPolynomialVector(PS, powerbasis, polyEval); err != nil {
 		return nil, err
 	}
 
@@ -116,6 +116,7 @@ func (d *dummyEvaluator) MulNew(op0, op1 *rlwe.DummyOperand) (op2 *rlwe.DummyOpe
 		qModTNeg = params.T() - qModTNeg
 		op2.Scale = op2.Scale.Div(params.NewScale(qModTNeg))
 	}
+
 	return
 }
 
@@ -175,6 +176,30 @@ func (polyEval *polynomialEvaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, 
 		polyEval.Evaluator.Mul(op0, op1, op2)
 	} else {
 		polyEval.Evaluator.MulInvariant(op0, op1, op2)
+	}
+}
+
+func (polyEval *polynomialEvaluator) MulRelin(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciphertext) {
+	if !polyEval.invariantTensoring {
+		polyEval.Evaluator.MulRelin(op0, op1, op2)
+	} else {
+		polyEval.Evaluator.MulRelinInvariant(op0, op1, op2)
+	}
+}
+
+func (polyEval *polynomialEvaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}) (op2 *rlwe.Ciphertext) {
+	if !polyEval.invariantTensoring {
+		return polyEval.Evaluator.MulNew(op0, op1)
+	} else {
+		return polyEval.Evaluator.MulInvariantNew(op0, op1)
+	}
+}
+
+func (polyEval *polynomialEvaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 interface{}) (op2 *rlwe.Ciphertext) {
+	if !polyEval.invariantTensoring {
+		return polyEval.Evaluator.MulRelinNew(op0, op1)
+	} else {
+		return polyEval.Evaluator.MulRelinInvariantNew(op0, op1)
 	}
 }
 
@@ -346,21 +371,6 @@ func (polyEval *polynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targ
 				// MulScalarAndAdd automatically scales c to match the scale of res.
 				polyEval.MulThenAdd(X[key], c, res)
 			}
-		}
-	}
-
-	return
-}
-
-func isOddOrEvenPolynomial(coeffs []uint64) (odd, even bool) {
-	even = true
-	odd = true
-	for i, c := range coeffs {
-		isnotzero := c != 0
-		odd = odd && !(i&1 == 0 && isnotzero)
-		even = even && !(i&1 == 1 && isnotzero)
-		if !odd && !even {
-			break
 		}
 	}
 

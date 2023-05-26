@@ -83,6 +83,7 @@ func NewEncoder(params Parameters) *Encoder {
 	}
 }
 
+// Parameters returns the underlying parameters of the Encoder.
 func (ecd *Encoder) Parameters() Parameters {
 	return ecd.params
 }
@@ -179,7 +180,7 @@ func (ecd *Encoder) EncodeRingT(values interface{}, scale rlwe.Scale, pT *ring.P
 	ringT.MulScalar(pT, scale.Uint64(), pT)
 }
 
-// EncodeRingT decodes a pT in basis T on a slice of []uint64 or []int64.
+// DecodeRingT decodes a pT in basis T on a slice of []uint64 or []int64.
 func (ecd *Encoder) DecodeRingT(pT *ring.Poly, scale rlwe.Scale, values interface{}) {
 	ringT := ecd.params.RingT()
 	ringT.MulScalar(pT, ring.ModExp(scale.Uint64(), ringT.SubRings[0].Modulus-2, ringT.SubRings[0].Modulus), ecd.buffT)
@@ -279,7 +280,7 @@ func (ecd *Encoder) DecodeInt(pt *rlwe.Plaintext, values []int64) {
 	ecd.DecodeRingT(ecd.buffT, pt.Scale, values)
 }
 
-// DecodeInt decodes a any plaintext type and write the coefficients on an new int64 slice.
+// DecodeIntNew decodes a any plaintext type and write the coefficients on an new int64 slice.
 // Values are centered between [t/2, t/2).
 func (ecd *Encoder) DecodeIntNew(pt *rlwe.Plaintext) (values []int64) {
 	values = make([]int64, ecd.params.N())

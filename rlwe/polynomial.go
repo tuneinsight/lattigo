@@ -56,7 +56,6 @@ type PatersonStockmeyerPolynomial struct {
 	Value  []*Polynomial
 }
 
-// GetPatersonStockmeyerPolynomial
 func (p *Polynomial) GetPatersonStockmeyerPolynomial(params Parameters, inputLevel int, inputScale, outputScale Scale, eval DummyEvaluator) *PatersonStockmeyerPolynomial {
 
 	logDegree := bits.Len64(uint64(p.Degree()))

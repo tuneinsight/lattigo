@@ -690,9 +690,11 @@ func EvaluateLinearTransform(values []complex128, diags map[int][]complex128) (r
 
 	slots := len(values)
 
-	N1 := rlwe.FindBestBSGSRatio(diags, len(values), 1)
+	keys := utils.GetKeys(diags)
 
-	index, _, _ := rlwe.BSGSIndex(diags, slots, N1)
+	N1 := rlwe.FindBestBSGSRatio(keys, len(values), 1)
+
+	index, _, _ := rlwe.BSGSIndex(keys, slots, N1)
 
 	res = make([]complex128, slots)
 

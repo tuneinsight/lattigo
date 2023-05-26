@@ -184,19 +184,26 @@ func (LT *LinearTransform) Encode(ecd *Encoder, value interface{}, scale rlwe.Sc
 		}
 	} else {
 
-		index, _, _ := rlwe.BSGSIndex(value, slots, N1)
+		var index map[int][]int
 
+		var keys []int
 		var values interface{}
-		switch value.(type) {
+		switch value := value.(type) {
 		case map[int][]complex128:
 			values = make([]complex128, slots)
+			keys = utils.GetKeys(value)
 		case map[int][]float64:
 			values = make([]float64, slots)
+			keys = utils.GetKeys(value)
 		case map[int][]*big.Float:
 			values = make([]*big.Float, slots)
+			keys = utils.GetKeys(value)
 		case map[int][]*bignum.Complex:
 			values = make([]*bignum.Complex, slots)
+			keys = utils.GetKeys(value)
 		}
+
+		index, _, _ = rlwe.BSGSIndex(keys, slots, N1)
 
 		for j := range index {
 
@@ -269,11 +276,6 @@ func GenLinearTransformBSGS(ecd *Encoder, value interface{}, level int, scale rl
 
 	slots := 1 << logSlots
 
-	// N1*N2 = N
-	N1 := rlwe.FindBestBSGSRatio(value, slots, LogBSGSRatio)
-
-	index, _, _ := rlwe.BSGSIndex(value, slots, N1)
-
 	vec := make(map[int]ringqp.Poly)
 
 	dMat := interfaceMapToMapOfInterface(value)
@@ -282,17 +284,28 @@ func GenLinearTransformBSGS(ecd *Encoder, value interface{}, level int, scale rl
 
 	ringQP := params.RingQP().AtLevel(levelQ, levelP)
 
+	var N1 int
+	var index map[int][]int
 	var values interface{}
-	switch value.(type) {
+	var keys []int
+	switch value := value.(type) {
 	case map[int][]complex128:
 		values = make([]complex128, slots)
+		keys = utils.GetKeys(value)
 	case map[int][]float64:
 		values = make([]float64, slots)
+		keys = utils.GetKeys(value)
 	case map[int][]*big.Float:
 		values = make([]*big.Float, slots)
+		keys = utils.GetKeys(value)
 	case map[int][]*bignum.Complex:
 		values = make([]*bignum.Complex, slots)
+		keys = utils.GetKeys(value)
 	}
+
+	// N1*N2 = N
+	N1 = rlwe.FindBestBSGSRatio(keys, slots, LogBSGSRatio)
+	index, _, _ = rlwe.BSGSIndex(keys, slots, N1)
 
 	for j := range index {
 
@@ -629,7 +642,7 @@ func (eval *Evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Li
 	PiOverF := eval.params.PiOverflowMargin(levelP) >> 1
 
 	// Computes the N2 rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giant-step algorithm
-	index, _, rotN2 := rlwe.BSGSIndex(matrix.Vec, 1<<matrix.LogSlots, matrix.N1)
+	index, _, rotN2 := rlwe.BSGSIndex(utils.GetKeys(matrix.Vec), 1<<matrix.LogSlots, matrix.N1)
 
 	ring.Copy(ctIn.Value[0], eval.BuffCt.Value[0])
 	ring.Copy(ctIn.Value[1], eval.BuffCt.Value[1])

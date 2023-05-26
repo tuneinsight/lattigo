@@ -17,7 +17,7 @@ type E2SProtocol struct {
 	params bgv.Parameters
 
 	maskSampler *ring.UniformSampler
-	encoder     bgv.Encoder
+	encoder     *bgv.Encoder
 
 	zero              *rlwe.SecretKey
 	tmpPlaintextRingT *ring.Poly
@@ -106,7 +106,7 @@ type S2EProtocol struct {
 	drlwe.CKSProtocol
 	params bgv.Parameters
 
-	encoder bgv.Encoder
+	encoder *bgv.Encoder
 
 	zero              *rlwe.SecretKey
 	tmpPlaintextRingQ *ring.Poly

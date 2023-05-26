@@ -2,12 +2,9 @@ package rlwe
 
 import (
 	"fmt"
-	"math/big"
 	"math/bits"
 
 	"github.com/tuneinsight/lattigo/v4/utils"
-
-	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
 )
 
@@ -60,14 +57,10 @@ type PatersonStockmeyerPolynomial struct {
 }
 
 // GetPatersonStockmeyerPolynomial
-func (p *Polynomial) GetPatersonStockmeyerPolynomial(params Parameters, inputLevel int, inputScale, outputScale Scale) *PatersonStockmeyerPolynomial {
+func (p *Polynomial) GetPatersonStockmeyerPolynomial(params Parameters, inputLevel int, inputScale, outputScale Scale, eval DummyEvaluator) *PatersonStockmeyerPolynomial {
 
 	logDegree := bits.Len64(uint64(p.Degree()))
 	logSplit := polynomial.OptimalSplit(logDegree)
-
-	nbModuliPerRescale := params.DefaultScaleModuliRatio()
-
-	targetLevel := inputLevel - nbModuliPerRescale*(logDegree-1)
 
 	pb := DummyPowerBasis{}
 	pb[1] = &DummyOperand{
@@ -75,12 +68,12 @@ func (p *Polynomial) GetPatersonStockmeyerPolynomial(params Parameters, inputLev
 		Scale: inputScale,
 	}
 
-	pb.GenPower(params, 1<<logDegree, nbModuliPerRescale)
+	pb.GenPower(params, 1<<logDegree, eval)
 	for i := (1 << logSplit) - 1; i > 2; i-- {
-		pb.GenPower(params, i, nbModuliPerRescale)
+		pb.GenPower(params, i, eval)
 	}
 
-	PSPoly, _ := recursePS(params, logSplit, targetLevel, nbModuliPerRescale, p, pb, outputScale)
+	PSPoly, _ := recursePS(params, logSplit, inputLevel-eval.PolynomialDepth(p.Degree()), p, pb, outputScale, eval)
 
 	return &PatersonStockmeyerPolynomial{
 		Degree: p.Degree(),
@@ -91,7 +84,7 @@ func (p *Polynomial) GetPatersonStockmeyerPolynomial(params Parameters, inputLev
 	}
 }
 
-func recursePS(params Parameters, logSplit, targetLevel, nbModuliPerRescale int, p *Polynomial, pb DummyPowerBasis, outputScale Scale) ([]*Polynomial, *DummyOperand) {
+func recursePS(params Parameters, logSplit, targetLevel int, p *Polynomial, pb DummyPowerBasis, outputScale Scale, eval DummyEvaluator) ([]*Polynomial, *DummyOperand) {
 
 	if p.Degree() < (1 << logSplit) {
 
@@ -100,19 +93,12 @@ func recursePS(params Parameters, logSplit, targetLevel, nbModuliPerRescale int,
 			logDegree := int(bits.Len64(uint64(p.Degree())))
 			logSplit := polynomial.OptimalSplit(logDegree)
 
-			return recursePS(params, logSplit, targetLevel, nbModuliPerRescale, p, pb, outputScale)
+			return recursePS(params, logSplit, targetLevel, p, pb, outputScale, eval)
 		}
 
-		if p.Lead {
-			for i := 0; i < nbModuliPerRescale; i++ {
-				outputScale = outputScale.Mul(NewScale(params.Q()[targetLevel-i]))
-			}
-		}
+		p.Level, p.Scale = eval.UpdateLevelAndScaleBabyStep(p.Lead, targetLevel, outputScale)
 
-		p.Level = targetLevel
-		p.Scale = outputScale
-
-		return []*Polynomial{p}, &DummyOperand{Level: targetLevel, Scale: outputScale}
+		return []*Polynomial{p}, &DummyOperand{Level: p.Level, Scale: p.Scale}
 	}
 
 	var nextPower = 1 << logSplit
@@ -124,28 +110,14 @@ func recursePS(params Parameters, logSplit, targetLevel, nbModuliPerRescale int,
 
 	coeffsq, coeffsr := p.Factorize(nextPower)
 
-	var qi *big.Int
-	if p.Lead {
-		qi = bignum.NewInt(params.Q()[targetLevel])
-		for i := 1; i < nbModuliPerRescale; i++ {
-			qi.Mul(qi, bignum.NewInt(params.Q()[targetLevel-i]))
-		}
-	} else {
-		qi = bignum.NewInt(params.Q()[targetLevel+nbModuliPerRescale])
-		for i := 1; i < nbModuliPerRescale; i++ {
-			qi.Mul(qi, bignum.NewInt(params.Q()[targetLevel+nbModuliPerRescale-i]))
-		}
-	}
+	tLevelNew, tScaleNew := eval.UpdateLevelAndScaleGiantStep(p.Lead, targetLevel, outputScale, XPow.Scale)
 
-	tScaleNew := outputScale.Mul(NewScale(qi))
-	tScaleNew = tScaleNew.Div(XPow.Scale)
+	bsgsQ, res := recursePS(params, logSplit, tLevelNew, coeffsq, pb, tScaleNew, eval)
 
-	bsgsQ, res := recursePS(params, logSplit, targetLevel+nbModuliPerRescale, nbModuliPerRescale, coeffsq, pb, tScaleNew)
+	eval.Rescale(res)
+	res = eval.MulNew(res, XPow)
 
-	res.Rescale(params, nbModuliPerRescale)
-	res.Mul(res, XPow)
-
-	bsgsR, tmp := recursePS(params, logSplit, targetLevel, nbModuliPerRescale, coeffsr, pb, res.Scale)
+	bsgsR, tmp := recursePS(params, logSplit, targetLevel, coeffsr, pb, res.Scale, eval)
 
 	if !tmp.Scale.InDelta(res.Scale, float64(ScalePrecision-12)) {
 		panic(fmt.Errorf("recursePS: res.Scale != tmp.Scale: %v != %v", &res.Scale.Value, &tmp.Scale.Value))
@@ -221,10 +193,10 @@ type PatersonStockmeyerPolynomialVector struct {
 }
 
 // GetPatersonStockmeyerPolynomial returns
-func (p *PolynomialVector) GetPatersonStockmeyerPolynomial(params Parameters, inputLevel int, inputScale, outputScale Scale) *PatersonStockmeyerPolynomialVector {
+func (p *PolynomialVector) GetPatersonStockmeyerPolynomial(params Parameters, inputLevel int, inputScale, outputScale Scale, eval DummyEvaluator) *PatersonStockmeyerPolynomialVector {
 	Value := make([]*PatersonStockmeyerPolynomial, len(p.Value))
 	for i := range Value {
-		Value[i] = p.Value[i].GetPatersonStockmeyerPolynomial(params, inputLevel, inputScale, outputScale)
+		Value[i] = p.Value[i].GetPatersonStockmeyerPolynomial(params, inputLevel, inputScale, outputScale, eval)
 	}
 
 	return &PatersonStockmeyerPolynomialVector{

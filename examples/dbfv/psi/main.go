@@ -156,7 +156,7 @@ func main() {
 
 }
 
-func encPhase(params bfv.Parameters, P []*party, pk *rlwe.PublicKey, encoder bfv.Encoder) (encInputs []*rlwe.Ciphertext) {
+func encPhase(params bfv.Parameters, P []*party, pk *rlwe.PublicKey, encoder *bfv.Encoder) (encInputs []*rlwe.Ciphertext) {
 
 	l := log.New(os.Stderr, "", 0)
 

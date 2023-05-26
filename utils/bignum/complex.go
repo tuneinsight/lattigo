@@ -109,6 +109,19 @@ func (c *Complex) Complex128() complex128 {
 	return complex(real, imag)
 }
 
+// Uint64 returns the real part of the complex number as an uint64.
+func (c *Complex) Uint64() (u64 uint64) {
+	u64, _ = c[0].Uint64()
+	return
+}
+
+// Int returns the real part of the complex number as a *big.Int.
+func (c *Complex) Int() (bInt *big.Int) {
+	bInt = new(big.Int)
+	c[0].Int(bInt)
+	return
+}
+
 // Add adds two arbitrary precision complex numbers together
 func (c *Complex) Add(a, b *Complex) *Complex {
 	c[0].Add(a[0], b[0])

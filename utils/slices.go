@@ -39,8 +39,10 @@ func IsInSlice[V comparable](x V, slice []V) (v bool) {
 	return
 }
 
-// GetSortedKeys returns the sorted keys of a map.
-func GetSortedKeys[K constraints.Ordered, V any](m map[K]V) (keys []K) {
+// GetKeys returns the keys of the input map.
+// Order is not guaranteed.
+func GetKeys[K constraints.Ordered, V any](m map[K]V) (keys []K) {
+
 	keys = make([]K, len(m))
 
 	var i int
@@ -49,12 +51,17 @@ func GetSortedKeys[K constraints.Ordered, V any](m map[K]V) (keys []K) {
 		i++
 	}
 
-	SortSlice(keys)
-
 	return
 }
 
-// GetDistincts returns the list distincts element in v.
+// GetSortedKeys returns the sorted keys of a map.
+func GetSortedKeys[K constraints.Ordered, V any](m map[K]V) (keys []K) {
+	keys = GetKeys(m)
+	SortSlice(keys)
+	return
+}
+
+// GetDistincts returns the list distinct element in v.
 func GetDistincts[V comparable](v []V) (vd []V) {
 	m := map[V]bool{}
 	for _, vi := range v {

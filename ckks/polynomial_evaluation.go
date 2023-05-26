@@ -48,7 +48,9 @@ func (eval *Evaluator) Polynomial(input interface{}, p interface{}, targetScale 
 		return nil, fmt.Errorf("cannot evaluatePolyVector: invalid input, must be either *rlwe.Ciphertext or *PowerBasis")
 	}
 
-	nbModuliPerRescale := eval.params.DefaultScaleModuliRatio()
+	params := eval.params
+
+	nbModuliPerRescale := params.DefaultScaleModuliRatio()
 
 	if err := checkEnoughLevels(powerbasis.Value[1].Level(), nbModuliPerRescale*polyVec.Value[0].Depth()); err != nil {
 		return nil, err
@@ -77,7 +79,7 @@ func (eval *Evaluator) Polynomial(input interface{}, p interface{}, targetScale 
 		}
 	}
 
-	PS := polyVec.GetPatersonStockmeyerPolynomial(eval.params.Parameters, powerbasis.Value[1].Level(), powerbasis.Value[1].Scale, targetScale)
+	PS := polyVec.GetPatersonStockmeyerPolynomial(params.Parameters, powerbasis.Value[1].Level(), powerbasis.Value[1].Scale, targetScale, &dummyEvaluator{params, nbModuliPerRescale})
 
 	polyEval := &polynomialEvaluator{
 		Evaluator: eval,
@@ -93,37 +95,79 @@ func (eval *Evaluator) Polynomial(input interface{}, p interface{}, targetScale 
 	return opOut, err
 }
 
+type dummyEvaluator struct {
+	params             Parameters
+	nbModuliPerRescale int
+}
+
+func (d *dummyEvaluator) PolynomialDepth(degree int) int {
+	return d.nbModuliPerRescale * (bits.Len64(uint64(degree)) - 1)
+}
+
+// Rescale rescales the target DummyOperand n times and returns it.
+func (d *dummyEvaluator) Rescale(op0 *rlwe.DummyOperand) {
+	for i := 0; i < d.nbModuliPerRescale; i++ {
+		op0.Scale = op0.Scale.Div(rlwe.NewScale(d.params.Q()[op0.Level]))
+		op0.Level--
+	}
+}
+
+// Mul multiplies two DummyOperand, stores the result the taret DummyOperand and returns the result.
+func (d *dummyEvaluator) MulNew(op0, op1 *rlwe.DummyOperand) (op2 *rlwe.DummyOperand) {
+	op2 = new(rlwe.DummyOperand)
+	op2.Level = utils.Min(op0.Level, op1.Level)
+	op2.Scale = op0.Scale.Mul(op1.Scale)
+	return
+}
+
+func (d *dummyEvaluator) UpdateLevelAndScaleBabyStep(lead bool, tLevelOld int, tScaleOld rlwe.Scale) (tLevelNew int, tScaleNew rlwe.Scale) {
+
+	tLevelNew = tLevelOld
+	tScaleNew = tScaleOld
+
+	if lead {
+		for i := 0; i < d.nbModuliPerRescale; i++ {
+			tScaleNew = tScaleNew.Mul(rlwe.NewScale(d.params.Q()[tLevelNew-i]))
+		}
+	}
+
+	return
+}
+
+func (d *dummyEvaluator) UpdateLevelAndScaleGiantStep(lead bool, tLevelOld int, tScaleOld, xPowScale rlwe.Scale) (tLevelNew int, tScaleNew rlwe.Scale) {
+
+	Q := d.params.Q()
+
+	var qi *big.Int
+	if lead {
+		qi = bignum.NewInt(Q[tLevelOld])
+		for i := 1; i < d.nbModuliPerRescale; i++ {
+			qi.Mul(qi, bignum.NewInt(Q[tLevelOld-i]))
+		}
+	} else {
+		qi = bignum.NewInt(Q[tLevelOld+d.nbModuliPerRescale])
+		for i := 1; i < d.nbModuliPerRescale; i++ {
+			qi.Mul(qi, bignum.NewInt(Q[tLevelOld+d.nbModuliPerRescale-i]))
+		}
+	}
+
+	tLevelNew = tLevelOld + d.nbModuliPerRescale
+	tScaleNew = tScaleOld.Mul(rlwe.NewScale(qi))
+	tScaleNew = tScaleNew.Div(xPowScale)
+
+	return
+}
+
+func (d *dummyEvaluator) GetPolynmialDepth(degree int) int {
+	return d.nbModuliPerRescale * (bits.Len64(uint64(degree)) - 1)
+}
+
 type polynomialEvaluator struct {
 	*Evaluator
 }
 
 func (polyEval *polynomialEvaluator) Rescale(op0, op1 *rlwe.Ciphertext) (err error) {
 	return polyEval.Evaluator.Rescale(op0, polyEval.Evaluator.Parameters.DefaultScale(), op1)
-}
-
-func (polyEval *polynomialEvaluator) UpdateLevelAndScale(lead bool, tLevelOld int, tScaleOld, xPowScale rlwe.Scale) (tLevelNew int, tScaleNew rlwe.Scale) {
-
-	params := polyEval.Parameters
-	nbModuliPerRescale := params.DefaultScaleModuliRatio()
-	level := tLevelOld
-
-	var qi *big.Int
-	if lead {
-		qi = bignum.NewInt(params.Q()[level])
-		for i := 1; i < nbModuliPerRescale; i++ {
-			qi.Mul(qi, bignum.NewInt(params.Q()[level-i]))
-		}
-	} else {
-		qi = bignum.NewInt(params.Q()[level+nbModuliPerRescale])
-		for i := 1; i < nbModuliPerRescale; i++ {
-			qi.Mul(qi, bignum.NewInt(params.Q()[level+nbModuliPerRescale-i]))
-		}
-	}
-
-	tScaleNew = tScaleOld.Mul(rlwe.NewScale(qi))
-	tScaleNew = tScaleNew.Div(xPowScale)
-
-	return tLevelOld + nbModuliPerRescale, tScaleNew
 }
 
 func (polyEval *polynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol *rlwe.PolynomialVector, pb *rlwe.PowerBasis, targetScale rlwe.Scale) (res *rlwe.Ciphertext, err error) {
@@ -136,17 +180,9 @@ func (polyEval *polynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targ
 	slots := 1 << X[1].LogSlots
 
 	params := polyEval.Evaluator.params
-	nbModuliPerRescale := params.DefaultScaleModuliRatio()
 	slotsIndex := pol.SlotsIndex
 	even := pol.IsEven()
 	odd := pol.IsOdd()
-
-	if pol.Value[0].Lead {
-		targetScale = targetScale.Mul(rlwe.NewScale(params.Q()[targetLevel]))
-		for i := 1; i < nbModuliPerRescale; i++ {
-			targetScale = targetScale.Mul(rlwe.NewScale(params.Q()[targetLevel-i]))
-		}
-	}
 
 	// Retrieve the degree of the highest degree non-zero coefficient
 	// TODO: optimize for nil/zero coefficients

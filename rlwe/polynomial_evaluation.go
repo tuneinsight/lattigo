@@ -14,7 +14,6 @@ type EvaluatorInterface interface {
 
 type PolynomialEvaluatorInterface interface {
 	EvaluatorInterface
-	UpdateLevelAndScale(lead bool, tLevelOld int, tScaleOld, xPowScale Scale) (tLevelNew int, tScaleNew Scale)
 	EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol *PolynomialVector, pb *PowerBasis, targetScale Scale) (res *Ciphertext, err error)
 }
 
@@ -50,7 +49,6 @@ func EvaluatePatersonStockmeyerPolynomialVector(poly *PatersonStockmeyerPolynomi
 		idx := split - i - 1
 		tmp[idx] = new(Poly)
 		tmp[idx].Degree = poly.Value[0].Value[i].Degree()
-		polyVec.Value[0].Lead = false
 		if tmp[idx].Value, err = eval.EvaluatePolynomialVectorFromPowerBasis(level, polyVec, pb, scale); err != nil {
 			return nil, fmt.Errorf("cannot EvaluatePatersonStockmeyerPolynomial: polynomial[%d]: %w", i, err)
 		}

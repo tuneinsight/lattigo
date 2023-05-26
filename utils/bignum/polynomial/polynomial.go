@@ -144,6 +144,27 @@ func (p *Polynomial) Degree() int {
 	return len(p.Coeffs) - 1
 }
 
+// EvaluateModP evalutes the polynomial modulo p, treating each coefficient as
+// integer variables and returning the result as *big.Int in the interval [0, P-1].
+func (p *Polynomial) EvaluateModP(xInt, PInt *big.Int) (yInt *big.Int) {
+
+	degree := p.Degree()
+
+	yInt = p.Coeffs[degree].Int()
+
+	for i := degree - 1; i >= 0; i-- {
+		yInt.Mul(yInt, xInt)
+		yInt.Mod(yInt, PInt)
+		yInt.Add(yInt, p.Coeffs[i].Int())
+	}
+
+	if yInt.Cmp(new(big.Int)) == -1 {
+		yInt.Add(yInt, PInt)
+	}
+
+	return
+}
+
 // Evaluate takes x a *big.Float or *big.bignum.Complex and returns y = P(x).
 // The precision of x is used as reference precision for y.
 func (p *Polynomial) Evaluate(x interface{}) (y *bignum.Complex) {

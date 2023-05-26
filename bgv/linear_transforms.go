@@ -24,14 +24,14 @@ type LinearTransform struct {
 // NewLinearTransform allocates a new LinearTransform with zero plaintexts at the specified level.
 // If BSGSRatio == 0, the LinearTransform is set to not use the BSGS approach.
 // Method will panic if BSGSRatio < 0.
-func NewLinearTransform(params Parameters, nonZeroDiags []int, level int, BSGSRatio float64) LinearTransform {
+func NewLinearTransform(params Parameters, nonZeroDiags []int, level int, LogBSGSRatio int) LinearTransform {
 	vec := make(map[int]ringqp.Poly)
 	slots := params.N() >> 1
 	levelQ := level
 	levelP := params.PCount() - 1
 	ringQP := params.RingQP().AtLevel(levelQ, levelP)
 	var N1 int
-	if BSGSRatio == 0 {
+	if LogBSGSRatio < 0 {
 		N1 = 0
 		for _, i := range nonZeroDiags {
 			idx := i
@@ -40,24 +40,20 @@ func NewLinearTransform(params Parameters, nonZeroDiags []int, level int, BSGSRa
 			}
 			vec[idx] = *ringQP.NewPoly()
 		}
-	} else if BSGSRatio > 0 {
-		N1 = FindBestBSGSSplit(nonZeroDiags, slots, BSGSRatio)
-		index, _, _ := BsgsIndex(nonZeroDiags, slots, N1)
+	} else {
+		N1 = rlwe.FindBestBSGSRatio(nonZeroDiags, slots, LogBSGSRatio)
+		index, _, _ := rlwe.BSGSIndex(nonZeroDiags, slots, N1)
 		for j := range index {
 			for _, i := range index[j] {
 				vec[j+i] = *ringQP.NewPoly()
 			}
 		}
-	} else {
-		panic("cannot NewLinearTransform: BSGS ratio cannot be negative")
 	}
-
 	return LinearTransform{LogSlots: params.LogN() - 1, N1: N1, Level: level, Vec: vec}
 }
 
-// Rotations returns the list of rotations needed for the evaluation
-// of the linear transform.
-func (LT *LinearTransform) Rotations() (rotations []int) {
+// GaloisElements returns the list of Galois elements needed for the evaluation of the linear transform.
+func (LT *LinearTransform) GaloisElements(params Parameters) (GalEls []uint64) {
 	slots := 1 << LT.LogSlots
 
 	rotIndex := make(map[int]bool)
@@ -75,23 +71,21 @@ func (LT *LinearTransform) Rotations() (rotations []int) {
 	} else {
 
 		for j := range LT.Vec {
-
 			index = ((j / N1) * N1) & (slots - 1)
 			rotIndex[index] = true
-
 			index = j & (N1 - 1)
 			rotIndex[index] = true
 		}
 	}
 
-	rotations = make([]int, len(rotIndex))
+	galEls := make([]uint64, len(rotIndex))
 	var i int
 	for j := range rotIndex {
-		rotations[i] = j
+		galEls[i] = params.GaloisElementForColumnRotationBy(j)
 		i++
 	}
 
-	return rotations
+	return galEls
 }
 
 // Encode encodes on a pre-allocated LinearTransform the linear transforms' matrix in diagonal form `value`.
@@ -100,17 +94,12 @@ func (LT *LinearTransform) Rotations() (rotations []int) {
 // It can then be evaluated on a ciphertext using evaluator.LinearTransform.
 // Evaluation will use the naive approach (single hoisting and no baby-step giant-step).
 // This method is faster if there is only a few non-zero diagonals but uses more keys.
-func (LT *LinearTransform) Encode(ecd Encoder, dMat map[int][]uint64, scale rlwe.Scale) {
-
-	enc, ok := ecd.(*encoder)
-	if !ok {
-		panic("cannot Encode: encoder should be an encoderComplex128")
-	}
+func (LT *LinearTransform) Encode(enc *Encoder, dMat map[int][]uint64, scale rlwe.Scale) {
 
 	levelQ := LT.Level
 	levelP := enc.params.PCount() - 1
 
-	ringQP := ecd.(*encoder).params.RingQP().AtLevel(levelQ, levelP)
+	ringQP := enc.params.RingQP().AtLevel(levelQ, levelP)
 
 	slots := 1 << LT.LogSlots
 	N1 := LT.N1
@@ -138,7 +127,8 @@ func (LT *LinearTransform) Encode(ecd Encoder, dMat map[int][]uint64, scale rlwe
 			ringQP.MForm(&pt, &pt)
 		}
 	} else {
-		index, _, _ := BsgsIndex(dMat, slots, N1)
+
+		index, _, _ := rlwe.BSGSIndex(utils.GetKeys(dMat), slots, N1)
 
 		values := make([]uint64, slots<<1)
 
@@ -185,12 +175,7 @@ func (LT *LinearTransform) Encode(ecd Encoder, dMat map[int][]uint64, scale rlwe
 // It can then be evaluated on a ciphertext using evaluator.LinearTransform.
 // Evaluation will use the naive approach (single hoisting and no baby-step giant-step).
 // This method is faster if there is only a few non-zero diagonals but uses more keys.
-func GenLinearTransform(ecd Encoder, dMat map[int][]uint64, level int, scale rlwe.Scale) LinearTransform {
-
-	enc, ok := ecd.(*encoder)
-	if !ok {
-		panic("cannot GenLinearTransform: encoder should be an encoderComplex128")
-	}
+func GenLinearTransform(enc *Encoder, dMat map[int][]uint64, level int, scale rlwe.Scale) LinearTransform {
 
 	params := enc.params
 	vec := make(map[int]ringqp.Poly)
@@ -229,21 +214,18 @@ func GenLinearTransform(ecd Encoder, dMat map[int][]uint64, level int, scale rlw
 // This method is faster if there is more than a few non-zero diagonals.
 // BSGSRatio is the maximum ratio between the inner and outer loop of the baby-step giant-step algorithm used in evaluator.LinearTransform.
 // The optimal BSGSRatio value is between 4 and 16 depending on the sparsity of the matrix.
-func GenLinearTransformBSGS(ecd Encoder, dMat map[int][]uint64, level int, scale rlwe.Scale, BSGSRatio float64) (LT LinearTransform) {
-
-	enc, ok := ecd.(*encoder)
-	if !ok {
-		panic("cannot GenLinearTransformBSGS: encoder should be an encoderComplex128")
-	}
+func GenLinearTransformBSGS(enc *Encoder, dMat map[int][]uint64, level int, scale rlwe.Scale, LogBSGSRatio int) (LT LinearTransform) {
 
 	params := enc.params
 
 	slots := params.N() >> 1
 
-	// N1*N2 = N
-	N1 := FindBestBSGSSplit(dMat, slots, BSGSRatio)
+	keys := utils.GetKeys(dMat)
 
-	index, _, _ := BsgsIndex(dMat, slots, N1)
+	// N1*N2 = N
+	N1 := rlwe.FindBestBSGSRatio(keys, slots, LogBSGSRatio)
+
+	index, _, _ := rlwe.BSGSIndex(keys, slots, N1)
 
 	vec := make(map[int]ringqp.Poly)
 
@@ -299,105 +281,12 @@ func rotateAndCopyInplace(values, v []uint64, rot int) {
 	}
 }
 
-// BsgsIndex returns the index map and needed rotation for the BSGS matrix-vector multiplication algorithm.
-func BsgsIndex(el interface{}, slots, N1 int) (index map[int][]int, rotN1, rotN2 []int) {
-	index = make(map[int][]int)
-	rotN1Map := make(map[int]bool)
-	rotN2Map := make(map[int]bool)
-	var nonZeroDiags []int
-	switch element := el.(type) {
-	case map[int][]uint64:
-		nonZeroDiags = make([]int, len(element))
-		var i int
-		for key := range element {
-			nonZeroDiags[i] = key
-			i++
-		}
-	case map[int][]complex128:
-		nonZeroDiags = make([]int, len(element))
-		var i int
-		for key := range element {
-			nonZeroDiags[i] = key
-			i++
-		}
-	case map[int][]float64:
-		nonZeroDiags = make([]int, len(element))
-		var i int
-		for key := range element {
-			nonZeroDiags[i] = key
-			i++
-		}
-	case map[int]bool:
-		nonZeroDiags = make([]int, len(element))
-		var i int
-		for key := range element {
-			nonZeroDiags[i] = key
-			i++
-		}
-	case map[int]ringqp.Poly:
-		nonZeroDiags = make([]int, len(element))
-		var i int
-		for key := range element {
-			nonZeroDiags[i] = key
-			i++
-		}
-	case []int:
-		nonZeroDiags = element
-	}
-
-	for _, rot := range nonZeroDiags {
-		rot &= (slots - 1)
-		idxN1 := ((rot / N1) * N1) & (slots - 1)
-		idxN2 := rot & (N1 - 1)
-		if index[idxN1] == nil {
-			index[idxN1] = []int{idxN2}
-		} else {
-			index[idxN1] = append(index[idxN1], idxN2)
-		}
-		rotN1Map[idxN1] = true
-		rotN2Map[idxN2] = true
-	}
-
-	rotN1 = []int{}
-	for i := range rotN1Map {
-		rotN1 = append(rotN1, i)
-	}
-
-	rotN2 = []int{}
-	for i := range rotN2Map {
-		rotN2 = append(rotN2, i)
-	}
-
-	return
-}
-
-// FindBestBSGSSplit finds the best N1*N2 = N for the baby-step giant-step algorithm for matrix multiplication.
-func FindBestBSGSSplit(diagMatrix interface{}, maxN int, maxRatio float64) (minN int) {
-
-	for N1 := 1; N1 < maxN; N1 <<= 1 {
-
-		_, rotN1, rotN2 := BsgsIndex(diagMatrix, maxN, N1)
-
-		nbN1, nbN2 := len(rotN1)-1, len(rotN2)-1
-
-		if float64(nbN2)/float64(nbN1) == maxRatio {
-			return N1
-		}
-
-		if float64(nbN2)/float64(nbN1) > maxRatio {
-			return N1 / 2
-		}
-	}
-
-	return 1
-}
-
 // LinearTransformNew evaluates a linear transform on the Ciphertext "ctIn" and returns the result on a new Ciphertext.
 // The linearTransform can either be an (ordered) list of PtDiagMatrix or a single PtDiagMatrix.
 // In either case, a list of Ciphertext is returned (the second case returning a list
 // containing a single Ciphertext). A PtDiagMatrix is a diagonalized plaintext matrix constructed with an Encoder using
 // the method encoder.EncodeDiagMatrixAtLvl(*).
-func (eval *evaluator) LinearTransformNew(ctIn *rlwe.Ciphertext, linearTransform interface{}) (ctOut []*rlwe.Ciphertext) {
+func (eval *Evaluator) LinearTransformNew(ctIn *rlwe.Ciphertext, linearTransform interface{}) (ctOut []*rlwe.Ciphertext) {
 
 	switch LTs := linearTransform.(type) {
 	case []LinearTransform:
@@ -448,7 +337,7 @@ func (eval *evaluator) LinearTransformNew(ctIn *rlwe.Ciphertext, linearTransform
 // In either case a list of Ciphertext is returned (the second case returning a list
 // containing a single Ciphertext). A PtDiagMatrix is a diagonalized plaintext matrix constructed with an Encoder using
 // the method encoder.EncodeDiagMatrixAtLvl(*).
-func (eval *evaluator) LinearTransform(ctIn *rlwe.Ciphertext, linearTransform interface{}, ctOut []*rlwe.Ciphertext) {
+func (eval *Evaluator) LinearTransform(ctIn *rlwe.Ciphertext, linearTransform interface{}, ctOut []*rlwe.Ciphertext) {
 
 	switch LTs := linearTransform.(type) {
 	case []LinearTransform:
@@ -490,7 +379,7 @@ func (eval *evaluator) LinearTransform(ctIn *rlwe.Ciphertext, linearTransform in
 // respectively, each of size params.Beta().
 // The naive approach is used (single hoisting and no baby-step giant-step), which is faster than MultiplyByDiagMatrixBSGS
 // for matrix of only a few non-zero diagonals but uses more keys.
-func (eval *evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix LinearTransform, BuffDecompQP []ringqp.Poly, ctOut *rlwe.Ciphertext) {
+func (eval *Evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix LinearTransform, BuffDecompQP []ringqp.Poly, ctOut *rlwe.Ciphertext) {
 
 	levelQ := utils.Min(ctOut.Level(), utils.Min(ctIn.Level(), matrix.Level))
 	levelP := eval.params.RingP().MaxLevel()
@@ -596,7 +485,7 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix Linear
 // respectively, each of size params.Beta().
 // The BSGS approach is used (double hoisting with baby-step giant-step), which is faster than MultiplyByDiagMatrix
 // for matrix with more than a few non-zero diagonals and uses significantly less keys.
-func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix LinearTransform, BuffDecompQP []ringqp.Poly, ctOut *rlwe.Ciphertext) {
+func (eval *Evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix LinearTransform, BuffDecompQP []ringqp.Poly, ctOut *rlwe.Ciphertext) {
 
 	ringQ := eval.params.RingQ()
 	ringP := eval.params.RingP()
@@ -611,7 +500,7 @@ func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Li
 	PiOverF := eval.params.PiOverflowMargin(levelP) >> 1
 
 	// Computes the N2 rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giant-step algorithm
-	index, _, rotN2 := BsgsIndex(matrix.Vec, 1<<matrix.LogSlots, matrix.N1)
+	index, _, rotN2 := rlwe.BSGSIndex(utils.GetKeys(matrix.Vec), 1<<matrix.LogSlots, matrix.N1)
 
 	ring.Copy(ctIn.Value[0], eval.buffCt.Value[0])
 	ring.Copy(ctIn.Value[1], eval.buffCt.Value[1])

@@ -38,7 +38,7 @@ type testContext struct {
 	ringQ *ring.Ring
 	ringP *ring.Ring
 
-	encoder bgv.Encoder
+	encoder *bgv.Encoder
 
 	sk0Shards []*rlwe.SecretKey
 	sk0       *rlwe.SecretKey
@@ -52,7 +52,7 @@ type testContext struct {
 	encryptorPk0 rlwe.Encryptor
 	decryptorSk0 rlwe.Decryptor
 	decryptorSk1 rlwe.Decryptor
-	evaluator    bgv.Evaluator
+	evaluator    *bgv.Evaluator
 
 	crs            drlwe.CRS
 	uniformSampler *ring.UniformSampler

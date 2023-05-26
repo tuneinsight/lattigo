@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"math"
+	"math/big"
 	"runtime"
 	"testing"
 
@@ -92,14 +93,14 @@ type testContext struct {
 	ringT       *ring.Ring
 	prng        sampling.PRNG
 	uSampler    *ring.UniformSampler
-	encoder     Encoder
+	encoder     *Encoder
 	kgen        *rlwe.KeyGenerator
 	sk          *rlwe.SecretKey
 	pk          *rlwe.PublicKey
 	encryptorPk rlwe.Encryptor
 	encryptorSk rlwe.Encryptor
 	decryptor   rlwe.Decryptor
-	evaluator   Evaluator
+	evaluator   *Evaluator
 	testLevel   []int
 }
 
@@ -563,25 +564,12 @@ func testEvaluator(tc *testContext, t *testing.T) {
 					values.Coeffs[0][i] = ring.EvalPolyModP(values.Coeffs[0][i], coeffs, T)
 				}
 
-				poly := NewPoly(coeffs)
-
-				polyRLWE := rlwe.NewPolynomial(polynomial.NewPolynomial(polynomial.Monomial, coeffs, nil))
-
-				BSGS := polyRLWE.GetPatersonStockmeyerPolynomial(tc.params.Parameters, ciphertext.Level(), ciphertext.Scale, ciphertext.Scale)
-
-				fmt.Println(tc.params.Parameters.DefaultScaleModuliRatio())
-
-				fmt.Println()
-				fmt.Println(BSGS.Degree, BSGS.Base)
-				for i, v := range BSGS.Value {
-					fmt.Println(i, v.Level, v.MaxDeg, v.Lead, v.Scale.Uint64())
-				}
-				fmt.Println()
+				poly := polynomial.NewPolynomial(polynomial.Monomial, coeffs, nil)
 
 				t.Run(GetTestName("Standard", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
 					var err error
 					var res *rlwe.Ciphertext
-					if res, err = tc.evaluator.EvaluatePoly(ciphertext, poly, tc.params.DefaultScale()); err != nil {
+					if res, err = tc.evaluator.Polynomial(ciphertext, poly, false, tc.params.DefaultScale()); err != nil {
 						t.Log(err)
 						t.Fatal()
 					}
@@ -594,7 +582,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				t.Run(GetTestName("Invariant", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
 					var err error
 					var res *rlwe.Ciphertext
-					if res, err = tc.evaluator.EvaluatePoly(ciphertext, poly, tc.params.DefaultScale()); err != nil {
+					if res, err = tc.evaluator.Polynomial(ciphertext, poly, true, tc.params.DefaultScale()); err != nil {
 						t.Log(err)
 						t.Fatal()
 					}
@@ -624,15 +612,18 @@ func testEvaluator(tc *testContext, t *testing.T) {
 					idx1[i] = 2*i + 1
 				}
 
-				polyVec := []*Polynomial{NewPoly(coeffs0), NewPoly(coeffs1)}
-
 				slotIndex[0] = idx0
 				slotIndex[1] = idx1
 
-				T := tc.params.T()
+				polyVector := rlwe.NewPolynomialVector([]*rlwe.Polynomial{
+					rlwe.NewPolynomial(polynomial.NewPolynomial(polynomial.Monomial, coeffs0, nil)),
+					rlwe.NewPolynomial(polynomial.NewPolynomial(polynomial.Monomial, coeffs1, nil)),
+				}, slotIndex)
+
+				TInt := new(big.Int).SetUint64(tc.params.T())
 				for pol, idx := range slotIndex {
 					for _, i := range idx {
-						values.Coeffs[0][i] = ring.EvalPolyModP(values.Coeffs[0][i], polyVec[pol].Coeffs, T)
+						values.Coeffs[0][i] = polyVector.Value[pol].EvaluateModP(new(big.Int).SetUint64(values.Coeffs[0][i]), TInt).Uint64()
 					}
 				}
 
@@ -640,7 +631,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 
 					var err error
 					var res *rlwe.Ciphertext
-					if res, err = tc.evaluator.EvaluatePolyVector(ciphertext, polyVec, tc.encoder, slotIndex, tc.params.DefaultScale()); err != nil {
+					if res, err = tc.evaluator.Polynomial(ciphertext, polyVector, false, tc.params.DefaultScale()); err != nil {
 						t.Fail()
 					}
 
@@ -654,7 +645,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 
 					var err error
 					var res *rlwe.Ciphertext
-					if res, err = tc.evaluator.EvaluatePolyVectorInvariant(ciphertext, polyVec, tc.encoder, slotIndex, tc.params.DefaultScale()); err != nil {
+					if res, err = tc.evaluator.Polynomial(ciphertext, polyVector, true, tc.params.DefaultScale()); err != nil {
 						t.Fail()
 					}
 
@@ -738,13 +729,12 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		linTransf := GenLinearTransform(tc.encoder, diagMatrix, params.MaxLevel(), tc.params.DefaultScale())
 
-		rotations := linTransf.Rotations()
+		galEls := linTransf.GaloisElements(params)
 
 		evk := rlwe.NewEvaluationKeySet()
-		for _, galEl := range tc.params.GaloisElementsForRotations(rotations) {
+		for _, galEl := range galEls {
 			evk.GaloisKeys[galEl] = tc.kgen.GenGaloisKeyNew(galEl, tc.sk)
 		}
-
 		eval := tc.evaluator.WithKey(evk)
 
 		eval.LinearTransform(ciphertext, linTransf, []*rlwe.Ciphertext{ciphertext})
@@ -792,12 +782,12 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 			diagMatrix[15][i] = 1
 		}
 
-		linTransf := GenLinearTransformBSGS(tc.encoder, diagMatrix, params.MaxLevel(), tc.params.DefaultScale(), 2.0)
+		linTransf := GenLinearTransformBSGS(tc.encoder, diagMatrix, params.MaxLevel(), tc.params.DefaultScale(), 2)
 
-		rotations := linTransf.Rotations()
+		galEls := linTransf.GaloisElements(params)
 
 		evk := rlwe.NewEvaluationKeySet()
-		for _, galEl := range tc.params.GaloisElementsForRotations(rotations) {
+		for _, galEl := range galEls {
 			evk.GaloisKeys[galEl] = tc.kgen.GenGaloisKeyNew(galEl, tc.sk)
 		}
 

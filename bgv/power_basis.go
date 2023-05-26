@@ -36,7 +36,7 @@ func (p *PowerBasis) Decode(data []byte) (n int, err error) {
 // GenPower generates the n-th power of the power basis,
 // as well as all the necessary intermediate powers if
 // they are not yet present.
-func (p *PowerBasis) GenPower(n int, lazy, invariantTensoring bool, eval Evaluator) (err error) {
+func (p *PowerBasis) GenPower(n int, lazy, invariantTensoring bool, eval *Evaluator) (err error) {
 
 	var rescale bool
 	if rescale, err = p.genPower(n, n, lazy, invariantTensoring, true, eval); err != nil {
@@ -52,7 +52,7 @@ func (p *PowerBasis) GenPower(n int, lazy, invariantTensoring bool, eval Evaluat
 	return nil
 }
 
-func (p *PowerBasis) genPower(target, n int, lazy, invariantTensoring, rescale bool, eval Evaluator) (rescaleN bool, err error) {
+func (p *PowerBasis) genPower(target, n int, lazy, invariantTensoring, rescale bool, eval *Evaluator) (rescaleN bool, err error) {
 
 	if p.Value[n] == nil {
 

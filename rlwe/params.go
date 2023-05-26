@@ -314,6 +314,11 @@ func (p Parameters) MaxDepth() int {
 // This default ratio is computed as ceil(DefaultScalingFactor/2^{60}).
 // Returns 0 if the scaling factor is 0 (e.g. scale invariant scheme such as BFV).
 func (p Parameters) DefaultScaleModuliRatio() int {
+
+	if p.DefaultScale().Mod != nil {
+		return 1
+	}
+
 	scale := p.DefaultScale().Float64()
 	nbModuli := 0
 	for scale > 1 {
@@ -665,41 +670,28 @@ func (p Parameters) GaloisElementsForPack(logGap int) (galEls []uint64) {
 // GaloisElementsForLinearTransform returns the list of Galois elements required to perform a linear transform
 // with the provided non-zero diagonales.
 // Set LogBSGSRatio < 0 to return the Galois elements for a naive evaluation of the linear transform.
-func (p Parameters) GaloisElementsForLinearTransform(nonZeroDiagonals []int, LogBSGSRatio, LogSlots int) (galEls []uint64) {
+func (p Parameters) GaloisElementsForLinearTransform(nonZeroDiagonals []int, LogSlots, LogBSGSRatio int) (galEls []uint64) {
 
 	slots := 1 << LogSlots
 
-	rotIndex := make(map[int]bool)
-
-	var index int
-
 	if LogBSGSRatio < 0 {
 
-		for _, j := range nonZeroDiagonals {
-			rotIndex[j] = true
+		_, _, rotN2 := BSGSIndex(nonZeroDiagonals, slots, slots)
+
+		galEls = make([]uint64, len(rotN2))
+
+		for i := range rotN2 {
+			galEls[i] = p.GaloisElementForColumnRotationBy(rotN2[i])
 		}
 
-	} else {
-
-		N1 := FindBestBSGSRatio(nonZeroDiagonals, slots, LogBSGSRatio)
-
-		for _, j := range nonZeroDiagonals {
-			j &= (slots - 1)
-			index = ((j / N1) * N1) & (slots - 1)
-			rotIndex[index] = true
-			index = j & (N1 - 1)
-			rotIndex[index] = true
-		}
+		return
 	}
 
-	rotations := make([]int, len(rotIndex))
-	var i int
-	for j := range rotIndex {
-		rotations[i] = j
-		i++
-	}
+	N1 := FindBestBSGSRatio(nonZeroDiagonals, slots, LogBSGSRatio)
 
-	return p.GaloisElementsForRotations(rotations)
+	_, rotN1, rotN2 := BSGSIndex(nonZeroDiagonals, slots, N1)
+
+	return p.GaloisElementsForRotations(utils.GetDistincts(append(rotN1, rotN2...)))
 }
 
 // InverseGaloisElement takes a Galois element and returns the Galois element

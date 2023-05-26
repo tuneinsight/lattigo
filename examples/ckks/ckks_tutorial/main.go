@@ -425,14 +425,14 @@ func main() {
 	rot := 5
 
 	// Galois key for the cyclic rotations by 5 positions to the left.
-	galEl := params.GaloisElementForColumnRotationBy(rot)
+	galEl := params.GaloisElement(rot)
 	evk.GaloisKeys[galEl] = kgen.GenGaloisKeyNew(galEl, sk)
 
-	// Galois key for the complex conjugate (yes we could do a better job than `GaloisElementForRowRotation`)
+	// Galois key for the complex conjugate (yes we could do a better job than `GaloisElementInverse`)
 	// The reason for this name is that the `ckks` package does not yet have a wrapper for this method which comes from the `rlwe` package.
 	// The name of this method comes from the BFV/BGV schemes, which have plaintext spaces of Z_{2xN/2}, i.e. a matrix of 2 rows and N/2 columns.
 	// The CKKS scheme actually encrypts 2xN/2 values, but one row is the conjugate of the other, thus to access the conjugate, we rotates the rows.
-	galEl = params.GaloisElementForRowRotation()
+	galEl = params.GaloisElementInverse()
 	evk.GaloisKeys[galEl] = kgen.GenGaloisKeyNew(galEl, sk)
 
 	// Note that since the pointer to the evaluation key struct has already been given to the evaluator, we do not need to do anything else, the
@@ -634,7 +634,11 @@ func main() {
 	// LogBSGSRatio: the log of the ratio of the inner/outer loops of the baby-step giant-step algorithm for matrix-vector evaluation, leave it to 1
 	// LogSlots: the log2 of the dimension of the linear transformation
 	LogBSGSRatio := 1
-	linTransf := ckks.GenLinearTransformBSGS(ecd, diags, params.MaxLevel(), rlwe.NewScale(params.Q()[res.Level()]), LogBSGSRatio, LogSlots)
+	linTransf, err := rlwe.GenLinearTransformBSGS(ckks.NewLinearTransformEncoder(ecd, diags), params.MaxLevel(), rlwe.NewScale(params.Q()[res.Level()]), LogSlots, LogBSGSRatio)
+
+	if err != nil {
+		panic(err)
+	}
 
 	// Then we generate the corresponding Galois keys.
 	// The list of Galois elements can also be obtained with `linTransf.GaloisElements`

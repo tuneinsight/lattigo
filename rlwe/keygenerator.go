@@ -114,7 +114,7 @@ func (kgen *KeyGenerator) GenGaloisKey(galEl uint64, sk *SecretKey, gk *GaloisKe
 	// This enables to first apply the gadget product, re-encrypting
 	// a ciphetext from sk to pi_{k^-1}(sk) and then we apply pi_{k}
 	// on the ciphertext.
-	galElInv := kgen.params.InverseGaloisElement(galEl)
+	galElInv := kgen.params.ModInvGaloisElement(galEl)
 
 	index := ring.AutomorphismNTTIndex(ringQ.N(), ringQ.NthRoot(), galElInv)
 

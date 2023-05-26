@@ -6,7 +6,6 @@ import (
 
 	"github.com/tuneinsight/lattigo/v4/bgv"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
-	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 )
 
 func NewPlaintext(params Parameters, level int) (pt *rlwe.Plaintext) {
@@ -102,62 +101,10 @@ func (eval *Evaluator) Polynomial(input, pol interface{}) (opOut *rlwe.Ciphertex
 	return eval.Evaluator.Polynomial(input, pol, true, eval.Parameters().DefaultScale())
 }
 
-type LinearTransform bgv.LinearTransform
-
-func (lt *LinearTransform) GaloisElements(params Parameters) (galEls []uint64) {
-	ll := bgv.LinearTransform(*lt)
-	return ll.GaloisElements(bgv.Parameters(params))
+type LinearTransformEncoder struct {
+	bgv.LinearTransformEncoder
 }
 
-func NewLinearTransform(params Parameters, nonZeroDiags []int, level int, LogBSGSRatio int) LinearTransform {
-	return LinearTransform(bgv.NewLinearTransform(bgv.Parameters(params), nonZeroDiags, level, LogBSGSRatio))
-}
-
-func GenLinearTransform(ecd *Encoder, dMat map[int][]uint64, level int, scale rlwe.Scale) LinearTransform {
-	return LinearTransform(bgv.GenLinearTransform(ecd.Encoder, dMat, level, scale))
-}
-
-func GenLinearTransformBSGS(ecd *Encoder, dMat map[int][]uint64, level int, scale rlwe.Scale, LogBSGSRatio int) LinearTransform {
-	return LinearTransform(bgv.GenLinearTransformBSGS(ecd.Encoder, dMat, level, scale, LogBSGSRatio))
-}
-
-func (eval *Evaluator) LinearTransformNew(ctIn *rlwe.Ciphertext, linearTransform interface{}) (ctOut []*rlwe.Ciphertext) {
-
-	var LTs []bgv.LinearTransform
-
-	switch linearTransform := linearTransform.(type) {
-	case LinearTransform:
-		LTs = []bgv.LinearTransform{bgv.LinearTransform(linearTransform)}
-	case []LinearTransform:
-		LTs := make([]bgv.LinearTransform, len(linearTransform))
-		for i := range LTs {
-			LTs[i] = bgv.LinearTransform(linearTransform[i])
-		}
-	}
-
-	return eval.Evaluator.LinearTransformNew(ctIn, LTs)
-}
-
-func (eval *Evaluator) LinearTransform(ctIn *rlwe.Ciphertext, linearTransform interface{}, ctOut []*rlwe.Ciphertext) {
-	var LTs []bgv.LinearTransform
-
-	switch linearTransform := linearTransform.(type) {
-	case LinearTransform:
-		LTs = []bgv.LinearTransform{bgv.LinearTransform(linearTransform)}
-	case []LinearTransform:
-		LTs := make([]bgv.LinearTransform, len(linearTransform))
-		for i := range LTs {
-			LTs[i] = bgv.LinearTransform(linearTransform[i])
-		}
-	}
-
-	eval.Evaluator.LinearTransform(ctIn, LTs, ctOut)
-}
-
-func (eval *Evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix LinearTransform, BuffDecompQP []ringqp.Poly, ctOut *rlwe.Ciphertext) {
-	eval.Evaluator.MultiplyByDiagMatrix(ctIn, bgv.LinearTransform(matrix), BuffDecompQP, ctOut)
-}
-
-func (eval *Evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix LinearTransform, BuffDecompQP []ringqp.Poly, ctOut *rlwe.Ciphertext) {
-	eval.Evaluator.MultiplyByDiagMatrixBSGS(ctIn, bgv.LinearTransform(matrix), BuffDecompQP, ctOut)
+func NewLinearTransformEncoder(ecd *Encoder, diagonals map[int][]uint64) LinearTransformEncoder {
+	return LinearTransformEncoder{bgv.NewLinearTransformEncoder(ecd.Encoder, diagonals)}
 }

@@ -67,11 +67,8 @@ func newEvaluatorPrecomp(params Parameters) *evaluatorBase {
 }
 
 type evaluatorBuffers struct {
-	buffQ [3]*ring.Poly
-
+	buffQ    [3]*ring.Poly
 	buffQMul [9]*ring.Poly
-
-	buffCt *rlwe.Ciphertext
 }
 
 // BuffQ returns a pointer to the internal memory buffer buffQ.
@@ -110,7 +107,6 @@ func newEvaluatorBuffer(eval *evaluatorBase) *evaluatorBuffers {
 	return &evaluatorBuffers{
 		buffQ:    buffQ,
 		buffQMul: buffQMul,
-		buffCt:   NewCiphertext(eval.params, 2, eval.params.MaxLevel()),
 	}
 }
 
@@ -963,7 +959,7 @@ func (eval *Evaluator) RotateColumnsNew(ctIn *rlwe.Ciphertext, k int) (ctOut *rl
 // The procedure will panic if the corresponding Galois key has not been generated and attributed to the evaluator.
 // The procedure will panic if either ctIn.Degree() or ctOut.Degree() != 1.
 func (eval *Evaluator) RotateColumns(ctIn *rlwe.Ciphertext, k int, ctOut *rlwe.Ciphertext) {
-	eval.Automorphism(ctIn, eval.params.GaloisElementForColumnRotationBy(k), ctOut)
+	eval.Automorphism(ctIn, eval.params.GaloisElement(k), ctOut)
 }
 
 // RotateRowsNew swaps the rows of ctIn and returns the result in a new ctOut.
@@ -979,7 +975,7 @@ func (eval *Evaluator) RotateRowsNew(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphert
 // The procedure will panic if the corresponding Galois key has not been generated and attributed to the evaluator.
 // The procedure will panic if either ctIn.Degree() or ctOut.Degree() != 1.
 func (eval *Evaluator) RotateRows(ctIn *rlwe.Ciphertext, ctOut *rlwe.Ciphertext) {
-	eval.Automorphism(ctIn, eval.params.GaloisElementForRowRotation(), ctOut)
+	eval.Automorphism(ctIn, eval.params.GaloisElementInverse(), ctOut)
 }
 
 func (eval *Evaluator) RotateHoistedLazyNew(level int, rotations []int, ctIn *rlwe.Ciphertext, c2DecompQP []ringqp.Poly) (cOut map[int]*rlwe.OperandQP) {
@@ -987,7 +983,7 @@ func (eval *Evaluator) RotateHoistedLazyNew(level int, rotations []int, ctIn *rl
 	for _, i := range rotations {
 		if i != 0 {
 			cOut[i] = rlwe.NewOperandQP(eval.params.Parameters, 1, level, eval.params.MaxLevelP())
-			eval.AutomorphismHoistedLazy(level, ctIn, c2DecompQP, eval.params.GaloisElementForColumnRotationBy(i), cOut[i])
+			eval.AutomorphismHoistedLazy(level, ctIn, c2DecompQP, eval.params.GaloisElement(i), cOut[i])
 		}
 	}
 

@@ -234,7 +234,7 @@ func (p *Parameters) GaloisElements(params ckks.Parameters) (galEls []uint64) {
 
 	//SubSum rotation needed X -> Y^slots rotations
 	for i := p.LogSlots(); i < logN-1; i++ {
-		keys[params.GaloisElementForColumnRotationBy(1<<i)] = true
+		keys[params.GaloisElement(1<<i)] = true
 	}
 
 	for _, galEl := range p.CoeffsToSlotsParameters.GaloisElements(params) {

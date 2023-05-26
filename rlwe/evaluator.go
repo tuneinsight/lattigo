@@ -112,7 +112,7 @@ func (eval *Evaluator) Parameters() Parameters {
 func (eval *Evaluator) CheckAndGetGaloisKey(galEl uint64) (evk *GaloisKey, err error) {
 	if eval.EvaluationKeySetInterface != nil {
 		if evk, err = eval.GetGaloisKey(galEl); err != nil {
-			return nil, fmt.Errorf("%w: key for galEl %d = 5^{%d} key is missing", err, galEl, eval.params.RotationFromGaloisElement(galEl))
+			return nil, fmt.Errorf("%w: key for galEl %d = 5^{%d} key is missing", err, galEl, eval.params.SolveDiscretLogGaloisElement(galEl))
 		}
 	} else {
 		return nil, fmt.Errorf("evaluation key interface is nil")

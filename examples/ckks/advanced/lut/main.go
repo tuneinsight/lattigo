@@ -155,7 +155,7 @@ func main() {
 		evk.GaloisKeys[galEl] = kgenN12.GenGaloisKeyNew(galEl, skN12)
 	}
 
-	evk.GaloisKeys[paramsN12.GaloisElementForRowRotation()] = kgenN12.GenGaloisKeyNew(paramsN12.GaloisElementForRowRotation(), skN12)
+	evk.GaloisKeys[paramsN12.GaloisElementInverse()] = kgenN12.GenGaloisKeyNew(paramsN12.GaloisElementInverse(), skN12)
 
 	// LUT Evaluator
 	evalLUT := lut.NewEvaluator(paramsN12.Parameters, paramsN11.Parameters, evk)

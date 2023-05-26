@@ -156,7 +156,7 @@ func testHomomorphicEncoding(params ckks.Parameters, LogSlots int, t *testing.T)
 		}
 
 		// Also adds the conjugate key
-		evk.GaloisKeys[params.GaloisElementForRowRotation()] = kgen.GenGaloisKeyNew(params.GaloisElementForRowRotation(), sk)
+		evk.GaloisKeys[params.GaloisElementInverse()] = kgen.GenGaloisKeyNew(params.GaloisElementInverse(), sk)
 
 		// Creates an evaluator with the rotation keys
 		eval := NewEvaluator(params, evk)
@@ -365,7 +365,7 @@ func testHomomorphicDecoding(params ckks.Parameters, LogSlots int, t *testing.T)
 		}
 
 		// Also adds the conjugate key
-		evk.GaloisKeys[params.GaloisElementForRowRotation()] = kgen.GenGaloisKeyNew(params.GaloisElementForRowRotation(), sk)
+		evk.GaloisKeys[params.GaloisElementInverse()] = kgen.GenGaloisKeyNew(params.GaloisElementInverse(), sk)
 
 		// Creates an evaluator with the rotation keys
 		eval := NewEvaluator(params, evk)

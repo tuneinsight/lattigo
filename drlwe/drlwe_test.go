@@ -228,7 +228,7 @@ func testGKGProtocol(tc *testContext, level int, t *testing.T) {
 
 		crp := gkg[0].SampleCRP(tc.crs)
 
-		galEl := params.GaloisElementForColumnRotationBy(64)
+		galEl := params.GaloisElement(64)
 
 		for i := range shares {
 			gkg[i].GenShare(tc.skShares[i], galEl, crp, shares[i])

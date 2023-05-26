@@ -191,7 +191,7 @@ func main() {
 
 	galEls := make([]uint64, k)
 	for i := range galEls {
-		galEls[i] = params.GaloisElementForColumnRotationBy(i + 1)
+		galEls[i] = params.GaloisElement(i + 1)
 	}
 
 	fmt.Printf("Starting for N=%d, t=%d\n", N, t)

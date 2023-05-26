@@ -1,6 +1,7 @@
 package advanced
 
 import (
+	"fmt"
 	"math"
 	"math/big"
 
@@ -23,7 +24,7 @@ const (
 // used to hommorphically encode and decode a ciphertext respectively.
 type HomomorphicDFTMatrix struct {
 	HomomorphicDFTMatrixLiteral
-	Matrices []ckks.LinearTransform
+	Matrices []rlwe.LinearTransform
 }
 
 // HomomorphicDFTMatrixLiteral is a struct storing the parameters to generate the factorized DFT/IDFT matrices.
@@ -91,7 +92,7 @@ func (d *HomomorphicDFTMatrixLiteral) GaloisElements(params ckks.Parameters) (ga
 		rotations = addMatrixRotToList(pVec, rotations, N1, slots, d.Type == Decode && logSlots < logN-1 && i == 0 && d.RepackImag2Real)
 	}
 
-	return params.GaloisElementsForRotations(rotations)
+	return params.GaloisElements(rotations)
 }
 
 // NewHomomorphicDFTMatrixFromLiteral generates the factorized DFT/IDFT matrices for the homomorphic encoding/decoding.
@@ -106,7 +107,7 @@ func NewHomomorphicDFTMatrixFromLiteral(d HomomorphicDFTMatrixLiteral, encoder *
 	}
 
 	// CoeffsToSlots vectors
-	matrices := []ckks.LinearTransform{}
+	matrices := []rlwe.LinearTransform{}
 	pVecDFT := d.GenMatrices(params.LogN(), params.DefaultPrecision())
 
 	nbModuliPerRescale := params.DefaultScaleModuliRatio()
@@ -129,7 +130,14 @@ func NewHomomorphicDFTMatrixFromLiteral(d HomomorphicDFTMatrixLiteral, encoder *
 		}
 
 		for j := 0; j < d.Levels[i]; j++ {
-			matrices = append(matrices, ckks.GenLinearTransformBSGS(encoder, pVecDFT[idx], level, scale, d.LogBSGSRatio, logdSlots))
+
+			mat, err := rlwe.GenLinearTransformBSGS(ckks.NewLinearTransformEncoder(encoder, pVecDFT[idx]), level, scale, logdSlots, d.LogBSGSRatio)
+
+			if err != nil {
+				panic(fmt.Errorf("cannot NewHomomorphicDFTMatrixFromLiteral: %w", err))
+			}
+
+			matrices = append(matrices, mat)
 			idx++
 		}
 

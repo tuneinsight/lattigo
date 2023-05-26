@@ -164,14 +164,14 @@ func testParameters(tc *TestContext, t *testing.T) {
 
 	params := tc.params
 
-	t.Run(testString(params, params.MaxLevel(), "InverseGaloisElement"), func(t *testing.T) {
+	t.Run(testString(params, params.MaxLevel(), "ModInvGaloisElement"), func(t *testing.T) {
 
 		N := params.N()
 		mask := params.RingQ().NthRoot() - 1
 
 		for i := 1; i < N>>1; i++ {
-			galEl := params.GaloisElementForColumnRotationBy(i)
-			inv := params.InverseGaloisElement(galEl)
+			galEl := params.GaloisElement(i)
+			inv := params.ModInvGaloisElement(galEl)
 			res := (inv * galEl) & mask
 			require.Equal(t, uint64(1), res)
 		}
@@ -628,7 +628,7 @@ func testAutomorphism(tc *TestContext, level int, t *testing.T) {
 		ct := enc.EncryptNew(pt)
 
 		// Chooses a Galois Element (must be coprime with 2N)
-		galEl := params.GaloisElementForColumnRotationBy(-1)
+		galEl := params.GaloisElement(-1)
 
 		// Generate the GaloisKey
 		gk := kgen.GenGaloisKeyNew(galEl, sk)
@@ -673,7 +673,7 @@ func testAutomorphism(tc *TestContext, level int, t *testing.T) {
 		ct := enc.EncryptNew(pt)
 
 		// Chooses a Galois Element (must be coprime with 2N)
-		galEl := params.GaloisElementForColumnRotationBy(-1)
+		galEl := params.GaloisElement(-1)
 
 		// Generate the GaloisKey
 		gk := kgen.GenGaloisKeyNew(galEl, sk)
@@ -721,7 +721,7 @@ func testAutomorphism(tc *TestContext, level int, t *testing.T) {
 		ct := enc.EncryptNew(pt)
 
 		// Chooses a Galois Element (must be coprime with 2N)
-		galEl := params.GaloisElementForColumnRotationBy(-1)
+		galEl := params.GaloisElement(-1)
 
 		// Generate the GaloisKey
 		gk := kgen.GenGaloisKeyNew(galEl, sk)
@@ -996,7 +996,7 @@ func testLinearTransform(tc *TestContext, level int, t *testing.T) {
 		// Applies the same circuit (naively) on the plaintext
 		polyInnerSum := ptInnerSum.CopyNew()
 		for i := 1; i < n; i++ {
-			galEl := params.GaloisElementForColumnRotationBy(i * batch)
+			galEl := params.GaloisElement(i * batch)
 			ringQ.Automorphism(ptInnerSum, galEl, polyTmp)
 			ringQ.Add(polyInnerSum, polyTmp, polyInnerSum)
 		}

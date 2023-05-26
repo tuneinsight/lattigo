@@ -546,28 +546,30 @@ func (p *Parameters) PiOverflowMargin(level int) int {
 	return int(math.Exp2(64) / float64(utils.MaxSlice(p.pi[:level+1])))
 }
 
-// GaloisElementsForRotations takes a list of rotations and returns the corresponding list of Galois elements.
-func (p Parameters) GaloisElementsForRotations(rots []int) (galEls []uint64) {
-	galEls = make([]uint64, len(rots))
-
-	for i, rot := range rots {
-		galEls[i] = p.GaloisElementForColumnRotationBy(rot)
+// GaloisElements takes a list of integers k and returns the list [GaloisGen^{k[i]} mod NthRoot, ...].
+func (p Parameters) GaloisElements(k []int) (galEls []uint64) {
+	galEls = make([]uint64, len(k))
+	for i, ki := range k {
+		galEls[i] = p.GaloisElement(ki)
 	}
 	return
 }
 
-// GaloisElementForColumnRotationBy returns the Galois element for plaintext
-// column rotations by k position to the left. Providing a negative k is
-// equivalent to a right rotation.
-func (p Parameters) GaloisElementForColumnRotationBy(k int) uint64 {
+// GaloisElement takes an integer k and returns GaloisGen^{k} mod NthRoot.
+func (p Parameters) GaloisElement(k int) uint64 {
 	return ring.ModExp(GaloisGen, uint64(k)&(p.ringQ.NthRoot()-1), p.ringQ.NthRoot())
 }
 
-// GaloisElementForRowRotation returns the Galois element for generating the row
-// rotation automorphism.
-func (p Parameters) GaloisElementForRowRotation() uint64 {
+// ModInvGaloisElement takes a Galois element of the form GaloisGen^{k} mod NthRoot
+// and returns GaloisGen^{-k} mod NthRoot.
+func (p Parameters) ModInvGaloisElement(galEl uint64) uint64 {
+	return ring.ModExp(galEl, p.ringQ.NthRoot()-1, p.ringQ.NthRoot())
+}
+
+// GaloisElementInverse returns GaloisGen^{-1} mod NthRoot
+func (p Parameters) GaloisElementInverse() uint64 {
 	if p.ringType == ring.ConjugateInvariant {
-		panic("Cannot generate GaloisElementForRowRotation if ringType is ConjugateInvariant")
+		panic("Cannot generate GaloisElementInverse if ringType is ConjugateInvariant")
 	}
 	return p.ringQ.NthRoot() - 1
 }
@@ -578,15 +580,15 @@ func (p Parameters) GaloisElementsForTrace(logN int) (galEls []uint64) {
 
 	galEls = []uint64{}
 	for i, j := logN, 0; i < p.LogN()-1; i, j = i+1, j+1 {
-		galEls = append(galEls, p.GaloisElementForColumnRotationBy(1<<i))
+		galEls = append(galEls, p.GaloisElement(1<<i))
 	}
 
 	if logN == 0 {
 		switch p.ringType {
 		case ring.Standard:
-			galEls = append(galEls, p.GaloisElementForRowRotation())
+			galEls = append(galEls, p.GaloisElementInverse())
 		case ring.ConjugateInvariant:
-			panic("cannot GaloisElementsForTrace: Galois element 5^-1 is undefined in ConjugateInvariant Ring")
+			panic("cannot GaloisElementsForTrace: Galois element GaloisGen^-1 is undefined in ConjugateInvariant Ring")
 		default:
 			panic("cannot GaloisElementsForTrace: invalid ring type")
 		}
@@ -626,7 +628,7 @@ func (p Parameters) GaloisElementsForInnerSum(batch, n int) (galEls []uint64) {
 		i++
 	}
 
-	return p.GaloisElementsForRotations(rotations)
+	return p.GaloisElements(rotations)
 }
 
 // GaloisElementsForExpand returns the list of Galois elements required
@@ -653,13 +655,13 @@ func (p Parameters) GaloisElementsForPack(logGap int) (galEls []uint64) {
 
 	galEls = make([]uint64, 0, logGap)
 	for i := 0; i < logGap; i++ {
-		galEls = append(galEls, p.GaloisElementForColumnRotationBy(1<<i))
+		galEls = append(galEls, p.GaloisElement(1<<i))
 	}
 
 	switch p.ringType {
 	case ring.Standard:
 		if logGap == p.logN {
-			galEls = append(galEls, p.GaloisElementForRowRotation())
+			galEls = append(galEls, p.GaloisElementInverse())
 		}
 	default:
 		panic("cannot GaloisElementsForPack: invalid ring type")
@@ -681,7 +683,7 @@ func (p Parameters) GaloisElementsForLinearTransform(nonZeroDiagonals []int, Log
 		galEls = make([]uint64, len(rotN2))
 
 		for i := range rotN2 {
-			galEls[i] = p.GaloisElementForColumnRotationBy(rotN2[i])
+			galEls[i] = p.GaloisElement(rotN2[i])
 		}
 
 		return
@@ -691,18 +693,11 @@ func (p Parameters) GaloisElementsForLinearTransform(nonZeroDiagonals []int, Log
 
 	_, rotN1, rotN2 := BSGSIndex(nonZeroDiagonals, slots, N1)
 
-	return p.GaloisElementsForRotations(utils.GetDistincts(append(rotN1, rotN2...)))
+	return p.GaloisElements(utils.GetDistincts(append(rotN1, rotN2...)))
 }
 
-// InverseGaloisElement takes a Galois element and returns the Galois element
-// corresponding to the inverse automorphism
-func (p Parameters) InverseGaloisElement(galEl uint64) uint64 {
-	return ring.ModExp(galEl, p.ringQ.NthRoot()-1, p.ringQ.NthRoot())
-}
-
-// RotationFromGaloisElement returns the corresponding rotation
-// from the Galois element, i.e. computes k given 5^k = galEl mod NthRoot.
-func (p Parameters) RotationFromGaloisElement(galEl uint64) (k uint64) {
+// SolveDiscretLogGaloisElement takes a Galois element of the form GaloisGen^{k} mod NthRoot and returns k.
+func (p Parameters) SolveDiscretLogGaloisElement(galEl uint64) (k uint64) {
 
 	N := p.ringQ.NthRoot()
 

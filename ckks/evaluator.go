@@ -947,7 +947,7 @@ func (eval *Evaluator) RotateNew(ct0 *rlwe.Ciphertext, k int) (ctOut *rlwe.Ciphe
 // Rotate rotates the columns of ct0 by k positions to the left and returns the result in ctOut.
 // The method will panic if the evaluator hasn't been given an evaluation key set with the appropriate GaloisKey.
 func (eval *Evaluator) Rotate(ct0 *rlwe.Ciphertext, k int, ctOut *rlwe.Ciphertext) {
-	eval.Automorphism(ct0, eval.params.GaloisElementForColumnRotationBy(k), ctOut)
+	eval.Automorphism(ct0, eval.params.GaloisElement(k), ctOut)
 }
 
 // ConjugateNew conjugates ct0 (which is equivalent to a row rotation) and returns the result in a newly created element.
@@ -971,7 +971,29 @@ func (eval *Evaluator) Conjugate(ct0 *rlwe.Ciphertext, ctOut *rlwe.Ciphertext) {
 		panic("cannot Conjugate: method is not supported when params.RingType() == ring.ConjugateInvariant")
 	}
 
-	eval.Automorphism(ct0, eval.params.GaloisElementForRowRotation(), ctOut)
+	eval.Automorphism(ct0, eval.params.GaloisElementInverse(), ctOut)
+}
+
+// RotateHoistedNew takes an input Ciphertext and a list of rotations and returns a map of Ciphertext, where each element of the map is the input Ciphertext
+// rotation by one element of the list. It is much faster than sequential calls to Rotate.
+func (eval *Evaluator) RotateHoistedNew(ctIn *rlwe.Ciphertext, rotations []int) (ctOut map[int]*rlwe.Ciphertext) {
+	ctOut = make(map[int]*rlwe.Ciphertext)
+	for _, i := range rotations {
+		ctOut[i] = NewCiphertext(eval.params, 1, ctIn.Level())
+	}
+	eval.RotateHoisted(ctIn, rotations, ctOut)
+	return
+}
+
+// RotateHoisted takes an input Ciphertext and a list of rotations and populates a map of pre-allocated Ciphertexts,
+// where each element of the map is the input Ciphertext rotation by one element of the list.
+// It is much faster than sequential calls to Rotate.
+func (eval *Evaluator) RotateHoisted(ctIn *rlwe.Ciphertext, rotations []int, ctOut map[int]*rlwe.Ciphertext) {
+	levelQ := ctIn.Level()
+	eval.DecomposeNTT(levelQ, eval.params.MaxLevelP(), eval.params.PCount(), ctIn.Value[1], ctIn.IsNTT, eval.BuffDecompQP)
+	for _, i := range rotations {
+		eval.AutomorphismHoisted(levelQ, ctIn, eval.BuffDecompQP, eval.params.GaloisElement(i), ctOut[i])
+	}
 }
 
 func (eval *Evaluator) RotateHoistedLazyNew(level int, rotations []int, ct *rlwe.Ciphertext, c2DecompQP []ringqp.Poly) (cOut map[int]*rlwe.OperandQP) {
@@ -979,7 +1001,7 @@ func (eval *Evaluator) RotateHoistedLazyNew(level int, rotations []int, ct *rlwe
 	for _, i := range rotations {
 		if i != 0 {
 			cOut[i] = rlwe.NewOperandQP(eval.params.Parameters, 1, level, eval.params.MaxLevelP())
-			eval.AutomorphismHoistedLazy(level, ct, c2DecompQP, eval.params.GaloisElementForColumnRotationBy(i), cOut[i])
+			eval.AutomorphismHoistedLazy(level, ct, c2DecompQP, eval.params.GaloisElement(i), cOut[i])
 		}
 	}
 

@@ -90,7 +90,7 @@ func GenEvaluationKeySetNew(btpParams Parameters, ckksParams ckks.Parameters, sk
 		evk.GaloisKeys[galEl] = kgen.GenGaloisKeyNew(galEl, sk)
 	}
 
-	evk.GaloisKeys[ckksParams.GaloisElementForRowRotation()] = kgen.GenGaloisKeyNew(ckksParams.GaloisElementForRowRotation(), sk)
+	evk.GaloisKeys[ckksParams.GaloisElementInverse()] = kgen.GenGaloisKeyNew(ckksParams.GaloisElementInverse(), sk)
 
 	EvkDtS, EvkStD := btpParams.GenEncapsulationEvaluationKeysNew(ckksParams, sk)
 

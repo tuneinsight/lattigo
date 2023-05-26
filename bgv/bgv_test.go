@@ -727,7 +727,8 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 			diagMatrix[1][i] = 1
 		}
 
-		linTransf := GenLinearTransform(tc.encoder, diagMatrix, params.MaxLevel(), tc.params.DefaultScale())
+		linTransf, err := rlwe.GenLinearTransform(NewLinearTransformEncoder(tc.encoder, diagMatrix), params.MaxLevel(), params.DefaultScale(), params.LogN()-1)
+		require.NoError(t, err)
 
 		galEls := linTransf.GaloisElements(params)
 
@@ -782,7 +783,8 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 			diagMatrix[15][i] = 1
 		}
 
-		linTransf := GenLinearTransformBSGS(tc.encoder, diagMatrix, params.MaxLevel(), tc.params.DefaultScale(), 2)
+		linTransf, err := rlwe.GenLinearTransformBSGS(NewLinearTransformEncoder(tc.encoder, diagMatrix), params.MaxLevel(), tc.params.DefaultScale(), params.LogN()-1, 2)
+		require.NoError(t, err)
 
 		galEls := linTransf.GaloisElements(params)
 

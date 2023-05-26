@@ -1090,7 +1090,8 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		LogBSGSRatio := 2
 
-		linTransf := GenLinearTransformBSGS(tc.encoder, diagMatrix, params.MaxLevel(), rlwe.NewScale(params.Q()[params.MaxLevel()]), LogBSGSRatio, ciphertext.LogSlots)
+		linTransf, err := rlwe.GenLinearTransformBSGS(NewLinearTransformEncoder(tc.encoder, diagMatrix), params.MaxLevel(), rlwe.NewScale(params.Q()[params.MaxLevel()]), ciphertext.LogSlots, LogBSGSRatio)
+		require.NoError(t, err)
 
 		galEls := params.GaloisElementsForLinearTransform(nonZeroDiags, ciphertext.LogSlots, LogBSGSRatio)
 
@@ -1143,7 +1144,8 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 			diagMatrix[0][i] = &bignum.Complex{one, zero}
 		}
 
-		linTransf := GenLinearTransform(tc.encoder, diagMatrix, params.MaxLevel(), rlwe.NewScale(params.Q()[params.MaxLevel()]), ciphertext.LogSlots)
+		linTransf, err := rlwe.GenLinearTransform(NewLinearTransformEncoder(tc.encoder, diagMatrix), params.MaxLevel(), rlwe.NewScale(params.Q()[params.MaxLevel()]), ciphertext.LogSlots)
+		require.NoError(t, err)
 
 		galEls := params.GaloisElementsForLinearTransform([]int{-1, 0}, ciphertext.LogSlots, -1)
 

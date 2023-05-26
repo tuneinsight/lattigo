@@ -83,6 +83,10 @@ func NewEncoder(params Parameters) *Encoder {
 	}
 }
 
+func (ecd *Encoder) Parameters() Parameters {
+	return ecd.params
+}
+
 // EncodeNew encodes a slice of integers of type []uint64 or []int64 of size at most N on a newly allocated plaintext.
 func (ecd *Encoder) EncodeNew(values interface{}, level int, scale rlwe.Scale) (pt *rlwe.Plaintext) {
 	pt = NewPlaintext(ecd.params, level)

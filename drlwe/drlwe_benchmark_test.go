@@ -131,7 +131,7 @@ func benchRotKeyGen(params rlwe.Parameters, b *testing.B) {
 
 	b.Run(benchString("RotKeyGen/Round1/Gen", params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			rtg.GenShare(sk, params.GaloisElementForColumnRotationBy(1), crp, share)
+			rtg.GenShare(sk, params.GaloisElement(1), crp, share)
 		}
 	})
 

@@ -18,6 +18,8 @@ type LinearTransformEncoder struct {
 	diagonals map[int][]uint64
 }
 
+// NewLinearTransformEncoder creates a new LinearTransformEncoder, which implements the rlwe.LinearTransformEncoder interface.
+// See rlwe.LinearTransformEncoder for additional informations.
 func NewLinearTransformEncoder(ecd *Encoder, diagonals map[int][]uint64) rlwe.LinearTransformEncoder {
 	return LinearTransformEncoder{
 		Encoder:   ecd,
@@ -27,57 +29,52 @@ func NewLinearTransformEncoder(ecd *Encoder, diagonals map[int][]uint64) rlwe.Li
 	}
 }
 
+// Parameters returns the rlwe.Parametrs of the underlying LinearTransformEncoder.
 func (l LinearTransformEncoder) Parameters() rlwe.Parameters {
 	return l.Encoder.Parameters().Parameters
 }
 
-// NonZeroDiagonals returns the list of non-zero diagonals.
+// NonZeroDiagonals retursn the list of non-zero diagonales of the matrix
+// representing the linear transformation.
 func (l LinearTransformEncoder) NonZeroDiagonals() []int {
 	return utils.GetKeys(l.diagonals)
 }
 
-// EncodeLinearTransformDiagonalNaive encodes the i-th non-zero diagonal of the internaly stored matrix at the given scale on the outut polynomial.
-func (l LinearTransformEncoder) EncodeLinearTransformDiagonalNaive(i int, scale rlwe.Scale, logslots int, output ringqp.Poly) (err error) {
-
-	ecd := l.Encoder
-	buf := l.buf
-	levelQ, levelP := output.LevelQ(), output.LevelP()
-	ringQP := ecd.Parameters().RingQP().AtLevel(levelQ, levelP)
-
-	if diag, ok := l.diagonals[i]; ok {
-		l.EncodeRingT(diag, scale, buf)
-		l.RingT2Q(levelQ, false, buf, output.Q)
-		l.RingT2Q(levelP, false, buf, output.P)
-		ringQP.NTT(&output, &output)
-		ringQP.MForm(&output, &output)
-	} else {
-		return fmt.Errorf("cannot EncodeLinearTransformDiagonalNaive: diagonal [%d] doesn't exist", i)
-	}
-
-	return
-}
-
-// EncodeLinearTransformDiagonalBSGS encodes the i-th non-zero diagonal of the internaly stored matrix at the given scale on the outut polynomial.
-func (l LinearTransformEncoder) EncodeLinearTransformDiagonalBSGS(i, rot int, scale rlwe.Scale, logSlots int, output ringqp.Poly) (err error) {
+// EncodeLinearTransformDiagonal encodes the i-th non-zero diagonal  of size at most 2^{LogSlots} rotated by `rot` positions
+// to the left of the internaly stored matrix at the given Scale on the outut ringqp.Poly.
+func (l LinearTransformEncoder) EncodeLinearTransformDiagonal(i, rot int, scale rlwe.Scale, logSlots int, output ringqp.Poly) (err error) {
 
 	ecd := l.Encoder
 	buf := l.buf
 	slots := 1 << logSlots
-	values := l.values
+
 	levelQ, levelP := output.LevelQ(), output.LevelP()
 	ringQP := ecd.Parameters().RingQP().AtLevel(levelQ, levelP)
+
+	rot &= (slots - 1)
 
 	// manages inputs that have rotation between 0 and slots-1 or between -slots/2 and slots/2-1
 	v, ok := l.diagonals[i]
 	if !ok {
-		v = l.diagonals[i-slots]
+		if v, ok = l.diagonals[i-slots]; !ok {
+			return fmt.Errorf("cannot EncodeLinearTransformDiagonalNaive: diagonal [%d] doesn't exist", i)
+		}
 	}
 
-	if len(v) > slots {
-		rotateAndCopyInplace(values[slots:], v[slots:], rot)
-	}
+	var values []uint64
+	if rot != 0 {
 
-	rotateAndCopyInplace(values[:slots], v, rot)
+		values = l.values
+
+		if len(v) > slots {
+			utils.RotateSliceAllocFree(v[slots:], rot, values[slots:])
+		}
+
+		utils.RotateSliceAllocFree(v[:slots], rot, values[:slots])
+
+	} else {
+		values = v
+	}
 
 	l.EncodeRingT(values, scale, buf)
 
@@ -88,14 +85,4 @@ func (l LinearTransformEncoder) EncodeLinearTransformDiagonalBSGS(i, rot int, sc
 	ringQP.MForm(&output, &output)
 
 	return
-}
-
-func rotateAndCopyInplace(values, v []uint64, rot int) {
-	n := len(values)
-	if len(v) > rot {
-		copy(values[:n-rot], v[rot:])
-		copy(values[n-rot:], v[:rot])
-	} else {
-		copy(values[n-rot:], v)
-	}
 }

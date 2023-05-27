@@ -47,12 +47,12 @@ func (l LinearTransformEncoder[_]) EncodeLinearTransformDiagonalNaive(i int, sca
 	return fmt.Errorf("cannot EncodeLinearTransformDiagonalNaive: diagonal [%d] doesn't exist", i)
 }
 
-// EncodeLinearTransformDiagonalBSGS encodes the i-th non-zero diagonal of the internaly stored matrix at the given scale on the outut polynomial.
-func (l LinearTransformEncoder[_]) EncodeLinearTransformDiagonalBSGS(i, rot int, scale rlwe.Scale, logSlots int, output ringqp.Poly) (err error) {
+// EncodeLinearTransformDiagonal encodes the i-th non-zero diagonal  of size at most 2^{LogSlots} rotated by `rot` positions
+// to the left of the internaly stored matrix at the given Scale on the outut ringqp.Poly.
+func (l LinearTransformEncoder[T]) EncodeLinearTransformDiagonal(i, rot int, scale rlwe.Scale, logSlots int, output ringqp.Poly) (err error) {
 
 	ecd := l.Encoder
 	slots := 1 << logSlots
-	values := l.values
 
 	// manages inputs that have rotation between 0 and slots-1 or between -slots/2 and slots/2-1
 	v, ok := l.diagonals[i]
@@ -60,11 +60,21 @@ func (l LinearTransformEncoder[_]) EncodeLinearTransformDiagonalBSGS(i, rot int,
 		v = l.diagonals[i-slots]
 	}
 
-	if slots >= rot {
-		copy(values[:slots-rot], v[rot:])
-		copy(values[slots-rot:], v[:rot])
+	rot &= (slots - 1)
+
+	var values []T
+	if rot != 0 {
+
+		values = l.values
+
+		if slots >= rot {
+			copy(values[:slots-rot], v[rot:])
+			copy(values[slots-rot:], v[:rot])
+		} else {
+			copy(values[slots-rot:], v)
+		}
 	} else {
-		copy(values[slots-rot:], v)
+		values = v[:slots]
 	}
 
 	return ecd.Embed(values[:slots], logSlots, scale, true, output)

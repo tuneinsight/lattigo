@@ -88,11 +88,21 @@ func (LT *LinearTransform) GaloisElements(params LinearTransformParametersInterf
 	return params.GaloisElements(utils.GetDistincts(append(rotN1, rotN2...)))
 }
 
+// LinearTransformEncoder is a interface defining the methods
+// required to generate and encode linear transformations.
 type LinearTransformEncoder interface {
+
+	// NonZeroDiagonals should return the list of non-zero diagonales of the matrix
+	// representing the linear transformation.
 	NonZeroDiagonals() []int
+
+	// Parameters should return the rlwe.Parametrs of the underlying struct implementing
+	// the LinearTransformEncoder interface.
 	Parameters() Parameters
-	EncodeLinearTransformDiagonalNaive(i int, scale Scale, LogSlots int, output ringqp.Poly) (err error)
-	EncodeLinearTransformDiagonalBSGS(i, rot int, scale Scale, LogSlots int, output ringqp.Poly) (err error)
+
+	// EncodeLinearTransformDiagonal encodes the i-th non-zero diagonal  of size at most 2^{LogSlots} rotated by `rot` positions
+	// to the left of the internaly stored matrix at the given Scale on the outut ringqp.Poly.
+	EncodeLinearTransformDiagonal(i, rot int, scale Scale, LogSlots int, output ringqp.Poly) (err error)
 }
 
 // Encode encodes on a pre-allocated LinearTransform the linear transforms' matrix in diagonal form `value`.
@@ -121,7 +131,7 @@ func (LT *LinearTransform) Encode(ecd LinearTransformEncoder) (err error) {
 			if vec, ok := LT.Vec[idx]; !ok {
 				return (fmt.Errorf("cannot Encode: error encoding on LinearTransform: plaintext diagonal [%d] does not exist", idx))
 			} else {
-				if err = ecd.EncodeLinearTransformDiagonalNaive(i, scale, LogSlots, vec); err != nil {
+				if err = ecd.EncodeLinearTransformDiagonal(i, 0, scale, LogSlots, vec); err != nil {
 					return
 				}
 			}
@@ -139,7 +149,7 @@ func (LT *LinearTransform) Encode(ecd LinearTransformEncoder) (err error) {
 				if vec, ok := LT.Vec[i+j]; !ok {
 					return fmt.Errorf("cannot Encode: error encoding on LinearTransform BSGS: input does not match the same non-zero diagonals")
 				} else {
-					if err = ecd.EncodeLinearTransformDiagonalBSGS(i+j, rot, scale, LogSlots, vec); err != nil {
+					if err = ecd.EncodeLinearTransformDiagonal(i+j, rot, scale, LogSlots, vec); err != nil {
 						return
 					}
 				}
@@ -176,7 +186,7 @@ func GenLinearTransform(ecd LinearTransformEncoder, level int, scale Scale, LogS
 
 		pt := *ringQP.NewPoly()
 
-		if err = ecd.EncodeLinearTransformDiagonalNaive(i, scale, LogSlots, pt); err != nil {
+		if err = ecd.EncodeLinearTransformDiagonal(i, 0, scale, LogSlots, pt); err != nil {
 			return
 		}
 
@@ -209,7 +219,7 @@ func GenLinearTransformBSGS(ecd LinearTransformEncoder, level int, scale Scale, 
 
 			pt := *ringQP.NewPoly()
 
-			if err = ecd.EncodeLinearTransformDiagonalBSGS(i+j, rot, scale, LogSlots, pt); err != nil {
+			if err = ecd.EncodeLinearTransformDiagonal(i+j, rot, scale, LogSlots, pt); err != nil {
 				return
 			}
 

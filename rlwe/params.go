@@ -731,23 +731,6 @@ func (p Parameters) Equal(other Parameters) bool {
 	return res
 }
 
-// CopyNew makes a deep copy of the receiver and returns it.
-//
-// Deprecated: Parameter is now a read-only struct, except for the UnmarshalBinary method: deep copying should only be
-// required to save a Parameter struct before calling its UnmarshalBinary method and it will be deprecated when
-// transitioning to a immutable serialization interface.
-func (p Parameters) CopyNew() Parameters {
-	qi, pi := p.qi, p.pi
-	p.qi, p.pi = make([]uint64, len(p.qi)), make([]uint64, len(p.pi))
-	copy(p.qi, qi)
-	p.ringQ, _ = ring.NewRingFromType(1<<p.logN, p.qi, p.ringType)
-	if len(p.pi) > 0 {
-		copy(p.pi, pi)
-		p.ringP, _ = ring.NewRingFromType(1<<p.logN, p.pi, p.ringType)
-	}
-	return p
-}
-
 // MarshalBinary returns a []byte representation of the parameter set.
 func (p Parameters) MarshalBinary() ([]byte, error) {
 	return p.MarshalJSON()

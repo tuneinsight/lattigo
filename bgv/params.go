@@ -118,7 +118,7 @@ type ParametersLiteral struct {
 	T        uint64 // Plaintext modulus
 }
 
-// RLWEParametersLiteral returns the rlwe.ParametersLiteral from the target bfv.ParametersLiteral.
+// RLWEParametersLiteral returns the rlwe.ParametersLiteral from the target bgv.ParametersLiteral.
 func (p ParametersLiteral) RLWEParametersLiteral() rlwe.ParametersLiteral {
 	return rlwe.ParametersLiteral{
 		LogN:           p.LogN,
@@ -236,16 +236,6 @@ func (p Parameters) Equal(other Parameters) bool {
 	res := p.Parameters.Equal(other.Parameters)
 	res = res && (p.T() == other.T())
 	return res
-}
-
-// CopyNew makes a deep copy of the receiver and returns it.
-//
-// Deprecated: Parameter is now a read-only struct, except for the UnmarshalBinary method: deep copying should only be
-// required to save a Parameter struct before calling its UnmarshalBinary method and it will be deprecated when
-// transitioning to a immutable serialization interface.
-func (p Parameters) CopyNew() Parameters {
-	p.Parameters = p.Parameters.CopyNew()
-	return p
 }
 
 // MarshalBinary returns a []byte representation of the parameter set.

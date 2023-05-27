@@ -75,7 +75,6 @@ func TestBGV(t *testing.T) {
 		}
 
 		for _, testSet := range []func(tc *testContext, t *testing.T){
-			testParameters,
 			testEncoder,
 			testEvaluator,
 			testLinearTransform,
@@ -171,14 +170,6 @@ func verifyTestVectors(tc *testContext, decryptor rlwe.Decryptor, coeffs *ring.P
 	}
 
 	require.True(t, utils.EqualSlice(coeffs.Coeffs[0], coeffsTest))
-}
-
-func testParameters(tc *testContext, t *testing.T) {
-
-	t.Run("Parameters/CopyNew", func(t *testing.T) {
-		params1, params2 := tc.params.CopyNew(), tc.params.CopyNew()
-		require.True(t, params1.Equal(tc.params) && params2.Equal(tc.params))
-	})
 }
 
 func testEncoder(tc *testContext, t *testing.T) {

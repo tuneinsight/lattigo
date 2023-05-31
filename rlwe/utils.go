@@ -251,3 +251,64 @@ func BSGSIndex(nonZeroDiags []int, slots, N1 int) (index map[int][]int, rotN1, r
 
 	return
 }
+
+// NTTSparseAndMontgomery takes a polynomial Z[Y] outside of the NTT domain and maps it to a polynomial Z[X] in the NTT domain where Y = X^(gap).
+// This method is used to accelerate the NTT of polynomials that encode sparse polynomials.
+func NTTSparseAndMontgomery(r *ring.Ring, logSlots int, ntt, montgomery bool, pol *ring.Poly) {
+
+	if 1<<logSlots == r.NthRoot()>>2 {
+
+		if ntt {
+			r.NTT(pol, pol)
+		}
+
+		if montgomery {
+			r.MForm(pol, pol)
+		}
+
+	} else {
+
+		var n int
+		var NTT func(p1, p2 []uint64, N int, Q, QInv uint64, BRedConstant, nttPsi []uint64)
+		switch r.Type() {
+		case ring.Standard:
+			n = 2 << logSlots
+			NTT = ring.NTTStandard
+		case ring.ConjugateInvariant:
+			n = 1 << logSlots
+			NTT = ring.NTTConjugateInvariant
+		}
+
+		N := r.N()
+		gap := N / n
+		for i, s := range r.SubRings[:r.Level()+1] {
+
+			coeffs := pol.Coeffs[i]
+
+			if montgomery {
+				s.MForm(coeffs[:n], coeffs[:n])
+			}
+
+			if ntt {
+				// NTT in dimension n but with roots of N
+				// This is a small hack to perform at reduced cost an NTT of dimension N on a vector in Y = X^{N/n}, i.e. sparse polynomials.
+				NTT(coeffs[:n], coeffs[:n], n, s.Modulus, s.MRedConstant, s.BRedConstant, s.RootsForward)
+
+				// Maps NTT in dimension n to NTT in dimension N
+				for j := n - 1; j >= 0; j-- {
+					c := coeffs[j]
+					for w := 0; w < gap; w++ {
+						coeffs[j*gap+w] = c
+					}
+				}
+			} else {
+				for j := n - 1; j >= 0; j-- {
+					coeffs[j*gap] = coeffs[j]
+					for j := 1; j < gap; j++ {
+						coeffs[j*gap-j] = 0
+					}
+				}
+			}
+		}
+	}
+}

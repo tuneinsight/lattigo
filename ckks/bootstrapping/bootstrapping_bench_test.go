@@ -34,7 +34,7 @@ func BenchmarkBootstrap(b *testing.B) {
 		panic(err)
 	}
 
-	b.Run(ParamsToString(params, btpParams.LogSlots(), "Bootstrap/"), func(b *testing.B) {
+	b.Run(ParamsToString(params, btpParams.LogSlots()[1], "Bootstrap/"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 
 			bootstrappingScale := rlwe.NewScale(math.Exp2(math.Round(math.Log2(float64(btp.params.Q()[0]) / btp.evalModPoly.MessageRatio()))))
@@ -54,7 +54,7 @@ func BenchmarkBootstrap(b *testing.B) {
 
 			//SubSum X -> (N/dslots) * Y^dslots
 			t = time.Now()
-			btp.Trace(ct, ct.LogSlots, ct)
+			btp.Trace(ct, ct.LogSlots[1], ct)
 			b.Log("After SubSum :", time.Since(t), ct.Level(), ct.Scale.Float64())
 
 			// Part 1 : Coeffs to slots

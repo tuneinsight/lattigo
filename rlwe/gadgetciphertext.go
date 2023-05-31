@@ -18,7 +18,7 @@ type GadgetCiphertext struct {
 
 // NewGadgetCiphertext returns a new Ciphertext key with pre-allocated zero-value.
 // Ciphertext is always in the NTT domain.
-func NewGadgetCiphertext(params Parameters, levelQ, levelP, decompRNS, decompBIT int) *GadgetCiphertext {
+func NewGadgetCiphertext(params ParametersInterface, levelQ, levelP, decompRNS, decompBIT int) *GadgetCiphertext {
 
 	m := make([][]*OperandQP, decompRNS)
 	for i := 0; i < decompRNS; i++ {

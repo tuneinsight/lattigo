@@ -15,14 +15,14 @@ type Decryptor interface {
 
 // decryptor is a structure used to decrypt Ciphertext. It stores the secret-key.
 type decryptor struct {
-	params Parameters
+	params ParametersInterface
 	ringQ  *ring.Ring
 	buff   *ring.Poly
 	sk     *SecretKey
 }
 
 // NewDecryptor instantiates a new generic RLWE Decryptor.
-func NewDecryptor(params Parameters, sk *SecretKey) Decryptor {
+func NewDecryptor(params ParametersInterface, sk *SecretKey) Decryptor {
 
 	if sk.Value.Q.N() != params.N() {
 		panic("cannot NewDecryptor: secret_key is invalid for the provided parameters")

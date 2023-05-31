@@ -192,7 +192,7 @@ func (eval *Evaluator) gadgetProductSinglePAndBitDecompLazy(levelQ int, cx *ring
 	decompRNS := eval.params.DecompRNS(levelQ, levelP)
 	decompPw2 := eval.params.DecompPw2(levelQ, levelP)
 
-	pw2 := eval.params.pow2Base
+	pw2 := eval.params.Pow2Base()
 
 	mask := uint64(((1 << pw2) - 1))
 

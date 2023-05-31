@@ -92,7 +92,7 @@ func (btp *Bootstrapper) bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertex
 	}
 
 	//SubSum X -> (N/dslots) * Y^dslots
-	btp.Trace(ctOut, ctOut.LogSlots, ctOut)
+	btp.Trace(ctOut, ctOut.LogSlots[1], ctOut)
 
 	// Step 2 : CoeffsToSlots (Homomorphic encoding)
 	ctReal, ctImag := btp.CoeffsToSlotsNew(ctOut, btp.ctsMatrices)

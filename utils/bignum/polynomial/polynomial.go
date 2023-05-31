@@ -36,32 +36,26 @@ func NewPolynomial(basis Basis, coeffs interface{}, interval interface{}) *Polyn
 	switch coeffs := coeffs.(type) {
 	case []uint64:
 		coefficients = make([]*bignum.Complex, len(coeffs))
-		for i := range coeffs {
-			if c := coeffs[i]; c != 0 {
-				coefficients[i] = &bignum.Complex{
-					new(big.Float).SetUint64(c),
-					new(big.Float),
-				}
+		for i, c := range coeffs {
+			coefficients[i] = &bignum.Complex{
+				new(big.Float).SetUint64(c),
+				new(big.Float),
 			}
 		}
 	case []complex128:
 		coefficients = make([]*bignum.Complex, len(coeffs))
-		for i := range coeffs {
-			if c := coeffs[i]; c != 0 {
-				coefficients[i] = &bignum.Complex{
-					new(big.Float).SetFloat64(real(c)),
-					new(big.Float).SetFloat64(imag(c)),
-				}
+		for i, c := range coeffs {
+			coefficients[i] = &bignum.Complex{
+				new(big.Float).SetFloat64(real(c)),
+				new(big.Float).SetFloat64(imag(c)),
 			}
 		}
 	case []float64:
 		coefficients = make([]*bignum.Complex, len(coeffs))
-		for i := range coeffs {
-			if c := coeffs[i]; c != 0 {
-				coefficients[i] = &bignum.Complex{
-					new(big.Float).SetFloat64(c),
-					new(big.Float),
-				}
+		for i, c := range coeffs {
+			coefficients[i] = &bignum.Complex{
+				new(big.Float).SetFloat64(c),
+				new(big.Float),
 			}
 		}
 	case []*bignum.Complex:
@@ -69,12 +63,10 @@ func NewPolynomial(basis Basis, coeffs interface{}, interval interface{}) *Polyn
 		copy(coefficients, coeffs)
 	case []*big.Float:
 		coefficients = make([]*bignum.Complex, len(coeffs))
-		for i := range coeffs {
-			if coeffs[i] != nil {
-				coefficients[i] = &bignum.Complex{
-					new(big.Float).Set(coeffs[i]),
-					new(big.Float),
-				}
+		for i, c := range coeffs {
+			coefficients[i] = &bignum.Complex{
+				new(big.Float).Set(c),
+				new(big.Float),
 			}
 		}
 	default:

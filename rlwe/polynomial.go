@@ -56,7 +56,7 @@ type PatersonStockmeyerPolynomial struct {
 	Value  []*Polynomial
 }
 
-func (p *Polynomial) GetPatersonStockmeyerPolynomial(params Parameters, inputLevel int, inputScale, outputScale Scale, eval DummyEvaluator) *PatersonStockmeyerPolynomial {
+func (p *Polynomial) GetPatersonStockmeyerPolynomial(params ParametersInterface, inputLevel int, inputScale, outputScale Scale, eval DummyEvaluator) *PatersonStockmeyerPolynomial {
 
 	logDegree := bits.Len64(uint64(p.Degree()))
 	logSplit := polynomial.OptimalSplit(logDegree)
@@ -83,7 +83,7 @@ func (p *Polynomial) GetPatersonStockmeyerPolynomial(params Parameters, inputLev
 	}
 }
 
-func recursePS(params Parameters, logSplit, targetLevel int, p *Polynomial, pb DummyPowerBasis, outputScale Scale, eval DummyEvaluator) ([]*Polynomial, *DummyOperand) {
+func recursePS(params ParametersInterface, logSplit, targetLevel int, p *Polynomial, pb DummyPowerBasis, outputScale Scale, eval DummyEvaluator) ([]*Polynomial, *DummyOperand) {
 
 	if p.Degree() < (1 << logSplit) {
 
@@ -192,7 +192,7 @@ type PatersonStockmeyerPolynomialVector struct {
 }
 
 // GetPatersonStockmeyerPolynomial returns
-func (p *PolynomialVector) GetPatersonStockmeyerPolynomial(params Parameters, inputLevel int, inputScale, outputScale Scale, eval DummyEvaluator) *PatersonStockmeyerPolynomialVector {
+func (p *PolynomialVector) GetPatersonStockmeyerPolynomial(params ParametersInterface, inputLevel int, inputScale, outputScale Scale, eval DummyEvaluator) *PatersonStockmeyerPolynomialVector {
 	Value := make([]*PatersonStockmeyerPolynomial, len(p.Value))
 	for i := range Value {
 		Value[i] = p.Value[i].GetPatersonStockmeyerPolynomial(params, inputLevel, inputScale, outputScale, eval)

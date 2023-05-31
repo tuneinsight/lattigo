@@ -96,7 +96,9 @@ func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, ct *rl
 		coeffs := make([]uint64, len(mask.Coeffs[0]))
 
 		if transform.Decode {
-			rfp.e2s.encoder.DecodeRingT(mask, scale, coeffs)
+			if err := rfp.e2s.encoder.DecodeRingT(mask, scale, coeffs); err != nil {
+				panic(fmt.Errorf("cannot GenShare: %w", err))
+			}
 		} else {
 			copy(coeffs, mask.Coeffs[0])
 		}
@@ -104,7 +106,9 @@ func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, ct *rl
 		transform.Func(coeffs)
 
 		if transform.Encode {
-			rfp.s2e.encoder.EncodeRingT(coeffs, scale, rfp.tmpMaskPerm)
+			if err := rfp.s2e.encoder.EncodeRingT(coeffs, scale, rfp.tmpMaskPerm); err != nil {
+				panic(fmt.Errorf("cannot GenShare: %w", err))
+			}
 		} else {
 			copy(rfp.tmpMaskPerm.Coeffs[0], coeffs)
 		}

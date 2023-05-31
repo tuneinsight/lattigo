@@ -27,19 +27,22 @@ var (
 		LogN: 13,
 		Q:    []uint64{0x3fffffa8001, 0x1000090001, 0x10000c8001, 0x10000f0001, 0xffff00001},
 		P:    []uint64{0x7fffffd8001},
-		T:    0xffc001,
 	}
+
+	TestPlaintextModulus = []uint64{0x101, 0xffc001}
 
 	// TestParams is a set of test parameters for BGV ensuring 128 bit security in the classic setting.
 	TestParams = []ParametersLiteral{TESTN14QP418}
 )
 
 func GetTestName(opname string, p Parameters, lvl int) string {
-	return fmt.Sprintf("%s/LogN=%d/logQ=%d/logP=%d/logT=%d/Qi=%d/Pi=%d/lvl=%d",
+	return fmt.Sprintf("%s/LogN=%d/logQ=%d/logP=%d/LogSlots=%dx%d/logT=%d/Qi=%d/Pi=%d/lvl=%d",
 		opname,
 		p.LogN(),
 		int(math.Round(p.LogQ())),
 		int(math.Round(p.LogP())),
+		p.MaxLogSlots()[0],
+		p.MaxLogSlots()[1],
 		int(math.Round(p.LogT())),
 		p.QCount(),
 		p.PCount(),
@@ -62,26 +65,31 @@ func TestBGV(t *testing.T) {
 
 	for _, p := range paramsLiterals[:] {
 
-		var params Parameters
-		if params, err = NewParametersFromLiteral(p); err != nil {
-			t.Error(err)
-			t.Fail()
-		}
+		for _, plaintextModulus := range TestPlaintextModulus[:] {
 
-		var tc *testContext
-		if tc, err = genTestParams(params); err != nil {
-			t.Error(err)
-			t.Fail()
-		}
+			p.T = plaintextModulus
 
-		for _, testSet := range []func(tc *testContext, t *testing.T){
-			testEncoder,
-			testEvaluator,
-			testLinearTransform,
-			testMarshalling,
-		} {
-			testSet(tc, t)
-			runtime.GC()
+			var params Parameters
+			if params, err = NewParametersFromLiteral(p); err != nil {
+				t.Error(err)
+				t.Fail()
+			}
+
+			var tc *testContext
+			if tc, err = genTestParams(params); err != nil {
+				t.Error(err)
+				t.Fail()
+			}
+
+			for _, testSet := range []func(tc *testContext, t *testing.T){
+				testEncoder,
+				testEvaluator,
+				testLinearTransform,
+				testMarshalling,
+			} {
+				testSet(tc, t)
+				runtime.GC()
+			}
 		}
 	}
 }
@@ -136,6 +144,7 @@ func newTestVectorsLvl(level int, scale rlwe.Scale, tc *testContext, encryptor r
 	for i := range coeffs.Coeffs[0] {
 		coeffs.Coeffs[0][i] = uint64(i)
 	}
+
 	plaintext = NewPlaintext(tc.params, level)
 	plaintext.Scale = scale
 	tc.encoder.Encode(coeffs.Coeffs[0], plaintext)
@@ -592,10 +601,12 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				coeffs0 := []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 				coeffs1 := []uint64{2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17}
 
+				totSlots := tc.params.MaxSlots()[0] * tc.params.MaxSlots()[1]
+
 				slotIndex := make(map[int][]int)
-				idx0 := make([]int, tc.params.N()>>1)
-				idx1 := make([]int, tc.params.N()>>1)
-				for i := 0; i < tc.params.N()>>1; i++ {
+				idx0 := make([]int, totSlots>>1)
+				idx1 := make([]int, totSlots>>1)
+				for i := 0; i < totSlots>>1; i++ {
 					idx0[i] = 2 * i
 					idx1[i] = 2*i + 1
 				}
@@ -695,27 +706,29 @@ func testEvaluator(tc *testContext, t *testing.T) {
 
 func testLinearTransform(tc *testContext, t *testing.T) {
 
-	t.Run(GetTestName("Evaluator/LinearTransform/Naive", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
+	level := tc.params.MaxLevel()
+
+	t.Run(GetTestName("Evaluator/LinearTransform/Naive", tc.params, level), func(t *testing.T) {
 
 		params := tc.params
 
-		values, _, ciphertext := newTestVectorsLvl(tc.params.MaxLevel(), tc.params.DefaultScale(), tc, tc.encryptorSk)
+		values, _, ciphertext := newTestVectorsLvl(level, tc.params.DefaultScale(), tc, tc.encryptorSk)
 
 		diagMatrix := make(map[int][]uint64)
 
-		N := params.N()
+		totSlots := tc.params.MaxSlots()[0] * tc.params.MaxSlots()[1]
 
-		diagMatrix[-1] = make([]uint64, N)
-		diagMatrix[0] = make([]uint64, N)
-		diagMatrix[1] = make([]uint64, N)
+		diagMatrix[-1] = make([]uint64, totSlots)
+		diagMatrix[0] = make([]uint64, totSlots)
+		diagMatrix[1] = make([]uint64, totSlots)
 
-		for i := 0; i < N; i++ {
+		for i := 0; i < totSlots; i++ {
 			diagMatrix[-1][i] = 1
 			diagMatrix[0][i] = 1
 			diagMatrix[1][i] = 1
 		}
 
-		linTransf, err := rlwe.GenLinearTransform(NewLinearTransformEncoder(tc.encoder, diagMatrix), params.MaxLevel(), params.DefaultScale(), params.LogN()-1)
+		linTransf, err := GenLinearTransform(diagMatrix, tc.encoder, level, params.DefaultScale())
 		require.NoError(t, err)
 
 		galEls := linTransf.GaloisElements(params)
@@ -728,7 +741,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		eval.LinearTransform(ciphertext, linTransf, []*rlwe.Ciphertext{ciphertext})
 
-		tmp := make([]uint64, params.N())
+		tmp := make([]uint64, totSlots)
 		copy(tmp, values.Coeffs[0])
 
 		subRing := tc.params.RingT().SubRings[0]
@@ -739,27 +752,27 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 		verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
 	})
 
-	t.Run(GetTestName("Evaluator/LinearTransform/BSGS", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
+	t.Run(GetTestName("Evaluator/LinearTransform/BSGS", tc.params, level), func(t *testing.T) {
 
 		params := tc.params
 
-		values, _, ciphertext := newTestVectorsLvl(tc.params.MaxLevel(), tc.params.DefaultScale(), tc, tc.encryptorSk)
+		values, _, ciphertext := newTestVectorsLvl(level, tc.params.DefaultScale(), tc, tc.encryptorSk)
 
 		diagMatrix := make(map[int][]uint64)
 
-		N := params.N()
+		totSlots := tc.params.MaxSlots()[0] * tc.params.MaxSlots()[1]
 
-		diagMatrix[-15] = make([]uint64, N)
-		diagMatrix[-4] = make([]uint64, N)
-		diagMatrix[-1] = make([]uint64, N)
-		diagMatrix[0] = make([]uint64, N)
-		diagMatrix[1] = make([]uint64, N)
-		diagMatrix[2] = make([]uint64, N)
-		diagMatrix[3] = make([]uint64, N)
-		diagMatrix[4] = make([]uint64, N)
-		diagMatrix[15] = make([]uint64, N)
+		diagMatrix[-15] = make([]uint64, totSlots)
+		diagMatrix[-4] = make([]uint64, totSlots)
+		diagMatrix[-1] = make([]uint64, totSlots)
+		diagMatrix[0] = make([]uint64, totSlots)
+		diagMatrix[1] = make([]uint64, totSlots)
+		diagMatrix[2] = make([]uint64, totSlots)
+		diagMatrix[3] = make([]uint64, totSlots)
+		diagMatrix[4] = make([]uint64, totSlots)
+		diagMatrix[15] = make([]uint64, totSlots)
 
-		for i := 0; i < N; i++ {
+		for i := 0; i < totSlots; i++ {
 			diagMatrix[-15][i] = 1
 			diagMatrix[-4][i] = 1
 			diagMatrix[-1][i] = 1
@@ -771,7 +784,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 			diagMatrix[15][i] = 1
 		}
 
-		linTransf, err := rlwe.GenLinearTransformBSGS(NewLinearTransformEncoder(tc.encoder, diagMatrix), params.MaxLevel(), tc.params.DefaultScale(), params.LogN()-1, 2)
+		linTransf, err := GenLinearTransformBSGS(diagMatrix, tc.encoder, level, tc.params.DefaultScale(), 2)
 		require.NoError(t, err)
 
 		galEls := linTransf.GaloisElements(params)
@@ -785,7 +798,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		eval.LinearTransform(ciphertext, linTransf, []*rlwe.Ciphertext{ciphertext})
 
-		tmp := make([]uint64, params.N())
+		tmp := make([]uint64, totSlots)
 		copy(tmp, values.Coeffs[0])
 
 		subRing := tc.params.RingT().SubRings[0]

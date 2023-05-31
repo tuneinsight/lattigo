@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"math/bits"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/ring/distribution"
@@ -173,8 +174,14 @@ func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err erro
 		return Parameters{}, err
 	}
 
+	// Find the largest cyclotomic order enabled by T
+	order := uint64(1 << bits.Len64(t))
+	for t&(order-1) != 1 {
+		order >>= 1
+	}
+
 	var ringT *ring.Ring
-	if ringT, err = ring.NewRing(rlweParams.N(), []uint64{t}); err != nil {
+	if ringT, err = ring.NewRing(utils.Min(rlweParams.N(), int(order>>1)), []uint64{t}); err != nil {
 		return Parameters{}, err
 	}
 
@@ -211,6 +218,30 @@ func (p Parameters) ParametersLiteral() ParametersLiteral {
 	}
 }
 
+// MaxSlots returns the maximum dimension of the matrix that can be SIMD packed in a single plaintext polynomial.
+func (p Parameters) MaxSlots() [2]int {
+	switch p.RingType() {
+	case ring.Standard:
+		return [2]int{2, p.RingT().N() >> 1}
+	case ring.ConjugateInvariant:
+		return [2]int{1, p.RingT().N()}
+	default:
+		panic("cannot MaxSlots: invalid ring type")
+	}
+}
+
+// MaxLogSlots returns the log2 of maximum dimension of the matrix that can be SIMD packed in a single plaintext polynomial.
+func (p Parameters) MaxLogSlots() [2]int {
+	switch p.RingType() {
+	case ring.Standard:
+		return [2]int{1, p.RingT().LogN() - 1}
+	case ring.ConjugateInvariant:
+		return [2]int{0, p.RingT().LogN()}
+	default:
+		panic("cannot MaxLogSlots: invalid ring type")
+	}
+}
+
 // RingQMul returns a pointer to the ring of the extended basis for multiplication.
 func (p Parameters) RingQMul() *ring.Ring {
 	return p.ringQMul
@@ -232,10 +263,13 @@ func (p Parameters) RingT() *ring.Ring {
 }
 
 // Equal compares two sets of parameters for equality.
-func (p Parameters) Equal(other Parameters) bool {
-	res := p.Parameters.Equal(other.Parameters)
-	res = res && (p.T() == other.T())
-	return res
+func (p Parameters) Equal(other rlwe.ParametersInterface) bool {
+	switch other := other.(type) {
+	case Parameters:
+		return p.Parameters.Equal(other.Parameters) && (p.T() == other.T())
+	}
+
+	panic(fmt.Errorf("cannot Equal: type do not match: %T != %T", p, other))
 }
 
 // MarshalBinary returns a []byte representation of the parameter set.

@@ -73,7 +73,7 @@ func (eval *Evaluator) Polynomial(input interface{}, p interface{}, invariantTen
 		}
 	}
 
-	PS := polyVec.GetPatersonStockmeyerPolynomial(eval.params.Parameters, powerbasis.Value[1].Level(), powerbasis.Value[1].Scale, targetScale, &dummyEvaluator{eval.params, invariantTensoring})
+	PS := polyVec.GetPatersonStockmeyerPolynomial(eval.params, powerbasis.Value[1].Level(), powerbasis.Value[1].Scale, targetScale, &dummyEvaluator{eval.params, invariantTensoring})
 
 	if opOut, err = rlwe.EvaluatePatersonStockmeyerPolynomialVector(PS, powerbasis, polyEval); err != nil {
 		return nil, err
@@ -216,6 +216,7 @@ func (polyEval *polynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targ
 
 	params := polyEval.Evaluator.params
 	slotsIndex := pol.SlotsIndex
+	slots := params.RingT().N()
 	even := pol.IsEven()
 	odd := pol.IsOdd()
 
@@ -240,13 +241,13 @@ func (polyEval *polynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targ
 		var toEncode bool
 
 		// Allocates temporary buffer for coefficients encoding
-		values := make([]uint64, params.N())
+		values := make([]uint64, slots)
 
 		// If the degree of the poly is zero
 		if minimumDegreeNonZeroCoefficient == 0 {
 
 			// Allocates the output ciphertext
-			res = rlwe.NewCiphertext(params.Parameters, 1, targetLevel)
+			res = rlwe.NewCiphertext(params, 1, targetLevel)
 			res.Scale = targetScale
 
 			// Looks for non-zero coefficients among the degree 0 coefficients of the polynomials
@@ -271,7 +272,7 @@ func (polyEval *polynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targ
 		}
 
 		// Allocates the output ciphertext
-		res = rlwe.NewCiphertext(params.Parameters, maximumCiphertextDegree, targetLevel)
+		res = rlwe.NewCiphertext(params, maximumCiphertextDegree, targetLevel)
 		res.Scale = targetScale
 
 		// Allocates a temporary plaintext to encode the values
@@ -349,7 +350,7 @@ func (polyEval *polynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targ
 
 		if minimumDegreeNonZeroCoefficient == 0 {
 
-			res = rlwe.NewCiphertext(params.Parameters, 1, targetLevel)
+			res = rlwe.NewCiphertext(params, 1, targetLevel)
 			res.Scale = targetScale
 
 			if c != 0 {
@@ -359,7 +360,7 @@ func (polyEval *polynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targ
 			return
 		}
 
-		res = rlwe.NewCiphertext(params.Parameters, maximumCiphertextDegree, targetLevel)
+		res = rlwe.NewCiphertext(params, maximumCiphertextDegree, targetLevel)
 		res.Scale = targetScale
 
 		if c != 0 {

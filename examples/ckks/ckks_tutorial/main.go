@@ -175,7 +175,7 @@ func main() {
 	//
 	// We use the default number of slots, which is N/2.
 	// It is possible to use less slots, however it most situations, there is no reason to do so.
-	LogSlots := params.MaxLogSlots()
+	LogSlots := params.MaxLogSlots()[1]
 	Slots := 1 << LogSlots
 
 	// We generate a vector of `[]complex128` with both the real and imaginary part uniformly distributed in [-1, 1]
@@ -634,7 +634,7 @@ func main() {
 	// LogBSGSRatio: the log of the ratio of the inner/outer loops of the baby-step giant-step algorithm for matrix-vector evaluation, leave it to 1
 	// LogSlots: the log2 of the dimension of the linear transformation
 	LogBSGSRatio := 1
-	linTransf, err := rlwe.GenLinearTransformBSGS(ckks.NewLinearTransformEncoder(ecd, diags), params.MaxLevel(), rlwe.NewScale(params.Q()[res.Level()]), LogSlots, LogBSGSRatio)
+	linTransf, err := ckks.GenLinearTransformBSGS(diags, ecd, params.MaxLevel(), rlwe.NewScale(params.Q()[res.Level()]), LogSlots, LogBSGSRatio)
 
 	if err != nil {
 		panic(err)

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"math/bits"
 
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
@@ -137,6 +138,11 @@ func (r *Ring) StandardRing() (*Ring, error) {
 // N returns the ring degree.
 func (r *Ring) N() int {
 	return r.SubRings[0].N
+}
+
+// LogN returns log2(ring degree).
+func (r *Ring) LogN() int {
+	return bits.Len64(uint64(r.N() - 1))
 }
 
 // NthRoot returns the multiplicative order of the primitive root.

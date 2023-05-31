@@ -18,7 +18,7 @@ type EvaluationKey struct {
 }
 
 // NewEvaluationKey returns a new EvaluationKey with pre-allocated zero-value
-func NewEvaluationKey(params Parameters, levelQ, levelP int) *EvaluationKey {
+func NewEvaluationKey(params ParametersInterface, levelQ, levelP int) *EvaluationKey {
 	return &EvaluationKey{GadgetCiphertext: *NewGadgetCiphertext(
 		params,
 		levelQ,

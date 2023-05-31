@@ -13,7 +13,7 @@ type KeyGenerator struct {
 }
 
 // NewKeyGenerator creates a new KeyGenerator, from which the secret and public keys, as well as EvaluationKeys.
-func NewKeyGenerator(params Parameters) *KeyGenerator {
+func NewKeyGenerator(params ParametersInterface) *KeyGenerator {
 	return &KeyGenerator{
 		skEncryptor: newSkEncryptor(params, NewSecretKey(params)),
 	}

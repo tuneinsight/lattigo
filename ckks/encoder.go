@@ -43,7 +43,7 @@ const GaloisGen uint64 = ring.GaloisGen
 type Encoder struct {
 	prec uint
 
-	params       Parameters
+	parameters   Parameters
 	bigintCoeffs []*big.Int
 	qHalf        *big.Int
 	buff         *ring.Poly
@@ -79,7 +79,7 @@ func (ecd *Encoder) ShallowCopy() *Encoder {
 
 	return &Encoder{
 		prec:         ecd.prec,
-		params:       ecd.params,
+		parameters:   ecd.parameters,
 		bigintCoeffs: make([]*big.Int, len(ecd.bigintCoeffs)),
 		qHalf:        new(big.Int),
 		buff:         ecd.buff.CopyNew(),
@@ -95,9 +95,9 @@ func (ecd *Encoder) ShallowCopy() *Encoder {
 // Optional field `precision` can be given. If precision is empty
 // or <= 53, then float64 and complex128 types will be used to
 // perform the encoding. Else *big.Float and *bignum.Complex will be used.
-func NewEncoder(params Parameters, precision ...uint) (ecd *Encoder) {
+func NewEncoder(parameters Parameters, precision ...uint) (ecd *Encoder) {
 
-	m := int(params.RingQ().NthRoot())
+	m := int(parameters.RingQ().NthRoot())
 
 	rotGroup := make([]int, m>>2)
 	fivePows := 1
@@ -116,15 +116,15 @@ func NewEncoder(params Parameters, precision ...uint) (ecd *Encoder) {
 	if len(precision) != 0 && precision[0] != 0 {
 		prec = precision[0]
 	} else {
-		prec = params.DefaultPrecision()
+		prec = parameters.DefaultPrecision()
 	}
 
 	ecd = &Encoder{
 		prec:         prec,
-		params:       params,
+		parameters:   parameters,
 		bigintCoeffs: make([]*big.Int, m>>1),
 		qHalf:        bignum.NewInt(0),
-		buff:         params.RingQ().NewPoly(),
+		buff:         parameters.RingQ().NewPoly(),
 		m:            m,
 		rotGroup:     rotGroup,
 		prng:         prng,
@@ -157,8 +157,8 @@ func (ecd *Encoder) Prec() uint {
 }
 
 // Parameters returns the Parameters used by the target Encoder.
-func (ecd *Encoder) Parameters() Parameters {
-	return ecd.params
+func (ecd *Encoder) Parameters() rlwe.ParametersInterface {
+	return ecd.parameters
 }
 
 // Encode encodes a set of values on the target plaintext.
@@ -173,32 +173,32 @@ func (ecd *Encoder) Encode(values interface{}, pt *rlwe.Plaintext) (err error) {
 	switch pt.EncodingDomain {
 	case rlwe.SlotsDomain:
 
-		return ecd.Embed(values, pt.LogSlots, pt.Scale, false, pt.Value)
+		return ecd.Embed(values, pt.LogSlots[1], pt.Scale, false, pt.Value)
 
 	case rlwe.CoefficientsDomain:
 
 		switch values := values.(type) {
 		case []float64:
 
-			if len(values) > ecd.params.N() {
-				return fmt.Errorf("cannot Encode: maximum number of values is %d but len(values) is %d", ecd.params.N(), len(values))
+			if len(values) > ecd.parameters.N() {
+				return fmt.Errorf("cannot Encode: maximum number of values is %d but len(values) is %d", ecd.parameters.N(), len(values))
 			}
 
-			Float64ToFixedPointCRT(ecd.params.RingQ().AtLevel(pt.Level()), values, pt.Scale.Float64(), pt.Value.Coeffs)
+			Float64ToFixedPointCRT(ecd.parameters.RingQ().AtLevel(pt.Level()), values, pt.Scale.Float64(), pt.Value.Coeffs)
 
 		case []*big.Float:
 
-			if len(values) > ecd.params.N() {
-				return fmt.Errorf("cannot Encode: maximum number of values is %d but len(values) is %d", ecd.params.N(), len(values))
+			if len(values) > ecd.parameters.N() {
+				return fmt.Errorf("cannot Encode: maximum number of values is %d but len(values) is %d", ecd.parameters.N(), len(values))
 			}
 
-			BigFloatToFixedPointCRT(ecd.params.RingQ().AtLevel(pt.Level()), values, &pt.Scale.Value, pt.Value.Coeffs)
+			BigFloatToFixedPointCRT(ecd.parameters.RingQ().AtLevel(pt.Level()), values, &pt.Scale.Value, pt.Value.Coeffs)
 
 		default:
 			return fmt.Errorf("cannot Encode: supported values.(type) for %T encoding domain is []float64 or []*big.Float, but %T was given", rlwe.CoefficientsDomain, values)
 		}
 
-		ecd.params.RingQ().AtLevel(pt.Level()).NTT(pt.Value, pt.Value)
+		ecd.parameters.RingQ().AtLevel(pt.Level()).NTT(pt.Value, pt.Value)
 
 	default:
 		return fmt.Errorf("cannot Encode: invalid rlwe.EncodingType, accepted types are rlwe.SlotsDomain and rlwe.CoefficientsDomain but is %T", pt.EncodingDomain)
@@ -244,8 +244,8 @@ func (ecd *Encoder) Embed(values interface{}, logSlots int, scale rlwe.Scale, mo
 
 func (ecd *Encoder) embedDouble(values interface{}, logSlots int, scale rlwe.Scale, montgomery bool, polyOut interface{}) (err error) {
 
-	if logSlots < 0 || logSlots > ecd.params.MaxLogSlots() {
-		return fmt.Errorf("cannot Embed: logSlots (%d) must be greater or equal to %d and smaller than %d", logSlots, 0, ecd.params.MaxLogSlots())
+	if maxLogCols := ecd.parameters.MaxLogSlots()[1]; logSlots < 0 || logSlots > maxLogCols {
+		return fmt.Errorf("cannot Embed: logSlots (%d) must be greater or equal to %d and smaller than %d", logSlots, 0, maxLogCols)
 	}
 
 	slots := 1 << logSlots
@@ -259,11 +259,11 @@ func (ecd *Encoder) embedDouble(values interface{}, logSlots int, scale rlwe.Sca
 
 		lenValues = len(values)
 
-		if lenValues > ecd.params.MaxSlots() || lenValues > slots {
-			return fmt.Errorf("cannot Embed: ensure that #values (%d) <= slots (%d) <= maxSlots (%d)", len(values), slots, ecd.params.MaxSlots())
+		if maxCols := ecd.parameters.MaxSlots()[1]; lenValues > maxCols || lenValues > slots {
+			return fmt.Errorf("cannot Embed: ensure that #values (%d) <= slots (%d) <= maxCols (%d)", len(values), slots, maxCols)
 		}
 
-		if ecd.params.RingType() == ring.ConjugateInvariant {
+		if ecd.parameters.RingType() == ring.ConjugateInvariant {
 			for i := range values {
 				buffCmplx[i] = complex(real(values[i]), 0)
 			}
@@ -275,11 +275,11 @@ func (ecd *Encoder) embedDouble(values interface{}, logSlots int, scale rlwe.Sca
 
 		lenValues = len(values)
 
-		if lenValues > ecd.params.MaxSlots() || lenValues > slots {
-			return fmt.Errorf("cannot Embed: ensure that #values (%d) <= slots (%d) <= maxSlots (%d)", len(values), slots, ecd.params.MaxSlots())
+		if maxCols := ecd.parameters.MaxSlots()[1]; lenValues > maxCols || lenValues > slots {
+			return fmt.Errorf("cannot Embed: ensure that #values (%d) <= slots (%d) <= maxCols (%d)", len(values), slots, maxCols)
 		}
 
-		if ecd.params.RingType() == ring.ConjugateInvariant {
+		if ecd.parameters.RingType() == ring.ConjugateInvariant {
 			for i := range values {
 				if values[i] != nil {
 					f64, _ := values[i][0].Float64()
@@ -302,8 +302,8 @@ func (ecd *Encoder) embedDouble(values interface{}, logSlots int, scale rlwe.Sca
 
 		lenValues = len(values)
 
-		if lenValues > ecd.params.MaxSlots() || lenValues > slots {
-			return fmt.Errorf("cannot Embed: ensure that #values (%d) <= slots (%d) <= maxSlots (%d)", len(values), slots, ecd.params.MaxSlots())
+		if maxCols := ecd.parameters.MaxSlots()[1]; lenValues > maxCols || lenValues > slots {
+			return fmt.Errorf("cannot Embed: ensure that #values (%d) <= slots (%d) <= maxCols (%d)", len(values), slots, maxCols)
 		}
 
 		for i := range values {
@@ -314,8 +314,8 @@ func (ecd *Encoder) embedDouble(values interface{}, logSlots int, scale rlwe.Sca
 
 		lenValues = len(values)
 
-		if lenValues > ecd.params.MaxSlots() || lenValues > slots {
-			return fmt.Errorf("cannot Embed: ensure that #values (%d) <= slots (%d) <= maxSlots (%d)", len(values), slots, ecd.params.MaxSlots())
+		if maxCols := ecd.parameters.MaxSlots()[1]; lenValues > maxCols || lenValues > slots {
+			return fmt.Errorf("cannot Embed: ensure that #values (%d) <= slots (%d) <= maxCols (%d)", len(values), slots, maxCols)
 		}
 
 		for i := range values {
@@ -343,16 +343,16 @@ func (ecd *Encoder) embedDouble(values interface{}, logSlots int, scale rlwe.Sca
 	// Maps Y = X^{N/n} -> X and quantizes.
 	switch p := polyOut.(type) {
 	case ringqp.Poly:
-		Complex128ToFixedPointCRT(ecd.params.RingQ().AtLevel(p.Q.Level()), buffCmplx[:slots], scale.Float64(), p.Q.Coeffs)
-		NttSparseAndMontgomery(ecd.params.RingQ().AtLevel(p.Q.Level()), logSlots, montgomery, p.Q)
+		Complex128ToFixedPointCRT(ecd.parameters.RingQ().AtLevel(p.Q.Level()), buffCmplx[:slots], scale.Float64(), p.Q.Coeffs)
+		rlwe.NTTSparseAndMontgomery(ecd.parameters.RingQ().AtLevel(p.Q.Level()), logSlots, true, montgomery, p.Q)
 
 		if p.P != nil {
-			Complex128ToFixedPointCRT(ecd.params.RingP().AtLevel(p.P.Level()), buffCmplx[:slots], scale.Float64(), p.P.Coeffs)
-			NttSparseAndMontgomery(ecd.params.RingP().AtLevel(p.P.Level()), logSlots, montgomery, p.P)
+			Complex128ToFixedPointCRT(ecd.parameters.RingP().AtLevel(p.P.Level()), buffCmplx[:slots], scale.Float64(), p.P.Coeffs)
+			rlwe.NTTSparseAndMontgomery(ecd.parameters.RingP().AtLevel(p.P.Level()), logSlots, true, montgomery, p.P)
 		}
 	case *ring.Poly:
-		Complex128ToFixedPointCRT(ecd.params.RingQ().AtLevel(p.Level()), buffCmplx[:slots], scale.Float64(), p.Coeffs)
-		NttSparseAndMontgomery(ecd.params.RingQ().AtLevel(p.Level()), logSlots, montgomery, p)
+		Complex128ToFixedPointCRT(ecd.parameters.RingQ().AtLevel(p.Level()), buffCmplx[:slots], scale.Float64(), p.Coeffs)
+		rlwe.NTTSparseAndMontgomery(ecd.parameters.RingQ().AtLevel(p.Level()), logSlots, true, montgomery, p)
 	default:
 		return fmt.Errorf("cannot Embed: invalid polyOut.(Type) must be ringqp.Poly or *ring.Poly")
 	}
@@ -361,8 +361,9 @@ func (ecd *Encoder) embedDouble(values interface{}, logSlots int, scale rlwe.Sca
 }
 
 func (ecd *Encoder) embedArbitrary(values interface{}, logSlots int, scale rlwe.Scale, montgomery bool, polyOut interface{}) (err error) {
-	if logSlots < 0 || logSlots > ecd.params.MaxLogSlots() {
-		return fmt.Errorf("cannot Embed: logSlots (%d) must be greater or equal to %d and smaller than %d", logSlots, 0, ecd.params.MaxLogSlots())
+
+	if maxLogCols := ecd.parameters.MaxLogSlots()[1]; logSlots < 0 || logSlots > maxLogCols {
+		return fmt.Errorf("cannot Embed: logSlots (%d) must be greater or equal to %d and smaller than %d", logSlots, 0, maxLogCols)
 	}
 
 	slots := 1 << logSlots
@@ -376,11 +377,11 @@ func (ecd *Encoder) embedArbitrary(values interface{}, logSlots int, scale rlwe.
 
 		lenValues = len(values)
 
-		if lenValues > ecd.params.MaxSlots() || lenValues > slots {
-			return fmt.Errorf("cannot Embed: ensure that #values (%d) <= slots (%d) <= maxSlots (%d)", len(values), slots, ecd.params.MaxSlots())
+		if maxCols := ecd.parameters.MaxSlots()[1]; lenValues > maxCols || lenValues > slots {
+			return fmt.Errorf("cannot Embed: ensure that #values (%d) <= slots (%d) <= maxCols (%d)", len(values), slots, maxCols)
 		}
 
-		if ecd.params.RingType() == ring.ConjugateInvariant {
+		if ecd.parameters.RingType() == ring.ConjugateInvariant {
 			for i := range values {
 				buffCmplx[i][0].SetFloat64(real(values[i]))
 				buffCmplx[i][1].SetFloat64(0)
@@ -396,11 +397,11 @@ func (ecd *Encoder) embedArbitrary(values interface{}, logSlots int, scale rlwe.
 
 		lenValues = len(values)
 
-		if lenValues > ecd.params.MaxSlots() || lenValues > slots {
-			return fmt.Errorf("cannot Embed: ensure that #values (%d) <= slots (%d) <= maxSlots (%d)", len(values), slots, ecd.params.MaxSlots())
+		if maxCols := ecd.parameters.MaxSlots()[1]; lenValues > maxCols || lenValues > slots {
+			return fmt.Errorf("cannot Embed: ensure that #values (%d) <= slots (%d) <= maxCols (%d)", len(values), slots, maxCols)
 		}
 
-		if ecd.params.RingType() == ring.ConjugateInvariant {
+		if ecd.parameters.RingType() == ring.ConjugateInvariant {
 			for i := range values {
 				if values[i] != nil {
 					buffCmplx[i][0].Set(values[i][0])
@@ -425,8 +426,8 @@ func (ecd *Encoder) embedArbitrary(values interface{}, logSlots int, scale rlwe.
 
 		lenValues = len(values)
 
-		if lenValues > ecd.params.MaxSlots() || lenValues > slots {
-			return fmt.Errorf("cannot Embed: ensure that #values (%d) <= slots (%d) <= maxSlots (%d)", len(values), slots, ecd.params.MaxSlots())
+		if maxCols := ecd.parameters.MaxSlots()[1]; lenValues > maxCols || lenValues > slots {
+			return fmt.Errorf("cannot Embed: ensure that #values (%d) <= slots (%d) <= maxCols (%d)", len(values), slots, maxCols)
 		}
 
 		for i := range values {
@@ -438,8 +439,8 @@ func (ecd *Encoder) embedArbitrary(values interface{}, logSlots int, scale rlwe.
 
 		lenValues = len(values)
 
-		if lenValues > ecd.params.MaxSlots() || lenValues > slots {
-			return fmt.Errorf("cannot Embed: ensure that #values (%d) <= slots (%d) <= maxSlots (%d)", len(values), slots, ecd.params.MaxSlots())
+		if maxCols := ecd.parameters.MaxSlots()[1]; lenValues > maxCols || lenValues > slots {
+			return fmt.Errorf("cannot Embed: ensure that #values (%d) <= slots (%d) <= maxCols (%d)", len(values), slots, maxCols)
 		}
 
 		for i := range values {
@@ -470,17 +471,17 @@ func (ecd *Encoder) embedArbitrary(values interface{}, logSlots int, scale rlwe.
 
 	case *ring.Poly:
 
-		ComplexArbitraryToFixedPointCRT(ecd.params.RingQ().AtLevel(p.Level()), buffCmplx[:slots], &scale.Value, p.Coeffs)
-		NttSparseAndMontgomery(ecd.params.RingQ().AtLevel(p.Level()), logSlots, montgomery, p)
+		ComplexArbitraryToFixedPointCRT(ecd.parameters.RingQ().AtLevel(p.Level()), buffCmplx[:slots], &scale.Value, p.Coeffs)
+		rlwe.NTTSparseAndMontgomery(ecd.parameters.RingQ().AtLevel(p.Level()), logSlots, true, montgomery, p)
 
 	case ringqp.Poly:
 
-		ComplexArbitraryToFixedPointCRT(ecd.params.RingQ().AtLevel(p.Q.Level()), buffCmplx[:slots], &scale.Value, p.Q.Coeffs)
-		NttSparseAndMontgomery(ecd.params.RingQ().AtLevel(p.Q.Level()), logSlots, montgomery, p.Q)
+		ComplexArbitraryToFixedPointCRT(ecd.parameters.RingQ().AtLevel(p.Q.Level()), buffCmplx[:slots], &scale.Value, p.Q.Coeffs)
+		rlwe.NTTSparseAndMontgomery(ecd.parameters.RingQ().AtLevel(p.Q.Level()), logSlots, true, montgomery, p.Q)
 
 		if p.P != nil {
-			ComplexArbitraryToFixedPointCRT(ecd.params.RingP().AtLevel(p.P.Level()), buffCmplx[:slots], &scale.Value, p.P.Coeffs)
-			NttSparseAndMontgomery(ecd.params.RingP().AtLevel(p.P.Level()), logSlots, montgomery, p.P)
+			ComplexArbitraryToFixedPointCRT(ecd.parameters.RingP().AtLevel(p.P.Level()), buffCmplx[:slots], &scale.Value, p.P.Coeffs)
+			rlwe.NTTSparseAndMontgomery(ecd.parameters.RingP().AtLevel(p.P.Level()), logSlots, true, montgomery, p.P)
 		}
 
 	default:
@@ -492,39 +493,39 @@ func (ecd *Encoder) embedArbitrary(values interface{}, logSlots int, scale rlwe.
 
 func (ecd *Encoder) plaintextToComplex(level int, scale rlwe.Scale, logSlots int, p *ring.Poly, values interface{}) {
 
-	isreal := ecd.params.RingType() == ring.ConjugateInvariant
+	isreal := ecd.parameters.RingType() == ring.ConjugateInvariant
 	if level == 0 {
-		polyToComplexNoCRT(p.Coeffs[0], values, scale, logSlots, isreal, ecd.params.RingQ().AtLevel(level))
+		polyToComplexNoCRT(p.Coeffs[0], values, scale, logSlots, isreal, ecd.parameters.RingQ().AtLevel(level))
 	} else {
-		polyToComplexCRT(p, ecd.bigintCoeffs, values, scale, logSlots, isreal, ecd.params.RingQ().AtLevel(level))
+		polyToComplexCRT(p, ecd.bigintCoeffs, values, scale, logSlots, isreal, ecd.parameters.RingQ().AtLevel(level))
 	}
 }
 
 func (ecd *Encoder) plaintextToFloat(level int, scale rlwe.Scale, logSlots int, p *ring.Poly, values interface{}) {
 	if level == 0 {
-		ecd.polyToFloatNoCRT(p.Coeffs[0], values, scale, logSlots, ecd.params.RingQ().AtLevel(level))
+		ecd.polyToFloatNoCRT(p.Coeffs[0], values, scale, logSlots, ecd.parameters.RingQ().AtLevel(level))
 	} else {
-		ecd.polyToFloatCRT(p, values, scale, logSlots, ecd.params.RingQ().AtLevel(level))
+		ecd.polyToFloatCRT(p, values, scale, logSlots, ecd.parameters.RingQ().AtLevel(level))
 	}
 }
 
 func (ecd *Encoder) decodePublic(pt *rlwe.Plaintext, values interface{}, noise distribution.Distribution) (err error) {
 
-	logSlots := pt.LogSlots
+	logSlots := pt.LogSlots[1]
 	slots := 1 << logSlots
 
-	if logSlots > ecd.params.MaxLogSlots() || logSlots < 0 {
-		return fmt.Errorf("cannot Decode: ensure that %d <= logSlots (%d) <= %d", 0, logSlots, ecd.params.MaxLogSlots())
+	if maxLogCols := ecd.parameters.MaxLogSlots()[1]; logSlots > maxLogCols || logSlots < 0 {
+		return fmt.Errorf("cannot Decode: ensure that %d <= logSlots (%d) <= %d", 0, logSlots, maxLogCols)
 	}
 
 	if pt.IsNTT {
-		ecd.params.RingQ().AtLevel(pt.Level()).INTT(pt.Value, ecd.buff)
+		ecd.parameters.RingQ().AtLevel(pt.Level()).INTT(pt.Value, ecd.buff)
 	} else {
 		ring.CopyLvl(pt.Level(), pt.Value, ecd.buff)
 	}
 
 	if noise != nil {
-		ring.NewSampler(ecd.prng, ecd.params.RingQ(), noise, pt.IsMontgomery).AtLevel(pt.Level()).ReadAndAdd(ecd.buff)
+		ring.NewSampler(ecd.prng, ecd.parameters.RingQ(), noise, pt.IsMontgomery).AtLevel(pt.Level()).ReadAndAdd(ecd.buff)
 	}
 
 	switch values.(type) {
@@ -728,8 +729,8 @@ func (ecd *Encoder) FFT(values interface{}, logN int) (err error) {
 func polyToComplexNoCRT(coeffs []uint64, values interface{}, scale rlwe.Scale, logSlots int, isreal bool, ringQ *ring.Ring) {
 
 	slots := 1 << logSlots
-	maxSlots := int(ringQ.NthRoot() >> 2)
-	gap := maxSlots / slots
+	maxCols := int(ringQ.NthRoot() >> 2)
+	gap := maxCols / slots
 	Q := ringQ.SubRings[0].Modulus
 	var c uint64
 
@@ -745,7 +746,7 @@ func polyToComplexNoCRT(coeffs []uint64, values interface{}, scale rlwe.Scale, l
 		}
 
 		if !isreal {
-			for i, idx := 0, maxSlots; i < slots; i, idx = i+1, idx+gap {
+			for i, idx := 0, maxCols; i < slots; i, idx = i+1, idx+gap {
 				c = coeffs[idx]
 				if c >= Q>>1 {
 					values[i] += complex(0, -float64(Q-c))
@@ -786,7 +787,7 @@ func polyToComplexNoCRT(coeffs []uint64, values interface{}, scale rlwe.Scale, l
 		}
 
 		if !isreal {
-			for i, idx := 0, maxSlots; i < slots; i, idx = i+1, idx+gap {
+			for i, idx := 0, maxCols; i < slots; i, idx = i+1, idx+gap {
 
 				if values[i][1] == nil {
 					values[i][1] = new(big.Float)
@@ -820,9 +821,9 @@ func polyToComplexNoCRT(coeffs []uint64, values interface{}, scale rlwe.Scale, l
 
 func polyToComplexCRT(poly *ring.Poly, bigintCoeffs []*big.Int, values interface{}, scale rlwe.Scale, logSlots int, isreal bool, ringQ *ring.Ring) {
 
-	maxSlots := int(ringQ.NthRoot() >> 2)
+	maxCols := int(ringQ.NthRoot() >> 2)
 	slots := 1 << logSlots
-	gap := maxSlots / slots
+	gap := maxCols / slots
 
 	ringQ.PolyToBigint(poly, gap, bigintCoeffs)
 
@@ -939,7 +940,7 @@ func (ecd *Encoder) polyToFloatCRT(p *ring.Poly, values interface{}, scale rlwe.
 
 	bigintCoeffs := ecd.bigintCoeffs
 
-	ecd.params.RingQ().PolyToBigint(ecd.buff, 1, bigintCoeffs)
+	ecd.parameters.RingQ().PolyToBigint(ecd.buff, 1, bigintCoeffs)
 
 	Q := r.ModulusAtLevel[r.Level()]
 
@@ -1094,4 +1095,12 @@ func (ecd *Encoder) polyToFloatNoCRT(coeffs []uint64, values interface{}, scale 
 	default:
 		panic(fmt.Errorf("cannot polyToComplexNoCRT: values.(Type) must be []complex128, []*bignum.Complex, []float64 or []*big.Float but is %T", values))
 	}
+}
+
+type encoder[T float64 | complex128 | *big.Float | *bignum.Complex, U *ring.Poly | ringqp.Poly | *rlwe.Plaintext] struct {
+	*Encoder
+}
+
+func (e *encoder[T, U]) Encode(values []T, logSlots int, scale rlwe.Scale, montgomery bool, output U) (err error) {
+	return e.Encoder.Embed(values, logSlots, scale, montgomery, output)
 }

@@ -116,7 +116,7 @@ func main() {
 	}
 
 	plaintext := ckks.NewPlaintext(params, params.MaxLevel())
-	plaintext.LogSlots = LogSlots
+	plaintext.LogSlots = [2]int{0, LogSlots}
 	if err := encoder.Encode(valuesWant, plaintext); err != nil {
 		panic(err)
 	}
@@ -149,7 +149,7 @@ func main() {
 
 func printDebug(params ckks.Parameters, ciphertext *rlwe.Ciphertext, valuesWant []complex128, decryptor rlwe.Decryptor, encoder *ckks.Encoder) (valuesTest []complex128) {
 
-	valuesTest = make([]complex128, 1<<ciphertext.LogSlots)
+	valuesTest = make([]complex128, 1<<ciphertext.LogSlots[1])
 
 	if err := encoder.Decode(decryptor.DecryptNew(ciphertext), valuesTest); err != nil {
 		panic(err)

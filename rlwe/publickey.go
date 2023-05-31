@@ -7,7 +7,7 @@ type PublicKey struct {
 }
 
 // NewPublicKey returns a new PublicKey with zero values.
-func NewPublicKey(params Parameters) (pk *PublicKey) {
+func NewPublicKey(params ParametersInterface) (pk *PublicKey) {
 	pk = &PublicKey{*NewOperandQP(params, 1, params.MaxLevelQ(), params.MaxLevelP())}
 	pk.IsNTT = true
 	pk.IsMontgomery = true

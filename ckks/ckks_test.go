@@ -142,7 +142,7 @@ func newTestVectors(tc *testContext, encryptor rlwe.Encryptor, a, b complex128, 
 
 	pt = NewPlaintext(tc.params, tc.params.MaxLevel())
 
-	values = make([]*bignum.Complex, pt.Slots())
+	values = make([]*bignum.Complex, pt.Slots()[1])
 
 	switch tc.params.RingType() {
 	case ring.Standard:
@@ -818,7 +818,7 @@ func testEvaluatePoly(tc *testContext, t *testing.T) {
 
 		poly := polynomial.NewPolynomial(polynomial.Monomial, coeffs, nil)
 
-		slots := ciphertext.Slots()
+		slots := ciphertext.Slots()[1]
 
 		slotIndex := make(map[int][]int)
 		idx := make([]int, slots>>1)
@@ -947,7 +947,7 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 
 		plaintext := tc.decryptor.DecryptNew(ciphertext)
 
-		valuesHave := make([]*big.Float, plaintext.Slots())
+		valuesHave := make([]*big.Float, plaintext.Slots()[1])
 
 		tc.encoder.Decode(plaintext, valuesHave)
 
@@ -1027,7 +1027,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
 
-		slots := ciphertext.Slots()
+		slots := ciphertext.Slots()[1]
 
 		logBatch := 9
 		batch := 1 << logBatch
@@ -1072,7 +1072,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
 
-		slots := ciphertext.Slots()
+		slots := ciphertext.Slots()[1]
 
 		nonZeroDiags := []int{-15, -4, -1, 0, 1, 2, 3, 4, 15}
 
@@ -1090,10 +1090,10 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		LogBSGSRatio := 2
 
-		linTransf, err := rlwe.GenLinearTransformBSGS(NewLinearTransformEncoder(tc.encoder, diagMatrix), params.MaxLevel(), rlwe.NewScale(params.Q()[params.MaxLevel()]), ciphertext.LogSlots, LogBSGSRatio)
+		linTransf, err := GenLinearTransformBSGS(diagMatrix, tc.encoder, params.MaxLevel(), rlwe.NewScale(params.Q()[params.MaxLevel()]), ciphertext.LogSlots[1], LogBSGSRatio)
 		require.NoError(t, err)
 
-		galEls := params.GaloisElementsForLinearTransform(nonZeroDiags, ciphertext.LogSlots, LogBSGSRatio)
+		galEls := params.GaloisElementsForLinearTransform(nonZeroDiags, ciphertext.LogSlots[1], LogBSGSRatio)
 
 		evk := rlwe.NewEvaluationKeySet()
 		for _, galEl := range galEls {
@@ -1129,7 +1129,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
 
-		slots := ciphertext.Slots()
+		slots := ciphertext.Slots()[1]
 
 		diagMatrix := make(map[int][]*bignum.Complex)
 
@@ -1144,10 +1144,10 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 			diagMatrix[0][i] = &bignum.Complex{one, zero}
 		}
 
-		linTransf, err := rlwe.GenLinearTransform(NewLinearTransformEncoder(tc.encoder, diagMatrix), params.MaxLevel(), rlwe.NewScale(params.Q()[params.MaxLevel()]), ciphertext.LogSlots)
+		linTransf, err := GenLinearTransform(diagMatrix, tc.encoder, params.MaxLevel(), rlwe.NewScale(params.Q()[params.MaxLevel()]), ciphertext.LogSlots[1])
 		require.NoError(t, err)
 
-		galEls := params.GaloisElementsForLinearTransform([]int{-1, 0}, ciphertext.LogSlots, -1)
+		galEls := params.GaloisElementsForLinearTransform([]int{-1, 0}, ciphertext.LogSlots[1], -1)
 
 		evk := rlwe.NewEvaluationKeySet()
 		for _, galEl := range galEls {

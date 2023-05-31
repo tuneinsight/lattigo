@@ -13,7 +13,7 @@ import (
 //
 // output: a newly allocated rlwe.Plaintext at the specified level.
 func NewPlaintext(params Parameters, level int) (pt *rlwe.Plaintext) {
-	return rlwe.NewPlaintext(params.Parameters, level)
+	return rlwe.NewPlaintext(params, level)
 }
 
 // NewCiphertext allocates a new rlwe.Ciphertext.
@@ -25,7 +25,7 @@ func NewPlaintext(params Parameters, level int) (pt *rlwe.Plaintext) {
 //
 // output: a newly allocated rlwe.Ciphertext of the specified degree and level.
 func NewCiphertext(params Parameters, degree, level int) (ct *rlwe.Ciphertext) {
-	return rlwe.NewCiphertext(params.Parameters, degree, level)
+	return rlwe.NewCiphertext(params, degree, level)
 }
 
 // NewEncryptor instantiates a new rlwe.Encryptor.
@@ -36,7 +36,7 @@ func NewCiphertext(params Parameters, degree, level int) (ct *rlwe.Ciphertext) {
 //
 // output: an rlwe.Encryptor instantiated with the provided key.
 func NewEncryptor(params Parameters, key interface{}) rlwe.Encryptor {
-	return rlwe.NewEncryptor(params.Parameters, key)
+	return rlwe.NewEncryptor(params, key)
 }
 
 // NewPRNGEncryptor instantiates a new rlwe.PRNGEncryptor.
@@ -47,7 +47,7 @@ func NewEncryptor(params Parameters, key interface{}) rlwe.Encryptor {
 //
 // output: an rlwe.PRNGEncryptor instantiated with the provided key.
 func NewPRNGEncryptor(params Parameters, key *rlwe.SecretKey) rlwe.PRNGEncryptor {
-	return rlwe.NewPRNGEncryptor(params.Parameters, key)
+	return rlwe.NewPRNGEncryptor(params, key)
 }
 
 // NewDecryptor instantiates a new rlwe.Decryptor.
@@ -58,7 +58,7 @@ func NewPRNGEncryptor(params Parameters, key *rlwe.SecretKey) rlwe.PRNGEncryptor
 //
 // output: an rlwe.Decryptor instantiated with the provided key.
 func NewDecryptor(params Parameters, key *rlwe.SecretKey) rlwe.Decryptor {
-	return rlwe.NewDecryptor(params.Parameters, key)
+	return rlwe.NewDecryptor(params, key)
 }
 
 // NewKeyGenerator instantiates a new rlwe.KeyGenerator.
@@ -68,5 +68,5 @@ func NewDecryptor(params Parameters, key *rlwe.SecretKey) rlwe.Decryptor {
 //
 // output: an rlwe.KeyGenerator.
 func NewKeyGenerator(params Parameters) *rlwe.KeyGenerator {
-	return rlwe.NewKeyGenerator(params.Parameters)
+	return rlwe.NewKeyGenerator(params)
 }

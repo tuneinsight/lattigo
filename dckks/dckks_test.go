@@ -184,7 +184,7 @@ func testE2SProtocol(tc *testContext, t *testing.T) {
 			P[i].sk = tc.sk0Shards[i]
 			P[i].publicShareE2S = P[i].e2s.AllocateShare(minLevel)
 			P[i].publicShareS2E = P[i].s2e.AllocateShare(params.MaxLevel())
-			P[i].secretShare = drlwe.NewAdditiveShareBigint(params.Parameters, ciphertext.LogSlots)
+			P[i].secretShare = drlwe.NewAdditiveShareBigint(params.Parameters, ciphertext.LogSlots[1])
 		}
 
 		for i, p := range P {
@@ -201,7 +201,7 @@ func testE2SProtocol(tc *testContext, t *testing.T) {
 		P[0].e2s.GetShare(P[0].secretShare, P[0].publicShareE2S, ciphertext, P[0].secretShare)
 
 		// sum(-M_i) + x + sum(M_i) = x
-		rec := drlwe.NewAdditiveShareBigint(params.Parameters, ciphertext.LogSlots)
+		rec := drlwe.NewAdditiveShareBigint(params.Parameters, ciphertext.LogSlots[1])
 		for _, p := range P {
 			a := rec.Value
 			b := p.secretShare.Value
@@ -221,7 +221,7 @@ func testE2SProtocol(tc *testContext, t *testing.T) {
 		crp := P[0].s2e.SampleCRP(params.MaxLevel(), tc.crs)
 
 		for i, p := range P {
-			p.s2e.GenShare(p.sk, crp, ciphertext.LogSlots, p.secretShare, p.publicShareS2E)
+			p.s2e.GenShare(p.sk, crp, ciphertext.LogSlots[1], p.secretShare, p.publicShareS2E)
 			if i > 0 {
 				p.s2e.AggregateShares(P[0].publicShareS2E, p.publicShareS2E, P[0].publicShareS2E)
 			}
@@ -515,7 +515,7 @@ func newTestVectorsAtScale(tc *testContext, encryptor rlwe.Encryptor, a, b compl
 	pt = ckks.NewPlaintext(tc.params, tc.params.MaxLevel())
 	pt.Scale = scale
 
-	values = make([]*bignum.Complex, pt.Slots())
+	values = make([]*bignum.Complex, pt.Slots()[1])
 
 	switch tc.params.RingType() {
 	case ring.Standard:

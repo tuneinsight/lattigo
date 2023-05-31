@@ -102,7 +102,7 @@ func NewHomomorphicDFTMatrixFromLiteral(d HomomorphicDFTMatrixLiteral, encoder *
 
 	logSlots := d.LogSlots
 	logdSlots := logSlots
-	if logdSlots < params.MaxLogSlots() && d.RepackImag2Real {
+	if maxLogSlots := params.MaxLogSlots()[1]; logdSlots < maxLogSlots && d.RepackImag2Real {
 		logdSlots++
 	}
 
@@ -131,7 +131,7 @@ func NewHomomorphicDFTMatrixFromLiteral(d HomomorphicDFTMatrixLiteral, encoder *
 
 		for j := 0; j < d.Levels[i]; j++ {
 
-			mat, err := rlwe.GenLinearTransformBSGS(ckks.NewLinearTransformEncoder(encoder, pVecDFT[idx]), level, scale, logdSlots, d.LogBSGSRatio)
+			mat, err := ckks.GenLinearTransformBSGS(pVecDFT[idx], encoder, level, scale, logdSlots, d.LogBSGSRatio)
 
 			if err != nil {
 				panic(fmt.Errorf("cannot NewHomomorphicDFTMatrixFromLiteral: %w", err))

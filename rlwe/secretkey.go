@@ -15,7 +15,7 @@ type SecretKey struct {
 }
 
 // NewSecretKey generates a new SecretKey with zero values.
-func NewSecretKey(params Parameters) *SecretKey {
+func NewSecretKey(params ParametersInterface) *SecretKey {
 	return &SecretKey{Value: *params.RingQP().NewPoly()}
 }
 

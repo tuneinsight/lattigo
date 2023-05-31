@@ -9,7 +9,7 @@ type RelinearizationKey struct {
 }
 
 // NewRelinearizationKey allocates a new RelinearizationKey with zero coefficients.
-func NewRelinearizationKey(params Parameters) *RelinearizationKey {
+func NewRelinearizationKey(params ParametersInterface) *RelinearizationKey {
 	return &RelinearizationKey{EvaluationKey: *NewEvaluationKey(params, params.MaxLevelQ(), params.MaxLevelP())}
 }
 

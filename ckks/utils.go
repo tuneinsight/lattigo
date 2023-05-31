@@ -125,53 +125,6 @@ func StandardDeviation(vec interface{}, scale rlwe.Scale) (std float64) {
 	return
 }
 
-// NttSparseAndMontgomery takes the polynomial polIn Z[Y] outside of the NTT domain to the polynomial Z[X] in the NTT domain where Y = X^(gap).
-// This method is used to accelerate the NTT of polynomials that encode sparse plaintexts.
-func NttSparseAndMontgomery(r *ring.Ring, logSlots int, montgomery bool, pol *ring.Poly) {
-
-	if 1<<logSlots == r.NthRoot()>>2 {
-		r.NTT(pol, pol)
-		if montgomery {
-			r.MForm(pol, pol)
-		}
-	} else {
-
-		var n int
-		var ntt func(p1, p2 []uint64, N int, Q, QInv uint64, BRedConstant, nttPsi []uint64)
-		switch r.Type() {
-		case ring.Standard:
-			n = 2 << logSlots
-			ntt = ring.NTTStandard
-		case ring.ConjugateInvariant:
-			n = 1 << logSlots
-			ntt = ring.NTTConjugateInvariant
-		}
-
-		N := r.N()
-		gap := N / n
-		for i, s := range r.SubRings[:r.Level()+1] {
-
-			coeffs := pol.Coeffs[i]
-
-			// NTT in dimension n but with roots of N
-			// This is a small hack to perform at reduced cost an NTT of dimension N on a vector in Y = X^{N/n}, i.e. sparse plaintext.
-			ntt(coeffs[:n], coeffs[:n], n, s.Modulus, s.MRedConstant, s.BRedConstant, s.RootsForward)
-
-			if montgomery {
-				s.MForm(coeffs[:n], coeffs[:n])
-			}
-
-			// Maps NTT in dimension n to NTT in dimension N
-			for j := n - 1; j >= 0; j-- {
-				c := coeffs[j]
-				for w := 0; w < gap; w++ {
-					coeffs[j*gap+w] = c
-				}
-			}
-		}
-	}
-}
-
 // Complex128ToFixedPointCRT encodes a vector of complex128 on a CRT polynomial.
 // The real part is put in a left N/2 coefficient and the imaginary in the right N/2 coefficients.
 func Complex128ToFixedPointCRT(r *ring.Ring, values []complex128, scale float64, coeffs [][]uint64) {

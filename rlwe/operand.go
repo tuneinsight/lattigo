@@ -24,7 +24,7 @@ type OperandQ struct {
 	Value structs.Vector[ring.Poly]
 }
 
-func NewOperandQ(params Parameters, degree, levelQ int) *OperandQ {
+func NewOperandQ(params ParametersInterface, degree, levelQ int) *OperandQ {
 	ringQ := params.RingQ().AtLevel(levelQ)
 
 	Value := make([]*ring.Poly, degree+1)
@@ -147,7 +147,7 @@ func GetSmallestLargest(el0, el1 *OperandQ) (smallest, largest *OperandQ, sameDe
 }
 
 // PopulateElementRandom creates a new rlwe.Element with random coefficients.
-func PopulateElementRandom(prng sampling.PRNG, params Parameters, ct *OperandQ) {
+func PopulateElementRandom(prng sampling.PRNG, params ParametersInterface, ct *OperandQ) {
 	sampler := ring.NewUniformSampler(prng, params.RingQ()).AtLevel(ct.Level())
 	for i := range ct.Value {
 		sampler.Read(ct.Value[i])
@@ -318,7 +318,7 @@ type OperandQP struct {
 	Value structs.Vector[ringqp.Poly]
 }
 
-func NewOperandQP(params Parameters, degree, levelQ, levelP int) *OperandQP {
+func NewOperandQP(params ParametersInterface, degree, levelQ, levelP int) *OperandQP {
 	ringQP := params.RingQP().AtLevel(levelQ, levelP)
 
 	Value := make([]*ringqp.Poly, degree+1)

@@ -18,7 +18,7 @@ const (
 type MetaData struct {
 	Scale
 	EncodingDomain EncodingDomain
-	LogSlots       int
+	LogSlots       [2]int
 	IsNTT          bool
 	IsMontgomery   bool
 }
@@ -34,13 +34,13 @@ func (m *MetaData) Equal(other *MetaData) (res bool) {
 }
 
 // Slots returns the number of slots.
-func (m *MetaData) Slots() int {
-	return 1 << m.LogSlots
+func (m *MetaData) Slots() [2]int {
+	return [2]int{1 << m.LogSlots[0], 1 << m.LogSlots[1]}
 }
 
 // BinarySize returns the size in bytes that the object once marshalled into a binary form.
 func (m *MetaData) BinarySize() int {
-	return 4 + m.Scale.BinarySize()
+	return 5 + m.Scale.BinarySize()
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
@@ -94,7 +94,10 @@ func (m *MetaData) Encode(p []byte) (n int, err error) {
 	p[n] = uint8(m.EncodingDomain)
 	n++
 
-	p[n] = uint8(m.LogSlots)
+	p[n] = uint8(m.LogSlots[0])
+	n++
+
+	p[n] = uint8(m.LogSlots[1])
 	n++
 
 	if m.IsNTT {
@@ -127,7 +130,10 @@ func (m *MetaData) Decode(p []byte) (n int, err error) {
 	m.EncodingDomain = EncodingDomain(p[n])
 	n++
 
-	m.LogSlots = int(p[n])
+	m.LogSlots[0] = int(int8(p[n]))
+	n++
+
+	m.LogSlots[1] = int(int8(p[n]))
 	n++
 
 	m.IsNTT = p[n] == 1

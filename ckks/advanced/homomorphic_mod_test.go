@@ -263,7 +263,7 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 
 func newTestVectorsEvalMod(params ckks.Parameters, encryptor rlwe.Encryptor, encoder *ckks.Encoder, evm EvalModPoly, t *testing.T) (values []float64, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
 
-	logSlots := params.MaxLogSlots()
+	logSlots := params.MaxLogSlots()[1]
 
 	values = make([]float64, 1<<logSlots)
 

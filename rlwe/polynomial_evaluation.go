@@ -5,21 +5,6 @@ import (
 	"math/bits"
 )
 
-type EvaluatorInterface interface {
-	Add(op0 *Ciphertext, op1 interface{}, op2 *Ciphertext)
-	Sub(op0 *Ciphertext, op1 interface{}, op2 *Ciphertext)
-	Mul(op0 *Ciphertext, op1 interface{}, op2 *Ciphertext)
-	MulNew(op0 *Ciphertext, op1 interface{}) (op2 *Ciphertext)
-	MulRelinNew(op0 *Ciphertext, op1 interface{}) (op2 *Ciphertext)
-	Relinearize(op0, op1 *Ciphertext)
-	Rescale(op0, op1 *Ciphertext) (err error)
-}
-
-type PolynomialEvaluatorInterface interface {
-	EvaluatorInterface
-	EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol *PolynomialVector, pb *PowerBasis, targetScale Scale) (res *Ciphertext, err error)
-}
-
 func EvaluatePatersonStockmeyerPolynomialVector(poly *PatersonStockmeyerPolynomialVector, pb *PowerBasis, eval PolynomialEvaluatorInterface) (res *Ciphertext, err error) {
 
 	type Poly struct {

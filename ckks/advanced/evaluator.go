@@ -35,10 +35,10 @@ func (eval *Evaluator) WithKey(evk rlwe.EvaluationKeySetInterface) *Evaluator {
 // If the packing is sparse (n < N/2), then returns ctReal = Ecd(vReal || vImag) and ctImag = nil.
 // If the packing is dense (n == N/2), then returns ctReal = Ecd(vReal) and ctImag = Ecd(vImag).
 func (eval *Evaluator) CoeffsToSlotsNew(ctIn *rlwe.Ciphertext, ctsMatrices HomomorphicDFTMatrix) (ctReal, ctImag *rlwe.Ciphertext) {
-	ctReal = ckks.NewCiphertext(eval.Parameters, 1, ctsMatrices.LevelStart)
+	ctReal = ckks.NewCiphertext(eval.Parameters(), 1, ctsMatrices.LevelStart)
 
-	if ctsMatrices.LogSlots == eval.Parameters.MaxLogSlots() {
-		ctImag = ckks.NewCiphertext(eval.Parameters, 1, ctsMatrices.LevelStart)
+	if maxLogSlots := eval.Parameters().MaxLogSlots()[1]; ctsMatrices.LogSlots == maxLogSlots {
+		ctImag = ckks.NewCiphertext(eval.Parameters(), 1, ctsMatrices.LevelStart)
 	}
 
 	eval.CoeffsToSlots(ctIn, ctsMatrices, ctReal, ctImag)
@@ -75,8 +75,8 @@ func (eval *Evaluator) CoeffsToSlots(ctIn *rlwe.Ciphertext, ctsMatrices Homomorp
 		eval.Add(ctReal, zV, ctReal)
 
 		// If repacking, then ct0 and ct1 right n/2 slots are zero.
-		if ctsMatrices.LogSlots < eval.Parameters.MaxLogSlots() {
-			eval.Rotate(tmp, ctIn.Slots(), tmp)
+		if maxLogSlots := eval.Parameters().MaxLogSlots()[1]; ctsMatrices.LogSlots < maxLogSlots {
+			eval.Rotate(tmp, ctIn.Slots()[1], tmp)
 			eval.Add(ctReal, tmp, ctReal)
 		}
 
@@ -97,7 +97,7 @@ func (eval *Evaluator) SlotsToCoeffsNew(ctReal, ctImag *rlwe.Ciphertext, stcMatr
 		panic("ctReal.Level() or ctImag.Level() < HomomorphicDFTMatrix.LevelStart")
 	}
 
-	ctOut = ckks.NewCiphertext(eval.Parameters, 1, stcMatrices.LevelStart)
+	ctOut = ckks.NewCiphertext(eval.Parameters(), 1, stcMatrices.LevelStart)
 	eval.SlotsToCoeffs(ctReal, ctImag, stcMatrices, ctOut)
 	return
 
@@ -180,10 +180,11 @@ func (eval *Evaluator) EvalModNew(ct *rlwe.Ciphertext, evalModPoly EvalModPoly) 
 	// formula such that after it it has the scale it had before the polynomial
 	// evaluation
 
+	Qi := eval.Parameters().Q()
+
 	targetScale := ct.Scale
 	for i := 0; i < evalModPoly.doubleAngle; i++ {
-		qi := eval.Parameters.Q()[evalModPoly.levelStart-evalModPoly.sinePoly.Depth()-evalModPoly.doubleAngle+i+1]
-		targetScale = targetScale.Mul(rlwe.NewScale(qi))
+		targetScale = targetScale.Mul(rlwe.NewScale(Qi[evalModPoly.levelStart-evalModPoly.sinePoly.Depth()-evalModPoly.doubleAngle+i+1]))
 		targetScale.Value.Sqrt(&targetScale.Value)
 	}
 

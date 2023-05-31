@@ -29,7 +29,7 @@ type GaloisKey struct {
 }
 
 // NewGaloisKey allocates a new GaloisKey with zero coefficients and GaloisElement set to zero.
-func NewGaloisKey(params Parameters) *GaloisKey {
+func NewGaloisKey(params ParametersInterface) *GaloisKey {
 	return &GaloisKey{EvaluationKey: *NewEvaluationKey(params, params.MaxLevelQ(), params.MaxLevelP()), NthRoot: params.RingQ().NthRoot()}
 }
 

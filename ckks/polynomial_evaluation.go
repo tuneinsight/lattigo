@@ -50,7 +50,7 @@ func (eval *Evaluator) Polynomial(input interface{}, p interface{}, targetScale 
 		return nil, fmt.Errorf("cannot evaluatePolyVector: invalid input, must be either *rlwe.Ciphertext or *PowerBasis")
 	}
 
-	params := eval.params
+	params := eval.parameters
 
 	nbModuliPerRescale := params.DefaultScaleModuliRatio()
 
@@ -169,7 +169,7 @@ type PolynomialEvaluator struct {
 }
 
 func (polyEval *PolynomialEvaluator) Rescale(op0, op1 *rlwe.Ciphertext) (err error) {
-	return polyEval.Evaluator.Rescale(op0, polyEval.Evaluator.Parameters.DefaultScale(), op1)
+	return polyEval.Evaluator.Rescale(op0, polyEval.Evaluator.parameters.DefaultScale(), op1)
 }
 
 func (polyEval *PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol *rlwe.PolynomialVector, pb *rlwe.PowerBasis, targetScale rlwe.Scale) (res *rlwe.Ciphertext, err error) {
@@ -179,9 +179,9 @@ func (polyEval *PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targ
 
 	// Retrieve the number of slots
 	logSlots := X[1].LogSlots
-	slots := 1 << X[1].LogSlots
+	slots := 1 << X[1].LogSlots[1]
 
-	params := polyEval.Evaluator.params
+	params := polyEval.Evaluator.parameters
 	slotsIndex := pol.SlotsIndex
 	even := pol.IsEven()
 	odd := pol.IsOdd()

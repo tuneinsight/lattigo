@@ -16,32 +16,20 @@ import (
 // It stores a plaintext matrix in diagonal form and
 // can be evaluated on a ciphertext by using the evaluator.LinearTransform method.
 type LinearTransform struct {
-	LogSlots int
+	LogSlots [2]int
 	N1       int                 // N1 is the number of inner loops of the baby-step giant-step algorithm used in the evaluation (if N1 == 0, BSGS is not used).
 	Level    int                 // Level is the level at which the matrix is encoded (can be circuit dependent)
 	Scale    Scale               // Scale is the scale at which the matrix is encoded (can be circuit dependent)
 	Vec      map[int]ringqp.Poly // Vec is the matrix, in diagonal form, where each entry of vec is an indexed non-zero diagonal.
 }
 
-// LinearTransformParametersInterface defines the subset of methods of the
-// struct rlwe.Parameters that is necessary for the LinearTransform struct
-// and its related methods.
-type LinearTransformParametersInterface interface {
-	N() int
-	LogN() int
-	PCount() int
-	RingQP() *ringqp.Ring
-	GaloisElement(k int) uint64
-	GaloisElements(k []int) []uint64
-}
-
 // NewLinearTransform allocates a new LinearTransform with zero plaintexts at the specified level.
 // If LogBSGSRatio < 0, the LinearTransform is set to not use the BSGS approach.
-func NewLinearTransform(params LinearTransformParametersInterface, nonZeroDiags []int, level int, scale Scale, LogSlots, LogBSGSRatio int) LinearTransform {
+func NewLinearTransform(params ParametersInterface, nonZeroDiags []int, level int, scale Scale, LogSlots [2]int, LogBSGSRatio int) LinearTransform {
 	vec := make(map[int]ringqp.Poly)
-	slots := 1 << LogSlots
+	cols := 1 << LogSlots[1]
 	levelQ := level
-	levelP := params.PCount() - 1
+	levelP := params.MaxLevelP()
 	ringQP := params.RingQP().AtLevel(levelQ, levelP)
 	var N1 int
 	if LogBSGSRatio < 0 {
@@ -49,30 +37,30 @@ func NewLinearTransform(params LinearTransformParametersInterface, nonZeroDiags 
 		for _, i := range nonZeroDiags {
 			idx := i
 			if idx < 0 {
-				idx += slots
+				idx += cols
 			}
 			vec[idx] = *ringQP.NewPoly()
 		}
 	} else {
-		N1 = FindBestBSGSRatio(nonZeroDiags, slots, LogBSGSRatio)
-		index, _, _ := BSGSIndex(nonZeroDiags, slots, N1)
+		N1 = FindBestBSGSRatio(nonZeroDiags, cols, LogBSGSRatio)
+		index, _, _ := BSGSIndex(nonZeroDiags, cols, N1)
 		for j := range index {
 			for _, i := range index[j] {
 				vec[j+i] = *ringQP.NewPoly()
 			}
 		}
 	}
-	return LinearTransform{LogSlots: params.LogN() - 1, N1: N1, Level: level, Scale: scale, Vec: vec}
+	return LinearTransform{LogSlots: LogSlots, N1: N1, Level: level, Scale: scale, Vec: vec}
 }
 
 // GaloisElements returns the list of Galois elements needed for the evaluation of the linear transform.
-func (LT *LinearTransform) GaloisElements(params LinearTransformParametersInterface) (galEls []uint64) {
+func (LT *LinearTransform) GaloisElements(params ParametersInterface) (galEls []uint64) {
 
-	slots := 1 << LT.LogSlots
+	cols := 1 << LT.LogSlots[1]
 
 	if LT.N1 == 0 {
 
-		_, _, rotN2 := BSGSIndex(utils.GetKeys(LT.Vec), slots, slots)
+		_, _, rotN2 := BSGSIndex(utils.GetKeys(LT.Vec), cols, cols)
 
 		galEls = make([]uint64, len(rotN2))
 
@@ -83,26 +71,9 @@ func (LT *LinearTransform) GaloisElements(params LinearTransformParametersInterf
 		return
 	}
 
-	_, rotN1, rotN2 := BSGSIndex(utils.GetKeys(LT.Vec), slots, LT.N1)
+	_, rotN1, rotN2 := BSGSIndex(utils.GetKeys(LT.Vec), cols, LT.N1)
 
 	return params.GaloisElements(utils.GetDistincts(append(rotN1, rotN2...)))
-}
-
-// LinearTransformEncoder is a interface defining the methods
-// required to generate and encode linear transformations.
-type LinearTransformEncoder interface {
-
-	// NonZeroDiagonals should return the list of non-zero diagonales of the matrix
-	// representing the linear transformation.
-	NonZeroDiagonals() []int
-
-	// Parameters should return the rlwe.Parametrs of the underlying struct implementing
-	// the LinearTransformEncoder interface.
-	Parameters() Parameters
-
-	// EncodeLinearTransformDiagonal encodes the i-th non-zero diagonal  of size at most 2^{LogSlots} rotated by `rot` positions
-	// to the left of the internaly stored matrix at the given Scale on the outut ringqp.Poly.
-	EncodeLinearTransformDiagonal(i, rot int, scale Scale, LogSlots int, output ringqp.Poly) (err error)
 }
 
 // Encode encodes on a pre-allocated LinearTransform the linear transforms' matrix in diagonal form `value`.
@@ -111,45 +82,48 @@ type LinearTransformEncoder interface {
 // It can then be evaluated on a ciphertext using evaluator.LinearTransform.
 // Evaluation will use the naive approach (single hoisting and no baby-step giant-step).
 // This method is faster if there is only a few non-zero diagonals but uses more keys.
-func (LT *LinearTransform) Encode(ecd LinearTransformEncoder) (err error) {
+func EncodeLinearTransform[T any](LT LinearTransform, diagonals map[int][]T, encoder EncoderInterface[T, ringqp.Poly]) (err error) {
 
 	scale := LT.Scale
 	LogSlots := LT.LogSlots
-	slots := 1 << LogSlots
+	rows := 1 << LogSlots[0]
+	cols := 1 << LogSlots[1]
 	N1 := LT.N1
 
-	keys := ecd.NonZeroDiagonals()
+	keys := utils.GetKeys(diagonals)
+
+	buf := make([]T, rows*cols)
 
 	if N1 == 0 {
 		for _, i := range keys {
 
 			idx := i
 			if idx < 0 {
-				idx += slots
+				idx += cols
 			}
 
 			if vec, ok := LT.Vec[idx]; !ok {
 				return (fmt.Errorf("cannot Encode: error encoding on LinearTransform: plaintext diagonal [%d] does not exist", idx))
 			} else {
-				if err = ecd.EncodeLinearTransformDiagonal(i, 0, scale, LogSlots, vec); err != nil {
+				if err = rotateAndEncodeDiagonal(diagonals, encoder, i, 0, scale, LogSlots, buf, vec); err != nil {
 					return
 				}
 			}
 		}
 	} else {
 
-		index, _, _ := BSGSIndex(keys, slots, N1)
+		index, _, _ := BSGSIndex(keys, cols, N1)
 
 		for j := range index {
 
-			rot := -j & (slots - 1)
+			rot := -j & (cols - 1)
 
 			for _, i := range index[j] {
 
 				if vec, ok := LT.Vec[i+j]; !ok {
 					return fmt.Errorf("cannot Encode: error encoding on LinearTransform BSGS: input does not match the same non-zero diagonals")
 				} else {
-					if err = ecd.EncodeLinearTransformDiagonal(i+j, rot, scale, LogSlots, vec); err != nil {
+					if err = rotateAndEncodeDiagonal(diagonals, encoder, i+j, rot, scale, LogSlots, buf, vec); err != nil {
 						return
 					}
 				}
@@ -160,33 +134,68 @@ func (LT *LinearTransform) Encode(ecd LinearTransformEncoder) (err error) {
 	return
 }
 
+func rotateAndEncodeDiagonal[T any](diagonals map[int][]T, encoder EncoderInterface[T, ringqp.Poly], i, rot int, scale Scale, logSlots [2]int, buf []T, poly ringqp.Poly) error {
+
+	rows := 1 << logSlots[0]
+	cols := 1 << logSlots[1]
+
+	// manages inputs that have rotation between 0 and cols-1 or between -cols/2 and cols/2-1
+	v, ok := diagonals[i]
+	if !ok {
+		if v, ok = diagonals[i-cols]; !ok {
+			return fmt.Errorf("cannot EncodeLinearTransformDiagonalNaive: diagonal [%d] doesn't exist", i)
+		}
+	}
+
+	rot &= (cols - 1)
+
+	var values []T
+	if rot != 0 {
+
+		values = buf
+
+		for i := 0; i < rows; i++ {
+			utils.RotateSliceAllocFree(v[i*cols:(i+1)*cols], rot, values[i*cols:(i+1)*cols])
+		}
+
+	} else {
+		values = v
+	}
+
+	return encoder.Encode(values, logSlots[1], scale, true, poly)
+}
+
 // GenLinearTransform allocates and encodes a new LinearTransform struct from the linear transforms' matrix in diagonal form `value`.
 // values.(type) can be either map[int][]complex128 or map[int][]float64.
 // The user must ensure that 1 <= len([]complex128\[]float64) <= 2^logSlots < 2^logN.
 // It can then be evaluated on a ciphertext using evaluator.LinearTransform.
 // Evaluation will use the naive approach (single hoisting and no baby-step giant-step).
 // This method is faster if there is only a few non-zero diagonals but uses more keys.
-func GenLinearTransform(ecd LinearTransformEncoder, level int, scale Scale, LogSlots int) (LT LinearTransform, err error) {
+func GenLinearTransform[T any](diagonals map[int][]T, encoder EncoderInterface[T, ringqp.Poly], level int, scale Scale, LogSlots [2]int) (LT LinearTransform, err error) {
 
-	params := ecd.Parameters()
+	params := encoder.Parameters()
+
 	ringQP := params.RingQP().AtLevel(level, params.MaxLevelP())
 
-	slots := 1 << LogSlots
+	rows := 1 << LogSlots[0]
+	cols := 1 << LogSlots[1]
 
-	keys := ecd.NonZeroDiagonals()
+	keys := utils.GetKeys(diagonals)
 
-	vec := map[int]ringqp.Poly{}
+	buf := make([]T, cols*rows)
+
+	vec := make(map[int]ringqp.Poly)
 
 	for _, i := range keys {
 
 		idx := i
 		if idx < 0 {
-			idx += slots
+			idx += cols
 		}
 
 		pt := *ringQP.NewPoly()
 
-		if err = ecd.EncodeLinearTransformDiagonal(i, 0, scale, LogSlots, pt); err != nil {
+		if err = rotateAndEncodeDiagonal(diagonals, encoder, i, 0, scale, LogSlots, buf, pt); err != nil {
 			return
 		}
 
@@ -196,30 +205,34 @@ func GenLinearTransform(ecd LinearTransformEncoder, level int, scale Scale, LogS
 	return LinearTransform{LogSlots: LogSlots, N1: 0, Vec: vec, Level: level, Scale: scale}, nil
 }
 
-func GenLinearTransformBSGS(ecd LinearTransformEncoder, level int, scale Scale, LogSlots, LogBSGSRatio int) (LT LinearTransform, err error) {
+func GenLinearTransformBSGS[T any](diagonals map[int][]T, encoder EncoderInterface[T, ringqp.Poly], level int, scale Scale, LogSlots [2]int, LogBSGSRatio int) (LT LinearTransform, err error) {
 
-	params := ecd.Parameters()
+	params := encoder.Parameters()
+
 	ringQP := params.RingQP().AtLevel(level, params.MaxLevelP())
 
-	slots := 1 << LogSlots
+	rows := 1 << LogSlots[0]
+	cols := 1 << LogSlots[1]
 
-	keys := ecd.NonZeroDiagonals()
+	keys := utils.GetKeys(diagonals)
+
+	buf := make([]T, cols*rows)
 
 	// N1*N2 = N
-	N1 := FindBestBSGSRatio(keys, slots, LogBSGSRatio)
-	index, _, _ := BSGSIndex(keys, slots, N1)
+	N1 := FindBestBSGSRatio(keys, cols, LogBSGSRatio)
+	index, _, _ := BSGSIndex(keys, cols, N1)
 
 	vec := make(map[int]ringqp.Poly)
 
 	for j := range index {
 
-		rot := -j & (slots - 1)
+		rot := -j & (cols - 1)
 
 		for _, i := range index[j] {
 
 			pt := *ringQP.NewPoly()
 
-			if err = ecd.EncodeLinearTransformDiagonal(i+j, rot, scale, LogSlots, pt); err != nil {
+			if err = rotateAndEncodeDiagonal(diagonals, encoder, i+j, rot, scale, LogSlots, buf, pt); err != nil {
 				return
 			}
 
@@ -349,11 +362,13 @@ func (eval *Evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTrans
 
 	ringQ.MulScalarBigint(ctInTmp0, ringP.ModulusAtLevel[levelP], ct0TimesP) // P*c0
 
+	slots := 1 << matrix.LogSlots[1]
+
 	var state bool
 	var cnt int
 	for k := range matrix.Vec {
 
-		k &= int((ringQ.NthRoot() >> 2) - 1)
+		k &= (slots - 1)
 
 		if k == 0 {
 			state = true
@@ -442,7 +457,7 @@ func (eval *Evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearT
 	PiOverF := eval.params.PiOverflowMargin(levelP) >> 1
 
 	// Computes the N2 rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giant-step algorithm
-	index, _, rotN2 := BSGSIndex(utils.GetKeys(matrix.Vec), 1<<matrix.LogSlots, matrix.N1)
+	index, _, rotN2 := BSGSIndex(utils.GetKeys(matrix.Vec), 1<<matrix.LogSlots[1], matrix.N1)
 
 	ring.Copy(ctIn.Value[0], eval.BuffCt.Value[0])
 	ring.Copy(ctIn.Value[1], eval.BuffCt.Value[1])
@@ -711,7 +726,7 @@ func (eval *Evaluator) Expand(ctIn *Ciphertext, logN, logGap int) (ctOut []*Ciph
 
 	ctOut = make([]*Ciphertext, 1<<(logN-logGap))
 	ctOut[0] = ctIn.CopyNew()
-	ctOut[0].LogSlots = 0
+	ctOut[0].LogSlots = [2]int{0, 0}
 
 	if ct := ctOut[0]; !ctIn.IsNTT {
 		ringQ.NTT(ct.Value[0], ct.Value[0])

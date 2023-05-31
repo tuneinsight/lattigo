@@ -176,7 +176,7 @@ func main() {
 	}
 
 	pt := ckks.NewPlaintext(paramsN12, paramsN12.MaxLevel())
-	pt.LogSlots = LogSlots
+	pt.LogSlots = [2]int{0, LogSlots}
 	if err := encoderN12.Encode(values, pt); err != nil {
 		panic(err)
 	}
@@ -209,7 +209,7 @@ func main() {
 
 	res := make([]float64, slots)
 	ctN12.EncodingDomain = rlwe.SlotsDomain
-	ctN12.LogSlots = LogSlots
+	ctN12.LogSlots = [2]int{0, LogSlots}
 	if err := encoderN12.Decode(decryptorN12.DecryptNew(ctN12), res); err != nil {
 		panic(err)
 	}

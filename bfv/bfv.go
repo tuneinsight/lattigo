@@ -5,7 +5,9 @@ import (
 	"fmt"
 
 	"github.com/tuneinsight/lattigo/v4/bgv"
+	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 )
 
 // NewPlaintext allocates a new rlwe.Plaintext.
@@ -82,6 +84,14 @@ type Encoder struct {
 // NewEncoder creates a new Encoder from the provided parameters.
 func NewEncoder(params Parameters) *Encoder {
 	return &Encoder{bgv.NewEncoder(bgv.Parameters(params))}
+}
+
+type encoder[T int64 | uint64, U *ring.Poly | ringqp.Poly | *rlwe.Plaintext] struct {
+	*Encoder
+}
+
+func (e *encoder[T, U]) Encode(values []T, logSlots int, scale rlwe.Scale, montgomery bool, output U) (err error) {
+	return e.Encoder.Embed(values, scale, false, true, montgomery, output)
 }
 
 // Evaluator is a struct that holds the necessary elements to perform the homomorphic operations between ciphertexts and/or plaintexts.
@@ -163,8 +173,20 @@ func (eval *Evaluator) Polynomial(input, pol interface{}) (opOut *rlwe.Ciphertex
 	return eval.Evaluator.Polynomial(input, pol, true, eval.Parameters().DefaultScale())
 }
 
-// NewLinearTransformEncoder returns new instance of an rlwe.LinearTransformEncoder.
-// An rlwe.LinearTransformEncoder is given as input to rlwe
-func NewLinearTransformEncoder(ecd *Encoder, diagonals map[int][]uint64) rlwe.LinearTransformEncoder {
-	return bgv.NewLinearTransformEncoder(ecd.Encoder, diagonals)
+// NewLinearTransform allocates a new LinearTransform with zero plaintexts at the specified level.
+// If LogBSGSRatio < 0, the LinearTransform is set to not use the BSGS approach.
+func NewLinearTransform(params Parameters, nonZeroDiags []int, level int, scale rlwe.Scale, LogBSGSRatio int) rlwe.LinearTransform {
+	return rlwe.NewLinearTransform(params, nonZeroDiags, level, scale, params.MaxLogSlots(), LogBSGSRatio)
+}
+
+func EncodeLinearTransform[T int64 | uint64](LT rlwe.LinearTransform, diagonals map[int][]T, ecd *Encoder) (err error) {
+	return rlwe.EncodeLinearTransform[T](LT, diagonals, &encoder[T, ringqp.Poly]{ecd})
+}
+
+func GenLinearTransform[T int64 | uint64](diagonals map[int][]T, ecd *Encoder, level int, scale rlwe.Scale) (LT rlwe.LinearTransform, err error) {
+	return rlwe.GenLinearTransform[T](diagonals, &encoder[T, ringqp.Poly]{ecd}, level, scale, ecd.Parameters().MaxLogSlots())
+}
+
+func GenLinearTransformBSGS[T int64 | uint64](diagonals map[int][]T, ecd *Encoder, level int, scale rlwe.Scale, LogBSGSRatio int) (LT rlwe.LinearTransform, err error) {
+	return rlwe.GenLinearTransformBSGS[T](diagonals, &encoder[T, ringqp.Poly]{ecd}, level, scale, ecd.Parameters().MaxLogSlots(), LogBSGSRatio)
 }

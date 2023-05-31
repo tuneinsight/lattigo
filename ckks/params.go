@@ -129,27 +129,27 @@ func (p Parameters) MaxLevel() int {
 	return p.QCount() - 1
 }
 
-// MaxSlots returns the theoretical maximum of plaintext slots allowed by the ring degree
-func (p Parameters) MaxSlots() int {
+// MaxSlots returns the maximum dimension of the matrix that can be SIMD packed in a single plaintext polynomial.
+func (p Parameters) MaxSlots() [2]int {
 	switch p.RingType() {
 	case ring.Standard:
-		return p.N() >> 1
+		return [2]int{1, p.N() >> 1}
 	case ring.ConjugateInvariant:
-		return p.N()
+		return [2]int{1, p.N()}
 	default:
-		panic("cannot MaxSlots: invalid ring type")
+		panic("cannot MaxSlotsDimensions: invalid ring type")
 	}
 }
 
-// MaxLogSlots returns the log of the maximum number of slots enabled by the parameters
-func (p Parameters) MaxLogSlots() int {
+// MaxLogSlots returns the log2 of maximum dimension of the matrix that can be SIMD packed in a single plaintext polynomial.
+func (p Parameters) MaxLogSlots() [2]int {
 	switch p.RingType() {
 	case ring.Standard:
-		return p.LogN() - 1
+		return [2]int{0, p.LogN() - 1}
 	case ring.ConjugateInvariant:
-		return p.LogN()
+		return [2]int{0, p.LogN()}
 	default:
-		panic("cannot MaxLogSlots: invalid ring type")
+		panic("cannot MaxLogSlotsDimensions: invalid ring type")
 	}
 }
 
@@ -174,8 +174,13 @@ func (p Parameters) QLvl(level int) *big.Int {
 }
 
 // Equal compares two sets of parameters for equality.
-func (p Parameters) Equal(other Parameters) bool {
-	return p.Parameters.Equal(other.Parameters)
+func (p Parameters) Equal(other rlwe.ParametersInterface) bool {
+	switch other := other.(type) {
+	case Parameters:
+		return p.Parameters.Equal(other.Parameters)
+	}
+
+	panic(fmt.Errorf("cannot Equal: type do not match: %T != %T", p, other))
 }
 
 // MarshalBinary returns a []byte representation of the parameter set.

@@ -14,9 +14,10 @@ type Plaintext struct {
 }
 
 // NewPlaintext creates a new Plaintext at level `level` from the parameters.
-func NewPlaintext(params Parameters, level int) (pt *Plaintext) {
+func NewPlaintext(params ParametersInterface, level int) (pt *Plaintext) {
 	op := *NewOperandQ(params, 0, level)
 	op.Scale = params.DefaultScale()
+	op.LogSlots = params.MaxLogSlots()
 	return &Plaintext{OperandQ: op, Value: op.Value[0]}
 }
 
@@ -41,7 +42,7 @@ func (pt *Plaintext) Equal(other *Plaintext) bool {
 }
 
 // NewPlaintextRandom generates a new uniformly distributed Plaintext.
-func NewPlaintextRandom(prng sampling.PRNG, params Parameters, level int) (pt *Plaintext) {
+func NewPlaintextRandom(prng sampling.PRNG, params ParametersInterface, level int) (pt *Plaintext) {
 	pt = NewPlaintext(params, level)
 	PopulateElementRandom(prng, params, pt.El())
 	return

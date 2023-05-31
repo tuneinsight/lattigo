@@ -1,6 +1,8 @@
 package bfv
 
 import (
+	"fmt"
+
 	"github.com/tuneinsight/lattigo/v4/bgv"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
@@ -153,8 +155,13 @@ func (p Parameters) RingT() *ring.Ring {
 }
 
 // Equal compares two sets of parameters for equality.
-func (p Parameters) Equal(other Parameters) bool {
-	return bgv.Parameters(p).Equal(bgv.Parameters(other))
+func (p Parameters) Equal(other rlwe.ParametersInterface) bool {
+	switch other := other.(type) {
+	case Parameters:
+		return bgv.Parameters(p).Equal(bgv.Parameters(other))
+	}
+
+	panic(fmt.Errorf("cannot Equal: type do not match: %T != %T", p, other))
 }
 
 // MarshalBinary returns a []byte representation of the parameter set.

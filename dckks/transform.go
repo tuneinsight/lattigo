@@ -144,7 +144,7 @@ func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, logBou
 		panic("cannot GenShare: crs level must be equal to S2EShare")
 	}
 
-	slots := 1 << ct.LogSlots
+	slots := 1 << ct.LogSlots[1]
 
 	dslots := slots
 	if ringQ.Type() == ring.Standard {
@@ -186,7 +186,7 @@ func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, logBou
 
 		// Decodes if asked to
 		if transform.Decode {
-			if err := rfp.encoder.FFT(bigComplex[:slots], ct.LogSlots); err != nil {
+			if err := rfp.encoder.FFT(bigComplex[:slots], ct.LogSlots[1]); err != nil {
 				panic(err)
 			}
 		}
@@ -196,7 +196,7 @@ func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, logBou
 
 		// Recodes if asked to
 		if transform.Encode {
-			if err := rfp.encoder.IFFT(bigComplex[:slots], ct.LogSlots); err != nil {
+			if err := rfp.encoder.IFFT(bigComplex[:slots], ct.LogSlots[1]); err != nil {
 				panic(err)
 			}
 		}
@@ -223,7 +223,7 @@ func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, logBou
 	}
 
 	// Returns [-a*s_i + LT(M_i) * diffscale + e] on S2EShare
-	rfp.s2e.GenShare(skOut, crs, ct.LogSlots, &drlwe.AdditiveShareBigint{Value: rfp.tmpMask}, &shareOut.S2EShare)
+	rfp.s2e.GenShare(skOut, crs, ct.LogSlots[1], &drlwe.AdditiveShareBigint{Value: rfp.tmpMask}, &shareOut.S2EShare)
 }
 
 // AggregateShares sums share1 and share2 on shareOut.
@@ -257,7 +257,7 @@ func (rfp *MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, transform *Ma
 
 	ringQ := rfp.s2e.params.RingQ().AtLevel(maxLevel)
 
-	slots := 1 << ct.LogSlots
+	slots := 1 << ct.LogSlots[1]
 
 	dslots := slots
 	if ringQ.Type() == ring.Standard {
@@ -299,7 +299,7 @@ func (rfp *MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, transform *Ma
 
 		// Decodes if asked to
 		if transform.Decode {
-			if err := rfp.encoder.FFT(bigComplex[:slots], ct.LogSlots); err != nil {
+			if err := rfp.encoder.FFT(bigComplex[:slots], ct.LogSlots[1]); err != nil {
 				panic(err)
 			}
 		}
@@ -309,7 +309,7 @@ func (rfp *MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, transform *Ma
 
 		// Recodes if asked to
 		if transform.Encode {
-			if err := rfp.encoder.IFFT(bigComplex[:slots], ct.LogSlots); err != nil {
+			if err := rfp.encoder.IFFT(bigComplex[:slots], ct.LogSlots[1]); err != nil {
 				panic(err)
 			}
 		}
@@ -349,7 +349,7 @@ func (rfp *MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, transform *Ma
 	// Sets LT(-sum(M_i) + x) * diffscale in the RNS domain
 	ringQ.SetCoefficientsBigint(rfp.tmpMask[:dslots], ciphertextOut.Value[0])
 
-	ckks.NttSparseAndMontgomery(ringQ, ct.LogSlots, false, ciphertextOut.Value[0])
+	rlwe.NTTSparseAndMontgomery(ringQ, ct.LogSlots[1], true, false, ciphertextOut.Value[0])
 
 	// LT(-sum(M_i) + x) * diffscale + [-a*s + LT(M_i) * diffscale + e] = [-a*s + LT(x) * diffscale + e]
 	ringQ.Add(ciphertextOut.Value[0], share.S2EShare.Value, ciphertextOut.Value[0])

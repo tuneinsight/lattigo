@@ -55,7 +55,8 @@ func chebyshevinterpolation() {
 	evaluator := ckks.NewEvaluator(params, evk)
 
 	// Values to encrypt
-	values := make([]float64, params.MaxSlots())
+	maxSlots := params.MaxSlots()[1]
+	values := make([]float64, maxSlots)
 	for i := range values {
 		values[i] = sampling.RandFloat64(-8, 8)
 	}
@@ -74,7 +75,7 @@ func chebyshevinterpolation() {
 		panic(err)
 	}
 
-	slots := 1 << plaintext.LogSlots
+	slots := 1 << plaintext.LogSlots[1]
 
 	// Encryption process
 	var ciphertext *rlwe.Ciphertext
@@ -162,7 +163,7 @@ func round(x float64) float64 {
 
 func printDebug(params ckks.Parameters, ciphertext *rlwe.Ciphertext, valuesWant []float64, decryptor rlwe.Decryptor, encoder *ckks.Encoder) (valuesTest []float64) {
 
-	valuesTest = make([]float64, 1<<ciphertext.LogSlots)
+	valuesTest = make([]float64, 1<<ciphertext.LogSlots[1])
 
 	if err := encoder.Decode(decryptor.DecryptNew(ciphertext), valuesTest); err != nil {
 		panic(err)

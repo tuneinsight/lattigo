@@ -22,7 +22,7 @@ type Evaluator struct {
 }
 
 type evaluatorBase struct {
-	params Parameters
+	params ParametersInterface
 }
 
 type evaluatorBuffers struct {
@@ -35,13 +35,13 @@ type evaluatorBuffers struct {
 	BuffBitDecomp []uint64
 }
 
-func newEvaluatorBase(params Parameters) *evaluatorBase {
+func newEvaluatorBase(params ParametersInterface) *evaluatorBase {
 	return &evaluatorBase{
 		params: params,
 	}
 }
 
-func newEvaluatorBuffers(params Parameters) *evaluatorBuffers {
+func newEvaluatorBuffers(params ParametersInterface) *evaluatorBuffers {
 
 	buff := new(evaluatorBuffers)
 	decompRNS := params.DecompRNS(params.MaxLevelQ(), params.MaxLevelP())
@@ -71,7 +71,7 @@ func newEvaluatorBuffers(params Parameters) *evaluatorBuffers {
 }
 
 // NewEvaluator creates a new Evaluator.
-func NewEvaluator(params Parameters, evk EvaluationKeySetInterface) (eval *Evaluator) {
+func NewEvaluator(params ParametersInterface, evk EvaluationKeySetInterface) (eval *Evaluator) {
 	eval = new(Evaluator)
 	eval.evaluatorBase = newEvaluatorBase(params)
 	eval.evaluatorBuffers = newEvaluatorBuffers(params)
@@ -104,7 +104,7 @@ func NewEvaluator(params Parameters, evk EvaluationKeySetInterface) (eval *Evalu
 }
 
 // Parameters returns the parameters used to instantiate the target evaluator.
-func (eval *Evaluator) Parameters() Parameters {
+func (eval *Evaluator) Parameters() ParametersInterface {
 	return eval.params
 }
 
@@ -183,7 +183,8 @@ func (eval *Evaluator) CheckBinary(op0, op1, opOut *OperandQ, opOutMinDegree int
 		opOut.El().EncodingDomain = op0.El().EncodingDomain
 	}
 
-	opOut.El().LogSlots = utils.Max(op0.El().LogSlots, op1.El().LogSlots)
+	opOut.El().LogSlots[0] = utils.Max(op0.El().LogSlots[0], op1.El().LogSlots[0])
+	opOut.El().LogSlots[1] = utils.Max(op0.El().LogSlots[1], op1.El().LogSlots[1])
 
 	opOut.El().Resize(utils.Max(opOutMinDegree, opOut.Degree()), level)
 

@@ -117,7 +117,7 @@ func NewEvaluator(params Parameters, evk rlwe.EvaluationKeySetInterface) *Evalua
 	ev := new(Evaluator)
 	ev.evaluatorBase = newEvaluatorPrecomp(params)
 	ev.evaluatorBuffers = newEvaluatorBuffer(ev.evaluatorBase)
-	ev.Evaluator = rlwe.NewEvaluator(params.Parameters, evk)
+	ev.Evaluator = rlwe.NewEvaluator(params, evk)
 
 	return ev
 }
@@ -988,7 +988,7 @@ func (eval *Evaluator) RotateHoistedLazyNew(level int, rotations []int, ctIn *rl
 	cOut = make(map[int]*rlwe.OperandQP)
 	for _, i := range rotations {
 		if i != 0 {
-			cOut[i] = rlwe.NewOperandQP(eval.params.Parameters, 1, level, eval.params.MaxLevelP())
+			cOut[i] = rlwe.NewOperandQP(eval.params, 1, level, eval.params.MaxLevelP())
 			eval.AutomorphismHoistedLazy(level, ctIn, c2DecompQP, eval.params.GaloisElement(i), cOut[i])
 		}
 	}

@@ -43,7 +43,7 @@ func TestHomomorphicDFT(t *testing.T) {
 		panic(err)
 	}
 
-	for _, logSlots := range []int{params.MaxLogSlots() - 1, params.MaxLogSlots()} {
+	for _, logSlots := range []int{params.MaxLogSlots()[1] - 1, params.MaxLogSlots()[1]} {
 		for _, testSet := range []func(params ckks.Parameters, logSlots int, t *testing.T){
 			testHomomorphicEncoding,
 			testHomomorphicDecoding,
@@ -81,10 +81,10 @@ func testHomomorphicEncoding(params ckks.Parameters, LogSlots int, t *testing.T)
 
 	slots := 1 << LogSlots
 
-	var sparse bool = LogSlots < params.MaxLogSlots()
+	var sparse bool = LogSlots < params.MaxLogSlots()[1]
 
 	packing := "FullPacking"
-	if LogSlots < params.MaxLogSlots() {
+	if sparse {
 		packing = "SparsePacking"
 	}
 
@@ -197,7 +197,7 @@ func testHomomorphicEncoding(params ckks.Parameters, LogSlots int, t *testing.T)
 
 		// Encodes coefficient-wise and encrypts the test vector
 		pt := ckks.NewPlaintext(params, params.MaxLevel())
-		pt.LogSlots = LogSlots
+		pt.LogSlots = [2]int{0, LogSlots}
 
 		pt.EncodingDomain = rlwe.CoefficientsDomain
 		if err = encoder.Encode(valuesFloat, pt); err != nil {
@@ -299,10 +299,10 @@ func testHomomorphicDecoding(params ckks.Parameters, LogSlots int, t *testing.T)
 
 	slots := 1 << LogSlots
 
-	var sparse bool = LogSlots < params.LogN()-1
+	var sparse bool = LogSlots < params.MaxLogSlots()[1]
 
 	packing := "FullPacking"
-	if LogSlots < params.LogN()-1 {
+	if sparse {
 		packing = "SparsePacking"
 	}
 
@@ -396,7 +396,7 @@ func testHomomorphicDecoding(params ckks.Parameters, LogSlots int, t *testing.T)
 
 		// Encodes and encrypts the test vectors
 		plaintext := ckks.NewPlaintext(params, params.MaxLevel())
-		plaintext.LogSlots = LogSlots
+		plaintext.LogSlots = [2]int{0, LogSlots}
 		if err = encoder.Encode(valuesReal, plaintext); err != nil {
 			t.Fatal(err)
 		}

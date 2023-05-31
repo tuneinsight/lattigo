@@ -14,7 +14,7 @@ import (
 // does not have enough remaining level and if no bootstrapper was given.
 func (eval *Evaluator) GoldschmidtDivisionNew(ct *rlwe.Ciphertext, minValue, logPrec float64, btp rlwe.Bootstrapper) (ctInv *rlwe.Ciphertext, err error) {
 
-	params := eval.params
+	parameters := eval.parameters
 
 	start := math.Log2(1 - minValue)
 	var iters int
@@ -23,7 +23,7 @@ func (eval *Evaluator) GoldschmidtDivisionNew(ct *rlwe.Ciphertext, minValue, log
 		iters++
 	}
 
-	if depth := iters * params.DefaultScaleModuliRatio(); btp == nil && depth > ct.Level() {
+	if depth := iters * parameters.DefaultScaleModuliRatio(); btp == nil && depth > ct.Level() {
 		return nil, fmt.Errorf("cannot GoldschmidtDivisionNew: ct.Level()=%d < depth=%d and rlwe.Bootstrapper is nil", ct.Level(), depth)
 	}
 
@@ -34,31 +34,31 @@ func (eval *Evaluator) GoldschmidtDivisionNew(ct *rlwe.Ciphertext, minValue, log
 
 	for i := 1; i < iters; i++ {
 
-		if btp != nil && (b.Level() == btp.MinimumInputLevel() || b.Level() == params.DefaultScaleModuliRatio()-1) {
+		if btp != nil && (b.Level() == btp.MinimumInputLevel() || b.Level() == parameters.DefaultScaleModuliRatio()-1) {
 			if b, err = btp.Bootstrap(b); err != nil {
 				return nil, err
 			}
 		}
 
-		if btp != nil && (a.Level() == btp.MinimumInputLevel() || a.Level() == params.DefaultScaleModuliRatio()-1) {
+		if btp != nil && (a.Level() == btp.MinimumInputLevel() || a.Level() == parameters.DefaultScaleModuliRatio()-1) {
 			if a, err = btp.Bootstrap(a); err != nil {
 				return nil, err
 			}
 		}
 
 		eval.MulRelin(b, b, b)
-		if err = eval.Rescale(b, params.DefaultScale(), b); err != nil {
+		if err = eval.Rescale(b, parameters.DefaultScale(), b); err != nil {
 			return nil, err
 		}
 
-		if btp != nil && (b.Level() == btp.MinimumInputLevel() || b.Level() == params.DefaultScaleModuliRatio()-1) {
+		if btp != nil && (b.Level() == btp.MinimumInputLevel() || b.Level() == parameters.DefaultScaleModuliRatio()-1) {
 			if b, err = btp.Bootstrap(b); err != nil {
 				return nil, err
 			}
 		}
 
 		tmp := eval.MulRelinNew(a, b)
-		if err = eval.Rescale(tmp, params.DefaultScale(), tmp); err != nil {
+		if err = eval.Rescale(tmp, parameters.DefaultScale(), tmp); err != nil {
 			return nil, err
 		}
 

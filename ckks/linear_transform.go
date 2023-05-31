@@ -1,7 +1,6 @@
 package ckks
 
 import (
-	"fmt"
 	"math/big"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
@@ -11,79 +10,28 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
-// LinearTransformEncoder is a struct complying to the rlwe.LinearTransformEncoder.
-type LinearTransformEncoder[T float64 | complex128 | *big.Float | *bignum.Complex] struct {
-	*Encoder
-	diagonals map[int][]T
-	values    []T
+// NewLinearTransform allocates a new LinearTransform with zero plaintexts at the specified level.
+// If LogBSGSRatio < 0, the LinearTransform is set to not use the BSGS approach.
+func NewLinearTransform(params Parameters, nonZeroDiags []int, level int, scale rlwe.Scale, LogSlots, LogBSGSRatio int) rlwe.LinearTransform {
+	return rlwe.NewLinearTransform(params, nonZeroDiags, level, scale, [2]int{0, LogSlots}, LogBSGSRatio)
 }
 
-// NewLinearTransformEncoder creates a new LinearTransformEncoder.
-func NewLinearTransformEncoder[T float64 | complex128 | *big.Float | *bignum.Complex](ecd *Encoder, diagonals map[int][]T) rlwe.LinearTransformEncoder {
-	return LinearTransformEncoder[T]{
-		Encoder:   ecd,
-		diagonals: diagonals,
-		values:    make([]T, ecd.Parameters().MaxSlots()),
-	}
+func EncodeLinearTransform[T float64 | complex128 | *big.Float | *bignum.Complex](LT rlwe.LinearTransform, diagonals map[int][]T, ecd *Encoder) (err error) {
+	return rlwe.EncodeLinearTransform[T](LT, diagonals, &encoder[T, ringqp.Poly]{ecd})
 }
 
-// Parameters returns the rlwe.Parameters of the underlying LinearTransformEncoder.
-func (l LinearTransformEncoder[_]) Parameters() rlwe.Parameters {
-	return l.Encoder.Parameters().Parameters
+func GenLinearTransform[T float64 | complex128 | *big.Float | *bignum.Complex](diagonals map[int][]T, ecd *Encoder, level int, scale rlwe.Scale, LogSlots int) (LT rlwe.LinearTransform, err error) {
+	return rlwe.GenLinearTransform[T](diagonals, &encoder[T, ringqp.Poly]{ecd}, level, scale, [2]int{0, LogSlots})
 }
 
-// NonZeroDiagonals returns the list of non-zero diagonals of the matrix stored in the underlying LinearTransformEncoder.
-func (l LinearTransformEncoder[_]) NonZeroDiagonals() []int {
-	return utils.GetKeys(l.diagonals)
-}
-
-// EncodeLinearTransformDiagonalNaive encodes the i-th non-zero diagonal of the internaly stored matrix at the given scale on the outut polynomial.
-func (l LinearTransformEncoder[_]) EncodeLinearTransformDiagonalNaive(i int, scale rlwe.Scale, LogSlots int, output ringqp.Poly) (err error) {
-
-	if diag, ok := l.diagonals[i]; ok {
-		return l.Embed(diag, LogSlots, scale, true, output)
-	}
-
-	return fmt.Errorf("cannot EncodeLinearTransformDiagonalNaive: diagonal [%d] doesn't exist", i)
-}
-
-// EncodeLinearTransformDiagonal encodes the i-th non-zero diagonal  of size at most 2^{LogSlots} rotated by `rot` positions
-// to the left of the internaly stored matrix at the given Scale on the outut ringqp.Poly.
-func (l LinearTransformEncoder[T]) EncodeLinearTransformDiagonal(i, rot int, scale rlwe.Scale, logSlots int, output ringqp.Poly) (err error) {
-
-	ecd := l.Encoder
-	slots := 1 << logSlots
-
-	// manages inputs that have rotation between 0 and slots-1 or between -slots/2 and slots/2-1
-	v, ok := l.diagonals[i]
-	if !ok {
-		v = l.diagonals[i-slots]
-	}
-
-	rot &= (slots - 1)
-
-	var values []T
-	if rot != 0 {
-
-		values = l.values
-
-		if slots >= rot {
-			copy(values[:slots-rot], v[rot:])
-			copy(values[slots-rot:], v[:rot])
-		} else {
-			copy(values[slots-rot:], v)
-		}
-	} else {
-		values = v[:slots]
-	}
-
-	return ecd.Embed(values[:slots], logSlots, scale, true, output)
+func GenLinearTransformBSGS[T float64 | complex128 | *big.Float | *bignum.Complex](diagonals map[int][]T, ecd *Encoder, level int, scale rlwe.Scale, LogSlots, LogBSGSRatio int) (LT rlwe.LinearTransform, err error) {
+	return rlwe.GenLinearTransformBSGS[T](diagonals, &encoder[T, ringqp.Poly]{ecd}, level, scale, [2]int{0, LogSlots}, LogBSGSRatio)
 }
 
 // TraceNew maps X -> sum((-1)^i * X^{i*n+1}) for 0 <= i < N and returns the result on a new ciphertext.
 // For log(n) = logSlots.
 func (eval *Evaluator) TraceNew(ctIn *rlwe.Ciphertext, logSlots int) (ctOut *rlwe.Ciphertext) {
-	ctOut = NewCiphertext(eval.params, 1, ctIn.Level())
+	ctOut = NewCiphertext(eval.parameters, 1, ctIn.Level())
 	eval.Trace(ctIn, logSlots, ctOut)
 	return
 }
@@ -100,15 +48,15 @@ func (eval *Evaluator) Average(ctIn *rlwe.Ciphertext, logBatchSize int, ctOut *r
 		panic("ctIn.Degree() != 1 or ctOut.Degree() != 1")
 	}
 
-	if logBatchSize > ctIn.LogSlots {
+	if logBatchSize > ctIn.LogSlots[1] {
 		panic("cannot Average: batchSize must be smaller or equal to the number of slots")
 	}
 
-	ringQ := eval.params.RingQ()
+	ringQ := eval.parameters.RingQ()
 
 	level := utils.Min(ctIn.Level(), ctOut.Level())
 
-	n := 1 << (ctIn.LogSlots - logBatchSize)
+	n := 1 << (ctIn.LogSlots[1] - logBatchSize)
 
 	// pre-multiplication by n^-1
 	for i, s := range ringQ.SubRings[:level+1] {

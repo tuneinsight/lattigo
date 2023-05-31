@@ -268,6 +268,16 @@ func (p Parameters) LogN() int {
 	return p.logN
 }
 
+// MaxSlots returns the maximum dimension of the matrix that can be SIMD packed in a single plaintext polynomial.
+func (p Parameters) MaxSlots() [2]int {
+	return [2]int{0, 0}
+}
+
+// MaxLogSlots returns the log2 of maximum dimension of the matrix that can be SIMD packed in a single plaintext polynomial.
+func (p Parameters) MaxLogSlots() [2]int {
+	return [2]int{-1, -1}
+}
+
 // RingQ returns a pointer to ringQ
 func (p Parameters) RingQ() *ring.Ring {
 	return p.ringQ
@@ -536,13 +546,13 @@ func (p Parameters) DecompRNS(levelQ, levelP int) int {
 
 // QiOverflowMargin returns floor(2^64 / max(Qi)), i.e. the number of times elements of Z_max{Qi} can
 // be added together before overflowing 2^64.
-func (p *Parameters) QiOverflowMargin(level int) int {
+func (p Parameters) QiOverflowMargin(level int) int {
 	return int(math.Exp2(64) / float64(utils.MaxSlice(p.qi[:level+1])))
 }
 
 // PiOverflowMargin returns floor(2^64 / max(Pi)), i.e. the number of times elements of Z_max{Pi} can
 // be added together before overflowing 2^64.
-func (p *Parameters) PiOverflowMargin(level int) int {
+func (p Parameters) PiOverflowMargin(level int) int {
 	return int(math.Exp2(64) / float64(utils.MaxSlice(p.pi[:level+1])))
 }
 
@@ -697,38 +707,46 @@ func (p Parameters) GaloisElementsForLinearTransform(nonZeroDiagonals []int, Log
 }
 
 // SolveDiscretLogGaloisElement takes a Galois element of the form GaloisGen^{k} mod NthRoot and returns k.
-func (p Parameters) SolveDiscretLogGaloisElement(galEl uint64) (k uint64) {
+func (p Parameters) SolveDiscretLogGaloisElement(galEl uint64) (k int) {
 
 	N := p.ringQ.NthRoot()
+
+	var kuint uint64
 
 	x := N >> 3
 
 	for {
 
-		if ring.ModExpPow2(GaloisGen, k, N) != ring.ModExpPow2(galEl, x, N) {
-			k |= N >> 3
+		if ring.ModExpPow2(GaloisGen, kuint, N) != ring.ModExpPow2(galEl, x, N) {
+			kuint |= N >> 3
 		}
 
 		if x == 1 {
-			return
+			return int(kuint)
 		}
 
 		x >>= 1
-		k >>= 1
+		kuint >>= 1
 	}
 }
 
 // Equal checks two Parameter structs for equality.
-func (p Parameters) Equal(other Parameters) bool {
-	res := p.logN == other.logN
-	res = res && (p.Xs().StandardDeviation(p.LogN(), p.LogQP()) == other.Xs().StandardDeviation(p.LogN(), p.LogQP()))
-	res = res && (p.Xe().StandardDeviation(p.LogN(), p.LogQP()) == other.Xe().StandardDeviation(p.LogN(), p.LogQP()))
-	res = res && cmp.Equal(p.qi, other.qi)
-	res = res && cmp.Equal(p.pi, other.pi)
-	res = res && (p.ringType == other.ringType)
-	res = res && (p.defaultScale.Equal(other.defaultScale))
-	res = res && (p.defaultNTTFlag == other.defaultNTTFlag)
-	return res
+func (p Parameters) Equal(other ParametersInterface) (res bool) {
+
+	switch other := other.(type) {
+	case Parameters:
+		res = p.logN == other.logN
+		res = res && (p.Xs().StandardDeviation(p.LogN(), p.LogQP()) == other.Xs().StandardDeviation(p.LogN(), p.LogQP()))
+		res = res && (p.Xe().StandardDeviation(p.LogN(), p.LogQP()) == other.Xe().StandardDeviation(p.LogN(), p.LogQP()))
+		res = res && cmp.Equal(p.qi, other.qi)
+		res = res && cmp.Equal(p.pi, other.pi)
+		res = res && (p.ringType == other.ringType)
+		res = res && (p.defaultScale.Equal(other.defaultScale))
+		res = res && (p.defaultNTTFlag == other.defaultNTTFlag)
+		return
+	}
+
+	panic(fmt.Errorf("cannot Equal: type do not match: %T != %T", p, other))
 }
 
 // MarshalBinary returns a []byte representation of the parameter set.

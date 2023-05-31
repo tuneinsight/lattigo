@@ -6,30 +6,26 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
-func NewPlaintext(params Parameters, level int) (pt *rlwe.Plaintext) {
-	pt = rlwe.NewPlaintext(params.Parameters, level)
-	pt.LogSlots = params.MaxLogSlots()
-	return
+func NewPlaintext(params rlwe.ParametersInterface, level int) (pt *rlwe.Plaintext) {
+	return rlwe.NewPlaintext(params, level)
 }
 
-func NewCiphertext(params Parameters, degree, level int) (ct *rlwe.Ciphertext) {
-	ct = rlwe.NewCiphertext(params.Parameters, degree, level)
-	ct.LogSlots = params.MaxLogSlots()
-	return
+func NewCiphertext(params rlwe.ParametersInterface, degree, level int) (ct *rlwe.Ciphertext) {
+	return rlwe.NewCiphertext(params, degree, level)
 }
 
-func NewEncryptor(params Parameters, key interface{}) rlwe.Encryptor {
-	return rlwe.NewEncryptor(params.Parameters, key)
+func NewEncryptor(params rlwe.ParametersInterface, key interface{}) rlwe.Encryptor {
+	return rlwe.NewEncryptor(params, key)
 }
 
-func NewDecryptor(params Parameters, key *rlwe.SecretKey) rlwe.Decryptor {
-	return rlwe.NewDecryptor(params.Parameters, key)
+func NewDecryptor(params rlwe.ParametersInterface, key *rlwe.SecretKey) rlwe.Decryptor {
+	return rlwe.NewDecryptor(params, key)
 }
 
-func NewKeyGenerator(params Parameters) *rlwe.KeyGenerator {
-	return rlwe.NewKeyGenerator(params.Parameters)
+func NewKeyGenerator(params rlwe.ParametersInterface) *rlwe.KeyGenerator {
+	return rlwe.NewKeyGenerator(params)
 }
 
-func NewPRNGEncryptor(params Parameters, key *rlwe.SecretKey) rlwe.PRNGEncryptor {
-	return rlwe.NewPRNGEncryptor(params.Parameters, key)
+func NewPRNGEncryptor(params rlwe.ParametersInterface, key *rlwe.SecretKey) rlwe.PRNGEncryptor {
+	return rlwe.NewPRNGEncryptor(params, key)
 }

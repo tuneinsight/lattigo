@@ -31,7 +31,7 @@ type PRNGEncryptor interface {
 }
 
 type encryptorBase struct {
-	params Parameters
+	params ParametersInterface
 	*encryptorBuffers
 
 	prng            sampling.PRNG
@@ -53,7 +53,7 @@ type skEncryptor struct {
 
 // NewEncryptor creates a new Encryptor
 // Accepts either a secret-key or a public-key.
-func NewEncryptor(params Parameters, key interface{}) Encryptor {
+func NewEncryptor(params ParametersInterface, key interface{}) Encryptor {
 	switch key := key.(type) {
 	case *PublicKey:
 		return newPkEncryptor(params, key)
@@ -67,11 +67,11 @@ func NewEncryptor(params Parameters, key interface{}) Encryptor {
 }
 
 // NewPRNGEncryptor creates a new PRNGEncryptor instance.
-func NewPRNGEncryptor(params Parameters, key *SecretKey) PRNGEncryptor {
+func NewPRNGEncryptor(params ParametersInterface, key *SecretKey) PRNGEncryptor {
 	return newSkEncryptor(params, key)
 }
 
-func newEncryptorBase(params Parameters) *encryptorBase {
+func newEncryptorBase(params ParametersInterface) *encryptorBase {
 
 	prng, err := sampling.NewPRNG()
 	if err != nil {
@@ -86,15 +86,15 @@ func newEncryptorBase(params Parameters) *encryptorBase {
 	return &encryptorBase{
 		params:           params,
 		prng:             prng,
-		gaussianSampler:  ring.NewSampler(prng, params.RingQ(), params.xe, false),
-		ternarySampler:   ring.NewSampler(prng, params.RingQ(), params.xs, false), // TODO rename fields
+		gaussianSampler:  ring.NewSampler(prng, params.RingQ(), params.Xe(), false),
+		ternarySampler:   ring.NewSampler(prng, params.RingQ(), params.Xs(), false), // TODO rename fields
 		encryptorBuffers: newEncryptorBuffers(params),
 		uniformSampler:   ringqp.NewUniformSampler(prng, *params.RingQP()),
 		basisextender:    bc,
 	}
 }
 
-func newSkEncryptor(params Parameters, sk *SecretKey) (enc *skEncryptor) {
+func newSkEncryptor(params ParametersInterface, sk *SecretKey) (enc *skEncryptor) {
 
 	enc = &skEncryptor{*newEncryptorBase(params), nil}
 
@@ -107,7 +107,7 @@ func newSkEncryptor(params Parameters, sk *SecretKey) (enc *skEncryptor) {
 	return
 }
 
-func newPkEncryptor(params Parameters, pk *PublicKey) (enc *pkEncryptor) {
+func newPkEncryptor(params ParametersInterface, pk *PublicKey) (enc *pkEncryptor) {
 
 	enc = &pkEncryptor{*newEncryptorBase(params), nil}
 
@@ -126,7 +126,7 @@ type encryptorBuffers struct {
 	buffQP ringqp.Poly
 }
 
-func newEncryptorBuffers(params Parameters) *encryptorBuffers {
+func newEncryptorBuffers(params ParametersInterface) *encryptorBuffers {
 
 	ringQ := params.RingQ()
 	ringP := params.RingP()

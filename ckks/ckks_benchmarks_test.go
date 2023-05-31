@@ -54,7 +54,7 @@ func benchEncoder(tc *testContext, b *testing.B) {
 
 		pt := NewPlaintext(tc.params, tc.params.MaxLevel())
 
-		values := make([]complex128, 1<<pt.LogSlots)
+		values := make([]complex128, 1<<pt.LogSlots[1])
 		for i := range values {
 			values[i] = sampling.RandComplex128(-1, 1)
 		}
@@ -70,7 +70,7 @@ func benchEncoder(tc *testContext, b *testing.B) {
 
 		pt := NewPlaintext(tc.params, tc.params.MaxLevel())
 
-		values := make([]complex128, 1<<pt.LogSlots)
+		values := make([]complex128, 1<<pt.LogSlots[1])
 		for i := range values {
 			values[i] = sampling.RandComplex128(-1, 1)
 		}

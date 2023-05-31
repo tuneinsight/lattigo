@@ -53,8 +53,11 @@ func example() {
 
 	fmt.Printf("Done in %s \n", time.Since(start))
 
+	logSlots := params.MaxLogSlots()[1]
+	slots := 1 << logSlots
+
 	fmt.Println()
-	fmt.Printf("CKKS parameters: logN = %d, logSlots = %d, logQP = %f, levels = %d, scale= %f, noise = %T %v \n", params.LogN(), params.MaxLogSlots(), params.LogQP(), params.MaxLevel()+1, params.DefaultScale().Float64(), params.Xe(), params.Xe())
+	fmt.Printf("CKKS parameters: logN = %d, logSlots = %d, logQP = %f, levels = %d, scale= %f, noise = %T %v \n", params.LogN(), logSlots, params.LogQP(), params.MaxLevel()+1, params.DefaultScale().Float64(), params.Xe(), params.Xe())
 
 	fmt.Println()
 	fmt.Println("=========================================")
@@ -67,8 +70,6 @@ func example() {
 	r := float64(16)
 
 	pi := 3.141592653589793
-
-	slots := params.MaxSlots()
 
 	values := make([]complex128, slots)
 	for i := range values {
@@ -205,7 +206,7 @@ func example() {
 
 func printDebug(params ckks.Parameters, ciphertext *rlwe.Ciphertext, valuesWant []complex128, decryptor rlwe.Decryptor, encoder *ckks.Encoder) (valuesTest []complex128) {
 
-	valuesTest = make([]complex128, 1<<ciphertext.LogSlots)
+	valuesTest = make([]complex128, 1<<ciphertext.LogSlots[1])
 
 	if err := encoder.Decode(decryptor.DecryptNew(ciphertext), valuesTest); err != nil {
 		panic(err)

@@ -4,7 +4,6 @@ import (
 	"math/big"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
 // AdditiveShare is a type for storing additively shared values in Z_Q[X] (RNS domain).
@@ -20,22 +19,12 @@ type AdditiveShareBigint struct {
 
 // NewAdditiveShare instantiates a new additive share struct for the ring defined
 // by the given parameters at maximum level.
-func NewAdditiveShare(params rlwe.Parameters) *AdditiveShare {
-	return &AdditiveShare{Value: *ring.NewPoly(params.N(), 0)}
-}
-
-// NewAdditiveShareAtLevel instantiates a new additive share struct for the ring defined
-// by the given parameters at level `level`.
-func NewAdditiveShareAtLevel(params rlwe.Parameters, level int) *AdditiveShare {
-	return &AdditiveShare{Value: *ring.NewPoly(params.N(), level)}
+func NewAdditiveShare(r *ring.Ring) *AdditiveShare {
+	return &AdditiveShare{Value: *r.NewPoly()}
 }
 
 // NewAdditiveShareBigint instantiates a new additive share struct composed of "2^logslots" big.Int elements.
-func NewAdditiveShareBigint(params rlwe.Parameters, logSlots int) *AdditiveShareBigint {
-
-	if params.RingType() == ring.Standard {
-		logSlots++
-	}
+func NewAdditiveShareBigint(logSlots int) *AdditiveShareBigint {
 
 	n := 1 << logSlots
 

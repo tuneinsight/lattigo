@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"math"
 	"runtime"
 	"testing"
 
@@ -20,8 +21,18 @@ import (
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters). Overrides -short and requires -timeout=0.")
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 
-func testString(opname string, parties int, params bgv.Parameters) string {
-	return fmt.Sprintf("%s/LogN=%d/logQ=%f/LogP=%f/parties=%d", opname, params.LogN(), params.LogQ(), params.LogP(), parties)
+func GetTestName(opname string, p bgv.Parameters, parties int) string {
+	return fmt.Sprintf("%s/LogN=%d/logQ=%d/logP=%d/LogSlots=%dx%d/logT=%d/Qi=%d/Pi=%d/parties=%d",
+		opname,
+		p.LogN(),
+		int(math.Round(p.LogQ())),
+		int(math.Round(p.LogP())),
+		p.MaxLogSlots()[0],
+		p.MaxLogSlots()[1],
+		int(math.Round(p.LogT())),
+		p.QCount(),
+		p.PCount(),
+		parties)
 }
 
 type testContext struct {
@@ -62,42 +73,42 @@ func TestDBGV(t *testing.T) {
 
 	var err error
 
-	defaultParams := bgv.DefaultParams[:] // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
-	if testing.Short() {
-		defaultParams = bgv.DefaultParams[:2] // the short test suite runs for ring degree N=2^12, 2^13
-	}
-	if *flagLongTest {
-		defaultParams = append(defaultParams, bgv.DefaultPostQuantumParams...) // the long test suite runs for all default parameters
-	}
+	paramsLiterals := bgv.TestParams
+
 	if *flagParamString != "" {
 		var jsonParams bgv.ParametersLiteral
 		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
 			t.Fatal(err)
 		}
-		defaultParams = []bgv.ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
+		paramsLiterals = []bgv.ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
-	for _, p := range defaultParams {
+	for _, p := range paramsLiterals {
 
-		var params bgv.Parameters
-		if params, err = bgv.NewParametersFromLiteral(p); err != nil {
-			t.Fatal(err)
-		}
+		for _, plaintextModulus := range bgv.TestPlaintextModulus[:] {
 
-		nParties := 3
+			p.T = plaintextModulus
 
-		var tc *testContext
-		if tc, err = gentestContext(nParties, params); err != nil {
-			t.Fatal(err)
-		}
-		for _, testSet := range []func(tc *testContext, t *testing.T){
-			testEncToShares,
-			testRefresh,
-			testRefreshAndPermutation,
-			testRefreshAndTransformSwitchParams,
-		} {
-			testSet(tc, t)
-			runtime.GC()
+			var params bgv.Parameters
+			if params, err = bgv.NewParametersFromLiteral(p); err != nil {
+				t.Fatal(err)
+			}
+
+			nParties := 3
+
+			var tc *testContext
+			if tc, err = gentestContext(nParties, params); err != nil {
+				t.Fatal(err)
+			}
+			for _, testSet := range []func(tc *testContext, t *testing.T){
+				testEncToShares,
+				testRefresh,
+				testRefreshAndPermutation,
+				testRefreshAndTransformSwitchParams,
+			} {
+				testSet(tc, t)
+				runtime.GC()
+			}
 		}
 	}
 }
@@ -177,7 +188,7 @@ func testEncToShares(tc *testContext, t *testing.T) {
 
 		P[i].sk = tc.sk0Shards[i]
 		P[i].publicShare = P[i].e2s.AllocateShare(ciphertext.Level())
-		P[i].secretShare = drlwe.NewAdditiveShare(params.Parameters)
+		P[i].secretShare = NewAdditiveShare(params)
 	}
 
 	// The E2S protocol is run in all tests, as a setup to the S2E test.
@@ -190,9 +201,9 @@ func testEncToShares(tc *testContext, t *testing.T) {
 
 	P[0].e2s.GetShare(P[0].secretShare, P[0].publicShare, ciphertext, P[0].secretShare)
 
-	t.Run(testString("E2SProtocol", tc.NParties, tc.params), func(t *testing.T) {
+	t.Run(GetTestName("E2SProtocol", tc.params, tc.NParties), func(t *testing.T) {
 
-		rec := drlwe.NewAdditiveShare(params.Parameters)
+		rec := NewAdditiveShare(params)
 		for _, p := range P {
 			tc.ringT.Add(&rec.Value, &p.secretShare.Value, &rec.Value)
 		}
@@ -208,7 +219,7 @@ func testEncToShares(tc *testContext, t *testing.T) {
 
 	crp := P[0].e2s.SampleCRP(params.MaxLevel(), tc.crs)
 
-	t.Run(testString("S2EProtocol", tc.NParties, tc.params), func(t *testing.T) {
+	t.Run(GetTestName("S2EProtocol", tc.params, tc.NParties), func(t *testing.T) {
 
 		for i, p := range P {
 			p.s2e.GenShare(p.sk, crp, p.secretShare, p.publicShare)
@@ -235,7 +246,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 	minLevel := 0
 	maxLevel := tc.params.MaxLevel()
 
-	t.Run(testString("Refresh", tc.NParties, tc.params), func(t *testing.T) {
+	t.Run(GetTestName("Refresh", tc.params, tc.NParties), func(t *testing.T) {
 
 		type Party struct {
 			*RefreshProtocol
@@ -291,7 +302,7 @@ func testRefreshAndPermutation(tc *testContext, t *testing.T) {
 	minLevel := 0
 	maxLevel := tc.params.MaxLevel()
 
-	t.Run(testString("RefreshAndPermutation", tc.NParties, tc.params), func(t *testing.T) {
+	t.Run(GetTestName("RefreshAndPermutation", tc.params, tc.NParties), func(t *testing.T) {
 
 		type Party struct {
 			*MaskedTransformProtocol
@@ -325,7 +336,7 @@ func testRefreshAndPermutation(tc *testContext, t *testing.T) {
 		ciphertext.Resize(ciphertext.Degree(), minLevel)
 
 		permutation := make([]uint64, len(coeffs))
-		N := uint64(tc.params.N())
+		N := uint64(tc.params.MaxSlots()[1])
 		prng, _ := sampling.NewPRNG()
 		for i := range permutation {
 			permutation[i] = ring.RandUniform(prng, N, N-1)
@@ -373,7 +384,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 	sk0Shards := tc.sk0Shards
 	paramsIn := tc.params
 
-	t.Run(testString("RefreshAndTransformSwitchparams", tc.NParties, tc.params), func(t *testing.T) {
+	t.Run(GetTestName("RefreshAndTransformSwitchparams", tc.params, tc.NParties), func(t *testing.T) {
 
 		var paramsOut bgv.Parameters
 		var err error
@@ -428,7 +439,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 		coeffs, _, ciphertext := newTestVectors(tc, encryptorPk0, t)
 
 		permutation := make([]uint64, len(coeffs))
-		N := uint64(tc.params.N())
+		N := uint64(tc.params.MaxSlots()[1])
 		prng, _ := sampling.NewPRNG()
 		for i := range permutation {
 			permutation[i] = ring.RandUniform(prng, N, N-1)

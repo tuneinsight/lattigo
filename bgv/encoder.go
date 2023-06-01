@@ -381,7 +381,7 @@ func (ecd *Encoder) RingQ2T(level int, scaleDown bool, pQ, pT *ring.Poly) {
 
 			n := pT.N()
 
-			pQCoeffs := pQ.Coeffs[0]
+			pQCoeffs := poly.Coeffs[0]
 			bufQCoeffs := ecd.bufQ.Coeffs[0]
 
 			for i := 0; i < n; i++ {

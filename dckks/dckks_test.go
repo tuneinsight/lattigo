@@ -184,7 +184,7 @@ func testE2SProtocol(tc *testContext, t *testing.T) {
 			P[i].sk = tc.sk0Shards[i]
 			P[i].publicShareE2S = P[i].e2s.AllocateShare(minLevel)
 			P[i].publicShareS2E = P[i].s2e.AllocateShare(params.MaxLevel())
-			P[i].secretShare = drlwe.NewAdditiveShareBigint(params.Parameters, ciphertext.LogSlots[1])
+			P[i].secretShare = NewAdditiveShare(params, ciphertext.LogSlots[1])
 		}
 
 		for i, p := range P {
@@ -201,7 +201,7 @@ func testE2SProtocol(tc *testContext, t *testing.T) {
 		P[0].e2s.GetShare(P[0].secretShare, P[0].publicShareE2S, ciphertext, P[0].secretShare)
 
 		// sum(-M_i) + x + sum(M_i) = x
-		rec := drlwe.NewAdditiveShareBigint(params.Parameters, ciphertext.LogSlots[1])
+		rec := NewAdditiveShare(params, ciphertext.LogSlots[1])
 		for _, p := range P {
 			a := rec.Value
 			b := p.secretShare.Value

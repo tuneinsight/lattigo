@@ -25,6 +25,15 @@ type E2SProtocol struct {
 	buff       *ring.Poly
 }
 
+func NewAdditiveShare(params ckks.Parameters, logSlots int) *drlwe.AdditiveShareBigint {
+
+	if params.RingType() == ring.Standard {
+		logSlots++
+	}
+
+	return drlwe.NewAdditiveShareBigint(logSlots)
+}
+
 // ShallowCopy creates a shallow copy of E2SProtocol in which all the read-only data-structures are
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // E2SProtocol can be used concurrently.

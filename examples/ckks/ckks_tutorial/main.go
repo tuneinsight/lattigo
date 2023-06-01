@@ -634,7 +634,7 @@ func main() {
 	// LogBSGSRatio: the log of the ratio of the inner/outer loops of the baby-step giant-step algorithm for matrix-vector evaluation, leave it to 1
 	// LogSlots: the log2 of the dimension of the linear transformation
 	LogBSGSRatio := 1
-	linTransf, err := ckks.GenLinearTransformBSGS(diags, ecd, params.MaxLevel(), rlwe.NewScale(params.Q()[res.Level()]), LogSlots, LogBSGSRatio)
+	linTransf, err := ckks.GenLinearTransform(diags, ecd, params.MaxLevel(), rlwe.NewScale(params.Q()[res.Level()]), LogSlots, LogBSGSRatio)
 
 	if err != nil {
 		panic(err)

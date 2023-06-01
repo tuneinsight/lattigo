@@ -76,12 +76,12 @@ func (LT *LinearTransform) GaloisElements(params ParametersInterface) (galEls []
 	return params.GaloisElements(utils.GetDistincts(append(rotN1, rotN2...)))
 }
 
-// Encode encodes on a pre-allocated LinearTransform the linear transforms' matrix in diagonal form `value`.
-// values.(type) can be either map[int][]complex128 or map[int][]float64.
-// The user must ensure that 1 <= len([]complex128\[]float64) <= 2^logSlots < 2^logN.
-// It can then be evaluated on a ciphertext using evaluator.LinearTransform.
-// Evaluation will use the naive approach (single hoisting and no baby-step giant-step).
-// This method is faster if there is only a few non-zero diagonals but uses more keys.
+// EncodeLinearTransform encodes on a pre-allocated LinearTransform a set of non-zero diagonales of a matrix representing a linear transformation.
+//
+// inputs:
+// - LT: a pre-allocated LinearTransform using `NewLinearTransform`
+// - diagonals: the set of non-zero diagonals
+// - encoder: an struct complying to the EncoderInterface
 func EncodeLinearTransform[T any](LT LinearTransform, diagonals map[int][]T, encoder EncoderInterface[T, ringqp.Poly]) (err error) {
 
 	scale := LT.Scale
@@ -103,7 +103,7 @@ func EncodeLinearTransform[T any](LT LinearTransform, diagonals map[int][]T, enc
 			}
 
 			if vec, ok := LT.Vec[idx]; !ok {
-				return (fmt.Errorf("cannot Encode: error encoding on LinearTransform: plaintext diagonal [%d] does not exist", idx))
+				return fmt.Errorf("cannot Encode: error encoding on LinearTransform: plaintext diagonal [%d] does not exist", idx)
 			} else {
 				if err = rotateAndEncodeDiagonal(diagonals, encoder, i, 0, scale, LogSlots, buf, vec); err != nil {
 					return
@@ -165,20 +165,23 @@ func rotateAndEncodeDiagonal[T any](diagonals map[int][]T, encoder EncoderInterf
 	return encoder.Encode(values, logSlots[1], scale, true, poly)
 }
 
-// GenLinearTransform allocates and encodes a new LinearTransform struct from the linear transforms' matrix in diagonal form `value`.
-// values.(type) can be either map[int][]complex128 or map[int][]float64.
-// The user must ensure that 1 <= len([]complex128\[]float64) <= 2^logSlots < 2^logN.
-// It can then be evaluated on a ciphertext using evaluator.LinearTransform.
-// Evaluation will use the naive approach (single hoisting and no baby-step giant-step).
-// This method is faster if there is only a few non-zero diagonals but uses more keys.
-func GenLinearTransform[T any](diagonals map[int][]T, encoder EncoderInterface[T, ringqp.Poly], level int, scale Scale, LogSlots [2]int) (LT LinearTransform, err error) {
+// GenLinearTransform allocates a new LinearTransform encoding the provided set of non-zero diagonals of a matrix representing a linear transformation.
+//
+// inputs:
+// - diagonals: the set of non-zero diagonals
+// - encoder: an struct complying to the EncoderInterface
+// - level: the level of the encoded diagonals
+// - scale: the scaling factor of the encoded diagonals
+// - logSlots: the log2 dimension of the plaintext matrix (e.g. [1, x] for BFV/BGV and [0, x] for CKKS)
+// - logBSGSRatio: the log2 ratio outer/inner loops of the BSGS linear transform evaluation algorithm. Set to -1 to not use the BSGS algorithm.
+func GenLinearTransform[T any](diagonals map[int][]T, encoder EncoderInterface[T, ringqp.Poly], level int, scale Scale, logSlots [2]int, logBSGSRatio int) (LT LinearTransform, err error) {
 
 	params := encoder.Parameters()
 
 	ringQP := params.RingQP().AtLevel(level, params.MaxLevelP())
 
-	rows := 1 << LogSlots[0]
-	cols := 1 << LogSlots[1]
+	rows := 1 << logSlots[0]
+	cols := 1 << logSlots[1]
 
 	keys := utils.GetKeys(diagonals)
 
@@ -186,68 +189,56 @@ func GenLinearTransform[T any](diagonals map[int][]T, encoder EncoderInterface[T
 
 	vec := make(map[int]ringqp.Poly)
 
-	for _, i := range keys {
+	var N1 int
 
-		idx := i
-		if idx < 0 {
-			idx += cols
-		}
+	if logBSGSRatio < 0 {
 
-		pt := *ringQP.NewPoly()
+		for _, i := range keys {
 
-		if err = rotateAndEncodeDiagonal(diagonals, encoder, i, 0, scale, LogSlots, buf, pt); err != nil {
-			return
-		}
-
-		vec[idx] = pt
-	}
-
-	return LinearTransform{LogSlots: LogSlots, N1: 0, Vec: vec, Level: level, Scale: scale}, nil
-}
-
-func GenLinearTransformBSGS[T any](diagonals map[int][]T, encoder EncoderInterface[T, ringqp.Poly], level int, scale Scale, LogSlots [2]int, LogBSGSRatio int) (LT LinearTransform, err error) {
-
-	params := encoder.Parameters()
-
-	ringQP := params.RingQP().AtLevel(level, params.MaxLevelP())
-
-	rows := 1 << LogSlots[0]
-	cols := 1 << LogSlots[1]
-
-	keys := utils.GetKeys(diagonals)
-
-	buf := make([]T, cols*rows)
-
-	// N1*N2 = N
-	N1 := FindBestBSGSRatio(keys, cols, LogBSGSRatio)
-	index, _, _ := BSGSIndex(keys, cols, N1)
-
-	vec := make(map[int]ringqp.Poly)
-
-	for j := range index {
-
-		rot := -j & (cols - 1)
-
-		for _, i := range index[j] {
+			idx := i
+			if idx < 0 {
+				idx += cols
+			}
 
 			pt := *ringQP.NewPoly()
 
-			if err = rotateAndEncodeDiagonal(diagonals, encoder, i+j, rot, scale, LogSlots, buf, pt); err != nil {
+			if err = rotateAndEncodeDiagonal(diagonals, encoder, i, 0, scale, logSlots, buf, pt); err != nil {
 				return
 			}
 
-			vec[i+j] = pt
+			vec[idx] = pt
+		}
 
+	} else {
+
+		// N1*N2 = N
+		N1 = FindBestBSGSRatio(keys, cols, logBSGSRatio)
+		index, _, _ := BSGSIndex(keys, cols, N1)
+
+		for j := range index {
+
+			rot := -j & (cols - 1)
+
+			for _, i := range index[j] {
+
+				pt := *ringQP.NewPoly()
+
+				if err = rotateAndEncodeDiagonal(diagonals, encoder, i+j, rot, scale, logSlots, buf, pt); err != nil {
+					return
+				}
+
+				vec[i+j] = pt
+
+			}
 		}
 	}
 
-	return LinearTransform{LogSlots: LogSlots, N1: N1, Vec: vec, Level: level, Scale: scale}, nil
+	return LinearTransform{LogSlots: logSlots, N1: N1, Vec: vec, Level: level, Scale: scale}, nil
 }
 
 // LinearTransformNew evaluates a linear transform on the pre-allocated Ciphertexts.
 // The linearTransform can either be an (ordered) list of LinearTransform or a single LinearTransform.
-// In either case a list of Ciphertext is returned (the second case returning a list
-// containing a single Ciphertext).
+// In either case a list of Ciphertext is returned (the second case returning a list containing a single Ciphertext).
 func (eval *Evaluator) LinearTransformNew(ctIn *Ciphertext, linearTransform interface{}) (ctOut []*Ciphertext) {
 
 	switch LTs := linearTransform.(type) {
@@ -290,8 +281,7 @@ func (eval *Evaluator) LinearTransformNew(ctIn *Ciphertext, linearTransform inte
 
 // LinearTransform evaluates a linear transform on the pre-allocated Ciphertexts.
 // The linearTransform can either be an (ordered) list of LinearTransform or a single LinearTransform.
-// In either case a list of Ciphertext is returned (the second case returning a list
-// containing a single Ciphertext).
+// In either case a list of Ciphertext is returned (the second case returning a list containing a single Ciphertext).
 func (eval *Evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interface{}, ctOut []*Ciphertext) {
 
 	switch LTs := linearTransform.(type) {

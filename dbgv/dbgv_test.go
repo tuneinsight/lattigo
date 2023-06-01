@@ -18,7 +18,6 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
-var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters). Overrides -short and requires -timeout=0.")
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 
 func GetTestName(opname string, p bgv.Parameters, parties int) string {

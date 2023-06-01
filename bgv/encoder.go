@@ -368,7 +368,7 @@ func (ecd *Encoder) RingQ2T(level int, scaleDown bool, pQ, pT *ring.Poly) {
 			ring.ModUpExact(ecd.bufQ.Coeffs[:level+1], pT.Coeffs, ringQ, ringT, ecd.paramsQP[level])
 			ringT.SubScalarBigint(pT, ecd.qHalf[level], pT)
 		} else {
-			ringQ.PolyToBigintCentered(pQ, gap, ecd.bufB)
+			ringQ.PolyToBigintCentered(poly, gap, ecd.bufB)
 			ringT.SetCoefficientsBigint(ecd.bufB, pT)
 		}
 

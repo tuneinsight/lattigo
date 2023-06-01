@@ -15,10 +15,6 @@ func EncodeLinearTransform[T int64 | uint64](LT rlwe.LinearTransform, diagonals 
 	return rlwe.EncodeLinearTransform[T](LT, diagonals, &encoder[T, ringqp.Poly]{ecd})
 }
 
-func GenLinearTransform[T int64 | uint64](diagonals map[int][]T, ecd *Encoder, level int, scale rlwe.Scale) (LT rlwe.LinearTransform, err error) {
-	return rlwe.GenLinearTransform[T](diagonals, &encoder[T, ringqp.Poly]{ecd}, level, scale, ecd.Parameters().MaxLogSlots())
-}
-
-func GenLinearTransformBSGS[T int64 | uint64](diagonals map[int][]T, ecd *Encoder, level int, scale rlwe.Scale, LogBSGSRatio int) (LT rlwe.LinearTransform, err error) {
-	return rlwe.GenLinearTransformBSGS[T](diagonals, &encoder[T, ringqp.Poly]{ecd}, level, scale, ecd.Parameters().MaxLogSlots(), LogBSGSRatio)
+func GenLinearTransform[T int64 | uint64](diagonals map[int][]T, ecd *Encoder, level int, scale rlwe.Scale, LogBSGSRatio int) (LT rlwe.LinearTransform, err error) {
+	return rlwe.GenLinearTransform[T](diagonals, &encoder[T, ringqp.Poly]{ecd}, level, scale, ecd.Parameters().MaxLogSlots(), LogBSGSRatio)
 }

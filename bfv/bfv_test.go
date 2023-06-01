@@ -46,7 +46,7 @@ func GetTestName(opname string, p Parameters, lvl int) string {
 		lvl)
 }
 
-func TestBGV(t *testing.T) {
+func TestBFV(t *testing.T) {
 
 	var err error
 
@@ -664,7 +664,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 
 func testLinearTransform(tc *testContext, t *testing.T) {
 
-	t.Run(GetTestName("Evaluator/LinearTransform/Naive", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
+	t.Run(GetTestName("Evaluator/LinearTransform/BSGS=False", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
 
 		params := tc.params
 
@@ -684,7 +684,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 			diagMatrix[1][i] = 1
 		}
 
-		linTransf, err := GenLinearTransform(diagMatrix, tc.encoder, params.MaxLevel(), tc.params.DefaultScale())
+		linTransf, err := GenLinearTransform(diagMatrix, tc.encoder, params.MaxLevel(), tc.params.DefaultScale(), -1)
 		require.NoError(t, err)
 
 		galEls := linTransf.GaloisElements(params)
@@ -709,7 +709,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 		verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
 	})
 
-	t.Run(GetTestName("Evaluator/LinearTransform/BSGS", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
+	t.Run(GetTestName("Evaluator/LinearTransform/BSGS=True", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
 
 		params := tc.params
 
@@ -741,7 +741,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 			diagMatrix[15][i] = 1
 		}
 
-		linTransf, err := GenLinearTransformBSGS(diagMatrix, tc.encoder, params.MaxLevel(), tc.params.DefaultScale(), 2.0)
+		linTransf, err := GenLinearTransform(diagMatrix, tc.encoder, params.MaxLevel(), tc.params.DefaultScale(), 1)
 		require.NoError(t, err)
 
 		galEls := linTransf.GaloisElements(params)

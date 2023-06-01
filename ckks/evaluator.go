@@ -777,7 +777,7 @@ func (eval *Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rl
 		level := utils.Min(op0.Level(), op2.Level())
 
 		// Resizes output to minimum level
-		op2.Resize(op0.Degree(), level)
+		op2.Resize(op2.Degree(), level)
 
 		// Gets the ring at the target level
 		ringQ := eval.parameters.RingQ().AtLevel(level)
@@ -827,7 +827,7 @@ func (eval *Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rl
 // The procedure will panic if op2.Degree != op0.Degree + op1.Degree.
 // The procedure will panic if the evaluator was not created with an relinearization key.
 // The procedure will panic if op2 = op0 or op1.
-func (eval *Evaluator) MulRelinThenAdd(op0 *rlwe.Ciphertext, op1 rlwe.Operand, op2 *rlwe.Ciphertext) {
+func (eval *Evaluator) MulRelinThenAdd(op0, op1 *rlwe.Ciphertext, op2 *rlwe.Ciphertext) {
 	eval.mulRelinThenAdd(op0, op1.El(), true, op2)
 }
 

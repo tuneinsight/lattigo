@@ -267,6 +267,19 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		}
 
 		for _, lvl := range tc.testLevel {
+			t.Run(GetTestName("Add/Ct/Vector/Inplace", tc.params, lvl), func(t *testing.T) {
+
+				values, _, ciphertext := newTestVectorsLvl(lvl, tc.params.DefaultScale(), tc, tc.encryptorSk)
+
+				tc.evaluator.Add(ciphertext, values.Coeffs[0], ciphertext)
+				tc.ringT.Add(values, values, values)
+
+				verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
+
+			})
+		}
+
+		for _, lvl := range tc.testLevel {
 			t.Run(GetTestName("Sub/Ct/Ct/New", tc.params, lvl), func(t *testing.T) {
 
 				values0, _, ciphertext0 := newTestVectorsLvl(lvl, tc.params.NewScale(3), tc, tc.encryptorSk)
@@ -310,6 +323,34 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				tc.ringT.Sub(values0, values1, values0)
 
 				verifyTestVectors(tc, tc.decryptor, values0, ciphertext0, t)
+
+			})
+		}
+
+		for _, lvl := range tc.testLevel {
+			t.Run(GetTestName("Sub/Ct/Scalar/Inplace", tc.params, lvl), func(t *testing.T) {
+
+				values, _, ciphertext := newTestVectorsLvl(lvl, tc.params.DefaultScale(), tc, tc.encryptorSk)
+
+				scalar := tc.params.T() >> 1
+
+				tc.evaluator.Sub(ciphertext, scalar, ciphertext)
+				tc.ringT.SubScalar(values, scalar, values)
+
+				verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
+
+			})
+		}
+
+		for _, lvl := range tc.testLevel {
+			t.Run(GetTestName("Sub/Ct/Vector/Inplace", tc.params, lvl), func(t *testing.T) {
+
+				values, _, ciphertext := newTestVectorsLvl(lvl, tc.params.DefaultScale(), tc, tc.encryptorSk)
+
+				tc.evaluator.Sub(ciphertext, values.Coeffs[0], ciphertext)
+				tc.ringT.Sub(values, values, values)
+
+				verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
 
 			})
 		}
@@ -397,7 +438,22 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				tc.ringT.MulScalar(values, scalar, values)
 
 				verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
+			})
+		}
 
+		for _, lvl := range tc.testLevel {
+			t.Run(GetTestName("Mul/Ct/Vector/Inplace", tc.params, lvl), func(t *testing.T) {
+
+				if lvl == 0 {
+					t.Skip("Level = 0")
+				}
+
+				values, _, ciphertext := newTestVectorsLvl(lvl, tc.params.DefaultScale(), tc, tc.encryptorSk)
+
+				tc.evaluator.Mul(ciphertext, values.Coeffs[0], ciphertext)
+				tc.ringT.MulCoeffsBarrett(values, values, values)
+
+				verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
 			})
 		}
 
@@ -414,7 +470,6 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				tc.ringT.MulCoeffsBarrett(values0, values0, values0)
 
 				verifyTestVectors(tc, tc.decryptor, values0, ciphertext0, t)
-
 			})
 		}
 
@@ -439,7 +494,6 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				tc.evaluator.Rescale(receiver, receiver)
 
 				verifyTestVectors(tc, tc.decryptor, values0, receiver, t)
-
 			})
 		}
 
@@ -461,7 +515,6 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				tc.ringT.MulCoeffsBarrettThenAdd(values0, values1, values2)
 
 				verifyTestVectors(tc, tc.decryptor, values2, ciphertext2, t)
-
 			})
 		}
 
@@ -483,7 +536,6 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				tc.ringT.MulCoeffsBarrettThenAdd(values0, values1, values2)
 
 				verifyTestVectors(tc, tc.decryptor, values2, ciphertext2, t)
-
 			})
 		}
 
@@ -509,6 +561,30 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		}
 
 		for _, lvl := range tc.testLevel {
+			t.Run(GetTestName("MulThenAdd/Ct/Vector/Inplace", tc.params, lvl), func(t *testing.T) {
+
+				if lvl == 0 {
+					t.Skip("Level = 0")
+				}
+
+				values0, _, ciphertext0 := newTestVectorsLvl(lvl, tc.params.NewScale(7), tc, tc.encryptorSk)
+				values1, _, ciphertext1 := newTestVectorsLvl(lvl, tc.params.NewScale(3), tc, tc.encryptorSk)
+
+				require.True(t, ciphertext0.Scale.Cmp(ciphertext1.Scale) != 0)
+
+				scale := ciphertext1.Scale
+
+				tc.evaluator.MulThenAdd(ciphertext0, values1.Coeffs[0], ciphertext1)
+				tc.ringT.MulCoeffsBarrettThenAdd(values0, values1, values1)
+
+				// Checks that output scale isn't changed
+				require.True(t, scale.Equal(ciphertext1.Scale))
+
+				verifyTestVectors(tc, tc.decryptor, values1, ciphertext1, t)
+			})
+		}
+
+		for _, lvl := range tc.testLevel {
 			t.Run(GetTestName("MulRelinThenAdd/Ct/Ct/Inplace", tc.params, lvl), func(t *testing.T) {
 
 				if lvl == 0 {
@@ -526,7 +602,6 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				tc.ringT.MulCoeffsBarrettThenAdd(values0, values1, values2)
 
 				verifyTestVectors(tc, tc.decryptor, values2, ciphertext2, t)
-
 			})
 		}
 
@@ -623,7 +698,6 @@ func testEvaluator(tc *testContext, t *testing.T) {
 					require.True(t, res.Scale.Cmp(tc.params.DefaultScale()) == 0)
 
 					verifyTestVectors(tc, tc.decryptor, values, res, t)
-
 				})
 
 				t.Run(GetTestName("Invariant", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
@@ -637,7 +711,6 @@ func testEvaluator(tc *testContext, t *testing.T) {
 					require.True(t, res.Scale.Cmp(tc.params.DefaultScale()) == 0)
 
 					verifyTestVectors(tc, tc.decryptor, values, res, t)
-
 				})
 			})
 		})
@@ -694,7 +767,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 	level := tc.params.MaxLevel()
 
-	t.Run(GetTestName("Evaluator/LinearTransform/Naive", tc.params, level), func(t *testing.T) {
+	t.Run(GetTestName("Evaluator/LinearTransform/BSGS=False", tc.params, level), func(t *testing.T) {
 
 		params := tc.params
 
@@ -714,7 +787,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 			diagMatrix[1][i] = 1
 		}
 
-		linTransf, err := GenLinearTransform(diagMatrix, tc.encoder, level, params.DefaultScale())
+		linTransf, err := GenLinearTransform(diagMatrix, tc.encoder, level, params.DefaultScale(), -1)
 		require.NoError(t, err)
 
 		galEls := linTransf.GaloisElements(params)
@@ -738,7 +811,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 		verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
 	})
 
-	t.Run(GetTestName("Evaluator/LinearTransform/BSGS", tc.params, level), func(t *testing.T) {
+	t.Run(GetTestName("Evaluator/LinearTransform/BSGS=True", tc.params, level), func(t *testing.T) {
 
 		params := tc.params
 
@@ -770,7 +843,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 			diagMatrix[15][i] = 1
 		}
 
-		linTransf, err := GenLinearTransformBSGS(diagMatrix, tc.encoder, level, tc.params.DefaultScale(), 2)
+		linTransf, err := GenLinearTransform(diagMatrix, tc.encoder, level, tc.params.DefaultScale(), 1)
 		require.NoError(t, err)
 
 		galEls := linTransf.GaloisElements(params)

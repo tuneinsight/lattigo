@@ -20,12 +20,8 @@ func EncodeLinearTransform[T float64 | complex128 | *big.Float | *bignum.Complex
 	return rlwe.EncodeLinearTransform[T](LT, diagonals, &encoder[T, ringqp.Poly]{ecd})
 }
 
-func GenLinearTransform[T float64 | complex128 | *big.Float | *bignum.Complex](diagonals map[int][]T, ecd *Encoder, level int, scale rlwe.Scale, LogSlots int) (LT rlwe.LinearTransform, err error) {
-	return rlwe.GenLinearTransform[T](diagonals, &encoder[T, ringqp.Poly]{ecd}, level, scale, [2]int{0, LogSlots})
-}
-
-func GenLinearTransformBSGS[T float64 | complex128 | *big.Float | *bignum.Complex](diagonals map[int][]T, ecd *Encoder, level int, scale rlwe.Scale, LogSlots, LogBSGSRatio int) (LT rlwe.LinearTransform, err error) {
-	return rlwe.GenLinearTransformBSGS[T](diagonals, &encoder[T, ringqp.Poly]{ecd}, level, scale, [2]int{0, LogSlots}, LogBSGSRatio)
+func GenLinearTransform[T float64 | complex128 | *big.Float | *bignum.Complex](diagonals map[int][]T, ecd *Encoder, level int, scale rlwe.Scale, LogSlots, LogBSGSRatio int) (LT rlwe.LinearTransform, err error) {
+	return rlwe.GenLinearTransform[T](diagonals, &encoder[T, ringqp.Poly]{ecd}, level, scale, [2]int{0, LogSlots}, LogBSGSRatio)
 }
 
 // TraceNew maps X -> sum((-1)^i * X^{i*n+1}) for 0 <= i < N and returns the result on a new ciphertext.

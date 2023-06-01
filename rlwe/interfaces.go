@@ -6,15 +6,14 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 )
 
-// LinearTransformParametersInterface defines the subset of methods of the
-// struct rlwe.Parameters that is necessary for the LinearTransform struct
-// and its related methods.
+// ParametersInterface defines a set of common and scheme agnostic methods provided by a Parameter struct.
 type ParametersInterface interface {
 	RingType() ring.Type
 	N() int
 	LogN() int
 	MaxSlots() [2]int
 	MaxLogSlots() [2]int
+	PlaintextModulus() uint64
 	DefaultScale() Scale
 	DefaultPrecision() uint
 	DefaultScaleModuliRatio() int
@@ -45,22 +44,27 @@ type ParametersInterface interface {
 	Equal(other ParametersInterface) bool
 }
 
+// EncoderInterface defines a set of common and scheme agnostic method provided by an Encoder struct.
 type EncoderInterface[T any, U *ring.Poly | ringqp.Poly | *Plaintext] interface {
 	Encode(values []T, logSlots int, scale Scale, montgomery bool, output U) (err error)
 	Parameters() ParametersInterface
 }
 
+// EvaluatorInterface defines a set of common and scheme agnostic homomorphic operations provided by an Evaluator struct.
 type EvaluatorInterface interface {
 	Add(op0 *Ciphertext, op1 interface{}, op2 *Ciphertext)
 	Sub(op0 *Ciphertext, op1 interface{}, op2 *Ciphertext)
 	Mul(op0 *Ciphertext, op1 interface{}, op2 *Ciphertext)
 	MulNew(op0 *Ciphertext, op1 interface{}) (op2 *Ciphertext)
 	MulRelinNew(op0 *Ciphertext, op1 interface{}) (op2 *Ciphertext)
+	MulThenAdd(op0 *Ciphertext, op1 interface{}, op2 *Ciphertext)
 	Relinearize(op0, op1 *Ciphertext)
 	Rescale(op0, op1 *Ciphertext) (err error)
 	Parameters() ParametersInterface
 }
 
+// PolynomialEvaluatorInterface defines the set of common and scheme agnostic homomorphic operations
+// that are required for the encrypted evaluation of plaintext polynomial.
 type PolynomialEvaluatorInterface interface {
 	EvaluatorInterface
 	EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol *PolynomialVector, pb *PowerBasis, targetScale Scale) (res *Ciphertext, err error)

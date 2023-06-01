@@ -1066,7 +1066,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, nil, t)
 	})
 
-	t.Run(GetTestName(tc.params, "LinearTransform/BSGS"), func(t *testing.T) {
+	t.Run(GetTestName(tc.params, "LinearTransform/BSGS=True"), func(t *testing.T) {
 
 		params := tc.params
 
@@ -1088,9 +1088,9 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 			}
 		}
 
-		LogBSGSRatio := 2
+		LogBSGSRatio := 1
 
-		linTransf, err := GenLinearTransformBSGS(diagMatrix, tc.encoder, params.MaxLevel(), rlwe.NewScale(params.Q()[params.MaxLevel()]), ciphertext.LogSlots[1], LogBSGSRatio)
+		linTransf, err := GenLinearTransform(diagMatrix, tc.encoder, params.MaxLevel(), rlwe.NewScale(params.Q()[params.MaxLevel()]), ciphertext.LogSlots[1], LogBSGSRatio)
 		require.NoError(t, err)
 
 		galEls := params.GaloisElementsForLinearTransform(nonZeroDiags, ciphertext.LogSlots[1], LogBSGSRatio)
@@ -1123,7 +1123,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, nil, t)
 	})
 
-	t.Run(GetTestName(tc.params, "LinearTransform/Naive"), func(t *testing.T) {
+	t.Run(GetTestName(tc.params, "LinearTransform/BSGS=False"), func(t *testing.T) {
 
 		params := tc.params
 
@@ -1144,7 +1144,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 			diagMatrix[0][i] = &bignum.Complex{one, zero}
 		}
 
-		linTransf, err := GenLinearTransform(diagMatrix, tc.encoder, params.MaxLevel(), rlwe.NewScale(params.Q()[params.MaxLevel()]), ciphertext.LogSlots[1])
+		linTransf, err := GenLinearTransform(diagMatrix, tc.encoder, params.MaxLevel(), rlwe.NewScale(params.Q()[params.MaxLevel()]), ciphertext.LogSlots[1], -1)
 		require.NoError(t, err)
 
 		galEls := params.GaloisElementsForLinearTransform([]int{-1, 0}, ciphertext.LogSlots[1], -1)

@@ -139,6 +139,12 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 		}
 	})
 
+	b.Run(GetTestName("Evaluator/Mul/Ct/Vector", params, level), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			eval.Mul(ciphertext0, plaintext1.Value.Coeffs[0], ciphertext0)
+		}
+	})
+
 	b.Run(GetTestName("Evaluator/MulRelin/Ct/Ct", params, level), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			eval.MulRelin(ciphertext0, ciphertext1, ciphertext0)
@@ -152,15 +158,21 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 		}
 	})
 
-	b.Run(GetTestName("Evaluator/MulRelinThenAdd/Ct/Pt", params, level), func(b *testing.B) {
+	b.Run(GetTestName("Evaluator/MulThenAdd/Ct/Pt", params, level), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			eval.MulRelinThenAdd(ciphertext0, plaintext1, ciphertext1)
+			eval.MulThenAdd(ciphertext0, plaintext1, ciphertext1)
 		}
 	})
 
-	b.Run(GetTestName("Evaluator/MulRelinThenAdd/Ct/Scalar", params, level), func(b *testing.B) {
+	b.Run(GetTestName("Evaluator/MulThenAdd/Ct/Scalar", params, level), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			eval.MulRelinThenAdd(ciphertext0, scalar, ciphertext1)
+			eval.MulThenAdd(ciphertext0, scalar, ciphertext1)
+		}
+	})
+
+	b.Run(GetTestName("Evaluator/MulThenAdd/Ct/Vector", params, level), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			eval.MulThenAdd(ciphertext0, plaintext1.Value.Coeffs[0], ciphertext1)
 		}
 	})
 

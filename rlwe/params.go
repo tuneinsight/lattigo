@@ -298,6 +298,15 @@ func (p Parameters) DefaultScale() Scale {
 	return p.defaultScale
 }
 
+// PlaintextModulus returns the plaintext modulus, if any. Else returns 0.
+func (p Parameters) PlaintextModulus() uint64 {
+	if p.defaultScale.Mod != nil {
+		return p.defaultScale.Mod.Uint64()
+	}
+
+	return 0
+}
+
 // DefaultPrecision returns the default precision in bits of the plaintext values which
 // is max(53, log2(DefaultScale)).
 func (p Parameters) DefaultPrecision() (prec uint) {

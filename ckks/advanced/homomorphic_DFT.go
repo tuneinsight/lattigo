@@ -131,7 +131,7 @@ func NewHomomorphicDFTMatrixFromLiteral(d HomomorphicDFTMatrixLiteral, encoder *
 
 		for j := 0; j < d.Levels[i]; j++ {
 
-			mat, err := ckks.GenLinearTransformBSGS(pVecDFT[idx], encoder, level, scale, logdSlots, d.LogBSGSRatio)
+			mat, err := ckks.GenLinearTransform(pVecDFT[idx], encoder, level, scale, logdSlots, d.LogBSGSRatio)
 
 			if err != nil {
 				panic(fmt.Errorf("cannot NewHomomorphicDFTMatrixFromLiteral: %w", err))

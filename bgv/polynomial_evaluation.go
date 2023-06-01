@@ -27,7 +27,7 @@ func (eval *Evaluator) Polynomial(input interface{}, p interface{}, invariantTen
 
 	polyEval := &polynomialEvaluator{
 		Evaluator:          eval,
-		Encoder:            NewEncoder(eval.params),
+		Encoder:            NewEncoder(eval.Parameters().(Parameters)),
 		invariantTensoring: invariantTensoring,
 	}
 
@@ -73,7 +73,7 @@ func (eval *Evaluator) Polynomial(input interface{}, p interface{}, invariantTen
 		}
 	}
 
-	PS := polyVec.GetPatersonStockmeyerPolynomial(eval.params, powerbasis.Value[1].Level(), powerbasis.Value[1].Scale, targetScale, &dummyEvaluator{eval.params, invariantTensoring})
+	PS := polyVec.GetPatersonStockmeyerPolynomial(eval.Parameters(), powerbasis.Value[1].Level(), powerbasis.Value[1].Scale, targetScale, &dummyEvaluator{eval.Parameters().(Parameters), invariantTensoring})
 
 	if opOut, err = rlwe.EvaluatePatersonStockmeyerPolynomialVector(PS, powerbasis, polyEval); err != nil {
 		return nil, err
@@ -171,6 +171,10 @@ type polynomialEvaluator struct {
 	invariantTensoring bool
 }
 
+func (polyEval *polynomialEvaluator) Parameters() rlwe.ParametersInterface {
+	return polyEval.Evaluator.Parameters()
+}
+
 func (polyEval *polynomialEvaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciphertext) {
 	if !polyEval.invariantTensoring {
 		polyEval.Evaluator.Mul(op0, op1, op2)
@@ -214,7 +218,7 @@ func (polyEval *polynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targ
 
 	X := pb.Value
 
-	params := polyEval.Evaluator.params
+	params := polyEval.Evaluator.Parameters().(Parameters)
 	slotsIndex := pol.SlotsIndex
 	slots := params.RingT().N()
 	even := pol.IsEven()
@@ -295,9 +299,7 @@ func (polyEval *polynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targ
 		if toEncode {
 			// Add would actually scale the plaintext accordingly,
 			// but encoding with the correct scale is slightly faster
-			pt.Scale = res.Scale
-			polyEval.Encode(values, pt)
-			polyEval.Add(res, pt, res)
+			polyEval.Add(res, values, res)
 			toEncode = false
 		}
 
@@ -337,9 +339,7 @@ func (polyEval *polynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targ
 
 				// MulAndAdd would actually scale the plaintext accordingly,
 				// but encoding with the correct scale is slightly faster
-				pt.Scale = targetScale.Div(X[key].Scale)
-				polyEval.Encode(values, pt)
-				polyEval.MulThenAdd(X[key], pt, res)
+				polyEval.MulThenAdd(X[key], values, res)
 				toEncode = false
 			}
 		}

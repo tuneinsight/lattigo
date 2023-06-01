@@ -32,6 +32,14 @@ func (r *Ring) NewRNSScalarFromBigint(v *big.Int) (rns RNSScalar) {
 	return rns
 }
 
+// MFormRNSScalar switches an RNS scalar to the Montgomery domain.
+// s2 = s1<<64 mod Q
+func (r *Ring) MFormRNSScalar(s1, s2 RNSScalar) {
+	for i, s := range r.SubRings[:r.level+1] {
+		s2[i] = MForm(s1[i], s.Modulus, s.BRedConstant)
+	}
+}
+
 // NegRNSScalar evaluates s2 = -s1.
 func (r *Ring) NegRNSScalar(s1, s2 RNSScalar) {
 	for i, s := range r.SubRings[:r.level+1] {

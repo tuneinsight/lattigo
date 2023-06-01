@@ -13,32 +13,36 @@ func BenchmarkDBGV(b *testing.B) {
 
 	var err error
 
-	defaultParams := bgv.DefaultParams
-	if testing.Short() {
-		defaultParams = bgv.DefaultParams[:2]
-	}
+	paramsLiterals := bgv.TestParams
+
 	if *flagParamString != "" {
 		var jsonParams bgv.ParametersLiteral
 		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
 			b.Fatal(err)
 		}
-		defaultParams = []bgv.ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
+		paramsLiterals = []bgv.ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
-	for _, p := range defaultParams {
-		var params bgv.Parameters
-		if params, err = bgv.NewParametersFromLiteral(p); err != nil {
-			b.Fatal(err)
+	for _, p := range paramsLiterals {
+
+		for _, plaintextModulus := range bgv.TestPlaintextModulus[:] {
+
+			p.T = plaintextModulus
+
+			var params bgv.Parameters
+			if params, err = bgv.NewParametersFromLiteral(p); err != nil {
+				b.Fatal(err)
+			}
+
+			nParties := 3
+
+			var tc *testContext
+			if tc, err = gentestContext(nParties, params); err != nil {
+				b.Fatal(err)
+			}
+
+			benchRefresh(tc, b)
 		}
-
-		nParties := 3
-
-		var tc *testContext
-		if tc, err = gentestContext(nParties, params); err != nil {
-			b.Fatal(err)
-		}
-
-		benchRefresh(tc, b)
 	}
 }
 

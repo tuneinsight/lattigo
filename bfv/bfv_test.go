@@ -21,19 +21,6 @@ import (
 var flagPrintNoise = flag.Bool("print-noise", false, "print the residual noise")
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short.")
 
-var (
-	// TESTN13QP218 is a of 128-bit secure test parameters set with a 32-bit plaintext and depth 4.
-	TESTN14QP418 = ParametersLiteral{
-		LogN: 13,
-		Q:    []uint64{0x3fffffa8001, 0x1000090001, 0x10000c8001, 0x10000f0001, 0xffff00001},
-		P:    []uint64{0x7fffffd8001},
-		T:    0xffc001,
-	}
-
-	// TestParams is a set of test parameters for BGV ensuring 128 bit security in the classic setting.
-	TestParams = []ParametersLiteral{TESTN14QP418}
-)
-
 func GetTestName(opname string, p Parameters, lvl int) string {
 	return fmt.Sprintf("%s/LogN=%d/logQ=%d/logP=%d/logT=%d/Qi=%d/Pi=%d/lvl=%d",
 		opname,
@@ -60,28 +47,33 @@ func TestBFV(t *testing.T) {
 		paramsLiterals = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
-	for _, p := range paramsLiterals[:] {
+	for _, p := range paramsLiterals[:1] {
 
-		var params Parameters
-		if params, err = NewParametersFromLiteral(p); err != nil {
-			t.Error(err)
-			t.Fail()
-		}
+		for _, plaintextModulus := range TestPlaintextModulus[:1] {
 
-		var tc *testContext
-		if tc, err = genTestParams(params); err != nil {
-			t.Error(err)
-			t.Fail()
-		}
+			p.T = plaintextModulus
 
-		for _, testSet := range []func(tc *testContext, t *testing.T){
-			testEncoder,
-			testEvaluator,
-			testLinearTransform,
-			testMarshalling,
-		} {
-			testSet(tc, t)
-			runtime.GC()
+			var params Parameters
+			if params, err = NewParametersFromLiteral(p); err != nil {
+				t.Error(err)
+				t.Fail()
+			}
+
+			var tc *testContext
+			if tc, err = genTestParams(params); err != nil {
+				t.Error(err)
+				t.Fail()
+			}
+
+			for _, testSet := range []func(tc *testContext, t *testing.T){
+				testEncoder,
+				testEvaluator,
+				testLinearTransform,
+				testMarshalling,
+			} {
+				testSet(tc, t)
+				runtime.GC()
+			}
 		}
 	}
 }
@@ -578,10 +570,12 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				coeffs0 := []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 				coeffs1 := []uint64{2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17}
 
+				slots := values.N()
+
 				slotIndex := make(map[int][]int)
-				idx0 := make([]int, tc.params.N()>>1)
-				idx1 := make([]int, tc.params.N()>>1)
-				for i := 0; i < tc.params.N()>>1; i++ {
+				idx0 := make([]int, slots>>1)
+				idx1 := make([]int, slots>>1)
+				for i := 0; i < slots>>1; i++ {
 					idx0[i] = 2 * i
 					idx1[i] = 2*i + 1
 				}
@@ -672,7 +666,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		diagMatrix := make(map[int][]uint64)
 
-		N := params.N()
+		N := values.N()
 
 		diagMatrix[-1] = make([]uint64, N)
 		diagMatrix[0] = make([]uint64, N)
@@ -698,7 +692,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		eval.LinearTransform(ciphertext, linTransf, []*rlwe.Ciphertext{ciphertext})
 
-		tmp := make([]uint64, params.N())
+		tmp := make([]uint64, N)
 		copy(tmp, values.Coeffs[0])
 
 		subRing := tc.params.RingT().SubRings[0]
@@ -717,7 +711,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		diagMatrix := make(map[int][]uint64)
 
-		N := params.N()
+		N := values.N()
 
 		diagMatrix[-15] = make([]uint64, N)
 		diagMatrix[-4] = make([]uint64, N)
@@ -755,7 +749,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		eval.LinearTransform(ciphertext, linTransf, []*rlwe.Ciphertext{ciphertext})
 
-		tmp := make([]uint64, params.N())
+		tmp := make([]uint64, N)
 		copy(tmp, values.Coeffs[0])
 
 		subRing := tc.params.RingT().SubRings[0]

@@ -24,7 +24,14 @@ type LinearTransform struct {
 }
 
 // NewLinearTransform allocates a new LinearTransform with zero plaintexts at the specified level.
-// If LogBSGSRatio < 0, the LinearTransform is set to not use the BSGS approach.
+//
+// inputs:
+// - params: a struct compliant to the ParametersInterface
+// - nonZeroDiags: the list of the indexes of the non-zero diagonals
+// - level: the level of the encoded diagonals
+// - scale: the scaling factor of the encoded diagonals
+// - logSlots: the log2 dimension of the plaintext matrix (e.g. [1, x] for BFV/BGV and [0, x] for CKKS)
+// - logBSGSRatio: the log2 ratio outer/inner loops of the BSGS linear transform evaluation algorithm. Set to -1 to not use the BSGS algorithm.
 func NewLinearTransform(params ParametersInterface, nonZeroDiags []int, level int, scale Scale, LogSlots [2]int, LogBSGSRatio int) LinearTransform {
 	vec := make(map[int]ringqp.Poly)
 	cols := 1 << LogSlots[1]
@@ -53,7 +60,7 @@ func NewLinearTransform(params ParametersInterface, nonZeroDiags []int, level in
 	return LinearTransform{LogSlots: LogSlots, N1: N1, Level: level, Scale: scale, Vec: vec}
 }
 
-// GaloisElements returns the list of Galois elements needed for the evaluation of the linear transform.
+// GaloisElements returns the list of Galois elements needed for the evaluation of the linear transformation.
 func (LT *LinearTransform) GaloisElements(params ParametersInterface) (galEls []uint64) {
 
 	cols := 1 << LT.LogSlots[1]

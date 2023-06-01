@@ -182,7 +182,7 @@ func testEncoder(tc *testContext, t *testing.T) {
 			T := tc.params.T()
 			THalf := T >> 1
 			coeffs := tc.uSampler.ReadNew()
-			coeffsInt := make([]int64, len(coeffs.Coeffs[0]))
+			coeffsInt := make([]int64, coeffs.N())
 			for i, c := range coeffs.Coeffs[0] {
 				c %= T
 				if c >= THalf {
@@ -662,12 +662,12 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				coeffs0 := []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 				coeffs1 := []uint64{2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17}
 
-				totSlots := tc.params.MaxSlots()[0] * tc.params.MaxSlots()[1]
+				slots := values.N()
 
 				slotIndex := make(map[int][]int)
-				idx0 := make([]int, totSlots>>1)
-				idx1 := make([]int, totSlots>>1)
-				for i := 0; i < totSlots>>1; i++ {
+				idx0 := make([]int, slots>>1)
+				idx1 := make([]int, slots>>1)
+				for i := 0; i < slots>>1; i++ {
 					idx0[i] = 2 * i
 					idx1[i] = 2*i + 1
 				}

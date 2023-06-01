@@ -146,14 +146,14 @@ func (eval *Evaluator) CheckAndGetRelinearizationKey() (evk *RelinearizationKey,
 //
 // Inputs are not nil
 // op0.Degree() + op1.Degree() != 0 (i.e at least one operand is a ciphertext)
-// op0.IsNTT == op1.IsNTT == DefaultNTTFlag
+// op0.IsNTT == op1.IsNTT == NTTFlag
 // op0.EncodingDomain == op1.EncodingDomain
 //
 // The method will also resize opOut to the correct degree and level, and update its MetaData:
 //
-// IsNTT <- DefaultNTTFlag
+// IsNTT <- NTTFlag
 // EncodingDomain <- op0.EncodingDomain
-// LogSlots <- max(op0.LogSlots, op1.LogSlots)
+// PlaintextLogDimensions <- max(op0.PlaintextLogDimensions, op1.PlaintextLogDimensions)
 //
 // and returns max(op0.Degree(), op1.Degree(), opOut.Degree()) and min(op0.Level(), op1.Level(), opOut.Level())
 func (eval *Evaluator) CheckBinary(op0, op1, opOut *OperandQ, opOutMinDegree int) (degree, level int) {
@@ -171,8 +171,8 @@ func (eval *Evaluator) CheckBinary(op0, op1, opOut *OperandQ, opOutMinDegree int
 		panic("op0 and op1 cannot be both plaintexts")
 	}
 
-	if op0.El().IsNTT != op1.El().IsNTT || op0.El().IsNTT != eval.params.DefaultNTTFlag() {
-		panic(fmt.Sprintf("op0.El().IsNTT or op1.El().IsNTT != %t", eval.params.DefaultNTTFlag()))
+	if op0.El().IsNTT != op1.El().IsNTT || op0.El().IsNTT != eval.params.NTTFlag() {
+		panic(fmt.Sprintf("op0.El().IsNTT or op1.El().IsNTT != %t", eval.params.NTTFlag()))
 	} else {
 		opOut.El().IsNTT = op0.El().IsNTT
 	}
@@ -183,21 +183,21 @@ func (eval *Evaluator) CheckBinary(op0, op1, opOut *OperandQ, opOutMinDegree int
 		opOut.El().EncodingDomain = op0.El().EncodingDomain
 	}
 
-	opOut.El().LogSlots[0] = utils.Max(op0.El().LogSlots[0], op1.El().LogSlots[0])
-	opOut.El().LogSlots[1] = utils.Max(op0.El().LogSlots[1], op1.El().LogSlots[1])
+	opOut.El().PlaintextLogDimensions[0] = utils.Max(op0.El().PlaintextLogDimensions[0], op1.El().PlaintextLogDimensions[0])
+	opOut.El().PlaintextLogDimensions[1] = utils.Max(op0.El().PlaintextLogDimensions[1], op1.El().PlaintextLogDimensions[1])
 
 	opOut.El().Resize(utils.Max(opOutMinDegree, opOut.Degree()), level)
 
 	return
 }
 
-// CheckUnary checks that op0 and opOut are not nil and that op0 respects the DefaultNTTFlag.
+// CheckUnary checks that op0 and opOut are not nil and that op0 respects the NTTFlag.
 //
 // The method will also update the metadata of opOut:
 //
-// IsNTT <- DefaultNTTFlag
+// IsNTT <- NTTFlag
 // EncodingDomain <- op0.EncodingDomain
-// LogSlots <- op0.LogSlots
+// PlaintextLogDimensions <- op0.PlaintextLogDimensions
 //
 // Also returns max(op0.Degree(), opOut.Degree()) and min(op0.Level(), opOut.Level()).
 func (eval *Evaluator) CheckUnary(op0, opOut *OperandQ) (degree, level int) {
@@ -206,15 +206,15 @@ func (eval *Evaluator) CheckUnary(op0, opOut *OperandQ) (degree, level int) {
 		panic("op0 and opOut cannot be nil")
 	}
 
-	if op0.El().IsNTT != eval.params.DefaultNTTFlag() {
-		panic(fmt.Sprintf("op0.IsNTT() != %t", eval.params.DefaultNTTFlag()))
+	if op0.El().IsNTT != eval.params.NTTFlag() {
+		panic(fmt.Sprintf("op0.IsNTT() != %t", eval.params.NTTFlag()))
 	} else {
 		opOut.El().IsNTT = op0.El().IsNTT
 	}
 
 	opOut.El().EncodingDomain = op0.El().EncodingDomain
 
-	opOut.El().LogSlots = op0.El().LogSlots
+	opOut.El().PlaintextLogDimensions = op0.El().PlaintextLogDimensions
 
 	return utils.Max(op0.Degree(), opOut.Degree()), utils.Min(op0.Level(), opOut.Level())
 }

@@ -28,11 +28,11 @@ func BenchmarkDRLWE(b *testing.B) {
 
 	for _, paramsLit := range defaultParamsLiteral {
 
-		for _, DefaultNTTFlag := range []bool{true, false} {
+		for _, NTTFlag := range []bool{true, false} {
 
 			for _, RingType := range []ring.Type{ring.Standard, ring.ConjugateInvariant}[:] {
 
-				paramsLit.DefaultNTTFlag = DefaultNTTFlag
+				paramsLit.NTTFlag = NTTFlag
 				paramsLit.RingType = RingType
 
 				var params rlwe.Parameters

@@ -24,18 +24,18 @@ func main() {
 	// RLWE parameters of the LUT
 	// N=1024, Q=2^27 -> 2^131
 	paramsLUT, _ := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
-		LogN:           10,
-		LogQ:           []int{27},
-		Pow2Base:       7,
-		DefaultNTTFlag: true,
+		LogN:     10,
+		LogQ:     []int{27},
+		Pow2Base: 7,
+		NTTFlag:  true,
 	})
 
 	// RLWE parameters of the samples
 	// N=512, Q=2^13 -> 2^135
 	paramsLWE, _ := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
-		LogN:           9,
-		LogQ:           []int{13},
-		DefaultNTTFlag: true,
+		LogN:    9,
+		LogQ:    []int{13},
+		NTTFlag: true,
 	})
 
 	// Scale of the RLWE samples

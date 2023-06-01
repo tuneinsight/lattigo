@@ -10,41 +10,51 @@ import (
 type EncodingDomain int
 
 const (
-	SlotsDomain        = EncodingDomain(0)
-	CoefficientsDomain = EncodingDomain(1)
+	FrequencyDomain = EncodingDomain(0)
+	TimeDomain      = EncodingDomain(1)
 )
 
 // MetaData is a struct storing metadata.
 type MetaData struct {
-	Scale
-	EncodingDomain EncodingDomain
-	LogSlots       [2]int
-	IsNTT          bool
-	IsMontgomery   bool
+	PlaintextScale         Scale
+	EncodingDomain         EncodingDomain
+	PlaintextLogDimensions [2]int
+	IsNTT                  bool
+	IsMontgomery           bool
 }
 
 // Equal returns true if two MetaData structs are identical.
 func (m *MetaData) Equal(other *MetaData) (res bool) {
-	res = cmp.Equal(&m.Scale, &other.Scale)
+	res = cmp.Equal(&m.PlaintextScale, &other.PlaintextScale)
 	res = res && m.EncodingDomain == other.EncodingDomain
-	res = res && m.LogSlots == other.LogSlots
+	res = res && m.PlaintextLogDimensions == other.PlaintextLogDimensions
 	res = res && m.IsNTT == other.IsNTT
 	res = res && m.IsMontgomery == other.IsMontgomery
 	return
 }
 
-// Slots returns the number of slots.
-func (m *MetaData) Slots() [2]int {
-	return [2]int{1 << m.LogSlots[0], 1 << m.LogSlots[1]}
+// PlaintextDimensions returns the dimensions of the plaintext matrix.
+func (m MetaData) PlaintextDimensions() [2]int {
+	return [2]int{1 << m.PlaintextLogDimensions[0], 1 << m.PlaintextLogDimensions[1]}
+}
+
+// PlaintextSlots returns the total number of entries in the plaintext matrix.
+func (m MetaData) PlaintextSlots() int {
+	return 1 << m.PlaintextLogSlots()
+}
+
+// PlaintextLogSlots returns the log of the total number of entries in the plaintext matrix.
+func (m MetaData) PlaintextLogSlots() int {
+	return m.PlaintextLogDimensions[0] + m.PlaintextLogDimensions[1]
 }
 
 // BinarySize returns the size in bytes that the object once marshalled into a binary form.
-func (m *MetaData) BinarySize() int {
-	return 5 + m.Scale.BinarySize()
+func (m MetaData) BinarySize() int {
+	return 5 + m.PlaintextScale.BinarySize()
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
-func (m *MetaData) MarshalBinary() (p []byte, err error) {
+func (m MetaData) MarshalBinary() (p []byte, err error) {
 	p = make([]byte, m.BinarySize())
 	_, err = m.Encode(p)
 	return
@@ -81,23 +91,23 @@ func (m *MetaData) ReadFrom(r io.Reader) (int64, error) {
 
 // Encode encodes the object into a binary form on a preallocated slice of bytes
 // and returns the number of bytes written.
-func (m *MetaData) Encode(p []byte) (n int, err error) {
+func (m MetaData) Encode(p []byte) (n int, err error) {
 
 	if len(p) < m.BinarySize() {
 		return 0, fmt.Errorf("cannot Encode: len(p) is too small")
 	}
 
-	if n, err = m.Scale.Encode(p[n:]); err != nil {
+	if n, err = m.PlaintextScale.Encode(p[n:]); err != nil {
 		return 0, err
 	}
 
 	p[n] = uint8(m.EncodingDomain)
 	n++
 
-	p[n] = uint8(m.LogSlots[0])
+	p[n] = uint8(m.PlaintextLogDimensions[0])
 	n++
 
-	p[n] = uint8(m.LogSlots[1])
+	p[n] = uint8(m.PlaintextLogDimensions[1])
 	n++
 
 	if m.IsNTT {
@@ -123,17 +133,17 @@ func (m *MetaData) Decode(p []byte) (n int, err error) {
 		return 0, fmt.Errorf("canoot Decode: len(p) is too small")
 	}
 
-	if n, err = m.Scale.Decode(p[n:]); err != nil {
+	if n, err = m.PlaintextScale.Decode(p[n:]); err != nil {
 		return
 	}
 
 	m.EncodingDomain = EncodingDomain(p[n])
 	n++
 
-	m.LogSlots[0] = int(int8(p[n]))
+	m.PlaintextLogDimensions[0] = int(int8(p[n]))
 	n++
 
-	m.LogSlots[1] = int(int8(p[n]))
+	m.PlaintextLogDimensions[1] = int(int8(p[n]))
 	n++
 
 	m.IsNTT = p[n] == 1

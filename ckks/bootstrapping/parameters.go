@@ -35,20 +35,20 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 		return ckks.ParametersLiteral{}, Parameters{}, err
 	}
 
-	var CoeffsToSlotsFactorizationDepthAndLogScales [][]int
-	if CoeffsToSlotsFactorizationDepthAndLogScales, err = btpLit.GetCoeffsToSlotsFactorizationDepthAndLogScales(LogSlots); err != nil {
+	var CoeffsToSlotsFactorizationDepthAndLogPlaintextScales [][]int
+	if CoeffsToSlotsFactorizationDepthAndLogPlaintextScales, err = btpLit.GetCoeffsToSlotsFactorizationDepthAndLogPlaintextScales(LogSlots); err != nil {
 		return ckks.ParametersLiteral{}, Parameters{}, err
 	}
 
-	var SlotsToCoeffsFactorizationDepthAndLogScales [][]int
-	if SlotsToCoeffsFactorizationDepthAndLogScales, err = btpLit.GetSlotsToCoeffsFactorizationDepthAndLogScales(LogSlots); err != nil {
+	var SlotsToCoeffsFactorizationDepthAndLogPlaintextScales [][]int
+	if SlotsToCoeffsFactorizationDepthAndLogPlaintextScales, err = btpLit.GetSlotsToCoeffsFactorizationDepthAndLogPlaintextScales(LogSlots); err != nil {
 		return ckks.ParametersLiteral{}, Parameters{}, err
 	}
 
 	// Slots To Coeffs params
-	SlotsToCoeffsLevels := make([]int, len(SlotsToCoeffsFactorizationDepthAndLogScales))
+	SlotsToCoeffsLevels := make([]int, len(SlotsToCoeffsFactorizationDepthAndLogPlaintextScales))
 	for i := range SlotsToCoeffsLevels {
-		SlotsToCoeffsLevels[i] = len(SlotsToCoeffsFactorizationDepthAndLogScales[i])
+		SlotsToCoeffsLevels[i] = len(SlotsToCoeffsFactorizationDepthAndLogPlaintextScales[i])
 	}
 
 	var Iterations int
@@ -60,13 +60,13 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 		Type:            advanced.Decode,
 		LogSlots:        LogSlots,
 		RepackImag2Real: true,
-		LevelStart:      len(ckksLit.LogQ) - 1 + len(SlotsToCoeffsFactorizationDepthAndLogScales) + Iterations - 1,
+		LevelStart:      len(ckksLit.LogQ) - 1 + len(SlotsToCoeffsFactorizationDepthAndLogPlaintextScales) + Iterations - 1,
 		LogBSGSRatio:    1,
 		Levels:          SlotsToCoeffsLevels,
 	}
 
-	var EvalModLogScale int
-	if EvalModLogScale, err = btpLit.GetEvalModLogScale(); err != nil {
+	var EvalModLogPlaintextScale int
+	if EvalModLogPlaintextScale, err = btpLit.GetEvalModLogPlaintextScale(); err != nil {
 		return ckks.ParametersLiteral{}, Parameters{}, err
 	}
 
@@ -98,13 +98,13 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 	}
 
 	EvalModParams := advanced.EvalModLiteral{
-		LogScale:        EvalModLogScale,
-		SineType:        SineType,
-		SineDegree:      SineDegree,
-		DoubleAngle:     DoubleAngle,
-		K:               K,
-		LogMessageRatio: LogMessageRatio,
-		ArcSineDegree:   ArcSineDegree,
+		LogPlaintextScale: EvalModLogPlaintextScale,
+		SineType:          SineType,
+		SineDegree:        SineDegree,
+		DoubleAngle:       DoubleAngle,
+		K:                 K,
+		LogMessageRatio:   LogMessageRatio,
+		ArcSineDegree:     ArcSineDegree,
 	}
 
 	var EphemeralSecretWeight int
@@ -115,16 +115,16 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 	// Coeffs To Slots params
 	EvalModParams.LevelStart = S2CParams.LevelStart + EvalModParams.Depth()
 
-	CoeffsToSlotsLevels := make([]int, len(CoeffsToSlotsFactorizationDepthAndLogScales))
+	CoeffsToSlotsLevels := make([]int, len(CoeffsToSlotsFactorizationDepthAndLogPlaintextScales))
 	for i := range CoeffsToSlotsLevels {
-		CoeffsToSlotsLevels[i] = len(CoeffsToSlotsFactorizationDepthAndLogScales[i])
+		CoeffsToSlotsLevels[i] = len(CoeffsToSlotsFactorizationDepthAndLogPlaintextScales[i])
 	}
 
 	C2SParams := advanced.HomomorphicDFTMatrixLiteral{
 		Type:            advanced.Encode,
 		LogSlots:        LogSlots,
 		RepackImag2Real: true,
-		LevelStart:      EvalModParams.LevelStart + len(CoeffsToSlotsFactorizationDepthAndLogScales),
+		LevelStart:      EvalModParams.LevelStart + len(CoeffsToSlotsFactorizationDepthAndLogPlaintextScales),
 		LogBSGSRatio:    1,
 		Levels:          CoeffsToSlotsLevels,
 	}
@@ -133,30 +133,30 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 	copy(LogQ, ckksLit.LogQ)
 
 	for i := 0; i < Iterations-1; i++ {
-		LogQ = append(LogQ, DefaultIterationsLogScale)
+		LogQ = append(LogQ, DefaultIterationsLogPlaintextScale)
 	}
 
-	for i := range SlotsToCoeffsFactorizationDepthAndLogScales {
+	for i := range SlotsToCoeffsFactorizationDepthAndLogPlaintextScales {
 		var qi int
-		for j := range SlotsToCoeffsFactorizationDepthAndLogScales[i] {
-			qi += SlotsToCoeffsFactorizationDepthAndLogScales[i][j]
+		for j := range SlotsToCoeffsFactorizationDepthAndLogPlaintextScales[i] {
+			qi += SlotsToCoeffsFactorizationDepthAndLogPlaintextScales[i][j]
 		}
 
-		if qi+ckksLit.LogScale < 61 {
-			qi += ckksLit.LogScale
+		if qi+ckksLit.LogPlaintextScale < 61 {
+			qi += ckksLit.LogPlaintextScale
 		}
 
 		LogQ = append(LogQ, qi)
 	}
 
 	for i := 0; i < EvalModParams.Depth(); i++ {
-		LogQ = append(LogQ, EvalModLogScale)
+		LogQ = append(LogQ, EvalModLogPlaintextScale)
 	}
 
-	for i := range CoeffsToSlotsFactorizationDepthAndLogScales {
+	for i := range CoeffsToSlotsFactorizationDepthAndLogPlaintextScales {
 		var qi int
-		for j := range CoeffsToSlotsFactorizationDepthAndLogScales[i] {
-			qi += CoeffsToSlotsFactorizationDepthAndLogScales[i][j]
+		for j := range CoeffsToSlotsFactorizationDepthAndLogPlaintextScales[i] {
+			qi += CoeffsToSlotsFactorizationDepthAndLogPlaintextScales[i][j]
 		}
 		LogQ = append(LogQ, qi)
 	}
@@ -171,12 +171,12 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 	}
 
 	return ckks.ParametersLiteral{
-			LogN:     ckksLit.LogN,
-			Q:        Q,
-			P:        P,
-			LogScale: ckksLit.LogScale,
-			Xe:       ckksLit.Xe,
-			Xs:       ckksLit.Xs,
+			LogN:              ckksLit.LogN,
+			Q:                 Q,
+			P:                 P,
+			LogPlaintextScale: ckksLit.LogPlaintextScale,
+			Xe:                ckksLit.Xe,
+			Xs:                ckksLit.Xs,
 		},
 		Parameters{
 			EphemeralSecretWeight:   EphemeralSecretWeight,
@@ -187,8 +187,8 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 		}, nil
 }
 
-// LogSlots returns the LogSlots of the target Parameters.
-func (p *Parameters) LogSlots() [2]int {
+// PlaintextLogDimensions returns the log plaintext dimensions of the target Parameters.
+func (p *Parameters) PlaintextLogDimensions() [2]int {
 	return [2]int{0, p.SlotsToCoeffsParameters.LogSlots}
 }
 
@@ -233,7 +233,7 @@ func (p *Parameters) GaloisElements(params ckks.Parameters) (galEls []uint64) {
 	keys := make(map[uint64]bool)
 
 	//SubSum rotation needed X -> Y^slots rotations
-	for i := p.LogSlots()[1]; i < logN-1; i++ {
+	for i := p.PlaintextLogDimensions()[1]; i < logN-1; i++ {
 		keys[params.GaloisElement(1<<i)] = true
 	}
 

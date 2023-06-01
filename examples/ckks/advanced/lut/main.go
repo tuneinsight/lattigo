@@ -61,10 +61,10 @@ func main() {
 	// LogN = 12 & LogQP = ~103 -> >128-bit secure.
 	var paramsN12 ckks.Parameters
 	if paramsN12, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
-		LogN:     LogN,
-		Q:        Q,
-		P:        P,
-		LogScale: 32,
+		LogN:              LogN,
+		Q:                 Q,
+		P:                 P,
+		LogPlaintextScale: 32,
 	}); err != nil {
 		panic(err)
 	}
@@ -89,7 +89,7 @@ func main() {
 	// LUT inputs and change of scale to ensure that upperbound on the homomorphic
 	// decryption of LWE during the LUT evaluation X^{dec(lwe)} is smaller than N
 	// to avoid negacyclic wrapping of X^{dec(lwe)}.
-	diffScale := float64(paramsN11.Q()[0]) / (4.0 * paramsN12.DefaultScale().Float64())
+	diffScale := float64(paramsN11.Q()[0]) / (4.0 * paramsN12.PlaintextScale().Float64())
 	normalization := 2.0 / (b - a) // all inputs are normalized before the LUT evaluation.
 
 	// SlotsToCoeffsParameters homomorphic encoding parameters
@@ -112,7 +112,7 @@ func main() {
 	fmt.Printf("Generating LUT... ")
 	now := time.Now()
 	// Generate LUT, provide function, outputscale, ring and interval.
-	LUTPoly := lut.InitLUT(sign, paramsN12.DefaultScale(), paramsN12.RingQ(), a, b)
+	LUTPoly := lut.InitLUT(sign, paramsN12.PlaintextScale(), paramsN12.RingQ(), a, b)
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
 	// Index of the LUT poly and repacking after evaluating the LUT.
@@ -176,7 +176,7 @@ func main() {
 	}
 
 	pt := ckks.NewPlaintext(paramsN12, paramsN12.MaxLevel())
-	pt.LogSlots = [2]int{0, LogSlots}
+	pt.PlaintextLogDimensions[1] = LogSlots
 	if err := encoderN12.Encode(values, pt); err != nil {
 		panic(err)
 	}
@@ -187,7 +187,7 @@ func main() {
 
 	// Homomorphic Decoding: [(a+bi), (c+di)] -> [a, c, b, d]
 	ctN12 = evalCKKS.SlotsToCoeffsNew(ctN12, nil, SlotsToCoeffsMatrix)
-	ctN12.EncodingDomain = rlwe.CoefficientsDomain
+	ctN12.EncodingDomain = rlwe.TimeDomain
 
 	// Key-Switch from LogN = 12 to LogN = 11
 	ctN11 := rlwe.NewCiphertext(paramsN11.Parameters, 1, paramsN11.MaxLevel())
@@ -199,7 +199,7 @@ func main() {
 	// Extracts & EvalLUT(LWEs, indexLUT) on the fly -> Repack(LWEs, indexRepack) -> RLWE
 	ctN12 = evalLUT.EvaluateAndRepack(ctN11, lutPolyMap, repackIndex, LUTKEY)
 	fmt.Printf("Done (%s)\n", time.Since(now))
-	ctN12.EncodingDomain = rlwe.CoefficientsDomain
+	ctN12.EncodingDomain = rlwe.FrequencyDomain
 
 	fmt.Printf("Homomorphic Encoding... ")
 	now = time.Now()
@@ -208,8 +208,8 @@ func main() {
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
 	res := make([]float64, slots)
-	ctN12.EncodingDomain = rlwe.SlotsDomain
-	ctN12.LogSlots = [2]int{0, LogSlots}
+	ctN12.EncodingDomain = rlwe.FrequencyDomain
+	ctN12.PlaintextLogDimensions[1] = LogSlots
 	if err := encoderN12.Decode(decryptorN12.DecryptNew(ctN12), res); err != nil {
 		panic(err)
 	}

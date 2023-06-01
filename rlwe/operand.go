@@ -35,7 +35,7 @@ func NewOperandQ(params ParametersInterface, degree, levelQ int) *OperandQ {
 	return &OperandQ{
 		Value: Value,
 		MetaData: MetaData{
-			IsNTT: params.DefaultNTTFlag(),
+			IsNTT: params.NTTFlag(),
 		},
 	}
 }
@@ -73,16 +73,6 @@ func (op *OperandQ) Degree() int {
 // Level returns the level of the target OperandQ.
 func (op *OperandQ) Level() int {
 	return len(op.Value[0].Coeffs) - 1
-}
-
-// GetScale gets the scale of the target OperandQ.
-func (op *OperandQ) GetScale() Scale {
-	return op.Scale
-}
-
-// SetScale sets the scale of the target OperandQ.
-func (op *OperandQ) SetScale(scale Scale) {
-	op.Scale = scale
 }
 
 func (op *OperandQ) El() *OperandQ {
@@ -329,19 +319,9 @@ func NewOperandQP(params ParametersInterface, degree, levelQ, levelP int) *Opera
 	return &OperandQP{
 		Value: Value,
 		MetaData: MetaData{
-			IsNTT: params.DefaultNTTFlag(),
+			IsNTT: params.NTTFlag(),
 		},
 	}
-}
-
-// GetScale gets the scale of the target OperandQP.
-func (op *OperandQP) GetScale() Scale {
-	return op.Scale
-}
-
-// SetScale sets the scale of the target OperandQP.
-func (op *OperandQP) SetScale(scale Scale) {
-	op.Scale = scale
 }
 
 // Equal performs a deep equal.

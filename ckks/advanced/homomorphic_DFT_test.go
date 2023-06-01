@@ -29,11 +29,11 @@ func TestHomomorphicDFT(t *testing.T) {
 	}
 
 	ParametersLiteral := ckks.ParametersLiteral{
-		LogN:     13,
-		LogQ:     []int{60, 45, 45, 45, 45, 45, 45, 45},
-		LogP:     []int{61, 61},
-		Xs:       &distribution.Ternary{H: 192},
-		LogScale: 90,
+		LogN:              13,
+		LogQ:              []int{60, 45, 45, 45, 45, 45, 45, 45},
+		LogP:              []int{61, 61},
+		Xs:                &distribution.Ternary{H: 192},
+		LogPlaintextScale: 90,
 	}
 
 	testHomomorphicDFTMatrixLiteralMarshalling(t)
@@ -43,7 +43,7 @@ func TestHomomorphicDFT(t *testing.T) {
 		panic(err)
 	}
 
-	for _, logSlots := range []int{params.MaxLogSlots()[1] - 1, params.MaxLogSlots()[1]} {
+	for _, logSlots := range []int{params.PlaintextLogDimensions()[1] - 1, params.PlaintextLogDimensions()[1]} {
 		for _, testSet := range []func(params ckks.Parameters, logSlots int, t *testing.T){
 			testHomomorphicEncoding,
 			testHomomorphicDecoding,
@@ -81,7 +81,7 @@ func testHomomorphicEncoding(params ckks.Parameters, LogSlots int, t *testing.T)
 
 	slots := 1 << LogSlots
 
-	var sparse bool = LogSlots < params.MaxLogSlots()[1]
+	var sparse bool = LogSlots < params.PlaintextLogDimensions()[1]
 
 	packing := "FullPacking"
 	if sparse {
@@ -91,10 +91,10 @@ func testHomomorphicEncoding(params ckks.Parameters, LogSlots int, t *testing.T)
 	var params2N ckks.Parameters
 	var err error
 	if params2N, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
-		LogN:     params.LogN() + 1,
-		LogQ:     []int{60},
-		LogP:     []int{61},
-		LogScale: params.LogScale(),
+		LogN:              params.LogN() + 1,
+		LogQ:              []int{60},
+		LogP:              []int{61},
+		LogPlaintextScale: params.LogPlaintextScale(),
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -161,7 +161,7 @@ func testHomomorphicEncoding(params ckks.Parameters, LogSlots int, t *testing.T)
 		// Creates an evaluator with the rotation keys
 		eval := NewEvaluator(params, evk)
 
-		prec := params.DefaultPrecision()
+		prec := params.PlaintextPrecision()
 
 		// Generates the vector of random complex values
 		values := make([]*bignum.Complex, slots)
@@ -197,13 +197,13 @@ func testHomomorphicEncoding(params ckks.Parameters, LogSlots int, t *testing.T)
 
 		// Encodes coefficient-wise and encrypts the test vector
 		pt := ckks.NewPlaintext(params, params.MaxLevel())
-		pt.LogSlots = [2]int{0, LogSlots}
+		pt.PlaintextLogDimensions = [2]int{0, LogSlots}
 
-		pt.EncodingDomain = rlwe.CoefficientsDomain
+		pt.EncodingDomain = rlwe.TimeDomain
 		if err = encoder.Encode(valuesFloat, pt); err != nil {
 			t.Fatal(err)
 		}
-		pt.EncodingDomain = rlwe.SlotsDomain
+		pt.EncodingDomain = rlwe.FrequencyDomain
 
 		ct := encryptor.EncryptNew(pt)
 
@@ -213,7 +213,7 @@ func testHomomorphicEncoding(params ckks.Parameters, LogSlots int, t *testing.T)
 		// Checks against the original coefficients
 		if sparse {
 
-			ct0.EncodingDomain = rlwe.CoefficientsDomain
+			ct0.EncodingDomain = rlwe.TimeDomain
 
 			have := make([]*big.Float, params.N())
 
@@ -249,8 +249,8 @@ func testHomomorphicEncoding(params ckks.Parameters, LogSlots int, t *testing.T)
 
 		} else {
 
-			ct0.EncodingDomain = rlwe.CoefficientsDomain
-			ct1.EncodingDomain = rlwe.CoefficientsDomain
+			ct0.EncodingDomain = rlwe.TimeDomain
+			ct1.EncodingDomain = rlwe.TimeDomain
 
 			haveReal := make([]*big.Float, params.N())
 			if err = encoder.Decode(decryptor.DecryptNew(ct0), haveReal); err != nil {
@@ -299,7 +299,7 @@ func testHomomorphicDecoding(params ckks.Parameters, LogSlots int, t *testing.T)
 
 	slots := 1 << LogSlots
 
-	var sparse bool = LogSlots < params.MaxLogSlots()[1]
+	var sparse bool = LogSlots < params.PlaintextLogDimensions()[1]
 
 	packing := "FullPacking"
 	if sparse {
@@ -370,7 +370,7 @@ func testHomomorphicDecoding(params ckks.Parameters, LogSlots int, t *testing.T)
 		// Creates an evaluator with the rotation keys
 		eval := NewEvaluator(params, evk)
 
-		prec := params.DefaultPrecision()
+		prec := params.PlaintextPrecision()
 
 		// Generates the n first slots of the test vector (real part to encode)
 		valuesReal := make([]*bignum.Complex, slots)
@@ -396,7 +396,7 @@ func testHomomorphicDecoding(params ckks.Parameters, LogSlots int, t *testing.T)
 
 		// Encodes and encrypts the test vectors
 		plaintext := ckks.NewPlaintext(params, params.MaxLevel())
-		plaintext.LogSlots = [2]int{0, LogSlots}
+		plaintext.PlaintextLogDimensions = [2]int{0, LogSlots}
 		if err = encoder.Encode(valuesReal, plaintext); err != nil {
 			t.Fatal(err)
 		}
@@ -414,7 +414,7 @@ func testHomomorphicDecoding(params ckks.Parameters, LogSlots int, t *testing.T)
 
 		// Decrypt and decode in the coefficient domain
 		coeffsFloat := make([]*big.Float, params.N())
-		res.EncodingDomain = rlwe.CoefficientsDomain
+		res.EncodingDomain = rlwe.TimeDomain
 
 		if err = encoder.Decode(decryptor.DecryptNew(res), coeffsFloat); err != nil {
 			t.Fatal(err)

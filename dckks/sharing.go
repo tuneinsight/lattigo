@@ -102,7 +102,7 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, ct *rlwe.Cip
 
 	boundHalf := new(big.Int).Rsh(bound, 1)
 
-	dslots := 1 << ct.LogSlots[1]
+	dslots := 1 << ct.PlaintextLogSlots()
 	if ringQ.Type() == ring.Standard {
 		dslots *= 2
 	}
@@ -150,7 +150,7 @@ func (e2s *E2SProtocol) GetShare(secretShare *drlwe.AdditiveShareBigint, aggrega
 	// Switches the LSSS RNS NTT ciphertext outside of the NTT domain
 	ringQ.INTT(e2s.buff, e2s.buff)
 
-	dslots := 1 << ct.LogSlots[1]
+	dslots := 1 << ct.PlaintextLogSlots()
 	if ringQ.Type() == ring.Standard {
 		dslots *= 2
 	}
@@ -232,7 +232,7 @@ func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.CKSCRP, metadata 
 	ct.MetaData.IsNTT = true
 	s2e.CKSProtocol.GenShare(s2e.zero, sk, ct, c0ShareOut)
 
-	dslots := 1 << metadata.LogSlots[1]
+	dslots := 1 << metadata.PlaintextLogSlots()
 	if ringQ.Type() == ring.Standard {
 		dslots *= 2
 	}

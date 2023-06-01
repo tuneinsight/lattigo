@@ -23,14 +23,14 @@ var flagParamString = flag.String("params", "", "specify the test cryptographic 
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
 
 func GetTestName(opname string, parties int, params ckks.Parameters) string {
-	return fmt.Sprintf("%s/RingType=%s/logN=%d/logQP=%d/Qi=%d/Pi=%d/LogScale=%d/Parties=%d",
+	return fmt.Sprintf("%s/RingType=%s/logN=%d/logQP=%d/Qi=%d/Pi=%d/LogPlaintextScale=%d/Parties=%d",
 		opname,
 		params.RingType(),
 		params.LogN(),
 		int(math.Round(params.LogQP())),
 		params.QCount(),
 		params.PCount(),
-		int(math.Log2(params.DefaultScale().Float64())),
+		int(math.Log2(params.PlaintextScale().Float64())),
 		parties)
 }
 
@@ -159,7 +159,7 @@ func testE2SProtocol(tc *testContext, t *testing.T) {
 		var minLevel int
 		var logBound uint
 		var ok bool
-		if minLevel, logBound, ok = GetMinimumLevelForRefresh(128, params.DefaultScale(), tc.NParties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
+		if minLevel, logBound, ok = GetMinimumLevelForRefresh(128, params.PlaintextScale(), tc.NParties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
 			t.Skip("Not enough levels to ensure correctness and 128 security")
 		}
 
@@ -184,7 +184,7 @@ func testE2SProtocol(tc *testContext, t *testing.T) {
 			P[i].sk = tc.sk0Shards[i]
 			P[i].publicShareE2S = P[i].e2s.AllocateShare(minLevel)
 			P[i].publicShareS2E = P[i].s2e.AllocateShare(params.MaxLevel())
-			P[i].secretShare = NewAdditiveShare(params, ciphertext.LogSlots[1])
+			P[i].secretShare = NewAdditiveShare(params, ciphertext.PlaintextLogSlots())
 		}
 
 		for i, p := range P {
@@ -201,7 +201,7 @@ func testE2SProtocol(tc *testContext, t *testing.T) {
 		P[0].e2s.GetShare(P[0].secretShare, P[0].publicShareE2S, ciphertext, P[0].secretShare)
 
 		// sum(-M_i) + x + sum(M_i) = x
-		rec := NewAdditiveShare(params, ciphertext.LogSlots[1])
+		rec := NewAdditiveShare(params, ciphertext.PlaintextLogSlots())
 		for _, p := range P {
 			a := rec.Value
 			b := p.secretShare.Value
@@ -213,7 +213,7 @@ func testE2SProtocol(tc *testContext, t *testing.T) {
 
 		pt := ckks.NewPlaintext(params, ciphertext.Level())
 		pt.IsNTT = false
-		pt.Scale = ciphertext.Scale
+		pt.PlaintextScale = ciphertext.PlaintextScale
 		tc.ringQ.AtLevel(pt.Level()).SetCoefficientsBigint(rec.Value, pt.Value)
 
 		verifyTestVectors(tc, nil, coeffs, pt, t)
@@ -228,7 +228,7 @@ func testE2SProtocol(tc *testContext, t *testing.T) {
 		}
 
 		ctRec := ckks.NewCiphertext(params, 1, params.MaxLevel())
-		ctRec.Scale = params.DefaultScale()
+		ctRec.PlaintextScale = params.PlaintextScale()
 		P[0].s2e.GetEncryption(P[0].publicShareS2E, crp, ctRec)
 
 		verifyTestVectors(tc, tc.decryptorSk0, coeffs, ctRec, t)
@@ -248,7 +248,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 		var minLevel int
 		var logBound uint
 		var ok bool
-		if minLevel, logBound, ok = GetMinimumLevelForRefresh(128, params.DefaultScale(), tc.NParties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
+		if minLevel, logBound, ok = GetMinimumLevelForRefresh(128, params.PlaintextScale(), tc.NParties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
 			t.Skip("Not enough levels to ensure correctness and 128 security")
 		}
 
@@ -277,7 +277,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 
 		P0 := RefreshParties[0]
 
-		for _, scale := range []float64{params.DefaultScale().Float64(), params.DefaultScale().Float64() * 128} {
+		for _, scale := range []float64{params.PlaintextScale().Float64(), params.PlaintextScale().Float64() * 128} {
 			t.Run(fmt.Sprintf("AtScale=%d", int(math.Round(math.Log2(scale)))), func(t *testing.T) {
 				coeffs, _, ciphertext := newTestVectorsAtScale(tc, encryptorPk0, -1, 1, rlwe.NewScale(scale))
 
@@ -317,7 +317,7 @@ func testRefreshAndTransform(tc *testContext, t *testing.T) {
 		var minLevel int
 		var logBound uint
 		var ok bool
-		if minLevel, logBound, ok = GetMinimumLevelForRefresh(128, params.DefaultScale(), tc.NParties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
+		if minLevel, logBound, ok = GetMinimumLevelForRefresh(128, params.PlaintextScale(), tc.NParties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
 			t.Skip("Not enough levels to ensure correctness and 128 security")
 		}
 
@@ -399,7 +399,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 		var minLevel int
 		var logBound uint
 		var ok bool
-		if minLevel, logBound, ok = GetMinimumLevelForRefresh(128, params.DefaultScale(), tc.NParties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
+		if minLevel, logBound, ok = GetMinimumLevelForRefresh(128, params.PlaintextScale(), tc.NParties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
 			t.Skip("Not enough levels to ensure correctness and 128 security")
 		}
 
@@ -420,11 +420,11 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 		// Target parameters
 		var paramsOut ckks.Parameters
 		paramsOut, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
-			LogN:     params.LogN() + 1,
-			LogQ:     []int{54, 49, 49, 49, 49, 49, 49},
-			LogP:     []int{52, 52},
-			RingType: params.RingType(),
-			LogScale: 49,
+			LogN:              params.LogN() + 1,
+			LogQ:              []int{54, 49, 49, 49, 49, 49, 49},
+			LogP:              []int{52, 52},
+			RingType:          params.RingType(),
+			LogPlaintextScale: 49,
 		})
 
 		require.Nil(t, err)
@@ -494,7 +494,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 		rf64, _ := precStats.MeanPrecision.Real.Float64()
 		if64, _ := precStats.MeanPrecision.Imag.Float64()
 
-		minPrec := math.Log2(paramsOut.DefaultScale().Float64()) - float64(paramsOut.LogN()+2)
+		minPrec := math.Log2(paramsOut.PlaintextScale().Float64()) - float64(paramsOut.LogN()+2)
 		if minPrec < 0 {
 			minPrec = 0
 		}
@@ -505,7 +505,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 }
 
 func newTestVectors(tc *testContext, encryptor rlwe.Encryptor, a, b complex128) (values []*bignum.Complex, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
-	return newTestVectorsAtScale(tc, encryptor, a, b, tc.params.DefaultScale())
+	return newTestVectorsAtScale(tc, encryptor, a, b, tc.params.PlaintextScale())
 }
 
 func newTestVectorsAtScale(tc *testContext, encryptor rlwe.Encryptor, a, b complex128, scale rlwe.Scale) (values []*bignum.Complex, pt *rlwe.Plaintext, ct *rlwe.Ciphertext) {
@@ -513,9 +513,9 @@ func newTestVectorsAtScale(tc *testContext, encryptor rlwe.Encryptor, a, b compl
 	prec := tc.encoder.Prec()
 
 	pt = ckks.NewPlaintext(tc.params, tc.params.MaxLevel())
-	pt.Scale = scale
+	pt.PlaintextScale = scale
 
-	values = make([]*bignum.Complex, pt.Slots()[1])
+	values = make([]*bignum.Complex, pt.PlaintextSlots())
 
 	switch tc.params.RingType() {
 	case ring.Standard:
@@ -556,7 +556,7 @@ func verifyTestVectors(tc *testContext, decryptor rlwe.Decryptor, valuesWant, va
 	rf64, _ := precStats.MeanPrecision.Real.Float64()
 	if64, _ := precStats.MeanPrecision.Imag.Float64()
 
-	minPrec := math.Log2(tc.params.DefaultScale().Float64()) - float64(tc.params.LogN()+2)
+	minPrec := math.Log2(tc.params.PlaintextScale().Float64()) - float64(tc.params.LogN()+2)
 	if minPrec < 0 {
 		minPrec = 0
 	}

@@ -167,7 +167,7 @@ func (eval *Evaluator) matchScaleThenEvaluateInPlace(level int, el0 *rlwe.Cipher
 
 	elOut.Resize(utils.Max(el0.Degree(), el1.Degree()), level)
 
-	r0, r1, _ := eval.matchScalesBinary(el0.Scale.Uint64(), el1.Scale.Uint64())
+	r0, r1, _ := eval.matchScalesBinary(el0.PlaintextScale.Uint64(), el1.PlaintextScale.Uint64())
 
 	for i := range el0.Value {
 		eval.parameters.RingQ().AtLevel(level).MulScalar(el0.Value[i], r0, elOut.Value[i])
@@ -182,7 +182,7 @@ func (eval *Evaluator) matchScaleThenEvaluateInPlace(level int, el0 *rlwe.Cipher
 	}
 
 	elOut.MetaData = el0.MetaData
-	elOut.Scale = el0.Scale.Mul(eval.parameters.NewScale(r0))
+	elOut.PlaintextScale = el0.PlaintextScale.Mul(eval.parameters.NewScale(r0))
 }
 
 func (eval *Evaluator) newCiphertextBinary(op0, op1 rlwe.Operand) (ctOut *rlwe.Ciphertext) {
@@ -199,7 +199,7 @@ func (eval *Evaluator) Add(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 
 		_, level := eval.CheckBinary(op0.El(), op1.El(), op2.El(), utils.Max(op0.Degree(), op1.Degree()))
 
-		if op0.Scale.Cmp(op1.El().Scale) == 0 {
+		if op0.PlaintextScale.Cmp(op1.El().PlaintextScale) == 0 {
 			eval.evaluateInPlace(level, op0, op1.El(), op2, ringQ.AtLevel(level).Add)
 		} else {
 			eval.matchScaleThenEvaluateInPlace(level, op0, op1.El(), op2, ringQ.AtLevel(level).MulScalarThenAdd)
@@ -213,8 +213,8 @@ func (eval *Evaluator) Add(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 
 		op2.Resize(op0.Degree(), level)
 
-		if op0.Scale.Cmp(eval.parameters.NewScale(1)) != 0 {
-			op1 = ring.BRed(op1, op0.Scale.Uint64(), ringT.SubRings[0].Modulus, ringT.SubRings[0].BRedConstant)
+		if op0.PlaintextScale.Cmp(eval.parameters.NewScale(1)) != 0 {
+			op1 = ring.BRed(op1, op0.PlaintextScale.Uint64(), ringT.SubRings[0].Modulus, ringT.SubRings[0].BRedConstant)
 		} else {
 			op1 = ring.BRedAdd(op1, ringT.SubRings[0].Modulus, ringT.SubRings[0].BRedConstant)
 		}
@@ -281,7 +281,7 @@ func (eval *Evaluator) Sub(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 
 		ringQ := eval.parameters.RingQ()
 
-		if op0.Scale.Cmp(op1.El().Scale) == 0 {
+		if op0.PlaintextScale.Cmp(op1.El().PlaintextScale) == 0 {
 			eval.evaluateInPlace(level, op0, op1.El(), op2, ringQ.AtLevel(level).Sub)
 		} else {
 			eval.matchScaleThenEvaluateInPlace(level, op0, op1.El(), op2, ringQ.AtLevel(level).MulScalarThenSub)
@@ -353,11 +353,11 @@ func (eval *Evaluator) NegNew(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext) {
 func (eval *Evaluator) MulScalarThenAdd(ctIn *rlwe.Ciphertext, scalar uint64, ctOut *rlwe.Ciphertext) {
 	ringQ := eval.parameters.RingQ().AtLevel(utils.Min(ctIn.Level(), ctOut.Level()))
 
-	// scalar *= (ctOut.scale / ctIn.Scale)
-	if ctIn.Scale.Cmp(ctOut.Scale) != 0 {
+	// scalar *= (ctOut.PlaintextScale / ctIn.PlaintextScale)
+	if ctIn.PlaintextScale.Cmp(ctOut.PlaintextScale) != 0 {
 		ringT := eval.parameters.RingT()
-		ratio := ring.ModExp(ctIn.Scale.Uint64(), ringT.SubRings[0].Modulus-2, ringT.SubRings[0].Modulus)
-		ratio = ring.BRed(ratio, ctOut.Scale.Uint64(), ringT.SubRings[0].Modulus, ringT.SubRings[0].BRedConstant)
+		ratio := ring.ModExp(ctIn.PlaintextScale.Uint64(), ringT.SubRings[0].Modulus-2, ringT.SubRings[0].Modulus)
+		ratio = ring.BRed(ratio, ctOut.PlaintextScale.Uint64(), ringT.SubRings[0].Modulus, ringT.SubRings[0].BRedConstant)
 		scalar = ring.BRed(ratio, scalar, ringT.SubRings[0].Modulus, ringT.SubRings[0].BRedConstant)
 	}
 
@@ -410,7 +410,7 @@ func (eval *Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 		// Instantiates new plaintext from buffer
 		pt := rlwe.NewPlaintextAtLevelFromPoly(level, eval.buffQ[0])
 		pt.MetaData = op0.MetaData // Sets the metadata, notably matches scales
-		pt.Scale = rlwe.NewScale(1)
+		pt.PlaintextScale = rlwe.NewScale(1)
 
 		// Encodes the vector on the plaintext
 		if err := eval.Encoder.Encode(op1, pt); err != nil {
@@ -487,7 +487,7 @@ func (eval *Evaluator) tensorStandard(op0 *rlwe.Ciphertext, op1 *rlwe.OperandQ, 
 	}
 
 	op2.MetaData = op0.MetaData
-	op2.Scale = op0.Scale.Mul(op1.Scale)
+	op2.PlaintextScale = op0.PlaintextScale.Mul(op1.PlaintextScale)
 
 	ringQ := eval.parameters.RingQ().AtLevel(level)
 
@@ -592,7 +592,7 @@ func (eval *Evaluator) MulInvariant(op0 *rlwe.Ciphertext, op1 interface{}, op2 *
 		// Instantiates new plaintext from buffer
 		pt := rlwe.NewPlaintextAtLevelFromPoly(level, eval.buffQ[0])
 		pt.MetaData = op0.MetaData // Sets the metadata, notably matches scales
-		pt.Scale = rlwe.NewScale(1)
+		pt.PlaintextScale = rlwe.NewScale(1)
 
 		// Encodes the vector on the plaintext
 		if err := eval.Encoder.Encode(op1, pt); err != nil {
@@ -646,7 +646,7 @@ func (eval *Evaluator) MulRelinInvariant(op0 *rlwe.Ciphertext, op1 interface{}, 
 		// Instantiates new plaintext from buffer
 		pt := rlwe.NewPlaintextAtLevelFromPoly(level, eval.buffQ[0])
 		pt.MetaData = op0.MetaData // Sets the metadata, notably matches scales
-		pt.Scale = rlwe.NewScale(1)
+		pt.PlaintextScale = rlwe.NewScale(1)
 
 		// Encodes the vector on the plaintext
 		if err := eval.Encoder.Encode(op1, pt); err != nil {
@@ -748,7 +748,7 @@ func (eval *Evaluator) tensorInvariant(ct0 *rlwe.Ciphertext, ct1 *rlwe.OperandQ,
 	}
 
 	ctOut.MetaData = ct0.MetaData
-	ctOut.Scale = MulScale(eval.parameters, ct0.Scale, tmp1Q0.Scale, ctOut.Level(), true)
+	ctOut.PlaintextScale = MulScale(eval.parameters, ct0.PlaintextScale, tmp1Q0.PlaintextScale, ctOut.Level(), true)
 }
 
 func (eval *Evaluator) modUpAndNTT(level, levelQMul int, ctQ0, ctQ1 *rlwe.OperandQ) {
@@ -838,11 +838,11 @@ func (eval *Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rl
 
 		ringQ := eval.parameters.RingQ().AtLevel(level)
 
-		// op1 *= (op1.scale / op2.Scale)
-		if op0.Scale.Cmp(op2.Scale) != 0 {
+		// op1 *= (op1.PlaintextScale / op2.PlaintextScale)
+		if op0.PlaintextScale.Cmp(op2.PlaintextScale) != 0 {
 			s := eval.parameters.RingT().SubRings[0]
-			ratio := ring.ModExp(op0.Scale.Uint64(), s.Modulus-2, s.Modulus)
-			ratio = ring.BRed(ratio, op2.Scale.Uint64(), s.Modulus, s.BRedConstant)
+			ratio := ring.ModExp(op0.PlaintextScale.Uint64(), s.Modulus-2, s.Modulus)
+			ratio = ring.BRed(ratio, op2.PlaintextScale.Uint64(), s.Modulus, s.BRedConstant)
 			op1 = ring.BRed(ratio, op1, s.Modulus, s.BRedConstant)
 		}
 
@@ -861,13 +861,13 @@ func (eval *Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rl
 		pt := rlwe.NewPlaintextAtLevelFromPoly(level, eval.buffQ[0])
 		pt.MetaData = op0.MetaData // Sets the metadata, notably matches scales
 
-		// op1 *= (op1.scale / op2.Scale)
-		if op0.Scale.Cmp(op2.Scale) != 0 {
+		// op1 *= (op1.PlaintextScale / op2.PlaintextScale)
+		if op0.PlaintextScale.Cmp(op2.PlaintextScale) != 0 {
 			s := eval.parameters.RingT().SubRings[0]
-			ratio := ring.ModExp(op0.Scale.Uint64(), s.Modulus-2, s.Modulus)
-			pt.Scale = rlwe.NewScale(ring.BRed(ratio, op2.Scale.Uint64(), s.Modulus, s.BRedConstant))
+			ratio := ring.ModExp(op0.PlaintextScale.Uint64(), s.Modulus-2, s.Modulus)
+			pt.PlaintextScale = rlwe.NewScale(ring.BRed(ratio, op2.PlaintextScale.Uint64(), s.Modulus, s.BRedConstant))
 		} else {
-			pt.Scale = rlwe.NewScale(1)
+			pt.PlaintextScale = rlwe.NewScale(1)
 		}
 
 		// Encodes the vector on the plaintext
@@ -922,18 +922,18 @@ func (eval *Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 *rlwe.OperandQ,
 
 		tmp0, tmp1 := op0.El(), op1.El()
 
-		// If op0.Scale * op1.Scale != op2.Scale then
-		// updates op1.Scale and op2.Scale
+		// If op0.PlaintextScale * op1.PlaintextScale != op2.PlaintextScale then
+		// updates op1.PlaintextScale and op2.PlaintextScale
 		var r0 uint64 = 1
-		if targetScale := ring.BRed(op0.Scale.Uint64(), op1.Scale.Uint64(), sT.Modulus, sT.BRedConstant); op2.Scale.Cmp(eval.parameters.NewScale(targetScale)) != 0 {
+		if targetScale := ring.BRed(op0.PlaintextScale.Uint64(), op1.PlaintextScale.Uint64(), sT.Modulus, sT.BRedConstant); op2.PlaintextScale.Cmp(eval.parameters.NewScale(targetScale)) != 0 {
 			var r1 uint64
-			r0, r1, _ = eval.matchScalesBinary(targetScale, op2.Scale.Uint64())
+			r0, r1, _ = eval.matchScalesBinary(targetScale, op2.PlaintextScale.Uint64())
 
 			for i := range op2.Value {
 				ringQ.MulScalar(op2.Value[i], r1, op2.Value[i])
 			}
 
-			op2.Scale = op2.Scale.Mul(eval.parameters.NewScale(r1))
+			op2.PlaintextScale = op2.PlaintextScale.Mul(eval.parameters.NewScale(r1))
 		}
 
 		// Multiply by T * 2^{64} * 2^{64} -> result multipled by T and switched in the Montgomery domain
@@ -985,18 +985,18 @@ func (eval *Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 *rlwe.OperandQ,
 		// Multiply by T * 2^{64} * 2^{64} -> result multipled by T and switched in the Montgomery domain
 		ringQ.MulRNSScalarMontgomery(op1.El().Value[0], eval.tMontgomery, c00)
 
-		// If op0.Scale * op1.Scale != op2.Scale then
-		// updates op1.Scale and op2.Scale
+		// If op0.PlaintextScale * op1.PlaintextScale != op2.PlaintextScale then
+		// updates op1.PlaintextScale and op2.PlaintextScale
 		var r0 = uint64(1)
-		if targetScale := ring.BRed(op0.Scale.Uint64(), op1.Scale.Uint64(), sT.Modulus, sT.BRedConstant); op2.Scale.Cmp(eval.parameters.NewScale(targetScale)) != 0 {
+		if targetScale := ring.BRed(op0.PlaintextScale.Uint64(), op1.PlaintextScale.Uint64(), sT.Modulus, sT.BRedConstant); op2.PlaintextScale.Cmp(eval.parameters.NewScale(targetScale)) != 0 {
 			var r1 uint64
-			r0, r1, _ = eval.matchScalesBinary(targetScale, op2.Scale.Uint64())
+			r0, r1, _ = eval.matchScalesBinary(targetScale, op2.PlaintextScale.Uint64())
 
 			for i := range op2.Value {
 				ringQ.MulScalar(op2.Value[i], r1, op2.Value[i])
 			}
 
-			op2.Scale = op2.Scale.Mul(eval.parameters.NewScale(r1))
+			op2.PlaintextScale = op2.PlaintextScale.Mul(eval.parameters.NewScale(r1))
 		}
 
 		if r0 != 1 {
@@ -1034,7 +1034,7 @@ func (eval *Evaluator) Rescale(ctIn, ctOut *rlwe.Ciphertext) (err error) {
 
 	ctOut.Resize(ctOut.Degree(), level-1)
 	ctOut.MetaData = ctIn.MetaData
-	ctOut.Scale = ctIn.Scale.Div(eval.parameters.NewScale(ringQ.SubRings[level].Modulus))
+	ctOut.PlaintextScale = ctIn.PlaintextScale.Div(eval.parameters.NewScale(ringQ.SubRings[level].Modulus))
 	return
 }
 
@@ -1103,12 +1103,12 @@ func (eval *Evaluator) RotateHoistedLazyNew(level int, rotations []int, ctIn *rl
 
 // MatchScalesAndLevel updates the both input ciphertexts to ensures that their scale matches.
 // To do so it computes t0 * a = ct1 * b such that:
-// - ct0.scale * a = ct1.scale: make the scales match.
+// - ct0.PlaintextScale * a = ct1.PlaintextScale: make the scales match.
 // - gcd(a, T) == gcd(b, T) == 1: ensure that the new scale is not a zero divisor if T is not prime.
 // - |a+b| is minimal: minimize the added noise by the procedure.
 func (eval *Evaluator) MatchScalesAndLevel(ct0, ct1 *rlwe.Ciphertext) {
 
-	r0, r1, _ := eval.matchScalesBinary(ct0.Scale.Uint64(), ct1.Scale.Uint64())
+	r0, r1, _ := eval.matchScalesBinary(ct0.PlaintextScale.Uint64(), ct1.PlaintextScale.Uint64())
 
 	level := utils.Min(ct0.Level(), ct1.Level())
 
@@ -1119,14 +1119,14 @@ func (eval *Evaluator) MatchScalesAndLevel(ct0, ct1 *rlwe.Ciphertext) {
 	}
 
 	ct0.Resize(ct0.Degree(), level)
-	ct0.Scale = ct0.Scale.Mul(eval.parameters.NewScale(r0))
+	ct0.PlaintextScale = ct0.PlaintextScale.Mul(eval.parameters.NewScale(r0))
 
 	for _, el := range ct1.Value {
 		ringQ.MulScalar(el, r1, el)
 	}
 
 	ct1.Resize(ct1.Degree(), level)
-	ct1.Scale = ct1.Scale.Mul(eval.parameters.NewScale(r1))
+	ct1.PlaintextScale = ct1.PlaintextScale.Mul(eval.parameters.NewScale(r1))
 }
 
 func (eval *Evaluator) matchScalesBinary(scale0, scale1 uint64) (r0, r1, e uint64) {

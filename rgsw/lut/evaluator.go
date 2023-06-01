@@ -236,7 +236,7 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWithSlotIndex map[in
 			}
 			res[index] = acc.CopyNew()
 
-			if !eval.paramsLUT.DefaultNTTFlag() {
+			if !eval.paramsLUT.NTTFlag() {
 				ringQLUT.INTT(res[index].Value[0], res[index].Value[0])
 				ringQLUT.INTT(res[index].Value[1], res[index].Value[1])
 				res[index].IsNTT = false

@@ -54,7 +54,7 @@ func benchEncoder(tc *testContext, b *testing.B) {
 
 		pt := NewPlaintext(tc.params, tc.params.MaxLevel())
 
-		values := make([]complex128, 1<<pt.LogSlots[1])
+		values := make([]complex128, 1<<pt.PlaintextLogDimensions[1])
 		for i := range values {
 			values[i] = sampling.RandComplex128(-1, 1)
 		}
@@ -70,7 +70,7 @@ func benchEncoder(tc *testContext, b *testing.B) {
 
 		pt := NewPlaintext(tc.params, tc.params.MaxLevel())
 
-		values := make([]complex128, 1<<pt.LogSlots[1])
+		values := make([]complex128, 1<<pt.PlaintextLogDimensions[1])
 		for i := range values {
 			values[i] = sampling.RandComplex128(-1, 1)
 		}
@@ -137,10 +137,10 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 	})
 
 	b.Run(GetTestName(tc.params, "Evaluator/Rescale"), func(b *testing.B) {
-		ciphertext1.Scale = tc.params.DefaultScale().Mul(tc.params.DefaultScale())
+		ciphertext1.PlaintextScale = tc.params.PlaintextScale().Mul(tc.params.PlaintextScale())
 
 		for i := 0; i < b.N; i++ {
-			if err := eval.Rescale(ciphertext1, tc.params.DefaultScale(), ciphertext2); err != nil {
+			if err := eval.Rescale(ciphertext1, tc.params.PlaintextScale(), ciphertext2); err != nil {
 				panic(err)
 			}
 		}

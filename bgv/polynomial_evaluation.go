@@ -16,7 +16,7 @@ func (eval *Evaluator) Polynomial(input interface{}, p interface{}, invariantTen
 	var polyVec *rlwe.PolynomialVector
 	switch p := p.(type) {
 	case *polynomial.Polynomial:
-		polyVec = &rlwe.PolynomialVector{Value: []*rlwe.Polynomial{&rlwe.Polynomial{Polynomial: p, MaxDeg: p.Degree(), Lead: true, Lazy: false}}}
+		polyVec = &rlwe.PolynomialVector{Value: []*rlwe.Polynomial{{Polynomial: p, MaxDeg: p.Degree(), Lead: true, Lazy: false}}}
 	case *rlwe.Polynomial:
 		polyVec = &rlwe.PolynomialVector{Value: []*rlwe.Polynomial{p}}
 	case *rlwe.PolynomialVector:
@@ -73,7 +73,7 @@ func (eval *Evaluator) Polynomial(input interface{}, p interface{}, invariantTen
 		}
 	}
 
-	PS := polyVec.GetPatersonStockmeyerPolynomial(eval.Parameters(), powerbasis.Value[1].Level(), powerbasis.Value[1].Scale, targetScale, &dummyEvaluator{eval.Parameters().(Parameters), invariantTensoring})
+	PS := polyVec.GetPatersonStockmeyerPolynomial(eval.Parameters(), powerbasis.Value[1].Level(), powerbasis.Value[1].PlaintextScale, targetScale, &dummyEvaluator{eval.Parameters().(Parameters), invariantTensoring})
 
 	if opOut, err = rlwe.EvaluatePatersonStockmeyerPolynomialVector(PS, powerbasis, polyEval); err != nil {
 		return nil, err
@@ -100,7 +100,7 @@ func (d *dummyEvaluator) PolynomialDepth(degree int) int {
 // Rescale rescales the target DummyOperand n times and returns it.
 func (d *dummyEvaluator) Rescale(op0 *rlwe.DummyOperand) {
 	if !d.invariantTensoring {
-		op0.Scale = op0.Scale.Div(rlwe.NewScale(d.params.Q()[op0.Level]))
+		op0.PlaintextScale = op0.PlaintextScale.Div(rlwe.NewScale(d.params.Q()[op0.Level]))
 		op0.Level--
 	}
 }
@@ -109,12 +109,12 @@ func (d *dummyEvaluator) Rescale(op0 *rlwe.DummyOperand) {
 func (d *dummyEvaluator) MulNew(op0, op1 *rlwe.DummyOperand) (op2 *rlwe.DummyOperand) {
 	op2 = new(rlwe.DummyOperand)
 	op2.Level = utils.Min(op0.Level, op1.Level)
-	op2.Scale = op0.Scale.Mul(op1.Scale)
+	op2.PlaintextScale = op0.PlaintextScale.Mul(op1.PlaintextScale)
 	if d.invariantTensoring {
 		params := d.params
 		qModTNeg := new(big.Int).Mod(params.RingQ().ModulusAtLevel[op2.Level], new(big.Int).SetUint64(params.T())).Uint64()
 		qModTNeg = params.T() - qModTNeg
-		op2.Scale = op2.Scale.Div(params.NewScale(qModTNeg))
+		op2.PlaintextScale = op2.PlaintextScale.Div(params.NewScale(qModTNeg))
 	}
 
 	return
@@ -136,7 +136,7 @@ func (d *dummyEvaluator) UpdateLevelAndScaleGiantStep(lead bool, tLevelOld int, 
 	tLevelNew = tLevelOld
 	tScaleNew = tScaleOld.Div(xPowScale)
 
-	// tScaleNew = targetScale*currentQi/XPow.Scale
+	// tScaleNew = targetScale*currentQi/XPow.PlaintextScale
 	if !d.invariantTensoring {
 
 		var currentQi uint64
@@ -252,7 +252,7 @@ func (polyEval *polynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targ
 
 			// Allocates the output ciphertext
 			res = rlwe.NewCiphertext(params, 1, targetLevel)
-			res.Scale = targetScale
+			res.PlaintextScale = targetScale
 
 			// Looks for non-zero coefficients among the degree 0 coefficients of the polynomials
 			for i, p := range pol.Value {
@@ -267,8 +267,8 @@ func (polyEval *polynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targ
 			// If a non-zero coefficient was found, encode the values, adds on the ciphertext, and returns
 			if toEncode {
 				pt := rlwe.NewPlaintextAtLevelFromPoly(targetLevel, res.Value[0])
-				pt.Scale = res.Scale
-				pt.IsNTT = true
+				pt.PlaintextScale = res.PlaintextScale
+				pt.IsNTT = NTTFlag
 				polyEval.Encode(values, pt)
 			}
 
@@ -277,12 +277,12 @@ func (polyEval *polynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targ
 
 		// Allocates the output ciphertext
 		res = rlwe.NewCiphertext(params, maximumCiphertextDegree, targetLevel)
-		res.Scale = targetScale
+		res.PlaintextScale = targetScale
 
 		// Allocates a temporary plaintext to encode the values
 		pt := rlwe.NewPlaintextAtLevelFromPoly(targetLevel, polyEval.Evaluator.BuffQ()[0]) // buffQ[0] is safe in this case
-		pt.Scale = targetScale
-		pt.IsNTT = true
+		pt.PlaintextScale = targetScale
+		pt.IsNTT = NTTFlag
 
 		// Looks for a non-zero coefficient among the degree zero coefficient of the polynomials
 		for i, p := range pol.Value {
@@ -351,7 +351,7 @@ func (polyEval *polynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targ
 		if minimumDegreeNonZeroCoefficient == 0 {
 
 			res = rlwe.NewCiphertext(params, 1, targetLevel)
-			res.Scale = targetScale
+			res.PlaintextScale = targetScale
 
 			if c != 0 {
 				polyEval.Add(res, c, res)
@@ -361,7 +361,7 @@ func (polyEval *polynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targ
 		}
 
 		res = rlwe.NewCiphertext(params, maximumCiphertextDegree, targetLevel)
-		res.Scale = targetScale
+		res.PlaintextScale = targetScale
 
 		if c != 0 {
 			polyEval.Add(res, c, res)

@@ -44,8 +44,8 @@ func TestHomomorphicMod(t *testing.T) {
 			0x1fffffffff500001, // Pi 61
 			0x1fffffffff420001, // Pi 61
 		},
-		Xs:       &distribution.Ternary{H: 192},
-		LogScale: 45,
+		Xs:                &distribution.Ternary{H: 192},
+		LogPlaintextScale: 45,
 	}
 
 	testEvalModMarshalling(t)
@@ -67,13 +67,13 @@ func testEvalModMarshalling(t *testing.T) {
 	t.Run("Marshalling", func(t *testing.T) {
 
 		evm := EvalModLiteral{
-			LevelStart:      12,
-			SineType:        SinContinuous,
-			LogMessageRatio: 8,
-			K:               14,
-			SineDegree:      127,
-			ArcSineDegree:   7,
-			LogScale:        60,
+			LevelStart:        12,
+			SineType:          SinContinuous,
+			LogMessageRatio:   8,
+			K:                 14,
+			SineDegree:        127,
+			ArcSineDegree:     7,
+			LogPlaintextScale: 60,
 		}
 
 		data, err := evm.MarshalBinary()
@@ -103,13 +103,13 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 	t.Run("SineContinuousWithArcSine", func(t *testing.T) {
 
 		evm := EvalModLiteral{
-			LevelStart:      12,
-			SineType:        SinContinuous,
-			LogMessageRatio: 8,
-			K:               14,
-			SineDegree:      127,
-			ArcSineDegree:   7,
-			LogScale:        60,
+			LevelStart:        12,
+			SineType:          SinContinuous,
+			LogMessageRatio:   8,
+			K:                 14,
+			SineDegree:        127,
+			ArcSineDegree:     7,
+			LogPlaintextScale: 60,
 		}
 
 		EvalModPoly := NewEvalModPolyFromLiteral(params, evm)
@@ -118,17 +118,17 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 
 		// Scale the message to Delta = Q/MessageRatio
 		scale := rlwe.NewScale(math.Exp2(math.Round(math.Log2(float64(params.Q()[0]) / EvalModPoly.MessageRatio()))))
-		scale = scale.Div(ciphertext.Scale)
+		scale = scale.Div(ciphertext.PlaintextScale)
 		eval.ScaleUp(ciphertext, rlwe.NewScale(math.Round(scale.Float64())), ciphertext)
 
 		// Scale the message up to Sine/MessageRatio
-		scale = EvalModPoly.ScalingFactor().Div(ciphertext.Scale)
+		scale = EvalModPoly.ScalingFactor().Div(ciphertext.PlaintextScale)
 		scale = scale.Div(rlwe.NewScale(EvalModPoly.MessageRatio()))
 		eval.ScaleUp(ciphertext, rlwe.NewScale(math.Round(scale.Float64())), ciphertext)
 
 		// Normalization
 		eval.Mul(ciphertext, 1/(float64(EvalModPoly.K())*EvalModPoly.QDiff()), ciphertext)
-		if err := eval.Rescale(ciphertext, params.DefaultScale(), ciphertext); err != nil {
+		if err := eval.Rescale(ciphertext, params.PlaintextScale(), ciphertext); err != nil {
 			t.Error(err)
 		}
 
@@ -156,13 +156,13 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 	t.Run("CosDiscrete", func(t *testing.T) {
 
 		evm := EvalModLiteral{
-			LevelStart:      12,
-			SineType:        CosDiscrete,
-			LogMessageRatio: 8,
-			K:               12,
-			SineDegree:      30,
-			DoubleAngle:     3,
-			LogScale:        60,
+			LevelStart:        12,
+			SineType:          CosDiscrete,
+			LogMessageRatio:   8,
+			K:                 12,
+			SineDegree:        30,
+			DoubleAngle:       3,
+			LogPlaintextScale: 60,
 		}
 
 		EvalModPoly := NewEvalModPolyFromLiteral(params, evm)
@@ -171,17 +171,17 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 
 		// Scale the message to Delta = Q/MessageRatio
 		scale := rlwe.NewScale(math.Exp2(math.Round(math.Log2(float64(params.Q()[0]) / EvalModPoly.MessageRatio()))))
-		scale = scale.Div(ciphertext.Scale)
+		scale = scale.Div(ciphertext.PlaintextScale)
 		eval.ScaleUp(ciphertext, rlwe.NewScale(math.Round(scale.Float64())), ciphertext)
 
 		// Scale the message up to Sine/MessageRatio
-		scale = EvalModPoly.ScalingFactor().Div(ciphertext.Scale)
+		scale = EvalModPoly.ScalingFactor().Div(ciphertext.PlaintextScale)
 		scale = scale.Div(rlwe.NewScale(EvalModPoly.MessageRatio()))
 		eval.ScaleUp(ciphertext, rlwe.NewScale(math.Round(scale.Float64())), ciphertext)
 
 		// Normalization
 		eval.Mul(ciphertext, 1/(float64(EvalModPoly.K())*EvalModPoly.QDiff()), ciphertext)
-		if err := eval.Rescale(ciphertext, params.DefaultScale(), ciphertext); err != nil {
+		if err := eval.Rescale(ciphertext, params.PlaintextScale(), ciphertext); err != nil {
 			t.Error(err)
 		}
 
@@ -210,13 +210,13 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 	t.Run("CosContinuous", func(t *testing.T) {
 
 		evm := EvalModLiteral{
-			LevelStart:      12,
-			SineType:        CosContinuous,
-			LogMessageRatio: 8,
-			K:               325,
-			SineDegree:      177,
-			DoubleAngle:     4,
-			LogScale:        60,
+			LevelStart:        12,
+			SineType:          CosContinuous,
+			LogMessageRatio:   8,
+			K:                 325,
+			SineDegree:        177,
+			DoubleAngle:       4,
+			LogPlaintextScale: 60,
 		}
 
 		EvalModPoly := NewEvalModPolyFromLiteral(params, evm)
@@ -225,17 +225,17 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 
 		// Scale the message to Delta = Q/MessageRatio
 		scale := rlwe.NewScale(math.Exp2(math.Round(math.Log2(float64(params.Q()[0]) / EvalModPoly.MessageRatio()))))
-		scale = scale.Div(ciphertext.Scale)
+		scale = scale.Div(ciphertext.PlaintextScale)
 		eval.ScaleUp(ciphertext, rlwe.NewScale(math.Round(scale.Float64())), ciphertext)
 
 		// Scale the message up to Sine/MessageRatio
-		scale = EvalModPoly.ScalingFactor().Div(ciphertext.Scale)
+		scale = EvalModPoly.ScalingFactor().Div(ciphertext.PlaintextScale)
 		scale = scale.Div(rlwe.NewScale(EvalModPoly.MessageRatio()))
 		eval.ScaleUp(ciphertext, rlwe.NewScale(math.Round(scale.Float64())), ciphertext)
 
 		// Normalization
 		eval.Mul(ciphertext, 1/(float64(EvalModPoly.K())*EvalModPoly.QDiff()), ciphertext)
-		if err := eval.Rescale(ciphertext, params.DefaultScale(), ciphertext); err != nil {
+		if err := eval.Rescale(ciphertext, params.PlaintextScale(), ciphertext); err != nil {
 			t.Error(err)
 		}
 
@@ -263,7 +263,7 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 
 func newTestVectorsEvalMod(params ckks.Parameters, encryptor rlwe.Encryptor, encoder *ckks.Encoder, evm EvalModPoly, t *testing.T) (values []float64, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
 
-	logSlots := params.MaxLogSlots()[1]
+	logSlots := params.PlaintextLogDimensions()[1]
 
 	values = make([]float64, 1<<logSlots)
 

@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	DefaultNTTFlag = true
+	NTTFlag = true
 )
 
 var (
@@ -131,8 +131,8 @@ func (p ParametersLiteral) RLWEParametersLiteral() rlwe.ParametersLiteral {
 		Xe:             p.Xe,
 		Xs:             p.Xs,
 		RingType:       ring.Standard,
-		DefaultScale:   rlwe.NewScaleModT(1, p.T),
-		DefaultNTTFlag: DefaultNTTFlag,
+		PlaintextScale: rlwe.NewScaleModT(1, p.T),
+		NTTFlag:        NTTFlag,
 	}
 }
 
@@ -148,8 +148,8 @@ type Parameters struct {
 // It returns the empty parameters Parameters{} and a non-nil error if the specified parameters are invalid.
 func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err error) {
 
-	if !rlweParams.DefaultNTTFlag() {
-		return Parameters{}, fmt.Errorf("provided RLWE parameters are invalid for BGV scheme (DefaultNTTFlag must be true)")
+	if !rlweParams.NTTFlag() {
+		return Parameters{}, fmt.Errorf("provided RLWE parameters are invalid for BGV scheme (NTTFlag must be true)")
 	}
 
 	if t == 0 {
@@ -180,9 +180,13 @@ func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err erro
 		order >>= 1
 	}
 
+	if order < 2 {
+		return Parameters{}, fmt.Errorf("provided plaintext modulus t has cyclotomic order < 2")
+	}
+
 	var ringT *ring.Ring
 	if ringT, err = ring.NewRing(utils.Min(rlweParams.N(), int(order>>1)), []uint64{t}); err != nil {
-		return Parameters{}, err
+		return Parameters{}, fmt.Errorf("provided plaintext modulus t is invalid: %w", err)
 	}
 
 	return Parameters{
@@ -218,28 +222,42 @@ func (p Parameters) ParametersLiteral() ParametersLiteral {
 	}
 }
 
-// MaxSlots returns the maximum dimension of the matrix that can be SIMD packed in a single plaintext polynomial.
-func (p Parameters) MaxSlots() [2]int {
+// PlaintextDimensions returns the maximum dimension of the matrix that can be SIMD packed in a single plaintext polynomial.
+func (p Parameters) PlaintextDimensions() [2]int {
 	switch p.RingType() {
 	case ring.Standard:
 		return [2]int{2, p.RingT().N() >> 1}
 	case ring.ConjugateInvariant:
 		return [2]int{1, p.RingT().N()}
 	default:
-		panic("cannot MaxSlots: invalid ring type")
+		panic("cannot PlaintextDimensions: invalid ring type")
 	}
 }
 
-// MaxLogSlots returns the log2 of maximum dimension of the matrix that can be SIMD packed in a single plaintext polynomial.
-func (p Parameters) MaxLogSlots() [2]int {
+// PlaintextLogDimensions returns the log2 of maximum dimension of the matrix that can be SIMD packed in a single plaintext polynomial.
+func (p Parameters) PlaintextLogDimensions() [2]int {
 	switch p.RingType() {
 	case ring.Standard:
 		return [2]int{1, p.RingT().LogN() - 1}
 	case ring.ConjugateInvariant:
 		return [2]int{0, p.RingT().LogN()}
 	default:
-		panic("cannot MaxLogSlots: invalid ring type")
+		panic("cannot PlaintextLogDimensions: invalid ring type")
 	}
+}
+
+// PlaintextSlots returns the total number of entries (`slots`) that a plaintext can store.
+// This value is obtained by multiplying all dimensions from PlaintextDimensions.
+func (p Parameters) PlaintextSlots() int {
+	dims := p.PlaintextDimensions()
+	return dims[0] * dims[1]
+}
+
+// PlaintextLogSlots returns the total number of entries (`slots`) that a plaintext can store.
+// This value is obtained by summing all log dimensions from PlaintextLogDimensions.
+func (p Parameters) PlaintextLogSlots() int {
+	dims := p.PlaintextLogDimensions()
+	return dims[0] + dims[1]
 }
 
 // RingQMul returns a pointer to the ring of the extended basis for multiplication.

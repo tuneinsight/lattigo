@@ -14,8 +14,8 @@ type Ciphertext struct {
 // MetaData set to the Parameters default value.
 func NewCiphertext(params ParametersInterface, degree, level int) (ct *Ciphertext) {
 	op := *NewOperandQ(params, degree, level)
-	op.Scale = params.DefaultScale()
-	op.LogSlots = params.MaxLogSlots()
+	op.PlaintextScale = params.PlaintextScale()
+	op.PlaintextLogDimensions = params.PlaintextLogDimensions()
 	return &Ciphertext{op}
 }
 

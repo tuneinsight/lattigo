@@ -6,18 +6,18 @@ var (
 	P    = []uint64{0x3ffffffb80001, 0x4000000800001}
 
 	TESTBITDECOMP16P1 = ParametersLiteral{
-		LogN:           LogN,
-		Q:              Q,
-		Pow2Base:       16,
-		P:              P[:1],
-		DefaultNTTFlag: true,
+		LogN:     LogN,
+		Q:        Q,
+		Pow2Base: 16,
+		P:        P[:1],
+		NTTFlag:  true,
 	}
 
 	TESTBITDECOMP0P2 = ParametersLiteral{
-		LogN:           LogN,
-		Q:              Q,
-		P:              P,
-		DefaultNTTFlag: true,
+		LogN:    LogN,
+		Q:       Q,
+		P:       P,
+		NTTFlag: true,
 	}
 
 	TestParamsLiteral = []ParametersLiteral{TESTBITDECOMP16P1, TESTBITDECOMP0P2}

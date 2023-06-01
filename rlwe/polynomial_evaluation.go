@@ -111,8 +111,8 @@ func evalMonomial(a, b, xpow *Ciphertext, eval PolynomialEvaluatorInterface) (er
 
 	eval.Mul(b, xpow, b)
 
-	if !a.Scale.InDelta(b.Scale, float64(ScalePrecision-12)) {
-		panic(fmt.Errorf("scale discrepency: %v != %v", &a.Scale.Value, &b.Scale.Value))
+	if !a.PlaintextScale.InDelta(b.PlaintextScale, float64(ScalePrecision-12)) {
+		panic(fmt.Errorf("scale discrepency: %v != %v", &a.PlaintextScale.Value, &b.PlaintextScale.Value))
 	}
 
 	eval.Add(b, a, b)

@@ -3,8 +3,8 @@ package rlwe
 // DummyOperand is a dummy operand
 // that only stores the level and the scale.
 type DummyOperand struct {
-	Level int
-	Scale Scale
+	Level          int
+	PlaintextScale Scale
 }
 
 type DummyEvaluator interface {

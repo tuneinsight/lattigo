@@ -58,9 +58,9 @@ func NewEncoder(parameters Parameters) *Encoder {
 
 	var bufB []*big.Int
 
-	if parameters.MaxLogSlots()[1] < parameters.LogN()-1 {
+	if parameters.PlaintextLogDimensions()[1] < parameters.LogN()-1 {
 
-		slots := 1 << (parameters.MaxLogSlots()[0] + parameters.MaxLogSlots()[1])
+		slots := parameters.PlaintextSlots()
 
 		bufB = make([]*big.Int, slots)
 
@@ -71,7 +71,7 @@ func NewEncoder(parameters Parameters) *Encoder {
 
 	return &Encoder{
 		parameters:  parameters,
-		indexMatrix: permuteMatrix(parameters.MaxLogSlots()[0] + parameters.MaxLogSlots()[1]),
+		indexMatrix: permuteMatrix(parameters.PlaintextLogSlots()),
 		bufQ:        ringQ.NewPoly(),
 		bufT:        ringT.NewPoly(),
 		bufB:        bufB,
@@ -111,9 +111,9 @@ func (ecd *Encoder) Parameters() rlwe.ParametersInterface {
 }
 
 // EncodeNew encodes a slice of integers of type []uint64 or []int64 of size at most N on a newly allocated plaintext.
-func (ecd *Encoder) EncodeNew(values interface{}, level int, scale rlwe.Scale) (pt *rlwe.Plaintext, err error) {
+func (ecd *Encoder) EncodeNew(values interface{}, level int, plaintextScale rlwe.Scale) (pt *rlwe.Plaintext, err error) {
 	pt = NewPlaintext(ecd.parameters, level)
-	pt.Scale = scale
+	pt.PlaintextScale = plaintextScale
 	return pt, ecd.Encode(values, pt)
 }
 
@@ -123,7 +123,7 @@ func (ecd *Encoder) Encode(values interface{}, pt *rlwe.Plaintext) (err error) {
 }
 
 // EncodeRingT encodes a slice of []uint64 or []int64 at the given scale on a polynomial pT with coefficients modulo the plaintext modulus T.
-func (ecd *Encoder) EncodeRingT(values interface{}, scale rlwe.Scale, pT *ring.Poly) (err error) {
+func (ecd *Encoder) EncodeRingT(values interface{}, plaintextScale rlwe.Scale, pT *ring.Poly) (err error) {
 	perm := ecd.indexMatrix
 
 	pt := pT.Coeffs[0]
@@ -177,16 +177,19 @@ func (ecd *Encoder) EncodeRingT(values interface{}, scale rlwe.Scale, pT *ring.P
 
 	// INTT on the Y = X^{N/n}
 	ringT.INTT(pT, pT)
-	ringT.MulScalar(pT, scale.Uint64(), pT)
+	ringT.MulScalar(pT, plaintextScale.Uint64(), pT)
 
 	return nil
 }
 
+// Embed is a generic method to encode slices of []uint64 or []int64 on ringqp.Poly or *ring.Poly.
+// inputs:
+// - values: slice of []uint64 or []int64 of size at most params.PlaintextCyclotomicOrder()
 func (ecd *Encoder) Embed(values interface{}, scaleUp bool, metadata rlwe.MetaData, polyOut interface{}) (err error) {
 
 	pT := ecd.bufT
 
-	if err = ecd.EncodeRingT(values, metadata.Scale, pT); err != nil {
+	if err = ecd.EncodeRingT(values, metadata.PlaintextScale, pT); err != nil {
 		return
 	}
 
@@ -262,7 +265,7 @@ func (ecd *Encoder) EncodeCoeffs(values []uint64, pt *rlwe.Plaintext) {
 
 	ringT := ecd.parameters.RingT()
 
-	ringT.MulScalar(ecd.bufT, pt.Scale.Uint64(), ecd.bufT)
+	ringT.MulScalar(ecd.bufT, pt.PlaintextScale.Uint64(), ecd.bufT)
 	ecd.RingT2Q(pt.Level(), true, ecd.bufT, pt.Value)
 
 	if pt.IsNTT {
@@ -272,9 +275,9 @@ func (ecd *Encoder) EncodeCoeffs(values []uint64, pt *rlwe.Plaintext) {
 
 // EncodeCoeffsNew encodes a slice of []uint64 of size at most N on a newly allocated plaintext.
 // The encoding is done coefficient wise, i.e. [1, 2, 3, 4] -> 1 + 2X + 3X^2 + 4X^3.}
-func (ecd *Encoder) EncodeCoeffsNew(values []uint64, level int, scale rlwe.Scale) (pt *rlwe.Plaintext) {
+func (ecd *Encoder) EncodeCoeffsNew(values []uint64, level int, plaintextScale rlwe.Scale) (pt *rlwe.Plaintext) {
 	pt = NewPlaintext(ecd.parameters, level)
-	pt.Scale = scale
+	pt.PlaintextScale = plaintextScale
 	ecd.EncodeCoeffs(values, pt)
 	return
 }
@@ -406,7 +409,7 @@ func (ecd *Encoder) DecodeUint(pt *rlwe.Plaintext, values []uint64) {
 	}
 
 	ecd.RingQ2T(pt.Level(), true, ecd.bufQ, ecd.bufT)
-	ecd.DecodeRingT(ecd.bufT, pt.Scale, values)
+	ecd.DecodeRingT(ecd.bufT, pt.PlaintextScale, values)
 }
 
 // DecodeUintNew decodes any plaintext type and returns the coefficients on a new []uint64 slice.
@@ -425,7 +428,7 @@ func (ecd *Encoder) DecodeInt(pt *rlwe.Plaintext, values []int64) {
 	}
 
 	ecd.RingQ2T(pt.Level(), true, ecd.bufQ, ecd.bufT)
-	ecd.DecodeRingT(ecd.bufT, pt.Scale, values)
+	ecd.DecodeRingT(ecd.bufT, pt.PlaintextScale, values)
 }
 
 // DecodeIntNew decodes a any plaintext type and write the coefficients on an new int64 slice.
@@ -444,7 +447,7 @@ func (ecd *Encoder) DecodeCoeffs(pt *rlwe.Plaintext, values []uint64) {
 
 	ecd.RingQ2T(pt.Level(), true, ecd.bufQ, ecd.bufT)
 	ringT := ecd.parameters.RingT()
-	ringT.MulScalar(ecd.bufT, ring.ModExp(pt.Scale.Uint64(), ringT.SubRings[0].Modulus-2, ringT.SubRings[0].Modulus), ecd.bufT)
+	ringT.MulScalar(ecd.bufT, ring.ModExp(pt.PlaintextScale.Uint64(), ringT.SubRings[0].Modulus-2, ringT.SubRings[0].Modulus), ecd.bufT)
 	copy(values, ecd.bufT.Coeffs[0])
 }
 

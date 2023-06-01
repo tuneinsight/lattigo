@@ -13,13 +13,13 @@ import (
 )
 
 const (
-	defaultPrecision = uint(512)
+	PlaintextPrecision = uint(512)
 )
 
 var (
 	log2TwoPi = math.Log2(2 * math.Pi)
-	aQuarter  = bignum.NewFloat(0.25, defaultPrecision)
-	pi        = bignum.Pi(defaultPrecision)
+	aQuarter  = bignum.NewFloat(0.25, PlaintextPrecision)
+	pi        = bignum.Pi(PlaintextPrecision)
 )
 
 // ApproximateCos computes a polynomial approximation of degree "degree" in Chevyshev basis of the function
@@ -27,7 +27,7 @@ var (
 // The nodes of the Chevyshev approximation are are located from -dev to +dev at each integer value between -K and -K
 func ApproximateCos(K, degree int, dev float64, scnum int) []*big.Float {
 
-	var scfac = bignum.NewFloat(float64(int(1<<scnum)), defaultPrecision)
+	var scfac = bignum.NewFloat(float64(int(1<<scnum)), PlaintextPrecision)
 
 	deg, totdeg := genDegrees(degree, K, dev)
 
@@ -44,7 +44,7 @@ func ApproximateCos(K, degree int, dev float64, scnum int) []*big.Float {
 
 	for i := 0; i < totdeg; i++ {
 
-		T[i][0] = bignum.NewFloat(1.0, defaultPrecision)
+		T[i][0] = bignum.NewFloat(1.0, PlaintextPrecision)
 
 		T[i][1] = new(big.Float).Set(x[i])
 
@@ -54,7 +54,7 @@ func ApproximateCos(K, degree int, dev float64, scnum int) []*big.Float {
 
 		for j := 2; j < totdeg; j++ {
 
-			T[i][j] = bignum.NewFloat(2.0, defaultPrecision)
+			T[i][j] = bignum.NewFloat(2.0, PlaintextPrecision)
 
 			tmp.Quo(KBig, scfac)
 			tmp.Quo(x[i], tmp)
@@ -94,7 +94,7 @@ func ApproximateCos(K, degree int, dev float64, scnum int) []*big.Float {
 		}
 
 		p[i].Quo(p[i], T[i][i])
-		T[i][i] = bignum.NewFloat(1.0, defaultPrecision)
+		T[i][i] = bignum.NewFloat(1.0, PlaintextPrecision)
 
 		for j := i + 1; j < totdeg; j++ {
 			tmp.Mul(T[j][i], p[i])
@@ -103,7 +103,7 @@ func ApproximateCos(K, degree int, dev float64, scnum int) []*big.Float {
 				tmp.Mul(T[j][i], T[i][l])
 				T[j][l].Sub(T[j][l], tmp)
 			}
-			T[j][i] = bignum.NewFloat(0.0, defaultPrecision)
+			T[j][i] = bignum.NewFloat(0.0, PlaintextPrecision)
 		}
 	}
 
@@ -233,14 +233,14 @@ func genDegrees(degree, K int, dev float64) ([]int, int) {
 
 func genNodes(deg []int, dev float64, totdeg, K, scnum int) ([]*big.Float, []*big.Float, []*big.Float, int) {
 
-	var scfac = bignum.NewFloat(1<<scnum, defaultPrecision)
+	var scfac = bignum.NewFloat(1<<scnum, PlaintextPrecision)
 
-	var intersize = bignum.NewFloat(1.0/dev, defaultPrecision)
+	var intersize = bignum.NewFloat(1.0/dev, PlaintextPrecision)
 
 	var z = make([]*big.Float, totdeg)
 
 	for i := range z {
-		z[i] = bignum.NewFloat(0, defaultPrecision)
+		z[i] = bignum.NewFloat(0, PlaintextPrecision)
 	}
 
 	var cnt int
@@ -303,7 +303,7 @@ func genNodes(deg []int, dev float64, totdeg, K, scnum int) ([]*big.Float, []*bi
 	var x = make([]*big.Float, totdeg)
 	for i := 0; i < totdeg; i++ {
 		// x[i] = K
-		x[i] = bignum.NewFloat(float64(K), defaultPrecision)
+		x[i] = bignum.NewFloat(float64(K), PlaintextPrecision)
 
 		// x[i] = K/r
 		x[i].Quo(x[i], scfac)

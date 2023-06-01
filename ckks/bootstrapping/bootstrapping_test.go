@@ -36,13 +36,13 @@ func TestBootstrapParametersMarshalling(t *testing.T) {
 	t.Run("ParametersLiteral", func(t *testing.T) {
 
 		paramsLit := ParametersLiteral{
-			CoeffsToSlotsFactorizationDepthAndLogScales: [][]int{{53}, {53}, {53}, {53}},
-			SlotsToCoeffsFactorizationDepthAndLogScales: [][]int{{30}, {30, 30}},
-			EvalModLogScale:       utils.PointyInt(59),
-			EphemeralSecretWeight: utils.PointyInt(1),
-			Iterations:            utils.PointyInt(2),
-			SineDegree:            utils.PointyInt(32),
-			ArcSineDegree:         utils.PointyInt(7),
+			CoeffsToSlotsFactorizationDepthAndLogPlaintextScales: [][]int{{53}, {53}, {53}, {53}},
+			SlotsToCoeffsFactorizationDepthAndLogPlaintextScales: [][]int{{30}, {30, 30}},
+			EvalModLogPlaintextScale:                             utils.PointyInt(59),
+			EphemeralSecretWeight:                                utils.PointyInt(1),
+			Iterations:                                           utils.PointyInt(2),
+			SineDegree:                                           utils.PointyInt(32),
+			ArcSineDegree:                                        utils.PointyInt(7),
 		}
 
 		data, err := paramsLit.MarshalBinary()
@@ -126,7 +126,7 @@ func testbootstrap(params ckks.Parameters, btpParams Parameters, t *testing.T) {
 		btpType = "Original/"
 	}
 
-	t.Run(ParamsToString(params, btpParams.LogSlots()[1], "Bootstrapping/FullCircuit/"+btpType), func(t *testing.T) {
+	t.Run(ParamsToString(params, btpParams.PlaintextLogDimensions()[1], "Bootstrapping/FullCircuit/"+btpType), func(t *testing.T) {
 
 		kgen := ckks.NewKeyGenerator(params)
 		sk := kgen.GenSecretKeyNew()
@@ -141,7 +141,7 @@ func testbootstrap(params ckks.Parameters, btpParams Parameters, t *testing.T) {
 			panic(err)
 		}
 
-		values := make([]complex128, 1<<btpParams.LogSlots()[1])
+		values := make([]complex128, 1<<btpParams.PlaintextLogDimensions()[1])
 		for i := range values {
 			values[i] = sampling.RandComplex128(-1, 1)
 		}
@@ -149,13 +149,13 @@ func testbootstrap(params ckks.Parameters, btpParams Parameters, t *testing.T) {
 		values[0] = complex(0.9238795325112867, 0.3826834323650898)
 		values[1] = complex(0.9238795325112867, 0.3826834323650898)
 
-		if btpParams.LogSlots()[1] > 1 {
+		if btpParams.PlaintextLogDimensions()[1] > 1 {
 			values[2] = complex(0.9238795325112867, 0.3826834323650898)
 			values[3] = complex(0.9238795325112867, 0.3826834323650898)
 		}
 
 		plaintext := ckks.NewPlaintext(params, 0)
-		plaintext.LogSlots = btpParams.LogSlots()
+		plaintext.PlaintextLogDimensions = btpParams.PlaintextLogDimensions()
 		encoder.Encode(values, plaintext)
 
 		n := 1

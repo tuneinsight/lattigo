@@ -26,8 +26,8 @@ func GetTestName(opname string, p bgv.Parameters, parties int) string {
 		p.LogN(),
 		int(math.Round(p.LogQ())),
 		int(math.Round(p.LogP())),
-		p.MaxLogSlots()[0],
-		p.MaxLogSlots()[1],
+		p.PlaintextLogDimensions()[0],
+		p.PlaintextLogDimensions()[1],
 		int(math.Round(p.LogT())),
 		p.QCount(),
 		p.PCount(),
@@ -211,7 +211,7 @@ func testEncToShares(tc *testContext, t *testing.T) {
 		ptRt.Copy(&rec.Value)
 		values := make([]uint64, len(coeffs))
 
-		tc.encoder.DecodeRingT(ptRt, ciphertext.Scale, values)
+		tc.encoder.DecodeRingT(ptRt, ciphertext.PlaintextScale, values)
 
 		assert.True(t, utils.EqualSlice(coeffs, values))
 	})
@@ -275,7 +275,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 		ciphertext.Resize(ciphertext.Degree(), minLevel)
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.s, ciphertext, ciphertext.Scale, crp, p.share)
+			p.GenShare(p.s, ciphertext, ciphertext.PlaintextScale, crp, p.share)
 			if i > 0 {
 				P0.AggregateShares(p.share, P0.share, P0.share)
 			}
@@ -335,7 +335,7 @@ func testRefreshAndPermutation(tc *testContext, t *testing.T) {
 		ciphertext.Resize(ciphertext.Degree(), minLevel)
 
 		permutation := make([]uint64, len(coeffs))
-		N := uint64(tc.params.MaxSlots()[1])
+		N := uint64(len(coeffs))
 		prng, _ := sampling.NewPRNG()
 		for i := range permutation {
 			permutation[i] = ring.RandUniform(prng, N, N-1)
@@ -356,7 +356,7 @@ func testRefreshAndPermutation(tc *testContext, t *testing.T) {
 		}
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.s, p.s, ciphertext, ciphertext.Scale, crp, maskedTransform, p.share)
+			p.GenShare(p.s, p.s, ciphertext, ciphertext.PlaintextScale, crp, maskedTransform, p.share)
 			if i > 0 {
 				P0.AggregateShares(P0.share, p.share, P0.share)
 			}
@@ -438,7 +438,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 		coeffs, _, ciphertext := newTestVectors(tc, encryptorPk0, t)
 
 		permutation := make([]uint64, len(coeffs))
-		N := uint64(tc.params.MaxSlots()[1])
+		N := uint64(len(coeffs))
 		prng, _ := sampling.NewPRNG()
 		for i := range permutation {
 			permutation[i] = ring.RandUniform(prng, N, N-1)
@@ -457,7 +457,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 		}
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.sIn, p.sOut, ciphertext, ciphertext.Scale, crp, transform, p.share)
+			p.GenShare(p.sIn, p.sOut, ciphertext, ciphertext.PlaintextScale, crp, transform, p.share)
 			if i > 0 {
 				P0.AggregateShares(P0.share, p.share, P0.share)
 			}
@@ -486,7 +486,7 @@ func newTestVectors(tc *testContext, encryptor rlwe.Encryptor, t *testing.T) (co
 	}
 
 	plaintext = bgv.NewPlaintext(tc.params, tc.params.MaxLevel())
-	plaintext.Scale = tc.params.NewScale(2)
+	plaintext.PlaintextScale = tc.params.NewScale(2)
 	tc.encoder.Encode(coeffsPol.Coeffs[0], plaintext)
 	ciphertext = encryptor.EncryptNew(plaintext)
 	return coeffsPol.Coeffs[0], plaintext, ciphertext

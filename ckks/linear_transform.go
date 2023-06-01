@@ -44,7 +44,7 @@ func (eval *Evaluator) Average(ctIn *rlwe.Ciphertext, logBatchSize int, ctOut *r
 		panic("ctIn.Degree() != 1 or ctOut.Degree() != 1")
 	}
 
-	if logBatchSize > ctIn.LogSlots[1] {
+	if logBatchSize > ctIn.PlaintextLogDimensions[1] {
 		panic("cannot Average: batchSize must be smaller or equal to the number of slots")
 	}
 
@@ -52,7 +52,7 @@ func (eval *Evaluator) Average(ctIn *rlwe.Ciphertext, logBatchSize int, ctOut *r
 
 	level := utils.Min(ctIn.Level(), ctOut.Level())
 
-	n := 1 << (ctIn.LogSlots[1] - logBatchSize)
+	n := 1 << (ctIn.PlaintextLogDimensions[1] - logBatchSize)
 
 	// pre-multiplication by n^-1
 	for i, s := range ringQ.SubRings[:level+1] {

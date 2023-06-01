@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	DefaultNTTFlag = true
+	NTTFlag = true
 )
 
 // Name of the different default parameter sets
@@ -32,16 +32,16 @@ var ()
 // type (RingType) and the number of slots (in log_2, LogSlots). If left unset, standard default values for
 // these field are substituted at parameter creation (see NewParametersFromLiteral).
 type ParametersLiteral struct {
-	LogN     int
-	Q        []uint64
-	P        []uint64
-	LogQ     []int `json:",omitempty"`
-	LogP     []int `json:",omitempty"`
-	Pow2Base int
-	Xe       distribution.Distribution
-	Xs       distribution.Distribution
-	RingType ring.Type
-	LogScale int
+	LogN              int
+	Q                 []uint64
+	P                 []uint64
+	LogQ              []int `json:",omitempty"`
+	LogP              []int `json:",omitempty"`
+	Pow2Base          int
+	Xe                distribution.Distribution
+	Xs                distribution.Distribution
+	RingType          ring.Type
+	LogPlaintextScale int
 }
 
 // RLWEParametersLiteral returns the rlwe.ParametersLiteral from the target ckks.ParameterLiteral.
@@ -56,8 +56,8 @@ func (p ParametersLiteral) RLWEParametersLiteral() rlwe.ParametersLiteral {
 		Xe:             p.Xe,
 		Xs:             p.Xs,
 		RingType:       p.RingType,
-		DefaultNTTFlag: DefaultNTTFlag,
-		DefaultScale:   rlwe.NewScale(math.Exp2(float64(p.LogScale))),
+		NTTFlag:        NTTFlag,
+		PlaintextScale: rlwe.NewScale(math.Exp2(float64(p.LogPlaintextScale))),
 	}
 }
 
@@ -71,8 +71,8 @@ type Parameters struct {
 // It returns the empty parameters Parameters{} and a non-nil error if the specified parameters are invalid.
 func NewParameters(rlweParams rlwe.Parameters) (p Parameters, err error) {
 
-	if !rlweParams.DefaultNTTFlag() {
-		return Parameters{}, fmt.Errorf("provided RLWE parameters are invalid for CKKS scheme (DefaultNTTFlag must be true)")
+	if !rlweParams.NTTFlag() {
+		return Parameters{}, fmt.Errorf("provided RLWE parameters are invalid for CKKS scheme (NTTFlag must be true)")
 	}
 
 	if rlweParams.Equal(rlwe.Parameters{}) {
@@ -113,14 +113,14 @@ func (p Parameters) StandardParameters() (pckks Parameters, err error) {
 // ParametersLiteral returns the ParametersLiteral of the target Parameters.
 func (p Parameters) ParametersLiteral() (pLit ParametersLiteral) {
 	return ParametersLiteral{
-		LogN:     p.LogN(),
-		Q:        p.Q(),
-		P:        p.P(),
-		Pow2Base: p.Pow2Base(),
-		Xe:       p.Xe(),
-		Xs:       p.Xs(),
-		RingType: p.RingType(),
-		LogScale: p.LogScale(),
+		LogN:              p.LogN(),
+		Q:                 p.Q(),
+		P:                 p.P(),
+		Pow2Base:          p.Pow2Base(),
+		Xe:                p.Xe(),
+		Xs:                p.Xs(),
+		RingType:          p.RingType(),
+		LogPlaintextScale: p.LogPlaintextScale(),
 	}
 }
 
@@ -129,33 +129,47 @@ func (p Parameters) MaxLevel() int {
 	return p.QCount() - 1
 }
 
-// MaxSlots returns the maximum dimension of the matrix that can be SIMD packed in a single plaintext polynomial.
-func (p Parameters) MaxSlots() [2]int {
+// PlaintextDimensions returns the maximum dimension of the matrix that can be SIMD packed in a single plaintext polynomial.
+func (p Parameters) PlaintextDimensions() [2]int {
 	switch p.RingType() {
 	case ring.Standard:
 		return [2]int{1, p.N() >> 1}
 	case ring.ConjugateInvariant:
 		return [2]int{1, p.N()}
 	default:
-		panic("cannot MaxSlotsDimensions: invalid ring type")
+		panic("cannot PlaintextDimensions: invalid ring type")
 	}
 }
 
-// MaxLogSlots returns the log2 of maximum dimension of the matrix that can be SIMD packed in a single plaintext polynomial.
-func (p Parameters) MaxLogSlots() [2]int {
+// PlaintextLogDimensions returns the log2 of maximum dimension of the matrix that can be SIMD packed in a single plaintext polynomial.
+func (p Parameters) PlaintextLogDimensions() [2]int {
 	switch p.RingType() {
 	case ring.Standard:
 		return [2]int{0, p.LogN() - 1}
 	case ring.ConjugateInvariant:
 		return [2]int{0, p.LogN()}
 	default:
-		panic("cannot MaxLogSlotsDimensions: invalid ring type")
+		panic("cannot PlaintextLogDimensions: invalid ring type")
 	}
 }
 
-// LogScale returns the log2 of the default scaling factor.
-func (p Parameters) LogScale() int {
-	return int(math.Round(math.Log2(p.DefaultScale().Float64())))
+// PlaintextSlots returns the total number of entries (`slots`) that a plaintext can store.
+// This value is obtained by multiplying all dimensions from PlaintextDimensions.
+func (p Parameters) PlaintextSlots() int {
+	dims := p.PlaintextDimensions()
+	return dims[0] * dims[1]
+}
+
+// PlaintextLogSlots returns the total number of entries (`slots`) that a plaintext can store.
+// This value is obtained by summing all log dimensions from PlaintextLogDimensions.
+func (p Parameters) PlaintextLogSlots() int {
+	dims := p.PlaintextLogDimensions()
+	return dims[0] + dims[1]
+}
+
+// LogPlaintextScale returns the log2 of the default plaintext scaling factor.
+func (p Parameters) LogPlaintextScale() int {
+	return int(math.Round(math.Log2(p.PlaintextScale().Float64())))
 }
 
 // LogQLvl returns the size of the modulus Q in bits at a specific level

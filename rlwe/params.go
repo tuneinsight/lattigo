@@ -55,8 +55,8 @@ type ParametersLiteral struct {
 	Xe             distribution.Distribution
 	Xs             distribution.Distribution
 	RingType       ring.Type
-	DefaultScale   Scale
-	DefaultNTTFlag bool
+	PlaintextScale Scale
+	NTTFlag        bool
 }
 
 // Parameters represents a set of generic RLWE parameters. Its fields are private and
@@ -71,14 +71,14 @@ type Parameters struct {
 	ringQ          *ring.Ring
 	ringP          *ring.Ring
 	ringType       ring.Type
-	defaultScale   Scale
-	defaultNTTFlag bool
+	plaintextScale Scale
+	nttFlag        bool
 }
 
 // NewParameters returns a new set of generic RLWE parameters from the given ring degree logn, moduli q and p, and
 // error distribution Xs (secret) and Xe (error). It returns the empty parameters Parameters{} and a non-nil error if the
 // specified parameters are invalid.
-func NewParameters(logn int, q, p []uint64, pow2Base int, xs, xe distribution.Distribution, ringType ring.Type, defaultScale Scale, defaultNTTFlag bool) (params Parameters, err error) {
+func NewParameters(logn int, q, p []uint64, pow2Base int, xs, xe distribution.Distribution, ringType ring.Type, plaintextScale Scale, NTTFlag bool) (params Parameters, err error) {
 
 	if pow2Base != 0 && len(p) > 1 {
 		return Parameters{}, fmt.Errorf("rlwe.NewParameters: invalid parameters, cannot have pow2Base > 0 if len(P) > 1")
@@ -113,8 +113,8 @@ func NewParameters(logn int, q, p []uint64, pow2Base int, xs, xe distribution.Di
 		xs:             xs.CopyNew(),
 		xe:             xe.CopyNew(),
 		ringType:       ringType,
-		defaultScale:   defaultScale,
-		defaultNTTFlag: defaultNTTFlag,
+		plaintextScale: plaintextScale,
+		nttFlag:        NTTFlag,
 	}
 
 	var warning error
@@ -173,13 +173,13 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (params Parameters, er
 		paramDef.Xe = &DefaultXe
 	}
 
-	if paramDef.DefaultScale.Cmp(Scale{}) == 0 {
-		paramDef.DefaultScale = NewScale(1)
+	if paramDef.PlaintextScale.Cmp(Scale{}) == 0 {
+		paramDef.PlaintextScale = NewScale(1)
 	}
 
 	switch {
 	case paramDef.Q != nil && paramDef.LogQ == nil:
-		return NewParameters(paramDef.LogN, paramDef.Q, paramDef.P, paramDef.Pow2Base, paramDef.Xs, paramDef.Xe, paramDef.RingType, paramDef.DefaultScale, paramDef.DefaultNTTFlag)
+		return NewParameters(paramDef.LogN, paramDef.Q, paramDef.P, paramDef.Pow2Base, paramDef.Xs, paramDef.Xe, paramDef.RingType, paramDef.PlaintextScale, paramDef.NTTFlag)
 	case paramDef.LogQ != nil && paramDef.Q == nil:
 		var q, p []uint64
 		switch paramDef.RingType {
@@ -193,7 +193,7 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (params Parameters, er
 		if err != nil {
 			return Parameters{}, err
 		}
-		return NewParameters(paramDef.LogN, q, p, paramDef.Pow2Base, paramDef.Xs, paramDef.Xe, paramDef.RingType, paramDef.DefaultScale, paramDef.DefaultNTTFlag)
+		return NewParameters(paramDef.LogN, q, p, paramDef.Pow2Base, paramDef.Xs, paramDef.Xe, paramDef.RingType, paramDef.PlaintextScale, paramDef.NTTFlag)
 	default:
 		return Parameters{}, fmt.Errorf("rlwe.NewParametersFromLiteral: invalid parameter literal")
 	}
@@ -236,15 +236,15 @@ func (p Parameters) ParametersLiteral() ParametersLiteral {
 		Xe:             p.xe.CopyNew(),
 		Xs:             p.xs.CopyNew(),
 		RingType:       p.ringType,
-		DefaultScale:   p.defaultScale,
-		DefaultNTTFlag: p.defaultNTTFlag,
+		PlaintextScale: p.plaintextScale,
+		NTTFlag:        p.nttFlag,
 	}
 }
 
 // NewScale creates a new scale using the stored default scale as template.
 func (p Parameters) NewScale(scale interface{}) Scale {
 	newScale := NewScale(scale)
-	newScale.Mod = p.defaultScale.Mod
+	newScale.Mod = p.plaintextScale.Mod
 	return newScale
 }
 
@@ -268,14 +268,74 @@ func (p Parameters) LogN() int {
 	return p.logN
 }
 
-// MaxSlots returns the maximum dimension of the matrix that can be SIMD packed in a single plaintext polynomial.
-func (p Parameters) MaxSlots() [2]int {
+// PlaintextDimensions returns the dimensions of the matrix that can be SIMD packed in a single plaintext polynomial.
+// Returns [0, 0] by default.
+func (p Parameters) PlaintextDimensions() [2]int {
 	return [2]int{0, 0}
 }
 
-// MaxLogSlots returns the log2 of maximum dimension of the matrix that can be SIMD packed in a single plaintext polynomial.
-func (p Parameters) MaxLogSlots() [2]int {
+// PlaintextLogDimensions returns the log dimensions of the matrix that can be SIMD packed in a single plaintext polynomial.
+// Returns [-1, -1] by default.
+func (p Parameters) PlaintextLogDimensions() [2]int {
 	return [2]int{-1, -1}
+}
+
+// PlaintextSlots returns the total number of entries (`slots`) that a plaintext can store.
+// This value is obtained by multiplying all dimensions from PlaintextDimensions.
+func (p Parameters) PlaintextSlots() int {
+	dims := p.PlaintextDimensions()
+	return dims[0] * dims[1]
+}
+
+// PlaintextLogSlots returns the total number of entries (`slots`) that a plaintext can store.
+// This value is obtained by summing all log dimensions from PlaintextLogDimensions.
+func (p Parameters) PlaintextLogSlots() int {
+	dims := p.PlaintextLogDimensions()
+	return dims[0] + dims[1]
+}
+
+// PlaintextScale returns the default scaling factor of the plaintext, if any.
+func (p Parameters) PlaintextScale() Scale {
+	return p.plaintextScale
+}
+
+// PlaintextModulus returns the plaintext modulus, if any. Else returns 0.
+func (p Parameters) PlaintextModulus() uint64 {
+	if p.plaintextScale.Mod != nil {
+		return p.plaintextScale.Mod.Uint64()
+	}
+
+	return 0
+}
+
+// PlaintextPrecision returns the default precision in bits of the plaintext values which
+// is max(53, log2(PlaintextScale)).
+func (p Parameters) PlaintextPrecision() (prec uint) {
+	if log2scale := math.Log2(p.PlaintextScale().Float64()); log2scale <= 53 {
+		prec = 53
+	} else {
+		prec = uint(log2scale)
+	}
+
+	return
+}
+
+// PlaintextScaleToModuliRatio returns the default ratio between the scaling factor and moduli.
+// This default ratio is computed as ceil(PlaintextScale/2^{60}).
+// Returns 0 if the scaling factor is 0 (e.g. scale invariant scheme such as BFV).
+func (p Parameters) PlaintextScaleToModuliRatio() int {
+
+	if p.PlaintextScale().Mod != nil {
+		return 1
+	}
+
+	scale := p.PlaintextScale().Float64()
+	nbModuli := 0
+	for scale > 1 {
+		scale /= 0xfffffffffffffff
+		nbModuli++
+	}
+	return nbModuli
 }
 
 // RingQ returns a pointer to ringQ
@@ -293,63 +353,19 @@ func (p Parameters) RingQP() *ringqp.Ring {
 	return &ringqp.Ring{RingQ: p.ringQ, RingP: p.ringP}
 }
 
-// DefaultScale returns the default scale, if any.
-func (p Parameters) DefaultScale() Scale {
-	return p.defaultScale
-}
-
-// PlaintextModulus returns the plaintext modulus, if any. Else returns 0.
-func (p Parameters) PlaintextModulus() uint64 {
-	if p.defaultScale.Mod != nil {
-		return p.defaultScale.Mod.Uint64()
-	}
-
-	return 0
-}
-
-// DefaultPrecision returns the default precision in bits of the plaintext values which
-// is max(53, log2(DefaultScale)).
-func (p Parameters) DefaultPrecision() (prec uint) {
-	if log2scale := math.Log2(p.DefaultScale().Float64()); log2scale <= 53 {
-		prec = 53
-	} else {
-		prec = uint(log2scale)
-	}
-
-	return
-}
-
-// MaxDepth returns MaxLevel / DefaultScaleModuliRatio which is the maximum number of multiplicaitons
-// followed by a rescaling that can be carried out with on a ciphertext with the DefaultScale.
+// MaxDepth returns MaxLevel / PlaintextScaleToModuliRatio which is the maximum number of multiplicaitons
+// followed by a rescaling that can be carried out with on a ciphertext with the plaintextScale.
 // Returns 0 if the scaling factor is zero (e.g. scale invariant scheme such as BFV).
 func (p Parameters) MaxDepth() int {
-	if ratio := p.DefaultScaleModuliRatio(); ratio > 0 {
+	if ratio := p.PlaintextScaleToModuliRatio(); ratio > 0 {
 		return p.MaxLevel() / ratio
 	}
 	return 0
 }
 
-// DefaultScaleModuliRatio returns the default ratio between the scaling factor and moduli.
-// This default ratio is computed as ceil(DefaultScalingFactor/2^{60}).
-// Returns 0 if the scaling factor is 0 (e.g. scale invariant scheme such as BFV).
-func (p Parameters) DefaultScaleModuliRatio() int {
-
-	if p.DefaultScale().Mod != nil {
-		return 1
-	}
-
-	scale := p.DefaultScale().Float64()
-	nbModuli := 0
-	for scale > 1 {
-		scale /= 0xfffffffffffffff
-		nbModuli++
-	}
-	return nbModuli
-}
-
-// DefaultNTTFlag returns the default NTT flag.
-func (p Parameters) DefaultNTTFlag() bool {
-	return p.defaultNTTFlag
+// NTTFlag returns a boolean indicating if elements are stored by default in the NTT domain.
+func (p Parameters) NTTFlag() bool {
+	return p.nttFlag
 }
 
 // Xs returns the ring.Distribution of the secret
@@ -750,8 +766,8 @@ func (p Parameters) Equal(other ParametersInterface) (res bool) {
 		res = res && cmp.Equal(p.qi, other.qi)
 		res = res && cmp.Equal(p.pi, other.pi)
 		res = res && (p.ringType == other.ringType)
-		res = res && (p.defaultScale.Equal(other.defaultScale))
-		res = res && (p.defaultNTTFlag == other.defaultNTTFlag)
+		res = res && (p.plaintextScale.Equal(other.plaintextScale))
+		res = res && (p.nttFlag == other.nttFlag)
 		return
 	}
 

@@ -27,7 +27,7 @@ func testString(params rlwe.Parameters, level int, opname string) string {
 		params.QCount(),
 		params.PCount(),
 		params.Pow2Base(),
-		params.DefaultNTTFlag(),
+		params.NTTFlag(),
 		level,
 		params.RingType(),
 		nbParties)
@@ -78,11 +78,11 @@ func TestDRLWE(t *testing.T) {
 
 	for _, paramsLit := range defaultParamsLiteral {
 
-		for _, DefaultNTTFlag := range []bool{true, false} {
+		for _, NTTFlag := range []bool{true, false} {
 
 			for _, RingType := range []ring.Type{ring.Standard, ring.ConjugateInvariant}[:] {
 
-				paramsLit.DefaultNTTFlag = DefaultNTTFlag
+				paramsLit.NTTFlag = NTTFlag
 				paramsLit.RingType = RingType
 
 				var params rlwe.Parameters

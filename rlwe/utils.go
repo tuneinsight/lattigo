@@ -256,7 +256,7 @@ func BSGSIndex(nonZeroDiags []int, slots, N1 int) (index map[int][]int, rotN1, r
 // This method is used to accelerate the NTT of polynomials that encode sparse polynomials.
 func NTTSparseAndMontgomery(r *ring.Ring, metadata MetaData, pol *ring.Poly) {
 
-	if 1<<metadata.LogSlots[1] == r.NthRoot()>>2 {
+	if 1<<metadata.PlaintextLogDimensions[1] == r.NthRoot()>>2 {
 
 		if metadata.IsNTT {
 			r.NTT(pol, pol)
@@ -272,10 +272,10 @@ func NTTSparseAndMontgomery(r *ring.Ring, metadata MetaData, pol *ring.Poly) {
 		var NTT func(p1, p2 []uint64, N int, Q, QInv uint64, BRedConstant, nttPsi []uint64)
 		switch r.Type() {
 		case ring.Standard:
-			n = 2 << metadata.LogSlots[1]
+			n = 2 << metadata.PlaintextLogDimensions[1]
 			NTT = ring.NTTStandard
 		case ring.ConjugateInvariant:
-			n = 1 << metadata.LogSlots[1]
+			n = 1 << metadata.PlaintextLogDimensions[1]
 			NTT = ring.NTTConjugateInvariant
 		}
 

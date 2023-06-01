@@ -18,7 +18,7 @@ var (
 			0x80000000130001,
 			0x7fffffffe90001,
 		},
-		LogScale: 45,
+		LogPlaintextScale: 45,
 	}
 
 	// TESTPREC45 is a secure set of tests parameters with scale 2^90 and depth 5.
@@ -42,7 +42,7 @@ var (
 			0xffffffffffc0001,
 			0x10000000006e0001,
 		},
-		LogScale: 90,
+		LogPlaintextScale: 90,
 	}
 
 	TestParamsLiteral = []ParametersLiteral{TESTPREC45, TESTPREC90}

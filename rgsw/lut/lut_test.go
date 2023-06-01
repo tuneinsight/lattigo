@@ -42,7 +42,7 @@ func sign(x float64) float64 {
 	return -1
 }
 
-var DefaultNTTFlag = true
+var NTTFlag = true
 
 func testLUT(t *testing.T) {
 	var err error
@@ -50,10 +50,10 @@ func testLUT(t *testing.T) {
 	// RLWE parameters of the LUT
 	// N=1024, Q=0x7fff801 -> 2^131
 	paramsLUT, err := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
-		LogN:           10,
-		Q:              []uint64{0x7fff801},
-		Pow2Base:       6,
-		DefaultNTTFlag: DefaultNTTFlag,
+		LogN:     10,
+		Q:        []uint64{0x7fff801},
+		Pow2Base: 6,
+		NTTFlag:  NTTFlag,
 	})
 
 	assert.Nil(t, err)
@@ -61,9 +61,9 @@ func testLUT(t *testing.T) {
 	// RLWE parameters of the samples
 	// N=512, Q=0x3001 -> 2^135
 	paramsLWE, err := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
-		LogN:           9,
-		Q:              []uint64{0x3001},
-		DefaultNTTFlag: DefaultNTTFlag,
+		LogN:    9,
+		Q:       []uint64{0x3001},
+		NTTFlag: NTTFlag,
 	})
 
 	assert.Nil(t, err)

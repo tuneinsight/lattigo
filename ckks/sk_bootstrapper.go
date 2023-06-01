@@ -29,13 +29,13 @@ func NewSecretKeyBootstrapper(params Parameters, sk *rlwe.SecretKey) rlwe.Bootst
 }
 
 func (d *SecretKeyBootstrapper) Bootstrap(ct *rlwe.Ciphertext) (*rlwe.Ciphertext, error) {
-	values := d.Values[:1<<ct.LogSlots[1]]
+	values := d.Values[:1<<ct.PlaintextLogDimensions[1]]
 	if err := d.Decode(d.DecryptNew(ct), values); err != nil {
 		return nil, err
 	}
 	pt := NewPlaintext(d.Parameters, d.MaxLevel())
 	pt.MetaData = ct.MetaData
-	pt.Scale = d.parameters.DefaultScale()
+	pt.PlaintextScale = d.parameters.PlaintextScale()
 	if err := d.Encode(values, pt); err != nil {
 		return nil, err
 	}

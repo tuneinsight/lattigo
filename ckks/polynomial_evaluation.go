@@ -26,7 +26,7 @@ func (eval *Evaluator) Polynomial(input interface{}, p interface{}, targetScale 
 	var polyVec *rlwe.PolynomialVector
 	switch p := p.(type) {
 	case *polynomial.Polynomial:
-		polyVec = &rlwe.PolynomialVector{Value: []*rlwe.Polynomial{&rlwe.Polynomial{Polynomial: p, MaxDeg: p.Degree(), Lead: true, Lazy: false}}}
+		polyVec = &rlwe.PolynomialVector{Value: []*rlwe.Polynomial{{Polynomial: p, MaxDeg: p.Degree(), Lead: true, Lazy: false}}}
 	case *rlwe.Polynomial:
 		polyVec = &rlwe.PolynomialVector{Value: []*rlwe.Polynomial{p}}
 	case *rlwe.PolynomialVector:
@@ -52,7 +52,7 @@ func (eval *Evaluator) Polynomial(input interface{}, p interface{}, targetScale 
 
 	params := eval.parameters
 
-	nbModuliPerRescale := params.DefaultScaleModuliRatio()
+	nbModuliPerRescale := params.PlaintextScaleToModuliRatio()
 
 	if err := checkEnoughLevels(powerbasis.Value[1].Level(), nbModuliPerRescale*polyVec.Value[0].Depth()); err != nil {
 		return nil, err
@@ -81,7 +81,7 @@ func (eval *Evaluator) Polynomial(input interface{}, p interface{}, targetScale 
 		}
 	}
 
-	PS := polyVec.GetPatersonStockmeyerPolynomial(params.Parameters, powerbasis.Value[1].Level(), powerbasis.Value[1].Scale, targetScale, &dummyEvaluator{params, nbModuliPerRescale})
+	PS := polyVec.GetPatersonStockmeyerPolynomial(params.Parameters, powerbasis.Value[1].Level(), powerbasis.Value[1].PlaintextScale, targetScale, &dummyEvaluator{params, nbModuliPerRescale})
 
 	if opOut, err = rlwe.EvaluatePatersonStockmeyerPolynomialVector(PS, powerbasis, polyEval); err != nil {
 		return nil, err
@@ -105,7 +105,7 @@ func (d *dummyEvaluator) PolynomialDepth(degree int) int {
 // Rescale rescales the target DummyOperand n times and returns it.
 func (d *dummyEvaluator) Rescale(op0 *rlwe.DummyOperand) {
 	for i := 0; i < d.nbModuliPerRescale; i++ {
-		op0.Scale = op0.Scale.Div(rlwe.NewScale(d.params.Q()[op0.Level]))
+		op0.PlaintextScale = op0.PlaintextScale.Div(rlwe.NewScale(d.params.Q()[op0.Level]))
 		op0.Level--
 	}
 }
@@ -114,7 +114,7 @@ func (d *dummyEvaluator) Rescale(op0 *rlwe.DummyOperand) {
 func (d *dummyEvaluator) MulNew(op0, op1 *rlwe.DummyOperand) (op2 *rlwe.DummyOperand) {
 	op2 = new(rlwe.DummyOperand)
 	op2.Level = utils.Min(op0.Level, op1.Level)
-	op2.Scale = op0.Scale.Mul(op1.Scale)
+	op2.PlaintextScale = op0.PlaintextScale.Mul(op1.PlaintextScale)
 	return
 }
 
@@ -169,7 +169,7 @@ type PolynomialEvaluator struct {
 }
 
 func (polyEval *PolynomialEvaluator) Rescale(op0, op1 *rlwe.Ciphertext) (err error) {
-	return polyEval.Evaluator.Rescale(op0, polyEval.Evaluator.parameters.DefaultScale(), op1)
+	return polyEval.Evaluator.Rescale(op0, polyEval.Evaluator.parameters.PlaintextScale(), op1)
 }
 
 func (polyEval *PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol *rlwe.PolynomialVector, pb *rlwe.PowerBasis, targetScale rlwe.Scale) (res *rlwe.Ciphertext, err error) {
@@ -178,8 +178,8 @@ func (polyEval *PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targ
 	X := pb.Value
 
 	// Retrieve the number of slots
-	logSlots := X[1].LogSlots
-	slots := 1 << X[1].LogSlots[1]
+	logSlots := X[1].PlaintextLogDimensions
+	slots := 1 << X[1].PlaintextLogDimensions[1]
 
 	params := polyEval.Evaluator.parameters
 	slotsIndex := pol.SlotsIndex
@@ -215,8 +215,8 @@ func (polyEval *PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targ
 
 			// Allocates the output ciphertext
 			res = NewCiphertext(params, 1, targetLevel)
-			res.Scale = targetScale
-			res.LogSlots = logSlots
+			res.PlaintextScale = targetScale
+			res.PlaintextLogDimensions = logSlots
 
 			// Looks for non-zero coefficients among the degree 0 coefficients of the polynomials
 			if even {
@@ -245,8 +245,8 @@ func (polyEval *PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targ
 
 		// Allocates the output ciphertext
 		res = NewCiphertext(params, maximumCiphertextDegree, targetLevel)
-		res.Scale = targetScale
-		res.LogSlots = logSlots
+		res.PlaintextScale = targetScale
+		res.PlaintextLogDimensions = logSlots
 
 		// Looks for a non-zero coefficient among the degree zero coefficient of the polynomials
 		if even {
@@ -322,8 +322,8 @@ func (polyEval *PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targ
 		if minimumDegreeNonZeroCoefficient == 0 {
 
 			res = NewCiphertext(params, 1, targetLevel)
-			res.Scale = targetScale
-			res.LogSlots = logSlots
+			res.PlaintextScale = targetScale
+			res.PlaintextLogDimensions = logSlots
 
 			if !isZero(c) {
 				polyEval.Add(res, c, res)
@@ -333,8 +333,8 @@ func (polyEval *PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targ
 		}
 
 		res = NewCiphertext(params, maximumCiphertextDegree, targetLevel)
-		res.Scale = targetScale
-		res.LogSlots = logSlots
+		res.PlaintextScale = targetScale
+		res.PlaintextLogDimensions = logSlots
 
 		if c != nil {
 			polyEval.Add(res, c, res)

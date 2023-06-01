@@ -26,7 +26,7 @@ func testString(params Parameters, level int, opname string) string {
 		params.QCount(),
 		params.PCount(),
 		params.Pow2Base(),
-		params.DefaultNTTFlag(),
+		params.NTTFlag(),
 		level,
 		params.RingType())
 }
@@ -47,11 +47,11 @@ func TestRLWE(t *testing.T) {
 
 	for _, paramsLit := range defaultParamsLiteral[:] {
 
-		for _, DefaultNTTFlag := range []bool{true, false}[:] {
+		for _, NTTFlag := range []bool{true, false}[:] {
 
 			for _, RingType := range []ring.Type{ring.Standard, ring.ConjugateInvariant}[:] {
 
-				paramsLit.DefaultNTTFlag = DefaultNTTFlag
+				paramsLit.NTTFlag = NTTFlag
 				paramsLit.RingType = RingType
 
 				var params Parameters
@@ -1156,7 +1156,7 @@ func testMarshaller(tc *TestContext, t *testing.T) {
 	*/
 
 	t.Run("Marshaller/MetaData", func(t *testing.T) {
-		m := MetaData{Scale: NewScaleModT(1, 65537), IsNTT: true, IsMontgomery: true}
+		m := MetaData{PlaintextScale: NewScaleModT(1, 65537), IsNTT: true, IsMontgomery: true}
 
 		data, err := m.MarshalBinary()
 		require.Nil(t, err)

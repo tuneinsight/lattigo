@@ -50,7 +50,7 @@ All notable changes to this library are documented in this file.
 - UTILS: updated methods with generics when applicable.
 
 ## UNRELEASED [4.1.x] - 2022-03-09
-- CKKS: renamed the `Parameters` field `DefaultScale` to `LogScale`, which now takes a value in log2.
+- CKKS: renamed the `Parameters` field `DefaultScale` to `LogPlaintextScale`, which now takes a value in log2.
 - CKKS: the `Parameters` field `LogSlots` now has a default value which is the maximum number of slots possible for the given parameters.
 - CKKS: variable `BSGSRatio` is now `LogBSGSRatio` and is given in log2.
 - CKKS/Bootstrapping: complete refactoring the bootstrapping parameters for better usability.
@@ -109,14 +109,14 @@ All notable changes to this library are documented in this file.
 - RLWE: added the type `rlwe.Scale`, which is now a field in the `rlwe.Parameters`.
 - RLWE: added the struct `MedaData` which stores the `Scale`, and boolean flags `IsNTT` and `IsMontgomery`. 
 - RLWE: added the field `MetaData` to the `rlwe.Plaintext`, `rlwe.Ciphertext`, `rlwe.CiphertextQP`.
-- RLWE: added `DefaultScale` and `DefaultNTTFlag` to the `rlwe.ParametersLiteral` struct. These are optional fields which are automatically set by the respective schemes.
+- RLWE: added `DefaultScale` and `NTTFlag` to the `rlwe.ParametersLiteral` struct. These are optional fields which are automatically set by the respective schemes.
 - RLWE: elements from `rlwe.NewPlaintext(*)` and `rlwe.NewCiphertext(*)` are given default `IsNTT` and `Scale` values taken from the `rlwe.Parameters`, which depend on the scheme used. These values can be overwritten/modified manually.
 - RLWE: added `logGap` parameter to `Evaluator.Expand`, which enables to extract only coefficients whose degree is a multiple of `2^logGap`.
 - BFV: the level of the plaintext and ciphertext must now be specified when creating them.
 - CKKS: significantly reduced the pre-computation time of the roots, especially for the arbitrary precision encoder.
 - CKKS/BGV: abstracted the scaling factor, using `rlwe.Scale`. See the description of the struct for more information.
 - BFV/BGV: added the flag `-print-noise` to print the residual noise, after decryption, during the tests.
-- BFV/BGV/CKKS: added scheme specific global constant `DefaultNTTFlag`.
+- BFV/BGV/CKKS: added scheme specific global constant `NTTFlag`.
 - BFV/BGV/CKKS: removed scheme-specific ciphertexts and plaintexts types. They are replaced by generic `rlwe.Ciphertext` and `rlwe.Plaintext`.
 - BFV/BGV/CKKS: removed scheme-specific `KeyGenerator`, `Encryptor` and `Decryptor`. They have been replaced by `rlwe.KeyGenerator`, `rlwe.Encryptor` and `rlwe.Decryptor`. The API go instantiate those struct from the scheme specific API, e.g. `bgv.NewEncryptor`, is still available but will return its corresponding `rlwe` struct.
 - BFV/BGV/CKKS: removed the following deprecated methods, when applicable

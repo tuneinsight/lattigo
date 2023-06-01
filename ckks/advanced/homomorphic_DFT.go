@@ -102,15 +102,15 @@ func NewHomomorphicDFTMatrixFromLiteral(d HomomorphicDFTMatrixLiteral, encoder *
 
 	logSlots := d.LogSlots
 	logdSlots := logSlots
-	if maxLogSlots := params.MaxLogSlots()[1]; logdSlots < maxLogSlots && d.RepackImag2Real {
+	if maxLogSlots := params.PlaintextLogDimensions()[1]; logdSlots < maxLogSlots && d.RepackImag2Real {
 		logdSlots++
 	}
 
 	// CoeffsToSlots vectors
 	matrices := []rlwe.LinearTransform{}
-	pVecDFT := d.GenMatrices(params.LogN(), params.DefaultPrecision())
+	pVecDFT := d.GenMatrices(params.LogN(), params.PlaintextPrecision())
 
-	nbModuliPerRescale := params.DefaultScaleModuliRatio()
+	nbModuliPerRescale := params.PlaintextScaleToModuliRatio()
 
 	level := d.LevelStart
 	var idx int

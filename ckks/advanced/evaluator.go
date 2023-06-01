@@ -37,7 +37,7 @@ func (eval *Evaluator) WithKey(evk rlwe.EvaluationKeySetInterface) *Evaluator {
 func (eval *Evaluator) CoeffsToSlotsNew(ctIn *rlwe.Ciphertext, ctsMatrices HomomorphicDFTMatrix) (ctReal, ctImag *rlwe.Ciphertext) {
 	ctReal = ckks.NewCiphertext(eval.Parameters(), 1, ctsMatrices.LevelStart)
 
-	if maxLogSlots := eval.Parameters().MaxLogSlots()[1]; ctsMatrices.LogSlots == maxLogSlots {
+	if ctsMatrices.LogSlots == eval.Parameters().PlaintextLogSlots() {
 		ctImag = ckks.NewCiphertext(eval.Parameters(), 1, ctsMatrices.LevelStart)
 	}
 
@@ -75,8 +75,8 @@ func (eval *Evaluator) CoeffsToSlots(ctIn *rlwe.Ciphertext, ctsMatrices Homomorp
 		eval.Add(ctReal, zV, ctReal)
 
 		// If repacking, then ct0 and ct1 right n/2 slots are zero.
-		if maxLogSlots := eval.Parameters().MaxLogSlots()[1]; ctsMatrices.LogSlots < maxLogSlots {
-			eval.Rotate(tmp, ctIn.Slots()[1], tmp)
+		if ctsMatrices.LogSlots < eval.Parameters().PlaintextLogSlots() {
+			eval.Rotate(tmp, ctIn.PlaintextDimensions()[1], tmp)
 			eval.Add(ctReal, tmp, ctReal)
 		}
 
@@ -120,10 +120,10 @@ func (eval *Evaluator) SlotsToCoeffs(ctReal, ctImag *rlwe.Ciphertext, stcMatrice
 
 func (eval *Evaluator) dft(ctIn *rlwe.Ciphertext, plainVectors []rlwe.LinearTransform, ctOut *rlwe.Ciphertext) {
 
-	inputLogSlots := ctIn.LogSlots
+	inputLogSlots := ctIn.PlaintextLogDimensions
 
 	// Sequentially multiplies w with the provided dft matrices.
-	scale := ctIn.Scale
+	scale := ctIn.PlaintextScale
 	var in, out *rlwe.Ciphertext
 	for i, plainVector := range plainVectors {
 		in, out = ctOut, ctOut
@@ -141,7 +141,7 @@ func (eval *Evaluator) dft(ctIn *rlwe.Ciphertext, plainVectors []rlwe.LinearTran
 	// Encoding matrices are a special case of `fractal` linear transform
 	// that doesn't change the underlying plaintext polynomial Y = X^{N/n}
 	// of the input ciphertext.
-	ctOut.LogSlots = inputLogSlots
+	ctOut.PlaintextLogDimensions = inputLogSlots
 }
 
 // EvalModNew applies a homomorphic mod Q on a vector scaled by Delta, scaled down to mod 1 :
@@ -169,10 +169,10 @@ func (eval *Evaluator) EvalModNew(ct *rlwe.Ciphertext, evalModPoly EvalModPoly) 
 	}
 
 	// Stores default scales
-	prevScaleCt := ct.Scale
+	prevScaleCt := ct.PlaintextScale
 
 	// Normalize the modular reduction to mod by 1 (division by Q)
-	ct.Scale = evalModPoly.ScalingFactor()
+	ct.PlaintextScale = evalModPoly.ScalingFactor()
 
 	var err error
 
@@ -182,7 +182,7 @@ func (eval *Evaluator) EvalModNew(ct *rlwe.Ciphertext, evalModPoly EvalModPoly) 
 
 	Qi := eval.Parameters().Q()
 
-	targetScale := ct.Scale
+	targetScale := ct.PlaintextScale
 	for i := 0; i < evalModPoly.doubleAngle; i++ {
 		targetScale = targetScale.Mul(rlwe.NewScale(Qi[evalModPoly.levelStart-evalModPoly.sinePoly.Depth()-evalModPoly.doubleAngle+i+1]))
 		targetScale.Value.Sqrt(&targetScale.Value)
@@ -215,12 +215,12 @@ func (eval *Evaluator) EvalModNew(ct *rlwe.Ciphertext, evalModPoly EvalModPoly) 
 
 	// ArcSine
 	if evalModPoly.arcSinePoly != nil {
-		if ct, err = eval.Polynomial(ct, evalModPoly.arcSinePoly, ct.Scale); err != nil {
+		if ct, err = eval.Polynomial(ct, evalModPoly.arcSinePoly, ct.PlaintextScale); err != nil {
 			panic(err)
 		}
 	}
 
 	// Multiplies back by q
-	ct.Scale = prevScaleCt
+	ct.PlaintextScale = prevScaleCt
 	return ct
 }

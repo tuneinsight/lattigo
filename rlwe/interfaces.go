@@ -11,12 +11,14 @@ type ParametersInterface interface {
 	RingType() ring.Type
 	N() int
 	LogN() int
-	MaxSlots() [2]int
-	MaxLogSlots() [2]int
+	PlaintextDimensions() [2]int
+	PlaintextLogDimensions() [2]int
+	PlaintextSlots() int
+	PlaintextLogSlots() int
 	PlaintextModulus() uint64
-	DefaultScale() Scale
-	DefaultPrecision() uint
-	DefaultScaleModuliRatio() int
+	PlaintextScale() Scale
+	PlaintextPrecision() uint
+	PlaintextScaleToModuliRatio() int
 	MaxLevel() int
 	MaxLevelQ() int
 	MaxLevelP() int
@@ -32,12 +34,13 @@ type ParametersInterface interface {
 	DecompRNS(levelQ, levelP int) int
 	Pow2Base() int
 	DecompPw2(levelQ, levelP int) int
-	DefaultNTTFlag() bool
+	NTTFlag() bool
 	Xe() distribution.Distribution
 	Xs() distribution.Distribution
 	XsHammingWeight() int
 	GaloisElement(k int) (galEl uint64)
 	GaloisElements(k []int) (galEls []uint64)
+	GaloisElementsForLinearTransform(nonZeroDiagonals []int, LogSlots, LogBSGSRatio int) (galEls []uint64)
 	SolveDiscretLogGaloisElement(galEl uint64) (k int)
 	ModInvGaloisElement(galEl uint64) (galElInv uint64)
 

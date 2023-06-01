@@ -26,10 +26,10 @@ func chebyshevinterpolation() {
 	// Scheme params are taken directly from the proposed defaults
 	params, err := ckks.NewParametersFromLiteral(
 		ckks.ParametersLiteral{
-			LogN:     14,
-			LogQ:     []int{55, 40, 40, 40, 40, 40, 40, 40},
-			LogP:     []int{45, 45},
-			LogScale: 40,
+			LogN:              14,
+			LogQ:              []int{55, 40, 40, 40, 40, 40, 40, 40},
+			LogP:              []int{45, 45},
+			LogPlaintextScale: 40,
 		})
 	if err != nil {
 		panic(err)
@@ -55,14 +55,14 @@ func chebyshevinterpolation() {
 	evaluator := ckks.NewEvaluator(params, evk)
 
 	// Values to encrypt
-	maxSlots := params.MaxSlots()[1]
-	values := make([]float64, maxSlots)
+	slots := params.PlaintextSlots()
+	values := make([]float64, slots)
 	for i := range values {
 		values[i] = sampling.RandFloat64(-8, 8)
 	}
 
 	fmt.Printf("CKKS parameters: logN = %d, logQ = %f, levels = %d, scale= %f, noise = %T %v \n",
-		params.LogN(), params.LogQP(), params.MaxLevel()+1, params.DefaultScale().Float64(), params.Xe(), params.Xe())
+		params.LogN(), params.LogQP(), params.MaxLevel()+1, params.PlaintextScale().Float64(), params.Xe(), params.Xe())
 
 	fmt.Println()
 	fmt.Printf("Values     : %6f %6f %6f %6f...\n",
@@ -74,8 +74,6 @@ func chebyshevinterpolation() {
 	if err := encoder.Encode(values, plaintext); err != nil {
 		panic(err)
 	}
-
-	slots := 1 << plaintext.LogSlots[1]
 
 	// Encryption process
 	var ciphertext *rlwe.Ciphertext
@@ -125,14 +123,14 @@ func chebyshevinterpolation() {
 	// Change of variable
 	evaluator.Mul(ciphertext, 2/(b-a), ciphertext)
 	evaluator.Add(ciphertext, (-a-b)/(b-a), ciphertext)
-	if err := evaluator.Rescale(ciphertext, params.DefaultScale(), ciphertext); err != nil {
+	if err := evaluator.Rescale(ciphertext, params.PlaintextScale(), ciphertext); err != nil {
 		panic(err)
 	}
 
 	polyVec := rlwe.NewPolynomialVector([]*rlwe.Polynomial{rlwe.NewPolynomial(approxF), rlwe.NewPolynomial(approxG)}, slotsIndex)
 
 	// We evaluate the interpolated Chebyshev interpolant on the ciphertext
-	if ciphertext, err = evaluator.Polynomial(ciphertext, polyVec, ciphertext.Scale); err != nil {
+	if ciphertext, err = evaluator.Polynomial(ciphertext, polyVec, ciphertext.PlaintextScale); err != nil {
 		panic(err)
 	}
 
@@ -163,7 +161,7 @@ func round(x float64) float64 {
 
 func printDebug(params ckks.Parameters, ciphertext *rlwe.Ciphertext, valuesWant []float64, decryptor rlwe.Decryptor, encoder *ckks.Encoder) (valuesTest []float64) {
 
-	valuesTest = make([]float64, 1<<ciphertext.LogSlots[1])
+	valuesTest = make([]float64, 1<<ciphertext.PlaintextLogDimensions[1])
 
 	if err := encoder.Decode(decryptor.DecryptNew(ciphertext), valuesTest); err != nil {
 		panic(err)
@@ -171,7 +169,7 @@ func printDebug(params ckks.Parameters, ciphertext *rlwe.Ciphertext, valuesWant 
 
 	fmt.Println()
 	fmt.Printf("Level: %d (logQ = %d)\n", ciphertext.Level(), params.LogQLvl(ciphertext.Level()))
-	fmt.Printf("Scale: 2^%f\n", math.Log2(ciphertext.Scale.Float64()))
+	fmt.Printf("Scale: 2^%f\n", math.Log2(ciphertext.PlaintextScale.Float64()))
 	fmt.Printf("ValuesTest: %6.10f %6.10f %6.10f %6.10f...\n", valuesTest[0], valuesTest[1], valuesTest[2], valuesTest[3])
 	fmt.Printf("ValuesWant: %6.10f %6.10f %6.10f %6.10f...\n", valuesWant[0], valuesWant[1], valuesWant[2], valuesWant[3])
 	fmt.Println()

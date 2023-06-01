@@ -170,7 +170,7 @@ func (eval *Evaluator) MulRelin(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe
 //
 // output: an *rlwe.Ciphertext encrypting pol(input)
 func (eval *Evaluator) Polynomial(input, pol interface{}) (opOut *rlwe.Ciphertext, err error) {
-	return eval.Evaluator.Polynomial(input, pol, true, eval.Evaluator.Parameters().DefaultScale())
+	return eval.Evaluator.Polynomial(input, pol, true, eval.Evaluator.Parameters().PlaintextScale())
 }
 
 // NewLinearTransform allocates a new LinearTransform with zero plaintexts at the specified level.
@@ -182,7 +182,7 @@ func (eval *Evaluator) Polynomial(input, pol interface{}) (opOut *rlwe.Ciphertex
 // - scale: the scaling factor of the encoded diagonals
 // - logBSGSRatio: the log2 ratio outer/inner loops of the BSGS linear transform evaluation algorithm. Set to -1 to not use the BSGS algorithm.
 func NewLinearTransform(params Parameters, nonZeroDiags []int, level int, scale rlwe.Scale, LogBSGSRatio int) rlwe.LinearTransform {
-	return rlwe.NewLinearTransform(params, nonZeroDiags, level, scale, params.MaxLogSlots(), LogBSGSRatio)
+	return rlwe.NewLinearTransform(params, nonZeroDiags, level, scale, params.PlaintextLogDimensions(), LogBSGSRatio)
 }
 
 // EncodeLinearTransform encodes on a pre-allocated LinearTransform a set of non-zero diagonales of a matrix representing a linear transformation.
@@ -204,5 +204,5 @@ func EncodeLinearTransform[T int64 | uint64](LT rlwe.LinearTransform, diagonals 
 // - scale: the scaling factor of the encoded diagonals
 // - logBSGSRatio: the log2 ratio outer/inner loops of the BSGS linear transform evaluation algorithm. Set to -1 to not use the BSGS algorithm.
 func GenLinearTransform[T int64 | uint64](diagonals map[int][]T, ecd *Encoder, level int, scale rlwe.Scale, LogBSGSRatio int) (LT rlwe.LinearTransform, err error) {
-	return rlwe.GenLinearTransform[T](diagonals, &encoder[T, ringqp.Poly]{ecd}, level, scale, ecd.Parameters().MaxLogSlots(), LogBSGSRatio)
+	return rlwe.GenLinearTransform[T](diagonals, &encoder[T, ringqp.Poly]{ecd}, level, scale, ecd.Parameters().PlaintextLogDimensions(), LogBSGSRatio)
 }

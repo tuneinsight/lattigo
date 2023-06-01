@@ -221,7 +221,7 @@ func testE2SProtocol(tc *testContext, t *testing.T) {
 		crp := P[0].s2e.SampleCRP(params.MaxLevel(), tc.crs)
 
 		for i, p := range P {
-			p.s2e.GenShare(p.sk, crp, ciphertext.LogSlots[1], p.secretShare, p.publicShareS2E)
+			p.s2e.GenShare(p.sk, crp, ciphertext.MetaData, p.secretShare, p.publicShareS2E)
 			if i > 0 {
 				p.s2e.AggregateShares(P[0].publicShareS2E, p.publicShareS2E, P[0].publicShareS2E)
 			}

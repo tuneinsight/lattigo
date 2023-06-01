@@ -254,15 +254,15 @@ func BSGSIndex(nonZeroDiags []int, slots, N1 int) (index map[int][]int, rotN1, r
 
 // NTTSparseAndMontgomery takes a polynomial Z[Y] outside of the NTT domain and maps it to a polynomial Z[X] in the NTT domain where Y = X^(gap).
 // This method is used to accelerate the NTT of polynomials that encode sparse polynomials.
-func NTTSparseAndMontgomery(r *ring.Ring, logSlots int, ntt, montgomery bool, pol *ring.Poly) {
+func NTTSparseAndMontgomery(r *ring.Ring, metadata MetaData, pol *ring.Poly) {
 
-	if 1<<logSlots == r.NthRoot()>>2 {
+	if 1<<metadata.LogSlots[1] == r.NthRoot()>>2 {
 
-		if ntt {
+		if metadata.IsNTT {
 			r.NTT(pol, pol)
 		}
 
-		if montgomery {
+		if metadata.IsMontgomery {
 			r.MForm(pol, pol)
 		}
 
@@ -272,10 +272,10 @@ func NTTSparseAndMontgomery(r *ring.Ring, logSlots int, ntt, montgomery bool, po
 		var NTT func(p1, p2 []uint64, N int, Q, QInv uint64, BRedConstant, nttPsi []uint64)
 		switch r.Type() {
 		case ring.Standard:
-			n = 2 << logSlots
+			n = 2 << metadata.LogSlots[1]
 			NTT = ring.NTTStandard
 		case ring.ConjugateInvariant:
-			n = 1 << logSlots
+			n = 1 << metadata.LogSlots[1]
 			NTT = ring.NTTConjugateInvariant
 		}
 
@@ -285,11 +285,11 @@ func NTTSparseAndMontgomery(r *ring.Ring, logSlots int, ntt, montgomery bool, po
 
 			coeffs := pol.Coeffs[i]
 
-			if montgomery {
+			if metadata.IsMontgomery {
 				s.MForm(coeffs[:n], coeffs[:n])
 			}
 
-			if ntt {
+			if metadata.IsNTT {
 				// NTT in dimension n but with roots of N
 				// This is a small hack to perform at reduced cost an NTT of dimension N on a vector in Y = X^{N/n}, i.e. sparse polynomials.
 				NTT(coeffs[:n], coeffs[:n], n, s.Modulus, s.MRedConstant, s.BRedConstant, s.RootsForward)

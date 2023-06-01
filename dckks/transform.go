@@ -223,7 +223,7 @@ func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, logBou
 	}
 
 	// Returns [-a*s_i + LT(M_i) * diffscale + e] on S2EShare
-	rfp.s2e.GenShare(skOut, crs, ct.LogSlots[1], &drlwe.AdditiveShareBigint{Value: rfp.tmpMask}, &shareOut.S2EShare)
+	rfp.s2e.GenShare(skOut, crs, ct.MetaData, &drlwe.AdditiveShareBigint{Value: rfp.tmpMask}, &shareOut.S2EShare)
 }
 
 // AggregateShares sums share1 and share2 on shareOut.
@@ -349,7 +349,7 @@ func (rfp *MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, transform *Ma
 	// Sets LT(-sum(M_i) + x) * diffscale in the RNS domain
 	ringQ.SetCoefficientsBigint(rfp.tmpMask[:dslots], ciphertextOut.Value[0])
 
-	rlwe.NTTSparseAndMontgomery(ringQ, ct.LogSlots[1], true, false, ciphertextOut.Value[0])
+	rlwe.NTTSparseAndMontgomery(ringQ, ct.MetaData, ciphertextOut.Value[0])
 
 	// LT(-sum(M_i) + x) * diffscale + [-a*s + LT(M_i) * diffscale + e] = [-a*s + LT(x) * diffscale + e]
 	ringQ.Add(ciphertextOut.Value[0], share.S2EShare.Value, ciphertextOut.Value[0])

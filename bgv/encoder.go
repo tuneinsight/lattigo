@@ -119,9 +119,10 @@ func (ecd *Encoder) EncodeNew(values interface{}, level int, scale rlwe.Scale) (
 
 // Encode encodes a slice of integers of type []uint64 or []int64 of size at most N into a pre-allocated plaintext.
 func (ecd *Encoder) Encode(values interface{}, pt *rlwe.Plaintext) (err error) {
-	return ecd.Embed(values, pt.Scale, true, pt.IsNTT, false, pt.Value)
+	return ecd.Embed(values, true, pt.MetaData, pt.Value)
 }
 
+// EncodeRingT encodes a slice of []uint64 or []int64 at the given scale on a polynomial pT with coefficients modulo the plaintext modulus T.
 func (ecd *Encoder) EncodeRingT(values interface{}, scale rlwe.Scale, pT *ring.Poly) (err error) {
 	perm := ecd.indexMatrix
 
@@ -181,11 +182,11 @@ func (ecd *Encoder) EncodeRingT(values interface{}, scale rlwe.Scale, pT *ring.P
 	return nil
 }
 
-func (ecd *Encoder) Embed(values interface{}, scale rlwe.Scale, scaleUp, ntt, montgomery bool, polyOut interface{}) (err error) {
+func (ecd *Encoder) Embed(values interface{}, scaleUp bool, metadata rlwe.MetaData, polyOut interface{}) (err error) {
 
 	pT := ecd.bufT
 
-	if err = ecd.EncodeRingT(values, scale, pT); err != nil {
+	if err = ecd.EncodeRingT(values, metadata.Scale, pT); err != nil {
 		return
 	}
 
@@ -199,11 +200,11 @@ func (ecd *Encoder) Embed(values interface{}, scale rlwe.Scale, scaleUp, ntt, mo
 
 		ringQ := ecd.parameters.RingQ().AtLevel(levelQ)
 
-		if ntt {
+		if metadata.IsNTT {
 			ringQ.NTT(p.Q, p.Q)
 		}
 
-		if montgomery {
+		if metadata.IsMontgomery {
 			ringQ.MForm(p.Q, p.Q)
 		}
 
@@ -215,11 +216,11 @@ func (ecd *Encoder) Embed(values interface{}, scale rlwe.Scale, scaleUp, ntt, mo
 
 			ringP := ecd.parameters.RingP().AtLevel(levelP)
 
-			if ntt {
+			if metadata.IsNTT {
 				ringP.NTT(p.P, p.P)
 			}
 
-			if montgomery {
+			if metadata.IsMontgomery {
 				ringP.MForm(p.P, p.P)
 			}
 		}
@@ -232,16 +233,16 @@ func (ecd *Encoder) Embed(values interface{}, scale rlwe.Scale, scaleUp, ntt, mo
 
 		ringQ := ecd.parameters.RingQ().AtLevel(level)
 
-		if ntt {
+		if metadata.IsNTT {
 			ringQ.NTT(p, p)
 		}
 
-		if montgomery {
+		if metadata.IsMontgomery {
 			ringQ.MForm(p, p)
 		}
 
 	default:
-		return fmt.Errorf("cannot Embed: invalid polyOut.(Type) must be ringqp.Poly or *ring.Poly")
+		return fmt.Errorf("cannot embed: invalid polyOut.(Type) must be ringqp.Poly or *ring.Poly")
 	}
 
 	return
@@ -278,7 +279,8 @@ func (ecd *Encoder) EncodeCoeffsNew(values []uint64, level int, scale rlwe.Scale
 	return
 }
 
-// DecodeRingT decodes a pT in basis T on a slice of []uint64 or []int64.
+// DecodeRingT decodes a polynomial pT with coefficients modulo the plaintext modulu T
+// on a slice of []uint64 or []int64 at the given scale.
 func (ecd *Encoder) DecodeRingT(pT *ring.Poly, scale rlwe.Scale, values interface{}) (err error) {
 	ringT := ecd.parameters.RingT()
 	ringT.MulScalar(pT, ring.ModExp(scale.Uint64(), ringT.SubRings[0].Modulus-2, ringT.SubRings[0].Modulus), ecd.bufT)
@@ -471,6 +473,6 @@ type encoder[T int64 | uint64, U *ring.Poly | ringqp.Poly | *rlwe.Plaintext] str
 	*Encoder
 }
 
-func (e *encoder[T, U]) Encode(values []T, logSlots int, scale rlwe.Scale, montgomery bool, output U) (err error) {
-	return e.Encoder.Embed(values, scale, false, true, montgomery, output)
+func (e *encoder[T, U]) Encode(values []T, metadata rlwe.MetaData, output U) (err error) {
+	return e.Embed(values, false, metadata, output)
 }

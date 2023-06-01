@@ -81,9 +81,7 @@ func (e2s *E2SProtocol) AllocateShare(level int) (share *drlwe.CKSShare) {
 // value for logBound.
 func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, ct *rlwe.Ciphertext, secretShareOut *drlwe.AdditiveShareBigint, publicShareOut *drlwe.CKSShare) {
 
-	ct1 := ct.Value[1]
-
-	levelQ := utils.Min(ct1.Level(), publicShareOut.Value.Level())
+	levelQ := utils.Min(ct.Value[1].Level(), publicShareOut.Value.Level())
 
 	ringQ := e2s.params.RingQ().AtLevel(levelQ)
 
@@ -129,7 +127,7 @@ func (e2s *E2SProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, ct *rlwe.Cip
 	ringQ.SetCoefficientsBigint(secretShareOut.Value[:dslots], e2s.buff)
 
 	// Maps Y^{N/n} -> X^{N} in Montgomery and NTT
-	rlwe.NTTSparseAndMontgomery(ringQ, ct.LogSlots[1], true, false, e2s.buff)
+	rlwe.NTTSparseAndMontgomery(ringQ, ct.MetaData, e2s.buff)
 
 	// Subtracts the mask to the encryption of zero
 	ringQ.Sub(publicShareOut.Value, e2s.buff, publicShareOut.Value)
@@ -220,7 +218,7 @@ func (s2e S2EProtocol) AllocateShare(level int) (share *drlwe.CKSShare) {
 
 // GenShare generates a party's in the shares-to-encryption protocol given the party's secret-key share `sk`, a common
 // polynomial sampled from the CRS `crs` and the party's secret share of the message.
-func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.CKSCRP, logSlots int, secretShare *drlwe.AdditiveShareBigint, c0ShareOut *drlwe.CKSShare) {
+func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.CKSCRP, metadata rlwe.MetaData, secretShare *drlwe.AdditiveShareBigint, c0ShareOut *drlwe.CKSShare) {
 
 	if crs.Value.Level() != c0ShareOut.Value.Level() {
 		panic("cannot GenShare: crs and c0ShareOut level must be equal")
@@ -234,7 +232,7 @@ func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.CKSCRP, logSlots 
 	ct.MetaData.IsNTT = true
 	s2e.CKSProtocol.GenShare(s2e.zero, sk, ct, c0ShareOut)
 
-	dslots := 1 << logSlots
+	dslots := 1 << metadata.LogSlots[1]
 	if ringQ.Type() == ring.Standard {
 		dslots *= 2
 	}
@@ -242,7 +240,7 @@ func (s2e *S2EProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.CKSCRP, logSlots 
 	ringQ.SetCoefficientsBigint(secretShare.Value[:dslots], s2e.tmp)
 
 	// Maps Y^{N/n} -> X^{N} in Montgomery and NTT
-	rlwe.NTTSparseAndMontgomery(ringQ, logSlots, true, false, s2e.tmp)
+	rlwe.NTTSparseAndMontgomery(ringQ, metadata, s2e.tmp)
 
 	ringQ.Add(c0ShareOut.Value, s2e.tmp, c0ShareOut.Value)
 }

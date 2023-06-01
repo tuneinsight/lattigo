@@ -101,6 +101,13 @@ func EncodeLinearTransform[T any](LT LinearTransform, diagonals map[int][]T, enc
 
 	buf := make([]T, rows*cols)
 
+	metaData := MetaData{
+		LogSlots:     LogSlots,
+		IsNTT:        true,
+		IsMontgomery: true,
+		Scale:        scale,
+	}
+
 	if N1 == 0 {
 		for _, i := range keys {
 
@@ -112,7 +119,7 @@ func EncodeLinearTransform[T any](LT LinearTransform, diagonals map[int][]T, enc
 			if vec, ok := LT.Vec[idx]; !ok {
 				return fmt.Errorf("cannot Encode: error encoding on LinearTransform: plaintext diagonal [%d] does not exist", idx)
 			} else {
-				if err = rotateAndEncodeDiagonal(diagonals, encoder, i, 0, scale, LogSlots, buf, vec); err != nil {
+				if err = rotateAndEncodeDiagonal(diagonals, encoder, i, 0, metaData, buf, vec); err != nil {
 					return
 				}
 			}
@@ -130,7 +137,7 @@ func EncodeLinearTransform[T any](LT LinearTransform, diagonals map[int][]T, enc
 				if vec, ok := LT.Vec[i+j]; !ok {
 					return fmt.Errorf("cannot Encode: error encoding on LinearTransform BSGS: input does not match the same non-zero diagonals")
 				} else {
-					if err = rotateAndEncodeDiagonal(diagonals, encoder, i+j, rot, scale, LogSlots, buf, vec); err != nil {
+					if err = rotateAndEncodeDiagonal(diagonals, encoder, i+j, rot, metaData, buf, vec); err != nil {
 						return
 					}
 				}
@@ -141,10 +148,10 @@ func EncodeLinearTransform[T any](LT LinearTransform, diagonals map[int][]T, enc
 	return
 }
 
-func rotateAndEncodeDiagonal[T any](diagonals map[int][]T, encoder EncoderInterface[T, ringqp.Poly], i, rot int, scale Scale, logSlots [2]int, buf []T, poly ringqp.Poly) error {
+func rotateAndEncodeDiagonal[T any](diagonals map[int][]T, encoder EncoderInterface[T, ringqp.Poly], i, rot int, metaData MetaData, buf []T, poly ringqp.Poly) error {
 
-	rows := 1 << logSlots[0]
-	cols := 1 << logSlots[1]
+	rows := 1 << metaData.LogSlots[0]
+	cols := 1 << metaData.LogSlots[1]
 
 	// manages inputs that have rotation between 0 and cols-1 or between -cols/2 and cols/2-1
 	v, ok := diagonals[i]
@@ -169,7 +176,7 @@ func rotateAndEncodeDiagonal[T any](diagonals map[int][]T, encoder EncoderInterf
 		values = v
 	}
 
-	return encoder.Encode(values, logSlots[1], scale, true, poly)
+	return encoder.Encode(values, metaData, poly)
 }
 
 // GenLinearTransform allocates a new LinearTransform encoding the provided set of non-zero diagonals of a matrix representing a linear transformation.
@@ -196,6 +203,13 @@ func GenLinearTransform[T any](diagonals map[int][]T, encoder EncoderInterface[T
 
 	vec := make(map[int]ringqp.Poly)
 
+	metaData := MetaData{
+		LogSlots:     logSlots,
+		IsNTT:        true,
+		IsMontgomery: true,
+		Scale:        scale,
+	}
+
 	var N1 int
 
 	if logBSGSRatio < 0 {
@@ -209,7 +223,7 @@ func GenLinearTransform[T any](diagonals map[int][]T, encoder EncoderInterface[T
 
 			pt := *ringQP.NewPoly()
 
-			if err = rotateAndEncodeDiagonal(diagonals, encoder, i, 0, scale, logSlots, buf, pt); err != nil {
+			if err = rotateAndEncodeDiagonal(diagonals, encoder, i, 0, metaData, buf, pt); err != nil {
 				return
 			}
 
@@ -230,7 +244,7 @@ func GenLinearTransform[T any](diagonals map[int][]T, encoder EncoderInterface[T
 
 				pt := *ringQP.NewPoly()
 
-				if err = rotateAndEncodeDiagonal(diagonals, encoder, i+j, rot, scale, logSlots, buf, pt); err != nil {
+				if err = rotateAndEncodeDiagonal(diagonals, encoder, i+j, rot, metaData, buf, pt); err != nil {
 					return
 				}
 

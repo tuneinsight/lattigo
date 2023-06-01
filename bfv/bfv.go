@@ -90,8 +90,8 @@ type encoder[T int64 | uint64, U *ring.Poly | ringqp.Poly | *rlwe.Plaintext] str
 	*Encoder
 }
 
-func (e *encoder[T, U]) Encode(values []T, logSlots int, scale rlwe.Scale, montgomery bool, output U) (err error) {
-	return e.Encoder.Embed(values, scale, false, true, montgomery, output)
+func (e *encoder[T, U]) Encode(values []T, metadata rlwe.MetaData, output U) (err error) {
+	return e.Encoder.Embed(values, false, metadata, output)
 }
 
 // Evaluator is a struct that holds the necessary elements to perform the homomorphic operations between ciphertexts and/or plaintexts.

@@ -173,7 +173,7 @@ func (ecd *Encoder) Encode(values interface{}, pt *rlwe.Plaintext) (err error) {
 	switch pt.EncodingDomain {
 	case rlwe.SlotsDomain:
 
-		return ecd.Embed(values, pt.LogSlots[1], pt.Scale, false, pt.Value)
+		return ecd.Embed(values, pt.MetaData, pt.Value)
 
 	case rlwe.CoefficientsDomain:
 
@@ -234,21 +234,21 @@ func (ecd *Encoder) DecodePublic(pt *rlwe.Plaintext, values interface{}, noise d
 //	The encoding encoding is done at the level of polyOut.
 //
 // Values written on  polyOut are always in the NTT domain.
-func (ecd *Encoder) Embed(values interface{}, logSlots int, scale rlwe.Scale, montgomery bool, polyOut interface{}) (err error) {
+func (ecd *Encoder) Embed(values interface{}, metadata rlwe.MetaData, polyOut interface{}) (err error) {
 	if ecd.prec <= 53 {
-		return ecd.embedDouble(values, logSlots, scale, montgomery, polyOut)
+		return ecd.embedDouble(values, metadata, polyOut)
 	}
 
-	return ecd.embedArbitrary(values, logSlots, scale, montgomery, polyOut)
+	return ecd.embedArbitrary(values, metadata, polyOut)
 }
 
-func (ecd *Encoder) embedDouble(values interface{}, logSlots int, scale rlwe.Scale, montgomery bool, polyOut interface{}) (err error) {
+func (ecd *Encoder) embedDouble(values interface{}, metadata rlwe.MetaData, polyOut interface{}) (err error) {
 
-	if maxLogCols := ecd.parameters.MaxLogSlots()[1]; logSlots < 0 || logSlots > maxLogCols {
-		return fmt.Errorf("cannot Embed: logSlots (%d) must be greater or equal to %d and smaller than %d", logSlots, 0, maxLogCols)
+	if maxLogCols := ecd.parameters.MaxLogSlots()[1]; metadata.LogSlots[1] < 0 || metadata.LogSlots[1] > maxLogCols {
+		return fmt.Errorf("cannot Embed: logSlots (%d) must be greater or equal to %d and smaller than %d", metadata.LogSlots[1], 0, maxLogCols)
 	}
 
-	slots := 1 << logSlots
+	slots := 1 << metadata.LogSlots[1]
 	var lenValues int
 
 	buffCmplx := ecd.buffCmplx.([]complex128)
@@ -336,23 +336,23 @@ func (ecd *Encoder) embedDouble(values interface{}, logSlots int, scale rlwe.Sca
 	}
 
 	// IFFT
-	if err = ecd.IFFT(buffCmplx[:slots], logSlots); err != nil {
+	if err = ecd.IFFT(buffCmplx[:slots], metadata.LogSlots[1]); err != nil {
 		return
 	}
 
 	// Maps Y = X^{N/n} -> X and quantizes.
 	switch p := polyOut.(type) {
 	case ringqp.Poly:
-		Complex128ToFixedPointCRT(ecd.parameters.RingQ().AtLevel(p.Q.Level()), buffCmplx[:slots], scale.Float64(), p.Q.Coeffs)
-		rlwe.NTTSparseAndMontgomery(ecd.parameters.RingQ().AtLevel(p.Q.Level()), logSlots, true, montgomery, p.Q)
+		Complex128ToFixedPointCRT(ecd.parameters.RingQ().AtLevel(p.Q.Level()), buffCmplx[:slots], metadata.Scale.Float64(), p.Q.Coeffs)
+		rlwe.NTTSparseAndMontgomery(ecd.parameters.RingQ().AtLevel(p.Q.Level()), metadata, p.Q)
 
 		if p.P != nil {
-			Complex128ToFixedPointCRT(ecd.parameters.RingP().AtLevel(p.P.Level()), buffCmplx[:slots], scale.Float64(), p.P.Coeffs)
-			rlwe.NTTSparseAndMontgomery(ecd.parameters.RingP().AtLevel(p.P.Level()), logSlots, true, montgomery, p.P)
+			Complex128ToFixedPointCRT(ecd.parameters.RingP().AtLevel(p.P.Level()), buffCmplx[:slots], metadata.Scale.Float64(), p.P.Coeffs)
+			rlwe.NTTSparseAndMontgomery(ecd.parameters.RingP().AtLevel(p.P.Level()), metadata, p.P)
 		}
 	case *ring.Poly:
-		Complex128ToFixedPointCRT(ecd.parameters.RingQ().AtLevel(p.Level()), buffCmplx[:slots], scale.Float64(), p.Coeffs)
-		rlwe.NTTSparseAndMontgomery(ecd.parameters.RingQ().AtLevel(p.Level()), logSlots, true, montgomery, p)
+		Complex128ToFixedPointCRT(ecd.parameters.RingQ().AtLevel(p.Level()), buffCmplx[:slots], metadata.Scale.Float64(), p.Coeffs)
+		rlwe.NTTSparseAndMontgomery(ecd.parameters.RingQ().AtLevel(p.Level()), metadata, p)
 	default:
 		return fmt.Errorf("cannot Embed: invalid polyOut.(Type) must be ringqp.Poly or *ring.Poly")
 	}
@@ -360,13 +360,13 @@ func (ecd *Encoder) embedDouble(values interface{}, logSlots int, scale rlwe.Sca
 	return
 }
 
-func (ecd *Encoder) embedArbitrary(values interface{}, logSlots int, scale rlwe.Scale, montgomery bool, polyOut interface{}) (err error) {
+func (ecd *Encoder) embedArbitrary(values interface{}, metadata rlwe.MetaData, polyOut interface{}) (err error) {
 
-	if maxLogCols := ecd.parameters.MaxLogSlots()[1]; logSlots < 0 || logSlots > maxLogCols {
-		return fmt.Errorf("cannot Embed: logSlots (%d) must be greater or equal to %d and smaller than %d", logSlots, 0, maxLogCols)
+	if maxLogCols := ecd.parameters.MaxLogSlots()[1]; metadata.LogSlots[1] < 0 || metadata.LogSlots[1] > maxLogCols {
+		return fmt.Errorf("cannot Embed: logSlots (%d) must be greater or equal to %d and smaller than %d", metadata.LogSlots[1], 0, maxLogCols)
 	}
 
-	slots := 1 << logSlots
+	slots := 1 << metadata.LogSlots[1]
 	var lenValues int
 
 	buffCmplx := ecd.buffCmplx.([]*bignum.Complex)
@@ -462,7 +462,7 @@ func (ecd *Encoder) embedArbitrary(values interface{}, logSlots int, scale rlwe.
 		buffCmplx[i][1].SetFloat64(0)
 	}
 
-	if err = ecd.IFFT(buffCmplx[:slots], logSlots); err != nil {
+	if err = ecd.IFFT(buffCmplx[:slots], metadata.LogSlots[1]); err != nil {
 		return
 	}
 
@@ -471,17 +471,17 @@ func (ecd *Encoder) embedArbitrary(values interface{}, logSlots int, scale rlwe.
 
 	case *ring.Poly:
 
-		ComplexArbitraryToFixedPointCRT(ecd.parameters.RingQ().AtLevel(p.Level()), buffCmplx[:slots], &scale.Value, p.Coeffs)
-		rlwe.NTTSparseAndMontgomery(ecd.parameters.RingQ().AtLevel(p.Level()), logSlots, true, montgomery, p)
+		ComplexArbitraryToFixedPointCRT(ecd.parameters.RingQ().AtLevel(p.Level()), buffCmplx[:slots], &metadata.Scale.Value, p.Coeffs)
+		rlwe.NTTSparseAndMontgomery(ecd.parameters.RingQ().AtLevel(p.Level()), metadata, p)
 
 	case ringqp.Poly:
 
-		ComplexArbitraryToFixedPointCRT(ecd.parameters.RingQ().AtLevel(p.Q.Level()), buffCmplx[:slots], &scale.Value, p.Q.Coeffs)
-		rlwe.NTTSparseAndMontgomery(ecd.parameters.RingQ().AtLevel(p.Q.Level()), logSlots, true, montgomery, p.Q)
+		ComplexArbitraryToFixedPointCRT(ecd.parameters.RingQ().AtLevel(p.Q.Level()), buffCmplx[:slots], &metadata.Scale.Value, p.Q.Coeffs)
+		rlwe.NTTSparseAndMontgomery(ecd.parameters.RingQ().AtLevel(p.Q.Level()), metadata, p.Q)
 
 		if p.P != nil {
-			ComplexArbitraryToFixedPointCRT(ecd.parameters.RingP().AtLevel(p.P.Level()), buffCmplx[:slots], &scale.Value, p.P.Coeffs)
-			rlwe.NTTSparseAndMontgomery(ecd.parameters.RingP().AtLevel(p.P.Level()), logSlots, true, montgomery, p.P)
+			ComplexArbitraryToFixedPointCRT(ecd.parameters.RingP().AtLevel(p.P.Level()), buffCmplx[:slots], &metadata.Scale.Value, p.P.Coeffs)
+			rlwe.NTTSparseAndMontgomery(ecd.parameters.RingP().AtLevel(p.P.Level()), metadata, p.P)
 		}
 
 	default:
@@ -1101,6 +1101,6 @@ type encoder[T float64 | complex128 | *big.Float | *bignum.Complex, U *ring.Poly
 	*Encoder
 }
 
-func (e *encoder[T, U]) Encode(values []T, logSlots int, scale rlwe.Scale, montgomery bool, output U) (err error) {
-	return e.Encoder.Embed(values, logSlots, scale, montgomery, output)
+func (e *encoder[T, U]) Encode(values []T, metadata rlwe.MetaData, output U) (err error) {
+	return e.Encoder.Embed(values, metadata, output)
 }

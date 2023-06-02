@@ -143,16 +143,16 @@ func newTestVectorsLvl(level int, scale rlwe.Scale, tc *testContext, encryptor r
 
 func verifyTestVectors(tc *testContext, decryptor rlwe.Decryptor, coeffs *ring.Poly, element rlwe.Operand, t *testing.T) {
 
-	var coeffsTest []uint64
+	coeffsTest := make([]uint64, tc.params.PlaintextSlots())
 
 	switch el := element.(type) {
 	case *rlwe.Plaintext:
-		coeffsTest = tc.encoder.DecodeUintNew(el)
+		tc.encoder.Decode(el, coeffsTest)
 	case *rlwe.Ciphertext:
 
 		pt := decryptor.DecryptNew(el)
 
-		coeffsTest = tc.encoder.DecodeUintNew(pt)
+		tc.encoder.Decode(pt, coeffsTest)
 
 		if *flagPrintNoise {
 			tc.encoder.Encode(coeffsTest, pt)
@@ -194,7 +194,9 @@ func testEncoder(tc *testContext, t *testing.T) {
 
 			plaintext := NewPlaintext(tc.params, lvl)
 			tc.encoder.Encode(coeffsInt, plaintext)
-			require.True(t, utils.EqualSlice(coeffsInt, tc.encoder.DecodeIntNew(plaintext)))
+			have := make([]int64, tc.params.PlaintextSlots())
+			tc.encoder.Decode(plaintext, have)
+			require.True(t, utils.EqualSlice(coeffsInt, have))
 		})
 	}
 }
@@ -349,34 +351,6 @@ func testEvaluator(tc *testContext, t *testing.T) {
 
 				tc.evaluator.Sub(ciphertext, values.Coeffs[0], ciphertext)
 				tc.ringT.Sub(values, values, values)
-
-				verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
-
-			})
-		}
-
-		for _, lvl := range tc.testLevel {
-			t.Run(GetTestName("Neg/Ct/New", tc.params, lvl), func(t *testing.T) {
-
-				values, _, ciphertext := newTestVectorsLvl(lvl, tc.params.PlaintextScale(), tc, tc.encryptorSk)
-
-				ciphertext = tc.evaluator.NegNew(ciphertext)
-				tc.ringT.Neg(values, values)
-				tc.ringT.Reduce(values, values)
-
-				verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
-
-			})
-		}
-
-		for _, lvl := range tc.testLevel {
-			t.Run(GetTestName("Neg/Ct/Inplace", tc.params, lvl), func(t *testing.T) {
-
-				values, _, ciphertext := newTestVectorsLvl(lvl, tc.params.PlaintextScale(), tc, tc.encryptorSk)
-
-				tc.evaluator.Neg(ciphertext, ciphertext)
-				tc.ringT.Neg(values, values)
-				tc.ringT.Reduce(values, values)
 
 				verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
 
@@ -615,7 +589,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 
 				values, _, ciphertext := newTestVectorsLvl(tc.params.MaxLevel(), tc.params.NewScale(1), tc, tc.encryptorSk)
 
-				coeffs := []uint64{1, 2, 3, 4, 5, 6, 7, 8}
+				coeffs := []uint64{0, 0, 1}
 
 				T := tc.params.T()
 				for i := range values.Coeffs[0] {

@@ -140,7 +140,8 @@ func main() {
 	})
 
 	// Check the result
-	res := encoder.DecodeUintNew(ptres)
+	res := make([]uint64, params.PlaintextSlots())
+	encoder.Decode(ptres, res)
 	l.Printf("\t%v\n", res[:16])
 	for i := range expRes {
 		if expRes[i] != res[i] {

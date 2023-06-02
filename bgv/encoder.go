@@ -105,24 +105,40 @@ func permuteMatrix(logN int) (perm []uint64) {
 	return perm
 }
 
-// Parameters returns the underlying parameters of the Encoder.
+// Parameters returns the underlying parameters of the Encoder as an rlwe.ParametersInterface.
 func (ecd *Encoder) Parameters() rlwe.ParametersInterface {
 	return ecd.parameters
 }
 
-// EncodeNew encodes a slice of integers of type []uint64 or []int64 of size at most N on a newly allocated plaintext.
+// EncodeNew encodes a slice of integers of type []uint64 or []int64 modulu T (the plaintext modulus) on a newly allocated plaintext.
+//
+// inputs:
+// - values: a slice of []uint64 or []int64 of size at most the cyclotomic order of T (smallest value for N satisfying T = 1 mod 2N)
+// - level: the level of the plaintext
+// - plaintextScale: the scaling factor of the plaintext
+//
+// output: a plaintext encoding values at the given level and scaling factor
 func (ecd *Encoder) EncodeNew(values interface{}, level int, plaintextScale rlwe.Scale) (pt *rlwe.Plaintext, err error) {
 	pt = NewPlaintext(ecd.parameters, level)
 	pt.PlaintextScale = plaintextScale
 	return pt, ecd.Encode(values, pt)
 }
 
-// Encode encodes a slice of integers of type []uint64 or []int64 of size at most N into a pre-allocated plaintext.
+// Encode encodes a slice of integers of type []uint64 or []int64 on a pre-allocated plaintext.
+//
+// inputs:
+// - values: a slice of []uint64 or []int64 of size at most the cyclotomic order of the plaintext modulus (smallest value for N satisfying T = 1 mod 2N)
+// - pt: an *rlwe.Plaintext
 func (ecd *Encoder) Encode(values interface{}, pt *rlwe.Plaintext) (err error) {
 	return ecd.Embed(values, true, pt.MetaData, pt.Value)
 }
 
 // EncodeRingT encodes a slice of []uint64 or []int64 at the given scale on a polynomial pT with coefficients modulo the plaintext modulus T.
+//
+// inputs:
+// - values: a slice of []uint64 or []int64 of size at most the cyclotomic order of T (smallest value for N satisfying T = 1 mod 2N)
+// - plaintextScale: the scaling factor by which the values are multiplied before being encoded
+// - pT: a polynomial with coefficients modulo T
 func (ecd *Encoder) EncodeRingT(values interface{}, plaintextScale rlwe.Scale, pT *ring.Poly) (err error) {
 	perm := ecd.indexMatrix
 
@@ -184,7 +200,10 @@ func (ecd *Encoder) EncodeRingT(values interface{}, plaintextScale rlwe.Scale, p
 
 // Embed is a generic method to encode slices of []uint64 or []int64 on ringqp.Poly or *ring.Poly.
 // inputs:
-// - values: slice of []uint64 or []int64 of size at most params.PlaintextCyclotomicOrder()
+// - values: a slice of []uint64 or []int64 of size at most the cyclotomic order of T (smallest value for N satisfying T = 1 mod 2N)
+// - scaleUp: a boolean indicating if the values need to be multiplied by T^{-1} mod Q after being encoded on the polynomial
+// - metadata: a metadata struct containing the fields PlaintextScale, IsNTT and IsMontgomery
+// - polyOut: a ringqp.Poly or *ring.Poly
 func (ecd *Encoder) Embed(values interface{}, scaleUp bool, metadata rlwe.MetaData, polyOut interface{}) (err error) {
 
 	pT := ecd.bufT
@@ -251,8 +270,8 @@ func (ecd *Encoder) Embed(values interface{}, scaleUp bool, metadata rlwe.MetaDa
 	return
 }
 
-// EncodeCoeffs encodes a slice of []uint64 of size at most N on a pre-allocated plaintext.
-// The encoding is done coefficient wise, i.e. [1, 2, 3, 4] -> 1 + 2X + 3X^2 + 4X^3.
+// EncodeCoeffs encodes a slice of []uint64 of size at most N, where N is the maximum RLWE degree.
+// The encoding is done coefficient wise, i.e. [1, 2, 3, 4] -> 1 + 2X + 3X^2 + 4X^3 mod (X^{N} + 1).
 func (ecd *Encoder) EncodeCoeffs(values []uint64, pt *rlwe.Plaintext) {
 
 	copy(ecd.bufT.Coeffs[0], values)
@@ -273,8 +292,8 @@ func (ecd *Encoder) EncodeCoeffs(values []uint64, pt *rlwe.Plaintext) {
 	}
 }
 
-// EncodeCoeffsNew encodes a slice of []uint64 of size at most N on a newly allocated plaintext.
-// The encoding is done coefficient wise, i.e. [1, 2, 3, 4] -> 1 + 2X + 3X^2 + 4X^3.}
+// EncodeCoeffsNew encodes a slice of []uint64 of size at most N, where N is the maximum RLWE degree, on a newly allocated plaintext.
+// The encoding is done coefficient wise, i.e. [1, 2, 3, 4] -> 1 + 2X + 3X^2 + 4X^3 mod (X^{N} + 1).
 func (ecd *Encoder) EncodeCoeffsNew(values []uint64, level int, plaintextScale rlwe.Scale) (pt *rlwe.Plaintext) {
 	pt = NewPlaintext(ecd.parameters, level)
 	pt.PlaintextScale = plaintextScale
@@ -282,8 +301,12 @@ func (ecd *Encoder) EncodeCoeffsNew(values []uint64, level int, plaintextScale r
 	return
 }
 
-// DecodeRingT decodes a polynomial pT with coefficients modulo the plaintext modulu T
-// on a slice of []uint64 or []int64 at the given scale.
+// DecodeRingT decodes a polynomial pT with coefficients modulo the plaintext modulu T on a slice of []uint64 or []int64 at the given scale.
+//
+// inputs:
+// - pT: a polynomial with coefficients modulo T
+// - scale: the scaling factor by which the coefficients of pT will be divided by
+// - values: a slice of []uint64 or []int of size at most the degree of pT
 func (ecd *Encoder) DecodeRingT(pT *ring.Poly, scale rlwe.Scale, values interface{}) (err error) {
 	ringT := ecd.parameters.RingT()
 	ringT.MulScalar(pT, ring.ModExp(scale.Uint64(), ringT.SubRings[0].Modulus-2, ringT.SubRings[0].Modulus), ecd.bufT)
@@ -317,7 +340,11 @@ func (ecd *Encoder) DecodeRingT(pT *ring.Poly, scale rlwe.Scale, values interfac
 }
 
 // RingT2Q takes pT in base T and returns it in base Q on pQ.
-// If scaleUp, then scales pQ by T^-1 mod Q (or Q/T if T|Q).
+// inputs:
+// - level: the level of the polynomial pQ
+// - scaleUp: a boolean indicating of the polynomial pQ must be multiplied by T^{-1} mod Q
+// - pT: a polynomial with coefficients modulo T
+// - pQ: a polynomial with coefficients modulo Q
 func (ecd *Encoder) RingT2Q(level int, scaleUp bool, pT, pQ *ring.Poly) {
 
 	N := pQ.N()
@@ -349,8 +376,12 @@ func (ecd *Encoder) RingT2Q(level int, scaleUp bool, pT, pQ *ring.Poly) {
 	}
 }
 
-// RingQ2T takes pQ in base Q and returns it in base T on pT.
-// If scaleDown, scales first pQ by T.
+// RingQ2T takes pQ in base Q and returns it in base T (centered) on pT.
+// inputs:
+// - level: the level of the polynomial pQ
+// - scaleDown: a boolean indicating of the polynomial pQ must be multiplied by T mod Q
+// - pQ: a polynomial with coefficients modulo Q
+// - pT: a polynomial with coefficients modulo T
 func (ecd *Encoder) RingQ2T(level int, scaleDown bool, pQ, pT *ring.Poly) {
 
 	ringQ := ecd.parameters.RingQ().AtLevel(level)
@@ -401,8 +432,8 @@ func (ecd *Encoder) RingQ2T(level int, scaleDown bool, pQ, pT *ring.Poly) {
 	}
 }
 
-// DecodeUint decodes a any plaintext type and write the coefficients on an pre-allocated uint64 slice.
-func (ecd *Encoder) DecodeUint(pt *rlwe.Plaintext, values []uint64) {
+// Decode decodes a plaintext on a slice of []uint64 or []int64 mod T of size at most N, where N is the smallest value satisfying T = 1 mod 2N.
+func (ecd *Encoder) Decode(pt *rlwe.Plaintext, values interface{}) {
 
 	if pt.IsNTT {
 		ecd.parameters.RingQ().AtLevel(pt.Level()).INTT(pt.Value, ecd.bufQ)
@@ -412,33 +443,8 @@ func (ecd *Encoder) DecodeUint(pt *rlwe.Plaintext, values []uint64) {
 	ecd.DecodeRingT(ecd.bufT, pt.PlaintextScale, values)
 }
 
-// DecodeUintNew decodes any plaintext type and returns the coefficients on a new []uint64 slice.
-func (ecd *Encoder) DecodeUintNew(pt *rlwe.Plaintext) (values []uint64) {
-	values = make([]uint64, ecd.parameters.RingT().N())
-	ecd.DecodeUint(pt, values)
-	return
-}
-
-// DecodeInt decodes a any plaintext type and write the coefficients on an pre-allocated int64 slice.
-// Values are centered between [t/2, t/2).
-func (ecd *Encoder) DecodeInt(pt *rlwe.Plaintext, values []int64) {
-
-	if pt.IsNTT {
-		ecd.parameters.RingQ().AtLevel(pt.Level()).INTT(pt.Value, ecd.bufQ)
-	}
-
-	ecd.RingQ2T(pt.Level(), true, ecd.bufQ, ecd.bufT)
-	ecd.DecodeRingT(ecd.bufT, pt.PlaintextScale, values)
-}
-
-// DecodeIntNew decodes a any plaintext type and write the coefficients on an new int64 slice.
-// Values are centered between [t/2, t/2).
-func (ecd *Encoder) DecodeIntNew(pt *rlwe.Plaintext) (values []int64) {
-	values = make([]int64, ecd.parameters.RingT().N())
-	ecd.DecodeInt(pt, values)
-	return
-}
-
+// DecodeCoeffs decodes a plaintext on a slice of []uint64.
+// The decoding step is done coefficient wise: 1 + 2X + 3X^2 + 4X^3 mod (X^{N} + 1) -> [1, 2, 3, 4].
 func (ecd *Encoder) DecodeCoeffs(pt *rlwe.Plaintext, values []uint64) {
 
 	if pt.IsNTT {
@@ -449,12 +455,6 @@ func (ecd *Encoder) DecodeCoeffs(pt *rlwe.Plaintext, values []uint64) {
 	ringT := ecd.parameters.RingT()
 	ringT.MulScalar(ecd.bufT, ring.ModExp(pt.PlaintextScale.Uint64(), ringT.SubRings[0].Modulus-2, ringT.SubRings[0].Modulus), ecd.bufT)
 	copy(values, ecd.bufT.Coeffs[0])
-}
-
-func (ecd *Encoder) DecodeCoeffsNew(pt *rlwe.Plaintext) (values []uint64) {
-	values = make([]uint64, ecd.parameters.RingT().N())
-	ecd.DecodeCoeffs(pt, values)
-	return
 }
 
 // ShallowCopy creates a shallow copy of Encoder in which all the read-only data-structures are

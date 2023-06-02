@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/tuneinsight/lattigo/v4/bgv"
-	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
@@ -92,7 +91,7 @@ var (
 func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err error) {
 	var pbgv bgv.Parameters
 	pbgv, err = bgv.NewParameters(rlweParams, t)
-	return Parameters(pbgv), err
+	return Parameters{pbgv}, err
 }
 
 // NewParametersFromLiteral instantiate a set of BGV parameters from a ParametersLiteral specification.
@@ -102,7 +101,7 @@ func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err erro
 func NewParametersFromLiteral(pl ParametersLiteral) (p Parameters, err error) {
 	var pbgv bgv.Parameters
 	pbgv, err = bgv.NewParametersFromLiteral(bgv.ParametersLiteral(pl))
-	return Parameters(pbgv), err
+	return Parameters{pbgv}, err
 }
 
 // ParametersLiteral is a literal representation of BGV parameters.  It has public
@@ -127,68 +126,26 @@ func (p ParametersLiteral) RLWEParametersLiteral() rlwe.ParametersLiteral {
 
 // Parameters represents a parameter set for the BGV cryptosystem. Its fields are private and
 // immutable. See ParametersLiteral for user-specified parameters.
-type Parameters bgv.Parameters
-
-// ParametersLiteral returns the ParametersLiteral of the target Parameters.
-func (p Parameters) ParametersLiteral() ParametersLiteral {
-	return ParametersLiteral(bgv.Parameters(p).ParametersLiteral())
-}
-
-// RingQMul returns a pointer to the ring of the extended basis for multiplication.
-func (p Parameters) RingQMul() *ring.Ring {
-	return bgv.Parameters(p).RingQMul()
-}
-
-// T returns the plaintext coefficient modulus t.
-func (p Parameters) T() uint64 {
-	return bgv.Parameters(p).T()
-}
-
-// LogT returns log2(plaintext coefficient modulus).
-func (p Parameters) LogT() float64 {
-	return bgv.Parameters(p).LogT()
-}
-
-// RingT returns a pointer to the plaintext ring.
-func (p Parameters) RingT() *ring.Ring {
-	return bgv.Parameters(p).RingT()
+type Parameters struct {
+	bgv.Parameters
 }
 
 // Equal compares two sets of parameters for equality.
 func (p Parameters) Equal(other rlwe.ParametersInterface) bool {
 	switch other := other.(type) {
 	case Parameters:
-		return bgv.Parameters(p).Equal(bgv.Parameters(other))
+		return p.Parameters.Equal(other.Parameters)
 	}
 
 	panic(fmt.Errorf("cannot Equal: type do not match: %T != %T", p, other))
 }
 
-// MarshalBinary returns a []byte representation of the parameter set.
-func (p Parameters) MarshalBinary() (data []byte, err error) {
-	return p.MarshalJSON()
-}
-
 // UnmarshalBinary decodes a []byte into a parameter set struct.
-func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
-	return p.UnmarshalJSON(data)
-}
-
-// MarshalJSON returns a JSON representation of this parameter set. See `Marshal` from the `encoding/json` package.
-func (p Parameters) MarshalJSON() ([]byte, error) {
-	return bgv.Parameters(p).MarshalJSON()
+func (p Parameters) UnmarshalBinary(data []byte) (err error) {
+	return p.Parameters.UnmarshalJSON(data)
 }
 
 // UnmarshalJSON reads a JSON representation of a parameter set into the receiver Parameter. See `Unmarshal` from the `encoding/json` package.
-func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
-
-	pp := bgv.Parameters(*p)
-
-	if err = pp.UnmarshalJSON(data); err != nil {
-		return
-	}
-
-	*p = Parameters(pp)
-
-	return
+func (p Parameters) UnmarshalJSON(data []byte) (err error) {
+	return p.Parameters.UnmarshalJSON(data)
 }

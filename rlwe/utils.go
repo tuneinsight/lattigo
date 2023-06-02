@@ -3,8 +3,10 @@ package rlwe
 import (
 	"math"
 	"math/big"
+	"sort"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 // PublicKeyIsCorrect returns true if pk is a correct RLWE public-key for secret-key sk and parameters params.
@@ -239,17 +241,11 @@ func BSGSIndex(nonZeroDiags []int, slots, N1 int) (index map[int][]int, rotN1, r
 		rotN2Map[idxN2] = true
 	}
 
-	rotN1 = []int{}
-	for i := range rotN1Map {
-		rotN1 = append(rotN1, i)
+	for k := range index {
+		sort.Ints(index[k])
 	}
 
-	rotN2 = []int{}
-	for i := range rotN2Map {
-		rotN2 = append(rotN2, i)
-	}
-
-	return
+	return index, utils.GetSortedKeys(rotN1Map), utils.GetSortedKeys(rotN2Map)
 }
 
 // NTTSparseAndMontgomery takes a polynomial Z[Y] outside of the NTT domain and maps it to a polynomial Z[X] in the NTT domain where Y = X^(gap).

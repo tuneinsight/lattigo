@@ -367,63 +367,62 @@ func (eval *Evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTrans
 
 	slots := 1 << matrix.PlaintextLogDimensions[1]
 
+	keys := utils.GetSortedKeys(matrix.Vec)
+
 	var state bool
-	var cnt int
-	for k := range matrix.Vec {
+	if keys[0] == 0 {
+		state = true
+		keys = keys[1:]
+	}
+
+	for i, k := range keys {
 
 		k &= (slots - 1)
 
-		if k == 0 {
-			state = true
+		galEl := eval.params.GaloisElement(k)
+
+		var evk *GaloisKey
+		var err error
+		if evk, err = eval.CheckAndGetGaloisKey(galEl); err != nil {
+			panic(fmt.Errorf("cannot apply Automorphism: %w", err))
+		}
+
+		index := eval.AutomorphismIndex[galEl]
+
+		eval.GadgetProductHoistedLazy(levelQ, BuffDecompQP, &evk.GadgetCiphertext, cQP)
+		ringQ.Add(cQP.Value[0].Q, ct0TimesP, cQP.Value[0].Q)
+		ringQP.AutomorphismNTTWithIndex(cQP.Value[0], index, &tmp0QP)
+		ringQP.AutomorphismNTTWithIndex(cQP.Value[1], index, &tmp1QP)
+
+		pt := matrix.Vec[k]
+
+		if i == 0 {
+			// keyswitch(c1_Q) = (d0_QP, d1_QP)
+			ringQP.MulCoeffsMontgomery(&pt, &tmp0QP, &c0OutQP)
+			ringQP.MulCoeffsMontgomery(&pt, &tmp1QP, &c1OutQP)
 		} else {
+			// keyswitch(c1_Q) = (d0_QP, d1_QP)
+			ringQP.MulCoeffsMontgomeryThenAdd(&pt, &tmp0QP, &c0OutQP)
+			ringQP.MulCoeffsMontgomeryThenAdd(&pt, &tmp1QP, &c1OutQP)
+		}
 
-			galEl := eval.params.GaloisElement(k)
+		if i%QiOverF == QiOverF-1 {
+			ringQ.Reduce(c0OutQP.Q, c0OutQP.Q)
+			ringQ.Reduce(c1OutQP.Q, c1OutQP.Q)
+		}
 
-			var evk *GaloisKey
-			var err error
-			if evk, err = eval.CheckAndGetGaloisKey(galEl); err != nil {
-				panic(fmt.Errorf("cannot apply Automorphism: %w", err))
-			}
-
-			index := eval.AutomorphismIndex[galEl]
-
-			eval.GadgetProductHoistedLazy(levelQ, BuffDecompQP, &evk.GadgetCiphertext, cQP)
-			ringQ.Add(cQP.Value[0].Q, ct0TimesP, cQP.Value[0].Q)
-			ringQP.AutomorphismNTTWithIndex(cQP.Value[0], index, &tmp0QP)
-			ringQP.AutomorphismNTTWithIndex(cQP.Value[1], index, &tmp1QP)
-
-			pt := matrix.Vec[k]
-
-			if cnt == 0 {
-				// keyswitch(c1_Q) = (d0_QP, d1_QP)
-				ringQP.MulCoeffsMontgomery(&pt, &tmp0QP, &c0OutQP)
-				ringQP.MulCoeffsMontgomery(&pt, &tmp1QP, &c1OutQP)
-			} else {
-				// keyswitch(c1_Q) = (d0_QP, d1_QP)
-				ringQP.MulCoeffsMontgomeryThenAdd(&pt, &tmp0QP, &c0OutQP)
-				ringQP.MulCoeffsMontgomeryThenAdd(&pt, &tmp1QP, &c1OutQP)
-			}
-
-			if cnt%QiOverF == QiOverF-1 {
-				ringQ.Reduce(c0OutQP.Q, c0OutQP.Q)
-				ringQ.Reduce(c1OutQP.Q, c1OutQP.Q)
-			}
-
-			if cnt%PiOverF == PiOverF-1 {
-				ringP.Reduce(c0OutQP.P, c0OutQP.P)
-				ringP.Reduce(c1OutQP.P, c1OutQP.P)
-			}
-
-			cnt++
+		if i%PiOverF == PiOverF-1 {
+			ringP.Reduce(c0OutQP.P, c0OutQP.P)
+			ringP.Reduce(c1OutQP.P, c1OutQP.P)
 		}
 	}
 
-	if cnt%QiOverF == 0 {
+	if len(keys)%QiOverF == 0 {
 		ringQ.Reduce(c0OutQP.Q, c0OutQP.Q)
 		ringQ.Reduce(c1OutQP.Q, c1OutQP.Q)
 	}
 
-	if cnt%PiOverF == 0 {
+	if len(keys)%PiOverF == 0 {
 		ringP.Reduce(c0OutQP.P, c0OutQP.P)
 		ringP.Reduce(c1OutQP.P, c1OutQP.P)
 	}
@@ -492,9 +491,11 @@ func (eval *Evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearT
 	ringQ.MulScalarBigint(ctInTmp0, ringP.ModulusAtLevel[levelP], ctInTmp0) // P*c0
 	ringQ.MulScalarBigint(ctInTmp1, ringP.ModulusAtLevel[levelP], ctInTmp1) // P*c1
 
+	keys := utils.GetSortedKeys(index)
+
 	// OUTER LOOP
 	var cnt0 int
-	for j := range index {
+	for _, j := range keys {
 
 		// INNER LOOP
 		var cnt1 int

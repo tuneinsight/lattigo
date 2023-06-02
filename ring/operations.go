@@ -236,6 +236,15 @@ func (r *Ring) MulScalarBigint(p1 *Poly, scalar *big.Int, p2 *Poly) {
 	}
 }
 
+// MulScalarBigintThenAdd evaluates p2 = p1 * scalar coefficient-wise in the ring.
+func (r *Ring) MulScalarBigintThenAdd(p1 *Poly, scalar *big.Int, p2 *Poly) {
+	scalarQi := new(big.Int)
+	for i, s := range r.SubRings[:r.level+1] {
+		scalarQi.Mod(scalar, bignum.NewInt(s.Modulus))
+		s.MulScalarMontgomeryThenAdd(p1.Coeffs[i], MForm(scalarQi.Uint64(), s.Modulus, s.BRedConstant), p2.Coeffs[i])
+	}
+}
+
 // MulDoubleRNSScalar evaluates p2 = p1[:N/2] * scalar0 || p1[N/2] * scalar1 coefficient-wise in the ring,
 // with the scalar values expressed in the CRT decomposition at a given level.
 func (r *Ring) MulDoubleRNSScalar(p1 *Poly, scalar0, scalar1 RNSScalar, p2 *Poly) {

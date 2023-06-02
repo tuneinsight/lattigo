@@ -192,7 +192,8 @@ func main() {
 		decryptor.Decrypt(encOut, ptres)
 	})
 
-	res := encoder.DecodeUintNew(ptres)
+	res := make([]uint64, params.PlaintextSlots())
+	encoder.Decode(ptres, res)
 
 	l.Printf("\t%v...%v\n", res[:8], res[params.N()-8:])
 	l.Printf("> Finished (total cloud: %s, total party: %s)\n",

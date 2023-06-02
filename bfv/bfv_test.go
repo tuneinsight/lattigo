@@ -140,16 +140,16 @@ func newTestVectorsLvl(level int, scale rlwe.Scale, tc *testContext, encryptor r
 
 func verifyTestVectors(tc *testContext, decryptor rlwe.Decryptor, coeffs *ring.Poly, element rlwe.Operand, t *testing.T) {
 
-	var coeffsTest []uint64
+	coeffsTest := make([]uint64, tc.params.PlaintextSlots())
 
 	switch el := element.(type) {
 	case *rlwe.Plaintext:
-		coeffsTest = tc.encoder.DecodeUintNew(el)
+		tc.encoder.Decode(el, coeffsTest)
 	case *rlwe.Ciphertext:
 
 		pt := decryptor.DecryptNew(el)
 
-		coeffsTest = tc.encoder.DecodeUintNew(pt)
+		tc.encoder.Decode(pt, coeffsTest)
 
 		if *flagPrintNoise {
 			tc.encoder.Encode(coeffsTest, pt)
@@ -191,7 +191,9 @@ func testEncoder(tc *testContext, t *testing.T) {
 
 			plaintext := NewPlaintext(tc.params, lvl)
 			tc.encoder.Encode(coeffsInt, plaintext)
-			require.True(t, utils.EqualSlice(coeffsInt, tc.encoder.DecodeIntNew(plaintext)))
+			have := make([]int64, tc.params.PlaintextSlots())
+			tc.encoder.Decode(plaintext, have)
+			require.True(t, utils.EqualSlice(coeffsInt, have))
 		})
 	}
 }
@@ -307,34 +309,6 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				tc.ringT.Sub(values0, values1, values0)
 
 				verifyTestVectors(tc, tc.decryptor, values0, ciphertext0, t)
-
-			})
-		}
-
-		for _, lvl := range tc.testLevel {
-			t.Run(GetTestName("Neg/Ct/New", tc.params, lvl), func(t *testing.T) {
-
-				values, _, ciphertext := newTestVectorsLvl(lvl, tc.params.PlaintextScale(), tc, tc.encryptorSk)
-
-				ciphertext = tc.evaluator.NegNew(ciphertext)
-				tc.ringT.Neg(values, values)
-				tc.ringT.Reduce(values, values)
-
-				verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
-
-			})
-		}
-
-		for _, lvl := range tc.testLevel {
-			t.Run(GetTestName("Neg/Ct/Inplace", tc.params, lvl), func(t *testing.T) {
-
-				values, _, ciphertext := newTestVectorsLvl(lvl, tc.params.PlaintextScale(), tc, tc.encryptorSk)
-
-				tc.evaluator.Neg(ciphertext, ciphertext)
-				tc.ringT.Neg(values, values)
-				tc.ringT.Reduce(values, values)
-
-				verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
 
 			})
 		}

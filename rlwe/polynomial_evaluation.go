@@ -59,8 +59,7 @@ func EvaluatePatersonStockmeyerPolynomialVector(poly *PatersonStockmeyerPolynomi
 				// same degree, we combine them.
 			} else if tmp[i].Degree == tmp[i+1].Degree {
 
-				even := tmp[i]
-				odd := tmp[i+1]
+				even, odd := tmp[i], tmp[i+1]
 
 				deg := 1 << bits.Len64(uint64(tmp[i].Degree))
 

@@ -131,12 +131,14 @@ func obliviousRiding() {
 	fmt.Println("Computing encrypted distance = ((CtD1 + CtD2 + CtD3 + CtD4...) - CtR)^2 ...")
 	fmt.Println()
 
-	evaluator.Neg(RiderCiphertext, RiderCiphertext)
+	evaluator.Mul(RiderCiphertext, -1, RiderCiphertext)
 	for i := 0; i < nbDrivers; i++ {
 		evaluator.Add(RiderCiphertext, DriversCiphertexts[i], RiderCiphertext)
 	}
 
-	result := encoder.DecodeUintNew(decryptor.DecryptNew(evaluator.MulNew(RiderCiphertext, RiderCiphertext)))
+	result := make([]uint64, params.PlaintextSlots())
+
+	encoder.Decode(decryptor.DecryptNew(evaluator.MulNew(RiderCiphertext, RiderCiphertext)), result)
 
 	minIndex, minPosX, minPosY, minDist := 0, params.T(), params.T(), params.T()
 

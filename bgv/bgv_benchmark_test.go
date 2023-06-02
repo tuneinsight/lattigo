@@ -77,13 +77,13 @@ func benchEncoder(tc *testContext, b *testing.B) {
 
 	b.Run(GetTestName("Encoder/Decode/Uint", params, level), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			encoder.DecodeUint(plaintext, coeffsUint64)
+			encoder.Decode(plaintext, coeffsUint64)
 		}
 	})
 
 	b.Run(GetTestName("Encoder/Decode/Int", params, level), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			encoder.DecodeInt(plaintext, coeffsInt64)
+			encoder.Decode(plaintext, coeffsInt64)
 		}
 	})
 }

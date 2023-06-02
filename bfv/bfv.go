@@ -83,7 +83,7 @@ type Encoder struct {
 
 // NewEncoder creates a new Encoder from the provided parameters.
 func NewEncoder(params Parameters) *Encoder {
-	return &Encoder{bgv.NewEncoder(bgv.Parameters(params))}
+	return &Encoder{bgv.NewEncoder(params.Parameters)}
 }
 
 type encoder[T int64 | uint64, U *ring.Poly | ringqp.Poly | *rlwe.Plaintext] struct {
@@ -104,7 +104,7 @@ type Evaluator struct {
 // operations on ciphertexts and/or plaintexts. It stores a memory buffer
 // and ciphertexts that will be used for intermediate values.
 func NewEvaluator(params Parameters, evk rlwe.EvaluationKeySetInterface) *Evaluator {
-	return &Evaluator{bgv.NewEvaluator(bgv.Parameters(params), evk)}
+	return &Evaluator{bgv.NewEvaluator(params.Parameters, evk)}
 }
 
 // WithKey creates a shallow copy of this Evaluator in which the read-only data-structures are
@@ -124,12 +124,12 @@ func (eval *Evaluator) ShallowCopy() *Evaluator {
 // The procedure will panic if op2.Degree != op0.Degree + op1.Degree.
 func (eval *Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciphertext) {
 	switch op1 := op1.(type) {
-	case rlwe.Operand:
+	case rlwe.Operand, []uint64:
 		eval.Evaluator.MulInvariant(op0, op1, op2)
-	case uint64:
+	case uint64, int64, int:
 		eval.Evaluator.Mul(op0, op1, op0)
 	default:
-		panic(fmt.Sprintf("invalid op1.(Type), expected rlwe.Operand or uint64, but got %T", op1))
+		panic(fmt.Sprintf("invalid op1.(Type), expected rlwe.Operand, []uint64 or uint64, int64, int, but got %T", op1))
 	}
 
 }
@@ -138,12 +138,12 @@ func (eval *Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 // The procedure will panic if either op0.Degree or op1.Degree > 1.
 func (eval *Evaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}) (op2 *rlwe.Ciphertext) {
 	switch op1 := op1.(type) {
-	case rlwe.Operand:
+	case rlwe.Operand, []uint64:
 		return eval.Evaluator.MulInvariantNew(op0, op1)
-	case uint64:
+	case uint64, int64, int:
 		return eval.Evaluator.MulNew(op0, op1)
 	default:
-		panic(fmt.Sprintf("invalid op1.(Type), expected rlwe.Operand or uint64, but got %T", op1))
+		panic(fmt.Sprintf("invalid op1.(Type), expected rlwe.Operand, []uint64 or  uint64, int64, int, but got %T", op1))
 	}
 }
 

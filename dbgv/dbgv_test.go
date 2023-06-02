@@ -286,7 +286,9 @@ func testRefresh(tc *testContext, t *testing.T) {
 
 		//Decrypts and compare
 		require.True(t, ciphertext.Level() == maxLevel)
-		require.True(t, utils.EqualSlice(coeffs, encoder.DecodeUintNew(decryptorSk0.DecryptNew(ciphertext))))
+		have := make([]uint64, tc.params.PlaintextSlots())
+		encoder.Decode(decryptorSk0.DecryptNew(ciphertext), have)
+		require.True(t, utils.EqualSlice(coeffs, have))
 	})
 }
 
@@ -369,7 +371,8 @@ func testRefreshAndPermutation(tc *testContext, t *testing.T) {
 			coeffsPermute[i] = coeffs[permutation[i]]
 		}
 
-		coeffsHave := encoder.DecodeUintNew(decryptorSk0.DecryptNew(ciphertext))
+		coeffsHave := make([]uint64, tc.params.PlaintextSlots())
+		encoder.Decode(decryptorSk0.DecryptNew(ciphertext), coeffsHave)
 
 		//Decrypts and compares
 		require.True(t, ciphertext.Level() == maxLevel)
@@ -467,7 +470,8 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 
 		transform.Func(coeffs)
 
-		coeffsHave := bgv.NewEncoder(paramsOut).DecodeUintNew(rlwe.NewDecryptor(paramsOut.Parameters, skIdealOut).DecryptNew(ciphertext))
+		coeffsHave := make([]uint64, tc.params.PlaintextSlots())
+		bgv.NewEncoder(paramsOut).Decode(rlwe.NewDecryptor(paramsOut.Parameters, skIdealOut).DecryptNew(ciphertext), coeffsHave)
 
 		//Decrypts and compares
 		require.True(t, ciphertext.Level() == maxLevel)
@@ -493,5 +497,7 @@ func newTestVectors(tc *testContext, encryptor rlwe.Encryptor, t *testing.T) (co
 }
 
 func verifyTestVectors(tc *testContext, decryptor rlwe.Decryptor, coeffs []uint64, ciphertext *rlwe.Ciphertext, t *testing.T) {
-	require.True(t, utils.EqualSlice(coeffs, tc.encoder.DecodeUintNew(decryptor.DecryptNew(ciphertext))))
+	have := make([]uint64, tc.params.PlaintextSlots())
+	tc.encoder.Decode(decryptor.DecryptNew(ciphertext), have)
+	require.True(t, utils.EqualSlice(coeffs, have))
 }

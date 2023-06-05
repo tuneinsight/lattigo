@@ -873,7 +873,7 @@ func testChebyshevInterpolator(tc *testContext, t *testing.T) {
 			return
 		}
 
-		interval := polynomial.Interval{
+		interval := bignum.Interval{
 			A: *new(big.Float).SetPrec(prec).SetFloat64(-8),
 			B: *new(big.Float).SetPrec(prec).SetFloat64(8),
 		}
@@ -926,7 +926,7 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 			return
 		}
 
-		interval := polynomial.Interval{
+		interval := bignum.Interval{
 			A: *new(big.Float).SetPrec(prec).SetFloat64(a),
 			B: *new(big.Float).SetPrec(prec).SetFloat64(b),
 		}

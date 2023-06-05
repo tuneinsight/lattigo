@@ -1,7 +1,7 @@
 package polynomial
 
 import (
-	"math/big"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
 // Basis is a type for the polynomials basis
@@ -14,13 +14,9 @@ const (
 	Chebyshev = Basis(1)
 )
 
-type Interval struct {
-	A, B big.Float
-}
-
 type MetaData struct {
 	Basis
-	Interval
+	bignum.Interval
 	IsOdd  bool
 	IsEven bool
 }

@@ -32,31 +32,29 @@ func Chebyshev(f func(*bignum.Complex) *bignum.Complex, interval bignum.Interval
 	return polynomial.NewPolynomial(polynomial.Chebyshev, chebyCoeffs(nodes, fi, interval), &interval)
 }
 
-func chebyshevNodes(n int, inter bignum.Interval) (nodes []*big.Float) {
+func chebyshevNodes(n int, interval bignum.Interval) (u []*big.Float) {
 
-	prec := inter.A.Prec()
+	prec := interval.A.Prec()
 
-	PiOverN := bignum.Pi(prec)
-	PiOverN.Quo(PiOverN, bignum.NewFloat(float64(n-1), prec))
+	u = make([]*big.Float, n)
 
-	nodes = make([]*big.Float, n)
+	half := new(big.Float).SetPrec(prec).SetFloat64(0.5)
 
 	x := new(big.Float).Add(&interval.A, &interval.B)
 	x.Mul(x, half)
 	y := new(big.Float).Sub(&interval.B, &interval.A)
 	y.Mul(y, half)
 
-	two := bignum.NewFloat(2, prec)
+	PiOverN := bignum.Pi(prec)
+	PiOverN.Quo(PiOverN, new(big.Float).SetInt64(int64(n)))
 
-	x.Quo(x, two)
-	y.Quo(y, two)
-
-	for i := 0; i < n; i++ {
-		nodes[i] = bignum.NewFloat(float64(n-i-1), prec)
-		nodes[i].Mul(nodes[i], PiOverN)
-		nodes[i] = bignum.Cos(nodes[i])
-		nodes[i].Mul(nodes[i], y)
-		nodes[i].Add(nodes[i], x)
+	for k := 1; k < n+1; k++ {
+		up := new(big.Float).SetPrec(prec).SetFloat64(float64(k) - 0.5)
+		up.Mul(up, PiOverN)
+		up = bignum.Cos(up)
+		up.Mul(up, y)
+		up.Add(up, x)
+		u[k-1] = up
 	}
 
 	return
@@ -143,10 +141,10 @@ func chebyshevBasisInPlace(deg int, x *big.Float, inter bignum.Interval, poly []
 	// u = (2*x - (a+b))/(b-a)
 	u.Set(x)
 	u.Mul(u, two)
-	u.Sub(u, inter.A)
-	u.Sub(u, inter.B)
-	tmp.Set(inter.B)
-	tmp.Sub(tmp, inter.A)
+	u.Sub(u, &inter.A)
+	u.Sub(u, &inter.B)
+	tmp.Set(&inter.B)
+	tmp.Sub(tmp, &inter.A)
 	u.Quo(u, tmp)
 
 	Tprev.SetPrec(precision)

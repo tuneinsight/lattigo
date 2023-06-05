@@ -179,8 +179,8 @@ func (r *Remez) initialize() {
 
 		for _, inter := range r.Intervals {
 
-			A := inter.A
-			B := inter.B
+			A := &inter.A
+			B := &inter.B
 			nodes := inter.Nodes
 
 			for j := 0; j < nodes; j++ {
@@ -499,8 +499,8 @@ func (r *Remez) findLocalExtrempointsWithSlope(fErr func(*big.Float) (y *big.Flo
 	fErrRight := new(big.Float)
 
 	nbextrempoints := 0
-	extrempoints[nbextrempoints].x.Set(interval.A)
-	extrempoints[nbextrempoints].y.Set(fErr(interval.A))
+	extrempoints[nbextrempoints].x.Set(&interval.A)
+	extrempoints[nbextrempoints].y.Set(fErr(&interval.A))
 	extrempoints[nbextrempoints].slopesign = extrempoints[nbextrempoints].y.Cmp(new(big.Float))
 	nbextrempoints++
 
@@ -513,8 +513,8 @@ func (r *Remez) findLocalExtrempointsWithSlope(fErr func(*big.Float) (y *big.Flo
 		optScan.Set(scan)
 	}
 
-	scanMid.Set(interval.A)
-	scanRight.Add(interval.A, optScan)
+	scanMid.Set(&interval.A)
+	scanRight.Add(&interval.A, optScan)
 	fErrLeft.Set(fErr(scanMid))
 	fErrRight.Set(fErr(scanRight))
 
@@ -531,12 +531,12 @@ func (r *Remez) findLocalExtrempointsWithSlope(fErr func(*big.Float) (y *big.Flo
 				// start + 10*scan/pow(10,i)
 				a := new(big.Float).Mul(scan, bignum.NewFloat(10, prec))
 				a.Quo(a, bignum.NewFloat(math.Pow(10, float64(i)), prec))
-				a.Add(interval.A, a)
+				a.Add(&interval.A, a)
 
 				// end - 10*scan/pow(10,i)
 				b := new(big.Float).Mul(scan, bignum.NewFloat(10, prec))
 				b.Quo(b, bignum.NewFloat(math.Pow(10, float64(i)), prec))
-				b.Sub(interval.B, b)
+				b.Sub(&interval.B, b)
 
 				// a < scanRight && scanRight < b
 				if a.Cmp(scanRight) == -1 && scanRight.Cmp(b) == -1 {
@@ -555,7 +555,7 @@ func (r *Remez) findLocalExtrempointsWithSlope(fErr func(*big.Float) (y *big.Flo
 		}
 
 		// Breaks when the scan window gets out of the interval
-		if new(big.Float).Add(scanRight, optScan).Cmp(interval.B) >= 0 {
+		if new(big.Float).Add(scanRight, optScan).Cmp(&interval.B) >= 0 {
 			break
 		}
 
@@ -582,8 +582,8 @@ func (r *Remez) findLocalExtrempointsWithSlope(fErr func(*big.Float) (y *big.Flo
 		}
 	}
 
-	extrempoints[nbextrempoints].x.Set(interval.B)
-	extrempoints[nbextrempoints].y.Set(fErr(interval.B))
+	extrempoints[nbextrempoints].x.Set(&interval.B)
+	extrempoints[nbextrempoints].y.Set(fErr(&interval.B))
 	extrempoints[nbextrempoints].slopesign = extrempoints[nbextrempoints].y.Cmp(new(big.Float))
 	nbextrempoints++
 

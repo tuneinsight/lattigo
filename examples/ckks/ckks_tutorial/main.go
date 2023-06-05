@@ -10,7 +10,6 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum/approximation"
-	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
 )
 
 func main() {
@@ -495,7 +494,7 @@ func main() {
 	// Since we do not have any previous operation in this example, we will have to operate the change of basis, thus
 	// the maximum polynomial degree for depth 6 is 63.
 
-	interval := polynomial.Interval{
+	interval := bignum.Interval{
 		A: *bignum.NewFloat(-8, prec),
 		B: *bignum.NewFloat(8, prec),
 	}

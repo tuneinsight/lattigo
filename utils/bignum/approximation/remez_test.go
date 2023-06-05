@@ -25,11 +25,11 @@ func TestRemez(t *testing.T) {
 	scanStep.Quo(scanStep, bignum.NewFloat(1000, prec))
 
 	intervals := []bignum.Interval{
-		{A: bignum.NewFloat(-6, prec), B: bignum.NewFloat(-5, prec), Nodes: 4},
-		{A: bignum.NewFloat(-3, prec), B: bignum.NewFloat(-2, prec), Nodes: 4},
-		{A: bignum.NewFloat(-1, prec), B: bignum.NewFloat(1, prec), Nodes: 4},
-		{A: bignum.NewFloat(2, prec), B: bignum.NewFloat(3, prec), Nodes: 4},
-		{A: bignum.NewFloat(5, prec), B: bignum.NewFloat(6, prec), Nodes: 4},
+		{A: *bignum.NewFloat(-6, prec), B: *bignum.NewFloat(-5, prec), Nodes: 4},
+		{A: *bignum.NewFloat(-3, prec), B: *bignum.NewFloat(-2, prec), Nodes: 4},
+		{A: *bignum.NewFloat(-1, prec), B: *bignum.NewFloat(1, prec), Nodes: 4},
+		{A: *bignum.NewFloat(2, prec), B: *bignum.NewFloat(3, prec), Nodes: 4},
+		{A: *bignum.NewFloat(5, prec), B: *bignum.NewFloat(6, prec), Nodes: 4},
 	}
 
 	params := RemezParameters{

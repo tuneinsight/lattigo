@@ -1,10 +1,10 @@
 package bignum
 
-import(
+import (
 	"math/big"
 )
 
 type Interval struct {
 	Nodes int
-	A, B *big.Float
+	A, B  big.Float
 }

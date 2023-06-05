@@ -1,12 +1,13 @@
 package polynomial
 
-import(
+import (
 	"math/big"
+
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
 // MonomialEval evaluates y = sum x^i * poly[i].
-func MonomialEval(x *big.Float, poly []*big.Float, ) (y *big.Float) {
+func MonomialEval(x *big.Float, poly []*big.Float) (y *big.Float) {
 	n := len(poly) - 1
 	y = new(big.Float).Set(poly[n-1])
 	for i := n - 2; i >= 0; i-- {
@@ -28,10 +29,10 @@ func ChebyshevEval(x *big.Float, poly []*big.Float, inter bignum.Interval) (y *b
 	// u = (2*x - (a+b))/(b-a)
 	u.Set(x)
 	u.Mul(u, two)
-	u.Sub(u, inter.A)
-	u.Sub(u, inter.B)
-	tmp.Set(inter.B)
-	tmp.Sub(tmp, inter.A)
+	u.Sub(u, &inter.A)
+	u.Sub(u, &inter.B)
+	tmp.Set(&inter.B)
+	tmp.Sub(tmp, &inter.A)
 	u.Quo(u, tmp)
 
 	Tprev.SetPrec(precision)

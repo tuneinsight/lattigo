@@ -164,7 +164,7 @@ func NewEvalModPolyFromLiteral(params Parameters, evm EvalModLiteral) EvalModPol
 	switch evm.SineType {
 	case SinContinuous:
 
-		sinePoly = approximation.Chebyshev(sin2pi, polynomial.Interval{
+		sinePoly = approximation.Chebyshev(sin2pi, bignum.Interval{
 			A: *new(big.Float).SetPrec(cosine.PlaintextPrecision).SetFloat64(-K),
 			B: *new(big.Float).SetPrec(cosine.PlaintextPrecision).SetFloat64(K),
 		}, evm.SineDegree)
@@ -187,7 +187,7 @@ func NewEvalModPolyFromLiteral(params Parameters, evm EvalModLiteral) EvalModPol
 		}
 
 	case CosContinuous:
-		sinePoly = approximation.Chebyshev(cos2pi, polynomial.Interval{
+		sinePoly = approximation.Chebyshev(cos2pi, bignum.Interval{
 			A: *new(big.Float).SetPrec(cosine.PlaintextPrecision).SetFloat64(-K),
 			B: *new(big.Float).SetPrec(cosine.PlaintextPrecision).SetFloat64(K),
 		}, evm.SineDegree)

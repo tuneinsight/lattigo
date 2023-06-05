@@ -9,7 +9,6 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum/approximation"
-	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
@@ -91,7 +90,7 @@ func chebyshevinterpolation() {
 		y = bignum.NewComplex().SetPrec(53)
 		y[0].SetFloat64(f(xf64))
 		return
-	}, polynomial.Interval{
+	}, bignum.Interval{
 		A: *new(big.Float).SetFloat64(a),
 		B: *new(big.Float).SetFloat64(b),
 	}, deg)
@@ -101,7 +100,7 @@ func chebyshevinterpolation() {
 		y = bignum.NewComplex().SetPrec(53)
 		y[0].SetFloat64(g(xf64))
 		return
-	}, polynomial.Interval{
+	}, bignum.Interval{
 		A: *new(big.Float).SetFloat64(a),
 		B: *new(big.Float).SetFloat64(b),
 	}, deg)

@@ -133,13 +133,7 @@ func main() {
 	galKeys := gkgphase(params, crs, P)
 
 	// Instantiates EvaluationKeySet
-	evk := rlwe.NewEvaluationKeySet()
-
-	evk.RelinearizationKey = relinKey
-
-	for _, galKey := range galKeys {
-		evk.GaloisKeys[galKey.GaloisElement] = galKey
-	}
+	evk := rlwe.NewMemEvaluationKeySet(relinKey, galKeys...)
 
 	l.Printf("\tSetup done (cloud: %s, party: %s)\n",
 		elapsedCKGCloud+elapsedRKGCloud+elapsedGKGCloud,
@@ -400,7 +394,7 @@ func genquery(params bfv.Parameters, queryIndex int, encoder *bfv.Encoder, encry
 	return encQuery
 }
 
-func requestphase(params bfv.Parameters, queryIndex, NGoRoutine int, encQuery *rlwe.Ciphertext, encInputs []*rlwe.Ciphertext, plainMask []*rlwe.Plaintext, evk rlwe.EvaluationKeySetInterface) *rlwe.Ciphertext {
+func requestphase(params bfv.Parameters, queryIndex, NGoRoutine int, encQuery *rlwe.Ciphertext, encInputs []*rlwe.Ciphertext, plainMask []*rlwe.Plaintext, evk rlwe.EvaluationKeySet) *rlwe.Ciphertext {
 
 	l := log.New(os.Stderr, "", 0)
 

@@ -34,7 +34,7 @@ type bootstrapperBase struct {
 // EvaluationKeySet is a type for a CKKS bootstrapping key, which
 // regroups the necessary public relinearization and rotation keys.
 type EvaluationKeySet struct {
-	*rlwe.EvaluationKeySet
+	*rlwe.MemEvaluationKeySet
 	EvkDtS *rlwe.EvaluationKey
 	EvkStD *rlwe.EvaluationKey
 }
@@ -81,7 +81,7 @@ func GenEvaluationKeySetNew(btpParams Parameters, ckksParams ckks.Parameters, sk
 
 	kgen := ckks.NewKeyGenerator(ckksParams)
 
-	evk := rlwe.NewEvaluationKeySet()
+	gks := kgen.GenGaloisKeysNew(append(btpParams.GaloisElements(ckksParams), ckksParams.GaloisElementForRowRotation()), sk)
 
 	evk.RelinearizationKey = kgen.GenRelinearizationKeyNew(sk)
 
@@ -92,11 +92,11 @@ func GenEvaluationKeySetNew(btpParams Parameters, ckksParams ckks.Parameters, sk
 	evk.GaloisKeys[ckksParams.GaloisElementInverse()] = kgen.GenGaloisKeyNew(ckksParams.GaloisElementInverse(), sk)
 
 	EvkDtS, EvkStD := btpParams.GenEncapsulationEvaluationKeysNew(ckksParams, sk)
-
+	evk := rlwe.NewMemEvaluationKeySet(kgen.GenRelinearizationKeyNew(sk), gks...)
 	return &EvaluationKeySet{
-		EvaluationKeySet: evk,
-		EvkDtS:           EvkDtS,
-		EvkStD:           EvkStD,
+		MemEvaluationKeySet: evk,
+		EvkDtS:              EvkDtS,
+		EvkStD:              EvkStD,
 	}
 }
 

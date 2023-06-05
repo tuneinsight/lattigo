@@ -130,7 +130,7 @@ func genTestParams(defaultParam Parameters) (tc *testContext, err error) {
 	tc.encryptorSk = NewEncryptor(tc.params, tc.sk)
 	tc.decryptor = NewDecryptor(tc.params, tc.sk)
 
-	tc.evaluator = NewEvaluator(tc.params, &rlwe.EvaluationKeySet{RelinearizationKey: tc.kgen.GenRelinearizationKeyNew(tc.sk)})
+	tc.evaluator = NewEvaluator(tc.params, rlwe.NewMemEvaluationKeySet(tc.kgen.GenRelinearizationKeyNew(tc.sk)))
 
 	return tc, nil
 
@@ -1033,10 +1033,8 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 		batch := 1 << logBatch
 		n := slots / batch
 
-		evk := rlwe.NewEvaluationKeySet()
-		for _, galEl := range tc.params.GaloisElementsForInnerSum(batch, n) {
-			evk.GaloisKeys[galEl] = tc.kgen.GenGaloisKeyNew(galEl, tc.sk)
-		}
+		gks := tc.kgen.GenGaloisKeysNew(tc.params.GaloisElementsForInnerSum(batch, n), tc.sk)
+		evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
 
 		eval := tc.evaluator.WithKey(evk)
 
@@ -1093,12 +1091,9 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 		linTransf, err := GenLinearTransform(diagMatrix, tc.encoder, params.MaxLevel(), rlwe.NewScale(params.Q()[params.MaxLevel()]), ciphertext.PlaintextLogDimensions[1], LogBSGSRatio)
 		require.NoError(t, err)
 
-		galEls := params.GaloisElementsForLinearTransform(nonZeroDiags, ciphertext.PlaintextLogDimensions[1], LogBSGSRatio)
-
-		evk := rlwe.NewEvaluationKeySet()
-		for _, galEl := range galEls {
-			evk.GaloisKeys[galEl] = tc.kgen.GenGaloisKeyNew(galEl, tc.sk)
-		}
+		galEls := params.GaloisElementsForLinearTransform(nonZeroDiags, ciphertext.LogSlots, LogBSGSRatio)
+		gks := tc.kgen.GenGaloisKeysNew(galEls, tc.sk)
+		evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
 
 		eval := tc.evaluator.WithKey(evk)
 
@@ -1149,11 +1144,8 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		galEls := params.GaloisElementsForLinearTransform([]int{-1, 0}, ciphertext.PlaintextLogDimensions[1], -1)
 
-		evk := rlwe.NewEvaluationKeySet()
-		for _, galEl := range galEls {
-			evk.GaloisKeys[galEl] = tc.kgen.GenGaloisKeyNew(galEl, tc.sk)
-		}
-
+		gks := tc.kgen.GenGaloisKeysNew(galEls, tc.sk)
+		evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
 		eval := tc.evaluator.WithKey(evk)
 
 		eval.LinearTransform(ciphertext, linTransf, []*rlwe.Ciphertext{ciphertext})

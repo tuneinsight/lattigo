@@ -166,8 +166,7 @@ func main() {
 	// To store and manage the loading of evaluation keys, we instantiate a struct that complies to the `rlwe.EvaluationKeySetInterface` Interface.
 	// The package `rlwe` provides a simple struct that complies to this interface, but a user can design its own struct compliant to the `rlwe.EvaluationKeySetInterface`
 	// for example to manage the loading/saving/persistence of the keys in the memory.
-	evk := rlwe.NewEvaluationKeySet()
-	evk.RelinearizationKey = rlk
+	evk := rlwe.NewMemEvaluationKeySet(rlk)
 
 	// ====================
 	// Plaintext Generation
@@ -422,22 +421,23 @@ func main() {
 	// Therefore it is important to design circuits that minimize the numbers of these keys.
 	//
 	// In this example we will rotate a ciphertext by 5 positions to the left, as well as get the complex conjugate.
+	// This corresponds to the following values for k which we call "galois elements":
 	rot := 5
+	galEls := []uint64{
+		//the galois element for the cyclic rotations by 5 positions to the left.
+		params.GaloisElementForColumnRotationBy(rot),
+		// the galois element for the complex conjugate (The CKKS scheme actually encrypts 2xN/2 values, so the conjugate operation can be seen
+		// as a rotation between the row which contains the real part and that which contains the complex part of the complex values).
+		// The reason for this name is that the `ckks` package does not yet have a wrapper for this method which comes from the `rlwe` package.
+		// The name of this method comes from the BFV/BGV schemes, which have plaintext spaces of Z_{2xN/2}, i.e. a matrix of 2 rows and N/2 columns.
+		params.GaloisElementForRowRotation(),
+	}
 
-	// Galois key for the cyclic rotations by 5 positions to the left.
-	galEl := params.GaloisElement(rot)
-	evk.GaloisKeys[galEl] = kgen.GenGaloisKeyNew(galEl, sk)
+	// We then generate the `rlwe.GaloisKey`s element that corresponds to these galois elements.
+	gks := kgen.GenGaloisKeysNew(galEls, sk)
 
-	// Galois key for the complex conjugate (yes we could do a better job than `GaloisElementInverse`)
-	// The reason for this name is that the `ckks` package does not yet have a wrapper for this method which comes from the `rlwe` package.
-	// The name of this method comes from the BFV/BGV schemes, which have plaintext spaces of Z_{2xN/2}, i.e. a matrix of 2 rows and N/2 columns.
-	// The CKKS scheme actually encrypts 2xN/2 values, but one row is the conjugate of the other, thus to access the conjugate, we rotates the rows.
-	galEl = params.GaloisElementInverse()
-	evk.GaloisKeys[galEl] = kgen.GenGaloisKeyNew(galEl, sk)
-
-	// Note that since the pointer to the evaluation key struct has already been given to the evaluator, we do not need to do anything else, the
-	// evaluator will be able to access/load those keys.
-	// However it is also possible to give a new set of evaluation key to the evaluator with `eval.WithKey(newset)`.
+	// Then we update the evaluator's `rlwe.EvaluationKeySet` with the new keys.
+	eval = eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, gks...))
 
 	// Rotation by 5 positions to the left
 	for i := 0; i < Slots; i++ {
@@ -554,10 +554,8 @@ func main() {
 	n := 127
 
 	// The innersum operations is carried out with log2(n) + HW(n) automorphisms and we need to
-	// generate the corresponding Galois keys
-	for _, galEl := range params.GaloisElementsForInnerSum(batch, n) {
-		evk.GaloisKeys[galEl] = kgen.GenGaloisKeyNew(galEl, sk)
-	}
+	// generate the corresponding Galois keys and provide them to the `Evaluator`.
+	eval = eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, kgen.GenGaloisKeysNew(params.GaloisElementsForInnerSum(batch, n), sk)...))
 
 	// Plaintext circuit
 	copy(want, values1)
@@ -575,9 +573,7 @@ func main() {
 	fmt.Printf("Innersum %s", ckks.GetPrecisionStats(params, ecd, dec, want, res, nil, false).String())
 
 	// The replicate operation is exactly the same as the innersum operation, but in reverse
-	for _, galEl := range params.GaloisElementsForReplicate(batch, n) {
-		evk.GaloisKeys[galEl] = kgen.GenGaloisKeyNew(galEl, sk)
-	}
+	eval = eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, kgen.GenGaloisKeysNew(params.GaloisElementsForReplicate(batch, n), sk)...))
 
 	// Plaintext circuit
 	copy(want, values1)
@@ -642,11 +638,8 @@ func main() {
 
 	// Then we generate the corresponding Galois keys.
 	// The list of Galois elements can also be obtained with `linTransf.GaloisElements`
-	galEls := params.GaloisElementsForLinearTransform(nonZeroDiagonales, LogSlots, LogBSGSRatio)
-
-	for _, galEl := range galEls {
-		evk.GaloisKeys[galEl] = kgen.GenGaloisKeyNew(galEl, sk)
-	}
+	galEls = params.GaloisElementsForLinearTransform(nonZeroDiagonales, LogBSGSRatio, LogSlots)
+	eval = eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, kgen.GenGaloisKeysNew(galEls, sk)...))
 
 	// And we valuate the linear transform
 	eval.LinearTransform(ct1, linTransf, []*rlwe.Ciphertext{res})

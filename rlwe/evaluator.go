@@ -11,7 +11,7 @@ import (
 // Evaluator is a struct that holds the necessary elements to execute general homomorphic
 // operation on RLWE ciphertexts, such as automorphisms, key-switching and relinearization.
 type Evaluator struct {
-	EvaluationKeySetInterface
+	EvaluationKeySet
 	*evaluatorBase
 	*evaluatorBuffers
 
@@ -72,6 +72,7 @@ func newEvaluatorBuffers(params ParametersInterface) *evaluatorBuffers {
 
 // NewEvaluator creates a new Evaluator.
 func NewEvaluator(params ParametersInterface, evk EvaluationKeySetInterface) (eval *Evaluator) {
+func NewEvaluator(params Parameters, evk EvaluationKeySet) (eval *Evaluator) {
 	eval = new(Evaluator)
 	eval.evaluatorBase = newEvaluatorBase(params)
 	eval.evaluatorBuffers = newEvaluatorBuffers(params)
@@ -81,7 +82,7 @@ func NewEvaluator(params ParametersInterface, evk EvaluationKeySetInterface) (ev
 		eval.Decomposer = ring.NewDecomposer(params.RingQ(), params.RingP())
 	}
 
-	eval.EvaluationKeySetInterface = evk
+	eval.EvaluationKeySet = evk
 
 	var AutomorphismIndex map[uint64][]uint64
 
@@ -110,7 +111,7 @@ func (eval *Evaluator) Parameters() ParametersInterface {
 
 // CheckAndGetGaloisKey returns an error if the GaloisKey for the given Galois element is missing or the EvaluationKey interface is nil.
 func (eval *Evaluator) CheckAndGetGaloisKey(galEl uint64) (evk *GaloisKey, err error) {
-	if eval.EvaluationKeySetInterface != nil {
+	if eval.EvaluationKeySet != nil {
 		if evk, err = eval.GetGaloisKey(galEl); err != nil {
 			return nil, fmt.Errorf("%w: key for galEl %d = 5^{%d} key is missing", err, galEl, eval.params.SolveDiscreteLogGaloisElement(galEl))
 		}
@@ -131,7 +132,7 @@ func (eval *Evaluator) CheckAndGetGaloisKey(galEl uint64) (evk *GaloisKey, err e
 
 // CheckAndGetRelinearizationKey returns an error if the RelinearizationKey is missing or the EvaluationKey interface is nil.
 func (eval *Evaluator) CheckAndGetRelinearizationKey() (evk *RelinearizationKey, err error) {
-	if eval.EvaluationKeySetInterface != nil {
+	if eval.EvaluationKeySet != nil {
 		if evk, err = eval.GetRelinearizationKey(); err != nil {
 			return nil, fmt.Errorf("%w: relineariztion key is missing", err)
 		}
@@ -224,18 +225,18 @@ func (eval *Evaluator) CheckUnary(op0, opOut *OperandQ) (degree, level int) {
 // Evaluators can be used concurrently.
 func (eval *Evaluator) ShallowCopy() *Evaluator {
 	return &Evaluator{
-		evaluatorBase:             eval.evaluatorBase,
-		Decomposer:                eval.Decomposer,
-		BasisExtender:             eval.BasisExtender.ShallowCopy(),
-		evaluatorBuffers:          newEvaluatorBuffers(eval.params),
-		EvaluationKeySetInterface: eval.EvaluationKeySetInterface,
-		AutomorphismIndex:         eval.AutomorphismIndex,
+		evaluatorBase:     eval.evaluatorBase,
+		Decomposer:        eval.Decomposer,
+		BasisExtender:     eval.BasisExtender.ShallowCopy(),
+		evaluatorBuffers:  newEvaluatorBuffers(eval.params),
+		EvaluationKeySet:  eval.EvaluationKeySet,
+		AutomorphismIndex: eval.AutomorphismIndex,
 	}
 }
 
 // WithKey creates a shallow copy of the receiver Evaluator for which the new EvaluationKey is evaluationKey
 // and where the temporary buffers are shared. The receiver and the returned Evaluators cannot be used concurrently.
-func (eval *Evaluator) WithKey(evk EvaluationKeySetInterface) *Evaluator {
+func (eval *Evaluator) WithKey(evk EvaluationKeySet) *Evaluator {
 
 	var AutomorphismIndex map[uint64][]uint64
 
@@ -251,11 +252,11 @@ func (eval *Evaluator) WithKey(evk EvaluationKeySetInterface) *Evaluator {
 	}
 
 	return &Evaluator{
-		evaluatorBase:             eval.evaluatorBase,
-		evaluatorBuffers:          eval.evaluatorBuffers,
-		Decomposer:                eval.Decomposer,
-		BasisExtender:             eval.BasisExtender,
-		EvaluationKeySetInterface: evk,
-		AutomorphismIndex:         AutomorphismIndex,
+		evaluatorBase:     eval.evaluatorBase,
+		evaluatorBuffers:  eval.evaluatorBuffers,
+		Decomposer:        eval.Decomposer,
+		BasisExtender:     eval.BasisExtender,
+		EvaluationKeySet:  evk,
+		AutomorphismIndex: AutomorphismIndex,
 	}
 }

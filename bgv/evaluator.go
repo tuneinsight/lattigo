@@ -839,7 +839,7 @@ func (eval *Evaluator) tensorInvariant(ct0 *rlwe.Ciphertext, ct1 *rlwe.OperandQ,
 
 		var rlk *rlwe.RelinearizationKey
 		var err error
-		if eval.EvaluationKeySetInterface != nil {
+		if eval.EvaluationKeySet != nil {
 			if rlk, err = eval.GetRelinearizationKey(); err != nil {
 				panic(fmt.Errorf("cannot MulRelin: %w", err))
 			}

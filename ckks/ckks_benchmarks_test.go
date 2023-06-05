@@ -92,7 +92,7 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 	ciphertext2 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, tc.params.MaxLevel())
 	receiver := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 2, tc.params.MaxLevel())
 
-	eval := tc.evaluator.WithKey(&rlwe.EvaluationKeySet{RelinearizationKey: tc.kgen.GenRelinearizationKeyNew(tc.sk)})
+	eval := tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(tc.kgen.GenRelinearizationKeyNew(tc.sk)))
 
 	b.Run(GetTestName(tc.params, "Evaluator/Add/Scalar"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {

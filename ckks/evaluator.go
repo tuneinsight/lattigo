@@ -1027,7 +1027,7 @@ func (eval *Evaluator) ShallowCopy() *Evaluator {
 
 // WithKey creates a shallow copy of the receiver Evaluator for which the new EvaluationKey is evaluationKey
 // and where the temporary buffers are shared. The receiver and the returned Evaluators cannot be used concurrently.
-func (eval *Evaluator) WithKey(evk rlwe.EvaluationKeySetInterface) *Evaluator {
+func (eval *Evaluator) WithKey(evk rlwe.EvaluationKeySet) *Evaluator {
 	return &Evaluator{
 		Evaluator:        eval.Evaluator.WithKey(evk),
 		parameters:       eval.parameters,

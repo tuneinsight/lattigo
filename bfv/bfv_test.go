@@ -114,8 +114,7 @@ func genTestParams(params Parameters) (tc *testContext, err error) {
 	tc.encryptorPk = NewEncryptor(tc.params, tc.pk)
 	tc.encryptorSk = NewEncryptor(tc.params, tc.sk)
 	tc.decryptor = NewDecryptor(tc.params, tc.sk)
-	evk := rlwe.NewEvaluationKeySet()
-	evk.RelinearizationKey = tc.kgen.GenRelinearizationKeyNew(tc.sk)
+	evk := rlwe.NewMemEvaluationKeySet(tc.kgen.GenRelinearizationKeyNew(tc.sk))
 	tc.evaluator = NewEvaluator(tc.params, evk)
 
 	tc.testLevel = []int{0, params.MaxLevel()}
@@ -657,12 +656,8 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		galEls := linTransf.GaloisElements(params)
 
-		evk := rlwe.NewEvaluationKeySet()
-		for _, galEl := range galEls {
-			evk.GaloisKeys[galEl] = tc.kgen.GenGaloisKeyNew(galEl, tc.sk)
-		}
-
-		eval := tc.evaluator.WithKey(evk)
+		gks := tc.kgen.GenGaloisKeysNew(tc.params.GaloisElementsForRotations(rotations), tc.sk)
+		eval := tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(nil, gks...))
 
 		eval.LinearTransform(ciphertext, linTransf, []*rlwe.Ciphertext{ciphertext})
 
@@ -714,10 +709,8 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		galEls := linTransf.GaloisElements(params)
 
-		evk := rlwe.NewEvaluationKeySet()
-		for _, galEl := range galEls {
-			evk.GaloisKeys[galEl] = tc.kgen.GenGaloisKeyNew(galEl, tc.sk)
-		}
+		gks := tc.kgen.GenGaloisKeysNew(tc.params.GaloisElementsForRotations(rotations), tc.sk)
+		evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
 
 		eval := tc.evaluator.WithKey(evk)
 

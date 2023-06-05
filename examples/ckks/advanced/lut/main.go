@@ -147,14 +147,9 @@ func main() {
 	galEls := paramsN12.GaloisElementsForTrace(0)
 	galEls = append(galEls, SlotsToCoeffsParameters.GaloisElements(paramsN12)...)
 	galEls = append(galEls, CoeffsToSlotsParameters.GaloisElements(paramsN12)...)
+	galEls = append(galEls, paramsN12.GaloisElementForRowRotation())
 
-	evk := rlwe.NewEvaluationKeySet()
-
-	for _, galEl := range galEls {
-		evk.GaloisKeys[galEl] = kgenN12.GenGaloisKeyNew(galEl, skN12)
-	}
-
-	evk.GaloisKeys[paramsN12.GaloisElementInverse()] = kgenN12.GenGaloisKeyNew(paramsN12.GaloisElementInverse(), skN12)
+	evk := rlwe.NewMemEvaluationKeySet(nil, kgenN12.GenGaloisKeysNew(galEls, skN12)...)
 
 	// LUT Evaluator
 	evalLUT := lut.NewEvaluator(paramsN12.Parameters, paramsN11.Parameters, evk)

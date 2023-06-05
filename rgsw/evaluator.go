@@ -17,7 +17,7 @@ type Evaluator struct {
 
 // NewEvaluator creates a new Evaluator type supporting RGSW operations in addition
 // to rlwe.Evaluator operations.
-func NewEvaluator(params rlwe.Parameters, evk rlwe.EvaluationKeySetInterface) *Evaluator {
+func NewEvaluator(params rlwe.Parameters, evk rlwe.EvaluationKeySet) *Evaluator {
 	return &Evaluator{*rlwe.NewEvaluator(params, evk), params}
 }
 
@@ -30,7 +30,7 @@ func (eval *Evaluator) ShallowCopy() *Evaluator {
 
 // WithKey creates a shallow copy of the receiver Evaluator for which the new EvaluationKey is evaluationKey
 // and where the temporary buffers are shared. The receiver and the returned Evaluators cannot be used concurrently.
-func (eval *Evaluator) WithKey(evk rlwe.EvaluationKeySetInterface) *Evaluator {
+func (eval *Evaluator) WithKey(evk rlwe.EvaluationKeySet) *Evaluator {
 	return &Evaluator{*eval.Evaluator.WithKey(evk), eval.params}
 }
 

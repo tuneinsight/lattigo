@@ -634,8 +634,7 @@ func testAutomorphism(tc *TestContext, level int, t *testing.T) {
 		gk := kgen.GenGaloisKeyNew(galEl, sk)
 
 		// Allocate a new EvaluationKeySet and adds the GaloisKey
-		evk := NewEvaluationKeySet()
-		evk.GaloisKeys[gk.GaloisElement] = gk
+		evk := NewMemEvaluationKeySet(nil, gk)
 
 		// Evaluate the automorphism
 		eval.WithKey(evk).Automorphism(ct, galEl, ct)
@@ -679,8 +678,7 @@ func testAutomorphism(tc *TestContext, level int, t *testing.T) {
 		gk := kgen.GenGaloisKeyNew(galEl, sk)
 
 		// Allocate a new EvaluationKeySet and adds the GaloisKey
-		evk := NewEvaluationKeySet()
-		evk.GaloisKeys[gk.GaloisElement] = gk
+		evk := NewMemEvaluationKeySet(nil, gk)
 
 		//Decompose the ciphertext
 		eval.DecomposeNTT(level, params.MaxLevelP(), params.MaxLevelP()+1, ct.Value[1], ct.IsNTT, eval.BuffDecompQP)
@@ -727,8 +725,7 @@ func testAutomorphism(tc *TestContext, level int, t *testing.T) {
 		gk := kgen.GenGaloisKeyNew(galEl, sk)
 
 		// Allocate a new EvaluationKeySet and adds the GaloisKey
-		evk := NewEvaluationKeySet()
-		evk.GaloisKeys[gk.GaloisElement] = gk
+		evk := NewMemEvaluationKeySet(nil, gk)
 
 		//Decompose the ciphertext
 		eval.DecomposeNTT(level, params.MaxLevelP(), params.MaxLevelP()+1, ct.Value[1], ct.IsNTT, eval.BuffDecompQP)
@@ -808,10 +805,8 @@ func testLinearTransform(tc *TestContext, level int, t *testing.T) {
 		enc.Encrypt(pt, ctIn)
 
 		// GaloisKeys
-		evk := NewEvaluationKeySet()
-		for _, galEl := range params.GaloisElementsForExpand(logN) {
-			evk.GaloisKeys[galEl] = kgen.GenGaloisKeyNew(galEl, sk)
-		}
+		var gks = kgen.GenGaloisKeysNew(params.GaloisElementsForExpand(logN), sk)
+		evk := NewMemEvaluationKeySet(nil, gks...)
 
 		eval := NewEvaluator(params, evk)
 
@@ -874,10 +869,8 @@ func testLinearTransform(tc *TestContext, level int, t *testing.T) {
 		}
 
 		// Galois Keys
-		evk := NewEvaluationKeySet()
-		for _, galEl := range params.GaloisElementsForPack(params.LogN()) {
-			evk.GaloisKeys[galEl] = kgen.GenGaloisKeyNew(galEl, sk)
-		}
+		gks := kgen.GenGaloisKeysNew(params.GaloisElementsForPack(params.LogN()), sk)
+		evk := NewMemEvaluationKeySet(nil, gks...)
 
 		ct := eval.WithKey(evk).Pack(ciphertexts, params.LogN(), false)
 
@@ -944,10 +937,8 @@ func testLinearTransform(tc *TestContext, level int, t *testing.T) {
 		}
 
 		// Galois Keys
-		evk := NewEvaluationKeySet()
-		for _, galEl := range params.GaloisElementsForPack(params.LogN() - 1) {
-			evk.GaloisKeys[galEl] = kgen.GenGaloisKeyNew(galEl, sk)
-		}
+		gks := kgen.GenGaloisKeysNew(params.GaloisElementsForPack(params.LogN()-1), sk)
+		evk := NewMemEvaluationKeySet(nil, gks...)
 
 		ct := eval.WithKey(evk).Pack(ciphertexts, params.LogN()-1, true)
 
@@ -977,10 +968,8 @@ func testLinearTransform(tc *TestContext, level int, t *testing.T) {
 		ct := enc.EncryptNew(pt)
 
 		// Galois Keys
-		evk := NewEvaluationKeySet()
-		for _, galEl := range params.GaloisElementsForInnerSum(batch, n) {
-			evk.GaloisKeys[galEl] = kgen.GenGaloisKeyNew(galEl, sk)
-		}
+		gks := kgen.GenGaloisKeysNew(params.GaloisElementsForInnerSum(batch, n), sk)
+		evk := NewMemEvaluationKeySet(nil, gks...)
 
 		eval.WithKey(evk).InnerSum(ct, batch, n, ct)
 
@@ -1093,9 +1082,9 @@ func testWriteAndRead(tc *TestContext, t *testing.T) {
 	})
 
 	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/EvaluationKeySet"), func(t *testing.T) {
-		buffer.TestInterfaceWriteAndRead(t, &EvaluationKeySet{
-			RelinearizationKey: tc.kgen.GenRelinearizationKeyNew(tc.sk),
-			GaloisKeys:         map[uint64]*GaloisKey{5: tc.kgen.GenGaloisKeyNew(5, tc.sk)},
+		buffer.TestInterfaceWriteAndRead(t, &MemEvaluationKeySet{
+			Rlk: tc.kgen.GenRelinearizationKeyNew(tc.sk),
+			Gks: map[uint64]*GaloisKey{5: tc.kgen.GenGaloisKeyNew(5, tc.sk)},
 		})
 	})
 

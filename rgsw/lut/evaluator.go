@@ -31,7 +31,7 @@ type Evaluator struct {
 }
 
 // NewEvaluator creates a new Handler
-func NewEvaluator(paramsLUT, paramsLWE rlwe.Parameters, evk rlwe.EvaluationKeySetInterface) (eval *Evaluator) {
+func NewEvaluator(paramsLUT, paramsLWE rlwe.Parameters, evk rlwe.EvaluationKeySet) (eval *Evaluator) {
 	eval = new(Evaluator)
 	eval.Evaluator = rgsw.NewEvaluator(paramsLUT, evk)
 	eval.paramsLUT = paramsLUT

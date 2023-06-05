@@ -46,9 +46,7 @@ func example() {
 
 	encoder := ckks.NewEncoder(params)
 
-	evk := rlwe.NewEvaluationKeySet()
-	evk.RelinearizationKey = kgen.GenRelinearizationKeyNew(sk)
-
+	evk := rlwe.NewMemEvaluationKeySet(kgen.GenRelinearizationKeyNew(sk))
 	evaluator := ckks.NewEvaluator(params, evk)
 
 	fmt.Printf("Done in %s \n", time.Since(start))

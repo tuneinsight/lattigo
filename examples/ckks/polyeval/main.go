@@ -48,8 +48,7 @@ func chebyshevinterpolation() {
 	decryptor := ckks.NewDecryptor(params, sk)
 
 	// Relinearization key
-	evk := rlwe.NewEvaluationKeySet()
-	evk.RelinearizationKey = kgen.GenRelinearizationKeyNew(sk)
+	evk := rlwe.NewMemEvaluationKeySet(kgen.GenRelinearizationKeyNew(sk))
 
 	// Evaluator
 	evaluator := ckks.NewEvaluator(params, evk)

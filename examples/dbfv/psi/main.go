@@ -120,8 +120,7 @@ func main() {
 	// 2) Collective relinearization key generation
 	rlk := rkgphase(params, crs, P)
 
-	evk := rlwe.NewEvaluationKeySet()
-	evk.RelinearizationKey = rlk
+	evk := rlwe.NewMemEvaluationKeySet(rlk)
 
 	l.Printf("\tdone (cloud: %s, party: %s)\n",
 		elapsedRKGCloud, elapsedRKGParty)
@@ -187,7 +186,7 @@ func encPhase(params bfv.Parameters, P []*party, pk *rlwe.PublicKey, encoder *bf
 	return
 }
 
-func evalPhase(params bfv.Parameters, NGoRoutine int, encInputs []*rlwe.Ciphertext, evk rlwe.EvaluationKeySetInterface) (encRes *rlwe.Ciphertext) {
+func evalPhase(params bfv.Parameters, NGoRoutine int, encInputs []*rlwe.Ciphertext, evk rlwe.EvaluationKeySet) (encRes *rlwe.Ciphertext) {
 
 	l := log.New(os.Stderr, "", 0)
 

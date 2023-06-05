@@ -130,6 +130,32 @@ func (kgen *KeyGenerator) GenGaloisKey(galEl uint64, sk *SecretKey, gk *GaloisKe
 	gk.NthRoot = ringQ.NthRoot()
 }
 
+// GenGaloisKeys generates the GaloisKey objects for all galois elements in galEls, and stores
+// the resulting key for galois element i in gks[i].
+// The galEls and gks parameters must have the same length.
+func (kgen *KeyGenerator) GenGaloisKeys(galEls []uint64, sk *SecretKey, gks []*GaloisKey) {
+	if len(galEls) != len(gks) {
+		panic("galEls and gks must have the same length")
+	}
+	for i, galEl := range galEls {
+		if gks[i] == nil {
+			gks[i] = kgen.GenGaloisKeyNew(galEl, sk)
+		} else {
+			kgen.GenGaloisKey(galEl, sk, gks[i])
+		}
+	}
+}
+
+// GenGaloisKeysNew generates the GaloisKey objects for all galois elements in galEls, and
+// returns the resulting keys in a newly allocated []*GaloisKey.
+func (kgen *KeyGenerator) GenGaloisKeysNew(galEls []uint64, sk *SecretKey) []*GaloisKey {
+	gks := make([]*GaloisKey, len(galEls))
+	for i, galEl := range galEls {
+		gks[i] = kgen.GenGaloisKeyNew(galEl, sk)
+	}
+	return gks
+}
+
 // GenEvaluationKeysForRingSwapNew generates the necessary EvaluationKeys to switch from a standard ring to to a conjugate invariant ring and vice-versa.
 func (kgen *KeyGenerator) GenEvaluationKeysForRingSwapNew(skStd, skConjugateInvariant *SecretKey) (stdToci, ciToStd *EvaluationKey) {
 

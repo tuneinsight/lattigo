@@ -302,10 +302,11 @@ func main() {
 	close(C.aggTaskQueue)
 
 	// collects the results in an EvaluationKeySet
-	evk := rlwe.NewEvaluationKeySet()
+	gks := []*rlwe.GaloisKey{}
 	for task := range C.finDone {
-		evk.GaloisKeys[task.GaloisElement] = &task
+		gks = append(gks, &task)
 	}
+	evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
 
 	fmt.Printf("Generation of %d keys completed in %s\n", len(galEls), time.Since(start))
 

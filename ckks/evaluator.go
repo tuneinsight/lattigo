@@ -56,7 +56,7 @@ func (eval *Evaluator) Add(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 	case rlwe.Operand:
 
 		// Checks operand validity and retrieves minimum level
-		_, level := eval.CheckBinary(op0.El(), op1.El(), op2.El(), utils.Max(op0.Degree(), op1.Degree()))
+		_, level := eval.InitOutputBinaryOp(op0.El(), op1.El(), utils.Max(op0.Degree(), op1.Degree()), op2.El())
 
 		// Generic inplace evaluation
 		eval.evaluateInPlace(level, op0, op1.El(), op2, eval.parameters.RingQ().AtLevel(level).Add)
@@ -116,7 +116,7 @@ func (eval *Evaluator) Sub(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 	case rlwe.Operand:
 
 		// Checks operand validity and retrieves minimum level
-		_, level := eval.CheckBinary(op0.El(), op1.El(), op2.El(), utils.Max(op0.Degree(), op1.Degree()))
+		_, level := eval.InitOutputBinaryOp(op0.El(), op1.El(), utils.Max(op0.Degree(), op1.Degree()), op2.El())
 
 		// Generic inplace evaluation
 		eval.evaluateInPlace(level, op0, op1.El(), op2, eval.parameters.RingQ().AtLevel(level).Sub)
@@ -605,7 +605,7 @@ func (eval *Evaluator) mulRelin(op0 *rlwe.Ciphertext, op1 *rlwe.OperandQ, relin 
 	// Case Ciphertext (x) Ciphertext
 	if op0.Degree() == 1 && op1.Degree() == 1 {
 
-		_, level := eval.CheckBinary(op0.El(), op1.El(), ctOut.El(), ctOut.Degree())
+		_, level := eval.InitOutputBinaryOp(op0.El(), op1.El(), ctOut.Degree(), ctOut.El())
 
 		ringQ := eval.parameters.RingQ().AtLevel(level)
 
@@ -667,7 +667,7 @@ func (eval *Evaluator) mulRelin(op0 *rlwe.Ciphertext, op1 *rlwe.OperandQ, relin 
 		// Case Plaintext (x) Ciphertext or Ciphertext (x) Plaintext
 	} else {
 
-		_, level := eval.CheckBinary(op0.El(), op1.El(), ctOut.El(), ctOut.Degree())
+		_, level := eval.InitOutputBinaryOp(op0.El(), op1.El(), ctOut.Degree(), ctOut.El())
 
 		ringQ := eval.parameters.RingQ().AtLevel(level)
 
@@ -833,7 +833,7 @@ func (eval *Evaluator) MulRelinThenAdd(op0, op1 *rlwe.Ciphertext, op2 *rlwe.Ciph
 
 func (eval *Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 *rlwe.OperandQ, relin bool, op2 *rlwe.Ciphertext) {
 
-	_, level := eval.CheckBinary(op0.El(), op1.El(), op2.El(), utils.Max(op0.Degree(), op1.Degree()))
+	_, level := eval.InitOutputBinaryOp(op0.El(), op1.El(), utils.Max(op0.Degree(), op1.Degree()), op2.El())
 
 	if op0.Degree()+op1.Degree() > 2 {
 		panic("cannot MulRelinThenAdd: the sum of the input elements' degree cannot be larger than 2")

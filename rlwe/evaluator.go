@@ -143,21 +143,23 @@ func (eval *Evaluator) CheckAndGetRelinearizationKey() (evk *RelinearizationKey,
 	return
 }
 
-// CheckBinary checks that:
+// InitOutputBinaryOp initializes the output Operand opOut for receiving the result of a binary operation over
+// op0 and op1. The method also performs the following checks:
 //
-// Inputs are not nil
-// op0.Degree() + op1.Degree() != 0 (i.e at least one operand is a ciphertext)
-// op0.IsNTT == op1.IsNTT == NTTFlag
-// op0.EncodingDomain == op1.EncodingDomain
+// 1. Inputs are not nil
+// 2. op0.Degree() + op1.Degree() != 0 (i.e at least one operand is a ciphertext)
+// 3. op0.IsNTT == op1.IsNTT == DefaultNTTFlag
+// 4. op0.EncodingDomain == op1.EncodingDomain
 //
-// The method will also resize opOut to the correct degree and level, and update its MetaData:
-//
-// IsNTT <- NTTFlag
+// The opOut metadata are initilized as:
+// IsNTT <- DefaultNTTFlag
 // EncodingDomain <- op0.EncodingDomain
 // PlaintextLogDimensions <- max(op0.PlaintextLogDimensions, op1.PlaintextLogDimensions)
 //
-// and returns max(op0.Degree(), op1.Degree(), opOut.Degree()) and min(op0.Level(), op1.Level(), opOut.Level())
-func (eval *Evaluator) CheckBinary(op0, op1, opOut *OperandQ, opOutMinDegree int) (degree, level int) {
+// The opOutMinDegree can be used to force the output operand to a higher ciphertext degree.
+//
+// The method returns max(op0.Degree(), op1.Degree(), opOut.Degree()) and min(op0.Level(), op1.Level(), opOut.Level())
+func (eval *Evaluator) InitOutputBinaryOp(op0, op1 *OperandQ, opOutMinDegree int, opOut *OperandQ) (degree, level int) {
 
 	degree = utils.Max(op0.Degree(), op1.Degree())
 	degree = utils.Max(degree, opOut.Degree())
@@ -192,7 +194,11 @@ func (eval *Evaluator) CheckBinary(op0, op1, opOut *OperandQ, opOutMinDegree int
 	return
 }
 
-// CheckUnary checks that op0 and opOut are not nil and that op0 respects the NTTFlag.
+// InitOutputUnaryOp initializes the output Operand opOut for receiving the result of a unary operation over
+// op0. The method also performs the following checks:
+//
+// 1. Input and output are not nil
+// 2. op0.IsNTT == DefaultNTTFlag
 //
 // The method will also update the metadata of opOut:
 //
@@ -200,8 +206,8 @@ func (eval *Evaluator) CheckBinary(op0, op1, opOut *OperandQ, opOutMinDegree int
 // EncodingDomain <- op0.EncodingDomain
 // PlaintextLogDimensions <- op0.PlaintextLogDimensions
 //
-// Also returns max(op0.Degree(), opOut.Degree()) and min(op0.Level(), opOut.Level()).
-func (eval *Evaluator) CheckUnary(op0, opOut *OperandQ) (degree, level int) {
+// The method returns max(op0.Degree(), opOut.Degree()) and min(op0.Level(), opOut.Level()).
+func (eval *Evaluator) InitOutputUnaryOp(op0, opOut *OperandQ) (degree, level int) {
 
 	if op0 == nil || opOut == nil {
 		panic("op0 and opOut cannot be nil")

@@ -59,7 +59,7 @@ func benchString(opname string, params rlwe.Parameters) string {
 
 func benchPublicKeyGen(params rlwe.Parameters, b *testing.B) {
 
-	ckg := NewCKGProtocol(params)
+	ckg := NewPublicKeyGenProtocol(params)
 	sk := rlwe.NewKeyGenerator(params).GenSecretKeyNew()
 	s1 := ckg.AllocateShare()
 	crs, _ := sampling.NewPRNG()
@@ -88,7 +88,7 @@ func benchPublicKeyGen(params rlwe.Parameters, b *testing.B) {
 
 func benchRelinKeyGen(params rlwe.Parameters, b *testing.B) {
 
-	rkg := NewRKGProtocol(params)
+	rkg := NewRelinKeyGenProtocol(params)
 	sk := rlwe.NewKeyGenerator(params).GenSecretKeyNew()
 	ephSk, share1, share2 := rkg.AllocateShare()
 	rlk := rlwe.NewRelinearizationKey(params)
@@ -123,7 +123,7 @@ func benchRelinKeyGen(params rlwe.Parameters, b *testing.B) {
 
 func benchRotKeyGen(params rlwe.Parameters, b *testing.B) {
 
-	rtg := NewGKGProtocol(params)
+	rtg := NewGaloisKeyGenProtocol(params)
 	sk := rlwe.NewKeyGenerator(params).GenSecretKeyNew()
 	share := rtg.AllocateShare()
 	crs, _ := sampling.NewPRNG()

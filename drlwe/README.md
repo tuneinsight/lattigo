@@ -94,20 +94,20 @@ After the execution of this protocol, the parties have access to the collective 
 
 #### 1.iv Evaluation-Key Generation
 In order to evaluate circuits on the collectively-encrypted inputs, the parties must generate the switching-keys that correspond to the operations they wish to support.
-The generation of a relinearization-key, which enables compact homomorphic multiplication, is described below (see `drlwe.RKGProtocol`).
+The generation of a relinearization-key, which enables compact homomorphic multiplication, is described below (see `drlwe.RelinKeyGenProtocol`).
 Additionally, and given that the circuit requires it, the parties can generate switching-keys to support rotations and other kinds of automorphisms (see `drlwe.RTGProtocol` below).
 
 ##### 1.iv.a Relinearization Key
 This protocol provides the parties with a public relinearization-key (`rlwe.RelinearizationKey`) for the _ideal secret-key_. This public-key enables compact multiplications in RLWE schemes. Out of the described protocols in this package, this is the only two-round protocol.
 
-The protocol is implemented by the  `drlwe.RKGProtocol` type and its steps are as follows:
-- Each party samples a common random polynomial matrix (`drlwe.RKGCRP`) from the CRS by using the `RKGProtocol.SampleCRP` method.
+The protocol is implemented by the  `drlwe.RelinKeyGenProtocol` type and its steps are as follows:
+- Each party samples a common random polynomial matrix (`drlwe.RelinKeyGenCRP`) from the CRS by using the `RelinKeyGenProtocol.SampleCRP` method.
 - _[if t < N]_ Each party uses the `drlwe.Combiner.GenAdditiveShare` to obtain a t-out-of-t sharing and use the result as their secret-key in the next steps.
-- Each party generates a share (`drlwe.RGKShare`) for the first protocol round by using the `RKGProtocol.GenShareRoundOne` method. This method also provides the party with an ephemeral secret-key (`rlwe.SecretKey`), which is required for the second round.
-- Each party discloses its share for the first round over the public channel. The shares are aggregated with the `RKGProtocol.AggregateShares` method.
-- Each party generates a share (also a `drlwe.RGKShare`) for the second protocol round by using the `RKGProtocol.GenShareRoundTwo` method.
-- Each party discloses its share for the second round over the public channel. The shares are aggregated with the `RKGProtocol.AggregateShares` method.
-- Each party can derive the public relinearization-key (`rlwe.RelinearizationKey`) by using the `RKGProtocol.GenRelinearizationKey` method.
+- Each party generates a share (`drlwe.RGKShare`) for the first protocol round by using the `RelinKeyGenProtocol.GenShareRoundOne` method. This method also provides the party with an ephemeral secret-key (`rlwe.SecretKey`), which is required for the second round.
+- Each party discloses its share for the first round over the public channel. The shares are aggregated with the `RelinKeyGenProtocol.AggregateShares` method.
+- Each party generates a share (also a `drlwe.RGKShare`) for the second protocol round by using the `RelinKeyGenProtocol.GenShareRoundTwo` method.
+- Each party discloses its share for the second round over the public channel. The shares are aggregated with the `RelinKeyGenProtocol.AggregateShares` method.
+- Each party can derive the public relinearization-key (`rlwe.RelinearizationKey`) by using the `RelinKeyGenProtocol.GenRelinearizationKey` method.
 
 #### 1.iv.b Rotation-keys and other Automorphisms
 This protocol provides the parties with a public Galois-key (stored as `rlwe.GaloisKey` types) for the _ideal secret-key_. One rotation-key enables one specific rotation on the ciphertexts' slots. The protocol can be repeated to generate the keys for multiple rotations.
@@ -144,13 +144,13 @@ The second step is the local decryption of this re-encrypted ciphertext by the r
 #### 2.iii.a Collective Key-Switching
 The parties perform a re-encryption of the desired ciphertext(s) from being encrypted under the _ideal secret-key_ to being encrypted under the receiver's secret-key.
 There are two instantiations of the Collective Key-Switching protocol:
-- Collective Key-Switching (CKS), implemented as the `drlwe.CKSProtocol` interface: it enables the parties to switch from their _ideal secret-key_ _s_ to another _ideal secret-key_ _s'_ when s' is collectively known by the parties. In the case where _s' = 0_, this is equivalent to a collective decryption protocol that can be used when the receiver is one of the input-parties. 
-- Collective Public-Key Switching (PCKS), implemented as the `drlwe.PCKSProtocol` interface, enables parties to switch from their _ideal secret-key_ _s_ to an arbitrary key _s'_ when provided with a public encryption-key for _s'_. Hence, this enables key-switching to a secret-key that is not known to the input parties, which enables external receivers.
+- Collective Key-Switching (KeySwitch), implemented as the `drlwe.KeySwitchProtocol` interface: it enables the parties to switch from their _ideal secret-key_ _s_ to another _ideal secret-key_ _s'_ when s' is collectively known by the parties. In the case where _s' = 0_, this is equivalent to a collective decryption protocol that can be used when the receiver is one of the input-parties. 
+- Collective Public-Key Switching (PKeySwitch), implemented as the `drlwe.PKeySwitchProtocol` interface, enables parties to switch from their _ideal secret-key_ _s_ to an arbitrary key _s'_ when provided with a public encryption-key for _s'_. Hence, this enables key-switching to a secret-key that is not known to the input parties, which enables external receivers.
 
 While both protocol variants have slightly different local operations, their steps are the same:
-- Each party generates a share (of type `drlwe.CKSShare` or `drlwe.PCKSShare`) with the `drlwe.(P)CKSProtocol.GenShare` method. This requires its own secret-key (a `rlwe.SecretKey`) as well as the destination key: its own share of the destination key (a `rlwe.SecretKey`) in CKS or the destination public-key (a `rlwe.PublicKey`) in PCKS.
-- Each party discloses its `drlwe.CKSShare` over the public channel. The shares are aggregated with the `(P)CKSProtocol.AggregateShares` method.
-- From the aggregated `drlwe.CKSShare`, any party can derive the ciphertext re-encrypted under _s'_ by using the `(P)CKSProtocol.KeySwitch` method.
+- Each party generates a share (of type `drlwe.KeySwitchShare` or `drlwe.PublicKeySwitchShare`) with the `drlwe.(Public)KeySwitchProtocol.GenShare` method. This requires its own secret-key (a `rlwe.SecretKey`) as well as the destination key: its own share of the destination key (a `rlwe.SecretKey`) in KeySwitch or the destination public-key (a `rlwe.PublicKey`) in PKeySwitch.
+- Each party discloses its `drlwe.KeySwitchShare` over the public channel. The shares are aggregated with the `(Public)KeySwitchProtocol.AggregateShares` method.
+- From the aggregated `drlwe.KeySwitchShare`, any party can derive the ciphertext re-encrypted under _s'_ by using the `(Public)KeySwitchProtocol.KeySwitch` method.
 
 #### 2.iii.b Decryption
 Once the receivers have obtained the ciphertext re-encrypted under their respective keys, they can use the usual decryption algorithm of the single-party scheme to obtain the plaintext result (see [bfv.Decryptor](../bfv/decryptor.go) and [ckks.Decryptor](../ckks/decryptor.go)).

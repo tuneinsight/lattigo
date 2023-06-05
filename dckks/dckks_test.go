@@ -93,7 +93,7 @@ func TestDCKKS(t *testing.T) {
 			}
 
 			for _, testSet := range []func(tc *testContext, t *testing.T){
-				testE2SProtocol,
+				testEncToShareProtocol,
 				testRefresh,
 				testRefreshAndTransform,
 				testRefreshAndTransformSwitchParams,
@@ -150,11 +150,11 @@ func genTestParams(params ckks.Parameters, NParties int) (tc *testContext, err e
 	return
 }
 
-func testE2SProtocol(tc *testContext, t *testing.T) {
+func testEncToShareProtocol(tc *testContext, t *testing.T) {
 
 	params := tc.params
 
-	t.Run(GetTestName("E2SProtocol", tc.NParties, params), func(t *testing.T) {
+	t.Run(GetTestName("EncToShareProtocol", tc.NParties, params), func(t *testing.T) {
 
 		var minLevel int
 		var logBound uint
@@ -164,11 +164,11 @@ func testE2SProtocol(tc *testContext, t *testing.T) {
 		}
 
 		type Party struct {
-			e2s            *E2SProtocol
-			s2e            *S2EProtocol
+			e2s            *EncToShareProtocol
+			s2e            *ShareToEncProtocol
 			sk             *rlwe.SecretKey
-			publicShareE2S *drlwe.CKSShare
-			publicShareS2E *drlwe.CKSShare
+			publicShareE2S *drlwe.KeySwitchShare
+			publicShareS2E *drlwe.KeySwitchShare
 			secretShare    *drlwe.AdditiveShareBigint
 		}
 
@@ -179,8 +179,8 @@ func testE2SProtocol(tc *testContext, t *testing.T) {
 		params := tc.params
 		P := make([]Party, tc.NParties)
 		for i := range P {
-			P[i].e2s = NewE2SProtocol(params, params.Xe())
-			P[i].s2e = NewS2EProtocol(params, params.Xe())
+			P[i].e2s = NewEncToShareProtocol(params, params.Xe())
+			P[i].s2e = NewShareToEncProtocol(params, params.Xe())
 			P[i].sk = tc.sk0Shards[i]
 			P[i].publicShareE2S = P[i].e2s.AllocateShare(minLevel)
 			P[i].publicShareS2E = P[i].s2e.AllocateShare(params.MaxLevel())

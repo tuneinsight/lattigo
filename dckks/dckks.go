@@ -9,32 +9,32 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 )
 
-// NewCKGProtocol creates a new drlwe.CKGProtocol instance from the CKKS parameters.
+// NewPublicKeyGenProtocol creates a new drlwe.PublicKeyGenProtocol instance from the CKKS parameters.
 // The returned protocol instance is generic and can be used in other multiparty schemes.
-func NewCKGProtocol(params ckks.Parameters) *drlwe.CKGProtocol {
-	return drlwe.NewCKGProtocol(params.Parameters)
+func NewPublicKeyGenProtocol(params ckks.Parameters) *drlwe.PublicKeyGenProtocol {
+	return drlwe.NewPublicKeyGenProtocol(params.Parameters)
 }
 
-// NewRKGProtocol creates a new drlwe.RKGProtocol instance from the CKKS parameters.
+// NewRelinKeyGenProtocol creates a new drlwe.RelinKeyGenProtocol instance from the CKKS parameters.
 // The returned protocol instance is generic and can be used in other multiparty schemes.
-func NewRKGProtocol(params ckks.Parameters) *drlwe.RKGProtocol {
-	return drlwe.NewRKGProtocol(params.Parameters)
+func NewRelinKeyGenProtocol(params ckks.Parameters) *drlwe.RelinKeyGenProtocol {
+	return drlwe.NewRelinKeyGenProtocol(params.Parameters)
 }
 
-// NewGKGProtocol creates a new drlwe.GKGProtocol instance from the CKKS parameters.
+// NewGaloisKeyGenProtocol creates a new drlwe.GaloisKeyGenProtocol instance from the CKKS parameters.
 // The returned protocol instance is generic and can be used in other multiparty schemes.
-func NewGKGProtocol(params ckks.Parameters) *drlwe.GKGProtocol {
-	return drlwe.NewGKGProtocol(params.Parameters)
+func NewGaloisKeyGenProtocol(params ckks.Parameters) *drlwe.GaloisKeyGenProtocol {
+	return drlwe.NewGaloisKeyGenProtocol(params.Parameters)
 }
 
-// NewCKSProtocol creates a new drlwe.CKSProtocol instance from the CKKS parameters.
+// NewKeySwitchProtocol creates a new drlwe.KeySwitchProtocol instance from the CKKS parameters.
 // The returned protocol instance is generic and can be used in other multiparty schemes.
-func NewCKSProtocol(params ckks.Parameters, noise distribution.Distribution) *drlwe.CKSProtocol {
-	return drlwe.NewCKSProtocol(params.Parameters, noise)
+func NewKeySwitchProtocol(params ckks.Parameters, noise distribution.Distribution) *drlwe.KeySwitchProtocol {
+	return drlwe.NewKeySwitchProtocol(params.Parameters, noise)
 }
 
-// NewPCKSProtocol creates a new drlwe.PCKSProtocol instance from the CKKS paramters.
+// NewPublicKeySwitchProtocol creates a new drlwe.PublicKeySwitchProtocol instance from the CKKS paramters.
 // The returned protocol instance is generic and can be used in other multiparty schemes.
-func NewPCKSProtocol(params ckks.Parameters, noise distribution.Distribution) *drlwe.PCKSProtocol {
-	return drlwe.NewPCKSProtocol(params.Parameters, noise)
+func NewPublicKeySwitchProtocol(params ckks.Parameters, noise distribution.Distribution) *drlwe.PublicKeySwitchProtocol {
+	return drlwe.NewPublicKeySwitchProtocol(params.Parameters, noise)
 }

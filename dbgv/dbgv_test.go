@@ -166,10 +166,10 @@ func testEncToShares(tc *testContext, t *testing.T) {
 	coeffs, _, ciphertext := newTestVectors(tc, tc.encryptorPk0, t)
 
 	type Party struct {
-		e2s         *E2SProtocol
-		s2e         *S2EProtocol
+		e2s         *EncToShareProtocol
+		s2e         *ShareToEncProtocol
 		sk          *rlwe.SecretKey
-		publicShare *drlwe.CKSShare
+		publicShare *drlwe.KeySwitchShare
 		secretShare *drlwe.AdditiveShare
 	}
 
@@ -178,8 +178,8 @@ func testEncToShares(tc *testContext, t *testing.T) {
 
 	for i := range P {
 		if i == 0 {
-			P[i].e2s = NewE2SProtocol(params, params.Xe())
-			P[i].s2e = NewS2EProtocol(params, params.Xe())
+			P[i].e2s = NewEncToShareProtocol(params, params.Xe())
+			P[i].s2e = NewShareToEncProtocol(params, params.Xe())
 		} else {
 			P[i].e2s = P[0].e2s.ShallowCopy()
 			P[i].s2e = P[0].s2e.ShallowCopy()
@@ -190,7 +190,7 @@ func testEncToShares(tc *testContext, t *testing.T) {
 		P[i].secretShare = NewAdditiveShare(params)
 	}
 
-	// The E2S protocol is run in all tests, as a setup to the S2E test.
+	// The EncToShare protocol is run in all tests, as a setup to the ShareToEnc test.
 	for i, p := range P {
 		p.e2s.GenShare(p.sk, ciphertext, p.secretShare, p.publicShare)
 		if i > 0 {
@@ -200,7 +200,11 @@ func testEncToShares(tc *testContext, t *testing.T) {
 
 	P[0].e2s.GetShare(P[0].secretShare, P[0].publicShare, ciphertext, P[0].secretShare)
 
+<<<<<<< 538a296536bad5a62ff6ad7fedc8f136b4f3dbc3:dbgv/dbgv_test.go
 	t.Run(GetTestName("E2SProtocol", tc.params, tc.NParties), func(t *testing.T) {
+=======
+	t.Run(testString("EncToShareProtocol", tc.NParties, tc.params), func(t *testing.T) {
+>>>>>>> Renamed protocols-related structs and functions to avoid abbreviations:dbgv/dbgvfv_test.go
 
 		rec := NewAdditiveShare(params)
 		for _, p := range P {
@@ -218,7 +222,11 @@ func testEncToShares(tc *testContext, t *testing.T) {
 
 	crp := P[0].e2s.SampleCRP(params.MaxLevel(), tc.crs)
 
+<<<<<<< 538a296536bad5a62ff6ad7fedc8f136b4f3dbc3:dbgv/dbgv_test.go
 	t.Run(GetTestName("S2EProtocol", tc.params, tc.NParties), func(t *testing.T) {
+=======
+	t.Run(testString("ShareToEncProtocol", tc.NParties, tc.params), func(t *testing.T) {
+>>>>>>> Renamed protocols-related structs and functions to avoid abbreviations:dbgv/dbgvfv_test.go
 
 		for i, p := range P {
 			p.s2e.GenShare(p.sk, crp, p.secretShare, p.publicShare)

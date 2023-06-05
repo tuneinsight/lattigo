@@ -36,10 +36,10 @@ type party struct {
 	sk         *rlwe.SecretKey
 	rlkEphemSk *rlwe.SecretKey
 
-	ckgShare    *drlwe.CKGShare
-	rkgShareOne *drlwe.RKGShare
-	rkgShareTwo *drlwe.RKGShare
-	pcksShare   *drlwe.PCKSShare
+	ckgShare    *drlwe.PublicKeyGenShare
+	rkgShareOne *drlwe.RelinKeyGenShare
+	rkgShareTwo *drlwe.RelinKeyGenShare
+	pcksShare   *drlwe.PublicKeySwitchShare
 
 	input []uint64
 }
@@ -300,13 +300,13 @@ func pcksPhase(params bfv.Parameters, tpk *rlwe.PublicKey, encRes *rlwe.Cipherte
 	// Collective key switching from the collective secret key to
 	// the target public key
 
-	pcks := dbfv.NewPCKSProtocol(params, params.Xe())
+	pcks := dbfv.NewPublicKeySwitchProtocol(params, params.Xe())
 
 	for _, pi := range P {
 		pi.pcksShare = pcks.AllocateShare(params.MaxLevel())
 	}
 
-	l.Println("> PCKS Phase")
+	l.Println("> PublicKeySwitch Phase")
 	elapsedPCKSParty = runTimedParty(func() {
 		for _, pi := range P {
 			pcks.GenShare(pi.sk, tpk, encRes, pi.pcksShare)
@@ -330,9 +330,9 @@ func pcksPhase(params bfv.Parameters, tpk *rlwe.PublicKey, encRes *rlwe.Cipherte
 func rkgphase(params bfv.Parameters, crs sampling.PRNG, P []*party) *rlwe.RelinearizationKey {
 	l := log.New(os.Stderr, "", 0)
 
-	l.Println("> RKG Phase")
+	l.Println("> RelinKeyGen Phase")
 
-	rkg := dbfv.NewRKGProtocol(params) // Relineariation key generation
+	rkg := dbfv.NewRelinKeyGenProtocol(params) // Relineariation key generation
 	_, rkgCombined1, rkgCombined2 := rkg.AllocateShare()
 
 	for _, pi := range P {
@@ -376,9 +376,9 @@ func ckgphase(params bfv.Parameters, crs sampling.PRNG, P []*party) *rlwe.Public
 
 	l := log.New(os.Stderr, "", 0)
 
-	l.Println("> CKG Phase")
+	l.Println("> PublicKeyGen Phase")
 
-	ckg := dbfv.NewCKGProtocol(params) // Public key generation
+	ckg := dbfv.NewPublicKeyGenProtocol(params) // Public key generation
 	ckgCombined := ckg.AllocateShare()
 	for _, pi := range P {
 		pi.ckgShare = ckg.AllocateShare()

@@ -10,8 +10,8 @@ import (
 
 // RefreshShare is a struct storing the decryption and recryption shares.
 type RefreshShare struct {
-	E2SShare CKSShare
-	S2EShare CKSShare
+	E2SShare KeySwitchShare
+	S2EShare KeySwitchShare
 }
 
 // BinarySize returns the size in bytes of the object

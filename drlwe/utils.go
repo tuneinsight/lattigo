@@ -30,13 +30,13 @@ func NoiseGaloisKey(params rlwe.Parameters, nbParties int) (std float64) {
 	return math.Sqrt(float64(nbParties)) * params.NoiseFreshSK()
 }
 
-// NoiseCKS returns the standard deviation of the noise of a ciphertext after the CKS protocol
-func NoiseCKS(params rlwe.Parameters, nbParties int, noisect, noiseflood float64) (std float64) {
+// NoiseKeySwitch returns the standard deviation of the noise of a ciphertext after the KeySwitch protocol
+func NoiseKeySwitch(params rlwe.Parameters, nbParties int, noisect, noiseflood float64) (std float64) {
 	// #Parties * (noiseflood + noiseFreshSK) + noise ct
 	return noiseDecryptWithSmudging(nbParties, noisect, params.NoiseFreshSK(), noiseflood)
 }
 
-func NoisePCKS(params rlwe.Parameters, nbParties int, noisect, noiseflood float64) (std float64) {
+func NoisePublicKeySwitch(params rlwe.Parameters, nbParties int, noisect, noiseflood float64) (std float64) {
 	// #Parties * (var(freshZeroPK) + var(noiseFlood)) + noise ct
 	return noiseDecryptWithSmudging(nbParties, noisect, params.NoiseFreshPK(), noiseflood)
 }

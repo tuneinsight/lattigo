@@ -92,16 +92,16 @@ func TestDRLWE(t *testing.T) {
 
 				tc := newTestContext(params)
 
-				testCKGProtocol(tc, params.MaxLevel(), t)
-				testRKGProtocol(tc, params.MaxLevel(), t)
-				testGKGProtocol(tc, params.MaxLevel(), t)
+				testPublicKeyGenProtocol(tc, params.MaxLevel(), t)
+				testRelinKeyGenProtocol(tc, params.MaxLevel(), t)
+				testGaloisKeyGenProtocol(tc, params.MaxLevel(), t)
 				testThreshold(tc, params.MaxLevel(), t)
 				testRefreshShare(tc, params.MaxLevel(), t)
 
 				for _, level := range []int{0, params.MaxLevel()} {
 					for _, testSet := range []func(tc *testContext, level int, t *testing.T){
-						testCKSProtocol,
-						testPCKSProtocol,
+						testKeySwitchProtocol,
+						testPublicKeySwitchProtocol,
 					} {
 						testSet(tc, level, t)
 						runtime.GC()
@@ -112,22 +112,22 @@ func TestDRLWE(t *testing.T) {
 	}
 }
 
-func testCKGProtocol(tc *testContext, level int, t *testing.T) {
+func testPublicKeyGenProtocol(tc *testContext, level int, t *testing.T) {
 
 	params := tc.params
 
-	t.Run(testString(params, level, "CKG/Protocol"), func(t *testing.T) {
+	t.Run(testString(params, level, "PublicKeyGen/Protocol"), func(t *testing.T) {
 
-		ckg := make([]*CKGProtocol, nbParties)
+		ckg := make([]*PublicKeyGenProtocol, nbParties)
 		for i := range ckg {
 			if i == 0 {
-				ckg[i] = NewCKGProtocol(params)
+				ckg[i] = NewPublicKeyGenProtocol(params)
 			} else {
 				ckg[i] = ckg[0].ShallowCopy()
 			}
 		}
 
-		shares := make([]*CKGShare, nbParties)
+		shares := make([]*PublicKeyGenShare, nbParties)
 		for i := range shares {
 			shares[i] = ckg[i].AllocateShare()
 		}
@@ -152,24 +152,24 @@ func testCKGProtocol(tc *testContext, level int, t *testing.T) {
 	})
 }
 
-func testRKGProtocol(tc *testContext, level int, t *testing.T) {
+func testRelinKeyGenProtocol(tc *testContext, level int, t *testing.T) {
 	params := tc.params
 
-	t.Run(testString(params, level, "RKG/Protocol"), func(t *testing.T) {
+	t.Run(testString(params, level, "RelinKeyGen/Protocol"), func(t *testing.T) {
 
-		rkg := make([]*RKGProtocol, nbParties)
+		rkg := make([]*RelinKeyGenProtocol, nbParties)
 
 		for i := range rkg {
 			if i == 0 {
-				rkg[i] = NewRKGProtocol(params)
+				rkg[i] = NewRelinKeyGenProtocol(params)
 			} else {
 				rkg[i] = rkg[0].ShallowCopy()
 			}
 		}
 
 		ephSk := make([]*rlwe.SecretKey, nbParties)
-		share1 := make([]*RKGShare, nbParties)
-		share2 := make([]*RKGShare, nbParties)
+		share1 := make([]*RelinKeyGenShare, nbParties)
+		share2 := make([]*RelinKeyGenShare, nbParties)
 
 		for i := range rkg {
 			ephSk[i], share1[i], share2[i] = rkg[i].AllocateShare()
@@ -206,22 +206,22 @@ func testRKGProtocol(tc *testContext, level int, t *testing.T) {
 	})
 }
 
-func testGKGProtocol(tc *testContext, level int, t *testing.T) {
+func testGaloisKeyGenProtocol(tc *testContext, level int, t *testing.T) {
 
 	params := tc.params
 
-	t.Run(testString(params, level, "GKGProtocol"), func(t *testing.T) {
+	t.Run(testString(params, level, "GaloisKeyGenProtocol"), func(t *testing.T) {
 
-		gkg := make([]*GKGProtocol, nbParties)
+		gkg := make([]*GaloisKeyGenProtocol, nbParties)
 		for i := range gkg {
 			if i == 0 {
-				gkg[i] = NewGKGProtocol(params)
+				gkg[i] = NewGaloisKeyGenProtocol(params)
 			} else {
 				gkg[i] = gkg[0].ShallowCopy()
 			}
 		}
 
-		shares := make([]*GKGShare, nbParties)
+		shares := make([]*GaloisKeyGenShare, nbParties)
 		for i := range shares {
 			shares[i] = gkg[i].AllocateShare()
 		}
@@ -252,19 +252,19 @@ func testGKGProtocol(tc *testContext, level int, t *testing.T) {
 	})
 }
 
-func testCKSProtocol(tc *testContext, level int, t *testing.T) {
+func testKeySwitchProtocol(tc *testContext, level int, t *testing.T) {
 
 	params := tc.params
 
-	t.Run(testString(params, level, "CKS/Protocol"), func(t *testing.T) {
+	t.Run(testString(params, level, "KeySwitch/Protocol"), func(t *testing.T) {
 
-		cks := make([]*CKSProtocol, nbParties)
+		cks := make([]*KeySwitchProtocol, nbParties)
 
 		sigmaSmudging := 8 * rlwe.DefaultNoise
 
 		for i := range cks {
 			if i == 0 {
-				cks[i] = NewCKSProtocol(params, &distribution.DiscreteGaussian{Sigma: sigmaSmudging, Bound: 6 * sigmaSmudging})
+				cks[i] = NewKeySwitchProtocol(params, &distribution.DiscreteGaussian{Sigma: sigmaSmudging, Bound: 6 * sigmaSmudging})
 			} else {
 				cks[i] = cks[0].ShallowCopy()
 			}
@@ -280,7 +280,7 @@ func testCKSProtocol(tc *testContext, level int, t *testing.T) {
 		ct := rlwe.NewCiphertext(params, 1, level)
 		rlwe.NewEncryptor(params, tc.skIdeal).EncryptZero(ct)
 
-		shares := make([]*CKSShare, nbParties)
+		shares := make([]*KeySwitchShare, nbParties)
 		for i := range shares {
 			shares[i] = cks[i].AllocateShare(ct.Level())
 		}
@@ -311,7 +311,7 @@ func testCKSProtocol(tc *testContext, level int, t *testing.T) {
 			ringQ.INTT(pt.Value, pt.Value)
 		}
 
-		require.GreaterOrEqual(t, math.Log2(NoiseCKS(params, nbParties, params.NoiseFreshSK(), float64(sigmaSmudging)))+1, ringQ.Log2OfStandardDeviation(pt.Value))
+		require.GreaterOrEqual(t, math.Log2(NoiseKeySwitch(params, nbParties, params.NoiseFreshSK(), float64(sigmaSmudging)))+1, ringQ.Log2OfStandardDeviation(pt.Value))
 
 		cks[0].KeySwitch(ct, shares[0], ct)
 
@@ -321,24 +321,24 @@ func testCKSProtocol(tc *testContext, level int, t *testing.T) {
 			ringQ.INTT(pt.Value, pt.Value)
 		}
 
-		require.GreaterOrEqual(t, math.Log2(NoiseCKS(params, nbParties, params.NoiseFreshSK(), float64(sigmaSmudging)))+1, ringQ.Log2OfStandardDeviation(pt.Value))
+		require.GreaterOrEqual(t, math.Log2(NoiseKeySwitch(params, nbParties, params.NoiseFreshSK(), float64(sigmaSmudging)))+1, ringQ.Log2OfStandardDeviation(pt.Value))
 	})
 }
 
-func testPCKSProtocol(tc *testContext, level int, t *testing.T) {
+func testPublicKeySwitchProtocol(tc *testContext, level int, t *testing.T) {
 
 	params := tc.params
 
-	t.Run(testString(params, level, "PCKS/Protocol"), func(t *testing.T) {
+	t.Run(testString(params, level, "PublicKeySwitch/Protocol"), func(t *testing.T) {
 
 		skOut, pkOut := tc.kgen.GenKeyPairNew()
 
 		sigmaSmudging := 8 * rlwe.DefaultNoise
 
-		pcks := make([]*PCKSProtocol, nbParties)
+		pcks := make([]*PublicKeySwitchProtocol, nbParties)
 		for i := range pcks {
 			if i == 0 {
-				pcks[i] = NewPCKSProtocol(params, &distribution.DiscreteGaussian{Sigma: sigmaSmudging, Bound: 6 * sigmaSmudging})
+				pcks[i] = NewPublicKeySwitchProtocol(params, &distribution.DiscreteGaussian{Sigma: sigmaSmudging, Bound: 6 * sigmaSmudging})
 			} else {
 				pcks[i] = pcks[0].ShallowCopy()
 			}
@@ -348,7 +348,7 @@ func testPCKSProtocol(tc *testContext, level int, t *testing.T) {
 
 		rlwe.NewEncryptor(params, tc.skIdeal).EncryptZero(ct)
 
-		shares := make([]*PCKSShare, nbParties)
+		shares := make([]*PublicKeySwitchShare, nbParties)
 		for i := range shares {
 			shares[i] = pcks[i].AllocateShare(ct.Level())
 		}
@@ -378,7 +378,7 @@ func testPCKSProtocol(tc *testContext, level int, t *testing.T) {
 			ringQ.INTT(pt.Value, pt.Value)
 		}
 
-		require.GreaterOrEqual(t, math.Log2(NoisePCKS(params, nbParties, params.NoiseFreshSK(), float64(sigmaSmudging)))+1, ringQ.Log2OfStandardDeviation(pt.Value))
+		require.GreaterOrEqual(t, math.Log2(NoisePublicKeySwitch(params, nbParties, params.NoiseFreshSK(), float64(sigmaSmudging)))+1, ringQ.Log2OfStandardDeviation(pt.Value))
 
 		pcks[0].KeySwitch(ct, shares[0], ct)
 
@@ -388,7 +388,7 @@ func testPCKSProtocol(tc *testContext, level int, t *testing.T) {
 			ringQ.INTT(pt.Value, pt.Value)
 		}
 
-		require.GreaterOrEqual(t, math.Log2(NoisePCKS(params, nbParties, params.NoiseFreshSK(), float64(sigmaSmudging)))+1, ringQ.Log2OfStandardDeviation(pt.Value))
+		require.GreaterOrEqual(t, math.Log2(NoisePublicKeySwitch(params, nbParties, params.NoiseFreshSK(), float64(sigmaSmudging)))+1, ringQ.Log2OfStandardDeviation(pt.Value))
 	})
 }
 
@@ -482,7 +482,7 @@ func testRefreshShare(tc *testContext, level int, t *testing.T) {
 		ciphertext := &rlwe.Ciphertext{}
 		ciphertext.Value = []*ring.Poly{nil, ringQ.NewPoly()}
 		tc.uniformSampler.AtLevel(level).Read(ciphertext.Value[1])
-		cksp := NewCKSProtocol(tc.params, tc.params.Xe())
+		cksp := NewKeySwitchProtocol(tc.params, tc.params.Xe())
 		share1 := cksp.AllocateShare(level)
 		share2 := cksp.AllocateShare(level)
 		cksp.GenShare(tc.skShares[0], tc.skShares[1], ciphertext, share1)

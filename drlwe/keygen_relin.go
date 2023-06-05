@@ -10,8 +10,8 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/structs"
 )
 
-// RKGProtocol is the structure storing the parameters and and precomputations for the collective relinearization key generation protocol.
-type RKGProtocol struct {
+// RelinKeyGenProtocol is the structure storing the parameters and and precomputations for the collective relinearization key generation protocol.
+type RelinKeyGenProtocol struct {
 	params rlwe.Parameters
 
 	gaussianSamplerQ ring.Sampler
@@ -20,10 +20,20 @@ type RKGProtocol struct {
 	buf [2]*ringqp.Poly
 }
 
-// ShallowCopy creates a shallow copy of RKGProtocol in which all the read-only data-structures are
+// RelinKeyGenShare is a share in the RelinKeyGen protocol.
+type RelinKeyGenShare struct {
+	rlwe.GadgetCiphertext
+}
+
+// RelinKeyGenCRP is a type for common reference polynomials in the RelinKeyGen protocol.
+type RelinKeyGenCRP struct {
+	Value structs.Matrix[ringqp.Poly]
+}
+
+// ShallowCopy creates a shallow copy of RelinKeyGenProtocol in which all the read-only data-structures are
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// RKGProtocol can be used concurrently.
-func (ekg *RKGProtocol) ShallowCopy() *RKGProtocol {
+// RelinKeyGenProtocol can be used concurrently.
+func (ekg *RelinKeyGenProtocol) ShallowCopy() *RelinKeyGenProtocol {
 	var err error
 	prng, err := sampling.NewPRNG()
 	if err != nil {
@@ -32,7 +42,7 @@ func (ekg *RKGProtocol) ShallowCopy() *RKGProtocol {
 
 	params := ekg.params
 
-	return &RKGProtocol{
+	return &RelinKeyGenProtocol{
 		params:           ekg.params,
 		buf:              [2]*ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()},
 		gaussianSamplerQ: ring.NewSampler(prng, ekg.params.RingQ(), ekg.params.Xe(), false),
@@ -40,14 +50,9 @@ func (ekg *RKGProtocol) ShallowCopy() *RKGProtocol {
 	}
 }
 
-// RKGCRP is a type for common reference polynomials in the RKG protocol.
-type RKGCRP struct {
-	Value structs.Matrix[ringqp.Poly]
-}
-
-// NewRKGProtocol creates a new RKG protocol struct.
-func NewRKGProtocol(params rlwe.Parameters) *RKGProtocol {
-	rkg := new(RKGProtocol)
+// NewRelinKeyGenProtocol creates a new RelinKeyGen protocol struct.
+func NewRelinKeyGenProtocol(params rlwe.Parameters) *RelinKeyGenProtocol {
+	rkg := new(RelinKeyGenProtocol)
 	rkg.params = params
 
 	var err error
@@ -62,9 +67,9 @@ func NewRKGProtocol(params rlwe.Parameters) *RKGProtocol {
 	return rkg
 }
 
-// SampleCRP samples a common random polynomial to be used in the RKG protocol from the provided
+// SampleCRP samples a common random polynomial to be used in the RelinKeyGen protocol from the provided
 // common reference string.
-func (ekg *RKGProtocol) SampleCRP(crs CRS) RKGCRP {
+func (ekg *RelinKeyGenProtocol) SampleCRP(crs CRS) RelinKeyGenCRP {
 	params := ekg.params
 	decompRNS := params.DecompRNS(params.MaxLevelQ(), params.MaxLevelP())
 	decompPw2 := params.DecompPw2(params.MaxLevelQ(), params.MaxLevelP())
@@ -86,15 +91,15 @@ func (ekg *RKGProtocol) SampleCRP(crs CRS) RKGCRP {
 		}
 	}
 
-	return RKGCRP{Value: structs.Matrix[ringqp.Poly](m)}
+	return RelinKeyGenCRP{Value: structs.Matrix[ringqp.Poly](m)}
 }
 
-// GenShareRoundOne is the first of three rounds of the RKGProtocol protocol. Each party generates a pseudo encryption of
+// GenShareRoundOne is the first of three rounds of the RelinKeyGenProtocol protocol. Each party generates a pseudo encryption of
 // its secret share of the key s_i under its ephemeral key u_i : [-u_i*a + s_i*w + e_i] and broadcasts it to the other
 // j-1 parties.
 //
 // round1 = [-u_i * a + s_i * P + e_0i, s_i* a + e_i1]
-func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp RKGCRP, ephSkOut *rlwe.SecretKey, shareOut *RKGShare) {
+func (ekg *RelinKeyGenProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp RelinKeyGenCRP, ephSkOut *rlwe.SecretKey, shareOut *RelinKeyGenShare) {
 	// Given a base decomposition w_i (here the CRT decomposition)
 	// computes [-u*a_i + P*s_i + e_i, s_i * a + e_i]
 	// where a_i = crp_i
@@ -183,7 +188,7 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp RKGCRP, ephSkOu
 	}
 }
 
-// GenShareRoundTwo is the second of three rounds of the RKGProtocol protocol. Upon receiving the j-1 shares, each party computes :
+// GenShareRoundTwo is the second of three rounds of the RelinKeyGenProtocol protocol. Upon receiving the j-1 shares, each party computes :
 //
 // round1 = sum([-u_i * a + s_i * P + e_0i, s_i* a + e_i1])
 //
@@ -194,7 +199,7 @@ func (ekg *RKGProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp RKGCRP, ephSkOu
 //	= [s_i * {u * a + s * P + e0} + e_i2, (u_i - s_i) * {s * a + e1} + e_i3]
 //
 // and broadcasts both values to the other j-1 parties.
-func (ekg *RKGProtocol) GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGShare, shareOut *RKGShare) {
+func (ekg *RelinKeyGenProtocol) GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RelinKeyGenShare, shareOut *RelinKeyGenShare) {
 
 	levelQ := sk.LevelQ()
 	levelP := sk.LevelP()
@@ -241,8 +246,8 @@ func (ekg *RKGProtocol) GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 *RKGS
 	}
 }
 
-// AggregateShares combines two RKG shares into a single one.
-func (ekg *RKGProtocol) AggregateShares(share1, share2, shareOut *RKGShare) {
+// AggregateShares combines two RelinKeyGen shares into a single one.
+func (ekg *RelinKeyGenProtocol) AggregateShares(share1, share2, shareOut *RelinKeyGenShare) {
 
 	levelQ := share1.Value[0][0].LevelQ()
 	levelP := share1.Value[0][0].LevelP()
@@ -270,7 +275,7 @@ func (ekg *RKGProtocol) AggregateShares(share1, share2, shareOut *RKGShare) {
 // [round2[0] + round2[1], round1[1]] = [- s^2a - s*e1 + P*s^2 + s*e0 + u*e1 + e2 + e3, s * a + e1]
 //
 //	= [s * b + P * s^2 + s*e0 + u*e1 + e2 + e3, b]
-func (ekg *RKGProtocol) GenRelinearizationKey(round1 *RKGShare, round2 *RKGShare, evalKeyOut *rlwe.RelinearizationKey) {
+func (ekg *RelinKeyGenProtocol) GenRelinearizationKey(round1 *RelinKeyGenShare, round2 *RelinKeyGenShare, evalKeyOut *rlwe.RelinearizationKey) {
 
 	levelQ := round1.Value[0][0].LevelQ()
 	levelP := round1.Value[0][0].LevelP()
@@ -289,39 +294,34 @@ func (ekg *RKGProtocol) GenRelinearizationKey(round1 *RKGShare, round2 *RKGShare
 	}
 }
 
-// RKGShare is a share in the RKG protocol.
-type RKGShare struct {
-	rlwe.GadgetCiphertext
-}
-
 // AllocateShare allocates the share of the EKG protocol.
-func (ekg *RKGProtocol) AllocateShare() (ephSk *rlwe.SecretKey, r1 *RKGShare, r2 *RKGShare) {
+func (ekg *RelinKeyGenProtocol) AllocateShare() (ephSk *rlwe.SecretKey, r1 *RelinKeyGenShare, r2 *RelinKeyGenShare) {
 	params := ekg.params
 	ephSk = rlwe.NewSecretKey(params)
 
 	decompRNS := params.DecompRNS(params.MaxLevelQ(), params.MaxLevelP())
 	decompPw2 := params.DecompPw2(params.MaxLevelQ(), params.MaxLevelP())
 
-	r1 = &RKGShare{GadgetCiphertext: *rlwe.NewGadgetCiphertext(params, params.MaxLevelQ(), params.MaxLevelP(), decompRNS, decompPw2)}
-	r2 = &RKGShare{GadgetCiphertext: *rlwe.NewGadgetCiphertext(params, params.MaxLevelQ(), params.MaxLevelP(), decompRNS, decompPw2)}
+	r1 = &RelinKeyGenShare{GadgetCiphertext: *rlwe.NewGadgetCiphertext(params, params.MaxLevelQ(), params.MaxLevelP(), decompRNS, decompPw2)}
+	r2 = &RelinKeyGenShare{GadgetCiphertext: *rlwe.NewGadgetCiphertext(params, params.MaxLevelQ(), params.MaxLevelP(), decompRNS, decompPw2)}
 
 	return
 }
 
 // BinarySize returns the size in bytes of the object
 // when encoded using Encode.
-func (share *RKGShare) BinarySize() int {
+func (share *RelinKeyGenShare) BinarySize() int {
 	return share.GadgetCiphertext.BinarySize()
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
-func (share *RKGShare) MarshalBinary() (data []byte, err error) {
+func (share *RelinKeyGenShare) MarshalBinary() (data []byte, err error) {
 	return share.GadgetCiphertext.MarshalBinary()
 }
 
 // Encode encodes the object into a binary form on a preallocated slice of bytes
 // and returns the number of bytes written.
-func (share *RKGShare) Encode(data []byte) (n int, err error) {
+func (share *RelinKeyGenShare) Encode(data []byte) (n int, err error) {
 	return share.GadgetCiphertext.Encode(data)
 }
 
@@ -332,19 +332,19 @@ func (share *RKGShare) Encode(data []byte) (n int, err error) {
 // If w is not compliant to the buffer.Writer interface, it will be wrapped in
 // a new bufio.Writer.
 // For additional information, see lattigo/utils/buffer/writer.go.
-func (share *RKGShare) WriteTo(w io.Writer) (n int64, err error) {
+func (share *RelinKeyGenShare) WriteTo(w io.Writer) (n int64, err error) {
 	return share.GadgetCiphertext.WriteTo(w)
 }
 
 // UnmarshalBinary decodes a slice of bytes generated by
 // MarshalBinary or WriteTo on the object.
-func (share *RKGShare) UnmarshalBinary(data []byte) (err error) {
+func (share *RelinKeyGenShare) UnmarshalBinary(data []byte) (err error) {
 	return share.GadgetCiphertext.UnmarshalBinary(data)
 }
 
 // Decode decodes a slice of bytes generated by Encode
 // on the object and returns the number of bytes read.
-func (share *RKGShare) Decode(data []byte) (n int, err error) {
+func (share *RelinKeyGenShare) Decode(data []byte) (n int, err error) {
 	return share.GadgetCiphertext.Decode(data)
 }
 
@@ -355,6 +355,6 @@ func (share *RKGShare) Decode(data []byte) (n int, err error) {
 // If r is not compliant to the buffer.Reader interface, it will be wrapped in
 // a new bufio.Reader.
 // For additional information, see lattigo/utils/buffer/reader.go.
-func (share *RKGShare) ReadFrom(r io.Reader) (n int64, err error) {
+func (share *RelinKeyGenShare) ReadFrom(r io.Reader) (n int64, err error) {
 	return share.GadgetCiphertext.ReadFrom(r)
 }

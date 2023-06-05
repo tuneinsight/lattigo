@@ -36,11 +36,11 @@ type party struct {
 	sk         *rlwe.SecretKey
 	rlkEphemSk *rlwe.SecretKey
 
-	ckgShare    *drlwe.CKGShare
-	rkgShareOne *drlwe.RKGShare
-	rkgShareTwo *drlwe.RKGShare
-	GKGShare    *drlwe.GKGShare
-	cksShare    *drlwe.CKSShare
+	ckgShare    *drlwe.PublicKeyGenShare
+	rkgShareOne *drlwe.RelinKeyGenShare
+	rkgShareTwo *drlwe.RelinKeyGenShare
+	gkgShare    *drlwe.GaloisKeyGenShare
+	cksShare    *drlwe.KeySwitchShare
 
 	input []uint64
 }
@@ -159,7 +159,7 @@ func main() {
 		encoder.Encode(maskCoeffs, plainMask[i])
 	}
 
-	// Ciphertexts encrypted under CKG and stored in the cloud
+	// Ciphertexts encrypted under collective public key and stored in the cloud
 	l.Println("> Encrypt Phase")
 	encryptor := bfv.NewEncryptor(params, pk)
 	pt := bfv.NewPlaintext(params, params.MaxLevel())
@@ -202,9 +202,9 @@ func main() {
 func cksphase(params bfv.Parameters, P []*party, result *rlwe.Ciphertext) *rlwe.Ciphertext {
 	l := log.New(os.Stderr, "", 0)
 
-	l.Println("> CKS Phase")
+	l.Println("> KeySwitch Phase")
 
-	cks := dbfv.NewCKSProtocol(params, params.Xe()) // Collective public-key re-encryption
+	cks := dbfv.NewKeySwitchProtocol(params, params.Xe()) // Collective public-key re-encryption
 
 	for _, pi := range P {
 		pi.cksShare = cks.AllocateShare(params.MaxLevel())
@@ -255,9 +255,9 @@ func ckgphase(params bfv.Parameters, crs sampling.PRNG, P []*party) *rlwe.Public
 
 	l := log.New(os.Stderr, "", 0)
 
-	l.Println("> CKG Phase")
+	l.Println("> PublicKeyGen Phase")
 
-	ckg := dbfv.NewCKGProtocol(params) // Public key generation
+	ckg := dbfv.NewPublicKeyGenProtocol(params) // Public key generation
 
 	ckgCombined := ckg.AllocateShare()
 	for _, pi := range P {
@@ -289,9 +289,9 @@ func ckgphase(params bfv.Parameters, crs sampling.PRNG, P []*party) *rlwe.Public
 func rkgphase(params bfv.Parameters, crs sampling.PRNG, P []*party) *rlwe.RelinearizationKey {
 	l := log.New(os.Stderr, "", 0)
 
-	l.Println("> RKG Phase")
+	l.Println("> RelinKeyGen Phase")
 
-	rkg := dbfv.NewRKGProtocol(params) // Relineariation key generation
+	rkg := dbfv.NewRelinKeyGenProtocol(params) // Relineariation key generation
 
 	_, rkgCombined1, rkgCombined2 := rkg.AllocateShare()
 
@@ -338,41 +338,41 @@ func gkgphase(params bfv.Parameters, crs sampling.PRNG, P []*party) (galKeys []*
 
 	l.Println("> RTG Phase")
 
-	gkg := dbfv.NewGKGProtocol(params) // Rotation keys generation
+	gkg := dbfv.NewGaloisKeyGenProtocol(params) // Rotation keys generation
 
 	for _, pi := range P {
-		pi.GKGShare = gkg.AllocateShare()
+		pi.gkgShare = gkg.AllocateShare()
 	}
 
 	galEls := append(params.GaloisElementsForInnerSum(1, params.N()>>1), params.GaloisElementInverse())
 	galKeys = make([]*rlwe.GaloisKey, len(galEls))
 
-	GKGShareCombined := gkg.AllocateShare()
+	gkgShareCombined := gkg.AllocateShare()
 
 	for i, galEl := range galEls {
 
-		GKGShareCombined.GaloisElement = galEl
+		gkgShareCombined.GaloisElement = galEl
 
 		crp := gkg.SampleCRP(crs)
 
 		elapsedGKGParty += runTimedParty(func() {
 			for _, pi := range P {
-				gkg.GenShare(pi.sk, galEl, crp, pi.GKGShare)
+				gkg.GenShare(pi.sk, galEl, crp, pi.gkgShare)
 			}
 
 		}, len(P))
 
 		elapsedGKGCloud += runTimed(func() {
 
-			gkg.AggregateShares(P[0].GKGShare, P[1].GKGShare, GKGShareCombined)
+			gkg.AggregateShares(P[0].gkgShare, P[1].gkgShare, gkgShareCombined)
 
 			for _, pi := range P[2:] {
-				gkg.AggregateShares(pi.GKGShare, GKGShareCombined, GKGShareCombined)
+				gkg.AggregateShares(pi.gkgShare, gkgShareCombined, gkgShareCombined)
 			}
 
 			galKeys[i] = rlwe.NewGaloisKey(params.Parameters)
 
-			gkg.GenGaloisKey(GKGShareCombined, crp, galKeys[i])
+			gkg.GenGaloisKey(gkgShareCombined, crp, galKeys[i])
 		})
 	}
 	l.Printf("\tdone (cloud: %s, party %s)\n", elapsedGKGCloud, elapsedGKGParty)

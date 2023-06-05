@@ -11,8 +11,8 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
-// PCKSProtocol is the structure storing the parameters for the collective public key-switching.
-type PCKSProtocol struct {
+// PublicKeySwitchProtocol is the structure storing the parameters for the collective public key-switching.
+type PublicKeySwitchProtocol struct {
 	params rlwe.Parameters
 	noise  distribution.Distribution
 
@@ -22,10 +22,15 @@ type PCKSProtocol struct {
 	noiseSampler ring.Sampler
 }
 
-// ShallowCopy creates a shallow copy of PCKSProtocol in which all the read-only data-structures are
+// PublicKeySwitchShare represents a party's share in the PublicKeySwitch protocol.
+type PublicKeySwitchShare struct {
+	rlwe.OperandQ
+}
+
+// ShallowCopy creates a shallow copy of PublicKeySwitchProtocol in which all the read-only data-structures are
 // shared with the receiver and the temporary bufers are reallocated. The receiver and the returned
-// PCKSProtocol can be used concurrently.
-func (pcks *PCKSProtocol) ShallowCopy() *PCKSProtocol {
+// PublicKeySwitchProtocol can be used concurrently.
+func (pcks *PublicKeySwitchProtocol) ShallowCopy() *PublicKeySwitchProtocol {
 	prng, err := sampling.NewPRNG()
 	if err != nil {
 		panic(err)
@@ -33,19 +38,19 @@ func (pcks *PCKSProtocol) ShallowCopy() *PCKSProtocol {
 
 	params := pcks.params
 
-	return &PCKSProtocol{
 		noiseSampler:       ring.NewSampler(prng, params.RingQ(), pcks.noise, false),
 		noise:              pcks.noise,
 		EncryptorInterface: rlwe.NewEncryptor(params, nil),
 		params:             params,
 		buf:                params.RingQ().NewPoly(),
+	return &PublicKeySwitchProtocol{
 	}
 }
 
-// NewPCKSProtocol creates a new PCKSProtocol object and will be used to re-encrypt a ciphertext ctx encrypted under a secret-shared key among j parties under a new
+// NewPublicKeySwitchProtocol creates a new PublicKeySwitchProtocol object and will be used to re-encrypt a ciphertext ctx encrypted under a secret-shared key among j parties under a new
 // collective public-key.
-func NewPCKSProtocol(params rlwe.Parameters, noise distribution.Distribution) (pcks *PCKSProtocol) {
-	pcks = new(PCKSProtocol)
+func NewPublicKeySwitchProtocol(params rlwe.Parameters, noise distribution.Distribution) (pcks *PublicKeySwitchProtocol) {
+	pcks = new(PublicKeySwitchProtocol)
 	pcks.params = params
 	pcks.noise = noise.CopyNew()
 
@@ -69,16 +74,16 @@ func NewPCKSProtocol(params rlwe.Parameters, noise distribution.Distribution) (p
 	return pcks
 }
 
-// AllocateShare allocates the shares of the PCKS protocol.
-func (pcks *PCKSProtocol) AllocateShare(levelQ int) (s *PCKSShare) {
-	return &PCKSShare{*rlwe.NewOperandQ(pcks.params, 1, levelQ)}
+// AllocateShare allocates the shares of the PublicKeySwitch protocol.
+func (pcks *PublicKeySwitchProtocol) AllocateShare(levelQ int) (s *PublicKeySwitchShare) {
+	return &PublicKeySwitchShare{*rlwe.NewOperandQ(pcks.params, 1, levelQ)}
 }
 
-// GenShare computes a party's share in the PCKS protocol from secret-key sk to public-key pk.
+// GenShare computes a party's share in the PublicKeySwitch protocol from secret-key sk to public-key pk.
 // ct is the rlwe.Ciphertext to keyswitch. Note that ct.Value[0] is not used by the function and can be nil/zero.
 //
 // Expected noise: ctNoise + encFreshPk + smudging
-func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct *rlwe.Ciphertext, shareOut *PCKSShare) {
+func (pcks *PublicKeySwitchProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct *rlwe.Ciphertext, shareOut *PublicKeySwitchShare) {
 
 	levelQ := utils.Min(shareOut.Level(), ct.Value[1].Level())
 
@@ -110,11 +115,11 @@ func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct *r
 	}
 }
 
-// AggregateShares is the second part of the first and unique round of the PCKSProtocol protocol. Each party upon receiving the j-1 elements from the
+// AggregateShares is the second part of the first and unique round of the PublicKeySwitchProtocol protocol. Each party upon receiving the j-1 elements from the
 // other parties computes :
 //
 // [ctx[0] + sum(s_i * ctx[0] + u_i * pk[0] + e_0i), sum(u_i * pk[1] + e_1i)]
-func (pcks *PCKSProtocol) AggregateShares(share1, share2, shareOut *PCKSShare) {
+func (pcks *PublicKeySwitchProtocol) AggregateShares(share1, share2, shareOut *PublicKeySwitchShare) {
 	levelQ1, levelQ2 := share1.Value[0].Level(), share1.Value[1].Level()
 	if levelQ1 != levelQ2 {
 		panic("cannot AggregateShares: the two shares are at different levelQ.")
@@ -125,7 +130,7 @@ func (pcks *PCKSProtocol) AggregateShares(share1, share2, shareOut *PCKSShare) {
 }
 
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
-func (pcks *PCKSProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined *PCKSShare, ctOut *rlwe.Ciphertext) {
+func (pcks *PublicKeySwitchProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined *PublicKeySwitchShare, ctOut *rlwe.Ciphertext) {
 
 	level := ctIn.Level()
 
@@ -139,25 +144,20 @@ func (pcks *PCKSProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined *PCKSShare, 
 	ring.CopyLvl(level, combined.Value[1], ctOut.Value[1])
 }
 
-// PCKSShare represents a party's share in the PCKS protocol.
-type PCKSShare struct {
-	rlwe.OperandQ
-}
-
 // BinarySize returns the size in bytes of the object
 // when encoded using Encode.
-func (share *PCKSShare) BinarySize() int {
+func (share *PublicKeySwitchShare) BinarySize() int {
 	return share.OperandQ.BinarySize()
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
-func (share *PCKSShare) MarshalBinary() (p []byte, err error) {
+func (share *PublicKeySwitchShare) MarshalBinary() (p []byte, err error) {
 	return share.OperandQ.MarshalBinary()
 }
 
 // Encode encodes the object into a binary form on a preallocated slice of bytes
 // and returns the number of bytes written.
-func (share *PCKSShare) Encode(p []byte) (n int, err error) {
+func (share *PublicKeySwitchShare) Encode(p []byte) (n int, err error) {
 	return share.OperandQ.Encode(p)
 }
 
@@ -168,19 +168,19 @@ func (share *PCKSShare) Encode(p []byte) (n int, err error) {
 // If w is not compliant to the bufer.Writer interface, it will be wrapped in
 // a new bufio.Writer.
 // For additional information, see lattigo/utils/bufer/writer.go.
-func (share *PCKSShare) WriteTo(w io.Writer) (n int64, err error) {
+func (share *PublicKeySwitchShare) WriteTo(w io.Writer) (n int64, err error) {
 	return share.OperandQ.WriteTo(w)
 }
 
 // UnmarshalBinary decodes a slice of bytes generated by
 // MarshalBinary or WriteTo on the object.
-func (share *PCKSShare) UnmarshalBinary(p []byte) (err error) {
+func (share *PublicKeySwitchShare) UnmarshalBinary(p []byte) (err error) {
 	return share.OperandQ.UnmarshalBinary(p)
 }
 
 // Decode decodes a slice of bytes generated by Encode
 // on the object and returns the number of bytes read.
-func (share *PCKSShare) Decode(p []byte) (n int, err error) {
+func (share *PublicKeySwitchShare) Decode(p []byte) (n int, err error) {
 	return share.OperandQ.Decode(p)
 }
 
@@ -191,6 +191,6 @@ func (share *PCKSShare) Decode(p []byte) (n int, err error) {
 // If r is not compliant to the bufer.Reader interface, it will be wrapped in
 // a new bufio.Reader.
 // For additional information, see lattigo/utils/bufer/reader.go.
-func (share *PCKSShare) ReadFrom(r io.Reader) (n int64, err error) {
+func (share *PublicKeySwitchShare) ReadFrom(r io.Reader) (n int64, err error) {
 	return share.OperandQ.ReadFrom(r)
 }

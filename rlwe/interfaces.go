@@ -4,6 +4,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 // ParametersInterface defines a set of common and scheme agnostic methods provided by a Parameter struct.
@@ -41,10 +42,38 @@ type ParametersInterface interface {
 	GaloisElement(k int) (galEl uint64)
 	GaloisElements(k []int) (galEls []uint64)
 	GaloisElementsForLinearTransform(nonZeroDiagonals []int, LogSlots, LogBSGSRatio int) (galEls []uint64)
-	SolveDiscretLogGaloisElement(galEl uint64) (k int)
+	SolveDiscreteLogGaloisElement(galEl uint64) (k int)
 	ModInvGaloisElement(galEl uint64) (galElInv uint64)
 
 	Equal(other ParametersInterface) bool
+}
+
+// DecryptorInterface is a generic RLWE decryption interface.
+type DecryptorInterface interface {
+	Decrypt(ct *Ciphertext, pt *Plaintext)
+	DecryptNew(ct *Ciphertext) (pt *Plaintext)
+	ShallowCopy() DecryptorInterface
+	WithKey(sk *SecretKey) Decryptor
+}
+
+// EncryptorInterface a generic RLWE encryption interface.
+type EncryptorInterface interface {
+	Encrypt(pt *Plaintext, ct interface{})
+	EncryptZero(ct interface{})
+
+	EncryptZeroNew(level int) (ct *Ciphertext)
+	EncryptNew(pt *Plaintext) (ct *Ciphertext)
+
+	ShallowCopy() EncryptorInterface
+	WithKey(key interface{}) EncryptorInterface
+}
+
+// PRNGEncryptorInterface is an interface for encrypting RLWE ciphertexts from a secret-key and
+// a pre-determined PRNG. An Encryptor constructed from a secret-key complies to this
+// interface.
+type PRNGEncryptorInterface interface {
+	EncryptorInterface
+	WithPRNG(prng sampling.PRNG) PRNGEncryptorInterface
 }
 
 // EncoderInterface defines a set of common and scheme agnostic method provided by an Encoder struct.

@@ -100,10 +100,14 @@ func main() {
 	// Index of the ciphertext to retrieve.
 	queryIndex := 2
 
-	// Creating encryption parameters from a default params with N=8192
-	paramsDef := bfv.PN13QP218
-	paramsDef.T = 65537
-	params, err := bfv.NewParametersFromLiteral(paramsDef)
+	// Creating encryption parameters
+	// LogN = 13 & LogQP = 218
+	params, err := bfv.NewParametersFromLiteral(bfv.ParametersLiteral{
+		LogN: 13,
+		LogQ:    []int{54, 54, 54},
+		LogP:    []int{55},
+		T:    65537,
+	})
 	if err != nil {
 		panic(err)
 	}
@@ -382,7 +386,7 @@ func gkgphase(params bfv.Parameters, crs sampling.PRNG, P []*party) (galKeys []*
 	return
 }
 
-func genquery(params bfv.Parameters, queryIndex int, encoder *bfv.Encoder, encryptor rlwe.Encryptor) *rlwe.Ciphertext {
+func genquery(params bfv.Parameters, queryIndex int, encoder *bfv.Encoder, encryptor rlwe.EncryptorInterface) *rlwe.Ciphertext {
 	// Query ciphertext
 	queryCoeffs := make([]uint64, params.N())
 	queryCoeffs[queryIndex] = 1

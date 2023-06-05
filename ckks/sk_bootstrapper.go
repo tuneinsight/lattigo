@@ -10,8 +10,8 @@ import (
 type SecretKeyBootstrapper struct {
 	Parameters
 	*Encoder
-	rlwe.Decryptor
-	rlwe.Encryptor
+	*rlwe.Decryptor
+	rlwe.EncryptorInterface
 	sk      *rlwe.SecretKey
 	Values  []*bignum.Complex
 	Counter int // records the number of bootstrapping

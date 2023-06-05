@@ -10,24 +10,24 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
-// Encryptor a generic RLWE encryption interface.
-type Encryptor interface {
-	Encrypt(pt *Plaintext, ct interface{})
-	EncryptZero(ct interface{})
-
-	EncryptZeroNew(level int) (ct *Ciphertext)
-	EncryptNew(pt *Plaintext) (ct *Ciphertext)
-
-	ShallowCopy() Encryptor
-	WithKey(key interface{}) Encryptor
+// NewEncryptor creates a new Encryptor
+// Accepts either a secret-key or a public-key.
+func NewEncryptor(params ParametersInterface, key interface{}) EncryptorInterface {
+	switch key := key.(type) {
+	case *PublicKey:
+		return NewEncryptorPublicKey(params, key)
+	case *SecretKey:
+		return NewEncryptorSecretKey(params, key)
+	case nil:
+		return newEncryptorBase(params)
+	default:
+		panic(fmt.Sprintf("cannot NewEncryptor: key must be either *rlwe.PublicKey, *rlwe.SecretKey or nil but have %T", key))
+	}
 }
 
-// PRNGEncryptor is an interface for encrypting RLWE ciphertexts from a secret-key and
-// a pre-determined PRNG. An Encryptor constructed from a secret-key complies to this
-// interface.
-type PRNGEncryptor interface {
-	Encryptor
-	WithPRNG(prng sampling.PRNG) PRNGEncryptor
+// NewPRNGEncryptor creates a new PRNGEncryptor instance.
+func NewPRNGEncryptor(params ParametersInterface, key *SecretKey) PRNGEncryptorInterface {
+	return NewEncryptorSecretKey(params, key)
 }
 
 type encryptorBase struct {
@@ -39,36 +39,6 @@ type encryptorBase struct {
 	ternarySampler  ring.Sampler
 	basisextender   *ring.BasisExtender
 	uniformSampler  ringqp.UniformSampler
-}
-
-type pkEncryptor struct {
-	encryptorBase
-	pk *PublicKey
-}
-
-type skEncryptor struct {
-	encryptorBase
-	sk *SecretKey
-}
-
-// NewEncryptor creates a new Encryptor
-// Accepts either a secret-key or a public-key.
-func NewEncryptor(params ParametersInterface, key interface{}) Encryptor {
-	switch key := key.(type) {
-	case *PublicKey:
-		return newPkEncryptor(params, key)
-	case *SecretKey:
-		return newSkEncryptor(params, key)
-	case nil:
-		return newEncryptorBase(params)
-	default:
-		panic(fmt.Sprintf("cannot NewEncryptor: key must be either *rlwe.PublicKey, *rlwe.SecretKey or nil but have %T", key))
-	}
-}
-
-// NewPRNGEncryptor creates a new PRNGEncryptor instance.
-func NewPRNGEncryptor(params ParametersInterface, key *SecretKey) PRNGEncryptor {
-	return newSkEncryptor(params, key)
 }
 
 func newEncryptorBase(params ParametersInterface) *encryptorBase {
@@ -94,9 +64,16 @@ func newEncryptorBase(params ParametersInterface) *encryptorBase {
 	}
 }
 
-func newSkEncryptor(params ParametersInterface, sk *SecretKey) (enc *skEncryptor) {
+// EncryptorSecretKey is an encryptor using an `rlwe.SecretKey` to encrypt.
+type EncryptorSecretKey struct {
+	encryptorBase
+	sk *SecretKey
+}
 
-	enc = &skEncryptor{*newEncryptorBase(params), nil}
+// NewEncryptorSecretKey creates a new EncryptorSecretKey from the provided parameters and secret key.
+func NewEncryptorSecretKey(params ParametersInterface, sk *SecretKey) (enc *EncryptorSecretKey) {
+
+	enc = &EncryptorSecretKey{*newEncryptorBase(params), nil}
 
 	if err := enc.checkSk(sk); err != nil {
 		panic(err)
@@ -107,9 +84,16 @@ func newSkEncryptor(params ParametersInterface, sk *SecretKey) (enc *skEncryptor
 	return
 }
 
-func newPkEncryptor(params ParametersInterface, pk *PublicKey) (enc *pkEncryptor) {
+// EncryptorPublicKey is an encryptor using an `rlwe.PublicKey` to encrypt.
+type EncryptorPublicKey struct {
+	encryptorBase
+	pk *PublicKey
+}
 
-	enc = &pkEncryptor{*newEncryptorBase(params), nil}
+// NewEncryptorPublicKey creates a new EncryptorPublicKey from the provided parameters and secret key.
+func NewEncryptorPublicKey(params ParametersInterface, pk *PublicKey) (enc *EncryptorPublicKey) {
+
+	enc = &EncryptorPublicKey{*newEncryptorBase(params), nil}
 
 	if err := enc.checkPk(pk); err != nil {
 		panic(err)
@@ -150,7 +134,7 @@ func newEncryptorBuffers(params ParametersInterface) *encryptorBuffers {
 // encryption of zero is sampled in QP before being rescaled by P; otherwise, it is directly sampled in Q.
 // The method accepts only *rlwe.Ciphertext as input.
 // If a Plaintext is given, then the output Ciphertext MetaData will match the Plaintext MetaData.
-func (enc *pkEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
+func (enc *EncryptorPublicKey) Encrypt(pt *Plaintext, ct interface{}) {
 
 	if pt == nil {
 		enc.EncryptZero(ct)
@@ -180,7 +164,7 @@ func (enc *pkEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
 // The encryption procedure depends on the parameters: If the auxiliary modulus P is defined, the
 // encryption of zero is sampled in QP before being rescaled by P; otherwise, it is directly sampled in Q.
 // If a Plaintext is given, then the output ciphertext MetaData will match the Plaintext MetaData.
-func (enc *pkEncryptor) EncryptNew(pt *Plaintext) (ct *Ciphertext) {
+func (enc *EncryptorPublicKey) EncryptNew(pt *Plaintext) (ct *Ciphertext) {
 	ct = NewCiphertext(enc.params, 1, pt.Level())
 	enc.Encrypt(pt, ct)
 	return
@@ -191,7 +175,7 @@ func (enc *pkEncryptor) EncryptNew(pt *Plaintext) (ct *Ciphertext) {
 // encryption of zero is sampled in QP before being rescaled by P; otherwise, it is directly sampled in Q.
 // The method accepts only *rlwe.Ciphertext as input.
 // The zero encryption is generated according to the given Ciphertext MetaData.
-func (enc *pkEncryptor) EncryptZeroNew(level int) (ct *Ciphertext) {
+func (enc *EncryptorPublicKey) EncryptZeroNew(level int) (ct *Ciphertext) {
 	ct = NewCiphertext(enc.params, 1, level)
 	enc.EncryptZero(ct)
 	return
@@ -202,7 +186,7 @@ func (enc *pkEncryptor) EncryptZeroNew(level int) (ct *Ciphertext) {
 // encryption of zero is sampled in QP before being rescaled by P; otherwise, it is directly sampled in Q.
 // The method accepts only *rlwe.Ciphertext as input.
 // The zero encryption is generated according to the given Ciphertext MetaData.
-func (enc *pkEncryptor) EncryptZero(ct interface{}) {
+func (enc *EncryptorPublicKey) EncryptZero(ct interface{}) {
 	switch ct := ct.(type) {
 	case *Ciphertext:
 		if enc.params.PCount() > 0 {
@@ -215,7 +199,7 @@ func (enc *pkEncryptor) EncryptZero(ct interface{}) {
 	}
 }
 
-func (enc *pkEncryptor) encryptZero(ct *Ciphertext) {
+func (enc *EncryptorPublicKey) encryptZero(ct *Ciphertext) {
 
 	levelQ := ct.Level()
 	levelP := 0
@@ -270,7 +254,7 @@ func (enc *pkEncryptor) encryptZero(ct *Ciphertext) {
 	}
 }
 
-func (enc *pkEncryptor) encryptZeroNoP(ct *Ciphertext) {
+func (enc *EncryptorPublicKey) encryptZeroNoP(ct *Ciphertext) {
 
 	levelQ := ct.Level()
 
@@ -314,7 +298,7 @@ func (enc *pkEncryptor) encryptZeroNoP(ct *Ciphertext) {
 // The method accepts only *rlwe.Ciphertext or *rgsw.Ciphertext as input and will panic otherwise.
 // If a plaintext is given, the encryptor only accepts *rlwe.Ciphertext, and the generated Ciphertext
 // MetaData will match the given Plaintext MetaData.
-func (enc *skEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
+func (enc *EncryptorSecretKey) Encrypt(pt *Plaintext, ct interface{}) {
 	if pt == nil {
 		enc.EncryptZero(ct)
 	} else {
@@ -331,9 +315,9 @@ func (enc *skEncryptor) Encrypt(pt *Plaintext, ct interface{}) {
 	}
 }
 
-// Encrypt encrypts the input plaintext using the stored secret-key and returns the result on a new Ciphertext.
+// EncryptNew encrypts the input plaintext using the stored secret-key and returns the result on a new Ciphertext.
 // MetaData will match the given Plaintext MetaData.
-func (enc *skEncryptor) EncryptNew(pt *Plaintext) (ct *Ciphertext) {
+func (enc *EncryptorSecretKey) EncryptNew(pt *Plaintext) (ct *Ciphertext) {
 	ct = NewCiphertext(enc.params, 1, pt.Level())
 	enc.Encrypt(pt, ct)
 	return
@@ -342,7 +326,7 @@ func (enc *skEncryptor) EncryptNew(pt *Plaintext) (ct *Ciphertext) {
 // EncryptZero generates an encryption of zero using the stored secret-key and writes the result on ct.
 // The method accepts only *rlwe.Ciphertext or *rgsw.Ciphertext as input and will panic otherwise.
 // The zero encryption is generated according to the given Ciphertext MetaData.
-func (enc *skEncryptor) EncryptZero(ct interface{}) {
+func (enc *EncryptorSecretKey) EncryptZero(ct interface{}) {
 	switch ct := ct.(type) {
 	case *Ciphertext:
 
@@ -370,13 +354,13 @@ func (enc *skEncryptor) EncryptZero(ct interface{}) {
 // EncryptZeroNew generates an encryption of zero using the stored secret-key and writes the result on ct.
 // The method accepts only *rlwe.Ciphertext or *rgsw.Ciphertext as input and will panic otherwise.
 // The zero encryption is generated according to the given Ciphertext MetaData.
-func (enc *skEncryptor) EncryptZeroNew(level int) (ct *Ciphertext) {
+func (enc *EncryptorSecretKey) EncryptZeroNew(level int) (ct *Ciphertext) {
 	ct = NewCiphertext(enc.params, 1, level)
 	enc.EncryptZero(ct)
 	return
 }
 
-func (enc *skEncryptor) encryptZero(ct *Ciphertext, c1 *ring.Poly) {
+func (enc *EncryptorSecretKey) encryptZero(ct *Ciphertext, c1 *ring.Poly) {
 
 	levelQ := ct.Level()
 
@@ -407,7 +391,7 @@ func (enc *skEncryptor) encryptZero(ct *Ciphertext, c1 *ring.Poly) {
 // sk     : secret key
 // sampler: uniform sampler; if `sampler` is nil, then the internal sampler will be used.
 // montgomery: returns the result in the Montgomery domain.
-func (enc *skEncryptor) encryptZeroQP(ct OperandQP) {
+func (enc *EncryptorSecretKey) encryptZeroQP(ct OperandQP) {
 
 	c0, c1 := ct.Value[0], ct.Value[1]
 
@@ -438,26 +422,26 @@ func (enc *skEncryptor) encryptZeroQP(ct OperandQP) {
 	}
 }
 
-// ShallowCopy creates a shallow copy of this skEncryptor in which all the read-only data-structures are
+// ShallowCopy creates a shallow copy of this EncryptorSecretKey in which all the read-only data-structures are
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // Encryptors can be used concurrently.
-func (enc *pkEncryptor) ShallowCopy() Encryptor {
-	return NewEncryptor(enc.params, enc.pk)
+func (enc *EncryptorPublicKey) ShallowCopy() EncryptorInterface {
+	return NewEncryptorPublicKey(enc.params, enc.pk)
 }
 
-// ShallowCopy creates a shallow copy of this skEncryptor in which all the read-only data-structures are
+// ShallowCopy creates a shallow copy of this EncryptorSecretKey in which all the read-only data-structures are
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // Encryptors can be used concurrently.
-func (enc *skEncryptor) ShallowCopy() Encryptor {
-	return NewEncryptor(enc.params, enc.sk)
+func (enc *EncryptorSecretKey) ShallowCopy() EncryptorInterface {
+	return NewEncryptorSecretKey(enc.params, enc.sk)
 }
 
 // WithPRNG returns this encryptor with prng as its source of randomness for the uniform
 // element c1.
-func (enc skEncryptor) WithPRNG(prng sampling.PRNG) PRNGEncryptor {
+func (enc EncryptorSecretKey) WithPRNG(prng sampling.PRNG) PRNGEncryptorInterface {
 	encBase := enc.encryptorBase
 	encBase.uniformSampler = ringqp.NewUniformSampler(prng, *enc.params.RingQP())
-	return &skEncryptor{encBase, enc.sk}
+	return &EncryptorSecretKey{encBase, enc.sk}
 }
 
 func (enc *encryptorBase) Encrypt(pt *Plaintext, ct interface{}) {
@@ -476,22 +460,22 @@ func (enc *encryptorBase) EncryptZeroNew(level int) (ct *Ciphertext) {
 	panic("cannot EncryptZeroNew: key hasn't been set")
 }
 
-func (enc *encryptorBase) ShallowCopy() Encryptor {
+func (enc *encryptorBase) ShallowCopy() EncryptorInterface {
 	return NewEncryptor(enc.params, nil)
 }
 
-func (enc encryptorBase) WithKey(key interface{}) Encryptor {
+func (enc encryptorBase) WithKey(key interface{}) EncryptorInterface {
 	switch key := key.(type) {
 	case *SecretKey:
 		if err := enc.checkSk(key); err != nil {
 			panic(err)
 		}
-		return &skEncryptor{enc, key}
+		return &EncryptorSecretKey{enc, key}
 	case *PublicKey:
 		if err := enc.checkPk(key); err != nil {
 			panic(err)
 		}
-		return &pkEncryptor{enc, key}
+		return &EncryptorPublicKey{enc, key}
 	case nil:
 		return &enc
 	default:

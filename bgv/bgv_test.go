@@ -90,9 +90,9 @@ type testContext struct {
 	kgen        *rlwe.KeyGenerator
 	sk          *rlwe.SecretKey
 	pk          *rlwe.PublicKey
-	encryptorPk rlwe.Encryptor
-	encryptorSk rlwe.Encryptor
-	decryptor   rlwe.Decryptor
+	encryptorPk rlwe.EncryptorInterface
+	encryptorSk rlwe.EncryptorInterface
+	decryptor   *rlwe.Decryptor
 	evaluator   *Evaluator
 	testLevel   []int
 }
@@ -125,7 +125,7 @@ func genTestParams(params Parameters) (tc *testContext, err error) {
 	return
 }
 
-func newTestVectorsLvl(level int, scale rlwe.Scale, tc *testContext, encryptor rlwe.Encryptor) (coeffs *ring.Poly, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
+func newTestVectorsLvl(level int, scale rlwe.Scale, tc *testContext, encryptor rlwe.EncryptorInterface) (coeffs *ring.Poly, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
 	coeffs = tc.uSampler.ReadNew()
 	for i := range coeffs.Coeffs[0] {
 		coeffs.Coeffs[0][i] = uint64(i)
@@ -141,7 +141,7 @@ func newTestVectorsLvl(level int, scale rlwe.Scale, tc *testContext, encryptor r
 	return coeffs, plaintext, ciphertext
 }
 
-func verifyTestVectors(tc *testContext, decryptor rlwe.Decryptor, coeffs *ring.Poly, element rlwe.Operand, t *testing.T) {
+func verifyTestVectors(tc *testContext, decryptor *rlwe.Decryptor, coeffs *ring.Poly, element rlwe.Operand, t *testing.T) {
 
 	coeffsTest := make([]uint64, tc.params.PlaintextSlots())
 

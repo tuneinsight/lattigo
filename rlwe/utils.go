@@ -125,9 +125,9 @@ func EvaluationKeyIsCorrect(evk *EvaluationKey, skIn, skOut *SecretKey, params P
 
 // Norm returns the log2 of the standard deviation, minimum and maximum absolute norm of
 // the decrypted Ciphertext, before the decoding (i.e. including the error).
-func Norm(ct *Ciphertext, dec Decryptor) (std, min, max float64) {
+func Norm(ct *Ciphertext, dec *Decryptor) (std, min, max float64) {
 
-	params := dec.(*decryptor).params
+	params := dec.params
 
 	coeffsBigint := make([]*big.Int, params.N())
 	for i := range coeffsBigint {

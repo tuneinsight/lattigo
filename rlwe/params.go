@@ -731,8 +731,8 @@ func (p Parameters) GaloisElementsForLinearTransform(nonZeroDiagonals []int, Log
 	return p.GaloisElements(utils.GetDistincts(append(rotN1, rotN2...)))
 }
 
-// SolveDiscretLogGaloisElement takes a Galois element of the form GaloisGen^{k} mod NthRoot and returns k.
-func (p Parameters) SolveDiscretLogGaloisElement(galEl uint64) (k int) {
+// SolveDiscreteLogGaloisElement takes a Galois element of the form GaloisGen^{k} mod NthRoot and returns k.
+func (p Parameters) SolveDiscreteLogGaloisElement(galEl uint64) (k int) {
 
 	N := p.ringQ.NthRoot()
 

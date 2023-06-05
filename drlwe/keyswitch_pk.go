@@ -18,7 +18,7 @@ type PCKSProtocol struct {
 
 	buf *ring.Poly
 
-	rlwe.Encryptor
+	rlwe.EncryptorInterface
 	noiseSampler ring.Sampler
 }
 
@@ -34,11 +34,11 @@ func (pcks *PCKSProtocol) ShallowCopy() *PCKSProtocol {
 	params := pcks.params
 
 	return &PCKSProtocol{
-		noiseSampler: ring.NewSampler(prng, params.RingQ(), pcks.noise, false),
-		noise:        pcks.noise,
-		Encryptor:    rlwe.NewEncryptor(params, nil),
-		params:       params,
-		buf:          params.RingQ().NewPoly(),
+		noiseSampler:       ring.NewSampler(prng, params.RingQ(), pcks.noise, false),
+		noise:              pcks.noise,
+		EncryptorInterface: rlwe.NewEncryptor(params, nil),
+		params:             params,
+		buf:                params.RingQ().NewPoly(),
 	}
 }
 
@@ -56,7 +56,7 @@ func NewPCKSProtocol(params rlwe.Parameters, noise distribution.Distribution) (p
 		panic(err)
 	}
 
-	pcks.Encryptor = rlwe.NewEncryptor(params, nil)
+	pcks.EncryptorInterface = rlwe.NewEncryptor(params, nil)
 
 	switch noise.(type) {
 	case *distribution.DiscreteGaussian:
@@ -85,7 +85,7 @@ func (pcks *PCKSProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct *r
 	ringQ := pcks.params.RingQ().AtLevel(levelQ)
 
 	// Encrypt zero
-	pcks.Encryptor.WithKey(pk).EncryptZero(&rlwe.Ciphertext{
+	pcks.EncryptorInterface.WithKey(pk).EncryptZero(&rlwe.Ciphertext{
 		OperandQ: rlwe.OperandQ{
 			Value: []*ring.Poly{
 				shareOut.Value[0],

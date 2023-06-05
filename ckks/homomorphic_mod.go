@@ -1,11 +1,12 @@
-package advanced
+package ckks
 
 import (
+	"encoding/json"
 	"math"
 	"math/big"
 	"math/bits"
 
-	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/ckks/cosine"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
@@ -20,7 +21,7 @@ type SineType uint64
 func sin2pi(x *bignum.Complex) (y *bignum.Complex) {
 	y = bignum.NewComplex().Set(x)
 	y[0].Mul(y[0], new(big.Float).SetFloat64(2))
-	y[0].Mul(y[0], pi)
+	y[0].Mul(y[0], bignum.Pi(x.Prec()))
 	y[0] = bignum.Sin(y[0])
 	return
 }
@@ -28,25 +29,9 @@ func sin2pi(x *bignum.Complex) (y *bignum.Complex) {
 func cos2pi(x *bignum.Complex) (y *bignum.Complex) {
 	y = bignum.NewComplex().Set(x)
 	y[0].Mul(y[0], new(big.Float).SetFloat64(2))
-	y[0].Mul(y[0], pi)
+	y[0].Mul(y[0], bignum.Pi(x.Prec()))
 	y[0] = bignum.Cos(y[0])
 	return y
-}
-
-func cos2PiXMinusQuarterOverR(x, scfac *big.Float) (y *big.Float) {
-	//y = 2 * pi
-	y = bignum.NewFloat(2.0, PlaintextPrecision)
-	y.Mul(y, pi)
-
-	// x = (x - 0.25)/r
-	x.Sub(x, aQuarter)
-	x.Quo(x, scfac)
-
-	// y = 2 * pi * (x - 0.25)/r
-	y.Mul(y, x)
-
-	// y = cos(2 * pi * (x - 0.25)/r)
-	return bignum.Cos(y)
 }
 
 // Sin and Cos are the two proposed functions for SineType.
@@ -70,6 +55,18 @@ type EvalModLiteral struct {
 	SineDegree        int      // Degree of the interpolation
 	DoubleAngle       int      // Number of rescale and double angle formula (only applies for cos and is ignored if sin is used)
 	ArcSineDegree     int      // Degree of the Taylor arcsine composed with f(2*pi*x) (if zero then not used)
+}
+
+// MarshalBinary returns a JSON representation of the the target EvalModLiteral struct on a slice of bytes.
+// See `Marshal` from the `encoding/json` package.
+func (evm *EvalModLiteral) MarshalBinary() (data []byte, err error) {
+	return json.Marshal(evm)
+}
+
+// UnmarshalBinary reads a JSON representation on the target EvalModLiteral struct.
+// See `Unmarshal` from the `encoding/json` package.
+func (evm *EvalModLiteral) UnmarshalBinary(data []byte) (err error) {
+	return json.Unmarshal(data, evm)
 }
 
 // EvalModPoly is a struct storing the parameters and polynomials approximating the function x mod Q[0] (the first prime of the moduli chain).
@@ -121,7 +118,7 @@ func (evp *EvalModPoly) QDiff() float64 {
 // NewEvalModPolyFromLiteral generates an EvalModPoly struct from the EvalModLiteral struct.
 // The EvalModPoly struct is used by the `EvalModNew` method from the `Evaluator`, which
 // homomorphically evaluates x mod Q[0] (the first prime of the moduli chain) on the ciphertext.
-func NewEvalModPolyFromLiteral(params ckks.Parameters, evm EvalModLiteral) EvalModPoly {
+func NewEvalModPolyFromLiteral(params Parameters, evm EvalModLiteral) EvalModPoly {
 
 	var arcSinePoly *polynomial.Polynomial
 	var sinePoly *polynomial.Polynomial
@@ -168,8 +165,8 @@ func NewEvalModPolyFromLiteral(params ckks.Parameters, evm EvalModLiteral) EvalM
 	case SinContinuous:
 
 		sinePoly = approximation.Chebyshev(sin2pi, polynomial.Interval{
-			A: *new(big.Float).SetPrec(PlaintextPrecision).SetFloat64(-K),
-			B: *new(big.Float).SetPrec(PlaintextPrecision).SetFloat64(K),
+			A: *new(big.Float).SetPrec(cosine.PlaintextPrecision).SetFloat64(-K),
+			B: *new(big.Float).SetPrec(cosine.PlaintextPrecision).SetFloat64(K),
 		}, evm.SineDegree)
 		sinePoly.IsEven = false
 
@@ -180,7 +177,7 @@ func NewEvalModPolyFromLiteral(params ckks.Parameters, evm EvalModLiteral) EvalM
 		}
 
 	case CosDiscrete:
-		sinePoly = polynomial.NewPolynomial(polynomial.Chebyshev, ApproximateCos(evm.K, evm.SineDegree, float64(uint(1<<evm.LogMessageRatio)), int(evm.DoubleAngle)), [2]float64{-K, K})
+		sinePoly = polynomial.NewPolynomial(polynomial.Chebyshev, cosine.ApproximateCos(evm.K, evm.SineDegree, float64(uint(1<<evm.LogMessageRatio)), int(evm.DoubleAngle)), [2]float64{-K, K})
 		sinePoly.IsOdd = false
 
 		for i := range sinePoly.Coeffs {
@@ -191,8 +188,8 @@ func NewEvalModPolyFromLiteral(params ckks.Parameters, evm EvalModLiteral) EvalM
 
 	case CosContinuous:
 		sinePoly = approximation.Chebyshev(cos2pi, polynomial.Interval{
-			A: *new(big.Float).SetPrec(PlaintextPrecision).SetFloat64(-K),
-			B: *new(big.Float).SetPrec(PlaintextPrecision).SetFloat64(K),
+			A: *new(big.Float).SetPrec(cosine.PlaintextPrecision).SetFloat64(-K),
+			B: *new(big.Float).SetPrec(cosine.PlaintextPrecision).SetFloat64(K),
 		}, evm.SineDegree)
 		sinePoly.IsOdd = false
 
@@ -244,4 +241,85 @@ func (evm *EvalModLiteral) Depth() (depth int) {
 
 	depth += int(bits.Len64(uint64(evm.ArcSineDegree)))
 	return depth
+}
+
+// EvalModNew applies a homomorphic mod Q on a vector scaled by Delta, scaled down to mod 1 :
+//
+//  1. Delta * (Q/Delta * I(X) + m(X)) (Delta = scaling factor, I(X) integer poly, m(X) message)
+//  2. Delta * (I(X) + Delta/Q * m(X)) (divide by Q/Delta)
+//  3. Delta * (Delta/Q * m(X)) (x mod 1)
+//  4. Delta * (m(X)) (multiply back by Q/Delta)
+//
+// Since Q is not a power of two, but Delta is, then does an approximate division by the closest
+// power of two to Q instead. Hence, it assumes that the input plaintext is already scaled by
+// the correcting factor Q/2^{round(log(Q))}.
+//
+// !! Assumes that the input is normalized by 1/K for K the range of the approximation.
+//
+// Scaling back error correction by 2^{round(log(Q))}/Q afterward is included in the polynomial
+func (eval *Evaluator) EvalModNew(ct *rlwe.Ciphertext, evalModPoly EvalModPoly) *rlwe.Ciphertext {
+
+	if ct.Level() < evalModPoly.LevelStart() {
+		panic("ct.Level() < evalModPoly.LevelStart")
+	}
+
+	if ct.Level() > evalModPoly.LevelStart() {
+		eval.DropLevel(ct, ct.Level()-evalModPoly.LevelStart())
+	}
+
+	// Stores default scales
+	prevScaleCt := ct.PlaintextScale
+
+	// Normalize the modular reduction to mod by 1 (division by Q)
+	ct.PlaintextScale = evalModPoly.ScalingFactor()
+
+	var err error
+
+	// Compute the scales that the ciphertext should have before the double angle
+	// formula such that after it it has the scale it had before the polynomial
+	// evaluation
+
+	Qi := eval.Parameters().Q()
+
+	targetScale := ct.PlaintextScale
+	for i := 0; i < evalModPoly.doubleAngle; i++ {
+		targetScale = targetScale.Mul(rlwe.NewScale(Qi[evalModPoly.levelStart-evalModPoly.sinePoly.Depth()-evalModPoly.doubleAngle+i+1]))
+		targetScale.Value.Sqrt(&targetScale.Value)
+	}
+
+	// Division by 1/2^r and change of variable for the Chebyshev evaluation
+	if evalModPoly.sineType == CosDiscrete || evalModPoly.sineType == CosContinuous {
+		offset := new(big.Float).Sub(&evalModPoly.sinePoly.B, &evalModPoly.sinePoly.A)
+		offset.Mul(offset, new(big.Float).SetFloat64(evalModPoly.scFac))
+		offset.Quo(new(big.Float).SetFloat64(-0.5), offset)
+		eval.Add(ct, offset, ct)
+	}
+
+	// Chebyshev evaluation
+	if ct, err = eval.Polynomial(ct, evalModPoly.sinePoly, rlwe.NewScale(targetScale)); err != nil {
+		panic(err)
+	}
+
+	// Double angle
+	sqrt2pi := evalModPoly.sqrt2Pi
+	for i := 0; i < evalModPoly.doubleAngle; i++ {
+		sqrt2pi *= sqrt2pi
+		eval.MulRelin(ct, ct, ct)
+		eval.Add(ct, ct, ct)
+		eval.Add(ct, -sqrt2pi, ct)
+		if err := eval.Rescale(ct, rlwe.NewScale(targetScale), ct); err != nil {
+			panic(err)
+		}
+	}
+
+	// ArcSine
+	if evalModPoly.arcSinePoly != nil {
+		if ct, err = eval.Polynomial(ct, evalModPoly.arcSinePoly, ct.PlaintextScale); err != nil {
+			panic(err)
+		}
+	}
+
+	// Multiplies back by q
+	ct.PlaintextScale = prevScaleCt
+	return ct
 }

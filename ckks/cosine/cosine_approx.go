@@ -1,9 +1,11 @@
-package advanced
-
-// This is the Go implementation of the approximation polynomial algorithm from Han and Ki in
-//    "Better Bootstrapping for Approximate Homomorphic Encryption", <https://epring.iacr.org/2019/688O>.
+// Package cosine is the Go implementation of the approximation polynomial algorithm from Han and Ki in
+//
+//	"Better Bootstrapping for Approximate Homomorphic Encryption", <https://epring.iacr.org/2019/688O>.
+//
 // The algorithm was originally implemented in C++, available at
-//    https://github.com/DohyeongKi/better-homomorphic-sine-evaluation
+//
+//	https://github.com/DohyeongKi/better-homomorphic-sine-evaluation
+package cosine
 
 import (
 	"math"
@@ -117,6 +119,22 @@ func ApproximateCos(K, degree int, dev float64, scnum int) []*big.Float {
 	}
 
 	return c[:totdeg-1]
+}
+
+func cos2PiXMinusQuarterOverR(x, scfac *big.Float) (y *big.Float) {
+	//y = 2 * pi
+	y = bignum.NewFloat(2.0, PlaintextPrecision)
+	y.Mul(y, pi)
+
+	// x = (x - 0.25)/r
+	x.Sub(x, aQuarter)
+	x.Quo(x, scfac)
+
+	// y = 2 * pi * (x - 0.25)/r
+	y.Mul(y, x)
+
+	// y = cos(2 * pi * (x - 0.25)/r)
+	return bignum.Cos(y)
 }
 
 func log2(x float64) float64 {

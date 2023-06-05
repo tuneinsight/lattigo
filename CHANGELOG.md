@@ -2,7 +2,73 @@
 # Changelog
 All notable changes to this library are documented in this file.
 
-## UNRELEASED [4.1.x] - xxxx-xx-xx
+## UNRELEASED [4.2.x] - xxxx-xx-xx (#309,#292,#348,#378)
+- ALL: the code should now pass the gosec test
+- ALL: removed the by default creation of structs as interfaces.
+- ALL: simplified and clarified many aspect of the code base using generics.
+- ALL: inlined all recursive algorithms.
+- ALL: removed all instances of secure default parameters as they had no practical application, were putting additional security constraints on the library and were not used in the tests anymore.
+
+- BFV/BGV/CKKS: simplified the API of the evaluator and increased the diversity of the accepted operands:
+    - Removed all methods that operated on specific plaintext operands (such as scalars)
+    - Add/Sub/Mul/MulThenAdd now accept `rlwe.Operands`, scalars and vectors of scalars as the middle operand.
+    - Examples: 
+        - The method `MultByi` of the CKKS scheme has been removed and is now accessible through `Mul(ct, -i, ct)`.
+        - It is now possible to call `Mul(ct, []uint64{...}, ct)`.
+
+- BFV: the package `bfv` has been depreciated and is now a wrapper of the package `bgv`.
+
+- BGV:
+    - The package `bgv` has been rewritten to implement a unification of the textbook BFV and BGV schemes under a single scheme
+    - The unified scheme offers all the functionalities of the BFV and BGV schemes under a single scheme
+    - Parameterization with a plaintext modulus `T` which has a smaller 2N-th root than the ring degree (but this implies working with smaller plaintext dimensions)
+
+- CKKS: merged the package `ckks/advanced` into the package `ckks`.
+- CKKS: renamed the field `LogScale` of the `ParametrsLiteralStruct` to `LogPlaintextScale`.
+- CKKS: updated `InverseNew` to `GoldschmidtDivisionNew` and improved the method signature to accept an `rlwe.Bootstrapper` interface.
+- CKKS: improved the internal working of the scheme to enable arbitrary precision encrypted arithmetic.
+- CKKS: unified `encoderComplex128` and `encoderBigComplex` under `Encoder`.
+- CKKS: updated the Chebyshev interpolation with arbitrary precision arithmetic and moved the code to `utils/bignum/approximation`.
+
+- RLWE: extracted, generalized and centralized the code of scheme specific linear transformations, plaintext polynomial, power basis and polynomial evaluation in the `rlwe` 
+- RLWE: added basic interfaces description for Parameters, Encryptor, PRNGEncryptor, Decryptor, Evaluator and PolynomialEvaluator.
+- RLWE: the decryptor, encryptors, key-generator and evaluator no longer require an `rlwe.Parameters` struct to be instantiated and now accept instead a ParametersInterface.
+- RLWE: added the concept of plaintext dimensions to generalize the concept of slots between schemes. BFV/BGV have a plaintext matrix dimensions of [2, n/2] (2 rows each of n/2 slots) while CKKS has a plaintext matrix dimension of [1, n/2] (one row of dimension n/2)
+- RLWE: replaced the field `Scale` by `PlaintextScale` and added the fields `EncodingDomain` and `PlaintextLogDimensions` to the `MetaData` struct.
+- RLWE: changes to the `Parameters` struct:
+    - Removed the concept of rotation, everything is now defined in term of Galois element
+    - Renamed :
+        - `DefaultNTTFlag` to `NTTFlag`
+        - `DefaultScale` to `PlaintextScale`
+        - `SecretKeyHammingWeight` to `XsHammingWeight`
+        - `GaloisElementsForRotations` to `GaloisElements`
+        - `GaloisElementForColumnRotationBy` to `GaloisElement`
+        - `GaloisElementForRowRotation` to `GaloisElementInverse`
+        - `InverseGaloisElement` to `ModInvGaloisElement`
+        - `RotationsFromGaloisElement` to `SloveDiscreteLogGaloisElement`
+    - Added the methods:
+        - `PlaintetxDimensions`: returns the dimensions of the plaintext matrix algebra
+        - `PlaintextLogDimensions`: returns the log2 of the dimensions of the plaintext matrix algebra
+        - `PlaintextSlots`: returns the vector size of the row-flattened plaintext matrix
+        - `PlaintextLogSlots`: returns the log2 of the vector size of the row-flattened plaintext matrix
+        - `PlaintextModulus`: returns the plaintext modulus
+        - `PlaintextPrecision`: returns the plaintext precision
+        - `PlaintextScaleToModuliRatio`: returns the number of primes that are expected to be consummed per rescaling operation
+        - `Xs`: returns the distribution of the secret
+        - `Xe`: returns the distribution of the noise
+        - `NoiseBound`: returns the infinity norm of the fresh noise
+        - `NoiseFreshPK`: returns the expected standard deviation of the noise of a fresh encryption with a public key
+        - `NoiseFreshSK`: returns the expected standard deviation of the noise of a fresh encryption with a secret key
+
+- RING: added the package `ring/distribution` which defines distributions over polynmials.
+- RING: updated samplers to be parameterized with distribution defined by the `ring/distribution` package.
+- UTILS: added the package `utils/bignum` which provides arbitrary precision arithmetic.
+- UTILS: added the package `utils/bignum/polynomial` which provides tools to create and evaluate polynomials.
+- UTILS: added the package `utils/bignum/approximation` which provide tools to perform polynomial approximations of functions.
+
+- LIST OF MAJOR BROKEN API: 
+
+## UNRELEASED [4.1.x] - xxxx-xx-xx (#341)
 - Go `1.14`, `1.15`, `1.16` and `1.17` are not supported anymore by the library due to `func (b *Writer) AvailableBuffer() []byte` missing. The minimum version is now `1.18`.
 - All: Golang Security Checker pass.
 - All: lightweight structs, such as parameter now all use `json.Marshal` as underlying marshaler.
@@ -50,7 +116,7 @@ All notable changes to this library are documented in this file.
 - UTILS: updated methods with generics when applicable.
 
 ## UNRELEASED [4.1.x] - 2022-03-09
-- CKKS: renamed the `Parameters` field `DefaultScale` to `LogPlaintextScale`, which now takes a value in log2.
+- CKKS: renamed the `Parameters` field `DefaultScale` to `LogScale`, which now takes a value in log2.
 - CKKS: the `Parameters` field `LogSlots` now has a default value which is the maximum number of slots possible for the given parameters.
 - CKKS: variable `BSGSRatio` is now `LogBSGSRatio` and is given in log2.
 - CKKS/Bootstrapping: complete refactoring the bootstrapping parameters for better usability.
@@ -109,14 +175,14 @@ All notable changes to this library are documented in this file.
 - RLWE: added the type `rlwe.Scale`, which is now a field in the `rlwe.Parameters`.
 - RLWE: added the struct `MedaData` which stores the `Scale`, and boolean flags `IsNTT` and `IsMontgomery`. 
 - RLWE: added the field `MetaData` to the `rlwe.Plaintext`, `rlwe.Ciphertext`, `rlwe.CiphertextQP`.
-- RLWE: added `DefaultScale` and `NTTFlag` to the `rlwe.ParametersLiteral` struct. These are optional fields which are automatically set by the respective schemes.
+- RLWE: added `DefaultScale` and `DefaultNTTFlag` to the `rlwe.ParametersLiteral` struct. These are optional fields which are automatically set by the respective schemes.
 - RLWE: elements from `rlwe.NewPlaintext(*)` and `rlwe.NewCiphertext(*)` are given default `IsNTT` and `Scale` values taken from the `rlwe.Parameters`, which depend on the scheme used. These values can be overwritten/modified manually.
 - RLWE: added `logGap` parameter to `Evaluator.Expand`, which enables to extract only coefficients whose degree is a multiple of `2^logGap`.
 - BFV: the level of the plaintext and ciphertext must now be specified when creating them.
 - CKKS: significantly reduced the pre-computation time of the roots, especially for the arbitrary precision encoder.
 - CKKS/BGV: abstracted the scaling factor, using `rlwe.Scale`. See the description of the struct for more information.
 - BFV/BGV: added the flag `-print-noise` to print the residual noise, after decryption, during the tests.
-- BFV/BGV/CKKS: added scheme specific global constant `NTTFlag`.
+- BFV/BGV/CKKS: added scheme specific global constant `DefaultNTTFlag`.
 - BFV/BGV/CKKS: removed scheme-specific ciphertexts and plaintexts types. They are replaced by generic `rlwe.Ciphertext` and `rlwe.Plaintext`.
 - BFV/BGV/CKKS: removed scheme-specific `KeyGenerator`, `Encryptor` and `Decryptor`. They have been replaced by `rlwe.KeyGenerator`, `rlwe.Encryptor` and `rlwe.Decryptor`. The API go instantiate those struct from the scheme specific API, e.g. `bgv.NewEncryptor`, is still available but will return its corresponding `rlwe` struct.
 - BFV/BGV/CKKS: removed the following deprecated methods, when applicable

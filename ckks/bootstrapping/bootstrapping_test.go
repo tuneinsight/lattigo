@@ -185,7 +185,7 @@ func testbootstrap(params ckks.Parameters, btpParams Parameters, t *testing.T) {
 	})
 }
 
-func verifyTestVectors(params ckks.Parameters, encoder *ckks.Encoder, decryptor rlwe.Decryptor, valuesWant, valuesHave interface{}, t *testing.T) {
+func verifyTestVectors(params ckks.Parameters, encoder *ckks.Encoder, decryptor *rlwe.Decryptor, valuesWant, valuesHave interface{}, t *testing.T) {
 	precStats := ckks.GetPrecisionStats(params, encoder, decryptor, valuesWant, valuesHave, nil, false)
 	if *printPrecisionStats {
 		t.Log(precStats.String())

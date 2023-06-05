@@ -14,11 +14,11 @@ func NewCiphertext(params rlwe.ParametersInterface, degree, level int) (ct *rlwe
 	return rlwe.NewCiphertext(params, degree, level)
 }
 
-func NewEncryptor(params rlwe.ParametersInterface, key interface{}) rlwe.Encryptor {
+func NewEncryptor(params rlwe.ParametersInterface, key interface{}) rlwe.EncryptorInterface {
 	return rlwe.NewEncryptor(params, key)
 }
 
-func NewDecryptor(params rlwe.ParametersInterface, key *rlwe.SecretKey) rlwe.Decryptor {
+func NewDecryptor(params rlwe.ParametersInterface, key *rlwe.SecretKey) *rlwe.Decryptor {
 	return rlwe.NewDecryptor(params, key)
 }
 
@@ -26,6 +26,6 @@ func NewKeyGenerator(params rlwe.ParametersInterface) *rlwe.KeyGenerator {
 	return rlwe.NewKeyGenerator(params)
 }
 
-func NewPRNGEncryptor(params rlwe.ParametersInterface, key *rlwe.SecretKey) rlwe.PRNGEncryptor {
+func NewPRNGEncryptor(params rlwe.ParametersInterface, key *rlwe.SecretKey) rlwe.PRNGEncryptorInterface {
 	return rlwe.NewPRNGEncryptor(params, key)
 }

@@ -56,7 +56,7 @@ func (prec PrecisionStats) String() string {
 // GetPrecisionStats generates a PrecisionStats struct from the reference values and the decrypted values
 // vWant.(type) must be either []complex128 or []float64
 // element.(type) must be either *Plaintext, *Ciphertext, []complex128 or []float64. If not *Ciphertext, then decryptor can be nil.
-func GetPrecisionStats(params Parameters, encoder *Encoder, decryptor rlwe.Decryptor, want, have interface{}, noise distribution.Distribution, computeDCF bool) (prec PrecisionStats) {
+func GetPrecisionStats(params Parameters, encoder *Encoder, decryptor *rlwe.Decryptor, want, have interface{}, noise distribution.Distribution, computeDCF bool) (prec PrecisionStats) {
 
 	if encoder.Prec() <= 53 {
 		return getPrecisionStatsF64(params, encoder, decryptor, want, have, noise, computeDCF)
@@ -65,7 +65,7 @@ func GetPrecisionStats(params Parameters, encoder *Encoder, decryptor rlwe.Decry
 	return getPrecisionStatsF128(params, encoder, decryptor, want, have, noise, computeDCF)
 }
 
-func getPrecisionStatsF64(params Parameters, encoder *Encoder, decryptor rlwe.Decryptor, want, have interface{}, noise distribution.Distribution, computeDCF bool) (prec PrecisionStats) {
+func getPrecisionStatsF64(params Parameters, encoder *Encoder, decryptor *rlwe.Decryptor, want, have interface{}, noise distribution.Distribution, computeDCF bool) (prec PrecisionStats) {
 
 	precision := encoder.Prec()
 
@@ -305,7 +305,7 @@ func calcmedianF64(values []struct{ Real, Imag, L2 float64 }) (median Stats) {
 	}
 }
 
-func getPrecisionStatsF128(params Parameters, encoder *Encoder, decryptor rlwe.Decryptor, want, have interface{}, noise distribution.Distribution, computeDCF bool) (prec PrecisionStats) {
+func getPrecisionStatsF128(params Parameters, encoder *Encoder, decryptor *rlwe.Decryptor, want, have interface{}, noise distribution.Distribution, computeDCF bool) (prec PrecisionStats) {
 	precision := encoder.Prec()
 
 	var valuesWant []*bignum.Complex

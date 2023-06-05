@@ -5,16 +5,15 @@ import (
 	"fmt"
 
 	"github.com/tuneinsight/lattigo/v4/ckks"
-	"github.com/tuneinsight/lattigo/v4/ckks/advanced"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
 // Parameters is a struct for the default bootstrapping parameters
 type Parameters struct {
-	SlotsToCoeffsParameters advanced.HomomorphicDFTMatrixLiteral
-	EvalModParameters       advanced.EvalModLiteral
-	CoeffsToSlotsParameters advanced.HomomorphicDFTMatrixLiteral
+	SlotsToCoeffsParameters ckks.HomomorphicDFTMatrixLiteral
+	EvalModParameters       ckks.EvalModLiteral
+	CoeffsToSlotsParameters ckks.HomomorphicDFTMatrixLiteral
 	Iterations              int
 	EphemeralSecretWeight   int // Hamming weight of the ephemeral secret. If 0, no ephemeral secret is used during the bootstrapping.
 }
@@ -56,8 +55,8 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 		return ckks.ParametersLiteral{}, Parameters{}, err
 	}
 
-	S2CParams := advanced.HomomorphicDFTMatrixLiteral{
-		Type:            advanced.Decode,
+	S2CParams := ckks.HomomorphicDFTMatrixLiteral{
+		Type:            ckks.Decode,
 		LogSlots:        LogSlots,
 		RepackImag2Real: true,
 		LevelStart:      len(ckksLit.LogQ) - 1 + len(SlotsToCoeffsFactorizationDepthAndLogPlaintextScales) + Iterations - 1,
@@ -97,7 +96,7 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 		return ckks.ParametersLiteral{}, Parameters{}, err
 	}
 
-	EvalModParams := advanced.EvalModLiteral{
+	EvalModParams := ckks.EvalModLiteral{
 		LogPlaintextScale: EvalModLogPlaintextScale,
 		SineType:          SineType,
 		SineDegree:        SineDegree,
@@ -120,8 +119,8 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 		CoeffsToSlotsLevels[i] = len(CoeffsToSlotsFactorizationDepthAndLogPlaintextScales[i])
 	}
 
-	C2SParams := advanced.HomomorphicDFTMatrixLiteral{
-		Type:            advanced.Encode,
+	C2SParams := ckks.HomomorphicDFTMatrixLiteral{
+		Type:            ckks.Encode,
 		LogSlots:        LogSlots,
 		RepackImag2Real: true,
 		LevelStart:      EvalModParams.LevelStart + len(CoeffsToSlotsFactorizationDepthAndLogPlaintextScales),

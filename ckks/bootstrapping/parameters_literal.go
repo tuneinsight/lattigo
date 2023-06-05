@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math/bits"
 
-	"github.com/tuneinsight/lattigo/v4/ckks/advanced"
+	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
@@ -60,7 +60,7 @@ import (
 //		When using a small ratio (i.e. 2^4), for example if ct.PlaintextScale is close to Q[0] is small or if |m| is large, the ArcSine degree can be set to
 //	 a non zero value (i.e. 5 or 7). This will greatly improve the precision of the bootstrapping, at the expense of slightly increasing its depth.
 //
-// SineType: the type of approximation for the modular reduction polynomial. By default set to advanced.CosDiscrete.
+// SineType: the type of approximation for the modular reduction polynomial. By default set to ckks.CosDiscrete.
 //
 // K: the range of the approximation interval, by default set to 16.
 //
@@ -70,18 +70,18 @@ import (
 //
 // ArcSineDeg: the degree of the ArcSine Taylor polynomial, by default set to 0.
 type ParametersLiteral struct {
-	LogSlots                                             *int              // Default: LogN-1
-	CoeffsToSlotsFactorizationDepthAndLogPlaintextScales [][]int           // Default: [][]int{min(4, max(LogSlots, 1)) * 56}
-	SlotsToCoeffsFactorizationDepthAndLogPlaintextScales [][]int           // Default: [][]int{min(3, max(LogSlots, 1)) * 39}
-	EvalModLogPlaintextScale                             *int              // Default: 60
-	EphemeralSecretWeight                                *int              // Default: 32
-	Iterations                                           *int              // Default: 1
-	SineType                                             advanced.SineType // Default: advanced.CosDiscrete
-	LogMessageRatio                                      *int              // Default: 8
-	K                                                    *int              // Default: 16
-	SineDegree                                           *int              // Default: 30
-	DoubleAngle                                          *int              // Default: 3
-	ArcSineDegree                                        *int              // Default: 0
+	LogSlots                                             *int          // Default: LogN-1
+	CoeffsToSlotsFactorizationDepthAndLogPlaintextScales [][]int       // Default: [][]int{min(4, max(LogSlots, 1)) * 56}
+	SlotsToCoeffsFactorizationDepthAndLogPlaintextScales [][]int       // Default: [][]int{min(3, max(LogSlots, 1)) * 39}
+	EvalModLogPlaintextScale                             *int          // Default: 60
+	EphemeralSecretWeight                                *int          // Default: 32
+	Iterations                                           *int          // Default: 1
+	SineType                                             ckks.SineType // Default: ckks.CosDiscrete
+	LogMessageRatio                                      *int          // Default: 8
+	K                                                    *int          // Default: 16
+	SineDegree                                           *int          // Default: 30
+	DoubleAngle                                          *int          // Default: 3
+	ArcSineDegree                                        *int          // Default: 0
 }
 
 const (
@@ -102,7 +102,7 @@ const (
 	// DefaultIterationsLogPlaintextScale is the default scaling factor for the additional prime consumed per additional bootstrapping iteration above 1.
 	DefaultIterationsLogPlaintextScale = 25
 	// DefaultSineType is the default function and approximation technique for the homomorphic modular reduction polynomial.
-	DefaultSineType = advanced.CosDiscrete
+	DefaultSineType = ckks.CosDiscrete
 	// DefaultLogMessageRatio is the default ratio between Q[0] and |m|.
 	DefaultLogMessageRatio = 8
 	// DefaultK is the default interval [-K+1, K-1] for the polynomial approximation of the homomorphic modular reduction.
@@ -225,7 +225,7 @@ func (p *ParametersLiteral) GetIterations() (Iterations int, err error) {
 
 // GetSineType returns the SineType field of the target ParametersLiteral.
 // The default value DefaultSineType is returned is the field is nil.
-func (p *ParametersLiteral) GetSineType() (SineType advanced.SineType) {
+func (p *ParametersLiteral) GetSineType() (SineType ckks.SineType) {
 	return p.SineType
 }
 
@@ -284,7 +284,7 @@ func (p *ParametersLiteral) GetDoubleAngle() (DoubleAngle int, err error) {
 	if v := p.DoubleAngle; v == nil {
 
 		switch p.GetSineType() {
-		case advanced.SinContinuous:
+		case ckks.SinContinuous:
 			DoubleAngle = 0
 		default:
 			DoubleAngle = DefaultDoubleAngle

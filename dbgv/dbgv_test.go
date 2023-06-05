@@ -59,9 +59,9 @@ type testContext struct {
 	pk0 *rlwe.PublicKey
 	pk1 *rlwe.PublicKey
 
-	encryptorPk0 rlwe.Encryptor
-	decryptorSk0 rlwe.Decryptor
-	decryptorSk1 rlwe.Decryptor
+	encryptorPk0 rlwe.EncryptorInterface
+	decryptorSk0 *rlwe.Decryptor
+	decryptorSk1 *rlwe.Decryptor
 	evaluator    *bgv.Evaluator
 
 	crs            drlwe.CRS
@@ -479,7 +479,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 	})
 }
 
-func newTestVectors(tc *testContext, encryptor rlwe.Encryptor, t *testing.T) (coeffs []uint64, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
+func newTestVectors(tc *testContext, encryptor rlwe.EncryptorInterface, t *testing.T) (coeffs []uint64, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
 
 	prng, _ := sampling.NewPRNG()
 	uniformSampler := ring.NewUniformSampler(prng, tc.ringT)
@@ -496,7 +496,7 @@ func newTestVectors(tc *testContext, encryptor rlwe.Encryptor, t *testing.T) (co
 	return coeffsPol.Coeffs[0], plaintext, ciphertext
 }
 
-func verifyTestVectors(tc *testContext, decryptor rlwe.Decryptor, coeffs []uint64, ciphertext *rlwe.Ciphertext, t *testing.T) {
+func verifyTestVectors(tc *testContext, decryptor *rlwe.Decryptor, coeffs []uint64, ciphertext *rlwe.Ciphertext, t *testing.T) {
 	have := make([]uint64, tc.params.PlaintextSlots())
 	tc.encoder.Decode(decryptor.DecryptNew(ciphertext), have)
 	require.True(t, utils.EqualSlice(coeffs, have))

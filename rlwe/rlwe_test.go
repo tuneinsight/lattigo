@@ -89,8 +89,8 @@ func TestRLWE(t *testing.T) {
 type TestContext struct {
 	params Parameters
 	kgen   *KeyGenerator
-	enc    Encryptor
-	dec    Decryptor
+	enc    EncryptorInterface
+	dec    *Decryptor
 	sk     *SecretKey
 	pk     *PublicKey
 	eval   *Evaluator
@@ -336,7 +336,7 @@ func testEncryptor(tc *TestContext, level int, t *testing.T) {
 	t.Run(testString(params, level, "Encryptor/Encrypt/Pk/ShallowCopy"), func(t *testing.T) {
 		enc1 := enc.WithKey(pk)
 		enc2 := enc1.ShallowCopy()
-		pkEnc1, pkEnc2 := enc1.(*pkEncryptor), enc2.(*pkEncryptor)
+		pkEnc1, pkEnc2 := enc1.(*EncryptorPublicKey), enc2.(*EncryptorPublicKey)
 		require.True(t, pkEnc1.params.Equal(pkEnc2.params))
 		require.True(t, pkEnc1.pk == pkEnc2.pk)
 		require.False(t, (pkEnc1.basisextender == pkEnc2.basisextender) && (pkEnc1.basisextender != nil) && (pkEnc2.basisextender != nil))
@@ -389,7 +389,7 @@ func testEncryptor(tc *TestContext, level int, t *testing.T) {
 	t.Run(testString(params, level, "Encrypt/Sk/ShallowCopy"), func(t *testing.T) {
 		enc1 := NewEncryptor(params, sk)
 		enc2 := enc1.ShallowCopy()
-		skEnc1, skEnc2 := enc1.(*skEncryptor), enc2.(*skEncryptor)
+		skEnc1, skEnc2 := enc1.(*EncryptorSecretKey), enc2.(*EncryptorSecretKey)
 		require.True(t, skEnc1.params.Equal(skEnc2.params))
 		require.True(t, skEnc1.sk == skEnc2.sk)
 		require.False(t, (skEnc1.basisextender == skEnc2.basisextender) && (skEnc1.basisextender != nil) && (skEnc2.basisextender != nil))
@@ -402,7 +402,7 @@ func testEncryptor(tc *TestContext, level int, t *testing.T) {
 		sk2 := kgen.GenSecretKeyNew()
 		enc1 := NewEncryptor(params, sk)
 		enc2 := enc1.WithKey(sk2)
-		skEnc1, skEnc2 := enc1.(*skEncryptor), enc2.(*skEncryptor)
+		skEnc1, skEnc2 := enc1.(*EncryptorSecretKey), enc2.(*EncryptorSecretKey)
 		require.True(t, skEnc1.params.Equal(skEnc2.params))
 		require.True(t, skEnc1.sk.Equal(sk))
 		require.True(t, skEnc2.sk.Equal(sk2))

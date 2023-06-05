@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/tuneinsight/lattigo/v4/ckks"
-	ckksAdvanced "github.com/tuneinsight/lattigo/v4/ckks/advanced"
 	"github.com/tuneinsight/lattigo/v4/rgsw/lut"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
@@ -93,8 +92,8 @@ func main() {
 	normalization := 2.0 / (b - a) // all inputs are normalized before the LUT evaluation.
 
 	// SlotsToCoeffsParameters homomorphic encoding parameters
-	var SlotsToCoeffsParameters = ckksAdvanced.HomomorphicDFTMatrixLiteral{
-		Type:       ckksAdvanced.Decode,
+	var SlotsToCoeffsParameters = ckks.HomomorphicDFTMatrixLiteral{
+		Type:       ckks.Decode,
 		LogSlots:   LogSlots,
 		Scaling:    new(big.Float).SetFloat64(normalization * diffScale),
 		LevelStart: 1,        // starting level
@@ -102,8 +101,8 @@ func main() {
 	}
 
 	// CoeffsToSlotsParameters homomorphic decoding parameters
-	var CoeffsToSlotsParameters = ckksAdvanced.HomomorphicDFTMatrixLiteral{
-		Type:       ckksAdvanced.Encode,
+	var CoeffsToSlotsParameters = ckks.HomomorphicDFTMatrixLiteral{
+		Type:       ckks.Encode,
 		LogSlots:   LogSlots,
 		LevelStart: 1,        // starting level
 		Levels:     []int{1}, // Decomposition levels of the encoding matrix (this will use one one matrix in one level)
@@ -140,8 +139,8 @@ func main() {
 
 	fmt.Printf("Gen SlotsToCoeffs Matrices... ")
 	now = time.Now()
-	SlotsToCoeffsMatrix := ckksAdvanced.NewHomomorphicDFTMatrixFromLiteral(SlotsToCoeffsParameters, encoderN12)
-	CoeffsToSlotsMatrix := ckksAdvanced.NewHomomorphicDFTMatrixFromLiteral(CoeffsToSlotsParameters, encoderN12)
+	SlotsToCoeffsMatrix := ckks.NewHomomorphicDFTMatrixFromLiteral(SlotsToCoeffsParameters, encoderN12)
+	CoeffsToSlotsMatrix := ckks.NewHomomorphicDFTMatrixFromLiteral(CoeffsToSlotsParameters, encoderN12)
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
 	// GaloisKeys
@@ -161,7 +160,7 @@ func main() {
 	evalLUT := lut.NewEvaluator(paramsN12.Parameters, paramsN11.Parameters, evk)
 
 	// CKKS Evaluator
-	evalCKKS := ckksAdvanced.NewEvaluator(paramsN12, evk)
+	evalCKKS := ckks.NewEvaluator(paramsN12, evk)
 
 	fmt.Printf("Encrypting bits of skLWE in RGSW... ")
 	now = time.Now()

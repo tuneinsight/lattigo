@@ -9,7 +9,7 @@ import (
 // interface overriding the `Encrypt` and `EncryptZero` methods to accept rgsw.Ciphertext
 // types in addition to ciphertexts types in the rlwe package.
 type Encryptor struct {
-	rlwe.Encryptor
+	rlwe.EncryptorInterface
 
 	params rlwe.Parameters
 	buffQP ringqp.Poly
@@ -28,7 +28,7 @@ func (enc *Encryptor) Encrypt(pt *rlwe.Plaintext, ct interface{}) {
 	var rgswCt *Ciphertext
 	var isRGSW bool
 	if rgswCt, isRGSW = ct.(*Ciphertext); !isRGSW {
-		enc.Encryptor.Encrypt(pt, ct)
+		enc.EncryptorInterface.Encrypt(pt, ct)
 		return
 	}
 
@@ -58,7 +58,7 @@ func (enc *Encryptor) EncryptZero(ct interface{}) {
 	var rgswCt *Ciphertext
 	var isRGSW bool
 	if rgswCt, isRGSW = ct.(*Ciphertext); !isRGSW {
-		enc.Encryptor.EncryptZero(ct)
+		enc.EncryptorInterface.EncryptZero(ct)
 		return
 	}
 
@@ -69,8 +69,8 @@ func (enc *Encryptor) EncryptZero(ct interface{}) {
 
 	for j := 0; j < decompPw2; j++ {
 		for i := 0; i < decompRNS; i++ {
-			enc.Encryptor.EncryptZero(rgswCt.Value[0].Value[i][j])
-			enc.Encryptor.EncryptZero(rgswCt.Value[1].Value[i][j])
+			enc.EncryptorInterface.EncryptZero(rgswCt.Value[0].Value[i][j])
+			enc.EncryptorInterface.EncryptZero(rgswCt.Value[1].Value[i][j])
 		}
 	}
 }
@@ -79,5 +79,5 @@ func (enc *Encryptor) EncryptZero(ct interface{}) {
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // Encryptors can be used concurrently.
 func (enc *Encryptor) ShallowCopy() *Encryptor {
-	return &Encryptor{Encryptor: enc.Encryptor.ShallowCopy(), params: enc.params, buffQP: *enc.params.RingQP().NewPoly()}
+	return &Encryptor{EncryptorInterface: enc.EncryptorInterface.ShallowCopy(), params: enc.params, buffQP: *enc.params.RingQP().NewPoly()}
 }

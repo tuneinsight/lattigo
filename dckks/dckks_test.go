@@ -44,9 +44,9 @@ type testContext struct {
 	encoder   *ckks.Encoder
 	evaluator *ckks.Evaluator
 
-	encryptorPk0 rlwe.Encryptor
-	decryptorSk0 rlwe.Decryptor
-	decryptorSk1 rlwe.Decryptor
+	encryptorPk0 rlwe.EncryptorInterface
+	decryptorSk0 *rlwe.Decryptor
+	decryptorSk1 *rlwe.Decryptor
 
 	pk0 *rlwe.PublicKey
 	pk1 *rlwe.PublicKey
@@ -504,11 +504,11 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 	})
 }
 
-func newTestVectors(tc *testContext, encryptor rlwe.Encryptor, a, b complex128) (values []*bignum.Complex, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
+func newTestVectors(tc *testContext, encryptor rlwe.EncryptorInterface, a, b complex128) (values []*bignum.Complex, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
 	return newTestVectorsAtScale(tc, encryptor, a, b, tc.params.PlaintextScale())
 }
 
-func newTestVectorsAtScale(tc *testContext, encryptor rlwe.Encryptor, a, b complex128, scale rlwe.Scale) (values []*bignum.Complex, pt *rlwe.Plaintext, ct *rlwe.Ciphertext) {
+func newTestVectorsAtScale(tc *testContext, encryptor rlwe.EncryptorInterface, a, b complex128, scale rlwe.Scale) (values []*bignum.Complex, pt *rlwe.Plaintext, ct *rlwe.Ciphertext) {
 
 	prec := tc.encoder.Prec()
 
@@ -545,7 +545,7 @@ func newTestVectorsAtScale(tc *testContext, encryptor rlwe.Encryptor, a, b compl
 	return values, pt, ct
 }
 
-func verifyTestVectors(tc *testContext, decryptor rlwe.Decryptor, valuesWant, valuesHave interface{}, t *testing.T) {
+func verifyTestVectors(tc *testContext, decryptor *rlwe.Decryptor, valuesWant, valuesHave interface{}, t *testing.T) {
 
 	precStats := ckks.GetPrecisionStats(tc.params, tc.encoder, decryptor, valuesWant, valuesHave, nil, false)
 

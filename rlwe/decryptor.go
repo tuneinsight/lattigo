@@ -5,16 +5,8 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
-// Decryptor is an RLWE decryption interface.
-type Decryptor interface {
-	Decrypt(ct *Ciphertext, pt *Plaintext)
-	DecryptNew(ct *Ciphertext) (pt *Plaintext)
-	ShallowCopy() Decryptor
-	WithKey(sk *SecretKey) Decryptor
-}
-
-// decryptor is a structure used to decrypt Ciphertext. It stores the secret-key.
-type decryptor struct {
+// Decryptor is a structure used to decrypt Ciphertext. It stores the secret-key.
+type Decryptor struct {
 	params ParametersInterface
 	ringQ  *ring.Ring
 	buff   *ring.Poly
@@ -22,13 +14,13 @@ type decryptor struct {
 }
 
 // NewDecryptor instantiates a new generic RLWE Decryptor.
-func NewDecryptor(params ParametersInterface, sk *SecretKey) Decryptor {
+func NewDecryptor(params ParametersInterface, sk *SecretKey) *Decryptor {
 
 	if sk.Value.Q.N() != params.N() {
 		panic("cannot NewDecryptor: secret_key is invalid for the provided parameters")
 	}
 
-	return &decryptor{
+	return &Decryptor{
 		params: params,
 		ringQ:  params.RingQ(),
 		buff:   params.RingQ().NewPoly(),
@@ -36,9 +28,9 @@ func NewDecryptor(params ParametersInterface, sk *SecretKey) Decryptor {
 	}
 }
 
-// Decrypt decrypts the Ciphertext and returns the result in a new Plaintext.
+// DecryptNew decrypts the Ciphertext and returns the result in a new Plaintext.
 // Output pt MetaData will match the input ct MetaData.
-func (d *decryptor) DecryptNew(ct *Ciphertext) (pt *Plaintext) {
+func (d *Decryptor) DecryptNew(ct *Ciphertext) (pt *Plaintext) {
 	pt = NewPlaintext(d.params, ct.Level())
 	d.Decrypt(ct, pt)
 	return
@@ -47,7 +39,7 @@ func (d *decryptor) DecryptNew(ct *Ciphertext) (pt *Plaintext) {
 // Decrypt decrypts the Ciphertext and writes the result in pt.
 // The level of the output Plaintext is min(ct.Level(), pt.Level())
 // Output pt MetaData will match the input ct MetaData.
-func (d *decryptor) Decrypt(ct *Ciphertext, pt *Plaintext) {
+func (d *Decryptor) Decrypt(ct *Ciphertext, pt *Plaintext) {
 
 	level := utils.Min(ct.Level(), pt.Level())
 
@@ -91,8 +83,8 @@ func (d *decryptor) Decrypt(ct *Ciphertext, pt *Plaintext) {
 // ShallowCopy creates a shallow copy of Decryptor in which all the read-only data-structures are
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // Decryptor can be used concurrently.
-func (d *decryptor) ShallowCopy() Decryptor {
-	return &decryptor{
+func (d *Decryptor) ShallowCopy() *Decryptor {
+	return &Decryptor{
 		ringQ: d.ringQ,
 		buff:  d.ringQ.NewPoly(),
 		sk:    d.sk,
@@ -102,8 +94,8 @@ func (d *decryptor) ShallowCopy() Decryptor {
 // WithKey creates a shallow copy of Decryptor with a new decryption key, in which all the
 // read-only data-structures are shared with the receiver and the temporary buffers
 // are reallocated. The receiver and the returned Decryptor can be used concurrently.
-func (d *decryptor) WithKey(sk *SecretKey) Decryptor {
-	return &decryptor{
+func (d *Decryptor) WithKey(sk *SecretKey) *Decryptor {
+	return &Decryptor{
 		ringQ: d.ringQ,
 		buff:  d.ringQ.NewPoly(),
 		sk:    sk,

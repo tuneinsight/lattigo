@@ -44,9 +44,9 @@ type testContext struct {
 	kgen        *rlwe.KeyGenerator
 	sk          *rlwe.SecretKey
 	pk          *rlwe.PublicKey
-	encryptorPk rlwe.Encryptor
-	encryptorSk rlwe.Encryptor
-	decryptor   rlwe.Decryptor
+	encryptorPk rlwe.EncryptorInterface
+	encryptorSk rlwe.EncryptorInterface
+	decryptor   *rlwe.Decryptor
 	evaluator   *Evaluator
 }
 
@@ -136,7 +136,7 @@ func genTestParams(defaultParam Parameters) (tc *testContext, err error) {
 
 }
 
-func newTestVectors(tc *testContext, encryptor rlwe.Encryptor, a, b complex128, t *testing.T) (values []*bignum.Complex, pt *rlwe.Plaintext, ct *rlwe.Ciphertext) {
+func newTestVectors(tc *testContext, encryptor rlwe.EncryptorInterface, a, b complex128, t *testing.T) (values []*bignum.Complex, pt *rlwe.Plaintext, ct *rlwe.Ciphertext) {
 
 	prec := tc.encoder.Prec()
 
@@ -190,7 +190,7 @@ func randomConst(tp ring.Type, prec uint, a, b complex128) (constant *bignum.Com
 	return
 }
 
-func verifyTestVectors(params Parameters, encoder *Encoder, decryptor rlwe.Decryptor, valuesWant, valuesHave interface{}, noise distribution.Distribution, t *testing.T) {
+func verifyTestVectors(params Parameters, encoder *Encoder, decryptor *rlwe.Decryptor, valuesWant, valuesHave interface{}, noise distribution.Distribution, t *testing.T) {
 
 	precStats := GetPrecisionStats(params, encoder, decryptor, valuesWant, valuesHave, noise, false)
 

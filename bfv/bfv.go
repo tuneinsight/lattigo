@@ -103,13 +103,13 @@ type Evaluator struct {
 // NewEvaluator creates a new Evaluator, that can be used to do homomorphic
 // operations on ciphertexts and/or plaintexts. It stores a memory buffer
 // and ciphertexts that will be used for intermediate values.
-func NewEvaluator(params Parameters, evk rlwe.EvaluationKeySetInterface) *Evaluator {
+func NewEvaluator(params Parameters, evk rlwe.EvaluationKeySet) *Evaluator {
 	return &Evaluator{bgv.NewEvaluator(params.Parameters, evk)}
 }
 
 // WithKey creates a shallow copy of this Evaluator in which the read-only data-structures are
 // shared with the receiver but the EvaluationKey is evaluationKey.
-func (eval *Evaluator) WithKey(evk rlwe.EvaluationKeySetInterface) *Evaluator {
+func (eval *Evaluator) WithKey(evk rlwe.EvaluationKeySet) *Evaluator {
 	return &Evaluator{eval.Evaluator.WithKey(evk)}
 }
 

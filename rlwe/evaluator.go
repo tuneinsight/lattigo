@@ -71,8 +71,7 @@ func newEvaluatorBuffers(params ParametersInterface) *evaluatorBuffers {
 }
 
 // NewEvaluator creates a new Evaluator.
-func NewEvaluator(params ParametersInterface, evk EvaluationKeySetInterface) (eval *Evaluator) {
-func NewEvaluator(params Parameters, evk EvaluationKeySet) (eval *Evaluator) {
+func NewEvaluator(params ParametersInterface, evk EvaluationKeySet) (eval *Evaluator) {
 	eval = new(Evaluator)
 	eval.evaluatorBase = newEvaluatorBase(params)
 	eval.evaluatorBuffers = newEvaluatorBuffers(params)

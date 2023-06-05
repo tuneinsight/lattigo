@@ -147,7 +147,7 @@ func main() {
 	galEls := paramsN12.GaloisElementsForTrace(0)
 	galEls = append(galEls, SlotsToCoeffsParameters.GaloisElements(paramsN12)...)
 	galEls = append(galEls, CoeffsToSlotsParameters.GaloisElements(paramsN12)...)
-	galEls = append(galEls, paramsN12.GaloisElementForRowRotation())
+	galEls = append(galEls, paramsN12.GaloisElementInverse())
 
 	evk := rlwe.NewMemEvaluationKeySet(nil, kgenN12.GenGaloisKeysNew(galEls, skN12)...)
 

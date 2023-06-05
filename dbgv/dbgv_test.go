@@ -200,11 +200,7 @@ func testEncToShares(tc *testContext, t *testing.T) {
 
 	P[0].e2s.GetShare(P[0].secretShare, P[0].publicShare, ciphertext, P[0].secretShare)
 
-<<<<<<< 538a296536bad5a62ff6ad7fedc8f136b4f3dbc3:dbgv/dbgv_test.go
-	t.Run(GetTestName("E2SProtocol", tc.params, tc.NParties), func(t *testing.T) {
-=======
-	t.Run(testString("EncToShareProtocol", tc.NParties, tc.params), func(t *testing.T) {
->>>>>>> Renamed protocols-related structs and functions to avoid abbreviations:dbgv/dbgvfv_test.go
+	t.Run(GetTestName("EncToShareProtocol", tc.params, tc.NParties), func(t *testing.T) {
 
 		rec := NewAdditiveShare(params)
 		for _, p := range P {
@@ -222,11 +218,7 @@ func testEncToShares(tc *testContext, t *testing.T) {
 
 	crp := P[0].e2s.SampleCRP(params.MaxLevel(), tc.crs)
 
-<<<<<<< 538a296536bad5a62ff6ad7fedc8f136b4f3dbc3:dbgv/dbgv_test.go
-	t.Run(GetTestName("S2EProtocol", tc.params, tc.NParties), func(t *testing.T) {
-=======
-	t.Run(testString("ShareToEncProtocol", tc.NParties, tc.params), func(t *testing.T) {
->>>>>>> Renamed protocols-related structs and functions to avoid abbreviations:dbgv/dbgvfv_test.go
+	t.Run(GetTestName("ShareToEncProtocol", tc.params, tc.NParties), func(t *testing.T) {
 
 		for i, p := range P {
 			p.s2e.GenShare(p.sk, crp, p.secretShare, p.publicShare)

@@ -71,6 +71,10 @@ func TestCKKS(t *testing.T) {
 
 			paramsLiteral.RingType = ringType
 
+			if testing.Short() {
+				paramsLiteral.LogN = 10
+			}
+
 			var params Parameters
 			if params, err = NewParametersFromLiteral(paramsLiteral); err != nil {
 				t.Fatal(err)
@@ -1091,7 +1095,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 		linTransf, err := GenLinearTransform(diagMatrix, tc.encoder, params.MaxLevel(), rlwe.NewScale(params.Q()[params.MaxLevel()]), ciphertext.PlaintextLogDimensions[1], LogBSGSRatio)
 		require.NoError(t, err)
 
-		galEls := params.GaloisElementsForLinearTransform(nonZeroDiags, ciphertext.LogSlots, LogBSGSRatio)
+		galEls := params.GaloisElementsForLinearTransform(nonZeroDiags, ciphertext.PlaintextLogSlots(), LogBSGSRatio)
 		gks := tc.kgen.GenGaloisKeysNew(galEls, tc.sk)
 		evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
 
@@ -1142,7 +1146,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 		linTransf, err := GenLinearTransform(diagMatrix, tc.encoder, params.MaxLevel(), rlwe.NewScale(params.Q()[params.MaxLevel()]), ciphertext.PlaintextLogDimensions[1], -1)
 		require.NoError(t, err)
 
-		galEls := params.GaloisElementsForLinearTransform([]int{-1, 0}, ciphertext.PlaintextLogDimensions[1], -1)
+		galEls := params.GaloisElementsForLinearTransform([]int{-1, 0}, ciphertext.PlaintextLogSlots(), -1)
 
 		gks := tc.kgen.GenGaloisKeysNew(galEls, tc.sk)
 		evk := rlwe.NewMemEvaluationKeySet(nil, gks...)

@@ -108,7 +108,7 @@ func newEvaluatorBuffer(params Parameters) *evaluatorBuffers {
 // NewEvaluator creates a new Evaluator, that can be used to do homomorphic
 // operations on ciphertexts and/or plaintexts. It stores a memory buffer
 // and ciphertexts that will be used for intermediate values.
-func NewEvaluator(parameters Parameters, evk rlwe.EvaluationKeySetInterface) *Evaluator {
+func NewEvaluator(parameters Parameters, evk rlwe.EvaluationKeySet) *Evaluator {
 	ev := new(Evaluator)
 	ev.evaluatorBase = newEvaluatorPrecomp(parameters)
 	ev.evaluatorBuffers = newEvaluatorBuffer(parameters)
@@ -136,7 +136,7 @@ func (eval *Evaluator) ShallowCopy() *Evaluator {
 
 // WithKey creates a shallow copy of this Evaluator in which the read-only data-structures are
 // shared with the receiver but the EvaluationKey is evaluationKey.
-func (eval *Evaluator) WithKey(evk rlwe.EvaluationKeySetInterface) *Evaluator {
+func (eval *Evaluator) WithKey(evk rlwe.EvaluationKeySet) *Evaluator {
 	return &Evaluator{
 		evaluatorBase:    eval.evaluatorBase,
 		Evaluator:        eval.Evaluator.WithKey(evk),
@@ -161,7 +161,7 @@ func (eval *Evaluator) Add(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 	switch op1 := op1.(type) {
 	case rlwe.Operand:
 
-		_, level := eval.CheckBinary(op0.El(), op1.El(), op2.El(), utils.Max(op0.Degree(), op1.Degree()))
+		_, level := eval.InitOutputBinaryOp(op0.El(), op1.El(), utils.Max(op0.Degree(), op1.Degree()), op2.El())
 
 		if op0.PlaintextScale.Cmp(op1.El().PlaintextScale) == 0 {
 			eval.evaluateInPlace(level, op0, op1.El(), op2, ringQ.AtLevel(level).Add)
@@ -171,7 +171,7 @@ func (eval *Evaluator) Add(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 
 	case *big.Int:
 
-		_, level := eval.CheckUnary(op0.El(), op2.El())
+		_, level := eval.InitOutputUnaryOp(op0.El(), op2.El())
 
 		op2.Resize(op0.Degree(), level)
 
@@ -401,7 +401,7 @@ func (eval *Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 	case rlwe.Operand:
 		eval.tensorStandard(op0, op1.El(), false, op2)
 	case *big.Int:
-		_, level := eval.CheckUnary(op0.El(), op2.El())
+		_, level := eval.InitOutputUnaryOp(op0.El(), op2.El())
 
 		ringQ := eval.parameters.RingQ().AtLevel(level)
 
@@ -1039,7 +1039,7 @@ func (eval *Evaluator) MulRelinThenAdd(op0, op1 *rlwe.Ciphertext, op2 *rlwe.Ciph
 
 func (eval *Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 *rlwe.OperandQ, relin bool, op2 *rlwe.Ciphertext) {
 
-	_, level := eval.CheckBinary(op0.El(), op1, op2.El(), utils.Max(op0.Degree(), op1.Degree()))
+	_, level := eval.InitOutputBinaryOp(op0.El(), op1, utils.Max(op0.Degree(), op1.Degree()), op2.El())
 
 	if op0.El() == op2.El() || op1.El() == op2.El() {
 		panic("cannot MulRelinThenAdd: op2 must be different from op0 and op1")

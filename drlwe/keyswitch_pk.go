@@ -37,13 +37,12 @@ func (pcks *PublicKeySwitchProtocol) ShallowCopy() *PublicKeySwitchProtocol {
 	}
 
 	params := pcks.params
-
+	return &PublicKeySwitchProtocol{
 		noiseSampler:       ring.NewSampler(prng, params.RingQ(), pcks.noise, false),
 		noise:              pcks.noise,
 		EncryptorInterface: rlwe.NewEncryptor(params, nil),
 		params:             params,
 		buf:                params.RingQ().NewPoly(),
-	return &PublicKeySwitchProtocol{
 	}
 }
 

@@ -654,9 +654,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 		linTransf, err := GenLinearTransform(diagMatrix, tc.encoder, params.MaxLevel(), tc.params.PlaintextScale(), -1)
 		require.NoError(t, err)
 
-		galEls := linTransf.GaloisElements(params)
-
-		gks := tc.kgen.GenGaloisKeysNew(tc.params.GaloisElementsForRotations(rotations), tc.sk)
+		gks := tc.kgen.GenGaloisKeysNew(linTransf.GaloisElements(params), tc.sk)
 		eval := tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(nil, gks...))
 
 		eval.LinearTransform(ciphertext, linTransf, []*rlwe.Ciphertext{ciphertext})
@@ -707,9 +705,7 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 		linTransf, err := GenLinearTransform(diagMatrix, tc.encoder, params.MaxLevel(), tc.params.PlaintextScale(), 1)
 		require.NoError(t, err)
 
-		galEls := linTransf.GaloisElements(params)
-
-		gks := tc.kgen.GenGaloisKeysNew(tc.params.GaloisElementsForRotations(rotations), tc.sk)
+		gks := tc.kgen.GenGaloisKeysNew(linTransf.GaloisElements(params), tc.sk)
 		evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
 
 		eval := tc.evaluator.WithKey(evk)

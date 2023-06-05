@@ -13,31 +13,31 @@ import (
 // NewPublicKeyGenProtocol creates a new drlwe.PublicKeyGenProtocol instance from the BFV parameters.
 // The returned protocol instance is generic and can be used in other multiparty schemes.
 func NewPublicKeyGenProtocol(params bfv.Parameters) *drlwe.PublicKeyGenProtocol {
-	return drlwe.NewPublicKeyGenProtocol(params.Parameters)
+	return drlwe.NewPublicKeyGenProtocol(params.Parameters.Parameters)
 }
 
 // NewRelinKeyGenProtocol creates a new drlwe.RelinKeyGenProtocol instance from the BFV parameters.
 // The returned protocol instance is generic and can be used in other multiparty schemes.
 func NewRelinKeyGenProtocol(params bfv.Parameters) *drlwe.RelinKeyGenProtocol {
-	return drlwe.NewRelinKeyGenProtocol(params.Parameters)
+	return drlwe.NewRelinKeyGenProtocol(params.Parameters.Parameters)
 }
 
 // NewGaloisKeyGenProtocol creates a new drlwe.RelinKeyGenProtocol instance from the BFV parameters.
 // The returned protocol instance is generic and can be used in other multiparty schemes.
 func NewGaloisKeyGenProtocol(params bfv.Parameters) *drlwe.GaloisKeyGenProtocol {
-	return drlwe.NewGaloisKeyGenProtocol(params.Parameters)
+	return drlwe.NewGaloisKeyGenProtocol(params.Parameters.Parameters)
 }
 
 // NewKeySwitchProtocol creates a new drlwe.KeySwitchProtocol instance from the BFV parameters.
 // The returned protocol instance is generic and can be used in other multiparty schemes.
 func NewKeySwitchProtocol(params bfv.Parameters, noise distribution.Distribution) *drlwe.KeySwitchProtocol {
-	return drlwe.NewKeySwitchProtocol(params.Parameters, noise)
+	return drlwe.NewKeySwitchProtocol(params.Parameters.Parameters, noise)
 }
 
 // NewPublicKeySwitchProtocol creates a new drlwe.PublicKeySwitchProtocol instance from the BFV paramters.
 // The returned protocol instance is generic and can be used in other multiparty schemes.
 func NewPublicKeySwitchProtocol(params bfv.Parameters, noise distribution.Distribution) *drlwe.PublicKeySwitchProtocol {
-	return drlwe.NewPublicKeySwitchProtocol(params.Parameters, noise)
+	return drlwe.NewPublicKeySwitchProtocol(params.Parameters.Parameters, noise)
 }
 
 // NewRefreshProtocol creates a new instance of the RefreshProtocol.
@@ -47,12 +47,12 @@ func NewRefreshProtocol(params bfv.Parameters, noise distribution.Distribution) 
 
 // NewEncToShareProtocol creates a new instance of the EncToShareProtocol.
 func NewEncToShareProtocol(params bfv.Parameters, noise distribution.Distribution) (e2s *dbgv.EncToShareProtocol) {
-	return dbgv.NewEncToShareProtocol(bgv.Parameters(params), noise)
+	return dbgv.NewEncToShareProtocol(params.Parameters, noise)
 }
 
 // NewShareToEncProtocol creates a new instance of the ShareToEncProtocol.
 func NewShareToEncProtocol(params bfv.Parameters, noise distribution.Distribution) (e2s *dbgv.ShareToEncProtocol) {
-	return dbgv.NewShareToEncProtocol(bgv.Parameters(params), noise)
+	return dbgv.NewShareToEncProtocol(params.Parameters, noise)
 }
 
 // NewMaskedTransformProtocol creates a new instance of the MaskedTransformProtocol.

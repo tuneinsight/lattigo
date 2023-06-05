@@ -52,10 +52,10 @@ func obliviousRiding() {
 
 	// BFV parameters (128 bit security) with plaintext modulus 65929217
 	// Creating encryption parameters from a default params with logN=14, logQP=438 with a plaintext modulus T=65929217
-	params, err := bfv.NewParametersFromLiteral(bfv.ParametersLiteral{ 
+	params, err := bfv.NewParametersFromLiteral(bfv.ParametersLiteral{
 		LogN: 14,
-		LogQ:    []int{56, 55, 55, 54, 54, 54},
-		LogP:    []int{55, 55},                                                        
+		LogQ: []int{56, 55, 55, 54, 54, 54},
+		LogP: []int{55, 55},
 		T:    0x3ee0001,
 	})
 	if err != nil {

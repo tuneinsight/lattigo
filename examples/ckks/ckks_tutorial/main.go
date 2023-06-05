@@ -425,12 +425,12 @@ func main() {
 	rot := 5
 	galEls := []uint64{
 		//the galois element for the cyclic rotations by 5 positions to the left.
-		params.GaloisElementForColumnRotationBy(rot),
+		params.GaloisElement(rot),
 		// the galois element for the complex conjugate (The CKKS scheme actually encrypts 2xN/2 values, so the conjugate operation can be seen
 		// as a rotation between the row which contains the real part and that which contains the complex part of the complex values).
 		// The reason for this name is that the `ckks` package does not yet have a wrapper for this method which comes from the `rlwe` package.
 		// The name of this method comes from the BFV/BGV schemes, which have plaintext spaces of Z_{2xN/2}, i.e. a matrix of 2 rows and N/2 columns.
-		params.GaloisElementForRowRotation(),
+		params.GaloisElementInverse(),
 	}
 
 	// We then generate the `rlwe.GaloisKey`s element that corresponds to these galois elements.

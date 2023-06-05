@@ -138,18 +138,13 @@ func testHomomorphicEncoding(params Parameters, LogSlots int, t *testing.T) {
 		CoeffsToSlotMatrices := NewHomomorphicDFTMatrixFromLiteral(CoeffsToSlotsParametersLiteral, encoder)
 
 		// Gets Galois elements
-		galEls := append(CoeffsToSlotsParametersLiteral.GaloisElements(params), params.GaloisElementForRowRotation())
+		galEls := append(CoeffsToSlotsParametersLiteral.GaloisElements(params), params.GaloisElementInverse())
 
 		// Generates and adds the keys
 		gks := kgen.GenGaloisKeysNew(galEls, sk)
 
-<<<<<<< 538a296536bad5a62ff6ad7fedc8f136b4f3dbc3:ckks/homomorphic_DFT_test.go
-		// Also adds the conjugate key
-		evk.GaloisKeys[params.GaloisElementInverse()] = kgen.GenGaloisKeyNew(params.GaloisElementInverse(), sk)
-=======
 		// Instantiates the EvaluationKeySet
 		evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
->>>>>>> Polishing the evaluation-keys interfaces:ckks/advanced/homomorphic_DFT_test.go
 
 		// Creates an evaluator with the rotation keys
 		eval := NewEvaluator(params, evk)
@@ -347,18 +342,13 @@ func testHomomorphicDecoding(params Parameters, LogSlots int, t *testing.T) {
 		SlotsToCoeffsMatrix := NewHomomorphicDFTMatrixFromLiteral(SlotsToCoeffsParametersLiteral, encoder)
 
 		// Gets the Galois elements
-		galEls := append(SlotsToCoeffsParametersLiteral.GaloisElements(params), params.GaloisElementForRowRotation())
+		galEls := append(SlotsToCoeffsParametersLiteral.GaloisElements(params), params.GaloisElementInverse())
 
 		// Generates and adds the keys
 		gks := kgen.GenGaloisKeysNew(galEls, sk)
 
-<<<<<<< 538a296536bad5a62ff6ad7fedc8f136b4f3dbc3:ckks/homomorphic_DFT_test.go
-		// Also adds the conjugate key
-		evk.GaloisKeys[params.GaloisElementInverse()] = kgen.GenGaloisKeyNew(params.GaloisElementInverse(), sk)
-=======
 		// Instantiates the EvaluationKeySet
 		evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
->>>>>>> Polishing the evaluation-keys interfaces:ckks/advanced/homomorphic_DFT_test.go
 
 		// Creates an evaluator with the rotation keys
 		eval := NewEvaluator(params, evk)

@@ -104,8 +104,8 @@ func main() {
 	// LogN = 13 & LogQP = 218
 	params, err := bfv.NewParametersFromLiteral(bfv.ParametersLiteral{
 		LogN: 13,
-		LogQ:    []int{54, 54, 54},
-		LogP:    []int{55},
+		LogQ: []int{54, 54, 54},
+		LogP: []int{55},
 		T:    65537,
 	})
 	if err != nil {

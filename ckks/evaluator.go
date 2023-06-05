@@ -24,7 +24,7 @@ type Evaluator struct {
 // NewEvaluator creates a new Evaluator, that can be used to do homomorphic
 // operations on the Ciphertexts and/or Plaintexts. It stores a memory buffer
 // and Ciphertexts that will be used for intermediate values.
-func NewEvaluator(parameters Parameters, evk rlwe.EvaluationKeySetInterface) *Evaluator {
+func NewEvaluator(parameters Parameters, evk rlwe.EvaluationKeySet) *Evaluator {
 	return &Evaluator{
 		parameters:       parameters,
 		Encoder:          NewEncoder(parameters),

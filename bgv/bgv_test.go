@@ -763,18 +763,8 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 		linTransf, err := GenLinearTransform(diagMatrix, tc.encoder, level, params.PlaintextScale(), -1)
 		require.NoError(t, err)
 
-		galEls := linTransf.GaloisElements(params)
-
-<<<<<<< 538a296536bad5a62ff6ad7fedc8f136b4f3dbc3:bgv/bgv_test.go
-		evk := rlwe.NewEvaluationKeySet()
-		for _, galEl := range galEls {
-			evk.GaloisKeys[galEl] = tc.kgen.GenGaloisKeyNew(galEl, tc.sk)
-		}
-		eval := tc.evaluator.WithKey(evk)
-=======
-		gks := tc.kgen.GenGaloisKeysNew(tc.params.GaloisElementsForRotations(rotations), tc.sk)
+		gks := tc.kgen.GenGaloisKeysNew(linTransf.GaloisElements(params), tc.sk)
 		eval := tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(nil, gks...))
->>>>>>> Polishing the evaluation-keys interfaces:bgv/bgvfv_test.go
 
 		eval.LinearTransform(ciphertext, linTransf, []*rlwe.Ciphertext{ciphertext})
 
@@ -824,19 +814,8 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 		linTransf, err := GenLinearTransform(diagMatrix, tc.encoder, level, tc.params.PlaintextScale(), 1)
 		require.NoError(t, err)
 
-		galEls := linTransf.GaloisElements(params)
-
-<<<<<<< 538a296536bad5a62ff6ad7fedc8f136b4f3dbc3:bgv/bgv_test.go
-		evk := rlwe.NewEvaluationKeySet()
-		for _, galEl := range galEls {
-			evk.GaloisKeys[galEl] = tc.kgen.GenGaloisKeyNew(galEl, tc.sk)
-		}
-
-		eval := tc.evaluator.WithKey(evk)
-=======
-		gks := tc.kgen.GenGaloisKeysNew(tc.params.GaloisElementsForRotations(rotations), tc.sk)
+		gks := tc.kgen.GenGaloisKeysNew(linTransf.GaloisElements(params), tc.sk)
 		eval := tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(nil, gks...))
->>>>>>> Polishing the evaluation-keys interfaces:bgv/bgvfv_test.go
 
 		eval.LinearTransform(ciphertext, linTransf, []*rlwe.Ciphertext{ciphertext})
 

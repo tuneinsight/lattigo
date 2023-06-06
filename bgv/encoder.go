@@ -110,27 +110,66 @@ func (ecd *Encoder) Parameters() rlwe.ParametersInterface {
 	return ecd.parameters
 }
 
-// EncodeNew encodes a slice of integers of type []uint64 or []int64 modulu T (the plaintext modulus) on a newly allocated plaintext.
-//
-// inputs:
-// - values: a slice of []uint64 or []int64 of size at most the cyclotomic order of T (smallest value for N satisfying T = 1 mod 2N)
-// - level: the level of the plaintext
-// - plaintextScale: the scaling factor of the plaintext
-//
-// output: a plaintext encoding values at the given level and scaling factor
-func (ecd *Encoder) EncodeNew(values interface{}, level int, plaintextScale rlwe.Scale) (pt *rlwe.Plaintext, err error) {
-	pt = NewPlaintext(ecd.parameters, level)
-	pt.PlaintextScale = plaintextScale
-	return pt, ecd.Encode(values, pt)
-}
-
 // Encode encodes a slice of integers of type []uint64 or []int64 on a pre-allocated plaintext.
 //
 // inputs:
 // - values: a slice of []uint64 or []int64 of size at most the cyclotomic order of the plaintext modulus (smallest value for N satisfying T = 1 mod 2N)
 // - pt: an *rlwe.Plaintext
 func (ecd *Encoder) Encode(values interface{}, pt *rlwe.Plaintext) (err error) {
-	return ecd.Embed(values, true, pt.MetaData, pt.Value)
+
+	switch pt.EncodingDomain {
+	case rlwe.FrequencyDomain:
+		return ecd.Embed(values, true, pt.MetaData, pt.Value)
+	case rlwe.TimeDomain:
+
+		ringT := ecd.parameters.RingT()
+		N := ringT.N()
+		T := ringT.SubRings[0].Modulus
+		BRC := ringT.SubRings[0].BRedConstant
+
+		ptT := ecd.bufT.Coeffs[0]
+
+		var valLen int
+		switch values := values.(type) {
+		case []uint64:
+
+			if len(values) > N {
+				return fmt.Errorf("cannto Encode (TimeDomain): len(values)=%d > N=%d", len(values), N)
+			}
+
+			copy(ptT, values)
+			valLen = len(values)
+		case []int64:
+
+			if len(values) > N {
+				return fmt.Errorf("cannto Encode (TimeDomain: len(values)=%d > N=%d", len(values), N)
+			}
+
+			var sign, abs uint64
+			for i, c := range values {
+				sign = uint64(c) >> 63
+				abs = ring.BRedAdd(uint64(c*((int64(sign)^1)-int64(sign))), T, BRC)
+				ptT[i] = sign*(T-abs) | (sign^1)*abs
+			}
+
+			valLen = len(values)
+		}
+
+		for i := valLen; i < N; i++ {
+			ptT[i] = 0
+		}
+
+		ringT.MulScalar(ecd.bufT, pt.PlaintextScale.Uint64(), ecd.bufT)
+		ecd.RingT2Q(pt.Level(), true, ecd.bufT, pt.Value)
+
+		if pt.IsNTT {
+			ecd.parameters.RingQ().AtLevel(pt.Level()).NTT(pt.Value, pt.Value)
+		}
+
+		return
+	default:
+		return fmt.Errorf("cannot Encode: invalid rlwe.EncodingType, accepted types are rlwe.FrequencyDomain and rlwe.TimeDomain but is %T", pt.EncodingDomain)
+	}
 }
 
 // EncodeRingT encodes a slice of []uint64 or []int64 at the given scale on a polynomial pT with coefficients modulo the plaintext modulus T.
@@ -153,7 +192,7 @@ func (ecd *Encoder) EncodeRingT(values interface{}, plaintextScale rlwe.Scale, p
 	case []uint64:
 
 		if len(values) > slots {
-			return fmt.Errorf("cannto Embed: len(values)=%d > slots=%d", len(values), slots)
+			return fmt.Errorf("cannto EncodeRingT (FrequencyDomain): len(values)=%d > slots=%d", len(values), slots)
 		}
 
 		for i, c := range values {
@@ -167,7 +206,7 @@ func (ecd *Encoder) EncodeRingT(values interface{}, plaintextScale rlwe.Scale, p
 	case []int64:
 
 		if len(values) > slots {
-			return fmt.Errorf("cannto Embed: len(values)=%d > slots=%d", len(values), slots)
+			return fmt.Errorf("cannto EncodeRingT (FrequencyDomain): len(values)=%d > slots=%d", len(values), slots)
 		}
 
 		T := ringT.SubRings[0].Modulus
@@ -182,7 +221,7 @@ func (ecd *Encoder) EncodeRingT(values interface{}, plaintextScale rlwe.Scale, p
 
 		valLen = len(values)
 	default:
-		return fmt.Errorf("cannot Embed: values.(type) must be either []uint64 or []int64 but is %T", values)
+		return fmt.Errorf("cannot EncodeRingT: values.(type) must be either []uint64 or []int64 but is %T", values)
 	}
 
 	// Zeroes the non-mapped coefficients
@@ -267,37 +306,6 @@ func (ecd *Encoder) Embed(values interface{}, scaleUp bool, metadata rlwe.MetaDa
 		return fmt.Errorf("cannot embed: invalid polyOut.(Type) must be ringqp.Poly or *ring.Poly")
 	}
 
-	return
-}
-
-// EncodeCoeffs encodes a slice of []uint64 of size at most N, where N is the maximum RLWE degree.
-// The encoding is done coefficient wise, i.e. [1, 2, 3, 4] -> 1 + 2X + 3X^2 + 4X^3 mod (X^{N} + 1).
-func (ecd *Encoder) EncodeCoeffs(values []uint64, pt *rlwe.Plaintext) {
-
-	copy(ecd.bufT.Coeffs[0], values)
-
-	N := len(ecd.bufT.Coeffs[0])
-
-	for i := len(values); i < N; i++ {
-		ecd.bufT.Coeffs[0][i] = 0
-	}
-
-	ringT := ecd.parameters.RingT()
-
-	ringT.MulScalar(ecd.bufT, pt.PlaintextScale.Uint64(), ecd.bufT)
-	ecd.RingT2Q(pt.Level(), true, ecd.bufT, pt.Value)
-
-	if pt.IsNTT {
-		ecd.parameters.RingQ().AtLevel(pt.Level()).NTT(pt.Value, pt.Value)
-	}
-}
-
-// EncodeCoeffsNew encodes a slice of []uint64 of size at most N, where N is the maximum RLWE degree, on a newly allocated plaintext.
-// The encoding is done coefficient wise, i.e. [1, 2, 3, 4] -> 1 + 2X + 3X^2 + 4X^3 mod (X^{N} + 1).
-func (ecd *Encoder) EncodeCoeffsNew(values []uint64, level int, plaintextScale rlwe.Scale) (pt *rlwe.Plaintext) {
-	pt = NewPlaintext(ecd.parameters, level)
-	pt.PlaintextScale = plaintextScale
-	ecd.EncodeCoeffs(values, pt)
 	return
 }
 
@@ -433,28 +441,53 @@ func (ecd *Encoder) RingQ2T(level int, scaleDown bool, pQ, pT *ring.Poly) {
 }
 
 // Decode decodes a plaintext on a slice of []uint64 or []int64 mod T of size at most N, where N is the smallest value satisfying T = 1 mod 2N.
-func (ecd *Encoder) Decode(pt *rlwe.Plaintext, values interface{}) {
+func (ecd *Encoder) Decode(pt *rlwe.Plaintext, values interface{}) (err error) {
 
 	if pt.IsNTT {
 		ecd.parameters.RingQ().AtLevel(pt.Level()).INTT(pt.Value, ecd.bufQ)
 	}
 
-	ecd.RingQ2T(pt.Level(), true, ecd.bufQ, ecd.bufT)
-	ecd.DecodeRingT(ecd.bufT, pt.PlaintextScale, values)
-}
+	bufT := ecd.bufT
 
-// DecodeCoeffs decodes a plaintext on a slice of []uint64.
-// The decoding step is done coefficient wise: 1 + 2X + 3X^2 + 4X^3 mod (X^{N} + 1) -> [1, 2, 3, 4].
-func (ecd *Encoder) DecodeCoeffs(pt *rlwe.Plaintext, values []uint64) {
+	ecd.RingQ2T(pt.Level(), true, ecd.bufQ, bufT)
 
-	if pt.IsNTT {
-		ecd.parameters.RingQ().AtLevel(pt.Level()).INTT(pt.Value, ecd.bufQ)
+	switch pt.EncodingDomain {
+	case rlwe.FrequencyDomain:
+		return ecd.DecodeRingT(ecd.bufT, pt.PlaintextScale, values)
+	case rlwe.TimeDomain:
+		ringT := ecd.parameters.RingT()
+		ringT.MulScalar(bufT, ring.ModExp(pt.PlaintextScale.Uint64(), ringT.SubRings[0].Modulus-2, ringT.SubRings[0].Modulus), bufT)
+
+		switch values := values.(type) {
+		case []uint64:
+			copy(values, ecd.bufT.Coeffs[0])
+		case []int64:
+
+			ptT := bufT.Coeffs[0]
+
+			N := ecd.parameters.RingT().N()
+			modulus := int64(ecd.parameters.T())
+			modulusHalf := modulus >> 1
+
+			var value int64
+			for i := 0; i < N; i++ {
+				if value = int64(ptT[i]); value >= modulusHalf {
+					values[i] = value - modulus
+				} else {
+					values[i] = value
+				}
+			}
+
+		default:
+			return fmt.Errorf("cannot Decode: values must be either []uint64 or []int64 but is %T", values)
+		}
+
+		return
+
+	default:
+		return fmt.Errorf("cannot Encode: invalid rlwe.EncodingType, accepted types are rlwe.FrequencyDomain and rlwe.TimeDomain but is %T", pt.EncodingDomain)
 	}
 
-	ecd.RingQ2T(pt.Level(), true, ecd.bufQ, ecd.bufT)
-	ringT := ecd.parameters.RingT()
-	ringT.MulScalar(ecd.bufT, ring.ModExp(pt.PlaintextScale.Uint64(), ringT.SubRings[0].Modulus-2, ringT.SubRings[0].Modulus), ecd.bufT)
-	copy(values, ecd.bufT.Coeffs[0])
 }
 
 // ShallowCopy creates a shallow copy of Encoder in which all the read-only data-structures are

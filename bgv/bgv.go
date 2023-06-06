@@ -8,7 +8,7 @@ import (
 // NewPlaintext allocates a new rlwe.Plaintext.
 //
 // inputs:
-// - params: bfv.Parameters
+// - params: bgv.Parameters
 // - level: the level of the plaintext
 //
 // output: a newly allocated rlwe.Plaintext at the specified level.
@@ -19,7 +19,7 @@ func NewPlaintext(params Parameters, level int) (pt *rlwe.Plaintext) {
 // NewCiphertext allocates a new rlwe.Ciphertext.
 //
 // inputs:
-// - params: bfv.Parameters
+// - params: bgv.Parameters
 // - degree: the degree of the ciphertext
 // - level: the level of the Ciphertext
 //
@@ -31,7 +31,7 @@ func NewCiphertext(params Parameters, degree, level int) (ct *rlwe.Ciphertext) {
 // NewEncryptor instantiates a new rlwe.Encryptor.
 //
 // inputs:
-// - params: bfv.Parameters
+// - params: bgv.Parameters
 // - key: *rlwe.SecretKey or *rlwe.PublicKey
 //
 // output: an rlwe.Encryptor instantiated with the provided key.
@@ -42,7 +42,7 @@ func NewEncryptor(params Parameters, key interface{}) rlwe.EncryptorInterface {
 // NewPRNGEncryptor instantiates a new rlwe.PRNGEncryptor.
 //
 // inputs:
-// - params: bfv.Parameters
+// - params: bgv.Parameters
 // - key: *rlwe.SecretKey
 //
 // output: an rlwe.PRNGEncryptor instantiated with the provided key.
@@ -53,7 +53,7 @@ func NewPRNGEncryptor(params Parameters, key *rlwe.SecretKey) rlwe.PRNGEncryptor
 // NewDecryptor instantiates a new rlwe.Decryptor.
 //
 // inputs:
-// - params: bfv.Parameters
+// - params: bgv.Parameters
 // - key: *rlwe.SecretKey
 //
 // output: an rlwe.Decryptor instantiated with the provided key.
@@ -64,7 +64,7 @@ func NewDecryptor(params Parameters, key *rlwe.SecretKey) *rlwe.Decryptor {
 // NewKeyGenerator instantiates a new rlwe.KeyGenerator.
 //
 // inputs:
-// - params: bfv.Parameters
+// - params: bgv.Parameters
 //
 // output: an rlwe.KeyGenerator.
 func NewKeyGenerator(params Parameters) *rlwe.KeyGenerator {

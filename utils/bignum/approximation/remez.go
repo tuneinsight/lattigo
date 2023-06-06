@@ -506,7 +506,7 @@ func (r *Remez) findLocalExtrempointsWithSlope(fErr func(*big.Float) (y *big.Flo
 
 	optScan := new(big.Float).Set(scan)
 
-	if r.OptimalScanStep == true {
+	if r.OptimalScanStep {
 		s = 15
 		optScan.Quo(scan, bignum.NewFloat(1e15, prec))
 	} else {
@@ -524,7 +524,7 @@ func (r *Remez) findLocalExtrempointsWithSlope(fErr func(*big.Float) (y *big.Flo
 
 	for {
 
-		if r.OptimalScanStep == true {
+		if r.OptimalScanStep {
 
 			for i := 0; i < s; i++ {
 

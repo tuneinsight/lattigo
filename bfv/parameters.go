@@ -7,7 +7,8 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
-// NewParameters instantiate a set of BGV parameters from the generic RLWE parameters and the BGV-specific ones.
+// NewParameters instantiate a set of BFV parameters from the generic RLWE parameters and a plaintext modulus t.
+// User must ensure that t = 1 mod 2n for 4 < n <= N, where N is the ring degree.
 // It returns the empty parameters Parameters{} and a non-nil error if the specified parameters are invalid.
 func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err error) {
 	var pbgv bgv.Parameters
@@ -15,7 +16,7 @@ func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err erro
 	return Parameters{pbgv}, err
 }
 
-// NewParametersFromLiteral instantiate a set of BGV parameters from a ParametersLiteral specification.
+// NewParametersFromLiteral instantiate a set of BFV parameters from a ParametersLiteral specification.
 // It returns the empty parameters Parameters{} and a non-nil error if the specified parameters are invalid.
 //
 // See `rlwe.NewParametersFromLiteral` for default values of the optional fields.
@@ -25,7 +26,7 @@ func NewParametersFromLiteral(pl ParametersLiteral) (p Parameters, err error) {
 	return Parameters{pbgv}, err
 }
 
-// ParametersLiteral is a literal representation of BGV parameters.  It has public
+// ParametersLiteral is a literal representation of BFV parameters.  It has public
 // fields and is used to express unchecked user-defined parameters literally into
 // Go programs. The NewParametersFromLiteral function is used to generate the actual
 // checked parameters from the literal representation.
@@ -45,7 +46,7 @@ func (p ParametersLiteral) RLWEParametersLiteral() rlwe.ParametersLiteral {
 	return bgv.ParametersLiteral(p).RLWEParametersLiteral()
 }
 
-// Parameters represents a parameter set for the BGV cryptosystem. Its fields are private and
+// Parameters represents a parameter set for the BFV cryptosystem. Its fields are private and
 // immutable. See ParametersLiteral for user-specified parameters.
 type Parameters struct {
 	bgv.Parameters

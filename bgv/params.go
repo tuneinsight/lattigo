@@ -103,8 +103,8 @@ func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err erro
 		order >>= 1
 	}
 
-	if order < 2 {
-		return Parameters{}, fmt.Errorf("provided plaintext modulus t has cyclotomic order < 2")
+	if order < 16 {
+		return Parameters{}, fmt.Errorf("provided plaintext modulus t has cyclotomic order < 16 (ring degree of minimum 8 is required by the backend)")
 	}
 
 	var ringT *ring.Ring

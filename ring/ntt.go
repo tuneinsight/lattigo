@@ -6,6 +6,12 @@ import (
 	"unsafe"
 )
 
+const (
+	// MinimumRingDegreeForLoopUnrolledNTT is the minimum ring degree
+	// necessary for memory safe loop unrolling
+	MinimumRingDegreeForLoopUnrolledNTT = 16
+)
+
 // NumberTheoreticTransformer is an interface to provide
 // flexibility on what type of NTT is used by the struct Ring.
 type NumberTheoreticTransformer interface {
@@ -194,7 +200,7 @@ func nttCoreLazy(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []uint64)
 		panic(fmt.Sprintf("cannot nttCoreLazy: ensure that len(p1)=%d, len(p2)=%d and len(roots)=%d >= N=%d", len(p1), len(p2), len(roots), N))
 	}
 
-	if N < MinimuRingDegree {
+	if N < MinimumRingDegreeForLoopUnrolledNTT {
 		nttLazy(p1, p2, N, Q, MRedConstant, roots)
 	} else {
 		nttUnrolled16Lazy(p1, p2, N, Q, MRedConstant, roots)
@@ -238,8 +244,8 @@ func nttLazy(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []uint64) {
 }
 func nttUnrolled16Lazy(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []uint64) {
 
-	if len(p2) < MinimuRingDegree {
-		panic(fmt.Sprintf("unsafe call of nttUnrolled16Lazy: receiver len(p2)=%d < %d", len(p2), MinimuRingDegree))
+	if len(p2) < MinimumRingDegreeForLoopUnrolledNTT {
+		panic(fmt.Sprintf("unsafe call of nttUnrolled16Lazy: receiver len(p2)=%d < %d", len(p2), MinimumRingDegreeForLoopUnrolledNTT))
 	}
 
 	var j1, j2, t int
@@ -536,7 +542,7 @@ func inttCoreLazy(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []uint64
 		panic(fmt.Sprintf("cannot inttCoreLazy: ensure that len(p1)=%d, len(p2)=%d and len(roots)=%d >= N=%d", len(p1), len(p2), len(roots), N))
 	}
 
-	if N < MinimuRingDegree {
+	if N < MinimumRingDegreeForLoopUnrolledNTT {
 		inttLazy(p1, p2, N, Q, MRedConstant, roots)
 	} else {
 		inttLazyUnrolled16(p1, p2, N, Q, MRedConstant, roots)
@@ -585,8 +591,8 @@ func inttLazy(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []uint64) {
 
 func inttLazyUnrolled16(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []uint64) {
 
-	if len(p2) < MinimuRingDegree {
-		panic(fmt.Sprintf("unsafe call of inttCoreUnrolled16Lazy: receiver len(p2)=%d < %d", len(p2), MinimuRingDegree))
+	if len(p2) < MinimumRingDegreeForLoopUnrolledNTT {
+		panic(fmt.Sprintf("unsafe call of inttCoreUnrolled16Lazy: receiver len(p2)=%d < %d", len(p2), MinimumRingDegreeForLoopUnrolledNTT))
 	}
 
 	var h, t int
@@ -719,7 +725,7 @@ func nttCoreConjugateInvariantLazy(p1, p2 []uint64, N int, Q, MRedConstant uint6
 		panic(fmt.Sprintf("cannot nttCoreConjugateInvariantLazy: ensure that len(p1)=%d, len(p2)=%d and len(roots)=%d >= N=%d", len(p1), len(p2), len(roots), N))
 	}
 
-	if N < MinimuRingDegree {
+	if N < MinimumRingDegreeForLoopUnrolledNTT {
 		nttConjugateInvariantLazy(p1, p2, N, Q, MRedConstant, roots)
 	} else {
 		nttConjugateInvariantLazyUnrolled16(p1, p2, N, Q, MRedConstant, roots)
@@ -762,8 +768,8 @@ func nttConjugateInvariantLazy(p1, p2 []uint64, N int, Q, MRedConstant uint64, r
 
 func nttConjugateInvariantLazyUnrolled16(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []uint64) {
 
-	if len(p2) < MinimuRingDegree {
-		panic(fmt.Sprintf("unsafe call of nttCoreConjugateInvariantLazyUnrolled16: receiver len(p2)=%d < %d", len(p2), MinimuRingDegree))
+	if len(p2) < MinimumRingDegreeForLoopUnrolledNTT {
+		panic(fmt.Sprintf("unsafe call of nttCoreConjugateInvariantLazyUnrolled16: receiver len(p2)=%d < %d", len(p2), MinimumRingDegreeForLoopUnrolledNTT))
 	}
 
 	var t, h int
@@ -1065,7 +1071,7 @@ func inttCoreConjugateInvariantLazy(p1, p2 []uint64, N int, Q, MRedConstant uint
 		panic(fmt.Sprintf("cannot inttCoreConjugateInvariantLazy: ensure that len(p1)=%d, len(p2)=%d and len(roots)=%d >= N=%d", len(p1), len(p2), len(roots), N))
 	}
 
-	if N < MinimuRingDegree {
+	if N < MinimumRingDegreeForLoopUnrolledNTT {
 		inttConjugateInvariantLazy(p1, p2, N, Q, MRedConstant, roots)
 	} else {
 		inttConjugateInvariantLazyUnrolled16(p1, p2, N, Q, MRedConstant, roots)
@@ -1130,8 +1136,8 @@ func inttConjugateInvariantLazy(p1, p2 []uint64, N int, Q, MRedConstant uint64, 
 
 func inttConjugateInvariantLazyUnrolled16(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []uint64) {
 
-	if len(p2) < MinimuRingDegree {
-		panic(fmt.Sprintf("unsafe call of inttConjugateInvariantLazyUnrolled16: receiver len(p2)=%d < %d", len(p2), MinimuRingDegree))
+	if len(p2) < MinimumRingDegreeForLoopUnrolledNTT {
+		panic(fmt.Sprintf("unsafe call of inttConjugateInvariantLazyUnrolled16: receiver len(p2)=%d < %d", len(p2), MinimumRingDegreeForLoopUnrolledNTT))
 	}
 
 	var j1, j2, h, t int

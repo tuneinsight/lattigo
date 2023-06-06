@@ -3,6 +3,7 @@ package ring
 import (
 	"encoding/binary"
 
+	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
@@ -18,7 +19,7 @@ func NewUniformSampler(prng sampling.PRNG, baseRing *Ring) (u *UniformSampler) {
 	u = new(UniformSampler)
 	u.baseRing = baseRing
 	u.prng = prng
-	u.randomBufferN = make([]byte, baseRing.N())
+	u.randomBufferN = make([]byte, utils.Max(1024, baseRing.N()))
 	return
 }
 

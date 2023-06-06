@@ -4,7 +4,6 @@ package ring
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -14,9 +13,15 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
-// GaloisGen is an integer of order N/2 modulo M that spans Z_M with the integer -1.
-// The j-th ring automorphism takes the root zeta to zeta^(5j).
-const GaloisGen uint64 = 5
+const (
+	// GaloisGen is an integer of order N/2 modulo M that spans Z_M with the integer -1.
+	// The j-th ring automorphism takes the root zeta to zeta^(5j).
+	GaloisGen uint64 = 5
+
+	// MinimumRingDegreeForLoopUnrolledOperations is the minimum ring degree required to
+	// safely perform loop-unrolled operations
+	MinimumRingDegreeForLoopUnrolledOperations = 8
+)
 
 // Type is the type of ring used by the cryptographic scheme
 type Type int
@@ -261,16 +266,16 @@ func NewRingWithCustomNTT(N int, ModuliChain []uint64, ntt func(*SubRing, int) N
 	r = new(Ring)
 
 	// Checks if N is a power of 2
-	if (N < 16) || (N&(N-1)) != 0 && N != 0 {
-		return nil, errors.New("invalid ring degree (must be a power of 2 >= 8)")
+	if N < MinimumRingDegreeForLoopUnrolledOperations || (N&(N-1)) != 0 && N != 0 {
+		return nil, fmt.Errorf("invalid ring degree: must be a power of 2 greater than %d", MinimumRingDegreeForLoopUnrolledOperations)
 	}
 
 	if len(ModuliChain) == 0 {
-		return nil, errors.New("invalid ModuliChain (must be a non-empty []uint64)")
+		return nil, fmt.Errorf("invalid ModuliChain (must be a non-empty []uint64)")
 	}
 
 	if !utils.AllDistinct(ModuliChain) {
-		return nil, errors.New("invalid ModuliChain (moduli are not distinct)")
+		return nil, fmt.Errorf("invalid ModuliChain (moduli are not distinct)")
 	}
 
 	// Computes bigQ for all levels

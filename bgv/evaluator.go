@@ -1296,9 +1296,12 @@ func (eval *Evaluator) matchScalesBinary(scale0, scale1 uint64) (r0, r1, e uint6
 	var A = ring.BRed(ring.ModExp(scale0, t-2, t), scale1, t, BRedConstant)
 	var B uint64 = 1
 
+	r0, r1 = A, B
+
 	e = center(A, tHalf, t) + 1
 
 	for A != 0 {
+
 		q := a / A
 		a, A = A, a%A
 		b, B = B, ring.CRed(t+b-ring.BRed(B, q, t, BRedConstant), t)

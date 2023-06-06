@@ -8,13 +8,21 @@ All notable changes to this library are documented in this file.
 - ALL: simplified and clarified many aspect of the code base using generics.
 - ALL: inlined all recursive algorithms.
 - ALL: removed all instances of secure default parameters as they had no practical application, were putting additional security constraints on the library and were not used in the tests anymore.
+- ALL: tests now use custom sets of parameters (instead of the default ones) that are more efficient while increasing the test coverage of the possible instantiations of the schemes
+- ALL: added the concept of plaintext dimensions to generalize the concept of slots between schemes. BFV/BGV have a plaintext matrix dimensions of [2, n/2] (2 rows each of n/2 slots) while CKKS has a plaintext matrix dimension of [1, n/2] (one row of dimension n/2).
 
-- BFV/BGV/CKKS: simplified the API of the evaluator and increased the diversity of the accepted operands:
+- BFV/BGV/CKKS: simplified and uniformized the Evaluator API and increased the diversity of the accepted operands:
     - Removed all methods that operated on specific plaintext operands (such as scalars)
     - Add/Sub/Mul/MulThenAdd now accept `rlwe.Operands`, scalars and vectors of scalars as the middle operand.
     - Examples: 
         - The method `MultByi` of the CKKS scheme has been removed and is now accessible through `Mul(ct, -i, ct)`.
         - It is now possible to call `Mul(ct, []uint64{...}, ct)`.
+- BFV/BGV/CKKS: changes to the Encoder:
+    - Encoding parameterization (scale, level, encoding domain, etc...) is now specified using the field `MetaData` of the `rlwe.Plaintext`.
+    - Uniformized the Encoder API between schemes, which now share the following subset of identical methods:
+        - `Encode(values interface{}, pt *rlwe.Plaintext)`
+        - `Decode(pt *rlwe.Plaintext, values interface{})`
+    - Removed the methods with the suffixes `New`, `Int` and `Uint`.
 
 - BFV: the package `bfv` has been depreciated and is now a wrapper of the package `bgv`.
 
@@ -33,7 +41,6 @@ All notable changes to this library are documented in this file.
 - RLWE: extracted, generalized and centralized the code of scheme specific linear transformations, plaintext polynomial, power basis and polynomial evaluation in the `rlwe` 
 - RLWE: added basic interfaces description for Parameters, Encryptor, PRNGEncryptor, Decryptor, Evaluator and PolynomialEvaluator.
 - RLWE: the decryptor, encryptors, key-generator and evaluator no longer require an `rlwe.Parameters` struct to be instantiated and now accept instead a ParametersInterface.
-- RLWE: added the concept of plaintext dimensions to generalize the concept of slots between schemes. BFV/BGV have a plaintext matrix dimensions of [2, n/2] (2 rows each of n/2 slots) while CKKS has a plaintext matrix dimension of [1, n/2] (one row of dimension n/2)
 - RLWE: replaced the field `Scale` by `PlaintextScale` and added the fields `EncodingDomain` and `PlaintextLogDimensions` to the `MetaData` struct.
 - RLWE: changes to the `Parameters` struct:
     - Removed the concept of rotation, everything is now defined in term of Galois element
@@ -62,6 +69,7 @@ All notable changes to this library are documented in this file.
 
 - RING: added the package `ring/distribution` which defines distributions over polynmials.
 - RING: updated samplers to be parameterized with distribution defined by the `ring/distribution` package.
+- RING: added finite field polynomial interpolation.
 - UTILS: added the package `utils/bignum` which provides arbitrary precision arithmetic.
 - UTILS: added the package `utils/bignum/polynomial` which provides tools to create and evaluate polynomials.
 - UTILS: added the package `utils/bignum/approximation` which provide tools to perform polynomial approximations of functions.

@@ -858,7 +858,15 @@ func (eval *Evaluator) tensorInvariant(ct0 *rlwe.Ciphertext, ct1 *rlwe.OperandQ,
 	}
 
 	op2.MetaData = ct0.MetaData
-	op2.PlaintextScale = MulScale(eval.parameters, ct0.PlaintextScale, tmp1Q0.PlaintextScale, op2.Level(), true)
+	op2.PlaintextScale = mulScaleInvariant(eval.parameters, ct0.PlaintextScale, tmp1Q0.PlaintextScale, op2.Level())
+}
+
+func mulScaleInvariant(params Parameters, a, b rlwe.Scale, level int) (c rlwe.Scale) {
+	c = a.Mul(b)
+	qModTNeg := new(big.Int).Mod(params.RingQ().ModulusAtLevel[level], new(big.Int).SetUint64(params.T())).Uint64()
+	qModTNeg = params.T() - qModTNeg
+	c = c.Div(params.NewScale(qModTNeg))
+	return
 }
 
 func (eval *Evaluator) modUpAndNTT(level, levelQMul int, ctQ0, ctQ1 *rlwe.OperandQ) {

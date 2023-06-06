@@ -8,65 +8,69 @@ import (
 // NewPlaintext allocates a new rlwe.Plaintext.
 //
 // inputs:
-// - params: bgv.Parameters
+// - params: an rlwe.ParametersInterface interface
 // - level: the level of the plaintext
 //
 // output: a newly allocated rlwe.Plaintext at the specified level.
-func NewPlaintext(params Parameters, level int) (pt *rlwe.Plaintext) {
+//
+// Note: the user can update the field `MetaData` to set a specific scaling factor,
+// plaintext dimensions (if applicable) or encoding domain, before encoding values
+// on the created plaintext.
+func NewPlaintext(params rlwe.ParametersInterface, level int) (pt *rlwe.Plaintext) {
 	return rlwe.NewPlaintext(params, level)
 }
 
 // NewCiphertext allocates a new rlwe.Ciphertext.
 //
 // inputs:
-// - params: bgv.Parameters
+// - params: an rlwe.ParametersInterface interface
 // - degree: the degree of the ciphertext
 // - level: the level of the Ciphertext
 //
 // output: a newly allocated rlwe.Ciphertext of the specified degree and level.
-func NewCiphertext(params Parameters, degree, level int) (ct *rlwe.Ciphertext) {
+func NewCiphertext(params rlwe.ParametersInterface, degree, level int) (ct *rlwe.Ciphertext) {
 	return rlwe.NewCiphertext(params, degree, level)
 }
 
 // NewEncryptor instantiates a new rlwe.Encryptor.
 //
 // inputs:
-// - params: bgv.Parameters
+// - params: an rlwe.ParametersInterface interface
 // - key: *rlwe.SecretKey or *rlwe.PublicKey
 //
 // output: an rlwe.Encryptor instantiated with the provided key.
-func NewEncryptor(params Parameters, key interface{}) rlwe.EncryptorInterface {
+func NewEncryptor[T *rlwe.SecretKey | *rlwe.PublicKey](params rlwe.ParametersInterface, key T) rlwe.EncryptorInterface {
 	return rlwe.NewEncryptor(params, key)
 }
 
 // NewPRNGEncryptor instantiates a new rlwe.PRNGEncryptor.
 //
 // inputs:
-// - params: bgv.Parameters
+// - params: an rlwe.ParametersInterface interface
 // - key: *rlwe.SecretKey
 //
 // output: an rlwe.PRNGEncryptor instantiated with the provided key.
-func NewPRNGEncryptor(params Parameters, key *rlwe.SecretKey) rlwe.PRNGEncryptorInterface {
+func NewPRNGEncryptor(params rlwe.ParametersInterface, key *rlwe.SecretKey) rlwe.PRNGEncryptorInterface {
 	return rlwe.NewPRNGEncryptor(params, key)
 }
 
 // NewDecryptor instantiates a new rlwe.Decryptor.
 //
 // inputs:
-// - params: bgv.Parameters
+// - params: an rlwe.ParametersInterface interface
 // - key: *rlwe.SecretKey
 //
 // output: an rlwe.Decryptor instantiated with the provided key.
-func NewDecryptor(params Parameters, key *rlwe.SecretKey) *rlwe.Decryptor {
+func NewDecryptor(params rlwe.ParametersInterface, key *rlwe.SecretKey) *rlwe.Decryptor {
 	return rlwe.NewDecryptor(params, key)
 }
 
 // NewKeyGenerator instantiates a new rlwe.KeyGenerator.
 //
 // inputs:
-// - params: bgv.Parameters
+// - params: an rlwe.ParametersInterface interface
 //
 // output: an rlwe.KeyGenerator.
-func NewKeyGenerator(params Parameters) *rlwe.KeyGenerator {
+func NewKeyGenerator(params rlwe.ParametersInterface) *rlwe.KeyGenerator {
 	return rlwe.NewKeyGenerator(params)
 }

@@ -156,7 +156,9 @@ func main() {
 		maskCoeffs := make([]uint64, params.N())
 		maskCoeffs[i] = 1
 		plainMask[i] = bfv.NewPlaintext(params, params.MaxLevel())
-		encoder.Encode(maskCoeffs, plainMask[i])
+		if err := encoder.Encode(maskCoeffs, plainMask[i]); err != nil {
+			panic(err)
+		}
 	}
 
 	// Ciphertexts encrypted under collective public key and stored in the cloud
@@ -165,7 +167,9 @@ func main() {
 	pt := bfv.NewPlaintext(params, params.MaxLevel())
 	elapsedEncryptParty := runTimedParty(func() {
 		for i, pi := range P {
-			encoder.Encode(pi.input, pt)
+			if err := encoder.Encode(pi.input, pt); err != nil {
+				panic(err)
+			}
 			encryptor.Encrypt(pt, encInputs[i])
 		}
 	}, N)
@@ -191,7 +195,9 @@ func main() {
 	})
 
 	res := make([]uint64, params.PlaintextSlots())
-	encoder.Decode(ptres, res)
+	if err := encoder.Decode(ptres, res); err != nil {
+		panic(err)
+	}
 
 	l.Printf("\t%v...%v\n", res[:8], res[params.N()-8:])
 	l.Printf("> Finished (total cloud: %s, total party: %s)\n",
@@ -387,7 +393,9 @@ func genquery(params bfv.Parameters, queryIndex int, encoder *bfv.Encoder, encry
 	query := bfv.NewPlaintext(params, params.MaxLevel())
 	var encQuery *rlwe.Ciphertext
 	elapsedRequestParty += runTimed(func() {
-		encoder.Encode(queryCoeffs, query)
+		if err := encoder.Encode(queryCoeffs, query); err != nil {
+			panic(err)
+		}
 		encQuery = encryptor.EncryptNew(query)
 	})
 

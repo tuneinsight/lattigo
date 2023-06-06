@@ -106,7 +106,9 @@ func obliviousRiding() {
 	}
 
 	riderPlaintext := bfv.NewPlaintext(params, params.MaxLevel())
-	encoder.Encode(Rider, riderPlaintext)
+	if err := encoder.Encode(Rider, riderPlaintext); err != nil {
+		panic(err)
+	}
 
 	// driversData coordinates [0, 0, ..., x, y, ..., 0, 0]
 	driversData := make([][]uint64, nbDrivers)
@@ -117,7 +119,9 @@ func obliviousRiding() {
 		driversData[i][(i << 1)] = ring.RandUniform(prng, maxvalue, mask)
 		driversData[i][(i<<1)+1] = ring.RandUniform(prng, maxvalue, mask)
 		driversPlaintexts[i] = bfv.NewPlaintext(params, params.MaxLevel())
-		encoder.Encode(driversData[i], driversPlaintexts[i])
+		if err := encoder.Encode(driversData[i], driversPlaintexts[i]); err != nil {
+			panic(err)
+		}
 	}
 
 	fmt.Printf("Encrypting %d driversData (x, y) and 1 Rider (%d, %d) \n",
@@ -141,7 +145,9 @@ func obliviousRiding() {
 
 	result := make([]uint64, params.PlaintextSlots())
 
-	encoder.Decode(decryptor.DecryptNew(evaluator.MulNew(RiderCiphertext, RiderCiphertext)), result)
+	if err := encoder.Decode(decryptor.DecryptNew(evaluator.MulNew(RiderCiphertext, RiderCiphertext)), result); err != nil {
+		panic(err)
+	}
 
 	minIndex, minPosX, minPosY, minDist := 0, params.T(), params.T(), params.T()
 

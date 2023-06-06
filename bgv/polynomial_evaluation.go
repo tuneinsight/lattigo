@@ -269,7 +269,9 @@ func (polyEval *polynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targ
 				pt := rlwe.NewPlaintextAtLevelFromPoly(targetLevel, res.Value[0])
 				pt.PlaintextScale = res.PlaintextScale
 				pt.IsNTT = NTTFlag
-				polyEval.Encode(values, pt)
+				if err = polyEval.Encode(values, pt); err != nil {
+					return
+				}
 			}
 
 			return

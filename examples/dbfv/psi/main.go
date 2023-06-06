@@ -143,7 +143,9 @@ func main() {
 
 	// Check the result
 	res := make([]uint64, params.PlaintextSlots())
-	encoder.Decode(ptres, res)
+	if err := encoder.Decode(ptres, res); err != nil {
+		panic(err)
+	}
 	l.Printf("\t%v\n", res[:16])
 	for i := range expRes {
 		if expRes[i] != res[i] {
@@ -175,7 +177,9 @@ func encPhase(params bfv.Parameters, P []*party, pk *rlwe.PublicKey, encoder *bf
 	pt := bfv.NewPlaintext(params, params.MaxLevel())
 	elapsedEncryptParty = runTimedParty(func() {
 		for i, pi := range P {
-			encoder.Encode(pi.input, pt)
+			if err := encoder.Encode(pi.input, pt); err != nil {
+				panic(err)
+			}
 			encryptor.Encrypt(pt, encInputs[i])
 		}
 	}, len(P))

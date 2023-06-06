@@ -152,7 +152,9 @@ func (rfp *MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, transform *Ma
 		coeffs := make([]uint64, len(mask.Coeffs[0]))
 
 		if transform.Decode {
-			rfp.e2s.encoder.DecodeRingT(mask, ciphertextOut.PlaintextScale, coeffs)
+			if err := rfp.e2s.encoder.DecodeRingT(mask, ciphertextOut.PlaintextScale, coeffs); err != nil {
+				panic(fmt.Errorf("cannot Transform: %w", err))
+			}
 		} else {
 			copy(coeffs, mask.Coeffs[0])
 		}
@@ -160,7 +162,9 @@ func (rfp *MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, transform *Ma
 		transform.Func(coeffs)
 
 		if transform.Encode {
-			rfp.s2e.encoder.EncodeRingT(coeffs, ciphertextOut.PlaintextScale, rfp.tmpMaskPerm)
+			if err := rfp.s2e.encoder.EncodeRingT(coeffs, ciphertextOut.PlaintextScale, rfp.tmpMaskPerm); err != nil {
+				panic(fmt.Errorf("cannot Transform: %w", err))
+			}
 		} else {
 			copy(rfp.tmpMaskPerm.Coeffs[0], coeffs)
 		}

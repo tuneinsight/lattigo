@@ -233,7 +233,7 @@ func (polyEval *PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targ
 			// If a non-zero coefficient was found, encode the values, adds on the ciphertext, and returns
 			if toEncode {
 				pt := &rlwe.Plaintext{}
-				pt.Value = res.Value[0]
+				pt.Value = &res.Value[0]
 				pt.MetaData = res.MetaData
 				if err = polyEval.Evaluator.Encode(values, pt); err != nil {
 					return nil, err

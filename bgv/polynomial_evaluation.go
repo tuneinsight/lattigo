@@ -266,7 +266,7 @@ func (polyEval *polynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targ
 
 			// If a non-zero coefficient was found, encode the values, adds on the ciphertext, and returns
 			if toEncode {
-				pt := rlwe.NewPlaintextAtLevelFromPoly(targetLevel, res.Value[0])
+				pt := rlwe.NewPlaintextAtLevelFromPoly(targetLevel, &res.Value[0])
 				pt.PlaintextScale = res.PlaintextScale
 				pt.IsNTT = NTTFlag
 				if err = polyEval.Encode(values, pt); err != nil {
@@ -282,7 +282,8 @@ func (polyEval *polynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targ
 		res.PlaintextScale = targetScale
 
 		// Allocates a temporary plaintext to encode the values
-		pt := rlwe.NewPlaintextAtLevelFromPoly(targetLevel, polyEval.Evaluator.BuffQ()[0]) // buffQ[0] is safe in this case
+		buffq := polyEval.Evaluator.BuffQ()
+		pt := rlwe.NewPlaintextAtLevelFromPoly(targetLevel, &buffq[0]) // buffQ[0] is safe in this case
 		pt.PlaintextScale = targetScale
 		pt.IsNTT = NTTFlag
 

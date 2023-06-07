@@ -111,10 +111,10 @@ func (cks *KeySwitchProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *rl
 
 	var c1NTT *ring.Poly
 	if !ct.IsNTT {
-		ringQ.NTTLazy(ct.Value[1], cks.buf)
+		ringQ.NTTLazy(&ct.Value[1], cks.buf)
 		c1NTT = cks.buf
 	} else {
-		c1NTT = ct.Value[1]
+		c1NTT = &ct.Value[1]
 	}
 
 	// c1NTT * (skIn - skOut)
@@ -152,12 +152,12 @@ func (cks *KeySwitchProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined *KeySwit
 
 		ctOut.Resize(ctIn.Degree(), level)
 
-		ring.CopyLvl(level, ctIn.Value[1], ctOut.Value[1])
+		ring.CopyLvl(level, &ctIn.Value[1], &ctOut.Value[1])
 
 		ctOut.MetaData = ctIn.MetaData
 	}
 
-	cks.params.RingQ().AtLevel(level).Add(ctIn.Value[0], combined.Value, ctOut.Value[0])
+	cks.params.RingQ().AtLevel(level).Add(&ctIn.Value[0], combined.Value, &ctOut.Value[0])
 }
 
 // Level returns the level of the target share.

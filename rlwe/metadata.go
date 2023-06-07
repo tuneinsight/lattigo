@@ -83,9 +83,10 @@ func (m *MetaData) WriteTo(w io.Writer) (int64, error) {
 func (m *MetaData) ReadFrom(r io.Reader) (int64, error) {
 	p := make([]byte, m.BinarySize())
 	if n, err := r.Read(p); err != nil {
-		return int64(n), nil
+		return int64(n), err
 	} else {
-		return int64(n), m.UnmarshalBinary(p)
+		_, err = m.Decode(p)
+		return int64(n), err
 	}
 }
 

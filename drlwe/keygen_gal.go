@@ -71,11 +71,11 @@ func (gkg *GaloisKeyGenProtocol) AllocateShare() (gkgShare *GaloisKeyGenShare) {
 	decompRNS := params.DecompRNS(params.MaxLevelQ(), params.MaxLevelP())
 	decompPw2 := params.DecompPw2(params.MaxLevelQ(), params.MaxLevelP())
 
-	p := make([][]*ringqp.Poly, decompRNS)
+	p := make([][]ringqp.Poly, decompRNS)
 	for i := range p {
-		vec := make([]*ringqp.Poly, decompPw2)
+		vec := make([]ringqp.Poly, decompPw2)
 		for j := range vec {
-			vec[j] = ringqp.NewPoly(params.N(), params.MaxLevelQ(), params.MaxLevelP())
+			vec[j] = *ringqp.NewPoly(params.N(), params.MaxLevelQ(), params.MaxLevelP())
 		}
 		p[i] = vec
 	}
@@ -91,11 +91,11 @@ func (gkg *GaloisKeyGenProtocol) SampleCRP(crs CRS) GaloisKeyGenCRP {
 	decompRNS := params.DecompRNS(params.MaxLevelQ(), params.MaxLevelP())
 	decompPw2 := params.DecompPw2(params.MaxLevelQ(), params.MaxLevelP())
 
-	m := make([][]*ringqp.Poly, decompRNS)
+	m := make([][]ringqp.Poly, decompRNS)
 	for i := range m {
-		vec := make([]*ringqp.Poly, decompPw2)
+		vec := make([]ringqp.Poly, decompPw2)
 		for j := range vec {
-			vec[j] = ringqp.NewPoly(params.N(), params.MaxLevelQ(), params.MaxLevelP())
+			vec[j] = *ringqp.NewPoly(params.N(), params.MaxLevelQ(), params.MaxLevelP())
 		}
 		m[i] = vec
 	}
@@ -104,7 +104,7 @@ func (gkg *GaloisKeyGenProtocol) SampleCRP(crs CRS) GaloisKeyGenCRP {
 
 	for _, v := range m {
 		for _, p := range v {
-			us.Read(p)
+			us.Read(&p)
 		}
 	}
 
@@ -157,8 +157,8 @@ func (gkg *GaloisKeyGenProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp 
 				ringQP.ExtendBasisSmallNormAndCenter(m[i][j].Q, levelP, nil, m[i][j].P)
 			}
 
-			ringQP.NTTLazy(m[i][j], m[i][j])
-			ringQP.MForm(m[i][j], m[i][j])
+			ringQP.NTTLazy(&m[i][j], &m[i][j])
+			ringQP.MForm(&m[i][j], &m[i][j])
 
 			// a is the CRP
 
@@ -183,7 +183,7 @@ func (gkg *GaloisKeyGenProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp 
 			}
 
 			// sk_in * (qiBarre*qiStar) * 2^w - a*sk + e
-			ringQP.MulCoeffsMontgomeryThenSub(c[i][j], gkg.buff[1], m[i][j])
+			ringQP.MulCoeffsMontgomeryThenSub(&c[i][j], gkg.buff[1], &m[i][j])
 		}
 
 		ringQ.MulScalar(gkg.buff[0].Q, 1<<gkg.params.Pow2Base(), gkg.buff[0].Q)
@@ -216,7 +216,7 @@ func (gkg *GaloisKeyGenProtocol) AggregateShares(share1, share2, share3 *GaloisK
 	BITDecomp := len(m1[0])
 	for i := 0; i < RNSDecomp; i++ {
 		for j := 0; j < BITDecomp; j++ {
-			ringQP.Add(m1[i][j], m2[i][j], m3[i][j])
+			ringQP.Add(&m1[i][j], &m2[i][j], &m3[i][j])
 		}
 	}
 }
@@ -231,8 +231,8 @@ func (gkg *GaloisKeyGenProtocol) GenGaloisKey(share *GaloisKeyGenShare, crp Galo
 	BITDecomp := len(m[0])
 	for i := 0; i < RNSDecomp; i++ {
 		for j := 0; j < BITDecomp; j++ {
-			gk.Value[i][j].Value[0].Copy(m[i][j])
-			gk.Value[i][j].Value[1].Copy(p[i][j])
+			gk.Value[i][j].Value[0].Copy(&m[i][j])
+			gk.Value[i][j].Value[1].Copy(&p[i][j])
 		}
 	}
 

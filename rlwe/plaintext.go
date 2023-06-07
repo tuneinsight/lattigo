@@ -18,7 +18,7 @@ func NewPlaintext(params ParametersInterface, level int) (pt *Plaintext) {
 	op := *NewOperandQ(params, 0, level)
 	op.PlaintextScale = params.PlaintextScale()
 	op.PlaintextLogDimensions = params.PlaintextLogDimensions()
-	return &Plaintext{OperandQ: op, Value: op.Value[0]}
+	return &Plaintext{OperandQ: op, Value: &op.Value[0]}
 }
 
 // NewPlaintextAtLevelFromPoly constructs a new Plaintext at a specific level
@@ -26,14 +26,14 @@ func NewPlaintext(params ParametersInterface, level int) (pt *Plaintext) {
 // the returned Plaintext will share its backing array of coefficients.
 // Returned plaintext's MetaData is empty.
 func NewPlaintextAtLevelFromPoly(level int, poly *ring.Poly) (pt *Plaintext) {
-	op := *NewOperandQAtLevelFromPoly(level, []*ring.Poly{poly})
-	return &Plaintext{OperandQ: op, Value: op.Value[0]}
+	op := *NewOperandQAtLevelFromPoly(level, []ring.Poly{*poly})
+	return &Plaintext{OperandQ: op, Value: &op.Value[0]}
 }
 
 // Copy copies the `other` plaintext value into the receiver plaintext.
 func (pt *Plaintext) Copy(other *Plaintext) {
-	other.OperandQ.Copy(&other.OperandQ)
-	other.Value = other.OperandQ.Value[0]
+	pt.OperandQ.Copy(&other.OperandQ)
+	pt.Value = &other.OperandQ.Value[0]
 }
 
 // Equal performs a deep equal.
@@ -54,7 +54,7 @@ func (pt *Plaintext) UnmarshalBinary(p []byte) (err error) {
 	if err = pt.OperandQ.UnmarshalBinary(p); err != nil {
 		return
 	}
-	pt.Value = pt.OperandQ.Value[0]
+	pt.Value = &pt.OperandQ.Value[0]
 	return
 }
 
@@ -64,7 +64,7 @@ func (pt *Plaintext) Decode(p []byte) (n int, err error) {
 	if n, err = pt.OperandQ.Decode(p); err != nil {
 		return
 	}
-	pt.Value = pt.OperandQ.Value[0]
+	pt.Value = &pt.OperandQ.Value[0]
 	return
 }
 
@@ -80,6 +80,6 @@ func (pt *Plaintext) ReadFrom(r io.Reader) (n int64, err error) {
 		return
 	}
 
-	pt.Value = pt.OperandQ.Value[0]
+	pt.Value = &pt.OperandQ.Value[0]
 	return
 }

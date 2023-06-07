@@ -329,37 +329,48 @@ func testMarshalBinary(tc *testParams, t *testing.T) {
 	})
 
 	t.Run(testString("MarshalBinary/Poly", tc.ringQ), func(t *testing.T) {
-		buffer.TestInterfaceWriteAndRead(t, tc.uniformSamplerQ.ReadNew())
+		buffer.RequireSerializerCorrect(t, tc.uniformSamplerQ.ReadNew())
 	})
 
 	t.Run(testString("structs/PolyVector", tc.ringQ), func(t *testing.T) {
 
-		polys := make([]*Poly, 4)
+		polys := make([]Poly, 4)
 
 		for i := range polys {
-			polys[i] = tc.uniformSamplerQ.ReadNew()
+			polys[i] = *tc.uniformSamplerQ.ReadNew()
 		}
 
 		v := structs.Vector[Poly](polys)
 
-		buffer.TestInterfaceWriteAndRead(t, &v)
+		buffer.RequireSerializerCorrect(t, &v)
 	})
 
 	t.Run(testString("structs/PolyMatrix", tc.ringQ), func(t *testing.T) {
 
-		polys := make([][]*Poly, 4)
+		polys := make([][]Poly, 4)
 
 		for i := range polys {
-			polys[i] = make([]*Poly, 4)
+			polys[i] = make([]Poly, 4)
 
 			for j := range polys {
-				polys[i][j] = tc.uniformSamplerQ.ReadNew()
+				polys[i][j] = *tc.uniformSamplerQ.ReadNew()
 			}
 		}
 
 		m := structs.Matrix[Poly](polys)
 
-		buffer.TestInterfaceWriteAndRead(t, &m)
+		buffer.RequireSerializerCorrect(t, &m)
+	})
+
+	t.Run(testString("structs/PolyMap", tc.ringQ), func(t *testing.T) {
+
+		m := make(structs.Map[int, Poly], 4)
+
+		for i := 0; i < 4; i++ {
+			m[i] = tc.uniformSamplerQ.ReadNew()
+		}
+
+		buffer.RequireSerializerCorrect(t, &m)
 	})
 }
 

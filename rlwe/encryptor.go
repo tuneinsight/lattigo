@@ -220,13 +220,13 @@ func (enc *EncryptorPublicKey) encryptZero(ct *Ciphertext) {
 	// (#Q + #P) NTT
 	ringQP.NTT(u, u)
 
-	ct0QP := &ringqp.Poly{Q: ct.Value[0], P: buffP0}
-	ct1QP := &ringqp.Poly{Q: ct.Value[1], P: buffP1}
+	ct0QP := &ringqp.Poly{Q: &ct.Value[0], P: buffP0}
+	ct1QP := &ringqp.Poly{Q: &ct.Value[1], P: buffP1}
 
 	// ct0 = u*pk0
 	// ct1 = u*pk1
-	ringQP.MulCoeffsMontgomery(u, enc.pk.Value[0], ct0QP)
-	ringQP.MulCoeffsMontgomery(u, enc.pk.Value[1], ct1QP)
+	ringQP.MulCoeffsMontgomery(u, &enc.pk.Value[0], ct0QP)
+	ringQP.MulCoeffsMontgomery(u, &enc.pk.Value[1], ct1QP)
 
 	// 2*(#Q + #P) NTT
 	ringQP.INTT(ct0QP, ct0QP)
@@ -243,14 +243,14 @@ func (enc *EncryptorPublicKey) encryptZero(ct *Ciphertext) {
 	ringQP.Add(ct1QP, e, ct1QP)
 
 	// ct0 = (u*pk0 + e0)/P
-	enc.basisextender.ModDownQPtoQ(levelQ, levelP, ct0QP.Q, ct0QP.P, ct.Value[0])
+	enc.basisextender.ModDownQPtoQ(levelQ, levelP, ct0QP.Q, ct0QP.P, &ct.Value[0])
 
 	// ct1 = (u*pk1 + e1)/P
-	enc.basisextender.ModDownQPtoQ(levelQ, levelP, ct1QP.Q, ct1QP.P, ct.Value[1])
+	enc.basisextender.ModDownQPtoQ(levelQ, levelP, ct1QP.Q, ct1QP.P, &ct.Value[1])
 
 	if ct.IsNTT {
-		ringQP.RingQ.NTT(ct.Value[0], ct.Value[0])
-		ringQP.RingQ.NTT(ct.Value[1], ct.Value[1])
+		ringQP.RingQ.NTT(&ct.Value[0], &ct.Value[0])
+		ringQP.RingQ.NTT(&ct.Value[1], &ct.Value[1])
 	}
 }
 
@@ -265,7 +265,7 @@ func (enc *EncryptorPublicKey) encryptZeroNoP(ct *Ciphertext) {
 	enc.ternarySampler.AtLevel(levelQ).Read(buffQ0)
 	ringQ.NTT(buffQ0, buffQ0)
 
-	c0, c1 := ct.Value[0], ct.Value[1]
+	c0, c1 := &ct.Value[0], &ct.Value[1]
 
 	// ct0 = NTT(u*pk0)
 	ringQ.MulCoeffsMontgomery(buffQ0, enc.pk.Value[0].Q, c0)
@@ -332,7 +332,7 @@ func (enc *EncryptorSecretKey) EncryptZero(ct interface{}) {
 
 		var c1 *ring.Poly
 		if ct.Degree() == 1 {
-			c1 = ct.Value[1]
+			c1 = &ct.Value[1]
 		} else {
 			c1 = enc.buffQ[1]
 		}
@@ -346,6 +346,8 @@ func (enc *EncryptorSecretKey) EncryptZero(ct interface{}) {
 		enc.encryptZero(ct, c1)
 	case *OperandQP:
 		enc.encryptZeroQP(*ct)
+	case OperandQP:
+		enc.encryptZeroQP(ct)
 	default:
 		panic(fmt.Sprintf("cannot EncryptZero: input ciphertext type %T is not supported", ct))
 	}
@@ -366,7 +368,7 @@ func (enc *EncryptorSecretKey) encryptZero(ct *Ciphertext, c1 *ring.Poly) {
 
 	ringQ := enc.params.RingQ().AtLevel(levelQ)
 
-	c0 := ct.Value[0]
+	c0 := &ct.Value[0]
 
 	ringQ.MulCoeffsMontgomery(c1, enc.sk.Value.Q, c0) // c0 = NTT(sc1)
 	ringQ.Neg(c0, c0)                                 // c0 = NTT(-sc1)
@@ -393,7 +395,7 @@ func (enc *EncryptorSecretKey) encryptZero(ct *Ciphertext, c1 *ring.Poly) {
 // montgomery: returns the result in the Montgomery domain.
 func (enc *EncryptorSecretKey) encryptZeroQP(ct OperandQP) {
 
-	c0, c1 := ct.Value[0], ct.Value[1]
+	c0, c1 := &ct.Value[0], &ct.Value[1]
 
 	levelQ, levelP := c0.LevelQ(), c1.LevelP()
 	ringQP := enc.params.RingQP().AtLevel(levelQ, levelP)
@@ -519,5 +521,5 @@ func (enc *encryptorBase) addPtToCt(level int, pt *Plaintext, ct *Ciphertext) {
 		}
 	}
 
-	ringQ.Add(ct.Value[0], buff, ct.Value[0])
+	ringQ.Add(&ct.Value[0], buff, &ct.Value[0])
 }

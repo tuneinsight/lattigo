@@ -340,22 +340,22 @@ func (rfp *MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, transform *Ma
 	// Extend the levels of the ciphertext for future allocation
 	if ciphertextOut.Value[0].N() != ringQ.N() {
 		for i := range ciphertextOut.Value {
-			ciphertextOut.Value[i] = ringQ.NewPoly()
+			ciphertextOut.Value[i] = *ringQ.NewPoly()
 		}
 	} else {
 		ciphertextOut.Resize(ciphertextOut.Degree(), maxLevel)
 	}
 
 	// Sets LT(-sum(M_i) + x) * diffscale in the RNS domain
-	ringQ.SetCoefficientsBigint(rfp.tmpMask[:dslots], ciphertextOut.Value[0])
+	ringQ.SetCoefficientsBigint(rfp.tmpMask[:dslots], &ciphertextOut.Value[0])
 
-	rlwe.NTTSparseAndMontgomery(ringQ, ct.MetaData, ciphertextOut.Value[0])
+	rlwe.NTTSparseAndMontgomery(ringQ, ct.MetaData, &ciphertextOut.Value[0])
 
 	// LT(-sum(M_i) + x) * diffscale + [-a*s + LT(M_i) * diffscale + e] = [-a*s + LT(x) * diffscale + e]
-	ringQ.Add(ciphertextOut.Value[0], share.S2EShare.Value, ciphertextOut.Value[0])
+	ringQ.Add(&ciphertextOut.Value[0], share.S2EShare.Value, &ciphertextOut.Value[0])
 
 	// Copies the result on the out ciphertext
-	rfp.s2e.GetEncryption(&drlwe.KeySwitchShare{Value: ciphertextOut.Value[0]}, crs, ciphertextOut)
+	rfp.s2e.GetEncryption(&drlwe.KeySwitchShare{Value: &ciphertextOut.Value[0]}, crs, ciphertextOut)
 
 	ciphertextOut.MetaData = ct.MetaData
 	ciphertextOut.PlaintextScale = rfp.s2e.params.PlaintextScale()

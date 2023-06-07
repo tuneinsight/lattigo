@@ -94,7 +94,7 @@ func (e2s *EncToShareProtocol) GenShare(sk *rlwe.SecretKey, ct *rlwe.Ciphertext,
 func (e2s *EncToShareProtocol) GetShare(secretShare *drlwe.AdditiveShare, aggregatePublicShare *drlwe.KeySwitchShare, ct *rlwe.Ciphertext, secretShareOut *drlwe.AdditiveShare) {
 	level := utils.Min(ct.Level(), aggregatePublicShare.Value.Level())
 	ringQ := e2s.params.RingQ().AtLevel(level)
-	ringQ.Add(aggregatePublicShare.Value, ct.Value[0], e2s.tmpPlaintextRingQ)
+	ringQ.Add(aggregatePublicShare.Value, &ct.Value[0], e2s.tmpPlaintextRingQ)
 	ringQ.INTT(e2s.tmpPlaintextRingQ, e2s.tmpPlaintextRingQ)
 	e2s.encoder.RingQ2T(level, true, e2s.tmpPlaintextRingQ, e2s.tmpPlaintextRingT)
 	if secretShare != nil {
@@ -155,7 +155,7 @@ func (s2e *ShareToEncProtocol) GenShare(sk *rlwe.SecretKey, crp drlwe.KeySwitchC
 	}
 
 	ct := &rlwe.Ciphertext{}
-	ct.Value = []*ring.Poly{nil, &crp.Value}
+	ct.Value = []ring.Poly{ring.Poly{}, crp.Value}
 	ct.IsNTT = true
 	s2e.KeySwitchProtocol.GenShare(s2e.zero, sk, ct, c0ShareOut)
 	s2e.encoder.RingT2Q(crp.Value.Level(), true, &secretShare.Value, s2e.tmpPlaintextRingQ)

@@ -145,7 +145,7 @@ func (e2s *EncToShareProtocol) GetShare(secretShare *drlwe.AdditiveShareBigint, 
 	ringQ := e2s.params.RingQ().AtLevel(levelQ)
 
 	// Adds the decryption share on the ciphertext and stores the result in a buff
-	ringQ.Add(aggregatePublicShare.Value, ct.Value[0], e2s.buff)
+	ringQ.Add(aggregatePublicShare.Value, &ct.Value[0], e2s.buff)
 
 	// Switches the LSSS RNS NTT ciphertext outside of the NTT domain
 	ringQ.INTT(e2s.buff, e2s.buff)
@@ -228,7 +228,7 @@ func (s2e *ShareToEncProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.KeySwitchC
 
 	// Generates an encryption share
 	ct := &rlwe.Ciphertext{}
-	ct.Value = []*ring.Poly{nil, &crs.Value}
+	ct.Value = []ring.Poly{ring.Poly{}, crs.Value}
 	ct.MetaData.IsNTT = true
 	s2e.KeySwitchProtocol.GenShare(s2e.zero, sk, ct, c0ShareOut)
 

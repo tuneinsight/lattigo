@@ -97,7 +97,8 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 
 	ciphertext0 := rlwe.NewCiphertextRandom(tc.prng, params.Parameters, 1, level)
 	ciphertext1 := rlwe.NewCiphertextRandom(tc.prng, params.Parameters, 1, level)
-	plaintext1 := &rlwe.Plaintext{Value: rlwe.NewCiphertextRandom(tc.prng, params.Parameters, 0, level).Value[0]}
+	ct := rlwe.NewCiphertextRandom(tc.prng, params.Parameters, 0, level)
+	plaintext1 := &rlwe.Plaintext{Value: &ct.Value[0]}
 	plaintext1.PlaintextScale = scale
 	plaintext1.IsNTT = ciphertext0.IsNTT
 	scalar := params.T() >> 1

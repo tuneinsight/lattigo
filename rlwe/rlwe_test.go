@@ -238,8 +238,8 @@ func testKeyGenerator(tc *TestContext, t *testing.T) {
 
 			zero := ringQP.NewPoly()
 
-			ringQP.MulCoeffsMontgomery(&sk.Value, pk.Value[1], zero)
-			ringQP.Add(zero, pk.Value[0], zero)
+			ringQP.MulCoeffsMontgomery(&sk.Value, &pk.Value[1], zero)
+			ringQP.Add(zero, &pk.Value[0], zero)
 			ringQP.INTT(zero, zero)
 			ringQP.IMForm(zero, zero)
 
@@ -375,7 +375,7 @@ func testEncryptor(tc *TestContext, level int, t *testing.T) {
 
 		samplerQ := ring.NewUniformSampler(prng2, ringQ)
 
-		require.True(t, ringQ.Equal(ct.Value[1], samplerQ.ReadNew()))
+		require.True(t, ringQ.Equal(&ct.Value[1], samplerQ.ReadNew()))
 
 		dec.Decrypt(ct, pt)
 
@@ -681,7 +681,7 @@ func testAutomorphism(tc *TestContext, level int, t *testing.T) {
 		evk := NewMemEvaluationKeySet(nil, gk)
 
 		//Decompose the ciphertext
-		eval.DecomposeNTT(level, params.MaxLevelP(), params.MaxLevelP()+1, ct.Value[1], ct.IsNTT, eval.BuffDecompQP)
+		eval.DecomposeNTT(level, params.MaxLevelP(), params.MaxLevelP()+1, &ct.Value[1], ct.IsNTT, eval.BuffDecompQP)
 
 		// Evaluate the automorphism
 		eval.WithKey(evk).AutomorphismHoisted(level, ct, eval.BuffDecompQP, galEl, ct)
@@ -728,7 +728,7 @@ func testAutomorphism(tc *TestContext, level int, t *testing.T) {
 		evk := NewMemEvaluationKeySet(nil, gk)
 
 		//Decompose the ciphertext
-		eval.DecomposeNTT(level, params.MaxLevelP(), params.MaxLevelP()+1, ct.Value[1], ct.IsNTT, eval.BuffDecompQP)
+		eval.DecomposeNTT(level, params.MaxLevelP(), params.MaxLevelP()+1, &ct.Value[1], ct.IsNTT, eval.BuffDecompQP)
 
 		ctQP := NewOperandQP(params, 1, level, params.MaxLevelP())
 
@@ -854,7 +854,7 @@ func testLinearTransform(tc *TestContext, level int, t *testing.T) {
 			scalar := (1 << 30) + uint64(i)*(1<<20)
 
 			if ciphertexts[i].IsNTT {
-				ringQ.AddScalar(ciphertexts[i].Value[0], scalar, ciphertexts[i].Value[0])
+				ringQ.AddScalar(&ciphertexts[i].Value[0], scalar, &ciphertexts[i].Value[0])
 			} else {
 				for j := 0; j < level+1; j++ {
 					ciphertexts[i].Value[0].Coeffs[j][0] = ring.CRed(ciphertexts[i].Value[0].Coeffs[j][0]+scalar, ringQ.SubRings[j].Modulus)
@@ -916,7 +916,7 @@ func testLinearTransform(tc *TestContext, level int, t *testing.T) {
 			scalar := (1 << 30) + uint64(i)*(1<<20)
 
 			if ciphertexts[i].IsNTT {
-				ringQ.INTT(ciphertexts[i].Value[0], ciphertexts[i].Value[0])
+				ringQ.INTT(&ciphertexts[i].Value[0], &ciphertexts[i].Value[0])
 			}
 
 			for j := 0; j < level+1; j++ {
@@ -925,7 +925,7 @@ func testLinearTransform(tc *TestContext, level int, t *testing.T) {
 			}
 
 			if ciphertexts[i].IsNTT {
-				ringQ.NTT(ciphertexts[i].Value[0], ciphertexts[i].Value[0])
+				ringQ.NTT(&ciphertexts[i].Value[0], &ciphertexts[i].Value[0])
 			}
 
 			slotIndex[i] = true
@@ -1032,14 +1032,14 @@ func testWriteAndRead(tc *TestContext, t *testing.T) {
 		prng, _ := sampling.NewPRNG()
 		plaintextWant := NewPlaintext(params, params.MaxLevel())
 		ring.NewUniformSampler(prng, params.RingQ()).Read(plaintextWant.Value)
-		buffer.TestInterfaceWriteAndRead(t, &plaintextWant.OperandQ)
+		buffer.RequireSerializerCorrect(t, &plaintextWant.OperandQ)
 	})
 
 	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/Plaintext"), func(t *testing.T) {
 		prng, _ := sampling.NewPRNG()
 		plaintextWant := NewPlaintext(params, params.MaxLevel())
 		ring.NewUniformSampler(prng, params.RingQ()).Read(plaintextWant.Value)
-		buffer.TestInterfaceWriteAndRead(t, plaintextWant)
+		buffer.RequireSerializerCorrect(t, plaintextWant)
 	})
 
 	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/Ciphertext"), func(t *testing.T) {
@@ -1048,41 +1048,41 @@ func testWriteAndRead(tc *TestContext, t *testing.T) {
 
 		for degree := 0; degree < 4; degree++ {
 			t.Run(fmt.Sprintf("degree=%d", degree), func(t *testing.T) {
-				buffer.TestInterfaceWriteAndRead(t, NewCiphertextRandom(prng, params, degree, params.MaxLevel()))
+				buffer.RequireSerializerCorrect(t, NewCiphertextRandom(prng, params, degree, params.MaxLevel()))
 			})
 		}
 	})
 
 	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/CiphertextQP"), func(t *testing.T) {
-		buffer.TestInterfaceWriteAndRead(t, &tc.pk.OperandQP)
+		buffer.RequireSerializerCorrect(t, &tc.pk.OperandQP)
 	})
 
 	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/GadgetCiphertext"), func(t *testing.T) {
-		buffer.TestInterfaceWriteAndRead(t, &tc.kgen.GenRelinearizationKeyNew(tc.sk).GadgetCiphertext)
+		buffer.RequireSerializerCorrect(t, &tc.kgen.GenRelinearizationKeyNew(tc.sk).GadgetCiphertext)
 	})
 
 	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/Sk"), func(t *testing.T) {
-		buffer.TestInterfaceWriteAndRead(t, sk)
+		buffer.RequireSerializerCorrect(t, sk)
 	})
 
 	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/Pk"), func(t *testing.T) {
-		buffer.TestInterfaceWriteAndRead(t, pk)
+		buffer.RequireSerializerCorrect(t, pk)
 	})
 
 	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/EvaluationKey"), func(t *testing.T) {
-		buffer.TestInterfaceWriteAndRead(t, tc.kgen.GenEvaluationKeyNew(sk, sk))
+		buffer.RequireSerializerCorrect(t, tc.kgen.GenEvaluationKeyNew(sk, sk))
 	})
 
 	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/RelinearizationKey"), func(t *testing.T) {
-		buffer.TestInterfaceWriteAndRead(t, tc.kgen.GenRelinearizationKeyNew(tc.sk))
+		buffer.RequireSerializerCorrect(t, tc.kgen.GenRelinearizationKeyNew(tc.sk))
 	})
 
 	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/GaloisKey"), func(t *testing.T) {
-		buffer.TestInterfaceWriteAndRead(t, tc.kgen.GenGaloisKeyNew(5, tc.sk))
+		buffer.RequireSerializerCorrect(t, tc.kgen.GenGaloisKeyNew(5, tc.sk))
 	})
 
 	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/EvaluationKeySet"), func(t *testing.T) {
-		buffer.TestInterfaceWriteAndRead(t, &MemEvaluationKeySet{
+		buffer.RequireSerializerCorrect(t, &MemEvaluationKeySet{
 			Rlk: tc.kgen.GenRelinearizationKeyNew(tc.sk),
 			Gks: map[uint64]*GaloisKey{5: tc.kgen.GenGaloisKeyNew(5, tc.sk)},
 		})
@@ -1101,7 +1101,7 @@ func testWriteAndRead(tc *TestContext, t *testing.T) {
 		basis.Value[4] = NewCiphertextRandom(prng, params, 1, params.MaxLevel())
 		basis.Value[8] = NewCiphertextRandom(prng, params, 1, params.MaxLevel())
 
-		buffer.TestInterfaceWriteAndRead(t, basis)
+		buffer.RequireSerializerCorrect(t, basis)
 	})
 }
 

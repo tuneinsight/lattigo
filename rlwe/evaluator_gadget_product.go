@@ -17,7 +17,7 @@ func (eval *Evaluator) GadgetProduct(levelQ int, cx *ring.Poly, gadgetCt *Gadget
 	levelP := gadgetCt.LevelP()
 
 	ctTmp := &OperandQP{}
-	ctTmp.Value = []*ringqp.Poly{{Q: ct.Value[0], P: eval.BuffQP[0].P}, {Q: ct.Value[1], P: eval.BuffQP[1].P}}
+	ctTmp.Value = []ringqp.Poly{{Q: &ct.Value[0], P: eval.BuffQP[0].P}, {Q: &ct.Value[1], P: eval.BuffQP[1].P}}
 	ctTmp.IsNTT = ct.IsNTT
 
 	eval.GadgetProductLazy(levelQ, cx, gadgetCt, ctTmp)
@@ -32,18 +32,18 @@ func (eval *Evaluator) ModDown(levelQ, levelP int, ctQP *OperandQP, ct *Cipherte
 
 		if ct.IsNTT {
 			// NTT -> NTT
-			eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, ctQP.Value[0].Q, ctQP.Value[0].P, ct.Value[0])
-			eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, ctQP.Value[1].Q, ctQP.Value[1].P, ct.Value[1])
+			eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, ctQP.Value[0].Q, ctQP.Value[0].P, &ct.Value[0])
+			eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, ctQP.Value[1].Q, ctQP.Value[1].P, &ct.Value[1])
 		} else {
 
 			// NTT -> INTT
 			ringQP := eval.params.RingQP().AtLevel(levelQ, levelP)
 
-			ringQP.INTTLazy(ctQP.Value[0], ctQP.Value[0])
-			ringQP.INTTLazy(ctQP.Value[1], ctQP.Value[1])
+			ringQP.INTTLazy(&ctQP.Value[0], &ctQP.Value[0])
+			ringQP.INTTLazy(&ctQP.Value[1], &ctQP.Value[1])
 
-			eval.BasisExtender.ModDownQPtoQ(levelQ, levelP, ctQP.Value[0].Q, ctQP.Value[0].P, ct.Value[0])
-			eval.BasisExtender.ModDownQPtoQ(levelQ, levelP, ctQP.Value[1].Q, ctQP.Value[1].P, ct.Value[1])
+			eval.BasisExtender.ModDownQPtoQ(levelQ, levelP, ctQP.Value[0].Q, ctQP.Value[0].P, &ct.Value[0])
+			eval.BasisExtender.ModDownQPtoQ(levelQ, levelP, ctQP.Value[1].Q, ctQP.Value[1].P, &ct.Value[1])
 		}
 
 	} else {
@@ -55,17 +55,17 @@ func (eval *Evaluator) ModDown(levelQ, levelP int, ctQP *OperandQP, ct *Cipherte
 			if ct.IsNTT {
 
 				// INTT -> NTT
-				eval.BasisExtender.ModDownQPtoQ(levelQ, levelP, ctQP.Value[0].Q, ctQP.Value[0].P, ct.Value[0])
-				eval.BasisExtender.ModDownQPtoQ(levelQ, levelP, ctQP.Value[1].Q, ctQP.Value[1].P, ct.Value[1])
+				eval.BasisExtender.ModDownQPtoQ(levelQ, levelP, ctQP.Value[0].Q, ctQP.Value[0].P, &ct.Value[0])
+				eval.BasisExtender.ModDownQPtoQ(levelQ, levelP, ctQP.Value[1].Q, ctQP.Value[1].P, &ct.Value[1])
 
-				ringQ.NTT(ct.Value[0], ct.Value[0])
-				ringQ.NTT(ct.Value[1], ct.Value[1])
+				ringQ.NTT(&ct.Value[0], &ct.Value[0])
+				ringQ.NTT(&ct.Value[1], &ct.Value[1])
 
 			} else {
 
 				// INTT -> INTT
-				eval.BasisExtender.ModDownQPtoQ(levelQ, levelP, ctQP.Value[0].Q, ctQP.Value[0].P, ct.Value[0])
-				eval.BasisExtender.ModDownQPtoQ(levelQ, levelP, ctQP.Value[1].Q, ctQP.Value[1].P, ct.Value[1])
+				eval.BasisExtender.ModDownQPtoQ(levelQ, levelP, ctQP.Value[0].Q, ctQP.Value[0].P, &ct.Value[0])
+				eval.BasisExtender.ModDownQPtoQ(levelQ, levelP, ctQP.Value[1].Q, ctQP.Value[1].P, &ct.Value[1])
 			}
 
 		} else {
@@ -73,12 +73,12 @@ func (eval *Evaluator) ModDown(levelQ, levelP int, ctQP *OperandQP, ct *Cipherte
 			if ct.IsNTT {
 
 				// INTT ->NTT
-				ring.CopyLvl(levelQ, ct.Value[0], ctQP.Value[0].Q)
-				ring.CopyLvl(levelQ, ct.Value[1], ctQP.Value[1].Q)
+				ring.CopyLvl(levelQ, &ct.Value[0], ctQP.Value[0].Q)
+				ring.CopyLvl(levelQ, &ct.Value[1], ctQP.Value[1].Q)
 			} else {
 				// INTT -> INTT
-				ringQ.INTT(ctQP.Value[0].Q, ct.Value[0])
-				ringQ.INTT(ctQP.Value[1].Q, ct.Value[1])
+				ringQ.INTT(ctQP.Value[0].Q, &ct.Value[0])
+				ringQ.INTT(ctQP.Value[1].Q, &ct.Value[1])
 			}
 		}
 	}
@@ -100,8 +100,8 @@ func (eval *Evaluator) GadgetProductLazy(levelQ int, cx *ring.Poly, gadgetCt *Ga
 
 	if !ct.IsNTT {
 		ringQP := eval.params.RingQP().AtLevel(levelQ, gadgetCt.LevelP())
-		ringQP.INTT(ct.Value[0], ct.Value[0])
-		ringQP.INTT(ct.Value[1], ct.Value[1])
+		ringQP.INTT(&ct.Value[0], &ct.Value[0])
+		ringQP.INTT(&ct.Value[1], &ct.Value[1])
 	}
 }
 
@@ -141,11 +141,11 @@ func (eval *Evaluator) gadgetProductMultiplePLazy(levelQ int, cx *ring.Poly, gad
 		eval.DecomposeSingleNTT(levelQ, levelP, levelP+1, i, cxNTT, cxInvNTT, c2QP.Q, c2QP.P)
 
 		if i == 0 {
-			ringQP.MulCoeffsMontgomeryLazy(el[i][0].Value[0], &c2QP, ct.Value[0])
-			ringQP.MulCoeffsMontgomeryLazy(el[i][0].Value[1], &c2QP, ct.Value[1])
+			ringQP.MulCoeffsMontgomeryLazy(&el[i][0].Value[0], &c2QP, &ct.Value[0])
+			ringQP.MulCoeffsMontgomeryLazy(&el[i][0].Value[1], &c2QP, &ct.Value[1])
 		} else {
-			ringQP.MulCoeffsMontgomeryLazyThenAddLazy(el[i][0].Value[0], &c2QP, ct.Value[0])
-			ringQP.MulCoeffsMontgomeryLazyThenAddLazy(el[i][0].Value[1], &c2QP, ct.Value[1])
+			ringQP.MulCoeffsMontgomeryLazyThenAddLazy(&el[i][0].Value[0], &c2QP, &ct.Value[0])
+			ringQP.MulCoeffsMontgomeryLazyThenAddLazy(&el[i][0].Value[1], &c2QP, &ct.Value[1])
 		}
 
 		if reduce%QiOverF == QiOverF-1 {
@@ -284,9 +284,9 @@ func (eval *Evaluator) gadgetProductSinglePAndBitDecompLazy(levelQ int, cx *ring
 func (eval *Evaluator) GadgetProductHoisted(levelQ int, BuffQPDecompQP []ringqp.Poly, gadgetCt *GadgetCiphertext, ct *Ciphertext) {
 
 	ctQP := &OperandQP{}
-	ctQP.Value = []*ringqp.Poly{
-		{Q: ct.Value[0], P: eval.BuffQP[0].P},
-		{Q: ct.Value[1], P: eval.BuffQP[1].P},
+	ctQP.Value = []ringqp.Poly{
+		{Q: &ct.Value[0], P: eval.BuffQP[0].P},
+		{Q: &ct.Value[1], P: eval.BuffQP[1].P},
 	}
 	ctQP.IsNTT = ct.IsNTT
 
@@ -311,8 +311,8 @@ func (eval *Evaluator) GadgetProductHoistedLazy(levelQ int, BuffQPDecompQP []rin
 	ringQ := ringQP.RingQ
 	ringP := ringQP.RingP
 
-	c0QP := ct.Value[0]
-	c1QP := ct.Value[1]
+	c0QP := &ct.Value[0]
+	c1QP := &ct.Value[1]
 
 	decompRNS := (levelQ + 1 + levelP) / (levelP + 1)
 
@@ -326,11 +326,11 @@ func (eval *Evaluator) GadgetProductHoistedLazy(levelQ int, BuffQPDecompQP []rin
 		gct := gadgetCt.Value[i][0].Value
 
 		if i == 0 {
-			ringQP.MulCoeffsMontgomeryLazy(gct[0], &BuffQPDecompQP[i], c0QP)
-			ringQP.MulCoeffsMontgomeryLazy(gct[1], &BuffQPDecompQP[i], c1QP)
+			ringQP.MulCoeffsMontgomeryLazy(&gct[0], &BuffQPDecompQP[i], c0QP)
+			ringQP.MulCoeffsMontgomeryLazy(&gct[1], &BuffQPDecompQP[i], c1QP)
 		} else {
-			ringQP.MulCoeffsMontgomeryLazyThenAddLazy(gct[0], &BuffQPDecompQP[i], c0QP)
-			ringQP.MulCoeffsMontgomeryLazyThenAddLazy(gct[1], &BuffQPDecompQP[i], c1QP)
+			ringQP.MulCoeffsMontgomeryLazyThenAddLazy(&gct[0], &BuffQPDecompQP[i], c0QP)
+			ringQP.MulCoeffsMontgomeryLazyThenAddLazy(&gct[1], &BuffQPDecompQP[i], c1QP)
 		}
 
 		if reduce%QiOverF == QiOverF-1 {
@@ -357,8 +357,8 @@ func (eval *Evaluator) GadgetProductHoistedLazy(levelQ int, BuffQPDecompQP []rin
 	}
 
 	if !ct.IsNTT {
-		ringQP.INTT(ct.Value[0], ct.Value[0])
-		ringQP.INTT(ct.Value[1], ct.Value[1])
+		ringQP.INTT(&ct.Value[0], &ct.Value[0])
+		ringQP.INTT(&ct.Value[1], &ct.Value[1])
 	}
 }
 

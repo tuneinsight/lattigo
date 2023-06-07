@@ -266,11 +266,11 @@ func (r *Ring) MulDoubleRNSScalarThenAdd(p1 *Poly, scalar0, scalar1 RNSScalar, p
 }
 
 // EvalPolyScalar evaluate p2 = p1(scalar) coefficient-wise in the ring.
-func (r *Ring) EvalPolyScalar(p1 []*Poly, scalar uint64, p2 *Poly) {
-	p2.Copy(p1[len(p1)-1])
+func (r *Ring) EvalPolyScalar(p1 []Poly, scalar uint64, p2 *Poly) {
+	p2.Copy(&p1[len(p1)-1])
 	for i := len(p1) - 1; i > 0; i-- {
 		r.MulScalar(p2, scalar, p2)
-		r.Add(p2, p1[i-1], p2)
+		r.Add(p2, &p1[i-1], p2)
 	}
 }
 

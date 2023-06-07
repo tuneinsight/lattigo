@@ -50,9 +50,9 @@ func (d *Decryptor) Decrypt(ct *Ciphertext, pt *Plaintext) {
 	pt.MetaData = ct.MetaData
 
 	if ct.IsNTT {
-		ring.CopyLvl(level, ct.Value[ct.Degree()], pt.Value)
+		ring.CopyLvl(level, &ct.Value[ct.Degree()], pt.Value)
 	} else {
-		ringQ.NTTLazy(ct.Value[ct.Degree()], pt.Value)
+		ringQ.NTTLazy(&ct.Value[ct.Degree()], pt.Value)
 	}
 
 	for i := ct.Degree(); i > 0; i-- {
@@ -60,10 +60,10 @@ func (d *Decryptor) Decrypt(ct *Ciphertext, pt *Plaintext) {
 		ringQ.MulCoeffsMontgomery(pt.Value, d.sk.Value.Q, pt.Value)
 
 		if !ct.IsNTT {
-			ringQ.NTTLazy(ct.Value[i-1], d.buff)
+			ringQ.NTTLazy(&ct.Value[i-1], d.buff)
 			ringQ.Add(pt.Value, d.buff, pt.Value)
 		} else {
-			ringQ.Add(pt.Value, ct.Value[i-1], pt.Value)
+			ringQ.Add(pt.Value, &ct.Value[i-1], pt.Value)
 		}
 
 		if i&7 == 7 {

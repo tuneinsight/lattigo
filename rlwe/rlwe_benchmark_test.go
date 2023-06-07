@@ -1,16 +1,20 @@
 package rlwe
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
 	"runtime"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func BenchmarkRLWE(b *testing.B) {
 
 	var err error
 
-	defaultParamsLiteral := TestParamsLiteral[:]
+	defaultParamsLiteral := TestParamsLiteral[:1]
 
 	if *flagParamString != "" {
 		var jsonParams ParametersLiteral
@@ -34,6 +38,7 @@ func BenchmarkRLWE(b *testing.B) {
 			benchEncryptor,
 			benchDecryptor,
 			benchEvaluator,
+			benchMarshalling,
 		} {
 			testSet(tc, b)
 			runtime.GC()
@@ -122,7 +127,55 @@ func benchEvaluator(tc *TestContext, b *testing.B) {
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			eval.GadgetProduct(ct.Level(), ct.Value[1], &evk.GadgetCiphertext, ct)
+			eval.GadgetProduct(ct.Level(), &ct.Value[1], &evk.GadgetCiphertext, ct)
 		}
 	})
+}
+
+func benchMarshalling(tc *TestContext, b *testing.B) {
+	params := tc.params
+	sk := tc.sk
+
+	ct := NewEncryptor(params, sk).EncryptZeroNew(params.MaxLevel())
+	buf1 := make([]byte, ct.BinarySize())
+	buf := bytes.NewBuffer(buf1)
+	b.Run(testString(params, params.MaxLevel(), "Marshalling/WriteTo"), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			buf.Reset()
+			ct.WriteTo(buf)
+		}
+	})
+
+	require.Equal(b, ct.BinarySize(), len(buf.Bytes()))
+
+	buf2 := make([]byte, ct.BinarySize())
+	b.Run(testString(params, params.MaxLevel(), "Marshalling/Encode"), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			ct.Encode(buf2)
+		}
+	})
+
+	rdr := bytes.NewReader(buf.Bytes())
+	brdr := bufio.NewReader(rdr)
+	var ct2 Ciphertext
+	b.Run(testString(params, params.MaxLevel(), "Marshalling/ReadFrom"), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			rdr.Seek(0, 0)
+			brdr.Reset(rdr)
+			ct2.ReadFrom(brdr)
+			// if err != nil {
+			// 	b.Fatal(err)
+			// }
+		}
+	})
+
+	require.True(b, ct.Equal(&ct2))
+	var ct3 Ciphertext
+	b.Run(testString(params, params.MaxLevel(), "Marshalling/Decode"), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			ct3.Decode(buf2)
+		}
+	})
+
+	require.True(b, ct.Equal(&ct3))
 }

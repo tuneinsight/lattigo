@@ -36,19 +36,19 @@ func (eval *Evaluator) Automorphism(ctIn *Ciphertext, galEl uint64, ctOut *Ciphe
 
 	ringQ := eval.params.RingQ().AtLevel(level)
 
-	ctTmp := &Ciphertext{OperandQ{Value: []*ring.Poly{eval.BuffQP[0].Q, eval.BuffQP[1].Q}}}
+	ctTmp := &Ciphertext{OperandQ{Value: []ring.Poly{*eval.BuffQP[0].Q, *eval.BuffQP[1].Q}}}
 	ctTmp.IsNTT = ctIn.IsNTT
 
-	eval.GadgetProduct(level, ctIn.Value[1], &evk.GadgetCiphertext, ctTmp)
+	eval.GadgetProduct(level, &ctIn.Value[1], &evk.GadgetCiphertext, ctTmp)
 
-	ringQ.Add(ctTmp.Value[0], ctIn.Value[0], ctTmp.Value[0])
+	ringQ.Add(&ctTmp.Value[0], &ctIn.Value[0], &ctTmp.Value[0])
 
 	if ctIn.IsNTT {
-		ringQ.AutomorphismNTTWithIndex(ctTmp.Value[0], eval.AutomorphismIndex[galEl], ctOut.Value[0])
-		ringQ.AutomorphismNTTWithIndex(ctTmp.Value[1], eval.AutomorphismIndex[galEl], ctOut.Value[1])
+		ringQ.AutomorphismNTTWithIndex(&ctTmp.Value[0], eval.AutomorphismIndex[galEl], &ctOut.Value[0])
+		ringQ.AutomorphismNTTWithIndex(&ctTmp.Value[1], eval.AutomorphismIndex[galEl], &ctOut.Value[1])
 	} else {
-		ringQ.Automorphism(ctTmp.Value[0], galEl, ctOut.Value[0])
-		ringQ.Automorphism(ctTmp.Value[1], galEl, ctOut.Value[1])
+		ringQ.Automorphism(&ctTmp.Value[0], galEl, &ctOut.Value[0])
+		ringQ.Automorphism(&ctTmp.Value[1], galEl, &ctOut.Value[1])
 	}
 
 	ctOut.MetaData = ctIn.MetaData
@@ -82,18 +82,18 @@ func (eval *Evaluator) AutomorphismHoisted(level int, ctIn *Ciphertext, c1Decomp
 	ringQ := eval.params.RingQ().AtLevel(level)
 
 	ctTmp := &Ciphertext{}
-	ctTmp.Value = []*ring.Poly{eval.BuffQP[0].Q, eval.BuffQP[1].Q} // GadgetProductHoisted uses the same buffers for its ciphertext QP
+	ctTmp.Value = []ring.Poly{*eval.BuffQP[0].Q, *eval.BuffQP[1].Q} // GadgetProductHoisted uses the same buffers for its ciphertext QP
 	ctTmp.IsNTT = ctIn.IsNTT
 
 	eval.GadgetProductHoisted(level, c1DecompQP, &evk.EvaluationKey.GadgetCiphertext, ctTmp)
-	ringQ.Add(ctTmp.Value[0], ctIn.Value[0], ctTmp.Value[0])
+	ringQ.Add(&ctTmp.Value[0], &ctIn.Value[0], &ctTmp.Value[0])
 
 	if ctIn.IsNTT {
-		ringQ.AutomorphismNTTWithIndex(ctTmp.Value[0], eval.AutomorphismIndex[galEl], ctOut.Value[0])
-		ringQ.AutomorphismNTTWithIndex(ctTmp.Value[1], eval.AutomorphismIndex[galEl], ctOut.Value[1])
+		ringQ.AutomorphismNTTWithIndex(&ctTmp.Value[0], eval.AutomorphismIndex[galEl], &ctOut.Value[0])
+		ringQ.AutomorphismNTTWithIndex(&ctTmp.Value[1], eval.AutomorphismIndex[galEl], &ctOut.Value[1])
 	} else {
-		ringQ.Automorphism(ctTmp.Value[0], galEl, ctOut.Value[0])
-		ringQ.Automorphism(ctTmp.Value[1], galEl, ctOut.Value[1])
+		ringQ.Automorphism(&ctTmp.Value[0], galEl, &ctOut.Value[0])
+		ringQ.Automorphism(&ctTmp.Value[1], galEl, &ctOut.Value[1])
 	}
 
 	ctOut.MetaData = ctIn.MetaData
@@ -113,7 +113,7 @@ func (eval *Evaluator) AutomorphismHoistedLazy(levelQ int, ctIn *Ciphertext, c1D
 	levelP := evk.LevelP()
 
 	ctTmp := &OperandQP{}
-	ctTmp.Value = []*ringqp.Poly{&eval.BuffQP[0], &eval.BuffQP[1]}
+	ctTmp.Value = []ringqp.Poly{eval.BuffQP[0], eval.BuffQP[1]}
 	ctTmp.IsNTT = ctQP.IsNTT
 
 	eval.GadgetProductHoistedLazy(levelQ, c1DecompQP, &evk.GadgetCiphertext, ctTmp)
@@ -127,25 +127,25 @@ func (eval *Evaluator) AutomorphismHoistedLazy(levelQ int, ctIn *Ciphertext, c1D
 
 	if ctQP.IsNTT {
 
-		ringQP.AutomorphismNTTWithIndex(ctTmp.Value[1], index, ctQP.Value[1])
+		ringQP.AutomorphismNTTWithIndex(&ctTmp.Value[1], index, &ctQP.Value[1])
 
 		if levelP > -1 {
-			ringQ.MulScalarBigint(ctIn.Value[0], ringP.ModulusAtLevel[levelP], ctTmp.Value[1].Q)
+			ringQ.MulScalarBigint(&ctIn.Value[0], ringP.ModulusAtLevel[levelP], ctTmp.Value[1].Q)
 		}
 
 		ringQ.Add(ctTmp.Value[0].Q, ctTmp.Value[1].Q, ctTmp.Value[0].Q)
 
-		ringQP.AutomorphismNTTWithIndex(ctTmp.Value[0], index, ctQP.Value[0])
+		ringQP.AutomorphismNTTWithIndex(&ctTmp.Value[0], index, &ctQP.Value[0])
 	} else {
 
-		ringQP.Automorphism(ctTmp.Value[1], galEl, ctQP.Value[1])
+		ringQP.Automorphism(&ctTmp.Value[1], galEl, &ctQP.Value[1])
 
 		if levelP > -1 {
-			ringQ.MulScalarBigint(ctIn.Value[0], ringP.ModulusAtLevel[levelP], ctTmp.Value[1].Q)
+			ringQ.MulScalarBigint(&ctIn.Value[0], ringP.ModulusAtLevel[levelP], ctTmp.Value[1].Q)
 		}
 
 		ringQ.Add(ctTmp.Value[0].Q, ctTmp.Value[1].Q, ctTmp.Value[0].Q)
 
-		ringQP.Automorphism(ctTmp.Value[0], galEl, ctQP.Value[0])
+		ringQP.Automorphism(&ctTmp.Value[0], galEl, &ctQP.Value[0])
 	}
 }

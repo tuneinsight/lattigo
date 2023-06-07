@@ -182,15 +182,15 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWithSlotIndex map[in
 	mask := uint64(ringQLUT.N()<<1) - 1
 
 	if ct.IsNTT {
-		ringQLWE.INTT(ct.Value[0], acc.Value[0])
-		ringQLWE.INTT(ct.Value[1], acc.Value[1])
+		ringQLWE.INTT(&ct.Value[0], &acc.Value[0])
+		ringQLWE.INTT(&ct.Value[1], &acc.Value[1])
 	} else {
-		ring.CopyLvl(ct.Level(), ct.Value[0], acc.Value[0])
-		ring.CopyLvl(ct.Level(), ct.Value[1], acc.Value[1])
+		ring.CopyLvl(ct.Level(), &ct.Value[0], &acc.Value[0])
+		ring.CopyLvl(ct.Level(), &ct.Value[1], &acc.Value[1])
 	}
 
 	// Switch modulus from Q to 2N
-	eval.ModSwitchRLWETo2NLvl(ct.Level(), acc.Value[1], acc.Value[1])
+	eval.ModSwitchRLWETo2NLvl(ct.Level(), &acc.Value[1], &acc.Value[1])
 
 	// Conversion from Convolution(a, sk) to DotProd(a, sk) for LWE decryption.
 	// Copy coefficients multiplied by X^{N-1} in reverse order:
@@ -203,7 +203,7 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWithSlotIndex map[in
 		tmp0[j] = -tmp1[ringQLWE.N()-j] & mask
 	}
 
-	eval.ModSwitchRLWETo2NLvl(ct.Level(), acc.Value[0], bRLWEMod2N)
+	eval.ModSwitchRLWETo2NLvl(ct.Level(), &acc.Value[0], bRLWEMod2N)
 
 	res = make(map[int]*rlwe.Ciphertext)
 
@@ -220,8 +220,8 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWithSlotIndex map[in
 
 			// LWE = -as + m + e, a
 			// LUT = LUT * X^{-as + m + e}
-			ringQLUT.MulCoeffsMontgomery(lut, eval.xPowMinusOne[b].Q, acc.Value[0])
-			ringQLUT.Add(acc.Value[0], lut, acc.Value[0])
+			ringQLUT.MulCoeffsMontgomery(lut, eval.xPowMinusOne[b].Q, &acc.Value[0])
+			ringQLUT.Add(&acc.Value[0], lut, &acc.Value[0])
 			acc.Value[1].Zero()
 
 			for j := 0; j < NLWE; j++ {
@@ -237,8 +237,8 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWithSlotIndex map[in
 			res[index] = acc.CopyNew()
 
 			if !eval.paramsLUT.NTTFlag() {
-				ringQLUT.INTT(res[index].Value[0], res[index].Value[0])
-				ringQLUT.INTT(res[index].Value[1], res[index].Value[1])
+				ringQLUT.INTT(&res[index].Value[0], &res[index].Value[0])
+				ringQLUT.INTT(&res[index].Value[1], &res[index].Value[1])
 				res[index].IsNTT = false
 			}
 		}

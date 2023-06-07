@@ -23,7 +23,7 @@ func NewCiphertext(params ParametersInterface, degree, level int) (ct *Ciphertex
 // where the message is set to the passed poly. No checks are performed on poly and
 // the returned Ciphertext will share its backing array of coefficients.
 // Returned Ciphertext's MetaData is empty.
-func NewCiphertextAtLevelFromPoly(level int, poly []*ring.Poly) *Ciphertext {
+func NewCiphertextAtLevelFromPoly(level int, poly []ring.Poly) *Ciphertext {
 	return &Ciphertext{*NewOperandQAtLevelFromPoly(level, poly)}
 }
 

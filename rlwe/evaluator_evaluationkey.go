@@ -95,11 +95,11 @@ func (eval *Evaluator) ApplyEvaluationKey(ctIn *Ciphertext, evk *EvaluationKey, 
 
 func (eval *Evaluator) applyEvaluationKey(level int, ctIn *Ciphertext, evk *EvaluationKey, ctOut *Ciphertext) {
 	ctTmp := &Ciphertext{}
-	ctTmp.Value = []*ring.Poly{eval.BuffQP[0].Q, eval.BuffQP[1].Q}
+	ctTmp.Value = []ring.Poly{*eval.BuffQP[0].Q, *eval.BuffQP[1].Q}
 	ctTmp.IsNTT = ctIn.IsNTT
-	eval.GadgetProduct(level, ctIn.Value[1], &evk.GadgetCiphertext, ctTmp)
-	eval.params.RingQ().AtLevel(level).Add(ctIn.Value[0], ctTmp.Value[0], ctOut.Value[0])
-	ring.CopyLvl(level, ctTmp.Value[1], ctOut.Value[1])
+	eval.GadgetProduct(level, &ctIn.Value[1], &evk.GadgetCiphertext, ctTmp)
+	eval.params.RingQ().AtLevel(level).Add(&ctIn.Value[0], &ctTmp.Value[0], &ctOut.Value[0])
+	ring.CopyLvl(level, &ctTmp.Value[1], &ctOut.Value[1])
 }
 
 // Relinearize applies the relinearization procedure on ct0 and returns the result in ctOut.
@@ -129,12 +129,12 @@ func (eval *Evaluator) Relinearize(ctIn *Ciphertext, ctOut *Ciphertext) {
 	ringQ := eval.params.RingQ().AtLevel(level)
 
 	ctTmp := &Ciphertext{}
-	ctTmp.Value = []*ring.Poly{eval.BuffQP[0].Q, eval.BuffQP[1].Q}
+	ctTmp.Value = []ring.Poly{*eval.BuffQP[0].Q, *eval.BuffQP[1].Q}
 	ctTmp.IsNTT = ctIn.IsNTT
 
-	eval.GadgetProduct(level, ctIn.Value[2], &rlk.GadgetCiphertext, ctTmp)
-	ringQ.Add(ctIn.Value[0], ctTmp.Value[0], ctOut.Value[0])
-	ringQ.Add(ctIn.Value[1], ctTmp.Value[1], ctOut.Value[1])
+	eval.GadgetProduct(level, &ctIn.Value[2], &rlk.GadgetCiphertext, ctTmp)
+	ringQ.Add(&ctIn.Value[0], &ctTmp.Value[0], &ctOut.Value[0])
+	ringQ.Add(&ctIn.Value[1], &ctTmp.Value[1], &ctOut.Value[1])
 
 	ctOut.Resize(1, level)
 

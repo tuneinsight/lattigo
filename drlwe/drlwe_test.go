@@ -143,7 +143,7 @@ func testPublicKeyGenProtocol(tc *testContext, level int, t *testing.T) {
 		}
 
 		// Test binary encoding
-		buffer.TestInterfaceWriteAndRead(t, shares[0])
+		buffer.RequireSerializerCorrect(t, shares[0])
 
 		pk := rlwe.NewPublicKey(params)
 		ckg[0].GenPublicKey(shares[0], crp, pk)
@@ -185,7 +185,7 @@ func testRelinKeyGenProtocol(tc *testContext, level int, t *testing.T) {
 		}
 
 		// Test binary encoding
-		buffer.TestInterfaceWriteAndRead(t, share1[0])
+		buffer.RequireSerializerCorrect(t, share1[0])
 
 		for i := range rkg {
 			rkg[i].GenShareRoundTwo(ephSk[i], tc.skShares[i], share1[0], share2[i])
@@ -239,7 +239,7 @@ func testGaloisKeyGenProtocol(tc *testContext, level int, t *testing.T) {
 		}
 
 		// Test binary encoding
-		buffer.TestInterfaceWriteAndRead(t, shares[0])
+		buffer.RequireSerializerCorrect(t, shares[0])
 
 		galoisKey := rlwe.NewGaloisKey(params)
 		gkg[0].GenGaloisKey(shares[0], crp, galoisKey)
@@ -293,7 +293,7 @@ func testKeySwitchProtocol(tc *testContext, level int, t *testing.T) {
 		}
 
 		// Test binary encoding
-		buffer.TestInterfaceWriteAndRead(t, shares[0])
+		buffer.RequireSerializerCorrect(t, shares[0])
 
 		ksCt := rlwe.NewCiphertext(params, 1, ct.Level())
 
@@ -362,7 +362,7 @@ func testPublicKeySwitchProtocol(tc *testContext, level int, t *testing.T) {
 		}
 
 		// Test binary encoding
-		buffer.TestInterfaceWriteAndRead(t, shares[0])
+		buffer.RequireSerializerCorrect(t, shares[0])
 
 		ksCt := rlwe.NewCiphertext(params, 1, level)
 		dec := rlwe.NewDecryptor(params, skOut)
@@ -450,7 +450,7 @@ func testThreshold(tc *testContext, level int, t *testing.T) {
 			}
 
 			// Test binary encoding
-			buffer.TestInterfaceWriteAndRead(t, P[0].tsks)
+			buffer.RequireSerializerCorrect(t, P[0].tsks)
 
 			// Determining which parties are active. In a distributed context, a party
 			// would receive the ids of active players and retrieve (or compute) the corresponding keys.
@@ -480,13 +480,13 @@ func testRefreshShare(tc *testContext, level int, t *testing.T) {
 		params := tc.params
 		ringQ := params.RingQ().AtLevel(level)
 		ciphertext := &rlwe.Ciphertext{}
-		ciphertext.Value = []*ring.Poly{nil, ringQ.NewPoly()}
-		tc.uniformSampler.AtLevel(level).Read(ciphertext.Value[1])
+		ciphertext.Value = []ring.Poly{ring.Poly{}, *ringQ.NewPoly()}
+		tc.uniformSampler.AtLevel(level).Read(&ciphertext.Value[1])
 		cksp := NewKeySwitchProtocol(tc.params, tc.params.Xe())
 		share1 := cksp.AllocateShare(level)
 		share2 := cksp.AllocateShare(level)
 		cksp.GenShare(tc.skShares[0], tc.skShares[1], ciphertext, share1)
 		cksp.GenShare(tc.skShares[1], tc.skShares[0], ciphertext, share2)
-		buffer.TestInterfaceWriteAndRead(t, &RefreshShare{E2SShare: *share1, S2EShare: *share2})
+		buffer.RequireSerializerCorrect(t, &RefreshShare{E2SShare: *share1, S2EShare: *share2})
 	})
 }

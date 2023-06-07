@@ -80,11 +80,11 @@ func (thr *Thresholdizer) GenShamirPolynomial(threshold int, secret *rlwe.Secret
 	if threshold < 1 {
 		return nil, fmt.Errorf("threshold should be >= 1")
 	}
-	gen := make([]*ringqp.Poly, int(threshold))
-	gen[0] = secret.Value.CopyNew()
+	gen := make([]ringqp.Poly, int(threshold))
+	gen[0] = *secret.Value.CopyNew()
 	for i := 1; i < threshold; i++ {
-		gen[i] = thr.ringQP.NewPoly()
-		thr.usampler.Read(gen[i])
+		gen[i] = *thr.ringQP.NewPoly()
+		thr.usampler.Read(&gen[i])
 	}
 
 	return &ShamirPolynomial{Value: structs.Vector[ringqp.Poly](gen)}, nil

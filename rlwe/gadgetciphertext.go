@@ -20,12 +20,12 @@ type GadgetCiphertext struct {
 // Ciphertext is always in the NTT domain.
 func NewGadgetCiphertext(params ParametersInterface, levelQ, levelP, decompRNS, decompBIT int) *GadgetCiphertext {
 
-	m := make([][]*OperandQP, decompRNS)
+	m := make([][]OperandQP, decompRNS)
 	for i := 0; i < decompRNS; i++ {
-		v := make([]*OperandQP, decompBIT)
+		v := make([]OperandQP, decompBIT)
 
 		for j := range v {
-			v[j] = NewOperandQP(params, 1, levelQ, levelP)
+			v[j] = *NewOperandQP(params, 1, levelQ, levelP)
 			v[j].IsNTT = true
 			v[j].IsMontgomery = true
 		}
@@ -56,11 +56,11 @@ func (ct *GadgetCiphertext) CopyNew() (ctCopy *GadgetCiphertext) {
 	if ct == nil || len(ct.Value) == 0 {
 		return nil
 	}
-	v := make([][]*OperandQP, len(ct.Value))
+	v := make([][]OperandQP, len(ct.Value))
 	for i := range ct.Value {
-		v[i] = make([]*OperandQP, len(ct.Value[0]))
+		v[i] = make([]OperandQP, len(ct.Value[0]))
 		for j, el := range ct.Value[i] {
-			v[i][j] = el.CopyNew()
+			v[i][j] = *el.CopyNew()
 		}
 	}
 	return &GadgetCiphertext{Value: v}
@@ -197,16 +197,16 @@ func NewGadgetPlaintext(params Parameters, value interface{}, levelQ, levelP, lo
 	ringQ := params.RingQP().RingQ.AtLevel(levelQ)
 
 	pt = new(GadgetPlaintext)
-	pt.Value = make([]*ring.Poly, decompBIT)
+	pt.Value = make([]ring.Poly, decompBIT)
 
 	switch el := value.(type) {
 	case uint64:
-		pt.Value[0] = ringQ.NewPoly()
+		pt.Value[0] = *ringQ.NewPoly()
 		for i := 0; i < levelQ+1; i++ {
 			pt.Value[0].Coeffs[i][0] = el
 		}
 	case int64:
-		pt.Value[0] = ringQ.NewPoly()
+		pt.Value[0] = *ringQ.NewPoly()
 		if el < 0 {
 			for i := 0; i < levelQ+1; i++ {
 				pt.Value[0].Coeffs[i][0] = ringQ.SubRings[i].Modulus - uint64(-el)
@@ -217,24 +217,24 @@ func NewGadgetPlaintext(params Parameters, value interface{}, levelQ, levelP, lo
 			}
 		}
 	case *ring.Poly:
-		pt.Value[0] = el.CopyNew()
+		pt.Value[0] = *el.CopyNew()
 	default:
 		panic("cannot NewGadgetPlaintext: unsupported type, must be wither uint64 or *ring.Poly")
 	}
 
 	if levelP > -1 {
-		ringQ.MulScalarBigint(pt.Value[0], params.RingP().AtLevel(levelP).Modulus(), pt.Value[0])
+		ringQ.MulScalarBigint(&pt.Value[0], params.RingP().AtLevel(levelP).Modulus(), &pt.Value[0])
 	}
 
-	ringQ.NTT(pt.Value[0], pt.Value[0])
-	ringQ.MForm(pt.Value[0], pt.Value[0])
+	ringQ.NTT(&pt.Value[0], &pt.Value[0])
+	ringQ.MForm(&pt.Value[0], &pt.Value[0])
 
 	for i := 1; i < len(pt.Value); i++ {
 
-		pt.Value[i] = pt.Value[0].CopyNew()
+		pt.Value[i] = *pt.Value[0].CopyNew()
 
 		for j := 0; j < i; j++ {
-			ringQ.MulScalar(pt.Value[i], 1<<logBase2, pt.Value[i])
+			ringQ.MulScalar(&pt.Value[i], 1<<logBase2, &pt.Value[i])
 		}
 	}
 

@@ -572,7 +572,7 @@ func testEvaluatorMul(tc *testContext, t *testing.T) {
 		}
 
 		ciphertext1 := &rlwe.Ciphertext{}
-		ciphertext1.Value = []*ring.Poly{plaintext1.Value}
+		ciphertext1.Value = []ring.Poly{*plaintext1.Value}
 		ciphertext1.MetaData = plaintext1.MetaData
 
 		tc.evaluator.MulRelin(ciphertext1, ciphertext2, ciphertext1)

@@ -69,14 +69,14 @@ func (switcher *DomainSwitcher) ComplexToReal(eval *Evaluator, ctIn, ctOut *rlwe
 	}
 
 	ctTmp := &rlwe.Ciphertext{}
-	ctTmp.Value = []*ring.Poly{evalRLWE.BuffQP[1].Q, evalRLWE.BuffQP[2].Q}
+	ctTmp.Value = []ring.Poly{*evalRLWE.BuffQP[1].Q, *evalRLWE.BuffQP[2].Q}
 	ctTmp.MetaData = ctIn.MetaData
 
-	evalRLWE.GadgetProduct(level, ctIn.Value[1], &switcher.stdToci.GadgetCiphertext, ctTmp)
-	switcher.stdRingQ.AtLevel(level).Add(evalRLWE.BuffQP[1].Q, ctIn.Value[0], evalRLWE.BuffQP[1].Q)
+	evalRLWE.GadgetProduct(level, &ctIn.Value[1], &switcher.stdToci.GadgetCiphertext, ctTmp)
+	switcher.stdRingQ.AtLevel(level).Add(evalRLWE.BuffQP[1].Q, &ctIn.Value[0], evalRLWE.BuffQP[1].Q)
 
-	switcher.conjugateRingQ.AtLevel(level).FoldStandardToConjugateInvariant(evalRLWE.BuffQP[1].Q, switcher.automorphismIndex, ctOut.Value[0])
-	switcher.conjugateRingQ.AtLevel(level).FoldStandardToConjugateInvariant(evalRLWE.BuffQP[2].Q, switcher.automorphismIndex, ctOut.Value[1])
+	switcher.conjugateRingQ.AtLevel(level).FoldStandardToConjugateInvariant(evalRLWE.BuffQP[1].Q, switcher.automorphismIndex, &ctOut.Value[0])
+	switcher.conjugateRingQ.AtLevel(level).FoldStandardToConjugateInvariant(evalRLWE.BuffQP[2].Q, switcher.automorphismIndex, &ctOut.Value[1])
 	ctOut.MetaData = ctIn.MetaData
 	ctOut.PlaintextScale = ctIn.PlaintextScale.Mul(rlwe.NewScale(2))
 }
@@ -108,16 +108,16 @@ func (switcher *DomainSwitcher) RealToComplex(eval *Evaluator, ctIn, ctOut *rlwe
 		panic("cannot RealToComplex: no realToComplexEvk provided to this DomainSwitcher")
 	}
 
-	switcher.stdRingQ.AtLevel(level).UnfoldConjugateInvariantToStandard(ctIn.Value[0], ctOut.Value[0])
-	switcher.stdRingQ.AtLevel(level).UnfoldConjugateInvariantToStandard(ctIn.Value[1], ctOut.Value[1])
+	switcher.stdRingQ.AtLevel(level).UnfoldConjugateInvariantToStandard(&ctIn.Value[0], &ctOut.Value[0])
+	switcher.stdRingQ.AtLevel(level).UnfoldConjugateInvariantToStandard(&ctIn.Value[1], &ctOut.Value[1])
 
 	ctTmp := &rlwe.Ciphertext{}
-	ctTmp.Value = []*ring.Poly{evalRLWE.BuffQP[1].Q, evalRLWE.BuffQP[2].Q}
+	ctTmp.Value = []ring.Poly{*evalRLWE.BuffQP[1].Q, *evalRLWE.BuffQP[2].Q}
 	ctTmp.MetaData = ctIn.MetaData
 
 	// Switches the RCKswitcher key [X+X^-1] to a CKswitcher key [X]
-	evalRLWE.GadgetProduct(level, ctOut.Value[1], &switcher.ciToStd.GadgetCiphertext, ctTmp)
-	switcher.stdRingQ.AtLevel(level).Add(ctOut.Value[0], evalRLWE.BuffQP[1].Q, ctOut.Value[0])
-	ring.CopyLvl(level, evalRLWE.BuffQP[2].Q, ctOut.Value[1])
+	evalRLWE.GadgetProduct(level, &ctOut.Value[1], &switcher.ciToStd.GadgetCiphertext, ctTmp)
+	switcher.stdRingQ.AtLevel(level).Add(&ctOut.Value[0], evalRLWE.BuffQP[1].Q, &ctOut.Value[0])
+	ring.CopyLvl(level, evalRLWE.BuffQP[2].Q, &ctOut.Value[1])
 	ctOut.MetaData = ctIn.MetaData
 }

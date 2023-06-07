@@ -91,7 +91,7 @@ func (pcks *PublicKeySwitchProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.Publi
 	// Encrypt zero
 	pcks.EncryptorInterface.WithKey(pk).EncryptZero(&rlwe.Ciphertext{
 		OperandQ: rlwe.OperandQ{
-			Value: []*ring.Poly{
+			Value: []ring.Poly{
 				shareOut.Value[0],
 				shareOut.Value[1],
 			},
@@ -101,16 +101,16 @@ func (pcks *PublicKeySwitchProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.Publi
 
 	// Add ct[1] * s and noise
 	if ct.IsNTT {
-		ringQ.MulCoeffsMontgomeryThenAdd(ct.Value[1], sk.Value.Q, shareOut.Value[0])
+		ringQ.MulCoeffsMontgomeryThenAdd(&ct.Value[1], sk.Value.Q, &shareOut.Value[0])
 		pcks.noiseSampler.Read(pcks.buf)
 		ringQ.NTT(pcks.buf, pcks.buf)
-		ringQ.Add(shareOut.Value[0], pcks.buf, shareOut.Value[0])
+		ringQ.Add(&shareOut.Value[0], pcks.buf, &shareOut.Value[0])
 	} else {
-		ringQ.NTTLazy(ct.Value[1], pcks.buf)
+		ringQ.NTTLazy(&ct.Value[1], pcks.buf)
 		ringQ.MulCoeffsMontgomeryLazy(pcks.buf, sk.Value.Q, pcks.buf)
 		ringQ.INTT(pcks.buf, pcks.buf)
 		pcks.noiseSampler.ReadAndAdd(pcks.buf)
-		ringQ.Add(shareOut.Value[0], pcks.buf, shareOut.Value[0])
+		ringQ.Add(&shareOut.Value[0], pcks.buf, &shareOut.Value[0])
 	}
 }
 
@@ -123,8 +123,8 @@ func (pcks *PublicKeySwitchProtocol) AggregateShares(share1, share2, shareOut *P
 	if levelQ1 != levelQ2 {
 		panic("cannot AggregateShares: the two shares are at different levelQ.")
 	}
-	pcks.params.RingQ().AtLevel(levelQ1).Add(share1.Value[0], share2.Value[0], shareOut.Value[0])
-	pcks.params.RingQ().AtLevel(levelQ1).Add(share1.Value[1], share2.Value[1], shareOut.Value[1])
+	pcks.params.RingQ().AtLevel(levelQ1).Add(&share1.Value[0], &share2.Value[0], &shareOut.Value[0])
+	pcks.params.RingQ().AtLevel(levelQ1).Add(&share1.Value[1], &share2.Value[1], &shareOut.Value[1])
 
 }
 
@@ -138,9 +138,9 @@ func (pcks *PublicKeySwitchProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined *
 		ctOut.MetaData = ctIn.MetaData
 	}
 
-	pcks.params.RingQ().AtLevel(level).Add(ctIn.Value[0], combined.Value[0], ctOut.Value[0])
+	pcks.params.RingQ().AtLevel(level).Add(&ctIn.Value[0], &combined.Value[0], &ctOut.Value[0])
 
-	ring.CopyLvl(level, combined.Value[1], ctOut.Value[1])
+	ring.CopyLvl(level, &combined.Value[1], &ctOut.Value[1])
 }
 
 // BinarySize returns the size in bytes of the object

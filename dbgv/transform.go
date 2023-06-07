@@ -176,6 +176,6 @@ func (rfp *MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, transform *Ma
 
 	rfp.s2e.encoder.RingT2Q(maxLevel, true, mask, rfp.tmpPt)
 	rfp.s2e.params.RingQ().AtLevel(maxLevel).NTT(rfp.tmpPt, rfp.tmpPt)
-	rfp.s2e.params.RingQ().AtLevel(maxLevel).Add(rfp.tmpPt, share.S2EShare.Value, ciphertextOut.Value[0])
-	rfp.s2e.GetEncryption(&drlwe.KeySwitchShare{Value: ciphertextOut.Value[0]}, crs, ciphertextOut)
+	rfp.s2e.params.RingQ().AtLevel(maxLevel).Add(rfp.tmpPt, share.S2EShare.Value, &ciphertextOut.Value[0])
+	rfp.s2e.GetEncryption(&drlwe.KeySwitchShare{Value: &ciphertextOut.Value[0]}, crs, ciphertextOut)
 }

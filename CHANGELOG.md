@@ -4,43 +4,34 @@ All notable changes to this library are documented in this file.
 
 ## UNRELEASED [4.2.x] - xxxx-xx-xx (#341,#309,#292,#348,#378)
 - Go versions `1.14`, `1.15`, `1.16` and `1.17` are not supported anymore by the library due to `func (b *Writer) AvailableBuffer() []byte` missing. The minimum version is now `1.18`.
-- ALL: 
-    - Golang Security Checker pass.
-    - Removed the by default returned type as interfaces on most structs.
-    - Simplified and clarified many aspect of the code base using generics.
-    - Inlined all recursive algorithms.
-    - Removed all instances of secure default parameters as they hardly ever had any practical application, were putting additional security constraints on the library and were not used in the tests.
-    - Updated tests to use custom sets of parameters (instead of the default ones) that are more efficient while increasing the test coverage of the possible instantiations of the schemes.
-    - Changes to serialization:
-        - Low-entropy structs (such as parameters or rings) now all use `json.Marshal` as underlying marshaler.
-        - High-entropy structs, such as structs storing key material or encrypted values now all comply to the following interface:
-            - `BinarySize() int`: size in bytes when written to an `io.Writer` or to a slice of bytes using `Read`.
-            - `WriteTo(io.Writer) (int64, error)`: efficient writing on any `io.Writer`.
-            - `ReadFrom(io.Reader) (int64, error)`: efficient reading from any `io.Reader`.
-            - `Encode([]byte) (int, error)`: highly efficient encoding on preallocated slice of bytes.
-            - `Decode([]byte) (int, error)`: highly efficient decoding from a slice of bytes.
-        - Streamlined and simplified all test related to serialization. They can now be implemented with a single line of code.
-    - Structs that can be serialized now all implement the method V Equal(V) bool.
-    - Tests and benchmarks in package other than the `RLWE` and `DRLWE` packages that were merely wrapper of methods of the `RLWE` or `DRLWE` have been removed and/or moved to the `RLWE` and `DRLWE` packages.
-
-- BFV/BGV/CKKS: 
-    - Simplified and uniformized the Evaluator API and increased the diversity of the accepted operands:
-    - Removed all methods that operated on specific plaintext operands (such as scalars).
-    - Add/Sub/Mul/MulThenAdd now accept `rlwe.Operands`, scalars and vectors of scalars as the middle operand.
-    - Changes to the Encoder:
-        - Encoding parameterization (scale, level, encoding domain, etc...) is now specified using the field `MetaData` of the `rlwe.Plaintext`.
-        - Uniformized the Encoder API between schemes, which now share the following subset of identical methods:
-            - `Encode(values interface{}, pt *rlwe.Plaintext)`
-            - `Decode(pt *rlwe.Plaintext, values interface{})`
-        - Removed the methods with the suffixes `New`, `Int` and `Uint`.
+- Golang Security Checker pass.
+- Simplified and clarified many aspect of the code base using generics.
+- Changes to serialization:
+    - Low-entropy structs (such as parameters or rings) now all use `json.Marshal` as underlying marshaler.
+    - High-entropy structs, such as structs storing key material or encrypted values now all comply to the following interface:
+        - `BinarySize() int`: size in bytes when written to an `io.Writer` or to a slice of bytes using `Read`.
+        - `WriteTo(io.Writer) (int64, error)`: efficient writing on any `io.Writer`.
+        - `ReadFrom(io.Reader) (int64, error)`: efficient reading from any `io.Reader`.
+        - `Encode([]byte) (int, error)`: highly efficient encoding on preallocated slice of bytes.
+        - `Decode([]byte) (int, error)`: highly efficient decoding from a slice of bytes.
+    - Streamlined and simplified all test related to serialization. They can now be implemented with a single line of code with `RequireSerializerCorrect`.
 
 - DRLWE/DBFV/DBGV/DCKKS: 
     - Renamed the protocols to reduce the number of acronyms used.
     - Arbitrary large smudging noise is now supported.
-    - replaced `[dbfv/dbfv/dckks].MaskedTransformShare` by `drlwe.RefreshShare`.
-    - added accurate noise bounds for the tests.
-    - fixed `CKS` and `PCKS` smudging noise to not be rescaled by `P`.
-    - improved the GoDoc of the protocols.
+    - Replaced `[dbfv/dbfv/dckks].MaskedTransformShare` by `drlwe.RefreshShare`.
+    - Added accurate noise bounds for the tests.
+    - Fixed `CKS` and `PCKS` smudging noise to not be rescaled by `P`.
+    - Tests and benchmarks in package other than the `RLWE` and `DRLWE` packages that were merely wrapper of methods of the `RLWE` or `DRLWE` have been removed and/or moved to the `RLWE` and `DRLWE` packages.
+    - Improved the GoDoc of the protocols.
+
+- DRLWE:
+    - Renamed:
+        - `NewCKGProtocol` to `NewPublicKeyGenProtocol`
+        - `NewRKGProtocol` to `NewRelinKeyGenProtocol`
+        - `NewCKSProtocol` to `NewGaloisKeyGenProtocol`
+        - `NewRTGProtocol` to `NewKeySwitchProtocol`
+        - `NewPCKSProtocol` to `NewPublicKeySwitchProtocol`
 
 - BFV: 
     - The package `bfv` has been depreciated and is now a wrapper of the package `bgv`.
@@ -50,6 +41,7 @@ All notable changes to this library are documented in this file.
     - The package `bgv` has been rewritten to implement a unification of the textbook BFV and BGV schemes under a single scheme
     - The unified scheme offers all the functionalities of the BFV and BGV schemes under a single scheme
     - Changes to the `Encoder`:
+        - `NewEncoder` now returns an `*Encoder` instead of an interface.
         - Removed:
             - `DecodeUint`
             - `DecodeInt`
@@ -65,7 +57,11 @@ All notable changes to this library are documented in this file.
         - Added:
             - `Embed`
             - `Decode`
+        - Notes:
+            - The encoder will perform the encoding according to the plaintext `MetaData`.
+
     - Changes to the `Evaluator`:
+        - `NewEvaluator` now returns an `*Evaluator` instead of an interface.
         - Removed:
             - `Neg`
             - `NegNew`
@@ -87,13 +83,15 @@ All notable changes to this library are documented in this file.
             - `EvaluatePoly` to `Polynomial` and generalized the method signature.
     - Changes to the `Parameters`:
         - Enabled plaintext modulus with a smaller 2N-th root of unity than the ring degree.
-        - Removed the default parameters.
+        - Removed the default parameters as they hardly ever had any practical application, were putting additional security constraints on the library and are not used in the tests anymore.
         - Added a test parameter set with small plaintext modulus.
 
 - CKKS:
     - Changes to the `Encoder`:
         - Enabled the encoding of plaintexts of any sparsity (previously hard-capped at a minimum of 8 slots).
         - Unified `encoderComplex128` and `encoderBigComplex`.
+        
+        - `NewEncoder` now returns an `*Encoder` instead of an interface.
         - Removed:
             - `EncodeNew`
             - `EncodeSlots`
@@ -115,9 +113,12 @@ All notable changes to this library are documented in this file.
         - Added:
             - Optional `precision` argument when instantiating the `Encoder`
             - `Prec` which returns the bit-precision of the encoder
+        - Notes:
+            - The encoder will perform the encoding according to the plaintext `MetaData`.
 
     - Changes to the `Evaluator`: 
-        - Note that this list only incldues the changes specific to the `ckks.Evaluator` and not the changes specific to the `rlwe.Evaluator`, which automatically propagate to the `ckks.Evaluator`.
+        - Note that this list only includes the changes specific to the `ckks.Evaluator` and not the changes specific to the `rlwe.Evaluator`, which automatically propagate to the `ckks.Evaluator`.
+        - `NewEvaluator` now returns an `*Evaluator` instead of an interface.
         - Removed:
             - `Neg`
             - `NegNew`
@@ -157,7 +158,7 @@ All notable changes to this library are documented in this file.
             - Improved and generalized the internal working of the `Evaluator` to enable arbitrary precision encrypted arithmetic.
 
     - Changes to the `Parameters`:
-        - Removed the default parameters.
+        - Removed the default parameters as they hardly ever had any practical application, were putting additional security constraints on the library and are not used in the tests anymore.
         - Renamed the field `LogScale` of the `ParametrsLiteralStruct` to `LogPlaintextScale`.
 
     - Changes to the tests:
@@ -176,7 +177,10 @@ All notable changes to this library are documented in this file.
         - Added a method that prints the `LWE.Parameters` as defined by the lattice estimator of `https://github.com/malb/lattice-estimator`.
 
     - Changes to the `Encryptor`:
-        -`EncryptorPublicKey` and `EncryptorSecretKey` are now public.
+        - `EncryptorPublicKey` and `EncryptorSecretKey` are now public.
+
+    - Changes to the `Decryptor`:
+        - `NewEncryptor` returns an `*Encryptor` instead of an interface.
 
     - Changes to the `Evaluator`:
         - Fixed all methods of the `Evaluator` to work with operands in and out of the NTT domain.
@@ -184,16 +188,16 @@ All notable changes to this library are documented in this file.
         - Renamed `Evaluator.Merge` to `Evaluator.Pack` and generalized `Evaluator.Pack` to be able to take into account the packing `X^{N/n}` of the ciphertext.
         - `Evaluator.Pack` now gives the option to zero (or not) slots which are not multiples of `X^{N/n}`.
         - Added the methods `CheckAndGetGaloisKey` and `CheckAndGetRelinearizationKey` to safely check and get the corresponding `EvaluationKeys`.
-        - Added the scheme agnostic method `EvaluatePatersonStockmeyerPolynomialVector`
-
-    - Changes to the Keys structs and `KeyGenerator`:
+        - Added the scheme agnostic method `EvaluatePatersonStockmeyerPolynomialVector`.
+        - `Merge` has beed inlined and remaned `Pack`
+    - Changes to the Keys structs:
         - Added `EvaluationKeySetInterface`, which enables users to provide custom loading/saving/persistence policies and implementation for the `EvaluationKeys`.
         - `SwitchingKey` has been renamed `EvaluationKey` to better convey that theses are public keys used during the evaluation phase of a circuit. All methods and variables names have been accordingly renamed.
         - The struct `RotationKeySet` holding a map of `SwitchingKeys` has been replaced by the struct `GaloisKey` holding a single `EvaluationKey`.
         - The `RelinearizationKey` has been simplfied to only store `s^2`, which is aligned with the capabilities of the schemes.
 
     - Changes to the `KeyGenerator`:
-        - The `KeyGenerator` is not returned as an interface anymore.
+        - The `NewKeyGenerator` returns a `*KeyGenerator` instead of an interface.
         - Simplified the `KeyGenerator`: methods to generate specific sets of `rlwe.GaloisKey` have been removed, instead the corresponding method on `rlwe.Parameters` allows to get the appropriate `GaloisElement`s.
         - Improved the API consistency of the `rlwe.KeyGenerator`. Methods that allocate elements have the suffix `New`. Added corresponding in place methods.
 
@@ -209,10 +213,12 @@ All notable changes to this library are documented in this file.
 
     - Other changes:
         - Added `OperandQ` and `OperandQP` which serve as a common underlying type for all cryptographic objects.
-        - Removed the struct `CiphertextQP` (replaced by `OperandQP`)
+        - Changed `[]*ring.Poly` to `structs.Vector[ring.Poly]` and `[]ringqp.Poly` to `structs.Vector[ringqp.Poly]`.
+        - Removed the struct `CiphertextQP` (replaced by `OperandQP`).
         - Added the structs `Polynomial`, `PatersonStockmeyerPolynomial`, `PolynomialVector` and `PatersonStockmeyerPolynomialVector` with the related methods.
         - Added basic interfaces description for Parameters, Encryptor, PRNGEncryptor, Decryptor, Evaluator and PolynomialEvaluator.
-        - Added scheme agnostic `LinearTransform`, `Polynomial` and `PowerBasis`
+        - Added scheme agnostic `LinearTransform`, `Polynomial` and `PowerBasis`.
+        - Structs that can be serialized now all implement the method V Equal(V) bool.
 
 - RING: 
     - Changes to sampling:
@@ -227,15 +233,48 @@ All notable changes to this library are documented in this file.
     - Added non-NTT `Automorphism` support for the `ConjugateInvariant` ring.
 
 - UTILS: 
+    - Updated methods with generics when applicable.
+    - Added subpackage `sampling` which regroups the various random bytes and number generator that were previously present in the package `utils`.
     - Added the package `utils/bignum` which provides arbitrary precision arithmetic.
     - Added the package `utils/bignum/polynomial` which provides tools to create and evaluate polynomials.
-    - Added the package `utils/bignum/approximation` which provide tools to perform polynomial approximations of functions.
+    - Added the package `utils/bignum/approximation` which provide tools to perform polynomial approximations of functions, notably Chebyshev and Multi-Interval Minimax approximations.
     - Added subpackage `buffer` which implement custom methods to efficiently write and read slice on any writer or reader implementing a subset interface of the `bufio.Writer` and `bufio.Reader`.
-    - Added subpackage `structs` which implements structs composed vectors and matrices of type `any`.
-    - Added subpackage `bignum`, which is a place holder for future support of arbitrary precision complex arithmetic, polynomials and functions approximation.
-    - Added subpackage `sampling` which regroups the various random bytes and number generator that were previously present in the package `utils`.
-    - Updated methods with generics when applicable.
-
+        - Added `Writer` interface and the following related functions:
+            - `WriteInt`
+            - `WriteUint8`
+            - `WriteUint8Slice`
+            - `WriteUint16`
+            - `WriteUint16Slice`
+            - `WriteUint32`
+            - `WriteUint32Slice`
+            - `WriteUint64`
+            - `WriteUint64Slice`
+        - Added `Reader` interface and the following ralted functions:
+            - `ReadInt`
+            - `ReadUint8`
+            - `ReadUint8Slice`
+            - `ReadUint16`
+            - `ReadUint16Slice`
+            - `ReadUint32`
+            - `ReadUint32Slice`
+            - `ReadUint64`
+            - `ReadUint64Slice`
+        - Added `RequireSerializerCorrect` which checks that an object complies to `io.WriterTo`, `io.ReaderFrom`, `encoding.BinaryMarshaler` and `encoding.BinaryUnmarshaler`, and that these the backed behind these interfaces is correctly implemented.
+    - Added subpackage `structs`:
+        - New structs:
+            - `Map[K constraints.Integer, T any] map[K]*T`
+            - `Matrix[T any] [][]T`
+            - `Vector[T any] []T`
+        - All the above structs comply to the following interfaces:
+            - `(T) CopyNew() *T`
+            - `(T) WriteTo(io.Writer) (int64, error)`
+            - `(T) ReadFrom(io.Reader) (int64, error)`
+            - `(T) BinarySize() (int)`
+            - `(T) Encode([]byte) (int, error)`
+            - `(T) Decode([]byte) (int, error)`
+            - `(T) MarshalBinary() ([]byte, error)`
+            - `(T) UnmarshalBinary([]]byte) (error)`
+    
 ## UNRELEASED [4.1.x] - 2022-03-09
 - CKKS: renamed the `Parameters` field `DefaultScale` to `LogScale`, which now takes a value in log2.
 - CKKS: the `Parameters` field `LogSlots` now has a default value which is the maximum number of slots possible for the given parameters.

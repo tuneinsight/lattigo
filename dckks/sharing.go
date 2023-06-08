@@ -228,7 +228,7 @@ func (s2e *ShareToEncProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.KeySwitchC
 
 	// Generates an encryption share
 	ct := &rlwe.Ciphertext{}
-	ct.Value = []ring.Poly{ring.Poly{}, crs.Value}
+	ct.Value = []ring.Poly{{}, crs.Value}
 	ct.MetaData.IsNTT = true
 	s2e.KeySwitchProtocol.GenShare(s2e.zero, sk, ct, c0ShareOut)
 

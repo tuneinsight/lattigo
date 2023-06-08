@@ -51,7 +51,6 @@ func RequireSerializerCorrect(t *testing.T, input binarySerializer) {
 	require.True(t, bytes.Equal(buf.Bytes(), data2), fmt.Errorf("invalid encoding: %T.WriteTo buffer != %T.MarshalBinary bytes generates", input, input))
 
 	// Check io.Reader
-	//fmt.Println(buf.Bytes())
 	bytesRead, err := output.ReadFrom(buf)
 	require.NoError(t, err)
 

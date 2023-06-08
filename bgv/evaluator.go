@@ -205,7 +205,7 @@ func (eval *Evaluator) Add(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 		eval.Add(op0, new(big.Int).SetInt64(op1), op2)
 	case int:
 		eval.Add(op0, new(big.Int).SetInt64(int64(op1)), op2)
-	case []uint64:
+	case []uint64, []int64:
 
 		// Retrieves minimum level
 		level := utils.Min(op0.Level(), op2.Level())
@@ -225,7 +225,7 @@ func (eval *Evaluator) Add(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 		// Generic in place evaluation
 		eval.evaluateInPlace(level, op0, pt.El(), op2, eval.parameters.RingQ().AtLevel(level).Add)
 	default:
-		panic(fmt.Sprintf("invalid op1.(Type), expected rlwe.Operand, []uint64 or *big.Int, uint64, int64, int, but got %T", op1))
+		panic(fmt.Sprintf("invalid op1.(Type), expected rlwe.Operand, []uint64, []int64, *big.Int, uint64, int64 or int, but got %T", op1))
 	}
 }
 
@@ -330,7 +330,7 @@ func (eval *Evaluator) Sub(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 		eval.Sub(op0, new(big.Int).SetInt64(op1), op2)
 	case int:
 		eval.Sub(op0, new(big.Int).SetInt64(int64(op1)), op2)
-	case []uint64:
+	case []uint64, []int64:
 
 		// Retrieves minimum level
 		level := utils.Min(op0.Level(), op2.Level())
@@ -350,7 +350,7 @@ func (eval *Evaluator) Sub(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 		// Generic in place evaluation
 		eval.evaluateInPlace(level, op0, pt.El(), op2, eval.parameters.RingQ().AtLevel(level).Sub)
 	default:
-		panic(fmt.Sprintf("invalid op1.(Type), expected rlwe.Operand, []uint64 or *big.Int, uint64, int64, int, but got %T", op1))
+		panic(fmt.Sprintf("invalid op1.(Type), expected rlwe.Operand, []uint64, []int64, *big.Int, uint64, int64 or int, but got %T", op1))
 	}
 }
 
@@ -425,7 +425,7 @@ func (eval *Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 		eval.Mul(op0, new(big.Int).SetInt64(int64(op1)), op2)
 	case int64:
 		eval.Mul(op0, new(big.Int).SetInt64(op1), op2)
-	case []uint64:
+	case []uint64, []int64:
 
 		// Retrieves minimum level
 		level := utils.Min(op0.Level(), op2.Level())
@@ -445,7 +445,7 @@ func (eval *Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 
 		eval.Mul(op0, pt, op2)
 	default:
-		panic(fmt.Sprintf("invalid op1.(Type), expected rlwe.Operand, []uint64 or *big.Int, uint64, int64, int, but got %T", op1))
+		panic(fmt.Sprintf("invalid op1.(Type), expected rlwe.Operand, []uint64, []int64, *big.Int, uint64, int64 or int, but got %T", op1))
 	}
 }
 
@@ -463,14 +463,11 @@ func (eval *Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 // - the level of op2 will be to min(op0.Level(), op1.Level())
 // - the scale of op2 will be to op0.Scale * op1.Scale
 func (eval *Evaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}) (op2 *rlwe.Ciphertext) {
-
 	switch op1 := op1.(type) {
 	case rlwe.Operand:
 		op2 = NewCiphertext(eval.parameters, op0.Degree()+op1.Degree(), utils.Min(op0.Level(), op1.Level()))
-	case uint64, []uint64:
-		op2 = NewCiphertext(eval.parameters, op0.Degree(), op0.Level())
 	default:
-		panic(fmt.Sprintf("invalid op1.(Type), expected rlwe.Operand, []uint64 or *big.Int, uint64, int64, int, but got %T", op1))
+		op2 = NewCiphertext(eval.parameters, op0.Degree(), op0.Level())
 	}
 
 	eval.Mul(op0, op1, op2)
@@ -497,10 +494,8 @@ func (eval *Evaluator) MulRelin(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe
 	switch op1 := op1.(type) {
 	case rlwe.Operand:
 		eval.tensorStandard(op0, op1.El(), true, op2)
-	case uint64, []uint64:
-		eval.Mul(op0, op1, op2)
 	default:
-		panic(fmt.Sprintf("invalid op1.(Type), expected rlwe.Operand, []uint64 or *big.Int, uint64, int64, int, but got %T", op1))
+		eval.Mul(op0, op1, op2)
 	}
 }
 
@@ -521,10 +516,8 @@ func (eval *Evaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 interface{}) (op2 *
 	switch op1 := op1.(type) {
 	case rlwe.Operand:
 		op2 = NewCiphertext(eval.parameters, 1, utils.Min(op0.Level(), op1.Level()))
-	case uint64, []uint64:
-		op2 = NewCiphertext(eval.parameters, 1, op0.Level())
 	default:
-		panic(fmt.Sprintf("invalid op1.(Type), expected rlwe.Operand, []uint64 or *big.Int, uint64, int64, int, but got %T", op1))
+		op2 = NewCiphertext(eval.parameters, 1, op0.Level())
 	}
 
 	eval.MulRelin(op0, op1, op2)
@@ -653,7 +646,7 @@ func (eval *Evaluator) MulInvariant(op0 *rlwe.Ciphertext, op1 interface{}, op2 *
 		default:
 			eval.tensorInvariant(op0, op1.El(), false, op2)
 		}
-	case []uint64:
+	case []uint64, []int64:
 
 		// Retrieves minimum level
 		level := utils.Min(op0.Level(), op2.Level())
@@ -673,10 +666,8 @@ func (eval *Evaluator) MulInvariant(op0 *rlwe.Ciphertext, op1 interface{}, op2 *
 
 		eval.MulInvariant(op0, pt, op2)
 
-	case uint64, int, int64, *big.Int:
-		eval.Mul(op0, op1, op2)
 	default:
-		panic(fmt.Sprintf("invalid op1.(Type), expected rlwe.Operand, []uint64 or *big.Int, uint64, int64, int, but got %T", op1))
+		eval.Mul(op0, op1, op2)
 	}
 }
 
@@ -699,11 +690,9 @@ func (eval *Evaluator) MulInvariantNew(op0 *rlwe.Ciphertext, op1 interface{}) (o
 	case rlwe.Operand:
 		op2 = NewCiphertext(eval.parameters, op0.Degree()+op1.Degree(), utils.Min(op0.Level(), op1.Level()))
 		eval.MulInvariant(op0, op1, op2)
-	case uint64, []uint64:
+	default:
 		op2 = NewCiphertext(eval.parameters, op0.Degree(), op0.Level())
 		eval.MulInvariant(op0, op1, op2)
-	default:
-		panic(fmt.Sprintf("invalid op1.(Type), expected rlwe.Operand, []uint64 or *big.Int, uint64, int64, int, but got %T", op1))
 	}
 
 	return
@@ -733,7 +722,7 @@ func (eval *Evaluator) MulRelinInvariant(op0 *rlwe.Ciphertext, op1 interface{}, 
 		default:
 			eval.tensorInvariant(op0, op1.El(), true, op2)
 		}
-	case []uint64:
+	case []uint64, []int64:
 
 		// Retrieves minimum level
 		level := utils.Min(op0.Level(), op2.Level())
@@ -756,7 +745,7 @@ func (eval *Evaluator) MulRelinInvariant(op0 *rlwe.Ciphertext, op1 interface{}, 
 	case uint64, int64, int, *big.Int:
 		eval.Mul(op0, op1, op2)
 	default:
-		panic(fmt.Sprintf("invalid op1.(Type), expected rlwe.Operand, []uint64 or uint64, int, int64, but got %T", op1))
+		panic(fmt.Sprintf("invalid op1.(Type), expected rlwe.Operand, []uint64, []int64, uint64, int64 or int, but got %T", op1))
 	}
 }
 
@@ -779,12 +768,11 @@ func (eval *Evaluator) MulRelinInvariantNew(op0 *rlwe.Ciphertext, op1 interface{
 	case rlwe.Operand:
 		op2 = NewCiphertext(eval.parameters, 1, utils.Min(op0.Level(), op1.Level()))
 		eval.MulRelinInvariant(op0, op1, op2)
-	case uint64, []uint64:
-		op2 = NewCiphertext(eval.parameters, op0.Degree(), op0.Level())
-		eval.MulRelinInvariant(op0, op1, op2)
 	default:
-		panic(fmt.Sprintf("invalid op1.(Type), expected rlwe.Operand or uint64, but got %T", op1))
+		op2 = NewCiphertext(eval.parameters, op0.Degree(), op0.Level())
 	}
+
+	eval.MulRelinInvariant(op0, op1, op2)
 	return
 }
 
@@ -994,7 +982,7 @@ func (eval *Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rl
 		eval.MulThenAdd(op0, new(big.Int).SetInt64(op1), op2)
 	case uint64:
 		eval.MulThenAdd(op0, new(big.Int).SetUint64(op1), op2)
-	case []uint64:
+	case []uint64, []int64:
 
 		// Retrieves minimum level
 		level := utils.Min(op0.Level(), op2.Level())
@@ -1023,7 +1011,7 @@ func (eval *Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rl
 		eval.MulThenAdd(op0, pt, op2)
 
 	default:
-		panic(fmt.Sprintf("invalid op1.(Type), expected rlwe.Operand, []uint64 or *big.Int, uint64, int64, int, but got %T", op1))
+		panic(fmt.Sprintf("invalid op1.(Type), expected rlwe.Operand, []uint64, []int64, *big.Int, uint64, int64 or int, but got %T", op1))
 
 	}
 }

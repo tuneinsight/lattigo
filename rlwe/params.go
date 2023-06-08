@@ -248,14 +248,40 @@ func (p Parameters) NewScale(scale interface{}) Scale {
 	return newScale
 }
 
-// LWEParameters returns the LWEParameters of the target Parameters
-func (p Parameters) LWEParameters() LWEParameters {
-	return LWEParameters{
-		LogN:  p.LogN(),
-		LogQP: p.LogQP(),
-		Xs:    p.Xs().StandardDeviation(p.LogN(), p.LogQP()),
-		Xe:    p.Xe().StandardDeviation(p.LogN(), p.LogQP()),
-	}
+// LatticeEstimatorSageMathCell returns a string formated SageMath cell of the code
+// to run using the Lattice estimator (https://github.com/malb/lattice-estimator)
+// to estimate the security of the target Parameters.
+func (p Parameters) LatticeEstimatorSageMathCell() string {
+
+	LogN := p.LogN()
+	LogQP := p.LogQP()
+	Xs := p.Xs()
+	Xe := p.Xe()
+
+	return fmt.Sprintf(`
+		1) Clone https://github.com/malb/lattice-estimator
+		2) Create a new SageMath notebook in the folder 
+		3) Copy-past the following code in a new cell
+		================================================================
+		from estimator import *
+		from estimator.nd import NoiseDistribution
+		from estimator import LWE
+
+		n = 1<<%d
+		q = 1<<%d
+		Xs = NoiseDistribution.(stddev=%f, mean=0, n=n, bounds=(%f, %f), density=%f, tag=%s)
+		Xe = NoiseDistribution.(stddev=%f, mean=0, n=n, bounds=(%f, %f), density=%f, tag=%s)
+
+		params = LWE.Parameters(n=n, q=q, Xs=Xs, Xe=Xe)
+
+		print(params)
+
+		LWE.estimate(params)
+	`,
+		LogN,
+		int(math.Round(LogQP)),
+		Xs.StandardDeviation(LogN, LogQP), Xs.Bounds(LogQP)[0], Xs.Bounds(LogQP)[1], Xs.Density(LogN, LogQP), Xs.Tag(),
+		Xe.StandardDeviation(LogN, LogQP), Xe.Bounds(LogQP)[0], Xe.Bounds(LogQP)[1], Xe.Density(LogN, LogQP), Xe.Tag())
 }
 
 // N returns the ring degree

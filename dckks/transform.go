@@ -112,7 +112,7 @@ func NewMaskedTransformProtocol(paramsIn, paramsOut ckks.Parameters, prec uint, 
 
 // AllocateShare allocates the shares of the PermuteProtocol
 func (rfp *MaskedTransformProtocol) AllocateShare(levelDecrypt, levelRecrypt int) *drlwe.RefreshShare {
-	return &drlwe.RefreshShare{E2SShare: *rfp.e2s.AllocateShare(levelDecrypt), S2EShare: *rfp.s2e.AllocateShare(levelRecrypt)}
+	return &drlwe.RefreshShare{EncToShareShare: *rfp.e2s.AllocateShare(levelDecrypt), ShareToEncShare: *rfp.s2e.AllocateShare(levelRecrypt)}
 }
 
 // SampleCRP samples a common random polynomial to be used in the Masked-Transform protocol from the provided
@@ -136,11 +136,11 @@ func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, logBou
 
 	ct1 := ct.Value[1]
 
-	if ct1.Level() < shareOut.E2SShare.Value.Level() {
+	if ct1.Level() < shareOut.EncToShareShare.Value.Level() {
 		panic("cannot GenShare: ct[1] level must be at least equal to EncToShareShare level")
 	}
 
-	if crs.Value.Level() != shareOut.S2EShare.Value.Level() {
+	if crs.Value.Level() != shareOut.ShareToEncShare.Value.Level() {
 		panic("cannot GenShare: crs level must be equal to ShareToEncShare")
 	}
 
@@ -153,7 +153,7 @@ func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, logBou
 
 	// Generates the decryption share
 	// Returns [M_i] on rfp.tmpMask and [a*s_i -M_i + e] on EncToShareShare
-	rfp.e2s.GenShare(skIn, logBound, ct, &drlwe.AdditiveShareBigint{Value: rfp.tmpMask}, &shareOut.E2SShare)
+	rfp.e2s.GenShare(skIn, logBound, ct, &drlwe.AdditiveShareBigint{Value: rfp.tmpMask}, &shareOut.EncToShareShare)
 
 	// Applies LT(M_i)
 	if transform != nil {
@@ -222,36 +222,36 @@ func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, logBou
 		rfp.tmpMask[i].Quo(rfp.tmpMask[i], inputScaleInt)
 	}
 
-	// Returns [-a*s_i + LT(M_i) * diffscale + e] on S2EShare
-	rfp.s2e.GenShare(skOut, crs, ct.MetaData, &drlwe.AdditiveShareBigint{Value: rfp.tmpMask}, &shareOut.S2EShare)
+	// Returns [-a*s_i + LT(M_i) * diffscale + e] on ShareToEncShare
+	rfp.s2e.GenShare(skOut, crs, ct.MetaData, &drlwe.AdditiveShareBigint{Value: rfp.tmpMask}, &shareOut.ShareToEncShare)
 }
 
 // AggregateShares sums share1 and share2 on shareOut.
 func (rfp *MaskedTransformProtocol) AggregateShares(share1, share2, shareOut *drlwe.RefreshShare) {
 
-	if share1.E2SShare.Value.Level() != share2.E2SShare.Value.Level() || share1.E2SShare.Value.Level() != shareOut.E2SShare.Value.Level() {
+	if share1.EncToShareShare.Value.Level() != share2.EncToShareShare.Value.Level() || share1.EncToShareShare.Value.Level() != shareOut.EncToShareShare.Value.Level() {
 		panic("cannot AggregateShares: all e2s shares must be at the same level")
 	}
 
-	if share1.S2EShare.Value.Level() != share2.S2EShare.Value.Level() || share1.S2EShare.Value.Level() != shareOut.S2EShare.Value.Level() {
+	if share1.ShareToEncShare.Value.Level() != share2.ShareToEncShare.Value.Level() || share1.ShareToEncShare.Value.Level() != shareOut.ShareToEncShare.Value.Level() {
 		panic("cannot AggregateShares: all s2e shares must be at the same level")
 	}
 
-	rfp.e2s.params.RingQ().AtLevel(share1.E2SShare.Value.Level()).Add(share1.E2SShare.Value, share2.E2SShare.Value, shareOut.E2SShare.Value)
-	rfp.s2e.params.RingQ().AtLevel(share1.S2EShare.Value.Level()).Add(share1.S2EShare.Value, share2.S2EShare.Value, shareOut.S2EShare.Value)
+	rfp.e2s.params.RingQ().AtLevel(share1.EncToShareShare.Value.Level()).Add(share1.EncToShareShare.Value, share2.EncToShareShare.Value, shareOut.EncToShareShare.Value)
+	rfp.s2e.params.RingQ().AtLevel(share1.ShareToEncShare.Value.Level()).Add(share1.ShareToEncShare.Value, share2.ShareToEncShare.Value, shareOut.ShareToEncShare.Value)
 }
 
 // Transform applies Decrypt, Recode and Recrypt on the input ciphertext.
 // The ciphertext scale is reset to the default scale.
 func (rfp *MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, transform *MaskedTransformFunc, crs drlwe.KeySwitchCRP, share *drlwe.RefreshShare, ciphertextOut *rlwe.Ciphertext) {
 
-	if ct.Level() < share.E2SShare.Value.Level() {
+	if ct.Level() < share.EncToShareShare.Value.Level() {
 		panic("cannot Transform: input ciphertext level must be at least equal to e2s level")
 	}
 
 	maxLevel := crs.Value.Level()
 
-	if maxLevel != share.S2EShare.Value.Level() {
+	if maxLevel != share.ShareToEncShare.Value.Level() {
 		panic("cannot Transform: crs level and s2e level must be the same")
 	}
 
@@ -266,7 +266,7 @@ func (rfp *MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, transform *Ma
 
 	// Returns -sum(M_i) + x (outside of the NTT domain)
 
-	rfp.e2s.GetShare(nil, &share.E2SShare, ct, &drlwe.AdditiveShareBigint{Value: rfp.tmpMask[:dslots]})
+	rfp.e2s.GetShare(nil, &share.EncToShareShare, ct, &drlwe.AdditiveShareBigint{Value: rfp.tmpMask[:dslots]})
 
 	// Returns LT(-sum(M_i) + x)
 	if transform != nil {
@@ -352,7 +352,7 @@ func (rfp *MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, transform *Ma
 	rlwe.NTTSparseAndMontgomery(ringQ, ct.MetaData, &ciphertextOut.Value[0])
 
 	// LT(-sum(M_i) + x) * diffscale + [-a*s + LT(M_i) * diffscale + e] = [-a*s + LT(x) * diffscale + e]
-	ringQ.Add(&ciphertextOut.Value[0], share.S2EShare.Value, &ciphertextOut.Value[0])
+	ringQ.Add(&ciphertextOut.Value[0], share.ShareToEncShare.Value, &ciphertextOut.Value[0])
 
 	// Copies the result on the out ciphertext
 	rfp.s2e.GetEncryption(&drlwe.KeySwitchShare{Value: &ciphertextOut.Value[0]}, crs, ciphertextOut)

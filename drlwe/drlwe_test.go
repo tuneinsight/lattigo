@@ -487,6 +487,6 @@ func testRefreshShare(tc *testContext, level int, t *testing.T) {
 		share2 := cksp.AllocateShare(level)
 		cksp.GenShare(tc.skShares[0], tc.skShares[1], ciphertext, share1)
 		cksp.GenShare(tc.skShares[1], tc.skShares[0], ciphertext, share2)
-		buffer.RequireSerializerCorrect(t, &RefreshShare{E2SShare: *share1, S2EShare: *share2})
+		buffer.RequireSerializerCorrect(t, &RefreshShare{EncToShareShare: *share1, ShareToEncShare: *share2})
 	})
 }

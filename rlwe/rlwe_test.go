@@ -59,6 +59,8 @@ func TestRLWE(t *testing.T) {
 					t.Fatal(err)
 				}
 
+				fmt.Println(params.LatticeEstimatorSageMathCell())
+
 				tc := NewTestContext(params)
 
 				testParameters(tc, t)

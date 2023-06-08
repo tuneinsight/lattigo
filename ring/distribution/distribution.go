@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 type Type uint8
@@ -36,8 +38,11 @@ func (t Type) String() string {
 type Distribution interface {
 	Type() Type
 	StandardDeviation(LogN int, LogQP float64) float64
+	Bounds(LogQP float64) [2]float64
+	Density(LogN int, LogQP float64) (density float64)
 	Equals(Distribution) bool
 	CopyNew() Distribution
+	Tag() string
 
 	MarshalBinarySize() int
 	Encode(data []byte) (ptr int, err error)
@@ -125,6 +130,18 @@ func (d *DiscreteGaussian) Type() Type {
 
 func (d *DiscreteGaussian) StandardDeviation(LogN int, LogQP float64) float64 {
 	return d.Sigma
+}
+
+func (d *DiscreteGaussian) Bounds(LogQP float64) [2]float64 {
+	return [2]float64{-d.Bound, d.Bound}
+}
+
+func (d *DiscreteGaussian) Density(LogN int, LogQP float64) (density float64) {
+	return 1 - utils.Min(1/math.Sqrt(2*math.Pi)*d.Sigma, 1)
+}
+
+func (d *DiscreteGaussian) Tag() string {
+	return "DiscreteGaussian"
 }
 
 func (d *DiscreteGaussian) Equals(other Distribution) bool {
@@ -232,7 +249,33 @@ func (d *Ternary) CopyNew() Distribution {
 }
 
 func (d *Ternary) StandardDeviation(LogN int, LogQP float64) float64 {
-	return math.Sqrt(1 - d.P)
+
+	if d.P != 0 {
+		return math.Sqrt(1 - d.P)
+	}
+
+	return math.Sqrt(float64(d.H) / (math.Exp2(float64(LogN)) - 1))
+}
+
+func (d *Ternary) Bounds(LogQP float64) [2]float64 {
+	return [2]float64{-1, 1}
+}
+
+func (d *Ternary) Density(LogN int, LogQP float64) (density float64) {
+
+	N := math.Exp2(float64(LogN))
+
+	if d.P != 0 {
+		density = d.P
+	} else {
+		density = float64(d.H) / N
+	}
+
+	return
+}
+
+func (d *Ternary) Tag() string {
+	return "Ternary"
 }
 
 func (d *Ternary) MarshalBinarySize() int {
@@ -295,6 +338,18 @@ func (d *Uniform) CopyNew() Distribution {
 
 func (d *Uniform) StandardDeviation(LogN int, LogQP float64) float64 {
 	return math.Exp2(LogQP) / math.Sqrt(12.0)
+}
+
+func (d *Uniform) Bounds(LogQP float64) [2]float64 {
+	return [2]float64{-math.Exp2(LogQP - 1), math.Exp2(LogQP - 1)}
+}
+
+func (d *Uniform) Density(LogN int, LogQP float64) (density float64) {
+	return 1 - (1 / (math.Exp2(LogQP) + 1))
+}
+
+func (d *Uniform) Tag() string {
+	return "Uniform"
 }
 
 func (d *Uniform) MarshalBinarySize() int {

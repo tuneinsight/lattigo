@@ -1,8 +1,6 @@
 package rlwe
 
 import (
-	"fmt"
-
 	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 )
 
@@ -21,15 +19,3 @@ const (
 var DefaultXe = distribution.DiscreteGaussian{Sigma: DefaultNoise, Bound: DefaultNoiseBound}
 
 var DefaultXs = distribution.Ternary{P: 1 / 3.0}
-
-// LWEParameters is a struct
-type LWEParameters struct {
-	LogN  int
-	LogQP float64
-	Xe    float64
-	Xs    float64
-}
-
-func (p *LWEParameters) String() string {
-	return fmt.Sprintf("empty\n, %d", 0)
-}

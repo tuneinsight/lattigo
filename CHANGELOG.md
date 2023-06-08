@@ -5,9 +5,9 @@ All notable changes to this library are documented in this file.
 ## UNRELEASED [4.2.x] - xxxx-xx-xx (#341,#309,#292,#348,#378)
 - Go versions `1.14`, `1.15`, `1.16` and `1.17` are not supported anymore by the library due to `func (b *Writer) AvailableBuffer() []byte` missing. The minimum version is now `1.18`.
 - Golang Security Checker pass.
-- Simplified and clarified many aspect of the code base using generics.
-- Changes to serialization:
-    - Low-entropy structs (such as parameters or rings) now all use `json.Marshal` as underlying marshaler.
+- Due to the minimum Go version being `1.18`, many aspects of the code base were simplfied using generics.
+- Global changes to serialization:
+    - Low-entropy structs (such as parameters or rings) have been updated to use `json.Marshal` as underlying marshaler.
     - High-entropy structs, such as structs storing key material or encrypted values now all comply to the following interface:
         - `BinarySize() int`: size in bytes when written to an `io.Writer` or to a slice of bytes using `Read`.
         - `WriteTo(io.Writer) (int64, error)`: efficient writing on any `io.Writer`.
@@ -17,21 +17,18 @@ All notable changes to this library are documented in this file.
     - Streamlined and simplified all test related to serialization. They can now be implemented with a single line of code with `RequireSerializerCorrect`.
 
 - DRLWE/DBFV/DBGV/DCKKS: 
-    - Renamed the protocols to reduce the number of acronyms used.
-    - Arbitrary large smudging noise is now supported.
+    - Renamed:
+            - `NewCKGProtocol` to `NewPublicKeyGenProtocol`
+            - `NewRKGProtocol` to `NewRelinKeyGenProtocol`
+            - `NewCKSProtocol` to `NewGaloisKeyGenProtocol`
+            - `NewRTGProtocol` to `NewKeySwitchProtocol`
+            - `NewPCKSProtocol` to `NewPublicKeySwitchProtocol`
     - Replaced `[dbfv/dbfv/dckks].MaskedTransformShare` by `drlwe.RefreshShare`.
-    - Added accurate noise bounds for the tests.
-    - Fixed `CKS` and `PCKS` smudging noise to not be rescaled by `P`.
+    - Arbitrary large smudging noise is now supported.
+    - Fixed `CollectiveKeySwitching` and `PublicCollectiveKeySwitching` smudging noise to not be rescaled by `P`.
     - Tests and benchmarks in package other than the `RLWE` and `DRLWE` packages that were merely wrapper of methods of the `RLWE` or `DRLWE` have been removed and/or moved to the `RLWE` and `DRLWE` packages.
     - Improved the GoDoc of the protocols.
-
-- DRLWE:
-    - Renamed:
-        - `NewCKGProtocol` to `NewPublicKeyGenProtocol`
-        - `NewRKGProtocol` to `NewRelinKeyGenProtocol`
-        - `NewCKSProtocol` to `NewGaloisKeyGenProtocol`
-        - `NewRTGProtocol` to `NewKeySwitchProtocol`
-        - `NewPCKSProtocol` to `NewPublicKeySwitchProtocol`
+    - Added accurate noise bounds for the tests.
 
 - BFV: 
     - The package `bfv` has been depreciated and is now a wrapper of the package `bgv`.

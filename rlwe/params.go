@@ -801,6 +801,7 @@ func (p Parameters) Equal(other ParametersInterface) (res bool) {
 }
 
 // MarshalBinary returns a []byte representation of the parameter set.
+// This representation corresponds to the MarshalJSON representation.
 func (p Parameters) MarshalBinary() ([]byte, error) {
 	return p.MarshalJSON()
 }

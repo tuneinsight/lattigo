@@ -211,7 +211,7 @@ func (p *Parameters) Depth() (depth int) {
 	return p.DepthCoeffsToSlots() + p.DepthEvalMod() + p.DepthSlotsToCoeffs()
 }
 
-// MarshalBinary returns a JSON representation of the the target Parameters struct on a slice of bytes.
+// MarshalBinary returns a JSON representation of the bootstrapping Parameters struct.
 // See `Marshal` from the `encoding/json` package.
 func (p *Parameters) MarshalBinary() (data []byte, err error) {
 	return json.Marshal(p)

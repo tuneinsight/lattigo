@@ -198,6 +198,7 @@ func (p Parameters) Equal(other rlwe.ParametersInterface) bool {
 }
 
 // MarshalBinary returns a []byte representation of the parameter set.
+// This representation corresponds to the one returned by MarshalJSON.
 func (p Parameters) MarshalBinary() ([]byte, error) {
 	return p.MarshalJSON()
 }

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/tuneinsight/lattigo/v4/utils/buffer"
 )
 
 func BenchmarkRLWE(b *testing.B) {
@@ -136,46 +137,128 @@ func benchMarshalling(tc *TestContext, b *testing.B) {
 	params := tc.params
 	sk := tc.sk
 
-	ct := NewEncryptor(params, sk).EncryptZeroNew(params.MaxLevel())
-	buf1 := make([]byte, ct.BinarySize())
-	buf := bytes.NewBuffer(buf1)
-	b.Run(testString(params, params.MaxLevel(), "Marshalling/WriteTo"), func(b *testing.B) {
+	ctf := NewEncryptor(params, sk).EncryptZeroNew(params.MaxLevel())
+	ct := ctf.Value
+
+	badbuf := bytes.NewBuffer(make([]byte, ct.BinarySize()))
+	b.Run(testString(params, params.MaxLevel(), "Marshalling/WriteToBadBuf"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			buf.Reset()
-			ct.WriteTo(buf)
+			_, err := ct.WriteTo(badbuf)
+
+			b.StopTimer()
+			if err != nil {
+				b.Fatal(err)
+			}
+			badbuf.Reset()
+			b.StartTimer()
 		}
 	})
 
-	require.Equal(b, ct.BinarySize(), len(buf.Bytes()))
+	runtime.GC()
 
-	buf2 := make([]byte, ct.BinarySize())
+	bytebuff := bytes.NewBuffer(make([]byte, ct.BinarySize()))
+	bufiobuf := bufio.NewWriter(bytebuff)
+	b.Run(testString(params, params.MaxLevel(), "Marshalling/WriteToIOBuf"), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			_, err := ct.WriteTo(bufiobuf)
+
+			b.StopTimer()
+			if err != nil {
+				b.Fatal(err)
+			}
+			bytebuff.Reset()
+			bufiobuf.Reset(bytebuff)
+			b.StartTimer()
+		}
+	})
+
+	runtime.GC()
+
+	bsliceour := make([]byte, ct.BinarySize())
+	ourbuf := buffer.NewBuffer(bsliceour)
+	b.Run(testString(params, params.MaxLevel(), "Marshalling/WriteToOurBuf"), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			_, err := ct.WriteTo(ourbuf)
+
+			b.StopTimer()
+			if err != nil {
+				b.Fatal(err)
+			}
+			ourbuf.Reset()
+			b.StartTimer()
+		}
+	})
+
+	runtime.GC()
+	require.Equal(b, ct.BinarySize(), len(ourbuf.Bytes()))
+
+	encodeBuf := make([]byte, ct.BinarySize())
 	b.Run(testString(params, params.MaxLevel(), "Marshalling/Encode"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			ct.Encode(buf2)
+			_, err := ct.Encode(encodeBuf)
+
+			b.StopTimer()
+			if err != nil {
+				b.Fatal(err)
+			}
+			b.StartTimer()
 		}
 	})
 
-	rdr := bytes.NewReader(buf.Bytes())
-	brdr := bufio.NewReader(rdr)
-	var ct2 Ciphertext
-	b.Run(testString(params, params.MaxLevel(), "Marshalling/ReadFrom"), func(b *testing.B) {
+	bufcmp := ourbuf.Bytes()
+	require.Equal(b, bufcmp, encodeBuf)
+
+	rdr := bytes.NewReader(ourbuf.Bytes())
+	//bufiordr := bufio.NewReaderSize(rdr, len(ourbuf.Bytes()))
+	bufiordr := bufio.NewReader(rdr)
+	ct2f := NewCiphertext(tc.params, 1, tc.params.MaxLevel())
+	ct2 := ct2f.Value
+	b.Run(testString(params, params.MaxLevel(), "Marshalling/ReadFromIO"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
+
+			_, err := ct2.ReadFrom(bufiordr)
+
+			b.StopTimer()
+			if err != nil {
+				b.Fatal(err)
+			}
 			rdr.Seek(0, 0)
-			brdr.Reset(rdr)
-			ct2.ReadFrom(brdr)
-			// if err != nil {
-			// 	b.Fatal(err)
-			// }
+			bufiordr.Reset(rdr)
+			b.StartTimer()
 		}
 	})
 
-	require.True(b, ct.Equal(&ct2))
-	var ct3 Ciphertext
+	// require.True(b, ct.Equal(ct2))
+
+	ct3f := NewCiphertext(tc.params, 1, tc.params.MaxLevel())
+	ct3 := ct3f.Value
+	b.Run(testString(params, params.MaxLevel(), "Marshalling/ReadFromOur"), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			_, err := ct3.ReadFrom(ourbuf)
+
+			b.StopTimer()
+			if err != nil {
+				b.Fatal(err)
+			}
+			ourbuf.Reset()
+			b.StartTimer()
+		}
+	})
+	require.True(b, ct.Equal(ct3))
+
+	ct4f := NewCiphertext(tc.params, 1, tc.params.MaxLevel())
+	ct4 := ct4f.Value
 	b.Run(testString(params, params.MaxLevel(), "Marshalling/Decode"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			ct3.Decode(buf2)
+			_, err := ct4.Decode(encodeBuf)
+
+			b.StopTimer()
+			if err != nil {
+				b.Fatal(err)
+			}
+			b.StartTimer()
 		}
 	})
 
-	require.True(b, ct.Equal(&ct3))
+	require.True(b, ct.Equal(ct4))
 }

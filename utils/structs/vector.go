@@ -2,8 +2,6 @@ package structs
 
 import (
 	"bufio"
-	"bytes"
-	"encoding"
 	"fmt"
 	"io"
 
@@ -12,21 +10,22 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/buffer"
 )
 
-type binarySerializer interface {
-	encoding.BinaryMarshaler
-	encoding.BinaryUnmarshaler
-	io.WriterTo
-	io.ReaderFrom
-	// Encoder
-	// Decoder
-}
+// type binarySerializer interface {
+// 	encoding.BinaryMarshaler
+// 	encoding.BinaryUnmarshaler
+// 	io.WriterTo
+// 	io.ReaderFrom
+// 	// Encoder
+// 	// Decoder
+// }
 
 type Vector[T any] []T
 
 // CopyNew creates a copy of the oject.
 func (v Vector[T]) CopyNew() *Vector[T] {
 
-	if c, isCopiable := any(new(T)).(CopyNewer[T]); !isCopiable {
+	var ct *T
+	if c, isCopiable := any(ct).(CopyNewer[T]); !isCopiable {
 		panic(fmt.Errorf("vector component of type %T does not comply to %T", new(T), c))
 	}
 
@@ -37,30 +36,50 @@ func (v Vector[T]) CopyNew() *Vector[T] {
 	return &vcpy
 }
 
-// WriteTo writes the object on an io.Writer.
-// To ensure optimal efficiency and minimal allocations, the user is encouraged
-// to provide a struct implementing the interface buffer.Writer, which defines
-// a subset of the method of the bufio.Writer.
-// If w is not compliant to the buffer.Writer interface, it will be wrapped in
-// a new bufio.Writer.
-// For additional information, see lattigo/utils/buffer/writer.go.
+// BinarySize returns the size in bytes of the object
+// when encoded using Encode.
+func (v Vector[T]) BinarySize() (size int) {
+
+	var st *T
+	if s, isSizable := any(st).(BinarySizer); !isSizable {
+		panic(fmt.Errorf("vector component of type %T does not comply to %T", st, s))
+	}
+
+	size += 8
+	for _, c := range v {
+		size += any(&c).(BinarySizer).BinarySize()
+	}
+	return
+}
+
+// WriteTo writes the object on an io.Writer. It implements the io.WriterTo
+// interface, and will write exactly object.BinarySize() bytes on w.
+//
+// Unless w implements the buffer.Writer interface (see lattigo/utils/buffer/writer.go),
+// it will be wrapped into a bufio.Writer. Since this requires allocations, it
+// is preferable to pass a buffer.Writer directly:
+//
+//   - When writing multiple times to a io.Writer, it is preferable to first wrap the
+//     io.Writer in a pre-allocated bufio.Writer.
+//   - When writing to a pre-allocated var b []byte, it is preferable to pass
+//     buffer.NewBuffer(b) as w (see lattigo/utils/buffer/buffer.go).
 func (v *Vector[T]) WriteTo(w io.Writer) (n int64, err error) {
 
-	if w, isWritable := any(new(T)).(io.WriterTo); !isWritable {
-		return 0, fmt.Errorf("vector component of type %T does not comply to %T", new(T), w)
+	var o *T
+	if wt, isWritable := any(o).(io.WriterTo); !isWritable {
+		return 0, fmt.Errorf("vector component of type %T does not comply to %T", o, wt)
 	}
 
 	switch w := w.(type) {
 	case buffer.Writer:
-		vval := *v
 
 		var inc int
-		if inc, err = buffer.WriteInt(w, len(vval)); err != nil {
+		if inc, err = buffer.WriteInt(w, len(*v)); err != nil {
 			return int64(inc), err
 		}
 		n += int64(inc)
 
-		for _, c := range vval {
+		for _, c := range *v {
 			inc, err := any(&c).(io.WriterTo).WriteTo(w)
 			n += inc
 			if err != nil {
@@ -75,20 +94,24 @@ func (v *Vector[T]) WriteTo(w io.Writer) (n int64, err error) {
 	}
 }
 
-// ReadFrom reads on the object from an io.Writer.
-// To ensure optimal efficiency and minimal allocations, the user is encouraged
-// to provide a struct implementing the interface buffer.Reader, which defines
-// a subset of the method of the bufio.Reader.
-// If r is not compliant to the buffer.Reader interface, it will be wrapped in
-// a new bufio.Reader.
-// For additional information, see lattigo/utils/buffer/reader.go.
+// ReadFrom reads on the object from an io.Writer. It implements the
+// io.ReaderFrom interface.
+//
+// Unless r implements the buffer.Reader interface (see see lattigo/utils/buffer/reader.go),
+// it will be wrapped into a bufio.Reader. Since this requires allocation, it
+// is preferable to pass a buffer.Reader directly:
+//
+//   - When reading multiple values from a io.Reader, it is preferable to first
+//     first wrap io.Reader in a pre-allocated bufio.Reader.
+//   - When reading from a var b []byte, it is preferable to pass a buffer.NewBuffer(b)
+//     as w (see lattigo/utils/buffer/buffer.go).
 func (v *Vector[T]) ReadFrom(r io.Reader) (n int64, err error) {
 
-	if r, isReadable := any(new(T)).(io.ReaderFrom); !isReadable {
-		return 0, fmt.Errorf("vector component of type %T does not comply to %T", new(T), r)
+	var rt *T
+	if r, isReadable := any(rt).(io.ReaderFrom); !isReadable {
+		return 0, fmt.Errorf("vector component of type %T does not comply to %T", rt, r)
 	}
 
-	// TODO: when has access to Reader's buffer, call Decode ?
 	switch r := r.(type) {
 	case buffer.Reader:
 		var size int
@@ -119,18 +142,17 @@ func (v *Vector[T]) ReadFrom(r io.Reader) (n int64, err error) {
 	}
 }
 
-// BinarySize returns the size in bytes of the object
-// when encoded using Encode.
-func (v Vector[T]) BinarySize() (size int) {
+// MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
+func (v *Vector[T]) MarshalBinary() (p []byte, err error) {
+	buf := buffer.NewBufferSize(v.BinarySize())
+	_, err = v.WriteTo(buf)
+	return buf.Bytes(), err
+}
 
-	if s, isSizable := any(new(T)).(BinarySizer); !isSizable {
-		panic(fmt.Errorf("vector component of type %T does not comply to %T", new(T), s))
-	}
-
-	size += 8
-	for _, c := range v {
-		size += any(&c).(BinarySizer).BinarySize()
-	}
+// UnmarshalBinary decodes a slice of bytes generated by
+// MarshalBinary or WriteTo on the object.
+func (v *Vector[T]) UnmarshalBinary(p []byte) (err error) {
+	_, err = v.ReadFrom(buffer.NewBuffer(p))
 	return
 }
 
@@ -138,8 +160,9 @@ func (v Vector[T]) BinarySize() (size int) {
 // and returns the number of bytes written.
 func (v *Vector[T]) Encode(b []byte) (n int, err error) {
 
-	if e, isEncodable := any(new(T)).(Encoder); !isEncodable {
-		panic(fmt.Errorf("vector component of type %T does not comply to %T", new(T), e))
+	var et *T
+	if e, isEncodable := any(et).(Encoder); !isEncodable {
+		panic(fmt.Errorf("vector component of type %T does not comply to %T", et, e))
 	}
 
 	vval := *v
@@ -149,7 +172,7 @@ func (v *Vector[T]) Encode(b []byte) (n int, err error) {
 
 	var inc int
 	for _, c := range vval {
-		if inc, err := any(&c).(Encoder).Encode(b[n:]); err != nil {
+		if inc, err = any(&c).(Encoder).Encode(b[n:]); err != nil {
 			return n + inc, err
 		}
 		n += inc
@@ -166,7 +189,7 @@ func (v *Vector[T]) Decode(p []byte) (n int, err error) {
 		panic(fmt.Errorf("vector component of type %T does not comply to %T", new(T), d))
 	}
 
-	size := int(binary.LittleEndian.Uint64(p[n:])) // TODO: there is a bug here but it is not caught by the tests.
+	size := int(binary.LittleEndian.Uint64(p))
 	n += 8
 
 	if cap(*v) < size {
@@ -185,16 +208,20 @@ func (v *Vector[T]) Decode(p []byte) (n int, err error) {
 	return
 }
 
-// MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
-func (v *Vector[T]) MarshalBinary() (p []byte, err error) {
-	buf := bytes.NewBuffer([]byte{})
-	_, err = v.WriteTo(buf)
-	return buf.Bytes(), err
+type Equatable[T any] interface {
+	Equal(*T) bool
 }
 
-// UnmarshalBinary decodes a slice of bytes generated by
-// MarshalBinary or WriteTo on the object.
-func (v *Vector[T]) UnmarshalBinary(p []byte) (err error) {
-	_, err = v.ReadFrom(bytes.NewBuffer(p))
-	return
+func (v Vector[T]) Equal(other Vector[T]) bool {
+
+	if d, isEquatable := any(new(T)).(Equatable[T]); !isEquatable {
+		panic(fmt.Errorf("vector component of type %T does not comply to %T", new(T), d))
+	}
+
+	isEqual := true
+	for i, v := range v {
+		isEqual = isEqual && any(&v).(Equatable[T]).Equal(&other[i])
+	}
+
+	return isEqual
 }

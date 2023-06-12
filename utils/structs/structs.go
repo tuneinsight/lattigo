@@ -8,11 +8,3 @@ type CopyNewer[V any] interface {
 type BinarySizer interface {
 	BinarySize() int
 }
-
-type Encoder interface {
-	Encode(p []byte) (n int, err error)
-}
-
-type Decoder interface {
-	Decode(p []byte) (n int, err error)
-}

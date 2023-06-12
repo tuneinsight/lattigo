@@ -45,8 +45,8 @@ type Distribution interface {
 	Tag() string
 
 	MarshalBinarySize() int
-	Encode(data []byte) (ptr int, err error)
-	Decode(data []byte) (ptr int, err error)
+	EncodeDist(data []byte) (ptr int, err error)
+	DecodeDist(data []byte) (ptr int, err error)
 }
 
 func NewFromMap(distDef map[string]interface{}) (Distribution, error) {
@@ -74,17 +74,17 @@ func NewFromMap(distDef map[string]interface{}) (Distribution, error) {
 	}
 }
 
-func Encode(X Distribution, data []byte) (ptr int, err error) {
+func EncodeDist(X Distribution, data []byte) (ptr int, err error) {
 	if len(data) == 1+X.MarshalBinarySize() {
 		return 0, fmt.Errorf("buffer is too small for encoding distribution (size %d instead of %d)", len(data), 1+X.MarshalBinarySize())
 	}
 	data[0] = byte(X.Type())
-	ptr, err = X.Encode(data[1:])
+	ptr, err = X.EncodeDist(data[1:])
 
 	return ptr + 1, err
 }
 
-func Decode(data []byte) (ptr int, X Distribution, err error) {
+func DecodeDist(data []byte) (ptr int, X Distribution, err error) {
 	if len(data) == 0 {
 		return 0, nil, fmt.Errorf("data should have length >= 1")
 	}
@@ -99,7 +99,7 @@ func Decode(data []byte) (ptr int, X Distribution, err error) {
 		return 0, nil, fmt.Errorf("invalid distribution type: %s", Type(data[0]))
 	}
 
-	ptr, err = X.Decode(data[1:])
+	ptr, err = X.DecodeDist(data[1:])
 
 	return ptr + 1, X, err
 }
@@ -176,7 +176,7 @@ func (d *DiscreteGaussian) MarshalBinarySize() int {
 	return 16
 }
 
-func (d *DiscreteGaussian) Encode(data []byte) (ptr int, err error) {
+func (d *DiscreteGaussian) EncodeDist(data []byte) (ptr int, err error) {
 	if len(data) < d.MarshalBinarySize() {
 		return ptr, fmt.Errorf("data stream is too small: should be at least %d but is %d", d.MarshalBinarySize(), len(data))
 	}
@@ -187,7 +187,7 @@ func (d *DiscreteGaussian) Encode(data []byte) (ptr int, err error) {
 	return 16, nil
 }
 
-func (d *DiscreteGaussian) Decode(data []byte) (ptr int, err error) {
+func (d *DiscreteGaussian) DecodeDist(data []byte) (ptr int, err error) {
 	if len(data) < d.MarshalBinarySize() {
 		return ptr, fmt.Errorf("data length should be at least %d but is %d", d.MarshalBinarySize(), len(data))
 	}
@@ -282,7 +282,7 @@ func (d *Ternary) MarshalBinarySize() int {
 	return 16
 }
 
-func (d *Ternary) Encode(data []byte) (ptr int, err error) { // TODO: seems not tested for H
+func (d *Ternary) EncodeDist(data []byte) (ptr int, err error) { // TODO: seems not tested for H
 	if len(data) < d.MarshalBinarySize() {
 		return ptr, fmt.Errorf("data stream is too small: should be at least %d but is %d", d.MarshalBinarySize(), len(data))
 	}
@@ -291,7 +291,7 @@ func (d *Ternary) Encode(data []byte) (ptr int, err error) { // TODO: seems not 
 	return 16, nil
 }
 
-func (d *Ternary) Decode(data []byte) (ptr int, err error) {
+func (d *Ternary) DecodeDist(data []byte) (ptr int, err error) {
 	if len(data) < d.MarshalBinarySize() {
 		return ptr, fmt.Errorf("invalid data stream: length should be at least %d but is %d", d.MarshalBinarySize(), len(data))
 	}
@@ -356,11 +356,11 @@ func (d *Uniform) MarshalBinarySize() int {
 	return 0
 }
 
-func (d *Uniform) Encode(data []byte) (ptr int, err error) {
+func (d *Uniform) EncodeDist(data []byte) (ptr int, err error) {
 	return 0, nil
 }
 
-func (d *Uniform) Decode(data []byte) (ptr int, err error) {
+func (d *Uniform) DecodeDist(data []byte) (ptr int, err error) {
 	return
 }
 

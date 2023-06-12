@@ -192,22 +192,6 @@ func benchMarshalling(tc *TestContext, b *testing.B) {
 	runtime.GC()
 	require.Equal(b, ct.BinarySize(), len(ourbuf.Bytes()))
 
-	encodeBuf := make([]byte, ct.BinarySize())
-	b.Run(testString(params, params.MaxLevel(), "Marshalling/Encode"), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			_, err := ct.Encode(encodeBuf)
-
-			b.StopTimer()
-			if err != nil {
-				b.Fatal(err)
-			}
-			b.StartTimer()
-		}
-	})
-
-	bufcmp := ourbuf.Bytes()
-	require.Equal(b, bufcmp, encodeBuf)
-
 	rdr := bytes.NewReader(ourbuf.Bytes())
 	//bufiordr := bufio.NewReaderSize(rdr, len(ourbuf.Bytes()))
 	bufiordr := bufio.NewReader(rdr)
@@ -245,20 +229,4 @@ func benchMarshalling(tc *TestContext, b *testing.B) {
 		}
 	})
 	require.True(b, ct.Equal(ct3))
-
-	ct4f := NewCiphertext(tc.params, 1, tc.params.MaxLevel())
-	ct4 := ct4f.Value
-	b.Run(testString(params, params.MaxLevel(), "Marshalling/Decode"), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			_, err := ct4.Decode(encodeBuf)
-
-			b.StopTimer()
-			if err != nil {
-				b.Fatal(err)
-			}
-			b.StartTimer()
-		}
-	})
-
-	require.True(b, ct.Equal(ct4))
 }

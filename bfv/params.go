@@ -1,9 +1,11 @@
 package bfv
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/tuneinsight/lattigo/v4/bgv"
+	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
@@ -63,11 +65,50 @@ func (p Parameters) Equal(other rlwe.ParametersInterface) bool {
 }
 
 // UnmarshalBinary decodes a []byte into a parameter set struct.
-func (p Parameters) UnmarshalBinary(data []byte) (err error) {
+func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 	return p.Parameters.UnmarshalJSON(data)
 }
 
 // UnmarshalJSON reads a JSON representation of a parameter set into the receiver Parameter. See `Unmarshal` from the `encoding/json` package.
-func (p Parameters) UnmarshalJSON(data []byte) (err error) {
+func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 	return p.Parameters.UnmarshalJSON(data)
+}
+
+func (p *ParametersLiteral) UnmarshalJSON(b []byte) (err error) {
+	var pl struct {
+		LogN     int
+		Q        []uint64
+		P        []uint64
+		LogQ     []int
+		LogP     []int
+		Pow2Base int
+		Xe       map[string]interface{}
+		Xs       map[string]interface{}
+		RingType ring.Type
+		T        uint64
+	}
+
+	err = json.Unmarshal(b, &pl)
+	if err != nil {
+		return err
+	}
+
+	p.LogN = pl.LogN
+	p.Q, p.P, p.LogQ, p.LogP = pl.Q, pl.P, pl.LogQ, pl.LogP
+	p.Pow2Base = pl.Pow2Base
+	if pl.Xs != nil {
+		p.Xs, err = ring.ParametersFromMap(pl.Xs)
+		if err != nil {
+			return err
+		}
+	}
+	if pl.Xe != nil {
+		p.Xe, err = ring.ParametersFromMap(pl.Xe)
+		if err != nil {
+			return err
+		}
+	}
+	p.RingType = pl.RingType
+	p.T = pl.T
+	return err
 }

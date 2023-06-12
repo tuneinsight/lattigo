@@ -7,7 +7,7 @@ package dbgv
 import (
 	"github.com/tuneinsight/lattigo/v4/bgv"
 	"github.com/tuneinsight/lattigo/v4/drlwe"
-	"github.com/tuneinsight/lattigo/v4/ring/distribution"
+	"github.com/tuneinsight/lattigo/v4/ring"
 )
 
 // NewPublicKeyGenProtocol creates a new drlwe.PublicKeyGenProtocol instance from the BGV parameters.
@@ -30,12 +30,12 @@ func NewGaloisKeyGenProtocol(params bgv.Parameters) *drlwe.GaloisKeyGenProtocol 
 
 // NewKeySwitchProtocol creates a new drlwe.KeySwitchProtocol instance from the BGV parameters.
 // The returned protocol instance is generic and can be used in other multiparty schemes.
-func NewKeySwitchProtocol(params bgv.Parameters, noise distribution.Distribution) *drlwe.KeySwitchProtocol {
-	return drlwe.NewKeySwitchProtocol(params.Parameters, noise)
+func NewKeySwitchProtocol(params bgv.Parameters, noiseFlooding ring.DistributionParameters) *drlwe.KeySwitchProtocol {
+	return drlwe.NewKeySwitchProtocol(params.Parameters, noiseFlooding)
 }
 
 // NewPublicKeySwitchProtocol creates a new drlwe.PublicKeySwitchProtocol instance from the BGV paramters.
 // The returned protocol instance is generic and can be used in other multiparty schemes.
-func NewPublicKeySwitchProtocol(params bgv.Parameters, noise distribution.Distribution) *drlwe.PublicKeySwitchProtocol {
-	return drlwe.NewPublicKeySwitchProtocol(params.Parameters, noise)
+func NewPublicKeySwitchProtocol(params bgv.Parameters, noiseFlooding ring.DistributionParameters) *drlwe.PublicKeySwitchProtocol {
+	return drlwe.NewPublicKeySwitchProtocol(params.Parameters, noiseFlooding)
 }

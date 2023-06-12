@@ -4,34 +4,34 @@ import (
 	"math"
 	"math/bits"
 
-	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
+
+const ternarySamplerPrecision = uint64(56)
 
 // TernarySampler keeps the state of a polynomial sampler in the ternary distribution.
 type TernarySampler struct {
 	baseSampler
-	matrixProba  [2][precision - 1]uint8
+	matrixProba  [2][ternarySamplerPrecision - 1]uint8
 	matrixValues [][3]uint64
-	p            float64
+	invDensity   float64
 	hw           int
 	sample       func(poly *Poly, f func(a, b, c uint64) uint64)
 }
 
 // NewTernarySampler creates a new instance of TernarySampler from a PRNG, the ring definition and the distribution
-// parameters: p is the probability of a coefficient being 0, (1-p)/2 is the probability of 1 and -1. If "montgomery"
-// is set to true, polynomials read from this sampler are in Montgomery form.
-func NewTernarySampler(prng sampling.PRNG, baseRing *Ring, X distribution.Ternary, montgomery bool) (ts *TernarySampler) {
+// parameters (see type Ternary). If "montgomery" is set to true, polynomials read from this sampler are in Montgomery form.
+func NewTernarySampler(prng sampling.PRNG, baseRing *Ring, X Ternary, montgomery bool) (ts *TernarySampler) {
 	ts = new(TernarySampler)
 	ts.baseRing = baseRing
 	ts.prng = prng
 	ts.initializeMatrix(montgomery)
 	switch {
 	case X.P != 0 && X.H == 0:
-		ts.p = X.P
+		ts.invDensity = 1 - X.P
 		ts.sample = ts.sampleProba
-		if ts.p != 0.5 {
-			ts.computeMatrixTernary(ts.p)
+		if ts.invDensity != 0.5 {
+			ts.computeMatrixTernary(ts.invDensity)
 		}
 	case X.P == 0 && X.H != 0:
 		ts.hw = X.H
@@ -50,7 +50,7 @@ func (ts *TernarySampler) AtLevel(level int) Sampler {
 		baseSampler:  ts.baseSampler.AtLevel(level),
 		matrixProba:  ts.matrixProba,
 		matrixValues: ts.matrixValues,
-		p:            ts.p,
+		invDensity:   ts.invDensity,
 		hw:           ts.hw,
 		sample:       ts.sample,
 	}
@@ -105,26 +105,26 @@ func (ts *TernarySampler) computeMatrixTernary(p float64) {
 	var x uint64
 
 	g = p
-	g *= math.Exp2(float64(precision))
+	g *= math.Exp2(float64(ternarySamplerPrecision))
 	x = uint64(g)
 
-	for j := uint64(0); j < precision-1; j++ {
-		ts.matrixProba[0][j] = uint8((x >> (precision - j - 1)) & 1)
+	for j := uint64(0); j < ternarySamplerPrecision-1; j++ {
+		ts.matrixProba[0][j] = uint8((x >> (ternarySamplerPrecision - j - 1)) & 1)
 	}
 
 	g = 1 - p
-	g *= math.Exp2(float64(precision))
+	g *= math.Exp2(float64(ternarySamplerPrecision))
 	x = uint64(g)
 
-	for j := uint64(0); j < precision-1; j++ {
-		ts.matrixProba[1][j] = uint8((x >> (precision - j - 1)) & 1)
+	for j := uint64(0); j < ternarySamplerPrecision-1; j++ {
+		ts.matrixProba[1][j] = uint8((x >> (ternarySamplerPrecision - j - 1)) & 1)
 	}
 
 }
 
 func (ts *TernarySampler) sampleProba(pol *Poly, f func(a, b, c uint64) uint64) {
 
-	if ts.p == 0 {
+	if ts.invDensity == 0 {
 		panic("cannot sample -> p = 0")
 	}
 
@@ -138,7 +138,7 @@ func (ts *TernarySampler) sampleProba(pol *Poly, f func(a, b, c uint64) uint64) 
 
 	lut := ts.matrixValues
 
-	if ts.p == 0.5 {
+	if ts.invDensity == 0.5 {
 
 		randomBytesCoeffs := make([]byte, N>>3)
 		randomBytesSign := make([]byte, N>>3)

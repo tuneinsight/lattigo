@@ -5,7 +5,7 @@ import (
 	"io"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/ring/distribution"
+
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
@@ -14,7 +14,7 @@ import (
 // PublicKeySwitchProtocol is the structure storing the parameters for the collective public key-switching.
 type PublicKeySwitchProtocol struct {
 	params rlwe.Parameters
-	noise  distribution.Distribution
+	noise  ring.DistributionParameters
 
 	buf *ring.Poly
 
@@ -29,10 +29,10 @@ type PublicKeySwitchShare struct {
 
 // NewPublicKeySwitchProtocol creates a new PublicKeySwitchProtocol object and will be used to re-encrypt a ciphertext ctx encrypted under a secret-shared key among j parties under a new
 // collective public-key.
-func NewPublicKeySwitchProtocol(params rlwe.Parameters, noise distribution.Distribution) (pcks *PublicKeySwitchProtocol) {
+func NewPublicKeySwitchProtocol(params rlwe.Parameters, noiseFlooding ring.DistributionParameters) (pcks *PublicKeySwitchProtocol) {
 	pcks = new(PublicKeySwitchProtocol)
 	pcks.params = params
-	pcks.noise = noise.CopyNew()
+	pcks.noise = noiseFlooding
 
 	pcks.buf = params.RingQ().NewPoly()
 
@@ -43,13 +43,13 @@ func NewPublicKeySwitchProtocol(params rlwe.Parameters, noise distribution.Distr
 
 	pcks.EncryptorInterface = rlwe.NewEncryptor(params, nil)
 
-	switch noise.(type) {
-	case *distribution.DiscreteGaussian:
+	switch noiseFlooding.(type) {
+	case ring.DiscreteGaussian:
 	default:
-		panic(fmt.Sprintf("invalid distribution type, expected %T but got %T", &distribution.DiscreteGaussian{}, noise))
+		panic(fmt.Sprintf("invalid distribution type, expected %T but got %T", ring.DiscreteGaussian{}, noiseFlooding))
 	}
 
-	pcks.noiseSampler = ring.NewSampler(prng, params.RingQ(), noise, false)
+	pcks.noiseSampler = ring.NewSampler(prng, params.RingQ(), noiseFlooding, false)
 
 	return pcks
 }

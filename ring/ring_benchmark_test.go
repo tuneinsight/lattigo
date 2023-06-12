@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
@@ -90,7 +89,7 @@ func benchSampling(tc *testParams, b *testing.B) {
 
 	b.Run(testString("Sampling/Gaussian/", tc.ringQ), func(b *testing.B) {
 
-		sampler := NewSampler(tc.prng, tc.ringQ, &distribution.DiscreteGaussian{Sigma: DefaultSigma, Bound: DefaultBound}, false)
+		sampler := NewSampler(tc.prng, tc.ringQ, &DiscreteGaussian{Sigma: DefaultSigma, Bound: DefaultBound}, false)
 
 		for i := 0; i < b.N; i++ {
 			sampler.Read(pol)
@@ -99,7 +98,7 @@ func benchSampling(tc *testParams, b *testing.B) {
 
 	b.Run(testString("Sampling/Ternary/0.3/", tc.ringQ), func(b *testing.B) {
 
-		sampler := NewSampler(tc.prng, tc.ringQ, &distribution.Ternary{P: 1.0 / 3}, true)
+		sampler := NewSampler(tc.prng, tc.ringQ, Ternary{P: 1.0 / 3}, true)
 
 		for i := 0; i < b.N; i++ {
 			sampler.Read(pol)
@@ -108,7 +107,7 @@ func benchSampling(tc *testParams, b *testing.B) {
 
 	b.Run(testString("Sampling/Ternary/0.5/", tc.ringQ), func(b *testing.B) {
 
-		sampler := NewSampler(tc.prng, tc.ringQ, &distribution.Ternary{P: 0.5}, true)
+		sampler := NewSampler(tc.prng, tc.ringQ, Ternary{P: 0.5}, true)
 
 		for i := 0; i < b.N; i++ {
 			sampler.Read(pol)
@@ -117,7 +116,7 @@ func benchSampling(tc *testParams, b *testing.B) {
 
 	b.Run(testString("Sampling/Ternary/sparse128/", tc.ringQ), func(b *testing.B) {
 
-		sampler := NewSampler(tc.prng, tc.ringQ, &distribution.Ternary{H: 128}, true)
+		sampler := NewSampler(tc.prng, tc.ringQ, Ternary{H: 128}, true)
 
 		for i := 0; i < b.N; i++ {
 			sampler.Read(pol)
@@ -126,7 +125,7 @@ func benchSampling(tc *testParams, b *testing.B) {
 
 	b.Run(testString("Sampling/Uniform/", tc.ringQ), func(b *testing.B) {
 
-		sampler := NewSampler(tc.prng, tc.ringQ, &distribution.Uniform{}, true)
+		sampler := NewSampler(tc.prng, tc.ringQ, &Uniform{}, true)
 
 		for i := 0; i < b.N; i++ {
 			sampler.Read(pol)

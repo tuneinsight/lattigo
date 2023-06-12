@@ -5,7 +5,7 @@ import (
 	"math/big"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/ring/distribution"
+
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v4/utils"
@@ -214,10 +214,10 @@ func (ecd *Encoder) Decode(pt *rlwe.Plaintext, values interface{}) (err error) {
 }
 
 // DecodePublic decodes the input plaintext on a new slice of complex128.
-// Adds, before the decoding step, noise following the given distribution.
+// Adds, before the decoding step, noise following the given distribution parameters.
 // If the underlying ringType is ConjugateInvariant, the imaginary part (and its related error) are zero.
-func (ecd *Encoder) DecodePublic(pt *rlwe.Plaintext, values interface{}, noise distribution.Distribution) (err error) {
-	return ecd.decodePublic(pt, values, noise)
+func (ecd *Encoder) DecodePublic(pt *rlwe.Plaintext, values interface{}, noiseFlooding ring.DistributionParameters) (err error) {
+	return ecd.decodePublic(pt, values, noiseFlooding)
 }
 
 // Embed is a generic method to encode a set of values on the target polyOut interface.
@@ -509,7 +509,7 @@ func (ecd *Encoder) plaintextToFloat(level int, scale rlwe.Scale, logSlots int, 
 	}
 }
 
-func (ecd *Encoder) decodePublic(pt *rlwe.Plaintext, values interface{}, noise distribution.Distribution) (err error) {
+func (ecd *Encoder) decodePublic(pt *rlwe.Plaintext, values interface{}, noiseFlooding ring.DistributionParameters) (err error) {
 
 	logSlots := pt.PlaintextLogDimensions[1]
 	slots := 1 << logSlots
@@ -524,8 +524,8 @@ func (ecd *Encoder) decodePublic(pt *rlwe.Plaintext, values interface{}, noise d
 		ring.CopyLvl(pt.Level(), pt.Value, ecd.buff)
 	}
 
-	if noise != nil {
-		ring.NewSampler(ecd.prng, ecd.parameters.RingQ(), noise, pt.IsMontgomery).AtLevel(pt.Level()).ReadAndAdd(ecd.buff)
+	if noiseFlooding != nil {
+		ring.NewSampler(ecd.prng, ecd.parameters.RingQ(), noiseFlooding, pt.IsMontgomery).AtLevel(pt.Level()).ReadAndAdd(ecd.buff)
 	}
 
 	switch values.(type) {

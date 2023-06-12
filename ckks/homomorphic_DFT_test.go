@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/tuneinsight/lattigo/v4/ring/distribution"
+	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
@@ -25,7 +25,7 @@ func TestHomomorphicDFT(t *testing.T) {
 		LogN:              13,
 		LogQ:              []int{60, 45, 45, 45, 45, 45, 45, 45},
 		LogP:              []int{61, 61},
-		Xs:                &distribution.Ternary{H: 192},
+		Xs:                ring.Ternary{H: 192},
 		LogPlaintextScale: 90,
 	}
 

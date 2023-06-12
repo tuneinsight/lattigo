@@ -4,7 +4,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/bgv"
 	"github.com/tuneinsight/lattigo/v4/drlwe"
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/ring/distribution"
+
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
@@ -52,9 +52,9 @@ func (e2s *EncToShareProtocol) ShallowCopy() *EncToShareProtocol {
 }
 
 // NewEncToShareProtocol creates a new EncToShareProtocol struct from the passed bgv parameters.
-func NewEncToShareProtocol(params bgv.Parameters, noise distribution.Distribution) *EncToShareProtocol {
+func NewEncToShareProtocol(params bgv.Parameters, noiseFlooding ring.DistributionParameters) *EncToShareProtocol {
 	e2s := new(EncToShareProtocol)
-	e2s.KeySwitchProtocol = *drlwe.NewKeySwitchProtocol(params.Parameters, noise)
+	e2s.KeySwitchProtocol = *drlwe.NewKeySwitchProtocol(params.Parameters, noiseFlooding)
 	e2s.params = params
 	e2s.encoder = bgv.NewEncoder(params)
 	prng, err := sampling.NewPRNG()
@@ -117,9 +117,9 @@ type ShareToEncProtocol struct {
 }
 
 // NewShareToEncProtocol creates a new ShareToEncProtocol struct from the passed bgv parameters.
-func NewShareToEncProtocol(params bgv.Parameters, noise distribution.Distribution) *ShareToEncProtocol {
+func NewShareToEncProtocol(params bgv.Parameters, noiseFlooding ring.DistributionParameters) *ShareToEncProtocol {
 	s2e := new(ShareToEncProtocol)
-	s2e.KeySwitchProtocol = *drlwe.NewKeySwitchProtocol(params.Parameters, noise)
+	s2e.KeySwitchProtocol = *drlwe.NewKeySwitchProtocol(params.Parameters, noiseFlooding)
 	s2e.params = params
 	s2e.encoder = bgv.NewEncoder(params)
 	s2e.zero = rlwe.NewSecretKey(params.Parameters)

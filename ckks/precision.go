@@ -6,7 +6,7 @@ import (
 	"math/big"
 	"sort"
 
-	"github.com/tuneinsight/lattigo/v4/ring/distribution"
+	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
@@ -56,16 +56,16 @@ func (prec PrecisionStats) String() string {
 // GetPrecisionStats generates a PrecisionStats struct from the reference values and the decrypted values
 // vWant.(type) must be either []complex128 or []float64
 // element.(type) must be either *Plaintext, *Ciphertext, []complex128 or []float64. If not *Ciphertext, then decryptor can be nil.
-func GetPrecisionStats(params Parameters, encoder *Encoder, decryptor *rlwe.Decryptor, want, have interface{}, noise distribution.Distribution, computeDCF bool) (prec PrecisionStats) {
+func GetPrecisionStats(params Parameters, encoder *Encoder, decryptor *rlwe.Decryptor, want, have interface{}, noiseFlooding ring.DistributionParameters, computeDCF bool) (prec PrecisionStats) {
 
 	if encoder.Prec() <= 53 {
-		return getPrecisionStatsF64(params, encoder, decryptor, want, have, noise, computeDCF)
+		return getPrecisionStatsF64(params, encoder, decryptor, want, have, noiseFlooding, computeDCF)
 	}
 
-	return getPrecisionStatsF128(params, encoder, decryptor, want, have, noise, computeDCF)
+	return getPrecisionStatsF128(params, encoder, decryptor, want, have, noiseFlooding, computeDCF)
 }
 
-func getPrecisionStatsF64(params Parameters, encoder *Encoder, decryptor *rlwe.Decryptor, want, have interface{}, noise distribution.Distribution, computeDCF bool) (prec PrecisionStats) {
+func getPrecisionStatsF64(params Parameters, encoder *Encoder, decryptor *rlwe.Decryptor, want, have interface{}, noiseFlooding ring.DistributionParameters, computeDCF bool) (prec PrecisionStats) {
 
 	precision := encoder.Prec()
 
@@ -102,12 +102,12 @@ func getPrecisionStatsF64(params Parameters, encoder *Encoder, decryptor *rlwe.D
 	switch have := have.(type) {
 	case *rlwe.Ciphertext:
 		valuesHave = make([]complex128, len(valuesWant))
-		if err := encoder.DecodePublic(decryptor.DecryptNew(have), valuesHave, noise); err != nil {
+		if err := encoder.DecodePublic(decryptor.DecryptNew(have), valuesHave, noiseFlooding); err != nil {
 			panic(err)
 		}
 	case *rlwe.Plaintext:
 		valuesHave = make([]complex128, len(valuesWant))
-		if err := encoder.DecodePublic(have, valuesHave, noise); err != nil {
+		if err := encoder.DecodePublic(have, valuesHave, noiseFlooding); err != nil {
 			panic(err)
 		}
 	case []complex128:
@@ -305,7 +305,7 @@ func calcmedianF64(values []struct{ Real, Imag, L2 float64 }) (median Stats) {
 	}
 }
 
-func getPrecisionStatsF128(params Parameters, encoder *Encoder, decryptor *rlwe.Decryptor, want, have interface{}, noise distribution.Distribution, computeDCF bool) (prec PrecisionStats) {
+func getPrecisionStatsF128(params Parameters, encoder *Encoder, decryptor *rlwe.Decryptor, want, have interface{}, noiseFlooding ring.DistributionParameters, computeDCF bool) (prec PrecisionStats) {
 	precision := encoder.Prec()
 
 	var valuesWant []*bignum.Complex
@@ -349,12 +349,12 @@ func getPrecisionStatsF128(params Parameters, encoder *Encoder, decryptor *rlwe.
 	switch have := have.(type) {
 	case *rlwe.Ciphertext:
 		valuesHave = make([]*bignum.Complex, len(valuesWant))
-		if err := encoder.DecodePublic(decryptor.DecryptNew(have), valuesHave, noise); err != nil {
+		if err := encoder.DecodePublic(decryptor.DecryptNew(have), valuesHave, noiseFlooding); err != nil {
 			panic(err)
 		}
 	case *rlwe.Plaintext:
 		valuesHave = make([]*bignum.Complex, len(valuesWant))
-		if err := encoder.DecodePublic(have, valuesHave, noise); err != nil {
+		if err := encoder.DecodePublic(have, valuesHave, noiseFlooding); err != nil {
 			panic(err)
 		}
 	case []complex128:

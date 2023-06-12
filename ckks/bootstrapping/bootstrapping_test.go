@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v4/ckks"
-	"github.com/tuneinsight/lattigo/v4/ring/distribution"
+	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
@@ -103,7 +103,7 @@ func TestBootstrap(t *testing.T) {
 			}
 
 			if !encapsulation {
-				ckksParamsLit.Xs = &distribution.Ternary{H: btpParams.EphemeralSecretWeight}
+				ckksParamsLit.Xs = ring.Ternary{H: btpParams.EphemeralSecretWeight}
 				btpParams.EphemeralSecretWeight = 0
 			}
 

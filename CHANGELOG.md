@@ -103,7 +103,7 @@ All notable changes to this library are documented in this file.
         - Changed:
             - The `logSlots` argument from `Encode` has been removed.
             - The `logSlots` argument from `Decode` has been removed.
-            - `DecodePublic` takes a `distribution.Distribution` as noise argument instead of a `float64`
+            - `DecodePublic` takes a `ring.Distribution` as noise argument instead of a `float64`
             - `Embed` takes `rlwe.MetaData` struct as argument instead of each of its fields individually.
             - `FFT` and `IFFT` take an interface as argument, which can be either `[]complex128` or `[]*bignum.Complex`
             - `FFT` and `IFFT` take `LogN` instead of `N` as argument

@@ -10,6 +10,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/bfv"
 	"github.com/tuneinsight/lattigo/v4/dbfv"
 	"github.com/tuneinsight/lattigo/v4/drlwe"
+	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
@@ -210,7 +211,7 @@ func cksphase(params bfv.Parameters, P []*party, result *rlwe.Ciphertext) *rlwe.
 
 	l.Println("> KeySwitch Phase")
 
-	cks := dbfv.NewKeySwitchProtocol(params, params.Xe()) // Collective public-key re-encryption
+	cks := dbfv.NewKeySwitchProtocol(params, ring.DiscreteGaussian{Sigma: 1 << 30, Bound: 6 * (1 << 30)}) // Collective public-key re-encryption
 
 	for _, pi := range P {
 		pi.cksShare = cks.AllocateShare(params.MaxLevel())

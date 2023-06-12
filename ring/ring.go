@@ -150,6 +150,14 @@ func (r *Ring) LogN() int {
 	return bits.Len64(uint64(r.N() - 1))
 }
 
+// LogModuli returns the size of the extended modulus P in bits
+func (r *Ring) LogModuli() (logmod float64) {
+	for _, qi := range r.ModuliChain() {
+		logmod += math.Log2(float64(qi))
+	}
+	return
+}
+
 // NthRoot returns the multiplicative order of the primitive root.
 func (r *Ring) NthRoot() uint64 {
 	return r.SubRings[0].NthRoot

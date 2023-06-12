@@ -34,11 +34,11 @@ type encryptorBase struct {
 	params ParametersInterface
 	*encryptorBuffers
 
-	prng            sampling.PRNG
-	gaussianSampler ring.Sampler
-	ternarySampler  ring.Sampler
-	basisextender   *ring.BasisExtender
-	uniformSampler  ringqp.UniformSampler
+	prng           sampling.PRNG
+	xeSampler      ring.Sampler
+	xsSampler      ring.Sampler
+	basisextender  *ring.BasisExtender
+	uniformSampler ringqp.UniformSampler
 }
 
 func newEncryptorBase(params ParametersInterface) *encryptorBase {
@@ -56,8 +56,8 @@ func newEncryptorBase(params ParametersInterface) *encryptorBase {
 	return &encryptorBase{
 		params:           params,
 		prng:             prng,
-		gaussianSampler:  ring.NewSampler(prng, params.RingQ(), params.Xe(), false),
-		ternarySampler:   ring.NewSampler(prng, params.RingQ(), params.Xs(), false), // TODO rename fields
+		xeSampler:        ring.NewSampler(prng, params.RingQ(), params.Xe(), false),
+		xsSampler:        ring.NewSampler(prng, params.RingQ(), params.Xs(), false),
 		encryptorBuffers: newEncryptorBuffers(params),
 		uniformSampler:   ringqp.NewUniformSampler(prng, *params.RingQP()),
 		basisextender:    bc,
@@ -214,7 +214,7 @@ func (enc *EncryptorPublicKey) encryptZero(ct *Ciphertext) {
 	u := &ringqp.Poly{Q: buffQ0, P: buffP2}
 
 	// We sample a RLWE instance (encryption of zero) over the extended ring (ciphertext ring + special prime)
-	enc.ternarySampler.AtLevel(levelQ).Read(u.Q)
+	enc.xsSampler.AtLevel(levelQ).Read(u.Q)
 	ringQP.ExtendBasisSmallNormAndCenter(u.Q, levelP, nil, u.P)
 
 	// (#Q + #P) NTT
@@ -234,11 +234,11 @@ func (enc *EncryptorPublicKey) encryptZero(ct *Ciphertext) {
 
 	e := &ringqp.Poly{Q: buffQ0, P: buffP2}
 
-	enc.gaussianSampler.AtLevel(levelQ).Read(e.Q)
+	enc.xeSampler.AtLevel(levelQ).Read(e.Q)
 	ringQP.ExtendBasisSmallNormAndCenter(e.Q, levelP, nil, e.P)
 	ringQP.Add(ct0QP, e, ct0QP)
 
-	enc.gaussianSampler.AtLevel(levelQ).Read(e.Q)
+	enc.xeSampler.AtLevel(levelQ).Read(e.Q)
 	ringQP.ExtendBasisSmallNormAndCenter(e.Q, levelP, nil, e.P)
 	ringQP.Add(ct1QP, e, ct1QP)
 
@@ -262,7 +262,7 @@ func (enc *EncryptorPublicKey) encryptZeroNoP(ct *Ciphertext) {
 
 	buffQ0 := enc.buffQ[0]
 
-	enc.ternarySampler.AtLevel(levelQ).Read(buffQ0)
+	enc.xsSampler.AtLevel(levelQ).Read(buffQ0)
 	ringQ.NTT(buffQ0, buffQ0)
 
 	c0, c1 := &ct.Value[0], &ct.Value[1]
@@ -274,23 +274,23 @@ func (enc *EncryptorPublicKey) encryptZeroNoP(ct *Ciphertext) {
 
 	// c0
 	if ct.IsNTT {
-		enc.gaussianSampler.AtLevel(levelQ).Read(buffQ0)
+		enc.xeSampler.AtLevel(levelQ).Read(buffQ0)
 		ringQ.NTT(buffQ0, buffQ0)
 		ringQ.Add(c0, buffQ0, c0)
 	} else {
 		ringQ.INTT(c0, c0)
-		enc.gaussianSampler.AtLevel(levelQ).ReadAndAdd(c0)
+		enc.xeSampler.AtLevel(levelQ).ReadAndAdd(c0)
 	}
 
 	// c1
 	if ct.IsNTT {
-		enc.gaussianSampler.AtLevel(levelQ).Read(buffQ0)
+		enc.xeSampler.AtLevel(levelQ).Read(buffQ0)
 		ringQ.NTT(buffQ0, buffQ0)
 		ringQ.Add(c1, buffQ0, c1)
 
 	} else {
 		ringQ.INTT(c1, c1)
-		enc.gaussianSampler.AtLevel(levelQ).ReadAndAdd(c1)
+		enc.xeSampler.AtLevel(levelQ).ReadAndAdd(c1)
 	}
 }
 
@@ -374,16 +374,16 @@ func (enc *EncryptorSecretKey) encryptZero(ct *Ciphertext, c1 *ring.Poly) {
 	ringQ.Neg(c0, c0)                                 // c0 = NTT(-sc1)
 
 	if ct.IsNTT {
-		enc.gaussianSampler.AtLevel(levelQ).Read(enc.buffQ[0]) // e
-		ringQ.NTT(enc.buffQ[0], enc.buffQ[0])                  // NTT(e)
-		ringQ.Add(c0, enc.buffQ[0], c0)                        // c0 = NTT(-sc1 + e)
+		enc.xeSampler.AtLevel(levelQ).Read(enc.buffQ[0]) // e
+		ringQ.NTT(enc.buffQ[0], enc.buffQ[0])            // NTT(e)
+		ringQ.Add(c0, enc.buffQ[0], c0)                  // c0 = NTT(-sc1 + e)
 	} else {
 		ringQ.INTT(c0, c0) // c0 = -sc1
 		if ct.Degree() == 1 {
 			ringQ.INTT(c1, c1) // c1 = c1
 		}
 
-		enc.gaussianSampler.AtLevel(levelQ).ReadAndAdd(c0) // c0 = -sc1 + e
+		enc.xeSampler.AtLevel(levelQ).ReadAndAdd(c0) // c0 = -sc1 + e
 	}
 }
 
@@ -401,7 +401,7 @@ func (enc *EncryptorSecretKey) encryptZeroQP(ct OperandQP) {
 	ringQP := enc.params.RingQP().AtLevel(levelQ, levelP)
 
 	// ct = (e, 0)
-	enc.gaussianSampler.AtLevel(levelQ).Read(c0.Q)
+	enc.xeSampler.AtLevel(levelQ).Read(c0.Q)
 	if levelP != -1 {
 		ringQP.ExtendBasisSmallNormAndCenter(c0.Q, levelP, nil, c0.P)
 	}

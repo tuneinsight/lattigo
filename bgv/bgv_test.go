@@ -68,10 +68,10 @@ func TestBGV(t *testing.T) {
 			}
 
 			for _, testSet := range []func(tc *testContext, t *testing.T){
+				testParameters,
 				testEncoder,
 				testEvaluator,
 				testLinearTransform,
-				testMarshalling,
 			} {
 				testSet(tc, t)
 				runtime.GC()
@@ -164,6 +164,49 @@ func verifyTestVectors(tc *testContext, decryptor *rlwe.Decryptor, coeffs *ring.
 	}
 
 	require.True(t, utils.EqualSlice(coeffs.Coeffs[0], coeffsTest))
+}
+
+func testParameters(tc *testContext, t *testing.T) {
+	t.Run(GetTestName("Parameters/Binary", tc.params, 0), func(t *testing.T) {
+
+		bytes, err := tc.params.MarshalBinary()
+		require.Nil(t, err)
+		var p Parameters
+		require.Nil(t, p.UnmarshalBinary(bytes))
+		require.True(t, tc.params.Equal(p))
+
+	})
+
+	t.Run(GetTestName("Parameters/JSON", tc.params, 0), func(t *testing.T) {
+		// checks that parameters can be marshalled without error
+		data, err := json.Marshal(tc.params)
+		require.Nil(t, err)
+		require.NotNil(t, data)
+
+		// checks that ckks.Parameters can be unmarshalled without error
+		var paramsRec Parameters
+		err = json.Unmarshal(data, &paramsRec)
+		require.Nil(t, err)
+		require.True(t, tc.params.Equal(paramsRec))
+
+		// checks that ckks.Parameters can be unmarshalled with log-moduli definition without error
+		dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60], "T":65537}`, tc.params.LogN()))
+		var paramsWithLogModuli Parameters
+		err = json.Unmarshal(dataWithLogModuli, &paramsWithLogModuli)
+		require.Nil(t, err)
+		require.Equal(t, 2, paramsWithLogModuli.QCount())
+		require.Equal(t, 1, paramsWithLogModuli.PCount())
+		require.Equal(t, rlwe.DefaultXe, paramsWithLogModuli.Xe()) // Omitting Xe should result in Default being used
+		require.Equal(t, rlwe.DefaultXs, paramsWithLogModuli.Xs()) // Omitting Xe should result in Default being used
+
+		// checks that one can provide custom parameters for the secret-key and error distributions
+		dataWithCustomSecrets := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60], "T":65537, "Xs": {"Type": "Ternary", "H": 192}, "Xe": {"Type": "DiscreteGaussian", "Sigma": 6.6, "Bound": 39.6}}`, tc.params.LogN()))
+		var paramsWithCustomSecrets Parameters
+		err = json.Unmarshal(dataWithCustomSecrets, &paramsWithCustomSecrets)
+		require.Nil(t, err)
+		require.Equal(t, ring.DiscreteGaussian{Sigma: 6.6, Bound: 39.6}, paramsWithCustomSecrets.Xe())
+		require.Equal(t, ring.Ternary{H: 192}, paramsWithCustomSecrets.Xs())
+	})
 }
 
 func testEncoder(tc *testContext, t *testing.T) {
@@ -837,81 +880,37 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 	})
 }
 
-func testMarshalling(tc *testContext, t *testing.T) {
-	/*
-		t.Run("Marshalling", func(t *testing.T) {
+// func testMarshalling(tc *testContext, t *testing.T) {
+// 		t.Run("Marshalling", func(t *testing.T) {
 
-			t.Run("Parameters/Binary", func(t *testing.T) {
+// 				t.Run(GetTestName("PowerBasis", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
 
-				bytes, err := tc.params.MarshalBinary()
-				require.Nil(t, err)
-				require.Equal(t, tc.params.MarshalBinarySize(), len(bytes))
-				var p Parameters
-				require.Equal(t, tc.params.RingQ(), p.RingQ())
-				require.Equal(t, tc.params, p)
-				require.Nil(t, p.UnmarshalBinary(bytes))
-			})
+// 					if tc.params.MaxLevel() < 4 {
+// 						t.Skip("not enough levels")
+// 					}
 
+// 					_, _, ct := newTestVectorsLvl(tc.params.MaxLevel(), tc.params.PlaintextScale(), tc, tc.encryptorPk)
 
-				t.Run("Parameters/JSON", func(t *testing.T) {
-					// checks that parameters can be marshalled without error
-					data, err := json.Marshal(tc.params)
-					require.Nil(t, err)
-					require.NotNil(t, data)
+// 					pb := NewPowerBasis(ct)
 
-					// checks that ckks.Parameters can be unmarshalled without error
-					var paramsRec Parameters
-					err = json.Unmarshal(data, &paramsRec)
-					require.Nil(t, err)
-					require.True(t, tc.params.Equals(paramsRec))
+// 					for i := 2; i < 4; i++ {
+// 						pb.GenPower(i, true, tc.evaluator)
+// 					}
 
-					// checks that ckks.Parameters can be unmarshalled with log-moduli definition without error
-					dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60], "T":65537}`, tc.params.LogN()))
-					var paramsWithLogModuli Parameters
-					err = json.Unmarshal(dataWithLogModuli, &paramsWithLogModuli)
-					require.Nil(t, err)
-					require.Equal(t, 2, paramsWithLogModuli.QCount())
-					require.Equal(t, 1, paramsWithLogModuli.PCount())
-					require.Equal(t, rlwe.DefaultSigma, paramsWithLogModuli.Sigma()) // Omitting sigma should result in Default being used
+// 					pbBytes, err := pb.MarshalBinary()
 
-					// checks that one can provide custom parameters for the secret-key and error distributions
-					dataWithCustomSecrets := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60],"H": 192, "Sigma": 6.6, "T":65537}`, tc.params.LogN()))
-					var paramsWithCustomSecrets Parameters
-					err = json.Unmarshal(dataWithCustomSecrets, &paramsWithCustomSecrets)
-					require.Nil(t, err)
-					require.Equal(t, 6.6, paramsWithCustomSecrets.Sigma())
-					require.Equal(t, 192, paramsWithCustomSecrets.HammingWeight())
-				})
+// 					require.Nil(t, err)
+// 					pbNew := new(PowerBasis)
+// 					require.Nil(t, pbNew.UnmarshalBinary(pbBytes))
 
-				t.Run(GetTestName("PowerBasis", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
+// 				for i := range pb.Value {
+// 					ctWant := pb.Value[i]
+// 					ctHave := pbNew.Value[i]
+// 					require.NotNil(t, ctHave)
+// 					for j := range ctWant.Value {
+// 						require.True(t, tc.ringQ.AtLevel(ctWant.Value[j].Level()).Equal(ctWant.Value[j], ctHave.Value[j]))
+// 					}
+// 				}})
 
-					if tc.params.MaxLevel() < 4 {
-						t.Skip("not enough levels")
-					}
-
-					_, _, ct := newTestVectorsLvl(tc.params.MaxLevel(), tc.params.PlaintextScale(), tc, tc.encryptorPk)
-
-					pb := NewPowerBasis(ct)
-
-					for i := 2; i < 4; i++ {
-						pb.GenPower(i, true, tc.evaluator)
-					}
-
-					pbBytes, err := pb.MarshalBinary()
-
-					require.Nil(t, err)
-					pbNew := new(PowerBasis)
-					require.Nil(t, pbNew.UnmarshalBinary(pbBytes))
-
-				for i := range pb.Value {
-					ctWant := pb.Value[i]
-					ctHave := pbNew.Value[i]
-					require.NotNil(t, ctHave)
-					for j := range ctWant.Value {
-						require.True(t, tc.ringQ.AtLevel(ctWant.Value[j].Level()).Equal(ctWant.Value[j], ctHave.Value[j]))
-					}
-				})
-
-		})
-	*/
-}
+// 		})
+// }

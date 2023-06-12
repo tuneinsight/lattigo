@@ -7,7 +7,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/drlwe"
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/ring/distribution"
+
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
@@ -54,7 +54,7 @@ func (e2s *EncToShareProtocol) ShallowCopy() *EncToShareProtocol {
 }
 
 // NewEncToShareProtocol creates a new EncToShareProtocol struct from the passed CKKS parameters.
-func NewEncToShareProtocol(params ckks.Parameters, noise distribution.Distribution) *EncToShareProtocol {
+func NewEncToShareProtocol(params ckks.Parameters, noise ring.DistributionParameters) *EncToShareProtocol {
 	e2s := new(EncToShareProtocol)
 	e2s.KeySwitchProtocol = drlwe.NewKeySwitchProtocol(params.Parameters, noise)
 	e2s.params = params
@@ -201,7 +201,7 @@ func (s2e *ShareToEncProtocol) ShallowCopy() *ShareToEncProtocol {
 }
 
 // NewShareToEncProtocol creates a new ShareToEncProtocol struct from the passed CKKS parameters.
-func NewShareToEncProtocol(params ckks.Parameters, noise distribution.Distribution) *ShareToEncProtocol {
+func NewShareToEncProtocol(params ckks.Parameters, noise ring.DistributionParameters) *ShareToEncProtocol {
 	s2e := new(ShareToEncProtocol)
 	s2e.KeySwitchProtocol = drlwe.NewKeySwitchProtocol(params.Parameters, noise)
 	s2e.params = params

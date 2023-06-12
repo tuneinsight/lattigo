@@ -22,8 +22,8 @@ var ScalePrecisionLog10 = int(math.Ceil(float64(ScalePrecision) / math.Log2(10))
 // be either a floating point value or a mod T
 // prime integer, which is determined at instantiation.
 type Scale struct {
-	Value big.Float
-	Mod   *big.Int
+	Value big.Float //`json:",omitempty"`
+	Mod   *big.Int  //`json:",omitempty"`
 }
 
 // NewScale instantiates a new floating point Scale.

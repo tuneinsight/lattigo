@@ -2,7 +2,6 @@ package rlwe
 
 import (
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
@@ -30,7 +29,7 @@ func (kgen *KeyGenerator) GenSecretKeyNew() (sk *SecretKey) {
 // GenSecretKey generates a SecretKey.
 // Distribution is set according to `rlwe.Parameters.HammingWeight()`.
 func (kgen *KeyGenerator) GenSecretKey(sk *SecretKey) {
-	kgen.genSecretKeyFromSampler(kgen.ternarySampler, sk)
+	kgen.genSecretKeyFromSampler(kgen.xsSampler, sk)
 }
 
 // GenSecretKeyWithHammingWeightNew generates a new SecretKey with exactly hw non-zero coefficients.
@@ -42,7 +41,7 @@ func (kgen *KeyGenerator) GenSecretKeyWithHammingWeightNew(hw int) (sk *SecretKe
 
 // GenSecretKeyWithHammingWeight generates a SecretKey with exactly hw non-zero coefficients.
 func (kgen *KeyGenerator) GenSecretKeyWithHammingWeight(hw int, sk *SecretKey) {
-	kgen.genSecretKeyFromSampler(ring.NewSampler(kgen.prng, kgen.params.RingQ(), &distribution.Ternary{H: hw}, false), sk)
+	kgen.genSecretKeyFromSampler(ring.NewSampler(kgen.prng, kgen.params.RingQ(), ring.Ternary{H: hw}, false), sk)
 }
 
 func (kgen *KeyGenerator) genSecretKeyFromSampler(sampler ring.Sampler, sk *SecretKey) {

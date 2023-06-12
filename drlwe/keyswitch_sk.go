@@ -6,7 +6,7 @@ import (
 	"math"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/ring/distribution"
+
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
@@ -15,7 +15,7 @@ import (
 // KeySwitchProtocol is the structure storing the parameters and and precomputations for the collective key-switching protocol.
 type KeySwitchProtocol struct {
 	params       rlwe.Parameters
-	noise        distribution.Distribution
+	noise        ring.DistributionParameters
 	noiseSampler ring.Sampler
 	buf          *ring.Poly
 	bufDelta     *ring.Poly
@@ -53,7 +53,7 @@ type KeySwitchCRP struct {
 // NewKeySwitchProtocol creates a new KeySwitchProtocol that will be used to perform a collective key-switching on a ciphertext encrypted under a collective public-key, whose
 // secret-shares are distributed among j parties, re-encrypting the ciphertext under another public-key, whose secret-shares are also known to the
 // parties.
-func NewKeySwitchProtocol(params rlwe.Parameters, noise distribution.Distribution) *KeySwitchProtocol {
+func NewKeySwitchProtocol(params rlwe.Parameters, noiseFlooding ring.DistributionParameters) *KeySwitchProtocol {
 	cks := new(KeySwitchProtocol)
 	cks.params = params
 	prng, err := sampling.NewPRNG()
@@ -63,14 +63,14 @@ func NewKeySwitchProtocol(params rlwe.Parameters, noise distribution.Distributio
 
 	// EncFreshSK + sigmaSmudging
 
-	switch noise.(type) {
-	case *distribution.DiscreteGaussian:
+	switch noise := noiseFlooding.(type) {
+	case ring.DiscreteGaussian:
 		eFresh := params.NoiseFreshSK()
-		eNoise := noise.StandardDeviation(0, 0)
+		eNoise := noise.Sigma
 		eSigma := math.Sqrt(eFresh*eFresh + eNoise*eNoise)
-		cks.noise = &distribution.DiscreteGaussian{Sigma: eSigma, Bound: 6 * eSigma}
+		cks.noise = ring.DiscreteGaussian{Sigma: eSigma, Bound: 6 * eSigma}
 	default:
-		panic(fmt.Sprintf("invalid distribution type, expected %T but got %T", &distribution.DiscreteGaussian{}, noise))
+		panic(fmt.Sprintf("invalid distribution type, expected %T but got %T", ring.DiscreteGaussian{}, noise))
 	}
 
 	cks.noiseSampler = ring.NewSampler(prng, params.RingQ(), cks.noise, false)

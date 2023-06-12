@@ -7,7 +7,7 @@ import (
 	"math/big"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/ring/distribution"
+
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
@@ -38,8 +38,8 @@ type ParametersLiteral struct {
 	LogQ              []int `json:",omitempty"`
 	LogP              []int `json:",omitempty"`
 	Pow2Base          int
-	Xe                distribution.Distribution
-	Xs                distribution.Distribution
+	Xe                ring.DistributionParameters
+	Xs                ring.DistributionParameters
 	RingType          ring.Type
 	LogPlaintextScale int
 }
@@ -194,7 +194,7 @@ func (p Parameters) Equal(other rlwe.ParametersInterface) bool {
 		return p.Parameters.Equal(other.Parameters)
 	}
 
-	panic(fmt.Errorf("cannot Equal: type do not match: %T != %T", p, other))
+	return false
 }
 
 // MarshalBinary returns a []byte representation of the parameter set.
@@ -221,4 +221,43 @@ func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 	}
 	*p, err = NewParametersFromLiteral(params)
 	return
+}
+
+func (p *ParametersLiteral) UnmarshalJSON(b []byte) (err error) {
+	var pl struct {
+		LogN              int
+		Q                 []uint64
+		P                 []uint64
+		LogQ              []int
+		LogP              []int
+		Pow2Base          int
+		Xe                map[string]interface{}
+		Xs                map[string]interface{}
+		RingType          ring.Type
+		LogPlaintextScale int
+	}
+
+	err = json.Unmarshal(b, &pl)
+	if err != nil {
+		return err
+	}
+
+	p.LogN = pl.LogN
+	p.Q, p.P, p.LogQ, p.LogP = pl.Q, pl.P, pl.LogQ, pl.LogP
+	p.Pow2Base = pl.Pow2Base
+	if pl.Xs != nil {
+		p.Xs, err = ring.ParametersFromMap(pl.Xs)
+		if err != nil {
+			return err
+		}
+	}
+	if pl.Xe != nil {
+		p.Xe, err = ring.ParametersFromMap(pl.Xe)
+		if err != nil {
+			return err
+		}
+	}
+	p.RingType = pl.RingType
+	p.LogPlaintextScale = pl.LogPlaintextScale
+	return err
 }

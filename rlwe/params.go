@@ -10,7 +10,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
@@ -31,6 +30,8 @@ const MaxModuliSize = 60
 // The j-th ring automorphism takes the root zeta to zeta^(5j).
 const GaloisGen uint64 = ring.GaloisGen
 
+type DistributionLiteral interface{}
+
 // ParametersLiteral is a literal representation of RLWE parameters. It has public fields and
 // is used to express unchecked user-defined parameters literally into Go programs.
 // The NewParametersFromLiteral function is used to generate the actual checked parameters
@@ -47,16 +48,16 @@ const GaloisGen uint64 = ring.GaloisGen
 // parameter creation (see NewParametersFromLiteral).
 type ParametersLiteral struct {
 	LogN           int
-	Q              []uint64
-	P              []uint64
-	LogQ           []int `json:",omitempty"`
-	LogP           []int `json:",omitempty"`
-	Pow2Base       int
-	Xe             distribution.Distribution
-	Xs             distribution.Distribution
-	RingType       ring.Type
-	PlaintextScale Scale
-	NTTFlag        bool
+	Q              []uint64                    `json:",omitempty"`
+	P              []uint64                    `json:",omitempty"`
+	LogQ           []int                       `json:",omitempty"`
+	LogP           []int                       `json:",omitempty"`
+	Pow2Base       int                         `json:",omitempty"`
+	Xe             ring.DistributionParameters `json:",omitempty"`
+	Xs             ring.DistributionParameters `json:",omitempty"`
+	RingType       ring.Type                   `json:",omitempty"`
+	PlaintextScale Scale                       `json:",omitempty"`
+	NTTFlag        bool                        `json:",omitempty"`
 }
 
 // Parameters represents a set of generic RLWE parameters. Its fields are private and
@@ -66,8 +67,8 @@ type Parameters struct {
 	qi             []uint64
 	pi             []uint64
 	pow2Base       int
-	xe             distribution.Distribution
-	xs             distribution.Distribution
+	xe             distribution
+	xs             distribution
 	ringQ          *ring.Ring
 	ringP          *ring.Ring
 	ringType       ring.Type
@@ -78,7 +79,7 @@ type Parameters struct {
 // NewParameters returns a new set of generic RLWE parameters from the given ring degree logn, moduli q and p, and
 // error distribution Xs (secret) and Xe (error). It returns the empty parameters Parameters{} and a non-nil error if the
 // specified parameters are invalid.
-func NewParameters(logn int, q, p []uint64, pow2Base int, xs, xe distribution.Distribution, ringType ring.Type, plaintextScale Scale, NTTFlag bool) (params Parameters, err error) {
+func NewParameters(logn int, q, p []uint64, pow2Base int, xs, xe DistributionLiteral, ringType ring.Type, plaintextScale Scale, NTTFlag bool) (params Parameters, err error) {
 
 	if pow2Base != 0 && len(p) > 1 {
 		return Parameters{}, fmt.Errorf("rlwe.NewParameters: invalid parameters, cannot have pow2Base > 0 if len(P) > 1")
@@ -93,41 +94,14 @@ func NewParameters(logn int, q, p []uint64, pow2Base int, xs, xe distribution.Di
 		return Parameters{}, err
 	}
 
-	switch xs := xs.(type) {
-	case *distribution.Ternary, *distribution.DiscreteGaussian:
-	default:
-		return Parameters{}, fmt.Errorf("secret distribution type must be Ternary or DiscretGaussian but is %T", xs)
-	}
-
-	switch xe := xe.(type) {
-	case *distribution.Ternary, *distribution.DiscreteGaussian:
-	default:
-		return Parameters{}, fmt.Errorf("error distribution type must be Ternary or DiscretGaussian but is %T", xe)
-	}
-
 	params = Parameters{
 		logN:           logn,
 		qi:             make([]uint64, len(q)),
 		pi:             make([]uint64, lenP),
 		pow2Base:       pow2Base,
-		xs:             xs.CopyNew(),
-		xe:             xe.CopyNew(),
 		ringType:       ringType,
 		plaintextScale: plaintextScale,
 		nttFlag:        NTTFlag,
-	}
-
-	var warning error
-	if params.XsHammingWeight() == 0 {
-		warning = fmt.Errorf("warning secret standard HammingWeight is 0")
-	}
-
-	if xe.StandardDeviation(0, 0) <= 0 {
-		if warning != nil {
-			warning = fmt.Errorf("%w; warning error standard deviation 0", warning)
-		} else {
-			warning = fmt.Errorf("warning error standard deviation 0")
-		}
 	}
 
 	// pre-check that moduli chain is of valid size and that all factors are prime.
@@ -144,6 +118,41 @@ func NewParameters(logn int, q, p []uint64, pow2Base int, xs, xe distribution.Di
 
 	if err = params.initRings(); err != nil {
 		return
+	}
+
+	logQP := params.LogQP()
+
+	switch xs := xs.(type) {
+	case ring.Ternary, ring.DiscreteGaussian:
+		params.xs = newDistribution(xs.(ring.DistributionParameters), logn, logQP)
+	default:
+		return Parameters{}, fmt.Errorf("secret distribution type must be Ternary or DiscretGaussian but is %T", xs)
+	}
+	if err != nil {
+		return Parameters{}, err
+	}
+
+	switch xe := xe.(type) {
+	case ring.Ternary, ring.DiscreteGaussian:
+		params.xe = newDistribution(xe.(ring.DistributionParameters), logn, logQP)
+	default:
+		return Parameters{}, fmt.Errorf("error distribution type must be Ternary or DiscretGaussian but is %T", xe)
+	}
+	if err != nil {
+		return Parameters{}, err
+	}
+
+	var warning error
+	if params.XsHammingWeight() == 0 {
+		warning = fmt.Errorf("warning secret standard HammingWeight is 0")
+	}
+
+	if params.xe.std <= 0 {
+		if warning != nil {
+			warning = fmt.Errorf("%w; warning error standard deviation 0", warning)
+		} else {
+			warning = fmt.Errorf("warning error standard deviation 0")
+		}
 	}
 
 	return params, warning
@@ -164,17 +173,18 @@ func NewParameters(logn int, q, p []uint64, pow2Base int, xs, xe distribution.Di
 func NewParametersFromLiteral(paramDef ParametersLiteral) (params Parameters, err error) {
 
 	if paramDef.Xs == nil {
-		paramDef.Xs = &DefaultXs
+		paramDef.Xs = DefaultXs
 	}
 
 	if paramDef.Xe == nil {
 		// prevents the zero value of ParameterLiteral to result in a noise-less parameter instance.
 		// Users should use the NewParameters method to explicitely create noiseless instances.
-		paramDef.Xe = &DefaultXe
+		paramDef.Xe = DefaultXe
 	}
 
 	if paramDef.PlaintextScale.Cmp(Scale{}) == 0 {
-		paramDef.PlaintextScale = NewScale(1)
+		s := NewScale(1)
+		paramDef.PlaintextScale = s
 	}
 
 	switch {
@@ -233,8 +243,8 @@ func (p Parameters) ParametersLiteral() ParametersLiteral {
 		Q:              Q,
 		P:              P,
 		Pow2Base:       p.pow2Base,
-		Xe:             p.xe.CopyNew(),
-		Xs:             p.xs.CopyNew(),
+		Xe:             p.xe.params,
+		Xs:             p.xs.params,
 		RingType:       p.ringType,
 		PlaintextScale: p.plaintextScale,
 		NTTFlag:        p.nttFlag,
@@ -246,42 +256,6 @@ func (p Parameters) NewScale(scale interface{}) Scale {
 	newScale := NewScale(scale)
 	newScale.Mod = p.plaintextScale.Mod
 	return newScale
-}
-
-// LatticeEstimatorSageMathCell returns a string formated SageMath cell of the code
-// to run using the Lattice estimator (https://github.com/malb/lattice-estimator)
-// to estimate the security of the target Parameters.
-func (p Parameters) LatticeEstimatorSageMathCell() string {
-
-	LogN := p.LogN()
-	LogQP := p.LogQP()
-	Xs := p.Xs()
-	Xe := p.Xe()
-
-	return fmt.Sprintf(`
-		1) Clone https://github.com/malb/lattice-estimator
-		2) Create a new SageMath notebook in the folder 
-		3) Copy-past the following code in a new cell
-		================================================================
-		from estimator import *
-		from estimator.nd import NoiseDistribution
-		from estimator import LWE
-
-		n = 1<<%d
-		q = 1<<%d
-		Xs = NoiseDistribution.(stddev=%f, mean=0, n=n, bounds=(%f, %f), density=%f, tag=%s)
-		Xe = NoiseDistribution.(stddev=%f, mean=0, n=n, bounds=(%f, %f), density=%f, tag=%s)
-
-		params = LWE.Parameters(n=n, q=q, Xs=Xs, Xe=Xe)
-
-		print(params)
-
-		LWE.estimate(params)
-	`,
-		LogN,
-		int(math.Round(LogQP)),
-		Xs.StandardDeviation(LogN, LogQP), Xs.Bounds(LogQP)[0], Xs.Bounds(LogQP)[1], Xs.Density(LogN, LogQP), Xs.Tag(),
-		Xe.StandardDeviation(LogN, LogQP), Xe.Bounds(LogQP)[0], Xe.Bounds(LogQP)[1], Xe.Density(LogN, LogQP), Xe.Tag())
 }
 
 // N returns the ring degree
@@ -394,43 +368,35 @@ func (p Parameters) NTTFlag() bool {
 	return p.nttFlag
 }
 
-// Xs returns the ring.Distribution of the secret
-func (p Parameters) Xs() distribution.Distribution {
-	return p.xs.CopyNew()
+// Xs returns the Distribution of the secret
+func (p Parameters) Xs() ring.DistributionParameters {
+	return p.xs.params
 }
 
 // XsHammingWeight returns the expected Hamming weight of the secret.
 func (p Parameters) XsHammingWeight() int {
-	switch xs := p.xs.(type) {
-	case *distribution.Ternary:
+	switch xs := p.xs.params.(type) {
+	case ring.Ternary:
 		if xs.H != 0 {
 			return xs.H
 		} else {
 			return int(math.Ceil(float64(p.N()) * (1 - xs.P)))
 		}
-	case *distribution.DiscreteGaussian:
+	case ring.DiscreteGaussian:
 		return int(math.Ceil(float64(p.N()) * float64(xs.Sigma) * math.Sqrt(2.0/math.Pi)))
 	default:
-		panic(fmt.Sprintf("invalid error distribution: must be *distribution.DiscretGaussian, *distribution.Ternary but is %T", xs))
+		panic(fmt.Sprintf("invalid error distribution: must be DiscretGaussian, Ternary but is %T", xs))
 	}
 }
 
-// Xe returns ring.Distribution of the error
-func (p Parameters) Xe() distribution.Distribution {
-	return p.xe.CopyNew()
+// Xe returns Distribution of the error
+func (p Parameters) Xe() ring.DistributionParameters {
+	return p.xe.params
 }
 
 // NoiseBound returns truncation bound for the error distribution.
 func (p Parameters) NoiseBound() float64 {
-
-	switch xe := p.xe.(type) {
-	case *distribution.DiscreteGaussian:
-		return xe.NoiseBound()
-	case *distribution.Ternary:
-		return 1.0
-	default:
-		panic(fmt.Sprintf("invalid error distribution: must be *distribution.DiscretGaussian, *distribution.Ternary but is %T", xe))
-	}
+	return p.xe.absBound
 }
 
 // NoiseFreshPK returns the standard deviation
@@ -442,7 +408,7 @@ func (p Parameters) NoiseFreshPK() (std float64) {
 	if p.RingP() != nil {
 		std *= 1 / 12.0
 	} else {
-		sigma := float64(p.Xe().StandardDeviation(0, 0))
+		sigma := float64(p.xe.std)
 		std *= sigma * sigma
 	}
 
@@ -452,7 +418,7 @@ func (p Parameters) NoiseFreshPK() (std float64) {
 // NoiseFreshSK returns the standard deviation
 // of a fresh encryption with the secret key.
 func (p Parameters) NoiseFreshSK() (std float64) {
-	return float64(p.Xe().StandardDeviation(0, 0))
+	return float64(p.xe.std)
 }
 
 // RingType returns the type of the underlying ring.
@@ -539,18 +505,15 @@ func (p Parameters) QPBigInt() *big.Int {
 
 // LogQ returns the size of the extended modulus Q in bits
 func (p Parameters) LogQ() (logq float64) {
-	for _, qi := range p.qi {
-		logq += math.Log2(float64(qi))
-	}
-	return
+	return p.ringQ.LogModuli()
 }
 
 // LogP returns the size of the extended modulus P in bits
 func (p Parameters) LogP() (logp float64) {
-	for _, pi := range p.pi {
-		logp += math.Log2(float64(pi))
+	if p.ringP == nil {
+		return 0
 	}
-	return
+	return p.ringP.LogModuli()
 }
 
 // LogQP returns the size of the extended modulus QP in bits
@@ -787,8 +750,8 @@ func (p Parameters) Equal(other ParametersInterface) (res bool) {
 	switch other := other.(type) {
 	case Parameters:
 		res = p.logN == other.logN
-		res = res && (p.Xs().StandardDeviation(p.LogN(), p.LogQP()) == other.Xs().StandardDeviation(p.LogN(), p.LogQP()))
-		res = res && (p.Xe().StandardDeviation(p.LogN(), p.LogQP()) == other.Xe().StandardDeviation(p.LogN(), p.LogQP()))
+		res = res && (p.xs.params == other.xs.params)
+		res = res && (p.xe.params == other.xe.params)
 		res = res && cmp.Equal(p.qi, other.qi)
 		res = res && cmp.Equal(p.pi, other.pi)
 		res = res && (p.ringType == other.ringType)
@@ -797,7 +760,7 @@ func (p Parameters) Equal(other ParametersInterface) (res bool) {
 		return
 	}
 
-	panic(fmt.Errorf("cannot Equal: type do not match: %T != %T", p, other))
+	return false
 }
 
 // MarshalBinary returns a []byte representation of the parameter set.
@@ -949,4 +912,81 @@ func (p *Parameters) initRings() (err error) {
 		p.ringP, err = ring.NewRingFromType(1<<p.logN, p.pi, p.ringType)
 	}
 	return err
+}
+
+func (p *ParametersLiteral) UnmarshalJSON(b []byte) (err error) {
+	var pl struct {
+		LogN           int
+		Q              []uint64
+		P              []uint64
+		LogQ           []int
+		LogP           []int
+		Pow2Base       int
+		Xe             map[string]interface{}
+		Xs             map[string]interface{}
+		RingType       ring.Type
+		PlaintextScale Scale
+		NTTFlag        bool
+	}
+
+	err = json.Unmarshal(b, &pl)
+	if err != nil {
+		return err
+	}
+
+	p.LogN = pl.LogN
+	p.Q, p.P, p.LogQ, p.LogP = pl.Q, pl.P, pl.LogQ, pl.LogP
+	p.Pow2Base = pl.Pow2Base
+	if pl.Xs != nil {
+		p.Xs, err = ring.ParametersFromMap(pl.Xs)
+		if err != nil {
+			return err
+		}
+	}
+	if pl.Xe != nil {
+		p.Xe, err = ring.ParametersFromMap(pl.Xe)
+		if err != nil {
+			return err
+		}
+	}
+	p.RingType = pl.RingType
+	p.PlaintextScale = pl.PlaintextScale
+	p.NTTFlag = pl.NTTFlag
+
+	return err
+}
+
+// LatticeEstimatorSageMathCell returns a string formated SageMath cell of the code
+// to run using the Lattice estimator (https://github.com/malb/lattice-estimator)
+// to estimate the security of the target Parameters.
+func LatticeEstimatorSageMathCell(p Parameters) string {
+
+	LogN := p.LogN()
+	LogQP := p.LogQP()
+	Xs := p.xs
+	Xe := p.xe
+
+	return fmt.Sprintf(`# 1) Clone https://github.com/malb/lattice-estimator
+# 2) Create a new SageMath notebook in the folder 
+# 3) Copy-past the following code in a new cell
+# ================================================================
+from estimator import *
+from estimator.nd import NoiseDistribution
+from estimator import LWE
+
+n = 1<<%d
+q = 1<<%d
+Xs = NoiseDistribution.(stddev=%f, mean=0, n=n, bounds=(%f, %f), density=%f, tag=%s)
+Xe = NoiseDistribution.(stddev=%f, mean=0, n=n, bounds=(%f, %f), density=%f, tag=%s)
+
+params = LWE.Parameters(n=n, q=q, Xs=Xs, Xe=Xe)
+
+print(params)
+
+LWE.estimate(params)
+`,
+		LogN,
+		int(math.Round(LogQP)),
+		Xs.std, Xs.bounds[0], Xs.bounds[1], Xs.density, Xs.params.Type(),
+		Xe.std, Xe.bounds[0], Xe.bounds[1], Xe.density, Xe.params.Type())
 }

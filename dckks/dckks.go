@@ -6,7 +6,7 @@ package dckks
 import (
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/drlwe"
-	"github.com/tuneinsight/lattigo/v4/ring/distribution"
+	"github.com/tuneinsight/lattigo/v4/ring"
 )
 
 // NewPublicKeyGenProtocol creates a new drlwe.PublicKeyGenProtocol instance from the CKKS parameters.
@@ -29,12 +29,12 @@ func NewGaloisKeyGenProtocol(params ckks.Parameters) *drlwe.GaloisKeyGenProtocol
 
 // NewKeySwitchProtocol creates a new drlwe.KeySwitchProtocol instance from the CKKS parameters.
 // The returned protocol instance is generic and can be used in other multiparty schemes.
-func NewKeySwitchProtocol(params ckks.Parameters, noise distribution.Distribution) *drlwe.KeySwitchProtocol {
+func NewKeySwitchProtocol(params ckks.Parameters, noise ring.DistributionParameters) *drlwe.KeySwitchProtocol {
 	return drlwe.NewKeySwitchProtocol(params.Parameters, noise)
 }
 
 // NewPublicKeySwitchProtocol creates a new drlwe.PublicKeySwitchProtocol instance from the CKKS paramters.
 // The returned protocol instance is generic and can be used in other multiparty schemes.
-func NewPublicKeySwitchProtocol(params ckks.Parameters, noise distribution.Distribution) *drlwe.PublicKeySwitchProtocol {
+func NewPublicKeySwitchProtocol(params ckks.Parameters, noise ring.DistributionParameters) *drlwe.PublicKeySwitchProtocol {
 	return drlwe.NewPublicKeySwitchProtocol(params.Parameters, noise)
 }

@@ -103,7 +103,7 @@ func (v *Vector[T]) ReadFrom(r io.Reader) (n int64, err error) {
 	switch r := r.(type) {
 	case buffer.Reader:
 		var size int
-		var inc int // TODO int64 in buffer package ?
+		var inc int
 
 		if inc, err = buffer.ReadInt(r, &size); err != nil {
 			return int64(inc), fmt.Errorf("cannot read vector size: %w", err)

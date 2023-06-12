@@ -1,8 +1,6 @@
 package rlwe
 
-import (
-	"github.com/tuneinsight/lattigo/v4/ring/distribution"
-)
+import "github.com/tuneinsight/lattigo/v4/ring"
 
 const (
 	// XsUniformTernary is the standard deviation of a ternary key with uniform distribution
@@ -16,6 +14,6 @@ const (
 )
 
 // DefaultXe is the default discret Gaussian distribution.
-var DefaultXe = distribution.DiscreteGaussian{Sigma: DefaultNoise, Bound: DefaultNoiseBound}
+var DefaultXe = ring.DiscreteGaussian{Sigma: DefaultNoise, Bound: DefaultNoiseBound}
 
-var DefaultXs = distribution.Ternary{P: 1 / 3.0}
+var DefaultXs = ring.Ternary{P: 1 / 3.0}

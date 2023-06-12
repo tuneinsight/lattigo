@@ -2,7 +2,7 @@ package bootstrapping
 
 import (
 	"github.com/tuneinsight/lattigo/v4/ckks"
-	"github.com/tuneinsight/lattigo/v4/ring/distribution"
+	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
@@ -35,7 +35,7 @@ var (
 			LogN:              16,
 			LogQ:              []int{60, 40, 40, 40, 40, 40, 40, 40, 40, 40},
 			LogP:              []int{61, 61, 61, 61, 61},
-			Xs:                &distribution.Ternary{H: 192},
+			Xs:                ring.Ternary{H: 192},
 			LogPlaintextScale: 40,
 		},
 		ParametersLiteral{},
@@ -53,7 +53,7 @@ var (
 			LogN:              16,
 			LogQ:              []int{60, 45, 45, 45, 45, 45},
 			LogP:              []int{61, 61, 61, 61},
-			Xs:                &distribution.Ternary{H: 192},
+			Xs:                ring.Ternary{H: 192},
 			LogPlaintextScale: 45,
 		},
 		ParametersLiteral{
@@ -76,7 +76,7 @@ var (
 			LogN:              16,
 			LogQ:              []int{55, 60, 60, 60, 60, 60, 60, 60},
 			LogP:              []int{61, 61, 61, 61, 61},
-			Xs:                &distribution.Ternary{H: 192},
+			Xs:                ring.Ternary{H: 192},
 			LogPlaintextScale: 30,
 		},
 		ParametersLiteral{
@@ -98,7 +98,7 @@ var (
 			LogN:              15,
 			LogQ:              []int{33, 50, 25},
 			LogP:              []int{51, 51},
-			Xs:                &distribution.Ternary{H: 192},
+			Xs:                ring.Ternary{H: 192},
 			LogPlaintextScale: 25,
 		},
 		ParametersLiteral{
@@ -120,7 +120,7 @@ var (
 			LogN:              16,
 			LogQ:              []int{60, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40},
 			LogP:              []int{61, 61, 61, 61, 61, 61},
-			Xs:                &distribution.Ternary{H: 32768},
+			Xs:                ring.Ternary{H: 32768},
 			LogPlaintextScale: 40,
 		},
 		ParametersLiteral{},
@@ -138,7 +138,7 @@ var (
 			LogN:              16,
 			LogQ:              []int{60, 45, 45, 45, 45, 45, 45, 45, 45, 45},
 			LogP:              []int{61, 61, 61, 61, 61},
-			Xs:                &distribution.Ternary{H: 32768},
+			Xs:                ring.Ternary{H: 32768},
 			LogPlaintextScale: 45,
 		},
 		ParametersLiteral{
@@ -161,7 +161,7 @@ var (
 			LogN:              16,
 			LogQ:              []int{55, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 30},
 			LogP:              []int{61, 61, 61, 61, 61},
-			Xs:                &distribution.Ternary{H: 32768},
+			Xs:                ring.Ternary{H: 32768},
 			LogPlaintextScale: 30,
 		},
 		ParametersLiteral{
@@ -183,7 +183,7 @@ var (
 			LogN:              15,
 			LogQ:              []int{40, 31, 31, 31, 31},
 			LogP:              []int{56, 56},
-			Xs:                &distribution.Ternary{H: 16384},
+			Xs:                ring.Ternary{H: 16384},
 			LogPlaintextScale: 31,
 		},
 		ParametersLiteral{

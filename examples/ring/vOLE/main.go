@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
@@ -168,9 +167,9 @@ func main() {
 			panic(err)
 		}
 
-		ternarySamplerMontgomeryQ := ring.NewSampler(prng, ringQ, &distribution.Ternary{P: 1.0 / 3.0}, true)
-		gaussianSamplerQ := ring.NewSampler(prng, ringQ, &distribution.DiscreteGaussian{Sigma: 3.2, Bound: 19}, false)
-		uniformSamplerQ := ring.NewSampler(prng, ringQ, &distribution.Uniform{}, false)
+		ternarySamplerMontgomeryQ := ring.NewSampler(prng, ringQ, ring.Ternary{P: 1.0 / 3.0}, true)
+		gaussianSamplerQ := ring.NewSampler(prng, ringQ, ring.DiscreteGaussian{Sigma: 3.2, Bound: 19}, false)
+		uniformSamplerQ := ring.NewSampler(prng, ringQ, ring.Uniform{}, false)
 		lowNormUniformQ := newLowNormSampler(ringQ)
 
 		var elapsed, TotalTime, AliceTime, BobTime time.Duration

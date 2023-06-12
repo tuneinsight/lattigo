@@ -6,7 +6,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/drlwe"
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/ring/distribution"
+
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
@@ -17,7 +17,7 @@ type MaskedTransformProtocol struct {
 	e2s EncToShareProtocol
 	s2e ShareToEncProtocol
 
-	noise distribution.Distribution
+	noise ring.DistributionParameters
 
 	defaultScale *big.Int
 	prec         uint
@@ -86,11 +86,11 @@ type MaskedTransformFunc struct {
 // paramsOut: the ckks.Parameters of the ciphertext after the protocol.
 // prec : the log2 of decimal precision of the internal encoder.
 // The method will return an error if the maximum number of slots of the output parameters is smaller than the number of slots of the input ciphertext.
-func NewMaskedTransformProtocol(paramsIn, paramsOut ckks.Parameters, prec uint, noise distribution.Distribution) (rfp *MaskedTransformProtocol, err error) {
+func NewMaskedTransformProtocol(paramsIn, paramsOut ckks.Parameters, prec uint, noise ring.DistributionParameters) (rfp *MaskedTransformProtocol, err error) {
 
 	rfp = new(MaskedTransformProtocol)
 
-	rfp.noise = noise.CopyNew()
+	rfp.noise = noise
 
 	rfp.e2s = *NewEncToShareProtocol(paramsIn, noise)
 	rfp.s2e = *NewShareToEncProtocol(paramsOut, noise)

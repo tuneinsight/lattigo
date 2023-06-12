@@ -2,7 +2,7 @@ package rlwe
 
 import (
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/ring/distribution"
+
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
@@ -36,8 +36,8 @@ type ParametersInterface interface {
 	Pow2Base() int
 	DecompPw2(levelQ, levelP int) int
 	NTTFlag() bool
-	Xe() distribution.Distribution
-	Xs() distribution.Distribution
+	Xe() ring.DistributionParameters
+	Xs() ring.DistributionParameters
 	XsHammingWeight() int
 	GaloisElement(k int) (galEl uint64)
 	GaloisElements(k []int) (galEls []uint64)

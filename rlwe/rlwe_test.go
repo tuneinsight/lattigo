@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
 	"github.com/tuneinsight/lattigo/v4/utils/buffer"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
@@ -29,6 +28,38 @@ func testString(params Parameters, level int, opname string) string {
 		params.NTTFlag(),
 		level,
 		params.RingType())
+}
+
+type DumDum struct {
+	A int
+	B float64
+}
+
+func TestParameters(t *testing.T) {
+
+	b, err := json.Marshal(ParametersLiteral{
+		LogN: 10,
+		LogQ: []int{30, 40, 60},
+		LogP: []int{30},
+		Xe:   ring.DiscreteGaussian{Sigma: 3.14, Bound: 12},
+		Xs:   ring.Ternary{H: 128},
+	})
+	fmt.Println(string(b))
+	fmt.Println(err)
+
+	var p ParametersLiteral
+	err = json.Unmarshal(b, &p)
+	fmt.Println(p)
+	fmt.Println(err)
+
+	s, err := json.Marshal(p)
+	fmt.Println(string(s))
+	fmt.Println(err)
+
+	params, err := NewParametersFromLiteral(p)
+	fmt.Println(err)
+	fmt.Println(LatticeEstimatorSageMathCell(params))
+
 }
 
 func TestRLWE(t *testing.T) {
@@ -97,50 +128,57 @@ type TestContext struct {
 }
 
 func testUserDefinedParameters(t *testing.T) {
-	/*
-		t.Run("Parameters/UnmarshalJSON", func(t *testing.T) {
 
-			var err error
-			// checks that ckks.Parameters can be unmarshalled with log-moduli definition without error
-			dataWithLogModuli := []byte(`{"LogN":13,"LogQ":[50,50],"LogP":[60]}`)
-			var paramsWithLogModuli Parameters
-			err = json.Unmarshal(dataWithLogModuli, &paramsWithLogModuli)
+	t.Run("Parameters/UnmarshalJSON", func(t *testing.T) {
+
+		var err error
+		// checks that ckks.Parameters can be unmarshalled with log-moduli definition without error
+		dataWithLogModuli := []byte(`{"LogN":13,"LogQ":[50,50],"LogP":[60]}`)
+		var paramsWithLogModuli Parameters
+		err = json.Unmarshal(dataWithLogModuli, &paramsWithLogModuli)
+		require.Nil(t, err)
+		require.Equal(t, 2, paramsWithLogModuli.QCount())
+		require.Equal(t, 1, paramsWithLogModuli.PCount())
+		require.Equal(t, ring.Standard, paramsWithLogModuli.RingType()) // Omitting the RingType field should result in a standard instance
+		require.True(t, paramsWithLogModuli.Xe() == DefaultXe)          // Omitting Xe should result in Default being used
+		require.True(t, paramsWithLogModuli.Xs() == DefaultXs)          // Omitting Xs should result in Default being used
+
+		// checks that ckks.Parameters can be unmarshalled with log-moduli definition with empty or omitted P without error
+		for _, dataWithLogModuliNoP := range [][]byte{
+			[]byte(`{"LogN":13,"LogQ":[50,50],"LogP":[],"RingType": "ConjugateInvariant"}`),
+			[]byte(`{"LogN":13,"LogQ":[50,50],"RingType": "ConjugateInvariant"}`),
+		} {
+			var paramsWithLogModuliNoP Parameters
+			err = json.Unmarshal(dataWithLogModuliNoP, &paramsWithLogModuliNoP)
 			require.Nil(t, err)
-			require.Equal(t, 2, paramsWithLogModuli.QCount())
-			require.Equal(t, 1, paramsWithLogModuli.PCount())
-			require.Equal(t, ring.Standard, paramsWithLogModuli.RingType()) // Omitting the RingType field should result in a standard instance
-			require.True(t, paramsWithLogModuli.Xe().Equals(&DefaultXe))    // Omitting Xe should result in Default being used
-			require.True(t, paramsWithLogModuli.Xs().Equals(&DefaultXs))    // Omitting Xs should result in Default being used
+			require.Equal(t, 2, paramsWithLogModuliNoP.QCount())
+			require.Equal(t, 0, paramsWithLogModuliNoP.PCount())
+			require.Equal(t, ring.ConjugateInvariant, paramsWithLogModuliNoP.RingType())
+		}
 
-			// checks that ckks.Parameters can be unmarshalled with log-moduli definition with empty or omitted P without error
-			for _, dataWithLogModuliNoP := range [][]byte{
-				[]byte(`{"LogN":13,"LogQ":[50,50],"LogP":[],"RingType": "ConjugateInvariant"}`),
-				[]byte(`{"LogN":13,"LogQ":[50,50],"RingType": "ConjugateInvariant"}`),
-			} {
-				var paramsWithLogModuliNoP Parameters
-				err = json.Unmarshal(dataWithLogModuliNoP, &paramsWithLogModuliNoP)
-				require.Nil(t, err)
-				require.Equal(t, 2, paramsWithLogModuliNoP.QCount())
-				require.Equal(t, 0, paramsWithLogModuliNoP.PCount())
-				require.Equal(t, ring.ConjugateInvariant, paramsWithLogModuliNoP.RingType())
-			}
+		// checks that one can provide custom parameters for the secret-key and error distributions
+		dataWithCustomSecrets := []byte(`{"LogN":13,"LogQ":[50,50],"LogP":[60],"Xs":{"Type":"Ternary", "H":5462},"Xe":{"Type":"DiscreteGaussian","Sigma":6.4,"Bound":38}}`)
+		var paramsWithCustomSecrets Parameters
+		err = json.Unmarshal(dataWithCustomSecrets, &paramsWithCustomSecrets)
+		require.Nil(t, err)
+		require.True(t, paramsWithCustomSecrets.Xe() == ring.DiscreteGaussian{Sigma: 6.4, Bound: 38})
+		require.True(t, paramsWithCustomSecrets.Xs() == ring.Ternary{H: 5462})
 
-			// checks that one can provide custom parameters for the secret-key and error distributions
-			dataWithCustomSecrets := []byte(`{"LogN":13,"LogQ":[50,50],"LogP":[60],"Xs":{"Type":"Ternary", "H":5462},"Xe":{"Type":"DiscreteGaussian","Sigma":6.4,"Bound":38}}`)
-			var paramsWithCustomSecrets Parameters
-			err = json.Unmarshal(dataWithCustomSecrets, &paramsWithCustomSecrets)
-			require.Nil(t, err)
-			require.True(t, paramsWithCustomSecrets.Xe().Equals(&distribution.DiscreteGaussian{Sigma: 6.4, Bound: 38}))
-			require.True(t, paramsWithCustomSecrets.Xs().Equals(&distribution.Ternary{H: 5462}))
+		var paramsWithBadDist Parameters
+		// checks that providing an ambiguous gaussian distribution yields an error
+		dataWithBadDist := []byte(`{"LogN":13,"LogQ":[50,50],"LogP":[60],"Xs":{"Type":"DiscreteGaussian", "Sigma":3.2}}`)
+		err = json.Unmarshal(dataWithBadDist, &paramsWithBadDist)
+		require.NotNil(t, err)
+		require.Equal(t, paramsWithBadDist, Parameters{})
 
-			// checks that providing an ambiguous ternary distribution yields an error
-			dataWithBadDist := []byte(`{"LogN":13,"LogQ":[50,50],"LogP":[60],"Xs":{"Type":"Ternary", "H":5462,"P":0.3}}`)
-			var paramsWithBadDist Parameters
-			err = json.Unmarshal(dataWithBadDist, &paramsWithBadDist)
-			require.NotNil(t, err)
-			require.Equal(t, paramsWithBadDist, Parameters{})
-		})
-	*/
+		// checks that providing an ambiguous ternary distribution yields an error
+		dataWithBadDist = []byte(`{"LogN":13,"LogQ":[50,50],"LogP":[60],"Xs":{"Type":"Ternary", "H":5462,"P":0.3}}`)
+
+		err = json.Unmarshal(dataWithBadDist, &paramsWithBadDist)
+		require.NotNil(t, err)
+		require.Equal(t, paramsWithBadDist, Parameters{})
+	})
+
 }
 
 func NewTestContext(params Parameters) (tc *TestContext) {
@@ -189,7 +227,7 @@ func testKeyGenerator(tc *TestContext, t *testing.T) {
 	t.Run(testString(params, params.MaxLevel(), "KeyGenerator/GenSecretKey"), func(t *testing.T) {
 
 		switch xs := params.Xs().(type) {
-		case *distribution.Ternary:
+		case ring.Ternary:
 			if xs.P != 0 {
 				t.Skip("cannot run test for probabilistic ternary distribution")
 			}
@@ -337,8 +375,8 @@ func testEncryptor(tc *TestContext, level int, t *testing.T) {
 		require.True(t, pkEnc1.pk == pkEnc2.pk)
 		require.False(t, (pkEnc1.basisextender == pkEnc2.basisextender) && (pkEnc1.basisextender != nil) && (pkEnc2.basisextender != nil))
 		require.False(t, pkEnc1.encryptorBuffers == pkEnc2.encryptorBuffers)
-		require.False(t, pkEnc1.ternarySampler == pkEnc2.ternarySampler)
-		require.False(t, pkEnc1.gaussianSampler == pkEnc2.gaussianSampler)
+		require.False(t, pkEnc1.xsSampler == pkEnc2.xsSampler)
+		require.False(t, pkEnc1.xeSampler == pkEnc2.xeSampler)
 	})
 
 	t.Run(testString(params, level, "Encryptor/Encrypt/Sk"), func(t *testing.T) {
@@ -390,8 +428,8 @@ func testEncryptor(tc *TestContext, level int, t *testing.T) {
 		require.True(t, skEnc1.sk == skEnc2.sk)
 		require.False(t, (skEnc1.basisextender == skEnc2.basisextender) && (skEnc1.basisextender != nil) && (skEnc2.basisextender != nil))
 		require.False(t, skEnc1.encryptorBuffers == skEnc2.encryptorBuffers)
-		require.False(t, skEnc1.ternarySampler == skEnc2.ternarySampler)
-		require.False(t, skEnc1.gaussianSampler == skEnc2.gaussianSampler)
+		require.False(t, skEnc1.xsSampler == skEnc2.xsSampler)
+		require.False(t, skEnc1.xeSampler == skEnc2.xeSampler)
 	})
 
 	t.Run(testString(params, level, "Encrypt/WithKey/Sk->Sk"), func(t *testing.T) {
@@ -404,8 +442,8 @@ func testEncryptor(tc *TestContext, level int, t *testing.T) {
 		require.True(t, skEnc2.sk.Equal(sk2))
 		require.True(t, skEnc1.basisextender == skEnc2.basisextender)
 		require.True(t, skEnc1.encryptorBuffers == skEnc2.encryptorBuffers)
-		require.True(t, skEnc1.ternarySampler == skEnc2.ternarySampler)
-		require.True(t, skEnc1.gaussianSampler == skEnc2.gaussianSampler)
+		require.True(t, skEnc1.xsSampler == skEnc2.xsSampler)
+		require.True(t, skEnc1.xeSampler == skEnc2.xeSampler)
 	})
 }
 

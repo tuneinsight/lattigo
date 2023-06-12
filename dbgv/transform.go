@@ -6,7 +6,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/bgv"
 	"github.com/tuneinsight/lattigo/v4/drlwe"
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/ring/distribution"
+
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
@@ -51,15 +51,15 @@ type MaskedTransformFunc struct {
 }
 
 // NewMaskedTransformProtocol creates a new instance of the PermuteProtocol.
-func NewMaskedTransformProtocol(paramsIn, paramsOut bgv.Parameters, noise distribution.Distribution) (rfp *MaskedTransformProtocol, err error) {
+func NewMaskedTransformProtocol(paramsIn, paramsOut bgv.Parameters, noiseFlooding ring.DistributionParameters) (rfp *MaskedTransformProtocol, err error) {
 
 	if paramsIn.N() > paramsOut.N() {
 		return nil, fmt.Errorf("newMaskedTransformProtocol: paramsIn.N() != paramsOut.N()")
 	}
 
 	rfp = new(MaskedTransformProtocol)
-	rfp.e2s = *NewEncToShareProtocol(paramsIn, noise)
-	rfp.s2e = *NewShareToEncProtocol(paramsOut, noise)
+	rfp.e2s = *NewEncToShareProtocol(paramsIn, noiseFlooding)
+	rfp.s2e = *NewShareToEncProtocol(paramsOut, noiseFlooding)
 
 	rfp.tmpPt = paramsOut.RingQ().NewPoly()
 	rfp.tmpMask = paramsIn.RingT().NewPoly()

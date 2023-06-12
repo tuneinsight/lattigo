@@ -10,7 +10,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/buffer"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
@@ -264,7 +263,7 @@ func testKeySwitchProtocol(tc *testContext, level int, t *testing.T) {
 
 		for i := range cks {
 			if i == 0 {
-				cks[i] = NewKeySwitchProtocol(params, &distribution.DiscreteGaussian{Sigma: sigmaSmudging, Bound: 6 * sigmaSmudging})
+				cks[i] = NewKeySwitchProtocol(params, ring.DiscreteGaussian{Sigma: sigmaSmudging, Bound: 6 * sigmaSmudging})
 			} else {
 				cks[i] = cks[0].ShallowCopy()
 			}
@@ -338,7 +337,7 @@ func testPublicKeySwitchProtocol(tc *testContext, level int, t *testing.T) {
 		pcks := make([]*PublicKeySwitchProtocol, nbParties)
 		for i := range pcks {
 			if i == 0 {
-				pcks[i] = NewPublicKeySwitchProtocol(params, &distribution.DiscreteGaussian{Sigma: sigmaSmudging, Bound: 6 * sigmaSmudging})
+				pcks[i] = NewPublicKeySwitchProtocol(params, ring.DiscreteGaussian{Sigma: sigmaSmudging, Bound: 6 * sigmaSmudging})
 			} else {
 				pcks[i] = pcks[0].ShallowCopy()
 			}

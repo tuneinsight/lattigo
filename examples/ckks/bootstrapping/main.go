@@ -11,7 +11,7 @@ import (
 
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/ckks/bootstrapping"
-	"github.com/tuneinsight/lattigo/v4/ring/distribution"
+	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
@@ -31,7 +31,7 @@ func main() {
 		LogQ:              []int{55, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40}, // Log2 of the ciphertext prime moduli
 		LogP:              []int{61, 61, 61, 61},                             // Log2 of the key-switch auxiliary prime moduli
 		LogPlaintextScale: 40,                                                // Log2 of the scale
-		Xs:                &distribution.Ternary{H: 192},                     // Hamming weight of the secret
+		Xs:                ring.Ternary{H: 192},                              // Hamming weight of the secret
 	}
 
 	LogSlots := ckksParamsResidualLit.LogN - 2

@@ -12,7 +12,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/ring/distribution"
+
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
@@ -99,7 +99,6 @@ func TestCKKS(t *testing.T) {
 				testChebyshevInterpolator,
 				testBridge,
 				testLinearTransform,
-				testMarshaller,
 			} {
 				testSet(tc, t)
 				runtime.GC()
@@ -194,7 +193,7 @@ func randomConst(tp ring.Type, prec uint, a, b complex128) (constant *bignum.Com
 	return
 }
 
-func verifyTestVectors(params Parameters, encoder *Encoder, decryptor *rlwe.Decryptor, valuesWant, valuesHave interface{}, noise distribution.Distribution, t *testing.T) {
+func verifyTestVectors(params Parameters, encoder *Encoder, decryptor *rlwe.Decryptor, valuesWant, valuesHave interface{}, noise ring.DistributionParameters, t *testing.T) {
 
 	precStats := GetPrecisionStats(params, encoder, decryptor, valuesWant, valuesHave, noise, false)
 
@@ -225,7 +224,8 @@ func testParameters(tc *testContext, t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.Equal(t, ring.Standard, params.RingType()) // Default ring type should be standard
-		require.Equal(t, &rlwe.DefaultXe, params.Xe())     // Default error std should be rlwe.DefaultSigma
+		require.Equal(t, rlwe.DefaultXe, params.Xe())
+		require.Equal(t, rlwe.DefaultXs, params.Xs())
 	})
 
 	t.Run(GetTestName(tc.params, "Parameters/StandardRing"), func(t *testing.T) {
@@ -240,6 +240,56 @@ func testParameters(tc *testContext, t *testing.T) {
 		default:
 			t.Fatal("invalid RingType")
 		}
+	})
+
+	t.Run(GetTestName(tc.params, "Parameters/Marshaller/Binary"), func(t *testing.T) {
+
+		bytes, err := tc.params.MarshalBinary()
+		require.Nil(t, err)
+		var p Parameters
+		require.Nil(t, p.UnmarshalBinary(bytes))
+		require.True(t, tc.params.Equal(p))
+	})
+
+	t.Run(GetTestName(tc.params, "Parameters/Marshaller/JSON"), func(t *testing.T) {
+		// checks that parameters can be marshalled without error
+		data, err := json.Marshal(tc.params)
+		require.Nil(t, err)
+		require.NotNil(t, data)
+
+		// checks that ckks.Parameters can be unmarshalled without error
+		var paramsRec Parameters
+		err = json.Unmarshal(data, &paramsRec)
+		require.Nil(t, err)
+		require.True(t, tc.params.Equal(paramsRec))
+
+		// checks that ckks.Parameters can be unmarshalled with log-moduli definition without error
+		dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60], "LogPlaintextScale":30}`, tc.params.LogN()))
+		var paramsWithLogModuli Parameters
+		err = json.Unmarshal(dataWithLogModuli, &paramsWithLogModuli)
+		require.Nil(t, err)
+		require.Equal(t, 2, paramsWithLogModuli.QCount())
+		require.Equal(t, 1, paramsWithLogModuli.PCount())
+		require.Equal(t, ring.Standard, paramsWithLogModuli.RingType()) // Omitting the RingType field should result in a standard instance
+		require.Equal(t, rlwe.DefaultXe, paramsWithLogModuli.Xe())      // Omitting Xe should result in Default being used
+		require.Equal(t, float64(1<<30), paramsWithLogModuli.PlaintextScale().Float64())
+
+		// checks that ckks.Parameters can be unmarshalled with log-moduli definition with empty P without error
+		dataWithLogModuliNoP := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[], "RingType": "ConjugateInvariant"}`, tc.params.LogN()))
+		var paramsWithLogModuliNoP Parameters
+		err = json.Unmarshal(dataWithLogModuliNoP, &paramsWithLogModuliNoP)
+		require.Nil(t, err)
+		require.Equal(t, 2, paramsWithLogModuliNoP.QCount())
+		require.Equal(t, 0, paramsWithLogModuliNoP.PCount())
+		require.Equal(t, ring.ConjugateInvariant, paramsWithLogModuliNoP.RingType())
+
+		// checks that one can provide custom parameters for the secret-key and error distributions
+		dataWithCustomSecrets := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60], "Xs": {"Type": "Ternary", "H": 192}, "Xe": {"Type": "DiscreteGaussian", "Sigma": 6.6, "Bound": 39.6}}`, tc.params.LogN()))
+		var paramsWithCustomSecrets Parameters
+		err = json.Unmarshal(dataWithCustomSecrets, &paramsWithCustomSecrets)
+		require.Nil(t, err)
+		require.Equal(t, ring.DiscreteGaussian{Sigma: 6.6, Bound: 39.6}, paramsWithCustomSecrets.Xe())
+		require.Equal(t, ring.Ternary{H: 192}, paramsWithCustomSecrets.Xs())
 	})
 }
 
@@ -964,7 +1014,7 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 		// This should make it lose at most ~0.5 bit or precision.
 		sigma := StandardDeviation(valuesHave, rlwe.NewScale(plaintext.PlaintextScale.Float64()/math.Sqrt(float64(len(values)))))
 
-		tc.encoder.DecodePublic(plaintext, valuesHave, &distribution.DiscreteGaussian{Sigma: sigma, Bound: 2.5066282746310002 * sigma})
+		tc.encoder.DecodePublic(plaintext, valuesHave, ring.DiscreteGaussian{Sigma: sigma, Bound: 2.5066282746310002 * sigma})
 
 		verifyTestVectors(tc.params, tc.encoder, nil, values, valuesHave, nil, t)
 	})
@@ -1165,49 +1215,4 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, nil, t)
 	})
-}
-
-func testMarshaller(tc *testContext, t *testing.T) {
-
-	/*
-		t.Run(GetTestName(tc.params, "Marshaller/Parameters/JSON"), func(t *testing.T) {
-			// checks that parameters can be marshalled without error
-			data, err := json.Marshal(tc.params)
-			require.Nil(t, err)
-			require.NotNil(t, data)
-
-				// checks that ckks.Parameters can be unmarshalled without error
-				var paramsRec Parameters
-				err = json.Unmarshal(data, &paramsRec)
-				require.Nil(t, err)
-				require.True(t, tc.params.Equals(paramsRec))
-
-				// checks that ckks.Parameters can be unmarshalled with log-moduli definition without error
-				dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60], "DefaultScale":1.0}`, tc.params.LogN()))
-				var paramsWithLogModuli Parameters
-				err = json.Unmarshal(dataWithLogModuli, &paramsWithLogModuli)
-				require.Nil(t, err)
-				require.Equal(t, 2, paramsWithLogModuli.QCount())
-				require.Equal(t, 1, paramsWithLogModuli.PCount())
-				require.Equal(t, ring.Standard, paramsWithLogModuli.RingType())  // Omitting the RingType field should result in a standard instance
-				require.Equal(t, rlwe.DefaultSigma, paramsWithLogModuli.Sigma()) // Omitting sigma should result in Default being used
-
-				// checks that ckks.Parameters can be unmarshalled with log-moduli definition with empty P without error
-				dataWithLogModuliNoP := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[],"DefaultScale":1.0,"RingType": "ConjugateInvariant"}`, tc.params.LogN()))
-				var paramsWithLogModuliNoP Parameters
-				err = json.Unmarshal(dataWithLogModuliNoP, &paramsWithLogModuliNoP)
-				require.Nil(t, err)
-				require.Equal(t, 2, paramsWithLogModuliNoP.QCount())
-				require.Equal(t, 0, paramsWithLogModuliNoP.PCount())
-				require.Equal(t, ring.ConjugateInvariant, paramsWithLogModuliNoP.RingType())
-
-			// checks that one can provide custom parameters for the secret-key and error distributions
-			dataWithCustomSecrets := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60],"DefaultScale":1.0,"H": 192, "Sigma": 6.6}`, tc.params.LogN()))
-			var paramsWithCustomSecrets Parameters
-			err = json.Unmarshal(dataWithCustomSecrets, &paramsWithCustomSecrets)
-			require.Nil(t, err)
-			require.Equal(t, 6.6, paramsWithCustomSecrets.Sigma())
-			require.Equal(t, 192, paramsWithCustomSecrets.HammingWeight())
-		})
-	*/
 }

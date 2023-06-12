@@ -10,6 +10,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/bfv"
 	"github.com/tuneinsight/lattigo/v4/dbfv"
 	"github.com/tuneinsight/lattigo/v4/drlwe"
+	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
@@ -304,7 +305,7 @@ func pcksPhase(params bfv.Parameters, tpk *rlwe.PublicKey, encRes *rlwe.Cipherte
 	// Collective key switching from the collective secret key to
 	// the target public key
 
-	pcks := dbfv.NewPublicKeySwitchProtocol(params, params.Xe())
+	pcks := dbfv.NewPublicKeySwitchProtocol(params, ring.DiscreteGaussian{Sigma: 1 << 30, Bound: 6 * (1 << 30)})
 
 	for _, pi := range P {
 		pi.pcksShare = pcks.AllocateShare(params.MaxLevel())

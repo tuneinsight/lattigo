@@ -8,7 +8,6 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/tuneinsight/lattigo/v4/ring/distribution"
 	"github.com/tuneinsight/lattigo/v4/utils/buffer"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 	"github.com/tuneinsight/lattigo/v4/utils/structs"
@@ -433,11 +432,11 @@ func testSampler(tc *testParams, t *testing.T) {
 
 	t.Run(testString("Sampler/Gaussian/SmallSigma", tc.ringQ), func(t *testing.T) {
 
-		dist := &distribution.DiscreteGaussian{Sigma: DefaultSigma, Bound: DefaultBound}
+		dist := DiscreteGaussian{Sigma: DefaultSigma, Bound: DefaultBound}
 
 		sampler := NewSampler(tc.prng, tc.ringQ, dist, false)
 
-		noiseBound := uint64(dist.NoiseBound())
+		noiseBound := uint64(dist.Bound)
 
 		pol := sampler.ReadNew()
 
@@ -450,7 +449,7 @@ func testSampler(tc *testParams, t *testing.T) {
 
 	t.Run(testString("Sampler/Gaussian/LargeSigma", tc.ringQ), func(t *testing.T) {
 
-		dist := &distribution.DiscreteGaussian{Sigma: 1e21, Bound: 1e25}
+		dist := DiscreteGaussian{Sigma: 1e21, Bound: 1e25}
 
 		sampler := NewSampler(tc.prng, tc.ringQ, dist, false)
 
@@ -462,7 +461,7 @@ func testSampler(tc *testParams, t *testing.T) {
 	for _, p := range []float64{.5, 1. / 3., 128. / 65536.} {
 		t.Run(testString(fmt.Sprintf("Sampler/Ternary/p=%1.2f", p), tc.ringQ), func(t *testing.T) {
 
-			sampler := NewSampler(tc.prng, tc.ringQ, &distribution.Ternary{P: p}, false)
+			sampler := NewSampler(tc.prng, tc.ringQ, Ternary{P: p}, false)
 
 			pol := sampler.ReadNew()
 
@@ -478,7 +477,7 @@ func testSampler(tc *testParams, t *testing.T) {
 	for _, h := range []int{64, 96, 128, 256} {
 		t.Run(testString(fmt.Sprintf("Sampler/Ternary/hw=%d", h), tc.ringQ), func(t *testing.T) {
 
-			sampler := NewSampler(tc.prng, tc.ringQ, &distribution.Ternary{H: h}, false)
+			sampler := NewSampler(tc.prng, tc.ringQ, Ternary{H: h}, false)
 
 			checkPoly := func(pol *Poly) {
 				for i := range tc.ringQ.SubRings {

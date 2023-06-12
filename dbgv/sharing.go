@@ -83,7 +83,7 @@ func (e2s *EncToShareProtocol) GenShare(sk *rlwe.SecretKey, ct *rlwe.Ciphertext,
 	e2s.encoder.RingT2Q(level, true, &secretShareOut.Value, e2s.tmpPlaintextRingQ)
 	ringQ := e2s.params.RingQ().AtLevel(level)
 	ringQ.NTT(e2s.tmpPlaintextRingQ, e2s.tmpPlaintextRingQ)
-	ringQ.Sub(publicShareOut.Value, e2s.tmpPlaintextRingQ, publicShareOut.Value)
+	ringQ.Sub(&publicShareOut.Value, e2s.tmpPlaintextRingQ, &publicShareOut.Value)
 }
 
 // GetShare is the final step of the encryption-to-share protocol. It performs the masked decryption of the target ciphertext followed by a
@@ -94,7 +94,7 @@ func (e2s *EncToShareProtocol) GenShare(sk *rlwe.SecretKey, ct *rlwe.Ciphertext,
 func (e2s *EncToShareProtocol) GetShare(secretShare *drlwe.AdditiveShare, aggregatePublicShare *drlwe.KeySwitchShare, ct *rlwe.Ciphertext, secretShareOut *drlwe.AdditiveShare) {
 	level := utils.Min(ct.Level(), aggregatePublicShare.Value.Level())
 	ringQ := e2s.params.RingQ().AtLevel(level)
-	ringQ.Add(aggregatePublicShare.Value, &ct.Value[0], e2s.tmpPlaintextRingQ)
+	ringQ.Add(&aggregatePublicShare.Value, &ct.Value[0], e2s.tmpPlaintextRingQ)
 	ringQ.INTT(e2s.tmpPlaintextRingQ, e2s.tmpPlaintextRingQ)
 	e2s.encoder.RingQ2T(level, true, e2s.tmpPlaintextRingQ, e2s.tmpPlaintextRingT)
 	if secretShare != nil {
@@ -161,7 +161,7 @@ func (s2e *ShareToEncProtocol) GenShare(sk *rlwe.SecretKey, crp drlwe.KeySwitchC
 	s2e.encoder.RingT2Q(crp.Value.Level(), true, &secretShare.Value, s2e.tmpPlaintextRingQ)
 	ringQ := s2e.params.RingQ().AtLevel(crp.Value.Level())
 	ringQ.NTT(s2e.tmpPlaintextRingQ, s2e.tmpPlaintextRingQ)
-	ringQ.Add(c0ShareOut.Value, s2e.tmpPlaintextRingQ, c0ShareOut.Value)
+	ringQ.Add(&c0ShareOut.Value, s2e.tmpPlaintextRingQ, &c0ShareOut.Value)
 }
 
 // GetEncryption computes the final encryption of the secret-shared message when provided with the aggregation `c0Agg` of the parties'
@@ -170,6 +170,6 @@ func (s2e *ShareToEncProtocol) GetEncryption(c0Agg *drlwe.KeySwitchShare, crp dr
 	if ctOut.Degree() != 1 {
 		panic("cannot GetEncryption: ctOut must have degree 1.")
 	}
-	ctOut.Value[0].Copy(c0Agg.Value)
+	ctOut.Value[0].Copy(&c0Agg.Value)
 	ctOut.Value[1].Copy(&crp.Value)
 }

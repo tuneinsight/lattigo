@@ -130,7 +130,7 @@ func (e2s *EncToShareProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, ct *r
 	rlwe.NTTSparseAndMontgomery(ringQ, ct.MetaData, e2s.buff)
 
 	// Subtracts the mask to the encryption of zero
-	ringQ.Sub(publicShareOut.Value, e2s.buff, publicShareOut.Value)
+	ringQ.Sub(&publicShareOut.Value, e2s.buff, &publicShareOut.Value)
 }
 
 // GetShare is the final step of the encryption-to-share protocol. It performs the masked decryption of the target ciphertext followed by a
@@ -145,7 +145,7 @@ func (e2s *EncToShareProtocol) GetShare(secretShare *drlwe.AdditiveShareBigint, 
 	ringQ := e2s.params.RingQ().AtLevel(levelQ)
 
 	// Adds the decryption share on the ciphertext and stores the result in a buff
-	ringQ.Add(aggregatePublicShare.Value, &ct.Value[0], e2s.buff)
+	ringQ.Add(&aggregatePublicShare.Value, &ct.Value[0], e2s.buff)
 
 	// Switches the LSSS RNS NTT ciphertext outside of the NTT domain
 	ringQ.INTT(e2s.buff, e2s.buff)
@@ -242,7 +242,7 @@ func (s2e *ShareToEncProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.KeySwitchC
 	// Maps Y^{N/n} -> X^{N} in Montgomery and NTT
 	rlwe.NTTSparseAndMontgomery(ringQ, metadata, s2e.tmp)
 
-	ringQ.Add(c0ShareOut.Value, s2e.tmp, c0ShareOut.Value)
+	ringQ.Add(&c0ShareOut.Value, s2e.tmp, &c0ShareOut.Value)
 }
 
 // GetEncryption computes the final encryption of the secret-shared message when provided with the aggregation `c0Agg` of the parties'
@@ -261,6 +261,6 @@ func (s2e *ShareToEncProtocol) GetEncryption(c0Agg *drlwe.KeySwitchShare, crs dr
 		panic("cannot GetEncryption: ctOut level must be equal to crs level")
 	}
 
-	ctOut.Value[0].Copy(c0Agg.Value)
+	ctOut.Value[0].Copy(&c0Agg.Value)
 	ctOut.Value[1].Copy(&crs.Value)
 }

@@ -68,7 +68,9 @@ func (kgen *KeyGenerator) GenPublicKeyNew(sk *SecretKey) (pk *PublicKey) {
 
 // GenPublicKey generates a public key from the provided SecretKey.
 func (kgen *KeyGenerator) GenPublicKey(sk *SecretKey, pk *PublicKey) {
-	kgen.WithKey(sk).EncryptZero(&pk.OperandQP)
+	kgen.WithKey(sk).EncryptZero(&OperandQP{
+		MetaData: MetaData{IsNTT: true, IsMontgomery: true},
+		Value:    pk.Value[:]})
 }
 
 // GenKeyPairNew generates a new SecretKey and a corresponding public key.

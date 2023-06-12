@@ -185,10 +185,6 @@ func testKeyGenerator(tc *TestContext, t *testing.T) {
 	sk := tc.sk
 	pk := tc.pk
 
-	t.Run(testString(params, params.MaxLevel(), "CheckMetaData"), func(t *testing.T) {
-		require.True(t, pk.MetaData.Equal(&MetaData{IsNTT: true, IsMontgomery: true}))
-	})
-
 	// Checks that the secret-key has exactly params.h non-zero coefficients
 	t.Run(testString(params, params.MaxLevel(), "KeyGenerator/GenSecretKey"), func(t *testing.T) {
 
@@ -1054,7 +1050,7 @@ func testWriteAndRead(tc *TestContext, t *testing.T) {
 	})
 
 	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/CiphertextQP"), func(t *testing.T) {
-		buffer.RequireSerializerCorrect(t, &tc.pk.OperandQP)
+		buffer.RequireSerializerCorrect(t, &OperandQP{Value: tc.pk.Value[:]})
 	})
 
 	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/GadgetCiphertext"), func(t *testing.T) {

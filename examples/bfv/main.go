@@ -16,7 +16,7 @@ func obliviousRiding() {
 
 	// This example simulates a situation where an anonymous rider
 	// wants to find the closest available rider within a given area.
-	// The application is inspired by the paper https://oride.epfl.ch/
+	// The application is inspired by the paper https://infoscience.epfl.ch/record/228219
 	//
 	// 		A. Pham, I. Dacosta, G. Endignoux, J. Troncoso-Pastoriza,
 	//		K. Huguenin, and J.-P. Hubaux. ORide: A Privacy-Preserving

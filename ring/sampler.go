@@ -26,11 +26,11 @@ type Sampler interface {
 // DistributionParameters is an interface for distribution
 // parameters in the ring.
 // There are three implementation of this interface:
-//    - DiscreteGaussian for sampling polynomials with discretized
-//      gaussian coefficient of given standard deviation and bound.
-//    - Ternary for sampling polynomials with coefficients in [-1, 1].
-//    - Uniform for sampling polynomial with uniformly random
-//      coefficients in the ring.
+//   - DiscreteGaussian for sampling polynomials with discretized
+//     gaussian coefficient of given standard deviation and bound.
+//   - Ternary for sampling polynomials with coefficients in [-1, 1].
+//   - Uniform for sampling polynomial with uniformly random
+//     coefficients in the ring.
 type DistributionParameters interface {
 	// Type returns a string representation of the distribution name.
 	Type() string
@@ -48,10 +48,10 @@ type DiscreteGaussian struct {
 // Ternary represent the parameters of a distribution with coefficients
 // in [-1, 0, 1]. Only one of its field must be set to a non-zero value:
 //
-//    - If P is set, each coefficient in the polynomial is sampled in [-1, 0, 1]
-//      with probabilities [0.5*P, P-1, 0.5*P].
-//    - if H is set, the coefficients are sampled uniformly in the set of ternary
-//      polynomials with H non-zero coefficients (i.e., of hamming weight H).
+//   - If P is set, each coefficient in the polynomial is sampled in [-1, 0, 1]
+//     with probabilities [0.5*P, P-1, 0.5*P].
+//   - if H is set, the coefficients are sampled uniformly in the set of ternary
+//     polynomials with H non-zero coefficients (i.e., of hamming weight H).
 type Ternary struct {
 	P float64
 	H int

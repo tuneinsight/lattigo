@@ -304,7 +304,7 @@ func (kgen *KeyGenerator) genEvaluationKey(skIn *ring.Poly, skOut *SecretKey, ev
 	// Samples an encryption of zero for each element of the EvaluationKey.
 	for i := 0; i < len(evk.Value); i++ {
 		for j := 0; j < len(evk.Value[0]); j++ {
-			enc.EncryptZero(evk.Value[i][j])
+			enc.EncryptZero(&OperandQP{MetaData: MetaData{IsNTT: true, IsMontgomery: true}, Value: evk.Value[i][j][:]})
 		}
 	}
 

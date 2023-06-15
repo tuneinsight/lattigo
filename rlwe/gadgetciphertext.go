@@ -12,24 +12,19 @@ import (
 // GadgetCiphertext is a struct for storing an encrypted
 // plaintext times the gadget power matrix.
 type GadgetCiphertext struct {
-	Value structs.Matrix[OperandQP]
+	Value structs.Matrix[tupleQP]
 }
 
 // NewGadgetCiphertext returns a new Ciphertext key with pre-allocated zero-value.
 // Ciphertext is always in the NTT domain.
 func NewGadgetCiphertext(params ParametersInterface, levelQ, levelP, decompRNS, decompBIT int) *GadgetCiphertext {
 
-	m := make([][]OperandQP, decompRNS)
+	m := make(structs.Matrix[tupleQP], decompRNS)
 	for i := 0; i < decompRNS; i++ {
-		v := make([]OperandQP, decompBIT)
-
-		for j := range v {
-			v[j] = *NewOperandQP(params, 1, levelQ, levelP)
-			v[j].IsNTT = true
-			v[j].IsMontgomery = true
+		m[i] = make([]tupleQP, decompBIT)
+		for j := range m[i] {
+			m[i][j] = newTupleQPAtLevel(params, levelQ, levelP)
 		}
-
-		m[i] = v
 	}
 
 	return &GadgetCiphertext{Value: m}
@@ -37,12 +32,12 @@ func NewGadgetCiphertext(params ParametersInterface, levelQ, levelP, decompRNS, 
 
 // LevelQ returns the level of the modulus Q of the target Ciphertext.
 func (ct GadgetCiphertext) LevelQ() int {
-	return ct.Value[0][0].LevelQ()
+	return ct.Value[0][0][0].LevelQ()
 }
 
 // LevelP returns the level of the modulus P of the target Ciphertext.
 func (ct GadgetCiphertext) LevelP() int {
-	return ct.Value[0][0].LevelP()
+	return ct.Value[0][0][0].LevelP()
 }
 
 // Equal checks two Ciphertexts for equality.
@@ -55,11 +50,11 @@ func (ct *GadgetCiphertext) CopyNew() (ctCopy *GadgetCiphertext) {
 	if ct == nil || len(ct.Value) == 0 {
 		return nil
 	}
-	v := make([][]OperandQP, len(ct.Value))
+	v := make(structs.Matrix[tupleQP], len(ct.Value))
 	for i := range ct.Value {
-		v[i] = make([]OperandQP, len(ct.Value[0]))
+		v[i] = make([]tupleQP, len(ct.Value[0]))
 		for j, el := range ct.Value[i] {
-			v[i][j] = *el.CopyNew()
+			v[i][j] = el.CopyNew()
 		}
 	}
 	return &GadgetCiphertext{Value: v}
@@ -162,7 +157,7 @@ func AddPolyTimesGadgetVectorToGadgetCiphertext(pt *ring.Poly, cts []GadgetCiphe
 				p0tmp := buff.Coeffs[index]
 
 				for u, ct := range cts {
-					p1tmp := ct.Value[i][j].Value[u].Q.Coeffs[index]
+					p1tmp := ct.Value[i][j][u].Q.Coeffs[index]
 					for w := 0; w < N; w++ {
 						p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi)
 					}

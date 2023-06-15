@@ -141,13 +141,13 @@ func (ekg *RelinKeyGenProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp RelinKe
 	for j := 0; j < BITDecomp; j++ {
 		for i := 0; i < RNSDecomp; i++ {
 			// h = e
-			ekg.gaussianSamplerQ.Read(shareOut.Value[i][j].Value[0].Q)
+			ekg.gaussianSamplerQ.Read(shareOut.Value[i][j][0].Q)
 
 			if hasModulusP {
-				ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value[i][j].Value[0].Q, levelP, nil, shareOut.Value[i][j].Value[0].P)
+				ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value[i][j][0].Q, levelP, nil, shareOut.Value[i][j][0].P)
 			}
 
-			ringQP.NTT(&shareOut.Value[i][j].Value[0], &shareOut.Value[i][j].Value[0])
+			ringQP.NTT(&shareOut.Value[i][j][0], &shareOut.Value[i][j][0])
 
 			// h = sk*CrtBaseDecompQi + e
 			for k := 0; k < levelP+1; k++ {
@@ -161,7 +161,7 @@ func (ekg *RelinKeyGenProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp RelinKe
 
 				qi := ringQ.SubRings[index].Modulus
 				skP := ekg.buf[0].Q.Coeffs[index]
-				h := shareOut.Value[i][j].Value[0].Q.Coeffs[index]
+				h := shareOut.Value[i][j][0].Q.Coeffs[index]
 
 				for w := 0; w < N; w++ {
 					h[w] = ring.CRed(h[w]+skP[w], qi)
@@ -169,19 +169,19 @@ func (ekg *RelinKeyGenProtocol) GenShareRoundOne(sk *rlwe.SecretKey, crp RelinKe
 			}
 
 			// h = sk*CrtBaseDecompQi + -u*a + e
-			ringQP.MulCoeffsMontgomeryThenSub(&ephSkOut.Value, &c[i][j], &shareOut.Value[i][j].Value[0])
+			ringQP.MulCoeffsMontgomeryThenSub(&ephSkOut.Value, &c[i][j], &shareOut.Value[i][j][0])
 
 			// Second Element
 			// e_2i
-			ekg.gaussianSamplerQ.Read(shareOut.Value[i][j].Value[1].Q)
+			ekg.gaussianSamplerQ.Read(shareOut.Value[i][j][1].Q)
 
 			if hasModulusP {
-				ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value[i][j].Value[1].Q, levelP, nil, shareOut.Value[i][j].Value[1].P)
+				ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value[i][j][1].Q, levelP, nil, shareOut.Value[i][j][1].P)
 			}
 
-			ringQP.NTT(&shareOut.Value[i][j].Value[1], &shareOut.Value[i][j].Value[1])
+			ringQP.NTT(&shareOut.Value[i][j][1], &shareOut.Value[i][j][1])
 			// s*a + e_2i
-			ringQP.MulCoeffsMontgomeryThenAdd(&sk.Value, &c[i][j], &shareOut.Value[i][j].Value[1])
+			ringQP.MulCoeffsMontgomeryThenAdd(&sk.Value, &c[i][j], &shareOut.Value[i][j][1])
 		}
 
 		ringQ.MulScalar(ekg.buf[0].Q, 1<<ekg.params.Pow2Base(), ekg.buf[0].Q)
@@ -220,7 +220,7 @@ func (ekg *RelinKeyGenProtocol) GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, roun
 			// Computes [(sum samples)*sk + e_1i, sk*a + e_2i]
 
 			// (AggregateShareRoundTwo samples) * sk
-			ringQP.MulCoeffsMontgomeryLazy(&round1.Value[i][j].Value[0], &sk.Value, &shareOut.Value[i][j].Value[0])
+			ringQP.MulCoeffsMontgomeryLazy(&round1.Value[i][j][0], &sk.Value, &shareOut.Value[i][j][0])
 
 			// (AggregateShareRoundTwo samples) * sk + e_1i
 			ekg.gaussianSamplerQ.Read(ekg.buf[1].Q)
@@ -230,18 +230,18 @@ func (ekg *RelinKeyGenProtocol) GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, roun
 			}
 
 			ringQP.NTT(ekg.buf[1], ekg.buf[1])
-			ringQP.Add(&shareOut.Value[i][j].Value[0], ekg.buf[1], &shareOut.Value[i][j].Value[0])
+			ringQP.Add(&shareOut.Value[i][j][0], ekg.buf[1], &shareOut.Value[i][j][0])
 
 			// second part
 			// (u_i - s_i) * (sum [x][s*a_i + e_2i]) + e3i
-			ekg.gaussianSamplerQ.Read(shareOut.Value[i][j].Value[1].Q)
+			ekg.gaussianSamplerQ.Read(shareOut.Value[i][j][1].Q)
 
 			if levelP > -1 {
-				ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value[i][j].Value[1].Q, levelP, nil, shareOut.Value[i][j].Value[1].P)
+				ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value[i][j][1].Q, levelP, nil, shareOut.Value[i][j][1].P)
 			}
 
-			ringQP.NTT(&shareOut.Value[i][j].Value[1], &shareOut.Value[i][j].Value[1])
-			ringQP.MulCoeffsMontgomeryThenAdd(ekg.buf[0], &round1.Value[i][j].Value[1], &shareOut.Value[i][j].Value[1])
+			ringQP.NTT(&shareOut.Value[i][j][1], &shareOut.Value[i][j][1])
+			ringQP.MulCoeffsMontgomeryThenAdd(ekg.buf[0], &round1.Value[i][j][1], &shareOut.Value[i][j][1])
 		}
 	}
 }
@@ -249,8 +249,8 @@ func (ekg *RelinKeyGenProtocol) GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, roun
 // AggregateShares combines two RelinKeyGen shares into a single one.
 func (ekg *RelinKeyGenProtocol) AggregateShares(share1, share2, shareOut *RelinKeyGenShare) {
 
-	levelQ := share1.Value[0][0].LevelQ()
-	levelP := share1.Value[0][0].LevelP()
+	levelQ := share1.Value[0][0][0].LevelQ()
+	levelP := share1.Value[0][0][0].LevelP()
 
 	ringQP := ekg.params.RingQP().AtLevel(levelQ, levelP)
 
@@ -258,8 +258,8 @@ func (ekg *RelinKeyGenProtocol) AggregateShares(share1, share2, shareOut *RelinK
 	BITDecomp := len(shareOut.Value[0])
 	for i := 0; i < RNSDecomp; i++ {
 		for j := 0; j < BITDecomp; j++ {
-			ringQP.Add(&share1.Value[i][j].Value[0], &share2.Value[i][j].Value[0], &shareOut.Value[i][j].Value[0])
-			ringQP.Add(&share1.Value[i][j].Value[1], &share2.Value[i][j].Value[1], &shareOut.Value[i][j].Value[1])
+			ringQP.Add(&share1.Value[i][j][0], &share2.Value[i][j][0], &shareOut.Value[i][j][0])
+			ringQP.Add(&share1.Value[i][j][1], &share2.Value[i][j][1], &shareOut.Value[i][j][1])
 		}
 	}
 }
@@ -277,8 +277,8 @@ func (ekg *RelinKeyGenProtocol) AggregateShares(share1, share2, shareOut *RelinK
 //	= [s * b + P * s^2 + s*e0 + u*e1 + e2 + e3, b]
 func (ekg *RelinKeyGenProtocol) GenRelinearizationKey(round1 *RelinKeyGenShare, round2 *RelinKeyGenShare, evalKeyOut *rlwe.RelinearizationKey) {
 
-	levelQ := round1.Value[0][0].LevelQ()
-	levelP := round1.Value[0][0].LevelP()
+	levelQ := round1.Value[0][0][0].LevelQ()
+	levelP := round1.Value[0][0][0].LevelP()
 
 	ringQP := ekg.params.RingQP().AtLevel(levelQ, levelP)
 
@@ -286,10 +286,10 @@ func (ekg *RelinKeyGenProtocol) GenRelinearizationKey(round1 *RelinKeyGenShare, 
 	BITDecomp := len(round1.Value[0])
 	for i := 0; i < RNSDecomp; i++ {
 		for j := 0; j < BITDecomp; j++ {
-			ringQP.Add(&round2.Value[i][j].Value[0], &round2.Value[i][j].Value[1], &evalKeyOut.Value[i][j].Value[0])
-			evalKeyOut.Value[i][j].Value[1].Copy(&round1.Value[i][j].Value[1])
-			ringQP.MForm(&evalKeyOut.Value[i][j].Value[0], &evalKeyOut.Value[i][j].Value[0])
-			ringQP.MForm(&evalKeyOut.Value[i][j].Value[1], &evalKeyOut.Value[i][j].Value[1])
+			ringQP.Add(&round2.Value[i][j][0], &round2.Value[i][j][1], &evalKeyOut.Value[i][j][0])
+			evalKeyOut.Value[i][j][1].Copy(&round1.Value[i][j][1])
+			ringQP.MForm(&evalKeyOut.Value[i][j][0], &evalKeyOut.Value[i][j][0])
+			ringQP.MForm(&evalKeyOut.Value[i][j][1], &evalKeyOut.Value[i][j][1])
 		}
 	}
 }

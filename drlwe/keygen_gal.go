@@ -229,8 +229,8 @@ func (gkg *GaloisKeyGenProtocol) GenGaloisKey(share *GaloisKeyGenShare, crp Galo
 	BITDecomp := len(m[0])
 	for i := 0; i < RNSDecomp; i++ {
 		for j := 0; j < BITDecomp; j++ {
-			gk.Value[i][j].Value[0].Copy(&m[i][j])
-			gk.Value[i][j].Value[1].Copy(&p[i][j])
+			gk.Value[i][j][0].Copy(&m[i][j])
+			gk.Value[i][j][1].Copy(&p[i][j])
 		}
 	}
 

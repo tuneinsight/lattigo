@@ -103,12 +103,12 @@ func (eval *Evaluator) externalProduct32Bit(ct0 *rlwe.Ciphertext, rgsw *Cipherte
 			ring.MaskVec(eval.BuffInvNTT.Coeffs[0], j*pw2, mask, cw)
 			if j == 0 && i == 0 {
 				subRing.NTTLazy(cw, cwNTT)
-				subRing.MulCoeffsLazy(el.Value[0][j].Value[0].Q.Coeffs[0], cwNTT, acc0)
-				subRing.MulCoeffsLazy(el.Value[0][j].Value[1].Q.Coeffs[0], cwNTT, acc1)
+				subRing.MulCoeffsLazy(el.Value[0][j][0].Q.Coeffs[0], cwNTT, acc0)
+				subRing.MulCoeffsLazy(el.Value[0][j][1].Q.Coeffs[0], cwNTT, acc1)
 			} else {
 				subRing.NTTLazy(cw, cwNTT)
-				subRing.MulCoeffsLazyThenAddLazy(el.Value[0][j].Value[0].Q.Coeffs[0], cwNTT, acc0)
-				subRing.MulCoeffsLazyThenAddLazy(el.Value[0][j].Value[1].Q.Coeffs[0], cwNTT, acc1)
+				subRing.MulCoeffsLazyThenAddLazy(el.Value[0][j][0].Q.Coeffs[0], cwNTT, acc0)
+				subRing.MulCoeffsLazyThenAddLazy(el.Value[0][j][1].Q.Coeffs[0], cwNTT, acc1)
 			}
 		}
 	}
@@ -148,15 +148,15 @@ func (eval *Evaluator) externalProductInPlaceSinglePAndBitDecomp(ct0 *rlwe.Ciphe
 
 					for u, s := range ringQ.SubRings[:levelQ+1] {
 						s.NTTLazy(cw, cwNTT)
-						s.MulCoeffsMontgomery(el.Value[i][j].Value[0].Q.Coeffs[u], cwNTT, c0QP.Q.Coeffs[u])
-						s.MulCoeffsMontgomery(el.Value[i][j].Value[1].Q.Coeffs[u], cwNTT, c1QP.Q.Coeffs[u])
+						s.MulCoeffsMontgomery(el.Value[i][j][0].Q.Coeffs[u], cwNTT, c0QP.Q.Coeffs[u])
+						s.MulCoeffsMontgomery(el.Value[i][j][1].Q.Coeffs[u], cwNTT, c1QP.Q.Coeffs[u])
 					}
 
 					if ringP != nil {
 						for u, s := range ringP.SubRings[:levelP+1] {
 							s.NTTLazy(cw, cwNTT)
-							s.MulCoeffsMontgomery(el.Value[i][j].Value[0].P.Coeffs[u], cwNTT, c0QP.P.Coeffs[u])
-							s.MulCoeffsMontgomery(el.Value[i][j].Value[1].P.Coeffs[u], cwNTT, c1QP.P.Coeffs[u])
+							s.MulCoeffsMontgomery(el.Value[i][j][0].P.Coeffs[u], cwNTT, c0QP.P.Coeffs[u])
+							s.MulCoeffsMontgomery(el.Value[i][j][1].P.Coeffs[u], cwNTT, c1QP.P.Coeffs[u])
 						}
 					}
 
@@ -164,15 +164,15 @@ func (eval *Evaluator) externalProductInPlaceSinglePAndBitDecomp(ct0 *rlwe.Ciphe
 
 					for u, s := range ringQ.SubRings[:levelQ+1] {
 						s.NTTLazy(cw, cwNTT)
-						s.MulCoeffsMontgomeryThenAdd(el.Value[i][j].Value[0].Q.Coeffs[u], cwNTT, c0QP.Q.Coeffs[u])
-						s.MulCoeffsMontgomeryThenAdd(el.Value[i][j].Value[1].Q.Coeffs[u], cwNTT, c1QP.Q.Coeffs[u])
+						s.MulCoeffsMontgomeryThenAdd(el.Value[i][j][0].Q.Coeffs[u], cwNTT, c0QP.Q.Coeffs[u])
+						s.MulCoeffsMontgomeryThenAdd(el.Value[i][j][1].Q.Coeffs[u], cwNTT, c1QP.Q.Coeffs[u])
 					}
 
 					if ringP != nil {
 						for u, s := range ringP.SubRings[:levelP+1] {
 							s.NTTLazy(cw, cwNTT)
-							s.MulCoeffsMontgomeryThenAdd(el.Value[i][j].Value[0].P.Coeffs[u], cwNTT, c0QP.P.Coeffs[u])
-							s.MulCoeffsMontgomeryThenAdd(el.Value[i][j].Value[1].P.Coeffs[u], cwNTT, c1QP.P.Coeffs[u])
+							s.MulCoeffsMontgomeryThenAdd(el.Value[i][j][0].P.Coeffs[u], cwNTT, c0QP.P.Coeffs[u])
+							s.MulCoeffsMontgomeryThenAdd(el.Value[i][j][1].P.Coeffs[u], cwNTT, c1QP.P.Coeffs[u])
 						}
 					}
 				}
@@ -218,11 +218,11 @@ func (eval *Evaluator) externalProductInPlaceMultipleP(levelQ, levelP int, ct0 *
 			eval.DecomposeSingleNTT(levelQ, levelP, levelP+1, i, c2NTT, c2InvNTT, c2QP.Q, c2QP.P)
 
 			if k == 0 && i == 0 {
-				ringQP.MulCoeffsMontgomeryLazy(&el.Value[i][0].Value[0], &c2QP, &c0QP)
-				ringQP.MulCoeffsMontgomeryLazy(&el.Value[i][0].Value[1], &c2QP, &c1QP)
+				ringQP.MulCoeffsMontgomeryLazy(&el.Value[i][0][0], &c2QP, &c0QP)
+				ringQP.MulCoeffsMontgomeryLazy(&el.Value[i][0][1], &c2QP, &c1QP)
 			} else {
-				ringQP.MulCoeffsMontgomeryLazyThenAddLazy(&el.Value[i][0].Value[0], &c2QP, &c0QP)
-				ringQP.MulCoeffsMontgomeryLazyThenAddLazy(&el.Value[i][0].Value[1], &c2QP, &c1QP)
+				ringQP.MulCoeffsMontgomeryLazyThenAddLazy(&el.Value[i][0][0], &c2QP, &c0QP)
+				ringQP.MulCoeffsMontgomeryLazyThenAddLazy(&el.Value[i][0][1], &c2QP, &c1QP)
 			}
 
 			if reduce%QiOverF == QiOverF-1 {
@@ -271,18 +271,18 @@ func AddLazy(op interface{}, ringQP ringqp.Ring, ctOut *Ciphertext) {
 					end = nQ
 				}
 				for k := start; k < end; k++ {
-					s.AddLazy(ctOut.Value[0].Value[i][j].Value[0].Q.Coeffs[k], el.Value[j].Coeffs[k], ctOut.Value[0].Value[i][j].Value[0].Q.Coeffs[k])
-					s.AddLazy(ctOut.Value[1].Value[i][j].Value[1].Q.Coeffs[k], el.Value[j].Coeffs[k], ctOut.Value[1].Value[i][j].Value[1].Q.Coeffs[k])
+					s.AddLazy(ctOut.Value[0].Value[i][j][0].Q.Coeffs[k], el.Value[j].Coeffs[k], ctOut.Value[0].Value[i][j][0].Q.Coeffs[k])
+					s.AddLazy(ctOut.Value[1].Value[i][j][1].Q.Coeffs[k], el.Value[j].Coeffs[k], ctOut.Value[1].Value[i][j][1].Q.Coeffs[k])
 				}
 			}
 		}
 	case *Ciphertext:
 		for i := range el.Value[0].Value {
 			for j := range el.Value[0].Value[i] {
-				ringQP.AddLazy(&ctOut.Value[0].Value[i][j].Value[0], &el.Value[0].Value[i][j].Value[0], &ctOut.Value[0].Value[i][j].Value[0])
-				ringQP.AddLazy(&ctOut.Value[0].Value[i][j].Value[1], &el.Value[0].Value[i][j].Value[1], &ctOut.Value[0].Value[i][j].Value[1])
-				ringQP.AddLazy(&ctOut.Value[1].Value[i][j].Value[0], &el.Value[1].Value[i][j].Value[0], &ctOut.Value[1].Value[i][j].Value[0])
-				ringQP.AddLazy(&ctOut.Value[1].Value[i][j].Value[1], &el.Value[1].Value[i][j].Value[1], &ctOut.Value[1].Value[i][j].Value[1])
+				ringQP.AddLazy(&ctOut.Value[0].Value[i][j][0], &el.Value[0].Value[i][j][0], &ctOut.Value[0].Value[i][j][0])
+				ringQP.AddLazy(&ctOut.Value[0].Value[i][j][1], &el.Value[0].Value[i][j][1], &ctOut.Value[0].Value[i][j][1])
+				ringQP.AddLazy(&ctOut.Value[1].Value[i][j][0], &el.Value[1].Value[i][j][0], &ctOut.Value[1].Value[i][j][0])
+				ringQP.AddLazy(&ctOut.Value[1].Value[i][j][1], &el.Value[1].Value[i][j][1], &ctOut.Value[1].Value[i][j][1])
 			}
 		}
 	default:
@@ -294,10 +294,10 @@ func AddLazy(op interface{}, ringQP ringqp.Ring, ctOut *Ciphertext) {
 func Reduce(ctIn *Ciphertext, ringQP ringqp.Ring, ctOut *Ciphertext) {
 	for i := range ctIn.Value[0].Value {
 		for j := range ctIn.Value[0].Value[i] {
-			ringQP.Reduce(&ctIn.Value[0].Value[i][j].Value[0], &ctOut.Value[0].Value[i][j].Value[0])
-			ringQP.Reduce(&ctIn.Value[0].Value[i][j].Value[1], &ctOut.Value[0].Value[i][j].Value[1])
-			ringQP.Reduce(&ctIn.Value[1].Value[i][j].Value[0], &ctOut.Value[1].Value[i][j].Value[0])
-			ringQP.Reduce(&ctIn.Value[1].Value[i][j].Value[1], &ctOut.Value[1].Value[i][j].Value[1])
+			ringQP.Reduce(&ctIn.Value[0].Value[i][j][0], &ctOut.Value[0].Value[i][j][0])
+			ringQP.Reduce(&ctIn.Value[0].Value[i][j][1], &ctOut.Value[0].Value[i][j][1])
+			ringQP.Reduce(&ctIn.Value[1].Value[i][j][0], &ctOut.Value[1].Value[i][j][0])
+			ringQP.Reduce(&ctIn.Value[1].Value[i][j][1], &ctOut.Value[1].Value[i][j][1])
 		}
 	}
 }
@@ -306,10 +306,10 @@ func Reduce(ctIn *Ciphertext, ringQP ringqp.Ring, ctOut *Ciphertext) {
 func MulByXPowAlphaMinusOneLazy(ctIn *Ciphertext, powXMinusOne ringqp.Poly, ringQP ringqp.Ring, ctOut *Ciphertext) {
 	for i := range ctIn.Value[0].Value {
 		for j := range ctIn.Value[0].Value[i] {
-			ringQP.MulCoeffsMontgomeryLazy(&ctIn.Value[0].Value[i][j].Value[0], &powXMinusOne, &ctOut.Value[0].Value[i][j].Value[0])
-			ringQP.MulCoeffsMontgomeryLazy(&ctIn.Value[0].Value[i][j].Value[1], &powXMinusOne, &ctOut.Value[0].Value[i][j].Value[1])
-			ringQP.MulCoeffsMontgomeryLazy(&ctIn.Value[1].Value[i][j].Value[0], &powXMinusOne, &ctOut.Value[1].Value[i][j].Value[0])
-			ringQP.MulCoeffsMontgomeryLazy(&ctIn.Value[1].Value[i][j].Value[1], &powXMinusOne, &ctOut.Value[1].Value[i][j].Value[1])
+			ringQP.MulCoeffsMontgomeryLazy(&ctIn.Value[0].Value[i][j][0], &powXMinusOne, &ctOut.Value[0].Value[i][j][0])
+			ringQP.MulCoeffsMontgomeryLazy(&ctIn.Value[0].Value[i][j][1], &powXMinusOne, &ctOut.Value[0].Value[i][j][1])
+			ringQP.MulCoeffsMontgomeryLazy(&ctIn.Value[1].Value[i][j][0], &powXMinusOne, &ctOut.Value[1].Value[i][j][0])
+			ringQP.MulCoeffsMontgomeryLazy(&ctIn.Value[1].Value[i][j][1], &powXMinusOne, &ctOut.Value[1].Value[i][j][1])
 		}
 	}
 }
@@ -318,10 +318,10 @@ func MulByXPowAlphaMinusOneLazy(ctIn *Ciphertext, powXMinusOne ringqp.Poly, ring
 func MulByXPowAlphaMinusOneThenAddLazy(ctIn *Ciphertext, powXMinusOne ringqp.Poly, ringQP ringqp.Ring, ctOut *Ciphertext) {
 	for i := range ctIn.Value[0].Value {
 		for j := range ctIn.Value[0].Value[i] {
-			ringQP.MulCoeffsMontgomeryLazyThenAddLazy(&ctIn.Value[0].Value[i][j].Value[0], &powXMinusOne, &ctOut.Value[0].Value[i][j].Value[0])
-			ringQP.MulCoeffsMontgomeryLazyThenAddLazy(&ctIn.Value[0].Value[i][j].Value[1], &powXMinusOne, &ctOut.Value[0].Value[i][j].Value[1])
-			ringQP.MulCoeffsMontgomeryLazyThenAddLazy(&ctIn.Value[1].Value[i][j].Value[0], &powXMinusOne, &ctOut.Value[1].Value[i][j].Value[0])
-			ringQP.MulCoeffsMontgomeryLazyThenAddLazy(&ctIn.Value[1].Value[i][j].Value[1], &powXMinusOne, &ctOut.Value[1].Value[i][j].Value[1])
+			ringQP.MulCoeffsMontgomeryLazyThenAddLazy(&ctIn.Value[0].Value[i][j][0], &powXMinusOne, &ctOut.Value[0].Value[i][j][0])
+			ringQP.MulCoeffsMontgomeryLazyThenAddLazy(&ctIn.Value[0].Value[i][j][1], &powXMinusOne, &ctOut.Value[0].Value[i][j][1])
+			ringQP.MulCoeffsMontgomeryLazyThenAddLazy(&ctIn.Value[1].Value[i][j][0], &powXMinusOne, &ctOut.Value[1].Value[i][j][0])
+			ringQP.MulCoeffsMontgomeryLazyThenAddLazy(&ctIn.Value[1].Value[i][j][1], &powXMinusOne, &ctOut.Value[1].Value[i][j][1])
 		}
 	}
 }

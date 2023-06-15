@@ -380,7 +380,7 @@ func (p Parameters) XsHammingWeight() int {
 		if xs.H != 0 {
 			return xs.H
 		} else {
-			return int(math.Ceil(float64(p.N()) * (1 - xs.P)))
+			return int(math.Ceil(float64(p.N()) * xs.P))
 		}
 	case ring.DiscreteGaussian:
 		return int(math.Ceil(float64(p.N()) * float64(xs.Sigma) * math.Sqrt(2.0/math.Pi)))

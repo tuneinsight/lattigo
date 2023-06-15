@@ -35,33 +35,6 @@ type DumDum struct {
 	B float64
 }
 
-func TestParameters(t *testing.T) {
-
-	b, err := json.Marshal(ParametersLiteral{
-		LogN: 10,
-		LogQ: []int{30, 40, 60},
-		LogP: []int{30},
-		Xe:   ring.DiscreteGaussian{Sigma: 3.14, Bound: 12},
-		Xs:   ring.Ternary{H: 128},
-	})
-	fmt.Println(string(b))
-	fmt.Println(err)
-
-	var p ParametersLiteral
-	err = json.Unmarshal(b, &p)
-	fmt.Println(p)
-	fmt.Println(err)
-
-	s, err := json.Marshal(p)
-	fmt.Println(string(s))
-	fmt.Println(err)
-
-	params, err := NewParametersFromLiteral(p)
-	fmt.Println(err)
-	fmt.Println(LatticeEstimatorSageMathCell(params))
-
-}
-
 func TestRLWE(t *testing.T) {
 
 	var err error

@@ -638,7 +638,8 @@ func main() {
 	// Then we generate the corresponding Galois keys.
 	// The list of Galois elements can also be obtained with `linTransf.GaloisElements`
 	galEls = params.GaloisElementsForLinearTransform(nonZeroDiagonales, LogBSGSRatio, LogSlots)
-	eval = eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, kgen.GenGaloisKeysNew(galEls, sk)...))
+	gks = kgen.GenGaloisKeysNew(galEls, sk)
+	eval = eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, gks...))
 
 	// And we valuate the linear transform
 	eval.LinearTransform(ct1, linTransf, []*rlwe.Ciphertext{res})

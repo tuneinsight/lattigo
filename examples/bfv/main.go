@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"math"
 	"math/bits"
@@ -11,6 +12,8 @@ import (
 	"github.com/tuneinsight/lattigo/v4/bfv"
 	"github.com/tuneinsight/lattigo/v4/ring"
 )
+
+var flagShort = flag.Bool("short", false, "run the example with a smaller and insecure ring degree.")
 
 func obliviousRiding() {
 
@@ -49,6 +52,9 @@ func obliviousRiding() {
 
 	// Number of drivers in the area
 	nbDrivers := 2048 //max is N
+	if *flagShort {
+		nbDrivers = 512
+	}
 
 	// BFV parameters (128 bit security) with plaintext modulus 65929217
 	// Creating encryption parameters from a default params with logN=14, logQP=438 with a plaintext modulus T=65929217
@@ -197,5 +203,6 @@ func distance(a, b, c, d uint64) uint64 {
 }
 
 func main() {
+	flag.Parse()
 	obliviousRiding()
 }

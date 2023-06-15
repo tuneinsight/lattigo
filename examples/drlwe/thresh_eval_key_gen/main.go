@@ -304,7 +304,8 @@ func main() {
 	// collects the results in an EvaluationKeySet
 	gks := []*rlwe.GaloisKey{}
 	for task := range C.finDone {
-		gks = append(gks, &task)
+		gk := task
+		gks = append(gks, &gk)
 	}
 	evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
 

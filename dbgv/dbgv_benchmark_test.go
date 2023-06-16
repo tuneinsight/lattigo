@@ -13,7 +13,7 @@ func BenchmarkDBGV(b *testing.B) {
 
 	var err error
 
-	paramsLiterals := bgv.TestParams
+	paramsLiterals := testParams
 
 	if *flagParamString != "" {
 		var jsonParams bgv.ParametersLiteral
@@ -25,7 +25,7 @@ func BenchmarkDBGV(b *testing.B) {
 
 	for _, p := range paramsLiterals {
 
-		for _, plaintextModulus := range bgv.TestPlaintextModulus[:] {
+		for _, plaintextModulus := range testPlaintextModulus[:] {
 
 			p.T = plaintextModulus
 
@@ -54,9 +54,9 @@ func benchRefresh(tc *testContext, b *testing.B) {
 	maxLevel := tc.params.MaxLevel()
 
 	type Party struct {
-		*RefreshProtocol
+		RefreshProtocol
 		s     *rlwe.SecretKey
-		share *drlwe.RefreshShare
+		share drlwe.RefreshShare
 	}
 
 	p := new(Party)
@@ -71,14 +71,14 @@ func benchRefresh(tc *testContext, b *testing.B) {
 	b.Run(GetTestName("Refresh/Round1/Gen", tc.params, tc.NParties), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.GenShare(p.s, ciphertext, ciphertext.PlaintextScale, crp, p.share)
+			p.GenShare(p.s, ciphertext, ciphertext.PlaintextScale, crp, &p.share)
 		}
 	})
 
 	b.Run(GetTestName("Refresh/Round1/Agg", tc.params, tc.NParties), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.AggregateShares(p.share, p.share, p.share)
+			p.AggregateShares(&p.share, &p.share, &p.share)
 		}
 	})
 

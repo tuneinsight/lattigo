@@ -15,7 +15,7 @@ func BenchmarkRLWE(b *testing.B) {
 
 	var err error
 
-	defaultParamsLiteral := TestParamsLiteral[:1]
+	defaultParamsLiteral := testParamsLiteral
 
 	if *flagParamString != "" {
 		var jsonParams ParametersLiteral

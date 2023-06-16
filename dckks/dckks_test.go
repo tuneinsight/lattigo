@@ -73,7 +73,7 @@ func TestDCKKS(t *testing.T) {
 			t.Fatal(err)
 		}
 	default:
-		testParams = ckks.TestParamsLiteral
+		testParams = testParamsLiteral
 	}
 
 	for _, ringType := range []ring.Type{ring.Standard, ring.ConjugateInvariant} {
@@ -164,12 +164,12 @@ func testEncToShareProtocol(tc *testContext, t *testing.T) {
 		}
 
 		type Party struct {
-			e2s            *EncToShareProtocol
-			s2e            *ShareToEncProtocol
+			e2s            EncToShareProtocol
+			s2e            ShareToEncProtocol
 			sk             *rlwe.SecretKey
-			publicShareE2S *drlwe.KeySwitchShare
-			publicShareS2E *drlwe.KeySwitchShare
-			secretShare    *drlwe.AdditiveShareBigint
+			publicShareE2S drlwe.KeySwitchShare
+			publicShareS2E drlwe.KeySwitchShare
+			secretShare    drlwe.AdditiveShareBigint
 		}
 
 		coeffs, _, ciphertext := newTestVectors(tc, tc.encryptorPk0, -1, 1)
@@ -189,16 +189,16 @@ func testEncToShareProtocol(tc *testContext, t *testing.T) {
 
 		for i, p := range P {
 			// Enc(-M_i)
-			p.e2s.GenShare(p.sk, logBound, ciphertext, p.secretShare, p.publicShareE2S)
+			p.e2s.GenShare(p.sk, logBound, ciphertext, &p.secretShare, &p.publicShareE2S)
 
 			if i > 0 {
 				// Enc(sum(-M_i))
-				p.e2s.AggregateShares(P[0].publicShareE2S, p.publicShareE2S, P[0].publicShareE2S)
+				p.e2s.AggregateShares(&P[0].publicShareE2S, &p.publicShareE2S, &P[0].publicShareE2S)
 			}
 		}
 
 		// sum(-M_i) + x
-		P[0].e2s.GetShare(P[0].secretShare, P[0].publicShareE2S, ciphertext, P[0].secretShare)
+		P[0].e2s.GetShare(&P[0].secretShare, P[0].publicShareE2S, ciphertext, &P[0].secretShare)
 
 		// sum(-M_i) + x + sum(M_i) = x
 		rec := NewAdditiveShare(params, ciphertext.PlaintextLogSlots())
@@ -221,9 +221,9 @@ func testEncToShareProtocol(tc *testContext, t *testing.T) {
 		crp := P[0].s2e.SampleCRP(params.MaxLevel(), tc.crs)
 
 		for i, p := range P {
-			p.s2e.GenShare(p.sk, crp, ciphertext.MetaData, p.secretShare, p.publicShareS2E)
+			p.s2e.GenShare(p.sk, crp, ciphertext.MetaData, p.secretShare, &p.publicShareS2E)
 			if i > 0 {
-				p.s2e.AggregateShares(P[0].publicShareS2E, p.publicShareS2E, P[0].publicShareS2E)
+				p.s2e.AggregateShares(&P[0].publicShareS2E, &p.publicShareS2E, &P[0].publicShareS2E)
 			}
 		}
 
@@ -253,9 +253,9 @@ func testRefresh(tc *testContext, t *testing.T) {
 		}
 
 		type Party struct {
-			*RefreshProtocol
+			RefreshProtocol
 			s     *rlwe.SecretKey
-			share *drlwe.RefreshShare
+			share drlwe.RefreshShare
 		}
 
 		levelIn := minLevel
@@ -288,10 +288,10 @@ func testRefresh(tc *testContext, t *testing.T) {
 
 				for i, p := range RefreshParties {
 
-					p.GenShare(p.s, logBound, ciphertext, crp, p.share)
+					p.GenShare(p.s, logBound, ciphertext, crp, &p.share)
 
 					if i > 0 {
-						P0.AggregateShares(p.share, P0.share, P0.share)
+						P0.AggregateShares(&p.share, &P0.share, &P0.share)
 					}
 				}
 
@@ -322,9 +322,9 @@ func testRefreshAndTransform(tc *testContext, t *testing.T) {
 		}
 
 		type Party struct {
-			*MaskedTransformProtocol
+			MaskedTransformProtocol
 			s     *rlwe.SecretKey
-			share *drlwe.RefreshShare
+			share drlwe.RefreshShare
 		}
 
 		coeffs, _, ciphertext := newTestVectors(tc, encryptorPk0, -1, 1)
@@ -368,10 +368,10 @@ func testRefreshAndTransform(tc *testContext, t *testing.T) {
 		}
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.s, p.s, logBound, ciphertext, crp, transform, p.share)
+			p.GenShare(p.s, p.s, logBound, ciphertext, crp, transform, &p.share)
 
 			if i > 0 {
-				P0.AggregateShares(p.share, P0.share, P0.share)
+				P0.AggregateShares(&p.share, &P0.share, &P0.share)
 			}
 		}
 
@@ -404,10 +404,10 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 		}
 
 		type Party struct {
-			*MaskedTransformProtocol
+			MaskedTransformProtocol
 			sIn   *rlwe.SecretKey
 			sOut  *rlwe.SecretKey
-			share *drlwe.RefreshShare
+			share drlwe.RefreshShare
 		}
 
 		coeffs, _, ciphertext := newTestVectors(tc, encryptorPk0, -1, 1)
@@ -471,10 +471,10 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 		}
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.sIn, p.sOut, logBound, ciphertext, crp, transform, p.share)
+			p.GenShare(p.sIn, p.sOut, logBound, ciphertext, crp, transform, &p.share)
 
 			if i > 0 {
-				P0.AggregateShares(p.share, P0.share, P0.share)
+				P0.AggregateShares(&p.share, &P0.share, &P0.share)
 			}
 		}
 

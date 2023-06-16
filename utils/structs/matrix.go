@@ -57,7 +57,7 @@ func (m Matrix[T]) BinarySize() (size int) {
 //     io.Writer in a pre-allocated bufio.Writer.
 //   - When writing to a pre-allocated var b []byte, it is preferable to pass
 //     buffer.NewBuffer(b) as w (see lattigo/utils/buffer/buffer.go).
-func (m *Matrix[T]) WriteTo(w io.Writer) (n int64, err error) {
+func (m Matrix[T]) WriteTo(w io.Writer) (n int64, err error) {
 
 	if w, isWritable := any(new(T)).(io.WriterTo); !isWritable {
 		return 0, fmt.Errorf("vector component of type %T does not comply to %T", new(T), w)
@@ -67,12 +67,12 @@ func (m *Matrix[T]) WriteTo(w io.Writer) (n int64, err error) {
 	case buffer.Writer:
 
 		var inc int
-		if inc, err = buffer.WriteInt(w, len(*m)); err != nil {
+		if inc, err = buffer.WriteInt(w, len(m)); err != nil {
 			return int64(inc), err
 		}
 		n += int64(inc)
 
-		for _, v := range *m {
+		for _, v := range m {
 			vec := Vector[T](v)
 			inc, err := vec.WriteTo(w)
 			n += int64(inc)
@@ -135,7 +135,7 @@ func (m *Matrix[T]) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
-func (m *Matrix[T]) MarshalBinary() (p []byte, err error) {
+func (m Matrix[T]) MarshalBinary() (p []byte, err error) {
 	buf := buffer.NewBufferSize(m.BinarySize())
 	_, err = m.WriteTo(buf)
 	return buf.Bytes(), err
@@ -146,4 +146,20 @@ func (m *Matrix[T]) MarshalBinary() (p []byte, err error) {
 func (m *Matrix[T]) UnmarshalBinary(p []byte) (err error) {
 	_, err = m.ReadFrom(buffer.NewBuffer(p))
 	return
+}
+
+func (m Matrix[T]) Equal(other Matrix[T]) bool {
+
+	if d, isEquatable := any(new(T)).(Equatable[T]); !isEquatable {
+		panic(fmt.Errorf("matrix component of type %T does not comply to %T", new(T), d))
+	}
+
+	isEqual := true
+	for i := range m {
+		for j := range m[i] {
+			isEqual = isEqual && any(&m[i][j]).(Equatable[T]).Equal(&other[i][j])
+		}
+	}
+
+	return isEqual
 }

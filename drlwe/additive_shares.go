@@ -19,12 +19,12 @@ type AdditiveShareBigint struct {
 
 // NewAdditiveShare instantiates a new additive share struct for the ring defined
 // by the given parameters at maximum level.
-func NewAdditiveShare(r *ring.Ring) *AdditiveShare {
-	return &AdditiveShare{Value: *r.NewPoly()}
+func NewAdditiveShare(r *ring.Ring) AdditiveShare {
+	return AdditiveShare{Value: *r.NewPoly()}
 }
 
 // NewAdditiveShareBigint instantiates a new additive share struct composed of "2^logslots" big.Int elements.
-func NewAdditiveShareBigint(logSlots int) *AdditiveShareBigint {
+func NewAdditiveShareBigint(logSlots int) AdditiveShareBigint {
 
 	n := 1 << logSlots
 
@@ -32,5 +32,5 @@ func NewAdditiveShareBigint(logSlots int) *AdditiveShareBigint {
 	for i := range v {
 		v[i] = new(big.Int)
 	}
-	return &AdditiveShareBigint{Value: v}
+	return AdditiveShareBigint{Value: v}
 }

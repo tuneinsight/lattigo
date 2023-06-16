@@ -58,9 +58,9 @@ type ShamirSecretShare struct {
 }
 
 // NewThresholdizer creates a new Thresholdizer instance from parameters.
-func NewThresholdizer(params rlwe.Parameters) *Thresholdizer {
+func NewThresholdizer(params rlwe.Parameters) Thresholdizer {
 
-	thr := new(Thresholdizer)
+	thr := Thresholdizer{}
 	thr.params = &params
 	thr.ringQP = params.RingQP()
 
@@ -76,9 +76,9 @@ func NewThresholdizer(params rlwe.Parameters) *Thresholdizer {
 
 // GenShamirPolynomial generates a new secret ShamirPolynomial to be used in the Thresholdizer.GenShamirSecretShare method.
 // It does so by sampling a random polynomial of degree threshold - 1 and with its constant term equal to secret.
-func (thr *Thresholdizer) GenShamirPolynomial(threshold int, secret *rlwe.SecretKey) (*ShamirPolynomial, error) {
+func (thr Thresholdizer) GenShamirPolynomial(threshold int, secret *rlwe.SecretKey) (ShamirPolynomial, error) {
 	if threshold < 1 {
-		return nil, fmt.Errorf("threshold should be >= 1")
+		return ShamirPolynomial{}, fmt.Errorf("threshold should be >= 1")
 	}
 	gen := make([]ringqp.Poly, int(threshold))
 	gen[0] = *secret.Value.CopyNew()
@@ -87,22 +87,22 @@ func (thr *Thresholdizer) GenShamirPolynomial(threshold int, secret *rlwe.Secret
 		thr.usampler.Read(&gen[i])
 	}
 
-	return &ShamirPolynomial{Value: structs.Vector[ringqp.Poly](gen)}, nil
+	return ShamirPolynomial{Value: structs.Vector[ringqp.Poly](gen)}, nil
 }
 
 // AllocateThresholdSecretShare allocates a ShamirSecretShare struct.
-func (thr *Thresholdizer) AllocateThresholdSecretShare() *ShamirSecretShare {
-	return &ShamirSecretShare{*thr.ringQP.NewPoly()}
+func (thr Thresholdizer) AllocateThresholdSecretShare() ShamirSecretShare {
+	return ShamirSecretShare{*thr.ringQP.NewPoly()}
 }
 
 // GenShamirSecretShare generates a secret share for the given recipient, identified by its ShamirPublicPoint.
 // The result is stored in ShareOut and should be sent to this party.
-func (thr *Thresholdizer) GenShamirSecretShare(recipient ShamirPublicPoint, secretPoly *ShamirPolynomial, shareOut *ShamirSecretShare) {
+func (thr Thresholdizer) GenShamirSecretShare(recipient ShamirPublicPoint, secretPoly ShamirPolynomial, shareOut *ShamirSecretShare) {
 	thr.ringQP.EvalPolyScalar(secretPoly.Value, uint64(recipient), &shareOut.Poly)
 }
 
 // AggregateShares aggregates two ShamirSecretShare and stores the result in outShare.
-func (thr *Thresholdizer) AggregateShares(share1, share2, outShare *ShamirSecretShare) {
+func (thr Thresholdizer) AggregateShares(share1, share2, outShare *ShamirSecretShare) {
 	if share1.LevelQ() != share2.LevelQ() || share1.LevelQ() != outShare.LevelQ() || share1.LevelP() != share2.LevelP() || share1.LevelP() != outShare.LevelP() {
 		panic("shares level do not match")
 	}
@@ -111,8 +111,8 @@ func (thr *Thresholdizer) AggregateShares(share1, share2, outShare *ShamirSecret
 
 // NewCombiner creates a new Combiner struct from the parameters and the set of ShamirPublicPoints. Note that the other
 // parameter may contain the instantiator's own ShamirPublicPoint.
-func NewCombiner(params rlwe.Parameters, own ShamirPublicPoint, others []ShamirPublicPoint, threshold int) *Combiner {
-	cmb := new(Combiner)
+func NewCombiner(params rlwe.Parameters, own ShamirPublicPoint, others []ShamirPublicPoint, threshold int) Combiner {
+	cmb := Combiner{}
 	cmb.ringQP = params.RingQP()
 	cmb.threshold = threshold
 	cmb.tmp1, cmb.tmp2 = cmb.ringQP.NewRNSScalar(), cmb.ringQP.NewRNSScalar()
@@ -142,7 +142,7 @@ func NewCombiner(params rlwe.Parameters, own ShamirPublicPoint, others []ShamirP
 
 // GenAdditiveShare generates a t-out-of-t additive share of the secret from a local aggregated share ownSecret and the set of active identities, identified
 // by their ShamirPublicPoint. It stores the resulting additive share in skOut.
-func (cmb *Combiner) GenAdditiveShare(activesPoints []ShamirPublicPoint, ownPoint ShamirPublicPoint, ownShare *ShamirSecretShare, skOut *rlwe.SecretKey) {
+func (cmb Combiner) GenAdditiveShare(activesPoints []ShamirPublicPoint, ownPoint ShamirPublicPoint, ownShare ShamirSecretShare, skOut *rlwe.SecretKey) {
 
 	if len(activesPoints) < cmb.threshold {
 		panic("cannot GenAdditiveShare: Not enough active players to combine threshold shares.")
@@ -162,7 +162,7 @@ func (cmb *Combiner) GenAdditiveShare(activesPoints []ShamirPublicPoint, ownPoin
 	cmb.ringQP.MulRNSScalarMontgomery(&ownShare.Poly, prod, &skOut.Value)
 }
 
-func (cmb *Combiner) lagrangeCoeff(thisKey ShamirPublicPoint, thatKey ShamirPublicPoint, lagCoeff []uint64) {
+func (cmb Combiner) lagrangeCoeff(thisKey ShamirPublicPoint, thatKey ShamirPublicPoint, lagCoeff []uint64) {
 
 	this := cmb.ringQP.NewRNSScalarFromUInt64(uint64(thisKey))
 	that := cmb.ringQP.NewRNSScalarFromUInt64(uint64(thatKey))
@@ -175,7 +175,7 @@ func (cmb *Combiner) lagrangeCoeff(thisKey ShamirPublicPoint, thatKey ShamirPubl
 }
 
 // BinarySize returns the serialized size of the object in bytes.
-func (s *ShamirSecretShare) BinarySize() int {
+func (s ShamirSecretShare) BinarySize() int {
 	return s.Poly.BinarySize()
 }
 
@@ -190,7 +190,7 @@ func (s *ShamirSecretShare) BinarySize() int {
 //     io.Writer in a pre-allocated bufio.Writer.
 //   - When writing to a pre-allocated var b []byte, it is preferable to pass
 //     buffer.NewBuffer(b) as w (see lattigo/utils/buffer/buffer.go).
-func (s *ShamirSecretShare) WriteTo(w io.Writer) (n int64, err error) {
+func (s ShamirSecretShare) WriteTo(w io.Writer) (n int64, err error) {
 	return s.Poly.WriteTo(w)
 }
 
@@ -210,7 +210,7 @@ func (s *ShamirSecretShare) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
-func (s *ShamirSecretShare) MarshalBinary() (p []byte, err error) {
+func (s ShamirSecretShare) MarshalBinary() (p []byte, err error) {
 	return s.Poly.MarshalBinary()
 }
 

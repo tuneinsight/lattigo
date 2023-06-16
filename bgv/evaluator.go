@@ -718,8 +718,10 @@ func (eval *Evaluator) MulRelinInvariant(op0 *rlwe.Ciphertext, op1 interface{}, 
 	case rlwe.Operand:
 		switch op1.Degree() {
 		case 0:
+
 			eval.tensorStandard(op0, op1.El(), true, op2)
 		default:
+
 			eval.tensorInvariant(op0, op1.El(), true, op2)
 		}
 	case []uint64, []int64:

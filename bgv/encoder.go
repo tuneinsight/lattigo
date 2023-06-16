@@ -134,7 +134,7 @@ func (ecd *Encoder) Encode(values interface{}, pt *rlwe.Plaintext) (err error) {
 		case []uint64:
 
 			if len(values) > N {
-				return fmt.Errorf("cannto Encode (TimeDomain): len(values)=%d > N=%d", len(values), N)
+				return fmt.Errorf("cannot Encode (TimeDomain): len(values)=%d > N=%d", len(values), N)
 			}
 
 			copy(ptT, values)
@@ -142,7 +142,7 @@ func (ecd *Encoder) Encode(values interface{}, pt *rlwe.Plaintext) (err error) {
 		case []int64:
 
 			if len(values) > N {
-				return fmt.Errorf("cannto Encode (TimeDomain: len(values)=%d > N=%d", len(values), N)
+				return fmt.Errorf("cannot Encode (TimeDomain: len(values)=%d > N=%d", len(values), N)
 			}
 
 			var sign, abs uint64
@@ -192,7 +192,7 @@ func (ecd *Encoder) EncodeRingT(values interface{}, plaintextScale rlwe.Scale, p
 	case []uint64:
 
 		if len(values) > slots {
-			return fmt.Errorf("cannto EncodeRingT (FrequencyDomain): len(values)=%d > slots=%d", len(values), slots)
+			return fmt.Errorf("cannot EncodeRingT (FrequencyDomain): len(values)=%d > slots=%d", len(values), slots)
 		}
 
 		for i, c := range values {
@@ -206,7 +206,7 @@ func (ecd *Encoder) EncodeRingT(values interface{}, plaintextScale rlwe.Scale, p
 	case []int64:
 
 		if len(values) > slots {
-			return fmt.Errorf("cannto EncodeRingT (FrequencyDomain): len(values)=%d > slots=%d", len(values), slots)
+			return fmt.Errorf("cannot EncodeRingT (FrequencyDomain): len(values)=%d > slots=%d", len(values), slots)
 		}
 
 		T := ringT.SubRings[0].Modulus

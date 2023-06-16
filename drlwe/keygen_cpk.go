@@ -27,8 +27,8 @@ type PublicKeyGenCRP struct {
 }
 
 // NewPublicKeyGenProtocol creates a new PublicKeyGenProtocol instance
-func NewPublicKeyGenProtocol(params rlwe.Parameters) *PublicKeyGenProtocol {
-	ckg := new(PublicKeyGenProtocol)
+func NewPublicKeyGenProtocol(params rlwe.Parameters) PublicKeyGenProtocol {
+	ckg := PublicKeyGenProtocol{}
 	ckg.params = params
 	var err error
 	prng, err := sampling.NewPRNG()
@@ -40,13 +40,13 @@ func NewPublicKeyGenProtocol(params rlwe.Parameters) *PublicKeyGenProtocol {
 }
 
 // AllocateShare allocates the share of the PublicKeyGen protocol.
-func (ckg *PublicKeyGenProtocol) AllocateShare() *PublicKeyGenShare {
-	return &PublicKeyGenShare{*ckg.params.RingQP().NewPoly()}
+func (ckg PublicKeyGenProtocol) AllocateShare() PublicKeyGenShare {
+	return PublicKeyGenShare{*ckg.params.RingQP().NewPoly()}
 }
 
 // SampleCRP samples a common random polynomial to be used in the PublicKeyGen protocol from the provided
 // common reference string.
-func (ckg *PublicKeyGenProtocol) SampleCRP(crs CRS) PublicKeyGenCRP {
+func (ckg PublicKeyGenProtocol) SampleCRP(crs CRS) PublicKeyGenCRP {
 	crp := ckg.params.RingQP().NewPoly()
 	ringqp.NewUniformSampler(crs, *ckg.params.RingQP()).Read(crp)
 	return PublicKeyGenCRP{*crp}
@@ -57,7 +57,7 @@ func (ckg *PublicKeyGenProtocol) SampleCRP(crs CRS) PublicKeyGenCRP {
 // crp*s_i + e_i
 //
 // for the receiver protocol. Has no effect is the share was already generated.
-func (ckg *PublicKeyGenProtocol) GenShare(sk *rlwe.SecretKey, crp PublicKeyGenCRP, shareOut *PublicKeyGenShare) {
+func (ckg PublicKeyGenProtocol) GenShare(sk *rlwe.SecretKey, crp PublicKeyGenCRP, shareOut *PublicKeyGenShare) {
 	ringQP := ckg.params.RingQP()
 
 	ckg.gaussianSamplerQ.Read(shareOut.Value.Q)
@@ -73,12 +73,12 @@ func (ckg *PublicKeyGenProtocol) GenShare(sk *rlwe.SecretKey, crp PublicKeyGenCR
 }
 
 // AggregateShares aggregates a new share to the aggregate key
-func (ckg *PublicKeyGenProtocol) AggregateShares(share1, share2, shareOut *PublicKeyGenShare) {
+func (ckg PublicKeyGenProtocol) AggregateShares(share1, share2, shareOut *PublicKeyGenShare) {
 	ckg.params.RingQP().Add(&share1.Value, &share2.Value, &shareOut.Value)
 }
 
 // GenPublicKey return the current aggregation of the received shares as a bfv.PublicKey.
-func (ckg *PublicKeyGenProtocol) GenPublicKey(roundShare *PublicKeyGenShare, crp PublicKeyGenCRP, pubkey *rlwe.PublicKey) {
+func (ckg PublicKeyGenProtocol) GenPublicKey(roundShare PublicKeyGenShare, crp PublicKeyGenCRP, pubkey *rlwe.PublicKey) {
 	pubkey.Value[0].Copy(&roundShare.Value)
 	pubkey.Value[1].Copy(&crp.Value)
 }
@@ -86,17 +86,17 @@ func (ckg *PublicKeyGenProtocol) GenPublicKey(roundShare *PublicKeyGenShare, crp
 // ShallowCopy creates a shallow copy of PublicKeyGenProtocol in which all the read-only data-structures are
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // PublicKeyGenProtocol can be used concurrently.
-func (ckg *PublicKeyGenProtocol) ShallowCopy() *PublicKeyGenProtocol {
+func (ckg PublicKeyGenProtocol) ShallowCopy() PublicKeyGenProtocol {
 	prng, err := sampling.NewPRNG()
 	if err != nil {
 		panic(err)
 	}
 
-	return &PublicKeyGenProtocol{ckg.params, ring.NewSampler(prng, ckg.params.RingQ(), ckg.params.Xe(), false)}
+	return PublicKeyGenProtocol{ckg.params, ring.NewSampler(prng, ckg.params.RingQ(), ckg.params.Xe(), false)}
 }
 
 // BinarySize returns the serialized size of the object in bytes.
-func (share *PublicKeyGenShare) BinarySize() int {
+func (share PublicKeyGenShare) BinarySize() int {
 	return share.Value.BinarySize()
 }
 
@@ -111,7 +111,7 @@ func (share *PublicKeyGenShare) BinarySize() int {
 //     io.Writer in a pre-allocated bufio.Writer.
 //   - When writing to a pre-allocated var b []byte, it is preferable to pass
 //     buffer.NewBuffer(b) as w (see lattigo/utils/buffer/buffer.go).
-func (share *PublicKeyGenShare) WriteTo(w io.Writer) (n int64, err error) {
+func (share PublicKeyGenShare) WriteTo(w io.Writer) (n int64, err error) {
 	return share.Value.WriteTo(w)
 }
 
@@ -131,7 +131,7 @@ func (share *PublicKeyGenShare) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
-func (share *PublicKeyGenShare) MarshalBinary() (p []byte, err error) {
+func (share PublicKeyGenShare) MarshalBinary() (p []byte, err error) {
 	return share.Value.MarshalBinary()
 }
 

@@ -37,10 +37,10 @@ type party struct {
 	sk         *rlwe.SecretKey
 	rlkEphemSk *rlwe.SecretKey
 
-	ckgShare    *drlwe.PublicKeyGenShare
-	rkgShareOne *drlwe.RelinKeyGenShare
-	rkgShareTwo *drlwe.RelinKeyGenShare
-	pcksShare   *drlwe.PublicKeySwitchShare
+	ckgShare    drlwe.PublicKeyGenShare
+	rkgShareOne drlwe.RelinKeyGenShare
+	rkgShareTwo drlwe.RelinKeyGenShare
+	pcksShare   drlwe.PublicKeySwitchShare
 
 	input []uint64
 }
@@ -314,7 +314,7 @@ func pcksPhase(params bfv.Parameters, tpk *rlwe.PublicKey, encRes *rlwe.Cipherte
 	l.Println("> PublicKeySwitch Phase")
 	elapsedPCKSParty = runTimedParty(func() {
 		for _, pi := range P {
-			pcks.GenShare(pi.sk, tpk, encRes, pi.pcksShare)
+			pcks.GenShare(pi.sk, tpk, encRes, &pi.pcksShare)
 		}
 	}, len(P))
 
@@ -322,7 +322,7 @@ func pcksPhase(params bfv.Parameters, tpk *rlwe.PublicKey, encRes *rlwe.Cipherte
 	encOut = bfv.NewCiphertext(params, 1, params.MaxLevel())
 	elapsedPCKSCloud = runTimed(func() {
 		for _, pi := range P {
-			pcks.AggregateShares(pi.pcksShare, pcksCombined, pcksCombined)
+			pcks.AggregateShares(&pi.pcksShare, &pcksCombined, &pcksCombined)
 		}
 		pcks.KeySwitch(encRes, pcksCombined, encOut)
 
@@ -348,26 +348,26 @@ func rkgphase(params bfv.Parameters, crs sampling.PRNG, P []*party) *rlwe.Reline
 
 	elapsedRKGParty = runTimedParty(func() {
 		for _, pi := range P {
-			rkg.GenShareRoundOne(pi.sk, crp, pi.rlkEphemSk, pi.rkgShareOne)
+			rkg.GenShareRoundOne(pi.sk, crp, pi.rlkEphemSk, &pi.rkgShareOne)
 		}
 	}, len(P))
 
 	elapsedRKGCloud = runTimed(func() {
 		for _, pi := range P {
-			rkg.AggregateShares(pi.rkgShareOne, rkgCombined1, rkgCombined1)
+			rkg.AggregateShares(&pi.rkgShareOne, &rkgCombined1, &rkgCombined1)
 		}
 	})
 
 	elapsedRKGParty += runTimedParty(func() {
 		for _, pi := range P {
-			rkg.GenShareRoundTwo(pi.rlkEphemSk, pi.sk, rkgCombined1, pi.rkgShareTwo)
+			rkg.GenShareRoundTwo(pi.rlkEphemSk, pi.sk, rkgCombined1, &pi.rkgShareTwo)
 		}
 	}, len(P))
 
 	rlk := rlwe.NewRelinearizationKey(params.Parameters)
 	elapsedRKGCloud += runTimed(func() {
 		for _, pi := range P {
-			rkg.AggregateShares(pi.rkgShareTwo, rkgCombined2, rkgCombined2)
+			rkg.AggregateShares(&pi.rkgShareTwo, &rkgCombined2, &rkgCombined2)
 		}
 		rkg.GenRelinearizationKey(rkgCombined1, rkgCombined2, rlk)
 	})
@@ -393,7 +393,7 @@ func ckgphase(params bfv.Parameters, crs sampling.PRNG, P []*party) *rlwe.Public
 
 	elapsedCKGParty = runTimedParty(func() {
 		for _, pi := range P {
-			ckg.GenShare(pi.sk, crp, pi.ckgShare)
+			ckg.GenShare(pi.sk, crp, &pi.ckgShare)
 		}
 	}, len(P))
 
@@ -401,7 +401,7 @@ func ckgphase(params bfv.Parameters, crs sampling.PRNG, P []*party) *rlwe.Public
 
 	elapsedCKGCloud = runTimed(func() {
 		for _, pi := range P {
-			ckg.AggregateShares(pi.ckgShare, ckgCombined, ckgCombined)
+			ckg.AggregateShares(&pi.ckgShare, &ckgCombined, &ckgCombined)
 		}
 		ckg.GenPublicKey(ckgCombined, crp, pk)
 	})

@@ -29,7 +29,7 @@ type MaskedTransformProtocol struct {
 // ShallowCopy creates a shallow copy of MaskedTransformProtocol in which all the read-only data-structures are
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // MaskedTransformProtocol can be used concurrently.
-func (rfp *MaskedTransformProtocol) ShallowCopy() *MaskedTransformProtocol {
+func (rfp MaskedTransformProtocol) ShallowCopy() MaskedTransformProtocol {
 
 	params := rfp.e2s.params
 
@@ -38,9 +38,9 @@ func (rfp *MaskedTransformProtocol) ShallowCopy() *MaskedTransformProtocol {
 		tmpMask[i] = new(big.Int)
 	}
 
-	return &MaskedTransformProtocol{
-		e2s:          *rfp.e2s.ShallowCopy(),
-		s2e:          *rfp.s2e.ShallowCopy(),
+	return MaskedTransformProtocol{
+		e2s:          rfp.e2s.ShallowCopy(),
+		s2e:          rfp.s2e.ShallowCopy(),
 		prec:         rfp.prec,
 		defaultScale: rfp.defaultScale,
 		tmpMask:      tmpMask,
@@ -50,16 +50,16 @@ func (rfp *MaskedTransformProtocol) ShallowCopy() *MaskedTransformProtocol {
 
 // WithParams creates a shallow copy of the target MaskedTransformProtocol but with new output parameters.
 // The expected input parameters remain unchanged.
-func (rfp *MaskedTransformProtocol) WithParams(paramsOut ckks.Parameters) *MaskedTransformProtocol {
+func (rfp MaskedTransformProtocol) WithParams(paramsOut ckks.Parameters) MaskedTransformProtocol {
 
 	tmpMask := make([]*big.Int, rfp.e2s.params.N())
 	for i := range rfp.tmpMask {
 		tmpMask[i] = new(big.Int)
 	}
 
-	return &MaskedTransformProtocol{
-		e2s:          *rfp.e2s.ShallowCopy(),
-		s2e:          *NewShareToEncProtocol(paramsOut, rfp.noise),
+	return MaskedTransformProtocol{
+		e2s:          rfp.e2s.ShallowCopy(),
+		s2e:          NewShareToEncProtocol(paramsOut, rfp.noise),
 		prec:         rfp.prec,
 		defaultScale: rfp.defaultScale,
 		tmpMask:      tmpMask,
@@ -86,14 +86,14 @@ type MaskedTransformFunc struct {
 // paramsOut: the ckks.Parameters of the ciphertext after the protocol.
 // prec : the log2 of decimal precision of the internal encoder.
 // The method will return an error if the maximum number of slots of the output parameters is smaller than the number of slots of the input ciphertext.
-func NewMaskedTransformProtocol(paramsIn, paramsOut ckks.Parameters, prec uint, noise ring.DistributionParameters) (rfp *MaskedTransformProtocol, err error) {
+func NewMaskedTransformProtocol(paramsIn, paramsOut ckks.Parameters, prec uint, noise ring.DistributionParameters) (rfp MaskedTransformProtocol, err error) {
 
-	rfp = new(MaskedTransformProtocol)
+	rfp = MaskedTransformProtocol{}
 
 	rfp.noise = noise
 
-	rfp.e2s = *NewEncToShareProtocol(paramsIn, noise)
-	rfp.s2e = *NewShareToEncProtocol(paramsOut, noise)
+	rfp.e2s = NewEncToShareProtocol(paramsIn, noise)
+	rfp.s2e = NewShareToEncProtocol(paramsOut, noise)
 
 	rfp.prec = prec
 
@@ -111,13 +111,13 @@ func NewMaskedTransformProtocol(paramsIn, paramsOut ckks.Parameters, prec uint, 
 }
 
 // AllocateShare allocates the shares of the PermuteProtocol
-func (rfp *MaskedTransformProtocol) AllocateShare(levelDecrypt, levelRecrypt int) *drlwe.RefreshShare {
-	return &drlwe.RefreshShare{EncToShareShare: *rfp.e2s.AllocateShare(levelDecrypt), ShareToEncShare: *rfp.s2e.AllocateShare(levelRecrypt)}
+func (rfp MaskedTransformProtocol) AllocateShare(levelDecrypt, levelRecrypt int) drlwe.RefreshShare {
+	return drlwe.RefreshShare{EncToShareShare: rfp.e2s.AllocateShare(levelDecrypt), ShareToEncShare: rfp.s2e.AllocateShare(levelRecrypt)}
 }
 
 // SampleCRP samples a common random polynomial to be used in the Masked-Transform protocol from the provided
 // common reference string. The CRP is considered to be in the NTT domain.
-func (rfp *MaskedTransformProtocol) SampleCRP(level int, crs sampling.PRNG) drlwe.KeySwitchCRP {
+func (rfp MaskedTransformProtocol) SampleCRP(level int, crs sampling.PRNG) drlwe.KeySwitchCRP {
 	return rfp.s2e.SampleCRP(level, crs)
 }
 
@@ -130,7 +130,7 @@ func (rfp *MaskedTransformProtocol) SampleCRP(level int, crs sampling.PRNG) drlw
 // scale    : the scale of the ciphertext when entering the refresh.
 // The method "GetMinimumLevelForBootstrapping" should be used to get the minimum level at which the masked transform can be called while still ensure 128-bits of security, as well as the
 // value for logBound.
-func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, logBound uint, ct *rlwe.Ciphertext, crs drlwe.KeySwitchCRP, transform *MaskedTransformFunc, shareOut *drlwe.RefreshShare) {
+func (rfp MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, logBound uint, ct *rlwe.Ciphertext, crs drlwe.KeySwitchCRP, transform *MaskedTransformFunc, shareOut *drlwe.RefreshShare) {
 
 	ringQ := rfp.s2e.params.RingQ()
 
@@ -223,11 +223,11 @@ func (rfp *MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, logBou
 	}
 
 	// Returns [-a*s_i + LT(M_i) * diffscale + e] on ShareToEncShare
-	rfp.s2e.GenShare(skOut, crs, ct.MetaData, &drlwe.AdditiveShareBigint{Value: rfp.tmpMask}, &shareOut.ShareToEncShare)
+	rfp.s2e.GenShare(skOut, crs, ct.MetaData, drlwe.AdditiveShareBigint{Value: rfp.tmpMask}, &shareOut.ShareToEncShare)
 }
 
 // AggregateShares sums share1 and share2 on shareOut.
-func (rfp *MaskedTransformProtocol) AggregateShares(share1, share2, shareOut *drlwe.RefreshShare) {
+func (rfp MaskedTransformProtocol) AggregateShares(share1, share2, shareOut *drlwe.RefreshShare) {
 
 	if share1.EncToShareShare.Value.Level() != share2.EncToShareShare.Value.Level() || share1.EncToShareShare.Value.Level() != shareOut.EncToShareShare.Value.Level() {
 		panic("cannot AggregateShares: all e2s shares must be at the same level")
@@ -243,7 +243,7 @@ func (rfp *MaskedTransformProtocol) AggregateShares(share1, share2, shareOut *dr
 
 // Transform applies Decrypt, Recode and Recrypt on the input ciphertext.
 // The ciphertext scale is reset to the default scale.
-func (rfp *MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, transform *MaskedTransformFunc, crs drlwe.KeySwitchCRP, share *drlwe.RefreshShare, ciphertextOut *rlwe.Ciphertext) {
+func (rfp MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, transform *MaskedTransformFunc, crs drlwe.KeySwitchCRP, share drlwe.RefreshShare, ciphertextOut *rlwe.Ciphertext) {
 
 	if ct.Level() < share.EncToShareShare.Value.Level() {
 		panic("cannot Transform: input ciphertext level must be at least equal to e2s level")
@@ -266,7 +266,7 @@ func (rfp *MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, transform *Ma
 
 	// Returns -sum(M_i) + x (outside of the NTT domain)
 
-	rfp.e2s.GetShare(nil, &share.EncToShareShare, ct, &drlwe.AdditiveShareBigint{Value: rfp.tmpMask[:dslots]})
+	rfp.e2s.GetShare(nil, share.EncToShareShare, ct, &drlwe.AdditiveShareBigint{Value: rfp.tmpMask[:dslots]})
 
 	// Returns LT(-sum(M_i) + x)
 	if transform != nil {
@@ -355,7 +355,7 @@ func (rfp *MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, transform *Ma
 	ringQ.Add(&ciphertextOut.Value[0], &share.ShareToEncShare.Value, &ciphertextOut.Value[0])
 
 	// Copies the result on the out ciphertext
-	rfp.s2e.GetEncryption(&drlwe.KeySwitchShare{Value: ciphertextOut.Value[0]}, crs, ciphertextOut)
+	rfp.s2e.GetEncryption(drlwe.KeySwitchShare{Value: ciphertextOut.Value[0]}, crs, ciphertextOut)
 
 	ciphertextOut.MetaData = ct.MetaData
 	ciphertextOut.PlaintextScale = rfp.s2e.params.PlaintextScale()

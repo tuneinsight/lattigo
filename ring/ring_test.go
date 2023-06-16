@@ -2,7 +2,6 @@ package ring
 
 import (
 	"bytes"
-	"flag"
 	"fmt"
 	"math"
 	"math/big"
@@ -15,8 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
-
-var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters). Overrides -short and requires -timeout=0.")
 
 var T = uint64(0x3ee0001)
 var DefaultSigma = 3.2
@@ -56,13 +53,7 @@ func TestRing(t *testing.T) {
 
 	var err error
 
-	var defaultParams = DefaultParams[0:4] // the default test
-	if testing.Short() {
-		defaultParams = DefaultParams[0:2] // the short test suite
-	}
-	if *flagLongTest {
-		defaultParams = DefaultParams // the long test suite
-	}
+	var defaultParams = testParameters[:] // the default test
 
 	testNewRing(t)
 	testShift(t)

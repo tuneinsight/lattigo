@@ -33,14 +33,14 @@ import (
 
 // party represents a party in the scenario.
 type party struct {
-	*drlwe.GaloisKeyGenProtocol
-	*drlwe.Thresholdizer
-	*drlwe.Combiner
+	drlwe.GaloisKeyGenProtocol
+	drlwe.Thresholdizer
+	drlwe.Combiner
 
 	i        int
 	sk       *rlwe.SecretKey
-	tsk      *drlwe.ShamirSecretShare
-	ssp      *drlwe.ShamirPolynomial
+	tsk      drlwe.ShamirSecretShare
+	ssp      drlwe.ShamirPolynomial
 	shamirPk drlwe.ShamirPublicPoint
 
 	genTaskQueue chan genTask
@@ -48,7 +48,7 @@ type party struct {
 
 // cloud represents the cloud server assisting the parties.
 type cloud struct {
-	*drlwe.GaloisKeyGenProtocol
+	drlwe.GaloisKeyGenProtocol
 
 	aggTaskQueue chan genTaskResult
 	finDone      chan rlwe.GaloisKey
@@ -84,7 +84,7 @@ func (p *party) Run(wg *sync.WaitGroup, params rlwe.Parameters, N int, P []*part
 		for _, galEl := range task.galoisEls {
 			rtgShare := p.AllocateShare()
 
-			p.GenShare(sk, galEl, crp[galEl], rtgShare)
+			p.GenShare(sk, galEl, crp[galEl], &rtgShare)
 			C.aggTaskQueue <- genTaskResult{galEl: galEl, rtgShare: rtgShare}
 			nShares++
 			byteSent += len(rtgShare.Value) * len(rtgShare.Value[0]) * rtgShare.Value[0][0].BinarySize()
@@ -106,12 +106,12 @@ func (p *party) String() string {
 func (c *cloud) Run(galEls []uint64, params rlwe.Parameters, t int) {
 
 	shares := make(map[uint64]*struct {
-		share  *drlwe.GaloisKeyGenShare
+		share  drlwe.GaloisKeyGenShare
 		needed int
 	}, len(galEls))
 	for _, galEl := range galEls {
 		shares[galEl] = &struct {
-			share  *drlwe.GaloisKeyGenShare
+			share  drlwe.GaloisKeyGenShare
 			needed int
 		}{c.AllocateShare(), t}
 		shares[galEl].share.GaloisElement = galEl
@@ -123,7 +123,7 @@ func (c *cloud) Run(galEls []uint64, params rlwe.Parameters, t int) {
 	for task := range c.aggTaskQueue {
 		start := time.Now()
 		acc := shares[task.galEl]
-		c.GaloisKeyGenProtocol.AggregateShares(acc.share, task.rtgShare, acc.share)
+		c.GaloisKeyGenProtocol.AggregateShares(&acc.share, &task.rtgShare, &acc.share)
 		acc.needed--
 		if acc.needed == 0 {
 			gk := rlwe.NewGaloisKey(params)
@@ -143,18 +143,13 @@ var flagN = flag.Int("N", 3, "the number of parties")
 var flagT = flag.Int("t", 2, "the threshold")
 var flagO = flag.Int("o", 0, "the number of online parties")
 var flagK = flag.Int("k", 10, "number of rotation keys to generate")
-var flagDefaultParams = flag.Int("params", 1, "default param set to use")
 var flagJSONParams = flag.String("json", "", "the JSON encoded parameter set to use")
 
 func main() {
 
 	flag.Parse()
 
-	if *flagDefaultParams >= len(rlwe.TestParamsLiteral) {
-		panic("invalid default parameter set")
-	}
-
-	paramsLit := rlwe.TestParamsLiteral[*flagDefaultParams]
+	paramsLit := rlwe.ExampleParametersLogN14LogQP438
 
 	if *flagJSONParams != "" {
 		if err := json.Unmarshal([]byte(*flagJSONParams), &paramsLit); err != nil {
@@ -248,20 +243,22 @@ func main() {
 		}
 
 		fmt.Println("Performing threshold setup")
-		shares := make(map[*party]map[*party]*drlwe.ShamirSecretShare, len(P))
+		shares := make(map[*party]map[*party]drlwe.ShamirSecretShare, len(P))
 		for _, pi := range P {
 
-			shares[pi] = make(map[*party]*drlwe.ShamirSecretShare)
+			shares[pi] = make(map[*party]drlwe.ShamirSecretShare)
 
 			for _, pj := range P {
-				shares[pi][pj] = pi.AllocateThresholdSecretShare()
-				pi.GenShamirSecretShare(pj.shamirPk, pi.ssp, shares[pi][pj])
+				share := pi.AllocateThresholdSecretShare()
+				pi.GenShamirSecretShare(pj.shamirPk, pi.ssp, &share)
+				shares[pi][pj] = share
 			}
 		}
 
 		for _, pi := range P {
 			for _, pj := range P {
-				pi.Thresholdizer.AggregateShares(pi.tsk, shares[pj][pi], pi.tsk)
+				share := shares[pj][pi]
+				pi.Thresholdizer.AggregateShares(&pi.tsk, &share, &pi.tsk)
 			}
 		}
 	}
@@ -336,9 +333,8 @@ type genTask struct {
 }
 
 type genTaskResult struct {
-	galEl uint64
-
-	rtgShare *drlwe.GaloisKeyGenShare
+	galEl    uint64
+	rtgShare drlwe.GaloisKeyGenShare
 }
 
 func getTasks(galEls []uint64, groups [][]*party) []genTask {

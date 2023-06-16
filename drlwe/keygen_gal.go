@@ -34,7 +34,7 @@ type GaloisKeyGenCRP struct {
 // ShallowCopy creates a shallow copy of GaloisKeyGenProtocol in which all the read-only data-structures are
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // GaloisKeyGenProtocol can be used concurrently.
-func (gkg *GaloisKeyGenProtocol) ShallowCopy() *GaloisKeyGenProtocol {
+func (gkg *GaloisKeyGenProtocol) ShallowCopy() GaloisKeyGenProtocol {
 	prng, err := sampling.NewPRNG()
 	if err != nil {
 		panic(err)
@@ -42,7 +42,7 @@ func (gkg *GaloisKeyGenProtocol) ShallowCopy() *GaloisKeyGenProtocol {
 
 	params := gkg.params
 
-	return &GaloisKeyGenProtocol{
+	return GaloisKeyGenProtocol{
 		params:           gkg.params,
 		buff:             [2]*ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()},
 		gaussianSamplerQ: ring.NewSampler(prng, gkg.params.RingQ(), gkg.params.Xe(), false),
@@ -50,8 +50,8 @@ func (gkg *GaloisKeyGenProtocol) ShallowCopy() *GaloisKeyGenProtocol {
 }
 
 // NewGaloisKeyGenProtocol creates a GaloisKeyGenProtocol instance.
-func NewGaloisKeyGenProtocol(params rlwe.Parameters) (gkg *GaloisKeyGenProtocol) {
-	gkg = new(GaloisKeyGenProtocol)
+func NewGaloisKeyGenProtocol(params rlwe.Parameters) (gkg GaloisKeyGenProtocol) {
+	gkg = GaloisKeyGenProtocol{}
 	gkg.params = params
 
 	prng, err := sampling.NewPRNG()
@@ -64,7 +64,7 @@ func NewGaloisKeyGenProtocol(params rlwe.Parameters) (gkg *GaloisKeyGenProtocol)
 }
 
 // AllocateShare allocates a party's share in the GaloisKey Generation.
-func (gkg *GaloisKeyGenProtocol) AllocateShare() (gkgShare *GaloisKeyGenShare) {
+func (gkg GaloisKeyGenProtocol) AllocateShare() (gkgShare GaloisKeyGenShare) {
 	params := gkg.params
 	decompRNS := params.DecompRNS(params.MaxLevelQ(), params.MaxLevelP())
 	decompPw2 := params.DecompPw2(params.MaxLevelQ(), params.MaxLevelP())
@@ -78,12 +78,12 @@ func (gkg *GaloisKeyGenProtocol) AllocateShare() (gkgShare *GaloisKeyGenShare) {
 		p[i] = vec
 	}
 
-	return &GaloisKeyGenShare{Value: structs.Matrix[ringqp.Poly](p)}
+	return GaloisKeyGenShare{Value: structs.Matrix[ringqp.Poly](p)}
 }
 
 // SampleCRP samples a common random polynomial to be used in the GaloisKey Generation from the provided
 // common reference string.
-func (gkg *GaloisKeyGenProtocol) SampleCRP(crs CRS) GaloisKeyGenCRP {
+func (gkg GaloisKeyGenProtocol) SampleCRP(crs CRS) GaloisKeyGenCRP {
 
 	params := gkg.params
 	decompRNS := params.DecompRNS(params.MaxLevelQ(), params.MaxLevelP())
@@ -110,7 +110,7 @@ func (gkg *GaloisKeyGenProtocol) SampleCRP(crs CRS) GaloisKeyGenCRP {
 }
 
 // GenShare generates a party's share in the GaloisKey Generation.
-func (gkg *GaloisKeyGenProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp GaloisKeyGenCRP, shareOut *GaloisKeyGenShare) {
+func (gkg GaloisKeyGenProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp GaloisKeyGenCRP, shareOut *GaloisKeyGenShare) {
 
 	ringQ := gkg.params.RingQ()
 	ringQP := gkg.params.RingQP()
@@ -189,7 +189,7 @@ func (gkg *GaloisKeyGenProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp 
 }
 
 // AggregateShares computes share3 = share1 + share2.
-func (gkg *GaloisKeyGenProtocol) AggregateShares(share1, share2, share3 *GaloisKeyGenShare) {
+func (gkg GaloisKeyGenProtocol) AggregateShares(share1, share2, share3 *GaloisKeyGenShare) {
 
 	if share1.GaloisElement != share2.GaloisElement {
 		panic(fmt.Sprintf("cannot aggregate: GaloisKeyGenShares do not share the same GaloisElement: %d != %d", share1.GaloisElement, share2.GaloisElement))
@@ -220,7 +220,7 @@ func (gkg *GaloisKeyGenProtocol) AggregateShares(share1, share2, share3 *GaloisK
 }
 
 // GenGaloisKey finalizes the GaloisKey Generation and populates the input GaloisKey with the computed collective GaloisKey.
-func (gkg *GaloisKeyGenProtocol) GenGaloisKey(share *GaloisKeyGenShare, crp GaloisKeyGenCRP, gk *rlwe.GaloisKey) {
+func (gkg GaloisKeyGenProtocol) GenGaloisKey(share GaloisKeyGenShare, crp GaloisKeyGenCRP, gk *rlwe.GaloisKey) {
 
 	m := share.Value
 	p := crp.Value
@@ -239,7 +239,7 @@ func (gkg *GaloisKeyGenProtocol) GenGaloisKey(share *GaloisKeyGenShare, crp Galo
 }
 
 // BinarySize returns the serialized size of the object in bytes.
-func (share *GaloisKeyGenShare) BinarySize() int {
+func (share GaloisKeyGenShare) BinarySize() int {
 	return 8 + share.Value.BinarySize()
 }
 
@@ -254,7 +254,7 @@ func (share *GaloisKeyGenShare) BinarySize() int {
 //     io.Writer in a pre-allocated bufio.Writer.
 //   - When writing to a pre-allocated var b []byte, it is preferable to pass
 //     buffer.NewBuffer(b) as w (see lattigo/utils/buffer/buffer.go).
-func (share *GaloisKeyGenShare) WriteTo(w io.Writer) (n int64, err error) {
+func (share GaloisKeyGenShare) WriteTo(w io.Writer) (n int64, err error) {
 	switch w := w.(type) {
 	case buffer.Writer:
 		var inc int
@@ -312,7 +312,7 @@ func (share *GaloisKeyGenShare) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
-func (share *GaloisKeyGenShare) MarshalBinary() (p []byte, err error) {
+func (share GaloisKeyGenShare) MarshalBinary() (p []byte, err error) {
 	buf := buffer.NewBufferSize(share.BinarySize())
 	_, err = share.WriteTo(buf)
 	return buf.Bytes(), err

@@ -98,13 +98,13 @@ func (pol *Poly) Copy(p1 *Poly) {
 // This function checks for strict equality between the polynomial coefficients
 // (i.e., it does not consider congruence as equality within the ring like
 // `Ring.Equal` does).
-func (pol *Poly) Equal(other *Poly) bool {
+func (pol Poly) Equal(other *Poly) bool {
 
-	if pol == other {
+	if &pol == other {
 		return true
 	}
 
-	if pol != nil && other != nil && len(pol.Buff) == len(other.Buff) {
+	if &pol != nil && other != nil && len(pol.Buff) == len(other.Buff) {
 		for i := range pol.Buff {
 			if other.Buff[i] != pol.Buff[i] {
 				return false

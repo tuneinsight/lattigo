@@ -7,13 +7,8 @@ type Parameters struct {
 	pi   []uint64
 }
 
-// DefaultParams is a struct storing default test parameters of the Qi and Pi moduli for the package Ring.
-var DefaultParams = []Parameters{
-	{12, Qi60[len(Qi60)-2:], Pi60[len(Pi60)-2:]},
-	{13, Qi60[len(Qi60)-4:], Pi60[len(Pi60)-4:]},
-	{14, Qi60[len(Qi60)-7:], Pi60[len(Pi60)-7:]},
-	{15, Qi60[len(Qi60)-14:], Pi60[len(Pi60)-14:]},
-	{16, Qi60[len(Qi60)-29:], Pi60[len(Pi60)-29:]},
+var testParameters = []Parameters{
+	{10, Qi60[len(Qi60)-14:], Pi60[len(Pi60)-14:]},
 }
 
 // Qi60 are the first [0:32] 61-bit close to 2^{62} NTT-friendly primes for N up to 2^{17}

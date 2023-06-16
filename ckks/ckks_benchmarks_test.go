@@ -21,7 +21,7 @@ func BenchmarkCKKSScheme(b *testing.B) {
 			b.Fatal(err)
 		}
 	default:
-		testParams = TestParamsLiteral
+		testParams = testParamsLiteral
 	}
 
 	for _, ringType := range []ring.Type{ring.Standard, ring.ConjugateInvariant} {

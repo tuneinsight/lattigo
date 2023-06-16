@@ -39,7 +39,7 @@ func TestBGV(t *testing.T) {
 
 	var err error
 
-	paramsLiterals := TestParams
+	paramsLiterals := testParams
 
 	if *flagParamString != "" {
 		var jsonParams ParametersLiteral
@@ -51,7 +51,7 @@ func TestBGV(t *testing.T) {
 
 	for _, p := range paramsLiterals[:] {
 
-		for _, plaintextModulus := range TestPlaintextModulus[:] {
+		for _, plaintextModulus := range testPlaintextModulus[:] {
 
 			p.T = plaintextModulus
 

@@ -72,7 +72,7 @@ func TestDBGV(t *testing.T) {
 
 	var err error
 
-	paramsLiterals := bgv.TestParams
+	paramsLiterals := testParams
 
 	if *flagParamString != "" {
 		var jsonParams bgv.ParametersLiteral
@@ -84,7 +84,7 @@ func TestDBGV(t *testing.T) {
 
 	for _, p := range paramsLiterals {
 
-		for _, plaintextModulus := range bgv.TestPlaintextModulus[:] {
+		for _, plaintextModulus := range testPlaintextModulus[:] {
 
 			p.T = plaintextModulus
 
@@ -166,11 +166,11 @@ func testEncToShares(tc *testContext, t *testing.T) {
 	coeffs, _, ciphertext := newTestVectors(tc, tc.encryptorPk0, t)
 
 	type Party struct {
-		e2s         *EncToShareProtocol
-		s2e         *ShareToEncProtocol
+		e2s         EncToShareProtocol
+		s2e         ShareToEncProtocol
 		sk          *rlwe.SecretKey
-		publicShare *drlwe.KeySwitchShare
-		secretShare *drlwe.AdditiveShare
+		publicShare drlwe.KeySwitchShare
+		secretShare drlwe.AdditiveShare
 	}
 
 	params := tc.params
@@ -192,13 +192,13 @@ func testEncToShares(tc *testContext, t *testing.T) {
 
 	// The EncToShare protocol is run in all tests, as a setup to the ShareToEnc test.
 	for i, p := range P {
-		p.e2s.GenShare(p.sk, ciphertext, p.secretShare, p.publicShare)
+		p.e2s.GenShare(p.sk, ciphertext, &p.secretShare, &p.publicShare)
 		if i > 0 {
-			p.e2s.AggregateShares(P[0].publicShare, p.publicShare, P[0].publicShare)
+			p.e2s.AggregateShares(&P[0].publicShare, &p.publicShare, &P[0].publicShare)
 		}
 	}
 
-	P[0].e2s.GetShare(P[0].secretShare, P[0].publicShare, ciphertext, P[0].secretShare)
+	P[0].e2s.GetShare(&P[0].secretShare, P[0].publicShare, ciphertext, &P[0].secretShare)
 
 	t.Run(GetTestName("EncToShareProtocol", tc.params, tc.NParties), func(t *testing.T) {
 
@@ -221,9 +221,9 @@ func testEncToShares(tc *testContext, t *testing.T) {
 	t.Run(GetTestName("ShareToEncProtocol", tc.params, tc.NParties), func(t *testing.T) {
 
 		for i, p := range P {
-			p.s2e.GenShare(p.sk, crp, p.secretShare, p.publicShare)
+			p.s2e.GenShare(p.sk, crp, p.secretShare, &p.publicShare)
 			if i > 0 {
-				p.s2e.AggregateShares(P[0].publicShare, p.publicShare, P[0].publicShare)
+				p.s2e.AggregateShares(&P[0].publicShare, &p.publicShare, &P[0].publicShare)
 			}
 		}
 
@@ -248,9 +248,9 @@ func testRefresh(tc *testContext, t *testing.T) {
 	t.Run(GetTestName("Refresh", tc.params, tc.NParties), func(t *testing.T) {
 
 		type Party struct {
-			*RefreshProtocol
+			RefreshProtocol
 			s     *rlwe.SecretKey
-			share *drlwe.RefreshShare
+			share drlwe.RefreshShare
 		}
 
 		RefreshParties := make([]*Party, tc.NParties)
@@ -275,9 +275,9 @@ func testRefresh(tc *testContext, t *testing.T) {
 		ciphertext.Resize(ciphertext.Degree(), minLevel)
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.s, ciphertext, ciphertext.PlaintextScale, crp, p.share)
+			p.GenShare(p.s, ciphertext, ciphertext.PlaintextScale, crp, &p.share)
 			if i > 0 {
-				P0.AggregateShares(p.share, P0.share, P0.share)
+				P0.AggregateShares(&p.share, &P0.share, &P0.share)
 			}
 
 		}
@@ -306,9 +306,9 @@ func testRefreshAndPermutation(tc *testContext, t *testing.T) {
 	t.Run(GetTestName("RefreshAndPermutation", tc.params, tc.NParties), func(t *testing.T) {
 
 		type Party struct {
-			*MaskedTransformProtocol
+			MaskedTransformProtocol
 			s     *rlwe.SecretKey
-			share *drlwe.RefreshShare
+			share drlwe.RefreshShare
 		}
 
 		RefreshParties := make([]*Party, tc.NParties)
@@ -358,9 +358,9 @@ func testRefreshAndPermutation(tc *testContext, t *testing.T) {
 		}
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.s, p.s, ciphertext, ciphertext.PlaintextScale, crp, maskedTransform, p.share)
+			p.GenShare(p.s, p.s, ciphertext, ciphertext.PlaintextScale, crp, maskedTransform, &p.share)
 			if i > 0 {
-				P0.AggregateShares(P0.share, p.share, P0.share)
+				P0.AggregateShares(&P0.share, &p.share, &P0.share)
 			}
 		}
 
@@ -403,10 +403,10 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 		require.Nil(t, err)
 
 		type Party struct {
-			*MaskedTransformProtocol
+			MaskedTransformProtocol
 			sIn   *rlwe.SecretKey
 			sOut  *rlwe.SecretKey
-			share *drlwe.RefreshShare
+			share drlwe.RefreshShare
 		}
 
 		RefreshParties := make([]*Party, tc.NParties)
@@ -460,9 +460,9 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 		}
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.sIn, p.sOut, ciphertext, ciphertext.PlaintextScale, crp, transform, p.share)
+			p.GenShare(p.sIn, p.sOut, ciphertext, ciphertext.PlaintextScale, crp, transform, &p.share)
 			if i > 0 {
-				P0.AggregateShares(P0.share, p.share, P0.share)
+				P0.AggregateShares(&P0.share, &p.share, &P0.share)
 			}
 		}
 

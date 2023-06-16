@@ -22,7 +22,7 @@ func TestHomomorphicDFT(t *testing.T) {
 	}
 
 	ParametersLiteral := ParametersLiteral{
-		LogN:              13,
+		LogN:              10,
 		LogQ:              []int{60, 45, 45, 45, 45, 45, 45, 45},
 		LogP:              []int{61, 61},
 		Xs:                ring.Ternary{H: 192},

@@ -19,30 +19,9 @@ func TestHomomorphicMod(t *testing.T) {
 	}
 
 	ParametersLiteral := ParametersLiteral{
-		LogN: 14,
-		Q: []uint64{
-			0x80000000080001,   // 55 Q0
-			0xffffffffffc0001,  // 60
-			0x10000000006e0001, // 60
-			0xfffffffff840001,  // 60
-			0x1000000000860001, // 60
-			0xfffffffff6a0001,  // 60
-			0x1000000000980001, // 60
-			0xfffffffff5a0001,  // 60
-			0x1000000000b00001, // 60
-			0x1000000000ce0001, // 60
-			0xfffffffff2a0001,  // 60
-			0xfffffffff240001,  // 60
-			0x1000000000f00001, // 60
-			0x200000000e0001,   // 53
-		},
-		P: []uint64{
-			0x1fffffffffe00001, // Pi 61
-			0x1fffffffffc80001, // Pi 61
-			0x1fffffffffb40001, // Pi 61
-			0x1fffffffff500001, // Pi 61
-			0x1fffffffff420001, // Pi 61
-		},
+		LogN:              10,
+		LogQ:              []int{55, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 53},
+		LogP:              []int{61, 61, 61, 61, 61},
 		Xs:                ring.Ternary{H: 192},
 		LogPlaintextScale: 45,
 	}
@@ -210,7 +189,7 @@ func testEvalMod(params Parameters, t *testing.T) {
 		evm := EvalModLiteral{
 			LevelStart:        12,
 			SineType:          CosContinuous,
-			LogMessageRatio:   8,
+			LogMessageRatio:   4,
 			K:                 325,
 			SineDegree:        177,
 			DoubleAngle:       4,

@@ -29,7 +29,7 @@ type KeySwitchShare struct {
 // ShallowCopy creates a shallow copy of KeySwitchProtocol in which all the read-only data-structures are
 // shared with the receiver and the temporary bufers are reallocated. The receiver and the returned
 // KeySwitchProtocol can be used concurrently.
-func (cks *KeySwitchProtocol) ShallowCopy() *KeySwitchProtocol {
+func (cks *KeySwitchProtocol) ShallowCopy() KeySwitchProtocol {
 	prng, err := sampling.NewPRNG()
 	if err != nil {
 		panic(err)
@@ -37,7 +37,7 @@ func (cks *KeySwitchProtocol) ShallowCopy() *KeySwitchProtocol {
 
 	params := cks.params
 
-	return &KeySwitchProtocol{
+	return KeySwitchProtocol{
 		params:       params,
 		noiseSampler: ring.NewSampler(prng, cks.params.RingQ(), cks.noise, false),
 		buf:          params.RingQ().NewPoly(),
@@ -53,8 +53,8 @@ type KeySwitchCRP struct {
 // NewKeySwitchProtocol creates a new KeySwitchProtocol that will be used to perform a collective key-switching on a ciphertext encrypted under a collective public-key, whose
 // secret-shares are distributed among j parties, re-encrypting the ciphertext under another public-key, whose secret-shares are also known to the
 // parties.
-func NewKeySwitchProtocol(params rlwe.Parameters, noiseFlooding ring.DistributionParameters) *KeySwitchProtocol {
-	cks := new(KeySwitchProtocol)
+func NewKeySwitchProtocol(params rlwe.Parameters, noiseFlooding ring.DistributionParameters) KeySwitchProtocol {
+	cks := KeySwitchProtocol{}
 	cks.params = params
 	prng, err := sampling.NewPRNG()
 	if err != nil {
@@ -81,13 +81,13 @@ func NewKeySwitchProtocol(params rlwe.Parameters, noiseFlooding ring.Distributio
 }
 
 // AllocateShare allocates the shares of the KeySwitchProtocol
-func (cks *KeySwitchProtocol) AllocateShare(level int) *KeySwitchShare {
-	return &KeySwitchShare{*cks.params.RingQ().AtLevel(level).NewPoly()}
+func (cks KeySwitchProtocol) AllocateShare(level int) KeySwitchShare {
+	return KeySwitchShare{*cks.params.RingQ().AtLevel(level).NewPoly()}
 }
 
 // SampleCRP samples a common random polynomial to be used in the KeySwitch protocol from the provided
 // common reference string.
-func (cks *KeySwitchProtocol) SampleCRP(level int, crs CRS) KeySwitchCRP {
+func (cks KeySwitchProtocol) SampleCRP(level int, crs CRS) KeySwitchCRP {
 	ringQ := cks.params.RingQ().AtLevel(level)
 	crp := ringQ.NewPoly()
 	ring.NewUniformSampler(crs, ringQ).Read(crp)
@@ -98,7 +98,7 @@ func (cks *KeySwitchProtocol) SampleCRP(level int, crs CRS) KeySwitchCRP {
 // ct is the rlwe.Ciphertext to keyswitch. Note that ct.Value[0] is not used by the function and can be nil/zero.
 //
 // Expected noise: ctNoise + encFreshSk + smudging
-func (cks *KeySwitchProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlwe.Ciphertext, shareOut *KeySwitchShare) {
+func (cks KeySwitchProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlwe.Ciphertext, shareOut *KeySwitchShare) {
 
 	levelQ := utils.Min(shareOut.Value.Level(), ct.Value[1].Level())
 
@@ -134,7 +134,7 @@ func (cks *KeySwitchProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *rl
 // AggregateShares is the second part of the unique round of the KeySwitchProtocol protocol. Upon receiving the j-1 elements each party computes :
 //
 // [ctx[0] + sum((skInput_i - skOutput_i) * ctx[0] + e_i), ctx[1]]
-func (cks *KeySwitchProtocol) AggregateShares(share1, share2, shareOut *KeySwitchShare) {
+func (cks KeySwitchProtocol) AggregateShares(share1, share2, shareOut *KeySwitchShare) {
 	if share1.Level() != share2.Level() || share1.Level() != shareOut.Level() {
 		panic("shares levels do not match")
 	}
@@ -143,7 +143,7 @@ func (cks *KeySwitchProtocol) AggregateShares(share1, share2, shareOut *KeySwitc
 }
 
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
-func (cks *KeySwitchProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined *KeySwitchShare, ctOut *rlwe.Ciphertext) {
+func (cks KeySwitchProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined KeySwitchShare, ctOut *rlwe.Ciphertext) {
 
 	level := ctIn.Level()
 
@@ -160,12 +160,12 @@ func (cks *KeySwitchProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined *KeySwit
 }
 
 // Level returns the level of the target share.
-func (ckss *KeySwitchShare) Level() int {
+func (ckss KeySwitchShare) Level() int {
 	return ckss.Value.Level()
 }
 
 // BinarySize returns the serialized size of the object in bytes.
-func (ckss *KeySwitchShare) BinarySize() int {
+func (ckss KeySwitchShare) BinarySize() int {
 	return ckss.Value.BinarySize()
 }
 
@@ -180,7 +180,7 @@ func (ckss *KeySwitchShare) BinarySize() int {
 //     io.Writer in a pre-allocated bufio.Writer.
 //   - When writing to a pre-allocated var b []byte, it is preferable to pass
 //     buffer.NewBuffer(b) as w (see lattigo/utils/buffer/buffer.go).
-func (ckss *KeySwitchShare) WriteTo(w io.Writer) (n int64, err error) {
+func (ckss KeySwitchShare) WriteTo(w io.Writer) (n int64, err error) {
 	return ckss.Value.WriteTo(w)
 }
 
@@ -200,7 +200,7 @@ func (ckss *KeySwitchShare) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 // MarshalBinary encodes a KeySwitch share on a slice of bytes.
-func (ckss *KeySwitchShare) MarshalBinary() (p []byte, err error) {
+func (ckss KeySwitchShare) MarshalBinary() (p []byte, err error) {
 	return ckss.Value.MarshalBinary()
 }
 

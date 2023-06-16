@@ -1,7 +1,11 @@
-package ckks
+package dckks
+
+import (
+	"github.com/tuneinsight/lattigo/v4/ckks"
+)
 
 var (
-	testPrec45 = ParametersLiteral{
+	testPrec45 = ckks.ParametersLiteral{
 		LogN: 10,
 		Q: []uint64{
 			0x80000000080001,
@@ -19,7 +23,7 @@ var (
 		LogPlaintextScale: 45,
 	}
 
-	testPrec90 = ParametersLiteral{
+	testPrec90 = ckks.ParametersLiteral{
 		LogN: 10,
 		Q: []uint64{
 			0x80000000080001,
@@ -42,5 +46,5 @@ var (
 		LogPlaintextScale: 90,
 	}
 
-	testParamsLiteral = []ParametersLiteral{testPrec45, testPrec90}
+	testParamsLiteral = []ckks.ParametersLiteral{testPrec45, testPrec90}
 )

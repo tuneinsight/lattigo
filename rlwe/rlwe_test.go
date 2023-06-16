@@ -39,7 +39,7 @@ func TestRLWE(t *testing.T) {
 
 	var err error
 
-	defaultParamsLiteral := TestParamsLiteral[:]
+	defaultParamsLiteral := testParamsLiteral
 
 	if *flagParamString != "" {
 		var jsonParams ParametersLiteral

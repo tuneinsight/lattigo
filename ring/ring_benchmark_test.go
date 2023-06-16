@@ -11,18 +11,10 @@ func BenchmarkRing(b *testing.B) {
 
 	var err error
 
-	var defaultParams []Parameters
-
-	if testing.Short() {
-		defaultParams = DefaultParams[:3]
-	} else {
-		defaultParams = DefaultParams
-	}
-
-	for _, defaultParam := range defaultParams[:1] {
+	for _, params := range testParameters[:] {
 
 		var tc *testParams
-		if tc, err = genTestParams(defaultParam); err != nil {
+		if tc, err = genTestParams(params); err != nil {
 			b.Fatal(err)
 		}
 

@@ -1,4 +1,4 @@
-package bgv
+package bfv
 
 import (
 	"encoding/json"
@@ -8,7 +8,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
-func BenchmarkBGV(b *testing.B) {
+func BenchmarkBFV(b *testing.B) {
 
 	var err error
 
@@ -131,12 +131,6 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 		}
 	})
 
-	b.Run(GetTestName("Evaluator/MulInvariant/Ct/Ct", params, level), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			eval.MulInvariant(ciphertext0, plaintext1.Value.Coeffs[0], ciphertext0)
-		}
-	})
-
 	b.Run(GetTestName("Evaluator/Mul/Ct/Pt", params, level), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			eval.Mul(ciphertext0, plaintext1, ciphertext0)
@@ -159,12 +153,6 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 	b.Run(GetTestName("Evaluator/MulRelin/Ct/Ct", params, level), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			eval.MulRelin(ciphertext0, ciphertext1, ciphertext0)
-		}
-	})
-
-	b.Run(GetTestName("Evaluator/MulRelinInvariant/Ct/Ct", params, level), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			eval.MulRelinInvariant(ciphertext0, ciphertext1, ciphertext0)
 		}
 	})
 

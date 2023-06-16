@@ -29,8 +29,8 @@ type PublicKeySwitchShare struct {
 
 // NewPublicKeySwitchProtocol creates a new PublicKeySwitchProtocol object and will be used to re-encrypt a ciphertext ctx encrypted under a secret-shared key among j parties under a new
 // collective public-key.
-func NewPublicKeySwitchProtocol(params rlwe.Parameters, noiseFlooding ring.DistributionParameters) (pcks *PublicKeySwitchProtocol) {
-	pcks = new(PublicKeySwitchProtocol)
+func NewPublicKeySwitchProtocol(params rlwe.Parameters, noiseFlooding ring.DistributionParameters) (pcks PublicKeySwitchProtocol) {
+	pcks = PublicKeySwitchProtocol{}
 	pcks.params = params
 	pcks.noise = noiseFlooding
 
@@ -55,15 +55,15 @@ func NewPublicKeySwitchProtocol(params rlwe.Parameters, noiseFlooding ring.Distr
 }
 
 // AllocateShare allocates the shares of the PublicKeySwitch protocol.
-func (pcks *PublicKeySwitchProtocol) AllocateShare(levelQ int) (s *PublicKeySwitchShare) {
-	return &PublicKeySwitchShare{*rlwe.NewOperandQ(pcks.params, 1, levelQ)}
+func (pcks PublicKeySwitchProtocol) AllocateShare(levelQ int) (s PublicKeySwitchShare) {
+	return PublicKeySwitchShare{*rlwe.NewOperandQ(pcks.params, 1, levelQ)}
 }
 
 // GenShare computes a party's share in the PublicKeySwitch protocol from secret-key sk to public-key pk.
 // ct is the rlwe.Ciphertext to keyswitch. Note that ct.Value[0] is not used by the function and can be nil/zero.
 //
 // Expected noise: ctNoise + encFreshPk + smudging
-func (pcks *PublicKeySwitchProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct *rlwe.Ciphertext, shareOut *PublicKeySwitchShare) {
+func (pcks PublicKeySwitchProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct *rlwe.Ciphertext, shareOut *PublicKeySwitchShare) {
 
 	levelQ := utils.Min(shareOut.Level(), ct.Value[1].Level())
 
@@ -99,7 +99,7 @@ func (pcks *PublicKeySwitchProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.Publi
 // other parties computes :
 //
 // [ctx[0] + sum(s_i * ctx[0] + u_i * pk[0] + e_0i), sum(u_i * pk[1] + e_1i)]
-func (pcks *PublicKeySwitchProtocol) AggregateShares(share1, share2, shareOut *PublicKeySwitchShare) {
+func (pcks PublicKeySwitchProtocol) AggregateShares(share1, share2, shareOut *PublicKeySwitchShare) {
 	levelQ1, levelQ2 := share1.Value[0].Level(), share1.Value[1].Level()
 	if levelQ1 != levelQ2 {
 		panic("cannot AggregateShares: the two shares are at different levelQ.")
@@ -110,7 +110,7 @@ func (pcks *PublicKeySwitchProtocol) AggregateShares(share1, share2, shareOut *P
 }
 
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
-func (pcks *PublicKeySwitchProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined *PublicKeySwitchShare, ctOut *rlwe.Ciphertext) {
+func (pcks PublicKeySwitchProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined PublicKeySwitchShare, ctOut *rlwe.Ciphertext) {
 
 	level := ctIn.Level()
 
@@ -127,14 +127,14 @@ func (pcks *PublicKeySwitchProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined *
 // ShallowCopy creates a shallow copy of PublicKeySwitchProtocol in which all the read-only data-structures are
 // shared with the receiver and the temporary bufers are reallocated. The receiver and the returned
 // PublicKeySwitchProtocol can be used concurrently.
-func (pcks *PublicKeySwitchProtocol) ShallowCopy() *PublicKeySwitchProtocol {
+func (pcks PublicKeySwitchProtocol) ShallowCopy() PublicKeySwitchProtocol {
 	prng, err := sampling.NewPRNG()
 	if err != nil {
 		panic(err)
 	}
 
 	params := pcks.params
-	return &PublicKeySwitchProtocol{
+	return PublicKeySwitchProtocol{
 		noiseSampler:       ring.NewSampler(prng, params.RingQ(), pcks.noise, false),
 		noise:              pcks.noise,
 		EncryptorInterface: rlwe.NewEncryptor(params, nil),
@@ -144,7 +144,7 @@ func (pcks *PublicKeySwitchProtocol) ShallowCopy() *PublicKeySwitchProtocol {
 }
 
 // BinarySize returns the serialized size of the object in bytes.
-func (share *PublicKeySwitchShare) BinarySize() int {
+func (share PublicKeySwitchShare) BinarySize() int {
 	return share.OperandQ.BinarySize()
 }
 
@@ -159,7 +159,7 @@ func (share *PublicKeySwitchShare) BinarySize() int {
 //     io.Writer in a pre-allocated bufio.Writer.
 //   - When writing to a pre-allocated var b []byte, it is preferable to pass
 //     buffer.NewBuffer(b) as w (see lattigo/utils/buffer/buffer.go).
-func (share *PublicKeySwitchShare) WriteTo(w io.Writer) (n int64, err error) {
+func (share PublicKeySwitchShare) WriteTo(w io.Writer) (n int64, err error) {
 	return share.OperandQ.WriteTo(w)
 }
 
@@ -179,7 +179,7 @@ func (share *PublicKeySwitchShare) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
-func (share *PublicKeySwitchShare) MarshalBinary() (p []byte, err error) {
+func (share PublicKeySwitchShare) MarshalBinary() (p []byte, err error) {
 	return share.OperandQ.MarshalBinary()
 }
 

@@ -114,7 +114,7 @@ func (p *tupleQP) CopyNew() tupleQP {
 }
 
 // Equal performs a deep equal.
-func (p *tupleQP) Equal(other tupleQP) bool {
+func (p *tupleQP) Equal(other *tupleQP) bool {
 	return p[0].Equal(&other[0]) && p[1].Equal(&other[1])
 }
 
@@ -193,7 +193,7 @@ func (p *PublicKey) CopyNew() *PublicKey {
 
 // Equal performs a deep equal.
 func (p *PublicKey) Equal(other *PublicKey) bool {
-	return p.Value.Equal(other.Value)
+	return p.Value.Equal(&other.Value)
 }
 
 func (p *PublicKey) BinarySize() int {

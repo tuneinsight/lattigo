@@ -14,7 +14,7 @@ type RefreshShare struct {
 }
 
 // BinarySize returns the serialized size of the object in bytes.
-func (share *RefreshShare) BinarySize() int {
+func (share RefreshShare) BinarySize() int {
 	return share.EncToShareShare.BinarySize() + share.ShareToEncShare.BinarySize()
 }
 
@@ -29,7 +29,7 @@ func (share *RefreshShare) BinarySize() int {
 //     io.Writer in a pre-allocated bufio.Writer.
 //   - When writing to a pre-allocated var b []byte, it is preferable to pass
 //     buffer.NewBuffer(b) as w (see lattigo/utils/buffer/buffer.go).
-func (share *RefreshShare) WriteTo(w io.Writer) (n int64, err error) {
+func (share RefreshShare) WriteTo(w io.Writer) (n int64, err error) {
 	switch w := w.(type) {
 	case buffer.Writer:
 		if n, err = share.EncToShareShare.WriteTo(w); err != nil {
@@ -69,7 +69,7 @@ func (share *RefreshShare) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
-func (share *RefreshShare) MarshalBinary() (p []byte, err error) {
+func (share RefreshShare) MarshalBinary() (p []byte, err error) {
 	buf := buffer.NewBufferSize(share.BinarySize())
 	_, err = share.WriteTo(buf)
 	return buf.Bytes(), err

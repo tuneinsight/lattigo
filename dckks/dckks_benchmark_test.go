@@ -23,7 +23,7 @@ func BenchmarkDCKKS(b *testing.B) {
 			b.Fatal(err)
 		}
 	default:
-		testParams = ckks.TestParamsLiteral
+		testParams = testParamsLiteral
 	}
 
 	for _, ringType := range []ring.Type{ring.Standard, ring.ConjugateInvariant} {
@@ -59,9 +59,9 @@ func benchRefresh(tc *testContext, b *testing.B) {
 		sk0Shards := tc.sk0Shards
 
 		type Party struct {
-			*RefreshProtocol
+			RefreshProtocol
 			s     *rlwe.SecretKey
-			share *drlwe.RefreshShare
+			share drlwe.RefreshShare
 		}
 
 		p := new(Party)
@@ -76,14 +76,14 @@ func benchRefresh(tc *testContext, b *testing.B) {
 		b.Run(GetTestName("Refresh/Round1/Gen", tc.NParties, params), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
-				p.GenShare(p.s, logBound, ciphertext, crp, p.share)
+				p.GenShare(p.s, logBound, ciphertext, crp, &p.share)
 			}
 		})
 
 		b.Run(GetTestName("Refresh/Round1/Agg", tc.NParties, params), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
-				p.AggregateShares(p.share, p.share, p.share)
+				p.AggregateShares(&p.share, &p.share, &p.share)
 			}
 		})
 
@@ -110,9 +110,9 @@ func benchMaskedTransform(tc *testContext, b *testing.B) {
 		sk0Shards := tc.sk0Shards
 
 		type Party struct {
-			*MaskedTransformProtocol
+			MaskedTransformProtocol
 			s     *rlwe.SecretKey
-			share *drlwe.RefreshShare
+			share drlwe.RefreshShare
 		}
 
 		ciphertext := ckks.NewCiphertext(params, 1, minLevel)
@@ -138,14 +138,14 @@ func benchMaskedTransform(tc *testContext, b *testing.B) {
 		b.Run(GetTestName("Refresh&Transform/Round1/Gen", tc.NParties, params), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
-				p.GenShare(p.s, p.s, logBound, ciphertext, crp, transform, p.share)
+				p.GenShare(p.s, p.s, logBound, ciphertext, crp, transform, &p.share)
 			}
 		})
 
 		b.Run(GetTestName("Refresh&Transform/Round1/Agg", tc.NParties, params), func(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
-				p.AggregateShares(p.share, p.share, p.share)
+				p.AggregateShares(&p.share, &p.share, &p.share)
 			}
 		})
 

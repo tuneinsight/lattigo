@@ -51,7 +51,7 @@ func (v Vector[T]) BinarySize() (size int) {
 //     io.Writer in a pre-allocated bufio.Writer.
 //   - When writing to a pre-allocated var b []byte, it is preferable to pass
 //     buffer.NewBuffer(b) as w (see lattigo/utils/buffer/buffer.go).
-func (v *Vector[T]) WriteTo(w io.Writer) (n int64, err error) {
+func (v Vector[T]) WriteTo(w io.Writer) (n int64, err error) {
 
 	var o *T
 	if wt, isWritable := any(o).(io.WriterTo); !isWritable {
@@ -62,12 +62,12 @@ func (v *Vector[T]) WriteTo(w io.Writer) (n int64, err error) {
 	case buffer.Writer:
 
 		var inc int
-		if inc, err = buffer.WriteInt(w, len(*v)); err != nil {
+		if inc, err = buffer.WriteInt(w, len(v)); err != nil {
 			return int64(inc), err
 		}
 		n += int64(inc)
 
-		for _, c := range *v {
+		for _, c := range v {
 			inc, err := any(&c).(io.WriterTo).WriteTo(w)
 			n += inc
 			if err != nil {
@@ -131,7 +131,7 @@ func (v *Vector[T]) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
-func (v *Vector[T]) MarshalBinary() (p []byte, err error) {
+func (v Vector[T]) MarshalBinary() (p []byte, err error) {
 	buf := buffer.NewBufferSize(v.BinarySize())
 	_, err = v.WriteTo(buf)
 	return buf.Bytes(), err

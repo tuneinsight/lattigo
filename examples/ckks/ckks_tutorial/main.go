@@ -637,7 +637,7 @@ func main() {
 
 	// Then we generate the corresponding Galois keys.
 	// The list of Galois elements can also be obtained with `linTransf.GaloisElements`
-	galEls = params.GaloisElementsForLinearTransform(nonZeroDiagonales, LogBSGSRatio, LogSlots)
+	galEls = params.GaloisElementsForLinearTransform(nonZeroDiagonales, LogSlots, LogBSGSRatio)
 	gks = kgen.GenGaloisKeysNew(galEls, sk)
 	eval = eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, gks...))
 

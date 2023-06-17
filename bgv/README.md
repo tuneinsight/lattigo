@@ -12,7 +12,9 @@ This enabled by the equivalency between the LSB and MSB encoding when T is copri
 
 The textbook BGV scheme encodes the plaintext in the LSB and the encryption is done by scaling the error by $T$:
 
-$$\textsf{Encrypt}_{s}(\textsf{Encode}(m)) = [-as + m + Te, a]_{Q_{\ell}}$$ 
+```math
+\textsf{Encrypt}_{s}(\textsf{Encode}(m)) = [-as + m + Te, a]_{Q_{\ell}}
+```
 
 where $Q_{\ell} = \prod_{i=0}^{L} q_{i}$ in the RNS variant of the scheme.
 
@@ -23,15 +25,20 @@ We observe that the only non-linear part of the BGV scheme is its modulus switch
 
 1) Multiply the ciphertext by $T^{-1}\mod Q_{\ell}$ (switch from LSB to MSB encoding)
 
-$$T^{-1} \cdot [-as + m + eT, a]_{Q_{\ell}}\rightarrow[-bs + mT^{-1} + e, b]_{Q_{\ell}}$$
+```math
+T^{-1} \cdot [-as + m + eT, a]_{Q_{\ell}}\rightarrow[-bs + mT^{-1} + e, b]_{Q_{\ell}}
+```
 
 2) Apply the Full-RNS CKKS-style rescaling (division by $q_{\ell} = Q_{\ell}/Q_{\ell-1}$):
 
-$$q_{\ell}^{-1}\cdot[-bs + mT^{-1} + e, b]_{Q_{\ell}}\rceil\rightarrow[-cs + mq_{\ell}^{-1}T^{-1} + \lfloor e/q_{\ell} + e_{\textsf{round}}, c]_{Q_{\ell-1}}$$
+```mathq_{\ell}^{-1}\cdot[-bs + mT^{-1} + e, b]_{Q_{\ell}}\rceil\rightarrow[-cs + mq_{\ell}^{-1}T^{-1} + \lfloor e/q_{\ell} + e_{\textsf{round}}, c]_{Q_{\ell-1}}
+```
 
 3) Multiply the ciphertext by $T \mod Q_{\ell-1}$ (switch from MSB to LSB encoding)
 
-$$T\cdot[-cs + mq_{\ell}^{-1}T^{-1} + \lfloor e/q_{\ell}\rceil + e_{\textsf{round}}, c]_{Q_{\ell-1}}\rightarrow[-ds + mq_{\ell}^{-1} + T(\lfloor e/q_{\ell}\rceil + e_{\textsf{round}}), d]_{Q_{\ell-1}}$$
+```math
+T\cdot[-cs + mq_{\ell}^{-1}T^{-1} + \lfloor e/q_{\ell}\rceil + e_{\textsf{round}}, c]_{Q_{\ell-1}}\rightarrow[-ds + mq_{\ell}^{-1} + T(\lfloor e/q_{\ell}\rceil + e_{\textsf{round}}), d]_{Q_{\ell-1}}
+```
 
 The process returns a new ciphertext modulo $Q_{\ell-1}$ where the error has been quantized by $q_{\ell}$ and the message multiplied by a factor of $q_{\ell}^{-1} \mod T$.
 

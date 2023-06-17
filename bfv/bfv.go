@@ -1,4 +1,5 @@
-// Package bfv is a depreciated placeholder package wrapping the bgv package for backward compatibility. This package will be removed in the next major version.
+// Package bfv provides an RNS-accelerated implementation of the Fan-Vercauteren version of Brakerski's (BFV) scale-invariant homomorphic encryption scheme.
+// The BFV scheme enables SIMD modular arithmetic over encrypted vectors or integers.
 package bfv
 
 import (

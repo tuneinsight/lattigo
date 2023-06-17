@@ -9,19 +9,24 @@ This enabled by the equivalency between the LSB and MSB encoding when T is copri
 
 ### Intuition
 
-The textbook BGV scheme encodes the plaintext in the LSB and scales the error by T. The decoding process is then carried out by taking the decrypted plaintext (which is modulo Q, the ciphertext modulus) and taking it modulo T, which vanishes the error.
+The textbook BGV scheme encodes the plaintext in the LSB and the encryption is done by the error by $T$:
 
-The only non-linear part of the BGV scheme is its modulus switch and tha this operation is identical to a CKKS-style rescaling (quantization of the ciphertext by 1/qi) with a pre- and post-processing:
+$$\textsf{Encrypt}_{s}(\textsf{Encode}(m)) = [-as + m + Te, a]_{Q_{\ell}}$$ where $$Q_{\ell} = \prod_{i=0}^{L} q_{i}$$
 
-1) Multiply the ciphertext by T^{-1} mod Q (switch from LSB to MSB encoding)
-2) Apply the CKKS-style rescaling (truncate the lower bits)
-3) Multiply the ciphertext by T mod Q (switch from MSB to LSB encoding)
 
-Since the modulus switch is the only non-linear part of the BGV scheme, we can move this pre- and post- processing in the encoding step, i.e. instead of scaling the error by T we scale the plaintext by T^{-1} mod Q.
+ The decoding process is then carried out by taking the decrypted plaintext $[m + Te]_{Q_{\ell}}$ and taking it modulo $T$ which vanishes the error.
+
+The only non-linear part of the BGV scheme is its modulus switch and that this operation is identical to a CKKS-style rescaling (quantization of the ciphertext by $\frac{1}{q_{\ell}}$) with a pre- and post-processing:
+
+1) Multiply the ciphertext by $T^{-1}\mod Q_{\ell}$ (switch from LSB to MSB encoding)
+2) Apply the CKKS-style rescaling (division by $q_{\ell}$)
+3) Multiply the ciphertext by $T \mod Q_{\ell-1}$ (switch from MSB to LSB encoding)
+
+Since the modulus switch is the only non-linear part of the BGV scheme, we can move this pre- and post- processing in the encoding step, i.e. instead of scaling the error by T we scale the plaintext by $T^{-1} mod Q_{\ell}$.
 
 ### Functionalities
 
-The above change enables an implementation of the BGV scheme with an MSB encoding, which is essentially the BFV scheme. In other words, if T is coprime to Q then the BFV and BGV schemes are indistinguishable. 
+The above change enables an implementation of the BGV scheme with an MSB encoding, which is essentially the BFV scheme. In other words, if $T\not|Q$ then the BFV and BGV schemes are indistinguishable up to a plaintext scaling factor of $T^{-1}\mod Q$. 
 
 It can also be seen as a variant of the BGV scheme with two tensoring operations:
 - The BGV-style tensoring with a noise growth proportional to the current noise

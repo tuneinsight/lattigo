@@ -18,8 +18,7 @@ The textbook BGV scheme encodes the plaintext in the LSB and the encryption is d
 
 where $Q_{\ell} = \prod_{i=0}^{L} q_{i}$ in the RNS variant of the scheme.
 
-
- The decoding process is then carried out by taking the decrypted plaintext $[m + Te]_{Q_{\ell}}$ modulo $T$ which vanishes the error.
+The decoding process is then carried out by taking the decrypted plaintext $[m + Te]_{Q_{\ell}}$ modulo $T$ which vanishes the error.
 
 We observe that the only non-linear part of the BGV scheme is its modulus switching operation and that this operation is identical to a CKKS-style rescaling (quantization of the ciphertext by $\frac{1}{q_{\ell}}$) with a pre- and post-processing:
 
@@ -31,7 +30,8 @@ T^{-1} \cdot [-as + m + eT, a]_{Q_{\ell}}\rightarrow[-bs + mT^{-1} + e, b]_{Q_{\
 
 2) Apply the Full-RNS CKKS-style rescaling (division by $q_{\ell} = Q_{\ell}/Q_{\ell-1}$):
 
-```mathq_{\ell}^{-1}\cdot[-bs + mT^{-1} + e, b]_{Q_{\ell}}\rceil\rightarrow[-cs + mq_{\ell}^{-1}T^{-1} + \lfloor e/q_{\ell} + e_{\textsf{round}}, c]_{Q_{\ell-1}}
+```math
+q_{\ell}^{-1}\cdot[-bs + mT^{-1} + e, b]_{Q_{\ell}}\rceil\rightarrow[-cs + mq_{\ell}^{-1}T^{-1} + \lfloor e/q_{\ell} + e_{\textsf{round}}, c]_{Q_{\ell-1}}
 ```
 
 3) Multiply the ciphertext by $T \mod Q_{\ell-1}$ (switch from MSB to LSB encoding)

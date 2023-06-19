@@ -31,8 +31,8 @@ and recorded the average log2 of the standard deviation, minimum and maximum res
 
 ```
  scheme     std       min       max
-BFV_OLD | 40.7618 | 26.2434 | 42.8023
-BFV_NEW | 41.3617 | 26.7891 | 43.4034
+BFV_OLD | 41.3617 | 26.7891 | 43.4034
+BFV_NEW | 40.7618 | 26.2434 | 42.8023
 ```
 
 We observe that `BFV_NEW` has on average `0.5` bit less noise, but this is due to a fix in the `ring` package were the `ModDown` operation (RNS division by `P`) changing the division from floored to rounded.

@@ -15,12 +15,28 @@ func bigComplexToRNSScalar(r *ring.Ring, scale *big.Float, cmplx *bignum.Complex
 
 	real := new(big.Int)
 	if cmplx[0] != nil {
-		new(big.Float).Mul(cmplx[0], scale).Int(real)
+		r := new(big.Float).Mul(cmplx[0], scale)
+
+		if cmp := cmplx[0].Cmp(new(big.Float)); cmp > 0{
+			r.Add(r, new(big.Float).SetFloat64(0.5))
+		}else if cmp < 0{
+			r.Sub(r, new(big.Float).SetFloat64(0.5))
+		}
+		
+		r.Int(real)
 	}
 
 	imag := new(big.Int)
 	if cmplx[1] != nil {
-		new(big.Float).Mul(cmplx[1], scale).Int(imag)
+		i := new(big.Float).Mul(cmplx[1], scale)
+
+		if cmp := cmplx[1].Cmp(new(big.Float)); cmp > 0{
+			i.Add(i, new(big.Float).SetFloat64(0.5))
+		}else if cmp < 0{
+			i.Sub(i, new(big.Float).SetFloat64(0.5))
+		}
+		
+		i.Int(imag)
 	}
 
 	return r.NewRNSScalarFromBigint(real), r.NewRNSScalarFromBigint(imag)

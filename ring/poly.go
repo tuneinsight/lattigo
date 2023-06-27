@@ -109,7 +109,7 @@ func (pol Poly) Equal(other *Poly) bool {
 		return true
 	}
 
-	if &pol != nil && len(pol.Buff) == len(other.Buff) {
+	if len(pol.Buff) == len(other.Buff) {
 		return utils.EqualSlice(pol.Buff, other.Buff)
 	}
 

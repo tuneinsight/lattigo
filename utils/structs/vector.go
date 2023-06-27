@@ -20,6 +20,7 @@ func (v Vector[T]) CopyNew() *Vector[T] {
 
 	vcpy := Vector[T](make([]T, len(v)))
 	for i, c := range v {
+		/* #nosec G601 -- Implicit memory aliasing in for loop acknowledged */
 		vcpy[i] = *any(&c).(CopyNewer[T]).CopyNew()
 	}
 	return &vcpy
@@ -35,6 +36,7 @@ func (v Vector[T]) BinarySize() (size int) {
 
 	size += 8
 	for _, c := range v {
+		/* #nosec G601 -- Implicit memory aliasing in for loop acknowledged */
 		size += any(&c).(BinarySizer).BinarySize()
 	}
 	return
@@ -68,6 +70,7 @@ func (v Vector[T]) WriteTo(w io.Writer) (n int64, err error) {
 		n += int64(inc)
 
 		for _, c := range v {
+			/* #nosec G601 -- Implicit memory aliasing in for loop acknowledged */
 			inc, err := any(&c).(io.WriterTo).WriteTo(w)
 			n += inc
 			if err != nil {
@@ -116,6 +119,7 @@ func (v *Vector[T]) ReadFrom(r io.Reader) (n int64, err error) {
 		*v = (*v)[:size]
 
 		for i := range *v {
+			/* #nosec G601 -- Implicit memory aliasing in for loop acknowledged */
 			inc, err := any(&(*v)[i]).(io.ReaderFrom).ReadFrom(r)
 			n += inc
 			if err != nil {
@@ -156,6 +160,7 @@ func (v Vector[T]) Equal(other Vector[T]) bool {
 
 	isEqual := true
 	for i, v := range v {
+		/* #nosec G601 -- Implicit memory aliasing in for loop acknowledged */
 		isEqual = isEqual && any(&v).(Equatable[T]).Equal(&other[i])
 	}
 

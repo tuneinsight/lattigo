@@ -28,7 +28,7 @@ func NewSecretKeyBootstrapper(params Parameters, sk *rlwe.SecretKey) rlwe.Bootst
 		0}
 }
 
-func (d SecretKeyBootstrapper) Bootstrap(ct *rlwe.Ciphertext) (*rlwe.Ciphertext, error) {
+func (d *SecretKeyBootstrapper) Bootstrap(ct *rlwe.Ciphertext) (*rlwe.Ciphertext, error) {
 	values := d.Values[:1<<ct.PlaintextLogDimensions[1]]
 	if err := d.Decode(d.DecryptNew(ct), values); err != nil {
 		return nil, err

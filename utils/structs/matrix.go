@@ -41,6 +41,7 @@ func (m Matrix[T]) BinarySize() (size int) {
 	size += 8
 
 	for _, v := range m {
+		/* #nosec G601 -- Implicit memory aliasing in for loop acknowledged */
 		size += (*Vector[T])(&v).BinarySize()
 	}
 	return

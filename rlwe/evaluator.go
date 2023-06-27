@@ -160,14 +160,14 @@ func (eval Evaluator) CheckAndGetRelinearizationKey() (evk *RelinearizationKey, 
 // The method returns max(op0.Degree(), op1.Degree(), opOut.Degree()) and min(op0.Level(), op1.Level(), opOut.Level())
 func (eval Evaluator) InitOutputBinaryOp(op0, op1 *OperandQ, opOutMinDegree int, opOut *OperandQ) (degree, level int) {
 
+	if op0 == nil || op1 == nil || opOut == nil {
+		panic("op0, op1 and opOut cannot be nil")
+	}
+
 	degree = utils.Max(op0.Degree(), op1.Degree())
 	degree = utils.Max(degree, opOut.Degree())
 	level = utils.Min(op0.Level(), op1.Level())
 	level = utils.Min(level, opOut.Level())
-
-	if op0 == nil || op1 == nil || opOut == nil {
-		panic("op0, op1 and opOut cannot be nil")
-	}
 
 	if op0.Degree()+op1.Degree() == 0 {
 		panic("op0 and op1 cannot be both plaintexts")

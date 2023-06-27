@@ -24,6 +24,7 @@ func (m Map[K, T]) CopyNew() *Map[K, T] {
 	var mcpy = make(Map[K, T])
 
 	for key, val := range m {
+		/* #nosec G601 -- Implicit memory aliasing in for loop acknowledged */
 		mcpy[key] = any(&val).(CopyNewer[T]).CopyNew()
 	}
 

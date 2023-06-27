@@ -123,7 +123,7 @@ func newLowNormSampler(baseRing *ring.Ring) (lns *lowNormSampler) {
 }
 
 // Samples a uniform polynomial in Z_{norm}/(X^N + 1)
-func (lns *lowNormSampler) newPolyLowNorm(norm *big.Int) (pol *ring.Poly) {
+func (lns *lowNormSampler) newPolyLowNorm(norm *big.Int) (pol ring.Poly) {
 
 	pol = lns.baseRing.NewPoly()
 
@@ -199,8 +199,8 @@ func main() {
 		// NTT(MForm(sigmaBob)) = NTT(MForm(ska_a * skAlice) - MForm(sigmaAlice))
 		ringQ.Sub(sigmaBob, sigmaAlice, sigmaBob)
 
-		a := make([]*ring.Poly, n)
-		aprime := make([]*ring.Poly, n)
+		a := make([]ring.Poly, n)
+		aprime := make([]ring.Poly, n)
 
 		// Sample common random poly vectors
 		// NTT(a) in Z_Q
@@ -216,14 +216,14 @@ func main() {
 
 		// Generate inputs and allocate memory
 		start = time.Now()
-		u := make([]*ring.Poly, n)
-		v := make([]*ring.Poly, n)
-		c := make([]*ring.Poly, n)
-		d := make([]*ring.Poly, n)
-		rhoAlice := make([]*ring.Poly, n)
-		rhoBob := make([]*ring.Poly, n)
-		alpha := make([]*ring.Poly, n)
-		beta := make([]*ring.Poly, n)
+		u := make([]ring.Poly, n)
+		v := make([]ring.Poly, n)
+		c := make([]ring.Poly, n)
+		d := make([]ring.Poly, n)
+		rhoAlice := make([]ring.Poly, n)
+		rhoBob := make([]ring.Poly, n)
+		alpha := make([]ring.Poly, n)
+		beta := make([]ring.Poly, n)
 		tmp := ringQ.NewPoly()
 
 		for i := 0; i < n; i++ {

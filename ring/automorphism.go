@@ -34,14 +34,14 @@ func AutomorphismNTTIndex(N int, NthRoot, GalEl uint64) (index []uint64) {
 
 // AutomorphismNTT applies the automorphism X^{i} -> X^{i*gen} on a polynomial in the NTT domain.
 // It must be noted that the result cannot be in-place.
-func (r *Ring) AutomorphismNTT(polIn *Poly, gen uint64, polOut *Poly) {
+func (r Ring) AutomorphismNTT(polIn Poly, gen uint64, polOut Poly) {
 	r.AutomorphismNTTWithIndex(polIn, AutomorphismNTTIndex(r.N(), r.NthRoot(), gen), polOut)
 }
 
 // AutomorphismNTTWithIndex applies the automorphism X^{i} -> X^{i*gen} on a polynomial in the NTT domain.
 // `index` is the lookup table storing the mapping of the automorphism.
 // It must be noted that the result cannot be in-place.
-func (r *Ring) AutomorphismNTTWithIndex(polIn *Poly, index []uint64, polOut *Poly) {
+func (r Ring) AutomorphismNTTWithIndex(polIn Poly, index []uint64, polOut Poly) {
 
 	level := r.level
 
@@ -73,7 +73,7 @@ func (r *Ring) AutomorphismNTTWithIndex(polIn *Poly, index []uint64, polOut *Pol
 // AutomorphismNTTWithIndexThenAddLazy applies the automorphism X^{i} -> X^{i*gen} on a polynomial in the NTT domain .
 // `index` is the lookup table storing the mapping of the automorphism.
 // The result of the automorphism is added on polOut.
-func (r *Ring) AutomorphismNTTWithIndexThenAddLazy(polIn *Poly, index []uint64, polOut *Poly) {
+func (r Ring) AutomorphismNTTWithIndexThenAddLazy(polIn Poly, index []uint64, polOut Poly) {
 
 	level := r.level
 
@@ -104,7 +104,7 @@ func (r *Ring) AutomorphismNTTWithIndexThenAddLazy(polIn *Poly, index []uint64, 
 
 // Automorphism applies the automorphism X^{i} -> X^{i*gen} on a polynomial outside of the NTT domain.
 // It must be noted that the result cannot be in-place.
-func (r *Ring) Automorphism(polIn *Poly, gen uint64, polOut *Poly) {
+func (r Ring) Automorphism(polIn Poly, gen uint64, polOut Poly) {
 
 	var mask, index, indexRaw, logN, tmp uint64
 

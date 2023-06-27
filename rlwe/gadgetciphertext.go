@@ -6,6 +6,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
+	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/structs"
 )
 
@@ -41,13 +42,13 @@ func (ct GadgetCiphertext) LevelP() int {
 }
 
 // Equal checks two Ciphertexts for equality.
-func (ct *GadgetCiphertext) Equal(other *GadgetCiphertext) bool {
+func (ct GadgetCiphertext) Equal(other *GadgetCiphertext) bool {
 	return cmp.Equal(ct.Value, other.Value)
 }
 
 // CopyNew creates a deep copy of the receiver Ciphertext and returns it.
-func (ct *GadgetCiphertext) CopyNew() (ctCopy *GadgetCiphertext) {
-	if ct == nil || len(ct.Value) == 0 {
+func (ct GadgetCiphertext) CopyNew() (ctCopy *GadgetCiphertext) {
+	if len(ct.Value) == 0 {
 		return nil
 	}
 	v := make(structs.Matrix[tupleQP], len(ct.Value))
@@ -61,7 +62,7 @@ func (ct *GadgetCiphertext) CopyNew() (ctCopy *GadgetCiphertext) {
 }
 
 // BinarySize returns the serialized size of the object in bytes.
-func (ct *GadgetCiphertext) BinarySize() (dataLen int) {
+func (ct GadgetCiphertext) BinarySize() (dataLen int) {
 	return ct.Value.BinarySize()
 }
 
@@ -76,7 +77,7 @@ func (ct *GadgetCiphertext) BinarySize() (dataLen int) {
 //     io.Writer in a pre-allocated bufio.Writer.
 //   - When writing to a pre-allocated var b []byte, it is preferable to pass
 //     buffer.NewBuffer(b) as w (see lattigo/utils/buffer/buffer.go).
-func (ct *GadgetCiphertext) WriteTo(w io.Writer) (n int64, err error) {
+func (ct GadgetCiphertext) WriteTo(w io.Writer) (n int64, err error) {
 	return ct.Value.WriteTo(w)
 }
 
@@ -96,7 +97,7 @@ func (ct *GadgetCiphertext) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
-func (ct *GadgetCiphertext) MarshalBinary() (data []byte, err error) {
+func (ct GadgetCiphertext) MarshalBinary() (data []byte, err error) {
 	return ct.Value.MarshalBinary()
 }
 
@@ -109,7 +110,7 @@ func (ct *GadgetCiphertext) UnmarshalBinary(p []byte) (err error) {
 // AddPolyTimesGadgetVectorToGadgetCiphertext takes a plaintext polynomial and a list of Ciphertexts and adds the
 // plaintext times the RNS and BIT decomposition to the i-th element of the i-th Ciphertexts. This method panics if
 // len(cts) > 2.
-func AddPolyTimesGadgetVectorToGadgetCiphertext(pt *ring.Poly, cts []GadgetCiphertext, ringQP ringqp.Ring, logbase2 int, buff *ring.Poly) {
+func AddPolyTimesGadgetVectorToGadgetCiphertext(pt ring.Poly, cts []GadgetCiphertext, ringQP ringqp.Ring, logbase2 int, buff ring.Poly) {
 
 	levelQ := cts[0].LevelQ()
 	levelP := cts[0].LevelP()
@@ -124,7 +125,7 @@ func AddPolyTimesGadgetVectorToGadgetCiphertext(pt *ring.Poly, cts []GadgetCiphe
 		ringQ.MulScalarBigint(pt, ringQP.RingP.AtLevel(levelP).Modulus(), buff) // P * pt
 	} else {
 		levelP = 0
-		if pt != buff {
+		if !utils.Alias1D(pt.Buff, buff.Buff) {
 			ring.CopyLvl(levelQ, pt, buff) // 1 * pt
 		}
 	}
@@ -187,12 +188,12 @@ func NewGadgetPlaintext(params Parameters, value interface{}, levelQ, levelP, lo
 
 	switch el := value.(type) {
 	case uint64:
-		pt.Value[0] = *ringQ.NewPoly()
+		pt.Value[0] = ringQ.NewPoly()
 		for i := 0; i < levelQ+1; i++ {
 			pt.Value[0].Coeffs[i][0] = el
 		}
 	case int64:
-		pt.Value[0] = *ringQ.NewPoly()
+		pt.Value[0] = ringQ.NewPoly()
 		if el < 0 {
 			for i := 0; i < levelQ+1; i++ {
 				pt.Value[0].Coeffs[i][0] = ringQ.SubRings[i].Modulus - uint64(-el)
@@ -203,24 +204,24 @@ func NewGadgetPlaintext(params Parameters, value interface{}, levelQ, levelP, lo
 			}
 		}
 	case *ring.Poly:
-		pt.Value[0] = *el.CopyNew()
+		pt.Value[0] = el.CopyNew()
 	default:
 		panic("cannot NewGadgetPlaintext: unsupported type, must be wither uint64 or *ring.Poly")
 	}
 
 	if levelP > -1 {
-		ringQ.MulScalarBigint(&pt.Value[0], params.RingP().AtLevel(levelP).Modulus(), &pt.Value[0])
+		ringQ.MulScalarBigint(pt.Value[0], params.RingP().AtLevel(levelP).Modulus(), pt.Value[0])
 	}
 
-	ringQ.NTT(&pt.Value[0], &pt.Value[0])
-	ringQ.MForm(&pt.Value[0], &pt.Value[0])
+	ringQ.NTT(pt.Value[0], pt.Value[0])
+	ringQ.MForm(pt.Value[0], pt.Value[0])
 
 	for i := 1; i < len(pt.Value); i++ {
 
-		pt.Value[i] = *pt.Value[0].CopyNew()
+		pt.Value[i] = pt.Value[0].CopyNew()
 
 		for j := 0; j < i; j++ {
-			ringQ.MulScalar(&pt.Value[i], 1<<logBase2, &pt.Value[i])
+			ringQ.MulScalar(pt.Value[i], 1<<logBase2, pt.Value[i])
 		}
 	}
 

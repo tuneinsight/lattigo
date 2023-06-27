@@ -14,13 +14,13 @@ type Polynomial struct {
 	Coeffs []*bignum.Complex
 }
 
-func (p *Polynomial) Clone() *Polynomial {
+func (p Polynomial) Clone() Polynomial {
 	Coeffs := make([]*bignum.Complex, len(p.Coeffs))
 	for i := range Coeffs {
 		Coeffs[i] = p.Coeffs[i].Clone()
 	}
 
-	return &Polynomial{
+	return Polynomial{
 		MetaData: p.MetaData,
 		Coeffs:   Coeffs,
 	}
@@ -30,7 +30,7 @@ func (p *Polynomial) Clone() *Polynomial {
 // basis: either `Monomial` or `Chebyshev`
 // coeffs: []bignum.Complex128, []float64, []*bignum.Complex or []*big.Float
 // interval: [2]float64{a, b} or *Interval
-func NewPolynomial(basis Basis, coeffs interface{}, interval interface{}) *Polynomial {
+func NewPolynomial(basis Basis, coeffs interface{}, interval interface{}) Polynomial {
 	var coefficients []*bignum.Complex
 
 	switch coeffs := coeffs.(type) {
@@ -86,7 +86,7 @@ func NewPolynomial(basis Basis, coeffs interface{}, interval interface{}) *Polyn
 		panic(fmt.Sprintf("invalid interval type, allowed types are [2]float64 or *Interval, but is %T", interval))
 	}
 
-	return &Polynomial{
+	return Polynomial{
 		MetaData: MetaData{
 			Basis:    basis,
 			Interval: inter,
@@ -126,18 +126,18 @@ func (p *Polynomial) ChangeOfBasis() (scalar, constant *big.Float) {
 }
 
 // Depth returns the number of sequential multiplications needed to evaluate the polynomial.
-func (p *Polynomial) Depth() int {
+func (p Polynomial) Depth() int {
 	return int(math.Ceil(math.Log2(float64(p.Degree()))))
 }
 
 // Degree returns the degree of the polynomial.
-func (p *Polynomial) Degree() int {
+func (p Polynomial) Degree() int {
 	return len(p.Coeffs) - 1
 }
 
 // EvaluateModP evalutes the polynomial modulo p, treating each coefficient as
 // integer variables and returning the result as *big.Int in the interval [0, P-1].
-func (p *Polynomial) EvaluateModP(xInt, PInt *big.Int) (yInt *big.Int) {
+func (p Polynomial) EvaluateModP(xInt, PInt *big.Int) (yInt *big.Int) {
 
 	degree := p.Degree()
 
@@ -236,14 +236,14 @@ func (p *Polynomial) Evaluate(x interface{}) (y *bignum.Complex) {
 }
 
 // Factorize factorizes p as X^{n} * pq + pr.
-func (p *Polynomial) Factorize(n int) (pq, pr *Polynomial) {
+func (p Polynomial) Factorize(n int) (pq, pr Polynomial) {
 
 	if n < p.Degree()>>1 {
 		panic("cannot Factorize: n < p.Degree()/2")
 	}
 
 	// ns a polynomial p such that p = q*C^degree + r.
-	pr = &Polynomial{}
+	pr = Polynomial{}
 	pr.Coeffs = make([]*bignum.Complex, n)
 	for i := 0; i < n; i++ {
 		if p.Coeffs[i] != nil {
@@ -251,7 +251,7 @@ func (p *Polynomial) Factorize(n int) (pq, pr *Polynomial) {
 		}
 	}
 
-	pq = &Polynomial{}
+	pq = Polynomial{}
 	pq.Coeffs = make([]*bignum.Complex, p.Degree()-n+1)
 
 	if p.Coeffs[n] != nil {

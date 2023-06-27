@@ -85,7 +85,7 @@ func testLUT(t *testing.T) {
 		// Index map of which test poly to evaluate on which slot
 		lutPolyMap := make(map[int]*ring.Poly)
 		for i := 0; i < slots; i++ {
-			lutPolyMap[i] = LUTPoly
+			lutPolyMap[i] = &LUTPoly
 		}
 
 		// RLWE secret for the samples

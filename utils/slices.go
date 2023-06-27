@@ -6,6 +6,18 @@ import (
 	"golang.org/x/exp/constraints"
 )
 
+// AliasDouble returns true if x and y share the same base array.
+// Taken from http://golang.org/src/pkg/math/big/nat.go#L340 .
+func Alias1D[V any](x, y []V) bool {
+	return cap(x) > 0 && cap(y) > 0 && &x[0:cap(x)][cap(x)-1] == &y[0:cap(y)][cap(y)-1]
+}
+
+// AliasDouble returns true if x and y share the same base array.
+// Taken from http://golang.org/src/pkg/math/big/nat.go#L340 .
+func Alias2D[V any](x, y [][]V) bool {
+	return cap(x) > 0 && cap(y) > 0 && &x[0:cap(x)][cap(x)-1] == &y[0:cap(y)][cap(y)-1]
+}
+
 // EqualSlice checks the equality between two slices of comparables.
 func EqualSlice[V comparable](a, b []V) (v bool) {
 	v = true

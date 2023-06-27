@@ -5,7 +5,7 @@ import (
 	"math/bits"
 )
 
-func EvaluatePatersonStockmeyerPolynomialVector(poly *PatersonStockmeyerPolynomialVector, pb *PowerBasis, eval PolynomialEvaluatorInterface) (res *Ciphertext, err error) {
+func EvaluatePatersonStockmeyerPolynomialVector(poly PatersonStockmeyerPolynomialVector, pb PowerBasis, eval PolynomialEvaluatorInterface) (res *Ciphertext, err error) {
 
 	type Poly struct {
 		Degree int
@@ -21,8 +21,8 @@ func EvaluatePatersonStockmeyerPolynomialVector(poly *PatersonStockmeyerPolynomi
 	// Small steps
 	for i := range tmp {
 
-		polyVec := &PolynomialVector{
-			Value:      make([]*Polynomial, nbPoly),
+		polyVec := PolynomialVector{
+			Value:      make([]Polynomial, nbPoly),
 			SlotsIndex: poly.SlotsIndex,
 		}
 

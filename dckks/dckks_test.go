@@ -135,8 +135,8 @@ func genTestParams(params ckks.Parameters, NParties int) (tc *testContext, err e
 	for j := 0; j < NParties; j++ {
 		tc.sk0Shards[j] = kgen.GenSecretKeyNew()
 		tc.sk1Shards[j] = kgen.GenSecretKeyNew()
-		ringQP.Add(&tc.sk0.Value, &tc.sk0Shards[j].Value, &tc.sk0.Value)
-		ringQP.Add(&tc.sk1.Value, &tc.sk1Shards[j].Value, &tc.sk1.Value)
+		ringQP.Add(tc.sk0.Value, tc.sk0Shards[j].Value, tc.sk0.Value)
+		ringQP.Add(tc.sk1.Value, tc.sk1Shards[j].Value, tc.sk1.Value)
 	}
 
 	// Publickeys
@@ -193,7 +193,7 @@ func testEncToShareProtocol(tc *testContext, t *testing.T) {
 
 			if i > 0 {
 				// Enc(sum(-M_i))
-				p.e2s.AggregateShares(&P[0].publicShareE2S, &p.publicShareE2S, &P[0].publicShareE2S)
+				p.e2s.AggregateShares(P[0].publicShareE2S, p.publicShareE2S, &P[0].publicShareE2S)
 			}
 		}
 
@@ -223,7 +223,7 @@ func testEncToShareProtocol(tc *testContext, t *testing.T) {
 		for i, p := range P {
 			p.s2e.GenShare(p.sk, crp, ciphertext.MetaData, p.secretShare, &p.publicShareS2E)
 			if i > 0 {
-				p.s2e.AggregateShares(&P[0].publicShareS2E, &p.publicShareS2E, &P[0].publicShareS2E)
+				p.s2e.AggregateShares(P[0].publicShareS2E, p.publicShareS2E, &P[0].publicShareS2E)
 			}
 		}
 

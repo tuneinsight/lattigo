@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/big"
 	"math/bits"
-	"runtime"
 
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
@@ -21,27 +20,27 @@ import (
 // pol: a *polynomial.Polynomial, *rlwe.Polynomial or *rlwe.PolynomialVector
 // targetScale: the desired output scale. This value shouldn't differ too much from the original ciphertext scale. It can
 // for example be used to correct small deviations in the ciphertext scale and reset it to the default scale.
-func (eval *Evaluator) Polynomial(input interface{}, p interface{}, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
+func (eval Evaluator) Polynomial(input interface{}, p interface{}, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
 
-	var polyVec *rlwe.PolynomialVector
+	var polyVec rlwe.PolynomialVector
 	switch p := p.(type) {
-	case *polynomial.Polynomial:
-		polyVec = &rlwe.PolynomialVector{Value: []*rlwe.Polynomial{{Polynomial: p, MaxDeg: p.Degree(), Lead: true, Lazy: false}}}
-	case *rlwe.Polynomial:
-		polyVec = &rlwe.PolynomialVector{Value: []*rlwe.Polynomial{p}}
-	case *rlwe.PolynomialVector:
+	case polynomial.Polynomial:
+		polyVec = rlwe.PolynomialVector{Value: []rlwe.Polynomial{{Polynomial: p, MaxDeg: p.Degree(), Lead: true, Lazy: false}}}
+	case rlwe.Polynomial:
+		polyVec = rlwe.PolynomialVector{Value: []rlwe.Polynomial{p}}
+	case rlwe.PolynomialVector:
 		polyVec = p
 	default:
 		return nil, fmt.Errorf("cannot Polynomial: invalid polynomial type: %T", p)
 	}
 
-	polyEval := NewPolynomialEvaluator(eval)
+	polyEval := NewPolynomialEvaluator(&eval)
 
-	var powerbasis *rlwe.PowerBasis
+	var powerbasis rlwe.PowerBasis
 	switch input := input.(type) {
 	case *rlwe.Ciphertext:
 		powerbasis = rlwe.NewPowerBasis(input, polyVec.Value[0].Basis, polyEval)
-	case *rlwe.PowerBasis:
+	case rlwe.PowerBasis:
 		if input.Value[1] == nil {
 			return nil, fmt.Errorf("cannot evaluatePolyVector: given PowerBasis.Value[1] is empty")
 		}
@@ -87,9 +86,6 @@ func (eval *Evaluator) Polynomial(input interface{}, p interface{}, targetScale 
 		return nil, err
 	}
 
-	powerbasis = nil
-
-	runtime.GC()
 	return opOut, err
 }
 
@@ -98,12 +94,12 @@ type dummyEvaluator struct {
 	nbModuliPerRescale int
 }
 
-func (d *dummyEvaluator) PolynomialDepth(degree int) int {
+func (d dummyEvaluator) PolynomialDepth(degree int) int {
 	return d.nbModuliPerRescale * (bits.Len64(uint64(degree)) - 1)
 }
 
 // Rescale rescales the target DummyOperand n times and returns it.
-func (d *dummyEvaluator) Rescale(op0 *rlwe.DummyOperand) {
+func (d dummyEvaluator) Rescale(op0 *rlwe.DummyOperand) {
 	for i := 0; i < d.nbModuliPerRescale; i++ {
 		op0.PlaintextScale = op0.PlaintextScale.Div(rlwe.NewScale(d.params.Q()[op0.Level]))
 		op0.Level--
@@ -111,14 +107,14 @@ func (d *dummyEvaluator) Rescale(op0 *rlwe.DummyOperand) {
 }
 
 // Mul multiplies two DummyOperand, stores the result the taret DummyOperand and returns the result.
-func (d *dummyEvaluator) MulNew(op0, op1 *rlwe.DummyOperand) (op2 *rlwe.DummyOperand) {
+func (d dummyEvaluator) MulNew(op0, op1 *rlwe.DummyOperand) (op2 *rlwe.DummyOperand) {
 	op2 = new(rlwe.DummyOperand)
 	op2.Level = utils.Min(op0.Level, op1.Level)
 	op2.PlaintextScale = op0.PlaintextScale.Mul(op1.PlaintextScale)
 	return
 }
 
-func (d *dummyEvaluator) UpdateLevelAndScaleBabyStep(lead bool, tLevelOld int, tScaleOld rlwe.Scale) (tLevelNew int, tScaleNew rlwe.Scale) {
+func (d dummyEvaluator) UpdateLevelAndScaleBabyStep(lead bool, tLevelOld int, tScaleOld rlwe.Scale) (tLevelNew int, tScaleNew rlwe.Scale) {
 
 	tLevelNew = tLevelOld
 	tScaleNew = tScaleOld
@@ -132,7 +128,7 @@ func (d *dummyEvaluator) UpdateLevelAndScaleBabyStep(lead bool, tLevelOld int, t
 	return
 }
 
-func (d *dummyEvaluator) UpdateLevelAndScaleGiantStep(lead bool, tLevelOld int, tScaleOld, xPowScale rlwe.Scale) (tLevelNew int, tScaleNew rlwe.Scale) {
+func (d dummyEvaluator) UpdateLevelAndScaleGiantStep(lead bool, tLevelOld int, tScaleOld, xPowScale rlwe.Scale) (tLevelNew int, tScaleNew rlwe.Scale) {
 
 	Q := d.params.Q()
 
@@ -156,7 +152,7 @@ func (d *dummyEvaluator) UpdateLevelAndScaleGiantStep(lead bool, tLevelOld int, 
 	return
 }
 
-func (d *dummyEvaluator) GetPolynmialDepth(degree int) int {
+func (d dummyEvaluator) GetPolynmialDepth(degree int) int {
 	return d.nbModuliPerRescale * (bits.Len64(uint64(degree)) - 1)
 }
 
@@ -168,11 +164,11 @@ type PolynomialEvaluator struct {
 	*Evaluator
 }
 
-func (polyEval *PolynomialEvaluator) Rescale(op0, op1 *rlwe.Ciphertext) (err error) {
+func (polyEval PolynomialEvaluator) Rescale(op0, op1 *rlwe.Ciphertext) (err error) {
 	return polyEval.Evaluator.Rescale(op0, polyEval.Evaluator.parameters.PlaintextScale(), op1)
 }
 
-func (polyEval *PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol *rlwe.PolynomialVector, pb *rlwe.PowerBasis, targetScale rlwe.Scale) (res *rlwe.Ciphertext, err error) {
+func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol rlwe.PolynomialVector, pb rlwe.PowerBasis, targetScale rlwe.Scale) (res *rlwe.Ciphertext, err error) {
 
 	// Map[int] of the powers [X^{0}, X^{1}, X^{2}, ...]
 	X := pb.Value
@@ -233,7 +229,7 @@ func (polyEval *PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targ
 			// If a non-zero coefficient was found, encode the values, adds on the ciphertext, and returns
 			if toEncode {
 				pt := &rlwe.Plaintext{}
-				pt.Value = &res.Value[0]
+				pt.Value = res.Value[0]
 				pt.MetaData = res.MetaData
 				if err = polyEval.Evaluator.Encode(values, pt); err != nil {
 					return nil, err

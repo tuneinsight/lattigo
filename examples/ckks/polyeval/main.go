@@ -125,7 +125,7 @@ func chebyshevinterpolation() {
 		panic(err)
 	}
 
-	polyVec := rlwe.NewPolynomialVector([]*rlwe.Polynomial{rlwe.NewPolynomial(approxF), rlwe.NewPolynomial(approxG)}, slotsIndex)
+	polyVec := rlwe.NewPolynomialVector([]rlwe.Polynomial{rlwe.NewPolynomial(approxF), rlwe.NewPolynomial(approxG)}, slotsIndex)
 
 	// We evaluate the interpolated Chebyshev interpolant on the ciphertext
 	if ciphertext, err = evaluator.Polynomial(ciphertext, polyVec, ciphertext.PlaintextScale); err != nil {

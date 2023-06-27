@@ -41,7 +41,7 @@ func NewPublicKeyGenProtocol(params rlwe.Parameters) PublicKeyGenProtocol {
 
 // AllocateShare allocates the share of the PublicKeyGen protocol.
 func (ckg PublicKeyGenProtocol) AllocateShare() PublicKeyGenShare {
-	return PublicKeyGenShare{*ckg.params.RingQP().NewPoly()}
+	return PublicKeyGenShare{ckg.params.RingQP().NewPoly()}
 }
 
 // SampleCRP samples a common random polynomial to be used in the PublicKeyGen protocol from the provided
@@ -49,7 +49,7 @@ func (ckg PublicKeyGenProtocol) AllocateShare() PublicKeyGenShare {
 func (ckg PublicKeyGenProtocol) SampleCRP(crs CRS) PublicKeyGenCRP {
 	crp := ckg.params.RingQP().NewPoly()
 	ringqp.NewUniformSampler(crs, *ckg.params.RingQP()).Read(crp)
-	return PublicKeyGenCRP{*crp}
+	return PublicKeyGenCRP{crp}
 }
 
 // GenShare generates the party's public key share from its secret key as:
@@ -63,24 +63,24 @@ func (ckg PublicKeyGenProtocol) GenShare(sk *rlwe.SecretKey, crp PublicKeyGenCRP
 	ckg.gaussianSamplerQ.Read(shareOut.Value.Q)
 
 	if ringQP.RingP != nil {
-		ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value.Q, ckg.params.MaxLevelP(), nil, shareOut.Value.P)
+		ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value.Q, ckg.params.MaxLevelP(), shareOut.Value.Q, shareOut.Value.P)
 	}
 
-	ringQP.NTT(&shareOut.Value, &shareOut.Value)
-	ringQP.MForm(&shareOut.Value, &shareOut.Value)
+	ringQP.NTT(shareOut.Value, shareOut.Value)
+	ringQP.MForm(shareOut.Value, shareOut.Value)
 
-	ringQP.MulCoeffsMontgomeryThenSub(&sk.Value, &crp.Value, &shareOut.Value)
+	ringQP.MulCoeffsMontgomeryThenSub(sk.Value, crp.Value, shareOut.Value)
 }
 
 // AggregateShares aggregates a new share to the aggregate key
-func (ckg PublicKeyGenProtocol) AggregateShares(share1, share2, shareOut *PublicKeyGenShare) {
-	ckg.params.RingQP().Add(&share1.Value, &share2.Value, &shareOut.Value)
+func (ckg PublicKeyGenProtocol) AggregateShares(share1, share2 PublicKeyGenShare, shareOut *PublicKeyGenShare) {
+	ckg.params.RingQP().Add(share1.Value, share2.Value, shareOut.Value)
 }
 
 // GenPublicKey return the current aggregation of the received shares as a bfv.PublicKey.
 func (ckg PublicKeyGenProtocol) GenPublicKey(roundShare PublicKeyGenShare, crp PublicKeyGenCRP, pubkey *rlwe.PublicKey) {
-	pubkey.Value[0].Copy(&roundShare.Value)
-	pubkey.Value[1].Copy(&crp.Value)
+	pubkey.Value[0].Copy(roundShare.Value)
+	pubkey.Value[1].Copy(crp.Value)
 }
 
 // ShallowCopy creates a shallow copy of PublicKeyGenProtocol in which all the read-only data-structures are

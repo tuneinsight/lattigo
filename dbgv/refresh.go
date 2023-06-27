@@ -40,7 +40,7 @@ func (rfp RefreshProtocol) GenShare(sk *rlwe.SecretKey, ct *rlwe.Ciphertext, sca
 }
 
 // AggregateShares aggregates two parties' shares in the Refresh protocol.
-func (rfp RefreshProtocol) AggregateShares(share1, share2, shareOut *drlwe.RefreshShare) {
+func (rfp RefreshProtocol) AggregateShares(share1, share2 drlwe.RefreshShare, shareOut *drlwe.RefreshShare) {
 	rfp.MaskedTransformProtocol.AggregateShares(share1, share2, shareOut)
 }
 

@@ -124,7 +124,7 @@ func (btp *Bootstrapper) modUpFromQ0(ct *rlwe.Ciphertext) *rlwe.Ciphertext {
 	ringP := btp.params.RingP()
 
 	for i := range ct.Value {
-		ringQ.INTT(&ct.Value[i], &ct.Value[i])
+		ringQ.INTT(ct.Value[i], ct.Value[i])
 	}
 
 	// Extend the ciphertext with zero polynomials.
@@ -195,14 +195,14 @@ func (btp *Bootstrapper) modUpFromQ0(ct *rlwe.Ciphertext) *rlwe.Ciphertext {
 			ringP.NTT(ks.BuffDecompQP[0].P, ks.BuffDecompQP[i].P)
 		}
 
-		ringQ.NTT(&ct.Value[0], &ct.Value[0])
+		ringQ.NTT(ct.Value[0], ct.Value[0])
 
 		ctTmp := &rlwe.Ciphertext{}
-		ctTmp.Value = []ring.Poly{*ks.BuffQP[1].Q, ct.Value[1]}
+		ctTmp.Value = []ring.Poly{ks.BuffQP[1].Q, ct.Value[1]}
 		ctTmp.MetaData = ct.MetaData
 
 		ks.GadgetProductHoisted(levelQ, ks.BuffDecompQP, &btp.EvkStD.GadgetCiphertext, ctTmp)
-		ringQ.Add(&ct.Value[0], &ctTmp.Value[0], &ct.Value[0])
+		ringQ.Add(ct.Value[0], ctTmp.Value[0], ct.Value[0])
 
 	} else {
 
@@ -221,8 +221,8 @@ func (btp *Bootstrapper) modUpFromQ0(ct *rlwe.Ciphertext) *rlwe.Ciphertext {
 			}
 		}
 
-		ringQ.NTT(&ct.Value[0], &ct.Value[0])
-		ringQ.NTT(&ct.Value[1], &ct.Value[1])
+		ringQ.NTT(ct.Value[0], ct.Value[0])
+		ringQ.NTT(ct.Value[1], ct.Value[1])
 	}
 
 	return ct

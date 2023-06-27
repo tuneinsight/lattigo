@@ -319,7 +319,8 @@ func testMarshalBinary(tc *testParams, t *testing.T) {
 	})
 
 	t.Run(testString("MarshalBinary/Poly", tc.ringQ), func(t *testing.T) {
-		buffer.RequireSerializerCorrect(t, tc.uniformSamplerQ.ReadNew())
+		poly := tc.uniformSamplerQ.ReadNew()
+		buffer.RequireSerializerCorrect(t, &poly)
 	})
 
 	t.Run(testString("structs/PolyVector", tc.ringQ), func(t *testing.T) {
@@ -327,7 +328,7 @@ func testMarshalBinary(tc *testParams, t *testing.T) {
 		polys := make([]Poly, 4)
 
 		for i := range polys {
-			polys[i] = *tc.uniformSamplerQ.ReadNew()
+			polys[i] = tc.uniformSamplerQ.ReadNew()
 		}
 
 		v := structs.Vector[Poly](polys)
@@ -343,7 +344,7 @@ func testMarshalBinary(tc *testParams, t *testing.T) {
 			polys[i] = make([]Poly, 4)
 
 			for j := range polys {
-				polys[i][j] = *tc.uniformSamplerQ.ReadNew()
+				polys[i][j] = tc.uniformSamplerQ.ReadNew()
 			}
 		}
 
@@ -357,7 +358,8 @@ func testMarshalBinary(tc *testParams, t *testing.T) {
 		m := make(structs.Map[int, Poly], 4)
 
 		for i := 0; i < 4; i++ {
-			m[i] = tc.uniformSamplerQ.ReadNew()
+			p := tc.uniformSamplerQ.ReadNew()
+			m[i] = &p
 		}
 
 		buffer.RequireSerializerCorrect(t, &m)
@@ -470,7 +472,7 @@ func testSampler(tc *testParams, t *testing.T) {
 
 			sampler := NewSampler(tc.prng, tc.ringQ, Ternary{H: h}, false)
 
-			checkPoly := func(pol *Poly) {
+			checkPoly := func(pol Poly) {
 				for i := range tc.ringQ.SubRings {
 					hw := 0
 					for _, c := range pol.Coeffs[i] {

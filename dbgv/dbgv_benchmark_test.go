@@ -78,7 +78,7 @@ func benchRefresh(tc *testContext, b *testing.B) {
 	b.Run(GetTestName("Refresh/Round1/Agg", tc.params, tc.NParties), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.AggregateShares(&p.share, &p.share, &p.share)
+			p.AggregateShares(p.share, p.share, &p.share)
 		}
 	})
 

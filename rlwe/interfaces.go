@@ -99,5 +99,5 @@ type EvaluatorInterface interface {
 // that are required for the encrypted evaluation of plaintext polynomial.
 type PolynomialEvaluatorInterface interface {
 	EvaluatorInterface
-	EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol *PolynomialVector, pb *PowerBasis, targetScale Scale) (res *Ciphertext, err error)
+	EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol PolynomialVector, pb PowerBasis, targetScale Scale) (res *Ciphertext, err error)
 }

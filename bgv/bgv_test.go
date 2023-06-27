@@ -124,7 +124,7 @@ func genTestParams(params Parameters) (tc *testContext, err error) {
 	return
 }
 
-func newTestVectorsLvl(level int, scale rlwe.Scale, tc *testContext, encryptor rlwe.EncryptorInterface) (coeffs *ring.Poly, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
+func newTestVectorsLvl(level int, scale rlwe.Scale, tc *testContext, encryptor rlwe.EncryptorInterface) (coeffs ring.Poly, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
 	coeffs = tc.uSampler.ReadNew()
 	for i := range coeffs.Coeffs[0] {
 		coeffs.Coeffs[0][i] = uint64(i)
@@ -140,7 +140,7 @@ func newTestVectorsLvl(level int, scale rlwe.Scale, tc *testContext, encryptor r
 	return coeffs, plaintext, ciphertext
 }
 
-func verifyTestVectors(tc *testContext, decryptor *rlwe.Decryptor, coeffs *ring.Poly, element rlwe.Operand, t *testing.T) {
+func verifyTestVectors(tc *testContext, decryptor *rlwe.Decryptor, coeffs ring.Poly, element rlwe.Operand, t *testing.T) {
 
 	coeffsTest := make([]uint64, tc.params.PlaintextSlots())
 
@@ -691,7 +691,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				slotIndex[0] = idx0
 				slotIndex[1] = idx1
 
-				polyVector := rlwe.NewPolynomialVector([]*rlwe.Polynomial{
+				polyVector := rlwe.NewPolynomialVector([]rlwe.Polynomial{
 					rlwe.NewPolynomial(polynomial.NewPolynomial(polynomial.Monomial, coeffs0, nil)),
 					rlwe.NewPolynomial(polynomial.NewPolynomial(polynomial.Monomial, coeffs1, nil)),
 				}, slotIndex)

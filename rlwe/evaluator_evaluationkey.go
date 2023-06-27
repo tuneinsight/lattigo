@@ -34,7 +34,7 @@ import (
 // - ctIn ring degree must match the smaller ring degree.
 // - ctOut ring degree must match the evaluator's ring degree.
 // - evk must have been generated using the key-generator of the large ring degree with as input small-key -> large-key.
-func (eval *Evaluator) ApplyEvaluationKey(ctIn *Ciphertext, evk *EvaluationKey, ctOut *Ciphertext) {
+func (eval Evaluator) ApplyEvaluationKey(ctIn *Ciphertext, evk *EvaluationKey, ctOut *Ciphertext) {
 
 	if ctIn.Degree() != 1 || ctOut.Degree() != 1 {
 		panic("ApplyEvaluationKey: input and output Ciphertext must be of degree 1")
@@ -93,13 +93,13 @@ func (eval *Evaluator) ApplyEvaluationKey(ctIn *Ciphertext, evk *EvaluationKey, 
 	ctOut.MetaData = ctIn.MetaData
 }
 
-func (eval *Evaluator) applyEvaluationKey(level int, ctIn *Ciphertext, evk *EvaluationKey, ctOut *Ciphertext) {
+func (eval Evaluator) applyEvaluationKey(level int, ctIn *Ciphertext, evk *EvaluationKey, ctOut *Ciphertext) {
 	ctTmp := &Ciphertext{}
-	ctTmp.Value = []ring.Poly{*eval.BuffQP[0].Q, *eval.BuffQP[1].Q}
+	ctTmp.Value = []ring.Poly{eval.BuffQP[0].Q, eval.BuffQP[1].Q}
 	ctTmp.IsNTT = ctIn.IsNTT
-	eval.GadgetProduct(level, &ctIn.Value[1], &evk.GadgetCiphertext, ctTmp)
-	eval.params.RingQ().AtLevel(level).Add(&ctIn.Value[0], &ctTmp.Value[0], &ctOut.Value[0])
-	ring.CopyLvl(level, &ctTmp.Value[1], &ctOut.Value[1])
+	eval.GadgetProduct(level, ctIn.Value[1], &evk.GadgetCiphertext, ctTmp)
+	eval.params.RingQ().AtLevel(level).Add(ctIn.Value[0], ctTmp.Value[0], ctOut.Value[0])
+	ring.CopyLvl(level, ctTmp.Value[1], ctOut.Value[1])
 }
 
 // Relinearize applies the relinearization procedure on ct0 and returns the result in ctOut.
@@ -112,7 +112,7 @@ func (eval *Evaluator) applyEvaluationKey(level int, ctIn *Ciphertext, evk *Eval
 // - The input ciphertext degree isn't 2.
 // - The corresponding relinearization key to the ciphertext degree
 // is missing.
-func (eval *Evaluator) Relinearize(ctIn *Ciphertext, ctOut *Ciphertext) {
+func (eval Evaluator) Relinearize(ctIn *Ciphertext, ctOut *Ciphertext) {
 
 	if ctIn.Degree() != 2 {
 		panic(fmt.Errorf("cannot relinearize: ctIn.Degree() should be 2 but is %d", ctIn.Degree()))
@@ -129,12 +129,12 @@ func (eval *Evaluator) Relinearize(ctIn *Ciphertext, ctOut *Ciphertext) {
 	ringQ := eval.params.RingQ().AtLevel(level)
 
 	ctTmp := &Ciphertext{}
-	ctTmp.Value = []ring.Poly{*eval.BuffQP[0].Q, *eval.BuffQP[1].Q}
+	ctTmp.Value = []ring.Poly{eval.BuffQP[0].Q, eval.BuffQP[1].Q}
 	ctTmp.IsNTT = ctIn.IsNTT
 
-	eval.GadgetProduct(level, &ctIn.Value[2], &rlk.GadgetCiphertext, ctTmp)
-	ringQ.Add(&ctIn.Value[0], &ctTmp.Value[0], &ctOut.Value[0])
-	ringQ.Add(&ctIn.Value[1], &ctTmp.Value[1], &ctOut.Value[1])
+	eval.GadgetProduct(level, ctIn.Value[2], &rlk.GadgetCiphertext, ctTmp)
+	ringQ.Add(ctIn.Value[0], ctTmp.Value[0], ctOut.Value[0])
+	ringQ.Add(ctIn.Value[1], ctTmp.Value[1], ctOut.Value[1])
 
 	ctOut.Resize(1, level)
 

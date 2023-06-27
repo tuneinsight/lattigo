@@ -35,16 +35,16 @@ func NewCiphertextRandom(prng sampling.PRNG, params ParametersInterface, degree,
 }
 
 // CopyNew creates a new element as a copy of the target element.
-func (ct *Ciphertext) CopyNew() *Ciphertext {
+func (ct Ciphertext) CopyNew() *Ciphertext {
 	return &Ciphertext{OperandQ: *ct.OperandQ.CopyNew()}
 }
 
 // Copy copies the input element and its parameters on the target element.
-func (ct *Ciphertext) Copy(ctxCopy *Ciphertext) {
+func (ct Ciphertext) Copy(ctxCopy *Ciphertext) {
 	ct.OperandQ.Copy(&ctxCopy.OperandQ)
 }
 
 // Equal performs a deep equal.
-func (ct *Ciphertext) Equal(other *Ciphertext) bool {
+func (ct Ciphertext) Equal(other *Ciphertext) bool {
 	return ct.OperandQ.Equal(&other.OperandQ)
 }

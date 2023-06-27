@@ -4,8 +4,9 @@ import (
 	"bufio"
 	"io"
 
-	"github.com/google/go-cmp/cmp"
+	//"github.com/google/go-cmp/cmp"
 	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/buffer"
 )
 
@@ -16,13 +17,13 @@ import (
 // the special primes for the RNS decomposition during homomorphic
 // operations involving keys.
 type Poly struct {
-	Q, P *ring.Poly
+	Q, P ring.Poly
 }
 
 // NewPoly creates a new polynomial at the given levels.
 // If levelQ or levelP are negative, the corresponding polynomial will be nil.
-func NewPoly(N, levelQ, levelP int) *Poly {
-	var Q, P *ring.Poly
+func NewPoly(N, levelQ, levelP int) Poly {
+	var Q, P ring.Poly
 
 	if levelQ >= 0 {
 		Q = ring.NewPoly(N, levelQ)
@@ -32,73 +33,54 @@ func NewPoly(N, levelQ, levelP int) *Poly {
 		P = ring.NewPoly(N, levelP)
 	}
 
-	return &Poly{Q, P}
+	return Poly{Q, P}
 }
 
 // LevelQ returns the level of the polynomial modulo Q.
 // Returns -1 if the modulus Q is absent.
-func (p *Poly) LevelQ() int {
-	if p.Q != nil {
-		return p.Q.Level()
-	}
-	return -1
+func (p Poly) LevelQ() int {
+	return p.Q.Level()
 }
 
 // LevelP returns the level of the polynomial modulo P.
 // Returns -1 if the modulus P is absent.
-func (p *Poly) LevelP() int {
-	if p.P != nil {
-		return p.P.Level()
-	}
-	return -1
+func (p Poly) LevelP() int {
+	return p.P.Level()
 }
 
 // Equal returns true if the receiver Poly is equal to the provided other Poly.
-func (p *Poly) Equal(other *Poly) (v bool) {
-	return cmp.Equal(p.Q, other.Q) && cmp.Equal(p.P, other.P)
+func (p Poly) Equal(other *Poly) (v bool) {
+	return p.Q.Equal(&other.Q) && p.P.Equal(&other.P)
 }
 
 // Copy copies the coefficients of other on the target polynomial.
 // This method simply calls the Copy method for each of its sub-polynomials.
-func (p *Poly) Copy(other *Poly) {
-	if p.Q != nil {
+func (p *Poly) Copy(other Poly) {
+	if p.Q.Level() != -1 && !utils.Alias1D(p.Q.Buff, other.Q.Buff) {
 		copy(p.Q.Buff, other.Q.Buff)
 	}
 
-	if p.P != nil {
+	if p.P.Level() != -1 && !utils.Alias1D(p.P.Buff, other.P.Buff) {
 		copy(p.P.Buff, other.P.Buff)
 	}
 }
 
 // CopyLvl copies the values of p1 on p2.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
-func CopyLvl(levelQ, levelP int, p1, p2 *Poly) {
+func CopyLvl(levelQ, levelP int, p1, p2 Poly) {
 
-	if p1.Q != nil && p2.Q != nil {
+	if p1.Q.Level() != -1 && p2.Q.Level() != -1 && !utils.Alias1D(p1.Q.Buff, p2.Q.Buff) {
 		ring.CopyLvl(levelQ, p1.Q, p2.Q)
 	}
 
-	if p1.P != nil && p2.P != nil {
+	if p1.P.Level() != -1 && p2.Q.Level() != -1 && !utils.Alias1D(p1.P.Buff, p2.P.Buff) {
 		ring.CopyLvl(levelP, p1.P, p2.P)
 	}
 }
 
 // CopyNew creates an exact copy of the target polynomial.
-func (p *Poly) CopyNew() *Poly {
-	if p == nil {
-		return nil
-	}
-
-	var Q, P *ring.Poly
-	if p.Q != nil {
-		Q = p.Q.CopyNew()
-	}
-
-	if p.P != nil {
-		P = p.P.CopyNew()
-	}
-
-	return &Poly{Q, P}
+func (p Poly) CopyNew() Poly {
+	return Poly{p.Q.CopyNew(), p.P.CopyNew()}
 }
 
 // Resize resizes the levels of the target polynomial to the provided levels.
@@ -106,29 +88,14 @@ func (p *Poly) CopyNew() *Poly {
 // coefficients, otherwise dereferences the coefficients above the provided level.
 // Nil polynmials are unafected.
 func (p *Poly) Resize(levelQ, levelP int) {
-	if p.Q != nil {
-		p.Q.Resize(levelQ)
-	}
-
-	if p.P != nil {
-		p.P.Resize(levelP)
-	}
+	p.Q.Resize(levelQ)
+	p.P.Resize(levelP)
 }
 
 // BinarySize returns the serialized size of the object in bytes.
 // It assumes that each coefficient takes 8 bytes.
-func (p *Poly) BinarySize() (dataLen int) {
-
-	dataLen = 1
-
-	if p.Q != nil {
-		dataLen += p.Q.BinarySize()
-	}
-	if p.P != nil {
-		dataLen += p.P.BinarySize()
-	}
-
-	return
+func (p Poly) BinarySize() (dataLen int) {
+	return 1 + p.Q.BinarySize() + p.P.BinarySize()
 }
 
 // WriteTo writes the object on an io.Writer. It implements the io.WriterTo
@@ -142,16 +109,17 @@ func (p *Poly) BinarySize() (dataLen int) {
 //     io.Writer in a pre-allocated bufio.Writer.
 //   - When writing to a pre-allocated var b []byte, it is preferable to pass
 //     buffer.NewBuffer(b) as w (see lattigo/utils/buffer/buffer.go).
-func (p *Poly) WriteTo(w io.Writer) (n int64, err error) {
+func (p Poly) WriteTo(w io.Writer) (n int64, err error) {
 
 	switch w := w.(type) {
 	case buffer.Writer:
 
 		var hasQP byte
-		if p.Q != nil {
+		if p.Q.Level() != -1 {
 			hasQP = hasQP | 2
 		}
-		if p.P != nil {
+
+		if p.P.Level() != -1 {
 			hasQP = hasQP | 1
 		}
 
@@ -162,23 +130,18 @@ func (p *Poly) WriteTo(w io.Writer) (n int64, err error) {
 
 		n += int64(inc)
 
-		if p.Q != nil {
-			var inc int64
-			if inc, err = p.Q.WriteTo(w); err != nil {
-				return n + inc, err
-			}
-
-			n += inc
+		var inc64 int64
+		if inc64, err = p.Q.WriteTo(w); err != nil {
+			return n + inc64, err
 		}
 
-		if p.P != nil {
-			var inc int64
-			if inc, err = p.P.WriteTo(w); err != nil {
-				return n + inc, err
-			}
+		n += inc64
 
-			n += inc
+		if inc64, err = p.P.WriteTo(w); err != nil {
+			return n + inc64, err
 		}
+
+		n += inc64
 
 		return n, w.Flush()
 
@@ -212,10 +175,6 @@ func (p *Poly) ReadFrom(r io.Reader) (n int64, err error) {
 
 		if hasQP&2 == 2 {
 
-			if p.Q == nil {
-				p.Q = new(ring.Poly)
-			}
-
 			var inc64 int64
 			if inc64, err = p.Q.ReadFrom(r); err != nil {
 				return n + inc64, err
@@ -225,10 +184,6 @@ func (p *Poly) ReadFrom(r io.Reader) (n int64, err error) {
 		}
 
 		if hasQP&1 == 1 {
-
-			if p.P == nil {
-				p.P = new(ring.Poly)
-			}
 
 			var inc int64
 			if inc, err = p.P.ReadFrom(r); err != nil {
@@ -246,7 +201,7 @@ func (p *Poly) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
-func (p *Poly) MarshalBinary() (data []byte, err error) {
+func (p Poly) MarshalBinary() (data []byte, err error) {
 	buf := buffer.NewBufferSize(p.BinarySize())
 	_, err = p.WriteTo(buf)
 	return buf.Bytes(), err

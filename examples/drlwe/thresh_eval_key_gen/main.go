@@ -123,7 +123,7 @@ func (c *cloud) Run(galEls []uint64, params rlwe.Parameters, t int) {
 	for task := range c.aggTaskQueue {
 		start := time.Now()
 		acc := shares[task.galEl]
-		c.GaloisKeyGenProtocol.AggregateShares(&acc.share, &task.rtgShare, &acc.share)
+		c.GaloisKeyGenProtocol.AggregateShares(acc.share, task.rtgShare, &acc.share)
 		acc.needed--
 		if acc.needed == 0 {
 			gk := rlwe.NewGaloisKey(params)
@@ -231,7 +231,7 @@ func main() {
 		P[i] = pi
 
 		// computes the ideal sk for the sake of the example
-		params.RingQP().Add(&skIdeal.Value, &pi.sk.Value, &skIdeal.Value)
+		params.RingQP().Add(skIdeal.Value, pi.sk.Value, skIdeal.Value)
 
 		shamirPks = append(shamirPks, pi.shamirPk)
 	}
@@ -258,7 +258,7 @@ func main() {
 		for _, pi := range P {
 			for _, pj := range P {
 				share := shares[pj][pi]
-				pi.Thresholdizer.AggregateShares(&pi.tsk, &share, &pi.tsk)
+				pi.Thresholdizer.AggregateShares(pi.tsk, share, &pi.tsk)
 			}
 		}
 	}

@@ -19,38 +19,31 @@ type SecretKey struct {
 
 // NewSecretKey generates a new SecretKey with zero values.
 func NewSecretKey(params ParametersInterface) *SecretKey {
-	return &SecretKey{Value: *params.RingQP().NewPoly()}
+	return &SecretKey{Value: params.RingQP().NewPoly()}
 }
 
-func (sk *SecretKey) Equal(other *SecretKey) bool {
+func (sk SecretKey) Equal(other *SecretKey) bool {
 	return cmp.Equal(sk.Value, other.Value)
 }
 
 // LevelQ returns the level of the modulus Q of the target.
-func (sk *SecretKey) LevelQ() int {
+func (sk SecretKey) LevelQ() int {
 	return sk.Value.Q.Level()
 }
 
 // LevelP returns the level of the modulus P of the target.
 // Returns -1 if P is absent.
-func (sk *SecretKey) LevelP() int {
-	if sk.Value.P != nil {
-		return sk.Value.P.Level()
-	}
-
-	return -1
+func (sk SecretKey) LevelP() int {
+	return sk.Value.P.Level()
 }
 
 // CopyNew creates a deep copy of the receiver secret key and returns it.
-func (sk *SecretKey) CopyNew() *SecretKey {
-	if sk == nil {
-		return nil
-	}
-	return &SecretKey{*sk.Value.CopyNew()}
+func (sk SecretKey) CopyNew() *SecretKey {
+	return &SecretKey{sk.Value.CopyNew()}
 }
 
 // BinarySize returns the serialized size of the object in bytes.
-func (sk *SecretKey) BinarySize() (dataLen int) {
+func (sk SecretKey) BinarySize() (dataLen int) {
 	return sk.Value.BinarySize()
 }
 
@@ -65,7 +58,7 @@ func (sk *SecretKey) BinarySize() (dataLen int) {
 //     io.Writer in a pre-allocated bufio.Writer.
 //   - When writing to a pre-allocated var b []byte, it is preferable to pass
 //     buffer.NewBuffer(b) as w (see lattigo/utils/buffer/buffer.go).
-func (sk *SecretKey) WriteTo(w io.Writer) (n int64, err error) {
+func (sk SecretKey) WriteTo(w io.Writer) (n int64, err error) {
 	return sk.Value.WriteTo(w)
 }
 
@@ -85,7 +78,7 @@ func (sk *SecretKey) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
-func (sk *SecretKey) MarshalBinary() (p []byte, err error) {
+func (sk SecretKey) MarshalBinary() (p []byte, err error) {
 	return sk.Value.MarshalBinary()
 }
 
@@ -99,26 +92,26 @@ type tupleQP [2]ringqp.Poly
 
 // NewPublicKey returns a new PublicKey with zero values.
 func newTupleQP(params ParametersInterface) (pk tupleQP) {
-	return [2]ringqp.Poly{*params.RingQP().NewPoly(), *params.RingQP().NewPoly()}
+	return [2]ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()}
 }
 
 // NewPublicKey returns a new PublicKey with zero values.
 func newTupleQPAtLevel(params ParametersInterface, levelQ, levelP int) (pk tupleQP) {
 	rqp := params.RingQP().AtLevel(levelQ, levelP)
-	return [2]ringqp.Poly{*rqp.NewPoly(), *rqp.NewPoly()}
+	return [2]ringqp.Poly{rqp.NewPoly(), rqp.NewPoly()}
 }
 
 // CopyNew creates a deep copy of the target PublicKey and returns it.
-func (p *tupleQP) CopyNew() tupleQP {
-	return [2]ringqp.Poly{*p[0].CopyNew(), *p[1].CopyNew()}
+func (p tupleQP) CopyNew() tupleQP {
+	return [2]ringqp.Poly{p[0].CopyNew(), p[1].CopyNew()}
 }
 
 // Equal performs a deep equal.
-func (p *tupleQP) Equal(other *tupleQP) bool {
+func (p tupleQP) Equal(other *tupleQP) bool {
 	return p[0].Equal(&other[0]) && p[1].Equal(&other[1])
 }
 
-func (p *tupleQP) BinarySize() int {
+func (p tupleQP) BinarySize() int {
 	return structs.Vector[ringqp.Poly](p[:]).BinarySize()
 }
 
@@ -133,7 +126,7 @@ func (p *tupleQP) BinarySize() int {
 //     io.Writer in a pre-allocated bufio.Writer.
 //   - When writing to a pre-allocated var b []byte, it is preferable to pass
 //     buffer.NewBuffer(b) as w (see lattigo/utils/buffer/buffer.go).
-func (p *tupleQP) WriteTo(w io.Writer) (n int64, err error) {
+func (p tupleQP) WriteTo(w io.Writer) (n int64, err error) {
 	v := structs.Vector[ringqp.Poly](p[:])
 	return v.WriteTo(w)
 }
@@ -159,7 +152,7 @@ func (p *tupleQP) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
-func (p *tupleQP) MarshalBinary() ([]byte, error) {
+func (p tupleQP) MarshalBinary() ([]byte, error) {
 	v := structs.Vector[ringqp.Poly](p[:])
 	return v.MarshalBinary()
 }
@@ -187,16 +180,16 @@ func NewPublicKey(params ParametersInterface) (pk *PublicKey) {
 }
 
 // CopyNew creates a deep copy of the target PublicKey and returns it.
-func (p *PublicKey) CopyNew() *PublicKey {
+func (p PublicKey) CopyNew() *PublicKey {
 	return &PublicKey{Value: p.Value.CopyNew()}
 }
 
 // Equal performs a deep equal.
-func (p *PublicKey) Equal(other *PublicKey) bool {
+func (p PublicKey) Equal(other *PublicKey) bool {
 	return p.Value.Equal(&other.Value)
 }
 
-func (p *PublicKey) BinarySize() int {
+func (p PublicKey) BinarySize() int {
 	return p.Value.BinarySize()
 }
 
@@ -211,7 +204,7 @@ func (p *PublicKey) BinarySize() int {
 //     io.Writer in a pre-allocated bufio.Writer.
 //   - When writing to a pre-allocated var b []byte, it is preferable to pass
 //     buffer.NewBuffer(b) as w (see lattigo/utils/buffer/buffer.go).
-func (p *PublicKey) WriteTo(w io.Writer) (n int64, err error) {
+func (p PublicKey) WriteTo(w io.Writer) (n int64, err error) {
 	return p.Value.WriteTo(w)
 }
 
@@ -231,7 +224,7 @@ func (p *PublicKey) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
-func (p *PublicKey) MarshalBinary() ([]byte, error) {
+func (p PublicKey) MarshalBinary() ([]byte, error) {
 	return p.Value.MarshalBinary()
 }
 
@@ -274,12 +267,12 @@ func NewEvaluationKey(params ParametersInterface, levelQ, levelP int) *Evaluatio
 }
 
 // CopyNew creates a deep copy of the target EvaluationKey and returns it.
-func (evk *EvaluationKey) CopyNew() *EvaluationKey {
+func (evk EvaluationKey) CopyNew() *EvaluationKey {
 	return &EvaluationKey{GadgetCiphertext: *evk.GadgetCiphertext.CopyNew()}
 }
 
 // Equal performs a deep equal.
-func (evk *EvaluationKey) Equal(other *EvaluationKey) bool {
+func (evk EvaluationKey) Equal(other *EvaluationKey) bool {
 	return evk.GadgetCiphertext.Equal(&other.GadgetCiphertext)
 }
 
@@ -297,12 +290,12 @@ func NewRelinearizationKey(params ParametersInterface) *RelinearizationKey {
 }
 
 // CopyNew creates a deep copy of the object and returns it.
-func (rlk *RelinearizationKey) CopyNew() *RelinearizationKey {
+func (rlk RelinearizationKey) CopyNew() *RelinearizationKey {
 	return &RelinearizationKey{EvaluationKey: *rlk.EvaluationKey.CopyNew()}
 }
 
 // Equal performs a deep equal.
-func (rlk *RelinearizationKey) Equal(other *RelinearizationKey) bool {
+func (rlk RelinearizationKey) Equal(other *RelinearizationKey) bool {
 	return rlk.EvaluationKey.Equal(&other.EvaluationKey)
 }
 
@@ -329,12 +322,12 @@ func NewGaloisKey(params ParametersInterface) *GaloisKey {
 }
 
 // Equal returns true if the two objects are equal.
-func (gk *GaloisKey) Equal(other *GaloisKey) bool {
+func (gk GaloisKey) Equal(other *GaloisKey) bool {
 	return gk.GaloisElement == other.GaloisElement && gk.NthRoot == other.NthRoot && cmp.Equal(gk.EvaluationKey, other.EvaluationKey)
 }
 
 // CopyNew creates a deep copy of the object and returns it
-func (gk *GaloisKey) CopyNew() *GaloisKey {
+func (gk GaloisKey) CopyNew() *GaloisKey {
 	return &GaloisKey{
 		GaloisElement: gk.GaloisElement,
 		NthRoot:       gk.NthRoot,
@@ -343,7 +336,7 @@ func (gk *GaloisKey) CopyNew() *GaloisKey {
 }
 
 // BinarySize returns the serialized size of the object in bytes.
-func (gk *GaloisKey) BinarySize() (size int) {
+func (gk GaloisKey) BinarySize() (size int) {
 	return gk.EvaluationKey.BinarySize() + 16
 }
 
@@ -358,7 +351,7 @@ func (gk *GaloisKey) BinarySize() (size int) {
 //     io.Writer in a pre-allocated bufio.Writer.
 //   - When writing to a pre-allocated var b []byte, it is preferable to pass
 //     buffer.NewBuffer(b) as w (see lattigo/utils/buffer/buffer.go).
-func (gk *GaloisKey) WriteTo(w io.Writer) (n int64, err error) {
+func (gk GaloisKey) WriteTo(w io.Writer) (n int64, err error) {
 	switch w := w.(type) {
 	case buffer.Writer:
 
@@ -433,7 +426,7 @@ func (gk *GaloisKey) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
-func (gk *GaloisKey) MarshalBinary() (p []byte, err error) {
+func (gk GaloisKey) MarshalBinary() (p []byte, err error) {
 	buf := buffer.NewBufferSize(gk.BinarySize())
 	_, err = gk.WriteTo(buf)
 	return buf.Bytes(), err
@@ -479,7 +472,7 @@ func NewMemEvaluationKeySet(relinKey *RelinearizationKey, galoisKeys ...*GaloisK
 }
 
 // GetGaloisKey retrieves the Galois key for the automorphism X^{i} -> X^{i*galEl}.
-func (evk *MemEvaluationKeySet) GetGaloisKey(galEl uint64) (gk *GaloisKey, err error) {
+func (evk MemEvaluationKeySet) GetGaloisKey(galEl uint64) (gk *GaloisKey, err error) {
 	var ok bool
 	if gk, ok = evk.Gks[galEl]; !ok {
 		return nil, fmt.Errorf("GaloiKey[%d] is nil", galEl)
@@ -490,9 +483,9 @@ func (evk *MemEvaluationKeySet) GetGaloisKey(galEl uint64) (gk *GaloisKey, err e
 
 // GetGaloisKeysList returns the list of all the Galois elements
 // for which a Galois key exists in the object.
-func (evk *MemEvaluationKeySet) GetGaloisKeysList() (galEls []uint64) {
+func (evk MemEvaluationKeySet) GetGaloisKeysList() (galEls []uint64) {
 
-	if evk == nil || evk.Gks == nil {
+	if evk.Gks == nil {
 		return []uint64{}
 	}
 
@@ -508,7 +501,7 @@ func (evk *MemEvaluationKeySet) GetGaloisKeysList() (galEls []uint64) {
 }
 
 // GetRelinearizationKey retrieves the RelinearizationKey.
-func (evk *MemEvaluationKeySet) GetRelinearizationKey() (rk *RelinearizationKey, err error) {
+func (evk MemEvaluationKeySet) GetRelinearizationKey() (rk *RelinearizationKey, err error) {
 	if evk.Rlk != nil {
 		return evk.Rlk, nil
 	}
@@ -516,7 +509,7 @@ func (evk *MemEvaluationKeySet) GetRelinearizationKey() (rk *RelinearizationKey,
 	return nil, fmt.Errorf("RelinearizationKey is nil")
 }
 
-func (evk *MemEvaluationKeySet) BinarySize() (size int) {
+func (evk MemEvaluationKeySet) BinarySize() (size int) {
 
 	size++
 	if evk.Rlk != nil {
@@ -542,7 +535,7 @@ func (evk *MemEvaluationKeySet) BinarySize() (size int) {
 //     io.Writer in a pre-allocated bufio.Writer.
 //   - When writing to a pre-allocated var b []byte, it is preferable to pass
 //     buffer.NewBuffer(b) as w (see lattigo/utils/buffer/buffer.go).
-func (evk *MemEvaluationKeySet) WriteTo(w io.Writer) (int64, error) {
+func (evk MemEvaluationKeySet) WriteTo(w io.Writer) (int64, error) {
 	switch w := w.(type) {
 	case buffer.Writer:
 
@@ -663,7 +656,7 @@ func (evk *MemEvaluationKeySet) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
-func (evk *MemEvaluationKeySet) MarshalBinary() (p []byte, err error) {
+func (evk MemEvaluationKeySet) MarshalBinary() (p []byte, err error) {
 	buf := buffer.NewBufferSize(evk.BinarySize())
 	_, err = evk.WriteTo(buf)
 	return buf.Bytes(), err

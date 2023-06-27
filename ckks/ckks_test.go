@@ -622,7 +622,7 @@ func testEvaluatorMul(tc *testContext, t *testing.T) {
 		}
 
 		ciphertext1 := &rlwe.Ciphertext{}
-		ciphertext1.Value = []ring.Poly{*plaintext1.Value}
+		ciphertext1.Value = []ring.Poly{plaintext1.Value}
 		ciphertext1.MetaData = plaintext1.MetaData
 
 		tc.evaluator.MulRelin(ciphertext1, ciphertext2, ciphertext1)
@@ -887,7 +887,7 @@ func testEvaluatePoly(tc *testContext, t *testing.T) {
 			valuesWant[j] = poly.Evaluate(values[j])
 		}
 
-		polyVector := rlwe.NewPolynomialVector([]*rlwe.Polynomial{rlwe.NewPolynomial(poly)}, slotIndex)
+		polyVector := rlwe.NewPolynomialVector([]rlwe.Polynomial{rlwe.NewPolynomial(poly)}, slotIndex)
 
 		if ciphertext, err = tc.evaluator.Polynomial(ciphertext, polyVector, ciphertext.PlaintextScale); err != nil {
 			t.Fatal(err)

@@ -30,7 +30,7 @@ type evaluatorBuffers struct {
 	// BuffQP[0-1]: Key-Switch output Key-Switch on the fly decomp(c2)
 	// BuffQP[2-5]: Available
 	BuffQP        [6]ringqp.Poly
-	BuffInvNTT    *ring.Poly
+	BuffInvNTT    ring.Poly
 	BuffDecompQP  []ringqp.Poly // Memory Buff for the basis extension in hoisting
 	BuffBitDecomp []uint64
 }
@@ -50,19 +50,19 @@ func newEvaluatorBuffers(params ParametersInterface) *evaluatorBuffers {
 	buff.BuffCt = NewCiphertext(params, 2, params.MaxLevel())
 
 	buff.BuffQP = [6]ringqp.Poly{
-		*ringQP.NewPoly(),
-		*ringQP.NewPoly(),
-		*ringQP.NewPoly(),
-		*ringQP.NewPoly(),
-		*ringQP.NewPoly(),
-		*ringQP.NewPoly(),
+		ringQP.NewPoly(),
+		ringQP.NewPoly(),
+		ringQP.NewPoly(),
+		ringQP.NewPoly(),
+		ringQP.NewPoly(),
+		ringQP.NewPoly(),
 	}
 
 	buff.BuffInvNTT = params.RingQ().NewPoly()
 
 	buff.BuffDecompQP = make([]ringqp.Poly, decompRNS)
 	for i := 0; i < decompRNS; i++ {
-		buff.BuffDecompQP[i] = *ringQP.NewPoly()
+		buff.BuffDecompQP[i] = ringQP.NewPoly()
 	}
 
 	buff.BuffBitDecomp = make([]uint64, params.RingQ().N())
@@ -104,12 +104,12 @@ func NewEvaluator(params ParametersInterface, evk EvaluationKeySet) (eval *Evalu
 }
 
 // Parameters returns the parameters used to instantiate the target evaluator.
-func (eval *Evaluator) Parameters() ParametersInterface {
+func (eval Evaluator) Parameters() ParametersInterface {
 	return eval.params
 }
 
 // CheckAndGetGaloisKey returns an error if the GaloisKey for the given Galois element is missing or the EvaluationKey interface is nil.
-func (eval *Evaluator) CheckAndGetGaloisKey(galEl uint64) (evk *GaloisKey, err error) {
+func (eval Evaluator) CheckAndGetGaloisKey(galEl uint64) (evk *GaloisKey, err error) {
 	if eval.EvaluationKeySet != nil {
 		if evk, err = eval.GetGaloisKey(galEl); err != nil {
 			return nil, fmt.Errorf("%w: key for galEl %d = 5^{%d} key is missing", err, galEl, eval.params.SolveDiscreteLogGaloisElement(galEl))
@@ -130,7 +130,7 @@ func (eval *Evaluator) CheckAndGetGaloisKey(galEl uint64) (evk *GaloisKey, err e
 }
 
 // CheckAndGetRelinearizationKey returns an error if the RelinearizationKey is missing or the EvaluationKey interface is nil.
-func (eval *Evaluator) CheckAndGetRelinearizationKey() (evk *RelinearizationKey, err error) {
+func (eval Evaluator) CheckAndGetRelinearizationKey() (evk *RelinearizationKey, err error) {
 	if eval.EvaluationKeySet != nil {
 		if evk, err = eval.GetRelinearizationKey(); err != nil {
 			return nil, fmt.Errorf("%w: relineariztion key is missing", err)
@@ -158,7 +158,7 @@ func (eval *Evaluator) CheckAndGetRelinearizationKey() (evk *RelinearizationKey,
 // The opOutMinDegree can be used to force the output operand to a higher ciphertext degree.
 //
 // The method returns max(op0.Degree(), op1.Degree(), opOut.Degree()) and min(op0.Level(), op1.Level(), opOut.Level())
-func (eval *Evaluator) InitOutputBinaryOp(op0, op1 *OperandQ, opOutMinDegree int, opOut *OperandQ) (degree, level int) {
+func (eval Evaluator) InitOutputBinaryOp(op0, op1 *OperandQ, opOutMinDegree int, opOut *OperandQ) (degree, level int) {
 
 	degree = utils.Max(op0.Degree(), op1.Degree())
 	degree = utils.Max(degree, opOut.Degree())
@@ -206,7 +206,7 @@ func (eval *Evaluator) InitOutputBinaryOp(op0, op1 *OperandQ, opOutMinDegree int
 // PlaintextLogDimensions <- op0.PlaintextLogDimensions
 //
 // The method returns max(op0.Degree(), opOut.Degree()) and min(op0.Level(), opOut.Level()).
-func (eval *Evaluator) InitOutputUnaryOp(op0, opOut *OperandQ) (degree, level int) {
+func (eval Evaluator) InitOutputUnaryOp(op0, opOut *OperandQ) (degree, level int) {
 
 	if op0 == nil || opOut == nil {
 		panic("op0 and opOut cannot be nil")
@@ -228,7 +228,7 @@ func (eval *Evaluator) InitOutputUnaryOp(op0, opOut *OperandQ) (degree, level in
 // ShallowCopy creates a shallow copy of this Evaluator in which all the read-only data-structures are
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // Evaluators can be used concurrently.
-func (eval *Evaluator) ShallowCopy() *Evaluator {
+func (eval Evaluator) ShallowCopy() *Evaluator {
 	return &Evaluator{
 		evaluatorBase:     eval.evaluatorBase,
 		Decomposer:        eval.Decomposer,
@@ -241,7 +241,7 @@ func (eval *Evaluator) ShallowCopy() *Evaluator {
 
 // WithKey creates a shallow copy of the receiver Evaluator for which the new EvaluationKey is evaluationKey
 // and where the temporary buffers are shared. The receiver and the returned Evaluators cannot be used concurrently.
-func (eval *Evaluator) WithKey(evk EvaluationKeySet) *Evaluator {
+func (eval Evaluator) WithKey(evk EvaluationKeySet) *Evaluator {
 
 	var AutomorphismIndex map[uint64][]uint64
 

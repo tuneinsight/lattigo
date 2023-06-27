@@ -1,9 +1,13 @@
 package ring
 
+import (
+	"github.com/tuneinsight/lattigo/v4/utils"
+)
+
 // DivFloorByLastModulusNTT divides (floored) the polynomial by its last modulus.
 // The input must be in the NTT domain.
 // Output poly level must be equal or one less than input level.
-func (r *Ring) DivFloorByLastModulusNTT(p0, buff, p1 *Poly) {
+func (r Ring) DivFloorByLastModulusNTT(p0, buff, p1 Poly) {
 
 	level := r.level
 
@@ -18,7 +22,7 @@ func (r *Ring) DivFloorByLastModulusNTT(p0, buff, p1 *Poly) {
 
 // DivFloorByLastModulus divides (floored) the polynomial by its last modulus.
 // Output poly level must be equal or one less than input level.
-func (r *Ring) DivFloorByLastModulus(p0, p1 *Poly) {
+func (r Ring) DivFloorByLastModulus(p0, p1 Poly) {
 
 	level := r.level
 
@@ -29,11 +33,11 @@ func (r *Ring) DivFloorByLastModulus(p0, p1 *Poly) {
 
 // DivFloorByLastModulusManyNTT divides (floored) sequentially nbRescales times the polynomial by its last modulus. Input must be in the NTT domain.
 // Output poly level must be equal or nbRescales less than input level.
-func (r *Ring) DivFloorByLastModulusManyNTT(nbRescales int, p0, buff, p1 *Poly) {
+func (r Ring) DivFloorByLastModulusManyNTT(nbRescales int, p0, buff, p1 Poly) {
 
 	if nbRescales == 0 {
 
-		if p0 != p1 {
+		if !utils.Alias1D(p0.Buff, p1.Buff) {
 			copy(p1.Buff, p0.Buff)
 		}
 
@@ -54,11 +58,11 @@ func (r *Ring) DivFloorByLastModulusManyNTT(nbRescales int, p0, buff, p1 *Poly) 
 
 // DivFloorByLastModulusMany divides (floored) sequentially nbRescales times the polynomial by its last modulus.
 // Output poly level must be equal or nbRescales less than input level.
-func (r *Ring) DivFloorByLastModulusMany(nbRescales int, p0, buff, p1 *Poly) {
+func (r Ring) DivFloorByLastModulusMany(nbRescales int, p0, buff, p1 Poly) {
 
 	if nbRescales == 0 {
 
-		if p0 != p1 {
+		if !utils.Alias1D(p0.Buff, p1.Buff) {
 			copy(p1.Buff, p0.Buff)
 		}
 
@@ -90,7 +94,7 @@ func (r *Ring) DivFloorByLastModulusMany(nbRescales int, p0, buff, p1 *Poly) {
 
 // DivRoundByLastModulusNTT divides (rounded) the polynomial by its last modulus. The input must be in the NTT domain.
 // Output poly level must be equal or one less than input level.
-func (r *Ring) DivRoundByLastModulusNTT(p0, buff, p1 *Poly) {
+func (r Ring) DivRoundByLastModulusNTT(p0, buff, p1 Poly) {
 
 	level := r.level
 
@@ -110,7 +114,7 @@ func (r *Ring) DivRoundByLastModulusNTT(p0, buff, p1 *Poly) {
 
 // DivRoundByLastModulus divides (rounded) the polynomial by its last modulus. The input must be in the NTT domain.
 // Output poly level must be equal or one less than input level.
-func (r *Ring) DivRoundByLastModulus(p0, p1 *Poly) {
+func (r Ring) DivRoundByLastModulus(p0, p1 Poly) {
 
 	level := r.level
 
@@ -127,11 +131,11 @@ func (r *Ring) DivRoundByLastModulus(p0, p1 *Poly) {
 
 // DivRoundByLastModulusManyNTT divides (rounded) sequentially nbRescales times the polynomial by its last modulus. The input must be in the NTT domain.
 // Output poly level must be equal or nbRescales less than input level.
-func (r *Ring) DivRoundByLastModulusManyNTT(nbRescales int, p0, buff, p1 *Poly) {
+func (r Ring) DivRoundByLastModulusManyNTT(nbRescales int, p0, buff, p1 Poly) {
 
 	if nbRescales == 0 {
 
-		if p0 != p1 {
+		if !utils.Alias1D(p0.Buff, p1.Buff) {
 			copy(p1.Buff, p0.Buff)
 		}
 
@@ -157,11 +161,11 @@ func (r *Ring) DivRoundByLastModulusManyNTT(nbRescales int, p0, buff, p1 *Poly) 
 
 // DivRoundByLastModulusMany divides (rounded) sequentially nbRescales times the polynomial by its last modulus.
 // Output poly level must be equal or nbRescales less than input level.
-func (r *Ring) DivRoundByLastModulusMany(nbRescales int, p0, buff, p1 *Poly) {
+func (r Ring) DivRoundByLastModulusMany(nbRescales int, p0, buff, p1 Poly) {
 
 	if nbRescales == 0 {
 
-		if p0 != p1 {
+		if !utils.Alias1D(p0.Buff, p1.Buff) {
 			copy(p1.Buff, p0.Buff)
 		}
 

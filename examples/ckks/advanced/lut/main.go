@@ -121,7 +121,7 @@ func main() {
 	gapN12 := paramsN12.N() / (2 * slots)
 
 	for i := 0; i < slots; i++ {
-		lutPolyMap[i*gapN11] = LUTPoly
+		lutPolyMap[i*gapN11] = &LUTPoly
 		repackIndex[i*gapN11] = i * gapN12
 	}
 

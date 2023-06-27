@@ -48,7 +48,7 @@ func NewDomainSwitcher(params Parameters, comlexToRealEvk, realToComplexEvk *rlw
 // Requires the ring degree of ctOut to be half the ring degree of ctIn.
 // The security is changed from Z[X]/(X^N+1) to Z[X]/(X^N/2+1).
 // The method panics if the DomainSwitcher was not initialized with a the appropriate EvaluationKeys.
-func (switcher *DomainSwitcher) ComplexToReal(eval *Evaluator, ctIn, ctOut *rlwe.Ciphertext) {
+func (switcher DomainSwitcher) ComplexToReal(eval *Evaluator, ctIn, ctOut *rlwe.Ciphertext) {
 
 	evalRLWE := eval.Evaluator
 
@@ -58,7 +58,7 @@ func (switcher *DomainSwitcher) ComplexToReal(eval *Evaluator, ctIn, ctOut *rlwe
 
 	level := utils.Min(ctIn.Level(), ctOut.Level())
 
-	if len(ctIn.Value[0].Coeffs[0]) != 2*len(ctOut.Value[0].Coeffs[0]) {
+	if ctIn.Value[0].N() != 2*ctOut.Value[0].N() {
 		panic("cannot ComplexToReal: ctIn ring degree must be twice ctOut ring degree")
 	}
 
@@ -69,14 +69,14 @@ func (switcher *DomainSwitcher) ComplexToReal(eval *Evaluator, ctIn, ctOut *rlwe
 	}
 
 	ctTmp := &rlwe.Ciphertext{}
-	ctTmp.Value = []ring.Poly{*evalRLWE.BuffQP[1].Q, *evalRLWE.BuffQP[2].Q}
+	ctTmp.Value = []ring.Poly{evalRLWE.BuffQP[1].Q, evalRLWE.BuffQP[2].Q}
 	ctTmp.MetaData = ctIn.MetaData
 
-	evalRLWE.GadgetProduct(level, &ctIn.Value[1], &switcher.stdToci.GadgetCiphertext, ctTmp)
-	switcher.stdRingQ.AtLevel(level).Add(evalRLWE.BuffQP[1].Q, &ctIn.Value[0], evalRLWE.BuffQP[1].Q)
+	evalRLWE.GadgetProduct(level, ctIn.Value[1], &switcher.stdToci.GadgetCiphertext, ctTmp)
+	switcher.stdRingQ.AtLevel(level).Add(evalRLWE.BuffQP[1].Q, ctIn.Value[0], evalRLWE.BuffQP[1].Q)
 
-	switcher.conjugateRingQ.AtLevel(level).FoldStandardToConjugateInvariant(evalRLWE.BuffQP[1].Q, switcher.automorphismIndex, &ctOut.Value[0])
-	switcher.conjugateRingQ.AtLevel(level).FoldStandardToConjugateInvariant(evalRLWE.BuffQP[2].Q, switcher.automorphismIndex, &ctOut.Value[1])
+	switcher.conjugateRingQ.AtLevel(level).FoldStandardToConjugateInvariant(evalRLWE.BuffQP[1].Q, switcher.automorphismIndex, ctOut.Value[0])
+	switcher.conjugateRingQ.AtLevel(level).FoldStandardToConjugateInvariant(evalRLWE.BuffQP[2].Q, switcher.automorphismIndex, ctOut.Value[1])
 	ctOut.MetaData = ctIn.MetaData
 	ctOut.PlaintextScale = ctIn.PlaintextScale.Mul(rlwe.NewScale(2))
 }
@@ -88,7 +88,7 @@ func (switcher *DomainSwitcher) ComplexToReal(eval *Evaluator, ctIn, ctOut *rlwe
 // Requires the ring degree of ctOut to be twice the ring degree of ctIn.
 // The security is changed from Z[X]/(X^N+1) to Z[X]/(X^2N+1).
 // The method panics if the DomainSwitcher was not initialized with a the appropriate EvaluationKeys.
-func (switcher *DomainSwitcher) RealToComplex(eval *Evaluator, ctIn, ctOut *rlwe.Ciphertext) {
+func (switcher DomainSwitcher) RealToComplex(eval *Evaluator, ctIn, ctOut *rlwe.Ciphertext) {
 
 	evalRLWE := eval.Evaluator
 
@@ -98,7 +98,7 @@ func (switcher *DomainSwitcher) RealToComplex(eval *Evaluator, ctIn, ctOut *rlwe
 
 	level := utils.Min(ctIn.Level(), ctOut.Level())
 
-	if 2*len(ctIn.Value[0].Coeffs[0]) != len(ctOut.Value[0].Coeffs[0]) {
+	if 2*ctIn.Value[0].N() != ctOut.Value[0].N() {
 		panic("cannot RealToComplex: ctOut ring degree must be twice ctIn ring degree")
 	}
 
@@ -108,16 +108,16 @@ func (switcher *DomainSwitcher) RealToComplex(eval *Evaluator, ctIn, ctOut *rlwe
 		panic("cannot RealToComplex: no realToComplexEvk provided to this DomainSwitcher")
 	}
 
-	switcher.stdRingQ.AtLevel(level).UnfoldConjugateInvariantToStandard(&ctIn.Value[0], &ctOut.Value[0])
-	switcher.stdRingQ.AtLevel(level).UnfoldConjugateInvariantToStandard(&ctIn.Value[1], &ctOut.Value[1])
+	switcher.stdRingQ.AtLevel(level).UnfoldConjugateInvariantToStandard(ctIn.Value[0], ctOut.Value[0])
+	switcher.stdRingQ.AtLevel(level).UnfoldConjugateInvariantToStandard(ctIn.Value[1], ctOut.Value[1])
 
 	ctTmp := &rlwe.Ciphertext{}
-	ctTmp.Value = []ring.Poly{*evalRLWE.BuffQP[1].Q, *evalRLWE.BuffQP[2].Q}
+	ctTmp.Value = []ring.Poly{evalRLWE.BuffQP[1].Q, evalRLWE.BuffQP[2].Q}
 	ctTmp.MetaData = ctIn.MetaData
 
 	// Switches the RCKswitcher key [X+X^-1] to a CKswitcher key [X]
-	evalRLWE.GadgetProduct(level, &ctOut.Value[1], &switcher.ciToStd.GadgetCiphertext, ctTmp)
-	switcher.stdRingQ.AtLevel(level).Add(&ctOut.Value[0], evalRLWE.BuffQP[1].Q, &ctOut.Value[0])
-	ring.CopyLvl(level, evalRLWE.BuffQP[2].Q, &ctOut.Value[1])
+	evalRLWE.GadgetProduct(level, ctOut.Value[1], &switcher.ciToStd.GadgetCiphertext, ctTmp)
+	switcher.stdRingQ.AtLevel(level).Add(ctOut.Value[0], evalRLWE.BuffQP[1].Q, ctOut.Value[0])
+	ring.CopyLvl(level, evalRLWE.BuffQP[2].Q, ctOut.Value[1])
 	ctOut.MetaData = ctIn.MetaData
 }

@@ -10,7 +10,7 @@ import (
 // Plaintext is a common base type for RLWE plaintexts.
 type Plaintext struct {
 	OperandQ
-	Value *ring.Poly
+	Value ring.Poly
 }
 
 // NewPlaintext creates a new Plaintext at level `level` from the parameters.
@@ -18,7 +18,7 @@ func NewPlaintext(params ParametersInterface, level int) (pt *Plaintext) {
 	op := *NewOperandQ(params, 0, level)
 	op.PlaintextScale = params.PlaintextScale()
 	op.PlaintextLogDimensions = params.PlaintextLogDimensions()
-	return &Plaintext{OperandQ: op, Value: &op.Value[0]}
+	return &Plaintext{OperandQ: op, Value: op.Value[0]}
 }
 
 // NewPlaintextAtLevelFromPoly constructs a new Plaintext at a specific level
@@ -27,18 +27,18 @@ func NewPlaintext(params ParametersInterface, level int) (pt *Plaintext) {
 // Returned plaintext's MetaData is empty.
 func NewPlaintextAtLevelFromPoly(level int, poly *ring.Poly) (pt *Plaintext) {
 	op := *NewOperandQAtLevelFromPoly(level, []ring.Poly{*poly})
-	return &Plaintext{OperandQ: op, Value: &op.Value[0]}
+	return &Plaintext{OperandQ: op, Value: op.Value[0]}
 }
 
 // Copy copies the `other` plaintext value into the receiver plaintext.
-func (pt *Plaintext) Copy(other *Plaintext) {
+func (pt Plaintext) Copy(other *Plaintext) {
 	pt.OperandQ.Copy(&other.OperandQ)
-	pt.Value = &other.OperandQ.Value[0]
+	pt.Value = other.OperandQ.Value[0]
 }
 
 // Equal performs a deep equal.
-func (pt *Plaintext) Equal(other *Plaintext) bool {
-	return pt.OperandQ.Equal(&other.OperandQ) && pt.Value.Equal(other.Value)
+func (pt Plaintext) Equal(other *Plaintext) bool {
+	return pt.OperandQ.Equal(&other.OperandQ) && pt.Value.Equal(&other.Value)
 }
 
 // NewPlaintextRandom generates a new uniformly distributed Plaintext.
@@ -64,7 +64,7 @@ func (pt *Plaintext) ReadFrom(r io.Reader) (n int64, err error) {
 		return
 	}
 
-	pt.Value = &pt.OperandQ.Value[0]
+	pt.Value = pt.OperandQ.Value[0]
 	return
 }
 
@@ -74,6 +74,6 @@ func (pt *Plaintext) UnmarshalBinary(p []byte) (err error) {
 	if err = pt.OperandQ.UnmarshalBinary(p); err != nil {
 		return
 	}
-	pt.Value = &pt.OperandQ.Value[0]
+	pt.Value = pt.OperandQ.Value[0]
 	return
 }

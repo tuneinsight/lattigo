@@ -46,7 +46,7 @@ type Encoder struct {
 	parameters   Parameters
 	bigintCoeffs []*big.Int
 	qHalf        *big.Int
-	buff         *ring.Poly
+	buff         ring.Poly
 	m            int
 	rotGroup     []int
 
@@ -56,7 +56,7 @@ type Encoder struct {
 	buffCmplx interface{}
 }
 
-func (ecd *Encoder) ShallowCopy() *Encoder {
+func (ecd Encoder) ShallowCopy() *Encoder {
 
 	prng, err := sampling.NewPRNG()
 	if err != nil {
@@ -152,12 +152,12 @@ func NewEncoder(parameters Parameters, precision ...uint) (ecd *Encoder) {
 
 // Prec returns the precision in bits used by the target Encoder.
 // A precision <= 53 will use float64, else *big.Float.
-func (ecd *Encoder) Prec() uint {
+func (ecd Encoder) Prec() uint {
 	return ecd.prec
 }
 
 // Parameters returns the Parameters used by the target Encoder.
-func (ecd *Encoder) Parameters() rlwe.ParametersInterface {
+func (ecd Encoder) Parameters() rlwe.ParametersInterface {
 	return ecd.parameters
 }
 
@@ -168,7 +168,7 @@ func (ecd *Encoder) Parameters() rlwe.ParametersInterface {
 // Accepted values.(type) for `rlwe.EncodingDomain = rlwe.FrequencyDomain` is []complex128 of []float64.
 // Accepted values.(type) for `rlwe.EncodingDomain = rlwe.CoefficientDomain` is []float64.
 // The imaginary part of []complex128 will be discarded if ringType == ring.ConjugateInvariant.
-func (ecd *Encoder) Encode(values interface{}, pt *rlwe.Plaintext) (err error) {
+func (ecd Encoder) Encode(values interface{}, pt *rlwe.Plaintext) (err error) {
 
 	switch pt.EncodingDomain {
 	case rlwe.FrequencyDomain:
@@ -209,14 +209,14 @@ func (ecd *Encoder) Encode(values interface{}, pt *rlwe.Plaintext) (err error) {
 
 // Decode decodes the input plaintext on a new slice of complex128.
 // This method is the same as .DecodeSlots(*).
-func (ecd *Encoder) Decode(pt *rlwe.Plaintext, values interface{}) (err error) {
+func (ecd Encoder) Decode(pt *rlwe.Plaintext, values interface{}) (err error) {
 	return ecd.DecodePublic(pt, values, nil)
 }
 
 // DecodePublic decodes the input plaintext on a new slice of complex128.
 // Adds, before the decoding step, noise following the given distribution parameters.
 // If the underlying ringType is ConjugateInvariant, the imaginary part (and its related error) are zero.
-func (ecd *Encoder) DecodePublic(pt *rlwe.Plaintext, values interface{}, noiseFlooding ring.DistributionParameters) (err error) {
+func (ecd Encoder) DecodePublic(pt *rlwe.Plaintext, values interface{}, noiseFlooding ring.DistributionParameters) (err error) {
 	return ecd.decodePublic(pt, values, noiseFlooding)
 }
 
@@ -229,12 +229,12 @@ func (ecd *Encoder) DecodePublic(pt *rlwe.Plaintext, values interface{}, noiseFl
 // logslots: user must ensure that 1 <= len(values) <= 2^logSlots < 2^logN.
 // scale: the scaling factor used do discretize float64 to fixed point integers.
 // montgomery: if true then the value written on polyOut are put in the Montgomery domain.
-// polyOut: polyOut.(type) can be either ringqp.Poly or *ring.Poly.
+// polyOut: polyOut.(type) can be either ringqp.Poly or ring.Poly.
 //
 //	The encoding encoding is done at the level of polyOut.
 //
 // Values written on  polyOut are always in the NTT domain.
-func (ecd *Encoder) Embed(values interface{}, metadata rlwe.MetaData, polyOut interface{}) (err error) {
+func (ecd Encoder) Embed(values interface{}, metadata rlwe.MetaData, polyOut interface{}) (err error) {
 	if ecd.prec <= 53 {
 		return ecd.embedDouble(values, metadata, polyOut)
 	}
@@ -242,7 +242,7 @@ func (ecd *Encoder) Embed(values interface{}, metadata rlwe.MetaData, polyOut in
 	return ecd.embedArbitrary(values, metadata, polyOut)
 }
 
-func (ecd *Encoder) embedDouble(values interface{}, metadata rlwe.MetaData, polyOut interface{}) (err error) {
+func (ecd Encoder) embedDouble(values interface{}, metadata rlwe.MetaData, polyOut interface{}) (err error) {
 
 	if maxLogCols := ecd.parameters.PlaintextLogDimensions()[1]; metadata.PlaintextLogDimensions[1] < 0 || metadata.PlaintextLogDimensions[1] > maxLogCols {
 		return fmt.Errorf("cannot Embed: logSlots (%d) must be greater or equal to %d and smaller than %d", metadata.PlaintextLogDimensions[1], 0, maxLogCols)
@@ -346,21 +346,21 @@ func (ecd *Encoder) embedDouble(values interface{}, metadata rlwe.MetaData, poly
 		Complex128ToFixedPointCRT(ecd.parameters.RingQ().AtLevel(p.Q.Level()), buffCmplx[:slots], metadata.PlaintextScale.Float64(), p.Q.Coeffs)
 		rlwe.NTTSparseAndMontgomery(ecd.parameters.RingQ().AtLevel(p.Q.Level()), metadata, p.Q)
 
-		if p.P != nil {
+		if p.P.Level() > -1 {
 			Complex128ToFixedPointCRT(ecd.parameters.RingP().AtLevel(p.P.Level()), buffCmplx[:slots], metadata.PlaintextScale.Float64(), p.P.Coeffs)
 			rlwe.NTTSparseAndMontgomery(ecd.parameters.RingP().AtLevel(p.P.Level()), metadata, p.P)
 		}
-	case *ring.Poly:
+	case ring.Poly:
 		Complex128ToFixedPointCRT(ecd.parameters.RingQ().AtLevel(p.Level()), buffCmplx[:slots], metadata.PlaintextScale.Float64(), p.Coeffs)
 		rlwe.NTTSparseAndMontgomery(ecd.parameters.RingQ().AtLevel(p.Level()), metadata, p)
 	default:
-		return fmt.Errorf("cannot Embed: invalid polyOut.(Type) must be ringqp.Poly or *ring.Poly")
+		return fmt.Errorf("cannot Embed: invalid polyOut.(Type) must be ringqp.Poly or ring.Poly")
 	}
 
 	return
 }
 
-func (ecd *Encoder) embedArbitrary(values interface{}, metadata rlwe.MetaData, polyOut interface{}) (err error) {
+func (ecd Encoder) embedArbitrary(values interface{}, metadata rlwe.MetaData, polyOut interface{}) (err error) {
 
 	if maxLogCols := ecd.parameters.PlaintextLogDimensions()[1]; metadata.PlaintextLogDimensions[1] < 0 || metadata.PlaintextLogDimensions[1] > maxLogCols {
 		return fmt.Errorf("cannot Embed: logSlots (%d) must be greater or equal to %d and smaller than %d", metadata.PlaintextLogDimensions[1], 0, maxLogCols)
@@ -469,7 +469,7 @@ func (ecd *Encoder) embedArbitrary(values interface{}, metadata rlwe.MetaData, p
 	// Maps Y = X^{N/n} -> X and quantizes.
 	switch p := polyOut.(type) {
 
-	case *ring.Poly:
+	case ring.Poly:
 
 		ComplexArbitraryToFixedPointCRT(ecd.parameters.RingQ().AtLevel(p.Level()), buffCmplx[:slots], &metadata.PlaintextScale.Value, p.Coeffs)
 		rlwe.NTTSparseAndMontgomery(ecd.parameters.RingQ().AtLevel(p.Level()), metadata, p)
@@ -479,19 +479,19 @@ func (ecd *Encoder) embedArbitrary(values interface{}, metadata rlwe.MetaData, p
 		ComplexArbitraryToFixedPointCRT(ecd.parameters.RingQ().AtLevel(p.Q.Level()), buffCmplx[:slots], &metadata.PlaintextScale.Value, p.Q.Coeffs)
 		rlwe.NTTSparseAndMontgomery(ecd.parameters.RingQ().AtLevel(p.Q.Level()), metadata, p.Q)
 
-		if p.P != nil {
+		if p.P.Level() > -1 {
 			ComplexArbitraryToFixedPointCRT(ecd.parameters.RingP().AtLevel(p.P.Level()), buffCmplx[:slots], &metadata.PlaintextScale.Value, p.P.Coeffs)
 			rlwe.NTTSparseAndMontgomery(ecd.parameters.RingP().AtLevel(p.P.Level()), metadata, p.P)
 		}
 
 	default:
-		return fmt.Errorf("cannot Embed: invalid polyOut.(Type) must be ringqp.Poly or *ring.Poly")
+		return fmt.Errorf("cannot Embed: invalid polyOut.(Type) must be ringqp.Poly or ring.Poly")
 	}
 
 	return
 }
 
-func (ecd *Encoder) plaintextToComplex(level int, scale rlwe.Scale, logSlots int, p *ring.Poly, values interface{}) {
+func (ecd Encoder) plaintextToComplex(level int, scale rlwe.Scale, logSlots int, p ring.Poly, values interface{}) {
 
 	isreal := ecd.parameters.RingType() == ring.ConjugateInvariant
 	if level == 0 {
@@ -501,7 +501,7 @@ func (ecd *Encoder) plaintextToComplex(level int, scale rlwe.Scale, logSlots int
 	}
 }
 
-func (ecd *Encoder) plaintextToFloat(level int, scale rlwe.Scale, logSlots int, p *ring.Poly, values interface{}) {
+func (ecd Encoder) plaintextToFloat(level int, scale rlwe.Scale, logSlots int, p ring.Poly, values interface{}) {
 	if level == 0 {
 		ecd.polyToFloatNoCRT(p.Coeffs[0], values, scale, logSlots, ecd.parameters.RingQ().AtLevel(level))
 	} else {
@@ -509,7 +509,7 @@ func (ecd *Encoder) plaintextToFloat(level int, scale rlwe.Scale, logSlots int, 
 	}
 }
 
-func (ecd *Encoder) decodePublic(pt *rlwe.Plaintext, values interface{}, noiseFlooding ring.DistributionParameters) (err error) {
+func (ecd Encoder) decodePublic(pt *rlwe.Plaintext, values interface{}, noiseFlooding ring.DistributionParameters) (err error) {
 
 	logSlots := pt.PlaintextLogDimensions[1]
 	slots := 1 << logSlots
@@ -670,7 +670,7 @@ func (ecd *Encoder) decodePublic(pt *rlwe.Plaintext, values interface{}, noiseFl
 	return
 }
 
-func (ecd *Encoder) IFFT(values interface{}, logN int) (err error) {
+func (ecd Encoder) IFFT(values interface{}, logN int) (err error) {
 	switch values := values.(type) {
 	case []complex128:
 		switch roots := ecd.roots.(type) {
@@ -698,7 +698,7 @@ func (ecd *Encoder) IFFT(values interface{}, logN int) (err error) {
 
 }
 
-func (ecd *Encoder) FFT(values interface{}, logN int) (err error) {
+func (ecd Encoder) FFT(values interface{}, logN int) (err error) {
 	switch values := values.(type) {
 	case []complex128:
 		switch roots := ecd.roots.(type) {
@@ -819,7 +819,7 @@ func polyToComplexNoCRT(coeffs []uint64, values interface{}, scale rlwe.Scale, l
 	}
 }
 
-func polyToComplexCRT(poly *ring.Poly, bigintCoeffs []*big.Int, values interface{}, scale rlwe.Scale, logSlots int, isreal bool, ringQ *ring.Ring) {
+func polyToComplexCRT(poly ring.Poly, bigintCoeffs []*big.Int, values interface{}, scale rlwe.Scale, logSlots int, isreal bool, ringQ *ring.Ring) {
 
 	maxCols := int(ringQ.NthRoot() >> 2)
 	slots := 1 << logSlots
@@ -924,7 +924,7 @@ func polyToComplexCRT(poly *ring.Poly, bigintCoeffs []*big.Int, values interface
 	}
 }
 
-func (ecd *Encoder) polyToFloatCRT(p *ring.Poly, values interface{}, scale rlwe.Scale, logSlots int, r *ring.Ring) {
+func (ecd *Encoder) polyToFloatCRT(p ring.Poly, values interface{}, scale rlwe.Scale, logSlots int, r *ring.Ring) {
 
 	var slots int
 	switch values := values.(type) {
@@ -1097,7 +1097,7 @@ func (ecd *Encoder) polyToFloatNoCRT(coeffs []uint64, values interface{}, scale 
 	}
 }
 
-type encoder[T float64 | complex128 | *big.Float | *bignum.Complex, U *ring.Poly | ringqp.Poly | *rlwe.Plaintext] struct {
+type encoder[T float64 | complex128 | *big.Float | *bignum.Complex, U ring.Poly | ringqp.Poly | *rlwe.Plaintext] struct {
 	*Encoder
 }
 

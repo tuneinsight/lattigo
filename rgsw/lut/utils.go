@@ -8,7 +8,7 @@ import (
 )
 
 // MulBySmallMonomialMod2N multiplies pol by x^n, with 0 <= n < N
-func MulBySmallMonomialMod2N(mask uint64, pol *ring.Poly, n int) {
+func MulBySmallMonomialMod2N(mask uint64, pol ring.Poly, n int) {
 	if n != 0 {
 		N := len(pol.Coeffs[0])
 		pol.Coeffs[0] = append(pol.Coeffs[0][N-n:], pol.Coeffs[0][:N-n]...)

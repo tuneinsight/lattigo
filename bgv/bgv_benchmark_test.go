@@ -100,7 +100,7 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 	ciphertext0 := rlwe.NewCiphertextRandom(tc.prng, params.Parameters, 1, level)
 	ciphertext1 := rlwe.NewCiphertextRandom(tc.prng, params.Parameters, 1, level)
 	ct := rlwe.NewCiphertextRandom(tc.prng, params.Parameters, 0, level)
-	plaintext1 := &rlwe.Plaintext{Value: &ct.Value[0]}
+	plaintext1 := &rlwe.Plaintext{Value: ct.Value[0]}
 	plaintext1.OperandQ.Value = ct.Value[:1]
 	plaintext1.PlaintextScale = scale
 	plaintext1.IsNTT = ciphertext0.IsNTT

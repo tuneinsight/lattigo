@@ -245,8 +245,8 @@ func testKeyGenerator(tc *TestContext, t *testing.T) {
 
 			zero := ringQP.NewPoly()
 
-			ringQP.MulCoeffsMontgomery(&sk.Value, &pk.Value[1], zero)
-			ringQP.Add(zero, &pk.Value[0], zero)
+			ringQP.MulCoeffsMontgomery(sk.Value, pk.Value[1], zero)
+			ringQP.Add(zero, pk.Value[0], zero)
 			ringQP.INTT(zero, zero)
 			ringQP.IMForm(zero, zero)
 
@@ -382,7 +382,7 @@ func testEncryptor(tc *TestContext, level int, t *testing.T) {
 
 		samplerQ := ring.NewUniformSampler(prng2, ringQ)
 
-		require.True(t, ringQ.Equal(&ct.Value[1], samplerQ.ReadNew()))
+		require.True(t, ringQ.Equal(ct.Value[1], samplerQ.ReadNew()))
 
 		dec.Decrypt(ct, pt)
 
@@ -688,7 +688,7 @@ func testAutomorphism(tc *TestContext, level int, t *testing.T) {
 		evk := NewMemEvaluationKeySet(nil, gk)
 
 		//Decompose the ciphertext
-		eval.DecomposeNTT(level, params.MaxLevelP(), params.MaxLevelP()+1, &ct.Value[1], ct.IsNTT, eval.BuffDecompQP)
+		eval.DecomposeNTT(level, params.MaxLevelP(), params.MaxLevelP()+1, ct.Value[1], ct.IsNTT, eval.BuffDecompQP)
 
 		// Evaluate the automorphism
 		eval.WithKey(evk).AutomorphismHoisted(level, ct, eval.BuffDecompQP, galEl, ct)
@@ -735,7 +735,7 @@ func testAutomorphism(tc *TestContext, level int, t *testing.T) {
 		evk := NewMemEvaluationKeySet(nil, gk)
 
 		//Decompose the ciphertext
-		eval.DecomposeNTT(level, params.MaxLevelP(), params.MaxLevelP()+1, &ct.Value[1], ct.IsNTT, eval.BuffDecompQP)
+		eval.DecomposeNTT(level, params.MaxLevelP(), params.MaxLevelP()+1, ct.Value[1], ct.IsNTT, eval.BuffDecompQP)
 
 		ctQP := NewOperandQP(params, 1, level, params.MaxLevelP())
 
@@ -861,7 +861,7 @@ func testLinearTransform(tc *TestContext, level int, t *testing.T) {
 			scalar := (1 << 30) + uint64(i)*(1<<20)
 
 			if ciphertexts[i].IsNTT {
-				ringQ.AddScalar(&ciphertexts[i].Value[0], scalar, &ciphertexts[i].Value[0])
+				ringQ.AddScalar(ciphertexts[i].Value[0], scalar, ciphertexts[i].Value[0])
 			} else {
 				for j := 0; j < level+1; j++ {
 					ciphertexts[i].Value[0].Coeffs[j][0] = ring.CRed(ciphertexts[i].Value[0].Coeffs[j][0]+scalar, ringQ.SubRings[j].Modulus)
@@ -923,7 +923,7 @@ func testLinearTransform(tc *TestContext, level int, t *testing.T) {
 			scalar := (1 << 30) + uint64(i)*(1<<20)
 
 			if ciphertexts[i].IsNTT {
-				ringQ.INTT(&ciphertexts[i].Value[0], &ciphertexts[i].Value[0])
+				ringQ.INTT(ciphertexts[i].Value[0], ciphertexts[i].Value[0])
 			}
 
 			for j := 0; j < level+1; j++ {
@@ -932,7 +932,7 @@ func testLinearTransform(tc *TestContext, level int, t *testing.T) {
 			}
 
 			if ciphertexts[i].IsNTT {
-				ringQ.NTT(&ciphertexts[i].Value[0], &ciphertexts[i].Value[0])
+				ringQ.NTT(ciphertexts[i].Value[0], ciphertexts[i].Value[0])
 			}
 
 			slotIndex[i] = true
@@ -1108,7 +1108,7 @@ func testWriteAndRead(tc *TestContext, t *testing.T) {
 		basis.Value[4] = NewCiphertextRandom(prng, params, 1, params.MaxLevel())
 		basis.Value[8] = NewCiphertextRandom(prng, params, 1, params.MaxLevel())
 
-		buffer.RequireSerializerCorrect(t, basis)
+		buffer.RequireSerializerCorrect(t, &basis)
 	})
 }
 

@@ -146,8 +146,8 @@ func gentestContext(nParties int, params bgv.Parameters) (tc *testContext, err e
 	for j := 0; j < nParties; j++ {
 		tc.sk0Shards[j] = kgen.GenSecretKeyNew()
 		tc.sk1Shards[j] = kgen.GenSecretKeyNew()
-		ringQP.Add(&tc.sk0.Value, &tc.sk0Shards[j].Value, &tc.sk0.Value)
-		ringQP.Add(&tc.sk1.Value, &tc.sk1Shards[j].Value, &tc.sk1.Value)
+		ringQP.Add(tc.sk0.Value, tc.sk0Shards[j].Value, tc.sk0.Value)
+		ringQP.Add(tc.sk1.Value, tc.sk1Shards[j].Value, tc.sk1.Value)
 	}
 
 	// Publickeys
@@ -194,7 +194,7 @@ func testEncToShares(tc *testContext, t *testing.T) {
 	for i, p := range P {
 		p.e2s.GenShare(p.sk, ciphertext, &p.secretShare, &p.publicShare)
 		if i > 0 {
-			p.e2s.AggregateShares(&P[0].publicShare, &p.publicShare, &P[0].publicShare)
+			p.e2s.AggregateShares(P[0].publicShare, p.publicShare, &P[0].publicShare)
 		}
 	}
 
@@ -204,11 +204,11 @@ func testEncToShares(tc *testContext, t *testing.T) {
 
 		rec := NewAdditiveShare(params)
 		for _, p := range P {
-			tc.ringT.Add(&rec.Value, &p.secretShare.Value, &rec.Value)
+			tc.ringT.Add(rec.Value, p.secretShare.Value, rec.Value)
 		}
 
 		ptRt := tc.params.RingT().NewPoly()
-		ptRt.Copy(&rec.Value)
+		ptRt.Copy(rec.Value)
 		values := make([]uint64, len(coeffs))
 
 		tc.encoder.DecodeRingT(ptRt, ciphertext.PlaintextScale, values)
@@ -223,7 +223,7 @@ func testEncToShares(tc *testContext, t *testing.T) {
 		for i, p := range P {
 			p.s2e.GenShare(p.sk, crp, p.secretShare, &p.publicShare)
 			if i > 0 {
-				p.s2e.AggregateShares(&P[0].publicShare, &p.publicShare, &P[0].publicShare)
+				p.s2e.AggregateShares(P[0].publicShare, p.publicShare, &P[0].publicShare)
 			}
 		}
 
@@ -277,7 +277,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 		for i, p := range RefreshParties {
 			p.GenShare(p.s, ciphertext, ciphertext.PlaintextScale, crp, &p.share)
 			if i > 0 {
-				P0.AggregateShares(&p.share, &P0.share, &P0.share)
+				P0.AggregateShares(p.share, P0.share, &P0.share)
 			}
 
 		}
@@ -360,7 +360,7 @@ func testRefreshAndPermutation(tc *testContext, t *testing.T) {
 		for i, p := range RefreshParties {
 			p.GenShare(p.s, p.s, ciphertext, ciphertext.PlaintextScale, crp, maskedTransform, &p.share)
 			if i > 0 {
-				P0.AggregateShares(&P0.share, &p.share, &P0.share)
+				P0.AggregateShares(P0.share, p.share, &P0.share)
 			}
 		}
 
@@ -462,7 +462,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 		for i, p := range RefreshParties {
 			p.GenShare(p.sIn, p.sOut, ciphertext, ciphertext.PlaintextScale, crp, transform, &p.share)
 			if i > 0 {
-				P0.AggregateShares(&P0.share, &p.share, &P0.share)
+				P0.AggregateShares(P0.share, p.share, &P0.share)
 			}
 		}
 

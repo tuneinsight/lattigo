@@ -28,7 +28,7 @@ func NewSecretKeyBootstrapper(params Parameters, sk *rlwe.SecretKey) rlwe.Bootst
 		0}
 }
 
-func (d *SecretKeyBootstrapper) Bootstrap(ct *rlwe.Ciphertext) (*rlwe.Ciphertext, error) {
+func (d SecretKeyBootstrapper) Bootstrap(ct *rlwe.Ciphertext) (*rlwe.Ciphertext, error) {
 	values := d.Values[:1<<ct.PlaintextLogDimensions[1]]
 	if err := d.Decode(d.DecryptNew(ct), values); err != nil {
 		return nil, err
@@ -45,21 +45,21 @@ func (d *SecretKeyBootstrapper) Bootstrap(ct *rlwe.Ciphertext) (*rlwe.Ciphertext
 	return ct, nil
 }
 
-func (d *SecretKeyBootstrapper) BootstrapMany(cts []*rlwe.Ciphertext) ([]*rlwe.Ciphertext, error) {
+func (d SecretKeyBootstrapper) BootstrapMany(cts []*rlwe.Ciphertext) ([]*rlwe.Ciphertext, error) {
 	for i := range cts {
 		cts[i], _ = d.Bootstrap(cts[i])
 	}
 	return cts, nil
 }
 
-func (d *SecretKeyBootstrapper) Depth() int {
+func (d SecretKeyBootstrapper) Depth() int {
 	return 0
 }
 
-func (d *SecretKeyBootstrapper) MinimumInputLevel() int {
+func (d SecretKeyBootstrapper) MinimumInputLevel() int {
 	return 0
 }
 
-func (d *SecretKeyBootstrapper) OutputLevel() int {
+func (d SecretKeyBootstrapper) OutputLevel() int {
 	return d.MaxLevel()
 }

@@ -10,7 +10,7 @@ import (
 // with coefficient in finite fields.
 type Interpolator struct {
 	r *Ring
-	x *Poly
+	x Poly
 }
 
 // NewInterpolator creates a new Interpolator. Returns an error if T is not

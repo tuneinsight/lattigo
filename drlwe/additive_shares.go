@@ -20,7 +20,7 @@ type AdditiveShareBigint struct {
 // NewAdditiveShare instantiates a new additive share struct for the ring defined
 // by the given parameters at maximum level.
 func NewAdditiveShare(r *ring.Ring) AdditiveShare {
-	return AdditiveShare{Value: *r.NewPoly()}
+	return AdditiveShare{Value: r.NewPoly()}
 }
 
 // NewAdditiveShareBigint instantiates a new additive share struct composed of "2^logslots" big.Int elements.

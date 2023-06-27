@@ -82,7 +82,7 @@ func benchPublicKeyGen(params rlwe.Parameters, b *testing.B) {
 
 	b.Run(benchString("PublicKeyGen/Round1/Agg", params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			ckg.AggregateShares(&s1, &s1, &s1)
+			ckg.AggregateShares(s1, s1, &s1)
 		}
 	})
 
@@ -118,7 +118,7 @@ func benchRelinKeyGen(params rlwe.Parameters, b *testing.B) {
 
 	b.Run(benchString("RelinKeyGen/Agg", params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			rkg.AggregateShares(&share1, &share1, &share1)
+			rkg.AggregateShares(share1, share1, &share1)
 		}
 	})
 
@@ -145,7 +145,7 @@ func benchRotKeyGen(params rlwe.Parameters, b *testing.B) {
 
 	b.Run(benchString("RotKeyGen/Round1/Agg", params), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			rtg.AggregateShares(&share, &share, &share)
+			rtg.AggregateShares(share, share, &share)
 		}
 	})
 
@@ -195,7 +195,7 @@ func benchThreshold(params rlwe.Parameters, t int, b *testing.B) {
 
 	b.Run(benchString("Thresholdizer/AggregateShares", params)+fmt.Sprintf("/threshold=%d", t), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			p.Thresholdizer.AggregateShares(&shamirShare, &shamirShare, &shamirShare)
+			p.Thresholdizer.AggregateShares(shamirShare, shamirShare, &shamirShare)
 		}
 	})
 

@@ -43,19 +43,19 @@ func (s UniformSampler) AtLevel(levelQ, levelP int) UniformSampler {
 }
 
 // Read samples a new polynomial with uniform distribution and stores it into p.
-func (s UniformSampler) Read(p *Poly) {
-	if p.Q != nil && s.samplerQ != nil {
+func (s UniformSampler) Read(p Poly) {
+	if s.samplerQ != nil {
 		s.samplerQ.Read(p.Q)
 	}
 
-	if p.P != nil && s.samplerP != nil {
+	if s.samplerP != nil {
 		s.samplerP.Read(p.P)
 	}
 }
 
 // ReadNew samples a new polynomial with uniform distribution and returns it.
-func (s UniformSampler) ReadNew() (p *Poly) {
-	var Q, P *ring.Poly
+func (s UniformSampler) ReadNew() (p Poly) {
+	var Q, P ring.Poly
 
 	if s.samplerQ != nil {
 		Q = s.samplerQ.ReadNew()
@@ -65,7 +65,7 @@ func (s UniformSampler) ReadNew() (p *Poly) {
 		P = s.samplerP.ReadNew()
 	}
 
-	return &Poly{Q: Q, P: P}
+	return Poly{Q: Q, P: P}
 }
 
 func (s UniformSampler) WithPRNG(prng sampling.PRNG) UniformSampler {

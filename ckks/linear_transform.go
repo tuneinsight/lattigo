@@ -26,7 +26,7 @@ func GenLinearTransform[T float64 | complex128 | *big.Float | *bignum.Complex](d
 
 // TraceNew maps X -> sum((-1)^i * X^{i*n+1}) for 0 <= i < N and returns the result on a new ciphertext.
 // For log(n) = logSlots.
-func (eval *Evaluator) TraceNew(ctIn *rlwe.Ciphertext, logSlots int) (ctOut *rlwe.Ciphertext) {
+func (eval Evaluator) TraceNew(ctIn *rlwe.Ciphertext, logSlots int) (ctOut *rlwe.Ciphertext) {
 	ctOut = NewCiphertext(eval.parameters, 1, ctIn.Level())
 	eval.Trace(ctIn, logSlots, ctOut)
 	return
@@ -38,7 +38,7 @@ func (eval *Evaluator) TraceNew(ctIn *rlwe.Ciphertext, logSlots int) (ctOut *rlw
 // Example for batchSize=4 and slots=8: [{a, b, c, d}, {e, f, g, h}] -> [0.5*{a+e, b+f, c+g, d+h}, 0.5*{a+e, b+f, c+g, d+h}]
 // Operation requires log2(SlotCout/'batchSize') rotations.
 // Required rotation keys can be generated with 'RotationsForInnerSumLog(batchSize, SlotCount/batchSize)”
-func (eval *Evaluator) Average(ctIn *rlwe.Ciphertext, logBatchSize int, ctOut *rlwe.Ciphertext) {
+func (eval Evaluator) Average(ctIn *rlwe.Ciphertext, logBatchSize int, ctOut *rlwe.Ciphertext) {
 
 	if ctIn.Degree() != 1 || ctOut.Degree() != 1 {
 		panic("ctIn.Degree() != 1 or ctOut.Degree() != 1")

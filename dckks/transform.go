@@ -237,8 +237,8 @@ func (rfp MaskedTransformProtocol) AggregateShares(share1, share2, shareOut *drl
 		panic("cannot AggregateShares: all s2e shares must be at the same level")
 	}
 
-	rfp.e2s.params.RingQ().AtLevel(share1.EncToShareShare.Value.Level()).Add(&share1.EncToShareShare.Value, &share2.EncToShareShare.Value, &shareOut.EncToShareShare.Value)
-	rfp.s2e.params.RingQ().AtLevel(share1.ShareToEncShare.Value.Level()).Add(&share1.ShareToEncShare.Value, &share2.ShareToEncShare.Value, &shareOut.ShareToEncShare.Value)
+	rfp.e2s.params.RingQ().AtLevel(share1.EncToShareShare.Value.Level()).Add(share1.EncToShareShare.Value, share2.EncToShareShare.Value, shareOut.EncToShareShare.Value)
+	rfp.s2e.params.RingQ().AtLevel(share1.ShareToEncShare.Value.Level()).Add(share1.ShareToEncShare.Value, share2.ShareToEncShare.Value, shareOut.ShareToEncShare.Value)
 }
 
 // Transform applies Decrypt, Recode and Recrypt on the input ciphertext.
@@ -340,19 +340,19 @@ func (rfp MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, transform *Mas
 	// Extend the levels of the ciphertext for future allocation
 	if ciphertextOut.Value[0].N() != ringQ.N() {
 		for i := range ciphertextOut.Value {
-			ciphertextOut.Value[i] = *ringQ.NewPoly()
+			ciphertextOut.Value[i] = ringQ.NewPoly()
 		}
 	} else {
 		ciphertextOut.Resize(ciphertextOut.Degree(), maxLevel)
 	}
 
 	// Sets LT(-sum(M_i) + x) * diffscale in the RNS domain
-	ringQ.SetCoefficientsBigint(rfp.tmpMask[:dslots], &ciphertextOut.Value[0])
+	ringQ.SetCoefficientsBigint(rfp.tmpMask[:dslots], ciphertextOut.Value[0])
 
-	rlwe.NTTSparseAndMontgomery(ringQ, ct.MetaData, &ciphertextOut.Value[0])
+	rlwe.NTTSparseAndMontgomery(ringQ, ct.MetaData, ciphertextOut.Value[0])
 
 	// LT(-sum(M_i) + x) * diffscale + [-a*s + LT(M_i) * diffscale + e] = [-a*s + LT(x) * diffscale + e]
-	ringQ.Add(&ciphertextOut.Value[0], &share.ShareToEncShare.Value, &ciphertextOut.Value[0])
+	ringQ.Add(ciphertextOut.Value[0], share.ShareToEncShare.Value, ciphertextOut.Value[0])
 
 	// Copies the result on the out ciphertext
 	rfp.s2e.GetEncryption(drlwe.KeySwitchShare{Value: ciphertextOut.Value[0]}, crs, ciphertextOut)

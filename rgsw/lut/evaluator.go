@@ -20,7 +20,7 @@ type Evaluator struct {
 
 	xPowMinusOne []ringqp.Poly //X^n - 1 from 0 to 2N LWE
 
-	poolMod2N [2]*ring.Poly
+	poolMod2N [2]ring.Poly
 
 	accumulator *rlwe.Ciphertext
 	Sk          *rlwe.SecretKey
@@ -40,7 +40,7 @@ func NewEvaluator(paramsLUT, paramsLWE rlwe.Parameters, evk rlwe.EvaluationKeySe
 	ringQ := paramsLUT.RingQ()
 	ringP := paramsLUT.RingP()
 
-	eval.poolMod2N = [2]*ring.Poly{paramsLWE.RingQ().NewPoly(), paramsLWE.RingQ().NewPoly()}
+	eval.poolMod2N = [2]ring.Poly{paramsLWE.RingQ().NewPoly(), paramsLWE.RingQ().NewPoly()}
 	eval.accumulator = rlwe.NewCiphertext(paramsLUT, 1, paramsLUT.MaxLevel())
 	eval.accumulator.IsNTT = true // This flag is always true
 
@@ -173,7 +173,7 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWithSlotIndex map[in
 	levelQ := key.SkPos[0].LevelQ()
 	levelP := key.SkPos[0].LevelP()
 
-	ringQPLUT := *eval.paramsLUT.RingQP().AtLevel(levelQ, levelP)
+	ringQPLUT := eval.paramsLUT.RingQP().AtLevel(levelQ, levelP)
 	ringQLUT := ringQPLUT.RingQ
 
 	ringQLWE := eval.paramsLWE.RingQ().AtLevel(ct.Level())
@@ -182,15 +182,15 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWithSlotIndex map[in
 	mask := uint64(ringQLUT.N()<<1) - 1
 
 	if ct.IsNTT {
-		ringQLWE.INTT(&ct.Value[0], &acc.Value[0])
-		ringQLWE.INTT(&ct.Value[1], &acc.Value[1])
+		ringQLWE.INTT(ct.Value[0], acc.Value[0])
+		ringQLWE.INTT(ct.Value[1], acc.Value[1])
 	} else {
-		ring.CopyLvl(ct.Level(), &ct.Value[0], &acc.Value[0])
-		ring.CopyLvl(ct.Level(), &ct.Value[1], &acc.Value[1])
+		ring.CopyLvl(ct.Level(), ct.Value[0], acc.Value[0])
+		ring.CopyLvl(ct.Level(), ct.Value[1], acc.Value[1])
 	}
 
 	// Switch modulus from Q to 2N
-	eval.ModSwitchRLWETo2NLvl(ct.Level(), &acc.Value[1], &acc.Value[1])
+	eval.ModSwitchRLWETo2NLvl(ct.Level(), acc.Value[1], acc.Value[1])
 
 	// Conversion from Convolution(a, sk) to DotProd(a, sk) for LWE decryption.
 	// Copy coefficients multiplied by X^{N-1} in reverse order:
@@ -203,7 +203,7 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWithSlotIndex map[in
 		tmp0[j] = -tmp1[ringQLWE.N()-j] & mask
 	}
 
-	eval.ModSwitchRLWETo2NLvl(ct.Level(), &acc.Value[0], bRLWEMod2N)
+	eval.ModSwitchRLWETo2NLvl(ct.Level(), acc.Value[0], bRLWEMod2N)
 
 	res = make(map[int]*rlwe.Ciphertext)
 
@@ -220,8 +220,8 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWithSlotIndex map[in
 
 			// LWE = -as + m + e, a
 			// LUT = LUT * X^{-as + m + e}
-			ringQLUT.MulCoeffsMontgomery(lut, eval.xPowMinusOne[b].Q, &acc.Value[0])
-			ringQLUT.Add(&acc.Value[0], lut, &acc.Value[0])
+			ringQLUT.MulCoeffsMontgomery(*lut, eval.xPowMinusOne[b].Q, acc.Value[0])
+			ringQLUT.Add(acc.Value[0], *lut, acc.Value[0])
 			acc.Value[1].Zero()
 
 			for j := 0; j < NLWE; j++ {
@@ -237,8 +237,8 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWithSlotIndex map[in
 			res[index] = acc.CopyNew()
 
 			if !eval.paramsLUT.NTTFlag() {
-				ringQLUT.INTT(&res[index].Value[0], &res[index].Value[0])
-				ringQLUT.INTT(&res[index].Value[1], &res[index].Value[1])
+				ringQLUT.INTT(res[index].Value[0], res[index].Value[0])
+				ringQLUT.INTT(res[index].Value[1], res[index].Value[1])
 				res[index].IsNTT = false
 			}
 		}
@@ -249,7 +249,7 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWithSlotIndex map[in
 }
 
 // ModSwitchRLWETo2NLvl applies round(x * 2N / Q) to the coefficients of polQ and returns the result on pol2N.
-func (eval *Evaluator) ModSwitchRLWETo2NLvl(level int, polQ *ring.Poly, pol2N *ring.Poly) {
+func (eval *Evaluator) ModSwitchRLWETo2NLvl(level int, polQ, pol2N ring.Poly) {
 	coeffsBigint := make([]*big.Int, len(polQ.Coeffs[0]))
 
 	ringQ := eval.paramsLWE.RingQ().AtLevel(level)

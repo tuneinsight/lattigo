@@ -59,7 +59,7 @@ type EvalModLiteral struct {
 
 // MarshalBinary returns a JSON representation of the the target EvalModLiteral struct on a slice of bytes.
 // See `Marshal` from the `encoding/json` package.
-func (evm *EvalModLiteral) MarshalBinary() (data []byte, err error) {
+func (evm EvalModLiteral) MarshalBinary() (data []byte, err error) {
 	return json.Marshal(evm)
 }
 
@@ -79,39 +79,39 @@ type EvalModPoly struct {
 	qDiff             float64
 	scFac             float64
 	sqrt2Pi           float64
-	sinePoly          *polynomial.Polynomial
+	sinePoly          polynomial.Polynomial
 	arcSinePoly       *polynomial.Polynomial
 	k                 float64
 }
 
 // LevelStart returns the starting level of the EvalMod.
-func (evp *EvalModPoly) LevelStart() int {
+func (evp EvalModPoly) LevelStart() int {
 	return evp.levelStart
 }
 
 // ScalingFactor returns scaling factor used during the EvalMod.
-func (evp *EvalModPoly) ScalingFactor() rlwe.Scale {
+func (evp EvalModPoly) ScalingFactor() rlwe.Scale {
 	return rlwe.NewScale(math.Exp2(float64(evp.LogPlaintextScale)))
 }
 
 // ScFac returns 1/2^r where r is the number of double angle evaluation.
-func (evp *EvalModPoly) ScFac() float64 {
+func (evp EvalModPoly) ScFac() float64 {
 	return evp.scFac
 }
 
 // MessageRatio returns the pre-set ratio Q[0]/|m|.
-func (evp *EvalModPoly) MessageRatio() float64 {
+func (evp EvalModPoly) MessageRatio() float64 {
 	return float64(uint(1 << evp.LogMessageRatio))
 }
 
 // K return the sine approximation range.
-func (evp *EvalModPoly) K() float64 {
+func (evp EvalModPoly) K() float64 {
 	return evp.k * evp.scFac
 }
 
 // QDiff return Q[0]/ClosetPow2
 // This is the error introduced by the approximate division by Q[0].
-func (evp *EvalModPoly) QDiff() float64 {
+func (evp EvalModPoly) QDiff() float64 {
 	return evp.qDiff
 }
 
@@ -121,7 +121,7 @@ func (evp *EvalModPoly) QDiff() float64 {
 func NewEvalModPolyFromLiteral(params Parameters, evm EvalModLiteral) EvalModPoly {
 
 	var arcSinePoly *polynomial.Polynomial
-	var sinePoly *polynomial.Polynomial
+	var sinePoly polynomial.Polynomial
 	var sqrt2pi float64
 
 	doubleAngle := evm.DoubleAngle
@@ -148,7 +148,9 @@ func NewEvalModPolyFromLiteral(params Parameters, evm EvalModLiteral) EvalModPol
 			coeffs[i] = coeffs[i-2] * complex(float64(i*i-4*i+4)/float64(i*i-i), 0)
 		}
 
-		arcSinePoly = polynomial.NewPolynomial(polynomial.Monomial, coeffs, nil)
+		p := polynomial.NewPolynomial(polynomial.Monomial, coeffs, nil)
+
+		arcSinePoly = &p
 		arcSinePoly.IsEven = false
 
 		for i := range arcSinePoly.Coeffs {
@@ -227,7 +229,7 @@ func NewEvalModPolyFromLiteral(params Parameters, evm EvalModLiteral) EvalModPol
 }
 
 // Depth returns the depth of the SineEval.
-func (evm *EvalModLiteral) Depth() (depth int) {
+func (evm EvalModLiteral) Depth() (depth int) {
 
 	if evm.SineType == CosDiscrete { // this method requires a minimum degree of 2*K-1.
 		depth += int(bits.Len64(uint64(utils.Max(evm.SineDegree, 2*evm.K-1))))
@@ -257,7 +259,7 @@ func (evm *EvalModLiteral) Depth() (depth int) {
 // !! Assumes that the input is normalized by 1/K for K the range of the approximation.
 //
 // Scaling back error correction by 2^{round(log(Q))}/Q afterward is included in the polynomial
-func (eval *Evaluator) EvalModNew(ct *rlwe.Ciphertext, evalModPoly EvalModPoly) *rlwe.Ciphertext {
+func (eval Evaluator) EvalModNew(ct *rlwe.Ciphertext, evalModPoly EvalModPoly) *rlwe.Ciphertext {
 
 	if ct.Level() < evalModPoly.LevelStart() {
 		panic("ct.Level() < evalModPoly.LevelStart")
@@ -314,7 +316,7 @@ func (eval *Evaluator) EvalModNew(ct *rlwe.Ciphertext, evalModPoly EvalModPoly) 
 
 	// ArcSine
 	if evalModPoly.arcSinePoly != nil {
-		if ct, err = eval.Polynomial(ct, evalModPoly.arcSinePoly, ct.PlaintextScale); err != nil {
+		if ct, err = eval.Polynomial(ct, *evalModPoly.arcSinePoly, ct.PlaintextScale); err != nil {
 			panic(err)
 		}
 	}

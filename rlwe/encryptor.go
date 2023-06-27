@@ -105,8 +105,8 @@ func NewEncryptorPublicKey(params ParametersInterface, pk *PublicKey) (enc *Encr
 }
 
 type encryptorBuffers struct {
-	buffQ  [2]*ring.Poly
-	buffP  [3]*ring.Poly
+	buffQ  [2]ring.Poly
+	buffP  [3]ring.Poly
 	buffQP ringqp.Poly
 }
 
@@ -115,15 +115,15 @@ func newEncryptorBuffers(params ParametersInterface) *encryptorBuffers {
 	ringQ := params.RingQ()
 	ringP := params.RingP()
 
-	var buffP [3]*ring.Poly
+	var buffP [3]ring.Poly
 	if params.PCount() != 0 {
-		buffP = [3]*ring.Poly{ringP.NewPoly(), ringP.NewPoly(), ringP.NewPoly()}
+		buffP = [3]ring.Poly{ringP.NewPoly(), ringP.NewPoly(), ringP.NewPoly()}
 	}
 
 	return &encryptorBuffers{
-		buffQ:  [2]*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly()},
+		buffQ:  [2]ring.Poly{ringQ.NewPoly(), ringQ.NewPoly()},
 		buffP:  buffP,
-		buffQP: *params.RingQP().NewPoly(),
+		buffQP: params.RingQP().NewPoly(),
 	}
 }
 
@@ -134,7 +134,7 @@ func newEncryptorBuffers(params ParametersInterface) *encryptorBuffers {
 // encryption of zero is sampled in QP before being rescaled by P; otherwise, it is directly sampled in Q.
 // The method accepts only *rlwe.Ciphertext as input.
 // If a Plaintext is given, then the output Ciphertext MetaData will match the Plaintext MetaData.
-func (enc *EncryptorPublicKey) Encrypt(pt *Plaintext, ct interface{}) {
+func (enc EncryptorPublicKey) Encrypt(pt *Plaintext, ct interface{}) {
 
 	if pt == nil {
 		enc.EncryptZero(ct)
@@ -164,7 +164,7 @@ func (enc *EncryptorPublicKey) Encrypt(pt *Plaintext, ct interface{}) {
 // The encryption procedure depends on the parameters: If the auxiliary modulus P is defined, the
 // encryption of zero is sampled in QP before being rescaled by P; otherwise, it is directly sampled in Q.
 // If a Plaintext is given, then the output ciphertext MetaData will match the Plaintext MetaData.
-func (enc *EncryptorPublicKey) EncryptNew(pt *Plaintext) (ct *Ciphertext) {
+func (enc EncryptorPublicKey) EncryptNew(pt *Plaintext) (ct *Ciphertext) {
 	ct = NewCiphertext(enc.params, 1, pt.Level())
 	enc.Encrypt(pt, ct)
 	return
@@ -175,7 +175,7 @@ func (enc *EncryptorPublicKey) EncryptNew(pt *Plaintext) (ct *Ciphertext) {
 // encryption of zero is sampled in QP before being rescaled by P; otherwise, it is directly sampled in Q.
 // The method accepts only *rlwe.Ciphertext as input.
 // The zero encryption is generated according to the given Ciphertext MetaData.
-func (enc *EncryptorPublicKey) EncryptZeroNew(level int) (ct *Ciphertext) {
+func (enc EncryptorPublicKey) EncryptZeroNew(level int) (ct *Ciphertext) {
 	ct = NewCiphertext(enc.params, 1, level)
 	enc.EncryptZero(ct)
 	return
@@ -186,7 +186,7 @@ func (enc *EncryptorPublicKey) EncryptZeroNew(level int) (ct *Ciphertext) {
 // encryption of zero is sampled in QP before being rescaled by P; otherwise, it is directly sampled in Q.
 // The method accepts only *rlwe.Ciphertext as input.
 // The zero encryption is generated according to the given Ciphertext MetaData.
-func (enc *EncryptorPublicKey) EncryptZero(ct interface{}) {
+func (enc EncryptorPublicKey) EncryptZero(ct interface{}) {
 	switch ct := ct.(type) {
 	case *Ciphertext:
 		if enc.params.PCount() > 0 {
@@ -199,7 +199,7 @@ func (enc *EncryptorPublicKey) EncryptZero(ct interface{}) {
 	}
 }
 
-func (enc *EncryptorPublicKey) encryptZero(ct *Ciphertext) {
+func (enc EncryptorPublicKey) encryptZero(ct *Ciphertext) {
 
 	levelQ := ct.Level()
 	levelP := 0
@@ -211,50 +211,50 @@ func (enc *EncryptorPublicKey) encryptZero(ct *Ciphertext) {
 	buffP1 := enc.buffP[1]
 	buffP2 := enc.buffP[2]
 
-	u := &ringqp.Poly{Q: buffQ0, P: buffP2}
+	u := ringqp.Poly{Q: buffQ0, P: buffP2}
 
 	// We sample a RLWE instance (encryption of zero) over the extended ring (ciphertext ring + special prime)
 	enc.xsSampler.AtLevel(levelQ).Read(u.Q)
-	ringQP.ExtendBasisSmallNormAndCenter(u.Q, levelP, nil, u.P)
+	ringQP.ExtendBasisSmallNormAndCenter(u.Q, levelP, u.Q, u.P)
 
 	// (#Q + #P) NTT
 	ringQP.NTT(u, u)
 
-	ct0QP := &ringqp.Poly{Q: &ct.Value[0], P: buffP0}
-	ct1QP := &ringqp.Poly{Q: &ct.Value[1], P: buffP1}
+	ct0QP := ringqp.Poly{Q: ct.Value[0], P: buffP0}
+	ct1QP := ringqp.Poly{Q: ct.Value[1], P: buffP1}
 
 	// ct0 = u*pk0
 	// ct1 = u*pk1
-	ringQP.MulCoeffsMontgomery(u, &enc.pk.Value[0], ct0QP)
-	ringQP.MulCoeffsMontgomery(u, &enc.pk.Value[1], ct1QP)
+	ringQP.MulCoeffsMontgomery(u, enc.pk.Value[0], ct0QP)
+	ringQP.MulCoeffsMontgomery(u, enc.pk.Value[1], ct1QP)
 
 	// 2*(#Q + #P) NTT
 	ringQP.INTT(ct0QP, ct0QP)
 	ringQP.INTT(ct1QP, ct1QP)
 
-	e := &ringqp.Poly{Q: buffQ0, P: buffP2}
+	e := ringqp.Poly{Q: buffQ0, P: buffP2}
 
 	enc.xeSampler.AtLevel(levelQ).Read(e.Q)
-	ringQP.ExtendBasisSmallNormAndCenter(e.Q, levelP, nil, e.P)
+	ringQP.ExtendBasisSmallNormAndCenter(e.Q, levelP, e.Q, e.P)
 	ringQP.Add(ct0QP, e, ct0QP)
 
 	enc.xeSampler.AtLevel(levelQ).Read(e.Q)
-	ringQP.ExtendBasisSmallNormAndCenter(e.Q, levelP, nil, e.P)
+	ringQP.ExtendBasisSmallNormAndCenter(e.Q, levelP, e.Q, e.P)
 	ringQP.Add(ct1QP, e, ct1QP)
 
 	// ct0 = (u*pk0 + e0)/P
-	enc.basisextender.ModDownQPtoQ(levelQ, levelP, ct0QP.Q, ct0QP.P, &ct.Value[0])
+	enc.basisextender.ModDownQPtoQ(levelQ, levelP, ct0QP.Q, ct0QP.P, ct.Value[0])
 
 	// ct1 = (u*pk1 + e1)/P
-	enc.basisextender.ModDownQPtoQ(levelQ, levelP, ct1QP.Q, ct1QP.P, &ct.Value[1])
+	enc.basisextender.ModDownQPtoQ(levelQ, levelP, ct1QP.Q, ct1QP.P, ct.Value[1])
 
 	if ct.IsNTT {
-		ringQP.RingQ.NTT(&ct.Value[0], &ct.Value[0])
-		ringQP.RingQ.NTT(&ct.Value[1], &ct.Value[1])
+		ringQP.RingQ.NTT(ct.Value[0], ct.Value[0])
+		ringQP.RingQ.NTT(ct.Value[1], ct.Value[1])
 	}
 }
 
-func (enc *EncryptorPublicKey) encryptZeroNoP(ct *Ciphertext) {
+func (enc EncryptorPublicKey) encryptZeroNoP(ct *Ciphertext) {
 
 	levelQ := ct.Level()
 
@@ -265,7 +265,7 @@ func (enc *EncryptorPublicKey) encryptZeroNoP(ct *Ciphertext) {
 	enc.xsSampler.AtLevel(levelQ).Read(buffQ0)
 	ringQ.NTT(buffQ0, buffQ0)
 
-	c0, c1 := &ct.Value[0], &ct.Value[1]
+	c0, c1 := ct.Value[0], ct.Value[1]
 
 	// ct0 = NTT(u*pk0)
 	ringQ.MulCoeffsMontgomery(buffQ0, enc.pk.Value[0].Q, c0)
@@ -298,7 +298,7 @@ func (enc *EncryptorPublicKey) encryptZeroNoP(ct *Ciphertext) {
 // The method accepts only *rlwe.Ciphertext or *rgsw.Ciphertext as input and will panic otherwise.
 // If a plaintext is given, the encryptor only accepts *rlwe.Ciphertext, and the generated Ciphertext
 // MetaData will match the given Plaintext MetaData.
-func (enc *EncryptorSecretKey) Encrypt(pt *Plaintext, ct interface{}) {
+func (enc EncryptorSecretKey) Encrypt(pt *Plaintext, ct interface{}) {
 	if pt == nil {
 		enc.EncryptZero(ct)
 	} else {
@@ -317,7 +317,7 @@ func (enc *EncryptorSecretKey) Encrypt(pt *Plaintext, ct interface{}) {
 
 // EncryptNew encrypts the input plaintext using the stored secret-key and returns the result on a new Ciphertext.
 // MetaData will match the given Plaintext MetaData.
-func (enc *EncryptorSecretKey) EncryptNew(pt *Plaintext) (ct *Ciphertext) {
+func (enc EncryptorSecretKey) EncryptNew(pt *Plaintext) (ct *Ciphertext) {
 	ct = NewCiphertext(enc.params, 1, pt.Level())
 	enc.Encrypt(pt, ct)
 	return
@@ -326,18 +326,18 @@ func (enc *EncryptorSecretKey) EncryptNew(pt *Plaintext) (ct *Ciphertext) {
 // EncryptZero generates an encryption of zero using the stored secret-key and writes the result on ct.
 // The method accepts only *rlwe.Ciphertext or *rgsw.Ciphertext as input and will panic otherwise.
 // The zero encryption is generated according to the given Ciphertext MetaData.
-func (enc *EncryptorSecretKey) EncryptZero(ct interface{}) {
+func (enc EncryptorSecretKey) EncryptZero(ct interface{}) {
 	switch ct := ct.(type) {
 	case *Ciphertext:
 
-		var c1 *ring.Poly
+		var c1 ring.Poly
 		if ct.Degree() == 1 {
-			c1 = &ct.Value[1]
+			c1 = ct.Value[1]
 		} else {
 			c1 = enc.buffQ[1]
 		}
 
-		enc.uniformSampler.AtLevel(ct.Level(), -1).Read(&ringqp.Poly{Q: c1})
+		enc.uniformSampler.AtLevel(ct.Level(), -1).Read(ringqp.Poly{Q: c1})
 
 		if !ct.IsNTT {
 			enc.params.RingQ().AtLevel(ct.Level()).NTT(c1, c1)
@@ -356,19 +356,19 @@ func (enc *EncryptorSecretKey) EncryptZero(ct interface{}) {
 // EncryptZeroNew generates an encryption of zero using the stored secret-key and writes the result on ct.
 // The method accepts only *rlwe.Ciphertext or *rgsw.Ciphertext as input and will panic otherwise.
 // The zero encryption is generated according to the given Ciphertext MetaData.
-func (enc *EncryptorSecretKey) EncryptZeroNew(level int) (ct *Ciphertext) {
+func (enc EncryptorSecretKey) EncryptZeroNew(level int) (ct *Ciphertext) {
 	ct = NewCiphertext(enc.params, 1, level)
 	enc.EncryptZero(ct)
 	return
 }
 
-func (enc *EncryptorSecretKey) encryptZero(ct *Ciphertext, c1 *ring.Poly) {
+func (enc EncryptorSecretKey) encryptZero(ct *Ciphertext, c1 ring.Poly) {
 
 	levelQ := ct.Level()
 
 	ringQ := enc.params.RingQ().AtLevel(levelQ)
 
-	c0 := &ct.Value[0]
+	c0 := ct.Value[0]
 
 	ringQ.MulCoeffsMontgomery(c1, enc.sk.Value.Q, c0) // c0 = NTT(sc1)
 	ringQ.Neg(c0, c0)                                 // c0 = NTT(-sc1)
@@ -393,9 +393,9 @@ func (enc *EncryptorSecretKey) encryptZero(ct *Ciphertext, c1 *ring.Poly) {
 // sk     : secret key
 // sampler: uniform sampler; if `sampler` is nil, then the internal sampler will be used.
 // montgomery: returns the result in the Montgomery domain.
-func (enc *EncryptorSecretKey) encryptZeroQP(ct OperandQP) {
+func (enc EncryptorSecretKey) encryptZeroQP(ct OperandQP) {
 
-	c0, c1 := &ct.Value[0], &ct.Value[1]
+	c0, c1 := ct.Value[0], ct.Value[1]
 
 	levelQ, levelP := c0.LevelQ(), c1.LevelP()
 	ringQP := enc.params.RingQP().AtLevel(levelQ, levelP)
@@ -403,7 +403,7 @@ func (enc *EncryptorSecretKey) encryptZeroQP(ct OperandQP) {
 	// ct = (e, 0)
 	enc.xeSampler.AtLevel(levelQ).Read(c0.Q)
 	if levelP != -1 {
-		ringQP.ExtendBasisSmallNormAndCenter(c0.Q, levelP, nil, c0.P)
+		ringQP.ExtendBasisSmallNormAndCenter(c0.Q, levelP, c0.Q, c0.P)
 	}
 
 	ringQP.NTT(c0, c0)
@@ -416,7 +416,7 @@ func (enc *EncryptorSecretKey) encryptZeroQP(ct OperandQP) {
 	enc.uniformSampler.AtLevel(levelQ, levelP).Read(c1)
 
 	// (-a*sk + e, a)
-	ringQP.MulCoeffsMontgomeryThenSub(c1, &enc.sk.Value, c0)
+	ringQP.MulCoeffsMontgomeryThenSub(c1, enc.sk.Value, c0)
 
 	if !ct.IsNTT {
 		ringQP.INTT(c0, c0)
@@ -427,14 +427,14 @@ func (enc *EncryptorSecretKey) encryptZeroQP(ct OperandQP) {
 // ShallowCopy creates a shallow copy of this EncryptorSecretKey in which all the read-only data-structures are
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // Encryptors can be used concurrently.
-func (enc *EncryptorPublicKey) ShallowCopy() EncryptorInterface {
+func (enc EncryptorPublicKey) ShallowCopy() EncryptorInterface {
 	return NewEncryptorPublicKey(enc.params, enc.pk)
 }
 
 // ShallowCopy creates a shallow copy of this EncryptorSecretKey in which all the read-only data-structures are
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // Encryptors can be used concurrently.
-func (enc *EncryptorSecretKey) ShallowCopy() EncryptorInterface {
+func (enc EncryptorSecretKey) ShallowCopy() EncryptorInterface {
 	return NewEncryptorSecretKey(enc.params, enc.sk)
 }
 
@@ -446,23 +446,23 @@ func (enc EncryptorSecretKey) WithPRNG(prng sampling.PRNG) PRNGEncryptorInterfac
 	return &EncryptorSecretKey{encBase, enc.sk}
 }
 
-func (enc *encryptorBase) Encrypt(pt *Plaintext, ct interface{}) {
+func (enc encryptorBase) Encrypt(pt *Plaintext, ct interface{}) {
 	panic("cannot Encrypt: key hasn't been set")
 }
 
-func (enc *encryptorBase) EncryptNew(pt *Plaintext) (ct *Ciphertext) {
+func (enc encryptorBase) EncryptNew(pt *Plaintext) (ct *Ciphertext) {
 	panic("cannot EncryptNew: key hasn't been set")
 }
 
-func (enc *encryptorBase) EncryptZero(ct interface{}) {
+func (enc encryptorBase) EncryptZero(ct interface{}) {
 	panic("cannot EncryptZeroNew: key hasn't been set")
 }
 
-func (enc *encryptorBase) EncryptZeroNew(level int) (ct *Ciphertext) {
+func (enc encryptorBase) EncryptZeroNew(level int) (ct *Ciphertext) {
 	panic("cannot EncryptZeroNew: key hasn't been set")
 }
 
-func (enc *encryptorBase) ShallowCopy() EncryptorInterface {
+func (enc encryptorBase) ShallowCopy() EncryptorInterface {
 	return NewEncryptor(enc.params, nil)
 }
 
@@ -501,10 +501,10 @@ func (enc encryptorBase) checkSk(sk *SecretKey) (err error) {
 	return
 }
 
-func (enc *encryptorBase) addPtToCt(level int, pt *Plaintext, ct *Ciphertext) {
+func (enc encryptorBase) addPtToCt(level int, pt *Plaintext, ct *Ciphertext) {
 
 	ringQ := enc.params.RingQ().AtLevel(level)
-	var buff *ring.Poly
+	var buff ring.Poly
 	if pt.IsNTT {
 		if ct.IsNTT {
 			buff = pt.Value
@@ -521,5 +521,5 @@ func (enc *encryptorBase) addPtToCt(level int, pt *Plaintext, ct *Ciphertext) {
 		}
 	}
 
-	ringQ.Add(&ct.Value[0], buff, &ct.Value[0])
+	ringQ.Add(ct.Value[0], buff, ct.Value[0])
 }

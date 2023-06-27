@@ -16,7 +16,7 @@ type TernarySampler struct {
 	matrixValues [][3]uint64
 	invDensity   float64
 	hw           int
-	sample       func(poly *Poly, f func(a, b, c uint64) uint64)
+	sample       func(poly Poly, f func(a, b, c uint64) uint64)
 }
 
 // NewTernarySampler creates a new instance of TernarySampler from a PRNG, the ring definition and the distribution
@@ -57,20 +57,20 @@ func (ts *TernarySampler) AtLevel(level int) Sampler {
 }
 
 // Read samples a polynomial into pol.
-func (ts *TernarySampler) Read(pol *Poly) {
+func (ts *TernarySampler) Read(pol Poly) {
 	ts.sample(pol, func(a, b, c uint64) uint64 {
 		return b
 	})
 }
 
 // ReadNew allocates and samples a polynomial at the max level.
-func (ts *TernarySampler) ReadNew() (pol *Poly) {
+func (ts *TernarySampler) ReadNew() (pol Poly) {
 	pol = ts.baseRing.NewPoly()
 	ts.Read(pol)
 	return pol
 }
 
-func (ts *TernarySampler) ReadAndAdd(pol *Poly) {
+func (ts *TernarySampler) ReadAndAdd(pol Poly) {
 	ts.sample(pol, func(a, b, c uint64) uint64 {
 		return CRed(a+b, c)
 	})
@@ -122,7 +122,7 @@ func (ts *TernarySampler) computeMatrixTernary(p float64) {
 
 }
 
-func (ts *TernarySampler) sampleProba(pol *Poly, f func(a, b, c uint64) uint64) {
+func (ts *TernarySampler) sampleProba(pol Poly, f func(a, b, c uint64) uint64) {
 
 	if ts.invDensity == 0 {
 		panic("cannot sample -> p = 0")
@@ -186,7 +186,7 @@ func (ts *TernarySampler) sampleProba(pol *Poly, f func(a, b, c uint64) uint64) 
 	}
 }
 
-func (ts *TernarySampler) sampleSparse(pol *Poly, f func(a, b, c uint64) uint64) {
+func (ts *TernarySampler) sampleSparse(pol Poly, f func(a, b, c uint64) uint64) {
 
 	N := ts.baseRing.N()
 

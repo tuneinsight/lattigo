@@ -16,7 +16,7 @@ import (
 // GaloisKeyGenProtocol is the structure storing the parameters for the collective GaloisKeys generation.
 type GaloisKeyGenProtocol struct {
 	params           rlwe.Parameters
-	buff             [2]*ringqp.Poly
+	buff             [2]ringqp.Poly
 	gaussianSamplerQ ring.Sampler
 }
 
@@ -44,7 +44,7 @@ func (gkg *GaloisKeyGenProtocol) ShallowCopy() GaloisKeyGenProtocol {
 
 	return GaloisKeyGenProtocol{
 		params:           gkg.params,
-		buff:             [2]*ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()},
+		buff:             [2]ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()},
 		gaussianSamplerQ: ring.NewSampler(prng, gkg.params.RingQ(), gkg.params.Xe(), false),
 	}
 }
@@ -58,7 +58,7 @@ func NewGaloisKeyGenProtocol(params rlwe.Parameters) (gkg GaloisKeyGenProtocol) 
 	if err != nil {
 		panic(err)
 	}
-	gkg.buff = [2]*ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()}
+	gkg.buff = [2]ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()}
 	gkg.gaussianSamplerQ = ring.NewSampler(prng, params.RingQ(), params.Xe(), false)
 	return
 }
@@ -73,7 +73,7 @@ func (gkg GaloisKeyGenProtocol) AllocateShare() (gkgShare GaloisKeyGenShare) {
 	for i := range p {
 		vec := make([]ringqp.Poly, decompPw2)
 		for j := range vec {
-			vec[j] = *ringqp.NewPoly(params.N(), params.MaxLevelQ(), params.MaxLevelP())
+			vec[j] = ringqp.NewPoly(params.N(), params.MaxLevelQ(), params.MaxLevelP())
 		}
 		p[i] = vec
 	}
@@ -93,7 +93,7 @@ func (gkg GaloisKeyGenProtocol) SampleCRP(crs CRS) GaloisKeyGenCRP {
 	for i := range m {
 		vec := make([]ringqp.Poly, decompPw2)
 		for j := range vec {
-			vec[j] = *ringqp.NewPoly(params.N(), params.MaxLevelQ(), params.MaxLevelP())
+			vec[j] = ringqp.NewPoly(params.N(), params.MaxLevelQ(), params.MaxLevelP())
 		}
 		m[i] = vec
 	}
@@ -102,7 +102,7 @@ func (gkg GaloisKeyGenProtocol) SampleCRP(crs CRS) GaloisKeyGenCRP {
 
 	for _, v := range m {
 		for _, p := range v {
-			us.Read(&p)
+			us.Read(p)
 		}
 	}
 
@@ -152,11 +152,11 @@ func (gkg GaloisKeyGenProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp G
 			gkg.gaussianSamplerQ.Read(m[i][j].Q)
 
 			if hasModulusP {
-				ringQP.ExtendBasisSmallNormAndCenter(m[i][j].Q, levelP, nil, m[i][j].P)
+				ringQP.ExtendBasisSmallNormAndCenter(m[i][j].Q, levelP, m[i][j].Q, m[i][j].P)
 			}
 
-			ringQP.NTTLazy(&m[i][j], &m[i][j])
-			ringQP.MForm(&m[i][j], &m[i][j])
+			ringQP.NTTLazy(m[i][j], m[i][j])
+			ringQP.MForm(m[i][j], m[i][j])
 
 			// a is the CRP
 
@@ -181,7 +181,7 @@ func (gkg GaloisKeyGenProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp G
 			}
 
 			// sk_in * (qiBarre*qiStar) * 2^w - a*sk + e
-			ringQP.MulCoeffsMontgomeryThenSub(&c[i][j], gkg.buff[1], &m[i][j])
+			ringQP.MulCoeffsMontgomeryThenSub(c[i][j], gkg.buff[1], m[i][j])
 		}
 
 		ringQ.MulScalar(gkg.buff[0].Q, 1<<gkg.params.Pow2Base(), gkg.buff[0].Q)
@@ -189,7 +189,7 @@ func (gkg GaloisKeyGenProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp G
 }
 
 // AggregateShares computes share3 = share1 + share2.
-func (gkg GaloisKeyGenProtocol) AggregateShares(share1, share2, share3 *GaloisKeyGenShare) {
+func (gkg GaloisKeyGenProtocol) AggregateShares(share1, share2 GaloisKeyGenShare, share3 *GaloisKeyGenShare) {
 
 	if share1.GaloisElement != share2.GaloisElement {
 		panic(fmt.Sprintf("cannot aggregate: GaloisKeyGenShares do not share the same GaloisElement: %d != %d", share1.GaloisElement, share2.GaloisElement))
@@ -202,11 +202,7 @@ func (gkg GaloisKeyGenProtocol) AggregateShares(share1, share2, share3 *GaloisKe
 	m3 := share3.Value
 
 	levelQ := m1[0][0].Q.Level()
-
-	var levelP int
-	if m1[0][0].P != nil {
-		levelP = m1[0][0].P.Level()
-	}
+	levelP := m1[0][0].P.Level()
 
 	ringQP := gkg.params.RingQP().AtLevel(levelQ, levelP)
 
@@ -214,7 +210,7 @@ func (gkg GaloisKeyGenProtocol) AggregateShares(share1, share2, share3 *GaloisKe
 	BITDecomp := len(m1[0])
 	for i := 0; i < RNSDecomp; i++ {
 		for j := 0; j < BITDecomp; j++ {
-			ringQP.Add(&m1[i][j], &m2[i][j], &m3[i][j])
+			ringQP.Add(m1[i][j], m2[i][j], m3[i][j])
 		}
 	}
 }
@@ -229,8 +225,8 @@ func (gkg GaloisKeyGenProtocol) GenGaloisKey(share GaloisKeyGenShare, crp Galois
 	BITDecomp := len(m[0])
 	for i := 0; i < RNSDecomp; i++ {
 		for j := 0; j < BITDecomp; j++ {
-			gk.Value[i][j][0].Copy(&m[i][j])
-			gk.Value[i][j][1].Copy(&p[i][j])
+			gk.Value[i][j][0].Copy(m[i][j])
+			gk.Value[i][j][1].Copy(p[i][j])
 		}
 	}
 

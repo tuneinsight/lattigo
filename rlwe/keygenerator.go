@@ -20,7 +20,7 @@ func NewKeyGenerator(params ParametersInterface) *KeyGenerator {
 
 // GenSecretKeyNew generates a new SecretKey.
 // Distribution is set according to `rlwe.Parameters.HammingWeight()`.
-func (kgen *KeyGenerator) GenSecretKeyNew() (sk *SecretKey) {
+func (kgen KeyGenerator) GenSecretKeyNew() (sk *SecretKey) {
 	sk = NewSecretKey(kgen.params)
 	kgen.GenSecretKey(sk)
 	return
@@ -28,7 +28,7 @@ func (kgen *KeyGenerator) GenSecretKeyNew() (sk *SecretKey) {
 
 // GenSecretKey generates a SecretKey.
 // Distribution is set according to `rlwe.Parameters.HammingWeight()`.
-func (kgen *KeyGenerator) GenSecretKey(sk *SecretKey) {
+func (kgen KeyGenerator) GenSecretKey(sk *SecretKey) {
 	kgen.genSecretKeyFromSampler(kgen.xsSampler, sk)
 }
 
@@ -40,33 +40,33 @@ func (kgen *KeyGenerator) GenSecretKeyWithHammingWeightNew(hw int) (sk *SecretKe
 }
 
 // GenSecretKeyWithHammingWeight generates a SecretKey with exactly hw non-zero coefficients.
-func (kgen *KeyGenerator) GenSecretKeyWithHammingWeight(hw int, sk *SecretKey) {
+func (kgen KeyGenerator) GenSecretKeyWithHammingWeight(hw int, sk *SecretKey) {
 	kgen.genSecretKeyFromSampler(ring.NewSampler(kgen.prng, kgen.params.RingQ(), ring.Ternary{H: hw}, false), sk)
 }
 
-func (kgen *KeyGenerator) genSecretKeyFromSampler(sampler ring.Sampler, sk *SecretKey) {
+func (kgen KeyGenerator) genSecretKeyFromSampler(sampler ring.Sampler, sk *SecretKey) {
 
 	ringQP := kgen.params.RingQP().AtLevel(sk.LevelQ(), sk.LevelP())
 
 	sampler.AtLevel(sk.LevelQ()).Read(sk.Value.Q)
 
 	if levelP := sk.LevelP(); levelP > -1 {
-		ringQP.ExtendBasisSmallNormAndCenter(sk.Value.Q, levelP, nil, sk.Value.P)
+		ringQP.ExtendBasisSmallNormAndCenter(sk.Value.Q, levelP, sk.Value.Q, sk.Value.P)
 	}
 
-	ringQP.NTT(&sk.Value, &sk.Value)
-	ringQP.MForm(&sk.Value, &sk.Value)
+	ringQP.NTT(sk.Value, sk.Value)
+	ringQP.MForm(sk.Value, sk.Value)
 }
 
 // GenPublicKeyNew generates a new public key from the provided SecretKey.
-func (kgen *KeyGenerator) GenPublicKeyNew(sk *SecretKey) (pk *PublicKey) {
+func (kgen KeyGenerator) GenPublicKeyNew(sk *SecretKey) (pk *PublicKey) {
 	pk = NewPublicKey(kgen.params)
 	kgen.GenPublicKey(sk, pk)
 	return
 }
 
 // GenPublicKey generates a public key from the provided SecretKey.
-func (kgen *KeyGenerator) GenPublicKey(sk *SecretKey, pk *PublicKey) {
+func (kgen KeyGenerator) GenPublicKey(sk *SecretKey, pk *PublicKey) {
 	kgen.WithKey(sk).EncryptZero(&OperandQP{
 		MetaData: MetaData{IsNTT: true, IsMontgomery: true},
 		Value:    pk.Value[:]})
@@ -74,34 +74,34 @@ func (kgen *KeyGenerator) GenPublicKey(sk *SecretKey, pk *PublicKey) {
 
 // GenKeyPairNew generates a new SecretKey and a corresponding public key.
 // Distribution is of the SecretKey set according to `rlwe.Parameters.HammingWeight()`.
-func (kgen *KeyGenerator) GenKeyPairNew() (sk *SecretKey, pk *PublicKey) {
+func (kgen KeyGenerator) GenKeyPairNew() (sk *SecretKey, pk *PublicKey) {
 	sk = kgen.GenSecretKeyNew()
 	return sk, kgen.GenPublicKeyNew(sk)
 }
 
 // GenRelinearizationKeyNew generates a new EvaluationKey that will be used to relinearize Ciphertexts during multiplication.
-func (kgen *KeyGenerator) GenRelinearizationKeyNew(sk *SecretKey) (rlk *RelinearizationKey) {
+func (kgen KeyGenerator) GenRelinearizationKeyNew(sk *SecretKey) (rlk *RelinearizationKey) {
 	rlk = NewRelinearizationKey(kgen.params)
 	kgen.GenRelinearizationKey(sk, rlk)
 	return
 }
 
 // GenRelinearizationKey generates an EvaluationKey that will be used to relinearize Ciphertexts during multiplication.
-func (kgen *KeyGenerator) GenRelinearizationKey(sk *SecretKey, rlk *RelinearizationKey) {
+func (kgen KeyGenerator) GenRelinearizationKey(sk *SecretKey, rlk *RelinearizationKey) {
 	kgen.buffQP.Q.CopyValues(sk.Value.Q)
 	kgen.params.RingQ().AtLevel(rlk.LevelQ()).MulCoeffsMontgomery(kgen.buffQP.Q, sk.Value.Q, kgen.buffQP.Q)
 	kgen.genEvaluationKey(kgen.buffQP.Q, sk, &rlk.EvaluationKey)
 }
 
 // GenGaloisKeyNew generates a new GaloisKey, enabling the automorphism X^{i} -> X^{i * galEl}.
-func (kgen *KeyGenerator) GenGaloisKeyNew(galEl uint64, sk *SecretKey) (gk *GaloisKey) {
+func (kgen KeyGenerator) GenGaloisKeyNew(galEl uint64, sk *SecretKey) (gk *GaloisKey) {
 	gk = &GaloisKey{EvaluationKey: *NewEvaluationKey(kgen.params, sk.LevelQ(), sk.LevelP())}
 	kgen.GenGaloisKey(galEl, sk, gk)
 	return
 }
 
 // GenGaloisKey generates a GaloisKey, enabling the automorphism X^{i} -> X^{i * galEl}.
-func (kgen *KeyGenerator) GenGaloisKey(galEl uint64, sk *SecretKey, gk *GaloisKey) {
+func (kgen KeyGenerator) GenGaloisKey(galEl uint64, sk *SecretKey, gk *GaloisKey) {
 
 	skIn := sk.Value
 	skOut := kgen.buffQP
@@ -134,7 +134,7 @@ func (kgen *KeyGenerator) GenGaloisKey(galEl uint64, sk *SecretKey, gk *GaloisKe
 // GenGaloisKeys generates the GaloisKey objects for all galois elements in galEls, and stores
 // the resulting key for galois element i in gks[i].
 // The galEls and gks parameters must have the same length.
-func (kgen *KeyGenerator) GenGaloisKeys(galEls []uint64, sk *SecretKey, gks []*GaloisKey) {
+func (kgen KeyGenerator) GenGaloisKeys(galEls []uint64, sk *SecretKey, gks []*GaloisKey) {
 	if len(galEls) != len(gks) {
 		panic("galEls and gks must have the same length")
 	}
@@ -149,7 +149,7 @@ func (kgen *KeyGenerator) GenGaloisKeys(galEls []uint64, sk *SecretKey, gks []*G
 
 // GenGaloisKeysNew generates the GaloisKey objects for all galois elements in galEls, and
 // returns the resulting keys in a newly allocated []*GaloisKey.
-func (kgen *KeyGenerator) GenGaloisKeysNew(galEls []uint64, sk *SecretKey) []*GaloisKey {
+func (kgen KeyGenerator) GenGaloisKeysNew(galEls []uint64, sk *SecretKey) []*GaloisKey {
 	gks := make([]*GaloisKey, len(galEls))
 	for i, galEl := range galEls {
 		gks[i] = kgen.GenGaloisKeyNew(galEl, sk)
@@ -158,7 +158,7 @@ func (kgen *KeyGenerator) GenGaloisKeysNew(galEls []uint64, sk *SecretKey) []*Ga
 }
 
 // GenEvaluationKeysForRingSwapNew generates the necessary EvaluationKeys to switch from a standard ring to to a conjugate invariant ring and vice-versa.
-func (kgen *KeyGenerator) GenEvaluationKeysForRingSwapNew(skStd, skConjugateInvariant *SecretKey) (stdToci, ciToStd *EvaluationKey) {
+func (kgen KeyGenerator) GenEvaluationKeysForRingSwapNew(skStd, skConjugateInvariant *SecretKey) (stdToci, ciToStd *EvaluationKey) {
 
 	levelQ := utils.Min(skStd.Value.Q.Level(), skConjugateInvariant.Value.Q.Level())
 
@@ -181,7 +181,7 @@ func (kgen *KeyGenerator) GenEvaluationKeysForRingSwapNew(skStd, skConjugateInva
 // using SwitchCiphertextRingDegreeNTT(ctSmallDim, nil, ctLargeDim).
 // When re-encrypting a Ciphertext from X^{N} to Y^{N/n}, the output of the re-encryption is in still X^{N} and
 // must be mapped Y^{N/n} using SwitchCiphertextRingDegreeNTT(ctLargeDim, ringQLargeDim, ctSmallDim).
-func (kgen *KeyGenerator) GenEvaluationKeyNew(skInput, skOutput *SecretKey) (evk *EvaluationKey) {
+func (kgen KeyGenerator) GenEvaluationKeyNew(skInput, skOutput *SecretKey) (evk *EvaluationKey) {
 	levelQ := utils.Min(skOutput.LevelQ(), kgen.params.MaxLevelQ())
 	levelP := utils.Min(skOutput.LevelP(), kgen.params.MaxLevelP())
 	evk = NewEvaluationKey(kgen.params, levelQ, levelP)
@@ -198,7 +198,7 @@ func (kgen *KeyGenerator) GenEvaluationKeyNew(skInput, skOutput *SecretKey) (evk
 // using SwitchCiphertextRingDegreeNTT(ctSmallDim, nil, ctLargeDim).
 // When re-encrypting a Ciphertext from X^{N} to Y^{N/n}, the output of the re-encryption is in still X^{N} and
 // must be mapped Y^{N/n} using SwitchCiphertextRingDegreeNTT(ctLargeDim, ringQLargeDim, ctSmallDim).
-func (kgen *KeyGenerator) GenEvaluationKey(skInput, skOutput *SecretKey, evk *EvaluationKey) {
+func (kgen KeyGenerator) GenEvaluationKey(skInput, skOutput *SecretKey, evk *EvaluationKey) {
 
 	// N -> n (evk is to switch to a smaller dimension).
 	if len(skInput.Value.Q.Coeffs[0]) > len(skOutput.Value.Q.Coeffs[0]) {
@@ -263,7 +263,7 @@ func (kgen *KeyGenerator) GenEvaluationKey(skInput, skOutput *SecretKey, evk *Ev
 	}
 }
 
-func (kgen *KeyGenerator) extendQ2P(levelP int, polQ, buff, polP *ring.Poly) {
+func (kgen KeyGenerator) extendQ2P(levelP int, polQ, buff, polP ring.Poly) {
 	ringQ := kgen.params.RingQ().AtLevel(0)
 	ringP := kgen.params.RingP().AtLevel(levelP)
 
@@ -298,7 +298,7 @@ func (kgen *KeyGenerator) extendQ2P(levelP int, polQ, buff, polP *ring.Poly) {
 	ringP.MForm(polP, polP)
 }
 
-func (kgen *KeyGenerator) genEvaluationKey(skIn *ring.Poly, skOut *SecretKey, evk *EvaluationKey) {
+func (kgen KeyGenerator) genEvaluationKey(skIn ring.Poly, skOut *SecretKey, evk *EvaluationKey) {
 
 	enc := kgen.WithKey(skOut)
 	// Samples an encryption of zero for each element of the EvaluationKey.

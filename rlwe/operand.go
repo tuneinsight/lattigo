@@ -29,7 +29,7 @@ func NewOperandQ(params ParametersInterface, degree, levelQ int) *OperandQ {
 
 	Value := make([]ring.Poly, degree+1)
 	for i := range Value {
-		Value[i] = *ringQ.NewPoly()
+		Value[i] = ringQ.NewPoly()
 	}
 
 	return &OperandQ{
@@ -60,17 +60,17 @@ func NewOperandQAtLevelFromPoly(level int, poly []ring.Poly) *OperandQ {
 }
 
 // Equal performs a deep equal.
-func (op *OperandQ) Equal(other *OperandQ) bool {
-	return cmp.Equal(op.MetaData, other.MetaData) && cmp.Equal(op.Value, other.Value)
+func (op OperandQ) Equal(other *OperandQ) bool {
+	return cmp.Equal(&op.MetaData, &other.MetaData) && cmp.Equal(op.Value, other.Value)
 }
 
 // Degree returns the degree of the target OperandQ.
-func (op *OperandQ) Degree() int {
+func (op OperandQ) Degree() int {
 	return len(op.Value) - 1
 }
 
 // Level returns the level of the target OperandQ.
-func (op *OperandQ) Level() int {
+func (op OperandQ) Level() int {
 	return len(op.Value[0].Coeffs) - 1
 }
 
@@ -93,18 +93,18 @@ func (op *OperandQ) Resize(degree, level int) {
 		op.Value = op.Value[:degree+1]
 	} else if op.Degree() < degree {
 		for op.Degree() < degree {
-			op.Value = append(op.Value, []ring.Poly{*ring.NewPoly(op.Value[0].N(), level)}...)
+			op.Value = append(op.Value, []ring.Poly{ring.NewPoly(op.Value[0].N(), level)}...)
 		}
 	}
 }
 
 // CopyNew creates a deep copy of the object and returns it.
-func (op *OperandQ) CopyNew() *OperandQ {
+func (op OperandQ) CopyNew() *OperandQ {
 
 	Value := make([]ring.Poly, len(op.Value))
 
 	for i := range Value {
-		Value[i] = *op.Value[i].CopyNew()
+		Value[i] = op.Value[i].CopyNew()
 	}
 
 	return &OperandQ{Value: Value, MetaData: op.MetaData}
@@ -115,7 +115,7 @@ func (op *OperandQ) Copy(opCopy *OperandQ) {
 
 	if op != opCopy {
 		for i := range opCopy.Value {
-			op.Value[i].Copy(&opCopy.Value[i])
+			op.Value[i].Copy(opCopy.Value[i])
 		}
 
 		op.MetaData = opCopy.MetaData
@@ -139,7 +139,7 @@ func GetSmallestLargest(el0, el1 *OperandQ) (smallest, largest *OperandQ, sameDe
 func PopulateElementRandom(prng sampling.PRNG, params ParametersInterface, ct *OperandQ) {
 	sampler := ring.NewUniformSampler(prng, params.RingQ()).AtLevel(ct.Level())
 	for i := range ct.Value {
-		sampler.Read(&ct.Value[i])
+		sampler.Read(ct.Value[i])
 	}
 }
 
@@ -180,7 +180,7 @@ func SwitchCiphertextRingDegreeNTT(ctIn *OperandQ, ringQLargeDim *ring.Ring, ctO
 
 	} else {
 		for i := range ctOut.Value {
-			ring.MapSmallDimensionToLargerDimensionNTT(&ctIn.Value[i], &ctOut.Value[i])
+			ring.MapSmallDimensionToLargerDimensionNTT(ctIn.Value[i], ctOut.Value[i])
 		}
 	}
 
@@ -213,7 +213,7 @@ func SwitchCiphertextRingDegree(ctIn, ctOut *OperandQ) {
 }
 
 // BinarySize returns the serialized size of the object in bytes.
-func (op *OperandQ) BinarySize() int {
+func (op OperandQ) BinarySize() int {
 	return op.MetaData.BinarySize() + op.Value.BinarySize()
 }
 
@@ -228,7 +228,7 @@ func (op *OperandQ) BinarySize() int {
 //     io.Writer in a pre-allocated bufio.Writer.
 //   - When writing to a pre-allocated var b []byte, it is preferable to pass
 //     buffer.NewBuffer(b) as w (see lattigo/utils/buffer/buffer.go).
-func (op *OperandQ) WriteTo(w io.Writer) (n int64, err error) {
+func (op OperandQ) WriteTo(w io.Writer) (n int64, err error) {
 
 	if n, err = op.MetaData.WriteTo(w); err != nil {
 		return n, err
@@ -266,7 +266,7 @@ func (op *OperandQ) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
-func (op *OperandQ) MarshalBinary() (data []byte, err error) {
+func (op OperandQ) MarshalBinary() (data []byte, err error) {
 	buf := buffer.NewBufferSize(op.BinarySize())
 	_, err = op.WriteTo(buf)
 	return buf.Bytes(), err
@@ -289,7 +289,7 @@ func NewOperandQP(params ParametersInterface, degree, levelQ, levelP int) *Opera
 
 	Value := make([]ringqp.Poly, degree+1)
 	for i := range Value {
-		Value[i] = *ringQP.NewPoly()
+		Value[i] = ringQP.NewPoly()
 	}
 
 	return &OperandQP{
@@ -301,34 +301,34 @@ func NewOperandQP(params ParametersInterface, degree, levelQ, levelP int) *Opera
 }
 
 // Equal performs a deep equal.
-func (op *OperandQP) Equal(other *OperandQP) bool {
-	return cmp.Equal(op.MetaData, other.MetaData) && cmp.Equal(op.Value, other.Value)
+func (op OperandQP) Equal(other *OperandQP) bool {
+	return cmp.Equal(&op.MetaData, &other.MetaData) && cmp.Equal(op.Value, other.Value)
 }
 
 // LevelQ returns the level of the modulus Q of the first element of the objeop.
-func (op *OperandQP) LevelQ() int {
+func (op OperandQP) LevelQ() int {
 	return op.Value[0].LevelQ()
 }
 
 // LevelP returns the level of the modulus P of the first element of the objeop.
-func (op *OperandQP) LevelP() int {
+func (op OperandQP) LevelP() int {
 	return op.Value[0].LevelP()
 }
 
 // CopyNew creates a deep copy of the object and returns it.
-func (op *OperandQP) CopyNew() *OperandQP {
+func (op OperandQP) CopyNew() *OperandQP {
 
 	Value := make([]ringqp.Poly, len(op.Value))
 
 	for i := range Value {
-		Value[i] = *op.Value[i].CopyNew()
+		Value[i] = op.Value[i].CopyNew()
 	}
 
 	return &OperandQP{Value: Value, MetaData: op.MetaData}
 }
 
 // BinarySize returns the serialized size of the object in bytes.
-func (op *OperandQP) BinarySize() int {
+func (op OperandQP) BinarySize() int {
 	return op.MetaData.BinarySize() + op.Value.BinarySize()
 }
 
@@ -343,7 +343,7 @@ func (op *OperandQP) BinarySize() int {
 //     io.Writer in a pre-allocated bufio.Writer.
 //   - When writing to a pre-allocated var b []byte, it is preferable to pass
 //     buffer.NewBuffer(b) as w (see lattigo/utils/buffer/buffer.go).
-func (op *OperandQP) WriteTo(w io.Writer) (n int64, err error) {
+func (op OperandQP) WriteTo(w io.Writer) (n int64, err error) {
 
 	if n, err = op.MetaData.WriteTo(w); err != nil {
 		return n, err
@@ -381,7 +381,7 @@ func (op *OperandQP) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
-func (op *OperandQP) MarshalBinary() (data []byte, err error) {
+func (op OperandQP) MarshalBinary() (data []byte, err error) {
 	buf := buffer.NewBufferSize(op.BinarySize())
 	_, err = op.WriteTo(buf)
 	return buf.Bytes(), err

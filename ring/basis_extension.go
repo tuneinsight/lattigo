@@ -18,8 +18,8 @@ type BasisExtender struct {
 	modDownConstantsPtoQ [][]uint64
 	modDownConstantsQtoP [][]uint64
 
-	buffQ *Poly
-	buffP *Poly
+	buffQ Poly
+	buffP Poly
 }
 
 func genmodDownConstants(ringQ, ringP *Ring) (constants [][]uint64) {
@@ -184,7 +184,7 @@ func (be *BasisExtender) ShallowCopy() *BasisExtender {
 // ModUpQtoP extends the RNS basis of a polynomial from Q to QP.
 // Given a polynomial with coefficients in basis {Q0,Q1....Qlevel},
 // it extends its basis from {Q0,Q1....Qlevel} to {Q0,Q1....Qlevel,P0,P1...Pj}
-func (be *BasisExtender) ModUpQtoP(levelQ, levelP int, polQ, polP *Poly) {
+func (be *BasisExtender) ModUpQtoP(levelQ, levelP int, polQ, polP Poly) {
 
 	ringQ := be.ringQ.AtLevel(levelQ)
 	ringP := be.ringP.AtLevel(levelP)
@@ -201,7 +201,7 @@ func (be *BasisExtender) ModUpQtoP(levelQ, levelP int, polQ, polP *Poly) {
 // ModUpPtoQ extends the RNS basis of a polynomial from P to PQ.
 // Given a polynomial with coefficients in basis {P0,P1....Plevel},
 // it extends its basis from {P0,P1....Plevel} to {Q0,Q1...Qj}
-func (be *BasisExtender) ModUpPtoQ(levelP, levelQ int, polP, polQ *Poly) {
+func (be *BasisExtender) ModUpPtoQ(levelP, levelQ int, polP, polQ Poly) {
 
 	ringQ := be.ringQ.AtLevel(levelQ)
 	ringP := be.ringP.AtLevel(levelP)
@@ -219,7 +219,7 @@ func (be *BasisExtender) ModUpPtoQ(levelP, levelQ int, polP, polQ *Poly) {
 // Given a polynomial with coefficients in basis {Q0,Q1....Qlevel} and {P0,P1...Pj},
 // it reduces its basis from {Q0,Q1....Qlevel} and {P0,P1...Pj} to {Q0,Q1....Qlevel}
 // and does a rounded integer division of the result by P.
-func (be *BasisExtender) ModDownQPtoQ(levelQ, levelP int, p1Q, p1P, p2Q *Poly) {
+func (be *BasisExtender) ModDownQPtoQ(levelQ, levelP int, p1Q, p1P, p2Q Poly) {
 
 	ringQ := be.ringQ.AtLevel(levelQ)
 	modDownConstants := be.modDownConstantsPtoQ[levelP]
@@ -237,7 +237,7 @@ func (be *BasisExtender) ModDownQPtoQ(levelQ, levelP int, p1Q, p1P, p2Q *Poly) {
 // it reduces its basis from {Q0,Q1....Qi} and {P0,P1...Pj} to {Q0,Q1....Qi}
 // and does a rounded integer division of the result by P.
 // Inputs must be in the NTT domain.
-func (be *BasisExtender) ModDownQPtoQNTT(levelQ, levelP int, p1Q, p1P, p2Q *Poly) {
+func (be *BasisExtender) ModDownQPtoQNTT(levelQ, levelP int, p1Q, p1P, p2Q Poly) {
 
 	ringQ := be.ringQ.AtLevel(levelQ)
 	ringP := be.ringP.AtLevel(levelP)
@@ -260,7 +260,7 @@ func (be *BasisExtender) ModDownQPtoQNTT(levelQ, levelP int, p1Q, p1P, p2Q *Poly
 // Given a polynomial with coefficients in basis {Q0,Q1....QlevelQ} and {P0,P1...PlevelP},
 // it reduces its basis from {Q0,Q1....QlevelQ} and {P0,P1...PlevelP} to {P0,P1...PlevelP}
 // and does a floored integer division of the result by Q.
-func (be *BasisExtender) ModDownQPtoP(levelQ, levelP int, p1Q, p1P, p2P *Poly) {
+func (be *BasisExtender) ModDownQPtoP(levelQ, levelP int, p1Q, p1P, p2P Poly) {
 
 	ringP := be.ringP.AtLevel(levelP)
 	modDownConstants := be.modDownConstantsQtoP[levelQ]
@@ -374,7 +374,7 @@ func NewDecomposer(ringQ, ringP *Ring) (decomposer *Decomposer) {
 
 // DecomposeAndSplit decomposes a polynomial p(x) in basis Q, reduces it modulo qi, and returns
 // the result in basis QP separately.
-func (decomposer *Decomposer) DecomposeAndSplit(levelQ, levelP, nbPi, decompRNS int, p0Q, p1Q, p1P *Poly) {
+func (decomposer *Decomposer) DecomposeAndSplit(levelQ, levelP, nbPi, decompRNS int, p0Q, p1Q, p1P Poly) {
 
 	ringQ := decomposer.ringQ.AtLevel(levelQ)
 	ringP := decomposer.ringP.AtLevel(levelP)

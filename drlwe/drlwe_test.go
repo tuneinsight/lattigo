@@ -48,7 +48,7 @@ func newTestContext(params rlwe.Parameters) *testContext {
 	skIdeal := rlwe.NewSecretKey(params)
 	for i := range skShares {
 		skShares[i] = kgen.GenSecretKeyNew()
-		params.RingQP().Add(&skIdeal.Value, &skShares[i].Value, &skIdeal.Value)
+		params.RingQP().Add(skIdeal.Value, skShares[i].Value, skIdeal.Value)
 	}
 
 	prng, _ := sampling.NewKeyedPRNG([]byte{'t', 'e', 's', 't'})
@@ -138,7 +138,7 @@ func testPublicKeyGenProtocol(tc *testContext, level int, t *testing.T) {
 		}
 
 		for i := 1; i < nbParties; i++ {
-			ckg[0].AggregateShares(&shares[0], &shares[i], &shares[0])
+			ckg[0].AggregateShares(shares[0], shares[i], &shares[0])
 		}
 
 		// Test binary encoding
@@ -180,7 +180,7 @@ func testRelinKeyGenProtocol(tc *testContext, level int, t *testing.T) {
 		}
 
 		for i := 1; i < nbParties; i++ {
-			rkg[0].AggregateShares(&share1[0], &share1[i], &share1[0])
+			rkg[0].AggregateShares(share1[0], share1[i], &share1[0])
 		}
 
 		// Test binary encoding
@@ -191,7 +191,7 @@ func testRelinKeyGenProtocol(tc *testContext, level int, t *testing.T) {
 		}
 
 		for i := 1; i < nbParties; i++ {
-			rkg[0].AggregateShares(&share2[0], &share2[i], &share2[0])
+			rkg[0].AggregateShares(share2[0], share2[i], &share2[0])
 		}
 
 		rlk := rlwe.NewRelinearizationKey(params)
@@ -234,7 +234,7 @@ func testGaloisKeyGenProtocol(tc *testContext, level int, t *testing.T) {
 		}
 
 		for i := 1; i < nbParties; i++ {
-			gkg[0].AggregateShares(&shares[0], &shares[i], &shares[0])
+			gkg[0].AggregateShares(shares[0], shares[i], &shares[0])
 		}
 
 		// Test binary encoding
@@ -273,7 +273,7 @@ func testKeySwitchProtocol(tc *testContext, level int, t *testing.T) {
 		skOutIdeal := rlwe.NewSecretKey(params)
 		for i := range skout {
 			skout[i] = tc.kgen.GenSecretKeyNew()
-			params.RingQP().Add(&skOutIdeal.Value, &skout[i].Value, &skOutIdeal.Value)
+			params.RingQP().Add(skOutIdeal.Value, skout[i].Value, skOutIdeal.Value)
 		}
 
 		ct := rlwe.NewCiphertext(params, 1, level)
@@ -287,7 +287,7 @@ func testKeySwitchProtocol(tc *testContext, level int, t *testing.T) {
 		for i := range shares {
 			cks[i].GenShare(tc.skShares[i], skout[i], ct, &shares[i])
 			if i > 0 {
-				cks[0].AggregateShares(&shares[0], &shares[i], &shares[0])
+				cks[0].AggregateShares(shares[0], shares[i], &shares[0])
 			}
 		}
 
@@ -357,7 +357,7 @@ func testPublicKeySwitchProtocol(tc *testContext, level int, t *testing.T) {
 		}
 
 		for i := 1; i < nbParties; i++ {
-			pcks[0].AggregateShares(&shares[0], &shares[i], &shares[0])
+			pcks[0].AggregateShares(shares[0], shares[i], &shares[0])
 		}
 
 		// Test binary encoding
@@ -446,7 +446,7 @@ func testThreshold(tc *testContext, level int, t *testing.T) {
 			for _, pi := range P {
 				for _, pj := range P {
 					share := shares[pj][pi]
-					pi.Thresholdizer.AggregateShares(&pi.tsks, &share, &pi.tsks)
+					pi.Thresholdizer.AggregateShares(pi.tsks, share, &pi.tsks)
 				}
 			}
 
@@ -468,7 +468,7 @@ func testThreshold(tc *testContext, level int, t *testing.T) {
 			recSk := rlwe.NewSecretKey(tc.params)
 			for _, pi := range activeParties {
 				pi.Combiner.GenAdditiveShare(activeShamirPks, pi.tpk, pi.tsks, pi.tsk)
-				ringQP.Add(&pi.tsk.Value, &recSk.Value, &recSk.Value)
+				ringQP.Add(pi.tsk.Value, recSk.Value, recSk.Value)
 			}
 
 			require.True(t, tc.skIdeal.Equal(recSk)) // reconstructed key should match the ideal sk
@@ -481,8 +481,8 @@ func testRefreshShare(tc *testContext, level int, t *testing.T) {
 		params := tc.params
 		ringQ := params.RingQ().AtLevel(level)
 		ciphertext := &rlwe.Ciphertext{}
-		ciphertext.Value = []ring.Poly{{}, *ringQ.NewPoly()}
-		tc.uniformSampler.AtLevel(level).Read(&ciphertext.Value[1])
+		ciphertext.Value = []ring.Poly{{}, ringQ.NewPoly()}
+		tc.uniformSampler.AtLevel(level).Read(ciphertext.Value[1])
 		cksp := NewKeySwitchProtocol(tc.params, tc.params.Xe())
 		share1 := cksp.AllocateShare(level)
 		share2 := cksp.AllocateShare(level)

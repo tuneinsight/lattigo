@@ -34,23 +34,23 @@ func NewEvaluator(parameters Parameters, evk rlwe.EvaluationKeySet) *Evaluator {
 }
 
 type evaluatorBuffers struct {
-	buffQ [3]*ring.Poly // Memory buffer in order: for MForm(c0), MForm(c1), c2
+	buffQ [3]ring.Poly // Memory buffer in order: for MForm(c0), MForm(c1), c2
 }
 
 // BuffQ returns a pointer to the internal memory buffer buffQ.
-func (eval *Evaluator) BuffQ() [3]*ring.Poly {
+func (eval Evaluator) BuffQ() [3]ring.Poly {
 	return eval.buffQ
 }
 
 func newEvaluatorBuffers(parameters Parameters) *evaluatorBuffers {
 	buff := new(evaluatorBuffers)
 	ringQ := parameters.RingQ()
-	buff.buffQ = [3]*ring.Poly{ringQ.NewPoly(), ringQ.NewPoly(), ringQ.NewPoly()}
+	buff.buffQ = [3]ring.Poly{ringQ.NewPoly(), ringQ.NewPoly(), ringQ.NewPoly()}
 	return buff
 }
 
 // Add adds op1 to op0 and returns the result in op2.
-func (eval *Evaluator) Add(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciphertext) {
+func (eval Evaluator) Add(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciphertext) {
 
 	switch op1 := op1.(type) {
 	case rlwe.Operand:
@@ -87,7 +87,7 @@ func (eval *Evaluator) Add(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 		op2.Resize(op0.Degree(), level)
 
 		// Instantiates new plaintext from buffer
-		pt := rlwe.NewPlaintextAtLevelFromPoly(level, eval.buffQ[0])
+		pt := rlwe.NewPlaintextAtLevelFromPoly(level, &eval.buffQ[0])
 		pt.MetaData = op0.MetaData // Sets the metadata, notably matches scalses
 
 		// Encodes the vector on the plaintext
@@ -103,14 +103,14 @@ func (eval *Evaluator) Add(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 }
 
 // AddNew adds op1 to op0 and returns the result in a newly created element op2.
-func (eval *Evaluator) AddNew(op0 *rlwe.Ciphertext, op1 interface{}) (op2 *rlwe.Ciphertext) {
+func (eval Evaluator) AddNew(op0 *rlwe.Ciphertext, op1 interface{}) (op2 *rlwe.Ciphertext) {
 	op2 = op0.CopyNew()
 	eval.Add(op2, op1, op2)
 	return
 }
 
 // Sub subtracts op1 from op0 and returns the result in op2.
-func (eval *Evaluator) Sub(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciphertext) {
+func (eval Evaluator) Sub(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciphertext) {
 
 	switch op1 := op1.(type) {
 	case rlwe.Operand:
@@ -124,7 +124,7 @@ func (eval *Evaluator) Sub(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 		// Negates high degree ciphertext coefficients if the degree of the second operand is larger than the first operand
 		if op0.Degree() < op1.Degree() {
 			for i := op0.Degree() + 1; i < op1.Degree()+1; i++ {
-				eval.parameters.RingQ().AtLevel(level).Neg(&op2.Value[i], &op2.Value[i])
+				eval.parameters.RingQ().AtLevel(level).Neg(op2.Value[i], op2.Value[i])
 			}
 		}
 	case complex128, float64, int, int64, uint, uint64, *big.Int, *big.Float, *bignum.Complex:
@@ -153,7 +153,7 @@ func (eval *Evaluator) Sub(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 		op2.Resize(op0.Degree(), level)
 
 		// Instantiates new plaintext from buffer
-		pt := rlwe.NewPlaintextAtLevelFromPoly(level, eval.buffQ[0])
+		pt := rlwe.NewPlaintextAtLevelFromPoly(level, &eval.buffQ[0])
 		pt.MetaData = op0.MetaData
 
 		// Encodes the vector on the plaintext
@@ -170,13 +170,13 @@ func (eval *Evaluator) Sub(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 }
 
 // SubNew subtracts op1 from op0 and returns the result in a newly created element op2.
-func (eval *Evaluator) SubNew(op0 *rlwe.Ciphertext, op1 interface{}) (op2 *rlwe.Ciphertext) {
+func (eval Evaluator) SubNew(op0 *rlwe.Ciphertext, op1 interface{}) (op2 *rlwe.Ciphertext) {
 	op2 = op0.CopyNew()
 	eval.Sub(op2, op1, op2)
 	return
 }
 
-func (eval *Evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 *rlwe.OperandQ, ctOut *rlwe.Ciphertext, evaluate func(*ring.Poly, *ring.Poly, *ring.Poly)) {
+func (eval Evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 *rlwe.OperandQ, ctOut *rlwe.Ciphertext, evaluate func(ring.Poly, ring.Poly, ring.Poly)) {
 
 	var tmp0, tmp1 *rlwe.Ciphertext
 
@@ -313,7 +313,7 @@ func (eval *Evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 *rlwe.
 	}
 
 	for i := 0; i < minDegree+1; i++ {
-		evaluate(&tmp0.Value[i], &tmp1.Value[i], &ctOut.El().Value[i])
+		evaluate(tmp0.Value[i], tmp1.Value[i], ctOut.El().Value[i])
 	}
 
 	scale := c0.PlaintextScale.Max(c1.PlaintextScale)
@@ -326,16 +326,16 @@ func (eval *Evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 *rlwe.
 
 	if c0.Degree() > c1.Degree() && &tmp0.OperandQ != ctOut.El() {
 		for i := minDegree + 1; i < maxDegree+1; i++ {
-			ring.Copy(&tmp0.Value[i], &ctOut.El().Value[i])
+			ring.Copy(tmp0.Value[i], ctOut.El().Value[i])
 		}
 	} else if c1.Degree() > c0.Degree() && &tmp1.OperandQ != ctOut.El() {
 		for i := minDegree + 1; i < maxDegree+1; i++ {
-			ring.Copy(&tmp1.Value[i], &ctOut.El().Value[i])
+			ring.Copy(tmp1.Value[i], ctOut.El().Value[i])
 		}
 	}
 }
 
-func (eval *Evaluator) evaluateWithScalar(level int, p0 []ring.Poly, RNSReal, RNSImag ring.RNSScalar, p1 []ring.Poly, evaluate func(*ring.Poly, ring.RNSScalar, ring.RNSScalar, *ring.Poly)) {
+func (eval Evaluator) evaluateWithScalar(level int, p0 []ring.Poly, RNSReal, RNSImag ring.RNSScalar, p1 []ring.Poly, evaluate func(ring.Poly, ring.RNSScalar, ring.RNSScalar, ring.Poly)) {
 
 	// Component wise operation with the following vector:
 	// [a + b*psi_qi^2, ....., a + b*psi_qi^2, a - b*psi_qi^2, ...., a - b*psi_qi^2] mod Qi
@@ -347,26 +347,26 @@ func (eval *Evaluator) evaluateWithScalar(level int, p0 []ring.Poly, RNSReal, RN
 	}
 
 	for i := range p0 {
-		evaluate(&p0[i], RNSReal, RNSImag, &p1[i])
+		evaluate(p0[i], RNSReal, RNSImag, p1[i])
 	}
 }
 
 // ScaleUpNew multiplies ct0 by scale and sets its scale to its previous scale times scale returns the result in ctOut.
-func (eval *Evaluator) ScaleUpNew(ct0 *rlwe.Ciphertext, scale rlwe.Scale) (ctOut *rlwe.Ciphertext) {
+func (eval Evaluator) ScaleUpNew(ct0 *rlwe.Ciphertext, scale rlwe.Scale) (ctOut *rlwe.Ciphertext) {
 	ctOut = NewCiphertext(eval.parameters, ct0.Degree(), ct0.Level())
 	eval.ScaleUp(ct0, scale, ctOut)
 	return
 }
 
 // ScaleUp multiplies ct0 by scale and sets its scale to its previous scale times scale returns the result in ctOut.
-func (eval *Evaluator) ScaleUp(ct0 *rlwe.Ciphertext, scale rlwe.Scale, ctOut *rlwe.Ciphertext) {
+func (eval Evaluator) ScaleUp(ct0 *rlwe.Ciphertext, scale rlwe.Scale, ctOut *rlwe.Ciphertext) {
 	eval.Mul(ct0, scale.Uint64(), ctOut)
 	ctOut.MetaData = ct0.MetaData
 	ctOut.PlaintextScale = ct0.PlaintextScale.Mul(scale)
 }
 
 // SetScale sets the scale of the ciphertext to the input scale (consumes a level).
-func (eval *Evaluator) SetScale(ct *rlwe.Ciphertext, scale rlwe.Scale) {
+func (eval Evaluator) SetScale(ct *rlwe.Ciphertext, scale rlwe.Scale) {
 	ratioFlo := scale.Div(ct.PlaintextScale).Value
 	eval.Mul(ct, &ratioFlo, ct)
 	if err := eval.Rescale(ct, scale, ct); err != nil {
@@ -377,7 +377,7 @@ func (eval *Evaluator) SetScale(ct *rlwe.Ciphertext, scale rlwe.Scale) {
 
 // DropLevelNew reduces the level of ct0 by levels and returns the result in a newly created element.
 // No rescaling is applied during this procedure.
-func (eval *Evaluator) DropLevelNew(ct0 *rlwe.Ciphertext, levels int) (ctOut *rlwe.Ciphertext) {
+func (eval Evaluator) DropLevelNew(ct0 *rlwe.Ciphertext, levels int) (ctOut *rlwe.Ciphertext) {
 	ctOut = ct0.CopyNew()
 	eval.DropLevel(ctOut, levels)
 	return
@@ -385,7 +385,7 @@ func (eval *Evaluator) DropLevelNew(ct0 *rlwe.Ciphertext, levels int) (ctOut *rl
 
 // DropLevel reduces the level of ct0 by levels and returns the result in ct0.
 // No rescaling is applied during this procedure.
-func (eval *Evaluator) DropLevel(ct0 *rlwe.Ciphertext, levels int) {
+func (eval Evaluator) DropLevel(ct0 *rlwe.Ciphertext, levels int) {
 	ct0.Resize(ct0.Degree(), ct0.Level()-levels)
 }
 
@@ -395,7 +395,7 @@ func (eval *Evaluator) DropLevel(ct0 *rlwe.Ciphertext, levels int) {
 // original scale, this procedure is equivalent to dividing the input element by the scale and adding
 // some error.
 // Returns an error if "threshold <= 0", ct.PlaintextScale = 0, ct.Level() = 0, ct.IsNTT() != true
-func (eval *Evaluator) RescaleNew(ct0 *rlwe.Ciphertext, minScale rlwe.Scale) (ctOut *rlwe.Ciphertext, err error) {
+func (eval Evaluator) RescaleNew(ct0 *rlwe.Ciphertext, minScale rlwe.Scale) (ctOut *rlwe.Ciphertext, err error) {
 
 	ctOut = NewCiphertext(eval.parameters, ct0.Degree(), ct0.Level())
 
@@ -408,7 +408,7 @@ func (eval *Evaluator) RescaleNew(ct0 *rlwe.Ciphertext, minScale rlwe.Scale) (ct
 // original scale, this procedure is equivalent to dividing the input element by the scale and adding
 // some error.
 // Returns an error if "minScale <= 0", ct.PlaintextScale = 0, ct.Level() = 0, ct.IsNTT() != true or if ct.Leve() != ctOut.Level()
-func (eval *Evaluator) Rescale(op0 *rlwe.Ciphertext, minScale rlwe.Scale, ctOut *rlwe.Ciphertext) (err error) {
+func (eval Evaluator) Rescale(op0 *rlwe.Ciphertext, minScale rlwe.Scale, ctOut *rlwe.Ciphertext) (err error) {
 
 	if minScale.Cmp(rlwe.NewScale(0)) != 1 {
 		return errors.New("cannot Rescale: minScale is <0")
@@ -453,7 +453,7 @@ func (eval *Evaluator) Rescale(op0 *rlwe.Ciphertext, minScale rlwe.Scale, ctOut 
 
 	if nbRescales > 0 {
 		for i := range ctOut.Value {
-			ringQ.DivRoundByLastModulusManyNTT(nbRescales, &op0.Value[i], eval.buffQ[0], &ctOut.Value[i])
+			ringQ.DivRoundByLastModulusManyNTT(nbRescales, op0.Value[i], eval.buffQ[0], ctOut.Value[i])
 		}
 		ctOut.Resize(ctOut.Degree(), newLevel)
 	} else {
@@ -471,7 +471,7 @@ func (eval *Evaluator) Rescale(op0 *rlwe.Ciphertext, minScale rlwe.Scale, ctOut 
 //
 // If op1.(type) == rlwe.Operand:
 // - The procedure will panic if either op0.Degree or op1.Degree > 1.
-func (eval *Evaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}) (op2 *rlwe.Ciphertext) {
+func (eval Evaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}) (op2 *rlwe.Ciphertext) {
 	op2 = op0.CopyNew()
 	eval.Mul(op2, op1, op2)
 	return
@@ -484,7 +484,7 @@ func (eval *Evaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}) (op2 *rlwe.
 // If op1.(type) == rlwe.Operand:
 // - The procedure will panic if either op0 or op1 are have a degree higher than 1.
 // - The procedure will panic if op2.Degree != op0.Degree + op1.Degree.
-func (eval *Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciphertext) {
+func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciphertext) {
 	switch op1 := op1.(type) {
 	case rlwe.Operand:
 
@@ -540,7 +540,7 @@ func (eval *Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 		ringQ := eval.parameters.RingQ().AtLevel(level)
 
 		// Instantiates new plaintext from buffer
-		pt := rlwe.NewPlaintextAtLevelFromPoly(level, eval.buffQ[0])
+		pt := rlwe.NewPlaintextAtLevelFromPoly(level, &eval.buffQ[0])
 		pt.MetaData = op0.MetaData
 		pt.PlaintextScale = rlwe.NewScale(ringQ.SubRings[level].Modulus)
 
@@ -565,7 +565,7 @@ func (eval *Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciph
 // MulRelinNew multiplies op0 with op1 with relinearization and returns the result in a newly created element.
 // The procedure will panic if either op0.Degree or op1.Degree > 1.
 // The procedure will panic if the evaluator was not created with an relinearization key.
-func (eval *Evaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 interface{}) (ctOut *rlwe.Ciphertext) {
+func (eval Evaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 interface{}) (ctOut *rlwe.Ciphertext) {
 	switch op1 := op1.(type) {
 	case rlwe.Operand:
 		ctOut = NewCiphertext(eval.parameters, 1, utils.Min(op0.Level(), op1.Level()))
@@ -581,7 +581,7 @@ func (eval *Evaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 interface{}) (ctOut
 // The procedure will panic if either op0.Degree or op1.Degree > 1.
 // The procedure will panic if ctOut.Degree != op0.Degree + op1.Degree.
 // The procedure will panic if the evaluator was not created with an relinearization key.
-func (eval *Evaluator) MulRelin(op0 *rlwe.Ciphertext, op1 interface{}, ctOut *rlwe.Ciphertext) {
+func (eval Evaluator) MulRelin(op0 *rlwe.Ciphertext, op1 interface{}, ctOut *rlwe.Ciphertext) {
 	switch op1 := op1.(type) {
 	case rlwe.Operand:
 		eval.mulRelin(op0, op1.El(), true, ctOut)
@@ -590,7 +590,7 @@ func (eval *Evaluator) MulRelin(op0 *rlwe.Ciphertext, op1 interface{}, ctOut *rl
 	}
 }
 
-func (eval *Evaluator) mulRelin(op0 *rlwe.Ciphertext, op1 *rlwe.OperandQ, relin bool, ctOut *rlwe.Ciphertext) {
+func (eval Evaluator) mulRelin(op0 *rlwe.Ciphertext, op1 *rlwe.OperandQ, relin bool, ctOut *rlwe.Ciphertext) {
 
 	if op0.Degree()+op1.Degree() > 2 {
 		panic("cannot MulRelin: the sum of the input elements' total degree cannot be larger than 2")
@@ -599,7 +599,7 @@ func (eval *Evaluator) mulRelin(op0 *rlwe.Ciphertext, op1 *rlwe.OperandQ, relin 
 	ctOut.MetaData = op0.MetaData
 	ctOut.PlaintextScale = op0.PlaintextScale.Mul(op1.PlaintextScale)
 
-	var c00, c01, c0, c1, c2 *ring.Poly
+	var c00, c01, c0, c1, c2 ring.Poly
 
 	// Case Ciphertext (x) Ciphertext
 	if op0.Degree() == 1 && op1.Degree() == 1 {
@@ -611,12 +611,12 @@ func (eval *Evaluator) mulRelin(op0 *rlwe.Ciphertext, op1 *rlwe.OperandQ, relin 
 		c00 = eval.buffQ[0]
 		c01 = eval.buffQ[1]
 
-		c0 = &ctOut.Value[0]
-		c1 = &ctOut.Value[1]
+		c0 = ctOut.Value[0]
+		c1 = ctOut.Value[1]
 
 		if !relin {
 			ctOut.El().Resize(2, level)
-			c2 = &ctOut.Value[2]
+			c2 = ctOut.Value[2]
 		} else {
 			ctOut.El().Resize(1, level)
 			c2 = eval.buffQ[2]
@@ -630,20 +630,20 @@ func (eval *Evaluator) mulRelin(op0 *rlwe.Ciphertext, op1 *rlwe.OperandQ, relin 
 			tmp0, tmp1 = op0.El(), op1.El()
 		}
 
-		ringQ.MForm(&tmp0.Value[0], c00)
-		ringQ.MForm(&tmp0.Value[1], c01)
+		ringQ.MForm(tmp0.Value[0], c00)
+		ringQ.MForm(tmp0.Value[1], c01)
 
 		if op0.El() == op1.El() { // squaring case
-			ringQ.MulCoeffsMontgomery(c00, &tmp1.Value[0], c0) // c0 = c[0]*c[0]
-			ringQ.MulCoeffsMontgomery(c01, &tmp1.Value[1], c2) // c2 = c[1]*c[1]
-			ringQ.MulCoeffsMontgomery(c00, &tmp1.Value[1], c1) // c1 = 2*c[0]*c[1]
+			ringQ.MulCoeffsMontgomery(c00, tmp1.Value[0], c0) // c0 = c[0]*c[0]
+			ringQ.MulCoeffsMontgomery(c01, tmp1.Value[1], c2) // c2 = c[1]*c[1]
+			ringQ.MulCoeffsMontgomery(c00, tmp1.Value[1], c1) // c1 = 2*c[0]*c[1]
 			ringQ.Add(c1, c1, c1)
 
 		} else { // regular case
-			ringQ.MulCoeffsMontgomery(c00, &tmp1.Value[0], c0) // c0 = c0[0]*c0[0]
-			ringQ.MulCoeffsMontgomery(c01, &tmp1.Value[1], c2) // c2 = c0[1]*c1[1]
-			ringQ.MulCoeffsMontgomery(c00, &tmp1.Value[1], c1)
-			ringQ.MulCoeffsMontgomeryThenAdd(c01, &tmp1.Value[0], c1) // c1 = c0[0]*c1[1] + c0[1]*c1[0]
+			ringQ.MulCoeffsMontgomery(c00, tmp1.Value[0], c0) // c0 = c0[0]*c0[0]
+			ringQ.MulCoeffsMontgomery(c01, tmp1.Value[1], c2) // c2 = c0[1]*c1[1]
+			ringQ.MulCoeffsMontgomery(c00, tmp1.Value[1], c1)
+			ringQ.MulCoeffsMontgomeryThenAdd(c01, tmp1.Value[0], c1) // c1 = c0[0]*c1[1] + c0[1]*c1[0]
 		}
 
 		if relin {
@@ -655,12 +655,12 @@ func (eval *Evaluator) mulRelin(op0 *rlwe.Ciphertext, op1 *rlwe.OperandQ, relin 
 			}
 
 			tmpCt := &rlwe.Ciphertext{}
-			tmpCt.Value = []ring.Poly{*eval.BuffQP[1].Q, *eval.BuffQP[2].Q}
+			tmpCt.Value = []ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}
 			tmpCt.IsNTT = true
 
 			eval.GadgetProduct(level, c2, &rlk.GadgetCiphertext, tmpCt)
-			ringQ.Add(c0, &tmpCt.Value[0], &ctOut.Value[0])
-			ringQ.Add(c1, &tmpCt.Value[1], &ctOut.Value[1])
+			ringQ.Add(c0, tmpCt.Value[0], ctOut.Value[0])
+			ringQ.Add(c1, tmpCt.Value[1], ctOut.Value[1])
 		}
 
 		// Case Plaintext (x) Ciphertext or Ciphertext (x) Plaintext
@@ -670,23 +670,23 @@ func (eval *Evaluator) mulRelin(op0 *rlwe.Ciphertext, op1 *rlwe.OperandQ, relin 
 
 		ringQ := eval.parameters.RingQ().AtLevel(level)
 
-		var c0 *ring.Poly
+		var c0 ring.Poly
 		var c1 []ring.Poly
 		if op0.Degree() == 0 {
 			c0 = eval.buffQ[0]
-			ringQ.MForm(&op0.Value[0], c0)
+			ringQ.MForm(op0.Value[0], c0)
 			c1 = op1.El().Value
 
 		} else {
 			c0 = eval.buffQ[0]
-			ringQ.MForm(&op1.El().Value[0], c0)
+			ringQ.MForm(op1.El().Value[0], c0)
 			c1 = op0.Value
 		}
 
 		ctOut.El().Resize(op0.Degree()+op1.Degree(), level)
 
 		for i := range c1 {
-			ringQ.MulCoeffsMontgomery(c0, &c1[i], &ctOut.Value[i])
+			ringQ.MulCoeffsMontgomery(c0, c1[i], ctOut.Value[i])
 		}
 	}
 }
@@ -720,7 +720,7 @@ func (eval *Evaluator) mulRelin(op0 *rlwe.Ciphertext, op1 *rlwe.OperandQ, relin 
 // - either op0 or op1 are have a degree higher than 1.
 // - op2.Degree != op0.Degree + op1.Degree.
 // - op2 = op0 or op1.
-func (eval *Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciphertext) {
+func (eval Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciphertext) {
 	switch op1 := op1.(type) {
 	case rlwe.Operand:
 
@@ -802,7 +802,7 @@ func (eval *Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rl
 		}
 
 		// Instantiates new plaintext from buffer
-		pt := rlwe.NewPlaintextAtLevelFromPoly(level, eval.buffQ[0])
+		pt := rlwe.NewPlaintextAtLevelFromPoly(level, &eval.buffQ[0])
 		pt.MetaData = op0.MetaData
 		pt.PlaintextScale = scaleRLWE
 
@@ -826,7 +826,7 @@ func (eval *Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rl
 // The procedure will panic if op2.Degree != op0.Degree + op1.Degree.
 // The procedure will panic if the evaluator was not created with an relinearization key.
 // The procedure will panic if op2 = op0 or op1.
-func (eval *Evaluator) MulRelinThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciphertext) {
+func (eval Evaluator) MulRelinThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciphertext) {
 	switch op1 := op1.(type) {
 	case rlwe.Operand:
 		if op1.Degree() == 0 {
@@ -839,7 +839,7 @@ func (eval *Evaluator) MulRelinThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, op
 	}
 }
 
-func (eval *Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 *rlwe.OperandQ, relin bool, op2 *rlwe.Ciphertext) {
+func (eval Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 *rlwe.OperandQ, relin bool, op2 *rlwe.Ciphertext) {
 
 	_, level := eval.InitOutputBinaryOp(op0.El(), op1.El(), utils.Max(op0.Degree(), op1.Degree()), op2.El())
 
@@ -864,7 +864,7 @@ func (eval *Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 *rlwe.OperandQ,
 
 	ringQ := eval.parameters.RingQ().AtLevel(level)
 
-	var c00, c01, c0, c1, c2 *ring.Poly
+	var c00, c01, c0, c1, c2 ring.Poly
 
 	// Case Ciphertext (x) Ciphertext
 	if op0.Degree() == 1 && op1.Degree() == 1 {
@@ -872,12 +872,12 @@ func (eval *Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 *rlwe.OperandQ,
 		c00 = eval.buffQ[0]
 		c01 = eval.buffQ[1]
 
-		c0 = &op2.Value[0]
-		c1 = &op2.Value[1]
+		c0 = op2.Value[0]
+		c1 = op2.Value[1]
 
 		if !relin {
 			op2.El().Resize(2, level)
-			c2 = &op2.Value[2]
+			c2 = op2.Value[2]
 		} else {
 			// No resize here since we add on op2
 			c2 = eval.buffQ[2]
@@ -885,12 +885,12 @@ func (eval *Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 *rlwe.OperandQ,
 
 		tmp0, tmp1 := op0.El(), op1.El()
 
-		ringQ.MForm(&tmp0.Value[0], c00)
-		ringQ.MForm(&tmp0.Value[1], c01)
+		ringQ.MForm(tmp0.Value[0], c00)
+		ringQ.MForm(tmp0.Value[1], c01)
 
-		ringQ.MulCoeffsMontgomeryThenAdd(c00, &tmp1.Value[0], c0) // c0 += c[0]*c[0]
-		ringQ.MulCoeffsMontgomeryThenAdd(c00, &tmp1.Value[1], c1) // c1 += c[0]*c[1]
-		ringQ.MulCoeffsMontgomeryThenAdd(c01, &tmp1.Value[0], c1) // c1 += c[1]*c[0]
+		ringQ.MulCoeffsMontgomeryThenAdd(c00, tmp1.Value[0], c0) // c0 += c[0]*c[0]
+		ringQ.MulCoeffsMontgomeryThenAdd(c00, tmp1.Value[1], c1) // c1 += c[0]*c[1]
+		ringQ.MulCoeffsMontgomeryThenAdd(c01, tmp1.Value[0], c1) // c1 += c[1]*c[0]
 
 		if relin {
 
@@ -900,17 +900,17 @@ func (eval *Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 *rlwe.OperandQ,
 				panic(fmt.Errorf("cannot relinearize: %w", err))
 			}
 
-			ringQ.MulCoeffsMontgomery(c01, &tmp1.Value[1], c2) // c2 += c[1]*c[1]
+			ringQ.MulCoeffsMontgomery(c01, tmp1.Value[1], c2) // c2 += c[1]*c[1]
 
 			tmpCt := &rlwe.Ciphertext{}
-			tmpCt.Value = []ring.Poly{*eval.BuffQP[1].Q, *eval.BuffQP[2].Q}
+			tmpCt.Value = []ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}
 			tmpCt.IsNTT = true
 
 			eval.GadgetProduct(level, c2, &rlk.GadgetCiphertext, tmpCt)
-			ringQ.Add(c0, &tmpCt.Value[0], c0)
-			ringQ.Add(c1, &tmpCt.Value[1], c1)
+			ringQ.Add(c0, tmpCt.Value[0], c0)
+			ringQ.Add(c1, tmpCt.Value[1], c1)
 		} else {
-			ringQ.MulCoeffsMontgomeryThenAdd(c01, &tmp1.Value[1], c2) // c2 += c[1]*c[1]
+			ringQ.MulCoeffsMontgomeryThenAdd(c01, tmp1.Value[1], c2) // c2 += c[1]*c[1]
 		}
 
 		// Case Plaintext (x) Ciphertext or Ciphertext (x) Plaintext
@@ -922,23 +922,23 @@ func (eval *Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 *rlwe.OperandQ,
 
 		c00 := eval.buffQ[0]
 
-		ringQ.MForm(&op1.El().Value[0], c00)
+		ringQ.MForm(op1.El().Value[0], c00)
 		for i := range op0.Value {
-			ringQ.MulCoeffsMontgomeryThenAdd(&op0.Value[i], c00, &op2.Value[i])
+			ringQ.MulCoeffsMontgomeryThenAdd(op0.Value[i], c00, op2.Value[i])
 		}
 	}
 }
 
 // RelinearizeNew applies the relinearization procedure on ct0 and returns the result in a newly
 // created Ciphertext. The input Ciphertext must be of degree two.
-func (eval *Evaluator) RelinearizeNew(ct0 *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext) {
+func (eval Evaluator) RelinearizeNew(ct0 *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext) {
 	ctOut = NewCiphertext(eval.parameters, 1, ct0.Level())
 	eval.Relinearize(ct0, ctOut)
 	return
 }
 
 // ApplyEvaluationKeyNew applies the rlwe.EvaluationKey on ct0 and returns the result on a new ciphertext ctOut.
-func (eval *Evaluator) ApplyEvaluationKeyNew(ct0 *rlwe.Ciphertext, evk *rlwe.EvaluationKey) (ctOut *rlwe.Ciphertext) {
+func (eval Evaluator) ApplyEvaluationKeyNew(ct0 *rlwe.Ciphertext, evk *rlwe.EvaluationKey) (ctOut *rlwe.Ciphertext) {
 	ctOut = NewCiphertext(eval.parameters, ct0.Degree(), ct0.Level())
 	eval.ApplyEvaluationKey(ct0, evk, ctOut)
 	return
@@ -946,7 +946,7 @@ func (eval *Evaluator) ApplyEvaluationKeyNew(ct0 *rlwe.Ciphertext, evk *rlwe.Eva
 
 // RotateNew rotates the columns of ct0 by k positions to the left, and returns the result in a newly created element.
 // The method will panic if the evaluator hasn't been given an evaluation key set with the appropriate GaloisKey.
-func (eval *Evaluator) RotateNew(ct0 *rlwe.Ciphertext, k int) (ctOut *rlwe.Ciphertext) {
+func (eval Evaluator) RotateNew(ct0 *rlwe.Ciphertext, k int) (ctOut *rlwe.Ciphertext) {
 	ctOut = NewCiphertext(eval.parameters, ct0.Degree(), ct0.Level())
 	eval.Rotate(ct0, k, ctOut)
 	return
@@ -954,13 +954,13 @@ func (eval *Evaluator) RotateNew(ct0 *rlwe.Ciphertext, k int) (ctOut *rlwe.Ciphe
 
 // Rotate rotates the columns of ct0 by k positions to the left and returns the result in ctOut.
 // The method will panic if the evaluator hasn't been given an evaluation key set with the appropriate GaloisKey.
-func (eval *Evaluator) Rotate(ct0 *rlwe.Ciphertext, k int, ctOut *rlwe.Ciphertext) {
+func (eval Evaluator) Rotate(ct0 *rlwe.Ciphertext, k int, ctOut *rlwe.Ciphertext) {
 	eval.Automorphism(ct0, eval.parameters.GaloisElement(k), ctOut)
 }
 
 // ConjugateNew conjugates ct0 (which is equivalent to a row rotation) and returns the result in a newly created element.
 // The method will panic if the evaluator hasn't been given an evaluation key set with the appropriate GaloisKey.
-func (eval *Evaluator) ConjugateNew(ct0 *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext) {
+func (eval Evaluator) ConjugateNew(ct0 *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext) {
 
 	if eval.parameters.RingType() == ring.ConjugateInvariant {
 		panic("cannot ConjugateNew: method is not supported when parameters.RingType() == ring.ConjugateInvariant")
@@ -973,7 +973,7 @@ func (eval *Evaluator) ConjugateNew(ct0 *rlwe.Ciphertext) (ctOut *rlwe.Ciphertex
 
 // Conjugate conjugates ct0 (which is equivalent to a row rotation) and returns the result in ctOut.
 // The method will panic if the evaluator hasn't been given an evaluation key set with the appropriate GaloisKey.
-func (eval *Evaluator) Conjugate(ct0 *rlwe.Ciphertext, ctOut *rlwe.Ciphertext) {
+func (eval Evaluator) Conjugate(ct0 *rlwe.Ciphertext, ctOut *rlwe.Ciphertext) {
 
 	if eval.parameters.RingType() == ring.ConjugateInvariant {
 		panic("cannot Conjugate: method is not supported when parameters.RingType() == ring.ConjugateInvariant")
@@ -984,7 +984,7 @@ func (eval *Evaluator) Conjugate(ct0 *rlwe.Ciphertext, ctOut *rlwe.Ciphertext) {
 
 // RotateHoistedNew takes an input Ciphertext and a list of rotations and returns a map of Ciphertext, where each element of the map is the input Ciphertext
 // rotation by one element of the list. It is much faster than sequential calls to Rotate.
-func (eval *Evaluator) RotateHoistedNew(ctIn *rlwe.Ciphertext, rotations []int) (ctOut map[int]*rlwe.Ciphertext) {
+func (eval Evaluator) RotateHoistedNew(ctIn *rlwe.Ciphertext, rotations []int) (ctOut map[int]*rlwe.Ciphertext) {
 	ctOut = make(map[int]*rlwe.Ciphertext)
 	for _, i := range rotations {
 		ctOut[i] = NewCiphertext(eval.parameters, 1, ctIn.Level())
@@ -996,15 +996,15 @@ func (eval *Evaluator) RotateHoistedNew(ctIn *rlwe.Ciphertext, rotations []int) 
 // RotateHoisted takes an input Ciphertext and a list of rotations and populates a map of pre-allocated Ciphertexts,
 // where each element of the map is the input Ciphertext rotation by one element of the list.
 // It is much faster than sequential calls to Rotate.
-func (eval *Evaluator) RotateHoisted(ctIn *rlwe.Ciphertext, rotations []int, ctOut map[int]*rlwe.Ciphertext) {
+func (eval Evaluator) RotateHoisted(ctIn *rlwe.Ciphertext, rotations []int, ctOut map[int]*rlwe.Ciphertext) {
 	levelQ := ctIn.Level()
-	eval.DecomposeNTT(levelQ, eval.parameters.MaxLevelP(), eval.parameters.PCount(), &ctIn.Value[1], ctIn.IsNTT, eval.BuffDecompQP)
+	eval.DecomposeNTT(levelQ, eval.parameters.MaxLevelP(), eval.parameters.PCount(), ctIn.Value[1], ctIn.IsNTT, eval.BuffDecompQP)
 	for _, i := range rotations {
 		eval.AutomorphismHoisted(levelQ, ctIn, eval.BuffDecompQP, eval.parameters.GaloisElement(i), ctOut[i])
 	}
 }
 
-func (eval *Evaluator) RotateHoistedLazyNew(level int, rotations []int, ct *rlwe.Ciphertext, c2DecompQP []ringqp.Poly) (cOut map[int]*rlwe.OperandQP) {
+func (eval Evaluator) RotateHoistedLazyNew(level int, rotations []int, ct *rlwe.Ciphertext, c2DecompQP []ringqp.Poly) (cOut map[int]*rlwe.OperandQP) {
 	cOut = make(map[int]*rlwe.OperandQP)
 	for _, i := range rotations {
 		if i != 0 {
@@ -1017,14 +1017,14 @@ func (eval *Evaluator) RotateHoistedLazyNew(level int, rotations []int, ct *rlwe
 }
 
 // Parameters returns the Parametrs of the underlying struct as an rlwe.ParametersInterface.
-func (eval *Evaluator) Parameters() rlwe.ParametersInterface {
+func (eval Evaluator) Parameters() rlwe.ParametersInterface {
 	return eval.parameters
 }
 
 // ShallowCopy creates a shallow copy of this evaluator in which all the read-only data-structures are
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // Evaluators can be used concurrently.
-func (eval *Evaluator) ShallowCopy() *Evaluator {
+func (eval Evaluator) ShallowCopy() *Evaluator {
 	return &Evaluator{
 		parameters:       eval.parameters,
 		Encoder:          NewEncoder(eval.parameters),
@@ -1035,7 +1035,7 @@ func (eval *Evaluator) ShallowCopy() *Evaluator {
 
 // WithKey creates a shallow copy of the receiver Evaluator for which the new EvaluationKey is evaluationKey
 // and where the temporary buffers are shared. The receiver and the returned Evaluators cannot be used concurrently.
-func (eval *Evaluator) WithKey(evk rlwe.EvaluationKeySet) *Evaluator {
+func (eval Evaluator) WithKey(evk rlwe.EvaluationKeySet) *Evaluator {
 	return &Evaluator{
 		Evaluator:        eval.Evaluator.WithKey(evk),
 		parameters:       eval.parameters,

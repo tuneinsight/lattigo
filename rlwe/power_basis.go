@@ -21,13 +21,12 @@ type PowerBasis struct {
 // NewPowerBasis creates a new PowerBasis. It takes as input a ciphertext
 // and a basistype. The struct treats the input ciphertext as a monomial X and
 // can be used to generates power of this monomial X^{n} in the given BasisType.
-func NewPowerBasis(ct *Ciphertext, basis polynomial.Basis, eval EvaluatorInterface) (p *PowerBasis) {
-	p = new(PowerBasis)
-	p.Value = make(map[int]*Ciphertext)
-	p.Value[1] = ct.CopyNew()
-	p.Basis = basis
-	p.EvaluatorInterface = eval
-	return
+func NewPowerBasis(ct *Ciphertext, basis polynomial.Basis, eval EvaluatorInterface) (p PowerBasis) {
+	return PowerBasis{
+		Value:              map[int]*Ciphertext{1: ct.CopyNew()},
+		Basis:              basis,
+		EvaluatorInterface: eval,
+	}
 }
 
 // SplitDegree returns a * b = n such that |a-b| is minmized
@@ -164,7 +163,7 @@ func (p *PowerBasis) genPower(n int, lazy, rescale bool) (rescaltOut bool, err e
 }
 
 // BinarySize returns the serialized size of the object in bytes.
-func (p *PowerBasis) BinarySize() (size int) {
+func (p PowerBasis) BinarySize() (size int) {
 	return 1 + p.Value.BinarySize()
 }
 
@@ -179,7 +178,7 @@ func (p *PowerBasis) BinarySize() (size int) {
 //     io.Writer in a pre-allocated bufio.Writer.
 //   - When writing to a pre-allocated var b []byte, it is preferable to pass
 //     buffer.NewBuffer(b) as w (see lattigo/utils/buffer/buffer.go).
-func (p *PowerBasis) WriteTo(w io.Writer) (n int64, err error) {
+func (p PowerBasis) WriteTo(w io.Writer) (n int64, err error) {
 
 	switch w := w.(type) {
 	case buffer.Writer:
@@ -241,7 +240,7 @@ func (p *PowerBasis) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
-func (p *PowerBasis) MarshalBinary() (data []byte, err error) {
+func (p PowerBasis) MarshalBinary() (data []byte, err error) {
 	buf := buffer.NewBufferSize(p.BinarySize())
 	_, err = p.WriteTo(buf)
 	return buf.Bytes(), err

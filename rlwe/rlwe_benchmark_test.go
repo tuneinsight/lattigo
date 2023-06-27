@@ -128,7 +128,7 @@ func benchEvaluator(tc *TestContext, b *testing.B) {
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			eval.GadgetProduct(ct.Level(), &ct.Value[1], &evk.GadgetCiphertext, ct)
+			eval.GadgetProduct(ct.Level(), ct.Value[1], &evk.GadgetCiphertext, ct)
 		}
 	})
 }

@@ -14,7 +14,7 @@ type Ring struct {
 
 // AtLevel returns a shallow copy of the target ring configured to
 // carry on operations at the specified levels.
-func (r *Ring) AtLevel(levelQ, levelP int) *Ring {
+func (r Ring) AtLevel(levelQ, levelP int) Ring {
 
 	var ringQ, ringP *ring.Ring
 
@@ -26,7 +26,7 @@ func (r *Ring) AtLevel(levelQ, levelP int) *Ring {
 		ringP = r.RingP.AtLevel(levelP)
 	}
 
-	return &Ring{
+	return Ring{
 		RingQ: ringQ,
 		RingP: ringP,
 	}
@@ -34,7 +34,7 @@ func (r *Ring) AtLevel(levelQ, levelP int) *Ring {
 
 // LevelQ returns the level at which the target
 // ring operates for the modulus Q.
-func (r *Ring) LevelQ() int {
+func (r Ring) LevelQ() int {
 	if r.RingQ != nil {
 		return r.RingQ.Level()
 	}
@@ -44,7 +44,7 @@ func (r *Ring) LevelQ() int {
 
 // LevelP returns the level at which the target
 // ring operates for the modulus P.
-func (r *Ring) LevelP() int {
+func (r Ring) LevelP() int {
 	if r.RingP != nil {
 		return r.RingP.Level()
 	}
@@ -52,7 +52,7 @@ func (r *Ring) LevelP() int {
 	return -1
 }
 
-func (r *Ring) Equal(p1, p2 *Poly) (v bool) {
+func (r Ring) Equal(p1, p2 Poly) (v bool) {
 	v = true
 	if r.RingQ != nil {
 		v = v && r.RingQ.Equal(p1.Q, p2.Q)
@@ -66,8 +66,8 @@ func (r *Ring) Equal(p1, p2 *Poly) (v bool) {
 }
 
 // NewPoly creates a new polynomial with all coefficients set to 0.
-func (r *Ring) NewPoly() *Poly {
-	var Q, P *ring.Poly
+func (r Ring) NewPoly() Poly {
+	var Q, P ring.Poly
 	if r.RingQ != nil {
 		Q = r.RingQ.NewPoly()
 	}
@@ -75,5 +75,5 @@ func (r *Ring) NewPoly() *Poly {
 	if r.RingP != nil {
 		P = r.RingP.NewPoly()
 	}
-	return &Poly{Q, P}
+	return Poly{Q, P}
 }

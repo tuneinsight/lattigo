@@ -44,27 +44,27 @@ func (g *GaussianSampler) AtLevel(level int) Sampler {
 }
 
 // Read samples a truncated Gaussian polynomial on "pol" at the maximum level in the default ring, standard deviation and bound.
-func (g *GaussianSampler) Read(pol *Poly) {
+func (g *GaussianSampler) Read(pol Poly) {
 	g.read(pol, func(a, b, c uint64) uint64 {
 		return b
 	})
 }
 
 // ReadNew samples a new truncated Gaussian polynomial at the maximum level in the default ring, standard deviation and bound.
-func (g *GaussianSampler) ReadNew() (pol *Poly) {
+func (g *GaussianSampler) ReadNew() (pol Poly) {
 	pol = g.baseRing.NewPoly()
 	g.Read(pol)
 	return pol
 }
 
 // ReadAndAdd samples a truncated Gaussian polynomial at the given level for the receiver's default standard deviation and bound and adds it on "pol".
-func (g *GaussianSampler) ReadAndAdd(pol *Poly) {
+func (g *GaussianSampler) ReadAndAdd(pol Poly) {
 	g.read(pol, func(a, b, c uint64) uint64 {
 		return CRed(a+b, c)
 	})
 }
 
-func (g *GaussianSampler) read(pol *Poly, f func(a, b, c uint64) uint64) {
+func (g *GaussianSampler) read(pol Poly, f func(a, b, c uint64) uint64) {
 	var norm float64
 
 	var sign uint64

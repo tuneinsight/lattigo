@@ -27,7 +27,8 @@ func TestRingQP(t *testing.T) {
 	usampler := NewUniformSampler(prng, ringQP)
 
 	t.Run("Binary/Poly", func(t *testing.T) {
-		buffer.RequireSerializerCorrect(t, usampler.ReadNew())
+		p := usampler.ReadNew()
+		buffer.RequireSerializerCorrect(t, &p)
 	})
 
 	t.Run("structs/PolyVector", func(t *testing.T) {
@@ -35,7 +36,7 @@ func TestRingQP(t *testing.T) {
 		polys := make([]Poly, 4)
 
 		for i := range polys {
-			polys[i] = *usampler.ReadNew()
+			polys[i] = usampler.ReadNew()
 		}
 
 		pv := structs.Vector[Poly](polys)
@@ -50,12 +51,11 @@ func TestRingQP(t *testing.T) {
 			polys[i] = make([]Poly, 4)
 
 			for j := range polys {
-				polys[i][j] = *usampler.ReadNew()
+				polys[i][j] = usampler.ReadNew()
 			}
 		}
 
 		pm := structs.Matrix[Poly](polys)
 		buffer.RequireSerializerCorrect(t, &pm)
 	})
-
 }

@@ -228,7 +228,7 @@ func cksphase(params bfv.Parameters, P []*party, result *rlwe.Ciphertext) *rlwe.
 	encOut := bfv.NewCiphertext(params, 1, params.MaxLevel())
 	elapsedCKSCloud = runTimed(func() {
 		for _, pi := range P {
-			cks.AggregateShares(&pi.cksShare, &cksCombined, &cksCombined)
+			cks.AggregateShares(pi.cksShare, cksCombined, &cksCombined)
 		}
 		cks.KeySwitch(result, cksCombined, encOut)
 	})
@@ -283,7 +283,7 @@ func ckgphase(params bfv.Parameters, crs sampling.PRNG, P []*party) *rlwe.Public
 
 	elapsedCKGCloud = runTimed(func() {
 		for _, pi := range P {
-			ckg.AggregateShares(&pi.ckgShare, &ckgCombined, &ckgCombined)
+			ckg.AggregateShares(pi.ckgShare, ckgCombined, &ckgCombined)
 		}
 		ckg.GenPublicKey(ckgCombined, crp, pk)
 	})
@@ -316,7 +316,7 @@ func rkgphase(params bfv.Parameters, crs sampling.PRNG, P []*party) *rlwe.Reline
 
 	elapsedRKGCloud = runTimed(func() {
 		for _, pi := range P {
-			rkg.AggregateShares(&pi.rkgShareOne, &rkgCombined1, &rkgCombined1)
+			rkg.AggregateShares(pi.rkgShareOne, rkgCombined1, &rkgCombined1)
 		}
 	})
 
@@ -329,7 +329,7 @@ func rkgphase(params bfv.Parameters, crs sampling.PRNG, P []*party) *rlwe.Reline
 	rlk := rlwe.NewRelinearizationKey(params.Parameters)
 	elapsedRKGCloud += runTimed(func() {
 		for _, pi := range P {
-			rkg.AggregateShares(&pi.rkgShareTwo, &rkgCombined2, &rkgCombined2)
+			rkg.AggregateShares(pi.rkgShareTwo, rkgCombined2, &rkgCombined2)
 		}
 		rkg.GenRelinearizationKey(rkgCombined1, rkgCombined2, rlk)
 	})
@@ -371,10 +371,10 @@ func gkgphase(params bfv.Parameters, crs sampling.PRNG, P []*party) (galKeys []*
 
 		elapsedGKGCloud += runTimed(func() {
 
-			gkg.AggregateShares(&P[0].gkgShare, &P[1].gkgShare, &gkgShareCombined)
+			gkg.AggregateShares(P[0].gkgShare, P[1].gkgShare, &gkgShareCombined)
 
 			for _, pi := range P[2:] {
-				gkg.AggregateShares(&pi.gkgShare, &gkgShareCombined, &gkgShareCombined)
+				gkg.AggregateShares(pi.gkgShare, gkgShareCombined, &gkgShareCombined)
 			}
 
 			galKeys[i] = rlwe.NewGaloisKey(params.Parameters)

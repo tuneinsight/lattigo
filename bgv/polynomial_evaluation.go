@@ -4,34 +4,33 @@ import (
 	"fmt"
 	"math/big"
 	"math/bits"
-	"runtime"
 
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
 )
 
-func (eval *Evaluator) Polynomial(input interface{}, p interface{}, invariantTensoring bool, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
+func (eval Evaluator) Polynomial(input interface{}, p interface{}, invariantTensoring bool, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
 
-	var polyVec *rlwe.PolynomialVector
+	var polyVec rlwe.PolynomialVector
 	switch p := p.(type) {
-	case *polynomial.Polynomial:
-		polyVec = &rlwe.PolynomialVector{Value: []*rlwe.Polynomial{{Polynomial: p, MaxDeg: p.Degree(), Lead: true, Lazy: false}}}
-	case *rlwe.Polynomial:
-		polyVec = &rlwe.PolynomialVector{Value: []*rlwe.Polynomial{p}}
-	case *rlwe.PolynomialVector:
+	case polynomial.Polynomial:
+		polyVec = rlwe.PolynomialVector{Value: []rlwe.Polynomial{{Polynomial: p, MaxDeg: p.Degree(), Lead: true, Lazy: false}}}
+	case rlwe.Polynomial:
+		polyVec = rlwe.PolynomialVector{Value: []rlwe.Polynomial{p}}
+	case rlwe.PolynomialVector:
 		polyVec = p
 	default:
 		return nil, fmt.Errorf("cannot Polynomial: invalid polynomial type: %T", p)
 	}
 
-	polyEval := &polynomialEvaluator{
-		Evaluator:          eval,
+	polyEval := polynomialEvaluator{
+		Evaluator:          &eval,
 		Encoder:            NewEncoder(eval.Parameters().(Parameters)),
 		invariantTensoring: invariantTensoring,
 	}
 
-	var powerbasis *rlwe.PowerBasis
+	var powerbasis rlwe.PowerBasis
 	switch input := input.(type) {
 	case *rlwe.Ciphertext:
 
@@ -41,7 +40,7 @@ func (eval *Evaluator) Polynomial(input interface{}, p interface{}, invariantTen
 
 		powerbasis = rlwe.NewPowerBasis(input, polynomial.Monomial, polyEval)
 
-	case *rlwe.PowerBasis:
+	case rlwe.PowerBasis:
 		if input.Value[1] == nil {
 			return nil, fmt.Errorf("cannot evaluatePolyVector: given PowerBasis[1] is empty")
 		}
@@ -79,9 +78,6 @@ func (eval *Evaluator) Polynomial(input interface{}, p interface{}, invariantTen
 		return nil, err
 	}
 
-	powerbasis = nil
-
-	runtime.GC()
 	return opOut, err
 }
 
@@ -90,7 +86,7 @@ type dummyEvaluator struct {
 	invariantTensoring bool
 }
 
-func (d *dummyEvaluator) PolynomialDepth(degree int) int {
+func (d dummyEvaluator) PolynomialDepth(degree int) int {
 	if d.invariantTensoring {
 		return 0
 	}
@@ -98,7 +94,7 @@ func (d *dummyEvaluator) PolynomialDepth(degree int) int {
 }
 
 // Rescale rescales the target DummyOperand n times and returns it.
-func (d *dummyEvaluator) Rescale(op0 *rlwe.DummyOperand) {
+func (d dummyEvaluator) Rescale(op0 *rlwe.DummyOperand) {
 	if !d.invariantTensoring {
 		op0.PlaintextScale = op0.PlaintextScale.Div(rlwe.NewScale(d.params.Q()[op0.Level]))
 		op0.Level--
@@ -106,7 +102,7 @@ func (d *dummyEvaluator) Rescale(op0 *rlwe.DummyOperand) {
 }
 
 // Mul multiplies two DummyOperand, stores the result the taret DummyOperand and returns the result.
-func (d *dummyEvaluator) MulNew(op0, op1 *rlwe.DummyOperand) (op2 *rlwe.DummyOperand) {
+func (d dummyEvaluator) MulNew(op0, op1 *rlwe.DummyOperand) (op2 *rlwe.DummyOperand) {
 	op2 = new(rlwe.DummyOperand)
 	op2.Level = utils.Min(op0.Level, op1.Level)
 	op2.PlaintextScale = op0.PlaintextScale.Mul(op1.PlaintextScale)
@@ -120,7 +116,7 @@ func (d *dummyEvaluator) MulNew(op0, op1 *rlwe.DummyOperand) (op2 *rlwe.DummyOpe
 	return
 }
 
-func (d *dummyEvaluator) UpdateLevelAndScaleBabyStep(lead bool, tLevelOld int, tScaleOld rlwe.Scale) (tLevelNew int, tScaleNew rlwe.Scale) {
+func (d dummyEvaluator) UpdateLevelAndScaleBabyStep(lead bool, tLevelOld int, tScaleOld rlwe.Scale) (tLevelNew int, tScaleNew rlwe.Scale) {
 	tLevelNew = tLevelOld
 	tScaleNew = tScaleOld
 	if !d.invariantTensoring && lead {
@@ -129,7 +125,7 @@ func (d *dummyEvaluator) UpdateLevelAndScaleBabyStep(lead bool, tLevelOld int, t
 	return
 }
 
-func (d *dummyEvaluator) UpdateLevelAndScaleGiantStep(lead bool, tLevelOld int, tScaleOld, xPowScale rlwe.Scale) (tLevelNew int, tScaleNew rlwe.Scale) {
+func (d dummyEvaluator) UpdateLevelAndScaleGiantStep(lead bool, tLevelOld int, tScaleOld, xPowScale rlwe.Scale) (tLevelNew int, tScaleNew rlwe.Scale) {
 
 	Q := d.params.Q()
 
@@ -171,11 +167,11 @@ type polynomialEvaluator struct {
 	invariantTensoring bool
 }
 
-func (polyEval *polynomialEvaluator) Parameters() rlwe.ParametersInterface {
+func (polyEval polynomialEvaluator) Parameters() rlwe.ParametersInterface {
 	return polyEval.Evaluator.Parameters()
 }
 
-func (polyEval *polynomialEvaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciphertext) {
+func (polyEval polynomialEvaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciphertext) {
 	if !polyEval.invariantTensoring {
 		polyEval.Evaluator.Mul(op0, op1, op2)
 	} else {
@@ -183,7 +179,7 @@ func (polyEval *polynomialEvaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, 
 	}
 }
 
-func (polyEval *polynomialEvaluator) MulRelin(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciphertext) {
+func (polyEval polynomialEvaluator) MulRelin(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciphertext) {
 	if !polyEval.invariantTensoring {
 		polyEval.Evaluator.MulRelin(op0, op1, op2)
 	} else {
@@ -191,7 +187,7 @@ func (polyEval *polynomialEvaluator) MulRelin(op0 *rlwe.Ciphertext, op1 interfac
 	}
 }
 
-func (polyEval *polynomialEvaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}) (op2 *rlwe.Ciphertext) {
+func (polyEval polynomialEvaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}) (op2 *rlwe.Ciphertext) {
 	if !polyEval.invariantTensoring {
 		return polyEval.Evaluator.MulNew(op0, op1)
 	} else {
@@ -199,7 +195,7 @@ func (polyEval *polynomialEvaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{
 	}
 }
 
-func (polyEval *polynomialEvaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 interface{}) (op2 *rlwe.Ciphertext) {
+func (polyEval polynomialEvaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 interface{}) (op2 *rlwe.Ciphertext) {
 	if !polyEval.invariantTensoring {
 		return polyEval.Evaluator.MulRelinNew(op0, op1)
 	} else {
@@ -207,14 +203,14 @@ func (polyEval *polynomialEvaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 inter
 	}
 }
 
-func (polyEval *polynomialEvaluator) Rescale(op0, op1 *rlwe.Ciphertext) (err error) {
+func (polyEval polynomialEvaluator) Rescale(op0, op1 *rlwe.Ciphertext) (err error) {
 	if !polyEval.invariantTensoring {
 		return polyEval.Evaluator.Rescale(op0, op1)
 	}
 	return
 }
 
-func (polyEval *polynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol *rlwe.PolynomialVector, pb *rlwe.PowerBasis, targetScale rlwe.Scale) (res *rlwe.Ciphertext, err error) {
+func (polyEval polynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol rlwe.PolynomialVector, pb rlwe.PowerBasis, targetScale rlwe.Scale) (res *rlwe.Ciphertext, err error) {
 
 	X := pb.Value
 

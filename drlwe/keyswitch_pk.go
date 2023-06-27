@@ -16,7 +16,7 @@ type PublicKeySwitchProtocol struct {
 	params rlwe.Parameters
 	noise  ring.DistributionParameters
 
-	buf *ring.Poly
+	buf ring.Poly
 
 	rlwe.EncryptorInterface
 	noiseSampler ring.Sampler
@@ -82,16 +82,16 @@ func (pcks PublicKeySwitchProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.Public
 
 	// Add ct[1] * s and noise
 	if ct.IsNTT {
-		ringQ.MulCoeffsMontgomeryThenAdd(&ct.Value[1], sk.Value.Q, &shareOut.Value[0])
+		ringQ.MulCoeffsMontgomeryThenAdd(ct.Value[1], sk.Value.Q, shareOut.Value[0])
 		pcks.noiseSampler.Read(pcks.buf)
 		ringQ.NTT(pcks.buf, pcks.buf)
-		ringQ.Add(&shareOut.Value[0], pcks.buf, &shareOut.Value[0])
+		ringQ.Add(shareOut.Value[0], pcks.buf, shareOut.Value[0])
 	} else {
-		ringQ.NTTLazy(&ct.Value[1], pcks.buf)
+		ringQ.NTTLazy(ct.Value[1], pcks.buf)
 		ringQ.MulCoeffsMontgomeryLazy(pcks.buf, sk.Value.Q, pcks.buf)
 		ringQ.INTT(pcks.buf, pcks.buf)
 		pcks.noiseSampler.ReadAndAdd(pcks.buf)
-		ringQ.Add(&shareOut.Value[0], pcks.buf, &shareOut.Value[0])
+		ringQ.Add(shareOut.Value[0], pcks.buf, shareOut.Value[0])
 	}
 }
 
@@ -99,13 +99,13 @@ func (pcks PublicKeySwitchProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.Public
 // other parties computes :
 //
 // [ctx[0] + sum(s_i * ctx[0] + u_i * pk[0] + e_0i), sum(u_i * pk[1] + e_1i)]
-func (pcks PublicKeySwitchProtocol) AggregateShares(share1, share2, shareOut *PublicKeySwitchShare) {
+func (pcks PublicKeySwitchProtocol) AggregateShares(share1, share2 PublicKeySwitchShare, shareOut *PublicKeySwitchShare) {
 	levelQ1, levelQ2 := share1.Value[0].Level(), share1.Value[1].Level()
 	if levelQ1 != levelQ2 {
 		panic("cannot AggregateShares: the two shares are at different levelQ.")
 	}
-	pcks.params.RingQ().AtLevel(levelQ1).Add(&share1.Value[0], &share2.Value[0], &shareOut.Value[0])
-	pcks.params.RingQ().AtLevel(levelQ1).Add(&share1.Value[1], &share2.Value[1], &shareOut.Value[1])
+	pcks.params.RingQ().AtLevel(levelQ1).Add(share1.Value[0], share2.Value[0], shareOut.Value[0])
+	pcks.params.RingQ().AtLevel(levelQ1).Add(share1.Value[1], share2.Value[1], shareOut.Value[1])
 
 }
 
@@ -119,9 +119,9 @@ func (pcks PublicKeySwitchProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined Pu
 		ctOut.MetaData = ctIn.MetaData
 	}
 
-	pcks.params.RingQ().AtLevel(level).Add(&ctIn.Value[0], &combined.Value[0], &ctOut.Value[0])
+	pcks.params.RingQ().AtLevel(level).Add(ctIn.Value[0], combined.Value[0], ctOut.Value[0])
 
-	ring.CopyLvl(level, &combined.Value[1], &ctOut.Value[1])
+	ring.CopyLvl(level, combined.Value[1], ctOut.Value[1])
 }
 
 // ShallowCopy creates a shallow copy of PublicKeySwitchProtocol in which all the read-only data-structures are

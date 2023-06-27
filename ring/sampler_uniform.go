@@ -33,19 +33,19 @@ func (u *UniformSampler) AtLevel(level int) Sampler {
 	}
 }
 
-func (u *UniformSampler) Read(pol *Poly) {
+func (u *UniformSampler) Read(pol Poly) {
 	u.read(pol, func(a, b, c uint64) uint64 {
 		return b
 	})
 }
 
-func (u *UniformSampler) ReadAndAdd(pol *Poly) {
+func (u *UniformSampler) ReadAndAdd(pol Poly) {
 	u.read(pol, func(a, b, c uint64) uint64 {
 		return CRed(a+b, c)
 	})
 }
 
-func (u *UniformSampler) read(pol *Poly, f func(a, b, c uint64) uint64) {
+func (u *UniformSampler) read(pol Poly, f func(a, b, c uint64) uint64) {
 
 	level := u.baseRing.Level()
 
@@ -105,7 +105,7 @@ func (u *UniformSampler) read(pol *Poly, f func(a, b, c uint64) uint64) {
 
 // ReadNew generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1].
 // Polynomial is created at the max level.
-func (u *UniformSampler) ReadNew() (pol *Poly) {
+func (u *UniformSampler) ReadNew() (pol Poly) {
 	pol = u.baseRing.NewPoly()
 	u.Read(pol)
 	return

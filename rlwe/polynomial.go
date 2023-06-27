@@ -9,7 +9,7 @@ import (
 )
 
 type Polynomial struct {
-	*polynomial.Polynomial
+	polynomial.Polynomial
 	MaxDeg int   // Always set to len(Coeffs)-1
 	Lead   bool  // Always set to true
 	Lazy   bool  // Flag for lazy-relinearization
@@ -17,8 +17,8 @@ type Polynomial struct {
 	Scale  Scale // Metatata for BSGS polynomial evaluation
 }
 
-func NewPolynomial(poly *polynomial.Polynomial) *Polynomial {
-	return &Polynomial{
+func NewPolynomial(poly polynomial.Polynomial) Polynomial {
+	return Polynomial{
 		Polynomial: poly,
 		MaxDeg:     len(poly.Coeffs) - 1,
 		Lead:       true,
@@ -26,10 +26,10 @@ func NewPolynomial(poly *polynomial.Polynomial) *Polynomial {
 	}
 }
 
-func (p *Polynomial) Factorize(n int) (pq, pr *Polynomial) {
+func (p Polynomial) Factorize(n int) (pq, pr Polynomial) {
 
-	pq = &Polynomial{}
-	pr = &Polynomial{}
+	pq = Polynomial{}
+	pr = Polynomial{}
 
 	pq.Polynomial, pr.Polynomial = p.Polynomial.Factorize(n)
 
@@ -53,10 +53,10 @@ type PatersonStockmeyerPolynomial struct {
 	Base   int
 	Level  int
 	Scale  Scale
-	Value  []*Polynomial
+	Value  []Polynomial
 }
 
-func (p *Polynomial) GetPatersonStockmeyerPolynomial(params ParametersInterface, inputLevel int, inputScale, outputScale Scale, eval DummyEvaluator) *PatersonStockmeyerPolynomial {
+func (p Polynomial) GetPatersonStockmeyerPolynomial(params ParametersInterface, inputLevel int, inputScale, outputScale Scale, eval DummyEvaluator) PatersonStockmeyerPolynomial {
 
 	logDegree := bits.Len64(uint64(p.Degree()))
 	logSplit := polynomial.OptimalSplit(logDegree)
@@ -74,7 +74,7 @@ func (p *Polynomial) GetPatersonStockmeyerPolynomial(params ParametersInterface,
 
 	PSPoly, _ := recursePS(params, logSplit, inputLevel-eval.PolynomialDepth(p.Degree()), p, pb, outputScale, eval)
 
-	return &PatersonStockmeyerPolynomial{
+	return PatersonStockmeyerPolynomial{
 		Degree: p.Degree(),
 		Base:   1 << logSplit,
 		Level:  inputLevel,
@@ -83,7 +83,7 @@ func (p *Polynomial) GetPatersonStockmeyerPolynomial(params ParametersInterface,
 	}
 }
 
-func recursePS(params ParametersInterface, logSplit, targetLevel int, p *Polynomial, pb DummyPowerBasis, outputScale Scale, eval DummyEvaluator) ([]*Polynomial, *DummyOperand) {
+func recursePS(params ParametersInterface, logSplit, targetLevel int, p Polynomial, pb DummyPowerBasis, outputScale Scale, eval DummyEvaluator) ([]Polynomial, *DummyOperand) {
 
 	if p.Degree() < (1 << logSplit) {
 
@@ -97,7 +97,7 @@ func recursePS(params ParametersInterface, logSplit, targetLevel int, p *Polynom
 
 		p.Level, p.Scale = eval.UpdateLevelAndScaleBabyStep(p.Lead, targetLevel, outputScale)
 
-		return []*Polynomial{p}, &DummyOperand{Level: p.Level, PlaintextScale: p.Scale}
+		return []Polynomial{p}, &DummyOperand{Level: p.Level, PlaintextScale: p.Scale}
 	}
 
 	var nextPower = 1 << logSplit
@@ -126,11 +126,11 @@ func recursePS(params ParametersInterface, logSplit, targetLevel int, p *Polynom
 }
 
 type PolynomialVector struct {
-	Value      []*Polynomial
+	Value      []Polynomial
 	SlotsIndex map[int][]int
 }
 
-func NewPolynomialVector(polys []*Polynomial, slotsIndex map[int][]int) *PolynomialVector {
+func NewPolynomialVector(polys []Polynomial, slotsIndex map[int][]int) PolynomialVector {
 	var maxDeg int
 	var basis polynomial.Basis
 	for i := range polys {
@@ -148,17 +148,17 @@ func NewPolynomialVector(polys []*Polynomial, slotsIndex map[int][]int) *Polynom
 		}
 	}
 
-	polyvec := make([]*Polynomial, len(polys))
+	polyvec := make([]Polynomial, len(polys))
 
 	copy(polyvec, polys)
 
-	return &PolynomialVector{
+	return PolynomialVector{
 		Value:      polyvec,
 		SlotsIndex: slotsIndex,
 	}
 }
 
-func (p *PolynomialVector) IsEven() (even bool) {
+func (p PolynomialVector) IsEven() (even bool) {
 	even = true
 	for _, poly := range p.Value {
 		even = even && poly.IsEven
@@ -166,7 +166,7 @@ func (p *PolynomialVector) IsEven() (even bool) {
 	return
 }
 
-func (p *PolynomialVector) IsOdd() (odd bool) {
+func (p PolynomialVector) IsOdd() (odd bool) {
 	odd = true
 	for _, poly := range p.Value {
 		odd = odd && poly.IsOdd
@@ -174,31 +174,31 @@ func (p *PolynomialVector) IsOdd() (odd bool) {
 	return
 }
 
-func (p *PolynomialVector) Factorize(n int) (polyq, polyr *PolynomialVector) {
+func (p PolynomialVector) Factorize(n int) (polyq, polyr PolynomialVector) {
 
-	coeffsq := make([]*Polynomial, len(p.Value))
-	coeffsr := make([]*Polynomial, len(p.Value))
+	coeffsq := make([]Polynomial, len(p.Value))
+	coeffsr := make([]Polynomial, len(p.Value))
 
 	for i, p := range p.Value {
 		coeffsq[i], coeffsr[i] = p.Factorize(n)
 	}
 
-	return &PolynomialVector{Value: coeffsq, SlotsIndex: p.SlotsIndex}, &PolynomialVector{Value: coeffsr, SlotsIndex: p.SlotsIndex}
+	return PolynomialVector{Value: coeffsq, SlotsIndex: p.SlotsIndex}, PolynomialVector{Value: coeffsr, SlotsIndex: p.SlotsIndex}
 }
 
 type PatersonStockmeyerPolynomialVector struct {
-	Value      []*PatersonStockmeyerPolynomial
+	Value      []PatersonStockmeyerPolynomial
 	SlotsIndex map[int][]int
 }
 
 // GetPatersonStockmeyerPolynomial returns
-func (p *PolynomialVector) GetPatersonStockmeyerPolynomial(params ParametersInterface, inputLevel int, inputScale, outputScale Scale, eval DummyEvaluator) *PatersonStockmeyerPolynomialVector {
-	Value := make([]*PatersonStockmeyerPolynomial, len(p.Value))
+func (p PolynomialVector) GetPatersonStockmeyerPolynomial(params ParametersInterface, inputLevel int, inputScale, outputScale Scale, eval DummyEvaluator) PatersonStockmeyerPolynomialVector {
+	Value := make([]PatersonStockmeyerPolynomial, len(p.Value))
 	for i := range Value {
 		Value[i] = p.Value[i].GetPatersonStockmeyerPolynomial(params, inputLevel, inputScale, outputScale, eval)
 	}
 
-	return &PatersonStockmeyerPolynomialVector{
+	return PatersonStockmeyerPolynomialVector{
 		Value:      Value,
 		SlotsIndex: p.SlotsIndex,
 	}

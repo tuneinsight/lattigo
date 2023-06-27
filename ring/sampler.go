@@ -17,9 +17,9 @@ const (
 // It has a single Read method which takes as argument the polynomial to be
 // populated according to the Sampler's distribution.
 type Sampler interface {
-	Read(pol *Poly)
-	ReadNew() (pol *Poly)
-	ReadAndAdd(pol *Poly)
+	Read(pol Poly)
+	ReadNew() (pol Poly)
+	ReadAndAdd(pol Poly)
 	AtLevel(level int) Sampler
 }
 

@@ -18,12 +18,12 @@ type Encryptor struct {
 // NewEncryptor creates a new Encryptor type. Note that only secret-key encryption is
 // supported at the moment.
 func NewEncryptor(params rlwe.Parameters, sk *rlwe.SecretKey) *Encryptor {
-	return &Encryptor{rlwe.NewEncryptor(params, sk), params, *params.RingQP().NewPoly()}
+	return &Encryptor{rlwe.NewEncryptor(params, sk), params, params.RingQP().NewPoly()}
 }
 
 // Encrypt encrypts a plaintext pt into a ciphertext ct, which can be a rgsw.Ciphertext
 // or any of the `rlwe` cipheretxt types.
-func (enc *Encryptor) Encrypt(pt *rlwe.Plaintext, ct interface{}) {
+func (enc Encryptor) Encrypt(pt *rlwe.Plaintext, ct interface{}) {
 
 	var rgswCt *Ciphertext
 	var isRGSW bool
@@ -53,7 +53,7 @@ func (enc *Encryptor) Encrypt(pt *rlwe.Plaintext, ct interface{}) {
 
 // EncryptZero generates an encryption of zero into a ciphertext ct, which can be a rgsw.Ciphertext
 // or any of the `rlwe` cipheretxt types.
-func (enc *Encryptor) EncryptZero(ct interface{}) {
+func (enc Encryptor) EncryptZero(ct interface{}) {
 
 	var rgswCt *Ciphertext
 	var isRGSW bool
@@ -78,6 +78,6 @@ func (enc *Encryptor) EncryptZero(ct interface{}) {
 // ShallowCopy creates a shallow copy of this Encryptor in which all the read-only data-structures are
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // Encryptors can be used concurrently.
-func (enc *Encryptor) ShallowCopy() *Encryptor {
-	return &Encryptor{EncryptorInterface: enc.EncryptorInterface.ShallowCopy(), params: enc.params, buffQP: *enc.params.RingQP().NewPoly()}
+func (enc Encryptor) ShallowCopy() *Encryptor {
+	return &Encryptor{EncryptorInterface: enc.EncryptorInterface.ShallowCopy(), params: enc.params, buffQP: enc.params.RingQP().NewPoly()}
 }

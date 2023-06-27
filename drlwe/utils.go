@@ -25,9 +25,14 @@ func NoiseRelinearizationKey(params rlwe.Parameters, nbParties int) (std float64
 	return math.Sqrt(2 * e * (H + 1))
 }
 
+// NoiseEvaluationKey returns the standard deviation of the noise of each individual elements in a collective EvaluationKey.
+func NoiseEvaluationKey(params rlwe.Parameters, nbParties int) (std float64) {
+	return math.Sqrt(float64(nbParties)) * params.NoiseFreshSK()
+}
+
 // NoiseGaloisKey returns the standard deviation of the noise of each individual elements in a collective GaloisKey.
 func NoiseGaloisKey(params rlwe.Parameters, nbParties int) (std float64) {
-	return math.Sqrt(float64(nbParties)) * params.NoiseFreshSK()
+	return NoiseEvaluationKey(params, nbParties)
 }
 
 // NoiseKeySwitch returns the standard deviation of the noise of a ciphertext after the KeySwitch protocol

@@ -93,6 +93,7 @@ func TestDRLWE(t *testing.T) {
 
 				testPublicKeyGenProtocol(tc, params.MaxLevel(), t)
 				testRelinKeyGenProtocol(tc, params.MaxLevel(), t)
+				testEvaluationKeyGenProtocol(tc, params.MaxLevel(), t)
 				testGaloisKeyGenProtocol(tc, params.MaxLevel(), t)
 				testThreshold(tc, params.MaxLevel(), t)
 				testRefreshShare(tc, params.MaxLevel(), t)
@@ -202,6 +203,59 @@ func testRelinKeyGenProtocol(tc *testContext, level int, t *testing.T) {
 		noiseBound := math.Log2(math.Sqrt(float64(decompRNS))*NoiseRelinearizationKey(params, nbParties)) + 1
 
 		require.True(t, rlwe.RelinearizationKeyIsCorrect(rlk, tc.skIdeal, params, noiseBound))
+	})
+}
+
+func testEvaluationKeyGenProtocol(tc *testContext, level int, t *testing.T) {
+
+	params := tc.params
+
+	t.Run(testString(params, level, "EvaluationKeyGen"), func(t *testing.T) {
+
+		evkg := make([]EvaluationKeyGenProtocol, nbParties)
+		for i := range evkg {
+			if i == 0 {
+				evkg[i] = NewEvaluationKeyGenProtocol(params)
+			} else {
+				evkg[i] = evkg[0].ShallowCopy()
+			}
+		}
+
+		kgen := rlwe.NewKeyGenerator(params)
+
+		skOutShares := make([]*rlwe.SecretKey, nbParties)
+		skOutIdeal := rlwe.NewSecretKey(params)
+		for i := range skOutShares {
+			skOutShares[i] = kgen.GenSecretKeyNew()
+			params.RingQP().Add(skOutIdeal.Value, skOutShares[i].Value, skOutIdeal.Value)
+		}
+
+		shares := make([]EvaluationKeyGenShare, nbParties)
+		for i := range shares {
+			shares[i] = evkg[i].AllocateShare()
+		}
+
+		crp := evkg[0].SampleCRP(tc.crs)
+
+		for i := range shares {
+			evkg[i].GenShare(tc.skShares[i], skOutShares[i], crp, &shares[i])
+		}
+
+		for i := 1; i < nbParties; i++ {
+			evkg[0].AggregateShares(shares[0], shares[i], &shares[0])
+		}
+
+		// Test binary encoding
+		buffer.RequireSerializerCorrect(t, &shares[0])
+
+		evk := rlwe.NewEvaluationKey(params, level, params.MaxLevelP())
+		evkg[0].GenEvaluationKey(shares[0], crp, evk)
+
+		decompRNS := params.DecompRNS(level, params.MaxLevelP())
+
+		noiseBound := math.Log2(math.Sqrt(float64(decompRNS))*NoiseEvaluationKey(params, nbParties)) + 1
+
+		require.True(t, rlwe.EvaluationKeyIsCorrect(evk, tc.skIdeal, skOutIdeal, params, noiseBound))
 	})
 }
 

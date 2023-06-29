@@ -46,7 +46,6 @@ func (enc Encryptor) Encrypt(pt *rlwe.Plaintext, ct interface{}) {
 			enc.buffQP.Q,
 			[]rlwe.GadgetCiphertext{rgswCt.Value[0], rgswCt.Value[1]},
 			*enc.params.RingQP(),
-			enc.params.Pow2Base(),
 			enc.buffQP.Q)
 	}
 }
@@ -62,15 +61,13 @@ func (enc Encryptor) EncryptZero(ct interface{}) {
 		return
 	}
 
-	levelQ := rgswCt.LevelQ()
-	levelP := rgswCt.LevelP()
-	decompRNS := enc.params.DecompRNS(levelQ, levelP)
-	decompPw2 := enc.params.DecompPw2(levelQ, levelP)
+	decompRNS := rgswCt.Value[0].DecompRNS()
+	decompPw2 := rgswCt.Value[0].DecompPw2()
 
 	for j := 0; j < decompPw2; j++ {
 		for i := 0; i < decompRNS; i++ {
-			enc.EncryptorInterface.EncryptZero(&rlwe.OperandQP{MetaData: rlwe.MetaData{IsNTT: true, IsMontgomery: true}, Value: rgswCt.Value[0].Value[i][j][:]})
-			enc.EncryptorInterface.EncryptZero(&rlwe.OperandQP{MetaData: rlwe.MetaData{IsNTT: true, IsMontgomery: true}, Value: rgswCt.Value[1].Value[i][j][:]})
+			enc.EncryptorInterface.EncryptZero(rlwe.OperandQP{MetaData: rlwe.MetaData{IsNTT: true, IsMontgomery: true}, Value: []ringqp.Poly(rgswCt.Value[0].Value[i][j])})
+			enc.EncryptorInterface.EncryptZero(rlwe.OperandQP{MetaData: rlwe.MetaData{IsNTT: true, IsMontgomery: true}, Value: []ringqp.Poly(rgswCt.Value[1].Value[i][j])})
 		}
 	}
 }

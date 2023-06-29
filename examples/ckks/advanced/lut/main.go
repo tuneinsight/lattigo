@@ -73,13 +73,14 @@ func main() {
 	// LogN = 11 & LogQP = ~54 -> 128-bit secure.
 	var paramsN11 ckks.Parameters
 	if paramsN11, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
-		LogN:     LogN - 1,
-		Q:        Q[:1],
-		P:        []uint64{0x42001},
-		Pow2Base: 12,
+		LogN: LogN - 1,
+		Q:    Q[:1],
+		P:    []uint64{0x42001},
 	}); err != nil {
 		panic(err)
 	}
+
+	Base2Decomposition := 12
 
 	// LUT interval
 	a, b := -8.0, 8.0
@@ -152,14 +153,14 @@ func main() {
 	evk := rlwe.NewMemEvaluationKeySet(nil, kgenN12.GenGaloisKeysNew(galEls, skN12)...)
 
 	// LUT Evaluator
-	evalLUT := lut.NewEvaluator(paramsN12.Parameters, paramsN11.Parameters, evk)
+	evalLUT := lut.NewEvaluator(paramsN12.Parameters, paramsN11.Parameters, Base2Decomposition, evk)
 
 	// CKKS Evaluator
 	evalCKKS := ckks.NewEvaluator(paramsN12, evk)
 
 	fmt.Printf("Encrypting bits of skLWE in RGSW... ")
 	now = time.Now()
-	LUTKEY := lut.GenEvaluationKeyNew(paramsN12.Parameters, skN12, paramsN11.Parameters, skN11) // Generate RGSW(sk_i) for all coefficients of sk
+	LUTKEY := lut.GenEvaluationKeyNew(paramsN12.Parameters, skN12, paramsN11.Parameters, skN11, Base2Decomposition) // Generate RGSW(sk_i) for all coefficients of sk
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
 	// Generates the starting plaintext values.

@@ -31,7 +31,7 @@ type Evaluator struct {
 }
 
 // NewEvaluator creates a new Handler
-func NewEvaluator(paramsLUT, paramsLWE rlwe.Parameters, evk rlwe.EvaluationKeySet) (eval *Evaluator) {
+func NewEvaluator(paramsLUT, paramsLWE rlwe.Parameters, BaseTwoDecomposition int, evk rlwe.EvaluationKeySet) (eval *Evaluator) {
 	eval = new(Evaluator)
 	eval.Evaluator = rgsw.NewEvaluator(paramsLUT, evk)
 	eval.paramsLUT = paramsLUT
@@ -131,11 +131,9 @@ func NewEvaluator(paramsLUT, paramsLWE rlwe.Parameters, evk rlwe.EvaluationKeySe
 
 	levelQ := paramsLUT.QCount() - 1
 	levelP := paramsLUT.PCount() - 1
-	decompRNS := paramsLUT.DecompRNS(levelQ, levelP)
-	decompPw2 := paramsLUT.DecompPw2(levelQ, levelP)
 
-	eval.tmpRGSW = rgsw.NewCiphertext(paramsLUT, levelQ, levelP, decompRNS, decompPw2)
-	eval.one = rgsw.NewPlaintext(paramsLUT, uint64(1), levelQ, levelP, paramsLUT.Pow2Base(), decompPw2)
+	eval.tmpRGSW = rgsw.NewCiphertext(paramsLUT, levelQ, levelP, BaseTwoDecomposition)
+	eval.one = rgsw.NewPlaintext(paramsLUT, uint64(1), levelQ, levelP, BaseTwoDecomposition)
 
 	return
 }

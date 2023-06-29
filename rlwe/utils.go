@@ -51,7 +51,7 @@ func GaloisKeyIsCorrect(gk *GaloisKey, sk *SecretKey, params Parameters, log2Bou
 
 	galElInv := ring.ModExp(gk.GaloisElement, nthRoot-1, nthRoot)
 
-	ringQ, ringP := params.RingQ(), params.RingP()
+	ringQ, ringP := params.RingQ().AtLevel(gk.LevelQ()), params.RingP().AtLevel(gk.LevelP())
 
 	ringQ.AutomorphismNTT(sk.Value.Q, galElInv, skOut.Value.Q)
 	if ringP != nil {
@@ -65,10 +65,10 @@ func GaloisKeyIsCorrect(gk *GaloisKey, sk *SecretKey, params Parameters, log2Bou
 func EvaluationKeyIsCorrect(evk *EvaluationKey, skIn, skOut *SecretKey, params Parameters, log2Bound float64) bool {
 	evk = evk.CopyNew()
 	skIn = skIn.CopyNew()
-	levelQ, levelP := params.MaxLevelQ(), params.MaxLevelP()
+	levelQ, levelP := evk.LevelQ(), evk.LevelP()
 	ringQP := params.RingQP().AtLevel(levelQ, levelP)
 	ringQ, ringP := ringQP.RingQ, ringQP.RingP
-	decompPw2 := params.DecompPw2(levelQ, levelP)
+	decompPw2 := params.DecompPw2(levelQ, levelP, evk.BaseTwoDecomposition)
 
 	// Decrypts
 	// [-asIn + w*P*sOut + e, a] + [asIn]
@@ -117,7 +117,7 @@ func EvaluationKeyIsCorrect(evk *EvaluationKey, skIn, skOut *SecretKey, params P
 		}
 
 		// sOut * P * PW2
-		ringQ.MulScalar(skIn.Value.Q, 1<<params.Pow2Base(), skIn.Value.Q)
+		ringQ.MulScalar(skIn.Value.Q, 1<<evk.BaseTwoDecomposition, skIn.Value.Q)
 	}
 
 	return true

@@ -13,8 +13,12 @@ type EvaluationKey struct {
 	SkNeg []*rgsw.Ciphertext
 }
 
+func (evk EvaluationKey) Base2Decomposition() int {
+	return evk.SkPos[0].Value[0].BaseTwoDecomposition
+}
+
 // GenEvaluationKeyNew generates a new LUT evaluation key
-func GenEvaluationKeyNew(paramsRLWE rlwe.Parameters, skRLWE *rlwe.SecretKey, paramsLWE rlwe.Parameters, skLWE *rlwe.SecretKey) (key EvaluationKey) {
+func GenEvaluationKeyNew(paramsRLWE rlwe.Parameters, skRLWE *rlwe.SecretKey, paramsLWE rlwe.Parameters, skLWE *rlwe.SecretKey, Base2Decomposition int) (key EvaluationKey) {
 
 	skLWEInvNTT := paramsLWE.RingQ().NewPoly()
 
@@ -42,13 +46,10 @@ func GenEvaluationKeyNew(paramsRLWE rlwe.Parameters, skRLWE *rlwe.SecretKey, par
 	OneMForm := ring.MForm(1, Q, ringQ.SubRings[0].BRedConstant)
 	MinusOneMform := ring.MForm(Q-1, Q, ringQ.SubRings[0].BRedConstant)
 
-	decompRNS := paramsRLWE.DecompRNS(levelQ, levelP)
-	decompPw2 := paramsRLWE.DecompPw2(levelQ, levelP)
-
 	for i, si := range skLWEInvNTT.Coeffs[0] {
 
-		skRGSWPos[i] = rgsw.NewCiphertext(paramsRLWE, levelQ, levelP, decompRNS, decompPw2)
-		skRGSWNeg[i] = rgsw.NewCiphertext(paramsRLWE, levelQ, levelP, decompRNS, decompPw2)
+		skRGSWPos[i] = rgsw.NewCiphertext(paramsRLWE, levelQ, levelP, Base2Decomposition)
+		skRGSWNeg[i] = rgsw.NewCiphertext(paramsRLWE, levelQ, levelP, Base2Decomposition)
 
 		// sk_i =  1 -> [RGSW(1), RGSW(0)]
 		if si == OneMForm {

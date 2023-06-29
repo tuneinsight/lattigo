@@ -44,7 +44,7 @@ func newEvaluatorBase(params ParametersInterface) *evaluatorBase {
 func newEvaluatorBuffers(params ParametersInterface) *evaluatorBuffers {
 
 	buff := new(evaluatorBuffers)
-	decompRNS := params.DecompRNS(params.MaxLevelQ(), params.MaxLevelP())
+	decompRNS := params.DecompRNS(params.MaxLevelQ(), 0)
 	ringQP := params.RingQP()
 
 	buff.BuffCt = NewCiphertext(params, 2, params.MaxLevel())

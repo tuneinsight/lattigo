@@ -217,7 +217,7 @@ func cksphase(params bfv.Parameters, P []*party, result *rlwe.Ciphertext) *rlwe.
 		pi.cksShare = cks.AllocateShare(params.MaxLevel())
 	}
 
-	zero := rlwe.NewSecretKey(params.Parameters)
+	zero := rlwe.NewSecretKey(params)
 	cksCombined := cks.AllocateShare(params.MaxLevel())
 	elapsedPCKSParty = runTimedParty(func() {
 		for _, pi := range P[1:] {
@@ -279,7 +279,7 @@ func ckgphase(params bfv.Parameters, crs sampling.PRNG, P []*party) *rlwe.Public
 		}
 	}, len(P))
 
-	pk := rlwe.NewPublicKey(params.Parameters)
+	pk := rlwe.NewPublicKey(params)
 
 	elapsedCKGCloud = runTimed(func() {
 		for _, pi := range P {
@@ -300,13 +300,13 @@ func rkgphase(params bfv.Parameters, crs sampling.PRNG, P []*party) *rlwe.Reline
 
 	rkg := dbfv.NewRelinKeyGenProtocol(params) // Relineariation key generation
 
-	_, rkgCombined1, rkgCombined2 := rkg.AllocateShare()
+	_, rkgCombined1, rkgCombined2 := rkg.AllocateShare(params.MaxLevelQ(), params.MaxLevelP(), 0)
 
 	for _, pi := range P {
-		pi.rlkEphemSk, pi.rkgShareOne, pi.rkgShareTwo = rkg.AllocateShare()
+		pi.rlkEphemSk, pi.rkgShareOne, pi.rkgShareTwo = rkg.AllocateShare(params.MaxLevelQ(), params.MaxLevelP(), 0)
 	}
 
-	crp := rkg.SampleCRP(crs)
+	crp := rkg.SampleCRP(crs, params.MaxLevelQ(), params.MaxLevelP(), 0)
 
 	elapsedRKGParty = runTimedParty(func() {
 		for _, pi := range P {
@@ -326,7 +326,7 @@ func rkgphase(params bfv.Parameters, crs sampling.PRNG, P []*party) *rlwe.Reline
 		}
 	}, len(P))
 
-	rlk := rlwe.NewRelinearizationKey(params.Parameters)
+	rlk := rlwe.NewRelinearizationKey(params, params.MaxLevelQ(), params.MaxLevelP(), 0)
 	elapsedRKGCloud += runTimed(func() {
 		for _, pi := range P {
 			rkg.AggregateShares(pi.rkgShareTwo, rkgCombined2, &rkgCombined2)
@@ -348,19 +348,19 @@ func gkgphase(params bfv.Parameters, crs sampling.PRNG, P []*party) (galKeys []*
 	gkg := dbfv.NewGaloisKeyGenProtocol(params) // Rotation keys generation
 
 	for _, pi := range P {
-		pi.gkgShare = gkg.AllocateShare()
+		pi.gkgShare = gkg.AllocateShare(params.MaxLevelQ(), params.MaxLevelP(), 0)
 	}
 
 	galEls := append(params.GaloisElementsForInnerSum(1, params.N()>>1), params.GaloisElementInverse())
 	galKeys = make([]*rlwe.GaloisKey, len(galEls))
 
-	gkgShareCombined := gkg.AllocateShare()
+	gkgShareCombined := gkg.AllocateShare(params.MaxLevelQ(), params.MaxLevelP(), 0)
 
 	for i, galEl := range galEls {
 
 		gkgShareCombined.GaloisElement = galEl
 
-		crp := gkg.SampleCRP(crs)
+		crp := gkg.SampleCRP(crs, params.MaxLevelQ(), params.MaxLevelP(), 0)
 
 		elapsedGKGParty += runTimedParty(func() {
 			for _, pi := range P {
@@ -377,7 +377,7 @@ func gkgphase(params bfv.Parameters, crs sampling.PRNG, P []*party) (galKeys []*
 				gkg.AggregateShares(pi.gkgShare, gkgShareCombined, &gkgShareCombined)
 			}
 
-			galKeys[i] = rlwe.NewGaloisKey(params.Parameters)
+			galKeys[i] = rlwe.NewGaloisKey(params, params.MaxLevelQ(), params.MaxLevelP(), 0)
 
 			gkg.GenGaloisKey(gkgShareCombined, crp, galKeys[i])
 		})

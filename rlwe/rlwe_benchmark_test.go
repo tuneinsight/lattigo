@@ -18,56 +18,56 @@ func BenchmarkRLWE(b *testing.B) {
 	defaultParamsLiteral := testParamsLiteral
 
 	if *flagParamString != "" {
-		var jsonParams ParametersLiteral
+		var jsonParams TestParametersLiteral
 		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
 			b.Fatal(err)
 		}
-		defaultParamsLiteral = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
+		defaultParamsLiteral = []TestParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
 	for _, paramsLit := range defaultParamsLiteral {
 
 		var params Parameters
-		if params, err = NewParametersFromLiteral(paramsLit); err != nil {
+		if params, err = NewParametersFromLiteral(paramsLit.ParametersLiteral); err != nil {
 			b.Fatal(err)
 		}
 
 		tc := NewTestContext(params)
 
-		for _, testSet := range []func(tc *TestContext, b *testing.B){
+		for _, testSet := range []func(tc *TestContext, BaseTwoDecomposition int, b *testing.B){
 			benchKeyGenerator,
 			benchEncryptor,
 			benchDecryptor,
 			benchEvaluator,
 			benchMarshalling,
 		} {
-			testSet(tc, b)
+			testSet(tc, paramsLit.BaseTwoDecomposition, b)
 			runtime.GC()
 		}
 	}
 }
 
-func benchKeyGenerator(tc *TestContext, b *testing.B) {
+func benchKeyGenerator(tc *TestContext, bpw2 int, b *testing.B) {
 
 	params := tc.params
 	kgen := tc.kgen
 
-	b.Run(testString(params, params.MaxLevel(), "KeyGenerator/GenSecretKey"), func(b *testing.B) {
+	b.Run(testString(params, params.MaxLevelQ(), params.MaxLevelP(), bpw2, "KeyGenerator/GenSecretKey"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			kgen.GenSecretKey(tc.sk)
 		}
 	})
 
-	b.Run(testString(params, params.MaxLevel(), "KeyGenerator/GenPublicKey"), func(b *testing.B) {
+	b.Run(testString(params, params.MaxLevelQ(), params.MaxLevelP(), bpw2, "KeyGenerator/GenPublicKey"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			kgen.GenPublicKey(tc.sk, tc.pk)
 		}
 
 	})
 
-	b.Run(testString(params, params.MaxLevel(), "KeyGenerator/GenEvaluationKey"), func(b *testing.B) {
+	b.Run(testString(params, params.MaxLevelQ(), params.MaxLevelP(), bpw2, "KeyGenerator/GenEvaluationKey"), func(b *testing.B) {
 		sk0, sk1 := tc.sk, kgen.GenSecretKeyNew()
-		evk := NewEvaluationKey(params, params.MaxLevelQ(), params.MaxLevelP())
+		evk := NewEvaluationKey(params, params.MaxLevelQ(), params.MaxLevelP(), 0)
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			kgen.GenEvaluationKey(sk0, sk1, evk)
@@ -75,11 +75,11 @@ func benchKeyGenerator(tc *TestContext, b *testing.B) {
 	})
 }
 
-func benchEncryptor(tc *TestContext, b *testing.B) {
+func benchEncryptor(tc *TestContext, bpw2 int, b *testing.B) {
 
 	params := tc.params
 
-	b.Run(testString(params, params.MaxLevel(), "Encryptor/EncryptZero/SecretKey"), func(b *testing.B) {
+	b.Run(testString(params, params.MaxLevelQ(), params.MaxLevelP(), bpw2, "Encryptor/EncryptZero/SecretKey"), func(b *testing.B) {
 		ct := NewCiphertext(params, 1, params.MaxLevel())
 		enc := tc.enc.WithKey(tc.sk)
 		b.ResetTimer()
@@ -89,7 +89,7 @@ func benchEncryptor(tc *TestContext, b *testing.B) {
 
 	})
 
-	b.Run(testString(params, params.MaxLevel(), "Encryptor/EncryptZero/PublicKey"), func(b *testing.B) {
+	b.Run(testString(params, params.MaxLevelQ(), params.MaxLevelP(), bpw2, "Encryptor/EncryptZero/PublicKey"), func(b *testing.B) {
 		ct := NewCiphertext(params, 1, params.MaxLevel())
 		enc := tc.enc.WithKey(tc.pk)
 		b.ResetTimer()
@@ -99,11 +99,11 @@ func benchEncryptor(tc *TestContext, b *testing.B) {
 	})
 }
 
-func benchDecryptor(tc *TestContext, b *testing.B) {
+func benchDecryptor(tc *TestContext, bpw2 int, b *testing.B) {
 
 	params := tc.params
 
-	b.Run(testString(params, params.MaxLevel(), "Decryptor/Decrypt"), func(b *testing.B) {
+	b.Run(testString(params, params.MaxLevelQ(), params.MaxLevelP(), bpw2, "Decryptor/Decrypt"), func(b *testing.B) {
 		dec := tc.dec
 		ct := tc.enc.EncryptZeroNew(params.MaxLevel())
 		pt := NewPlaintext(params, ct.Level())
@@ -114,14 +114,14 @@ func benchDecryptor(tc *TestContext, b *testing.B) {
 	})
 }
 
-func benchEvaluator(tc *TestContext, b *testing.B) {
+func benchEvaluator(tc *TestContext, bpw2 int, b *testing.B) {
 
 	params := tc.params
 	kgen := tc.kgen
 	sk := tc.sk
 	eval := tc.eval
 
-	b.Run(testString(params, params.MaxLevel(), "Evaluator/GadgetProduct"), func(b *testing.B) {
+	b.Run(testString(params, params.MaxLevelQ(), params.MaxLevelP(), bpw2, "Evaluator/GadgetProduct"), func(b *testing.B) {
 
 		ct := NewEncryptor(params, sk).EncryptZeroNew(params.MaxLevel())
 		evk := kgen.GenEvaluationKeyNew(sk, kgen.GenSecretKeyNew())
@@ -133,7 +133,7 @@ func benchEvaluator(tc *TestContext, b *testing.B) {
 	})
 }
 
-func benchMarshalling(tc *TestContext, b *testing.B) {
+func benchMarshalling(tc *TestContext, bpw2 int, b *testing.B) {
 	params := tc.params
 	sk := tc.sk
 
@@ -141,7 +141,7 @@ func benchMarshalling(tc *TestContext, b *testing.B) {
 	ct := ctf.Value
 
 	badbuf := bytes.NewBuffer(make([]byte, ct.BinarySize()))
-	b.Run(testString(params, params.MaxLevel(), "Marshalling/WriteToBadBuf"), func(b *testing.B) {
+	b.Run(testString(params, params.MaxLevelQ(), params.MaxLevelP(), bpw2, "Marshalling/WriteToBadBuf"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			_, err := ct.WriteTo(badbuf)
 
@@ -158,7 +158,7 @@ func benchMarshalling(tc *TestContext, b *testing.B) {
 
 	bytebuff := bytes.NewBuffer(make([]byte, ct.BinarySize()))
 	bufiobuf := bufio.NewWriter(bytebuff)
-	b.Run(testString(params, params.MaxLevel(), "Marshalling/WriteToIOBuf"), func(b *testing.B) {
+	b.Run(testString(params, params.MaxLevelQ(), params.MaxLevelP(), bpw2, "Marshalling/WriteToIOBuf"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			_, err := ct.WriteTo(bufiobuf)
 
@@ -176,7 +176,7 @@ func benchMarshalling(tc *TestContext, b *testing.B) {
 
 	bsliceour := make([]byte, ct.BinarySize())
 	ourbuf := buffer.NewBuffer(bsliceour)
-	b.Run(testString(params, params.MaxLevel(), "Marshalling/WriteToOurBuf"), func(b *testing.B) {
+	b.Run(testString(params, params.MaxLevelQ(), params.MaxLevelP(), bpw2, "Marshalling/WriteToOurBuf"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			_, err := ct.WriteTo(ourbuf)
 
@@ -197,7 +197,7 @@ func benchMarshalling(tc *TestContext, b *testing.B) {
 	bufiordr := bufio.NewReader(rdr)
 	ct2f := NewCiphertext(tc.params, 1, tc.params.MaxLevel())
 	ct2 := ct2f.Value
-	b.Run(testString(params, params.MaxLevel(), "Marshalling/ReadFromIO"), func(b *testing.B) {
+	b.Run(testString(params, params.MaxLevelQ(), params.MaxLevelP(), bpw2, "Marshalling/ReadFromIO"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 
 			_, err := ct2.ReadFrom(bufiordr)
@@ -216,7 +216,7 @@ func benchMarshalling(tc *TestContext, b *testing.B) {
 
 	ct3f := NewCiphertext(tc.params, 1, tc.params.MaxLevel())
 	ct3 := ct3f.Value
-	b.Run(testString(params, params.MaxLevel(), "Marshalling/ReadFromOur"), func(b *testing.B) {
+	b.Run(testString(params, params.MaxLevelQ(), params.MaxLevelP(), bpw2, "Marshalling/ReadFromOur"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			_, err := ct3.ReadFrom(ourbuf)
 

@@ -305,6 +305,11 @@ func (op OperandQP) Equal(other *OperandQP) bool {
 	return cmp.Equal(&op.MetaData, &other.MetaData) && cmp.Equal(op.Value, other.Value)
 }
 
+// Degree returns the degree of the target OperandQP.
+func (op OperandQP) Degree() int {
+	return len(op.Value) - 1
+}
+
 // LevelQ returns the level of the modulus Q of the first element of the objeop.
 func (op OperandQP) LevelQ() int {
 	return op.Value[0].LevelQ()

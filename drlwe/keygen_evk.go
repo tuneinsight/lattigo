@@ -1,6 +1,7 @@
 package drlwe
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
@@ -10,11 +11,6 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 	"github.com/tuneinsight/lattigo/v4/utils/structs"
 )
-
-// EvaluationKeyGenCRP is a type for common reference polynomials in the EvaluationKey Generation protocol.
-type EvaluationKeyGenCRP struct {
-	Value structs.Matrix[ringqp.Poly]
-}
 
 // EvaluationKeyGenProtocol is the structure storing the parameters for the collective EvaluationKey generation.
 type EvaluationKeyGenProtocol struct {
@@ -57,41 +53,28 @@ func NewEvaluationKeyGenProtocol(params rlwe.Parameters) (evkg EvaluationKeyGenP
 }
 
 // AllocateShare allocates a party's share in the EvaluationKey Generation.
-func (evkg EvaluationKeyGenProtocol) AllocateShare() EvaluationKeyGenShare {
-	params := evkg.params
-	decompRNS := params.DecompRNS(params.MaxLevelQ(), params.MaxLevelP())
-	decompPw2 := params.DecompPw2(params.MaxLevelQ(), params.MaxLevelP())
-
-	p := make([][]ringqp.Poly, decompRNS)
-	for i := range p {
-		vec := make([]ringqp.Poly, decompPw2)
-		for j := range vec {
-			vec[j] = ringqp.NewPoly(params.N(), params.MaxLevelQ(), params.MaxLevelP())
-		}
-		p[i] = vec
-	}
-
-	return EvaluationKeyGenShare{Value: structs.Matrix[ringqp.Poly](p)}
+func (evkg EvaluationKeyGenProtocol) AllocateShare(levelQ, levelP, BaseTwoDecomposition int) EvaluationKeyGenShare {
+	return EvaluationKeyGenShare{*rlwe.NewGadgetCiphertext(evkg.params, 0, levelQ, levelP, BaseTwoDecomposition)}
 }
 
 // SampleCRP samples a common random polynomial to be used in the EvaluationKey Generation from the provided
 // common reference string.
-func (evkg EvaluationKeyGenProtocol) SampleCRP(crs CRS) EvaluationKeyGenCRP {
+func (evkg EvaluationKeyGenProtocol) SampleCRP(crs CRS, levelQ, levelP, BaseTwoDecomposition int) EvaluationKeyGenCRP {
 
 	params := evkg.params
-	decompRNS := params.DecompRNS(params.MaxLevelQ(), params.MaxLevelP())
-	decompPw2 := params.DecompPw2(params.MaxLevelQ(), params.MaxLevelP())
+	decompRNS := params.DecompRNS(levelQ, levelP)
+	decompPw2 := params.DecompPw2(levelQ, levelP, BaseTwoDecomposition)
 
 	m := make([][]ringqp.Poly, decompRNS)
 	for i := range m {
 		vec := make([]ringqp.Poly, decompPw2)
 		for j := range vec {
-			vec[j] = ringqp.NewPoly(params.N(), params.MaxLevelQ(), params.MaxLevelP())
+			vec[j] = ringqp.NewPoly(params.N(), levelQ, levelP)
 		}
 		m[i] = vec
 	}
 
-	us := ringqp.NewUniformSampler(crs, *params.RingQP())
+	us := ringqp.NewUniformSampler(crs, params.RingQP().AtLevel(levelQ, levelP))
 
 	for _, v := range m {
 		for _, p := range v {
@@ -105,11 +88,27 @@ func (evkg EvaluationKeyGenProtocol) SampleCRP(crs CRS) EvaluationKeyGenCRP {
 // GenShare generates a party's share in the EvaluationKey Generation.
 func (evkg EvaluationKeyGenProtocol) GenShare(skIn, skOut *rlwe.SecretKey, crp EvaluationKeyGenCRP, shareOut *EvaluationKeyGenShare) {
 
-	ringQ := evkg.params.RingQ()
-	ringQP := evkg.params.RingQP()
+	levelQ := shareOut.LevelQ()
+	levelP := shareOut.LevelP()
 
-	levelQ := utils.Min(skIn.LevelQ(), skOut.LevelQ())
-	levelP := utils.Min(skIn.LevelP(), skOut.LevelP())
+	if levelQ > utils.Min(skIn.LevelQ(), skOut.LevelQ()) {
+		panic(fmt.Errorf("cannot GenShare: min(skIn, skOut) LevelQ < shareOut LevelQ"))
+	}
+
+	if shareOut.LevelP() != levelP {
+		panic(fmt.Errorf("cannot GenShare: min(skIn, skOut) LevelP != shareOut LevelP"))
+	}
+
+	if shareOut.DecompRNS() != crp.DecompRNS() {
+		panic(fmt.Errorf("cannot GenSahre: crp.DecompRNS() != shareOut.DecompRNS()"))
+	}
+
+	if shareOut.DecompPw2() != crp.DecompPw2() {
+		panic(fmt.Errorf("cannot GenSahre: crp.DecompPw2() != shareOut.DecompPw2()"))
+	}
+
+	ringQP := evkg.params.RingQP().AtLevel(levelQ, levelP)
+	ringQ := ringQP.RingQ
 
 	var hasModulusP bool
 
@@ -124,24 +123,25 @@ func (evkg EvaluationKeyGenProtocol) GenShare(skIn, skOut *rlwe.SecretKey, crp E
 	m := shareOut.Value
 	c := crp.Value
 
-	RNSDecomp := len(m)
-	BITDecomp := len(m[0])
-
 	N := ringQ.N()
 
+	sampler := evkg.gaussianSamplerQ.AtLevel(levelQ)
+
 	var index int
-	for j := 0; j < BITDecomp; j++ {
-		for i := 0; i < RNSDecomp; i++ {
+	for j := 0; j < shareOut.DecompPw2(); j++ {
+		for i := 0; i < shareOut.DecompRNS(); i++ {
+
+			mij := m[i][j][0]
 
 			// e
-			evkg.gaussianSamplerQ.Read(m[i][j].Q)
+			sampler.Read(mij.Q)
 
 			if hasModulusP {
-				ringQP.ExtendBasisSmallNormAndCenter(m[i][j].Q, levelP, m[i][j].Q, m[i][j].P)
+				ringQP.ExtendBasisSmallNormAndCenter(mij.Q, levelP, mij.Q, mij.P)
 			}
 
-			ringQP.NTTLazy(m[i][j], m[i][j])
-			ringQP.MForm(m[i][j], m[i][j])
+			ringQP.NTTLazy(mij, mij)
+			ringQP.MForm(mij, mij)
 
 			// a is the CRP
 
@@ -158,7 +158,7 @@ func (evkg EvaluationKeyGenProtocol) GenShare(skIn, skOut *rlwe.SecretKey, crp E
 
 				qi := ringQ.SubRings[index].Modulus
 				tmp0 := evkg.buff[0].Q.Coeffs[index]
-				tmp1 := m[i][j].Q.Coeffs[index]
+				tmp1 := mij.Q.Coeffs[index]
 
 				for w := 0; w < N; w++ {
 					tmp1[w] = ring.CRed(tmp1[w]+tmp0[w], qi)
@@ -166,30 +166,39 @@ func (evkg EvaluationKeyGenProtocol) GenShare(skIn, skOut *rlwe.SecretKey, crp E
 			}
 
 			// sk_in * (qiBarre*qiStar) * 2^w - a*sk + e
-			ringQP.MulCoeffsMontgomeryThenSub(c[i][j], skOut.Value, m[i][j])
+			ringQP.MulCoeffsMontgomeryThenSub(c[i][j], skOut.Value, mij)
 		}
 
-		ringQ.MulScalar(evkg.buff[0].Q, 1<<evkg.params.Pow2Base(), evkg.buff[0].Q)
+		ringQ.MulScalar(evkg.buff[0].Q, 1<<shareOut.BaseTwoDecomposition, evkg.buff[0].Q)
 	}
 }
 
 // AggregateShares computes share3 = share1 + share2.
 func (evkg EvaluationKeyGenProtocol) AggregateShares(share1, share2 EvaluationKeyGenShare, share3 *EvaluationKeyGenShare) {
 
+	if share1.LevelQ() != share2.LevelQ() || share1.LevelQ() != share3.LevelQ() {
+		panic(fmt.Errorf("cannot AggregateShares: share LevelQ do not match"))
+	}
+
+	if share1.LevelP() != share2.LevelP() || share1.LevelP() != share3.LevelP() {
+		panic(fmt.Errorf("cannot AggregateShares: share LevelP do not match"))
+	}
+
 	m1 := share1.Value
 	m2 := share2.Value
 	m3 := share3.Value
 
-	levelQ := m1[0][0].Q.Level()
-	levelP := m1[0][0].P.Level()
+	levelQ := share1.LevelQ()
+	levelP := share2.LevelP()
 
 	ringQP := evkg.params.RingQP().AtLevel(levelQ, levelP)
 
-	RNSDecomp := len(m1)
-	BITDecomp := len(m1[0])
-	for i := 0; i < RNSDecomp; i++ {
-		for j := 0; j < BITDecomp; j++ {
-			ringQP.Add(m1[i][j], m2[i][j], m3[i][j])
+	DecompRNS := share1.DecompRNS()
+	DecompPw2 := share1.DecompPw2()
+
+	for i := 0; i < DecompRNS; i++ {
+		for j := 0; j < DecompPw2; j++ {
+			ringQP.Add(m1[i][j][0], m2[i][j][0], m3[i][j][0])
 		}
 	}
 }
@@ -197,37 +206,60 @@ func (evkg EvaluationKeyGenProtocol) AggregateShares(share1, share2 EvaluationKe
 // GenEvaluationKey finalizes the EvaluationKey Generation and populates the input Evaluationkey with the computed collective EvaluationKey.
 func (evkg EvaluationKeyGenProtocol) GenEvaluationKey(share EvaluationKeyGenShare, crp EvaluationKeyGenCRP, evk *rlwe.EvaluationKey) {
 
+	if share.LevelQ() != evk.LevelQ() {
+		panic(fmt.Errorf("cannot GenEvaluationKey: share LevelQ != evk LevelQ"))
+	}
+
+	if share.LevelP() != evk.LevelP() {
+		panic(fmt.Errorf("cannot GenEvaluationKey: share LevelP != evk LevelP"))
+	}
+
 	m := share.Value
 	p := crp.Value
 
-	RNSDecomp := len(m)
-	BITDecomp := len(m[0])
-	for i := 0; i < RNSDecomp; i++ {
-		for j := 0; j < BITDecomp; j++ {
-			evk.Value[i][j][0].Copy(m[i][j])
+	DecompRNS := len(m)
+	DecompPw2 := len(m[0])
+	for i := 0; i < DecompRNS; i++ {
+		for j := 0; j < DecompPw2; j++ {
+			evk.Value[i][j][0].Copy(m[i][j][0])
 			evk.Value[i][j][1].Copy(p[i][j])
 		}
 	}
 }
 
-// EvaluationKeyGenShare is represent a Party's share in the EvaluationKey Generation protocol.
-type EvaluationKeyGenShare struct {
+// EvaluationKeyGenCRP is a type for common reference polynomials in the EvaluationKey Generation protocol.
+type EvaluationKeyGenCRP struct {
 	Value structs.Matrix[ringqp.Poly]
 }
 
 // LevelQ returns the level of the ciphertext modulus of the target share.
-func (share EvaluationKeyGenShare) LevelQ() int {
-	return share.Value[0][0].LevelQ()
+func (crp EvaluationKeyGenCRP) LevelQ() int {
+	return crp.Value[0][0].LevelQ()
 }
 
 // LevelP returns the level of the auxiliary switching key modulus of the target share.
-func (share EvaluationKeyGenShare) LevelP() int {
-	return share.Value[0][0].LevelP()
+func (crp EvaluationKeyGenCRP) LevelP() int {
+	return crp.Value[0][0].LevelP()
+}
+
+// DecompPw2 returns ceil(p.MaxBitQ(levelQ, levelP)/DecompPw2).
+func (crp EvaluationKeyGenCRP) DecompPw2() int {
+	return len(crp.Value[0])
+}
+
+// DecompRNS returns the number of element in the RNS decomposition basis: Ceil(lenQi / lenPi)
+func (crp EvaluationKeyGenCRP) DecompRNS() int {
+	return len(crp.Value)
+}
+
+// EvaluationKeyGenShare is represent a Party's share in the EvaluationKey Generation protocol.
+type EvaluationKeyGenShare struct {
+	rlwe.GadgetCiphertext
 }
 
 // BinarySize returns the serialized size of the object in bytes.
 func (share EvaluationKeyGenShare) BinarySize() int {
-	return share.Value.BinarySize()
+	return share.GadgetCiphertext.BinarySize()
 }
 
 // WriteTo writes the object on an io.Writer. It implements the io.WriterTo
@@ -242,7 +274,7 @@ func (share EvaluationKeyGenShare) BinarySize() int {
 //   - When writing to a pre-allocated var b []byte, it is preferable to pass
 //     buffer.NewBuffer(b) as w (see lattigo/utils/buffer/buffer.go).
 func (share EvaluationKeyGenShare) WriteTo(w io.Writer) (n int64, err error) {
-	return share.Value.WriteTo(w)
+	return share.GadgetCiphertext.WriteTo(w)
 }
 
 // ReadFrom reads on the object from an io.Writer. It implements the
@@ -257,16 +289,16 @@ func (share EvaluationKeyGenShare) WriteTo(w io.Writer) (n int64, err error) {
 //   - When reading from a var b []byte, it is preferable to pass a buffer.NewBuffer(b)
 //     as w (see lattigo/utils/buffer/buffer.go).
 func (share *EvaluationKeyGenShare) ReadFrom(r io.Reader) (n int64, err error) {
-	return share.Value.ReadFrom(r)
+	return share.GadgetCiphertext.ReadFrom(r)
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
 func (share EvaluationKeyGenShare) MarshalBinary() (p []byte, err error) {
-	return share.Value.MarshalBinary()
+	return share.GadgetCiphertext.MarshalBinary()
 }
 
 // UnmarshalBinary decodes a slice of bytes generated by
 // MarshalBinary or WriteTo on the object.
 func (share *EvaluationKeyGenShare) UnmarshalBinary(p []byte) (err error) {
-	return share.Value.UnmarshalBinary(p)
+	return share.GadgetCiphertext.UnmarshalBinary(p)
 }

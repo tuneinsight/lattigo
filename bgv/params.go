@@ -35,7 +35,6 @@ type ParametersLiteral struct {
 	P        []uint64
 	LogQ     []int `json:",omitempty"`
 	LogP     []int `json:",omitempty"`
-	Pow2Base int
 	Xe       ring.DistributionParameters
 	Xs       ring.DistributionParameters
 	RingType ring.Type
@@ -50,7 +49,6 @@ func (p ParametersLiteral) RLWEParametersLiteral() rlwe.ParametersLiteral {
 		P:              p.P,
 		LogQ:           p.LogQ,
 		LogP:           p.LogP,
-		Pow2Base:       p.Pow2Base,
 		Xe:             p.Xe,
 		Xs:             p.Xs,
 		RingType:       ring.Standard,
@@ -137,7 +135,6 @@ func (p Parameters) ParametersLiteral() ParametersLiteral {
 		LogN:     p.LogN(),
 		Q:        p.Q(),
 		P:        p.P(),
-		Pow2Base: p.Pow2Base(),
 		Xe:       p.Xe(),
 		Xs:       p.Xs(),
 		T:        p.T(),
@@ -261,7 +258,6 @@ func (p *ParametersLiteral) UnmarshalJSON(b []byte) (err error) {
 
 	p.LogN = pl.LogN
 	p.Q, p.P, p.LogQ, p.LogP = pl.Q, pl.P, pl.LogQ, pl.LogP
-	p.Pow2Base = pl.Pow2Base
 	if pl.Xs != nil {
 		p.Xs, err = ring.ParametersFromMap(pl.Xs)
 		if err != nil {

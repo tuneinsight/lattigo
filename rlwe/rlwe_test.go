@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
 	"github.com/tuneinsight/lattigo/v4/utils/buffer"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
@@ -18,15 +19,14 @@ import (
 
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 
-func testString(params Parameters, level int, opname string) string {
-	return fmt.Sprintf("%s/logN=%d/Qi=%d/Pi=%d/Bit=%d/NTT=%t/Level=%d/RingType=%s",
+func testString(params Parameters, levelQ, levelP, bpw2 int, opname string) string {
+	return fmt.Sprintf("%s/logN=%d/Qi=%d/Pi=%d/Pw2=%d/NTT=%t/RingType=%s",
 		opname,
 		params.LogN(),
-		params.QCount(),
-		params.PCount(),
-		params.Pow2Base(),
+		levelQ+1,
+		levelP+1,
+		bpw2,
 		params.NTTFlag(),
-		level,
 		params.RingType())
 }
 
@@ -42,11 +42,11 @@ func TestRLWE(t *testing.T) {
 	defaultParamsLiteral := testParamsLiteral
 
 	if *flagParamString != "" {
-		var jsonParams ParametersLiteral
+		var jsonParams TestParametersLiteral
 		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
 			t.Fatal(err)
 		}
-		defaultParamsLiteral = []ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
+		defaultParamsLiteral = []TestParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
 	for _, paramsLit := range defaultParamsLiteral[:] {
@@ -59,27 +59,27 @@ func TestRLWE(t *testing.T) {
 				paramsLit.RingType = RingType
 
 				var params Parameters
-				if params, err = NewParametersFromLiteral(paramsLit); err != nil {
+				if params, err = NewParametersFromLiteral(paramsLit.ParametersLiteral); err != nil {
 					t.Fatal(err)
 				}
 
 				tc := NewTestContext(params)
 
 				testParameters(tc, t)
-				testKeyGenerator(tc, t)
+				testKeyGenerator(tc, paramsLit.BaseTwoDecomposition, t)
 				testMarshaller(tc, t)
-				testWriteAndRead(tc, t)
+				testWriteAndRead(tc, paramsLit.BaseTwoDecomposition, t)
 
 				for _, level := range []int{0, params.MaxLevel()}[:] {
 
-					for _, testSet := range []func(tc *TestContext, level int, t *testing.T){
+					for _, testSet := range []func(tc *TestContext, level, bpw2 int, t *testing.T){
 						testEncryptor,
 						testGadgetProduct,
 						testApplyEvaluationKey,
 						testAutomorphism,
 						testLinearTransform,
 					} {
-						testSet(tc, level, t)
+						testSet(tc, level, paramsLit.BaseTwoDecomposition, t)
 						runtime.GC()
 					}
 				}
@@ -175,7 +175,7 @@ func testParameters(tc *TestContext, t *testing.T) {
 
 	params := tc.params
 
-	t.Run(testString(params, params.MaxLevel(), "ModInvGaloisElement"), func(t *testing.T) {
+	t.Run(testString(params, params.MaxLevelQ(), params.MaxLevelP(), 0, "ModInvGaloisElement"), func(t *testing.T) {
 
 		N := params.N()
 		mask := params.RingQ().NthRoot() - 1
@@ -189,7 +189,7 @@ func testParameters(tc *TestContext, t *testing.T) {
 	})
 }
 
-func testKeyGenerator(tc *TestContext, t *testing.T) {
+func testKeyGenerator(tc *TestContext, bpw2 int, t *testing.T) {
 
 	params := tc.params
 	kgen := tc.kgen
@@ -197,7 +197,7 @@ func testKeyGenerator(tc *TestContext, t *testing.T) {
 	pk := tc.pk
 
 	// Checks that the secret-key has exactly params.h non-zero coefficients
-	t.Run(testString(params, params.MaxLevel(), "KeyGenerator/GenSecretKey"), func(t *testing.T) {
+	t.Run(testString(params, params.MaxLevelQ(), params.MaxLevelP(), bpw2, "KeyGenerator/GenSecretKey"), func(t *testing.T) {
 
 		switch xs := params.Xs().(type) {
 		case ring.Ternary:
@@ -237,7 +237,7 @@ func testKeyGenerator(tc *TestContext, t *testing.T) {
 	})
 
 	// Checks that sum([-as + e, a] + [as])) <= N * 6 * sigma
-	t.Run(testString(params, params.MaxLevel(), "KeyGenerator/GenPublicKey"), func(t *testing.T) {
+	t.Run(testString(params, params.MaxLevelQ(), params.MaxLevelP(), bpw2, "KeyGenerator/GenPublicKey"), func(t *testing.T) {
 
 		if params.PCount() > 0 {
 
@@ -267,56 +267,76 @@ func testKeyGenerator(tc *TestContext, t *testing.T) {
 		}
 	})
 
-	// Checks that EvaluationKeys are en encryption under the output key
-	// of the RNS decomposition of the input key by
-	// 1) Decrypting the RNS decomposed input key
-	// 2) Reconstructing the key
-	// 3) Checking that the difference with the input key has a small norm
-	t.Run(testString(params, params.MaxLevel(), "KeyGenerator/GenEvaluationKey"), func(t *testing.T) {
+	var levelsQ = []int{0}
+	var levelsP = []int{0}
 
-		skOut := kgen.GenSecretKeyNew()
-		levelQ, levelP := params.MaxLevelQ(), params.MaxLevelP()
-		decompPW2 := params.DecompPw2(levelQ, levelP)
-		decompRNS := params.DecompRNS(levelQ, levelP)
+	if params.MaxLevelQ() > 0 {
+		levelsQ = append(levelsQ, params.MaxLevelQ())
+	}
 
-		// Generates Decomp([-asIn + w*P*sOut + e, a])
-		evk := kgen.GenEvaluationKeyNew(sk, skOut)
+	if params.MaxLevelP() > 0 {
+		levelsP = append(levelsP, params.MaxLevelP())
+	}
 
-		require.Equal(t, decompRNS*decompPW2, len(evk.Value)*len(evk.Value[0])) // checks that decomposition size is correct
+	for _, levelQ := range levelsQ {
 
-		require.True(t, EvaluationKeyIsCorrect(evk, sk, skOut, params, math.Log2(math.Sqrt(float64(decompRNS))*params.NoiseFreshSK())+1))
-	})
+		for _, levelP := range levelsP {
+			// Checks that EvaluationKeys are en encryption under the output key
+			// of the RNS decomposition of the input key by
+			// 1) Decrypting the RNS decomposed input key
+			// 2) Reconstructing the key
+			// 3) Checking that the difference with the input key has a small norm
+			t.Run(testString(params, levelQ, levelP, bpw2, "KeyGenerator/GenEvaluationKey"), func(t *testing.T) {
 
-	t.Run(testString(params, params.MaxLevel(), "KeyGenerator/GenRelinearizationKey"), func(t *testing.T) {
+				skOut := kgen.GenSecretKeyNew()
 
-		levelQ, levelP := params.MaxLevelQ(), params.MaxLevelP()
-		decompPW2 := params.DecompPw2(levelQ, levelP)
-		decompRNS := params.DecompRNS(levelQ, levelP)
+				decompRNS := params.DecompRNS(levelQ, levelP)
+				decompPW2 := params.DecompPw2(levelQ, levelP, bpw2)
 
-		// Generates Decomp([-asIn + w*P*sOut + e, a])
-		rlk := kgen.GenRelinearizationKeyNew(sk)
+				evk := NewEvaluationKey(params, levelQ, levelP, bpw2)
 
-		require.Equal(t, decompRNS*decompPW2, len(rlk.Value)*len(rlk.Value[0])) // checks that decomposition size is correct
+				// Generates Decomp([-asIn + w*P*sOut + e, a])
+				kgen.GenEvaluationKey(sk, skOut, evk)
 
-		require.True(t, RelinearizationKeyIsCorrect(rlk, sk, params, math.Log2(math.Sqrt(float64(decompRNS))*params.NoiseFreshSK())+1))
-	})
+				require.Equal(t, decompRNS*decompPW2, len(evk.Value)*len(evk.Value[0])) // checks that decomposition size is correct
 
-	t.Run(testString(params, params.MaxLevel(), "KeyGenerator/GenGaloisKey"), func(t *testing.T) {
+				require.True(t, EvaluationKeyIsCorrect(evk, sk, skOut, params, math.Log2(math.Sqrt(float64(decompRNS))*params.NoiseFreshSK())+1))
+			})
 
-		levelQ, levelP := params.MaxLevelQ(), params.MaxLevelP()
-		decompPW2 := params.DecompPw2(levelQ, levelP)
-		decompRNS := params.DecompRNS(levelQ, levelP)
+			t.Run(testString(params, levelQ, levelP, bpw2, "KeyGenerator/GenRelinearizationKey"), func(t *testing.T) {
 
-		// Generates Decomp([-asIn + w*P*sOut + e, a])
-		gk := kgen.GenGaloisKeyNew(ring.GaloisGen, sk)
+				decompRNS := params.DecompRNS(levelQ, levelP)
+				decompPW2 := params.DecompPw2(levelQ, levelP, bpw2)
 
-		require.Equal(t, decompRNS*decompPW2, len(gk.Value)*len(gk.Value[0])) // checks that decomposition size is correct
+				rlk := NewRelinearizationKey(params, levelQ, levelP, bpw2)
 
-		require.True(t, GaloisKeyIsCorrect(gk, sk, params, math.Log2(math.Sqrt(float64(decompRNS))*params.NoiseFreshSK())+1))
-	})
+				// Generates Decomp([-asIn + w*P*sOut + e, a])
+				kgen.GenRelinearizationKey(sk, rlk)
+
+				require.Equal(t, decompRNS*decompPW2, len(rlk.Value)*len(rlk.Value[0])) // checks that decomposition size is correct
+
+				require.True(t, RelinearizationKeyIsCorrect(rlk, sk, params, math.Log2(math.Sqrt(float64(decompRNS))*params.NoiseFreshSK())+1))
+			})
+
+			t.Run(testString(params, levelQ, levelP, bpw2, "KeyGenerator/GenGaloisKey"), func(t *testing.T) {
+
+				decompRNS := params.DecompRNS(levelQ, levelP)
+				decompPW2 := params.DecompPw2(levelQ, levelP, bpw2)
+
+				gk := NewGaloisKey(params, levelQ, levelP, bpw2)
+
+				// Generates Decomp([-asIn + w*P*sOut + e, a])
+				kgen.GenGaloisKey(ring.GaloisGen, sk, gk)
+
+				require.Equal(t, decompRNS*decompPW2, len(gk.Value)*len(gk.Value[0])) // checks that decomposition size is correct
+
+				require.True(t, GaloisKeyIsCorrect(gk, sk, params, math.Log2(math.Sqrt(float64(decompRNS))*params.NoiseFreshSK())+1))
+			})
+		}
+	}
 }
 
-func testEncryptor(tc *TestContext, level int, t *testing.T) {
+func testEncryptor(tc *TestContext, level, bpw2 int, t *testing.T) {
 
 	params := tc.params
 	kgen := tc.kgen
@@ -324,7 +344,7 @@ func testEncryptor(tc *TestContext, level int, t *testing.T) {
 	enc := tc.enc
 	dec := tc.dec
 
-	t.Run(testString(params, level, "Encryptor/Encrypt/Pk"), func(t *testing.T) {
+	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Encryptor/Encrypt/Pk"), func(t *testing.T) {
 		ringQ := params.RingQ().AtLevel(level)
 
 		pt := NewPlaintext(params, level)
@@ -340,7 +360,7 @@ func testEncryptor(tc *TestContext, level int, t *testing.T) {
 		require.GreaterOrEqual(t, math.Log2(params.NoiseFreshPK())+1, ringQ.Log2OfStandardDeviation(pt.Value))
 	})
 
-	t.Run(testString(params, level, "Encryptor/Encrypt/Pk/ShallowCopy"), func(t *testing.T) {
+	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Encryptor/Encrypt/Pk/ShallowCopy"), func(t *testing.T) {
 		enc1 := enc.WithKey(pk)
 		enc2 := enc1.ShallowCopy()
 		pkEnc1, pkEnc2 := enc1.(*EncryptorPublicKey), enc2.(*EncryptorPublicKey)
@@ -352,7 +372,7 @@ func testEncryptor(tc *TestContext, level int, t *testing.T) {
 		require.False(t, pkEnc1.xeSampler == pkEnc2.xeSampler)
 	})
 
-	t.Run(testString(params, level, "Encryptor/Encrypt/Sk"), func(t *testing.T) {
+	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Encryptor/Encrypt/Sk"), func(t *testing.T) {
 		ringQ := params.RingQ().AtLevel(level)
 
 		pt := NewPlaintext(params, level)
@@ -367,7 +387,7 @@ func testEncryptor(tc *TestContext, level int, t *testing.T) {
 		require.GreaterOrEqual(t, math.Log2(params.NoiseFreshSK())+1, ringQ.Log2OfStandardDeviation(pt.Value))
 	})
 
-	t.Run(testString(params, level, "Encryptor/Encrypt/Sk/PRNG"), func(t *testing.T) {
+	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Encryptor/Encrypt/Sk/PRNG"), func(t *testing.T) {
 		ringQ := params.RingQ().AtLevel(level)
 
 		pt := NewPlaintext(params, level)
@@ -393,7 +413,7 @@ func testEncryptor(tc *TestContext, level int, t *testing.T) {
 		require.GreaterOrEqual(t, math.Log2(params.NoiseFreshSK())+1, ringQ.Log2OfStandardDeviation(pt.Value))
 	})
 
-	t.Run(testString(params, level, "Encrypt/Sk/ShallowCopy"), func(t *testing.T) {
+	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Encrypt/Sk/ShallowCopy"), func(t *testing.T) {
 		enc1 := NewEncryptor(params, sk)
 		enc2 := enc1.ShallowCopy()
 		skEnc1, skEnc2 := enc1.(*EncryptorSecretKey), enc2.(*EncryptorSecretKey)
@@ -405,7 +425,7 @@ func testEncryptor(tc *TestContext, level int, t *testing.T) {
 		require.False(t, skEnc1.xeSampler == skEnc2.xeSampler)
 	})
 
-	t.Run(testString(params, level, "Encrypt/WithKey/Sk->Sk"), func(t *testing.T) {
+	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Encrypt/WithKey/Sk->Sk"), func(t *testing.T) {
 		sk2 := kgen.GenSecretKeyNew()
 		enc1 := NewEncryptor(params, sk)
 		enc2 := enc1.WithKey(sk2)
@@ -420,7 +440,7 @@ func testEncryptor(tc *TestContext, level int, t *testing.T) {
 	})
 }
 
-func testApplyEvaluationKey(tc *TestContext, level int, t *testing.T) {
+func testApplyEvaluationKey(tc *TestContext, level, bpw2 int, t *testing.T) {
 
 	params := tc.params
 	sk := tc.sk
@@ -431,7 +451,7 @@ func testApplyEvaluationKey(tc *TestContext, level int, t *testing.T) {
 
 	var NoiseBound = float64(params.LogN())
 
-	t.Run(testString(params, level, "Evaluator/ApplyEvaluationKey/SameDegree"), func(t *testing.T) {
+	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Evaluator/ApplyEvaluationKey/SameDegree"), func(t *testing.T) {
 
 		skOut := kgen.GenSecretKeyNew()
 
@@ -457,7 +477,7 @@ func testApplyEvaluationKey(tc *TestContext, level int, t *testing.T) {
 		require.GreaterOrEqual(t, NoiseBound, ringQ.Log2OfStandardDeviation(pt.Value))
 	})
 
-	t.Run(testString(params, level, "Evaluator/ApplyEvaluationKey/LargeToSmall"), func(t *testing.T) {
+	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Evaluator/ApplyEvaluationKey/LargeToSmall"), func(t *testing.T) {
 
 		paramsLargeDim := params
 
@@ -494,7 +514,7 @@ func testApplyEvaluationKey(tc *TestContext, level int, t *testing.T) {
 		require.GreaterOrEqual(t, NoiseBound, ringQSmallDim.Log2OfStandardDeviation(ptSmallDim.Value))
 	})
 
-	t.Run(testString(params, level, "Evaluator/ApplyEvaluationKey/SmallToLarge"), func(t *testing.T) {
+	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Evaluator/ApplyEvaluationKey/SmallToLarge"), func(t *testing.T) {
 
 		paramsLargeDim := params
 
@@ -530,7 +550,7 @@ func testApplyEvaluationKey(tc *TestContext, level int, t *testing.T) {
 	})
 }
 
-func testGadgetProduct(tc *TestContext, level int, t *testing.T) {
+func testGadgetProduct(tc *TestContext, level, bpw2 int, t *testing.T) {
 
 	params := tc.params
 	sk := tc.sk
@@ -545,77 +565,90 @@ func testGadgetProduct(tc *TestContext, level int, t *testing.T) {
 
 	var NoiseBound = float64(params.LogN())
 
-	t.Run(testString(params, level, "Evaluator/GadgetProduct"), func(t *testing.T) {
+	levelsP := []int{0}
 
-		skOut := kgen.GenSecretKeyNew()
+	if params.MaxLevelP() > 0 {
+		levelsP = append(levelsP, params.MaxLevelP())
+	}
 
-		// Generates a random polynomial
-		a := sampler.ReadNew()
+	for _, levelP := range levelsP {
 
-		// Generate the receiver
-		ct := NewCiphertext(params, 1, level)
+		t.Run(testString(params, level, levelP, bpw2, "Evaluator/GadgetProduct"), func(t *testing.T) {
 
-		// Generate the evaluationkey [-bs1 + s1, b]
-		evk := kgen.GenEvaluationKeyNew(sk, skOut)
+			skOut := kgen.GenSecretKeyNew()
 
-		// Gadget product: ct = [-cs1 + as0 , c]
-		eval.GadgetProduct(level, a, &evk.GadgetCiphertext, ct)
+			// Generates a random polynomial
+			a := sampler.ReadNew()
 
-		// pt = as0
-		pt := NewDecryptor(params, skOut).DecryptNew(ct)
+			// Generate the receiver
+			ct := NewCiphertext(params, 1, level)
 
-		ringQ := params.RingQ().AtLevel(level)
+			evk := NewEvaluationKey(params, level, levelP, bpw2)
 
-		// pt = as1 - as1 = 0 (+ some noise)
-		if !pt.IsNTT {
-			ringQ.NTT(pt.Value, pt.Value)
-			ringQ.NTT(a, a)
-		}
+			// Generate the evaluationkey [-bs1 + s1, b]
+			kgen.GenEvaluationKey(sk, skOut, evk)
 
-		ringQ.MulCoeffsMontgomeryThenSub(a, sk.Value.Q, pt.Value)
-		ringQ.INTT(pt.Value, pt.Value)
+			// Gadget product: ct = [-cs1 + as0 , c]
+			eval.GadgetProduct(level, a, &evk.GadgetCiphertext, ct)
 
-		require.GreaterOrEqual(t, NoiseBound, ringQ.Log2OfStandardDeviation(pt.Value))
-	})
+			// pt = as0
+			pt := NewDecryptor(params, skOut).DecryptNew(ct)
 
-	t.Run(testString(params, level, "Evaluator/GadgetProductHoisted"), func(t *testing.T) {
+			ringQ := params.RingQ().AtLevel(level)
 
-		skOut := kgen.GenSecretKeyNew()
+			// pt = as1 - as1 = 0 (+ some noise)
+			if !pt.IsNTT {
+				ringQ.NTT(pt.Value, pt.Value)
+				ringQ.NTT(a, a)
+			}
 
-		// Generates a random polynomial
-		a := sampler.ReadNew()
+			ringQ.MulCoeffsMontgomeryThenSub(a, sk.Value.Q, pt.Value)
+			ringQ.INTT(pt.Value, pt.Value)
 
-		// Generate the receiver
-		ct := NewCiphertext(params, 1, level)
+			require.GreaterOrEqual(t, NoiseBound, ringQ.Log2OfStandardDeviation(pt.Value))
+		})
 
-		// Generate the evaluationkey [-bs1 + s1, b]
-		evk := kgen.GenEvaluationKeyNew(sk, skOut)
+		t.Run(testString(params, level, levelP, bpw2, "Evaluator/GadgetProductHoisted"), func(t *testing.T) {
 
-		//Decompose the ciphertext
-		eval.DecomposeNTT(level, params.MaxLevelP(), params.MaxLevelP()+1, a, ct.IsNTT, eval.BuffDecompQP)
+			skOut := kgen.GenSecretKeyNew()
 
-		// Gadget product: ct = [-cs1 + as0 , c]
-		eval.GadgetProductHoisted(level, eval.BuffDecompQP, &evk.GadgetCiphertext, ct)
+			// Generates a random polynomial
+			a := sampler.ReadNew()
 
-		// pt = as0
-		pt := NewDecryptor(params, skOut).DecryptNew(ct)
+			// Generate the receiver
+			ct := NewCiphertext(params, 1, level)
 
-		ringQ := params.RingQ().AtLevel(level)
+			evk := NewEvaluationKey(params, level, levelP, bpw2)
 
-		// pt = as1 - as1 = 0 (+ some noise)
-		if !pt.IsNTT {
-			ringQ.NTT(pt.Value, pt.Value)
-			ringQ.NTT(a, a)
-		}
+			// Generate the evaluationkey [-bs1 + s1, b]
+			kgen.GenEvaluationKey(sk, skOut, evk)
 
-		ringQ.MulCoeffsMontgomeryThenSub(a, sk.Value.Q, pt.Value)
-		ringQ.INTT(pt.Value, pt.Value)
+			//Decompose the ciphertext
+			eval.DecomposeNTT(level, levelP, levelP+1, a, ct.IsNTT, eval.BuffDecompQP)
 
-		require.GreaterOrEqual(t, NoiseBound, ringQ.Log2OfStandardDeviation(pt.Value))
-	})
+			// Gadget product: ct = [-cs1 + as0 , c]
+			eval.GadgetProductHoisted(level, eval.BuffDecompQP, &evk.GadgetCiphertext, ct)
+
+			// pt = as0
+			pt := NewDecryptor(params, skOut).DecryptNew(ct)
+
+			ringQ := params.RingQ().AtLevel(level)
+
+			// pt = as1 - as1 = 0 (+ some noise)
+			if !pt.IsNTT {
+				ringQ.NTT(pt.Value, pt.Value)
+				ringQ.NTT(a, a)
+			}
+
+			ringQ.MulCoeffsMontgomeryThenSub(a, sk.Value.Q, pt.Value)
+			ringQ.INTT(pt.Value, pt.Value)
+
+			require.GreaterOrEqual(t, NoiseBound, ringQ.Log2OfStandardDeviation(pt.Value))
+		})
+	}
 }
 
-func testAutomorphism(tc *TestContext, level int, t *testing.T) {
+func testAutomorphism(tc *TestContext, level, bpw2 int, t *testing.T) {
 
 	params := tc.params
 	sk := tc.sk
@@ -626,7 +659,7 @@ func testAutomorphism(tc *TestContext, level int, t *testing.T) {
 
 	var NoiseBound = float64(params.LogN())
 
-	t.Run(testString(params, level, "Evaluator/Automorphism"), func(t *testing.T) {
+	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Evaluator/Automorphism"), func(t *testing.T) {
 
 		// Generate a plaintext with values up to 2^30
 		pt := genPlaintext(params, level, 1<<30)
@@ -671,7 +704,7 @@ func testAutomorphism(tc *TestContext, level int, t *testing.T) {
 		require.GreaterOrEqual(t, NoiseBound, ringQ.Log2OfStandardDeviation(pt.Value))
 	})
 
-	t.Run(testString(params, level, "Evaluator/AutomorphismHoisted"), func(t *testing.T) {
+	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Evaluator/AutomorphismHoisted"), func(t *testing.T) {
 		// Generate a plaintext with values up to 2^30
 		pt := genPlaintext(params, level, 1<<30)
 
@@ -718,7 +751,7 @@ func testAutomorphism(tc *TestContext, level int, t *testing.T) {
 		require.GreaterOrEqual(t, NoiseBound, ringQ.Log2OfStandardDeviation(pt.Value))
 	})
 
-	t.Run(testString(params, level, "Evaluator/AutomorphismHoistedLazy"), func(t *testing.T) {
+	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Evaluator/AutomorphismHoistedLazy"), func(t *testing.T) {
 		// Generate a plaintext with values up to 2^30
 		pt := genPlaintext(params, level, 1<<30)
 
@@ -770,7 +803,7 @@ func testAutomorphism(tc *TestContext, level int, t *testing.T) {
 	})
 }
 
-func testLinearTransform(tc *TestContext, level int, t *testing.T) {
+func testLinearTransform(tc *TestContext, level, bpw2 int, t *testing.T) {
 
 	params := tc.params
 	sk := tc.sk
@@ -779,7 +812,7 @@ func testLinearTransform(tc *TestContext, level int, t *testing.T) {
 	enc := tc.enc
 	dec := tc.dec
 
-	t.Run(testString(params, level, "Evaluator/Expand"), func(t *testing.T) {
+	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Evaluator/Expand"), func(t *testing.T) {
 
 		if params.RingType() != ring.Standard {
 			t.Skip("Expand not supported for ring.Type = ring.ConjugateInvariant")
@@ -840,7 +873,7 @@ func testLinearTransform(tc *TestContext, level int, t *testing.T) {
 		}
 	})
 
-	t.Run(testString(params, level, "Evaluator/Pack/LogGap=LogN"), func(t *testing.T) {
+	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Evaluator/Pack/LogGap=LogN"), func(t *testing.T) {
 
 		if params.RingType() != ring.Standard {
 			t.Skip("Pack not supported for ring.Type = ring.ConjugateInvariant")
@@ -903,7 +936,7 @@ func testLinearTransform(tc *TestContext, level int, t *testing.T) {
 		require.GreaterOrEqual(t, NoiseBound, ringQ.Log2OfStandardDeviation(pt.Value))
 	})
 
-	t.Run(testString(params, level, "Evaluator/Pack/LogGap=LogN-1"), func(t *testing.T) {
+	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Evaluator/Pack/LogGap=LogN-1"), func(t *testing.T) {
 
 		if params.RingType() != ring.Standard {
 			t.Skip("Pack not supported for ring.Type = ring.ConjugateInvariant")
@@ -963,7 +996,7 @@ func testLinearTransform(tc *TestContext, level int, t *testing.T) {
 		require.GreaterOrEqual(t, NoiseBound, ringQ.Log2OfStandardDeviation(pt.Value))
 	})
 
-	t.Run(testString(params, level, "Evaluator/InnerSum"), func(t *testing.T) {
+	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Evaluator/InnerSum"), func(t *testing.T) {
 
 		batch := 5
 		n := 7
@@ -1029,84 +1062,92 @@ func genPlaintext(params Parameters, level, max int) (pt *Plaintext) {
 	return
 }
 
-func testWriteAndRead(tc *TestContext, t *testing.T) {
+func testWriteAndRead(tc *TestContext, bpw2 int, t *testing.T) {
 
 	params := tc.params
 
 	sk, pk := tc.sk, tc.pk
 
-	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/OperandQ"), func(t *testing.T) {
+	levelQ := params.MaxLevelQ()
+	levelP := params.MaxLevelP()
+
+	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/OperandQ"), func(t *testing.T) {
 		prng, _ := sampling.NewPRNG()
-		plaintextWant := NewPlaintext(params, params.MaxLevel())
+		plaintextWant := NewPlaintext(params, levelQ)
 		ring.NewUniformSampler(prng, params.RingQ()).Read(plaintextWant.Value)
 		buffer.RequireSerializerCorrect(t, &plaintextWant.OperandQ)
 	})
 
-	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/Plaintext"), func(t *testing.T) {
+	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/Plaintext"), func(t *testing.T) {
 		prng, _ := sampling.NewPRNG()
-		plaintextWant := NewPlaintext(params, params.MaxLevel())
+		plaintextWant := NewPlaintext(params, levelQ)
 		ring.NewUniformSampler(prng, params.RingQ()).Read(plaintextWant.Value)
 		buffer.RequireSerializerCorrect(t, plaintextWant)
 	})
 
-	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/Ciphertext"), func(t *testing.T) {
+	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/Ciphertext"), func(t *testing.T) {
 
 		prng, _ := sampling.NewPRNG()
 
 		for degree := 0; degree < 4; degree++ {
 			t.Run(fmt.Sprintf("degree=%d", degree), func(t *testing.T) {
-				buffer.RequireSerializerCorrect(t, NewCiphertextRandom(prng, params, degree, params.MaxLevel()))
+				buffer.RequireSerializerCorrect(t, NewCiphertextRandom(prng, params, degree, levelQ))
 			})
 		}
 	})
 
-	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/CiphertextQP"), func(t *testing.T) {
-		buffer.RequireSerializerCorrect(t, &OperandQP{Value: tc.pk.Value[:]})
+	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/CiphertextQP"), func(t *testing.T) {
+		buffer.RequireSerializerCorrect(t, &OperandQP{Value: []ringqp.Poly(tc.pk.Value)})
 	})
 
-	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/GadgetCiphertext"), func(t *testing.T) {
-		buffer.RequireSerializerCorrect(t, &tc.kgen.GenRelinearizationKeyNew(tc.sk).GadgetCiphertext)
+	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/GadgetCiphertext"), func(t *testing.T) {
+
+		rlk := NewRelinearizationKey(params, levelQ, levelP, bpw2)
+
+		tc.kgen.GenRelinearizationKey(tc.sk, rlk)
+
+		buffer.RequireSerializerCorrect(t, &rlk.GadgetCiphertext)
 	})
 
-	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/Sk"), func(t *testing.T) {
+	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/Sk"), func(t *testing.T) {
 		buffer.RequireSerializerCorrect(t, sk)
 	})
 
-	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/Pk"), func(t *testing.T) {
+	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/Pk"), func(t *testing.T) {
 		buffer.RequireSerializerCorrect(t, pk)
 	})
 
-	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/EvaluationKey"), func(t *testing.T) {
+	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/EvaluationKey"), func(t *testing.T) {
 		buffer.RequireSerializerCorrect(t, tc.kgen.GenEvaluationKeyNew(sk, sk))
 	})
 
-	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/RelinearizationKey"), func(t *testing.T) {
+	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/RelinearizationKey"), func(t *testing.T) {
 		buffer.RequireSerializerCorrect(t, tc.kgen.GenRelinearizationKeyNew(tc.sk))
 	})
 
-	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/GaloisKey"), func(t *testing.T) {
+	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/GaloisKey"), func(t *testing.T) {
 		buffer.RequireSerializerCorrect(t, tc.kgen.GenGaloisKeyNew(5, tc.sk))
 	})
 
-	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/EvaluationKeySet"), func(t *testing.T) {
+	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/EvaluationKeySet"), func(t *testing.T) {
 		buffer.RequireSerializerCorrect(t, &MemEvaluationKeySet{
 			Rlk: tc.kgen.GenRelinearizationKeyNew(tc.sk),
 			Gks: map[uint64]*GaloisKey{5: tc.kgen.GenGaloisKeyNew(5, tc.sk)},
 		})
 	})
 
-	t.Run(testString(params, params.MaxLevel(), "WriteAndRead/PowerBasis"), func(t *testing.T) {
+	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/PowerBasis"), func(t *testing.T) {
 
 		prng, _ := sampling.NewPRNG()
 
-		ct := NewCiphertextRandom(prng, params, 1, params.MaxLevel())
+		ct := NewCiphertextRandom(prng, params, 1, levelQ)
 
 		basis := NewPowerBasis(ct, polynomial.Chebyshev, nil)
 
-		basis.Value[2] = NewCiphertextRandom(prng, params, 1, params.MaxLevel())
-		basis.Value[3] = NewCiphertextRandom(prng, params, 2, params.MaxLevel())
-		basis.Value[4] = NewCiphertextRandom(prng, params, 1, params.MaxLevel())
-		basis.Value[8] = NewCiphertextRandom(prng, params, 1, params.MaxLevel())
+		basis.Value[2] = NewCiphertextRandom(prng, params, 1, levelQ)
+		basis.Value[3] = NewCiphertextRandom(prng, params, 2, levelQ)
+		basis.Value[4] = NewCiphertextRandom(prng, params, 1, levelQ)
+		basis.Value[8] = NewCiphertextRandom(prng, params, 1, levelQ)
 
 		buffer.RequireSerializerCorrect(t, &basis)
 	})

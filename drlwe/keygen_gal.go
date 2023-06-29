@@ -41,14 +41,14 @@ func NewGaloisKeyGenProtocol(params rlwe.Parameters) (gkg GaloisKeyGenProtocol) 
 }
 
 // AllocateShare allocates a party's share in the GaloisKey Generation.
-func (gkg GaloisKeyGenProtocol) AllocateShare() (gkgShare GaloisKeyGenShare) {
-	return GaloisKeyGenShare{EvaluationKeyGenShare: gkg.EvaluationKeyGenProtocol.AllocateShare()}
+func (gkg GaloisKeyGenProtocol) AllocateShare(levelQ, levelP, BaseTwoDecomposition int) (gkgShare GaloisKeyGenShare) {
+	return GaloisKeyGenShare{EvaluationKeyGenShare: gkg.EvaluationKeyGenProtocol.AllocateShare(levelQ, levelP, BaseTwoDecomposition)}
 }
 
 // SampleCRP samples a common random polynomial to be used in the GaloisKey Generation from the provided
 // common reference string.
-func (gkg GaloisKeyGenProtocol) SampleCRP(crs CRS) GaloisKeyGenCRP {
-	return GaloisKeyGenCRP{gkg.EvaluationKeyGenProtocol.SampleCRP(crs)}
+func (gkg GaloisKeyGenProtocol) SampleCRP(crs CRS, levelQ, levelP, BaseTwoDecomposition int) GaloisKeyGenCRP {
+	return GaloisKeyGenCRP{gkg.EvaluationKeyGenProtocol.SampleCRP(crs, levelQ, levelP, BaseTwoDecomposition)}
 }
 
 // GenShare generates a party's share in the GaloisKey Generation.
@@ -96,7 +96,7 @@ func (gkg GaloisKeyGenProtocol) GenGaloisKey(share GaloisKeyGenShare, crp Galois
 
 // BinarySize returns the serialized size of the object in bytes.
 func (share GaloisKeyGenShare) BinarySize() int {
-	return 8 + share.Value.BinarySize()
+	return 8 + share.EvaluationKeyGenShare.BinarySize()
 }
 
 // WriteTo writes the object on an io.Writer. It implements the io.WriterTo
@@ -122,7 +122,7 @@ func (share GaloisKeyGenShare) WriteTo(w io.Writer) (n int64, err error) {
 		n += int64(inc)
 
 		var inc2 int64
-		if inc2, err = share.Value.WriteTo(w); err != nil {
+		if inc2, err = share.EvaluationKeyGenShare.WriteTo(w); err != nil {
 			return n + inc2, err
 		}
 
@@ -157,7 +157,7 @@ func (share *GaloisKeyGenShare) ReadFrom(r io.Reader) (n int64, err error) {
 		n += int64(inc)
 
 		var inc64 int64
-		if inc64, err = share.Value.ReadFrom(r); err != nil {
+		if inc64, err = share.EvaluationKeyGenShare.ReadFrom(r); err != nil {
 			return n + inc64, err
 		}
 

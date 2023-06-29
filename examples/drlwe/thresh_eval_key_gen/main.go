@@ -82,7 +82,7 @@ func (p *party) Run(wg *sync.WaitGroup, params rlwe.Parameters, N int, P []*part
 		}
 
 		for _, galEl := range task.galoisEls {
-			rtgShare := p.AllocateShare()
+			rtgShare := p.AllocateShare(params.MaxLevelQ(), params.MaxLevelP(), 0)
 
 			p.GenShare(sk, galEl, crp[galEl], &rtgShare)
 			C.aggTaskQueue <- genTaskResult{galEl: galEl, rtgShare: rtgShare}
@@ -113,7 +113,7 @@ func (c *cloud) Run(galEls []uint64, params rlwe.Parameters, t int) {
 		shares[galEl] = &struct {
 			share  drlwe.GaloisKeyGenShare
 			needed int
-		}{c.AllocateShare(), t}
+		}{c.AllocateShare(params.MaxLevelQ(), params.MaxLevelP(), 0), t}
 		shares[galEl].share.GaloisElement = galEl
 	}
 
@@ -126,7 +126,7 @@ func (c *cloud) Run(galEls []uint64, params rlwe.Parameters, t int) {
 		c.GaloisKeyGenProtocol.AggregateShares(acc.share, task.rtgShare, &acc.share)
 		acc.needed--
 		if acc.needed == 0 {
-			gk := rlwe.NewGaloisKey(params)
+			gk := rlwe.NewGaloisKey(params, params.MaxLevelQ(), params.MaxLevelP(), 0)
 			c.GenGaloisKey(acc.share, crp[task.galEl], gk)
 			c.finDone <- *gk
 		}
@@ -272,7 +272,7 @@ func main() {
 	// For the scenario, we consider it is provided as-is to the parties.
 	crp = make(map[uint64]drlwe.GaloisKeyGenCRP)
 	for _, galEl := range galEls {
-		crp[galEl] = P[0].SampleCRP(crs)
+		crp[galEl] = P[0].SampleCRP(crs, params.MaxLevelQ(), params.MaxLevelP(), 0)
 	}
 
 	// Start the cloud and the parties

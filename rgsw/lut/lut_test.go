@@ -50,10 +50,9 @@ func testLUT(t *testing.T) {
 	// RLWE parameters of the LUT
 	// N=1024, Q=0x7fff801 -> 2^131
 	paramsLUT, err := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
-		LogN:     10,
-		Q:        []uint64{0x7fff801},
-		Pow2Base: 6,
-		NTTFlag:  NTTFlag,
+		LogN:    10,
+		Q:       []uint64{0x7fff801},
+		NTTFlag: NTTFlag,
 	})
 
 	assert.Nil(t, err)
@@ -65,6 +64,8 @@ func testLUT(t *testing.T) {
 		Q:       []uint64{0x3001},
 		NTTFlag: NTTFlag,
 	})
+
+	BaseTwoDecomposition := 6
 
 	assert.Nil(t, err)
 
@@ -120,13 +121,13 @@ func testLUT(t *testing.T) {
 		encryptorLWE.Encrypt(ptLWE, ctLWE)
 
 		// Evaluator for the LUT evaluation
-		eval := NewEvaluator(paramsLUT, paramsLWE, nil)
+		eval := NewEvaluator(paramsLUT, paramsLWE, BaseTwoDecomposition, nil)
 
 		// Secret of the RGSW ciphertexts encrypting the bits of skLWE
 		skLUT := rlwe.NewKeyGenerator(paramsLUT).GenSecretKeyNew()
 
 		// Collection of RGSW ciphertexts encrypting the bits of skLWE under skLUT
-		LUTKEY := GenEvaluationKeyNew(paramsLUT, skLUT, paramsLWE, skLWE)
+		LUTKEY := GenEvaluationKeyNew(paramsLUT, skLUT, paramsLWE, skLWE, BaseTwoDecomposition)
 
 		// Evaluation of LUT(ctLWE)
 		// Returns one RLWE sample per slot in ctLWE

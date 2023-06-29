@@ -343,11 +343,27 @@ func (enc EncryptorSecretKey) EncryptZero(ct interface{}) {
 			enc.params.RingQ().AtLevel(ct.Level()).NTT(c1, c1)
 		}
 
-		enc.encryptZero(ct, c1)
-	case *OperandQP:
-		enc.encryptZeroQP(*ct)
+		enc.encryptZero(ct.OperandQ, c1)
+
 	case OperandQP:
-		enc.encryptZeroQP(ct)
+
+		var c1 ringqp.Poly
+
+		if ct.Degree() == 1 {
+			c1 = ct.Value[1]
+		} else {
+			c1 = enc.buffQP
+		}
+
+		// ct = (e, a)
+		enc.uniformSampler.AtLevel(ct.LevelQ(), ct.LevelP()).Read(c1)
+
+		if !ct.IsNTT {
+			enc.params.RingQP().AtLevel(ct.LevelQ(), ct.LevelP()).NTT(c1, c1)
+		}
+
+		enc.encryptZeroQP(ct, c1)
+
 	default:
 		panic(fmt.Sprintf("cannot EncryptZero: input ciphertext type %T is not supported", ct))
 	}
@@ -362,7 +378,7 @@ func (enc EncryptorSecretKey) EncryptZeroNew(level int) (ct *Ciphertext) {
 	return
 }
 
-func (enc EncryptorSecretKey) encryptZero(ct *Ciphertext, c1 ring.Poly) {
+func (enc EncryptorSecretKey) encryptZero(ct OperandQ, c1 ring.Poly) {
 
 	levelQ := ct.Level()
 
@@ -393,12 +409,12 @@ func (enc EncryptorSecretKey) encryptZero(ct *Ciphertext, c1 ring.Poly) {
 // sk     : secret key
 // sampler: uniform sampler; if `sampler` is nil, then the internal sampler will be used.
 // montgomery: returns the result in the Montgomery domain.
-func (enc EncryptorSecretKey) encryptZeroQP(ct OperandQP) {
+func (enc EncryptorSecretKey) encryptZeroQP(ct OperandQP, c1 ringqp.Poly) {
 
-	c0, c1 := ct.Value[0], ct.Value[1]
-
-	levelQ, levelP := c0.LevelQ(), c1.LevelP()
+	levelQ, levelP := ct.LevelQ(), ct.LevelP()
 	ringQP := enc.params.RingQP().AtLevel(levelQ, levelP)
+
+	c0 := ct.Value[0]
 
 	// ct = (e, 0)
 	enc.xeSampler.AtLevel(levelQ).Read(c0.Q)
@@ -411,9 +427,6 @@ func (enc EncryptorSecretKey) encryptZeroQP(ct OperandQP) {
 	// thus -as will also be in the Montgomery domain (s is by default), therefore 'e'
 	// must be switched to the Montgomery domain.
 	ringQP.MForm(c0, c0)
-
-	// ct = (e, a)
-	enc.uniformSampler.AtLevel(levelQ, levelP).Read(c1)
 
 	// (-a*sk + e, a)
 	ringQP.MulCoeffsMontgomeryThenSub(c1, enc.sk.Value, c0)

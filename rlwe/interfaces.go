@@ -33,8 +33,7 @@ type ParametersInterface interface {
 	RingP() *ring.Ring
 	RingQP() *ringqp.Ring
 	DecompRNS(levelQ, levelP int) int
-	Pow2Base() int
-	DecompPw2(levelQ, levelP int) int
+	DecompPw2(levelQ, levelP, Base2Decomposition int) int
 	NTTFlag() bool
 	Xe() ring.DistributionParameters
 	Xs() ring.DistributionParameters

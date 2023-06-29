@@ -52,7 +52,6 @@ type ParametersLiteral struct {
 	P              []uint64                    `json:",omitempty"`
 	LogQ           []int                       `json:",omitempty"`
 	LogP           []int                       `json:",omitempty"`
-	Pow2Base       int                         `json:",omitempty"`
 	Xe             ring.DistributionParameters `json:",omitempty"`
 	Xs             ring.DistributionParameters `json:",omitempty"`
 	RingType       ring.Type                   `json:",omitempty"`
@@ -66,7 +65,6 @@ type Parameters struct {
 	logN           int
 	qi             []uint64
 	pi             []uint64
-	pow2Base       int
 	xe             distribution
 	xs             distribution
 	ringQ          *ring.Ring
@@ -79,11 +77,7 @@ type Parameters struct {
 // NewParameters returns a new set of generic RLWE parameters from the given ring degree logn, moduli q and p, and
 // error distribution Xs (secret) and Xe (error). It returns the empty parameters Parameters{} and a non-nil error if the
 // specified parameters are invalid.
-func NewParameters(logn int, q, p []uint64, pow2Base int, xs, xe DistributionLiteral, ringType ring.Type, plaintextScale Scale, NTTFlag bool) (params Parameters, err error) {
-
-	if pow2Base != 0 && len(p) > 1 {
-		return Parameters{}, fmt.Errorf("rlwe.NewParameters: invalid parameters, cannot have pow2Base > 0 if len(P) > 1")
-	}
+func NewParameters(logn int, q, p []uint64, xs, xe DistributionLiteral, ringType ring.Type, plaintextScale Scale, NTTFlag bool) (params Parameters, err error) {
 
 	var lenP int
 	if p != nil {
@@ -98,7 +92,6 @@ func NewParameters(logn int, q, p []uint64, pow2Base int, xs, xe DistributionLit
 		logN:           logn,
 		qi:             make([]uint64, len(q)),
 		pi:             make([]uint64, lenP),
-		pow2Base:       pow2Base,
 		ringType:       ringType,
 		plaintextScale: plaintextScale,
 		nttFlag:        NTTFlag,
@@ -189,7 +182,7 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (params Parameters, er
 
 	switch {
 	case paramDef.Q != nil && paramDef.LogQ == nil:
-		return NewParameters(paramDef.LogN, paramDef.Q, paramDef.P, paramDef.Pow2Base, paramDef.Xs, paramDef.Xe, paramDef.RingType, paramDef.PlaintextScale, paramDef.NTTFlag)
+		return NewParameters(paramDef.LogN, paramDef.Q, paramDef.P, paramDef.Xs, paramDef.Xe, paramDef.RingType, paramDef.PlaintextScale, paramDef.NTTFlag)
 	case paramDef.LogQ != nil && paramDef.Q == nil:
 		var q, p []uint64
 		switch paramDef.RingType {
@@ -203,7 +196,7 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (params Parameters, er
 		if err != nil {
 			return Parameters{}, err
 		}
-		return NewParameters(paramDef.LogN, q, p, paramDef.Pow2Base, paramDef.Xs, paramDef.Xe, paramDef.RingType, paramDef.PlaintextScale, paramDef.NTTFlag)
+		return NewParameters(paramDef.LogN, q, p, paramDef.Xs, paramDef.Xe, paramDef.RingType, paramDef.PlaintextScale, paramDef.NTTFlag)
 	default:
 		return Parameters{}, fmt.Errorf("rlwe.NewParametersFromLiteral: invalid parameter literal")
 	}
@@ -242,7 +235,6 @@ func (p Parameters) ParametersLiteral() ParametersLiteral {
 		LogN:           p.logN,
 		Q:              Q,
 		P:              P,
-		Pow2Base:       p.pow2Base,
 		Xe:             p.xe.params,
 		Xs:             p.xs.params,
 		RingType:       p.ringType,
@@ -521,12 +513,6 @@ func (p Parameters) LogQP() (logqp float64) {
 	return p.LogQ() + p.LogP()
 }
 
-// Pow2Base returns the base 2^x decomposition used for the GadgetCiphertexts.
-// Returns 0 if no decomposition is used (the case where x = 0).
-func (p Parameters) Pow2Base() int {
-	return p.pow2Base
-}
-
 // MaxBit returns max(max(bitLen(Q[:levelQ+1])), max(bitLen(P[:levelP+1])).
 func (p Parameters) MaxBit(levelQ, levelP int) (c int) {
 	for _, qi := range p.Q()[:levelQ+1] {
@@ -539,13 +525,13 @@ func (p Parameters) MaxBit(levelQ, levelP int) (c int) {
 	return
 }
 
-// DecompPw2 returns ceil(p.MaxBitQ(levelQ, levelP)/bitDecomp).
-func (p Parameters) DecompPw2(levelQ, levelP int) (c int) {
-	if p.pow2Base == 0 || levelP > 0 {
+// DecompPw2 returns ceil(p.MaxBitQ(levelQ, levelP)/Base2Decomposition).
+func (p Parameters) DecompPw2(levelQ, levelP, Base2Decomposition int) (c int) {
+	if Base2Decomposition == 0 || levelP > 0 {
 		return 1
 	}
 
-	return (p.MaxBit(levelQ, levelP) + p.pow2Base - 1) / p.pow2Base
+	return (p.MaxBit(levelQ, levelP) + Base2Decomposition - 1) / Base2Decomposition
 }
 
 // DecompRNS returns the number of element in the RNS decomposition basis: Ceil(lenQi / lenPi)
@@ -921,7 +907,6 @@ func (p *ParametersLiteral) UnmarshalJSON(b []byte) (err error) {
 		P              []uint64
 		LogQ           []int
 		LogP           []int
-		Pow2Base       int
 		Xe             map[string]interface{}
 		Xs             map[string]interface{}
 		RingType       ring.Type
@@ -936,7 +921,6 @@ func (p *ParametersLiteral) UnmarshalJSON(b []byte) (err error) {
 
 	p.LogN = pl.LogN
 	p.Q, p.P, p.LogQ, p.LogP = pl.Q, pl.P, pl.LogQ, pl.LogP
-	p.Pow2Base = pl.Pow2Base
 	if pl.Xs != nil {
 		p.Xs, err = ring.ParametersFromMap(pl.Xs)
 		if err != nil {

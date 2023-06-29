@@ -86,7 +86,7 @@ func (eval Evaluator) externalProduct32Bit(ct0 *rlwe.Ciphertext, rgsw *Ciphertex
 	// ctOut = [<ct, rgsw[0]>, <ct, rgsw[1]>] = [ct[0] * rgsw[0][0] + ct[1] * rgsw[0][1], ct[0] * rgsw[1][0] + ct[1] * rgsw[1][1]]
 	ringQ := eval.params.RingQ().AtLevel(0)
 	subRing := ringQ.SubRings[0]
-	pw2 := eval.params.Pow2Base()
+	pw2 := rgsw.Value[0].BaseTwoDecomposition
 	mask := uint64(((1 << pw2) - 1))
 
 	cw := eval.BuffQP[0].Q.Coeffs[0]
@@ -127,14 +127,14 @@ func (eval Evaluator) externalProductInPlaceSinglePAndBitDecomp(ct0 *rlwe.Cipher
 	ringQ := ringQP.RingQ
 	ringP := ringQP.RingP
 
-	pw2 := eval.params.Pow2Base()
+	pw2 := rgsw.Value[0].BaseTwoDecomposition
 	mask := uint64(((1 << pw2) - 1))
 	if mask == 0 {
 		mask = 0xFFFFFFFFFFFFFFFF
 	}
 
-	decompRNS := eval.params.DecompRNS(levelQ, levelP)
-	decompPw2 := eval.params.DecompPw2(levelQ, levelP)
+	decompRNS := rgsw.Value[0].DecompRNS()
+	decompPw2 := rgsw.Value[0].DecompPw2()
 
 	// (a, b) + (c0 * rgsw[k][0], c0 * rgsw[k][1])
 	for k, el := range rgsw.Value {

@@ -24,10 +24,9 @@ func main() {
 	// RLWE parameters of the LUT
 	// N=1024, Q=2^27 -> 2^131
 	paramsLUT, _ := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
-		LogN:     10,
-		LogQ:     []int{27},
-		Pow2Base: 7,
-		NTTFlag:  true,
+		LogN:    10,
+		LogQ:    []int{27},
+		NTTFlag: true,
 	})
 
 	// RLWE parameters of the samples
@@ -37,6 +36,8 @@ func main() {
 		LogQ:    []int{13},
 		NTTFlag: true,
 	})
+
+	Base2Decomposition := 7
 
 	// Scale of the RLWE samples
 	scaleLWE := float64(paramsLWE.Q()[0]) / 4.0
@@ -85,7 +86,7 @@ func main() {
 	encryptorLWE.Encrypt(ptLWE, ctLWE)
 
 	// Evaluator for the LUT evaluation
-	eval := lut.NewEvaluator(paramsLUT, paramsLWE, nil)
+	eval := lut.NewEvaluator(paramsLUT, paramsLWE, Base2Decomposition, nil)
 
 	eval.Sk = skLWE
 
@@ -93,7 +94,7 @@ func main() {
 	skLUT := rlwe.NewKeyGenerator(paramsLUT).GenSecretKeyNew()
 
 	// Collection of RGSW ciphertexts encrypting the bits of skLWE under skLUT
-	LUTKEY := lut.GenEvaluationKeyNew(paramsLUT, skLUT, paramsLWE, skLWE)
+	LUTKEY := lut.GenEvaluationKeyNew(paramsLUT, skLUT, paramsLWE, skLWE, Base2Decomposition)
 
 	// Evaluation of LUT(ctLWE)
 	// Returns one RLWE sample per slot in ctLWE

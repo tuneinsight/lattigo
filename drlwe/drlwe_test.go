@@ -19,15 +19,14 @@ var nbParties = int(5)
 
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 
-func testString(params rlwe.Parameters, level int, opname string) string {
-	return fmt.Sprintf("%s/logN=%d/#Qi=%d/#Pi=%d/BitDecomp=%d/NTT=%t/Level=%d/RingType=%s/Parties=%d",
+func testString(params rlwe.Parameters, opname string, levelQ, levelP, bpw2 int) string {
+	return fmt.Sprintf("%s/logN=%d/#Qi=%d/#Pi=%d/Pw2=%d/NTT=%t/RingType=%s/Parties=%d",
 		opname,
 		params.LogN(),
-		params.QCount(),
-		params.PCount(),
-		params.Pow2Base(),
+		levelQ+1,
+		levelP+1,
+		bpw2,
 		params.NTTFlag(),
-		level,
 		params.RingType(),
 		nbParties)
 }
@@ -68,14 +67,16 @@ func TestDRLWE(t *testing.T) {
 	defaultParamsLiteral := testParamsLiteral
 
 	if *flagParamString != "" {
-		var jsonParams rlwe.ParametersLiteral
+		var jsonParams TestParametersLiteral
 		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
 			t.Fatal(err)
 		}
-		defaultParamsLiteral = []rlwe.ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
+		defaultParamsLiteral = []TestParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
 	for _, paramsLit := range defaultParamsLiteral {
+
+		bpw2 := paramsLit.BaseTwoDecomposition
 
 		for _, NTTFlag := range []bool{true, false} {
 
@@ -85,26 +86,39 @@ func TestDRLWE(t *testing.T) {
 				paramsLit.RingType = RingType
 
 				var params rlwe.Parameters
-				if params, err = rlwe.NewParametersFromLiteral(paramsLit); err != nil {
+				if params, err = rlwe.NewParametersFromLiteral(paramsLit.ParametersLiteral); err != nil {
 					t.Fatal(err)
 				}
 
 				tc := newTestContext(params)
 
-				testPublicKeyGenProtocol(tc, params.MaxLevel(), t)
-				testRelinKeyGenProtocol(tc, params.MaxLevel(), t)
-				testEvaluationKeyGenProtocol(tc, params.MaxLevel(), t)
-				testGaloisKeyGenProtocol(tc, params.MaxLevel(), t)
-				testThreshold(tc, params.MaxLevel(), t)
-				testRefreshShare(tc, params.MaxLevel(), t)
+				testPublicKeyGenProtocol(tc, params.MaxLevelQ(), params.MaxLevelP(), bpw2, t)
+				testThreshold(tc, params.MaxLevelQ(), params.MaxLevelP(), bpw2, t)
+				testRefreshShare(tc, params.MaxLevelQ(), params.MaxLevelP(), bpw2, t)
 
-				for _, level := range []int{0, params.MaxLevel()} {
-					for _, testSet := range []func(tc *testContext, level int, t *testing.T){
-						testKeySwitchProtocol,
-						testPublicKeySwitchProtocol,
-					} {
-						testSet(tc, level, t)
-						runtime.GC()
+				levelsQ := []int{0}
+				levelsP := []int{0}
+
+				if params.MaxLevelQ() > 0 {
+					levelsQ = append(levelsQ, params.MaxLevelQ())
+				}
+
+				if params.MaxLevelP() > 0 {
+					levelsP = append(levelsP, params.MaxLevelP())
+				}
+
+				for _, levelQ := range levelsQ {
+					for _, levelP := range levelsP {
+						for _, testSet := range []func(tc *testContext, levelQ, levelP, bpw2 int, t *testing.T){
+							testEvaluationKeyGenProtocol,
+							testRelinKeyGenProtocol,
+							testGaloisKeyGenProtocol,
+							testKeySwitchProtocol,
+							testPublicKeySwitchProtocol,
+						} {
+							testSet(tc, levelQ, levelP, bpw2, t)
+							runtime.GC()
+						}
 					}
 				}
 			}
@@ -112,11 +126,11 @@ func TestDRLWE(t *testing.T) {
 	}
 }
 
-func testPublicKeyGenProtocol(tc *testContext, level int, t *testing.T) {
+func testPublicKeyGenProtocol(tc *testContext, levelQ, levelP, bpw2 int, t *testing.T) {
 
 	params := tc.params
 
-	t.Run(testString(params, level, "PublicKeyGen/Protocol"), func(t *testing.T) {
+	t.Run(testString(params, "PublicKeyGen/Protocol", levelQ, levelP, bpw2), func(t *testing.T) {
 
 		ckg := make([]PublicKeyGenProtocol, nbParties)
 		for i := range ckg {
@@ -152,10 +166,10 @@ func testPublicKeyGenProtocol(tc *testContext, level int, t *testing.T) {
 	})
 }
 
-func testRelinKeyGenProtocol(tc *testContext, level int, t *testing.T) {
+func testRelinKeyGenProtocol(tc *testContext, levelQ, levelP, bpw2 int, t *testing.T) {
 	params := tc.params
 
-	t.Run(testString(params, level, "RelinKeyGen/Protocol"), func(t *testing.T) {
+	t.Run(testString(params, "RelinKeyGen/Protocol", levelQ, levelP, bpw2), func(t *testing.T) {
 
 		rkg := make([]RelinKeyGenProtocol, nbParties)
 
@@ -172,10 +186,10 @@ func testRelinKeyGenProtocol(tc *testContext, level int, t *testing.T) {
 		share2 := make([]RelinKeyGenShare, nbParties)
 
 		for i := range rkg {
-			ephSk[i], share1[i], share2[i] = rkg[i].AllocateShare()
+			ephSk[i], share1[i], share2[i] = rkg[i].AllocateShare(levelQ, levelP, bpw2)
 		}
 
-		crp := rkg[0].SampleCRP(tc.crs)
+		crp := rkg[0].SampleCRP(tc.crs, levelQ, levelP, bpw2)
 		for i := range rkg {
 			rkg[i].GenShareRoundOne(tc.skShares[i], crp, ephSk[i], &share1[i])
 		}
@@ -195,10 +209,10 @@ func testRelinKeyGenProtocol(tc *testContext, level int, t *testing.T) {
 			rkg[0].AggregateShares(share2[0], share2[i], &share2[0])
 		}
 
-		rlk := rlwe.NewRelinearizationKey(params)
+		rlk := rlwe.NewRelinearizationKey(params, levelQ, levelP, bpw2)
 		rkg[0].GenRelinearizationKey(share1[0], share2[0], rlk)
 
-		decompRNS := params.DecompRNS(level, params.MaxLevelP())
+		decompRNS := params.DecompRNS(levelQ, levelP)
 
 		noiseBound := math.Log2(math.Sqrt(float64(decompRNS))*NoiseRelinearizationKey(params, nbParties)) + 1
 
@@ -206,11 +220,11 @@ func testRelinKeyGenProtocol(tc *testContext, level int, t *testing.T) {
 	})
 }
 
-func testEvaluationKeyGenProtocol(tc *testContext, level int, t *testing.T) {
+func testEvaluationKeyGenProtocol(tc *testContext, levelQ, levelP, bpw2 int, t *testing.T) {
 
 	params := tc.params
 
-	t.Run(testString(params, level, "EvaluationKeyGen"), func(t *testing.T) {
+	t.Run(testString(params, "EvaluationKeyGen", levelQ, levelP, bpw2), func(t *testing.T) {
 
 		evkg := make([]EvaluationKeyGenProtocol, nbParties)
 		for i := range evkg {
@@ -232,10 +246,10 @@ func testEvaluationKeyGenProtocol(tc *testContext, level int, t *testing.T) {
 
 		shares := make([]EvaluationKeyGenShare, nbParties)
 		for i := range shares {
-			shares[i] = evkg[i].AllocateShare()
+			shares[i] = evkg[i].AllocateShare(levelQ, levelP, bpw2)
 		}
 
-		crp := evkg[0].SampleCRP(tc.crs)
+		crp := evkg[0].SampleCRP(tc.crs, levelQ, levelP, bpw2)
 
 		for i := range shares {
 			evkg[i].GenShare(tc.skShares[i], skOutShares[i], crp, &shares[i])
@@ -248,10 +262,10 @@ func testEvaluationKeyGenProtocol(tc *testContext, level int, t *testing.T) {
 		// Test binary encoding
 		buffer.RequireSerializerCorrect(t, &shares[0])
 
-		evk := rlwe.NewEvaluationKey(params, level, params.MaxLevelP())
+		evk := rlwe.NewEvaluationKey(params, levelQ, levelP, bpw2)
 		evkg[0].GenEvaluationKey(shares[0], crp, evk)
 
-		decompRNS := params.DecompRNS(level, params.MaxLevelP())
+		decompRNS := params.DecompRNS(levelQ, levelP)
 
 		noiseBound := math.Log2(math.Sqrt(float64(decompRNS))*NoiseEvaluationKey(params, nbParties)) + 1
 
@@ -259,11 +273,11 @@ func testEvaluationKeyGenProtocol(tc *testContext, level int, t *testing.T) {
 	})
 }
 
-func testGaloisKeyGenProtocol(tc *testContext, level int, t *testing.T) {
+func testGaloisKeyGenProtocol(tc *testContext, levelQ, levelP, bpw2 int, t *testing.T) {
 
 	params := tc.params
 
-	t.Run(testString(params, level, "GaloisKeyGenProtocol"), func(t *testing.T) {
+	t.Run(testString(params, "GaloisKeyGenProtocol", levelQ, levelP, bpw2), func(t *testing.T) {
 
 		gkg := make([]GaloisKeyGenProtocol, nbParties)
 		for i := range gkg {
@@ -276,10 +290,10 @@ func testGaloisKeyGenProtocol(tc *testContext, level int, t *testing.T) {
 
 		shares := make([]GaloisKeyGenShare, nbParties)
 		for i := range shares {
-			shares[i] = gkg[i].AllocateShare()
+			shares[i] = gkg[i].AllocateShare(levelQ, levelP, bpw2)
 		}
 
-		crp := gkg[0].SampleCRP(tc.crs)
+		crp := gkg[0].SampleCRP(tc.crs, levelQ, levelP, bpw2)
 
 		galEl := params.GaloisElement(64)
 
@@ -294,10 +308,10 @@ func testGaloisKeyGenProtocol(tc *testContext, level int, t *testing.T) {
 		// Test binary encoding
 		buffer.RequireSerializerCorrect(t, &shares[0])
 
-		galoisKey := rlwe.NewGaloisKey(params)
+		galoisKey := rlwe.NewGaloisKey(params, levelQ, levelP, bpw2)
 		gkg[0].GenGaloisKey(shares[0], crp, galoisKey)
 
-		decompRNS := params.DecompRNS(level, params.MaxLevelP())
+		decompRNS := params.DecompRNS(levelQ, levelP)
 
 		noiseBound := math.Log2(math.Sqrt(float64(decompRNS))*NoiseGaloisKey(params, nbParties)) + 1
 
@@ -305,11 +319,11 @@ func testGaloisKeyGenProtocol(tc *testContext, level int, t *testing.T) {
 	})
 }
 
-func testKeySwitchProtocol(tc *testContext, level int, t *testing.T) {
+func testKeySwitchProtocol(tc *testContext, levelQ, levelP, bpw2 int, t *testing.T) {
 
 	params := tc.params
 
-	t.Run(testString(params, level, "KeySwitch/Protocol"), func(t *testing.T) {
+	t.Run(testString(params, "KeySwitch/Protocol", levelQ, levelP, bpw2), func(t *testing.T) {
 
 		cks := make([]KeySwitchProtocol, nbParties)
 
@@ -330,7 +344,7 @@ func testKeySwitchProtocol(tc *testContext, level int, t *testing.T) {
 			params.RingQP().Add(skOutIdeal.Value, skout[i].Value, skOutIdeal.Value)
 		}
 
-		ct := rlwe.NewCiphertext(params, 1, level)
+		ct := rlwe.NewCiphertext(params, 1, levelQ)
 		rlwe.NewEncryptor(params, tc.skIdeal).EncryptZero(ct)
 
 		shares := make([]KeySwitchShare, nbParties)
@@ -378,11 +392,11 @@ func testKeySwitchProtocol(tc *testContext, level int, t *testing.T) {
 	})
 }
 
-func testPublicKeySwitchProtocol(tc *testContext, level int, t *testing.T) {
+func testPublicKeySwitchProtocol(tc *testContext, levelQ, levelP, bpw2 int, t *testing.T) {
 
 	params := tc.params
 
-	t.Run(testString(params, level, "PublicKeySwitch/Protocol"), func(t *testing.T) {
+	t.Run(testString(params, "PublicKeySwitch/Protocol", levelQ, levelP, bpw2), func(t *testing.T) {
 
 		skOut, pkOut := tc.kgen.GenKeyPairNew()
 
@@ -397,7 +411,7 @@ func testPublicKeySwitchProtocol(tc *testContext, level int, t *testing.T) {
 			}
 		}
 
-		ct := rlwe.NewCiphertext(params, 1, level)
+		ct := rlwe.NewCiphertext(params, 1, levelQ)
 
 		rlwe.NewEncryptor(params, tc.skIdeal).EncryptZero(ct)
 
@@ -417,7 +431,7 @@ func testPublicKeySwitchProtocol(tc *testContext, level int, t *testing.T) {
 		// Test binary encoding
 		buffer.RequireSerializerCorrect(t, &shares[0])
 
-		ksCt := rlwe.NewCiphertext(params, 1, level)
+		ksCt := rlwe.NewCiphertext(params, 1, levelQ)
 		dec := rlwe.NewDecryptor(params, skOut)
 
 		pcks[0].KeySwitch(ct, shares[0], ksCt)
@@ -445,11 +459,11 @@ func testPublicKeySwitchProtocol(tc *testContext, level int, t *testing.T) {
 	})
 }
 
-func testThreshold(tc *testContext, level int, t *testing.T) {
+func testThreshold(tc *testContext, levelQ, levelP, bpw2 int, t *testing.T) {
 	sk0Shards := tc.skShares
 
 	for _, threshold := range []int{tc.nParties() / 4, tc.nParties() / 2, tc.nParties() - 1} {
-		t.Run(testString(tc.params, level, "Threshold")+fmt.Sprintf("/threshold=%d", threshold), func(t *testing.T) {
+		t.Run(testString(tc.params, "Threshold", levelQ, levelP, bpw2)+fmt.Sprintf("/threshold=%d", threshold), func(t *testing.T) {
 
 			type Party struct {
 				Thresholdizer
@@ -530,16 +544,16 @@ func testThreshold(tc *testContext, level int, t *testing.T) {
 	}
 }
 
-func testRefreshShare(tc *testContext, level int, t *testing.T) {
-	t.Run(testString(tc.params, level, "RefreshShare"), func(t *testing.T) {
+func testRefreshShare(tc *testContext, levelQ, levelP, bpw2 int, t *testing.T) {
+	t.Run(testString(tc.params, "RefreshShare", levelQ, levelP, bpw2), func(t *testing.T) {
 		params := tc.params
-		ringQ := params.RingQ().AtLevel(level)
+		ringQ := params.RingQ().AtLevel(levelQ)
 		ciphertext := &rlwe.Ciphertext{}
 		ciphertext.Value = []ring.Poly{{}, ringQ.NewPoly()}
-		tc.uniformSampler.AtLevel(level).Read(ciphertext.Value[1])
+		tc.uniformSampler.AtLevel(levelQ).Read(ciphertext.Value[1])
 		cksp := NewKeySwitchProtocol(tc.params, tc.params.Xe())
-		share1 := cksp.AllocateShare(level)
-		share2 := cksp.AllocateShare(level)
+		share1 := cksp.AllocateShare(levelQ)
+		share2 := cksp.AllocateShare(levelQ)
 		cksp.GenShare(tc.skShares[0], tc.skShares[1], ciphertext, &share1)
 		cksp.GenShare(tc.skShares[1], tc.skShares[0], ciphertext, &share2)
 		buffer.RequireSerializerCorrect(t, &RefreshShare{EncToShareShare: share1, ShareToEncShare: share2})

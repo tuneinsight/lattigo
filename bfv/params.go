@@ -81,7 +81,6 @@ func (p *ParametersLiteral) UnmarshalJSON(b []byte) (err error) {
 		P        []uint64
 		LogQ     []int
 		LogP     []int
-		Pow2Base int
 		Xe       map[string]interface{}
 		Xs       map[string]interface{}
 		RingType ring.Type
@@ -95,7 +94,6 @@ func (p *ParametersLiteral) UnmarshalJSON(b []byte) (err error) {
 
 	p.LogN = pl.LogN
 	p.Q, p.P, p.LogQ, p.LogP = pl.Q, pl.P, pl.LogQ, pl.LogP
-	p.Pow2Base = pl.Pow2Base
 	if pl.Xs != nil {
 		p.Xs, err = ring.ParametersFromMap(pl.Xs)
 		if err != nil {

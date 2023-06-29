@@ -20,11 +20,11 @@ func (ct *Ciphertext) LevelP() int {
 }
 
 // NewCiphertext allocates a new RGSW ciphertext in the NTT domain.
-func NewCiphertext(params rlwe.Parameters, levelQ, levelP, decompRNS, decompBit int) (ct *Ciphertext) {
+func NewCiphertext(params rlwe.Parameters, levelQ, levelP, BaseTwoDecomposition int) (ct *Ciphertext) {
 	return &Ciphertext{
 		Value: [2]rlwe.GadgetCiphertext{
-			*rlwe.NewGadgetCiphertext(params, levelQ, levelP, decompRNS, decompBit),
-			*rlwe.NewGadgetCiphertext(params, levelQ, levelP, decompRNS, decompBit),
+			*rlwe.NewGadgetCiphertext(params, 1, levelQ, levelP, BaseTwoDecomposition),
+			*rlwe.NewGadgetCiphertext(params, 1, levelQ, levelP, BaseTwoDecomposition),
 		},
 	}
 }
@@ -34,6 +34,6 @@ type Plaintext rlwe.GadgetPlaintext
 
 // NewPlaintext creates a new RGSW plaintext from value, which can be either uint64, int64 or *ring.Poly.
 // Plaintext is returned in the NTT and Mongtomery domain.
-func NewPlaintext(params rlwe.Parameters, value interface{}, levelQ, levelP, logBase2, decompBIT int) (pt *Plaintext) {
-	return &Plaintext{Value: rlwe.NewGadgetPlaintext(params, value, levelQ, levelP, logBase2, decompBIT).Value}
+func NewPlaintext(params rlwe.Parameters, value interface{}, levelQ, levelP, BaseTwoDecomposition int) (pt *Plaintext) {
+	return &Plaintext{Value: rlwe.NewGadgetPlaintext(params, value, levelQ, levelP, BaseTwoDecomposition).Value}
 }

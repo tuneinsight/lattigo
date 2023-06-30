@@ -100,7 +100,7 @@ const (
 	// DefaultIterations is the default number of bootstrapping iterations.
 	DefaultIterations = 1
 	// DefaultIterationsLogPlaintextScale is the default scaling factor for the additional prime consumed per additional bootstrapping iteration above 1.
-	DefaultIterationsLogPlaintextScale = 25
+	DefaultIterationsLogPlaintextScale = 18
 	// DefaultSineType is the default function and approximation technique for the homomorphic modular reduction polynomial.
 	DefaultSineType = ckks.CosDiscrete
 	// DefaultLogMessageRatio is the default ratio between Q[0] and |m|.

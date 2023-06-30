@@ -244,13 +244,15 @@ func (p *Parameters) GaloisElements(params ckks.Parameters) (galEls []uint64) {
 		keys[galEl] = true
 	}
 
-	galEls = make([]uint64, len(keys))
+	galEls = make([]uint64, len(keys)+1)
 
 	var i int
 	for key := range keys {
 		galEls[i] = key
 		i++
 	}
+
+	galEls[len(galEls)-1] = params.GaloisElementInverse()
 
 	return
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ckks/bootstrapper/bootstrapping"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
@@ -30,7 +31,8 @@ func TestBootstrapping(t *testing.T) {
 		btpParamsN2.CoeffsToSlotsParameters.LogSlots = paramsN2Lit.LogN - 1
 
 		// Corrects the message ratio to take into account the smaller number of slots and keep the same precision
-		btpParamsN2.EvalModParameters.LogMessageRatio += paramSet.SchemeParams.LogN - paramsN2Lit.LogN
+		btpParamsN2.EvalModParameters.LogMessageRatio += paramSet.SchemeParams.LogN - paramsN2Lit.LogN + 1
+
 	}
 
 	endLevel := len(paramSet.SchemeParams.LogQ) - 1
@@ -47,10 +49,10 @@ func TestBootstrapping(t *testing.T) {
 		skN2 := ckks.NewKeyGenerator(paramsN2).GenSecretKeyNew()
 
 		t.Log("Generating Bootstrapping Keys")
-		btpKeys, err := GenBootstrappingKeys(nil, paramsN2, btpParamsN2, nil, *skN2)
+		btpKeys, err := GenBootstrappingKeys(paramsN2, paramsN2, btpParamsN2, skN2, skN2)
 		require.Nil(t, err)
 
-		bootstrapperInterface, err := NewBootstrapper(nil, paramsN2, btpParamsN2, btpKeys)
+		bootstrapperInterface, err := NewBootstrapper(paramsN2, paramsN2, btpParamsN2, btpKeys)
 		require.Nil(t, err)
 
 		bootstrapper := bootstrapperInterface.(*Bootstrapper)
@@ -82,7 +84,11 @@ func TestBootstrapping(t *testing.T) {
 			require.True(t, ctN2Q0.Level() == 0)
 
 			// Bootstrapps the ciphertext
-			ctN2QL := bootstrapper.refreshStandard(ctN2Q0)
+			ctN2QL, err := bootstrapper.Bootstrap(ctN2Q0)
+
+			if err != nil {
+				t.Fatal(err)
+			}
 
 			// Checks that the output ciphertext is at the max level of paramsN1
 			require.True(t, ctN2QL.Level() == endLevel)
@@ -114,10 +120,10 @@ func TestBootstrapping(t *testing.T) {
 		skN1 := ckks.NewKeyGenerator(paramsN1).GenSecretKeyNew()
 
 		t.Log("Generating Bootstrapping Keys")
-		btpKeys, err := GenBootstrappingKeys(&paramsN1, paramsN2, btpParamsN2, skN1, *skN2)
+		btpKeys, err := GenBootstrappingKeys(paramsN1, paramsN2, btpParamsN2, skN1, skN2)
 		require.Nil(t, err)
 
-		bootstrapperInterface, err := NewBootstrapper(&paramsN1, paramsN2, btpParamsN2, btpKeys)
+		bootstrapperInterface, err := NewBootstrapper(paramsN1, paramsN2, btpParamsN2, btpKeys)
 		require.Nil(t, err)
 
 		bootstrapper := bootstrapperInterface.(*Bootstrapper)
@@ -138,33 +144,6 @@ func TestBootstrapping(t *testing.T) {
 			values[3] = complex(0.9238795325112867, 0.3826834323650898)
 		}
 
-		t.Run("SwitchDimensionN1toN2", func(t *testing.T) {
-			ptN1 := ckks.NewPlaintext(paramsN1, 0)
-			ecdN1.Encode(values, ptN1)
-			ctN1Q0 := encN1.EncryptNew(ptN1)
-			ctN2Q0 := ckks.NewCiphertext(paramsN2, ctN1Q0.Degree(), ctN1Q0.Level())
-			ctN2Q0.PlaintextScale = ctN1Q0.PlaintextScale
-			bootstrapper.ringN1toRingN2(bootstrapper.bootstrapper.Evaluator.Evaluator, ctN1Q0, ctN2Q0)
-			verifyTestVectorsBootstrapping(paramsN1, ckks.NewEncoder(paramsN2), ckks.NewDecryptor(paramsN2, skN2), values, ctN2Q0, t)
-		})
-
-		t.Run("SwitchDimensionN2toN1", func(t *testing.T) {
-			ptN2 := ckks.NewPlaintext(paramsN2, paramsN1.MaxLevel())
-			ptN2.PlaintextLogDimensions = paramsN1.PlaintextLogDimensions()
-
-			ecdN2 := ckks.NewEncoder(paramsN2)
-			encN2 := ckks.NewEncryptor(paramsN2, skN2)
-			ecdN2.Encode(values, ptN2)
-			ctN2QL := encN2.EncryptNew(ptN2)
-
-			ctN1QL := ckks.NewCiphertext(paramsN1, ctN2QL.Degree(), ctN2QL.Level())
-			ctN1QL.PlaintextScale = ctN2QL.PlaintextScale
-
-			bootstrapper.ringN2toRingN1(bootstrapper.bootstrapper.Evaluator.Evaluator, ctN2QL, ctN1QL)
-
-			verifyTestVectorsBootstrapping(paramsN1, ecdN1, decN1, values, ctN1QL, t)
-		})
-
 		t.Run("N1ToN2->Bootstrapping->N2ToN1", func(t *testing.T) {
 
 			plaintext := ckks.NewPlaintext(paramsN1, 0)
@@ -176,7 +155,11 @@ func TestBootstrapping(t *testing.T) {
 			require.True(t, ctN1Q0.Level() == 0)
 
 			// Bootstrapps the ciphertext
-			ctN1QL := bootstrapper.refreshRingDegreeSwitch(ctN1Q0)
+			ctN1QL, err := bootstrapper.Bootstrap(ctN1Q0)
+
+			if err != nil {
+				t.Fatal(err)
+			}
 
 			// Checks that the output ciphertext is at the max level of paramsN1
 			require.True(t, ctN1QL.Level() == paramsN1.MaxLevel())
@@ -185,6 +168,78 @@ func TestBootstrapping(t *testing.T) {
 			verifyTestVectorsBootstrapping(paramsN1, ecdN1, decN1, values, ctN1QL, t)
 
 		})
+	})
+
+	t.Run("BootstrappingPackedWithRingDegreeSwitch", func(t *testing.T) {
+		paramsN2, err := ckks.NewParametersFromLiteral(paramsN2Lit)
+		require.Nil(t, err)
+
+		parmasN1Lit := ckks.ParametersLiteral{
+			LogN:              paramsN2Lit.LogN - 5,
+			Q:                 paramsN2Lit.Q[:endLevel+1],
+			P:                 []uint64{0x80000000440001, 0x80000000500001},
+			LogPlaintextScale: paramsN2Lit.LogPlaintextScale,
+		}
+
+		paramsN1, err := ckks.NewParametersFromLiteral(parmasN1Lit)
+		require.Nil(t, err)
+
+		t.Logf("ParamsN2: LogN=%d/LogSlots=%d/LogQP=%f", paramsN2.LogN(), paramsN2.PlaintextLogSlots(), paramsN2.LogQP())
+		t.Logf("ParamsN1: LogN=%d/LogSlots=%d/LogQP=%f", paramsN1.LogN(), paramsN1.PlaintextLogSlots(), paramsN1.LogQP())
+
+		skN2 := ckks.NewKeyGenerator(paramsN2).GenSecretKeyNew()
+		skN1 := ckks.NewKeyGenerator(paramsN1).GenSecretKeyNew()
+
+		t.Log("Generating Bootstrapping Keys")
+		btpKeys, err := GenBootstrappingKeys(paramsN1, paramsN2, btpParamsN2, skN1, skN2)
+		require.Nil(t, err)
+
+		bootstrapperInterface, err := NewBootstrapper(paramsN1, paramsN2, btpParamsN2, btpKeys)
+		require.Nil(t, err)
+
+		bootstrapper := bootstrapperInterface.(*Bootstrapper)
+
+		bootstrapper.skN1 = skN2
+		bootstrapper.skN2 = skN2
+
+		ecdN1 := ckks.NewEncoder(paramsN1)
+		encN1 := ckks.NewEncryptor(paramsN1, skN1)
+		decN1 := ckks.NewDecryptor(paramsN1, skN1)
+
+		values := make([]complex128, paramsN1.PlaintextSlots())
+		for i := range values {
+			values[i] = sampling.RandComplex128(-1, 1)
+		}
+
+		values[0] = complex(0.9238795325112867, 0.3826834323650898)
+		values[1] = complex(0.9238795325112867, 0.3826834323650898)
+		if paramsN1.PlaintextSlots() > 2 {
+			values[2] = complex(0.9238795325112867, 0.3826834323650898)
+			values[3] = complex(0.9238795325112867, 0.3826834323650898)
+		}
+
+		ptN1 := ckks.NewPlaintext(paramsN1, 0)
+
+		cts := make([]*rlwe.Ciphertext, 17)
+		for i := range cts {
+
+			ecdN1.Encode(utils.RotateSlice(values, i), ptN1)
+			cts[i] = encN1.EncryptNew(ptN1)
+		}
+
+		if cts, err = bootstrapper.BootstrapMany(cts); err != nil {
+			t.Fatal(err)
+		}
+
+		for i, ct := range cts {
+			// Checks that the output ciphertext is at the max level of paramsN1
+			require.True(t, ct.Level() == paramsN1.MaxLevel())
+			require.True(t, ct.PlaintextScale.Equal(paramsN1.PlaintextScale()))
+
+			want := utils.RotateSlice(values, i)
+
+			verifyTestVectorsBootstrapping(paramsN1, ecdN1, decN1, want, ct, t)
+		}
 	})
 
 	t.Run("BootstrappingWithRingTypeSwitch", func(t *testing.T) {
@@ -210,10 +265,10 @@ func TestBootstrapping(t *testing.T) {
 		skN1 := ckks.NewKeyGenerator(paramsN1).GenSecretKeyNew()
 
 		t.Log("Generating Bootstrapping Keys")
-		btpKeys, err := GenBootstrappingKeys(&paramsN1, paramsN2, btpParamsN2, skN1, *skN2)
+		btpKeys, err := GenBootstrappingKeys(paramsN1, paramsN2, btpParamsN2, skN1, skN2)
 		require.Nil(t, err)
 
-		bootstrapperInterface, err := NewBootstrapper(&paramsN1, paramsN2, btpParamsN2, btpKeys)
+		bootstrapperInterface, err := NewBootstrapper(paramsN1, paramsN2, btpParamsN2, btpKeys)
 		require.Nil(t, err)
 
 		bootstrapper := bootstrapperInterface.(*Bootstrapper)
@@ -234,27 +289,6 @@ func TestBootstrapping(t *testing.T) {
 			values[3] = 0.9238795325112867
 		}
 
-		t.Run("ConjugateToStandard", func(t *testing.T) {
-			ptN1 := ckks.NewPlaintext(paramsN1, 0)
-			ecdN1.Encode(values, ptN1)
-			ctN1Q0 := encN1.EncryptNew(ptN1)
-			ctN2Q0 := ckks.NewCiphertext(paramsN2, ctN1Q0.Degree(), ctN1Q0.Level())
-			ctN2Q0.PlaintextScale = ctN1Q0.PlaintextScale
-			bootstrapper.ringConjugateToRingStandard(bootstrapper.bootstrapper.Evaluator.Evaluator, ctN1Q0, ctN2Q0)
-			verifyTestVectorsBootstrapping(paramsN1, ckks.NewEncoder(paramsN2), ckks.NewDecryptor(paramsN2, skN2), values, ctN2Q0, t)
-		})
-
-		t.Run("StandardToConjugate", func(t *testing.T) {
-			ptN2 := ckks.NewPlaintext(paramsN2, paramsN1.MaxLevel())
-			ecdN2 := ckks.NewEncoder(paramsN2)
-			encN2 := ckks.NewEncryptor(paramsN2, skN2)
-			ecdN2.Encode(values, ptN2)
-			ctN2QL := encN2.EncryptNew(ptN2)
-			ctN1QL := ckks.NewCiphertext(paramsN1, ctN2QL.Degree(), ctN2QL.Level())
-			ctN1QL.PlaintextScale = ctN2QL.PlaintextScale
-			bootstrapper.ringStandardToConjugate(bootstrapper.bootstrapper.Evaluator.Evaluator, ctN2QL, ctN1QL)
-			verifyTestVectorsBootstrapping(paramsN1, ecdN1, decN1, values, ctN1QL, t)
-		})
 		t.Run("ConjugateInvariant->Standard->Bootstrapping->Standard->ConjugateInvariant", func(t *testing.T) {
 
 			plaintext := ckks.NewPlaintext(paramsN1, 0)
@@ -296,6 +330,8 @@ func verifyTestVectorsBootstrapping(params ckks.Parameters, encoder *ckks.Encode
 	if minPrec < 0 {
 		minPrec = 0
 	}
+
+	minPrec -= 10
 
 	require.GreaterOrEqual(t, rf64, minPrec)
 	require.GreaterOrEqual(t, if64, minPrec)

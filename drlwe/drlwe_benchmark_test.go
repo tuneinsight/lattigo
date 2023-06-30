@@ -99,13 +99,15 @@ func benchPublicKeyGen(params rlwe.Parameters, levelQ, levelP, bpw2 int, b *test
 
 func benchRelinKeyGen(params rlwe.Parameters, levelQ, levelP, bpw2 int, b *testing.B) {
 
+	evkParams := rlwe.EvaluationKeyParameters{LevelQ: levelQ, LevelP: levelP, BaseTwoDecomposition: bpw2}
+
 	rkg := NewRelinKeyGenProtocol(params)
 	sk := rlwe.NewKeyGenerator(params).GenSecretKeyNew()
-	ephSk, share1, share2 := rkg.AllocateShare(levelQ, levelP, bpw2)
-	rlk := rlwe.NewRelinearizationKey(params, levelQ, levelP, bpw2)
+	ephSk, share1, share2 := rkg.AllocateShare(evkParams)
+	rlk := rlwe.NewRelinearizationKey(params, evkParams)
 	crs, _ := sampling.NewPRNG()
 
-	crp := rkg.SampleCRP(crs, levelQ, levelP, bpw2)
+	crp := rkg.SampleCRP(crs, evkParams)
 
 	b.Run(benchString(params, "RelinKeyGen/GenRound1", levelQ, levelP, bpw2), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -134,11 +136,13 @@ func benchRelinKeyGen(params rlwe.Parameters, levelQ, levelP, bpw2 int, b *testi
 
 func benchRotKeyGen(params rlwe.Parameters, levelQ, levelP, bpw2 int, b *testing.B) {
 
+	evkParams := rlwe.EvaluationKeyParameters{LevelQ: levelQ, LevelP: levelP, BaseTwoDecomposition: bpw2}
+
 	rtg := NewGaloisKeyGenProtocol(params)
 	sk := rlwe.NewKeyGenerator(params).GenSecretKeyNew()
-	share := rtg.AllocateShare(levelQ, levelP, bpw2)
+	share := rtg.AllocateShare(evkParams)
 	crs, _ := sampling.NewPRNG()
-	crp := rtg.SampleCRP(crs, levelQ, levelP, bpw2)
+	crp := rtg.SampleCRP(crs, evkParams)
 
 	b.Run(benchString(params, "RotKeyGen/Round1/Gen", levelQ, levelP, bpw2), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -152,7 +156,7 @@ func benchRotKeyGen(params rlwe.Parameters, levelQ, levelP, bpw2 int, b *testing
 		}
 	})
 
-	gkey := rlwe.NewGaloisKey(params, levelQ, levelP, bpw2)
+	gkey := rlwe.NewGaloisKey(params, evkParams)
 	b.Run(benchString(params, "RotKeyGen/Finalize", levelQ, levelP, bpw2), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			rtg.GenGaloisKey(share, crp, gkey)

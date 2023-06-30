@@ -281,6 +281,9 @@ func testKeyGenerator(tc *TestContext, bpw2 int, t *testing.T) {
 	for _, levelQ := range levelsQ {
 
 		for _, levelP := range levelsP {
+
+			evkParams := EvaluationKeyParameters{LevelQ: levelQ, LevelP: levelP, BaseTwoDecomposition: bpw2}
+
 			// Checks that EvaluationKeys are en encryption under the output key
 			// of the RNS decomposition of the input key by
 			// 1) Decrypting the RNS decomposed input key
@@ -293,7 +296,7 @@ func testKeyGenerator(tc *TestContext, bpw2 int, t *testing.T) {
 				decompRNS := params.DecompRNS(levelQ, levelP)
 				decompPW2 := params.DecompPw2(levelQ, levelP, bpw2)
 
-				evk := NewEvaluationKey(params, levelQ, levelP, bpw2)
+				evk := NewEvaluationKey(params, evkParams)
 
 				// Generates Decomp([-asIn + w*P*sOut + e, a])
 				kgen.GenEvaluationKey(sk, skOut, evk)
@@ -308,7 +311,7 @@ func testKeyGenerator(tc *TestContext, bpw2 int, t *testing.T) {
 				decompRNS := params.DecompRNS(levelQ, levelP)
 				decompPW2 := params.DecompPw2(levelQ, levelP, bpw2)
 
-				rlk := NewRelinearizationKey(params, levelQ, levelP, bpw2)
+				rlk := NewRelinearizationKey(params, evkParams)
 
 				// Generates Decomp([-asIn + w*P*sOut + e, a])
 				kgen.GenRelinearizationKey(sk, rlk)
@@ -323,7 +326,7 @@ func testKeyGenerator(tc *TestContext, bpw2 int, t *testing.T) {
 				decompRNS := params.DecompRNS(levelQ, levelP)
 				decompPW2 := params.DecompPw2(levelQ, levelP, bpw2)
 
-				gk := NewGaloisKey(params, levelQ, levelP, bpw2)
+				gk := NewGaloisKey(params, evkParams)
 
 				// Generates Decomp([-asIn + w*P*sOut + e, a])
 				kgen.GenGaloisKey(ring.GaloisGen, sk, gk)
@@ -550,14 +553,14 @@ func testApplyEvaluationKey(tc *TestContext, level, bpw2 int, t *testing.T) {
 	})
 }
 
-func testGadgetProduct(tc *TestContext, level, bpw2 int, t *testing.T) {
+func testGadgetProduct(tc *TestContext, levelQ, bpw2 int, t *testing.T) {
 
 	params := tc.params
 	sk := tc.sk
 	kgen := tc.kgen
 	eval := tc.eval
 
-	ringQ := params.RingQ().AtLevel(level)
+	ringQ := params.RingQ().AtLevel(levelQ)
 
 	prng, _ := sampling.NewKeyedPRNG([]byte{'a', 'b', 'c'})
 
@@ -573,7 +576,9 @@ func testGadgetProduct(tc *TestContext, level, bpw2 int, t *testing.T) {
 
 	for _, levelP := range levelsP {
 
-		t.Run(testString(params, level, levelP, bpw2, "Evaluator/GadgetProduct"), func(t *testing.T) {
+		evkParams := EvaluationKeyParameters{LevelQ: levelQ, LevelP: levelP, BaseTwoDecomposition: bpw2}
+
+		t.Run(testString(params, levelQ, levelP, bpw2, "Evaluator/GadgetProduct"), func(t *testing.T) {
 
 			skOut := kgen.GenSecretKeyNew()
 
@@ -581,20 +586,20 @@ func testGadgetProduct(tc *TestContext, level, bpw2 int, t *testing.T) {
 			a := sampler.ReadNew()
 
 			// Generate the receiver
-			ct := NewCiphertext(params, 1, level)
+			ct := NewCiphertext(params, 1, levelQ)
 
-			evk := NewEvaluationKey(params, level, levelP, bpw2)
+			evk := NewEvaluationKey(params, evkParams)
 
 			// Generate the evaluationkey [-bs1 + s1, b]
 			kgen.GenEvaluationKey(sk, skOut, evk)
 
 			// Gadget product: ct = [-cs1 + as0 , c]
-			eval.GadgetProduct(level, a, &evk.GadgetCiphertext, ct)
+			eval.GadgetProduct(levelQ, a, &evk.GadgetCiphertext, ct)
 
 			// pt = as0
 			pt := NewDecryptor(params, skOut).DecryptNew(ct)
 
-			ringQ := params.RingQ().AtLevel(level)
+			ringQ := params.RingQ().AtLevel(levelQ)
 
 			// pt = as1 - as1 = 0 (+ some noise)
 			if !pt.IsNTT {
@@ -608,7 +613,7 @@ func testGadgetProduct(tc *TestContext, level, bpw2 int, t *testing.T) {
 			require.GreaterOrEqual(t, NoiseBound, ringQ.Log2OfStandardDeviation(pt.Value))
 		})
 
-		t.Run(testString(params, level, levelP, bpw2, "Evaluator/GadgetProductHoisted"), func(t *testing.T) {
+		t.Run(testString(params, levelQ, levelP, bpw2, "Evaluator/GadgetProductHoisted"), func(t *testing.T) {
 
 			skOut := kgen.GenSecretKeyNew()
 
@@ -616,23 +621,23 @@ func testGadgetProduct(tc *TestContext, level, bpw2 int, t *testing.T) {
 			a := sampler.ReadNew()
 
 			// Generate the receiver
-			ct := NewCiphertext(params, 1, level)
+			ct := NewCiphertext(params, 1, levelQ)
 
-			evk := NewEvaluationKey(params, level, levelP, bpw2)
+			evk := NewEvaluationKey(params, evkParams)
 
 			// Generate the evaluationkey [-bs1 + s1, b]
 			kgen.GenEvaluationKey(sk, skOut, evk)
 
 			//Decompose the ciphertext
-			eval.DecomposeNTT(level, levelP, levelP+1, a, ct.IsNTT, eval.BuffDecompQP)
+			eval.DecomposeNTT(levelQ, levelP, levelP+1, a, ct.IsNTT, eval.BuffDecompQP)
 
 			// Gadget product: ct = [-cs1 + as0 , c]
-			eval.GadgetProductHoisted(level, eval.BuffDecompQP, &evk.GadgetCiphertext, ct)
+			eval.GadgetProductHoisted(levelQ, eval.BuffDecompQP, &evk.GadgetCiphertext, ct)
 
 			// pt = as0
 			pt := NewDecryptor(params, skOut).DecryptNew(ct)
 
-			ringQ := params.RingQ().AtLevel(level)
+			ringQ := params.RingQ().AtLevel(levelQ)
 
 			// pt = as1 - as1 = 0 (+ some noise)
 			if !pt.IsNTT {
@@ -1102,7 +1107,7 @@ func testWriteAndRead(tc *TestContext, bpw2 int, t *testing.T) {
 
 	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/GadgetCiphertext"), func(t *testing.T) {
 
-		rlk := NewRelinearizationKey(params, levelQ, levelP, bpw2)
+		rlk := NewRelinearizationKey(params, EvaluationKeyParameters{LevelQ: levelQ, LevelP: levelP, BaseTwoDecomposition: bpw2})
 
 		tc.kgen.GenRelinearizationKey(tc.sk, rlk)
 

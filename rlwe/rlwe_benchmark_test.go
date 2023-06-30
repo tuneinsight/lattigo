@@ -67,7 +67,7 @@ func benchKeyGenerator(tc *TestContext, bpw2 int, b *testing.B) {
 
 	b.Run(testString(params, params.MaxLevelQ(), params.MaxLevelP(), bpw2, "KeyGenerator/GenEvaluationKey"), func(b *testing.B) {
 		sk0, sk1 := tc.sk, kgen.GenSecretKeyNew()
-		evk := NewEvaluationKey(params, params.MaxLevelQ(), params.MaxLevelP(), 0)
+		evk := NewEvaluationKey(params)
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			kgen.GenEvaluationKey(sk0, sk1, evk)

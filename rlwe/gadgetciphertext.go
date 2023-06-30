@@ -21,20 +21,22 @@ type GadgetCiphertext struct {
 
 // NewGadgetCiphertext returns a new Ciphertext key with pre-allocated zero-value.
 // Ciphertext is always in the NTT domain.
-func NewGadgetCiphertext(params ParametersInterface, degree, levelQ, levelP, baseTwoDecomposition int) *GadgetCiphertext {
+// A GadgetCiphertext is created by default at degree 1 with the the maximum levelQ and levelP and with no base 2 decomposition.
+// Give the optional GadgetCiphertextParameters struct to create a GadgetCiphertext with at a specific degree, levelQ, levelP and/or base 2 decomposition.
+func NewGadgetCiphertext(params ParametersInterface, Degree, LevelQ, LevelP, BaseTwoDecomposition int) *GadgetCiphertext {
 
-	decompRNS := params.DecompRNS(levelQ, levelP)
-	decompPw2 := params.DecompPw2(levelQ, levelP, baseTwoDecomposition)
+	decompRNS := params.DecompRNS(LevelQ, LevelP)
+	decompPw2 := params.DecompPw2(LevelQ, LevelP, BaseTwoDecomposition)
 
 	m := make(structs.Matrix[vectorQP], decompRNS)
 	for i := 0; i < decompRNS; i++ {
 		m[i] = make([]vectorQP, decompPw2)
 		for j := range m[i] {
-			m[i][j] = newVectorQP(params, degree+1, levelQ, levelP)
+			m[i][j] = newVectorQP(params, Degree+1, LevelQ, LevelP)
 		}
 	}
 
-	return &GadgetCiphertext{BaseTwoDecomposition: baseTwoDecomposition, Value: m}
+	return &GadgetCiphertext{BaseTwoDecomposition: BaseTwoDecomposition, Value: m}
 }
 
 // LevelQ returns the level of the modulus Q of the target Ciphertext.

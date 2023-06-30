@@ -338,13 +338,13 @@ func rkgphase(params bfv.Parameters, crs sampling.PRNG, P []*party) *rlwe.Reline
 	l.Println("> RelinKeyGen Phase")
 
 	rkg := dbfv.NewRelinKeyGenProtocol(params) // Relineariation key generation
-	_, rkgCombined1, rkgCombined2 := rkg.AllocateShare(params.MaxLevelQ(), params.MaxLevelP(), 0)
+	_, rkgCombined1, rkgCombined2 := rkg.AllocateShare()
 
 	for _, pi := range P {
-		pi.rlkEphemSk, pi.rkgShareOne, pi.rkgShareTwo = rkg.AllocateShare(params.MaxLevelQ(), params.MaxLevelP(), 0)
+		pi.rlkEphemSk, pi.rkgShareOne, pi.rkgShareTwo = rkg.AllocateShare()
 	}
 
-	crp := rkg.SampleCRP(crs, params.MaxLevelQ(), params.MaxLevelP(), 0)
+	crp := rkg.SampleCRP(crs)
 
 	elapsedRKGParty = runTimedParty(func() {
 		for _, pi := range P {
@@ -364,7 +364,7 @@ func rkgphase(params bfv.Parameters, crs sampling.PRNG, P []*party) *rlwe.Reline
 		}
 	}, len(P))
 
-	rlk := rlwe.NewRelinearizationKey(params, params.MaxLevelQ(), params.MaxLevelP(), 0)
+	rlk := rlwe.NewRelinearizationKey(params)
 	elapsedRKGCloud += runTimed(func() {
 		for _, pi := range P {
 			rkg.AggregateShares(pi.rkgShareTwo, rkgCombined2, &rkgCombined2)

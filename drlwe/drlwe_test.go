@@ -167,9 +167,12 @@ func testPublicKeyGenProtocol(tc *testContext, levelQ, levelP, bpw2 int, t *test
 }
 
 func testRelinKeyGenProtocol(tc *testContext, levelQ, levelP, bpw2 int, t *testing.T) {
+
 	params := tc.params
 
 	t.Run(testString(params, "RelinKeyGen/Protocol", levelQ, levelP, bpw2), func(t *testing.T) {
+
+		evkParams := rlwe.EvaluationKeyParameters{LevelQ: levelQ, LevelP: levelP, BaseTwoDecomposition: bpw2}
 
 		rkg := make([]RelinKeyGenProtocol, nbParties)
 
@@ -186,10 +189,10 @@ func testRelinKeyGenProtocol(tc *testContext, levelQ, levelP, bpw2 int, t *testi
 		share2 := make([]RelinKeyGenShare, nbParties)
 
 		for i := range rkg {
-			ephSk[i], share1[i], share2[i] = rkg[i].AllocateShare(levelQ, levelP, bpw2)
+			ephSk[i], share1[i], share2[i] = rkg[i].AllocateShare(evkParams)
 		}
 
-		crp := rkg[0].SampleCRP(tc.crs, levelQ, levelP, bpw2)
+		crp := rkg[0].SampleCRP(tc.crs, evkParams)
 		for i := range rkg {
 			rkg[i].GenShareRoundOne(tc.skShares[i], crp, ephSk[i], &share1[i])
 		}
@@ -209,7 +212,7 @@ func testRelinKeyGenProtocol(tc *testContext, levelQ, levelP, bpw2 int, t *testi
 			rkg[0].AggregateShares(share2[0], share2[i], &share2[0])
 		}
 
-		rlk := rlwe.NewRelinearizationKey(params, levelQ, levelP, bpw2)
+		rlk := rlwe.NewRelinearizationKey(params, evkParams)
 		rkg[0].GenRelinearizationKey(share1[0], share2[0], rlk)
 
 		decompRNS := params.DecompRNS(levelQ, levelP)
@@ -225,6 +228,8 @@ func testEvaluationKeyGenProtocol(tc *testContext, levelQ, levelP, bpw2 int, t *
 	params := tc.params
 
 	t.Run(testString(params, "EvaluationKeyGen", levelQ, levelP, bpw2), func(t *testing.T) {
+
+		evkParams := rlwe.EvaluationKeyParameters{LevelQ: levelQ, LevelP: levelP, BaseTwoDecomposition: bpw2}
 
 		evkg := make([]EvaluationKeyGenProtocol, nbParties)
 		for i := range evkg {
@@ -246,10 +251,10 @@ func testEvaluationKeyGenProtocol(tc *testContext, levelQ, levelP, bpw2 int, t *
 
 		shares := make([]EvaluationKeyGenShare, nbParties)
 		for i := range shares {
-			shares[i] = evkg[i].AllocateShare(levelQ, levelP, bpw2)
+			shares[i] = evkg[i].AllocateShare(evkParams)
 		}
 
-		crp := evkg[0].SampleCRP(tc.crs, levelQ, levelP, bpw2)
+		crp := evkg[0].SampleCRP(tc.crs, evkParams)
 
 		for i := range shares {
 			evkg[i].GenShare(tc.skShares[i], skOutShares[i], crp, &shares[i])
@@ -262,7 +267,7 @@ func testEvaluationKeyGenProtocol(tc *testContext, levelQ, levelP, bpw2 int, t *
 		// Test binary encoding
 		buffer.RequireSerializerCorrect(t, &shares[0])
 
-		evk := rlwe.NewEvaluationKey(params, levelQ, levelP, bpw2)
+		evk := rlwe.NewEvaluationKey(params, evkParams)
 		evkg[0].GenEvaluationKey(shares[0], crp, evk)
 
 		decompRNS := params.DecompRNS(levelQ, levelP)
@@ -279,6 +284,8 @@ func testGaloisKeyGenProtocol(tc *testContext, levelQ, levelP, bpw2 int, t *test
 
 	t.Run(testString(params, "GaloisKeyGenProtocol", levelQ, levelP, bpw2), func(t *testing.T) {
 
+		evkParams := rlwe.EvaluationKeyParameters{LevelQ: levelQ, LevelP: levelP, BaseTwoDecomposition: bpw2}
+
 		gkg := make([]GaloisKeyGenProtocol, nbParties)
 		for i := range gkg {
 			if i == 0 {
@@ -290,10 +297,10 @@ func testGaloisKeyGenProtocol(tc *testContext, levelQ, levelP, bpw2 int, t *test
 
 		shares := make([]GaloisKeyGenShare, nbParties)
 		for i := range shares {
-			shares[i] = gkg[i].AllocateShare(levelQ, levelP, bpw2)
+			shares[i] = gkg[i].AllocateShare(evkParams)
 		}
 
-		crp := gkg[0].SampleCRP(tc.crs, levelQ, levelP, bpw2)
+		crp := gkg[0].SampleCRP(tc.crs, evkParams)
 
 		galEl := params.GaloisElement(64)
 
@@ -308,7 +315,7 @@ func testGaloisKeyGenProtocol(tc *testContext, levelQ, levelP, bpw2 int, t *test
 		// Test binary encoding
 		buffer.RequireSerializerCorrect(t, &shares[0])
 
-		galoisKey := rlwe.NewGaloisKey(params, levelQ, levelP, bpw2)
+		galoisKey := rlwe.NewGaloisKey(params, evkParams)
 		gkg[0].GenGaloisKey(shares[0], crp, galoisKey)
 
 		decompRNS := params.DecompRNS(levelQ, levelP)

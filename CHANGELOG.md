@@ -5,6 +5,7 @@ All notable changes to this library are documented in this file.
 ## UNRELEASED [4.2.x] - xxxx-xx-xx (#341,#309,#292,#348,#378)
 - Go versions `1.14`, `1.15`, `1.16` and `1.17` are not supported anymore by the library due to `func (b *Writer) AvailableBuffer() []byte` missing. The minimum version is now `1.18`.
 - Golang Security Checker pass.
+- Dereferenced most inputs and pointers methods whenever possible. Pointers methods/inputs are now mostly used when the struct implementing the method and/or the input is intended to be modified.
 - Due to the minimum Go version being `1.18`, many aspects of the code base were simplfied using generics.
 - Global changes to serialization:
     - Low-entropy structs (such as parameters or rings) have been updated to use `json.Marshal` as underlying marshaler.
@@ -172,6 +173,7 @@ All notable changes to this library are documented in this file.
         - Renamed many methods to better reflect there purpose and generalize them
         - Added many methods related to plaintext parameters and noise.
         - Added a method that prints the `LWE.Parameters` as defined by the lattice estimator of `https://github.com/malb/lattice-estimator`.
+        - Removed the field `Pow2Base` which is now a parmeter of the struct `EvaluationKey`.
 
     - Changes to the `Encryptor`:
         - `EncryptorPublicKey` and `EncryptorSecretKey` are now public.
@@ -197,6 +199,7 @@ All notable changes to this library are documented in this file.
         - The `NewKeyGenerator` returns a `*KeyGenerator` instead of an interface.
         - Simplified the `KeyGenerator`: methods to generate specific sets of `rlwe.GaloisKey` have been removed, instead the corresponding method on `rlwe.Parameters` allows to get the appropriate `GaloisElement`s.
         - Improved the API consistency of the `rlwe.KeyGenerator`. Methods that allocate elements have the suffix `New`. Added corresponding in place methods.
+        - It is now possible to generate `rlwe.EvaluationKey`, `rlwe.GaloisKey` and `rlwe.RelinearizationKey` at specific levels (for both `Q` and `P`) and with a specific `BaseTwoDecomposition` by passing the corresponding pre-allocated key.
 
     - Changes to the `MetaData`:
         - Added the field `PlaintextLogDimensions` which captures the concept of plaintext algebra dimensions (e.g. BGV/BFV = [2, n] and CKKS = [1, n/2])
@@ -210,12 +213,18 @@ All notable changes to this library are documented in this file.
 
     - Other changes:
         - Added `OperandQ` and `OperandQP` which serve as a common underlying type for all cryptographic objects.
+        - `GadgetCiphertext` now takes an optional argument `rlwe.EvaluationKeyParameters` that allows to specify the level `Q` and `P` and the `BaseTwoDecomposition`.
+        - Allocating zero `rlwe.EvaluationKey`, `rlwe.GaloisKey` and `rlwe.RelinearizationKey` now takes an optional struct `rlwe.EvaluationKeyParameters` specifying the levels `Q` and `P` and the `BaseTwoDecomposition` of the key.
         - Changed `[]*ring.Poly` to `structs.Vector[ring.Poly]` and `[]ringqp.Poly` to `structs.Vector[ringqp.Poly]`.
         - Removed the struct `CiphertextQP` (replaced by `OperandQP`).
         - Added the structs `Polynomial`, `PatersonStockmeyerPolynomial`, `PolynomialVector` and `PatersonStockmeyerPolynomialVector` with the related methods.
         - Added basic interfaces description for Parameters, Encryptor, PRNGEncryptor, Decryptor, Evaluator and PolynomialEvaluator.
         - Added scheme agnostic `LinearTransform`, `Polynomial` and `PowerBasis`.
         - Structs that can be serialized now all implement the method V Equal(V) bool.
+
+- DRLWE:
+    - Added `EvaluationKeyGenProtocol` to enable users to generate generic `rlwe.EvaluationKey` (previously only the `GaloisKey`)
+    - It is now possible to specify the levels of the modulus `Q` and `P`, as well as the `BaseTwoDecomposition` via the optional struct `rlwe.EvaluationKeyParameters`, when generating `rlwe.EvaluationKey`, `rlwe.GaloisKey` and `rlwe.RelinearizationKey`.
 
 - RING: 
     - Changes to sampling:

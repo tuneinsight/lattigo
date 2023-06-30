@@ -82,7 +82,7 @@ func (kgen KeyGenerator) GenKeyPairNew() (sk *SecretKey, pk *PublicKey) {
 
 // GenRelinearizationKeyNew generates a new EvaluationKey that will be used to relinearize Ciphertexts during multiplication.
 func (kgen KeyGenerator) GenRelinearizationKeyNew(sk *SecretKey) (rlk *RelinearizationKey) {
-	rlk = NewRelinearizationKey(kgen.params, kgen.params.MaxLevelQ(), kgen.params.MaxLevelP(), 0)
+	rlk = NewRelinearizationKey(kgen.params)
 	kgen.GenRelinearizationKey(sk, rlk)
 	return
 }
@@ -96,7 +96,7 @@ func (kgen KeyGenerator) GenRelinearizationKey(sk *SecretKey, rlk *Relinearizati
 
 // GenGaloisKeyNew generates a new GaloisKey, enabling the automorphism X^{i} -> X^{i * galEl}.
 func (kgen KeyGenerator) GenGaloisKeyNew(galEl uint64, sk *SecretKey) (gk *GaloisKey) {
-	gk = &GaloisKey{EvaluationKey: *NewEvaluationKey(kgen.params, sk.LevelQ(), sk.LevelP(), 0)}
+	gk = &GaloisKey{EvaluationKey: *NewEvaluationKey(kgen.params)}
 	kgen.GenGaloisKey(galEl, sk, gk)
 	return
 }
@@ -185,7 +185,7 @@ func (kgen KeyGenerator) GenEvaluationKeysForRingSwapNew(skStd, skConjugateInvar
 func (kgen KeyGenerator) GenEvaluationKeyNew(skInput, skOutput *SecretKey) (evk *EvaluationKey) {
 	levelQ := utils.Min(skOutput.LevelQ(), kgen.params.MaxLevelQ())
 	levelP := utils.Min(skOutput.LevelP(), kgen.params.MaxLevelP())
-	evk = NewEvaluationKey(kgen.params, levelQ, levelP, 0)
+	evk = NewEvaluationKey(kgen.params, EvaluationKeyParameters{LevelQ: levelQ, LevelP: levelP, BaseTwoDecomposition: 0})
 	kgen.GenEvaluationKey(skInput, skOutput, evk)
 	return
 }

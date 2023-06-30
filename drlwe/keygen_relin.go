@@ -69,12 +69,19 @@ func NewRelinKeyGenProtocol(params rlwe.Parameters) RelinKeyGenProtocol {
 
 // SampleCRP samples a common random polynomial to be used in the RelinKeyGen protocol from the provided
 // common reference string.
-func (ekg RelinKeyGenProtocol) SampleCRP(crs CRS, levelQ, levelP, BaseTwoDecomposition int) RelinKeyGenCRP {
+func (ekg RelinKeyGenProtocol) SampleCRP(crs CRS, evkParams ...rlwe.EvaluationKeyParameters) RelinKeyGenCRP {
 	params := ekg.params
-	decompRNS := params.DecompRNS(levelQ, levelP)
-	decompPw2 := params.DecompPw2(levelQ, levelP, BaseTwoDecomposition)
 
-	us := ringqp.NewUniformSampler(crs, params.RingQP().AtLevel(levelQ, levelP))
+	evkParamsCpy := getEVKParams(params, evkParams)
+
+	LevelQ := evkParamsCpy.LevelQ
+	LevelP := evkParamsCpy.LevelP
+	BaseTwoDecomposition := evkParamsCpy.BaseTwoDecomposition
+
+	decompRNS := params.DecompRNS(LevelQ, LevelP)
+	decompPw2 := params.DecompPw2(LevelQ, LevelP, BaseTwoDecomposition)
+
+	us := ringqp.NewUniformSampler(crs, params.RingQP().AtLevel(LevelQ, LevelP))
 
 	m := make([][]ringqp.Poly, decompRNS)
 	for i := range m {
@@ -292,12 +299,14 @@ func (ekg RelinKeyGenProtocol) GenRelinearizationKey(round1 RelinKeyGenShare, ro
 }
 
 // AllocateShare allocates the share of the EKG protocol.
-func (ekg RelinKeyGenProtocol) AllocateShare(levelQ, levelP, BaseTwoDecomposition int) (ephSk *rlwe.SecretKey, r1 RelinKeyGenShare, r2 RelinKeyGenShare) {
+func (ekg RelinKeyGenProtocol) AllocateShare(evkParams ...rlwe.EvaluationKeyParameters) (ephSk *rlwe.SecretKey, r1 RelinKeyGenShare, r2 RelinKeyGenShare) {
 	params := ekg.params
 	ephSk = rlwe.NewSecretKey(params)
 
-	r1 = RelinKeyGenShare{GadgetCiphertext: *rlwe.NewGadgetCiphertext(params, 1, levelQ, levelP, BaseTwoDecomposition)}
-	r2 = RelinKeyGenShare{GadgetCiphertext: *rlwe.NewGadgetCiphertext(params, 1, levelQ, levelP, BaseTwoDecomposition)}
+	evkParamsCpy := getEVKParams(ekg.params, evkParams)
+
+	r1 = RelinKeyGenShare{GadgetCiphertext: *rlwe.NewGadgetCiphertext(params, 1, evkParamsCpy.LevelQ, evkParamsCpy.LevelP, evkParamsCpy.BaseTwoDecomposition)}
+	r2 = RelinKeyGenShare{GadgetCiphertext: *rlwe.NewGadgetCiphertext(params, 1, evkParamsCpy.LevelQ, evkParamsCpy.LevelP, evkParamsCpy.BaseTwoDecomposition)}
 
 	return
 }

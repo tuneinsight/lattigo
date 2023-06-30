@@ -52,34 +52,45 @@ func NewEvaluationKeyGenProtocol(params rlwe.Parameters) (evkg EvaluationKeyGenP
 	}
 }
 
+func getEVKParams(params rlwe.ParametersInterface, evkParams []rlwe.EvaluationKeyParameters) (evkParamsCpy rlwe.EvaluationKeyParameters) {
+	if len(evkParams) != 0 {
+		evkParamsCpy = evkParams[0]
+	} else {
+		evkParamsCpy = rlwe.EvaluationKeyParameters{LevelQ: params.MaxLevelQ(), LevelP: params.MaxLevelP(), BaseTwoDecomposition: 0}
+	}
+	return
+}
+
 // AllocateShare allocates a party's share in the EvaluationKey Generation.
-func (evkg EvaluationKeyGenProtocol) AllocateShare(levelQ, levelP, BaseTwoDecomposition int) EvaluationKeyGenShare {
-	return EvaluationKeyGenShare{*rlwe.NewGadgetCiphertext(evkg.params, 0, levelQ, levelP, BaseTwoDecomposition)}
+func (evkg EvaluationKeyGenProtocol) AllocateShare(evkParams ...rlwe.EvaluationKeyParameters) EvaluationKeyGenShare {
+	evkParamsCpy := getEVKParams(evkg.params, evkParams)
+	return EvaluationKeyGenShare{*rlwe.NewGadgetCiphertext(evkg.params, 0, evkParamsCpy.LevelQ, evkParamsCpy.LevelP, evkParamsCpy.BaseTwoDecomposition)}
 }
 
 // SampleCRP samples a common random polynomial to be used in the EvaluationKey Generation from the provided
 // common reference string.
-func (evkg EvaluationKeyGenProtocol) SampleCRP(crs CRS, levelQ, levelP, BaseTwoDecomposition int) EvaluationKeyGenCRP {
+func (evkg EvaluationKeyGenProtocol) SampleCRP(crs CRS, evkParams ...rlwe.EvaluationKeyParameters) EvaluationKeyGenCRP {
 
 	params := evkg.params
-	decompRNS := params.DecompRNS(levelQ, levelP)
-	decompPw2 := params.DecompPw2(levelQ, levelP, BaseTwoDecomposition)
+
+	evkParamsCpy := getEVKParams(params, evkParams)
+
+	LevelQ := evkParamsCpy.LevelQ
+	LevelP := evkParamsCpy.LevelP
+	BaseTwoDecomposition := evkParamsCpy.BaseTwoDecomposition
+
+	decompRNS := params.DecompRNS(LevelQ, LevelP)
+	decompPw2 := params.DecompPw2(LevelQ, LevelP, BaseTwoDecomposition)
+
+	us := ringqp.NewUniformSampler(crs, params.RingQP().AtLevel(LevelQ, LevelP))
 
 	m := make([][]ringqp.Poly, decompRNS)
 	for i := range m {
 		vec := make([]ringqp.Poly, decompPw2)
 		for j := range vec {
-			vec[j] = ringqp.NewPoly(params.N(), levelQ, levelP)
+			vec[j] = us.ReadNew()
 		}
 		m[i] = vec
-	}
-
-	us := ringqp.NewUniformSampler(crs, params.RingQP().AtLevel(levelQ, levelP))
-
-	for _, v := range m {
-		for _, p := range v {
-			us.Read(p)
-		}
 	}
 
 	return EvaluationKeyGenCRP{Value: structs.Matrix[ringqp.Poly](m)}

@@ -29,6 +29,20 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 		return ckks.ParametersLiteral{}, Parameters{}, fmt.Errorf("NewParametersFromLiteral: invalid ring.RingType: must be ring.Standard")
 	}
 
+	var hasLogQ bool
+	var residualLevel int
+
+	if len(ckksLit.LogQ)+len(ckksLit.LogQ) == 0 && len(ckksLit.Q)+len(ckksLit.P) != 0 {
+		residualLevel = len(ckksLit.Q) - 1
+
+	} else if len(ckksLit.LogQ)+len(ckksLit.LogQ) != 0 && len(ckksLit.Q)+len(ckksLit.P) == 0 {
+		hasLogQ = true
+		residualLevel = len(ckksLit.LogQ) - 1
+
+	} else {
+		return ckks.ParametersLiteral{}, Parameters{}, fmt.Errorf("cannot NewParametersFromLiteral: must specify (LogQ, LogP) or (Q, P) but not a mix of both")
+	}
+
 	var LogSlots int
 	if LogSlots, err = btpLit.GetLogSlots(ckksLit.LogN); err != nil {
 		return ckks.ParametersLiteral{}, Parameters{}, err
@@ -59,7 +73,7 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 		Type:            ckks.Decode,
 		LogSlots:        LogSlots,
 		RepackImag2Real: true,
-		LevelStart:      len(ckksLit.LogQ) - 1 + len(SlotsToCoeffsFactorizationDepthAndLogPlaintextScales) + Iterations - 1,
+		LevelStart:      residualLevel + len(SlotsToCoeffsFactorizationDepthAndLogPlaintextScales) + Iterations - 1,
 		LogBSGSRatio:    1,
 		Levels:          SlotsToCoeffsLevels,
 	}
@@ -128,11 +142,10 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 		Levels:          CoeffsToSlotsLevels,
 	}
 
-	LogQ := make([]int, len(ckksLit.LogQ))
-	copy(LogQ, ckksLit.LogQ)
+	LogQBootstrappingCircuit := []int{}
 
 	for i := 0; i < Iterations-1; i++ {
-		LogQ = append(LogQ, DefaultIterationsLogPlaintextScale)
+		LogQBootstrappingCircuit = append(LogQBootstrappingCircuit, DefaultIterationsLogPlaintextScale)
 	}
 
 	for i := range SlotsToCoeffsFactorizationDepthAndLogPlaintextScales {
@@ -145,11 +158,11 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 			qi += ckksLit.LogPlaintextScale
 		}
 
-		LogQ = append(LogQ, qi)
+		LogQBootstrappingCircuit = append(LogQBootstrappingCircuit, qi)
 	}
 
 	for i := 0; i < EvalModParams.Depth(); i++ {
-		LogQ = append(LogQ, EvalModLogPlaintextScale)
+		LogQBootstrappingCircuit = append(LogQBootstrappingCircuit, EvalModLogPlaintextScale)
 	}
 
 	for i := range CoeffsToSlotsFactorizationDepthAndLogPlaintextScales {
@@ -157,16 +170,81 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 		for j := range CoeffsToSlotsFactorizationDepthAndLogPlaintextScales[i] {
 			qi += CoeffsToSlotsFactorizationDepthAndLogPlaintextScales[i][j]
 		}
-		LogQ = append(LogQ, qi)
+		LogQBootstrappingCircuit = append(LogQBootstrappingCircuit, qi)
 	}
 
-	LogP := make([]int, len(ckksLit.LogP))
-	copy(LogP, ckksLit.LogP)
+	var Q, P []uint64
+	// Specific moduli are given in the residual parameters
+	if hasLogQ {
 
-	Q, P, err := rlwe.GenModuli(ckksLit.LogN+1, LogQ, LogP)
+		if Q, P, err = rlwe.GenModuli(ckksLit.LogN+1, append(ckksLit.LogQ, LogQBootstrappingCircuit...), ckksLit.LogP); err != nil {
+			return ckks.ParametersLiteral{}, Parameters{}, fmt.Errorf("cannot NewParametersFromLiteral: %w", err)
+		}
 
-	if err != nil {
-		return ckks.ParametersLiteral{}, Parameters{}, err
+		// Only the bit-size of the moduli are given in the residual parameters
+	} else {
+
+		// Extracts all the different primes
+		primesHave := map[uint64]bool{}
+
+		for _, qi := range ckksLit.Q {
+			primesHave[qi] = true
+		}
+
+		for _, pj := range ckksLit.P {
+			primesHave[pj] = true
+		}
+
+		// Maps the number of primes per bit size
+		primesBitLenNew := map[int]int{}
+		for _, logqi := range LogQBootstrappingCircuit {
+			primesBitLenNew[logqi]++
+		}
+
+		// Map to store [bit-size][]primes
+		primesNew := map[int][]uint64{}
+
+		// For each bit-size
+		for logqi, k := range primesBitLenNew {
+
+			// Creates a new prime generator
+			g := ring.NewNTTFriendlyPrimesGenerator(uint64(logqi), 1<<(ckksLit.LogN+1))
+
+			// Populates the list with primes that aren't yet in primesHave
+			primes := make([]uint64, k)
+			var i int
+			for i < k {
+
+				for {
+					qi, err := g.NextAlternatingPrime()
+
+					if err != nil {
+						return ckks.ParametersLiteral{}, Parameters{}, fmt.Errorf("cannot NewParametersFromLiteral: NextAlternatingPrime for 2^{%d} +/- k*2N + 1: %w", logqi, err)
+
+					}
+
+					if _, ok := primesHave[qi]; !ok {
+						primes[i] = qi
+						i++
+						break
+					}
+				}
+			}
+
+			primesNew[logqi] = primes
+		}
+
+		Q = make([]uint64, len(ckksLit.Q))
+		copy(Q, ckksLit.Q)
+
+		// Appends to the residual modli
+		for _, qi := range LogQBootstrappingCircuit {
+			Q = append(Q, primesNew[qi][0])
+			primesNew[qi] = primesNew[qi][1:]
+		}
+
+		P = make([]uint64, len(ckksLit.P))
+		copy(P, ckksLit.P)
 	}
 
 	return ckks.ParametersLiteral{

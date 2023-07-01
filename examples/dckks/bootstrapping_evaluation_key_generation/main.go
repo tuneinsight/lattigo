@@ -27,7 +27,6 @@ type Party struct {
 
 func main() {
 
-
 	// First we define the residual CKKS parameters. This is only a template that will be given
 	// to the constructor along with the specificities of the bootstrapping circuit we choose, to
 	// enable it to create the appropriate ckks.ParametersLiteral that enable the evaluation of the

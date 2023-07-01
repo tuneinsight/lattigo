@@ -70,6 +70,29 @@ func TestBootstrapParametersMarshalling(t *testing.T) {
 
 		require.Equal(t, btpParams, *btpParamsNew)
 	})
+
+	t.Run("PrimeGeneration", func(t *testing.T) {
+
+		paramSet := DefaultParametersSparse[0]
+
+		paramstmp, err := ckks.NewParametersFromLiteral(paramSet.SchemeParams)
+
+		require.NoError(t, err)
+
+		ckksParamsLitV1, btpParamsV1, err := NewParametersFromLiteral(paramSet.SchemeParams, paramSet.BootstrappingParams)
+		require.NoError(t, err)
+
+		paramSet.SchemeParams.LogQ = nil
+		paramSet.SchemeParams.LogP = nil
+		paramSet.SchemeParams.Q = paramstmp.Q()
+		paramSet.SchemeParams.P = paramstmp.P()
+
+		ckksParamsLitV2, btpParamsV2, err := NewParametersFromLiteral(paramSet.SchemeParams, paramSet.BootstrappingParams)
+		require.NoError(t, err)
+
+		require.Equal(t, ckksParamsLitV1, ckksParamsLitV2)
+		require.Equal(t, btpParamsV1, btpParamsV2)
+	})
 }
 
 func TestBootstrap(t *testing.T) {

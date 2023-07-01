@@ -163,7 +163,7 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 	LogP := make([]int, len(ckksLit.LogP))
 	copy(LogP, ckksLit.LogP)
 
-	Q, P, err := rlwe.GenModuli(ckksLit.LogN, LogQ, LogP)
+	Q, P, err := rlwe.GenModuli(ckksLit.LogN+1, LogQ, LogP)
 
 	if err != nil {
 		return ckks.ParametersLiteral{}, Parameters{}, err

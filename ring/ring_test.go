@@ -197,9 +197,13 @@ func testGenerateNTTPrimes(tc *testParams, t *testing.T) {
 
 	t.Run(testString("GenerateNTTPrimes", tc.ringQ), func(t *testing.T) {
 
-		NthRoot := tc.ringQ.N() << 1
+		NthRoot := tc.ringQ.NthRoot()
 
-		primes := GenerateNTTPrimes(55, NthRoot, tc.ringQ.ModuliChainLength())
+		g := NewNTTFriendlyPrimesGenerator(55, NthRoot)
+
+		primes, err := g.NextAlternatingPrimes(tc.ringQ.ModuliChainLength())
+
+		require.NoError(t, err)
 
 		for _, q := range primes {
 			require.Equal(t, q&uint64(NthRoot-1), uint64(1))

@@ -110,7 +110,7 @@ func NewParameters(logn int, q, p []uint64, xs, xe DistributionLiteral, ringType
 	}
 
 	if err = params.initRings(); err != nil {
-		return
+		return Parameters{}, fmt.Errorf("cannot NewParameters: %w", err)
 	}
 
 	logQP := params.LogQP()
@@ -187,9 +187,9 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (params Parameters, er
 		var q, p []uint64
 		switch paramDef.RingType {
 		case ring.Standard:
-			q, p, err = GenModuli(paramDef.LogN, paramDef.LogQ, paramDef.LogP)
+			q, p, err = GenModuli(paramDef.LogN+1, paramDef.LogQ, paramDef.LogP) //2NthRoot
 		case ring.ConjugateInvariant:
-			q, p, err = GenModuli(paramDef.LogN+1, paramDef.LogQ, paramDef.LogP)
+			q, p, err = GenModuli(paramDef.LogN+2, paramDef.LogQ, paramDef.LogP) //4NthRoot
 		default:
 			return Parameters{}, fmt.Errorf("rlwe.NewParametersFromLiteral: invalid ring.Type, must be ring.ConjugateInvariant or ring.Standard")
 		}
@@ -849,7 +849,7 @@ func checkModuliLogSize(logQ, logP []int) error {
 }
 
 // GenModuli generates a valid moduli chain from the provided moduli sizes.
-func GenModuli(logN int, logQ, logP []int) (q, p []uint64, err error) {
+func GenModuli(LogNthRoot int, logQ, logP []int) (q, p []uint64, err error) {
 
 	if err = checkSizeParams(logN, len(logQ), len(logP)); err != nil {
 		return
@@ -871,8 +871,19 @@ func GenModuli(logN int, logQ, logP []int) (q, p []uint64, err error) {
 
 	// For each bit-size, finds that many primes
 	primes := make(map[int][]uint64)
-	for key, value := range primesbitlen {
-		primes[key] = ring.GenerateNTTPrimes(int(key), 2<<logN, int(value))
+	for bitsize, value := range primesbitlen {
+
+		g := ring.NewNTTFriendlyPrimesGenerator(uint64(bitsize), uint64(1<<LogNthRoot))
+
+		if bitsize == 61 {
+			if primes[bitsize], err = g.NextDownstreamPrimes(value); err != nil {
+				return q, p, fmt.Errorf("cannot GenModuli: failed to generate %d primes of bit-size=61 for LogNthRoot=%d: %w", value, LogNthRoot, err)
+			}
+		} else {
+			if primes[bitsize], err = g.NextAlternatingPrimes(value); err != nil {
+				return q, p, fmt.Errorf("cannot GenModuli: failed to generate %d primes of bit-size=%d for LogNthRoot=%d: %w", value, bitsize, LogNthRoot, err)
+			}
+		}
 	}
 
 	// Assigns the primes to the moduli chain
@@ -892,12 +903,14 @@ func GenModuli(logN int, logQ, logP []int) (q, p []uint64, err error) {
 
 func (p *Parameters) initRings() (err error) {
 	if p.ringQ, err = ring.NewRingFromType(1<<p.logN, p.qi, p.ringType); err != nil {
-		return err
+		return fmt.Errorf("initRings/ringQ: %w", err)
 	}
 	if len(p.pi) != 0 {
-		p.ringP, err = ring.NewRingFromType(1<<p.logN, p.pi, p.ringType)
+		if p.ringP, err = ring.NewRingFromType(1<<p.logN, p.pi, p.ringType); err != nil {
+			return fmt.Errorf("initRings/ringP: %w", err)
+		}
 	}
-	return err
+	return
 }
 
 func (p *ParametersLiteral) UnmarshalJSON(b []byte) (err error) {

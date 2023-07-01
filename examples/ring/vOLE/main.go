@@ -90,8 +90,14 @@ func newvOLErings(params parameters) *vOLErings {
 
 	rings := new(vOLErings)
 
+	g := ring.NewNTTFriendlyPrimesGenerator(uint64(params.logQ[1]), uint64(2*N))
+
 	// Generate logQ[0] NTT-friendly primes each close to 2^logQ[1]
-	primes := ring.GenerateNTTPrimes(params.logQ[1], 2*N, params.logQ[0])
+	primes, err := g.NextAlternatingPrimes(params.logQ[0])
+
+	if err != nil {
+		panic(err)
+	}
 
 	if rings.ringQ, err = ring.NewRing(N, primes); err != nil {
 		panic(err)

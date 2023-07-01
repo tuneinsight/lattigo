@@ -2,7 +2,7 @@ package ring
 
 import (
 	"fmt"
-	"math/bits"
+	"math"
 
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
@@ -12,124 +12,217 @@ func IsPrime(x uint64) bool {
 	return bignum.NewInt(x).ProbablyPrime(0)
 }
 
-// GenerateNTTPrimes generates n NthRoot NTT friendly primes given logQ = size of the primes.
-// It will return all the appropriate primes, up to the number of n, with the
-// best available deviation from the base power of 2 for the given n.
-func GenerateNTTPrimes(logQ, NthRoot, n int) (primes []uint64) {
-
-	if logQ > 61 {
-		panic("logQ must be between 1 and 61")
-	}
-
-	if logQ == 61 {
-		return GenerateNTTPrimesP(logQ, NthRoot, n)
-	}
-
-	return GenerateNTTPrimesQ(logQ, NthRoot, n)
+// NTTFriendlyPrimesGenerator is a struct used to generate NTT friendly primes.
+type NTTFriendlyPrimesGenerator struct {
+	Size                           float64
+	NextPrime, PrevPrime, NthRoot  uint64
+	CheckNextPrime, CheckPrevPrime bool
 }
 
-// NextNTTPrime returns the next NthRoot NTT prime after q.
-// The input q must be itself an NTT prime for the given NthRoot.
-func NextNTTPrime(q uint64, NthRoot int) (qNext uint64, err error) {
+// NewNTTFriendlyPrimesGenerator instantiates a new NTTFriendlyPrimesGenerator.
+// Primes generated are of the form 2^{BitSize} +/- k * {NthRoot} + 1.
+func NewNTTFriendlyPrimesGenerator(BitSize, NthRoot uint64) NTTFriendlyPrimesGenerator {
 
-	qNext = q + uint64(NthRoot)
+	CheckNextPrime := true
+	CheckPrevPrime := true
 
-	for !IsPrime(qNext) {
+	NextPrime := uint64(1<<BitSize) + 1
+	PrevPrime := uint64(1<<BitSize) + 1
 
-		qNext += uint64(NthRoot)
+	if NextPrime > 0xffffffffffffffff-NthRoot {
+		CheckNextPrime = false
+	}
 
-		if bits.Len64(qNext) > 61 {
-			return 0, fmt.Errorf("next NTT prime exceeds the maximum bit-size of 61 bits")
+	if PrevPrime < NthRoot {
+		CheckPrevPrime = false
+	}
+
+	PrevPrime -= NthRoot
+
+	return NTTFriendlyPrimesGenerator{
+		CheckNextPrime: CheckNextPrime,
+		CheckPrevPrime: CheckPrevPrime,
+		NthRoot:        NthRoot,
+		NextPrime:      NextPrime,
+		PrevPrime:      PrevPrime,
+		Size:           float64(BitSize),
+	}
+}
+
+// NextUpstreamPrimes returns the next k primes of the form 2^{BitSize} + k * {NthRoot} + 1.
+func (n *NTTFriendlyPrimesGenerator) NextUpstreamPrimes(k int) (primes []uint64, err error) {
+	primes = make([]uint64, k)
+
+	for i := range primes {
+		if primes[i], err = n.NextUpstreamPrime(); err != nil {
+			return
 		}
 	}
 
-	return qNext, nil
+	return
 }
 
-// PreviousNTTPrime returns the previous NthRoot NTT prime after q.
-// The input q must be itself an NTT prime for the given NthRoot.
-func PreviousNTTPrime(q uint64, NthRoot int) (qPrev uint64, err error) {
+// NextDownstreamPrimes returns the next k primes of the form 2^{BitSize} - k * {NthRoot} + 1.
+func (n *NTTFriendlyPrimesGenerator) NextDownstreamPrimes(k int) (primes []uint64, err error) {
+	primes = make([]uint64, k)
 
-	if q < uint64(NthRoot) {
-		return 0, fmt.Errorf("previous NTT prime is smaller than NthRoot")
-	}
-
-	qPrev = q - uint64(NthRoot)
-
-	for !IsPrime(qPrev) {
-
-		if q < uint64(NthRoot) {
-			return 0, fmt.Errorf("previous NTT prime is smaller than NthRoot")
+	for i := range primes {
+		if primes[i], err = n.NextDownstreamPrime(); err != nil {
+			return
 		}
-
-		qPrev -= uint64(NthRoot)
 	}
 
-	return qPrev, nil
+	return
 }
 
-// GenerateNTTPrimesQ generates "levels" different NthRoot NTT-friendly
-// primes starting from 2**LogQ and alternating between upward and downward.
-func GenerateNTTPrimesQ(logQ, NthRoot, levels int) (primes []uint64) {
+// NextAlternatingPrimes returns the next k primes of the form 2^{BitSize} +/- k * {NthRoot} + 1.
+func (n *NTTFriendlyPrimesGenerator) NextAlternatingPrimes(k int) (primes []uint64, err error) {
+	primes = make([]uint64, k)
 
-	var nextPrime, previousPrime, Qpow2 uint64
-	var checkfornextprime, checkforpreviousprime bool
+	for i := range primes {
+		if primes[i], err = n.NextAlternatingPrime(); err != nil {
+			return
+		}
+	}
 
-	primes = []uint64{}
+	return
+}
 
-	Qpow2 = uint64(1 << logQ)
+// NextUpstreamPrime returns the next prime of the form 2^{BitSize} + k * {NthRoot} + 1.
+func (n *NTTFriendlyPrimesGenerator) NextUpstreamPrime() (uint64, error) {
 
-	nextPrime = Qpow2 + 1
-	previousPrime = Qpow2 + 1
+	NextPrime := n.NextPrime
+	NthRoot := n.NthRoot
+	CheckNextPrime := n.CheckNextPrime
+	Size := n.Size
 
-	checkfornextprime = true
-	checkforpreviousprime = true
+	for {
+		if CheckNextPrime {
+
+			// Stops if the next prime would overlap with primes of the next bit-size or if an uint64 overflow would occure.
+			if math.Log2(float64(NextPrime))-Size >= 0.5 {
+
+				n.CheckNextPrime = false
+
+				return 0, fmt.Errorf("cannot NextUpstreamPrime: prime list for upstream primes is exhausted (overlap with next bit-size or prime > 2^{64})")
+
+			} else {
+
+				if IsPrime(NextPrime) {
+
+					n.NextPrime = NextPrime + NthRoot
+
+					n.CheckNextPrime = CheckNextPrime
+
+					return NextPrime, nil
+				}
+
+				NextPrime += NthRoot
+			}
+		}
+	}
+}
+
+// NextDownstreamPrime returns the next prime of the form 2^{BitSize} - k * {NthRoot} + 1.
+func (n *NTTFriendlyPrimesGenerator) NextDownstreamPrime() (uint64, error) {
+
+	PrevPrime := n.PrevPrime
+	NthRoot := n.NthRoot
+	CheckPrevPrime := n.CheckPrevPrime
+	Size := n.Size
 
 	for {
 
-		if !(checkfornextprime || checkforpreviousprime) {
-			panic("generateNTTPrimesQ error: cannot generate enough primes for the given parameters")
-		}
+		if CheckPrevPrime {
 
-		if checkfornextprime {
+			// Stops if the next prime would overlap with the primes of the previous bit-size or if an uint64 overflow would occure.
+			if Size-math.Log2(float64(PrevPrime)) >= 0.5 || PrevPrime < NthRoot {
 
-			if nextPrime > 0xffffffffffffffff-uint64(NthRoot) {
+				n.CheckPrevPrime = false
 
-				checkfornextprime = false
+				return 0, fmt.Errorf("cannot NextDownstreamPrime: prime list for downstream primes is exhausted (overlap with previous bit-size or prime < NthRoot")
 
 			} else {
 
-				if IsPrime(nextPrime) {
+				if IsPrime(PrevPrime) {
 
-					primes = append(primes, nextPrime)
+					n.PrevPrime = PrevPrime - NthRoot
 
-					if len(primes) == levels {
-						return
-					}
+					n.CheckPrevPrime = CheckPrevPrime
+
+					return PrevPrime, nil
 				}
 
-				nextPrime += uint64(NthRoot)
+				PrevPrime -= NthRoot
+			}
+		}
+	}
+}
+
+// NextAlternatingPrime returns the next prime of the form 2^{BitSize} +/- k * {NthRoot} + 1.
+func (n *NTTFriendlyPrimesGenerator) NextAlternatingPrime() (uint64, error) {
+
+	NextPrime := n.NextPrime
+	PrevPrime := n.PrevPrime
+
+	NthRoot := n.NthRoot
+
+	CheckNextPrime := n.CheckNextPrime
+	CheckPrevPrime := n.CheckPrevPrime
+
+	Size := n.Size
+
+	for {
+
+		if !(CheckNextPrime || CheckPrevPrime) {
+			return 0, fmt.Errorf("cannot NextAlternatingPrime: prime list for both upstream and downstream primes is exhausted (overlap with previous/next bit-size or NthRoot > prime > 2^{64} ")
+		}
+
+		if CheckNextPrime {
+
+			// Stops if the next prime would overlap with primes of the next bit-size or if an uint64 overflow would occure.
+			if math.Log2(float64(NextPrime))-Size >= 0.5 || NextPrime > 0xffffffffffffffff-NthRoot {
+
+				CheckNextPrime = false
+
+			} else {
+
+				if IsPrime(NextPrime) {
+
+					n.NextPrime = NextPrime + NthRoot
+					n.PrevPrime = PrevPrime
+
+					n.CheckNextPrime = CheckNextPrime
+					n.CheckPrevPrime = CheckPrevPrime
+
+					return NextPrime, nil
+				}
+
+				NextPrime += NthRoot
 			}
 		}
 
-		if checkforpreviousprime {
+		if CheckPrevPrime {
 
-			if previousPrime < uint64(NthRoot) {
+			// Stops if the next prime would overlap with the primes of the previous bit-size or if an uint64 overflow would occure.
+			if Size-math.Log2(float64(PrevPrime)) >= 0.5 || PrevPrime < NthRoot {
 
-				checkforpreviousprime = false
+				CheckPrevPrime = false
 
 			} else {
 
-				previousPrime -= uint64(NthRoot)
+				if IsPrime(PrevPrime) {
 
-				if IsPrime(previousPrime) {
+					n.NextPrime = NextPrime
+					n.PrevPrime = PrevPrime - NthRoot
 
-					primes = append(primes, previousPrime)
+					n.CheckNextPrime = CheckNextPrime
+					n.CheckPrevPrime = CheckPrevPrime
 
-					if len(primes) == levels {
-						return
-					}
+					return PrevPrime, nil
 				}
+
+				PrevPrime -= NthRoot
 			}
 		}
 	}

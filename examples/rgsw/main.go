@@ -22,20 +22,28 @@ func sign(x float64) float64 {
 
 func main() {
 	// RLWE parameters of the LUT
-	// N=1024, Q=2^27 -> 2^131
-	paramsLUT, _ := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
+	// N=1024, Q=0x7fff801 -> ~2^128 ROP-security
+	paramsLUT, err := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
 		LogN:    10,
-		LogQ:    []int{27},
+		Q:       []uint64{0x7fff801},
 		NTTFlag: true,
 	})
 
+	if err != nil {
+		panic(err)
+	}
+
 	// RLWE parameters of the samples
-	// N=512, Q=2^13 -> 2^135
-	paramsLWE, _ := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
+	// N=512, Q=0x3001 -> ~2^128 ROP-security
+	paramsLWE, err := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
 		LogN:    9,
-		LogQ:    []int{13},
+		Q:       []uint64{0x3001},
 		NTTFlag: true,
 	})
+
+	if err != nil {
+		panic(err)
+	}
 
 	Base2Decomposition := 7
 

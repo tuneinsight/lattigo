@@ -237,6 +237,7 @@ All notable changes to this library are documented in this file.
     - Replaced  `Log2OfInnerSum` by `Log2OfStandardDeviation` in the `ring` package, which returns the log2 of the standard deviation of the coefficients of a polynomial.
     - Renamed `Permute[...]` by `Automorphism[...]` in the `ring` package.
     - Added non-NTT `Automorphism` support for the `ConjugateInvariant` ring.
+    - Replaced all prime generation methods by `NTTFriendlyPrimesGenerator` with provide more user friendly API and better functionality.
 
 - UTILS: 
     - Updated methods with generics when applicable.

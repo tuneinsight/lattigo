@@ -52,42 +52,42 @@ import (
 //	Be aware that doing so will impact the security, precision, and failure probability of the bootstrapping circuit.
 //	See https://eprint.iacr.org/2022/024 for more information.
 //
-// Iterations: the number of iterations of the bootstrapping (see https://eprint.iacr.org/2022/1167).
+// IterationsParamters : by treating the bootstrapping as a blackbox with precision logprec, we can construct a bootstrapping of precision ~k*logprec by iteration (see https://eprint.iacr.org/2022/1167).
+// - BootstrappingPrecision: []float64, the list of iterations (after the initial bootstrapping) given by the expected precision of each previous iteration.
+// - ReservedPrimeBitSize: the size of the reserved prime for the scaling after the initial bootstrapping.
 //
-// By treating the bootstrapping as a blackbox bootstrapping with precision n, we can construct a bootstrapping of precision ~k*n by iteration.
+// For example: &bootstrapping.IterationsParameters{BootstrappingPrecision: []float64{16}, ReservedPrimeBitSize: 16} will define a two iteration bootstrapping (the first iteration being the initial bootstrapping)
+// with a additional prime close to 2^{16} reserved for the scaling of the error during the second iteration.
 //
 // Here is an example for a two iterations bootstrapping of an input message mod [logq0=55, logq1=45] with scaling factor 2^{90}:
 //
 // INPUT:
 // 1) The input is a ciphertext encrypting [2^{90} * M]_{q0, q1}
-// BOOTSTRAP N°1
-// 2) Rescale  [M^{90}]_{q0, q1} to [M^{90}/q1]_{q0} (ensure that M^{90}/q1 ~ q0/messageratio)
+// ITERATION N°0
+// 2) Rescale  [M^{90}]_{q0, q1} to [M^{90}/q1]_{q0} (ensure that M^{90}/q1 ~ q0/messageratio by additional scaling if necessary)
 // 3) Bootsrap [M^{90}/q1]_{q0} to [M^{90}/q1 + e^{90 - logprec}/q1]_{q0, q1, q2, ...}
-// 4) Scale up [M^{90}/q1 + e^{90 - logprec}/q1]_{q0, q1, q2, ...} to [M^{d} * M + e^{d - logprec}]_{q0, q1, q2, ...}
-// BOOTSTRAP N°2
+// 4) Scale up [M^{90}/q1 + e^{90 - logprec}/q1]_{q0, q1, q2, ...} to [M^{d} + e^{d - logprec}]_{q0, q1, q2, ...}
+// ITERATION N°1
 // 5) Subtract [M^{d}]_{q0, q1} to [M^{d} + e^{d - logprec}]_{q0, q1, q2, ...} to get [e^{d - logprec}]_{q0, q1}
-// 6) Scale up [e^{90 - logprec}]_{q0, q1} to [e^{d}]_{q0, q1}
+// 6) Scale up [e^{90 - logprec}]_{q0, q1} by 2^{logprec} to get [e^{d}]_{q0, q1}
 // 7) Rescale  [e^{90}]_{q0, q1} to [{90}/q1]_{q0}
-// 8) Bootsrap [e^{90}/q1]_{q0} to [e^{90}/q1 + e'{90 - logprec}/q1]_{q0, q1, q2, ...}
-// 9) Scale up [e^{90}/q1 + e'{90 - logprec}/q0]_{q0, q1, q2, ...} by round(q1/2^{logprec}) to get [e^{90-logprec} + e'{90 - 2logprec}/q1]_{q0, q1, q2, ...}
-// 10) Subtract [e^{d - logprec} + e'{d - 2logprec}]_{q0, q1, q2, ...} to [M^{d} + e^{d - logprec}]_{q0, q1, q2, ...} to get [M^{d} * M + e'^{d - 2logprec}]_{q0, q1, q2, ...}
+// 8) Bootsrap [e^{90}/q1]_{q0} to [e^{90}/q1 + e'^{90 - logprec}/q1]_{q0, q1, q2, ...}
+// 9) Scale up [e^{90}/q1 + e'^{90 - logprec}/q0]_{q0, q1, q2, ...} by round(q1/2^{logprec}) to get [e^{90-logprec} + e'^{90 - 2logprec}]_{q0, q1, q2, ...}
+// 10) Subtract [e^{d - logprec} + e'^{d - 2logprec}]_{q0, q1, q2, ...} to [M^{d} + e^{d - logprec}]_{q0, q1, q2, ...} to get [M^{d} + e'^{d - 2logprec}]_{q0, q1, q2, ...}
 // 11) Go back to step 5 for more iterations until 2^{k * logprec} >= 2^{90}
 //
-// This example can be generalized to input message of any scaling factor and desired output precision by substituting q1 by some product of primes.
+// This example can be generalized to input messages of any scaling factor and desired output precision by increasing the input scaling factor and substituting q1 by a larger product of primes.
 //
 // Notes:
-//   - Although the rescaling of 2) and 7) are approximate, we can ignore them and treat them as being part of the bootstrapping error
+//   - The bootstrapping precision cannot exceed the original input ciphertext precision.
+//   - Although the rescalings of 2) and 7) are approximate, we can ignore them and treat them as being part of the bootstrapping error
 //   - As long as round(q1/2^{k*logprec}) >= 2^{logprec}, for k the iteration number, we are guaranteed that the error due to the approximate scale up of step 8) is smaller than 2^{logprec}
-//   - The gain in precision for each iteration is proportional to round(q1/2^{k*logprec})
+//   - The gain in precision for each iteration is proportional to min(round(q1/2^{k*logprec}), 2^{logprec})
 //   - If round(q1/2^{k * logprec}) < 2^{logprec}, where k is the iteration number, then the gain in precision will be less than the expected logprec.
 //     This can happen during the last iteration when q1/2^{k * logprec} < 1, and gets rounded to 1 or 0.
 //     To solve this issue, we can reduce logprec for the last iterations, but this increases the number of iterations, or reserve a prime of size at least 2^{logprec} to get
-//     a proper scaling by q1/2^{k * logprec} (i.e. not a rounded scaling).
+//     a proper scaling by q1/2^{k * logprec} (i.e. not a integer rounded scaling).
 //   - If the input ciphertext is at level 0, we must reserve a prime because everything happens within Q[0] and we have no other prime to use for rescaling.
-//
-// Each subsequent BOOTSTRAP after the first one must be provided with [2]{expected bit precision of the previous iteration, bit-size of the prime to consume for the scale up}
-//
-// Note that it isn't required to actually provide the expected bit precision of the first iteration as it is usually greater than half the scale
 //
 // LogMessageRatio: the log of expected ratio Q[0]/|m|, by default set to 8 (ratio of 256.0).
 //

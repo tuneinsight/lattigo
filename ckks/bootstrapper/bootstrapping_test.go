@@ -20,6 +20,7 @@ var printPrecisionStats = flag.Bool("print-precision", false, "print precision s
 func TestBootstrapping(t *testing.T) {
 
 	paramSet := bootstrapping.DefaultParametersSparse[0]
+	paramSet.SchemeParams.LogQ = paramSet.SchemeParams.LogQ[:utils.Min(2, len(paramSet.SchemeParams.LogQ))]
 
 	paramsN2Lit, btpParamsN2, err := bootstrapping.NewParametersFromLiteral(paramSet.SchemeParams, paramSet.BootstrappingParams)
 	require.Nil(t, err)
@@ -44,7 +45,7 @@ func TestBootstrapping(t *testing.T) {
 		paramsN2, err := ckks.NewParametersFromLiteral(paramsN2Lit)
 		require.Nil(t, err)
 
-		t.Logf("ParamsN2: LogN=%d/LogSlots=%d/LogQP=%f", paramsN2.LogN(), paramsN2.PlaintextSlots(), paramsN2.LogQP())
+		t.Logf("ParamsN2: LogN=%d/LogSlots=%d/LogQP=%f", paramsN2.LogN(), paramsN2.PlaintextLogSlots(), paramsN2.LogQP())
 
 		skN2 := ckks.NewKeyGenerator(paramsN2).GenSecretKeyNew()
 
@@ -302,7 +303,9 @@ func TestBootstrapping(t *testing.T) {
 			require.True(t, ctRightN1Q0.Level() == 0)
 
 			// Bootstrapps the ciphertext
-			ctLeftN1QL, ctRightN1QL := bootstrapper.refreshConjugateInvariant(ctLeftN1Q0, ctRightN1Q0)
+			ctLeftN1QL, ctRightN1QL, err := bootstrapper.refreshConjugateInvariant(ctLeftN1Q0, ctRightN1Q0)
+
+			require.NoError(t, err)
 
 			// Checks that the output ciphertext is at the max level of paramsN1
 			require.True(t, ctLeftN1QL.Level() == paramsN1.MaxLevel())

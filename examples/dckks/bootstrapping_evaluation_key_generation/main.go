@@ -44,7 +44,7 @@ func main() {
 		CoeffsToSlotsFactorizationDepthAndLogPlaintextScales: [][]int{{52}, {52}},
 		EvalModLogPlaintextScale:                             utils.PointyInt(59),
 		LogMessageRatio:                                      utils.PointyInt(11),
-		Iterations:                                           utils.PointyInt(2),
+		IterationsParameters:                                 &bootstrapping.IterationsParameters{BootstrappingPrecision: []float64{16}, ReservedPrimeBitSize: 16},
 		DoubleAngle:                                          utils.PointyInt(3),
 		EphemeralSecretWeight:                                utils.PointyInt(HSkSparse),
 	}
@@ -118,7 +118,10 @@ func main() {
 
 	fmt.Println()
 	fmt.Println("Bootstrapping...")
-	ciphertext2 := btp.Bootstrap(ciphertext1)
+	ciphertext2, err := btp.Bootstrap(ciphertext1)
+	if err != nil {
+		panic(err)
+	}
 	fmt.Println("Done")
 
 	// Decrypt, print and compare with the plaintext values

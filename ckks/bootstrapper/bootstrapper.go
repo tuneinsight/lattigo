@@ -67,9 +67,6 @@ func (b BootstrappingKeys) BinarySize() (dLen int) {
 
 func GenBootstrappingKeys(paramsN1, paramsN2 ckks.Parameters, btpParamsN2 bootstrapping.Parameters, skN1 *rlwe.SecretKey, skN2 *rlwe.SecretKey) (BootstrappingKeys, error) {
 
-	fmt.Println(paramsN1.Q())
-	fmt.Println(paramsN2.Q())
-
 	if paramsN1.Equal(paramsN2) != skN1.Equal(skN2) {
 		return BootstrappingKeys{}, fmt.Errorf("cannot GenBootstrappingKeys: if paramsN1 == paramsN2 then must ensure skN1 == skN2")
 	}
@@ -184,7 +181,7 @@ func (b Bootstrapper) OutputLevel() int {
 }
 
 func (b Bootstrapper) MinimumInputLevel() int {
-	return 0
+	return b.paramsN2.PlaintextScaleToModuliRatio() - 1
 }
 
 func (b Bootstrapper) Bootstrap(ct *rlwe.Ciphertext) (*rlwe.Ciphertext, error) {
@@ -211,7 +208,9 @@ func (b Bootstrapper) BootstrapMany(cts []*rlwe.Ciphertext) ([]*rlwe.Ciphertext,
 				ct1 = cts[odd]
 			}
 
-			ct0, ct1 = b.refreshConjugateInvariant(ct0, ct1)
+			if ct0, ct1, err = b.refreshConjugateInvariant(ct0, ct1); err != nil {
+				return nil, fmt.Errorf("cannot BootstrapMany: %w", err)
+			}
 
 			cts[even] = ct0
 
@@ -230,7 +229,9 @@ func (b Bootstrapper) BootstrapMany(cts []*rlwe.Ciphertext) ([]*rlwe.Ciphertext,
 		}
 
 		for i := range cts {
-			cts[i] = b.bootstrapper.Bootstrap(cts[i])
+			if cts[i], err = b.bootstrapper.Bootstrap(cts[i]); err != nil {
+				return nil, fmt.Errorf("cannot BootstrapMany: %w", err)
+			}
 		}
 
 		if cts, err = b.UnpackAndSwitchN2Tn1(cts, LogSlots, nbCiphertexts); err != nil {
@@ -250,7 +251,7 @@ func (b Bootstrapper) BootstrapMany(cts []*rlwe.Ciphertext) ([]*rlwe.Ciphertext,
 // refreshConjugateInvariant takes two ciphertext in the Conjugate Invariant ring, repacks them in a single ciphertext in the standard ring
 // using the real and imaginary part, bootstrap both ciphertext, and then extract back the real and imaginary part before repacking them
 // individually in two new ciphertexts in the Conjugate Invariant ring.
-func (b Bootstrapper) refreshConjugateInvariant(ctLeftN1Q0, ctRightN1Q0 *rlwe.Ciphertext) (ctLeftN1QL, ctRightN1QL *rlwe.Ciphertext) {
+func (b Bootstrapper) refreshConjugateInvariant(ctLeftN1Q0, ctRightN1Q0 *rlwe.Ciphertext) (ctLeftN1QL, ctRightN1QL *rlwe.Ciphertext, err error) {
 
 	if ctLeftN1Q0 == nil {
 		panic("cannot refreshConjugateInvariant: ctLeftN1Q0 cannot be nil")
@@ -268,7 +269,10 @@ func (b Bootstrapper) refreshConjugateInvariant(ctLeftN1Q0, ctRightN1Q0 *rlwe.Ci
 	}
 
 	// Refreshes in the ring.Sstandard
-	ctLeftAndRightN2QL := b.bootstrapper.Bootstrap(ctLeftN2Q0)
+	var ctLeftAndRightN2QL *rlwe.Ciphertext
+	if ctLeftAndRightN2QL, err = b.bootstrapper.Bootstrap(ctLeftN2Q0); err != nil {
+		return nil, nil, fmt.Errorf("cannot BootstrapMany: %w", err)
+	}
 
 	// The SlotsToCoeffs transformation scales the ciphertext by 0.5
 	// This is done to compensate for the 2x factor introduced by ringStandardToConjugate(*).

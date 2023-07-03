@@ -11,7 +11,7 @@ import (
 
 const (
 	// ScalePrecision is the default precision of the scale.
-	ScalePrecision = uint(128)
+	ScalePrecision = uint(256)
 )
 
 var ScalePrecisionLog10 = int(math.Ceil(float64(ScalePrecision) / math.Log2(10)))
@@ -54,6 +54,13 @@ func (s Scale) Float64() float64 {
 func (s Scale) Uint64() uint64 {
 	u64, _ := s.Value.Uint64()
 	return u64
+}
+
+// Bigint returns the scale as a big.Int, truncating the rational part and rounding ot the nearest integer.
+func (s Scale) Bigint() (sInt *big.Int) {
+	sInt = new(big.Int)
+	new(big.Float).SetPrec(s.Value.Prec()).Add(&s.Value, new(big.Float).SetFloat64(0.5)).Int(sInt)
+	return
 }
 
 // Mul multiplies the target s with s1, returning the result in

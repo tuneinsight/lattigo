@@ -14,7 +14,7 @@ type Parameters struct {
 	SlotsToCoeffsParameters ckks.HomomorphicDFTMatrixLiteral
 	EvalModParameters       ckks.EvalModLiteral
 	CoeffsToSlotsParameters ckks.HomomorphicDFTMatrixLiteral
-	Iterations              int
+	IterationsParameters    *IterationsParameters
 	EphemeralSecretWeight   int // Hamming weight of the ephemeral secret. If 0, no ephemeral secret is used during the bootstrapping.
 }
 
@@ -64,16 +64,21 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 		SlotsToCoeffsLevels[i] = len(SlotsToCoeffsFactorizationDepthAndLogPlaintextScales[i])
 	}
 
-	var Iterations int
-	if Iterations, err = btpLit.GetIterations(); err != nil {
+	var iterParams *IterationsParameters
+	if iterParams, err = btpLit.GetIterationsParameters(); err != nil {
 		return ckks.ParametersLiteral{}, Parameters{}, err
+	}
+
+	var hasReservedIterationPrime int
+	if iterParams != nil && iterParams.ReservedPrimeBitSize > 0 {
+		hasReservedIterationPrime = 1
 	}
 
 	S2CParams := ckks.HomomorphicDFTMatrixLiteral{
 		Type:            ckks.Decode,
 		LogSlots:        LogSlots,
 		RepackImag2Real: true,
-		LevelStart:      residualLevel + len(SlotsToCoeffsFactorizationDepthAndLogPlaintextScales) + Iterations - 1,
+		LevelStart:      residualLevel + len(SlotsToCoeffsFactorizationDepthAndLogPlaintextScales) + hasReservedIterationPrime,
 		LogBSGSRatio:    1,
 		Levels:          SlotsToCoeffsLevels,
 	}
@@ -144,8 +149,8 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 
 	LogQBootstrappingCircuit := []int{}
 
-	for i := 0; i < Iterations-1; i++ {
-		LogQBootstrappingCircuit = append(LogQBootstrappingCircuit, DefaultIterationsLogPlaintextScale)
+	if hasReservedIterationPrime == 1 {
+		LogQBootstrappingCircuit = append(LogQBootstrappingCircuit, iterParams.ReservedPrimeBitSize)
 	}
 
 	for i := range SlotsToCoeffsFactorizationDepthAndLogPlaintextScales {
@@ -260,7 +265,7 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 			SlotsToCoeffsParameters: S2CParams,
 			EvalModParameters:       EvalModParams,
 			CoeffsToSlotsParameters: C2SParams,
-			Iterations:              Iterations,
+			IterationsParameters:    iterParams,
 		}, nil
 }
 

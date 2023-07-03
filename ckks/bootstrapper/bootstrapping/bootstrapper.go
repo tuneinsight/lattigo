@@ -194,7 +194,7 @@ func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey *E
 
 	Q0 := params.Q()[0]
 
-	// Q0/|m|
+	// Q0/messageration = |m|
 	bb.q0OverMessageRatio = math.Exp2(math.Round(math.Log2(float64(Q0) / bb.evalModPoly.MessageRatio())))
 
 	// If the scale used during the EvalMod step is smaller than Q0, then we cannot increase the scale during

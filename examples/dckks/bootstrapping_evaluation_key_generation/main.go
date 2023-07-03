@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"math"
 
@@ -13,6 +14,8 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
+
+var flagShort = flag.Bool("short", false, "run the example with a smaller and insecure ring degree.")
 
 var (
 	NbParties = 3
@@ -27,6 +30,8 @@ type Party struct {
 
 func main() {
 
+	flag.Parse()
+
 	// First we define the residual CKKS parameters. This is only a template that will be given
 	// to the constructor along with the specificities of the bootstrapping circuit we choose, to
 	// enable it to create the appropriate ckks.ParametersLiteral that enable the evaluation of the
@@ -37,6 +42,10 @@ func main() {
 		LogP:              []int{60, 60}, // Log2 of the key-switch auxiliary prime moduli
 		LogPlaintextScale: 48,            // Log2 of the scale
 		Xs:                ring.Ternary{H: HSkDense},
+	}
+
+	if *flagShort {
+		ckksParamsResidualLit.LogN -= 3
 	}
 
 	btpParametersLit := bootstrapping.ParametersLiteral{

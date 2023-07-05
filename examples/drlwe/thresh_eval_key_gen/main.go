@@ -318,7 +318,7 @@ func main() {
 			fmt.Printf("missing GaloisKey for galEl=%d\n", galEl)
 			os.Exit(1)
 		} else {
-			if !rlwe.GaloisKeyIsCorrect(gk, skIdeal, params, noise) {
+			if noise < rlwe.NoiseGaloisKey(gk, skIdeal, params) {
 				fmt.Printf("invalid GaloisKey for galEl=%d\n", galEl)
 				os.Exit(1)
 			}

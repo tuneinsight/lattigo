@@ -303,7 +303,7 @@ func testKeyGenerator(tc *TestContext, bpw2 int, t *testing.T) {
 
 				require.Equal(t, decompRNS*decompPW2, len(evk.Value)*len(evk.Value[0])) // checks that decomposition size is correct
 
-				require.True(t, EvaluationKeyIsCorrect(evk, sk, skOut, params, math.Log2(math.Sqrt(float64(decompRNS))*params.NoiseFreshSK())+1))
+				require.GreaterOrEqual(t, math.Log2(math.Sqrt(float64(decompRNS))*params.NoiseFreshSK())+1, NoiseEvaluationKey(evk, sk, skOut, params))
 			})
 
 			t.Run(testString(params, levelQ, levelP, bpw2, "KeyGenerator/GenRelinearizationKey"), func(t *testing.T) {
@@ -318,7 +318,7 @@ func testKeyGenerator(tc *TestContext, bpw2 int, t *testing.T) {
 
 				require.Equal(t, decompRNS*decompPW2, len(rlk.Value)*len(rlk.Value[0])) // checks that decomposition size is correct
 
-				require.True(t, RelinearizationKeyIsCorrect(rlk, sk, params, math.Log2(math.Sqrt(float64(decompRNS))*params.NoiseFreshSK())+1))
+				require.GreaterOrEqual(t, math.Log2(math.Sqrt(float64(decompRNS))*params.NoiseFreshSK())+1, NoiseRelinearizationKey(rlk, sk, params))
 			})
 
 			t.Run(testString(params, levelQ, levelP, bpw2, "KeyGenerator/GenGaloisKey"), func(t *testing.T) {
@@ -333,7 +333,7 @@ func testKeyGenerator(tc *TestContext, bpw2 int, t *testing.T) {
 
 				require.Equal(t, decompRNS*decompPW2, len(gk.Value)*len(gk.Value[0])) // checks that decomposition size is correct
 
-				require.True(t, GaloisKeyIsCorrect(gk, sk, params, math.Log2(math.Sqrt(float64(decompRNS))*params.NoiseFreshSK())+1))
+				require.GreaterOrEqual(t, math.Log2(math.Sqrt(float64(decompRNS))*params.NoiseFreshSK())+1, NoiseGaloisKey(gk, sk, params))
 			})
 		}
 	}

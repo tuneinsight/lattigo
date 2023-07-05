@@ -103,6 +103,14 @@ func newVectorQP(params ParametersInterface, size, levelQ, levelP int) (v vector
 	return
 }
 
+func (p vectorQP) LevelQ() int {
+	return p[0].LevelQ()
+}
+
+func (p vectorQP) LevelP() int {
+	return p[0].LevelP()
+}
+
 // CopyNew creates a deep copy of the target PublicKey and returns it.
 func (p vectorQP) CopyNew() *vectorQP {
 	m := make([]ringqp.Poly, len(p))
@@ -189,6 +197,14 @@ type PublicKey struct {
 // NewPublicKey returns a new PublicKey with zero values.
 func NewPublicKey(params ParametersInterface) (pk *PublicKey) {
 	return &PublicKey{Value: newVectorQP(params, 2, params.MaxLevelQ(), params.MaxLevelP())}
+}
+
+func (p PublicKey) LevelQ() int {
+	return p.Value.LevelQ()
+}
+
+func (p PublicKey) LevelP() int {
+	return p.Value.LevelP()
 }
 
 // CopyNew creates a deep copy of the target PublicKey and returns it.

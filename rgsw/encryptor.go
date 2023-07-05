@@ -1,6 +1,7 @@
 package rgsw
 
 import (
+	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 )
@@ -17,8 +18,8 @@ type Encryptor struct {
 
 // NewEncryptor creates a new Encryptor type. Note that only secret-key encryption is
 // supported at the moment.
-func NewEncryptor(params rlwe.Parameters, sk *rlwe.SecretKey) *Encryptor {
-	return &Encryptor{rlwe.NewEncryptor(params, sk), params, params.RingQP().NewPoly()}
+func NewEncryptor[T *rlwe.SecretKey | *rlwe.PublicKey](params rlwe.Parameters, key T) *Encryptor {
+	return &Encryptor{rlwe.NewEncryptor(params, key), params, params.RingQP().NewPoly()}
 }
 
 // Encrypt encrypts a plaintext pt into a ciphertext ct, which can be a rgsw.Ciphertext
@@ -38,10 +39,22 @@ func (enc Encryptor) Encrypt(pt *rlwe.Plaintext, ct interface{}) {
 	ringQ := enc.params.RingQ().AtLevel(levelQ)
 
 	if pt != nil {
-		ringQ.MForm(pt.Value, enc.buffQP.Q)
+
 		if !pt.IsNTT {
-			ringQ.NTT(enc.buffQP.Q, enc.buffQP.Q)
+			ringQ.NTT(pt.Value, enc.buffQP.Q)
+
+			if !pt.IsMontgomery {
+				ringQ.MForm(enc.buffQP.Q, enc.buffQP.Q)
+			}
+
+		} else {
+			if !pt.IsMontgomery {
+				ringQ.MForm(pt.Value, enc.buffQP.Q)
+			} else {
+				ring.CopyLvl(levelQ, enc.buffQP.Q, pt.Value)
+			}
 		}
+
 		rlwe.AddPolyTimesGadgetVectorToGadgetCiphertext(
 			enc.buffQP.Q,
 			[]rlwe.GadgetCiphertext{rgswCt.Value[0], rgswCt.Value[1]},

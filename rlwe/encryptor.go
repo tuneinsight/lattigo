@@ -190,28 +190,44 @@ func (enc EncryptorPublicKey) EncryptZero(ct interface{}) {
 	switch ct := ct.(type) {
 	case *Ciphertext:
 		if enc.params.PCount() > 0 {
-			enc.encryptZero(ct)
+			enc.encryptZero(*ct.El())
 		} else {
 			enc.encryptZeroNoP(ct)
 		}
+	case OperandQP:
+		enc.encryptZero(ct)
 	default:
 		panic(fmt.Sprintf("cannot Encrypt: input ciphertext type %s is not supported", reflect.TypeOf(ct)))
 	}
 }
 
-func (enc EncryptorPublicKey) encryptZero(ct *Ciphertext) {
+func (enc EncryptorPublicKey) encryptZero(ct interface{}) {
 
-	levelQ := ct.Level()
-	levelP := 0
+	var ct0QP, ct1QP ringqp.Poly
+
+	var levelQ, levelP int
+	switch ct := ct.(type) {
+	case OperandQ:
+
+		levelQ = ct.Level()
+		levelP = 0
+
+		ct0QP = ringqp.Poly{Q: ct.Value[0], P: enc.buffP[0]}
+		ct1QP = ringqp.Poly{Q: ct.Value[1], P: enc.buffP[1]}
+	case OperandQP:
+
+		levelQ = ct.LevelQ()
+		levelP = ct.LevelP()
+
+		ct0QP = ct.Value[0]
+		ct1QP = ct.Value[1]
+	default:
+		panic(fmt.Sprintf("invalid input: must be OperandQ or OperandQP but is %T", ct))
+	}
 
 	ringQP := enc.params.RingQP().AtLevel(levelQ, levelP)
 
-	buffQ0 := enc.buffQ[0]
-	buffP0 := enc.buffP[0]
-	buffP1 := enc.buffP[1]
-	buffP2 := enc.buffP[2]
-
-	u := ringqp.Poly{Q: buffQ0, P: buffP2}
+	u := ringqp.Poly{Q: enc.buffQ[0], P: enc.buffP[2]}
 
 	// We sample a RLWE instance (encryption of zero) over the extended ring (ciphertext ring + special prime)
 	enc.xsSampler.AtLevel(levelQ).Read(u.Q)
@@ -219,9 +235,6 @@ func (enc EncryptorPublicKey) encryptZero(ct *Ciphertext) {
 
 	// (#Q + #P) NTT
 	ringQP.NTT(u, u)
-
-	ct0QP := ringqp.Poly{Q: ct.Value[0], P: buffP0}
-	ct1QP := ringqp.Poly{Q: ct.Value[1], P: buffP1}
 
 	// ct0 = u*pk0
 	// ct1 = u*pk1
@@ -232,7 +245,7 @@ func (enc EncryptorPublicKey) encryptZero(ct *Ciphertext) {
 	ringQP.INTT(ct0QP, ct0QP)
 	ringQP.INTT(ct1QP, ct1QP)
 
-	e := ringqp.Poly{Q: buffQ0, P: buffP2}
+	e := u
 
 	enc.xeSampler.AtLevel(levelQ).Read(e.Q)
 	ringQP.ExtendBasisSmallNormAndCenter(e.Q, levelP, e.Q, e.P)
@@ -242,15 +255,35 @@ func (enc EncryptorPublicKey) encryptZero(ct *Ciphertext) {
 	ringQP.ExtendBasisSmallNormAndCenter(e.Q, levelP, e.Q, e.P)
 	ringQP.Add(ct1QP, e, ct1QP)
 
-	// ct0 = (u*pk0 + e0)/P
-	enc.basisextender.ModDownQPtoQ(levelQ, levelP, ct0QP.Q, ct0QP.P, ct.Value[0])
+	switch ct := ct.(type) {
+	case OperandQ:
 
-	// ct1 = (u*pk1 + e1)/P
-	enc.basisextender.ModDownQPtoQ(levelQ, levelP, ct1QP.Q, ct1QP.P, ct.Value[1])
+		// ct0 = (u*pk0 + e0)/P
+		enc.basisextender.ModDownQPtoQ(levelQ, levelP, ct0QP.Q, ct0QP.P, ct.Value[0])
 
-	if ct.IsNTT {
-		ringQP.RingQ.NTT(ct.Value[0], ct.Value[0])
-		ringQP.RingQ.NTT(ct.Value[1], ct.Value[1])
+		// ct1 = (u*pk1 + e1)/P
+		enc.basisextender.ModDownQPtoQ(levelQ, levelP, ct1QP.Q, ct1QP.P, ct.Value[1])
+
+		if ct.IsNTT {
+			ringQP.RingQ.NTT(ct.Value[0], ct.Value[0])
+			ringQP.RingQ.NTT(ct.Value[1], ct.Value[1])
+		}
+
+		if ct.IsMontgomery {
+			ringQP.RingQ.MForm(ct.Value[0], ct.Value[0])
+			ringQP.RingQ.MForm(ct.Value[1], ct.Value[1])
+		}
+
+	case OperandQP:
+		if ct.IsNTT {
+			ringQP.NTT(ct.Value[0], ct.Value[0])
+			ringQP.NTT(ct.Value[1], ct.Value[1])
+		}
+
+		if ct.IsMontgomery {
+			ringQP.MForm(ct.Value[0], ct.Value[0])
+			ringQP.MForm(ct.Value[1], ct.Value[1])
+		}
 	}
 }
 

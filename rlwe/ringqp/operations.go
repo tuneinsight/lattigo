@@ -285,6 +285,18 @@ func (r Ring) Automorphism(p1 Poly, galEl uint64, p2 Poly) {
 	}
 }
 
+// AutomorphismNTT applies the automorphism X^{i} -> X^{i*gen} on p1 and writes the result on p2.
+// Method is not in place.
+// Inputs are assumed to be in the NTT domain.
+func (r Ring) AutomorphismNTT(p1 Poly, galEl uint64, p2 Poly) {
+	if r.RingQ != nil {
+		r.RingQ.AutomorphismNTT(p1.Q, galEl, p2.Q)
+	}
+	if r.RingP != nil {
+		r.RingP.AutomorphismNTT(p1.P, galEl, p2.P)
+	}
+}
+
 // AutomorphismNTTWithIndex applies the automorphism X^{i} -> X^{i*gen} on p1 and writes the result on p2.
 // Index of automorphism must be provided.
 // Method is not in place.

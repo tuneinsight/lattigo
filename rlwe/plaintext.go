@@ -36,6 +36,13 @@ func (pt Plaintext) Copy(other *Plaintext) {
 	pt.Value = other.OperandQ.Value[0]
 }
 
+func (pt Plaintext) CopyNew() (ptCpy *Plaintext) {
+	ptCpy = new(Plaintext)
+	ptCpy.OperandQ = *pt.OperandQ.CopyNew()
+	ptCpy.Value = pt.OperandQ.Value[0]
+	return
+}
+
 // Equal performs a deep equal.
 func (pt Plaintext) Equal(other *Plaintext) bool {
 	return pt.OperandQ.Equal(&other.OperandQ) && pt.Value.Equal(&other.Value)

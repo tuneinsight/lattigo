@@ -162,7 +162,7 @@ func testPublicKeyGenProtocol(tc *testContext, levelQ, levelP, bpw2 int, t *test
 		pk := rlwe.NewPublicKey(params)
 		ckg[0].GenPublicKey(shares[0], crp, pk)
 
-		require.True(t, rlwe.PublicKeyIsCorrect(pk, tc.skIdeal, params, math.Log2(math.Sqrt(float64(nbParties))*params.NoiseFreshSK())+1))
+		require.GreaterOrEqual(t, math.Log2(math.Sqrt(float64(nbParties))*params.NoiseFreshSK())+1, rlwe.NoisePublicKey(pk, tc.skIdeal, params))
 	})
 }
 
@@ -219,7 +219,7 @@ func testRelinKeyGenProtocol(tc *testContext, levelQ, levelP, bpw2 int, t *testi
 
 		noiseBound := math.Log2(math.Sqrt(float64(decompRNS))*NoiseRelinearizationKey(params, nbParties)) + 1
 
-		require.True(t, rlwe.RelinearizationKeyIsCorrect(rlk, tc.skIdeal, params, noiseBound))
+		require.GreaterOrEqual(t, noiseBound, rlwe.NoiseRelinearizationKey(rlk, tc.skIdeal, params))
 	})
 }
 
@@ -274,7 +274,7 @@ func testEvaluationKeyGenProtocol(tc *testContext, levelQ, levelP, bpw2 int, t *
 
 		noiseBound := math.Log2(math.Sqrt(float64(decompRNS))*NoiseEvaluationKey(params, nbParties)) + 1
 
-		require.True(t, rlwe.EvaluationKeyIsCorrect(evk, tc.skIdeal, skOutIdeal, params, noiseBound))
+		require.GreaterOrEqual(t, noiseBound, rlwe.NoiseEvaluationKey(evk, tc.skIdeal, skOutIdeal, params))
 	})
 }
 
@@ -322,7 +322,7 @@ func testGaloisKeyGenProtocol(tc *testContext, levelQ, levelP, bpw2 int, t *test
 
 		noiseBound := math.Log2(math.Sqrt(float64(decompRNS))*NoiseGaloisKey(params, nbParties)) + 1
 
-		require.True(t, rlwe.GaloisKeyIsCorrect(galoisKey, tc.skIdeal, params, noiseBound))
+		require.GreaterOrEqual(t, noiseBound, rlwe.NoiseGaloisKey(galoisKey, tc.skIdeal, params))
 	})
 }
 

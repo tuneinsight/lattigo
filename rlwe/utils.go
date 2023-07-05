@@ -9,40 +9,30 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
-// PublicKeyIsCorrect returns true if pk is a correct RLWE public-key for secret-key sk and parameters params.
-func PublicKeyIsCorrect(pk *PublicKey, sk *SecretKey, params Parameters, log2Bound float64) bool {
+// NoisePublicKey returns the log2 of the standard deviation of the input public-key with respect to the given secret-key and parameters.
+func NoisePublicKey(pk *PublicKey, sk *SecretKey, params Parameters) float64 {
 
 	pk = pk.CopyNew()
 
-	levelQ, levelP := params.MaxLevelQ(), params.MaxLevelP()
-	ringQP := params.RingQP().AtLevel(levelQ, levelP)
+	ringQP := params.RingQP().AtLevel(pk.LevelQ(), pk.LevelP())
 
 	// [-as + e] + [as]
 	ringQP.MulCoeffsMontgomeryThenAdd(sk.Value, pk.Value[1], pk.Value[0])
 	ringQP.INTT(pk.Value[0], pk.Value[0])
 	ringQP.IMForm(pk.Value[0], pk.Value[0])
 
-	if log2Bound <= ringQP.RingQ.Log2OfStandardDeviation(pk.Value[0].Q) {
-		return false
-	}
-
-	if ringQP.RingP != nil && log2Bound <= ringQP.RingP.Log2OfStandardDeviation(pk.Value[0].P) {
-		return false
-	}
-
-	return true
+	return ringQP.Log2OfStandardDeviation(pk.Value[0])
 }
 
-// RelinearizationKeyIsCorrect returns true if evk is a correct RLWE relinearization-key for secret-key sk and parameters params.
-func RelinearizationKeyIsCorrect(rlk *RelinearizationKey, sk *SecretKey, params Parameters, log2Bound float64) bool {
-	levelQ, levelP := params.MaxLevelQ(), params.MaxLevelP()
+// NoiseRelinearizationKey the log2 of the standard deivation of the noise of the input relinearization key with respect to the given secret-key and paramters.
+func NoiseRelinearizationKey(rlk *RelinearizationKey, sk *SecretKey, params Parameters) float64 {
 	sk2 := sk.CopyNew()
-	params.RingQP().AtLevel(levelQ, levelP).MulCoeffsMontgomery(sk2.Value, sk2.Value, sk2.Value)
-	return EvaluationKeyIsCorrect(rlk.EvaluationKey.CopyNew(), sk2, sk, params, log2Bound)
+	params.RingQP().AtLevel(rlk.LevelQ(), rlk.LevelP()).MulCoeffsMontgomery(sk2.Value, sk2.Value, sk2.Value)
+	return NoiseEvaluationKey(&rlk.EvaluationKey, sk2, sk, params)
 }
 
-// GaloisKeyIsCorrect returns true if evk is a correct EvaluationKey for galois element galEl, secret-key sk and parameters params.
-func GaloisKeyIsCorrect(gk *GaloisKey, sk *SecretKey, params Parameters, log2Bound float64) bool {
+// NoiseGaloisKey the log2 of the standard deivation of the noise of the input Galois key key with respect to the given secret-key and paramters.
+func NoiseGaloisKey(gk *GaloisKey, sk *SecretKey, params Parameters) float64 {
 
 	skIn := sk.CopyNew()
 	skOut := sk.CopyNew()
@@ -51,76 +41,69 @@ func GaloisKeyIsCorrect(gk *GaloisKey, sk *SecretKey, params Parameters, log2Bou
 
 	galElInv := ring.ModExp(gk.GaloisElement, nthRoot-1, nthRoot)
 
-	ringQ, ringP := params.RingQ().AtLevel(gk.LevelQ()), params.RingP().AtLevel(gk.LevelP())
+	params.RingQP().AtLevel(gk.LevelQ(), gk.LevelP()).AutomorphismNTT(sk.Value, galElInv, skOut.Value)
 
-	ringQ.AutomorphismNTT(sk.Value.Q, galElInv, skOut.Value.Q)
-	if ringP != nil {
-		ringP.AutomorphismNTT(sk.Value.P, galElInv, skOut.Value.P)
-	}
-
-	return EvaluationKeyIsCorrect(&gk.EvaluationKey, skIn, skOut, params, log2Bound)
+	return NoiseEvaluationKey(&gk.EvaluationKey, skIn, skOut, params)
 }
 
-// EvaluationKeyIsCorrect returns true if evk is a correct EvaluationKey for input key skIn, output key skOut and parameters params.
-func EvaluationKeyIsCorrect(evk *EvaluationKey, skIn, skOut *SecretKey, params Parameters, log2Bound float64) bool {
-	evk = evk.CopyNew()
-	skIn = skIn.CopyNew()
-	levelQ, levelP := evk.LevelQ(), evk.LevelP()
+// NoiseGadgetCiphertext returns the log2 of the standard devaition of the noise of the input gadget ciphertext with respect to the given plaintext, secret-key and parameters.
+// The polynomial pt is expected to be in the NTT and Montgomery domain.
+func NoiseGadgetCiphertext(gct *GadgetCiphertext, pt ring.Poly, sk *SecretKey, params Parameters) float64 {
+
+	gct = gct.CopyNew()
+	pt = pt.CopyNew()
+	levelQ, levelP := gct.LevelQ(), gct.LevelP()
 	ringQP := params.RingQP().AtLevel(levelQ, levelP)
 	ringQ, ringP := ringQP.RingQ, ringQP.RingP
-	decompPw2 := params.DecompPw2(levelQ, levelP, evk.BaseTwoDecomposition)
+	decompPw2 := params.DecompPw2(levelQ, levelP, gct.BaseTwoDecomposition)
 
 	// Decrypts
 	// [-asIn + w*P*sOut + e, a] + [asIn]
-	for i := range evk.Value {
-		for j := range evk.Value[i] {
-			ringQP.MulCoeffsMontgomeryThenAdd(evk.Value[i][j][1], skOut.Value, evk.Value[i][j][0])
+	for i := range gct.Value {
+		for j := range gct.Value[i] {
+			ringQP.MulCoeffsMontgomeryThenAdd(gct.Value[i][j][1], sk.Value, gct.Value[i][j][0])
 		}
 	}
 
 	// Sums all bases together (equivalent to multiplying with CRT decomposition of 1)
 	// sum([1]_w * [RNS*PW2*P*sOut + e]) = PWw*P*sOut + sum(e)
-	for i := range evk.Value { // RNS decomp
+	for i := range gct.Value { // RNS decomp
 		if i > 0 {
-			for j := range evk.Value[i] { // PW2 decomp
-				ringQP.Add(evk.Value[0][j][0], evk.Value[i][j][0], evk.Value[0][j][0])
+			for j := range gct.Value[i] { // PW2 decomp
+				ringQP.Add(gct.Value[0][j][0], gct.Value[i][j][0], gct.Value[0][j][0])
 			}
 		}
 	}
 
 	if levelP != -1 {
 		// sOut * P
-		ringQ.MulScalarBigint(skIn.Value.Q, ringP.Modulus(), skIn.Value.Q)
+		ringQ.MulScalarBigint(pt, ringP.ModulusAtLevel[levelP], pt)
 	}
+
+	var maxLog2Std float64
 
 	for i := 0; i < decompPw2; i++ {
 
 		// P*s^i + sum(e) - P*s^i = sum(e)
-		ringQ.Sub(evk.Value[0][i][0].Q, skIn.Value.Q, evk.Value[0][i][0].Q)
+		ringQ.Sub(gct.Value[0][i][0].Q, pt, gct.Value[0][i][0].Q)
 
 		// Checks that the error is below the bound
 		// Worst error bound is N * floor(6*sigma) * #Keys
-		ringQP.INTT(evk.Value[0][i][0], evk.Value[0][i][0])
-		ringQP.IMForm(evk.Value[0][i][0], evk.Value[0][i][0])
+		ringQP.INTT(gct.Value[0][i][0], gct.Value[0][i][0])
+		ringQP.IMForm(gct.Value[0][i][0], gct.Value[0][i][0])
 
-		// Worst bound of inner sum
-		// N*#Keys*(N * #Parties * floor(sigma*6) + #Parties * floor(sigma*6) + N * #Parties  +  #Parties * floor(6*sigma))
-
-		if log2Bound < ringQ.Log2OfStandardDeviation(evk.Value[0][i][0].Q) {
-			return false
-		}
-
-		if levelP != -1 {
-			if log2Bound < ringP.Log2OfStandardDeviation(evk.Value[0][i][0].P) {
-				return false
-			}
-		}
+		maxLog2Std = utils.Max(maxLog2Std, ringQP.Log2OfStandardDeviation(gct.Value[0][i][0]))
 
 		// sOut * P * PW2
-		ringQ.MulScalar(skIn.Value.Q, 1<<evk.BaseTwoDecomposition, skIn.Value.Q)
+		ringQ.MulScalar(pt, 1<<gct.BaseTwoDecomposition, pt)
 	}
 
-	return true
+	return maxLog2Std
+}
+
+// NoiseEvaluationKey the log2 of the standard deivation of the noise of the input Galois key key with respect to the given secret-key and paramters.
+func NoiseEvaluationKey(evk *EvaluationKey, skIn, skOut *SecretKey, params Parameters) float64 {
+	return NoiseGadgetCiphertext(&evk.GadgetCiphertext, skIn.Value.Q, skOut, params)
 }
 
 // Norm returns the log2 of the standard deviation, minimum and maximum absolute norm of

@@ -177,9 +177,10 @@ All notable changes to this library are documented in this file.
 
     - Changes to the `Encryptor`:
         - `EncryptorPublicKey` and `EncryptorSecretKey` are now public.
+        - Encryptors instantiated with a `rlwe.PublicKey` now can encrypt over `rlwe.OperandQP` (i.e. generating of `rlwe.GadgetCiphertext` encryptions of zero with `rlwe.PublicKey`).
 
     - Changes to the `Decryptor`:
-        - `NewEncryptor` returns an `*Encryptor` instead of an interface.
+        - `NewDecryptor` returns a `*Decryptor` instead of an interface.
 
     - Changes to the `Evaluator`:
         - Fixed all methods of the `Evaluator` to work with operands in and out of the NTT domain.
@@ -225,6 +226,10 @@ All notable changes to this library are documented in this file.
 - DRLWE:
     - Added `EvaluationKeyGenProtocol` to enable users to generate generic `rlwe.EvaluationKey` (previously only the `GaloisKey`)
     - It is now possible to specify the levels of the modulus `Q` and `P`, as well as the `BaseTwoDecomposition` via the optional struct `rlwe.EvaluationKeyParameters`, when generating `rlwe.EvaluationKey`, `rlwe.GaloisKey` and `rlwe.RelinearizationKey`.
+
+- RGSW:
+    - Expanded the encryptor to be able encrypt from an `rlwe.PublicKey`.
+    - Added tests for encrytion and external product.
 
 - RING: 
     - Changes to sampling:

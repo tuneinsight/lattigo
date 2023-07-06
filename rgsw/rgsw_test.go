@@ -7,6 +7,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
+	"github.com/tuneinsight/lattigo/v4/utils/buffer"
 
 	"github.com/stretchr/testify/require"
 )
@@ -109,6 +110,12 @@ func TestRGSW(t *testing.T) {
 		want[k0+k1] = 1
 
 		require.Equal(t, have, want)
+	})
+
+	t.Run("WriteAndRead", func(t *testing.T) {
+		ct := NewCiphertext(params, params.MaxLevelQ(), params.MaxLevelP(), 0)
+		NewEncryptor(params, pk).Encrypt(nil, ct)
+		buffer.RequireSerializerCorrect(t, ct)
 	})
 }
 

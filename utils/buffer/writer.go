@@ -2,6 +2,7 @@ package buffer
 
 import (
 	"encoding/binary"
+	"fmt"
 )
 
 // WriteInt writes an int c to w.
@@ -28,6 +29,10 @@ func WriteUint16(w Writer, c uint16) (n int, err error) {
 		if err = w.Flush(); err != nil {
 			return
 		}
+
+		if w.Available()>>1 == 0 {
+			return 0, fmt.Errorf("cannot WriteUint16: available buffer/2 is zero even after flush")
+		}
 	}
 
 	binary.LittleEndian.PutUint16(buf[:2], c)
@@ -53,6 +58,10 @@ func WriteUint16Slice(w Writer, c []uint16) (n int, err error) {
 		}
 
 		available = w.Available() >> 1
+
+		if available == 0 {
+			return 0, fmt.Errorf("cannot WriteUint16Slice: available buffer/2 is zero even after flush")
+		}
 	}
 
 	if N := len(c); N <= available { // If there is enough space in the available buffer
@@ -99,6 +108,10 @@ func WriteUint32(w Writer, c uint32) (n int, err error) {
 		if err = w.Flush(); err != nil {
 			return
 		}
+
+		if w.Available()>>2 == 0 {
+			return 0, fmt.Errorf("cannot WriteUint32: available buffer/4 is zero even after flush")
+		}
 	}
 
 	buf = buf[:4]
@@ -124,6 +137,10 @@ func WriteUint32Slice(w Writer, c []uint32) (n int, err error) {
 		}
 
 		available = w.Available() >> 2
+
+		if available == 0 {
+			return 0, fmt.Errorf("cannot WriteUint32Slice: available buffer/4 is zero even after flush")
+		}
 	}
 
 	if N := len(c); N <= available { // If there is enough space in the available buffer
@@ -169,6 +186,10 @@ func WriteUint64(w Writer, c uint64) (n int, err error) {
 		if err = w.Flush(); err != nil {
 			return
 		}
+
+		if w.Available()>>3 == 0 {
+			return 0, fmt.Errorf("cannot WriteUint64: available buffer/8 is zero even after flush")
+		}
 	}
 
 	binary.LittleEndian.PutUint64(buf[:8], c)
@@ -194,6 +215,10 @@ func WriteUint64Slice(w Writer, c []uint64) (n int, err error) {
 		}
 
 		available = w.Available() >> 3
+
+		if available == 0 {
+			return 0, fmt.Errorf("cannot WriteUint64Slice: available buffer/8 is zero even after flush")
+		}
 	}
 
 	if N := len(c); N <= available { // If there is enough space in the available buffer

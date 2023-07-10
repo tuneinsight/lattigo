@@ -91,6 +91,12 @@ func NewEncoder(params Parameters) *Encoder {
 	return &Encoder{bgv.NewEncoder(params.Parameters)}
 }
 
+// ShallowCopy creates a shallow copy of this Encoder in which the read-only data-structures are
+// shared with the receiver.
+func (e Encoder) ShallowCopy() *Encoder {
+	return &Encoder{Encoder: e.Encoder.ShallowCopy()}
+}
+
 type encoder[T int64 | uint64, U *ring.Poly | ringqp.Poly | *rlwe.Plaintext] struct {
 	*Encoder
 }

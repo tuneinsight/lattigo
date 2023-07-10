@@ -26,7 +26,6 @@ func (eval Evaluator) Polynomial(input interface{}, p interface{}, invariantTens
 
 	polyEval := polynomialEvaluator{
 		Evaluator:          &eval,
-		Encoder:            NewEncoder(eval.Parameters().(Parameters)),
 		invariantTensoring: invariantTensoring,
 	}
 
@@ -163,7 +162,6 @@ func (d dummyEvaluator) UpdateLevelAndScaleGiantStep(lead bool, tLevelOld int, t
 
 type polynomialEvaluator struct {
 	*Evaluator
-	*Encoder
 	invariantTensoring bool
 }
 

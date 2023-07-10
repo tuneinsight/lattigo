@@ -45,7 +45,7 @@ func BenchmarkDRLWE(b *testing.B) {
 				bpw2 := paramsLit.BaseTwoDecomposition
 
 				benchPublicKeyGen(params, levelQ, levelP, bpw2, b)
-				benchRelinKeyGen(params, levelQ, levelP, bpw2, b)
+				benchRelinearizationKeyGen(params, levelQ, levelP, bpw2, b)
 				benchRotKeyGen(params, levelQ, levelP, bpw2, b)
 
 				// Varying t
@@ -97,11 +97,11 @@ func benchPublicKeyGen(params rlwe.Parameters, levelQ, levelP, bpw2 int, b *test
 	})
 }
 
-func benchRelinKeyGen(params rlwe.Parameters, levelQ, levelP, bpw2 int, b *testing.B) {
+func benchRelinearizationKeyGen(params rlwe.Parameters, levelQ, levelP, bpw2 int, b *testing.B) {
 
 	evkParams := rlwe.EvaluationKeyParameters{LevelQ: levelQ, LevelP: levelP, BaseTwoDecomposition: bpw2}
 
-	rkg := NewRelinKeyGenProtocol(params)
+	rkg := NewRelinearizationKeyGenProtocol(params)
 	sk := rlwe.NewKeyGenerator(params).GenSecretKeyNew()
 	ephSk, share1, share2 := rkg.AllocateShare(evkParams)
 	rlk := rlwe.NewRelinearizationKey(params, evkParams)
@@ -109,25 +109,25 @@ func benchRelinKeyGen(params rlwe.Parameters, levelQ, levelP, bpw2 int, b *testi
 
 	crp := rkg.SampleCRP(crs, evkParams)
 
-	b.Run(benchString(params, "RelinKeyGen/GenRound1", levelQ, levelP, bpw2), func(b *testing.B) {
+	b.Run(benchString(params, "RelinearizationKeyGen/GenRound1", levelQ, levelP, bpw2), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			rkg.GenShareRoundOne(sk, crp, ephSk, &share1)
 		}
 	})
 
-	b.Run(benchString(params, "RelinKeyGen/GenRound2", levelQ, levelP, bpw2), func(b *testing.B) {
+	b.Run(benchString(params, "RelinearizationKeyGen/GenRound2", levelQ, levelP, bpw2), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			rkg.GenShareRoundTwo(ephSk, sk, share1, &share2)
 		}
 	})
 
-	b.Run(benchString(params, "RelinKeyGen/Agg", levelQ, levelP, bpw2), func(b *testing.B) {
+	b.Run(benchString(params, "RelinearizationKeyGen/Agg", levelQ, levelP, bpw2), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			rkg.AggregateShares(share1, share1, &share1)
 		}
 	})
 
-	b.Run(benchString(params, "RelinKeyGen/Finalize", levelQ, levelP, bpw2), func(b *testing.B) {
+	b.Run(benchString(params, "RelinearizationKeyGen/Finalize", levelQ, levelP, bpw2), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			rkg.GenRelinearizationKey(share1, share2, rlk)
 		}

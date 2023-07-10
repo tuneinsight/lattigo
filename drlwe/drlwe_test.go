@@ -111,7 +111,7 @@ func TestDRLWE(t *testing.T) {
 					for _, levelP := range levelsP {
 						for _, testSet := range []func(tc *testContext, levelQ, levelP, bpw2 int, t *testing.T){
 							testEvaluationKeyGenProtocol,
-							testRelinKeyGenProtocol,
+							testRelinearizationKeyGenProtocol,
 							testGaloisKeyGenProtocol,
 							testKeySwitchProtocol,
 							testPublicKeySwitchProtocol,
@@ -166,27 +166,27 @@ func testPublicKeyGenProtocol(tc *testContext, levelQ, levelP, bpw2 int, t *test
 	})
 }
 
-func testRelinKeyGenProtocol(tc *testContext, levelQ, levelP, bpw2 int, t *testing.T) {
+func testRelinearizationKeyGenProtocol(tc *testContext, levelQ, levelP, bpw2 int, t *testing.T) {
 
 	params := tc.params
 
-	t.Run(testString(params, "RelinKeyGen/Protocol", levelQ, levelP, bpw2), func(t *testing.T) {
+	t.Run(testString(params, "RelinearizationKeyGen/Protocol", levelQ, levelP, bpw2), func(t *testing.T) {
 
 		evkParams := rlwe.EvaluationKeyParameters{LevelQ: levelQ, LevelP: levelP, BaseTwoDecomposition: bpw2}
 
-		rkg := make([]RelinKeyGenProtocol, nbParties)
+		rkg := make([]RelinearizationKeyGenProtocol, nbParties)
 
 		for i := range rkg {
 			if i == 0 {
-				rkg[i] = NewRelinKeyGenProtocol(params)
+				rkg[i] = NewRelinearizationKeyGenProtocol(params)
 			} else {
 				rkg[i] = rkg[0].ShallowCopy()
 			}
 		}
 
 		ephSk := make([]*rlwe.SecretKey, nbParties)
-		share1 := make([]RelinKeyGenShare, nbParties)
-		share2 := make([]RelinKeyGenShare, nbParties)
+		share1 := make([]RelinearizationKeyGenShare, nbParties)
+		share2 := make([]RelinearizationKeyGenShare, nbParties)
 
 		for i := range rkg {
 			ephSk[i], share1[i], share2[i] = rkg[i].AllocateShare(evkParams)

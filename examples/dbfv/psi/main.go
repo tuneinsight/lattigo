@@ -38,8 +38,8 @@ type party struct {
 	rlkEphemSk *rlwe.SecretKey
 
 	ckgShare    drlwe.PublicKeyGenShare
-	rkgShareOne drlwe.RelinKeyGenShare
-	rkgShareTwo drlwe.RelinKeyGenShare
+	rkgShareOne drlwe.RelinearizationKeyGenShare
+	rkgShareTwo drlwe.RelinearizationKeyGenShare
 	pcksShare   drlwe.PublicKeySwitchShare
 
 	input []uint64
@@ -335,9 +335,9 @@ func pcksPhase(params bfv.Parameters, tpk *rlwe.PublicKey, encRes *rlwe.Cipherte
 func rkgphase(params bfv.Parameters, crs sampling.PRNG, P []*party) *rlwe.RelinearizationKey {
 	l := log.New(os.Stderr, "", 0)
 
-	l.Println("> RelinKeyGen Phase")
+	l.Println("> RelinearizationKeyGen Phase")
 
-	rkg := dbfv.NewRelinKeyGenProtocol(params) // Relineariation key generation
+	rkg := dbfv.NewRelinearizationKeyGenProtocol(params) // Relineariation key generation
 	_, rkgCombined1, rkgCombined2 := rkg.AllocateShare()
 
 	for _, pi := range P {

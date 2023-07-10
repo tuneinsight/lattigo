@@ -15,10 +15,10 @@ func NewPublicKeyGenProtocol(params ckks.Parameters) drlwe.PublicKeyGenProtocol 
 	return drlwe.NewPublicKeyGenProtocol(params.Parameters)
 }
 
-// NewRelinKeyGenProtocol creates a new drlwe.RelinKeyGenProtocol instance from the CKKS parameters.
+// NewRelinearizationKeyGenProtocol creates a new drlwe.RelinearizationKeyGenProtocol instance from the CKKS parameters.
 // The returned protocol instance is generic and can be used in other multiparty schemes.
-func NewRelinKeyGenProtocol(params ckks.Parameters) drlwe.RelinKeyGenProtocol {
-	return drlwe.NewRelinKeyGenProtocol(params.Parameters)
+func NewRelinearizationKeyGenProtocol(params ckks.Parameters) drlwe.RelinearizationKeyGenProtocol {
+	return drlwe.NewRelinearizationKeyGenProtocol(params.Parameters)
 }
 
 // NewGaloisKeyGenProtocol creates a new drlwe.GaloisKeyGenProtocol instance from the CKKS parameters.

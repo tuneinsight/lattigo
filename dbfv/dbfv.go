@@ -16,13 +16,13 @@ func NewPublicKeyGenProtocol(params bfv.Parameters) drlwe.PublicKeyGenProtocol {
 	return drlwe.NewPublicKeyGenProtocol(params.Parameters.Parameters)
 }
 
-// NewRelinKeyGenProtocol creates a new drlwe.RelinKeyGenProtocol instance from the BFV parameters.
+// NewRelinearizationKeyGenProtocol creates a new drlwe.RelinearizationKeyGenProtocol instance from the BFV parameters.
 // The returned protocol instance is generic and can be used in other multiparty schemes.
-func NewRelinKeyGenProtocol(params bfv.Parameters) drlwe.RelinKeyGenProtocol {
-	return drlwe.NewRelinKeyGenProtocol(params.Parameters.Parameters)
+func NewRelinearizationKeyGenProtocol(params bfv.Parameters) drlwe.RelinearizationKeyGenProtocol {
+	return drlwe.NewRelinearizationKeyGenProtocol(params.Parameters.Parameters)
 }
 
-// NewGaloisKeyGenProtocol creates a new drlwe.RelinKeyGenProtocol instance from the BFV parameters.
+// NewGaloisKeyGenProtocol creates a new drlwe.RelinearizationKeyGenProtocol instance from the BFV parameters.
 // The returned protocol instance is generic and can be used in other multiparty schemes.
 func NewGaloisKeyGenProtocol(params bfv.Parameters) drlwe.GaloisKeyGenProtocol {
 	return drlwe.NewGaloisKeyGenProtocol(params.Parameters.Parameters)

@@ -19,10 +19,10 @@ func NewPublicKeyGenProtocol(params bgv.Parameters) drlwe.PublicKeyGenProtocol {
 	return drlwe.NewPublicKeyGenProtocol(params.Parameters)
 }
 
-// NewRelinKeyGenProtocol creates a new drlwe.RKGProtocol instance from the BGV parameters.
+// NewRelinearizationKeyGenProtocol creates a new drlwe.RKGProtocol instance from the BGV parameters.
 // The returned protocol instance is generic and can be used in other multiparty schemes.
-func NewRelinKeyGenProtocol(params bgv.Parameters) drlwe.RelinKeyGenProtocol {
-	return drlwe.NewRelinKeyGenProtocol(params.Parameters)
+func NewRelinearizationKeyGenProtocol(params bgv.Parameters) drlwe.RelinearizationKeyGenProtocol {
+	return drlwe.NewRelinearizationKeyGenProtocol(params.Parameters)
 }
 
 // NewGaloisKeyGenProtocol creates a new drlwe.GaloisKeyGenProtocol instance from the BGV parameters.

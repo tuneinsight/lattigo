@@ -38,8 +38,8 @@ type party struct {
 	rlkEphemSk *rlwe.SecretKey
 
 	ckgShare    drlwe.PublicKeyGenShare
-	rkgShareOne drlwe.RelinKeyGenShare
-	rkgShareTwo drlwe.RelinKeyGenShare
+	rkgShareOne drlwe.RelinearizationKeyGenShare
+	rkgShareTwo drlwe.RelinearizationKeyGenShare
 	gkgShare    drlwe.GaloisKeyGenShare
 	cksShare    drlwe.KeySwitchShare
 
@@ -128,13 +128,13 @@ func main() {
 	pk := ckgphase(params, crs, P)
 
 	// 2) Collective RelinearizationKey generation
-	relinKey := rkgphase(params, crs, P)
+	RelinearizationKey := rkgphase(params, crs, P)
 
 	// 3) Collective GaloisKeys generation
 	galKeys := gkgphase(params, crs, P)
 
 	// Instantiates EvaluationKeySet
-	evk := rlwe.NewMemEvaluationKeySet(relinKey, galKeys...)
+	evk := rlwe.NewMemEvaluationKeySet(RelinearizationKey, galKeys...)
 
 	l.Printf("\tSetup done (cloud: %s, party: %s)\n",
 		elapsedCKGCloud+elapsedRKGCloud+elapsedGKGCloud,
@@ -296,9 +296,9 @@ func ckgphase(params bfv.Parameters, crs sampling.PRNG, P []*party) *rlwe.Public
 func rkgphase(params bfv.Parameters, crs sampling.PRNG, P []*party) *rlwe.RelinearizationKey {
 	l := log.New(os.Stderr, "", 0)
 
-	l.Println("> RelinKeyGen Phase")
+	l.Println("> RelinearizationKeyGen Phase")
 
-	rkg := dbfv.NewRelinKeyGenProtocol(params) // Relineariation key generation
+	rkg := dbfv.NewRelinearizationKeyGenProtocol(params) // Relineariation key generation
 
 	_, rkgCombined1, rkgCombined2 := rkg.AllocateShare()
 

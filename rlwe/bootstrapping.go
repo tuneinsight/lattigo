@@ -13,10 +13,6 @@ type Bootstrapper interface {
 	// An error should notably be returned if ct.Level() < MinimumInputLevel().
 	BootstrapMany(cts []*Ciphertext) ([]*Ciphertext, error)
 
-	// Depth is the number of levels consumed by the bootstrapping circuit.
-	// This value is equivalent to params.MaxLevel() - OutputLevel().
-	Depth() int
-
 	// MinimumInputLevel defines the minimum level that the ciphertext
 	// must be at when given to the bootstrapper.
 	// For the centralized bootstrapping this value is usually zero.

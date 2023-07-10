@@ -257,19 +257,19 @@ func GenCollectiveEvaluationKey(params ckks.Parameters, skInLSSS, skOutLSSS []*r
 
 func GenCollectiveRelinearizationKey(params ckks.Parameters, P []Party) (rlk *rlwe.RelinearizationKey) {
 
-	rkg := make([]drlwe.RelinKeyGenProtocol, len(P))
+	rkg := make([]drlwe.RelinearizationKeyGenProtocol, len(P))
 
 	for i := range rkg {
 		if i == 0 {
-			rkg[i] = drlwe.NewRelinKeyGenProtocol(params.Parameters)
+			rkg[i] = drlwe.NewRelinearizationKeyGenProtocol(params.Parameters)
 		} else {
 			rkg[i] = rkg[0].ShallowCopy()
 		}
 	}
 
 	ephSk := make([]*rlwe.SecretKey, len(P))
-	share1 := make([]drlwe.RelinKeyGenShare, len(P))
-	share2 := make([]drlwe.RelinKeyGenShare, len(P))
+	share1 := make([]drlwe.RelinearizationKeyGenShare, len(P))
+	share2 := make([]drlwe.RelinearizationKeyGenShare, len(P))
 
 	for i := range rkg {
 		ephSk[i], share1[i], share2[i] = rkg[i].AllocateShare()

@@ -29,7 +29,7 @@ type KeySwitchShare struct {
 // ShallowCopy creates a shallow copy of KeySwitchProtocol in which all the read-only data-structures are
 // shared with the receiver and the temporary bufers are reallocated. The receiver and the returned
 // KeySwitchProtocol can be used concurrently.
-func (cks *KeySwitchProtocol) ShallowCopy() KeySwitchProtocol {
+func (cks KeySwitchProtocol) ShallowCopy() KeySwitchProtocol {
 	prng, err := sampling.NewPRNG()
 	if err != nil {
 		panic(err)
@@ -42,6 +42,7 @@ func (cks *KeySwitchProtocol) ShallowCopy() KeySwitchProtocol {
 		noiseSampler: ring.NewSampler(prng, cks.params.RingQ(), cks.noise, false),
 		buf:          params.RingQ().NewPoly(),
 		bufDelta:     params.RingQ().NewPoly(),
+		noise:        cks.noise,
 	}
 }
 

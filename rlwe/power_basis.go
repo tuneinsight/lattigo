@@ -13,7 +13,6 @@ import (
 
 // PowerBasis is a struct storing powers of a ciphertext.
 type PowerBasis struct {
-	EvaluatorInterface
 	polynomial.Basis
 	Value structs.Map[int, Ciphertext]
 }
@@ -21,11 +20,10 @@ type PowerBasis struct {
 // NewPowerBasis creates a new PowerBasis. It takes as input a ciphertext
 // and a basistype. The struct treats the input ciphertext as a monomial X and
 // can be used to generates power of this monomial X^{n} in the given BasisType.
-func NewPowerBasis(ct *Ciphertext, basis polynomial.Basis, eval EvaluatorInterface) (p PowerBasis) {
+func NewPowerBasis(ct *Ciphertext, basis polynomial.Basis) (p PowerBasis) {
 	return PowerBasis{
-		Value:              map[int]*Ciphertext{1: ct.CopyNew()},
-		Basis:              basis,
-		EvaluatorInterface: eval,
+		Value: map[int]*Ciphertext{1: ct.CopyNew()},
+		Basis: basis,
 	}
 }
 
@@ -49,21 +47,21 @@ func SplitDegree(n int) (a, b int) {
 // GenPower recursively computes X^{n}.
 // If lazy = true, the final X^{n} will not be relinearized.
 // Previous non-relinearized X^{n} that are required to compute the target X^{n} are automatically relinearized.
-func (p *PowerBasis) GenPower(n int, lazy bool) (err error) {
+func (p *PowerBasis) GenPower(n int, lazy bool, eval EvaluatorInterface) (err error) {
 
-	if p.EvaluatorInterface == nil {
+	if eval == nil {
 		return fmt.Errorf("cannot GenPower: EvaluatorInterface is nil")
 	}
 
 	if p.Value[n] == nil {
 
 		var rescale bool
-		if rescale, err = p.genPower(n, lazy, true); err != nil {
+		if rescale, err = p.genPower(n, lazy, true, eval); err != nil {
 			return fmt.Errorf("genpower: p.Value[%d]: %w", n, err)
 		}
 
 		if rescale {
-			if err = p.Rescale(p.Value[n], p.Value[n]); err != nil {
+			if err = eval.Rescale(p.Value[n], p.Value[n]); err != nil {
 				return fmt.Errorf("genpower: p.Value[%d]: final rescale: %w", n, err)
 			}
 		}
@@ -72,7 +70,7 @@ func (p *PowerBasis) GenPower(n int, lazy bool) (err error) {
 	return nil
 }
 
-func (p *PowerBasis) genPower(n int, lazy, rescale bool) (rescaltOut bool, err error) {
+func (p *PowerBasis) genPower(n int, lazy, rescale bool, eval EvaluatorInterface) (rescaltOut bool, err error) {
 
 	if p.Value[n] == nil {
 
@@ -83,10 +81,10 @@ func (p *PowerBasis) genPower(n int, lazy, rescale bool) (rescaltOut bool, err e
 
 		var rescaleA, rescaleB bool // Avoids calling rescale on already generated powers
 
-		if rescaleA, err = p.genPower(a, lazy && !isPow2, rescale); err != nil {
+		if rescaleA, err = p.genPower(a, lazy && !isPow2, rescale, eval); err != nil {
 			return false, fmt.Errorf("genpower: p.Value[%d]: %w", a, err)
 		}
-		if rescaleB, err = p.genPower(b, lazy && !isPow2, rescale); err != nil {
+		if rescaleB, err = p.genPower(b, lazy && !isPow2, rescale, eval); err != nil {
 			return false, fmt.Errorf("genpower: p.Value[%d]: %w", b, err)
 		}
 
@@ -94,42 +92,42 @@ func (p *PowerBasis) genPower(n int, lazy, rescale bool) (rescaltOut bool, err e
 		if lazy {
 
 			if p.Value[a].Degree() == 2 {
-				p.Relinearize(p.Value[a], p.Value[a])
+				eval.Relinearize(p.Value[a], p.Value[a])
 			}
 
 			if p.Value[b].Degree() == 2 {
-				p.Relinearize(p.Value[b], p.Value[b])
+				eval.Relinearize(p.Value[b], p.Value[b])
 			}
 
 			if rescaleA {
-				if err = p.Rescale(p.Value[a], p.Value[a]); err != nil {
+				if err = eval.Rescale(p.Value[a], p.Value[a]); err != nil {
 					return false, fmt.Errorf("genpower (lazy): rescale[a]: p.Value[%d]: %w", a, err)
 				}
 			}
 
 			if rescaleB {
-				if err = p.Rescale(p.Value[b], p.Value[b]); err != nil {
+				if err = eval.Rescale(p.Value[b], p.Value[b]); err != nil {
 					return false, fmt.Errorf("genpower (lazy): rescale[b]: p.Value[%d]: %w", b, err)
 				}
 			}
 
-			p.Value[n] = p.MulNew(p.Value[a], p.Value[b])
+			p.Value[n] = eval.MulNew(p.Value[a], p.Value[b])
 
 		} else {
 
 			if rescaleA {
-				if err = p.Rescale(p.Value[a], p.Value[a]); err != nil {
+				if err = eval.Rescale(p.Value[a], p.Value[a]); err != nil {
 					return false, fmt.Errorf("genpower: rescale[a]: p.Value[%d]: %w", a, err)
 				}
 			}
 
 			if rescaleB {
-				if err = p.Rescale(p.Value[b], p.Value[b]); err != nil {
+				if err = eval.Rescale(p.Value[b], p.Value[b]); err != nil {
 					return false, fmt.Errorf("genpower: rescale[b]: p.Value[%d]: %w", b, err)
 				}
 			}
 
-			p.Value[n] = p.MulRelinNew(p.Value[a], p.Value[b])
+			p.Value[n] = eval.MulRelinNew(p.Value[a], p.Value[b])
 		}
 
 		if p.Basis == polynomial.Chebyshev {
@@ -141,18 +139,18 @@ func (p *PowerBasis) genPower(n int, lazy, rescale bool) (rescaltOut bool, err e
 			}
 
 			// Computes C[n] = 2*C[a]*C[b]
-			p.Add(p.Value[n], p.Value[n], p.Value[n])
+			eval.Add(p.Value[n], p.Value[n], p.Value[n])
 
 			// Computes C[n] = 2*C[a]*C[b] - C[c]
 			if c == 0 {
-				p.Add(p.Value[n], -1, p.Value[n])
+				eval.Add(p.Value[n], -1, p.Value[n])
 			} else {
 				// Since C[0] is not stored (but rather seen as the constant 1), only recurses on c if c!= 0
-				if err = p.GenPower(c, lazy); err != nil {
+				if err = p.GenPower(c, lazy, eval); err != nil {
 					return false, fmt.Errorf("genpower: p.Value[%d]: %w", c, err)
 				}
 
-				p.Sub(p.Value[n], p.Value[c], p.Value[n])
+				eval.Sub(p.Value[n], p.Value[c], p.Value[n])
 			}
 		}
 

@@ -141,6 +141,7 @@ func (eval Evaluator) WithKey(evk rlwe.EvaluationKeySet) *Evaluator {
 		evaluatorBase:    eval.evaluatorBase,
 		Evaluator:        eval.Evaluator.WithKey(evk),
 		evaluatorBuffers: eval.evaluatorBuffers,
+		Encoder:          eval.Encoder,
 	}
 }
 
@@ -781,8 +782,6 @@ func (eval Evaluator) MulRelinInvariantNew(op0 *rlwe.Ciphertext, op1 interface{}
 // tensorInvariant computes (ct0 x ct1) * (t/Q) and stores the result in op2.
 func (eval Evaluator) tensorInvariant(ct0 *rlwe.Ciphertext, ct1 *rlwe.OperandQ, relin bool, op2 *rlwe.Ciphertext) {
 
-	ringQ := eval.parameters.RingQ()
-
 	level := utils.Min(utils.Min(ct0.Level(), ct1.Level()), op2.Level())
 
 	levelQMul := eval.levelQMul[level]
@@ -842,6 +841,8 @@ func (eval Evaluator) tensorInvariant(ct0 *rlwe.Ciphertext, ct1 *rlwe.OperandQ, 
 		tmpCt.IsNTT = true
 
 		eval.GadgetProduct(level, c2, &rlk.GadgetCiphertext, tmpCt)
+
+		ringQ := eval.parameters.RingQ().AtLevel(level)
 
 		ringQ.Add(op2.Value[0], tmpCt.Value[0], op2.Value[0])
 		ringQ.Add(op2.Value[1], tmpCt.Value[1], op2.Value[1])

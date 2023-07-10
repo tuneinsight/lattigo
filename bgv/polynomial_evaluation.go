@@ -10,7 +10,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
 )
 
-func (eval Evaluator) Polynomial(input interface{}, p interface{}, invariantTensoring bool, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
+func (eval Evaluator) Polynomial(input interface{}, p interface{}, InvariantTensoring bool, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
 
 	var polyVec rlwe.PolynomialVector
 	switch p := p.(type) {
@@ -24,9 +24,9 @@ func (eval Evaluator) Polynomial(input interface{}, p interface{}, invariantTens
 		return nil, fmt.Errorf("cannot Polynomial: invalid polynomial type: %T", p)
 	}
 
-	polyEval := polynomialEvaluator{
+	polyEval := PolynomialEvaluator{
 		Evaluator:          &eval,
-		invariantTensoring: invariantTensoring,
+		InvariantTensoring: InvariantTensoring,
 	}
 
 	var powerbasis rlwe.PowerBasis
@@ -37,7 +37,7 @@ func (eval Evaluator) Polynomial(input interface{}, p interface{}, invariantTens
 			return nil, fmt.Errorf("%d levels < %d log(d) -> cannot evaluate poly", level, depth)
 		}
 
-		powerbasis = rlwe.NewPowerBasis(input, polynomial.Monomial, polyEval)
+		powerbasis = rlwe.NewPowerBasis(input, polynomial.Monomial)
 
 	case rlwe.PowerBasis:
 		if input.Value[1] == nil {
@@ -58,20 +58,20 @@ func (eval Evaluator) Polynomial(input interface{}, p interface{}, invariantTens
 
 	// Computes all the powers of two with relinearization
 	// This will recursively compute and store all powers of two up to 2^logDegree
-	if err = powerbasis.GenPower(1<<(logDegree-1), false); err != nil {
+	if err = powerbasis.GenPower(1<<(logDegree-1), false, polyEval); err != nil {
 		return nil, err
 	}
 
 	// Computes the intermediate powers, starting from the largest, without relinearization if possible
 	for i := (1 << logSplit) - 1; i > 2; i-- {
 		if !(even || odd) || (i&1 == 0 && even) || (i&1 == 1 && odd) {
-			if err = powerbasis.GenPower(i, polyVec.Value[0].Lazy); err != nil {
+			if err = powerbasis.GenPower(i, polyVec.Value[0].Lazy, polyEval); err != nil {
 				return nil, err
 			}
 		}
 	}
 
-	PS := polyVec.GetPatersonStockmeyerPolynomial(eval.Parameters(), powerbasis.Value[1].Level(), powerbasis.Value[1].PlaintextScale, targetScale, &dummyEvaluator{eval.Parameters().(Parameters), invariantTensoring})
+	PS := polyVec.GetPatersonStockmeyerPolynomial(eval.Parameters(), powerbasis.Value[1].Level(), powerbasis.Value[1].PlaintextScale, targetScale, &dummyEvaluator{eval.Parameters().(Parameters), InvariantTensoring})
 
 	if opOut, err = rlwe.EvaluatePatersonStockmeyerPolynomialVector(PS, powerbasis, polyEval); err != nil {
 		return nil, err
@@ -82,11 +82,11 @@ func (eval Evaluator) Polynomial(input interface{}, p interface{}, invariantTens
 
 type dummyEvaluator struct {
 	params             Parameters
-	invariantTensoring bool
+	InvariantTensoring bool
 }
 
 func (d dummyEvaluator) PolynomialDepth(degree int) int {
-	if d.invariantTensoring {
+	if d.InvariantTensoring {
 		return 0
 	}
 	return bits.Len64(uint64(degree)) - 1
@@ -94,7 +94,7 @@ func (d dummyEvaluator) PolynomialDepth(degree int) int {
 
 // Rescale rescales the target DummyOperand n times and returns it.
 func (d dummyEvaluator) Rescale(op0 *rlwe.DummyOperand) {
-	if !d.invariantTensoring {
+	if !d.InvariantTensoring {
 		op0.PlaintextScale = op0.PlaintextScale.Div(rlwe.NewScale(d.params.Q()[op0.Level]))
 		op0.Level--
 	}
@@ -105,7 +105,7 @@ func (d dummyEvaluator) MulNew(op0, op1 *rlwe.DummyOperand) (op2 *rlwe.DummyOper
 	op2 = new(rlwe.DummyOperand)
 	op2.Level = utils.Min(op0.Level, op1.Level)
 	op2.PlaintextScale = op0.PlaintextScale.Mul(op1.PlaintextScale)
-	if d.invariantTensoring {
+	if d.InvariantTensoring {
 		params := d.params
 		qModTNeg := new(big.Int).Mod(params.RingQ().ModulusAtLevel[op2.Level], new(big.Int).SetUint64(params.T())).Uint64()
 		qModTNeg = params.T() - qModTNeg
@@ -118,7 +118,7 @@ func (d dummyEvaluator) MulNew(op0, op1 *rlwe.DummyOperand) (op2 *rlwe.DummyOper
 func (d dummyEvaluator) UpdateLevelAndScaleBabyStep(lead bool, tLevelOld int, tScaleOld rlwe.Scale) (tLevelNew int, tScaleNew rlwe.Scale) {
 	tLevelNew = tLevelOld
 	tScaleNew = tScaleOld
-	if !d.invariantTensoring && lead {
+	if !d.InvariantTensoring && lead {
 		tScaleNew = tScaleOld.Mul(d.params.NewScale(d.params.Q()[tLevelOld]))
 	}
 	return
@@ -132,7 +132,7 @@ func (d dummyEvaluator) UpdateLevelAndScaleGiantStep(lead bool, tLevelOld int, t
 	tScaleNew = tScaleOld.Div(xPowScale)
 
 	// tScaleNew = targetScale*currentQi/XPow.PlaintextScale
-	if !d.invariantTensoring {
+	if !d.InvariantTensoring {
 
 		var currentQi uint64
 		if lead {
@@ -153,62 +153,66 @@ func (d dummyEvaluator) UpdateLevelAndScaleGiantStep(lead bool, tLevelOld int, t
 		tScaleNew = tScaleNew.Mul(d.params.NewScale(qModTNeg))
 	}
 
-	if !d.invariantTensoring {
+	if !d.InvariantTensoring {
 		tLevelNew++
 	}
 
 	return
 }
 
-type polynomialEvaluator struct {
-	*Evaluator
-	invariantTensoring bool
+func NewPolynomialEvaluator(eval *Evaluator, InvariantTensoring bool) *PolynomialEvaluator {
+	return &PolynomialEvaluator{Evaluator: eval, InvariantTensoring: InvariantTensoring}
 }
 
-func (polyEval polynomialEvaluator) Parameters() rlwe.ParametersInterface {
+type PolynomialEvaluator struct {
+	*Evaluator
+	InvariantTensoring bool
+}
+
+func (polyEval PolynomialEvaluator) Parameters() rlwe.ParametersInterface {
 	return polyEval.Evaluator.Parameters()
 }
 
-func (polyEval polynomialEvaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciphertext) {
-	if !polyEval.invariantTensoring {
+func (polyEval PolynomialEvaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciphertext) {
+	if !polyEval.InvariantTensoring {
 		polyEval.Evaluator.Mul(op0, op1, op2)
 	} else {
 		polyEval.Evaluator.MulInvariant(op0, op1, op2)
 	}
 }
 
-func (polyEval polynomialEvaluator) MulRelin(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciphertext) {
-	if !polyEval.invariantTensoring {
+func (polyEval PolynomialEvaluator) MulRelin(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciphertext) {
+	if !polyEval.InvariantTensoring {
 		polyEval.Evaluator.MulRelin(op0, op1, op2)
 	} else {
 		polyEval.Evaluator.MulRelinInvariant(op0, op1, op2)
 	}
 }
 
-func (polyEval polynomialEvaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}) (op2 *rlwe.Ciphertext) {
-	if !polyEval.invariantTensoring {
+func (polyEval PolynomialEvaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}) (op2 *rlwe.Ciphertext) {
+	if !polyEval.InvariantTensoring {
 		return polyEval.Evaluator.MulNew(op0, op1)
 	} else {
 		return polyEval.Evaluator.MulInvariantNew(op0, op1)
 	}
 }
 
-func (polyEval polynomialEvaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 interface{}) (op2 *rlwe.Ciphertext) {
-	if !polyEval.invariantTensoring {
+func (polyEval PolynomialEvaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 interface{}) (op2 *rlwe.Ciphertext) {
+	if !polyEval.InvariantTensoring {
 		return polyEval.Evaluator.MulRelinNew(op0, op1)
 	} else {
 		return polyEval.Evaluator.MulRelinInvariantNew(op0, op1)
 	}
 }
 
-func (polyEval polynomialEvaluator) Rescale(op0, op1 *rlwe.Ciphertext) (err error) {
-	if !polyEval.invariantTensoring {
+func (polyEval PolynomialEvaluator) Rescale(op0, op1 *rlwe.Ciphertext) (err error) {
+	if !polyEval.InvariantTensoring {
 		return polyEval.Evaluator.Rescale(op0, op1)
 	}
 	return
 }
 
-func (polyEval polynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol rlwe.PolynomialVector, pb rlwe.PowerBasis, targetScale rlwe.Scale) (res *rlwe.Ciphertext, err error) {
+func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol rlwe.PolynomialVector, pb rlwe.PowerBasis, targetScale rlwe.Scale) (res *rlwe.Ciphertext, err error) {
 
 	X := pb.Value
 

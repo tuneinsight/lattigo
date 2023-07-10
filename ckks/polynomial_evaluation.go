@@ -39,7 +39,7 @@ func (eval Evaluator) Polynomial(input interface{}, p interface{}, targetScale r
 	var powerbasis rlwe.PowerBasis
 	switch input := input.(type) {
 	case *rlwe.Ciphertext:
-		powerbasis = rlwe.NewPowerBasis(input, polyVec.Value[0].Basis, polyEval)
+		powerbasis = rlwe.NewPowerBasis(input, polyVec.Value[0].Basis)
 	case rlwe.PowerBasis:
 		if input.Value[1] == nil {
 			return nil, fmt.Errorf("cannot evaluatePolyVector: given PowerBasis.Value[1] is empty")
@@ -67,14 +67,14 @@ func (eval Evaluator) Polynomial(input interface{}, p interface{}, targetScale r
 
 	// Computes all the powers of two with relinearization
 	// This will recursively compute and store all powers of two up to 2^logDegree
-	if err = powerbasis.GenPower(1<<(logDegree-1), false); err != nil {
+	if err = powerbasis.GenPower(1<<(logDegree-1), false, polyEval); err != nil {
 		return nil, err
 	}
 
 	// Computes the intermediate powers, starting from the largest, without relinearization if possible
 	for i := (1 << logSplit) - 1; i > 2; i-- {
 		if !(even || odd) || (i&1 == 0 && even) || (i&1 == 1 && odd) {
-			if err = powerbasis.GenPower(i, polyVec.Value[0].Lazy); err != nil {
+			if err = powerbasis.GenPower(i, polyVec.Value[0].Lazy, polyEval); err != nil {
 				return nil, err
 			}
 		}

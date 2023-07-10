@@ -174,8 +174,8 @@ func example() {
 
 	start = time.Now()
 
-	monomialBasis := rlwe.NewPowerBasis(ciphertext, polynomial.Monomial, ckks.NewPolynomialEvaluator(evaluator))
-	if err = monomialBasis.GenPower(int(r), false); err != nil {
+	monomialBasis := rlwe.NewPowerBasis(ciphertext, polynomial.Monomial)
+	if err = monomialBasis.GenPower(int(r), false, ckks.NewPolynomialEvaluator(evaluator)); err != nil {
 		panic(err)
 	}
 	ciphertext = monomialBasis.Value[int(r)]

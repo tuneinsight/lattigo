@@ -184,6 +184,14 @@ func (eval Evaluator) Polynomial(input, pol interface{}) (opOut *rlwe.Ciphertext
 	return eval.Evaluator.Polynomial(input, pol, true, eval.Evaluator.Parameters().PlaintextScale())
 }
 
+type PolynomialEvaluator struct {
+	bgv.PolynomialEvaluator
+}
+
+func NewPolynomialEvaluator(eval *Evaluator) *PolynomialEvaluator {
+	return &PolynomialEvaluator{PolynomialEvaluator: *bgv.NewPolynomialEvaluator(eval.Evaluator, false)}
+}
+
 // NewLinearTransform allocates a new LinearTransform with zero plaintexts at the specified level.
 //
 // inputs:

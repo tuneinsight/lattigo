@@ -46,7 +46,7 @@ func (b Bootstrapper) RealToComplexNew(ctReal *rlwe.Ciphertext) (ctCmplx *rlwe.C
 	return
 }
 
-func (b Bootstrapper) PackAndSwitchN1ToN2(cts []*rlwe.Ciphertext) ([]*rlwe.Ciphertext, error) {
+func (b Bootstrapper) PackAndSwitchN1ToN2(cts []rlwe.Ciphertext) ([]rlwe.Ciphertext, error) {
 
 	var err error
 
@@ -56,7 +56,7 @@ func (b Bootstrapper) PackAndSwitchN1ToN2(cts []*rlwe.Ciphertext) ([]*rlwe.Ciphe
 		}
 
 		for i := range cts {
-			cts[i] = b.SwitchRingDegreeN1ToN2New(cts[i])
+			cts[i] = *b.SwitchRingDegreeN1ToN2New(&cts[i])
 		}
 	}
 
@@ -67,7 +67,7 @@ func (b Bootstrapper) PackAndSwitchN1ToN2(cts []*rlwe.Ciphertext) ([]*rlwe.Ciphe
 	return cts, nil
 }
 
-func (b Bootstrapper) UnpackAndSwitchN2Tn1(cts []*rlwe.Ciphertext, LogSlots, Nb int) ([]*rlwe.Ciphertext, error) {
+func (b Bootstrapper) UnpackAndSwitchN2Tn1(cts []rlwe.Ciphertext, LogSlots, Nb int) ([]rlwe.Ciphertext, error) {
 
 	var err error
 
@@ -77,7 +77,7 @@ func (b Bootstrapper) UnpackAndSwitchN2Tn1(cts []*rlwe.Ciphertext, LogSlots, Nb 
 
 	if b.paramsN1.N() != b.paramsN2.N() {
 		for i := range cts {
-			cts[i] = b.SwitchRingDegreeN2ToN1New(cts[i])
+			cts[i] = *b.SwitchRingDegreeN2ToN1New(&cts[i])
 		}
 	}
 
@@ -88,17 +88,17 @@ func (b Bootstrapper) UnpackAndSwitchN2Tn1(cts []*rlwe.Ciphertext, LogSlots, Nb 
 	return cts, nil
 }
 
-func (b Bootstrapper) UnPack(cts []*rlwe.Ciphertext, params ckks.Parameters, LogSlots, Nb int, xPow2Inv []ring.Poly) ([]*rlwe.Ciphertext, error) {
+func (b Bootstrapper) UnPack(cts []rlwe.Ciphertext, params ckks.Parameters, LogSlots, Nb int, xPow2Inv []ring.Poly) ([]rlwe.Ciphertext, error) {
 	LogGap := params.PlaintextLogSlots() - LogSlots
 
 	if LogGap == 0 {
 		return cts, nil
 	}
 
-	cts = append(cts, make([]*rlwe.Ciphertext, Nb-1)...)
+	cts = append(cts, make([]rlwe.Ciphertext, Nb-1)...)
 
 	for i := 1; i < len(cts); i++ {
-		cts[i] = cts[0].CopyNew()
+		cts[i] = *cts[0].CopyNew()
 	}
 
 	r := params.RingQ().AtLevel(cts[0].Level())
@@ -126,7 +126,7 @@ func (b Bootstrapper) UnPack(cts []*rlwe.Ciphertext, params ckks.Parameters, Log
 	return cts, nil
 }
 
-func (b Bootstrapper) Pack(cts []*rlwe.Ciphertext, params ckks.Parameters, xPow2 []ring.Poly) ([]*rlwe.Ciphertext, error) {
+func (b Bootstrapper) Pack(cts []rlwe.Ciphertext, params ckks.Parameters, xPow2 []ring.Poly) ([]rlwe.Ciphertext, error) {
 
 	var LogSlots = cts[0].PlaintextLogSlots()
 	RingDegree := params.N()

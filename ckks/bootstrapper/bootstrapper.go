@@ -185,12 +185,12 @@ func (b Bootstrapper) MinimumInputLevel() int {
 }
 
 func (b Bootstrapper) Bootstrap(ct *rlwe.Ciphertext) (*rlwe.Ciphertext, error) {
-	cts := []*rlwe.Ciphertext{ct}
+	cts := []rlwe.Ciphertext{*ct}
 	cts, err := b.BootstrapMany(cts)
-	return cts[0], err
+	return &cts[0], err
 }
 
-func (b Bootstrapper) BootstrapMany(cts []*rlwe.Ciphertext) ([]*rlwe.Ciphertext, error) {
+func (b Bootstrapper) BootstrapMany(cts []rlwe.Ciphertext) ([]rlwe.Ciphertext, error) {
 
 	var err error
 
@@ -201,21 +201,21 @@ func (b Bootstrapper) BootstrapMany(cts []*rlwe.Ciphertext) ([]*rlwe.Ciphertext,
 
 			even, odd := i, i+1
 
-			ct0 := cts[even]
+			ct0 := &cts[even]
 
 			var ct1 *rlwe.Ciphertext
 			if odd < len(cts) {
-				ct1 = cts[odd]
+				ct1 = &cts[odd]
 			}
 
 			if ct0, ct1, err = b.refreshConjugateInvariant(ct0, ct1); err != nil {
 				return nil, fmt.Errorf("cannot BootstrapMany: %w", err)
 			}
 
-			cts[even] = ct0
+			cts[even] = *ct0
 
 			if ct1 != nil {
-				cts[odd] = ct1
+				cts[odd] = *ct1
 			}
 		}
 
@@ -229,9 +229,11 @@ func (b Bootstrapper) BootstrapMany(cts []*rlwe.Ciphertext) ([]*rlwe.Ciphertext,
 		}
 
 		for i := range cts {
-			if cts[i], err = b.bootstrapper.Bootstrap(cts[i]); err != nil {
+			var ct *rlwe.Ciphertext
+			if ct, err = b.bootstrapper.Bootstrap(&cts[i]); err != nil {
 				return nil, fmt.Errorf("cannot BootstrapMany: %w", err)
 			}
+			cts[i] = *ct
 		}
 
 		if cts, err = b.UnpackAndSwitchN2Tn1(cts, LogSlots, nbCiphertexts); err != nil {

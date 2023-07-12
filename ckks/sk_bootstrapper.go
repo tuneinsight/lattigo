@@ -80,9 +80,16 @@ func (d SecretKeyBootstrapper) Bootstrap(ct *rlwe.Ciphertext) (*rlwe.Ciphertext,
 	return ct, nil
 }
 
-func (d SecretKeyBootstrapper) BootstrapMany(cts []*rlwe.Ciphertext) ([]*rlwe.Ciphertext, error) {
+func (d SecretKeyBootstrapper) BootstrapMany(cts []rlwe.Ciphertext) ([]rlwe.Ciphertext, error) {
+	var err error
 	for i := range cts {
-		cts[i], _ = d.Bootstrap(cts[i])
+
+		var ct *rlwe.Ciphertext
+		if ct, err = d.Bootstrap(&cts[i]); err != nil {
+			return nil, err
+		}
+
+		cts[i] = *ct
 	}
 	return cts, nil
 }

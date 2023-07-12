@@ -11,7 +11,7 @@ type Bootstrapper interface {
 	// BootstrapMany defines a method that takes a slice of Ciphertexts as input and applies an
 	// in place scheme-specific bootstrapping to each Ciphertext. The result is also returned.
 	// An error should notably be returned if ct.Level() < MinimumInputLevel().
-	BootstrapMany(cts []*Ciphertext) ([]*Ciphertext, error)
+	BootstrapMany(cts []Ciphertext) ([]Ciphertext, error)
 
 	// MinimumInputLevel defines the minimum level that the ciphertext
 	// must be at when given to the bootstrapper.

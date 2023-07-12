@@ -40,6 +40,9 @@ func TestBootstrapping(t *testing.T) {
 
 	require.True(t, endLevel == len(paramsN2Lit.Q)-1-btpParamsN2.Depth()) // Checks the depth of the bootstrapping
 
+	// Check that the bootstrapper complies to the rlwe.Bootstrapper interface
+	var _ rlwe.Bootstrapper = (*Bootstrapper)(nil)
+
 	t.Run("BootstrapingWithoutRingDegreeSwitch", func(t *testing.T) {
 
 		paramsN2, err := ckks.NewParametersFromLiteral(paramsN2Lit)
@@ -221,11 +224,11 @@ func TestBootstrapping(t *testing.T) {
 
 		ptN1 := ckks.NewPlaintext(paramsN1, 0)
 
-		cts := make([]*rlwe.Ciphertext, 17)
+		cts := make([]rlwe.Ciphertext, 17)
 		for i := range cts {
 
 			ecdN1.Encode(utils.RotateSlice(values, i), ptN1)
-			cts[i] = encN1.EncryptNew(ptN1)
+			cts[i] = *encN1.EncryptNew(ptN1)
 		}
 
 		if cts, err = bootstrapper.BootstrapMany(cts); err != nil {
@@ -239,7 +242,7 @@ func TestBootstrapping(t *testing.T) {
 
 			want := utils.RotateSlice(values, i)
 
-			verifyTestVectorsBootstrapping(paramsN1, ecdN1, decN1, want, ct, t)
+			verifyTestVectorsBootstrapping(paramsN1, ecdN1, decN1, want, &ct, t)
 		}
 	})
 

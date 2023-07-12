@@ -6,24 +6,25 @@ import (
 )
 
 // WriteInt writes an int c to w.
-func WriteInt(w Writer, c int) (n int, err error) {
-	return WriteUint64(w, uint64(c))
+func WriteInt(w Writer, c int) (n int64, err error) {
+	nint, err := WriteUint64(w, uint64(c))
+	return int64(nint), err
 }
 
 // WriteUint8 writes a byte c to w.
-func WriteUint8(w Writer, c uint8) (n int, err error) {
-	return w.Write([]byte{c})
+func WriteUint8(w Writer, c uint8) (n int64, err error) {
+	nint, err := w.Write([]byte{c})
+	return int64(nint), err
 }
 
 // WriteUint8Slice writes a slice of bytes c to w.
-func WriteUint8Slice(w Writer, c []uint8) (n int, err error) {
-	return w.Write(c)
+func WriteUint8Slice(w Writer, c []uint8) (n int64, err error) {
+	nint, err := w.Write(c)
+	return int64(nint), err
 }
 
 // WriteUint16 writes a uint16 c to w.
-func WriteUint16(w Writer, c uint16) (n int, err error) {
-
-	buf := w.AvailableBuffer()
+func WriteUint16(w Writer, c uint16) (n int64, err error) {
 
 	if w.Available()>>1 == 0 {
 		if err = w.Flush(); err != nil {
@@ -35,19 +36,21 @@ func WriteUint16(w Writer, c uint16) (n int, err error) {
 		}
 	}
 
-	binary.LittleEndian.PutUint16(buf[:2], c)
+	buf := w.AvailableBuffer()[:2]
 
-	return w.Write(buf[:2])
+	binary.LittleEndian.PutUint16(buf, c)
+
+	nint, err := w.Write(buf)
+
+	return int64(nint), err
 }
 
 // WriteUint16Slice writes a slice of uint16 c to w.
-func WriteUint16Slice(w Writer, c []uint16) (n int, err error) {
+func WriteUint16Slice(w Writer, c []uint16) (n int64, err error) {
 
 	if len(c) == 0 {
 		return
 	}
-
-	buf := w.AvailableBuffer()
 
 	// Remaining available space in the internal buffer
 	available := w.Available() >> 1
@@ -64,13 +67,17 @@ func WriteUint16Slice(w Writer, c []uint16) (n int, err error) {
 		}
 	}
 
+	buf := w.AvailableBuffer()
+
 	if N := len(c); N <= available { // If there is enough space in the available buffer
 		buf = buf[:N<<1]
 		for i := 0; i < N; i++ {
 			binary.LittleEndian.PutUint16(buf[i<<2:(i<<2)+2], c[i])
 		}
 
-		return w.Write(buf)
+		nint, err := w.Write(buf)
+
+		return int64(nint), err
 	}
 
 	// First fills the space
@@ -81,10 +88,10 @@ func WriteUint16Slice(w Writer, c []uint16) (n int, err error) {
 
 	var inc int
 	if inc, err = w.Write(buf); err != nil {
-		return n + inc, err
+		return n + int64(inc), err
 	}
 
-	n += inc
+	n += int64(inc)
 
 	// Flushes
 	if err = w.Flush(); err != nil {
@@ -92,17 +99,14 @@ func WriteUint16Slice(w Writer, c []uint16) (n int, err error) {
 	}
 
 	// Then recurses on itself with the remaining slice
-	if inc, err = WriteUint16Slice(w, c[available:]); err != nil {
-		return n + inc, err
-	}
+	var inc64 int64
+	inc64, err = WriteUint16Slice(w, c[available:])
 
-	return n + inc, nil
+	return n + inc64, nil
 }
 
 // WriteUint32 writes a uint32 c into w.
-func WriteUint32(w Writer, c uint32) (n int, err error) {
-
-	buf := w.AvailableBuffer()
+func WriteUint32(w Writer, c uint32) (n int64, err error) {
 
 	if w.Available()>>2 == 0 {
 		if err = w.Flush(); err != nil {
@@ -114,19 +118,18 @@ func WriteUint32(w Writer, c uint32) (n int, err error) {
 		}
 	}
 
-	buf = buf[:4]
+	buf := w.AvailableBuffer()[:4]
 	binary.LittleEndian.PutUint32(buf, c)
-	return w.Write(buf)
+	nint, err := w.Write(buf)
+	return int64(nint), err
 }
 
 // WriteUint32Slice writes a slice of uint32 c into w.
-func WriteUint32Slice(w Writer, c []uint32) (n int, err error) {
+func WriteUint32Slice(w Writer, c []uint32) (n int64, err error) {
 
 	if len(c) == 0 {
 		return
 	}
-
-	buf := w.AvailableBuffer()
 
 	// Remaining available space in the internal buffer
 	available := w.Available() >> 2
@@ -143,12 +146,17 @@ func WriteUint32Slice(w Writer, c []uint32) (n int, err error) {
 		}
 	}
 
+	buf := w.AvailableBuffer()
+
 	if N := len(c); N <= available { // If there is enough space in the available buffer
 		buf = buf[:N<<2]
 		for i := 0; i < N; i++ {
 			binary.LittleEndian.PutUint32(buf[i<<2:(i<<2)+4], c[i])
 		}
-		return w.Write(buf)
+
+		nint, err := w.Write(buf)
+
+		return int64(nint), err
 	}
 
 	// First fills the space
@@ -159,10 +167,10 @@ func WriteUint32Slice(w Writer, c []uint32) (n int, err error) {
 
 	var inc int
 	if inc, err = w.Write(buf); err != nil {
-		return n + inc, err
+		return n + int64(inc), err
 	}
 
-	n += inc
+	n += int64(inc)
 
 	// Flushes
 	if err = w.Flush(); err != nil {
@@ -170,17 +178,14 @@ func WriteUint32Slice(w Writer, c []uint32) (n int, err error) {
 	}
 
 	// Then recurses on itself with the remaining slice
-	if inc, err = WriteUint32Slice(w, c[available:]); err != nil {
-		return n + inc, err
-	}
+	var inc64 int64
+	inc64, err = WriteUint32Slice(w, c[available:])
 
-	return n + inc, nil
+	return n + inc64, nil
 }
 
 // WriteUint64 writes a uint64 c into w.
-func WriteUint64(w Writer, c uint64) (n int, err error) {
-
-	buf := w.AvailableBuffer()
+func WriteUint64(w Writer, c uint64) (n int64, err error) {
 
 	if w.Available()>>3 == 0 {
 		if err = w.Flush(); err != nil {
@@ -192,19 +197,21 @@ func WriteUint64(w Writer, c uint64) (n int, err error) {
 		}
 	}
 
-	binary.LittleEndian.PutUint64(buf[:8], c)
+	buf := w.AvailableBuffer()[:8]
 
-	return w.Write(buf[:8])
+	binary.LittleEndian.PutUint64(buf, c)
+
+	nint, err := w.Write(buf)
+
+	return int64(nint), err
 }
 
 // WriteUint64Slice writes a slice of uint64 into w.
-func WriteUint64Slice(w Writer, c []uint64) (n int, err error) {
+func WriteUint64Slice(w Writer, c []uint64) (n int64, err error) {
 
 	if len(c) == 0 {
 		return
 	}
-
-	buf := w.AvailableBuffer()
 
 	// Remaining available space in the internal buffer
 	available := w.Available() >> 3
@@ -221,12 +228,17 @@ func WriteUint64Slice(w Writer, c []uint64) (n int, err error) {
 		}
 	}
 
+	buf := w.AvailableBuffer()
+
 	if N := len(c); N <= available { // If there is enough space in the available buffer
 		buf = buf[:N<<3]
 		for i := 0; i < N; i++ {
 			binary.LittleEndian.PutUint64(buf[i<<3:(i<<3)+8], c[i])
 		}
-		return w.Write(buf)
+
+		nint, err := w.Write(buf)
+
+		return int64(nint), err
 	}
 
 	// First fills the space
@@ -237,10 +249,10 @@ func WriteUint64Slice(w Writer, c []uint64) (n int, err error) {
 
 	var inc int
 	if inc, err = w.Write(buf); err != nil {
-		return n + inc, err
+		return n + int64(inc), err
 	}
 
-	n += inc
+	n += int64(inc)
 
 	// Flushes
 	if err = w.Flush(); err != nil {
@@ -248,9 +260,8 @@ func WriteUint64Slice(w Writer, c []uint64) (n int, err error) {
 	}
 
 	// Then recurses on itself with the remaining slice
-	if inc, err = WriteUint64Slice(w, c[available:]); err != nil {
-		return n + inc, err
-	}
+	var inc64 int64
+	inc64, err = WriteUint64Slice(w, c[available:])
 
-	return n + inc, nil
+	return n + inc64, nil
 }

@@ -63,19 +63,17 @@ func (v Vector[T]) WriteTo(w io.Writer) (n int64, err error) {
 	switch w := w.(type) {
 	case buffer.Writer:
 
-		var inc int
+		var inc int64
 		if inc, err = buffer.WriteInt(w, len(v)); err != nil {
-			return int64(inc), err
+			return inc, err
 		}
-		n += int64(inc)
+		n += inc
 
-		for _, c := range v {
-			/* #nosec G601 -- Implicit memory aliasing in for loop acknowledged */
-			inc, err := any(&c).(io.WriterTo).WriteTo(w)
-			n += inc
-			if err != nil {
-				return n, err
+		for i := range v {
+			if inc, err = any(&v[i]).(io.WriterTo).WriteTo(w); err != nil {
+				return n + inc, err
 			}
+			n += inc
 		}
 
 		return n, w.Flush()
@@ -106,12 +104,12 @@ func (v *Vector[T]) ReadFrom(r io.Reader) (n int64, err error) {
 	switch r := r.(type) {
 	case buffer.Reader:
 		var size int
-		var inc int
+		var inc int64
 
 		if inc, err = buffer.ReadInt(r, &size); err != nil {
-			return int64(inc), fmt.Errorf("cannot read vector size: %w", err)
+			return inc, fmt.Errorf("cannot read vector size: %w", err)
 		}
-		n += int64(inc)
+		n += inc
 
 		if cap(*v) < size {
 			*v = make([]T, size)
@@ -119,15 +117,13 @@ func (v *Vector[T]) ReadFrom(r io.Reader) (n int64, err error) {
 		*v = (*v)[:size]
 
 		for i := range *v {
-			/* #nosec G601 -- Implicit memory aliasing in for loop acknowledged */
-			inc, err := any(&(*v)[i]).(io.ReaderFrom).ReadFrom(r)
-			n += inc
-			if err != nil {
-				return n, err
+			if inc, err = any(&(*v)[i]).(io.ReaderFrom).ReadFrom(r); err != nil {
+				return n + inc, err
 			}
+			n += inc
 		}
 
-		return int64(n), nil
+		return n, nil
 
 	default:
 		return v.ReadFrom(bufio.NewReader(r))

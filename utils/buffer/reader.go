@@ -8,17 +8,19 @@ import (
 )
 
 // ReadInt reads an int values from r and stores the result into *c.
-func ReadInt(r Reader, c *int) (n int, err error) {
+func ReadInt(r Reader, c *int) (n int64, err error) {
 
 	if c == nil {
 		return 0, fmt.Errorf("cannot ReadInt: c is nil")
 	}
 
-	return ReadUint64(r, utils.PointyIntToPointUint64(c))
+	nint, err := ReadUint64(r, utils.PointyIntToPointUint64(c))
+
+	return int64(nint), err
 }
 
 // ReadUint8 reads a byte from r and stores the result into *c.
-func ReadUint8(r Reader, c *uint8) (n int, err error) {
+func ReadUint8(r Reader, c *uint8) (n int64, err error) {
 
 	if c == nil {
 		return 0, fmt.Errorf("cannot ReadUint8: c is nil")
@@ -26,22 +28,25 @@ func ReadUint8(r Reader, c *uint8) (n int, err error) {
 
 	slice, err := r.Peek(1)
 	if err != nil {
-		return len(slice), err
+		return int64(len(slice)), err
 	}
 
 	// Reads one byte
 	*c = uint8(slice[0])
 
-	return r.Discard(1)
+	nint, err := r.Discard(1)
+
+	return int64(nint), err
 }
 
 // ReadUint8Slice reads a slice of byte from r and stores the result into c.
-func ReadUint8Slice(r Reader, c []uint8) (n int, err error) {
-	return r.Read(c)
+func ReadUint8Slice(r Reader, c []uint8) (n int64, err error) {
+	nint, err := r.Read(c)
+	return int64(nint), err
 }
 
 // ReadUint16 reads a uint16 from r and stores the result into *c.
-func ReadUint16(r Reader, c *uint16) (n int, err error) {
+func ReadUint16(r Reader, c *uint16) (n int64, err error) {
 
 	if c == nil {
 		return 0, fmt.Errorf("cannot ReadUint16: c is nil")
@@ -49,17 +54,19 @@ func ReadUint16(r Reader, c *uint16) (n int, err error) {
 
 	slice, err := r.Peek(2)
 	if err != nil {
-		return len(slice), err
+		return int64(len(slice)), err
 	}
 
 	// Reads one byte
 	*c = binary.LittleEndian.Uint16(slice)
 
-	return r.Discard(2)
+	nint, err := r.Discard(2)
+
+	return int64(nint), err
 }
 
 // ReadUint16Slice reads a slice of uint16 from r and stores the result into c.
-func ReadUint16Slice(r Reader, c []uint16) (n int, err error) {
+func ReadUint16Slice(r Reader, c []uint16) (n int64, err error) {
 
 	// c is empty, return
 	if len(c) == 0 {
@@ -75,7 +82,7 @@ func ReadUint16Slice(r Reader, c []uint16) (n int, err error) {
 
 	// Then returns the writen bytes
 	if slice, err = r.Peek(size); err != nil {
-		return len(slice), err
+		return int64(len(slice)), err
 	}
 
 	buffered := len(slice) >> 1
@@ -87,7 +94,9 @@ func ReadUint16Slice(r Reader, c []uint16) (n int, err error) {
 			c[i] = binary.LittleEndian.Uint16(slice[j:])
 		}
 
-		return r.Discard(N << 1) // Discards what was read
+		nint, err := r.Discard(N << 1) // Discards what was read
+
+		return int64(nint), err
 	}
 
 	// Decodes the maximum
@@ -98,21 +107,20 @@ func ReadUint16Slice(r Reader, c []uint16) (n int, err error) {
 	// Discard what was peeked
 	var inc int
 	if inc, err = r.Discard(len(slice)); err != nil {
-		return n + inc, err
+		return n + int64(inc), err
 	}
 
-	n += inc
+	n += int64(inc)
 
 	// Recurses on the remaining slice to fill
-	if inc, err = ReadUint16Slice(r, c[buffered:]); err != nil {
-		return n + inc, err
-	}
+	var inc64 int64
+	inc64, err = ReadUint16Slice(r, c[buffered:])
 
-	return n + inc, nil
+	return n + inc64, nil
 }
 
 // ReadUint32 reads a uint32 from r and stores the result into *c.
-func ReadUint32(r Reader, c *uint32) (n int, err error) {
+func ReadUint32(r Reader, c *uint32) (n int64, err error) {
 
 	if c == nil {
 		return 0, fmt.Errorf("cannot ReadUint32: c is nil")
@@ -120,17 +128,19 @@ func ReadUint32(r Reader, c *uint32) (n int, err error) {
 
 	slice, err := r.Peek(4)
 	if err != nil {
-		return len(slice), err
+		return int64(len(slice)), err
 	}
 
 	// Reads one byte
 	*c = binary.LittleEndian.Uint32(slice)
 
-	return r.Discard(4)
+	nint, err := r.Discard(4)
+
+	return int64(nint), err
 }
 
 // ReadUint32Slice reads a slice of uint32 from r and stores the result into c.
-func ReadUint32Slice(r Reader, c []uint32) (n int, err error) {
+func ReadUint32Slice(r Reader, c []uint32) (n int64, err error) {
 
 	// c is empty, return
 	if len(c) == 0 {
@@ -147,7 +157,7 @@ func ReadUint32Slice(r Reader, c []uint32) (n int, err error) {
 
 	// Then returns the writen bytes
 	if slice, err = r.Peek(size); err != nil {
-		return len(slice), err
+		return int64(len(slice)), err
 	}
 
 	buffered := len(slice) >> 2
@@ -159,7 +169,9 @@ func ReadUint32Slice(r Reader, c []uint32) (n int, err error) {
 			c[i] = binary.LittleEndian.Uint32(slice[j:])
 		}
 
-		return r.Discard(N << 2) // Discards what was read
+		nint, err := r.Discard(N << 2) // Discards what was read
+
+		return int64(nint), err
 	}
 
 	// Decodes the maximum
@@ -170,21 +182,20 @@ func ReadUint32Slice(r Reader, c []uint32) (n int, err error) {
 	// Discard what was peeked
 	var inc int
 	if inc, err = r.Discard(len(slice)); err != nil {
-		return n + inc, err
+		return n + int64(inc), err
 	}
 
-	n += inc
+	n += int64(inc)
 
 	// Recurses on the remaining slice to fill
-	if inc, err = ReadUint32Slice(r, c[buffered:]); err != nil {
-		return n + inc, err
-	}
+	var inc64 int64
+	inc64, err = ReadUint32Slice(r, c[buffered:])
 
-	return n + inc, nil
+	return n + inc64, nil
 }
 
 // ReadUint64 reads a uint64 from r and stores the result into c.
-func ReadUint64(r Reader, c *uint64) (n int, err error) {
+func ReadUint64(r Reader, c *uint64) (n int64, err error) {
 
 	if c == nil {
 		return 0, fmt.Errorf("cannot ReadUint64: c is nil")
@@ -192,17 +203,19 @@ func ReadUint64(r Reader, c *uint64) (n int, err error) {
 
 	bytes, err := r.Peek(8)
 	if err != nil {
-		return len(bytes), err
+		return int64(len(bytes)), err
 	}
 
 	// Reads one byte
 	*c = binary.LittleEndian.Uint64(bytes)
 
-	return r.Discard(8)
+	nint, err := r.Discard(8)
+
+	return int64(nint), err
 }
 
 // ReadUint64Slice reads a slice of uint64 from r and stores the result into c.
-func ReadUint64Slice(r Reader, c []uint64) (n int, err error) {
+func ReadUint64Slice(r Reader, c []uint64) (n int64, err error) {
 
 	// c is empty, return
 	if len(c) == 0 {
@@ -219,7 +232,7 @@ func ReadUint64Slice(r Reader, c []uint64) (n int, err error) {
 
 	// Then returns the writen bytes
 	if slice, err = r.Peek(size); err != nil {
-		return
+		return int64(len(slice)), err
 	}
 
 	buffered := len(slice) >> 3
@@ -231,7 +244,9 @@ func ReadUint64Slice(r Reader, c []uint64) (n int, err error) {
 			c[i] = binary.LittleEndian.Uint64(slice[j:])
 		}
 
-		return r.Discard(N << 3) // Discards what was read
+		nint, err := r.Discard(N << 3) // Discards what was read
+
+		return int64(nint), err
 	}
 
 	// Decodes the maximum
@@ -242,15 +257,14 @@ func ReadUint64Slice(r Reader, c []uint64) (n int, err error) {
 	// Discard what was peeked
 	var inc int
 	if inc, err = r.Discard(len(slice)); err != nil {
-		return n + inc, err
+		return n + int64(inc), err
 	}
 
-	n += inc
+	n += int64(inc)
 
 	// Recurses on the remaining slice to fill
-	if inc, err = ReadUint64Slice(r, c[buffered:]); err != nil {
-		return n + inc, err
-	}
+	var inc64 int64
+	inc64, err = ReadUint64Slice(r, c[buffered:])
 
-	return n + inc, nil
+	return n + inc64, err
 }

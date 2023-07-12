@@ -51,27 +51,26 @@ func (m *Map[K, T]) WriteTo(w io.Writer) (n int64, err error) {
 	switch w := w.(type) {
 	case buffer.Writer:
 
-		var inc1 int
+		var inc int64
 
-		if inc1, err = buffer.WriteUint32(w, uint32(len(*m))); err != nil {
-			return n + int64(inc1), err
+		if inc, err = buffer.WriteUint32(w, uint32(len(*m))); err != nil {
+			return n + inc, err
 		}
-		n += int64(inc1)
+		n += inc
 
 		for _, key := range utils.GetSortedKeys(*m) {
 
-			if inc1, err = buffer.WriteUint64(w, uint64(key)); err != nil {
-				return n + int64(inc1), err
+			if inc, err = buffer.WriteUint64(w, uint64(key)); err != nil {
+				return n + inc, err
 			}
-			n += int64(inc1)
+			n += inc
 
-			var inc2 int64
 			val := (*m)[key]
-			if inc2, err = any(val).(io.WriterTo).WriteTo(w); err != nil {
-				return n + inc2, err
+			if inc, err = any(val).(io.WriterTo).WriteTo(w); err != nil {
+				return n + inc, err
 			}
 
-			n += inc2
+			n += inc
 		}
 
 		return
@@ -101,12 +100,12 @@ func (m *Map[K, T]) ReadFrom(r io.Reader) (n int64, err error) {
 	switch r := r.(type) {
 	case buffer.Reader:
 
-		var inc1 int
+		var inc int64
 		var size uint32
-		if inc1, err = buffer.ReadUint32(r, &size); err != nil {
-			return n + int64(inc1), err
+		if inc, err = buffer.ReadUint32(r, &size); err != nil {
+			return n + inc, err
 		}
-		n += int64(inc1)
+		n += inc
 
 		if (*m) == nil {
 			*m = make(Map[K, T], size)
@@ -115,19 +114,18 @@ func (m *Map[K, T]) ReadFrom(r io.Reader) (n int64, err error) {
 		for i := 0; i < int(size); i++ {
 
 			var key uint64
-			if inc1, err = buffer.ReadUint64(r, &key); err != nil {
-				return n + int64(inc1), err
+			if inc, err = buffer.ReadUint64(r, &key); err != nil {
+				return n + inc, err
 			}
-			n += int64(inc1)
+			n += inc
 
 			var val = new(T)
-			var inc2 int64
-			if inc2, err = any(val).(io.ReaderFrom).ReadFrom(r); err != nil {
-				return n + inc2, err
+			if inc, err = any(val).(io.ReaderFrom).ReadFrom(r); err != nil {
+				return n + inc, err
 			}
 			(*m)[K(key)] = val
 
-			n += inc2
+			n += inc
 		}
 
 		return

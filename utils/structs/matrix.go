@@ -67,19 +67,18 @@ func (m Matrix[T]) WriteTo(w io.Writer) (n int64, err error) {
 	switch w := w.(type) {
 	case buffer.Writer:
 
-		var inc int
+		var inc int64
 		if inc, err = buffer.WriteInt(w, len(m)); err != nil {
-			return int64(inc), err
+			return inc, err
 		}
-		n += int64(inc)
+		n += inc
 
 		for _, v := range m {
 			vec := Vector[T](v)
-			inc, err := vec.WriteTo(w)
-			n += int64(inc)
-			if err != nil {
-				return n, err
+			if inc, err = vec.WriteTo(w); err != nil {
+				return n + inc, err
 			}
+			n += inc
 		}
 
 		return n, w.Flush()
@@ -109,7 +108,8 @@ func (m *Matrix[T]) ReadFrom(r io.Reader) (n int64, err error) {
 	switch r := r.(type) {
 	case buffer.Reader:
 
-		var size, n int
+		var size int
+		var inc int64
 
 		if n, err = buffer.ReadInt(r, &size); err != nil {
 			return int64(n), fmt.Errorf("cannot read matrix size: %w", err)
@@ -118,17 +118,17 @@ func (m *Matrix[T]) ReadFrom(r io.Reader) (n int64, err error) {
 		if cap(*m) < size {
 			*m = make([][]T, size)
 		}
+
 		*m = (*m)[:size]
 
 		for i := range *m {
-			inc, err := (*Vector[T])(&(*m)[i]).ReadFrom(r)
-			n += int(inc)
-			if err != nil {
-				return int64(n), err
+			if inc, err = (*Vector[T])(&(*m)[i]).ReadFrom(r); err != nil {
+				return n + inc, err
 			}
+			n += inc
 		}
 
-		return int64(n), nil
+		return n, nil
 
 	default:
 		return m.ReadFrom(bufio.NewReader(r))

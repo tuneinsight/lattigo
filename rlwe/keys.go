@@ -389,26 +389,25 @@ func (gk GaloisKey) WriteTo(w io.Writer) (n int64, err error) {
 	switch w := w.(type) {
 	case buffer.Writer:
 
-		var inc int
+		var inc int64
 
 		if inc, err = buffer.WriteUint64(w, gk.GaloisElement); err != nil {
-			return n + int64(inc), err
+			return n + inc, err
 		}
 
-		n += int64(inc)
+		n += inc
 
 		if inc, err = buffer.WriteUint64(w, gk.NthRoot); err != nil {
-			return n + int64(inc), err
+			return n + inc, err
 		}
 
-		n += int64(inc)
+		n += inc
 
-		var inc2 int64
-		if inc2, err = gk.EvaluationKey.WriteTo(w); err != nil {
-			return n + inc2, err
+		if inc, err = gk.EvaluationKey.WriteTo(w); err != nil {
+			return n + inc, err
 		}
 
-		n += inc2
+		n += inc
 
 		return
 
@@ -432,26 +431,25 @@ func (gk *GaloisKey) ReadFrom(r io.Reader) (n int64, err error) {
 	switch r := r.(type) {
 	case buffer.Reader:
 
-		var inc int
+		var inc int64
 
 		if inc, err = buffer.ReadUint64(r, &gk.GaloisElement); err != nil {
-			return n + int64(inc), err
+			return n + inc, err
 		}
 
-		n += int64(inc)
+		n += inc
 
 		if inc, err = buffer.ReadUint64(r, &gk.NthRoot); err != nil {
-			return n + int64(inc), err
+			return n + inc, err
 		}
 
-		n += int64(inc)
+		n += inc
 
-		var inc2 int64
-		if inc2, err = gk.EvaluationKey.ReadFrom(r); err != nil {
-			return n + inc2, err
+		if inc, err = gk.EvaluationKey.ReadFrom(r); err != nil {
+			return n + inc, err
 		}
 
-		n += inc2
+		n += inc
 
 		return
 	default:
@@ -569,52 +567,50 @@ func (evk MemEvaluationKeySet) BinarySize() (size int) {
 //     io.Writer in a pre-allocated bufio.Writer.
 //   - When writing to a pre-allocated var b []byte, it is preferable to pass
 //     buffer.NewBuffer(b) as w (see lattigo/utils/buffer/buffer.go).
-func (evk MemEvaluationKeySet) WriteTo(w io.Writer) (int64, error) {
+func (evk MemEvaluationKeySet) WriteTo(w io.Writer) (n int64, err error) {
 	switch w := w.(type) {
 	case buffer.Writer:
 
-		var inc int
-		var n, inc64 int64
-		var err error
+		var inc int64
 
 		if evk.Rlk != nil {
 			if inc, err = buffer.WriteUint8(w, 1); err != nil {
-				return int64(inc), err
+				return inc, err
 			}
 
-			n += int64(inc)
+			n += inc
 
-			if inc64, err = evk.Rlk.WriteTo(w); err != nil {
-				return n + inc64, err
+			if inc, err = evk.Rlk.WriteTo(w); err != nil {
+				return n + inc, err
 			}
 
-			n += inc64
+			n += inc
 
 		} else {
 			if inc, err = buffer.WriteUint8(w, 0); err != nil {
-				return int64(inc), err
+				return inc, err
 			}
-			n += int64(inc)
+			n += inc
 		}
 
 		if evk.Gks != nil {
 			if inc, err = buffer.WriteUint8(w, 1); err != nil {
-				return int64(inc), err
+				return inc, err
 			}
 
-			n += int64(inc)
+			n += inc
 
-			if inc64, err = evk.Gks.WriteTo(w); err != nil {
-				return n + inc64, err
+			if inc, err = evk.Gks.WriteTo(w); err != nil {
+				return n + inc, err
 			}
 
-			n += inc64
+			n += inc
 
 		} else {
 			if inc, err = buffer.WriteUint8(w, 0); err != nil {
-				return int64(inc), err
+				return inc, err
 			}
-			n += int64(inc)
+			n += inc
 		}
 
 		return n, w.Flush()
@@ -638,17 +634,16 @@ func (evk MemEvaluationKeySet) WriteTo(w io.Writer) (int64, error) {
 func (evk *MemEvaluationKeySet) ReadFrom(r io.Reader) (n int64, err error) {
 	switch r := r.(type) {
 	case buffer.Reader:
-		var inc int
-		var n, inc64 int64
-		var err error
+
+		var inc int64
 
 		var hasKey uint8
 
 		if inc, err = buffer.ReadUint8(r, &hasKey); err != nil {
-			return int64(inc), err
+			return inc, err
 		}
 
-		n += int64(inc)
+		n += inc
 
 		if hasKey == 1 {
 
@@ -656,18 +651,18 @@ func (evk *MemEvaluationKeySet) ReadFrom(r io.Reader) (n int64, err error) {
 				evk.Rlk = new(RelinearizationKey)
 			}
 
-			if inc64, err = evk.Rlk.ReadFrom(r); err != nil {
-				return n + inc64, err
+			if inc, err = evk.Rlk.ReadFrom(r); err != nil {
+				return n + inc, err
 			}
 
-			n += inc64
+			n += inc
 		}
 
 		if inc, err = buffer.ReadUint8(r, &hasKey); err != nil {
-			return int64(inc), err
+			return inc, err
 		}
 
-		n += int64(inc)
+		n += inc
 
 		if hasKey == 1 {
 
@@ -675,11 +670,11 @@ func (evk *MemEvaluationKeySet) ReadFrom(r io.Reader) (n int64, err error) {
 				evk.Gks = structs.Map[uint64, GaloisKey]{}
 			}
 
-			if inc64, err = evk.Gks.ReadFrom(r); err != nil {
-				return n + inc64, err
+			if inc, err = evk.Gks.ReadFrom(r); err != nil {
+				return n + inc, err
 			}
 
-			n += inc64
+			n += inc
 		}
 
 		return n, nil

@@ -137,30 +137,30 @@ func (pol Poly) BinarySize() (size int) {
 //     io.Writer in a pre-allocated bufio.Writer.
 //   - When writing to a pre-allocated var b []byte, it is preferable to pass
 //     buffer.NewBuffer(b) as w (see lattigo/utils/buffer/buffer.go).
-func (pol Poly) WriteTo(w io.Writer) (int64, error) {
+func (pol Poly) WriteTo(w io.Writer) (n int64, err error) {
 
 	switch w := w.(type) {
 	case buffer.Writer:
 
 		var err error
 
-		var n, inc int
+		var inc int64
 
 		if n, err = buffer.WriteInt(w, pol.N()); err != nil {
-			return int64(n), err
+			return n, err
 		}
 
 		if inc, err = buffer.WriteInt(w, pol.Level()); err != nil {
-			return int64(n + inc), err
+			return n + inc, err
 		}
 
 		n += inc
 
 		if inc, err = buffer.WriteUint64Slice(w, pol.Buff); err != nil {
-			return int64(n + inc), err
+			return n + inc, err
 		}
 
-		return int64(n + inc), w.Flush()
+		return n + inc, w.Flush()
 
 	default:
 		return pol.WriteTo(bufio.NewWriter(w))
@@ -178,34 +178,34 @@ func (pol Poly) WriteTo(w io.Writer) (int64, error) {
 //     first wrap io.Reader in a pre-allocated bufio.Reader.
 //   - When reading from a var b []byte, it is preferable to pass a buffer.NewBuffer(b)
 //     as w (see lattigo/utils/buffer/buffer.go).
-func (pol *Poly) ReadFrom(r io.Reader) (int64, error) {
+func (pol *Poly) ReadFrom(r io.Reader) (n int64, err error) {
 
 	switch r := r.(type) {
 	case buffer.Reader:
 		var err error
 
-		var n, inc int
+		var inc int64
 
 		var N int
 		if n, err = buffer.ReadInt(r, &N); err != nil {
-			return int64(n), fmt.Errorf("cannot ReadFrom: N: %w", err)
+			return n, fmt.Errorf("cannot ReadFrom: N: %w", err)
 		}
 
 		n += inc
 
 		if N <= 0 {
-			return int64(n), fmt.Errorf("error ReadFrom: N cannot be 0 or negative")
+			return n, fmt.Errorf("error ReadFrom: N cannot be 0 or negative")
 		}
 
 		var Level int
 		if inc, err = buffer.ReadInt(r, &Level); err != nil {
-			return int64(n + inc), fmt.Errorf("cannot ReadFrom: Level: %w", err)
+			return n + inc, fmt.Errorf("cannot ReadFrom: Level: %w", err)
 		}
 
 		n += inc
 
 		if Level < 0 {
-			return int64(n), fmt.Errorf("invalid encoding: Level cannot be negative")
+			return n, fmt.Errorf("invalid encoding: Level cannot be negative")
 		}
 
 		if pol.Buff == nil || len(pol.Buff) != N*(Level+1) {
@@ -213,7 +213,7 @@ func (pol *Poly) ReadFrom(r io.Reader) (int64, error) {
 		}
 
 		if inc, err = buffer.ReadUint64Slice(r, pol.Buff); err != nil {
-			return int64(n + inc), fmt.Errorf("cannot ReadFrom: pol.Buff: %w", err)
+			return n + inc, fmt.Errorf("cannot ReadFrom: pol.Buff: %w", err)
 		}
 
 		n += inc
@@ -227,7 +227,7 @@ func (pol *Poly) ReadFrom(r io.Reader) (int64, error) {
 			pol.Coeffs[i] = pol.Buff[i*N : (i+1)*N]
 		}
 
-		return int64(n), nil
+		return n, nil
 
 	default:
 		return pol.ReadFrom(bufio.NewReader(r))

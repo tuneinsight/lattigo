@@ -90,15 +90,17 @@ func (ct GadgetCiphertext) WriteTo(w io.Writer) (n int64, err error) {
 	switch w := w.(type) {
 	case buffer.Writer:
 
-		var nInt int
+		var inc int64
 
-		if nInt, err = buffer.WriteInt(w, ct.BaseTwoDecomposition); err != nil {
-			return int64(nInt), err
+		if inc, err = buffer.WriteInt(w, ct.BaseTwoDecomposition); err != nil {
+			return n + inc, err
 		}
 
-		n, err = ct.Value.WriteTo(w)
+		n += inc
 
-		return int64(nInt) + n, err
+		inc, err = ct.Value.WriteTo(w)
+
+		return n + inc, err
 
 	default:
 		return ct.WriteTo(bufio.NewWriter(w))
@@ -120,15 +122,17 @@ func (ct *GadgetCiphertext) ReadFrom(r io.Reader) (n int64, err error) {
 	switch r := r.(type) {
 	case buffer.Reader:
 
-		var nInt int
+		var inc int64
 
-		if nInt, err = buffer.ReadInt(r, &ct.BaseTwoDecomposition); err != nil {
-			return int64(nInt), err
+		if inc, err = buffer.ReadInt(r, &ct.BaseTwoDecomposition); err != nil {
+			return n + inc, err
 		}
 
-		n, err = ct.Value.ReadFrom(r)
+		n += inc
 
-		return int64(nInt) + n, err
+		inc, err = ct.Value.ReadFrom(r)
+
+		return n + inc, err
 
 	default:
 		return ct.ReadFrom(bufio.NewReader(r))

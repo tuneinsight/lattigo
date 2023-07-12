@@ -123,25 +123,24 @@ func (p Poly) WriteTo(w io.Writer) (n int64, err error) {
 			hasQP = hasQP | 1
 		}
 
-		var inc int
+		var inc int64
 		if inc, err = buffer.WriteUint8(w, hasQP); err != nil {
-			return int64(n), err
+			return n + inc, err
 		}
 
-		n += int64(inc)
+		n += inc
 
-		var inc64 int64
-		if inc64, err = p.Q.WriteTo(w); err != nil {
-			return n + inc64, err
+		if inc, err = p.Q.WriteTo(w); err != nil {
+			return n + inc, err
 		}
 
-		n += inc64
+		n += inc
 
-		if inc64, err = p.P.WriteTo(w); err != nil {
-			return n + inc64, err
+		if inc, err = p.P.WriteTo(w); err != nil {
+			return n + inc, err
 		}
 
-		n += inc64
+		n += inc
 
 		return n, w.Flush()
 
@@ -166,21 +165,20 @@ func (p *Poly) ReadFrom(r io.Reader) (n int64, err error) {
 	case buffer.Reader:
 
 		var hasQP byte
-		var inc int
+		var inc int64
 		if inc, err = buffer.ReadUint8(r, &hasQP); err != nil {
-			return n + int64(inc), err
+			return n + inc, err
 		}
 
-		n += int64(inc)
+		n += inc
 
 		if hasQP&2 == 2 {
 
-			var inc64 int64
-			if inc64, err = p.Q.ReadFrom(r); err != nil {
-				return n + inc64, err
+			if inc, err = p.Q.ReadFrom(r); err != nil {
+				return n + inc, err
 			}
 
-			n += inc64
+			n += inc
 		}
 
 		if hasQP&1 == 1 {

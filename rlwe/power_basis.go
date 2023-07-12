@@ -181,17 +181,17 @@ func (p PowerBasis) WriteTo(w io.Writer) (n int64, err error) {
 	switch w := w.(type) {
 	case buffer.Writer:
 
-		var inc1 int
+		var inc int64
 
-		if inc1, err = buffer.WriteUint8(w, uint8(p.Basis)); err != nil {
-			return n + int64(inc1), err
+		if inc, err = buffer.WriteUint8(w, uint8(p.Basis)); err != nil {
+			return n + inc, err
 		}
 
-		n += int64(inc1)
+		n += inc
 
-		inc2, err := p.Value.WriteTo(w)
+		inc, err = p.Value.WriteTo(w)
 
-		return n + inc2, err
+		return n + inc, err
 
 	default:
 		return p.WriteTo(bufio.NewWriter(w))
@@ -212,15 +212,15 @@ func (p PowerBasis) WriteTo(w io.Writer) (n int64, err error) {
 func (p *PowerBasis) ReadFrom(r io.Reader) (n int64, err error) {
 	switch r := r.(type) {
 	case buffer.Reader:
-		var inc1 int
+		var inc int64
 
 		var Basis uint8
 
-		if inc1, err = buffer.ReadUint8(r, &Basis); err != nil {
-			return n + int64(inc1), err
+		if inc, err = buffer.ReadUint8(r, &Basis); err != nil {
+			return n + inc, err
 		}
 
-		n += int64(inc1)
+		n += inc
 
 		p.Basis = polynomial.Basis(Basis)
 
@@ -228,9 +228,9 @@ func (p *PowerBasis) ReadFrom(r io.Reader) (n int64, err error) {
 			p.Value = map[int]*Ciphertext{}
 		}
 
-		inc2, err := p.Value.ReadFrom(r)
+		inc, err = p.Value.ReadFrom(r)
 
-		return n + inc2, err
+		return n + inc, err
 
 	default:
 		return p.ReadFrom(bufio.NewReader(r))

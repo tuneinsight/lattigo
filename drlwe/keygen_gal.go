@@ -113,20 +113,19 @@ func (share GaloisKeyGenShare) BinarySize() int {
 func (share GaloisKeyGenShare) WriteTo(w io.Writer) (n int64, err error) {
 	switch w := w.(type) {
 	case buffer.Writer:
-		var inc int
+		var inc int64
 
 		if inc, err = buffer.WriteUint64(w, share.GaloisElement); err != nil {
-			return n + int64(inc), err
+			return n + inc, err
 		}
 
-		n += int64(inc)
+		n += inc
 
-		var inc2 int64
-		if inc2, err = share.EvaluationKeyGenShare.WriteTo(w); err != nil {
-			return n + inc2, err
+		if inc, err = share.EvaluationKeyGenShare.WriteTo(w); err != nil {
+			return n + inc, err
 		}
 
-		n += inc2
+		n += inc
 
 		return n, err
 
@@ -150,18 +149,17 @@ func (share *GaloisKeyGenShare) ReadFrom(r io.Reader) (n int64, err error) {
 	switch r := r.(type) {
 	case buffer.Reader:
 
-		var inc int
+		var inc int64
 		if inc, err = buffer.ReadUint64(r, &share.GaloisElement); err != nil {
-			return n + int64(inc), err
+			return n + inc, err
 		}
-		n += int64(inc)
+		n += inc
 
-		var inc64 int64
-		if inc64, err = share.EvaluationKeyGenShare.ReadFrom(r); err != nil {
-			return n + inc64, err
+		if inc, err = share.EvaluationKeyGenShare.ReadFrom(r); err != nil {
+			return n + inc, err
 		}
 
-		return n + inc64, nil
+		return n + inc, nil
 	default:
 		return share.ReadFrom(bufio.NewReader(r))
 	}

@@ -1,6 +1,7 @@
 package buffer
 
 import (
+	"unsafe"
 	"encoding/binary"
 	"fmt"
 
@@ -116,7 +117,7 @@ func ReadUint16Slice(r Reader, c []uint16) (n int64, err error) {
 	var inc64 int64
 	inc64, err = ReadUint16Slice(r, c[buffered:])
 
-	return n + inc64, nil
+	return n + inc64, err
 }
 
 // ReadUint32 reads a uint32 from r and stores the result into *c.
@@ -191,7 +192,7 @@ func ReadUint32Slice(r Reader, c []uint32) (n int64, err error) {
 	var inc64 int64
 	inc64, err = ReadUint32Slice(r, c[buffered:])
 
-	return n + inc64, nil
+	return n + inc64, err
 }
 
 // ReadUint64 reads a uint64 from r and stores the result into c.
@@ -267,4 +268,28 @@ func ReadUint64Slice(r Reader, c []uint64) (n int64, err error) {
 	inc64, err = ReadUint64Slice(r, c[buffered:])
 
 	return n + inc64, err
+}
+
+// ReadFloat32 reads a float64 from r and stores the result into c.
+func ReadFloat32(r Reader, c *float32) (n int64, err error) {
+	/* #nosec G103 -- behavior and consequences well understood */
+	return ReadUint32(r, (*uint32)(unsafe.Pointer(c)))
+}
+
+// ReadFloat32Slice reads a slice of float32 from r and stores the result into c.
+func ReadFloat32Slice(r Reader, c []float32) (n int64, err error) {
+	/* #nosec G103 -- behavior and consequences well understood */
+	return ReadUint32Slice(r, *(*[]uint32)(unsafe.Pointer(&c)))
+}
+
+// ReadFloat64 reads a float64 from r and stores the result into c.
+func ReadFloat64(r Reader, c *float64) (n int64, err error) {
+	/* #nosec G103 -- behavior and consequences well understood */
+	return ReadUint64(r, (*uint64)(unsafe.Pointer(c)))
+}
+
+// ReadFloat64Slice reads a slice of float64 from r and stores the result into c.
+func ReadFloat64Slice(r Reader, c []float64) (n int64, err error) {
+	/* #nosec G103 -- behavior and consequences well understood */
+	return ReadUint64Slice(r, *(*[]uint64)(unsafe.Pointer(&c)))
 }

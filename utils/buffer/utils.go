@@ -41,24 +41,27 @@ func RequireSerializerCorrect(t *testing.T, input binarySerializer) {
 	bytesWritten, err := input.WriteTo(buf)
 	require.NoError(t, err)
 
-	require.Equal(t, input.BinarySize(), int(bytesWritten))
+	require.Equal(t, int(bytesWritten), input.BinarySize(), fmt.Errorf("invalid size: %T.WriteTo #bytes written = %d != %T.BinarySize = %d", input, bytesWritten, input, input.BinarySize()))
+
+	// Checks that #bytes written = len(buffer)
+	require.Equal(t, len(buf.Bytes()), int(bytesWritten), fmt.Errorf("invalid size: %T.WriteTo len(buf.Bytes()) = %d != %T.WriteTo #bytes written = %d", input, len(buf.Bytes()), input, bytesWritten))
 
 	// Check encoding.BinaryMarshaler
 	data2, err := input.MarshalBinary()
 	require.NoError(t, err)
 
 	// Check that #bytes written with io.Writer = #bytes generates by encoding.BinaryMarshaler
-	require.Equal(t, int(bytesWritten), len(data2), fmt.Errorf("invalid size: %T.WriteTo #bytes written != %T.MarshalBinary #bytes generates", input, input))
+	require.Equal(t, len(data2), int(bytesWritten), fmt.Errorf("invalid size: %T.MarshalBinary #bytes generated = %d != %T.WriteTo #bytes written = %d", input, len(data2), input, bytesWritten))
 
 	// Check that bytes written with io.Writer = bytes generates by encoding.BinaryMarshaler
-	require.True(t, bytes.Equal(buf.Bytes(), data2), fmt.Errorf("invalid encoding: %T.WriteTo buffer != %T.MarshalBinary bytes generates", input, input))
+	require.True(t, bytes.Equal(buf.Bytes(), data2), fmt.Errorf("invalid encoding: %T.WriteTo buf.Bytes() != %T.MarshalBinary bytes generated", input, input))
 
 	// Check io.Reader
 	bytesRead, err := output.ReadFrom(buf)
 	require.NoError(t, err)
 
 	// Check that #bytes read with io.Reader = #bytes written with io.Writer
-	require.Equal(t, bytesRead, bytesWritten, fmt.Errorf("invalid encoding: %T.ReadFrom #bytes read != %T.WriteTo #bytes written", input, input))
+	require.Equal(t, bytesRead, bytesWritten, fmt.Errorf("invalid encoding: %T.ReadFrom #bytes read = %d != %T.WriteTo #bytes written = %d", input, bytesRead, input, bytesWritten))
 
 	// Deep equal output = input
 	require.True(t, cmp.Equal(input, output))

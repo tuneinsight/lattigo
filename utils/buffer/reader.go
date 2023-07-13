@@ -1,9 +1,9 @@
 package buffer
 
 import (
-	"unsafe"
 	"encoding/binary"
 	"fmt"
+	"unsafe"
 
 	"github.com/tuneinsight/lattigo/v4/utils"
 )

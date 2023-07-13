@@ -67,7 +67,7 @@ func WriteUint8Slice(w Writer, c []uint8) (n int64, err error) {
 
 	// First fills the space
 	buf = buf[:available]
-	
+
 	copy(buf, c)
 
 	var inc int
@@ -350,7 +350,6 @@ func WriteFloat64(w Writer, c float64) (n int64, err error) {
 	/* #nosec G103 -- behavior and consequences well understood */
 	return WriteUint64(w, *(*uint64)(unsafe.Pointer(&c)))
 }
-
 
 // WriteFloat64Slice writes a slice of float64 into w.
 func WriteFloat64Slice(w Writer, c []float64) (n int64, err error) {

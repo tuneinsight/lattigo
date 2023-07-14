@@ -52,6 +52,6 @@ func (rfp RefreshProtocol) AggregateShares(share1, share2, shareOut *drlwe.Refre
 
 // Finalize applies Decrypt, Recode and Recrypt on the input ciphertext.
 // The ciphertext scale is reset to the default scale.
-func (rfp RefreshProtocol) Finalize(ctIn *rlwe.Ciphertext, crs drlwe.KeySwitchCRP, share drlwe.RefreshShare, ctOut *rlwe.Ciphertext) {
-	rfp.MaskedTransformProtocol.Transform(ctIn, nil, crs, share, ctOut)
+func (rfp RefreshProtocol) Finalize(ctIn *rlwe.Ciphertext, crs drlwe.KeySwitchCRP, share drlwe.RefreshShare, opOut *rlwe.Ciphertext) {
+	rfp.MaskedTransformProtocol.Transform(ctIn, nil, crs, share, opOut)
 }

@@ -83,9 +83,9 @@ func benchRefresh(tc *testContext, b *testing.B) {
 	})
 
 	b.Run(GetTestName("Refresh/Finalize", tc.params, tc.NParties), func(b *testing.B) {
-		ctOut := bgv.NewCiphertext(tc.params, 1, maxLevel)
+		opOut := bgv.NewCiphertext(tc.params, 1, maxLevel)
 		for i := 0; i < b.N; i++ {
-			p.Finalize(ciphertext, crp, p.share, ctOut)
+			p.Finalize(ciphertext, crp, p.share, opOut)
 		}
 	})
 }

@@ -220,14 +220,14 @@ func (eval Evaluator) CoeffsToSlots(ctIn *rlwe.Ciphertext, ctsMatrices Homomorph
 // Homomorphically decodes a real vector of size 2n on a complex vector vReal + i*vImag of size n.
 // If the packing is sparse (n < N/2) then ctReal = Ecd(vReal || vImag) and ctImag = nil.
 // If the packing is dense (n == N/2), then ctReal = Ecd(vReal) and ctImag = Ecd(vImag).
-func (eval Evaluator) SlotsToCoeffsNew(ctReal, ctImag *rlwe.Ciphertext, stcMatrices HomomorphicDFTMatrix) (ctOut *rlwe.Ciphertext) {
+func (eval Evaluator) SlotsToCoeffsNew(ctReal, ctImag *rlwe.Ciphertext, stcMatrices HomomorphicDFTMatrix) (opOut *rlwe.Ciphertext) {
 
 	if ctReal.Level() < stcMatrices.LevelStart || (ctImag != nil && ctImag.Level() < stcMatrices.LevelStart) {
 		panic("ctReal.Level() or ctImag.Level() < HomomorphicDFTMatrix.LevelStart")
 	}
 
-	ctOut = NewCiphertext(eval.Parameters(), 1, stcMatrices.LevelStart)
-	eval.SlotsToCoeffs(ctReal, ctImag, stcMatrices, ctOut)
+	opOut = NewCiphertext(eval.Parameters(), 1, stcMatrices.LevelStart)
+	eval.SlotsToCoeffs(ctReal, ctImag, stcMatrices, opOut)
 	return
 
 }
@@ -236,18 +236,18 @@ func (eval Evaluator) SlotsToCoeffsNew(ctReal, ctImag *rlwe.Ciphertext, stcMatri
 // Homomorphically decodes a real vector of size 2n on a complex vector vReal + i*vImag of size n.
 // If the packing is sparse (n < N/2) then ctReal = Ecd(vReal || vImag) and ctImag = nil.
 // If the packing is dense (n == N/2), then ctReal = Ecd(vReal) and ctImag = Ecd(vImag).
-func (eval Evaluator) SlotsToCoeffs(ctReal, ctImag *rlwe.Ciphertext, stcMatrices HomomorphicDFTMatrix, ctOut *rlwe.Ciphertext) {
+func (eval Evaluator) SlotsToCoeffs(ctReal, ctImag *rlwe.Ciphertext, stcMatrices HomomorphicDFTMatrix, opOut *rlwe.Ciphertext) {
 	// If full packing, the repacking can be done directly using ct0 and ct1.
 	if ctImag != nil {
-		eval.Mul(ctImag, 1i, ctOut)
-		eval.Add(ctOut, ctReal, ctOut)
-		eval.dft(ctOut, stcMatrices.Matrices, ctOut)
+		eval.Mul(ctImag, 1i, opOut)
+		eval.Add(opOut, ctReal, opOut)
+		eval.dft(opOut, stcMatrices.Matrices, opOut)
 	} else {
-		eval.dft(ctReal, stcMatrices.Matrices, ctOut)
+		eval.dft(ctReal, stcMatrices.Matrices, opOut)
 	}
 }
 
-func (eval Evaluator) dft(ctIn *rlwe.Ciphertext, plainVectors []rlwe.LinearTransform, ctOut *rlwe.Ciphertext) {
+func (eval Evaluator) dft(ctIn *rlwe.Ciphertext, plainVectors []rlwe.LinearTransform, opOut *rlwe.Ciphertext) {
 
 	inputLogSlots := ctIn.PlaintextLogDimensions
 
@@ -255,9 +255,9 @@ func (eval Evaluator) dft(ctIn *rlwe.Ciphertext, plainVectors []rlwe.LinearTrans
 	scale := ctIn.PlaintextScale
 	var in, out *rlwe.Ciphertext
 	for i, plainVector := range plainVectors {
-		in, out = ctOut, ctOut
+		in, out = opOut, opOut
 		if i == 0 {
-			in, out = ctIn, ctOut
+			in, out = ctIn, opOut
 		}
 
 		eval.LinearTransform(in, plainVector, []*rlwe.Ciphertext{out})
@@ -270,7 +270,7 @@ func (eval Evaluator) dft(ctIn *rlwe.Ciphertext, plainVectors []rlwe.LinearTrans
 	// Encoding matrices are a special case of `fractal` linear transform
 	// that doesn't change the underlying plaintext polynomial Y = X^{N/n}
 	// of the input ciphertext.
-	ctOut.PlaintextLogDimensions = inputLogSlots
+	opOut.PlaintextLogDimensions = inputLogSlots
 }
 
 func fftPlainVec(logN, dslots int, roots []*bignum.Complex, pow5 []int) (a, b, c [][]*bignum.Complex) {

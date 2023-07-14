@@ -16,7 +16,7 @@ import (
 // enables the public and non interactive re-encryption of any ciphertext encrypted
 // under skIn to a new ciphertext encrypted under skOut.
 //
-// The method will panic if either ctIn or ctOut degree isn't 1.
+// The method will panic if either ctIn or opOut degree isn't 1.
 //
 // This method can also be used to switch a ciphertext to one with a different ring degree.
 // Note that the parameters of the smaller ring degree must be the same or a subset of the
@@ -27,41 +27,41 @@ import (
 //
 // To switch a ciphertext to a smaller ring degree:
 // - ctIn ring degree must match the evaluator's ring degree.
-// - ctOut ring degree must match the smaller ring degree.
+// - opOut ring degree must match the smaller ring degree.
 // - evk must have been generated using the key-generator of the large ring degree with as input large-key -> small-key.
 //
 // To switch a ciphertext to a smaller ring degree:
 // - ctIn ring degree must match the smaller ring degree.
-// - ctOut ring degree must match the evaluator's ring degree.
+// - opOut ring degree must match the evaluator's ring degree.
 // - evk must have been generated using the key-generator of the large ring degree with as input small-key -> large-key.
-func (eval Evaluator) ApplyEvaluationKey(ctIn *Ciphertext, evk *EvaluationKey, ctOut *Ciphertext) {
+func (eval Evaluator) ApplyEvaluationKey(ctIn *Ciphertext, evk *EvaluationKey, opOut *Ciphertext) {
 
-	if ctIn.Degree() != 1 || ctOut.Degree() != 1 {
+	if ctIn.Degree() != 1 || opOut.Degree() != 1 {
 		panic("ApplyEvaluationKey: input and output Ciphertext must be of degree 1")
 	}
 
-	level := utils.Min(ctIn.Level(), ctOut.Level())
+	level := utils.Min(ctIn.Level(), opOut.Level())
 	ringQ := eval.params.RingQ().AtLevel(level)
 
 	NIn := ctIn.Value[0].N()
-	NOut := ctOut.Value[0].N()
+	NOut := opOut.Value[0].N()
 
 	// Re-encryption to a larger ring degree.
 	if NIn < NOut {
 
 		if NOut != ringQ.N() {
-			panic("ApplyEvaluationKey: ctOut ring degree does not match evaluator params ring degree")
+			panic("ApplyEvaluationKey: opOut ring degree does not match evaluator params ring degree")
 		}
 
 		// Maps to larger ring degree Y = X^{N/n} -> X
 		if ctIn.IsNTT {
-			SwitchCiphertextRingDegreeNTT(ctIn.El(), nil, ctOut.El())
+			SwitchCiphertextRingDegreeNTT(ctIn.El(), nil, opOut.El())
 		} else {
-			SwitchCiphertextRingDegree(ctIn.El(), ctOut.El())
+			SwitchCiphertextRingDegree(ctIn.El(), opOut.El())
 		}
 
-		// Re-encrypt ctOut from the key from small to larger ring degree
-		eval.applyEvaluationKey(level, ctOut, evk, ctOut)
+		// Re-encrypt opOut from the key from small to larger ring degree
+		eval.applyEvaluationKey(level, opOut, evk, opOut)
 
 		// Re-encryption to a smaller ring degree.
 	} else if NIn > NOut {
@@ -70,7 +70,7 @@ func (eval Evaluator) ApplyEvaluationKey(ctIn *Ciphertext, evk *EvaluationKey, c
 			panic("ApplyEvaluationKey: ctIn ring degree does not match evaluator params ring degree")
 		}
 
-		level := utils.Min(ctIn.Level(), ctOut.Level())
+		level := utils.Min(ctIn.Level(), opOut.Level())
 
 		ctTmp := NewCiphertextAtLevelFromPoly(level, eval.BuffCt.Value)
 		ctTmp.MetaData = ctIn.MetaData
@@ -80,29 +80,29 @@ func (eval Evaluator) ApplyEvaluationKey(ctIn *Ciphertext, evk *EvaluationKey, c
 
 		// Maps to smaller ring degree X -> Y = X^{N/n}
 		if ctIn.IsNTT {
-			SwitchCiphertextRingDegreeNTT(ctTmp.El(), ringQ, ctOut.El())
+			SwitchCiphertextRingDegreeNTT(ctTmp.El(), ringQ, opOut.El())
 		} else {
-			SwitchCiphertextRingDegree(ctTmp.El(), ctOut.El())
+			SwitchCiphertextRingDegree(ctTmp.El(), opOut.El())
 		}
 
 		// Re-encryption to the same ring degree.
 	} else {
-		eval.applyEvaluationKey(level, ctIn, evk, ctOut)
+		eval.applyEvaluationKey(level, ctIn, evk, opOut)
 	}
 
-	ctOut.MetaData = ctIn.MetaData
+	opOut.MetaData = ctIn.MetaData
 }
 
-func (eval Evaluator) applyEvaluationKey(level int, ctIn *Ciphertext, evk *EvaluationKey, ctOut *Ciphertext) {
+func (eval Evaluator) applyEvaluationKey(level int, ctIn *Ciphertext, evk *EvaluationKey, opOut *Ciphertext) {
 	ctTmp := &Ciphertext{}
 	ctTmp.Value = []ring.Poly{eval.BuffQP[0].Q, eval.BuffQP[1].Q}
 	ctTmp.IsNTT = ctIn.IsNTT
 	eval.GadgetProduct(level, ctIn.Value[1], &evk.GadgetCiphertext, ctTmp)
-	eval.params.RingQ().AtLevel(level).Add(ctIn.Value[0], ctTmp.Value[0], ctOut.Value[0])
-	ring.CopyLvl(level, ctTmp.Value[1], ctOut.Value[1])
+	eval.params.RingQ().AtLevel(level).Add(ctIn.Value[0], ctTmp.Value[0], opOut.Value[0])
+	ring.CopyLvl(level, ctTmp.Value[1], opOut.Value[1])
 }
 
-// Relinearize applies the relinearization procedure on ct0 and returns the result in ctOut.
+// Relinearize applies the relinearization procedure on ct0 and returns the result in opOut.
 // Relinearization is a special procedure required to ensure ciphertext compactness.
 // It takes as input a quadratic ciphertext, that decrypts with the key (1, sk, sk^2) and
 // outputs a linear ciphertext that decrypts with the key (1, sk).
@@ -112,7 +112,7 @@ func (eval Evaluator) applyEvaluationKey(level int, ctIn *Ciphertext, evk *Evalu
 // - The input ciphertext degree isn't 2.
 // - The corresponding relinearization key to the ciphertext degree
 // is missing.
-func (eval Evaluator) Relinearize(ctIn *Ciphertext, ctOut *Ciphertext) {
+func (eval Evaluator) Relinearize(ctIn *Ciphertext, opOut *Ciphertext) {
 
 	if ctIn.Degree() != 2 {
 		panic(fmt.Errorf("cannot relinearize: ctIn.Degree() should be 2 but is %d", ctIn.Degree()))
@@ -124,7 +124,7 @@ func (eval Evaluator) Relinearize(ctIn *Ciphertext, ctOut *Ciphertext) {
 		panic(fmt.Errorf("cannot relinearize: %w", err))
 	}
 
-	level := utils.Min(ctIn.Level(), ctOut.Level())
+	level := utils.Min(ctIn.Level(), opOut.Level())
 
 	ringQ := eval.params.RingQ().AtLevel(level)
 
@@ -133,10 +133,10 @@ func (eval Evaluator) Relinearize(ctIn *Ciphertext, ctOut *Ciphertext) {
 	ctTmp.IsNTT = ctIn.IsNTT
 
 	eval.GadgetProduct(level, ctIn.Value[2], &rlk.GadgetCiphertext, ctTmp)
-	ringQ.Add(ctIn.Value[0], ctTmp.Value[0], ctOut.Value[0])
-	ringQ.Add(ctIn.Value[1], ctTmp.Value[1], ctOut.Value[1])
+	ringQ.Add(ctIn.Value[0], ctTmp.Value[0], opOut.Value[0])
+	ringQ.Add(ctIn.Value[1], ctTmp.Value[1], opOut.Value[1])
 
-	ctOut.Resize(1, level)
+	opOut.Resize(1, level)
 
-	ctOut.MetaData = ctIn.MetaData
+	opOut.MetaData = ctIn.MetaData
 }

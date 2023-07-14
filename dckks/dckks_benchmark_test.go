@@ -88,9 +88,9 @@ func benchRefresh(tc *testContext, b *testing.B) {
 		})
 
 		b.Run(GetTestName("Refresh/Finalize", tc.NParties, params), func(b *testing.B) {
-			ctOut := ckks.NewCiphertext(params, 1, params.MaxLevel())
+			opOut := ckks.NewCiphertext(params, 1, params.MaxLevel())
 			for i := 0; i < b.N; i++ {
-				p.Finalize(ciphertext, crp, p.share, ctOut)
+				p.Finalize(ciphertext, crp, p.share, opOut)
 			}
 		})
 
@@ -150,9 +150,9 @@ func benchMaskedTransform(tc *testContext, b *testing.B) {
 		})
 
 		b.Run(GetTestName("Refresh&Transform/Transform", tc.NParties, params), func(b *testing.B) {
-			ctOut := ckks.NewCiphertext(params, 1, params.MaxLevel())
+			opOut := ckks.NewCiphertext(params, 1, params.MaxLevel())
 			for i := 0; i < b.N; i++ {
-				p.Transform(ciphertext, transform, crp, p.share, ctOut)
+				p.Transform(ciphertext, transform, crp, p.share, opOut)
 			}
 		})
 

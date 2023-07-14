@@ -247,20 +247,20 @@ func (s2e ShareToEncProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.KeySwitchCR
 
 // GetEncryption computes the final encryption of the secret-shared message when provided with the aggregation `c0Agg` of the parties'
 // share in the protocol and with the common, CRS-sampled polynomial `crs`.
-func (s2e ShareToEncProtocol) GetEncryption(c0Agg drlwe.KeySwitchShare, crs drlwe.KeySwitchCRP, ctOut *rlwe.Ciphertext) {
+func (s2e ShareToEncProtocol) GetEncryption(c0Agg drlwe.KeySwitchShare, crs drlwe.KeySwitchCRP, opOut *rlwe.Ciphertext) {
 
-	if ctOut.Degree() != 1 {
-		panic("cannot GetEncryption: ctOut must have degree 1.")
+	if opOut.Degree() != 1 {
+		panic("cannot GetEncryption: opOut must have degree 1.")
 	}
 
 	if c0Agg.Value.Level() != crs.Value.Level() {
 		panic("cannot GetEncryption: c0Agg level must be equal to crs level")
 	}
 
-	if ctOut.Level() != crs.Value.Level() {
-		panic("cannot GetEncryption: ctOut level must be equal to crs level")
+	if opOut.Level() != crs.Value.Level() {
+		panic("cannot GetEncryption: opOut level must be equal to crs level")
 	}
 
-	ctOut.Value[0].Copy(c0Agg.Value)
-	ctOut.Value[1].Copy(crs.Value)
+	opOut.Value[0].Copy(c0Agg.Value)
+	opOut.Value[1].Copy(crs.Value)
 }

@@ -26,9 +26,9 @@ func GenLinearTransform[T float64 | complex128 | *big.Float | *bignum.Complex](d
 
 // TraceNew maps X -> sum((-1)^i * X^{i*n+1}) for 0 <= i < N and returns the result on a new ciphertext.
 // For log(n) = logSlots.
-func (eval Evaluator) TraceNew(ctIn *rlwe.Ciphertext, logSlots int) (ctOut *rlwe.Ciphertext) {
-	ctOut = NewCiphertext(eval.parameters, 1, ctIn.Level())
-	eval.Trace(ctIn, logSlots, ctOut)
+func (eval Evaluator) TraceNew(ctIn *rlwe.Ciphertext, logSlots int) (opOut *rlwe.Ciphertext) {
+	opOut = NewCiphertext(eval.parameters, 1, ctIn.Level())
+	eval.Trace(ctIn, logSlots, opOut)
 	return
 }
 
@@ -38,10 +38,10 @@ func (eval Evaluator) TraceNew(ctIn *rlwe.Ciphertext, logSlots int) (ctOut *rlwe
 // Example for batchSize=4 and slots=8: [{a, b, c, d}, {e, f, g, h}] -> [0.5*{a+e, b+f, c+g, d+h}, 0.5*{a+e, b+f, c+g, d+h}]
 // Operation requires log2(SlotCout/'batchSize') rotations.
 // Required rotation keys can be generated with 'RotationsForInnerSumLog(batchSize, SlotCount/batchSize)”
-func (eval Evaluator) Average(ctIn *rlwe.Ciphertext, logBatchSize int, ctOut *rlwe.Ciphertext) {
+func (eval Evaluator) Average(ctIn *rlwe.Ciphertext, logBatchSize int, opOut *rlwe.Ciphertext) {
 
-	if ctIn.Degree() != 1 || ctOut.Degree() != 1 {
-		panic("ctIn.Degree() != 1 or ctOut.Degree() != 1")
+	if ctIn.Degree() != 1 || opOut.Degree() != 1 {
+		panic("ctIn.Degree() != 1 or opOut.Degree() != 1")
 	}
 
 	if logBatchSize > ctIn.PlaintextLogDimensions[1] {
@@ -50,7 +50,7 @@ func (eval Evaluator) Average(ctIn *rlwe.Ciphertext, logBatchSize int, ctOut *rl
 
 	ringQ := eval.parameters.RingQ()
 
-	level := utils.Min(ctIn.Level(), ctOut.Level())
+	level := utils.Min(ctIn.Level(), opOut.Level())
 
 	n := 1 << (ctIn.PlaintextLogDimensions[1] - logBatchSize)
 
@@ -60,9 +60,9 @@ func (eval Evaluator) Average(ctIn *rlwe.Ciphertext, logBatchSize int, ctOut *rl
 		invN := ring.ModExp(uint64(n), s.Modulus-2, s.Modulus)
 		invN = ring.MForm(invN, s.Modulus, s.BRedConstant)
 
-		s.MulScalarMontgomery(ctIn.Value[0].Coeffs[i], invN, ctOut.Value[0].Coeffs[i])
-		s.MulScalarMontgomery(ctIn.Value[1].Coeffs[i], invN, ctOut.Value[1].Coeffs[i])
+		s.MulScalarMontgomery(ctIn.Value[0].Coeffs[i], invN, opOut.Value[0].Coeffs[i])
+		s.MulScalarMontgomery(ctIn.Value[1].Coeffs[i], invN, opOut.Value[1].Coeffs[i])
 	}
 
-	eval.InnerSum(ctOut, 1<<logBatchSize, n, ctOut)
+	eval.InnerSum(opOut, 1<<logBatchSize, n, opOut)
 }

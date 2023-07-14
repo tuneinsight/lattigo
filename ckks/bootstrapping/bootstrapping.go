@@ -16,7 +16,7 @@ import (
 // See the bootstrapping parameters for more information about the message ratio or other parameters related to the bootstrapping.
 // If the input ciphertext is at level one or more, the input scale does not need to be an exact power of two as one level
 // can be used to do a scale matching.
-func (btp *Bootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext) {
+func (btp *Bootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (opOut *rlwe.Ciphertext) {
 
 	// Pre-processing
 	ctDiff := ctIn.CopyNew()
@@ -54,11 +54,11 @@ func (btp *Bootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertex
 	}
 
 	// 2^d * M + 2^(d-n) * e
-	ctOut = btp.bootstrap(ctDiff.CopyNew())
+	opOut = btp.bootstrap(ctDiff.CopyNew())
 
 	for i := 1; i < btp.Iterations; i++ {
 		// 2^(d-n)*e <- [2^d * M + 2^(d-n) * e] - [2^d * M]
-		tmp := btp.SubNew(ctDiff, ctOut)
+		tmp := btp.SubNew(ctDiff, opOut)
 
 		// 2^d * e
 		btp.Mul(tmp, 1<<16, tmp)
@@ -74,27 +74,27 @@ func (btp *Bootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertex
 		}
 
 		// [2^d * M + 2^(d-2n) * e'] <- [2^d * M + 2^(d-n) * e] - [2^(d-n) * e + 2^(d-2n) * e']
-		btp.Add(ctOut, tmp, ctOut)
+		btp.Add(opOut, tmp, opOut)
 	}
 
 	return
 }
 
-func (btp *Bootstrapper) bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext) {
+func (btp *Bootstrapper) bootstrap(ctIn *rlwe.Ciphertext) (opOut *rlwe.Ciphertext) {
 
 	// Step 1 : Extend the basis from q to Q
-	ctOut = btp.modUpFromQ0(ctIn)
+	opOut = btp.modUpFromQ0(ctIn)
 
 	// Scale the message from Q0/|m| to QL/|m|, where QL is the largest modulus used during the bootstrapping.
-	if scale := (btp.evalModPoly.ScalingFactor().Float64() / btp.evalModPoly.MessageRatio()) / ctOut.PlaintextScale.Float64(); scale > 1 {
-		btp.ScaleUp(ctOut, rlwe.NewScale(scale), ctOut)
+	if scale := (btp.evalModPoly.ScalingFactor().Float64() / btp.evalModPoly.MessageRatio()) / opOut.PlaintextScale.Float64(); scale > 1 {
+		btp.ScaleUp(opOut, rlwe.NewScale(scale), opOut)
 	}
 
 	//SubSum X -> (N/dslots) * Y^dslots
-	btp.Trace(ctOut, ctOut.PlaintextLogDimensions[1], ctOut)
+	btp.Trace(opOut, opOut.PlaintextLogDimensions[1], opOut)
 
 	// Step 2 : CoeffsToSlots (Homomorphic encoding)
-	ctReal, ctImag := btp.CoeffsToSlotsNew(ctOut, btp.ctsMatrices)
+	ctReal, ctImag := btp.CoeffsToSlotsNew(opOut, btp.ctsMatrices)
 
 	// Step 3 : EvalMod (Homomorphic modular reduction)
 	// ctReal = Ecd(real)
@@ -109,7 +109,7 @@ func (btp *Bootstrapper) bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertex
 	}
 
 	// Step 4 : SlotsToCoeffs (Homomorphic decoding)
-	ctOut = btp.SlotsToCoeffsNew(ctReal, ctImag, btp.stcMatrices)
+	opOut = btp.SlotsToCoeffsNew(ctReal, ctImag, btp.stcMatrices)
 
 	return
 }

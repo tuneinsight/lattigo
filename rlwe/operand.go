@@ -143,23 +143,23 @@ func PopulateElementRandom(prng sampling.PRNG, params ParametersInterface, ct *O
 	}
 }
 
-// SwitchCiphertextRingDegreeNTT changes the ring degree of ctIn to the one of ctOut.
+// SwitchCiphertextRingDegreeNTT changes the ring degree of ctIn to the one of opOut.
 // Maps Y^{N/n} -> X^{N} or X^{N} -> Y^{N/n}.
-// If the ring degree of ctOut is larger than the one of ctIn, then the ringQ of ctOut
+// If the ring degree of opOut is larger than the one of ctIn, then the ringQ of opOut
 // must be provided (otherwise, a nil pointer).
-// The ctIn must be in the NTT domain and ctOut will be in the NTT domain.
-func SwitchCiphertextRingDegreeNTT(ctIn *OperandQ, ringQLargeDim *ring.Ring, ctOut *OperandQ) {
+// The ctIn must be in the NTT domain and opOut will be in the NTT domain.
+func SwitchCiphertextRingDegreeNTT(ctIn *OperandQ, ringQLargeDim *ring.Ring, opOut *OperandQ) {
 
-	NIn, NOut := len(ctIn.Value[0].Coeffs[0]), len(ctOut.Value[0].Coeffs[0])
+	NIn, NOut := len(ctIn.Value[0].Coeffs[0]), len(opOut.Value[0].Coeffs[0])
 
 	if NIn > NOut {
 
 		gap := NIn / NOut
 		buff := make([]uint64, NIn)
-		for i := range ctOut.Value {
-			for j := range ctOut.Value[i].Coeffs {
+		for i := range opOut.Value {
+			for j := range opOut.Value[i].Coeffs {
 
-				tmpIn, tmpOut := ctIn.Value[i].Coeffs[j], ctOut.Value[i].Coeffs[j]
+				tmpIn, tmpOut := ctIn.Value[i].Coeffs[j], opOut.Value[i].Coeffs[j]
 
 				ringQLargeDim.SubRings[j].INTT(tmpIn, buff)
 
@@ -179,37 +179,37 @@ func SwitchCiphertextRingDegreeNTT(ctIn *OperandQ, ringQLargeDim *ring.Ring, ctO
 		}
 
 	} else {
-		for i := range ctOut.Value {
-			ring.MapSmallDimensionToLargerDimensionNTT(ctIn.Value[i], ctOut.Value[i])
+		for i := range opOut.Value {
+			ring.MapSmallDimensionToLargerDimensionNTT(ctIn.Value[i], opOut.Value[i])
 		}
 	}
 
-	ctOut.MetaData = ctIn.MetaData
+	opOut.MetaData = ctIn.MetaData
 }
 
-// SwitchCiphertextRingDegree changes the ring degree of ctIn to the one of ctOut.
+// SwitchCiphertextRingDegree changes the ring degree of ctIn to the one of opOut.
 // Maps Y^{N/n} -> X^{N} or X^{N} -> Y^{N/n}.
-// If the ring degree of ctOut is larger than the one of ctIn, then the ringQ of ctIn
+// If the ring degree of opOut is larger than the one of ctIn, then the ringQ of ctIn
 // must be provided (otherwise, a nil pointer).
-func SwitchCiphertextRingDegree(ctIn, ctOut *OperandQ) {
+func SwitchCiphertextRingDegree(ctIn, opOut *OperandQ) {
 
-	NIn, NOut := len(ctIn.Value[0].Coeffs[0]), len(ctOut.Value[0].Coeffs[0])
+	NIn, NOut := len(ctIn.Value[0].Coeffs[0]), len(opOut.Value[0].Coeffs[0])
 
 	gapIn, gapOut := NOut/NIn, 1
 	if NIn > NOut {
 		gapIn, gapOut = 1, NIn/NOut
 	}
 
-	for i := range ctOut.Value {
-		for j := range ctOut.Value[i].Coeffs {
-			tmp0, tmp1 := ctOut.Value[i].Coeffs[j], ctIn.Value[i].Coeffs[j]
+	for i := range opOut.Value {
+		for j := range opOut.Value[i].Coeffs {
+			tmp0, tmp1 := opOut.Value[i].Coeffs[j], ctIn.Value[i].Coeffs[j]
 			for w0, w1 := 0, 0; w0 < NOut; w0, w1 = w0+gapIn, w1+gapOut {
 				tmp0[w0] = tmp1[w1]
 			}
 		}
 	}
 
-	ctOut.MetaData = ctIn.MetaData
+	opOut.MetaData = ctIn.MetaData
 }
 
 // BinarySize returns the serialized size of the object in bytes.

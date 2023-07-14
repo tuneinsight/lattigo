@@ -10,16 +10,16 @@ import (
 
 // Automorphism computes phi(ct), where phi is the map X -> X^galEl. The method requires
 // that the corresponding RotationKey has been added to the Evaluator. The method will
-// panic if either ctIn or ctOut degree is not equal to 1.
-func (eval Evaluator) Automorphism(ctIn *Ciphertext, galEl uint64, ctOut *Ciphertext) {
+// panic if either ctIn or opOut degree is not equal to 1.
+func (eval Evaluator) Automorphism(ctIn *Ciphertext, galEl uint64, opOut *Ciphertext) {
 
-	if ctIn.Degree() != 1 || ctOut.Degree() != 1 {
+	if ctIn.Degree() != 1 || opOut.Degree() != 1 {
 		panic("cannot apply Automorphism: input and output Ciphertext must be of degree 1")
 	}
 
 	if galEl == 1 {
-		if ctOut != ctIn {
-			ctOut.Copy(ctIn)
+		if opOut != ctIn {
+			opOut.Copy(ctIn)
 		}
 		return
 	}
@@ -30,9 +30,9 @@ func (eval Evaluator) Automorphism(ctIn *Ciphertext, galEl uint64, ctOut *Cipher
 		panic(fmt.Errorf("cannot apply Automorphism: %w", err))
 	}
 
-	level := utils.Min(ctIn.Level(), ctOut.Level())
+	level := utils.Min(ctIn.Level(), opOut.Level())
 
-	ctOut.Resize(ctOut.Degree(), level)
+	opOut.Resize(opOut.Degree(), level)
 
 	ringQ := eval.params.RingQ().AtLevel(level)
 
@@ -44,29 +44,29 @@ func (eval Evaluator) Automorphism(ctIn *Ciphertext, galEl uint64, ctOut *Cipher
 	ringQ.Add(ctTmp.Value[0], ctIn.Value[0], ctTmp.Value[0])
 
 	if ctIn.IsNTT {
-		ringQ.AutomorphismNTTWithIndex(ctTmp.Value[0], eval.AutomorphismIndex[galEl], ctOut.Value[0])
-		ringQ.AutomorphismNTTWithIndex(ctTmp.Value[1], eval.AutomorphismIndex[galEl], ctOut.Value[1])
+		ringQ.AutomorphismNTTWithIndex(ctTmp.Value[0], eval.AutomorphismIndex[galEl], opOut.Value[0])
+		ringQ.AutomorphismNTTWithIndex(ctTmp.Value[1], eval.AutomorphismIndex[galEl], opOut.Value[1])
 	} else {
-		ringQ.Automorphism(ctTmp.Value[0], galEl, ctOut.Value[0])
-		ringQ.Automorphism(ctTmp.Value[1], galEl, ctOut.Value[1])
+		ringQ.Automorphism(ctTmp.Value[0], galEl, opOut.Value[0])
+		ringQ.Automorphism(ctTmp.Value[1], galEl, opOut.Value[1])
 	}
 
-	ctOut.MetaData = ctIn.MetaData
+	opOut.MetaData = ctIn.MetaData
 }
 
 // AutomorphismHoisted is similar to Automorphism, except that it takes as input ctIn and c1DecompQP, where c1DecompQP is the RNS
 // decomposition of its element of degree 1. This decomposition can be obtained with DecomposeNTT.
 // The method requires that the corresponding RotationKey has been added to the Evaluator.
-// The method will panic if either ctIn or ctOut degree is not equal to 1.
-func (eval Evaluator) AutomorphismHoisted(level int, ctIn *Ciphertext, c1DecompQP []ringqp.Poly, galEl uint64, ctOut *Ciphertext) {
+// The method will panic if either ctIn or opOut degree is not equal to 1.
+func (eval Evaluator) AutomorphismHoisted(level int, ctIn *Ciphertext, c1DecompQP []ringqp.Poly, galEl uint64, opOut *Ciphertext) {
 
-	if ctIn.Degree() != 1 || ctOut.Degree() != 1 {
+	if ctIn.Degree() != 1 || opOut.Degree() != 1 {
 		panic("cannot apply AutomorphismHoisted: input and output Ciphertext must be of degree 1")
 	}
 
 	if galEl == 1 {
-		if ctIn != ctOut {
-			ctOut.Copy(ctIn)
+		if ctIn != opOut {
+			opOut.Copy(ctIn)
 		}
 		return
 	}
@@ -77,7 +77,7 @@ func (eval Evaluator) AutomorphismHoisted(level int, ctIn *Ciphertext, c1DecompQ
 		panic(fmt.Errorf("cannot apply AutomorphismHoisted: %w", err))
 	}
 
-	ctOut.Resize(ctOut.Degree(), level)
+	opOut.Resize(opOut.Degree(), level)
 
 	ringQ := eval.params.RingQ().AtLevel(level)
 
@@ -89,14 +89,14 @@ func (eval Evaluator) AutomorphismHoisted(level int, ctIn *Ciphertext, c1DecompQ
 	ringQ.Add(ctTmp.Value[0], ctIn.Value[0], ctTmp.Value[0])
 
 	if ctIn.IsNTT {
-		ringQ.AutomorphismNTTWithIndex(ctTmp.Value[0], eval.AutomorphismIndex[galEl], ctOut.Value[0])
-		ringQ.AutomorphismNTTWithIndex(ctTmp.Value[1], eval.AutomorphismIndex[galEl], ctOut.Value[1])
+		ringQ.AutomorphismNTTWithIndex(ctTmp.Value[0], eval.AutomorphismIndex[galEl], opOut.Value[0])
+		ringQ.AutomorphismNTTWithIndex(ctTmp.Value[1], eval.AutomorphismIndex[galEl], opOut.Value[1])
 	} else {
-		ringQ.Automorphism(ctTmp.Value[0], galEl, ctOut.Value[0])
-		ringQ.Automorphism(ctTmp.Value[1], galEl, ctOut.Value[1])
+		ringQ.Automorphism(ctTmp.Value[0], galEl, opOut.Value[0])
+		ringQ.Automorphism(ctTmp.Value[1], galEl, opOut.Value[1])
 	}
 
-	ctOut.MetaData = ctIn.MetaData
+	opOut.MetaData = ctIn.MetaData
 }
 
 // AutomorphismHoistedLazy is similar to AutomorphismHoisted, except that it returns a ciphertext modulo QP and scaled by P.

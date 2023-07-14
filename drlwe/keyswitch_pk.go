@@ -109,19 +109,19 @@ func (pcks PublicKeySwitchProtocol) AggregateShares(share1, share2 PublicKeySwit
 
 }
 
-// KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in ctOut
-func (pcks PublicKeySwitchProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined PublicKeySwitchShare, ctOut *rlwe.Ciphertext) {
+// KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in opOut
+func (pcks PublicKeySwitchProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined PublicKeySwitchShare, opOut *rlwe.Ciphertext) {
 
 	level := ctIn.Level()
 
-	if ctIn != ctOut {
-		ctOut.Resize(ctIn.Degree(), level)
-		ctOut.MetaData = ctIn.MetaData
+	if ctIn != opOut {
+		opOut.Resize(ctIn.Degree(), level)
+		opOut.MetaData = ctIn.MetaData
 	}
 
-	pcks.params.RingQ().AtLevel(level).Add(ctIn.Value[0], combined.Value[0], ctOut.Value[0])
+	pcks.params.RingQ().AtLevel(level).Add(ctIn.Value[0], combined.Value[0], opOut.Value[0])
 
-	ring.CopyLvl(level, combined.Value[1], ctOut.Value[1])
+	ring.CopyLvl(level, combined.Value[1], opOut.Value[1])
 }
 
 // ShallowCopy creates a shallow copy of PublicKeySwitchProtocol in which all the read-only data-structures are

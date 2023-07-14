@@ -9,7 +9,7 @@ import (
 )
 
 // Read reads a slice of bytes from r and copies it on c.
-func Read(r Reader, c []byte) (n int64, err error){
+func Read(r Reader, c []byte) (n int64, err error) {
 	slice, err := r.Peek(len(c))
 	if err != nil {
 		return int64(len(slice)), err

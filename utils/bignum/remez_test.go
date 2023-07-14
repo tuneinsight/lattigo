@@ -3,9 +3,11 @@ package bignum
 import (
 	"math/big"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
-func TestRemez(t *testing.T) {
+func TestApproximation(t *testing.T) {
 	sigmoid := func(x *big.Float) (y *big.Float) {
 		z := new(big.Float).Set(x)
 		z.Neg(z)
@@ -18,28 +20,49 @@ func TestRemez(t *testing.T) {
 
 	prec := uint(96)
 
-	scanStep := NewFloat(2, prec)
-	scanStep.Quo(scanStep, NewFloat(1000, prec))
+	t.Run("Chebyshev", func(t *testing.T) {
 
-	intervals := []Interval{
-		{A: *NewFloat(-6, prec), B: *NewFloat(-5, prec), Nodes: 4},
-		{A: *NewFloat(-3, prec), B: *NewFloat(-2, prec), Nodes: 4},
-		{A: *NewFloat(-1, prec), B: *NewFloat(1, prec), Nodes: 4},
-		{A: *NewFloat(2, prec), B: *NewFloat(3, prec), Nodes: 4},
-		{A: *NewFloat(5, prec), B: *NewFloat(6, prec), Nodes: 4},
-	}
+		interval := Interval{A: *NewFloat(-4, prec), B: *NewFloat(4, prec), Nodes: 47}
 
-	params := RemezParameters{
-		Function:        sigmoid,
-		Basis:           Chebyshev,
-		Intervals:       intervals,
-		ScanStep:        scanStep,
-		Prec:            prec,
-		OptimalScanStep: true,
-	}
+		f := func(x *Complex) (y *Complex) {
+			return &Complex{sigmoid(x[0]), new(big.Float)}
+		}
 
-	r := NewRemez(params)
-	r.Approximate(200, 1e-15)
-	r.ShowCoeffs(50)
-	r.ShowError(50)
+		poly := ChebyshevApproximation(f, interval)
+
+		xBig := NewFloat(1.4142135623730951, prec)
+
+		y0, _ := sigmoid(xBig).Float64()
+		y1, _ := poly.Evaluate(xBig)[0].Float64()
+
+		require.InDelta(t, y0, y1, 1e-15)
+	})
+
+	t.Run("MultiIntervalMinimaxRemez", func(t *testing.T) {
+
+		scanStep := NewFloat(1, prec)
+		scanStep.Quo(scanStep, NewFloat(32, prec))
+
+		intervals := []Interval{
+			{A: *NewFloat(-6, prec), B: *NewFloat(-5, prec), Nodes: 4},
+			{A: *NewFloat(-3, prec), B: *NewFloat(-2, prec), Nodes: 4},
+			{A: *NewFloat(-1, prec), B: *NewFloat(1, prec), Nodes: 4},
+			{A: *NewFloat(2, prec), B: *NewFloat(3, prec), Nodes: 4},
+			{A: *NewFloat(5, prec), B: *NewFloat(6, prec), Nodes: 4},
+		}
+
+		params := RemezParameters{
+			Function:        sigmoid,
+			Basis:           Chebyshev,
+			Intervals:       intervals,
+			ScanStep:        scanStep,
+			Prec:            prec,
+			OptimalScanStep: false,
+		}
+
+		r := NewRemez(params)
+		r.Approximate(200, 1e-15)
+		r.ShowCoeffs(50)
+		r.ShowError(50)
+	})
 }

@@ -90,9 +90,10 @@ func chebyshevinterpolation() {
 		y[0].SetFloat64(f(xf64))
 		return
 	}, bignum.Interval{
-		A: *new(big.Float).SetFloat64(a),
-		B: *new(big.Float).SetFloat64(b),
-	}, deg)
+		Nodes: deg,
+		A:     *new(big.Float).SetFloat64(a),
+		B:     *new(big.Float).SetFloat64(b),
+	})
 
 	approxG := bignum.ChebyshevApproximation(func(x *bignum.Complex) (y *bignum.Complex) {
 		xf64, _ := x[0].Float64()
@@ -100,9 +101,10 @@ func chebyshevinterpolation() {
 		y[0].SetFloat64(g(xf64))
 		return
 	}, bignum.Interval{
-		A: *new(big.Float).SetFloat64(a),
-		B: *new(big.Float).SetFloat64(b),
-	}, deg)
+		Nodes: deg,
+		A:     *new(big.Float).SetFloat64(a),
+		B:     *new(big.Float).SetFloat64(b),
+	})
 
 	// Map storing which polynomial has to be applied to which slot.
 	slotsIndex := make(map[int][]int)

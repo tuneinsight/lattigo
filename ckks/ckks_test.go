@@ -922,11 +922,12 @@ func testChebyshevInterpolator(tc *testContext, t *testing.T) {
 		}
 
 		interval := bignum.Interval{
-			A: *new(big.Float).SetPrec(prec).SetFloat64(-8),
-			B: *new(big.Float).SetPrec(prec).SetFloat64(8),
+			Nodes: degree,
+			A:     *new(big.Float).SetPrec(prec).SetFloat64(-8),
+			B:     *new(big.Float).SetPrec(prec).SetFloat64(8),
 		}
 
-		poly := rlwe.NewPolynomial(bignum.ChebyshevApproximation(sin, interval, degree))
+		poly := rlwe.NewPolynomial(bignum.ChebyshevApproximation(sin, interval))
 
 		scalar, constant := poly.ChangeOfBasis()
 		eval.Mul(ciphertext, scalar, ciphertext)
@@ -975,11 +976,12 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 		}
 
 		interval := bignum.Interval{
-			A: *new(big.Float).SetPrec(prec).SetFloat64(a),
-			B: *new(big.Float).SetPrec(prec).SetFloat64(b),
+			Nodes: degree,
+			A:     *new(big.Float).SetPrec(prec).SetFloat64(a),
+			B:     *new(big.Float).SetPrec(prec).SetFloat64(b),
 		}
 
-		poly := bignum.ChebyshevApproximation(sin, interval, degree)
+		poly := bignum.ChebyshevApproximation(sin, interval)
 
 		for i := range values {
 			values[i] = poly.Evaluate(values[i])

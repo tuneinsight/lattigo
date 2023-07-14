@@ -494,14 +494,13 @@ func main() {
 	// the maximum polynomial degree for depth 6 is 63.
 
 	interval := bignum.Interval{
-		A: *bignum.NewFloat(-8, prec),
-		B: *bignum.NewFloat(8, prec),
+		Nodes: 63,
+		A:     *bignum.NewFloat(-8, prec),
+		B:     *bignum.NewFloat(8, prec),
 	}
 
-	degree := 63
-
 	// We generate the `bignum.Polynomial` which stores the degree 63 Chevyshev approximation of the SiLU function in the interval [-8, 8]
-	poly := bignum.ChebyshevApproximation(SiLU, interval, degree)
+	poly := bignum.ChebyshevApproximation(SiLU, interval)
 
 	// The struct `bignum.Polynomial` comes with an handy evaluation method
 	tmp := bignum.NewComplex().SetPrec(prec)

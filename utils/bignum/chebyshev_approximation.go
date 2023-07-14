@@ -11,9 +11,9 @@ import (
 // - func(*big.Float)*big.Float
 // - func(*Complex)*Complex
 // The reference precision is taken from the values stored in the Interval struct.
-func ChebyshevApproximation(f func(*Complex) *Complex, interval Interval, degree int) (pol Polynomial) {
+func ChebyshevApproximation(f func(*Complex) *Complex, interval Interval) (pol Polynomial) {
 
-	nodes := chebyshevNodes(degree+1, interval)
+	nodes := chebyshevNodes(interval.Nodes+1, interval)
 
 	fi := make([]*Complex, len(nodes))
 

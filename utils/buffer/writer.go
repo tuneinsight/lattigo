@@ -7,7 +7,7 @@ import (
 )
 
 // Write writes a slice of bytes to w.
-func Write(w Writer, c []byte) (n int64, err error){
+func Write(w Writer, c []byte) (n int64, err error) {
 	nint, err := w.Write(c)
 	return int64(nint), err
 }

@@ -165,9 +165,10 @@ func NewEvalModPolyFromLiteral(params Parameters, evm EvalModLiteral) EvalModPol
 	case SinContinuous:
 
 		sinePoly = bignum.ChebyshevApproximation(sin2pi, bignum.Interval{
-			A: *new(big.Float).SetPrec(cosine.PlaintextPrecision).SetFloat64(-K),
-			B: *new(big.Float).SetPrec(cosine.PlaintextPrecision).SetFloat64(K),
-		}, evm.SineDegree)
+			Nodes: evm.SineDegree,
+			A:     *new(big.Float).SetPrec(cosine.PlaintextPrecision).SetFloat64(-K),
+			B:     *new(big.Float).SetPrec(cosine.PlaintextPrecision).SetFloat64(K),
+		})
 		sinePoly.IsEven = false
 
 		for i := range sinePoly.Coeffs {
@@ -188,9 +189,10 @@ func NewEvalModPolyFromLiteral(params Parameters, evm EvalModLiteral) EvalModPol
 
 	case CosContinuous:
 		sinePoly = bignum.ChebyshevApproximation(cos2pi, bignum.Interval{
-			A: *new(big.Float).SetPrec(cosine.PlaintextPrecision).SetFloat64(-K),
-			B: *new(big.Float).SetPrec(cosine.PlaintextPrecision).SetFloat64(K),
-		}, evm.SineDegree)
+			Nodes: evm.SineDegree,
+			A:     *new(big.Float).SetPrec(cosine.PlaintextPrecision).SetFloat64(-K),
+			B:     *new(big.Float).SetPrec(cosine.PlaintextPrecision).SetFloat64(K),
+		})
 		sinePoly.IsOdd = false
 
 		for i := range sinePoly.Coeffs {

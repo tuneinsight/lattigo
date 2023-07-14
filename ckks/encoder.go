@@ -17,7 +17,7 @@ import (
 // The j-th ring automorphism takes the root zeta to zeta^(5j).
 const GaloisGen uint64 = ring.GaloisGen
 
-// Encoder is a struct that implements the encoding and decoding operations. It provides methods to encode/decode
+// Encoder is a type that implements the encoding and decoding interface for the CKKS scheme. It provides methods to encode/decode
 // []complex128/[]*bignum.Complex and []float64/[]*big.Float types into/from Plaintext types.
 //
 // Two different encodings domains are provided:
@@ -54,41 +54,6 @@ type Encoder struct {
 
 	roots     interface{}
 	buffCmplx interface{}
-}
-
-func (ecd Encoder) ShallowCopy() *Encoder {
-
-	prng, err := sampling.NewPRNG()
-	if err != nil {
-		panic(err)
-	}
-
-	var buffCmplx interface{}
-
-	if prec := ecd.prec; prec <= 53 {
-		buffCmplx = make([]complex128, ecd.m>>1)
-	} else {
-		tmp := make([]*bignum.Complex, ecd.m>>2)
-
-		for i := 0; i < ecd.m>>2; i++ {
-			tmp[i] = &bignum.Complex{bignum.NewFloat(0, prec), bignum.NewFloat(0, prec)}
-		}
-
-		buffCmplx = tmp
-	}
-
-	return &Encoder{
-		prec:         ecd.prec,
-		parameters:   ecd.parameters,
-		bigintCoeffs: make([]*big.Int, len(ecd.bigintCoeffs)),
-		qHalf:        new(big.Int),
-		buff:         *ecd.buff.CopyNew(),
-		m:            ecd.m,
-		rotGroup:     ecd.rotGroup,
-		prng:         prng,
-		roots:        ecd.roots,
-		buffCmplx:    buffCmplx,
-	}
 }
 
 // NewEncoder creates a new Encoder from the target parameters.
@@ -496,17 +461,15 @@ func (ecd Encoder) plaintextToComplex(level int, scale rlwe.Scale, logSlots int,
 	isreal := ecd.parameters.RingType() == ring.ConjugateInvariant
 	if level == 0 {
 		return polyToComplexNoCRT(p.Coeffs[0], values, scale, logSlots, isreal, ecd.parameters.RingQ().AtLevel(level))
-	} else {
-		return polyToComplexCRT(p, ecd.bigintCoeffs, values, scale, logSlots, isreal, ecd.parameters.RingQ().AtLevel(level))
 	}
+	return polyToComplexCRT(p, ecd.bigintCoeffs, values, scale, logSlots, isreal, ecd.parameters.RingQ().AtLevel(level))
 }
 
 func (ecd Encoder) plaintextToFloat(level int, scale rlwe.Scale, logSlots int, p ring.Poly, values interface{}) (err error) {
 	if level == 0 {
 		return ecd.polyToFloatNoCRT(p.Coeffs[0], values, scale, logSlots, ecd.parameters.RingQ().AtLevel(level))
-	} else {
-		return ecd.polyToFloatCRT(p, values, scale, logSlots, ecd.parameters.RingQ().AtLevel(level))
 	}
+	return ecd.polyToFloatCRT(p, values, scale, logSlots, ecd.parameters.RingQ().AtLevel(level))
 }
 
 func (ecd Encoder) decodePublic(pt *rlwe.Plaintext, values interface{}, noiseFlooding ring.DistributionParameters) (err error) {
@@ -1112,6 +1075,41 @@ func (ecd *Encoder) polyToFloatNoCRT(coeffs []uint64, values interface{}, scale 
 	}
 
 	return
+}
+
+func (ecd Encoder) ShallowCopy() *Encoder {
+
+	prng, err := sampling.NewPRNG()
+	if err != nil {
+		panic(err)
+	}
+
+	var buffCmplx interface{}
+
+	if prec := ecd.prec; prec <= 53 {
+		buffCmplx = make([]complex128, ecd.m>>1)
+	} else {
+		tmp := make([]*bignum.Complex, ecd.m>>2)
+
+		for i := 0; i < ecd.m>>2; i++ {
+			tmp[i] = &bignum.Complex{bignum.NewFloat(0, prec), bignum.NewFloat(0, prec)}
+		}
+
+		buffCmplx = tmp
+	}
+
+	return &Encoder{
+		prec:         ecd.prec,
+		parameters:   ecd.parameters,
+		bigintCoeffs: make([]*big.Int, len(ecd.bigintCoeffs)),
+		qHalf:        new(big.Int),
+		buff:         *ecd.buff.CopyNew(),
+		m:            ecd.m,
+		rotGroup:     ecd.rotGroup,
+		prng:         prng,
+		roots:        ecd.roots,
+		buffCmplx:    buffCmplx,
+	}
 }
 
 type encoder[T float64 | complex128 | *big.Float | *bignum.Complex, U ring.Poly | ringqp.Poly | *rlwe.Plaintext] struct {

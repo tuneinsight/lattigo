@@ -41,15 +41,15 @@ func (eval Evaluator) WithKey(evk rlwe.EvaluationKeySet) *Evaluator {
 //	RGSW : [(-as + P*w*m1 + e, a), (-bs + e, b + P*w*m1)]
 //	=
 //	RLWE : (<RLWE, RGSW[0]>, <RLWE, RGSW[1]>)
-func (eval Evaluator) ExternalProduct(op0 *rlwe.Ciphertext, op1 *Ciphertext, op2 *rlwe.Ciphertext) {
+func (eval Evaluator) ExternalProduct(op0 *rlwe.Ciphertext, op1 *Ciphertext, opOut *rlwe.Ciphertext) {
 
 	levelQ, levelP := op1.LevelQ(), op1.LevelP()
 
 	var c0QP, c1QP ringqp.Poly
-	if op0 == op2 {
+	if op0 == opOut {
 		c0QP, c1QP = eval.BuffQP[1], eval.BuffQP[2]
 	} else {
-		c0QP, c1QP = ringqp.Poly{Q: op2.Value[0], P: eval.BuffQP[1].P}, ringqp.Poly{Q: op2.Value[1], P: eval.BuffQP[2].P}
+		c0QP, c1QP = ringqp.Poly{Q: opOut.Value[0], P: eval.BuffQP[1].P}, ringqp.Poly{Q: opOut.Value[1], P: eval.BuffQP[2].P}
 	}
 
 	if levelP < 1 {
@@ -57,24 +57,24 @@ func (eval Evaluator) ExternalProduct(op0 *rlwe.Ciphertext, op1 *Ciphertext, op2
 		// If log(Q) * (Q-1)**2 < 2^{64}-1
 		if ringQ := eval.params.RingQ(); levelQ == 0 && levelP == -1 && (ringQ.SubRings[0].Modulus>>29) == 0 {
 			eval.externalProduct32Bit(op0, op1, c0QP.Q, c1QP.Q)
-			ringQ.AtLevel(0).IMForm(c0QP.Q, op2.Value[0])
-			ringQ.AtLevel(0).IMForm(c1QP.Q, op2.Value[1])
+			ringQ.AtLevel(0).IMForm(c0QP.Q, opOut.Value[0])
+			ringQ.AtLevel(0).IMForm(c1QP.Q, opOut.Value[1])
 		} else {
 
 			eval.externalProductInPlaceSinglePAndBitDecomp(op0, op1, c0QP, c1QP)
 
 			if levelP == 0 {
-				eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, c0QP.Q, c0QP.P, op2.Value[0])
-				eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, c1QP.Q, c1QP.P, op2.Value[1])
+				eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, c0QP.Q, c0QP.P, opOut.Value[0])
+				eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, c1QP.Q, c1QP.P, opOut.Value[1])
 			} else {
-				op2.Value[0].CopyValues(c0QP.Q)
-				op2.Value[1].CopyValues(c1QP.Q)
+				opOut.Value[0].CopyValues(c0QP.Q)
+				opOut.Value[1].CopyValues(c1QP.Q)
 			}
 		}
 	} else {
 		eval.externalProductInPlaceMultipleP(levelQ, levelP, op0, op1, eval.BuffQP[1].Q, eval.BuffQP[1].P, eval.BuffQP[2].Q, eval.BuffQP[2].P)
-		eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, c0QP.Q, c0QP.P, op2.Value[0])
-		eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, c1QP.Q, c1QP.P, op2.Value[1])
+		eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, c0QP.Q, c0QP.P, opOut.Value[0])
+		eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, c1QP.Q, c1QP.P, opOut.Value[1])
 
 	}
 }

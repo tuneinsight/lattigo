@@ -83,12 +83,12 @@ type EncoderInterface[T any, U *ring.Poly | ringqp.Poly | *Plaintext] interface 
 
 // EvaluatorInterface defines a set of common and scheme agnostic homomorphic operations provided by an Evaluator struct.
 type EvaluatorInterface interface {
-	Add(op0 *Ciphertext, op1 interface{}, op2 *Ciphertext)
-	Sub(op0 *Ciphertext, op1 interface{}, op2 *Ciphertext)
-	Mul(op0 *Ciphertext, op1 interface{}, op2 *Ciphertext)
-	MulNew(op0 *Ciphertext, op1 interface{}) (op2 *Ciphertext)
-	MulRelinNew(op0 *Ciphertext, op1 interface{}) (op2 *Ciphertext)
-	MulThenAdd(op0 *Ciphertext, op1 interface{}, op2 *Ciphertext)
+	Add(op0 *Ciphertext, op1 interface{}, opOut *Ciphertext)
+	Sub(op0 *Ciphertext, op1 interface{}, opOut *Ciphertext)
+	Mul(op0 *Ciphertext, op1 interface{}, opOut *Ciphertext)
+	MulNew(op0 *Ciphertext, op1 interface{}) (opOut *Ciphertext)
+	MulRelinNew(op0 *Ciphertext, op1 interface{}) (opOut *Ciphertext)
+	MulThenAdd(op0 *Ciphertext, op1 interface{}, opOut *Ciphertext)
 	Relinearize(op0, op1 *Ciphertext)
 	Rescale(op0, op1 *Ciphertext) (err error)
 	Parameters() ParametersInterface

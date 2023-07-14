@@ -108,15 +108,15 @@ func (d dummyEvaluator) Rescale(op0 *rlwe.DummyOperand) {
 }
 
 // Mul multiplies two DummyOperand, stores the result the taret DummyOperand and returns the result.
-func (d dummyEvaluator) MulNew(op0, op1 *rlwe.DummyOperand) (op2 *rlwe.DummyOperand) {
-	op2 = new(rlwe.DummyOperand)
-	op2.Level = utils.Min(op0.Level, op1.Level)
-	op2.PlaintextScale = op0.PlaintextScale.Mul(op1.PlaintextScale)
+func (d dummyEvaluator) MulNew(op0, op1 *rlwe.DummyOperand) (opOut *rlwe.DummyOperand) {
+	opOut = new(rlwe.DummyOperand)
+	opOut.Level = utils.Min(op0.Level, op1.Level)
+	opOut.PlaintextScale = op0.PlaintextScale.Mul(op1.PlaintextScale)
 	if d.InvariantTensoring {
 		params := d.params
-		qModTNeg := new(big.Int).Mod(params.RingQ().ModulusAtLevel[op2.Level], new(big.Int).SetUint64(params.T())).Uint64()
+		qModTNeg := new(big.Int).Mod(params.RingQ().ModulusAtLevel[opOut.Level], new(big.Int).SetUint64(params.T())).Uint64()
 		qModTNeg = params.T() - qModTNeg
-		op2.PlaintextScale = op2.PlaintextScale.Div(params.NewScale(qModTNeg))
+		opOut.PlaintextScale = opOut.PlaintextScale.Div(params.NewScale(qModTNeg))
 	}
 
 	return
@@ -180,23 +180,23 @@ func (polyEval PolynomialEvaluator) Parameters() rlwe.ParametersInterface {
 	return polyEval.Evaluator.Parameters()
 }
 
-func (polyEval PolynomialEvaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciphertext) {
+func (polyEval PolynomialEvaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) {
 	if !polyEval.InvariantTensoring {
-		polyEval.Evaluator.Mul(op0, op1, op2)
+		polyEval.Evaluator.Mul(op0, op1, opOut)
 	} else {
-		polyEval.Evaluator.MulInvariant(op0, op1, op2)
+		polyEval.Evaluator.MulInvariant(op0, op1, opOut)
 	}
 }
 
-func (polyEval PolynomialEvaluator) MulRelin(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciphertext) {
+func (polyEval PolynomialEvaluator) MulRelin(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) {
 	if !polyEval.InvariantTensoring {
-		polyEval.Evaluator.MulRelin(op0, op1, op2)
+		polyEval.Evaluator.MulRelin(op0, op1, opOut)
 	} else {
-		polyEval.Evaluator.MulRelinInvariant(op0, op1, op2)
+		polyEval.Evaluator.MulRelinInvariant(op0, op1, opOut)
 	}
 }
 
-func (polyEval PolynomialEvaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}) (op2 *rlwe.Ciphertext) {
+func (polyEval PolynomialEvaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext) {
 	if !polyEval.InvariantTensoring {
 		return polyEval.Evaluator.MulNew(op0, op1)
 	} else {
@@ -204,7 +204,7 @@ func (polyEval PolynomialEvaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}
 	}
 }
 
-func (polyEval PolynomialEvaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 interface{}) (op2 *rlwe.Ciphertext) {
+func (polyEval PolynomialEvaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext) {
 	if !polyEval.InvariantTensoring {
 		return polyEval.Evaluator.MulRelinNew(op0, op1)
 	} else {

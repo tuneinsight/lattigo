@@ -743,7 +743,7 @@ func testEvaluatorMulThenAdd(tc *testContext, t *testing.T) {
 
 	t.Run(GetTestName(tc.params, "Evaluator/MulRelinThenAdd/Ct"), func(t *testing.T) {
 
-		// op2 = op2 + op1 * op0
+		// opOut = opOut + op1 * op0
 		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
 		values2, _, ciphertext2 := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
 

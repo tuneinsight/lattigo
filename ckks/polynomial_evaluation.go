@@ -113,10 +113,10 @@ func (d dummyEvaluator) Rescale(op0 *rlwe.DummyOperand) {
 }
 
 // Mul multiplies two DummyOperand, stores the result the taret DummyOperand and returns the result.
-func (d dummyEvaluator) MulNew(op0, op1 *rlwe.DummyOperand) (op2 *rlwe.DummyOperand) {
-	op2 = new(rlwe.DummyOperand)
-	op2.Level = utils.Min(op0.Level, op1.Level)
-	op2.PlaintextScale = op0.PlaintextScale.Mul(op1.PlaintextScale)
+func (d dummyEvaluator) MulNew(op0, op1 *rlwe.DummyOperand) (opOut *rlwe.DummyOperand) {
+	opOut = new(rlwe.DummyOperand)
+	opOut.Level = utils.Min(op0.Level, op1.Level)
+	opOut.PlaintextScale = op0.PlaintextScale.Mul(op1.PlaintextScale)
 	return
 }
 

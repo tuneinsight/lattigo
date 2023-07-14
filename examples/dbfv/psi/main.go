@@ -47,7 +47,7 @@ type party struct {
 type multTask struct {
 	wg              *sync.WaitGroup
 	op1             *rlwe.Ciphertext
-	op2             *rlwe.Ciphertext
+	opOut             *rlwe.Ciphertext
 	res             *rlwe.Ciphertext
 	elapsedmultTask time.Duration
 }
@@ -218,7 +218,7 @@ func evalPhase(params bfv.Parameters, NGoRoutine int, encInputs []*rlwe.Cipherte
 			for task := range tasks {
 				task.elapsedmultTask = runTimed(func() {
 					// 1) Multiplication of two input vectors
-					evaluator.Mul(task.op1, task.op2, task.res)
+					evaluator.Mul(task.op1, task.opOut, task.res)
 					// 2) Relinearization
 					evaluator.Relinearize(task.res, task.res)
 				})

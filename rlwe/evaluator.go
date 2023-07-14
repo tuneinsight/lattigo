@@ -180,7 +180,7 @@ func (eval Evaluator) InitOutputBinaryOp(op0, op1 *OperandQ, opOutMinDegree int,
 	}
 
 	if op0.El().EncodingDomain != op1.El().EncodingDomain {
-		panic("op1.El().EncodingDomain != op2.El().EncodingDomain")
+		panic("op1.El().EncodingDomain != opOut.El().EncodingDomain")
 	} else {
 		opOut.El().EncodingDomain = op0.El().EncodingDomain
 	}

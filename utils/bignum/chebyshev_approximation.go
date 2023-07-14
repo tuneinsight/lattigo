@@ -1,27 +1,23 @@
-// Package approximation provides methods to approximate functions with polynomials in a given interval.
-package approximation
+package bignum
 
 import (
 	"math/big"
-
-	"github.com/tuneinsight/lattigo/v4/utils/bignum"
-	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
 )
 
-// Chebyshev computes a Chebyshev approximation of the input function, for the range [-a, b] of degree degree.
+// ChebyshevApproximation computes a Chebyshev approximation of the input function, for the range [-a, b] of degree degree.
 // function.(type) can be either :
-// - func(bignum.Complex128)bignum.Complex128
+// - func(Complex128)Complex128
 // - func(float64)float64
 // - func(*big.Float)*big.Float
-// - func(*bignum.Complex)*bignum.Complex
+// - func(*Complex)*Complex
 // The reference precision is taken from the values stored in the Interval struct.
-func Chebyshev(f func(*bignum.Complex) *bignum.Complex, interval bignum.Interval, degree int) (pol polynomial.Polynomial) {
+func ChebyshevApproximation(f func(*Complex) *Complex, interval Interval, degree int) (pol Polynomial) {
 
 	nodes := chebyshevNodes(degree+1, interval)
 
-	fi := make([]*bignum.Complex, len(nodes))
+	fi := make([]*Complex, len(nodes))
 
-	x := bignum.NewComplex()
+	x := NewComplex()
 	x.SetPrec(interval.A.Prec())
 
 	for i := range nodes {
@@ -29,10 +25,10 @@ func Chebyshev(f func(*bignum.Complex) *bignum.Complex, interval bignum.Interval
 		fi[i] = f(x)
 	}
 
-	return polynomial.NewPolynomial(polynomial.Chebyshev, chebyCoeffs(nodes, fi, interval), &interval)
+	return NewPolynomial(Chebyshev, chebyCoeffs(nodes, fi, interval), &interval)
 }
 
-func chebyshevNodes(n int, interval bignum.Interval) (u []*big.Float) {
+func chebyshevNodes(n int, interval Interval) (u []*big.Float) {
 
 	prec := interval.A.Prec()
 
@@ -45,13 +41,13 @@ func chebyshevNodes(n int, interval bignum.Interval) (u []*big.Float) {
 	y := new(big.Float).Sub(&interval.B, &interval.A)
 	y.Mul(y, half)
 
-	PiOverN := bignum.Pi(prec)
+	PiOverN := Pi(prec)
 	PiOverN.Quo(PiOverN, new(big.Float).SetInt64(int64(n)))
 
 	for k := 1; k < n+1; k++ {
 		up := new(big.Float).SetPrec(prec).SetFloat64(float64(k) - 0.5)
 		up.Mul(up, PiOverN)
-		up = bignum.Cos(up)
+		up = Cos(up)
 		up.Mul(up, y)
 		up.Add(up, x)
 		u[k-1] = up
@@ -60,22 +56,22 @@ func chebyshevNodes(n int, interval bignum.Interval) (u []*big.Float) {
 	return
 }
 
-func chebyCoeffs(nodes []*big.Float, fi []*bignum.Complex, interval bignum.Interval) (coeffs []*bignum.Complex) {
+func chebyCoeffs(nodes []*big.Float, fi []*Complex, interval Interval) (coeffs []*Complex) {
 
 	prec := interval.A.Prec()
 
 	n := len(nodes)
 
-	coeffs = make([]*bignum.Complex, n)
+	coeffs = make([]*Complex, n)
 	for i := range coeffs {
-		coeffs[i] = bignum.NewComplex().SetPrec(prec)
+		coeffs[i] = NewComplex().SetPrec(prec)
 	}
 
-	u := bignum.NewComplex().SetPrec(prec)
+	u := NewComplex().SetPrec(prec)
 
-	mul := bignum.NewComplexMultiplier()
+	mul := NewComplexMultiplier()
 
-	tmp := bignum.NewComplex().SetPrec(prec)
+	tmp := NewComplex().SetPrec(prec)
 
 	two := new(big.Float).SetPrec(prec).SetInt64(2)
 
@@ -86,7 +82,7 @@ func chebyCoeffs(nodes []*big.Float, fi []*bignum.Complex, interval bignum.Inter
 	bminusa := new(big.Float).Set(&interval.B)
 	bminusa.Sub(bminusa, &interval.A)
 
-	Tnext := bignum.NewComplex().SetPrec(prec)
+	Tnext := NewComplex().SetPrec(prec)
 
 	for i := 0; i < n; i++ {
 
@@ -94,7 +90,7 @@ func chebyCoeffs(nodes []*big.Float, fi []*bignum.Complex, interval bignum.Inter
 		u[0].Sub(u[0], minusab)
 		u[0].Quo(u[0], bminusa)
 
-		Tprev := bignum.NewComplex().SetPrec(prec)
+		Tprev := NewComplex().SetPrec(prec)
 		Tprev[0].SetFloat64(1)
 
 		T := u.Clone()
@@ -129,11 +125,11 @@ func chebyCoeffs(nodes []*big.Float, fi []*bignum.Complex, interval bignum.Inter
 	return
 }
 
-func chebyshevBasisInPlace(deg int, x *big.Float, inter bignum.Interval, poly []*big.Float) {
+func chebyshevBasisInPlace(deg int, x *big.Float, inter Interval, poly []*big.Float) {
 
 	precision := x.Prec()
 
-	two := bignum.NewFloat(2, precision)
+	two := NewFloat(2, precision)
 
 	var tmp, u = new(big.Float), new(big.Float)
 	var T, Tprev, Tnext = new(big.Float), new(big.Float), new(big.Float)

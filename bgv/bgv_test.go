@@ -14,7 +14,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils"
 
 	"github.com/stretchr/testify/require"
-	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
@@ -636,7 +636,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				values.Coeffs[0][i] = ring.EvalPolyModP(values.Coeffs[0][i], coeffs, T)
 			}
 
-			poly := polynomial.NewPolynomial(polynomial.Monomial, coeffs, nil)
+			poly := bignum.NewPolynomial(bignum.Monomial, coeffs, nil)
 
 			t.Run(GetTestName("Standard", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
 				var err error
@@ -690,8 +690,8 @@ func testEvaluator(tc *testContext, t *testing.T) {
 			slotIndex[1] = idx1
 
 			polyVector := rlwe.NewPolynomialVector([]rlwe.Polynomial{
-				rlwe.NewPolynomial(polynomial.NewPolynomial(polynomial.Monomial, coeffs0, nil)),
-				rlwe.NewPolynomial(polynomial.NewPolynomial(polynomial.Monomial, coeffs1, nil)),
+				rlwe.NewPolynomial(bignum.NewPolynomial(bignum.Monomial, coeffs0, nil)),
+				rlwe.NewPolynomial(bignum.NewPolynomial(bignum.Monomial, coeffs1, nil)),
 			}, slotIndex)
 
 			TInt := new(big.Int).SetUint64(tc.params.T())

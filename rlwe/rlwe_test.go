@@ -12,7 +12,7 @@ import (
 
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
-	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 	"github.com/tuneinsight/lattigo/v4/utils/buffer"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
@@ -1147,7 +1147,7 @@ func testWriteAndRead(tc *TestContext, bpw2 int, t *testing.T) {
 
 		ct := NewCiphertextRandom(prng, params, 1, levelQ)
 
-		basis := NewPowerBasis(ct, polynomial.Chebyshev)
+		basis := NewPowerBasis(ct, bignum.Chebyshev)
 
 		basis.Value[2] = NewCiphertextRandom(prng, params, 1, levelQ)
 		basis.Value[3] = NewCiphertextRandom(prng, params, 2, levelQ)

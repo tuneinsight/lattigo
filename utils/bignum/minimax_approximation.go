@@ -1,14 +1,10 @@
-// Package approximation implements arbitrary precision polynomial approximations algorithms, such as minimax.
-package approximation
+package bignum
 
 import (
 	"fmt"
 	"math"
 	"math/big"
 	"sync"
-
-	"github.com/tuneinsight/lattigo/v4/utils/bignum"
-	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
 )
 
 // Remez implements the optimized multi-interval minimax approximation
@@ -45,15 +41,15 @@ type RemezParameters struct {
 	Function func(x *big.Float) (y *big.Float)
 
 	// Basis is the basis to use.
-	// Supported basis are: polynomial.Monomial and polynomial.Chebyshev
-	Basis polynomial.Basis
+	// Supported basis are: Monomial and Chebyshev
+	Basis Basis
 
 	// Intervals is the set of interval [ai, bi] on which to approximate
 	// the function. Each interval also define the number of nodes (points)
 	// that will be used to approximate the function inside this interval.
 	// This allows the user to implement a separate algorithm that allocates
 	// an optimal number of nodes per interval.
-	Intervals []bignum.Interval
+	Intervals []Interval
 
 	// ScanStep is the size of the default step used to find the extreme points.
 	// The smaller this value is, the lower the probability to miss an extreme point is
@@ -153,7 +149,7 @@ func (r *Remez) Approximate(maxIter int, threshold float64) {
 	}
 }
 
-// ShowCoeffs prints the coefficient of the approximate polynomial.
+// ShowCoeffs prints the coefficient of the approximate
 // prec: the bit precision of the printed values.
 func (r *Remez) ShowCoeffs(prec int) {
 	fmt.Printf("{")
@@ -163,7 +159,7 @@ func (r *Remez) ShowCoeffs(prec int) {
 	fmt.Println("}")
 }
 
-// ShowError prints the minimum and maximum error of the approximate polynomial.
+// ShowError prints the minimum and maximum error of the approximate
 // prec: the bit precision of the printed values.
 func (r *Remez) ShowError(prec int) {
 	fmt.Printf("MaxErr: %.*f\n", prec, r.MaxErr)
@@ -175,7 +171,7 @@ func (r *Remez) initialize() {
 	var idx int
 
 	switch r.Basis {
-	case polynomial.Monomial:
+	case Monomial:
 
 		for _, inter := range r.Intervals {
 
@@ -186,7 +182,7 @@ func (r *Remez) initialize() {
 			for j := 0; j < nodes; j++ {
 
 				x := new(big.Float).Sub(B, A)
-				x.Mul(x, bignum.NewFloat(float64(j+1)/float64(nodes+1), r.Prec))
+				x.Mul(x, NewFloat(float64(j+1)/float64(nodes+1), r.Prec))
 				x.Add(x, A)
 
 				y := r.Function(x)
@@ -198,7 +194,7 @@ func (r *Remez) initialize() {
 			idx += nodes
 		}
 
-	case polynomial.Chebyshev:
+	case Chebyshev:
 
 		for _, inter := range r.Intervals {
 
@@ -226,24 +222,24 @@ func (r *Remez) getCoefficients() {
 	// |          .            |   .
 
 	switch r.Basis {
-	case polynomial.Monomial:
+	case Monomial:
 		for i := 0; i < r.Degree+2; i++ {
-			r.Matrix[i][0] = bignum.NewFloat(1, r.Prec)
+			r.Matrix[i][0] = NewFloat(1, r.Prec)
 			for j := 1; j < r.Degree+1; j++ {
 				r.Matrix[i][j].Mul(r.Nodes[i].x, r.Matrix[i][j-1])
 			}
 		}
-	case polynomial.Chebyshev:
+	case Chebyshev:
 		for i := 0; i < r.Degree+2; i++ {
-			chebyshevBasisInPlace(r.Degree+1, r.Nodes[i].x, bignum.Interval{A: r.Intervals[0].A, B: r.Intervals[len(r.Intervals)-1].B}, r.Matrix[i])
+			chebyshevBasisInPlace(r.Degree+1, r.Nodes[i].x, Interval{A: r.Intervals[0].A, B: r.Intervals[len(r.Intervals)-1].B}, r.Matrix[i])
 		}
 	}
 
 	for i := 0; i < r.Degree+2; i++ {
 		if i&1 == 0 {
-			r.Matrix[i][r.Degree+1] = bignum.NewFloat(-1, r.Prec)
+			r.Matrix[i][r.Degree+1] = NewFloat(-1, r.Prec)
 		} else {
-			r.Matrix[i][r.Degree+1] = bignum.NewFloat(1, r.Prec)
+			r.Matrix[i][r.Degree+1] = NewFloat(1, r.Prec)
 		}
 	}
 
@@ -484,7 +480,7 @@ func (r *Remez) chooseNewNodes() {
 // until the entire interval has been scanned.
 // This is an optimized Go re-implementation of the method find_extreme that can be found at
 // https://github.com/snu-ccl/FHE-MP-CNN/blob/main-3.6.6/cnn_ckks/common/MinicompFunc.cpp
-func (r *Remez) findLocalExtrempointsWithSlope(fErr func(*big.Float) (y *big.Float), interval bignum.Interval) []point {
+func (r *Remez) findLocalExtrempointsWithSlope(fErr func(*big.Float) (y *big.Float), interval Interval) []point {
 
 	extrempoints := r.localExtrempoints
 	prec := r.Prec
@@ -508,7 +504,7 @@ func (r *Remez) findLocalExtrempointsWithSlope(fErr func(*big.Float) (y *big.Flo
 
 	if r.OptimalScanStep {
 		s = 15
-		optScan.Quo(scan, bignum.NewFloat(1e15, prec))
+		optScan.Quo(scan, NewFloat(1e15, prec))
 	} else {
 		optScan.Set(scan)
 	}
@@ -529,23 +525,23 @@ func (r *Remez) findLocalExtrempointsWithSlope(fErr func(*big.Float) (y *big.Flo
 			for i := 0; i < s; i++ {
 
 				// start + 10*scan/pow(10,i)
-				a := new(big.Float).Mul(scan, bignum.NewFloat(10, prec))
-				a.Quo(a, bignum.NewFloat(math.Pow(10, float64(i)), prec))
+				a := new(big.Float).Mul(scan, NewFloat(10, prec))
+				a.Quo(a, NewFloat(math.Pow(10, float64(i)), prec))
 				a.Add(&interval.A, a)
 
 				// end - 10*scan/pow(10,i)
-				b := new(big.Float).Mul(scan, bignum.NewFloat(10, prec))
-				b.Quo(b, bignum.NewFloat(math.Pow(10, float64(i)), prec))
+				b := new(big.Float).Mul(scan, NewFloat(10, prec))
+				b.Quo(b, NewFloat(math.Pow(10, float64(i)), prec))
 				b.Sub(&interval.B, b)
 
 				// a < scanRight && scanRight < b
 				if a.Cmp(scanRight) == -1 && scanRight.Cmp(b) == -1 {
-					optScan.Quo(scan, bignum.NewFloat(math.Pow(10, float64(i)), prec))
+					optScan.Quo(scan, NewFloat(math.Pow(10, float64(i)), prec))
 					break
 				}
 
 				if i == s-1 {
-					optScan.Quo(scan, bignum.NewFloat(math.Pow(10, float64(i+1)), prec))
+					optScan.Quo(scan, NewFloat(math.Pow(10, float64(i+1)), prec))
 					break
 				}
 			}
@@ -596,7 +592,7 @@ func findLocalMaximum(fErr func(x *big.Float) (y *big.Float), start, end, step *
 	windowStart := new(big.Float).Set(start)
 	windowEnd := new(big.Float).Set(end)
 	quarter := new(big.Float).Sub(windowEnd, windowStart)
-	quarter.Quo(step, bignum.NewFloat(4, prec))
+	quarter.Quo(step, NewFloat(4, prec))
 
 	for i := 0; i < int(prec); i++ {
 
@@ -637,10 +633,10 @@ func findLocalMaximum(fErr func(x *big.Float) (y *big.Float), start, end, step *
 		}
 
 		// Divides the scan step by half
-		quarter.Quo(quarter, bignum.NewFloat(2.0, prec))
+		quarter.Quo(quarter, NewFloat(2.0, prec))
 	}
 
-	p.x.Quo(new(big.Float).Add(windowStart, windowEnd), bignum.NewFloat(2, prec))
+	p.x.Quo(new(big.Float).Add(windowStart, windowEnd), NewFloat(2, prec))
 	p.y.Set(fErr(p.x))
 	p.slopesign = 1
 }
@@ -651,7 +647,7 @@ func findLocalMinimum(fErr func(x *big.Float) (y *big.Float), start, end, step *
 	windowStart := new(big.Float).Set(start)
 	windowEnd := new(big.Float).Set(end)
 	quarter := new(big.Float).Sub(windowEnd, windowStart)
-	quarter.Quo(step, bignum.NewFloat(4, prec))
+	quarter.Quo(step, NewFloat(4, prec))
 
 	for i := 0; i < int(prec); i++ {
 
@@ -692,10 +688,10 @@ func findLocalMinimum(fErr func(x *big.Float) (y *big.Float), start, end, step *
 		}
 
 		// Divides the scan step by half
-		quarter.Quo(quarter, bignum.NewFloat(2.0, prec))
+		quarter.Quo(quarter, NewFloat(2.0, prec))
 	}
 
-	p.x.Quo(new(big.Float).Add(windowStart, windowEnd), bignum.NewFloat(2, prec))
+	p.x.Quo(new(big.Float).Add(windowStart, windowEnd), NewFloat(2, prec))
 	p.y.Set(fErr(p.x))
 	p.slopesign = -1
 }
@@ -763,12 +759,12 @@ func slopes(fErr func(x *big.Float) (y *big.Float), searchStart, searchEnd, sear
 
 func (r *Remez) eval(x *big.Float) (y *big.Float) {
 	switch r.Basis {
-	case polynomial.Monomial:
-		return polynomial.MonomialEval(x, r.Coeffs)
-	case polynomial.Chebyshev:
-		return polynomial.ChebyshevEval(x, r.Coeffs, bignum.Interval{A: r.Intervals[0].A, B: r.Intervals[len(r.Intervals)-1].B, Nodes: r.Degree + 1})
+	case Monomial:
+		return MonomialEval(x, r.Coeffs)
+	case Chebyshev:
+		return ChebyshevEval(x, r.Coeffs, Interval{A: r.Intervals[0].A, B: r.Intervals[len(r.Intervals)-1].B, Nodes: r.Degree + 1})
 	default:
-		panic("invalid polynomial.Basis")
+		panic("invalid Basis")
 	}
 }
 

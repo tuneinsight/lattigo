@@ -16,8 +16,6 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
-	"github.com/tuneinsight/lattigo/v4/utils/bignum/approximation"
-	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
@@ -836,7 +834,7 @@ func testEvaluatePoly(tc *testContext, t *testing.T) {
 			new(big.Float).Quo(bignum.NewFloat(1, prec), bignum.NewFloat(5040, prec)),
 		}
 
-		poly := polynomial.NewPolynomial(polynomial.Monomial, coeffs, nil)
+		poly := bignum.NewPolynomial(bignum.Monomial, coeffs, nil)
 
 		for i := range values {
 			values[i] = poly.Evaluate(values[i])
@@ -870,7 +868,7 @@ func testEvaluatePoly(tc *testContext, t *testing.T) {
 			new(big.Float).Quo(bignum.NewFloat(1, prec), bignum.NewFloat(5040, prec)),
 		}
 
-		poly := polynomial.NewPolynomial(polynomial.Monomial, coeffs, nil)
+		poly := bignum.NewPolynomial(bignum.Monomial, coeffs, nil)
 
 		slots := ciphertext.PlaintextSlots()
 
@@ -928,7 +926,7 @@ func testChebyshevInterpolator(tc *testContext, t *testing.T) {
 			B: *new(big.Float).SetPrec(prec).SetFloat64(8),
 		}
 
-		poly := rlwe.NewPolynomial(approximation.Chebyshev(sin, interval, degree))
+		poly := rlwe.NewPolynomial(bignum.ChebyshevApproximation(sin, interval, degree))
 
 		scalar, constant := poly.ChangeOfBasis()
 		eval.Mul(ciphertext, scalar, ciphertext)
@@ -981,7 +979,7 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 			B: *new(big.Float).SetPrec(prec).SetFloat64(b),
 		}
 
-		poly := approximation.Chebyshev(sin, interval, degree)
+		poly := bignum.ChebyshevApproximation(sin, interval, degree)
 
 		for i := range values {
 			values[i] = poly.Evaluate(values[i])

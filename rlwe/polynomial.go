@@ -5,11 +5,11 @@ import (
 	"math/bits"
 
 	"github.com/tuneinsight/lattigo/v4/utils"
-	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
 type Polynomial struct {
-	polynomial.Polynomial
+	bignum.Polynomial
 	MaxDeg int   // Always set to len(Coeffs)-1
 	Lead   bool  // Always set to true
 	Lazy   bool  // Flag for lazy-relinearization
@@ -17,7 +17,7 @@ type Polynomial struct {
 	Scale  Scale // Metatata for BSGS polynomial evaluation
 }
 
-func NewPolynomial(poly polynomial.Polynomial) Polynomial {
+func NewPolynomial(poly bignum.Polynomial) Polynomial {
 	return Polynomial{
 		Polynomial: poly,
 		MaxDeg:     len(poly.Coeffs) - 1,
@@ -59,7 +59,7 @@ type PatersonStockmeyerPolynomial struct {
 func (p Polynomial) GetPatersonStockmeyerPolynomial(params ParametersInterface, inputLevel int, inputScale, outputScale Scale, eval DummyEvaluator) PatersonStockmeyerPolynomial {
 
 	logDegree := bits.Len64(uint64(p.Degree()))
-	logSplit := polynomial.OptimalSplit(logDegree)
+	logSplit := bignum.OptimalSplit(logDegree)
 
 	pb := DummyPowerBasis{}
 	pb[1] = &DummyOperand{
@@ -90,7 +90,7 @@ func recursePS(params ParametersInterface, logSplit, targetLevel int, p Polynomi
 		if p.Lead && logSplit > 1 && p.MaxDeg > (1<<bits.Len64(uint64(p.MaxDeg)))-(1<<(logSplit-1)) {
 
 			logDegree := int(bits.Len64(uint64(p.Degree())))
-			logSplit := polynomial.OptimalSplit(logDegree)
+			logSplit := bignum.OptimalSplit(logDegree)
 
 			return recursePS(params, logSplit, targetLevel, p, pb, outputScale, eval)
 		}
@@ -132,7 +132,7 @@ type PolynomialVector struct {
 
 func NewPolynomialVector(polys []Polynomial, slotsIndex map[int][]int) PolynomialVector {
 	var maxDeg int
-	var basis polynomial.Basis
+	var basis bignum.Basis
 	for i := range polys {
 		maxDeg = utils.Max(maxDeg, polys[i].Degree())
 		basis = polys[i].Basis

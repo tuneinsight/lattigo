@@ -6,21 +6,21 @@ import (
 	"io"
 	"math/bits"
 
-	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 	"github.com/tuneinsight/lattigo/v4/utils/buffer"
 	"github.com/tuneinsight/lattigo/v4/utils/structs"
 )
 
 // PowerBasis is a struct storing powers of a ciphertext.
 type PowerBasis struct {
-	polynomial.Basis
+	bignum.Basis
 	Value structs.Map[int, Ciphertext]
 }
 
 // NewPowerBasis creates a new PowerBasis. It takes as input a ciphertext
 // and a basistype. The struct treats the input ciphertext as a monomial X and
 // can be used to generates power of this monomial X^{n} in the given BasisType.
-func NewPowerBasis(ct *Ciphertext, basis polynomial.Basis) (p PowerBasis) {
+func NewPowerBasis(ct *Ciphertext, basis bignum.Basis) (p PowerBasis) {
 	return PowerBasis{
 		Value: map[int]*Ciphertext{1: ct.CopyNew()},
 		Basis: basis,
@@ -130,7 +130,7 @@ func (p *PowerBasis) genPower(n int, lazy, rescale bool, eval EvaluatorInterface
 			p.Value[n] = eval.MulRelinNew(p.Value[a], p.Value[b])
 		}
 
-		if p.Basis == polynomial.Chebyshev {
+		if p.Basis == bignum.Chebyshev {
 
 			// Cn = 2*Ca*Cb - Cc, n = a+b and c = abs(a-b)
 			c := a - b
@@ -222,7 +222,7 @@ func (p *PowerBasis) ReadFrom(r io.Reader) (n int64, err error) {
 
 		n += inc
 
-		p.Basis = polynomial.Basis(Basis)
+		p.Basis = bignum.Basis(Basis)
 
 		if p.Value == nil {
 			p.Value = map[int]*Ciphertext{}

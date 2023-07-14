@@ -8,13 +8,12 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
-	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
 )
 
 // NewPowerBasis creates a new PowerBasis. It takes as input a ciphertext
 // and a basistype. The struct treats the input ciphertext as a monomial X and
 // can be used to generates power of this monomial X^{n} in the given BasisType.
-func NewPowerBasis(ct *rlwe.Ciphertext, basis polynomial.Basis) rlwe.PowerBasis {
+func NewPowerBasis(ct *rlwe.Ciphertext, basis bignum.Basis) rlwe.PowerBasis {
 	return rlwe.NewPowerBasis(ct, basis)
 }
 
@@ -24,14 +23,14 @@ func NewPowerBasis(ct *rlwe.Ciphertext, basis polynomial.Basis) rlwe.PowerBasis 
 // If the polynomial is given in Chebyshev basis, then a change of basis ct' = (2/(b-a)) * (ct + (-a-b)/(b-a))
 // is necessary before the polynomial evaluation to ensure correctness.
 // input must be either *rlwe.Ciphertext or *PolynomialBasis.
-// pol: a *polynomial.Polynomial, *rlwe.Polynomial or *rlwe.PolynomialVector
+// pol: a *bignum.Polynomial, *rlwe.Polynomial or *rlwe.PolynomialVector
 // targetScale: the desired output scale. This value shouldn't differ too much from the original ciphertext scale. It can
 // for example be used to correct small deviations in the ciphertext scale and reset it to the default scale.
 func (eval Evaluator) Polynomial(input interface{}, p interface{}, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
 
 	var polyVec rlwe.PolynomialVector
 	switch p := p.(type) {
-	case polynomial.Polynomial:
+	case bignum.Polynomial:
 		polyVec = rlwe.PolynomialVector{Value: []rlwe.Polynomial{{Polynomial: p, MaxDeg: p.Degree(), Lead: true, Lazy: false}}}
 	case rlwe.Polynomial:
 		polyVec = rlwe.PolynomialVector{Value: []rlwe.Polynomial{p}}
@@ -65,7 +64,7 @@ func (eval Evaluator) Polynomial(input interface{}, p interface{}, targetScale r
 	}
 
 	logDegree := bits.Len64(uint64(polyVec.Value[0].Degree()))
-	logSplit := polynomial.OptimalSplit(logDegree)
+	logSplit := bignum.OptimalSplit(logDegree)
 
 	var odd, even bool = false, false
 	for _, p := range polyVec.Value {
@@ -358,9 +357,9 @@ func isZero(c *bignum.Complex) bool {
 	return c == nil || (c[0].Cmp(zero) == 0 && c[1].Cmp(zero) == 0)
 }
 
-// checkEnoughLevels checks that enough levels are available to evaluate the polynomial.
+// checkEnoughLevels checks that enough levels are available to evaluate the bignum.
 // Also checks if c is a Gaussian integer or not. If not, then one more level is needed
-// to evaluate the polynomial.
+// to evaluate the bignum.
 func checkEnoughLevels(levels, depth int) (err error) {
 
 	if levels < depth {

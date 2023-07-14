@@ -8,7 +8,6 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
-	"github.com/tuneinsight/lattigo/v4/utils/bignum/approximation"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
@@ -85,7 +84,7 @@ func chebyshevinterpolation() {
 	// Evaluation process
 	// We approximate f(x) in the range [-8, 8] with a Chebyshev interpolant of 33 coefficients (degree 32).
 
-	approxF := approximation.Chebyshev(func(x *bignum.Complex) (y *bignum.Complex) {
+	approxF := bignum.ChebyshevApproximation(func(x *bignum.Complex) (y *bignum.Complex) {
 		xf64, _ := x[0].Float64()
 		y = bignum.NewComplex().SetPrec(53)
 		y[0].SetFloat64(f(xf64))
@@ -95,7 +94,7 @@ func chebyshevinterpolation() {
 		B: *new(big.Float).SetFloat64(b),
 	}, deg)
 
-	approxG := approximation.Chebyshev(func(x *bignum.Complex) (y *bignum.Complex) {
+	approxG := bignum.ChebyshevApproximation(func(x *bignum.Complex) (y *bignum.Complex) {
 		xf64, _ := x[0].Float64()
 		y = bignum.NewComplex().SetPrec(53)
 		y[0].SetFloat64(g(xf64))

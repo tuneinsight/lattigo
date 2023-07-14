@@ -7,21 +7,21 @@ import (
 
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
-	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
 // NewPowerBasis creates a new PowerBasis from the input ciphertext.
-// The input ciphertext is treated as the base monomial X used to 
+// The input ciphertext is treated as the base monomial X used to
 // generate the other powers X^{n}.
 func NewPowerBasis(ct *rlwe.Ciphertext) rlwe.PowerBasis {
-	return rlwe.NewPowerBasis(ct, polynomial.Monomial)
+	return rlwe.NewPowerBasis(ct, bignum.Monomial)
 }
 
 func (eval Evaluator) Polynomial(input interface{}, p interface{}, InvariantTensoring bool, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
 
 	var polyVec rlwe.PolynomialVector
 	switch p := p.(type) {
-	case polynomial.Polynomial:
+	case bignum.Polynomial:
 		polyVec = rlwe.PolynomialVector{Value: []rlwe.Polynomial{{Polynomial: p, MaxDeg: p.Degree(), Lead: true, Lazy: false}}}
 	case rlwe.Polynomial:
 		polyVec = rlwe.PolynomialVector{Value: []rlwe.Polynomial{p}}
@@ -44,7 +44,7 @@ func (eval Evaluator) Polynomial(input interface{}, p interface{}, InvariantTens
 			return nil, fmt.Errorf("%d levels < %d log(d) -> cannot evaluate poly", level, depth)
 		}
 
-		powerbasis = rlwe.NewPowerBasis(input, polynomial.Monomial)
+		powerbasis = rlwe.NewPowerBasis(input, bignum.Monomial)
 
 	case rlwe.PowerBasis:
 		if input.Value[1] == nil {
@@ -56,7 +56,7 @@ func (eval Evaluator) Polynomial(input interface{}, p interface{}, InvariantTens
 	}
 
 	logDegree := bits.Len64(uint64(polyVec.Value[0].Degree()))
-	logSplit := polynomial.OptimalSplit(logDegree)
+	logSplit := bignum.OptimalSplit(logDegree)
 
 	var odd, even bool
 	for _, p := range polyVec.Value {

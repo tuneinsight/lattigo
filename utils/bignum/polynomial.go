@@ -1,21 +1,34 @@
-// Package polynomial provides helper for polynomials, approximation of functions using polynomials and their evaluation.
-package polynomial
+package bignum
 
 import (
 	"fmt"
 	"math"
 	"math/big"
-
-	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
+
+type PolynomialBSGS struct {
+	MetaData
+	Coeffs [][]*Complex
+}
+
+func OptimalSplit(logDegree int) (logSplit int) {
+	logSplit = logDegree >> 1
+	a := (1 << logSplit) + (1 << (logDegree - logSplit)) + logDegree - logSplit - 3
+	b := (1 << (logSplit + 1)) + (1 << (logDegree - logSplit - 1)) + logDegree - logSplit - 4
+	if a > b {
+		logSplit++
+	}
+
+	return
+}
 
 type Polynomial struct {
 	MetaData
-	Coeffs []*bignum.Complex
+	Coeffs []*Complex
 }
 
 func (p Polynomial) Clone() Polynomial {
-	Coeffs := make([]*bignum.Complex, len(p.Coeffs))
+	Coeffs := make([]*Complex, len(p.Coeffs))
 	for i := range Coeffs {
 		Coeffs[i] = p.Coeffs[i].Clone()
 	}
@@ -28,57 +41,57 @@ func (p Polynomial) Clone() Polynomial {
 
 // NewPolynomial creates a new polynomial from the input parameters:
 // basis: either `Monomial` or `Chebyshev`
-// coeffs: []bignum.Complex128, []float64, []*bignum.Complex or []*big.Float
+// coeffs: []Complex128, []float64, []*Complex or []*big.Float
 // interval: [2]float64{a, b} or *Interval
 func NewPolynomial(basis Basis, coeffs interface{}, interval interface{}) Polynomial {
-	var coefficients []*bignum.Complex
+	var coefficients []*Complex
 
 	switch coeffs := coeffs.(type) {
 	case []uint64:
-		coefficients = make([]*bignum.Complex, len(coeffs))
+		coefficients = make([]*Complex, len(coeffs))
 		for i, c := range coeffs {
-			coefficients[i] = &bignum.Complex{
+			coefficients[i] = &Complex{
 				new(big.Float).SetUint64(c),
 				new(big.Float),
 			}
 		}
 	case []complex128:
-		coefficients = make([]*bignum.Complex, len(coeffs))
+		coefficients = make([]*Complex, len(coeffs))
 		for i, c := range coeffs {
-			coefficients[i] = &bignum.Complex{
+			coefficients[i] = &Complex{
 				new(big.Float).SetFloat64(real(c)),
 				new(big.Float).SetFloat64(imag(c)),
 			}
 		}
 	case []float64:
-		coefficients = make([]*bignum.Complex, len(coeffs))
+		coefficients = make([]*Complex, len(coeffs))
 		for i, c := range coeffs {
-			coefficients[i] = &bignum.Complex{
+			coefficients[i] = &Complex{
 				new(big.Float).SetFloat64(c),
 				new(big.Float),
 			}
 		}
-	case []*bignum.Complex:
-		coefficients = make([]*bignum.Complex, len(coeffs))
+	case []*Complex:
+		coefficients = make([]*Complex, len(coeffs))
 		copy(coefficients, coeffs)
 	case []*big.Float:
-		coefficients = make([]*bignum.Complex, len(coeffs))
+		coefficients = make([]*Complex, len(coeffs))
 		for i, c := range coeffs {
-			coefficients[i] = &bignum.Complex{
+			coefficients[i] = &Complex{
 				new(big.Float).Set(c),
 				new(big.Float),
 			}
 		}
 	default:
-		panic(fmt.Sprintf("invalid coefficient type, allowed types are []{bignum.Complex128, float64, *bignum.Complex, *big.Float} but is %T", coeffs))
+		panic(fmt.Sprintf("invalid coefficient type, allowed types are []{Complex128, float64, *Complex, *big.Float} but is %T", coeffs))
 	}
 
-	inter := bignum.Interval{}
+	inter := Interval{}
 	switch interval := interval.(type) {
 	case [2]float64:
 		inter.A = *new(big.Float).SetFloat64(interval[0])
 		inter.B = *new(big.Float).SetFloat64(interval[1])
-	case *bignum.Interval:
+	case *Interval:
 		inter.A = interval.A
 		inter.B = interval.B
 	case nil:
@@ -156,25 +169,25 @@ func (p Polynomial) EvaluateModP(xInt, PInt *big.Int) (yInt *big.Int) {
 	return
 }
 
-// Evaluate takes x a *big.Float or *big.bignum.Complex and returns y = P(x).
+// Evaluate takes x a *big.Float or *big.Complex and returns y = P(x).
 // The precision of x is used as reference precision for y.
-func (p *Polynomial) Evaluate(x interface{}) (y *bignum.Complex) {
+func (p *Polynomial) Evaluate(x interface{}) (y *Complex) {
 
-	var xcmplx *bignum.Complex
+	var xcmplx *Complex
 	switch x := x.(type) {
 	case *big.Float:
-		xcmplx = bignum.ToComplex(x, x.Prec())
-	case *bignum.Complex:
-		xcmplx = bignum.ToComplex(x, x.Prec())
+		xcmplx = ToComplex(x, x.Prec())
+	case *Complex:
+		xcmplx = ToComplex(x, x.Prec())
 	default:
-		panic(fmt.Errorf("cannot Evaluate: accepted x.(type) are *big.Float and *bignum.Complex but x is %T", x))
+		panic(fmt.Errorf("cannot Evaluate: accepted x.(type) are *big.Float and *Complex but x is %T", x))
 	}
 
 	coeffs := p.Coeffs
 
 	n := len(coeffs)
 
-	mul := bignum.NewComplexMultiplier()
+	mul := NewComplexMultiplier()
 
 	switch p.Basis {
 	case Monomial:
@@ -189,7 +202,7 @@ func (p *Polynomial) Evaluate(x interface{}) (y *bignum.Complex) {
 
 	case Chebyshev:
 
-		tmp := &bignum.Complex{new(big.Float), new(big.Float)}
+		tmp := &Complex{new(big.Float), new(big.Float)}
 
 		scalar, constant := p.ChangeOfBasis()
 
@@ -199,13 +212,13 @@ func (p *Polynomial) Evaluate(x interface{}) (y *bignum.Complex) {
 		xcmplx[0].Add(xcmplx[0], constant)
 		xcmplx[1].Add(xcmplx[1], constant)
 
-		TPrev := &bignum.Complex{new(big.Float).SetInt64(1), new(big.Float)}
+		TPrev := &Complex{new(big.Float).SetInt64(1), new(big.Float)}
 
 		T := xcmplx
 		if coeffs[0] != nil {
 			y = coeffs[0].Clone()
 		} else {
-			y = &bignum.Complex{new(big.Float), new(big.Float)}
+			y = &Complex{new(big.Float), new(big.Float)}
 		}
 
 		y.SetPrec(xcmplx.Prec())
@@ -244,7 +257,7 @@ func (p Polynomial) Factorize(n int) (pq, pr Polynomial) {
 
 	// ns a polynomial p such that p = q*C^degree + r.
 	pr = Polynomial{}
-	pr.Coeffs = make([]*bignum.Complex, n)
+	pr.Coeffs = make([]*Complex, n)
 	for i := 0; i < n; i++ {
 		if p.Coeffs[i] != nil {
 			pr.Coeffs[i] = p.Coeffs[i].Clone()
@@ -252,7 +265,7 @@ func (p Polynomial) Factorize(n int) (pq, pr Polynomial) {
 	}
 
 	pq = Polynomial{}
-	pq.Coeffs = make([]*bignum.Complex, p.Degree()-n+1)
+	pq.Coeffs = make([]*Complex, p.Degree()-n+1)
 
 	if p.Coeffs[n] != nil {
 		pq.Coeffs[0] = p.Coeffs[n].Clone()

@@ -1,8 +1,4 @@
-package polynomial
-
-import (
-	"github.com/tuneinsight/lattigo/v4/utils/bignum"
-)
+package bignum
 
 // Basis is a type for the polynomials basis
 type Basis int
@@ -16,7 +12,7 @@ const (
 
 type MetaData struct {
 	Basis
-	bignum.Interval
+	Interval
 	IsOdd  bool
 	IsEven bool
 }

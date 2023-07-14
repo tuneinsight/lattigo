@@ -9,7 +9,6 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
-	"github.com/tuneinsight/lattigo/v4/utils/bignum/approximation"
 )
 
 func main() {
@@ -502,7 +501,7 @@ func main() {
 	degree := 63
 
 	// We generate the `bignum.Polynomial` which stores the degree 63 Chevyshev approximation of the SiLU function in the interval [-8, 8]
-	poly := approximation.Chebyshev(SiLU, interval, degree)
+	poly := bignum.ChebyshevApproximation(SiLU, interval, degree)
 
 	// The struct `bignum.Polynomial` comes with an handy evaluation method
 	tmp := bignum.NewComplex().SetPrec(prec)

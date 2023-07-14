@@ -8,7 +8,7 @@ import (
 
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
-	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
 func example() {
@@ -152,7 +152,7 @@ func example() {
 	}
 
 	// We create a new polynomial, with the standard basis [1, x, x^2, ...], with no interval.
-	poly := polynomial.NewPolynomial(polynomial.Monomial, coeffs, nil)
+	poly := bignum.NewPolynomial(bignum.Monomial, coeffs, nil)
 
 	if ciphertext, err = evaluator.Polynomial(ciphertext, poly, ciphertext.PlaintextScale); err != nil {
 		panic(err)
@@ -174,7 +174,7 @@ func example() {
 
 	start = time.Now()
 
-	monomialBasis := rlwe.NewPowerBasis(ciphertext, polynomial.Monomial)
+	monomialBasis := rlwe.NewPowerBasis(ciphertext, bignum.Monomial)
 	if err = monomialBasis.GenPower(int(r), false, ckks.NewPolynomialEvaluator(evaluator)); err != nil {
 		panic(err)
 	}

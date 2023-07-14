@@ -8,10 +8,11 @@ import (
 )
 
 // GoldschmidtDivisionNew homomorphically computes 1/x.
-// input: ct: Enc(x) with values in the interval [0+minvalue, 2-minvalue] and logPrec the desired number of bits of precisions.
+// input: ct: Enc(x) with values in the interval [0+minvalue, 2-minvalue] and logPrec the desired number of bits of precision.
 // output: Enc(1/x - e), where |e| <= (1-x)^2^(#iterations+1) -> the bit-precision doubles after each iteration.
 // The method automatically estimates how many iterations are needed to achieve the desired precision, and returns an error if the input ciphertext
 // does not have enough remaining level and if no bootstrapper was given.
+// This method will return an error if something goes wrong with the bootstrapping or the rescaling operations.
 func (eval *Evaluator) GoldschmidtDivisionNew(ct *rlwe.Ciphertext, minValue, logPrec float64, btp rlwe.Bootstrapper) (ctInv *rlwe.Ciphertext, err error) {
 
 	parameters := eval.parameters

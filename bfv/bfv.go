@@ -9,6 +9,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
 )
 
 // NewPlaintext allocates a new rlwe.Plaintext.
@@ -171,6 +172,13 @@ func (eval Evaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 interface{}) (op2 *r
 // The procedure will panic if the evaluator was not created with an relinearization key.
 func (eval Evaluator) MulRelin(op0 *rlwe.Ciphertext, op1 interface{}, op2 *rlwe.Ciphertext) {
 	eval.Evaluator.MulRelinInvariant(op0, op1, op2)
+}
+
+// NewPowerBasis creates a new PowerBasis from the input ciphertext.
+// The input ciphertext is treated as the base monomial X used to 
+// generate the other powers X^{n}.
+func NewPowerBasis(ct *rlwe.Ciphertext) rlwe.PowerBasis {
+	return rlwe.NewPowerBasis(ct, polynomial.Monomial)
 }
 
 // Polynomial evaluates opOut = P(input).

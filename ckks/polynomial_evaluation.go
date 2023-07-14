@@ -11,6 +11,13 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
 )
 
+// NewPowerBasis creates a new PowerBasis. It takes as input a ciphertext
+// and a basistype. The struct treats the input ciphertext as a monomial X and
+// can be used to generates power of this monomial X^{n} in the given BasisType.
+func NewPowerBasis(ct *rlwe.Ciphertext, basis polynomial.Basis) rlwe.PowerBasis {
+	return rlwe.NewPowerBasis(ct, basis)
+}
+
 // Polynomial evaluates a polynomial in standard basis on the input Ciphertext in ceil(log2(deg+1)) levels.
 // Returns an error if the input ciphertext does not have enough level to carry out the full polynomial evaluation.
 // Returns an error if something is wrong with the scale.

@@ -10,6 +10,13 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/bignum/polynomial"
 )
 
+// NewPowerBasis creates a new PowerBasis from the input ciphertext.
+// The input ciphertext is treated as the base monomial X used to 
+// generate the other powers X^{n}.
+func NewPowerBasis(ct *rlwe.Ciphertext) rlwe.PowerBasis {
+	return rlwe.NewPowerBasis(ct, polynomial.Monomial)
+}
+
 func (eval Evaluator) Polynomial(input interface{}, p interface{}, InvariantTensoring bool, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
 
 	var polyVec rlwe.PolynomialVector

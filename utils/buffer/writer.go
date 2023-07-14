@@ -6,6 +6,12 @@ import (
 	"unsafe"
 )
 
+// Write writes a slice of bytes to w.
+func Write(w Writer, c []byte) (n int64, err error){
+	nint, err := w.Write(c)
+	return int64(nint), err
+}
+
 // WriteInt writes an int c to w.
 func WriteInt(w Writer, c int) (n int64, err error) {
 	nint, err := WriteUint64(w, uint64(c))

@@ -8,6 +8,17 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
+// Read reads a slice of bytes from r and copies it on c.
+func Read(r Reader, c []byte) (n int64, err error){
+	slice, err := r.Peek(len(c))
+	if err != nil {
+		return int64(len(slice)), err
+	}
+	copy(c, slice)
+	nint, err := r.Discard(len(c))
+	return int64(nint), err
+}
+
 // ReadInt reads an int values from r and stores the result into *c.
 func ReadInt(r Reader, c *int) (n int64, err error) {
 

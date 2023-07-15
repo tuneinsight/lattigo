@@ -22,13 +22,13 @@ func TestApproximation(t *testing.T) {
 
 	t.Run("Chebyshev", func(t *testing.T) {
 
-		interval := Interval{A: *NewFloat(-4, prec), B: *NewFloat(4, prec), Nodes: 47}
-
-		f := func(x *Complex) (y *Complex) {
-			return &Complex{sigmoid(x[0]), new(big.Float)}
+		interval := Interval{
+			Nodes: 47,
+			A:     *NewFloat(-4, prec),
+			B:     *NewFloat(4, prec),
 		}
 
-		poly := ChebyshevApproximation(f, interval)
+		poly := ChebyshevApproximation(sigmoid, interval)
 
 		xBig := NewFloat(1.4142135623730951, prec)
 

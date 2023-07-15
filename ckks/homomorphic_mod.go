@@ -17,19 +17,18 @@ import (
 // for the homomorphic modular reduction
 type SineType uint64
 
-func sin2pi(x *bignum.Complex) (y *bignum.Complex) {
-	y = bignum.NewComplex().Set(x)
-	y[0].Mul(y[0], new(big.Float).SetFloat64(2))
-	y[0].Mul(y[0], bignum.Pi(x.Prec()))
-	y[0] = bignum.Sin(y[0])
-	return
+func sin2pi(x *big.Float) (y *big.Float) {
+	y = new(big.Float).Set(x)
+	y.Mul(y, new(big.Float).SetFloat64(2))
+	y.Mul(y, bignum.Pi(x.Prec()))
+	return bignum.Sin(y)
 }
 
-func cos2pi(x *bignum.Complex) (y *bignum.Complex) {
-	y = bignum.NewComplex().Set(x)
-	y[0].Mul(y[0], new(big.Float).SetFloat64(2))
-	y[0].Mul(y[0], bignum.Pi(x.Prec()))
-	y[0] = bignum.Cos(y[0])
+func cos2pi(x *big.Float) (y *big.Float) {
+	y = new(big.Float).Set(x)
+	y.Mul(y, new(big.Float).SetFloat64(2))
+	y.Mul(y, bignum.Pi(x.Prec()))
+	y = bignum.Cos(y)
 	return y
 }
 

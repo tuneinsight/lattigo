@@ -98,27 +98,14 @@ func chebyshevinterpolation() {
 	// Evaluation process
 	// We approximate f(x) in the range [-8, 8] with a Chebyshev interpolant of 33 coefficients (degree 32).
 
-	approxF := bignum.ChebyshevApproximation(func(x *bignum.Complex) (y *bignum.Complex) {
-		xf64, _ := x[0].Float64()
-		y = bignum.NewComplex().SetPrec(53)
-		y[0].SetFloat64(f(xf64))
-		return
-	}, bignum.Interval{
+	interval := bignum.Interval{
 		Nodes: deg,
 		A:     *new(big.Float).SetFloat64(a),
 		B:     *new(big.Float).SetFloat64(b),
-	})
+	}
 
-	approxG := bignum.ChebyshevApproximation(func(x *bignum.Complex) (y *bignum.Complex) {
-		xf64, _ := x[0].Float64()
-		y = bignum.NewComplex().SetPrec(53)
-		y[0].SetFloat64(g(xf64))
-		return
-	}, bignum.Interval{
-		Nodes: deg,
-		A:     *new(big.Float).SetFloat64(a),
-		B:     *new(big.Float).SetFloat64(b),
-	})
+	approxF := bignum.ChebyshevApproximation(f, interval)
+	approxG := bignum.ChebyshevApproximation(g, interval)
 
 	// Map storing which polynomial has to be applied to which slot.
 	slotsIndex := make(map[int][]int)

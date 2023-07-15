@@ -5,13 +5,34 @@ import (
 )
 
 // ChebyshevApproximation computes a Chebyshev approximation of the input function, for the range [-a, b] of degree degree.
-// function.(type) can be either :
+// f.(type) can be either :
 // - func(Complex128)Complex128
 // - func(float64)float64
 // - func(*big.Float)*big.Float
 // - func(*Complex)*Complex
 // The reference precision is taken from the values stored in the Interval struct.
-func ChebyshevApproximation(f func(*Complex) *Complex, interval Interval) (pol Polynomial) {
+func ChebyshevApproximation(f interface{}, interval Interval) (pol Polynomial) {
+
+	var fCmplx func(*Complex) *Complex
+
+	switch f := f.(type) {
+	case func(x complex128) (y complex128):
+		fCmplx = func(x *Complex) (y *Complex) {
+			yCmplx := f(x.Complex128())
+			return &Complex{new(big.Float).SetFloat64(real(yCmplx)), new(big.Float).SetFloat64(imag(yCmplx))}
+		}
+	case func(x float64) (y float64):
+		fCmplx = func(x *Complex) (y *Complex) {
+			xf64, _ := x[0].Float64()
+			return &Complex{new(big.Float).SetFloat64(f(xf64)), new(big.Float)}
+		}
+	case func(x *big.Float) (y *big.Float):
+		fCmplx = func(x *Complex) (y *Complex) {
+			return &Complex{f(x[0]), new(big.Float)}
+		}
+	case func(x *Complex) *Complex:
+		fCmplx = f
+	}
 
 	nodes := chebyshevNodes(interval.Nodes+1, interval)
 
@@ -22,7 +43,7 @@ func ChebyshevApproximation(f func(*Complex) *Complex, interval Interval) (pol P
 
 	for i := range nodes {
 		x[0].Set(nodes[i])
-		fi[i] = f(x)
+		fi[i] = fCmplx(x)
 	}
 
 	return NewPolynomial(Chebyshev, chebyCoeffs(nodes, fi, interval), &interval)

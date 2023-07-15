@@ -531,20 +531,9 @@ func main() {
 	// Let define a function, for example, the SiLU.
 	// The signature needed is `func(x *bignum.Complex) (y *bignum.Complex)` so we must accommodate for it first:
 
-	SiLU := func(x *bignum.Complex) (y *bignum.Complex) {
-
-		// Yes sigmoid over the complex!
-		sigmoid := func(x complex128) (y complex128) {
-			return 1 / (cmplx.Exp(-x) + 1)
-		}
-
-		ycmplx128 := x.Complex128()
-
-		ycmplx128 = ycmplx128 * sigmoid(ycmplx128)
-
-		y = bignum.NewComplex().SetPrec(prec).SetComplex128(ycmplx128)
-
-		return
+	// Yes SiLU over the complex!
+	SiLU := func(x complex128) (y complex128) {
+		return x / (cmplx.Exp(-x) + 1)
 	}
 
 	// We must also give an interval [a, b], for example [-8, 8], in which we approximate SiLU, as well as the degree of approximation.

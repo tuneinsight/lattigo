@@ -935,21 +935,13 @@ func testChebyshevInterpolator(tc *testContext, t *testing.T) {
 
 		prec := tc.params.PlaintextPrecision()
 
-		sin := func(x *bignum.Complex) (y *bignum.Complex) {
-			xf64, _ := x[0].Float64()
-			y = bignum.NewComplex()
-			y.SetPrec(prec)
-			y[0].SetFloat64(math.Sin(xf64))
-			return
-		}
-
 		interval := bignum.Interval{
 			Nodes: degree,
 			A:     *new(big.Float).SetPrec(prec).SetFloat64(-8),
 			B:     *new(big.Float).SetPrec(prec).SetFloat64(8),
 		}
 
-		poly := rlwe.NewPolynomial(bignum.ChebyshevApproximation(sin, interval))
+		poly := rlwe.NewPolynomial(bignum.ChebyshevApproximation(math.Sin, interval))
 
 		scalar, constant := poly.ChangeOfBasis()
 		eval.Mul(ciphertext, scalar, ciphertext)

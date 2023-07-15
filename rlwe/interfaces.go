@@ -57,14 +57,14 @@ type DecryptorInterface interface {
 
 // EncryptorInterface a generic RLWE encryption interface.
 type EncryptorInterface interface {
-	Encrypt(pt *Plaintext, ct interface{})
-	EncryptZero(ct interface{})
+	Encrypt(pt *Plaintext, ct interface{}) (err error)
+	EncryptZero(ct interface{}) (err error)
 
 	EncryptZeroNew(level int) (ct *Ciphertext)
-	EncryptNew(pt *Plaintext) (ct *Ciphertext)
+	EncryptNew(pt *Plaintext) (ct *Ciphertext, err error)
 
 	ShallowCopy() EncryptorInterface
-	WithKey(key interface{}) EncryptorInterface
+	WithKey(key interface{}) (EncryptorInterface, error)
 }
 
 // PRNGEncryptorInterface is an interface for encrypting RLWE ciphertexts from a secret-key and
@@ -83,13 +83,13 @@ type EncoderInterface[T any, U *ring.Poly | ringqp.Poly | *Plaintext] interface 
 
 // EvaluatorInterface defines a set of common and scheme agnostic homomorphic operations provided by an Evaluator struct.
 type EvaluatorInterface interface {
-	Add(op0 *Ciphertext, op1 interface{}, opOut *Ciphertext)
-	Sub(op0 *Ciphertext, op1 interface{}, opOut *Ciphertext)
-	Mul(op0 *Ciphertext, op1 interface{}, opOut *Ciphertext)
-	MulNew(op0 *Ciphertext, op1 interface{}) (opOut *Ciphertext)
-	MulRelinNew(op0 *Ciphertext, op1 interface{}) (opOut *Ciphertext)
-	MulThenAdd(op0 *Ciphertext, op1 interface{}, opOut *Ciphertext)
-	Relinearize(op0, op1 *Ciphertext)
+	Add(op0 *Ciphertext, op1 interface{}, opOut *Ciphertext) (err error)
+	Sub(op0 *Ciphertext, op1 interface{}, opOut *Ciphertext) (err error)
+	Mul(op0 *Ciphertext, op1 interface{}, opOut *Ciphertext) (err error)
+	MulNew(op0 *Ciphertext, op1 interface{}) (opOut *Ciphertext, err error)
+	MulRelinNew(op0 *Ciphertext, op1 interface{}) (opOut *Ciphertext, err error)
+	MulThenAdd(op0 *Ciphertext, op1 interface{}, opOut *Ciphertext) (err error)
+	Relinearize(op0, op1 *Ciphertext) (err error)
 	Rescale(op0, op1 *Ciphertext) (err error)
 	Parameters() ParametersInterface
 }

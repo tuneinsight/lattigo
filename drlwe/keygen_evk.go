@@ -30,10 +30,15 @@ func (evkg EvaluationKeyGenProtocol) ShallowCopy() EvaluationKeyGenProtocol {
 
 	params := evkg.params
 
+	Xe, err := ring.NewSampler(prng, evkg.params.RingQ(), evkg.params.Xe(), false)
+	if err != nil {
+		panic(err)
+	}
+
 	return EvaluationKeyGenProtocol{
 		params:           evkg.params,
 		buff:             [2]ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()},
-		gaussianSamplerQ: ring.NewSampler(prng, evkg.params.RingQ(), evkg.params.Xe(), false),
+		gaussianSamplerQ: Xe,
 	}
 }
 
@@ -45,9 +50,14 @@ func NewEvaluationKeyGenProtocol(params rlwe.Parameters) (evkg EvaluationKeyGenP
 		panic(err)
 	}
 
+	Xe, err := ring.NewSampler(prng, params.RingQ(), params.Xe(), false)
+	if err != nil {
+		panic(err)
+	}
+
 	return EvaluationKeyGenProtocol{
 		params:           params,
-		gaussianSamplerQ: ring.NewSampler(prng, params.RingQ(), params.Xe(), false),
+		gaussianSamplerQ: Xe,
 		buff:             [2]ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()},
 	}
 }
@@ -97,25 +107,25 @@ func (evkg EvaluationKeyGenProtocol) SampleCRP(crs CRS, evkParams ...rlwe.Evalua
 }
 
 // GenShare generates a party's share in the EvaluationKey Generation.
-func (evkg EvaluationKeyGenProtocol) GenShare(skIn, skOut *rlwe.SecretKey, crp EvaluationKeyGenCRP, shareOut *EvaluationKeyGenShare) {
+func (evkg EvaluationKeyGenProtocol) GenShare(skIn, skOut *rlwe.SecretKey, crp EvaluationKeyGenCRP, shareOut *EvaluationKeyGenShare) (err error) {
 
 	levelQ := shareOut.LevelQ()
 	levelP := shareOut.LevelP()
 
 	if levelQ > utils.Min(skIn.LevelQ(), skOut.LevelQ()) {
-		panic(fmt.Errorf("cannot GenShare: min(skIn, skOut) LevelQ < shareOut LevelQ"))
+		return fmt.Errorf("cannot GenShare: min(skIn, skOut) LevelQ < shareOut LevelQ")
 	}
 
 	if shareOut.LevelP() != levelP {
-		panic(fmt.Errorf("cannot GenShare: min(skIn, skOut) LevelP != shareOut LevelP"))
+		return fmt.Errorf("cannot GenShare: min(skIn, skOut) LevelP != shareOut LevelP")
 	}
 
 	if shareOut.DecompRNS() != crp.DecompRNS() {
-		panic(fmt.Errorf("cannot GenSahre: crp.DecompRNS() != shareOut.DecompRNS()"))
+		return fmt.Errorf("cannot GenSahre: crp.DecompRNS() != shareOut.DecompRNS()")
 	}
 
 	if shareOut.DecompPw2() != crp.DecompPw2() {
-		panic(fmt.Errorf("cannot GenSahre: crp.DecompPw2() != shareOut.DecompPw2()"))
+		return fmt.Errorf("cannot GenSahre: crp.DecompPw2() != shareOut.DecompPw2()")
 	}
 
 	ringQP := evkg.params.RingQP().AtLevel(levelQ, levelP)
@@ -182,17 +192,19 @@ func (evkg EvaluationKeyGenProtocol) GenShare(skIn, skOut *rlwe.SecretKey, crp E
 
 		ringQ.MulScalar(evkg.buff[0].Q, 1<<shareOut.BaseTwoDecomposition, evkg.buff[0].Q)
 	}
+
+	return
 }
 
 // AggregateShares computes share3 = share1 + share2.
-func (evkg EvaluationKeyGenProtocol) AggregateShares(share1, share2 EvaluationKeyGenShare, share3 *EvaluationKeyGenShare) {
+func (evkg EvaluationKeyGenProtocol) AggregateShares(share1, share2 EvaluationKeyGenShare, share3 *EvaluationKeyGenShare) (err error) {
 
 	if share1.LevelQ() != share2.LevelQ() || share1.LevelQ() != share3.LevelQ() {
-		panic(fmt.Errorf("cannot AggregateShares: share LevelQ do not match"))
+		return fmt.Errorf("cannot AggregateShares: share LevelQ do not match")
 	}
 
 	if share1.LevelP() != share2.LevelP() || share1.LevelP() != share3.LevelP() {
-		panic(fmt.Errorf("cannot AggregateShares: share LevelP do not match"))
+		return fmt.Errorf("cannot AggregateShares: share LevelP do not match")
 	}
 
 	m1 := share1.Value
@@ -212,17 +224,19 @@ func (evkg EvaluationKeyGenProtocol) AggregateShares(share1, share2 EvaluationKe
 			ringQP.Add(m1[i][j][0], m2[i][j][0], m3[i][j][0])
 		}
 	}
+
+	return
 }
 
 // GenEvaluationKey finalizes the EvaluationKey Generation and populates the input Evaluationkey with the computed collective EvaluationKey.
-func (evkg EvaluationKeyGenProtocol) GenEvaluationKey(share EvaluationKeyGenShare, crp EvaluationKeyGenCRP, evk *rlwe.EvaluationKey) {
+func (evkg EvaluationKeyGenProtocol) GenEvaluationKey(share EvaluationKeyGenShare, crp EvaluationKeyGenCRP, evk *rlwe.EvaluationKey) (err error) {
 
 	if share.LevelQ() != evk.LevelQ() {
-		panic(fmt.Errorf("cannot GenEvaluationKey: share LevelQ != evk LevelQ"))
+		return fmt.Errorf("cannot GenEvaluationKey: share LevelQ != evk LevelQ")
 	}
 
 	if share.LevelP() != evk.LevelP() {
-		panic(fmt.Errorf("cannot GenEvaluationKey: share LevelP != evk LevelP"))
+		return fmt.Errorf("cannot GenEvaluationKey: share LevelP != evk LevelP")
 	}
 
 	m := share.Value
@@ -236,6 +250,8 @@ func (evkg EvaluationKeyGenProtocol) GenEvaluationKey(share EvaluationKeyGenShar
 			evk.Value[i][j][1].Copy(p[i][j])
 		}
 	}
+
+	return
 }
 
 // EvaluationKeyGenCRP is a type for common reference polynomials in the EvaluationKey Generation protocol.

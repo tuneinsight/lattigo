@@ -129,19 +129,34 @@ func main() {
 	kgenN12 := ckks.NewKeyGenerator(paramsN12)
 	skN12 := kgenN12.GenSecretKeyNew()
 	encoderN12 := ckks.NewEncoder(paramsN12)
-	encryptorN12 := ckks.NewEncryptor(paramsN12, skN12)
-	decryptorN12 := ckks.NewDecryptor(paramsN12, skN12)
+	encryptorN12, err := ckks.NewEncryptor(paramsN12, skN12)
+	if err != nil {
+		panic(err)
+	}
+	decryptorN12, err := ckks.NewDecryptor(paramsN12, skN12)
+	if err != nil {
+		panic(err)
+	}
 
 	kgenN11 := ckks.NewKeyGenerator(paramsN11)
 	skN11 := kgenN11.GenSecretKeyNew()
 
 	// EvaluationKey RLWEN12 -> RLWEN11
-	evkN12ToN11 := ckks.NewKeyGenerator(paramsN12).GenEvaluationKeyNew(skN12, skN11)
+	evkN12ToN11, err := ckks.NewKeyGenerator(paramsN12).GenEvaluationKeyNew(skN12, skN11)
+	if err != nil {
+		panic(err)
+	}
 
 	fmt.Printf("Gen SlotsToCoeffs Matrices... ")
 	now = time.Now()
-	SlotsToCoeffsMatrix := ckks.NewHomomorphicDFTMatrixFromLiteral(SlotsToCoeffsParameters, encoderN12)
-	CoeffsToSlotsMatrix := ckks.NewHomomorphicDFTMatrixFromLiteral(CoeffsToSlotsParameters, encoderN12)
+	SlotsToCoeffsMatrix, err := ckks.NewHomomorphicDFTMatrixFromLiteral(SlotsToCoeffsParameters, encoderN12)
+	if err != nil {
+		panic(err)
+	}
+	CoeffsToSlotsMatrix, err := ckks.NewHomomorphicDFTMatrixFromLiteral(CoeffsToSlotsParameters, encoderN12)
+	if err != nil {
+		panic(err)
+	}
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
 	// GaloisKeys
@@ -150,7 +165,12 @@ func main() {
 	galEls = append(galEls, CoeffsToSlotsParameters.GaloisElements(paramsN12)...)
 	galEls = append(galEls, paramsN12.GaloisElementInverse())
 
-	evk := rlwe.NewMemEvaluationKeySet(nil, kgenN12.GenGaloisKeysNew(galEls, skN12)...)
+	gks, err := kgenN12.GenGaloisKeysNew(galEls, skN12)
+	if err != nil {
+		panic(err)
+	}
+
+	evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
 
 	// LUT Evaluator
 	evalLUT := lut.NewEvaluator(paramsN12.Parameters, paramsN11.Parameters, Base2Decomposition, evk)
@@ -160,7 +180,10 @@ func main() {
 
 	fmt.Printf("Encrypting bits of skLWE in RGSW... ")
 	now = time.Now()
-	LUTKEY := lut.GenEvaluationKeyNew(paramsN12.Parameters, skN12, paramsN11.Parameters, skN11, Base2Decomposition) // Generate RGSW(sk_i) for all coefficients of sk
+	LUTKEY, err := lut.GenEvaluationKeyNew(paramsN12.Parameters, skN12, paramsN11.Parameters, skN11, Base2Decomposition) // Generate RGSW(sk_i) for all coefficients of sk
+	if err != nil {
+		panic(err)
+	}
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
 	// Generates the starting plaintext values.
@@ -175,31 +198,46 @@ func main() {
 	if err := encoderN12.Encode(values, pt); err != nil {
 		panic(err)
 	}
-	ctN12 := encryptorN12.EncryptNew(pt)
+	ctN12, err := encryptorN12.EncryptNew(pt)
+	if err != nil {
+		panic(err)
+	}
 
 	fmt.Printf("Homomorphic Decoding... ")
 	now = time.Now()
 
 	// Homomorphic Decoding: [(a+bi), (c+di)] -> [a, c, b, d]
-	ctN12 = evalCKKS.SlotsToCoeffsNew(ctN12, nil, SlotsToCoeffsMatrix)
+	ctN12, err = evalCKKS.SlotsToCoeffsNew(ctN12, nil, SlotsToCoeffsMatrix)
+	if err != nil {
+		panic(err)
+	}
 	ctN12.EncodingDomain = rlwe.TimeDomain
 
 	// Key-Switch from LogN = 12 to LogN = 11
 	ctN11 := rlwe.NewCiphertext(paramsN11.Parameters, 1, paramsN11.MaxLevel())
-	evalCKKS.ApplyEvaluationKey(ctN12, evkN12ToN11, ctN11) // key-switch to LWE degree
+	// key-switch to LWE degree
+	if err := evalCKKS.ApplyEvaluationKey(ctN12, evkN12ToN11, ctN11); err != nil {
+		panic(err)
+	}
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
 	fmt.Printf("Evaluating LUT... ")
 	now = time.Now()
 	// Extracts & EvalLUT(LWEs, indexLUT) on the fly -> Repack(LWEs, indexRepack) -> RLWE
-	ctN12 = evalLUT.EvaluateAndRepack(ctN11, lutPolyMap, repackIndex, LUTKEY)
+	ctN12, err = evalLUT.EvaluateAndRepack(ctN11, lutPolyMap, repackIndex, LUTKEY)
+	if err != nil {
+		panic(err)
+	}
 	fmt.Printf("Done (%s)\n", time.Since(now))
 	ctN12.EncodingDomain = rlwe.FrequencyDomain
 
 	fmt.Printf("Homomorphic Encoding... ")
 	now = time.Now()
 	// Homomorphic Encoding: [LUT(a), LUT(c), LUT(b), LUT(d)] -> [(LUT(a)+LUT(b)i), (LUT(c)+LUT(d)i)]
-	ctN12, _ = evalCKKS.CoeffsToSlotsNew(ctN12, CoeffsToSlotsMatrix)
+	ctN12, _, err = evalCKKS.CoeffsToSlotsNew(ctN12, CoeffsToSlotsMatrix)
+	if err != nil {
+		panic(err)
+	}
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
 	res := make([]float64, slots)

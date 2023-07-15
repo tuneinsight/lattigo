@@ -16,7 +16,7 @@ import (
 // See the bootstrapping parameters for more information about the message ratio or other parameters related to the bootstrapping.
 // If the input ciphertext is at level one or more, the input scale does not need to be an exact power of two as one level
 // can be used to do a scale matching.
-func (btp *Bootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (opOut *rlwe.Ciphertext) {
+func (btp *Bootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (opOut *rlwe.Ciphertext, err error) {
 
 	// Pre-processing
 	ctDiff := ctIn.CopyNew()
@@ -30,7 +30,9 @@ func (btp *Bootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (opOut *rlwe.Ciphertex
 	if ctDiff.Level() == 1 {
 
 		// If one level is available, then uses it to match the scale
-		btp.SetScale(ctDiff, rlwe.NewScale(btp.q0OverMessageRatio))
+		if err = btp.SetScale(ctDiff, rlwe.NewScale(btp.q0OverMessageRatio)); err != nil {
+			return nil, fmt.Errorf("cannot Bootstrap: %w", err)
+		}
 
 		// Then drops to level 0
 		for ctDiff.Level() != 0 {
@@ -42,82 +44,114 @@ func (btp *Bootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (opOut *rlwe.Ciphertex
 		// Does an integer constant mult by round((Q0/Delta_m)/ctscale)
 		if scale := ctDiff.PlaintextScale.Float64(); scale != math.Exp2(math.Round(math.Log2(scale))) || btp.q0OverMessageRatio < scale {
 			msgRatio := btp.EvalModParameters.LogMessageRatio
-			panic(fmt.Sprintf("ciphertext scale must be a power of two smaller than Q[0]/2^{LogMessageRatio=%d} = %f but is %f", msgRatio, float64(btp.params.Q()[0])/math.Exp2(float64(msgRatio)), scale))
+			return nil, fmt.Errorf("cannot Bootstrap: ciphertext scale must be a power of two smaller than Q[0]/2^{LogMessageRatio=%d} = %f but is %f", msgRatio, float64(btp.params.Q()[0])/math.Exp2(float64(msgRatio)), scale)
 		}
 
-		btp.ScaleUp(ctDiff, rlwe.NewScale(math.Round(btp.q0OverMessageRatio/ctDiff.PlaintextScale.Float64())), ctDiff)
+		if err = btp.ScaleUp(ctDiff, rlwe.NewScale(math.Round(btp.q0OverMessageRatio/ctDiff.PlaintextScale.Float64())), ctDiff); err != nil {
+			return nil, fmt.Errorf("cannot Bootstrap: %w", err)
+		}
 	}
 
 	// Scales the message to Q0/|m|, which is the maximum possible before ModRaise to avoid plaintext overflow.
 	if scale := math.Round((float64(btp.params.Q()[0]) / btp.evalModPoly.MessageRatio()) / ctDiff.PlaintextScale.Float64()); scale > 1 {
-		btp.ScaleUp(ctDiff, rlwe.NewScale(scale), ctDiff)
+		if err = btp.ScaleUp(ctDiff, rlwe.NewScale(scale), ctDiff); err != nil {
+			return nil, fmt.Errorf("cannot Bootstrap: %w", err)
+		}
 	}
 
 	// 2^d * M + 2^(d-n) * e
-	opOut = btp.bootstrap(ctDiff.CopyNew())
+	if opOut, err = btp.bootstrap(ctDiff.CopyNew()); err != nil {
+		return nil, fmt.Errorf("cannot Bootstrap: %w", err)
+	}
 
 	for i := 1; i < btp.Iterations; i++ {
 		// 2^(d-n)*e <- [2^d * M + 2^(d-n) * e] - [2^d * M]
-		tmp := btp.SubNew(ctDiff, opOut)
+		tmp, err := btp.SubNew(ctDiff, opOut)
+		if err != nil {
+			return nil, fmt.Errorf("cannot Bootstrap: %w", err)
+		}
 
 		// 2^d * e
-		btp.Mul(tmp, 1<<16, tmp)
+		if err = btp.Mul(tmp, 1<<16, tmp); err != nil {
+			return nil, fmt.Errorf("cannot Bootstrap: %w", err)
+		}
 
 		// 2^d * e + 2^(d-n) * e'
-		tmp = btp.bootstrap(tmp)
+		if tmp, err = btp.bootstrap(tmp); err != nil {
+			return nil, fmt.Errorf("cannot Bootstrap: %w", err)
+		}
 
 		// 2^(d-n) * e + 2^(d-2n) * e'
-		btp.Mul(tmp, 1/float64(uint64(1<<16)), tmp)
+		if err = btp.Mul(tmp, 1/float64(uint64(1<<16)), tmp); err != nil {
+			return nil, fmt.Errorf("cannot Bootstrap: %w", err)
+		}
 
-		if err := btp.Rescale(tmp, btp.params.PlaintextScale(), tmp); err != nil {
-			panic(err)
+		if err = btp.Rescale(tmp, btp.params.PlaintextScale(), tmp); err != nil {
+			return nil, fmt.Errorf("cannot Bootstrap: %w", err)
 		}
 
 		// [2^d * M + 2^(d-2n) * e'] <- [2^d * M + 2^(d-n) * e] - [2^(d-n) * e + 2^(d-2n) * e']
-		btp.Add(opOut, tmp, opOut)
+		if err = btp.Add(opOut, tmp, opOut); err != nil {
+			return nil, fmt.Errorf("cannot Bootstrap: %w", err)
+		}
 	}
 
 	return
 }
 
-func (btp *Bootstrapper) bootstrap(ctIn *rlwe.Ciphertext) (opOut *rlwe.Ciphertext) {
+func (btp *Bootstrapper) bootstrap(ctIn *rlwe.Ciphertext) (opOut *rlwe.Ciphertext, err error) {
 
 	// Step 1 : Extend the basis from q to Q
-	opOut = btp.modUpFromQ0(ctIn)
+	if opOut, err = btp.modUpFromQ0(ctIn); err != nil {
+		return
+	}
 
 	// Scale the message from Q0/|m| to QL/|m|, where QL is the largest modulus used during the bootstrapping.
 	if scale := (btp.evalModPoly.ScalingFactor().Float64() / btp.evalModPoly.MessageRatio()) / opOut.PlaintextScale.Float64(); scale > 1 {
-		btp.ScaleUp(opOut, rlwe.NewScale(scale), opOut)
+		if err = btp.ScaleUp(opOut, rlwe.NewScale(scale), opOut); err != nil {
+			return nil, err
+		}
 	}
 
 	//SubSum X -> (N/dslots) * Y^dslots
-	btp.Trace(opOut, opOut.PlaintextLogDimensions[1], opOut)
+	if err = btp.Trace(opOut, opOut.PlaintextLogDimensions[1], opOut); err != nil {
+		return nil, err
+	}
 
 	// Step 2 : CoeffsToSlots (Homomorphic encoding)
-	ctReal, ctImag := btp.CoeffsToSlotsNew(opOut, btp.ctsMatrices)
+	ctReal, ctImag, err := btp.CoeffsToSlotsNew(opOut, btp.ctsMatrices)
+	if err != nil {
+		return nil, err
+	}
 
 	// Step 3 : EvalMod (Homomorphic modular reduction)
 	// ctReal = Ecd(real)
 	// ctImag = Ecd(imag)
 	// If n < N/2 then ctReal = Ecd(real|imag)
-	ctReal = btp.EvalModNew(ctReal, btp.evalModPoly)
+	if ctReal, err = btp.EvalModNew(ctReal, btp.evalModPoly); err != nil {
+		return nil, err
+	}
 	ctReal.PlaintextScale = btp.params.PlaintextScale()
 
 	if ctImag != nil {
-		ctImag = btp.EvalModNew(ctImag, btp.evalModPoly)
+		if ctImag, err = btp.EvalModNew(ctImag, btp.evalModPoly); err != nil {
+			return nil, err
+		}
 		ctImag.PlaintextScale = btp.params.PlaintextScale()
 	}
 
 	// Step 4 : SlotsToCoeffs (Homomorphic decoding)
-	opOut = btp.SlotsToCoeffsNew(ctReal, ctImag, btp.stcMatrices)
+	opOut, err = btp.SlotsToCoeffsNew(ctReal, ctImag, btp.stcMatrices)
 
 	return
 }
 
-func (btp *Bootstrapper) modUpFromQ0(ct *rlwe.Ciphertext) *rlwe.Ciphertext {
+func (btp *Bootstrapper) modUpFromQ0(ct *rlwe.Ciphertext) (*rlwe.Ciphertext, error) {
 
 	if btp.EvkDtS != nil {
-		btp.ApplyEvaluationKey(ct, btp.EvkDtS, ct)
+		if err := btp.ApplyEvaluationKey(ct, btp.EvkDtS, ct); err != nil {
+			return nil, err
+		}
 	}
 
 	ringQ := btp.params.RingQ().AtLevel(ct.Level())
@@ -225,5 +259,5 @@ func (btp *Bootstrapper) modUpFromQ0(ct *rlwe.Ciphertext) *rlwe.Ciphertext {
 		ringQ.NTT(ct.Value[1], ct.Value[1])
 	}
 
-	return ct
+	return ct, nil
 }

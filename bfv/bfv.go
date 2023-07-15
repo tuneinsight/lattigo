@@ -46,7 +46,7 @@ func NewCiphertext(params rlwe.ParametersInterface, degree, level int) (ct *rlwe
 // - key: *rlwe.SecretKey or *rlwe.PublicKey
 //
 // output: an rlwe.Encryptor instantiated with the provided key.
-func NewEncryptor[T *rlwe.SecretKey | *rlwe.PublicKey](params rlwe.ParametersInterface, key T) rlwe.EncryptorInterface {
+func NewEncryptor[T *rlwe.SecretKey | *rlwe.PublicKey](params rlwe.ParametersInterface, key T) (rlwe.EncryptorInterface, error) {
 	return rlwe.NewEncryptor(params, key)
 }
 
@@ -57,7 +57,7 @@ func NewEncryptor[T *rlwe.SecretKey | *rlwe.PublicKey](params rlwe.ParametersInt
 // - key: *rlwe.SecretKey
 //
 // output: an rlwe.PRNGEncryptor instantiated with the provided key.
-func NewPRNGEncryptor(params rlwe.ParametersInterface, key *rlwe.SecretKey) rlwe.PRNGEncryptorInterface {
+func NewPRNGEncryptor(params rlwe.ParametersInterface, key *rlwe.SecretKey) (rlwe.PRNGEncryptorInterface, error) {
 	return rlwe.NewPRNGEncryptor(params, key)
 }
 
@@ -68,7 +68,7 @@ func NewPRNGEncryptor(params rlwe.ParametersInterface, key *rlwe.SecretKey) rlwe
 // - key: *rlwe.SecretKey
 //
 // output: an rlwe.Decryptor instantiated with the provided key.
-func NewDecryptor(params rlwe.ParametersInterface, key *rlwe.SecretKey) *rlwe.Decryptor {
+func NewDecryptor(params rlwe.ParametersInterface, key *rlwe.SecretKey) (*rlwe.Decryptor, error) {
 	return rlwe.NewDecryptor(params, key)
 }
 
@@ -132,46 +132,46 @@ func (eval Evaluator) ShallowCopy() *Evaluator {
 }
 
 // Mul multiplies op0 with op1 without relinearization and returns the result in opOut.
-// The procedure will panic if either op0 or op1 are have a degree higher than 1.
-// The procedure will panic if opOut.Degree != op0.Degree + op1.Degree.
-func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) {
+// The procedure will return an error if either op0 or op1 are have a degree higher than 1.
+// The procedure will return an error if opOut.Degree != op0.Degree + op1.Degree.
+func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
 	switch op1 := op1.(type) {
 	case rlwe.Operand, []uint64:
-		eval.Evaluator.MulInvariant(op0, op1, opOut)
+		return eval.Evaluator.MulInvariant(op0, op1, opOut)
 	case uint64, int64, int:
-		eval.Evaluator.Mul(op0, op1, op0)
+		return eval.Evaluator.Mul(op0, op1, op0)
 	default:
-		panic(fmt.Sprintf("invalid op1.(Type), expected rlwe.Operand, []uint64 or uint64, int64, int, but got %T", op1))
+		return fmt.Errorf("invalid op1.(Type), expected rlwe.Operand, []uint64 or uint64, int64, int, but got %T", op1)
 	}
 
 }
 
 // MulNew multiplies op0 with op1 without relinearization and returns the result in a new opOut.
-// The procedure will panic if either op0.Degree or op1.Degree > 1.
-func (eval Evaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext) {
+// The procedure will return an error if either op0.Degree or op1.Degree > 1.
+func (eval Evaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext, err error) {
 	switch op1 := op1.(type) {
 	case rlwe.Operand, []uint64:
 		return eval.Evaluator.MulInvariantNew(op0, op1)
 	case uint64, int64, int:
 		return eval.Evaluator.MulNew(op0, op1)
 	default:
-		panic(fmt.Sprintf("invalid op1.(Type), expected rlwe.Operand, []uint64 or  uint64, int64, int, but got %T", op1))
+		return nil, fmt.Errorf("invalid op1.(Type), expected rlwe.Operand, []uint64 or  uint64, int64, int, but got %T", op1)
 	}
 }
 
 // MulRelinNew multiplies op0 with op1 with relinearization and returns the result in a new opOut.
-// The procedure will panic if either op0.Degree or op1.Degree > 1.
-// The procedure will panic if the evaluator was not created with an relinearization key.
-func (eval Evaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext) {
+// The procedure will return an error if either op0.Degree or op1.Degree > 1.
+// The procedure will return an error if the evaluator was not created with an relinearization key.
+func (eval Evaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext, err error) {
 	return eval.Evaluator.MulRelinInvariantNew(op0, op1)
 }
 
 // MulRelin multiplies op0 with op1 with relinearization and returns the result in opOut.
-// The procedure will panic if either op0.Degree or op1.Degree > 1.
-// The procedure will panic if opOut.Degree != op0.Degree + op1.Degree.
-// The procedure will panic if the evaluator was not created with an relinearization key.
-func (eval Evaluator) MulRelin(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) {
-	eval.Evaluator.MulRelinInvariant(op0, op1, opOut)
+// The procedure will return an error if either op0.Degree or op1.Degree > 1.
+// The procedure will return an error if opOut.Degree != op0.Degree + op1.Degree.
+// The procedure will return an error if the evaluator was not created with an relinearization key.
+func (eval Evaluator) MulRelin(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
+	return eval.Evaluator.MulRelinInvariant(op0, op1, opOut)
 }
 
 // NewPowerBasis creates a new PowerBasis from the input ciphertext.

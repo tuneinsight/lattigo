@@ -133,7 +133,10 @@ func NewEvaluator(paramsLUT, paramsLWE rlwe.Parameters, BaseTwoDecomposition int
 	levelP := paramsLUT.PCount() - 1
 
 	eval.tmpRGSW = rgsw.NewCiphertext(paramsLUT, levelQ, levelP, BaseTwoDecomposition)
-	eval.one = rgsw.NewPlaintext(paramsLUT, uint64(1), levelQ, levelP, BaseTwoDecomposition)
+	var err error
+	if eval.one, err = rgsw.NewPlaintext(paramsLUT, uint64(1), levelQ, levelP, BaseTwoDecomposition); err != nil {
+		panic(err)
+	}
 
 	return
 }
@@ -144,7 +147,7 @@ func NewEvaluator(paramsLUT, paramsLWE rlwe.Parameters, BaseTwoDecomposition int
 // repackIndex : a map with [slot_index_have] -> slot_index_want
 // lutKey : LUTKey
 // Returns a *rlwe.Ciphertext
-func (eval *Evaluator) EvaluateAndRepack(ct *rlwe.Ciphertext, lutPolyWithSlotIndex map[int]*ring.Poly, repackIndex map[int]int, key EvaluationKey) (res *rlwe.Ciphertext) {
+func (eval *Evaluator) EvaluateAndRepack(ct *rlwe.Ciphertext, lutPolyWithSlotIndex map[int]*ring.Poly, repackIndex map[int]int, key EvaluationKey) (res *rlwe.Ciphertext, err error) {
 	cts := eval.Evaluate(ct, lutPolyWithSlotIndex, key)
 
 	ciphertexts := make(map[int]*rlwe.Ciphertext)

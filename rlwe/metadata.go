@@ -127,23 +127,47 @@ func (m *MetaData) UnmarshalBinary(p []byte) (err error) {
 		return
 	}
 
-	hexconv := func(x string) (y uint64) {
+	hexconv := func(x string) (uint64, error) {
 		yBig, err := new(big.Int).SetString(x, 0)
 		if !err {
-			panic("MetaData: UnmarshalBinary: hexconv: unsuccessful SetString")
+			return 0, fmt.Errorf("hexconv: unsuccessful SetString")
 		}
-		return yBig.Uint64()
+		return yBig.Uint64(), nil
 	}
 
 	m.PlaintextScale = aux.PlaintextScale
-	m.EncodingDomain = EncodingDomain(hexconv(aux.EncodingDomain))
-	m.PlaintextLogDimensions = [2]int{int(int8(hexconv(aux.PlaintextLogDimensions[0]))), int(int8(hexconv(aux.PlaintextLogDimensions[1])))}
 
-	if hexconv(aux.IsNTT) == 1 {
+	ecdDom, err := hexconv(aux.EncodingDomain)
+
+	if err != nil {
+		return err
+	}
+
+	m.EncodingDomain = EncodingDomain(ecdDom)
+
+	logRows, err := hexconv(aux.PlaintextLogDimensions[0])
+
+	if err != nil {
+		return err
+	}
+
+	logCols, err := hexconv(aux.PlaintextLogDimensions[1])
+
+	if err != nil {
+		return err
+	}
+
+	m.PlaintextLogDimensions = [2]int{int(int8(logRows)), int(int8(logCols))}
+
+	if y, err := hexconv(aux.IsNTT); err != nil {
+		return err
+	} else if y == 1 {
 		m.IsNTT = true
 	}
 
-	if hexconv(aux.IsMontgomery) == 1 {
+	if y, err := hexconv(aux.IsMontgomery); err != nil {
+		return err
+	} else if y == 1 {
 		m.IsMontgomery = true
 	}
 

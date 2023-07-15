@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
@@ -30,7 +31,7 @@ func TestHomomorphicMod(t *testing.T) {
 
 	var params Parameters
 	if params, err = NewParametersFromLiteral(ParametersLiteral); err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 
 	for _, testSet := range []func(params Parameters, t *testing.T){
@@ -70,10 +71,15 @@ func testEvalMod(params Parameters, t *testing.T) {
 	kgen := NewKeyGenerator(params)
 	sk := kgen.GenSecretKeyNew()
 	encoder := NewEncoder(params)
-	encryptor := NewEncryptor(params, sk)
-	decryptor := NewDecryptor(params, sk)
+	encryptor, err := NewEncryptor(params, sk)
+	require.NoError(t, err)
+	decryptor, err := NewDecryptor(params, sk)
+	require.NoError(t, err)
 
-	evk := rlwe.NewMemEvaluationKeySet(kgen.GenRelinearizationKeyNew(sk))
+	rlk, err := kgen.GenRelinearizationKeyNew(sk)
+	require.NoError(t, err)
+
+	evk := rlwe.NewMemEvaluationKeySet(rlk)
 
 	eval := NewEvaluator(params, evk)
 
@@ -89,7 +95,8 @@ func testEvalMod(params Parameters, t *testing.T) {
 			LogPlaintextScale: 60,
 		}
 
-		EvalModPoly := NewEvalModPolyFromLiteral(params, evm)
+		EvalModPoly, err := NewEvalModPolyFromLiteral(params, evm)
+		require.NoError(t, err)
 
 		values, _, ciphertext := newTestVectorsEvalMod(params, encryptor, encoder, EvalModPoly, t)
 
@@ -110,7 +117,8 @@ func testEvalMod(params Parameters, t *testing.T) {
 		}
 
 		// EvalMod
-		ciphertext = eval.EvalModNew(ciphertext, EvalModPoly)
+		ciphertext, err = eval.EvalModNew(ciphertext, EvalModPoly)
+		require.NoError(t, err)
 
 		// PlaintextCircuit
 		for i := range values {
@@ -142,7 +150,8 @@ func testEvalMod(params Parameters, t *testing.T) {
 			LogPlaintextScale: 60,
 		}
 
-		EvalModPoly := NewEvalModPolyFromLiteral(params, evm)
+		EvalModPoly, err := NewEvalModPolyFromLiteral(params, evm)
+		require.NoError(t, err)
 
 		values, _, ciphertext := newTestVectorsEvalMod(params, encryptor, encoder, EvalModPoly, t)
 
@@ -163,7 +172,8 @@ func testEvalMod(params Parameters, t *testing.T) {
 		}
 
 		// EvalMod
-		ciphertext = eval.EvalModNew(ciphertext, EvalModPoly)
+		ciphertext, err = eval.EvalModNew(ciphertext, EvalModPoly)
+		require.NoError(t, err)
 
 		// PlaintextCircuit
 		//pi2r := 6.283185307179586/complex(math.Exp2(float64(evm.DoubleAngle)), 0)
@@ -196,7 +206,8 @@ func testEvalMod(params Parameters, t *testing.T) {
 			LogPlaintextScale: 60,
 		}
 
-		EvalModPoly := NewEvalModPolyFromLiteral(params, evm)
+		EvalModPoly, err := NewEvalModPolyFromLiteral(params, evm)
+		require.NoError(t, err)
 
 		values, _, ciphertext := newTestVectorsEvalMod(params, encryptor, encoder, EvalModPoly, t)
 
@@ -217,7 +228,8 @@ func testEvalMod(params Parameters, t *testing.T) {
 		}
 
 		// EvalMod
-		ciphertext = eval.EvalModNew(ciphertext, EvalModPoly)
+		ciphertext, err = eval.EvalModNew(ciphertext, EvalModPoly)
+		require.NoError(t, err)
 
 		// PlaintextCircuit
 		//pi2r := 6.283185307179586/complex(math.Exp2(float64(EvalModPoly.DoubleAngle)), 0)
@@ -258,7 +270,9 @@ func newTestVectorsEvalMod(params Parameters, encryptor rlwe.EncryptorInterface,
 	encoder.Encode(values, plaintext)
 
 	if encryptor != nil {
-		ciphertext = encryptor.EncryptNew(plaintext)
+		var err error
+		ciphertext, err = encryptor.EncryptNew(plaintext)
+		require.NoError(t, err)
 	}
 
 	return values, plaintext, ciphertext

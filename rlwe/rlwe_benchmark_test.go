@@ -32,7 +32,8 @@ func BenchmarkRLWE(b *testing.B) {
 			b.Fatal(err)
 		}
 
-		tc := NewTestContext(params)
+		tc, err := NewTestContext(params)
+		require.NoError(b, err)
 
 		for _, testSet := range []func(tc *TestContext, BaseTwoDecomposition int, b *testing.B){
 			benchKeyGenerator,
@@ -81,7 +82,10 @@ func benchEncryptor(tc *TestContext, bpw2 int, b *testing.B) {
 
 	b.Run(testString(params, params.MaxLevelQ(), params.MaxLevelP(), bpw2, "Encryptor/EncryptZero/SecretKey"), func(b *testing.B) {
 		ct := NewCiphertext(params, 1, params.MaxLevel())
-		enc := tc.enc.WithKey(tc.sk)
+		enc, err := tc.enc.WithKey(tc.sk)
+		if err != nil {
+			b.Fatal(err)
+		}
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			enc.EncryptZero(ct)
@@ -91,7 +95,10 @@ func benchEncryptor(tc *TestContext, bpw2 int, b *testing.B) {
 
 	b.Run(testString(params, params.MaxLevelQ(), params.MaxLevelP(), bpw2, "Encryptor/EncryptZero/PublicKey"), func(b *testing.B) {
 		ct := NewCiphertext(params, 1, params.MaxLevel())
-		enc := tc.enc.WithKey(tc.pk)
+		enc, err := tc.enc.WithKey(tc.pk)
+		if err != nil {
+			b.Fatal(err)
+		}
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			enc.EncryptZero(ct)
@@ -123,8 +130,19 @@ func benchEvaluator(tc *TestContext, bpw2 int, b *testing.B) {
 
 	b.Run(testString(params, params.MaxLevelQ(), params.MaxLevelP(), bpw2, "Evaluator/GadgetProduct"), func(b *testing.B) {
 
-		ct := NewEncryptor(params, sk).EncryptZeroNew(params.MaxLevel())
-		evk := kgen.GenEvaluationKeyNew(sk, kgen.GenSecretKeyNew())
+		enc, err := NewEncryptor(params, sk)
+
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		ct := enc.EncryptZeroNew(params.MaxLevel())
+
+		evk, err := kgen.GenEvaluationKeyNew(sk, kgen.GenSecretKeyNew())
+
+		if err != nil {
+			b.Fatal(err)
+		}
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
@@ -137,7 +155,14 @@ func benchMarshalling(tc *TestContext, bpw2 int, b *testing.B) {
 	params := tc.params
 	sk := tc.sk
 
-	ctf := NewEncryptor(params, sk).EncryptZeroNew(params.MaxLevel())
+	enc, err := NewEncryptor(params, sk)
+
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	ctf := enc.EncryptZeroNew(params.MaxLevel())
+
 	ct := ctf.Value
 
 	badbuf := bytes.NewBuffer(make([]byte, ct.BinarySize()))

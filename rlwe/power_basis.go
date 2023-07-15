@@ -92,11 +92,15 @@ func (p *PowerBasis) genPower(n int, lazy, rescale bool, eval EvaluatorInterface
 		if lazy {
 
 			if p.Value[a].Degree() == 2 {
-				eval.Relinearize(p.Value[a], p.Value[a])
+				if err = eval.Relinearize(p.Value[a], p.Value[a]); err != nil {
+					return false, fmt.Errorf("genpower (lazy): eval.Relinearize(p.Value[%d], p.Value[%d]): %w", a, a, err)
+				}
 			}
 
 			if p.Value[b].Degree() == 2 {
-				eval.Relinearize(p.Value[b], p.Value[b])
+				if err = eval.Relinearize(p.Value[b], p.Value[b]); err != nil {
+					return false, fmt.Errorf("genpower (lazy): eval.Relinearize(p.Value[%d], p.Value[%d]): %w", b, b, err)
+				}
 			}
 
 			if rescaleA {
@@ -111,7 +115,9 @@ func (p *PowerBasis) genPower(n int, lazy, rescale bool, eval EvaluatorInterface
 				}
 			}
 
-			p.Value[n] = eval.MulNew(p.Value[a], p.Value[b])
+			if p.Value[n], err = eval.MulNew(p.Value[a], p.Value[b]); err != nil {
+				return false, fmt.Errorf("genpower (lazy): Mulnew(p.Value[%d], p.Value[%d]): %w", a, b, err)
+			}
 
 		} else {
 
@@ -127,7 +133,9 @@ func (p *PowerBasis) genPower(n int, lazy, rescale bool, eval EvaluatorInterface
 				}
 			}
 
-			p.Value[n] = eval.MulRelinNew(p.Value[a], p.Value[b])
+			if p.Value[n], err = eval.MulRelinNew(p.Value[a], p.Value[b]); err != nil {
+				return false, fmt.Errorf("genpower: MulRelinNew(p.Value[%d], p.Value[%d])", a, b)
+			}
 		}
 
 		if p.Basis == bignum.Chebyshev {
@@ -139,18 +147,24 @@ func (p *PowerBasis) genPower(n int, lazy, rescale bool, eval EvaluatorInterface
 			}
 
 			// Computes C[n] = 2*C[a]*C[b]
-			eval.Add(p.Value[n], p.Value[n], p.Value[n])
+			if err = eval.Add(p.Value[n], p.Value[n], p.Value[n]); err != nil {
+				return false, fmt.Errorf("genpower: Add(p.Value[%d], p.Value[%d], p.Value[%d]): %w", n, n, n, err)
+			}
 
 			// Computes C[n] = 2*C[a]*C[b] - C[c]
 			if c == 0 {
-				eval.Add(p.Value[n], -1, p.Value[n])
+				if err = eval.Add(p.Value[n], -1, p.Value[n]); err != nil {
+					return false, fmt.Errorf("genpower: Add(p.Value[%d], -1, p.Value[%d]): %w", n, n, err)
+				}
 			} else {
 				// Since C[0] is not stored (but rather seen as the constant 1), only recurses on c if c!= 0
 				if err = p.GenPower(c, lazy, eval); err != nil {
 					return false, fmt.Errorf("genpower: p.Value[%d]: %w", c, err)
 				}
 
-				eval.Sub(p.Value[n], p.Value[c], p.Value[n])
+				if err = eval.Sub(p.Value[n], p.Value[c], p.Value[n]); err != nil {
+					return false, fmt.Errorf("genpower: Add(p.Value[%d], p.Value[%d], p.Value[%d]): %w", n, c, n, err)
+				}
 			}
 		}
 

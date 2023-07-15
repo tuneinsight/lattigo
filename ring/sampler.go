@@ -61,16 +61,16 @@ type Ternary struct {
 // i.e., with coefficients uniformly distributed in the given ring.
 type Uniform struct{}
 
-func NewSampler(prng sampling.PRNG, baseRing *Ring, X DistributionParameters, montgomery bool) Sampler {
+func NewSampler(prng sampling.PRNG, baseRing *Ring, X DistributionParameters, montgomery bool) (Sampler, error) {
 	switch X := X.(type) {
 	case DiscreteGaussian:
-		return NewGaussianSampler(prng, baseRing, X, montgomery)
+		return NewGaussianSampler(prng, baseRing, X, montgomery), nil
 	case Ternary:
 		return NewTernarySampler(prng, baseRing, X, montgomery)
 	case Uniform:
-		return NewUniformSampler(prng, baseRing)
+		return NewUniformSampler(prng, baseRing), nil
 	default:
-		panic(fmt.Sprintf("Invalid distribution: want ring.DiscreteGaussianDistribution, ring.TernaryDistribution or ring.UniformDistribution but have %T", X))
+		return nil, fmt.Errorf("invalid distribution: want ring.DiscreteGaussianDistribution, ring.TernaryDistribution or ring.UniformDistribution but have %T", X)
 	}
 }
 

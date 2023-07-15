@@ -151,12 +151,25 @@ func gentestContext(nParties int, params bgv.Parameters) (tc *testContext, err e
 	}
 
 	// Publickeys
-	tc.pk0 = kgen.GenPublicKeyNew(tc.sk0)
-	tc.pk1 = kgen.GenPublicKeyNew(tc.sk1)
+	if tc.pk0, err = kgen.GenPublicKeyNew(tc.sk0); err != nil {
+		return
+	}
 
-	tc.encryptorPk0 = bgv.NewEncryptor(tc.params, tc.pk0)
-	tc.decryptorSk0 = bgv.NewDecryptor(tc.params, tc.sk0)
-	tc.decryptorSk1 = bgv.NewDecryptor(tc.params, tc.sk1)
+	if tc.pk1, err = kgen.GenPublicKeyNew(tc.sk1); err != nil {
+		return
+	}
+
+	if tc.encryptorPk0, err = bgv.NewEncryptor(tc.params, tc.pk0); err != nil {
+		return
+	}
+
+	if tc.decryptorSk0, err = bgv.NewDecryptor(tc.params, tc.sk0); err != nil {
+		return
+	}
+
+	if tc.decryptorSk1, err = bgv.NewDecryptor(tc.params, tc.sk1); err != nil {
+		return
+	}
 
 	return
 }
@@ -176,10 +189,13 @@ func testEncToShares(tc *testContext, t *testing.T) {
 	params := tc.params
 	P := make([]Party, tc.NParties)
 
+	var err error
 	for i := range P {
 		if i == 0 {
-			P[i].e2s = NewEncToShareProtocol(params, params.Xe())
-			P[i].s2e = NewShareToEncProtocol(params, params.Xe())
+			P[i].e2s, err = NewEncToShareProtocol(params, params.Xe())
+			require.NoError(t, err)
+			P[i].s2e, err = NewShareToEncProtocol(params, params.Xe())
+			require.NoError(t, err)
 		} else {
 			P[i].e2s = P[0].e2s.ShallowCopy()
 			P[i].s2e = P[0].s2e.ShallowCopy()
@@ -257,7 +273,9 @@ func testRefresh(tc *testContext, t *testing.T) {
 		for i := 0; i < tc.NParties; i++ {
 			p := new(Party)
 			if i == 0 {
-				p.RefreshProtocol = NewRefreshProtocol(tc.params, tc.params.Xe())
+				var err error
+				p.RefreshProtocol, err = NewRefreshProtocol(tc.params, tc.params.Xe())
+				require.NoError(t, err)
 			} else {
 				p.RefreshProtocol = RefreshParties[0].RefreshProtocol.ShallowCopy()
 			}
@@ -471,7 +489,9 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 		transform.Func(coeffs)
 
 		coeffsHave := make([]uint64, tc.params.PlaintextSlots())
-		bgv.NewEncoder(paramsOut).Decode(rlwe.NewDecryptor(paramsOut.Parameters, skIdealOut).DecryptNew(ciphertext), coeffsHave)
+		dec, err := rlwe.NewDecryptor(paramsOut.Parameters, skIdealOut)
+		require.NoError(t, err)
+		bgv.NewEncoder(paramsOut).Decode(dec.DecryptNew(ciphertext), coeffsHave)
 
 		//Decrypts and compares
 		require.True(t, ciphertext.Level() == maxLevel)
@@ -491,8 +511,10 @@ func newTestVectors(tc *testContext, encryptor rlwe.EncryptorInterface, t *testi
 
 	plaintext = bgv.NewPlaintext(tc.params, tc.params.MaxLevel())
 	plaintext.PlaintextScale = tc.params.NewScale(2)
-	tc.encoder.Encode(coeffsPol.Coeffs[0], plaintext)
-	ciphertext = encryptor.EncryptNew(plaintext)
+	require.NoError(t, tc.encoder.Encode(coeffsPol.Coeffs[0], plaintext))
+	var err error
+	ciphertext, err = encryptor.EncryptNew(plaintext)
+	require.NoError(t, err)
 	return coeffsPol.Coeffs[0], plaintext, ciphertext
 }
 

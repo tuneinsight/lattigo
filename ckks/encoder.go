@@ -491,21 +491,21 @@ func (ecd Encoder) embedArbitrary(values interface{}, metadata rlwe.MetaData, po
 	return
 }
 
-func (ecd Encoder) plaintextToComplex(level int, scale rlwe.Scale, logSlots int, p ring.Poly, values interface{}) {
+func (ecd Encoder) plaintextToComplex(level int, scale rlwe.Scale, logSlots int, p ring.Poly, values interface{}) (err error) {
 
 	isreal := ecd.parameters.RingType() == ring.ConjugateInvariant
 	if level == 0 {
-		polyToComplexNoCRT(p.Coeffs[0], values, scale, logSlots, isreal, ecd.parameters.RingQ().AtLevel(level))
+		return polyToComplexNoCRT(p.Coeffs[0], values, scale, logSlots, isreal, ecd.parameters.RingQ().AtLevel(level))
 	} else {
-		polyToComplexCRT(p, ecd.bigintCoeffs, values, scale, logSlots, isreal, ecd.parameters.RingQ().AtLevel(level))
+		return polyToComplexCRT(p, ecd.bigintCoeffs, values, scale, logSlots, isreal, ecd.parameters.RingQ().AtLevel(level))
 	}
 }
 
-func (ecd Encoder) plaintextToFloat(level int, scale rlwe.Scale, logSlots int, p ring.Poly, values interface{}) {
+func (ecd Encoder) plaintextToFloat(level int, scale rlwe.Scale, logSlots int, p ring.Poly, values interface{}) (err error) {
 	if level == 0 {
-		ecd.polyToFloatNoCRT(p.Coeffs[0], values, scale, logSlots, ecd.parameters.RingQ().AtLevel(level))
+		return ecd.polyToFloatNoCRT(p.Coeffs[0], values, scale, logSlots, ecd.parameters.RingQ().AtLevel(level))
 	} else {
-		ecd.polyToFloatCRT(p, values, scale, logSlots, ecd.parameters.RingQ().AtLevel(level))
+		return ecd.polyToFloatCRT(p, values, scale, logSlots, ecd.parameters.RingQ().AtLevel(level))
 	}
 }
 
@@ -525,7 +525,13 @@ func (ecd Encoder) decodePublic(pt *rlwe.Plaintext, values interface{}, noiseFlo
 	}
 
 	if noiseFlooding != nil {
-		ring.NewSampler(ecd.prng, ecd.parameters.RingQ(), noiseFlooding, pt.IsMontgomery).AtLevel(pt.Level()).ReadAndAdd(ecd.buff)
+		Xe, err := ring.NewSampler(ecd.prng, ecd.parameters.RingQ(), noiseFlooding, pt.IsMontgomery)
+
+		if err != nil {
+			return fmt.Errorf("cannot decode: noise flooding: %w", err)
+		}
+
+		Xe.AtLevel(pt.Level()).ReadAndAdd(ecd.buff)
 	}
 
 	switch values.(type) {
@@ -541,7 +547,9 @@ func (ecd Encoder) decodePublic(pt *rlwe.Plaintext, values interface{}, noiseFlo
 
 			buffCmplx := ecd.buffCmplx.([]complex128)
 
-			ecd.plaintextToComplex(pt.Level(), pt.PlaintextScale, logSlots, ecd.buff, buffCmplx)
+			if err = ecd.plaintextToComplex(pt.Level(), pt.PlaintextScale, logSlots, ecd.buff, buffCmplx); err != nil {
+				return
+			}
 
 			if err = ecd.FFT(buffCmplx[:slots], logSlots); err != nil {
 				return
@@ -599,7 +607,9 @@ func (ecd Encoder) decodePublic(pt *rlwe.Plaintext, values interface{}, noiseFlo
 
 			buffCmplx := ecd.buffCmplx.([]*bignum.Complex)
 
-			ecd.plaintextToComplex(pt.Level(), pt.PlaintextScale, logSlots, ecd.buff, buffCmplx[:slots])
+			if err = ecd.plaintextToComplex(pt.Level(), pt.PlaintextScale, logSlots, ecd.buff, buffCmplx[:slots]); err != nil {
+				return
+			}
 
 			if err = ecd.FFT(buffCmplx[:slots], logSlots); err != nil {
 				return
@@ -662,7 +672,7 @@ func (ecd Encoder) decodePublic(pt *rlwe.Plaintext, values interface{}, noiseFlo
 		}
 
 	case rlwe.TimeDomain:
-		ecd.plaintextToFloat(pt.Level(), pt.PlaintextScale, logSlots, ecd.buff, values)
+		return ecd.plaintextToFloat(pt.Level(), pt.PlaintextScale, logSlots, ecd.buff, values)
 	default:
 		return fmt.Errorf("cannot decode: invalid rlwe.EncodingType, accepted types are rlwe.FrequencyDomain and rlwe.TimeDomain but is %T", pt.EncodingDomain)
 	}
@@ -726,7 +736,7 @@ func (ecd Encoder) FFT(values interface{}, logN int) (err error) {
 	return
 }
 
-func polyToComplexNoCRT(coeffs []uint64, values interface{}, scale rlwe.Scale, logSlots int, isreal bool, ringQ *ring.Ring) {
+func polyToComplexNoCRT(coeffs []uint64, values interface{}, scale rlwe.Scale, logSlots int, isreal bool, ringQ *ring.Ring) (err error) {
 
 	slots := 1 << logSlots
 	maxCols := int(ringQ.NthRoot() >> 2)
@@ -815,11 +825,13 @@ func polyToComplexNoCRT(coeffs []uint64, values interface{}, scale rlwe.Scale, l
 		}
 
 	default:
-		panic(fmt.Errorf("cannot polyToComplexNoCRT: values.(Type) must be []complex128 or []*bignum.Complex but is %T", values))
+		return fmt.Errorf("cannot polyToComplexNoCRT: values.(Type) must be []complex128 or []*bignum.Complex but is %T", values)
 	}
+
+	return
 }
 
-func polyToComplexCRT(poly ring.Poly, bigintCoeffs []*big.Int, values interface{}, scale rlwe.Scale, logSlots int, isreal bool, ringQ *ring.Ring) {
+func polyToComplexCRT(poly ring.Poly, bigintCoeffs []*big.Int, values interface{}, scale rlwe.Scale, logSlots int, isreal bool, ringQ *ring.Ring) (err error) {
 
 	maxCols := int(ringQ.NthRoot() >> 2)
 	slots := 1 << logSlots
@@ -920,11 +932,13 @@ func polyToComplexCRT(poly ring.Poly, bigintCoeffs []*big.Int, values interface{
 		}
 
 	default:
-		panic(fmt.Errorf("cannot polyToComplexNoCRT: values.(Type) must be []complex128 or []*bignum.Complex but is %T", values))
+		return fmt.Errorf("cannot polyToComplexNoCRT: values.(Type) must be []complex128 or []*bignum.Complex but is %T", values)
 	}
+
+	return
 }
 
-func (ecd *Encoder) polyToFloatCRT(p ring.Poly, values interface{}, scale rlwe.Scale, logSlots int, r *ring.Ring) {
+func (ecd *Encoder) polyToFloatCRT(p ring.Poly, values interface{}, scale rlwe.Scale, logSlots int, r *ring.Ring) (err error) {
 
 	var slots int
 	switch values := values.(type) {
@@ -1000,12 +1014,13 @@ func (ecd *Encoder) polyToFloatCRT(p ring.Poly, values interface{}, scale rlwe.S
 			values[i][0].Quo(values[i][0], s)
 		}
 	default:
-		panic(fmt.Errorf("cannot polyToComplexNoCRT: values.(Type) must be []complex128, []*bignum.Complex, []float64 or []*big.Float but is %T", values))
-
+		return fmt.Errorf("cannot polyToComplexNoCRT: values.(Type) must be []complex128, []*bignum.Complex, []float64 or []*big.Float but is %T", values)
 	}
+
+	return
 }
 
-func (ecd *Encoder) polyToFloatNoCRT(coeffs []uint64, values interface{}, scale rlwe.Scale, logSlots int, r *ring.Ring) {
+func (ecd *Encoder) polyToFloatNoCRT(coeffs []uint64, values interface{}, scale rlwe.Scale, logSlots int, r *ring.Ring) (err error) {
 
 	Q := r.SubRings[0].Modulus
 
@@ -1093,8 +1108,10 @@ func (ecd *Encoder) polyToFloatNoCRT(coeffs []uint64, values interface{}, scale 
 		}
 
 	default:
-		panic(fmt.Errorf("cannot polyToComplexNoCRT: values.(Type) must be []complex128, []*bignum.Complex, []float64 or []*big.Float but is %T", values))
+		return fmt.Errorf("cannot polyToComplexNoCRT: values.(Type) must be []complex128, []*bignum.Complex, []float64 or []*big.Float but is %T", values)
 	}
+
+	return
 }
 
 type encoder[T float64 | complex128 | *big.Float | *bignum.Complex, U ring.Poly | ringqp.Poly | *rlwe.Plaintext] struct {

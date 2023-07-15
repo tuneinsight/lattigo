@@ -29,7 +29,7 @@ type PublicKeySwitchShare struct {
 
 // NewPublicKeySwitchProtocol creates a new PublicKeySwitchProtocol object and will be used to re-encrypt a ciphertext ctx encrypted under a secret-shared key among j parties under a new
 // collective public-key.
-func NewPublicKeySwitchProtocol(params rlwe.Parameters, noiseFlooding ring.DistributionParameters) (pcks PublicKeySwitchProtocol) {
+func NewPublicKeySwitchProtocol(params rlwe.Parameters, noiseFlooding ring.DistributionParameters) (pcks PublicKeySwitchProtocol, err error) {
 	pcks = PublicKeySwitchProtocol{}
 	pcks.params = params
 	pcks.noise = noiseFlooding
@@ -41,17 +41,23 @@ func NewPublicKeySwitchProtocol(params rlwe.Parameters, noiseFlooding ring.Distr
 		panic(err)
 	}
 
-	pcks.EncryptorInterface = rlwe.NewEncryptor(params, nil)
+	pcks.EncryptorInterface, err = rlwe.NewEncryptor(params, nil)
+	if err != nil {
+		panic(err)
+	}
 
 	switch noiseFlooding.(type) {
 	case ring.DiscreteGaussian:
 	default:
-		panic(fmt.Sprintf("invalid distribution type, expected %T but got %T", ring.DiscreteGaussian{}, noiseFlooding))
+		return pcks, fmt.Errorf("invalid distribution type, expected %T but got %T", ring.DiscreteGaussian{}, noiseFlooding)
 	}
 
-	pcks.noiseSampler = ring.NewSampler(prng, params.RingQ(), noiseFlooding, false)
+	pcks.noiseSampler, err = ring.NewSampler(prng, params.RingQ(), noiseFlooding, false)
+	if err != nil {
+		panic(err)
+	}
 
-	return pcks
+	return pcks, nil
 }
 
 // AllocateShare allocates the shares of the PublicKeySwitch protocol.
@@ -63,14 +69,19 @@ func (pcks PublicKeySwitchProtocol) AllocateShare(levelQ int) (s PublicKeySwitch
 // ct is the rlwe.Ciphertext to keyswitch. Note that ct.Value[0] is not used by the function and can be nil/zero.
 //
 // Expected noise: ctNoise + encFreshPk + smudging
-func (pcks PublicKeySwitchProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct *rlwe.Ciphertext, shareOut *PublicKeySwitchShare) {
+func (pcks PublicKeySwitchProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct *rlwe.Ciphertext, shareOut *PublicKeySwitchShare) (err error) {
 
 	levelQ := utils.Min(shareOut.Level(), ct.Value[1].Level())
 
 	ringQ := pcks.params.RingQ().AtLevel(levelQ)
 
 	// Encrypt zero
-	pcks.EncryptorInterface.WithKey(pk).EncryptZero(&rlwe.Ciphertext{
+	enc, err := pcks.EncryptorInterface.WithKey(pk)
+	if err != nil {
+		return fmt.Errorf("cannot GenShare: %w", err)
+	}
+
+	if err := enc.EncryptZero(&rlwe.Ciphertext{
 		OperandQ: rlwe.OperandQ{
 			Value: []ring.Poly{
 				shareOut.Value[0],
@@ -78,7 +89,9 @@ func (pcks PublicKeySwitchProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.Public
 			},
 			MetaData: ct.MetaData,
 		},
-	})
+	}); err != nil {
+		return fmt.Errorf("cannot GenShare: %w", err)
+	}
 
 	// Add ct[1] * s and noise
 	if ct.IsNTT {
@@ -93,20 +106,22 @@ func (pcks PublicKeySwitchProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.Public
 		pcks.noiseSampler.ReadAndAdd(pcks.buf)
 		ringQ.Add(shareOut.Value[0], pcks.buf, shareOut.Value[0])
 	}
+
+	return
 }
 
 // AggregateShares is the second part of the first and unique round of the PublicKeySwitchProtocol protocol. Each party upon receiving the j-1 elements from the
 // other parties computes :
 //
 // [ctx[0] + sum(s_i * ctx[0] + u_i * pk[0] + e_0i), sum(u_i * pk[1] + e_1i)]
-func (pcks PublicKeySwitchProtocol) AggregateShares(share1, share2 PublicKeySwitchShare, shareOut *PublicKeySwitchShare) {
+func (pcks PublicKeySwitchProtocol) AggregateShares(share1, share2 PublicKeySwitchShare, shareOut *PublicKeySwitchShare) (err error) {
 	levelQ1, levelQ2 := share1.Value[0].Level(), share1.Value[1].Level()
 	if levelQ1 != levelQ2 {
-		panic("cannot AggregateShares: the two shares are at different levelQ.")
+		return fmt.Errorf("cannot AggregateShares: the two shares are at different levelQ")
 	}
 	pcks.params.RingQ().AtLevel(levelQ1).Add(share1.Value[0], share2.Value[0], shareOut.Value[0])
 	pcks.params.RingQ().AtLevel(levelQ1).Add(share1.Value[1], share2.Value[1], shareOut.Value[1])
-
+	return
 }
 
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in opOut
@@ -134,10 +149,21 @@ func (pcks PublicKeySwitchProtocol) ShallowCopy() PublicKeySwitchProtocol {
 	}
 
 	params := pcks.params
+
+	Xe, err := ring.NewSampler(prng, params.RingQ(), pcks.noise, false)
+	if err != nil {
+		panic(err)
+	}
+
+	enc, err := rlwe.NewEncryptor(params, nil)
+	if err != nil {
+		panic(err)
+	}
+
 	return PublicKeySwitchProtocol{
-		noiseSampler:       ring.NewSampler(prng, params.RingQ(), pcks.noise, false),
+		noiseSampler:       Xe,
 		noise:              pcks.noise,
-		EncryptorInterface: rlwe.NewEncryptor(params, nil),
+		EncryptorInterface: enc,
 		params:             params,
 		buf:                params.RingQ().NewPoly(),
 	}

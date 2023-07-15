@@ -130,7 +130,7 @@ type PolynomialVector struct {
 	SlotsIndex map[int][]int
 }
 
-func NewPolynomialVector(polys []Polynomial, slotsIndex map[int][]int) PolynomialVector {
+func NewPolynomialVector(polys []Polynomial, slotsIndex map[int][]int) (PolynomialVector, error) {
 	var maxDeg int
 	var basis bignum.Basis
 	for i := range polys {
@@ -140,11 +140,11 @@ func NewPolynomialVector(polys []Polynomial, slotsIndex map[int][]int) Polynomia
 
 	for i := range polys {
 		if basis != polys[i].Basis {
-			panic(fmt.Errorf("polynomial basis must be the same for all polynomials in a polynomial vector"))
+			return PolynomialVector{}, fmt.Errorf("polynomial basis must be the same for all polynomials in a polynomial vector")
 		}
 
 		if maxDeg != polys[i].Degree() {
-			panic(fmt.Errorf("polynomial degree must all be the same"))
+			return PolynomialVector{}, fmt.Errorf("polynomial degree must all be the same")
 		}
 	}
 
@@ -155,7 +155,7 @@ func NewPolynomialVector(polys []Polynomial, slotsIndex map[int][]int) Polynomia
 	return PolynomialVector{
 		Value:      polyvec,
 		SlotsIndex: slotsIndex,
-	}
+	}, nil
 }
 
 func (p PolynomialVector) IsEven() (even bool) {

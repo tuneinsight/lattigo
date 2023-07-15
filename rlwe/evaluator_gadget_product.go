@@ -1,6 +1,8 @@
 package rlwe
 
 import (
+	"fmt"
+
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v4/utils"
@@ -304,9 +306,9 @@ func (eval Evaluator) GadgetProductHoisted(levelQ int, BuffQPDecompQP []ringqp.P
 // Result NTT domain is returned according to the NTT flag of ct.
 func (eval Evaluator) GadgetProductHoistedLazy(levelQ int, BuffQPDecompQP []ringqp.Poly, gadgetCt *GadgetCiphertext, ct *OperandQP) {
 
-	//if eval.params.Pow2Base() != 0{
-	//	panic(fmt.Errorf("cannot GadgetProductHoistedLazy: method is unsupported if Pow2Base != 0"))
-	//}
+	if gadgetCt.BaseTwoDecomposition != 0 {
+		panic(fmt.Errorf("cannot GadgetProductHoistedLazy: method is unsupported for BaseTwoDecomposition != 0"))
+	}
 
 	eval.gadgetProductMultiplePLazyHoisted(levelQ, BuffQPDecompQP, gadgetCt, ct)
 

@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
@@ -55,7 +55,7 @@ func testLUT(t *testing.T) {
 		NTTFlag: NTTFlag,
 	})
 
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	// RLWE parameters of the samples
 	// N=512, Q=0x3001 -> 2^135
@@ -67,7 +67,7 @@ func testLUT(t *testing.T) {
 
 	BaseTwoDecomposition := 6
 
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	t.Run(testString(paramsLUT, "LUT/"), func(t *testing.T) {
 
@@ -93,7 +93,8 @@ func testLUT(t *testing.T) {
 		skLWE := rlwe.NewKeyGenerator(paramsLWE).GenSecretKeyNew()
 
 		// RLWE encryptor for the samples
-		encryptorLWE := rlwe.NewEncryptor(paramsLWE, skLWE)
+		encryptorLWE, err := rlwe.NewEncryptor(paramsLWE, skLWE)
+		require.NoError(t, err)
 
 		// Values to encrypt in the RLWE sample
 		values := make([]float64, slots)
@@ -127,7 +128,8 @@ func testLUT(t *testing.T) {
 		skLUT := rlwe.NewKeyGenerator(paramsLUT).GenSecretKeyNew()
 
 		// Collection of RGSW ciphertexts encrypting the bits of skLWE under skLUT
-		LUTKEY := GenEvaluationKeyNew(paramsLUT, skLUT, paramsLWE, skLWE, BaseTwoDecomposition)
+		LUTKEY, err := GenEvaluationKeyNew(paramsLUT, skLUT, paramsLWE, skLWE, BaseTwoDecomposition)
+		require.NoError(t, err)
 
 		// Evaluation of LUT(ctLWE)
 		// Returns one RLWE sample per slot in ctLWE
@@ -136,7 +138,8 @@ func testLUT(t *testing.T) {
 		// Decrypts, decodes and compares
 		q := paramsLUT.Q()[0]
 		qHalf := q >> 1
-		decryptorLUT := rlwe.NewDecryptor(paramsLUT, skLUT)
+		decryptorLUT, err := rlwe.NewDecryptor(paramsLUT, skLUT)
+		require.NoError(t, err)
 		ptLUT := rlwe.NewPlaintext(paramsLUT, paramsLUT.MaxLevel())
 		for i := 0; i < slots; i++ {
 
@@ -157,7 +160,7 @@ func testLUT(t *testing.T) {
 
 			if values[i] != 0 {
 				//fmt.Printf("%7.4f - %7.4f - %7.4f\n", math.Round(a*32)/32, math.Round(a*8)/8, values[i])
-				assert.Equal(t, sign(values[i]), math.Round(a*8)/8)
+				require.Equal(t, sign(values[i]), math.Round(a*8)/8)
 			}
 		}
 	})

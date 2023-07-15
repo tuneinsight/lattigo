@@ -40,13 +40,24 @@ func example() {
 
 	sk := kgen.GenSecretKeyNew()
 
-	encryptor := ckks.NewEncryptor(params, sk)
+	encryptor, err := ckks.NewEncryptor(params, sk)
+	if err != nil {
+		panic(err)
+	}
 
-	decryptor := ckks.NewDecryptor(params, sk)
+	decryptor, err := ckks.NewDecryptor(params, sk)
+	if err != nil {
+		panic(err)
+	}
 
 	encoder := ckks.NewEncoder(params)
 
-	evk := rlwe.NewMemEvaluationKeySet(kgen.GenRelinearizationKeyNew(sk))
+	rlk, err := kgen.GenRelinearizationKeyNew(sk)
+	if err != nil {
+		panic(err)
+	}
+
+	evk := rlwe.NewMemEvaluationKeySet(rlk)
 	evaluator := ckks.NewEvaluator(params, evk)
 
 	fmt.Printf("Done in %s \n", time.Since(start))
@@ -90,7 +101,10 @@ func example() {
 
 	start = time.Now()
 
-	ciphertext := encryptor.EncryptNew(plaintext)
+	ciphertext, err := encryptor.EncryptNew(plaintext)
+	if err != nil {
+		panic(err)
+	}
 
 	fmt.Printf("Done in %s \n", time.Since(start))
 
@@ -104,7 +118,9 @@ func example() {
 
 	start = time.Now()
 
-	evaluator.Mul(ciphertext, 1i, ciphertext)
+	if err := evaluator.Mul(ciphertext, 1i, ciphertext); err != nil {
+		panic(err)
+	}
 
 	fmt.Printf("Done in %s \n", time.Since(start))
 

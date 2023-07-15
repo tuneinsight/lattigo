@@ -75,11 +75,20 @@ func obliviousRiding() {
 
 	riderSk, riderPk := kgen.GenKeyPairNew()
 
-	decryptor := bfv.NewDecryptor(params, riderSk)
+	decryptor, err := bfv.NewDecryptor(params, riderSk)
+	if err != nil {
+		panic(err)
+	}
 
-	encryptorRiderPk := bfv.NewEncryptor(params, riderPk)
+	encryptorRiderPk, err := bfv.NewEncryptor(params, riderPk)
+	if err != nil {
+		panic(err)
+	}
 
-	encryptorRiderSk := bfv.NewEncryptor(params, riderSk)
+	encryptorRiderSk, err := bfv.NewEncryptor(params, riderSk)
+	if err != nil {
+		panic(err)
+	}
 
 	evaluator := bfv.NewEvaluator(params, nil)
 
@@ -134,24 +143,41 @@ func obliviousRiding() {
 		nbDrivers, riderPosX, riderPosY)
 	fmt.Println()
 
-	RiderCiphertext := encryptorRiderSk.EncryptNew(riderPlaintext)
+	RiderCiphertext, err := encryptorRiderSk.EncryptNew(riderPlaintext)
+	if err != nil {
+		panic(err)
+	}
 
 	DriversCiphertexts := make([]*rlwe.Ciphertext, nbDrivers)
 	for i := 0; i < nbDrivers; i++ {
-		DriversCiphertexts[i] = encryptorRiderPk.EncryptNew(driversPlaintexts[i])
+		var err error
+		DriversCiphertexts[i], err = encryptorRiderPk.EncryptNew(driversPlaintexts[i])
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	fmt.Println("Computing encrypted distance = ((CtD1 + CtD2 + CtD3 + CtD4...) - CtR)^2 ...")
 	fmt.Println()
 
-	evaluator.Mul(RiderCiphertext, -1, RiderCiphertext)
+	if err := evaluator.Mul(RiderCiphertext, -1, RiderCiphertext); err != nil {
+		panic(err)
+	}
+
 	for i := 0; i < nbDrivers; i++ {
-		evaluator.Add(RiderCiphertext, DriversCiphertexts[i], RiderCiphertext)
+		if err := evaluator.Add(RiderCiphertext, DriversCiphertexts[i], RiderCiphertext); err != nil {
+			panic(err)
+		}
 	}
 
 	result := make([]uint64, params.PlaintextSlots())
 
-	if err := encoder.Decode(decryptor.DecryptNew(evaluator.MulNew(RiderCiphertext, RiderCiphertext)), result); err != nil {
+	ct, err := evaluator.MulNew(RiderCiphertext, RiderCiphertext)
+	if err != nil {
+		panic(err)
+	}
+
+	if err := encoder.Decode(decryptor.DecryptNew(ct), result); err != nil {
 		panic(err)
 	}
 

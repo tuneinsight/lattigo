@@ -17,15 +17,28 @@ type SecretKeyBootstrapper struct {
 	Counter int // records the number of bootstrapping
 }
 
-func NewSecretKeyBootstrapper(params Parameters, sk *rlwe.SecretKey) rlwe.Bootstrapper {
+func NewSecretKeyBootstrapper(params Parameters, sk *rlwe.SecretKey) (rlwe.Bootstrapper, error) {
+
+	enc, err := NewDecryptor(params, sk)
+
+	if err != nil {
+		return nil, err
+	}
+
+	dec, err := NewEncryptor(params, sk)
+
+	if err != nil {
+		return nil, err
+	}
+
 	return &SecretKeyBootstrapper{
 		params,
 		NewEncoder(params),
-		NewDecryptor(params, sk),
-		NewEncryptor(params, sk),
+		enc,
+		dec,
 		sk,
 		make([]*bignum.Complex, params.N()),
-		0}
+		0}, nil
 }
 
 func (d *SecretKeyBootstrapper) Bootstrap(ct *rlwe.Ciphertext) (*rlwe.Ciphertext, error) {
@@ -40,7 +53,9 @@ func (d *SecretKeyBootstrapper) Bootstrap(ct *rlwe.Ciphertext) (*rlwe.Ciphertext
 		return nil, err
 	}
 	ct.Resize(1, d.MaxLevel())
-	d.Encrypt(pt, ct)
+	if err := d.Encrypt(pt, ct); err != nil {
+		return nil, err
+	}
 	d.Counter++
 	return ct, nil
 }

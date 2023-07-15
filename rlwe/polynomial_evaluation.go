@@ -87,7 +87,9 @@ func EvaluatePatersonStockmeyerPolynomialVector(poly PatersonStockmeyerPolynomia
 	}
 
 	if tmp[0].Value.Degree() == 2 {
-		eval.Relinearize(tmp[0].Value, tmp[0].Value)
+		if err = eval.Relinearize(tmp[0].Value, tmp[0].Value); err != nil {
+			return nil, fmt.Errorf("cannot EvaluatePatersonStockmeyerPolynomial: %w", err)
+		}
 	}
 
 	if err = eval.Rescale(tmp[0].Value, tmp[0].Value); err != nil {
@@ -101,20 +103,26 @@ func EvaluatePatersonStockmeyerPolynomialVector(poly PatersonStockmeyerPolynomia
 func evalMonomial(a, b, xpow *Ciphertext, eval PolynomialEvaluatorInterface) (err error) {
 
 	if b.Degree() == 2 {
-		eval.Relinearize(b, b)
+		if err = eval.Relinearize(b, b); err != nil {
+			return fmt.Errorf("evalMonomial: %w", err)
+		}
 	}
 
 	if err = eval.Rescale(b, b); err != nil {
-		return
+		return fmt.Errorf("evalMonomial: %w", err)
 	}
 
-	eval.Mul(b, xpow, b)
+	if err = eval.Mul(b, xpow, b); err != nil {
+		return fmt.Errorf("evalMonomial: %w", err)
+	}
 
 	if !a.PlaintextScale.InDelta(b.PlaintextScale, float64(ScalePrecision-12)) {
-		panic(fmt.Errorf("scale discrepency: %v != %v", &a.PlaintextScale.Value, &b.PlaintextScale.Value))
+		return fmt.Errorf("evalMonomial: scale discrepency: (rescale(b) * X^{n}).Scale = %v != a.Scale = %v", &a.PlaintextScale.Value, &b.PlaintextScale.Value)
 	}
 
-	eval.Add(b, a, b)
+	if err = eval.Add(b, a, b); err != nil {
+		return fmt.Errorf("evalMonomial: %w", err)
+	}
 
 	return
 }

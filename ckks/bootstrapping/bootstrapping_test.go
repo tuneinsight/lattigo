@@ -108,9 +108,7 @@ func TestBootstrap(t *testing.T) {
 			}
 
 			params, err := ckks.NewParametersFromLiteral(ckksParamsLit)
-			if err != nil {
-				panic(err)
-			}
+			require.NoError(t, err)
 
 			testbootstrap(params, btpParams, t)
 			runtime.GC()
@@ -131,15 +129,18 @@ func testbootstrap(params ckks.Parameters, btpParams Parameters, t *testing.T) {
 		kgen := ckks.NewKeyGenerator(params)
 		sk := kgen.GenSecretKeyNew()
 		encoder := ckks.NewEncoder(params)
-		encryptor := ckks.NewEncryptor(params, sk)
-		decryptor := ckks.NewDecryptor(params, sk)
 
-		evk := GenEvaluationKeySetNew(btpParams, params, sk)
+		encryptor, err := ckks.NewEncryptor(params, sk)
+		require.NoError(t, err)
+
+		decryptor, err := ckks.NewDecryptor(params, sk)
+		require.NoError(t, err)
+
+		evk, err := GenEvaluationKeySetNew(btpParams, params, sk)
+		require.NoError(t, err)
 
 		btp, err := NewBootstrapper(params, btpParams, evk)
-		if err != nil {
-			panic(err)
-		}
+		require.NoError(t, err)
 
 		values := make([]complex128, 1<<btpParams.PlaintextLogDimensions()[1])
 		for i := range values {
@@ -163,9 +164,11 @@ func testbootstrap(params ckks.Parameters, btpParams Parameters, t *testing.T) {
 		ciphertexts := make([]*rlwe.Ciphertext, n)
 		bootstrappers := make([]*Bootstrapper, n)
 		bootstrappers[0] = btp
-		ciphertexts[0] = encryptor.EncryptNew(plaintext)
+		ciphertexts[0], err = encryptor.EncryptNew(plaintext)
+		require.NoError(t, err)
 		for i := 1; i < len(ciphertexts); i++ {
-			ciphertexts[i] = encryptor.EncryptNew(plaintext)
+			ciphertexts[i], err = encryptor.EncryptNew(plaintext)
+			require.NoError(t, err)
 			bootstrappers[i] = bootstrappers[0].ShallowCopy()
 		}
 
@@ -173,7 +176,9 @@ func testbootstrap(params ckks.Parameters, btpParams Parameters, t *testing.T) {
 		wg.Add(n)
 		for i := range ciphertexts {
 			go func(index int) {
-				ciphertexts[index] = bootstrappers[index].Bootstrap(ciphertexts[index])
+				var err error
+				ciphertexts[index], err = bootstrappers[index].Bootstrap(ciphertexts[index])
+				require.NoError(t, err)
 				wg.Done()
 			}(i)
 		}

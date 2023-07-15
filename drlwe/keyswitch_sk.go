@@ -37,9 +37,14 @@ func (cks KeySwitchProtocol) ShallowCopy() KeySwitchProtocol {
 
 	params := cks.params
 
+	Xe, err := ring.NewSampler(prng, cks.params.RingQ(), cks.noise, false)
+	if err != nil {
+		panic(err)
+	}
+
 	return KeySwitchProtocol{
 		params:       params,
-		noiseSampler: ring.NewSampler(prng, cks.params.RingQ(), cks.noise, false),
+		noiseSampler: Xe,
 		buf:          params.RingQ().NewPoly(),
 		bufDelta:     params.RingQ().NewPoly(),
 		noise:        cks.noise,
@@ -54,7 +59,7 @@ type KeySwitchCRP struct {
 // NewKeySwitchProtocol creates a new KeySwitchProtocol that will be used to perform a collective key-switching on a ciphertext encrypted under a collective public-key, whose
 // secret-shares are distributed among j parties, re-encrypting the ciphertext under another public-key, whose secret-shares are also known to the
 // parties.
-func NewKeySwitchProtocol(params rlwe.Parameters, noiseFlooding ring.DistributionParameters) KeySwitchProtocol {
+func NewKeySwitchProtocol(params rlwe.Parameters, noiseFlooding ring.DistributionParameters) (KeySwitchProtocol, error) {
 	cks := KeySwitchProtocol{}
 	cks.params = params
 	prng, err := sampling.NewPRNG()
@@ -71,14 +76,17 @@ func NewKeySwitchProtocol(params rlwe.Parameters, noiseFlooding ring.Distributio
 		eSigma := math.Sqrt(eFresh*eFresh + eNoise*eNoise)
 		cks.noise = ring.DiscreteGaussian{Sigma: eSigma, Bound: 6 * eSigma}
 	default:
-		panic(fmt.Sprintf("invalid distribution type, expected %T but got %T", ring.DiscreteGaussian{}, noise))
+		return cks, fmt.Errorf("invalid distribution type, expected %T but got %T", ring.DiscreteGaussian{}, noise)
 	}
 
-	cks.noiseSampler = ring.NewSampler(prng, params.RingQ(), cks.noise, false)
+	cks.noiseSampler, err = ring.NewSampler(prng, params.RingQ(), cks.noise, false)
+	if err != nil {
+		panic(err)
+	}
 
 	cks.buf = params.RingQ().NewPoly()
 	cks.bufDelta = params.RingQ().NewPoly()
-	return cks
+	return cks, nil
 }
 
 // AllocateShare allocates the shares of the KeySwitchProtocol
@@ -135,12 +143,13 @@ func (cks KeySwitchProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlw
 // AggregateShares is the second part of the unique round of the KeySwitchProtocol protocol. Upon receiving the j-1 elements each party computes :
 //
 // [ctx[0] + sum((skInput_i - skOutput_i) * ctx[0] + e_i), ctx[1]]
-func (cks KeySwitchProtocol) AggregateShares(share1, share2 KeySwitchShare, shareOut *KeySwitchShare) {
+func (cks KeySwitchProtocol) AggregateShares(share1, share2 KeySwitchShare, shareOut *KeySwitchShare) (err error) {
 	if share1.Level() != share2.Level() || share1.Level() != shareOut.Level() {
-		panic("shares levels do not match")
+		return fmt.Errorf("cannot AggregateShares: shares levels do not match")
 	}
 
 	cks.params.RingQ().AtLevel(share1.Level()).Add(share1.Value, share2.Value, shareOut.Value)
+	return
 }
 
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in opOut

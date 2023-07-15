@@ -140,12 +140,25 @@ func genTestParams(params ckks.Parameters, NParties int) (tc *testContext, err e
 	}
 
 	// Publickeys
-	tc.pk0 = kgen.GenPublicKeyNew(tc.sk0)
-	tc.pk1 = kgen.GenPublicKeyNew(tc.sk1)
+	if tc.pk0, err = kgen.GenPublicKeyNew(tc.sk0); err != nil {
+		return
+	}
 
-	tc.encryptorPk0 = ckks.NewEncryptor(tc.params, tc.pk0)
-	tc.decryptorSk0 = ckks.NewDecryptor(tc.params, tc.sk0)
-	tc.decryptorSk1 = ckks.NewDecryptor(tc.params, tc.sk1)
+	if tc.pk1, err = kgen.GenPublicKeyNew(tc.sk1); err != nil {
+		return
+	}
+
+	if tc.encryptorPk0, err = ckks.NewEncryptor(tc.params, tc.pk0); err != nil {
+		return
+	}
+
+	if tc.decryptorSk0, err = ckks.NewDecryptor(tc.params, tc.sk0); err != nil {
+		return
+	}
+
+	if tc.decryptorSk1, err = ckks.NewDecryptor(tc.params, tc.sk1); err != nil {
+		return
+	}
 
 	return
 }
@@ -178,9 +191,15 @@ func testEncToShareProtocol(tc *testContext, t *testing.T) {
 
 		params := tc.params
 		P := make([]Party, tc.NParties)
+		var err error
 		for i := range P {
-			P[i].e2s = NewEncToShareProtocol(params, params.Xe())
-			P[i].s2e = NewShareToEncProtocol(params, params.Xe())
+
+			P[i].e2s, err = NewEncToShareProtocol(params, params.Xe())
+			require.NoError(t, err)
+
+			P[i].s2e, err = NewShareToEncProtocol(params, params.Xe())
+			require.NoError(t, err)
+
 			P[i].sk = tc.sk0Shards[i]
 			P[i].publicShareE2S = P[i].e2s.AllocateShare(minLevel)
 			P[i].publicShareS2E = P[i].s2e.AllocateShare(params.MaxLevel())
@@ -264,8 +283,10 @@ func testRefresh(tc *testContext, t *testing.T) {
 		RefreshParties := make([]*Party, tc.NParties)
 		for i := 0; i < tc.NParties; i++ {
 			p := new(Party)
+			var err error
 			if i == 0 {
-				p.RefreshProtocol = NewRefreshProtocol(params, logBound, params.Xe())
+				p.RefreshProtocol, err = NewRefreshProtocol(params, logBound, params.Xe())
+				require.NoError(t, err)
 			} else {
 				p.RefreshProtocol = RefreshParties[0].RefreshProtocol.ShallowCopy()
 			}
@@ -485,7 +506,10 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 			coeffs[i][1].Mul(coeffs[i][1], bignum.NewFloat(0.7071067811865476, logBound))
 		}
 
-		precStats := ckks.GetPrecisionStats(paramsOut, ckks.NewEncoder(paramsOut), nil, coeffs, ckks.NewDecryptor(paramsOut, skIdealOut).DecryptNew(ciphertext), nil, false)
+		dec, err := ckks.NewDecryptor(paramsOut, skIdealOut)
+		require.NoError(t, err)
+
+		precStats := ckks.GetPrecisionStats(paramsOut, ckks.NewEncoder(paramsOut), nil, coeffs, dec.DecryptNew(ciphertext), nil, false)
 
 		if *printPrecisionStats {
 			t.Log(precStats.String())
@@ -539,7 +563,11 @@ func newTestVectorsAtScale(tc *testContext, encryptor rlwe.EncryptorInterface, a
 	tc.encoder.Encode(values, pt)
 
 	if encryptor != nil {
-		ct = encryptor.EncryptNew(pt)
+		var err error
+		ct, err = encryptor.EncryptNew(pt)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	return values, pt, ct

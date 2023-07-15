@@ -127,17 +127,32 @@ func genTestParams(defaultParam Parameters) (tc *testContext, err error) {
 
 	tc.encoder = NewEncoder(tc.params)
 
-	tc.encryptorPk = NewEncryptor(tc.params, tc.pk)
-	tc.encryptorSk = NewEncryptor(tc.params, tc.sk)
-	tc.decryptor = NewDecryptor(tc.params, tc.sk)
+	if tc.encryptorPk, err = NewEncryptor(tc.params, tc.pk); err != nil {
+		return
+	}
 
-	tc.evaluator = NewEvaluator(tc.params, rlwe.NewMemEvaluationKeySet(tc.kgen.GenRelinearizationKeyNew(tc.sk)))
+	if tc.encryptorSk, err = NewEncryptor(tc.params, tc.sk); err != nil {
+		return
+	}
+
+	if tc.decryptor, err = NewDecryptor(tc.params, tc.sk); err != nil {
+		return
+	}
+
+	rlk, err := tc.kgen.GenRelinearizationKeyNew(tc.sk)
+	if err != nil {
+		return nil, err
+	}
+
+	tc.evaluator = NewEvaluator(tc.params, rlwe.NewMemEvaluationKeySet(rlk))
 
 	return tc, nil
 
 }
 
 func newTestVectors(tc *testContext, encryptor rlwe.EncryptorInterface, a, b complex128, t *testing.T) (values []*bignum.Complex, pt *rlwe.Plaintext, ct *rlwe.Ciphertext) {
+
+	var err error
 
 	prec := tc.encoder.Prec()
 
@@ -161,13 +176,14 @@ func newTestVectors(tc *testContext, encryptor rlwe.EncryptorInterface, a, b com
 			}
 		}
 	default:
-		panic("invalid ring type")
+		t.Fatal("invalid ring type")
 	}
 
 	tc.encoder.Encode(values, pt)
 
 	if encryptor != nil {
-		ct = encryptor.EncryptNew(pt)
+		ct, err = encryptor.EncryptNew(pt)
+		require.NoError(t, err)
 	}
 
 	return values, pt, ct
@@ -354,7 +370,8 @@ func testEvaluatorAdd(tc *testContext, t *testing.T) {
 			values1[i].Add(values1[i], values2[i])
 		}
 
-		ciphertext3 := tc.evaluator.AddNew(ciphertext1, ciphertext2)
+		ciphertext3, err := tc.evaluator.AddNew(ciphertext1, ciphertext2)
+		require.NoError(t, err)
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext3, nil, t)
 	})
@@ -368,7 +385,7 @@ func testEvaluatorAdd(tc *testContext, t *testing.T) {
 			values1[i].Add(values1[i], values2[i])
 		}
 
-		tc.evaluator.Add(ciphertext1, ciphertext2, ciphertext1)
+		require.NoError(t, tc.evaluator.Add(ciphertext1, ciphertext2, ciphertext1))
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, nil, t)
 	})
@@ -382,7 +399,7 @@ func testEvaluatorAdd(tc *testContext, t *testing.T) {
 			values1[i].Add(values1[i], values2[i])
 		}
 
-		tc.evaluator.Add(ciphertext1, plaintext2, ciphertext1)
+		require.NoError(t, tc.evaluator.Add(ciphertext1, plaintext2, ciphertext1))
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, nil, t)
 	})
@@ -397,7 +414,7 @@ func testEvaluatorAdd(tc *testContext, t *testing.T) {
 			values[i].Add(values[i], constant)
 		}
 
-		tc.evaluator.Add(ciphertext, constant, ciphertext)
+		require.NoError(t, tc.evaluator.Add(ciphertext, constant, ciphertext))
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, nil, t)
 	})
@@ -411,7 +428,7 @@ func testEvaluatorAdd(tc *testContext, t *testing.T) {
 			values1[i].Add(values1[i], values2[i])
 		}
 
-		tc.evaluator.Add(ciphertext, values2, ciphertext)
+		require.NoError(t, tc.evaluator.Add(ciphertext, values2, ciphertext))
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext, nil, t)
 	})
@@ -428,7 +445,8 @@ func testEvaluatorSub(tc *testContext, t *testing.T) {
 			values1[i].Sub(values1[i], values2[i])
 		}
 
-		ciphertext3 := tc.evaluator.SubNew(ciphertext1, ciphertext2)
+		ciphertext3, err := tc.evaluator.SubNew(ciphertext1, ciphertext2)
+		require.NoError(t, err)
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext3, nil, t)
 	})
@@ -442,7 +460,7 @@ func testEvaluatorSub(tc *testContext, t *testing.T) {
 			values1[i].Sub(values1[i], values2[i])
 		}
 
-		tc.evaluator.Sub(ciphertext1, ciphertext2, ciphertext1)
+		require.NoError(t, tc.evaluator.Sub(ciphertext1, ciphertext2, ciphertext1))
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, nil, t)
 	})
@@ -458,7 +476,7 @@ func testEvaluatorSub(tc *testContext, t *testing.T) {
 			valuesTest[i].Sub(values1[i], values2[i])
 		}
 
-		tc.evaluator.Sub(ciphertext1, plaintext2, ciphertext2)
+		require.NoError(t, tc.evaluator.Sub(ciphertext1, plaintext2, ciphertext2))
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, valuesTest, ciphertext2, nil, t)
 	})
@@ -473,7 +491,7 @@ func testEvaluatorSub(tc *testContext, t *testing.T) {
 			values[i].Sub(values[i], constant)
 		}
 
-		ciphertext = tc.evaluator.SubNew(ciphertext, constant)
+		require.NoError(t, tc.evaluator.Sub(ciphertext, constant, ciphertext))
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, nil, t)
 	})
@@ -487,7 +505,7 @@ func testEvaluatorSub(tc *testContext, t *testing.T) {
 			values1[i].Sub(values1[i], values2[i])
 		}
 
-		tc.evaluator.Sub(ciphertext, values2, ciphertext)
+		require.NoError(t, tc.evaluator.Sub(ciphertext, values2, ciphertext))
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext, nil, t)
 	})
@@ -505,7 +523,7 @@ func testEvaluatorRescale(tc *testContext, t *testing.T) {
 
 		constant := tc.ringQ.SubRings[ciphertext.Level()].Modulus
 
-		tc.evaluator.Mul(ciphertext, constant, ciphertext)
+		require.NoError(t, tc.evaluator.Mul(ciphertext, constant, ciphertext))
 
 		ciphertext.PlaintextScale = ciphertext.PlaintextScale.Mul(rlwe.NewScale(constant))
 
@@ -531,7 +549,7 @@ func testEvaluatorRescale(tc *testContext, t *testing.T) {
 
 		for i := 0; i < nbRescales; i++ {
 			constant := tc.ringQ.SubRings[ciphertext.Level()-i].Modulus
-			tc.evaluator.Mul(ciphertext, constant, ciphertext)
+			require.NoError(t, tc.evaluator.Mul(ciphertext, constant, ciphertext))
 			ciphertext.PlaintextScale = ciphertext.PlaintextScale.Mul(rlwe.NewScale(constant))
 		}
 
@@ -555,7 +573,8 @@ func testEvaluatorMul(tc *testContext, t *testing.T) {
 			mul.Mul(values1[i], values1[i], values1[i])
 		}
 
-		ciphertext2 := tc.evaluator.MulNew(ciphertext1, plaintext1)
+		ciphertext2, err := tc.evaluator.MulNew(ciphertext1, plaintext1)
+		require.NoError(t, err)
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext2, nil, t)
 	})
@@ -572,7 +591,7 @@ func testEvaluatorMul(tc *testContext, t *testing.T) {
 			mul.Mul(values[i], constant, values[i])
 		}
 
-		tc.evaluator.Mul(ciphertext, constant, ciphertext)
+		require.NoError(t, tc.evaluator.Mul(ciphertext, constant, ciphertext))
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, nil, t)
 	})
@@ -603,7 +622,7 @@ func testEvaluatorMul(tc *testContext, t *testing.T) {
 			mul.Mul(values1[i], values1[i], values1[i])
 		}
 
-		tc.evaluator.MulRelin(ciphertext1, plaintext1, ciphertext1)
+		require.NoError(t, tc.evaluator.MulRelin(ciphertext1, plaintext1, ciphertext1))
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, nil, t)
 	})
@@ -623,7 +642,7 @@ func testEvaluatorMul(tc *testContext, t *testing.T) {
 		ciphertext1.Value = []ring.Poly{plaintext1.Value}
 		ciphertext1.MetaData = plaintext1.MetaData
 
-		tc.evaluator.MulRelin(ciphertext1, ciphertext2, ciphertext1)
+		require.NoError(t, tc.evaluator.MulRelin(ciphertext1, ciphertext2, ciphertext1))
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values2, ciphertext1, nil, t)
 	})
@@ -640,7 +659,7 @@ func testEvaluatorMul(tc *testContext, t *testing.T) {
 			mul.Mul(values1[i], values2[i], values1[i])
 		}
 
-		tc.evaluator.MulRelin(ciphertext1, ciphertext2, ciphertext1)
+		require.NoError(t, tc.evaluator.MulRelin(ciphertext1, ciphertext2, ciphertext1))
 		require.Equal(t, ciphertext1.Degree(), 1)
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, nil, t)
@@ -653,7 +672,7 @@ func testEvaluatorMul(tc *testContext, t *testing.T) {
 			mul.Mul(values2[i], values1[i], values2[i])
 		}
 
-		tc.evaluator.MulRelin(ciphertext1, ciphertext2, ciphertext2)
+		require.NoError(t, tc.evaluator.MulRelin(ciphertext1, ciphertext2, ciphertext2))
 		require.Equal(t, ciphertext2.Degree(), 1)
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values2, ciphertext2, nil, t)
@@ -663,7 +682,7 @@ func testEvaluatorMul(tc *testContext, t *testing.T) {
 			mul.Mul(values1[i], values1[i], values1[i])
 		}
 
-		tc.evaluator.MulRelin(ciphertext1, ciphertext1, ciphertext1)
+		require.NoError(t, tc.evaluator.MulRelin(ciphertext1, ciphertext1, ciphertext1))
 		require.Equal(t, ciphertext1.Degree(), 1)
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, nil, t)
@@ -690,7 +709,7 @@ func testEvaluatorMulThenAdd(tc *testContext, t *testing.T) {
 			values2[i].Add(values2[i], tmp)
 		}
 
-		tc.evaluator.MulThenAdd(ciphertext1, constant, ciphertext2)
+		require.NoError(t, tc.evaluator.MulThenAdd(ciphertext1, constant, ciphertext2))
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values2, ciphertext2, nil, t)
 	})
@@ -700,7 +719,7 @@ func testEvaluatorMulThenAdd(tc *testContext, t *testing.T) {
 		values1, _, ciphertext1 := newTestVectors(tc, tc.encryptorSk, -1, 1, t)
 		values2, _, ciphertext2 := newTestVectors(tc, tc.encryptorSk, -1, 1, t)
 
-		tc.evaluator.MulThenAdd(ciphertext2, values1, ciphertext1)
+		require.NoError(t, tc.evaluator.MulThenAdd(ciphertext2, values1, ciphertext1))
 
 		mul := bignum.NewComplexMultiplier()
 
@@ -734,7 +753,7 @@ func testEvaluatorMulThenAdd(tc *testContext, t *testing.T) {
 			values1[i].Add(values1[i], tmp)
 		}
 
-		tc.evaluator.MulThenAdd(ciphertext2, plaintext1, ciphertext1)
+		require.NoError(t, tc.evaluator.MulThenAdd(ciphertext2, plaintext1, ciphertext1))
 
 		require.Equal(t, ciphertext1.Degree(), 1)
 
@@ -757,11 +776,11 @@ func testEvaluatorMulThenAdd(tc *testContext, t *testing.T) {
 
 		ciphertext3.PlaintextScale = ciphertext1.PlaintextScale.Mul(ciphertext2.PlaintextScale)
 
-		tc.evaluator.MulThenAdd(ciphertext1, ciphertext2, ciphertext3)
+		require.NoError(t, tc.evaluator.MulThenAdd(ciphertext1, ciphertext2, ciphertext3))
 
 		require.Equal(t, ciphertext3.Degree(), 2)
 
-		tc.evaluator.Relinearize(ciphertext3, ciphertext3)
+		require.NoError(t, tc.evaluator.Relinearize(ciphertext3, ciphertext3))
 
 		require.Equal(t, ciphertext3.Degree(), 1)
 
@@ -777,7 +796,7 @@ func testEvaluatorMulThenAdd(tc *testContext, t *testing.T) {
 			values1[i].Add(values1[i], tmp)
 		}
 
-		tc.evaluator.MulRelinThenAdd(ciphertext2, ciphertext2, ciphertext1)
+		require.NoError(t, tc.evaluator.MulRelinThenAdd(ciphertext2, ciphertext2, ciphertext1))
 
 		require.Equal(t, ciphertext1.Degree(), 1)
 
@@ -800,8 +819,10 @@ func testFunctions(tc *testContext, t *testing.T) {
 
 		logPrec := math.Log2(tc.params.PlaintextScale().Float64()) - float64(tc.params.LogN()-1)
 
-		var err error
-		if ciphertext, err = tc.evaluator.GoldschmidtDivisionNew(ciphertext, min, logPrec, NewSecretKeyBootstrapper(tc.params, tc.sk)); err != nil {
+		btp, err := NewSecretKeyBootstrapper(tc.params, tc.sk)
+		require.NoError(t, err)
+
+		if ciphertext, err = tc.evaluator.GoldschmidtDivisionNew(ciphertext, min, logPrec, btp); err != nil {
 			t.Fatal(err)
 		}
 
@@ -885,7 +906,8 @@ func testEvaluatePoly(tc *testContext, t *testing.T) {
 			valuesWant[j] = poly.Evaluate(values[j])
 		}
 
-		polyVector := rlwe.NewPolynomialVector([]rlwe.Polynomial{rlwe.NewPolynomial(poly)}, slotIndex)
+		polyVector, err := rlwe.NewPolynomialVector([]rlwe.Polynomial{rlwe.NewPolynomial(poly)}, slotIndex)
+		require.NoError(t, err)
 
 		if ciphertext, err = tc.evaluator.Polynomial(ciphertext, polyVector, ciphertext.PlaintextScale); err != nil {
 			t.Fatal(err)
@@ -989,8 +1011,8 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 
 		scalar, constant := poly.ChangeOfBasis()
 
-		eval.Mul(ciphertext, scalar, ciphertext)
-		eval.Add(ciphertext, constant, ciphertext)
+		require.NoError(t, eval.Mul(ciphertext, scalar, ciphertext))
+		require.NoError(t, eval.Add(ciphertext, constant, ciphertext))
 		if err := eval.Rescale(ciphertext, tc.params.PlaintextScale(), ciphertext); err != nil {
 			t.Fatal(err)
 		}
@@ -1003,7 +1025,7 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 
 		valuesHave := make([]*big.Float, plaintext.PlaintextSlots())
 
-		tc.encoder.Decode(plaintext, valuesHave)
+		require.NoError(t, tc.encoder.Decode(plaintext, valuesHave))
 
 		verifyTestVectors(tc.params, tc.encoder, nil, values, valuesHave, nil, t)
 
@@ -1044,11 +1066,13 @@ func testBridge(tc *testContext, t *testing.T) {
 
 		stdKeyGen := NewKeyGenerator(stdParams)
 		stdSK := stdKeyGen.GenSecretKeyNew()
-		stdDecryptor := NewDecryptor(stdParams, stdSK)
+		stdDecryptor, err := NewDecryptor(stdParams, stdSK)
+		require.NoError(t, err)
 		stdEncoder := NewEncoder(stdParams)
 		stdEvaluator := NewEvaluator(stdParams, nil)
 
-		evkCtR, evkRtC := stdKeyGen.GenEvaluationKeysForRingSwapNew(stdSK, tc.sk)
+		evkCtR, evkRtC, err := stdKeyGen.GenEvaluationKeysForRingSwapNew(stdSK, tc.sk)
+		require.NoError(t, err)
 
 		switcher, err := NewDomainSwitcher(stdParams, evkCtR, evkRtC)
 		if err != nil {
@@ -1065,8 +1089,9 @@ func testBridge(tc *testContext, t *testing.T) {
 
 		verifyTestVectors(stdParams, stdEncoder, stdDecryptor, values, stdCTHave, nil, t)
 
-		stdCTImag := stdEvaluator.MulNew(stdCTHave, 1i)
-		stdEvaluator.Add(stdCTHave, stdCTImag, stdCTHave)
+		stdCTImag, err := stdEvaluator.MulNew(stdCTHave, 1i)
+		require.NoError(t, err)
+		require.NoError(t, stdEvaluator.Add(stdCTHave, stdCTImag, stdCTHave))
 
 		ciCTHave := NewCiphertext(ciParams, 1, stdCTHave.Level())
 		switcher.ComplexToReal(evalStandar, stdCTHave, ciCTHave)
@@ -1087,7 +1112,8 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 		batch := 1 << logBatch
 		n := slots / batch
 
-		gks := tc.kgen.GenGaloisKeysNew(tc.params.GaloisElementsForInnerSum(batch, n), tc.sk)
+		gks, err := tc.kgen.GenGaloisKeysNew(tc.params.GaloisElementsForInnerSum(batch, n), tc.sk)
+		require.NoError(t, err)
 		evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
 
 		eval := tc.evaluator.WithKey(evk)
@@ -1146,7 +1172,8 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 		require.NoError(t, err)
 
 		galEls := params.GaloisElementsForLinearTransform(nonZeroDiags, ciphertext.PlaintextLogSlots(), LogBSGSRatio)
-		gks := tc.kgen.GenGaloisKeysNew(galEls, tc.sk)
+		gks, err := tc.kgen.GenGaloisKeysNew(galEls, tc.sk)
+		require.NoError(t, err)
 		evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
 
 		eval := tc.evaluator.WithKey(evk)
@@ -1198,7 +1225,8 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		galEls := params.GaloisElementsForLinearTransform([]int{-1, 0}, ciphertext.PlaintextLogSlots(), -1)
 
-		gks := tc.kgen.GenGaloisKeysNew(galEls, tc.sk)
+		gks, err := tc.kgen.GenGaloisKeysNew(galEls, tc.sk)
+		require.NoError(t, err)
 		evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
 		eval := tc.evaluator.WithKey(evk)
 

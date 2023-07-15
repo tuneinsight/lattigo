@@ -52,7 +52,7 @@ func (gkg GaloisKeyGenProtocol) SampleCRP(crs CRS, evkParams ...rlwe.EvaluationK
 }
 
 // GenShare generates a party's share in the GaloisKey Generation.
-func (gkg GaloisKeyGenProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp GaloisKeyGenCRP, shareOut *GaloisKeyGenShare) {
+func (gkg GaloisKeyGenProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp GaloisKeyGenCRP, shareOut *GaloisKeyGenShare) (err error) {
 
 	levelQ := shareOut.LevelQ()
 	levelP := shareOut.LevelP()
@@ -71,27 +71,30 @@ func (gkg GaloisKeyGenProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp G
 		ringP.AutomorphismNTT(sk.Value.P, galElInv, gkg.skOut.P)
 	}
 
-	gkg.EvaluationKeyGenProtocol.GenShare(sk, &rlwe.SecretKey{Value: gkg.skOut}, crp.EvaluationKeyGenCRP, &shareOut.EvaluationKeyGenShare)
+	return gkg.EvaluationKeyGenProtocol.GenShare(sk, &rlwe.SecretKey{Value: gkg.skOut}, crp.EvaluationKeyGenCRP, &shareOut.EvaluationKeyGenShare)
 
 }
 
 // AggregateShares computes share3 = share1 + share2.
-func (gkg GaloisKeyGenProtocol) AggregateShares(share1, share2 GaloisKeyGenShare, share3 *GaloisKeyGenShare) {
+func (gkg GaloisKeyGenProtocol) AggregateShares(share1, share2 GaloisKeyGenShare, share3 *GaloisKeyGenShare) (err error) {
 
 	if share1.GaloisElement != share2.GaloisElement {
-		panic(fmt.Sprintf("cannot aggregate: GaloisKeyGenShares do not share the same GaloisElement: %d != %d", share1.GaloisElement, share2.GaloisElement))
+		return fmt.Errorf("cannot aggregate: GaloisKeyGenShares do not share the same GaloisElement: %d != %d", share1.GaloisElement, share2.GaloisElement)
 	}
 
 	share3.GaloisElement = share1.GaloisElement
 
-	gkg.EvaluationKeyGenProtocol.AggregateShares(share1.EvaluationKeyGenShare, share2.EvaluationKeyGenShare, &share3.EvaluationKeyGenShare)
+	return gkg.EvaluationKeyGenProtocol.AggregateShares(share1.EvaluationKeyGenShare, share2.EvaluationKeyGenShare, &share3.EvaluationKeyGenShare)
 }
 
 // GenGaloisKey finalizes the GaloisKey Generation and populates the input GaloisKey with the computed collective GaloisKey.
-func (gkg GaloisKeyGenProtocol) GenGaloisKey(share GaloisKeyGenShare, crp GaloisKeyGenCRP, gk *rlwe.GaloisKey) {
-	gkg.EvaluationKeyGenProtocol.GenEvaluationKey(share.EvaluationKeyGenShare, crp.EvaluationKeyGenCRP, &gk.EvaluationKey)
+func (gkg GaloisKeyGenProtocol) GenGaloisKey(share GaloisKeyGenShare, crp GaloisKeyGenCRP, gk *rlwe.GaloisKey) (err error) {
+	if err = gkg.EvaluationKeyGenProtocol.GenEvaluationKey(share.EvaluationKeyGenShare, crp.EvaluationKeyGenCRP, &gk.EvaluationKey); err != nil {
+		return
+	}
 	gk.GaloisElement = share.GaloisElement
 	gk.NthRoot = gkg.params.RingQ().NthRoot()
+	return
 }
 
 // BinarySize returns the serialized size of the object in bytes.

@@ -69,7 +69,10 @@ func main() {
 	skLWE := rlwe.NewKeyGenerator(paramsLWE).GenSecretKeyNew()
 
 	// RLWE encryptor for the samples
-	encryptorLWE := rlwe.NewEncryptor(paramsLWE, skLWE)
+	encryptorLWE, err := rlwe.NewEncryptor(paramsLWE, skLWE)
+	if err != nil {
+		panic(err)
+	}
 
 	// Values to encrypt in the RLWE sample
 	values := make([]float64, slots)
@@ -91,7 +94,9 @@ func main() {
 
 	// Encrypt the multiples values in a single RLWE
 	ctLWE := rlwe.NewCiphertext(paramsLWE, 1, paramsLWE.MaxLevel())
-	encryptorLWE.Encrypt(ptLWE, ctLWE)
+	if err = encryptorLWE.Encrypt(ptLWE, ctLWE); err != nil {
+		panic(err)
+	}
 
 	// Evaluator for the LUT evaluation
 	eval := lut.NewEvaluator(paramsLUT, paramsLWE, Base2Decomposition, nil)
@@ -102,7 +107,10 @@ func main() {
 	skLUT := rlwe.NewKeyGenerator(paramsLUT).GenSecretKeyNew()
 
 	// Collection of RGSW ciphertexts encrypting the bits of skLWE under skLUT
-	LUTKEY := lut.GenEvaluationKeyNew(paramsLUT, skLUT, paramsLWE, skLWE, Base2Decomposition)
+	LUTKEY, err := lut.GenEvaluationKeyNew(paramsLUT, skLUT, paramsLWE, skLWE, Base2Decomposition)
+	if err != nil {
+		panic(err)
+	}
 
 	// Evaluation of LUT(ctLWE)
 	// Returns one RLWE sample per slot in ctLWE
@@ -114,7 +122,10 @@ func main() {
 	// Decrypts, decodes and compares
 	q := paramsLUT.Q()[0]
 	qHalf := q >> 1
-	decryptorLUT := rlwe.NewDecryptor(paramsLUT, skLUT)
+	decryptorLUT, err := rlwe.NewDecryptor(paramsLUT, skLUT)
+	if err != nil {
+		panic(err)
+	}
 	ptLUT := rlwe.NewPlaintext(paramsLUT, paramsLUT.MaxLevel())
 	for i := 0; i < slots; i++ {
 

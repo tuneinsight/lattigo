@@ -42,11 +42,21 @@ func (ekg *RelinearizationKeyGenProtocol) ShallowCopy() RelinearizationKeyGenPro
 
 	params := ekg.params
 
+	Xe, err := ring.NewSampler(prng, ekg.params.RingQ(), ekg.params.Xe(), false)
+	if err != nil {
+		panic(err)
+	}
+
+	Xs, err := ring.NewSampler(prng, ekg.params.RingQ(), ekg.params.Xs(), false)
+	if err != nil {
+		panic(err)
+	}
+
 	return RelinearizationKeyGenProtocol{
 		params:           ekg.params,
 		buf:              [2]ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()},
-		gaussianSamplerQ: ring.NewSampler(prng, ekg.params.RingQ(), ekg.params.Xe(), false),
-		ternarySamplerQ:  ring.NewSampler(prng, ekg.params.RingQ(), ekg.params.Xs(), false),
+		gaussianSamplerQ: Xe,
+		ternarySamplerQ:  Xs,
 	}
 }
 
@@ -61,8 +71,16 @@ func NewRelinearizationKeyGenProtocol(params rlwe.Parameters) RelinearizationKey
 		panic(err)
 	}
 
-	rkg.gaussianSamplerQ = ring.NewSampler(prng, params.RingQ(), params.Xe(), false)
-	rkg.ternarySamplerQ = ring.NewSampler(prng, params.RingQ(), params.Xs(), false)
+	rkg.gaussianSamplerQ, err = ring.NewSampler(prng, params.RingQ(), params.Xe(), false)
+	if err != nil {
+		panic(err)
+	}
+
+	rkg.ternarySamplerQ, err = ring.NewSampler(prng, params.RingQ(), params.Xs(), false)
+	if err != nil {
+		panic(err)
+	}
+
 	rkg.buf = [2]ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()}
 	return rkg
 }

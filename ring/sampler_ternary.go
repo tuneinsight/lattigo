@@ -1,6 +1,7 @@
 package ring
 
 import (
+	"fmt"
 	"math"
 	"math/bits"
 
@@ -21,7 +22,7 @@ type TernarySampler struct {
 
 // NewTernarySampler creates a new instance of TernarySampler from a PRNG, the ring definition and the distribution
 // parameters (see type Ternary). If "montgomery" is set to true, polynomials read from this sampler are in Montgomery form.
-func NewTernarySampler(prng sampling.PRNG, baseRing *Ring, X Ternary, montgomery bool) (ts *TernarySampler) {
+func NewTernarySampler(prng sampling.PRNG, baseRing *Ring, X Ternary, montgomery bool) (ts *TernarySampler, err error) {
 	ts = new(TernarySampler)
 	ts.baseRing = baseRing
 	ts.prng = prng
@@ -37,7 +38,7 @@ func NewTernarySampler(prng sampling.PRNG, baseRing *Ring, X Ternary, montgomery
 		ts.hw = X.H
 		ts.sample = ts.sampleSparse
 	default:
-		panic("invalid TernaryDistribution: at exactly one of (H, P) should be > 0")
+		return nil, fmt.Errorf("invalid TernaryDistribution: at exactly one of (H, P) should be > 0")
 	}
 
 	return

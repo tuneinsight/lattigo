@@ -2,6 +2,7 @@ package ckks
 
 import (
 	"encoding/json"
+	"fmt"
 	"math"
 	"math/big"
 	"math/bits"
@@ -116,7 +117,7 @@ func (evp EvalModPoly) QDiff() float64 {
 // NewEvalModPolyFromLiteral generates an EvalModPoly struct from the EvalModLiteral struct.
 // The EvalModPoly struct is used by the `EvalModNew` method from the `Evaluator`, which
 // homomorphically evaluates x mod Q[0] (the first prime of the moduli chain) on the ciphertext.
-func NewEvalModPolyFromLiteral(params Parameters, evm EvalModLiteral) EvalModPoly {
+func NewEvalModPolyFromLiteral(params Parameters, evm EvalModLiteral) (EvalModPoly, error) {
 
 	var arcSinePoly *bignum.Polynomial
 	var sinePoly bignum.Polynomial
@@ -202,7 +203,7 @@ func NewEvalModPolyFromLiteral(params Parameters, evm EvalModLiteral) EvalModPol
 		}
 
 	default:
-		panic("invalid SineType")
+		return EvalModPoly{}, fmt.Errorf("invalid SineType")
 	}
 
 	sqrt2piBig := new(big.Float).SetFloat64(sqrt2pi)
@@ -225,7 +226,7 @@ func NewEvalModPolyFromLiteral(params Parameters, evm EvalModLiteral) EvalModPol
 		arcSinePoly:       arcSinePoly,
 		sinePoly:          sinePoly,
 		k:                 K,
-	}
+	}, nil
 }
 
 // Depth returns the depth of the SineEval.
@@ -259,10 +260,12 @@ func (evm EvalModLiteral) Depth() (depth int) {
 // !! Assumes that the input is normalized by 1/K for K the range of the approximation.
 //
 // Scaling back error correction by 2^{round(log(Q))}/Q afterward is included in the polynomial
-func (eval Evaluator) EvalModNew(ct *rlwe.Ciphertext, evalModPoly EvalModPoly) *rlwe.Ciphertext {
+func (eval Evaluator) EvalModNew(ct *rlwe.Ciphertext, evalModPoly EvalModPoly) (*rlwe.Ciphertext, error) {
+
+	var err error
 
 	if ct.Level() < evalModPoly.LevelStart() {
-		panic("ct.Level() < evalModPoly.LevelStart")
+		return nil, fmt.Errorf("cannot EvalModNew: ct.Level() < evalModPoly.LevelStart")
 	}
 
 	if ct.Level() > evalModPoly.LevelStart() {
@@ -274,8 +277,6 @@ func (eval Evaluator) EvalModNew(ct *rlwe.Ciphertext, evalModPoly EvalModPoly) *
 
 	// Normalize the modular reduction to mod by 1 (division by Q)
 	ct.PlaintextScale = evalModPoly.ScalingFactor()
-
-	var err error
 
 	// Compute the scales that the ciphertext should have before the double angle
 	// formula such that after it it has the scale it had before the polynomial
@@ -294,34 +295,47 @@ func (eval Evaluator) EvalModNew(ct *rlwe.Ciphertext, evalModPoly EvalModPoly) *
 		offset := new(big.Float).Sub(&evalModPoly.sinePoly.B, &evalModPoly.sinePoly.A)
 		offset.Mul(offset, new(big.Float).SetFloat64(evalModPoly.scFac))
 		offset.Quo(new(big.Float).SetFloat64(-0.5), offset)
-		eval.Add(ct, offset, ct)
+
+		if err = eval.Add(ct, offset, ct); err != nil {
+			return nil, fmt.Errorf("cannot EvalModNew: %w", err)
+		}
 	}
 
 	// Chebyshev evaluation
 	if ct, err = eval.Polynomial(ct, evalModPoly.sinePoly, rlwe.NewScale(targetScale)); err != nil {
-		panic(err)
+		return nil, fmt.Errorf("cannot EvalModNew: %w", err)
 	}
 
 	// Double angle
 	sqrt2pi := evalModPoly.sqrt2Pi
 	for i := 0; i < evalModPoly.doubleAngle; i++ {
 		sqrt2pi *= sqrt2pi
-		eval.MulRelin(ct, ct, ct)
-		eval.Add(ct, ct, ct)
-		eval.Add(ct, -sqrt2pi, ct)
-		if err := eval.Rescale(ct, rlwe.NewScale(targetScale), ct); err != nil {
-			panic(err)
+
+		if err = eval.MulRelin(ct, ct, ct); err != nil {
+			return nil, fmt.Errorf("cannot EvalModNew: %w", err)
+		}
+
+		if err = eval.Add(ct, ct, ct); err != nil {
+			return nil, fmt.Errorf("cannot EvalModNew: %w", err)
+		}
+
+		if err = eval.Add(ct, -sqrt2pi, ct); err != nil {
+			return nil, fmt.Errorf("cannot EvalModNew: %w", err)
+		}
+
+		if err = eval.Rescale(ct, rlwe.NewScale(targetScale), ct); err != nil {
+			return nil, fmt.Errorf("cannot EvalModNew: %w", err)
 		}
 	}
 
 	// ArcSine
 	if evalModPoly.arcSinePoly != nil {
 		if ct, err = eval.Polynomial(ct, *evalModPoly.arcSinePoly, ct.PlaintextScale); err != nil {
-			panic(err)
+			return nil, fmt.Errorf("cannot EvalModNew: %w", err)
 		}
 	}
 
 	// Multiplies back by q
 	ct.PlaintextScale = prevScaleCt
-	return ct
+	return ct, nil
 }

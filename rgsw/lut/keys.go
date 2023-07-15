@@ -18,7 +18,7 @@ func (evk EvaluationKey) Base2Decomposition() int {
 }
 
 // GenEvaluationKeyNew generates a new LUT evaluation key
-func GenEvaluationKeyNew(paramsRLWE rlwe.Parameters, skRLWE *rlwe.SecretKey, paramsLWE rlwe.Parameters, skLWE *rlwe.SecretKey, Base2Decomposition int) (key EvaluationKey) {
+func GenEvaluationKeyNew(paramsRLWE rlwe.Parameters, skRLWE *rlwe.SecretKey, paramsLWE rlwe.Parameters, skLWE *rlwe.SecretKey, Base2Decomposition int) (key EvaluationKey, err error) {
 
 	skLWEInvNTT := paramsLWE.RingQ().NewPoly()
 
@@ -33,7 +33,10 @@ func GenEvaluationKeyNew(paramsRLWE rlwe.Parameters, skRLWE *rlwe.SecretKey, par
 		}
 	}
 
-	encryptor := rgsw.NewEncryptor(paramsRLWE, skRLWE)
+	encryptor, err := rgsw.NewEncryptor(paramsRLWE, skRLWE)
+	if err != nil {
+		return key, err
+	}
 
 	levelQ := paramsRLWE.QCount() - 1
 	levelP := paramsRLWE.PCount() - 1
@@ -53,18 +56,30 @@ func GenEvaluationKeyNew(paramsRLWE rlwe.Parameters, skRLWE *rlwe.SecretKey, par
 
 		// sk_i =  1 -> [RGSW(1), RGSW(0)]
 		if si == OneMForm {
-			encryptor.Encrypt(plaintextRGSWOne, skRGSWPos[i])
-			encryptor.EncryptZero(skRGSWNeg[i])
+			if err = encryptor.Encrypt(plaintextRGSWOne, skRGSWPos[i]); err != nil {
+				return
+			}
+			if err = encryptor.EncryptZero(skRGSWNeg[i]); err != nil {
+				return
+			}
 			// sk_i = -1 -> [RGSW(0), RGSW(1)]
 		} else if si == MinusOneMform {
-			encryptor.EncryptZero(skRGSWPos[i])
-			encryptor.Encrypt(plaintextRGSWOne, skRGSWNeg[i])
+			if err = encryptor.EncryptZero(skRGSWPos[i]); err != nil {
+				return
+			}
+			if err = encryptor.Encrypt(plaintextRGSWOne, skRGSWNeg[i]); err != nil {
+				return
+			}
 			// sk_i =  0 -> [RGSW(0), RGSW(0)]
 		} else {
-			encryptor.EncryptZero(skRGSWPos[i])
-			encryptor.EncryptZero(skRGSWNeg[i])
+			if err = encryptor.EncryptZero(skRGSWPos[i]); err != nil {
+				return
+			}
+			if err = encryptor.EncryptZero(skRGSWNeg[i]); err != nil {
+				return
+			}
 		}
 	}
 
-	return EvaluationKey{SkPos: skRGSWPos, SkNeg: skRGSWNeg}
+	return EvaluationKey{SkPos: skRGSWPos, SkNeg: skRGSWNeg}, nil
 }

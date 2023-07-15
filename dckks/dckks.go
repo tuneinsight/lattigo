@@ -29,12 +29,12 @@ func NewGaloisKeyGenProtocol(params ckks.Parameters) drlwe.GaloisKeyGenProtocol 
 
 // NewKeySwitchProtocol creates a new drlwe.KeySwitchProtocol instance from the CKKS parameters.
 // The returned protocol instance is generic and can be used in other multiparty schemes.
-func NewKeySwitchProtocol(params ckks.Parameters, noise ring.DistributionParameters) drlwe.KeySwitchProtocol {
+func NewKeySwitchProtocol(params ckks.Parameters, noise ring.DistributionParameters) (drlwe.KeySwitchProtocol, error) {
 	return drlwe.NewKeySwitchProtocol(params.Parameters, noise)
 }
 
 // NewPublicKeySwitchProtocol creates a new drlwe.PublicKeySwitchProtocol instance from the CKKS paramters.
 // The returned protocol instance is generic and can be used in other multiparty schemes.
-func NewPublicKeySwitchProtocol(params ckks.Parameters, noise ring.DistributionParameters) drlwe.PublicKeySwitchProtocol {
+func NewPublicKeySwitchProtocol(params ckks.Parameters, noise ring.DistributionParameters) (drlwe.PublicKeySwitchProtocol, error) {
 	return drlwe.NewPublicKeySwitchProtocol(params.Parameters, noise)
 }

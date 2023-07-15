@@ -39,7 +39,7 @@ func NewCiphertext(params rlwe.ParametersInterface, degree, level int) (ct *rlwe
 // - key: *rlwe.SecretKey or *rlwe.PublicKey
 //
 // output: an rlwe.Encryptor instantiated with the provided key.
-func NewEncryptor[T *rlwe.SecretKey | *rlwe.PublicKey](params rlwe.ParametersInterface, key T) rlwe.EncryptorInterface {
+func NewEncryptor[T *rlwe.SecretKey | *rlwe.PublicKey](params rlwe.ParametersInterface, key T) (rlwe.EncryptorInterface, error) {
 	return rlwe.NewEncryptor(params, key)
 }
 
@@ -50,7 +50,7 @@ func NewEncryptor[T *rlwe.SecretKey | *rlwe.PublicKey](params rlwe.ParametersInt
 // - key: *rlwe.SecretKey
 //
 // output: an rlwe.PRNGEncryptor instantiated with the provided key.
-func NewPRNGEncryptor(params rlwe.ParametersInterface, key *rlwe.SecretKey) rlwe.PRNGEncryptorInterface {
+func NewPRNGEncryptor(params rlwe.ParametersInterface, key *rlwe.SecretKey) (rlwe.PRNGEncryptorInterface, error) {
 	return rlwe.NewPRNGEncryptor(params, key)
 }
 
@@ -61,7 +61,7 @@ func NewPRNGEncryptor(params rlwe.ParametersInterface, key *rlwe.SecretKey) rlwe
 // - key: *rlwe.SecretKey
 //
 // output: an rlwe.Decryptor instantiated with the provided key.
-func NewDecryptor(params rlwe.ParametersInterface, key *rlwe.SecretKey) *rlwe.Decryptor {
+func NewDecryptor(params rlwe.ParametersInterface, key *rlwe.SecretKey) (*rlwe.Decryptor, error) {
 	return rlwe.NewDecryptor(params, key)
 }
 

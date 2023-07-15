@@ -29,13 +29,15 @@ func NewDomainSwitcher(params Parameters, comlexToRealEvk, realToComplexEvk *rlw
 	}
 	var err error
 	if s.stdRingQ, err = params.RingQ().StandardRing(); err != nil {
-		return DomainSwitcher{}, fmt.Errorf("cannot switch between schemes because the standard NTT is undefined for params: %s", err)
+		return DomainSwitcher{}, fmt.Errorf("cannot NewDomainSwitcher because the standard NTT is undefined for params: %s", err)
 	}
 	if s.conjugateRingQ, err = params.RingQ().ConjugateInvariantRing(); err != nil {
-		return DomainSwitcher{}, fmt.Errorf("cannot switch between schemes because the standard NTT is undefined for params: %s", err)
+		return DomainSwitcher{}, fmt.Errorf("cannot NewDomainSwitcher because the standard NTT is undefined for params: %s", err)
 	}
 
-	s.automorphismIndex = ring.AutomorphismNTTIndex(s.stdRingQ.N(), s.stdRingQ.NthRoot(), s.stdRingQ.NthRoot()-1)
+	if s.automorphismIndex, err = ring.AutomorphismNTTIndex(s.stdRingQ.N(), s.stdRingQ.NthRoot(), s.stdRingQ.NthRoot()-1); err != nil {
+		panic(err)
+	}
 
 	return s, nil
 }
@@ -47,25 +49,25 @@ func NewDomainSwitcher(params Parameters, comlexToRealEvk, realToComplexEvk *rlw
 // The scale of the output ciphertext is twice the scale of the input one.
 // Requires the ring degree of opOut to be half the ring degree of ctIn.
 // The security is changed from Z[X]/(X^N+1) to Z[X]/(X^N/2+1).
-// The method panics if the DomainSwitcher was not initialized with a the appropriate EvaluationKeys.
-func (switcher DomainSwitcher) ComplexToReal(eval *Evaluator, ctIn, opOut *rlwe.Ciphertext) {
+// The method will return an error if the DomainSwitcher was not initialized with a the appropriate EvaluationKeys.
+func (switcher DomainSwitcher) ComplexToReal(eval *Evaluator, ctIn, opOut *rlwe.Ciphertext) (err error) {
 
 	evalRLWE := eval.Evaluator
 
 	if evalRLWE.Parameters().RingType() != ring.Standard {
-		panic("cannot ComplexToReal: provided evaluator is not instantiated with RingType ring.Standard")
+		return fmt.Errorf("cannot ComplexToReal: provided evaluator is not instantiated with RingType ring.Standard")
 	}
 
 	level := utils.Min(ctIn.Level(), opOut.Level())
 
 	if ctIn.Value[0].N() != 2*opOut.Value[0].N() {
-		panic("cannot ComplexToReal: ctIn ring degree must be twice opOut ring degree")
+		return fmt.Errorf("cannot ComplexToReal: ctIn ring degree must be twice opOut ring degree")
 	}
 
 	opOut.Resize(1, level)
 
 	if switcher.stdToci == nil {
-		panic("cannot ComplexToReal: no realToComplexEvk provided to this DomainSwitcher")
+		return fmt.Errorf("cannot ComplexToReal: no realToComplexEvk provided to this DomainSwitcher")
 	}
 
 	ctTmp := &rlwe.Ciphertext{}
@@ -79,6 +81,7 @@ func (switcher DomainSwitcher) ComplexToReal(eval *Evaluator, ctIn, opOut *rlwe.
 	switcher.conjugateRingQ.AtLevel(level).FoldStandardToConjugateInvariant(evalRLWE.BuffQP[2].Q, switcher.automorphismIndex, opOut.Value[1])
 	opOut.MetaData = ctIn.MetaData
 	opOut.PlaintextScale = ctIn.PlaintextScale.Mul(rlwe.NewScale(2))
+	return
 }
 
 // RealToComplex switches the provided ciphertext `ctIn` from the conjugate invariant domain to the
@@ -87,25 +90,25 @@ func (switcher DomainSwitcher) ComplexToReal(eval *Evaluator, ctIn, opOut *rlwe.
 // opOutCKKS = enc(real(m) + imag(0)) in Z[X]/(X^2N+1).
 // Requires the ring degree of opOut to be twice the ring degree of ctIn.
 // The security is changed from Z[X]/(X^N+1) to Z[X]/(X^2N+1).
-// The method panics if the DomainSwitcher was not initialized with a the appropriate EvaluationKeys.
-func (switcher DomainSwitcher) RealToComplex(eval *Evaluator, ctIn, opOut *rlwe.Ciphertext) {
+// The method will return an error if the DomainSwitcher was not initialized with a the appropriate EvaluationKeys.
+func (switcher DomainSwitcher) RealToComplex(eval *Evaluator, ctIn, opOut *rlwe.Ciphertext) (err error) {
 
 	evalRLWE := eval.Evaluator
 
 	if evalRLWE.Parameters().RingType() != ring.Standard {
-		panic("cannot RealToComplex: provided evaluator is not instantiated with RingType ring.Standard")
+		return fmt.Errorf("cannot RealToComplex: provided evaluator is not instantiated with RingType ring.Standard")
 	}
 
 	level := utils.Min(ctIn.Level(), opOut.Level())
 
 	if 2*ctIn.Value[0].N() != opOut.Value[0].N() {
-		panic("cannot RealToComplex: opOut ring degree must be twice ctIn ring degree")
+		return fmt.Errorf("cannot RealToComplex: opOut ring degree must be twice ctIn ring degree")
 	}
 
 	opOut.Resize(1, level)
 
 	if switcher.ciToStd == nil {
-		panic("cannot RealToComplex: no realToComplexEvk provided to this DomainSwitcher")
+		return fmt.Errorf("cannot RealToComplex: no realToComplexEvk provided to this DomainSwitcher")
 	}
 
 	switcher.stdRingQ.AtLevel(level).UnfoldConjugateInvariantToStandard(ctIn.Value[0], opOut.Value[0])
@@ -120,4 +123,5 @@ func (switcher DomainSwitcher) RealToComplex(eval *Evaluator, ctIn, opOut *rlwe.
 	switcher.stdRingQ.AtLevel(level).Add(opOut.Value[0], evalRLWE.BuffQP[1].Q, opOut.Value[0])
 	ring.CopyLvl(level, evalRLWE.BuffQP[2].Q, opOut.Value[1])
 	opOut.MetaData = ctIn.MetaData
+	return
 }

@@ -63,7 +63,8 @@ func TestRLWE(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				tc := NewTestContext(params)
+				tc, err := NewTestContext(params)
+				require.NoError(t, err)
 
 				testParameters(tc, t)
 				testKeyGenerator(tc, paramsLit.BaseTwoDecomposition, t)
@@ -154,21 +155,36 @@ func testUserDefinedParameters(t *testing.T) {
 
 }
 
-func NewTestContext(params Parameters) (tc *TestContext) {
+func NewTestContext(params Parameters) (tc *TestContext, err error) {
 	kgen := NewKeyGenerator(params)
 	sk := kgen.GenSecretKeyNew()
-	pk := kgen.GenPublicKeyNew(sk)
+
+	pk, err := kgen.GenPublicKeyNew(sk)
+	if err != nil {
+		return nil, err
+	}
+
 	eval := NewEvaluator(params, nil)
+
+	enc, err := NewEncryptor(params, sk)
+	if err != nil {
+		return nil, err
+	}
+
+	dec, err := NewDecryptor(params, sk)
+	if err != nil {
+		return nil, err
+	}
 
 	return &TestContext{
 		params: params,
 		kgen:   kgen,
 		sk:     sk,
 		pk:     pk,
-		enc:    NewEncryptor(params, sk),
-		dec:    NewDecryptor(params, sk),
+		enc:    enc,
+		dec:    dec,
 		eval:   eval,
-	}
+	}, nil
 }
 
 func testParameters(tc *TestContext, t *testing.T) {
@@ -353,7 +369,11 @@ func testEncryptor(tc *TestContext, level, bpw2 int, t *testing.T) {
 		pt := NewPlaintext(params, level)
 		ct := NewCiphertext(params, 1, level)
 
-		enc.WithKey(pk).Encrypt(pt, ct)
+		encPk, err := enc.WithKey(pk)
+		require.NoError(t, err)
+
+		require.NoError(t, encPk.Encrypt(pt, ct))
+
 		dec.Decrypt(ct, pt)
 
 		if pt.IsNTT {
@@ -364,7 +384,9 @@ func testEncryptor(tc *TestContext, level, bpw2 int, t *testing.T) {
 	})
 
 	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Encryptor/Encrypt/Pk/ShallowCopy"), func(t *testing.T) {
-		enc1 := enc.WithKey(pk)
+		enc1, err := enc.WithKey(pk)
+		require.NoError(t, err)
+
 		enc2 := enc1.ShallowCopy()
 		pkEnc1, pkEnc2 := enc1.(*EncryptorPublicKey), enc2.(*EncryptorPublicKey)
 		require.True(t, pkEnc1.params.Equal(pkEnc2.params))
@@ -395,7 +417,9 @@ func testEncryptor(tc *TestContext, level, bpw2 int, t *testing.T) {
 
 		pt := NewPlaintext(params, level)
 
-		enc := NewPRNGEncryptor(params, sk)
+		enc, err := NewPRNGEncryptor(params, sk)
+		require.NoError(t, err)
+
 		ct := NewCiphertext(params, 1, level)
 
 		prng1, _ := sampling.NewKeyedPRNG([]byte{'a', 'b', 'c'})
@@ -417,7 +441,9 @@ func testEncryptor(tc *TestContext, level, bpw2 int, t *testing.T) {
 	})
 
 	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Encrypt/Sk/ShallowCopy"), func(t *testing.T) {
-		enc1 := NewEncryptor(params, sk)
+		enc1, err := NewEncryptor(params, sk)
+		require.NoError(t, err)
+
 		enc2 := enc1.ShallowCopy()
 		skEnc1, skEnc2 := enc1.(*EncryptorSecretKey), enc2.(*EncryptorSecretKey)
 		require.True(t, skEnc1.params.Equal(skEnc2.params))
@@ -430,8 +456,12 @@ func testEncryptor(tc *TestContext, level, bpw2 int, t *testing.T) {
 
 	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Encrypt/WithKey/Sk->Sk"), func(t *testing.T) {
 		sk2 := kgen.GenSecretKeyNew()
-		enc1 := NewEncryptor(params, sk)
-		enc2 := enc1.WithKey(sk2)
+		enc1, err := NewEncryptor(params, sk)
+		require.NoError(t, err)
+
+		enc2, err := enc1.WithKey(sk2)
+		require.NoError(t, err)
+
 		skEnc1, skEnc2 := enc1.(*EncryptorSecretKey), enc2.(*EncryptorSecretKey)
 		require.True(t, skEnc1.params.Equal(skEnc2.params))
 		require.True(t, skEnc1.sk.Equal(sk))
@@ -465,11 +495,15 @@ func testApplyEvaluationKey(tc *TestContext, level, bpw2 int, t *testing.T) {
 		enc.Encrypt(pt, ct)
 
 		// Test that Dec(KS(Enc(ct, sk), skOut), skOut) has a small norm
-		evk := kgen.GenEvaluationKeyNew(sk, skOut)
+		evk, err := kgen.GenEvaluationKeyNew(sk, skOut)
+		require.NoError(t, err)
 
 		eval.ApplyEvaluationKey(ct, evk, ct)
 
-		NewDecryptor(params, skOut).Decrypt(ct, pt)
+		dec, err := NewDecryptor(params, skOut)
+		require.NoError(t, err)
+
+		dec.Decrypt(ct, pt)
 
 		ringQ := params.RingQ().AtLevel(level)
 
@@ -498,16 +532,24 @@ func testApplyEvaluationKey(tc *TestContext, level, bpw2 int, t *testing.T) {
 		kgenSmallDim := NewKeyGenerator(paramsSmallDim)
 		skSmallDim := kgenSmallDim.GenSecretKeyNew()
 
-		evk := kgenLargeDim.GenEvaluationKeyNew(skLargeDim, skSmallDim)
+		evk, err := kgenLargeDim.GenEvaluationKeyNew(skLargeDim, skSmallDim)
+		require.NoError(t, err)
 
-		ctLargeDim := NewEncryptor(paramsLargeDim, skLargeDim).EncryptZeroNew(level)
+		enc, err := NewEncryptor(paramsLargeDim, skLargeDim)
+		require.NoError(t, err)
+
+		ctLargeDim := enc.EncryptZeroNew(level)
+
 		ctSmallDim := NewCiphertext(paramsSmallDim, 1, level)
 
 		// skLarge -> skSmall embeded in N
 		eval.ApplyEvaluationKey(ctLargeDim, evk, ctSmallDim)
 
 		// Decrypts with smaller dimension key
-		ptSmallDim := NewDecryptor(paramsSmallDim, skSmallDim).DecryptNew(ctSmallDim)
+		dec, err := NewDecryptor(paramsSmallDim, skSmallDim)
+		require.NoError(t, err)
+
+		ptSmallDim := dec.DecryptNew(ctSmallDim)
 
 		ringQSmallDim := paramsSmallDim.RingQ().AtLevel(level)
 		if ptSmallDim.IsNTT {
@@ -535,9 +577,14 @@ func testApplyEvaluationKey(tc *TestContext, level, bpw2 int, t *testing.T) {
 		kgenSmallDim := NewKeyGenerator(paramsSmallDim)
 		skSmallDim := kgenSmallDim.GenSecretKeyNew()
 
-		evk := kgenLargeDim.GenEvaluationKeyNew(skSmallDim, skLargeDim)
+		evk, err := kgenLargeDim.GenEvaluationKeyNew(skSmallDim, skLargeDim)
+		require.NoError(t, err)
 
-		ctSmallDim := NewEncryptor(paramsSmallDim, skSmallDim).EncryptZeroNew(level)
+		enc, err := NewEncryptor(paramsSmallDim, skSmallDim)
+		require.NoError(t, err)
+
+		ctSmallDim := enc.EncryptZeroNew(level)
+
 		ctLargeDim := NewCiphertext(paramsLargeDim, 1, level)
 
 		eval.ApplyEvaluationKey(ctSmallDim, evk, ctLargeDim)
@@ -591,13 +638,16 @@ func testGadgetProduct(tc *TestContext, levelQ, bpw2 int, t *testing.T) {
 			evk := NewEvaluationKey(params, evkParams)
 
 			// Generate the evaluationkey [-bs1 + s1, b]
-			kgen.GenEvaluationKey(sk, skOut, evk)
+			require.NoError(t, kgen.GenEvaluationKey(sk, skOut, evk))
 
 			// Gadget product: ct = [-cs1 + as0 , c]
 			eval.GadgetProduct(levelQ, a, &evk.GadgetCiphertext, ct)
 
 			// pt = as0
-			pt := NewDecryptor(params, skOut).DecryptNew(ct)
+			dec, err := NewDecryptor(params, skOut)
+			require.NoError(t, err)
+
+			pt := dec.DecryptNew(ct)
 
 			ringQ := params.RingQ().AtLevel(levelQ)
 
@@ -614,6 +664,10 @@ func testGadgetProduct(tc *TestContext, levelQ, bpw2 int, t *testing.T) {
 		})
 
 		t.Run(testString(params, levelQ, levelP, bpw2, "Evaluator/GadgetProductHoisted"), func(t *testing.T) {
+
+			if bpw2 != 0 {
+				t.Skip("method is unsupported for BaseTwoDecomposition != 0")
+			}
 
 			skOut := kgen.GenSecretKeyNew()
 
@@ -635,7 +689,10 @@ func testGadgetProduct(tc *TestContext, levelQ, bpw2 int, t *testing.T) {
 			eval.GadgetProductHoisted(levelQ, eval.BuffDecompQP, &evk.GadgetCiphertext, ct)
 
 			// pt = as0
-			pt := NewDecryptor(params, skOut).DecryptNew(ct)
+			dec, err := NewDecryptor(params, skOut)
+			require.NoError(t, err)
+
+			pt := dec.DecryptNew(ct)
 
 			ringQ := params.RingQ().AtLevel(levelQ)
 
@@ -670,13 +727,15 @@ func testAutomorphism(tc *TestContext, level, bpw2 int, t *testing.T) {
 		pt := genPlaintext(params, level, 1<<30)
 
 		// Encrypt
-		ct := enc.EncryptNew(pt)
+		ct, err := enc.EncryptNew(pt)
+		require.NoError(t, err)
 
 		// Chooses a Galois Element (must be coprime with 2N)
 		galEl := params.GaloisElement(-1)
 
 		// Generate the GaloisKey
-		gk := kgen.GenGaloisKeyNew(galEl, sk)
+		gk, err := kgen.GenGaloisKeyNew(galEl, sk)
+		require.NoError(t, err)
 
 		// Allocate a new EvaluationKeySet and adds the GaloisKey
 		evk := NewMemEvaluationKeySet(nil, gk)
@@ -714,13 +773,15 @@ func testAutomorphism(tc *TestContext, level, bpw2 int, t *testing.T) {
 		pt := genPlaintext(params, level, 1<<30)
 
 		// Encrypt
-		ct := enc.EncryptNew(pt)
+		ct, err := enc.EncryptNew(pt)
+		require.NoError(t, err)
 
 		// Chooses a Galois Element (must be coprime with 2N)
 		galEl := params.GaloisElement(-1)
 
 		// Generate the GaloisKey
-		gk := kgen.GenGaloisKeyNew(galEl, sk)
+		gk, err := kgen.GenGaloisKeyNew(galEl, sk)
+		require.NoError(t, err)
 
 		// Allocate a new EvaluationKeySet and adds the GaloisKey
 		evk := NewMemEvaluationKeySet(nil, gk)
@@ -761,13 +822,15 @@ func testAutomorphism(tc *TestContext, level, bpw2 int, t *testing.T) {
 		pt := genPlaintext(params, level, 1<<30)
 
 		// Encrypt
-		ct := enc.EncryptNew(pt)
+		ct, err := enc.EncryptNew(pt)
+		require.NoError(t, err)
 
 		// Chooses a Galois Element (must be coprime with 2N)
 		galEl := params.GaloisElement(-1)
 
 		// Generate the GaloisKey
-		gk := kgen.GenGaloisKeyNew(galEl, sk)
+		gk, err := kgen.GenGaloisKeyNew(galEl, sk)
+		require.NoError(t, err)
 
 		// Allocate a new EvaluationKeySet and adds the GaloisKey
 		evk := NewMemEvaluationKeySet(nil, gk)
@@ -850,12 +913,15 @@ func testLinearTransform(tc *TestContext, level, bpw2 int, t *testing.T) {
 		enc.Encrypt(pt, ctIn)
 
 		// GaloisKeys
-		var gks = kgen.GenGaloisKeysNew(params.GaloisElementsForExpand(logN), sk)
+		var gks, err = kgen.GenGaloisKeysNew(params.GaloisElementsForExpand(logN), sk)
+		require.NoError(t, err)
+
 		evk := NewMemEvaluationKeySet(nil, gks...)
 
 		eval := NewEvaluator(params, evk)
 
-		ciphertexts := eval.WithKey(evk).Expand(ctIn, logN, logGap)
+		ciphertexts, err := eval.WithKey(evk).Expand(ctIn, logN, logGap)
+		require.NoError(t, err)
 
 		Q := ringQ.ModuliChain()
 
@@ -914,10 +980,16 @@ func testLinearTransform(tc *TestContext, level, bpw2 int, t *testing.T) {
 		}
 
 		// Galois Keys
-		gks := kgen.GenGaloisKeysNew(params.GaloisElementsForPack(params.LogN()), sk)
+		galEls, err := params.GaloisElementsForPack(params.LogN())
+		require.NoError(t, err)
+
+		gks, err := kgen.GenGaloisKeysNew(galEls, sk)
+		require.NoError(t, err)
+
 		evk := NewMemEvaluationKeySet(nil, gks...)
 
-		ct := eval.WithKey(evk).Pack(ciphertexts, params.LogN(), false)
+		ct, err := eval.WithKey(evk).Pack(ciphertexts, params.LogN(), false)
+		require.NoError(t, err)
 
 		dec.Decrypt(ct, pt)
 
@@ -982,10 +1054,16 @@ func testLinearTransform(tc *TestContext, level, bpw2 int, t *testing.T) {
 		}
 
 		// Galois Keys
-		gks := kgen.GenGaloisKeysNew(params.GaloisElementsForPack(params.LogN()-1), sk)
+		galEls, err := params.GaloisElementsForPack(params.LogN() - 1)
+		require.NoError(t, err)
+
+		gks, err := kgen.GenGaloisKeysNew(galEls, sk)
+		require.NoError(t, err)
+
 		evk := NewMemEvaluationKeySet(nil, gks...)
 
-		ct := eval.WithKey(evk).Pack(ciphertexts, params.LogN()-1, true)
+		ct, err := eval.WithKey(evk).Pack(ciphertexts, params.LogN()-1, true)
+		require.NoError(t, err)
 
 		dec.Decrypt(ct, pt)
 
@@ -1010,10 +1088,13 @@ func testLinearTransform(tc *TestContext, level, bpw2 int, t *testing.T) {
 
 		pt := genPlaintext(params, level, 1<<30)
 		ptInnerSum := pt.Value.CopyNew()
-		ct := enc.EncryptNew(pt)
+		ct, err := enc.EncryptNew(pt)
+		require.NoError(t, err)
 
 		// Galois Keys
-		gks := kgen.GenGaloisKeysNew(params.GaloisElementsForInnerSum(batch, n), sk)
+		gks, err := kgen.GenGaloisKeysNew(params.GaloisElementsForInnerSum(batch, n), sk)
+		require.NoError(t, err)
+
 		evk := NewMemEvaluationKeySet(nil, gks...)
 
 		eval.WithKey(evk).InnerSum(ct, batch, n, ct)
@@ -1123,21 +1204,34 @@ func testWriteAndRead(tc *TestContext, bpw2 int, t *testing.T) {
 	})
 
 	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/EvaluationKey"), func(t *testing.T) {
-		buffer.RequireSerializerCorrect(t, tc.kgen.GenEvaluationKeyNew(sk, sk))
+		evk, err := tc.kgen.GenEvaluationKeyNew(sk, sk)
+		require.NoError(t, err)
+		buffer.RequireSerializerCorrect(t, evk)
 	})
 
 	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/RelinearizationKey"), func(t *testing.T) {
-		buffer.RequireSerializerCorrect(t, tc.kgen.GenRelinearizationKeyNew(tc.sk))
+		rlk, err := tc.kgen.GenRelinearizationKeyNew(tc.sk)
+		require.NoError(t, err)
+		buffer.RequireSerializerCorrect(t, rlk)
 	})
 
 	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/GaloisKey"), func(t *testing.T) {
-		buffer.RequireSerializerCorrect(t, tc.kgen.GenGaloisKeyNew(5, tc.sk))
+		gk, err := tc.kgen.GenGaloisKeyNew(5, tc.sk)
+		require.NoError(t, err)
+		buffer.RequireSerializerCorrect(t, gk)
 	})
 
 	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/EvaluationKeySet"), func(t *testing.T) {
+
+		rlk, err := tc.kgen.GenRelinearizationKeyNew(tc.sk)
+		require.NoError(t, err)
+		galEl := uint64(5)
+		gk, err := tc.kgen.GenGaloisKeyNew(galEl, tc.sk)
+		require.NoError(t, err)
+
 		buffer.RequireSerializerCorrect(t, &MemEvaluationKeySet{
-			Rlk: tc.kgen.GenRelinearizationKeyNew(tc.sk),
-			Gks: map[uint64]*GaloisKey{5: tc.kgen.GenGaloisKeyNew(5, tc.sk)},
+			Rlk: rlk,
+			Gks: map[uint64]*GaloisKey{galEl: gk},
 		})
 	})
 

@@ -44,19 +44,19 @@ func NewOperandQ(params ParametersInterface, degree, levelQ int) *OperandQ {
 // where the message is set to the passed poly. No checks are performed on poly and
 // the returned OperandQ will share its backing array of coefficients.
 // Returned OperandQ's MetaData is empty.
-func NewOperandQAtLevelFromPoly(level int, poly []ring.Poly) *OperandQ {
+func NewOperandQAtLevelFromPoly(level int, poly []ring.Poly) (*OperandQ, error) {
 	Value := make([]ring.Poly, len(poly))
 	for i := range Value {
 
 		if len(poly[i].Coeffs) < level+1 {
-			panic(fmt.Errorf("cannot NewOperandQAtLevelFromPoly: provided ring.Poly[%d] level is too small", i))
+			return nil, fmt.Errorf("cannot NewOperandQAtLevelFromPoly: provided ring.Poly[%d] level is too small", i)
 		}
 
 		Value[i].Coeffs = poly[i].Coeffs[:level+1]
 		Value[i].Buff = poly[i].Buff[:poly[i].N()*(level+1)]
 	}
 
-	return &OperandQ{Value: Value}
+	return &OperandQ{Value: Value}, nil
 }
 
 // Equal performs a deep equal.

@@ -47,7 +47,7 @@ type party struct {
 type multTask struct {
 	wg              *sync.WaitGroup
 	op1             *rlwe.Ciphertext
-	opOut             *rlwe.Ciphertext
+	opOut           *rlwe.Ciphertext
 	res             *rlwe.Ciphertext
 	elapsedmultTask time.Duration
 }
@@ -136,7 +136,10 @@ func main() {
 
 	// Decrypt the result with the target secret key
 	l.Println("> Result:")
-	decryptor := bfv.NewDecryptor(params, tsk)
+	decryptor, err := bfv.NewDecryptor(params, tsk)
+	if err != nil {
+		panic(err)
+	}
 	ptres := bfv.NewPlaintext(params, params.MaxLevel())
 	elapsedDecParty := runTimed(func() {
 		decryptor.Decrypt(encOut, ptres)
@@ -173,7 +176,10 @@ func encPhase(params bfv.Parameters, P []*party, pk *rlwe.PublicKey, encoder *bf
 
 	// Each party encrypts its input vector
 	l.Println("> Encrypt Phase")
-	encryptor := bfv.NewEncryptor(params, pk)
+	encryptor, err := bfv.NewEncryptor(params, pk)
+	if err != nil {
+		panic(err)
+	}
 
 	pt := bfv.NewPlaintext(params, params.MaxLevel())
 	elapsedEncryptParty = runTimedParty(func() {
@@ -181,7 +187,9 @@ func encPhase(params bfv.Parameters, P []*party, pk *rlwe.PublicKey, encoder *bf
 			if err := encoder.Encode(pi.input, pt); err != nil {
 				panic(err)
 			}
-			encryptor.Encrypt(pt, encInputs[i])
+			if err := encryptor.Encrypt(pt, encInputs[i]); err != nil {
+				panic(err)
+			}
 		}
 	}, len(P))
 
@@ -218,9 +226,13 @@ func evalPhase(params bfv.Parameters, NGoRoutine int, encInputs []*rlwe.Cipherte
 			for task := range tasks {
 				task.elapsedmultTask = runTimed(func() {
 					// 1) Multiplication of two input vectors
-					evaluator.Mul(task.op1, task.opOut, task.res)
+					if err := evaluator.Mul(task.op1, task.opOut, task.res); err != nil {
+						panic(err)
+					}
 					// 2) Relinearization
-					evaluator.Relinearize(task.res, task.res)
+					if err := evaluator.Relinearize(task.res, task.res); err != nil {
+						panic(err)
+					}
 				})
 				task.wg.Done()
 			}
@@ -305,7 +317,10 @@ func pcksPhase(params bfv.Parameters, tpk *rlwe.PublicKey, encRes *rlwe.Cipherte
 	// Collective key switching from the collective secret key to
 	// the target public key
 
-	pcks := dbfv.NewPublicKeySwitchProtocol(params, ring.DiscreteGaussian{Sigma: 1 << 30, Bound: 6 * (1 << 30)})
+	pcks, err := dbfv.NewPublicKeySwitchProtocol(params, ring.DiscreteGaussian{Sigma: 1 << 30, Bound: 6 * (1 << 30)})
+	if err != nil {
+		panic(err)
+	}
 
 	for _, pi := range P {
 		pi.pcksShare = pcks.AllocateShare(params.MaxLevel())
@@ -314,7 +329,9 @@ func pcksPhase(params bfv.Parameters, tpk *rlwe.PublicKey, encRes *rlwe.Cipherte
 	l.Println("> PublicKeySwitch Phase")
 	elapsedPCKSParty = runTimedParty(func() {
 		for _, pi := range P {
-			pcks.GenShare(pi.sk, tpk, encRes, &pi.pcksShare)
+			if err = pcks.GenShare(pi.sk, tpk, encRes, &pi.pcksShare); err != nil {
+				panic(err)
+			}
 		}
 	}, len(P))
 
@@ -322,10 +339,12 @@ func pcksPhase(params bfv.Parameters, tpk *rlwe.PublicKey, encRes *rlwe.Cipherte
 	encOut = bfv.NewCiphertext(params, 1, params.MaxLevel())
 	elapsedPCKSCloud = runTimed(func() {
 		for _, pi := range P {
-			pcks.AggregateShares(pi.pcksShare, pcksCombined, &pcksCombined)
+			if err = pcks.AggregateShares(pi.pcksShare, pcksCombined, &pcksCombined); err != nil {
+				panic(err)
+			}
 		}
-		pcks.KeySwitch(encRes, pcksCombined, encOut)
 
+		pcks.KeySwitch(encRes, pcksCombined, encOut)
 	})
 	l.Printf("\tdone (cloud: %s, party: %s)\n", elapsedPCKSCloud, elapsedPCKSParty)
 

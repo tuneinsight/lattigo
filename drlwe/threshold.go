@@ -102,11 +102,12 @@ func (thr Thresholdizer) GenShamirSecretShare(recipient ShamirPublicPoint, secre
 }
 
 // AggregateShares aggregates two ShamirSecretShare and stores the result in outShare.
-func (thr Thresholdizer) AggregateShares(share1, share2 ShamirSecretShare, outShare *ShamirSecretShare) {
+func (thr Thresholdizer) AggregateShares(share1, share2 ShamirSecretShare, outShare *ShamirSecretShare) (err error) {
 	if share1.LevelQ() != share2.LevelQ() || share1.LevelQ() != outShare.LevelQ() || share1.LevelP() != share2.LevelP() || share1.LevelP() != outShare.LevelP() {
-		panic("shares level do not match")
+		return fmt.Errorf("cannot AggregateShares: shares level do not match")
 	}
 	thr.ringQP.AtLevel(share1.LevelQ(), share1.LevelP()).Add(share1.Poly, share2.Poly, outShare.Poly)
+	return
 }
 
 // NewCombiner creates a new Combiner struct from the parameters and the set of ShamirPublicPoints. Note that the other
@@ -142,10 +143,10 @@ func NewCombiner(params rlwe.Parameters, own ShamirPublicPoint, others []ShamirP
 
 // GenAdditiveShare generates a t-out-of-t additive share of the secret from a local aggregated share ownSecret and the set of active identities, identified
 // by their ShamirPublicPoint. It stores the resulting additive share in skOut.
-func (cmb Combiner) GenAdditiveShare(activesPoints []ShamirPublicPoint, ownPoint ShamirPublicPoint, ownShare ShamirSecretShare, skOut *rlwe.SecretKey) {
+func (cmb Combiner) GenAdditiveShare(activesPoints []ShamirPublicPoint, ownPoint ShamirPublicPoint, ownShare ShamirSecretShare, skOut *rlwe.SecretKey) (err error) {
 
 	if len(activesPoints) < cmb.threshold {
-		panic("cannot GenAdditiveShare: Not enough active players to combine threshold shares.")
+		return fmt.Errorf("cannot GenAdditiveShare: Not enough active players to combine threshold shares")
 	}
 
 	prod := cmb.tmp2
@@ -160,6 +161,7 @@ func (cmb Combiner) GenAdditiveShare(activesPoints []ShamirPublicPoint, ownPoint
 	}
 
 	cmb.ringQP.MulRNSScalarMontgomery(ownShare.Poly, prod, skOut.Value)
+	return
 }
 
 func (cmb Combiner) lagrangeCoeff(thisKey ShamirPublicPoint, thatKey ShamirPublicPoint, lagCoeff []uint64) {

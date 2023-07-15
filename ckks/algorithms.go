@@ -30,10 +30,20 @@ func (eval *Evaluator) GoldschmidtDivisionNew(ct *rlwe.Ciphertext, minValue, log
 		return nil, fmt.Errorf("cannot GoldschmidtDivisionNew: ct.Level()=%d < depth=%d and rlwe.Bootstrapper is nil", ct.Level(), depth)
 	}
 
-	a := eval.MulNew(ct, -1)
+	a, err := eval.MulNew(ct, -1)
+	if err != nil {
+		return nil, err
+	}
+
 	b := a.CopyNew()
-	eval.Add(a, 2, a)
-	eval.Add(b, 1, b)
+
+	if err = eval.Add(a, 2, a); err != nil {
+		return nil, err
+	}
+
+	if err = eval.Add(b, 1, b); err != nil {
+		return nil, err
+	}
 
 	for i := 1; i < iters; i++ {
 
@@ -49,7 +59,10 @@ func (eval *Evaluator) GoldschmidtDivisionNew(ct *rlwe.Ciphertext, minValue, log
 			}
 		}
 
-		eval.MulRelin(b, b, b)
+		if err = eval.MulRelin(b, b, b); err != nil {
+			return nil, err
+		}
+
 		if err = eval.Rescale(b, parameters.PlaintextScale(), b); err != nil {
 			return nil, err
 		}
@@ -60,14 +73,23 @@ func (eval *Evaluator) GoldschmidtDivisionNew(ct *rlwe.Ciphertext, minValue, log
 			}
 		}
 
-		tmp := eval.MulRelinNew(a, b)
+		tmp, err := eval.MulRelinNew(a, b)
+
+		if err != nil {
+			return nil, err
+		}
+
 		if err = eval.Rescale(tmp, parameters.PlaintextScale(), tmp); err != nil {
 			return nil, err
 		}
 
-		eval.SetScale(a, tmp.PlaintextScale)
+		if err = eval.SetScale(a, tmp.PlaintextScale); err != nil {
+			return nil, err
+		}
 
-		eval.Add(a, tmp, a)
+		if err = eval.Add(a, tmp, a); err != nil {
+			return nil, err
+		}
 	}
 
 	return a, nil

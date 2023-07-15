@@ -21,11 +21,11 @@ func (rfp *RefreshProtocol) ShallowCopy() RefreshProtocol {
 }
 
 // NewRefreshProtocol creates a new Refresh protocol instance.
-func NewRefreshProtocol(params bgv.Parameters, noiseFlooding ring.DistributionParameters) (rfp RefreshProtocol) {
+func NewRefreshProtocol(params bgv.Parameters, noiseFlooding ring.DistributionParameters) (rfp RefreshProtocol, err error) {
 	rfp = RefreshProtocol{}
-	mt, _ := NewMaskedTransformProtocol(params, params, noiseFlooding)
+	mt, err := NewMaskedTransformProtocol(params, params, noiseFlooding)
 	rfp.MaskedTransformProtocol = mt
-	return
+	return rfp, err
 }
 
 // AllocateShare allocates the shares of the PermuteProtocol
@@ -35,16 +35,16 @@ func (rfp RefreshProtocol) AllocateShare(inputLevel, outputLevel int) drlwe.Refr
 
 // GenShare generates a share for the Refresh protocol.
 // ct1 is degree 1 element of a rlwe.Ciphertext, i.e. rlwe.Ciphertext.Value[1].
-func (rfp RefreshProtocol) GenShare(sk *rlwe.SecretKey, ct *rlwe.Ciphertext, scale rlwe.Scale, crp drlwe.KeySwitchCRP, shareOut *drlwe.RefreshShare) {
-	rfp.MaskedTransformProtocol.GenShare(sk, sk, ct, scale, crp, nil, shareOut)
+func (rfp RefreshProtocol) GenShare(sk *rlwe.SecretKey, ct *rlwe.Ciphertext, scale rlwe.Scale, crp drlwe.KeySwitchCRP, shareOut *drlwe.RefreshShare) (err error) {
+	return rfp.MaskedTransformProtocol.GenShare(sk, sk, ct, scale, crp, nil, shareOut)
 }
 
 // AggregateShares aggregates two parties' shares in the Refresh protocol.
-func (rfp RefreshProtocol) AggregateShares(share1, share2 drlwe.RefreshShare, shareOut *drlwe.RefreshShare) {
-	rfp.MaskedTransformProtocol.AggregateShares(share1, share2, shareOut)
+func (rfp RefreshProtocol) AggregateShares(share1, share2 drlwe.RefreshShare, shareOut *drlwe.RefreshShare) (err error) {
+	return rfp.MaskedTransformProtocol.AggregateShares(share1, share2, shareOut)
 }
 
 // Finalize applies Decrypt, Recode and Recrypt on the input ciphertext.
-func (rfp RefreshProtocol) Finalize(ctIn *rlwe.Ciphertext, crp drlwe.KeySwitchCRP, share drlwe.RefreshShare, opOut *rlwe.Ciphertext) {
-	rfp.MaskedTransformProtocol.Transform(ctIn, nil, crp, share, opOut)
+func (rfp RefreshProtocol) Finalize(ctIn *rlwe.Ciphertext, crp drlwe.KeySwitchCRP, share drlwe.RefreshShare, opOut *rlwe.Ciphertext) (err error) {
+	return rfp.MaskedTransformProtocol.Transform(ctIn, nil, crp, share, opOut)
 }

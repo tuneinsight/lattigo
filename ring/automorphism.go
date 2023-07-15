@@ -1,6 +1,7 @@
 package ring
 
 import (
+	"fmt"
 	"math/bits"
 	"unsafe"
 
@@ -8,14 +9,14 @@ import (
 )
 
 // AutomorphismNTTIndex computes the look-up table for the automorphism X^{i} -> X^{i*k mod NthRoot}.
-func AutomorphismNTTIndex(N int, NthRoot, GalEl uint64) (index []uint64) {
+func AutomorphismNTTIndex(N int, NthRoot, GalEl uint64) (index []uint64, err error) {
 
 	if N&(N-1) != 0 {
-		panic("N must be a power of two")
+		return nil, fmt.Errorf("N must be a power of two")
 	}
 
 	if NthRoot&(NthRoot-1) != 0 {
-		panic("NthRoot must be w power of two")
+		return nil, fmt.Errorf("NthRoot must be w power of two")
 	}
 
 	var mask, tmp1, tmp2 uint64
@@ -35,7 +36,11 @@ func AutomorphismNTTIndex(N int, NthRoot, GalEl uint64) (index []uint64) {
 // AutomorphismNTT applies the automorphism X^{i} -> X^{i*gen} on a polynomial in the NTT domain.
 // It must be noted that the result cannot be in-place.
 func (r Ring) AutomorphismNTT(polIn Poly, gen uint64, polOut Poly) {
-	r.AutomorphismNTTWithIndex(polIn, AutomorphismNTTIndex(r.N(), r.NthRoot(), gen), polOut)
+	index, err := AutomorphismNTTIndex(r.N(), r.NthRoot(), gen)
+	if err != nil {
+		panic(err)
+	}
+	r.AutomorphismNTTWithIndex(polIn, index, polOut)
 }
 
 // AutomorphismNTTWithIndex applies the automorphism X^{i} -> X^{i*gen} on a polynomial in the NTT domain.

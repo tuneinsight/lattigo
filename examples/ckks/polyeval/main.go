@@ -40,13 +40,24 @@ func chebyshevinterpolation() {
 	sk, pk := kgen.GenKeyPairNew()
 
 	// Encryptor
-	encryptor := ckks.NewEncryptor(params, pk)
+	encryptor, err := ckks.NewEncryptor(params, pk)
+	if err != nil {
+		panic(err)
+	}
 
 	// Decryptor
-	decryptor := ckks.NewDecryptor(params, sk)
+	decryptor, err := ckks.NewDecryptor(params, sk)
+	if err != nil {
+		panic(err)
+	}
 
 	// Relinearization key
-	evk := rlwe.NewMemEvaluationKeySet(kgen.GenRelinearizationKeyNew(sk))
+	rlk, err := kgen.GenRelinearizationKeyNew(sk)
+	if err != nil {
+		panic(err)
+	}
+
+	evk := rlwe.NewMemEvaluationKeySet(rlk)
 
 	// Evaluator
 	evaluator := ckks.NewEvaluator(params, evk)
@@ -74,7 +85,10 @@ func chebyshevinterpolation() {
 
 	// Encryption process
 	var ciphertext *rlwe.Ciphertext
-	ciphertext = encryptor.EncryptNew(plaintext)
+	ciphertext, err = encryptor.EncryptNew(plaintext)
+	if err != nil {
+		panic(err)
+	}
 
 	a, b := -8.0, 8.0
 	deg := 63
@@ -120,13 +134,22 @@ func chebyshevinterpolation() {
 	slotsIndex[1] = idxG // Assigns index of all odd slots to poly[1] = g(x)
 
 	// Change of variable
-	evaluator.Mul(ciphertext, 2/(b-a), ciphertext)
-	evaluator.Add(ciphertext, (-a-b)/(b-a), ciphertext)
+	if err := evaluator.Mul(ciphertext, 2/(b-a), ciphertext); err != nil {
+		panic(err)
+	}
+
+	if err := evaluator.Add(ciphertext, (-a-b)/(b-a), ciphertext); err != nil {
+		panic(err)
+	}
+
 	if err := evaluator.Rescale(ciphertext, params.PlaintextScale(), ciphertext); err != nil {
 		panic(err)
 	}
 
-	polyVec := rlwe.NewPolynomialVector([]rlwe.Polynomial{rlwe.NewPolynomial(approxF), rlwe.NewPolynomial(approxG)}, slotsIndex)
+	polyVec, err := rlwe.NewPolynomialVector([]rlwe.Polynomial{rlwe.NewPolynomial(approxF), rlwe.NewPolynomial(approxG)}, slotsIndex)
+	if err != nil {
+		panic(err)
+	}
 
 	// We evaluate the interpolated Chebyshev interpolant on the ciphertext
 	if ciphertext, err = evaluator.Polynomial(ciphertext, polyVec, ciphertext.PlaintextScale); err != nil {

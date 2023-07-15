@@ -1,10 +1,11 @@
 package dbgv
 
 import (
+	"fmt"
+
 	"github.com/tuneinsight/lattigo/v4/bgv"
 	"github.com/tuneinsight/lattigo/v4/drlwe"
 	"github.com/tuneinsight/lattigo/v4/ring"
-
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
@@ -52,20 +53,27 @@ func (e2s EncToShareProtocol) ShallowCopy() EncToShareProtocol {
 }
 
 // NewEncToShareProtocol creates a new EncToShareProtocol struct from the passed bgv parameters.
-func NewEncToShareProtocol(params bgv.Parameters, noiseFlooding ring.DistributionParameters) EncToShareProtocol {
+func NewEncToShareProtocol(params bgv.Parameters, noiseFlooding ring.DistributionParameters) (EncToShareProtocol, error) {
 	e2s := EncToShareProtocol{}
-	e2s.KeySwitchProtocol = drlwe.NewKeySwitchProtocol(params.Parameters, noiseFlooding)
+
+	var err error
+	if e2s.KeySwitchProtocol, err = drlwe.NewKeySwitchProtocol(params.Parameters, noiseFlooding); err != nil {
+		return EncToShareProtocol{}, err
+	}
+
 	e2s.params = params
 	e2s.encoder = bgv.NewEncoder(params)
 	prng, err := sampling.NewPRNG()
 	if err != nil {
 		panic(err)
 	}
+
 	e2s.maskSampler = ring.NewUniformSampler(prng, params.RingT())
+
 	e2s.zero = rlwe.NewSecretKey(params.Parameters)
 	e2s.tmpPlaintextRingQ = params.RingQ().NewPoly()
 	e2s.tmpPlaintextRingT = params.RingT().NewPoly()
-	return e2s
+	return e2s, nil
 }
 
 // AllocateShare allocates a share of the EncToShare protocol
@@ -117,14 +125,19 @@ type ShareToEncProtocol struct {
 }
 
 // NewShareToEncProtocol creates a new ShareToEncProtocol struct from the passed bgv parameters.
-func NewShareToEncProtocol(params bgv.Parameters, noiseFlooding ring.DistributionParameters) ShareToEncProtocol {
+func NewShareToEncProtocol(params bgv.Parameters, noiseFlooding ring.DistributionParameters) (ShareToEncProtocol, error) {
 	s2e := ShareToEncProtocol{}
-	s2e.KeySwitchProtocol = drlwe.NewKeySwitchProtocol(params.Parameters, noiseFlooding)
+
+	var err error
+	if s2e.KeySwitchProtocol, err = drlwe.NewKeySwitchProtocol(params.Parameters, noiseFlooding); err != nil {
+		return ShareToEncProtocol{}, err
+	}
+
 	s2e.params = params
 	s2e.encoder = bgv.NewEncoder(params)
 	s2e.zero = rlwe.NewSecretKey(params.Parameters)
 	s2e.tmpPlaintextRingQ = params.RingQ().NewPoly()
-	return s2e
+	return s2e, nil
 }
 
 // AllocateShare allocates a share of the ShareToEnc protocol
@@ -148,10 +161,10 @@ func (s2e ShareToEncProtocol) ShallowCopy() ShareToEncProtocol {
 
 // GenShare generates a party's in the shares-to-encryption protocol given the party's secret-key share `sk`, a common
 // polynomial sampled from the CRS `crp` and the party's secret share of the message.
-func (s2e ShareToEncProtocol) GenShare(sk *rlwe.SecretKey, crp drlwe.KeySwitchCRP, secretShare drlwe.AdditiveShare, c0ShareOut *drlwe.KeySwitchShare) {
+func (s2e ShareToEncProtocol) GenShare(sk *rlwe.SecretKey, crp drlwe.KeySwitchCRP, secretShare drlwe.AdditiveShare, c0ShareOut *drlwe.KeySwitchShare) (err error) {
 
 	if crp.Value.Level() != c0ShareOut.Value.Level() {
-		panic("cannot GenShare: crp and c0ShareOut level must be equal")
+		return fmt.Errorf("cannot GenShare: crp and c0ShareOut level must be equal")
 	}
 
 	ct := &rlwe.Ciphertext{}
@@ -162,14 +175,16 @@ func (s2e ShareToEncProtocol) GenShare(sk *rlwe.SecretKey, crp drlwe.KeySwitchCR
 	ringQ := s2e.params.RingQ().AtLevel(crp.Value.Level())
 	ringQ.NTT(s2e.tmpPlaintextRingQ, s2e.tmpPlaintextRingQ)
 	ringQ.Add(c0ShareOut.Value, s2e.tmpPlaintextRingQ, c0ShareOut.Value)
+	return
 }
 
 // GetEncryption computes the final encryption of the secret-shared message when provided with the aggregation `c0Agg` of the parties'
 // shares in the protocol and with the common, CRS-sampled polynomial `crp`.
-func (s2e ShareToEncProtocol) GetEncryption(c0Agg drlwe.KeySwitchShare, crp drlwe.KeySwitchCRP, opOut *rlwe.Ciphertext) {
+func (s2e ShareToEncProtocol) GetEncryption(c0Agg drlwe.KeySwitchShare, crp drlwe.KeySwitchCRP, opOut *rlwe.Ciphertext) (err error) {
 	if opOut.Degree() != 1 {
-		panic("cannot GetEncryption: opOut must have degree 1.")
+		return fmt.Errorf("cannot GetEncryption: opOut must have degree 1")
 	}
 	opOut.Value[0].Copy(c0Agg.Value)
 	opOut.Value[1].Copy(crp.Value)
+	return
 }

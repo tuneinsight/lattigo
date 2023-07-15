@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
@@ -92,7 +94,10 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 	ciphertext2 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, tc.params.MaxLevel())
 	receiver := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 2, tc.params.MaxLevel())
 
-	eval := tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(tc.kgen.GenRelinearizationKeyNew(tc.sk)))
+	rlk, err := tc.kgen.GenRelinearizationKeyNew(tc.sk)
+	require.NoError(b, err)
+
+	eval := tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(rlk))
 
 	b.Run(GetTestName(tc.params, "Evaluator/Add/Scalar"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -140,9 +145,7 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 		ciphertext1.PlaintextScale = tc.params.PlaintextScale().Mul(tc.params.PlaintextScale())
 
 		for i := 0; i < b.N; i++ {
-			if err := eval.Rescale(ciphertext1, tc.params.PlaintextScale(), ciphertext2); err != nil {
-				panic(err)
-			}
+			eval.Rescale(ciphertext1, tc.params.PlaintextScale(), ciphertext2)
 		}
 	})
 }

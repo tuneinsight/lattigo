@@ -2,6 +2,7 @@
 package dckks
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/tuneinsight/lattigo/v4/ckks"
@@ -54,9 +55,14 @@ func (e2s EncToShareProtocol) ShallowCopy() EncToShareProtocol {
 }
 
 // NewEncToShareProtocol creates a new EncToShareProtocol struct from the passed CKKS parameters.
-func NewEncToShareProtocol(params ckks.Parameters, noise ring.DistributionParameters) EncToShareProtocol {
+func NewEncToShareProtocol(params ckks.Parameters, noise ring.DistributionParameters) (EncToShareProtocol, error) {
 	e2s := EncToShareProtocol{}
-	e2s.KeySwitchProtocol = drlwe.NewKeySwitchProtocol(params.Parameters, noise)
+
+	var err error
+	if e2s.KeySwitchProtocol, err = drlwe.NewKeySwitchProtocol(params.Parameters, noise); err != nil {
+		return EncToShareProtocol{}, err
+	}
+
 	e2s.params = params
 	e2s.zero = rlwe.NewSecretKey(params.Parameters)
 	e2s.maskBigint = make([]*big.Int, params.N())
@@ -64,7 +70,7 @@ func NewEncToShareProtocol(params ckks.Parameters, noise ring.DistributionParame
 		e2s.maskBigint[i] = new(big.Int)
 	}
 	e2s.buff = e2s.params.RingQ().NewPoly()
-	return e2s
+	return e2s, nil
 }
 
 // AllocateShare allocates a share of the EncToShare protocol
@@ -79,7 +85,7 @@ func (e2s EncToShareProtocol) AllocateShare(level int) (share drlwe.KeySwitchSha
 // ct1      : the degree 1 element the ciphertext to share, i.e. ct1 = ckk.Ciphertext.Value[1].
 // The method "GetMinimumLevelForBootstrapping" should be used to get the minimum level at which EncToShare can be called while still ensure 128-bits of security, as well as the
 // value for logBound.
-func (e2s EncToShareProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, ct *rlwe.Ciphertext, secretShareOut *drlwe.AdditiveShareBigint, publicShareOut *drlwe.KeySwitchShare) {
+func (e2s EncToShareProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, ct *rlwe.Ciphertext, secretShareOut *drlwe.AdditiveShareBigint, publicShareOut *drlwe.KeySwitchShare) (err error) {
 
 	levelQ := utils.Min(ct.Value[1].Level(), publicShareOut.Value.Level())
 
@@ -97,7 +103,7 @@ func (e2s EncToShareProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, ct *rl
 	sign = bound.Cmp(boundMax)
 
 	if sign == 1 || bound.Cmp(boundMax) == 1 {
-		panic("cannot GenShare: ciphertext level is not large enough for refresh correctness")
+		return fmt.Errorf("cannot GenShare: ciphertext level is not large enough for refresh correctness")
 	}
 
 	boundHalf := new(big.Int).Rsh(bound, 1)
@@ -131,6 +137,8 @@ func (e2s EncToShareProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, ct *rl
 
 	// Subtracts the mask to the encryption of zero
 	ringQ.Sub(publicShareOut.Value, e2s.buff, publicShareOut.Value)
+
+	return
 }
 
 // GetShare is the final step of the encryption-to-share protocol. It performs the masked decryption of the target ciphertext followed by a
@@ -201,14 +209,19 @@ func (s2e ShareToEncProtocol) ShallowCopy() ShareToEncProtocol {
 }
 
 // NewShareToEncProtocol creates a new ShareToEncProtocol struct from the passed CKKS parameters.
-func NewShareToEncProtocol(params ckks.Parameters, noise ring.DistributionParameters) ShareToEncProtocol {
+func NewShareToEncProtocol(params ckks.Parameters, noise ring.DistributionParameters) (ShareToEncProtocol, error) {
 	s2e := ShareToEncProtocol{}
-	s2e.KeySwitchProtocol = drlwe.NewKeySwitchProtocol(params.Parameters, noise)
+
+	var err error
+	if s2e.KeySwitchProtocol, err = drlwe.NewKeySwitchProtocol(params.Parameters, noise); err != nil {
+		return ShareToEncProtocol{}, err
+	}
+
 	s2e.params = params
 	s2e.tmp = s2e.params.RingQ().NewPoly()
 	s2e.ssBigint = make([]*big.Int, s2e.params.N())
 	s2e.zero = rlwe.NewSecretKey(params.Parameters)
-	return s2e
+	return s2e, nil
 }
 
 // AllocateShare allocates a share of the ShareToEnc protocol
@@ -218,10 +231,10 @@ func (s2e ShareToEncProtocol) AllocateShare(level int) (share drlwe.KeySwitchSha
 
 // GenShare generates a party's in the shares-to-encryption protocol given the party's secret-key share `sk`, a common
 // polynomial sampled from the CRS `crs` and the party's secret share of the message.
-func (s2e ShareToEncProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.KeySwitchCRP, metadata rlwe.MetaData, secretShare drlwe.AdditiveShareBigint, c0ShareOut *drlwe.KeySwitchShare) {
+func (s2e ShareToEncProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.KeySwitchCRP, metadata rlwe.MetaData, secretShare drlwe.AdditiveShareBigint, c0ShareOut *drlwe.KeySwitchShare) (err error) {
 
 	if crs.Value.Level() != c0ShareOut.Value.Level() {
-		panic("cannot GenShare: crs and c0ShareOut level must be equal")
+		return fmt.Errorf("cannot GenShare: crs and c0ShareOut level must be equal")
 	}
 
 	ringQ := s2e.params.RingQ().AtLevel(crs.Value.Level())
@@ -243,24 +256,28 @@ func (s2e ShareToEncProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.KeySwitchCR
 	rlwe.NTTSparseAndMontgomery(ringQ, metadata, s2e.tmp)
 
 	ringQ.Add(c0ShareOut.Value, s2e.tmp, c0ShareOut.Value)
+
+	return
 }
 
 // GetEncryption computes the final encryption of the secret-shared message when provided with the aggregation `c0Agg` of the parties'
 // share in the protocol and with the common, CRS-sampled polynomial `crs`.
-func (s2e ShareToEncProtocol) GetEncryption(c0Agg drlwe.KeySwitchShare, crs drlwe.KeySwitchCRP, opOut *rlwe.Ciphertext) {
+func (s2e ShareToEncProtocol) GetEncryption(c0Agg drlwe.KeySwitchShare, crs drlwe.KeySwitchCRP, opOut *rlwe.Ciphertext) (err error) {
 
 	if opOut.Degree() != 1 {
-		panic("cannot GetEncryption: opOut must have degree 1.")
+		return fmt.Errorf("cannot GetEncryption: opOut must have degree 1")
 	}
 
 	if c0Agg.Value.Level() != crs.Value.Level() {
-		panic("cannot GetEncryption: c0Agg level must be equal to crs level")
+		return fmt.Errorf("cannot GetEncryption: c0Agg level must be equal to crs level")
 	}
 
 	if opOut.Level() != crs.Value.Level() {
-		panic("cannot GetEncryption: opOut level must be equal to crs level")
+		return fmt.Errorf("cannot GetEncryption: opOut level must be equal to crs level")
 	}
 
 	opOut.Value[0].Copy(c0Agg.Value)
 	opOut.Value[1].Copy(crs.Value)
+
+	return
 }

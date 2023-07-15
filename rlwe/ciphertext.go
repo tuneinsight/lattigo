@@ -1,6 +1,8 @@
 package rlwe
 
 import (
+	"fmt"
+
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
@@ -23,8 +25,15 @@ func NewCiphertext(params ParametersInterface, degree, level int) (ct *Ciphertex
 // where the message is set to the passed poly. No checks are performed on poly and
 // the returned Ciphertext will share its backing array of coefficients.
 // Returned Ciphertext's MetaData is empty.
-func NewCiphertextAtLevelFromPoly(level int, poly []ring.Poly) *Ciphertext {
-	return &Ciphertext{*NewOperandQAtLevelFromPoly(level, poly)}
+func NewCiphertextAtLevelFromPoly(level int, poly []ring.Poly) (*Ciphertext, error) {
+
+	operand, err := NewOperandQAtLevelFromPoly(level, poly)
+
+	if err != nil {
+		return nil, fmt.Errorf("cannot NewCiphertextAtLevelFromPoly: %w", err)
+	}
+
+	return &Ciphertext{*operand}, nil
 }
 
 // NewCiphertextRandom generates a new uniformly distributed Ciphertext of degree, level.

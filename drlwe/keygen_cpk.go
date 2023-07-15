@@ -30,12 +30,18 @@ type PublicKeyGenCRP struct {
 func NewPublicKeyGenProtocol(params rlwe.Parameters) PublicKeyGenProtocol {
 	ckg := PublicKeyGenProtocol{}
 	ckg.params = params
+
 	var err error
 	prng, err := sampling.NewPRNG()
 	if err != nil {
 		panic(err)
 	}
-	ckg.gaussianSamplerQ = ring.NewSampler(prng, params.RingQ(), params.Xe(), false)
+
+	ckg.gaussianSamplerQ, err = ring.NewSampler(prng, params.RingQ(), params.Xe(), false)
+	if err != nil {
+		panic(err)
+	}
+
 	return ckg
 }
 
@@ -92,7 +98,13 @@ func (ckg PublicKeyGenProtocol) ShallowCopy() PublicKeyGenProtocol {
 		panic(err)
 	}
 
-	return PublicKeyGenProtocol{ckg.params, ring.NewSampler(prng, ckg.params.RingQ(), ckg.params.Xe(), false)}
+	sampler, err := ring.NewSampler(prng, ckg.params.RingQ(), ckg.params.Xe(), false)
+
+	if err != nil {
+		panic(err)
+	}
+
+	return PublicKeyGenProtocol{ckg.params, sampler}
 }
 
 // BinarySize returns the serialized size of the object in bytes.

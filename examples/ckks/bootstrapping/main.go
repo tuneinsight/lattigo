@@ -96,12 +96,21 @@ func main() {
 	sk, pk := kgen.GenKeyPairNew()
 
 	encoder := ckks.NewEncoder(params)
-	decryptor := ckks.NewDecryptor(params, sk)
-	encryptor := ckks.NewEncryptor(params, pk)
+	decryptor, err := ckks.NewDecryptor(params, sk)
+	if err != nil {
+		panic(err)
+	}
+	encryptor, err := ckks.NewEncryptor(params, pk)
+	if err != nil {
+		panic(err)
+	}
 
 	fmt.Println()
 	fmt.Println("Generating bootstrapping keys...")
-	evk := bootstrapping.GenEvaluationKeySetNew(btpParams, params, sk)
+	evk, err := bootstrapping.GenEvaluationKeySetNew(btpParams, params, sk)
+	if err != nil {
+		panic(err)
+	}
 	fmt.Println("Done")
 
 	var btp *bootstrapping.Bootstrapper
@@ -122,7 +131,10 @@ func main() {
 	}
 
 	// Encrypt
-	ciphertext1 := encryptor.EncryptNew(plaintext)
+	ciphertext1, err := encryptor.EncryptNew(plaintext)
+	if err != nil {
+		panic(err)
+	}
 
 	// Decrypt, print and compare with the plaintext values
 	fmt.Println()
@@ -138,7 +150,10 @@ func main() {
 	fmt.Println(ciphertext1.PlaintextLogSlots())
 	fmt.Println()
 	fmt.Println("Bootstrapping...")
-	ciphertext2 := btp.Bootstrap(ciphertext1)
+	ciphertext2, err := btp.Bootstrap(ciphertext1)
+	if err != nil {
+		panic(err)
+	}
 	fmt.Println("Done")
 
 	// Decrypt, print and compare with the plaintext values

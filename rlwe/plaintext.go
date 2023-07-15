@@ -25,9 +25,12 @@ func NewPlaintext(params ParametersInterface, level int) (pt *Plaintext) {
 // where the message is set to the passed poly. No checks are performed on poly and
 // the returned Plaintext will share its backing array of coefficients.
 // Returned plaintext's MetaData is empty.
-func NewPlaintextAtLevelFromPoly(level int, poly *ring.Poly) (pt *Plaintext) {
-	op := *NewOperandQAtLevelFromPoly(level, []ring.Poly{*poly})
-	return &Plaintext{OperandQ: op, Value: op.Value[0]}
+func NewPlaintextAtLevelFromPoly(level int, poly ring.Poly) (pt *Plaintext, err error) {
+	op, err := NewOperandQAtLevelFromPoly(level, []ring.Poly{poly})
+	if err != nil {
+		return nil, err
+	}
+	return &Plaintext{OperandQ: *op, Value: op.Value[0]}, nil
 }
 
 // Copy copies the `other` plaintext value into the receiver plaintext.

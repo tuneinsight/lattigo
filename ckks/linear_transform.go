@@ -1,6 +1,7 @@
 package ckks
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
@@ -26,10 +27,9 @@ func GenLinearTransform[T float64 | complex128 | *big.Float | *bignum.Complex](d
 
 // TraceNew maps X -> sum((-1)^i * X^{i*n+1}) for 0 <= i < N and returns the result on a new ciphertext.
 // For log(n) = logSlots.
-func (eval Evaluator) TraceNew(ctIn *rlwe.Ciphertext, logSlots int) (opOut *rlwe.Ciphertext) {
+func (eval Evaluator) TraceNew(ctIn *rlwe.Ciphertext, logSlots int) (opOut *rlwe.Ciphertext, err error) {
 	opOut = NewCiphertext(eval.parameters, 1, ctIn.Level())
-	eval.Trace(ctIn, logSlots, opOut)
-	return
+	return opOut, eval.Trace(ctIn, logSlots, opOut)
 }
 
 // Average returns the average of vectors of batchSize elements.
@@ -38,14 +38,14 @@ func (eval Evaluator) TraceNew(ctIn *rlwe.Ciphertext, logSlots int) (opOut *rlwe
 // Example for batchSize=4 and slots=8: [{a, b, c, d}, {e, f, g, h}] -> [0.5*{a+e, b+f, c+g, d+h}, 0.5*{a+e, b+f, c+g, d+h}]
 // Operation requires log2(SlotCout/'batchSize') rotations.
 // Required rotation keys can be generated with 'RotationsForInnerSumLog(batchSize, SlotCount/batchSize)”
-func (eval Evaluator) Average(ctIn *rlwe.Ciphertext, logBatchSize int, opOut *rlwe.Ciphertext) {
+func (eval Evaluator) Average(ctIn *rlwe.Ciphertext, logBatchSize int, opOut *rlwe.Ciphertext) (err error) {
 
 	if ctIn.Degree() != 1 || opOut.Degree() != 1 {
-		panic("ctIn.Degree() != 1 or opOut.Degree() != 1")
+		return fmt.Errorf("cannot Average: ctIn.Degree() != 1 or opOut.Degree() != 1")
 	}
 
 	if logBatchSize > ctIn.PlaintextLogDimensions[1] {
-		panic("cannot Average: batchSize must be smaller or equal to the number of slots")
+		return fmt.Errorf("cannot Average: batchSize must be smaller or equal to the number of slots")
 	}
 
 	ringQ := eval.parameters.RingQ()
@@ -64,5 +64,5 @@ func (eval Evaluator) Average(ctIn *rlwe.Ciphertext, logBatchSize int, opOut *rl
 		s.MulScalarMontgomery(ctIn.Value[1].Coeffs[i], invN, opOut.Value[1].Coeffs[i])
 	}
 
-	eval.InnerSum(opOut, 1<<logBatchSize, n, opOut)
+	return eval.InnerSum(opOut, 1<<logBatchSize, n, opOut)
 }

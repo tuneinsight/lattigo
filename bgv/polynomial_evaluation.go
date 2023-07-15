@@ -180,23 +180,23 @@ func (polyEval PolynomialEvaluator) Parameters() rlwe.ParametersInterface {
 	return polyEval.Evaluator.Parameters()
 }
 
-func (polyEval PolynomialEvaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) {
+func (polyEval PolynomialEvaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
 	if !polyEval.InvariantTensoring {
-		polyEval.Evaluator.Mul(op0, op1, opOut)
+		return polyEval.Evaluator.Mul(op0, op1, opOut)
 	} else {
-		polyEval.Evaluator.MulInvariant(op0, op1, opOut)
+		return polyEval.Evaluator.MulInvariant(op0, op1, opOut)
 	}
 }
 
-func (polyEval PolynomialEvaluator) MulRelin(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) {
+func (polyEval PolynomialEvaluator) MulRelin(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
 	if !polyEval.InvariantTensoring {
-		polyEval.Evaluator.MulRelin(op0, op1, opOut)
+		return polyEval.Evaluator.MulRelin(op0, op1, opOut)
 	} else {
-		polyEval.Evaluator.MulRelinInvariant(op0, op1, opOut)
+		return polyEval.Evaluator.MulRelinInvariant(op0, op1, opOut)
 	}
 }
 
-func (polyEval PolynomialEvaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext) {
+func (polyEval PolynomialEvaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext, err error) {
 	if !polyEval.InvariantTensoring {
 		return polyEval.Evaluator.MulNew(op0, op1)
 	} else {
@@ -204,7 +204,7 @@ func (polyEval PolynomialEvaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}
 	}
 }
 
-func (polyEval PolynomialEvaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext) {
+func (polyEval PolynomialEvaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext, err error) {
 	if !polyEval.InvariantTensoring {
 		return polyEval.Evaluator.MulRelinNew(op0, op1)
 	} else {
@@ -271,11 +271,14 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 
 			// If a non-zero coefficient was found, encode the values, adds on the ciphertext, and returns
 			if toEncode {
-				pt := rlwe.NewPlaintextAtLevelFromPoly(targetLevel, &res.Value[0])
+				pt, err := rlwe.NewPlaintextAtLevelFromPoly(targetLevel, res.Value[0])
+				if err != nil {
+					panic(err)
+				}
 				pt.PlaintextScale = res.PlaintextScale
 				pt.IsNTT = NTTFlag
 				if err = polyEval.Encode(values, pt); err != nil {
-					return
+					return nil, err
 				}
 			}
 
@@ -288,7 +291,10 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 
 		// Allocates a temporary plaintext to encode the values
 		buffq := polyEval.Evaluator.BuffQ()
-		pt := rlwe.NewPlaintextAtLevelFromPoly(targetLevel, &buffq[0]) // buffQ[0] is safe in this case
+		pt, err := rlwe.NewPlaintextAtLevelFromPoly(targetLevel, buffq[0]) // buffQ[0] is safe in this case
+		if err != nil {
+			panic(err)
+		}
 		pt.PlaintextScale = targetScale
 		pt.IsNTT = NTTFlag
 
@@ -307,7 +313,10 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 		if toEncode {
 			// Add would actually scale the plaintext accordingly,
 			// but encoding with the correct scale is slightly faster
-			polyEval.Add(res, values, res)
+			if err := polyEval.Add(res, values, res); err != nil {
+				return nil, err
+			}
+
 			toEncode = false
 		}
 
@@ -347,7 +356,9 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 
 				// MulAndAdd would actually scale the plaintext accordingly,
 				// but encoding with the correct scale is slightly faster
-				polyEval.MulThenAdd(X[key], values, res)
+				if err = polyEval.MulThenAdd(X[key], values, res); err != nil {
+					return nil, err
+				}
 				toEncode = false
 			}
 		}
@@ -362,7 +373,9 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 			res.PlaintextScale = targetScale
 
 			if c != 0 {
-				polyEval.Add(res, c, res)
+				if err := polyEval.Add(res, c, res); err != nil {
+					return nil, err
+				}
 			}
 
 			return
@@ -372,13 +385,17 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 		res.PlaintextScale = targetScale
 
 		if c != 0 {
-			polyEval.Add(res, c, res)
+			if err := polyEval.Add(res, c, res); err != nil {
+				return nil, err
+			}
 		}
 
 		for key := pol.Value[0].Degree(); key > 0; key-- {
 			if c = pol.Value[0].Coeffs[key].Uint64(); key != 0 && c != 0 {
 				// MulScalarAndAdd automatically scales c to match the scale of res.
-				polyEval.MulThenAdd(X[key], c, res)
+				if err := polyEval.MulThenAdd(X[key], c, res); err != nil {
+					return nil, err
+				}
 			}
 		}
 	}

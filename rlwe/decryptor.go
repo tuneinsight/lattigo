@@ -1,6 +1,8 @@
 package rlwe
 
 import (
+	"fmt"
+
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
@@ -14,10 +16,10 @@ type Decryptor struct {
 }
 
 // NewDecryptor instantiates a new generic RLWE Decryptor.
-func NewDecryptor(params ParametersInterface, sk *SecretKey) *Decryptor {
+func NewDecryptor(params ParametersInterface, sk *SecretKey) (*Decryptor, error) {
 
 	if sk.Value.Q.N() != params.N() {
-		panic("cannot NewDecryptor: secret_key is invalid for the provided parameters")
+		return nil, fmt.Errorf("cannot NewDecryptor: secret_key ring degree does not match parameters ring degree")
 	}
 
 	return &Decryptor{
@@ -25,7 +27,7 @@ func NewDecryptor(params ParametersInterface, sk *SecretKey) *Decryptor {
 		ringQ:  params.RingQ(),
 		buff:   params.RingQ().NewPoly(),
 		sk:     sk,
-	}
+	}, nil
 }
 
 // DecryptNew decrypts the Ciphertext and returns the result in a new Plaintext.

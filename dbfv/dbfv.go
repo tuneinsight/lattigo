@@ -30,13 +30,13 @@ func NewGaloisKeyGenProtocol(params bfv.Parameters) drlwe.GaloisKeyGenProtocol {
 
 // NewKeySwitchProtocol creates a new drlwe.KeySwitchProtocol instance from the BFV parameters.
 // The returned protocol instance is generic and can be used in other multiparty schemes.
-func NewKeySwitchProtocol(params bfv.Parameters, noiseFlooding ring.DistributionParameters) drlwe.KeySwitchProtocol {
+func NewKeySwitchProtocol(params bfv.Parameters, noiseFlooding ring.DistributionParameters) (drlwe.KeySwitchProtocol, error) {
 	return drlwe.NewKeySwitchProtocol(params.Parameters.Parameters, noiseFlooding)
 }
 
 // NewPublicKeySwitchProtocol creates a new drlwe.PublicKeySwitchProtocol instance from the BFV paramters.
 // The returned protocol instance is generic and can be used in other multiparty schemes.
-func NewPublicKeySwitchProtocol(params bfv.Parameters, noiseFlooding ring.DistributionParameters) drlwe.PublicKeySwitchProtocol {
+func NewPublicKeySwitchProtocol(params bfv.Parameters, noiseFlooding ring.DistributionParameters) (drlwe.PublicKeySwitchProtocol, error) {
 	return drlwe.NewPublicKeySwitchProtocol(params.Parameters.Parameters, noiseFlooding)
 }
 
@@ -45,8 +45,9 @@ type RefreshProtocol struct {
 }
 
 // NewRefreshProtocol creates a new instance of the RefreshProtocol.
-func NewRefreshProtocol(params bfv.Parameters, noiseFlooding ring.DistributionParameters) (rft RefreshProtocol) {
-	return RefreshProtocol{dbgv.NewRefreshProtocol(params.Parameters, noiseFlooding)}
+func NewRefreshProtocol(params bfv.Parameters, noiseFlooding ring.DistributionParameters) (RefreshProtocol, error) {
+	m, err := dbgv.NewRefreshProtocol(params.Parameters, noiseFlooding)
+	return RefreshProtocol{m}, err
 }
 
 type EncToShareProtocol struct {
@@ -54,8 +55,9 @@ type EncToShareProtocol struct {
 }
 
 // NewEncToShareProtocol creates a new instance of the EncToShareProtocol.
-func NewEncToShareProtocol(params bfv.Parameters, noiseFlooding ring.DistributionParameters) (e2s EncToShareProtocol) {
-	return EncToShareProtocol{dbgv.NewEncToShareProtocol(params.Parameters, noiseFlooding)}
+func NewEncToShareProtocol(params bfv.Parameters, noiseFlooding ring.DistributionParameters) (EncToShareProtocol, error) {
+	e2s, err := dbgv.NewEncToShareProtocol(params.Parameters, noiseFlooding)
+	return EncToShareProtocol{e2s}, err
 }
 
 type ShareToEncProtocol struct {
@@ -63,8 +65,9 @@ type ShareToEncProtocol struct {
 }
 
 // NewShareToEncProtocol creates a new instance of the ShareToEncProtocol.
-func NewShareToEncProtocol(params bfv.Parameters, noiseFlooding ring.DistributionParameters) (e2s ShareToEncProtocol) {
-	return ShareToEncProtocol{dbgv.NewShareToEncProtocol(params.Parameters, noiseFlooding)}
+func NewShareToEncProtocol(params bfv.Parameters, noiseFlooding ring.DistributionParameters) (ShareToEncProtocol, error) {
+	s2e, err := dbgv.NewShareToEncProtocol(params.Parameters, noiseFlooding)
+	return ShareToEncProtocol{s2e}, err
 }
 
 type MaskedTransformProtocol struct {

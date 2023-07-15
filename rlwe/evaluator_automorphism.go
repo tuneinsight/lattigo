@@ -10,11 +10,11 @@ import (
 
 // Automorphism computes phi(ct), where phi is the map X -> X^galEl. The method requires
 // that the corresponding RotationKey has been added to the Evaluator. The method will
-// panic if either ctIn or opOut degree is not equal to 1.
-func (eval Evaluator) Automorphism(ctIn *Ciphertext, galEl uint64, opOut *Ciphertext) {
+// return an error if either ctIn or opOut degree is not equal to 1.
+func (eval Evaluator) Automorphism(ctIn *Ciphertext, galEl uint64, opOut *Ciphertext) (err error) {
 
 	if ctIn.Degree() != 1 || opOut.Degree() != 1 {
-		panic("cannot apply Automorphism: input and output Ciphertext must be of degree 1")
+		return fmt.Errorf("cannot apply Automorphism: input and output Ciphertext must be of degree 1")
 	}
 
 	if galEl == 1 {
@@ -25,9 +25,8 @@ func (eval Evaluator) Automorphism(ctIn *Ciphertext, galEl uint64, opOut *Cipher
 	}
 
 	var evk *GaloisKey
-	var err error
 	if evk, err = eval.CheckAndGetGaloisKey(galEl); err != nil {
-		panic(fmt.Errorf("cannot apply Automorphism: %w", err))
+		return fmt.Errorf("cannot apply Automorphism: %w", err)
 	}
 
 	level := utils.Min(ctIn.Level(), opOut.Level())
@@ -52,16 +51,18 @@ func (eval Evaluator) Automorphism(ctIn *Ciphertext, galEl uint64, opOut *Cipher
 	}
 
 	opOut.MetaData = ctIn.MetaData
+
+	return
 }
 
 // AutomorphismHoisted is similar to Automorphism, except that it takes as input ctIn and c1DecompQP, where c1DecompQP is the RNS
 // decomposition of its element of degree 1. This decomposition can be obtained with DecomposeNTT.
 // The method requires that the corresponding RotationKey has been added to the Evaluator.
-// The method will panic if either ctIn or opOut degree is not equal to 1.
-func (eval Evaluator) AutomorphismHoisted(level int, ctIn *Ciphertext, c1DecompQP []ringqp.Poly, galEl uint64, opOut *Ciphertext) {
+// The method will return an error if either ctIn or opOut degree is not equal to 1.
+func (eval Evaluator) AutomorphismHoisted(level int, ctIn *Ciphertext, c1DecompQP []ringqp.Poly, galEl uint64, opOut *Ciphertext) (err error) {
 
 	if ctIn.Degree() != 1 || opOut.Degree() != 1 {
-		panic("cannot apply AutomorphismHoisted: input and output Ciphertext must be of degree 1")
+		return fmt.Errorf("cannot apply AutomorphismHoisted: input and output Ciphertext must be of degree 1")
 	}
 
 	if galEl == 1 {
@@ -72,9 +73,8 @@ func (eval Evaluator) AutomorphismHoisted(level int, ctIn *Ciphertext, c1DecompQ
 	}
 
 	var evk *GaloisKey
-	var err error
 	if evk, err = eval.CheckAndGetGaloisKey(galEl); err != nil {
-		panic(fmt.Errorf("cannot apply AutomorphismHoisted: %w", err))
+		return fmt.Errorf("cannot apply AutomorphismHoisted: %w", err)
 	}
 
 	opOut.Resize(opOut.Degree(), level)
@@ -97,17 +97,18 @@ func (eval Evaluator) AutomorphismHoisted(level int, ctIn *Ciphertext, c1DecompQ
 	}
 
 	opOut.MetaData = ctIn.MetaData
+
+	return
 }
 
 // AutomorphismHoistedLazy is similar to AutomorphismHoisted, except that it returns a ciphertext modulo QP and scaled by P.
 // The method requires that the corresponding RotationKey has been added to the Evaluator.
 // Result NTT domain is returned according to the NTT flag of ctQP.
-func (eval Evaluator) AutomorphismHoistedLazy(levelQ int, ctIn *Ciphertext, c1DecompQP []ringqp.Poly, galEl uint64, ctQP *OperandQP) {
+func (eval Evaluator) AutomorphismHoistedLazy(levelQ int, ctIn *Ciphertext, c1DecompQP []ringqp.Poly, galEl uint64, ctQP *OperandQP) (err error) {
 
 	var evk *GaloisKey
-	var err error
 	if evk, err = eval.CheckAndGetGaloisKey(galEl); err != nil {
-		panic(fmt.Errorf("cannot apply AutomorphismHoistedLazy: %w", err))
+		return fmt.Errorf("cannot apply AutomorphismHoistedLazy: %w", err)
 	}
 
 	levelP := evk.LevelP()
@@ -148,4 +149,6 @@ func (eval Evaluator) AutomorphismHoistedLazy(levelQ int, ctIn *Ciphertext, c1De
 
 		ringQP.Automorphism(ctTmp.Value[0], galEl, ctQP.Value[0])
 	}
+
+	return
 }

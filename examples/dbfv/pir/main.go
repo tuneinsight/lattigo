@@ -164,14 +164,19 @@ func main() {
 
 	// Ciphertexts encrypted under collective public key and stored in the cloud
 	l.Println("> Encrypt Phase")
-	encryptor := bfv.NewEncryptor(params, pk)
+	encryptor, err := bfv.NewEncryptor(params, pk)
+	if err != nil {
+		panic(err)
+	}
 	pt := bfv.NewPlaintext(params, params.MaxLevel())
 	elapsedEncryptParty := runTimedParty(func() {
 		for i, pi := range P {
 			if err := encoder.Encode(pi.input, pt); err != nil {
 				panic(err)
 			}
-			encryptor.Encrypt(pt, encInputs[i])
+			if err := encryptor.Encrypt(pt, encInputs[i]); err != nil {
+				panic(err)
+			}
 		}
 	}, N)
 
@@ -189,7 +194,10 @@ func main() {
 	l.Println("> Result:")
 
 	// Decryption by the external party
-	decryptor := bfv.NewDecryptor(params, P[0].sk)
+	decryptor, err := bfv.NewDecryptor(params, P[0].sk)
+	if err != nil {
+		panic(err)
+	}
 	ptres := bfv.NewPlaintext(params, params.MaxLevel())
 	elapsedDecParty := runTimed(func() {
 		decryptor.Decrypt(encOut, ptres)
@@ -211,7 +219,10 @@ func cksphase(params bfv.Parameters, P []*party, result *rlwe.Ciphertext) *rlwe.
 
 	l.Println("> KeySwitch Phase")
 
-	cks := dbfv.NewKeySwitchProtocol(params, ring.DiscreteGaussian{Sigma: 1 << 30, Bound: 6 * (1 << 30)}) // Collective public-key re-encryption
+	cks, err := dbfv.NewKeySwitchProtocol(params, ring.DiscreteGaussian{Sigma: 1 << 30, Bound: 6 * (1 << 30)}) // Collective public-key re-encryption
+	if err != nil {
+		panic(err)
+	}
 
 	for _, pi := range P {
 		pi.cksShare = cks.AllocateShare(params.MaxLevel())
@@ -228,7 +239,9 @@ func cksphase(params bfv.Parameters, P []*party, result *rlwe.Ciphertext) *rlwe.
 	encOut := bfv.NewCiphertext(params, 1, params.MaxLevel())
 	elapsedCKSCloud = runTimed(func() {
 		for _, pi := range P {
-			cks.AggregateShares(pi.cksShare, cksCombined, &cksCombined)
+			if err := cks.AggregateShares(pi.cksShare, cksCombined, &cksCombined); err != nil {
+				panic(err)
+			}
 		}
 		cks.KeySwitch(result, cksCombined, encOut)
 	})
@@ -364,22 +377,30 @@ func gkgphase(params bfv.Parameters, crs sampling.PRNG, P []*party) (galKeys []*
 
 		elapsedGKGParty += runTimedParty(func() {
 			for _, pi := range P {
-				gkg.GenShare(pi.sk, galEl, crp, &pi.gkgShare)
+				if err := gkg.GenShare(pi.sk, galEl, crp, &pi.gkgShare); err != nil {
+					panic(err)
+				}
 			}
 
 		}, len(P))
 
 		elapsedGKGCloud += runTimed(func() {
 
-			gkg.AggregateShares(P[0].gkgShare, P[1].gkgShare, &gkgShareCombined)
+			if err := gkg.AggregateShares(P[0].gkgShare, P[1].gkgShare, &gkgShareCombined); err != nil {
+				panic(err)
+			}
 
 			for _, pi := range P[2:] {
-				gkg.AggregateShares(pi.gkgShare, gkgShareCombined, &gkgShareCombined)
+				if err := gkg.AggregateShares(pi.gkgShare, gkgShareCombined, &gkgShareCombined); err != nil {
+					panic(err)
+				}
 			}
 
 			galKeys[i] = rlwe.NewGaloisKey(params)
 
-			gkg.GenGaloisKey(gkgShareCombined, crp, galKeys[i])
+			if err := gkg.GenGaloisKey(gkgShareCombined, crp, galKeys[i]); err != nil {
+				panic(err)
+			}
 		})
 	}
 	l.Printf("\tdone (cloud: %s, party %s)\n", elapsedGKGCloud, elapsedGKGParty)
@@ -394,10 +415,13 @@ func genquery(params bfv.Parameters, queryIndex int, encoder *bfv.Encoder, encry
 	query := bfv.NewPlaintext(params, params.MaxLevel())
 	var encQuery *rlwe.Ciphertext
 	elapsedRequestParty += runTimed(func() {
-		if err := encoder.Encode(queryCoeffs, query); err != nil {
+		var err error
+		if err = encoder.Encode(queryCoeffs, query); err != nil {
 			panic(err)
 		}
-		encQuery = encryptor.EncryptNew(query)
+		if encQuery, err = encryptor.EncryptNew(query); err != nil {
+			panic(err)
+		}
 	})
 
 	return encQuery
@@ -428,14 +452,27 @@ func requestphase(params bfv.Parameters, queryIndex, NGoRoutine int, encQuery *r
 			for task := range tasks {
 				task.elapsedmaskTask = runTimed(func() {
 					// 1) Multiplication of the query with the plaintext mask
-					evaluator.Mul(task.query, task.mask, tmp)
+					if err := evaluator.Mul(task.query, task.mask, tmp); err != nil {
+						panic(err)
+					}
 
 					// 2) Inner sum (populate all the slots with the sum of all the slots)
-					evaluator.InnerSum(tmp, 1, params.N()>>1, tmp)
-					evaluator.Add(tmp, evaluator.RotateRowsNew(tmp), tmp)
+					if err := evaluator.InnerSum(tmp, 1, params.N()>>1, tmp); err != nil {
+						panic(err)
+					}
+
+					if tmpRot, err := evaluator.RotateRowsNew(tmp); err != nil {
+
+					} else {
+						if err := evaluator.Add(tmp, tmpRot, tmp); err != nil {
+							panic(err)
+						}
+					}
 
 					// 3) Multiplication of 2) with the i-th ciphertext stored in the cloud
-					evaluator.Mul(tmp, task.row, task.res)
+					if err := evaluator.Mul(tmp, task.row, task.res); err != nil {
+						panic(err)
+					}
 				})
 			}
 			//l.Println("\t evaluator", i, "down")
@@ -471,9 +508,13 @@ func requestphase(params bfv.Parameters, queryIndex, NGoRoutine int, encQuery *r
 	// Summation of all the partial result among the different Go routines
 	finalAddDuration := runTimed(func() {
 		for i := 0; i < len(encInputs); i++ {
-			evaluator.Add(resultDeg2, encPartial[i], resultDeg2)
+			if err := evaluator.Add(resultDeg2, encPartial[i], resultDeg2); err != nil {
+				panic(err)
+			}
 		}
-		evaluator.Relinearize(resultDeg2, result)
+		if err := evaluator.Relinearize(resultDeg2, result); err != nil {
+			panic(err)
+		}
 	})
 
 	elapsedRequestCloud += finalAddDuration

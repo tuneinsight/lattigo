@@ -158,8 +158,14 @@ func main() {
 	// - PublicKey: an encryption of zero, which can be shared and enable anyone to encrypt plaintexts.
 	// - RelinearizationKey: an evaluation key which is used during ciphertext x ciphertext multiplication to ensure ciphertext compactness.
 	sk := kgen.GenSecretKeyNew()
-	pk := kgen.GenPublicKeyNew(sk) // Note that we can generate any number of public keys associated to the same Secret Key.
-	rlk := kgen.GenRelinearizationKeyNew(sk)
+	pk, err := kgen.GenPublicKeyNew(sk) // Note that we can generate any number of public keys associated to the same Secret Key.
+	if err != nil {
+		panic(err)
+	}
+	rlk, err := kgen.GenRelinearizationKeyNew(sk)
+	if err != nil {
+		panic(err)
+	}
 
 	// To store and manage the loading of evaluation keys, we instantiate a struct that complies to the `rlwe.EvaluationKeySetInterface` Interface.
 	// The package `rlwe` provides a simple struct that complies to this interface, but a user can design its own struct compliant to the `rlwe.EvaluationKeySetInterface`
@@ -211,11 +217,17 @@ func main() {
 	// To generate ciphertexts we need an encryptor.
 	// An encryptor will accept both a secret key or a public key,
 	// in this example we will use the public key.
-	enc := ckks.NewEncryptor(params, pk)
+	enc, err := ckks.NewEncryptor(params, pk)
+	if err != nil {
+		panic(err)
+	}
 
 	// And we create the ciphertext.
 	// Note that the metadata of the plaintext will be copied on the resulting ciphertext.
-	ct1 := enc.EncryptNew(pt1)
+	ct1, err := enc.EncryptNew(pt1)
+	if err != nil {
+		panic(err)
+	}
 	// It is also possible to first allocate the ciphertext the same way it was done
 	// for the plaintext with with `ct := ckks.NewCiphertext(params, 1, pt.Level())`.
 
@@ -226,7 +238,10 @@ func main() {
 	// We are able to generate ciphertext from plaintext using the encryptor.
 	// To do the converse, generate plaintexts from ciphertexts, we need to instantiate a decryptor.
 	// Obviously, the decryptor will only accept the secret key.
-	dec := ckks.NewDecryptor(params, sk)
+	dec, err := ckks.NewDecryptor(params, sk)
+	if err != nil {
+		panic(err)
+	}
 
 	// ================
 	// Evaluator Basics
@@ -300,7 +315,10 @@ func main() {
 		panic(err)
 	}
 
-	ct2 := enc.EncryptNew(pt2)
+	ct2, err := enc.EncryptNew(pt2)
+	if err != nil {
+		panic(err)
+	}
 
 	want := make([]complex128, Slots)
 	for i := 0; i < Slots; i++ {
@@ -311,14 +329,26 @@ func main() {
 	// Theses stats show the -log2 of the matching bits on the right side of the decimal point.
 	// Because values are not normalized, large values will show as having a low precision, even if left side of of the decimal point (integer part) is correct.
 	// Eventually this will be fixed, by normalizing with the maximum value decrypted.
-	fmt.Printf("Addition - ct + ct%s", ckks.GetPrecisionStats(params, ecd, dec, want, eval.AddNew(ct1, ct2), nil, false).String())
+	ct3, err := eval.AddNew(ct1, ct2)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Addition - ct + ct%s", ckks.GetPrecisionStats(params, ecd, dec, want, ct3, nil, false).String())
 
 	// ciphertext + plaintext
-	fmt.Printf("Addition - ct + pt%s", ckks.GetPrecisionStats(params, ecd, dec, want, eval.AddNew(ct1, pt2), nil, false).String())
+	ct3, err = eval.AddNew(ct1, pt2)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Addition - ct + pt%s", ckks.GetPrecisionStats(params, ecd, dec, want, ct3, nil, false).String())
 
 	// ciphertext + vector
 	// Note that the evaluator will encode this vector at the scale of the input ciphertext to ensure a noiseless addition.
-	fmt.Printf("Addition - ct + vector%s", ckks.GetPrecisionStats(params, ecd, dec, want, eval.AddNew(ct1, values2), nil, false).String())
+	ct3, err = eval.AddNew(ct1, values2)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Addition - ct + vector%s", ckks.GetPrecisionStats(params, ecd, dec, want, ct3, nil, false).String())
 
 	// ciphertext + scalar
 	scalar := 3.141592653589793 + 1.4142135623730951i
@@ -327,7 +357,11 @@ func main() {
 	}
 
 	// Similarly, if we give a scalar, it will be scaled by the scale of the input ciphertext to ensure a noiseless addition.
-	fmt.Printf("Addition - ct + scalar%s", ckks.GetPrecisionStats(params, ecd, dec, want, eval.AddNew(ct1, scalar), nil, false).String())
+	ct3, err = eval.AddNew(ct1, scalar)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Addition - ct + scalar%s", ckks.GetPrecisionStats(params, ecd, dec, want, ct3, nil, false).String())
 
 	fmt.Printf("==============\n")
 	fmt.Printf("MULTIPLICATION\n")
@@ -360,9 +394,14 @@ func main() {
 	}
 
 	// and we encrypt (recall that the metadata of the plaintext are copied on the created ciphertext)
-	enc.Encrypt(pt2, ct2)
+	if err := enc.Encrypt(pt2, ct2); err != nil {
+		panic(err)
+	}
 
-	res := eval.MulRelinNew(ct1, ct2)
+	res, err := eval.MulRelinNew(ct1, ct2)
+	if err != nil {
+		panic(err)
+	}
 
 	// The scaling factor of res should be equal to ct1.PlaintextScale * ct2.PlaintextScale
 	ctScale := &res.PlaintextScale.Value // We need to access the pointer to have it display correctly in the command line
@@ -389,12 +428,20 @@ func main() {
 	fmt.Printf("Multiplication - ct * ct%s", ckks.GetPrecisionStats(params, ecd, dec, want, res, nil, false).String())
 
 	// ciphertext + plaintext
-	fmt.Printf("Multiplication - ct * pt%s", ckks.GetPrecisionStats(params, ecd, dec, want, eval.MulRelinNew(ct1, pt2), nil, false).String())
+	ct3, err = eval.MulRelinNew(ct1, pt2)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Multiplication - ct * pt%s", ckks.GetPrecisionStats(params, ecd, dec, want, ct3, nil, false).String())
 
 	// ciphertext + vector
 	// Note that when giving non-encoded vectors, the evaluator will internally encode this vector with the appropriate scale that ensure that
 	// the following rescaling operation will make the resulting ciphertext fall back on it's previous scale.
-	fmt.Printf("Multiplication - ct * vector%s", ckks.GetPrecisionStats(params, ecd, dec, want, eval.MulRelinNew(ct1, values2), nil, false).String())
+	ct3, err = eval.MulRelinNew(ct1, values2)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Multiplication - ct * vector%s", ckks.GetPrecisionStats(params, ecd, dec, want, ct3, nil, false).String())
 
 	// ciphertext + scalar (scalar = pi + sqrt(2) * i)
 	for i := 0; i < Slots; i++ {
@@ -404,7 +451,11 @@ func main() {
 	// Similarly, when giving a scalar, the scalar is encoded with the appropriate scale to get back to the original ciphertext scale after the rescaling.
 	// Additionally, the multiplication with a Gaussian integer does not increase the scale of the ciphertext, thus does not require rescaling and does not consume a level.
 	// For example, multiplication/division by the imaginary unit `i` is free in term of level consumption and can be used without moderation.
-	fmt.Printf("Multiplication - ct * scalar%s", ckks.GetPrecisionStats(params, ecd, dec, want, eval.MulRelinNew(ct1, scalar), nil, false).String())
+	ct3, err = eval.MulRelinNew(ct1, scalar)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Multiplication - ct * scalar%s", ckks.GetPrecisionStats(params, ecd, dec, want, ct3, nil, false).String())
 
 	fmt.Printf("======================\n")
 	fmt.Printf("ROTATION & CONJUGATION\n")
@@ -432,7 +483,10 @@ func main() {
 	}
 
 	// We then generate the `rlwe.GaloisKey`s element that corresponds to these galois elements.
-	gks := kgen.GenGaloisKeysNew(galEls, sk)
+	gks, err := kgen.GenGaloisKeysNew(galEls, sk)
+	if err != nil {
+		panic(err)
+	}
 
 	// Then we update the evaluator's `rlwe.EvaluationKeySet` with the new keys.
 	eval = eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, gks...))
@@ -442,14 +496,22 @@ func main() {
 		want[i] = values1[(i+5)%Slots]
 	}
 
-	fmt.Printf("Rotation by k=%d %s", rot, ckks.GetPrecisionStats(params, ecd, dec, want, eval.RotateNew(ct1, rot), nil, false).String())
+	ct3, err = eval.RotateNew(ct1, rot)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Rotation by k=%d %s", rot, ckks.GetPrecisionStats(params, ecd, dec, want, ct3, nil, false).String())
 
 	// Conjugation
 	for i := 0; i < Slots; i++ {
 		want[i] = complex(real(values1[i]), -imag(values1[i]))
 	}
 
-	fmt.Printf("Conjugation %s", ckks.GetPrecisionStats(params, ecd, dec, want, eval.ConjugateNew(ct1), nil, false).String())
+	ct3, err = eval.ConjugateNew(ct1)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Conjugation %s", ckks.GetPrecisionStats(params, ecd, dec, want, ct3, nil, false).String())
 
 	// Note that rotations and conjugation only add a fixed additive noise independent of the ciphertext noise.
 	// If the parameters are set correctly, this noise can be rounding error (thus negligible).
@@ -511,8 +573,14 @@ func main() {
 	// First, we must operate the change of basis for the Chebyshev evaluation y = (2*x-a-b)/(b-a) = scalarmul * x + scalaradd
 	scalarmul, scalaradd := poly.ChangeOfBasis()
 
-	res = eval.MulNew(ct1, scalarmul)
-	eval.Add(res, scalaradd, res)
+	res, err = eval.MulNew(ct1, scalarmul)
+	if err != nil {
+		panic(err)
+	}
+
+	if err = eval.Add(res, scalaradd, res); err != nil {
+		panic(err)
+	}
 
 	if err = eval.Rescale(res, params.PlaintextScale(), res); err != nil {
 		panic(err)
@@ -552,7 +620,12 @@ func main() {
 
 	// The innersum operations is carried out with log2(n) + HW(n) automorphisms and we need to
 	// generate the corresponding Galois keys and provide them to the `Evaluator`.
-	eval = eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, kgen.GenGaloisKeysNew(params.GaloisElementsForInnerSum(batch, n), sk)...))
+	gks, err = kgen.GenGaloisKeysNew(params.GaloisElementsForInnerSum(batch, n), sk)
+	if err != nil {
+		panic(err)
+	}
+
+	eval = eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, gks...))
 
 	// Plaintext circuit
 	copy(want, values1)
@@ -562,7 +635,9 @@ func main() {
 		}
 	}
 
-	eval.InnerSum(ct1, batch, n, res)
+	if err := eval.InnerSum(ct1, batch, n, res); err != nil {
+		panic(err)
+	}
 
 	// Note that this method can obviously be used to average values.
 	// For a good noise management, it is recommended to first multiply the values by 1/n, then
@@ -570,7 +645,12 @@ func main() {
 	fmt.Printf("Innersum %s", ckks.GetPrecisionStats(params, ecd, dec, want, res, nil, false).String())
 
 	// The replicate operation is exactly the same as the innersum operation, but in reverse
-	eval = eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, kgen.GenGaloisKeysNew(params.GaloisElementsForReplicate(batch, n), sk)...))
+	gks, err = kgen.GenGaloisKeysNew(params.GaloisElementsForReplicate(batch, n), sk)
+	if err != nil {
+		panic(err)
+	}
+
+	eval = eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, gks...))
 
 	// Plaintext circuit
 	copy(want, values1)
@@ -580,7 +660,9 @@ func main() {
 		}
 	}
 
-	eval.Replicate(ct1, batch, n, res)
+	if err := eval.Replicate(ct1, batch, n, res); err != nil {
+		panic(err)
+	}
 
 	fmt.Printf("Replicate %s", ckks.GetPrecisionStats(params, ecd, dec, want, res, nil, false).String())
 
@@ -636,11 +718,16 @@ func main() {
 	// Then we generate the corresponding Galois keys.
 	// The list of Galois elements can also be obtained with `linTransf.GaloisElements`
 	galEls = params.GaloisElementsForLinearTransform(nonZeroDiagonales, LogSlots, LogBSGSRatio)
-	gks = kgen.GenGaloisKeysNew(galEls, sk)
+	gks, err = kgen.GenGaloisKeysNew(galEls, sk)
+	if err != nil {
+		panic(err)
+	}
 	eval = eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, gks...))
 
 	// And we valuate the linear transform
-	eval.LinearTransform(ct1, linTransf, []*rlwe.Ciphertext{res})
+	if err := eval.LinearTransform(ct1, linTransf, []*rlwe.Ciphertext{res}); err != nil {
+		panic(err)
+	}
 
 	// Result is not returned rescaled
 	if err = eval.Rescale(res, params.PlaintextScale(), res); err != nil {

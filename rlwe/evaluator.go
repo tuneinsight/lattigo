@@ -92,8 +92,11 @@ func NewEvaluator(params ParametersInterface, evk EvaluationKeySet) (eval *Evalu
 			N := params.N()
 			NthRoot := params.RingQ().NthRoot()
 
+			var err error
 			for _, galEl := range galEls {
-				AutomorphismIndex[galEl] = ring.AutomorphismNTTIndex(N, NthRoot, galEl)
+				if AutomorphismIndex[galEl], err = ring.AutomorphismNTTIndex(N, NthRoot, galEl); err != nil {
+					panic(err)
+				}
 			}
 		}
 	}
@@ -123,7 +126,9 @@ func (eval Evaluator) CheckAndGetGaloisKey(galEl uint64) (evk *GaloisKey, err er
 	}
 
 	if _, ok := eval.AutomorphismIndex[galEl]; !ok {
-		eval.AutomorphismIndex[galEl] = ring.AutomorphismNTTIndex(eval.params.N(), eval.params.RingQ().NthRoot(), galEl)
+		if eval.AutomorphismIndex[galEl], err = ring.AutomorphismNTTIndex(eval.params.N(), eval.params.RingQ().NthRoot(), galEl); err != nil {
+			panic(err)
+		}
 	}
 
 	return
@@ -158,10 +163,10 @@ func (eval Evaluator) CheckAndGetRelinearizationKey() (evk *RelinearizationKey, 
 // The opOutMinDegree can be used to force the output operand to a higher ciphertext degree.
 //
 // The method returns max(op0.Degree(), op1.Degree(), opOut.Degree()) and min(op0.Level(), op1.Level(), opOut.Level())
-func (eval Evaluator) InitOutputBinaryOp(op0, op1 *OperandQ, opOutMinDegree int, opOut *OperandQ) (degree, level int) {
+func (eval Evaluator) InitOutputBinaryOp(op0, op1 *OperandQ, opOutMinDegree int, opOut *OperandQ) (degree, level int, err error) {
 
 	if op0 == nil || op1 == nil || opOut == nil {
-		panic("op0, op1 and opOut cannot be nil")
+		return 0, 0, fmt.Errorf("op0, op1 and opOut cannot be nil")
 	}
 
 	degree = utils.Max(op0.Degree(), op1.Degree())
@@ -170,17 +175,17 @@ func (eval Evaluator) InitOutputBinaryOp(op0, op1 *OperandQ, opOutMinDegree int,
 	level = utils.Min(level, opOut.Level())
 
 	if op0.Degree()+op1.Degree() == 0 {
-		panic("op0 and op1 cannot be both plaintexts")
+		return 0, 0, fmt.Errorf("op0 and op1 cannot be both plaintexts")
 	}
 
 	if op0.El().IsNTT != op1.El().IsNTT || op0.El().IsNTT != eval.params.NTTFlag() {
-		panic(fmt.Sprintf("op0.El().IsNTT or op1.El().IsNTT != %t", eval.params.NTTFlag()))
+		return 0, 0, fmt.Errorf("op0.El().IsNTT or op1.El().IsNTT != %t", eval.params.NTTFlag())
 	} else {
 		opOut.El().IsNTT = op0.El().IsNTT
 	}
 
 	if op0.El().EncodingDomain != op1.El().EncodingDomain {
-		panic("op1.El().EncodingDomain != opOut.El().EncodingDomain")
+		return 0, 0, fmt.Errorf("op1.El().EncodingDomain != opOut.El().EncodingDomain")
 	} else {
 		opOut.El().EncodingDomain = op0.El().EncodingDomain
 	}
@@ -206,14 +211,14 @@ func (eval Evaluator) InitOutputBinaryOp(op0, op1 *OperandQ, opOutMinDegree int,
 // PlaintextLogDimensions <- op0.PlaintextLogDimensions
 //
 // The method returns max(op0.Degree(), opOut.Degree()) and min(op0.Level(), opOut.Level()).
-func (eval Evaluator) InitOutputUnaryOp(op0, opOut *OperandQ) (degree, level int) {
+func (eval Evaluator) InitOutputUnaryOp(op0, opOut *OperandQ) (degree, level int, err error) {
 
 	if op0 == nil || opOut == nil {
-		panic("op0 and opOut cannot be nil")
+		return 0, 0, fmt.Errorf("op0 and opOut cannot be nil")
 	}
 
 	if op0.El().IsNTT != eval.params.NTTFlag() {
-		panic(fmt.Sprintf("op0.IsNTT() != %t", eval.params.NTTFlag()))
+		return 0, 0, fmt.Errorf("op0.IsNTT() != %t", eval.params.NTTFlag())
 	} else {
 		opOut.El().IsNTT = op0.El().IsNTT
 	}
@@ -222,7 +227,7 @@ func (eval Evaluator) InitOutputUnaryOp(op0, opOut *OperandQ) (degree, level int
 
 	opOut.El().PlaintextLogDimensions = op0.El().PlaintextLogDimensions
 
-	return utils.Max(op0.Degree(), opOut.Degree()), utils.Min(op0.Level(), opOut.Level())
+	return utils.Max(op0.Degree(), opOut.Degree()), utils.Min(op0.Level(), opOut.Level()), nil
 }
 
 // ShallowCopy creates a shallow copy of this Evaluator in which all the read-only data-structures are
@@ -251,8 +256,11 @@ func (eval Evaluator) WithKey(evk EvaluationKeySet) *Evaluator {
 		N := eval.params.N()
 		NthRoot := eval.params.RingQ().NthRoot()
 
+		var err error
 		for _, galEl := range galEls {
-			AutomorphismIndex[galEl] = ring.AutomorphismNTTIndex(N, NthRoot, galEl)
+			if AutomorphismIndex[galEl], err = ring.AutomorphismNTTIndex(N, NthRoot, galEl); err != nil {
+				panic(err)
+			}
 		}
 	}
 

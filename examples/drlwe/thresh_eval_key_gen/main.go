@@ -78,13 +78,18 @@ func (p *party) Run(wg *sync.WaitGroup, params rlwe.Parameters, N int, P []*part
 				activePk = append(activePk, pi.shamirPk)
 			}
 			sk = rlwe.NewSecretKey(params)
-			p.GenAdditiveShare(activePk, p.shamirPk, p.tsk, sk)
+			if err := p.GenAdditiveShare(activePk, p.shamirPk, p.tsk, sk); err != nil {
+				panic(err)
+			}
 		}
 
 		for _, galEl := range task.galoisEls {
 			rtgShare := p.AllocateShare()
 
-			p.GenShare(sk, galEl, crp[galEl], &rtgShare)
+			if err := p.GenShare(sk, galEl, crp[galEl], &rtgShare); err != nil {
+				panic(err)
+			}
+
 			C.aggTaskQueue <- genTaskResult{galEl: galEl, rtgShare: rtgShare}
 			nShares++
 			byteSent += len(rtgShare.Value) * len(rtgShare.Value[0]) * rtgShare.Value[0][0].BinarySize()
@@ -123,11 +128,15 @@ func (c *cloud) Run(galEls []uint64, params rlwe.Parameters, t int) {
 	for task := range c.aggTaskQueue {
 		start := time.Now()
 		acc := shares[task.galEl]
-		c.GaloisKeyGenProtocol.AggregateShares(acc.share, task.rtgShare, &acc.share)
+		if err := c.GaloisKeyGenProtocol.AggregateShares(acc.share, task.rtgShare, &acc.share); err != nil {
+			panic(err)
+		}
 		acc.needed--
 		if acc.needed == 0 {
 			gk := rlwe.NewGaloisKey(params)
-			c.GenGaloisKey(acc.share, crp[task.galEl], gk)
+			if err := c.GenGaloisKey(acc.share, crp[task.galEl], gk); err != nil {
+				panic(err)
+			}
 			c.finDone <- *gk
 		}
 		i++
@@ -221,6 +230,7 @@ func main() {
 		if t != N {
 			pi.Thresholdizer = drlwe.NewThresholdizer(params)
 			pi.tsk = pi.AllocateThresholdSecretShare()
+			var err error
 			pi.ssp, err = pi.GenShamirPolynomial(t, pi.sk)
 			if err != nil {
 				panic(err)
@@ -258,7 +268,9 @@ func main() {
 		for _, pi := range P {
 			for _, pj := range P {
 				share := shares[pj][pi]
-				pi.Thresholdizer.AggregateShares(pi.tsk, share, &pi.tsk)
+				if err := pi.Thresholdizer.AggregateShares(pi.tsk, share, &pi.tsk); err != nil {
+					panic(err)
+				}
 			}
 		}
 	}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
@@ -81,7 +82,8 @@ func benchSampling(tc *testParams, b *testing.B) {
 
 	b.Run(testString("Sampling/Gaussian/", tc.ringQ), func(b *testing.B) {
 
-		sampler := NewSampler(tc.prng, tc.ringQ, &DiscreteGaussian{Sigma: DefaultSigma, Bound: DefaultBound}, false)
+		sampler, err := NewSampler(tc.prng, tc.ringQ, &DiscreteGaussian{Sigma: DefaultSigma, Bound: DefaultBound}, false)
+		require.NoError(b, err)
 
 		for i := 0; i < b.N; i++ {
 			sampler.Read(pol)
@@ -90,7 +92,8 @@ func benchSampling(tc *testParams, b *testing.B) {
 
 	b.Run(testString("Sampling/Ternary/0.3/", tc.ringQ), func(b *testing.B) {
 
-		sampler := NewSampler(tc.prng, tc.ringQ, Ternary{P: 1.0 / 3}, true)
+		sampler, err := NewSampler(tc.prng, tc.ringQ, Ternary{P: 1.0 / 3}, true)
+		require.NoError(b, err)
 
 		for i := 0; i < b.N; i++ {
 			sampler.Read(pol)
@@ -99,7 +102,8 @@ func benchSampling(tc *testParams, b *testing.B) {
 
 	b.Run(testString("Sampling/Ternary/0.5/", tc.ringQ), func(b *testing.B) {
 
-		sampler := NewSampler(tc.prng, tc.ringQ, Ternary{P: 0.5}, true)
+		sampler, err := NewSampler(tc.prng, tc.ringQ, Ternary{P: 0.5}, true)
+		require.NoError(b, err)
 
 		for i := 0; i < b.N; i++ {
 			sampler.Read(pol)
@@ -108,7 +112,8 @@ func benchSampling(tc *testParams, b *testing.B) {
 
 	b.Run(testString("Sampling/Ternary/sparse128/", tc.ringQ), func(b *testing.B) {
 
-		sampler := NewSampler(tc.prng, tc.ringQ, Ternary{H: 128}, true)
+		sampler, err := NewSampler(tc.prng, tc.ringQ, Ternary{H: 128}, true)
+		require.NoError(b, err)
 
 		for i := 0; i < b.N; i++ {
 			sampler.Read(pol)
@@ -117,7 +122,8 @@ func benchSampling(tc *testParams, b *testing.B) {
 
 	b.Run(testString("Sampling/Uniform/", tc.ringQ), func(b *testing.B) {
 
-		sampler := NewSampler(tc.prng, tc.ringQ, &Uniform{}, true)
+		sampler, err := NewSampler(tc.prng, tc.ringQ, &Uniform{}, true)
+		require.NoError(b, err)
 
 		for i := 0; i < b.N; i++ {
 			sampler.Read(pol)

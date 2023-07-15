@@ -207,7 +207,7 @@ func (p Parameters) Equal(other rlwe.ParametersInterface) bool {
 		return p.Parameters.Equal(other.Parameters) && (p.T() == other.T())
 	}
 
-	panic(fmt.Errorf("cannot Equal: type do not match: %T != %T", p, other))
+	return false
 }
 
 // MarshalBinary returns a []byte representation of the parameter set.

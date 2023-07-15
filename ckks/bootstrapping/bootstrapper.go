@@ -59,7 +59,9 @@ func NewBootstrapper(params ckks.Parameters, btpParams Parameters, btpKeys *Eval
 	}
 
 	btp = new(Bootstrapper)
-	btp.bootstrapperBase = newBootstrapperBase(params, btpParams, btpKeys)
+	if btp.bootstrapperBase, err = newBootstrapperBase(params, btpParams, btpKeys); err != nil {
+		return
+	}
 
 	if err = btp.bootstrapperBase.CheckKeys(btpKeys); err != nil {
 		return nil, fmt.Errorf("invalid bootstrapping key: %w", err)
@@ -77,23 +79,35 @@ func NewBootstrapper(params ckks.Parameters, btpParams Parameters, btpKeys *Eval
 //	EvaluationKeySet: struct compliant to the interface rlwe.EvaluationKeySetInterface.
 //	EvkDtS: *rlwe.EvaluationKey
 //	EvkStD: *rlwe.EvaluationKey
-func GenEvaluationKeySetNew(btpParams Parameters, ckksParams ckks.Parameters, sk *rlwe.SecretKey) *EvaluationKeySet {
+func GenEvaluationKeySetNew(btpParams Parameters, ckksParams ckks.Parameters, sk *rlwe.SecretKey) (*EvaluationKeySet, error) {
 
 	kgen := ckks.NewKeyGenerator(ckksParams)
 
-	gks := kgen.GenGaloisKeysNew(append(btpParams.GaloisElements(ckksParams), ckksParams.GaloisElementInverse()), sk)
+	gks, err := kgen.GenGaloisKeysNew(append(btpParams.GaloisElements(ckksParams), ckksParams.GaloisElementInverse()), sk)
+	if err != nil {
+		return nil, err
+	}
 
-	EvkDtS, EvkStD := btpParams.GenEncapsulationEvaluationKeysNew(ckksParams, sk)
-	evk := rlwe.NewMemEvaluationKeySet(kgen.GenRelinearizationKeyNew(sk), gks...)
+	EvkDtS, EvkStD, err := btpParams.GenEncapsulationEvaluationKeysNew(ckksParams, sk)
+	if err != nil {
+		return nil, err
+	}
+
+	rlk, err := kgen.GenRelinearizationKeyNew(sk)
+	if err != nil {
+		return nil, err
+	}
+
+	evk := rlwe.NewMemEvaluationKeySet(rlk, gks...)
 	return &EvaluationKeySet{
 		MemEvaluationKeySet: evk,
 		EvkDtS:              EvkDtS,
 		EvkStD:              EvkStD,
-	}
+	}, nil
 }
 
 // GenEncapsulationEvaluationKeysNew generates the low level encapsulation EvaluationKeys for the bootstrapping.
-func (p *Parameters) GenEncapsulationEvaluationKeysNew(params ckks.Parameters, skDense *rlwe.SecretKey) (EvkDtS, EvkStD *rlwe.EvaluationKey) {
+func (p *Parameters) GenEncapsulationEvaluationKeysNew(params ckks.Parameters, skDense *rlwe.SecretKey) (EvkDtS, EvkStD *rlwe.EvaluationKey, err error) {
 
 	if p.EphemeralSecretWeight == 0 {
 		return
@@ -109,7 +123,19 @@ func (p *Parameters) GenEncapsulationEvaluationKeysNew(params ckks.Parameters, s
 	kgenDense := rlwe.NewKeyGenerator(params.Parameters)
 	skSparse := kgenSparse.GenSecretKeyWithHammingWeightNew(p.EphemeralSecretWeight)
 
-	return kgenDense.GenEvaluationKeyNew(skDense, skSparse), kgenDense.GenEvaluationKeyNew(skSparse, skDense)
+	EvkDtS, err = kgenDense.GenEvaluationKeyNew(skDense, skSparse)
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	EvkStD, err = kgenDense.GenEvaluationKeyNew(skSparse, skDense)
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return
 }
 
 // ShallowCopy creates a shallow copy of this Bootstrapper in which all the read-only data-structures are
@@ -146,7 +172,7 @@ func (bb *bootstrapperBase) CheckKeys(btpKeys *EvaluationKeySet) (err error) {
 	return
 }
 
-func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey *EvaluationKeySet) (bb *bootstrapperBase) {
+func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey *EvaluationKeySet) (bb *bootstrapperBase, err error) {
 	bb = new(bootstrapperBase)
 	bb.params = params
 	bb.Parameters = btpParams
@@ -158,7 +184,9 @@ func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey *E
 		bb.logdslots++
 	}
 
-	bb.evalModPoly = ckks.NewEvalModPolyFromLiteral(params, btpParams.EvalModParameters)
+	if bb.evalModPoly, err = ckks.NewEvalModPolyFromLiteral(params, btpParams.EvalModParameters); err != nil {
+		return nil, err
+	}
 
 	scFac := bb.evalModPoly.ScFac()
 	K := bb.evalModPoly.K() / scFac
@@ -193,7 +221,9 @@ func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey *E
 		bb.CoeffsToSlotsParameters.Scaling.Mul(bb.CoeffsToSlotsParameters.Scaling, new(big.Float).SetFloat64(qDiv/(K*scFac*qDiff)))
 	}
 
-	bb.ctsMatrices = ckks.NewHomomorphicDFTMatrixFromLiteral(bb.CoeffsToSlotsParameters, encoder)
+	if bb.ctsMatrices, err = ckks.NewHomomorphicDFTMatrixFromLiteral(bb.CoeffsToSlotsParameters, encoder); err != nil {
+		return
+	}
 
 	// SlotsToCoeffs vectors
 	// Rescaling factor to set the final ciphertext to the desired scale
@@ -204,7 +234,9 @@ func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey *E
 		bb.SlotsToCoeffsParameters.Scaling.Mul(bb.SlotsToCoeffsParameters.Scaling, new(big.Float).SetFloat64(bb.params.PlaintextScale().Float64()/(bb.evalModPoly.ScalingFactor().Float64()/bb.evalModPoly.MessageRatio())*qDiff))
 	}
 
-	bb.stcMatrices = ckks.NewHomomorphicDFTMatrixFromLiteral(bb.SlotsToCoeffsParameters, encoder)
+	if bb.stcMatrices, err = ckks.NewHomomorphicDFTMatrixFromLiteral(bb.SlotsToCoeffsParameters, encoder); err != nil {
+		return
+	}
 
 	encoder = nil
 

@@ -16,7 +16,7 @@ import (
 // enables the public and non interactive re-encryption of any ciphertext encrypted
 // under skIn to a new ciphertext encrypted under skOut.
 //
-// The method will panic if either ctIn or opOut degree isn't 1.
+// The method will return an error if either ctIn or opOut degree isn't 1.
 //
 // This method can also be used to switch a ciphertext to one with a different ring degree.
 // Note that the parameters of the smaller ring degree must be the same or a subset of the
@@ -34,10 +34,10 @@ import (
 // - ctIn ring degree must match the smaller ring degree.
 // - opOut ring degree must match the evaluator's ring degree.
 // - evk must have been generated using the key-generator of the large ring degree with as input small-key -> large-key.
-func (eval Evaluator) ApplyEvaluationKey(ctIn *Ciphertext, evk *EvaluationKey, opOut *Ciphertext) {
+func (eval Evaluator) ApplyEvaluationKey(ctIn *Ciphertext, evk *EvaluationKey, opOut *Ciphertext) (err error) {
 
 	if ctIn.Degree() != 1 || opOut.Degree() != 1 {
-		panic("ApplyEvaluationKey: input and output Ciphertext must be of degree 1")
+		return fmt.Errorf("cannot ApplyEvaluationKey: input and output Ciphertext must be of degree 1")
 	}
 
 	level := utils.Min(ctIn.Level(), opOut.Level())
@@ -50,7 +50,7 @@ func (eval Evaluator) ApplyEvaluationKey(ctIn *Ciphertext, evk *EvaluationKey, o
 	if NIn < NOut {
 
 		if NOut != ringQ.N() {
-			panic("ApplyEvaluationKey: opOut ring degree does not match evaluator params ring degree")
+			return fmt.Errorf("cannot ApplyEvaluationKey: opOut ring degree does not match evaluator params ring degree")
 		}
 
 		// Maps to larger ring degree Y = X^{N/n} -> X
@@ -67,12 +67,17 @@ func (eval Evaluator) ApplyEvaluationKey(ctIn *Ciphertext, evk *EvaluationKey, o
 	} else if NIn > NOut {
 
 		if NIn != ringQ.N() {
-			panic("ApplyEvaluationKey: ctIn ring degree does not match evaluator params ring degree")
+			return fmt.Errorf("cannot ApplyEvaluationKey: ctIn ring degree does not match evaluator params ring degree")
 		}
 
 		level := utils.Min(ctIn.Level(), opOut.Level())
 
-		ctTmp := NewCiphertextAtLevelFromPoly(level, eval.BuffCt.Value)
+		ctTmp, err := NewCiphertextAtLevelFromPoly(level, eval.BuffCt.Value)
+
+		if err != nil {
+			panic(err)
+		}
+
 		ctTmp.MetaData = ctIn.MetaData
 
 		// Switches key from large to small degree
@@ -91,6 +96,8 @@ func (eval Evaluator) ApplyEvaluationKey(ctIn *Ciphertext, evk *EvaluationKey, o
 	}
 
 	opOut.MetaData = ctIn.MetaData
+
+	return
 }
 
 func (eval Evaluator) applyEvaluationKey(level int, ctIn *Ciphertext, evk *EvaluationKey, opOut *Ciphertext) {
@@ -108,20 +115,19 @@ func (eval Evaluator) applyEvaluationKey(level int, ctIn *Ciphertext, evk *Evalu
 // outputs a linear ciphertext that decrypts with the key (1, sk).
 // In a nutshell, the relinearization re-encrypt the term that decrypts using sk^2 to one
 // that decrypts using sk.
-// The method will panic if:
+// The method will return an error if:
 // - The input ciphertext degree isn't 2.
 // - The corresponding relinearization key to the ciphertext degree
 // is missing.
-func (eval Evaluator) Relinearize(ctIn *Ciphertext, opOut *Ciphertext) {
+func (eval Evaluator) Relinearize(ctIn *Ciphertext, opOut *Ciphertext) (err error) {
 
 	if ctIn.Degree() != 2 {
-		panic(fmt.Errorf("cannot relinearize: ctIn.Degree() should be 2 but is %d", ctIn.Degree()))
+		return fmt.Errorf("cannot relinearize: ctIn.Degree() should be 2 but is %d", ctIn.Degree())
 	}
 
 	var rlk *RelinearizationKey
-	var err error
 	if rlk, err = eval.CheckAndGetRelinearizationKey(); err != nil {
-		panic(fmt.Errorf("cannot relinearize: %w", err))
+		return fmt.Errorf("cannot relinearize: %w", err)
 	}
 
 	level := utils.Min(ctIn.Level(), opOut.Level())
@@ -139,4 +145,6 @@ func (eval Evaluator) Relinearize(ctIn *Ciphertext, opOut *Ciphertext) {
 	opOut.Resize(1, level)
 
 	opOut.MetaData = ctIn.MetaData
+
+	return
 }

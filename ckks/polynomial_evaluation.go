@@ -265,7 +265,9 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 		// If a non-zero degre coefficient was found, encode and adds the values on the output
 		// ciphertext
 		if toEncode {
-			polyEval.Add(res, values, res)
+			if err = polyEval.Add(res, values, res); err != nil {
+				return
+			}
 			toEncode = false
 		}
 
@@ -309,7 +311,9 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 			// If a non-zero degre coefficient was found, encode and adds the values on the output
 			// ciphertext
 			if toEncode {
-				polyEval.MulThenAdd(X[key], values, res)
+				if err = polyEval.MulThenAdd(X[key], values, res); err != nil {
+					return
+				}
 				toEncode = false
 			}
 		}
@@ -328,7 +332,9 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 			res.PlaintextLogDimensions = logSlots
 
 			if !isZero(c) {
-				polyEval.Add(res, c, res)
+				if err = polyEval.Add(res, c, res); err != nil {
+					return
+				}
 			}
 
 			return
@@ -339,12 +345,16 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 		res.PlaintextLogDimensions = logSlots
 
 		if c != nil {
-			polyEval.Add(res, c, res)
+			if err = polyEval.Add(res, c, res); err != nil {
+				return
+			}
 		}
 
 		for key := pol.Value[0].Degree(); key > 0; key-- {
 			if c = pol.Value[0].Coeffs[key]; key != 0 && !isZero(c) && (!(even || odd) || (key&1 == 0 && even) || (key&1 == 1 && odd)) {
-				polyEval.Evaluator.MulThenAdd(X[key], c, res)
+				if err = polyEval.Evaluator.MulThenAdd(X[key], c, res); err != nil {
+					return
+				}
 			}
 		}
 	}

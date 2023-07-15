@@ -38,7 +38,10 @@ func TestRGSW(t *testing.T) {
 
 		ct := NewCiphertext(params, params.MaxLevelQ(), params.MaxLevelP(), 0)
 
-		NewEncryptor(params, sk).Encrypt(pt, ct)
+		enc, err := NewEncryptor(params, sk)
+		require.NoError(t, err)
+
+		enc.Encrypt(pt, ct)
 
 		left, right := NoiseRGSWCiphertext(ct, pt.Value, sk, params)
 
@@ -50,7 +53,10 @@ func TestRGSW(t *testing.T) {
 
 		ct := NewCiphertext(params, params.MaxLevelQ(), params.MaxLevelP(), 0)
 
-		NewEncryptor(params, pk).Encrypt(pt, ct)
+		enc, err := NewEncryptor(params, pk)
+		require.NoError(t, err)
+
+		enc.Encrypt(pt, ct)
 
 		left, right := NoiseRGSWCiphertext(ct, pt.Value, sk, params)
 
@@ -77,13 +83,23 @@ func TestRGSW(t *testing.T) {
 		ctRGSW := NewCiphertext(params, params.MaxLevelQ(), params.MaxLevelP(), 0)
 		ctRLWE := rlwe.NewCiphertext(params, 1, params.MaxLevelQ())
 
-		NewEncryptor(params, sk).Encrypt(ptRGSW, ctRGSW)
-		rlwe.NewEncryptor(params, sk).Encrypt(ptRLWE, ctRLWE)
+		rgswEnc, err := NewEncryptor(params, sk)
+		require.NoError(t, err)
+
+		rgswEnc.Encrypt(ptRGSW, ctRGSW)
+
+		rlweEnc, err := rlwe.NewEncryptor(params, sk)
+		require.NoError(t, err)
+
+		rlweEnc.Encrypt(ptRLWE, ctRLWE)
 
 		// X^{k0} * Scale * X^{k1}
 		NewEvaluator(params, nil).ExternalProduct(ctRLWE, ctRGSW, ctRLWE)
 
-		ptHave := rlwe.NewDecryptor(params, sk).DecryptNew(ctRLWE)
+		dec, err := rlwe.NewDecryptor(params, sk)
+		require.NoError(t, err)
+
+		ptHave := dec.DecryptNew(ctRLWE)
 
 		params.RingQ().INTT(ptHave.Value, ptHave.Value)
 
@@ -114,7 +130,9 @@ func TestRGSW(t *testing.T) {
 
 	t.Run("WriteAndRead", func(t *testing.T) {
 		ct := NewCiphertext(params, params.MaxLevelQ(), params.MaxLevelP(), 0)
-		NewEncryptor(params, pk).Encrypt(nil, ct)
+		enc, err := NewEncryptor(params, pk)
+		require.NoError(t, err)
+		enc.Encrypt(nil, ct)
 		buffer.RequireSerializerCorrect(t, ct)
 	})
 }

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
@@ -33,7 +34,7 @@ func TestHomomorphicDFT(t *testing.T) {
 
 	var params Parameters
 	if params, err = NewParametersFromLiteral(ParametersLiteral); err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 
 	for _, logSlots := range []int{params.PlaintextLogDimensions()[1] - 1, params.PlaintextLogDimensions()[1]} {
@@ -131,17 +132,21 @@ func testHomomorphicEncoding(params Parameters, LogSlots int, t *testing.T) {
 		kgen := NewKeyGenerator(params)
 		sk := kgen.GenSecretKeyNew()
 		encoder := NewEncoder(params)
-		encryptor := NewEncryptor(params, sk)
-		decryptor := NewDecryptor(params, sk)
+		encryptor, err := NewEncryptor(params, sk)
+		require.NoError(t, err)
+		decryptor, err := NewDecryptor(params, sk)
+		require.NoError(t, err)
 
 		// Generates the encoding matrices
-		CoeffsToSlotMatrices := NewHomomorphicDFTMatrixFromLiteral(CoeffsToSlotsParametersLiteral, encoder)
+		CoeffsToSlotMatrices, err := NewHomomorphicDFTMatrixFromLiteral(CoeffsToSlotsParametersLiteral, encoder)
+		require.NoError(t, err)
 
 		// Gets Galois elements
 		galEls := append(CoeffsToSlotsParametersLiteral.GaloisElements(params), params.GaloisElementInverse())
 
 		// Generates and adds the keys
-		gks := kgen.GenGaloisKeysNew(galEls, sk)
+		gks, err := kgen.GenGaloisKeysNew(galEls, sk)
+		require.NoError(t, err)
 
 		// Instantiates the EvaluationKeySet
 		evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
@@ -193,10 +198,12 @@ func testHomomorphicEncoding(params Parameters, LogSlots int, t *testing.T) {
 		}
 		pt.EncodingDomain = rlwe.FrequencyDomain
 
-		ct := encryptor.EncryptNew(pt)
+		ct, err := encryptor.EncryptNew(pt)
+		require.NoError(t, err)
 
 		// Applies the homomorphic DFT
-		ct0, ct1 := eval.CoeffsToSlotsNew(ct, CoeffsToSlotMatrices)
+		ct0, ct1, err := eval.CoeffsToSlotsNew(ct, CoeffsToSlotMatrices)
+		require.NoError(t, err)
 
 		// Checks against the original coefficients
 		if sparse {
@@ -294,8 +301,6 @@ func testHomomorphicDecoding(params Parameters, LogSlots int, t *testing.T) {
 		packing = "SparsePacking"
 	}
 
-	var err error
-
 	t.Run("Decode/"+packing, func(t *testing.T) {
 
 		// This test tests the homomorphic decoding
@@ -335,17 +340,21 @@ func testHomomorphicDecoding(params Parameters, LogSlots int, t *testing.T) {
 		kgen := NewKeyGenerator(params)
 		sk := kgen.GenSecretKeyNew()
 		encoder := NewEncoder(params)
-		encryptor := NewEncryptor(params, sk)
-		decryptor := NewDecryptor(params, sk)
+		encryptor, err := NewEncryptor(params, sk)
+		require.NoError(t, err)
+		decryptor, err := NewDecryptor(params, sk)
+		require.NoError(t, err)
 
 		// Generates the encoding matrices
-		SlotsToCoeffsMatrix := NewHomomorphicDFTMatrixFromLiteral(SlotsToCoeffsParametersLiteral, encoder)
+		SlotsToCoeffsMatrix, err := NewHomomorphicDFTMatrixFromLiteral(SlotsToCoeffsParametersLiteral, encoder)
+		require.NoError(t, err)
 
 		// Gets the Galois elements
 		galEls := append(SlotsToCoeffsParametersLiteral.GaloisElements(params), params.GaloisElementInverse())
 
 		// Generates and adds the keys
-		gks := kgen.GenGaloisKeysNew(galEls, sk)
+		gks, err := kgen.GenGaloisKeysNew(galEls, sk)
+		require.NoError(t, err)
 
 		// Instantiates the EvaluationKeySet
 		evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
@@ -383,17 +392,22 @@ func testHomomorphicDecoding(params Parameters, LogSlots int, t *testing.T) {
 		if err = encoder.Encode(valuesReal, plaintext); err != nil {
 			t.Fatal(err)
 		}
-		ct0 := encryptor.EncryptNew(plaintext)
+		ct0, err := encryptor.EncryptNew(plaintext)
+		require.NoError(t, err)
+
 		var ct1 *rlwe.Ciphertext
 		if !sparse {
 			if err = encoder.Encode(valuesImag, plaintext); err != nil {
 				t.Fatal(err)
 			}
-			ct1 = encryptor.EncryptNew(plaintext)
+			var err error
+			ct1, err = encryptor.EncryptNew(plaintext)
+			require.NoError(t, err)
 		}
 
 		// Applies the homomorphic DFT
-		res := eval.SlotsToCoeffsNew(ct0, ct1, SlotsToCoeffsMatrix)
+		res, err := eval.SlotsToCoeffsNew(ct0, ct1, SlotsToCoeffsMatrix)
+		require.NoError(t, err)
 
 		// Decrypt and decode in the coefficient domain
 		coeffsFloat := make([]*big.Float, params.N())

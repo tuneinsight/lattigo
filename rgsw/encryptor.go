@@ -18,22 +18,24 @@ type Encryptor struct {
 
 // NewEncryptor creates a new Encryptor type. Note that only secret-key encryption is
 // supported at the moment.
-func NewEncryptor[T *rlwe.SecretKey | *rlwe.PublicKey](params rlwe.Parameters, key T) *Encryptor {
-	return &Encryptor{rlwe.NewEncryptor(params, key), params, params.RingQP().NewPoly()}
+func NewEncryptor[T *rlwe.SecretKey | *rlwe.PublicKey](params rlwe.Parameters, key T) (*Encryptor, error) {
+	enc, err := rlwe.NewEncryptor(params, key)
+	return &Encryptor{enc, params, params.RingQP().NewPoly()}, err
 }
 
 // Encrypt encrypts a plaintext pt into a ciphertext ct, which can be a rgsw.Ciphertext
 // or any of the `rlwe` cipheretxt types.
-func (enc Encryptor) Encrypt(pt *rlwe.Plaintext, ct interface{}) {
+func (enc Encryptor) Encrypt(pt *rlwe.Plaintext, ct interface{}) (err error) {
 
 	var rgswCt *Ciphertext
 	var isRGSW bool
 	if rgswCt, isRGSW = ct.(*Ciphertext); !isRGSW {
-		enc.EncryptorInterface.Encrypt(pt, ct)
-		return
+		return enc.EncryptorInterface.Encrypt(pt, ct)
 	}
 
-	enc.EncryptZero(rgswCt)
+	if err = enc.EncryptZero(rgswCt); err != nil {
+		return
+	}
 
 	levelQ := rgswCt.LevelQ()
 	ringQ := enc.params.RingQ().AtLevel(levelQ)
@@ -55,23 +57,24 @@ func (enc Encryptor) Encrypt(pt *rlwe.Plaintext, ct interface{}) {
 			}
 		}
 
-		rlwe.AddPolyTimesGadgetVectorToGadgetCiphertext(
+		return rlwe.AddPolyTimesGadgetVectorToGadgetCiphertext(
 			enc.buffQP.Q,
 			[]rlwe.GadgetCiphertext{rgswCt.Value[0], rgswCt.Value[1]},
 			*enc.params.RingQP(),
 			enc.buffQP.Q)
 	}
+
+	return
 }
 
 // EncryptZero generates an encryption of zero into a ciphertext ct, which can be a rgsw.Ciphertext
 // or any of the `rlwe` cipheretxt types.
-func (enc Encryptor) EncryptZero(ct interface{}) {
+func (enc Encryptor) EncryptZero(ct interface{}) (err error) {
 
 	var rgswCt *Ciphertext
 	var isRGSW bool
 	if rgswCt, isRGSW = ct.(*Ciphertext); !isRGSW {
-		enc.EncryptorInterface.EncryptZero(ct)
-		return
+		return enc.EncryptorInterface.EncryptZero(ct)
 	}
 
 	decompRNS := rgswCt.Value[0].DecompRNS()
@@ -79,10 +82,18 @@ func (enc Encryptor) EncryptZero(ct interface{}) {
 
 	for j := 0; j < decompPw2; j++ {
 		for i := 0; i < decompRNS; i++ {
-			enc.EncryptorInterface.EncryptZero(rlwe.OperandQP{MetaData: rlwe.MetaData{IsNTT: true, IsMontgomery: true}, Value: []ringqp.Poly(rgswCt.Value[0].Value[i][j])})
-			enc.EncryptorInterface.EncryptZero(rlwe.OperandQP{MetaData: rlwe.MetaData{IsNTT: true, IsMontgomery: true}, Value: []ringqp.Poly(rgswCt.Value[1].Value[i][j])})
+
+			if err = enc.EncryptorInterface.EncryptZero(rlwe.OperandQP{MetaData: rlwe.MetaData{IsNTT: true, IsMontgomery: true}, Value: []ringqp.Poly(rgswCt.Value[0].Value[i][j])}); err != nil {
+				return
+			}
+
+			if err = enc.EncryptorInterface.EncryptZero(rlwe.OperandQP{MetaData: rlwe.MetaData{IsNTT: true, IsMontgomery: true}, Value: []ringqp.Poly(rgswCt.Value[1].Value[i][j])}); err != nil {
+				return
+			}
 		}
 	}
+
+	return
 }
 
 // ShallowCopy creates a shallow copy of this Encryptor in which all the read-only data-structures are

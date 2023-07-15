@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v4/bgv"
 	"github.com/tuneinsight/lattigo/v4/drlwe"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
@@ -60,7 +61,9 @@ func benchRefresh(tc *testContext, b *testing.B) {
 	}
 
 	p := new(Party)
-	p.RefreshProtocol = NewRefreshProtocol(tc.params, tc.params.Xe())
+	var err error
+	p.RefreshProtocol, err = NewRefreshProtocol(tc.params, tc.params.Xe())
+	require.NoError(b, err)
 	p.s = sk0Shards[0]
 	p.share = p.AllocateShare(minLevel, maxLevel)
 

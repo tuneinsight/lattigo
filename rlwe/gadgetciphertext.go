@@ -2,6 +2,7 @@ package rlwe
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 
 	"github.com/google/go-cmp/cmp"
@@ -154,9 +155,9 @@ func (ct *GadgetCiphertext) UnmarshalBinary(p []byte) (err error) {
 }
 
 // AddPolyTimesGadgetVectorToGadgetCiphertext takes a plaintext polynomial and a list of Ciphertexts and adds the
-// plaintext times the RNS and BIT decomposition to the i-th element of the i-th Ciphertexts. This method panics if
-// len(cts) > 2.
-func AddPolyTimesGadgetVectorToGadgetCiphertext(pt ring.Poly, cts []GadgetCiphertext, ringQP ringqp.Ring, buff ring.Poly) {
+// plaintext times the RNS and BIT decomposition to the i-th element of the i-th Ciphertexts. This method return
+// an error if len(cts) > 2.
+func AddPolyTimesGadgetVectorToGadgetCiphertext(pt ring.Poly, cts []GadgetCiphertext, ringQP ringqp.Ring, buff ring.Poly) (err error) {
 
 	levelQ := cts[0].LevelQ()
 	levelP := cts[0].LevelP()
@@ -164,7 +165,7 @@ func AddPolyTimesGadgetVectorToGadgetCiphertext(pt ring.Poly, cts []GadgetCipher
 	ringQ := ringQP.RingQ.AtLevel(levelQ)
 
 	if len(cts) > 2 {
-		panic("cannot AddPolyTimesGadgetVectorToGadgetCiphertext: len(cts) should be <= 2")
+		return fmt.Errorf("cannot AddPolyTimesGadgetVectorToGadgetCiphertext: len(cts) should be <= 2")
 	}
 
 	if levelP != -1 {
@@ -216,6 +217,8 @@ func AddPolyTimesGadgetVectorToGadgetCiphertext(pt ring.Poly, cts []GadgetCipher
 		// w^2j
 		ringQ.MulScalar(buff, 1<<cts[0].BaseTwoDecomposition, buff)
 	}
+
+	return
 }
 
 // GadgetPlaintext stores a plaintext value times the gadget vector.
@@ -225,7 +228,7 @@ type GadgetPlaintext struct {
 
 // NewGadgetPlaintext creates a new gadget plaintext from value, which can be either uint64, int64 or *ring.Poly.
 // Plaintext is returned in the NTT and Mongtomery domain.
-func NewGadgetPlaintext(params Parameters, value interface{}, levelQ, levelP, baseTwoDecomposition int) (pt *GadgetPlaintext) {
+func NewGadgetPlaintext(params Parameters, value interface{}, levelQ, levelP, baseTwoDecomposition int) (pt *GadgetPlaintext, err error) {
 
 	ringQ := params.RingQP().RingQ.AtLevel(levelQ)
 
@@ -251,10 +254,10 @@ func NewGadgetPlaintext(params Parameters, value interface{}, levelQ, levelP, ba
 				pt.Value[0].Coeffs[i][0] = uint64(el)
 			}
 		}
-	case *ring.Poly:
+	case ring.Poly:
 		pt.Value[0] = el.CopyNew()
 	default:
-		panic("cannot NewGadgetPlaintext: unsupported type, must be wither uint64 or *ring.Poly")
+		return nil, fmt.Errorf("cannot NewGadgetPlaintext: unsupported type, must be either int64, uint64 or ring.Poly but is %T", el)
 	}
 
 	if levelP > -1 {

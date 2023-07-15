@@ -431,7 +431,8 @@ func testSampler(tc *testParams, t *testing.T) {
 
 		dist := DiscreteGaussian{Sigma: DefaultSigma, Bound: DefaultBound}
 
-		sampler := NewSampler(tc.prng, tc.ringQ, dist, false)
+		sampler, err := NewSampler(tc.prng, tc.ringQ, dist, false)
+		require.NoError(t, err)
 
 		noiseBound := uint64(dist.Bound)
 
@@ -448,7 +449,8 @@ func testSampler(tc *testParams, t *testing.T) {
 
 		dist := DiscreteGaussian{Sigma: 1e21, Bound: 1e25}
 
-		sampler := NewSampler(tc.prng, tc.ringQ, dist, false)
+		sampler, err := NewSampler(tc.prng, tc.ringQ, dist, false)
+		require.NoError(t, err)
 
 		pol := sampler.ReadNew()
 
@@ -458,7 +460,8 @@ func testSampler(tc *testParams, t *testing.T) {
 	for _, p := range []float64{.5, 1. / 3., 128. / 65536.} {
 		t.Run(testString(fmt.Sprintf("Sampler/Ternary/p=%1.2f", p), tc.ringQ), func(t *testing.T) {
 
-			sampler := NewSampler(tc.prng, tc.ringQ, Ternary{P: p}, false)
+			sampler, err := NewSampler(tc.prng, tc.ringQ, Ternary{P: p}, false)
+			require.NoError(t, err)
 
 			pol := sampler.ReadNew()
 
@@ -474,7 +477,8 @@ func testSampler(tc *testParams, t *testing.T) {
 	for _, h := range []int{64, 96, 128, 256} {
 		t.Run(testString(fmt.Sprintf("Sampler/Ternary/hw=%d", h), tc.ringQ), func(t *testing.T) {
 
-			sampler := NewSampler(tc.prng, tc.ringQ, Ternary{H: h}, false)
+			sampler, err := NewSampler(tc.prng, tc.ringQ, Ternary{H: h}, false)
+			require.NoError(t, err)
 
 			checkPoly := func(pol Poly) {
 				for i := range tc.ringQ.SubRings {

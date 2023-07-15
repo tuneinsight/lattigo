@@ -661,7 +661,7 @@ func testMulScalarBigint(tc *testParams, t *testing.T) {
 	t.Run(testString("MulScalarBigint", tc.ringQ), func(t *testing.T) {
 
 		polWant := tc.uniformSamplerQ.ReadNew()
-		polTest := polWant.CopyNew()
+		polTest := *polWant.CopyNew()
 
 		rand1 := RandUniform(tc.prng, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)
 		rand2 := RandUniform(tc.prng, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)

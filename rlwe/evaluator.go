@@ -163,7 +163,7 @@ func (eval Evaluator) CheckAndGetRelinearizationKey() (evk *RelinearizationKey, 
 // The opOutMinDegree can be used to force the output operand to a higher ciphertext degree.
 //
 // The method returns max(op0.Degree(), op1.Degree(), opOut.Degree()) and min(op0.Level(), op1.Level(), opOut.Level())
-func (eval Evaluator) InitOutputBinaryOp(op0, op1 *OperandQ, opOutMinDegree int, opOut *OperandQ) (degree, level int, err error) {
+func (eval Evaluator) InitOutputBinaryOp(op0, op1 *Operand[ring.Poly], opOutMinDegree int, opOut *Operand[ring.Poly]) (degree, level int, err error) {
 
 	if op0 == nil || op1 == nil || opOut == nil {
 		return 0, 0, fmt.Errorf("op0, op1 and opOut cannot be nil")
@@ -211,7 +211,7 @@ func (eval Evaluator) InitOutputBinaryOp(op0, op1 *OperandQ, opOutMinDegree int,
 // PlaintextLogDimensions <- op0.PlaintextLogDimensions
 //
 // The method returns max(op0.Degree(), opOut.Degree()) and min(op0.Level(), opOut.Level()).
-func (eval Evaluator) InitOutputUnaryOp(op0, opOut *OperandQ) (degree, level int, err error) {
+func (eval Evaluator) InitOutputUnaryOp(op0, opOut *Operand[ring.Poly]) (degree, level int, err error) {
 
 	if op0 == nil || opOut == nil {
 		return 0, 0, fmt.Errorf("op0 and opOut cannot be nil")

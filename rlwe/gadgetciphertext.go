@@ -255,7 +255,7 @@ func NewGadgetPlaintext(params Parameters, value interface{}, levelQ, levelP, ba
 			}
 		}
 	case ring.Poly:
-		pt.Value[0] = el.CopyNew()
+		pt.Value[0] = *el.CopyNew()
 	default:
 		return nil, fmt.Errorf("cannot NewGadgetPlaintext: unsupported type, must be either int64, uint64 or ring.Poly but is %T", el)
 	}
@@ -269,7 +269,7 @@ func NewGadgetPlaintext(params Parameters, value interface{}, levelQ, levelP, ba
 
 	for i := 1; i < len(pt.Value); i++ {
 
-		pt.Value[i] = pt.Value[0].CopyNew()
+		pt.Value[i] = *pt.Value[0].CopyNew()
 
 		for j := 0; j < i; j++ {
 			ringQ.MulScalar(pt.Value[i], 1<<baseTwoDecomposition, pt.Value[i])

@@ -12,19 +12,19 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/structs"
 )
 
-// Operand is a common interface for Ciphertext and Plaintext types.
-type Operand interface {
-	El() *OperandQ
+// OperandInterface is a common interface for Ciphertext and Plaintext types.
+type OperandInterface[T ring.Poly | ringqp.Poly] interface {
+	El() *Operand[T]
 	Degree() int
 	Level() int
 }
 
-type OperandQ struct {
+type Operand[T ring.Poly | ringqp.Poly] struct {
 	MetaData
-	Value structs.Vector[ring.Poly]
+	Value structs.Vector[T]
 }
 
-func NewOperandQ(params ParametersInterface, degree, levelQ int) *OperandQ {
+func NewOperandQ(params ParametersInterface, degree, levelQ int) *Operand[ring.Poly] {
 	ringQ := params.RingQ().AtLevel(levelQ)
 
 	Value := make([]ring.Poly, degree+1)
@@ -32,7 +32,7 @@ func NewOperandQ(params ParametersInterface, degree, levelQ int) *OperandQ {
 		Value[i] = ringQ.NewPoly()
 	}
 
-	return &OperandQ{
+	return &Operand[ring.Poly]{
 		Value: Value,
 		MetaData: MetaData{
 			IsNTT: params.NTTFlag(),
@@ -40,11 +40,27 @@ func NewOperandQ(params ParametersInterface, degree, levelQ int) *OperandQ {
 	}
 }
 
-// NewOperandQAtLevelFromPoly constructs a new OperandQ at a specific level
+func NewOperandQP(params ParametersInterface, degree, levelQ, levelP int) *Operand[ringqp.Poly] {
+	ringQP := params.RingQP().AtLevel(levelQ, levelP)
+
+	Value := make([]ringqp.Poly, degree+1)
+	for i := range Value {
+		Value[i] = ringQP.NewPoly()
+	}
+
+	return &Operand[ringqp.Poly]{
+		Value: Value,
+		MetaData: MetaData{
+			IsNTT: params.NTTFlag(),
+		},
+	}
+}
+
+// NewOperandQAtLevelFromPoly constructs a new Operand at a specific level
 // where the message is set to the passed poly. No checks are performed on poly and
-// the returned OperandQ will share its backing array of coefficients.
-// Returned OperandQ's MetaData is empty.
-func NewOperandQAtLevelFromPoly(level int, poly []ring.Poly) (*OperandQ, error) {
+// the returned Operand will share its backing array of coefficients.
+// Returned Operand's MetaData is empty.
+func NewOperandQAtLevelFromPoly(level int, poly []ring.Poly) (*Operand[ring.Poly], error) {
 	Value := make([]ring.Poly, len(poly))
 	for i := range Value {
 
@@ -56,66 +72,103 @@ func NewOperandQAtLevelFromPoly(level int, poly []ring.Poly) (*OperandQ, error) 
 		Value[i].Buff = poly[i].Buff[:poly[i].N()*(level+1)]
 	}
 
-	return &OperandQ{Value: Value}, nil
+	return &Operand[ring.Poly]{Value: Value}, nil
 }
 
 // Equal performs a deep equal.
-func (op OperandQ) Equal(other *OperandQ) bool {
+func (op Operand[T]) Equal(other *Operand[T]) bool {
 	return cmp.Equal(&op.MetaData, &other.MetaData) && cmp.Equal(op.Value, other.Value)
 }
 
-// Degree returns the degree of the target OperandQ.
-func (op OperandQ) Degree() int {
+// Degree returns the degree of the target Operand.
+func (op Operand[T]) Degree() int {
 	return len(op.Value) - 1
 }
 
-// Level returns the level of the target OperandQ.
-func (op OperandQ) Level() int {
-	return len(op.Value[0].Coeffs) - 1
+// Level returns the level of the target Operand.
+func (op Operand[T]) Level() int {
+	return op.LevelQ()
 }
 
-func (op *OperandQ) El() *OperandQ {
+func (op Operand[T]) LevelQ() int {
+	switch el := any(op.Value[0]).(type) {
+	case ring.Poly:
+		return el.Level()
+	case ringqp.Poly:
+		return el.LevelQ()
+	default:
+		panic("invalid Operand[type]")
+	}
+}
+
+func (op Operand[T]) LevelP() int {
+	switch el := any(op.Value[0]).(type) {
+	case ring.Poly:
+		panic("cannot levelP on Operand[ring.Poly]")
+	case ringqp.Poly:
+		return el.LevelP()
+	default:
+		panic("invalid Operand[type]")
+	}
+}
+
+func (op *Operand[T]) El() *Operand[T] {
 	return op
 }
 
 // Resize resizes the degree of the target element.
 // Sets the NTT flag of the added poly equal to the NTT flag
 // to the poly at degree zero.
-func (op *OperandQ) Resize(degree, level int) {
+func (op *Operand[T]) Resize(degree, level int) {
 
-	if op.Level() != level {
-		for i := range op.Value {
-			op.Value[i].Resize(level)
+	switch op := any(op).(type) {
+	case *Operand[ring.Poly]:
+		if op.Level() != level {
+			for i := range op.Value {
+				op.Value[i].Resize(level)
+			}
 		}
-	}
 
-	if op.Degree() > degree {
-		op.Value = op.Value[:degree+1]
-	} else if op.Degree() < degree {
-		for op.Degree() < degree {
-			op.Value = append(op.Value, []ring.Poly{ring.NewPoly(op.Value[0].N(), level)}...)
+		if op.Degree() > degree {
+			op.Value = op.Value[:degree+1]
+		} else if op.Degree() < degree {
+
+			for op.Degree() < degree {
+				op.Value = append(op.Value, []ring.Poly{ring.NewPoly(op.Value[0].N(), level)}...)
+			}
 		}
+	default:
+		panic(fmt.Errorf("can only resize Operand[ring.Poly] but is %T", op))
 	}
 }
 
 // CopyNew creates a deep copy of the object and returns it.
-func (op OperandQ) CopyNew() *OperandQ {
-
-	Value := make([]ring.Poly, len(op.Value))
-
-	for i := range Value {
-		Value[i] = op.Value[i].CopyNew()
-	}
-
-	return &OperandQ{Value: Value, MetaData: op.MetaData}
+func (op Operand[T]) CopyNew() *Operand[T] {
+	return &Operand[T]{Value: *op.Value.CopyNew(), MetaData: op.MetaData}
 }
 
 // Copy copies the input element and its parameters on the target element.
-func (op *OperandQ) Copy(opCopy *OperandQ) {
+func (op *Operand[T]) Copy(opCopy *Operand[T]) {
 
 	if op != opCopy {
-		for i := range opCopy.Value {
-			op.Value[i].Copy(opCopy.Value[i])
+		switch any(op.Value).(type) {
+		case structs.Vector[ring.Poly]:
+
+			op0 := any(op.Value).(structs.Vector[ring.Poly])
+			op1 := any(opCopy.Value).(structs.Vector[ring.Poly])
+
+			for i := range opCopy.Value {
+				op0[i].Copy(op1[i])
+			}
+
+		case structs.Vector[ringqp.Poly]:
+
+			op0 := any(op.Value).(structs.Vector[ringqp.Poly])
+			op1 := any(opCopy.Value).(structs.Vector[ringqp.Poly])
+
+			for i := range opCopy.Value {
+				op0[i].Copy(op1[i])
+			}
 		}
 
 		op.MetaData = opCopy.MetaData
@@ -125,7 +178,7 @@ func (op *OperandQ) Copy(opCopy *OperandQ) {
 // GetSmallestLargest returns the provided element that has the smallest degree as a first
 // returned value and the largest degree as second return value. If the degree match, the
 // order is the same as for the input.
-func GetSmallestLargest(el0, el1 *OperandQ) (smallest, largest *OperandQ, sameDegree bool) {
+func GetSmallestLargest[T ring.Poly | ringqp.Poly](el0, el1 *Operand[T]) (smallest, largest *Operand[T], sameDegree bool) {
 	switch {
 	case el0.Degree() > el1.Degree():
 		return el1, el0, false
@@ -136,7 +189,7 @@ func GetSmallestLargest(el0, el1 *OperandQ) (smallest, largest *OperandQ, sameDe
 }
 
 // PopulateElementRandom creates a new rlwe.Element with random coefficients.
-func PopulateElementRandom(prng sampling.PRNG, params ParametersInterface, ct *OperandQ) {
+func PopulateElementRandom(prng sampling.PRNG, params ParametersInterface, ct *Operand[ring.Poly]) {
 	sampler := ring.NewUniformSampler(prng, params.RingQ()).AtLevel(ct.Level())
 	for i := range ct.Value {
 		sampler.Read(ct.Value[i])
@@ -148,7 +201,7 @@ func PopulateElementRandom(prng sampling.PRNG, params ParametersInterface, ct *O
 // If the ring degree of opOut is larger than the one of ctIn, then the ringQ of opOut
 // must be provided (otherwise, a nil pointer).
 // The ctIn must be in the NTT domain and opOut will be in the NTT domain.
-func SwitchCiphertextRingDegreeNTT(ctIn *OperandQ, ringQLargeDim *ring.Ring, opOut *OperandQ) {
+func SwitchCiphertextRingDegreeNTT(ctIn *Operand[ring.Poly], ringQLargeDim *ring.Ring, opOut *Operand[ring.Poly]) {
 
 	NIn, NOut := len(ctIn.Value[0].Coeffs[0]), len(opOut.Value[0].Coeffs[0])
 
@@ -191,7 +244,7 @@ func SwitchCiphertextRingDegreeNTT(ctIn *OperandQ, ringQLargeDim *ring.Ring, opO
 // Maps Y^{N/n} -> X^{N} or X^{N} -> Y^{N/n}.
 // If the ring degree of opOut is larger than the one of ctIn, then the ringQ of ctIn
 // must be provided (otherwise, a nil pointer).
-func SwitchCiphertextRingDegree(ctIn, opOut *OperandQ) {
+func SwitchCiphertextRingDegree(ctIn, opOut *Operand[ring.Poly]) {
 
 	NIn, NOut := len(ctIn.Value[0].Coeffs[0]), len(opOut.Value[0].Coeffs[0])
 
@@ -213,7 +266,7 @@ func SwitchCiphertextRingDegree(ctIn, opOut *OperandQ) {
 }
 
 // BinarySize returns the serialized size of the object in bytes.
-func (op OperandQ) BinarySize() int {
+func (op Operand[T]) BinarySize() int {
 	return op.MetaData.BinarySize() + op.Value.BinarySize()
 }
 
@@ -228,7 +281,7 @@ func (op OperandQ) BinarySize() int {
 //     io.Writer in a pre-allocated bufio.Writer.
 //   - When writing to a pre-allocated var b []byte, it is preferable to pass
 //     buffer.NewBuffer(b) as w (see lattigo/utils/buffer/buffer.go).
-func (op OperandQ) WriteTo(w io.Writer) (n int64, err error) {
+func (op Operand[T]) WriteTo(w io.Writer) (n int64, err error) {
 
 	if n, err = op.MetaData.WriteTo(w); err != nil {
 		return n, err
@@ -250,7 +303,7 @@ func (op OperandQ) WriteTo(w io.Writer) (n int64, err error) {
 //     first wrap io.Reader in a pre-allocated bufio.Reader.
 //   - When reading from a var b []byte, it is preferable to pass a buffer.NewBuffer(b)
 //     as w (see lattigo/utils/buffer/buffer.go).
-func (op *OperandQ) ReadFrom(r io.Reader) (n int64, err error) {
+func (op *Operand[T]) ReadFrom(r io.Reader) (n int64, err error) {
 
 	if op == nil {
 		return 0, fmt.Errorf("cannot ReadFrom: target object is nil")
@@ -266,7 +319,7 @@ func (op *OperandQ) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
-func (op OperandQ) MarshalBinary() (data []byte, err error) {
+func (op Operand[T]) MarshalBinary() (data []byte, err error) {
 	buf := buffer.NewBufferSize(op.BinarySize())
 	_, err = op.WriteTo(buf)
 	return buf.Bytes(), err
@@ -274,127 +327,7 @@ func (op OperandQ) MarshalBinary() (data []byte, err error) {
 
 // UnmarshalBinary decodes a slice of bytes generated by
 // MarshalBinary or WriteTo on the object.
-func (op *OperandQ) UnmarshalBinary(p []byte) (err error) {
-	_, err = op.ReadFrom(buffer.NewBuffer(p))
-	return
-}
-
-type OperandQP struct {
-	MetaData
-	Value structs.Vector[ringqp.Poly]
-}
-
-func NewOperandQP(params ParametersInterface, degree, levelQ, levelP int) *OperandQP {
-	ringQP := params.RingQP().AtLevel(levelQ, levelP)
-
-	Value := make([]ringqp.Poly, degree+1)
-	for i := range Value {
-		Value[i] = ringQP.NewPoly()
-	}
-
-	return &OperandQP{
-		Value: Value,
-		MetaData: MetaData{
-			IsNTT: params.NTTFlag(),
-		},
-	}
-}
-
-// Equal performs a deep equal.
-func (op OperandQP) Equal(other *OperandQP) bool {
-	return cmp.Equal(&op.MetaData, &other.MetaData) && cmp.Equal(op.Value, other.Value)
-}
-
-// Degree returns the degree of the target OperandQP.
-func (op OperandQP) Degree() int {
-	return len(op.Value) - 1
-}
-
-// LevelQ returns the level of the modulus Q of the first element of the objeop.
-func (op OperandQP) LevelQ() int {
-	return op.Value[0].LevelQ()
-}
-
-// LevelP returns the level of the modulus P of the first element of the objeop.
-func (op OperandQP) LevelP() int {
-	return op.Value[0].LevelP()
-}
-
-// CopyNew creates a deep copy of the object and returns it.
-func (op OperandQP) CopyNew() *OperandQP {
-
-	Value := make([]ringqp.Poly, len(op.Value))
-
-	for i := range Value {
-		Value[i] = op.Value[i].CopyNew()
-	}
-
-	return &OperandQP{Value: Value, MetaData: op.MetaData}
-}
-
-// BinarySize returns the serialized size of the object in bytes.
-func (op OperandQP) BinarySize() int {
-	return op.MetaData.BinarySize() + op.Value.BinarySize()
-}
-
-// WriteTo writes the object on an io.Writer. It implements the io.WriterTo
-// interface, and will write exactly object.BinarySize() bytes on w.
-//
-// Unless w implements the buffer.Writer interface (see lattigo/utils/buffer/writer.go),
-// it will be wrapped into a bufio.Writer. Since this requires allocations, it
-// is preferable to pass a buffer.Writer directly:
-//
-//   - When writing multiple times to a io.Writer, it is preferable to first wrap the
-//     io.Writer in a pre-allocated bufio.Writer.
-//   - When writing to a pre-allocated var b []byte, it is preferable to pass
-//     buffer.NewBuffer(b) as w (see lattigo/utils/buffer/buffer.go).
-func (op OperandQP) WriteTo(w io.Writer) (n int64, err error) {
-
-	if n, err = op.MetaData.WriteTo(w); err != nil {
-		return n, err
-	}
-
-	inc, err := op.Value.WriteTo(w)
-
-	return n + inc, err
-}
-
-// ReadFrom reads on the object from an io.Writer. It implements the
-// io.ReaderFrom interface.
-//
-// Unless r implements the buffer.Reader interface (see see lattigo/utils/buffer/reader.go),
-// it will be wrapped into a bufio.Reader. Since this requires allocation, it
-// is preferable to pass a buffer.Reader directly:
-//
-//   - When reading multiple values from a io.Reader, it is preferable to first
-//     first wrap io.Reader in a pre-allocated bufio.Reader.
-//   - When reading from a var b []byte, it is preferable to pass a buffer.NewBuffer(b)
-//     as w (see lattigo/utils/buffer/buffer.go).
-func (op *OperandQP) ReadFrom(r io.Reader) (n int64, err error) {
-
-	if op == nil {
-		return 0, fmt.Errorf("cannot ReadFrom: target object is nil")
-	}
-
-	if n, err = op.MetaData.ReadFrom(r); err != nil {
-		return n, err
-	}
-
-	inc, err := op.Value.ReadFrom(r)
-
-	return n + inc, err
-}
-
-// MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
-func (op OperandQP) MarshalBinary() (data []byte, err error) {
-	buf := buffer.NewBufferSize(op.BinarySize())
-	_, err = op.WriteTo(buf)
-	return buf.Bytes(), err
-}
-
-// UnmarshalBinary decodes a slice of bytes generated by
-// MarshalBinary or WriteTo on the object.
-func (op *OperandQP) UnmarshalBinary(p []byte) (err error) {
+func (op *Operand[T]) UnmarshalBinary(p []byte) (err error) {
 	_, err = op.ReadFrom(buffer.NewBuffer(p))
 	return
 }

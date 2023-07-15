@@ -81,7 +81,7 @@ func (thr Thresholdizer) GenShamirPolynomial(threshold int, secret *rlwe.SecretK
 		return ShamirPolynomial{}, fmt.Errorf("threshold should be >= 1")
 	}
 	gen := make([]ringqp.Poly, int(threshold))
-	gen[0] = secret.Value.CopyNew()
+	gen[0] = *secret.Value.CopyNew()
 	for i := 1; i < threshold; i++ {
 		gen[i] = thr.ringQP.NewPoly()
 		thr.usampler.Read(gen[i])

@@ -51,7 +51,7 @@ func NoiseGaloisKey(gk *GaloisKey, sk *SecretKey, params Parameters) float64 {
 func NoiseGadgetCiphertext(gct *GadgetCiphertext, pt ring.Poly, sk *SecretKey, params Parameters) float64 {
 
 	gct = gct.CopyNew()
-	pt = pt.CopyNew()
+	pt = *pt.CopyNew()
 	levelQ, levelP := gct.LevelQ(), gct.LevelP()
 	ringQP := params.RingQP().AtLevel(levelQ, levelP)
 	ringQ, ringP := ringQP.RingQ, ringQP.RingP

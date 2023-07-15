@@ -39,7 +39,7 @@ func (sk SecretKey) LevelP() int {
 
 // CopyNew creates a deep copy of the receiver secret key and returns it.
 func (sk SecretKey) CopyNew() *SecretKey {
-	return &SecretKey{sk.Value.CopyNew()}
+	return &SecretKey{*sk.Value.CopyNew()}
 }
 
 // BinarySize returns the serialized size of the object in bytes.
@@ -115,7 +115,7 @@ func (p vectorQP) LevelP() int {
 func (p vectorQP) CopyNew() *vectorQP {
 	m := make([]ringqp.Poly, len(p))
 	for i := range p {
-		m[i] = p[i].CopyNew()
+		m[i] = *p[i].CopyNew()
 	}
 	v := vectorQP(m)
 	return &v

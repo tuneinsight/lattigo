@@ -61,10 +61,10 @@ func (pol Poly) Zero() {
 }
 
 // CopyNew creates an exact copy of the target polynomial.
-func (pol Poly) CopyNew() (p1 Poly) {
-	p1 = NewPoly(pol.N(), pol.Level())
-	copy(p1.Buff, pol.Buff)
-	return
+func (pol Poly) CopyNew() *Poly {
+	cpy := NewPoly(pol.N(), pol.Level())
+	copy(cpy.Buff, pol.Buff)
+	return &cpy
 }
 
 // Copy copies the coefficients of p0 on p1 within the given Ring. It requires p1 to be at least as big p0.
@@ -182,7 +182,6 @@ func (pol *Poly) ReadFrom(r io.Reader) (n int64, err error) {
 
 	switch r := r.(type) {
 	case buffer.Reader:
-		var err error
 
 		var inc int64
 

@@ -79,8 +79,8 @@ func CopyLvl(levelQ, levelP int, p1, p2 Poly) {
 }
 
 // CopyNew creates an exact copy of the target polynomial.
-func (p Poly) CopyNew() Poly {
-	return Poly{p.Q.CopyNew(), p.P.CopyNew()}
+func (p Poly) CopyNew() *Poly {
+	return &Poly{*p.Q.CopyNew(), *p.P.CopyNew()}
 }
 
 // Resize resizes the levels of the target polynomial to the provided levels.

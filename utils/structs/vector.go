@@ -13,15 +13,13 @@ type Vector[T any] []T
 // CopyNew creates a copy of the oject.
 func (v Vector[T]) CopyNew() *Vector[T] {
 
-	var ct *T
-	if c, isCopiable := any(ct).(CopyNewer[T]); !isCopiable {
+	if c, isCopiable := any(new(T)).(CopyNewer[T]); !isCopiable {
 		panic(fmt.Errorf("vector component of type %T does not comply to %T", new(T), c))
 	}
 
 	vcpy := Vector[T](make([]T, len(v)))
-	for i, c := range v {
-		/* #nosec G601 -- Implicit memory aliasing in for loop acknowledged */
-		vcpy[i] = *any(&c).(CopyNewer[T]).CopyNew()
+	for i := range v {
+		vcpy[i] = *any(&v[i]).(CopyNewer[T]).CopyNew()
 	}
 	return &vcpy
 }
@@ -35,9 +33,8 @@ func (v Vector[T]) BinarySize() (size int) {
 	}
 
 	size += 8
-	for _, c := range v {
-		/* #nosec G601 -- Implicit memory aliasing in for loop acknowledged */
-		size += any(&c).(BinarySizer).BinarySize()
+	for i := range v {
+		size += any(&v[i]).(BinarySizer).BinarySize()
 	}
 	return
 }

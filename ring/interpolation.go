@@ -43,7 +43,7 @@ func (itp *Interpolator) Interpolate(roots []uint64) (coeffs []uint64) {
 	bredParams := s.BRedConstant
 
 	// res = NTT(x-root[0])
-	res := itp.x.CopyNew()
+	res := *itp.x.CopyNew()
 	r.SubScalar(res, MForm(roots[0], T, bredParams), res)
 
 	// res = res * (x-root[i])

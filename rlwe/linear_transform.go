@@ -370,7 +370,7 @@ func (eval Evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTransf
 	tmp0QP := eval.BuffQP[1]
 	tmp1QP := eval.BuffQP[2]
 
-	cQP := &OperandQP{}
+	cQP := &Operand[ringqp.Poly]{}
 	cQP.Value = []ringqp.Poly{eval.BuffQP[3], eval.BuffQP[4]}
 	cQP.IsNTT = true
 
@@ -484,7 +484,7 @@ func (eval Evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearTr
 	ctInTmp0, ctInTmp1 := eval.BuffCt.Value[0], eval.BuffCt.Value[1]
 
 	// Pre-rotates ciphertext for the baby-step giant-step algorithm, does not divide by P yet
-	ctInRotQP := map[int]*OperandQP{}
+	ctInRotQP := map[int]*Operand[ringqp.Poly]{}
 	for _, i := range rotN2 {
 		if i != 0 {
 			ctInRotQP[i] = NewOperandQP(eval.Parameters(), 1, levelQ, levelP)
@@ -499,7 +499,7 @@ func (eval Evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearTr
 	tmp1QP := eval.BuffQP[2]
 
 	// Accumulator outer loop
-	cQP := &OperandQP{}
+	cQP := &Operand[ringqp.Poly]{}
 	cQP.Value = []ringqp.Poly{eval.BuffQP[3], eval.BuffQP[4]}
 	cQP.IsNTT = true
 
@@ -1091,11 +1091,11 @@ func (eval Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, opOut *Cipher
 		// BuffQP[0:2] are used by AutomorphismHoistedLazy
 
 		// Accumulator mod QP (i.e. opOut Mod QP)
-		accQP := &OperandQP{Value: []ringqp.Poly{eval.BuffQP[2], eval.BuffQP[3]}}
+		accQP := &Operand[ringqp.Poly]{Value: []ringqp.Poly{eval.BuffQP[2], eval.BuffQP[3]}}
 		accQP.IsNTT = true
 
 		// Buffer mod QP (i.e. to store the result of lazy gadget products)
-		cQP := &OperandQP{Value: []ringqp.Poly{eval.BuffQP[4], eval.BuffQP[5]}}
+		cQP := &Operand[ringqp.Poly]{Value: []ringqp.Poly{eval.BuffQP[4], eval.BuffQP[5]}}
 		cQP.IsNTT = true
 
 		// Buffer mod Q (i.e. to store the result of gadget products)

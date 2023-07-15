@@ -15,6 +15,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 	"github.com/tuneinsight/lattigo/v4/utils/buffer"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
+	"github.com/tuneinsight/lattigo/v4/utils/structs"
 )
 
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
@@ -1087,7 +1088,7 @@ func testLinearTransform(tc *TestContext, level, bpw2 int, t *testing.T) {
 		ringQ := tc.params.RingQ().AtLevel(level)
 
 		pt := genPlaintext(params, level, 1<<30)
-		ptInnerSum := pt.Value.CopyNew()
+		ptInnerSum := *pt.Value.CopyNew()
 		ct, err := enc.EncryptNew(pt)
 		require.NoError(t, err)
 
@@ -1109,7 +1110,7 @@ func testLinearTransform(tc *TestContext, level, bpw2 int, t *testing.T) {
 		polyTmp := ringQ.NewPoly()
 
 		// Applies the same circuit (naively) on the plaintext
-		polyInnerSum := ptInnerSum.CopyNew()
+		polyInnerSum := *ptInnerSum.CopyNew()
 		for i := 1; i < n; i++ {
 			galEl := params.GaloisElement(i * batch)
 			ringQ.Automorphism(ptInnerSum, galEl, polyTmp)
@@ -1157,11 +1158,40 @@ func testWriteAndRead(tc *TestContext, bpw2 int, t *testing.T) {
 	levelQ := params.MaxLevelQ()
 	levelP := params.MaxLevelP()
 
-	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/OperandQ"), func(t *testing.T) {
+	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/Operand[ring.Poly]"), func(t *testing.T) {
+
 		prng, _ := sampling.NewPRNG()
-		plaintextWant := NewPlaintext(params, levelQ)
-		ring.NewUniformSampler(prng, params.RingQ()).Read(plaintextWant.Value)
-		buffer.RequireSerializerCorrect(t, &plaintextWant.OperandQ)
+		sampler := ring.NewUniformSampler(prng, params.RingQ())
+
+		op := Operand[ring.Poly]{
+			Value: structs.Vector[ring.Poly]{
+				sampler.ReadNew(),
+				sampler.ReadNew(),
+			},
+			MetaData: MetaData{
+				IsNTT: params.NTTFlag(),
+			},
+		}
+
+		buffer.RequireSerializerCorrect(t, &op)
+	})
+
+	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/Operand[ringqp.Poly]"), func(t *testing.T) {
+
+		prng, _ := sampling.NewPRNG()
+		sampler := ringqp.NewUniformSampler(prng, *params.RingQP())
+
+		op := Operand[ringqp.Poly]{
+			Value: structs.Vector[ringqp.Poly]{
+				sampler.ReadNew(),
+				sampler.ReadNew(),
+			},
+			MetaData: MetaData{
+				IsNTT: params.NTTFlag(),
+			},
+		}
+
+		buffer.RequireSerializerCorrect(t, &op)
 	})
 
 	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/Plaintext"), func(t *testing.T) {
@@ -1180,10 +1210,6 @@ func testWriteAndRead(tc *TestContext, bpw2 int, t *testing.T) {
 				buffer.RequireSerializerCorrect(t, NewCiphertextRandom(prng, params, degree, levelQ))
 			})
 		}
-	})
-
-	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/CiphertextQP"), func(t *testing.T) {
-		buffer.RequireSerializerCorrect(t, &OperandQP{Value: []ringqp.Poly(tc.pk.Value)})
 	})
 
 	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/GadgetCiphertext"), func(t *testing.T) {

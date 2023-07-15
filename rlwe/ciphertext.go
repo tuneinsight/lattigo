@@ -9,7 +9,7 @@ import (
 
 // Ciphertext is a generic type for RLWE ciphertexts.
 type Ciphertext struct {
-	OperandQ
+	Operand[ring.Poly]
 }
 
 // NewCiphertext returns a new Ciphertext with zero values and an associated
@@ -45,15 +45,15 @@ func NewCiphertextRandom(prng sampling.PRNG, params ParametersInterface, degree,
 
 // CopyNew creates a new element as a copy of the target element.
 func (ct Ciphertext) CopyNew() *Ciphertext {
-	return &Ciphertext{OperandQ: *ct.OperandQ.CopyNew()}
+	return &Ciphertext{Operand: *ct.Operand.CopyNew()}
 }
 
 // Copy copies the input element and its parameters on the target element.
 func (ct Ciphertext) Copy(ctxCopy *Ciphertext) {
-	ct.OperandQ.Copy(&ctxCopy.OperandQ)
+	ct.Operand.Copy(&ctxCopy.Operand)
 }
 
 // Equal performs a deep equal.
 func (ct Ciphertext) Equal(other *Ciphertext) bool {
-	return ct.OperandQ.Equal(&other.OperandQ)
+	return ct.Operand.Equal(&other.Operand)
 }

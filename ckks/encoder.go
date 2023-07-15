@@ -82,7 +82,7 @@ func (ecd Encoder) ShallowCopy() *Encoder {
 		parameters:   ecd.parameters,
 		bigintCoeffs: make([]*big.Int, len(ecd.bigintCoeffs)),
 		qHalf:        new(big.Int),
-		buff:         ecd.buff.CopyNew(),
+		buff:         *ecd.buff.CopyNew(),
 		m:            ecd.m,
 		rotGroup:     ecd.rotGroup,
 		prng:         prng,

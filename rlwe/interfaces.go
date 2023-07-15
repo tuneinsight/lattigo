@@ -77,7 +77,7 @@ type PRNGEncryptorInterface interface {
 
 // EncoderInterface defines a set of common and scheme agnostic method provided by an Encoder struct.
 type EncoderInterface[T any, U *ring.Poly | ringqp.Poly | *Plaintext] interface {
-	Encode(values []T, metaData MetaData, output U) (err error)
+	Encode(values []T, metaData *MetaData, output U) (err error)
 	Parameters() ParametersInterface
 }
 

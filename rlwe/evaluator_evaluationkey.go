@@ -95,7 +95,7 @@ func (eval Evaluator) ApplyEvaluationKey(ctIn *Ciphertext, evk *EvaluationKey, o
 		eval.applyEvaluationKey(level, ctIn, evk, opOut)
 	}
 
-	opOut.MetaData = ctIn.MetaData
+	*opOut.MetaData = *ctIn.MetaData
 
 	return
 }
@@ -103,7 +103,7 @@ func (eval Evaluator) ApplyEvaluationKey(ctIn *Ciphertext, evk *EvaluationKey, o
 func (eval Evaluator) applyEvaluationKey(level int, ctIn *Ciphertext, evk *EvaluationKey, opOut *Ciphertext) {
 	ctTmp := &Ciphertext{}
 	ctTmp.Value = []ring.Poly{eval.BuffQP[0].Q, eval.BuffQP[1].Q}
-	ctTmp.IsNTT = ctIn.IsNTT
+	ctTmp.MetaData = ctIn.MetaData
 	eval.GadgetProduct(level, ctIn.Value[1], &evk.GadgetCiphertext, ctTmp)
 	eval.params.RingQ().AtLevel(level).Add(ctIn.Value[0], ctTmp.Value[0], opOut.Value[0])
 	ring.CopyLvl(level, ctTmp.Value[1], opOut.Value[1])
@@ -136,7 +136,7 @@ func (eval Evaluator) Relinearize(ctIn *Ciphertext, opOut *Ciphertext) (err erro
 
 	ctTmp := &Ciphertext{}
 	ctTmp.Value = []ring.Poly{eval.BuffQP[0].Q, eval.BuffQP[1].Q}
-	ctTmp.IsNTT = ctIn.IsNTT
+	ctTmp.MetaData = ctIn.MetaData
 
 	eval.GadgetProduct(level, ctIn.Value[2], &rlk.GadgetCiphertext, ctTmp)
 	ringQ.Add(ctIn.Value[0], ctTmp.Value[0], opOut.Value[0])
@@ -144,7 +144,7 @@ func (eval Evaluator) Relinearize(ctIn *Ciphertext, opOut *Ciphertext) (err erro
 
 	opOut.Resize(1, level)
 
-	opOut.MetaData = ctIn.MetaData
+	*opOut.MetaData = *ctIn.MetaData
 
 	return
 }

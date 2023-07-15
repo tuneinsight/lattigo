@@ -234,7 +234,7 @@ func (ecd Encoder) DecodePublic(pt *rlwe.Plaintext, values interface{}, noiseFlo
 //	The encoding encoding is done at the level of polyOut.
 //
 // Values written on  polyOut are always in the NTT domain.
-func (ecd Encoder) Embed(values interface{}, metadata rlwe.MetaData, polyOut interface{}) (err error) {
+func (ecd Encoder) Embed(values interface{}, metadata *rlwe.MetaData, polyOut interface{}) (err error) {
 	if ecd.prec <= 53 {
 		return ecd.embedDouble(values, metadata, polyOut)
 	}
@@ -242,7 +242,7 @@ func (ecd Encoder) Embed(values interface{}, metadata rlwe.MetaData, polyOut int
 	return ecd.embedArbitrary(values, metadata, polyOut)
 }
 
-func (ecd Encoder) embedDouble(values interface{}, metadata rlwe.MetaData, polyOut interface{}) (err error) {
+func (ecd Encoder) embedDouble(values interface{}, metadata *rlwe.MetaData, polyOut interface{}) (err error) {
 
 	if maxLogCols := ecd.parameters.PlaintextLogDimensions()[1]; metadata.PlaintextLogDimensions[1] < 0 || metadata.PlaintextLogDimensions[1] > maxLogCols {
 		return fmt.Errorf("cannot Embed: logSlots (%d) must be greater or equal to %d and smaller than %d", metadata.PlaintextLogDimensions[1], 0, maxLogCols)
@@ -360,7 +360,7 @@ func (ecd Encoder) embedDouble(values interface{}, metadata rlwe.MetaData, polyO
 	return
 }
 
-func (ecd Encoder) embedArbitrary(values interface{}, metadata rlwe.MetaData, polyOut interface{}) (err error) {
+func (ecd Encoder) embedArbitrary(values interface{}, metadata *rlwe.MetaData, polyOut interface{}) (err error) {
 
 	if maxLogCols := ecd.parameters.PlaintextLogDimensions()[1]; metadata.PlaintextLogDimensions[1] < 0 || metadata.PlaintextLogDimensions[1] > maxLogCols {
 		return fmt.Errorf("cannot Embed: logSlots (%d) must be greater or equal to %d and smaller than %d", metadata.PlaintextLogDimensions[1], 0, maxLogCols)
@@ -1118,6 +1118,6 @@ type encoder[T float64 | complex128 | *big.Float | *bignum.Complex, U ring.Poly 
 	*Encoder
 }
 
-func (e *encoder[T, U]) Encode(values []T, metadata rlwe.MetaData, output U) (err error) {
+func (e *encoder[T, U]) Encode(values []T, metadata *rlwe.MetaData, output U) (err error) {
 	return e.Encoder.Embed(values, metadata, output)
 }

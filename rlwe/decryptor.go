@@ -49,7 +49,7 @@ func (d Decryptor) Decrypt(ct *Ciphertext, pt *Plaintext) {
 
 	pt.Resize(0, level)
 
-	pt.MetaData = ct.MetaData
+	*pt.MetaData = *ct.MetaData
 
 	if ct.IsNTT {
 		ring.CopyLvl(level, ct.Value[ct.Degree()], pt.Value)

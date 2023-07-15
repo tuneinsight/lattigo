@@ -36,7 +36,7 @@ func (eval Evaluator) Automorphism(ctIn *Ciphertext, galEl uint64, opOut *Cipher
 	ringQ := eval.params.RingQ().AtLevel(level)
 
 	ctTmp := &Ciphertext{Operand: Operand[ring.Poly]{Value: []ring.Poly{eval.BuffQP[0].Q, eval.BuffQP[1].Q}}}
-	ctTmp.IsNTT = ctIn.IsNTT
+	ctTmp.MetaData = ctIn.MetaData
 
 	eval.GadgetProduct(level, ctIn.Value[1], &evk.GadgetCiphertext, ctTmp)
 
@@ -50,7 +50,7 @@ func (eval Evaluator) Automorphism(ctIn *Ciphertext, galEl uint64, opOut *Cipher
 		ringQ.Automorphism(ctTmp.Value[1], galEl, opOut.Value[1])
 	}
 
-	opOut.MetaData = ctIn.MetaData
+	*opOut.MetaData = *ctIn.MetaData
 
 	return
 }
@@ -83,7 +83,7 @@ func (eval Evaluator) AutomorphismHoisted(level int, ctIn *Ciphertext, c1DecompQ
 
 	ctTmp := &Ciphertext{}
 	ctTmp.Value = []ring.Poly{eval.BuffQP[0].Q, eval.BuffQP[1].Q} // GadgetProductHoisted uses the same buffers for its ciphertext QP
-	ctTmp.IsNTT = ctIn.IsNTT
+	ctTmp.MetaData = ctIn.MetaData
 
 	eval.GadgetProductHoisted(level, c1DecompQP, &evk.EvaluationKey.GadgetCiphertext, ctTmp)
 	ringQ.Add(ctTmp.Value[0], ctIn.Value[0], ctTmp.Value[0])
@@ -96,7 +96,7 @@ func (eval Evaluator) AutomorphismHoisted(level int, ctIn *Ciphertext, c1DecompQ
 		ringQ.Automorphism(ctTmp.Value[1], galEl, opOut.Value[1])
 	}
 
-	opOut.MetaData = ctIn.MetaData
+	*opOut.MetaData = *ctIn.MetaData
 
 	return
 }
@@ -115,7 +115,7 @@ func (eval Evaluator) AutomorphismHoistedLazy(levelQ int, ctIn *Ciphertext, c1De
 
 	ctTmp := &Operand[ringqp.Poly]{}
 	ctTmp.Value = []ringqp.Poly{eval.BuffQP[0], eval.BuffQP[1]}
-	ctTmp.IsNTT = ctQP.IsNTT
+	ctTmp.MetaData = ctIn.MetaData
 
 	eval.GadgetProductHoistedLazy(levelQ, c1DecompQP, &evk.GadgetCiphertext, ctTmp)
 

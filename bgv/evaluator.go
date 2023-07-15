@@ -206,7 +206,7 @@ func (eval Evaluator) Add(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Cip
 				ring.Copy(op0.Value[i], opOut.Value[i])
 			}
 
-			opOut.MetaData = op0.MetaData
+			*opOut.MetaData = *op0.MetaData
 		}
 	case uint64:
 		return eval.Add(op0, new(big.Int).SetUint64(op1), opOut)
@@ -260,7 +260,7 @@ func (eval Evaluator) evaluateInPlace(level int, el0 *rlwe.Ciphertext, el1 *rlwe
 		}
 	}
 
-	elOut.MetaData = el0.MetaData
+	*elOut.MetaData = *el0.MetaData
 }
 
 func (eval Evaluator) matchScaleThenEvaluateInPlace(level int, el0 *rlwe.Ciphertext, el1 *rlwe.Operand[ring.Poly], elOut *rlwe.Ciphertext, evaluate func(ring.Poly, uint64, ring.Poly)) {
@@ -281,7 +281,7 @@ func (eval Evaluator) matchScaleThenEvaluateInPlace(level int, el0 *rlwe.Ciphert
 		evaluate(el1.Value[i], r1, elOut.Value[i])
 	}
 
-	elOut.MetaData = el0.MetaData
+	*elOut.MetaData = *el0.MetaData
 	elOut.PlaintextScale = el0.PlaintextScale.Mul(eval.parameters.NewScale(r0))
 }
 
@@ -305,7 +305,6 @@ func (eval Evaluator) AddNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe
 		opOut = eval.newCiphertextBinary(op0, op1)
 	default:
 		opOut = NewCiphertext(eval.parameters, op0.Degree(), op0.Level())
-		opOut.MetaData = op0.MetaData
 	}
 
 	return opOut, eval.Add(op0, op1, opOut)
@@ -392,7 +391,6 @@ func (eval Evaluator) SubNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe
 		opOut = eval.newCiphertextBinary(op0, op1)
 	default:
 		opOut = NewCiphertext(eval.parameters, op0.Degree(), op0.Level())
-		opOut.MetaData = op0.MetaData
 	}
 
 	return opOut, eval.Sub(op0, op1, opOut)
@@ -445,7 +443,7 @@ func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Cip
 			ringQ.MulScalarBigint(op0.Value[i], op1, opOut.Value[i])
 		}
 
-		opOut.MetaData = op0.MetaData
+		*opOut.MetaData = *op0.MetaData
 	case uint64:
 		return eval.Mul(op0, new(big.Int).SetUint64(op1), opOut)
 	case int:
@@ -465,7 +463,7 @@ func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Cip
 		if err != nil {
 			panic(err)
 		}
-		pt.MetaData = op0.MetaData // Sets the metadata, notably matches scales
+		pt.MetaData = op0.MetaData.CopyNew() // Sets the metadata, notably matches scales
 		pt.PlaintextScale = rlwe.NewScale(1)
 
 		// Encodes the vector on the plaintext
@@ -569,7 +567,7 @@ func (eval Evaluator) tensorStandard(op0 *rlwe.Ciphertext, op1 *rlwe.Operand[rin
 		return fmt.Errorf("cannot tensor: input elements total degree cannot be larger than 2")
 	}
 
-	opOut.MetaData = op0.MetaData
+	*opOut.MetaData = *op0.MetaData
 	opOut.PlaintextScale = op0.PlaintextScale.Mul(op1.PlaintextScale)
 
 	ringQ := eval.parameters.RingQ().AtLevel(level)
@@ -629,7 +627,7 @@ func (eval Evaluator) tensorStandard(op0 *rlwe.Ciphertext, op1 *rlwe.Operand[rin
 
 			tmpCt := &rlwe.Ciphertext{}
 			tmpCt.Value = []ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}
-			tmpCt.IsNTT = true
+			tmpCt.MetaData = &rlwe.MetaData{IsNTT: true}
 
 			eval.GadgetProduct(level, c2, &rlk.GadgetCiphertext, tmpCt)
 
@@ -693,7 +691,7 @@ func (eval Evaluator) MulInvariant(op0 *rlwe.Ciphertext, op1 interface{}, opOut 
 		if err != nil {
 			panic(err)
 		}
-		pt.MetaData = op0.MetaData // Sets the metadata, notably matches scales
+		pt.MetaData = op0.MetaData.CopyNew() // Sets the metadata, notably matches scales
 		pt.PlaintextScale = rlwe.NewScale(1)
 
 		// Encodes the vector on the plaintext
@@ -777,7 +775,7 @@ func (eval Evaluator) MulRelinInvariant(op0 *rlwe.Ciphertext, op1 interface{}, o
 		if err != nil {
 			panic(err)
 		}
-		pt.MetaData = op0.MetaData // Sets the metadata, notably matches scales
+		pt.MetaData = op0.MetaData.CopyNew() // Sets the metadata, notably matches scales
 		pt.PlaintextScale = rlwe.NewScale(1)
 
 		// Encodes the vector on the plaintext
@@ -883,7 +881,7 @@ func (eval Evaluator) tensorInvariant(ct0 *rlwe.Ciphertext, ct1 *rlwe.Operand[ri
 
 		tmpCt := &rlwe.Ciphertext{}
 		tmpCt.Value = []ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}
-		tmpCt.IsNTT = true
+		tmpCt.MetaData = &rlwe.MetaData{IsNTT: true}
 
 		eval.GadgetProduct(level, c2, &rlk.GadgetCiphertext, tmpCt)
 
@@ -893,7 +891,7 @@ func (eval Evaluator) tensorInvariant(ct0 *rlwe.Ciphertext, ct1 *rlwe.Operand[ri
 		ringQ.Add(opOut.Value[1], tmpCt.Value[1], opOut.Value[1])
 	}
 
-	opOut.MetaData = ct0.MetaData
+	*opOut.MetaData = *ct0.MetaData
 	opOut.PlaintextScale = mulScaleInvariant(eval.parameters, ct0.PlaintextScale, tmp1Q0.PlaintextScale, opOut.Level())
 
 	return
@@ -1045,7 +1043,7 @@ func (eval Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, opOut *r
 		if err != nil {
 			panic(err)
 		}
-		pt.MetaData = op0.MetaData // Sets the metadata, notably matches scales
+		pt.MetaData = op0.MetaData.CopyNew() // Sets the metadata, notably matches scales
 
 		// op1 *= (op1.PlaintextScale / opOut.PlaintextScale)
 		if op0.PlaintextScale.Cmp(opOut.PlaintextScale) != 0 {
@@ -1163,7 +1161,7 @@ func (eval Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 *rlwe.Operand[ri
 
 			tmpCt := &rlwe.Ciphertext{}
 			tmpCt.Value = []ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}
-			tmpCt.IsNTT = true
+			tmpCt.MetaData = &rlwe.MetaData{IsNTT: true}
 
 			eval.GadgetProduct(level, c2, &rlk.GadgetCiphertext, tmpCt)
 
@@ -1239,7 +1237,7 @@ func (eval Evaluator) Rescale(op0, opOut *rlwe.Ciphertext) (err error) {
 	}
 
 	opOut.Resize(opOut.Degree(), level-1)
-	opOut.MetaData = op0.MetaData
+	*opOut.MetaData = *op0.MetaData
 	opOut.PlaintextScale = op0.PlaintextScale.Div(eval.parameters.NewScale(ringQ.SubRings[level].Modulus))
 	return
 }

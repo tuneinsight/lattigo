@@ -233,7 +233,7 @@ func BSGSIndex(nonZeroDiags []int, slots, N1 int) (index map[int][]int, rotN1, r
 
 // NTTSparseAndMontgomery takes a polynomial Z[Y] outside of the NTT domain and maps it to a polynomial Z[X] in the NTT domain where Y = X^(gap).
 // This method is used to accelerate the NTT of polynomials that encode sparse polynomials.
-func NTTSparseAndMontgomery(r *ring.Ring, metadata MetaData, pol ring.Poly) {
+func NTTSparseAndMontgomery(r *ring.Ring, metadata *MetaData, pol ring.Poly) {
 
 	if 1<<metadata.PlaintextLogDimensions[1] == r.NthRoot()>>2 {
 

@@ -163,7 +163,7 @@ func (cks KeySwitchProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined KeySwitch
 
 		ring.CopyLvl(level, ctIn.Value[1], opOut.Value[1])
 
-		opOut.MetaData = ctIn.MetaData
+		*opOut.MetaData = *ctIn.MetaData
 	}
 
 	cks.params.RingQ().AtLevel(level).Add(ctIn.Value[0], combined.Value, opOut.Value[0])

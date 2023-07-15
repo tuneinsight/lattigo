@@ -376,7 +376,7 @@ func (rfp MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, transform *Mas
 		return
 	}
 
-	ciphertextOut.MetaData = ct.MetaData
+	*ciphertextOut.MetaData = *ct.MetaData
 	ciphertextOut.PlaintextScale = rfp.s2e.params.PlaintextScale()
 
 	return

@@ -20,7 +20,7 @@ func (eval Evaluator) GadgetProduct(levelQ int, cx ring.Poly, gadgetCt *GadgetCi
 
 	ctTmp := &Operand[ringqp.Poly]{}
 	ctTmp.Value = []ringqp.Poly{{Q: ct.Value[0], P: eval.BuffQP[0].P}, {Q: ct.Value[1], P: eval.BuffQP[1].P}}
-	ctTmp.IsNTT = ct.IsNTT
+	ctTmp.MetaData = ct.MetaData
 
 	eval.GadgetProductLazy(levelQ, cx, gadgetCt, ctTmp)
 
@@ -290,7 +290,7 @@ func (eval Evaluator) GadgetProductHoisted(levelQ int, BuffQPDecompQP []ringqp.P
 		{Q: ct.Value[0], P: eval.BuffQP[0].P},
 		{Q: ct.Value[1], P: eval.BuffQP[1].P},
 	}
-	ctQP.IsNTT = ct.IsNTT
+	ctQP.MetaData = ct.MetaData
 
 	eval.GadgetProductHoistedLazy(levelQ, BuffQPDecompQP, gadgetCt, ctQP)
 	eval.ModDown(levelQ, gadgetCt.LevelP(), ctQP, ct)

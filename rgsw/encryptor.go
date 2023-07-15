@@ -83,11 +83,11 @@ func (enc Encryptor) EncryptZero(ct interface{}) (err error) {
 	for j := 0; j < decompPw2; j++ {
 		for i := 0; i < decompRNS; i++ {
 
-			if err = enc.EncryptorInterface.EncryptZero(rlwe.Operand[ringqp.Poly]{MetaData: rlwe.MetaData{IsNTT: true, IsMontgomery: true}, Value: []ringqp.Poly(rgswCt.Value[0].Value[i][j])}); err != nil {
+			if err = enc.EncryptorInterface.EncryptZero(rlwe.Operand[ringqp.Poly]{MetaData: &rlwe.MetaData{IsNTT: true, IsMontgomery: true}, Value: []ringqp.Poly(rgswCt.Value[0].Value[i][j])}); err != nil {
 				return
 			}
 
-			if err = enc.EncryptorInterface.EncryptZero(rlwe.Operand[ringqp.Poly]{MetaData: rlwe.MetaData{IsNTT: true, IsMontgomery: true}, Value: []ringqp.Poly(rgswCt.Value[1].Value[i][j])}); err != nil {
+			if err = enc.EncryptorInterface.EncryptZero(rlwe.Operand[ringqp.Poly]{MetaData: &rlwe.MetaData{IsNTT: true, IsMontgomery: true}, Value: []ringqp.Poly(rgswCt.Value[1].Value[i][j])}); err != nil {
 				return
 			}
 		}

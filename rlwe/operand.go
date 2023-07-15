@@ -1,6 +1,7 @@
 package rlwe
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 
@@ -20,7 +21,7 @@ type OperandInterface[T ring.Poly | ringqp.Poly] interface {
 }
 
 type Operand[T ring.Poly | ringqp.Poly] struct {
-	MetaData
+	*MetaData
 	Value structs.Vector[T]
 }
 
@@ -34,7 +35,7 @@ func NewOperandQ(params ParametersInterface, degree, levelQ int) *Operand[ring.P
 
 	return &Operand[ring.Poly]{
 		Value: Value,
-		MetaData: MetaData{
+		MetaData: &MetaData{
 			IsNTT: params.NTTFlag(),
 		},
 	}
@@ -50,7 +51,7 @@ func NewOperandQP(params ParametersInterface, degree, levelQ, levelP int) *Opera
 
 	return &Operand[ringqp.Poly]{
 		Value: Value,
-		MetaData: MetaData{
+		MetaData: &MetaData{
 			IsNTT: params.NTTFlag(),
 		},
 	}
@@ -59,7 +60,7 @@ func NewOperandQP(params ParametersInterface, degree, levelQ, levelP int) *Opera
 // NewOperandQAtLevelFromPoly constructs a new Operand at a specific level
 // where the message is set to the passed poly. No checks are performed on poly and
 // the returned Operand will share its backing array of coefficients.
-// Returned Operand's MetaData is empty.
+// Returned Operand's MetaData is nil.
 func NewOperandQAtLevelFromPoly(level int, poly []ring.Poly) (*Operand[ring.Poly], error) {
 	Value := make([]ring.Poly, len(poly))
 	for i := range Value {
@@ -77,7 +78,7 @@ func NewOperandQAtLevelFromPoly(level int, poly []ring.Poly) (*Operand[ring.Poly
 
 // Equal performs a deep equal.
 func (op Operand[T]) Equal(other *Operand[T]) bool {
-	return cmp.Equal(&op.MetaData, &other.MetaData) && cmp.Equal(op.Value, other.Value)
+	return cmp.Equal(op.MetaData, other.MetaData) && cmp.Equal(op.Value, other.Value)
 }
 
 // Degree returns the degree of the target Operand.
@@ -144,7 +145,7 @@ func (op *Operand[T]) Resize(degree, level int) {
 
 // CopyNew creates a deep copy of the object and returns it.
 func (op Operand[T]) CopyNew() *Operand[T] {
-	return &Operand[T]{Value: *op.Value.CopyNew(), MetaData: op.MetaData}
+	return &Operand[T]{Value: *op.Value.CopyNew(), MetaData: op.MetaData.CopyNew()}
 }
 
 // Copy copies the input element and its parameters on the target element.
@@ -171,7 +172,7 @@ func (op *Operand[T]) Copy(opCopy *Operand[T]) {
 			}
 		}
 
-		op.MetaData = opCopy.MetaData
+		*op.MetaData = *opCopy.MetaData
 	}
 }
 
@@ -237,7 +238,7 @@ func SwitchCiphertextRingDegreeNTT(ctIn *Operand[ring.Poly], ringQLargeDim *ring
 		}
 	}
 
-	opOut.MetaData = ctIn.MetaData
+	*opOut.MetaData = *ctIn.MetaData
 }
 
 // SwitchCiphertextRingDegree changes the ring degree of ctIn to the one of opOut.
@@ -262,12 +263,17 @@ func SwitchCiphertextRingDegree(ctIn, opOut *Operand[ring.Poly]) {
 		}
 	}
 
-	opOut.MetaData = ctIn.MetaData
+	*opOut.MetaData = *ctIn.MetaData
 }
 
 // BinarySize returns the serialized size of the object in bytes.
-func (op Operand[T]) BinarySize() int {
-	return op.MetaData.BinarySize() + op.Value.BinarySize()
+func (op Operand[T]) BinarySize() (size int) {
+	size++
+	if op.MetaData != nil {
+		size += op.MetaData.BinarySize()
+	}
+
+	return size + op.Value.BinarySize()
 }
 
 // WriteTo writes the object on an io.Writer. It implements the io.WriterTo
@@ -283,13 +289,39 @@ func (op Operand[T]) BinarySize() int {
 //     buffer.NewBuffer(b) as w (see lattigo/utils/buffer/buffer.go).
 func (op Operand[T]) WriteTo(w io.Writer) (n int64, err error) {
 
-	if n, err = op.MetaData.WriteTo(w); err != nil {
-		return n, err
+	switch w := w.(type) {
+	case buffer.Writer:
+
+		var inc int64
+
+		if op.MetaData != nil {
+
+			if inc, err = buffer.WriteUint8(w, 1); err != nil {
+				return n, err
+			}
+
+			n += inc
+
+			if inc, err = op.MetaData.WriteTo(w); err != nil {
+				return n, err
+			}
+
+			n += inc
+		} else {
+			if inc, err = buffer.WriteUint8(w, 0); err != nil {
+				return n, err
+			}
+
+			n += inc
+		}
+
+		inc, err = op.Value.WriteTo(w)
+
+		return n + inc, err
+
+	default:
+		return op.WriteTo(bufio.NewWriter(w))
 	}
-
-	inc, err := op.Value.WriteTo(w)
-
-	return n + inc, err
 }
 
 // ReadFrom reads on the object from an io.Writer. It implements the
@@ -305,17 +337,43 @@ func (op Operand[T]) WriteTo(w io.Writer) (n int64, err error) {
 //     as w (see lattigo/utils/buffer/buffer.go).
 func (op *Operand[T]) ReadFrom(r io.Reader) (n int64, err error) {
 
-	if op == nil {
-		return 0, fmt.Errorf("cannot ReadFrom: target object is nil")
+	switch r := r.(type) {
+	case buffer.Reader:
+
+		if op == nil {
+			return 0, fmt.Errorf("cannot ReadFrom: target object is nil")
+		}
+
+		var inc int64
+
+		var hasMetaData uint8
+
+		if inc, err = buffer.ReadUint8(r, &hasMetaData); err != nil {
+			return n, err
+		}
+
+		n += inc
+
+		if hasMetaData == 1 {
+
+			if op.MetaData == nil {
+				op.MetaData = &MetaData{}
+			}
+
+			if inc, err = op.MetaData.ReadFrom(r); err != nil {
+				return n, err
+			}
+
+			n += inc
+		}
+
+		inc, err = op.Value.ReadFrom(r)
+
+		return n + inc, err
+
+	default:
+		return op.ReadFrom(bufio.NewReader(r))
 	}
-
-	if n, err = op.MetaData.ReadFrom(r); err != nil {
-		return n, err
-	}
-
-	inc, err := op.Value.ReadFrom(r)
-
-	return n + inc, err
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.

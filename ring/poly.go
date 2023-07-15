@@ -142,8 +142,6 @@ func (pol Poly) WriteTo(w io.Writer) (n int64, err error) {
 	switch w := w.(type) {
 	case buffer.Writer:
 
-		var err error
-
 		var inc int64
 
 		if n, err = buffer.WriteInt(w, pol.N()); err != nil {

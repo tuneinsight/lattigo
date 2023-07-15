@@ -243,7 +243,7 @@ func (ecd Encoder) EncodeRingT(values interface{}, plaintextScale rlwe.Scale, pT
 // - scaleUp: a boolean indicating if the values need to be multiplied by T^{-1} mod Q after being encoded on the polynomial
 // - metadata: a metadata struct containing the fields PlaintextScale, IsNTT and IsMontgomery
 // - polyOut: a ringqp.Poly or *ring.Poly
-func (ecd Encoder) Embed(values interface{}, scaleUp bool, metadata rlwe.MetaData, polyOut interface{}) (err error) {
+func (ecd Encoder) Embed(values interface{}, scaleUp bool, metadata *rlwe.MetaData, polyOut interface{}) (err error) {
 
 	pT := ecd.bufT
 
@@ -509,6 +509,6 @@ type encoder[T int64 | uint64, U ring.Poly | ringqp.Poly | *rlwe.Plaintext] stru
 	*Encoder
 }
 
-func (e encoder[T, U]) Encode(values []T, metadata rlwe.MetaData, output U) (err error) {
+func (e encoder[T, U]) Encode(values []T, metadata *rlwe.MetaData, output U) (err error) {
 	return e.Embed(values, false, metadata, output)
 }

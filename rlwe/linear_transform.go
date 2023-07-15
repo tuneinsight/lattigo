@@ -14,7 +14,7 @@ import (
 // It stores a plaintext matrix in diagonal form and
 // can be evaluated on a ciphertext by using the evaluator.LinearTransform method.
 type LinearTransform struct {
-	MetaData
+	*MetaData
 	LogBSGSRatio int
 	N1           int                 // N1 is the number of inner loops of the baby-step giant-step algorithm used in the evaluation (if N1 == 0, BSGS is not used).
 	Level        int                 // Level is the level at which the matrix is encoded (can be circuit dependent)
@@ -56,7 +56,7 @@ func NewLinearTransform(params ParametersInterface, nonZeroDiags []int, level in
 		}
 	}
 
-	metadata := MetaData{
+	metadata := &MetaData{
 		PlaintextLogDimensions: plaintextLogDimensions,
 		PlaintextScale:         plaintextScale,
 		EncodingDomain:         FrequencyDomain,
@@ -90,7 +90,7 @@ func EncodeLinearTransform[T any](LT LinearTransform, diagonals map[int][]T, enc
 
 	buf := make([]T, rows*cols)
 
-	metaData := MetaData{
+	metaData := &MetaData{
 		PlaintextLogDimensions: PlaintextLogDimensions,
 		IsNTT:                  true,
 		IsMontgomery:           true,
@@ -137,7 +137,7 @@ func EncodeLinearTransform[T any](LT LinearTransform, diagonals map[int][]T, enc
 	return
 }
 
-func rotateAndEncodeDiagonal[T any](diagonals map[int][]T, encoder EncoderInterface[T, ringqp.Poly], i, rot int, metaData MetaData, buf []T, poly ringqp.Poly) error {
+func rotateAndEncodeDiagonal[T any](diagonals map[int][]T, encoder EncoderInterface[T, ringqp.Poly], i, rot int, metaData *MetaData, buf []T, poly ringqp.Poly) error {
 
 	rows := 1 << metaData.PlaintextLogDimensions[0]
 	cols := 1 << metaData.PlaintextLogDimensions[1]
@@ -192,7 +192,7 @@ func GenLinearTransform[T any](diagonals map[int][]T, encoder EncoderInterface[T
 
 	vec := make(map[int]ringqp.Poly)
 
-	metaData := MetaData{
+	metaData := &MetaData{
 		PlaintextLogDimensions: plaintextLogDimensions,
 		EncodingDomain:         FrequencyDomain,
 		IsNTT:                  true,
@@ -348,7 +348,7 @@ func (eval Evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfac
 // for matrix of only a few non-zero diagonals but uses more keys.
 func (eval Evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTransform, BuffDecompQP []ringqp.Poly, opOut *Ciphertext) (err error) {
 
-	opOut.MetaData = ctIn.MetaData
+	*opOut.MetaData = *ctIn.MetaData
 	opOut.PlaintextScale = opOut.PlaintextScale.Mul(matrix.PlaintextScale)
 
 	levelQ := utils.Min(opOut.Level(), utils.Min(ctIn.Level(), matrix.Level))
@@ -372,7 +372,7 @@ func (eval Evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTransf
 
 	cQP := &Operand[ringqp.Poly]{}
 	cQP.Value = []ringqp.Poly{eval.BuffQP[3], eval.BuffQP[4]}
-	cQP.IsNTT = true
+	cQP.MetaData = &MetaData{IsNTT: true}
 
 	ring.Copy(ctIn.Value[0], eval.BuffCt.Value[0])
 	ring.Copy(ctIn.Value[1], eval.BuffCt.Value[1])
@@ -460,7 +460,7 @@ func (eval Evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTransf
 // for matrix with more than a few non-zero diagonals and uses significantly less keys.
 func (eval Evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearTransform, BuffDecompQP []ringqp.Poly, opOut *Ciphertext) (err error) {
 
-	opOut.MetaData = ctIn.MetaData
+	*opOut.MetaData = *ctIn.MetaData
 	opOut.PlaintextScale = opOut.PlaintextScale.Mul(matrix.PlaintextScale)
 
 	levelQ := utils.Min(opOut.Level(), utils.Min(ctIn.Level(), matrix.Level))
@@ -501,7 +501,7 @@ func (eval Evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearTr
 	// Accumulator outer loop
 	cQP := &Operand[ringqp.Poly]{}
 	cQP.Value = []ringqp.Poly{eval.BuffQP[3], eval.BuffQP[4]}
-	cQP.IsNTT = true
+	cQP.MetaData = &MetaData{IsNTT: true}
 
 	// Result in QP
 	c0OutQP := ringqp.Poly{Q: opOut.Value[0], P: eval.BuffQP[5].Q}
@@ -668,7 +668,7 @@ func (eval Evaluator) Trace(ctIn *Ciphertext, logN int, opOut *Ciphertext) (err 
 
 	opOut.Resize(opOut.Degree(), level)
 
-	opOut.MetaData = ctIn.MetaData
+	*opOut.MetaData = *ctIn.MetaData
 
 	gap := 1 << (eval.params.LogN() - logN - 1)
 
@@ -948,7 +948,7 @@ func (eval Evaluator) Pack(cts map[int]*Ciphertext, inputLogGap int, zeroGarbage
 
 	tmpa := &Ciphertext{}
 	tmpa.Value = []ring.Poly{ringQ.NewPoly(), ringQ.NewPoly()}
-	tmpa.IsNTT = true
+	tmpa.MetaData = &MetaData{IsNTT: true}
 
 	for i := logStart; i < logEnd; i++ {
 
@@ -1063,7 +1063,7 @@ func (eval Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, opOut *Cipher
 	ringQ := ringQP.RingQ
 
 	opOut.Resize(opOut.Degree(), levelQ)
-	opOut.MetaData = ctIn.MetaData
+	*opOut.MetaData = *ctIn.MetaData
 
 	ctInNTT, err := NewCiphertextAtLevelFromPoly(levelQ, eval.BuffCt.Value[:2])
 
@@ -1071,7 +1071,7 @@ func (eval Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, opOut *Cipher
 		panic(err)
 	}
 
-	ctInNTT.IsNTT = true
+	ctInNTT.MetaData = &MetaData{IsNTT: true}
 
 	if !ctIn.IsNTT {
 		ringQ.NTT(ctIn.Value[0], ctInNTT.Value[0])
@@ -1092,11 +1092,11 @@ func (eval Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, opOut *Cipher
 
 		// Accumulator mod QP (i.e. opOut Mod QP)
 		accQP := &Operand[ringqp.Poly]{Value: []ringqp.Poly{eval.BuffQP[2], eval.BuffQP[3]}}
-		accQP.IsNTT = true
+		accQP.MetaData = ctInNTT.MetaData
 
 		// Buffer mod QP (i.e. to store the result of lazy gadget products)
 		cQP := &Operand[ringqp.Poly]{Value: []ringqp.Poly{eval.BuffQP[4], eval.BuffQP[5]}}
-		cQP.IsNTT = true
+		cQP.MetaData = ctInNTT.MetaData
 
 		// Buffer mod Q (i.e. to store the result of gadget products)
 		cQ, err := NewCiphertextAtLevelFromPoly(levelQ, []ring.Poly{cQP.Value[0].Q, cQP.Value[1].Q})
@@ -1105,7 +1105,7 @@ func (eval Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, opOut *Cipher
 			panic(err)
 		}
 
-		cQ.IsNTT = true
+		cQ.MetaData = ctInNTT.MetaData
 
 		state := false
 		copy := true

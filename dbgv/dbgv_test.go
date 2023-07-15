@@ -244,7 +244,7 @@ func testEncToShares(tc *testContext, t *testing.T) {
 		}
 
 		ctRec := bgv.NewCiphertext(tc.params, 1, tc.params.MaxLevel())
-		ctRec.MetaData = ciphertext.MetaData
+		*ctRec.MetaData = *ciphertext.MetaData
 		P[0].s2e.GetEncryption(P[0].publicShare, crp, ctRec)
 
 		verifyTestVectors(tc, tc.decryptorSk0, coeffs, ctRec, t)

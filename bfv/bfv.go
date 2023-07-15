@@ -102,7 +102,7 @@ type encoder[T int64 | uint64, U *ring.Poly | ringqp.Poly | *rlwe.Plaintext] str
 	*Encoder
 }
 
-func (e encoder[T, U]) Encode(values []T, metadata rlwe.MetaData, output U) (err error) {
+func (e encoder[T, U]) Encode(values []T, metadata *rlwe.MetaData, output U) (err error) {
 	return e.Encoder.Embed(values, false, metadata, output)
 }
 

@@ -1168,7 +1168,7 @@ func testWriteAndRead(tc *TestContext, bpw2 int, t *testing.T) {
 				sampler.ReadNew(),
 				sampler.ReadNew(),
 			},
-			MetaData: MetaData{
+			MetaData: &MetaData{
 				IsNTT: params.NTTFlag(),
 			},
 		}
@@ -1186,7 +1186,7 @@ func testWriteAndRead(tc *TestContext, bpw2 int, t *testing.T) {
 				sampler.ReadNew(),
 				sampler.ReadNew(),
 			},
-			MetaData: MetaData{
+			MetaData: &MetaData{
 				IsNTT: params.NTTFlag(),
 			},
 		}

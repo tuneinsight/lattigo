@@ -131,7 +131,7 @@ func (pcks PublicKeySwitchProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined Pu
 
 	if ctIn != opOut {
 		opOut.Resize(ctIn.Degree(), level)
-		opOut.MetaData = ctIn.MetaData
+		*opOut.MetaData = *ctIn.MetaData
 	}
 
 	pcks.params.RingQ().AtLevel(level).Add(ctIn.Value[0], combined.Value[0], opOut.Value[0])

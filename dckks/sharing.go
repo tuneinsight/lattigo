@@ -231,7 +231,7 @@ func (s2e ShareToEncProtocol) AllocateShare(level int) (share drlwe.KeySwitchSha
 
 // GenShare generates a party's in the shares-to-encryption protocol given the party's secret-key share `sk`, a common
 // polynomial sampled from the CRS `crs` and the party's secret share of the message.
-func (s2e ShareToEncProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.KeySwitchCRP, metadata rlwe.MetaData, secretShare drlwe.AdditiveShareBigint, c0ShareOut *drlwe.KeySwitchShare) (err error) {
+func (s2e ShareToEncProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.KeySwitchCRP, metadata *rlwe.MetaData, secretShare drlwe.AdditiveShareBigint, c0ShareOut *drlwe.KeySwitchShare) (err error) {
 
 	if crs.Value.Level() != c0ShareOut.Value.Level() {
 		return fmt.Errorf("cannot GenShare: crs and c0ShareOut level must be equal")
@@ -242,7 +242,7 @@ func (s2e ShareToEncProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.KeySwitchCR
 	// Generates an encryption share
 	ct := &rlwe.Ciphertext{}
 	ct.Value = []ring.Poly{{}, crs.Value}
-	ct.MetaData.IsNTT = true
+	ct.MetaData = &rlwe.MetaData{IsNTT: true}
 	s2e.KeySwitchProtocol.GenShare(s2e.zero, sk, ct, c0ShareOut)
 
 	dslots := 1 << metadata.PlaintextLogSlots()

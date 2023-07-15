@@ -35,6 +35,11 @@ func (m *MetaData) Equal(other *MetaData) (res bool) {
 	return
 }
 
+// CopyNew returns a copy of the target.
+func (m MetaData) CopyNew() *MetaData {
+	return &m
+}
+
 // PlaintextDimensions returns the dimensions of the plaintext matrix.
 func (m MetaData) PlaintextDimensions() [2]int {
 	return [2]int{1 << m.PlaintextLogDimensions[0], 1 << m.PlaintextLogDimensions[1]}

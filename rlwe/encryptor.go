@@ -154,7 +154,7 @@ func (enc EncryptorPublicKey) Encrypt(pt *Plaintext, ct interface{}) (err error)
 		switch ct := ct.(type) {
 		case *Ciphertext:
 
-			ct.MetaData = pt.MetaData
+			*ct.MetaData = *pt.MetaData
 
 			level := utils.Min(pt.Level(), ct.Level())
 
@@ -358,7 +358,7 @@ func (enc EncryptorSecretKey) Encrypt(pt *Plaintext, ct interface{}) (err error)
 	} else {
 		switch ct := ct.(type) {
 		case *Ciphertext:
-			ct.MetaData = pt.MetaData
+			*ct.MetaData = *pt.MetaData
 			level := utils.Min(pt.Level(), ct.Level())
 			ct.Resize(ct.Degree(), level)
 			if err = enc.EncryptZero(ct); err != nil {

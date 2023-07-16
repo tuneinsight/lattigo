@@ -677,7 +677,7 @@ func main() {
 	nonZeroDiagonales := []int{-15, -4, -1, 0, 1, 2, 3, 4, 15}
 
 	// We allocate the non-zero diagonales and populate them
-	diags := make(map[int][]complex128)
+	diagonals := make(map[int][]complex128)
 
 	for _, i := range nonZeroDiagonales {
 		tmp := make([]complex128, Slots)
@@ -686,27 +686,37 @@ func main() {
 			tmp[j] = complex(2*r.Float64()-1, 2*r.Float64()-1)
 		}
 
-		diags[i] = tmp
+		diagonals[i] = tmp
 	}
 
-	// We create the linear transformation
-	// We must give:
-	// ecd: ckks.Encoder
-	// nonZeroDiags: map[int]{[]complex128, []float64, []*big.Float or []*bignum.Complex}
-	// level: the level of the encoding
-	// scale: the scaling factor of the encoding
-	// LogBSGSRatio: the log of the ratio of the inner/outer loops of the baby-step giant-step algorithm for matrix-vector evaluation, leave it to 1
-	// LogSlots: the log2 of the dimension of the linear transformation
-	LogBSGSRatio := 2
-	linTransf, err := ckks.GenLinearTransform(diags, ecd, params.MaxLevel(), rlwe.NewScale(params.Q()[res.Level()]), LogSlots, LogBSGSRatio)
+	// We create the linear transformation of type complex128 (float64, *big.Float and *bignum.Complex are also possible)
+	// Here we use the default structs of the rlwe package, which is compliant to the rlwe.LinearTransformationParameters interface
+	// But a user is free to use any struct compliant to this interface.
+	// See the definition of the interface for more information about the parameters.
+	ltparams := rlwe.MemLinearTransformationParameters[complex128]{
+		Diagonals:                diagonals,
+		Level:                    ct1.Level(),
+		PlaintextScale:           rlwe.NewScale(params.Q()[ct1.Level()]),
+		PlaintextLogDimensions:   ct1.PlaintextLogDimensions,
+		LogBabyStepGianStepRatio: 1,
+	}
 
-	if err != nil {
+	// We allocated the rlwe.LinearTransformation.
+	// The allocation takes into account the parameters of the linear transformation.
+	lt := ckks.NewLinearTransformation[complex128](params, ltparams)
+
+	// We encode our linear transformation on the allocated rlwe.LinearTransformation.
+	// Not that trying to encode a linear transformation with different non-zero diagonals,
+	// plaintext dimensions or baby-step giant-step ratio than the one used to allocate the
+	// rlwe.LinearTransformation will return an error.
+	if err := ckks.EncodeLinearTransformation[complex128](lt, ltparams, ecd); err != nil {
 		panic(err)
 	}
 
 	// Then we generate the corresponding Galois keys.
-	// The list of Galois elements can also be obtained with `linTransf.GaloisElements`
-	galEls = params.GaloisElementsForLinearTransform(nonZeroDiagonales, LogSlots, LogBSGSRatio)
+	// The list of Galois elements can also be obtained with `lt.GaloisElements`
+	// but this requires to have it pre-allocated, which is not always desirable.
+	galEls = rlwe.GaloisElementsForLinearTransformation[complex128](params, ltparams)
 	gks, err = kgen.GenGaloisKeysNew(galEls, sk)
 	if err != nil {
 		panic(err)
@@ -714,7 +724,7 @@ func main() {
 	eval = eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, gks...))
 
 	// And we valuate the linear transform
-	if err := eval.LinearTransform(ct1, linTransf, []*rlwe.Ciphertext{res}); err != nil {
+	if err := eval.LinearTransformation(ct1, lt, []*rlwe.Ciphertext{res}); err != nil {
 		panic(err)
 	}
 
@@ -724,7 +734,7 @@ func main() {
 	}
 
 	// We evaluate the same circuit in plaintext
-	want = EvaluateLinearTransform(values1, diags)
+	want = EvaluateLinearTransform(values1, diagonals)
 
 	fmt.Printf("vector x matrix %s", ckks.GetPrecisionStats(params, ecd, dec, want, res, nil, false).String())
 

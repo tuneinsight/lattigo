@@ -24,7 +24,7 @@ const (
 // used to hommorphically encode and decode a ciphertext respectively.
 type HomomorphicDFTMatrix struct {
 	HomomorphicDFTMatrixLiteral
-	Matrices []rlwe.LinearTransform
+	Matrices []rlwe.LinearTransformation
 }
 
 // HomomorphicDFTMatrixLiteral is a struct storing the parameters to generate the factorized DFT/IDFT matrices.
@@ -119,7 +119,7 @@ func NewHomomorphicDFTMatrixFromLiteral(d HomomorphicDFTMatrixLiteral, encoder *
 	}
 
 	// CoeffsToSlots vectors
-	matrices := []rlwe.LinearTransform{}
+	matrices := []rlwe.LinearTransformation{}
 	pVecDFT := d.GenMatrices(params.LogN(), params.PlaintextPrecision())
 
 	nbModuliPerRescale := params.PlaintextScaleToModuliRatio()
@@ -143,9 +143,17 @@ func NewHomomorphicDFTMatrixFromLiteral(d HomomorphicDFTMatrixLiteral, encoder *
 
 		for j := 0; j < d.Levels[i]; j++ {
 
-			mat, err := GenLinearTransform(pVecDFT[idx], encoder, level, scale, logdSlots, d.LogBSGSRatio)
+			ltparams := rlwe.MemLinearTransformationParameters[*bignum.Complex]{
+				Diagonals:                pVecDFT[idx],
+				Level:                    level,
+				PlaintextScale:           scale,
+				PlaintextLogDimensions:   [2]int{0, logdSlots},
+				LogBabyStepGianStepRatio: d.LogBSGSRatio,
+			}
 
-			if err != nil {
+			mat := NewLinearTransformation[*bignum.Complex](params, ltparams)
+
+			if err := EncodeLinearTransformation[*bignum.Complex](mat, ltparams, encoder); err != nil {
 				return HomomorphicDFTMatrix{}, fmt.Errorf("cannot NewHomomorphicDFTMatrixFromLiteral: %w", err)
 			}
 
@@ -283,7 +291,7 @@ func (eval Evaluator) SlotsToCoeffs(ctReal, ctImag *rlwe.Ciphertext, stcMatrices
 	return
 }
 
-func (eval Evaluator) dft(ctIn *rlwe.Ciphertext, plainVectors []rlwe.LinearTransform, opOut *rlwe.Ciphertext) (err error) {
+func (eval Evaluator) dft(ctIn *rlwe.Ciphertext, plainVectors []rlwe.LinearTransformation, opOut *rlwe.Ciphertext) (err error) {
 
 	inputLogSlots := ctIn.PlaintextLogDimensions
 
@@ -296,7 +304,7 @@ func (eval Evaluator) dft(ctIn *rlwe.Ciphertext, plainVectors []rlwe.LinearTrans
 			in, out = ctIn, opOut
 		}
 
-		if err = eval.LinearTransform(in, plainVector, []*rlwe.Ciphertext{out}); err != nil {
+		if err = eval.LinearTransformation(in, plainVector, []*rlwe.Ciphertext{out}); err != nil {
 			return
 		}
 

@@ -216,36 +216,13 @@ func NewPolynomialEvaluator(eval *Evaluator) *PolynomialEvaluator {
 	return &PolynomialEvaluator{PolynomialEvaluator: *bgv.NewPolynomialEvaluator(eval.Evaluator, false)}
 }
 
-// NewLinearTransform allocates a new LinearTransform with zero plaintexts at the specified level.
-//
-// inputs:
-// - params: a struct compliant to the ParametersInterface
-// - nonZeroDiags: the list of the indexes of the non-zero diagonals
-// - level: the level of the encoded diagonals
-// - scale: the scaling factor of the encoded diagonals
-// - logBSGSRatio: the log2 ratio outer/inner loops of the BSGS linear transform evaluation algorithm. Set to -1 to not use the BSGS algorithm.
-func NewLinearTransform(params Parameters, nonZeroDiags []int, level int, scale rlwe.Scale, LogBSGSRatio int) rlwe.LinearTransform {
-	return rlwe.NewLinearTransform(params, nonZeroDiags, level, scale, params.PlaintextLogDimensions(), LogBSGSRatio)
+// NewLinearTransformation allocates a new LinearTransformation with zero values according to the parameters specified by the LinearTranfromationParameters.
+func NewLinearTransformation[T int64 | uint64](params rlwe.ParametersInterface, lt rlwe.LinearTranfromationParameters[T]) rlwe.LinearTransformation {
+	return rlwe.NewLinearTransformation(params, lt)
 }
 
-// EncodeLinearTransform encodes on a pre-allocated LinearTransform a set of non-zero diagonales of a matrix representing a linear transformation.
-//
-// inputs:
-// - LT: a pre-allocated LinearTransform using `NewLinearTransform`
-// - diagonals: the set of non-zero diagonals
-// - ecd: an *Encoder
-func EncodeLinearTransform[T int64 | uint64](LT rlwe.LinearTransform, diagonals map[int][]T, ecd *Encoder) (err error) {
-	return rlwe.EncodeLinearTransform[T](LT, diagonals, &encoder[T, ringqp.Poly]{ecd})
-}
-
-// GenLinearTransform allocates a new LinearTransform encoding the provided set of non-zero diagonals of a matrix representing a linear transformation.
-//
-// inputs:
-// - diagonals: the set of non-zero diagonals
-// - encoder: an *Encoder
-// - level: the level of the encoded diagonals
-// - scale: the scaling factor of the encoded diagonals
-// - logBSGSRatio: the log2 ratio outer/inner loops of the BSGS linear transform evaluation algorithm. Set to -1 to not use the BSGS algorithm.
-func GenLinearTransform[T int64 | uint64](diagonals map[int][]T, ecd *Encoder, level int, scale rlwe.Scale, LogBSGSRatio int) (LT rlwe.LinearTransform, err error) {
-	return rlwe.GenLinearTransform[T](diagonals, &encoder[T, ringqp.Poly]{ecd}, level, scale, ecd.Parameters().PlaintextLogDimensions(), LogBSGSRatio)
+// EncodeLinearTransformation encodes a linear transformation on a pre-allocated linear transformation.
+// The method will return an error if the non-zero diagonals between the pre-allocated linear transformation and the parameters of the linear transformation to encode do not match.
+func EncodeLinearTransformation[T int64 | uint64](allocated rlwe.LinearTransformation, params rlwe.LinearTranfromationParameters[T], ecd *Encoder) (err error) {
+	return rlwe.EncodeLinearTransformation[T](allocated, params, &encoder[T, ringqp.Poly]{ecd})
 }

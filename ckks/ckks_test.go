@@ -96,7 +96,7 @@ func TestCKKS(t *testing.T) {
 				testEvaluatePoly,
 				testChebyshevInterpolator,
 				testBridge,
-				testLinearTransform,
+				testLinearTransformation,
 			} {
 				testSet(tc, t)
 				runtime.GC()
@@ -1092,7 +1092,7 @@ func testBridge(tc *testContext, t *testing.T) {
 	})
 }
 
-func testLinearTransform(tc *testContext, t *testing.T) {
+func testLinearTransformation(tc *testContext, t *testing.T) {
 
 	t.Run(GetTestName(tc.params, "Average"), func(t *testing.T) {
 
@@ -1149,28 +1149,38 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 		one := new(big.Float).SetInt64(1)
 		zero := new(big.Float)
 
-		diagMatrix := make(map[int][]*bignum.Complex)
+		diagonals := make(map[int][]*bignum.Complex)
 		for _, i := range nonZeroDiags {
-			diagMatrix[i] = make([]*bignum.Complex, slots)
+			diagonals[i] = make([]*bignum.Complex, slots)
 
 			for j := 0; j < slots; j++ {
-				diagMatrix[i][j] = &bignum.Complex{one, zero}
+				diagonals[i][j] = &bignum.Complex{one, zero}
 			}
 		}
 
-		LogBSGSRatio := 1
+		ltparams := rlwe.MemLinearTransformationParameters[*bignum.Complex]{
+			Diagonals:                diagonals,
+			Level:                    ciphertext.Level(),
+			PlaintextScale:           rlwe.NewScale(params.Q()[ciphertext.Level()]),
+			PlaintextLogDimensions:   ciphertext.PlaintextLogDimensions,
+			LogBabyStepGianStepRatio: 1,
+		}
 
-		linTransf, err := GenLinearTransform(diagMatrix, tc.encoder, params.MaxLevel(), rlwe.NewScale(params.Q()[params.MaxLevel()]), ciphertext.PlaintextLogDimensions[1], LogBSGSRatio)
-		require.NoError(t, err)
+		// Allocate the linear transformation
+		linTransf := NewLinearTransformation[*bignum.Complex](params, ltparams)
 
-		galEls := params.GaloisElementsForLinearTransform(nonZeroDiags, ciphertext.PlaintextLogSlots(), LogBSGSRatio)
+		// Encode on the linear transformation
+		require.NoError(t, EncodeLinearTransformation[*bignum.Complex](linTransf, ltparams, tc.encoder))
+
+		galEls := rlwe.GaloisElementsForLinearTransformation[*bignum.Complex](params, ltparams)
+
 		gks, err := tc.kgen.GenGaloisKeysNew(galEls, tc.sk)
 		require.NoError(t, err)
 		evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
 
 		eval := tc.evaluator.WithKey(evk)
 
-		eval.LinearTransform(ciphertext, linTransf, []*rlwe.Ciphertext{ciphertext})
+		require.NoError(t, eval.LinearTransformation(ciphertext, linTransf, []*rlwe.Ciphertext{ciphertext}))
 
 		tmp := make([]*bignum.Complex, len(values))
 		for i := range tmp {
@@ -1199,38 +1209,58 @@ func testLinearTransform(tc *testContext, t *testing.T) {
 
 		slots := ciphertext.PlaintextSlots()
 
-		diagMatrix := make(map[int][]*bignum.Complex)
-
-		diagMatrix[-1] = make([]*bignum.Complex, slots)
-		diagMatrix[0] = make([]*bignum.Complex, slots)
+		nonZeroDiags := []int{-15, -4, -1, 0, 1, 2, 3, 4, 15}
 
 		one := new(big.Float).SetInt64(1)
 		zero := new(big.Float)
 
-		for i := 0; i < slots; i++ {
-			diagMatrix[-1][i] = &bignum.Complex{one, zero}
-			diagMatrix[0][i] = &bignum.Complex{one, zero}
+		diagonals := make(map[int][]*bignum.Complex)
+		for _, i := range nonZeroDiags {
+			diagonals[i] = make([]*bignum.Complex, slots)
+
+			for j := 0; j < slots; j++ {
+				diagonals[i][j] = &bignum.Complex{one, zero}
+			}
 		}
 
-		linTransf, err := GenLinearTransform(diagMatrix, tc.encoder, params.MaxLevel(), rlwe.NewScale(params.Q()[params.MaxLevel()]), ciphertext.PlaintextLogDimensions[1], -1)
-		require.NoError(t, err)
+		ltparams := rlwe.MemLinearTransformationParameters[*bignum.Complex]{
+			Diagonals:                diagonals,
+			Level:                    ciphertext.Level(),
+			PlaintextScale:           rlwe.NewScale(params.Q()[ciphertext.Level()]),
+			PlaintextLogDimensions:   ciphertext.PlaintextLogDimensions,
+			LogBabyStepGianStepRatio: -1,
+		}
 
-		galEls := params.GaloisElementsForLinearTransform([]int{-1, 0}, ciphertext.PlaintextLogSlots(), -1)
+		// Allocate the linear transformation
+		linTransf := NewLinearTransformation[*bignum.Complex](params, ltparams)
+
+		// Encode on the linear transformation
+		require.NoError(t, EncodeLinearTransformation[*bignum.Complex](linTransf, ltparams, tc.encoder))
+
+		galEls := rlwe.GaloisElementsForLinearTransformation[*bignum.Complex](params, ltparams)
 
 		gks, err := tc.kgen.GenGaloisKeysNew(galEls, tc.sk)
 		require.NoError(t, err)
 		evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
+
 		eval := tc.evaluator.WithKey(evk)
 
-		eval.LinearTransform(ciphertext, linTransf, []*rlwe.Ciphertext{ciphertext})
+		require.NoError(t, eval.LinearTransformation(ciphertext, linTransf, []*rlwe.Ciphertext{ciphertext}))
 
-		tmp := make([]*bignum.Complex, slots)
+		tmp := make([]*bignum.Complex, len(values))
 		for i := range tmp {
 			tmp[i] = values[i].Clone()
 		}
 
 		for i := 0; i < slots; i++ {
+			values[i].Add(values[i], tmp[(i-15+slots)%slots])
+			values[i].Add(values[i], tmp[(i-4+slots)%slots])
 			values[i].Add(values[i], tmp[(i-1+slots)%slots])
+			values[i].Add(values[i], tmp[(i+1)%slots])
+			values[i].Add(values[i], tmp[(i+2)%slots])
+			values[i].Add(values[i], tmp[(i+3)%slots])
+			values[i].Add(values[i], tmp[(i+4)%slots])
+			values[i].Add(values[i], tmp[(i+15)%slots])
 		}
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, nil, t)

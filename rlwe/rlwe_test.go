@@ -79,7 +79,7 @@ func TestRLWE(t *testing.T) {
 						testGadgetProduct,
 						testApplyEvaluationKey,
 						testAutomorphism,
-						testLinearTransform,
+						testLinearTransformation,
 					} {
 						testSet(tc, level, paramsLit.BaseTwoDecomposition, t)
 						runtime.GC()
@@ -872,7 +872,7 @@ func testAutomorphism(tc *TestContext, level, bpw2 int, t *testing.T) {
 	})
 }
 
-func testLinearTransform(tc *TestContext, level, bpw2 int, t *testing.T) {
+func testLinearTransformation(tc *TestContext, level, bpw2 int, t *testing.T) {
 
 	params := tc.params
 	sk := tc.sk

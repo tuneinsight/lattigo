@@ -680,33 +680,6 @@ func (p Parameters) GaloisElementsForPack(logGap int) (galEls []uint64, err erro
 	return
 }
 
-// GaloisElementsForLinearTransform returns the list of Galois elements required to perform a linear transform
-// with the provided non-zero diagonales.
-// Set LogBSGSRatio < 0 to return the Galois elements for a naive evaluation of the linear transform.
-func (p Parameters) GaloisElementsForLinearTransform(nonZeroDiagonals []int, LogSlots, LogBSGSRatio int) (galEls []uint64) {
-
-	slots := 1 << LogSlots
-
-	if LogBSGSRatio < 0 {
-
-		_, _, rotN2 := BSGSIndex(nonZeroDiagonals, slots, slots)
-
-		galEls = make([]uint64, len(rotN2))
-
-		for i := range rotN2 {
-			galEls[i] = p.GaloisElement(rotN2[i])
-		}
-
-		return
-	}
-
-	N1 := FindBestBSGSRatio(nonZeroDiagonals, slots, LogBSGSRatio)
-
-	_, rotN1, rotN2 := BSGSIndex(nonZeroDiagonals, slots, N1)
-
-	return p.GaloisElements(utils.GetDistincts(append(rotN1, rotN2...)))
-}
-
 // SolveDiscreteLogGaloisElement takes a Galois element of the form GaloisGen^{k} mod NthRoot and returns k.
 func (p Parameters) SolveDiscreteLogGaloisElement(galEl uint64) (k int) {
 

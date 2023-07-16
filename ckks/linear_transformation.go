@@ -11,18 +11,15 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
-// NewLinearTransform allocates a new LinearTransform with zero plaintexts at the specified level.
-// If LogBSGSRatio < 0, the LinearTransform is set to not use the BSGS approach.
-func NewLinearTransform(params Parameters, nonZeroDiags []int, level int, scale rlwe.Scale, LogSlots, LogBSGSRatio int) rlwe.LinearTransform {
-	return rlwe.NewLinearTransform(params, nonZeroDiags, level, scale, [2]int{0, LogSlots}, LogBSGSRatio)
+// NewLinearTransformation allocates a new LinearTransformation with zero values according to the parameters specified by the LinearTranfromationParameters.
+func NewLinearTransformation[T float64 | complex128 | *big.Float | *bignum.Complex](params rlwe.ParametersInterface, lt rlwe.LinearTranfromationParameters[T]) rlwe.LinearTransformation {
+	return rlwe.NewLinearTransformation(params, lt)
 }
 
-func EncodeLinearTransform[T float64 | complex128 | *big.Float | *bignum.Complex](LT rlwe.LinearTransform, diagonals map[int][]T, ecd *Encoder) (err error) {
-	return rlwe.EncodeLinearTransform[T](LT, diagonals, &encoder[T, ringqp.Poly]{ecd})
-}
-
-func GenLinearTransform[T float64 | complex128 | *big.Float | *bignum.Complex](diagonals map[int][]T, ecd *Encoder, level int, scale rlwe.Scale, LogSlots, LogBSGSRatio int) (LT rlwe.LinearTransform, err error) {
-	return rlwe.GenLinearTransform[T](diagonals, &encoder[T, ringqp.Poly]{ecd}, level, scale, [2]int{0, LogSlots}, LogBSGSRatio)
+// EncodeLinearTransformation encodes a linear transformation on a pre-allocated linear transformation.
+// The method will return an error if the non-zero diagonals between the pre-allocated linear transformation and the parameters of the linear transformation to encode do not match.
+func EncodeLinearTransformation[T float64 | complex128 | *big.Float | *bignum.Complex](allocated rlwe.LinearTransformation, params rlwe.LinearTranfromationParameters[T], ecd *Encoder) (err error) {
+	return rlwe.EncodeLinearTransformation[T](allocated, params, &encoder[T, ringqp.Poly]{ecd})
 }
 
 // TraceNew maps X -> sum((-1)^i * X^{i*n+1}) for 0 <= i < N and returns the result on a new ciphertext.

@@ -63,7 +63,7 @@ func TestBFV(t *testing.T) {
 				testParameters,
 				testEncoder,
 				testEvaluator,
-				testLinearTransform,
+				testLinearTransformation,
 			} {
 				testSet(tc, t)
 				runtime.GC()
@@ -684,94 +684,135 @@ func testEvaluator(tc *testContext, t *testing.T) {
 	})
 }
 
-func testLinearTransform(tc *testContext, t *testing.T) {
+func testLinearTransformation(tc *testContext, t *testing.T) {
 
-	t.Run(GetTestName("Evaluator/LinearTransform/BSGS=False", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
+	level := tc.params.MaxLevel()
+	t.Run(GetTestName("Evaluator/LinearTransform/BSGS=true", tc.params, level), func(t *testing.T) {
 
 		params := tc.params
 
-		values, _, ciphertext := newTestVectorsLvl(tc.params.MaxLevel(), tc.params.PlaintextScale(), tc, tc.encryptorSk)
+		values, _, ciphertext := newTestVectorsLvl(level, tc.params.PlaintextScale(), tc, tc.encryptorSk)
 
-		diagMatrix := make(map[int][]uint64)
+		diagonals := make(map[int][]uint64)
 
-		N := values.N()
+		totSlots := values.N()
 
-		diagMatrix[-1] = make([]uint64, N)
-		diagMatrix[0] = make([]uint64, N)
-		diagMatrix[1] = make([]uint64, N)
+		diagonals[-15] = make([]uint64, totSlots)
+		diagonals[-4] = make([]uint64, totSlots)
+		diagonals[-1] = make([]uint64, totSlots)
+		diagonals[0] = make([]uint64, totSlots)
+		diagonals[1] = make([]uint64, totSlots)
+		diagonals[2] = make([]uint64, totSlots)
+		diagonals[3] = make([]uint64, totSlots)
+		diagonals[4] = make([]uint64, totSlots)
+		diagonals[15] = make([]uint64, totSlots)
 
-		for i := 0; i < N; i++ {
-			diagMatrix[-1][i] = 1
-			diagMatrix[0][i] = 1
-			diagMatrix[1][i] = 1
+		for i := 0; i < totSlots; i++ {
+			diagonals[-15][i] = 1
+			diagonals[-4][i] = 1
+			diagonals[-1][i] = 1
+			diagonals[0][i] = 1
+			diagonals[1][i] = 1
+			diagonals[2][i] = 1
+			diagonals[3][i] = 1
+			diagonals[4][i] = 1
+			diagonals[15][i] = 1
 		}
 
-		linTransf, err := GenLinearTransform(diagMatrix, tc.encoder, params.MaxLevel(), tc.params.PlaintextScale(), -1)
-		require.NoError(t, err)
+		ltparams := rlwe.MemLinearTransformationParameters[uint64]{
+			Diagonals:                diagonals,
+			Level:                    ciphertext.Level(),
+			PlaintextScale:           tc.params.PlaintextScale(),
+			PlaintextLogDimensions:   ciphertext.PlaintextLogDimensions,
+			LogBabyStepGianStepRatio: 1,
+		}
 
-		gks, err := tc.kgen.GenGaloisKeysNew(linTransf.GaloisElements(params), tc.sk)
-		require.NoError(t, err)
+		// Allocate the linear transformation
+		linTransf := NewLinearTransformation[uint64](params, ltparams)
 
+		// Encode on the linear transformation
+		require.NoError(t, EncodeLinearTransformation[uint64](linTransf, ltparams, tc.encoder))
+
+		galEls := rlwe.GaloisElementsForLinearTransformation[uint64](params, ltparams)
+
+		gks, err := tc.kgen.GenGaloisKeysNew(galEls, tc.sk)
+		require.NoError(t, err)
 		eval := tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(nil, gks...))
 
-		require.NoError(t, eval.LinearTransform(ciphertext, linTransf, []*rlwe.Ciphertext{ciphertext}))
+		require.NoError(t, eval.LinearTransformation(ciphertext, linTransf, []*rlwe.Ciphertext{ciphertext}))
 
-		tmp := make([]uint64, N)
+		tmp := make([]uint64, totSlots)
 		copy(tmp, values.Coeffs[0])
 
 		subRing := tc.params.RingT().SubRings[0]
 
+		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, -15), values.Coeffs[0])
+		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, -4), values.Coeffs[0])
 		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, -1), values.Coeffs[0])
 		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, 1), values.Coeffs[0])
+		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, 2), values.Coeffs[0])
+		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, 3), values.Coeffs[0])
+		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, 4), values.Coeffs[0])
+		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, 15), values.Coeffs[0])
 
 		verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
 	})
 
-	t.Run(GetTestName("Evaluator/LinearTransform/BSGS=True", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
+	t.Run(GetTestName("Evaluator/LinearTransform/BSGS=false", tc.params, level), func(t *testing.T) {
 
 		params := tc.params
 
-		values, _, ciphertext := newTestVectorsLvl(tc.params.MaxLevel(), tc.params.PlaintextScale(), tc, tc.encryptorSk)
+		values, _, ciphertext := newTestVectorsLvl(level, tc.params.PlaintextScale(), tc, tc.encryptorSk)
 
-		diagMatrix := make(map[int][]uint64)
+		diagonals := make(map[int][]uint64)
 
-		N := values.N()
+		totSlots := values.N()
 
-		diagMatrix[-15] = make([]uint64, N)
-		diagMatrix[-4] = make([]uint64, N)
-		diagMatrix[-1] = make([]uint64, N)
-		diagMatrix[0] = make([]uint64, N)
-		diagMatrix[1] = make([]uint64, N)
-		diagMatrix[2] = make([]uint64, N)
-		diagMatrix[3] = make([]uint64, N)
-		diagMatrix[4] = make([]uint64, N)
-		diagMatrix[15] = make([]uint64, N)
+		diagonals[-15] = make([]uint64, totSlots)
+		diagonals[-4] = make([]uint64, totSlots)
+		diagonals[-1] = make([]uint64, totSlots)
+		diagonals[0] = make([]uint64, totSlots)
+		diagonals[1] = make([]uint64, totSlots)
+		diagonals[2] = make([]uint64, totSlots)
+		diagonals[3] = make([]uint64, totSlots)
+		diagonals[4] = make([]uint64, totSlots)
+		diagonals[15] = make([]uint64, totSlots)
 
-		for i := 0; i < N; i++ {
-			diagMatrix[-15][i] = 1
-			diagMatrix[-4][i] = 1
-			diagMatrix[-1][i] = 1
-			diagMatrix[0][i] = 1
-			diagMatrix[1][i] = 1
-			diagMatrix[2][i] = 1
-			diagMatrix[3][i] = 1
-			diagMatrix[4][i] = 1
-			diagMatrix[15][i] = 1
+		for i := 0; i < totSlots; i++ {
+			diagonals[-15][i] = 1
+			diagonals[-4][i] = 1
+			diagonals[-1][i] = 1
+			diagonals[0][i] = 1
+			diagonals[1][i] = 1
+			diagonals[2][i] = 1
+			diagonals[3][i] = 1
+			diagonals[4][i] = 1
+			diagonals[15][i] = 1
 		}
 
-		linTransf, err := GenLinearTransform(diagMatrix, tc.encoder, params.MaxLevel(), tc.params.PlaintextScale(), 1)
+		ltparams := rlwe.MemLinearTransformationParameters[uint64]{
+			Diagonals:                diagonals,
+			Level:                    ciphertext.Level(),
+			PlaintextScale:           tc.params.PlaintextScale(),
+			PlaintextLogDimensions:   ciphertext.PlaintextLogDimensions,
+			LogBabyStepGianStepRatio: -1,
+		}
+
+		// Allocate the linear transformation
+		linTransf := NewLinearTransformation[uint64](params, ltparams)
+
+		// Encode on the linear transformation
+		require.NoError(t, EncodeLinearTransformation[uint64](linTransf, ltparams, tc.encoder))
+
+		galEls := rlwe.GaloisElementsForLinearTransformation[uint64](params, ltparams)
+
+		gks, err := tc.kgen.GenGaloisKeysNew(galEls, tc.sk)
 		require.NoError(t, err)
+		eval := tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(nil, gks...))
 
-		gks, err := tc.kgen.GenGaloisKeysNew(linTransf.GaloisElements(params), tc.sk)
-		require.NoError(t, err)
+		require.NoError(t, eval.LinearTransformation(ciphertext, linTransf, []*rlwe.Ciphertext{ciphertext}))
 
-		evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
-
-		eval := tc.evaluator.WithKey(evk)
-
-		require.NoError(t, eval.LinearTransform(ciphertext, linTransf, []*rlwe.Ciphertext{ciphertext}))
-
-		tmp := make([]uint64, N)
+		tmp := make([]uint64, totSlots)
 		copy(tmp, values.Coeffs[0])
 
 		subRing := tc.params.RingT().SubRings[0]

@@ -40,7 +40,6 @@ type ParametersInterface interface {
 	XsHammingWeight() int
 	GaloisElement(k int) (galEl uint64)
 	GaloisElements(k []int) (galEls []uint64)
-	GaloisElementsForLinearTransform(nonZeroDiagonals []int, LogSlots, LogBSGSRatio int) (galEls []uint64)
 	SolveDiscreteLogGaloisElement(galEl uint64) (k int)
 	ModInvGaloisElement(galEl uint64) (galElInv uint64)
 

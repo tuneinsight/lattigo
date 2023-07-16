@@ -218,8 +218,6 @@ func (eval Evaluator) InitOutputBinaryOp(op0, op1 *Operand[ring.Poly], opInTotal
 // EncodingDomain <- op0.EncodingDomain
 // PlaintextLogDimensions <- op0.PlaintextLogDimensions
 //
-// The method will resize the output degree to max(op0.Degree(), opOut.Degree()) and level to min(op0.Level(), opOut.Level())
-//
 // The method returns max(op0.Degree(), opOut.Degree()) and min(op0.Level(), opOut.Level()).
 func (eval Evaluator) InitOutputUnaryOp(op0, opOut *Operand[ring.Poly]) (degree, level int, err error) {
 

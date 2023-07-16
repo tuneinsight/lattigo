@@ -134,7 +134,7 @@ func (p *PowerBasis) genPower(n int, lazy, rescale bool, eval EvaluatorInterface
 			}
 
 			if p.Value[n], err = eval.MulRelinNew(p.Value[a], p.Value[b]); err != nil {
-				return false, fmt.Errorf("genpower: MulRelinNew(p.Value[%d], p.Value[%d])", a, b)
+				return false, fmt.Errorf("genpower: MulRelinNew(p.Value[%d], p.Value[%d]): %w", a, b, err)
 			}
 		}
 

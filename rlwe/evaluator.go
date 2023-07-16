@@ -151,22 +151,25 @@ func (eval Evaluator) CheckAndGetRelinearizationKey() (evk *RelinearizationKey, 
 // op0 and op1. The method also performs the following checks:
 //
 // 1. Inputs are not nil
-// 2. op0.Degree() + op1.Degree() != 0 (i.e at least one operand is a ciphertext)
-// 3. op0.IsNTT == op1.IsNTT == DefaultNTTFlag
-// 4. op0.EncodingDomain == op1.EncodingDomain
+// 2. MetaData are not nil
+// 3. op0.Degree() + op1.Degree() != 0 (i.e at least one operand is a ciphertext)
+// 4. op0.IsNTT == op1.IsNTT == DefaultNTTFlag
+// 5. op0.EncodingDomain == op1.EncodingDomain
 //
 // The opOut metadata are initilized as:
 // IsNTT <- DefaultNTTFlag
 // EncodingDomain <- op0.EncodingDomain
 // PlaintextLogDimensions <- max(op0.PlaintextLogDimensions, op1.PlaintextLogDimensions)
 //
-// The opOutMinDegree can be used to force the output operand to a higher ciphertext degree.
-//
 // The method returns max(op0.Degree(), op1.Degree(), opOut.Degree()) and min(op0.Level(), op1.Level(), opOut.Level())
-func (eval Evaluator) InitOutputBinaryOp(op0, op1 *Operand[ring.Poly], opOutMinDegree int, opOut *Operand[ring.Poly]) (degree, level int, err error) {
+func (eval Evaluator) InitOutputBinaryOp(op0, op1 *Operand[ring.Poly], opInTotalMaxDegree int, opOut *Operand[ring.Poly]) (degree, level int, err error) {
 
 	if op0 == nil || op1 == nil || opOut == nil {
 		return 0, 0, fmt.Errorf("op0, op1 and opOut cannot be nil")
+	}
+
+	if op0.MetaData == nil || op1.MetaData == nil || opOut.MetaData == nil {
+		return 0, 0, fmt.Errorf("op0, op1 and opOut MetaData cannot be nil")
 	}
 
 	degree = utils.Max(op0.Degree(), op1.Degree())
@@ -174,8 +177,14 @@ func (eval Evaluator) InitOutputBinaryOp(op0, op1 *Operand[ring.Poly], opOutMinD
 	level = utils.Min(op0.Level(), op1.Level())
 	level = utils.Min(level, opOut.Level())
 
-	if op0.Degree()+op1.Degree() == 0 {
+	totDegree := op0.Degree() + op1.Degree()
+
+	if totDegree == 0 {
 		return 0, 0, fmt.Errorf("op0 and op1 cannot be both plaintexts")
+	}
+
+	if totDegree > opInTotalMaxDegree {
+		return 0, 0, fmt.Errorf("op0 and op1 total degree cannot exceed %d but is %d", opInTotalMaxDegree, totDegree)
 	}
 
 	if op0.El().IsNTT != op1.El().IsNTT || op0.El().IsNTT != eval.params.NTTFlag() {
@@ -193,8 +202,6 @@ func (eval Evaluator) InitOutputBinaryOp(op0, op1 *Operand[ring.Poly], opOutMinD
 	opOut.El().PlaintextLogDimensions[0] = utils.Max(op0.El().PlaintextLogDimensions[0], op1.El().PlaintextLogDimensions[0])
 	opOut.El().PlaintextLogDimensions[1] = utils.Max(op0.El().PlaintextLogDimensions[1], op1.El().PlaintextLogDimensions[1])
 
-	opOut.El().Resize(utils.Max(opOutMinDegree, opOut.Degree()), level)
-
 	return
 }
 
@@ -202,6 +209,7 @@ func (eval Evaluator) InitOutputBinaryOp(op0, op1 *Operand[ring.Poly], opOutMinD
 // op0. The method also performs the following checks:
 //
 // 1. Input and output are not nil
+// 2. Inoutp and output Metadata are not nil
 // 2. op0.IsNTT == DefaultNTTFlag
 //
 // The method will also update the metadata of opOut:
@@ -210,11 +218,17 @@ func (eval Evaluator) InitOutputBinaryOp(op0, op1 *Operand[ring.Poly], opOutMinD
 // EncodingDomain <- op0.EncodingDomain
 // PlaintextLogDimensions <- op0.PlaintextLogDimensions
 //
+// The method will resize the output degree to max(op0.Degree(), opOut.Degree()) and level to min(op0.Level(), opOut.Level())
+//
 // The method returns max(op0.Degree(), opOut.Degree()) and min(op0.Level(), opOut.Level()).
 func (eval Evaluator) InitOutputUnaryOp(op0, opOut *Operand[ring.Poly]) (degree, level int, err error) {
 
 	if op0 == nil || opOut == nil {
 		return 0, 0, fmt.Errorf("op0 and opOut cannot be nil")
+	}
+
+	if op0.MetaData == nil || opOut.MetaData == nil {
+		return 0, 0, fmt.Errorf("op0 and opOut MetaData cannot be nil")
 	}
 
 	if op0.El().IsNTT != eval.params.NTTFlag() {
@@ -224,7 +238,6 @@ func (eval Evaluator) InitOutputUnaryOp(op0, opOut *Operand[ring.Poly]) (degree,
 	}
 
 	opOut.El().EncodingDomain = op0.El().EncodingDomain
-
 	opOut.El().PlaintextLogDimensions = op0.El().PlaintextLogDimensions
 
 	return utils.Max(op0.Degree(), opOut.Degree()), utils.Min(op0.Level(), opOut.Level()), nil

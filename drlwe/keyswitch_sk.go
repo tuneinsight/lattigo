@@ -153,22 +153,22 @@ func (cks KeySwitchProtocol) AggregateShares(share1, share2 KeySwitchShare, shar
 }
 
 // KeySwitch performs the actual keyswitching operation on a ciphertext ct and put the result in opOut
-func (cks KeySwitchProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined KeySwitchShare, opOut *rlwe.Ciphertext) {
+func (cks KeySwitchProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined KeySwitchShare, opOut rlwe.OperandInterface[ring.Poly]) {
 
 	level := ctIn.Level()
 
-	if ctIn != opOut {
+	if ctIn.El() != opOut.El() {
 
-		opOut.Resize(ctIn.Degree(), level)
+		opOut.El().Resize(ctIn.Degree(), level)
 
 		if opOut.Degree() == 1 {
 			ring.CopyLvl(level, ctIn.Value[1], opOut.El().Value[1])
 		}
 
-		*opOut.MetaData = *ctIn.MetaData
+		opOut.El().MetaData = ctIn.MetaData
 	}
 
-	cks.params.RingQ().AtLevel(level).Add(ctIn.Value[0], combined.Value, opOut.Value[0])
+	cks.params.RingQ().AtLevel(level).Add(ctIn.Value[0], combined.Value, opOut.El().Value[0])
 }
 
 // Level returns the level of the target share.

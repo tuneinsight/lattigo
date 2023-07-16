@@ -20,38 +20,30 @@ type SecretKeyBootstrapper struct {
 	outputLevel       int
 }
 
-func NewSecretKeyBootstrapper(params Parameters, sk *rlwe.SecretKey) (rlwe.Bootstrapper, error) {
+func NewSecretKeyBootstrapper(params Parameters, sk *rlwe.SecretKey, MinimumInputLevel, OutputLevel int) (rlwe.Bootstrapper, error) {
 
-	enc, err := NewDecryptor(params, sk)
-
-	if err != nil {
-		return nil, err
-	}
-
-	dec, err := NewEncryptor(params, sk)
+	dec, err := NewDecryptor(params, sk)
 
 	if err != nil {
 		return nil, err
 	}
 
-func NewSecretKeyBootstrapper(params Parameters, sk *rlwe.SecretKey, MinimumInputLevel, OutputLevel int) rlwe.Bootstrapper {
+	enc, err := NewEncryptor(params, sk)
+
+	if err != nil {
+		return nil, err
+	}
+
 	return &SecretKeyBootstrapper{
-		params,
-		NewEncoder(params),
-		enc,
-		dec,
-		sk,
-		make([]*bignum.Complex, params.N()),
-		0}, nil
 		Parameters:         params,
 		Encoder:            NewEncoder(params),
-		Decryptor:          NewDecryptor(params, sk),
-		EncryptorInterface: NewEncryptor(params, sk),
+		EncryptorInterface: enc,
+		Decryptor:          dec,
 		Values:             make([]*bignum.Complex, params.N()),
 		Counter:            0,
 		minimumInputLevel:  MinimumInputLevel,
 		outputLevel:        OutputLevel,
-	}
+	}, nil
 }
 
 func (d SecretKeyBootstrapper) Bootstrap(ct *rlwe.Ciphertext) (*rlwe.Ciphertext, error) {
@@ -64,18 +56,20 @@ func (d SecretKeyBootstrapper) Bootstrap(ct *rlwe.Ciphertext) (*rlwe.Ciphertext,
 	if err := d.Decode(d.DecryptNew(ct), values); err != nil {
 		return nil, err
 	}
+
 	pt := NewPlaintext(d.Parameters, d.MaxLevel())
 	pt.MetaData = ct.MetaData
 	pt.PlaintextScale = d.parameters.PlaintextScale()
+
 	if err := d.Encode(values, pt); err != nil {
 		return nil, err
 	}
+
 	ct.Resize(1, d.MaxLevel())
 	if err := d.Encrypt(pt, ct); err != nil {
 		return nil, err
 	}
-	ct.Resize(1, d.OutputLevel())
-	d.Encrypt(pt, ct)
+
 	d.Counter++
 	return ct, nil
 }

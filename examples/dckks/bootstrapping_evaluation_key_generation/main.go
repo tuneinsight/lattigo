@@ -104,7 +104,10 @@ func main() {
 	}
 
 	encoder := ckks.NewEncoder(ckksParamsBoot)
-	encryptor := ckks.NewEncryptor(ckksParamsBoot, pk)
+	encryptor, err := ckks.NewEncryptor(ckksParamsBoot, pk)
+	if err != nil {
+		panic(err)
+	}
 
 	// Generate a random plaintext with values uniformely distributed in [-1, 1] for the real and imaginary part.
 	valuesWant := make([]complex128, ckksParamsBoot.PlaintextSlots())
@@ -118,7 +121,10 @@ func main() {
 	}
 
 	// Encrypt
-	ciphertext1 := encryptor.EncryptNew(plaintext)
+	ciphertext1, err := encryptor.EncryptNew(plaintext)
+	if err != nil {
+		panic(err)
+	}
 
 	// Decrypt, print and compare with the plaintext values
 	fmt.Println()
@@ -143,9 +149,14 @@ func CollectiveDecryption(params ckks.Parameters, P []Party, ct *rlwe.Ciphertext
 
 	cks := make([]drlwe.KeySwitchProtocol, len(P))
 
+	var err error
+
 	for i := range cks {
 		if i == 0 {
-			cks[i] = drlwe.NewKeySwitchProtocol(params.Parameters, params.Xe())
+			cks[i], err = drlwe.NewKeySwitchProtocol(params.Parameters, params.Xe())
+			if err != nil {
+				panic(err)
+			}
 		} else {
 			cks[i] = cks[0].ShallowCopy()
 		}
@@ -161,7 +172,9 @@ func CollectiveDecryption(params ckks.Parameters, P []Party, ct *rlwe.Ciphertext
 	for i := range shares {
 		cks[i].GenShare(P[i].SkDenseLSSS, zero, ct, &shares[i])
 		if i > 0 {
-			cks[0].AggregateShares(shares[0], shares[i], &shares[0])
+			if err = cks[0].AggregateShares(shares[0], shares[i], &shares[0]); err != nil {
+				panic(err)
+			}
 		}
 	}
 
@@ -242,15 +255,22 @@ func GenCollectiveEvaluationKey(params ckks.Parameters, skInLSSS, skOutLSSS []*r
 	crp := evkg[0].SampleCRP(prng, evkParamsCpy)
 
 	for i := range shares {
-		evkg[i].GenShare(skInLSSS[i], skOutLSSS[i], crp, &shares[i])
+		if err := evkg[i].GenShare(skInLSSS[i], skOutLSSS[i], crp, &shares[i]); err != nil {
+			panic(err)
+		}
 	}
 
 	for i := 1; i < NbParties; i++ {
-		evkg[0].AggregateShares(shares[0], shares[i], &shares[0])
+		if err := evkg[0].AggregateShares(shares[0], shares[i], &shares[0]); err != nil {
+			panic(err)
+		}
 	}
 
 	evk = rlwe.NewEvaluationKey(params, evkParamsCpy)
-	evkg[0].GenEvaluationKey(shares[0], crp, evk)
+
+	if err := evkg[0].GenEvaluationKey(shares[0], crp, evk); err != nil {
+		panic(err)
+	}
 
 	return
 }
@@ -339,16 +359,22 @@ func GenCollectiveGaloisKeys(params ckks.Parameters, P []Party, galEls []uint64)
 		crp := gkg[0].SampleCRP(prng)
 
 		for j := range shares {
-			gkg[j].GenShare(P[j].SkDenseLSSS, galEl, crp, &shares[j])
+			if err := gkg[j].GenShare(P[j].SkDenseLSSS, galEl, crp, &shares[j]); err != nil {
+				panic(err)
+			}
 		}
 
 		for j := 1; j < len(P); j++ {
-			gkg[0].AggregateShares(shares[0], shares[j], &shares[0])
+			if err := gkg[0].AggregateShares(shares[0], shares[j], &shares[0]); err != nil {
+				panic(err)
+			}
 		}
 
 		galoisKey := rlwe.NewGaloisKey(params)
 
-		gkg[0].GenGaloisKey(shares[0], crp, galoisKey)
+		if err := gkg[0].GenGaloisKey(shares[0], crp, galoisKey); err != nil {
+			panic(err)
+		}
 
 		GaloisKeys[i] = galoisKey
 	}

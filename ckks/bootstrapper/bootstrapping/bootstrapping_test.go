@@ -188,15 +188,16 @@ func testBootstrapHighPrecision(paramSet defaultParametersLiteral, t *testing.T)
 			kgen := ckks.NewKeyGenerator(params)
 			sk := kgen.GenSecretKeyNew()
 			encoder := ckks.NewEncoder(params, 164)
-			encryptor := ckks.NewEncryptor(params, sk)
-			decryptor := ckks.NewDecryptor(params, sk)
+			encryptor, err := ckks.NewEncryptor(params, sk)
+			require.NoError(t, err)
+			decryptor, err := ckks.NewDecryptor(params, sk)
+			require.NoError(t, err)
 
-			evk := GenEvaluationKeySetNew(btpParams, params, sk)
+			evk, err := GenEvaluationKeySetNew(btpParams, params, sk)
+			require.NoError(t, err)
 
 			bootstrapper, err := NewBootstrapper(params, btpParams, evk)
-			if err != nil {
-				panic(err)
-			}
+			require.NoError(t, err)
 
 			values := make([]complex128, 1<<btpParams.PlaintextLogDimensions()[1])
 			for i := range values {
@@ -220,11 +221,11 @@ func testBootstrapHighPrecision(paramSet defaultParametersLiteral, t *testing.T)
 			plaintext.PlaintextLogDimensions = btpParams.PlaintextLogDimensions()
 			encoder.Encode(values, plaintext)
 
-			ciphertext := encryptor.EncryptNew(plaintext)
+			ciphertext, err := encryptor.EncryptNew(plaintext)
+			require.NoError(t, err)
 
-			if ciphertext, err = bootstrapper.Bootstrap(ciphertext); err != nil {
-				t.Log(err)
-			}
+			ciphertext, err = bootstrapper.Bootstrap(ciphertext)
+			require.NoError(t, err)
 
 			require.True(t, ciphertext.Level() == level)
 

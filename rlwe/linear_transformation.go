@@ -845,7 +845,7 @@ func (eval Evaluator) Expand(ctIn *Ciphertext, logN, logGap int) (opOut []*Ciphe
 	ringQ := params.RingQ().AtLevel(level)
 
 	// Compute X^{-2^{i}} from 1 to LogN
-	xPow2 := genXPow2(ringQ, logN, true)
+	xPow2 := GenXPow2(ringQ, logN, true)
 
 	opOut = make([]*Ciphertext, 1<<(logN-logGap))
 	opOut[0] = ctIn.CopyNew()
@@ -1003,7 +1003,7 @@ func (eval Evaluator) Pack(cts map[int]*Ciphertext, inputLogGap int, zeroGarbage
 		return nil, fmt.Errorf("cannot Pack: gaps between ciphertexts is smaller than inputLogGap > N")
 	}
 
-	xPow2 := genXPow2(ringQ.AtLevel(level), params.LogN(), false) // log(N) polynomial to generate, quick
+	xPow2 := GenXPow2(ringQ.AtLevel(level), params.LogN(), false) // log(N) polynomial to generate, quick
 
 	NInv := new(big.Int).SetUint64(uint64(1 << (logEnd - logStart)))
 	NInv.ModInverse(NInv, ringQ.ModulusAtLevel[level])
@@ -1097,7 +1097,7 @@ func (eval Evaluator) Pack(cts map[int]*Ciphertext, inputLogGap int, zeroGarbage
 	return cts[0], nil
 }
 
-func genXPow2(r *ring.Ring, logN int, div bool) (xPow []ring.Poly) {
+func GenXPow2(r *ring.Ring, logN int, div bool) (xPow []ring.Poly) {
 
 	// Compute X^{-n} from 0 to LogN
 	xPow = make([]ring.Poly, logN)

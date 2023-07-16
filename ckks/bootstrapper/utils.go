@@ -14,7 +14,9 @@ func (b Bootstrapper) SwitchRingDegreeN1ToN2New(ctN1 *rlwe.Ciphertext) (ctN2 *rl
 
 	if ctN1.Value[0].N() < b.paramsN2.N() {
 		ctN2 = ckks.NewCiphertext(b.paramsN2, 1, ctN1.Level())
-		b.bootstrapper.ApplyEvaluationKey(ctN1, b.evk.EvkN1ToN2, ctN2)
+		if err := b.bootstrapper.ApplyEvaluationKey(ctN1, b.evk.EvkN1ToN2, ctN2); err != nil {
+			panic(err)
+		}
 	} else {
 		ctN2 = ctN1.CopyNew()
 	}
@@ -26,7 +28,9 @@ func (b Bootstrapper) SwitchRingDegreeN2ToN1New(ctN2 *rlwe.Ciphertext) (ctN1 *rl
 
 	if ctN2.Value[0].N() > b.paramsN1.N() {
 		ctN1 = ckks.NewCiphertext(b.paramsN1, 1, ctN2.Level())
-		b.bootstrapper.ApplyEvaluationKey(ctN2, b.evk.EvkN2ToN1, ctN1)
+		if err := b.bootstrapper.ApplyEvaluationKey(ctN2, b.evk.EvkN2ToN1, ctN1); err != nil {
+			panic(err)
+		}
 	} else {
 		ctN1 = ctN2.CopyNew()
 	}
@@ -36,13 +40,17 @@ func (b Bootstrapper) SwitchRingDegreeN2ToN1New(ctN2 *rlwe.Ciphertext) (ctN1 *rl
 
 func (b Bootstrapper) ComplexToRealNew(ctCmplx *rlwe.Ciphertext) (ctReal *rlwe.Ciphertext) {
 	ctReal = ckks.NewCiphertext(b.paramsN1, 1, ctCmplx.Level())
-	b.bridge.ComplexToReal(b.bootstrapper.Evaluator, ctCmplx, ctReal)
+	if err := b.bridge.ComplexToReal(b.bootstrapper.Evaluator, ctCmplx, ctReal); err != nil {
+		panic(err)
+	}
 	return
 }
 
 func (b Bootstrapper) RealToComplexNew(ctReal *rlwe.Ciphertext) (ctCmplx *rlwe.Ciphertext) {
 	ctCmplx = ckks.NewCiphertext(b.paramsN2, 1, ctReal.Level())
-	b.bridge.RealToComplex(b.bootstrapper.Evaluator, ctReal, ctCmplx)
+	if err := b.bridge.RealToComplex(b.bootstrapper.Evaluator, ctReal, ctCmplx); err != nil {
+		panic(err)
+	}
 	return
 }
 

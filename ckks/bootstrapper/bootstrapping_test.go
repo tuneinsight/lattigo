@@ -62,8 +62,10 @@ func TestBootstrapping(t *testing.T) {
 		bootstrapper := bootstrapperInterface.(*Bootstrapper)
 
 		ecdN2 := ckks.NewEncoder(paramsN2)
-		encN2 := ckks.NewEncryptor(paramsN2, skN2)
-		decN2 := ckks.NewDecryptor(paramsN2, skN2)
+		encN2, err := ckks.NewEncryptor(paramsN2, skN2)
+		require.NoError(t, err)
+		decN2, err := ckks.NewDecryptor(paramsN2, skN2)
+		require.NoError(t, err)
 
 		values := make([]complex128, paramsN2.PlaintextSlots())
 		for i := range values {
@@ -82,7 +84,8 @@ func TestBootstrapping(t *testing.T) {
 			plaintext := ckks.NewPlaintext(paramsN2, 0)
 			ecdN2.Encode(values, plaintext)
 
-			ctN2Q0 := encN2.EncryptNew(plaintext)
+			ctN2Q0, err := encN2.EncryptNew(plaintext)
+			require.NoError(t, err)
 
 			// Checks that the input ciphertext is at the level 0
 			require.True(t, ctN2Q0.Level() == 0)
@@ -133,8 +136,10 @@ func TestBootstrapping(t *testing.T) {
 		bootstrapper := bootstrapperInterface.(*Bootstrapper)
 
 		ecdN1 := ckks.NewEncoder(paramsN1)
-		encN1 := ckks.NewEncryptor(paramsN1, skN1)
-		decN1 := ckks.NewDecryptor(paramsN1, skN1)
+		encN1, err := ckks.NewEncryptor(paramsN1, skN1)
+		require.NoError(t, err)
+		decN1, err := ckks.NewDecryptor(paramsN1, skN1)
+		require.NoError(t, err)
 
 		values := make([]complex128, paramsN1.PlaintextSlots())
 		for i := range values {
@@ -153,7 +158,8 @@ func TestBootstrapping(t *testing.T) {
 			plaintext := ckks.NewPlaintext(paramsN1, 0)
 			ecdN1.Encode(values, plaintext)
 
-			ctN1Q0 := encN1.EncryptNew(plaintext)
+			ctN1Q0, err := encN1.EncryptNew(plaintext)
+			require.NoError(t, err)
 
 			// Checks that the input ciphertext is at the level 0
 			require.True(t, ctN1Q0.Level() == 0)
@@ -207,8 +213,10 @@ func TestBootstrapping(t *testing.T) {
 		bootstrapper.skN2 = skN2
 
 		ecdN1 := ckks.NewEncoder(paramsN1)
-		encN1 := ckks.NewEncryptor(paramsN1, skN1)
-		decN1 := ckks.NewDecryptor(paramsN1, skN1)
+		encN1, err := ckks.NewEncryptor(paramsN1, skN1)
+		require.NoError(t, err)
+		decN1, err := ckks.NewDecryptor(paramsN1, skN1)
+		require.NoError(t, err)
 
 		values := make([]complex128, paramsN1.PlaintextSlots())
 		for i := range values {
@@ -227,8 +235,12 @@ func TestBootstrapping(t *testing.T) {
 		cts := make([]rlwe.Ciphertext, 17)
 		for i := range cts {
 
-			ecdN1.Encode(utils.RotateSlice(values, i), ptN1)
-			cts[i] = *encN1.EncryptNew(ptN1)
+			require.NoError(t, ecdN1.Encode(utils.RotateSlice(values, i), ptN1))
+
+			ct, err := encN1.EncryptNew(ptN1)
+			require.NoError(t, err)
+
+			cts[i] = *ct
 		}
 
 		if cts, err = bootstrapper.BootstrapMany(cts); err != nil {
@@ -278,8 +290,10 @@ func TestBootstrapping(t *testing.T) {
 		bootstrapper := bootstrapperInterface.(*Bootstrapper)
 
 		ecdN1 := ckks.NewEncoder(paramsN1)
-		encN1 := ckks.NewEncryptor(paramsN1, skN1)
-		decN1 := ckks.NewDecryptor(paramsN1, skN1)
+		encN1, err := ckks.NewEncryptor(paramsN1, skN1)
+		require.NoError(t, err)
+		decN1, err := ckks.NewDecryptor(paramsN1, skN1)
+		require.NoError(t, err)
 
 		values := make([]float64, paramsN1.PlaintextSlots())
 		for i := range values {
@@ -296,10 +310,12 @@ func TestBootstrapping(t *testing.T) {
 		t.Run("ConjugateInvariant->Standard->Bootstrapping->Standard->ConjugateInvariant", func(t *testing.T) {
 
 			plaintext := ckks.NewPlaintext(paramsN1, 0)
-			ecdN1.Encode(values, plaintext)
+			require.NoError(t, ecdN1.Encode(values, plaintext))
 
-			ctLeftN1Q0 := encN1.EncryptNew(plaintext)
-			ctRightN1Q0 := encN1.EncryptNew(plaintext)
+			ctLeftN1Q0, err := encN1.EncryptNew(plaintext)
+			require.NoError(t, err)
+			ctRightN1Q0, err := encN1.EncryptNew(plaintext)
+			require.NoError(t, err)
 
 			// Checks that the input ciphertext is at the level 0
 			require.True(t, ctLeftN1Q0.Level() == 0)

@@ -34,8 +34,11 @@ func (btp Bootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext
 	}
 
 	// [M^{d}/q1 + e^{d-logprec}]
-	ctOut = btp.bootstrap(ctDiff.CopyNew())
+	if ctOut, err = btp.bootstrap(ctDiff.CopyNew()); err != nil {
+		return nil, err
+	}
 
+	// Error correcting factor of the approximate division by q1
 	ctOut.PlaintextScale = ctOut.PlaintextScale.Mul(*errScale)
 
 	// Stores by how much a ciphertext must be scaled to get back
@@ -43,7 +46,9 @@ func (btp Bootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext
 	diffScale := ctIn.PlaintextScale.Div(ctOut.PlaintextScale).Bigint()
 
 	// [M^{d} + e^{d-logprec}]
-	btp.Mul(ctOut, diffScale, ctOut)
+	if err = btp.Mul(ctOut, diffScale, ctOut); err != nil {
+		return nil, err
+	}
 	ctOut.PlaintextScale = ctIn.PlaintextScale
 
 	if btp.IterationsParameters != nil {
@@ -74,10 +79,17 @@ func (btp Bootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext
 			}
 
 			// [M^{d} + e^{d-logprec}] - [M^{d}] -> [e^{d-logprec}]
-			tmp := btp.SubNew(ctOut, ctIn)
+			tmp, err := btp.SubNew(ctOut, ctIn)
+
+			if err != nil {
+				return nil, err
+			}
 
 			// prec * [e^{d-logprec}] -> [e^{d}]
-			btp.Mul(tmp, prec, tmp)
+			if err = btp.Mul(tmp, prec, tmp); err != nil {
+				return nil, err
+			}
+
 			tmp.PlaintextScale = ctOut.PlaintextScale
 
 			// [e^{d}] / q1 -> [e^{d}/q1]
@@ -86,14 +98,18 @@ func (btp Bootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext
 			}
 
 			// [e^{d}/q1] -> [e^{d}/q1 + e'^{d-logprec}]
-			tmp = btp.bootstrap(tmp)
+			if tmp, err = btp.bootstrap(tmp); err != nil {
+				return nil, err
+			}
 
 			tmp.PlaintextScale = tmp.PlaintextScale.Mul(*errScale)
 
 			// [[e^{d}/q1 + e'^{d-logprec}] * q1/logprec -> [e^{d-logprec} + e'^{d-2logprec}*q1]
 			// If scale > 2^{logprec}, then we ensure a precision of at least 2^{logprec} even with a rounding of the scale
 			if !requiresReservedPrime {
-				btp.Mul(tmp, scale, tmp)
+				if err = btp.Mul(tmp, scale, tmp); err != nil {
+					return nil, err
+				}
 			} else {
 
 				// Else we compute the floating point ratio
@@ -101,10 +117,12 @@ func (btp Bootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext
 				ss.Quo(ss, new(big.Float).SetInt(prec))
 
 				// Do a scaled multiplication by the last prime
-				btp.Mul(tmp, ss, tmp)
+				if err = btp.Mul(tmp, ss, tmp); err != nil {
+					return nil, err
+				}
 
 				// And rescale
-				if err := btp.Rescale(tmp, btp.params.PlaintextScale(), tmp); err != nil {
+				if err = btp.Rescale(tmp, btp.params.PlaintextScale(), tmp); err != nil {
 					return nil, err
 				}
 			}
@@ -113,7 +131,9 @@ func (btp Bootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext
 			tmp.PlaintextScale = ctOut.PlaintextScale
 
 			// [M^{d} + e^{d-logprec}] - [e^{d-logprec} + e'^{d-2logprec}*q1] -> [M^{d} + e'^{d-2logprec}*q1]
-			btp.Sub(ctOut, tmp, ctOut)
+			if err = btp.Sub(ctOut, tmp, ctOut); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -155,7 +175,10 @@ func (btp Bootstrapper) scaleDownToQ0OverMessageRatio(ctIn *rlwe.Ciphertext) (*r
 
 	scaleUpBigint := scaleUp.Bigint()
 
-	btp.Mul(ctIn, scaleUpBigint, ctIn)
+	if err := btp.Mul(ctIn, scaleUpBigint, ctIn); err != nil {
+		return nil, nil, fmt.Errorf("cannot scaleDownToQ0OverMessageRatio: %w", err)
+	}
+
 	ctIn.PlaintextScale = ctIn.PlaintextScale.Mul(rlwe.NewScale(scaleUpBigint))
 
 	// errScale = CtIn.Scale/(Q[0]/MessageRatio)

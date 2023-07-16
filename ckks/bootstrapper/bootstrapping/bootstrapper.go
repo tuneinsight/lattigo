@@ -83,7 +83,11 @@ func GenEvaluationKeySetNew(btpParams Parameters, ckksParams ckks.Parameters, sk
 
 	kgen := ckks.NewKeyGenerator(ckksParams)
 
-	gks := kgen.GenGaloisKeysNew(btpParams.GaloisElements(ckksParams), sk)
+	gks, err := kgen.GenGaloisKeysNew(btpParams.GaloisElements(ckksParams), sk)
+
+	if err != nil {
+		return nil, err
+	}
 
 	EvkDtS, EvkStD, err := btpParams.GenEncapsulationEvaluationKeysNew(ckksParams, sk)
 	if err != nil {

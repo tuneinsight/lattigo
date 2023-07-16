@@ -67,6 +67,8 @@ func (b BootstrappingKeys) BinarySize() (dLen int) {
 
 func GenBootstrappingKeys(paramsN1, paramsN2 ckks.Parameters, btpParamsN2 bootstrapping.Parameters, skN1 *rlwe.SecretKey, skN2 *rlwe.SecretKey) (BootstrappingKeys, error) {
 
+	var err error
+
 	if paramsN1.Equal(paramsN2) != skN1.Equal(skN2) {
 		return BootstrappingKeys{}, fmt.Errorf("cannot GenBootstrappingKeys: if paramsN1 == paramsN2 then must ensure skN1 == skN2")
 	}
@@ -103,13 +105,25 @@ func GenBootstrappingKeys(paramsN1, paramsN2 ckks.Parameters, btpParamsN2 bootst
 				return BootstrappingKeys{}, fmt.Errorf("cannot GenBootstrappingKeys: if paramsN1.RingType() == ring.ConjugateInvariant then must ensure that paramsN1.LogN()+1 == paramsN2.LogN()-1")
 			}
 
-			EvkCmplxToReal, EvkRealToCmplx = kgen.GenEvaluationKeysForRingSwapNew(skN2, skN1)
+			if EvkCmplxToReal, EvkRealToCmplx, err = kgen.GenEvaluationKeysForRingSwapNew(skN2, skN1); err != nil {
+				return BootstrappingKeys{}, fmt.Errorf("cannot GenBootstrappingKeys: %w", err)
+			}
 
 		// Only regular key-switching is required in this case
 		case ring.Standard:
-			EvkN1ToN2 = kgen.GenEvaluationKeyNew(skN1, skN2)
-			EvkN2ToN1 = kgen.GenEvaluationKeyNew(skN2, skN1)
+			if EvkN1ToN2, err = kgen.GenEvaluationKeyNew(skN1, skN2); err != nil {
+				return BootstrappingKeys{}, fmt.Errorf("cannot GenBootstrappingKeys: %w", err)
+			}
+			if EvkN2ToN1, err = kgen.GenEvaluationKeyNew(skN2, skN1); err != nil {
+				return BootstrappingKeys{}, fmt.Errorf("cannot GenBootstrappingKeys: %w", err)
+			}
 		}
+	}
+
+	evk, err := bootstrapping.GenEvaluationKeySetNew(btpParamsN2, paramsN2, skN2)
+
+	if err != nil {
+		return BootstrappingKeys{}, fmt.Errorf("cannot GenBootstrappingKeys: %w", err)
 	}
 
 	return BootstrappingKeys{
@@ -117,7 +131,7 @@ func GenBootstrappingKeys(paramsN1, paramsN2 ckks.Parameters, btpParamsN2 bootst
 		EvkN2ToN1:        EvkN2ToN1,
 		EvkRealToCmplx:   EvkRealToCmplx,
 		EvkCmplxToReal:   EvkCmplxToReal,
-		EvkBootstrapping: bootstrapping.GenEvaluationKeySetNew(btpParamsN2, paramsN2, skN2),
+		EvkBootstrapping: evk,
 	}, nil
 }
 
@@ -266,8 +280,14 @@ func (b Bootstrapper) refreshConjugateInvariant(ctLeftN1Q0, ctRightN1Q0 *rlwe.Ci
 	// which is zero since it comes from the Conjugate Invariant ring)
 	if ctRightN1Q0 != nil {
 		ctRightN2Q0 := b.RealToComplexNew(ctRightN1Q0)
-		b.bootstrapper.Evaluator.Mul(ctRightN2Q0, 1i, ctRightN2Q0)
-		b.bootstrapper.Evaluator.Add(ctLeftN2Q0, ctRightN2Q0, ctLeftN2Q0)
+
+		if err = b.bootstrapper.Evaluator.Mul(ctRightN2Q0, 1i, ctRightN2Q0); err != nil {
+			return nil, nil, fmt.Errorf("cannot BootstrapMany: %w", err)
+		}
+
+		if err = b.bootstrapper.Evaluator.Add(ctLeftN2Q0, ctRightN2Q0, ctLeftN2Q0); err != nil {
+			return nil, nil, fmt.Errorf("cannot BootstrapMany: %w", err)
+		}
 	}
 
 	// Refreshes in the ring.Sstandard
@@ -285,7 +305,9 @@ func (b Bootstrapper) refreshConjugateInvariant(ctLeftN1Q0, ctRightN1Q0 *rlwe.Ci
 
 	// Extracts the imaginary part
 	if ctRightN1Q0 != nil {
-		b.bootstrapper.Mul(ctLeftAndRightN2QL, -1i, ctLeftAndRightN2QL)
+		if err = b.bootstrapper.Mul(ctLeftAndRightN2QL, -1i, ctLeftAndRightN2QL); err != nil {
+			return nil, nil, fmt.Errorf("cannot BootstrapMany: %w", err)
+		}
 		ctRightN1QL = b.ComplexToRealNew(ctLeftAndRightN2QL)
 	}
 

@@ -819,7 +819,7 @@ func testFunctions(tc *testContext, t *testing.T) {
 
 		logPrec := math.Log2(tc.params.PlaintextScale().Float64()) - float64(tc.params.LogN()-1)
 
-		btp, err := NewSecretKeyBootstrapper(tc.params, tc.sk)
+		btp, err := NewSecretKeyBootstrapper(tc.params, tc.sk, 0, tc.params.MaxLevel())
 		require.NoError(t, err)
 
 		if ciphertext, err = tc.evaluator.GoldschmidtDivisionNew(ciphertext, min, logPrec, btp); err != nil {

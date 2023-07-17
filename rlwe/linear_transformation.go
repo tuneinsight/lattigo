@@ -1058,6 +1058,12 @@ func (eval Evaluator) Pack(cts map[int]*Ciphertext, inputLogGap int, zeroGarbage
 				} else {
 					// if ct[jx] == nil, then simply re-assigns
 					cts[jx] = cts[jy]
+
+					// Required for correctness, since each log step is expected
+					// to double the values, which are pre-scaled by N^{-1} mod Q
+					// Maybe this can be omitted by doing an individual pre-scaling.
+					ringQ.Add(cts[jx].Value[0], cts[jx].Value[0], cts[jx].Value[0])
+					ringQ.Add(cts[jx].Value[1], cts[jx].Value[1], cts[jx].Value[1])
 				}
 			}
 

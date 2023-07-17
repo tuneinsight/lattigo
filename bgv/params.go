@@ -23,8 +23,11 @@ const (
 //
 // Users must set the polynomial degree (LogN) and the coefficient modulus, by either setting
 // the Q and P fields to the desired moduli chain, or by setting the LogQ and LogP fields to
-// the desired moduli sizes. Users must also specify the coefficient modulus in plaintext-space
-// (T).
+// the desired moduli sizes.
+//
+// Users must also specify the coefficient modulus in plaintext-space (T). This modulus must
+// be an NTT-friendly prime in the plaintext space: it must be equal to 1 modulo 2n where
+// n is the plaintext ring degree (i.e., the plaintext space has n slots).
 //
 // Optionally, users may specify the error variance (Sigma) and secrets' density (H). If left
 // unset, standard default values for these field are substituted at parameter creation (see
@@ -42,6 +45,7 @@ type ParametersLiteral struct {
 }
 
 // RLWEParametersLiteral returns the rlwe.ParametersLiteral from the target bgv.ParametersLiteral.
+// See the ParametersLiteral type for details on the BGV parameters.
 func (p ParametersLiteral) RLWEParametersLiteral() rlwe.ParametersLiteral {
 	return rlwe.ParametersLiteral{
 		LogN:           p.LogN,
@@ -67,6 +71,7 @@ type Parameters struct {
 
 // NewParameters instantiate a set of BGV parameters from the generic RLWE parameters and the BGV-specific ones.
 // It returns the empty parameters Parameters{} and a non-nil error if the specified parameters are invalid.
+// See the ParametersLiteral type for more details on the BGV parameters.
 func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err error) {
 
 	if !rlweParams.NTTFlag() {
@@ -96,9 +101,8 @@ func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err erro
 	}
 
 	// Find the largest cyclotomic order enabled by T
-	order := uint64(1 << bits.Len64(t))
-	for t&(order-1) != 1 {
-		order >>= 1
+	var order uint64
+	for order = uint64(1 << bits.Len64(t)); t&(order-1) != 1 && order != 0; order >>= 1 {
 	}
 
 	if order < 16 {
@@ -120,7 +124,8 @@ func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err erro
 // NewParametersFromLiteral instantiate a set of BGV parameters from a ParametersLiteral specification.
 // It returns the empty parameters Parameters{} and a non-nil error if the specified parameters are invalid.
 //
-// See `rlwe.NewParametersFromLiteral` for default values of the optional fields.
+// See `rlwe.NewParametersFromLiteral` for default values of the optional fields and other details on the BGV
+// parameters.
 func NewParametersFromLiteral(pl ParametersLiteral) (Parameters, error) {
 	rlweParams, err := rlwe.NewParametersFromLiteral(pl.RLWEParametersLiteral())
 	if err != nil {

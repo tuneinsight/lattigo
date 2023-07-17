@@ -28,11 +28,12 @@ type EncToShareProtocol struct {
 
 func NewAdditiveShare(params ckks.Parameters, logSlots int) drlwe.AdditiveShareBigint {
 
+	nValues := 1 << logSlots
 	if params.RingType() == ring.Standard {
-		logSlots++
+		nValues <<= 1
 	}
 
-	return drlwe.NewAdditiveShareBigint(logSlots)
+	return drlwe.NewAdditiveShareBigint(nValues)
 }
 
 // ShallowCopy creates a shallow copy of EncToShareProtocol in which all the read-only data-structures are

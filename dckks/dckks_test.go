@@ -44,7 +44,7 @@ type testContext struct {
 	encoder   *ckks.Encoder
 	evaluator *ckks.Evaluator
 
-	encryptorPk0 rlwe.EncryptorInterface
+	encryptorPk0 *rlwe.Encryptor
 	decryptorSk0 *rlwe.Decryptor
 	decryptorSk1 *rlwe.Decryptor
 
@@ -528,11 +528,11 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 	})
 }
 
-func newTestVectors(tc *testContext, encryptor rlwe.EncryptorInterface, a, b complex128) (values []*bignum.Complex, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
+func newTestVectors(tc *testContext, encryptor *rlwe.Encryptor, a, b complex128) (values []*bignum.Complex, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
 	return newTestVectorsAtScale(tc, encryptor, a, b, tc.params.PlaintextScale())
 }
 
-func newTestVectorsAtScale(tc *testContext, encryptor rlwe.EncryptorInterface, a, b complex128, scale rlwe.Scale) (values []*bignum.Complex, pt *rlwe.Plaintext, ct *rlwe.Ciphertext) {
+func newTestVectorsAtScale(tc *testContext, encryptor *rlwe.Encryptor, a, b complex128, scale rlwe.Scale) (values []*bignum.Complex, pt *rlwe.Plaintext, ct *rlwe.Ciphertext) {
 
 	prec := tc.encoder.Prec()
 

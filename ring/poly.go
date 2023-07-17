@@ -47,6 +47,9 @@ func (pol *Poly) Resize(level int) {
 
 // N returns the number of coefficients of the polynomial, which equals the degree of the Ring cyclotomic polynomial.
 func (pol Poly) N() int {
+	if len(pol.Coeffs) == 0 {
+		return 0
+	}
 	return len(pol.Coeffs[0])
 }
 

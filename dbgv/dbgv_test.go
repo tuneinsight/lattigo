@@ -59,7 +59,7 @@ type testContext struct {
 	pk0 *rlwe.PublicKey
 	pk1 *rlwe.PublicKey
 
-	encryptorPk0 rlwe.EncryptorInterface
+	encryptorPk0 *rlwe.Encryptor
 	decryptorSk0 *rlwe.Decryptor
 	decryptorSk1 *rlwe.Decryptor
 	evaluator    *bgv.Evaluator
@@ -499,7 +499,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 	})
 }
 
-func newTestVectors(tc *testContext, encryptor rlwe.EncryptorInterface, t *testing.T) (coeffs []uint64, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
+func newTestVectors(tc *testContext, encryptor *rlwe.Encryptor, t *testing.T) (coeffs []uint64, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
 
 	prng, _ := sampling.NewPRNG()
 	uniformSampler := ring.NewUniformSampler(prng, tc.ringT)

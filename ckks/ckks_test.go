@@ -42,8 +42,8 @@ type testContext struct {
 	kgen        *rlwe.KeyGenerator
 	sk          *rlwe.SecretKey
 	pk          *rlwe.PublicKey
-	encryptorPk rlwe.EncryptorInterface
-	encryptorSk rlwe.EncryptorInterface
+	encryptorPk *rlwe.Encryptor
+	encryptorSk *rlwe.Encryptor
 	decryptor   *rlwe.Decryptor
 	evaluator   *Evaluator
 }
@@ -150,7 +150,7 @@ func genTestParams(defaultParam Parameters) (tc *testContext, err error) {
 
 }
 
-func newTestVectors(tc *testContext, encryptor rlwe.EncryptorInterface, a, b complex128, t *testing.T) (values []*bignum.Complex, pt *rlwe.Plaintext, ct *rlwe.Ciphertext) {
+func newTestVectors(tc *testContext, encryptor *rlwe.Encryptor, a, b complex128, t *testing.T) (values []*bignum.Complex, pt *rlwe.Plaintext, ct *rlwe.Ciphertext) {
 
 	var err error
 

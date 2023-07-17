@@ -18,7 +18,7 @@ type PublicKeySwitchProtocol struct {
 
 	buf ring.Poly
 
-	rlwe.EncryptorInterface
+	*rlwe.Encryptor
 	noiseSampler ring.Sampler
 }
 
@@ -41,7 +41,7 @@ func NewPublicKeySwitchProtocol(params rlwe.Parameters, noiseFlooding ring.Distr
 		panic(err)
 	}
 
-	pcks.EncryptorInterface, err = rlwe.NewEncryptor(params, nil)
+	pcks.Encryptor, err = rlwe.NewEncryptor(params, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -76,7 +76,7 @@ func (pcks PublicKeySwitchProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.Public
 	ringQ := pcks.params.RingQ().AtLevel(levelQ)
 
 	// Encrypt zero
-	enc, err := pcks.EncryptorInterface.WithKey(pk)
+	enc, err := pcks.Encryptor.WithKey(pk)
 	if err != nil {
 		return fmt.Errorf("cannot GenShare: %w", err)
 	}
@@ -161,11 +161,11 @@ func (pcks PublicKeySwitchProtocol) ShallowCopy() PublicKeySwitchProtocol {
 	}
 
 	return PublicKeySwitchProtocol{
-		noiseSampler:       Xe,
-		noise:              pcks.noise,
-		EncryptorInterface: enc,
-		params:             params,
-		buf:                params.RingQ().NewPoly(),
+		noiseSampler: Xe,
+		noise:        pcks.noise,
+		Encryptor:    enc,
+		params:       params,
+		buf:          params.RingQ().NewPoly(),
 	}
 }
 

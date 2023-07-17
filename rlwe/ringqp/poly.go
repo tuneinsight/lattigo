@@ -95,7 +95,14 @@ func (p *Poly) Resize(levelQ, levelP int) {
 // BinarySize returns the serialized size of the object in bytes.
 // It assumes that each coefficient takes 8 bytes.
 func (p Poly) BinarySize() (dataLen int) {
-	return 1 + p.Q.BinarySize() + p.P.BinarySize()
+	dataLen = 1
+	if p.Q.Level() != -1 {
+		dataLen += p.Q.BinarySize()
+	}
+	if p.P.Level() != -1 {
+		dataLen += p.P.BinarySize()
+	}
+	return dataLen
 }
 
 // WriteTo writes the object on an io.Writer. It implements the io.WriterTo
@@ -136,12 +143,12 @@ func (p Poly) WriteTo(w io.Writer) (n int64, err error) {
 
 		n += inc
 
-		if inc, err = p.P.WriteTo(w); err != nil {
-			return n + inc, err
+		if p.P.Level() != -1 {
+			if inc, err = p.P.WriteTo(w); err != nil {
+				return n + inc, err
+			}
+			n += inc
 		}
-
-		n += inc
-
 		return n, w.Flush()
 
 	default:

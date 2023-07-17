@@ -11,17 +11,17 @@ import (
 // KeyGenerator is a structure that stores the elements required to create new keys,
 // as well as a memory buffer for intermediate values.
 type KeyGenerator struct {
-	*EncryptorSecretKey
+	*Encryptor
 }
 
 // NewKeyGenerator creates a new KeyGenerator, from which the secret and public keys, as well as EvaluationKeys.
 func NewKeyGenerator(params ParametersInterface) *KeyGenerator {
-	enc, err := NewEncryptorSecretKey(params, NewSecretKey(params))
+	enc, err := NewEncryptor(params, nil)
 	if err != nil {
 		panic(err)
 	}
 	return &KeyGenerator{
-		EncryptorSecretKey: enc,
+		Encryptor: enc,
 	}
 }
 

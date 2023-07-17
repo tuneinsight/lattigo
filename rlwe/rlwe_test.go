@@ -95,7 +95,7 @@ func TestRLWE(t *testing.T) {
 type TestContext struct {
 	params Parameters
 	kgen   *KeyGenerator
-	enc    EncryptorInterface
+	enc    *Encryptor
 	dec    *Decryptor
 	sk     *SecretKey
 	pk     *PublicKey
@@ -285,14 +285,16 @@ func testKeyGenerator(tc *TestContext, bpw2 int, t *testing.T) {
 	})
 
 	var levelsQ = []int{0}
-	var levelsP = []int{0}
-
 	if params.MaxLevelQ() > 0 {
 		levelsQ = append(levelsQ, params.MaxLevelQ())
 	}
 
-	if params.MaxLevelP() > 0 {
-		levelsP = append(levelsP, params.MaxLevelP())
+	var levelsP = []int{-1}
+	if params.MaxLevelP() >= 0 {
+		levelsP[0] = 0
+		if params.MaxLevelP() > 0 {
+			levelsP = append(levelsP, params.MaxLevelP())
+		}
 	}
 
 	for _, levelQ := range levelsQ {
@@ -371,6 +373,8 @@ func testEncryptor(tc *TestContext, level, bpw2 int, t *testing.T) {
 		ct := NewCiphertext(params, 1, level)
 
 		encPk, err := enc.WithKey(pk)
+
+		//encPk, err := enc.WithKey(pk)
 		require.NoError(t, err)
 
 		require.NoError(t, encPk.Encrypt(pt, ct))
@@ -385,13 +389,11 @@ func testEncryptor(tc *TestContext, level, bpw2 int, t *testing.T) {
 	})
 
 	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Encryptor/Encrypt/Pk/ShallowCopy"), func(t *testing.T) {
-		enc1, err := enc.WithKey(pk)
+		pkEnc1, err := enc.WithKey(pk)
 		require.NoError(t, err)
-
-		enc2 := enc1.ShallowCopy()
-		pkEnc1, pkEnc2 := enc1.(*EncryptorPublicKey), enc2.(*EncryptorPublicKey)
+		pkEnc2 := pkEnc1.ShallowCopy()
 		require.True(t, pkEnc1.params.Equal(pkEnc2.params))
-		require.True(t, pkEnc1.pk == pkEnc2.pk)
+		require.True(t, pkEnc1.encKey == pkEnc2.encKey)
 		require.False(t, (pkEnc1.basisextender == pkEnc2.basisextender) && (pkEnc1.basisextender != nil) && (pkEnc2.basisextender != nil))
 		require.False(t, pkEnc1.encryptorBuffers == pkEnc2.encryptorBuffers)
 		require.False(t, pkEnc1.xsSampler == pkEnc2.xsSampler)
@@ -418,7 +420,7 @@ func testEncryptor(tc *TestContext, level, bpw2 int, t *testing.T) {
 
 		pt := NewPlaintext(params, level)
 
-		enc, err := NewPRNGEncryptor(params, sk)
+		enc, err := NewEncryptor(params, sk)
 		require.NoError(t, err)
 
 		ct := NewCiphertext(params, 1, level)
@@ -442,13 +444,12 @@ func testEncryptor(tc *TestContext, level, bpw2 int, t *testing.T) {
 	})
 
 	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Encrypt/Sk/ShallowCopy"), func(t *testing.T) {
-		enc1, err := NewEncryptor(params, sk)
+		skEnc1, err := NewEncryptor(params, sk)
 		require.NoError(t, err)
+		skEnc2 := skEnc1.ShallowCopy()
 
-		enc2 := enc1.ShallowCopy()
-		skEnc1, skEnc2 := enc1.(*EncryptorSecretKey), enc2.(*EncryptorSecretKey)
 		require.True(t, skEnc1.params.Equal(skEnc2.params))
-		require.True(t, skEnc1.sk == skEnc2.sk)
+		require.True(t, skEnc1.encKey == skEnc2.encKey)
 		require.False(t, (skEnc1.basisextender == skEnc2.basisextender) && (skEnc1.basisextender != nil) && (skEnc2.basisextender != nil))
 		require.False(t, skEnc1.encryptorBuffers == skEnc2.encryptorBuffers)
 		require.False(t, skEnc1.xsSampler == skEnc2.xsSampler)
@@ -457,16 +458,14 @@ func testEncryptor(tc *TestContext, level, bpw2 int, t *testing.T) {
 
 	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Encrypt/WithKey/Sk->Sk"), func(t *testing.T) {
 		sk2 := kgen.GenSecretKeyNew()
-		enc1, err := NewEncryptor(params, sk)
+		skEnc1, err := NewEncryptor(params, sk)
 		require.NoError(t, err)
 
-		enc2, err := enc1.WithKey(sk2)
+		skEnc2, err := skEnc1.WithKey(sk2)
 		require.NoError(t, err)
-
-		skEnc1, skEnc2 := enc1.(*EncryptorSecretKey), enc2.(*EncryptorSecretKey)
 		require.True(t, skEnc1.params.Equal(skEnc2.params))
-		require.True(t, skEnc1.sk.Equal(sk))
-		require.True(t, skEnc2.sk.Equal(sk2))
+		require.True(t, skEnc1.encKey == sk)
+		require.True(t, skEnc2.encKey == sk2)
 		require.True(t, skEnc1.basisextender == skEnc2.basisextender)
 		require.True(t, skEnc1.encryptorBuffers == skEnc2.encryptorBuffers)
 		require.True(t, skEnc1.xsSampler == skEnc2.xsSampler)
@@ -602,6 +601,10 @@ func testApplyEvaluationKey(tc *TestContext, level, bpw2 int, t *testing.T) {
 }
 
 func testGadgetProduct(tc *TestContext, levelQ, bpw2 int, t *testing.T) {
+
+	if tc.params.MaxLevelP() == -1 {
+		t.Skip("test requires #P > 0")
+	}
 
 	params := tc.params
 	sk := tc.sk
@@ -1081,6 +1084,10 @@ func testLinearTransformation(tc *TestContext, level, bpw2 int, t *testing.T) {
 	})
 
 	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Evaluator/InnerSum"), func(t *testing.T) {
+
+		if params.MaxLevelP() == -1 {
+			t.Skip("test requires #P > 0")
+		}
 
 		batch := 5
 		n := 7

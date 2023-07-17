@@ -408,7 +408,7 @@ func gkgphase(params bfv.Parameters, crs sampling.PRNG, P []*party) (galKeys []*
 	return
 }
 
-func genquery(params bfv.Parameters, queryIndex int, encoder *bfv.Encoder, encryptor rlwe.EncryptorInterface) *rlwe.Ciphertext {
+func genquery(params bfv.Parameters, queryIndex int, encoder *bfv.Encoder, encryptor *rlwe.Encryptor) *rlwe.Ciphertext {
 	// Query ciphertext
 	queryCoeffs := make([]uint64, params.N())
 	queryCoeffs[queryIndex] = 1

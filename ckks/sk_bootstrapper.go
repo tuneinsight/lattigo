@@ -11,7 +11,7 @@ type SecretKeyBootstrapper struct {
 	Parameters
 	*Encoder
 	*rlwe.Decryptor
-	rlwe.EncryptorInterface
+	*rlwe.Encryptor
 	sk      *rlwe.SecretKey
 	Values  []*bignum.Complex
 	Counter int // records the number of bootstrapping
@@ -19,13 +19,13 @@ type SecretKeyBootstrapper struct {
 
 func NewSecretKeyBootstrapper(params Parameters, sk *rlwe.SecretKey) (rlwe.Bootstrapper, error) {
 
-	enc, err := NewDecryptor(params, sk)
+	dec, err := NewDecryptor(params, sk)
 
 	if err != nil {
 		return nil, err
 	}
 
-	dec, err := NewEncryptor(params, sk)
+	enc, err := NewEncryptor(params, sk)
 
 	if err != nil {
 		return nil, err
@@ -34,8 +34,8 @@ func NewSecretKeyBootstrapper(params Parameters, sk *rlwe.SecretKey) (rlwe.Boots
 	return &SecretKeyBootstrapper{
 		params,
 		NewEncoder(params),
-		enc,
 		dec,
+		enc,
 		sk,
 		make([]*bignum.Complex, params.N()),
 		0}, nil

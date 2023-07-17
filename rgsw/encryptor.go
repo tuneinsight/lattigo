@@ -10,7 +10,7 @@ import (
 // interface overriding the `Encrypt` and `EncryptZero` methods to accept rgsw.Ciphertext
 // types in addition to ciphertexts types in the rlwe package.
 type Encryptor struct {
-	rlwe.EncryptorInterface
+	*rlwe.Encryptor
 
 	params rlwe.Parameters
 	buffQP ringqp.Poly
@@ -30,7 +30,7 @@ func (enc Encryptor) Encrypt(pt *rlwe.Plaintext, ct interface{}) (err error) {
 	var rgswCt *Ciphertext
 	var isRGSW bool
 	if rgswCt, isRGSW = ct.(*Ciphertext); !isRGSW {
-		return enc.EncryptorInterface.Encrypt(pt, ct)
+		return enc.Encryptor.Encrypt(pt, ct)
 	}
 
 	if err = enc.EncryptZero(rgswCt); err != nil {
@@ -74,7 +74,7 @@ func (enc Encryptor) EncryptZero(ct interface{}) (err error) {
 	var rgswCt *Ciphertext
 	var isRGSW bool
 	if rgswCt, isRGSW = ct.(*Ciphertext); !isRGSW {
-		return enc.EncryptorInterface.EncryptZero(ct)
+		return enc.Encryptor.EncryptZero(ct)
 	}
 
 	decompRNS := rgswCt.Value[0].DecompRNS()
@@ -83,11 +83,11 @@ func (enc Encryptor) EncryptZero(ct interface{}) (err error) {
 	for j := 0; j < decompPw2; j++ {
 		for i := 0; i < decompRNS; i++ {
 
-			if err = enc.EncryptorInterface.EncryptZero(rlwe.Operand[ringqp.Poly]{MetaData: &rlwe.MetaData{IsNTT: true, IsMontgomery: true}, Value: []ringqp.Poly(rgswCt.Value[0].Value[i][j])}); err != nil {
+			if err = enc.Encryptor.EncryptZero(rlwe.Operand[ringqp.Poly]{MetaData: &rlwe.MetaData{IsNTT: true, IsMontgomery: true}, Value: []ringqp.Poly(rgswCt.Value[0].Value[i][j])}); err != nil {
 				return
 			}
 
-			if err = enc.EncryptorInterface.EncryptZero(rlwe.Operand[ringqp.Poly]{MetaData: &rlwe.MetaData{IsNTT: true, IsMontgomery: true}, Value: []ringqp.Poly(rgswCt.Value[1].Value[i][j])}); err != nil {
+			if err = enc.Encryptor.EncryptZero(rlwe.Operand[ringqp.Poly]{MetaData: &rlwe.MetaData{IsNTT: true, IsMontgomery: true}, Value: []ringqp.Poly(rgswCt.Value[1].Value[i][j])}); err != nil {
 				return
 			}
 		}
@@ -100,5 +100,5 @@ func (enc Encryptor) EncryptZero(ct interface{}) (err error) {
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // Encryptors can be used concurrently.
 func (enc Encryptor) ShallowCopy() *Encryptor {
-	return &Encryptor{EncryptorInterface: enc.EncryptorInterface.ShallowCopy(), params: enc.params, buffQP: enc.params.RingQP().NewPoly()}
+	return &Encryptor{Encryptor: enc.Encryptor.ShallowCopy(), params: enc.params, buffQP: enc.params.RingQP().NewPoly()}
 }

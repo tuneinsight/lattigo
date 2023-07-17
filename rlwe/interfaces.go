@@ -4,7 +4,6 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ring"
 
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
-	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 // ParametersInterface defines a set of common and scheme agnostic methods provided by a Parameter struct.
@@ -54,25 +53,13 @@ type DecryptorInterface interface {
 	WithKey(sk *SecretKey) Decryptor
 }
 
-// EncryptorInterface a generic RLWE encryption interface.
-type EncryptorInterface interface {
-	Encrypt(pt *Plaintext, ct interface{}) (err error)
-	EncryptZero(ct interface{}) (err error)
-
-	EncryptZeroNew(level int) (ct *Ciphertext)
-	EncryptNew(pt *Plaintext) (ct *Ciphertext, err error)
-
-	ShallowCopy() EncryptorInterface
-	WithKey(key interface{}) (EncryptorInterface, error)
-}
-
-// PRNGEncryptorInterface is an interface for encrypting RLWE ciphertexts from a secret-key and
-// a pre-determined PRNG. An Encryptor constructed from a secret-key complies to this
-// interface.
-type PRNGEncryptorInterface interface {
-	EncryptorInterface
-	WithPRNG(prng sampling.PRNG) PRNGEncryptorInterface
-}
+// // PRNGEncryptorInterface is an interface for encrypting RLWE ciphertexts from a secret-key and
+// // a pre-determined PRNG. An Encryptor constructed from a secret-key complies to this
+// // interface.
+// type PRNGEncryptorInterface interface {
+// 	Encryptor
+// 	WithPRNG(prng sampling.PRNG) PRNGEncryptorInterface
+// }
 
 // EncoderInterface defines a set of common and scheme agnostic method provided by an Encoder struct.
 type EncoderInterface[T any, U *ring.Poly | ringqp.Poly | *Plaintext] interface {

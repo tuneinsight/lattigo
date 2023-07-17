@@ -11,6 +11,18 @@ var (
 	pj   = []uint64{0x3ffffffb80001, 0x4000000800001}
 
 	testParamsLiteral = []TestParametersLiteral{
+		// RNS decomposition, no Pw2 decomposition
+		{
+			BaseTwoDecomposition: 0,
+
+			ParametersLiteral: ParametersLiteral{
+				LogN:    logN,
+				Q:       qi,
+				P:       pj,
+				NTTFlag: true,
+			},
+		},
+		// RNS decomposition, Pw2 decomposition
 		{
 			BaseTwoDecomposition: 16,
 
@@ -21,14 +33,14 @@ var (
 				NTTFlag: true,
 			},
 		},
-
+		// No RNS decomposition, Pw2 decomposition
 		{
-			BaseTwoDecomposition: 0,
+			BaseTwoDecomposition: 16,
 
 			ParametersLiteral: ParametersLiteral{
 				LogN:    logN,
 				Q:       qi,
-				P:       pj,
+				P:       nil,
 				NTTFlag: true,
 			},
 		},

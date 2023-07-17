@@ -88,6 +88,8 @@ func (sk *SecretKey) UnmarshalBinary(p []byte) (err error) {
 	return sk.Value.UnmarshalBinary(p)
 }
 
+func (sk *SecretKey) isEncryptionKey() {}
+
 type vectorQP []ringqp.Poly
 
 // NewPublicKey returns a new PublicKey with zero values.
@@ -261,6 +263,8 @@ func (p PublicKey) MarshalBinary() ([]byte, error) {
 func (p *PublicKey) UnmarshalBinary(b []byte) error {
 	return p.Value.UnmarshalBinary(b)
 }
+
+func (p *PublicKey) isEncryptionKey() {}
 
 // EvaluationKey is a public key indended to be used during the evaluation phase of a homomorphic circuit.
 // It provides a one way public and non-interactive re-encryption from a ciphertext encrypted under `skIn`

@@ -10,9 +10,15 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
+// EncryptionKey is an interface for encryption keys. Valid encryption
+// keys are the SecretKey and PublicKey types.
+type EncryptionKey interface {
+	isEncryptionKey()
+}
+
 // NewEncryptor creates a new Encryptor.
 // Accepts either a secret-key or a public-key.
-func NewEncryptor(params ParametersInterface, key interface{}) (EncryptorInterface, error) {
+func NewEncryptor(params ParametersInterface, key EncryptionKey) (EncryptorInterface, error) {
 	switch key := key.(type) {
 	case *PublicKey:
 		return NewEncryptorPublicKey(params, key)

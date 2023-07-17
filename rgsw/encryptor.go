@@ -18,7 +18,7 @@ type Encryptor struct {
 
 // NewEncryptor creates a new Encryptor type. Note that only secret-key encryption is
 // supported at the moment.
-func NewEncryptor[T *rlwe.SecretKey | *rlwe.PublicKey](params rlwe.Parameters, key T) (*Encryptor, error) {
+func NewEncryptor(params rlwe.Parameters, key rlwe.EncryptionKey) (*Encryptor, error) {
 	enc, err := rlwe.NewEncryptor(params, key)
 	return &Encryptor{enc, params, params.RingQP().NewPoly()}, err
 }

@@ -39,7 +39,7 @@ func NewCiphertext(params rlwe.ParametersInterface, degree, level int) (ct *rlwe
 // - key: *rlwe.SecretKey or *rlwe.PublicKey
 //
 // output: an rlwe.Encryptor instantiated with the provided key.
-func NewEncryptor[T *rlwe.SecretKey | *rlwe.PublicKey](params rlwe.ParametersInterface, key T) (rlwe.EncryptorInterface, error) {
+func NewEncryptor(params rlwe.ParametersInterface, key rlwe.EncryptionKey) (rlwe.EncryptorInterface, error) {
 	return rlwe.NewEncryptor(params, key)
 }
 

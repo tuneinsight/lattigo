@@ -70,7 +70,7 @@ type LinearTranfromationParameters[T any] interface {
 	// This method is equivalent to params.PlaintextDimensions().
 	// Note that the linear transformation is evaluated independently on each rows of
 	// the SIMD packed matrix.
-	GetPlaintextLogDimensions() [2]int
+	GetPlaintextLogDimensions() ring.Dimensions
 
 	// LogBabyStepGianStepRatio return the log2 of the ratio n1/n2 for n = n1 * n2 and
 	// n is the dimension of the linear transformation. The number of Galois keys required
@@ -85,7 +85,7 @@ type MemLinearTransformationParameters[T any] struct {
 	Diagonals                map[int][]T
 	Level                    int
 	PlaintextScale           Scale
-	PlaintextLogDimensions   [2]int
+	PlaintextLogDimensions   ring.Dimensions
 	LogBabyStepGianStepRatio int
 }
 
@@ -99,7 +99,7 @@ func (m MemLinearTransformationParameters[T]) GetDiagonals() map[int][]T {
 
 func (m MemLinearTransformationParameters[T]) At(i int) ([]T, error) {
 
-	slots := 1 << m.PlaintextLogDimensions[1]
+	slots := 1 << m.PlaintextLogDimensions.Cols
 
 	v, ok := m.Diagonals[i]
 
@@ -134,7 +134,7 @@ func (m MemLinearTransformationParameters[T]) GetPlaintextScale() Scale {
 	return m.PlaintextScale
 }
 
-func (m MemLinearTransformationParameters[T]) GetPlaintextLogDimensions() [2]int {
+func (m MemLinearTransformationParameters[T]) GetPlaintextLogDimensions() ring.Dimensions {
 	return m.PlaintextLogDimensions
 }
 
@@ -155,13 +155,13 @@ type LinearTransformation struct {
 
 // GaloisElements returns the list of Galois elements needed for the evaluation of the linear transformation.
 func (LT LinearTransformation) GaloisElements(params ParametersInterface) (galEls []uint64) {
-	return galoisElementsForLinearTransformation(params, utils.GetKeys(LT.Vec), LT.PlaintextLogDimensions[1], LT.LogBSGSRatio)
+	return galoisElementsForLinearTransformation(params, utils.GetKeys(LT.Vec), LT.PlaintextLogDimensions.Cols, LT.LogBSGSRatio)
 }
 
 // GaloisElementsForLinearTransformation returns the list of Galois elements required to perform a linear transform
 // with the provided non-zero diagonals.
 func GaloisElementsForLinearTransformation[T any](params ParametersInterface, lt LinearTranfromationParameters[T]) (galEls []uint64) {
-	return galoisElementsForLinearTransformation(params, lt.GetDiagonalsList(), 1<<lt.GetPlaintextLogDimensions()[1], lt.GetLogBabyStepGianStepRatio())
+	return galoisElementsForLinearTransformation(params, lt.GetDiagonalsList(), 1<<lt.GetPlaintextLogDimensions().Cols, lt.GetLogBabyStepGianStepRatio())
 }
 
 func galoisElementsForLinearTransformation(params ParametersInterface, diags []int, slots, logbsgs int) (galEls []uint64) {
@@ -189,7 +189,7 @@ func galoisElementsForLinearTransformation(params ParametersInterface, diags []i
 // NewLinearTransformation allocates a new LinearTransformation with zero values according to the parameters specified by the LinearTranfromationParameters.
 func NewLinearTransformation[T any](params ParametersInterface, lt LinearTranfromationParameters[T]) LinearTransformation {
 	vec := make(map[int]ringqp.Poly)
-	cols := 1 << lt.GetPlaintextLogDimensions()[1]
+	cols := 1 << lt.GetPlaintextLogDimensions().Cols
 	logBSGS := lt.GetLogBabyStepGianStepRatio()
 	levelQ := lt.GetLevel()
 	levelP := params.MaxLevelP()
@@ -240,8 +240,8 @@ func EncodeLinearTransformation[T any](allocated LinearTransformation, params Li
 		return fmt.Errorf("cannot EncodeLinearTransformation: PlaintextLogDimensions between allocated and parameters do not match (%v != %v)", allocated.PlaintextLogDimensions, params.GetPlaintextLogDimensions())
 	}
 
-	rows := 1 << params.GetPlaintextLogDimensions()[0]
-	cols := 1 << params.GetPlaintextLogDimensions()[1]
+	rows := 1 << params.GetPlaintextLogDimensions().Rows
+	cols := 1 << params.GetPlaintextLogDimensions().Cols
 	N1 := allocated.N1
 
 	diags := params.GetDiagonalsList()
@@ -306,8 +306,8 @@ func EncodeLinearTransformation[T any](allocated LinearTransformation, params Li
 
 func rotateAndEncodeDiagonal[T any](v []T, encoder EncoderInterface[T, ringqp.Poly], rot int, metaData *MetaData, buf []T, poly ringqp.Poly) (err error) {
 
-	rows := 1 << metaData.PlaintextLogDimensions[0]
-	cols := 1 << metaData.PlaintextLogDimensions[1]
+	rows := 1 << metaData.PlaintextLogDimensions.Rows
+	cols := 1 << metaData.PlaintextLogDimensions.Cols
 
 	rot &= (cols - 1)
 
@@ -460,7 +460,7 @@ func (eval Evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTransf
 
 	ringQ.MulScalarBigint(ctInTmp0, ringP.ModulusAtLevel[levelP], ct0TimesP) // P*c0
 
-	slots := 1 << matrix.PlaintextLogDimensions[1]
+	slots := 1 << matrix.PlaintextLogDimensions.Cols
 
 	keys := utils.GetSortedKeys(matrix.Vec)
 
@@ -556,7 +556,7 @@ func (eval Evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearTr
 	PiOverF := eval.params.PiOverflowMargin(levelP) >> 1
 
 	// Computes the N2 rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giant-step algorithm
-	index, _, rotN2 := BSGSIndex(utils.GetKeys(matrix.Vec), 1<<matrix.PlaintextLogDimensions[1], matrix.N1)
+	index, _, rotN2 := BSGSIndex(utils.GetKeys(matrix.Vec), 1<<matrix.PlaintextLogDimensions.Cols, matrix.N1)
 
 	ring.Copy(ctIn.Value[0], eval.BuffCt.Value[0])
 	ring.Copy(ctIn.Value[1], eval.BuffCt.Value[1])
@@ -849,7 +849,7 @@ func (eval Evaluator) Expand(ctIn *Ciphertext, logN, logGap int) (opOut []*Ciphe
 
 	opOut = make([]*Ciphertext, 1<<(logN-logGap))
 	opOut[0] = ctIn.CopyNew()
-	opOut[0].PlaintextLogDimensions = [2]int{0, 0}
+	opOut[0].PlaintextLogDimensions = ring.Dimensions{Rows: 0, Cols: 0}
 
 	if ct := opOut[0]; !ctIn.IsNTT {
 		ringQ.NTT(ct.Value[0], ct.Value[0])

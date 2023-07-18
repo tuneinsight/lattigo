@@ -125,7 +125,7 @@ func main() {
 	}
 
 	plaintext := ckks.NewPlaintext(params, params.MaxLevel())
-	plaintext.PlaintextLogDimensions[1] = LogSlots
+	plaintext.PlaintextLogDimensions.Cols = LogSlots
 	if err := encoder.Encode(valuesWant, plaintext); err != nil {
 		panic(err)
 	}

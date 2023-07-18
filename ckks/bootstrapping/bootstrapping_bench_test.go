@@ -29,7 +29,7 @@ func BenchmarkBootstrap(b *testing.B) {
 	btp, err := NewBootstrapper(params, btpParams, evk)
 	require.NoError(b, err)
 
-	b.Run(ParamsToString(params, btpParams.PlaintextLogDimensions()[1], "Bootstrap/"), func(b *testing.B) {
+	b.Run(ParamsToString(params, btpParams.PlaintextLogDimensions().Cols, "Bootstrap/"), func(b *testing.B) {
 
 		var err error
 
@@ -53,7 +53,7 @@ func BenchmarkBootstrap(b *testing.B) {
 
 			//SubSum X -> (N/dslots) * Y^dslots
 			t = time.Now()
-			require.NoError(b, btp.Trace(ct, ct.PlaintextLogDimensions[1], ct))
+			require.NoError(b, btp.Trace(ct, ct.PlaintextLogDimensions.Cols, ct))
 			b.Log("After SubSum :", time.Since(t), ct.Level(), ct.PlaintextScale.Float64())
 
 			// Part 1 : Coeffs to slots

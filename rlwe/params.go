@@ -263,28 +263,28 @@ func (p Parameters) LogN() int {
 
 // PlaintextDimensions returns the dimensions of the matrix that can be SIMD packed in a single plaintext polynomial.
 // Returns [0, 0] by default.
-func (p Parameters) PlaintextDimensions() [2]int {
-	return [2]int{0, 0}
+func (p Parameters) PlaintextDimensions() ring.Dimensions {
+	return ring.Dimensions{Rows: 0, Cols: 0}
 }
 
 // PlaintextLogDimensions returns the log dimensions of the matrix that can be SIMD packed in a single plaintext polynomial.
 // Returns [-1, -1] by default.
-func (p Parameters) PlaintextLogDimensions() [2]int {
-	return [2]int{-1, -1}
+func (p Parameters) PlaintextLogDimensions() ring.Dimensions {
+	return ring.Dimensions{Rows: -1, Cols: -1}
 }
 
 // PlaintextSlots returns the total number of entries (`slots`) that a plaintext can store.
 // This value is obtained by multiplying all dimensions from PlaintextDimensions.
 func (p Parameters) PlaintextSlots() int {
 	dims := p.PlaintextDimensions()
-	return dims[0] * dims[1]
+	return dims.Rows * dims.Cols
 }
 
 // PlaintextLogSlots returns the total number of entries (`slots`) that a plaintext can store.
 // This value is obtained by summing all log dimensions from PlaintextLogDimensions.
 func (p Parameters) PlaintextLogSlots() int {
 	dims := p.PlaintextLogDimensions()
-	return dims[0] + dims[1]
+	return dims.Rows + dims.Cols
 }
 
 // PlaintextScale returns the default scaling factor of the plaintext, if any.

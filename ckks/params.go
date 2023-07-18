@@ -127,24 +127,24 @@ func (p Parameters) MaxLevel() int {
 }
 
 // PlaintextDimensions returns the maximum dimension of the matrix that can be SIMD packed in a single plaintext polynomial.
-func (p Parameters) PlaintextDimensions() [2]int {
+func (p Parameters) PlaintextDimensions() ring.Dimensions {
 	switch p.RingType() {
 	case ring.Standard:
-		return [2]int{1, p.N() >> 1}
+		return ring.Dimensions{Rows: 1, Cols: p.N() >> 1}
 	case ring.ConjugateInvariant:
-		return [2]int{1, p.N()}
+		return ring.Dimensions{Rows: 1, Cols: p.N()}
 	default:
 		panic("cannot PlaintextDimensions: invalid ring type")
 	}
 }
 
 // PlaintextLogDimensions returns the log2 of maximum dimension of the matrix that can be SIMD packed in a single plaintext polynomial.
-func (p Parameters) PlaintextLogDimensions() [2]int {
+func (p Parameters) PlaintextLogDimensions() ring.Dimensions {
 	switch p.RingType() {
 	case ring.Standard:
-		return [2]int{0, p.LogN() - 1}
+		return ring.Dimensions{Rows: 0, Cols: p.LogN() - 1}
 	case ring.ConjugateInvariant:
-		return [2]int{0, p.LogN()}
+		return ring.Dimensions{Rows: 0, Cols: p.LogN()}
 	default:
 		panic("cannot PlaintextLogDimensions: invalid ring type")
 	}
@@ -154,14 +154,14 @@ func (p Parameters) PlaintextLogDimensions() [2]int {
 // This value is obtained by multiplying all dimensions from PlaintextDimensions.
 func (p Parameters) PlaintextSlots() int {
 	dims := p.PlaintextDimensions()
-	return dims[0] * dims[1]
+	return dims.Rows * dims.Cols
 }
 
 // PlaintextLogSlots returns the total number of entries (`slots`) that a plaintext can store.
 // This value is obtained by summing all log dimensions from PlaintextLogDimensions.
 func (p Parameters) PlaintextLogSlots() int {
 	dims := p.PlaintextLogDimensions()
-	return dims[0] + dims[1]
+	return dims.Rows + dims.Cols
 }
 
 // LogPlaintextScale returns the log2 of the default plaintext scaling factor.

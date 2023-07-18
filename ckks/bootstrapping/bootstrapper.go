@@ -177,9 +177,9 @@ func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey *E
 	bb.params = params
 	bb.Parameters = btpParams
 
-	bb.logdslots = btpParams.PlaintextLogDimensions()[1]
+	bb.logdslots = btpParams.PlaintextLogDimensions().Cols
 	bb.dslots = 1 << bb.logdslots
-	if maxLogSlots := params.PlaintextLogDimensions()[1]; bb.dslots < maxLogSlots {
+	if maxLogSlots := params.PlaintextLogDimensions().Cols; bb.dslots < maxLogSlots {
 		bb.dslots <<= 1
 		bb.logdslots++
 	}

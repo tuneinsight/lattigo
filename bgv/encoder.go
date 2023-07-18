@@ -58,7 +58,7 @@ func NewEncoder(parameters Parameters) *Encoder {
 
 	var bufB []*big.Int
 
-	if parameters.PlaintextLogDimensions()[1] < parameters.LogN()-1 {
+	if parameters.PlaintextLogDimensions().Cols < parameters.LogN()-1 {
 
 		slots := parameters.PlaintextSlots()
 

@@ -187,8 +187,8 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 }
 
 // PlaintextLogDimensions returns the log plaintext dimensions of the target Parameters.
-func (p *Parameters) PlaintextLogDimensions() [2]int {
-	return [2]int{0, p.SlotsToCoeffsParameters.LogSlots}
+func (p *Parameters) PlaintextLogDimensions() ring.Dimensions {
+	return ring.Dimensions{Rows: 0, Cols: p.SlotsToCoeffsParameters.LogSlots}
 }
 
 // DepthCoeffsToSlots returns the depth of the Coeffs to Slots of the CKKS bootstrapping.
@@ -232,7 +232,7 @@ func (p *Parameters) GaloisElements(params ckks.Parameters) (galEls []uint64) {
 	keys := make(map[uint64]bool)
 
 	//SubSum rotation needed X -> Y^slots rotations
-	for i := p.PlaintextLogDimensions()[1]; i < logN-1; i++ {
+	for i := p.PlaintextLogDimensions().Cols; i < logN-1; i++ {
 		keys[params.GaloisElement(1<<i)] = true
 	}
 

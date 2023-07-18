@@ -6,6 +6,7 @@ import (
 	"math"
 	"math/big"
 
+	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
@@ -114,7 +115,7 @@ func NewHomomorphicDFTMatrixFromLiteral(d HomomorphicDFTMatrixLiteral, encoder *
 
 	logSlots := d.LogSlots
 	logdSlots := logSlots
-	if maxLogSlots := params.PlaintextLogDimensions()[1]; logdSlots < maxLogSlots && d.RepackImag2Real {
+	if maxLogSlots := params.PlaintextLogDimensions().Cols; logdSlots < maxLogSlots && d.RepackImag2Real {
 		logdSlots++
 	}
 
@@ -147,7 +148,7 @@ func NewHomomorphicDFTMatrixFromLiteral(d HomomorphicDFTMatrixLiteral, encoder *
 				Diagonals:                pVecDFT[idx],
 				Level:                    level,
 				PlaintextScale:           scale,
-				PlaintextLogDimensions:   [2]int{0, logdSlots},
+				PlaintextLogDimensions:   ring.Dimensions{Rows: 0, Cols: logdSlots},
 				LogBabyStepGianStepRatio: d.LogBSGSRatio,
 			}
 
@@ -228,7 +229,7 @@ func (eval Evaluator) CoeffsToSlots(ctIn *rlwe.Ciphertext, ctsMatrices Homomorph
 
 		// If repacking, then ct0 and ct1 right n/2 slots are zero.
 		if ctsMatrices.LogSlots < eval.Parameters().PlaintextLogSlots() {
-			if err = eval.Rotate(tmp, ctIn.PlaintextDimensions()[1], tmp); err != nil {
+			if err = eval.Rotate(tmp, ctIn.PlaintextDimensions().Cols, tmp); err != nil {
 				return fmt.Errorf("cannot CoeffsToSlots: %w", err)
 			}
 

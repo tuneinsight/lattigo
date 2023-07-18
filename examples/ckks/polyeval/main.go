@@ -170,7 +170,7 @@ func round(x float64) float64 {
 
 func printDebug(params ckks.Parameters, ciphertext *rlwe.Ciphertext, valuesWant []float64, decryptor *rlwe.Decryptor, encoder *ckks.Encoder) (valuesTest []float64) {
 
-	valuesTest = make([]float64, 1<<ciphertext.PlaintextLogDimensions[1])
+	valuesTest = make([]float64, 1<<ciphertext.PlaintextLogDimensions.Cols)
 
 	if err := encoder.Decode(decryptor.DecryptNew(ciphertext), valuesTest); err != nil {
 		panic(err)

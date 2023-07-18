@@ -194,7 +194,7 @@ func main() {
 	}
 
 	pt := ckks.NewPlaintext(paramsN12, paramsN12.MaxLevel())
-	pt.PlaintextLogDimensions[1] = LogSlots
+	pt.PlaintextLogDimensions.Cols = LogSlots
 	if err := encoderN12.Encode(values, pt); err != nil {
 		panic(err)
 	}
@@ -242,7 +242,7 @@ func main() {
 
 	res := make([]float64, slots)
 	ctN12.EncodingDomain = rlwe.SlotsDomain
-	ctN12.PlaintextLogDimensions[1] = LogSlots
+	ctN12.PlaintextLogDimensions.Cols = LogSlots
 	if err := encoderN12.Decode(decryptorN12.DecryptNew(ctN12), res); err != nil {
 		panic(err)
 	}

@@ -11,8 +11,8 @@ type ParametersInterface interface {
 	RingType() ring.Type
 	N() int
 	LogN() int
-	PlaintextDimensions() [2]int
-	PlaintextLogDimensions() [2]int
+	PlaintextDimensions() ring.Dimensions
+	PlaintextLogDimensions() ring.Dimensions
 	PlaintextSlots() int
 	PlaintextLogSlots() int
 	PlaintextModulus() uint64

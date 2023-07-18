@@ -7,6 +7,7 @@ import (
 	"math/big"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/tuneinsight/lattigo/v4/ring"
 )
 
 type EncodingDomain int
@@ -20,7 +21,7 @@ const (
 type MetaData struct {
 	PlaintextScale         Scale
 	EncodingDomain         EncodingDomain
-	PlaintextLogDimensions [2]int
+	PlaintextLogDimensions ring.Dimensions
 	IsNTT                  bool
 	IsMontgomery           bool
 }
@@ -41,8 +42,8 @@ func (m MetaData) CopyNew() *MetaData {
 }
 
 // PlaintextDimensions returns the dimensions of the plaintext matrix.
-func (m MetaData) PlaintextDimensions() [2]int {
-	return [2]int{1 << m.PlaintextLogDimensions[0], 1 << m.PlaintextLogDimensions[1]}
+func (m MetaData) PlaintextDimensions() ring.Dimensions {
+	return ring.Dimensions{Rows: 1 << m.PlaintextLogDimensions.Rows, Cols: 1 << m.PlaintextLogDimensions.Cols}
 }
 
 // PlaintextSlots returns the total number of entries in the plaintext matrix.
@@ -52,7 +53,7 @@ func (m MetaData) PlaintextSlots() int {
 
 // PlaintextLogSlots returns the log of the total number of entries in the plaintext matrix.
 func (m MetaData) PlaintextLogSlots() int {
-	return m.PlaintextLogDimensions[0] + m.PlaintextLogDimensions[1]
+	return m.PlaintextLogDimensions.Rows + m.PlaintextLogDimensions.Cols
 }
 
 // BinarySize returns the size in bytes that the object once marshalled into a binary form.
@@ -107,7 +108,7 @@ func (m MetaData) MarshalBinary() (p []byte, err error) {
 	}{
 		PlaintextScale:         m.PlaintextScale,
 		EncodingDomain:         fmt.Sprintf("0x%02x", uint8(m.EncodingDomain)),
-		PlaintextLogDimensions: [2]string{fmt.Sprintf("0x%02x", uint8(m.PlaintextLogDimensions[0])), fmt.Sprintf("0x%02x", uint8(m.PlaintextLogDimensions[1]))},
+		PlaintextLogDimensions: [2]string{fmt.Sprintf("0x%02x", uint8(m.PlaintextLogDimensions.Rows)), fmt.Sprintf("0x%02x", uint8(m.PlaintextLogDimensions.Cols))},
 		IsNTT:                  fmt.Sprintf("0x%02x", IsNTT),
 		IsMontgomery:           fmt.Sprintf("0x%02x", IsMontgomery),
 	}
@@ -162,7 +163,7 @@ func (m *MetaData) UnmarshalBinary(p []byte) (err error) {
 		return err
 	}
 
-	m.PlaintextLogDimensions = [2]int{int(int8(logRows)), int(int8(logCols))}
+	m.PlaintextLogDimensions = ring.Dimensions{Rows: int(int8(logRows)), Cols: int(int8(logCols))}
 
 	if y, err := hexconv(aux.IsNTT); err != nil {
 		return err

@@ -181,7 +181,7 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 
 	// Retrieve the number of slots
 	logSlots := X[1].PlaintextLogDimensions
-	slots := 1 << X[1].PlaintextLogDimensions[1]
+	slots := 1 << X[1].PlaintextLogDimensions.Cols
 
 	params := polyEval.Evaluator.parameters
 	slotsIndex := pol.SlotsIndex

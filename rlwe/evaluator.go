@@ -199,8 +199,8 @@ func (eval Evaluator) InitOutputBinaryOp(op0, op1 *Operand[ring.Poly], opInTotal
 		opOut.El().EncodingDomain = op0.El().EncodingDomain
 	}
 
-	opOut.El().PlaintextLogDimensions[0] = utils.Max(op0.El().PlaintextLogDimensions[0], op1.El().PlaintextLogDimensions[0])
-	opOut.El().PlaintextLogDimensions[1] = utils.Max(op0.El().PlaintextLogDimensions[1], op1.El().PlaintextLogDimensions[1])
+	opOut.El().PlaintextLogDimensions.Rows = utils.Max(op0.El().PlaintextLogDimensions.Rows, op1.El().PlaintextLogDimensions.Rows)
+	opOut.El().PlaintextLogDimensions.Cols = utils.Max(op0.El().PlaintextLogDimensions.Cols, op1.El().PlaintextLogDimensions.Cols)
 
 	return
 }

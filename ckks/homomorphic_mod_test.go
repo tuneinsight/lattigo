@@ -252,7 +252,7 @@ func testEvalMod(params Parameters, t *testing.T) {
 
 func newTestVectorsEvalMod(params Parameters, encryptor *rlwe.Encryptor, encoder *Encoder, evm EvalModPoly, t *testing.T) (values []float64, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
 
-	logSlots := params.PlaintextLogDimensions()[1]
+	logSlots := params.PlaintextLogDimensions().Cols
 
 	values = make([]float64, 1<<logSlots)
 

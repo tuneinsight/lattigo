@@ -1,5 +1,9 @@
 package ring
 
+type Dimensions struct {
+	Rows, Cols int
+}
+
 // EvalPolyModP evaluates y = sum poly[i] * x^{i} mod p.
 func EvalPolyModP(x uint64, poly []uint64, p uint64) (y uint64) {
 	brc := BRedConstant(p)

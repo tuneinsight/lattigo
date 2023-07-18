@@ -124,7 +124,7 @@ func testbootstrap(params ckks.Parameters, btpParams Parameters, t *testing.T) {
 		btpType = "Original/"
 	}
 
-	t.Run(ParamsToString(params, btpParams.PlaintextLogDimensions()[1], "Bootstrapping/FullCircuit/"+btpType), func(t *testing.T) {
+	t.Run(ParamsToString(params, btpParams.PlaintextLogDimensions().Cols, "Bootstrapping/FullCircuit/"+btpType), func(t *testing.T) {
 
 		kgen := ckks.NewKeyGenerator(params)
 		sk := kgen.GenSecretKeyNew()
@@ -142,7 +142,7 @@ func testbootstrap(params ckks.Parameters, btpParams Parameters, t *testing.T) {
 		btp, err := NewBootstrapper(params, btpParams, evk)
 		require.NoError(t, err)
 
-		values := make([]complex128, 1<<btpParams.PlaintextLogDimensions()[1])
+		values := make([]complex128, 1<<btpParams.PlaintextLogDimensions().Cols)
 		for i := range values {
 			values[i] = sampling.RandComplex128(-1, 1)
 		}
@@ -150,7 +150,7 @@ func testbootstrap(params ckks.Parameters, btpParams Parameters, t *testing.T) {
 		values[0] = complex(0.9238795325112867, 0.3826834323650898)
 		values[1] = complex(0.9238795325112867, 0.3826834323650898)
 
-		if btpParams.PlaintextLogDimensions()[1] > 1 {
+		if btpParams.PlaintextLogDimensions().Cols > 1 {
 			values[2] = complex(0.9238795325112867, 0.3826834323650898)
 			values[3] = complex(0.9238795325112867, 0.3826834323650898)
 		}

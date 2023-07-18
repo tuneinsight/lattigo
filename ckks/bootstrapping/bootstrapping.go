@@ -114,7 +114,7 @@ func (btp *Bootstrapper) bootstrap(ctIn *rlwe.Ciphertext) (opOut *rlwe.Ciphertex
 	}
 
 	//SubSum X -> (N/dslots) * Y^dslots
-	if err = btp.Trace(opOut, opOut.PlaintextLogDimensions[1], opOut); err != nil {
+	if err = btp.Trace(opOut, opOut.PlaintextLogDimensions.Cols, opOut); err != nil {
 		return nil, err
 	}
 

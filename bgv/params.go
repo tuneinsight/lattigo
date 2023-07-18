@@ -33,15 +33,14 @@ const (
 // unset, standard default values for these field are substituted at parameter creation (see
 // NewParametersFromLiteral).
 type ParametersLiteral struct {
-	LogN     int
-	Q        []uint64
-	P        []uint64
-	LogQ     []int `json:",omitempty"`
-	LogP     []int `json:",omitempty"`
-	Xe       ring.DistributionParameters
-	Xs       ring.DistributionParameters
-	RingType ring.Type
-	T        uint64 // Plaintext modulus
+	LogN int
+	Q    []uint64
+	P    []uint64
+	LogQ []int `json:",omitempty"`
+	LogP []int `json:",omitempty"`
+	Xe   ring.DistributionParameters
+	Xs   ring.DistributionParameters
+	T    uint64 // Plaintext modulus
 }
 
 // RLWEParametersLiteral returns the rlwe.ParametersLiteral from the target bgv.ParametersLiteral.
@@ -137,13 +136,12 @@ func NewParametersFromLiteral(pl ParametersLiteral) (Parameters, error) {
 // ParametersLiteral returns the ParametersLiteral of the target Parameters.
 func (p Parameters) ParametersLiteral() ParametersLiteral {
 	return ParametersLiteral{
-		LogN:     p.LogN(),
-		Q:        p.Q(),
-		P:        p.P(),
-		Xe:       p.Xe(),
-		Xs:       p.Xs(),
-		T:        p.T(),
-		RingType: p.RingType(),
+		LogN: p.LogN(),
+		Q:    p.Q(),
+		P:    p.P(),
+		Xe:   p.Xe(),
+		Xs:   p.Xs(),
+		T:    p.T(),
 	}
 }
 
@@ -275,7 +273,6 @@ func (p *ParametersLiteral) UnmarshalJSON(b []byte) (err error) {
 			return err
 		}
 	}
-	p.RingType = pl.RingType
 	p.T = pl.T
 	return err
 }

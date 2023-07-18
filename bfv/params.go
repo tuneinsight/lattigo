@@ -106,7 +106,6 @@ func (p *ParametersLiteral) UnmarshalJSON(b []byte) (err error) {
 			return err
 		}
 	}
-	p.RingType = pl.RingType
 	p.T = pl.T
 	return err
 }

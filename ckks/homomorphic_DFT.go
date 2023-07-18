@@ -55,18 +55,6 @@ type HomomorphicDFTMatrixLiteral struct {
 	LogBSGSRatio    int        // Default: 0.
 }
 
-// MarshalBinary returns a JSON representation of the the target HomomorphicDFTMatrixLiteral on a slice of bytes.
-// See `Marshal` from the `encoding/json` package.
-func (d HomomorphicDFTMatrixLiteral) MarshalBinary() (data []byte, err error) {
-	return json.Marshal(d)
-}
-
-// UnmarshalBinary reads a JSON representation on the target HomomorphicDFTMatrixLiteral struct.
-// See `Unmarshal` from the `encoding/json` package.
-func (d *HomomorphicDFTMatrixLiteral) UnmarshalBinary(data []byte) error {
-	return json.Unmarshal(data, d)
-}
-
 // Depth returns the number of levels allocated to the linear transform.
 // If actual == true then returns the number of moduli consumed, else
 // returns the factorization depth.
@@ -105,6 +93,18 @@ func (d HomomorphicDFTMatrixLiteral) GaloisElements(params Parameters) (galEls [
 	}
 
 	return params.GaloisElements(rotations)
+}
+
+// MarshalBinary returns a JSON representation of the the target HomomorphicDFTMatrixLiteral on a slice of bytes.
+// See `Marshal` from the `encoding/json` package.
+func (d HomomorphicDFTMatrixLiteral) MarshalBinary() (data []byte, err error) {
+	return json.Marshal(d)
+}
+
+// UnmarshalBinary reads a JSON representation on the target HomomorphicDFTMatrixLiteral struct.
+// See `Unmarshal` from the `encoding/json` package.
+func (d *HomomorphicDFTMatrixLiteral) UnmarshalBinary(data []byte) error {
+	return json.Unmarshal(data, d)
 }
 
 // NewHomomorphicDFTMatrixFromLiteral generates the factorized DFT/IDFT matrices for the homomorphic encoding/decoding.

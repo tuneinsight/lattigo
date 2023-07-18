@@ -12,8 +12,8 @@ import (
 type EncodingDomain int
 
 const (
-	FrequencyDomain = EncodingDomain(0)
-	TimeDomain      = EncodingDomain(1)
+	SlotsDomain  = EncodingDomain(0)
+	CoeffsDomain = EncodingDomain(1)
 )
 
 // MetaData is a struct storing metadata.

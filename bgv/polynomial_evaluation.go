@@ -184,7 +184,7 @@ func (polyEval PolynomialEvaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, o
 	if !polyEval.InvariantTensoring {
 		return polyEval.Evaluator.Mul(op0, op1, opOut)
 	} else {
-		return polyEval.Evaluator.MulInvariant(op0, op1, opOut)
+		return polyEval.Evaluator.MulScaleInvariant(op0, op1, opOut)
 	}
 }
 
@@ -192,7 +192,7 @@ func (polyEval PolynomialEvaluator) MulRelin(op0 *rlwe.Ciphertext, op1 interface
 	if !polyEval.InvariantTensoring {
 		return polyEval.Evaluator.MulRelin(op0, op1, opOut)
 	} else {
-		return polyEval.Evaluator.MulRelinInvariant(op0, op1, opOut)
+		return polyEval.Evaluator.MulRelinScaleInvariant(op0, op1, opOut)
 	}
 }
 
@@ -200,7 +200,7 @@ func (polyEval PolynomialEvaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}
 	if !polyEval.InvariantTensoring {
 		return polyEval.Evaluator.MulNew(op0, op1)
 	} else {
-		return polyEval.Evaluator.MulInvariantNew(op0, op1)
+		return polyEval.Evaluator.MulScaleInvariantNew(op0, op1)
 	}
 }
 
@@ -208,7 +208,7 @@ func (polyEval PolynomialEvaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 interf
 	if !polyEval.InvariantTensoring {
 		return polyEval.Evaluator.MulRelinNew(op0, op1)
 	} else {
-		return polyEval.Evaluator.MulRelinInvariantNew(op0, op1)
+		return polyEval.Evaluator.MulRelinScaleInvariantNew(op0, op1)
 	}
 }
 

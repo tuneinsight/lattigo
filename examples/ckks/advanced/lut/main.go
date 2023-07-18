@@ -211,7 +211,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	ctN12.EncodingDomain = rlwe.TimeDomain
+	ctN12.EncodingDomain = rlwe.CoeffsDomain
 
 	// Key-Switch from LogN = 12 to LogN = 11
 	ctN11 := rlwe.NewCiphertext(paramsN11.Parameters, 1, paramsN11.MaxLevel())
@@ -229,7 +229,7 @@ func main() {
 		panic(err)
 	}
 	fmt.Printf("Done (%s)\n", time.Since(now))
-	ctN12.EncodingDomain = rlwe.FrequencyDomain
+	ctN12.EncodingDomain = rlwe.SlotsDomain
 
 	fmt.Printf("Homomorphic Encoding... ")
 	now = time.Now()
@@ -241,7 +241,7 @@ func main() {
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
 	res := make([]float64, slots)
-	ctN12.EncodingDomain = rlwe.FrequencyDomain
+	ctN12.EncodingDomain = rlwe.SlotsDomain
 	ctN12.PlaintextLogDimensions[1] = LogSlots
 	if err := encoderN12.Decode(decryptorN12.DecryptNew(ctN12), res); err != nil {
 		panic(err)

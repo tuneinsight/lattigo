@@ -136,11 +136,11 @@ func (ecd Encoder) Parameters() rlwe.ParametersInterface {
 func (ecd Encoder) Encode(values interface{}, pt *rlwe.Plaintext) (err error) {
 
 	switch pt.EncodingDomain {
-	case rlwe.FrequencyDomain:
+	case rlwe.SlotsDomain:
 
 		return ecd.Embed(values, pt.MetaData, pt.Value)
 
-	case rlwe.TimeDomain:
+	case rlwe.CoeffsDomain:
 
 		switch values := values.(type) {
 		case []float64:
@@ -160,7 +160,7 @@ func (ecd Encoder) Encode(values interface{}, pt *rlwe.Plaintext) (err error) {
 			BigFloatToFixedPointCRT(ecd.parameters.RingQ().AtLevel(pt.Level()), values, &pt.PlaintextScale.Value, pt.Value.Coeffs)
 
 		default:
-			return fmt.Errorf("cannot Encode: supported values.(type) for %T encoding domain is []float64 or []*big.Float, but %T was given", rlwe.TimeDomain, values)
+			return fmt.Errorf("cannot Encode: supported values.(type) for %T encoding domain is []float64 or []*big.Float, but %T was given", rlwe.CoeffsDomain, values)
 		}
 
 		ecd.parameters.RingQ().AtLevel(pt.Level()).NTT(pt.Value, pt.Value)
@@ -504,7 +504,7 @@ func (ecd Encoder) decodePublic(pt *rlwe.Plaintext, values interface{}, noiseFlo
 	}
 
 	switch pt.EncodingDomain {
-	case rlwe.FrequencyDomain:
+	case rlwe.SlotsDomain:
 
 		if ecd.prec <= 53 {
 
@@ -634,7 +634,7 @@ func (ecd Encoder) decodePublic(pt *rlwe.Plaintext, values interface{}, noiseFlo
 			}
 		}
 
-	case rlwe.TimeDomain:
+	case rlwe.CoeffsDomain:
 		return ecd.plaintextToFloat(pt.Level(), pt.PlaintextScale, logSlots, ecd.buff, values)
 	default:
 		return fmt.Errorf("cannot decode: invalid rlwe.EncodingType, accepted types are rlwe.FrequencyDomain and rlwe.TimeDomain but is %T", pt.EncodingDomain)

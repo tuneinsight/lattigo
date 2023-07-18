@@ -8,6 +8,10 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
+// Polynomial is a struct for representing plaintext polynomials
+// for their homomorphic evaluation in an encrypted point. The
+// type wraps a bignum.Polynomial along with several evaluation-
+// related parameters.
 type Polynomial struct {
 	bignum.Polynomial
 	MaxDeg int   // Always set to len(Coeffs)-1
@@ -17,6 +21,8 @@ type Polynomial struct {
 	Scale  Scale // Metatata for BSGS polynomial evaluation
 }
 
+// NewPolynomial returns an instantiated Polynomial for the
+// provided bignum.Polynomial.
 func NewPolynomial(poly bignum.Polynomial) Polynomial {
 	return Polynomial{
 		Polynomial: poly,
@@ -26,6 +32,7 @@ func NewPolynomial(poly bignum.Polynomial) Polynomial {
 	}
 }
 
+// Factorize factorizes p as X^{n} * pq + pr.
 func (p Polynomial) Factorize(n int) (pq, pr Polynomial) {
 
 	pq = Polynomial{}

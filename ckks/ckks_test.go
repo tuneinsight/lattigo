@@ -329,7 +329,7 @@ func testEncoder(tc *testContext, t *testing.T) {
 		valuesWant[0] = 0.607538
 
 		pt := NewPlaintext(tc.params, tc.params.MaxLevel())
-		pt.EncodingDomain = rlwe.TimeDomain
+		pt.EncodingDomain = rlwe.CoeffsDomain
 
 		tc.encoder.Encode(valuesWant, pt)
 

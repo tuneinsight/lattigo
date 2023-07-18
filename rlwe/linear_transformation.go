@@ -43,8 +43,8 @@ import (
 //     than their matrix representation by being able to only store the non-zero diagonals.
 //
 // Finally, some metrics about the time and storage complexity of homomorphic linear transformations:
-// - Storage: #diagonals polynomials mod Q_level * P
-// - Evaluation: #diagonals multiplications and 2sqrt(#diagonals) ciphertexts rotations.
+//   - Storage: #diagonals polynomials mod Q_level * P
+//   - Evaluation: #diagonals multiplications and 2sqrt(#diagonals) ciphertexts rotations.
 type LinearTranfromationParameters[T any] interface {
 
 	// DiagonalsList returns the list of the non-zero diagonals of the square matrix.
@@ -220,7 +220,7 @@ func NewLinearTransformation[T any](params ParametersInterface, lt LinearTranfro
 	metadata := &MetaData{
 		PlaintextLogDimensions: lt.GetPlaintextLogDimensions(),
 		PlaintextScale:         lt.GetPlaintextScale(),
-		EncodingDomain:         FrequencyDomain,
+		EncodingDomain:         SlotsDomain,
 		IsNTT:                  true,
 		IsMontgomery:           true,
 	}
@@ -231,9 +231,9 @@ func NewLinearTransformation[T any](params ParametersInterface, lt LinearTranfro
 // EncodeLinearTransformation encodes on a pre-allocated LinearTransformation a set of non-zero diagonaes of a matrix representing a linear transformation.
 //
 // inputs:
-// - allocated: a pre-allocated LinearTransformation using `NewLinearTransformation`
-// - diagonals: linear transformation parameters
-// - encoder: an struct complying to the EncoderInterface
+//   - allocated: a pre-allocated LinearTransformation using `NewLinearTransformation`
+//   - diagonals: linear transformation parameters
+//   - encoder: an struct complying to the EncoderInterface
 func EncodeLinearTransformation[T any](allocated LinearTransformation, params LinearTranfromationParameters[T], encoder EncoderInterface[T, ringqp.Poly]) (err error) {
 
 	if allocated.PlaintextLogDimensions != params.GetPlaintextLogDimensions() {

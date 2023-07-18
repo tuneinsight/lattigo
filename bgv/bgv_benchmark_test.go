@@ -133,7 +133,7 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 
 	b.Run(GetTestName("Evaluator/MulInvariant/Ct/Ct", params, level), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			eval.MulInvariant(ciphertext0, plaintext1.Value.Coeffs[0], ciphertext0)
+			eval.MulScaleInvariant(ciphertext0, plaintext1.Value.Coeffs[0], ciphertext0)
 		}
 	})
 
@@ -164,7 +164,7 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 
 	b.Run(GetTestName("Evaluator/MulRelinInvariant/Ct/Ct", params, level), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			eval.MulRelinInvariant(ciphertext0, ciphertext1, ciphertext0)
+			eval.MulRelinScaleInvariant(ciphertext0, ciphertext1, ciphertext0)
 		}
 	})
 

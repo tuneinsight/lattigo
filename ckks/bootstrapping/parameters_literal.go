@@ -14,13 +14,15 @@ import (
 // and create the bootstrapping `Parameter` struct, which is used to instantiate a `Bootstrapper`.
 // This struct contains only optional fields.
 // The default bootstrapping (with no optional field) has
-// - Depth 4 for CoeffsToSlots
-// - Depth 8 for EvalMod
-// - Depth 3 for SlotsToCoeffs
+//   - Depth 4 for CoeffsToSlots
+//   - Depth 8 for EvalMod
+//   - Depth 3 for SlotsToCoeffs
+//
 // for a total depth of 15 and a bit consumption of 821
 // A precision, for complex values with both real and imaginary parts uniformly distributed in -1, 1 of
-// - 27.25 bits for H=192
-// - 23.8 bits for H=32768,
+//   - 27.25 bits for H=192
+//   - 23.8 bits for H=32768,
+//
 // And a failure probability of 2^{-138.7} for 2^{15} slots.
 //
 // =====================================

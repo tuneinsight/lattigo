@@ -1,4 +1,4 @@
-// Package cosine is the Go implementation of the approximation polynomial algorithm from Han and Ki in
+// Package cosine is the Go implementation of the polynomial-approximation algorithm by Han and Ki in
 //
 //	"Better Bootstrapping for Approximate Homomorphic Encryption", <https://epring.iacr.org/2019/688O>.
 //

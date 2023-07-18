@@ -73,7 +73,7 @@ func GetSortedKeys[K constraints.Ordered, V any](m map[K]V) (keys []K) {
 	return
 }
 
-// GetDistincts returns the list distinct element in v.
+// GetDistincts returns the list of distinct elements in v.
 func GetDistincts[V comparable](v []V) (vd []V) {
 	m := map[V]bool{}
 	for _, vi := range v {

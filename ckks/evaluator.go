@@ -50,9 +50,10 @@ func newEvaluatorBuffers(parameters Parameters) *evaluatorBuffers {
 
 // Add adds op1 to op0 and returns the result in opOut.
 // The following types are accepted for op1:
-// - rlwe.OperandInterface[ring.Poly]
-// - complex128, float64, int, int64, uint, uint64, *big.Int, *big.Float, *bignum.Complex
-// - []complex128, []float64, []*big.Float or []*bignum.Complex
+//   - rlwe.OperandInterface[ring.Poly]
+//   - complex128, float64, int, int64, uint, uint64, *big.Int, *big.Float, *bignum.Complex
+//   - []complex128, []float64, []*big.Float or []*bignum.Complex
+//
 // Passing an invalid type will return an error.
 func (eval Evaluator) Add(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
 
@@ -124,9 +125,10 @@ func (eval Evaluator) Add(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Cip
 
 // AddNew adds op1 to op0 and returns the result in a newly created element opOut.
 // The following types are accepted for op1:
-// - rlwe.OperandInterface[ring.Poly]
-// - complex128, float64, int, int64, uint, uint64, *big.Int, *big.Float, *bignum.Complex
-// - []complex128, []float64, []*big.Float or []*bignum.Complex
+//   - rlwe.OperandInterface[ring.Poly]
+//   - complex128, float64, int, int64, uint, uint64, *big.Int, *big.Float, *bignum.Complex
+//   - []complex128, []float64, []*big.Float or []*bignum.Complex
+//
 // Passing an invalid type will return an error.
 func (eval Evaluator) AddNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext, err error) {
 	opOut = NewCiphertext(eval.parameters, op0.Degree(), op0.Level())
@@ -135,9 +137,10 @@ func (eval Evaluator) AddNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe
 
 // Sub subtracts op1 from op0 and returns the result in opOut.
 // The following types are accepted for op1:
-// - rlwe.OperandInterface[ring.Poly]
-// - complex128, float64, int, int64, uint, uint64, *big.Int, *big.Float, *bignum.Complex
-// - []complex128, []float64, []*big.Float or []*bignum.Complex
+//   - rlwe.OperandInterface[ring.Poly]
+//   - complex128, float64, int, int64, uint, uint64, *big.Int, *big.Float, *bignum.Complex
+//   - []complex128, []float64, []*big.Float or []*bignum.Complex
+//
 // Passing an invalid type will return an error.
 func (eval Evaluator) Sub(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
 
@@ -216,9 +219,10 @@ func (eval Evaluator) Sub(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Cip
 
 // SubNew subtracts op1 from op0 and returns the result in a newly created element opOut.
 // The following types are accepted for op1:
-// - rlwe.OperandInterface[ring.Poly]
-// - complex128, float64, int, int64, uint, uint64, *big.Int, *big.Float, *bignum.Complex
-// - []complex128, []float64, []*big.Float or []*bignum.Complex
+//   - rlwe.OperandInterface[ring.Poly]
+//   - complex128, float64, int, int64, uint, uint64, *big.Int, *big.Float, *bignum.Complex
+//   - []complex128, []float64, []*big.Float or []*bignum.Complex
+//
 // Passing an invalid type will return an error.
 func (eval Evaluator) SubNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext, err error) {
 	opOut = NewCiphertext(eval.parameters, op0.Degree(), op0.Level())
@@ -544,7 +548,7 @@ func (eval Evaluator) Rescale(op0 *rlwe.Ciphertext, minScale rlwe.Scale, opOut *
 // op1.(type) can be rlwe.OperandInterface[ring.Poly], complex128, float64, int, int64, uint64. *big.Float, *big.Int or *ring.Complex.
 //
 // If op1.(type) == rlwe.OperandInterface[ring.Poly]:
-// - The procedure will return an error if either op0.Degree or op1.Degree > 1.
+//   - The procedure will return an error if either op0.Degree or op1.Degree > 1.
 func (eval Evaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext, err error) {
 	opOut = NewCiphertext(eval.parameters, op0.Degree(), op0.Level())
 	return opOut, eval.Mul(op0, op1, opOut)
@@ -553,14 +557,15 @@ func (eval Evaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe
 // Mul multiplies op0 with op1 without relinearization and returns the result in opOut.
 //
 // The following types are accepted for op1:
-// - rlwe.OperandInterface[ring.Poly]
-// - complex128, float64, int, int64, uint, uint64, *big.Int, *big.Float, *bignum.Complex
-// - []complex128, []float64, []*big.Float or []*bignum.Complex
+//   - rlwe.OperandInterface[ring.Poly]
+//   - complex128, float64, int, int64, uint, uint64, *big.Int, *big.Float, *bignum.Complex
+//   - []complex128, []float64, []*big.Float or []*bignum.Complex
+//
 // Passing an invalid type will return an error.
 //
 // If op1.(type) == rlwe.OperandInterface[ring.Poly]:
-// - The procedure will return an error if either op0 or op1 are have a degree higher than 1.
-// - The procedure will return an error if opOut.Degree != op0.Degree + op1.Degree.
+//   - The procedure will return an error if either op0 or op1 are have a degree higher than 1.
+//   - The procedure will return an error if opOut.Degree != op0.Degree + op1.Degree.
 func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
 	switch op1 := op1.(type) {
 	case rlwe.OperandInterface[ring.Poly]:
@@ -661,9 +666,10 @@ func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Cip
 // MulRelinNew multiplies op0 with op1 with relinearization and returns the result in a newly created element.
 //
 // The following types are accepted for op1:
-// - rlwe.OperandInterface[ring.Poly]
-// - complex128, float64, int, int64, uint, uint64, *big.Int, *big.Float, *bignum.Complex
-// - []complex128, []float64, []*big.Float or []*bignum.Complex
+//   - rlwe.OperandInterface[ring.Poly]
+//   - complex128, float64, int, int64, uint, uint64, *big.Int, *big.Float, *bignum.Complex
+//   - []complex128, []float64, []*big.Float or []*bignum.Complex
+//
 // Passing an invalid type will return an error.
 //
 // The procedure will return an error if either op0.Degree or op1.Degree > 1.
@@ -682,9 +688,10 @@ func (eval Evaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut 
 // MulRelin multiplies op0 with op1 with relinearization and returns the result in opOut.
 //
 // The following types are accepted for op1:
-// - rlwe.OperandInterface[ring.Poly]
-// - complex128, float64, int, int64, uint, uint64, *big.Int, *big.Float, *bignum.Complex
-// - []complex128, []float64, []*big.Float or []*bignum.Complex
+//   - rlwe.OperandInterface[ring.Poly]
+//   - complex128, float64, int, int64, uint, uint64, *big.Int, *big.Float, *bignum.Complex
+//   - []complex128, []float64, []*big.Float or []*bignum.Complex
+//
 // Passing an invalid type will return an error.
 //
 // The procedure will return an error if either op0.Degree or op1.Degree > 1.
@@ -811,16 +818,17 @@ func (eval Evaluator) mulRelin(op0 *rlwe.Ciphertext, op1 *rlwe.Operand[ring.Poly
 // MulThenAdd evaluate opOut = opOut + op0 * op1.
 //
 // The following types are accepted for op1:
-// - rlwe.OperandInterface[ring.Poly]
-// - complex128, float64, int, int64, uint, uint64, *big.Int, *big.Float, *bignum.Complex
-// - []complex128, []float64, []*big.Float or []*bignum.Complex
+//   - rlwe.OperandInterface[ring.Poly]
+//   - complex128, float64, int, int64, uint, uint64, *big.Int, *big.Float, *bignum.Complex
+//   - []complex128, []float64, []*big.Float or []*bignum.Complex
+//
 // Passing an invalid type will return an error.
 //
 // If op1.(type) is complex128, float64, int, int64, uint64. *big.Float, *big.Int or *ring.Complex:
 //
 // This function will not modify op0 but will multiply opOut by Q[min(op0.Level(), opOut.Level())] if:
-// - op0.PlaintextScale == opOut.PlaintextScale
-// - constant is not a Gaussian integer.
+//   - op0.PlaintextScale == opOut.PlaintextScale
+//   - constant is not a Gaussian integer.
 //
 // If op0.PlaintextScale == opOut.PlaintextScale, and constant is not a Gaussian integer, then the constant will be scaled by
 // Q[min(op0.Level(), opOut.Level())] else if opOut.PlaintextScale > op0.PlaintextScale, the constant will be scaled by opOut.PlaintextScale/op0.PlaintextScale.
@@ -829,8 +837,9 @@ func (eval Evaluator) mulRelin(op0 *rlwe.Ciphertext, op1 *rlwe.Operand[ring.Poly
 // opOut.PlaintextScale = op0.PlaintextScale * Q[min(op0.Level(), opOut.Level())].
 //
 // If op1.(type) is []complex128, []float64, []*big.Float or []*bignum.Complex:
-// - If opOut.PlaintextScale == op0.PlaintextScale, op1 will be encoded and scaled by Q[min(op0.Level(), opOut.Level())]
-// - If opOut.PlaintextScale > op0.PlaintextScale, op1 will be encoded ans scaled by opOut.PlaintextScale/op1.PlaintextScale.
+//   - If opOut.PlaintextScale == op0.PlaintextScale, op1 will be encoded and scaled by Q[min(op0.Level(), opOut.Level())]
+//   - If opOut.PlaintextScale > op0.PlaintextScale, op1 will be encoded ans scaled by opOut.PlaintextScale/op1.PlaintextScale.
+//
 // Then the method will recurse with op1 given as rlwe.OperandInterface[ring.Poly].
 //
 // If op1.(type) is rlwe.OperandInterface[ring.Poly], the multiplication is carried outwithout relinearization and:
@@ -838,9 +847,9 @@ func (eval Evaluator) mulRelin(op0 *rlwe.Ciphertext, op1 *rlwe.Operand[ring.Poly
 // This function will return an error if op0.PlaintextScale > opOut.PlaintextScale and user must ensure that opOut.PlaintextScale <= op0.PlaintextScale * op1.PlaintextScale.
 // If opOut.PlaintextScale < op0.PlaintextScale * op1.PlaintextScale, then scales up opOut before adding the result.
 // Additionally, the procedure will return an error if:
-// - either op0 or op1 are have a degree higher than 1.
-// - opOut.Degree != op0.Degree + op1.Degree.
-// - opOut = op0 or op1.
+//   - either op0 or op1 are have a degree higher than 1.
+//   - opOut.Degree != op0.Degree + op1.Degree.
+//   - opOut = op0 or op1.
 func (eval Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
 	switch op1 := op1.(type) {
 	case rlwe.OperandInterface[ring.Poly]:
@@ -971,9 +980,10 @@ func (eval Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, opOut *r
 // MulRelinThenAdd multiplies op0 with op1 with relinearization and adds the result on opOut.
 //
 // The following types are accepted for op1:
-// - rlwe.OperandInterface[ring.Poly]
-// - complex128, float64, int, int64, uint, uint64, *big.Int, *big.Float, *bignum.Complex
-// - []complex128, []float64, []*big.Float or []*bignum.Complex
+//   - rlwe.OperandInterface[ring.Poly]
+//   - complex128, float64, int, int64, uint, uint64, *big.Int, *big.Float, *bignum.Complex
+//   - []complex128, []float64, []*big.Float or []*bignum.Complex
+//
 // Passing an invalid type will return an error.
 //
 // User must ensure that opOut.PlaintextScale <= op0.PlaintextScale * op1.PlaintextScale.

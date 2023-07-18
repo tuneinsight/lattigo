@@ -15,8 +15,8 @@ import (
 // NewPlaintext allocates a new rlwe.Plaintext.
 //
 // inputs:
-// - params: an rlwe.ParametersInterface interface
-// - level: the level of the plaintext
+//   - params: an rlwe.ParametersInterface interface
+//   - level: the level of the plaintext
 //
 // output: a newly allocated rlwe.Plaintext at the specified level.
 //
@@ -30,9 +30,12 @@ func NewPlaintext(params rlwe.ParametersInterface, level int) (pt *rlwe.Plaintex
 // NewCiphertext allocates a new rlwe.Ciphertext.
 //
 // inputs:
-// - params: an rlwe.ParametersInterface interface
-// - degree: the degree of the ciphertext
-// - level: the level of the Ciphertext
+//
+//   - params: an rlwe.ParametersInterface interface
+//
+//   - degree: the degree of the ciphertext
+//
+//   - level: the level of the Ciphertext
 //
 // output: a newly allocated rlwe.Ciphertext of the specified degree and level.
 func NewCiphertext(params rlwe.ParametersInterface, degree, level int) (ct *rlwe.Ciphertext) {
@@ -42,30 +45,19 @@ func NewCiphertext(params rlwe.ParametersInterface, degree, level int) (ct *rlwe
 // NewEncryptor instantiates a new rlwe.Encryptor.
 //
 // inputs:
-// - params: an rlwe.ParametersInterface interface
-// - key: *rlwe.SecretKey or *rlwe.PublicKey
+//   - params: an rlwe.ParametersInterface interface
+//   - key: *rlwe.SecretKey or *rlwe.PublicKey
 //
 // output: an rlwe.Encryptor instantiated with the provided key.
 func NewEncryptor(params rlwe.ParametersInterface, key rlwe.EncryptionKey) (*rlwe.Encryptor, error) {
 	return rlwe.NewEncryptor(params, key)
 }
 
-// // NewPRNGEncryptor instantiates a new rlwe.PRNGEncryptor.
-// //
-// // inputs:
-// // - params: an rlwe.ParametersInterface interface
-// // - key: *rlwe.SecretKey
-// //
-// // output: an rlwe.PRNGEncryptor instantiated with the provided key.
-// func NewPRNGEncryptor(params rlwe.ParametersInterface, key *rlwe.SecretKey) (rlwe.PRNGEncryptorInterface, error) {
-// 	return rlwe.NewPRNGEncryptor(params, key)
-// }
-
 // NewDecryptor instantiates a new rlwe.Decryptor.
 //
 // inputs:
-// - params: an rlwe.ParametersInterface interface
-// - key: *rlwe.SecretKey
+//   - params: an rlwe.ParametersInterface interface
+//   - key: *rlwe.SecretKey
 //
 // output: an rlwe.Decryptor instantiated with the provided key.
 func NewDecryptor(params rlwe.ParametersInterface, key *rlwe.SecretKey) (*rlwe.Decryptor, error) {
@@ -75,7 +67,7 @@ func NewDecryptor(params rlwe.ParametersInterface, key *rlwe.SecretKey) (*rlwe.D
 // NewKeyGenerator instantiates a new rlwe.KeyGenerator.
 //
 // inputs:
-// - params: an rlwe.ParametersInterface interface
+//   - params: an rlwe.ParametersInterface interface
 //
 // output: an rlwe.KeyGenerator.
 func NewKeyGenerator(params rlwe.ParametersInterface) *rlwe.KeyGenerator {
@@ -133,15 +125,16 @@ func (eval Evaluator) ShallowCopy() *Evaluator {
 
 // Mul multiplies op0 with op1 without relinearization and returns the result in opOut.
 // inputs:
-// - op0: an *rlwe.Ciphertext
-// - op1: an rlwe.OperandInterface[ring.Poly], an uint64 or an []uint64 slice (of size at most N where N is the smallest integer satisfying T = 1 mod 2N)
-// - opOut: an *rlwe.Ciphertext
+//   - op0: an *rlwe.Ciphertext
+//   - op1: an rlwe.OperandInterface[ring.Poly], an uint64 or an []uint64 slice (of size at most N where N is the smallest integer satisfying T = 1 mod 2N)
+//   - opOut: an *rlwe.Ciphertext
+//
 // The procedure will return an error if either op0 or op1 are have a degree higher than 1.
 // The procedure will return an error if opOut.Degree != op0.Degree + op1.Degree.
 func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
 	switch op1 := op1.(type) {
 	case rlwe.OperandInterface[ring.Poly], []uint64:
-		return eval.Evaluator.MulInvariant(op0, op1, opOut)
+		return eval.Evaluator.MulScaleInvariant(op0, op1, opOut)
 	case uint64, int64, int:
 		return eval.Evaluator.Mul(op0, op1, op0)
 	default:
@@ -152,14 +145,15 @@ func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Cip
 
 // MulNew multiplies op0 with op1 without relinearization and returns the result in a new opOut.
 // inputs:
-// - op0: an *rlwe.Ciphertext
-// - op1: an rlwe.OperandInterface[ring.Poly], an uint64 or an []uint64 slice (of size at most N where N is the smallest integer satisfying T = 1 mod 2N)
-// - opOut: an *rlwe.Ciphertext
+//   - op0: an *rlwe.Ciphertext
+//   - op1: an rlwe.OperandInterface[ring.Poly], an uint64 or an []uint64 slice (of size at most N where N is the smallest integer satisfying T = 1 mod 2N)
+//   - opOut: an *rlwe.Ciphertext
+//
 // The procedure will return an error if either op0.Degree or op1.Degree > 1.
 func (eval Evaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext, err error) {
 	switch op1 := op1.(type) {
 	case rlwe.OperandInterface[ring.Poly], []uint64:
-		return eval.Evaluator.MulInvariantNew(op0, op1)
+		return eval.Evaluator.MulScaleInvariantNew(op0, op1)
 	case uint64, int64, int:
 		return eval.Evaluator.MulNew(op0, op1)
 	default:
@@ -169,25 +163,27 @@ func (eval Evaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe
 
 // MulRelinNew multiplies op0 with op1 with relinearization and returns the result in a new opOut.
 // inputs:
-// - op0: an *rlwe.Ciphertext
-// - op1: an rlwe.OperandInterface[ring.Poly], an uint64 or an []uint64 slice (of size at most N where N is the smallest integer satisfying T = 1 mod 2N)
-// - opOut: an *rlwe.Ciphertext
+//   - op0: an *rlwe.Ciphertext
+//   - op1: an rlwe.OperandInterface[ring.Poly], an uint64 or an []uint64 slice (of size at most N where N is the smallest integer satisfying T = 1 mod 2N)
+//   - opOut: an *rlwe.Ciphertext
+//
 // The procedure will return an error if either op0.Degree or op1.Degree > 1.
 // The procedure will return an error if the evaluator was not created with an relinearization key.
 func (eval Evaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext, err error) {
-	return eval.Evaluator.MulRelinInvariantNew(op0, op1)
+	return eval.Evaluator.MulRelinScaleInvariantNew(op0, op1)
 }
 
 // MulRelin multiplies op0 with op1 with relinearization and returns the result in opOut.
 // inputs:
-// - op0: an *rlwe.Ciphertext
-// - op1: an rlwe.OperandInterface[ring.Poly], an uint64 or an []uint64 slice (of size at most N where N is the smallest integer satisfying T = 1 mod 2N)
-// - opOut: an *rlwe.Ciphertext
+//   - op0: an *rlwe.Ciphertext
+//   - op1: an rlwe.OperandInterface[ring.Poly], an uint64 or an []uint64 slice (of size at most N where N is the smallest integer satisfying T = 1 mod 2N)
+//   - opOut: an *rlwe.Ciphertext
+//
 // The procedure will return an error if either op0.Degree or op1.Degree > 1.
 // The procedure will return an error if opOut.Degree != op0.Degree + op1.Degree.
 // The procedure will return an error if the evaluator was not created with an relinearization key.
 func (eval Evaluator) MulRelin(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
-	return eval.Evaluator.MulRelinInvariant(op0, op1, opOut)
+	return eval.Evaluator.MulRelinScaleInvariant(op0, op1, opOut)
 }
 
 // NewPowerBasis creates a new PowerBasis from the input ciphertext.
@@ -200,8 +196,8 @@ func NewPowerBasis(ct *rlwe.Ciphertext) rlwe.PowerBasis {
 // Polynomial evaluates opOut = P(input).
 //
 // inputs:
-// - input: *rlwe.Ciphertext or *rlwe.PoweBasis
-// - pol: *bignum.Polynomial, *rlwe.Polynomial or *rlwe.PolynomialVector
+//   - input: *rlwe.Ciphertext or *rlwe.PoweBasis
+//   - pol: *bignum.Polynomial, *rlwe.Polynomial or *rlwe.PolynomialVector
 //
 // output: an *rlwe.Ciphertext encrypting pol(input)
 func (eval Evaluator) Polynomial(input, pol interface{}) (opOut *rlwe.Ciphertext, err error) {

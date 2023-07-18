@@ -42,8 +42,9 @@ type DistributionLiteral interface{}
 // the desired moduli sizes.
 //
 // Optionally, users may specify
-// - the base 2 decomposition for the gadget ciphertexts
-// - the error variance (Sigma) and secrets' density (H) and the ring type (RingType).
+//   - the base 2 decomposition for the gadget ciphertexts
+//   - the error variance (Sigma) and secrets' density (H) and the ring type (RingType).
+//
 // If left unset, standard default values for these field are substituted at
 // parameter creation (see NewParametersFromLiteral).
 type ParametersLiteral struct {

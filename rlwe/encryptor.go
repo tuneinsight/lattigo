@@ -319,7 +319,7 @@ func (enc Encryptor) encryptZeroPkNoP(pk *PublicKey, ct Operand[ring.Poly]) (err
 	return
 }
 
-// EncryptZero generates an encryption of zero using the stored secret-key and writes the result on ct.
+// encryptZeroSk generates an encryption of zero using the stored secret-key and writes the result on ct.
 // The method accepts only *rlwe.Ciphertext or *rgsw.Ciphertext as input and will return an error otherwise.
 // The zero encryption is generated according to the given Ciphertext MetaData.
 func (enc Encryptor) encryptZeroSk(sk *SecretKey, ct interface{}) (err error) {

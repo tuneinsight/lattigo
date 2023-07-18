@@ -6,10 +6,11 @@ import (
 
 // ChebyshevApproximation computes a Chebyshev approximation of the input function, for the range [-a, b] of degree degree.
 // f.(type) can be either :
-// - func(Complex128)Complex128
-// - func(float64)float64
-// - func(*big.Float)*big.Float
-// - func(*Complex)*Complex
+//   - func(Complex128)Complex128
+//   - func(float64)float64
+//   - func(*big.Float)*big.Float
+//   - func(*Complex)*Complex
+//
 // The reference precision is taken from the values stored in the Interval struct.
 func ChebyshevApproximation(f interface{}, interval Interval) (pol Polynomial) {
 

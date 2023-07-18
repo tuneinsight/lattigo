@@ -112,8 +112,8 @@ func NewPolynomial(basis Basis, coeffs interface{}, interval interface{}) Polyno
 
 // ChangeOfBasis returns change of basis required to evaluate the polynomial
 // Change of basis is defined as follow:
-// - Monomial: scalar=1, constant=0.
-// - Chebyshev: scalar=2/(b-a), constant = (-a-b)/(b-a).
+//   - Monomial: scalar=1, constant=0.
+//   - Chebyshev: scalar=2/(b-a), constant = (-a-b)/(b-a).
 func (p *Polynomial) ChangeOfBasis() (scalar, constant *big.Float) {
 
 	switch p.Basis {

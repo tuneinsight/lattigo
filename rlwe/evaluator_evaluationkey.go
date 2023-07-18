@@ -26,14 +26,14 @@ import (
 // matching the target ring degrees.
 //
 // To switch a ciphertext to a smaller ring degree:
-// - ctIn ring degree must match the evaluator's ring degree.
-// - opOut ring degree must match the smaller ring degree.
-// - evk must have been generated using the key-generator of the large ring degree with as input large-key -> small-key.
+//   - ctIn ring degree must match the evaluator's ring degree.
+//   - opOut ring degree must match the smaller ring degree.
+//   - evk must have been generated using the key-generator of the large ring degree with as input large-key -> small-key.
 //
 // To switch a ciphertext to a smaller ring degree:
-// - ctIn ring degree must match the smaller ring degree.
-// - opOut ring degree must match the evaluator's ring degree.
-// - evk must have been generated using the key-generator of the large ring degree with as input small-key -> large-key.
+//   - ctIn ring degree must match the smaller ring degree.
+//   - opOut ring degree must match the evaluator's ring degree.
+//   - evk must have been generated using the key-generator of the large ring degree with as input small-key -> large-key.
 func (eval Evaluator) ApplyEvaluationKey(ctIn *Ciphertext, evk *EvaluationKey, opOut *Ciphertext) (err error) {
 
 	if ctIn.Degree() != 1 || opOut.Degree() != 1 {
@@ -116,8 +116,9 @@ func (eval Evaluator) applyEvaluationKey(level int, ctIn *Ciphertext, evk *Evalu
 // In a nutshell, the relinearization re-encrypt the term that decrypts using sk^2 to one
 // that decrypts using sk.
 // The method will return an error if:
-// - The input ciphertext degree isn't 2.
-// - The corresponding relinearization key to the ciphertext degree
+//   - The input ciphertext degree isn't 2.
+//   - The corresponding relinearization key to the ciphertext degree
+//
 // is missing.
 func (eval Evaluator) Relinearize(ctIn *Ciphertext, opOut *Ciphertext) (err error) {
 

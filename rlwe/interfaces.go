@@ -45,22 +45,6 @@ type ParametersInterface interface {
 	Equal(other ParametersInterface) bool
 }
 
-// DecryptorInterface is a generic RLWE decryption interface.
-type DecryptorInterface interface {
-	Decrypt(ct *Ciphertext, pt *Plaintext)
-	DecryptNew(ct *Ciphertext) (pt *Plaintext)
-	ShallowCopy() DecryptorInterface
-	WithKey(sk *SecretKey) Decryptor
-}
-
-// // PRNGEncryptorInterface is an interface for encrypting RLWE ciphertexts from a secret-key and
-// // a pre-determined PRNG. An Encryptor constructed from a secret-key complies to this
-// // interface.
-// type PRNGEncryptorInterface interface {
-// 	Encryptor
-// 	WithPRNG(prng sampling.PRNG) PRNGEncryptorInterface
-// }
-
 // EncoderInterface defines a set of common and scheme agnostic method provided by an Encoder struct.
 type EncoderInterface[T any, U *ring.Poly | ringqp.Poly | *Plaintext] interface {
 	Encode(values []T, metaData *MetaData, output U) (err error)

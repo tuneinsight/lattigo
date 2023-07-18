@@ -192,11 +192,11 @@ func testHomomorphicEncoding(params Parameters, LogSlots int, t *testing.T) {
 		pt := NewPlaintext(params, params.MaxLevel())
 		pt.PlaintextLogDimensions = [2]int{0, LogSlots}
 
-		pt.EncodingDomain = rlwe.TimeDomain
+		pt.EncodingDomain = rlwe.CoeffsDomain
 		if err = encoder.Encode(valuesFloat, pt); err != nil {
 			t.Fatal(err)
 		}
-		pt.EncodingDomain = rlwe.FrequencyDomain
+		pt.EncodingDomain = rlwe.SlotsDomain
 
 		ct, err := encryptor.EncryptNew(pt)
 		require.NoError(t, err)
@@ -208,7 +208,7 @@ func testHomomorphicEncoding(params Parameters, LogSlots int, t *testing.T) {
 		// Checks against the original coefficients
 		if sparse {
 
-			ct0.EncodingDomain = rlwe.TimeDomain
+			ct0.EncodingDomain = rlwe.CoeffsDomain
 
 			have := make([]*big.Float, params.N())
 
@@ -244,8 +244,8 @@ func testHomomorphicEncoding(params Parameters, LogSlots int, t *testing.T) {
 
 		} else {
 
-			ct0.EncodingDomain = rlwe.TimeDomain
-			ct1.EncodingDomain = rlwe.TimeDomain
+			ct0.EncodingDomain = rlwe.CoeffsDomain
+			ct1.EncodingDomain = rlwe.CoeffsDomain
 
 			haveReal := make([]*big.Float, params.N())
 			if err = encoder.Decode(decryptor.DecryptNew(ct0), haveReal); err != nil {
@@ -411,7 +411,7 @@ func testHomomorphicDecoding(params Parameters, LogSlots int, t *testing.T) {
 
 		// Decrypt and decode in the coefficient domain
 		coeffsFloat := make([]*big.Float, params.N())
-		res.EncodingDomain = rlwe.TimeDomain
+		res.EncodingDomain = rlwe.CoeffsDomain
 
 		if err = encoder.Decode(decryptor.DecryptNew(res), coeffsFloat); err != nil {
 			t.Fatal(err)

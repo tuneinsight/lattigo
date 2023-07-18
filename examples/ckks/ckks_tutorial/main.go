@@ -138,10 +138,10 @@ func main() {
 	prec := params.PlaintextPrecision() // we will need this value later
 
 	// Note that the following fields in the `ckks.ParametersLiteral`are optional, but can be manually specified by advanced users:
-	// - `Xs`: the secret distribution (default uniform ternary)
-	// - `Xe`: the error distribution (default discrete Gaussian with standard deviation of 3.2 and truncated to 19)
-	// - `PowBase`: the log2 of the binary decomposition (default 0, i.e. infinity, i.e. no decomposition)
-	// - `RingType`: the ring to be used, (default Z[X]/(X^{N}+1))
+	//   - `Xs`: the secret distribution (default uniform ternary)
+	//   - `Xe`: the error distribution (default discrete Gaussian with standard deviation of 3.2 and truncated to 19)
+	//   - `PowBase`: the log2 of the binary decomposition (default 0, i.e. infinity, i.e. no decomposition)
+	//   - `RingType`: the ring to be used, (default Z[X]/(X^{N}+1))
 	//
 	// We can check the total logQP of the parameters with `params.LogQP()`.
 	// For a ring degree 2^{14}, we must ensure that LogQP <= 438 to ensure at least 128 bits of security.
@@ -154,9 +154,9 @@ func main() {
 	kgen := ckks.NewKeyGenerator(params)
 
 	// For now we will generate the following keys:
-	// - SecretKey: the secret from which all other keys are derived
-	// - PublicKey: an encryption of zero, which can be shared and enable anyone to encrypt plaintexts.
-	// - RelinearizationKey: an evaluation key which is used during ciphertext x ciphertext multiplication to ensure ciphertext compactness.
+	//   - SecretKey: the secret from which all other keys are derived
+	//   - PublicKey: an encryption of zero, which can be shared and enable anyone to encrypt plaintexts.
+	//   - RelinearizationKey: an evaluation key which is used during ciphertext x ciphertext multiplication to ensure ciphertext compactness.
 	sk := kgen.GenSecretKeyNew()
 	pk, err := kgen.GenPublicKeyNew(sk) // Note that we can generate any number of public keys associated to the same Secret Key.
 	if err != nil {
@@ -192,9 +192,9 @@ func main() {
 	// We allocate a new plaintext, at the maximum level.
 	// We can allocate plaintexts at lower levels to optimize memory consumption for operations that we know will happen at a lower level.
 	// Plaintexts (and ciphertexts) are by default created with the following metadata:
-	// - `Scale`: `params.PlaintextScale()` (which is 2^{45} in this example)
-	// - `EncodingDomain`: `rlwe.SlotsDomain` (this is the default value)
-	// - `LogSlots`: `params.MaxLogSlots` (which is LogN-1=13 in this example)
+	//   - `Scale`: `params.PlaintextScale()` (which is 2^{45} in this example)
+	//   - `EncodingDomain`: `rlwe.SlotsDomain` (this is the default value)
+	//   - `LogSlots`: `params.MaxLogSlots` (which is LogN-1=13 in this example)
 	// We can check that the plaintext was created at the maximum level with pt1.Level().
 	pt1 := ckks.NewPlaintext(params, params.MaxLevel())
 
@@ -669,9 +669,9 @@ func main() {
 	// | 2 3 0 1 |
 	//
 	// This matrix has 3 non zero diagonals at indexes [0, 1, 2]:
-	// - 0: [1, 1, 1, 1]
-	// - 1: [2, 2, 2, 2]
-	// - 2: [3, 3, 3, 3]
+	//   - 0: [1, 1, 1, 1]
+	//   - 1: [2, 2, 2, 2]
+	//   - 2: [3, 3, 3, 3]
 	//
 
 	nonZeroDiagonales := []int{-15, -4, -1, 0, 1, 2, 3, 4, 15}

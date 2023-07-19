@@ -287,18 +287,18 @@ type EvaluationKeyParameters struct {
 	BaseTwoDecomposition int
 }
 
-func getEVKParams(params ParametersInterface, evkParams []EvaluationKeyParameters) (evkParamsCpy EvaluationKeyParameters) {
+func getEVKParams(params ParametersInterface, evkParams []EvaluationKeyParameters) (evkParamsCpy []EvaluationKeyParameters) {
 	if len(evkParams) != 0 {
-		evkParamsCpy = evkParams[0]
+		evkParamsCpy = evkParams
 	} else {
-		evkParamsCpy = EvaluationKeyParameters{LevelQ: params.MaxLevelQ(), LevelP: params.MaxLevelP(), BaseTwoDecomposition: 0}
+		evkParamsCpy = []EvaluationKeyParameters{{LevelQ: params.MaxLevelQ(), LevelP: params.MaxLevelP(), BaseTwoDecomposition: 0}}
 	}
 	return
 }
 
 // NewEvaluationKey returns a new EvaluationKey with pre-allocated zero-value.
 func NewEvaluationKey(params ParametersInterface, evkParams ...EvaluationKeyParameters) *EvaluationKey {
-	evkParamsCpy := getEVKParams(params, evkParams)
+	evkParamsCpy := getEVKParams(params, evkParams)[0]
 	return &EvaluationKey{GadgetCiphertext: *NewGadgetCiphertext(params, 1, evkParamsCpy.LevelQ, evkParamsCpy.LevelP, evkParamsCpy.BaseTwoDecomposition)}
 }
 
@@ -322,7 +322,7 @@ type RelinearizationKey struct {
 
 // NewRelinearizationKey allocates a new RelinearizationKey with zero coefficients.
 func NewRelinearizationKey(params ParametersInterface, evkParams ...EvaluationKeyParameters) *RelinearizationKey {
-	return &RelinearizationKey{EvaluationKey: *NewEvaluationKey(params, getEVKParams(params, evkParams))}
+	return &RelinearizationKey{EvaluationKey: *NewEvaluationKey(params, getEVKParams(params, evkParams)[0])}
 }
 
 // CopyNew creates a deep copy of the object and returns it.
@@ -354,7 +354,7 @@ type GaloisKey struct {
 
 // NewGaloisKey allocates a new GaloisKey with zero coefficients and GaloisElement set to zero.
 func NewGaloisKey(params ParametersInterface, evkParams ...EvaluationKeyParameters) *GaloisKey {
-	return &GaloisKey{EvaluationKey: *NewEvaluationKey(params, getEVKParams(params, evkParams)), NthRoot: params.RingQ().NthRoot()}
+	return &GaloisKey{EvaluationKey: *NewEvaluationKey(params, getEVKParams(params, evkParams)[0]), NthRoot: params.RingQ().NthRoot()}
 }
 
 // Equal returns true if the two objects are equal.

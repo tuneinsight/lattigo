@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/big"
 
+	"github.com/tuneinsight/lattigo/v4/he"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
@@ -16,7 +17,7 @@ import (
 type Evaluator struct {
 	*evaluatorBase
 	*evaluatorBuffers
-	*rlwe.Evaluator
+	*he.Evaluator
 	*Encoder
 }
 
@@ -71,11 +72,6 @@ func (eval Evaluator) BuffQ() [3]ring.Poly {
 	return eval.buffQ
 }
 
-// GetRLWEEvaluator returns the underlying *rlwe.Evaluator of the target *Evaluator.
-func (eval Evaluator) GetRLWEEvaluator() *rlwe.Evaluator {
-	return eval.Evaluator
-}
-
 func newEvaluatorBuffer(params Parameters) *evaluatorBuffers {
 
 	ringQ := params.RingQ()
@@ -112,7 +108,7 @@ func NewEvaluator(parameters Parameters, evk rlwe.EvaluationKeySet) *Evaluator {
 	ev := new(Evaluator)
 	ev.evaluatorBase = newEvaluatorPrecomp(parameters)
 	ev.evaluatorBuffers = newEvaluatorBuffer(parameters)
-	ev.Evaluator = rlwe.NewEvaluator(parameters, evk)
+	ev.Evaluator = he.NewEvaluator(parameters, evk)
 	ev.Encoder = NewEncoder(parameters)
 
 	return ev

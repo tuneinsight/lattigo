@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/tuneinsight/lattigo/v4/he"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
@@ -825,7 +826,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 			diagonals[15][i] = 1
 		}
 
-		ltparams := rlwe.MemLinearTransformationParameters[uint64]{
+		ltparams := he.MemLinearTransformationParameters[uint64]{
 			Diagonals:                diagonals,
 			Level:                    ciphertext.Level(),
 			PlaintextScale:           tc.params.PlaintextScale(),
@@ -839,7 +840,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 		// Encode on the linear transformation
 		require.NoError(t, EncodeLinearTransformation[uint64](linTransf, ltparams, tc.encoder))
 
-		galEls := rlwe.GaloisElementsForLinearTransformation[uint64](params, ltparams)
+		galEls := he.GaloisElementsForLinearTransformation[uint64](params, ltparams)
 
 		gks, err := tc.kgen.GenGaloisKeysNew(galEls, tc.sk)
 		require.NoError(t, err)
@@ -896,7 +897,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 			diagonals[15][i] = 1
 		}
 
-		ltparams := rlwe.MemLinearTransformationParameters[uint64]{
+		ltparams := he.MemLinearTransformationParameters[uint64]{
 			Diagonals:                diagonals,
 			Level:                    ciphertext.Level(),
 			PlaintextScale:           tc.params.PlaintextScale(),
@@ -910,7 +911,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 		// Encode on the linear transformation
 		require.NoError(t, EncodeLinearTransformation[uint64](linTransf, ltparams, tc.encoder))
 
-		galEls := rlwe.GaloisElementsForLinearTransformation[uint64](params, ltparams)
+		galEls := he.GaloisElementsForLinearTransformation[uint64](params, ltparams)
 
 		gks, err := tc.kgen.GenGaloisKeysNew(galEls, tc.sk)
 		require.NoError(t, err)

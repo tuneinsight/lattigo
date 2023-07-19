@@ -6,6 +6,7 @@ import (
 	"math"
 	"math/big"
 
+	"github.com/tuneinsight/lattigo/v4/he"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
@@ -25,7 +26,7 @@ const (
 // used to hommorphically encode and decode a ciphertext respectively.
 type HomomorphicDFTMatrix struct {
 	HomomorphicDFTMatrixLiteral
-	Matrices []rlwe.LinearTransformation
+	Matrices []he.LinearTransformation
 }
 
 // HomomorphicDFTMatrixLiteral is a struct storing the parameters to generate the factorized DFT/IDFT matrices.
@@ -89,7 +90,7 @@ func (d HomomorphicDFTMatrixLiteral) GaloisElements(params Parameters) (galEls [
 
 	// Coeffs to Slots rotations
 	for i, pVec := range indexCtS {
-		N1 := rlwe.FindBestBSGSRatio(utils.GetKeys(pVec), dslots, d.LogBSGSRatio)
+		N1 := he.FindBestBSGSRatio(utils.GetKeys(pVec), dslots, d.LogBSGSRatio)
 		rotations = addMatrixRotToList(pVec, rotations, N1, slots, d.Type == Decode && logSlots < logN-1 && i == 0 && d.RepackImag2Real)
 	}
 
@@ -120,7 +121,7 @@ func NewHomomorphicDFTMatrixFromLiteral(d HomomorphicDFTMatrixLiteral, encoder *
 	}
 
 	// CoeffsToSlots vectors
-	matrices := []rlwe.LinearTransformation{}
+	matrices := []he.LinearTransformation{}
 	pVecDFT := d.GenMatrices(params.LogN(), params.PlaintextPrecision())
 
 	nbModuliPerRescale := params.PlaintextScaleToModuliRatio()
@@ -144,7 +145,7 @@ func NewHomomorphicDFTMatrixFromLiteral(d HomomorphicDFTMatrixLiteral, encoder *
 
 		for j := 0; j < d.Levels[i]; j++ {
 
-			ltparams := rlwe.MemLinearTransformationParameters[*bignum.Complex]{
+			ltparams := he.MemLinearTransformationParameters[*bignum.Complex]{
 				Diagonals:                pVecDFT[idx],
 				Level:                    level,
 				PlaintextScale:           scale,
@@ -292,7 +293,7 @@ func (eval Evaluator) SlotsToCoeffs(ctReal, ctImag *rlwe.Ciphertext, stcMatrices
 	return
 }
 
-func (eval Evaluator) dft(ctIn *rlwe.Ciphertext, plainVectors []rlwe.LinearTransformation, opOut *rlwe.Ciphertext) (err error) {
+func (eval Evaluator) dft(ctIn *rlwe.Ciphertext, plainVectors []he.LinearTransformation, opOut *rlwe.Ciphertext) (err error) {
 
 	inputLogSlots := ctIn.PlaintextLogDimensions
 

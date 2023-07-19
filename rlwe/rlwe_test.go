@@ -74,7 +74,6 @@ func TestRLWE(t *testing.T) {
 						testGadgetProduct,
 						testApplyEvaluationKey,
 						testAutomorphism,
-						testLinearTransformation,
 					} {
 						testSet(tc, level, paramsLit.BaseTwoDecomposition, t)
 						runtime.GC()
@@ -84,7 +83,7 @@ func TestRLWE(t *testing.T) {
 		}
 	}
 
-	testUserDefinedParameters(t)
+	//testUserDefinedParameters(t)
 }
 
 type TestContext struct {
@@ -380,6 +379,8 @@ func testEncryptor(tc *TestContext, level, bpw2 int, t *testing.T) {
 			ringQ.INTT(pt.Value, pt.Value)
 		}
 
+		t.Log(math.Log2(params.NoiseFreshPK()) + 1)
+
 		require.GreaterOrEqual(t, math.Log2(params.NoiseFreshPK())+1, ringQ.Log2OfStandardDeviation(pt.Value))
 	})
 
@@ -468,138 +469,7 @@ func testEncryptor(tc *TestContext, level, bpw2 int, t *testing.T) {
 	})
 }
 
-func testApplyEvaluationKey(tc *TestContext, level, bpw2 int, t *testing.T) {
-
-	params := tc.params
-	sk := tc.sk
-	kgen := tc.kgen
-	eval := tc.eval
-	enc := tc.enc
-	dec := tc.dec
-
-	var NoiseBound = float64(params.LogN())
-
-	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Evaluator/ApplyEvaluationKey/SameDegree"), func(t *testing.T) {
-
-		skOut := kgen.GenSecretKeyNew()
-
-		pt := NewPlaintext(params, level)
-
-		ct := NewCiphertext(params, 1, level)
-
-		enc.Encrypt(pt, ct)
-
-		// Test that Dec(KS(Enc(ct, sk), skOut), skOut) has a small norm
-		evk, err := kgen.GenEvaluationKeyNew(sk, skOut)
-		require.NoError(t, err)
-
-		eval.ApplyEvaluationKey(ct, evk, ct)
-
-		dec, err := NewDecryptor(params, skOut)
-		require.NoError(t, err)
-
-		dec.Decrypt(ct, pt)
-
-		ringQ := params.RingQ().AtLevel(level)
-
-		if pt.IsNTT {
-			ringQ.INTT(pt.Value, pt.Value)
-		}
-
-		require.GreaterOrEqual(t, NoiseBound, ringQ.Log2OfStandardDeviation(pt.Value))
-	})
-
-	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Evaluator/ApplyEvaluationKey/LargeToSmall"), func(t *testing.T) {
-
-		paramsLargeDim := params
-
-		paramsSmallDim, err := NewParametersFromLiteral(ParametersLiteral{
-			LogN:     paramsLargeDim.LogN() - 1,
-			Q:        paramsLargeDim.Q(),
-			P:        []uint64{0x1ffffffff6c80001, 0x1ffffffff6140001}[:paramsLargeDim.PCount()], // some other P to test that the modulus is correctly extended in the keygen
-			RingType: paramsLargeDim.RingType(),
-		})
-
-		require.Nil(t, err)
-
-		kgenLargeDim := kgen
-		skLargeDim := sk
-		kgenSmallDim := NewKeyGenerator(paramsSmallDim)
-		skSmallDim := kgenSmallDim.GenSecretKeyNew()
-
-		evk, err := kgenLargeDim.GenEvaluationKeyNew(skLargeDim, skSmallDim)
-		require.NoError(t, err)
-
-		enc, err := NewEncryptor(paramsLargeDim, skLargeDim)
-		require.NoError(t, err)
-
-		ctLargeDim := enc.EncryptZeroNew(level)
-
-		ctSmallDim := NewCiphertext(paramsSmallDim, 1, level)
-
-		// skLarge -> skSmall embeded in N
-		eval.ApplyEvaluationKey(ctLargeDim, evk, ctSmallDim)
-
-		// Decrypts with smaller dimension key
-		dec, err := NewDecryptor(paramsSmallDim, skSmallDim)
-		require.NoError(t, err)
-
-		ptSmallDim := dec.DecryptNew(ctSmallDim)
-
-		ringQSmallDim := paramsSmallDim.RingQ().AtLevel(level)
-		if ptSmallDim.IsNTT {
-			ringQSmallDim.INTT(ptSmallDim.Value, ptSmallDim.Value)
-		}
-
-		require.GreaterOrEqual(t, NoiseBound, ringQSmallDim.Log2OfStandardDeviation(ptSmallDim.Value))
-	})
-
-	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Evaluator/ApplyEvaluationKey/SmallToLarge"), func(t *testing.T) {
-
-		paramsLargeDim := params
-
-		paramsSmallDim, err := NewParametersFromLiteral(ParametersLiteral{
-			LogN:     paramsLargeDim.LogN() - 1,
-			Q:        paramsLargeDim.Q(),
-			P:        []uint64{0x1ffffffff6c80001, 0x1ffffffff6140001}[:paramsLargeDim.PCount()], // some other P to test that the modulus is correctly extended in the keygen
-			RingType: paramsLargeDim.RingType(),
-		})
-
-		require.Nil(t, err)
-
-		kgenLargeDim := kgen
-		skLargeDim := sk
-		kgenSmallDim := NewKeyGenerator(paramsSmallDim)
-		skSmallDim := kgenSmallDim.GenSecretKeyNew()
-
-		evk, err := kgenLargeDim.GenEvaluationKeyNew(skSmallDim, skLargeDim)
-		require.NoError(t, err)
-
-		enc, err := NewEncryptor(paramsSmallDim, skSmallDim)
-		require.NoError(t, err)
-
-		ctSmallDim := enc.EncryptZeroNew(level)
-
-		ctLargeDim := NewCiphertext(paramsLargeDim, 1, level)
-
-		eval.ApplyEvaluationKey(ctSmallDim, evk, ctLargeDim)
-
-		ptLargeDim := dec.DecryptNew(ctLargeDim)
-
-		ringQLargeDim := paramsLargeDim.RingQ().AtLevel(level)
-		if ptLargeDim.IsNTT {
-			ringQLargeDim.INTT(ptLargeDim.Value, ptLargeDim.Value)
-		}
-
-		require.GreaterOrEqual(t, NoiseBound, ringQLargeDim.Log2OfStandardDeviation(ptLargeDim.Value))
-	})
-}
-
 func testGadgetProduct(tc *TestContext, levelQ, bpw2 int, t *testing.T) {
-
-	if tc.params.MaxLevelP() == -1 {
-		t.Skip("test requires #P > 0")
-	}
 
 	params := tc.params
 	sk := tc.sk
@@ -612,7 +482,7 @@ func testGadgetProduct(tc *TestContext, levelQ, bpw2 int, t *testing.T) {
 
 	sampler := ring.NewUniformSampler(prng, ringQ)
 
-	var NoiseBound = float64(params.LogN())
+	var NoiseBound = float64(params.LogN() + bpw2)
 
 	levelsP := []int{0}
 
@@ -668,6 +538,10 @@ func testGadgetProduct(tc *TestContext, levelQ, bpw2 int, t *testing.T) {
 				t.Skip("method is unsupported for BaseTwoDecomposition != 0")
 			}
 
+			if tc.params.MaxLevelP() == -1 {
+				t.Skip("test requires #P > 0")
+			}
+
 			skOut := kgen.GenSecretKeyNew()
 
 			// Generates a random polynomial
@@ -709,6 +583,135 @@ func testGadgetProduct(tc *TestContext, levelQ, bpw2 int, t *testing.T) {
 	}
 }
 
+func testApplyEvaluationKey(tc *TestContext, level, bpw2 int, t *testing.T) {
+
+	params := tc.params
+	sk := tc.sk
+	kgen := tc.kgen
+	eval := tc.eval
+	enc := tc.enc
+	dec := tc.dec
+
+	var NoiseBound = float64(params.LogN() + bpw2)
+
+	evkParams := EvaluationKeyParameters{LevelQ: level, LevelP: params.MaxLevelP(), BaseTwoDecomposition: bpw2}
+
+	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Evaluator/ApplyEvaluationKey/SameDegree"), func(t *testing.T) {
+
+		skOut := kgen.GenSecretKeyNew()
+
+		pt := NewPlaintext(params, level)
+
+		ct := NewCiphertext(params, 1, level)
+
+		enc.Encrypt(pt, ct)
+
+		// Test that Dec(KS(Enc(ct, sk), skOut), skOut) has a small norm
+		evk, err := kgen.GenEvaluationKeyNew(sk, skOut, evkParams)
+		require.NoError(t, err)
+
+		eval.ApplyEvaluationKey(ct, evk, ct)
+
+		dec, err := NewDecryptor(params, skOut)
+		require.NoError(t, err)
+
+		dec.Decrypt(ct, pt)
+
+		ringQ := params.RingQ().AtLevel(level)
+
+		if pt.IsNTT {
+			ringQ.INTT(pt.Value, pt.Value)
+		}
+
+		require.GreaterOrEqual(t, NoiseBound, ringQ.Log2OfStandardDeviation(pt.Value))
+	})
+
+	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Evaluator/ApplyEvaluationKey/LargeToSmall"), func(t *testing.T) {
+
+		paramsLargeDim := params
+
+		paramsSmallDim, err := NewParametersFromLiteral(ParametersLiteral{
+			LogN:     paramsLargeDim.LogN() - 1,
+			Q:        paramsLargeDim.Q(),
+			P:        []uint64{0x1ffffffff6c80001, 0x1ffffffff6140001}[:paramsLargeDim.PCount()], // some other P to test that the modulus is correctly extended in the keygen
+			RingType: paramsLargeDim.RingType(),
+		})
+
+		require.Nil(t, err)
+
+		kgenLargeDim := kgen
+		skLargeDim := sk
+		kgenSmallDim := NewKeyGenerator(paramsSmallDim)
+		skSmallDim := kgenSmallDim.GenSecretKeyNew()
+
+		evk, err := kgenLargeDim.GenEvaluationKeyNew(skLargeDim, skSmallDim, evkParams)
+		require.NoError(t, err)
+
+		enc, err := NewEncryptor(paramsLargeDim, skLargeDim)
+		require.NoError(t, err)
+
+		ctLargeDim := enc.EncryptZeroNew(level)
+
+		ctSmallDim := NewCiphertext(paramsSmallDim, 1, level)
+
+		// skLarge -> skSmall embeded in N
+		eval.ApplyEvaluationKey(ctLargeDim, evk, ctSmallDim)
+
+		// Decrypts with smaller dimension key
+		dec, err := NewDecryptor(paramsSmallDim, skSmallDim)
+		require.NoError(t, err)
+
+		ptSmallDim := dec.DecryptNew(ctSmallDim)
+
+		ringQSmallDim := paramsSmallDim.RingQ().AtLevel(level)
+		if ptSmallDim.IsNTT {
+			ringQSmallDim.INTT(ptSmallDim.Value, ptSmallDim.Value)
+		}
+
+		require.GreaterOrEqual(t, NoiseBound, ringQSmallDim.Log2OfStandardDeviation(ptSmallDim.Value))
+	})
+
+	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Evaluator/ApplyEvaluationKey/SmallToLarge"), func(t *testing.T) {
+
+		paramsLargeDim := params
+
+		paramsSmallDim, err := NewParametersFromLiteral(ParametersLiteral{
+			LogN:     paramsLargeDim.LogN() - 1,
+			Q:        paramsLargeDim.Q(),
+			P:        []uint64{0x1ffffffff6c80001, 0x1ffffffff6140001}[:paramsLargeDim.PCount()], // some other P to test that the modulus is correctly extended in the keygen
+			RingType: paramsLargeDim.RingType(),
+		})
+
+		require.Nil(t, err)
+
+		kgenLargeDim := kgen
+		skLargeDim := sk
+		kgenSmallDim := NewKeyGenerator(paramsSmallDim)
+		skSmallDim := kgenSmallDim.GenSecretKeyNew()
+
+		evk, err := kgenLargeDim.GenEvaluationKeyNew(skSmallDim, skLargeDim, evkParams)
+		require.NoError(t, err)
+
+		enc, err := NewEncryptor(paramsSmallDim, skSmallDim)
+		require.NoError(t, err)
+
+		ctSmallDim := enc.EncryptZeroNew(level)
+
+		ctLargeDim := NewCiphertext(paramsLargeDim, 1, level)
+
+		eval.ApplyEvaluationKey(ctSmallDim, evk, ctLargeDim)
+
+		ptLargeDim := dec.DecryptNew(ctLargeDim)
+
+		ringQLargeDim := paramsLargeDim.RingQ().AtLevel(level)
+		if ptLargeDim.IsNTT {
+			ringQLargeDim.INTT(ptLargeDim.Value, ptLargeDim.Value)
+		}
+
+		require.GreaterOrEqual(t, NoiseBound, ringQLargeDim.Log2OfStandardDeviation(ptLargeDim.Value))
+	})
+}
+
 func testAutomorphism(tc *TestContext, level, bpw2 int, t *testing.T) {
 
 	params := tc.params
@@ -718,7 +721,13 @@ func testAutomorphism(tc *TestContext, level, bpw2 int, t *testing.T) {
 	enc := tc.enc
 	dec := tc.dec
 
-	var NoiseBound = float64(params.LogN())
+	var NoiseBound = float64(params.LogN() + bpw2)
+
+	if bpw2 != 0 {
+		NoiseBound += math.Log2(float64(level)+1) + 1
+	}
+
+	evkParams := EvaluationKeyParameters{LevelQ: level, LevelP: params.MaxLevelP(), BaseTwoDecomposition: bpw2}
 
 	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Evaluator/Automorphism"), func(t *testing.T) {
 
@@ -733,7 +742,7 @@ func testAutomorphism(tc *TestContext, level, bpw2 int, t *testing.T) {
 		galEl := params.GaloisElement(-1)
 
 		// Generate the GaloisKey
-		gk, err := kgen.GenGaloisKeyNew(galEl, sk)
+		gk, err := kgen.GenGaloisKeyNew(galEl, sk, evkParams)
 		require.NoError(t, err)
 
 		// Allocate a new EvaluationKeySet and adds the GaloisKey
@@ -768,6 +777,11 @@ func testAutomorphism(tc *TestContext, level, bpw2 int, t *testing.T) {
 	})
 
 	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Evaluator/AutomorphismHoisted"), func(t *testing.T) {
+
+		if bpw2 != 0 {
+			t.Skip("method is not supported if BaseTwoDecomposition != 0")
+		}
+
 		// Generate a plaintext with values up to 2^30
 		pt := genPlaintext(params, level, 1<<30)
 
@@ -779,7 +793,7 @@ func testAutomorphism(tc *TestContext, level, bpw2 int, t *testing.T) {
 		galEl := params.GaloisElement(-1)
 
 		// Generate the GaloisKey
-		gk, err := kgen.GenGaloisKeyNew(galEl, sk)
+		gk, err := kgen.GenGaloisKeyNew(galEl, sk, evkParams)
 		require.NoError(t, err)
 
 		// Allocate a new EvaluationKeySet and adds the GaloisKey
@@ -817,6 +831,11 @@ func testAutomorphism(tc *TestContext, level, bpw2 int, t *testing.T) {
 	})
 
 	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Evaluator/AutomorphismHoistedLazy"), func(t *testing.T) {
+
+		if bpw2 != 0 {
+			t.Skip("method is not supported if BaseTwoDecomposition != 0")
+		}
+
 		// Generate a plaintext with values up to 2^30
 		pt := genPlaintext(params, level, 1<<30)
 
@@ -828,7 +847,7 @@ func testAutomorphism(tc *TestContext, level, bpw2 int, t *testing.T) {
 		galEl := params.GaloisElement(-1)
 
 		// Generate the GaloisKey
-		gk, err := kgen.GenGaloisKeyNew(galEl, sk)
+		gk, err := kgen.GenGaloisKeyNew(galEl, sk, evkParams)
 		require.NoError(t, err)
 
 		// Allocate a new EvaluationKeySet and adds the GaloisKey

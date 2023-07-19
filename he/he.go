@@ -15,3 +15,7 @@ func NewEvaluator(params rlwe.ParametersInterface, evk rlwe.EvaluationKeySet) (e
 func (eval Evaluator) WithKey(evk rlwe.EvaluationKeySet) *Evaluator {
 	return &Evaluator{*eval.Evaluator.WithKey(evk)}
 }
+
+func (eval Evaluator) ShallowCopy() *Evaluator {
+	return &Evaluator{*eval.Evaluator.ShallowCopy()}
+}

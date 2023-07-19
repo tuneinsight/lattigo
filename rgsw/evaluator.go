@@ -1,6 +1,7 @@
 package rgsw
 
 import (
+	"github.com/tuneinsight/lattigo/v4/he"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
@@ -10,7 +11,7 @@ import (
 // It currently supports the external product between a RLWE and a RGSW ciphertext (see
 // Evaluator.ExternalProduct).
 type Evaluator struct {
-	rlwe.Evaluator
+	he.Evaluator
 
 	params rlwe.Parameters
 }
@@ -18,7 +19,7 @@ type Evaluator struct {
 // NewEvaluator creates a new Evaluator type supporting RGSW operations in addition
 // to rlwe.Evaluator operations.
 func NewEvaluator(params rlwe.Parameters, evk rlwe.EvaluationKeySet) *Evaluator {
-	return &Evaluator{*rlwe.NewEvaluator(params, evk), params}
+	return &Evaluator{*he.NewEvaluator(params, evk), params}
 }
 
 // ShallowCopy creates a shallow copy of this Evaluator in which all the read-only data-structures are

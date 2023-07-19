@@ -405,6 +405,10 @@ func (p Parameters) NoiseFreshPK() (std float64) {
 		std *= sigma * sigma
 	}
 
+	if p.RingType() == ring.ConjugateInvariant {
+		std *= 2
+	}
+
 	return math.Sqrt(std)
 }
 
@@ -520,9 +524,12 @@ func (p Parameters) MaxBit(levelQ, levelP int) (c int) {
 		c = utils.Max(c, bits.Len64(qi))
 	}
 
-	for _, pi := range p.P()[:levelP+1] {
-		c = utils.Max(c, bits.Len64(pi))
+	if p.PCount() != 0 {
+		for _, pi := range p.P()[:levelP+1] {
+			c = utils.Max(c, bits.Len64(pi))
+		}
 	}
+
 	return
 }
 

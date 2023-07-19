@@ -431,10 +431,10 @@ func (eval Evaluator) LinearTransformation(ctIn *rlwe.Ciphertext, linearTransfor
 // for matrix of only a few non-zero diagonals but uses more keys.
 func (eval Evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix LinearTransformation, BuffDecompQP []ringqp.Poly, opOut *rlwe.Ciphertext) (err error) {
 
-	params := eval.Parameters()
-
 	*opOut.MetaData = *ctIn.MetaData
 	opOut.PlaintextScale = opOut.PlaintextScale.Mul(matrix.PlaintextScale)
+
+	params := eval.Parameters()
 
 	levelQ := utils.Min(opOut.Level(), utils.Min(ctIn.Level(), matrix.Level))
 	levelP := params.RingP().MaxLevel()
@@ -551,7 +551,7 @@ func (eval Evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Lin
 	opOut.PlaintextScale = opOut.PlaintextScale.Mul(matrix.PlaintextScale)
 
 	levelQ := utils.Min(opOut.Level(), utils.Min(ctIn.Level(), matrix.Level))
-	levelP := eval.Parameters().MaxLevelP()
+	levelP := params.MaxLevelP()
 
 	ringQP := params.RingQP().AtLevel(levelQ, levelP)
 	ringQ := ringQP.RingQ
@@ -574,8 +574,8 @@ func (eval Evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Lin
 	ctInRotQP := map[int]*rlwe.Operand[ringqp.Poly]{}
 	for _, i := range rotN2 {
 		if i != 0 {
-			ctInRotQP[i] = rlwe.NewOperandQP(eval.Parameters(), 1, levelQ, levelP)
-			if err = eval.AutomorphismHoistedLazy(levelQ, ctIn, BuffDecompQP, params.GaloisElement(i), ctInRotQP[i]); err != nil {
+			ctInRotQP[i] = rlwe.NewOperandQP(params, 1, levelQ, levelP)
+			if err = eval.AutomorphismHoistedLazy(levelQ, ctIn, BuffDecompQP, eval.Parameters().GaloisElement(i), ctInRotQP[i]); err != nil {
 				return
 			}
 		}

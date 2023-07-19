@@ -30,57 +30,59 @@ func (eval Evaluator) GadgetProduct(levelQ int, cx ring.Poly, gadgetCt *GadgetCi
 // ModDown takes ctQP (mod QP) and returns ct = (ctQP/P) (mod Q).
 func (eval Evaluator) ModDown(levelQ, levelP int, ctQP *Operand[ringqp.Poly], ct *Ciphertext) {
 
-	if ctQP.IsNTT && levelP != -1 {
+	ringQP := eval.params.RingQP().AtLevel(levelQ, levelP)
 
-		if ct.IsNTT {
-			// NTT -> NTT
-			eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, ctQP.Value[0].Q, ctQP.Value[0].P, ct.Value[0])
-			eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, ctQP.Value[1].Q, ctQP.Value[1].P, ct.Value[1])
-		} else {
-
-			// NTT -> INTT
-			ringQP := eval.params.RingQP().AtLevel(levelQ, levelP)
-
-			ringQP.INTTLazy(ctQP.Value[0], ctQP.Value[0])
-			ringQP.INTTLazy(ctQP.Value[1], ctQP.Value[1])
-
-			eval.BasisExtender.ModDownQPtoQ(levelQ, levelP, ctQP.Value[0].Q, ctQP.Value[0].P, ct.Value[0])
-			eval.BasisExtender.ModDownQPtoQ(levelQ, levelP, ctQP.Value[1].Q, ctQP.Value[1].P, ct.Value[1])
-		}
-
-	} else {
-
-		ringQ := eval.params.RingQ().AtLevel(levelQ)
-
-		if levelP != -1 {
-
+	if levelP != -1 {
+		if ctQP.IsNTT {
 			if ct.IsNTT {
+				// NTT -> NTT
+				eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, ctQP.Value[0].Q, ctQP.Value[0].P, ct.Value[0])
+				eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, ctQP.Value[1].Q, ctQP.Value[1].P, ct.Value[1])
+			} else {
+				// NTT -> INTT
+				ringQP := eval.params.RingQP().AtLevel(levelQ, levelP)
 
+				ringQP.INTTLazy(ctQP.Value[0], ctQP.Value[0])
+				ringQP.INTTLazy(ctQP.Value[1], ctQP.Value[1])
+
+				eval.BasisExtender.ModDownQPtoQ(levelQ, levelP, ctQP.Value[0].Q, ctQP.Value[0].P, ct.Value[0])
+				eval.BasisExtender.ModDownQPtoQ(levelQ, levelP, ctQP.Value[1].Q, ctQP.Value[1].P, ct.Value[1])
+			}
+		} else {
+			if ct.IsNTT {
 				// INTT -> NTT
 				eval.BasisExtender.ModDownQPtoQ(levelQ, levelP, ctQP.Value[0].Q, ctQP.Value[0].P, ct.Value[0])
 				eval.BasisExtender.ModDownQPtoQ(levelQ, levelP, ctQP.Value[1].Q, ctQP.Value[1].P, ct.Value[1])
 
-				ringQ.NTT(ct.Value[0], ct.Value[0])
-				ringQ.NTT(ct.Value[1], ct.Value[1])
-
+				ringQP.RingQ.NTT(ct.Value[0], ct.Value[0])
+				ringQP.RingQ.NTT(ct.Value[1], ct.Value[1])
 			} else {
-
 				// INTT -> INTT
 				eval.BasisExtender.ModDownQPtoQ(levelQ, levelP, ctQP.Value[0].Q, ctQP.Value[0].P, ct.Value[0])
 				eval.BasisExtender.ModDownQPtoQ(levelQ, levelP, ctQP.Value[1].Q, ctQP.Value[1].P, ct.Value[1])
 			}
-
-		} else {
-
+		}
+	} else {
+		if ctQP.IsNTT {
 			if ct.IsNTT {
-
-				// INTT ->NTT
+				// NTT -> NTT
 				ring.CopyLvl(levelQ, ct.Value[0], ctQP.Value[0].Q)
 				ring.CopyLvl(levelQ, ct.Value[1], ctQP.Value[1].Q)
 			} else {
+				// NTT -> INTT
+				ringQP.RingQ.INTT(ctQP.Value[0].Q, ct.Value[0])
+				ringQP.RingQ.INTT(ctQP.Value[1].Q, ct.Value[1])
+			}
+		} else {
+			if ct.IsNTT {
+				// INTT -> NTT
+				ringQP.RingQ.NTT(ctQP.Value[0].Q, ct.Value[0])
+				ringQP.RingQ.NTT(ctQP.Value[1].Q, ct.Value[1])
+
+			} else {
 				// INTT -> INTT
-				ringQ.INTT(ctQP.Value[0].Q, ct.Value[0])
-				ringQ.INTT(ctQP.Value[1].Q, ct.Value[1])
+				ring.CopyLvl(levelQ, ct.Value[0], ctQP.Value[0].Q)
+				ring.CopyLvl(levelQ, ct.Value[1], ctQP.Value[1].Q)
 			}
 		}
 	}

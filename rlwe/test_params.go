@@ -35,7 +35,7 @@ var (
 		},
 		// No RNS decomposition, Pw2 decomposition
 		{
-			BaseTwoDecomposition: 16,
+			BaseTwoDecomposition: 2,
 
 			ParametersLiteral: ParametersLiteral{
 				LogN:    logN,

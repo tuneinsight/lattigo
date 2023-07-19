@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"math"
 	"runtime"
 	"testing"
 
@@ -121,6 +122,8 @@ func testLinearTransformation(tc *TestContext, level, bpw2 int, t *testing.T) {
 	enc := tc.enc
 	dec := tc.dec
 
+	evkParams := rlwe.EvaluationKeyParameters{LevelQ: level, LevelP: params.MaxLevelP(), BaseTwoDecomposition: bpw2}
+
 	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Evaluator/Expand"), func(t *testing.T) {
 
 		if params.RingType() != ring.Standard {
@@ -154,7 +157,7 @@ func testLinearTransformation(tc *TestContext, level, bpw2 int, t *testing.T) {
 		enc.Encrypt(pt, ctIn)
 
 		// GaloisKeys
-		var gks, err = kgen.GenGaloisKeysNew(params.GaloisElementsForExpand(logN), sk)
+		var gks, err = kgen.GenGaloisKeysNew(params.GaloisElementsForExpand(logN), sk, evkParams)
 		require.NoError(t, err)
 
 		evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
@@ -166,7 +169,11 @@ func testLinearTransformation(tc *TestContext, level, bpw2 int, t *testing.T) {
 
 		Q := ringQ.ModuliChain()
 
-		NoiseBound := float64(params.LogN() - logN)
+		NoiseBound := float64(params.LogN() - logN + bpw2)
+
+		if bpw2 != 0 {
+			NoiseBound += float64(level + 5)
+		}
 
 		for i := range ciphertexts {
 
@@ -224,7 +231,7 @@ func testLinearTransformation(tc *TestContext, level, bpw2 int, t *testing.T) {
 		galEls, err := params.GaloisElementsForPack(params.LogN())
 		require.NoError(t, err)
 
-		gks, err := kgen.GenGaloisKeysNew(galEls, sk)
+		gks, err := kgen.GenGaloisKeysNew(galEls, sk, evkParams)
 		require.NoError(t, err)
 
 		evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
@@ -248,7 +255,11 @@ func testLinearTransformation(tc *TestContext, level, bpw2 int, t *testing.T) {
 			}
 		}
 
-		NoiseBound := 15.0
+		NoiseBound := 15.0 + float64(bpw2)
+
+		if bpw2 != 0 {
+			NoiseBound += math.Log2(float64(level)+1.0) + 1.0
+		}
 
 		// Logs the noise
 		require.GreaterOrEqual(t, NoiseBound, ringQ.Log2OfStandardDeviation(pt.Value))
@@ -298,7 +309,7 @@ func testLinearTransformation(tc *TestContext, level, bpw2 int, t *testing.T) {
 		galEls, err := params.GaloisElementsForPack(params.LogN() - 1)
 		require.NoError(t, err)
 
-		gks, err := kgen.GenGaloisKeysNew(galEls, sk)
+		gks, err := kgen.GenGaloisKeysNew(galEls, sk, evkParams)
 		require.NoError(t, err)
 
 		evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
@@ -314,7 +325,11 @@ func testLinearTransformation(tc *TestContext, level, bpw2 int, t *testing.T) {
 
 		ringQ.Sub(pt.Value, ptPacked.Value, pt.Value)
 
-		NoiseBound := 15.0
+		NoiseBound := 15.0 + float64(bpw2)
+
+		if bpw2 != 0 {
+			NoiseBound += math.Log2(float64(level)+1.0) + 1.0
+		}
 
 		// Logs the noise
 		require.GreaterOrEqual(t, NoiseBound, ringQ.Log2OfStandardDeviation(pt.Value))

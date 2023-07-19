@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v4/ring"
 
+	"github.com/tuneinsight/lattigo/v4/he"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
@@ -1158,7 +1159,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 			}
 		}
 
-		ltparams := rlwe.MemLinearTransformationParameters[*bignum.Complex]{
+		ltparams := he.MemLinearTransformationParameters[*bignum.Complex]{
 			Diagonals:                diagonals,
 			Level:                    ciphertext.Level(),
 			PlaintextScale:           rlwe.NewScale(params.Q()[ciphertext.Level()]),
@@ -1172,7 +1173,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 		// Encode on the linear transformation
 		require.NoError(t, EncodeLinearTransformation[*bignum.Complex](linTransf, ltparams, tc.encoder))
 
-		galEls := rlwe.GaloisElementsForLinearTransformation[*bignum.Complex](params, ltparams)
+		galEls := he.GaloisElementsForLinearTransformation[*bignum.Complex](params, ltparams)
 
 		gks, err := tc.kgen.GenGaloisKeysNew(galEls, tc.sk)
 		require.NoError(t, err)
@@ -1223,7 +1224,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 			}
 		}
 
-		ltparams := rlwe.MemLinearTransformationParameters[*bignum.Complex]{
+		ltparams := he.MemLinearTransformationParameters[*bignum.Complex]{
 			Diagonals:                diagonals,
 			Level:                    ciphertext.Level(),
 			PlaintextScale:           rlwe.NewScale(params.Q()[ciphertext.Level()]),
@@ -1237,7 +1238,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 		// Encode on the linear transformation
 		require.NoError(t, EncodeLinearTransformation[*bignum.Complex](linTransf, ltparams, tc.encoder))
 
-		galEls := rlwe.GaloisElementsForLinearTransformation[*bignum.Complex](params, ltparams)
+		galEls := he.GaloisElementsForLinearTransformation[*bignum.Complex](params, ltparams)
 
 		gks, err := tc.kgen.GenGaloisKeysNew(galEls, tc.sk)
 		require.NoError(t, err)

@@ -364,7 +364,7 @@ func gkgphase(params bfv.Parameters, crs sampling.PRNG, P []*party) (galKeys []*
 		pi.gkgShare = gkg.AllocateShare()
 	}
 
-	galEls := append(params.GaloisElementsForInnerSum(1, params.N()>>1), params.GaloisElementInverse())
+	galEls := append(params.GaloisElementsForInnerSum(1, params.N()>>1), params.GaloisElementForRowRotation())
 	galKeys = make([]*rlwe.GaloisKey, len(galEls))
 
 	gkgShareCombined := gkg.AllocateShare()

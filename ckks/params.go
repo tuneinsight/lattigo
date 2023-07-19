@@ -184,6 +184,25 @@ func (p Parameters) QLvl(level int) *big.Int {
 	return tmp
 }
 
+// GaloisElementForColRotationBy returns the Galois element for generating the
+// column rotation automorphism by k position to the left. Providing a negative
+// k corresponds to the right rotation automorphism by k position.
+func (p Parameters) GaloisElementForColRotationBy(k int) uint64 {
+	return p.Parameters.GaloisElement(k)
+}
+
+// GaloisElementForRowRotation returns the Galois element for generating the
+// row rotation automorphism (i.e., GaloisGen^{-1} mod NthRoot).
+func (p Parameters) GaloisElementForRowRotation() uint64 {
+	return p.Parameters.GaloisElementOrderTwoOrthogonalSubgroup()
+}
+
+// GaloisElementForConjugate returns the Galois element for generating the
+// conjugate automorphism (i.e., the row rotation, i.e, GaloisGen^{-1} mod NthRoot).
+func (p Parameters) GaloisElementForConjugate() uint64 {
+	return p.Parameters.GaloisElementOrderTwoOrthogonalSubgroup()
+}
+
 // Equal compares two sets of parameters for equality.
 func (p Parameters) Equal(other rlwe.ParametersInterface) bool {
 	switch other := other.(type) {

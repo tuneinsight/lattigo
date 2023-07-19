@@ -1360,7 +1360,7 @@ func (eval Evaluator) RotateRowsNew(op0 *rlwe.Ciphertext) (opOut *rlwe.Ciphertex
 // The procedure will return an error if the corresponding Galois key has not been generated and attributed to the evaluator.
 // The procedure will return an error if either op0.Degree() or op1.Degree() != 1.
 func (eval Evaluator) RotateRows(op0, opOut *rlwe.Ciphertext) (err error) {
-	return eval.Automorphism(op0, eval.parameters.GaloisElementInverse(), opOut)
+	return eval.Automorphism(op0, eval.parameters.GaloisElementForRowRotation(), opOut)
 }
 
 // RotateHoistedLazyNew applies a series of rotations on the same ciphertext and returns each different rotation in a map indexed by the rotation.

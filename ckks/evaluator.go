@@ -1152,7 +1152,7 @@ func (eval Evaluator) Conjugate(op0 *rlwe.Ciphertext, opOut *rlwe.Ciphertext) (e
 		return fmt.Errorf("cannot Conjugate: method is not supported when parameters.RingType() == ring.ConjugateInvariant")
 	}
 
-	if err = eval.Automorphism(op0, eval.parameters.GaloisElementInverse(), opOut); err != nil {
+	if err = eval.Automorphism(op0, eval.parameters.GaloisElementOrderTwoOrthogonalSubgroup(), opOut); err != nil {
 		return fmt.Errorf("cannot Conjugate: %w", err)
 	}
 

@@ -577,8 +577,8 @@ func (p Parameters) ModInvGaloisElement(galEl uint64) uint64 {
 	return ring.ModExp(galEl, p.ringQ.NthRoot()-1, p.ringQ.NthRoot())
 }
 
-// GaloisElementInverse returns GaloisGen^{-1} mod NthRoot
-func (p Parameters) GaloisElementInverse() uint64 {
+// GaloisElementOrderTwoOrthogonalSubgroup returns GaloisGen^{-1} mod NthRoot
+func (p Parameters) GaloisElementOrderTwoOrthogonalSubgroup() uint64 {
 	if p.ringType == ring.ConjugateInvariant {
 		panic("Cannot generate GaloisElementInverse if ringType is ConjugateInvariant")
 	}
@@ -597,7 +597,7 @@ func (p Parameters) GaloisElementsForTrace(logN int) (galEls []uint64) {
 	if logN == 0 {
 		switch p.ringType {
 		case ring.Standard:
-			galEls = append(galEls, p.GaloisElementInverse())
+			galEls = append(galEls, p.GaloisElementOrderTwoOrthogonalSubgroup())
 		case ring.ConjugateInvariant:
 			panic("cannot GaloisElementsForTrace: Galois element GaloisGen^-1 is undefined in ConjugateInvariant Ring")
 		default:
@@ -672,7 +672,7 @@ func (p Parameters) GaloisElementsForPack(logGap int) (galEls []uint64, err erro
 	switch p.ringType {
 	case ring.Standard:
 		if logGap == p.logN {
-			galEls = append(galEls, p.GaloisElementInverse())
+			galEls = append(galEls, p.GaloisElementOrderTwoOrthogonalSubgroup())
 		}
 	default:
 		panic("cannot GaloisElementsForPack: invalid ring type")

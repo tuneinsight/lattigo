@@ -142,7 +142,7 @@ func testHomomorphicEncoding(params Parameters, LogSlots int, t *testing.T) {
 		require.NoError(t, err)
 
 		// Gets Galois elements
-		galEls := append(CoeffsToSlotsParametersLiteral.GaloisElements(params), params.GaloisElementInverse())
+		galEls := append(CoeffsToSlotsParametersLiteral.GaloisElements(params), params.GaloisElementOrderTwoOrthogonalSubgroup())
 
 		// Generates and adds the keys
 		gks, err := kgen.GenGaloisKeysNew(galEls, sk)
@@ -350,7 +350,7 @@ func testHomomorphicDecoding(params Parameters, LogSlots int, t *testing.T) {
 		require.NoError(t, err)
 
 		// Gets the Galois elements
-		galEls := append(SlotsToCoeffsParametersLiteral.GaloisElements(params), params.GaloisElementInverse())
+		galEls := append(SlotsToCoeffsParametersLiteral.GaloisElements(params), params.GaloisElementOrderTwoOrthogonalSubgroup())
 
 		// Generates and adds the keys
 		gks, err := kgen.GenGaloisKeysNew(galEls, sk)

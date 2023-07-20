@@ -198,7 +198,7 @@ func (p Parameters) QLvl(level int) *big.Int {
 //
 // [d, a, b, c][conj(d), conj(a), conj(b), conj(c)]
 //
-// Providing a negative k will change direction of the cyclic rotation do the right.
+// Providing a negative k will change direction of the cyclic rotation to the right.
 //
 // Note that when using the ConjugateInvariant variant of the scheme, the conjugate is
 // dropped and the matrix becomes an 1xN matrix.

@@ -6,7 +6,7 @@ import (
 	"math/big"
 
 	"github.com/tuneinsight/lattigo/v4/ckks"
-	"github.com/tuneinsight/lattigo/v4/he"
+	"github.com/tuneinsight/lattigo/v4/hebase"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
@@ -134,7 +134,7 @@ func chebyshevinterpolation() {
 		panic(err)
 	}
 
-	polyVec, err := he.NewPolynomialVector([]he.Polynomial{he.NewPolynomial(approxF), he.NewPolynomial(approxG)}, slotsIndex)
+	polyVec, err := ckks.NewPolynomialVector([]hebase.Polynomial{ckks.NewPolynomial(approxF), ckks.NewPolynomial(approxG)}, slotsIndex)
 	if err != nil {
 		panic(err)
 	}

@@ -1,4 +1,4 @@
-package he
+package hebase
 
 import (
 	"bufio"

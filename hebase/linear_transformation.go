@@ -1,4 +1,4 @@
-package he
+package hebase
 
 import (
 	"fmt"
@@ -157,8 +157,7 @@ func (LT LinearTransformation) GaloisElements(params rlwe.ParametersInterface) (
 	return galoisElementsForLinearTransformation(params, utils.GetKeys(LT.Vec), LT.PlaintextLogDimensions.Cols, LT.LogBSGSRatio)
 }
 
-// GaloisElementsForLinearTransformation returns the list of Galois elements required to perform a linear transform
-// with the provided non-zero diagonals.
+// GaloisElementsForLinearTransformation returns the list of Galois elements required to evaluate the linear transformation.
 func GaloisElementsForLinearTransformation[T any](params rlwe.ParametersInterface, lt LinearTranfromationParameters[T]) (galEls []uint64) {
 	return galoisElementsForLinearTransformation(params, lt.GetDiagonalsList(), 1<<lt.GetPlaintextLogDimensions().Cols, lt.GetLogBabyStepGianStepRatio())
 }

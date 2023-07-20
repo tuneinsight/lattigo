@@ -1,4 +1,4 @@
-package he
+package hebase
 
 import (
 	"github.com/tuneinsight/lattigo/v4/rlwe"

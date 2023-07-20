@@ -13,6 +13,10 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
+type Float interface {
+	float64 | complex128 | *big.Float | *bignum.Complex
+}
+
 // GaloisGen is an integer of order N/2 modulo M and that spans Z_M with the integer -1.
 // The j-th ring automorphism takes the root zeta to zeta^(5j).
 const GaloisGen uint64 = ring.GaloisGen

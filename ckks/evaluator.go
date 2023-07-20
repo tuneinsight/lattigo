@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/tuneinsight/lattigo/v4/he"
+	"github.com/tuneinsight/lattigo/v4/hebase"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
@@ -18,7 +18,7 @@ type Evaluator struct {
 	parameters Parameters
 	*Encoder
 	*evaluatorBuffers
-	*he.Evaluator
+	*hebase.Evaluator
 }
 
 // NewEvaluator creates a new Evaluator, that can be used to do homomorphic
@@ -29,7 +29,7 @@ func NewEvaluator(parameters Parameters, evk rlwe.EvaluationKeySet) *Evaluator {
 		parameters:       parameters,
 		Encoder:          NewEncoder(parameters),
 		evaluatorBuffers: newEvaluatorBuffers(parameters),
-		Evaluator:        he.NewEvaluator(parameters.Parameters, evk),
+		Evaluator:        hebase.NewEvaluator(parameters.Parameters, evk),
 	}
 }
 

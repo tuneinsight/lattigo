@@ -9,7 +9,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/tuneinsight/lattigo/v4/he"
+	"github.com/tuneinsight/lattigo/v4/hebase"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
@@ -707,9 +707,9 @@ func testEvaluator(tc *testContext, t *testing.T) {
 			slotIndex[0] = idx0
 			slotIndex[1] = idx1
 
-			polyVector, err := he.NewPolynomialVector([]he.Polynomial{
-				he.NewPolynomial(bignum.NewPolynomial(bignum.Monomial, coeffs0, nil)),
-				he.NewPolynomial(bignum.NewPolynomial(bignum.Monomial, coeffs1, nil)),
+			polyVector, err := NewPolynomialVector([]hebase.Polynomial{
+				NewPolynomial(coeffs0),
+				NewPolynomial(coeffs1),
 			}, slotIndex)
 			require.NoError(t, err)
 
@@ -826,13 +826,13 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 			diagonals[15][i] = 1
 		}
 
-		ltparams := he.MemLinearTransformationParameters[uint64]{
+		ltparams := NewLinearTransformationParmeters(LinearTransformationParametersLiteral[uint64]{
 			Diagonals:                diagonals,
 			Level:                    ciphertext.Level(),
 			PlaintextScale:           tc.params.PlaintextScale(),
 			PlaintextLogDimensions:   ciphertext.PlaintextLogDimensions,
 			LogBabyStepGianStepRatio: 1,
-		}
+		})
 
 		// Allocate the linear transformation
 		linTransf := NewLinearTransformation[uint64](params, ltparams)
@@ -840,7 +840,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 		// Encode on the linear transformation
 		require.NoError(t, EncodeLinearTransformation[uint64](linTransf, ltparams, tc.encoder))
 
-		galEls := he.GaloisElementsForLinearTransformation[uint64](params, ltparams)
+		galEls := GaloisElementsForLinearTransformation[uint64](params, ltparams)
 
 		gks, err := tc.kgen.GenGaloisKeysNew(galEls, tc.sk)
 		require.NoError(t, err)
@@ -897,13 +897,13 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 			diagonals[15][i] = 1
 		}
 
-		ltparams := he.MemLinearTransformationParameters[uint64]{
+		ltparams := NewLinearTransformationParmeters(LinearTransformationParametersLiteral[uint64]{
 			Diagonals:                diagonals,
 			Level:                    ciphertext.Level(),
 			PlaintextScale:           tc.params.PlaintextScale(),
 			PlaintextLogDimensions:   ciphertext.PlaintextLogDimensions,
 			LogBabyStepGianStepRatio: -1,
-		}
+		})
 
 		// Allocate the linear transformation
 		linTransf := NewLinearTransformation[uint64](params, ltparams)
@@ -911,7 +911,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 		// Encode on the linear transformation
 		require.NoError(t, EncodeLinearTransformation[uint64](linTransf, ltparams, tc.encoder))
 
-		galEls := he.GaloisElementsForLinearTransformation[uint64](params, ltparams)
+		galEls := GaloisElementsForLinearTransformation[uint64](params, ltparams)
 
 		gks, err := tc.kgen.GenGaloisKeysNew(galEls, tc.sk)
 		require.NoError(t, err)

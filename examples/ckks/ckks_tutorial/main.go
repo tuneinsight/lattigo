@@ -6,7 +6,7 @@ import (
 	"math/rand"
 
 	"github.com/tuneinsight/lattigo/v4/ckks"
-	"github.com/tuneinsight/lattigo/v4/he"
+	"github.com/tuneinsight/lattigo/v4/hebase"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
@@ -694,17 +694,17 @@ func main() {
 	// Here we use the default structs of the rlwe package, which is compliant to the rlwe.LinearTransformationParameters interface
 	// But a user is free to use any struct compliant to this interface.
 	// See the definition of the interface for more information about the parameters.
-	ltparams := he.MemLinearTransformationParameters[complex128]{
+	ltparams := ckks.NewLinearTransformationParameters(ckks.LinearTransformationParametersLiteral[complex128]{
 		Diagonals:                diagonals,
 		Level:                    ct1.Level(),
 		PlaintextScale:           rlwe.NewScale(params.Q()[ct1.Level()]),
 		PlaintextLogDimensions:   ct1.PlaintextLogDimensions,
 		LogBabyStepGianStepRatio: 1,
-	}
+	})
 
 	// We allocated the rlwe.LinearTransformation.
 	// The allocation takes into account the parameters of the linear transformation.
-	lt := he.NewLinearTransformation[complex128](params, ltparams)
+	lt := ckks.NewLinearTransformation[complex128](params, ltparams)
 
 	// We encode our linear transformation on the allocated rlwe.LinearTransformation.
 	// Not that trying to encode a linear transformation with different non-zero diagonals,
@@ -717,7 +717,7 @@ func main() {
 	// Then we generate the corresponding Galois keys.
 	// The list of Galois elements can also be obtained with `lt.GaloisElements`
 	// but this requires to have it pre-allocated, which is not always desirable.
-	galEls = he.GaloisElementsForLinearTransformation[complex128](params, ltparams)
+	galEls = ckks.GaloisElementsForLinearTransformation[complex128](params, ltparams)
 	gks, err = kgen.GenGaloisKeysNew(galEls, sk)
 	if err != nil {
 		panic(err)
@@ -774,9 +774,9 @@ func EvaluateLinearTransform(values []complex128, diags map[int][]complex128) (r
 
 	keys := utils.GetKeys(diags)
 
-	N1 := he.FindBestBSGSRatio(keys, len(values), 1)
+	N1 := hebase.FindBestBSGSRatio(keys, len(values), 1)
 
-	index, _, _ := he.BSGSIndex(keys, slots, N1)
+	index, _, _ := hebase.BSGSIndex(keys, slots, N1)
 
 	res = make([]complex128, slots)
 

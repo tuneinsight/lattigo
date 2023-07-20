@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v4/ring"
 
-	"github.com/tuneinsight/lattigo/v4/he"
+	"github.com/tuneinsight/lattigo/v4/hebase"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
@@ -907,7 +907,7 @@ func testEvaluatePoly(tc *testContext, t *testing.T) {
 			valuesWant[j] = poly.Evaluate(values[j])
 		}
 
-		polyVector, err := he.NewPolynomialVector([]he.Polynomial{he.NewPolynomial(poly)}, slotIndex)
+		polyVector, err := NewPolynomialVector([]hebase.Polynomial{NewPolynomial(poly)}, slotIndex)
 		require.NoError(t, err)
 
 		if ciphertext, err = tc.evaluator.Polynomial(ciphertext, polyVector, ciphertext.PlaintextScale); err != nil {
@@ -942,7 +942,7 @@ func testChebyshevInterpolator(tc *testContext, t *testing.T) {
 			B:     *new(big.Float).SetPrec(prec).SetFloat64(8),
 		}
 
-		poly := he.NewPolynomial(bignum.ChebyshevApproximation(math.Sin, interval))
+		poly := NewPolynomial(bignum.ChebyshevApproximation(math.Sin, interval))
 
 		scalar, constant := poly.ChangeOfBasis()
 		eval.Mul(ciphertext, scalar, ciphertext)
@@ -1159,13 +1159,13 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 			}
 		}
 
-		ltparams := he.MemLinearTransformationParameters[*bignum.Complex]{
+		ltparams := NewLinearTransformationParameters(LinearTransformationParametersLiteral[*bignum.Complex]{
 			Diagonals:                diagonals,
 			Level:                    ciphertext.Level(),
 			PlaintextScale:           rlwe.NewScale(params.Q()[ciphertext.Level()]),
 			PlaintextLogDimensions:   ciphertext.PlaintextLogDimensions,
 			LogBabyStepGianStepRatio: 1,
-		}
+		})
 
 		// Allocate the linear transformation
 		linTransf := NewLinearTransformation[*bignum.Complex](params, ltparams)
@@ -1173,7 +1173,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 		// Encode on the linear transformation
 		require.NoError(t, EncodeLinearTransformation[*bignum.Complex](linTransf, ltparams, tc.encoder))
 
-		galEls := he.GaloisElementsForLinearTransformation[*bignum.Complex](params, ltparams)
+		galEls := GaloisElementsForLinearTransformation[*bignum.Complex](params, ltparams)
 
 		gks, err := tc.kgen.GenGaloisKeysNew(galEls, tc.sk)
 		require.NoError(t, err)
@@ -1224,13 +1224,13 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 			}
 		}
 
-		ltparams := he.MemLinearTransformationParameters[*bignum.Complex]{
+		ltparams := NewLinearTransformationParameters(LinearTransformationParametersLiteral[*bignum.Complex]{
 			Diagonals:                diagonals,
 			Level:                    ciphertext.Level(),
 			PlaintextScale:           rlwe.NewScale(params.Q()[ciphertext.Level()]),
 			PlaintextLogDimensions:   ciphertext.PlaintextLogDimensions,
 			LogBabyStepGianStepRatio: -1,
-		}
+		})
 
 		// Allocate the linear transformation
 		linTransf := NewLinearTransformation[*bignum.Complex](params, ltparams)
@@ -1238,7 +1238,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 		// Encode on the linear transformation
 		require.NoError(t, EncodeLinearTransformation[*bignum.Complex](linTransf, ltparams, tc.encoder))
 
-		galEls := he.GaloisElementsForLinearTransformation[*bignum.Complex](params, ltparams)
+		galEls := GaloisElementsForLinearTransformation[*bignum.Complex](params, ltparams)
 
 		gks, err := tc.kgen.GenGaloisKeysNew(galEls, tc.sk)
 		require.NoError(t, err)

@@ -5,18 +5,11 @@ import (
 	"math/big"
 	"math/bits"
 
-	"github.com/tuneinsight/lattigo/v4/he"
+	"github.com/tuneinsight/lattigo/v4/hebase"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
-
-// NewPowerBasis creates a new PowerBasis. It takes as input a ciphertext
-// and a basistype. The struct treats the input ciphertext as a monomial X and
-// can be used to generates power of this monomial X^{n} in the given BasisType.
-func NewPowerBasis(ct *rlwe.Ciphertext, basis bignum.Basis) he.PowerBasis {
-	return he.NewPowerBasis(ct, basis)
-}
 
 // Polynomial evaluates a polynomial in standard basis on the input Ciphertext in ceil(log2(deg+1)) levels.
 // Returns an error if the input ciphertext does not have enough level to carry out the full polynomial evaluation.
@@ -24,18 +17,18 @@ func NewPowerBasis(ct *rlwe.Ciphertext, basis bignum.Basis) he.PowerBasis {
 // If the polynomial is given in Chebyshev basis, then a change of basis ct' = (2/(b-a)) * (ct + (-a-b)/(b-a))
 // is necessary before the polynomial evaluation to ensure correctness.
 // input must be either *rlwe.Ciphertext or *PolynomialBasis.
-// pol: a *bignum.Polynomial, *he.Polynomial or *he.PolynomialVector
+// pol: a *bignum.Polynomial, *hebase.Polynomial or *hebase.PolynomialVector
 // targetScale: the desired output scale. This value shouldn't differ too much from the original ciphertext scale. It can
 // for example be used to correct small deviations in the ciphertext scale and reset it to the default scale.
 func (eval Evaluator) Polynomial(input interface{}, p interface{}, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
 
-	var polyVec he.PolynomialVector
+	var polyVec hebase.PolynomialVector
 	switch p := p.(type) {
 	case bignum.Polynomial:
-		polyVec = he.PolynomialVector{Value: []he.Polynomial{{Polynomial: p, MaxDeg: p.Degree(), Lead: true, Lazy: false}}}
-	case he.Polynomial:
-		polyVec = he.PolynomialVector{Value: []he.Polynomial{p}}
-	case he.PolynomialVector:
+		polyVec = hebase.PolynomialVector{Value: []hebase.Polynomial{{Polynomial: p, MaxDeg: p.Degree(), Lead: true, Lazy: false}}}
+	case hebase.Polynomial:
+		polyVec = hebase.PolynomialVector{Value: []hebase.Polynomial{p}}
+	case hebase.PolynomialVector:
 		polyVec = p
 	default:
 		return nil, fmt.Errorf("cannot Polynomial: invalid polynomial type: %T", p)
@@ -43,17 +36,17 @@ func (eval Evaluator) Polynomial(input interface{}, p interface{}, targetScale r
 
 	polyEval := NewPolynomialEvaluator(&eval)
 
-	var powerbasis he.PowerBasis
+	var powerbasis hebase.PowerBasis
 	switch input := input.(type) {
 	case *rlwe.Ciphertext:
-		powerbasis = he.NewPowerBasis(input, polyVec.Value[0].Basis)
-	case he.PowerBasis:
+		powerbasis = hebase.NewPowerBasis(input, polyVec.Value[0].Basis)
+	case hebase.PowerBasis:
 		if input.Value[1] == nil {
 			return nil, fmt.Errorf("cannot evaluatePolyVector: given PowerBasis.Value[1] is empty")
 		}
 		powerbasis = input
 	default:
-		return nil, fmt.Errorf("cannot evaluatePolyVector: invalid input, must be either *rlwe.Ciphertext or *he.PowerBasis")
+		return nil, fmt.Errorf("cannot evaluatePolyVector: invalid input, must be either *rlwe.Ciphertext or *hebase.PowerBasis")
 	}
 
 	params := eval.parameters
@@ -89,7 +82,7 @@ func (eval Evaluator) Polynomial(input interface{}, p interface{}, targetScale r
 
 	PS := polyVec.GetPatersonStockmeyerPolynomial(params.Parameters, powerbasis.Value[1].Level(), powerbasis.Value[1].PlaintextScale, targetScale, &dummyEvaluator{params, nbModuliPerRescale})
 
-	if opOut, err = he.EvaluatePatersonStockmeyerPolynomialVector(PS, powerbasis, polyEval); err != nil {
+	if opOut, err = hebase.EvaluatePatersonStockmeyerPolynomialVector(PS, powerbasis, polyEval); err != nil {
 		return nil, err
 	}
 
@@ -106,7 +99,7 @@ func (d dummyEvaluator) PolynomialDepth(degree int) int {
 }
 
 // Rescale rescales the target DummyOperand n times and returns it.
-func (d dummyEvaluator) Rescale(op0 *he.DummyOperand) {
+func (d dummyEvaluator) Rescale(op0 *hebase.DummyOperand) {
 	for i := 0; i < d.nbModuliPerRescale; i++ {
 		op0.PlaintextScale = op0.PlaintextScale.Div(rlwe.NewScale(d.params.Q()[op0.Level]))
 		op0.Level--
@@ -114,8 +107,8 @@ func (d dummyEvaluator) Rescale(op0 *he.DummyOperand) {
 }
 
 // Mul multiplies two DummyOperand, stores the result the taret DummyOperand and returns the result.
-func (d dummyEvaluator) MulNew(op0, op1 *he.DummyOperand) (opOut *he.DummyOperand) {
-	opOut = new(he.DummyOperand)
+func (d dummyEvaluator) MulNew(op0, op1 *hebase.DummyOperand) (opOut *hebase.DummyOperand) {
+	opOut = new(hebase.DummyOperand)
 	opOut.Level = utils.Min(op0.Level, op1.Level)
 	opOut.PlaintextScale = op0.PlaintextScale.Mul(op1.PlaintextScale)
 	return
@@ -163,19 +156,11 @@ func (d dummyEvaluator) GetPolynmialDepth(degree int) int {
 	return d.nbModuliPerRescale * (bits.Len64(uint64(degree)) - 1)
 }
 
-func NewPolynomialEvaluator(eval *Evaluator) *PolynomialEvaluator {
-	return &PolynomialEvaluator{eval}
-}
-
-type PolynomialEvaluator struct {
-	*Evaluator
-}
-
 func (polyEval PolynomialEvaluator) Rescale(op0, op1 *rlwe.Ciphertext) (err error) {
 	return polyEval.Evaluator.Rescale(op0, polyEval.Evaluator.parameters.PlaintextScale(), op1)
 }
 
-func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol he.PolynomialVector, pb he.PowerBasis, targetScale rlwe.Scale) (res *rlwe.Ciphertext, err error) {
+func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol hebase.PolynomialVector, pb hebase.PowerBasis, targetScale rlwe.Scale) (res *rlwe.Ciphertext, err error) {
 
 	// Map[int] of the powers [X^{0}, X^{1}, X^{2}, ...]
 	X := pb.Value

@@ -5,7 +5,7 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/tuneinsight/lattigo/v4/he"
+	"github.com/tuneinsight/lattigo/v4/hebase"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
@@ -17,7 +17,7 @@ import (
 type Evaluator struct {
 	*evaluatorBase
 	*evaluatorBuffers
-	*he.Evaluator
+	*hebase.Evaluator
 	*Encoder
 }
 
@@ -108,7 +108,7 @@ func NewEvaluator(parameters Parameters, evk rlwe.EvaluationKeySet) *Evaluator {
 	ev := new(Evaluator)
 	ev.evaluatorBase = newEvaluatorPrecomp(parameters)
 	ev.evaluatorBuffers = newEvaluatorBuffer(parameters)
-	ev.Evaluator = he.NewEvaluator(parameters, evk)
+	ev.Evaluator = hebase.NewEvaluator(parameters, evk)
 	ev.Encoder = NewEncoder(parameters)
 
 	return ev

@@ -184,22 +184,46 @@ func (p Parameters) QLvl(level int) *big.Int {
 	return tmp
 }
 
-// GaloisElementForColRotationBy returns the Galois element for generating the
-// column rotation automorphism by k position to the left. Providing a negative
-// k corresponds to the right rotation automorphism by k position.
-func (p Parameters) GaloisElementForColRotationBy(k int) uint64 {
+// GaloisElementForColRotation returns the Galois element for generating the
+// automorphism phi(k): X -> X^{5^k mod 2N} mod (X^{N} + 1), which acts as a
+// column-wise cyclic rotation by k position to the left on batched plaintexts.
+//
+// Example:
+// Recall that batched plaintexts are 2xN/2 matrices of the form [m, conjugate(m)]
+// (the conjugate is implicitely ingored) thus given the following plaintext matrix:
+//
+// [a, b, c, d][conj(a), conj(b), conj(c), conj(d)]
+//
+// a rotation by k=3 will change the plaintext to:
+//
+// [d, a, b, c][conj(d), conj(a), conj(b), conj(c)]
+//
+// Providing a negative k will change direction of the cyclic rotation do the right.
+//
+// Note that when using the ConjugateInvariant variant of the scheme, the conjugate is
+// dropped and the matrix becomes an 1xN matrix.
+func (p Parameters) GaloisElementForColRotation(k int) uint64 {
 	return p.Parameters.GaloisElement(k)
 }
 
-// GaloisElementForRowRotation returns the Galois element for generating the
-// row rotation automorphism (i.e., GaloisGen^{-1} mod NthRoot).
-func (p Parameters) GaloisElementForRowRotation() uint64 {
-	return p.Parameters.GaloisElementOrderTwoOrthogonalSubgroup()
-}
-
-// GaloisElementForConjugate returns the Galois element for generating the
-// conjugate automorphism (i.e., the row rotation, i.e, GaloisGen^{-1} mod NthRoot).
-func (p Parameters) GaloisElementForConjugate() uint64 {
+// GaloisElementForComplexConjugation returns the Galois element for generating the
+// automorphism X -> X^{-1 mod NthRoot} mod (X^{N} + 1). This automorphism
+// acts as a swapping the rows of the plaintext algebra when the plaintext
+// is batched.
+//
+// Example:
+// Recall that batched plaintexts are 2xN/2 matrices of the form [m, conjugate(m)]
+// (the conjugate is implicitely ingored) thus given the following plaintext matrix:
+//
+// [a, b, c, d][conj(a), conj(b), conj(c), conj(d)]
+//
+// the complex conjugation will return the following plaintext matrix:
+//
+// [conj(a), conj(b), conj(c), conj(d)][a, b, c, d]
+//
+// Note that when using the ConjugateInvariant variant of the scheme, the conjugate is
+// dropped and this operation is not defined.
+func (p Parameters) GaloisElementForComplexConjugation() uint64 {
 	return p.Parameters.GaloisElementOrderTwoOrthogonalSubgroup()
 }
 

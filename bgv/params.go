@@ -203,15 +203,39 @@ func (p Parameters) RingT() *ring.Ring {
 	return p.ringT
 }
 
-// GaloisElementForColRotationBy returns the Galois element for generating the
-// column rotation automorphism by k position to the left. Providing a negative
-// k corresponds to the right rotation automorphism by k position.
-func (p Parameters) GaloisElementForColRotationBy(k int) uint64 {
+// GaloisElementForColRotation returns the Galois element for generating the
+// automorphism phi(k): X -> X^{5^k mod 2N} mod (X^{N} + 1), which acts as a
+// column-wise cyclic rotation by k position to the left on batched plaintexts.
+//
+// Example:
+// Recall that batched plaintexts are 2xN/2 matrices, thus given the following
+// plaintext matrix:
+//
+// [a, b, c, d][e, f, g, h]
+//
+// a rotation by k=3 will change the plaintext to:
+//
+// [d, a, b, d][h, e, f, g]
+//
+// Providing a negative k will change direction of the cyclic rotation do the right.
+func (p Parameters) GaloisElementForColRotation(k int) uint64 {
 	return p.Parameters.GaloisElement(k)
 }
 
 // GaloisElementForRowRotation returns the Galois element for generating the
-// row rotation automorphism (i.e., GaloisGen^{-1} mod NthRoot).
+// automorphism X -> X^{-1 mod NthRoot} mod (X^{N} + 1). This automorphism
+// acts as a swapping the rows of the plaintext algebra when the plaintext
+// is batched.
+//
+// Example:
+// Recall that batched plaintexts are 2xN/2 matrices, thus given the following
+// plaintext matrix:
+//
+// [a, b, c, d][e, f, g, h]
+//
+// a row rotation will change the plaintext to:
+//
+// [e, f, g, h][a, b, c, d]
 func (p Parameters) GaloisElementForRowRotation() uint64 {
 	return p.Parameters.GaloisElementOrderTwoOrthogonalSubgroup()
 }

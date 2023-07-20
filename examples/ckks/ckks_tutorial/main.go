@@ -480,7 +480,7 @@ func main() {
 		// as a rotation between the row which contains the real part and that which contains the complex part of the complex values).
 		// The reason for this name is that the `ckks` package does not yet have a wrapper for this method which comes from the `rlwe` package.
 		// The name of this method comes from the BFV/BGV schemes, which have plaintext spaces of Z_{2xN/2}, i.e. a matrix of 2 rows and N/2 columns.
-		params.GaloisElementForConjugate(),
+		params.GaloisElementForComplexConjugation(),
 	}
 
 	// We then generate the `rlwe.GaloisKey`s element that corresponds to these galois elements.

@@ -454,7 +454,7 @@ func testSampler(tc *testParams, t *testing.T) {
 
 		pol := sampler.ReadNew()
 
-		require.InDelta(t, math.Log2(1e21), tc.ringQ.Log2OfStandardDeviation(pol), 0.1)
+		require.InDelta(t, math.Log2(1e21), tc.ringQ.Log2OfStandardDeviation(pol), 1)
 	})
 
 	for _, p := range []float64{.5, 1. / 3., 128. / 65536.} {

@@ -190,15 +190,15 @@ func (eval Evaluator) MulRelin(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlw
 // NewPowerBasis creates a new PowerBasis from the input ciphertext.
 // The input ciphertext is treated as the base monomial X used to
 // generate the other powers X^{n}.
-func NewPowerBasis(ct *rlwe.Ciphertext) rlwe.PowerBasis {
-	return rlwe.NewPowerBasis(ct, bignum.Monomial)
+func NewPowerBasis(ct *rlwe.Ciphertext) he.PowerBasis {
+	return he.NewPowerBasis(ct, bignum.Monomial)
 }
 
 // Polynomial evaluates opOut = P(input).
 //
 // inputs:
-//   - input: *rlwe.Ciphertext or *rlwe.PoweBasis
-//   - pol: *bignum.Polynomial, *rlwe.Polynomial or *rlwe.PolynomialVector
+//   - input: *rlwe.Ciphertext or *he.PoweBasis
+//   - pol: *bignum.Polynomial, *he.Polynomial or *he.PolynomialVector
 //
 // output: an *rlwe.Ciphertext encrypting pol(input)
 func (eval Evaluator) Polynomial(input, pol interface{}) (opOut *rlwe.Ciphertext, err error) {

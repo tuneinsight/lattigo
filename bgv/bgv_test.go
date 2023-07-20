@@ -707,9 +707,9 @@ func testEvaluator(tc *testContext, t *testing.T) {
 			slotIndex[0] = idx0
 			slotIndex[1] = idx1
 
-			polyVector, err := rlwe.NewPolynomialVector([]rlwe.Polynomial{
-				rlwe.NewPolynomial(bignum.NewPolynomial(bignum.Monomial, coeffs0, nil)),
-				rlwe.NewPolynomial(bignum.NewPolynomial(bignum.Monomial, coeffs1, nil)),
+			polyVector, err := he.NewPolynomialVector([]he.Polynomial{
+				he.NewPolynomial(bignum.NewPolynomial(bignum.Monomial, coeffs0, nil)),
+				he.NewPolynomial(bignum.NewPolynomial(bignum.Monomial, coeffs1, nil)),
 			}, slotIndex)
 			require.NoError(t, err)
 

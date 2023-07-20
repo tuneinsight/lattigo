@@ -12,7 +12,6 @@ import (
 
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
-	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 	"github.com/tuneinsight/lattigo/v4/utils/buffer"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 	"github.com/tuneinsight/lattigo/v4/utils/structs"
@@ -83,7 +82,7 @@ func TestRLWE(t *testing.T) {
 		}
 	}
 
-	//testUserDefinedParameters(t)
+	testUserDefinedParameters(t)
 }
 
 type TestContext struct {
@@ -1021,22 +1020,6 @@ func testWriteAndRead(tc *TestContext, bpw2 int, t *testing.T) {
 			Rlk: rlk,
 			Gks: map[uint64]*GaloisKey{galEl: gk},
 		})
-	})
-
-	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/PowerBasis"), func(t *testing.T) {
-
-		prng, _ := sampling.NewPRNG()
-
-		ct := NewCiphertextRandom(prng, params, 1, levelQ)
-
-		basis := NewPowerBasis(ct, bignum.Chebyshev)
-
-		basis.Value[2] = NewCiphertextRandom(prng, params, 1, levelQ)
-		basis.Value[3] = NewCiphertextRandom(prng, params, 2, levelQ)
-		basis.Value[4] = NewCiphertextRandom(prng, params, 1, levelQ)
-		basis.Value[8] = NewCiphertextRandom(prng, params, 1, levelQ)
-
-		buffer.RequireSerializerCorrect(t, &basis)
 	})
 }
 

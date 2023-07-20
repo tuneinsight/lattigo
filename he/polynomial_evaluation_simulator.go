@@ -1,25 +1,29 @@
-package rlwe
+package he
+
+import (
+	"github.com/tuneinsight/lattigo/v4/rlwe"
+)
 
 // DummyOperand is a dummy operand
 // that only stores the level and the scale.
 type DummyOperand struct {
 	Level          int
-	PlaintextScale Scale
+	PlaintextScale rlwe.Scale
 }
 
 type DummyEvaluator interface {
 	MulNew(op0, op1 *DummyOperand) *DummyOperand
 	Rescale(op0 *DummyOperand)
 	PolynomialDepth(degree int) int
-	UpdateLevelAndScaleGiantStep(lead bool, tLevelOld int, tScaleOld, xPowScale Scale) (tLevelNew int, tScaleNew Scale)
-	UpdateLevelAndScaleBabyStep(lead bool, tLevelOld int, tScaleOld Scale) (tLevelNew int, tScaleNew Scale)
+	UpdateLevelAndScaleGiantStep(lead bool, tLevelOld int, tScaleOld, xPowScale rlwe.Scale) (tLevelNew int, tScaleNew rlwe.Scale)
+	UpdateLevelAndScaleBabyStep(lead bool, tLevelOld int, tScaleOld rlwe.Scale) (tLevelNew int, tScaleNew rlwe.Scale)
 }
 
 // DummyPowerBasis is a map storing powers of DummyOperands indexed by their power.
 type DummyPowerBasis map[int]*DummyOperand
 
 // GenPower populates the target DummyPowerBasis with the nth power.
-func (d DummyPowerBasis) GenPower(params ParametersInterface, n int, eval DummyEvaluator) {
+func (d DummyPowerBasis) GenPower(params rlwe.ParametersInterface, n int, eval DummyEvaluator) {
 
 	if n < 2 {
 		return

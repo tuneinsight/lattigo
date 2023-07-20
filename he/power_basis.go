@@ -1,4 +1,4 @@
-package rlwe
+package he
 
 import (
 	"bufio"
@@ -6,6 +6,7 @@ import (
 	"io"
 	"math/bits"
 
+	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 	"github.com/tuneinsight/lattigo/v4/utils/buffer"
 	"github.com/tuneinsight/lattigo/v4/utils/structs"
@@ -14,15 +15,15 @@ import (
 // PowerBasis is a struct storing powers of a ciphertext.
 type PowerBasis struct {
 	bignum.Basis
-	Value structs.Map[int, Ciphertext]
+	Value structs.Map[int, rlwe.Ciphertext]
 }
 
 // NewPowerBasis creates a new PowerBasis. It takes as input a ciphertext
 // and a basistype. The struct treats the input ciphertext as a monomial X and
 // can be used to generates power of this monomial X^{n} in the given BasisType.
-func NewPowerBasis(ct *Ciphertext, basis bignum.Basis) (p PowerBasis) {
+func NewPowerBasis(ct *rlwe.Ciphertext, basis bignum.Basis) (p PowerBasis) {
 	return PowerBasis{
-		Value: map[int]*Ciphertext{1: ct.CopyNew()},
+		Value: map[int]*rlwe.Ciphertext{1: ct.CopyNew()},
 		Basis: basis,
 	}
 }
@@ -239,7 +240,7 @@ func (p *PowerBasis) ReadFrom(r io.Reader) (n int64, err error) {
 		p.Basis = bignum.Basis(Basis)
 
 		if p.Value == nil {
-			p.Value = map[int]*Ciphertext{}
+			p.Value = map[int]*rlwe.Ciphertext{}
 		}
 
 		inc, err = p.Value.ReadFrom(r)

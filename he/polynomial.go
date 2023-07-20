@@ -1,9 +1,10 @@
-package rlwe
+package he
 
 import (
 	"fmt"
 	"math/bits"
 
+	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
@@ -14,11 +15,11 @@ import (
 // related parameters.
 type Polynomial struct {
 	bignum.Polynomial
-	MaxDeg int   // Always set to len(Coeffs)-1
-	Lead   bool  // Always set to true
-	Lazy   bool  // Flag for lazy-relinearization
-	Level  int   // Metadata for BSGS polynomial evaluation
-	Scale  Scale // Metatata for BSGS polynomial evaluation
+	MaxDeg int        // Always set to len(Coeffs)-1
+	Lead   bool       // Always set to true
+	Lazy   bool       // Flag for lazy-relinearization
+	Level  int        // Metadata for BSGS polynomial evaluation
+	Scale  rlwe.Scale // Metatata for BSGS polynomial evaluation
 }
 
 // NewPolynomial returns an instantiated Polynomial for the
@@ -59,11 +60,11 @@ type PatersonStockmeyerPolynomial struct {
 	Degree int
 	Base   int
 	Level  int
-	Scale  Scale
+	Scale  rlwe.Scale
 	Value  []Polynomial
 }
 
-func (p Polynomial) GetPatersonStockmeyerPolynomial(params ParametersInterface, inputLevel int, inputScale, outputScale Scale, eval DummyEvaluator) PatersonStockmeyerPolynomial {
+func (p Polynomial) GetPatersonStockmeyerPolynomial(params rlwe.ParametersInterface, inputLevel int, inputScale, outputScale rlwe.Scale, eval DummyEvaluator) PatersonStockmeyerPolynomial {
 
 	logDegree := bits.Len64(uint64(p.Degree()))
 	logSplit := bignum.OptimalSplit(logDegree)
@@ -90,7 +91,7 @@ func (p Polynomial) GetPatersonStockmeyerPolynomial(params ParametersInterface, 
 	}
 }
 
-func recursePS(params ParametersInterface, logSplit, targetLevel int, p Polynomial, pb DummyPowerBasis, outputScale Scale, eval DummyEvaluator) ([]Polynomial, *DummyOperand) {
+func recursePS(params rlwe.ParametersInterface, logSplit, targetLevel int, p Polynomial, pb DummyPowerBasis, outputScale rlwe.Scale, eval DummyEvaluator) ([]Polynomial, *DummyOperand) {
 
 	if p.Degree() < (1 << logSplit) {
 
@@ -125,7 +126,7 @@ func recursePS(params ParametersInterface, logSplit, targetLevel int, p Polynomi
 
 	bsgsR, tmp := recursePS(params, logSplit, targetLevel, coeffsr, pb, res.PlaintextScale, eval)
 
-	if !tmp.PlaintextScale.InDelta(res.PlaintextScale, float64(ScalePrecision-12)) {
+	if !tmp.PlaintextScale.InDelta(res.PlaintextScale, float64(rlwe.ScalePrecision-12)) {
 		panic(fmt.Errorf("recursePS: res.PlaintextScale != tmp.PlaintextScale: %v != %v", &res.PlaintextScale.Value, &tmp.PlaintextScale.Value))
 	}
 
@@ -199,7 +200,7 @@ type PatersonStockmeyerPolynomialVector struct {
 }
 
 // GetPatersonStockmeyerPolynomial returns
-func (p PolynomialVector) GetPatersonStockmeyerPolynomial(params ParametersInterface, inputLevel int, inputScale, outputScale Scale, eval DummyEvaluator) PatersonStockmeyerPolynomialVector {
+func (p PolynomialVector) GetPatersonStockmeyerPolynomial(params rlwe.ParametersInterface, inputLevel int, inputScale, outputScale rlwe.Scale, eval DummyEvaluator) PatersonStockmeyerPolynomialVector {
 	Value := make([]PatersonStockmeyerPolynomial, len(p.Value))
 	for i := range Value {
 		Value[i] = p.Value[i].GetPatersonStockmeyerPolynomial(params, inputLevel, inputScale, outputScale, eval)

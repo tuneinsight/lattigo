@@ -1,15 +1,24 @@
-package rlwe
+package he
 
 import (
 	"fmt"
 	"math/bits"
+
+	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
-func EvaluatePatersonStockmeyerPolynomialVector(poly PatersonStockmeyerPolynomialVector, pb PowerBasis, eval PolynomialEvaluatorInterface) (res *Ciphertext, err error) {
+// PolynomialEvaluatorInterface defines the set of common and scheme agnostic homomorphic operations
+// that are required for the encrypted evaluation of plaintext polynomial.
+type PolynomialEvaluatorInterface interface {
+	EvaluatorInterface
+	EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol PolynomialVector, pb PowerBasis, targetScale rlwe.Scale) (res *rlwe.Ciphertext, err error)
+}
+
+func EvaluatePatersonStockmeyerPolynomialVector(poly PatersonStockmeyerPolynomialVector, pb PowerBasis, eval PolynomialEvaluatorInterface) (res *rlwe.Ciphertext, err error) {
 
 	type Poly struct {
 		Degree int
-		Value  *Ciphertext
+		Value  *rlwe.Ciphertext
 	}
 
 	split := len(poly.Value[0].Value)
@@ -100,7 +109,7 @@ func EvaluatePatersonStockmeyerPolynomialVector(poly PatersonStockmeyerPolynomia
 }
 
 // Evaluates a = a + b * xpow
-func evalMonomial(a, b, xpow *Ciphertext, eval PolynomialEvaluatorInterface) (err error) {
+func evalMonomial(a, b, xpow *rlwe.Ciphertext, eval PolynomialEvaluatorInterface) (err error) {
 
 	if b.Degree() == 2 {
 		if err = eval.Relinearize(b, b); err != nil {
@@ -116,7 +125,7 @@ func evalMonomial(a, b, xpow *Ciphertext, eval PolynomialEvaluatorInterface) (er
 		return fmt.Errorf("evalMonomial: %w", err)
 	}
 
-	if !a.PlaintextScale.InDelta(b.PlaintextScale, float64(ScalePrecision-12)) {
+	if !a.PlaintextScale.InDelta(b.PlaintextScale, float64(rlwe.ScalePrecision-12)) {
 		return fmt.Errorf("evalMonomial: scale discrepency: (rescale(b) * X^{n}).Scale = %v != a.Scale = %v", &a.PlaintextScale.Value, &b.PlaintextScale.Value)
 	}
 

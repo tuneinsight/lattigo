@@ -44,23 +44,3 @@ type ParametersInterface interface {
 
 	Equal(other ParametersInterface) bool
 }
-
-// EvaluatorInterface defines a set of common and scheme agnostic homomorphic operations provided by an Evaluator struct.
-type EvaluatorInterface interface {
-	Add(op0 *Ciphertext, op1 interface{}, opOut *Ciphertext) (err error)
-	Sub(op0 *Ciphertext, op1 interface{}, opOut *Ciphertext) (err error)
-	Mul(op0 *Ciphertext, op1 interface{}, opOut *Ciphertext) (err error)
-	MulNew(op0 *Ciphertext, op1 interface{}) (opOut *Ciphertext, err error)
-	MulRelinNew(op0 *Ciphertext, op1 interface{}) (opOut *Ciphertext, err error)
-	MulThenAdd(op0 *Ciphertext, op1 interface{}, opOut *Ciphertext) (err error)
-	Relinearize(op0, op1 *Ciphertext) (err error)
-	Rescale(op0, op1 *Ciphertext) (err error)
-	Parameters() ParametersInterface
-}
-
-// PolynomialEvaluatorInterface defines the set of common and scheme agnostic homomorphic operations
-// that are required for the encrypted evaluation of plaintext polynomial.
-type PolynomialEvaluatorInterface interface {
-	EvaluatorInterface
-	EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol PolynomialVector, pb PowerBasis, targetScale Scale) (res *Ciphertext, err error)
-}

@@ -907,7 +907,7 @@ func testEvaluatePoly(tc *testContext, t *testing.T) {
 			valuesWant[j] = poly.Evaluate(values[j])
 		}
 
-		polyVector, err := rlwe.NewPolynomialVector([]rlwe.Polynomial{rlwe.NewPolynomial(poly)}, slotIndex)
+		polyVector, err := he.NewPolynomialVector([]he.Polynomial{he.NewPolynomial(poly)}, slotIndex)
 		require.NoError(t, err)
 
 		if ciphertext, err = tc.evaluator.Polynomial(ciphertext, polyVector, ciphertext.PlaintextScale); err != nil {
@@ -942,7 +942,7 @@ func testChebyshevInterpolator(tc *testContext, t *testing.T) {
 			B:     *new(big.Float).SetPrec(prec).SetFloat64(8),
 		}
 
-		poly := rlwe.NewPolynomial(bignum.ChebyshevApproximation(math.Sin, interval))
+		poly := he.NewPolynomial(bignum.ChebyshevApproximation(math.Sin, interval))
 
 		scalar, constant := poly.ChangeOfBasis()
 		eval.Mul(ciphertext, scalar, ciphertext)

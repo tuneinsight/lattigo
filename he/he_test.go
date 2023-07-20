@@ -12,6 +12,9 @@ import (
 
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
+	"github.com/tuneinsight/lattigo/v4/utils/buffer"
+	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
@@ -66,9 +69,35 @@ func TestHE(t *testing.T) {
 						runtime.GC()
 					}
 				}
+
+				testSerialization(tc, tc.params.MaxLevel(), paramsLit.BaseTwoDecomposition, t)
 			}
 		}
 	}
+}
+
+func testSerialization(tc *TestContext, level, bpw2 int, t *testing.T) {
+
+	params := tc.params
+
+	levelQ := level
+	levelP := params.MaxLevelP()
+
+	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/PowerBasis"), func(t *testing.T) {
+
+		prng, _ := sampling.NewPRNG()
+
+		ct := rlwe.NewCiphertextRandom(prng, params, 1, levelQ)
+
+		basis := NewPowerBasis(ct, bignum.Chebyshev)
+
+		basis.Value[2] = rlwe.NewCiphertextRandom(prng, params, 1, levelQ)
+		basis.Value[3] = rlwe.NewCiphertextRandom(prng, params, 2, levelQ)
+		basis.Value[4] = rlwe.NewCiphertextRandom(prng, params, 1, levelQ)
+		basis.Value[8] = rlwe.NewCiphertextRandom(prng, params, 1, levelQ)
+
+		buffer.RequireSerializerCorrect(t, &basis)
+	})
 }
 
 type TestContext struct {

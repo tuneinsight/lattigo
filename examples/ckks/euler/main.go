@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/he"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
@@ -190,7 +191,7 @@ func example() {
 
 	start = time.Now()
 
-	monomialBasis := rlwe.NewPowerBasis(ciphertext, bignum.Monomial)
+	monomialBasis := he.NewPowerBasis(ciphertext, bignum.Monomial)
 	if err = monomialBasis.GenPower(int(r), false, ckks.NewPolynomialEvaluator(evaluator)); err != nil {
 		panic(err)
 	}

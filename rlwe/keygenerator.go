@@ -15,7 +15,7 @@ type KeyGenerator struct {
 }
 
 // NewKeyGenerator creates a new KeyGenerator, from which the secret and public keys, as well as EvaluationKeys.
-func NewKeyGenerator(params ParametersInterface) *KeyGenerator {
+func NewKeyGenerator(params GetRLWEParameters) *KeyGenerator {
 	enc, err := NewEncryptor(params, nil)
 	if err != nil {
 		panic(err)

@@ -105,9 +105,8 @@ func permuteMatrix(logN int) (perm []uint64) {
 	return perm
 }
 
-// Parameters returns the underlying parameters of the Encoder as an rlwe.ParametersInterface.
-func (ecd Encoder) Parameters() rlwe.ParametersInterface {
-	return ecd.parameters
+func (ecd Encoder) GetRLWEParameters() *rlwe.Parameters {
+	return &ecd.parameters.Parameters
 }
 
 // Encode encodes a slice of integers of type []uint64 or []int64 on a pre-allocated plaintext.

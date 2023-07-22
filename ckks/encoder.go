@@ -45,9 +45,10 @@ const GaloisGen uint64 = ring.GaloisGen
 //	                                      |
 //		Slots: Complex^{N/2} -> iDFT -----┘
 type Encoder struct {
+	parameters Parameters
+
 	prec uint
 
-	parameters   Parameters
 	bigintCoeffs []*big.Int
 	qHalf        *big.Int
 	buff         ring.Poly
@@ -125,9 +126,8 @@ func (ecd Encoder) Prec() uint {
 	return ecd.prec
 }
 
-// Parameters returns the Parameters used by the target Encoder.
-func (ecd Encoder) Parameters() rlwe.ParametersInterface {
-	return ecd.parameters
+func (ecd Encoder) GetRLWEParameters() rlwe.Parameters {
+	return ecd.parameters.Parameters
 }
 
 // Encode encodes a set of values on the target plaintext.

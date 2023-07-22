@@ -6,7 +6,6 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
@@ -61,13 +60,13 @@ func testHomomorphicDFTMatrixLiteralMarshalling(t *testing.T) {
 		}
 
 		data, err := m.MarshalBinary()
-		assert.Nil(t, err)
+		require.Nil(t, err)
 
 		mNew := new(HomomorphicDFTMatrixLiteral)
 		if err := mNew.UnmarshalBinary(data); err != nil {
-			assert.Nil(t, err)
+			require.Nil(t, err)
 		}
-		assert.Equal(t, m, *mNew)
+		require.Equal(t, m, *mNew)
 	})
 }
 

@@ -52,7 +52,7 @@ func NewLinearTransformationParameters[T Float](params LinearTransformationParam
 }
 
 // NewLinearTransformation creates a new hebase.LinearTransformation from the provided hebase.LinearTranfromationParameters.
-func NewLinearTransformation[T Float](params rlwe.ParametersInterface, lt hebase.LinearTranfromationParameters[T]) hebase.LinearTransformation {
+func NewLinearTransformation[T Float](params rlwe.GetRLWEParameters, lt hebase.LinearTranfromationParameters[T]) hebase.LinearTransformation {
 	return hebase.NewLinearTransformation(params, lt)
 }
 
@@ -63,7 +63,7 @@ func EncodeLinearTransformation[T Float](allocated hebase.LinearTransformation, 
 }
 
 // GaloisElementsForLinearTransformation returns the list of Galois elements required to evaluate the linear transformation.
-func GaloisElementsForLinearTransformation[T Float](params rlwe.ParametersInterface, lt hebase.LinearTranfromationParameters[T]) (galEls []uint64) {
+func GaloisElementsForLinearTransformation[T Float](params rlwe.GetRLWEParameters, lt hebase.LinearTranfromationParameters[T]) (galEls []uint64) {
 	return hebase.GaloisElementsForLinearTransformation(params, lt)
 }
 

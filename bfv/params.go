@@ -43,9 +43,9 @@ func NewParametersFromLiteral(pl ParametersLiteral) (p Parameters, err error) {
 // NewParametersFromLiteral).
 type ParametersLiteral bgv.ParametersLiteral
 
-// RLWEParametersLiteral returns the rlwe.ParametersLiteral from the target bfv.ParametersLiteral.
-func (p ParametersLiteral) RLWEParametersLiteral() rlwe.ParametersLiteral {
-	return bgv.ParametersLiteral(p).RLWEParametersLiteral()
+// GetRLWEParametersLiteral returns the rlwe.ParametersLiteral from the target bfv.ParametersLiteral.
+func (p ParametersLiteral) GetRLWEParametersLiteral() rlwe.ParametersLiteral {
+	return bgv.ParametersLiteral(p).GetRLWEParametersLiteral()
 }
 
 // Parameters represents a parameter set for the BFV cryptosystem. Its fields are private and
@@ -55,7 +55,7 @@ type Parameters struct {
 }
 
 // Equal compares two sets of parameters for equality.
-func (p Parameters) Equal(other rlwe.ParametersInterface) bool {
+func (p Parameters) Equal(other rlwe.GetRLWEParameters) bool {
 	switch other := other.(type) {
 	case Parameters:
 		return p.Parameters.Equal(other.Parameters)

@@ -6,6 +6,7 @@ import (
 
 // EvaluatorInterface defines a set of common and scheme agnostic homomorphic operations provided by an Evaluator struct.
 type EvaluatorInterface interface {
+	rlwe.GetRLWEParameters
 	Add(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error)
 	Sub(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error)
 	Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error)
@@ -14,14 +15,13 @@ type EvaluatorInterface interface {
 	MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error)
 	Relinearize(op0, op1 *rlwe.Ciphertext) (err error)
 	Rescale(op0, op1 *rlwe.Ciphertext) (err error)
-	Parameters() rlwe.ParametersInterface
 }
 
 type Evaluator struct {
 	rlwe.Evaluator
 }
 
-func NewEvaluator(params rlwe.ParametersInterface, evk rlwe.EvaluationKeySet) (eval *Evaluator) {
+func NewEvaluator(params rlwe.GetRLWEParameters, evk rlwe.EvaluationKeySet) (eval *Evaluator) {
 	return &Evaluator{*rlwe.NewEvaluator(params, evk)}
 }
 

@@ -214,7 +214,7 @@ func main() {
 	ctN12.IsBatched = false
 
 	// Key-Switch from LogN = 12 to LogN = 11
-	ctN11 := ckks.NewCiphertext(paramsN11.Parameters, 1, paramsN11.MaxLevel())
+	ctN11 := ckks.NewCiphertext(paramsN11, 1, paramsN11.MaxLevel())
 	// key-switch to LWE degree
 	if err := evalCKKS.ApplyEvaluationKey(ctN12, evkN12ToN11, ctN11); err != nil {
 		panic(err)
@@ -230,6 +230,10 @@ func main() {
 	}
 	fmt.Printf("Done (%s)\n", time.Since(now))
 	ctN12.IsBatched = false
+	ctN12.LogDimensions = paramsN12.PlaintextLogDimensions()
+	ctN12.Scale = paramsN12.PlaintextScale()
+
+	fmt.Println(ctN12.MetaData)
 
 	fmt.Printf("Homomorphic Encoding... ")
 	now = time.Now()

@@ -54,7 +54,7 @@ func (switcher DomainSwitcher) ComplexToReal(eval *Evaluator, ctIn, opOut *rlwe.
 
 	evalRLWE := eval.Evaluator
 
-	if evalRLWE.Parameters().RingType() != ring.Standard {
+	if evalRLWE.GetRLWEParameters().RingType() != ring.Standard {
 		return fmt.Errorf("cannot ComplexToReal: provided evaluator is not instantiated with RingType ring.Standard")
 	}
 
@@ -95,7 +95,7 @@ func (switcher DomainSwitcher) RealToComplex(eval *Evaluator, ctIn, opOut *rlwe.
 
 	evalRLWE := eval.Evaluator
 
-	if evalRLWE.Parameters().RingType() != ring.Standard {
+	if evalRLWE.GetRLWEParameters().RingType() != ring.Standard {
 		return fmt.Errorf("cannot RealToComplex: provided evaluator is not instantiated with RingType ring.Standard")
 	}
 

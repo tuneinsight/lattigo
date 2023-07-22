@@ -11,7 +11,7 @@ import (
 // TraceNew maps X -> sum((-1)^i * X^{i*n+1}) for 0 <= i < N and returns the result on a new ciphertext.
 // For log(n) = logSlots.
 func (eval Evaluator) TraceNew(ctIn *rlwe.Ciphertext, logSlots int) (opOut *rlwe.Ciphertext, err error) {
-	opOut = NewCiphertext(eval.parameters, 1, ctIn.Level())
+	opOut = NewCiphertext(*eval.GetParameters(), 1, ctIn.Level())
 	return opOut, eval.Trace(ctIn, logSlots, opOut)
 }
 
@@ -31,7 +31,7 @@ func (eval Evaluator) Average(ctIn *rlwe.Ciphertext, logBatchSize int, opOut *rl
 		return fmt.Errorf("cannot Average: batchSize must be smaller or equal to the number of slots")
 	}
 
-	ringQ := eval.parameters.RingQ()
+	ringQ := eval.GetParameters().RingQ()
 
 	level := utils.Min(ctIn.Level(), opOut.Level())
 

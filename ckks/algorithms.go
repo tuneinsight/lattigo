@@ -15,7 +15,7 @@ import (
 // This method will return an error if something goes wrong with the bootstrapping or the rescaling operations.
 func (eval *Evaluator) GoldschmidtDivisionNew(ct *rlwe.Ciphertext, minValue, logPrec float64, btp rlwe.Bootstrapper) (ctInv *rlwe.Ciphertext, err error) {
 
-	parameters := eval.parameters
+	params := eval.GetParameters()
 
 	start := math.Log2(1 - minValue)
 	var iters int
@@ -24,7 +24,7 @@ func (eval *Evaluator) GoldschmidtDivisionNew(ct *rlwe.Ciphertext, minValue, log
 		iters++
 	}
 
-	ptScale2ModuliRatio := parameters.PlaintextScaleToModuliRatio()
+	ptScale2ModuliRatio := params.PlaintextScaleToModuliRatio()
 
 	if depth := iters * ptScale2ModuliRatio; btp == nil && depth > ct.Level() {
 		return nil, fmt.Errorf("cannot GoldschmidtDivisionNew: ct.Level()=%d < depth=%d and rlwe.Bootstrapper is nil", ct.Level(), depth)
@@ -63,7 +63,7 @@ func (eval *Evaluator) GoldschmidtDivisionNew(ct *rlwe.Ciphertext, minValue, log
 			return nil, err
 		}
 
-		if err = eval.Rescale(b, parameters.PlaintextScale(), b); err != nil {
+		if err = eval.Rescale(b, params.PlaintextScale(), b); err != nil {
 			return nil, err
 		}
 
@@ -79,7 +79,7 @@ func (eval *Evaluator) GoldschmidtDivisionNew(ct *rlwe.Ciphertext, minValue, log
 			return nil, err
 		}
 
-		if err = eval.Rescale(tmp, parameters.PlaintextScale(), tmp); err != nil {
+		if err = eval.Rescale(tmp, params.PlaintextScale(), tmp); err != nil {
 			return nil, err
 		}
 

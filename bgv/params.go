@@ -43,9 +43,9 @@ type ParametersLiteral struct {
 	T    uint64 // Plaintext modulus
 }
 
-// RLWEParametersLiteral returns the rlwe.ParametersLiteral from the target bgv.ParametersLiteral.
+// GetRLWEParametersLiteral returns the rlwe.ParametersLiteral from the target bgv.ParametersLiteral.
 // See the ParametersLiteral type for details on the BGV parameters.
-func (p ParametersLiteral) RLWEParametersLiteral() rlwe.ParametersLiteral {
+func (p ParametersLiteral) GetRLWEParametersLiteral() rlwe.ParametersLiteral {
 	return rlwe.ParametersLiteral{
 		LogN:           p.LogN,
 		Q:              p.Q,
@@ -126,7 +126,7 @@ func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err erro
 // See `rlwe.NewParametersFromLiteral` for default values of the optional fields and other details on the BGV
 // parameters.
 func NewParametersFromLiteral(pl ParametersLiteral) (Parameters, error) {
-	rlweParams, err := rlwe.NewParametersFromLiteral(pl.RLWEParametersLiteral())
+	rlweParams, err := rlwe.NewParametersFromLiteral(pl.GetRLWEParametersLiteral())
 	if err != nil {
 		return Parameters{}, err
 	}
@@ -143,6 +143,11 @@ func (p Parameters) ParametersLiteral() ParametersLiteral {
 		Xs:   p.Xs(),
 		T:    p.T(),
 	}
+}
+
+// GetRLWEParameters returns a pointer to the underlying RLWE parameters.
+func (p Parameters) GetRLWEParameters() *rlwe.Parameters {
+	return &p.Parameters
 }
 
 // PlaintextDimensions returns the maximum dimension of the matrix that can be SIMD packed in a single plaintext polynomial.
@@ -241,7 +246,7 @@ func (p Parameters) GaloisElementForRowRotation() uint64 {
 }
 
 // Equal compares two sets of parameters for equality.
-func (p Parameters) Equal(other rlwe.ParametersInterface) bool {
+func (p Parameters) Equal(other rlwe.GetRLWEParameters) bool {
 	switch other := other.(type) {
 	case Parameters:
 		return p.Parameters.Equal(other.Parameters) && (p.T() == other.T())

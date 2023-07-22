@@ -72,7 +72,7 @@ func (eval Evaluator) Polynomial(input interface{}, p interface{}, InvariantTens
 		}
 	}
 
-	PS := polyVec.GetPatersonStockmeyerPolynomial(eval.Parameters(), powerbasis.Value[1].Level(), powerbasis.Value[1].Scale, targetScale, &dummyEvaluator{eval.Parameters().(Parameters), InvariantTensoring})
+	PS := polyVec.GetPatersonStockmeyerPolynomial(*eval.GetParameters(), powerbasis.Value[1].Level(), powerbasis.Value[1].Scale, targetScale, &dummyEvaluator{*eval.GetParameters(), InvariantTensoring})
 
 	if opOut, err = hebase.EvaluatePatersonStockmeyerPolynomialVector(PS, powerbasis, polyEval); err != nil {
 		return nil, err
@@ -170,10 +170,6 @@ type PolynomialEvaluator struct {
 	InvariantTensoring bool
 }
 
-func (polyEval PolynomialEvaluator) Parameters() rlwe.ParametersInterface {
-	return polyEval.Evaluator.Parameters()
-}
-
 func (polyEval PolynomialEvaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
 	if !polyEval.InvariantTensoring {
 		return polyEval.Evaluator.Mul(op0, op1, opOut)
@@ -217,7 +213,7 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 
 	X := pb.Value
 
-	params := polyEval.Evaluator.Parameters().(Parameters)
+	params := *polyEval.Evaluator.GetParameters()
 	slotsIndex := pol.SlotsIndex
 	slots := params.RingT().N()
 	even := pol.IsEven()

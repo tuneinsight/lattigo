@@ -112,7 +112,7 @@ func (d *HomomorphicDFTMatrixLiteral) UnmarshalBinary(data []byte) error {
 // NewHomomorphicDFTMatrixFromLiteral generates the factorized DFT/IDFT matrices for the homomorphic encoding/decoding.
 func NewHomomorphicDFTMatrixFromLiteral(d HomomorphicDFTMatrixLiteral, encoder *Encoder) (HomomorphicDFTMatrix, error) {
 
-	params := encoder.Parameters()
+	params := encoder.parameters
 
 	logSlots := d.LogSlots
 	logdSlots := logSlots
@@ -174,10 +174,10 @@ func NewHomomorphicDFTMatrixFromLiteral(d HomomorphicDFTMatrixLiteral, encoder *
 // If the packing is sparse (n < N/2), then returns ctReal = Ecd(vReal || vImag) and ctImag = nil.
 // If the packing is dense (n == N/2), then returns ctReal = Ecd(vReal) and ctImag = Ecd(vImag).
 func (eval Evaluator) CoeffsToSlotsNew(ctIn *rlwe.Ciphertext, ctsMatrices HomomorphicDFTMatrix) (ctReal, ctImag *rlwe.Ciphertext, err error) {
-	ctReal = NewCiphertext(eval.Parameters(), 1, ctsMatrices.LevelStart)
+	ctReal = NewCiphertext(eval.Encoder.parameters, 1, ctsMatrices.LevelStart)
 
-	if ctsMatrices.LogSlots == eval.Parameters().PlaintextLogSlots() {
-		ctImag = NewCiphertext(eval.Parameters(), 1, ctsMatrices.LevelStart)
+	if ctsMatrices.LogSlots == eval.Encoder.parameters.PlaintextLogSlots() {
+		ctImag = NewCiphertext(eval.Encoder.parameters, 1, ctsMatrices.LevelStart)
 	}
 
 	return ctReal, ctImag, eval.CoeffsToSlots(ctIn, ctsMatrices, ctReal, ctImag)
@@ -229,7 +229,7 @@ func (eval Evaluator) CoeffsToSlots(ctIn *rlwe.Ciphertext, ctsMatrices Homomorph
 		}
 
 		// If repacking, then ct0 and ct1 right n/2 slots are zero.
-		if ctsMatrices.LogSlots < eval.Parameters().PlaintextLogSlots() {
+		if ctsMatrices.LogSlots < eval.GetParameters().PlaintextLogSlots() {
 			if err = eval.Rotate(tmp, 1<<ctIn.LogDimensions.Cols, tmp); err != nil {
 				return fmt.Errorf("cannot CoeffsToSlots: %w", err)
 			}
@@ -260,7 +260,7 @@ func (eval Evaluator) SlotsToCoeffsNew(ctReal, ctImag *rlwe.Ciphertext, stcMatri
 		return nil, fmt.Errorf("ctReal.Level() or ctImag.Level() < HomomorphicDFTMatrix.LevelStart")
 	}
 
-	opOut = NewCiphertext(eval.Parameters(), 1, stcMatrices.LevelStart)
+	opOut = NewCiphertext(eval.Encoder.parameters, 1, stcMatrices.LevelStart)
 	return opOut, eval.SlotsToCoeffs(ctReal, ctImag, stcMatrices, opOut)
 
 }

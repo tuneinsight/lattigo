@@ -62,11 +62,12 @@ func NewEvaluationKeyGenProtocol(params rlwe.Parameters) (evkg EvaluationKeyGenP
 	}
 }
 
-func getEVKParams(params rlwe.ParametersInterface, evkParams []rlwe.EvaluationKeyParameters) (evkParamsCpy rlwe.EvaluationKeyParameters) {
+func getEVKParams(params rlwe.GetRLWEParameters, evkParams []rlwe.EvaluationKeyParameters) (evkParamsCpy rlwe.EvaluationKeyParameters) {
 	if len(evkParams) != 0 {
 		evkParamsCpy = evkParams[0]
 	} else {
-		evkParamsCpy = rlwe.EvaluationKeyParameters{LevelQ: params.MaxLevelQ(), LevelP: params.MaxLevelP(), BaseTwoDecomposition: 0}
+		p := params.GetRLWEParameters()
+		evkParamsCpy = rlwe.EvaluationKeyParameters{LevelQ: p.MaxLevelQ(), LevelP: p.MaxLevelP(), BaseTwoDecomposition: 0}
 	}
 	return
 }

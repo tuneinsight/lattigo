@@ -281,7 +281,7 @@ func (eval Evaluator) EvalModNew(ct *rlwe.Ciphertext, evalModPoly EvalModPoly) (
 	// formula such that after it it has the scale it had before the polynomial
 	// evaluation
 
-	Qi := eval.Parameters().Q()
+	Qi := eval.GetParameters().Q()
 
 	targetScale := ct.Scale
 	for i := 0; i < evalModPoly.doubleAngle; i++ {

@@ -11,18 +11,14 @@ import (
 // Evaluator is a struct that holds the necessary elements to execute general homomorphic
 // operation on RLWE ciphertexts, such as automorphisms, key-switching and relinearization.
 type Evaluator struct {
+	params Parameters
 	EvaluationKeySet
-	*evaluatorBase
 	*evaluatorBuffers
 
 	AutomorphismIndex map[uint64][]uint64
 
 	BasisExtender *ring.BasisExtender
 	Decomposer    *ring.Decomposer
-}
-
-type evaluatorBase struct {
-	params ParametersInterface
 }
 
 type evaluatorBuffers struct {
@@ -35,13 +31,7 @@ type evaluatorBuffers struct {
 	BuffBitDecomp []uint64
 }
 
-func newEvaluatorBase(params ParametersInterface) *evaluatorBase {
-	return &evaluatorBase{
-		params: params,
-	}
-}
-
-func newEvaluatorBuffers(params ParametersInterface) *evaluatorBuffers {
+func newEvaluatorBuffers(params Parameters) *evaluatorBuffers {
 
 	buff := new(evaluatorBuffers)
 	decompRNS := params.DecompRNS(params.MaxLevelQ(), 0)
@@ -71,14 +61,15 @@ func newEvaluatorBuffers(params ParametersInterface) *evaluatorBuffers {
 }
 
 // NewEvaluator creates a new Evaluator.
-func NewEvaluator(params ParametersInterface, evk EvaluationKeySet) (eval *Evaluator) {
+func NewEvaluator(params GetRLWEParameters, evk EvaluationKeySet) (eval *Evaluator) {
 	eval = new(Evaluator)
-	eval.evaluatorBase = newEvaluatorBase(params)
-	eval.evaluatorBuffers = newEvaluatorBuffers(params)
+	p := params.GetRLWEParameters()
+	eval.params = *p
+	eval.evaluatorBuffers = newEvaluatorBuffers(eval.params)
 
-	if params.RingP() != nil {
-		eval.BasisExtender = ring.NewBasisExtender(params.RingQ(), params.RingP())
-		eval.Decomposer = ring.NewDecomposer(params.RingQ(), params.RingP())
+	if p.RingP() != nil {
+		eval.BasisExtender = ring.NewBasisExtender(p.RingQ(), p.RingP())
+		eval.Decomposer = ring.NewDecomposer(p.RingQ(), p.RingP())
 	}
 
 	eval.EvaluationKeySet = evk
@@ -89,8 +80,8 @@ func NewEvaluator(params ParametersInterface, evk EvaluationKeySet) (eval *Evalu
 		if galEls := evk.GetGaloisKeysList(); len(galEls) != 0 {
 			AutomorphismIndex = make(map[uint64][]uint64)
 
-			N := params.N()
-			NthRoot := params.RingQ().NthRoot()
+			N := p.N()
+			NthRoot := p.RingQ().NthRoot()
 
 			var err error
 			for _, galEl := range galEls {
@@ -106,9 +97,8 @@ func NewEvaluator(params ParametersInterface, evk EvaluationKeySet) (eval *Evalu
 	return
 }
 
-// Parameters returns the parameters used to instantiate the target evaluator.
-func (eval Evaluator) Parameters() ParametersInterface {
-	return eval.params
+func (eval Evaluator) GetRLWEParameters() *Parameters {
+	return &eval.params
 }
 
 // CheckAndGetGaloisKey returns an error if the GaloisKey for the given Galois element is missing or the EvaluationKey interface is nil.
@@ -246,7 +236,7 @@ func (eval Evaluator) InitOutputUnaryOp(op0, opOut *Operand[ring.Poly]) (degree,
 // Evaluators can be used concurrently.
 func (eval Evaluator) ShallowCopy() *Evaluator {
 	return &Evaluator{
-		evaluatorBase:     eval.evaluatorBase,
+		params:            eval.params,
 		Decomposer:        eval.Decomposer,
 		BasisExtender:     eval.BasisExtender.ShallowCopy(),
 		evaluatorBuffers:  newEvaluatorBuffers(eval.params),
@@ -276,7 +266,7 @@ func (eval Evaluator) WithKey(evk EvaluationKeySet) *Evaluator {
 	}
 
 	return &Evaluator{
-		evaluatorBase:     eval.evaluatorBase,
+		params:            eval.params,
 		evaluatorBuffers:  eval.evaluatorBuffers,
 		Decomposer:        eval.Decomposer,
 		BasisExtender:     eval.BasisExtender,

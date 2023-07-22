@@ -108,15 +108,15 @@ func NewEvaluator(parameters Parameters, evk rlwe.EvaluationKeySet) *Evaluator {
 	ev := new(Evaluator)
 	ev.evaluatorBase = newEvaluatorPrecomp(parameters)
 	ev.evaluatorBuffers = newEvaluatorBuffer(parameters)
-	ev.Evaluator = hebase.NewEvaluator(parameters, evk)
+	ev.Evaluator = hebase.NewEvaluator(parameters.Parameters, evk)
 	ev.Encoder = NewEncoder(parameters)
 
 	return ev
 }
 
-// Parameters returns the Parameters of the underlying struct as an rlwe.ParametersInterface.
-func (eval Evaluator) Parameters() rlwe.ParametersInterface {
-	return eval.parameters
+// GetParameters returns a pointer to the underlying bgv.Parameters.
+func (eval Evaluator) GetParameters() *Parameters {
+	return &eval.Encoder.parameters
 }
 
 // ShallowCopy creates a shallow copy of this Evaluator in which the read-only data-structures are
@@ -125,7 +125,7 @@ func (eval Evaluator) ShallowCopy() *Evaluator {
 	return &Evaluator{
 		evaluatorBase:    eval.evaluatorBase,
 		Evaluator:        eval.Evaluator.ShallowCopy(),
-		evaluatorBuffers: newEvaluatorBuffer(eval.Parameters().(Parameters)),
+		evaluatorBuffers: newEvaluatorBuffer(*eval.GetParameters()),
 		Encoder:          eval.Encoder.ShallowCopy(),
 	}
 }
@@ -276,7 +276,7 @@ func (eval Evaluator) matchScaleThenEvaluateInPlace(level int, el0 *rlwe.Ciphert
 }
 
 func (eval Evaluator) newCiphertextBinary(op0, op1 rlwe.OperandInterface[ring.Poly]) (opOut *rlwe.Ciphertext) {
-	return NewCiphertext(eval.parameters, utils.Max(op0.Degree(), op1.Degree()), utils.Min(op0.Level(), op1.Level()))
+	return NewCiphertext(*eval.GetParameters(), utils.Max(op0.Degree(), op1.Degree()), utils.Min(op0.Level(), op1.Level()))
 }
 
 // AddNew adds op1 to op0 and returns the result on a new *rlwe.Ciphertext opOut.

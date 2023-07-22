@@ -43,8 +43,8 @@ type ParametersLiteral struct {
 	LogPlaintextScale int
 }
 
-// RLWEParametersLiteral returns the rlwe.ParametersLiteral from the target ckks.ParameterLiteral.
-func (p ParametersLiteral) RLWEParametersLiteral() rlwe.ParametersLiteral {
+// GetRLWEParametersLiteral returns the rlwe.ParametersLiteral from the target ckks.ParameterLiteral.
+func (p ParametersLiteral) GetRLWEParametersLiteral() rlwe.ParametersLiteral {
 	return rlwe.ParametersLiteral{
 		LogN:           p.LogN,
 		Q:              p.Q,
@@ -88,7 +88,7 @@ func NewParameters(rlweParams rlwe.Parameters) (p Parameters, err error) {
 //
 // See `rlwe.NewParametersFromLiteral` for default values of the other optional fields.
 func NewParametersFromLiteral(pl ParametersLiteral) (Parameters, error) {
-	rlweParams, err := rlwe.NewParametersFromLiteral(pl.RLWEParametersLiteral())
+	rlweParams, err := rlwe.NewParametersFromLiteral(pl.GetRLWEParametersLiteral())
 	if err != nil {
 		return Parameters{}, err
 	}
@@ -119,6 +119,11 @@ func (p Parameters) ParametersLiteral() (pLit ParametersLiteral) {
 		RingType:          p.RingType(),
 		LogPlaintextScale: p.LogPlaintextScale(),
 	}
+}
+
+// GetRLWEParameters returns a pointer to the underlying RLWE parameters.
+func (p Parameters) GetRLWEParameters() *rlwe.Parameters {
+	return &p.Parameters
 }
 
 // MaxLevel returns the maximum ciphertext level
@@ -228,7 +233,7 @@ func (p Parameters) GaloisElementForComplexConjugation() uint64 {
 }
 
 // Equal compares two sets of parameters for equality.
-func (p Parameters) Equal(other rlwe.ParametersInterface) bool {
+func (p Parameters) Equal(other rlwe.GetRLWEParameters) bool {
 	switch other := other.(type) {
 	case Parameters:
 		return p.Parameters.Equal(other.Parameters)

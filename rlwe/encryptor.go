@@ -17,8 +17,11 @@ type EncryptionKey interface {
 }
 
 // NewEncryptor creates a new Encryptor from either a public key or a private key.
-func NewEncryptor(params ParametersInterface, key EncryptionKey) (*Encryptor, error) {
-	enc := newEncryptor(params)
+func NewEncryptor(params GetRLWEParameters, key EncryptionKey) (*Encryptor, error) {
+
+	p := *params.GetRLWEParameters()
+
+	enc := newEncryptor(p)
 	var err error
 	switch key := key.(type) {
 	case *PublicKey:
@@ -26,7 +29,7 @@ func NewEncryptor(params ParametersInterface, key EncryptionKey) (*Encryptor, er
 	case *SecretKey:
 		err = enc.checkSk(key)
 	case nil:
-		return newEncryptor(params), nil
+		return newEncryptor(p), nil
 	default:
 		return nil, fmt.Errorf("key must be either *rlwe.PublicKey, *rlwe.SecretKey or nil but have %T", key)
 	}
@@ -38,7 +41,7 @@ func NewEncryptor(params ParametersInterface, key EncryptionKey) (*Encryptor, er
 }
 
 type Encryptor struct {
-	params ParametersInterface
+	params Parameters
 	*encryptorBuffers
 
 	encKey         EncryptionKey
@@ -49,7 +52,7 @@ type Encryptor struct {
 	uniformSampler ringqp.UniformSampler
 }
 
-func newEncryptor(params ParametersInterface) *Encryptor {
+func newEncryptor(params Parameters) *Encryptor {
 
 	prng, err := sampling.NewPRNG()
 	if err != nil {
@@ -90,7 +93,7 @@ type encryptorBuffers struct {
 	buffQP ringqp.Poly
 }
 
-func newEncryptorBuffers(params ParametersInterface) *encryptorBuffers {
+func newEncryptorBuffers(params Parameters) *encryptorBuffers {
 
 	ringQ := params.RingQ()
 	ringP := params.RingP()

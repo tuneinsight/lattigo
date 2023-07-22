@@ -40,7 +40,7 @@ func (eval Evaluator) Trace(ctIn *rlwe.Ciphertext, logN int, opOut *rlwe.Ciphert
 		return fmt.Errorf("ctIn.Degree() != 1 or opOut.Degree() != 1")
 	}
 
-	params := eval.Parameters()
+	params := eval.GetRLWEParameters()
 
 	level := utils.Min(ctIn.Level(), opOut.Level())
 
@@ -132,7 +132,7 @@ func (eval Evaluator) Expand(ctIn *rlwe.Ciphertext, logN, logGap int) (opOut []*
 		return nil, fmt.Errorf("cannot Expand: ctIn.Degree() != 1")
 	}
 
-	params := eval.Parameters()
+	params := eval.GetRLWEParameters()
 
 	if params.RingType() != ring.Standard {
 		return nil, fmt.Errorf("cannot Expand: method is only supported for ring.Type = ring.Standard (X^{-2^{i}} does not exist in the sub-ring Z[X + X^{-1}])")
@@ -262,7 +262,7 @@ func (eval Evaluator) Expand(ctIn *rlwe.Ciphertext, logN, logGap int) (opOut []*
 //	         map[0]: 2^{-1} * (map[0] + X^1 * map[1] + phi_{5^4}(map[0] - X^1 * map[1]) = [x00, x10, x20, x30, x01, x11, x21, x22]
 func (eval Evaluator) Pack(cts map[int]*rlwe.Ciphertext, inputLogGap int, zeroGarbageSlots bool) (ct *rlwe.Ciphertext, err error) {
 
-	params := eval.Parameters()
+	params := eval.GetRLWEParameters()
 
 	if params.RingType() != ring.Standard {
 		return nil, fmt.Errorf("cannot Pack: procedure is only supported for ring.Type = ring.Standard (X^{2^{i}} does not exist in the sub-ring Z[X + X^{-1}])")
@@ -373,7 +373,7 @@ func (eval Evaluator) Pack(cts map[int]*rlwe.Ciphertext, inputLogGap int, zeroGa
 				if i == 0 {
 					galEl = ringQ.NthRoot() - 1
 				} else {
-					galEl = eval.Parameters().GaloisElement(1 << (i - 1))
+					galEl = params.GaloisElement(1 << (i - 1))
 				}
 
 				if b != nil {

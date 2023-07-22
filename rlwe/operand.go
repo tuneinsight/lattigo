@@ -25,8 +25,11 @@ type Operand[T ring.Poly | ringqp.Poly] struct {
 	Value structs.Vector[T]
 }
 
-func NewOperandQ(params ParametersInterface, degree, levelQ int) *Operand[ring.Poly] {
-	ringQ := params.RingQ().AtLevel(levelQ)
+// NewOperandQ allocates a new Operand[ring.Poly].
+func NewOperandQ(params GetRLWEParameters, degree, levelQ int) *Operand[ring.Poly] {
+	p := params.GetRLWEParameters()
+
+	ringQ := p.RingQ().AtLevel(levelQ)
 
 	Value := make([]ring.Poly, degree+1)
 	for i := range Value {
@@ -37,14 +40,18 @@ func NewOperandQ(params ParametersInterface, degree, levelQ int) *Operand[ring.P
 		Value: Value,
 		MetaData: &MetaData{
 			CiphertextMetaData: CiphertextMetaData{
-				IsNTT: params.NTTFlag(),
+				IsNTT: p.NTTFlag(),
 			},
 		},
 	}
 }
 
-func NewOperandQP(params ParametersInterface, degree, levelQ, levelP int) *Operand[ringqp.Poly] {
-	ringQP := params.RingQP().AtLevel(levelQ, levelP)
+// NewOperandQP allocates a new Operand[ringqp.Poly].
+func NewOperandQP(params GetRLWEParameters, degree, levelQ, levelP int) *Operand[ringqp.Poly] {
+
+	p := params.GetRLWEParameters()
+
+	ringQP := p.RingQP().AtLevel(levelQ, levelP)
 
 	Value := make([]ringqp.Poly, degree+1)
 	for i := range Value {
@@ -55,7 +62,7 @@ func NewOperandQP(params ParametersInterface, degree, levelQ, levelP int) *Opera
 		Value: Value,
 		MetaData: &MetaData{
 			CiphertextMetaData: CiphertextMetaData{
-				IsNTT: params.NTTFlag(),
+				IsNTT: p.NTTFlag(),
 			},
 		},
 	}
@@ -194,8 +201,8 @@ func GetSmallestLargest[T ring.Poly | ringqp.Poly](el0, el1 *Operand[T]) (smalle
 }
 
 // PopulateElementRandom creates a new rlwe.Element with random coefficients.
-func PopulateElementRandom(prng sampling.PRNG, params ParametersInterface, ct *Operand[ring.Poly]) {
-	sampler := ring.NewUniformSampler(prng, params.RingQ()).AtLevel(ct.Level())
+func PopulateElementRandom(prng sampling.PRNG, params GetRLWEParameters, ct *Operand[ring.Poly]) {
+	sampler := ring.NewUniformSampler(prng, params.GetRLWEParameters().RingQ()).AtLevel(ct.Level())
 	for i := range ct.Value {
 		sampler.Read(ct.Value[i])
 	}

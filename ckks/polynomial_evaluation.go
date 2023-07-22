@@ -49,7 +49,7 @@ func (eval Evaluator) Polynomial(input interface{}, p interface{}, targetScale r
 		return nil, fmt.Errorf("cannot evaluatePolyVector: invalid input, must be either *rlwe.Ciphertext or *hebase.PowerBasis")
 	}
 
-	params := eval.parameters
+	params := eval.GetParameters()
 
 	nbModuliPerRescale := params.PlaintextScaleToModuliRatio()
 
@@ -80,7 +80,7 @@ func (eval Evaluator) Polynomial(input interface{}, p interface{}, targetScale r
 		}
 	}
 
-	PS := polyVec.GetPatersonStockmeyerPolynomial(params.Parameters, powerbasis.Value[1].Level(), powerbasis.Value[1].Scale, targetScale, &dummyEvaluator{params, nbModuliPerRescale})
+	PS := polyVec.GetPatersonStockmeyerPolynomial(params.Parameters, powerbasis.Value[1].Level(), powerbasis.Value[1].Scale, targetScale, &dummyEvaluator{*params, nbModuliPerRescale})
 
 	if opOut, err = hebase.EvaluatePatersonStockmeyerPolynomialVector(PS, powerbasis, polyEval); err != nil {
 		return nil, err
@@ -157,7 +157,7 @@ func (d dummyEvaluator) GetPolynmialDepth(degree int) int {
 }
 
 func (polyEval PolynomialEvaluator) Rescale(op0, op1 *rlwe.Ciphertext) (err error) {
-	return polyEval.Evaluator.Rescale(op0, polyEval.Evaluator.parameters.PlaintextScale(), op1)
+	return polyEval.Evaluator.Rescale(op0, polyEval.GetParameters().PlaintextScale(), op1)
 }
 
 func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol hebase.PolynomialVector, pb hebase.PowerBasis, targetScale rlwe.Scale) (res *rlwe.Ciphertext, err error) {
@@ -169,7 +169,7 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 	logSlots := X[1].LogDimensions
 	slots := 1 << logSlots.Cols
 
-	params := polyEval.Evaluator.parameters
+	params := polyEval.Evaluator.Encoder.parameters
 	slotsIndex := pol.SlotsIndex
 	even := pol.IsEven()
 	odd := pol.IsOdd()
@@ -223,7 +223,7 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 				pt := &rlwe.Plaintext{}
 				pt.Value = res.Value[0]
 				pt.MetaData = res.MetaData
-				if err = polyEval.Evaluator.Encode(values, pt); err != nil {
+				if err = polyEval.Evaluator.Encoder.Encode(values, pt); err != nil {
 					return nil, err
 				}
 			}

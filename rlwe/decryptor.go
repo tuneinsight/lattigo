@@ -9,23 +9,25 @@ import (
 
 // Decryptor is a structure used to decrypt Ciphertext. It stores the secret-key.
 type Decryptor struct {
-	params ParametersInterface
+	params Parameters
 	ringQ  *ring.Ring
 	buff   ring.Poly
 	sk     *SecretKey
 }
 
 // NewDecryptor instantiates a new generic RLWE Decryptor.
-func NewDecryptor(params ParametersInterface, sk *SecretKey) (*Decryptor, error) {
+func NewDecryptor(params GetRLWEParameters, sk *SecretKey) (*Decryptor, error) {
 
-	if sk.Value.Q.N() != params.N() {
+	p := params.GetRLWEParameters()
+
+	if sk.Value.Q.N() != p.N() {
 		return nil, fmt.Errorf("cannot NewDecryptor: secret_key ring degree does not match parameters ring degree")
 	}
 
 	return &Decryptor{
-		params: params,
-		ringQ:  params.RingQ(),
-		buff:   params.RingQ().NewPoly(),
+		params: *p,
+		ringQ:  p.RingQ(),
+		buff:   p.RingQ().NewPoly(),
 		sk:     sk,
 	}, nil
 }

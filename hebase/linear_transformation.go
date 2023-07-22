@@ -153,25 +153,26 @@ type LinearTransformation struct {
 }
 
 // GaloisElements returns the list of Galois elements needed for the evaluation of the linear transformation.
-func (LT LinearTransformation) GaloisElements(params rlwe.ParametersInterface) (galEls []uint64) {
+func (LT LinearTransformation) GaloisElements(params rlwe.GetRLWEParameters) (galEls []uint64) {
 	return galoisElementsForLinearTransformation(params, utils.GetKeys(LT.Vec), LT.LogDimensions.Cols, LT.LogBSGSRatio)
 }
 
 // GaloisElementsForLinearTransformation returns the list of Galois elements required to evaluate the linear transformation.
-func GaloisElementsForLinearTransformation[T any](params rlwe.ParametersInterface, lt LinearTranfromationParameters[T]) (galEls []uint64) {
+func GaloisElementsForLinearTransformation[T any](params rlwe.GetRLWEParameters, lt LinearTranfromationParameters[T]) (galEls []uint64) {
 	return galoisElementsForLinearTransformation(params, lt.GetDiagonalsList(), 1<<lt.GetLogDimensions().Cols, lt.GetLogBabyStepGianStepRatio())
 }
 
-func galoisElementsForLinearTransformation(params rlwe.ParametersInterface, diags []int, slots, logbsgs int) (galEls []uint64) {
+func galoisElementsForLinearTransformation(params rlwe.GetRLWEParameters, diags []int, slots, logbsgs int) (galEls []uint64) {
+
+	p := params.GetRLWEParameters()
 
 	if logbsgs < 0 {
 
 		_, _, rotN2 := BSGSIndex(diags, slots, slots)
 
 		galEls = make([]uint64, len(rotN2))
-
 		for i := range rotN2 {
-			galEls[i] = params.GaloisElement(rotN2[i])
+			galEls[i] = p.GaloisElement(rotN2[i])
 		}
 
 		return
@@ -181,17 +182,20 @@ func galoisElementsForLinearTransformation(params rlwe.ParametersInterface, diag
 
 	_, rotN1, rotN2 := BSGSIndex(diags, slots, N1)
 
-	return params.GaloisElements(utils.GetDistincts(append(rotN1, rotN2...)))
+	return p.GaloisElements(utils.GetDistincts(append(rotN1, rotN2...)))
 }
 
 // NewLinearTransformation allocates a new LinearTransformation with zero values according to the parameters specified by the LinearTranfromationParameters.
-func NewLinearTransformation[T any](params rlwe.ParametersInterface, lt LinearTranfromationParameters[T]) LinearTransformation {
+func NewLinearTransformation[T any](params rlwe.GetRLWEParameters, lt LinearTranfromationParameters[T]) LinearTransformation {
+
+	p := params.GetRLWEParameters()
+
 	vec := make(map[int]ringqp.Poly)
 	cols := 1 << lt.GetLogDimensions().Cols
 	logBSGS := lt.GetLogBabyStepGianStepRatio()
 	levelQ := lt.GetLevel()
-	levelP := params.MaxLevelP()
-	ringQP := params.RingQP().AtLevel(levelQ, levelP)
+	levelP := p.MaxLevelP()
+	ringQP := p.RingQP().AtLevel(levelQ, levelP)
 
 	diagslislt := lt.GetDiagonalsList()
 
@@ -334,7 +338,7 @@ func rotateAndEncodeDiagonal[T any](v []T, encoder EncoderInterface[T, ringqp.Po
 // In either case a list of Ciphertext is returned (the second case returning a list containing a single Ciphertext).
 func (eval Evaluator) LinearTransformationNew(ctIn *rlwe.Ciphertext, linearTransformation interface{}) (opOut []*rlwe.Ciphertext, err error) {
 
-	params := eval.Parameters()
+	params := eval.GetRLWEParameters()
 
 	switch LTs := linearTransformation.(type) {
 	case []LinearTransformation:
@@ -387,7 +391,7 @@ func (eval Evaluator) LinearTransformationNew(ctIn *rlwe.Ciphertext, linearTrans
 // In either case a list of Ciphertext is returned (the second case returning a list containing a single Ciphertext).
 func (eval Evaluator) LinearTransformation(ctIn *rlwe.Ciphertext, linearTransformation interface{}, opOut []*rlwe.Ciphertext) (err error) {
 
-	params := eval.Parameters()
+	params := eval.GetRLWEParameters()
 
 	switch LTs := linearTransformation.(type) {
 	case []LinearTransformation:
@@ -437,7 +441,7 @@ func (eval Evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix LinearT
 	*opOut.MetaData = *ctIn.MetaData
 	opOut.Scale = opOut.Scale.Mul(matrix.Scale)
 
-	params := eval.Parameters()
+	params := eval.GetRLWEParameters()
 
 	levelQ := utils.Min(opOut.Level(), utils.Min(ctIn.Level(), matrix.Level))
 	levelP := params.RingP().MaxLevel()
@@ -549,7 +553,7 @@ func (eval Evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix LinearT
 // for matrix with more than a few non-zero diagonals and uses significantly less keys.
 func (eval Evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix LinearTransformation, BuffDecompQP []ringqp.Poly, opOut *rlwe.Ciphertext) (err error) {
 
-	params := eval.Parameters()
+	params := eval.GetRLWEParameters()
 
 	*opOut.MetaData = *ctIn.MetaData
 	opOut.Scale = opOut.Scale.Mul(matrix.Scale)
@@ -579,7 +583,7 @@ func (eval Evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Lin
 	for _, i := range rotN2 {
 		if i != 0 {
 			ctInRotQP[i] = rlwe.NewOperandQP(params, 1, levelQ, levelP)
-			if err = eval.AutomorphismHoistedLazy(levelQ, ctIn, BuffDecompQP, eval.Parameters().GaloisElement(i), ctInRotQP[i]); err != nil {
+			if err = eval.AutomorphismHoistedLazy(levelQ, ctIn, BuffDecompQP, params.GaloisElement(i), ctInRotQP[i]); err != nil {
 				return
 			}
 		}

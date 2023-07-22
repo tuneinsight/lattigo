@@ -18,8 +18,8 @@ type SecretKey struct {
 }
 
 // NewSecretKey generates a new SecretKey with zero values.
-func NewSecretKey(params ParametersInterface) *SecretKey {
-	return &SecretKey{Value: params.RingQP().NewPoly()}
+func NewSecretKey(params GetRLWEParameters) *SecretKey {
+	return &SecretKey{Value: params.GetRLWEParameters().RingQP().NewPoly()}
 }
 
 func (sk SecretKey) Equal(other *SecretKey) bool {
@@ -93,8 +93,8 @@ func (sk *SecretKey) isEncryptionKey() {}
 type vectorQP []ringqp.Poly
 
 // NewPublicKey returns a new PublicKey with zero values.
-func newVectorQP(params ParametersInterface, size, levelQ, levelP int) (v vectorQP) {
-	rqp := params.RingQP().AtLevel(levelQ, levelP)
+func newVectorQP(params GetRLWEParameters, size, levelQ, levelP int) (v vectorQP) {
+	rqp := params.GetRLWEParameters().RingQP().AtLevel(levelQ, levelP)
 
 	v = make(vectorQP, size)
 
@@ -197,8 +197,9 @@ type PublicKey struct {
 }
 
 // NewPublicKey returns a new PublicKey with zero values.
-func NewPublicKey(params ParametersInterface) (pk *PublicKey) {
-	return &PublicKey{Value: newVectorQP(params, 2, params.MaxLevelQ(), params.MaxLevelP())}
+func NewPublicKey(params GetRLWEParameters) (pk *PublicKey) {
+	p := params.GetRLWEParameters()
+	return &PublicKey{Value: newVectorQP(params, 2, p.MaxLevelQ(), p.MaxLevelP())}
 }
 
 func (p PublicKey) LevelQ() int {
@@ -287,17 +288,18 @@ type EvaluationKeyParameters struct {
 	BaseTwoDecomposition int
 }
 
-func getEVKParams(params ParametersInterface, evkParams []EvaluationKeyParameters) (evkParamsCpy []EvaluationKeyParameters) {
+func getEVKParams(params GetRLWEParameters, evkParams []EvaluationKeyParameters) (evkParamsCpy []EvaluationKeyParameters) {
 	if len(evkParams) != 0 {
 		evkParamsCpy = evkParams
 	} else {
-		evkParamsCpy = []EvaluationKeyParameters{{LevelQ: params.MaxLevelQ(), LevelP: params.MaxLevelP(), BaseTwoDecomposition: 0}}
+		p := params.GetRLWEParameters()
+		evkParamsCpy = []EvaluationKeyParameters{{LevelQ: p.MaxLevelQ(), LevelP: p.MaxLevelP(), BaseTwoDecomposition: 0}}
 	}
 	return
 }
 
 // NewEvaluationKey returns a new EvaluationKey with pre-allocated zero-value.
-func NewEvaluationKey(params ParametersInterface, evkParams ...EvaluationKeyParameters) *EvaluationKey {
+func NewEvaluationKey(params GetRLWEParameters, evkParams ...EvaluationKeyParameters) *EvaluationKey {
 	evkParamsCpy := getEVKParams(params, evkParams)[0]
 	return &EvaluationKey{GadgetCiphertext: *NewGadgetCiphertext(params, 1, evkParamsCpy.LevelQ, evkParamsCpy.LevelP, evkParamsCpy.BaseTwoDecomposition)}
 }
@@ -321,7 +323,7 @@ type RelinearizationKey struct {
 }
 
 // NewRelinearizationKey allocates a new RelinearizationKey with zero coefficients.
-func NewRelinearizationKey(params ParametersInterface, evkParams ...EvaluationKeyParameters) *RelinearizationKey {
+func NewRelinearizationKey(params GetRLWEParameters, evkParams ...EvaluationKeyParameters) *RelinearizationKey {
 	return &RelinearizationKey{EvaluationKey: *NewEvaluationKey(params, getEVKParams(params, evkParams)[0])}
 }
 
@@ -353,8 +355,8 @@ type GaloisKey struct {
 }
 
 // NewGaloisKey allocates a new GaloisKey with zero coefficients and GaloisElement set to zero.
-func NewGaloisKey(params ParametersInterface, evkParams ...EvaluationKeyParameters) *GaloisKey {
-	return &GaloisKey{EvaluationKey: *NewEvaluationKey(params, getEVKParams(params, evkParams)[0]), NthRoot: params.RingQ().NthRoot()}
+func NewGaloisKey(params GetRLWEParameters, evkParams ...EvaluationKeyParameters) *GaloisKey {
+	return &GaloisKey{EvaluationKey: *NewEvaluationKey(params, getEVKParams(params, evkParams)[0]), NthRoot: params.GetRLWEParameters().RingQ().NthRoot()}
 }
 
 // Equal returns true if the two objects are equal.

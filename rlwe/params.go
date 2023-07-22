@@ -32,6 +32,10 @@ const GaloisGen uint64 = ring.GaloisGen
 
 type DistributionLiteral interface{}
 
+type GetRLWEParameters interface {
+	GetRLWEParameters() *Parameters
+}
+
 // ParametersLiteral is a literal representation of RLWE parameters. It has public fields and
 // is used to express unchecked user-defined parameters literally into Go programs.
 // The NewParametersFromLiteral function is used to generate the actual checked parameters
@@ -244,6 +248,11 @@ func (p Parameters) ParametersLiteral() ParametersLiteral {
 	}
 }
 
+// GetRLWEParameters returns a pointer to the underlying RLWE parameters.
+func (p Parameters) GetRLWEParameters() *Parameters {
+	return &p
+}
+
 // NewScale creates a new scale using the stored default scale as template.
 func (p Parameters) NewScale(scale interface{}) Scale {
 	newScale := NewScale(scale)
@@ -259,32 +268,6 @@ func (p Parameters) N() int {
 // LogN returns the log of the degree of the polynomial ring
 func (p Parameters) LogN() int {
 	return p.logN
-}
-
-// PlaintextDimensions returns the dimensions of the matrix that can be SIMD packed in a single plaintext polynomial.
-// Returns [0, 0] by default.
-func (p Parameters) PlaintextDimensions() ring.Dimensions {
-	return ring.Dimensions{Rows: 0, Cols: 0}
-}
-
-// PlaintextLogDimensions returns the log dimensions of the matrix that can be SIMD packed in a single plaintext polynomial.
-// Returns [-1, -1] by default.
-func (p Parameters) PlaintextLogDimensions() ring.Dimensions {
-	return ring.Dimensions{Rows: -1, Cols: -1}
-}
-
-// PlaintextSlots returns the total number of entries (`slots`) that a plaintext can store.
-// This value is obtained by multiplying all dimensions from PlaintextDimensions.
-func (p Parameters) PlaintextSlots() int {
-	dims := p.PlaintextDimensions()
-	return dims.Rows * dims.Cols
-}
-
-// PlaintextLogSlots returns the total number of entries (`slots`) that a plaintext can store.
-// This value is obtained by summing all log dimensions from LogDimensions.
-func (p Parameters) PlaintextLogSlots() int {
-	dims := p.PlaintextLogDimensions()
-	return dims.Rows + dims.Cols
 }
 
 // PlaintextScale returns the default scaling factor of the plaintext, if any.
@@ -713,7 +696,7 @@ func (p Parameters) SolveDiscreteLogGaloisElement(galEl uint64) (k int) {
 }
 
 // Equal checks two Parameter structs for equality.
-func (p Parameters) Equal(other ParametersInterface) (res bool) {
+func (p Parameters) Equal(other GetRLWEParameters) (res bool) {
 
 	switch other := other.(type) {
 	case Parameters:

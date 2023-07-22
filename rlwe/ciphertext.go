@@ -14,11 +14,8 @@ type Ciphertext struct {
 
 // NewCiphertext returns a new Ciphertext with zero values and an associated
 // MetaData set to the Parameters default value.
-func NewCiphertext(params ParametersInterface, degree, level int) (ct *Ciphertext) {
+func NewCiphertext(params GetRLWEParameters, degree, level int) (ct *Ciphertext) {
 	op := *NewOperandQ(params, degree, level)
-	op.IsBatched = true
-	op.Scale = params.PlaintextScale()
-	op.LogDimensions = params.PlaintextLogDimensions()
 	return &Ciphertext{op}
 }
 
@@ -40,7 +37,7 @@ func NewCiphertextAtLevelFromPoly(level int, poly []ring.Poly) (*Ciphertext, err
 }
 
 // NewCiphertextRandom generates a new uniformly distributed Ciphertext of degree, level.
-func NewCiphertextRandom(prng sampling.PRNG, params ParametersInterface, degree, level int) (ciphertext *Ciphertext) {
+func NewCiphertextRandom(prng sampling.PRNG, params GetRLWEParameters, degree, level int) (ciphertext *Ciphertext) {
 	ciphertext = NewCiphertext(params, degree, level)
 	PopulateElementRandom(prng, params, ciphertext.El())
 	return

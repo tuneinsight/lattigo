@@ -156,7 +156,7 @@ func (eval *Evaluator) EvaluateAndRepack(ct *rlwe.Ciphertext, lutPolyWithSlotInd
 		ciphertexts[repackIndex[i]] = cts[i]
 	}
 
-	return eval.Pack(ciphertexts, eval.Parameters().LogN(), true)
+	return eval.Pack(ciphertexts, eval.paramsLUT.LogN(), true)
 }
 
 // Evaluate extracts on the fly LWE samples and evaluates the provided LUT on the LWE.

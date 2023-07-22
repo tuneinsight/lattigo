@@ -11,10 +11,12 @@ import (
 // It outputs in opOut a Ciphertext for which the "leftmost" sub-vector of each group is equal to the sum of the group.
 func (eval Evaluator) InnerSum(ctIn *rlwe.Ciphertext, batchSize, n int, opOut *rlwe.Ciphertext) (err error) {
 
-	levelQ := ctIn.Level()
-	levelP := eval.Parameters().PCount() - 1
+	params := eval.GetRLWEParameters()
 
-	ringQP := eval.Parameters().RingQP().AtLevel(ctIn.Level(), levelP)
+	levelQ := ctIn.Level()
+	levelP := params.PCount() - 1
+
+	ringQP := params.RingQP().AtLevel(ctIn.Level(), levelP)
 
 	ringQ := ringQP.RingQ
 
@@ -81,7 +83,7 @@ func (eval Evaluator) InnerSum(ctIn *rlwe.Ciphertext, batchSize, n int, opOut *r
 				// If the rotation is not zero
 				if k != 0 {
 
-					rot := eval.Parameters().GaloisElement(k)
+					rot := params.GaloisElement(k)
 
 					// opOutQP = opOutQP + Rotate(ctInNTT, k)
 					if copy {
@@ -121,7 +123,7 @@ func (eval Evaluator) InnerSum(ctIn *rlwe.Ciphertext, batchSize, n int, opOut *r
 
 			if !state {
 
-				rot := eval.Parameters().GaloisElement((1 << i) * batchSize)
+				rot := params.GaloisElement((1 << i) * batchSize)
 
 				// ctInNTT = ctInNTT + Rotate(ctInNTT, 2^i)
 				if err = eval.AutomorphismHoisted(levelQ, ctInNTT, eval.BuffDecompQP, rot, cQ); err != nil {

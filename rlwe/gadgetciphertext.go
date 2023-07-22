@@ -24,10 +24,12 @@ type GadgetCiphertext struct {
 // Ciphertext is always in the NTT domain.
 // A GadgetCiphertext is created by default at degree 1 with the the maximum levelQ and levelP and with no base 2 decomposition.
 // Give the optional GadgetCiphertextParameters struct to create a GadgetCiphertext with at a specific degree, levelQ, levelP and/or base 2 decomposition.
-func NewGadgetCiphertext(params ParametersInterface, Degree, LevelQ, LevelP, BaseTwoDecomposition int) *GadgetCiphertext {
+func NewGadgetCiphertext(params GetRLWEParameters, Degree, LevelQ, LevelP, BaseTwoDecomposition int) *GadgetCiphertext {
 
-	decompRNS := params.DecompRNS(LevelQ, LevelP)
-	decompPw2 := params.DecompPw2(LevelQ, LevelP, BaseTwoDecomposition)
+	p := params.GetRLWEParameters()
+
+	decompRNS := p.DecompRNS(LevelQ, LevelP)
+	decompPw2 := p.DecompPw2(LevelQ, LevelP, BaseTwoDecomposition)
 
 	m := make(structs.Matrix[vectorQP], decompRNS)
 	for i := 0; i < decompRNS; i++ {
